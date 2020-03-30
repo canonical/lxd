@@ -175,6 +175,33 @@ func (d *ceph) CreateVolume(vol Volume, filler *VolumeFiller, op *operations.Ope
 		if err != nil {
 			return err
 		}
+
+		if vol.contentType == ContentTypeBlock {
+			// Re-create the FS config volume's readonly snapshot now that the filler function has run and unpacked into both config and block volumes.
+			fsVol := NewVolume(d, d.name, vol.volType, ContentTypeFS, vol.name, vol.config, vol.poolConfig)
+
+			err := d.rbdUnprotectVolumeSnapshot(fsVol, "readonly")
+			if err != nil {
+				return err
+			}
+
+			_, err = d.deleteVolumeSnapshot(fsVol, "readonly")
+			if err != nil {
+				return err
+			}
+
+			err = d.rbdCreateVolumeSnapshot(fsVol, "readonly")
+			if err != nil {
+				return err
+			}
+
+			revert.Add(func() { d.deleteVolumeSnapshot(fsVol, "readonly") })
+
+			err = d.rbdProtectVolumeSnapshot(fsVol, "readonly")
+			if err != nil {
+				return err
+			}
+		}
 	}
 
 	revert.Success()
