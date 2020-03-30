@@ -665,3 +665,49 @@ func (d Xtables) iptablesClear(ipVersion uint, comment string, fromTables ...str
 
 	return nil
 }
+
+// InstanceSetupRPFilter activates reverse path filtering for the specified instance device on the host interface.
+func (d Xtables) InstanceSetupRPFilter(projectName string, instanceName string, deviceName string, hostName string) error {
+	comment := fmt.Sprintf("%s rpfilter", d.instanceDeviceIPTablesComment(projectName, instanceName, deviceName))
+	args := []string{
+		"-m", "rpfilter",
+		"--invert",
+		"-i", hostName,
+		"-j", "DROP",
+	}
+
+	// IPv4 filter.
+	err := d.iptablesPrepend(4, comment, "raw", "PREROUTING", args...)
+	if err != nil {
+		return err
+	}
+
+	// IPv6 filter.
+	err = d.iptablesPrepend(6, comment, "raw", "PREROUTING", args...)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// InstanceClearRPFilter removes reverse path filtering for the specified instance device on the host interface.
+func (d Xtables) InstanceClearRPFilter(projectName string, instanceName string, deviceName string) error {
+	comment := fmt.Sprintf("%s rpfilter", d.instanceDeviceIPTablesComment(projectName, instanceName, deviceName))
+	errs := []error{}
+	err := d.iptablesClear(4, comment, "raw")
+	if err != nil {
+		errs = append(errs, err)
+	}
+
+	err = d.iptablesClear(6, comment, "raw")
+	if err != nil {
+		errs = append(errs, err)
+	}
+
+	if len(errs) > 0 {
+		return fmt.Errorf("Failed to remove reverse path filter rules for %q: %v", deviceName, errs)
+	}
+
+	return nil
+}
