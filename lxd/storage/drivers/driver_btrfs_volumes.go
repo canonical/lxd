@@ -684,7 +684,7 @@ func (d *btrfs) BackupVolume(vol Volume, tarWriter *instancewriter.InstanceTarWr
 			return err
 		}
 
-		err = tarWriter.WriteFile(fileName, tmpFile.Name(), tmpFileInfo)
+		err = tarWriter.WriteFile(fileName, tmpFile.Name(), tmpFileInfo, false)
 		if err != nil {
 			return err
 		}

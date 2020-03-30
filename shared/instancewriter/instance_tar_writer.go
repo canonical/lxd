@@ -35,7 +35,10 @@ func (ctw *InstanceTarWriter) ResetHardLinkMap() {
 }
 
 // WriteFile adds a file to the tarball with the specified name using the srcPath file as the contents of the file.
-func (ctw *InstanceTarWriter) WriteFile(name string, srcPath string, fi os.FileInfo) error {
+// The ignoreGrowth argument indicates whether to error if the srcPath file increases in size beyond the size in fi
+// during the write. If false the write will return an error. If true, no error is returned, instead only the size
+// specified in fi is written to the tarball. This can be used when you don't need a consistent copy of the file.
+func (ctw *InstanceTarWriter) WriteFile(name string, srcPath string, fi os.FileInfo, ignoreGrowth bool) error {
 	var err error
 	var major, minor uint32
 	var nlink int
@@ -115,7 +118,12 @@ func (ctw *InstanceTarWriter) WriteFile(name string, srcPath string, fi os.FileI
 		}
 		defer f.Close()
 
-		_, err = io.Copy(ctw.tarWriter, f)
+		r := io.Reader(f)
+		if ignoreGrowth {
+			r = io.LimitReader(r, fi.Size())
+		}
+
+		_, err = io.Copy(ctw.tarWriter, r)
 		if err != nil {
 			return errors.Wrapf(err, "Failed to copy file content %q", srcPath)
 		}
