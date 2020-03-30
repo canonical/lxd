@@ -4592,7 +4592,7 @@ func (c *lxc) Export(w io.Writer, properties map[string]string) error {
 			return err
 		}
 
-		err = tarWriter.WriteFile(path[offset:], path, fi)
+		err = tarWriter.WriteFile(path[offset:], path, fi, false)
 		if err != nil {
 			logger.Debugf("Error tarring up %s: %s", path, err)
 			return err
@@ -4666,7 +4666,7 @@ func (c *lxc) Export(w io.Writer, properties map[string]string) error {
 		}
 
 		tmpOffset := len(path.Dir(fnam)) + 1
-		if err := tarWriter.WriteFile(fnam[tmpOffset:], fnam, fi); err != nil {
+		if err := tarWriter.WriteFile(fnam[tmpOffset:], fnam, fi, false); err != nil {
 			tarWriter.Close()
 			logger.Debugf("Error writing to tarfile: %s", err)
 			logger.Error("Failed exporting instance", ctxMap)
@@ -4728,9 +4728,9 @@ func (c *lxc) Export(w io.Writer, properties map[string]string) error {
 
 		if properties != nil {
 			tmpOffset := len(path.Dir(fnam)) + 1
-			err = tarWriter.WriteFile(fnam[tmpOffset:], fnam, fi)
+			err = tarWriter.WriteFile(fnam[tmpOffset:], fnam, fi, false)
 		} else {
-			err = tarWriter.WriteFile(fnam[offset:], fnam, fi)
+			err = tarWriter.WriteFile(fnam[offset:], fnam, fi, false)
 		}
 		if err != nil {
 			tarWriter.Close()
