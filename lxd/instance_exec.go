@@ -356,13 +356,13 @@ func containerExecPost(d *Daemon, r *http.Request) response.Response {
 
 	// Forward the request if the container is remote.
 	cert := d.endpoints.NetworkCert()
-	client, err := cluster.ConnectIfContainerIsRemote(d.cluster, project, name, cert, instanceType)
+	client, err := cluster.ConnectIfInstanceIsRemote(d.cluster, project, name, cert, instanceType)
 	if err != nil {
 		return response.SmartError(err)
 	}
 
 	if client != nil {
-		url := fmt.Sprintf("/containers/%s/exec?project=%s", name, project)
+		url := fmt.Sprintf("/instances/%s/exec?project=%s", name, project)
 		op, _, err := client.RawOperation("POST", url, post, "")
 		if err != nil {
 			return response.SmartError(err)
@@ -466,7 +466,10 @@ func containerExecPost(d *Daemon, r *http.Request) response.Response {
 		ws.req = post
 
 		resources := map[string][]string{}
-		resources["containers"] = []string{ws.instance.Name()}
+		if ws.instance.Type() == instancetype.Container {
+			resources["containers"] = []string{ws.instance.Name()}
+		}
+		resources["instances"] = []string{ws.instance.Name()}
 
 		op, err := operations.OperationCreate(d.State(), project, operations.OperationClassWebsocket, db.OperationCommandExec, resources, ws.Metadata(), ws.Do, nil, ws.Connect)
 		if err != nil {
@@ -507,8 +510,8 @@ func containerExecPost(d *Daemon, r *http.Request) response.Response {
 			// Update metadata with the right URLs
 			metadata["return"] = exitCode
 			metadata["output"] = shared.Jmap{
-				"1": fmt.Sprintf("/%s/containers/%s/logs/%s", version.APIVersion, inst.Name(), filepath.Base(stdout.Name())),
-				"2": fmt.Sprintf("/%s/containers/%s/logs/%s", version.APIVersion, inst.Name(), filepath.Base(stderr.Name())),
+				"1": fmt.Sprintf("/%s/instances/%s/logs/%s", version.APIVersion, inst.Name(), filepath.Base(stdout.Name())),
+				"2": fmt.Sprintf("/%s/instances/%s/logs/%s", version.APIVersion, inst.Name(), filepath.Base(stderr.Name())),
 			}
 		} else {
 			cmd, err := inst.Exec(post, nil, nil, nil)
@@ -533,7 +536,10 @@ func containerExecPost(d *Daemon, r *http.Request) response.Response {
 	}
 
 	resources := map[string][]string{}
-	resources["containers"] = []string{name}
+	if inst.Type() == instancetype.Container {
+		resources["containers"] = []string{name}
+	}
+	resources["instances"] = []string{name}
 
 	op, err := operations.OperationCreate(d.State(), project, operations.OperationClassTask, db.OperationCommandExec, resources, nil, run, nil, nil)
 	if err != nil {

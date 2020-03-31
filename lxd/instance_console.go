@@ -261,7 +261,7 @@ func containerConsolePost(d *Daemon, r *http.Request) response.Response {
 
 	// Forward the request if the container is remote.
 	cert := d.endpoints.NetworkCert()
-	client, err := cluster.ConnectIfContainerIsRemote(d.cluster, project, name, cert, instanceType)
+	client, err := cluster.ConnectIfInstanceIsRemote(d.cluster, project, name, cert, instanceType)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -333,7 +333,7 @@ func containerConsoleLogGet(d *Daemon, r *http.Request) response.Response {
 	name := mux.Vars(r)["name"]
 
 	// Forward the request if the container is remote.
-	resp, err := forwardedResponseIfContainerIsRemote(d, r, project, name, instanceType)
+	resp, err := forwardedResponseIfInstanceIsRemote(d, r, project, name, instanceType)
 	if err != nil {
 		return response.SmartError(err)
 	}
