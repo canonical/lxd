@@ -7,8 +7,8 @@ msgid ""
 msgstr ""
 "Project-Id-Version: LXD\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2020-03-26 18:43-0400\n"
-"PO-Revision-Date: 2020-03-12 15:28+0000\n"
+"POT-Creation-Date: 2020-03-30 20:09-0400\n"
+"PO-Revision-Date: 2020-03-27 12:50+0000\n"
 "Last-Translator: KATOH Yasufumi <karma@jazz.email.ne.jp>\n"
 "Language-Team: Japanese <https://hosted.weblate.org/projects/linux-"
 "containers/lxd/ja/>\n"
@@ -280,6 +280,8 @@ msgid ""
 "### This is a yaml representation of the cluster member.\n"
 "### Any line starting with a '# will be ignored."
 msgstr ""
+"### This is a yaml representation of the cluster member.\n"
+"### Any line starting with a '# will be ignored."
 
 #: lxc/info.go:293
 #, c-format
@@ -1134,9 +1136,8 @@ msgstr ""
 "あと2回行ってください）"
 
 #: lxc/cluster.go:420 lxc/cluster.go:421
-#, fuzzy
 msgid "Edit cluster member configurations as YAML"
-msgstr "インスタンスもしくはサーバの設定をYAMLファイルで編集します"
+msgstr "クラスターメンバーの設定をYAMLファイルで編集します"
 
 #: lxc/file.go:153 lxc/file.go:154
 msgid "Edit files in instances"
@@ -1522,7 +1523,7 @@ msgstr "IPV6"
 msgid "ISSUE DATE"
 msgstr "ISSUE DATE"
 
-#: lxc/main.go:340
+#: lxc/main.go:336
 msgid ""
 "If this is your first time running LXD on this machine, you should also run: "
 "lxd init"
@@ -1533,9 +1534,8 @@ msgid "Ignore any configured auto-expiry for the instance"
 msgstr "設定されている自動でのインスタンスの有効期限設定を無視します"
 
 #: lxc/storage_volume.go:1499
-#, fuzzy
 msgid "Ignore any configured auto-expiry for the storage volume"
-msgstr "設定されている自動でのインスタンスの有効期限設定を無視します"
+msgstr "設定されている自動でのストレージボリュームの有効期限設定を無視します"
 
 #: lxc/action.go:116
 msgid "Ignore the instance state"
@@ -1670,7 +1670,7 @@ msgid ""
 msgstr ""
 "'%s' は不正な名前です。空文字列は maxWidth を指定しているときのみ指定できます"
 
-#: lxc/main.go:427
+#: lxc/main.go:423
 msgid "Invalid number of arguments"
 msgstr "引数の数が不正です"
 
@@ -2197,9 +2197,8 @@ msgid "Minimum level for log messages"
 msgstr "表示するログメッセージの最小レベル"
 
 #: lxc/cluster.go:454
-#, fuzzy
 msgid "Missing cluster member name"
-msgstr "クラスタメンバ名"
+msgstr "クラスターメンバー名がありません"
 
 #: lxc/config_metadata.go:100 lxc/config_metadata.go:198
 #: lxc/config_template.go:89 lxc/config_template.go:132
@@ -2499,7 +2498,7 @@ msgstr "送信パケット"
 msgid "Partitions:"
 msgstr "パーティション:"
 
-#: lxc/main.go:308
+#: lxc/main.go:304
 #, c-format
 msgid "Password for %s: "
 msgstr "%s のパスワード: "
@@ -2732,7 +2731,7 @@ msgstr "リモートの管理者パスワード"
 
 #: lxc/remote.go:122
 msgid "Remote names may not contain colons"
-msgstr ""
+msgstr "リモート名にコロンを含めることはできません"
 
 #: lxc/utils/cancel.go:57
 msgid "Remote operation canceled by user"
@@ -3456,7 +3455,7 @@ msgstr ""
 msgid "To detach from the console, press: <ctrl>+a q"
 msgstr "コンソールから切り離すには <ctrl>+a q を押します"
 
-#: lxc/main.go:345
+#: lxc/main.go:341
 msgid "To start your first instance, try: lxc launch ubuntu:18.04"
 msgstr ""
 "初めてインスタンスを起動するには、\"lxc launch ubuntu:18.04\" と実行してみて"
@@ -3882,9 +3881,8 @@ msgid "driver"
 msgstr "ドライバ"
 
 #: lxc/cluster.go:419
-#, fuzzy
 msgid "edit [<remote>:]<cluster member>"
-msgstr "edit [<remote>:]<image>"
+msgstr "edit [<remote>:]<cluster member>"
 
 #: lxc/image.go:319
 msgid "edit [<remote>:]<image>"
@@ -4096,13 +4094,12 @@ msgstr ""
 "    エイリアス名 \"list\" を \"my-list\" に変更します。"
 
 #: lxc/cluster.go:423
-#, fuzzy
 msgid ""
 "lxc cluster edit <cluster member> < member.yaml\n"
 "    Update a cluster member using the content of member.yaml"
 msgstr ""
-"lxc storage edit [<remote>:]<pool> < pool.yaml\n"
-"    pool.yaml の内容でストレージプールを更新します。"
+"lxc cluster edit <cluster member> < member.yaml\n"
+"    member.yaml の内容でクラスターメンバーを更新します"
 
 #: lxc/config_device.go:79
 msgid ""
