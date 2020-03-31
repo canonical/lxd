@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: lxd\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2020-03-26 18:43-0400\n"
+"POT-Creation-Date: 2020-03-30 20:09-0400\n"
 "PO-Revision-Date: 2017-02-14 08:00+0000\n"
 "Last-Translator: Simos Xenitellis <simos.65@gmail.com>\n"
 "Language-Team: Greek <https://hosted.weblate.org/projects/linux-containers/"
@@ -1343,7 +1343,7 @@ msgstr ""
 msgid "ISSUE DATE"
 msgstr ""
 
-#: lxc/main.go:340
+#: lxc/main.go:336
 msgid ""
 "If this is your first time running LXD on this machine, you should also run: "
 "lxd init"
@@ -1481,7 +1481,7 @@ msgid ""
 "Invalid name in '%s', empty string is only allowed when defining maxWidth"
 msgstr ""
 
-#: lxc/main.go:427
+#: lxc/main.go:423
 msgid "Invalid number of arguments"
 msgstr ""
 
@@ -2201,7 +2201,7 @@ msgstr ""
 msgid "Partitions:"
 msgstr ""
 
-#: lxc/main.go:308
+#: lxc/main.go:304
 #, c-format
 msgid "Password for %s: "
 msgstr ""
@@ -3100,7 +3100,7 @@ msgstr ""
 msgid "To detach from the console, press: <ctrl>+a q"
 msgstr ""
 
-#: lxc/main.go:345
+#: lxc/main.go:341
 msgid "To start your first instance, try: lxc launch ubuntu:18.04"
 msgstr ""
 
