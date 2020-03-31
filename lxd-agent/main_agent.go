@@ -50,8 +50,8 @@ func (c *cmdAgent) Run(cmd *cobra.Command, args []string) error {
 	}
 	logger.Log = log
 
-	logger.Info("lxd-agent starting")
-	defer logger.Info("lxd-agent stopped")
+	logger.Info("Starting")
+	defer logger.Info("Stopped")
 
 	// Apply the templated files.
 	files, err := templatesApply("files/")
@@ -85,13 +85,16 @@ func (c *cmdAgent) Run(cmd *cobra.Command, args []string) error {
 
 	// Run cloud-init.
 	if shared.PathExists("/etc/cloud") && shared.StringInSlice("/var/lib/cloud/seed/nocloud-net/meta-data", files) {
-		if shared.PathExists("/run/cloud-init") {
-			err = os.RemoveAll("/run/cloud-init")
+		cloudInitPath := "/run/cloud-init"
+		if shared.PathExists(cloudInitPath) {
+			logger.Info(fmt.Sprintf("Removing %q", cloudInitPath))
+			err = os.RemoveAll(cloudInitPath)
 			if err != nil {
 				return err
 			}
 		}
 
+		logger.Info("Starting cloud-init")
 		shared.RunCommand("systemctl", "daemon-reload")
 		shared.RunCommand("systemctl", "start", "cloud-init.target")
 	}
