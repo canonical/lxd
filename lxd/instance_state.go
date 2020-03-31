@@ -27,7 +27,7 @@ func containerState(d *Daemon, r *http.Request) response.Response {
 	name := mux.Vars(r)["name"]
 
 	// Handle requests targeted to a container on a different node
-	resp, err := forwardedResponseIfContainerIsRemote(d, r, project, name, instanceType)
+	resp, err := forwardedResponseIfInstanceIsRemote(d, r, project, name, instanceType)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -57,7 +57,7 @@ func containerStatePut(d *Daemon, r *http.Request) response.Response {
 	name := mux.Vars(r)["name"]
 
 	// Handle requests targeted to a container on a different node
-	resp, err := forwardedResponseIfContainerIsRemote(d, r, project, name, instanceType)
+	resp, err := forwardedResponseIfInstanceIsRemote(d, r, project, name, instanceType)
 	if err != nil {
 		return response.SmartError(err)
 	}
