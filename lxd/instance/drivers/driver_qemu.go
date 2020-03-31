@@ -1272,11 +1272,16 @@ ConditionPathExists=/dev/virtio-ports/org.linuxcontainers.lxd
 Requires=lxd-agent-9p.service
 After=lxd-agent-9p.service
 Before=cloud-init.target cloud-init.service cloud-init-local.service
+DefaultDependencies=no
 
 [Service]
 Type=simple
 WorkingDirectory=/run/lxd_config/9p
 ExecStart=/run/lxd_config/9p/lxd-agent
+Restart=on-failure
+RestartSec=5s
+StartLimitInterval=60
+StartLimitBurst=10
 
 [Install]
 WantedBy=multi-user.target
@@ -1291,6 +1296,8 @@ WantedBy=multi-user.target
 Description=LXD - agent - 9p mount
 Documentation=https://linuxcontainers.org/lxd
 ConditionPathExists=/dev/virtio-ports/org.linuxcontainers.lxd
+After=local-fs.target
+DefaultDependencies=no
 
 [Service]
 Type=oneshot
