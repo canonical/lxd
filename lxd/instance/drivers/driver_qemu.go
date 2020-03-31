@@ -1277,6 +1277,10 @@ Before=cloud-init.target cloud-init.service cloud-init-local.service
 Type=simple
 WorkingDirectory=/run/lxd_config/9p
 ExecStart=/run/lxd_config/9p/lxd-agent
+Restart=on-failure
+RestartSec=5s
+StartLimitInterval=60
+StartLimitBurst=10
 
 [Install]
 WantedBy=multi-user.target
