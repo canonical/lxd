@@ -26,6 +26,7 @@ const VFS3FscapsSupported int32 = 1
 const VFS3FscapsUnknown int32 = -1
 
 var VFS3Fscaps int32 = VFS3FscapsUnknown
+var ErrNoUserMap = fmt.Errorf("No map found for user")
 
 type IdRange struct {
 	Isuid   bool
@@ -678,7 +679,7 @@ func getFromShadow(fname string, username string) ([][]int64, error) {
 	}
 
 	if len(entries) == 0 {
-		return nil, fmt.Errorf("User %q has no %ss", username, path.Base(fname))
+		return nil, ErrNoUserMap
 	}
 
 	return entries, nil
@@ -760,6 +761,11 @@ func DefaultIdmapSet(rootfs string, username string) (*IdmapSet, error) {
 		// Parse the shadow uidmap
 		entries, err := getFromShadow(subuidPath, username)
 		if err != nil {
+			if username == "root" && err == ErrNoUserMap {
+				// No root map available, figure out a default map
+				return kernelDefaultMap()
+			}
+
 			return nil, err
 		}
 
@@ -779,6 +785,11 @@ func DefaultIdmapSet(rootfs string, username string) (*IdmapSet, error) {
 		// Parse the shadow gidmap
 		entries, err = getFromShadow(subgidPath, username)
 		if err != nil {
+			if username == "root" && err == ErrNoUserMap {
+				// No root map available, figure out a default map
+				return kernelDefaultMap()
+			}
+
 			return nil, err
 		}
 
@@ -799,6 +810,12 @@ func DefaultIdmapSet(rootfs string, username string) (*IdmapSet, error) {
 	}
 
 	// No shadow available, figure out a default map
+	return kernelDefaultMap()
+}
+
+func kernelDefaultMap() (*IdmapSet, error) {
+	idmapset := new(IdmapSet)
+
 	kernelMap, err := CurrentIdmapSet()
 	if err != nil {
 		// Hardcoded fallback map
