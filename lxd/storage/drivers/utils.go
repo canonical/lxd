@@ -545,7 +545,14 @@ func regenerateFilesystemUUID(fsType, devPath string) error {
 
 // regenerateFilesystemBTRFSUUID changes the BTRFS filesystem UUID to a new randomly generated one.
 func regenerateFilesystemBTRFSUUID(devPath string) error {
-	_, err := shared.RunCommand("btrfstune", "-f", "-u", devPath)
+	// If the snapshot was taken whilst instance was running there may be outstanding transactions that will
+	// cause btrfstune to corrupt superblock, so ensure these are cleared out first.
+	_, err := shared.RunCommand("btrfs", "rescue", "zero-log", devPath)
+	if err != nil {
+		return err
+	}
+
+	_, err = shared.RunCommand("btrfstune", "-f", "-u", devPath)
 	if err != nil {
 		return err
 	}
