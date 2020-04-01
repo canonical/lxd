@@ -244,14 +244,6 @@ func GetCPU() (*api.ResourcesCPU, error) {
 			// Core number
 			resCore.Core = cpuCore
 
-			// NUMA node
-			numaNode, err := sysfsNumaNode(entryPath)
-			if err != nil {
-				return nil, errors.Wrap(err, "Failed to find NUMA node")
-			}
-
-			resCore.NUMANode = numaNode
-
 			// Frequency
 			if sysfsExists(filepath.Join(entryPath, "cpufreq", "scaling_cur_freq")) {
 				freqCurrent, err := readUint(filepath.Join(entryPath, "cpufreq", "scaling_cur_freq"))
@@ -289,6 +281,14 @@ func GetCPU() (*api.ResourcesCPU, error) {
 		}
 		thread.ID = threadNumber
 		thread.Thread = uint64(len(resCore.Threads))
+
+		// NUMA node
+		numaNode, err := sysfsNumaNode(entryPath)
+		if err != nil {
+			return nil, errors.Wrap(err, "Failed to find NUMA node")
+		}
+
+		thread.NUMANode = numaNode
 
 		resCore.Threads = append(resCore.Threads, thread)
 
