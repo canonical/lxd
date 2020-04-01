@@ -3017,7 +3017,7 @@ func (c *lxc) getLxcState() (liblxc.State, error) {
 }
 
 // Render renders the state of the instance.
-func (c *lxc) Render() (interface{}, interface{}, error) {
+func (c *lxc) Render(options ...func(response interface{}) error) (interface{}, interface{}, error) {
 	// Ignore err as the arch string on error is correct (unknown)
 	architectureName, _ := osarch.ArchitectureName(c.architecture)
 
@@ -3025,30 +3025,30 @@ func (c *lxc) Render() (interface{}, interface{}, error) {
 		// Prepare the ETag
 		etag := []interface{}{c.expiryDate}
 
-		ct := api.InstanceSnapshot{
+		snapState := api.InstanceSnapshot{
 			CreatedAt:       c.creationDate,
 			ExpandedConfig:  c.expandedConfig,
 			ExpandedDevices: c.expandedDevices.CloneNative(),
 			LastUsedAt:      c.lastUsedDate,
 			Name:            strings.SplitN(c.name, "/", 2)[1],
 			Stateful:        c.stateful,
+			Size:            -1, // Default to uninitialised/error state (0 means no CoW usage).
 		}
-		ct.Architecture = architectureName
-		ct.Config = c.localConfig
-		ct.Devices = c.localDevices.CloneNative()
-		ct.Ephemeral = c.ephemeral
-		ct.Profiles = c.profiles
-		ct.ExpiresAt = c.expiryDate
+		snapState.Architecture = architectureName
+		snapState.Config = c.localConfig
+		snapState.Devices = c.localDevices.CloneNative()
+		snapState.Ephemeral = c.ephemeral
+		snapState.Profiles = c.profiles
+		snapState.ExpiresAt = c.expiryDate
 
-		pool, err := storagePools.GetPoolByInstance(c.state, c)
-		if err == nil {
-			pool.MountInstanceSnapshot(c, nil)
-			defer pool.UnmountInstanceSnapshot(c, nil)
-
-			ct.Size, _ = pool.GetInstanceUsage(c)
+		for _, option := range options {
+			err := option(&snapState)
+			if err != nil {
+				return nil, nil, err
+			}
 		}
 
-		return &ct, etag, nil
+		return &snapState, etag, nil
 	}
 
 	// Prepare the ETag
@@ -3061,7 +3061,7 @@ func (c *lxc) Render() (interface{}, interface{}, error) {
 	}
 	statusCode := lxcStatusCode(cState)
 
-	ct := api.Instance{
+	instState := api.Instance{
 		ExpandedConfig:  c.expandedConfig,
 		ExpandedDevices: c.expandedDevices.CloneNative(),
 		Name:            c.name,
@@ -3071,17 +3071,24 @@ func (c *lxc) Render() (interface{}, interface{}, error) {
 		Type:            c.Type().String(),
 	}
 
-	ct.Description = c.description
-	ct.Architecture = architectureName
-	ct.Config = c.localConfig
-	ct.CreatedAt = c.creationDate
-	ct.Devices = c.localDevices.CloneNative()
-	ct.Ephemeral = c.ephemeral
-	ct.LastUsedAt = c.lastUsedDate
-	ct.Profiles = c.profiles
-	ct.Stateful = c.stateful
+	instState.Description = c.description
+	instState.Architecture = architectureName
+	instState.Config = c.localConfig
+	instState.CreatedAt = c.creationDate
+	instState.Devices = c.localDevices.CloneNative()
+	instState.Ephemeral = c.ephemeral
+	instState.LastUsedAt = c.lastUsedDate
+	instState.Profiles = c.profiles
+	instState.Stateful = c.stateful
 
-	return &ct, etag, nil
+	for _, option := range options {
+		err := option(&instState)
+		if err != nil {
+			return nil, nil, err
+		}
+	}
+
+	return &instState, etag, nil
 }
 
 // RenderFull renders the full state of the instance.
