@@ -216,21 +216,8 @@ func networksPostCluster(d *Daemon, req api.NetworksPost) error {
 		}
 	}
 
-	// Merge the current config.
-	networkID, dbNetwork, err := d.cluster.NetworkGet(req.Name)
-	if err != nil {
-		return err
-	}
-
-	for k, v := range dbNetwork.Config {
-		_, ok := req.Config[k]
-		if !ok {
-			req.Config[k] = v
-		}
-	}
-
 	// Add default values.
-	err = network.FillConfig(&req)
+	err := network.FillConfig(&req)
 	if err != nil {
 		return err
 	}
@@ -239,7 +226,14 @@ func networksPostCluster(d *Daemon, req api.NetworksPost) error {
 	// configs and insert the global config.
 	var configs map[string]map[string]string
 	var nodeName string
+	var networkID int64
 	err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
+		// Fetch the network ID.
+		networkID, err = tx.NetworkID(req.Name)
+		if err != nil {
+			return err
+		}
+
 		// Fetch the node-specific configs.
 		configs, err = tx.NetworkNodeConfigs(networkID)
 		if err != nil {
@@ -267,6 +261,7 @@ func networksPostCluster(d *Daemon, req api.NetworksPost) error {
 	for key, value := range configs[nodeName] {
 		nodeReq.Config[key] = value
 	}
+
 	err = doNetworksCreate(d, nodeReq, false)
 	if err != nil {
 		return err
@@ -293,7 +288,7 @@ func networksPostCluster(d *Daemon, req api.NetworksPost) error {
 
 	errored := notifyErr != nil
 
-	// Finally update the storage network state.
+	// Finally update the network state.
 	err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
 		if errored {
 			return tx.NetworkErrored(req.Name)
