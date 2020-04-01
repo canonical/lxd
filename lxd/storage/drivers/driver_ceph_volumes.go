@@ -18,6 +18,7 @@ import (
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/instancewriter"
 	"github.com/lxc/lxd/shared/ioprogress"
+	log "github.com/lxc/lxd/shared/log15"
 	"github.com/lxc/lxd/shared/units"
 )
 
@@ -824,6 +825,7 @@ func (d *ceph) MountVolume(vol Volume, op *operations.Operation) (bool, error) {
 		if err != nil {
 			return false, err
 		}
+		d.logger.Debug("Mounted RBD volume", log.Ctx{"dev": RBDDevPath, "path": mountPath, "options": mountOptions})
 
 		return true, nil
 	}
@@ -856,6 +858,7 @@ func (d *ceph) UnmountVolume(vol Volume, op *operations.Operation) (bool, error)
 		if err != nil {
 			return false, err
 		}
+		d.logger.Debug("Unmounted RBD volume", log.Ctx{"path": mountPath})
 	}
 
 	// Attempt to unmap.
@@ -1208,6 +1211,7 @@ func (d *ceph) MountVolumeSnapshot(snapVol Volume, op *operations.Operation) (bo
 		if err != nil {
 			return false, err
 		}
+		d.logger.Debug("Mounted RBD volume snapshot", log.Ctx{"dev": rbdDevPath, "path": mountPath, "options": mountOptions})
 
 		revert.Success()
 
@@ -1235,6 +1239,7 @@ func (d *ceph) UnmountVolumeSnapshot(snapVol Volume, op *operations.Operation) (
 	if err != nil {
 		return false, err
 	}
+	d.logger.Debug("Unmounted RBD volume snapshot", log.Ctx{"path": mountPath})
 
 	parentName, snapshotOnlyName, _ := shared.InstanceGetParentAndSnapshotName(snapVol.name)
 	cloneName := fmt.Sprintf("%s_%s_start_clone", parentName, snapshotOnlyName)
