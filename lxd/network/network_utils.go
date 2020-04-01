@@ -38,8 +38,9 @@ func IsInUse(c instance.Instance, networkName string) bool {
 			continue
 		}
 
-		if d["network"] == networkName {
-			return true
+		// Temporarily populate parent from network setting if used.
+		if d["network"] != "" {
+			d["parent"] = d["network"]
 		}
 
 		if d["parent"] == "" {
