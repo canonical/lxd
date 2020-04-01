@@ -202,6 +202,7 @@ var APIExtensions = []string{
 	"container_nic_routed_host_address",
 	"container_nic_ipvlan_gateway",
 	"resources_usb_pci",
+	"resources_cpu_threads_numa",
 }
 
 // APIExtensionsCount returns the number of available API extensions.

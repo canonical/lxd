@@ -287,10 +287,9 @@ func (c *cmdInfo) renderCPU(cpu api.ResourcesCPUSocket, prefix string) {
 	for _, core := range cpu.Cores {
 		fmt.Printf(prefix+"  - "+i18n.G("Core %d")+"\n", core.Core)
 		fmt.Printf(prefix+"    "+i18n.G("Frequency: %vMhz")+"\n", core.Frequency)
-		fmt.Printf(prefix+"    "+i18n.G("NUMA node: %v")+"\n", core.NUMANode)
 		fmt.Printf(prefix + "    " + i18n.G("Threads:") + "\n")
 		for _, thread := range core.Threads {
-			fmt.Printf(prefix+"      - "+i18n.G("%d (id: %d, online: %v)")+"\n", thread.Thread, thread.ID, thread.Online)
+			fmt.Printf(prefix+"      - "+i18n.G("%d (id: %d, online: %v, NUMA node: %v)")+"\n", thread.Thread, thread.ID, thread.Online, thread.NUMANode)
 		}
 	}
 
