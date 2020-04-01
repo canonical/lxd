@@ -3604,18 +3604,20 @@ func (vm *qemu) RenderState() (*api.InstanceState, error) {
 	pid, _ := vm.pid()
 
 	if statusCode == api.Running {
+		// Try and get state info from agent.
 		status, err := vm.agentGetState()
 		if err != nil {
 			if err != errQemuAgentOffline {
 				logger.Warn("Could not get VM state from agent", log.Ctx{"project": vm.Project(), "instance": vm.Name(), "err": err})
 			}
 
-			// Fallback data.
+			// Fallback data if agent is not reachable.
 			status = &api.InstanceState{}
 			status.Processes = -1
 			networks := map[string]api.InstanceStateNetwork{}
 			for k, m := range vm.ExpandedDevices() {
-				// We only care about nics.
+				// We only care about bridged nics as these can use a local DHCP server that allows
+				// us to parse the leases file below.
 				if m["type"] != "nic" || m.NICType() != "bridged" {
 					continue
 				}
@@ -3624,6 +3626,11 @@ func (vm *qemu) RenderState() (*api.InstanceState, error) {
 				m, err := vm.FillNetworkDevice(k, m)
 				if err != nil {
 					return nil, err
+				}
+
+				// Temporarily populate parent from network setting if used.
+				if m["network"] != "" {
+					m["parent"] = m["network"]
 				}
 
 				// Parse the lease file.
@@ -3640,10 +3647,6 @@ func (vm *qemu) RenderState() (*api.InstanceState, error) {
 				iface, err := net.InterfaceByName(m["parent"])
 				if err != nil {
 					return nil, err
-				}
-
-				if m["host_name"] == "" {
-					m["host_name"] = vm.localConfig[fmt.Sprintf("volatile.%s.host_name", k)]
 				}
 
 				// Retrieve the host counters, as we report the values
@@ -3667,6 +3670,31 @@ func (vm *qemu) RenderState() (*api.InstanceState, error) {
 			}
 
 			status.Network = networks
+		}
+
+		// Populate host_name for network devices.
+		for k, m := range vm.ExpandedDevices() {
+			// We only care about nics.
+			if m["type"] != "nic" {
+				continue
+			}
+
+			// Get hwaddr from static or volatile config.
+			hwaddr := m["hwaddr"]
+			if hwaddr == "" {
+				hwaddr = vm.localConfig[fmt.Sprintf("volatile.%s.hwaddr", k)]
+			}
+
+			// We have to match on hwaddr as device name can be different from the configured device
+			// name when reported from the lxd-agent inside the VM (due to the guest OS choosing name).
+			for netName, netStatus := range status.Network {
+				if netStatus.Hwaddr == hwaddr {
+					if netStatus.HostName == "" {
+						netStatus.HostName = vm.localConfig[fmt.Sprintf("volatile.%s.host_name", k)]
+						status.Network[netName] = netStatus
+					}
+				}
+			}
 		}
 
 		status.Pid = int64(pid)

@@ -415,7 +415,7 @@ func (c *cmdNetworkDetach) Run(cmd *cobra.Command, args []string) error {
 	// Find the device
 	if devName == "" {
 		for n, d := range inst.Devices {
-			if d["type"] == "nic" && d["parent"] == resource.name {
+			if d["type"] == "nic" && (d["parent"] == resource.name || d["network"] == resource.name) {
 				if devName != "" {
 					return fmt.Errorf(i18n.G("More than one device matches, specify the device name"))
 				}
@@ -434,7 +434,7 @@ func (c *cmdNetworkDetach) Run(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf(i18n.G("The specified device doesn't exist"))
 	}
 
-	if device["type"] != "nic" || device["parent"] != resource.name {
+	if device["type"] != "nic" || (device["parent"] != resource.name && device["network"] != resource.name) {
 		return fmt.Errorf(i18n.G("The specified device doesn't match the network"))
 	}
 
@@ -500,7 +500,7 @@ func (c *cmdNetworkDetachProfile) Run(cmd *cobra.Command, args []string) error {
 	// Find the device
 	if devName == "" {
 		for n, d := range profile.Devices {
-			if d["type"] == "nic" && d["parent"] == resource.name {
+			if d["type"] == "nic" && (d["parent"] == resource.name || d["network"] == resource.name) {
 				if devName != "" {
 					return fmt.Errorf(i18n.G("More than one device matches, specify the device name"))
 				}
@@ -519,7 +519,7 @@ func (c *cmdNetworkDetachProfile) Run(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf(i18n.G("The specified device doesn't exist"))
 	}
 
-	if device["type"] != "nic" || device["parent"] != resource.name {
+	if device["type"] != "nic" || (device["parent"] != resource.name && device["network"] != resource.name) {
 		return fmt.Errorf(i18n.G("The specified device doesn't match the network"))
 	}
 
