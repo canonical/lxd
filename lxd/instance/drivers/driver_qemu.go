@@ -3490,33 +3490,41 @@ func (vm *qemu) Exec(req api.InstanceExecPost, stdin *os.File, stdout *os.File, 
 }
 
 // Render returns info about the instance.
-func (vm *qemu) Render() (interface{}, interface{}, error) {
+func (vm *qemu) Render(options ...func(response interface{}) error) (interface{}, interface{}, error) {
 	if vm.IsSnapshot() {
 		// Prepare the ETag
 		etag := []interface{}{vm.expiryDate}
 
-		vmSnap := api.InstanceSnapshot{
+		snapState := api.InstanceSnapshot{
 			CreatedAt:       vm.creationDate,
 			ExpandedConfig:  vm.expandedConfig,
 			ExpandedDevices: vm.expandedDevices.CloneNative(),
 			LastUsedAt:      vm.lastUsedDate,
 			Name:            strings.SplitN(vm.name, "/", 2)[1],
 			Stateful:        vm.stateful,
+			Size:            -1, // Default to uninitialised/error state (0 means no CoW usage).
 		}
-		vmSnap.Architecture = vm.architectureName
-		vmSnap.Config = vm.localConfig
-		vmSnap.Devices = vm.localDevices.CloneNative()
-		vmSnap.Ephemeral = vm.ephemeral
-		vmSnap.Profiles = vm.profiles
-		vmSnap.ExpiresAt = vm.expiryDate
+		snapState.Architecture = vm.architectureName
+		snapState.Config = vm.localConfig
+		snapState.Devices = vm.localDevices.CloneNative()
+		snapState.Ephemeral = vm.ephemeral
+		snapState.Profiles = vm.profiles
+		snapState.ExpiresAt = vm.expiryDate
 
-		return &vmSnap, etag, nil
+		for _, option := range options {
+			err := option(&snapState)
+			if err != nil {
+				return nil, nil, err
+			}
+		}
+
+		return &snapState, etag, nil
 	}
 
 	// Prepare the ETag
 	etag := []interface{}{vm.architecture, vm.localConfig, vm.localDevices, vm.ephemeral, vm.profiles}
 
-	vmState := api.Instance{
+	instState := api.Instance{
 		ExpandedConfig:  vm.expandedConfig,
 		ExpandedDevices: vm.expandedDevices.CloneNative(),
 		Name:            vm.name,
@@ -3526,17 +3534,24 @@ func (vm *qemu) Render() (interface{}, interface{}, error) {
 		Type:            vm.Type().String(),
 	}
 
-	vmState.Description = vm.description
-	vmState.Architecture = vm.architectureName
-	vmState.Config = vm.localConfig
-	vmState.CreatedAt = vm.creationDate
-	vmState.Devices = vm.localDevices.CloneNative()
-	vmState.Ephemeral = vm.ephemeral
-	vmState.LastUsedAt = vm.lastUsedDate
-	vmState.Profiles = vm.profiles
-	vmState.Stateful = vm.stateful
+	instState.Description = vm.description
+	instState.Architecture = vm.architectureName
+	instState.Config = vm.localConfig
+	instState.CreatedAt = vm.creationDate
+	instState.Devices = vm.localDevices.CloneNative()
+	instState.Ephemeral = vm.ephemeral
+	instState.LastUsedAt = vm.lastUsedDate
+	instState.Profiles = vm.profiles
+	instState.Stateful = vm.stateful
 
-	return &vmState, etag, nil
+	for _, option := range options {
+		err := option(&instState)
+		if err != nil {
+			return nil, nil, err
+		}
+	}
+
+	return &instState, etag, nil
 }
 
 // RenderFull returns all info about the instance.
