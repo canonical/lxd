@@ -54,8 +54,7 @@ type ResourcesCPUCache struct {
 // ResourcesCPUCore represents a CPU core on the system
 // API extension: resources_v2
 type ResourcesCPUCore struct {
-	Core     uint64 `json:"core" yaml:"core"`
-	NUMANode uint64 `json:"numa_node" yaml:"numa_node"`
+	Core uint64 `json:"core" yaml:"core"`
 
 	Threads []ResourcesCPUThread `json:"threads" yaml:"threads"`
 
@@ -65,9 +64,10 @@ type ResourcesCPUCore struct {
 // ResourcesCPUThread represents a CPU thread on the system
 // API extension: resources_v2
 type ResourcesCPUThread struct {
-	ID     int64  `json:"id" yaml:"id"`
-	Thread uint64 `json:"thread" yaml:"thread"`
-	Online bool   `json:"online" yaml:"online"`
+	ID       int64  `json:"id" yaml:"id"`
+	NUMANode uint64 `json:"numa_node" yaml:"numa_node"`
+	Thread   uint64 `json:"thread" yaml:"thread"`
+	Online   bool   `json:"online" yaml:"online"`
 }
 
 // ResourcesGPU represents the GPU resources available on the system
