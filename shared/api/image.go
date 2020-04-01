@@ -4,6 +4,15 @@ import (
 	"time"
 )
 
+// ImageExportPost represents the fields required to export a LXD image
+// API extension: images_push_relay
+type ImageExportPost struct {
+	Target      string       `json:"target" yaml:"target"`
+	Secret      string       `json:"secret" yaml:"secret"`
+	Certificate string       `json:"certificate" yaml:"certificate"`
+	Aliases     []ImageAlias `json:"aliases" yaml:"aliases"`
+}
+
 // ImagesPost represents the fields available for a new LXD image
 type ImagesPost struct {
 	ImagePut `yaml:",inline"`
