@@ -1000,3 +1000,8 @@ This allows multiple ipvlan NIC devices to be added to a container.
 
 ## resources\_usb\_pci
 This adds USB and PCI devices to the output of `/1.0/resources`.
+
+## resources\_cpu\_threads\_numa
+This indicates that the numa_node field is now recorded per-thread
+rather than per core as some hardware apparently puts threads in
+different NUMA domains.
