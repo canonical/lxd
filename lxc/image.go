@@ -118,6 +118,7 @@ type cmdImageCopy struct {
 	flagCopyAliases bool
 	flagAutoUpdate  bool
 	flagVM          bool
+	flagMode        string
 }
 
 func (c *cmdImageCopy) Command() *cobra.Command {
@@ -136,6 +137,7 @@ It requires the source to be an alias and for it to be public.`))
 	cmd.Flags().BoolVar(&c.flagAutoUpdate, "auto-update", false, i18n.G("Keep the image up to date after initial copy"))
 	cmd.Flags().StringArrayVar(&c.flagAliases, "alias", nil, i18n.G("New aliases to add to the image")+"``")
 	cmd.Flags().BoolVar(&c.flagVM, "vm", false, i18n.G("Copy virtual machine images"))
+	cmd.Flags().StringVar(&c.flagMode, "mode", "pull", i18n.G("Transfer mode. One of pull (default), push or relay")+"``")
 	cmd.RunE = c.Run
 
 	return cmd
@@ -148,6 +150,10 @@ func (c *cmdImageCopy) Run(cmd *cobra.Command, args []string) error {
 	exit, err := c.global.CheckArgs(cmd, args, 2, 2)
 	if exit {
 		return err
+	}
+
+	if c.flagMode != "pull" && c.flagAutoUpdate {
+		return fmt.Errorf(i18n.G("Auto update is only available in pull mode"))
 	}
 
 	// Parse source remote
@@ -210,6 +216,7 @@ func (c *cmdImageCopy) Run(cmd *cobra.Command, args []string) error {
 		AutoUpdate: c.flagAutoUpdate,
 		Public:     c.flagPublic,
 		Type:       imageType,
+		Mode:       c.flagMode,
 	}
 
 	// Do the copy
