@@ -532,7 +532,7 @@ func renegerateFilesystemUUIDNeeded(fsType string) bool {
 
 // regenerateFilesystemUUID changes the filesystem UUID to a new randomly generated one if the fsType requires it.
 // Otherwise this function does nothing.
-func regenerateFilesystemUUID(fsType, devPath string) error {
+func regenerateFilesystemUUID(fsType string, devPath string) error {
 	switch fsType {
 	case "btrfs":
 		return regenerateFilesystemBTRFSUUID(devPath)
