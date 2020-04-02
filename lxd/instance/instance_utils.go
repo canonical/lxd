@@ -6,13 +6,11 @@ import (
 	"fmt"
 	"math/big"
 	"os"
-	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
 
 	"github.com/pkg/errors"
-	yaml "gopkg.in/yaml.v2"
 
 	"github.com/lxc/lxd/client"
 	"github.com/lxc/lxd/lxd/backup"
@@ -584,96 +582,6 @@ func LoadNodeAll(s *state.State, instanceType instancetype.Type) ([]Instance, er
 	}
 
 	return LoadAllInternal(s, insts)
-}
-
-// WriteBackupFile writes instance's config to a file. Deprecated, use inst.UpdateBackupFile().
-func WriteBackupFile(state *state.State, inst Instance) error {
-	// We only write backup files out for actual instances.
-	if inst.IsSnapshot() {
-		return nil
-	}
-
-	// Immediately return if the instance directory doesn't exist yet.
-	if !shared.PathExists(inst.Path()) {
-		return os.ErrNotExist
-	}
-
-	// Generate the YAML.
-	ci, _, err := inst.Render()
-	if err != nil {
-		return errors.Wrap(err, "Failed to render instance metadata")
-	}
-
-	snapshots, err := inst.Snapshots()
-	if err != nil {
-		return errors.Wrap(err, "Failed to get snapshots")
-	}
-
-	var sis []*api.InstanceSnapshot
-
-	for _, s := range snapshots {
-		si, _, err := s.Render()
-		if err != nil {
-			return err
-		}
-
-		sis = append(sis, si.(*api.InstanceSnapshot))
-	}
-
-	poolName, err := inst.StoragePool()
-	if err != nil {
-		return err
-	}
-
-	poolID, pool, err := state.Cluster.StoragePoolGet(poolName)
-	if err != nil {
-		return err
-	}
-
-	dbType := db.StoragePoolVolumeTypeContainer
-	if inst.Type() == instancetype.VM {
-		dbType = db.StoragePoolVolumeTypeVM
-	}
-
-	_, volume, err := state.Cluster.StoragePoolNodeVolumeGetTypeByProject(inst.Project(), inst.Name(), dbType, poolID)
-	if err != nil {
-		return err
-	}
-
-	data, err := yaml.Marshal(&backup.InstanceConfig{
-		Container: ci.(*api.Instance),
-		Snapshots: sis,
-		Pool:      pool,
-		Volume:    volume,
-	})
-	if err != nil {
-		return err
-	}
-
-	// Ensure the container is currently mounted.
-	if !shared.PathExists(inst.RootfsPath()) {
-		logger.Debug("Unable to update backup.yaml at this time", log.Ctx{"name": inst.Name(), "project": inst.Project()})
-		return nil
-	}
-
-	// Write the YAML
-	f, err := os.Create(filepath.Join(inst.Path(), "backup.yaml"))
-	if err != nil {
-		return err
-	}
-	defer f.Close()
-
-	err = f.Chmod(0400)
-	if err != nil {
-		return err
-	}
-
-	err = shared.WriteAll(f, data)
-	if err != nil {
-		return err
-	}
-
-	return nil
 }
 
 // DeleteSnapshots calls the Delete() function on each of the supplied instance's snapshots.
