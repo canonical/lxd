@@ -763,23 +763,23 @@ func (d *btrfs) BackupVolume(vol Volume, tarWriter *instancewriter.InstanceTarWr
 		}
 	}
 
-	// Make a temporary copy of the container.
+	// Make a temporary copy of the instance.
 	sourceVolume := vol.MountPath()
-	containersPath := GetVolumeMountPath(d.name, vol.volType, "")
+	instancesPath := GetVolumeMountPath(d.name, vol.volType, "")
 
-	tmpContainerMntPoint, err := ioutil.TempDir(containersPath, "backup.")
+	tmpInstanceMntPoint, err := ioutil.TempDir(instancesPath, "backup.")
 	if err != nil {
-		return errors.Wrapf(err, "Failed to create temporary directory under '%s'", containersPath)
+		return errors.Wrapf(err, "Failed to create temporary directory under '%s'", instancesPath)
 	}
-	defer os.RemoveAll(tmpContainerMntPoint)
+	defer os.RemoveAll(tmpInstanceMntPoint)
 
-	err = os.Chmod(tmpContainerMntPoint, 0100)
+	err = os.Chmod(tmpInstanceMntPoint, 0100)
 	if err != nil {
-		return errors.Wrapf(err, "Failed to chmod '%s'", tmpContainerMntPoint)
+		return errors.Wrapf(err, "Failed to chmod '%s'", tmpInstanceMntPoint)
 	}
 
 	// Create the read-only snapshot.
-	targetVolume := fmt.Sprintf("%s/.backup", tmpContainerMntPoint)
+	targetVolume := fmt.Sprintf("%s/.backup", tmpInstanceMntPoint)
 	err = d.snapshotSubvolume(sourceVolume, targetVolume, true, true)
 	if err != nil {
 		return err
