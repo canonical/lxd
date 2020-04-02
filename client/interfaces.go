@@ -393,6 +393,9 @@ type ImageCopyArgs struct {
 
 	// The image type to use for resolution
 	Type string
+
+	// The transfer mode, can be "pull" (default), "push" or "relay"
+	Mode string
 }
 
 // The StoragePoolVolumeCopyArgs struct is used to pass additional options
