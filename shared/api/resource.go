@@ -56,6 +56,9 @@ type ResourcesCPUCache struct {
 type ResourcesCPUCore struct {
 	Core uint64 `json:"core" yaml:"core"`
 
+	// API extension: resources_cpu_core_die
+	Die uint64 `json:"die" yaml:"die"`
+
 	Threads []ResourcesCPUThread `json:"threads" yaml:"threads"`
 
 	Frequency uint64 `json:"frequency,omitempty" yaml:"frequency,omitempty"`

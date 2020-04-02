@@ -89,7 +89,7 @@ func GetCPU() (*api.ResourcesCPU, error) {
 
 	// Temporary storage
 	cpuSockets := map[uint64]*api.ResourcesCPUSocket{}
-	cpuCores := map[uint64]map[uint64]*api.ResourcesCPUCore{}
+	cpuCores := map[uint64]map[string]*api.ResourcesCPUCore{}
 
 	// Open cpuinfo
 	f, err := os.Open("/proc/cpuinfo")
@@ -118,13 +118,23 @@ func GetCPU() (*api.ResourcesCPU, error) {
 
 		// Get topology
 		cpuSocket, err := readUint(filepath.Join(entryPath, "topology", "physical_package_id"))
-		if err != nil {
+		if err != nil && !os.IsNotExist(err) {
 			return nil, errors.Wrapf(err, "Failed to read \"%s\"", filepath.Join(entryPath, "topology", "physical_package_id"))
 		}
 
 		cpuCore, err := readUint(filepath.Join(entryPath, "topology", "core_id"))
-		if err != nil {
+		if err != nil && !os.IsNotExist(err) {
 			return nil, errors.Wrapf(err, "Failed to read \"%s\"", filepath.Join(entryPath, "topology", "core_id"))
+		}
+
+		cpuDie, err := readInt(filepath.Join(entryPath, "topology", "die_id"))
+		if err != nil && !os.IsNotExist(err) {
+			return nil, errors.Wrapf(err, "Failed to read \"%s\"", filepath.Join(entryPath, "topology", "die_id"))
+		}
+
+		if cpuDie == -1 {
+			// Architectures without support for die_id report -1, make that die 0 instead.
+			cpuDie = 0
 		}
 
 		// Grab socket data if needed
@@ -233,16 +243,20 @@ func GetCPU() (*api.ResourcesCPU, error) {
 
 			// Record the data
 			cpuSockets[cpuSocket] = resSocket
-			cpuCores[cpuSocket] = map[uint64]*api.ResourcesCPUCore{}
+			cpuCores[cpuSocket] = map[string]*api.ResourcesCPUCore{}
 		}
 
 		// Grab core data if needed
-		resCore, ok := cpuCores[cpuSocket][cpuCore]
+		coreIndex := fmt.Sprintf("%d_%d", cpuDie, cpuCore)
+		resCore, ok := cpuCores[cpuSocket][coreIndex]
 		if !ok {
 			resCore = &api.ResourcesCPUCore{}
 
 			// Core number
 			resCore.Core = cpuCore
+
+			// Die number
+			resCore.Die = uint64(cpuDie)
 
 			// Frequency
 			if sysfsExists(filepath.Join(entryPath, "cpufreq", "scaling_cur_freq")) {
@@ -258,7 +272,7 @@ func GetCPU() (*api.ResourcesCPU, error) {
 			resCore.Threads = []api.ResourcesCPUThread{}
 
 			// Record the data
-			cpuCores[cpuSocket][cpuCore] = resCore
+			cpuCores[cpuSocket][coreIndex] = resCore
 		}
 
 		// Grab thread data
