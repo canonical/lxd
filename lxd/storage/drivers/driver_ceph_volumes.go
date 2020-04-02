@@ -292,8 +292,15 @@ func (d *ceph) CreateVolumeFromCopy(vol Volume, srcVol Volume, copySnapshots boo
 		}
 
 		if vol.contentType == ContentTypeFS {
+			// Map the RBD volume.
+			RBDDevPath, err := d.rbdMapVolume(vol)
+			if err != nil {
+				return err
+			}
+			defer d.rbdUnmapVolume(vol, true)
+
 			// Re-generate the UUID.
-			err = d.generateUUID(vol)
+			err = d.generateUUID(d.getRBDFilesystem(vol), RBDDevPath)
 			if err != nil {
 				return err
 			}
@@ -377,8 +384,15 @@ func (d *ceph) CreateVolumeFromCopy(vol Volume, srcVol Volume, copySnapshots boo
 		return err
 	}
 
+	// Map the RBD volume.
+	RBDDevPath, err := d.rbdMapVolume(vol)
+	if err != nil {
+		return err
+	}
+	defer d.rbdUnmapVolume(vol, true)
+
 	// Re-generate the UUID.
-	err = d.generateUUID(vol)
+	err = d.generateUUID(d.getRBDFilesystem(vol), RBDDevPath)
 	if err != nil {
 		return err
 	}
@@ -488,7 +502,15 @@ func (d *ceph) CreateVolumeFromMigration(vol Volume, conn io.ReadWriteCloser, vo
 		}
 	}
 
-	err = d.generateUUID(vol)
+	// Map the RBD volume.
+	RBDDevPath, err := d.rbdMapVolume(vol)
+	if err != nil {
+		return err
+	}
+	defer d.rbdUnmapVolume(vol, true)
+
+	// Re-generate the UUID.
+	err = d.generateUUID(d.getRBDFilesystem(vol), RBDDevPath)
 	if err != nil {
 		return err
 	}
@@ -1324,11 +1346,18 @@ func (d *ceph) RestoreVolume(vol Volume, snapshotName string, op *operations.Ope
 		return err
 	}
 
-	err = d.generateUUID(snapVol)
+	// Map the RBD volume.
+	RBDDevPath, err := d.rbdMapVolume(snapVol)
 	if err != nil {
 		return err
 	}
+	defer d.rbdUnmapVolume(snapVol, true)
 
+	// Re-generate the UUID.
+	err = d.generateUUID(d.getRBDFilesystem(snapVol), RBDDevPath)
+	if err != nil {
+		return err
+	}
 	return nil
 }
 
