@@ -650,6 +650,37 @@ func (d *btrfs) MigrateVolume(vol Volume, conn io.ReadWriteCloser, volSrcArgs *m
 func (d *btrfs) BackupVolume(vol Volume, tarWriter *instancewriter.InstanceTarWriter, optimized bool, snapshots bool, op *operations.Operation) error {
 	// Handle the non-optimized tarballs through the generic packer.
 	if !optimized {
+		// Because the generic backup method will not take a consistent backup if files are being modified
+		// as they are copied to the tarball, as BTRFS allows us to take a quick snapshot without impacting
+		// the parent volume we do so here to ensure the backup taken is consistent.
+		if vol.contentType == ContentTypeFS {
+			sourcePath := vol.MountPath()
+			poolPath := GetPoolMountPath(d.name)
+			tmpDir, err := ioutil.TempDir(poolPath, "backup.")
+			if err != nil {
+				return errors.Wrapf(err, "Failed to create temporary directory under %q", poolPath)
+			}
+			defer os.RemoveAll(tmpDir)
+
+			err = os.Chmod(tmpDir, 0100)
+			if err != nil {
+				return errors.Wrapf(err, "Failed to chmod %q", tmpDir)
+			}
+
+			// Override volume's mount path with location of snapshot so genericVFSBackupVolume reads
+			// from there instead of main volume.
+			vol.customMountPath = filepath.Join(tmpDir, vol.name)
+
+			// Create the read-only snapshot.
+			mountPath := vol.MountPath()
+			err = d.snapshotSubvolume(sourcePath, mountPath, true, true)
+			if err != nil {
+				return err
+			}
+			d.logger.Debug("Created read-only backup snapshot", log.Ctx{"sourcePath": sourcePath, "path": mountPath})
+			defer d.deleteSubvolume(mountPath, true)
+		}
+
 		return genericVFSBackupVolume(d, vol, tarWriter, snapshots, op)
 	}
 
