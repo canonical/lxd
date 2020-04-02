@@ -61,14 +61,15 @@ var BaseDirectories = map[VolumeType][]string{
 
 // Volume represents a storage volume, and provides functions to mount and unmount it.
 type Volume struct {
-	name        string
-	pool        string
-	poolConfig  map[string]string
-	volType     VolumeType
-	contentType ContentType
-	config      map[string]string
-	driver      Driver
-	keepDevice  bool
+	name            string
+	pool            string
+	poolConfig      map[string]string
+	volType         VolumeType
+	contentType     ContentType
+	config          map[string]string
+	driver          Driver
+	keepDevice      bool
+	customMountPath string
 }
 
 // NewVolume instantiates a new Volume struct.
@@ -121,6 +122,10 @@ func (v Volume) IsSnapshot() bool {
 
 // MountPath returns the path where the volume will be mounted.
 func (v Volume) MountPath() string {
+	if v.customMountPath != "" {
+		return v.customMountPath
+	}
+
 	return GetVolumeMountPath(v.pool, v.volType, v.name)
 }
 
