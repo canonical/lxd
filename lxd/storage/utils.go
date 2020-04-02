@@ -628,3 +628,24 @@ func FallbackMigrationType(contentType drivers.ContentType) migration.MigrationF
 
 	return migration.MigrationFSType_RSYNC
 }
+
+// RenderSnapshotUsage can be used as an optional argument to Instance.Render() to return snapshot usage.
+// As this is a relatively expensive operation it is provided as an optional feature rather than on by default.
+func RenderSnapshotUsage(s *state.State, snapInst instance.Instance) func(response interface{}) error {
+	return func(response interface{}) error {
+		apiRes, ok := response.(*api.InstanceSnapshot)
+		if !ok {
+			return nil
+		}
+
+		pool, err := GetPoolByInstance(s, snapInst)
+		if err == nil {
+			// It is important that the snapshot not be mounted here as mounting a snapshot can trigger a very
+			// expensive filesystem UUID regeneration, so we rely on the driver implementation to get the info
+			// we are requesting as cheaply as possible.
+			apiRes.Size, _ = pool.GetInstanceUsage(snapInst)
+		}
+
+		return nil
+	}
+}
