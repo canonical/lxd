@@ -1186,7 +1186,7 @@ func (d *zfs) MigrateVolume(vol Volume, conn io.ReadWriteCloser, volSrcArgs *mig
 func (d *zfs) BackupVolume(vol Volume, tarWriter *instancewriter.InstanceTarWriter, optimized bool, snapshots bool, op *operations.Operation) error {
 	// Handle the non-optimized tarballs through the generic packer.
 	if !optimized {
-		// For block volumes that are exporting snapshots, we need to mount parent volume first so that
+		// For block volumes that are exporting snapshots, we need to activate parent volume first so that
 		// the snapshot volumes can have their devices accessible.
 		if vol.contentType == ContentTypeBlock && snapshots {
 			parent, _, _ := shared.InstanceGetParentAndSnapshotName(vol.Name())
