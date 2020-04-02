@@ -197,13 +197,13 @@ func (d *btrfs) CreateVolumeFromBackup(vol Volume, snapshots []string, srcData i
 	// Create a temporary directory to unpack the backup into.
 	unpackDir, err := ioutil.TempDir(GetVolumeMountPath(d.name, vol.volType, ""), "backup.")
 	if err != nil {
-		return nil, nil, errors.Wrapf(err, "Failed to create temporary directory under '%s'", GetVolumeMountPath(d.name, vol.volType, ""))
+		return nil, nil, errors.Wrapf(err, "Failed to create temporary directory under %q", GetVolumeMountPath(d.name, vol.volType, ""))
 	}
 	defer os.RemoveAll(unpackDir)
 
 	err = os.Chmod(unpackDir, 0100)
 	if err != nil {
-		return nil, nil, errors.Wrapf(err, "Failed to chmod '%s'", unpackDir)
+		return nil, nil, errors.Wrapf(err, "Failed to chmod %q", unpackDir)
 	}
 
 	// Extract main volume.
@@ -325,13 +325,13 @@ func (d *btrfs) CreateVolumeFromMigration(vol Volume, conn io.ReadWriteCloser, v
 	// Create a temporary directory which will act as the parent directory of the received ro snapshot.
 	tmpVolumesMountPoint, err := ioutil.TempDir(instancesPath, "migration.")
 	if err != nil {
-		return errors.Wrapf(err, "Failed to create temporary directory under '%s'", instancesPath)
+		return errors.Wrapf(err, "Failed to create temporary directory under %q", instancesPath)
 	}
 	defer os.RemoveAll(tmpVolumesMountPoint)
 
 	err = os.Chmod(tmpVolumesMountPoint, 0100)
 	if err != nil {
-		return errors.Wrapf(err, "Failed to chmod '%s'", tmpVolumesMountPoint)
+		return errors.Wrapf(err, "Failed to chmod %q", tmpVolumesMountPoint)
 	}
 
 	wrapper := migration.ProgressWriter(op, "fs_progress", vol.name)
@@ -507,7 +507,7 @@ func (d *btrfs) SetVolumeQuota(vol Volume, size string, op *operations.Operation
 			}
 
 			if id == "" {
-				return fmt.Errorf("Failed to find subvolume id for %s", volPath)
+				return fmt.Errorf("Failed to find subvolume id for %q", volPath)
 			}
 
 			// Create a qgroup.
@@ -607,13 +607,13 @@ func (d *btrfs) MigrateVolume(vol Volume, conn io.ReadWriteCloser, volSrcArgs *m
 	// Create a temporary directory which will act as the parent directory of the read-only snapshot.
 	tmpVolumesMountPoint, err := ioutil.TempDir(instancesPath, "migration.")
 	if err != nil {
-		return errors.Wrapf(err, "Failed to create temporary directory under '%s'", instancesPath)
+		return errors.Wrapf(err, "Failed to create temporary directory under %q", instancesPath)
 	}
 	defer os.RemoveAll(tmpVolumesMountPoint)
 
 	err = os.Chmod(tmpVolumesMountPoint, 0100)
 	if err != nil {
-		return errors.Wrapf(err, "Failed to chmod '%s'", tmpVolumesMountPoint)
+		return errors.Wrapf(err, "Failed to chmod %q", tmpVolumesMountPoint)
 	}
 
 	// Make read-only snapshot of the subvolume as writable subvolumes cannot be sent.
@@ -650,6 +650,37 @@ func (d *btrfs) MigrateVolume(vol Volume, conn io.ReadWriteCloser, volSrcArgs *m
 func (d *btrfs) BackupVolume(vol Volume, tarWriter *instancewriter.InstanceTarWriter, optimized bool, snapshots bool, op *operations.Operation) error {
 	// Handle the non-optimized tarballs through the generic packer.
 	if !optimized {
+		// Because the generic backup method will not take a consistent backup if files are being modified
+		// as they are copied to the tarball, as BTRFS allows us to take a quick snapshot without impacting
+		// the parent volume we do so here to ensure the backup taken is consistent.
+		if vol.contentType == ContentTypeFS {
+			sourcePath := vol.MountPath()
+			poolPath := GetPoolMountPath(d.name)
+			tmpDir, err := ioutil.TempDir(poolPath, "backup.")
+			if err != nil {
+				return errors.Wrapf(err, "Failed to create temporary directory under %q", poolPath)
+			}
+			defer os.RemoveAll(tmpDir)
+
+			err = os.Chmod(tmpDir, 0100)
+			if err != nil {
+				return errors.Wrapf(err, "Failed to chmod %q", tmpDir)
+			}
+
+			// Override volume's mount path with location of snapshot so genericVFSBackupVolume reads
+			// from there instead of main volume.
+			vol.customMountPath = filepath.Join(tmpDir, vol.name)
+
+			// Create the read-only snapshot.
+			mountPath := vol.MountPath()
+			err = d.snapshotSubvolume(sourcePath, mountPath, true, true)
+			if err != nil {
+				return err
+			}
+			d.logger.Debug("Created read-only backup snapshot", log.Ctx{"sourcePath": sourcePath, "path": mountPath})
+			defer d.deleteSubvolume(mountPath, true)
+		}
+
 		return genericVFSBackupVolume(d, vol, tarWriter, snapshots, op)
 	}
 
@@ -732,23 +763,23 @@ func (d *btrfs) BackupVolume(vol Volume, tarWriter *instancewriter.InstanceTarWr
 		}
 	}
 
-	// Make a temporary copy of the container.
+	// Make a temporary copy of the instance.
 	sourceVolume := vol.MountPath()
-	containersPath := GetVolumeMountPath(d.name, vol.volType, "")
+	instancesPath := GetVolumeMountPath(d.name, vol.volType, "")
 
-	tmpContainerMntPoint, err := ioutil.TempDir(containersPath, "backup.")
+	tmpInstanceMntPoint, err := ioutil.TempDir(instancesPath, "backup.")
 	if err != nil {
-		return errors.Wrapf(err, "Failed to create temporary directory under '%s'", containersPath)
+		return errors.Wrapf(err, "Failed to create temporary directory under %q", instancesPath)
 	}
-	defer os.RemoveAll(tmpContainerMntPoint)
+	defer os.RemoveAll(tmpInstanceMntPoint)
 
-	err = os.Chmod(tmpContainerMntPoint, 0100)
+	err = os.Chmod(tmpInstanceMntPoint, 0100)
 	if err != nil {
-		return errors.Wrapf(err, "Failed to chmod '%s'", tmpContainerMntPoint)
+		return errors.Wrapf(err, "Failed to chmod %q", tmpInstanceMntPoint)
 	}
 
 	// Create the read-only snapshot.
-	targetVolume := fmt.Sprintf("%s/.backup", tmpContainerMntPoint)
+	targetVolume := fmt.Sprintf("%s/.backup", tmpInstanceMntPoint)
 	err = d.snapshotSubvolume(sourceVolume, targetVolume, true, true)
 	if err != nil {
 		return err
@@ -833,7 +864,7 @@ func (d *btrfs) RestoreVolume(vol Volume, snapshotName string, op *operations.Op
 	backupSubvolume := fmt.Sprintf("%s%s", vol.MountPath(), tmpVolSuffix)
 	err := os.Rename(vol.MountPath(), backupSubvolume)
 	if err != nil {
-		return errors.Wrapf(err, "Failed to rename '%s' to '%s'", vol.MountPath(), backupSubvolume)
+		return errors.Wrapf(err, "Failed to rename %q to %q", vol.MountPath(), backupSubvolume)
 	}
 
 	// Setup revert logic.
