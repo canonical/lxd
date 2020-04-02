@@ -1222,10 +1222,18 @@ func (d *ceph) MountVolumeSnapshot(snapVol Volume, op *operations.Operation) (bo
 
 		RBDFilesystem := d.getRBDFilesystem(snapVol)
 		mountFlags, mountOptions := resolveMountOptions(d.getRBDMountOptions(snapVol))
-		if RBDFilesystem == "xfs" {
-			idx := strings.Index(mountOptions, "nouuid")
-			if idx < 0 {
-				mountOptions += ",nouuid"
+
+		if renegerateFilesystemUUIDNeeded(RBDFilesystem) {
+			if RBDFilesystem == "xfs" {
+				idx := strings.Index(mountOptions, "nouuid")
+				if idx < 0 {
+					mountOptions += ",nouuid"
+				}
+			} else {
+				err = d.generateUUID(RBDFilesystem, rbdDevPath)
+				if err != nil {
+					return false, err
+				}
 			}
 		}
 
