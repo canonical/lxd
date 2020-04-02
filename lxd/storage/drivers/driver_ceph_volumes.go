@@ -18,6 +18,7 @@ import (
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/instancewriter"
 	"github.com/lxc/lxd/shared/ioprogress"
+	log "github.com/lxc/lxd/shared/log15"
 	"github.com/lxc/lxd/shared/units"
 )
 
@@ -291,8 +292,15 @@ func (d *ceph) CreateVolumeFromCopy(vol Volume, srcVol Volume, copySnapshots boo
 		}
 
 		if vol.contentType == ContentTypeFS {
+			// Map the RBD volume.
+			RBDDevPath, err := d.rbdMapVolume(vol)
+			if err != nil {
+				return err
+			}
+			defer d.rbdUnmapVolume(vol, true)
+
 			// Re-generate the UUID.
-			err = d.generateUUID(vol)
+			err = d.generateUUID(d.getRBDFilesystem(vol), RBDDevPath)
 			if err != nil {
 				return err
 			}
@@ -376,8 +384,15 @@ func (d *ceph) CreateVolumeFromCopy(vol Volume, srcVol Volume, copySnapshots boo
 		return err
 	}
 
+	// Map the RBD volume.
+	RBDDevPath, err := d.rbdMapVolume(vol)
+	if err != nil {
+		return err
+	}
+	defer d.rbdUnmapVolume(vol, true)
+
 	// Re-generate the UUID.
-	err = d.generateUUID(vol)
+	err = d.generateUUID(d.getRBDFilesystem(vol), RBDDevPath)
 	if err != nil {
 		return err
 	}
@@ -487,7 +502,15 @@ func (d *ceph) CreateVolumeFromMigration(vol Volume, conn io.ReadWriteCloser, vo
 		}
 	}
 
-	err = d.generateUUID(vol)
+	// Map the RBD volume.
+	RBDDevPath, err := d.rbdMapVolume(vol)
+	if err != nil {
+		return err
+	}
+	defer d.rbdUnmapVolume(vol, true)
+
+	// Re-generate the UUID.
+	err = d.generateUUID(d.getRBDFilesystem(vol), RBDDevPath)
 	if err != nil {
 		return err
 	}
@@ -824,6 +847,7 @@ func (d *ceph) MountVolume(vol Volume, op *operations.Operation) (bool, error) {
 		if err != nil {
 			return false, err
 		}
+		d.logger.Debug("Mounted RBD volume", log.Ctx{"dev": RBDDevPath, "path": mountPath, "options": mountOptions})
 
 		return true, nil
 	}
@@ -856,6 +880,7 @@ func (d *ceph) UnmountVolume(vol Volume, op *operations.Operation) (bool, error)
 		if err != nil {
 			return false, err
 		}
+		d.logger.Debug("Unmounted RBD volume", log.Ctx{"path": mountPath})
 	}
 
 	// Attempt to unmap.
@@ -1197,10 +1222,18 @@ func (d *ceph) MountVolumeSnapshot(snapVol Volume, op *operations.Operation) (bo
 
 		RBDFilesystem := d.getRBDFilesystem(snapVol)
 		mountFlags, mountOptions := resolveMountOptions(d.getRBDMountOptions(snapVol))
-		if RBDFilesystem == "xfs" {
-			idx := strings.Index(mountOptions, "nouuid")
-			if idx < 0 {
-				mountOptions += ",nouuid"
+
+		if renegerateFilesystemUUIDNeeded(RBDFilesystem) {
+			if RBDFilesystem == "xfs" {
+				idx := strings.Index(mountOptions, "nouuid")
+				if idx < 0 {
+					mountOptions += ",nouuid"
+				}
+			} else {
+				err = d.generateUUID(RBDFilesystem, rbdDevPath)
+				if err != nil {
+					return false, err
+				}
 			}
 		}
 
@@ -1208,6 +1241,7 @@ func (d *ceph) MountVolumeSnapshot(snapVol Volume, op *operations.Operation) (bo
 		if err != nil {
 			return false, err
 		}
+		d.logger.Debug("Mounted RBD volume snapshot", log.Ctx{"dev": rbdDevPath, "path": mountPath, "options": mountOptions})
 
 		revert.Success()
 
@@ -1235,6 +1269,7 @@ func (d *ceph) UnmountVolumeSnapshot(snapVol Volume, op *operations.Operation) (
 	if err != nil {
 		return false, err
 	}
+	d.logger.Debug("Unmounted RBD volume snapshot", log.Ctx{"path": mountPath})
 
 	parentName, snapshotOnlyName, _ := shared.InstanceGetParentAndSnapshotName(snapVol.name)
 	cloneName := fmt.Sprintf("%s_%s_start_clone", parentName, snapshotOnlyName)
@@ -1319,11 +1354,18 @@ func (d *ceph) RestoreVolume(vol Volume, snapshotName string, op *operations.Ope
 		return err
 	}
 
-	err = d.generateUUID(snapVol)
+	// Map the RBD volume.
+	RBDDevPath, err := d.rbdMapVolume(snapVol)
 	if err != nil {
 		return err
 	}
+	defer d.rbdUnmapVolume(snapVol, true)
 
+	// Re-generate the UUID.
+	err = d.generateUUID(d.getRBDFilesystem(snapVol), RBDDevPath)
+	if err != nil {
+		return err
+	}
 	return nil
 }
 

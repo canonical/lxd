@@ -74,172 +74,6 @@ func ConfigDiff(oldConfig map[string]string, newConfig map[string]string) ([]str
 	return changedConfig, userOnly
 }
 
-// StoragePoolsDirMode represents the default permissions for the storage pool directory.
-const StoragePoolsDirMode os.FileMode = 0711
-
-// ContainersDirMode represents the default permissions for the containers directory.
-const ContainersDirMode os.FileMode = 0711
-
-// CustomDirMode represents the default permissions for the custom directory.
-const CustomDirMode os.FileMode = 0711
-
-// ImagesDirMode represents the default permissions for the images directory.
-const ImagesDirMode os.FileMode = 0700
-
-// SnapshotsDirMode represents the default permissions for the snapshots directory.
-const SnapshotsDirMode os.FileMode = 0700
-
-// LXDUsesPool detect whether LXD already uses the given storage pool.
-func LXDUsesPool(dbObj *db.Cluster, onDiskPoolName string, driver string, onDiskProperty string) (bool, string, error) {
-	pools, err := dbObj.StoragePools()
-	if err != nil && err != db.ErrNoSuchObject {
-		return false, "", err
-	}
-
-	for _, pool := range pools {
-		_, pl, err := dbObj.StoragePoolGet(pool)
-		if err != nil {
-			continue
-		}
-
-		if pl.Driver != driver {
-			continue
-		}
-
-		if pl.Config[onDiskProperty] == onDiskPoolName {
-			return true, pl.Name, nil
-		}
-	}
-
-	return false, "", nil
-}
-
-// FSGenerateNewUUID generates a UUID for the given path for btrfs and xfs filesystems.
-func FSGenerateNewUUID(fstype string, lvpath string) (string, error) {
-	switch fstype {
-	case "btrfs":
-		return btrfsGenerateNewUUID(lvpath)
-	case "xfs":
-		return xfsGenerateNewUUID(lvpath)
-	}
-
-	return "", nil
-}
-
-func xfsGenerateNewUUID(devPath string) (string, error) {
-	// Attempt to generate a new UUID
-	msg, err := shared.RunCommand("xfs_admin", "-U", "generate", devPath)
-	if err != nil {
-		return msg, err
-	}
-
-	if msg != "" {
-		// Exit 0 with a msg usually means some log entry getting in the way
-		msg, err = shared.RunCommand("xfs_repair", "-o", "force_geometry", "-L", devPath)
-		if err != nil {
-			return msg, err
-		}
-
-		// Attempt to generate a new UUID again
-		msg, err = shared.RunCommand("xfs_admin", "-U", "generate", devPath)
-		if err != nil {
-			return msg, err
-		}
-	}
-
-	return msg, nil
-}
-
-func btrfsGenerateNewUUID(lvpath string) (string, error) {
-	msg, err := shared.RunCommand(
-		"btrfstune",
-		"-f",
-		"-u",
-		lvpath)
-	if err != nil {
-		return msg, err
-	}
-
-	return msg, nil
-}
-
-// GrowFileSystem grows a filesystem if it is supported.
-func GrowFileSystem(fsType string, devPath string, mntpoint string) error {
-	var msg string
-	var err error
-	switch fsType {
-	case "": // if not specified, default to ext4
-		fallthrough
-	case "ext4":
-		msg, err = shared.TryRunCommand("resize2fs", devPath)
-	case "xfs":
-		msg, err = shared.TryRunCommand("xfs_growfs", mntpoint)
-	case "btrfs":
-		msg, err = shared.TryRunCommand("btrfs", "filesystem", "resize", "max", mntpoint)
-	default:
-		return fmt.Errorf(`Growing not supported for filesystem type "%s"`, fsType)
-	}
-
-	if err != nil {
-		errorMsg := fmt.Sprintf(`Could not extend underlying %s filesystem for "%s": %s`, fsType, devPath, msg)
-		logger.Errorf(errorMsg)
-		return fmt.Errorf(errorMsg)
-	}
-
-	logger.Debugf(`extended underlying %s filesystem for "%s"`, fsType, devPath)
-	return nil
-}
-
-// ShrinkFileSystem shrinks a filesystem if it is supported.
-func ShrinkFileSystem(fsType string, devPath string, mntpoint string, byteSize int64) error {
-	strSize := fmt.Sprintf("%dK", byteSize/1024)
-
-	switch fsType {
-	case "": // if not specified, default to ext4
-		fallthrough
-	case "ext4":
-		_, err := shared.TryRunCommand("e2fsck", "-f", "-y", devPath)
-		if err != nil {
-			return err
-		}
-
-		_, err = shared.TryRunCommand("resize2fs", devPath, strSize)
-		if err != nil {
-			return err
-		}
-	case "btrfs":
-		_, err := shared.TryRunCommand("btrfs", "filesystem", "resize", strSize, mntpoint)
-		if err != nil {
-			return err
-		}
-	default:
-		return fmt.Errorf(`Shrinking not supported for filesystem type "%s"`, fsType)
-	}
-
-	return nil
-}
-
-// GetStorageResource returns the available resources of a given path.
-func GetStorageResource(path string) (*api.ResourcesStoragePool, error) {
-	st, err := shared.Statvfs(path)
-	if err != nil {
-		return nil, err
-	}
-
-	res := api.ResourcesStoragePool{}
-	res.Space.Total = st.Blocks * uint64(st.Bsize)
-	res.Space.Used = (st.Blocks - st.Bfree) * uint64(st.Bsize)
-
-	// Some filesystems don't report inodes since they allocate them
-	// dynamically e.g. btrfs.
-	if st.Files > 0 {
-		res.Inodes.Total = st.Files
-		res.Inodes.Used = st.Files - st.Ffree
-	}
-
-	return &res, nil
-}
-
 // VolumeTypeNameToType converts a volume type string to internal code.
 func VolumeTypeNameToType(volumeTypeName string) (int, error) {
 	switch volumeTypeName {
@@ -793,4 +627,25 @@ func FallbackMigrationType(contentType drivers.ContentType) migration.MigrationF
 	}
 
 	return migration.MigrationFSType_RSYNC
+}
+
+// RenderSnapshotUsage can be used as an optional argument to Instance.Render() to return snapshot usage.
+// As this is a relatively expensive operation it is provided as an optional feature rather than on by default.
+func RenderSnapshotUsage(s *state.State, snapInst instance.Instance) func(response interface{}) error {
+	return func(response interface{}) error {
+		apiRes, ok := response.(*api.InstanceSnapshot)
+		if !ok {
+			return nil
+		}
+
+		pool, err := GetPoolByInstance(s, snapInst)
+		if err == nil {
+			// It is important that the snapshot not be mounted here as mounting a snapshot can trigger a very
+			// expensive filesystem UUID regeneration, so we rely on the driver implementation to get the info
+			// we are requesting as cheaply as possible.
+			apiRes.Size, _ = pool.GetInstanceUsage(snapInst)
+		}
+
+		return nil
+	}
 }

@@ -418,7 +418,7 @@ func (d *lvm) MountVolume(vol Volume, op *operations.Operation) (bool, error) {
 		if err != nil {
 			return false, errors.Wrapf(err, "Failed to mount LVM logical volume")
 		}
-		d.logger.Debug("Mounted logical volume", log.Ctx{"dev": volDevPath, "path": mountPath})
+		d.logger.Debug("Mounted logical volume", log.Ctx{"dev": volDevPath, "path": mountPath, "options": mountOptions})
 
 		return true, nil
 	}
@@ -641,6 +641,7 @@ func (d *lvm) MountVolumeSnapshot(snapVol Volume, op *operations.Operation) (boo
 		// Default to mounting the original snapshot directly. This may be changed below if a temporary
 		// snapshot needs to be taken.
 		mountVol := snapVol
+		mountFlags, mountOptions := resolveMountOptions(d.volumeMountOptions(mountVol))
 
 		// Regenerate filesystem UUID if needed. This is because some filesystems do not allow mounting
 		// multiple volumes that share the same UUID. As snapshotting a volume will copy its UUID we need
@@ -666,11 +667,21 @@ func (d *lvm) MountVolumeSnapshot(snapVol Volume, op *operations.Operation) (boo
 			})
 
 			tmpVolDevPath := d.lvmDevPath(d.config["lvm.vg_name"], tmpVol.volType, tmpVol.contentType, tmpVol.name)
+			tmpVolFsType := d.volumeFilesystem(tmpVol)
 
-			d.logger.Debug("Regenerating filesystem UUID", log.Ctx{"dev": tmpVolDevPath, "fs": d.volumeFilesystem(tmpVol)})
-			err = regenerateFilesystemUUID(d.volumeFilesystem(tmpVol), tmpVolDevPath)
-			if err != nil {
-				return false, err
+			// When mounting XFS filesystems temporarily we can use the nouuid option rather than fully
+			// regenerating the filesystem UUID.
+			if tmpVolFsType == "xfs" {
+				idx := strings.Index(mountOptions, "nouuid")
+				if idx < 0 {
+					mountOptions += ",nouuid"
+				}
+			} else {
+				d.logger.Debug("Regenerating filesystem UUID", log.Ctx{"dev": tmpVolDevPath, "fs": d.volumeFilesystem(tmpVol)})
+				err = regenerateFilesystemUUID(d.volumeFilesystem(tmpVol), tmpVolDevPath)
+				if err != nil {
+					return false, err
+				}
 			}
 
 			// We are going to mount the temporary volume instead.
@@ -679,12 +690,11 @@ func (d *lvm) MountVolumeSnapshot(snapVol Volume, op *operations.Operation) (boo
 
 		// Finally attempt to mount the volume that needs mounting.
 		volDevPath := d.lvmDevPath(d.config["lvm.vg_name"], mountVol.volType, mountVol.contentType, mountVol.name)
-		mountFlags, mountOptions := resolveMountOptions(d.volumeMountOptions(snapVol))
 		err := TryMount(volDevPath, mountPath, d.volumeFilesystem(mountVol), mountFlags|unix.MS_RDONLY, mountOptions)
 		if err != nil {
 			return false, errors.Wrapf(err, "Failed to mount LVM snapshot volume")
 		}
-		d.logger.Debug("Mounted logical volume snapshot", log.Ctx{"dev": volDevPath, "path": mountPath})
+		d.logger.Debug("Mounted logical volume snapshot", log.Ctx{"dev": volDevPath, "path": mountPath, "options": mountOptions})
 
 		revert.Success()
 		return true, nil

@@ -17,6 +17,7 @@ import (
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/ioprogress"
+	log "github.com/lxc/lxd/shared/log15"
 	"github.com/lxc/lxd/shared/units"
 )
 
@@ -1035,22 +1036,14 @@ func (d *ceph) getRBDMappedDevPath(vol Volume) (string, error) {
 }
 
 // generateUUID regenerates the XFS/btrfs UUID as needed.
-func (d *ceph) generateUUID(vol Volume) error {
-	fsType := d.getRBDFilesystem(vol)
-
+func (d *ceph) generateUUID(fsType string, devPath string) error {
 	if !renegerateFilesystemUUIDNeeded(fsType) {
 		return nil
 	}
 
-	// Map the RBD volume.
-	RBDDevPath, err := d.rbdMapVolume(vol)
-	if err != nil {
-		return err
-	}
-	defer d.rbdUnmapVolume(vol, true)
-
 	// Update the UUID.
-	err = regenerateFilesystemUUID(fsType, RBDDevPath)
+	d.logger.Debug("Regenerating filesystem UUID", log.Ctx{"dev": devPath, "fs": fsType})
+	err := regenerateFilesystemUUID(fsType, devPath)
 	if err != nil {
 		return err
 	}
