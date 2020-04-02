@@ -1005,3 +1005,6 @@ This adds USB and PCI devices to the output of `/1.0/resources`.
 This indicates that the numa_node field is now recorded per-thread
 rather than per core as some hardware apparently puts threads in
 different NUMA domains.
+
+## resources\_cpu\_core\_die
+Exposes the die_id information on each core.
