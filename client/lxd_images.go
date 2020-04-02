@@ -616,6 +616,93 @@ func (r *ProtocolLXD) CopyImage(source ImageServer, image api.Image, args *Image
 		return nil, err
 	}
 
+	// Relay mode
+	if args != nil && args.Mode == "relay" {
+		metaFile, err := ioutil.TempFile("", "lxc_image_")
+		if err != nil {
+			return nil, err
+		}
+		defer os.Remove(metaFile.Name())
+
+		rootfsFile, err := ioutil.TempFile("", "lxc_image_")
+		if err != nil {
+			return nil, err
+		}
+		defer os.Remove(rootfsFile.Name())
+
+		// Import image
+		req := ImageFileRequest{
+			MetaFile:   metaFile,
+			RootfsFile: rootfsFile,
+		}
+
+		resp, err := source.GetImageFile(image.Fingerprint, req)
+		if err != nil {
+			return nil, err
+		}
+
+		// Export image
+		_, err = metaFile.Seek(0, 0)
+		if err != nil {
+			return nil, err
+		}
+
+		_, err = rootfsFile.Seek(0, 0)
+		if err != nil {
+			return nil, err
+		}
+
+		imagePost := api.ImagesPost{}
+		imagePost.Public = args.Public
+
+		if args.CopyAliases {
+			imagePost.Aliases = image.Aliases
+			if args.Aliases != nil {
+				imagePost.Aliases = append(imagePost.Aliases, args.Aliases...)
+			}
+		}
+
+		createArgs := &ImageCreateArgs{
+			MetaFile: metaFile,
+			MetaName: image.Filename,
+			Type:     image.Type,
+		}
+
+		if resp.RootfsName != "" {
+			// Deal with split images
+			createArgs.RootfsFile = rootfsFile
+			createArgs.RootfsName = image.Filename
+		}
+
+		rop := remoteOperation{
+			chDone: make(chan bool),
+		}
+
+		go func() {
+			defer close(rop.chDone)
+
+			op, err := r.CreateImage(imagePost, createArgs)
+			if err != nil {
+				rop.err = remoteOperationError("Failed to copy image", nil)
+				return
+			}
+
+			rop.targetOp = op
+
+			for _, handler := range rop.handlers {
+				rop.targetOp.AddHandler(handler)
+			}
+
+			err = rop.targetOp.Wait()
+			if err != nil {
+				rop.err = remoteOperationError("Failed to copy image", nil)
+				return
+			}
+		}()
+
+		return &rop, nil
+	}
+
 	// Prepare the copy request
 	req := api.ImagesPost{
 		Source: &api.ImagesPostSource{
