@@ -18,6 +18,7 @@ import (
 	"github.com/lxc/lxd/lxd/project"
 	"github.com/lxc/lxd/lxd/response"
 	"github.com/lxc/lxd/lxd/state"
+	storagePools "github.com/lxc/lxd/lxd/storage"
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
@@ -74,7 +75,7 @@ func containerSnapshotsGet(d *Daemon, r *http.Request) response.Response {
 		}
 
 		for _, snap := range snaps {
-			render, _, err := snap.Render()
+			render, _, err := snap.Render(storagePools.RenderSnapshotUsage(d.State(), snap))
 			if err != nil {
 				continue
 			}
@@ -218,7 +219,7 @@ func containerSnapshotHandler(d *Daemon, r *http.Request) response.Response {
 
 	switch r.Method {
 	case "GET":
-		return snapshotGet(inst, snapshotName)
+		return snapshotGet(d.State(), inst, snapshotName)
 	case "POST":
 		return snapshotPost(d, r, inst, containerName)
 	case "DELETE":
@@ -304,8 +305,8 @@ func snapshotPut(d *Daemon, r *http.Request, sc instance.Instance, name string) 
 	return operations.OperationResponse(op)
 }
 
-func snapshotGet(sc instance.Instance, name string) response.Response {
-	render, _, err := sc.Render()
+func snapshotGet(s *state.State, snapInst instance.Instance, name string) response.Response {
+	render, _, err := snapInst.Render(storagePools.RenderSnapshotUsage(s, snapInst))
 	if err != nil {
 		return response.SmartError(err)
 	}
