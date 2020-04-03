@@ -3119,7 +3119,7 @@ func (c *lxc) RenderFull() (*api.InstanceFull, interface{}, error) {
 	}
 
 	for _, snap := range snaps {
-		render, _, err := snap.Render(storagePools.RenderSnapshotUsage(c.state, c))
+		render, _, err := snap.Render()
 		if err != nil {
 			return nil, nil, err
 		}
