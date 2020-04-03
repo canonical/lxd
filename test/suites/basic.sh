@@ -266,7 +266,7 @@ test_basic_usage() {
     respawn_lxd "${LXD_DIR}" true
     lxc stop --force autostart
 
-    lxd activateifneeded --debug 2>&1 | grep -q "Daemon has auto-started containers, activating..."
+    lxd activateifneeded --debug 2>&1 | grep -q "Daemon has auto-started instances, activating..."
 
     lxc config unset autostart boot.autostart --force-local
     lxd activateifneeded --debug 2>&1 | grep -q -v "activating..."
@@ -276,14 +276,45 @@ test_basic_usage() {
     shutdown_lxd "${LXD_DIR}"
     [ -d "/proc/${PID}" ] && false
 
-    lxd activateifneeded --debug 2>&1 | grep -q "Daemon has auto-started containers, activating..."
+    lxd activateifneeded --debug 2>&1 | grep -q "Daemon has auto-started instances, activating..."
 
     # shellcheck disable=SC2031
     respawn_lxd "${LXD_DIR}" true
 
     lxc list --force-local autostart | grep -q RUNNING
 
+    # Check for scheduled instance snapshots
+    lxc stop --force autostart
+    lxc config set autostart snapshots.schedule "* * * * *" --force-local
+    shutdown_lxd "${LXD_DIR}"
+    lxd activateifneeded --debug 2>&1 | grep -q "Daemon has scheduled instance snapshots, activating..."
+
+    # shellcheck disable=SC2031
+    respawn_lxd "${LXD_DIR}" true
+
+    lxc config unset autostart snapshots.schedule --force-local
+
+    # Check for scheduled volume snapshots
+    storage_pool="lxdtest-$(basename "${LXD_DIR}")"
+
+    lxc storage volume create "${storage_pool}" vol --force-local
+
+    shutdown_lxd "${LXD_DIR}"
+    lxd activateifneeded --debug 2>&1 | grep -q -v "activating..."
+
+    # shellcheck disable=SC2031
+    respawn_lxd "${LXD_DIR}" true
+
+    lxc storage volume set "${storage_pool}" vol snapshots.schedule="* * * * *" --force-local
+
+    shutdown_lxd "${LXD_DIR}"
+    lxd activateifneeded --debug 2>&1 | grep -q "Daemon has scheduled volume snapshots, activating..."
+
+    # shellcheck disable=SC2031
+    respawn_lxd "${LXD_DIR}" true
+
     lxc delete autostart --force --force-local
+    lxc storage volume delete "${storage_pool}" vol --force-local
   )
   # shellcheck disable=SC2031
   LXD_DIR=${LXD_DIR}
