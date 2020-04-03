@@ -33,8 +33,8 @@ func (c *cmdActivateifneeded) Command() *cobra.Command {
 	cmd.Long = `Description:
   Check if LXD should be started
 
-  This command will check if LXD has any auto-started containers,
-  containers which were running prior to LXD's last shutdown or if it's
+  This command will check if LXD has any auto-started instances,
+  instances which were running prior to LXD's last shutdown or if it's
   configured to listen on the network address.
 
   If at least one of those is true, then a connection will be attempted to the
@@ -86,13 +86,13 @@ func (c *cmdActivateifneeded) Run(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	// Load the idmap for unprivileged containers
+	// Load the idmap for unprivileged instances
 	d.os.IdmapSet, err = idmap.DefaultIdmapSet("", "")
 	if err != nil {
 		return err
 	}
 
-	// Look for auto-started or previously started containers
+	// Look for auto-started or previously started instances
 	path = d.os.GlobalDatabasePath()
 	if !shared.PathExists(path) {
 		path = d.os.LegacyGlobalDatabasePath()
@@ -111,19 +111,19 @@ func (c *cmdActivateifneeded) Run(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	var containers []db.Instance
+	var instances []db.Instance
 	err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
 		filter := db.InstanceFilter{Type: instancetype.Container}
 		var err error
-		containers, err = tx.InstanceList(filter)
+		instances, err = tx.InstanceList(filter)
 		return err
 	})
 	if err != nil {
 		return err
 	}
 
-	for _, container := range containers {
-		c, err := instance.LoadByProjectAndName(d.State(), container.Project, container.Name)
+	for _, inst := range instances {
+		c, err := instance.LoadByProjectAndName(d.State(), inst.Project, inst.Name)
 		if err != nil {
 			sqldb.Close()
 			return err
@@ -135,14 +135,14 @@ func (c *cmdActivateifneeded) Run(cmd *cobra.Command, args []string) error {
 
 		if c.IsRunning() {
 			sqldb.Close()
-			logger.Debugf("Daemon has running containers, activating...")
+			logger.Debugf("Daemon has running instances, activating...")
 			_, err := lxd.ConnectLXDUnix("", nil)
 			return err
 		}
 
 		if lastState == "RUNNING" || lastState == "Running" || shared.IsTrue(autoStart) {
 			sqldb.Close()
-			logger.Debugf("Daemon has auto-started containers, activating...")
+			logger.Debugf("Daemon has auto-started instances, activating...")
 			_, err := lxd.ConnectLXDUnix("", nil)
 			return err
 		}
