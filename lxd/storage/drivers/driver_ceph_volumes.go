@@ -624,9 +624,9 @@ func (d *ceph) HasVolume(vol Volume) bool {
 		"--id", d.config["ceph.user.name"],
 		"--cluster", d.config["ceph.cluster_name"],
 		"--pool", d.config["ceph.osd.pool_name"],
-		"image-meta",
-		"list",
-		d.getRBDVolumeName(vol, "", false, false))
+		"info",
+		d.getRBDVolumeName(vol, "", false, false),
+	)
 
 	return err == nil
 }
