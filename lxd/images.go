@@ -697,6 +697,11 @@ func imagesPost(d *Daemon, r *http.Request) response.Response {
 		imageUpload = true
 	}
 
+	if !imageUpload && req.Source.Mode == "push" {
+		cleanup(builddir, post)
+		return createTokenResponse(d, project, req.Source.Fingerprint)
+	}
+
 	if !imageUpload && !shared.StringInSlice(req.Source.Type, []string{"container", "instance", "virtual-machine", "snapshot", "image", "url"}) {
 		cleanup(builddir, post)
 		return response.InternalError(fmt.Errorf("Invalid images JSON"))
@@ -1975,29 +1980,13 @@ func imageExport(d *Daemon, r *http.Request) response.Response {
 func imageSecret(d *Daemon, r *http.Request) response.Response {
 	project := projectParam(r)
 	fingerprint := mux.Vars(r)["fingerprint"]
+
 	_, imgInfo, err := d.cluster.ImageGet(project, fingerprint, false, false)
 	if err != nil {
 		return response.SmartError(err)
 	}
 
-	secret, err := shared.RandomCryptoString()
-
-	if err != nil {
-		return response.InternalError(err)
-	}
-
-	meta := shared.Jmap{}
-	meta["secret"] = secret
-
-	resources := map[string][]string{}
-	resources["images"] = []string{imgInfo.Fingerprint}
-
-	op, err := operations.OperationCreate(d.State(), project, operations.OperationClassToken, db.OperationImageToken, resources, meta, nil, nil, nil)
-	if err != nil {
-		return response.InternalError(err)
-	}
-
-	return operations.OperationResponse(op)
+	return createTokenResponse(d, project, imgInfo.Fingerprint)
 }
 
 func imageImportFromNode(imagesDir string, client lxd.InstanceServer, fingerprint string) error {
@@ -2267,4 +2256,24 @@ func imageSyncBetweenNodes(d *Daemon, project string, fingerprint string) error 
 	}
 
 	return op.Wait()
+}
+
+func createTokenResponse(d *Daemon, project, fingerprint string) response.Response {
+	secret, err := shared.RandomCryptoString()
+	if err != nil {
+		return response.InternalError(err)
+	}
+
+	meta := shared.Jmap{}
+	meta["secret"] = secret
+
+	resources := map[string][]string{}
+	resources["images"] = []string{fingerprint}
+
+	op, err := operations.OperationCreate(d.State(), project, operations.OperationClassToken, db.OperationImageToken, resources, meta, nil, nil, nil)
+	if err != nil {
+		return response.InternalError(err)
+	}
+
+	return operations.OperationResponse(op)
 }
