@@ -341,7 +341,7 @@ func Join(state *state.State, gateway *Gateway, cert *shared.CertInfo, name stri
 	logger.Info(
 		"Joining dqlite raft cluster",
 		log15.Ctx{"id": info.ID, "address": info.Address, "role": info.Role})
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
 	defer cancel()
 	client, err := client.FindLeader(
 		ctx, gateway.NodeStore(),
@@ -352,6 +352,9 @@ func Join(state *state.State, gateway *Gateway, cert *shared.CertInfo, name stri
 		return errors.Wrap(err, "Failed to connect to cluster leader")
 	}
 	defer client.Close()
+
+	ctx, cancel = context.WithTimeout(context.Background(), time.Minute)
+	defer cancel()
 	err = client.Add(ctx, *info)
 	if err != nil {
 		return errors.Wrap(err, "Failed to join cluster")
