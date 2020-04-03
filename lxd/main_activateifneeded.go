@@ -135,6 +135,14 @@ func (c *cmdActivateifneeded) Run(cmd *cobra.Command, args []string) error {
 			_, err := lxd.ConnectLXDUnix("", nil)
 			return err
 		}
+
+		// Check for scheduled instance snapshots
+		if config["snapshots.schedule"] != "" {
+			sqldb.Close()
+			logger.Debugf("Daemon has scheduled instance snapshots, activating...")
+			_, err := lxd.ConnectLXDUnix("", nil)
+			return err
+		}
 	}
 
 	sqldb.Close()
