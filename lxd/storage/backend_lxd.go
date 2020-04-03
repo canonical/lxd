@@ -1245,9 +1245,12 @@ func (b *lxdBackend) DeleteInstance(inst instance.Instance, op *operations.Opera
 	// Delete the volume from the storage device. Must come after snapshots are removed.
 	// Must come before DB StoragePoolVolumeDelete so that the volume ID is still available.
 	logger.Debug("Deleting instance volume", log.Ctx{"volName": volStorageName})
-	err = b.driver.DeleteVolume(vol, op)
-	if err != nil {
-		return errors.Wrapf(err, "Error deleting storage volume")
+
+	if b.driver.HasVolume(vol) {
+		err = b.driver.DeleteVolume(vol, op)
+		if err != nil {
+			return errors.Wrapf(err, "Error deleting storage volume")
+		}
 	}
 
 	// Remove symlinks.
@@ -1746,13 +1749,14 @@ func (b *lxdBackend) DeleteInstanceSnapshot(inst instance.Instance, op *operatio
 
 	snapVolName := drivers.GetSnapshotVolumeName(parentStorageName, snapName)
 
-	// There's no need to pass config as it's not needed when deleting a volume
-	// snapshot.
+	// There's no need to pass config as it's not needed when deleting a volume snapshot.
 	vol := b.newVolume(volType, contentType, snapVolName, nil)
 
-	err = b.driver.DeleteVolumeSnapshot(vol, op)
-	if err != nil {
-		return err
+	if b.driver.HasVolume(vol) {
+		err = b.driver.DeleteVolumeSnapshot(vol, op)
+		if err != nil {
+			return err
+		}
 	}
 
 	// Delete symlink if needed.
@@ -2039,9 +2043,11 @@ func (b *lxdBackend) DeleteImage(fingerprint string, op *operations.Operation) e
 
 	vol := b.newVolume(drivers.VolumeTypeImage, contentType, fingerprint, storageVol.Config)
 
-	err = b.driver.DeleteVolume(vol, op)
-	if err != nil {
-		return err
+	if b.driver.HasVolume(vol) {
+		err = b.driver.DeleteVolume(vol, op)
+		if err != nil {
+			return err
+		}
 	}
 
 	err = b.state.Cluster.StoragePoolVolumeDelete(project.Default, fingerprint, db.StoragePoolVolumeTypeImage, b.ID())
@@ -2639,9 +2645,11 @@ func (b *lxdBackend) DeleteCustomVolume(projectName string, volName string, op *
 	vol := b.newVolume(drivers.VolumeTypeCustom, drivers.ContentTypeFS, volStorageName, nil)
 
 	// Delete the volume from the storage device. Must come after snapshots are removed.
-	err = b.driver.DeleteVolume(vol, op)
-	if err != nil {
-		return err
+	if b.driver.HasVolume(vol) {
+		err = b.driver.DeleteVolume(vol, op)
+		if err != nil {
+			return err
+		}
 	}
 
 	// Finally, remove the volume record from the database.
@@ -2824,13 +2832,15 @@ func (b *lxdBackend) DeleteCustomVolumeSnapshot(projectName, volName string, op 
 
 	// Delete the snapshot from the storage device.
 	// Must come before DB StoragePoolVolumeDelete so that the volume ID is still available.
-	err := b.driver.DeleteVolumeSnapshot(vol, op)
-	if err != nil {
-		return err
+	if b.driver.HasVolume(vol) {
+		err := b.driver.DeleteVolumeSnapshot(vol, op)
+		if err != nil {
+			return err
+		}
 	}
 
 	// Remove the snapshot volume record from the database.
-	err = b.state.Cluster.StoragePoolVolumeDelete(projectName, volName, db.StoragePoolVolumeTypeCustom, b.ID())
+	err := b.state.Cluster.StoragePoolVolumeDelete(projectName, volName, db.StoragePoolVolumeTypeCustom, b.ID())
 	if err != nil {
 		return err
 	}
