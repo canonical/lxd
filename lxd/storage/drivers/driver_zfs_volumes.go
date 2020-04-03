@@ -1201,6 +1201,55 @@ func (d *zfs) BackupVolume(vol Volume, tarWriter *instancewriter.InstanceTarWrit
 			}
 		}
 
+		// Because the generic backup method will not take a consistent backup if files are being modified
+		// as they are copied to the tarball, as ZFS allows us to take a quick snapshot without impacting
+		// the parent volume we do so here to ensure the backup taken is consistent.
+		if vol.contentType == ContentTypeFS {
+			poolPath := GetPoolMountPath(d.name)
+			tmpDir, err := ioutil.TempDir(poolPath, "backup.")
+			if err != nil {
+				return errors.Wrapf(err, "Failed to create temporary directory under %q", poolPath)
+			}
+			defer os.RemoveAll(tmpDir)
+
+			err = os.Chmod(tmpDir, 0100)
+			if err != nil {
+				return errors.Wrapf(err, "Failed to chmod %q", tmpDir)
+			}
+
+			// Create a temporary snapshot.
+			srcSnapshot := fmt.Sprintf("%s@backup-%s", d.dataset(vol, false), uuid.NewRandom().String())
+			_, err = shared.RunCommand("zfs", "snapshot", srcSnapshot)
+			if err != nil {
+				return err
+			}
+			defer shared.RunCommand("zfs", "destroy", srcSnapshot)
+			d.logger.Debug("Created backup snapshot", log.Ctx{"dev": srcSnapshot})
+
+			// Override volume's mount path with location of snapshot so genericVFSBackupVolume reads
+			// from there instead of main volume.
+			vol.customMountPath = tmpDir
+
+			// Mount the snapshot directly (not possible through ZFS tools), so that the volume is
+			// already mounted by the time genericVFSBackupVolume tries to mount it below,
+			// thus preventing it from trying to unmount it at the end, as this is a custom snapshot,
+			// the normal mount and unmount logic will fail.
+			err = TryMount(srcSnapshot, vol.MountPath(), "zfs", 0, "")
+			if err != nil {
+				return err
+			}
+			d.logger.Debug("Mounted ZFS snapshot dataset", log.Ctx{"dev": srcSnapshot, "path": vol.MountPath()})
+
+			defer func(dataset string, mountPath string) {
+				_, err := forceUnmount(mountPath)
+				if err != nil {
+					return
+				}
+
+				d.logger.Debug("Unmounted ZFS snapshot dataset", log.Ctx{"dev": dataset, "path": mountPath})
+			}(srcSnapshot, vol.MountPath())
+		}
+
 		return genericVFSBackupVolume(d, vol, tarWriter, snapshots, op)
 	}
 
