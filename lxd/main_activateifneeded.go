@@ -145,6 +145,21 @@ func (c *cmdActivateifneeded) Run(cmd *cobra.Command, args []string) error {
 		}
 	}
 
+	// Check for scheduled volume snapshots
+	volumes, err := d.cluster.StoragePoolVolumesGetAllByType(db.StoragePoolVolumeTypeCustom)
+	if err != nil {
+		return err
+	}
+
+	for _, vol := range volumes {
+		if vol.Config["snapshots.schedule"] != "" {
+			sqldb.Close()
+			logger.Debugf("Daemon has scheduled volume snapshots, activating...")
+			_, err := lxd.ConnectLXDUnix("", nil)
+			return err
+		}
+	}
+
 	sqldb.Close()
 	logger.Debugf("No need to start the daemon now")
 	return nil
