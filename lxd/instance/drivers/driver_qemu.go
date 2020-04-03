@@ -3582,7 +3582,7 @@ func (vm *qemu) RenderFull() (*api.InstanceFull, interface{}, error) {
 	}
 
 	for _, snap := range snaps {
-		render, _, err := snap.Render(storagePools.RenderSnapshotUsage(vm.state, vm))
+		render, _, err := snap.Render()
 		if err != nil {
 			return nil, nil, err
 		}
