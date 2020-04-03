@@ -105,6 +105,7 @@ func (c *cmdActivateifneeded) Run(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
+	defer sqldb.Close()
 
 	d.cluster, err = db.ForLocalInspectionWithPreparedStmts(sqldb)
 	if err != nil {
@@ -113,7 +114,6 @@ func (c *cmdActivateifneeded) Run(cmd *cobra.Command, args []string) error {
 
 	instances, err := instance.LoadNodeAll(d.State(), instancetype.Any)
 	if err != nil {
-		sqldb.Close()
 		return err
 	}
 
@@ -123,14 +123,12 @@ func (c *cmdActivateifneeded) Run(cmd *cobra.Command, args []string) error {
 		autoStart := config["boot.autostart"]
 
 		if inst.IsRunning() {
-			sqldb.Close()
 			logger.Debugf("Daemon has running instances, activating...")
 			_, err := lxd.ConnectLXDUnix("", nil)
 			return err
 		}
 
 		if lastState == "RUNNING" || lastState == "Running" || shared.IsTrue(autoStart) {
-			sqldb.Close()
 			logger.Debugf("Daemon has auto-started instances, activating...")
 			_, err := lxd.ConnectLXDUnix("", nil)
 			return err
@@ -138,7 +136,6 @@ func (c *cmdActivateifneeded) Run(cmd *cobra.Command, args []string) error {
 
 		// Check for scheduled instance snapshots
 		if config["snapshots.schedule"] != "" {
-			sqldb.Close()
 			logger.Debugf("Daemon has scheduled instance snapshots, activating...")
 			_, err := lxd.ConnectLXDUnix("", nil)
 			return err
@@ -153,14 +150,12 @@ func (c *cmdActivateifneeded) Run(cmd *cobra.Command, args []string) error {
 
 	for _, vol := range volumes {
 		if vol.Config["snapshots.schedule"] != "" {
-			sqldb.Close()
 			logger.Debugf("Daemon has scheduled volume snapshots, activating...")
 			_, err := lxd.ConnectLXDUnix("", nil)
 			return err
 		}
 	}
 
-	sqldb.Close()
 	logger.Debugf("No need to start the daemon now")
 	return nil
 }
