@@ -58,6 +58,8 @@ type ImageServer interface {
 	GetImageAlias(name string) (alias *api.ImageAliasesEntry, ETag string, err error)
 	GetImageAliasType(imageType string, name string) (alias *api.ImageAliasesEntry, ETag string, err error)
 	GetImageAliasArchitectures(imageType string, name string) (entries map[string]*api.ImageAliasesEntry, err error)
+
+	ExportImage(fingerprint string, image api.ImageExportPost) (Operation, error)
 }
 
 // The InstanceServer type represents a full featured LXD server.

@@ -838,3 +838,19 @@ func (r *ProtocolLXD) DeleteImageAlias(name string) error {
 
 	return nil
 }
+
+// ExportImage exports (copies) an image to a remote server
+func (r *ProtocolLXD) ExportImage(fingerprint string, image api.ImageExportPost) (Operation, error) {
+	if !r.HasExtension("images_push_relay") {
+		return nil, fmt.Errorf("The server is missing the required \"images_push_relay\" API extension")
+	}
+
+	// Send the request
+	op, _, err := r.queryOperation("POST", fmt.Sprintf("/images/%s/export", url.PathEscape(fingerprint)), &image, "")
+	if err != nil {
+		return nil, err
+	}
+
+	return op, nil
+
+}
