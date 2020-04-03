@@ -111,29 +111,18 @@ func (c *cmdActivateifneeded) Run(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	var instances []db.Instance
-	err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
-		filter := db.InstanceFilter{Type: instancetype.Container}
-		var err error
-		instances, err = tx.InstanceList(filter)
-		return err
-	})
+	instances, err := instance.LoadNodeAll(d.State(), instancetype.Any)
 	if err != nil {
+		sqldb.Close()
 		return err
 	}
 
 	for _, inst := range instances {
-		c, err := instance.LoadByProjectAndName(d.State(), inst.Project, inst.Name)
-		if err != nil {
-			sqldb.Close()
-			return err
-		}
-
-		config := c.ExpandedConfig()
+		config := inst.ExpandedConfig()
 		lastState := config["volatile.last_state.power"]
 		autoStart := config["boot.autostart"]
 
-		if c.IsRunning() {
+		if inst.IsRunning() {
 			sqldb.Close()
 			logger.Debugf("Daemon has running instances, activating...")
 			_, err := lxd.ConnectLXDUnix("", nil)
