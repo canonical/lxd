@@ -22,6 +22,7 @@ import (
 	"github.com/lxc/lxd/lxd/instance/instancetype"
 	"github.com/lxc/lxd/lxd/operations"
 	"github.com/lxc/lxd/lxd/project"
+	"github.com/lxc/lxd/lxd/revert"
 	"github.com/lxc/lxd/lxd/state"
 	storagePools "github.com/lxc/lxd/lxd/storage"
 	"github.com/lxc/lxd/lxd/task"
@@ -381,20 +382,15 @@ func instanceCreateAsSnapshot(s *state.State, args db.InstanceArgs, sourceInstan
 		}
 	}
 
+	revert := revert.New()
+	defer revert.Fail()
+
 	// Create the snapshot.
 	inst, err := instanceCreateInternal(s, args)
 	if err != nil {
 		return nil, err
 	}
-
-	revert := true
-	defer func() {
-		if !revert {
-			return
-		}
-
-		inst.Delete()
-	}()
+	revert.Add(func() { inst.Delete() })
 
 	pool, err := storagePools.GetPoolByInstance(s, inst)
 	if err != nil {
@@ -432,7 +428,7 @@ func instanceCreateAsSnapshot(s *state.State, args db.InstanceArgs, sourceInstan
 			"snapshot_name": args.Name,
 		})
 
-	revert = false
+	revert.Success()
 	return inst, nil
 }
 

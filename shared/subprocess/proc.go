@@ -38,15 +38,18 @@ func (p *Process) GetPid() (int64, error) {
 // Stop will stop the given process object
 func (p *Process) Stop() error {
 	pr, _ := os.FindProcess(int(p.Pid))
+
+	// Check if process exists.
 	err := pr.Signal(syscall.Signal(0))
 	if err == nil {
 		err = pr.Kill()
-		if err != nil {
-			return errors.Wrapf(err, "Could not kill process")
+		if err == nil {
+			return nil // Killed successfully.
 		}
+	}
 
-		return nil
-	} else if strings.Contains(err.Error(), "process already finished") {
+	// Check if either the existence check or the kill resulted in an already finished error.
+	if strings.Contains(err.Error(), "process already finished") {
 		return ErrNotRunning
 	}
 
