@@ -33,8 +33,8 @@ func (c *cmdActivateifneeded) Command() *cobra.Command {
 	cmd.Long = `Description:
   Check if LXD should be started
 
-  This command will check if LXD has any auto-started containers,
-  containers which were running prior to LXD's last shutdown or if it's
+  This command will check if LXD has any auto-started instances,
+  instances which were running prior to LXD's last shutdown or if it's
   configured to listen on the network address.
 
   If at least one of those is true, then a connection will be attempted to the
@@ -86,13 +86,13 @@ func (c *cmdActivateifneeded) Run(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	// Load the idmap for unprivileged containers
+	// Load the idmap for unprivileged instances
 	d.os.IdmapSet, err = idmap.DefaultIdmapSet("", "")
 	if err != nil {
 		return err
 	}
 
-	// Look for auto-started or previously started containers
+	// Look for auto-started or previously started instances
 	path = d.os.GlobalDatabasePath()
 	if !shared.PathExists(path) {
 		path = d.os.LegacyGlobalDatabasePath()
@@ -105,50 +105,57 @@ func (c *cmdActivateifneeded) Run(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
+	defer sqldb.Close()
 
 	d.cluster, err = db.ForLocalInspectionWithPreparedStmts(sqldb)
 	if err != nil {
 		return err
 	}
 
-	var containers []db.Instance
-	err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
-		filter := db.InstanceFilter{Type: instancetype.Container}
-		var err error
-		containers, err = tx.InstanceList(filter)
-		return err
-	})
+	instances, err := instance.LoadNodeAll(d.State(), instancetype.Any)
 	if err != nil {
 		return err
 	}
 
-	for _, container := range containers {
-		c, err := instance.LoadByProjectAndName(d.State(), container.Project, container.Name)
-		if err != nil {
-			sqldb.Close()
-			return err
-		}
-
-		config := c.ExpandedConfig()
+	for _, inst := range instances {
+		config := inst.ExpandedConfig()
 		lastState := config["volatile.last_state.power"]
 		autoStart := config["boot.autostart"]
 
-		if c.IsRunning() {
-			sqldb.Close()
-			logger.Debugf("Daemon has running containers, activating...")
+		if inst.IsRunning() {
+			logger.Debugf("Daemon has running instances, activating...")
 			_, err := lxd.ConnectLXDUnix("", nil)
 			return err
 		}
 
 		if lastState == "RUNNING" || lastState == "Running" || shared.IsTrue(autoStart) {
-			sqldb.Close()
-			logger.Debugf("Daemon has auto-started containers, activating...")
+			logger.Debugf("Daemon has auto-started instances, activating...")
+			_, err := lxd.ConnectLXDUnix("", nil)
+			return err
+		}
+
+		// Check for scheduled instance snapshots
+		if config["snapshots.schedule"] != "" {
+			logger.Debugf("Daemon has scheduled instance snapshots, activating...")
 			_, err := lxd.ConnectLXDUnix("", nil)
 			return err
 		}
 	}
 
-	sqldb.Close()
+	// Check for scheduled volume snapshots
+	volumes, err := d.cluster.StoragePoolVolumesGetAllByType(db.StoragePoolVolumeTypeCustom)
+	if err != nil {
+		return err
+	}
+
+	for _, vol := range volumes {
+		if vol.Config["snapshots.schedule"] != "" {
+			logger.Debugf("Daemon has scheduled volume snapshots, activating...")
+			_, err := lxd.ConnectLXDUnix("", nil)
+			return err
+		}
+	}
+
 	logger.Debugf("No need to start the daemon now")
 	return nil
 }
