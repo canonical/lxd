@@ -1627,8 +1627,7 @@ func (b *lxdBackend) CreateInstanceSnapshot(inst instance.Instance, src instance
 	volStorageName := project.Instance(inst.Project(), inst.Name())
 
 	// Get the volume.
-	// There's no need to pass config as it's not needed when creating volume
-	// snapshots.
+	// There's no need to pass config as it's not needed when creating volume snapshots.
 	vol := b.newVolume(volType, contentType, volStorageName, nil)
 
 	err = b.driver.CreateVolumeSnapshot(vol, op)
