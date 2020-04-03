@@ -778,7 +778,7 @@ func (d *zfs) GetVolumeUsage(vol Volume) (int64, error) {
 		key = "referenced"
 	}
 
-	// Shortcut for refquota filesystems.
+	// Shortcut for mounted refquota filesystems.
 	if key == "referenced" && vol.contentType == ContentTypeFS && shared.IsMountPoint(vol.MountPath()) {
 		var stat unix.Statfs_t
 		err := unix.Statfs(vol.MountPath(), &stat)
