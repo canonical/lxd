@@ -52,7 +52,7 @@ var imagesCmd = APIEndpoint{
 	Path: "images",
 
 	Get:  APIEndpointAction{Handler: imagesGet, AllowUntrusted: true},
-	Post: APIEndpointAction{Handler: imagesPost, AccessHandler: allowProjectPermission("images", "manage-images")},
+	Post: APIEndpointAction{Handler: imagesPost, AccessHandler: allowProjectPermission("images", "manage-images"), AllowUntrusted: true},
 }
 
 var imageCmd = APIEndpoint{
@@ -644,6 +644,21 @@ func imageCreateInPool(d *Daemon, info *api.Image, storagePool string) error {
 }
 
 func imagesPost(d *Daemon, r *http.Request) response.Response {
+	trusted, _, _, _ := d.Authenticate(r)
+
+	secret := r.Header.Get("X-LXD-secret")
+	fingerprint := r.Header.Get("X-LXD-fingerprint")
+
+	if !trusted && (secret == "" || fingerprint == "") {
+		return response.Forbidden(nil)
+	} else {
+		// We need to invalidate the secret whether the source is trusted or not.
+		valid := imageValidSecret(fingerprint, secret)
+		if !valid || !trusted {
+			return response.Forbidden(nil)
+		}
+	}
+
 	instanceType, err := urlInstanceTypeDetect(r)
 	if err != nil {
 		return response.SmartError(err)
