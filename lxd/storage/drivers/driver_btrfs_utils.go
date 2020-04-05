@@ -160,6 +160,10 @@ func (d *btrfs) deleteSubvolume(path string, recursion bool) error {
 		// Attempt to make the subvolume writable.
 		shared.RunCommand("btrfs", "property", "set", path, "ro", "false")
 
+		// Temporarily change ownership & mode to help with nesting.
+		os.Chmod(path, 0700)
+		os.Chown(path, 0, 0)
+
 		// Delete the subvolume itself.
 		_, err = shared.RunCommand("btrfs", "subvolume", "delete", path)
 
