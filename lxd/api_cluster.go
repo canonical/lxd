@@ -76,6 +76,12 @@ var internalClusterHandoverCmd = APIEndpoint{
 	Post: APIEndpointAction{Handler: internalClusterPostHandover},
 }
 
+var internalClusterRaftNodeCmd = APIEndpoint{
+	Path: "cluster/raft-node/{address}",
+
+	Delete: APIEndpointAction{Handler: internalClusterRaftNodeDelete},
+}
+
 // Return information about the cluster.
 func clusterGet(d *Daemon, r *http.Request) response.Response {
 	name := ""
@@ -1490,4 +1496,15 @@ func clusterCheckNetworksMatch(cluster *db.Cluster, reqNetworks []api.Network) e
 		}
 	}
 	return nil
+}
+
+// Used as low-level recovering helper.
+func internalClusterRaftNodeDelete(d *Daemon, r *http.Request) response.Response {
+	address := mux.Vars(r)["address"]
+	err := cluster.RemoveRaftNode(d.gateway, address)
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	return response.SyncResponse(true, nil)
 }

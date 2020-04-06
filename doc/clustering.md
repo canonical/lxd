@@ -217,7 +217,7 @@ transition to the Blocked state, until you upgrade the very last
 one. At that point the blocked nodes will notice that there is no
 out-of-date node left and will become operational again.
 
-### Disaster recovery
+### Recover from quorum loss
 
 Every LXD cluster has up to 3 members that serve as database nodes. If you
 permanently lose a majority of the cluster members that are serving as database
@@ -293,6 +293,24 @@ lxc stop bionic
 lxc delete bionic
 lxc pull file bionic/etc/hosts .
 ```
+
+### Manually altering Raft membership
+
+There might be situations in which you need to manually alter the Raft
+membership configuration of the cluster because some unexpected behavior
+occurred.
+
+For example if you have a cluster member that was removed uncleanly it might not
+show up in `lxc cluster list` but still be part of the Raft configuration (you
+can see that with `lxd sql local "SELECT * FROM raft_nodes").
+
+In that case you can run:
+
+```bash
+lxd cluster remove-raft-node <address>
+```
+
+to remove the leftover node.
 
 ## Images
 
