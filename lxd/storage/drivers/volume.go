@@ -180,11 +180,9 @@ func (v Volume) EnsureMountPath() error {
 // MountTask runs the supplied task after mounting the volume if needed. If the volume was mounted
 // for this then it is unmounted when the task finishes.
 func (v Volume) MountTask(task func(mountPath string, op *operations.Operation) error, op *operations.Operation) error {
-	isSnap := v.IsSnapshot()
-
 	// If the volume is a snapshot then call the snapshot specific mount/unmount functions as
 	// these will mount the snapshot read only.
-	if isSnap {
+	if v.IsSnapshot() {
 		unlock := locking.Lock(v.pool, string(v.volType), v.name)
 
 		ourMount, err := v.driver.MountVolumeSnapshot(v, op)
@@ -228,11 +226,9 @@ func (v Volume) MountTask(task func(mountPath string, op *operations.Operation) 
 // UnmountTask runs the supplied task after unmounting the volume if needed. If the volume was unmounted
 // for this then it is mounted when the task finishes.
 func (v Volume) UnmountTask(task func(op *operations.Operation) error, op *operations.Operation) error {
-	isSnap := v.IsSnapshot()
-
 	// If the volume is a snapshot then call the snapshot specific mount/unmount functions as
 	// these will mount the snapshot read only.
-	if isSnap {
+	if v.IsSnapshot() {
 		unlock := locking.Lock(v.pool, string(v.volType), v.name)
 
 		ourUnmount, err := v.driver.UnmountVolumeSnapshot(v, op)
