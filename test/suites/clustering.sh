@@ -1695,3 +1695,109 @@ test_clustering_rebalance() {
   kill_lxd "${LXD_THREE_DIR}"
   kill_lxd "${LXD_FOUR_DIR}"
 }
+
+# Recover a cluster where a raft node was removed from the nodes table but not
+# from the raft configuration.
+test_clustering_remove_raft_node() {
+  # shellcheck disable=2039
+  local LXD_DIR
+
+  setup_clustering_bridge
+  prefix="lxd$$"
+  bridge="${prefix}"
+
+  setup_clustering_netns 1
+  LXD_ONE_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
+  chmod +x "${LXD_ONE_DIR}"
+  ns1="${prefix}1"
+  spawn_lxd_and_bootstrap_cluster "${ns1}" "${bridge}" "${LXD_ONE_DIR}"
+
+  # Add a newline at the end of each line. YAML as weird rules..
+  cert=$(sed ':a;N;$!ba;s/\n/\n\n/g' "${LXD_ONE_DIR}/server.crt")
+
+  # Spawn a second node
+  setup_clustering_netns 2
+  LXD_TWO_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
+  chmod +x "${LXD_TWO_DIR}"
+  ns2="${prefix}2"
+  spawn_lxd_and_join_cluster "${ns2}" "${bridge}" "${cert}" 2 1 "${LXD_TWO_DIR}"
+
+  # Configuration keys can be changed on any node.
+  LXD_DIR="${LXD_TWO_DIR}" lxc config set cluster.offline_threshold 40
+  LXD_DIR="${LXD_ONE_DIR}" lxc info | grep -q 'cluster.offline_threshold: "40"'
+  LXD_DIR="${LXD_TWO_DIR}" lxc info | grep -q 'cluster.offline_threshold: "40"'
+
+  # The preseeded network bridge exists on all nodes.
+  ns1_pid="$(cat "${TEST_DIR}/ns/${ns1}/PID")"
+  ns2_pid="$(cat "${TEST_DIR}/ns/${ns2}/PID")"
+  nsenter -m -n -t "${ns1_pid}" -- ip link show "${bridge}" > /dev/null
+  nsenter -m -n -t "${ns2_pid}" -- ip link show "${bridge}" > /dev/null
+
+  # Create a pending network and pool, to show that they are not
+  # considered when checking if the joining node has all the required
+  # networks and pools.
+  LXD_DIR="${LXD_TWO_DIR}" lxc storage create pool1 dir --target node1
+  LXD_DIR="${LXD_ONE_DIR}" lxc network create net1 --target node2
+
+  # Spawn a third node, using the non-leader node2 as join target.
+  setup_clustering_netns 3
+  LXD_THREE_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
+  chmod +x "${LXD_THREE_DIR}"
+  ns3="${prefix}3"
+  spawn_lxd_and_join_cluster "${ns3}" "${bridge}" "${cert}" 3 2 "${LXD_THREE_DIR}"
+
+  # Spawn a fourth node, this will be a non-database node.
+  setup_clustering_netns 4
+  LXD_FOUR_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
+  chmod +x "${LXD_FOUR_DIR}"
+  ns4="${prefix}4"
+  spawn_lxd_and_join_cluster "${ns4}" "${bridge}" "${cert}" 4 1 "${LXD_FOUR_DIR}"
+
+  # Kill the second node, to prevent it from transferring its database role at shutdown.
+  kill -9 "$(cat "${LXD_TWO_DIR}/lxd.pid")"
+
+  # Remove the second node from the database but not from the raft configuration.
+  LXD_DIR="${LXD_ONE_DIR}" lxd sql global "DELETE FROM nodes WHERE address = '10.1.1.102:8443'"
+
+  # The node does not appear anymore in the cluster list.
+  ! LXD_DIR="${LXD_ONE_DIR}" lxc cluster list | grep -q "node2" || false
+
+  # There are only 2 database nodes.
+  LXD_DIR="${LXD_ONE_DIR}" lxc cluster list | grep "node1" | grep -q "YES"
+  LXD_DIR="${LXD_ONE_DIR}" lxc cluster list | grep "node3" | grep -q "YES"
+  LXD_DIR="${LXD_ONE_DIR}" lxc cluster list | grep "node4" | grep -q "NO"
+
+  # The second node is still in the raft_nodes table.
+  LXD_DIR="${LXD_ONE_DIR}" lxd sql local "SELECT * FROM raft_nodes" | grep -q "10.1.1.102"
+
+  # Force removing the raft node.
+  LXD_DIR="${LXD_ONE_DIR}" lxd cluster remove-raft-node -q "10.1.1.102"
+
+  # Wait for a heartbeat to propagate.
+  sleep 15
+
+  # We're back to 3 database nodes.
+  LXD_DIR="${LXD_ONE_DIR}" lxc cluster list | grep "node1" | grep -q "YES"
+  LXD_DIR="${LXD_ONE_DIR}" lxc cluster list | grep "node3" | grep -q "YES"
+  LXD_DIR="${LXD_ONE_DIR}" lxc cluster list | grep "node4" | grep -q "YES"
+
+  # The second node is gone from the raft_nodes_table.
+  ! LXD_DIR="${LXD_ONE_DIR}" lxd sql local "SELECT * FROM raft_nodes" | grep -q "10.1.1.102" || false
+
+  LXD_DIR="${LXD_ONE_DIR}" lxd shutdown
+  LXD_DIR="${LXD_THREE_DIR}" lxd shutdown
+  LXD_DIR="${LXD_FOUR_DIR}" lxd shutdown
+  sleep 0.5
+  rm -f "${LXD_ONE_DIR}/unix.socket"
+  rm -f "${LXD_TWO_DIR}/unix.socket"
+  rm -f "${LXD_THREE_DIR}/unix.socket"
+  rm -f "${LXD_FOUR_DIR}/unix.socket"
+
+  teardown_clustering_netns
+  teardown_clustering_bridge
+
+  kill_lxd "${LXD_ONE_DIR}"
+  kill_lxd "${LXD_TWO_DIR}"
+  kill_lxd "${LXD_THREE_DIR}"
+  kill_lxd "${LXD_FOUR_DIR}"
+}
