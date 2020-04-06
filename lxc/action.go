@@ -66,7 +66,7 @@ func (c *cmdRestart) Command() *cobra.Command {
 
 	cmd := c.action.Command("restart")
 	cmd.Use = i18n.G("restart [<remote>:]<instance> [[<remote>:]<instance>...]")
-	cmd.Short = i18n.G("Restart insances")
+	cmd.Short = i18n.G("Restart instances")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
 		`Restart instances
 
