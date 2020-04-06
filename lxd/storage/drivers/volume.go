@@ -7,6 +7,7 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/lxc/lxd/lxd/operations"
+	"github.com/lxc/lxd/lxd/revert"
 	"github.com/lxc/lxd/lxd/storage/locking"
 	"github.com/lxc/lxd/shared"
 )
@@ -130,13 +131,20 @@ func (v Volume) MountPath() string {
 }
 
 // EnsureMountPath creates the volume's mount path if missing, then sets the correct permission for the type.
+// If permission setting fails and the volume is a snapshot then the error is ignored as snapshots are read only.
 func (v Volume) EnsureMountPath() error {
 	volPath := v.MountPath()
 
-	// Create volume's mount path, with any created directories set to 0711.
-	err := os.Mkdir(volPath, 0711)
-	if err != nil && !os.IsExist(err) {
-		return errors.Wrapf(err, "Failed to create directory '%s'", volPath)
+	revert := revert.New()
+	defer revert.Fail()
+
+	// Create volume's mount path if missing, with any created directories set to 0711.
+	if !shared.PathExists(volPath) {
+		err := os.Mkdir(volPath, 0711)
+		if err != nil {
+			return errors.Wrapf(err, "Failed to create mount directory %q", volPath)
+		}
+		revert.Add(func() { os.Remove(volPath) })
 	}
 
 	// Set very restrictive mode 0100 for non-custom and non-image volumes.
@@ -145,12 +153,27 @@ func (v Volume) EnsureMountPath() error {
 		mode = os.FileMode(0100)
 	}
 
-	// Set mode of actual volume's mount path.
-	err = os.Chmod(volPath, mode)
+	fInfo, err := os.Lstat(volPath)
 	if err != nil {
-		return errors.Wrapf(err, "Failed to chmod '%s'", volPath)
+		return errors.Wrapf(err, "Error getting mount directory info %q", volPath)
 	}
 
+	// We expect the mount path to be a directory, so use this for comparison.
+	compareMode := os.ModeDir | mode
+
+	// Set mode of actual volume's mount path if needed.
+	if fInfo.Mode() != compareMode {
+		err = os.Chmod(volPath, mode)
+
+		// If the chmod failed, return the error as long as the volume is not a snapshot.
+		// If the volume is a snapshot, we must ignore the error as snapshots are readonly and cannot be
+		// modified after they are taken, such that any permission error is not fixable at mount time.
+		if err != nil && !v.IsSnapshot() {
+			return errors.Wrapf(err, "Failed to chmod mount directory %q (%04o)", volPath, mode)
+		}
+	}
+
+	revert.Success()
 	return nil
 }
 
