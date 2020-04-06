@@ -774,19 +774,25 @@ func (d *zfs) UpdateVolume(vol Volume, changedConfig map[string]string) error {
 func (d *zfs) GetVolumeUsage(vol Volume) (int64, error) {
 	// Determine what key to use.
 	key := "used"
-	if shared.IsTrue(vol.ExpandedConfig("zfs.use_refquota")) {
-		key = "referenced"
-	}
 
-	// Shortcut for mounted refquota filesystems.
-	if key == "referenced" && vol.contentType == ContentTypeFS && shared.IsMountPoint(vol.MountPath()) {
-		var stat unix.Statfs_t
-		err := unix.Statfs(vol.MountPath(), &stat)
-		if err != nil {
-			return -1, err
+	// If volume isn't snapshot then we can take into account the zfs.use_refquota setting.
+	// Snapshots should also use the "used" ZFS property because the snapshot usage size represents the CoW
+	// usage not the size of the snapshot volume.
+	if !vol.IsSnapshot() {
+		if shared.IsTrue(vol.ExpandedConfig("zfs.use_refquota")) {
+			key = "referenced"
 		}
 
-		return int64(stat.Blocks-stat.Bfree) * int64(stat.Bsize), nil
+		// Shortcut for mounted refquota filesystems.
+		if key == "referenced" && vol.contentType == ContentTypeFS && shared.IsMountPoint(vol.MountPath()) {
+			var stat unix.Statfs_t
+			err := unix.Statfs(vol.MountPath(), &stat)
+			if err != nil {
+				return -1, err
+			}
+
+			return int64(stat.Blocks-stat.Bfree) * int64(stat.Bsize), nil
+		}
 	}
 
 	// Get the current value.
