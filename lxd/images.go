@@ -67,7 +67,8 @@ var imageCmd = APIEndpoint{
 var imageExportCmd = APIEndpoint{
 	Path: "images/{fingerprint}/export",
 
-	Get: APIEndpointAction{Handler: imageExport, AllowUntrusted: true},
+	Get:  APIEndpointAction{Handler: imageExport, AllowUntrusted: true},
+	Post: APIEndpointAction{Handler: imageExportPost, AccessHandler: allowProjectPermission("images", "manage-images")},
 }
 
 var imageSecretCmd = APIEndpoint{
@@ -1990,6 +1991,108 @@ func imageExport(d *Daemon, r *http.Request) response.Response {
 	files[0].Filename = filename
 
 	return response.FileResponse(r, files, nil, false)
+}
+
+func imageExportPost(d *Daemon, r *http.Request) response.Response {
+	project := projectParam(r)
+	fingerprint := mux.Vars(r)["fingerprint"]
+
+	// Check if the image exists
+	_, _, err := d.cluster.ImageGet(project, fingerprint, false, true)
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	req := api.ImageExportPost{}
+
+	err = json.NewDecoder(r.Body).Decode(&req)
+	if err != nil {
+		response.SmartError(err)
+	}
+
+	// Connect to the target and push the image
+	args := &lxd.ConnectionArgs{
+		TLSServerCert: req.Certificate,
+		UserAgent:     version.UserAgent,
+		Proxy:         d.proxy,
+		CachePath:     d.os.CacheDir,
+		CacheExpiry:   time.Hour,
+	}
+
+	// Setup LXD client
+	remote, err := lxd.ConnectLXD(req.Target, args)
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	var imageCreateOp lxd.Operation
+
+	run := func(op *operations.Operation) error {
+		createArgs := &lxd.ImageCreateArgs{}
+		imageMetaPath := shared.VarPath("images", fingerprint)
+		imageRootfsPath := shared.VarPath("images", fingerprint+".rootfs")
+
+		metaFile, err := os.Open(imageMetaPath)
+		if err != nil {
+			return err
+		}
+		defer metaFile.Close()
+
+		createArgs.MetaFile = metaFile
+		createArgs.MetaName = filepath.Base(imageMetaPath)
+
+		if shared.PathExists(imageRootfsPath) {
+			rootfsFile, err := os.Open(imageRootfsPath)
+			if err != nil {
+				return err
+			}
+			defer rootfsFile.Close()
+
+			createArgs.RootfsFile = rootfsFile
+			createArgs.RootfsName = filepath.Base(imageRootfsPath)
+		}
+
+		image := api.ImagesPost{
+			Filename: createArgs.MetaName,
+			Source: &api.ImagesPostSource{
+				Fingerprint: fingerprint,
+				Secret:      req.Secret,
+				Mode:        "push",
+			},
+		}
+
+		imageCreateOp, err = remote.CreateImage(image, createArgs)
+		if err != nil {
+			return err
+		}
+
+		opAPI := imageCreateOp.Get()
+
+		var secret string
+
+		val, ok := opAPI.Metadata["secret"]
+		if ok {
+			secret = val.(string)
+		}
+
+		opWaitAPI, _, err := remote.GetOperationWaitSecret(opAPI.ID, secret, -1)
+		if err != nil {
+			return err
+		}
+
+		if opWaitAPI.Status != "success" {
+			return fmt.Errorf(opWaitAPI.Err)
+		}
+
+		return nil
+	}
+
+	op, err := operations.OperationCreate(d.State(), project, operations.OperationClassTask, db.OperationImageDownload, nil, nil, run, nil, nil)
+	if err != nil {
+		return response.InternalError(err)
+	}
+
+	return operations.OperationResponse(op)
 }
 
 func imageSecret(d *Daemon, r *http.Request) response.Response {
