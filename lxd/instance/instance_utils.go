@@ -464,7 +464,7 @@ func LoadByProjectAndName(s *state.State, project, name string) (Instance, error
 	return inst, nil
 }
 
-// LoadAllInternal loads a list of db insances into a list of instances.
+// LoadAllInternal loads a list of db instances into a list of instances.
 func LoadAllInternal(s *state.State, dbInstances []db.Instance) ([]Instance, error) {
 	// Figure out what profiles are in use
 	profiles := map[string]map[string]api.Profile{}
