@@ -283,6 +283,11 @@ func (d *lvm) UpdateVolume(vol Volume, changedConfig map[string]string) error {
 
 // GetVolumeUsage returns the disk space used by the volume (this is not currently supported).
 func (d *lvm) GetVolumeUsage(vol Volume) (int64, error) {
+	// Snapshot usage not supported for LVM.
+	if vol.IsSnapshot() {
+		return -1, ErrNotSupported
+	}
+
 	// If volume has a filesystem and is mounted we can ask the filesystem for usage.
 	if vol.contentType == ContentTypeFS && shared.IsMountPoint(vol.MountPath()) {
 		var stat unix.Statfs_t
