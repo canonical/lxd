@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: LXD\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2020-04-01 10:32-0400\n"
+"POT-Creation-Date: 2020-04-06 09:26-0400\n"
 "PO-Revision-Date: 2019-01-04 18:07+0000\n"
 "Last-Translator: Deleted User <noreply+12102@weblate.org>\n"
 "Language-Team: French <https://hosted.weblate.org/projects/linux-containers/"
@@ -2886,7 +2886,7 @@ msgstr "Ressources :"
 
 #: lxc/action.go:69
 #, fuzzy
-msgid "Restart insances"
+msgid "Restart instances"
 msgstr "Création du conteneur"
 
 #: lxc/action.go:70

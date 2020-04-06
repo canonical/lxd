@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: LXD\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2020-04-01 10:32-0400\n"
+"POT-Creation-Date: 2020-04-06 09:26-0400\n"
 "PO-Revision-Date: 2019-12-12 14:53+0000\n"
 "Last-Translator: Stéphane Graber <stgraber@stgraber.org>\n"
 "Language-Team: German <https://hosted.weblate.org/projects/linux-containers/"
@@ -2820,7 +2820,7 @@ msgstr ""
 
 #: lxc/action.go:69
 #, fuzzy
-msgid "Restart insances"
+msgid "Restart instances"
 msgstr "kann nicht zum selben Container Namen kopieren"
 
 #: lxc/action.go:70
