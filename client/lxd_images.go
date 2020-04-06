@@ -616,6 +616,71 @@ func (r *ProtocolLXD) CopyImage(source ImageServer, image api.Image, args *Image
 		return nil, err
 	}
 
+	// Push mode
+	if args != nil && args.Mode == "push" {
+		// Get certificate and URL
+		info, err := r.GetConnectionInfo()
+		if err != nil {
+			return nil, err
+		}
+
+		imagesPost := api.ImagesPost{
+			Source: &api.ImagesPostSource{
+				Fingerprint: image.Fingerprint,
+				Mode:        args.Mode,
+			},
+		}
+
+		if args.CopyAliases {
+			imagesPost.Aliases = image.Aliases
+		}
+
+		imagesPost.ExpiresAt = image.ExpiresAt
+		imagesPost.Properties = image.Properties
+		imagesPost.Public = args.Public
+
+		// Receive token from target server. This token is later passed to the source which will use
+		// it, together with the URL and certificate, to connect to the target.
+		tokenOp, err := r.CreateImage(imagesPost, nil)
+		if err != nil {
+			return nil, err
+		}
+
+		opAPI := tokenOp.Get()
+
+		secret, ok := opAPI.Metadata["secret"]
+		if !ok {
+			return nil, fmt.Errorf("No token provided")
+		}
+
+		req := api.ImageExportPost{
+			Target:      info.URL,
+			Certificate: info.Certificate,
+			Secret:      secret.(string),
+			Aliases:     image.Aliases,
+		}
+
+		exportOp, err := source.ExportImage(image.Fingerprint, req)
+		if err != nil {
+			tokenOp.Cancel()
+			return nil, err
+		}
+
+		rop := remoteOperation{
+			targetOp: exportOp,
+			chDone:   make(chan bool),
+		}
+
+		// Forward targetOp to remote op
+		go func() {
+			rop.err = rop.targetOp.Wait()
+			tokenOp.Cancel()
+			close(rop.chDone)
+		}()
+
+		return &rop, nil
+	}
+
 	// Relay mode
 	if args != nil && args.Mode == "relay" {
 		metaFile, err := ioutil.TempFile("", "lxc_image_")
