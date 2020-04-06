@@ -866,8 +866,8 @@ test_storage() {
     # Disable quotas. The usage should be 0.
     # shellcheck disable=SC2031
     btrfs quota disable "${LXD_DIR}/storage-pools/${pool_name}"
-    usage=$(lxc query /1.0/instances/c1/state | jq '.disk.root.usage')
-    [ "${usage}" -eq 0 ]
+    usage=$(lxc query /1.0/instances/c1/state | jq '.disk.root')
+    [ "${usage}" = "null" ]
 
     # Enable quotas. The usage should then be > 0.
     # shellcheck disable=SC2031
