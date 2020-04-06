@@ -288,6 +288,11 @@ func (d *cephfs) UpdateVolume(vol Volume, changedConfig map[string]string) error
 
 // GetVolumeUsage returns the disk space usage of a volume.
 func (d *cephfs) GetVolumeUsage(vol Volume) (int64, error) {
+	// Snapshot usage not supported for CephFS.
+	if vol.IsSnapshot() {
+		return -1, ErrNotSupported
+	}
+
 	out, err := shared.RunCommand("getfattr", "-n", "ceph.quota.max_bytes", "--only-values", GetVolumeMountPath(d.name, vol.volType, vol.name))
 	if err != nil {
 		return -1, err
