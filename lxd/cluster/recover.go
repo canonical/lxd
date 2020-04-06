@@ -1,10 +1,13 @@
 package cluster
 
 import (
+	"context"
 	"fmt"
 	"path/filepath"
+	"time"
 
 	dqlite "github.com/canonical/go-dqlite"
+	client "github.com/canonical/go-dqlite/client"
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/node"
 	"github.com/pkg/errors"
@@ -85,5 +88,40 @@ func Recover(database *db.Node) error {
 		return errors.Wrap(err, "Failed to update database nodes")
 	}
 
+	return nil
+}
+
+// RemoveRaftNode removes a raft node from the raft configuration.
+func RemoveRaftNode(gateway *Gateway, address string) error {
+	nodes, err := gateway.currentRaftNodes()
+	if err != nil {
+		return errors.Wrap(err, "Failed to get current raft nodes")
+	}
+	var id uint64
+	for _, node := range nodes {
+		if node.Address == address {
+			id = node.ID
+			break
+		}
+	}
+	if id == 0 {
+		return fmt.Errorf("No raft node with address %q", address)
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	defer cancel()
+	client, err := client.FindLeader(
+		ctx, gateway.NodeStore(),
+		client.WithDialFunc(gateway.raftDial()),
+		client.WithLogFunc(DqliteLog),
+	)
+	if err != nil {
+		return errors.Wrap(err, "Failed to connect to cluster leader")
+	}
+	defer client.Close()
+	err = client.Remove(ctx, id)
+	if err != nil {
+		return errors.Wrap(err, "Failed to remove node")
+	}
 	return nil
 }
