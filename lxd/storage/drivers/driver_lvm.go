@@ -501,8 +501,6 @@ func (d *lvm) Mount() (bool, error) {
 			return false, err
 		}
 		defer loopFile.Close()
-
-		return true, nil
 	}
 
 	// Activate volume group so that it's device is added to /dev.
