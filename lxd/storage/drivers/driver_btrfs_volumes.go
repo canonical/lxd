@@ -419,7 +419,7 @@ func (d *btrfs) GetVolumeUsage(vol Volume) (int64, error) {
 	_, usage, err := d.getQGroup(vol.MountPath())
 	if err != nil {
 		if err == errBtrfsNoQuota {
-			return 0, nil
+			return -1, ErrNotSupported
 		}
 
 		return -1, err

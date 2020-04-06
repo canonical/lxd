@@ -213,10 +213,15 @@ func (d *dir) UpdateVolume(vol Volume, changedConfig map[string]string) error {
 
 // GetVolumeUsage returns the disk space used by the volume.
 func (d *dir) GetVolumeUsage(vol Volume) (int64, error) {
+	// Snapshot usage not supported for Dir.
+	if vol.IsSnapshot() {
+		return -1, ErrNotSupported
+	}
+
 	volPath := vol.MountPath()
 	ok, err := quota.Supported(volPath)
 	if err != nil || !ok {
-		return 0, nil
+		return -1, ErrNotSupported
 	}
 
 	// Get the volume ID for the volume to access quota.
