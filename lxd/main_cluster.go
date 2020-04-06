@@ -12,6 +12,7 @@ import (
 	"github.com/lxc/lxd/lxd/cluster"
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/sys"
+	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
@@ -35,6 +36,10 @@ func (c *cmdCluster) Command() *cobra.Command {
 	// Recover
 	recover := cmdClusterRecoverFromQuorumLoss{global: c.global}
 	cmd.AddCommand(recover.Command())
+
+	// Remove a raft node.
+	removeRaftNode := cmdClusterRemoveRaftNode{global: c.global}
+	cmd.AddCommand(removeRaftNode.Command())
 
 	return cmd
 }
@@ -85,7 +90,6 @@ type cmdClusterRecoverFromQuorumLoss struct {
 func (c *cmdClusterRecoverFromQuorumLoss) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = "recover-from-quorum-loss"
-	cmd.Aliases = []string{"ls"}
 	cmd.Short = "Recover a LXD instance whose cluster has lost quorum"
 
 	cmd.RunE = c.Run
@@ -102,7 +106,7 @@ func (c *cmdClusterRecoverFromQuorumLoss) Run(cmd *cobra.Command, args []string)
 		return fmt.Errorf("The LXD daemon is running, please stop it first.")
 	}
 
-	// Prompt for confiromation unless --quiet was passed.
+	// Prompt for confirmation unless --quiet was passed.
 	if !c.flagNonInteractive {
 		err := c.promptConfirmation()
 		if err != nil {
@@ -144,6 +148,69 @@ Do you want to proceed? (yes/no): `)
 
 	if !shared.StringInSlice(strings.ToLower(input), []string{"yes"}) {
 		return fmt.Errorf("Recover operation aborted")
+	}
+	return nil
+}
+
+type cmdClusterRemoveRaftNode struct {
+	global             *cmdGlobal
+	flagNonInteractive bool
+}
+
+func (c *cmdClusterRemoveRaftNode) Command() *cobra.Command {
+	cmd := &cobra.Command{}
+	cmd.Use = "remove-raft-node <address>"
+	cmd.Short = "Remove a raft node from the raft configuration"
+
+	cmd.RunE = c.Run
+
+	cmd.Flags().BoolVarP(&c.flagNonInteractive, "quiet", "q", false, "Don't require user confirmation")
+
+	return cmd
+}
+
+func (c *cmdClusterRemoveRaftNode) Run(cmd *cobra.Command, args []string) error {
+	if len(args) != 1 {
+		cmd.Help()
+		return fmt.Errorf("Missing required arguments")
+	}
+
+	address := util.CanonicalNetworkAddress(args[0])
+
+	// Prompt for confirmation unless --quiet was passed.
+	if !c.flagNonInteractive {
+		err := c.promptConfirmation()
+		if err != nil {
+			return err
+		}
+	}
+
+	client, err := lxd.ConnectLXDUnix("", nil)
+	if err != nil {
+		return errors.Wrapf(err, "Failed to connect to LXD daemon")
+	}
+
+	endpoint := fmt.Sprintf("/internal/cluster/raft-node/%s", address)
+	_, _, err = client.RawQuery("DELETE", endpoint, nil, "")
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (c *cmdClusterRemoveRaftNode) promptConfirmation() error {
+	reader := bufio.NewReader(os.Stdin)
+	fmt.Printf(`You should run this command only if you ended up in an
+inconsistent state where a node has been uncleanly removed (i.e. it doesn't show
+up in "lxc cluster list" but it's still in the raft configuration).
+
+Do you want to proceed? (yes/no): `)
+	input, _ := reader.ReadString('\n')
+	input = strings.TrimSuffix(input, "\n")
+
+	if !shared.StringInSlice(strings.ToLower(input), []string{"yes"}) {
+		return fmt.Errorf("Remove raft node operation aborted")
 	}
 	return nil
 }
