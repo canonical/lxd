@@ -25,19 +25,19 @@ import (
 func (d *btrfs) CreateVolume(vol Volume, filler *VolumeFiller, op *operations.Operation) error {
 	volPath := vol.MountPath()
 
+	// Setup revert.
+	revert := revert.New()
+	defer revert.Fail()
+
 	// Create the volume itself.
 	_, err := shared.RunCommand("btrfs", "subvolume", "create", volPath)
 	if err != nil {
 		return err
 	}
-
-	// Setup revert.
-	revertPath := true
-	defer func() {
-		if revertPath {
-			d.deleteSubvolume(volPath, false)
-		}
-	}()
+	revert.Add(func() {
+		d.deleteSubvolume(volPath, false)
+		os.Remove(volPath)
+	})
 
 	// Create sparse loopback file if volume is block.
 	rootBlockPath := ""
@@ -80,7 +80,7 @@ func (d *btrfs) CreateVolume(vol Volume, filler *VolumeFiller, op *operations.Op
 		}
 	}
 
-	// Tweak any permissions that need tweaking.
+	// Tweak any permissions that need tweaking after filling.
 	err = vol.EnsureMountPath()
 	if err != nil {
 		return err
@@ -94,7 +94,7 @@ func (d *btrfs) CreateVolume(vol Volume, filler *VolumeFiller, op *operations.Op
 		}
 	}
 
-	revertPath = false
+	revert.Success()
 	return nil
 }
 
