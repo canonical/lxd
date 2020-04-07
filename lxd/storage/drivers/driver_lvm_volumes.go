@@ -648,6 +648,11 @@ func (d *lvm) MountVolumeSnapshot(snapVol Volume, op *operations.Operation) (boo
 		revert := revert.New()
 		defer revert.Fail()
 
+		err := snapVol.EnsureMountPath()
+		if err != nil {
+			return false, err
+		}
+
 		// Default to mounting the original snapshot directly. This may be changed below if a temporary
 		// snapshot needs to be taken.
 		mountVol := snapVol
@@ -700,7 +705,7 @@ func (d *lvm) MountVolumeSnapshot(snapVol Volume, op *operations.Operation) (boo
 
 		// Finally attempt to mount the volume that needs mounting.
 		volDevPath := d.lvmDevPath(d.config["lvm.vg_name"], mountVol.volType, mountVol.contentType, mountVol.name)
-		err := TryMount(volDevPath, mountPath, d.volumeFilesystem(mountVol), mountFlags|unix.MS_RDONLY, mountOptions)
+		err = TryMount(volDevPath, mountPath, d.volumeFilesystem(mountVol), mountFlags|unix.MS_RDONLY, mountOptions)
 		if err != nil {
 			return false, errors.Wrapf(err, "Failed to mount LVM snapshot volume")
 		}
