@@ -550,6 +550,11 @@ func (d *btrfs) GetVolumeDiskPath(vol Volume) (string, error) {
 
 // MountVolume simulates mounting a volume.
 func (d *btrfs) MountVolume(vol Volume, op *operations.Operation) (bool, error) {
+	err := vol.EnsureMountPath()
+	if err != nil {
+		return false, err
+	}
+
 	return true, nil
 }
 
