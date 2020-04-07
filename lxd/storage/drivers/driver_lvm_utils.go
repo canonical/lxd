@@ -11,6 +11,7 @@ import (
 
 	"github.com/pkg/errors"
 
+	"github.com/lxc/lxd/lxd/operations"
 	"github.com/lxc/lxd/lxd/revert"
 	"github.com/lxc/lxd/lxd/storage/locking"
 	"github.com/lxc/lxd/shared"
@@ -638,6 +639,14 @@ func (d *lvm) copyThinpoolVolume(vol, srcVol Volume, srcSnapshots []Volume, refr
 			if err != nil {
 				return err
 			}
+		}
+
+		// Mount the volume and ensure the permissions are set correctly inside the mounted volume.
+		err = vol.MountTask(func(_ string, _ *operations.Operation) error {
+			return vol.EnsureMountPath()
+		}, nil)
+		if err != nil {
+			return err
 		}
 	}
 
