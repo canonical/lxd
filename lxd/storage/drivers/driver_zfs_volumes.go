@@ -522,6 +522,14 @@ func (d *zfs) CreateVolumeFromCopy(vol Volume, srcVol Volume, copySnapshots bool
 		if err != nil {
 			return err
 		}
+
+		// Mount the volume and ensure the permissions are set correctly inside the mounted volume.
+		err = vol.MountTask(func(_ string, _ *operations.Operation) error {
+			return vol.EnsureMountPath()
+		}, op)
+		if err != nil {
+			return err
+		}
 	}
 
 	// Resize the new volume and filesystem to the correct size.
