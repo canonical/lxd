@@ -93,7 +93,7 @@ func (d *cephfs) CreateVolumeFromCopy(vol Volume, srcVol Volume, copySnapshots b
 
 	// Ensure the volume is mounted.
 	err = vol.MountTask(func(mountPath string, op *operations.Operation) error {
-		// If copyring snapshots is indicated, check the source isn't itself a snapshot.
+		// If copying snapshots is indicated, check the source isn't itself a snapshot.
 		if copySnapshots && !srcVol.IsSnapshot() {
 			// Get the list of snapshots from the source.
 			srcSnapshots, err := srcVol.Snapshots(op)
