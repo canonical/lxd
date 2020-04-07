@@ -1179,13 +1179,18 @@ func (d *ceph) MountVolumeSnapshot(snapVol Volume, op *operations.Operation) (bo
 		revert := revert.New()
 		defer revert.Fail()
 
+		err := snapVol.EnsureMountPath()
+		if err != nil {
+			return false, err
+		}
+
 		parentName, snapshotOnlyName, _ := shared.InstanceGetParentAndSnapshotName(snapVol.name)
 		prefixedSnapOnlyName := fmt.Sprintf("snapshot_%s", snapshotOnlyName)
 
 		parentVol := NewVolume(d, d.name, snapVol.volType, snapVol.contentType, parentName, nil, nil)
 
 		// Protect snapshot to prevent data loss.
-		err := d.rbdProtectVolumeSnapshot(parentVol, prefixedSnapOnlyName)
+		err = d.rbdProtectVolumeSnapshot(parentVol, prefixedSnapOnlyName)
 		if err != nil {
 			return false, err
 		}
@@ -1213,11 +1218,6 @@ func (d *ceph) MountVolumeSnapshot(snapVol Volume, op *operations.Operation) (bo
 
 		if shared.IsMountPoint(mountPath) {
 			return false, nil
-		}
-
-		err = snapVol.EnsureMountPath()
-		if err != nil {
-			return false, err
 		}
 
 		RBDFilesystem := d.getRBDFilesystem(snapVol)

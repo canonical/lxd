@@ -379,6 +379,11 @@ func (d *dir) DeleteVolumeSnapshot(snapVol Volume, op *operations.Operation) err
 
 // MountVolumeSnapshot sets up a read-only mount on top of the snapshot to avoid accidental modifications.
 func (d *dir) MountVolumeSnapshot(snapVol Volume, op *operations.Operation) (bool, error) {
+	err := snapVol.EnsureMountPath()
+	if err != nil {
+		return false, err
+	}
+
 	snapPath := snapVol.MountPath()
 	return mountReadOnly(snapPath, snapPath)
 }
