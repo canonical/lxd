@@ -730,7 +730,7 @@ func (d *lvm) UnmountVolumeSnapshot(snapVol Volume, op *operations.Operation) (b
 	mountPath := snapVol.MountPath()
 
 	// Check if already mounted.
-	if shared.IsMountPoint(mountPath) {
+	if snapVol.contentType == ContentTypeFS && shared.IsMountPoint(mountPath) {
 		err := TryUnmount(mountPath, 0)
 		if err != nil {
 			return false, errors.Wrapf(err, "Failed to unmount LVM snapshot volume")
@@ -753,6 +753,12 @@ func (d *lvm) UnmountVolumeSnapshot(snapVol Volume, op *operations.Operation) (b
 		}
 
 		return true, nil
+	}
+
+	// For VMs, unmount the filesystem volume.
+	if snapVol.IsVMBlock() {
+		fsVol := snapVol.NewVMBlockFilesystemVolume()
+		return d.UnmountVolumeSnapshot(fsVol, op)
 	}
 
 	return false, nil
