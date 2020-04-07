@@ -962,6 +962,11 @@ func (d *zfs) MountVolume(vol Volume, op *operations.Operation) (bool, error) {
 
 	// Check if filesystem volume already mounted.
 	if vol.contentType == ContentTypeFS && !shared.IsMountPoint(mountPath) {
+		err := vol.EnsureMountPath()
+		if err != nil {
+			return false, err
+		}
+
 		// Mount the dataset.
 		_, err = shared.RunCommand("zfs", "mount", dataset)
 		if err != nil {

@@ -288,6 +288,11 @@ func (d *dir) GetVolumeDiskPath(vol Volume) (string, error) {
 // MountVolume simulates mounting a volume. As dir driver doesn't have volumes to mount it returns
 // false indicating that there is no need to issue an unmount.
 func (d *dir) MountVolume(vol Volume, op *operations.Operation) (bool, error) {
+	err := vol.EnsureMountPath()
+	if err != nil {
+		return false, err
+	}
+
 	return false, nil
 }
 

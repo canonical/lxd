@@ -417,9 +417,14 @@ func (d *lvm) MountVolume(vol Volume, op *operations.Operation) (bool, error) {
 
 	// Check if already mounted.
 	if vol.contentType == ContentTypeFS && !shared.IsMountPoint(mountPath) {
+		err := vol.EnsureMountPath()
+		if err != nil {
+			return false, err
+		}
+
 		volDevPath := d.lvmDevPath(d.config["lvm.vg_name"], vol.volType, vol.contentType, vol.name)
 		mountFlags, mountOptions := resolveMountOptions(d.volumeMountOptions(vol))
-		err := TryMount(volDevPath, mountPath, d.volumeFilesystem(vol), mountFlags, mountOptions)
+		err = TryMount(volDevPath, mountPath, d.volumeFilesystem(vol), mountFlags, mountOptions)
 		if err != nil {
 			return false, errors.Wrapf(err, "Failed to mount LVM logical volume")
 		}
