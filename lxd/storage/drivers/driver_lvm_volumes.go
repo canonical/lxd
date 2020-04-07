@@ -417,9 +417,14 @@ func (d *lvm) MountVolume(vol Volume, op *operations.Operation) (bool, error) {
 
 	// Check if already mounted.
 	if vol.contentType == ContentTypeFS && !shared.IsMountPoint(mountPath) {
+		err := vol.EnsureMountPath()
+		if err != nil {
+			return false, err
+		}
+
 		volDevPath := d.lvmDevPath(d.config["lvm.vg_name"], vol.volType, vol.contentType, vol.name)
 		mountFlags, mountOptions := resolveMountOptions(d.volumeMountOptions(vol))
-		err := TryMount(volDevPath, mountPath, d.volumeFilesystem(vol), mountFlags, mountOptions)
+		err = TryMount(volDevPath, mountPath, d.volumeFilesystem(vol), mountFlags, mountOptions)
 		if err != nil {
 			return false, errors.Wrapf(err, "Failed to mount LVM logical volume")
 		}
@@ -643,6 +648,11 @@ func (d *lvm) MountVolumeSnapshot(snapVol Volume, op *operations.Operation) (boo
 		revert := revert.New()
 		defer revert.Fail()
 
+		err := snapVol.EnsureMountPath()
+		if err != nil {
+			return false, err
+		}
+
 		// Default to mounting the original snapshot directly. This may be changed below if a temporary
 		// snapshot needs to be taken.
 		mountVol := snapVol
@@ -695,7 +705,7 @@ func (d *lvm) MountVolumeSnapshot(snapVol Volume, op *operations.Operation) (boo
 
 		// Finally attempt to mount the volume that needs mounting.
 		volDevPath := d.lvmDevPath(d.config["lvm.vg_name"], mountVol.volType, mountVol.contentType, mountVol.name)
-		err := TryMount(volDevPath, mountPath, d.volumeFilesystem(mountVol), mountFlags|unix.MS_RDONLY, mountOptions)
+		err = TryMount(volDevPath, mountPath, d.volumeFilesystem(mountVol), mountFlags|unix.MS_RDONLY, mountOptions)
 		if err != nil {
 			return false, errors.Wrapf(err, "Failed to mount LVM snapshot volume")
 		}
@@ -720,7 +730,7 @@ func (d *lvm) UnmountVolumeSnapshot(snapVol Volume, op *operations.Operation) (b
 	mountPath := snapVol.MountPath()
 
 	// Check if already mounted.
-	if shared.IsMountPoint(mountPath) {
+	if snapVol.contentType == ContentTypeFS && shared.IsMountPoint(mountPath) {
 		err := TryUnmount(mountPath, 0)
 		if err != nil {
 			return false, errors.Wrapf(err, "Failed to unmount LVM snapshot volume")
@@ -743,6 +753,12 @@ func (d *lvm) UnmountVolumeSnapshot(snapVol Volume, op *operations.Operation) (b
 		}
 
 		return true, nil
+	}
+
+	// For VMs, unmount the filesystem volume.
+	if snapVol.IsVMBlock() {
+		fsVol := snapVol.NewVMBlockFilesystemVolume()
+		return d.UnmountVolumeSnapshot(fsVol, op)
 	}
 
 	return false, nil

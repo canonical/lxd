@@ -25,19 +25,19 @@ import (
 func (d *btrfs) CreateVolume(vol Volume, filler *VolumeFiller, op *operations.Operation) error {
 	volPath := vol.MountPath()
 
+	// Setup revert.
+	revert := revert.New()
+	defer revert.Fail()
+
 	// Create the volume itself.
 	_, err := shared.RunCommand("btrfs", "subvolume", "create", volPath)
 	if err != nil {
 		return err
 	}
-
-	// Setup revert.
-	revertPath := true
-	defer func() {
-		if revertPath {
-			d.deleteSubvolume(volPath, false)
-		}
-	}()
+	revert.Add(func() {
+		d.deleteSubvolume(volPath, false)
+		os.Remove(volPath)
+	})
 
 	// Create sparse loopback file if volume is block.
 	rootBlockPath := ""
@@ -80,7 +80,7 @@ func (d *btrfs) CreateVolume(vol Volume, filler *VolumeFiller, op *operations.Op
 		}
 	}
 
-	// Tweak any permissions that need tweaking.
+	// Tweak any permissions that need tweaking after filling.
 	err = vol.EnsureMountPath()
 	if err != nil {
 		return err
@@ -94,7 +94,7 @@ func (d *btrfs) CreateVolume(vol Volume, filler *VolumeFiller, op *operations.Op
 		}
 	}
 
-	revertPath = false
+	revert.Success()
 	return nil
 }
 
@@ -246,7 +246,7 @@ func (d *btrfs) CreateVolumeFromCopy(vol Volume, srcVol Volume, copySnapshots bo
 		return err
 	}
 
-	// Fixup permissions.
+	// Fixup permissions after snapshot created.
 	err = vol.EnsureMountPath()
 	if err != nil {
 		return err
@@ -550,6 +550,11 @@ func (d *btrfs) GetVolumeDiskPath(vol Volume) (string, error) {
 
 // MountVolume simulates mounting a volume.
 func (d *btrfs) MountVolume(vol Volume, op *operations.Operation) (bool, error) {
+	err := vol.EnsureMountPath()
+	if err != nil {
+		return false, err
+	}
+
 	return true, nil
 }
 
@@ -843,6 +848,11 @@ func (d *btrfs) DeleteVolumeSnapshot(snapVol Volume, op *operations.Operation) e
 
 // MountVolumeSnapshot sets up a read-only mount on top of the snapshot to avoid accidental modifications.
 func (d *btrfs) MountVolumeSnapshot(snapVol Volume, op *operations.Operation) (bool, error) {
+	err := snapVol.EnsureMountPath()
+	if err != nil {
+		return false, err
+	}
+
 	snapPath := snapVol.MountPath()
 	return mountReadOnly(snapPath, snapPath)
 }

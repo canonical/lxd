@@ -93,7 +93,7 @@ func (d *cephfs) CreateVolumeFromCopy(vol Volume, srcVol Volume, copySnapshots b
 
 	// Ensure the volume is mounted.
 	err = vol.MountTask(func(mountPath string, op *operations.Operation) error {
-		// If copyring snapshots is indicated, check the source isn't itself a snapshot.
+		// If copying snapshots is indicated, check the source isn't itself a snapshot.
 		if copySnapshots && !srcVol.IsSnapshot() {
 			// Get the list of snapshots from the source.
 			srcSnapshots, err := srcVol.Snapshots(op)
@@ -129,10 +129,17 @@ func (d *cephfs) CreateVolumeFromCopy(vol Volume, srcVol Volume, copySnapshots b
 		}
 
 		// Copy source to destination (mounting each volume if needed).
-		return srcVol.MountTask(func(srcMountPath string, op *operations.Operation) error {
+		err = srcVol.MountTask(func(srcMountPath string, op *operations.Operation) error {
 			_, err := rsync.LocalCopy(srcMountPath, mountPath, bwlimit, false)
 			return err
 		}, op)
+		if err != nil {
+			return err
+		}
+
+		// Run EnsureMountPath after mounting and copying to ensure the mounted directory has the
+		// correct permissions set.
+		return vol.EnsureMountPath()
 	}, op)
 	if err != nil {
 		return err

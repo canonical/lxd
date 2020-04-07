@@ -522,6 +522,14 @@ func (d *zfs) CreateVolumeFromCopy(vol Volume, srcVol Volume, copySnapshots bool
 		if err != nil {
 			return err
 		}
+
+		// Mount the volume and ensure the permissions are set correctly inside the mounted volume.
+		err = vol.MountTask(func(_ string, _ *operations.Operation) error {
+			return vol.EnsureMountPath()
+		}, op)
+		if err != nil {
+			return err
+		}
 	}
 
 	// Resize the new volume and filesystem to the correct size.
@@ -954,6 +962,11 @@ func (d *zfs) MountVolume(vol Volume, op *operations.Operation) (bool, error) {
 
 	// Check if filesystem volume already mounted.
 	if vol.contentType == ContentTypeFS && !shared.IsMountPoint(mountPath) {
+		err := vol.EnsureMountPath()
+		if err != nil {
+			return false, err
+		}
+
 		// Mount the dataset.
 		_, err = shared.RunCommand("zfs", "mount", dataset)
 		if err != nil {
@@ -1468,15 +1481,20 @@ func (d *zfs) DeleteVolumeSnapshot(vol Volume, op *operations.Operation) error {
 }
 
 // MountVolumeSnapshot simulates mounting a volume snapshot.
-func (d *zfs) MountVolumeSnapshot(vol Volume, op *operations.Operation) (bool, error) {
+func (d *zfs) MountVolumeSnapshot(snapVol Volume, op *operations.Operation) (bool, error) {
 	var err error
-	mountPath := vol.MountPath()
-	snapshotDataset := d.dataset(vol, false)
+	mountPath := snapVol.MountPath()
+	snapshotDataset := d.dataset(snapVol, false)
 
 	// Check if filesystem volume already mounted.
-	if vol.contentType == ContentTypeFS && !shared.IsMountPoint(mountPath) {
+	if snapVol.contentType == ContentTypeFS && !shared.IsMountPoint(mountPath) {
+		err := snapVol.EnsureMountPath()
+		if err != nil {
+			return false, err
+		}
+
 		// Mount the snapshot directly (not possible through tools).
-		err := TryMount(snapshotDataset, mountPath, "zfs", 0, "")
+		err = TryMount(snapshotDataset, mountPath, "zfs", 0, "")
 		if err != nil {
 			return false, err
 		}
@@ -1492,9 +1510,9 @@ func (d *zfs) MountVolumeSnapshot(vol Volume, op *operations.Operation) (bool, e
 	// so that the caller knows to call UnmountVolumeSnapshot to undo this action, but if it is already set
 	// then we will return ourMount false, because we don't want to deactivate the parent volume's device if it
 	// is already in use.
-	if vol.contentType == ContentTypeBlock {
-		parent, _, _ := shared.InstanceGetParentAndSnapshotName(vol.Name())
-		parentVol := NewVolume(d, d.Name(), vol.volType, vol.contentType, parent, vol.config, vol.poolConfig)
+	if snapVol.contentType == ContentTypeBlock {
+		parent, _, _ := shared.InstanceGetParentAndSnapshotName(snapVol.Name())
+		parentVol := NewVolume(d, d.Name(), snapVol.volType, snapVol.contentType, parent, snapVol.config, snapVol.poolConfig)
 		parentDataset := d.dataset(parentVol, false)
 
 		// Check if parent already active.
@@ -1529,9 +1547,9 @@ func (d *zfs) MountVolumeSnapshot(vol Volume, op *operations.Operation) (bool, e
 		}
 	}
 
-	if vol.IsVMBlock() {
+	if snapVol.IsVMBlock() {
 		// For VMs, also mount the filesystem dataset.
-		fsVol := vol.NewVMBlockFilesystemVolume()
+		fsVol := snapVol.NewVMBlockFilesystemVolume()
 		ourMountFs, err = d.MountVolumeSnapshot(fsVol, op)
 		if err != nil {
 			return false, err
