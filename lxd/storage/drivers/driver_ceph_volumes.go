@@ -304,6 +304,14 @@ func (d *ceph) CreateVolumeFromCopy(vol Volume, srcVol Volume, copySnapshots boo
 			if err != nil {
 				return err
 			}
+
+			// Mount the volume and ensure the permissions are set correctly inside the mounted volume.
+			err = vol.MountTask(func(_ string, _ *operations.Operation) error {
+				return vol.EnsureMountPath()
+			}, op)
+			if err != nil {
+				return err
+			}
 		}
 
 		// For VMs, also copy the filesystem volume.
