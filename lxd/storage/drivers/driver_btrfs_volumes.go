@@ -246,7 +246,7 @@ func (d *btrfs) CreateVolumeFromCopy(vol Volume, srcVol Volume, copySnapshots bo
 		return err
 	}
 
-	// Fixup permissions.
+	// Fixup permissions after snapshot created.
 	err = vol.EnsureMountPath()
 	if err != nil {
 		return err
