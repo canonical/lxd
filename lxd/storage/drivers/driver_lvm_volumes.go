@@ -288,7 +288,10 @@ func (d *lvm) GetVolumeUsage(vol Volume) (int64, error) {
 		return -1, ErrNotSupported
 	}
 
-	// If volume has a filesystem and is mounted we can ask the filesystem for usage.
+	// For non-snapshot filesystem volumes, we only return usage when the volume is mounted.
+	// This is because to get an accurate value we cannot use blocks allocated, as the filesystem will likely
+	// consume blocks and not free them when files are deleted in the volume. This avoids returning different
+	// values depending on whether the volume is mounted or not.
 	if vol.contentType == ContentTypeFS && shared.IsMountPoint(vol.MountPath()) {
 		var stat unix.Statfs_t
 		err := unix.Statfs(vol.MountPath(), &stat)
@@ -298,8 +301,8 @@ func (d *lvm) GetVolumeUsage(vol Volume) (int64, error) {
 
 		return int64(stat.Blocks-stat.Bfree) * int64(stat.Bsize), nil
 	} else if vol.contentType == ContentTypeBlock && d.usesThinpool() {
-		// For thin pool block volumes we can calculate an approximate usage using the space allocated to
-		// the volume from the thin pool.
+		// For non-snapshot thin pool block volumes we can calculate an approximate usage using the space
+		// allocated to the volume from the thin pool.
 		volDevPath := d.lvmDevPath(d.config["lvm.vg_name"], vol.volType, vol.contentType, vol.name)
 		_, usedSize, err := d.thinPoolVolumeUsage(volDevPath)
 		if err != nil {

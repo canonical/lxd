@@ -668,7 +668,13 @@ func (d *ceph) UpdateVolume(vol Volume, changedConfig map[string]string) error {
 
 // GetVolumeUsage returns the disk space used by the volume.
 func (d *ceph) GetVolumeUsage(vol Volume) (int64, error) {
-	if vol.contentType == ContentTypeFS && shared.IsMountPoint(vol.MountPath()) {
+	isSnap := vol.IsSnapshot()
+
+	// For non-snapshot filesystem volumes, we only return usage when the volume is mounted.
+	// This is because to get an accurate value we cannot use blocks allocated, as the filesystem will likely
+	// consume blocks and not free them when files are deleted in the volume. This avoids returning different
+	// values depending on whether the volume is mounted or not.
+	if !isSnap && vol.contentType == ContentTypeFS && shared.IsMountPoint(vol.MountPath()) {
 		var stat unix.Statfs_t
 
 		err := unix.Statfs(vol.MountPath(), &stat)
@@ -677,49 +683,62 @@ func (d *ceph) GetVolumeUsage(vol Volume) (int64, error) {
 		}
 
 		return int64(stat.Blocks-stat.Bfree) * int64(stat.Bsize), nil
-	}
-
-	type cephDuLine struct {
-		Name            string `json:"name"`
-		Snapshot        string `json:"snapshot"`
-		ProvisionedSize int64  `json:"provisioned_size"`
-		UsedSize        int64  `json:"used_size"`
-	}
-
-	type cephDuInfo struct {
-		Images []cephDuLine `json:"images"`
-	}
-
-	jsonInfo, err := shared.TryRunCommand(
-		"rbd",
-		"du",
-		"--format", "json",
-		"--id", d.config["ceph.user.name"],
-		"--cluster", d.config["ceph.cluster_name"],
-		"--pool", d.config["ceph.osd.pool_name"],
-		d.getRBDVolumeName(vol, "", false, false))
-
-	if err != nil {
-		return -1, err
-	}
-
-	var usedSize int64
-	var result cephDuInfo
-
-	err = json.Unmarshal([]byte(jsonInfo), &result)
-	if err != nil {
-		return -1, err
-	}
-
-	// rbd du gives the output of all related rbd images, snapshots included
-	// to get the total size of the image we use the result that does not include
-	// a snapshot name, this is the total image size.
-	for _, image := range result.Images {
-		if image.Snapshot == "" {
-			usedSize = image.UsedSize
+	} else if vol.contentType == ContentTypeBlock || isSnap {
+		type cephDuLine struct {
+			Name            string `json:"name"`
+			Snapshot        string `json:"snapshot"`
+			ProvisionedSize int64  `json:"provisioned_size"`
+			UsedSize        int64  `json:"used_size"`
 		}
+
+		type cephDuInfo struct {
+			Images []cephDuLine `json:"images"`
+		}
+
+		jsonInfo, err := shared.TryRunCommand(
+			"rbd",
+			"du",
+			"--format", "json",
+			"--id", d.config["ceph.user.name"],
+			"--cluster", d.config["ceph.cluster_name"],
+			"--pool", d.config["ceph.osd.pool_name"],
+			d.getRBDVolumeName(vol, "", false, false),
+		)
+		if err != nil {
+			return -1, err
+		}
+
+		var usedSize int64
+		var result cephDuInfo
+
+		err = json.Unmarshal([]byte(jsonInfo), &result)
+		if err != nil {
+			return -1, err
+		}
+
+		_, snapName, _ := shared.InstanceGetParentAndSnapshotName(vol.Name())
+		snapName = fmt.Sprintf("snapshot_%s", snapName)
+
+		// rbd du gives the output of all related rbd images, snapshots included.
+		for _, image := range result.Images {
+			if isSnap {
+				// For snapshot volumes we only want to get the specific image used so we can
+				// indicate how much CoW usage that snapshot has.
+				if image.Snapshot == snapName {
+					usedSize = image.UsedSize
+					break
+				}
+			} else {
+				// For non-snapshot volumes, to get the total size of the volume we need to add up
+				// all of the image's usage.
+				usedSize += image.UsedSize
+			}
+		}
+
+		return usedSize, nil
 	}
-	return usedSize, nil
+
+	return -1, ErrNotSupported
 }
 
 // SetVolumeQuota applies a size limit on volume.
