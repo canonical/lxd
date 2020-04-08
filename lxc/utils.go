@@ -80,7 +80,11 @@ func (a byNameAndType) Swap(i, j int) {
 }
 
 func (a byNameAndType) Less(i, j int) bool {
-	if a[i][0] != a[j][0] {
+	// Sort snapshot and parent together.
+	iType := strings.Split(a[i][0], " ")[0]
+	jType := strings.Split(a[j][0], " ")[0]
+
+	if iType != jType {
 		return sortorder.NaturalLess(a[i][0], a[j][0])
 	}
 
