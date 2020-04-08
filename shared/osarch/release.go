@@ -13,6 +13,7 @@ func GetLSBRelease() (map[string]string, error) {
 	if os.IsNotExist(err) {
 		return getLSBRelease("/usr/lib/os-release")
 	}
+
 	return osRelease, err
 }
 
@@ -23,10 +24,12 @@ func getLSBRelease(filename string) (map[string]string, error) {
 	if err != nil {
 		return osRelease, err
 	}
+
 	for i, line := range strings.Split(string(data), "\n") {
 		if len(line) == 0 {
 			continue
 		}
+
 		if strings.HasPrefix(line, "#") {
 			continue
 		}
@@ -35,6 +38,7 @@ func getLSBRelease(filename string) (map[string]string, error) {
 		if len(tokens) != 2 {
 			return osRelease, fmt.Errorf("%s: invalid format on line %d", filename, i+1)
 		}
+
 		osRelease[tokens[0]] = strings.Trim(tokens[1], `'"`)
 	}
 
