@@ -188,6 +188,11 @@ func api10Get(d *Daemon, r *http.Request) response.Response {
 		projectName = project.Default
 	}
 
+	osInfo, err := osarch.GetLSBRelease()
+	if err != nil {
+		return response.InternalError(err)
+	}
+
 	env := api.ServerEnvironment{
 		Addresses:              addresses,
 		Architectures:          architectures,
@@ -198,6 +203,8 @@ func api10Get(d *Daemon, r *http.Request) response.Response {
 		Kernel:                 uname.Sysname,
 		KernelArchitecture:     uname.Machine,
 		KernelVersion:          uname.Release,
+		OSName:                 osInfo["NAME"],
+		OSVersion:              osInfo["VERSION_ID"],
 		Project:                projectName,
 		Server:                 "lxd",
 		ServerPid:              os.Getpid(),
