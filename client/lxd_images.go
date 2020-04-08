@@ -484,6 +484,14 @@ func (r *ProtocolLXD) CreateImage(image api.ImagesPost, args *ImageCreateArgs) (
 		req.Header.Set("User-Agent", r.httpUserAgent)
 	}
 
+	if image.Source != nil && image.Source.Fingerprint != "" && image.Source.Secret != "" && image.Source.Mode == "push" {
+		// Set fingerprint
+		req.Header.Set("X-LXD-fingerprint", image.Source.Fingerprint)
+
+		// Set secret
+		req.Header.Set("X-LXD-secret", image.Source.Secret)
+	}
+
 	// Send the request
 	resp, err := r.do(req)
 	if err != nil {
