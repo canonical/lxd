@@ -51,14 +51,8 @@ func (c *cmdForkZFS) Run(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("This must be run as root")
 	}
 
-	// Unshare a clean mount namespace
-	err := unix.Unshare(unix.CLONE_NEWNS)
-	if err != nil {
-		return err
-	}
-
 	// Mark mount tree as private
-	err = unix.Mount("none", "/", "", unix.MS_REC|unix.MS_PRIVATE, "")
+	err := unix.Mount("none", "/", "", unix.MS_REC|unix.MS_PRIVATE, "")
 	if err != nil {
 		return err
 	}

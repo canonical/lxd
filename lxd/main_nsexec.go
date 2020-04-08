@@ -287,6 +287,7 @@ static char *file_to_buf(char *path, ssize_t *length)
 
 __attribute__((constructor)) void init(void) {
 	__do_free char *cmdline = NULL;
+	int ret;
 
 	cmdline_buf = file_to_buf("/proc/self/cmdline", &cmdline_size);
 	if (!cmdline_buf)
@@ -317,7 +318,13 @@ __attribute__((constructor)) void init(void) {
 		forkproxy();
 	else if (strcmp(cmdline_cur, "forkuevent") == 0)
 		forkuevent();
-	else if (strncmp(cmdline_cur, "-", 1) == 0 || strcmp(cmdline_cur, "daemon") == 0)
+	else if (strcmp(cmdline_cur, "forkzfs") == 0) {
+		ret = unshare(CLONE_NEWNS);
+		if (ret < 0) {
+			fprintf(stderr, "Failed unshare of mount namespace: %s\n", strerror(errno));
+			return;
+		}
+	} else if (strncmp(cmdline_cur, "-", 1) == 0 || strcmp(cmdline_cur, "daemon") == 0)
 		checkfeature();
 }
 */
