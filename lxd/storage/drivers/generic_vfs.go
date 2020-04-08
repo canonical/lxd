@@ -361,6 +361,7 @@ func genericVFSCreateVolumeFromMigration(d Driver, initVolume func(vol Volume) (
 			}
 
 			// Create the snapshot itself.
+			d.Logger().Debug("Creating snapshot", log.Ctx{"volName": snapVol.Name()})
 			err = d.CreateVolumeSnapshot(snapVol, op)
 			if err != nil {
 				return err
@@ -860,6 +861,7 @@ func genericVFSCopyVolume(d Driver, initVolume func(vol Volume) (func(), error),
 				snapVol := NewVolume(d, d.Name(), vol.volType, vol.contentType, fullSnapName, vol.config, vol.poolConfig)
 
 				// Create the snapshot itself.
+				d.Logger().Debug("Creating snapshot", log.Ctx{"volName": snapVol.Name()})
 				err = d.CreateVolumeSnapshot(snapVol, op)
 				if err != nil {
 					return err
