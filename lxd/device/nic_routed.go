@@ -274,13 +274,13 @@ func (d *nicRouted) setupParentSysctls(parentName string) error {
 		ipv6FwdPath := fmt.Sprintf("net/ipv6/conf/%s/forwarding", parentName)
 		err := util.SysctlSet(ipv6FwdPath, "1")
 		if err != nil {
-			return fmt.Errorf("Error reading net sysctl %s: %v", ipv6FwdPath, err)
+			return fmt.Errorf("Error setting net sysctl %s: %v", ipv6FwdPath, err)
 		}
 
 		ipv6ProxyNdpPath := fmt.Sprintf("net/ipv6/conf/%s/proxy_ndp", parentName)
 		err = util.SysctlSet(ipv6ProxyNdpPath, "1")
 		if err != nil {
-			return fmt.Errorf("Error reading net sysctl %s: %v", ipv6ProxyNdpPath, err)
+			return fmt.Errorf("Error setting net sysctl %s: %v", ipv6ProxyNdpPath, err)
 		}
 	}
 
