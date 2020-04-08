@@ -15,13 +15,13 @@ currently supported:
 ## Bridges
 
 As one of the possible network configuration types under LXD,
-LXD supports creating and managing network bridges. LXD bridges 
-can leverage underlying native Linux bridges and Open vSwitch. 
+LXD supports creating and managing network bridges. LXD bridges
+can leverage underlying native Linux bridges and Open vSwitch.
 
 Creation and management of LXD bridges is performed via the `lxc network`
-command. A bridge created by LXD is by default "managed" which 
-means that LXD also will additionally set up a local `dnsmasq` 
-DHCP server and if desired also perform NAT for the bridge (this 
+command. A bridge created by LXD is by default "managed" which
+means that LXD also will additionally set up a local `dnsmasq`
+DHCP server and if desired also perform NAT for the bridge (this
 is the default.)
 
 When a bridge is managed by LXD, configuration values
@@ -46,9 +46,9 @@ devices:
 A complete list of configuration settings for LXD networks can
 be found below.
 
-It is expected that IP addresses and subnets are given using CIDR 
-notation (`1.1.1.1/24` or `fd80:1234::1/64`). The exception being 
-tunnel local and remote addresses which are just plain addresses 
+It is expected that IP addresses and subnets are given using CIDR
+notation (`1.1.1.1/24` or `fd80:1234::1/64`). The exception being
+tunnel local and remote addresses which are just plain addresses
 (`1.1.1.1` or `fd80:1234::1`).
 
 Key                             | Type      | Condition             | Default                   | Description
@@ -145,3 +145,22 @@ This resolved configuration will persist as long as the bridge
 exists, so you must repeat this command each reboot and after
 LXD is restarted.  Also note this only works if the bridge
 `dns.mode` is not `none`.
+
+## Allow DHCP, DNS with Firewalld
+
+In order to allow instances to access the DHCP and DNS server that LXD runs on the host when using firewalld
+you need to add the host's bridge interface to the `trusted` zone in firewalld.
+
+To do this permanently (so that it persists after a reboot) run the following command:
+
+```
+firewall-cmd --zone=trusted --change-interface=<LXD network name> --permanent
+```
+
+E.g. for a bridged network called `lxdbr0` run the command:
+
+```
+firewall-cmd --zone=trusted --change-interface=lxdbr0 --permanent
+```
+
+This will then allow LXD's own firewall rules to take effect.
