@@ -229,6 +229,7 @@ type InstanceServer interface {
 	GetOperations() (operations []api.Operation, err error)
 	GetOperation(uuid string) (op *api.Operation, ETag string, err error)
 	GetOperationWait(uuid string, timeout int) (op *api.Operation, ETag string, err error)
+	GetOperationWaitSecret(uuid string, secret string, timeout int) (op *api.Operation, ETag string, err error)
 	GetOperationWebsocket(uuid string, secret string) (conn *websocket.Conn, err error)
 	DeleteOperation(uuid string) (err error)
 
