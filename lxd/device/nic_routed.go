@@ -76,6 +76,11 @@ func (d *nicRouted) validateEnvironment() error {
 		return fmt.Errorf("Requires name property to start")
 	}
 
+	extensions := d.state.OS.LXCFeatures
+	if !extensions["network_veth_router"] || !extensions["network_l2proxy"] {
+		return fmt.Errorf("Requires liblxc has following API extensions: network_veth_router, network_l2proxy")
+	}
+
 	if d.config["parent"] != "" && !shared.PathExists(fmt.Sprintf("/sys/class/net/%s", d.config["parent"])) {
 		return fmt.Errorf("Parent device '%s' doesn't exist", d.config["parent"])
 	}
@@ -84,24 +89,7 @@ func (d *nicRouted) validateEnvironment() error {
 		return fmt.Errorf("The vlan setting can only be used when combined with a parent interface")
 	}
 
-	extensions := d.state.OS.LXCFeatures
-	if !extensions["network_veth_router"] || !extensions["network_l2proxy"] {
-		return fmt.Errorf("Requires liblxc has following API extensions: network_veth_router, network_l2proxy")
-	}
-
-	// Check necessary sysctls are configured for use with l2proxy parent for routed mode.
-	if d.config["parent"] != "" && d.config["ipv4.address"] != "" {
-		ipv4FwdPath := fmt.Sprintf("net/ipv4/conf/%s/forwarding", d.config["parent"])
-		sysctlVal, err := util.SysctlGet(ipv4FwdPath)
-		if err != nil || sysctlVal != "1\n" {
-			return fmt.Errorf("Error reading net sysctl %s: %v", ipv4FwdPath, err)
-		}
-		if sysctlVal != "1\n" {
-			return fmt.Errorf("Routed mode requires sysctl net.ipv4.conf.%s.forwarding=1", d.config["parent"])
-		}
-	}
-
-	// Check necessary sysctls are configured for use with l2proxy parent for routed mode.
+	// Check necessary "all" sysctls are configured for use with l2proxy parent for routed mode.
 	if d.config["parent"] != "" && d.config["ipv6.address"] != "" {
 		// net.ipv6.conf.all.forwarding=1 is required to enable general packet forwarding for IPv6.
 		ipv6FwdPath := fmt.Sprintf("net/ipv6/conf/%s/forwarding", "all")
@@ -111,15 +99,6 @@ func (d *nicRouted) validateEnvironment() error {
 		}
 		if sysctlVal != "1\n" {
 			return fmt.Errorf("Routed mode requires sysctl net.ipv6.conf.%s.forwarding=1", "all")
-		}
-
-		ipv6FwdPath = fmt.Sprintf("net/ipv6/conf/%s/forwarding", d.config["parent"])
-		sysctlVal, err = util.SysctlGet(ipv6FwdPath)
-		if err != nil {
-			return fmt.Errorf("Error reading net sysctl %s: %v", ipv6FwdPath, err)
-		}
-		if sysctlVal != "1\n" {
-			return fmt.Errorf("Routed mode requires sysctl net.ipv6.conf.%s.forwarding=1", d.config["parent"])
 		}
 
 		// net.ipv6.conf.all.proxy_ndp=1 is needed otherwise unicast neighbour solicitations are rejected.
@@ -133,14 +112,47 @@ func (d *nicRouted) validateEnvironment() error {
 		if sysctlVal != "1\n" {
 			return fmt.Errorf("Routed mode requires sysctl net.ipv6.conf.%s.proxy_ndp=1", "all")
 		}
+	}
 
-		ipv6ProxyNdpPath = fmt.Sprintf("net/ipv6/conf/%s/proxy_ndp", d.config["parent"])
+	// Generate effective parent name, including the VLAN part if option used.
+	effectiveParentName := network.GetHostDevice(d.config["parent"], d.config["vlan"])
+
+	// If the effective parent doesn't exist and the vlan option is specified, it means we are going to create
+	// the VLAN parent at start, and we will configure the needed sysctls so don't need to check them yet.
+	if d.config["vlan"] != "" && !shared.PathExists(fmt.Sprintf("/sys/class/net/%s", effectiveParentName)) {
+		return nil
+	}
+
+	// Check necessary sysctls are configured for use with l2proxy parent for routed mode.
+	if effectiveParentName != "" && d.config["ipv4.address"] != "" {
+		ipv4FwdPath := fmt.Sprintf("net/ipv4/conf/%s/forwarding", effectiveParentName)
+		sysctlVal, err := util.SysctlGet(ipv4FwdPath)
+		if err != nil || sysctlVal != "1\n" {
+			return fmt.Errorf("Error reading net sysctl %s: %v", ipv4FwdPath, err)
+		}
+		if sysctlVal != "1\n" {
+			return fmt.Errorf("Routed mode requires sysctl net.ipv4.conf.%s.forwarding=1", effectiveParentName)
+		}
+	}
+
+	// Check necessary devic specific sysctls are configured for use with l2proxy parent for routed mode.
+	if effectiveParentName != "" && d.config["ipv6.address"] != "" {
+		ipv6FwdPath := fmt.Sprintf("net/ipv6/conf/%s/forwarding", effectiveParentName)
+		sysctlVal, err := util.SysctlGet(ipv6FwdPath)
+		if err != nil {
+			return fmt.Errorf("Error reading net sysctl %s: %v", ipv6FwdPath, err)
+		}
+		if sysctlVal != "1\n" {
+			return fmt.Errorf("Routed mode requires sysctl net.ipv6.conf.%s.forwarding=1", effectiveParentName)
+		}
+
+		ipv6ProxyNdpPath := fmt.Sprintf("net/ipv6/conf/%s/proxy_ndp", effectiveParentName)
 		sysctlVal, err = util.SysctlGet(ipv6ProxyNdpPath)
 		if err != nil {
 			return fmt.Errorf("Error reading net sysctl %s: %v", ipv6ProxyNdpPath, err)
 		}
 		if sysctlVal != "1\n" {
-			return fmt.Errorf("Routed mode requires sysctl net.ipv6.conf.%s.proxy_ndp=1", d.config["parent"])
+			return fmt.Errorf("Routed mode requires sysctl net.ipv6.conf.%s.proxy_ndp=1", effectiveParentName)
 		}
 	}
 
@@ -262,13 +274,13 @@ func (d *nicRouted) setupParentSysctls(parentName string) error {
 		ipv6FwdPath := fmt.Sprintf("net/ipv6/conf/%s/forwarding", parentName)
 		err := util.SysctlSet(ipv6FwdPath, "1")
 		if err != nil {
-			return fmt.Errorf("Error reading net sysctl %s: %v", ipv6FwdPath, err)
+			return fmt.Errorf("Error setting net sysctl %s: %v", ipv6FwdPath, err)
 		}
 
 		ipv6ProxyNdpPath := fmt.Sprintf("net/ipv6/conf/%s/proxy_ndp", parentName)
 		err = util.SysctlSet(ipv6ProxyNdpPath, "1")
 		if err != nil {
-			return fmt.Errorf("Error reading net sysctl %s: %v", ipv6ProxyNdpPath, err)
+			return fmt.Errorf("Error setting net sysctl %s: %v", ipv6ProxyNdpPath, err)
 		}
 	}
 
