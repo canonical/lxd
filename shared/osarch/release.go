@@ -22,6 +22,10 @@ func getLSBRelease(filename string) (map[string]string, error) {
 
 	data, err := ioutil.ReadFile(filename)
 	if err != nil {
+		if os.IsNotExist(err) {
+			return osRelease, nil
+		}
+
 		return osRelease, err
 	}
 
