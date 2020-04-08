@@ -800,6 +800,13 @@ func imagesPost(d *Daemon, r *http.Request) response.Response {
 			metadata := make(map[string]string)
 			metadata["fingerprint"] = info.Fingerprint
 			metadata["size"] = strconv.FormatInt(info.Size, 10)
+
+			// Keep secret if available
+			secret, ok := op.Metadata()["secret"]
+			if ok {
+				metadata["secret"] = secret.(string)
+			}
+
 			op.UpdateMetadata(metadata)
 		}
 		if err != nil {
@@ -842,7 +849,18 @@ func imagesPost(d *Daemon, r *http.Request) response.Response {
 		return nil
 	}
 
-	op, err := operations.OperationCreate(d.State(), project, operations.OperationClassTask, db.OperationImageDownload, nil, nil, run, nil, nil)
+	var metadata interface{}
+
+	if imageUpload && imageMetadata != nil {
+		secret, _ := shared.RandomCryptoString()
+		if secret != "" {
+			metadata = map[string]string{
+				"secret": secret,
+			}
+		}
+	}
+
+	op, err := operations.OperationCreate(d.State(), project, operations.OperationClassTask, db.OperationImageDownload, nil, metadata, run, nil, nil)
 	if err != nil {
 		cleanup(builddir, post)
 		return response.InternalError(err)
