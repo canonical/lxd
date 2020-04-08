@@ -23,6 +23,10 @@ type ServerEnvironment struct {
 	// API extension: lxc_features
 	LXCFeatures map[string]string `json:"lxc_features" yaml:"lxc_features"`
 
+	// API extension: api_os
+	OSName    string `json:"os_name" yaml:"os_name"`
+	OSVersion string `json:"os_version" yaml:"os_version"`
+
 	// API extension: projects
 	Project string `json:"project" yaml:"project"`
 
