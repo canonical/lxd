@@ -1,6 +1,7 @@
 package storage
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"os"
@@ -679,9 +680,6 @@ func (b *lxdBackend) CreateInstanceFromCopy(inst instance.Instance, src instance
 			}
 		}
 
-		// Use in-memory pipe pair to simulate a connection between the sender and receiver.
-		aEnd, bEnd := memorypipe.NewPipePair()
-
 		// Negotiate the migration type to use.
 		offeredTypes := srcPool.MigrationTypes(contentType, false)
 		offerHeader := migration.TypesToHeader(offeredTypes...)
@@ -689,6 +687,11 @@ func (b *lxdBackend) CreateInstanceFromCopy(inst instance.Instance, src instance
 		if err != nil {
 			return fmt.Errorf("Failed to negotiate copy migration type: %v", err)
 		}
+
+		ctx, cancel := context.WithCancel(context.Background())
+
+		// Use in-memory pipe pair to simulate a connection between the sender and receiver.
+		aEnd, bEnd := memorypipe.NewPipePair(ctx)
 
 		// Run sender and receiver in separate go routines to prevent deadlocks.
 		aEndErrCh := make(chan error, 1)
@@ -701,6 +704,9 @@ func (b *lxdBackend) CreateInstanceFromCopy(inst instance.Instance, src instance
 				TrackProgress: true, // Do use a progress tracker on sender.
 			}, op)
 
+			if err != nil {
+				cancel()
+			}
 			aEndErrCh <- err
 		}()
 
@@ -712,6 +718,9 @@ func (b *lxdBackend) CreateInstanceFromCopy(inst instance.Instance, src instance
 				TrackProgress: false, // Do not use a progress tracker on receiver.
 			}, op)
 
+			if err != nil {
+				cancel()
+			}
 			bEndErrCh <- err
 		}()
 
@@ -726,6 +735,8 @@ func (b *lxdBackend) CreateInstanceFromCopy(inst instance.Instance, src instance
 		if bEndErr != nil {
 			errs = append(errs, bEndErr)
 		}
+
+		cancel()
 
 		if len(errs) > 0 {
 			return fmt.Errorf("Create instance volume from copy failed: %v", errs)
@@ -820,9 +831,6 @@ func (b *lxdBackend) RefreshInstance(inst instance.Instance, src instance.Instan
 			snapshotNames = append(snapshotNames, snapShotName)
 		}
 
-		// Use in-memory pipe pair to simulate a connection between the sender and receiver.
-		aEnd, bEnd := memorypipe.NewPipePair()
-
 		// Negotiate the migration type to use.
 		offeredTypes := srcPool.MigrationTypes(contentType, true)
 		offerHeader := migration.TypesToHeader(offeredTypes...)
@@ -830,6 +838,11 @@ func (b *lxdBackend) RefreshInstance(inst instance.Instance, src instance.Instan
 		if err != nil {
 			return fmt.Errorf("Failed to negotiate copy migration type: %v", err)
 		}
+
+		ctx, cancel := context.WithCancel(context.Background())
+
+		// Use in-memory pipe pair to simulate a connection between the sender and receiver.
+		aEnd, bEnd := memorypipe.NewPipePair(ctx)
 
 		// Run sender and receiver in separate go routines to prevent deadlocks.
 		aEndErrCh := make(chan error, 1)
@@ -842,6 +855,9 @@ func (b *lxdBackend) RefreshInstance(inst instance.Instance, src instance.Instan
 				TrackProgress: true, // Do use a progress tracker on sender.
 			}, op)
 
+			if err != nil {
+				cancel()
+			}
 			aEndErrCh <- err
 		}()
 
@@ -854,6 +870,9 @@ func (b *lxdBackend) RefreshInstance(inst instance.Instance, src instance.Instan
 				TrackProgress: false, // Do not use a progress tracker on receiver.
 			}, op)
 
+			if err != nil {
+				cancel()
+			}
 			bEndErrCh <- err
 		}()
 
@@ -868,6 +887,8 @@ func (b *lxdBackend) RefreshInstance(inst instance.Instance, src instance.Instan
 		if bEndErr != nil {
 			errs = append(errs, bEndErr)
 		}
+
+		cancel()
 
 		if len(errs) > 0 {
 			return fmt.Errorf("Create instance volume from copy failed: %v", errs)
@@ -2261,9 +2282,6 @@ func (b *lxdBackend) CreateCustomVolumeFromCopy(projectName string, volName stri
 	// to negotiate a common transfer method between pool types.
 	logger.Debug("CreateCustomVolumeFromCopy cross-pool mode detected")
 
-	// Use in-memory pipe pair to simulate a connection between the sender and receiver.
-	aEnd, bEnd := memorypipe.NewPipePair()
-
 	// Negotiate the migration type to use.
 	offeredTypes := srcPool.MigrationTypes(drivers.ContentTypeFS, false)
 	offerHeader := migration.TypesToHeader(offeredTypes...)
@@ -2271,6 +2289,11 @@ func (b *lxdBackend) CreateCustomVolumeFromCopy(projectName string, volName stri
 	if err != nil {
 		return fmt.Errorf("Failed to negotiate copy migration type: %v", err)
 	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+
+	// Use in-memory pipe pair to simulate a connection between the sender and receiver.
+	aEnd, bEnd := memorypipe.NewPipePair(ctx)
 
 	// Run sender and receiver in separate go routines to prevent deadlocks.
 	aEndErrCh := make(chan error, 1)
@@ -2283,6 +2306,9 @@ func (b *lxdBackend) CreateCustomVolumeFromCopy(projectName string, volName stri
 			TrackProgress: true, // Do use a progress tracker on sender.
 		}, op)
 
+		if err != nil {
+			cancel()
+		}
 		aEndErrCh <- err
 	}()
 
@@ -2297,6 +2323,9 @@ func (b *lxdBackend) CreateCustomVolumeFromCopy(projectName string, volName stri
 
 		}, op)
 
+		if err != nil {
+			cancel()
+		}
 		bEndErrCh <- err
 	}()
 
@@ -2312,6 +2341,8 @@ func (b *lxdBackend) CreateCustomVolumeFromCopy(projectName string, volName stri
 	if bEndErr != nil {
 		errs = append(errs, bEndErr)
 	}
+
+	cancel()
 
 	if len(errs) > 0 {
 		return fmt.Errorf("Create custom volume from copy failed: %v", errs)
