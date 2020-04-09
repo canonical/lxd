@@ -1121,6 +1121,32 @@ func (d *zfs) RenameVolume(vol Volume, newVolName string, op *operations.Operati
 func (d *zfs) MigrateVolume(vol Volume, conn io.ReadWriteCloser, volSrcArgs *migration.VolumeSourceArgs, op *operations.Operation) error {
 	// Handle simple rsync and block_and_rsync through generic.
 	if volSrcArgs.MigrationType.FSType == migration.MigrationFSType_RSYNC || volSrcArgs.MigrationType.FSType == migration.MigrationFSType_BLOCK_AND_RSYNC {
+		// We need to mount the parent volume before calling genericVFSMigrateVolume for two reasons.
+		// 1. In order to get the block device disk path to read from the device must be activated.
+		// 2. If copying snapshots the parent volume must be activated before the snapshot volume's block
+		// device can be made visible.
+		parent, _, _ := shared.InstanceGetParentAndSnapshotName(vol.Name())
+		parentVol := NewVolume(d, d.Name(), vol.volType, vol.contentType, parent, vol.config, vol.poolConfig)
+		ourMount, err := d.MountVolume(parentVol, op)
+		if err != nil {
+			return err
+		}
+		if ourMount {
+			defer d.UnmountVolume(parentVol, op)
+		}
+
+		// In addition to above, if the volume we are sending is a snapshot, we also need to mount that
+		// so that genericVFSMigrateVolume can discover its block device (same reason as 1. above).
+		if vol.IsSnapshot() {
+			ourMount, err = d.MountVolumeSnapshot(vol, op)
+			if err != nil {
+				return err
+			}
+			if ourMount {
+				defer d.UnmountVolumeSnapshot(vol, op)
+			}
+		}
+
 		return genericVFSMigrateVolume(d, d.state, vol, conn, volSrcArgs, op)
 	} else if volSrcArgs.MigrationType.FSType != migration.MigrationFSType_ZFS {
 		return ErrNotSupported
