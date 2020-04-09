@@ -100,6 +100,28 @@ static int push_vargs(char ***list, char *entry)
 	return 0;
 }
 
+static int fd_cloexec(int fd, bool cloexec)
+{
+	int oflags, nflags;
+
+	oflags = fcntl(fd, F_GETFD, 0);
+	if (oflags < 0)
+		return -errno;
+
+	if (cloexec)
+		nflags = oflags | FD_CLOEXEC;
+	else
+		nflags = oflags & ~FD_CLOEXEC;
+
+	if (nflags == oflags)
+		return 0;
+
+	if (fcntl(fd, F_SETFD, nflags) < 0)
+		return -errno;
+
+	return 0;
+}
+
 // We use a separate function because cleanup macros are called during stack
 // unwinding if I'm not mistaken and if the compiler knows it exits it won't
 // call them. That's not a problem since we're exiting but I just like to be on
@@ -168,6 +190,10 @@ __attribute__ ((noinline)) static int __forkexec(void)
 
 	if (!argvp || !*argvp)
 		return log_error(EXIT_FAILURE, "No command specified");
+
+	ret = fd_cloexec(status_pipe, true);
+	if (ret)
+		return EXIT_FAILURE;
 
 	c = lxc_container_new(name, lxcpath);
 	if (!c)
