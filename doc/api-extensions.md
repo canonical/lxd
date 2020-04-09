@@ -1008,3 +1008,8 @@ different NUMA domains.
 
 ## resources\_cpu\_core\_die
 Exposes the die\_id information on each core.
+
+## api\_os
+This introduces two new fields in `/1.0`, `os` and `os\_version`.
+
+Those are taken from the os-release data on the system.
