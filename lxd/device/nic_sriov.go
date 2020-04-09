@@ -3,7 +3,9 @@ package device
 import (
 	"bufio"
 	"bytes"
+	"encoding/json"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"os/exec"
 	"regexp"
@@ -352,10 +354,10 @@ func (d *nicSRIOV) setupSriovParent(vfDevice string, vfID int, volatile map[stri
 	defer revert.Fail()
 
 	// Record properties of VF settings on the parent device.
-	volatile["last_state.vf.hwaddr"] = vfInfo.mac
+	volatile["last_state.vf.hwaddr"] = vfInfo.Address
 	volatile["last_state.vf.id"] = fmt.Sprintf("%d", vfID)
-	volatile["last_state.vf.vlan"] = fmt.Sprintf("%d", vfInfo.vlan)
-	volatile["last_state.vf.spoofcheck"] = fmt.Sprintf("%t", vfInfo.spoofcheck)
+	volatile["last_state.vf.vlan"] = fmt.Sprintf("%d", vfInfo.VLANs[0]["vlan"])
+	volatile["last_state.vf.spoofcheck"] = fmt.Sprintf("%t", vfInfo.SpoofCheck)
 
 	// Record the host interface we represents the VF device which we will move into instance.
 	volatile["host_name"] = vfDevice
@@ -480,65 +482,149 @@ func (d *nicSRIOV) setupSriovParent(vfDevice string, vfID int, volatile map[stri
 	return vfPCIDev, nil
 }
 
-// virtFuncInfo holds information about SR-IOV virtual functions.
-type virtFuncInfo struct {
-	mac        string
-	vlan       int
-	spoofcheck bool
+// VirtFuncInfo holds information about SR-IOV virtual functions.
+type VirtFuncInfo struct {
+	VF         int              `json:"vf"`
+	Address    string           `json:"address"`
+	MAC        string           `json:"mac"` // Deprecated
+	VLANs      []map[string]int `json:"vlan_list"`
+	SpoofCheck bool             `json:"spoofchk"`
 }
 
 // networkGetVirtFuncInfo returns info about an SR-IOV virtual function from the ip tool.
-func (d *nicSRIOV) networkGetVirtFuncInfo(devName string, vfID int) (vf virtFuncInfo, err error) {
-	cmd := exec.Command("ip", "link", "show", devName)
-	stdout, err := cmd.StdoutPipe()
+func (d *nicSRIOV) networkGetVirtFuncInfo(devName string, vfID int) (VirtFuncInfo, error) {
+	vf := VirtFuncInfo{}
+	vfNotFoundErr := fmt.Errorf("no matching virtual function found")
+
+	ipPath, err := exec.LookPath("ip")
 	if err != nil {
-		return
+		return vf, fmt.Errorf("ip command not found")
 	}
 
-	err = cmd.Start()
-	if err != nil {
-		return
-	}
-	defer stdout.Close()
+	// Function to get VF info using regex matching, for older versions of ip tool. Less reliable.
+	vfFindByRegex := func(devName string, vfID int) (VirtFuncInfo, error) {
+		cmd := exec.Command(ipPath, "link", "show", devName)
+		stdout, err := cmd.StdoutPipe()
+		if err != nil {
+			return vf, err
+		}
+		defer stdout.Close()
 
-	// Try and match: "vf 1 MAC 00:00:00:00:00:00, vlan 4095, spoof checking off"
-	reVlan := regexp.MustCompile(fmt.Sprintf(`vf %d MAC ((?:[[:xdigit:]]{2}:){5}[[:xdigit:]]{2}).*, vlan (\d+), spoof checking (\w+)`, vfID))
+		err = cmd.Start()
+		if err != nil {
+			return vf, err
+		}
+		defer cmd.Wait()
 
-	// IP link command doesn't show the vlan property if its set to 0, so we need to detect that.
-	// Try and match: "vf 1 MAC 00:00:00:00:00:00, spoof checking off"
-	reNoVlan := regexp.MustCompile(fmt.Sprintf(`vf %d MAC ((?:[[:xdigit:]]{2}:){5}[[:xdigit:]]{2}).*, spoof checking (\w+)`, vfID))
-	scanner := bufio.NewScanner(stdout)
-	for scanner.Scan() {
-		// First try and find VF and reads its properties with VLAN activated.
-		res := reVlan.FindStringSubmatch(scanner.Text())
-		if len(res) == 4 {
-			vlan, err := strconv.Atoi(res[2])
-			if err != nil {
+		// Try and match: "vf 1 MAC 00:00:00:00:00:00, vlan 4095, spoof checking off"
+		reVlan := regexp.MustCompile(fmt.Sprintf(`vf %d MAC ((?:[[:xdigit:]]{2}:){5}[[:xdigit:]]{2}).*, vlan (\d+), spoof checking (\w+)`, vfID))
+
+		// IP link command doesn't show the vlan property if its set to 0, so we need to detect that.
+		// Try and match: "vf 1 MAC 00:00:00:00:00:00, spoof checking off"
+		reNoVlan := regexp.MustCompile(fmt.Sprintf(`vf %d MAC ((?:[[:xdigit:]]{2}:){5}[[:xdigit:]]{2}).*, spoof checking (\w+)`, vfID))
+		scanner := bufio.NewScanner(stdout)
+		for scanner.Scan() {
+			// First try and find VF and read its properties with VLAN activated.
+			res := reVlan.FindStringSubmatch(scanner.Text())
+			if len(res) == 4 {
+				vlan, err := strconv.Atoi(res[2])
+				if err != nil {
+					return vf, err
+				}
+
+				vf.Address = res[1]
+				vf.VLANs = append(vf.VLANs, map[string]int{"vlan": vlan})
+				vf.SpoofCheck = shared.IsTrue(res[3])
+
 				return vf, err
 			}
 
-			vf.mac = res[1]
-			vf.vlan = vlan
-			vf.spoofcheck = shared.IsTrue(res[3])
+			// Next try and find VF and read its properties with VLAN missing.
+			res = reNoVlan.FindStringSubmatch(scanner.Text())
+			if len(res) == 3 {
+				vf.Address = res[1]
+				// Missing VLAN ID means 0 when resetting later.
+				vf.VLANs = append(vf.VLANs, map[string]int{"vlan": 0})
+				vf.SpoofCheck = shared.IsTrue(res[2])
+
+				return vf, err
+			}
+		}
+
+		err = scanner.Err()
+		if err != nil {
 			return vf, err
 		}
 
-		// Next try and find VF and reads its properties with VLAN missing.
-		res = reNoVlan.FindStringSubmatch(scanner.Text())
-		if len(res) == 3 {
-			vf.mac = res[1]
-			vf.vlan = 0 // Missing VLAN ID means 0 when resetting later.
-			vf.spoofcheck = shared.IsTrue(res[2])
-			return vf, err
-		}
+		return vf, vfNotFoundErr
 	}
 
-	err = scanner.Err()
+	// First try using the JSON output format as is more reliable to parse.
+	cmd := exec.Command(ipPath, "-j", "link", "show", devName)
+	stdout, err := cmd.StdoutPipe()
 	if err != nil {
-		return
+		return vf, err
+	}
+	defer stdout.Close()
+
+	err = cmd.Start()
+	if err != nil {
+		return vf, err
+	}
+	defer cmd.Wait()
+
+	// Temporary struct to decode ip output into.
+	var ifInfo []struct {
+		VFList []VirtFuncInfo `json:"vfinfo_list"`
 	}
 
-	return vf, fmt.Errorf("no matching virtual function found")
+	// Decode JSON output.
+	dec := json.NewDecoder(stdout)
+	err = dec.Decode(&ifInfo)
+	if err != nil && err != io.EOF {
+		return vf, err
+	}
+
+	err = cmd.Wait()
+	if err != nil {
+		// If JSON command fails, fallback to using regex match mode for older versions of ip tool.
+		// This does not support the newer VF "link/ether" output prefix.
+		return vfFindByRegex(devName, vfID)
+	}
+
+	if len(ifInfo) == 0 {
+		return vf, vfNotFoundErr
+	}
+
+	// Search VFs returned for match.
+	found := false
+	for _, vfInfo := range ifInfo[0].VFList {
+		if vfInfo.VF == vfID {
+			vf = vfInfo // Found a match.
+			found = true
+		}
+	}
+
+	if !found {
+		return vf, vfNotFoundErr
+	}
+
+	// Always populate VLANs slice if not already populated. Missing VLAN ID means 0 when resetting later.
+	if len(vf.VLANs) == 0 {
+		vf.VLANs = append(vf.VLANs, map[string]int{"vlan": 0})
+	}
+
+	// Ensure empty VLAN entry is consistently populated.
+	if _, found = vf.VLANs[0]["vlan"]; !found {
+		vf.VLANs[0]["vlan"] = 0
+	}
+
+	// If ip tool has provided old mac field, copy into newer address field.
+	if vf.MAC != "" && vf.Address == "" {
+		vf.Address = vf.MAC
+	}
+
+	return vf, nil
 }
 
 // networkGetVFDevicePCISlot returns the PCI slot name for a network virtual function device.
