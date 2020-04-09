@@ -125,17 +125,12 @@ func (d *dir) quotaProjectID(volID int64) uint32 {
 // setQuota sets the project quota on the path. The volID generates a quota project ID.
 func (d *dir) setQuota(path string, volID int64, size string) error {
 	if volID == volIDQuotaSkip {
-		// Disabled on purpose, just ignore
+		// Disabled on purpose, just ignore.
 		return nil
 	}
 
 	if volID == 0 {
 		return fmt.Errorf("Missing volume ID")
-	}
-
-	// If size not specified in volume config, then use pool's default size setting.
-	if size == "" || size == "0" {
-		size = defaultBlockSize
 	}
 
 	sizeBytes, err := units.ParseByteSizeString(size)
@@ -152,10 +147,5 @@ func (d *dir) setQuota(path string, volID int64, size string) error {
 		return nil
 	}
 
-	err = quota.SetProjectQuota(path, d.quotaProjectID(volID), sizeBytes)
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return quota.SetProjectQuota(path, d.quotaProjectID(volID), sizeBytes)
 }
