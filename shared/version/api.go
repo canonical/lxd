@@ -209,6 +209,7 @@ var APIExtensions = []string{
 	"container_nic_ipvlan_host_table",
 	"container_nic_ipvlan_mode",
 	"resources_system",
+	"images_push_relay",
 }
 
 // APIExtensionsCount returns the number of available API extensions.
