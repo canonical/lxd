@@ -187,7 +187,21 @@ restart:
 		if (match_stdfds(fd))
 			continue;
 
-		close(fd);
+		if (close(fd)) {
+			return log_error(-errno, "%s - Failed to close file descriptor %d", strerror(errno), fd);
+		} else {
+			char fdpath[PATH_MAX], realpath[PATH_MAX];
+
+			snprintf(fdpath, sizeof(fdpath), "/proc/self/fd/%d", fd);
+			ret = readlink(fdpath, realpath, PATH_MAX);
+			if (ret < 0)
+				snprintf(realpath, sizeof(realpath), "unknown");
+			else if (ret >= sizeof(realpath))
+				realpath[sizeof(realpath) - 1] = '\0';
+
+			log_error(-errno, "Closing unexpected file descriptor %d -> %s", fd, realpath);
+		}
+
 		closedir(dir);
 		goto restart;
 	}
@@ -272,7 +286,9 @@ __attribute__ ((noinline)) static int __forkexec(void)
 	if (!argvp || !*argvp)
 		return log_error(EXIT_FAILURE, "No command specified");
 
-	close_inherited(fds_to_ignore, ARRAY_SIZE(fds_to_ignore));
+	ret = close_inherited(fds_to_ignore, ARRAY_SIZE(fds_to_ignore));
+	if (ret)
+		return log_error(EXIT_FAILURE, "Aborting attach to prevent leaking file descriptors into container");
 
 	ret = fd_cloexec(status_pipe, true);
 	if (ret)
