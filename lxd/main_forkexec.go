@@ -122,6 +122,86 @@ static int fd_cloexec(int fd, bool cloexec)
 	return 0;
 }
 
+static int safe_int(const char *numstr, int *converted)
+{
+	char *err = NULL;
+	signed long int sli;
+
+	errno = 0;
+	sli = strtol(numstr, &err, 0);
+	if (errno == ERANGE && (sli == LONG_MAX || sli == LONG_MIN))
+		return -ERANGE;
+
+	if (errno != 0 && sli == 0)
+		return -EINVAL;
+
+	if (err == numstr || *err != '\0')
+		return -EINVAL;
+
+	if (sli > INT_MAX || sli < INT_MIN)
+		return -ERANGE;
+
+	*converted = (int)sli;
+	return 0;
+}
+
+static inline bool match_stdfds(int fd)
+{
+	return (fd == STDIN_FILENO || fd == STDOUT_FILENO || fd == STDERR_FILENO);
+}
+
+static int close_inherited(int *fds_to_ignore, size_t len_fds)
+{
+	int fddir;
+	DIR *dir;
+	struct dirent *direntp;
+
+restart:
+	dir = opendir("/proc/self/fd");
+	if (!dir)
+		return -errno;
+
+	fddir = dirfd(dir);
+
+	while ((direntp = readdir(dir))) {
+		int fd, ret;
+		size_t i;
+
+		if (strcmp(direntp->d_name, ".") == 0)
+			continue;
+
+		if (strcmp(direntp->d_name, "..") == 0)
+			continue;
+
+		ret = safe_int(direntp->d_name, &fd);
+		if (ret < 0)
+			continue;
+
+		for (i = 0; i < len_fds; i++)
+			if (fds_to_ignore[i] == fd)
+				break;
+
+		if (fd == fddir || (i < len_fds && fd == fds_to_ignore[i]))
+			continue;
+
+		if (match_stdfds(fd))
+			continue;
+
+		close(fd);
+		closedir(dir);
+		goto restart;
+	}
+
+	closedir(dir);
+	return 0;
+}
+
+#define EXEC_STDIN_FD 3
+#define EXEC_STDOUT_FD 4
+#define EXEC_STDERR_FD 5
+#define EXEC_PIPE_FD 6
+#define ARRAY_SIZE(arr) (sizeof(arr) / sizeof((arr)[0]))
+
 // We use a separate function because cleanup macros are called during stack
 // unwinding if I'm not mistaken and if the compiler knows it exits it won't
 // call them. That's not a problem since we're exiting but I just like to be on
@@ -129,7 +209,7 @@ static int fd_cloexec(int fd, bool cloexec)
 // tell the compiler to not inline us.
 __attribute__ ((noinline)) static int __forkexec(void)
 {
-	__do_close int status_pipe = 6;
+	__do_close int status_pipe = EXEC_PIPE_FD;
 	__do_free_string_list char **argvp = NULL, **envvp = NULL;
 	call_cleaner(lxc_container_put) struct lxc_container *c = NULL;
 	const char *config_path = NULL, *lxcpath = NULL, *name = NULL;
@@ -138,6 +218,7 @@ __attribute__ ((noinline)) static int __forkexec(void)
 	lxc_attach_command_t command = {
 		.program = NULL,
 	};
+	int fds_to_ignore[] = {EXEC_STDIN_FD, EXEC_STDOUT_FD, EXEC_STDERR_FD, EXEC_PIPE_FD};
 	int ret;
 	pid_t pid;
 	uid_t uid;
@@ -190,6 +271,8 @@ __attribute__ ((noinline)) static int __forkexec(void)
 
 	if (!argvp || !*argvp)
 		return log_error(EXIT_FAILURE, "No command specified");
+
+	close_inherited(fds_to_ignore, ARRAY_SIZE(fds_to_ignore));
 
 	ret = fd_cloexec(status_pipe, true);
 	if (ret)
