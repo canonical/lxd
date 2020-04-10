@@ -144,7 +144,13 @@ func daemonStorageValidate(s *state.State, target string) error {
 	for _, entry := range entries {
 		entryName := entry.Name()
 
+		// Don't fail on clean ext4 volumes.
 		if entryName == "lost+found" {
+			continue
+		}
+
+		// Don't fail on systems with snapdir=visible.
+		if entryName == ".zfs" {
 			continue
 		}
 
