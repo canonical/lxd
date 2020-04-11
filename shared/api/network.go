@@ -6,9 +6,8 @@ package api
 type NetworksPost struct {
 	NetworkPut `yaml:",inline"`
 
-	Managed bool   `json:"managed" yaml:"managed"`
-	Name    string `json:"name" yaml:"name"`
-	Type    string `json:"type" yaml:"type"`
+	Name string `json:"name" yaml:"name"`
+	Type string `json:"type" yaml:"type"`
 }
 
 // NetworkPost represents the fields required to rename a LXD network
