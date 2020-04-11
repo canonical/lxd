@@ -433,6 +433,10 @@ func (n *Network) setup(oldConfig map[string]string) error {
 				dnsmasqCmd = append(dnsmasqCmd, fmt.Sprintf("--dhcp-option=3,%s", n.config["ipv4.dhcp.gateway"]))
 			}
 
+			if mtu != "1500" {
+				dnsmasqCmd = append(dnsmasqCmd, fmt.Sprintf("--dhcp-option-force=26,%s", mtu))
+			}
+
 			expiry := "1h"
 			if n.config["ipv4.dhcp.expiry"] != "" {
 				expiry = n.config["ipv4.dhcp.expiry"]
