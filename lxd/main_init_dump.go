@@ -32,7 +32,6 @@ func (c *cmdInit) RunDump(d lxd.InstanceServer) error {
 		networksPost := api.NetworksPost{}
 		networksPost.Config = network.Config
 		networksPost.Description = network.Description
-		networksPost.Managed = network.Managed
 		networksPost.Name = network.Name
 		networksPost.Type = network.Type
 

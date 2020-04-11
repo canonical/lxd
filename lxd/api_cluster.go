@@ -784,7 +784,6 @@ func clusterInitMember(d, client lxd.InstanceServer, memberConfig []api.ClusterM
 
 		post := api.NetworksPost{
 			NetworkPut: network.NetworkPut,
-			Managed:    true,
 			Name:       network.Name,
 			Type:       network.Type,
 		}
