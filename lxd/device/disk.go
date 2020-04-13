@@ -122,6 +122,10 @@ func (d *disk) validateConfig(instConf instance.ConfigReader) error {
 		return fmt.Errorf("The recursive option is only supported for additional bind-mounted paths")
 	}
 
+	if shared.IsTrue(d.config["recursive"]) && shared.IsTrue(d.config["readonly"]) {
+		return fmt.Errorf("Recursive read-only bind-mounts aren't currently supported by the kernel")
+	}
+
 	if !(strings.HasPrefix(d.config["source"], "ceph:") || strings.HasPrefix(d.config["source"], "cephfs:")) && (d.config["ceph.cluster_name"] != "" || d.config["ceph.user_name"] != "") {
 		return fmt.Errorf("Invalid options ceph.cluster_name/ceph.user_name for source %q", d.config["source"])
 	}
