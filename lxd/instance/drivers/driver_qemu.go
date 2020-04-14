@@ -2253,6 +2253,9 @@ func (vm *qemu) Rename(newName string) error {
 		}
 	}
 
+	// Set the new name in the struct.
+	vm.name = newName
+
 	// Rename the backups.
 	backups, err := vm.Backups()
 	if err != nil {
@@ -2268,9 +2271,6 @@ func (vm *qemu) Rename(newName string) error {
 			return err
 		}
 	}
-
-	// Set the new name in the struct.
-	vm.name = newName
 
 	// Update lease files.
 	network.UpdateDNSMasqStatic(vm.state, "")
