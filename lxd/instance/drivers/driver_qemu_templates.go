@@ -248,10 +248,11 @@ var qemuDevTapCommon = template.Must(template.New("qemuDevTapCommon").Parse(`
 {{if ne .architecture "ppc64le" -}}
 [device "qemu_pcie{{.chassisIndex}}"]
 driver = "pcie-root-port"
-port = "0x{{.portIndex}}"
+port = "0x{{.nicIndex}}"
 chassis = "{{.chassisIndex}}"
 bus = "pcie.0"
-addr = "0x2.0x{{.pcieAddr}}"
+addr = "0x4.0x{{.nicIndex}}"
+multifunction = "on"
 {{- end }}
 
 [device "dev-lxd_{{.devName}}"]
