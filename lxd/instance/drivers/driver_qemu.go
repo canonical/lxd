@@ -1850,9 +1850,8 @@ func (vm *qemu) addNetDevConfig(sb *strings.Builder, nicIndex int, bootIndexes m
 		"devName":      devName,
 		"devHwaddr":    devHwaddr,
 		"bootIndex":    bootIndexes[devName],
+		"nicIndex":     nicIndex,
 		"chassisIndex": 5 + nicIndex,
-		"portIndex":    14 + nicIndex,
-		"pcieAddr":     4 + nicIndex,
 	}
 
 	// Detect MACVTAP interface types and figure out which tap device is being used.
