@@ -3636,6 +3636,9 @@ func (c *lxc) Rename(newName string) error {
 		}
 	}
 
+	// Set the new name in the struct.
+	c.name = newName
+
 	// Rename the backups.
 	backups, err := c.Backups()
 	if err != nil {
@@ -3651,9 +3654,6 @@ func (c *lxc) Rename(newName string) error {
 			return err
 		}
 	}
-
-	// Set the new name in the struct.
-	c.name = newName
 
 	// Invalidate the go-lxc cache.
 	if c.c != nil {
