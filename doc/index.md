@@ -277,25 +277,25 @@ experimental stages and may not work for all workloads. Please report bugs on
 lxc-devel, and we can escalate to CRIU lists as necessary.
 
 #### Can I bind mount my home directory in a container?
-Yes. The easiest way to do that is using a privileged container to avoid file ownership issues:
-
-1.a) create a container.
+Yes. This can be done using a disk device:
 
 ```bash
-lxc launch ubuntu privilegedContainerName -c security.privileged=true
+lxc config device add container-name home disk source=/home/$USER path=/home/ubuntu
 ```
 
-1.b) or, if your container already exists.
+For unprivileged containers, you will also need one of:
 
-```bash
-lxc config set privilegedContainerName security.privileged true
-```
+ - Pass `shifted=true` to the `lxc config device add` call. This depends on `shiftfs` being supported (see `lxc info`)
+ - raw.idmap entry (see [Idmaps for user namespace](userns-idmap.md))
+ - Recursive POSIX ACLs placed on your home directory
 
-2) then.
+Either of those can be used to allow the user in the container to have working read/write permissions.
+When not setting one of those, everything will show up as the overflow uid/gid (65536:65536)
+and access to anything that's not world readable will fail.
 
-```bash
-lxc config device add privilegedContainerName shareName disk source=/home/$USER path=/home/ubuntu
-```
+
+Privileged containers do not have this issue as all uid/gid inthe container are the same outside.
+But that's also the cause of most of the security issues with such privileged containers.
 
 #### How can I run docker inside a LXD container?
 In order to run Docker inside a LXD container the `security.nesting` property of the container should be set to `true`. 
