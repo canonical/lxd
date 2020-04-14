@@ -383,12 +383,33 @@ test_backup_rename() {
     false
   fi
 
-  lxc launch testimage c1
+  lxc init testimage c1
 
   if ! lxc query -X POST /1.0/containers/c1/backups/backupmissing -d '{\"name\": \"backupnewname\"}' --wait 2>&1 | grep -q "Error:.*No such object" ; then
     echo "invalid rename response for missing backup"
     false
   fi
 
-  lxc delete --force c1
+  # Create backup
+  lxc query -X POST --wait -d '{\"name\":\"foo\"}' /1.0/instances/c1/backups
+
+  # All backups should be listed
+  lxc query /1.0/instances/c1/backups | jq .'[0]' | grep instances/c1/backups/foo
+
+  # The specific backup should exist
+  lxc query /1.0/instances/c1/backups/foo
+
+  # Rename the container which should rename the backup(s) as well
+  lxc mv c1 c2
+
+  # All backups should be listed
+  lxc query /1.0/instances/c2/backups | jq .'[0]' | grep instances/c2/backups/foo
+
+  # The specific backup should exist
+  lxc query /1.0/instances/c2/backups/foo
+
+  # The old backup should not exist
+  ! lxc query /1.0/instances/c1/backups/foo || false
+
+  lxc delete --force c2
 }
