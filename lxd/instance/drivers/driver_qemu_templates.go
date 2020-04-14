@@ -201,7 +201,7 @@ fsdev = "qemu_config"
 mount_tag = "config"
 `))
 
-// Devices use "lxd_" prefix indicating that this is a internally named device.
+// Devices use "lxd_" prefix indicating that this is a user named device.
 var qemuDriveDir = template.Must(template.New("qemuDriveDir").Parse(`
 # {{.devName}} drive
 [fsdev "lxd_{{.devName}}"]
@@ -223,6 +223,8 @@ mount_tag = "{{.mountTag}}"
 `))
 
 // Devices use "lxd_" prefix indicating that this is a user named device.
+// The device name prefix must not be changed as we want to have /dev/disk/by-id be a usable stable identifier
+// inside the VM guest.
 var qemuDrive = template.Must(template.New("qemuDrive").Parse(`
 # {{.devName}} drive
 [drive "lxd_{{.devName}}"]
