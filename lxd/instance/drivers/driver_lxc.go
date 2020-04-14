@@ -40,6 +40,7 @@ import (
 	"github.com/lxc/lxd/lxd/network"
 	"github.com/lxc/lxd/lxd/operations"
 	"github.com/lxc/lxd/lxd/project"
+	"github.com/lxc/lxd/lxd/revert"
 	"github.com/lxc/lxd/lxd/seccomp"
 	"github.com/lxc/lxd/lxd/state"
 	storagePools "github.com/lxc/lxd/lxd/storage"
@@ -3636,6 +3637,13 @@ func (c *lxc) Rename(newName string) error {
 		}
 	}
 
+	revert := revert.New()
+	defer revert.Fail()
+
+	// Set the new name in the struct.
+	c.name = newName
+	revert.Add(func() { c.name = oldName })
+
 	// Rename the backups.
 	backups, err := c.Backups()
 	if err != nil {
@@ -3643,17 +3651,18 @@ func (c *lxc) Rename(newName string) error {
 	}
 
 	for _, backup := range backups {
-		backupName := strings.Split(backup.Name(), "/")[1]
+		b := backup
+		oldName := b.Name()
+		backupName := strings.Split(oldName, "/")[1]
 		newName := fmt.Sprintf("%s/%s", newName, backupName)
 
-		err = backup.Rename(newName)
+		err = b.Rename(newName)
 		if err != nil {
 			return err
 		}
-	}
 
-	// Set the new name in the struct.
-	c.name = newName
+		revert.Add(func() { b.Rename(oldName) })
+	}
 
 	// Invalidate the go-lxc cache.
 	if c.c != nil {
@@ -3681,6 +3690,7 @@ func (c *lxc) Rename(newName string) error {
 			})
 	}
 
+	revert.Success()
 	return nil
 }
 

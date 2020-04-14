@@ -2253,6 +2253,13 @@ func (vm *qemu) Rename(newName string) error {
 		}
 	}
 
+	revert := revert.New()
+	defer revert.Fail()
+
+	// Set the new name in the struct.
+	vm.name = newName
+	revert.Add(func() { vm.name = oldName })
+
 	// Rename the backups.
 	backups, err := vm.Backups()
 	if err != nil {
@@ -2260,17 +2267,18 @@ func (vm *qemu) Rename(newName string) error {
 	}
 
 	for _, backup := range backups {
-		backupName := strings.Split(backup.Name(), "/")[1]
+		b := backup
+		oldName := b.Name()
+		backupName := strings.Split(oldName, "/")[1]
 		newName := fmt.Sprintf("%s/%s", newName, backupName)
 
-		err = backup.Rename(newName)
+		err = b.Rename(newName)
 		if err != nil {
 			return err
 		}
-	}
 
-	// Set the new name in the struct.
-	vm.name = newName
+		revert.Add(func() { b.Rename(oldName) })
+	}
 
 	// Update lease files.
 	network.UpdateDNSMasqStatic(vm.state, "")
@@ -2290,6 +2298,7 @@ func (vm *qemu) Rename(newName string) error {
 			})
 	}
 
+	revert.Success()
 	return nil
 }
 
