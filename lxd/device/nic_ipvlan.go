@@ -2,6 +2,7 @@ package device
 
 import (
 	"fmt"
+	"net"
 	"strings"
 
 	deviceConfig "github.com/lxc/lxd/lxd/device/config"
@@ -11,6 +12,9 @@ import (
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
 )
+
+const ipvlanModeL3S = "l3s"
+const ipvlanModeL2 = "l2"
 
 type nicIPVLAN struct {
 	deviceCommon
@@ -44,6 +48,28 @@ func (d *nicIPVLAN) validateConfig(instConf instance.ConfigReader) error {
 			return nil
 		}
 
+		if d.config["mode"] == ipvlanModeL2 {
+			for _, v := range strings.Split(value, ",") {
+				v = strings.TrimSpace(v)
+
+				// If valid non-CIDR address specified, append a /24 subnet.
+				if NetworkValidAddressV4(v) == nil {
+					v = fmt.Sprintf("%s/24", v)
+				}
+
+				ip, _, err := net.ParseCIDR(v)
+				if err != nil {
+					return err
+				}
+
+				if ip.To4() == nil {
+					return fmt.Errorf("Not an IPv4 CIDR address: %s", v)
+				}
+			}
+
+			return nil
+		}
+
 		return NetworkValidAddressV4List(value)
 	}
 	rules["ipv6.address"] = func(value string) error {
@@ -51,12 +77,68 @@ func (d *nicIPVLAN) validateConfig(instConf instance.ConfigReader) error {
 			return nil
 		}
 
+		if d.config["mode"] == ipvlanModeL2 {
+			for _, v := range strings.Split(value, ",") {
+				v = strings.TrimSpace(v)
+
+				// If valid non-CIDR address specified, append a /64 subnet.
+				if NetworkValidAddressV6(v) == nil {
+					v = fmt.Sprintf("%s/64", v)
+				}
+
+				ip, _, err := net.ParseCIDR(v)
+				if err != nil {
+					return err
+				}
+
+				if ip == nil || ip.To4() != nil {
+					return fmt.Errorf("Not an IPv6 CIDR address: %s", v)
+				}
+			}
+
+			return nil
+		}
+
 		return NetworkValidAddressV6List(value)
+	}
+	rules["mode"] = func(value string) error {
+		if value == "" {
+			return nil
+		}
+
+		validModes := []string{ipvlanModeL3S, ipvlanModeL2}
+		if !shared.StringInSlice(value, validModes) {
+			return fmt.Errorf("Must be one of: %v", strings.Join(validModes, ", "))
+		}
+
+		return nil
+	}
+
+	if d.config["mode"] == ipvlanModeL2 {
+		rules["ipv4.gateway"] = func(value string) error {
+			if value == "" {
+				return nil
+			}
+
+			return NetworkValidAddressV4(value)
+		}
+
+		rules["ipv6.gateway"] = func(value string) error {
+			if value == "" {
+				return nil
+			}
+
+			return NetworkValidAddressV6(value)
+		}
 	}
 
 	err := d.config.Validate(rules)
 	if err != nil {
 		return err
+	}
+
+	if d.config["mode"] == ipvlanModeL2 && d.config["host_table"] != "" {
+		return fmt.Errorf("host_table option cannot be used in l2 mode")
 	}
 
 	return nil
@@ -79,6 +161,11 @@ func (d *nicIPVLAN) validateEnvironment() error {
 
 	if d.config["parent"] == "" && d.config["vlan"] != "" {
 		return fmt.Errorf("The vlan setting can only be used when combined with a parent interface")
+	}
+
+	// Only check sysctls for l2proxy if mode is l3s.
+	if d.mode() != ipvlanModeL3S {
+		return nil
 	}
 
 	// Generate effective parent name, including the VLAN part if option used.
@@ -153,8 +240,10 @@ func (d *nicIPVLAN) Start() (*deviceConfig.RunConfig, error) {
 	// Record whether we created this device or not so it can be removed on stop.
 	saveData["last_state.created"] = fmt.Sprintf("%t", statusDev != "existing")
 
-	// If we created a VLAN interface, we need to setup the sysctls on that interface.
-	if statusDev == "created" {
+	mode := d.mode()
+
+	// If we created a VLAN interface, we need to setup the sysctls on that interface for l3s mode l2proxy.
+	if statusDev == "created" && mode == ipvlanModeL3S {
 		err := d.setupParentSysctls(parentName)
 		if err != nil {
 			return nil, err
@@ -171,10 +260,14 @@ func (d *nicIPVLAN) Start() (*deviceConfig.RunConfig, error) {
 		{Key: "name", Value: d.config["name"]},
 		{Key: "type", Value: "ipvlan"},
 		{Key: "flags", Value: "up"},
-		{Key: "ipvlan.mode", Value: "l3s"},
+		{Key: "ipvlan.mode", Value: mode},
 		{Key: "ipvlan.isolation", Value: "bridge"},
-		{Key: "l2proxy", Value: "1"},
 		{Key: "link", Value: parentName},
+	}
+
+	// Enable l2proxy for l3s mode.
+	if mode == ipvlanModeL3S {
+		nic = append(nic, deviceConfig.RunConfigItem{Key: "l2proxy", Value: "1"})
 	}
 
 	if d.config["mtu"] != "" {
@@ -184,22 +277,48 @@ func (d *nicIPVLAN) Start() (*deviceConfig.RunConfig, error) {
 	if d.config["ipv4.address"] != "" {
 		for _, addr := range strings.Split(d.config["ipv4.address"], ",") {
 			addr = strings.TrimSpace(addr)
-			nic = append(nic, deviceConfig.RunConfigItem{Key: "ipv4.address", Value: fmt.Sprintf("%s/32", addr)})
+
+			if mode == ipvlanModeL3S {
+				addr = fmt.Sprintf("%s/32", addr)
+			}
+
+			if mode == ipvlanModeL2 && NetworkValidAddressV4(addr) == nil {
+				addr = fmt.Sprintf("%s/24", addr)
+			}
+
+			nic = append(nic, deviceConfig.RunConfigItem{Key: "ipv4.address", Value: addr})
 		}
 
-		if nicHasAutoGateway(d.config["ipv4.gateway"]) {
+		if mode == ipvlanModeL3S && nicHasAutoGateway(d.config["ipv4.gateway"]) {
 			nic = append(nic, deviceConfig.RunConfigItem{Key: "ipv4.gateway", Value: "dev"})
+		}
+
+		if mode == ipvlanModeL2 && d.config["ipv4.gateway"] != "" {
+			nic = append(nic, deviceConfig.RunConfigItem{Key: "ipv4.gateway", Value: d.config["ipv4.gateway"]})
 		}
 	}
 
 	if d.config["ipv6.address"] != "" {
 		for _, addr := range strings.Split(d.config["ipv6.address"], ",") {
 			addr = strings.TrimSpace(addr)
-			nic = append(nic, deviceConfig.RunConfigItem{Key: "ipv6.address", Value: fmt.Sprintf("%s/128", addr)})
+
+			if mode == ipvlanModeL3S {
+				addr = fmt.Sprintf("%s/128", addr)
+			}
+
+			if mode == "l2" && NetworkValidAddressV6(addr) == nil {
+				addr = fmt.Sprintf("%s/64", addr)
+			}
+
+			nic = append(nic, deviceConfig.RunConfigItem{Key: "ipv6.address", Value: addr})
 		}
 
-		if nicHasAutoGateway(d.config["ipv6.gateway"]) {
+		if mode == ipvlanModeL3S && nicHasAutoGateway(d.config["ipv6.gateway"]) {
 			nic = append(nic, deviceConfig.RunConfigItem{Key: "ipv6.gateway", Value: "dev"})
+		}
+
+		if mode == ipvlanModeL2 && d.config["ipv6.gateway"] != "" {
+			nic = append(nic, deviceConfig.RunConfigItem{Key: "ipv6.gateway", Value: d.config["ipv6.gateway"]})
 		}
 	}
 
@@ -325,4 +444,13 @@ func (d *nicIPVLAN) postStop() error {
 	}
 
 	return nil
+}
+
+// mode returns the ipvlan mode to use.
+func (d *nicIPVLAN) mode() string {
+	if d.config["mode"] == ipvlanModeL2 {
+		return ipvlanModeL2
+	}
+
+	return ipvlanModeL3S
 }

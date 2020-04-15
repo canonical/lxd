@@ -1021,3 +1021,12 @@ for the instance's IPs to a custom policy routing table by ID.
 ## container\_nic\_ipvlan\_host\_table
 This introduces the `ipv4.host_table` and `ipv6.host_table` NIC config keys that can be used to add static routes
 for the instance's IPs to a custom policy routing table by ID.
+
+## container\_nic\_ipvlan\_mode
+This introduces the `mode` NIC config key that can be used to switch the `ipvlan` mode into either `l2` or `l3s`.
+If not specified, the default value is `l3s` (which is the old behavior).
+
+In `l2` mode the `ipv4.address` and `ipv6.address` keys will accept addresses in either CIDR or singular formats.
+If singular format is used, the default subnet size is taken to be /24 and /64 for IPv4 and IPv6 respectively.
+
+In `l2` mode the `ipv4.gateway` and `ipv6.gateway` keys accept only a singular IP address.
