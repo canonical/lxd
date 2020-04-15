@@ -2047,7 +2047,7 @@ func (vm *qemu) Restore(source instance.Instance, stateful bool) error {
 			// On function return, set the flag back on.
 			defer func() {
 				args.Ephemeral = ephemeral
-				vm.Update(args, true)
+				vm.Update(args, false)
 			}()
 		}
 
@@ -2087,6 +2087,7 @@ func (vm *qemu) Restore(source instance.Instance, stateful bool) error {
 		Snapshot:     source.IsSnapshot(),
 	}
 
+	// Don't pass as user-requested as there's no way to fix a bad config.
 	err = vm.Update(args, false)
 	if err != nil {
 		logger.Error("Failed restoring instance configuration", ctxMap)
@@ -2328,16 +2329,18 @@ func (vm *qemu) Update(args db.InstanceArgs, userRequested bool) error {
 		args.Profiles = []string{}
 	}
 
-	// Validate the new config.
-	err := instance.ValidConfig(vm.state.OS, args.Config, false, false)
-	if err != nil {
-		return errors.Wrap(err, "Invalid config")
-	}
+	if userRequested {
+		// Validate the new config.
+		err := instance.ValidConfig(vm.state.OS, args.Config, false, false)
+		if err != nil {
+			return errors.Wrap(err, "Invalid config")
+		}
 
-	// Validate the new devices without using expanded devices validation (expensive checks disabled).
-	err = instance.ValidDevices(vm.state, vm.state.Cluster, vm.Type(), args.Devices, false)
-	if err != nil {
-		return errors.Wrap(err, "Invalid devices")
+		// Validate the new devices without using expanded devices validation (expensive checks disabled).
+		err = instance.ValidDevices(vm.state, vm.state.Cluster, vm.Type(), args.Devices, false)
+		if err != nil {
+			return errors.Wrap(err, "Invalid devices")
+		}
 	}
 
 	// Validate the new profiles.
@@ -2364,29 +2367,6 @@ func (vm *qemu) Update(args db.InstanceArgs, userRequested bool) error {
 		_, err = osarch.ArchitectureName(args.Architecture)
 		if err != nil {
 			return fmt.Errorf("Invalid architecture ID: %s", err)
-		}
-	}
-
-	// Check that volatile and image keys weren't modified.
-	if userRequested {
-		for k, v := range args.Config {
-			if strings.HasPrefix(k, "volatile.") && vm.localConfig[k] != v {
-				return fmt.Errorf("Volatile keys are read-only")
-			}
-
-			if strings.HasPrefix(k, "image.") && vm.localConfig[k] != v {
-				return fmt.Errorf("Image keys are read-only")
-			}
-		}
-
-		for k, v := range vm.localConfig {
-			if strings.HasPrefix(k, "volatile.") && args.Config[k] != v {
-				return fmt.Errorf("Volatile keys are read-only")
-			}
-
-			if strings.HasPrefix(k, "image.") && args.Config[k] != v {
-				return fmt.Errorf("Image keys are read-only")
-			}
 		}
 	}
 
@@ -2512,16 +2492,18 @@ func (vm *qemu) Update(args db.InstanceArgs, userRequested bool) error {
 		return updateFields
 	})
 
-	// Do some validation of the config diff.
-	err = instance.ValidConfig(vm.state.OS, vm.expandedConfig, false, true)
-	if err != nil {
-		return errors.Wrap(err, "Invalid expanded config")
-	}
+	if userRequested {
+		// Do some validation of the config diff.
+		err = instance.ValidConfig(vm.state.OS, vm.expandedConfig, false, true)
+		if err != nil {
+			return errors.Wrap(err, "Invalid expanded config")
+		}
 
-	// Do full expanded validation of the devices diff.
-	err = instance.ValidDevices(vm.state, vm.state.Cluster, vm.Type(), vm.expandedDevices, true)
-	if err != nil {
-		return errors.Wrap(err, "Invalid expanded devices")
+		// Do full expanded validation of the devices diff.
+		err = instance.ValidDevices(vm.state, vm.state.Cluster, vm.Type(), vm.expandedDevices, true)
+		if err != nil {
+			return errors.Wrap(err, "Invalid expanded devices")
+		}
 	}
 
 	// Use the device interface to apply update changes.

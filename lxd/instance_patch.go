@@ -140,7 +140,7 @@ func containerPatch(d *Daemon, r *http.Request) response.Response {
 		Project:      project,
 	}
 
-	err = c.Update(args, false)
+	err = c.Update(args, true)
 	if err != nil {
 		return response.SmartError(err)
 	}
