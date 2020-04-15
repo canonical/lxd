@@ -34,6 +34,8 @@ func (d *nicIPVLAN) validateConfig(instConf instance.ConfigReader) error {
 		"vlan",
 		"ipv4.gateway",
 		"ipv6.gateway",
+		"ipv4.host_table",
+		"ipv6.host_table",
 	}
 
 	rules := nicValidationRules(requiredFields, optionalFields)
@@ -202,6 +204,7 @@ func (d *nicIPVLAN) Start() (*deviceConfig.RunConfig, error) {
 	}
 
 	runConf.NetworkInterface = nic
+	runConf.PostHooks = append(runConf.PostHooks, d.postStart)
 	return &runConf, nil
 }
 
@@ -236,6 +239,39 @@ func (d *nicIPVLAN) setupParentSysctls(parentName string) error {
 	return nil
 }
 
+// postStart is run after the instance is started.
+func (d *nicIPVLAN) postStart() error {
+	if d.config["ipv4.address"] != "" {
+		// Add static routes to instance IPs to custom routing tables if specified.
+		// This is in addition to the static route added by liblxc to the main routing table.
+		if d.config["ipv4.host_table"] != "" {
+			for _, addr := range strings.Split(d.config["ipv4.address"], ",") {
+				addr = strings.TrimSpace(addr)
+				_, err := shared.RunCommand("ip", "-4", "route", "add", "table", d.config["ipv4.host_table"], fmt.Sprintf("%s/32", addr), "dev", "lo")
+				if err != nil {
+					return err
+				}
+			}
+		}
+	}
+
+	if d.config["ipv6.address"] != "" {
+		// Add static routes to instance IPs to custom routing tables if specified.
+		// This is in addition to the static route added by liblxc to the main routing table.
+		if d.config["ipv6.host_table"] != "" {
+			for _, addr := range strings.Split(d.config["ipv6.address"], ",") {
+				addr = strings.TrimSpace(addr)
+				_, err := shared.RunCommand("ip", "-6", "route", "add", "table", d.config["ipv6.host_table"], fmt.Sprintf("%s/128", addr), "dev", "lo")
+				if err != nil {
+					return err
+				}
+			}
+		}
+	}
+
+	return nil
+}
+
 // Stop is run when the device is removed from the instance.
 func (d *nicIPVLAN) Stop() (*deviceConfig.RunConfig, error) {
 	runConf := deviceConfig.RunConfig{
@@ -252,6 +288,32 @@ func (d *nicIPVLAN) postStop() error {
 	})
 
 	v := d.volatileGet()
+
+	if d.config["ipv4.address"] != "" {
+		// Remove static routes to instance IPs to custom routing tables if specified.
+		if d.config["ipv4.host_table"] != "" {
+			for _, addr := range strings.Split(d.config["ipv4.address"], ",") {
+				addr = strings.TrimSpace(addr)
+				_, err := shared.RunCommand("ip", "-4", "route", "delete", "table", d.config["ipv4.host_table"], fmt.Sprintf("%s/32", addr), "dev", "lo")
+				if err != nil {
+					return err
+				}
+			}
+		}
+	}
+
+	if d.config["ipv6.address"] != "" {
+		// Remove static routes to instance IPs to custom routing tables if specified.
+		if d.config["ipv6.host_table"] != "" {
+			for _, addr := range strings.Split(d.config["ipv6.address"], ",") {
+				addr = strings.TrimSpace(addr)
+				_, err := shared.RunCommand("ip", "-6", "route", "delete", "table", d.config["ipv6.host_table"], fmt.Sprintf("%s/128", addr), "dev", "lo")
+				if err != nil {
+					return err
+				}
+			}
+		}
+	}
 
 	// This will delete the parent interface if we created it for VLAN parent.
 	if shared.IsTrue(v["last_state.created"]) {
