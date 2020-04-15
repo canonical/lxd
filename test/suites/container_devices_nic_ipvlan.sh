@@ -64,9 +64,11 @@ test_container_devices_nic_ipvlan() {
   lxc exec "${ctName}2" -- ping6 -c2 -W1 "2001:db8::1${ipRand}"
   lxc stop -f "${ctName}2"
 
-  # Check IPVLAN ontop of VLAN parent.
+  # Check IPVLAN ontop of VLAN parent with custom routing tables.
   lxc stop -f "${ctName}"
   lxc config device set "${ctName}" eth0 vlan 1234
+  lxc config device set "${ctName}" eth0 ipv4.host_table=100
+  lxc config device set "${ctName}" eth0 ipv6.host_table=101
   lxc start "${ctName}"
 
   # Check VLAN interface created
@@ -74,6 +76,10 @@ test_container_devices_nic_ipvlan() {
     echo "vlan interface not created"
     false
   fi
+
+  # Check static routes added to custom routing table
+  ip -4 route show table 100 | grep "192.0.2.1${ipRand}"
+  ip -6 route show table 101 | grep "2001:db8::1${ipRand}"
 
   # Check volatile cleanup on stop.
   lxc stop -f "${ctName}"
@@ -87,6 +93,10 @@ test_container_devices_nic_ipvlan() {
     echo "parent is down"
     false
   fi
+
+  # Check static routes are removed from custom routing table
+  ! ip -4 route show table 100 | grep "192.0.2.1${ipRand}"
+  ! ip -6 route show table 101 | grep "2001:db8::1${ipRand}"
 
   # Check we haven't left any NICS lying around.
   endNicCount=$(find /sys/class/net | wc -l)

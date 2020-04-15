@@ -371,8 +371,10 @@ mtu                     | integer   | parent MTU        | no        | The MTU of
 hwaddr                  | string    | randomly assigned | no        | The MAC address of the new interface
 ipv4.address            | string    | -                 | no        | Comma delimited list of IPv4 static addresses to add to the instance
 ipv4.gateway            | string    | auto              | no        | Whether to add an automatic default IPv4 gateway, can be "auto" or "none"
+ipv4.host\_table        | integer   | -                 | no        | The custom policy routing table ID to add IPv4 static routes to (in addition to main routing table).
 ipv6.address            | string    | -                 | no        | Comma delimited list of IPv6 static addresses to add to the instance
 ipv6.gateway            | string    | auto              | no        | Whether to add an automatic default IPv6 gateway, can be "auto" or "none"
+ipv6.host\_table        | integer   | -                 | no        | The custom policy routing table ID to add IPv6 static routes to (in addition to main routing table).
 vlan                    | integer   | -                 | no        | The VLAN ID to attach to
 
 #### nictype: p2p
