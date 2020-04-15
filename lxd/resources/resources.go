@@ -50,6 +50,12 @@ func GetResources() (*api.Resources, error) {
 		return nil, errors.Wrap(err, "Failed to retrieve PCI information")
 	}
 
+	// Get system information
+	system, err := GetSystem()
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to retrieve system information")
+	}
+
 	// Build the final struct
 	resources := api.Resources{
 		CPU:     *cpu,
@@ -59,6 +65,7 @@ func GetResources() (*api.Resources, error) {
 		Storage: *storage,
 		USB:     *usb,
 		PCI:     *pci,
+		System:  *system,
 	}
 
 	return &resources, nil
