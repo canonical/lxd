@@ -205,6 +205,7 @@ var APIExtensions = []string{
 	"resources_cpu_threads_numa",
 	"resources_cpu_core_die",
 	"api_os",
+	"resources_system",
 }
 
 // APIExtensionsCount returns the number of available API extensions.
