@@ -146,7 +146,9 @@ exists, so you must repeat this command each reboot and after
 LXD is restarted.  Also note this only works if the bridge
 `dns.mode` is not `none`.
 
-## Allow DHCP, DNS with Firewalld
+## Integration with Firewalld
+
+### Allow DHCP, DNS
 
 In order to allow instances to access the DHCP and DNS server that LXD runs on the host when using firewalld
 you need to add the host's bridge interface to the `trusted` zone in firewalld.
@@ -164,3 +166,22 @@ firewall-cmd --zone=trusted --change-interface=lxdbr0 --permanent
 ```
 
 This will then allow LXD's own firewall rules to take effect.
+
+### Allow containers to access the internet
+
+When firewalld daemon is started after lxd daemon, it breaks LXC iptables rules and especially rules taking care of containers internet access. To fix it, you could force firewalld daemon to start before lxd daemon.
+
+When using systemd, you have to add the `Before` parameter in the `/lib/systemd/system/lxd.socket` systemd file:
+```
+[Unit]
+Description=LXD - unix socket
+Documentation=man:lxd(1)
+Before=firewalld.service
+
+[...]
+```
+Then juste reboot your linux of restart lxd daemon:
+```
+systemctl restart lxd
+```
+Then you will be able to access internet from your containers. Ex: `lxc exec MyContainer apt update` (will then be ok)
