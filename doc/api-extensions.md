@@ -1013,3 +1013,6 @@ Exposes the die\_id information on each core.
 This introduces two new fields in `/1.0`, `os` and `os\_version`.
 
 Those are taken from the os-release data on the system.
+
+## resources\_system
+This adds system information to the output of `/1.0/resources`.
