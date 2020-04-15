@@ -1013,3 +1013,7 @@ Exposes the die\_id information on each core.
 This introduces two new fields in `/1.0`, `os` and `os\_version`.
 
 Those are taken from the os-release data on the system.
+
+## container\_nic\_routed\_host\_table
+This introduces the `ipv4.host_table` and `ipv6.host_table` NIC config keys that can be used to add static routes
+for the instance's IPs to a custom policy routing table by ID.
