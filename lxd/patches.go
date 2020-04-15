@@ -2038,6 +2038,7 @@ func updatePoolPropertyForAllObjects(d *Daemon, poolName string, allcontainers [
 
 		err = c.Update(args, false)
 		if err != nil {
+			logger.Warnf("Unable to add pool name to '%s': %v", c.Name(), err)
 			continue
 		}
 	}

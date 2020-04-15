@@ -163,7 +163,7 @@ func containerStatePut(d *Daemon, r *http.Request) response.Response {
 				// On function return, set the flag back on
 				defer func() {
 					args.Ephemeral = ephemeral
-					c.Update(args, true)
+					c.Update(args, false)
 				}()
 			}
 
