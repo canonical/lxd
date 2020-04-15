@@ -131,7 +131,8 @@ func (d *nicRouted) validateEnvironment() error {
 			return fmt.Errorf("Error reading net sysctl %s: %v", ipv4FwdPath, err)
 		}
 		if sysctlVal != "1\n" {
-			return fmt.Errorf("Routed mode requires sysctl net.ipv4.conf.%s.forwarding=1", effectiveParentName)
+			// Replace . in parent name with / for sysctl formatting.
+			return fmt.Errorf("Routed mode requires sysctl net.ipv4.conf.%s.forwarding=1", strings.Replace(effectiveParentName, ".", "/", -1))
 		}
 	}
 
@@ -143,7 +144,8 @@ func (d *nicRouted) validateEnvironment() error {
 			return fmt.Errorf("Error reading net sysctl %s: %v", ipv6FwdPath, err)
 		}
 		if sysctlVal != "1\n" {
-			return fmt.Errorf("Routed mode requires sysctl net.ipv6.conf.%s.forwarding=1", effectiveParentName)
+			// Replace . in parent name with / for sysctl formatting.
+			return fmt.Errorf("Routed mode requires sysctl net.ipv6.conf.%s.forwarding=1", strings.Replace(effectiveParentName, ".", "/", -1))
 		}
 
 		ipv6ProxyNdpPath := fmt.Sprintf("net/ipv6/conf/%s/proxy_ndp", effectiveParentName)
@@ -152,7 +154,8 @@ func (d *nicRouted) validateEnvironment() error {
 			return fmt.Errorf("Error reading net sysctl %s: %v", ipv6ProxyNdpPath, err)
 		}
 		if sysctlVal != "1\n" {
-			return fmt.Errorf("Routed mode requires sysctl net.ipv6.conf.%s.proxy_ndp=1", effectiveParentName)
+			// Replace . in parent name with / for sysctl formatting.
+			return fmt.Errorf("Routed mode requires sysctl net.ipv6.conf.%s.proxy_ndp=1", strings.Replace(effectiveParentName, ".", "/", -1))
 		}
 	}
 
