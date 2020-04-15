@@ -3289,7 +3289,7 @@ func (c *lxc) Restore(sourceContainer instance.Instance, stateful bool) error {
 			// On function return, set the flag back on.
 			defer func() {
 				args.Ephemeral = ephemeral
-				c.Update(args, true)
+				c.Update(args, false)
 			}()
 		}
 
@@ -3338,6 +3338,7 @@ func (c *lxc) Restore(sourceContainer instance.Instance, stateful bool) error {
 		Snapshot:     sourceContainer.IsSnapshot(),
 	}
 
+	// Don't pass as user-requested as there's no way to fix a bad config.
 	err = c.Update(args, false)
 	if err != nil {
 		logger.Error("Failed restoring container configuration", ctxMap)
@@ -3777,16 +3778,18 @@ func (c *lxc) Update(args db.InstanceArgs, userRequested bool) error {
 		args.Profiles = []string{}
 	}
 
-	// Validate the new config
-	err := instance.ValidConfig(c.state.OS, args.Config, false, false)
-	if err != nil {
-		return errors.Wrap(err, "Invalid config")
-	}
+	if userRequested {
+		// Validate the new config
+		err := instance.ValidConfig(c.state.OS, args.Config, false, false)
+		if err != nil {
+			return errors.Wrap(err, "Invalid config")
+		}
 
-	// Validate the new devices without using expanded devices validation (expensive checks disabled).
-	err = instance.ValidDevices(c.state, c.state.Cluster, c.Type(), args.Devices, false)
-	if err != nil {
-		return errors.Wrap(err, "Invalid devices")
+		// Validate the new devices without using expanded devices validation (expensive checks disabled).
+		err = instance.ValidDevices(c.state, c.state.Cluster, c.Type(), args.Devices, false)
+		if err != nil {
+			return errors.Wrap(err, "Invalid devices")
+		}
 	}
 
 	// Validate the new profiles
@@ -3813,29 +3816,6 @@ func (c *lxc) Update(args db.InstanceArgs, userRequested bool) error {
 		_, err = osarch.ArchitectureName(args.Architecture)
 		if err != nil {
 			return fmt.Errorf("Invalid architecture id: %s", err)
-		}
-	}
-
-	// Check that volatile and image keys weren't modified
-	if userRequested {
-		for k, v := range args.Config {
-			if strings.HasPrefix(k, "volatile.") && c.localConfig[k] != v {
-				return fmt.Errorf("Volatile keys are read-only")
-			}
-
-			if strings.HasPrefix(k, "image.") && c.localConfig[k] != v {
-				return fmt.Errorf("Image keys are read-only")
-			}
-		}
-
-		for k, v := range c.localConfig {
-			if strings.HasPrefix(k, "volatile.") && args.Config[k] != v {
-				return fmt.Errorf("Volatile keys are read-only")
-			}
-
-			if strings.HasPrefix(k, "image.") && args.Config[k] != v {
-				return fmt.Errorf("Image keys are read-only")
-			}
 		}
 	}
 
@@ -3968,27 +3948,32 @@ func (c *lxc) Update(args db.InstanceArgs, userRequested bool) error {
 		return updateFields
 	})
 
-	// Do some validation of the config diff
-	err = instance.ValidConfig(c.state.OS, c.expandedConfig, false, true)
-	if err != nil {
-		return errors.Wrap(err, "Invalid expanded config")
-	}
+	if userRequested {
+		// Do some validation of the config diff
+		err = instance.ValidConfig(c.state.OS, c.expandedConfig, false, true)
+		if err != nil {
+			return errors.Wrap(err, "Invalid expanded config")
+		}
 
-	// Do full expanded validation of the devices diff.
-	err = instance.ValidDevices(c.state, c.state.Cluster, c.Type(), c.expandedDevices, true)
-	if err != nil {
-		return errors.Wrap(err, "Invalid expanded devices")
+		// Do full expanded validation of the devices diff.
+		err = instance.ValidDevices(c.state, c.state.Cluster, c.Type(), c.expandedDevices, true)
+		if err != nil {
+			return errors.Wrap(err, "Invalid expanded devices")
+		}
 	}
 
 	// Run through initLXC to catch anything we missed
-	if c.c != nil {
-		c.c.Release()
-		c.c = nil
-	}
-	c.cConfig = false
-	err = c.initLXC(true)
-	if err != nil {
-		return errors.Wrap(err, "Initialize LXC")
+	if userRequested {
+		if c.c != nil {
+			c.c.Release()
+			c.c = nil
+		}
+
+		c.cConfig = false
+		err = c.initLXC(true)
+		if err != nil {
+			return errors.Wrap(err, "Initialize LXC")
+		}
 	}
 
 	cg, err := c.cgroup(nil)

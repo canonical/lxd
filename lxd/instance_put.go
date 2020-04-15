@@ -89,8 +89,7 @@ func containerPut(d *Daemon, r *http.Request) response.Response {
 				Project:      project,
 			}
 
-			// FIXME: should set to true when not migrating
-			err = c.Update(args, false)
+			err = c.Update(args, true)
 			if err != nil {
 				return err
 			}
