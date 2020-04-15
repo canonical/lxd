@@ -121,10 +121,11 @@ test_clustering_membership() {
 
   # Shutdown a database node, and wait a few seconds so it will be
   # detected as down.
-  LXD_DIR="${LXD_ONE_DIR}" lxc config set cluster.offline_threshold 12
+  LXD_DIR="${LXD_ONE_DIR}" lxc config set cluster.offline_threshold 11
   LXD_DIR="${LXD_THREE_DIR}" lxd shutdown
-  sleep 15
-  LXD_DIR="${LXD_TWO_DIR}" lxc cluster list | grep "node3" | grep -q "OFFLINE"
+  sleep 18
+  LXD_DIR="${LXD_TWO_DIR}" lxc cluster list
+  LXD_DIR="${LXD_TWO_DIR}" lxc cluster show node3 | grep -q "status: Offline"
 
   # Gracefully remove a node.
   LXD_DIR="${LXD_TWO_DIR}" lxc cluster remove node4
