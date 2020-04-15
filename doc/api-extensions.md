@@ -1030,3 +1030,6 @@ In `l2` mode the `ipv4.address` and `ipv6.address` keys will accept addresses in
 If singular format is used, the default subnet size is taken to be /24 and /64 for IPv4 and IPv6 respectively.
 
 In `l2` mode the `ipv4.gateway` and `ipv6.gateway` keys accept only a singular IP address.
+
+## resources\_system
+This adds system information to the output of `/1.0/resources`.
