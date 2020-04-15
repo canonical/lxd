@@ -26,6 +26,8 @@ test_container_devices_nic_ipvlan() {
     parent=${ctName} \
     ipv4.address="192.0.2.1${ipRand}" \
     ipv6.address="2001:db8::1${ipRand}" \
+    ipv4.gateway=auto \
+    ipv6.gateway=auto \
     mtu=1400
   lxc start "${ctName}"
 
@@ -69,6 +71,11 @@ test_container_devices_nic_ipvlan() {
   lxc config device set "${ctName}" eth0 vlan 1234
   lxc config device set "${ctName}" eth0 ipv4.host_table=100
   lxc config device set "${ctName}" eth0 ipv6.host_table=101
+
+  # Check gateway settings don't accept IPs in default l3s mode.
+  ! lxc config device set "${ctName}" eth0 ipv4.gateway=192.0.2.254
+  ! lxc config device set "${ctName}" eth0 ipv6.gateway=2001:db8::FFFF
+
   lxc start "${ctName}"
 
   # Check VLAN interface created
@@ -97,6 +104,45 @@ test_container_devices_nic_ipvlan() {
   # Check static routes are removed from custom routing table
   ! ip -4 route show table 100 | grep "192.0.2.1${ipRand}"
   ! ip -6 route show table 101 | grep "2001:db8::1${ipRand}"
+
+  # Check ipvlan l2 mode with mixture of singular and CIDR IPs, and gateway IPs.
+  lxc config device remove "${ctName}" eth0
+  lxc config device add "${ctName}" eth0 nic \
+    nictype=ipvlan \
+    mode=l2 \
+    parent=${ctName} \
+    ipv4.address="192.0.2.1${ipRand},192.0.2.2${ipRand}/32" \
+    ipv6.address="2001:db8::1${ipRand},2001:db8::2${ipRand}/128" \
+    ipv4.gateway=192.0.2.254 \
+    ipv6.gateway=2001:db8::FFFF \
+    mtu=1400
+  lxc start "${ctName}"
+
+  lxc config device remove "${ctName}2" eth0
+  lxc config device add "${ctName}2" eth0 nic \
+    nictype=ipvlan \
+    parent=${ctName} \
+    ipv4.address="192.0.2.3${ipRand}" \
+    ipv6.address="2001:db8::3${ipRand}" \
+    mtu=1400
+  lxc start "${ctName}2"
+
+  # Add an internally configured address (only possible in l2 mode).
+  lxc exec "${ctName}2" -- ip -4 addr add "192.0.2.4${ipRand}/32" dev eth0
+  lxc exec "${ctName}2" -- ip -6 addr add "2001:db8::4${ipRand}/128" dev eth0
+
+  # Check comms between containers.
+  lxc exec "${ctName}" -- ping -c2 -W1 "192.0.2.3${ipRand}"
+  lxc exec "${ctName}" -- ping -c2 -W1 "192.0.2.4${ipRand}"
+  lxc exec "${ctName}" -- ping6 -c2 -W1 "2001:db8::3${ipRand}"
+  lxc exec "${ctName}" -- ping6 -c2 -W1 "2001:db8::4${ipRand}"
+  lxc exec "${ctName}2" -- ping -c2 -W1 "192.0.2.1${ipRand}"
+  lxc exec "${ctName}2" -- ping -c2 -W1 "192.0.2.2${ipRand}"
+  lxc exec "${ctName}2" -- ping6 -c2 -W1 "2001:db8::1${ipRand}"
+  lxc exec "${ctName}2" -- ping6 -c2 -W1 "2001:db8::2${ipRand}"
+
+  lxc stop -f "${ctName}"
+  lxc stop -f "${ctName}2"
 
   # Check we haven't left any NICS lying around.
   endNicCount=$(find /sys/class/net | wc -l)
