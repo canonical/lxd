@@ -135,8 +135,10 @@ test_container_devices_nic_routed() {
   lxc stop -f "${ctName}2"
   lxc stop -f "${ctName}"
 
-  # Check routed ontop of VLAN parent.
+  # Check routed ontop of VLAN parent with custom routing tables.
   lxc config device set "${ctName}" eth0 vlan 1234
+  lxc config device set "${ctName}" eth0 ipv4.host_table=100
+  lxc config device set "${ctName}" eth0 ipv6.host_table=101
   lxc start "${ctName}"
 
   # Check VLAN interface created
@@ -144,6 +146,10 @@ test_container_devices_nic_routed() {
     echo "vlan interface not created"
     false
   fi
+
+  # Check static routes added to custom routing table
+  ip -4 route show table 100 | grep "192.0.2.1${ipRand}"
+  ip -6 route show table 101 | grep "2001:db8::1${ipRand}"
 
   # Check volatile cleanup on stop.
   lxc stop -f "${ctName}"
