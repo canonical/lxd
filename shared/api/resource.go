@@ -16,6 +16,9 @@ type Resources struct {
 	// API extension: resources_usb_pci
 	USB ResourcesUSB `json:"usb" yaml:"usb"`
 	PCI ResourcesPCI `json:"pci" yaml:"pci"`
+
+	// API extension: resources_system
+	System ResourcesSystem `json:"system" yaml:"system"`
 }
 
 // ResourcesCPU represents the cpu resources available on the system
@@ -352,4 +355,47 @@ type ResourcesPCIDevice struct {
 	ProductID     string `json:"product_id" yaml:"product_id"`
 	Vendor        string `json:"vendor" yaml:"vendor"`
 	VendorID      string `json:"vendor_id" yaml:"vendor_id"`
+}
+
+// ResourcesSystem represents the system
+// API extension: resources_system
+type ResourcesSystem struct {
+	UUID    string `json:"uuid" yaml:"uuid"`
+	Vendor  string `json:"vendor" yaml:"vendor"`
+	Product string `json:"product" yaml:"product"`
+	Family  string `json:"family" yaml:"family"`
+	Version string `json:"version" yaml:"version"`
+	Sku     string `json:"sku" yaml:"sku"`
+	Serial  string `json:"serial" yaml:"serial"`
+	Type    string `json:"type" yaml:"type"`
+
+	Firmware    *ResourcesSystemFirmware    `json:"firmware" yaml:"firmware"`
+	Chassis     *ResourcesSystemChassis     `json:"chassis" yaml:"chassis"`
+	Motherboard *ResourcesSystemMotherboard `json:"motherboard" yaml:"motherboard"`
+}
+
+// ResourcesSystemFirmware represents the system firmware
+// API extension: resources_system
+type ResourcesSystemFirmware struct {
+	Vendor  string `json:"vendor" yaml:"vendor"`
+	Date    string `json:"date" yaml:"date"`
+	Version string `json:"version" yaml:"version"`
+}
+
+// ResourcesSystemChassis represents the system chassis
+// API extension: resources_system
+type ResourcesSystemChassis struct {
+	Vendor  string `json:"vendor" yaml:"vendor"`
+	Type    string `json:"type" yaml:"type"`
+	Serial  string `json:"serial" yaml:"serial"`
+	Version string `json:"version" yaml:"version"`
+}
+
+// ResourcesSystemMotherboard represents the motherboard
+// API extension: resources_system
+type ResourcesSystemMotherboard struct {
+	Vendor  string `json:"vendor" yaml:"vendor"`
+	Product string `json:"product" yaml:"product"`
+	Serial  string `json:"serial" yaml:"serial"`
+	Version string `json:"version" yaml:"version"`
 }
