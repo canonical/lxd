@@ -44,6 +44,8 @@ func (d *nicRouted) validateConfig(instConf instance.ConfigReader) error {
 		"ipv6.gateway",
 		"ipv4.host_address",
 		"ipv6.host_address",
+		"ipv4.host_table",
+		"ipv6.host_table",
 	}
 
 	rules := nicValidationRules(requiredFields, optionalFields)
@@ -131,7 +133,8 @@ func (d *nicRouted) validateEnvironment() error {
 			return fmt.Errorf("Error reading net sysctl %s: %v", ipv4FwdPath, err)
 		}
 		if sysctlVal != "1\n" {
-			return fmt.Errorf("Routed mode requires sysctl net.ipv4.conf.%s.forwarding=1", effectiveParentName)
+			// Replace . in parent name with / for sysctl formatting.
+			return fmt.Errorf("Routed mode requires sysctl net.ipv4.conf.%s.forwarding=1", strings.Replace(effectiveParentName, ".", "/", -1))
 		}
 	}
 
@@ -143,7 +146,8 @@ func (d *nicRouted) validateEnvironment() error {
 			return fmt.Errorf("Error reading net sysctl %s: %v", ipv6FwdPath, err)
 		}
 		if sysctlVal != "1\n" {
-			return fmt.Errorf("Routed mode requires sysctl net.ipv6.conf.%s.forwarding=1", effectiveParentName)
+			// Replace . in parent name with / for sysctl formatting.
+			return fmt.Errorf("Routed mode requires sysctl net.ipv6.conf.%s.forwarding=1", strings.Replace(effectiveParentName, ".", "/", -1))
 		}
 
 		ipv6ProxyNdpPath := fmt.Sprintf("net/ipv6/conf/%s/proxy_ndp", effectiveParentName)
@@ -152,7 +156,8 @@ func (d *nicRouted) validateEnvironment() error {
 			return fmt.Errorf("Error reading net sysctl %s: %v", ipv6ProxyNdpPath, err)
 		}
 		if sysctlVal != "1\n" {
-			return fmt.Errorf("Routed mode requires sysctl net.ipv6.conf.%s.proxy_ndp=1", effectiveParentName)
+			// Replace . in parent name with / for sysctl formatting.
+			return fmt.Errorf("Routed mode requires sysctl net.ipv6.conf.%s.proxy_ndp=1", strings.Replace(effectiveParentName, ".", "/", -1))
 		}
 	}
 
@@ -291,10 +296,7 @@ func (d *nicRouted) setupParentSysctls(parentName string) error {
 func (d *nicRouted) postStart() error {
 	v := d.volatileGet()
 
-	// If host_name is defined (and it should be), then we add the dummy link-local gateway IPs
-	// to the host end of the veth pair. This ensures that liveness detection of the gateways
-	// inside the instance work and ensure that traffic doesn't periodically halt whilst ARP/NDP
-	// is re-detected.
+	// If volatile host_name is defined (and it should be), then configure the host-side interface.
 	if v["host_name"] != "" {
 		// Attempt to disable IPv6 router advertisement acceptance.
 		err := util.SysctlSet(fmt.Sprintf("net/ipv6/conf/%s/accept_ra", v["host_name"]), "0")
@@ -315,16 +317,50 @@ func (d *nicRouted) postStart() error {
 		}
 
 		if d.config["ipv4.address"] != "" {
+			// Add dummy link-local gateway IPs to the host end of the veth pair. This ensures that
+			// liveness detection of the gateways inside the instance work and ensure that traffic
+			// doesn't periodically halt whilst ARP is re-detected.
 			_, err := shared.RunCommand("ip", "-4", "addr", "add", fmt.Sprintf("%s/32", d.ipv4HostAddress()), "dev", v["host_name"])
 			if err != nil {
 				return err
 			}
+
+			// Add static routes to instance IPs to custom routing tables if specified.
+			// This is in addition to the static route added by liblxc to the main routing table, which
+			// is still critical to ensure that reverse path filtering doesn't kick in blocking traffic
+			// from the instance.
+			if d.config["ipv4.host_table"] != "" {
+				for _, addr := range strings.Split(d.config["ipv4.address"], ",") {
+					addr = strings.TrimSpace(addr)
+					_, err := shared.RunCommand("ip", "-4", "route", "add", "table", d.config["ipv4.host_table"], fmt.Sprintf("%s/32", addr), "dev", v["host_name"])
+					if err != nil {
+						return err
+					}
+				}
+			}
 		}
 
 		if d.config["ipv6.address"] != "" {
+			// Add dummy link-local gateway IPs to the host end of the veth pair. This ensures that
+			// liveness detection of the gateways inside the instance work and ensure that traffic
+			// doesn't periodically halt whilst NDP is re-detected.
 			_, err := shared.RunCommand("ip", "-6", "addr", "add", fmt.Sprintf("%s/128", d.ipv6HostAddress()), "dev", v["host_name"])
 			if err != nil {
 				return err
+			}
+
+			// Add static routes to instance IPs to custom routing tables if specified.
+			// This is in addition to the static route added by liblxc to the main routing table, which
+			// is still critical to ensure that reverse path filtering doesn't kick in blocking traffic
+			// from the instance.
+			if d.config["ipv6.host_table"] != "" {
+				for _, addr := range strings.Split(d.config["ipv6.address"], ",") {
+					addr = strings.TrimSpace(addr)
+					_, err := shared.RunCommand("ip", "-6", "route", "add", "table", d.config["ipv6.host_table"], fmt.Sprintf("%s/128", addr), "dev", v["host_name"])
+					if err != nil {
+						return err
+					}
+				}
 			}
 		}
 	}
