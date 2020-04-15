@@ -34,6 +34,8 @@ func (d *nicIPVLAN) validateConfig(instConf instance.ConfigReader) error {
 		"vlan",
 		"ipv4.gateway",
 		"ipv6.gateway",
+		"ipv4.host_table",
+		"ipv6.host_table",
 	}
 
 	rules := nicValidationRules(requiredFields, optionalFields)
@@ -66,45 +68,61 @@ func (d *nicIPVLAN) validateEnvironment() error {
 		return fmt.Errorf("Requires name property to start")
 	}
 
-	if !shared.PathExists(fmt.Sprintf("/sys/class/net/%s", d.config["parent"])) {
-		return fmt.Errorf("Parent device '%s' doesn't exist", d.config["parent"])
-	}
-
 	extensions := d.state.OS.LXCFeatures
 	if !extensions["network_ipvlan"] || !extensions["network_l2proxy"] || !extensions["network_gateway_device_route"] {
 		return fmt.Errorf("Requires liblxc has following API extensions: network_ipvlan, network_l2proxy, network_gateway_device_route")
 	}
 
+	if !shared.PathExists(fmt.Sprintf("/sys/class/net/%s", d.config["parent"])) {
+		return fmt.Errorf("Parent device '%s' doesn't exist", d.config["parent"])
+	}
+
+	if d.config["parent"] == "" && d.config["vlan"] != "" {
+		return fmt.Errorf("The vlan setting can only be used when combined with a parent interface")
+	}
+
+	// Generate effective parent name, including the VLAN part if option used.
+	effectiveParentName := network.GetHostDevice(d.config["parent"], d.config["vlan"])
+
+	// If the effective parent doesn't exist and the vlan option is specified, it means we are going to create
+	// the VLAN parent at start, and we will configure the needed sysctls so don't need to check them yet.
+	if d.config["vlan"] != "" && !shared.PathExists(fmt.Sprintf("/sys/class/net/%s", effectiveParentName)) {
+		return nil
+	}
+
 	if d.config["ipv4.address"] != "" {
 		// Check necessary sysctls are configured for use with l2proxy parent in IPVLAN l3s mode.
-		ipv4FwdPath := fmt.Sprintf("net/ipv4/conf/%s/forwarding", d.config["parent"])
+		ipv4FwdPath := fmt.Sprintf("net/ipv4/conf/%s/forwarding", effectiveParentName)
 		sysctlVal, err := util.SysctlGet(ipv4FwdPath)
 		if err != nil || sysctlVal != "1\n" {
 			return fmt.Errorf("Error reading net sysctl %s: %v", ipv4FwdPath, err)
 		}
 		if sysctlVal != "1\n" {
-			return fmt.Errorf("IPVLAN in L3S mode requires sysctl net.ipv4.conf.%s.forwarding=1", d.config["parent"])
+			// Replace . in parent name with / for sysctl formatting.
+			return fmt.Errorf("IPVLAN in L3S mode requires sysctl net.ipv4.conf.%s.forwarding=1", strings.Replace(effectiveParentName, ".", "/", -1))
 		}
 	}
 
 	if d.config["ipv6.address"] != "" {
 		// Check necessary sysctls are configured for use with l2proxy parent in IPVLAN l3s mode.
-		ipv6FwdPath := fmt.Sprintf("net/ipv6/conf/%s/forwarding", d.config["parent"])
+		ipv6FwdPath := fmt.Sprintf("net/ipv6/conf/%s/forwarding", effectiveParentName)
 		sysctlVal, err := util.SysctlGet(ipv6FwdPath)
 		if err != nil {
 			return fmt.Errorf("Error reading net sysctl %s: %v", ipv6FwdPath, err)
 		}
 		if sysctlVal != "1\n" {
-			return fmt.Errorf("IPVLAN in L3S mode requires sysctl net.ipv6.conf.%s.forwarding=1", d.config["parent"])
+			// Replace . in parent name with / for sysctl formatting.
+			return fmt.Errorf("IPVLAN in L3S mode requires sysctl net.ipv6.conf.%s.forwarding=1", strings.Replace(effectiveParentName, ".", "/", -1))
 		}
 
-		ipv6ProxyNdpPath := fmt.Sprintf("net/ipv6/conf/%s/proxy_ndp", d.config["parent"])
+		ipv6ProxyNdpPath := fmt.Sprintf("net/ipv6/conf/%s/proxy_ndp", effectiveParentName)
 		sysctlVal, err = util.SysctlGet(ipv6ProxyNdpPath)
 		if err != nil {
 			return fmt.Errorf("Error reading net sysctl %s: %v", ipv6ProxyNdpPath, err)
 		}
 		if sysctlVal != "1\n" {
-			return fmt.Errorf("IPVLAN in L3S mode requires sysctl net.ipv6.conf.%s.proxy_ndp=1", d.config["parent"])
+			// Replace . in parent name with / for sysctl formatting.
+			return fmt.Errorf("IPVLAN in L3S mode requires sysctl net.ipv6.conf.%s.proxy_ndp=1", strings.Replace(effectiveParentName, ".", "/", -1))
 		}
 	}
 
@@ -186,6 +204,7 @@ func (d *nicIPVLAN) Start() (*deviceConfig.RunConfig, error) {
 	}
 
 	runConf.NetworkInterface = nic
+	runConf.PostHooks = append(runConf.PostHooks, d.postStart)
 	return &runConf, nil
 }
 
@@ -207,13 +226,46 @@ func (d *nicIPVLAN) setupParentSysctls(parentName string) error {
 		ipv6FwdPath := fmt.Sprintf("net/ipv6/conf/%s/forwarding", parentName)
 		err := util.SysctlSet(ipv6FwdPath, "1")
 		if err != nil {
-			return fmt.Errorf("Error reading net sysctl %s: %v", ipv6FwdPath, err)
+			return fmt.Errorf("Error setting net sysctl %s: %v", ipv6FwdPath, err)
 		}
 
 		ipv6ProxyNdpPath := fmt.Sprintf("net/ipv6/conf/%s/proxy_ndp", parentName)
 		err = util.SysctlSet(ipv6ProxyNdpPath, "1")
 		if err != nil {
-			return fmt.Errorf("Error reading net sysctl %s: %v", ipv6ProxyNdpPath, err)
+			return fmt.Errorf("Error setting net sysctl %s: %v", ipv6ProxyNdpPath, err)
+		}
+	}
+
+	return nil
+}
+
+// postStart is run after the instance is started.
+func (d *nicIPVLAN) postStart() error {
+	if d.config["ipv4.address"] != "" {
+		// Add static routes to instance IPs to custom routing tables if specified.
+		// This is in addition to the static route added by liblxc to the main routing table.
+		if d.config["ipv4.host_table"] != "" {
+			for _, addr := range strings.Split(d.config["ipv4.address"], ",") {
+				addr = strings.TrimSpace(addr)
+				_, err := shared.RunCommand("ip", "-4", "route", "add", "table", d.config["ipv4.host_table"], fmt.Sprintf("%s/32", addr), "dev", "lo")
+				if err != nil {
+					return err
+				}
+			}
+		}
+	}
+
+	if d.config["ipv6.address"] != "" {
+		// Add static routes to instance IPs to custom routing tables if specified.
+		// This is in addition to the static route added by liblxc to the main routing table.
+		if d.config["ipv6.host_table"] != "" {
+			for _, addr := range strings.Split(d.config["ipv6.address"], ",") {
+				addr = strings.TrimSpace(addr)
+				_, err := shared.RunCommand("ip", "-6", "route", "add", "table", d.config["ipv6.host_table"], fmt.Sprintf("%s/128", addr), "dev", "lo")
+				if err != nil {
+					return err
+				}
+			}
 		}
 	}
 
@@ -236,6 +288,32 @@ func (d *nicIPVLAN) postStop() error {
 	})
 
 	v := d.volatileGet()
+
+	if d.config["ipv4.address"] != "" {
+		// Remove static routes to instance IPs to custom routing tables if specified.
+		if d.config["ipv4.host_table"] != "" {
+			for _, addr := range strings.Split(d.config["ipv4.address"], ",") {
+				addr = strings.TrimSpace(addr)
+				_, err := shared.RunCommand("ip", "-4", "route", "delete", "table", d.config["ipv4.host_table"], fmt.Sprintf("%s/32", addr), "dev", "lo")
+				if err != nil {
+					return err
+				}
+			}
+		}
+	}
+
+	if d.config["ipv6.address"] != "" {
+		// Remove static routes to instance IPs to custom routing tables if specified.
+		if d.config["ipv6.host_table"] != "" {
+			for _, addr := range strings.Split(d.config["ipv6.address"], ",") {
+				addr = strings.TrimSpace(addr)
+				_, err := shared.RunCommand("ip", "-6", "route", "delete", "table", d.config["ipv6.host_table"], fmt.Sprintf("%s/128", addr), "dev", "lo")
+				if err != nil {
+					return err
+				}
+			}
+		}
+	}
 
 	// This will delete the parent interface if we created it for VLAN parent.
 	if shared.IsTrue(v["last_state.created"]) {
