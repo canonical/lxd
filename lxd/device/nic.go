@@ -53,6 +53,8 @@ func nicValidationRules(requiredFields []string, optionalFields []string) map[st
 		"ipv6.gateway":            NetworkValidGateway,
 		"ipv4.host_address":       NetworkValidAddressV4,
 		"ipv6.host_address":       NetworkValidAddressV6,
+		"ipv4.host_table":         shared.IsUint32,
+		"ipv6.host_table":         shared.IsUint32,
 	}
 
 	validators := map[string]func(value string) error{}
