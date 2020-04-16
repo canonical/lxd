@@ -629,7 +629,7 @@ propagation         | string    | -         | no        | Controls how a bind-mo
 shift               | boolean   | false     | no        | Setup a shifting overlay to translate the source uid/gid to match the instance
 raw.mount.options   | string    | -         | no        | Filesystem specific mount options
 ceph.user\_name     | string    | admin     | no        | If source is ceph or cephfs then ceph user\_name must be specified by user for proper mount
-ceph.cluster\_name  | string    | admin     | no        | If source is ceph or cephfs then ceph cluster\_name must be specified by user for proper mount
+ceph.cluster\_name  | string    | ceph      | no        | If source is ceph or cephfs then ceph cluster\_name must be specified by user for proper mount
 boot.priority       | integer   | -         | no        | Boot priority for VMs (higher boots first)
 
 ### Type: unix-char
