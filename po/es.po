@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: lxd\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2020-04-06 09:26-0400\n"
+"POT-Creation-Date: 2020-04-16 14:00-0400\n"
 "PO-Revision-Date: 2019-09-06 07:09+0000\n"
 "Last-Translator: Stéphane Graber <stgraber@stgraber.org>\n"
 "Language-Team: Spanish <https://hosted.weblate.org/projects/linux-containers/"
@@ -610,7 +610,7 @@ msgstr ""
 msgid "Can't pull a directory without --recursive"
 msgstr "No se puede jalar un directorio sin - recursivo"
 
-#: lxc/utils.go:224 lxc/utils.go:244
+#: lxc/utils.go:229 lxc/utils.go:249
 #, c-format
 msgid "Can't read from stdin: %s"
 msgstr "No se peude leer desde stdin: %s"
@@ -1053,7 +1053,7 @@ msgstr ""
 msgid "Device %s removed from %s"
 msgstr ""
 
-#: lxc/utils.go:131 lxc/utils.go:155
+#: lxc/utils.go:136 lxc/utils.go:160
 #, c-format
 msgid "Device already exists: %s"
 msgstr "El dispostivo ya existe: %s"
@@ -1286,7 +1286,7 @@ msgstr "HUELLA DIGITAL"
 msgid "Failed to connect to cluster member"
 msgstr ""
 
-#: lxc/utils.go:200
+#: lxc/utils.go:205
 #, c-format
 msgid "Failed to create alias %s"
 msgstr ""
@@ -1296,7 +1296,7 @@ msgstr ""
 msgid "Failed to get the new instance name"
 msgstr "Perfil para aplicar al nuevo contenedor"
 
-#: lxc/utils.go:190
+#: lxc/utils.go:195
 #, c-format
 msgid "Failed to remove alias %s"
 msgstr ""

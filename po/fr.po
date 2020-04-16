@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: LXD\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2020-04-06 09:26-0400\n"
+"POT-Creation-Date: 2020-04-16 14:00-0400\n"
 "PO-Revision-Date: 2019-01-04 18:07+0000\n"
 "Last-Translator: Deleted User <noreply+12102@weblate.org>\n"
 "Language-Team: French <https://hosted.weblate.org/projects/linux-containers/"
@@ -618,7 +618,7 @@ msgstr ""
 msgid "Can't pull a directory without --recursive"
 msgstr "impossible de récupérer un répertoire sans --recursive"
 
-#: lxc/utils.go:224 lxc/utils.go:244
+#: lxc/utils.go:229 lxc/utils.go:249
 #, c-format
 msgid "Can't read from stdin: %s"
 msgstr "Impossible de lire depuis stdin : %s"
@@ -1105,7 +1105,7 @@ msgstr "Périphérique %s retiré de %s"
 msgid "Device %s removed from %s"
 msgstr "Périphérique %s retiré de %s"
 
-#: lxc/utils.go:131 lxc/utils.go:155
+#: lxc/utils.go:136 lxc/utils.go:160
 #, fuzzy, c-format
 msgid "Device already exists: %s"
 msgstr "le serveur distant %s existe déjà"
@@ -1360,7 +1360,7 @@ msgstr "EMPREINTE"
 msgid "Failed to connect to cluster member"
 msgstr "Profil à appliquer au nouveau conteneur"
 
-#: lxc/utils.go:200
+#: lxc/utils.go:205
 #, fuzzy, c-format
 msgid "Failed to create alias %s"
 msgstr "Échec lors de la génération de 'lxc.%s.1': %v"
@@ -1370,7 +1370,7 @@ msgstr "Échec lors de la génération de 'lxc.%s.1': %v"
 msgid "Failed to get the new instance name"
 msgstr "Profil à appliquer au nouveau conteneur"
 
-#: lxc/utils.go:190
+#: lxc/utils.go:195
 #, c-format
 msgid "Failed to remove alias %s"
 msgstr ""
