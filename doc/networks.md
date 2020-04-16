@@ -193,3 +193,5 @@ To check the rules are taken into account by firewalld:
 ```
 firewall-cmd --direct --get-all-rules 
 ```
+
+Warning: what is exposed above is not a fool-proof approach and may end up inadvertently introducing a security risk.
