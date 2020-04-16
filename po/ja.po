@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: LXD\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2020-04-06 09:26-0400\n"
+"POT-Creation-Date: 2020-04-16 14:00-0400\n"
 "PO-Revision-Date: 2020-03-27 12:50+0000\n"
 "Last-Translator: KATOH Yasufumi <karma@jazz.email.ne.jp>\n"
 "Language-Team: Japanese <https://hosted.weblate.org/projects/linux-"
@@ -613,7 +613,7 @@ msgid "Can't pull a directory without --recursive"
 msgstr ""
 "ディレクトリを pull する場合は --recursive オプションを使用してください"
 
-#: lxc/utils.go:224 lxc/utils.go:244
+#: lxc/utils.go:229 lxc/utils.go:249
 #, c-format
 msgid "Can't read from stdin: %s"
 msgstr "標準入力から読み込めません: %s"
@@ -1057,7 +1057,7 @@ msgstr "デバイス %s が %s で上書きされました"
 msgid "Device %s removed from %s"
 msgstr "デバイス %s が %s から削除されました"
 
-#: lxc/utils.go:131 lxc/utils.go:155
+#: lxc/utils.go:136 lxc/utils.go:160
 #, c-format
 msgid "Device already exists: %s"
 msgstr "デバイスは既に存在します: %s"
@@ -1315,7 +1315,7 @@ msgstr "FINGERPRINT"
 msgid "Failed to connect to cluster member"
 msgstr "クラスタメンバへの接続に失敗しました"
 
-#: lxc/utils.go:200
+#: lxc/utils.go:205
 #, c-format
 msgid "Failed to create alias %s"
 msgstr "エイリアス %s の作成に失敗しました"
@@ -1324,7 +1324,7 @@ msgstr "エイリアス %s の作成に失敗しました"
 msgid "Failed to get the new instance name"
 msgstr "新しいインスタンス名が取得できません"
 
-#: lxc/utils.go:190
+#: lxc/utils.go:195
 #, c-format
 msgid "Failed to remove alias %s"
 msgstr "エイリアス %s の削除に失敗しました"
