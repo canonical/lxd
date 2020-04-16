@@ -2,6 +2,7 @@ package resources
 
 import (
 	"io/ioutil"
+	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
@@ -35,9 +36,8 @@ func GetSystem() (*api.ResourcesSystem, error) {
 	productUUIDPath := filepath.Join(sysClassDMIID, "product_uuid")
 	if sysfsExists(productUUIDPath) {
 		content, err := ioutil.ReadFile(productUUIDPath)
-		if err != nil {
+		if err != nil && !os.IsPermission(err) {
 			return nil, errors.Wrapf(err, "Failed to read %q", productUUIDPath)
-
 		}
 
 		system.UUID = strings.TrimSpace(string(content))
@@ -49,7 +49,6 @@ func GetSystem() (*api.ResourcesSystem, error) {
 		content, err := ioutil.ReadFile(vendorPath)
 		if err != nil {
 			return nil, errors.Wrapf(err, "Failed to read %q", vendorPath)
-
 		}
 
 		system.Vendor = strings.TrimSpace(string(content))
@@ -61,7 +60,6 @@ func GetSystem() (*api.ResourcesSystem, error) {
 		content, err := ioutil.ReadFile(productNamePath)
 		if err != nil {
 			return nil, errors.Wrapf(err, "Failed to read %q", productNamePath)
-
 		}
 
 		system.Product = strings.TrimSpace(string(content))
@@ -73,7 +71,6 @@ func GetSystem() (*api.ResourcesSystem, error) {
 		content, err := ioutil.ReadFile(productFamilyPath)
 		if err != nil {
 			return nil, errors.Wrapf(err, "Failed to read %q", productFamilyPath)
-
 		}
 
 		system.Family = strings.TrimSpace(string(content))
@@ -85,7 +82,6 @@ func GetSystem() (*api.ResourcesSystem, error) {
 		content, err := ioutil.ReadFile(productVersion)
 		if err != nil {
 			return nil, errors.Wrapf(err, "Failed to read %q", productVersion)
-
 		}
 
 		system.Version = strings.TrimSpace(string(content))
@@ -97,7 +93,6 @@ func GetSystem() (*api.ResourcesSystem, error) {
 		content, err := ioutil.ReadFile(productSKUPath)
 		if err != nil {
 			return nil, errors.Wrapf(err, "Failed to read %q", productSKUPath)
-
 		}
 
 		system.Sku = strings.TrimSpace(string(content))
@@ -107,9 +102,8 @@ func GetSystem() (*api.ResourcesSystem, error) {
 	productSerialPath := filepath.Join(sysClassDMIID, "product_serial")
 	if sysfsExists(productSerialPath) {
 		content, err := ioutil.ReadFile(productSerialPath)
-		if err != nil {
+		if err != nil && !os.IsPermission(err) {
 			return nil, errors.Wrapf(err, "Failed to read %q", productSerialPath)
-
 		}
 
 		system.Serial = strings.TrimSpace(string(content))
@@ -166,7 +160,6 @@ func systemGetFirmware() (*api.ResourcesSystemFirmware, error) {
 		content, err := ioutil.ReadFile(biosVendorPath)
 		if err != nil {
 			return nil, errors.Wrapf(err, "Failed to read %q", biosVendorPath)
-
 		}
 
 		firmware.Vendor = strings.TrimSpace(string(content))
@@ -178,7 +171,6 @@ func systemGetFirmware() (*api.ResourcesSystemFirmware, error) {
 		content, err := ioutil.ReadFile(biosDatePath)
 		if err != nil {
 			return nil, errors.Wrapf(err, "Failed to read %q", biosDatePath)
-
 		}
 
 		firmware.Date = strings.TrimSpace(string(content))
@@ -190,7 +182,6 @@ func systemGetFirmware() (*api.ResourcesSystemFirmware, error) {
 		content, err := ioutil.ReadFile(biosVersionPath)
 		if err != nil {
 			return nil, errors.Wrapf(err, "Failed to read %q", biosVersionPath)
-
 		}
 
 		firmware.Version = strings.TrimSpace(string(content))
@@ -208,7 +199,6 @@ func systemGetChassis() (*api.ResourcesSystemChassis, error) {
 		content, err := ioutil.ReadFile(chassisVendorPath)
 		if err != nil {
 			return nil, errors.Wrapf(err, "Failed to read %q", chassisVendorPath)
-
 		}
 
 		chassis.Vendor = strings.TrimSpace(string(content))
@@ -269,9 +259,8 @@ func systemGetChassis() (*api.ResourcesSystemChassis, error) {
 	chassisSerialPath := filepath.Join(sysClassDMIID, "chassis_serial")
 	if sysfsExists(chassisSerialPath) {
 		content, err := ioutil.ReadFile(chassisSerialPath)
-		if err != nil {
+		if err != nil && !os.IsPermission(err) {
 			return nil, errors.Wrapf(err, "Failed to read %q", chassisSerialPath)
-
 		}
 
 		chassis.Serial = strings.TrimSpace(string(content))
@@ -283,7 +272,6 @@ func systemGetChassis() (*api.ResourcesSystemChassis, error) {
 		content, err := ioutil.ReadFile(chassisVersionPath)
 		if err != nil {
 			return nil, errors.Wrapf(err, "Failed to read %q", chassisVersionPath)
-
 		}
 
 		chassis.Version = strings.TrimSpace(string(content))
@@ -301,7 +289,6 @@ func systemGetMotherboard() (*api.ResourcesSystemMotherboard, error) {
 		content, err := ioutil.ReadFile(boardVendorPath)
 		if err != nil {
 			return nil, errors.Wrapf(err, "Failed to read %q", boardVendorPath)
-
 		}
 
 		motherboard.Vendor = strings.TrimSpace(string(content))
@@ -313,7 +300,6 @@ func systemGetMotherboard() (*api.ResourcesSystemMotherboard, error) {
 		content, err := ioutil.ReadFile(boardNamePath)
 		if err != nil {
 			return nil, errors.Wrapf(err, "Failed to read %q", boardNamePath)
-
 		}
 
 		motherboard.Product = strings.TrimSpace(string(content))
@@ -323,9 +309,8 @@ func systemGetMotherboard() (*api.ResourcesSystemMotherboard, error) {
 	boardSerialPath := filepath.Join(sysClassDMIID, "board_serial")
 	if sysfsExists(boardSerialPath) {
 		content, err := ioutil.ReadFile(boardSerialPath)
-		if err != nil {
+		if err != nil && !os.IsPermission(err) {
 			return nil, errors.Wrapf(err, "Failed to read %q", boardSerialPath)
-
 		}
 
 		motherboard.Serial = strings.TrimSpace(string(content))
@@ -337,7 +322,6 @@ func systemGetMotherboard() (*api.ResourcesSystemMotherboard, error) {
 		content, err := ioutil.ReadFile(boardVersionPath)
 		if err != nil {
 			return nil, errors.Wrapf(err, "Failed to read %q", boardVersionPath)
-
 		}
 
 		motherboard.Version = strings.TrimSpace(string(content))
