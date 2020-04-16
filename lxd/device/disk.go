@@ -126,6 +126,7 @@ func (d *disk) validateConfig(instConf instance.ConfigReader) error {
 		return fmt.Errorf("Recursive read-only bind-mounts aren't currently supported by the kernel")
 	}
 
+	// Check ceph options are only used when ceph or cephfs type source is specified.
 	if !(strings.HasPrefix(d.config["source"], "ceph:") || strings.HasPrefix(d.config["source"], "cephfs:")) && (d.config["ceph.cluster_name"] != "" || d.config["ceph.user_name"] != "") {
 		return fmt.Errorf("Invalid options ceph.cluster_name/ceph.user_name for source %q", d.config["source"])
 	}
@@ -148,7 +149,7 @@ func (d *disk) validateConfig(instConf instance.ConfigReader) error {
 
 	// When we want to attach a storage volume created via the storage api the "source" only
 	// contains the name of the storage volume, not the path where it is mounted. So only check
-	// for the existence of "source" when "pool" is empty.
+	// for the existence of "source" when "pool" is empty and ceph type source not being used.
 	if d.config["pool"] == "" && d.config["source"] != "" && d.config["source"] != diskSourceCloudInit && d.isRequired(d.config) && !shared.PathExists(shared.HostPath(d.config["source"])) &&
 		!strings.HasPrefix(d.config["source"], "ceph:") && !strings.HasPrefix(d.config["source"], "cephfs:") {
 		return fmt.Errorf("Missing source %q for disk %q", d.config["source"], d.name)
@@ -401,85 +402,110 @@ func (d *disk) startVM() (*deviceConfig.RunConfig, error) {
 		revert := revert.New()
 		defer revert.Fail()
 
-		srcPath := shared.HostPath(d.config["source"])
+		if strings.HasPrefix(d.config["source"], "ceph:") {
+			// Get the pool and volume names.
+			fields := strings.SplitN(d.config["source"], ":", 2)
+			fields = strings.SplitN(fields[1], "/", 2)
+			poolName := fields[0]
+			volumeName := fields[1]
+			clusterName, userName := d.cephCreds()
 
-		// Mount the pool volume and update srcPath to mount path.
-		if d.config["pool"] != "" {
-			var err error
-			srcPath, err = d.mountPoolVolume(revert)
-			if err != nil {
-				if !isRequired {
-					// Leave to the pathExists check below.
-					logger.Warn(err.Error())
+			// Configuration values containing :, @, or = can be escaped with a leading \ character.
+			// According to https://docs.ceph.com/docs/hammer/rbd/qemu-rbd/#usage
+			optEscaper := strings.NewReplacer(":", `\:`, "@", `\@`, "=", `\=`)
+			opts := []string{
+				fmt.Sprintf("id=%s", optEscaper.Replace(userName)),
+				fmt.Sprintf("conf=/etc/ceph/%s.conf", optEscaper.Replace(clusterName)),
+			}
+
+			runConf.Mounts = []deviceConfig.MountEntryItem{
+				{
+					DevPath: fmt.Sprintf("rbd:%s/%s:%s", optEscaper.Replace(poolName), optEscaper.Replace(volumeName), strings.Join(opts, ":")),
+					DevName: d.name,
+				},
+			}
+		} else {
+			srcPath := shared.HostPath(d.config["source"])
+
+			// Mount the pool volume and update srcPath to mount path.
+			if d.config["pool"] != "" {
+				var err error
+				srcPath, err = d.mountPoolVolume(revert)
+				if err != nil {
+					if !isRequired {
+						// Leave to the pathExists check below.
+						logger.Warn(err.Error())
+					} else {
+						return nil, err
+					}
+				}
+			}
+
+			if !shared.PathExists(srcPath) {
+				if isRequired {
+					return nil, fmt.Errorf("Source path %q doesn't exist for device %q", srcPath, d.name)
+				}
+
+				return &runConf, nil
+			}
+
+			// Default to block device or image file passthrough first.
+			mount := deviceConfig.MountEntryItem{
+				DevPath: srcPath,
+				DevName: d.name,
+			}
+
+			// If the source being added is a directory, then we will be using 9p directory sharing to mount
+			// the directory inside the VM, as such we need to indicate to the VM the target path to mount to.
+			if shared.IsDir(srcPath) {
+				mount.TargetPath = d.config["path"]
+				mount.FSType = "9p"
+
+				if shared.IsTrue(d.config["readonly"]) {
+					// Don't use proxy in readonly mode.
+					mount.Opts = append(mount.Opts, "ro")
 				} else {
-					return nil, err
-				}
-			}
-		}
+					sockPath := filepath.Join(d.inst.DevicesPath(), fmt.Sprintf("%s.sock", d.name))
+					mount.DevPath = sockPath // Use socket path as dev path so qemu connects to proxy.
 
-		if !shared.PathExists(srcPath) {
-			if isRequired {
-				return nil, fmt.Errorf("Source path %q doesn't exist for device %q", srcPath, d.name)
-			}
+					// Remove old socket if needed.
+					os.Remove(sockPath)
 
-			return &runConf, nil
-		}
-
-		// Default to block device or image file passthrough first.
-		mount := deviceConfig.MountEntryItem{
-			DevPath: srcPath,
-			DevName: d.name,
-		}
-
-		// If the source being added is a directory, then we will be using 9p directory sharing to mount
-		// the directory inside the VM, as such we need to indicate to the VM the target path to mount to.
-		if shared.IsDir(srcPath) {
-			mount.TargetPath = d.config["path"]
-			mount.FSType = "9p"
-
-			if shared.IsTrue(d.config["readonly"]) {
-				// Don't use proxy in readonly mode.
-				mount.Opts = append(mount.Opts, "ro")
-			} else {
-				sockPath := filepath.Join(d.inst.DevicesPath(), fmt.Sprintf("%s.sock", d.name))
-				mount.DevPath = sockPath // Use socket path as dev path so qemu connects to proxy.
-
-				// Remove old socket if needed.
-				os.Remove(sockPath)
-
-				// Start the virtfs-proxy-helper process in non-daemon mode and as root so that
-				// when the VM process is started as an unprivileged user, we can still share
-				// directories that process cannot access.
-				proc, err := subprocess.NewProcess("virtfs-proxy-helper", []string{"-n", "-u", "0", "-g", "0", "-s", sockPath, "-p", srcPath}, "", "")
-				if err != nil {
-					return nil, err
-				}
-
-				err = proc.Start()
-				if err != nil {
-					return nil, errors.Wrapf(err, "Failed to start virtfs-proxy-helper for device %q", d.name)
-				}
-
-				revert.Add(func() { proc.Stop() })
-
-				pidPath := filepath.Join(d.inst.DevicesPath(), fmt.Sprintf("%s.pid", d.name))
-				err = proc.Save(pidPath)
-				if err != nil {
-					return nil, errors.Wrapf(err, "Failed to save virtfs-proxy-helper state for device %q", d.name)
-				}
-
-				// Wait for socket file to exist (as otherwise qemu can race the creation of this file).
-				for i := 0; i < 10; i++ {
-					if shared.PathExists(sockPath) {
-						break
+					// Start the virtfs-proxy-helper process in non-daemon mode and as root so that
+					// when the VM process is started as an unprivileged user, we can still share
+					// directories that process cannot access.
+					proc, err := subprocess.NewProcess("virtfs-proxy-helper", []string{"-n", "-u", "0", "-g", "0", "-s", sockPath, "-p", srcPath}, "", "")
+					if err != nil {
+						return nil, err
 					}
 
-					time.Sleep(50 * time.Millisecond)
+					err = proc.Start()
+					if err != nil {
+						return nil, errors.Wrapf(err, "Failed to start virtfs-proxy-helper for device %q", d.name)
+					}
+
+					revert.Add(func() { proc.Stop() })
+
+					pidPath := filepath.Join(d.inst.DevicesPath(), fmt.Sprintf("%s.pid", d.name))
+					err = proc.Save(pidPath)
+					if err != nil {
+						return nil, errors.Wrapf(err, "Failed to save virtfs-proxy-helper state for device %q", d.name)
+					}
+
+					// Wait for socket file to exist (as otherwise qemu can race the creation of this file).
+					for i := 0; i < 10; i++ {
+						if shared.PathExists(sockPath) {
+							break
+						}
+
+						time.Sleep(50 * time.Millisecond)
+					}
 				}
 			}
+
+			runConf.Mounts = []deviceConfig.MountEntryItem{mount}
 		}
 
-		runConf.Mounts = []deviceConfig.MountEntryItem{mount}
 		revert.Success()
 		return &runConf, nil
 	}
@@ -763,17 +789,7 @@ func (d *disk) createDevice() (string, error) {
 			fields = strings.SplitN(fields[1], "/", 2)
 			mdsName := fields[0]
 			mdsPath := fields[1]
-
-			// Apply the ceph configuration.
-			userName := d.config["ceph.user_name"]
-			if userName == "" {
-				userName = "admin"
-			}
-
-			clusterName := d.config["ceph.cluster_name"]
-			if clusterName == "" {
-				clusterName = "ceph"
-			}
+			clusterName, userName := d.cephCreds()
 
 			// Get the mount options.
 			mntSrcPath, fsOptions, fsErr := diskCephfsOptions(clusterName, userName, mdsName, mdsPath)
@@ -797,17 +813,7 @@ func (d *disk) createDevice() (string, error) {
 			fields = strings.SplitN(fields[1], "/", 2)
 			poolName := fields[0]
 			volumeName := fields[1]
-
-			// Apply the ceph configuration.
-			userName := d.config["ceph.user_name"]
-			if userName == "" {
-				userName = "admin"
-			}
-
-			clusterName := d.config["ceph.cluster_name"]
-			if clusterName == "" {
-				clusterName = "ceph"
-			}
+			clusterName, userName := d.cephCreds()
 
 			// Map the RBD.
 			rbdPath, err := diskCephRbdMap(clusterName, userName, poolName, volumeName)
@@ -1564,4 +1570,20 @@ local-hostname: %s
 	os.RemoveAll(scratchDir)
 
 	return isoPath, nil
+}
+
+// cephCreds returns cluster name and user name to use for ceph disks.
+func (d *disk) cephCreds() (string, string) {
+	// Apply the ceph configuration.
+	userName := d.config["ceph.user_name"]
+	if userName == "" {
+		userName = "admin"
+	}
+
+	clusterName := d.config["ceph.cluster_name"]
+	if clusterName == "" {
+		clusterName = "ceph"
+	}
+
+	return clusterName, userName
 }
