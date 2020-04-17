@@ -43,17 +43,30 @@ func AskChoice(question string, choices []string, defaultAnswer string) string {
 }
 
 // AskInt asks the user to enter an integer between a min and max value
-func AskInt(question string, min int64, max int64, defaultAnswer string) int64 {
+func AskInt(question string, min int64, max int64, defaultAnswer string, validate func(int64) error) int64 {
 	for {
 		answer := askQuestion(question, defaultAnswer)
 
 		result, err := strconv.ParseInt(answer, 10, 64)
-
-		if err == nil && (min == -1 || result >= min) && (max == -1 || result <= max) {
-			return result
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Invalid input: %v\n\n", err)
+			continue
 		}
 
-		invalidInput()
+		if !((min == -1 || result >= min) && (max == -1 || result <= max)) {
+			fmt.Fprintf(os.Stderr, "Invalid input: out of range\n\n")
+			continue
+		}
+
+		if validate != nil {
+			err = validate(result)
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "Invalid input: %v\n\n", err)
+				continue
+			}
+		}
+
+		return result
 	}
 }
 
