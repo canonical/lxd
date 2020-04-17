@@ -35,7 +35,7 @@ var operationsCmd = APIEndpoint{
 var operationWait = APIEndpoint{
 	Path: "operations/{id}/wait",
 
-	Get: APIEndpointAction{Handler: operationWaitGet, AccessHandler: allowAuthenticated},
+	Get: APIEndpointAction{Handler: operationWaitGet, AllowUntrusted: true},
 }
 
 var operationWebsocket = APIEndpoint{
@@ -308,6 +308,12 @@ func operationsGet(d *Daemon, r *http.Request) response.Response {
 
 func operationWaitGet(d *Daemon, r *http.Request) response.Response {
 	id := mux.Vars(r)["id"]
+	secret := r.FormValue("secret")
+
+	trusted, _, _, _ := d.Authenticate(r)
+	if !trusted && secret == "" {
+		return response.Forbidden(nil)
+	}
 
 	timeout, err := shared.AtoiEmptyDefault(r.FormValue("timeout"), -1)
 	if err != nil {
@@ -317,6 +323,10 @@ func operationWaitGet(d *Daemon, r *http.Request) response.Response {
 	// First check if the query is for a local operation from this node
 	op, err := operations.OperationGetInternal(id)
 	if err == nil {
+		if secret != "" && op.Metadata()["secret"] != secret {
+			return response.Forbidden(nil)
+		}
+
 		_, err = op.WaitFinal(timeout)
 		if err != nil {
 			return response.InternalError(err)
