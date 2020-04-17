@@ -192,7 +192,7 @@ func cephFsConfig(clusterName string, userName string) ([]string, string, error)
 			continue
 		}
 
-		if strings.HasPrefix(line, "mon_host") {
+		if strings.HasPrefix(line, "mon_host") || strings.HasPrefix(line, "mon-host") || strings.HasPrefix(line, "mon host") {
 			fields := strings.SplitN(line, "=", 2)
 			if len(fields) < 2 {
 				continue
