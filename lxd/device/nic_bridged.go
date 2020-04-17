@@ -537,22 +537,16 @@ func (d *nicBridged) setFilters() (err error) {
 	}
 
 	if shared.IsTrue(d.config["security.ipv6_filtering"]) {
-		// Ensure the correct br_netfilter kernel module is loaded before checking for bridge filtering
-		// support in iptables.
-		err := util.LoadModule("br_netfilter")
-		if err != nil {
-			return errors.Wrapf(err, "Error loading %q module", "br_netfilter")
-		}
-
-		// Check br_netfilter is loaded and enabled for IPv6.
+		// Check br_netfilter kernel module is loaded and enabled for IPv6. We won't try to load it as its
+		// default mode can cause unwanted traffic blocking.
 		sysctlPath := "net/bridge/bridge-nf-call-ip6tables"
 		sysctlVal, err := util.SysctlGet(sysctlPath)
 		if err != nil {
-			return fmt.Errorf("Error reading net sysctl %s: %v", sysctlPath, err)
+			return errors.Wrapf(err, "security.ipv6_filtering requires br_netfilter be loaded")
 		}
 
 		if sysctlVal != "1\n" {
-			return fmt.Errorf("security.ipv6_filtering requires br_netfilter and sysctl net.bridge.bridge-nf-call-ip6tables=1")
+			return fmt.Errorf("security.ipv6_filtering requires br_netfilter sysctl net.bridge.bridge-nf-call-ip6tables=1")
 		}
 	}
 
