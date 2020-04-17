@@ -1562,12 +1562,19 @@ func (vm *qemu) generateQemuConfigFile(devConfs []*deviceConfig.RunConfig, fdFil
 		return "", err
 	}
 
-	err = vm.addConfDriveConfig(sb)
+	// Indexes used for PCIe address generation (each device type group is assigned their own PCIe address
+	// prefix in the templates). Each PCIe device is added as a multifunction device allowing up to 8 devices
+	// of each type to be added.
+	nicIndex := 0
+	diskIndex := 0
+	chassisIndex := 5 // Internal devices defined in the templates use indexes 1-4.
+
+	err = vm.addConfDriveConfig(sb, diskIndex)
 	if err != nil {
 		return "", err
 	}
+	diskIndex++ // The config drive is a 9p device which uses a PCIe function so increment index.
 
-	nicIndex := 0
 	bootIndexes, err := vm.deviceBootPriorities()
 	if err != nil {
 		return "", errors.Wrap(err, "Error calculating boot indexes")
@@ -1583,7 +1590,8 @@ func (vm *qemu) generateQemuConfigFile(devConfs []*deviceConfig.RunConfig, fdFil
 				if drive.TargetPath == "/" {
 					err = vm.addRootDriveConfig(sb, bootIndexes, drive)
 				} else if drive.FSType == "9p" {
-					err = vm.addDriveDirConfig(sb, fdFiles, &agentMounts, drive)
+					err = vm.addDriveDirConfig(sb, diskIndex, fdFiles, &agentMounts, drive)
+					diskIndex++ // 9p devices use a PCIe function so increment index.
 				} else {
 					err = vm.addDriveConfig(sb, bootIndexes, drive)
 				}
@@ -1595,11 +1603,14 @@ func (vm *qemu) generateQemuConfigFile(devConfs []*deviceConfig.RunConfig, fdFil
 
 		// Add network device.
 		if len(runConf.NetworkInterface) > 0 {
-			err = vm.addNetDevConfig(sb, nicIndex, bootIndexes, runConf.NetworkInterface, fdFiles)
+			err = vm.addNetDevConfig(sb, chassisIndex, nicIndex, bootIndexes, runConf.NetworkInterface, fdFiles)
 			if err != nil {
 				return "", err
 			}
+
+			// NIC devices use a PCIe function so increment indexes.
 			nicIndex++
+			chassisIndex++
 		}
 	}
 
@@ -1705,10 +1716,11 @@ func (vm *qemu) addFirmwareConfig(sb *strings.Builder) error {
 }
 
 // addConfDriveConfig adds the qemu config required for adding the config drive.
-func (vm *qemu) addConfDriveConfig(sb *strings.Builder) error {
+func (vm *qemu) addConfDriveConfig(sb *strings.Builder, diskIndex int) error {
 	return qemuDriveConfig.Execute(sb, map[string]interface{}{
 		"architecture": vm.architectureName,
 		"path":         filepath.Join(vm.Path(), "config"),
+		"diskIndex":    diskIndex,
 	})
 }
 
@@ -1754,7 +1766,7 @@ func (vm *qemu) addRootDriveConfig(sb *strings.Builder, bootIndexes map[string]i
 }
 
 // addDriveDirConfig adds the qemu config required for adding a supplementary drive directory share.
-func (vm *qemu) addDriveDirConfig(sb *strings.Builder, fdFiles *[]string, agentMounts *[]instancetype.VMAgentMount, driveConf deviceConfig.MountEntryItem) error {
+func (vm *qemu) addDriveDirConfig(sb *strings.Builder, diskIndex int, fdFiles *[]string, agentMounts *[]instancetype.VMAgentMount, driveConf deviceConfig.MountEntryItem) error {
 	mountTag := fmt.Sprintf("lxd_%s", driveConf.DevName)
 
 	agentMount := instancetype.VMAgentMount{
@@ -1775,20 +1787,22 @@ func (vm *qemu) addDriveDirConfig(sb *strings.Builder, fdFiles *[]string, agentM
 	// For read only shares, do not use proxy.
 	if shared.StringInSlice("ro", driveConf.Opts) {
 		return qemuDriveDir.Execute(sb, map[string]interface{}{
-			"devName":  driveConf.DevName,
-			"mountTag": mountTag,
-			"path":     driveConf.DevPath,
-			"readonly": true,
+			"devName":   driveConf.DevName,
+			"mountTag":  mountTag,
+			"path":      driveConf.DevPath,
+			"readonly":  true,
+			"diskIndex": diskIndex,
 		})
 	}
 
 	// Only use proxy for writable shares.
 	proxyFD := vm.addFileDescriptor(fdFiles, driveConf.DevPath)
 	return qemuDriveDir.Execute(sb, map[string]interface{}{
-		"devName":  driveConf.DevName,
-		"mountTag": mountTag,
-		"proxyFD":  proxyFD,
-		"readonly": false,
+		"devName":   driveConf.DevName,
+		"mountTag":  mountTag,
+		"proxyFD":   proxyFD,
+		"readonly":  false,
+		"diskIndex": diskIndex,
 	})
 }
 
@@ -1830,7 +1844,7 @@ func (vm *qemu) addDriveConfig(sb *strings.Builder, bootIndexes map[string]int, 
 }
 
 // addNetDevConfig adds the qemu config required for adding a network device.
-func (vm *qemu) addNetDevConfig(sb *strings.Builder, nicIndex int, bootIndexes map[string]int, nicConfig []deviceConfig.RunConfigItem, fdFiles *[]string) error {
+func (vm *qemu) addNetDevConfig(sb *strings.Builder, chassisIndex, nicIndex int, bootIndexes map[string]int, nicConfig []deviceConfig.RunConfigItem, fdFiles *[]string) error {
 	var devName, nicName, devHwaddr, pciSlotName string
 	for _, nicItem := range nicConfig {
 		if nicItem.Key == "devName" {
@@ -1851,7 +1865,7 @@ func (vm *qemu) addNetDevConfig(sb *strings.Builder, nicIndex int, bootIndexes m
 		"devHwaddr":    devHwaddr,
 		"bootIndex":    bootIndexes[devName],
 		"nicIndex":     nicIndex,
-		"chassisIndex": 5 + nicIndex,
+		"chassisIndex": chassisIndex,
 	}
 
 	// Detect MACVTAP interface types and figure out which tap device is being used.
