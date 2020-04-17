@@ -187,6 +187,7 @@ unit = "1"
 `))
 
 // Devices use "qemu_" prefix indicating that this is a internally named device.
+// Use 0x3.0x as the PCIe address prefix for 9p disk devices to allow up to 8 devices of this type.
 var qemuDriveConfig = template.Must(template.New("qemuDriveConfig").Parse(`
 # Config drive
 [fsdev "qemu_config"]
@@ -199,9 +200,12 @@ path = "{{.path}}"
 driver = "virtio-9p-pci"
 fsdev = "qemu_config"
 mount_tag = "config"
+multifunction = "on"
+addr = "0x3.0x{{.diskIndex}}"
 `))
 
 // Devices use "lxd_" prefix indicating that this is a user named device.
+// Use 0x3.0x as the PCIe address prefix for 9p disk devices to allow up to 8 devices of this type.
 var qemuDriveDir = template.Must(template.New("qemuDriveDir").Parse(`
 # {{.devName}} drive
 [fsdev "lxd_{{.devName}}"]
@@ -220,6 +224,8 @@ sock_fd = "{{.proxyFD}}"
 driver = "virtio-9p-pci"
 fsdev = "lxd_{{.devName}}"
 mount_tag = "{{.mountTag}}"
+multifunction = "on"
+addr = "0x3.0x{{.diskIndex}}"
 `))
 
 // Devices use "lxd_" prefix indicating that this is a user named device.
@@ -246,6 +252,7 @@ bootindex = "{{.bootIndex}}"
 `))
 
 // qemuDevTapCommon is common PCI device template for tap based netdevs.
+// Use 0x4.0x as the PCIe address prefix for nic devices to allow up to 8 devices of this type.
 var qemuDevTapCommon = template.Must(template.New("qemuDevTapCommon").Parse(`
 {{if ne .architecture "ppc64le" -}}
 [device "qemu_pcie{{.chassisIndex}}"]
