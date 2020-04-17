@@ -122,6 +122,11 @@ func (c *cmdInit) askClustering(config *cmdInitData, d lxd.InstanceServer) error
 			if shared.StringInSlice(host, []string{"", "[::]", "0.0.0.0"}) {
 				return fmt.Errorf("Invalid IP address or DNS name")
 			}
+			listener, err := net.Listen("tcp", address)
+			if err != nil {
+				return fmt.Errorf("Can't bind address %q", address)
+			}
+			listener.Close()
 			return nil
 		}
 		serverAddress := util.CanonicalNetworkAddress(cli.AskString(
@@ -647,7 +652,15 @@ they otherwise would.
 			netAddr = fmt.Sprintf("[%s]", netAddr)
 		}
 
-		netPort := cli.AskInt("Port to bind LXD to [default=8443]: ", 1, 65535, "8443")
+		netPort := cli.AskInt("Port to bind LXD to [default=8443]: ", 1, 65535, "8443", func(netPort int64) error {
+			address := fmt.Sprintf("%s:%d", netAddr, netPort)
+			listener, err := net.Listen("tcp", address)
+			if err != nil {
+				return fmt.Errorf("Can't bind address %q", address)
+			}
+			listener.Close()
+			return nil
+		})
 		config.Node.Config["core.https_address"] = fmt.Sprintf("%s:%d", netAddr, netPort)
 		config.Node.Config["core.trust_password"] = cli.AskPassword("Trust password for new clients: ")
 		if config.Node.Config["core.trust_password"] == "" {
