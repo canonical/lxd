@@ -426,10 +426,10 @@ func (d *disk) startVM() (*deviceConfig.RunConfig, error) {
 			}
 		} else {
 			srcPath := shared.HostPath(d.config["source"])
+			var err error
 
 			// Mount the pool volume and update srcPath to mount path.
 			if d.config["pool"] != "" {
-				var err error
 				srcPath, err = d.mountPoolVolume(revert)
 				if err != nil {
 					if !isRequired {
@@ -438,6 +438,13 @@ func (d *disk) startVM() (*deviceConfig.RunConfig, error) {
 					} else {
 						return nil, err
 					}
+				}
+			} else if strings.HasPrefix(d.config["source"], "cephfs:") {
+				// Mount the cephfs directory on the host and then treat as a normal directory to
+				// share with the VM using 9p below.
+				srcPath, err = d.createDevice()
+				if err != nil {
+					return nil, err
 				}
 			}
 
@@ -1139,8 +1146,8 @@ func (d *disk) postStop() error {
 	// Clean any existing entry.
 	if shared.PathExists(devPath) {
 		// Unmount the host side if not already.
-		// Don't check for errors here as this is just to catch any existing mounts that
-		// we not unmounted on the host after device was started.
+		// Don't check for errors here as this is just to catch any existing mounts that we have not
+		// unmounted on the host after device was started (such as when using cephfs with VM 9p share).
 		unix.Unmount(devPath, unix.MNT_DETACH)
 
 		// Remove the host side.
