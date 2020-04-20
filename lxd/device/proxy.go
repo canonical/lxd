@@ -273,8 +273,9 @@ func (d *proxy) setupNAT() error {
 	}
 
 	var connectIP net.IP
+	var hostName string
 
-	for _, devConfig := range d.inst.ExpandedDevices() {
+	for devName, devConfig := range d.inst.ExpandedDevices() {
 		if devConfig["type"] != "nic" || (devConfig["type"] == "nic" && devConfig.NICType() != "bridged") {
 			continue
 		}
@@ -285,18 +286,22 @@ func (d *proxy) setupNAT() error {
 		if ipFamily == "ipv4" && devConfig["ipv4.address"] != "" {
 			if connectHost == devConfig["ipv4.address"] || connectHost == "0.0.0.0" {
 				connectIP = net.ParseIP(devConfig["ipv4.address"])
-				break
 			}
 		} else if ipFamily == "ipv6" && devConfig["ipv6.address"] != "" {
 			if connectHost == devConfig["ipv6.address"] || connectHost == "::" {
 				connectIP = net.ParseIP(devConfig["ipv6.address"])
-				break
 			}
+		}
+
+		if connectIP != nil {
+			// Get host_name of device so we can enable hairpin mode on bridge port.
+			hostName = d.inst.ExpandedConfig()[fmt.Sprintf("volatile.%s.host_name", devName)]
+			break // Found a match, stop searching.
 		}
 	}
 
 	if connectIP == nil {
-		return fmt.Errorf("Proxy connect IP cannot be used with any NIC static IPs")
+		return fmt.Errorf("Proxy connect IP cannot be used with any of the instance NICs static IPs")
 	}
 
 	// Override the host part of the connectAddr.Addr to the chosen connect IP.
@@ -317,6 +322,18 @@ func (d *proxy) setupNAT() error {
 	err = d.checkBridgeNetfilterEnabled(ipFamily)
 	if err != nil {
 		logger.Warnf("Proxy bridge netfilter not enabled: %v. Instances using the bridge will not be able to connect to the proxy's listen IP", err)
+	} else {
+		if hostName == "" {
+			return fmt.Errorf("Proxy cannot find bridge port host_name to enable hairpin mode")
+		}
+
+		// br_netfilter is enabled, so we need to enable hairpin mode on instance's bridge port otherwise
+		// the instances on the bridge will not be able to connect to the proxy device's listn IP and the
+		// NAT rule added by the firewall below to allow instance <-> instance traffic will also not work.
+		_, err = shared.RunCommand("bridge", "link", "set", "dev", hostName, "hairpin", "on")
+		if err != nil {
+			return errors.Wrapf(err, "Error enabling hairpin mode on bridge port %q", hostName)
+		}
 	}
 
 	err = d.state.Firewall.InstanceSetupProxyNAT(d.inst.Project(), d.inst.Name(), d.name, listenAddr, connectAddr)
