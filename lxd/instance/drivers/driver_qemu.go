@@ -1929,7 +1929,7 @@ func (vm *qemu) pid() (int, error) {
 	return pid, nil
 }
 
-// Stop stops the VM.
+// Stop the VM.
 func (vm *qemu) Stop(stateful bool) error {
 	// Check that we're not already stopped.
 	if !vm.IsRunning() {
