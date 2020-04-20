@@ -376,6 +376,8 @@ func (d Nftables) InstanceSetupProxyNAT(projectName string, instanceName string,
 			"listenHost":  listenHost,
 			"listenPort":  listenPort,
 			"connectDest": connectDest,
+			"connectHost": connectHost,
+			"connectPort": connectPort,
 		})
 	}
 
@@ -399,7 +401,7 @@ func (d Nftables) InstanceSetupProxyNAT(projectName string, instanceName string,
 // InstanceClearProxyNAT remove DNAT rules for proxy devices.
 func (d Nftables) InstanceClearProxyNAT(projectName string, instanceName string, deviceName string) error {
 	deviceLabel := d.instanceDeviceLabel(projectName, instanceName, deviceName)
-	err := d.removeChains([]string{"ip", "ip6"}, deviceLabel, "out", "prert")
+	err := d.removeChains([]string{"ip", "ip6"}, deviceLabel, "out", "prert", "pstrt")
 	if err != nil {
 		return errors.Wrapf(err, "Failed clearing proxy rules for instance device %q", deviceLabel)
 	}
