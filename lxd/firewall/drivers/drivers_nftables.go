@@ -363,19 +363,19 @@ func (d Nftables) InstanceSetupProxyNAT(projectName string, instanceName string,
 
 		// Figure out which IP family we are using and format the destination host/port as appropriate.
 		family := "ip"
-		toDest := fmt.Sprintf("%s:%s", connectHost, connectPort)
+		connectDest := fmt.Sprintf("%s:%s", connectHost, connectPort)
 		connectIP := net.ParseIP(connectHost)
 		if connectIP.To4() == nil {
 			family = "ip6"
-			toDest = fmt.Sprintf("[%s]:%s", connectHost, connectPort)
+			connectDest = fmt.Sprintf("[%s]:%s", connectHost, connectPort)
 		}
 
 		rules = append(rules, map[string]interface{}{
-			"family":     family,
-			"connType":   listen.ConnType,
-			"listenHost": listenHost,
-			"listenPort": listenPort,
-			"toDest":     toDest,
+			"family":      family,
+			"connType":    listen.ConnType,
+			"listenHost":  listenHost,
+			"listenPort":  listenPort,
+			"connectDest": connectDest,
 		})
 	}
 
