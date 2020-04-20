@@ -12,6 +12,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/pkg/errors"
 	"golang.org/x/sys/unix"
 	liblxc "gopkg.in/lxc/go-lxc.v2"
 
@@ -19,6 +20,7 @@ import (
 	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/instance/instancetype"
 	"github.com/lxc/lxd/lxd/project"
+	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/logger"
 )
@@ -312,9 +314,38 @@ func (d *proxy) setupNAT() error {
 		}
 	}
 
+	err = d.checkBridgeNetfilterEnabled(ipFamily)
+	if err != nil {
+		logger.Warnf("Proxy bridge netfilter not enabled: %v. Instances using the bridge will not be able to connect to the proxy's listen IP", err)
+	}
+
 	err = d.state.Firewall.InstanceSetupProxyNAT(d.inst.Project(), d.inst.Name(), d.name, listenAddr, connectAddr)
 	if err != nil {
 		return err
+	}
+
+	return nil
+}
+
+// checkBridgeNetfilterEnabled checks whether the bridge netfilter feature is loaded and enabled.
+// If it is not an error is returned. This is needed in order for instances connected to a bridge to access the
+// proxy's listen IP on the LXD host, as otherwise the packets from the bridge do not go through the netfilter
+// NAT SNAT/MASQUERADE rules.
+func (d *proxy) checkBridgeNetfilterEnabled(ipFamily string) error {
+	sysctlName := "iptables"
+	if ipFamily == "ipv6" {
+		sysctlName = "ip6tables"
+	}
+
+	sysctlPath := fmt.Sprintf("net/bridge/bridge-nf-call-%s", sysctlName)
+	sysctlVal, err := util.SysctlGet(sysctlPath)
+	if err != nil {
+		return errors.Wrap(err, "br_netfilter not loaded")
+	}
+
+	sysctlVal = strings.TrimSpace(sysctlVal)
+	if sysctlVal != "1" {
+		return fmt.Errorf("br_netfilter sysctl net.bridge.bridge-nf-call-%s=%s", sysctlName, sysctlVal)
 	}
 
 	return nil
