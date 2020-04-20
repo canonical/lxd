@@ -562,15 +562,19 @@ func (vm *qemu) Shutdown(timeout time.Duration) error {
 	if timeout > 0 {
 		select {
 		case <-chDisconnect:
-			op.Done(nil)
-			vm.state.Events.SendLifecycle(vm.project, "instance-shutdown", fmt.Sprintf("/1.0/virtual-machines/%s", vm.name), nil)
-			return nil
+			break
 		case <-time.After(timeout):
 			op.Done(fmt.Errorf("Instance was not shutdown after timeout"))
 			return fmt.Errorf("Instance was not shutdown after timeout")
 		}
 	} else {
 		<-chDisconnect // Block until VM is not running if no timeout provided.
+	}
+
+	// Wait for onStop.
+	err = op.Wait()
+	if err != nil && vm.IsRunning() {
+		return err
 	}
 
 	op.Done(nil)
