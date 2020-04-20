@@ -124,7 +124,7 @@ func (c *cmdInit) askClustering(config *cmdInitData, d lxd.InstanceServer) error
 			}
 			listener, err := net.Listen("tcp", address)
 			if err != nil {
-				return fmt.Errorf("Can't bind address %q", address)
+				return fmt.Errorf("Can't bind address %q: %v", address, err)
 			}
 			listener.Close()
 			return nil
@@ -656,7 +656,7 @@ they otherwise would.
 			address := fmt.Sprintf("%s:%d", netAddr, netPort)
 			listener, err := net.Listen("tcp", address)
 			if err != nil {
-				return fmt.Errorf("Can't bind address %q", address)
+				return fmt.Errorf("Can't bind address %q: %v", address, err)
 			}
 			listener.Close()
 			return nil
