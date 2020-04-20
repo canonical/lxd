@@ -245,6 +245,7 @@ func cephFsConfig(clusterName string, userName string) ([]string, string, error)
 	return cephMon, cephSecret, nil
 }
 
+// diskCephfsOptions returns the mntSrcPath and fsOptions to use for mounting a cephfs share.
 func diskCephfsOptions(clusterName string, userName string, fsName string, fsPath string) (string, string, error) {
 	// Get the credentials and host
 	monAddresses, secret, err := cephFsConfig(clusterName, userName)
