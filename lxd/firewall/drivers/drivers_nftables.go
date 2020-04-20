@@ -363,19 +363,21 @@ func (d Nftables) InstanceSetupProxyNAT(projectName string, instanceName string,
 
 		// Figure out which IP family we are using and format the destination host/port as appropriate.
 		family := "ip"
-		toDest := fmt.Sprintf("%s:%s", connectHost, connectPort)
+		connectDest := fmt.Sprintf("%s:%s", connectHost, connectPort)
 		connectIP := net.ParseIP(connectHost)
 		if connectIP.To4() == nil {
 			family = "ip6"
-			toDest = fmt.Sprintf("[%s]:%s", connectHost, connectPort)
+			connectDest = fmt.Sprintf("[%s]:%s", connectHost, connectPort)
 		}
 
 		rules = append(rules, map[string]interface{}{
-			"family":     family,
-			"connType":   listen.ConnType,
-			"listenHost": listenHost,
-			"listenPort": listenPort,
-			"toDest":     toDest,
+			"family":      family,
+			"connType":    listen.ConnType,
+			"listenHost":  listenHost,
+			"listenPort":  listenPort,
+			"connectDest": connectDest,
+			"connectHost": connectHost,
+			"connectPort": connectPort,
 		})
 	}
 
@@ -399,7 +401,7 @@ func (d Nftables) InstanceSetupProxyNAT(projectName string, instanceName string,
 // InstanceClearProxyNAT remove DNAT rules for proxy devices.
 func (d Nftables) InstanceClearProxyNAT(projectName string, instanceName string, deviceName string) error {
 	deviceLabel := d.instanceDeviceLabel(projectName, instanceName, deviceName)
-	err := d.removeChains([]string{"ip", "ip6"}, deviceLabel, "out", "prert")
+	err := d.removeChains([]string{"ip", "ip6"}, deviceLabel, "out", "prert", "pstrt")
 	if err != nil {
 		return errors.Wrapf(err, "Failed clearing proxy rules for instance device %q", deviceLabel)
 	}

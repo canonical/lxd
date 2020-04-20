@@ -377,23 +377,30 @@ func (d Xtables) InstanceSetupProxyNAT(projectName string, instanceName string, 
 			return err
 		}
 
-		// Figure out if we are using iptables or ip6tables and format the destination host/port as appropriate.
+		// Decide if we are using iptables/ip6tables and format the destination host/port as appropriate.
 		ipVersion := uint(4)
-		toDest := fmt.Sprintf("%s:%s", connectHost, connectPort)
+		connectDest := fmt.Sprintf("%s:%s", connectHost, connectPort)
 		connectIP := net.ParseIP(connectHost)
 		if connectIP.To4() == nil {
 			ipVersion = 6
-			toDest = fmt.Sprintf("[%s]:%s", connectHost, connectPort)
+			connectDest = fmt.Sprintf("[%s]:%s", connectHost, connectPort)
 		}
 
-		// outbound <-> container.
-		err = d.iptablesPrepend(ipVersion, comment, "nat", "PREROUTING", "-p", listen.ConnType, "--destination", listenHost, "--dport", listenPort, "-j", "DNAT", "--to-destination", toDest)
+		// outbound <-> instance.
+		err = d.iptablesPrepend(ipVersion, comment, "nat", "PREROUTING", "-p", listen.ConnType, "--destination", listenHost, "--dport", listenPort, "-j", "DNAT", "--to-destination", connectDest)
 		if err != nil {
 			return err
 		}
 
-		// host <-> container.
-		err = d.iptablesPrepend(ipVersion, comment, "nat", "OUTPUT", "-p", listen.ConnType, "--destination", listenHost, "--dport", listenPort, "-j", "DNAT", "--to-destination", toDest)
+		// host <-> instance.
+		err = d.iptablesPrepend(ipVersion, comment, "nat", "OUTPUT", "-p", listen.ConnType, "--destination", listenHost, "--dport", listenPort, "-j", "DNAT", "--to-destination", connectDest)
+		if err != nil {
+			return err
+		}
+
+		// instance <-> instance.
+		// Requires instance's bridge port has hairpin mode enabled when br_netfilter is loaded.
+		err = d.iptablesPrepend(ipVersion, comment, "nat", "POSTROUTING", "-p", listen.ConnType, "--source", connectHost, "--destination", connectHost, "--dport", connectPort, "-j", "MASQUERADE")
 		if err != nil {
 			return err
 		}
@@ -426,7 +433,7 @@ func (d Xtables) InstanceClearProxyNAT(projectName string, instanceName string, 
 
 // generateFilterEbtablesRules returns a customised set of ebtables filter rules based on the device.
 func (d Xtables) generateFilterEbtablesRules(hostName string, hwAddr string, IPv4 net.IP, IPv6 net.IP) [][]string {
-	// MAC source filtering rules. Blocks any packet coming from instance with an incorrect Ethernet source MAC.
+	// MAC source filtering rules. Block any packet coming from instance with an incorrect Ethernet source MAC.
 	// This is required for IP filtering too.
 	rules := [][]string{
 		{"ebtables", "-t", "filter", "-A", "INPUT", "-s", "!", hwAddr, "-i", hostName, "-j", "DROP"},
