@@ -370,7 +370,7 @@ func (vm *qemu) getMonitorEventHandler() func(event string, data map[string]inte
 				target = "reboot"
 			}
 
-			err = inst.(*qemu).OnStop(target)
+			err = inst.(*qemu).onStop(target)
 			if err != nil {
 				logger.Errorf("Failed to cleanly stop instance '%s': %v", project.Instance(inst.Project(), inst.Name()), err)
 				return
@@ -480,8 +480,8 @@ func (vm *qemu) Freeze() error {
 	return nil
 }
 
-// OnStop is run when the instance stops.
-func (vm *qemu) OnStop(target string) error {
+// onStop is run when the instance stops.
+func (vm *qemu) onStop(target string) error {
 	// Pick up the existing stop operation lock created in Stop() function.
 	op := operationlock.Get(vm.id)
 	if op != nil && op.Action() != "stop" {
@@ -1982,7 +1982,7 @@ func (vm *qemu) Stop(stateful bool) error {
 	// Wait for QEMU to exit (can take a while if pending I/O).
 	<-chDisconnect
 
-	// Wait for OnStop.
+	// Wait for onStop.
 	err = op.Wait()
 	if err != nil && vm.IsRunning() {
 		return err
