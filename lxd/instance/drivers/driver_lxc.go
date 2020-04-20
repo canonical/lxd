@@ -6369,6 +6369,13 @@ func (c *lxc) removeDiskDevices() error {
 
 // Network I/O limits
 func (c *lxc) setNetworkPriority() error {
+	// Load the go-lxc struct.
+	err := c.initLXC(false)
+	if err != nil {
+		return err
+	}
+
+	// Load the cgroup struct.
 	cg, err := c.cgroup(nil)
 	if err != nil {
 		return err
