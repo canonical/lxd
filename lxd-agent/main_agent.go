@@ -85,6 +85,8 @@ func (c *cmdAgent) Run(cmd *cobra.Command, args []string) error {
 
 	// Run cloud-init.
 	if shared.PathExists("/etc/cloud") && shared.StringInSlice("/var/lib/cloud/seed/nocloud-net/meta-data", files) {
+		logger.Info("Seeding cloud-init")
+
 		cloudInitPath := "/run/cloud-init"
 		if shared.PathExists(cloudInitPath) {
 			logger.Info(fmt.Sprintf("Removing %q", cloudInitPath))
@@ -94,9 +96,7 @@ func (c *cmdAgent) Run(cmd *cobra.Command, args []string) error {
 			}
 		}
 
-		logger.Info("Starting cloud-init")
-		shared.RunCommand("systemctl", "daemon-reload")
-		shared.RunCommand("systemctl", "start", "cloud-init.target")
+		shared.RunCommand("systemctl", "reboot")
 	}
 
 	// Mount shares from host.
