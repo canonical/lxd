@@ -23,6 +23,10 @@ func (a sortedImages) Less(i, j int) bool {
 		if a[i].Properties["type"] == "squashfs" {
 			return true
 		}
+
+		if a[i].Properties["type"] == "disk-kvm.img" {
+			return true
+		}
 	}
 
 	if a[i].Properties["os"] == a[j].Properties["os"] {
