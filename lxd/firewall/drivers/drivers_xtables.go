@@ -379,21 +379,21 @@ func (d Xtables) InstanceSetupProxyNAT(projectName string, instanceName string, 
 
 		// Decide if we are using iptables/ip6tables and format the destination host/port as appropriate.
 		ipVersion := uint(4)
-		toDest := fmt.Sprintf("%s:%s", connectHost, connectPort)
+		connectDest := fmt.Sprintf("%s:%s", connectHost, connectPort)
 		connectIP := net.ParseIP(connectHost)
 		if connectIP.To4() == nil {
 			ipVersion = 6
-			toDest = fmt.Sprintf("[%s]:%s", connectHost, connectPort)
+			connectDest = fmt.Sprintf("[%s]:%s", connectHost, connectPort)
 		}
 
 		// outbound <-> instance.
-		err = d.iptablesPrepend(ipVersion, comment, "nat", "PREROUTING", "-p", listen.ConnType, "--destination", listenHost, "--dport", listenPort, "-j", "DNAT", "--to-destination", toDest)
+		err = d.iptablesPrepend(ipVersion, comment, "nat", "PREROUTING", "-p", listen.ConnType, "--destination", listenHost, "--dport", listenPort, "-j", "DNAT", "--to-destination", connectDest)
 		if err != nil {
 			return err
 		}
 
 		// host <-> instance.
-		err = d.iptablesPrepend(ipVersion, comment, "nat", "OUTPUT", "-p", listen.ConnType, "--destination", listenHost, "--dport", listenPort, "-j", "DNAT", "--to-destination", toDest)
+		err = d.iptablesPrepend(ipVersion, comment, "nat", "OUTPUT", "-p", listen.ConnType, "--destination", listenHost, "--dport", listenPort, "-j", "DNAT", "--to-destination", connectDest)
 		if err != nil {
 			return err
 		}
