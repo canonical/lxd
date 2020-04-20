@@ -1417,6 +1417,7 @@ func (vm *qemu) templateApplyNow(trigger string, path string) error {
 	// Generate the container metadata.
 	instanceMeta := make(map[string]string)
 	instanceMeta["name"] = vm.name
+	instanceMeta["type"] = "virtual-machine"
 	instanceMeta["architecture"] = arch
 
 	if vm.ephemeral {

@@ -5060,6 +5060,7 @@ func (c *lxc) templateApplyNow(trigger string) error {
 	// Generate the container metadata
 	containerMeta := make(map[string]string)
 	containerMeta["name"] = c.name
+	containerMeta["type"] = "container"
 	containerMeta["architecture"] = arch
 
 	if c.ephemeral {
