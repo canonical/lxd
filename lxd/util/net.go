@@ -105,9 +105,7 @@ func ServerTLSConfig(cert *shared.CertInfo) *tls.Config {
 	return config
 }
 
-// NetworkInterfaceAddress returns the first non-loopback address of any of the
-// system network interfaces.
-//
+// NetworkInterfaceAddress returns the first global unicast address of any of the system network interfaces.
 // Return the empty string if none is found.
 func NetworkInterfaceAddress() string {
 	ifaces, err := net.Interfaces()
