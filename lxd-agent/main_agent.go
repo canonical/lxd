@@ -102,6 +102,11 @@ func (c *cmdAgent) Run(cmd *cobra.Command, args []string) error {
 	// Mount shares from host.
 	c.mountHostShares()
 
+	// Done with early setup, tell systemd to continue boot.
+	if os.Getenv("NOTIFY_SOCKET") != "" {
+		shared.RunCommand("systemd-notify", "READY=1")
+	}
+
 	// Load the kernel driver.
 	err = util.LoadModule("vsock")
 	if err != nil {
