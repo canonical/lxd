@@ -114,23 +114,31 @@ func NetworkInterfaceAddress() string {
 	if err != nil {
 		return ""
 	}
+
 	for _, iface := range ifaces {
-		if shared.IsLoopback(&iface) {
-			continue
-		}
 		addrs, err := iface.Addrs()
 		if err != nil {
 			continue
 		}
+
 		if len(addrs) == 0 {
 			continue
 		}
-		addr, ok := addrs[0].(*net.IPNet)
-		if !ok {
-			continue
+
+		for _, addr := range addrs {
+			ipNet, ok := addr.(*net.IPNet)
+			if !ok {
+				continue
+			}
+
+			if !ipNet.IP.IsGlobalUnicast() {
+				continue
+			}
+
+			return ipNet.IP.String()
 		}
-		return addr.IP.String()
 	}
+
 	return ""
 }
 
