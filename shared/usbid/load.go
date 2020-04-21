@@ -17,7 +17,7 @@ package usbid
 
 import (
 	"log"
-	"strings"
+	"os"
 )
 
 var (
@@ -29,7 +29,14 @@ var (
 )
 
 func init() {
-	ids, cls, err := ParseIDs(strings.NewReader(usbIDListData))
+	usbids, err := os.Open("/usr/share/misc/usb.ids")
+	if err != nil {
+		log.Printf("usbid: failed to load: %s", err)
+		return
+	}
+	defer usbids.Close()
+
+	ids, cls, err := ParseIDs(usbids)
 	if err != nil {
 		log.Printf("usbid: failed to parse: %s", err)
 		return
