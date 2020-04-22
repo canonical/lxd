@@ -940,14 +940,6 @@ func (b *lxdBackend) CreateInstanceFromImage(inst instance.Instance, fingerprint
 
 	contentType := InstanceContentType(inst)
 
-	revert := true
-	defer func() {
-		if !revert {
-			return
-		}
-		b.DeleteInstance(inst, op)
-	}()
-
 	// Get the root disk device config.
 	rootDiskConf, err := b.instanceRootVolumeConfig(inst)
 	if err != nil {
@@ -958,6 +950,10 @@ func (b *lxdBackend) CreateInstanceFromImage(inst instance.Instance, fingerprint
 	volStorageName := project.Instance(inst.Project(), inst.Name())
 
 	vol := b.newVolume(volType, contentType, volStorageName, rootDiskConf)
+
+	revert := revert.New()
+	defer revert.Fail()
+	revert.Add(func() { b.DeleteInstance(inst, op) })
 
 	// If the driver doesn't support optimized image volumes then create a new empty volume and
 	// populate it with the contents of the image archive.
@@ -998,7 +994,7 @@ func (b *lxdBackend) CreateInstanceFromImage(inst instance.Instance, fingerprint
 		return err
 	}
 
-	revert = false
+	revert.Success()
 	return nil
 }
 
