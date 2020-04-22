@@ -96,8 +96,8 @@ func (d *proxy) validateConfig(instConf instance.ConfigReader) error {
 		return fmt.Errorf("Cannot map a single port to multiple ports")
 	}
 
-	if shared.IsTrue(d.config["proxy_protocol"]) && !strings.HasPrefix(d.config["connect"], "tcp") {
-		return fmt.Errorf("The PROXY header can only be sent to tcp servers")
+	if shared.IsTrue(d.config["proxy_protocol"]) && (!strings.HasPrefix(d.config["connect"], "tcp") || shared.IsTrue(d.config["nat"])) {
+		return fmt.Errorf("The PROXY header can only be sent to tcp servers in non-nat mode")
 	}
 
 	if (!strings.HasPrefix(d.config["listen"], "unix:") || strings.HasPrefix(d.config["listen"], "unix:@")) &&
