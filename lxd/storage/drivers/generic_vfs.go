@@ -781,7 +781,7 @@ func genericVFSResizeBlockFile(filePath, size string) (bool, error) {
 	}
 
 	if newSizeBytes < oldSizeBytes {
-		return false, fmt.Errorf("You cannot shrink block volumes")
+		return false, errors.Wrap(ErrCannotBeShrunk, "You cannot shrink block volumes")
 	}
 
 	if newSizeBytes == oldSizeBytes {
