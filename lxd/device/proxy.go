@@ -114,6 +114,43 @@ func (d *proxy) validateConfig(instConf instance.ConfigReader) error {
 		if listenAddr.ConnType == "unix" || connectAddr.ConnType == "unix" || listenAddr.ConnType != connectAddr.ConnType {
 			return fmt.Errorf("Proxying %s <-> %s is not supported when using NAT", listenAddr.ConnType, connectAddr.ConnType)
 		}
+
+		var ipVersion uint // Records which IP version we are using, as these cannot be mixed in NAT mode.
+
+		for _, listenAddrStr := range listenAddr.Addr {
+			ipStr, _, err := net.SplitHostPort(listenAddrStr)
+			if err != nil {
+				return err
+			}
+
+			ip := net.ParseIP(ipStr)
+
+			if ip.Equal(net.IPv4zero) || ip.Equal(net.IPv6zero) {
+				return fmt.Errorf("Cannot listen on wildcard address %q when in nat mode", ip)
+			}
+
+			// Record the listen IP version if not record already.
+			if ipVersion == 0 {
+				if ip.To4() == nil {
+					ipVersion = 6
+				} else {
+					ipVersion = 4
+				}
+			}
+		}
+
+		// Check each connect address against the listen IP version and check they match.
+		for _, connectAddrStr := range connectAddr.Addr {
+			ipStr, _, err := net.SplitHostPort(connectAddrStr)
+			if err != nil {
+				return err
+			}
+
+			ipTo4 := net.ParseIP(ipStr).To4()
+			if ipTo4 == nil && ipVersion != 6 || ipTo4 != nil && ipVersion != 4 {
+				return fmt.Errorf("Cannot mix IP versions between listen and connect in nat mode")
+			}
+		}
 	}
 
 	return nil
