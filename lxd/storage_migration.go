@@ -5,12 +5,12 @@ import (
 
 	"github.com/lxc/lxd/lxd/db"
 	deviceConfig "github.com/lxc/lxd/lxd/device/config"
-	"github.com/lxc/lxd/lxd/instance/instancetype"
+	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/migration"
 	"github.com/lxc/lxd/shared"
 )
 
-func snapshotProtobufToInstanceArgs(project string, containerName string, snap *migration.Snapshot) db.InstanceArgs {
+func snapshotProtobufToInstanceArgs(inst instance.Instance, snap *migration.Snapshot) db.InstanceArgs {
 	config := map[string]string{}
 
 	for _, ent := range snap.LocalConfig {
@@ -27,18 +27,17 @@ func snapshotProtobufToInstanceArgs(project string, containerName string, snap *
 		devices[ent.GetName()] = props
 	}
 
-	name := containerName + shared.SnapshotDelimiter + snap.GetName()
 	args := db.InstanceArgs{
 		Architecture: int(snap.GetArchitecture()),
 		Config:       config,
-		Type:         instancetype.Container,
+		Type:         inst.Type(),
 		Snapshot:     true,
 		Devices:      devices,
 		Ephemeral:    snap.GetEphemeral(),
-		Name:         name,
+		Name:         inst.Name() + shared.SnapshotDelimiter + snap.GetName(),
 		Profiles:     snap.Profiles,
 		Stateful:     snap.GetStateful(),
-		Project:      project,
+		Project:      inst.Project(),
 	}
 
 	if snap.GetCreationDate() != 0 {
