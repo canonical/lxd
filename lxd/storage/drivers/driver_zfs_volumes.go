@@ -853,7 +853,7 @@ func (d *zfs) SetVolumeQuota(vol Volume, size string, op *operations.Operation) 
 		}
 
 		if sizeBytes < oldVolSizeBytes {
-			return fmt.Errorf("You cannot shrink block volumes")
+			return errors.Wrap(ErrCannotBeShrunk, "You cannot shrink block volumes")
 		}
 
 		err = d.setDatasetProperties(d.dataset(vol, false), fmt.Sprintf("volsize=%d", sizeBytes))
