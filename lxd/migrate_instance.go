@@ -864,6 +864,7 @@ func (c *migrationSink) Do(state *state.State, migrateOp *operations.Operation) 
 			Refresh:       args.Refresh, // Indicate to receiver volume should exist.
 			TrackProgress: false,        // Do not use a progress tracker on receiver.
 			Live:          args.Live,    // Indicates we will get a final rootfs sync.
+			VolumeSize:    args.VolumeSize,
 		}
 
 		// At this point we have already figured out the parent container's root
@@ -1033,6 +1034,7 @@ func (c *migrationSink) Do(state *state.State, migrateOp *operations.Operation) 
 				Refresh:       c.refresh,
 				RsyncFeatures: rsyncFeatures,
 				Snapshots:     snapshots,
+				VolumeSize:    offerHeader.GetVolumeSize(),
 			}
 
 			err = myTarget(fsConn, migrateOp, args)
