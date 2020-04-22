@@ -65,9 +65,9 @@ message MigrationHeader {
 	repeated string				snapshotNames	= 4;
 	repeated Snapshot			snapshots	= 5;
 	optional bool				predump		= 7;
-	optional rsyncFeatures		rsyncFeatures = 8;
+	optional rsyncFeatures			rsyncFeatures 	= 8;
 	optional bool				refresh		= 9;
-	optional zfsFeatures		zfsFeatures = 10;
+	optional zfsFeatures			zfsFeatures 	= 10;
 }
 
 message MigrationControl {
