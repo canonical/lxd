@@ -1279,7 +1279,7 @@ Before=cloud-init.target cloud-init.service cloud-init-local.service
 DefaultDependencies=no
 
 [Service]
-Type=simple
+Type=notify
 WorkingDirectory=/run/lxd_config/9p
 ExecStart=/run/lxd_config/9p/lxd-agent
 Restart=on-failure
