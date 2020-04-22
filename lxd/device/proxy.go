@@ -111,10 +111,8 @@ func (d *proxy) validateConfig(instConf instance.ConfigReader) error {
 		}
 
 		// Support TCP <-> TCP and UDP <-> UDP
-		if listenAddr.ConnType == "unix" || connectAddr.ConnType == "unix" ||
-			listenAddr.ConnType != connectAddr.ConnType {
-			return fmt.Errorf("Proxying %s <-> %s is not supported when using NAT",
-				listenAddr.ConnType, connectAddr.ConnType)
+		if listenAddr.ConnType == "unix" || connectAddr.ConnType == "unix" || listenAddr.ConnType != connectAddr.ConnType {
+			return fmt.Errorf("Proxying %s <-> %s is not supported when using NAT", listenAddr.ConnType, connectAddr.ConnType)
 		}
 	}
 
