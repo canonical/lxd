@@ -21,6 +21,32 @@ container_devices_proxy_validation() {
     false
   fi
 
+  # Check using wildcard addresses isn't allowed in NAT mode.
+  if lxc config device add proxyTester proxyDev proxy "listen=tcp:0.0.0.0:$HOST_TCP_PORT" connect=tcp:0.0.0.0:4321 nat=true ; then
+    echo "Proxy device shouldn't allow wildcard IPv4 listen addresses in NAT mode"
+    false
+  fi
+  if lxc config device add proxyTester proxyDev proxy "listen=tcp:[::]:$HOST_TCP_PORT" connect=tcp:0.0.0.0:4321 nat=true ; then
+    echo "Proxy device shouldn't allow wildcard IPv6 listen addresses in NAT mode"
+    false
+  fi
+
+  # Check using mixing IP versions in listen/connect addresses isn't allowed in NAT mode.
+  if lxc config device add proxyTester proxyDev proxy "listen=tcp:127.0.0.1:$HOST_TCP_PORT" "connect=tcp:[::]:4321" nat=true ; then
+    echo "Proxy device shouldn't allow mixing IP address versions in NAT mode"
+    false
+  fi
+  if lxc config device add proxyTester proxyDev proxy "listen=tcp:[::1]:$HOST_TCP_PORT" connect=tcp:0.0.0.0:4321 nat=true ; then
+    echo "Proxy device shouldn't allow mixing IP address versions in NAT mode"
+    false
+  fi
+
+  # Check user proxy_protocol isn't allowed in NAT mode.
+  if lxc config device add proxyTester proxyDev proxy "listen=tcp:[::1]:$HOST_TCP_PORT" "connect=tcp:[::]:4321" nat=true proxy_protocol=true ; then
+    echo "Proxy device shouldn't allow proxy_protocol in NAT mode"
+    false
+  fi
+
   # Check that old invalid config doesn't prevent device being stopped and removed cleanly.
   lxc config device add proxyTester proxyDev proxy "listen=tcp:127.0.0.1:$HOST_TCP_PORT" connect=tcp:127.0.0.1:4321 bind=host
   lxd sql global "UPDATE instances_devices_config SET value='tcp:localhost:4321' WHERE value='tcp:127.0.0.1:4321';"
