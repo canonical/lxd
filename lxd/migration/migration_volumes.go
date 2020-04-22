@@ -38,6 +38,7 @@ type VolumeTargetArgs struct {
 	TrackProgress bool
 	Refresh       bool
 	Live          bool
+	VolumeSize    int64
 }
 
 // TypesToHeader converts one or more Types to a MigrationHeader. It uses the first type argument
