@@ -885,7 +885,7 @@ func (c *migrationSink) Do(state *state.State, migrateOp *operations.Operation) 
 			volTargetArgs.Snapshots = make([]string, 0, len(args.Snapshots))
 			for _, snap := range args.Snapshots {
 				volTargetArgs.Snapshots = append(volTargetArgs.Snapshots, *snap.Name)
-				snapArgs := snapshotProtobufToInstanceArgs(args.Instance.Project(), args.Instance.Name(), snap)
+				snapArgs := snapshotProtobufToInstanceArgs(args.Instance, snap)
 
 				// Ensure that snapshot and parent container have the same
 				// storage pool in their local root disk device. If the root
