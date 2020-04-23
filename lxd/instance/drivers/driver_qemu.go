@@ -4291,6 +4291,8 @@ func (vm *qemu) UpdateBackupFile() error {
 	return pool.UpdateInstanceBackupFile(vm, nil)
 }
 
+// cpuTopology takes a user cpu range and returns the number of sockets, cores and threads to configure
+// as well as a map of vcpu to threadid for pinning and a map of numa nodes to vcpus for NUMA layout.
 func (vm *qemu) cpuTopology(limit string) (int, int, int, map[uint64]uint64, map[uint64][]uint64, error) {
 	// Get CPU topology.
 	cpus, err := resources.GetCPU()
