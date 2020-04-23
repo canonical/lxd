@@ -387,8 +387,22 @@ func init() {
 	}
 
 	val, ok = cgControllers["memory"]
-	if ok && val == V1 && shared.PathExists("/sys/fs/cgroup/memory/memory.memsw.limit_in_bytes") {
-		cgControllers["memory.memsw.limit_in_bytes"] = V2
+	if ok && val == V1 {
+		if shared.PathExists("/sys/fs/cgroup/memory/memory.max_usage_in_bytes") {
+			cgControllers["memory.max_usage_in_bytes"] = V1
+		}
+
+		if shared.PathExists("/sys/fs/cgroup/memory/memory.memsw.limit_in_bytes") {
+			cgControllers["memory.memsw.limit_in_bytes"] = V1
+		}
+
+		if shared.PathExists("/sys/fs/cgroup/memory/memory.memsw.usage_in_bytes") {
+			cgControllers["memory.memsw.usage_in_bytes"] = V1
+		}
+
+		if shared.PathExists("/sys/fs/cgroup/memory/memory.memsw.max_usage_in_bytes") {
+			cgControllers["memory.memsw.max_usage_in_bytes"] = V1
+		}
 	}
 
 	val, ok = cgControllers["memory"]
