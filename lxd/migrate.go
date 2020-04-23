@@ -273,6 +273,7 @@ type MigrationSinkArgs struct {
 
 	// Storage specific fields
 	VolumeOnly bool
+	VolumeSize int64
 
 	// Transport specific fields
 	RsyncFeatures []string
