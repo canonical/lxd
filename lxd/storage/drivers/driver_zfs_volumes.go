@@ -514,6 +514,9 @@ func (d *zfs) CreateVolumeFromCopy(vol Volume, srcVol Volume, copySnapshots bool
 		if err != nil {
 			return err
 		}
+
+		// Delete on revert.
+		revert.Add(func() { d.DeleteVolume(vol, op) })
 	}
 
 	// Apply the properties.
