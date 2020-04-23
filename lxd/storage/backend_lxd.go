@@ -688,6 +688,16 @@ func (b *lxdBackend) CreateInstanceFromCopy(inst instance.Instance, src instance
 			return fmt.Errorf("Failed to negotiate copy migration type: %v", err)
 		}
 
+		var srcVolumeSize int64
+
+		// For VMs, get source volume size so that target can create the volume the same size.
+		if src.Type() == instancetype.VM {
+			srcVolumeSize, err = InstanceDiskBlockSize(srcPool, src, op)
+			if err != nil {
+				return errors.Wrapf(err, "Failed getting source disk size")
+			}
+		}
+
 		ctx, cancel := context.WithCancel(context.Background())
 
 		// Use in-memory pipe pair to simulate a connection between the sender and receiver.
@@ -715,6 +725,7 @@ func (b *lxdBackend) CreateInstanceFromCopy(inst instance.Instance, src instance
 				Name:          inst.Name(),
 				Snapshots:     snapshotNames,
 				MigrationType: migrationTypes[0],
+				VolumeSize:    srcVolumeSize,
 				TrackProgress: false, // Do not use a progress tracker on receiver.
 			}, op)
 
@@ -1043,6 +1054,14 @@ func (b *lxdBackend) CreateInstanceFromMigration(inst instance.Instance, conn io
 	// Override args.Name and args.Config to ensure volume is created based on instance.
 	args.Config = rootDiskConf
 	args.Name = inst.Name()
+
+	// If migration header supplies a volume size, then use that as block volume size instead of pool default.
+	// This way if the volume being received is larger than the pool default size, the block volume created
+	// will still be able to accommodate it.
+	if args.VolumeSize > 0 && contentType == drivers.ContentTypeBlock {
+		b.logger.Debug("Setting volume size from offer header", log.Ctx{"size": args.VolumeSize})
+		args.Config["size"] = fmt.Sprintf("%d", args.VolumeSize)
+	}
 
 	// Get the volume name on storage.
 	volStorageName := project.Instance(inst.Project(), args.Name)

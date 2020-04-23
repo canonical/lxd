@@ -757,7 +757,7 @@ func (d *ceph) SetVolumeQuota(vol Volume, size string, op *operations.Operation)
 		vol.keepDevice = oldKeepDevice
 	}()
 
-	oldSizeBytes, err := blockDevSizeBytes(RBDDevPath)
+	oldSizeBytes, err := BlockDevSizeBytes(RBDDevPath)
 	if err != nil {
 		return errors.Wrapf(err, "Error getting current size")
 	}
