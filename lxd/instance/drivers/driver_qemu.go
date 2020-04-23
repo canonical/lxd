@@ -870,7 +870,7 @@ func (vm *qemu) Start(stateful bool) error {
 		_, err := strconv.Atoi(cpuLimit)
 		if err != nil {
 			// Expand to a set of CPU identifiers and get the pinning map.
-			_, _, _, pins, err := vm.cpuTopology(cpuLimit)
+			_, _, _, pins, _, err := vm.cpuTopology(cpuLimit)
 			if err != nil {
 				op.Done(err)
 				return err
@@ -1684,15 +1684,52 @@ func (vm *qemu) addCPUConfig(sb *strings.Builder) error {
 		ctx["cpuThreads"] = 1
 	} else {
 		// Expand to a set of CPU identifiers and get the pinning map.
-		nrSockets, nrCores, nrThreads, vcpus, err := vm.cpuTopology(cpus)
+		nrSockets, nrCores, nrThreads, vcpus, numaNodes, err := vm.cpuTopology(cpus)
 		if err != nil {
 			return err
 		}
 
+		// Figure out socket-id/core-id/thread-id for all vcpus.
+		vcpuSocket := map[uint64]uint64{}
+		vcpuCore := map[uint64]uint64{}
+		vcpuThread := map[uint64]uint64{}
+		vcpu := uint64(0)
+		for i := 0; i < nrSockets; i++ {
+			for j := 0; j < nrCores; j++ {
+				for k := 0; k < nrThreads; k++ {
+					vcpuSocket[vcpu] = uint64(i)
+					vcpuCore[vcpu] = uint64(j)
+					vcpuThread[vcpu] = uint64(k)
+					vcpu++
+				}
+			}
+		}
+
+		// Prepare the NUMA map.
+		numa := []map[string]uint64{}
+		numaIDs := []uint64{}
+		numaNode := uint64(0)
+		for _, entry := range numaNodes {
+			numaIDs = append(numaIDs, numaNode)
+			for _, vcpu := range entry {
+				numa = append(numa, map[string]uint64{
+					"node":   numaNode,
+					"socket": vcpuSocket[vcpu],
+					"core":   vcpuCore[vcpu],
+					"thread": vcpuThread[vcpu],
+				})
+			}
+
+			numaNode++
+		}
+
+		// Prepare context.
 		ctx["cpuCount"] = len(vcpus)
 		ctx["cpuSockets"] = nrSockets
 		ctx["cpuCores"] = nrCores
 		ctx["cpuThreads"] = nrThreads
+		ctx["cpuNumaNodes"] = numaIDs
+		ctx["cpuNumaMapping"] = numa
 	}
 
 	return qemuCPU.Execute(sb, ctx)
@@ -4254,23 +4291,24 @@ func (vm *qemu) UpdateBackupFile() error {
 	return pool.UpdateInstanceBackupFile(vm, nil)
 }
 
-func (vm *qemu) cpuTopology(limit string) (int, int, int, map[uint64]uint64, error) {
+func (vm *qemu) cpuTopology(limit string) (int, int, int, map[uint64]uint64, map[uint64][]uint64, error) {
 	// Get CPU topology.
 	cpus, err := resources.GetCPU()
 	if err != nil {
-		return -1, -1, -1, nil, err
+		return -1, -1, -1, nil, nil, err
 	}
 
 	// Expand the pins.
 	pins, err := instance.ParseCpuset(limit)
 	if err != nil {
-		return -1, -1, -1, nil, err
+		return -1, -1, -1, nil, nil, err
 	}
 
 	// Match tracking.
 	vcpus := map[uint64]uint64{}
 	sockets := map[uint64][]uint64{}
 	cores := map[uint64][]uint64{}
+	numaNodes := map[uint64][]uint64{}
 
 	// Go through the physical CPUs looking for matches.
 	i := uint64(0)
@@ -4281,7 +4319,6 @@ func (vm *qemu) cpuTopology(limit string) (int, int, int, map[uint64]uint64, err
 					if thread.ID == int64(pin) {
 						// Found a matching CPU.
 						vcpus[i] = uint64(pin)
-						i++
 
 						// Track cores per socket.
 						_, ok := sockets[cpu.Socket]
@@ -4300,6 +4337,15 @@ func (vm *qemu) cpuTopology(limit string) (int, int, int, map[uint64]uint64, err
 						if !shared.Uint64InSlice(thread.Thread, cores[core.Core]) {
 							cores[core.Core] = append(cores[core.Core], thread.Thread)
 						}
+
+						// Record NUMA node for thread.
+						_, ok = cores[core.Core]
+						if !ok {
+							numaNodes[thread.NUMANode] = []uint64{}
+						}
+						numaNodes[thread.NUMANode] = append(numaNodes[thread.NUMANode], i)
+
+						i++
 					}
 				}
 			}
@@ -4308,7 +4354,7 @@ func (vm *qemu) cpuTopology(limit string) (int, int, int, map[uint64]uint64, err
 
 	// Confirm we're getting the expected number of CPUs.
 	if len(pins) != len(vcpus) {
-		return -1, -1, -1, nil, fmt.Errorf("Unavailable CPUs requested: %s", limit)
+		return -1, -1, -1, nil, nil, fmt.Errorf("Unavailable CPUs requested: %s", limit)
 	}
 
 	// Validate the topology.
@@ -4358,5 +4404,5 @@ func (vm *qemu) cpuTopology(limit string) (int, int, int, map[uint64]uint64, err
 		nrThreads = 1
 	}
 
-	return nrSockets, nrCores, nrThreads, vcpus, nil
+	return nrSockets, nrCores, nrThreads, vcpus, numaNodes, nil
 }
