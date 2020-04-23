@@ -154,6 +154,21 @@ cpus = "{{.cpuCount}}"
 sockets = "{{.cpuSockets}}"
 cores = "{{.cpuCores}}"
 threads = "{{.cpuThreads}}"
+
+{{range $index, $element := .cpuNumaNodes}}
+[numa]
+type = "node"
+nodeid = "{{$element}}"
+{{end}}
+
+{{range .cpuNumaMapping}}
+[numa]
+type = "cpu"
+node-id = "{{.node}}"
+socket-id = "{{.socket}}"
+core-id = "{{.core}}"
+thread-id = "{{.thread}}"
+{{end}}
 `))
 
 var qemuControlSocket = template.Must(template.New("qemuControlSocket").Parse(`
