@@ -207,7 +207,7 @@ func cephFsConfig(clusterName string, userName string) ([]string, string, error)
 	}
 
 	if len(cephMon) == 0 {
-		return nil, "", fmt.Errorf("Couldn't find a CPEH mon")
+		return nil, "", fmt.Errorf("Couldn't find a CEPH mon")
 	}
 
 	// Parse the CEPH keyring
@@ -256,7 +256,12 @@ func diskCephfsOptions(clusterName string, userName string, fsName string, fsPat
 	fsOptions := fmt.Sprintf("name=%v,secret=%v,mds_namespace=%v", userName, secret, fsName)
 	srcpath := ""
 	for _, monAddress := range monAddresses {
-		srcpath += fmt.Sprintf("%s:6789,", monAddress)
+		// Add the default port to the mon hosts if not already provided
+		if strings.Contains(monAddress, ":6789") {
+			srcpath += fmt.Sprintf("%s,", monAddress)
+		} else {
+			srcpath += fmt.Sprintf("%s:6789,", monAddress)
+		}
 	}
 	srcpath = srcpath[:len(srcpath)-1]
 	srcpath += fmt.Sprintf(":/%s", fsPath)
