@@ -688,6 +688,16 @@ func (b *lxdBackend) CreateInstanceFromCopy(inst instance.Instance, src instance
 			return fmt.Errorf("Failed to negotiate copy migration type: %v", err)
 		}
 
+		var srcVolumeSize int64
+
+		// For VMs, get source volume size so that target can create the volume the same size.
+		if src.Type() == instancetype.VM {
+			srcVolumeSize, err = InstanceDiskBlockSize(srcPool, src, op)
+			if err != nil {
+				return errors.Wrapf(err, "Failed getting source disk size")
+			}
+		}
+
 		ctx, cancel := context.WithCancel(context.Background())
 
 		// Use in-memory pipe pair to simulate a connection between the sender and receiver.
@@ -715,6 +725,7 @@ func (b *lxdBackend) CreateInstanceFromCopy(inst instance.Instance, src instance
 				Name:          inst.Name(),
 				Snapshots:     snapshotNames,
 				MigrationType: migrationTypes[0],
+				VolumeSize:    srcVolumeSize,
 				TrackProgress: false, // Do not use a progress tracker on receiver.
 			}, op)
 
