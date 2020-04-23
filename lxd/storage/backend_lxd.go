@@ -1044,6 +1044,14 @@ func (b *lxdBackend) CreateInstanceFromMigration(inst instance.Instance, conn io
 	args.Config = rootDiskConf
 	args.Name = inst.Name()
 
+	// If migration header supplies a volume size, then use that as block volume size instead of pool default.
+	// This way if the volume being received is larger than the pool default size, the block volume created
+	// will still be able to accommodate it.
+	if args.VolumeSize > 0 && contentType == drivers.ContentTypeBlock {
+		b.logger.Debug("Setting volume size from offer header", log.Ctx{"size": args.VolumeSize})
+		args.Config["size"] = fmt.Sprintf("%d", args.VolumeSize)
+	}
+
 	// Get the volume name on storage.
 	volStorageName := project.Instance(inst.Project(), args.Name)
 
