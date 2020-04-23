@@ -408,6 +408,17 @@ func (s *migrationSourceWs) Do(state *state.State, migrateOp *operations.Operati
 	offerHeader.SnapshotNames = snapshotNames
 	offerHeader.Snapshots = snapshots
 
+	// For VMs, send block device size hint in offer header so that target can create the volume the same size.
+	if s.instance.Type() == instancetype.VM {
+		blockSize, err := storagePools.InstanceDiskBlockSize(pool, s.instance, migrateOp)
+		if err != nil {
+			return errors.Wrapf(err, "Failed getting source disk size")
+		}
+
+		logger.Debugf("Set migration offer volume size for %q: %d", s.instance.Name(), blockSize)
+		offerHeader.VolumeSize = &blockSize
+	}
+
 	// Add predump info to source header.
 	offerUsePreDumps := false
 	maxDumpIterations := 0
