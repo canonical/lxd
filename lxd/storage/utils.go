@@ -16,6 +16,7 @@ import (
 	"github.com/lxc/lxd/lxd/instance/instancetype"
 	"github.com/lxc/lxd/lxd/migration"
 	"github.com/lxc/lxd/lxd/node"
+	"github.com/lxc/lxd/lxd/operations"
 	"github.com/lxc/lxd/lxd/rsync"
 	"github.com/lxc/lxd/lxd/state"
 	"github.com/lxc/lxd/lxd/storage/drivers"
@@ -648,4 +649,39 @@ func RenderSnapshotUsage(s *state.State, snapInst instance.Instance) func(respon
 
 		return nil
 	}
+}
+
+// InstanceDiskBlockSize returns the block device size for the instance's disk.
+// This will mount the instance if not already mounted and will unmount at the end if needed.
+func InstanceDiskBlockSize(pool Pool, inst instance.Instance, op *operations.Operation) (int64, error) {
+	ourMount, err := pool.MountInstance(inst, op)
+	if err != nil {
+		return -1, err
+	}
+
+	if ourMount {
+		defer pool.UnmountInstance(inst, op)
+	}
+
+	rootDrivePath, err := pool.GetInstanceDisk(inst)
+	if err != nil {
+		return -1, err
+	}
+
+	var blockDiskSize int64
+
+	if shared.IsBlockdevPath(rootDrivePath) {
+		blockDiskSize, err = drivers.BlockDevSizeBytes(rootDrivePath)
+		if err != nil {
+			return -1, errors.Wrapf(err, "Error getting block device size %q", rootDrivePath)
+		}
+	} else {
+		fi, err := os.Lstat(rootDrivePath)
+		if err != nil {
+			return -1, errors.Wrapf(err, "Error getting block file size %q", rootDrivePath)
+		}
+		blockDiskSize = fi.Size()
+	}
+
+	return blockDiskSize, nil
 }
