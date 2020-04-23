@@ -458,7 +458,7 @@ func genericVFSBackupVolume(d Driver, vol Volume, tarWriter *instancewriter.Inst
 
 				if shared.IsBlockdevPath(blockPath) {
 					// Get size of disk block device for tarball header.
-					blockDiskSize, err = blockDevSizeBytes(blockPath)
+					blockDiskSize, err = BlockDevSizeBytes(blockPath)
 					if err != nil {
 						return errors.Wrapf(err, "Error getting block device size %q", blockPath)
 					}
