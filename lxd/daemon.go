@@ -1158,9 +1158,6 @@ func (d *Daemon) Stop() error {
 	if d.gateway != nil {
 		trackError(d.gateway.Shutdown())
 	}
-	if d.endpoints != nil {
-		trackError(d.endpoints.Down())
-	}
 
 	if d.endpoints != nil {
 		trackError(d.endpoints.Down())
