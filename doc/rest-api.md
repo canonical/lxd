@@ -1936,6 +1936,25 @@ client will `POST` to `/1.0/images/<fingerprint>/export` to get a secret
 token which it'll then pass to the target LXD. That target LXD will then
 GET the image as a guest, passing the secret token.
 
+#### POST
+ * Description: Upload the image tarball
+ * Authentication: trusted
+ * Operation: async
+ * Return: Background operation or standard error
+
+This copies an image from the source to the target.
+
+Input:
+
+```json
+{
+    "target": "target URL",
+    "secret": "secret",
+    "certificate": "target certificate",
+    "aliases": ["alias"]
+}
+```
+
 ### `/1.0/images/<fingerprint>/refresh`
 #### POST
  * Description: Refresh an image from its origin

@@ -165,6 +165,48 @@ test_remote_usage() {
   mv "${LXD_CONF}/client.crt.bak" "${LXD_CONF}/client.crt"
   mv "${LXD_CONF}/client.key.bak" "${LXD_CONF}/client.key"
 
+  lxc_remote image delete "lxd2:${sum}"
+
+  lxc_remote image alias create localhost:foo "${sum}"
+
+  lxc_remote image copy "localhost:${sum}" lxd2: --mode=push
+  lxc_remote image show lxd2:"${sum}"
+  lxc_remote image show lxd2:"${sum}" | grep -q 'public: false'
+  ! lxc_remote image show lxd2:foo || false
+  lxc_remote image delete "lxd2:${sum}"
+
+  lxc_remote image copy "localhost:${sum}" lxd2: --mode=push --copy-aliases --public
+  lxc_remote image show lxd2:"${sum}"
+  lxc_remote image show lxd2:"${sum}" | grep -q 'public: true'
+  lxc_remote image show lxd2:foo
+  lxc_remote image delete "lxd2:${sum}"
+
+  lxc_remote image copy "localhost:${sum}" lxd2: --mode=push --copy-aliases --alias=bar
+  lxc_remote image show lxd2:"${sum}"
+  lxc_remote image show lxd2:foo
+  lxc_remote image show lxd2:bar
+  lxc_remote image delete "lxd2:${sum}"
+
+  lxc_remote image copy "localhost:${sum}" lxd2: --mode=relay
+  lxc_remote image show lxd2:"${sum}"
+  lxc_remote image show lxd2:"${sum}" | grep -q 'public: false'
+  ! lxc_remote image show lxd2:foo || false
+  lxc_remote image delete "lxd2:${sum}"
+
+  lxc_remote image copy "localhost:${sum}" lxd2: --mode=relay --copy-aliases --public
+  lxc_remote image show lxd2:"${sum}"
+  lxc_remote image show lxd2:"${sum}" | grep -q 'public: true'
+  lxc_remote image show lxd2:foo
+  lxc_remote image delete "lxd2:${sum}"
+
+  lxc_remote image copy "localhost:${sum}" lxd2: --mode=relay --copy-aliases --alias=bar
+  lxc_remote image show lxd2:"${sum}"
+  lxc_remote image show lxd2:foo
+  lxc_remote image show lxd2:bar
+  lxc_remote image delete "lxd2:${sum}"
+
+  lxc_remote image alias delete localhost:foo
+
   lxc_remote remote remove lxd2
   lxc_remote remote remove lxd2-public
 

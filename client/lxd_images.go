@@ -484,6 +484,14 @@ func (r *ProtocolLXD) CreateImage(image api.ImagesPost, args *ImageCreateArgs) (
 		req.Header.Set("User-Agent", r.httpUserAgent)
 	}
 
+	if image.Source != nil && image.Source.Fingerprint != "" && image.Source.Secret != "" && image.Source.Mode == "push" {
+		// Set fingerprint
+		req.Header.Set("X-LXD-fingerprint", image.Source.Fingerprint)
+
+		// Set secret
+		req.Header.Set("X-LXD-secret", image.Source.Secret)
+	}
+
 	// Send the request
 	resp, err := r.do(req)
 	if err != nil {
@@ -606,6 +614,158 @@ func (r *ProtocolLXD) CopyImage(source ImageServer, image api.Image, args *Image
 	info, err := source.GetConnectionInfo()
 	if err != nil {
 		return nil, err
+	}
+
+	// Push mode
+	if args != nil && args.Mode == "push" {
+		// Get certificate and URL
+		info, err := r.GetConnectionInfo()
+		if err != nil {
+			return nil, err
+		}
+
+		imagesPost := api.ImagesPost{
+			Source: &api.ImagesPostSource{
+				Fingerprint: image.Fingerprint,
+				Mode:        args.Mode,
+			},
+		}
+
+		if args.CopyAliases {
+			imagesPost.Aliases = image.Aliases
+		}
+
+		imagesPost.ExpiresAt = image.ExpiresAt
+		imagesPost.Properties = image.Properties
+		imagesPost.Public = args.Public
+
+		// Receive token from target server. This token is later passed to the source which will use
+		// it, together with the URL and certificate, to connect to the target.
+		tokenOp, err := r.CreateImage(imagesPost, nil)
+		if err != nil {
+			return nil, err
+		}
+
+		opAPI := tokenOp.Get()
+
+		secret, ok := opAPI.Metadata["secret"]
+		if !ok {
+			return nil, fmt.Errorf("No token provided")
+		}
+
+		req := api.ImageExportPost{
+			Target:      info.URL,
+			Certificate: info.Certificate,
+			Secret:      secret.(string),
+			Aliases:     image.Aliases,
+		}
+
+		exportOp, err := source.ExportImage(image.Fingerprint, req)
+		if err != nil {
+			tokenOp.Cancel()
+			return nil, err
+		}
+
+		rop := remoteOperation{
+			targetOp: exportOp,
+			chDone:   make(chan bool),
+		}
+
+		// Forward targetOp to remote op
+		go func() {
+			rop.err = rop.targetOp.Wait()
+			tokenOp.Cancel()
+			close(rop.chDone)
+		}()
+
+		return &rop, nil
+	}
+
+	// Relay mode
+	if args != nil && args.Mode == "relay" {
+		metaFile, err := ioutil.TempFile("", "lxc_image_")
+		if err != nil {
+			return nil, err
+		}
+		defer os.Remove(metaFile.Name())
+
+		rootfsFile, err := ioutil.TempFile("", "lxc_image_")
+		if err != nil {
+			return nil, err
+		}
+		defer os.Remove(rootfsFile.Name())
+
+		// Import image
+		req := ImageFileRequest{
+			MetaFile:   metaFile,
+			RootfsFile: rootfsFile,
+		}
+
+		resp, err := source.GetImageFile(image.Fingerprint, req)
+		if err != nil {
+			return nil, err
+		}
+
+		// Export image
+		_, err = metaFile.Seek(0, 0)
+		if err != nil {
+			return nil, err
+		}
+
+		_, err = rootfsFile.Seek(0, 0)
+		if err != nil {
+			return nil, err
+		}
+
+		imagePost := api.ImagesPost{}
+		imagePost.Public = args.Public
+
+		if args.CopyAliases {
+			imagePost.Aliases = image.Aliases
+			if args.Aliases != nil {
+				imagePost.Aliases = append(imagePost.Aliases, args.Aliases...)
+			}
+		}
+
+		createArgs := &ImageCreateArgs{
+			MetaFile: metaFile,
+			MetaName: image.Filename,
+			Type:     image.Type,
+		}
+
+		if resp.RootfsName != "" {
+			// Deal with split images
+			createArgs.RootfsFile = rootfsFile
+			createArgs.RootfsName = image.Filename
+		}
+
+		rop := remoteOperation{
+			chDone: make(chan bool),
+		}
+
+		go func() {
+			defer close(rop.chDone)
+
+			op, err := r.CreateImage(imagePost, createArgs)
+			if err != nil {
+				rop.err = remoteOperationError("Failed to copy image", nil)
+				return
+			}
+
+			rop.targetOp = op
+
+			for _, handler := range rop.handlers {
+				rop.targetOp.AddHandler(handler)
+			}
+
+			err = rop.targetOp.Wait()
+			if err != nil {
+				rop.err = remoteOperationError("Failed to copy image", nil)
+				return
+			}
+		}()
+
+		return &rop, nil
 	}
 
 	// Prepare the copy request
@@ -742,4 +902,20 @@ func (r *ProtocolLXD) DeleteImageAlias(name string) error {
 	}
 
 	return nil
+}
+
+// ExportImage exports (copies) an image to a remote server
+func (r *ProtocolLXD) ExportImage(fingerprint string, image api.ImageExportPost) (Operation, error) {
+	if !r.HasExtension("images_push_relay") {
+		return nil, fmt.Errorf("The server is missing the required \"images_push_relay\" API extension")
+	}
+
+	// Send the request
+	op, _, err := r.queryOperation("POST", fmt.Sprintf("/images/%s/export", url.PathEscape(fingerprint)), &image, "")
+	if err != nil {
+		return nil, err
+	}
+
+	return op, nil
+
 }
