@@ -19,6 +19,8 @@ import (
 	"github.com/lxc/lxd/shared/units"
 )
 
+const minBlockBoundary = 8192
+
 // wipeDirectory empties the contents of a directory, but leaves it in place.
 func wipeDirectory(path string) error {
 	// List all entries.
@@ -320,7 +322,6 @@ func roundVolumeBlockFileSizeBytes(blockSize string) (int64, error) {
 
 	// Qemu requires image files to be in traditional storage block boundaries.
 	// We use 8k here to ensure our images are compatible with all of our backend drivers.
-	const minBlockBoundary = 8192
 	if blockSizeBytes < minBlockBoundary {
 		blockSizeBytes = minBlockBoundary
 	}
