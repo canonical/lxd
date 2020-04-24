@@ -491,7 +491,7 @@ func (d *zfs) CreateVolumeFromCopy(vol Volume, srcVol Volume, copySnapshots bool
 		}
 	}
 
-	// Handle zfs.clone_copy
+	// If zfs.clone_copy is disabled or source volume has snapshots, then use full copy mode.
 	if (d.config["zfs.clone_copy"] != "" && !shared.IsTrue(d.config["zfs.clone_copy"])) || len(snapshots) > 0 {
 		snapName := strings.SplitN(srcSnapshot, "@", 2)[1]
 
@@ -557,6 +557,7 @@ func (d *zfs) CreateVolumeFromCopy(vol Volume, srcVol Volume, copySnapshots bool
 			}
 		}
 	} else {
+		// Perform volume clone.
 		args := []string{
 			"clone",
 			srcSnapshot,
