@@ -279,11 +279,11 @@ func (d *ceph) CreateVolumeFromBackup(vol Volume, snapshots []string, srcData io
 // CreateVolumeFromCopy provides same-pool volume copying functionality.
 func (d *ceph) CreateVolumeFromCopy(vol Volume, srcVol Volume, copySnapshots bool, op *operations.Operation) error {
 	var err error
-	snapshots := []string{}
-
 	revert := revert.New()
 	defer revert.Fail()
 
+	// Retrieve snapshots on the source.
+	snapshots := []string{}
 	if !srcVol.IsSnapshot() && copySnapshots {
 		snapshots, err = d.VolumeSnapshots(srcVol, op)
 		if err != nil {
@@ -293,16 +293,16 @@ func (d *ceph) CreateVolumeFromCopy(vol Volume, srcVol Volume, copySnapshots boo
 
 	// Copy without snapshots.
 	if !copySnapshots || len(snapshots) == 0 {
-		if d.config["ceph.rbd.clone_copy"] != "" &&
-			!shared.IsTrue(d.config["ceph.rbd.clone_copy"]) &&
-			srcVol.volType != VolumeTypeImage {
+		// If lightweight clone mode isn't enabled, perform a full copy of the volume.
+		if d.config["ceph.rbd.clone_copy"] != "" && !shared.IsTrue(d.config["ceph.rbd.clone_copy"]) && srcVol.volType != VolumeTypeImage {
 			_, err = shared.RunCommand(
 				"rbd",
 				"--id", d.config["ceph.user.name"],
 				"--cluster", d.config["ceph.cluster_name"],
 				"cp",
 				d.getRBDVolumeName(srcVol, "", false, true),
-				d.getRBDVolumeName(vol, "", false, true))
+				d.getRBDVolumeName(vol, "", false, true),
+			)
 			if err != nil {
 				return err
 			}
@@ -323,10 +323,8 @@ func (d *ceph) CreateVolumeFromCopy(vol Volume, srcVol Volume, copySnapshots boo
 				snapshotName = fmt.Sprintf("zombie_snapshot_%s", uuid.NewRandom().String())
 
 				if srcVol.IsSnapshot() {
-					srcParentName, srcSnapOnlyName, _ :=
-						shared.InstanceGetParentAndSnapshotName(srcVol.name)
+					srcParentName, srcSnapOnlyName, _ := shared.InstanceGetParentAndSnapshotName(srcVol.name)
 					snapshotName = fmt.Sprintf("snapshot_%s", srcSnapOnlyName)
-
 					parentVol = NewVolume(d, d.name, srcVol.volType, srcVol.contentType, srcParentName, nil, nil)
 				} else {
 					// Create snapshot.
