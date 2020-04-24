@@ -838,7 +838,7 @@ func (d *zfs) SetVolumeQuota(vol Volume, size string, op *operations.Operation) 
 
 	// Handle volume datasets.
 	if vol.contentType == ContentTypeBlock {
-		sizeBytes = (sizeBytes / 8192) * 8192
+		sizeBytes = (sizeBytes / minBlockBoundary) * minBlockBoundary
 
 		oldSizeBytesStr, err := d.getDatasetProperty(d.dataset(vol, false), "volsize")
 		if err != nil {
