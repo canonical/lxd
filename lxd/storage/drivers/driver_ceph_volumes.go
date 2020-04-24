@@ -467,15 +467,6 @@ func (d *ceph) CreateVolumeFromCopy(vol Volume, srcVol Volume, copySnapshots boo
 		return err
 	}
 
-	ourMount, err := d.MountVolume(vol, op)
-	if err != nil {
-		return err
-	}
-
-	if ourMount {
-		defer d.UnmountVolume(vol, op)
-	}
-
 	revert.Success()
 
 	return nil
