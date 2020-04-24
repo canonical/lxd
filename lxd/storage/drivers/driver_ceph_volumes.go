@@ -244,6 +244,33 @@ func (d *ceph) CreateVolume(vol Volume, filler *VolumeFiller, op *operations.Ope
 	return nil
 }
 
+// getVolumeSize returns the volume's size in bytes.
+func (d *ceph) getVolumeSize(volumeName string) (int64, error) {
+	volInfo := struct {
+		Size int64 `json:"size"`
+	}{}
+
+	jsonInfo, err := shared.TryRunCommand(
+		"rbd",
+		"info",
+		"--format", "json",
+		"--id", d.config["ceph.user.name"],
+		"--cluster", d.config["ceph.cluster_name"],
+		"--pool", d.config["ceph.osd.pool_name"],
+		volumeName,
+	)
+	if err != nil {
+		return -1, err
+	}
+
+	err = json.Unmarshal([]byte(jsonInfo), &volInfo)
+	if err != nil {
+		return -1, err
+	}
+
+	return volInfo.Size, nil
+}
+
 // CreateVolumeFromBackup re-creates a volume from its exported state.
 func (d *ceph) CreateVolumeFromBackup(vol Volume, snapshots []string, srcData io.ReadSeeker, optimizedStorage bool, op *operations.Operation) (func(vol Volume) error, func(), error) {
 	return genericVFSBackupUnpack(d, vol, snapshots, srcData, op)
