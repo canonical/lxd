@@ -55,7 +55,7 @@ func (d *zfs) createDataset(dataset string, options ...string) error {
 }
 
 func (d *zfs) createVolume(dataset string, size int64, options ...string) error {
-	size = (size / 8192) * 8192
+	size = (size / minBlockBoundary) * minBlockBoundary
 
 	args := []string{"create", "-s", "-V", fmt.Sprintf("%d", size)}
 	for _, option := range options {

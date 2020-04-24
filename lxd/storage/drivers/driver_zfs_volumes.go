@@ -45,22 +45,81 @@ func (d *zfs) CreateVolume(vol Volume, filler *VolumeFiller, op *operations.Oper
 
 	// Look for previously deleted images.
 	if vol.volType == VolumeTypeImage && d.checkDataset(d.dataset(vol, true)) {
-		// Restore the image.
-		_, err := shared.RunCommand("/proc/self/exe", "forkzfs", "--", "rename", d.dataset(vol, true), d.dataset(vol, false))
-		if err != nil {
-			return err
-		}
+		canRestore := true
 
-		if vol.IsVMBlock() {
-			fsVol := vol.NewVMBlockFilesystemVolume()
-
-			_, err := shared.RunCommand("/proc/self/exe", "forkzfs", "--", "rename", d.dataset(fsVol, true), d.dataset(fsVol, false))
+		// For block volumes check if the cached image volume is larger than the current pool volume.size
+		// setting (if so we won't be able to resize the snapshot to that the smaller size later).
+		if vol.contentType == ContentTypeBlock {
+			volSize, err := d.getDatasetProperty(d.dataset(vol, true), "volsize")
 			if err != nil {
 				return err
 			}
+
+			volSizeBytes, err := strconv.ParseInt(volSize, 10, 64)
+			if err != nil {
+				return err
+			}
+
+			poolVolSize := defaultBlockSize
+			if vol.poolConfig["volume.size"] != "" {
+				poolVolSize = vol.poolConfig["volume.size"]
+			}
+
+			poolVolSizeBytes, err := units.ParseByteSizeString(poolVolSize)
+			if err != nil {
+				return err
+			}
+
+			// Round to block boundary.
+			poolVolSizeBytes = (poolVolSizeBytes / minBlockBoundary) * minBlockBoundary
+
+			// If the cached volume is larger than the pool volume size, then we can't use the
+			// deleted cached image volume and instead we will rename it to a random UUID so it can't
+			// be restored in the future and a new cached image volume will be created instead.
+			if volSizeBytes > poolVolSizeBytes {
+				d.logger.Debug("Renaming deleted cached image volume so that regeneration is used")
+				randomVol := NewVolume(d, d.name, vol.volType, vol.contentType, strings.Replace(uuid.NewRandom().String(), "-", "", -1), vol.config, vol.poolConfig)
+
+				_, err := shared.RunCommand("/proc/self/exe", "forkzfs", "--", "rename", d.dataset(vol, true), d.dataset(randomVol, true))
+				if err != nil {
+					return err
+				}
+
+				if vol.IsVMBlock() {
+					fsVol := vol.NewVMBlockFilesystemVolume()
+					randomFsVol := randomVol.NewVMBlockFilesystemVolume()
+
+					_, err := shared.RunCommand("/proc/self/exe", "forkzfs", "--", "rename", d.dataset(fsVol, true), d.dataset(randomFsVol, true))
+					if err != nil {
+						return err
+					}
+				}
+
+				// We have renamed the deleted cached image volume, so we don't want to try and
+				// restore it.
+				canRestore = false
+			}
 		}
 
-		return nil
+		// Restore the image.
+		if canRestore {
+			_, err := shared.RunCommand("/proc/self/exe", "forkzfs", "--", "rename", d.dataset(vol, true), d.dataset(vol, false))
+			if err != nil {
+				return err
+			}
+
+			if vol.IsVMBlock() {
+				fsVol := vol.NewVMBlockFilesystemVolume()
+
+				_, err := shared.RunCommand("/proc/self/exe", "forkzfs", "--", "rename", d.dataset(fsVol, true), d.dataset(fsVol, false))
+				if err != nil {
+					return err
+				}
+			}
+
+			revert.Success()
+			return nil
+		}
 	}
 
 	// After this point we'll have a volume, so setup revert.
@@ -838,7 +897,7 @@ func (d *zfs) SetVolumeQuota(vol Volume, size string, op *operations.Operation) 
 
 	// Handle volume datasets.
 	if vol.contentType == ContentTypeBlock {
-		sizeBytes = (sizeBytes / 8192) * 8192
+		sizeBytes = (sizeBytes / minBlockBoundary) * minBlockBoundary
 
 		oldSizeBytesStr, err := d.getDatasetProperty(d.dataset(vol, false), "volsize")
 		if err != nil {
