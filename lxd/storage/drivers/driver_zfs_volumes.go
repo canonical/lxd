@@ -117,6 +117,7 @@ func (d *zfs) CreateVolume(vol Volume, filler *VolumeFiller, op *operations.Oper
 				}
 			}
 
+			revert.Success()
 			return nil
 		}
 	}
