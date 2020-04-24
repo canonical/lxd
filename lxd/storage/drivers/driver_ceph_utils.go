@@ -528,7 +528,7 @@ func (d *ceph) getRBDSize(vol Volume) (string, error) {
 
 	// Safety net: Set to default value.
 	if sz == 0 {
-		sz, _ = units.ParseByteSizeString("10GB")
+		sz, _ = units.ParseByteSizeString(defaultBlockSize)
 	}
 
 	return fmt.Sprintf("%dB", sz), nil
