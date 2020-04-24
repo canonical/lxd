@@ -25,6 +25,19 @@ import (
 // CreateVolume creates an empty volume and can optionally fill it by executing the supplied
 // filler function.
 func (d *ceph) CreateVolume(vol Volume, filler *VolumeFiller, op *operations.Operation) error {
+	// Function to rename an RBD volume.
+	renameVolume := func(oldName string, newName string) error {
+		_, err := shared.RunCommand(
+			"rbd",
+			"--id", d.config["ceph.user.name"],
+			"--cluster", d.config["ceph.cluster_name"],
+			"mv",
+			oldName,
+			newName,
+		)
+		return err
+	}
+
 	// Revert handling.
 	revert := revert.New()
 	defer revert.Fail()
@@ -39,57 +52,78 @@ func (d *ceph) CreateVolume(vol Volume, filler *VolumeFiller, op *operations.Ope
 		revert.Add(func() { os.Remove(vol.MountPath()) })
 	}
 
-	// Figure out the potential zombie volume.
-	zombieImageVol := NewVolume(d, d.name, VolumeType("zombie_image"), vol.contentType,
-		fmt.Sprintf("%s_%s", vol.name, d.getRBDFilesystem(vol)), nil, nil)
-	if (vol.volType == VolumeTypeVM || vol.volType == VolumeTypeImage) && vol.contentType == ContentTypeBlock {
-		zombieImageVol = NewVolume(d, d.name, VolumeType("zombie_image"), vol.contentType,
-			fmt.Sprintf("%s_%s.block", vol.name, d.getRBDFilesystem(vol)), nil, nil)
-	}
+	// Create a "zombie" deleted volume representation of the specified volume to look for its existence.
+	deletedVol := NewVolume(d, d.name, cephVolumeTypeZombieImage, vol.contentType, vol.name, vol.config, vol.poolConfig)
 
-	// Check if we have a zombie image. If so, restore it otherwise
-	// create a new image volume.
-	if vol.volType == VolumeTypeImage && d.HasVolume(zombieImageVol) {
-		// Figure out the names.
-		oldName := d.getRBDVolumeName(zombieImageVol, "", false, true)
-		newName := d.getRBDVolumeName(vol, "", false, true)
+	// Check if we have a deleted zombie image. If so, restore it otherwise create a new image volume.
+	if vol.volType == VolumeTypeImage && d.HasVolume(deletedVol) {
+		canRestore := true
 
-		// Rename back to active.
-		_, err := shared.RunCommand(
-			"rbd",
-			"--id", d.config["ceph.user.name"],
-			"--cluster", d.config["ceph.cluster_name"],
-			"mv",
-			oldName,
-			newName)
+		// Check if the cached image volume is larger than the current pool volume.size setting
+		// (if so we won't be able to resize the snapshot to that the smaller size later).
+		volSizeBytes, err := d.getVolumeSize(d.getRBDVolumeName(deletedVol, "", false, true))
 		if err != nil {
 			return err
 		}
 
-		// For VMs, also create the filesystem volume.
-		if vol.IsVMBlock() {
-			fsVol := vol.NewVMBlockFilesystemVolume()
+		poolVolSize := defaultBlockSize
+		if vol.poolConfig["volume.size"] != "" {
+			poolVolSize = vol.poolConfig["volume.size"]
+		}
 
-			err := d.CreateVolume(fsVol, nil, op)
+		poolVolSizeBytes, err := units.ParseByteSizeString(poolVolSize)
+		if err != nil {
+			return err
+		}
+
+		// If the cached volume is larger than the pool volume size, then we can't use the
+		// deleted cached image volume and instead we will rename it to a random UUID so it can't
+		// be restored in the future and a new cached image volume will be created instead.
+		if volSizeBytes > poolVolSizeBytes {
+			d.logger.Debug("Renaming deleted cached image volume so that regeneration is used")
+			randomVol := NewVolume(d, d.name, deletedVol.volType, deletedVol.contentType, strings.Replace(uuid.NewRandom().String(), "-", "", -1), deletedVol.config, deletedVol.poolConfig)
+			err = renameVolume(d.getRBDVolumeName(deletedVol, "", false, true), d.getRBDVolumeName(randomVol, "", false, true))
 			if err != nil {
 				return err
 			}
 
-			revert.Add(func() { d.DeleteVolume(fsVol, op) })
+			if vol.IsVMBlock() {
+				fsDeletedVol := deletedVol.NewVMBlockFilesystemVolume()
+				fsRandomVol := randomVol.NewVMBlockFilesystemVolume()
+
+				err = renameVolume(d.getRBDVolumeName(fsDeletedVol, "", false, true), d.getRBDVolumeName(fsRandomVol, "", false, true))
+				if err != nil {
+					return err
+				}
+			}
+
+			canRestore = false
 		}
 
-		revert.Success()
-		return nil
-	}
+		// Restore the image.
+		if canRestore {
+			err = renameVolume(d.getRBDVolumeName(deletedVol, "", false, true), d.getRBDVolumeName(vol, "", false, true))
+			if err != nil {
+				return err
+			}
 
-	// Get size.
-	RBDSize, err := d.getRBDSize(vol)
-	if err != nil {
-		return err
+			if vol.IsVMBlock() {
+				fsDeletedVol := deletedVol.NewVMBlockFilesystemVolume()
+				fsVol := vol.NewVMBlockFilesystemVolume()
+
+				err = renameVolume(d.getRBDVolumeName(fsDeletedVol, "", false, true), d.getRBDVolumeName(fsVol, "", false, true))
+				if err != nil {
+					return err
+				}
+			}
+
+			revert.Success()
+			return nil
+		}
 	}
 
 	// Create volume.
-	err = d.rbdCreateVolume(vol, RBDSize)
+	err := d.rbdCreateVolume(vol, d.volumeSize(vol))
 	if err != nil {
 		return err
 	}
@@ -178,7 +212,8 @@ func (d *ceph) CreateVolume(vol Volume, filler *VolumeFiller, op *operations.Ope
 		}
 
 		if vol.contentType == ContentTypeBlock {
-			// Re-create the FS config volume's readonly snapshot now that the filler function has run and unpacked into both config and block volumes.
+			// Re-create the FS config volume's readonly snapshot now that the filler function has run
+			// and unpacked into both config and block volumes.
 			fsVol := NewVolume(d, d.name, vol.volType, ContentTypeFS, vol.name, vol.config, vol.poolConfig)
 
 			err := d.rbdUnprotectVolumeSnapshot(fsVol, "readonly")
