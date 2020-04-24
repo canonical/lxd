@@ -52,7 +52,7 @@ var imagesCmd = APIEndpoint{
 	Path: "images",
 
 	Get:  APIEndpointAction{Handler: imagesGet, AllowUntrusted: true},
-	Post: APIEndpointAction{Handler: imagesPost, AccessHandler: allowProjectPermission("images", "manage-images")},
+	Post: APIEndpointAction{Handler: imagesPost, AccessHandler: allowProjectPermission("images", "manage-images"), AllowUntrusted: true},
 }
 
 var imageCmd = APIEndpoint{
@@ -67,7 +67,8 @@ var imageCmd = APIEndpoint{
 var imageExportCmd = APIEndpoint{
 	Path: "images/{fingerprint}/export",
 
-	Get: APIEndpointAction{Handler: imageExport, AllowUntrusted: true},
+	Get:  APIEndpointAction{Handler: imageExport, AllowUntrusted: true},
+	Post: APIEndpointAction{Handler: imageExportPost, AccessHandler: allowProjectPermission("images", "manage-images")},
 }
 
 var imageSecretCmd = APIEndpoint{
@@ -427,7 +428,7 @@ func imgPostURLInfo(d *Daemon, req api.ImagesPost, op *operations.Operation, pro
 	return info, nil
 }
 
-func getImgPostInfo(d *Daemon, r *http.Request, builddir string, project string, post *os.File) (*api.Image, error) {
+func getImgPostInfo(d *Daemon, r *http.Request, builddir string, project string, post *os.File, metadata map[string]interface{}) (*api.Image, error) {
 	info := api.Image{}
 	var imageMeta *api.ImageMetadata
 	logger := logging.AddContext(logger.Log, log.Ctx{"function": "getImgPostInfo"})
@@ -581,9 +582,21 @@ func getImgPostInfo(d *Daemon, r *http.Request, builddir string, project string,
 
 	info.Architecture = imageMeta.Architecture
 	info.CreatedAt = time.Unix(imageMeta.CreationDate, 0)
-	info.ExpiresAt = time.Unix(imageMeta.ExpiryDate, 0)
 
-	info.Properties = imageMeta.Properties
+	expiresAt, ok := metadata["expires_at"]
+	if ok {
+		info.ExpiresAt = expiresAt.(time.Time)
+	} else {
+		info.ExpiresAt = time.Unix(imageMeta.ExpiryDate, 0)
+	}
+
+	properties, ok := metadata["properties"]
+	if ok {
+		info.Properties = properties.(map[string]string)
+	} else {
+		info.Properties = imageMeta.Properties
+	}
+
 	if len(propHeaders) > 0 {
 		for _, ph := range propHeaders {
 			p, _ := url.ParseQuery(ph)
@@ -611,6 +624,11 @@ func getImgPostInfo(d *Daemon, r *http.Request, builddir string, project string,
 			return &info, fmt.Errorf("Image with same fingerprint already exists")
 		}
 	} else {
+		public, ok := metadata["public"]
+		if ok {
+			info.Public = public.(bool)
+		}
+
 		// Create the database entry
 		err = d.cluster.ImageInsert(project, info.Fingerprint, info.Filename, info.Size, info.Public, info.AutoUpdate, info.Architecture, info.CreatedAt, info.ExpiresAt, info.Properties, info.Type)
 		if err != nil {
@@ -644,6 +662,24 @@ func imageCreateInPool(d *Daemon, info *api.Image, storagePool string) error {
 }
 
 func imagesPost(d *Daemon, r *http.Request) response.Response {
+	trusted, _, _, _ := d.Authenticate(r)
+
+	secret := r.Header.Get("X-LXD-secret")
+	fingerprint := r.Header.Get("X-LXD-fingerprint")
+	var imageMetadata map[string]interface{}
+
+	if !trusted && (secret == "" || fingerprint == "") {
+		return response.Forbidden(nil)
+	} else {
+		// We need to invalidate the secret whether the source is trusted or not.
+		op, valid := imageValidSecret(fingerprint, secret)
+		if valid {
+			imageMetadata = op.Metadata()
+		} else if !trusted {
+			return response.Forbidden(nil)
+		}
+	}
+
 	instanceType, err := urlInstanceTypeDetect(r)
 	if err != nil {
 		return response.SmartError(err)
@@ -697,6 +733,19 @@ func imagesPost(d *Daemon, r *http.Request) response.Response {
 		imageUpload = true
 	}
 
+	if !imageUpload && req.Source.Mode == "push" {
+		cleanup(builddir, post)
+
+		metadata := map[string]interface{}{
+			"aliases":    req.Aliases,
+			"expires_at": req.ExpiresAt,
+			"properties": req.Properties,
+			"public":     req.Public,
+		}
+
+		return createTokenResponse(d, project, req.Source.Fingerprint, metadata)
+	}
+
 	if !imageUpload && !shared.StringInSlice(req.Source.Type, []string{"container", "instance", "virtual-machine", "snapshot", "image", "url"}) {
 		cleanup(builddir, post)
 		return response.InternalError(fmt.Errorf("Invalid images JSON"))
@@ -731,7 +780,7 @@ func imagesPost(d *Daemon, r *http.Request) response.Response {
 
 		if imageUpload {
 			/* Processing image upload */
-			info, err = getImgPostInfo(d, r, builddir, project, post)
+			info, err = getImgPostInfo(d, r, builddir, project, post, imageMetadata)
 		} else {
 			if req.Source.Type == "image" {
 				/* Processing image copy from remote */
@@ -751,6 +800,13 @@ func imagesPost(d *Daemon, r *http.Request) response.Response {
 			metadata := make(map[string]string)
 			metadata["fingerprint"] = info.Fingerprint
 			metadata["size"] = strconv.FormatInt(info.Size, 10)
+
+			// Keep secret if available
+			secret, ok := op.Metadata()["secret"]
+			if ok {
+				metadata["secret"] = secret.(string)
+			}
+
 			op.UpdateMetadata(metadata)
 		}
 		if err != nil {
@@ -758,6 +814,11 @@ func imagesPost(d *Daemon, r *http.Request) response.Response {
 		}
 
 		// Apply any provided alias
+		aliases, ok := imageMetadata["aliases"]
+		if ok {
+			req.Aliases = aliases.([]api.ImageAlias)
+		}
+
 		for _, alias := range req.Aliases {
 			_, _, err := d.cluster.ImageAliasGet(project, alias.Name, true)
 			if err != db.ErrNoSuchObject {
@@ -788,7 +849,18 @@ func imagesPost(d *Daemon, r *http.Request) response.Response {
 		return nil
 	}
 
-	op, err := operations.OperationCreate(d.State(), project, operations.OperationClassTask, db.OperationImageDownload, nil, nil, run, nil, nil)
+	var metadata interface{}
+
+	if imageUpload && imageMetadata != nil {
+		secret, _ := shared.RandomCryptoString()
+		if secret != "" {
+			metadata = map[string]string{
+				"secret": secret,
+			}
+		}
+	}
+
+	op, err := operations.OperationCreate(d.State(), project, operations.OperationClassTask, db.OperationImageDownload, nil, metadata, run, nil, nil)
 	if err != nil {
 		cleanup(builddir, post)
 		return response.InternalError(err)
@@ -1506,7 +1578,7 @@ func doImageGet(db *db.Cluster, project, fingerprint string, public bool) (*api.
 	return imgInfo, nil
 }
 
-func imageValidSecret(fingerprint string, secret string) bool {
+func imageValidSecret(fingerprint string, secret string) (*operations.Operation, bool) {
 	for _, op := range operations.Operations() {
 		if op.Resources() == nil {
 			continue
@@ -1529,11 +1601,11 @@ func imageValidSecret(fingerprint string, secret string) bool {
 		if opSecret == secret {
 			// Token is single-use, so cancel it now
 			op.Cancel()
-			return true
+			return op, true
 		}
 	}
 
-	return false
+	return nil, false
 }
 
 func imageGet(d *Daemon, r *http.Request) response.Response {
@@ -1547,7 +1619,8 @@ func imageGet(d *Daemon, r *http.Request) response.Response {
 		return resp
 	}
 
-	if !info.Public && public && !imageValidSecret(info.Fingerprint, secret) {
+	_, valid := imageValidSecret(info.Fingerprint, secret)
+	if !info.Public && public && !valid {
 		return response.NotFound(fmt.Errorf("Image '%s' not found", info.Fingerprint))
 	}
 
@@ -1908,7 +1981,8 @@ func imageExport(d *Daemon, r *http.Request) response.Response {
 			return response.SmartError(err)
 		}
 
-		if !imgInfo.Public && public && !imageValidSecret(imgInfo.Fingerprint, secret) {
+		_, valid := imageValidSecret(imgInfo.Fingerprint, secret)
+		if !imgInfo.Public && public && !valid {
 			return response.NotFound(fmt.Errorf("Image '%s' not found", imgInfo.Fingerprint))
 		}
 	}
@@ -1972,32 +2046,118 @@ func imageExport(d *Daemon, r *http.Request) response.Response {
 	return response.FileResponse(r, files, nil, false)
 }
 
-func imageSecret(d *Daemon, r *http.Request) response.Response {
+func imageExportPost(d *Daemon, r *http.Request) response.Response {
 	project := projectParam(r)
 	fingerprint := mux.Vars(r)["fingerprint"]
-	_, imgInfo, err := d.cluster.ImageGet(project, fingerprint, false, false)
+
+	// Check if the image exists
+	_, _, err := d.cluster.ImageGet(project, fingerprint, false, true)
 	if err != nil {
 		return response.SmartError(err)
 	}
 
-	secret, err := shared.RandomCryptoString()
+	req := api.ImageExportPost{}
 
+	err = json.NewDecoder(r.Body).Decode(&req)
 	if err != nil {
-		return response.InternalError(err)
+		response.SmartError(err)
 	}
 
-	meta := shared.Jmap{}
-	meta["secret"] = secret
+	// Connect to the target and push the image
+	args := &lxd.ConnectionArgs{
+		TLSServerCert: req.Certificate,
+		UserAgent:     version.UserAgent,
+		Proxy:         d.proxy,
+		CachePath:     d.os.CacheDir,
+		CacheExpiry:   time.Hour,
+	}
 
-	resources := map[string][]string{}
-	resources["images"] = []string{imgInfo.Fingerprint}
+	// Setup LXD client
+	remote, err := lxd.ConnectLXD(req.Target, args)
+	if err != nil {
+		return response.SmartError(err)
+	}
 
-	op, err := operations.OperationCreate(d.State(), project, operations.OperationClassToken, db.OperationImageToken, resources, meta, nil, nil, nil)
+	var imageCreateOp lxd.Operation
+
+	run := func(op *operations.Operation) error {
+		createArgs := &lxd.ImageCreateArgs{}
+		imageMetaPath := shared.VarPath("images", fingerprint)
+		imageRootfsPath := shared.VarPath("images", fingerprint+".rootfs")
+
+		metaFile, err := os.Open(imageMetaPath)
+		if err != nil {
+			return err
+		}
+		defer metaFile.Close()
+
+		createArgs.MetaFile = metaFile
+		createArgs.MetaName = filepath.Base(imageMetaPath)
+
+		if shared.PathExists(imageRootfsPath) {
+			rootfsFile, err := os.Open(imageRootfsPath)
+			if err != nil {
+				return err
+			}
+			defer rootfsFile.Close()
+
+			createArgs.RootfsFile = rootfsFile
+			createArgs.RootfsName = filepath.Base(imageRootfsPath)
+		}
+
+		image := api.ImagesPost{
+			Filename: createArgs.MetaName,
+			Source: &api.ImagesPostSource{
+				Fingerprint: fingerprint,
+				Secret:      req.Secret,
+				Mode:        "push",
+			},
+		}
+
+		imageCreateOp, err = remote.CreateImage(image, createArgs)
+		if err != nil {
+			return err
+		}
+
+		opAPI := imageCreateOp.Get()
+
+		var secret string
+
+		val, ok := opAPI.Metadata["secret"]
+		if ok {
+			secret = val.(string)
+		}
+
+		opWaitAPI, _, err := remote.GetOperationWaitSecret(opAPI.ID, secret, -1)
+		if err != nil {
+			return err
+		}
+
+		if opWaitAPI.Status != "success" {
+			return fmt.Errorf(opWaitAPI.Err)
+		}
+
+		return nil
+	}
+
+	op, err := operations.OperationCreate(d.State(), project, operations.OperationClassTask, db.OperationImageDownload, nil, nil, run, nil, nil)
 	if err != nil {
 		return response.InternalError(err)
 	}
 
 	return operations.OperationResponse(op)
+}
+
+func imageSecret(d *Daemon, r *http.Request) response.Response {
+	project := projectParam(r)
+	fingerprint := mux.Vars(r)["fingerprint"]
+
+	_, imgInfo, err := d.cluster.ImageGet(project, fingerprint, false, false)
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	return createTokenResponse(d, project, imgInfo.Fingerprint, nil)
 }
 
 func imageImportFromNode(imagesDir string, client lxd.InstanceServer, fingerprint string) error {
@@ -2267,4 +2427,29 @@ func imageSyncBetweenNodes(d *Daemon, project string, fingerprint string) error 
 	}
 
 	return op.Wait()
+}
+
+func createTokenResponse(d *Daemon, project, fingerprint string, metadata shared.Jmap) response.Response {
+	secret, err := shared.RandomCryptoString()
+	if err != nil {
+		return response.InternalError(err)
+	}
+
+	meta := shared.Jmap{}
+
+	for k, v := range metadata {
+		meta[k] = v
+	}
+
+	meta["secret"] = secret
+
+	resources := map[string][]string{}
+	resources["images"] = []string{fingerprint}
+
+	op, err := operations.OperationCreate(d.State(), project, operations.OperationClassToken, db.OperationImageToken, resources, meta, nil, nil, nil)
+	if err != nil {
+		return response.InternalError(err)
+	}
+
+	return operations.OperationResponse(op)
 }

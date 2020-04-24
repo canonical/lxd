@@ -58,6 +58,8 @@ type ImageServer interface {
 	GetImageAlias(name string) (alias *api.ImageAliasesEntry, ETag string, err error)
 	GetImageAliasType(imageType string, name string) (alias *api.ImageAliasesEntry, ETag string, err error)
 	GetImageAliasArchitectures(imageType string, name string) (entries map[string]*api.ImageAliasesEntry, err error)
+
+	ExportImage(fingerprint string, image api.ImageExportPost) (Operation, error)
 }
 
 // The InstanceServer type represents a full featured LXD server.
@@ -227,6 +229,7 @@ type InstanceServer interface {
 	GetOperations() (operations []api.Operation, err error)
 	GetOperation(uuid string) (op *api.Operation, ETag string, err error)
 	GetOperationWait(uuid string, timeout int) (op *api.Operation, ETag string, err error)
+	GetOperationWaitSecret(uuid string, secret string, timeout int) (op *api.Operation, ETag string, err error)
 	GetOperationWebsocket(uuid string, secret string) (conn *websocket.Conn, err error)
 	DeleteOperation(uuid string) (err error)
 
@@ -393,6 +396,9 @@ type ImageCopyArgs struct {
 
 	// The image type to use for resolution
 	Type string
+
+	// The transfer mode, can be "pull" (default), "push" or "relay"
+	Mode string
 }
 
 // The StoragePoolVolumeCopyArgs struct is used to pass additional options

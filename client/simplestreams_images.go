@@ -270,3 +270,8 @@ func (r *ProtocolSimpleStreams) GetImageAliasArchitectures(imageType string, nam
 
 	return r.ssClient.GetAliasArchitectures(imageType, name)
 }
+
+// ExportImage exports (copies) an image to a remote server
+func (r *ProtocolSimpleStreams) ExportImage(fingerprint string, image api.ImageExportPost) (Operation, error) {
+	return nil, fmt.Errorf("Exporting images is not supported by the simplestreams protocol")
+}

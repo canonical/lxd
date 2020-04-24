@@ -77,6 +77,19 @@ func (r *ProtocolLXD) GetOperationWait(uuid string, timeout int) (*api.Operation
 	return &op, etag, nil
 }
 
+// GetOperationWaitSecret returns an Operation entry for the provided uuid and secret once it's complete or hits the timeout
+func (r *ProtocolLXD) GetOperationWaitSecret(uuid string, secret string, timeout int) (*api.Operation, string, error) {
+	op := api.Operation{}
+
+	// Fetch the raw value
+	etag, err := r.queryStruct("GET", fmt.Sprintf("/operations/%s/wait?secret=%s&timeout=%d", url.PathEscape(uuid), url.PathEscape(secret), timeout), nil, "", &op)
+	if err != nil {
+		return nil, "", err
+	}
+
+	return &op, etag, nil
+}
+
 // GetOperationWebsocket returns a websocket connection for the provided operation
 func (r *ProtocolLXD) GetOperationWebsocket(uuid string, secret string) (*websocket.Conn, error) {
 	path := fmt.Sprintf("/operations/%s/websocket", url.PathEscape(uuid))

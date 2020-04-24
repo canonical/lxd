@@ -1033,3 +1033,8 @@ In `l2` mode the `ipv4.gateway` and `ipv6.gateway` keys accept only a singular I
 
 ## resources\_system
 This adds system information to the output of `/1.0/resources`.
+
+## images\_push\_relay
+This adds the push and relay modes to image copy.
+It also introduces the following new endpoint:
+ - `POST 1.0/images/<fingerprint>/export`
