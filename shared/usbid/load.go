@@ -31,7 +31,9 @@ var (
 func init() {
 	usbids, err := os.Open("/usr/share/misc/usb.ids")
 	if err != nil {
-		log.Printf("usbid: failed to load: %s", err)
+		if !os.IsNotExist(err) {
+			log.Printf("usbid: failed to load: %s", err)
+		}
 		return
 	}
 	defer usbids.Close()
