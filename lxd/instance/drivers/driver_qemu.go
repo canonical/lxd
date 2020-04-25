@@ -733,6 +733,10 @@ func (vm *qemu) Start(stateful bool) error {
 		"-chroot", vm.Path(),
 	}
 
+	if vm.architecture != osarch.ARCH_64BIT_POWERPC_LITTLE_ENDIAN {
+		qemuCmd = append(qemuCmd, "-smbios", "type=2,manufacturer=Canonical Ltd.,product=LXD")
+	}
+
 	// Attempt to drop privileges.
 	if vm.state.OS.UnprivUser != "" {
 		qemuCmd = append(qemuCmd, "-runas", vm.state.OS.UnprivUser)
