@@ -349,6 +349,8 @@ func (c *cmdConfigEdit) Run(cmd *cobra.Command, args []string) error {
 type cmdConfigGet struct {
 	global *cmdGlobal
 	config *cmdConfig
+
+	flagExpanded bool
 }
 
 func (c *cmdConfigGet) Command() *cobra.Command {
@@ -358,6 +360,7 @@ func (c *cmdConfigGet) Command() *cobra.Command {
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
 		`Get values for instance or server configuration keys`))
 
+	cmd.Flags().BoolVar(&c.flagExpanded, "expanded", false, i18n.G("Access the expanded configuration"))
 	cmd.Flags().StringVar(&c.config.flagTarget, "target", "", i18n.G("Cluster member name")+"``")
 	cmd.RunE = c.Run
 
@@ -395,8 +398,18 @@ func (c *cmdConfigGet) Run(cmd *cobra.Command, args []string) error {
 		if err != nil {
 			return err
 		}
-		fmt.Println(resp.Config[args[len(args)-1]])
+
+		if c.flagExpanded {
+			fmt.Println(resp.ExpandedConfig[args[len(args)-1]])
+		} else {
+			fmt.Println(resp.Config[args[len(args)-1]])
+		}
 	} else {
+		// Sanity check
+		if c.flagExpanded {
+			return fmt.Errorf(i18n.G("--expanded cannot be used with a server"))
+		}
+
 		// Targeting
 		if c.config.flagTarget != "" {
 			if !resource.server.IsClustered() {
@@ -628,6 +641,11 @@ func (c *cmdConfigShow) Run(cmd *cobra.Command, args []string) error {
 	var data []byte
 
 	if resource.name == "" {
+		// Sanity check
+		if c.flagExpanded {
+			return fmt.Errorf(i18n.G("--expanded cannot be used with a server"))
+		}
+
 		// Targeting
 		if c.config.flagTarget != "" {
 			if !resource.server.IsClustered() {
