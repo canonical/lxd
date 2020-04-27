@@ -294,7 +294,7 @@ func (d *ceph) CreateVolumeFromCopy(vol Volume, srcVol Volume, copySnapshots boo
 	// Copy without snapshots.
 	if !copySnapshots || len(snapshots) == 0 {
 		// If lightweight clone mode isn't enabled, perform a full copy of the volume.
-		if d.config["ceph.rbd.clone_copy"] != "" && !shared.IsTrue(d.config["ceph.rbd.clone_copy"]) && srcVol.volType != VolumeTypeImage {
+		if d.config["ceph.rbd.clone_copy"] != "" && !shared.IsTrue(d.config["ceph.rbd.clone_copy"]) {
 			_, err = shared.RunCommand(
 				"rbd",
 				"--id", d.config["ceph.user.name"],
