@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: LXD\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2020-04-24 21:51+0200\n"
+"POT-Creation-Date: 2020-04-27 17:34-0400\n"
 "PO-Revision-Date: 2019-12-12 14:53+0000\n"
 "Last-Translator: Stéphane Graber <stgraber@stgraber.org>\n"
 "Language-Team: German <https://hosted.weblate.org/projects/linux-containers/"
@@ -344,6 +344,11 @@ msgstr ""
 msgid "--empty cannot be combined with an image name"
 msgstr ""
 
+#: lxc/config.go:410 lxc/config.go:646
+#, fuzzy
+msgid "--expanded cannot be used with a server"
+msgstr "--refresh kann nur mit Containern verwendet werden"
+
 #: lxc/copy.go:151
 msgid "--instance-only can't be passed when the source is a snapshot"
 msgstr ""
@@ -353,7 +358,7 @@ msgstr ""
 msgid "--refresh can only be used with instances"
 msgstr "--refresh kann nur mit Containern verwendet werden"
 
-#: lxc/config.go:149 lxc/config.go:391 lxc/config.go:516 lxc/config.go:654
+#: lxc/config.go:149 lxc/config.go:394 lxc/config.go:529 lxc/config.go:672
 #: lxc/info.go:423
 #, fuzzy
 msgid "--target cannot be used with instances"
@@ -378,6 +383,11 @@ msgstr ""
 #: lxc/remote.go:94
 msgid "Accept certificate"
 msgstr "Akzeptiere Zertifikat"
+
+#: lxc/config.go:363
+#, fuzzy
+msgid "Access the expanded configuration"
+msgstr "Profil %s erstellt\n"
 
 #: lxc/query.go:41
 msgid "Action (defaults to GET)"
@@ -664,7 +674,7 @@ msgstr ""
 msgid "Can't supply uid/gid/mode in recursive mode"
 msgstr ""
 
-#: lxc/config.go:533
+#: lxc/config.go:546
 #, c-format
 msgid "Can't unset key '%s', it's not currently set"
 msgstr ""
@@ -702,8 +712,8 @@ msgstr "Gespeichertes Nutzerzertifikat auf dem Server: "
 msgid "Client version: %s\n"
 msgstr ""
 
-#: lxc/config.go:95 lxc/config.go:361 lxc/config.go:454 lxc/config.go:601
-#: lxc/config.go:719 lxc/copy.go:52 lxc/info.go:45 lxc/init.go:54
+#: lxc/config.go:95 lxc/config.go:364 lxc/config.go:467 lxc/config.go:614
+#: lxc/config.go:737 lxc/copy.go:52 lxc/info.go:45 lxc/init.go:54
 #: lxc/move.go:57 lxc/network.go:257 lxc/network.go:672 lxc/network.go:730
 #: lxc/network.go:1017 lxc/network.go:1084 lxc/network.go:1146
 #: lxc/storage.go:92 lxc/storage.go:336 lxc/storage.go:392 lxc/storage.go:588
@@ -1021,8 +1031,8 @@ msgstr "Kein Zertifikat für diese Verbindung"
 #: lxc/alias.go:22 lxc/alias.go:54 lxc/alias.go:100 lxc/alias.go:144
 #: lxc/alias.go:195 lxc/cluster.go:31 lxc/cluster.go:74 lxc/cluster.go:153
 #: lxc/cluster.go:203 lxc/cluster.go:253 lxc/cluster.go:336 lxc/cluster.go:421
-#: lxc/config.go:30 lxc/config.go:89 lxc/config.go:358 lxc/config.go:439
-#: lxc/config.go:597 lxc/config.go:716 lxc/config_device.go:24
+#: lxc/config.go:30 lxc/config.go:89 lxc/config.go:360 lxc/config.go:452
+#: lxc/config.go:610 lxc/config.go:734 lxc/config_device.go:24
 #: lxc/config_device.go:76 lxc/config_device.go:188 lxc/config_device.go:261
 #: lxc/config_device.go:327 lxc/config_device.go:416 lxc/config_device.go:507
 #: lxc/config_device.go:513 lxc/config_device.go:613 lxc/config_device.go:681
@@ -1484,7 +1494,7 @@ msgstr ""
 msgid "Get values for instance device configuration keys"
 msgstr "Profil %s erstellt\n"
 
-#: lxc/config.go:357 lxc/config.go:358
+#: lxc/config.go:359 lxc/config.go:360
 #, fuzzy
 msgid "Get values for instance or server configuration keys"
 msgstr "Profil %s erstellt\n"
@@ -2951,12 +2961,12 @@ msgid ""
 "    lxc profile device set [<remote>:]<profile> <device> <key> <value>"
 msgstr ""
 
-#: lxc/config.go:438
+#: lxc/config.go:451
 #, fuzzy
 msgid "Set instance or server configuration keys"
 msgstr "Alternatives config Verzeichnis."
 
-#: lxc/config.go:439
+#: lxc/config.go:452
 msgid ""
 "Set instance or server configuration keys\n"
 "\n"
@@ -3084,7 +3094,7 @@ msgstr ""
 msgid "Show instance metadata files"
 msgstr "Anhalten des Containers fehlgeschlagen!"
 
-#: lxc/config.go:596 lxc/config.go:597
+#: lxc/config.go:609 lxc/config.go:610
 #, fuzzy
 msgid "Show instance or server configurations"
 msgstr "Profil %s erstellt\n"
@@ -3132,7 +3142,7 @@ msgstr "Profil %s erstellt\n"
 msgid "Show the default remote"
 msgstr ""
 
-#: lxc/config.go:600
+#: lxc/config.go:613
 msgid "Show the expanded configuration"
 msgstr ""
 
@@ -3426,7 +3436,7 @@ msgstr ""
 msgid "To start your first instance, try: lxc launch ubuntu:18.04"
 msgstr ""
 
-#: lxc/config.go:278 lxc/config.go:403 lxc/config.go:553 lxc/config.go:634
+#: lxc/config.go:278 lxc/config.go:416 lxc/config.go:566 lxc/config.go:652
 #: lxc/copy.go:114 lxc/info.go:309 lxc/network.go:759 lxc/storage.go:420
 msgid "To use --target, the destination remote must be a cluster"
 msgstr ""
@@ -3521,7 +3531,7 @@ msgstr "nicht alle Profile der Quelle sind am Ziel vorhanden."
 msgid "Unset instance device configuration keys"
 msgstr "Alternatives config Verzeichnis."
 
-#: lxc/config.go:715 lxc/config.go:716
+#: lxc/config.go:733 lxc/config.go:734
 #, fuzzy
 msgid "Unset instance or server configuration keys"
 msgstr "Alternatives config Verzeichnis."
@@ -4056,7 +4066,7 @@ msgstr ""
 "\n"
 "lxd %s <Name>\n"
 
-#: lxc/config.go:356
+#: lxc/config.go:358
 #, fuzzy
 msgid "get [<remote>:][<instance>] <key>"
 msgstr ""
@@ -4197,7 +4207,7 @@ msgid ""
 "    Update the instance configuration from config.yaml."
 msgstr ""
 
-#: lxc/config.go:444
+#: lxc/config.go:457
 msgid ""
 "lxc config set [<remote>:]<instance> limits.cpu=2\n"
 "    Will set a CPU limit of \"2\" for the instance.\n"
@@ -4667,7 +4677,7 @@ msgstr ""
 "\n"
 "lxd %s <Name>\n"
 
-#: lxc/config.go:437
+#: lxc/config.go:450
 #, fuzzy
 msgid "set [<remote>:][<instance>] <key>=<value>..."
 msgstr ""
@@ -4743,7 +4753,7 @@ msgstr ""
 msgid "show [<remote>:]<project>"
 msgstr ""
 
-#: lxc/config.go:595
+#: lxc/config.go:608
 #, fuzzy
 msgid "show [<remote>:][<instance>[/<snapshot>]]"
 msgstr ""
@@ -4867,7 +4877,7 @@ msgstr ""
 "\n"
 "lxd %s <Name>\n"
 
-#: lxc/config.go:714
+#: lxc/config.go:732
 #, fuzzy
 msgid "unset [<remote>:][<instance>] <key>"
 msgstr ""
