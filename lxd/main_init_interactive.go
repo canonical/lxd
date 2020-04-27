@@ -506,6 +506,16 @@ func (c *cmdInit) askStoragePool(config *cmdInitData, d lxd.InstanceServer, pool
 			}
 		}
 
+		// Optimization for zfs on zfs (when using Ubuntu's bpool/rpool)
+		if pool.Driver == "zfs" && backingFs == "zfs" {
+			poolName, _ := shared.RunCommand("zpool", "get", "-H", "-o", "value", "name", "rpool")
+			if strings.TrimSpace(poolName) == "rpool" && cli.AskBool("Would you like to create a new zfs dataset under rpool/lxd? (yes/no) [default=yes]: ", "yes") {
+				pool.Config["source"] = "rpool/lxd"
+				config.Node.StoragePools = append(config.Node.StoragePools, pool)
+				break
+			}
+		}
+
 		if cli.AskBool(fmt.Sprintf("Create a new %s pool? (yes/no) [default=yes]: ", strings.ToUpper(pool.Driver)), "yes") {
 			if pool.Driver == "ceph" {
 				// Ask for the name of the cluster
