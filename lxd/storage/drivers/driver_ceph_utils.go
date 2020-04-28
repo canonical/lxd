@@ -22,6 +22,8 @@ import (
 	"github.com/lxc/lxd/shared/units"
 )
 
+const cephVolumeTypeZombieImage = VolumeType("zombie_image")
+
 // osdPoolExists checks whether a given OSD pool exists.
 func (d *ceph) osdPoolExists() bool {
 	_, err := shared.RunCommand(
