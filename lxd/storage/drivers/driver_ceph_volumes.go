@@ -594,6 +594,10 @@ func (d *ceph) RefreshVolume(vol Volume, srcVol Volume, srcSnapshots []Volume, o
 // DeleteVolume deletes a volume of the storage device. If any snapshots of the volume remain then
 // this function will return an error.
 func (d *ceph) DeleteVolume(vol Volume, op *operations.Operation) error {
+	if !d.HasVolume(vol) {
+		return nil
+	}
+
 	if vol.volType == VolumeTypeImage {
 		// Try to umount but don't fail.
 		d.UnmountVolume(vol, op)
@@ -644,10 +648,6 @@ func (d *ceph) DeleteVolume(vol Volume, op *operations.Operation) error {
 			return err
 		}
 	} else {
-		if !d.HasVolume(vol) {
-			return nil
-		}
-
 		_, err := d.UnmountVolume(vol, op)
 		if err != nil {
 			return err
