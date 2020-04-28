@@ -7,6 +7,7 @@ import (
 	"io/ioutil"
 	"os"
 	"os/exec"
+	"regexp"
 	"strconv"
 	"strings"
 	"syscall"
@@ -851,56 +852,59 @@ func (d *ceph) deleteVolumeSnapshot(vol Volume, snapshotName string) (int, error
 }
 
 // parseParent splits a string describing a RBD storage entity into its components.
-// This can be used on strings like
-// <osd-pool-name>/<lxd-specific-prefix>_<rbd-storage-volume>@<rbd-snapshot-name>
-// and will split it into
-// <osd-pool-name>, <rbd-storage-volume>, <lxd-specific-prefix>, <rbdd-snapshot-name>
-func (d *ceph) parseParent(parent string) (string, string, string, string, error) {
+// This can be used on strings like: <osd-pool-name>/<lxd-specific-prefix>_<rbd-storage-volume>@<rbd-snapshot-name>
+// and will return a Volume and snapshot name.
+func (d *ceph) parseParent(parent string) (Volume, string, error) {
+	vol := Volume{}
+
 	idx := strings.Index(parent, "/")
 	if idx == -1 {
-		return "", "", "", "", fmt.Errorf("Unexpected parsing error")
+		return vol, "", fmt.Errorf("Pool delimiter not found")
 	}
 	slider := parent[(idx + 1):]
 	poolName := parent[:idx]
 
-	volumeType := slider
-	idx = strings.Index(slider, "zombie_")
-	if idx == 0 {
-		idx += len("zombie_")
-		volumeType = slider
-		slider = slider[idx:]
+	// Match image volumes and extract their various parts into a Volume struct.
+	// Looks for volumes like:
+	// pool/zombie_image_9e90b7b9ccdd7a671a987fadcf07ab92363be57e7f056d18d42af452cdaf95bb_ext4.block@readonly
+	// pool/image_9e90b7b9ccdd7a671a987fadcf07ab92363be57e7f056d18d42af452cdaf95bb_xfs
+	reImage := regexp.MustCompile(`^((?:zombie_)?image)_([A-Za-z0-9]+)_([A-Za-z0-9]+)\.?(block)?@?([-\w]+)?$`)
+	if imageRes := reImage.FindStringSubmatch(slider); imageRes != nil {
+		vol.volType = VolumeType(imageRes[1])
+		vol.pool = poolName
+		vol.name = imageRes[2]
+		vol.config = map[string]string{
+			"block.filesystem": imageRes[3],
+		}
+
+		if imageRes[4] == "block" {
+			vol.contentType = ContentTypeBlock
+		} else {
+			vol.contentType = ContentTypeFS
+		}
+
+		return vol, imageRes[5], nil
 	}
 
-	idxType := strings.Index(slider, "_")
-	if idxType == -1 {
-		return "", "", "", "", fmt.Errorf("Unexpected parsing error")
+	// Match normal instance volumes.
+	// Looks for volumes like:
+	// pool/container_bar@zombie_snapshot_ce77e971-6c1b-45c0-b193-dba9ec5e7d82
+	reInst := regexp.MustCompile(`^((?:zombie_)?[a-z-]+)_([\w-]+)\.?(block)?@?([-\w]+)?$`)
+	if instRes := reInst.FindStringSubmatch(slider); instRes != nil {
+		vol.volType = VolumeType(instRes[1])
+		vol.pool = poolName
+		vol.name = instRes[2]
+
+		if instRes[3] == "block" {
+			vol.contentType = ContentTypeBlock
+		} else {
+			vol.contentType = ContentTypeFS
+		}
+
+		return vol, instRes[4], nil
 	}
 
-	if idx == len("zombie_") {
-		idxType += idx
-	}
-	volumeType = volumeType[:idxType]
-
-	idx = strings.Index(slider, "_")
-	if idx == -1 {
-		return "", "", "", "", fmt.Errorf("Unexpected parsing error")
-	}
-
-	volumeName := slider
-	idx = strings.Index(volumeName, "_")
-	if idx == -1 {
-		return "", "", "", "", fmt.Errorf("Unexpected parsing error")
-	}
-	volumeName = volumeName[(idx + 1):]
-
-	idx = strings.Index(volumeName, "@")
-	if idx == -1 {
-		return "", "", "", "", fmt.Errorf("Unexpected parsing error")
-	}
-	snapshotName := volumeName[(idx + 1):]
-	volumeName = volumeName[:idx]
-
-	return poolName, volumeType, volumeName, snapshotName, nil
+	return vol, "", fmt.Errorf("Unrecognised parent: %q", parent)
 }
 
 // parseClone splits a strings describing an RBD storage volume.
