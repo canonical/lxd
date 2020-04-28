@@ -529,24 +529,14 @@ func (d *ceph) rbdListVolumeSnapshots(vol Volume) ([]string, error) {
 	return snapshots, nil
 }
 
-// getRBDSize returns the size the RBD storage volume is supposed to be created with.
-func (d *ceph) getRBDSize(vol Volume) (string, error) {
-	size, ok := vol.config["size"]
-	if !ok {
-		size = vol.poolConfig["volume.size"]
+// volumeSize returns the size to use when creating new RBD volumes.
+func (d *ceph) volumeSize(vol Volume) string {
+	size := vol.ExpandedConfig("size")
+	if size == "" || size == "0" {
+		return defaultBlockSize
 	}
 
-	sz, err := units.ParseByteSizeString(size)
-	if err != nil {
-		return "", err
-	}
-
-	// Safety net: Set to default value.
-	if sz == 0 {
-		sz, _ = units.ParseByteSizeString(defaultBlockSize)
-	}
-
-	return fmt.Sprintf("%dB", sz), nil
+	return size
 }
 
 // getRBDFilesystem returns the filesystem the RBD storage volume is supposed to be created with.
