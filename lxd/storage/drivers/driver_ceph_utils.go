@@ -1059,11 +1059,12 @@ func (d *ceph) getRBDVolumeName(vol Volume, snapName string, zombie bool, withPo
 	volumeType := string(vol.volType)
 	parentName, snapshotName, isSnapshot := shared.InstanceGetParentAndSnapshotName(vol.name)
 
-	if vol.volType == VolumeTypeImage {
+	// Only use filesystem suffix on filesystem type image volumes (for all content types).
+	if vol.volType == VolumeTypeImage || vol.volType == cephVolumeTypeZombieImage {
 		parentName = fmt.Sprintf("%s_%s", parentName, d.getRBDFilesystem(vol))
 	}
 
-	if (vol.volType == VolumeTypeVM || vol.volType == VolumeTypeImage) && vol.contentType == ContentTypeBlock {
+	if vol.contentType == ContentTypeBlock {
 		parentName = fmt.Sprintf("%s.block", parentName)
 	}
 
