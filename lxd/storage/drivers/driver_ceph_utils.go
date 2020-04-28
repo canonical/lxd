@@ -658,8 +658,7 @@ func (d *ceph) deleteVolume(vol Volume) (int, error) {
 				return -1, err
 			}
 
-			if strings.HasPrefix(vol.name, "zombie_") ||
-				strings.HasPrefix(string(vol.volType), "zombie_") {
+			if strings.HasPrefix(vol.name, "zombie_") || strings.HasPrefix(string(vol.volType), "zombie_") {
 				return 1, nil
 			}
 
