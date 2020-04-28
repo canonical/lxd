@@ -282,6 +282,50 @@ func (d *ceph) CreateVolumeFromCopy(vol Volume, srcVol Volume, copySnapshots boo
 	revert := revert.New()
 	defer revert.Fail()
 
+	// Function to run once the volume is created, which will regenerate the filesystem UUID (if needed),
+	// ensure permissions on mount path inside the volume are correct, and resize the volume to specified size.
+	postCreateTasks := func(v Volume) error {
+		// Map the RBD volume.
+		RBDDevPath, err := d.rbdMapVolume(v)
+		if err != nil {
+			return err
+		}
+		defer d.rbdUnmapVolume(v, true)
+
+		if vol.contentType == ContentTypeFS {
+			// Re-generate the UUID. Do this first as ensuring permissions and setting quota can
+			// rely on being able to mount the volume.
+			err = d.generateUUID(d.getRBDFilesystem(v), RBDDevPath)
+			if err != nil {
+				return err
+			}
+
+			// Mount the volume and ensure the permissions are set correctly inside the mounted volume.
+			err = v.MountTask(func(_ string, _ *operations.Operation) error {
+				return v.EnsureMountPath()
+			}, op)
+			if err != nil {
+				return err
+			}
+		}
+
+		// Default to non-expanded config, so we only use user specified volume size.
+		// This is so the pool default volume size isn't take into account for volume copies.
+		volSize := vol.config["size"]
+
+		// If source is an image then use expanded config so that we take into account pool volume size.
+		if srcVol.volType == VolumeTypeImage {
+			volSize = vol.ExpandedConfig("size")
+		}
+
+		err = d.SetVolumeQuota(vol, volSize, op)
+		if err != nil {
+			return err
+		}
+
+		return nil
+	}
+
 	// Retrieve snapshots on the source.
 	snapshots := []string{}
 	if !srcVol.IsSnapshot() && copySnapshots {
@@ -351,38 +395,19 @@ func (d *ceph) CreateVolumeFromCopy(vol Volume, srcVol Volume, copySnapshots boo
 			revert.Add(func() { d.DeleteVolume(vol, op) })
 		}
 
-		if vol.contentType == ContentTypeFS {
-			// Map the RBD volume.
-			RBDDevPath, err := d.rbdMapVolume(vol)
-			if err != nil {
-				return err
-			}
-			defer d.rbdUnmapVolume(vol, true)
-
-			// Re-generate the UUID.
-			err = d.generateUUID(d.getRBDFilesystem(vol), RBDDevPath)
-			if err != nil {
-				return err
-			}
-
-			// Mount the volume and ensure the permissions are set correctly inside the mounted volume.
-			err = vol.MountTask(func(_ string, _ *operations.Operation) error {
-				return vol.EnsureMountPath()
-			}, op)
+		// For VMs, also copy the filesystem volume.
+		if vol.IsVMBlock() {
+			srcFSVol := srcVol.NewVMBlockFilesystemVolume()
+			fsVol := vol.NewVMBlockFilesystemVolume()
+			err := d.CreateVolumeFromCopy(fsVol, srcFSVol, false, op)
 			if err != nil {
 				return err
 			}
 		}
 
-		// For VMs, also copy the filesystem volume.
-		if vol.IsVMBlock() {
-			srcFSVol := srcVol.NewVMBlockFilesystemVolume()
-			fsVol := vol.NewVMBlockFilesystemVolume()
-
-			err := d.CreateVolumeFromCopy(fsVol, srcFSVol, false, op)
-			if err != nil {
-				return err
-			}
+		err = postCreateTasks(vol)
+		if err != nil {
+			return err
 		}
 
 		revert.Success()
@@ -419,11 +444,7 @@ func (d *ceph) CreateVolumeFromCopy(vol Volume, srcVol Volume, copySnapshots boo
 
 		lastSnap = fmt.Sprintf("snapshot_%s", snap)
 		sourceVolumeName := d.getRBDVolumeName(srcVol, lastSnap, false, true)
-
-		err = d.copyWithSnapshots(
-			sourceVolumeName,
-			targetVolumeName,
-			prev)
+		err = d.copyWithSnapshots(sourceVolumeName, targetVolumeName, prev)
 		if err != nil {
 			return err
 		}
@@ -444,29 +465,17 @@ func (d *ceph) CreateVolumeFromCopy(vol Volume, srcVol Volume, copySnapshots boo
 	// Copy snapshot.
 	sourceVolumeName := d.getRBDVolumeName(srcVol, "", false, true)
 
-	err = d.copyWithSnapshots(
-		sourceVolumeName,
-		targetVolumeName,
-		lastSnap)
+	err = d.copyWithSnapshots(sourceVolumeName, targetVolumeName, lastSnap)
 	if err != nil {
 		return err
 	}
 
-	// Map the RBD volume.
-	RBDDevPath, err := d.rbdMapVolume(vol)
-	if err != nil {
-		return err
-	}
-	defer d.rbdUnmapVolume(vol, true)
-
-	// Re-generate the UUID.
-	err = d.generateUUID(d.getRBDFilesystem(vol), RBDDevPath)
+	err = postCreateTasks(vol)
 	if err != nil {
 		return err
 	}
 
 	revert.Success()
-
 	return nil
 }
 
