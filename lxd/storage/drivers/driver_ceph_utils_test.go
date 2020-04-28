@@ -1,6 +1,9 @@
 package drivers
 
-import "testing"
+import (
+	"fmt"
+	"testing"
+)
 
 func Test_ceph_getRBDVolumeName(t *testing.T) {
 	type args struct {
@@ -109,4 +112,36 @@ func Test_ceph_getRBDVolumeName(t *testing.T) {
 			}
 		})
 	}
+}
+func Example_ceph_parseParent() {
+	d := &ceph{}
+
+	parents := []string{
+		"pool/zombie_image_9e90b7b9ccdd7a671a987fadcf07ab92363be57e7f056d18d42af452cdaf95bb_ext4.block@readonly",
+		"pool/zombie_image_9e90b7b9ccdd7a671a987fadcf07ab92363be57e7f056d18d42af452cdaf95bb_ext4.block",
+		"pool/image_9e90b7b9ccdd7a671a987fadcf07ab92363be57e7f056d18d42af452cdaf95bb_ext4.block@readonly",
+		"pool/zombie_image_9e90b7b9ccdd7a671a987fadcf07ab92363be57e7f056d18d42af452cdaf95bb_ext4@readonly",
+		"pool/zombie_image_9e90b7b9ccdd7a671a987fadcf07ab92363be57e7f056d18d42af452cdaf95bb_ext4",
+		"pool/image_9e90b7b9ccdd7a671a987fadcf07ab92363be57e7f056d18d42af452cdaf95bb_ext4@readonly",
+		"pool/zombie_image_2cfc5a5567b8d74c0986f3d8a77a2a78e58fe22ea9abd2693112031f85afa1a1_xfs@zombie_snapshot_7f6d679b-ee25-419e-af49-bb805cb32088",
+		"pool/container_bar@zombie_snapshot_ce77e971-6c1b-45c0-b193-dba9ec5e7d82",
+		"pool/container_test-project_c4.block",
+		"pool/zombie_container_test-project_c1_28e7a7ab-740a-490c-8118-7caf7810f83b@zombie_snapshot_1027f4ab-de11-4cee-8015-bd532a1fed76",
+	}
+
+	for _, parent := range parents {
+		vol, snapName, err := d.parseParent(parent)
+		fmt.Println(vol.pool, vol.volType, vol.name, vol.config["block.filesystem"], vol.contentType, snapName, err)
+	}
+
+	// Output: pool zombie_image 9e90b7b9ccdd7a671a987fadcf07ab92363be57e7f056d18d42af452cdaf95bb ext4 block readonly <nil>
+	// pool zombie_image 9e90b7b9ccdd7a671a987fadcf07ab92363be57e7f056d18d42af452cdaf95bb ext4 block  <nil>
+	// pool image 9e90b7b9ccdd7a671a987fadcf07ab92363be57e7f056d18d42af452cdaf95bb ext4 block readonly <nil>
+	// pool zombie_image 9e90b7b9ccdd7a671a987fadcf07ab92363be57e7f056d18d42af452cdaf95bb ext4 fs readonly <nil>
+	// pool zombie_image 9e90b7b9ccdd7a671a987fadcf07ab92363be57e7f056d18d42af452cdaf95bb ext4 fs  <nil>
+	// pool image 9e90b7b9ccdd7a671a987fadcf07ab92363be57e7f056d18d42af452cdaf95bb ext4 fs readonly <nil>
+	// pool zombie_image 2cfc5a5567b8d74c0986f3d8a77a2a78e58fe22ea9abd2693112031f85afa1a1 xfs fs zombie_snapshot_7f6d679b-ee25-419e-af49-bb805cb32088 <nil>
+	// pool container bar  fs zombie_snapshot_ce77e971-6c1b-45c0-b193-dba9ec5e7d82 <nil>
+	// pool container test-project_c4  block  <nil>
+	// pool zombie_container test-project_c1_28e7a7ab-740a-490c-8118-7caf7810f83b  fs zombie_snapshot_1027f4ab-de11-4cee-8015-bd532a1fed76 <nil>
 }
