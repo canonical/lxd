@@ -356,15 +356,19 @@ func (d *ceph) rbdListSnapshotClones(vol Volume, snapshotName string) ([]string,
 // creating a sparse copy of a container or when LXD updated an image and the
 // image still has dependent container clones.
 func (d *ceph) rbdMarkVolumeDeleted(vol Volume, newVolumeName string) error {
-	newVol := NewVolume(d, d.name, vol.volType, vol.contentType, newVolumeName, nil, nil)
+	// Ensure that new volume contains the config from the source volume to maintain filesystem suffix on
+	// new volume name generated in getRBDVolumeName.
+	newVol := NewVolume(d, d.name, vol.volType, vol.contentType, newVolumeName, vol.config, vol.poolConfig)
 	deletedName := d.getRBDVolumeName(newVol, "", true, true)
+
 	_, err := shared.RunCommand(
 		"rbd",
 		"--id", d.config["ceph.user.name"],
 		"--cluster", d.config["ceph.cluster_name"],
 		"mv",
 		d.getRBDVolumeName(vol, "", false, true),
-		deletedName)
+		deletedName,
+	)
 	if err != nil {
 		return err
 	}
