@@ -167,6 +167,18 @@ func IsAddressCovered(address1, address2 string) bool {
 		return false
 	}
 
+	// If address1 contains a host name, let's try to resolve it, in order
+	// to compare the actual IPs.
+	if host1 != "" {
+		ip1 := net.ParseIP(host1)
+		if ip1 == nil {
+			ips, err := net.LookupHost(host1)
+			if err == nil && len(ips) > 0 {
+				host1 = ips[0]
+			}
+		}
+	}
+
 	// If address2 contains a host name, let's try to resolve it, in order
 	// to compare the actual IPs.
 	if host2 != "" {
