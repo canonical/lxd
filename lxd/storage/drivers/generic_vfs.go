@@ -22,6 +22,7 @@ import (
 	"github.com/lxc/lxd/shared/instancewriter"
 	"github.com/lxc/lxd/shared/ioprogress"
 	log "github.com/lxc/lxd/shared/log15"
+	"github.com/lxc/lxd/shared/logger"
 )
 
 // genericVFSGetResources is a generic GetResources implementation for VFS-only drivers.
@@ -521,7 +522,12 @@ func genericVFSBackupVolume(d Driver, vol Volume, tarWriter *instancewriter.Inst
 				d.Logger().Debug("Copying container filesystem volume", log.Ctx{"sourcePath": mountPath, "prefix": prefix})
 				return filepath.Walk(mountPath, func(srcPath string, fi os.FileInfo, err error) error {
 					if err != nil {
-						return err
+						if os.IsNotExist(err) {
+							logger.Warnf("File vanished during export: %q, skipping", srcPath)
+							return nil
+						}
+
+						return errors.Wrapf(err, "Error walking file during export: %q", srcPath)
 					}
 
 					name := filepath.Join(prefix, strings.TrimPrefix(srcPath, mountPath))
