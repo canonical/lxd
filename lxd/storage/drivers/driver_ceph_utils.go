@@ -382,7 +382,9 @@ func (d *ceph) rbdMarkVolumeDeleted(vol Volume, newVolumeName string) error {
 // under its original name and the callers maps it under its new name the image
 // will be mapped twice. This will prevent it from being deleted.
 func (d *ceph) rbdRenameVolume(vol Volume, newVolumeName string) error {
-	newVol := NewVolume(d, d.name, vol.volType, vol.contentType, newVolumeName, nil, nil)
+	// Ensure that new volume contains the config from the source volume to maintain filesystem suffix on
+	// new volume name generated in getRBDVolumeName.
+	newVol := NewVolume(d, d.name, vol.volType, vol.contentType, newVolumeName, vol.config, vol.poolConfig)
 
 	_, err := shared.RunCommand(
 		"rbd",
@@ -390,7 +392,8 @@ func (d *ceph) rbdRenameVolume(vol Volume, newVolumeName string) error {
 		"--cluster", d.config["ceph.cluster_name"],
 		"mv",
 		d.getRBDVolumeName(vol, "", false, true),
-		d.getRBDVolumeName(newVol, "", false, true))
+		d.getRBDVolumeName(newVol, "", false, true),
+	)
 	if err != nil {
 		return err
 	}
