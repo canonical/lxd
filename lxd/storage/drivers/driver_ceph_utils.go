@@ -677,8 +677,7 @@ func (d *ceph) deleteVolume(vol Volume) (int, error) {
 
 		parent, err := d.rbdGetVolumeParent(vol)
 		if err == nil {
-			_, parentVolumeType, parentVolumeName,
-				parentSnapshotName, err := d.parseParent(parent)
+			parentVol, parentSnapshotName, err := d.parseParent(parent)
 			if err != nil {
 				return -1, err
 			}
@@ -695,13 +694,10 @@ func (d *ceph) deleteVolume(vol Volume) (int, error) {
 				return -1, err
 			}
 
-			parentVol := NewVolume(d, d.name, VolumeType(parentVolumeType), vol.contentType, parentVolumeName, nil, nil)
-
-			// Only delete the parent snapshot of the container if
-			// it is a zombie. If it is not we know that LXD is
-			// still using it.
-			if strings.HasPrefix(parentVolumeType, "zombie_") ||
-				strings.HasPrefix(parentSnapshotName, "zombie_") {
+			// Only delete the parent snapshot of the instance if it is a zombie.
+			// This includes both if the parent volume itself is a zombie, or if the just the snapshot
+			// is a zombie. If it is not we know that LXD is still using it.
+			if strings.HasPrefix(string(parentVol.volType), "zombie_") || strings.HasPrefix(parentSnapshotName, "zombie_") {
 				ret, err := d.deleteVolumeSnapshot(parentVol, parentSnapshotName)
 				if ret < 0 {
 					return -1, err
