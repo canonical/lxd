@@ -70,6 +70,11 @@ func (d *ceph) osdDeletePool() error {
 // library and the kernel module are minimized. Otherwise random panics might
 // occur.
 func (d *ceph) rbdCreateVolume(vol Volume, size string) error {
+	sizeBytes, err := units.ParseByteSizeString(size)
+	if err != nil {
+		return err
+	}
+
 	cmd := []string{
 		"--id", d.config["ceph.user.name"],
 		"--image-feature", "layering,",
@@ -82,11 +87,11 @@ func (d *ceph) rbdCreateVolume(vol Volume, size string) error {
 	}
 
 	cmd = append(cmd,
-		"--size", size,
+		"--size", fmt.Sprintf("%dB", sizeBytes),
 		"create",
 		d.getRBDVolumeName(vol, "", false, false))
 
-	_, err := shared.RunCommand("rbd", cmd...)
+	_, err = shared.RunCommand("rbd", cmd...)
 	return err
 }
 
