@@ -266,25 +266,36 @@ func imgPostContInfo(d *Daemon, r *http.Request, req api.ImagesPost, op *operati
 		go func() {
 			defer wg.Done()
 			compressErr = compressFile(compress, tarReader, compressWriter)
+
+			// If a compression error occurred, close the writer to end the instance export.
+			if compressErr != nil {
+				imageProgressWriter.Close()
+			}
 		}()
 	} else {
 		imageProgressWriter.WriteCloser = imageFile
 		writer = io.MultiWriter(imageProgressWriter, sha256)
 	}
 
+	// Export instance to writer.
 	err = c.Export(writer, req.Properties)
-	// When compression is used, Close on imageProgressWriter/tarWriter
-	// is required for compressFile/gzip to know it is finished.
-	// Otherwise It is equivalent to imageFile.Close.
+
+	// Clean up file handles.
+	// When compression is used, Close on imageProgressWriter/tarWriter is required for compressFile/gzip to
+	// know it is finished. Otherwise it is equivalent to imageFile.Close.
 	imageProgressWriter.Close()
-	wg.Wait()
-	if err != nil {
-		return nil, err
-	}
+	wg.Wait() // Wait until compression helper has finished if used.
+	imageFile.Close()
+
+	// Check compression errors.
 	if compressErr != nil {
 		return nil, compressErr
 	}
-	imageFile.Close()
+
+	// Check instance export errors.
+	if err != nil {
+		return nil, err
+	}
 
 	fi, err := os.Stat(imageFile.Name())
 	if err != nil {
