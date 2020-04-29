@@ -234,14 +234,27 @@ func (d *btrfs) CreateVolumeFromBackup(vol Volume, snapshots []string, srcData i
 
 // CreateVolumeFromCopy provides same-pool volume copying functionality.
 func (d *btrfs) CreateVolumeFromCopy(vol Volume, srcVol Volume, copySnapshots bool, op *operations.Operation) error {
+	revert := revert.New()
+	defer revert.Fail()
+
 	// Recursively copy the main volume.
 	err := d.snapshotSubvolume(srcVol.MountPath(), vol.MountPath(), false, true)
 	if err != nil {
 		return err
 	}
 
-	// Set quota for volume.
-	err = d.SetVolumeQuota(vol, vol.ExpandedConfig("size"), op)
+	revert.Add(func() { d.deleteSubvolume(vol.MountPath(), true) })
+
+	// Default to non-expanded config, so we only use user specified volume size.
+	// This is so the pool default volume size isn't take into account for volume copies.
+	volSize := vol.config["size"]
+
+	// If source is an image then use expanded config so that we take into account pool default volume size.
+	if srcVol.volType == VolumeTypeImage {
+		volSize = vol.ExpandedConfig("size")
+	}
+
+	err = d.SetVolumeQuota(vol, volSize, op)
 	if err != nil {
 		return err
 	}
@@ -252,39 +265,40 @@ func (d *btrfs) CreateVolumeFromCopy(vol Volume, srcVol Volume, copySnapshots bo
 		return err
 	}
 
-	// If we're not copying any snapshots, we're done here.
-	if !copySnapshots || srcVol.IsSnapshot() {
-		return nil
-	}
+	var snapshots []string
 
-	// Get the list of snapshots.
-	snapshots, err := d.VolumeSnapshots(srcVol, op)
-	if err != nil {
-		return err
-	}
-
-	// If no snapshots, we're done here.
-	if len(snapshots) == 0 {
-		return nil
-	}
-
-	// Create the parent directory.
-	err = createParentSnapshotDirIfMissing(d.name, vol.volType, vol.name)
-	if err != nil {
-		return err
-	}
-
-	// Copy the snapshots.
-	for _, snapName := range snapshots {
-		srcSnapshot := GetVolumeMountPath(d.name, srcVol.volType, GetSnapshotVolumeName(srcVol.name, snapName))
-		dstSnapshot := GetVolumeMountPath(d.name, vol.volType, GetSnapshotVolumeName(vol.name, snapName))
-
-		err = d.snapshotSubvolume(srcSnapshot, dstSnapshot, true, false)
+	// Get snapshot list if copying snapshots.
+	if copySnapshots && !srcVol.IsSnapshot() {
+		// Get the list of snapshots.
+		snapshots, err = d.VolumeSnapshots(srcVol, op)
 		if err != nil {
 			return err
 		}
 	}
 
+	// Copy any snapshots needed.
+	if len(snapshots) > 0 {
+		// Create the parent directory.
+		err = createParentSnapshotDirIfMissing(d.name, vol.volType, vol.name)
+		if err != nil {
+			return err
+		}
+
+		// Copy the snapshots.
+		for _, snapName := range snapshots {
+			srcSnapshot := GetVolumeMountPath(d.name, srcVol.volType, GetSnapshotVolumeName(srcVol.name, snapName))
+			dstSnapshot := GetVolumeMountPath(d.name, vol.volType, GetSnapshotVolumeName(vol.name, snapName))
+
+			err = d.snapshotSubvolume(srcSnapshot, dstSnapshot, true, false)
+			if err != nil {
+				return err
+			}
+
+			revert.Add(func() { d.deleteSubvolume(dstSnapshot, true) })
+		}
+	}
+
+	revert.Success()
 	return nil
 }
 
