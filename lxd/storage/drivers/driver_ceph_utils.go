@@ -767,8 +767,7 @@ func (d *ceph) deleteVolumeSnapshot(vol Volume, snapshotName string) (int, error
 			return -1, err
 		}
 
-		// Only delete the parent image if it is a zombie. If it is not
-		// we know that LXD is still using it.
+		// Only delete the parent image if it is a zombie. If it is not we know that LXD is still using it.
 		if strings.HasPrefix(string(vol.volType), "zombie_") {
 			ret, err := d.deleteVolume(vol)
 			if ret < 0 {
