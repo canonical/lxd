@@ -650,10 +650,12 @@ func (d *lvm) copyThinpoolVolume(vol, srcVol Volume, srcSnapshots []Volume, refr
 		}
 	}
 
-	// Resize the new volume and filesystem to the correct size.
-	err = d.SetVolumeQuota(vol, d.volumeSize(vol), nil)
-	if err != nil {
-		return err
+	// Resize the new volume and filesystem to the correct size if the source was an image.
+	if srcVol.volType == VolumeTypeImage {
+		err = d.SetVolumeQuota(vol, d.volumeSize(vol), nil)
+		if err != nil {
+			return err
+		}
 	}
 
 	// Finally clean up original volumes left that were renamed with a tmpVolSuffix suffix.
