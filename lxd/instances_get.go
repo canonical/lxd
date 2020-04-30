@@ -102,7 +102,7 @@ func doContainersGet(d *Daemon, r *http.Request) (interface{}, error) {
 	err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
 		var err error
 
-		result, err = tx.ContainersListByNodeAddress(project, instanceType)
+		result, err = tx.GetInstanceNamesByNodeAddress(project, instanceType)
 		if err != nil {
 			return err
 		}
