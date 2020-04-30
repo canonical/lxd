@@ -1183,8 +1183,8 @@ func (c *Cluster) CreateInstanceBackup(args InstanceBackupArgs) error {
 	return err
 }
 
-// InstanceBackupRemove removes the container backup with the given name from the database.
-func (c *Cluster) InstanceBackupRemove(name string) error {
+// DeleteInstanceBackup removes the instance backup with the given name from the database.
+func (c *Cluster) DeleteInstanceBackup(name string) error {
 	id, err := c.getInstanceBackupID(name)
 	if err != nil {
 		return err
