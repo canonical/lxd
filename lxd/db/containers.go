@@ -850,9 +850,9 @@ func (c *ClusterTx) UpdateInstancePowerState(id int, state string) error {
 	return nil
 }
 
-// ContainerUpdate updates the description, architecture and ephemeral flag of
-// the container with the given ID.
-func ContainerUpdate(tx *sql.Tx, id int, description string, architecture int, ephemeral bool,
+// UpdateInstance updates the description, architecture and ephemeral flag of
+// the instance with the given ID.
+func UpdateInstance(tx *sql.Tx, id int, description string, architecture int, ephemeral bool,
 	expiryDate time.Time) error {
 	str := fmt.Sprintf("UPDATE instances SET description=?, architecture=?, ephemeral=?, expiry_date=? WHERE id=?")
 	stmt, err := tx.Prepare(str)
