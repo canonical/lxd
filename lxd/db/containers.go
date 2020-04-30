@@ -1224,8 +1224,8 @@ func (c *Cluster) RenameInstanceBackup(oldName, newName string) error {
 	return err
 }
 
-// ContainerBackupsGetExpired returns a list of expired container backups.
-func (c *Cluster) ContainerBackupsGetExpired() ([]InstanceBackupArgs, error) {
+// GetExpiredInstanceBackups returns a list of expired instance backups.
+func (c *Cluster) GetExpiredInstanceBackups() ([]InstanceBackupArgs, error) {
 	var result []InstanceBackupArgs
 	var name string
 	var expiryDate string
