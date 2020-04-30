@@ -250,7 +250,7 @@ func pruneExpiredContainerBackupsTask(d *Daemon) (task.Func, task.Schedule) {
 
 func pruneExpiredContainerBackups(ctx context.Context, d *Daemon) error {
 	// Get the list of expired backups.
-	backups, err := d.cluster.ContainerBackupsGetExpired()
+	backups, err := d.cluster.GetExpiredInstanceBackups()
 	if err != nil {
 		return errors.Wrap(err, "Unable to retrieve the list of expired instance backups")
 	}
