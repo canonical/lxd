@@ -4372,7 +4372,7 @@ func (c *lxc) Update(args db.InstanceArgs, userRequested bool) error {
 				return err
 
 			}
-			err = db.ContainerConfigInsert(tx, c.id, c.localConfig)
+			err = db.CreateInstanceConfig(tx, c.id, c.localConfig)
 			if err != nil {
 				tx.Rollback()
 				return errors.Wrap(err, "Config insert")
@@ -6251,7 +6251,7 @@ func (c *lxc) FillNetworkDevice(name string, m deviceConfig.Device) (deviceConfi
 			return err
 		}
 
-		err = db.ContainerConfigInsert(tx, c.id, map[string]string{key: value})
+		err = db.CreateInstanceConfig(tx, c.id, map[string]string{key: value})
 		if err != nil {
 			tx.Rollback()
 			return err

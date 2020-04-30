@@ -539,9 +539,9 @@ func (c *ClusterTx) GetLocalInstancesInProject(project string, instanceType inst
 	return c.InstanceList(filter)
 }
 
-// ContainerConfigInsert inserts a new config for the container with the given ID.
-func (c *ClusterTx) ContainerConfigInsert(id int, config map[string]string) error {
-	return ContainerConfigInsert(c.tx, id, config)
+// CreateInstanceConfig inserts a new config for the container with the given ID.
+func (c *ClusterTx) CreateInstanceConfig(id int, config map[string]string) error {
+	return CreateInstanceConfig(c.tx, id, config)
 }
 
 // ContainerConfigUpdate inserts/updates/deletes the provided keys
@@ -667,8 +667,8 @@ func ContainerConfigClear(tx *sql.Tx, id int) error {
 	return err
 }
 
-// ContainerConfigInsert inserts a new config for the container with the given ID.
-func ContainerConfigInsert(tx *sql.Tx, id int, config map[string]string) error {
+// CreateInstanceConfig inserts a new config for the instance with the given ID.
+func CreateInstanceConfig(tx *sql.Tx, id int, config map[string]string) error {
 	stmt, err := tx.Prepare("INSERT INTO instances_config (instance_id, key, value) values (?, ?, ?)")
 	if err != nil {
 		return err

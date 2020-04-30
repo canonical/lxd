@@ -2617,7 +2617,7 @@ func (vm *qemu) Update(args db.InstanceArgs, userRequested bool) error {
 				return err
 
 			}
-			err = db.ContainerConfigInsert(tx, vm.id, vm.localConfig)
+			err = db.CreateInstanceConfig(tx, vm.id, vm.localConfig)
 			if err != nil {
 				tx.Rollback()
 				return errors.Wrap(err, "Config insert")
@@ -4060,7 +4060,7 @@ func (vm *qemu) FillNetworkDevice(name string, m deviceConfig.Device) (deviceCon
 			return err
 		}
 
-		err = db.ContainerConfigInsert(tx, vm.id, map[string]string{key: value})
+		err = db.CreateInstanceConfig(tx, vm.id, map[string]string{key: value})
 		if err != nil {
 			tx.Rollback()
 			return err
