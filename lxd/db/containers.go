@@ -1065,8 +1065,8 @@ SELECT storage_pools.name FROM storage_pools
 	return poolName, nil
 }
 
-// ContainerBackupID returns the ID of the container backup with the given name.
-func (c *Cluster) ContainerBackupID(name string) (int, error) {
+// Returns the ID of the instance backup with the given name.
+func (c *Cluster) getInstanceBackupID(name string) (int, error) {
 	q := "SELECT id FROM instances_backups WHERE name=?"
 	id := -1
 	arg1 := []interface{}{name}
@@ -1143,7 +1143,7 @@ WHERE projects.name=? AND instances.name=?`
 
 // InstanceBackupCreate creates a new backup.
 func (c *Cluster) InstanceBackupCreate(args InstanceBackupArgs) error {
-	_, err := c.ContainerBackupID(args.Name)
+	_, err := c.getInstanceBackupID(args.Name)
 	if err == nil {
 		return ErrAlreadyDefined
 	}
@@ -1185,7 +1185,7 @@ func (c *Cluster) InstanceBackupCreate(args InstanceBackupArgs) error {
 
 // InstanceBackupRemove removes the container backup with the given name from the database.
 func (c *Cluster) InstanceBackupRemove(name string) error {
-	id, err := c.ContainerBackupID(name)
+	id, err := c.getInstanceBackupID(name)
 	if err != nil {
 		return err
 	}
