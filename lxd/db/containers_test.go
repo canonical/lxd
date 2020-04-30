@@ -349,7 +349,7 @@ func TestGetInstanceToNodeMap(t *testing.T) {
 		}, result)
 }
 
-func TestInstancePool(t *testing.T) {
+func TestGetInstancePool(t *testing.T) {
 	cluster, cleanup := db.NewTestCluster(t)
 	defer cleanup()
 
@@ -376,7 +376,7 @@ func TestInstancePool(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	poolName, err := cluster.InstancePool("default", "c1")
+	poolName, err := cluster.GetInstancePool("default", "c1")
 	require.NoError(t, err)
 	assert.Equal(t, "default", poolName)
 }

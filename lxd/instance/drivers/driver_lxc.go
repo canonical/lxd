@@ -6650,7 +6650,7 @@ func (c *lxc) StatePath() string {
 
 // StoragePool storage pool name.
 func (c *lxc) StoragePool() (string, error) {
-	poolName, err := c.state.Cluster.InstancePool(c.Project(), c.Name())
+	poolName, err := c.state.Cluster.GetInstancePool(c.Project(), c.Name())
 	if err != nil {
 		return "", err
 	}

@@ -179,7 +179,7 @@ func containerPost(d *Daemon, r *http.Request) response.Response {
 			}
 
 			// Check if we are migrating a ceph-based container.
-			poolName, err := d.cluster.InstancePool(project, name)
+			poolName, err := d.cluster.GetInstancePool(project, name)
 			if err != nil {
 				err = errors.Wrap(err, "Failed to fetch instance's pool name")
 				return response.SmartError(err)
