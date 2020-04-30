@@ -956,9 +956,9 @@ func (c *ClusterTx) GetInstanceSnapshots(project string, name string) ([]Instanc
 	return instances, nil
 }
 
-// ContainerNextSnapshot returns the index the next snapshot of the container
-// with the given name and pattern should have.
-func (c *Cluster) ContainerNextSnapshot(project string, name string, pattern string) int {
+// GetNextInstanceSnapshotIndex returns the index that the next snapshot of the
+// instance with the given name and pattern should have.
+func (c *Cluster) GetNextInstanceSnapshotIndex(project string, name string, pattern string) int {
 	q := `
 SELECT instances_snapshots.name
   FROM instances_snapshots

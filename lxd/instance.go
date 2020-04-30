@@ -941,7 +941,7 @@ func containerDetermineNextSnapshotName(d *Daemon, c instance.Instance, defaultP
 	if count > 1 {
 		return "", fmt.Errorf("Snapshot pattern may contain '%%d' only once")
 	} else if count == 1 {
-		i := d.cluster.ContainerNextSnapshot(c.Project(), c.Name(), pattern)
+		i := d.cluster.GetNextInstanceSnapshotIndex(c.Project(), c.Name(), pattern)
 		return strings.Replace(pattern, "%d", strconv.Itoa(i), 1), nil
 	}
 
@@ -963,7 +963,7 @@ func containerDetermineNextSnapshotName(d *Daemon, c instance.Instance, defaultP
 	// Append '-0', '-1', etc. if the actual pattern/snapshot name already exists
 	if snapshotExists {
 		pattern = fmt.Sprintf("%s-%%d", pattern)
-		i := d.cluster.ContainerNextSnapshot(c.Project(), c.Name(), pattern)
+		i := d.cluster.GetNextInstanceSnapshotIndex(c.Project(), c.Name(), pattern)
 		return strings.Replace(pattern, "%d", strconv.Itoa(i), 1), nil
 	}
 
