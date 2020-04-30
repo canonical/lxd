@@ -2331,7 +2331,7 @@ func (c *lxc) Start(stateful bool) error {
 		os.RemoveAll(c.StatePath())
 		c.stateful = false
 
-		err = c.state.Cluster.ContainerSetStateful(c.id, false)
+		err = c.state.Cluster.UpdateInstanceStatefulFlag(c.id, false)
 		if err != nil {
 			logger.Error("Failed starting container", ctxMap)
 			return errors.Wrap(err, "Start container")
@@ -2356,7 +2356,7 @@ func (c *lxc) Start(stateful bool) error {
 		}
 
 		c.stateful = false
-		err = c.state.Cluster.ContainerSetStateful(c.id, false)
+		err = c.state.Cluster.UpdateInstanceStatefulFlag(c.id, false)
 		if err != nil {
 			return errors.Wrap(err, "Persist stateful flag")
 		}
@@ -2589,7 +2589,7 @@ func (c *lxc) Stop(stateful bool) error {
 		}
 
 		c.stateful = true
-		err = c.state.Cluster.ContainerSetStateful(c.id, true)
+		err = c.state.Cluster.UpdateInstanceStatefulFlag(c.id, true)
 		if err != nil {
 			op.Done(err)
 			logger.Error("Failed stopping container", ctxMap)
