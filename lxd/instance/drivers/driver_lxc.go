@@ -4366,7 +4366,7 @@ func (c *lxc) Update(args db.InstanceArgs, userRequested bool) error {
 				return errors.Wrap(err, "Snapshot update")
 			}
 		} else {
-			err = db.ContainerConfigClear(tx, c.id)
+			err = db.DeleteInstanceConfig(tx, c.id)
 			if err != nil {
 				tx.Rollback()
 				return err
