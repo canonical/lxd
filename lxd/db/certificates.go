@@ -114,8 +114,8 @@ func (c *Cluster) CreateCertificate(cert *CertInfo) error {
 	return err
 }
 
-// CertDelete deletes a certificate from the db.
-func (c *Cluster) CertDelete(fingerprint string) error {
+// DeleteCertificate deletes a certificate from the db.
+func (c *Cluster) DeleteCertificate(fingerprint string) error {
 	err := exec(c.db, "DELETE FROM certificates WHERE fingerprint=?", fingerprint)
 	if err != nil {
 		return err
