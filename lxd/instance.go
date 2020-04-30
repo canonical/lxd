@@ -625,7 +625,7 @@ func instanceCreateInternal(s *state.State, args db.InstanceArgs) (instance.Inst
 			return
 		}
 
-		s.Cluster.InstanceRemove(dbInst.Project, dbInst.Name)
+		s.Cluster.RemoveInstance(dbInst.Project, dbInst.Name)
 	}()
 
 	// Wipe any existing log for this instance name.
