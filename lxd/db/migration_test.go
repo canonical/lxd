@@ -60,7 +60,7 @@ func TestImportPreClusteringData(t *testing.T) {
 	defer cluster.Close()
 
 	// certificates
-	certs, err := cluster.CertificatesGet()
+	certs, err := cluster.GetCertificates()
 	require.NoError(t, err)
 	assert.Len(t, certs, 1)
 	cert := certs[0]
