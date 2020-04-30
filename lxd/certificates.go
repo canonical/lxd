@@ -311,7 +311,7 @@ func doCertificateUpdate(d *Daemon, fingerprint string, req api.CertificatePut) 
 		return response.BadRequest(fmt.Errorf("Unknown request type %s", req.Type))
 	}
 
-	err := d.cluster.CertUpdate(fingerprint, req.Name, 1)
+	err := d.cluster.UpdateCertificate(fingerprint, req.Name, 1)
 	if err != nil {
 		return response.SmartError(err)
 	}
