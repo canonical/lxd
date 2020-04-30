@@ -168,7 +168,7 @@ func certificatesPost(d *Daemon, r *http.Request) response.Response {
 
 	if !isClusterNotification(r) {
 		// Check if we already have the certificate
-		existingCert, _ := d.cluster.CertificateGet(fingerprint)
+		existingCert, _ := d.cluster.GetCertificate(fingerprint)
 		if existingCert != nil {
 			// Deal with the cache being potentially out of sync
 			_, ok := d.clientCerts[fingerprint]
@@ -232,7 +232,7 @@ func certificateGet(d *Daemon, r *http.Request) response.Response {
 func doCertificateGet(db *db.Cluster, fingerprint string) (api.Certificate, error) {
 	resp := api.Certificate{}
 
-	dbCertInfo, err := db.CertificateGet(fingerprint)
+	dbCertInfo, err := db.GetCertificate(fingerprint)
 	if err != nil {
 		return resp, err
 	}
@@ -322,7 +322,7 @@ func doCertificateUpdate(d *Daemon, fingerprint string, req api.CertificatePut) 
 func certificateDelete(d *Daemon, r *http.Request) response.Response {
 	fingerprint := mux.Vars(r)["fingerprint"]
 
-	certInfo, err := d.cluster.CertificateGet(fingerprint)
+	certInfo, err := d.cluster.GetCertificate(fingerprint)
 	if err != nil {
 		return response.NotFound(err)
 	}
