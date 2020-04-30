@@ -691,9 +691,9 @@ func CreateInstanceConfig(tx *sql.Tx, id int, config map[string]string) error {
 	return nil
 }
 
-// ContainerConfigGet returns the value of the given key in the configuration
-// of the container with the given ID.
-func (c *Cluster) ContainerConfigGet(id int, key string) (string, error) {
+// GetInstanceConfig returns the value of the given key in the configuration
+// of the instance with the given ID.
+func (c *Cluster) GetInstanceConfig(id int, key string) (string, error) {
 	q := "SELECT value FROM instances_config WHERE instance_id=? AND key=?"
 	value := ""
 	arg1 := []interface{}{id, key}

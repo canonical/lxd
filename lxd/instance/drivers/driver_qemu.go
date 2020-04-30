@@ -4090,7 +4090,7 @@ func (vm *qemu) FillNetworkDevice(name string, m deviceConfig.Device) (deviceCon
 				err := updateKey(configKey, volatileHwaddr)
 				if err != nil {
 					// Check if something else filled it in behind our back
-					value, err1 := vm.state.Cluster.ContainerConfigGet(vm.id, configKey)
+					value, err1 := vm.state.Cluster.GetInstanceConfig(vm.id, configKey)
 					if err1 != nil || value == "" {
 						return err
 					}

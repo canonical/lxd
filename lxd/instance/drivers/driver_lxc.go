@@ -6281,7 +6281,7 @@ func (c *lxc) FillNetworkDevice(name string, m deviceConfig.Device) (deviceConfi
 				err := updateKey(configKey, volatileHwaddr)
 				if err != nil {
 					// Check if something else filled it in behind our back
-					value, err1 := c.state.Cluster.ContainerConfigGet(c.id, configKey)
+					value, err1 := c.state.Cluster.GetInstanceConfig(c.id, configKey)
 					if err1 != nil || value == "" {
 						return err
 					}
@@ -6317,7 +6317,7 @@ func (c *lxc) FillNetworkDevice(name string, m deviceConfig.Device) (deviceConfi
 			err = updateKey(configKey, volatileName)
 			if err != nil {
 				// Check if something else filled it in behind our back
-				value, err1 := c.state.Cluster.ContainerConfigGet(c.id, configKey)
+				value, err1 := c.state.Cluster.GetInstanceConfig(c.id, configKey)
 				if err1 != nil || value == "" {
 					return nil, err
 				}
