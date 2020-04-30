@@ -107,7 +107,7 @@ func doContainersGet(d *Daemon, r *http.Request) (interface{}, error) {
 			return err
 		}
 
-		nodes, err = tx.ContainersByNodeName(project, instanceType)
+		nodes, err = tx.GetInstanceToNodeMap(project, instanceType)
 		if err != nil {
 			return err
 		}
