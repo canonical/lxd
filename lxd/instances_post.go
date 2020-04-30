@@ -852,7 +852,7 @@ func containersPost(d *Daemon, r *http.Request) response.Response {
 		}
 
 		if req.Name == "" {
-			names, err := tx.InstanceNames(project)
+			names, err := tx.GetInstanceNames(project)
 			if err != nil {
 				return err
 			}
