@@ -381,30 +381,6 @@ func TestInstancePool(t *testing.T) {
 	assert.Equal(t, "default", poolName)
 }
 
-// Only containers running on the local node are returned.
-func TestContainersNodeList(t *testing.T) {
-	cluster, cleanup := db.NewTestCluster(t)
-	defer cleanup()
-
-	nodeID1 := int64(1) // This is the default local node
-
-	// Add another node
-	var nodeID2 int64
-	err := cluster.Transaction(func(tx *db.ClusterTx) error {
-		var err error
-		nodeID2, err = tx.NodeAdd("node2", "1.2.3.4:666")
-		require.NoError(t, err)
-		addContainer(t, tx, nodeID1, "c1")
-		addContainer(t, tx, nodeID2, "c2")
-		return nil
-	})
-	require.NoError(t, err)
-
-	names, err := cluster.ContainersNodeList(instancetype.Container)
-	require.NoError(t, err)
-	assert.Equal(t, names, []string{"c1"})
-}
-
 // All containers on a node are loaded in bulk.
 func TestGetLocalInstancesInProject(t *testing.T) {
 	tx, cleanup := db.NewTestClusterTx(t)
