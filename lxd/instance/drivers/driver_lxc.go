@@ -2469,7 +2469,7 @@ func (c *lxc) onStart(_ map[string]string) error {
 		}
 
 		// Remove the volatile key from the DB
-		err := c.state.Cluster.ContainerConfigRemove(c.id, key)
+		err := c.state.Cluster.DeleteInstanceConfigKey(c.id, key)
 		if err != nil {
 			apparmor.Destroy(c.state, c)
 			if ourStart {
