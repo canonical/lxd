@@ -4390,7 +4390,7 @@ func (c *lxc) Update(args db.InstanceArgs, userRequested bool) error {
 				return errors.Wrap(err, "Device add")
 			}
 
-			err = db.ContainerUpdate(tx, c.id, c.description, c.architecture, c.ephemeral, c.expiryDate)
+			err = db.UpdateInstance(tx, c.id, c.description, c.architecture, c.ephemeral, c.expiryDate)
 			if err != nil {
 				tx.Rollback()
 				return errors.Wrap(err, "Container update")
