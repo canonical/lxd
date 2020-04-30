@@ -834,50 +834,33 @@ func (d *ceph) SetVolumeQuota(vol Volume, size string, op *operations.Operation)
 	}
 
 	// Resize filesystem if needed.
-	if vol.contentType == ContentTypeFS {
-		if newSizeBytes < oldSizeBytes {
+	if newSizeBytes < oldSizeBytes {
+		if vol.contentType == ContentTypeBlock && !vol.allowUnsafeResize {
+			return errors.Wrap(ErrCannotBeShrunk, "You cannot shrink block volumes")
+		}
+
+		// Shrink the filesystem.
+		if vol.contentType == ContentTypeFS {
 			err = shrinkFileSystem(fsType, RBDDevPath, vol, newSizeBytes)
 			if err != nil {
 				return err
 			}
+		}
 
-			_, err = shared.TryRunCommand(
-				"rbd",
-				"resize",
-				"--allow-shrink",
-				"--id", d.config["ceph.user.name"],
-				"--cluster", d.config["ceph.cluster_name"],
-				"--pool", d.config["ceph.osd.pool_name"],
-				"--size", fmt.Sprintf("%dB", newSizeBytes),
-				d.getRBDVolumeName(vol, "", false, false))
-			if err != nil {
-				return err
-			}
-		} else {
-			// Grow the block device.
-			_, err = shared.TryRunCommand(
-				"rbd",
-				"resize",
-				"--id", d.config["ceph.user.name"],
-				"--cluster", d.config["ceph.cluster_name"],
-				"--pool", d.config["ceph.osd.pool_name"],
-				"--size", fmt.Sprintf("%dB", newSizeBytes),
-				d.getRBDVolumeName(vol, "", false, false))
-			if err != nil {
-				return err
-			}
-
-			// Grow the filesystem.
-			err = growFileSystem(fsType, RBDDevPath, vol)
-			if err != nil {
-				return err
-			}
+		// Shrink the block device.
+		_, err = shared.TryRunCommand(
+			"rbd",
+			"resize",
+			"--allow-shrink",
+			"--id", d.config["ceph.user.name"],
+			"--cluster", d.config["ceph.cluster_name"],
+			"--pool", d.config["ceph.osd.pool_name"],
+			"--size", fmt.Sprintf("%dB", newSizeBytes),
+			d.getRBDVolumeName(vol, "", false, false))
+		if err != nil {
+			return err
 		}
 	} else {
-		if newSizeBytes < oldSizeBytes {
-			return errors.Wrap(ErrCannotBeShrunk, "You cannot shrink block volumes")
-		}
-
 		// Grow the block device.
 		_, err = shared.TryRunCommand(
 			"rbd",
@@ -891,12 +874,21 @@ func (d *ceph) SetVolumeQuota(vol Volume, size string, op *operations.Operation)
 			return err
 		}
 
-		// Move the GPT alt header to end of disk if needed.
-		if vol.IsVMBlock() {
-			err = d.moveGPTAltHeader(RBDDevPath)
+		// Grow the filesystem.
+		if vol.contentType == ContentTypeFS {
+			err = growFileSystem(fsType, RBDDevPath, vol)
 			if err != nil {
 				return err
 			}
+		}
+	}
+
+	// Move the VM GPT alt header to end of disk if needed (not needed in unsafe resize mode as it is
+	// expected the caller will do all necessary post resize actions themselves).
+	if vol.IsVMBlock() && !vol.allowUnsafeResize {
+		err = d.moveGPTAltHeader(RBDDevPath)
+		if err != nil {
+			return err
 		}
 	}
 
