@@ -492,7 +492,7 @@ func clusterPutJoin(d *Daemon, req api.ClusterPut) response.Response {
 				return err
 			}
 
-			err := d.cluster.CertDelete(fingerprint)
+			err := d.cluster.DeleteCertificate(fingerprint)
 			if err != nil {
 				return errors.Wrap(err, "Failed to delete joining member's certificate")
 			}
