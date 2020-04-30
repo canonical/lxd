@@ -326,8 +326,8 @@ func TestGetInstanceNamesByNodeAddress(t *testing.T) {
 		}, result)
 }
 
-// Containers are associated with their node name.
-func TestContainersByNodeName(t *testing.T) {
+// Instances are associated with their node name.
+func TestGetInstanceToNodeMap(t *testing.T) {
 	tx, cleanup := db.NewTestClusterTx(t)
 	defer cleanup()
 
@@ -339,7 +339,7 @@ func TestContainersByNodeName(t *testing.T) {
 	addContainer(t, tx, nodeID2, "c1")
 	addContainer(t, tx, nodeID1, "c2")
 
-	result, err := tx.ContainersByNodeName("default", instancetype.Container)
+	result, err := tx.GetInstanceToNodeMap("default", instancetype.Container)
 	require.NoError(t, err)
 	assert.Equal(
 		t,
