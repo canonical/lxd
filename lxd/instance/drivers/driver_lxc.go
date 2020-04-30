@@ -3733,7 +3733,7 @@ func (c *lxc) VolatileSet(changes map[string]string) error {
 		})
 	} else {
 		err = c.state.Cluster.Transaction(func(tx *db.ClusterTx) error {
-			return tx.ContainerConfigUpdate(c.id, changes)
+			return tx.UpdateInstanceConfig(c.id, changes)
 		})
 	}
 	if err != nil {
