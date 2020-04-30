@@ -84,9 +84,9 @@ func (c *Cluster) GetCertificate(fingerprint string) (cert *CertInfo, err error)
 	return cert, err
 }
 
-// CertSave stores a CertBaseInfo object in the db,
-// it will ignore the ID field from the CertInfo.
-func (c *Cluster) CertSave(cert *CertInfo) error {
+// CreateCertificate stores a CertInfo object in the db, it will ignore the ID
+// field from the CertInfo.
+func (c *Cluster) CreateCertificate(cert *CertInfo) error {
 	err := c.Transaction(func(tx *ClusterTx) error {
 		stmt, err := tx.tx.Prepare(`
 			INSERT INTO certificates (
