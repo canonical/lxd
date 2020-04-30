@@ -53,7 +53,7 @@ func backupCreate(s *state.State, args db.InstanceBackupArgs, sourceInst instanc
 	}
 
 	// Create the database entry.
-	err = s.Cluster.InstanceBackupCreate(args)
+	err = s.Cluster.CreateInstanceBackup(args)
 	if err != nil {
 		if err == db.ErrAlreadyDefined {
 			return fmt.Errorf("Backup %q already exists", args.Name)

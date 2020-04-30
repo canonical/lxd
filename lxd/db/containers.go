@@ -1141,8 +1141,8 @@ WHERE projects.name=? AND instances.name=?`
 	return result, nil
 }
 
-// InstanceBackupCreate creates a new backup.
-func (c *Cluster) InstanceBackupCreate(args InstanceBackupArgs) error {
+// CreateInstanceBackup creates a new backup.
+func (c *Cluster) CreateInstanceBackup(args InstanceBackupArgs) error {
 	_, err := c.getInstanceBackupID(args.Name)
 	if err == nil {
 		return ErrAlreadyDefined
