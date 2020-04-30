@@ -1367,7 +1367,7 @@ echo "To start it now, unmount this filesystem and run: systemctl start lxd-agen
 		}
 
 		// Remove the volatile key from the DB.
-		err := vm.state.Cluster.ContainerConfigRemove(vm.id, key)
+		err := vm.state.Cluster.DeleteInstanceConfigKey(vm.id, key)
 		if err != nil {
 			return err
 		}

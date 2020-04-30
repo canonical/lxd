@@ -378,7 +378,7 @@ func containerPostClusteringMigrate(d *Daemon, c instance.Instance, oldName, new
 			return errors.Wrap(err, "Failed to get ID of moved instance")
 		}
 
-		err = d.cluster.ContainerConfigRemove(id, "volatile.apply_template")
+		err = d.cluster.DeleteInstanceConfigKey(id, "volatile.apply_template")
 		if err != nil {
 			return errors.Wrap(err, "Failed to remove volatile.apply_template config key")
 		}

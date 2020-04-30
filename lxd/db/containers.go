@@ -706,9 +706,9 @@ func (c *Cluster) GetInstanceConfig(id int, key string) (string, error) {
 	return value, err
 }
 
-// ContainerConfigRemove removes the given key from the config of the container
+// DeleteInstanceConfigKey removes the given key from the config of the instance
 // with the given ID.
-func (c *Cluster) ContainerConfigRemove(id int, key string) error {
+func (c *Cluster) DeleteInstanceConfigKey(id int, key string) error {
 	err := exec(c.db, "DELETE FROM instances_config WHERE key=? AND instance_id=?", key, id)
 	return err
 }
