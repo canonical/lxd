@@ -439,11 +439,11 @@ SELECT instances.name, nodes.name
 	return result, nil
 }
 
-// ContainerNodeMove changes the node associated with a container.
+// UpdateInstanceNode changes the node hosting an instance.
 //
-// It's meant to be used when moving a non-running container backed by ceph
+// It's meant to be used when moving a non-running instance backed by ceph
 // from one cluster node to another.
-func (c *ClusterTx) ContainerNodeMove(project, oldName, newName, newNode string) error {
+func (c *ClusterTx) UpdateInstanceNode(project, oldName, newName, newNode string) error {
 	// First check that the container to be moved is backed by a ceph
 	// volume.
 	poolName, err := c.InstancePool(project, oldName)
