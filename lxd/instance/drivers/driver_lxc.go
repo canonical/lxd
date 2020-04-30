@@ -3215,7 +3215,7 @@ func (c *lxc) Snapshots() ([]instance.Instance, error) {
 // Backups returns the backups of the instance.
 func (c *lxc) Backups() ([]backup.Backup, error) {
 	// Get all the backups
-	backupNames, err := c.state.Cluster.ContainerGetBackups(c.project, c.name)
+	backupNames, err := c.state.Cluster.GetInstanceBackups(c.project, c.name)
 	if err != nil {
 		return nil, err
 	}
