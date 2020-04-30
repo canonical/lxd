@@ -612,9 +612,9 @@ func (c *Cluster) RemoveInstance(project, name string) error {
 	})
 }
 
-// ContainerProjectAndName returns the project and the name of the container
+// GetInstanceProjectAndName returns the project and the name of the instance
 // with the given ID.
-func (c *Cluster) ContainerProjectAndName(id int) (string, string, error) {
+func (c *Cluster) GetInstanceProjectAndName(id int) (string, string, error) {
 	q := `
 SELECT projects.name, instances.name
   FROM instances

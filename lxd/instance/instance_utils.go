@@ -392,7 +392,7 @@ func ParseRawIdmap(value string) ([]idmap.IdmapEntry, error) {
 // LoadByID loads an instance by ID.
 func LoadByID(s *state.State, id int) (Instance, error) {
 	// Get the DB record
-	project, name, err := s.Cluster.ContainerProjectAndName(id)
+	project, name, err := s.Cluster.GetInstanceProjectAndName(id)
 	if err != nil {
 		return nil, err
 	}
