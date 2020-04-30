@@ -3187,7 +3187,7 @@ func (c *lxc) Snapshots() ([]instance.Instance, error) {
 	// Get all the snapshots
 	err := c.state.Cluster.Transaction(func(tx *db.ClusterTx) error {
 		var err error
-		snaps, err = tx.ContainerGetSnapshotsFull(c.Project(), c.name)
+		snaps, err = tx.GetInstanceSnapshots(c.Project(), c.name)
 		if err != nil {
 			return err
 		}
@@ -3585,7 +3585,7 @@ func (c *lxc) Rename(newName string) error {
 
 	if !c.IsSnapshot() {
 		// Rename all the instance snapshot database entries.
-		results, err := c.state.Cluster.ContainerGetSnapshots(c.project, oldName)
+		results, err := c.state.Cluster.GetInstanceSnapshotsNames(c.project, oldName)
 		if err != nil {
 			logger.Error("Failed to get container snapshots", ctxMap)
 			return err

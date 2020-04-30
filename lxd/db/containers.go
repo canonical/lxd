@@ -903,9 +903,9 @@ func (c *ClusterTx) UpdateInstanceLastUsedDate(id int, date time.Time) error {
 	return nil
 }
 
-// ContainerGetSnapshots returns the names of all snapshots of the container
+// GetInstanceSnapshotsNames returns the names of all snapshots of the instance
 // in the given project with the given name.
-func (c *Cluster) ContainerGetSnapshots(project, name string) ([]string, error) {
+func (c *Cluster) GetInstanceSnapshotsNames(project, name string) ([]string, error) {
 	result := []string{}
 
 	q := `
@@ -930,8 +930,8 @@ ORDER BY date(instances_snapshots.creation_date)
 	return result, nil
 }
 
-// ContainerGetSnapshotsFull returns all container objects for snapshots of a given container
-func (c *ClusterTx) ContainerGetSnapshotsFull(project string, name string) ([]Instance, error) {
+// GetInstanceSnapshots returns all snapshots of a given instance.
+func (c *ClusterTx) GetInstanceSnapshots(project string, name string) ([]Instance, error) {
 	instance, err := c.InstanceGet(project, name)
 	if err != nil {
 		return nil, err

@@ -2184,7 +2184,7 @@ func (vm *qemu) Snapshots() ([]instance.Instance, error) {
 	// Get all the snapshots
 	err := vm.state.Cluster.Transaction(func(tx *db.ClusterTx) error {
 		var err error
-		snaps, err = tx.ContainerGetSnapshotsFull(vm.Project(), vm.name)
+		snaps, err = tx.GetInstanceSnapshots(vm.Project(), vm.name)
 		if err != nil {
 			return err
 		}
@@ -2260,7 +2260,7 @@ func (vm *qemu) Rename(newName string) error {
 
 	if !vm.IsSnapshot() {
 		// Rename all the instance snapshot database entries.
-		results, err := vm.state.Cluster.ContainerGetSnapshots(vm.project, oldName)
+		results, err := vm.state.Cluster.GetInstanceSnapshotsNames(vm.project, oldName)
 		if err != nil {
 			logger.Error("Failed to get instance snapshots", ctxMap)
 			return err

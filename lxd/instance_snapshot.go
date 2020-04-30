@@ -48,7 +48,7 @@ func containerSnapshotsGet(d *Daemon, r *http.Request) response.Response {
 	resultMap := []*api.InstanceSnapshot{}
 
 	if !recursion {
-		snaps, err := d.cluster.ContainerGetSnapshots(projectName, cname)
+		snaps, err := d.cluster.GetInstanceSnapshotsNames(projectName, cname)
 		if err != nil {
 			return response.SmartError(err)
 		}
