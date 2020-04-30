@@ -628,7 +628,7 @@ func DeviceNextInterfaceHWAddr() (string, error) {
 // BackupLoadByName load an instance backup from the database.
 func BackupLoadByName(s *state.State, project, name string) (*backup.Backup, error) {
 	// Get the backup database record
-	args, err := s.Cluster.ContainerGetBackup(project, name)
+	args, err := s.Cluster.GetInstanceBackup(project, name)
 	if err != nil {
 		return nil, errors.Wrap(err, "Load backup from database")
 	}

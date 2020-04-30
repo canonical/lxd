@@ -1079,8 +1079,8 @@ func (c *Cluster) getInstanceBackupID(name string) (int, error) {
 	return id, err
 }
 
-// ContainerGetBackup returns the backup with the given name.
-func (c *Cluster) ContainerGetBackup(project, name string) (InstanceBackupArgs, error) {
+// GetInstanceBackup returns the backup with the given name.
+func (c *Cluster) GetInstanceBackup(project, name string) (InstanceBackupArgs, error) {
 	args := InstanceBackupArgs{}
 	args.Name = name
 
@@ -1118,9 +1118,9 @@ SELECT instances_backups.id, instances_backups.instance_id,
 	return args, nil
 }
 
-// ContainerGetBackups returns the names of all backups of the container
-// with the given name.
-func (c *Cluster) ContainerGetBackups(project, name string) ([]string, error) {
+// GetInstanceBackups returns the names of all backups of the instance with the
+// given name.
+func (c *Cluster) GetInstanceBackups(project, name string) ([]string, error) {
 	var result []string
 
 	q := `SELECT instances_backups.name FROM instances_backups
