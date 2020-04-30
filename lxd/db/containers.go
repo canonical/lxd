@@ -766,32 +766,6 @@ INSERT INTO instances_profiles (instance_id, profile_id, apply_order)
 	return nil
 }
 
-// ContainerConfig gets the container configuration map from the DB
-func (c *Cluster) ContainerConfig(id int) (map[string]string, error) {
-	var key, value string
-	q := `SELECT key, value FROM instances_config WHERE instance_id=?`
-
-	inargs := []interface{}{id}
-	outfmt := []interface{}{key, value}
-
-	// Results is already a slice here, not db Rows anymore.
-	results, err := queryScan(c.db, q, inargs, outfmt)
-	if err != nil {
-		return nil, err //SmartError will wrap this and make "not found" errors pretty
-	}
-
-	config := map[string]string{}
-
-	for _, r := range results {
-		key = r[0].(string)
-		value = r[1].(string)
-
-		config[key] = value
-	}
-
-	return config, nil
-}
-
 // LegacyContainersList returns the names of all the containers.
 //
 // NOTE: this is a pre-projects legacy API that is used only by patches. Don't
