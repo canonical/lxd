@@ -2635,7 +2635,7 @@ func (vm *qemu) Update(args db.InstanceArgs, userRequested bool) error {
 				return errors.Wrap(err, "Device add")
 			}
 
-			err = db.ContainerUpdate(tx, vm.id, vm.description, vm.architecture, vm.ephemeral, vm.expiryDate)
+			err = db.UpdateInstance(tx, vm.id, vm.description, vm.architecture, vm.ephemeral, vm.expiryDate)
 			if err != nil {
 				tx.Rollback()
 				return errors.Wrap(err, "Instance update")
