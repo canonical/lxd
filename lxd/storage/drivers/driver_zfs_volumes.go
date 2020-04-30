@@ -594,15 +594,22 @@ func (d *zfs) CreateVolumeFromCopy(vol Volume, srcVol Volume, copySnapshots bool
 		}
 	}
 
-	// Resize the new volume and filesystem to the correct size.
-	err := d.SetVolumeQuota(vol, vol.ExpandedConfig("size"), nil)
+	// Default to non-expanded config, so we only use user specified volume size.
+	// This is so the pool default volume size isn't take into account for volume copies.
+	volSize := vol.config["size"]
+
+	// If source is an image then use expanded config so that we take into account pool default volume size.
+	if srcVol.volType == VolumeTypeImage {
+		volSize = vol.ExpandedConfig("size")
+	}
+
+	err := d.SetVolumeQuota(vol, volSize, op)
 	if err != nil {
 		return err
 	}
 
 	// All done.
 	revert.Success()
-
 	return nil
 }
 
