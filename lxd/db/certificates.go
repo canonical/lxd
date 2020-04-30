@@ -16,8 +16,8 @@ type CertInfo struct {
 	Certificate string
 }
 
-// CertificatesGet returns all certificates from the DB as CertBaseInfo objects.
-func (c *Cluster) CertificatesGet() (certs []*CertInfo, err error) {
+// GetCertificates returns all certificates from the DB as CertBaseInfo objects.
+func (c *Cluster) GetCertificates() (certs []*CertInfo, err error) {
 	err = c.Transaction(func(tx *ClusterTx) error {
 		rows, err := tx.tx.Query(
 			"SELECT id, fingerprint, type, name, certificate FROM certificates",
