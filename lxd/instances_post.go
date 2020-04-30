@@ -663,7 +663,7 @@ func createFromBackup(d *Daemon, project string, data io.Reader, pool string) re
 		if err != nil {
 			return errors.Wrap(err, "Create instance from backup")
 		}
-		revert.Add(revertHook)
+		runRevert.Add(revertHook)
 
 		body, err := json.Marshal(&internalImportPost{
 			Name:  bInfo.Name,
