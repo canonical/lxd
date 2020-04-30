@@ -653,6 +653,17 @@ func genericVFSBackupUnpack(d Driver, vol Volume, snapshots []string, srcData io
 					}
 					defer to.Close()
 
+					// Restore original size of volume from raw block backup file size.
+					d.Logger().Debug("Setting volume size from source", log.Ctx{"source": srcFile, "target": targetPath, "size": hdr.Size})
+
+					// Allow potentially destructive resize of volume as we are going to be
+					// overwriting it entirely anyway. This allows shrinking of block volumes.
+					vol.allowUnsafeResize = true
+					err = d.SetVolumeQuota(vol, fmt.Sprintf("%d", hdr.Size), op)
+					if err != nil {
+						return err
+					}
+
 					_, err = io.Copy(to, tr)
 					if err != nil {
 						return err
