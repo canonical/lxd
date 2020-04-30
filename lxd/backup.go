@@ -62,7 +62,7 @@ func backupCreate(s *state.State, args db.InstanceBackupArgs, sourceInst instanc
 		return errors.Wrap(err, "Insert backup info into database")
 	}
 
-	revert.Add(func() { s.Cluster.InstanceBackupRemove(args.Name) })
+	revert.Add(func() { s.Cluster.DeleteInstanceBackup(args.Name) })
 
 	// Get the backup struct.
 	b, err := instance.BackupLoadByName(s, sourceInst.Project(), args.Name)

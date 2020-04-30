@@ -247,7 +247,7 @@ func DoBackupDelete(s *state.State, projectName, backupName, containerName strin
 	}
 
 	// Remove the database record
-	err := s.Cluster.InstanceBackupRemove(backupName)
+	err := s.Cluster.DeleteInstanceBackup(backupName)
 	if err != nil {
 		return err
 	}
