@@ -766,33 +766,6 @@ INSERT INTO instances_profiles (instance_id, profile_id, apply_order)
 	return nil
 }
 
-// ContainerProfiles returns a list of profiles for a given container ID.
-func (c *Cluster) ContainerProfiles(id int) ([]string, error) {
-	var name string
-	var profiles []string
-
-	query := `
-        SELECT name FROM instances_profiles
-        JOIN profiles ON instances_profiles.profile_id=profiles.id
-		WHERE instance_id=?
-        ORDER BY instances_profiles.apply_order`
-	inargs := []interface{}{id}
-	outfmt := []interface{}{name}
-
-	results, err := queryScan(c.db, query, inargs, outfmt)
-	if err != nil {
-		return nil, err
-	}
-
-	for _, r := range results {
-		name = r[0].(string)
-
-		profiles = append(profiles, name)
-	}
-
-	return profiles, nil
-}
-
 // ContainerConfig gets the container configuration map from the DB
 func (c *Cluster) ContainerConfig(id int) (map[string]string, error) {
 	var key, value string
