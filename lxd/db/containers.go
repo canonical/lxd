@@ -725,9 +725,9 @@ func (c *Cluster) UpdateInstanceStatefulFlag(id int, stateful bool) error {
 	return err
 }
 
-// ContainerProfilesInsert associates the container with the given ID with the
+// AddProfilesToInstance associates the instance with the given ID with the
 // profiles with the given names in the given project.
-func ContainerProfilesInsert(tx *sql.Tx, id int, project string, profiles []string) error {
+func AddProfilesToInstance(tx *sql.Tx, id int, project string, profiles []string) error {
 	enabled, err := projectHasProfiles(tx, project)
 	if err != nil {
 		return errors.Wrap(err, "Check if project has profiles")
