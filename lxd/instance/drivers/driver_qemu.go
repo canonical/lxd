@@ -2611,7 +2611,7 @@ func (vm *qemu) Update(args db.InstanceArgs, userRequested bool) error {
 				return errors.Wrap(err, "Snapshot update")
 			}
 		} else {
-			err = db.ContainerConfigClear(tx, vm.id)
+			err = db.DeleteInstanceConfig(tx, vm.id)
 			if err != nil {
 				tx.Rollback()
 				return err

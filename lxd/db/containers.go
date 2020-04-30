@@ -644,9 +644,9 @@ func (c *Cluster) InstanceID(project, name string) (int, error) {
 	return int(id), err
 }
 
-// ContainerConfigClear removes any config associated with the container with
+// DeleteInstanceConfig removes any config associated with the instance with
 // the given ID.
-func ContainerConfigClear(tx *sql.Tx, id int) error {
+func DeleteInstanceConfig(tx *sql.Tx, id int) error {
 	_, err := tx.Exec("DELETE FROM instances_config WHERE instance_id=?", id)
 	if err != nil {
 		return err
