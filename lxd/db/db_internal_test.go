@@ -315,21 +315,6 @@ func (s *dbTestSuite) Test_dbProfileConfig() {
 	}
 }
 
-func (s *dbTestSuite) Test_ContainerProfiles() {
-	var err error
-	var result []string
-	var expected []string
-
-	expected = []string{"theprofile"}
-	result, err = s.db.ContainerProfiles(1)
-	s.Nil(err)
-
-	for i := range expected {
-		s.Equal(expected[i], result[i],
-			fmt.Sprintf("Mismatching contents for profile list: %s != %s", result[i], expected[i]))
-	}
-}
-
 func (s *dbTestSuite) Test_dbDevices_profiles() {
 	var err error
 	var result deviceConfig.Devices
