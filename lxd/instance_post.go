@@ -388,7 +388,7 @@ func containerPostClusteringMigrate(d *Daemon, c instance.Instance, oldName, new
 				"volatile.apply_template": origVolatileApplyTemplate,
 			}
 			err := d.cluster.Transaction(func(tx *db.ClusterTx) error {
-				return tx.ContainerConfigInsert(id, config)
+				return tx.CreateInstanceConfig(id, config)
 			})
 			if err != nil {
 				return errors.Wrap(err, "Failed to set volatile.apply_template config key")
