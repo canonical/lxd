@@ -732,7 +732,7 @@ func (m *Method) create(buf *file.Buffer) error {
 		if field.Name == "Profiles" {
 			// TODO: get rid of the special case
 			buf.L("// Insert profiles reference. ")
-			buf.L("err = ContainerProfilesInsert(c.tx, int(id), object.Project, object.Profiles)")
+			buf.L("err = AddProfilesToInstance(c.tx, int(id), object.Project, object.Profiles)")
 			buf.L("if err != nil {")
 			buf.L("        return -1, errors.Wrap(err, \"Insert profiles for %s\")", m.entity)
 			buf.L("}")

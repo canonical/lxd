@@ -2623,7 +2623,7 @@ func (vm *qemu) Update(args db.InstanceArgs, userRequested bool) error {
 				return errors.Wrap(err, "Config insert")
 			}
 
-			err = db.ContainerProfilesInsert(tx, vm.id, vm.project, vm.profiles)
+			err = db.AddProfilesToInstance(tx, vm.id, vm.project, vm.profiles)
 			if err != nil {
 				tx.Rollback()
 				return errors.Wrap(err, "Profiles insert")
