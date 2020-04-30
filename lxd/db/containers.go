@@ -390,9 +390,9 @@ func (c *ClusterTx) instanceListExpanded() ([]Instance, error) {
 	return instances, nil
 }
 
-// ContainersByNodeName returns a map associating each container to the name of
-// its node.
-func (c *ClusterTx) ContainersByNodeName(project string, instanceType instancetype.Type) (map[string]string, error) {
+// GetInstanceToNodeMap returns a map associating the name of each
+// instance in the given project to the name of the node hosting the instance.
+func (c *ClusterTx) GetInstanceToNodeMap(project string, instanceType instancetype.Type) (map[string]string, error) {
 	args := make([]interface{}, 0, 2) // Expect up to 2 filters.
 	var filters strings.Builder
 
