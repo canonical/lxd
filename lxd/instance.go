@@ -287,7 +287,7 @@ func instanceCreateAsCopy(s *state.State, args db.InstanceArgs, sourceInst insta
 			}
 
 			// Set snapshot creation date to that of the source snapshot.
-			err = s.Cluster.InstanceSnapshotCreationUpdate(snapInst.ID(), srcSnap.CreationDate())
+			err = s.Cluster.UpdateInstanceSnapshotCreationDate(snapInst.ID(), srcSnap.CreationDate())
 			if err != nil {
 				return nil, err
 			}
