@@ -4015,7 +4015,7 @@ func (vm *qemu) StatePath() string {
 
 // StoragePool returns the name of the instance's storage pool.
 func (vm *qemu) StoragePool() (string, error) {
-	poolName, err := vm.state.Cluster.InstancePool(vm.Project(), vm.Name())
+	poolName, err := vm.state.Cluster.GetInstancePool(vm.Project(), vm.Name())
 	if err != nil {
 		return "", err
 	}

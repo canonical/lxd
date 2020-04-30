@@ -446,7 +446,7 @@ SELECT instances.name, nodes.name
 func (c *ClusterTx) UpdateInstanceNode(project, oldName, newName, newNode string) error {
 	// First check that the container to be moved is backed by a ceph
 	// volume.
-	poolName, err := c.InstancePool(project, oldName)
+	poolName, err := c.GetInstancePool(project, oldName)
 	if err != nil {
 		return errors.Wrap(err, "Failed to get instance's storage pool name")
 	}
@@ -991,21 +991,21 @@ WHERE projects.name=? AND instances.name=?`
 	return max
 }
 
-// InstancePool returns the storage pool of a given instance.
+// GetInstancePool returns the storage pool of a given instance.
 //
-// This is a non-transactional variant of ClusterTx.InstancePool().
-func (c *Cluster) InstancePool(project, instanceName string) (string, error) {
+// This is a non-transactional variant of ClusterTx.GetInstancePool().
+func (c *Cluster) GetInstancePool(project, instanceName string) (string, error) {
 	var poolName string
 	err := c.Transaction(func(tx *ClusterTx) error {
 		var err error
-		poolName, err = tx.InstancePool(project, instanceName)
+		poolName, err = tx.GetInstancePool(project, instanceName)
 		return err
 	})
 	return poolName, err
 }
 
-// InstancePool returns the storage pool of a given instance.
-func (c *ClusterTx) InstancePool(project, instanceName string) (string, error) {
+// GetInstancePool returns the storage pool of a given instance.
+func (c *ClusterTx) GetInstancePool(project, instanceName string) (string, error) {
 	if strings.Contains(instanceName, shared.SnapshotDelimiter) {
 		return c.instancePoolSnapshot(project, instanceName)
 	}
