@@ -885,9 +885,9 @@ func (c *Cluster) UpdateInstanceSnapshotCreationDate(instanceID int, date time.T
 	return err
 }
 
-// ContainerLastUsedUpdate updates the last_use_date field of the container
+// UpdateInstanceLastUsedDate updates the last_use_date field of the instance
 // with the given ID.
-func (c *ClusterTx) ContainerLastUsedUpdate(id int, date time.Time) error {
+func (c *ClusterTx) UpdateInstanceLastUsedDate(id int, date time.Time) error {
 	str := `UPDATE instances SET last_use_date=? WHERE id=?`
 	stmt, err := c.tx.Prepare(str)
 	if err != nil {
