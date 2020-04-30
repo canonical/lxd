@@ -682,7 +682,7 @@ func instanceLoadNodeProjectAll(s *state.State, project string, instanceType ins
 	var cts []db.Instance
 	err := s.Cluster.Transaction(func(tx *db.ClusterTx) error {
 		var err error
-		cts, err = tx.ContainerNodeProjectList(project, instanceType)
+		cts, err = tx.GetLocalInstancesInProject(project, instanceType)
 		if err != nil {
 			return err
 		}
