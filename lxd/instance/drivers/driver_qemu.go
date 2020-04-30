@@ -3284,7 +3284,7 @@ func (vm *qemu) VolatileSet(changes map[string]string) error {
 		})
 	} else {
 		err = vm.state.Cluster.Transaction(func(tx *db.ClusterTx) error {
-			return tx.ContainerConfigUpdate(vm.id, changes)
+			return tx.UpdateInstanceConfig(vm.id, changes)
 		})
 	}
 	if err != nil {
