@@ -544,8 +544,8 @@ func (c *ClusterTx) CreateInstanceConfig(id int, config map[string]string) error
 	return CreateInstanceConfig(c.tx, id, config)
 }
 
-// ContainerConfigUpdate inserts/updates/deletes the provided keys
-func (c *ClusterTx) ContainerConfigUpdate(id int, values map[string]string) error {
+// UpdateInstanceConfig inserts/updates/deletes the provided keys
+func (c *ClusterTx) UpdateInstanceConfig(id int, values map[string]string) error {
 	insertSQL := fmt.Sprintf("INSERT OR REPLACE INTO instances_config (instance_id, key, value) VALUES")
 	deleteSQL := "DELETE FROM instances_config WHERE key IN %s AND instance_id=?"
 	return c.configUpdate(id, values, insertSQL, deleteSQL)
