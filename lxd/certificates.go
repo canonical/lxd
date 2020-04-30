@@ -327,7 +327,7 @@ func certificateDelete(d *Daemon, r *http.Request) response.Response {
 		return response.NotFound(err)
 	}
 
-	err = d.cluster.CertDelete(certInfo.Fingerprint)
+	err = d.cluster.DeleteCertificate(certInfo.Fingerprint)
 	if err != nil {
 		return response.SmartError(err)
 	}
