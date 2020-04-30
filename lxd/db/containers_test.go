@@ -297,7 +297,7 @@ func TestInstanceCreate_Snapshot(t *testing.T) {
 }
 
 // Containers are grouped by node address.
-func TestContainersListByNodeAddress(t *testing.T) {
+func TestGetInstanceNamesByNodeAddress(t *testing.T) {
 	tx, cleanup := db.NewTestClusterTx(t)
 	defer cleanup()
 
@@ -315,7 +315,7 @@ func TestContainersListByNodeAddress(t *testing.T) {
 	addContainer(t, tx, nodeID3, "c3")
 	addContainer(t, tx, nodeID2, "c4")
 
-	result, err := tx.ContainersListByNodeAddress("default", instancetype.Container)
+	result, err := tx.GetInstanceNamesByNodeAddress("default", instancetype.Container)
 	require.NoError(t, err)
 	assert.Equal(
 		t,

@@ -265,14 +265,14 @@ SELECT nodes.id, nodes.address
 	return address, nil
 }
 
-// ContainersListByNodeAddress returns the names of all containers grouped by
+// GetInstanceNamesByNodeAddress returns the names of all containers grouped by
 // cluster node address.
 //
 // The node address of containers running on the local node is set to the empty
 // string, to distinguish it from remote nodes.
 //
 // Containers whose node is down are addeded to the special address "0.0.0.0".
-func (c *ClusterTx) ContainersListByNodeAddress(project string, instanceType instancetype.Type) (map[string][]string, error) {
+func (c *ClusterTx) GetInstanceNamesByNodeAddress(project string, instanceType instancetype.Type) (map[string][]string, error) {
 	offlineThreshold, err := c.NodeOfflineThreshold()
 	if err != nil {
 		return nil, err
