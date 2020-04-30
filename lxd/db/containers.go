@@ -1198,9 +1198,9 @@ func (c *Cluster) DeleteInstanceBackup(name string) error {
 	return nil
 }
 
-// ContainerBackupRename renames a container backup from the given current name
+// RenameInstanceBackup renames an instance backup from the given current name
 // to the new one.
-func (c *Cluster) ContainerBackupRename(oldName, newName string) error {
+func (c *Cluster) RenameInstanceBackup(oldName, newName string) error {
 	err := c.Transaction(func(tx *ClusterTx) error {
 		str := fmt.Sprintf("UPDATE instances_backups SET name = ? WHERE name = ?")
 		stmt, err := tx.tx.Prepare(str)
