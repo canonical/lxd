@@ -269,29 +269,6 @@ func (s *dbTestSuite) Test_ImageSourceGetCachedFingerprint_no_match() {
 	s.Equal(err, ErrNoSuchObject)
 }
 
-func (s *dbTestSuite) Test_ContainerConfig() {
-	var err error
-	var result map[string]string
-	var expected map[string]string
-
-	tx, commit := s.CreateTestTx()
-
-	_, err = tx.Exec("INSERT INTO instances_config (instance_id, key, value) VALUES (1, 'something', 'something else');")
-	s.Nil(err)
-
-	commit()
-
-	result, err = s.db.ContainerConfig(1)
-	s.Nil(err)
-
-	expected = map[string]string{"thekey": "thevalue", "something": "something else"}
-
-	for key, value := range expected {
-		s.Equal(result[key], value,
-			fmt.Sprintf("Mismatching value for key %s: %s != %s", key, result[key], value))
-	}
-}
-
 func (s *dbTestSuite) Test_dbProfileConfig() {
 	var err error
 	var result map[string]string
