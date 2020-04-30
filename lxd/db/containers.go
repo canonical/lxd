@@ -179,11 +179,11 @@ SELECT instances.name FROM instances
 	return query.SelectStrings(c.tx, stmt, project, instancetype.Any)
 }
 
-// ContainerNodeAddress returns the address of the node hosting the container
-// with the given name in the given project.
+// GetNodeAddressOfInstance returns the address of the node hosting the
+// instance with the given name in the given project.
 //
 // It returns the empty string if the container is hosted on this node.
-func (c *ClusterTx) ContainerNodeAddress(project string, name string, instanceType instancetype.Type) (string, error) {
+func (c *ClusterTx) GetNodeAddressOfInstance(project string, name string, instanceType instancetype.Type) (string, error) {
 	var stmt string
 
 	args := make([]interface{}, 0, 4) // Expect up to 4 filters.
