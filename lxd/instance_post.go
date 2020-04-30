@@ -512,7 +512,7 @@ func containerPostCreateContainerMountPoint(d *Daemon, project, containerName st
 	if err != nil {
 		return errors.Wrap(err, "Failed get pool name of moved instance on target node")
 	}
-	snapshotNames, err := d.cluster.ContainerGetSnapshots(project, containerName)
+	snapshotNames, err := d.cluster.GetInstanceSnapshotsNames(project, containerName)
 	if err != nil {
 		return errors.Wrap(err, "Failed to create instance snapshot names")
 	}

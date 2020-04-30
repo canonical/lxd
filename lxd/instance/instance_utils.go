@@ -586,7 +586,7 @@ func LoadNodeAll(s *state.State, instanceType instancetype.Type) ([]Instance, er
 
 // DeleteSnapshots calls the Delete() function on each of the supplied instance's snapshots.
 func DeleteSnapshots(s *state.State, projectName, instanceName string) error {
-	results, err := s.Cluster.ContainerGetSnapshots(projectName, instanceName)
+	results, err := s.Cluster.GetInstanceSnapshotsNames(projectName, instanceName)
 	if err != nil {
 		return err
 	}
