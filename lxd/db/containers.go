@@ -713,9 +713,9 @@ func (c *Cluster) DeleteInstanceConfigKey(id int, key string) error {
 	return err
 }
 
-// ContainerSetStateful toggles the stateful flag of the container with the
-// given ID.
-func (c *Cluster) ContainerSetStateful(id int, stateful bool) error {
+// UpdateInstanceStatefulFlag toggles the stateful flag of the instance with
+// the given ID.
+func (c *Cluster) UpdateInstanceStatefulFlag(id int, stateful bool) error {
 	statefulInt := 0
 	if stateful {
 		statefulInt = 1
