@@ -522,8 +522,9 @@ func (c *ClusterTx) UpdateInstanceNode(project, oldName, newName, newNode string
 	return nil
 }
 
-// ContainerNodeProjectList returns all container objects on the local node within the given project.
-func (c *ClusterTx) ContainerNodeProjectList(project string, instanceType instancetype.Type) ([]Instance, error) {
+// GetLocalInstancesInProject retuurns all instances of the given type on the
+// local node within the given project.
+func (c *ClusterTx) GetLocalInstancesInProject(project string, instanceType instancetype.Type) ([]Instance, error) {
 	node, err := c.NodeName()
 	if err != nil {
 		return nil, errors.Wrap(err, "Local node name")

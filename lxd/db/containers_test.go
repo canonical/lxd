@@ -406,7 +406,7 @@ func TestContainersNodeList(t *testing.T) {
 }
 
 // All containers on a node are loaded in bulk.
-func TestContainerNodeProjectList(t *testing.T) {
+func TestGetLocalInstancesInProject(t *testing.T) {
 	tx, cleanup := db.NewTestClusterTx(t)
 	defer cleanup()
 
@@ -427,7 +427,7 @@ func TestContainerNodeProjectList(t *testing.T) {
 	addContainerDevice(t, tx, "c2", "eth0", "nic", nil)
 	addContainerDevice(t, tx, "c4", "root", "disk", map[string]string{"x": "y"})
 
-	containers, err := tx.ContainerNodeProjectList("", instancetype.Container)
+	containers, err := tx.GetLocalInstancesInProject("", instancetype.Container)
 	require.NoError(t, err)
 	assert.Len(t, containers, 3)
 
