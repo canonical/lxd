@@ -381,7 +381,7 @@ func (d *lvm) SetVolumeQuota(vol Volume, size string, op *operations.Operation) 
 			d.logger.Debug("Logical volume filesystem grown", logCtx)
 		}
 	} else {
-		if newSizeBytes < oldSizeBytes {
+		if newSizeBytes < oldSizeBytes && !vol.allowUnsafeResize {
 			return errors.Wrap(ErrCannotBeShrunk, "You cannot shrink block volumes")
 		}
 
@@ -391,8 +391,9 @@ func (d *lvm) SetVolumeQuota(vol Volume, size string, op *operations.Operation) 
 
 		}
 
-		// Move the GPT alt header to end of disk if needed.
-		if vol.IsVMBlock() {
+		// Move the VM GPT alt header to end of disk if needed (not needed in unsafe resize mode as it is
+		// expected the caller will do all necessary post resize actions themselves).
+		if vol.IsVMBlock() && !vol.allowUnsafeResize {
 			err = d.moveGPTAltHeader(volDevPath)
 			if err != nil {
 				return err
