@@ -199,7 +199,7 @@ func (b *Backup) Rename(newName string) error {
 	}
 
 	// Rename the database record
-	err = b.state.Cluster.ContainerBackupRename(b.name, newName)
+	err = b.state.Cluster.RenameInstanceBackup(b.name, newName)
 	if err != nil {
 		return err
 	}
