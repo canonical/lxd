@@ -816,26 +816,6 @@ WHERE type=? ORDER BY instances.name, instances_snapshots.name
 	return ret, nil
 }
 
-// ContainersNodeList returns the names of all the containers of the given type
-// running on the local node.
-func (c *Cluster) ContainersNodeList(instanceType instancetype.Type) ([]string, error) {
-	q := fmt.Sprintf("SELECT name FROM instances WHERE type=? AND node_id=? ORDER BY name")
-	inargs := []interface{}{instanceType, c.nodeID}
-	var container string
-	outfmt := []interface{}{container}
-	result, err := queryScan(c.db, q, inargs, outfmt)
-	if err != nil {
-		return nil, err
-	}
-
-	var ret []string
-	for _, container := range result {
-		ret = append(ret, container[0].(string))
-	}
-
-	return ret, nil
-}
-
 // ContainersResetState resets the power state of all containers.
 func (c *Cluster) ContainersResetState() error {
 	// Reset all container states
