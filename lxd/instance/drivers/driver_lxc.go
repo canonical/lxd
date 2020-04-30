@@ -2511,7 +2511,7 @@ func (c *lxc) onStart(_ map[string]string) error {
 		}
 
 		// Update time container last started time
-		err = tx.ContainerLastUsedUpdate(c.id, time.Now().UTC())
+		err = tx.UpdateInstanceLastUsedDate(c.id, time.Now().UTC())
 		if err != nil {
 			return errors.Wrap(err, "Error updating last used")
 		}

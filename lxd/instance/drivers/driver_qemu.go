@@ -924,7 +924,7 @@ func (vm *qemu) Start(stateful bool) error {
 		}
 
 		// Update time instance last started time
-		err = tx.ContainerLastUsedUpdate(vm.id, time.Now().UTC())
+		err = tx.UpdateInstanceLastUsedDate(vm.id, time.Now().UTC())
 		if err != nil {
 			err = errors.Wrap(err, "Error updating instance last used")
 			op.Done(err)
