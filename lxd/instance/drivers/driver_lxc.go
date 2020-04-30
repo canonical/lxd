@@ -2505,7 +2505,7 @@ func (c *lxc) onStart(_ map[string]string) error {
 	// Database updates
 	err = c.state.Cluster.Transaction(func(tx *db.ClusterTx) error {
 		// Record current state
-		err = tx.ContainerSetState(c.id, "RUNNING")
+		err = tx.UpdateInstancePowerState(c.id, "RUNNING")
 		if err != nil {
 			return errors.Wrap(err, "Error updating container state")
 		}
@@ -2811,7 +2811,7 @@ func (c *lxc) onStop(args map[string]string) error {
 	}
 
 	// Record power state
-	err = c.state.Cluster.ContainerSetState(c.id, "STOPPED")
+	err = c.state.Cluster.UpdateInstancePowerState(c.id, "STOPPED")
 	if err != nil {
 		logger.Error("Failed to set container state", log.Ctx{"container": c.Name(), "err": err})
 	}

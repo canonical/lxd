@@ -823,16 +823,17 @@ func (c *Cluster) ResetInstancesPowerState() error {
 	return err
 }
 
-// ContainerSetState sets the the power state of the container with the given ID.
-func (c *Cluster) ContainerSetState(id int, state string) error {
+// UpdateInstancePowerState sets the the power state of the instance with the
+// given ID.
+func (c *Cluster) UpdateInstancePowerState(id int, state string) error {
 	err := c.Transaction(func(tx *ClusterTx) error {
-		return tx.ContainerSetState(id, state)
+		return tx.UpdateInstancePowerState(id, state)
 	})
 	return err
 }
 
-// ContainerSetState sets the the power state of the container with the given ID.
-func (c *ClusterTx) ContainerSetState(id int, state string) error {
+// UpdateInstancePowerState sets the the power state of the container with the given ID.
+func (c *ClusterTx) UpdateInstancePowerState(id int, state string) error {
 	// Set the new value
 	str := fmt.Sprintf("INSERT OR REPLACE INTO instances_config (instance_id, key, value) VALUES (?, 'volatile.last_state.power', ?)")
 	stmt, err := c.tx.Prepare(str)

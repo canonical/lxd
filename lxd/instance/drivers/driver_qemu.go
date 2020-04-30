@@ -495,7 +495,7 @@ func (vm *qemu) onStop(target string) error {
 	vm.unmount()
 
 	// Record power state.
-	err := vm.state.Cluster.ContainerSetState(vm.id, "STOPPED")
+	err := vm.state.Cluster.UpdateInstancePowerState(vm.id, "STOPPED")
 	if err != nil {
 		op.Done(err)
 		return err
@@ -916,7 +916,7 @@ func (vm *qemu) Start(stateful bool) error {
 	// Database updates
 	err = vm.state.Cluster.Transaction(func(tx *db.ClusterTx) error {
 		// Record current state
-		err = tx.ContainerSetState(vm.id, "RUNNING")
+		err = tx.UpdateInstancePowerState(vm.id, "RUNNING")
 		if err != nil {
 			err = errors.Wrap(err, "Error updating instance state")
 			op.Done(err)
