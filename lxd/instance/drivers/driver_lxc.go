@@ -4378,7 +4378,7 @@ func (c *lxc) Update(args db.InstanceArgs, userRequested bool) error {
 				return errors.Wrap(err, "Config insert")
 			}
 
-			err = db.ContainerProfilesInsert(tx, c.id, c.project, c.profiles)
+			err = db.AddProfilesToInstance(tx, c.id, c.project, c.profiles)
 			if err != nil {
 				tx.Rollback()
 				return errors.Wrap(err, "Profiles insert")
