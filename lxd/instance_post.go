@@ -81,7 +81,7 @@ func containerPost(d *Daemon, r *http.Request) response.Response {
 			targetNodeOffline = node.IsOffline(config.OfflineThreshold())
 
 			// Load source node.
-			address, err := tx.ContainerNodeAddress(project, name, instanceType)
+			address, err := tx.GetNodeAddressOfInstance(project, name, instanceType)
 			if err != nil {
 				return errors.Wrap(err, "Failed to get address of instance's node")
 			}
