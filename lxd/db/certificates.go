@@ -49,12 +49,12 @@ func (c *Cluster) GetCertificates() (certs []*CertInfo, err error) {
 	return certs, nil
 }
 
-// CertificateGet gets an CertBaseInfo object from the database.
+// GetCertificate gets an CertBaseInfo object from the database.
 // The argument fingerprint will be queried with a LIKE query, means you can
 // pass a shortform and will get the full fingerprint.
 // There can never be more than one image with a given fingerprint, as it is
 // enforced by a UNIQUE constraint in the schema.
-func (c *Cluster) CertificateGet(fingerprint string) (cert *CertInfo, err error) {
+func (c *Cluster) GetCertificate(fingerprint string) (cert *CertInfo, err error) {
 	cert = new(CertInfo)
 
 	inargs := []interface{}{fingerprint + "%"}
