@@ -47,7 +47,7 @@ func certificatesGet(d *Daemon, r *http.Request) response.Response {
 	if recursion {
 		certResponses := []api.Certificate{}
 
-		baseCerts, err := d.cluster.CertificatesGet()
+		baseCerts, err := d.cluster.GetCertificates()
 		if err != nil {
 			return response.SmartError(err)
 		}
@@ -78,7 +78,7 @@ func certificatesGet(d *Daemon, r *http.Request) response.Response {
 func readSavedClientCAList(d *Daemon) {
 	d.clientCerts = map[string]x509.Certificate{}
 
-	dbCerts, err := d.cluster.CertificatesGet()
+	dbCerts, err := d.cluster.GetCertificates()
 	if err != nil {
 		logger.Infof("Error reading certificates from database: %s", err)
 		return
