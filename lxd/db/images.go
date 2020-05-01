@@ -1122,8 +1122,8 @@ func (c *Cluster) GetImagesOnNode(id int64) (map[string][]string, error) {
 	return images, err
 }
 
-// ImageGetNodesWithImage returns the addresses of online nodes which already have the image.
-func (c *Cluster) ImageGetNodesWithImage(fingerprint string) ([]string, error) {
+// GetNodesWithImage returns the addresses of online nodes which already have the image.
+func (c *Cluster) GetNodesWithImage(fingerprint string) ([]string, error) {
 	q := `
 SELECT DISTINCT nodes.address FROM nodes
   LEFT JOIN images_nodes ON images_nodes.node_id = nodes.id
