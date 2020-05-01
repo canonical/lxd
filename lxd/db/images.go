@@ -149,8 +149,8 @@ func (c *Cluster) GetExpiredImages(expiry int64) ([]ExpiredImage, error) {
 	return results, nil
 }
 
-// ImageSourceInsert inserts a new image source.
-func (c *Cluster) ImageSourceInsert(id int, server string, protocol string, certificate string, alias string) error {
+// CreateImageSource inserts a new image source.
+func (c *Cluster) CreateImageSource(id int, server string, protocol string, certificate string, alias string) error {
 	stmt := `INSERT INTO images_source (image_id, server, protocol, certificate, alias) values (?, ?, ?, ?, ?)`
 
 	protocolInt := -1
