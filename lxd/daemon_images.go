@@ -126,7 +126,7 @@ func (d *Daemon) ImageDownload(op *operations.Operation, server string, protocol
 			if err != nil {
 				return nil, err
 			}
-			err = d.cluster.ImageSourceInsert(id, server, protocol, certificate, alias)
+			err = d.cluster.CreateImageSource(id, server, protocol, certificate, alias)
 			if err != nil {
 				return nil, err
 			}
@@ -459,7 +459,7 @@ func (d *Daemon) ImageDownload(op *operations.Operation, server string, protocol
 			return nil, err
 		}
 
-		err = d.cluster.ImageSourceInsert(id, server, protocol, certificate, alias)
+		err = d.cluster.CreateImageSource(id, server, protocol, certificate, alias)
 		if err != nil {
 			return nil, err
 		}
