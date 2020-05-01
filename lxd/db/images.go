@@ -804,8 +804,8 @@ INSERT INTO images_aliases (name, image_id, description, project_id)
 	return err
 }
 
-// ImageAliasUpdate updates the alias with the given ID.
-func (c *Cluster) ImageAliasUpdate(id int, imageID int, desc string) error {
+// UpdateImageAlias updates the alias with the given ID.
+func (c *Cluster) UpdateImageAlias(id int, imageID int, desc string) error {
 	stmt := `UPDATE images_aliases SET image_id=?, description=? WHERE id=?`
 	err := exec(c.db, stmt, imageID, desc, id)
 	return err
