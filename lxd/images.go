@@ -2307,7 +2307,7 @@ func autoSyncImagesTask(d *Daemon) (task.Func, task.Schedule) {
 func autoSyncImages(ctx context.Context, d *Daemon) error {
 	// Check how many images the current node owns and automatically sync all
 	// available images to other nodes which don't have yet.
-	imageProjectInfo, err := d.cluster.ImagesGetOnCurrentNode()
+	imageProjectInfo, err := d.cluster.GetImagesOnLocalNode()
 	if err != nil {
 		return errors.Wrap(err, "Failed to query image fingerprints of the node")
 	}
