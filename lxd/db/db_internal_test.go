@@ -10,7 +10,6 @@ import (
 
 	"github.com/stretchr/testify/suite"
 
-	deviceConfig "github.com/lxc/lxd/lxd/device/config"
 	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/logger"
 	"github.com/lxc/lxd/shared/logging"
@@ -289,41 +288,5 @@ func (s *dbTestSuite) Test_dbProfileConfig() {
 	for key, value := range expected {
 		s.Equal(result[key], value,
 			fmt.Sprintf("Mismatching value for key %s: %s != %s", key, result[key], value))
-	}
-}
-
-func (s *dbTestSuite) Test_dbDevices_profiles() {
-	var err error
-	var result deviceConfig.Devices
-	var subresult deviceConfig.Device
-	var expected deviceConfig.Device
-
-	result, err = s.db.Devices("default", "theprofile", true)
-	s.Nil(err)
-
-	expected = deviceConfig.Device{"type": "nic", "devicekey": "devicevalue"}
-	subresult = result["devicename"]
-
-	for key, value := range expected {
-		s.Equal(subresult[key], value,
-			fmt.Sprintf("Mismatching value for key %s: %v != %v", key, subresult[key], value))
-	}
-}
-
-func (s *dbTestSuite) Test_dbDevices_containers() {
-	var err error
-	var result deviceConfig.Devices
-	var subresult deviceConfig.Device
-	var expected deviceConfig.Device
-
-	result, err = s.db.Devices("default", "thename", false)
-	s.Nil(err)
-
-	expected = deviceConfig.Device{"type": "nic", "configkey": "configvalue"}
-	subresult = result["somename"]
-
-	for key, value := range expected {
-		s.Equal(subresult[key], value,
-			fmt.Sprintf("Mismatching value for key %s: %s != %s", key, subresult[key], value))
 	}
 }
