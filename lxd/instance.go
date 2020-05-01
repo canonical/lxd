@@ -76,7 +76,7 @@ func instanceCreateFromImage(d *Daemon, args db.InstanceArgs, hash string, op *o
 	s := d.State()
 
 	// Get the image properties.
-	_, img, err := s.Cluster.ImageGet(args.Project, hash, false, false)
+	_, img, err := s.Cluster.GetImage(args.Project, hash, false, false)
 	if err != nil {
 		return nil, errors.Wrapf(err, "Fetch image %s from database", hash)
 	}

@@ -107,7 +107,7 @@ func (d *Daemon) ImageDownload(op *operations.Operation, server string, protocol
 	}
 
 	// Check if the image already exists in this project (partial hash match)
-	_, imgInfo, err := d.cluster.ImageGet(project, fp, false, true)
+	_, imgInfo, err := d.cluster.GetImage(project, fp, false, true)
 	if err == db.ErrNoSuchObject {
 		// Check if the image already exists in some other project.
 		_, imgInfo, err = d.cluster.GetImageFromAnyProject(fp)
@@ -122,7 +122,7 @@ func (d *Daemon) ImageDownload(op *operations.Operation, server string, protocol
 			}
 
 			var id int
-			id, imgInfo, err = d.cluster.ImageGet(project, fp, false, true)
+			id, imgInfo, err = d.cluster.GetImage(project, fp, false, true)
 			if err != nil {
 				return nil, err
 			}
@@ -186,7 +186,7 @@ func (d *Daemon) ImageDownload(op *operations.Operation, server string, protocol
 		<-waitChannel
 
 		// Grab the database entry
-		_, imgInfo, err := d.cluster.ImageGet(project, fp, false, true)
+		_, imgInfo, err := d.cluster.GetImage(project, fp, false, true)
 		if err != nil {
 			// Other download failed, lets try again
 			logger.Error("Other image download didn't succeed", log.Ctx{"image": fp})
@@ -454,7 +454,7 @@ func (d *Daemon) ImageDownload(op *operations.Operation, server string, protocol
 
 	// Record the image source
 	if alias != fp {
-		id, _, err := d.cluster.ImageGet(project, fp, false, true)
+		id, _, err := d.cluster.GetImage(project, fp, false, true)
 		if err != nil {
 			return nil, err
 		}
