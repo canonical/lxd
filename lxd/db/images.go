@@ -46,8 +46,8 @@ SELECT images.fingerprint
 	return results, nil
 }
 
-// ImagesGet returns the names of all images (optionally only the public ones).
-func (c *Cluster) ImagesGet(project string, public bool) ([]string, error) {
+// GetImages returns the names of all images (optionally only the public ones).
+func (c *Cluster) GetImages(project string, public bool) ([]string, error) {
 	err := c.Transaction(func(tx *ClusterTx) error {
 		enabled, err := tx.ProjectHasImages(project)
 		if err != nil {

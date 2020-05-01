@@ -127,7 +127,7 @@ func storagePoolVolumesGet(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	projectImages, err := d.cluster.ImagesGet(projectName, false)
+	projectImages, err := d.cluster.GetImages(projectName, false)
 	if err != nil {
 		return response.SmartError(err)
 	}

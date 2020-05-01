@@ -499,7 +499,7 @@ func TestCluster_LeaveForce(t *testing.T) {
 	// The image is gone, since the deleted node was the only one having a
 	// copy of it.
 	daemon = daemons[0]
-	images, err := daemon.State().Cluster.ImagesGet("default", false)
+	images, err := daemon.State().Cluster.GetImages("default", false)
 	require.NoError(t, err)
 	assert.Equal(t, []string{}, images)
 }
