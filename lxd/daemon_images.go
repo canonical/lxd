@@ -113,7 +113,7 @@ func (d *Daemon) ImageDownload(op *operations.Operation, server string, protocol
 		_, imgInfo, err = d.cluster.GetImageFromAnyProject(fp)
 		if err == nil {
 			// We just need to insert the database data, no actual download necessary.
-			err = d.cluster.ImageInsert(
+			err = d.cluster.CreateImage(
 				project, imgInfo.Fingerprint, imgInfo.Filename, imgInfo.Size, false,
 				imgInfo.AutoUpdate, imgInfo.Architecture, imgInfo.CreatedAt, imgInfo.ExpiresAt,
 				imgInfo.Properties, imgInfo.Type)
@@ -428,7 +428,7 @@ func (d *Daemon) ImageDownload(op *operations.Operation, server string, protocol
 	}
 
 	// Create the database entry
-	err = d.cluster.ImageInsert(project, info.Fingerprint, info.Filename, info.Size, info.Public, info.AutoUpdate, info.Architecture, info.CreatedAt, info.ExpiresAt, info.Properties, info.Type)
+	err = d.cluster.CreateImage(project, info.Fingerprint, info.Filename, info.Size, info.Public, info.AutoUpdate, info.Architecture, info.CreatedAt, info.ExpiresAt, info.Properties, info.Type)
 	if err != nil {
 		return nil, err
 	}
