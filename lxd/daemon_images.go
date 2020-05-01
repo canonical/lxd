@@ -149,7 +149,7 @@ func (d *Daemon) ImageDownload(op *operations.Operation, server string, protocol
 		}
 
 		// Check if the image is already in the pool
-		poolIDs, err := d.cluster.ImageGetPools(info.Fingerprint)
+		poolIDs, err := d.cluster.GetPoolsWithImage(info.Fingerprint)
 		if err != nil {
 			return nil, err
 		}
