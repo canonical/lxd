@@ -653,7 +653,7 @@ func ResolveImage(s *state.State, project string, source api.InstanceSource) (st
 			return source.Alias, nil
 		}
 
-		_, alias, err := s.Cluster.ImageAliasGet(project, source.Alias, true)
+		_, alias, err := s.Cluster.GetImageAlias(project, source.Alias, true)
 		if err != nil {
 			return "", err
 		}

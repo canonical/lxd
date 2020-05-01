@@ -692,8 +692,8 @@ SELECT images_aliases.name
 	return names, nil
 }
 
-// ImageAliasGet returns the alias with the given name in the given project.
-func (c *Cluster) ImageAliasGet(project, name string, isTrustedClient bool) (int, api.ImageAliasesEntry, error) {
+// GetImageAlias returns the alias with the given name in the given project.
+func (c *Cluster) GetImageAlias(project, name string, isTrustedClient bool) (int, api.ImageAliasesEntry, error) {
 	id := -1
 	entry := api.ImageAliasesEntry{}
 
