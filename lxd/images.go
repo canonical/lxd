@@ -1231,7 +1231,7 @@ func autoUpdateImage(d *Daemon, op *operations.Operation, id int, info *api.Imag
 			continue
 		}
 
-		err = d.cluster.ImageCopyDefaultProfiles(id, newID)
+		err = d.cluster.CopyDefaultImageProfiles(id, newID)
 		if err != nil {
 			logger.Error("Copying default profiles", log.Ctx{"err": err, "fp": hash})
 		}
