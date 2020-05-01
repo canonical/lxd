@@ -744,8 +744,8 @@ func (c *Cluster) GetImageAlias(project, name string, isTrustedClient bool) (int
 	return id, entry, nil
 }
 
-// ImageAliasRename renames the alias with the given ID.
-func (c *Cluster) ImageAliasRename(id int, name string) error {
+// RenameImageAlias renames the alias with the given ID.
+func (c *Cluster) RenameImageAlias(id int, name string) error {
 	err := exec(c.db, "UPDATE images_aliases SET name=? WHERE id=?", name, id)
 	return err
 }
