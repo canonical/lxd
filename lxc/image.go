@@ -1279,7 +1279,7 @@ func (c *cmdImageRefresh) Run(cmd *cobra.Command, args []string) error {
 	}
 
 	// Parse remote
-	resources, err := c.global.ParseServers(args[0])
+	resources, err := c.global.ParseServers(args...)
 	if err != nil {
 		return err
 	}
