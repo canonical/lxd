@@ -249,20 +249,27 @@ func (d *dir) GetVolumeUsage(vol Volume) (int64, error) {
 }
 
 // SetVolumeQuota sets the quota on the volume.
+// Does nothing if supplied with an empty/zero size for block volumes, and for filesystem volumes removes quota.
 func (d *dir) SetVolumeQuota(vol Volume, size string, op *operations.Operation) error {
+	// Convert to bytes.
+	sizeBytes, err := units.ParseByteSizeString(size)
+	if err != nil {
+		return err
+	}
+
 	// For VM block files, resize the file if needed.
 	if vol.contentType == ContentTypeBlock {
+		// Do nothing if size isn't specified.
+		if sizeBytes <= 0 {
+			return nil
+		}
+
 		rootBlockPath, err := d.GetVolumeDiskPath(vol)
 		if err != nil {
 			return err
 		}
 
-		// If size not specified in volume config, then use pool's default block size.
-		if size == "" || size == "0" {
-			size = defaultBlockSize
-		}
-
-		resized, err := genericVFSResizeBlockFile(rootBlockPath, size)
+		resized, err := genericVFSResizeBlockFile(rootBlockPath, sizeBytes)
 		if err != nil {
 			return err
 		}
