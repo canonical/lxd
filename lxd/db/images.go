@@ -774,8 +774,8 @@ DELETE
 	return err
 }
 
-// ImageAliasesMove changes the image ID associated with an alias.
-func (c *Cluster) ImageAliasesMove(source int, destination int) error {
+// MoveImageAlias changes the image ID associated with an alias.
+func (c *Cluster) MoveImageAlias(source int, destination int) error {
 	err := exec(c.db, "UPDATE images_aliases SET image_id=? WHERE image_id=?", destination, source)
 	return err
 }
