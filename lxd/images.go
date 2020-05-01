@@ -1312,7 +1312,7 @@ func pruneExpiredImages(ctx context.Context, d *Daemon) error {
 	}
 
 	// Get the list of expired images.
-	images, err := d.cluster.ImagesGetExpired(expiry)
+	images, err := d.cluster.GetExpiredImages(expiry)
 	if err != nil {
 		return errors.Wrap(err, "Unable to retrieve the list of expired images")
 	}
