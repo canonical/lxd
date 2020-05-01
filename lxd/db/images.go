@@ -656,8 +656,8 @@ func (c *Cluster) DeleteImage(id int) error {
 	return nil
 }
 
-// ImageAliasesGet returns the names of the aliases of all images.
-func (c *Cluster) ImageAliasesGet(project string) ([]string, error) {
+// GetImageAliases returns the names of the aliases of all images.
+func (c *Cluster) GetImageAliases(project string) ([]string, error) {
 	err := c.Transaction(func(tx *ClusterTx) error {
 		enabled, err := tx.ProjectHasImages(project)
 		if err != nil {
