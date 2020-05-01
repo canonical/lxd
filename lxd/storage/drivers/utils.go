@@ -16,7 +16,6 @@ import (
 	"github.com/lxc/lxd/lxd/operations"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/idmap"
-	"github.com/lxc/lxd/shared/units"
 )
 
 const minBlockBoundary = 8192
@@ -314,46 +313,41 @@ func createSparseFile(filePath string, sizeBytes int64) error {
 }
 
 // roundVolumeBlockFileSizeBytes parses the supplied size string and then rounds it to the nearest 8k bytes.
-func roundVolumeBlockFileSizeBytes(blockSize string) (int64, error) {
-	blockSizeBytes, err := units.ParseByteSizeString(blockSize)
-	if err != nil {
-		return -1, err
-	}
-
+func roundVolumeBlockFileSizeBytes(sizeBytes int64) (int64, error) {
 	// Qemu requires image files to be in traditional storage block boundaries.
 	// We use 8k here to ensure our images are compatible with all of our backend drivers.
-	if blockSizeBytes < minBlockBoundary {
-		blockSizeBytes = minBlockBoundary
+	if sizeBytes < minBlockBoundary {
+		sizeBytes = minBlockBoundary
 	}
 
 	// Round the size to closest minBlockBoundary bytes to avoid qemu boundary issues.
-	return int64(blockSizeBytes/minBlockBoundary) * minBlockBoundary, nil
+	return int64(sizeBytes/minBlockBoundary) * minBlockBoundary, nil
 }
 
 // ensureVolumeBlockFile creates or resizes the raw block file for a volume to the specified size.
-func ensureVolumeBlockFile(path, blockSize string) error {
-	if blockSize == "" {
-		blockSize = defaultBlockSize
+func ensureVolumeBlockFile(path string, sizeBytes int64) error {
+	if sizeBytes <= 0 {
+		return fmt.Errorf("Size cannot be zero")
 	}
 
 	// Get rounded block size to avoid qemu boundary issues.
-	blockSizeBytes, err := roundVolumeBlockFileSizeBytes(blockSize)
+	sizeBytes, err := roundVolumeBlockFileSizeBytes(sizeBytes)
 	if err != nil {
 		return err
 	}
 
 	if shared.PathExists(path) {
-		_, err = shared.RunCommand("qemu-img", "resize", "-f", "raw", path, fmt.Sprintf("%d", blockSizeBytes))
+		_, err = shared.RunCommand("qemu-img", "resize", "-f", "raw", path, fmt.Sprintf("%d", sizeBytes))
 		if err != nil {
-			return errors.Wrapf(err, "Failed resizing disk image %s to size %s", path, blockSize)
+			return errors.Wrapf(err, "Failed resizing disk image %q to size %d", path, sizeBytes)
 		}
 	} else {
 		// If path doesn't exist, then there has been no filler function
 		// supplied to create it from another source. So instead create an empty
 		// volume (use for PXE booting a VM).
-		_, err = shared.RunCommand("qemu-img", "create", "-f", "raw", path, fmt.Sprintf("%d", blockSizeBytes))
+		_, err = shared.RunCommand("qemu-img", "create", "-f", "raw", path, fmt.Sprintf("%d", sizeBytes))
 		if err != nil {
-			return errors.Wrapf(err, "Failed creating disk image %s as size %s", path, blockSize)
+			return errors.Wrapf(err, "Failed creating disk image %q as size %d", path, sizeBytes)
 		}
 	}
 
