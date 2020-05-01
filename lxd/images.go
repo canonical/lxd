@@ -1959,7 +1959,7 @@ func imageAliasPost(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	err = d.cluster.ImageAliasRename(id, req.Name)
+	err = d.cluster.RenameImageAlias(id, req.Name)
 	if err != nil {
 		return response.SmartError(err)
 	}
