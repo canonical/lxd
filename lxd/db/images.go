@@ -843,8 +843,8 @@ func (c *Cluster) UpdateImageLastUseDate(fingerprint string, date time.Time) err
 	return err
 }
 
-// ImageLastAccessInit inits the last_use_date field of the image with the given fingerprint.
-func (c *Cluster) ImageLastAccessInit(fingerprint string) error {
+// InitImageLastUseDate inits the last_use_date field of the image with the given fingerprint.
+func (c *Cluster) InitImageLastUseDate(fingerprint string) error {
 	stmt := `UPDATE images SET cached=1, last_use_date=strftime("%s") WHERE fingerprint=?`
 	err := exec(c.db, stmt, fingerprint)
 	return err
