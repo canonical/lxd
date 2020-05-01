@@ -1153,7 +1153,7 @@ func autoUpdateImage(d *Daemon, op *operations.Operation, id int, info *api.Imag
 			continue
 		}
 
-		err = d.cluster.ImageAliasesMove(id, newID)
+		err = d.cluster.MoveImageAlias(id, newID)
 		if err != nil {
 			logger.Error("Error moving aliases", log.Ctx{"err": err, "fp": hash})
 			continue
