@@ -107,13 +107,13 @@ func (d *Daemon) ImageDownload(op *operations.Operation, server string, protocol
 	}
 
 	// Check if the image already exists in this project (partial hash match)
-	_, imgInfo, err := d.cluster.ImageGet(project, fp, false, true)
+	_, imgInfo, err := d.cluster.GetImage(project, fp, false, true)
 	if err == db.ErrNoSuchObject {
 		// Check if the image already exists in some other project.
-		_, imgInfo, err = d.cluster.ImageGetFromAnyProject(fp)
+		_, imgInfo, err = d.cluster.GetImageFromAnyProject(fp)
 		if err == nil {
 			// We just need to insert the database data, no actual download necessary.
-			err = d.cluster.ImageInsert(
+			err = d.cluster.CreateImage(
 				project, imgInfo.Fingerprint, imgInfo.Filename, imgInfo.Size, false,
 				imgInfo.AutoUpdate, imgInfo.Architecture, imgInfo.CreatedAt, imgInfo.ExpiresAt,
 				imgInfo.Properties, imgInfo.Type)
@@ -122,11 +122,11 @@ func (d *Daemon) ImageDownload(op *operations.Operation, server string, protocol
 			}
 
 			var id int
-			id, imgInfo, err = d.cluster.ImageGet(project, fp, false, true)
+			id, imgInfo, err = d.cluster.GetImage(project, fp, false, true)
 			if err != nil {
 				return nil, err
 			}
-			err = d.cluster.ImageSourceInsert(id, server, protocol, certificate, alias)
+			err = d.cluster.CreateImageSource(id, server, protocol, certificate, alias)
 			if err != nil {
 				return nil, err
 			}
@@ -149,7 +149,7 @@ func (d *Daemon) ImageDownload(op *operations.Operation, server string, protocol
 		}
 
 		// Check if the image is already in the pool
-		poolIDs, err := d.cluster.ImageGetPools(info.Fingerprint)
+		poolIDs, err := d.cluster.GetPoolsWithImage(info.Fingerprint)
 		if err != nil {
 			return nil, err
 		}
@@ -186,7 +186,7 @@ func (d *Daemon) ImageDownload(op *operations.Operation, server string, protocol
 		<-waitChannel
 
 		// Grab the database entry
-		_, imgInfo, err := d.cluster.ImageGet(project, fp, false, true)
+		_, imgInfo, err := d.cluster.GetImage(project, fp, false, true)
 		if err != nil {
 			// Other download failed, lets try again
 			logger.Error("Other image download didn't succeed", log.Ctx{"image": fp})
@@ -428,7 +428,7 @@ func (d *Daemon) ImageDownload(op *operations.Operation, server string, protocol
 	}
 
 	// Create the database entry
-	err = d.cluster.ImageInsert(project, info.Fingerprint, info.Filename, info.Size, info.Public, info.AutoUpdate, info.Architecture, info.CreatedAt, info.ExpiresAt, info.Properties, info.Type)
+	err = d.cluster.CreateImage(project, info.Fingerprint, info.Filename, info.Size, info.Public, info.AutoUpdate, info.Architecture, info.CreatedAt, info.ExpiresAt, info.Properties, info.Type)
 	if err != nil {
 		return nil, err
 	}
@@ -454,12 +454,12 @@ func (d *Daemon) ImageDownload(op *operations.Operation, server string, protocol
 
 	// Record the image source
 	if alias != fp {
-		id, _, err := d.cluster.ImageGet(project, fp, false, true)
+		id, _, err := d.cluster.GetImage(project, fp, false, true)
 		if err != nil {
 			return nil, err
 		}
 
-		err = d.cluster.ImageSourceInsert(id, server, protocol, certificate, alias)
+		err = d.cluster.CreateImageSource(id, server, protocol, certificate, alias)
 		if err != nil {
 			return nil, err
 		}
@@ -475,7 +475,7 @@ func (d *Daemon) ImageDownload(op *operations.Operation, server string, protocol
 
 	// Mark the image as "cached" if downloading for a container
 	if forContainer {
-		err := d.cluster.ImageLastAccessInit(fp)
+		err := d.cluster.InitImageLastUseDate(fp)
 		if err != nil {
 			return nil, err
 		}

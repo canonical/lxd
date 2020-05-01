@@ -76,7 +76,7 @@ func instanceCreateFromImage(d *Daemon, args db.InstanceArgs, hash string, op *o
 	s := d.State()
 
 	// Get the image properties.
-	_, img, err := s.Cluster.ImageGet(args.Project, hash, false, false)
+	_, img, err := s.Cluster.GetImage(args.Project, hash, false, false)
 	if err != nil {
 		return nil, errors.Wrapf(err, "Fetch image %s from database", hash)
 	}
@@ -97,7 +97,7 @@ func instanceCreateFromImage(d *Daemon, args db.InstanceArgs, hash string, op *o
 	}
 
 	// Check if the image is available locally or it's on another node.
-	nodeAddress, err := s.Cluster.ImageLocate(hash)
+	nodeAddress, err := s.Cluster.LocateImage(hash)
 	if err != nil {
 		return nil, errors.Wrapf(err, "Locate image %s in the cluster", hash)
 	}
@@ -116,7 +116,7 @@ func instanceCreateFromImage(d *Daemon, args db.InstanceArgs, hash string, op *o
 			return nil, err
 		}
 
-		err = d.cluster.ImageAssociateNode(args.Project, hash)
+		err = d.cluster.AddImageToLocalNode(args.Project, hash)
 		if err != nil {
 			return nil, err
 		}
@@ -147,7 +147,7 @@ func instanceCreateFromImage(d *Daemon, args db.InstanceArgs, hash string, op *o
 		inst.Delete()
 	}()
 
-	err = s.Cluster.ImageLastAccessUpdate(hash, time.Now().UTC())
+	err = s.Cluster.UpdateImageLastUseDate(hash, time.Now().UTC())
 	if err != nil {
 		return nil, fmt.Errorf("Error updating image last use date: %s", err)
 	}

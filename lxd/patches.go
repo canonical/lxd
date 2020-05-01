@@ -386,13 +386,13 @@ func patchStorageApi(name string, d *Daemon) error {
 	}
 
 	// Get list of existing public images.
-	imgPublic, err := d.cluster.ImagesGet("default", true)
+	imgPublic, err := d.cluster.GetImages("default", true)
 	if err != nil {
 		return err
 	}
 
 	// Get list of existing private images.
-	imgPrivate, err := d.cluster.ImagesGet("default", false)
+	imgPrivate, err := d.cluster.GetImages("default", false)
 	if err != nil {
 		return err
 	}
@@ -1969,7 +1969,7 @@ func updatePoolPropertyForAllObjects(d *Daemon, poolName string, allcontainers [
 				continue
 			}
 
-			err = db.DevicesAdd(tx, "profile", pID, deviceConfig.NewDevices(p.Devices))
+			err = db.AddDevicesToEntity(tx, "profile", pID, deviceConfig.NewDevices(p.Devices))
 			if err != nil {
 				logger.Errorf("Failed to add new profile profile root disk device: %s: %s", pName, err)
 				tx.Rollback()
@@ -2179,7 +2179,7 @@ INSERT INTO storage_pools_config(storage_pool_id, node_id, key, value)
 }
 
 func patchStorageApiDirCleanup(name string, d *Daemon) error {
-	fingerprints, err := d.cluster.ImagesGet("default", false)
+	fingerprints, err := d.cluster.GetImages("default", false)
 	if err != nil {
 		return err
 	}
@@ -2761,18 +2761,18 @@ func patchStorageApiDirBindMount(name string, d *Daemon) error {
 }
 
 func patchFixUploadedAt(name string, d *Daemon) error {
-	images, err := d.cluster.ImagesGet("default", false)
+	images, err := d.cluster.GetImages("default", false)
 	if err != nil {
 		return err
 	}
 
 	for _, fingerprint := range images {
-		id, image, err := d.cluster.ImageGet("default", fingerprint, false, true)
+		id, image, err := d.cluster.GetImage("default", fingerprint, false, true)
 		if err != nil {
 			return err
 		}
 
-		err = d.cluster.ImageUploadedAt(id, image.UploadedAt)
+		err = d.cluster.UpdateImageUploadDate(id, image.UploadedAt)
 		if err != nil {
 			return err
 		}

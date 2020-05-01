@@ -457,7 +457,7 @@ func TestCluster_LeaveWithImages(t *testing.T) {
 	f.FormCluster(daemons)
 
 	daemon := daemons[1]
-	err := daemon.State().Cluster.ImageInsert(
+	err := daemon.State().Cluster.CreateImage(
 		"default", "abc", "foo", 123, false, false, "amd64", time.Now(), time.Now(), nil, "container")
 	require.NoError(t, err)
 
@@ -468,7 +468,7 @@ func TestCluster_LeaveWithImages(t *testing.T) {
 	// If we now associate the image with the other node as well, leaving
 	// the cluster is fine.
 	daemon = daemons[0]
-	err = daemon.State().Cluster.ImageAssociateNode("default", "abc")
+	err = daemon.State().Cluster.AddImageToLocalNode("default", "abc")
 	require.NoError(t, err)
 
 	err = client.DeleteClusterMember("rusp-0", false)
@@ -488,7 +488,7 @@ func TestCluster_LeaveForce(t *testing.T) {
 	f.FormCluster(daemons)
 
 	daemon := daemons[1]
-	err := daemon.State().Cluster.ImageInsert(
+	err := daemon.State().Cluster.CreateImage(
 		"default", "abc", "foo", 123, false, false, "amd64", time.Now(), time.Now(), nil, "container")
 	require.NoError(t, err)
 
@@ -499,7 +499,7 @@ func TestCluster_LeaveForce(t *testing.T) {
 	// The image is gone, since the deleted node was the only one having a
 	// copy of it.
 	daemon = daemons[0]
-	images, err := daemon.State().Cluster.ImagesGet("default", false)
+	images, err := daemon.State().Cluster.GetImages("default", false)
 	require.NoError(t, err)
 	assert.Equal(t, []string{}, images)
 }
