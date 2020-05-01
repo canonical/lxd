@@ -1841,7 +1841,7 @@ func imageAliasDelete(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	err = d.cluster.ImageAliasDelete(project, name)
+	err = d.cluster.DeleteImageAlias(project, name)
 	if err != nil {
 		return response.SmartError(err)
 	}
