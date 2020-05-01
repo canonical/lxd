@@ -2199,7 +2199,7 @@ func imageSyncBetweenNodes(d *Daemon, project string, fingerprint string) error 
 	}
 
 	// Check how many nodes already have this image
-	syncNodeAddresses, err := d.cluster.ImageGetNodesWithImage(fingerprint)
+	syncNodeAddresses, err := d.cluster.GetNodesWithImage(fingerprint)
 	if err != nil {
 		return errors.Wrap(err, "Failed to get nodes for the image synchronization")
 	}
