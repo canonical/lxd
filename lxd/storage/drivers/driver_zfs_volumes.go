@@ -879,15 +879,9 @@ func (d *zfs) GetVolumeUsage(vol Volume) (int64, error) {
 	return valueInt, nil
 }
 
+// SetVolumeQuota sets the quota on the volume.
+// Does nothing if supplied with an empty/zero size for block volumes, and for filesystem volumes removes quota.
 func (d *zfs) SetVolumeQuota(vol Volume, size string, op *operations.Operation) error {
-	if size == "" || size == "0" {
-		if vol.contentType == ContentTypeBlock {
-			size = defaultBlockSize
-		} else {
-			size = "0"
-		}
-	}
-
 	// Convert to bytes.
 	sizeBytes, err := units.ParseByteSizeString(size)
 	if err != nil {
@@ -896,6 +890,11 @@ func (d *zfs) SetVolumeQuota(vol Volume, size string, op *operations.Operation) 
 
 	// Handle volume datasets.
 	if vol.contentType == ContentTypeBlock {
+		// Do nothing if size isn't specified.
+		if sizeBytes <= 0 {
+			return nil
+		}
+
 		sizeBytes = (sizeBytes / minBlockBoundary) * minBlockBoundary
 
 		oldSizeBytesStr, err := d.getDatasetProperty(d.dataset(vol, false), "volsize")
