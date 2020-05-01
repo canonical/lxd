@@ -378,3 +378,15 @@ func (d *btrfs) receiveSubvolume(path string, targetPath string, conn io.ReadWri
 
 	return nil
 }
+
+// volumeSize returns the size to use when creating new a volume.
+func (d *btrfs) volumeSize(vol Volume) string {
+	size := vol.ExpandedConfig("size")
+
+	// Block images always need a size.
+	if vol.contentType == ContentTypeBlock && (size == "" || size == "0") {
+		return defaultBlockSize
+	}
+
+	return size
+}

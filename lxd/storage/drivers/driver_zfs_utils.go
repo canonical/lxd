@@ -316,3 +316,15 @@ func (d *zfs) receiveDataset(dataset string, conn io.ReadWriteCloser, writeWrapp
 
 	return nil
 }
+
+// volumeSize returns the size to use when creating new a volume.
+func (d *zfs) volumeSize(vol Volume) string {
+	size := vol.ExpandedConfig("size")
+
+	// Block images always need a size.
+	if vol.contentType == ContentTypeBlock && (size == "" || size == "0") {
+		return defaultBlockSize
+	}
+
+	return size
+}

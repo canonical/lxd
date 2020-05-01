@@ -313,9 +313,9 @@ func (d *ceph) CreateVolumeFromCopy(vol Volume, srcVol Volume, copySnapshots boo
 		// This is so the pool default volume size isn't take into account for volume copies.
 		volSize := vol.config["size"]
 
-		// If source is an image then use expanded config so that we take into account pool volume size.
+		// If source is an image then take into account default volume sizes if not specified.
 		if srcVol.volType == VolumeTypeImage {
-			volSize = vol.ExpandedConfig("size")
+			volSize = d.volumeSize(vol)
 		}
 
 		err = d.SetVolumeQuota(vol, volSize, op)
@@ -802,7 +802,19 @@ func (d *ceph) GetVolumeUsage(vol Volume) (int64, error) {
 }
 
 // SetVolumeQuota applies a size limit on volume.
+// Does nothing if supplied with an empty/zero size.
 func (d *ceph) SetVolumeQuota(vol Volume, size string, op *operations.Operation) error {
+	// Convert to bytes.
+	sizeBytes, err := units.ParseByteSizeString(size)
+	if err != nil {
+		return err
+	}
+
+	// Do nothing if size isn't specified.
+	if sizeBytes <= 0 {
+		return nil
+	}
+
 	fsType := d.getRBDFilesystem(vol)
 
 	RBDDevPath, err := d.getRBDMappedDevPath(vol)
@@ -822,26 +834,20 @@ func (d *ceph) SetVolumeQuota(vol Volume, size string, op *operations.Operation)
 		return errors.Wrapf(err, "Error getting current size")
 	}
 
-	newSizeBytes, err := units.ParseByteSizeString(size)
-	if err != nil {
-		return err
-	}
-
-	// The right disjunct just means that someone unset the size property in the instance's config.
-	// We obviously cannot resize to 0.
-	if oldSizeBytes == newSizeBytes || newSizeBytes == 0 {
+	// Do nothing is volume is already specified size.
+	if oldSizeBytes == sizeBytes {
 		return nil
 	}
 
 	// Resize filesystem if needed.
-	if newSizeBytes < oldSizeBytes {
+	if sizeBytes < oldSizeBytes {
 		if vol.contentType == ContentTypeBlock && !vol.allowUnsafeResize {
 			return errors.Wrap(ErrCannotBeShrunk, "You cannot shrink block volumes")
 		}
 
 		// Shrink the filesystem.
 		if vol.contentType == ContentTypeFS {
-			err = shrinkFileSystem(fsType, RBDDevPath, vol, newSizeBytes)
+			err = shrinkFileSystem(fsType, RBDDevPath, vol, sizeBytes)
 			if err != nil {
 				return err
 			}
@@ -855,7 +861,7 @@ func (d *ceph) SetVolumeQuota(vol Volume, size string, op *operations.Operation)
 			"--id", d.config["ceph.user.name"],
 			"--cluster", d.config["ceph.cluster_name"],
 			"--pool", d.config["ceph.osd.pool_name"],
-			"--size", fmt.Sprintf("%dB", newSizeBytes),
+			"--size", fmt.Sprintf("%dB", sizeBytes),
 			d.getRBDVolumeName(vol, "", false, false))
 		if err != nil {
 			return err
@@ -868,7 +874,7 @@ func (d *ceph) SetVolumeQuota(vol Volume, size string, op *operations.Operation)
 			"--id", d.config["ceph.user.name"],
 			"--cluster", d.config["ceph.cluster_name"],
 			"--pool", d.config["ceph.osd.pool_name"],
-			"--size", fmt.Sprintf("%dB", newSizeBytes),
+			"--size", fmt.Sprintf("%dB", sizeBytes),
 			d.getRBDVolumeName(vol, "", false, false))
 		if err != nil {
 			return err
