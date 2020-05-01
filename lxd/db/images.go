@@ -417,9 +417,9 @@ SELECT COUNT(images.id)
 	return id, &image, nil
 }
 
-// ImageGetFromAnyProject returns an image matching the given fingerprint, if
+// GetImageFromAnyProject returns an image matching the given fingerprint, if
 // it exists in any project.
-func (c *Cluster) ImageGetFromAnyProject(fingerprint string) (int, *api.Image, error) {
+func (c *Cluster) GetImageFromAnyProject(fingerprint string) (int, *api.Image, error) {
 	var create, expire, used, upload *time.Time // These hold the db-returned times
 
 	// The object we'll actually return
