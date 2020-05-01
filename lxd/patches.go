@@ -1969,7 +1969,7 @@ func updatePoolPropertyForAllObjects(d *Daemon, poolName string, allcontainers [
 				continue
 			}
 
-			err = db.DevicesAdd(tx, "profile", pID, deviceConfig.NewDevices(p.Devices))
+			err = db.AddDevicesToEntity(tx, "profile", pID, deviceConfig.NewDevices(p.Devices))
 			if err != nil {
 				logger.Errorf("Failed to add new profile profile root disk device: %s: %s", pName, err)
 				tx.Rollback()

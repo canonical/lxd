@@ -63,8 +63,9 @@ func dbDeviceTypeToInt(t string) (int, error) {
 	}
 }
 
-// DevicesAdd adds a new device.
-func DevicesAdd(tx *sql.Tx, w string, cID int64, devices deviceConfig.Devices) error {
+// AddDevicesToEntity adds the given devices to the entity of the given type with the
+// given ID.
+func AddDevicesToEntity(tx *sql.Tx, w string, cID int64, devices deviceConfig.Devices) error {
 	// Prepare the devices entry SQL
 	str1 := fmt.Sprintf("INSERT INTO %ss_devices (%s_id, name, type) VALUES (?, ?, ?)", w, w)
 	stmt1, err := tx.Prepare(str1)
