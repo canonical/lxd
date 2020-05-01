@@ -574,12 +574,12 @@ WHERE images_profiles.image_id = ? AND projects.name = ?
 	return nil
 }
 
-// ImageLocate returns the address of an online node that has a local copy of
+// LocateImage returns the address of an online node that has a local copy of
 // the given image, or an empty string if the image is already available on this
 // node.
 //
 // If the image is not available on any online node, an error is returned.
-func (c *Cluster) ImageLocate(fingerprint string) (string, error) {
+func (c *Cluster) LocateImage(fingerprint string) (string, error) {
 	stmt := `
 SELECT nodes.address FROM nodes
   LEFT JOIN images_nodes ON images_nodes.node_id = nodes.id
