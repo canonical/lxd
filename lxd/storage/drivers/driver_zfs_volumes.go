@@ -133,21 +133,12 @@ func (d *zfs) CreateVolume(vol Volume, filler *VolumeFiller, op *operations.Oper
 		}
 
 		// Apply the size limit.
-		size := vol.ExpandedConfig("size")
-		if size != "" {
-			err := d.SetVolumeQuota(vol, size, op)
-			if err != nil {
-				return err
-			}
+		err = d.SetVolumeQuota(vol, d.volumeSize(vol), op)
+		if err != nil {
+			return err
 		}
 	} else {
-		// Convert the size.
-		size := vol.ExpandedConfig("size")
-		if size == "" {
-			size = defaultBlockSize
-		}
-
-		sizeBytes, err := units.ParseByteSizeString(size)
+		sizeBytes, err := units.ParseByteSizeString(d.volumeSize(vol))
 		if err != nil {
 			return err
 		}
