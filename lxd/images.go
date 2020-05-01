@@ -1151,7 +1151,7 @@ func autoUpdateImagesInProject(ctx context.Context, d *Daemon, project string) e
 // Returns whether the image has been updated.
 func autoUpdateImage(d *Daemon, op *operations.Operation, id int, info *api.Image, project string) error {
 	fingerprint := info.Fingerprint
-	_, source, err := d.cluster.ImageSourceGet(id)
+	_, source, err := d.cluster.GetImageSource(id)
 	if err != nil {
 		logger.Error("Error getting source image", log.Ctx{"err": err, "fp": fingerprint})
 		return err
