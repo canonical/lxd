@@ -313,9 +313,9 @@ func (d *ceph) CreateVolumeFromCopy(vol Volume, srcVol Volume, copySnapshots boo
 		// This is so the pool default volume size isn't take into account for volume copies.
 		volSize := vol.config["size"]
 
-		// If source is an image then use expanded config so that we take into account pool volume size.
+		// If source is an image then take into account default volume sizes if not specified.
 		if srcVol.volType == VolumeTypeImage {
-			volSize = vol.ExpandedConfig("size")
+			volSize = d.volumeSize(vol)
 		}
 
 		err = d.SetVolumeQuota(vol, volSize, op)
