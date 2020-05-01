@@ -811,8 +811,8 @@ func (c *Cluster) UpdateImageAlias(id int, imageID int, desc string) error {
 	return err
 }
 
-// ImageCopyDefaultProfiles copies default profiles from id to new_id.
-func (c *Cluster) ImageCopyDefaultProfiles(id int, newID int) error {
+// CopyDefaultImageProfiles copies default profiles from id to new_id.
+func (c *Cluster) CopyDefaultImageProfiles(id int, newID int) error {
 	err := c.Transaction(func(tx *ClusterTx) error {
 		// Delete all current associations.
 		_, err := tx.tx.Exec("DELETE FROM images_profiles WHERE image_id=?", newID)
