@@ -1925,7 +1925,7 @@ func imageExport(d *Daemon, r *http.Request) response.Response {
 	}
 
 	// Check if the image is only available on another node.
-	address, err := d.cluster.ImageLocate(imgInfo.Fingerprint)
+	address, err := d.cluster.LocateImage(imgInfo.Fingerprint)
 	if err != nil {
 		return response.SmartError(err)
 	}

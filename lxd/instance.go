@@ -97,7 +97,7 @@ func instanceCreateFromImage(d *Daemon, args db.InstanceArgs, hash string, op *o
 	}
 
 	// Check if the image is available locally or it's on another node.
-	nodeAddress, err := s.Cluster.ImageLocate(hash)
+	nodeAddress, err := s.Cluster.LocateImage(hash)
 	if err != nil {
 		return nil, errors.Wrapf(err, "Locate image %s in the cluster", hash)
 	}
