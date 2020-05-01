@@ -1140,7 +1140,7 @@ func autoUpdateImage(d *Daemon, op *operations.Operation, id int, info *api.Imag
 		}
 
 		if info.Cached {
-			err = d.cluster.ImageLastAccessInit(hash)
+			err = d.cluster.InitImageLastUseDate(hash)
 			if err != nil {
 				logger.Error("Error setting cached flag", log.Ctx{"err": err, "fp": hash})
 				continue
