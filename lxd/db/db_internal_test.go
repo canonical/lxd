@@ -249,7 +249,7 @@ func (s *dbTestSuite) Test_ImageSourceGetCachedFingerprint() {
 	imageID, _, err := s.db.ImageGet("default", "fingerprint", false, false)
 	s.Nil(err)
 
-	err = s.db.ImageSourceInsert(imageID, "server.remote", "simplestreams", "", "test")
+	err = s.db.CreateImageSource(imageID, "server.remote", "simplestreams", "", "test")
 	s.Nil(err)
 
 	fingerprint, err := s.db.ImageSourceGetCachedFingerprint("server.remote", "simplestreams", "test", "container", 0)
@@ -261,7 +261,7 @@ func (s *dbTestSuite) Test_ImageSourceGetCachedFingerprint_no_match() {
 	imageID, _, err := s.db.ImageGet("default", "fingerprint", false, false)
 	s.Nil(err)
 
-	err = s.db.ImageSourceInsert(imageID, "server.remote", "simplestreams", "", "test")
+	err = s.db.CreateImageSource(imageID, "server.remote", "simplestreams", "", "test")
 	s.Nil(err)
 
 	_, err = s.db.ImageSourceGetCachedFingerprint("server.remote", "lxd", "test", "container", 0)
