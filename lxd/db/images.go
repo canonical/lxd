@@ -835,9 +835,9 @@ func (c *Cluster) CopyDefaultImageProfiles(id int, newID int) error {
 	return nil
 }
 
-// ImageLastAccessUpdate updates the last_use_date field of the image with the
+// UpdateImageLastUseDate updates the last_use_date field of the image with the
 // given fingerprint.
-func (c *Cluster) ImageLastAccessUpdate(fingerprint string, date time.Time) error {
+func (c *Cluster) UpdateImageLastUseDate(fingerprint string, date time.Time) error {
 	stmt := `UPDATE images SET last_use_date=? WHERE fingerprint=?`
 	err := exec(c.db, stmt, date, fingerprint)
 	return err
