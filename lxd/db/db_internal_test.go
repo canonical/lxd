@@ -10,7 +10,6 @@ import (
 
 	"github.com/stretchr/testify/suite"
 
-	deviceConfig "github.com/lxc/lxd/lxd/device/config"
 	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/logger"
 	"github.com/lxc/lxd/shared/logging"
@@ -188,7 +187,7 @@ func (s *dbTestSuite) Test_ImageGet_finds_image_for_fingerprint() {
 	var err error
 	var result *api.Image
 
-	_, result, err = s.db.ImageGet("default", "fingerprint", false, false)
+	_, result, err = s.db.GetImage("default", "fingerprint", false, false)
 	s.Nil(err)
 	s.NotNil(result)
 	s.Equal(result.Filename, "filename")
@@ -200,7 +199,7 @@ func (s *dbTestSuite) Test_ImageGet_finds_image_for_fingerprint() {
 func (s *dbTestSuite) Test_ImageGet_for_missing_fingerprint() {
 	var err error
 
-	_, _, err = s.db.ImageGet("default", "unknown", false, false)
+	_, _, err = s.db.GetImage("default", "unknown", false, false)
 	s.Equal(err, ErrNoSuchObject)
 }
 
@@ -220,37 +219,37 @@ func (s *dbTestSuite) Test_ImageExists_false() {
 	s.False(exists)
 }
 
-func (s *dbTestSuite) Test_ImageAliasGet_alias_exists() {
+func (s *dbTestSuite) Test_GetImageAlias_alias_exists() {
 	var err error
 
-	_, alias, err := s.db.ImageAliasGet("default", "somealias", true)
+	_, alias, err := s.db.GetImageAlias("default", "somealias", true)
 	s.Nil(err)
 	s.Equal(alias.Target, "fingerprint")
 }
 
-func (s *dbTestSuite) Test_ImageAliasGet_alias_does_not_exists() {
+func (s *dbTestSuite) Test_GetImageAlias_alias_does_not_exists() {
 	var err error
 
-	_, _, err = s.db.ImageAliasGet("default", "whatever", true)
+	_, _, err = s.db.GetImageAlias("default", "whatever", true)
 	s.Equal(err, ErrNoSuchObject)
 }
 
-func (s *dbTestSuite) Test_ImageAliasAdd() {
+func (s *dbTestSuite) Test_CreateImageAlias() {
 	var err error
 
-	err = s.db.ImageAliasAdd("default", "Chaosphere", 1, "Someone will like the name")
+	err = s.db.CreateImageAlias("default", "Chaosphere", 1, "Someone will like the name")
 	s.Nil(err)
 
-	_, alias, err := s.db.ImageAliasGet("default", "Chaosphere", true)
+	_, alias, err := s.db.GetImageAlias("default", "Chaosphere", true)
 	s.Nil(err)
 	s.Equal(alias.Target, "fingerprint")
 }
 
 func (s *dbTestSuite) Test_ImageSourceGetCachedFingerprint() {
-	imageID, _, err := s.db.ImageGet("default", "fingerprint", false, false)
+	imageID, _, err := s.db.GetImage("default", "fingerprint", false, false)
 	s.Nil(err)
 
-	err = s.db.ImageSourceInsert(imageID, "server.remote", "simplestreams", "", "test")
+	err = s.db.CreateImageSource(imageID, "server.remote", "simplestreams", "", "test")
 	s.Nil(err)
 
 	fingerprint, err := s.db.ImageSourceGetCachedFingerprint("server.remote", "simplestreams", "test", "container", 0)
@@ -259,10 +258,10 @@ func (s *dbTestSuite) Test_ImageSourceGetCachedFingerprint() {
 }
 
 func (s *dbTestSuite) Test_ImageSourceGetCachedFingerprint_no_match() {
-	imageID, _, err := s.db.ImageGet("default", "fingerprint", false, false)
+	imageID, _, err := s.db.GetImage("default", "fingerprint", false, false)
 	s.Nil(err)
 
-	err = s.db.ImageSourceInsert(imageID, "server.remote", "simplestreams", "", "test")
+	err = s.db.CreateImageSource(imageID, "server.remote", "simplestreams", "", "test")
 	s.Nil(err)
 
 	_, err = s.db.ImageSourceGetCachedFingerprint("server.remote", "lxd", "test", "container", 0)
@@ -289,41 +288,5 @@ func (s *dbTestSuite) Test_dbProfileConfig() {
 	for key, value := range expected {
 		s.Equal(result[key], value,
 			fmt.Sprintf("Mismatching value for key %s: %s != %s", key, result[key], value))
-	}
-}
-
-func (s *dbTestSuite) Test_dbDevices_profiles() {
-	var err error
-	var result deviceConfig.Devices
-	var subresult deviceConfig.Device
-	var expected deviceConfig.Device
-
-	result, err = s.db.Devices("default", "theprofile", true)
-	s.Nil(err)
-
-	expected = deviceConfig.Device{"type": "nic", "devicekey": "devicevalue"}
-	subresult = result["devicename"]
-
-	for key, value := range expected {
-		s.Equal(subresult[key], value,
-			fmt.Sprintf("Mismatching value for key %s: %v != %v", key, subresult[key], value))
-	}
-}
-
-func (s *dbTestSuite) Test_dbDevices_containers() {
-	var err error
-	var result deviceConfig.Devices
-	var subresult deviceConfig.Device
-	var expected deviceConfig.Device
-
-	result, err = s.db.Devices("default", "thename", false)
-	s.Nil(err)
-
-	expected = deviceConfig.Device{"type": "nic", "configkey": "configvalue"}
-	subresult = result["somename"]
-
-	for key, value := range expected {
-		s.Equal(subresult[key], value,
-			fmt.Sprintf("Mismatching value for key %s: %s != %s", key, subresult[key], value))
 	}
 }

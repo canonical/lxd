@@ -22,8 +22,8 @@ var ImageSourceProtocol = map[int]string{
 	2: "simplestreams",
 }
 
-// ImagesGetLocal returns the names of all local images.
-func (c *Cluster) ImagesGetLocal() ([]string, error) {
+// GetLocalImages returns the names of all local images.
+func (c *Cluster) GetLocalImages() ([]string, error) {
 	q := `
 SELECT images.fingerprint
   FROM images_nodes
@@ -46,8 +46,8 @@ SELECT images.fingerprint
 	return results, nil
 }
 
-// ImagesGet returns the names of all images (optionally only the public ones).
-func (c *Cluster) ImagesGet(project string, public bool) ([]string, error) {
+// GetImages returns the names of all images (optionally only the public ones).
+func (c *Cluster) GetImages(project string, public bool) ([]string, error) {
 	err := c.Transaction(func(tx *ClusterTx) error {
 		enabled, err := tx.ProjectHasImages(project)
 		if err != nil {
@@ -94,8 +94,8 @@ type ExpiredImage struct {
 	ProjectName string
 }
 
-// ImagesGetExpired returns the names and project name of all images that have expired since the given time.
-func (c *Cluster) ImagesGetExpired(expiry int64) ([]ExpiredImage, error) {
+// GetExpiredImages returns the names and project name of all images that have expired since the given time.
+func (c *Cluster) GetExpiredImages(expiry int64) ([]ExpiredImage, error) {
 	q := `
 	SELECT
 		fingerprint,
@@ -149,8 +149,8 @@ func (c *Cluster) ImagesGetExpired(expiry int64) ([]ExpiredImage, error) {
 	return results, nil
 }
 
-// ImageSourceInsert inserts a new image source.
-func (c *Cluster) ImageSourceInsert(id int, server string, protocol string, certificate string, alias string) error {
+// CreateImageSource inserts a new image source.
+func (c *Cluster) CreateImageSource(id int, server string, protocol string, certificate string, alias string) error {
 	stmt := `INSERT INTO images_source (image_id, server, protocol, certificate, alias) values (?, ?, ?, ?, ?)`
 
 	protocolInt := -1
@@ -168,8 +168,8 @@ func (c *Cluster) ImageSourceInsert(id int, server string, protocol string, cert
 	return err
 }
 
-// ImageSourceGet returns the image source with the given ID.
-func (c *Cluster) ImageSourceGet(imageID int) (int, api.ImageSource, error) {
+// GetImageSource returns the image source with the given ID.
+func (c *Cluster) GetImageSource(imageID int) (int, api.ImageSource, error) {
 	q := `SELECT id, server, protocol, certificate, alias FROM images_source WHERE image_id=?`
 
 	id := 0
@@ -319,12 +319,12 @@ SELECT COUNT(*) > 0
 	return referenced, err
 }
 
-// ImageGet gets an Image object from the database.
+// GetImage gets an Image object from the database.
 // If strictMatching is false, The fingerprint argument will be queried with a LIKE query, means you can
 // pass a shortform and will get the full fingerprint.
 // There can never be more than one image with a given fingerprint, as it is
 // enforced by a UNIQUE constraint in the schema.
-func (c *Cluster) ImageGet(project, fingerprint string, public bool, strictMatching bool) (int, *api.Image, error) {
+func (c *Cluster) GetImage(project, fingerprint string, public bool, strictMatching bool) (int, *api.Image, error) {
 	profileProject := project
 	err := c.Transaction(func(tx *ClusterTx) error {
 		enabled, err := tx.ProjectHasImages(project)
@@ -417,9 +417,9 @@ SELECT COUNT(images.id)
 	return id, &image, nil
 }
 
-// ImageGetFromAnyProject returns an image matching the given fingerprint, if
+// GetImageFromAnyProject returns an image matching the given fingerprint, if
 // it exists in any project.
-func (c *Cluster) ImageGetFromAnyProject(fingerprint string) (int, *api.Image, error) {
+func (c *Cluster) GetImageFromAnyProject(fingerprint string) (int, *api.Image, error) {
 	var create, expire, used, upload *time.Time // These hold the db-returned times
 
 	// The object we'll actually return
@@ -525,7 +525,7 @@ func (c *Cluster) imageFill(id int, image *api.Image, create, expire, used, uplo
 
 	image.Aliases = aliases
 
-	_, source, err := c.ImageSourceGet(id)
+	_, source, err := c.GetImageSource(id)
 	if err == nil {
 		image.UpdateSource = &source
 	}
@@ -574,12 +574,12 @@ WHERE images_profiles.image_id = ? AND projects.name = ?
 	return nil
 }
 
-// ImageLocate returns the address of an online node that has a local copy of
+// LocateImage returns the address of an online node that has a local copy of
 // the given image, or an empty string if the image is already available on this
 // node.
 //
 // If the image is not available on any online node, an error is returned.
-func (c *Cluster) ImageLocate(fingerprint string) (string, error) {
+func (c *Cluster) LocateImage(fingerprint string) (string, error) {
 	stmt := `
 SELECT nodes.address FROM nodes
   LEFT JOIN images_nodes ON images_nodes.node_id = nodes.id
@@ -631,10 +631,10 @@ WHERE images.fingerprint = ?
 	return addresses[0], nil
 }
 
-// ImageAssociateNode creates a new entry in the images_nodes table for
-// tracking that the current node has the given image.
-func (c *Cluster) ImageAssociateNode(project, fingerprint string) error {
-	imageID, _, err := c.ImageGet(project, fingerprint, false, true)
+// AddImageToLocalNode creates a new entry in the images_nodes table for
+// tracking that the local node has the given image.
+func (c *Cluster) AddImageToLocalNode(project, fingerprint string) error {
+	imageID, _, err := c.GetImage(project, fingerprint, false, true)
 	if err != nil {
 		return err
 	}
@@ -646,8 +646,8 @@ func (c *Cluster) ImageAssociateNode(project, fingerprint string) error {
 	return err
 }
 
-// ImageDelete deletes the image with the given ID.
-func (c *Cluster) ImageDelete(id int) error {
+// DeleteImage deletes the image with the given ID.
+func (c *Cluster) DeleteImage(id int) error {
 	err := exec(c.db, "DELETE FROM images WHERE id=?", id)
 	if err != nil {
 		return err
@@ -656,8 +656,8 @@ func (c *Cluster) ImageDelete(id int) error {
 	return nil
 }
 
-// ImageAliasesGet returns the names of the aliases of all images.
-func (c *Cluster) ImageAliasesGet(project string) ([]string, error) {
+// GetImageAliases returns the names of the aliases of all images.
+func (c *Cluster) GetImageAliases(project string) ([]string, error) {
 	err := c.Transaction(func(tx *ClusterTx) error {
 		enabled, err := tx.ProjectHasImages(project)
 		if err != nil {
@@ -692,8 +692,8 @@ SELECT images_aliases.name
 	return names, nil
 }
 
-// ImageAliasGet returns the alias with the given name in the given project.
-func (c *Cluster) ImageAliasGet(project, name string, isTrustedClient bool) (int, api.ImageAliasesEntry, error) {
+// GetImageAlias returns the alias with the given name in the given project.
+func (c *Cluster) GetImageAlias(project, name string, isTrustedClient bool) (int, api.ImageAliasesEntry, error) {
 	id := -1
 	entry := api.ImageAliasesEntry{}
 
@@ -744,14 +744,14 @@ func (c *Cluster) ImageAliasGet(project, name string, isTrustedClient bool) (int
 	return id, entry, nil
 }
 
-// ImageAliasRename renames the alias with the given ID.
-func (c *Cluster) ImageAliasRename(id int, name string) error {
+// RenameImageAlias renames the alias with the given ID.
+func (c *Cluster) RenameImageAlias(id int, name string) error {
 	err := exec(c.db, "UPDATE images_aliases SET name=? WHERE id=?", name, id)
 	return err
 }
 
-// ImageAliasDelete deletes the alias with the given name.
-func (c *Cluster) ImageAliasDelete(project, name string) error {
+// DeleteImageAlias deletes the alias with the given name.
+func (c *Cluster) DeleteImageAlias(project, name string) error {
 	err := c.Transaction(func(tx *ClusterTx) error {
 		enabled, err := tx.ProjectHasImages(project)
 		if err != nil {
@@ -774,14 +774,14 @@ DELETE
 	return err
 }
 
-// ImageAliasesMove changes the image ID associated with an alias.
-func (c *Cluster) ImageAliasesMove(source int, destination int) error {
+// MoveImageAlias changes the image ID associated with an alias.
+func (c *Cluster) MoveImageAlias(source int, destination int) error {
 	err := exec(c.db, "UPDATE images_aliases SET image_id=? WHERE image_id=?", destination, source)
 	return err
 }
 
-// ImageAliasAdd inserts an alias ento the database.
-func (c *Cluster) ImageAliasAdd(project, name string, imageID int, desc string) error {
+// CreateImageAlias inserts an alias ento the database.
+func (c *Cluster) CreateImageAlias(project, name string, imageID int, desc string) error {
 	err := c.Transaction(func(tx *ClusterTx) error {
 		enabled, err := tx.ProjectHasImages(project)
 		if err != nil {
@@ -804,15 +804,15 @@ INSERT INTO images_aliases (name, image_id, description, project_id)
 	return err
 }
 
-// ImageAliasUpdate updates the alias with the given ID.
-func (c *Cluster) ImageAliasUpdate(id int, imageID int, desc string) error {
+// UpdateImageAlias updates the alias with the given ID.
+func (c *Cluster) UpdateImageAlias(id int, imageID int, desc string) error {
 	stmt := `UPDATE images_aliases SET image_id=?, description=? WHERE id=?`
 	err := exec(c.db, stmt, imageID, desc, id)
 	return err
 }
 
-// ImageCopyDefaultProfiles copies default profiles from id to new_id.
-func (c *Cluster) ImageCopyDefaultProfiles(id int, newID int) error {
+// CopyDefaultImageProfiles copies default profiles from id to new_id.
+func (c *Cluster) CopyDefaultImageProfiles(id int, newID int) error {
 	err := c.Transaction(func(tx *ClusterTx) error {
 		// Delete all current associations.
 		_, err := tx.tx.Exec("DELETE FROM images_profiles WHERE image_id=?", newID)
@@ -835,23 +835,23 @@ func (c *Cluster) ImageCopyDefaultProfiles(id int, newID int) error {
 	return nil
 }
 
-// ImageLastAccessUpdate updates the last_use_date field of the image with the
+// UpdateImageLastUseDate updates the last_use_date field of the image with the
 // given fingerprint.
-func (c *Cluster) ImageLastAccessUpdate(fingerprint string, date time.Time) error {
+func (c *Cluster) UpdateImageLastUseDate(fingerprint string, date time.Time) error {
 	stmt := `UPDATE images SET last_use_date=? WHERE fingerprint=?`
 	err := exec(c.db, stmt, date, fingerprint)
 	return err
 }
 
-// ImageLastAccessInit inits the last_use_date field of the image with the given fingerprint.
-func (c *Cluster) ImageLastAccessInit(fingerprint string) error {
+// InitImageLastUseDate inits the last_use_date field of the image with the given fingerprint.
+func (c *Cluster) InitImageLastUseDate(fingerprint string) error {
 	stmt := `UPDATE images SET cached=1, last_use_date=strftime("%s") WHERE fingerprint=?`
 	err := exec(c.db, stmt, fingerprint)
 	return err
 }
 
-// ImageUpdate updates the image with the given ID.
-func (c *Cluster) ImageUpdate(id int, fname string, sz int64, public bool, autoUpdate bool, architecture string, createdAt time.Time, expiresAt time.Time, properties map[string]string, project string, profileIds []int64) error {
+// UpdateImage updates the image with the given ID.
+func (c *Cluster) UpdateImage(id int, fname string, sz int64, public bool, autoUpdate bool, architecture string, createdAt time.Time, expiresAt time.Time, properties map[string]string, project string, profileIds []int64) error {
 	arch, err := osarch.ArchitectureId(architecture)
 	if err != nil {
 		arch = 0
@@ -935,8 +935,8 @@ func (c *Cluster) ImageUpdate(id int, fname string, sz int64, public bool, autoU
 	return err
 }
 
-// ImageInsert inserts a new image.
-func (c *Cluster) ImageInsert(project, fp string, fname string, sz int64, public bool, autoUpdate bool, architecture string, createdAt time.Time, expiresAt time.Time, properties map[string]string, typeName string) error {
+// CreateImage creates a new image.
+func (c *Cluster) CreateImage(project, fp string, fname string, sz int64, public bool, autoUpdate bool, architecture string, createdAt time.Time, expiresAt time.Time, properties map[string]string, typeName string) error {
 	profileProject := project
 	err := c.Transaction(func(tx *ClusterTx) error {
 		enabled, err := tx.ProjectHasImages(project)
@@ -1036,8 +1036,8 @@ func (c *Cluster) ImageInsert(project, fp string, fname string, sz int64, public
 	return err
 }
 
-// ImageGetPools get the names of all storage pools on which a given image exists.
-func (c *Cluster) ImageGetPools(imageFingerprint string) ([]int64, error) {
+// GetPoolsWithImage get the names of all storage pools on which a given image exists.
+func (c *Cluster) GetPoolsWithImage(imageFingerprint string) ([]int64, error) {
 	poolID := int64(-1)
 	query := "SELECT storage_pool_id FROM storage_volumes WHERE node_id=? AND name=? AND type=?"
 	inargs := []interface{}{c.nodeID, imageFingerprint, StoragePoolVolumeTypeImage}
@@ -1056,8 +1056,8 @@ func (c *Cluster) ImageGetPools(imageFingerprint string) ([]int64, error) {
 	return poolIDs, nil
 }
 
-// ImageGetPoolNamesFromIDs get the names of all storage pools on which a given image exists.
-func (c *Cluster) ImageGetPoolNamesFromIDs(poolIDs []int64) ([]string, error) {
+// GetPoolNamesFromIDs get the names of all storage pools on which a given image exists.
+func (c *Cluster) GetPoolNamesFromIDs(poolIDs []int64) ([]string, error) {
 	var poolName string
 	query := "SELECT name FROM storage_pools WHERE id=?"
 
@@ -1079,19 +1079,19 @@ func (c *Cluster) ImageGetPoolNamesFromIDs(poolIDs []int64) ([]string, error) {
 	return poolNames, nil
 }
 
-// ImageUploadedAt updates the upload_date column and an image row.
-func (c *Cluster) ImageUploadedAt(id int, uploadedAt time.Time) error {
+// UpdateImageUploadDate updates the upload_date column and an image row.
+func (c *Cluster) UpdateImageUploadDate(id int, uploadedAt time.Time) error {
 	err := exec(c.db, "UPDATE images SET upload_date=? WHERE id=?", uploadedAt, id)
 	return err
 }
 
-// ImagesGetOnCurrentNode returns all images that the current LXD node instance has.
-func (c *Cluster) ImagesGetOnCurrentNode() (map[string][]string, error) {
-	return c.ImagesGetByNodeID(c.nodeID)
+// GetImagesOnLocalNode returns all images that the local LXD node has.
+func (c *Cluster) GetImagesOnLocalNode() (map[string][]string, error) {
+	return c.GetImagesOnNode(c.nodeID)
 }
 
-// ImagesGetByNodeID returns all images that the LXD node instance has with the given node id.
-func (c *Cluster) ImagesGetByNodeID(id int64) (map[string][]string, error) {
+// GetImagesOnNode returns all images that the node with the given id has.
+func (c *Cluster) GetImagesOnNode(id int64) (map[string][]string, error) {
 	images := make(map[string][]string) // key is fingerprint, value is list of projects
 	err := c.Transaction(func(tx *ClusterTx) error {
 		stmt := `
@@ -1122,8 +1122,8 @@ func (c *Cluster) ImagesGetByNodeID(id int64) (map[string][]string, error) {
 	return images, err
 }
 
-// ImageGetNodesWithImage returns the addresses of online nodes which already have the image.
-func (c *Cluster) ImageGetNodesWithImage(fingerprint string) ([]string, error) {
+// GetNodesWithImage returns the addresses of online nodes which already have the image.
+func (c *Cluster) GetNodesWithImage(fingerprint string) ([]string, error) {
 	q := `
 SELECT DISTINCT nodes.address FROM nodes
   LEFT JOIN images_nodes ON images_nodes.node_id = nodes.id
@@ -1133,8 +1133,8 @@ WHERE images.fingerprint = ?
 	return c.getNodesByImageFingerprint(q, fingerprint)
 }
 
-// ImageGetNodesWithoutImage returns the addresses of online nodes which don't have the image.
-func (c *Cluster) ImageGetNodesWithoutImage(fingerprint string) ([]string, error) {
+// GetNodesWithoutImage returns the addresses of online nodes which don't have the image.
+func (c *Cluster) GetNodesWithoutImage(fingerprint string) ([]string, error) {
 	q := `
 SELECT DISTINCT nodes.address FROM nodes WHERE nodes.address NOT IN (
   SELECT DISTINCT nodes.address FROM nodes

@@ -595,7 +595,7 @@ func clusterPutJoin(d *Daemon, req api.ClusterPut) response.Response {
 				logger.Errorf("Failed to retrieve the information of leader member: %v", err)
 				return
 			}
-			imageProjectInfo, err := d.cluster.ImagesGetByNodeID(nodeInfo.ID)
+			imageProjectInfo, err := d.cluster.GetImagesOnNode(nodeInfo.ID)
 			if err != nil {
 				logger.Errorf("Failed to retrieve the image fingerprints of leader member: %v", err)
 				return
@@ -608,7 +608,7 @@ func clusterPutJoin(d *Daemon, req api.ClusterPut) response.Response {
 				}
 
 				for _, project := range projects {
-					err := d.cluster.ImageAssociateNode(project, fingerprint)
+					err := d.cluster.AddImageToLocalNode(project, fingerprint)
 					if err != nil {
 						return err
 					}

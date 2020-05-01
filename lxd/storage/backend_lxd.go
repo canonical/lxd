@@ -1103,7 +1103,7 @@ func (b *lxdBackend) CreateInstanceFromMigration(inst instance.Instance, conn io
 		// transfer the base image files too.
 		if args.MigrationType.FSType == migration.MigrationFSType_RSYNC {
 			fingerprint := inst.ExpandedConfig()["volatile.base_image"]
-			_, _, err = b.state.Cluster.ImageGet(inst.Project(), fingerprint, false, true)
+			_, _, err = b.state.Cluster.GetImage(inst.Project(), fingerprint, false, true)
 			if err != db.ErrNoSuchObject && err != nil {
 				return err
 			}
@@ -2019,7 +2019,7 @@ func (b *lxdBackend) EnsureImage(fingerprint string, op *operations.Operation) e
 	defer unlock()
 
 	// Load image info from database.
-	_, image, err := b.state.Cluster.ImageGetFromAnyProject(fingerprint)
+	_, image, err := b.state.Cluster.GetImageFromAnyProject(fingerprint)
 	if err != nil {
 		return err
 	}
@@ -2090,7 +2090,7 @@ func (b *lxdBackend) DeleteImage(fingerprint string, op *operations.Operation) e
 	defer unlock()
 
 	// Load image info from database.
-	_, image, err := b.state.Cluster.ImageGetFromAnyProject(fingerprint)
+	_, image, err := b.state.Cluster.GetImageFromAnyProject(fingerprint)
 	if err != nil {
 		return err
 	}

@@ -573,7 +573,7 @@ func storagePoolDelete(d *Daemon, r *http.Request) response.Response {
 	// Only delete images if locally stored or running on initial member.
 	if !isClusterNotification(r) || !pool.Driver().Info().Remote {
 		for _, volume := range volumeNames {
-			_, imgInfo, err := d.cluster.ImageGet(projectParam(r), volume, false, false)
+			_, imgInfo, err := d.cluster.GetImage(projectParam(r), volume, false, false)
 			if err != nil {
 				return response.InternalError(err)
 			}

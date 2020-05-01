@@ -2629,7 +2629,7 @@ func (vm *qemu) Update(args db.InstanceArgs, userRequested bool) error {
 				return errors.Wrap(err, "Profiles insert")
 			}
 
-			err = db.DevicesAdd(tx, "instance", int64(vm.id), vm.localDevices)
+			err = db.AddDevicesToEntity(tx, "instance", int64(vm.id), vm.localDevices)
 			if err != nil {
 				tx.Rollback()
 				return errors.Wrap(err, "Device add")

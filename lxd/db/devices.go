@@ -63,8 +63,9 @@ func dbDeviceTypeToInt(t string) (int, error) {
 	}
 }
 
-// DevicesAdd adds a new device.
-func DevicesAdd(tx *sql.Tx, w string, cID int64, devices deviceConfig.Devices) error {
+// AddDevicesToEntity adds the given devices to the entity of the given type with the
+// given ID.
+func AddDevicesToEntity(tx *sql.Tx, w string, cID int64, devices deviceConfig.Devices) error {
 	// Prepare the devices entry SQL
 	str1 := fmt.Sprintf("INSERT INTO %ss_devices (%s_id, name, type) VALUES (?, ?, ?)", w, w)
 	stmt1, err := tx.Prepare(str1)
@@ -141,62 +142,4 @@ func dbDeviceConfig(db *sql.DB, id int, isprofile bool) (deviceConfig.Device, er
 	}
 
 	return newdev, nil
-}
-
-// Devices returns the devices matching the given filters.
-func (c *Cluster) Devices(project, qName string, isprofile bool) (deviceConfig.Devices, error) {
-	err := c.Transaction(func(tx *ClusterTx) error {
-		enabled, err := tx.ProjectHasProfiles(project)
-		if err != nil {
-			return err
-		}
-		if !enabled {
-			project = "default"
-		}
-		return nil
-	})
-	if err != nil {
-		return nil, err
-	}
-
-	var q string
-	if isprofile {
-		q = `SELECT profiles_devices.id, profiles_devices.name, profiles_devices.type
-			FROM profiles_devices
-                        JOIN profiles ON profiles_devices.profile_id = profiles.id
-                        JOIN projects ON projects.id=profiles.project_id
-   		WHERE projects.name=? AND profiles.name=?`
-	} else {
-		q = `SELECT instances_devices.id, instances_devices.name, instances_devices.type
-			FROM instances_devices
-                        JOIN instances	ON instances_devices.instance_id = instances.id
-                        JOIN projects ON projects.id=instances.project_id
-			WHERE projects.name=? AND instances.name=?`
-	}
-	var id, dtype int
-	var name, stype string
-	inargs := []interface{}{project, qName}
-	outfmt := []interface{}{id, name, dtype}
-	results, err := queryScan(c.db, q, inargs, outfmt)
-	if err != nil {
-		return nil, err
-	}
-
-	devices := deviceConfig.Devices{}
-	for _, r := range results {
-		id = r[0].(int)
-		name = r[1].(string)
-		stype, err = dbDeviceTypeToString(r[2].(int))
-		if err != nil {
-			return nil, err
-		}
-		newdev, err := dbDeviceConfig(c.db, id, isprofile)
-		if err != nil {
-			return nil, err
-		}
-		newdev["type"] = stype
-		devices[name] = newdev
-	}
-
-	return devices, nil
 }
