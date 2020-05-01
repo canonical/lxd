@@ -750,8 +750,8 @@ func (c *Cluster) RenameImageAlias(id int, name string) error {
 	return err
 }
 
-// ImageAliasDelete deletes the alias with the given name.
-func (c *Cluster) ImageAliasDelete(project, name string) error {
+// DeleteImageAlias deletes the alias with the given name.
+func (c *Cluster) DeleteImageAlias(project, name string) error {
 	err := c.Transaction(func(tx *ClusterTx) error {
 		enabled, err := tx.ProjectHasImages(project)
 		if err != nil {
