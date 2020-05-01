@@ -1805,7 +1805,7 @@ func imageAliasPut(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	err = d.cluster.ImageAliasUpdate(id, imageId, req.Description)
+	err = d.cluster.UpdateImageAlias(id, imageId, req.Description)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -1858,7 +1858,7 @@ func imageAliasPatch(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	err = d.cluster.ImageAliasUpdate(id, imageId, alias.Description)
+	err = d.cluster.UpdateImageAlias(id, imageId, alias.Description)
 	if err != nil {
 		return response.SmartError(err)
 	}
