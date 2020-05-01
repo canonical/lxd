@@ -1079,8 +1079,8 @@ func (c *Cluster) GetPoolNamesFromIDs(poolIDs []int64) ([]string, error) {
 	return poolNames, nil
 }
 
-// ImageUploadedAt updates the upload_date column and an image row.
-func (c *Cluster) ImageUploadedAt(id int, uploadedAt time.Time) error {
+// UpdateImageUploadDate updates the upload_date column and an image row.
+func (c *Cluster) UpdateImageUploadDate(id int, uploadedAt time.Time) error {
 	err := exec(c.db, "UPDATE images SET upload_date=? WHERE id=?", uploadedAt, id)
 	return err
 }

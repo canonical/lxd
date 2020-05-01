@@ -2772,7 +2772,7 @@ func patchFixUploadedAt(name string, d *Daemon) error {
 			return err
 		}
 
-		err = d.cluster.ImageUploadedAt(id, image.UploadedAt)
+		err = d.cluster.UpdateImageUploadDate(id, image.UploadedAt)
 		if err != nil {
 			return err
 		}
