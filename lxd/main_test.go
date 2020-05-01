@@ -92,7 +92,7 @@ func (suite *lxdTestSuite) SetupTest() {
 		suite.T().Errorf("failed to begin transaction: %v", err)
 	}
 
-	err = db.DevicesAdd(tx, "profile", defaultID, devicesMap)
+	err = db.AddDevicesToEntity(tx, "profile", defaultID, devicesMap)
 	if err != nil {
 		tx.Rollback()
 		suite.T().Errorf("failed to rollback transaction: %v", err)
