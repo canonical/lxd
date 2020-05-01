@@ -15,6 +15,7 @@ import (
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/instancewriter"
 	log "github.com/lxc/lxd/shared/log15"
+	"github.com/lxc/lxd/shared/units"
 )
 
 // CreateVolume creates an empty volume and can optionally fill it by executing the supplied
@@ -64,7 +65,13 @@ func (d *dir) CreateVolume(vol Volume, filler *VolumeFiller, op *operations.Oper
 	// If we are creating a block volume, resize it to the requested size or the default.
 	// We expect the filler function to have converted the qcow2 image to raw into the rootBlockPath.
 	if vol.contentType == ContentTypeBlock {
-		err := ensureVolumeBlockFile(rootBlockPath, vol.ExpandedConfig("size"))
+		// Convert to bytes.
+		sizeBytes, err := units.ParseByteSizeString(d.volumeSize(vol))
+		if err != nil {
+			return err
+		}
+
+		err = ensureVolumeBlockFile(rootBlockPath, sizeBytes)
 		if err != nil {
 			return err
 		}
