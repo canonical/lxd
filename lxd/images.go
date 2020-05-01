@@ -1793,7 +1793,7 @@ func imageAliasesGet(d *Daemon, r *http.Request) response.Response {
 	project := projectParam(r)
 	recursion := util.IsRecursionRequest(r)
 
-	names, err := d.cluster.ImageAliasesGet(project)
+	names, err := d.cluster.GetImageAliases(project)
 	if err != nil {
 		return response.BadRequest(err)
 	}
