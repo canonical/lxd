@@ -1087,11 +1087,11 @@ func (c *Cluster) UpdateImageUploadDate(id int, uploadedAt time.Time) error {
 
 // GetImagesOnLocalNode returns all images that the local LXD node has.
 func (c *Cluster) GetImagesOnLocalNode() (map[string][]string, error) {
-	return c.ImagesGetByNodeID(c.nodeID)
+	return c.GetImagesOnNode(c.nodeID)
 }
 
-// ImagesGetByNodeID returns all images that the LXD node instance has with the given node id.
-func (c *Cluster) ImagesGetByNodeID(id int64) (map[string][]string, error) {
+// GetImagesOnNode returns all images that the node with the given id has.
+func (c *Cluster) GetImagesOnNode(id int64) (map[string][]string, error) {
 	images := make(map[string][]string) // key is fingerprint, value is list of projects
 	err := c.Transaction(func(tx *ClusterTx) error {
 		stmt := `
