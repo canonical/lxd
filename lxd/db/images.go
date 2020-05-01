@@ -168,8 +168,8 @@ func (c *Cluster) CreateImageSource(id int, server string, protocol string, cert
 	return err
 }
 
-// ImageSourceGet returns the image source with the given ID.
-func (c *Cluster) ImageSourceGet(imageID int) (int, api.ImageSource, error) {
+// GetImageSource returns the image source with the given ID.
+func (c *Cluster) GetImageSource(imageID int) (int, api.ImageSource, error) {
 	q := `SELECT id, server, protocol, certificate, alias FROM images_source WHERE image_id=?`
 
 	id := 0
@@ -525,7 +525,7 @@ func (c *Cluster) imageFill(id int, image *api.Image, create, expire, used, uplo
 
 	image.Aliases = aliases
 
-	_, source, err := c.ImageSourceGet(id)
+	_, source, err := c.GetImageSource(id)
 	if err == nil {
 		image.UpdateSource = &source
 	}
