@@ -1133,8 +1133,8 @@ WHERE images.fingerprint = ?
 	return c.getNodesByImageFingerprint(q, fingerprint)
 }
 
-// ImageGetNodesWithoutImage returns the addresses of online nodes which don't have the image.
-func (c *Cluster) ImageGetNodesWithoutImage(fingerprint string) ([]string, error) {
+// GetNodesWithoutImage returns the addresses of online nodes which don't have the image.
+func (c *Cluster) GetNodesWithoutImage(fingerprint string) ([]string, error) {
 	q := `
 SELECT DISTINCT nodes.address FROM nodes WHERE nodes.address NOT IN (
   SELECT DISTINCT nodes.address FROM nodes
