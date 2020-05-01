@@ -850,8 +850,8 @@ func (c *Cluster) InitImageLastUseDate(fingerprint string) error {
 	return err
 }
 
-// ImageUpdate updates the image with the given ID.
-func (c *Cluster) ImageUpdate(id int, fname string, sz int64, public bool, autoUpdate bool, architecture string, createdAt time.Time, expiresAt time.Time, properties map[string]string, project string, profileIds []int64) error {
+// UpdateImage updates the image with the given ID.
+func (c *Cluster) UpdateImage(id int, fname string, sz int64, public bool, autoUpdate bool, architecture string, createdAt time.Time, expiresAt time.Time, properties map[string]string, project string, profileIds []int64) error {
 	arch, err := osarch.ArchitectureId(architecture)
 	if err != nil {
 		arch = 0
