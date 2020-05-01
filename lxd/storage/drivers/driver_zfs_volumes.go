@@ -921,7 +921,7 @@ func (d *zfs) SetVolumeQuota(vol Volume, size string, op *operations.Operation) 
 			return nil
 		}
 
-		if sizeBytes < oldVolSizeBytes {
+		if sizeBytes < oldVolSizeBytes && !vol.allowUnsafeResize {
 			return errors.Wrap(ErrCannotBeShrunk, "You cannot shrink block volumes")
 		}
 
@@ -936,8 +936,9 @@ func (d *zfs) SetVolumeQuota(vol Volume, size string, op *operations.Operation) 
 				return err
 			}
 
-			// Move the GPT alt header to end of disk if needed.
-			if vol.IsVMBlock() {
+			// Move the VM GPT alt header to end of disk if needed (not needed in unsafe resize mode as
+			// it is expected the caller will do all necessary post resize actions themselves).
+			if vol.IsVMBlock() && !vol.allowUnsafeResize {
 				err = d.moveGPTAltHeader(devPath)
 				if err != nil {
 					return err
