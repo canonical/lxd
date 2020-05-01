@@ -116,7 +116,7 @@ func instanceCreateFromImage(d *Daemon, args db.InstanceArgs, hash string, op *o
 			return nil, err
 		}
 
-		err = d.cluster.ImageAssociateNode(args.Project, hash)
+		err = d.cluster.AddImageToLocalNode(args.Project, hash)
 		if err != nil {
 			return nil, err
 		}
