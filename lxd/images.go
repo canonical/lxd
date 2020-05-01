@@ -1198,7 +1198,7 @@ func autoUpdateImage(d *Daemon, op *operations.Operation, id int, info *api.Imag
 	}
 
 	// Remove the database entry for the image.
-	if err = d.cluster.ImageDelete(id); err != nil {
+	if err = d.cluster.DeleteImage(id); err != nil {
 		logger.Debugf("Error deleting image from database %s: %s", fname, err)
 	}
 
@@ -1372,7 +1372,7 @@ func pruneExpiredImages(ctx context.Context, d *Daemon) error {
 		}
 
 		// Remove the database entry for the image.
-		if err = d.cluster.ImageDelete(imgID); err != nil {
+		if err = d.cluster.DeleteImage(imgID); err != nil {
 			return errors.Wrapf(err, "Error deleting image %q from database", img.Fingerprint)
 		}
 	}
@@ -1412,7 +1412,7 @@ func imageDelete(d *Daemon, r *http.Request) response.Response {
 			}
 
 			if referenced {
-				err := d.cluster.ImageDelete(imgID)
+				err := d.cluster.DeleteImage(imgID)
 				if err != nil {
 					return errors.Wrap(err, "Error deleting image info from the database")
 				}
@@ -1464,7 +1464,7 @@ func imageDelete(d *Daemon, r *http.Request) response.Response {
 
 		// Remove the database entry.
 		if !isClusterNotification(r) {
-			err = d.cluster.ImageDelete(imgID)
+			err = d.cluster.DeleteImage(imgID)
 			if err != nil {
 				return errors.Wrap(err, "Error deleting image info from the database")
 			}

@@ -646,8 +646,8 @@ func (c *Cluster) ImageAssociateNode(project, fingerprint string) error {
 	return err
 }
 
-// ImageDelete deletes the image with the given ID.
-func (c *Cluster) ImageDelete(id int) error {
+// DeleteImage deletes the image with the given ID.
+func (c *Cluster) DeleteImage(id int) error {
 	err := exec(c.db, "DELETE FROM images WHERE id=?", id)
 	if err != nil {
 		return err
