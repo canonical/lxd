@@ -475,7 +475,7 @@ func (d *Daemon) ImageDownload(op *operations.Operation, server string, protocol
 
 	// Mark the image as "cached" if downloading for a container
 	if forContainer {
-		err := d.cluster.ImageLastAccessInit(fp)
+		err := d.cluster.InitImageLastUseDate(fp)
 		if err != nil {
 			return nil, err
 		}
