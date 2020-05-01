@@ -325,7 +325,7 @@ func imgPostContInfo(d *Daemon, r *http.Request, req api.ImagesPost, op *operati
 	info.Properties = req.Properties
 
 	// Create the database entry
-	err = d.cluster.ImageInsert(c.Project(), info.Fingerprint, info.Filename, info.Size, info.Public, info.AutoUpdate, info.Architecture, info.CreatedAt, info.ExpiresAt, info.Properties, info.Type)
+	err = d.cluster.CreateImage(c.Project(), info.Fingerprint, info.Filename, info.Size, info.Public, info.AutoUpdate, info.Architecture, info.CreatedAt, info.ExpiresAt, info.Properties, info.Type)
 	if err != nil {
 		return nil, err
 	}
@@ -641,7 +641,7 @@ func getImgPostInfo(d *Daemon, r *http.Request, builddir string, project string,
 		}
 
 		// Create the database entry
-		err = d.cluster.ImageInsert(project, info.Fingerprint, info.Filename, info.Size, info.Public, info.AutoUpdate, info.Architecture, info.CreatedAt, info.ExpiresAt, info.Properties, info.Type)
+		err = d.cluster.CreateImage(project, info.Fingerprint, info.Filename, info.Size, info.Public, info.AutoUpdate, info.Architecture, info.CreatedAt, info.ExpiresAt, info.Properties, info.Type)
 		if err != nil {
 			return nil, err
 		}
