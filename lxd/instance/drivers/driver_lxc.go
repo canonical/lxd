@@ -2331,7 +2331,7 @@ func (c *lxc) Start(stateful bool) error {
 		os.RemoveAll(c.StatePath())
 		c.stateful = false
 
-		err = c.state.Cluster.ContainerSetStateful(c.id, false)
+		err = c.state.Cluster.UpdateInstanceStatefulFlag(c.id, false)
 		if err != nil {
 			logger.Error("Failed starting container", ctxMap)
 			return errors.Wrap(err, "Start container")
@@ -2356,7 +2356,7 @@ func (c *lxc) Start(stateful bool) error {
 		}
 
 		c.stateful = false
-		err = c.state.Cluster.ContainerSetStateful(c.id, false)
+		err = c.state.Cluster.UpdateInstanceStatefulFlag(c.id, false)
 		if err != nil {
 			return errors.Wrap(err, "Persist stateful flag")
 		}
@@ -2469,7 +2469,7 @@ func (c *lxc) onStart(_ map[string]string) error {
 		}
 
 		// Remove the volatile key from the DB
-		err := c.state.Cluster.ContainerConfigRemove(c.id, key)
+		err := c.state.Cluster.DeleteInstanceConfigKey(c.id, key)
 		if err != nil {
 			apparmor.Destroy(c.state, c)
 			if ourStart {
@@ -2505,13 +2505,13 @@ func (c *lxc) onStart(_ map[string]string) error {
 	// Database updates
 	err = c.state.Cluster.Transaction(func(tx *db.ClusterTx) error {
 		// Record current state
-		err = tx.ContainerSetState(c.id, "RUNNING")
+		err = tx.UpdateInstancePowerState(c.id, "RUNNING")
 		if err != nil {
 			return errors.Wrap(err, "Error updating container state")
 		}
 
 		// Update time container last started time
-		err = tx.ContainerLastUsedUpdate(c.id, time.Now().UTC())
+		err = tx.UpdateInstanceLastUsedDate(c.id, time.Now().UTC())
 		if err != nil {
 			return errors.Wrap(err, "Error updating last used")
 		}
@@ -2589,7 +2589,7 @@ func (c *lxc) Stop(stateful bool) error {
 		}
 
 		c.stateful = true
-		err = c.state.Cluster.ContainerSetStateful(c.id, true)
+		err = c.state.Cluster.UpdateInstanceStatefulFlag(c.id, true)
 		if err != nil {
 			op.Done(err)
 			logger.Error("Failed stopping container", ctxMap)
@@ -2811,7 +2811,7 @@ func (c *lxc) onStop(args map[string]string) error {
 	}
 
 	// Record power state
-	err = c.state.Cluster.ContainerSetState(c.id, "STOPPED")
+	err = c.state.Cluster.UpdateInstancePowerState(c.id, "STOPPED")
 	if err != nil {
 		logger.Error("Failed to set container state", log.Ctx{"container": c.Name(), "err": err})
 	}
@@ -3187,7 +3187,7 @@ func (c *lxc) Snapshots() ([]instance.Instance, error) {
 	// Get all the snapshots
 	err := c.state.Cluster.Transaction(func(tx *db.ClusterTx) error {
 		var err error
-		snaps, err = tx.ContainerGetSnapshotsFull(c.Project(), c.name)
+		snaps, err = tx.GetInstanceSnapshots(c.Project(), c.name)
 		if err != nil {
 			return err
 		}
@@ -3215,7 +3215,7 @@ func (c *lxc) Snapshots() ([]instance.Instance, error) {
 // Backups returns the backups of the instance.
 func (c *lxc) Backups() ([]backup.Backup, error) {
 	// Get all the backups
-	backupNames, err := c.state.Cluster.ContainerGetBackups(c.project, c.name)
+	backupNames, err := c.state.Cluster.GetInstanceBackups(c.project, c.name)
 	if err != nil {
 		return nil, err
 	}
@@ -3519,7 +3519,7 @@ func (c *lxc) Delete() error {
 	}
 
 	// Remove the database record of the instance or snapshot instance.
-	if err := c.state.Cluster.InstanceRemove(c.project, c.Name()); err != nil {
+	if err := c.state.Cluster.RemoveInstance(c.project, c.Name()); err != nil {
 		logger.Error("Failed deleting container entry", log.Ctx{"name": c.Name(), "err": err})
 		return err
 	}
@@ -3585,7 +3585,7 @@ func (c *lxc) Rename(newName string) error {
 
 	if !c.IsSnapshot() {
 		// Rename all the instance snapshot database entries.
-		results, err := c.state.Cluster.ContainerGetSnapshots(c.project, oldName)
+		results, err := c.state.Cluster.GetInstanceSnapshotsNames(c.project, oldName)
 		if err != nil {
 			logger.Error("Failed to get container snapshots", ctxMap)
 			return err
@@ -3733,7 +3733,7 @@ func (c *lxc) VolatileSet(changes map[string]string) error {
 		})
 	} else {
 		err = c.state.Cluster.Transaction(func(tx *db.ClusterTx) error {
-			return tx.ContainerConfigUpdate(c.id, changes)
+			return tx.UpdateInstanceConfig(c.id, changes)
 		})
 	}
 	if err != nil {
@@ -4366,19 +4366,19 @@ func (c *lxc) Update(args db.InstanceArgs, userRequested bool) error {
 				return errors.Wrap(err, "Snapshot update")
 			}
 		} else {
-			err = db.ContainerConfigClear(tx, c.id)
+			err = db.DeleteInstanceConfig(tx, c.id)
 			if err != nil {
 				tx.Rollback()
 				return err
 
 			}
-			err = db.ContainerConfigInsert(tx, c.id, c.localConfig)
+			err = db.CreateInstanceConfig(tx, c.id, c.localConfig)
 			if err != nil {
 				tx.Rollback()
 				return errors.Wrap(err, "Config insert")
 			}
 
-			err = db.ContainerProfilesInsert(tx, c.id, c.project, c.profiles)
+			err = db.AddProfilesToInstance(tx, c.id, c.project, c.profiles)
 			if err != nil {
 				tx.Rollback()
 				return errors.Wrap(err, "Profiles insert")
@@ -4390,7 +4390,7 @@ func (c *lxc) Update(args db.InstanceArgs, userRequested bool) error {
 				return errors.Wrap(err, "Device add")
 			}
 
-			err = db.ContainerUpdate(tx, c.id, c.description, c.architecture, c.ephemeral, c.expiryDate)
+			err = db.UpdateInstance(tx, c.id, c.description, c.architecture, c.ephemeral, c.expiryDate)
 			if err != nil {
 				tx.Rollback()
 				return errors.Wrap(err, "Container update")
@@ -6251,7 +6251,7 @@ func (c *lxc) FillNetworkDevice(name string, m deviceConfig.Device) (deviceConfi
 			return err
 		}
 
-		err = db.ContainerConfigInsert(tx, c.id, map[string]string{key: value})
+		err = db.CreateInstanceConfig(tx, c.id, map[string]string{key: value})
 		if err != nil {
 			tx.Rollback()
 			return err
@@ -6281,7 +6281,7 @@ func (c *lxc) FillNetworkDevice(name string, m deviceConfig.Device) (deviceConfi
 				err := updateKey(configKey, volatileHwaddr)
 				if err != nil {
 					// Check if something else filled it in behind our back
-					value, err1 := c.state.Cluster.ContainerConfigGet(c.id, configKey)
+					value, err1 := c.state.Cluster.GetInstanceConfig(c.id, configKey)
 					if err1 != nil || value == "" {
 						return err
 					}
@@ -6317,7 +6317,7 @@ func (c *lxc) FillNetworkDevice(name string, m deviceConfig.Device) (deviceConfi
 			err = updateKey(configKey, volatileName)
 			if err != nil {
 				// Check if something else filled it in behind our back
-				value, err1 := c.state.Cluster.ContainerConfigGet(c.id, configKey)
+				value, err1 := c.state.Cluster.GetInstanceConfig(c.id, configKey)
 				if err1 != nil || value == "" {
 					return nil, err
 				}
@@ -6650,7 +6650,7 @@ func (c *lxc) StatePath() string {
 
 // StoragePool storage pool name.
 func (c *lxc) StoragePool() (string, error) {
-	poolName, err := c.state.Cluster.InstancePool(c.Project(), c.Name())
+	poolName, err := c.state.Cluster.GetInstancePool(c.Project(), c.Name())
 	if err != nil {
 		return "", err
 	}

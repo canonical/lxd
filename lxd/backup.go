@@ -53,7 +53,7 @@ func backupCreate(s *state.State, args db.InstanceBackupArgs, sourceInst instanc
 	}
 
 	// Create the database entry.
-	err = s.Cluster.InstanceBackupCreate(args)
+	err = s.Cluster.CreateInstanceBackup(args)
 	if err != nil {
 		if err == db.ErrAlreadyDefined {
 			return fmt.Errorf("Backup %q already exists", args.Name)
@@ -62,7 +62,7 @@ func backupCreate(s *state.State, args db.InstanceBackupArgs, sourceInst instanc
 		return errors.Wrap(err, "Insert backup info into database")
 	}
 
-	revert.Add(func() { s.Cluster.InstanceBackupRemove(args.Name) })
+	revert.Add(func() { s.Cluster.DeleteInstanceBackup(args.Name) })
 
 	// Get the backup struct.
 	b, err := instance.BackupLoadByName(s, sourceInst.Project(), args.Name)
@@ -250,7 +250,7 @@ func pruneExpiredContainerBackupsTask(d *Daemon) (task.Func, task.Schedule) {
 
 func pruneExpiredContainerBackups(ctx context.Context, d *Daemon) error {
 	// Get the list of expired backups.
-	backups, err := d.cluster.ContainerBackupsGetExpired()
+	backups, err := d.cluster.GetExpiredInstanceBackups()
 	if err != nil {
 		return errors.Wrap(err, "Unable to retrieve the list of expired instance backups")
 	}

@@ -392,7 +392,7 @@ func ParseRawIdmap(value string) ([]idmap.IdmapEntry, error) {
 // LoadByID loads an instance by ID.
 func LoadByID(s *state.State, id int) (Instance, error) {
 	// Get the DB record
-	project, name, err := s.Cluster.ContainerProjectAndName(id)
+	project, name, err := s.Cluster.GetInstanceProjectAndName(id)
 	if err != nil {
 		return nil, err
 	}
@@ -570,7 +570,7 @@ func LoadNodeAll(s *state.State, instanceType instancetype.Type) ([]Instance, er
 	var insts []db.Instance
 	err := s.Cluster.Transaction(func(tx *db.ClusterTx) error {
 		var err error
-		insts, err = tx.ContainerNodeProjectList("", instanceType)
+		insts, err = tx.GetLocalInstancesInProject("", instanceType)
 		if err != nil {
 			return err
 		}
@@ -586,7 +586,7 @@ func LoadNodeAll(s *state.State, instanceType instancetype.Type) ([]Instance, er
 
 // DeleteSnapshots calls the Delete() function on each of the supplied instance's snapshots.
 func DeleteSnapshots(s *state.State, projectName, instanceName string) error {
-	results, err := s.Cluster.ContainerGetSnapshots(projectName, instanceName)
+	results, err := s.Cluster.GetInstanceSnapshotsNames(projectName, instanceName)
 	if err != nil {
 		return err
 	}
@@ -628,7 +628,7 @@ func DeviceNextInterfaceHWAddr() (string, error) {
 // BackupLoadByName load an instance backup from the database.
 func BackupLoadByName(s *state.State, project, name string) (*backup.Backup, error) {
 	// Get the backup database record
-	args, err := s.Cluster.ContainerGetBackup(project, name)
+	args, err := s.Cluster.GetInstanceBackup(project, name)
 	if err != nil {
 		return nil, errors.Wrap(err, "Load backup from database")
 	}

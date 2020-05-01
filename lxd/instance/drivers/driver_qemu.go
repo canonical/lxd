@@ -495,7 +495,7 @@ func (vm *qemu) onStop(target string) error {
 	vm.unmount()
 
 	// Record power state.
-	err := vm.state.Cluster.ContainerSetState(vm.id, "STOPPED")
+	err := vm.state.Cluster.UpdateInstancePowerState(vm.id, "STOPPED")
 	if err != nil {
 		op.Done(err)
 		return err
@@ -916,7 +916,7 @@ func (vm *qemu) Start(stateful bool) error {
 	// Database updates
 	err = vm.state.Cluster.Transaction(func(tx *db.ClusterTx) error {
 		// Record current state
-		err = tx.ContainerSetState(vm.id, "RUNNING")
+		err = tx.UpdateInstancePowerState(vm.id, "RUNNING")
 		if err != nil {
 			err = errors.Wrap(err, "Error updating instance state")
 			op.Done(err)
@@ -924,7 +924,7 @@ func (vm *qemu) Start(stateful bool) error {
 		}
 
 		// Update time instance last started time
-		err = tx.ContainerLastUsedUpdate(vm.id, time.Now().UTC())
+		err = tx.UpdateInstanceLastUsedDate(vm.id, time.Now().UTC())
 		if err != nil {
 			err = errors.Wrap(err, "Error updating instance last used")
 			op.Done(err)
@@ -1367,7 +1367,7 @@ echo "To start it now, unmount this filesystem and run: systemctl start lxd-agen
 		}
 
 		// Remove the volatile key from the DB.
-		err := vm.state.Cluster.ContainerConfigRemove(vm.id, key)
+		err := vm.state.Cluster.DeleteInstanceConfigKey(vm.id, key)
 		if err != nil {
 			return err
 		}
@@ -2184,7 +2184,7 @@ func (vm *qemu) Snapshots() ([]instance.Instance, error) {
 	// Get all the snapshots
 	err := vm.state.Cluster.Transaction(func(tx *db.ClusterTx) error {
 		var err error
-		snaps, err = tx.ContainerGetSnapshotsFull(vm.Project(), vm.name)
+		snaps, err = tx.GetInstanceSnapshots(vm.Project(), vm.name)
 		if err != nil {
 			return err
 		}
@@ -2260,7 +2260,7 @@ func (vm *qemu) Rename(newName string) error {
 
 	if !vm.IsSnapshot() {
 		// Rename all the instance snapshot database entries.
-		results, err := vm.state.Cluster.ContainerGetSnapshots(vm.project, oldName)
+		results, err := vm.state.Cluster.GetInstanceSnapshotsNames(vm.project, oldName)
 		if err != nil {
 			logger.Error("Failed to get instance snapshots", ctxMap)
 			return err
@@ -2611,19 +2611,19 @@ func (vm *qemu) Update(args db.InstanceArgs, userRequested bool) error {
 				return errors.Wrap(err, "Snapshot update")
 			}
 		} else {
-			err = db.ContainerConfigClear(tx, vm.id)
+			err = db.DeleteInstanceConfig(tx, vm.id)
 			if err != nil {
 				tx.Rollback()
 				return err
 
 			}
-			err = db.ContainerConfigInsert(tx, vm.id, vm.localConfig)
+			err = db.CreateInstanceConfig(tx, vm.id, vm.localConfig)
 			if err != nil {
 				tx.Rollback()
 				return errors.Wrap(err, "Config insert")
 			}
 
-			err = db.ContainerProfilesInsert(tx, vm.id, vm.project, vm.profiles)
+			err = db.AddProfilesToInstance(tx, vm.id, vm.project, vm.profiles)
 			if err != nil {
 				tx.Rollback()
 				return errors.Wrap(err, "Profiles insert")
@@ -2635,7 +2635,7 @@ func (vm *qemu) Update(args db.InstanceArgs, userRequested bool) error {
 				return errors.Wrap(err, "Device add")
 			}
 
-			err = db.ContainerUpdate(tx, vm.id, vm.description, vm.architecture, vm.ephemeral, vm.expiryDate)
+			err = db.UpdateInstance(tx, vm.id, vm.description, vm.architecture, vm.ephemeral, vm.expiryDate)
 			if err != nil {
 				tx.Rollback()
 				return errors.Wrap(err, "Instance update")
@@ -2970,7 +2970,7 @@ func (vm *qemu) Delete() error {
 	}
 
 	// Remove the database record of the instance or snapshot instance.
-	if err := vm.state.Cluster.InstanceRemove(vm.Project(), vm.Name()); err != nil {
+	if err := vm.state.Cluster.RemoveInstance(vm.Project(), vm.Name()); err != nil {
 		logger.Error("Failed deleting instance entry", log.Ctx{"project": vm.Project(), "instance": vm.Name(), "err": err})
 		return err
 	}
@@ -3284,7 +3284,7 @@ func (vm *qemu) VolatileSet(changes map[string]string) error {
 		})
 	} else {
 		err = vm.state.Cluster.Transaction(func(tx *db.ClusterTx) error {
-			return tx.ContainerConfigUpdate(vm.id, changes)
+			return tx.UpdateInstanceConfig(vm.id, changes)
 		})
 	}
 	if err != nil {
@@ -4015,7 +4015,7 @@ func (vm *qemu) StatePath() string {
 
 // StoragePool returns the name of the instance's storage pool.
 func (vm *qemu) StoragePool() (string, error) {
-	poolName, err := vm.state.Cluster.InstancePool(vm.Project(), vm.Name())
+	poolName, err := vm.state.Cluster.GetInstancePool(vm.Project(), vm.Name())
 	if err != nil {
 		return "", err
 	}
@@ -4060,7 +4060,7 @@ func (vm *qemu) FillNetworkDevice(name string, m deviceConfig.Device) (deviceCon
 			return err
 		}
 
-		err = db.ContainerConfigInsert(tx, vm.id, map[string]string{key: value})
+		err = db.CreateInstanceConfig(tx, vm.id, map[string]string{key: value})
 		if err != nil {
 			tx.Rollback()
 			return err
@@ -4090,7 +4090,7 @@ func (vm *qemu) FillNetworkDevice(name string, m deviceConfig.Device) (deviceCon
 				err := updateKey(configKey, volatileHwaddr)
 				if err != nil {
 					// Check if something else filled it in behind our back
-					value, err1 := vm.state.Cluster.ContainerConfigGet(vm.id, configKey)
+					value, err1 := vm.state.Cluster.GetInstanceConfig(vm.id, configKey)
 					if err1 != nil || value == "" {
 						return err
 					}

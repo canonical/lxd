@@ -350,8 +350,8 @@ func containersShutdown(s *state.State) error {
 	sort.Sort(containerStopList(instances))
 
 	if dbAvailable {
-		// Reset all container states
-		err = s.Cluster.ContainersResetState()
+		// Reset all instances states
+		err = s.Cluster.ResetInstancesPowerState()
 		if err != nil {
 			return err
 		}
