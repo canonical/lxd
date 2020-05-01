@@ -457,7 +457,7 @@ func TestCluster_LeaveWithImages(t *testing.T) {
 	f.FormCluster(daemons)
 
 	daemon := daemons[1]
-	err := daemon.State().Cluster.ImageInsert(
+	err := daemon.State().Cluster.CreateImage(
 		"default", "abc", "foo", 123, false, false, "amd64", time.Now(), time.Now(), nil, "container")
 	require.NoError(t, err)
 
@@ -488,7 +488,7 @@ func TestCluster_LeaveForce(t *testing.T) {
 	f.FormCluster(daemons)
 
 	daemon := daemons[1]
-	err := daemon.State().Cluster.ImageInsert(
+	err := daemon.State().Cluster.CreateImage(
 		"default", "abc", "foo", 123, false, false, "amd64", time.Now(), time.Now(), nil, "container")
 	require.NoError(t, err)
 
