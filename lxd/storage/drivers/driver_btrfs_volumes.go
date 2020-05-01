@@ -60,7 +60,13 @@ func (d *btrfs) CreateVolume(vol Volume, filler *VolumeFiller, op *operations.Op
 	// If we are creating a block volume, resize it to the requested size or the default.
 	// We expect the filler function to have converted the qcow2 image to raw into the rootBlockPath.
 	if vol.contentType == ContentTypeBlock {
-		err := ensureVolumeBlockFile(rootBlockPath, vol.ExpandedConfig("size"))
+		// Convert to bytes.
+		sizeBytes, err := units.ParseByteSizeString(d.volumeSize(vol))
+		if err != nil {
+			return err
+		}
+
+		err = ensureVolumeBlockFile(rootBlockPath, sizeBytes)
 		if err != nil {
 			return err
 		}
@@ -74,7 +80,7 @@ func (d *btrfs) CreateVolume(vol Volume, filler *VolumeFiller, op *operations.Op
 		}
 	} else if vol.contentType == ContentTypeFS {
 		// Set initial quota for filesystem volumes.
-		err := d.SetVolumeQuota(vol, vol.ExpandedConfig("size"), op)
+		err := d.SetVolumeQuota(vol, d.volumeSize(vol), op)
 		if err != nil {
 			return err
 		}
@@ -249,9 +255,9 @@ func (d *btrfs) CreateVolumeFromCopy(vol Volume, srcVol Volume, copySnapshots bo
 	// This is so the pool default volume size isn't take into account for volume copies.
 	volSize := vol.config["size"]
 
-	// If source is an image then use expanded config so that we take into account pool default volume size.
+	// If source is an image then take into account default volume sizes if not specified.
 	if srcVol.volType == VolumeTypeImage {
-		volSize = vol.ExpandedConfig("size")
+		volSize = d.volumeSize(vol)
 	}
 
 	err = d.SetVolumeQuota(vol, volSize, op)
@@ -443,20 +449,27 @@ func (d *btrfs) GetVolumeUsage(vol Volume) (int64, error) {
 }
 
 // SetVolumeQuota sets the quota on the volume.
+// Does nothing if supplied with an empty/zero size for block volumes, and for filesystem volumes removes quota.
 func (d *btrfs) SetVolumeQuota(vol Volume, size string, op *operations.Operation) error {
+	// Convert to bytes.
+	sizeBytes, err := units.ParseByteSizeString(size)
+	if err != nil {
+		return err
+	}
+
 	// For VM block files, resize the file if needed.
 	if vol.contentType == ContentTypeBlock {
+		// Do nothing if size isn't specified.
+		if sizeBytes <= 0 {
+			return nil
+		}
+
 		rootBlockPath, err := d.GetVolumeDiskPath(vol)
 		if err != nil {
 			return err
 		}
 
-		// If size not specified in volume config, then use pool's default block size.
-		if size == "" || size == "0" {
-			size = defaultBlockSize
-		}
-
-		resized, err := genericVFSResizeBlockFile(rootBlockPath, size)
+		resized, err := genericVFSResizeBlockFile(rootBlockPath, sizeBytes)
 		if err != nil {
 			return err
 		}
@@ -476,12 +489,6 @@ func (d *btrfs) SetVolumeQuota(vol Volume, size string, op *operations.Operation
 
 	// For non-VM block volumes, set filesystem quota.
 	volPath := vol.MountPath()
-
-	// Convert to bytes.
-	sizeBytes, err := units.ParseByteSizeString(size)
-	if err != nil {
-		return err
-	}
 
 	// Try to locate an existing quota group.
 	qgroup, _, err := d.getQGroup(volPath)

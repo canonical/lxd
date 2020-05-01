@@ -133,21 +133,12 @@ func (d *zfs) CreateVolume(vol Volume, filler *VolumeFiller, op *operations.Oper
 		}
 
 		// Apply the size limit.
-		size := vol.ExpandedConfig("size")
-		if size != "" {
-			err := d.SetVolumeQuota(vol, size, op)
-			if err != nil {
-				return err
-			}
+		err = d.SetVolumeQuota(vol, d.volumeSize(vol), op)
+		if err != nil {
+			return err
 		}
 	} else {
-		// Convert the size.
-		size := vol.ExpandedConfig("size")
-		if size == "" {
-			size = defaultBlockSize
-		}
-
-		sizeBytes, err := units.ParseByteSizeString(size)
+		sizeBytes, err := units.ParseByteSizeString(d.volumeSize(vol))
 		if err != nil {
 			return err
 		}
@@ -599,9 +590,9 @@ func (d *zfs) CreateVolumeFromCopy(vol Volume, srcVol Volume, copySnapshots bool
 	// This is so the pool default volume size isn't take into account for volume copies.
 	volSize := vol.config["size"]
 
-	// If source is an image then use expanded config so that we take into account pool default volume size.
+	// If source is an image then take into account default volume sizes if not specified.
 	if srcVol.volType == VolumeTypeImage {
-		volSize = vol.ExpandedConfig("size")
+		volSize = d.volumeSize(vol)
 	}
 
 	err := d.SetVolumeQuota(vol, volSize, op)
@@ -888,15 +879,9 @@ func (d *zfs) GetVolumeUsage(vol Volume) (int64, error) {
 	return valueInt, nil
 }
 
+// SetVolumeQuota sets the quota on the volume.
+// Does nothing if supplied with an empty/zero size for block volumes, and for filesystem volumes removes quota.
 func (d *zfs) SetVolumeQuota(vol Volume, size string, op *operations.Operation) error {
-	if size == "" || size == "0" {
-		if vol.contentType == ContentTypeBlock {
-			size = defaultBlockSize
-		} else {
-			size = "0"
-		}
-	}
-
 	// Convert to bytes.
 	sizeBytes, err := units.ParseByteSizeString(size)
 	if err != nil {
@@ -905,6 +890,11 @@ func (d *zfs) SetVolumeQuota(vol Volume, size string, op *operations.Operation) 
 
 	// Handle volume datasets.
 	if vol.contentType == ContentTypeBlock {
+		// Do nothing if size isn't specified.
+		if sizeBytes <= 0 {
+			return nil
+		}
+
 		sizeBytes = (sizeBytes / minBlockBoundary) * minBlockBoundary
 
 		oldSizeBytesStr, err := d.getDatasetProperty(d.dataset(vol, false), "volsize")

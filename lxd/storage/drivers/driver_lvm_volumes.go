@@ -316,13 +316,14 @@ func (d *lvm) GetVolumeUsage(vol Volume) (int64, error) {
 }
 
 // SetVolumeQuota sets the quota on the volume.
+// Does nothing if supplied with an empty/zero size.
 func (d *lvm) SetVolumeQuota(vol Volume, size string, op *operations.Operation) error {
-	// Can't do anything if the size property has been removed from volume config.
+	// Do nothing if size isn't specified.
 	if size == "" || size == "0" {
 		return nil
 	}
 
-	newSizeBytes, err := d.roundedSizeBytesString(size)
+	sizeBytes, err := d.roundedSizeBytesString(size)
 	if err != nil {
 		return err
 	}
@@ -342,7 +343,7 @@ func (d *lvm) SetVolumeQuota(vol Volume, size string, op *operations.Operation) 
 	}
 
 	// Round up the number of extents required for new quota size, as this is what the lvresize tool will do.
-	newNumExtents := math.Ceil(float64(newSizeBytes) / float64(vgExtentSize))
+	newNumExtents := math.Ceil(float64(sizeBytes) / float64(vgExtentSize))
 	oldNumExtents := math.Ceil(float64(oldSizeBytes) / float64(vgExtentSize))
 	extentDiff := int(newNumExtents - oldNumExtents)
 
@@ -351,25 +352,25 @@ func (d *lvm) SetVolumeQuota(vol Volume, size string, op *operations.Operation) 
 		return nil
 	}
 
-	logCtx := log.Ctx{"dev": volDevPath, "size": fmt.Sprintf("%db", newSizeBytes)}
+	logCtx := log.Ctx{"dev": volDevPath, "size": fmt.Sprintf("%db", sizeBytes)}
 
 	// Resize filesystem if needed.
 	if vol.contentType == ContentTypeFS {
-		if newSizeBytes < oldSizeBytes {
+		if sizeBytes < oldSizeBytes {
 			// Shrink filesystem to new size first, then shrink logical volume.
-			err = shrinkFileSystem(d.volumeFilesystem(vol), volDevPath, vol, newSizeBytes)
+			err = shrinkFileSystem(d.volumeFilesystem(vol), volDevPath, vol, sizeBytes)
 			if err != nil {
 				return err
 			}
 			d.logger.Debug("Logical volume filesystem shrunk", logCtx)
 
-			err = d.resizeLogicalVolume(volDevPath, newSizeBytes)
+			err = d.resizeLogicalVolume(volDevPath, sizeBytes)
 			if err != nil {
 				return err
 			}
-		} else if newSizeBytes > oldSizeBytes {
+		} else if sizeBytes > oldSizeBytes {
 			// Grow logical volume to new size first, then grow filesystem to fill it.
-			err = d.resizeLogicalVolume(volDevPath, newSizeBytes)
+			err = d.resizeLogicalVolume(volDevPath, sizeBytes)
 			if err != nil {
 				return err
 			}
@@ -381,11 +382,11 @@ func (d *lvm) SetVolumeQuota(vol Volume, size string, op *operations.Operation) 
 			d.logger.Debug("Logical volume filesystem grown", logCtx)
 		}
 	} else {
-		if newSizeBytes < oldSizeBytes && !vol.allowUnsafeResize {
+		if sizeBytes < oldSizeBytes && !vol.allowUnsafeResize {
 			return errors.Wrap(ErrCannotBeShrunk, "You cannot shrink block volumes")
 		}
 
-		err = d.resizeLogicalVolume(volDevPath, newSizeBytes)
+		err = d.resizeLogicalVolume(volDevPath, sizeBytes)
 		if err != nil {
 			return err
 
