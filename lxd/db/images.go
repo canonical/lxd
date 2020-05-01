@@ -1085,8 +1085,8 @@ func (c *Cluster) UpdateImageUploadDate(id int, uploadedAt time.Time) error {
 	return err
 }
 
-// ImagesGetOnCurrentNode returns all images that the current LXD node instance has.
-func (c *Cluster) ImagesGetOnCurrentNode() (map[string][]string, error) {
+// GetImagesOnLocalNode returns all images that the local LXD node has.
+func (c *Cluster) GetImagesOnLocalNode() (map[string][]string, error) {
 	return c.ImagesGetByNodeID(c.nodeID)
 }
 
