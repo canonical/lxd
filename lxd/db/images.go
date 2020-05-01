@@ -94,8 +94,8 @@ type ExpiredImage struct {
 	ProjectName string
 }
 
-// ImagesGetExpired returns the names and project name of all images that have expired since the given time.
-func (c *Cluster) ImagesGetExpired(expiry int64) ([]ExpiredImage, error) {
+// GetExpiredImages returns the names and project name of all images that have expired since the given time.
+func (c *Cluster) GetExpiredImages(expiry int64) ([]ExpiredImage, error) {
 	q := `
 	SELECT
 		fingerprint,
