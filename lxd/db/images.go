@@ -780,8 +780,8 @@ func (c *Cluster) MoveImageAlias(source int, destination int) error {
 	return err
 }
 
-// ImageAliasAdd inserts an alias ento the database.
-func (c *Cluster) ImageAliasAdd(project, name string, imageID int, desc string) error {
+// CreateImageAlias inserts an alias ento the database.
+func (c *Cluster) CreateImageAlias(project, name string, imageID int, desc string) error {
 	err := c.Transaction(func(tx *ClusterTx) error {
 		enabled, err := tx.ProjectHasImages(project)
 		if err != nil {
