@@ -529,7 +529,7 @@ func (d *ceph) rbdListVolumeSnapshots(vol Volume) ([]string, error) {
 	return snapshots, nil
 }
 
-// volumeSize returns the size to use when creating new RBD volumes.
+// volumeSize returns the size to use when creating new a volume.
 func (d *ceph) volumeSize(vol Volume) string {
 	size := vol.ExpandedConfig("size")
 	if size == "" || size == "0" {
