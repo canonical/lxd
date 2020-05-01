@@ -54,7 +54,7 @@ func (d *lvm) volumeFilesystem(vol Volume) string {
 	return DefaultFilesystem
 }
 
-// volumeSize returns the size to use when creating new logical volumes.
+// volumeSize returns the size to use when creating new a volume.
 func (d *lvm) volumeSize(vol Volume) string {
 	size := vol.ExpandedConfig("size")
 	if size == "" || size == "0" {
@@ -654,9 +654,9 @@ func (d *lvm) copyThinpoolVolume(vol, srcVol Volume, srcSnapshots []Volume, refr
 	// This is so the pool default volume size isn't take into account for volume copies.
 	volSize := vol.config["size"]
 
-	// If source is an image then use expanded config so that we take into account pool default volume size.
+	// If source is an image then take into account default volume sizes if not specified.
 	if srcVol.volType == VolumeTypeImage {
-		volSize = vol.ExpandedConfig("size")
+		volSize = d.volumeSize(vol)
 	}
 
 	err = d.SetVolumeQuota(vol, volSize, nil)
