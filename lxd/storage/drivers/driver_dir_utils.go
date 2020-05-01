@@ -48,7 +48,7 @@ func (d *dir) setupInitialQuota(vol Volume) (func(), error) {
 	revert.Add(revertFunc)
 
 	// Set the quota.
-	err = d.setQuota(volPath, volID, vol.ExpandedConfig("size"))
+	err = d.setQuota(volPath, volID, d.volumeSize(vol))
 	if err != nil {
 		return nil, err
 	}
@@ -148,4 +148,16 @@ func (d *dir) setQuota(path string, volID int64, size string) error {
 	}
 
 	return quota.SetProjectQuota(path, d.quotaProjectID(volID), sizeBytes)
+}
+
+// volumeSize returns the size to use when creating new a volume.
+func (d *dir) volumeSize(vol Volume) string {
+	size := vol.ExpandedConfig("size")
+
+	// Block images always need a size.
+	if vol.contentType == ContentTypeBlock && (size == "" || size == "0") {
+		return defaultBlockSize
+	}
+
+	return size
 }
