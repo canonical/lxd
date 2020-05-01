@@ -1056,8 +1056,8 @@ func (c *Cluster) GetPoolsWithImage(imageFingerprint string) ([]int64, error) {
 	return poolIDs, nil
 }
 
-// ImageGetPoolNamesFromIDs get the names of all storage pools on which a given image exists.
-func (c *Cluster) ImageGetPoolNamesFromIDs(poolIDs []int64) ([]string, error) {
+// GetPoolNamesFromIDs get the names of all storage pools on which a given image exists.
+func (c *Cluster) GetPoolNamesFromIDs(poolIDs []int64) ([]string, error) {
 	var poolName string
 	query := "SELECT name FROM storage_pools WHERE id=?"
 

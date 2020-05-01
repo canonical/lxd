@@ -1166,7 +1166,7 @@ func autoUpdateImage(d *Daemon, op *operations.Operation, id int, info *api.Imag
 	}
 
 	// Translate the IDs to poolNames.
-	poolNames, err := d.cluster.ImageGetPoolNamesFromIDs(poolIDs)
+	poolNames, err := d.cluster.GetPoolNamesFromIDs(poolIDs)
 	if err != nil {
 		logger.Error("Error getting image pools", log.Ctx{"err": err, "fp": fingerprint})
 		return err
@@ -1408,7 +1408,7 @@ func pruneExpiredImages(ctx context.Context, d *Daemon) error {
 		}
 
 		// Translate the IDs to poolNames.
-		poolNames, err := d.cluster.ImageGetPoolNamesFromIDs(poolIDs)
+		poolNames, err := d.cluster.GetPoolNamesFromIDs(poolIDs)
 		if err != nil {
 			continue
 		}
@@ -1522,7 +1522,7 @@ func imageDelete(d *Daemon, r *http.Request) response.Response {
 			return err
 		}
 
-		pools, err := d.cluster.ImageGetPoolNamesFromIDs(poolIDs)
+		pools, err := d.cluster.GetPoolNamesFromIDs(poolIDs)
 		if err != nil {
 			return err
 		}
