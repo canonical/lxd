@@ -22,8 +22,8 @@ var ImageSourceProtocol = map[int]string{
 	2: "simplestreams",
 }
 
-// ImagesGetLocal returns the names of all local images.
-func (c *Cluster) ImagesGetLocal() ([]string, error) {
+// GetLocalImages returns the names of all local images.
+func (c *Cluster) GetLocalImages() ([]string, error) {
 	q := `
 SELECT images.fingerprint
   FROM images_nodes
