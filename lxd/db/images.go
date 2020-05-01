@@ -319,12 +319,12 @@ SELECT COUNT(*) > 0
 	return referenced, err
 }
 
-// ImageGet gets an Image object from the database.
+// GetImage gets an Image object from the database.
 // If strictMatching is false, The fingerprint argument will be queried with a LIKE query, means you can
 // pass a shortform and will get the full fingerprint.
 // There can never be more than one image with a given fingerprint, as it is
 // enforced by a UNIQUE constraint in the schema.
-func (c *Cluster) ImageGet(project, fingerprint string, public bool, strictMatching bool) (int, *api.Image, error) {
+func (c *Cluster) GetImage(project, fingerprint string, public bool, strictMatching bool) (int, *api.Image, error) {
 	profileProject := project
 	err := c.Transaction(func(tx *ClusterTx) error {
 		enabled, err := tx.ProjectHasImages(project)
@@ -634,7 +634,7 @@ WHERE images.fingerprint = ?
 // ImageAssociateNode creates a new entry in the images_nodes table for
 // tracking that the current node has the given image.
 func (c *Cluster) ImageAssociateNode(project, fingerprint string) error {
-	imageID, _, err := c.ImageGet(project, fingerprint, false, true)
+	imageID, _, err := c.GetImage(project, fingerprint, false, true)
 	if err != nil {
 		return err
 	}
