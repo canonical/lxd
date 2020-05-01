@@ -554,7 +554,7 @@ func (c *ClusterTx) InstanceCreate(object Instance) (int64, error) {
 	}
 
 	// Insert profiles reference.
-	err = ContainerProfilesInsert(c.tx, int(id), object.Project, object.Profiles)
+	err = AddProfilesToInstance(c.tx, int(id), object.Project, object.Profiles)
 	if err != nil {
 		return -1, errors.Wrap(err, "Insert profiles for instance")
 	}

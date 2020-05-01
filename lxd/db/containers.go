@@ -169,8 +169,8 @@ type InstanceBackupArgs struct {
 	CompressionAlgorithm string
 }
 
-// InstanceNames returns the names of all containers the given project.
-func (c *ClusterTx) InstanceNames(project string) ([]string, error) {
+// GetInstanceNames returns the names of all containers the given project.
+func (c *ClusterTx) GetInstanceNames(project string) ([]string, error) {
 	stmt := `
 SELECT instances.name FROM instances
   JOIN projects ON projects.id = instances.project_id
@@ -179,11 +179,11 @@ SELECT instances.name FROM instances
 	return query.SelectStrings(c.tx, stmt, project, instancetype.Any)
 }
 
-// ContainerNodeAddress returns the address of the node hosting the container
-// with the given name in the given project.
+// GetNodeAddressOfInstance returns the address of the node hosting the
+// instance with the given name in the given project.
 //
 // It returns the empty string if the container is hosted on this node.
-func (c *ClusterTx) ContainerNodeAddress(project string, name string, instanceType instancetype.Type) (string, error) {
+func (c *ClusterTx) GetNodeAddressOfInstance(project string, name string, instanceType instancetype.Type) (string, error) {
 	var stmt string
 
 	args := make([]interface{}, 0, 4) // Expect up to 4 filters.
@@ -265,14 +265,14 @@ SELECT nodes.id, nodes.address
 	return address, nil
 }
 
-// ContainersListByNodeAddress returns the names of all containers grouped by
+// GetInstanceNamesByNodeAddress returns the names of all containers grouped by
 // cluster node address.
 //
 // The node address of containers running on the local node is set to the empty
 // string, to distinguish it from remote nodes.
 //
 // Containers whose node is down are addeded to the special address "0.0.0.0".
-func (c *ClusterTx) ContainersListByNodeAddress(project string, instanceType instancetype.Type) (map[string][]string, error) {
+func (c *ClusterTx) GetInstanceNamesByNodeAddress(project string, instanceType instancetype.Type) (map[string][]string, error) {
 	offlineThreshold, err := c.NodeOfflineThreshold()
 	if err != nil {
 		return nil, err
@@ -390,9 +390,9 @@ func (c *ClusterTx) instanceListExpanded() ([]Instance, error) {
 	return instances, nil
 }
 
-// ContainersByNodeName returns a map associating each container to the name of
-// its node.
-func (c *ClusterTx) ContainersByNodeName(project string, instanceType instancetype.Type) (map[string]string, error) {
+// GetInstanceToNodeMap returns a map associating the name of each
+// instance in the given project to the name of the node hosting the instance.
+func (c *ClusterTx) GetInstanceToNodeMap(project string, instanceType instancetype.Type) (map[string]string, error) {
 	args := make([]interface{}, 0, 2) // Expect up to 2 filters.
 	var filters strings.Builder
 
@@ -439,14 +439,14 @@ SELECT instances.name, nodes.name
 	return result, nil
 }
 
-// ContainerNodeMove changes the node associated with a container.
+// UpdateInstanceNode changes the node hosting an instance.
 //
-// It's meant to be used when moving a non-running container backed by ceph
+// It's meant to be used when moving a non-running instance backed by ceph
 // from one cluster node to another.
-func (c *ClusterTx) ContainerNodeMove(project, oldName, newName, newNode string) error {
+func (c *ClusterTx) UpdateInstanceNode(project, oldName, newName, newNode string) error {
 	// First check that the container to be moved is backed by a ceph
 	// volume.
-	poolName, err := c.InstancePool(project, oldName)
+	poolName, err := c.GetInstancePool(project, oldName)
 	if err != nil {
 		return errors.Wrap(err, "Failed to get instance's storage pool name")
 	}
@@ -522,8 +522,9 @@ func (c *ClusterTx) ContainerNodeMove(project, oldName, newName, newNode string)
 	return nil
 }
 
-// ContainerNodeProjectList returns all container objects on the local node within the given project.
-func (c *ClusterTx) ContainerNodeProjectList(project string, instanceType instancetype.Type) ([]Instance, error) {
+// GetLocalInstancesInProject retuurns all instances of the given type on the
+// local node within the given project.
+func (c *ClusterTx) GetLocalInstancesInProject(project string, instanceType instancetype.Type) ([]Instance, error) {
 	node, err := c.NodeName()
 	if err != nil {
 		return nil, errors.Wrap(err, "Local node name")
@@ -538,13 +539,13 @@ func (c *ClusterTx) ContainerNodeProjectList(project string, instanceType instan
 	return c.InstanceList(filter)
 }
 
-// ContainerConfigInsert inserts a new config for the container with the given ID.
-func (c *ClusterTx) ContainerConfigInsert(id int, config map[string]string) error {
-	return ContainerConfigInsert(c.tx, id, config)
+// CreateInstanceConfig inserts a new config for the container with the given ID.
+func (c *ClusterTx) CreateInstanceConfig(id int, config map[string]string) error {
+	return CreateInstanceConfig(c.tx, id, config)
 }
 
-// ContainerConfigUpdate inserts/updates/deletes the provided keys
-func (c *ClusterTx) ContainerConfigUpdate(id int, values map[string]string) error {
+// UpdateInstanceConfig inserts/updates/deletes the provided keys
+func (c *ClusterTx) UpdateInstanceConfig(id int, values map[string]string) error {
 	insertSQL := fmt.Sprintf("INSERT OR REPLACE INTO instances_config (instance_id, key, value) VALUES")
 	deleteSQL := "DELETE FROM instances_config WHERE key IN %s AND instance_id=?"
 	return c.configUpdate(id, values, insertSQL, deleteSQL)
@@ -598,8 +599,8 @@ func (c *ClusterTx) configUpdate(id int, values map[string]string, insertSQL, de
 	return nil
 }
 
-// InstanceRemove removes the instance with the given name from the database.
-func (c *Cluster) InstanceRemove(project, name string) error {
+// RemoveInstance removes the instance with the given name from the database.
+func (c *Cluster) RemoveInstance(project, name string) error {
 	if strings.Contains(name, shared.SnapshotDelimiter) {
 		parts := strings.SplitN(name, shared.SnapshotDelimiter, 2)
 		return c.Transaction(func(tx *ClusterTx) error {
@@ -611,9 +612,9 @@ func (c *Cluster) InstanceRemove(project, name string) error {
 	})
 }
 
-// ContainerProjectAndName returns the project and the name of the container
+// GetInstanceProjectAndName returns the project and the name of the instance
 // with the given ID.
-func (c *Cluster) ContainerProjectAndName(id int) (string, string, error) {
+func (c *Cluster) GetInstanceProjectAndName(id int) (string, string, error) {
 	q := `
 SELECT projects.name, instances.name
   FROM instances
@@ -643,9 +644,9 @@ func (c *Cluster) InstanceID(project, name string) (int, error) {
 	return int(id), err
 }
 
-// ContainerConfigClear removes any config associated with the container with
+// DeleteInstanceConfig removes any config associated with the instance with
 // the given ID.
-func ContainerConfigClear(tx *sql.Tx, id int) error {
+func DeleteInstanceConfig(tx *sql.Tx, id int) error {
 	_, err := tx.Exec("DELETE FROM instances_config WHERE instance_id=?", id)
 	if err != nil {
 		return err
@@ -666,8 +667,8 @@ func ContainerConfigClear(tx *sql.Tx, id int) error {
 	return err
 }
 
-// ContainerConfigInsert inserts a new config for the container with the given ID.
-func ContainerConfigInsert(tx *sql.Tx, id int, config map[string]string) error {
+// CreateInstanceConfig inserts a new config for the instance with the given ID.
+func CreateInstanceConfig(tx *sql.Tx, id int, config map[string]string) error {
 	stmt, err := tx.Prepare("INSERT INTO instances_config (instance_id, key, value) values (?, ?, ?)")
 	if err != nil {
 		return err
@@ -690,9 +691,9 @@ func ContainerConfigInsert(tx *sql.Tx, id int, config map[string]string) error {
 	return nil
 }
 
-// ContainerConfigGet returns the value of the given key in the configuration
-// of the container with the given ID.
-func (c *Cluster) ContainerConfigGet(id int, key string) (string, error) {
+// GetInstanceConfig returns the value of the given key in the configuration
+// of the instance with the given ID.
+func (c *Cluster) GetInstanceConfig(id int, key string) (string, error) {
 	q := "SELECT value FROM instances_config WHERE instance_id=? AND key=?"
 	value := ""
 	arg1 := []interface{}{id, key}
@@ -705,16 +706,16 @@ func (c *Cluster) ContainerConfigGet(id int, key string) (string, error) {
 	return value, err
 }
 
-// ContainerConfigRemove removes the given key from the config of the container
+// DeleteInstanceConfigKey removes the given key from the config of the instance
 // with the given ID.
-func (c *Cluster) ContainerConfigRemove(id int, key string) error {
+func (c *Cluster) DeleteInstanceConfigKey(id int, key string) error {
 	err := exec(c.db, "DELETE FROM instances_config WHERE key=? AND instance_id=?", key, id)
 	return err
 }
 
-// ContainerSetStateful toggles the stateful flag of the container with the
-// given ID.
-func (c *Cluster) ContainerSetStateful(id int, stateful bool) error {
+// UpdateInstanceStatefulFlag toggles the stateful flag of the instance with
+// the given ID.
+func (c *Cluster) UpdateInstanceStatefulFlag(id int, stateful bool) error {
 	statefulInt := 0
 	if stateful {
 		statefulInt = 1
@@ -724,9 +725,9 @@ func (c *Cluster) ContainerSetStateful(id int, stateful bool) error {
 	return err
 }
 
-// ContainerProfilesInsert associates the container with the given ID with the
+// AddProfilesToInstance associates the instance with the given ID with the
 // profiles with the given names in the given project.
-func ContainerProfilesInsert(tx *sql.Tx, id int, project string, profiles []string) error {
+func AddProfilesToInstance(tx *sql.Tx, id int, project string, profiles []string) error {
 	enabled, err := projectHasProfiles(tx, project)
 	if err != nil {
 		return errors.Wrap(err, "Check if project has profiles")
@@ -763,59 +764,6 @@ INSERT INTO instances_profiles (instance_id, profile_id, apply_order)
 	}
 
 	return nil
-}
-
-// ContainerProfiles returns a list of profiles for a given container ID.
-func (c *Cluster) ContainerProfiles(id int) ([]string, error) {
-	var name string
-	var profiles []string
-
-	query := `
-        SELECT name FROM instances_profiles
-        JOIN profiles ON instances_profiles.profile_id=profiles.id
-		WHERE instance_id=?
-        ORDER BY instances_profiles.apply_order`
-	inargs := []interface{}{id}
-	outfmt := []interface{}{name}
-
-	results, err := queryScan(c.db, query, inargs, outfmt)
-	if err != nil {
-		return nil, err
-	}
-
-	for _, r := range results {
-		name = r[0].(string)
-
-		profiles = append(profiles, name)
-	}
-
-	return profiles, nil
-}
-
-// ContainerConfig gets the container configuration map from the DB
-func (c *Cluster) ContainerConfig(id int) (map[string]string, error) {
-	var key, value string
-	q := `SELECT key, value FROM instances_config WHERE instance_id=?`
-
-	inargs := []interface{}{id}
-	outfmt := []interface{}{key, value}
-
-	// Results is already a slice here, not db Rows anymore.
-	results, err := queryScan(c.db, q, inargs, outfmt)
-	if err != nil {
-		return nil, err //SmartError will wrap this and make "not found" errors pretty
-	}
-
-	config := map[string]string{}
-
-	for _, r := range results {
-		key = r[0].(string)
-		value = r[1].(string)
-
-		config[key] = value
-	}
-
-	return config, nil
 }
 
 // LegacyContainersList returns the names of all the containers.
@@ -868,43 +816,24 @@ WHERE type=? ORDER BY instances.name, instances_snapshots.name
 	return ret, nil
 }
 
-// ContainersNodeList returns the names of all the containers of the given type
-// running on the local node.
-func (c *Cluster) ContainersNodeList(instanceType instancetype.Type) ([]string, error) {
-	q := fmt.Sprintf("SELECT name FROM instances WHERE type=? AND node_id=? ORDER BY name")
-	inargs := []interface{}{instanceType, c.nodeID}
-	var container string
-	outfmt := []interface{}{container}
-	result, err := queryScan(c.db, q, inargs, outfmt)
-	if err != nil {
-		return nil, err
-	}
-
-	var ret []string
-	for _, container := range result {
-		ret = append(ret, container[0].(string))
-	}
-
-	return ret, nil
-}
-
-// ContainersResetState resets the power state of all containers.
-func (c *Cluster) ContainersResetState() error {
+// ResetInstancesPowerState resets the power state of all instances.
+func (c *Cluster) ResetInstancesPowerState() error {
 	// Reset all container states
 	err := exec(c.db, "DELETE FROM instances_config WHERE key='volatile.last_state.power'")
 	return err
 }
 
-// ContainerSetState sets the the power state of the container with the given ID.
-func (c *Cluster) ContainerSetState(id int, state string) error {
+// UpdateInstancePowerState sets the the power state of the instance with the
+// given ID.
+func (c *Cluster) UpdateInstancePowerState(id int, state string) error {
 	err := c.Transaction(func(tx *ClusterTx) error {
-		return tx.ContainerSetState(id, state)
+		return tx.UpdateInstancePowerState(id, state)
 	})
 	return err
 }
 
-// ContainerSetState sets the the power state of the container with the given ID.
-func (c *ClusterTx) ContainerSetState(id int, state string) error {
+// UpdateInstancePowerState sets the the power state of the container with the given ID.
+func (c *ClusterTx) UpdateInstancePowerState(id int, state string) error {
 	// Set the new value
 	str := fmt.Sprintf("INSERT OR REPLACE INTO instances_config (instance_id, key, value) VALUES (?, 'volatile.last_state.power', ?)")
 	stmt, err := c.tx.Prepare(str)
@@ -921,9 +850,9 @@ func (c *ClusterTx) ContainerSetState(id int, state string) error {
 	return nil
 }
 
-// ContainerUpdate updates the description, architecture and ephemeral flag of
-// the container with the given ID.
-func ContainerUpdate(tx *sql.Tx, id int, description string, architecture int, ephemeral bool,
+// UpdateInstance updates the description, architecture and ephemeral flag of
+// the instance with the given ID.
+func UpdateInstance(tx *sql.Tx, id int, description string, architecture int, ephemeral bool,
 	expiryDate time.Time) error {
 	str := fmt.Sprintf("UPDATE instances SET description=?, architecture=?, ephemeral=?, expiry_date=? WHERE id=?")
 	stmt, err := tx.Prepare(str)
@@ -949,16 +878,16 @@ func ContainerUpdate(tx *sql.Tx, id int, description string, architecture int, e
 	return nil
 }
 
-// InstanceSnapshotCreationUpdate updates the creation_date field of the instance snapshot with ID.
-func (c *Cluster) InstanceSnapshotCreationUpdate(instanceID int, date time.Time) error {
+// UpdateInstanceSnapshotCreationDate updates the creation_date field of the instance snapshot with ID.
+func (c *Cluster) UpdateInstanceSnapshotCreationDate(instanceID int, date time.Time) error {
 	stmt := `UPDATE instances_snapshots SET creation_date=? WHERE id=?`
 	err := exec(c.db, stmt, date, instanceID)
 	return err
 }
 
-// ContainerLastUsedUpdate updates the last_use_date field of the container
+// UpdateInstanceLastUsedDate updates the last_use_date field of the instance
 // with the given ID.
-func (c *ClusterTx) ContainerLastUsedUpdate(id int, date time.Time) error {
+func (c *ClusterTx) UpdateInstanceLastUsedDate(id int, date time.Time) error {
 	str := `UPDATE instances SET last_use_date=? WHERE id=?`
 	stmt, err := c.tx.Prepare(str)
 	if err != nil {
@@ -974,9 +903,9 @@ func (c *ClusterTx) ContainerLastUsedUpdate(id int, date time.Time) error {
 	return nil
 }
 
-// ContainerGetSnapshots returns the names of all snapshots of the container
+// GetInstanceSnapshotsNames returns the names of all snapshots of the instance
 // in the given project with the given name.
-func (c *Cluster) ContainerGetSnapshots(project, name string) ([]string, error) {
+func (c *Cluster) GetInstanceSnapshotsNames(project, name string) ([]string, error) {
 	result := []string{}
 
 	q := `
@@ -1001,8 +930,8 @@ ORDER BY date(instances_snapshots.creation_date)
 	return result, nil
 }
 
-// ContainerGetSnapshotsFull returns all container objects for snapshots of a given container
-func (c *ClusterTx) ContainerGetSnapshotsFull(project string, name string) ([]Instance, error) {
+// GetInstanceSnapshots returns all snapshots of a given instance.
+func (c *ClusterTx) GetInstanceSnapshots(project string, name string) ([]Instance, error) {
 	instance, err := c.InstanceGet(project, name)
 	if err != nil {
 		return nil, err
@@ -1027,9 +956,9 @@ func (c *ClusterTx) ContainerGetSnapshotsFull(project string, name string) ([]In
 	return instances, nil
 }
 
-// ContainerNextSnapshot returns the index the next snapshot of the container
-// with the given name and pattern should have.
-func (c *Cluster) ContainerNextSnapshot(project string, name string, pattern string) int {
+// GetNextInstanceSnapshotIndex returns the index that the next snapshot of the
+// instance with the given name and pattern should have.
+func (c *Cluster) GetNextInstanceSnapshotIndex(project string, name string, pattern string) int {
 	q := `
 SELECT instances_snapshots.name
   FROM instances_snapshots
@@ -1062,21 +991,21 @@ WHERE projects.name=? AND instances.name=?`
 	return max
 }
 
-// InstancePool returns the storage pool of a given instance.
+// GetInstancePool returns the storage pool of a given instance.
 //
-// This is a non-transactional variant of ClusterTx.InstancePool().
-func (c *Cluster) InstancePool(project, instanceName string) (string, error) {
+// This is a non-transactional variant of ClusterTx.GetInstancePool().
+func (c *Cluster) GetInstancePool(project, instanceName string) (string, error) {
 	var poolName string
 	err := c.Transaction(func(tx *ClusterTx) error {
 		var err error
-		poolName, err = tx.InstancePool(project, instanceName)
+		poolName, err = tx.GetInstancePool(project, instanceName)
 		return err
 	})
 	return poolName, err
 }
 
-// InstancePool returns the storage pool of a given instance.
-func (c *ClusterTx) InstancePool(project, instanceName string) (string, error) {
+// GetInstancePool returns the storage pool of a given instance.
+func (c *ClusterTx) GetInstancePool(project, instanceName string) (string, error) {
 	if strings.Contains(instanceName, shared.SnapshotDelimiter) {
 		return c.instancePoolSnapshot(project, instanceName)
 	}
@@ -1136,8 +1065,8 @@ SELECT storage_pools.name FROM storage_pools
 	return poolName, nil
 }
 
-// ContainerBackupID returns the ID of the container backup with the given name.
-func (c *Cluster) ContainerBackupID(name string) (int, error) {
+// Returns the ID of the instance backup with the given name.
+func (c *Cluster) getInstanceBackupID(name string) (int, error) {
 	q := "SELECT id FROM instances_backups WHERE name=?"
 	id := -1
 	arg1 := []interface{}{name}
@@ -1150,8 +1079,8 @@ func (c *Cluster) ContainerBackupID(name string) (int, error) {
 	return id, err
 }
 
-// ContainerGetBackup returns the backup with the given name.
-func (c *Cluster) ContainerGetBackup(project, name string) (InstanceBackupArgs, error) {
+// GetInstanceBackup returns the backup with the given name.
+func (c *Cluster) GetInstanceBackup(project, name string) (InstanceBackupArgs, error) {
 	args := InstanceBackupArgs{}
 	args.Name = name
 
@@ -1189,9 +1118,9 @@ SELECT instances_backups.id, instances_backups.instance_id,
 	return args, nil
 }
 
-// ContainerGetBackups returns the names of all backups of the container
-// with the given name.
-func (c *Cluster) ContainerGetBackups(project, name string) ([]string, error) {
+// GetInstanceBackups returns the names of all backups of the instance with the
+// given name.
+func (c *Cluster) GetInstanceBackups(project, name string) ([]string, error) {
 	var result []string
 
 	q := `SELECT instances_backups.name FROM instances_backups
@@ -1212,9 +1141,9 @@ WHERE projects.name=? AND instances.name=?`
 	return result, nil
 }
 
-// InstanceBackupCreate creates a new backup.
-func (c *Cluster) InstanceBackupCreate(args InstanceBackupArgs) error {
-	_, err := c.ContainerBackupID(args.Name)
+// CreateInstanceBackup creates a new backup.
+func (c *Cluster) CreateInstanceBackup(args InstanceBackupArgs) error {
+	_, err := c.getInstanceBackupID(args.Name)
 	if err == nil {
 		return ErrAlreadyDefined
 	}
@@ -1254,9 +1183,9 @@ func (c *Cluster) InstanceBackupCreate(args InstanceBackupArgs) error {
 	return err
 }
 
-// InstanceBackupRemove removes the container backup with the given name from the database.
-func (c *Cluster) InstanceBackupRemove(name string) error {
-	id, err := c.ContainerBackupID(name)
+// DeleteInstanceBackup removes the instance backup with the given name from the database.
+func (c *Cluster) DeleteInstanceBackup(name string) error {
+	id, err := c.getInstanceBackupID(name)
 	if err != nil {
 		return err
 	}
@@ -1269,9 +1198,9 @@ func (c *Cluster) InstanceBackupRemove(name string) error {
 	return nil
 }
 
-// ContainerBackupRename renames a container backup from the given current name
+// RenameInstanceBackup renames an instance backup from the given current name
 // to the new one.
-func (c *Cluster) ContainerBackupRename(oldName, newName string) error {
+func (c *Cluster) RenameInstanceBackup(oldName, newName string) error {
 	err := c.Transaction(func(tx *ClusterTx) error {
 		str := fmt.Sprintf("UPDATE instances_backups SET name = ? WHERE name = ?")
 		stmt, err := tx.tx.Prepare(str)
@@ -1295,8 +1224,8 @@ func (c *Cluster) ContainerBackupRename(oldName, newName string) error {
 	return err
 }
 
-// ContainerBackupsGetExpired returns a list of expired container backups.
-func (c *Cluster) ContainerBackupsGetExpired() ([]InstanceBackupArgs, error) {
+// GetExpiredInstanceBackups returns a list of expired instance backups.
+func (c *Cluster) GetExpiredInstanceBackups() ([]InstanceBackupArgs, error) {
 	var result []InstanceBackupArgs
 	var name string
 	var expiryDate string

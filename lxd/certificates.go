@@ -47,7 +47,7 @@ func certificatesGet(d *Daemon, r *http.Request) response.Response {
 	if recursion {
 		certResponses := []api.Certificate{}
 
-		baseCerts, err := d.cluster.CertificatesGet()
+		baseCerts, err := d.cluster.GetCertificates()
 		if err != nil {
 			return response.SmartError(err)
 		}
@@ -78,7 +78,7 @@ func certificatesGet(d *Daemon, r *http.Request) response.Response {
 func readSavedClientCAList(d *Daemon) {
 	d.clientCerts = map[string]x509.Certificate{}
 
-	dbCerts, err := d.cluster.CertificatesGet()
+	dbCerts, err := d.cluster.GetCertificates()
 	if err != nil {
 		logger.Infof("Error reading certificates from database: %s", err)
 		return
@@ -168,7 +168,7 @@ func certificatesPost(d *Daemon, r *http.Request) response.Response {
 
 	if !isClusterNotification(r) {
 		// Check if we already have the certificate
-		existingCert, _ := d.cluster.CertificateGet(fingerprint)
+		existingCert, _ := d.cluster.GetCertificate(fingerprint)
 		if existingCert != nil {
 			// Deal with the cache being potentially out of sync
 			_, ok := d.clientCerts[fingerprint]
@@ -188,7 +188,7 @@ func certificatesPost(d *Daemon, r *http.Request) response.Response {
 			Certificate: string(pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: cert.Raw})),
 		}
 
-		err = d.cluster.CertSave(&dbCert)
+		err = d.cluster.CreateCertificate(&dbCert)
 		if err != nil {
 			return response.SmartError(err)
 		}
@@ -232,7 +232,7 @@ func certificateGet(d *Daemon, r *http.Request) response.Response {
 func doCertificateGet(db *db.Cluster, fingerprint string) (api.Certificate, error) {
 	resp := api.Certificate{}
 
-	dbCertInfo, err := db.CertificateGet(fingerprint)
+	dbCertInfo, err := db.GetCertificate(fingerprint)
 	if err != nil {
 		return resp, err
 	}
@@ -311,7 +311,7 @@ func doCertificateUpdate(d *Daemon, fingerprint string, req api.CertificatePut) 
 		return response.BadRequest(fmt.Errorf("Unknown request type %s", req.Type))
 	}
 
-	err := d.cluster.CertUpdate(fingerprint, req.Name, 1)
+	err := d.cluster.UpdateCertificate(fingerprint, req.Name, 1)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -322,12 +322,12 @@ func doCertificateUpdate(d *Daemon, fingerprint string, req api.CertificatePut) 
 func certificateDelete(d *Daemon, r *http.Request) response.Response {
 	fingerprint := mux.Vars(r)["fingerprint"]
 
-	certInfo, err := d.cluster.CertificateGet(fingerprint)
+	certInfo, err := d.cluster.GetCertificate(fingerprint)
 	if err != nil {
 		return response.NotFound(err)
 	}
 
-	err = d.cluster.CertDelete(certInfo.Fingerprint)
+	err = d.cluster.DeleteCertificate(certInfo.Fingerprint)
 	if err != nil {
 		return response.SmartError(err)
 	}

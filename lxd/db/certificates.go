@@ -16,8 +16,8 @@ type CertInfo struct {
 	Certificate string
 }
 
-// CertificatesGet returns all certificates from the DB as CertBaseInfo objects.
-func (c *Cluster) CertificatesGet() (certs []*CertInfo, err error) {
+// GetCertificates returns all certificates from the DB as CertBaseInfo objects.
+func (c *Cluster) GetCertificates() (certs []*CertInfo, err error) {
 	err = c.Transaction(func(tx *ClusterTx) error {
 		rows, err := tx.tx.Query(
 			"SELECT id, fingerprint, type, name, certificate FROM certificates",
@@ -49,12 +49,12 @@ func (c *Cluster) CertificatesGet() (certs []*CertInfo, err error) {
 	return certs, nil
 }
 
-// CertificateGet gets an CertBaseInfo object from the database.
+// GetCertificate gets an CertBaseInfo object from the database.
 // The argument fingerprint will be queried with a LIKE query, means you can
 // pass a shortform and will get the full fingerprint.
 // There can never be more than one image with a given fingerprint, as it is
 // enforced by a UNIQUE constraint in the schema.
-func (c *Cluster) CertificateGet(fingerprint string) (cert *CertInfo, err error) {
+func (c *Cluster) GetCertificate(fingerprint string) (cert *CertInfo, err error) {
 	cert = new(CertInfo)
 
 	inargs := []interface{}{fingerprint + "%"}
@@ -84,9 +84,9 @@ func (c *Cluster) CertificateGet(fingerprint string) (cert *CertInfo, err error)
 	return cert, err
 }
 
-// CertSave stores a CertBaseInfo object in the db,
-// it will ignore the ID field from the CertInfo.
-func (c *Cluster) CertSave(cert *CertInfo) error {
+// CreateCertificate stores a CertInfo object in the db, it will ignore the ID
+// field from the CertInfo.
+func (c *Cluster) CreateCertificate(cert *CertInfo) error {
 	err := c.Transaction(func(tx *ClusterTx) error {
 		stmt, err := tx.tx.Prepare(`
 			INSERT INTO certificates (
@@ -114,8 +114,8 @@ func (c *Cluster) CertSave(cert *CertInfo) error {
 	return err
 }
 
-// CertDelete deletes a certificate from the db.
-func (c *Cluster) CertDelete(fingerprint string) error {
+// DeleteCertificate deletes a certificate from the db.
+func (c *Cluster) DeleteCertificate(fingerprint string) error {
 	err := exec(c.db, "DELETE FROM certificates WHERE fingerprint=?", fingerprint)
 	if err != nil {
 		return err
@@ -124,8 +124,8 @@ func (c *Cluster) CertDelete(fingerprint string) error {
 	return nil
 }
 
-// CertUpdate updates the certificate with the given fingerprint.
-func (c *Cluster) CertUpdate(fingerprint string, certName string, certType int) error {
+// UpdateCertificate updates the certificate with the given fingerprint.
+func (c *Cluster) UpdateCertificate(fingerprint string, certName string, certType int) error {
 	err := c.Transaction(func(tx *ClusterTx) error {
 		_, err := tx.tx.Exec("UPDATE certificates SET name=?, type=? WHERE fingerprint=?", certName, certType, fingerprint)
 		return err

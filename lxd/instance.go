@@ -287,7 +287,7 @@ func instanceCreateAsCopy(s *state.State, args db.InstanceArgs, sourceInst insta
 			}
 
 			// Set snapshot creation date to that of the source snapshot.
-			err = s.Cluster.InstanceSnapshotCreationUpdate(snapInst.ID(), srcSnap.CreationDate())
+			err = s.Cluster.UpdateInstanceSnapshotCreationDate(snapInst.ID(), srcSnap.CreationDate())
 			if err != nil {
 				return nil, err
 			}
@@ -625,7 +625,7 @@ func instanceCreateInternal(s *state.State, args db.InstanceArgs) (instance.Inst
 			return
 		}
 
-		s.Cluster.InstanceRemove(dbInst.Project, dbInst.Name)
+		s.Cluster.RemoveInstance(dbInst.Project, dbInst.Name)
 	}()
 
 	// Wipe any existing log for this instance name.
@@ -682,7 +682,7 @@ func instanceLoadNodeProjectAll(s *state.State, project string, instanceType ins
 	var cts []db.Instance
 	err := s.Cluster.Transaction(func(tx *db.ClusterTx) error {
 		var err error
-		cts, err = tx.ContainerNodeProjectList(project, instanceType)
+		cts, err = tx.GetLocalInstancesInProject(project, instanceType)
 		if err != nil {
 			return err
 		}
@@ -941,7 +941,7 @@ func containerDetermineNextSnapshotName(d *Daemon, c instance.Instance, defaultP
 	if count > 1 {
 		return "", fmt.Errorf("Snapshot pattern may contain '%%d' only once")
 	} else if count == 1 {
-		i := d.cluster.ContainerNextSnapshot(c.Project(), c.Name(), pattern)
+		i := d.cluster.GetNextInstanceSnapshotIndex(c.Project(), c.Name(), pattern)
 		return strings.Replace(pattern, "%d", strconv.Itoa(i), 1), nil
 	}
 
@@ -963,7 +963,7 @@ func containerDetermineNextSnapshotName(d *Daemon, c instance.Instance, defaultP
 	// Append '-0', '-1', etc. if the actual pattern/snapshot name already exists
 	if snapshotExists {
 		pattern = fmt.Sprintf("%s-%%d", pattern)
-		i := d.cluster.ContainerNextSnapshot(c.Project(), c.Name(), pattern)
+		i := d.cluster.GetNextInstanceSnapshotIndex(c.Project(), c.Name(), pattern)
 		return strings.Replace(pattern, "%d", strconv.Itoa(i), 1), nil
 	}
 

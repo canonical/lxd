@@ -81,7 +81,7 @@ func containerPost(d *Daemon, r *http.Request) response.Response {
 			targetNodeOffline = node.IsOffline(config.OfflineThreshold())
 
 			// Load source node.
-			address, err := tx.ContainerNodeAddress(project, name, instanceType)
+			address, err := tx.GetNodeAddressOfInstance(project, name, instanceType)
 			if err != nil {
 				return errors.Wrap(err, "Failed to get address of instance's node")
 			}
@@ -179,7 +179,7 @@ func containerPost(d *Daemon, r *http.Request) response.Response {
 			}
 
 			// Check if we are migrating a ceph-based container.
-			poolName, err := d.cluster.InstancePool(project, name)
+			poolName, err := d.cluster.GetInstancePool(project, name)
 			if err != nil {
 				err = errors.Wrap(err, "Failed to fetch instance's pool name")
 				return response.SmartError(err)
@@ -378,7 +378,7 @@ func containerPostClusteringMigrate(d *Daemon, c instance.Instance, oldName, new
 			return errors.Wrap(err, "Failed to get ID of moved instance")
 		}
 
-		err = d.cluster.ContainerConfigRemove(id, "volatile.apply_template")
+		err = d.cluster.DeleteInstanceConfigKey(id, "volatile.apply_template")
 		if err != nil {
 			return errors.Wrap(err, "Failed to remove volatile.apply_template config key")
 		}
@@ -388,7 +388,7 @@ func containerPostClusteringMigrate(d *Daemon, c instance.Instance, oldName, new
 				"volatile.apply_template": origVolatileApplyTemplate,
 			}
 			err := d.cluster.Transaction(func(tx *db.ClusterTx) error {
-				return tx.ContainerConfigInsert(id, config)
+				return tx.CreateInstanceConfig(id, config)
 			})
 			if err != nil {
 				return errors.Wrap(err, "Failed to set volatile.apply_template config key")
@@ -440,7 +440,7 @@ func containerPostClusteringMigrateWithCeph(d *Daemon, c instance.Instance, proj
 
 		// Re-link the database entries against the new node name.
 		err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
-			err := tx.ContainerNodeMove(projectName, oldName, newName, newNode)
+			err := tx.UpdateInstanceNode(projectName, oldName, newName, newNode)
 			if err != nil {
 				return errors.Wrapf(
 					err, "Move container %s to %s with new name %s", oldName, newNode, newName)
@@ -512,7 +512,7 @@ func containerPostCreateContainerMountPoint(d *Daemon, project, containerName st
 	if err != nil {
 		return errors.Wrap(err, "Failed get pool name of moved instance on target node")
 	}
-	snapshotNames, err := d.cluster.ContainerGetSnapshots(project, containerName)
+	snapshotNames, err := d.cluster.GetInstanceSnapshotsNames(project, containerName)
 	if err != nil {
 		return errors.Wrap(err, "Failed to create instance snapshot names")
 	}

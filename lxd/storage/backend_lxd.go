@@ -1180,7 +1180,7 @@ func (b *lxdBackend) RenameInstance(inst instance.Instance, newName string, op *
 	defer revert.Fail()
 
 	// Get any snapshots the instance has in the format <instance name>/<snapshot name>.
-	snapshots, err := b.state.Cluster.ContainerGetSnapshots(inst.Project(), inst.Name())
+	snapshots, err := b.state.Cluster.GetInstanceSnapshotsNames(inst.Project(), inst.Name())
 	if err != nil {
 		return err
 	}
@@ -1293,7 +1293,7 @@ func (b *lxdBackend) DeleteInstance(inst instance.Instance, op *operations.Opera
 	}
 
 	// Get any snapshots the instance has in the format <instance name>/<snapshot name>.
-	snapshots, err := b.state.Cluster.ContainerGetSnapshots(inst.Project(), inst.Name())
+	snapshots, err := b.state.Cluster.GetInstanceSnapshotsNames(inst.Project(), inst.Name())
 	if err != nil {
 		return err
 	}
