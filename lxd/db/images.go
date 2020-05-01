@@ -1036,8 +1036,8 @@ func (c *Cluster) CreateImage(project, fp string, fname string, sz int64, public
 	return err
 }
 
-// ImageGetPools get the names of all storage pools on which a given image exists.
-func (c *Cluster) ImageGetPools(imageFingerprint string) ([]int64, error) {
+// GetPoolsWithImage get the names of all storage pools on which a given image exists.
+func (c *Cluster) GetPoolsWithImage(imageFingerprint string) ([]int64, error) {
 	poolID := int64(-1)
 	query := "SELECT storage_pool_id FROM storage_volumes WHERE node_id=? AND name=? AND type=?"
 	inargs := []interface{}{c.nodeID, imageFingerprint, StoragePoolVolumeTypeImage}
