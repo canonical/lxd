@@ -110,7 +110,7 @@ func (d *Daemon) ImageDownload(op *operations.Operation, server string, protocol
 	_, imgInfo, err := d.cluster.ImageGet(project, fp, false, true)
 	if err == db.ErrNoSuchObject {
 		// Check if the image already exists in some other project.
-		_, imgInfo, err = d.cluster.ImageGetFromAnyProject(fp)
+		_, imgInfo, err = d.cluster.GetImageFromAnyProject(fp)
 		if err == nil {
 			// We just need to insert the database data, no actual download necessary.
 			err = d.cluster.ImageInsert(

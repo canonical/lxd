@@ -2019,7 +2019,7 @@ func (b *lxdBackend) EnsureImage(fingerprint string, op *operations.Operation) e
 	defer unlock()
 
 	// Load image info from database.
-	_, image, err := b.state.Cluster.ImageGetFromAnyProject(fingerprint)
+	_, image, err := b.state.Cluster.GetImageFromAnyProject(fingerprint)
 	if err != nil {
 		return err
 	}
@@ -2091,7 +2091,7 @@ func (b *lxdBackend) DeleteImage(fingerprint string, op *operations.Operation) e
 	defer unlock()
 
 	// Load image info from database.
-	_, image, err := b.state.Cluster.ImageGetFromAnyProject(fingerprint)
+	_, image, err := b.state.Cluster.GetImageFromAnyProject(fingerprint)
 	if err != nil {
 		return err
 	}
