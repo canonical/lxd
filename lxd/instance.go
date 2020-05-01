@@ -147,7 +147,7 @@ func instanceCreateFromImage(d *Daemon, args db.InstanceArgs, hash string, op *o
 		inst.Delete()
 	}()
 
-	err = s.Cluster.ImageLastAccessUpdate(hash, time.Now().UTC())
+	err = s.Cluster.UpdateImageLastUseDate(hash, time.Now().UTC())
 	if err != nil {
 		return nil, fmt.Errorf("Error updating image last use date: %s", err)
 	}

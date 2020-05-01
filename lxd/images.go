@@ -1147,7 +1147,7 @@ func autoUpdateImage(d *Daemon, op *operations.Operation, id int, info *api.Imag
 			}
 		}
 
-		err = d.cluster.ImageLastAccessUpdate(hash, info.LastUsedAt)
+		err = d.cluster.UpdateImageLastUseDate(hash, info.LastUsedAt)
 		if err != nil {
 			logger.Error("Error setting last use date", log.Ctx{"err": err, "fp": hash})
 			continue
