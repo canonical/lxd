@@ -60,7 +60,13 @@ func (d *btrfs) CreateVolume(vol Volume, filler *VolumeFiller, op *operations.Op
 	// If we are creating a block volume, resize it to the requested size or the default.
 	// We expect the filler function to have converted the qcow2 image to raw into the rootBlockPath.
 	if vol.contentType == ContentTypeBlock {
-		err := ensureVolumeBlockFile(rootBlockPath, vol.ExpandedConfig("size"))
+		// Convert to bytes.
+		sizeBytes, err := units.ParseByteSizeString(d.volumeSize(vol))
+		if err != nil {
+			return err
+		}
+
+		err = ensureVolumeBlockFile(rootBlockPath, sizeBytes)
 		if err != nil {
 			return err
 		}
@@ -74,7 +80,7 @@ func (d *btrfs) CreateVolume(vol Volume, filler *VolumeFiller, op *operations.Op
 		}
 	} else if vol.contentType == ContentTypeFS {
 		// Set initial quota for filesystem volumes.
-		err := d.SetVolumeQuota(vol, vol.ExpandedConfig("size"), op)
+		err := d.SetVolumeQuota(vol, d.volumeSize(vol), op)
 		if err != nil {
 			return err
 		}
@@ -249,9 +255,9 @@ func (d *btrfs) CreateVolumeFromCopy(vol Volume, srcVol Volume, copySnapshots bo
 	// This is so the pool default volume size isn't take into account for volume copies.
 	volSize := vol.config["size"]
 
-	// If source is an image then use expanded config so that we take into account pool default volume size.
+	// If source is an image then take into account default volume sizes if not specified.
 	if srcVol.volType == VolumeTypeImage {
-		volSize = vol.ExpandedConfig("size")
+		volSize = d.volumeSize(vol)
 	}
 
 	err = d.SetVolumeQuota(vol, volSize, op)
