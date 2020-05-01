@@ -666,7 +666,7 @@ func ResolveImage(s *state.State, project string, source api.InstanceSource) (st
 			return "", fmt.Errorf("Property match is only supported for local images")
 		}
 
-		hashes, err := s.Cluster.ImagesGet(project, false)
+		hashes, err := s.Cluster.GetImages(project, false)
 		if err != nil {
 			return "", err
 		}
