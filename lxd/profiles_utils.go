@@ -114,7 +114,7 @@ func doProfileUpdate(d *Daemon, project, name string, id int64, profile *api.Pro
 			return err
 		}
 
-		err = db.DevicesAdd(tx, "profile", id, deviceConfig.NewDevices(req.Devices))
+		err = db.AddDevicesToEntity(tx, "profile", id, deviceConfig.NewDevices(req.Devices))
 		if err != nil {
 			tx.Rollback()
 			return err
