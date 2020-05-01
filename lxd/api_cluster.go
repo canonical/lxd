@@ -608,7 +608,7 @@ func clusterPutJoin(d *Daemon, req api.ClusterPut) response.Response {
 				}
 
 				for _, project := range projects {
-					err := d.cluster.ImageAssociateNode(project, fingerprint)
+					err := d.cluster.AddImageToLocalNode(project, fingerprint)
 					if err != nil {
 						return err
 					}
