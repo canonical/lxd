@@ -155,6 +155,7 @@ sockets = "{{.cpuSockets}}"
 cores = "{{.cpuCores}}"
 threads = "{{.cpuThreads}}"
 
+{{if eq .architecture "x86_64" -}}
 {{range $index, $element := .cpuNumaNodes}}
 [numa]
 type = "node"
@@ -168,6 +169,7 @@ node-id = "{{.node}}"
 socket-id = "{{.socket}}"
 core-id = "{{.core}}"
 thread-id = "{{.thread}}"
+{{end}}
 {{end}}
 `))
 
