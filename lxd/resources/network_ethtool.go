@@ -2,6 +2,7 @@ package resources
 
 import (
 	"bytes"
+	"net"
 	"unsafe"
 
 	"github.com/pkg/errors"
@@ -105,6 +106,12 @@ type ethtoolDrvInfo struct {
 	regDumpLen  uint32
 }
 
+type ethtoolPermAddr struct {
+	cmd  uint32
+	size uint32
+	data [32]byte
+}
+
 type ethtoolValue struct {
 	cmd  uint32
 	data uint32
@@ -145,17 +152,30 @@ func ethtoolAddPortInfo(info *api.ResourcesNetworkCardPort) error {
 	}
 	defer unix.Close(ethtoolFd)
 
+	// Prepare the request struct
+	req := ethtoolReq{}
+	copy(req.name[:], []byte(info.ID))
+
+	// Try to get MAC address
+	ethPermaddr := ethtoolPermAddr{
+		cmd:  0x00000020,
+		size: 32,
+	}
+	req.data = uintptr(unsafe.Pointer(&ethPermaddr))
+
+	_, _, errno := unix.Syscall(unix.SYS_IOCTL, uintptr(ethtoolFd), unix.SIOCETHTOOL, uintptr(unsafe.Pointer(&req)))
+	if errno == 0 {
+		hwaddr := net.HardwareAddr(ethPermaddr.data[0:ethPermaddr.size])
+		info.Address = hwaddr.String()
+	}
+
 	// Link state
 	ethGlink := ethtoolValue{
 		cmd: 0x0000000a,
 	}
+	req.data = uintptr(unsafe.Pointer(&ethGlink))
 
-	req := ethtoolReq{
-		data: uintptr(unsafe.Pointer(&ethGlink)),
-	}
-	copy(req.name[:], []byte(info.ID))
-
-	_, _, errno := unix.Syscall(unix.SYS_IOCTL, uintptr(ethtoolFd), unix.SIOCETHTOOL, uintptr(unsafe.Pointer(&req)))
+	_, _, errno = unix.Syscall(unix.SYS_IOCTL, uintptr(ethtoolFd), unix.SIOCETHTOOL, uintptr(unsafe.Pointer(&req)))
 	if errno != 0 {
 		return errors.Wrap(unix.Errno(errno), "Failed to ETHTOOL_GLINK")
 	}
