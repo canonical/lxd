@@ -144,7 +144,7 @@ func networkAddDeviceInfo(devicePath string, pciDB *pcidb.PCIDB, uname unix.Utsn
 			}
 
 			// Add MAC address
-			if sysfsExists(filepath.Join(interfacePath, "address")) {
+			if info.Address == "" && sysfsExists(filepath.Join(interfacePath, "address")) {
 				address, err := ioutil.ReadFile(filepath.Join(interfacePath, "address"))
 				if err != nil {
 					return errors.Wrapf(err, "Failed to read \"%s\"", filepath.Join(interfacePath, "address"))
