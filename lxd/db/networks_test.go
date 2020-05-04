@@ -15,7 +15,7 @@ func TestGetNetworksLocalConfigs(t *testing.T) {
 	cluster, cleanup := db.NewTestCluster(t)
 	defer cleanup()
 
-	_, err := cluster.NetworkCreate("lxdbr0", "", map[string]string{
+	_, err := cluster.CreateNetwork("lxdbr0", "", map[string]string{
 		"dns.mode":                   "none",
 		"bridge.external_interfaces": "vlan0",
 	})
