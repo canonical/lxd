@@ -490,15 +490,15 @@ func (c *Cluster) CreateNetwork(name, description string, config map[string]stri
 	return id, err
 }
 
-// NetworkUpdate updates the network with the given name.
-func (c *Cluster) NetworkUpdate(name, description string, config map[string]string) error {
+// UpdateNetwork updates the network with the given name.
+func (c *Cluster) UpdateNetwork(name, description string, config map[string]string) error {
 	id, _, err := c.GetNetwork(name)
 	if err != nil {
 		return err
 	}
 
 	err = c.Transaction(func(tx *ClusterTx) error {
-		err = NetworkUpdateDescription(tx.tx, id, description)
+		err = updateNetworkDescription(tx.tx, id, description)
 		if err != nil {
 			return err
 		}
@@ -518,9 +518,8 @@ func (c *Cluster) NetworkUpdate(name, description string, config map[string]stri
 	return err
 }
 
-// NetworkUpdateDescription updates the description of the network with the
-// given ID.
-func NetworkUpdateDescription(tx *sql.Tx, id int64, description string) error {
+// Update the description of the network with the given ID.
+func updateNetworkDescription(tx *sql.Tx, id int64, description string) error {
 	_, err := tx.Exec("UPDATE networks SET description=? WHERE id=?", description, id)
 	return err
 }
