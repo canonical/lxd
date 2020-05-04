@@ -104,7 +104,7 @@ func (n *Network) Delete(withDatabase bool) error {
 	}
 
 	// Remove the network from the database
-	err := n.state.Cluster.NetworkDelete(n.name)
+	err := n.state.Cluster.DeleteNetwork(n.name)
 	if err != nil {
 		return err
 	}
