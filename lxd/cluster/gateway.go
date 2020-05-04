@@ -411,15 +411,22 @@ func (g *Gateway) Shutdown() error {
 			g.Sync()
 		}
 
-		// If we are the cluster leader, let's try to transfer leadership.
-		isLeader, err := g.isLeader()
-		if err == nil && isLeader {
-			client, err := g.getClient()
-			if err == nil {
-				ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-				defer cancel()
-				client.Transfer(ctx, 0)
-				client.Close()
+		// If this is not a standalone node and we are the cluster
+		// leader, let's try to transfer leadership.
+		if g.memoryDial == nil {
+			isLeader, err := g.isLeader()
+			if err == nil && isLeader {
+				client, err := g.getClient()
+				if err == nil {
+					ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+					defer cancel()
+					logger.Info("Transfer leadership")
+					err := client.Transfer(ctx, 0)
+					if err != nil {
+						logger.Warnf("Failed to transfer leadership: %v", err)
+					}
+					client.Close()
+				}
 			}
 		}
 
@@ -684,8 +691,7 @@ func (g *Gateway) init() error {
 
 	g.lock.Lock()
 	g.store.onDisk = client.NewNodeStore(
-		g.db.DB(), "main", "raft_nodes", "address",
-		client.WithNodeStoreWhereClause(fmt.Sprintf("role=%d", db.RaftVoter)))
+		g.db.DB(), "main", "raft_nodes", "address")
 	g.lock.Unlock()
 
 	return nil
