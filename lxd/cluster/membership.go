@@ -425,7 +425,7 @@ func Join(state *state.State, gateway *Gateway, cert *shared.CertInfo, name stri
 			if err != nil {
 				return errors.Wrap(err, "failed to add joining node's to the network")
 			}
-			err = tx.NetworkConfigAdd(id, node.ID, config)
+			err = tx.CreateNetworkConfig(id, node.ID, config)
 			if err != nil {
 				return errors.Wrap(err, "failed to add joining node's network config")
 			}
