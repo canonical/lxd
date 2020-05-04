@@ -34,10 +34,10 @@ func (c *ClusterTx) GetNetworksLocalConfig() (map[string]map[string]string, erro
 	return networks, nil
 }
 
-// NetworkIDsNotPending returns a map associating each network name to its ID.
+// GetNonPendingNetworkIDs returns a map associating each network name to its ID.
 //
 // Pending networks are skipped.
-func (c *ClusterTx) NetworkIDsNotPending() (map[string]int64, error) {
+func (c *ClusterTx) GetNonPendingNetworkIDs() (map[string]int64, error) {
 	networks := []struct {
 		id   int64
 		name string
