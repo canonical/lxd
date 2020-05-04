@@ -537,7 +537,7 @@ func networkConfigAdd(tx *sql.Tx, networkID, nodeID int64, config map[string]str
 			continue
 		}
 		var nodeIDValue interface{}
-		if !shared.StringInSlice(k, NetworkNodeConfigKeys) {
+		if !shared.StringInSlice(k, NodeSpecificNetworkConfig) {
 			nodeIDValue = nil
 		} else {
 			nodeIDValue = nodeID
@@ -595,7 +595,7 @@ func (c *Cluster) RenameNetwork(oldName string, newName string) error {
 	return err
 }
 
-// NetworkNodeConfigKeys lists all network config keys which are node-specific.
-var NetworkNodeConfigKeys = []string{
+// NodeSpecificNetworkConfig lists all network config keys which are node-specific.
+var NodeSpecificNetworkConfig = []string{
 	"bridge.external_interfaces",
 }

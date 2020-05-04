@@ -178,7 +178,7 @@ INSERT INTO projects_config (project_id, key, value) VALUES (1, 'features.storag
 			case "containers":
 				appendNodeID()
 			case "networks_config":
-				// The keys listed in NetworkNodeConfigKeys
+				// The keys listed in NodeSpecificNetworkConfig
 				// are the only ones which are not global to the
 				// cluster, so all other keys will have a NULL
 				// node_id.
@@ -190,7 +190,7 @@ INSERT INTO projects_config (project_id, key, value) VALUES (1, 'features.storag
 					}
 				}
 				key := row[index].(string)
-				if !shared.StringInSlice(key, NetworkNodeConfigKeys) {
+				if !shared.StringInSlice(key, NodeSpecificNetworkConfig) {
 					nullNodeID = true
 					break
 				}
