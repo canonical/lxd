@@ -455,8 +455,8 @@ func (c *Cluster) getNetworkConfig(id int64) (map[string]string, error) {
 	return config, nil
 }
 
-// NetworkCreate creates a new network.
-func (c *Cluster) NetworkCreate(name, description string, config map[string]string) (int64, error) {
+// CreateNetwork creates a new network.
+func (c *Cluster) CreateNetwork(name, description string, config map[string]string) (int64, error) {
 	var id int64
 	err := c.Transaction(func(tx *ClusterTx) error {
 		result, err := tx.tx.Exec("INSERT INTO networks (name, description, state) VALUES (?, ?, ?)", name, description, networkCreated)

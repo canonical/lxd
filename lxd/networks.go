@@ -195,7 +195,7 @@ func networksPost(d *Daemon, r *http.Request) response.Response {
 	}
 
 	// Create the database entry
-	_, err = d.cluster.NetworkCreate(req.Name, req.Description, req.Config)
+	_, err = d.cluster.CreateNetwork(req.Name, req.Description, req.Config)
 	if err != nil {
 		return response.SmartError(fmt.Errorf("Error inserting %s into database: %s", req.Name, err))
 	}
