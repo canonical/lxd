@@ -146,7 +146,7 @@ func networksPost(d *Daemon, r *http.Request) response.Response {
 		// network without actually creating it. The only legal key
 		// value for the storage config is 'bridge.external_interfaces'.
 		for key := range req.Config {
-			if !shared.StringInSlice(key, db.NetworkNodeConfigKeys) {
+			if !shared.StringInSlice(key, db.NodeSpecificNetworkConfig) {
 				return response.SmartError(fmt.Errorf("Config key '%s' may not be used as node-specific key", key))
 			}
 		}
@@ -211,7 +211,7 @@ func networksPost(d *Daemon, r *http.Request) response.Response {
 func networksPostCluster(d *Daemon, req api.NetworksPost) error {
 	// Check that no node-specific config key has been defined.
 	for key := range req.Config {
-		if shared.StringInSlice(key, db.NetworkNodeConfigKeys) {
+		if shared.StringInSlice(key, db.NodeSpecificNetworkConfig) {
 			return fmt.Errorf("Config key '%s' is node-specific", key)
 		}
 	}
@@ -343,7 +343,7 @@ func networkGet(d *Daemon, r *http.Request) response.Response {
 	// If no target node is specified and the daemon is clustered, we omit
 	// the node-specific fields.
 	if targetNode == "" && clustered {
-		for _, key := range db.NetworkNodeConfigKeys {
+		for _, key := range db.NodeSpecificNetworkConfig {
 			delete(n.Config, key)
 		}
 	}
@@ -565,7 +565,7 @@ func networkPut(d *Daemon, r *http.Request) response.Response {
 	// If no target node is specified and the daemon is clustered, we omit
 	// the node-specific fields.
 	if targetNode == "" && clustered {
-		for _, key := range db.NetworkNodeConfigKeys {
+		for _, key := range db.NodeSpecificNetworkConfig {
 			delete(dbInfo.Config, key)
 		}
 	}
@@ -604,7 +604,7 @@ func networkPatch(d *Daemon, r *http.Request) response.Response {
 	// If no target node is specified and the daemon is clustered, we omit
 	// the node-specific fields.
 	if targetNode == "" && clustered {
-		for _, key := range db.NetworkNodeConfigKeys {
+		for _, key := range db.NodeSpecificNetworkConfig {
 			delete(dbInfo.Config, key)
 		}
 	}

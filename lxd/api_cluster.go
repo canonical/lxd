@@ -798,7 +798,7 @@ func clusterInitMember(d, client lxd.InstanceServer, memberConfig []api.ClusterM
 				continue
 			}
 
-			if !shared.StringInSlice(config.Key, db.NetworkNodeConfigKeys) {
+			if !shared.StringInSlice(config.Key, db.NodeSpecificNetworkConfig) {
 				logger.Warnf("Ignoring config key %s for network %s", config.Key, config.Name)
 				continue
 			}
@@ -1483,7 +1483,7 @@ func clusterCheckNetworksMatch(cluster *db.Cluster, reqNetworks []api.Network) e
 				return err
 			}
 			// Exclude the keys which are node-specific.
-			exclude := db.NetworkNodeConfigKeys
+			exclude := db.NodeSpecificNetworkConfig
 			err = util.CompareConfigs(network.Config, reqNetwork.Config, exclude)
 			if err != nil {
 				return fmt.Errorf("Mismatching config for network %s: %v", name, err)
