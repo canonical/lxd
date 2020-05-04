@@ -135,8 +135,8 @@ func (d *btrfs) CreateVolumeFromBackup(vol Volume, snapshots []string, srcData i
 	revert.Add(revertHook)
 
 	// Define function to unpack a volume from a backup tarball file.
-	unpackVolume := func(r io.ReadSeeker, unpacker []string, srcFile string, mountPath string) error {
-		d.Logger().Debug("Unpacking optimized volume", log.Ctx{"source": srcFile, "target": mountPath})
+	unpackVolume := func(r io.ReadSeeker, unpacker []string, srcFile string, targetPath string) error {
+		d.Logger().Debug("Unpacking optimized volume", log.Ctx{"source": srcFile, "target": targetPath})
 		tr, cancelFunc, err := shared.CompressedTarReader(context.Background(), r, unpacker)
 		if err != nil {
 			return err
@@ -154,7 +154,7 @@ func (d *btrfs) CreateVolumeFromBackup(vol Volume, snapshots []string, srcData i
 
 			if hdr.Name == srcFile {
 				// Extract the backup.
-				err = shared.RunCommandWithFds(tr, nil, "btrfs", "receive", "-e", mountPath)
+				err = shared.RunCommandWithFds(tr, nil, "btrfs", "receive", "-e", targetPath)
 				if err != nil {
 					return err
 				}
