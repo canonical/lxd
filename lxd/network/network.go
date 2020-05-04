@@ -148,7 +148,7 @@ func (n *Network) Rename(name string) error {
 	}
 
 	// Rename the database entry
-	err := n.state.Cluster.NetworkRename(n.name, name)
+	err := n.state.Cluster.RenameNetwork(n.name, name)
 	if err != nil {
 		return err
 	}

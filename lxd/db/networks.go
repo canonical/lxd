@@ -580,8 +580,8 @@ func (c *Cluster) DeleteNetwork(name string) error {
 	return nil
 }
 
-// NetworkRename renames a network.
-func (c *Cluster) NetworkRename(oldName string, newName string) error {
+// RenameNetwork renames a network.
+func (c *Cluster) RenameNetwork(oldName string, newName string) error {
 	id, _, err := c.GetNetwork(oldName)
 	if err != nil {
 		return err
