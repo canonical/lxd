@@ -412,7 +412,7 @@ func Join(state *state.State, gateway *Gateway, cert *shared.CertInfo, name stri
 		}
 
 		// Networks.
-		ids, err = tx.NetworkIDsNotPending()
+		ids, err = tx.GetNonPendingNetworkIDs()
 		if err != nil {
 			return errors.Wrap(err, "failed to get cluster network IDs")
 		}
