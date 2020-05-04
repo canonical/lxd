@@ -297,8 +297,8 @@ const (
 	networkErrored            // Network creation failed on some nodes
 )
 
-// NetworkGet returns the network with the given name.
-func (c *Cluster) NetworkGet(name string) (int64, *api.Network, error) {
+// GetNetwork returns the network with the given name.
+func (c *Cluster) GetNetwork(name string) (int64, *api.Network, error) {
 	description := sql.NullString{}
 	id := int64(-1)
 	state := 0
@@ -492,7 +492,7 @@ func (c *Cluster) NetworkCreate(name, description string, config map[string]stri
 
 // NetworkUpdate updates the network with the given name.
 func (c *Cluster) NetworkUpdate(name, description string, config map[string]string) error {
-	id, _, err := c.NetworkGet(name)
+	id, _, err := c.GetNetwork(name)
 	if err != nil {
 		return err
 	}
@@ -568,7 +568,7 @@ func NetworkConfigClear(tx *sql.Tx, networkID, nodeID int64) error {
 
 // NetworkDelete deletes the network with the given name.
 func (c *Cluster) NetworkDelete(name string) error {
-	id, _, err := c.NetworkGet(name)
+	id, _, err := c.GetNetwork(name)
 	if err != nil {
 		return err
 	}
@@ -583,7 +583,7 @@ func (c *Cluster) NetworkDelete(name string) error {
 
 // NetworkRename renames a network.
 func (c *Cluster) NetworkRename(oldName string, newName string) error {
-	id, _, err := c.NetworkGet(oldName)
+	id, _, err := c.GetNetwork(oldName)
 	if err != nil {
 		return err
 	}
