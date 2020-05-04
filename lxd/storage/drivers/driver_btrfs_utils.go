@@ -161,6 +161,11 @@ func (d *btrfs) deleteSubvolume(path string, recursion bool) error {
 		}
 		sort.Sort(sort.Reverse(sort.StringSlice(subsubvols)))
 
+		if len(subsubvols) > 0 {
+			// Attempt to make the root subvolume writable so any subvolumes can be removed.
+			d.setSubvolumeReadonlyProperty(path, false)
+		}
+
 		for _, subsubvol := range subsubvols {
 			err := destroy(filepath.Join(path, subsubvol))
 			if err != nil {
