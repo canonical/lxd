@@ -16,7 +16,7 @@ import (
 )
 
 func networkAutoAttach(cluster *db.Cluster, devName string) error {
-	_, dbInfo, err := cluster.NetworkGetInterface(devName)
+	_, dbInfo, err := cluster.GetNetworkWithInterface(devName)
 	if err != nil {
 		// No match found, move on
 		return nil
