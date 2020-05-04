@@ -229,7 +229,7 @@ func networksPostCluster(d *Daemon, req api.NetworksPost) error {
 	var networkID int64
 	err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
 		// Fetch the network ID.
-		networkID, err = tx.NetworkID(req.Name)
+		networkID, err = tx.GetNetworkID(req.Name)
 		if err != nil {
 			return err
 		}

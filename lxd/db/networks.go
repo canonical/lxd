@@ -66,8 +66,8 @@ func (c *ClusterTx) GetNonPendingNetworkIDs() (map[string]int64, error) {
 	return ids, nil
 }
 
-// NetworkID returns the ID of the network with the given name.
-func (c *ClusterTx) NetworkID(name string) (int64, error) {
+// GetNetworkID returns the ID of the network with the given name.
+func (c *ClusterTx) GetNetworkID(name string) (int64, error) {
 	stmt := "SELECT id FROM networks WHERE name=?"
 	ids, err := query.SelectIntegers(c.tx, stmt, name)
 	if err != nil {
