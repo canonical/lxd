@@ -565,8 +565,8 @@ func clearNetworkConfig(tx *sql.Tx, networkID, nodeID int64) error {
 	return nil
 }
 
-// NetworkDelete deletes the network with the given name.
-func (c *Cluster) NetworkDelete(name string) error {
+// DeleteNetwork deletes the network with the given name.
+func (c *Cluster) DeleteNetwork(name string) error {
 	id, _, err := c.GetNetwork(name)
 	if err != nil {
 		return err
