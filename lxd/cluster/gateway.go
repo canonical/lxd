@@ -411,15 +411,22 @@ func (g *Gateway) Shutdown() error {
 			g.Sync()
 		}
 
-		// If we are the cluster leader, let's try to transfer leadership.
-		isLeader, err := g.isLeader()
-		if err == nil && isLeader {
-			client, err := g.getClient()
-			if err == nil {
-				ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-				defer cancel()
-				client.Transfer(ctx, 0)
-				client.Close()
+		// If this is not a standalone node and we are the cluster
+		// leader, let's try to transfer leadership.
+		if g.memoryDial == nil {
+			isLeader, err := g.isLeader()
+			if err == nil && isLeader {
+				client, err := g.getClient()
+				if err == nil {
+					ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+					defer cancel()
+					logger.Info("Transfer leadership")
+					err := client.Transfer(ctx, 0)
+					if err != nil {
+						logger.Warnf("Failed to transfer leadership: %v", err)
+					}
+					client.Close()
+				}
 			}
 		}
 
