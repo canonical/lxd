@@ -1467,7 +1467,7 @@ func clusterCheckStoragePoolsMatch(cluster *db.Cluster, reqPools []api.StoragePo
 }
 
 func clusterCheckNetworksMatch(cluster *db.Cluster, reqNetworks []api.Network) error {
-	networkNames, err := cluster.NetworksNotPending()
+	networkNames, err := cluster.GetNonPendingNetworks()
 	if err != nil && err != db.ErrNoSuchObject {
 		return err
 	}

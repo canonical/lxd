@@ -836,7 +836,7 @@ func networkLeasesGet(d *Daemon, r *http.Request) response.Response {
 
 func networkStartup(s *state.State) error {
 	// Get a list of managed networks
-	networks, err := s.Cluster.NetworksNotPending()
+	networks, err := s.Cluster.GetNonPendingNetworks()
 	if err != nil {
 		return err
 	}
