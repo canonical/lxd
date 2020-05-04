@@ -221,7 +221,7 @@ func UpdateDNSMasqStatic(s *state.State, networkName string) error {
 	var networks []string
 	if networkName == "" {
 		var err error
-		networks, err = s.Cluster.Networks()
+		networks, err = s.Cluster.GetNetworks()
 		if err != nil {
 			return err
 		}
