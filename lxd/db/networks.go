@@ -503,7 +503,7 @@ func (c *Cluster) UpdateNetwork(name, description string, config map[string]stri
 			return err
 		}
 
-		err = NetworkConfigClear(tx.tx, id, c.nodeID)
+		err = clearNetworkConfig(tx.tx, id, c.nodeID)
 		if err != nil {
 			return err
 		}
@@ -552,9 +552,9 @@ func networkConfigAdd(tx *sql.Tx, networkID, nodeID int64, config map[string]str
 	return nil
 }
 
-// NetworkConfigClear resets the config of the network with the given ID
+// Remove any the config of the network with the given ID
 // associated with the node with the given ID.
-func NetworkConfigClear(tx *sql.Tx, networkID, nodeID int64) error {
+func clearNetworkConfig(tx *sql.Tx, networkID, nodeID int64) error {
 	_, err := tx.Exec(
 		"DELETE FROM networks_config WHERE network_id=? AND (node_id=? OR node_id IS NULL)",
 		networkID, nodeID)
