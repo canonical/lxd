@@ -48,7 +48,7 @@ func TestNetworkCreatePending(t *testing.T) {
 	err = tx.NetworkCreatePending("buzz", "network1", config)
 	require.NoError(t, err)
 
-	networkID, err := tx.NetworkID("network1")
+	networkID, err := tx.GetNetworkID("network1")
 	require.NoError(t, err)
 	assert.True(t, networkID > 0)
 
