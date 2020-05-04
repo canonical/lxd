@@ -684,8 +684,7 @@ func (g *Gateway) init() error {
 
 	g.lock.Lock()
 	g.store.onDisk = client.NewNodeStore(
-		g.db.DB(), "main", "raft_nodes", "address",
-		client.WithNodeStoreWhereClause(fmt.Sprintf("role=%d", db.RaftVoter)))
+		g.db.DB(), "main", "raft_nodes", "address")
 	g.lock.Unlock()
 
 	return nil
