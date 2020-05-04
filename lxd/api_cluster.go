@@ -130,7 +130,7 @@ func clusterGetMemberConfig(cluster *db.Cluster) ([]api.ClusterMemberConfigKey, 
 			return errors.Wrapf(err, "Failed to fetch storage pools configuration")
 		}
 
-		networks, err = tx.NetworksNodeConfig()
+		networks, err = tx.GetNetworksLocalConfig()
 		if err != nil {
 			return errors.Wrapf(err, "Failed to fetch networks configuration")
 		}

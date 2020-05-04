@@ -10,8 +10,8 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// The NetworksNodeConfigs method returns only node-specific config values.
-func TestNetworksNodeConfigs(t *testing.T) {
+// The GetNetworksLocalConfigs method returns only node-specific config values.
+func TestGetNetworksLocalConfigs(t *testing.T) {
 	cluster, cleanup := db.NewTestCluster(t)
 	defer cleanup()
 
@@ -25,7 +25,7 @@ func TestNetworksNodeConfigs(t *testing.T) {
 
 	err = cluster.Transaction(func(tx *db.ClusterTx) error {
 		var err error
-		config, err = tx.NetworksNodeConfig()
+		config, err = tx.GetNetworksLocalConfig()
 		return err
 	})
 	require.NoError(t, err)
