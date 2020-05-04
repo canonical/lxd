@@ -928,6 +928,12 @@ func (d *btrfs) BackupVolume(vol Volume, tarWriter *instancewriter.InstanceTarWr
 		return err
 	}
 
+	// Ensure snapshot sub volumes are removed.
+	err = d.deleteSubvolume(targetVolume, true)
+	if err != nil {
+		return err
+	}
+
 	return nil
 }
 
