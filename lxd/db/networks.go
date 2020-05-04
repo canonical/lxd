@@ -315,7 +315,7 @@ func (c *Cluster) GetNetwork(name string) (int64, *api.Network, error) {
 		return -1, nil, err
 	}
 
-	config, err := c.NetworkConfigGet(id)
+	config, err := c.getNetworkConfig(id)
 	if err != nil {
 		return -1, nil, err
 	}
@@ -395,7 +395,7 @@ func (c *Cluster) GetNetworkWithInterface(devName string) (int64, *api.Network, 
 		return -1, nil, fmt.Errorf("No network found for interface: %s", devName)
 	}
 
-	config, err := c.NetworkConfigGet(id)
+	config, err := c.getNetworkConfig(id)
 	if err != nil {
 		return -1, nil, err
 	}
@@ -410,8 +410,8 @@ func (c *Cluster) GetNetworkWithInterface(devName string) (int64, *api.Network, 
 	return id, &network, nil
 }
 
-// NetworkConfigGet returns the config map of the network with the given ID.
-func (c *Cluster) NetworkConfigGet(id int64) (map[string]string, error) {
+// Return the config map of the network with the given ID.
+func (c *Cluster) getNetworkConfig(id int64) (map[string]string, error) {
 	var key, value string
 	query := `
         SELECT
