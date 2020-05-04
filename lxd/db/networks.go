@@ -83,8 +83,8 @@ func (c *ClusterTx) GetNetworkID(name string) (int64, error) {
 	}
 }
 
-// NetworkConfigAdd adds a new entry in the networks_config table
-func (c *ClusterTx) NetworkConfigAdd(networkID, nodeID int64, config map[string]string) error {
+// CreateNetworkConfig adds a new entry in the networks_config table
+func (c *ClusterTx) CreateNetworkConfig(networkID, nodeID int64, config map[string]string) error {
 	return networkConfigAdd(c.tx, networkID, nodeID, config)
 }
 
@@ -218,7 +218,7 @@ func (c *ClusterTx) NetworkCreatePending(node, name string, conf map[string]stri
 	if err != nil {
 		return err
 	}
-	err = c.NetworkConfigAdd(networkID, nodeInfo.ID, conf)
+	err = c.CreateNetworkConfig(networkID, nodeInfo.ID, conf)
 	if err != nil {
 		return err
 	}
