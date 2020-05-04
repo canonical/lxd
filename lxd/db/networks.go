@@ -12,9 +12,10 @@ import (
 	"github.com/lxc/lxd/shared/api"
 )
 
-// NetworksNodeConfig returns a map associating each network name to its
-// node-specific config values (i.e. the ones where node_id is not NULL).
-func (c *ClusterTx) NetworksNodeConfig() (map[string]map[string]string, error) {
+// GetNetworksLocalConfig returns a map associating each network name to its
+// node-specific config values on the local node (i.e. the ones where node_id
+// equals the ID of the local node).
+func (c *ClusterTx) GetNetworksLocalConfig() (map[string]map[string]string, error) {
 	names, err := query.SelectStrings(c.tx, "SELECT name FROM networks")
 	if err != nil {
 		return nil, err

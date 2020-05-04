@@ -285,7 +285,7 @@ func Join(state *state.State, gateway *Gateway, cert *shared.CertInfo, name stri
 		if err != nil {
 			return err
 		}
-		networks, err = tx.NetworksNodeConfig()
+		networks, err = tx.GetNetworksLocalConfig()
 		if err != nil {
 			return err
 		}
