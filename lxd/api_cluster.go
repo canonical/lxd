@@ -427,7 +427,7 @@ func clusterPutJoin(d *Daemon, req api.ClusterPut) response.Response {
 		}
 
 		networks := []api.Network{}
-		networkNames, err := d.cluster.Networks()
+		networkNames, err := d.cluster.GetNetworks()
 		if err != nil && err != db.ErrNoSuchObject {
 			return err
 		}
@@ -1035,7 +1035,7 @@ func clusterNodeDelete(d *Daemon, r *http.Request) response.Response {
 			return response.SmartError(err)
 		}
 
-		networks, err := d.cluster.Networks()
+		networks, err := d.cluster.GetNetworks()
 		if err != nil {
 			return response.SmartError(err)
 		}

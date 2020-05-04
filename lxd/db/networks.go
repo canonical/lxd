@@ -252,8 +252,8 @@ func (c *ClusterTx) networkState(name string, state int) error {
 	return nil
 }
 
-// Networks returns the names of existing networks.
-func (c *Cluster) Networks() ([]string, error) {
+// GetNetworks returns the names of existing networks.
+func (c *Cluster) GetNetworks() ([]string, error) {
 	return c.networks("")
 }
 

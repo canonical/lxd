@@ -270,7 +270,7 @@ func TestJoin(t *testing.T) {
 
 	err = cluster.Bootstrap(targetState, targetGateway, "buzz")
 	require.NoError(t, err)
-	_, err = targetState.Cluster.Networks()
+	_, err = targetState.Cluster.GetNetworks()
 	require.NoError(t, err)
 
 	// Setup a joining node

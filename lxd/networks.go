@@ -860,7 +860,7 @@ func networkStartup(s *state.State) error {
 
 func networkShutdown(s *state.State) error {
 	// Get a list of managed networks
-	networks, err := s.Cluster.Networks()
+	networks, err := s.Cluster.GetNetworks()
 	if err != nil {
 		return err
 	}

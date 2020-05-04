@@ -81,7 +81,7 @@ func TestImportPreClusteringData(t *testing.T) {
 	require.NoError(t, err)
 
 	// networks
-	networks, err := cluster.Networks()
+	networks, err := cluster.GetNetworks()
 	require.NoError(t, err)
 	assert.Equal(t, []string{"lxcbr0"}, networks)
 	id, network, err := cluster.NetworkGet("lxcbr0")

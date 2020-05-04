@@ -26,7 +26,7 @@ func networkAutoAttach(cluster *db.Cluster, devName string) error {
 }
 
 func networkGetInterfaces(cluster *db.Cluster) ([]string, error) {
-	networks, err := cluster.Networks()
+	networks, err := cluster.GetNetworks()
 	if err != nil {
 		return nil, err
 	}
