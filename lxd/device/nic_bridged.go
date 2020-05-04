@@ -404,7 +404,7 @@ func (d *nicBridged) rebuildDnsmasqEntry() error {
 	dnsmasq.ConfigMutex.Lock()
 	defer dnsmasq.ConfigMutex.Unlock()
 
-	_, dbInfo, err := d.state.Cluster.NetworkGet(d.config["parent"])
+	_, dbInfo, err := d.state.Cluster.GetNetwork(d.config["parent"])
 	if err != nil {
 		return err
 	}

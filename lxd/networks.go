@@ -361,7 +361,7 @@ func doNetworkGet(d *Daemon, name string) (api.Network, error) {
 
 	// Get some information
 	osInfo, _ := net.InterfaceByName(name)
-	_, dbInfo, _ := d.cluster.NetworkGet(name)
+	_, dbInfo, _ := d.cluster.GetNetwork(name)
 
 	// Sanity check
 	if osInfo == nil && dbInfo == nil {
@@ -432,7 +432,7 @@ func networkDelete(d *Daemon, r *http.Request) response.Response {
 
 	// Check if the network is pending, if so we just need to delete it from
 	// the database.
-	_, dbNetwork, err := d.cluster.NetworkGet(name)
+	_, dbNetwork, err := d.cluster.GetNetwork(name)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -551,7 +551,7 @@ func networkPut(d *Daemon, r *http.Request) response.Response {
 	name := mux.Vars(r)["name"]
 
 	// Get the existing network
-	_, dbInfo, err := d.cluster.NetworkGet(name)
+	_, dbInfo, err := d.cluster.GetNetwork(name)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -590,7 +590,7 @@ func networkPatch(d *Daemon, r *http.Request) response.Response {
 	name := mux.Vars(r)["name"]
 
 	// Get the existing network
-	_, dbInfo, err := d.cluster.NetworkGet(name)
+	_, dbInfo, err := d.cluster.GetNetwork(name)
 	if err != nil {
 		return response.SmartError(err)
 	}
