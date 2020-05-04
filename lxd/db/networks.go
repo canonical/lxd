@@ -365,9 +365,9 @@ SELECT nodes.name FROM nodes
 	return nodes, nil
 }
 
-// NetworkGetInterface returns the network associated with the interface with
+// GetNetworkWithInterface returns the network associated with the interface with
 // the given name.
-func (c *Cluster) NetworkGetInterface(devName string) (int64, *api.Network, error) {
+func (c *Cluster) GetNetworkWithInterface(devName string) (int64, *api.Network, error) {
 	id := int64(-1)
 	name := ""
 	value := ""
