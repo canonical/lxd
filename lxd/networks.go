@@ -247,7 +247,7 @@ func networksPostCluster(d *Daemon, req api.NetworksPost) error {
 		}
 
 		// Insert the global config keys.
-		return tx.NetworkConfigAdd(networkID, 0, req.Config)
+		return tx.CreateNetworkConfig(networkID, 0, req.Config)
 	})
 	if err != nil {
 		if err == db.ErrNoSuchObject {
