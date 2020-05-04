@@ -1138,7 +1138,7 @@ func (n *Network) Update(newNetwork api.NetworkPut, notify bool) error {
 			n.description = oldDescription
 
 			// Update the database
-			n.state.Cluster.NetworkUpdate(n.name, n.description, n.config)
+			n.state.Cluster.UpdateNetwork(n.name, n.description, n.config)
 
 			// Reset any change that was made to the bridge
 			n.setup(newConfig)
@@ -1229,7 +1229,7 @@ func (n *Network) Update(newNetwork api.NetworkPut, notify bool) error {
 		}
 
 		// Update the database.
-		err = n.state.Cluster.NetworkUpdate(n.name, n.description, n.config)
+		err = n.state.Cluster.UpdateNetwork(n.name, n.description, n.config)
 		if err != nil {
 			return err
 		}
