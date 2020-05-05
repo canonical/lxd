@@ -102,7 +102,7 @@ func doProfileUpdate(d *Daemon, project, name string, id int64, profile *api.Pro
 			return nil
 		}
 
-		err = db.ProfileConfigClear(tx, id)
+		err = db.ClearProfileConfig(tx, id)
 		if err != nil {
 			tx.Rollback()
 			return err
