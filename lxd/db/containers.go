@@ -499,7 +499,7 @@ func (c *ClusterTx) UpdateInstanceNode(project, oldName, newName, newNode string
 
 	// Update the instance's storage volume name (since this is ceph,
 	// there's a clone of the volume for each node).
-	count, err := c.NodesCount()
+	count, err := c.GetNodesCount()
 	if err != nil {
 		return errors.Wrap(err, "Failed to get node's count")
 	}

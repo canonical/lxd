@@ -2344,7 +2344,7 @@ func imageSyncBetweenNodes(d *Daemon, project string, fingerprint string) error 
 
 		// -1 means that we want to replicate the image on all nodes
 		if desiredSyncNodeCount == -1 {
-			nodesCount, err := tx.NodesCount()
+			nodesCount, err := tx.GetNodesCount()
 			if err != nil {
 				return errors.Wrap(err, "Failed to get the number of nodes")
 			}

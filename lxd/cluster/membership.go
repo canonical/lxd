@@ -1010,7 +1010,7 @@ func Count(state *state.State) (int, error) {
 	var count int
 	err := state.Cluster.Transaction(func(tx *db.ClusterTx) error {
 		var err error
-		count, err = tx.NodesCount()
+		count, err = tx.GetNodesCount()
 		return err
 	})
 	return count, err

@@ -185,11 +185,11 @@ func (c *ClusterTx) GetNodes() ([]NodeInfo, error) {
 	return c.nodes(false /* not pending */, "")
 }
 
-// NodesCount returns the number of nodes in the LXD cluster.
+// GetNodesCount returns the number of nodes in the LXD cluster.
 //
 // Since there's always at least one node row, even when not-clustered, the
 // return value is greater than zero
-func (c *ClusterTx) NodesCount() (int, error) {
+func (c *ClusterTx) GetNodesCount() (int, error) {
 	count, err := query.Count(c.tx, "nodes", "")
 	if err != nil {
 		return 0, errors.Wrap(err, "failed to count existing nodes")
