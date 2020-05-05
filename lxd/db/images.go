@@ -970,7 +970,7 @@ func (c *Cluster) CreateImage(project, fp string, fname string, sz int64, public
 		return fmt.Errorf("Invalid image type: %v", typeName)
 	}
 
-	defaultProfileID, _, err := c.ProfileGet(profileProject, "default")
+	defaultProfileID, _, err := c.GetProfile(profileProject, "default")
 	if err != nil {
 		return err
 	}

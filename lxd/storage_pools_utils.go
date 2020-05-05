@@ -91,7 +91,7 @@ func profilesUsingPoolGetNames(db *db.Cluster, project string, poolName string) 
 	}
 
 	for _, pName := range profiles {
-		_, profile, err := db.ProfileGet(project, pName)
+		_, profile, err := db.GetProfile(project, pName)
 		if err != nil {
 			return usedBy, err
 		}
