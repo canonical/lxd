@@ -396,6 +396,20 @@ func (d *lvm) createLogicalVolume(vgName, thinPoolName string, vol Volume, makeT
 		}
 	}
 
+	isRecent, err := d.lvmVersionIsAtLeast(lvmVersion, "2.02.99")
+	if err != nil {
+		return errors.Wrapf(err, "Error checking LVM version")
+	}
+
+	if isRecent {
+		// Disable auto activation of volume on LVM versions that support it.
+		// Must be done after volume create so that zeroing and signature wiping can take place.
+		_, err := shared.RunCommand("lvchange", "--setactivationskip", "y", volDevPath)
+		if err != nil {
+			return errors.Wrapf(err, "Failed to set activation skip on LVM logical volume %q", volDevPath)
+		}
+	}
+
 	d.logger.Debug("Logical volume created", log.Ctx{"vg_name": vgName, "lv_name": lvFullName, "size": fmt.Sprintf("%db", lvSizeBytes), "fs": d.volumeFilesystem(vol)})
 	return nil
 }
