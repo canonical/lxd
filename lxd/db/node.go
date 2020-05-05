@@ -330,9 +330,9 @@ func (c *ClusterTx) CreateNodeWithArch(name string, address string, arch int) (i
 	return query.UpsertObject(c.tx, "nodes", columns, values)
 }
 
-// NodePending toggles the pending flag for the node. A node is pending when
+// SetNodePendingFlag toggles the pending flag for the node. A node is pending when
 // it's been accepted in the cluster, but has not yet actually joined it.
-func (c *ClusterTx) NodePending(id int64, pending bool) error {
+func (c *ClusterTx) SetNodePendingFlag(id int64, pending bool) error {
 	value := 0
 	if pending {
 		value = 1

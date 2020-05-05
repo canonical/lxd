@@ -166,7 +166,7 @@ func TestNodeRemove(t *testing.T) {
 }
 
 // Mark a node has pending.
-func TestNodePending(t *testing.T) {
+func TestSetNodePendingFlag(t *testing.T) {
 	tx, cleanup := db.NewTestClusterTx(t)
 	defer cleanup()
 
@@ -174,7 +174,7 @@ func TestNodePending(t *testing.T) {
 	require.NoError(t, err)
 
 	// Add the pending flag
-	err = tx.NodePending(id, true)
+	err = tx.SetNodePendingFlag(id, true)
 	require.NoError(t, err)
 
 	// Pending nodes are skipped from regular listing
@@ -190,7 +190,7 @@ func TestNodePending(t *testing.T) {
 	assert.Equal(t, id, node.ID)
 
 	// Remove the pending flag
-	err = tx.NodePending(id, false)
+	err = tx.SetNodePendingFlag(id, false)
 	require.NoError(t, err)
 	node, err = tx.GetNodeByName("buzz")
 	require.NoError(t, err)
