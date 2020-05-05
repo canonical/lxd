@@ -1860,7 +1860,7 @@ func (c *lxc) DeviceEventHandler(runConf *deviceConfig.RunConfig) error {
 func (c *lxc) expandConfig(profiles []api.Profile) error {
 	if profiles == nil && len(c.profiles) > 0 {
 		var err error
-		profiles, err = c.state.Cluster.ProfilesGet(c.project, c.profiles)
+		profiles, err = c.state.Cluster.GetProfiles(c.project, c.profiles)
 		if err != nil {
 			return err
 		}
@@ -1874,7 +1874,7 @@ func (c *lxc) expandConfig(profiles []api.Profile) error {
 func (c *lxc) expandDevices(profiles []api.Profile) error {
 	if profiles == nil && len(c.profiles) > 0 {
 		var err error
-		profiles, err = c.state.Cluster.ProfilesGet(c.project, c.profiles)
+		profiles, err = c.state.Cluster.GetProfiles(c.project, c.profiles)
 		if err != nil {
 			return err
 		}
