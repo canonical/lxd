@@ -621,7 +621,7 @@ func Assign(state *state.State, gateway *Gateway, nodes []db.RaftNode) error {
 	address := ""
 	err := state.Cluster.Transaction(func(tx *db.ClusterTx) error {
 		var err error
-		address, err = tx.NodeAddress()
+		address, err = tx.GetLocalNodeAddress()
 		if err != nil {
 			return errors.Wrap(err, "Failed to fetch the address of this cluster member")
 		}

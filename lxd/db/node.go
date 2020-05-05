@@ -122,8 +122,8 @@ func (c *ClusterTx) GetLocalNodeName() (string, error) {
 	}
 }
 
-// NodeAddress returns the address of the node this method is invoked on.
-func (c *ClusterTx) NodeAddress() (string, error) {
+// GetLocalNodeAddress returns the address of the node this method is invoked on.
+func (c *ClusterTx) GetLocalNodeAddress() (string, error) {
 	stmt := "SELECT address FROM nodes WHERE id=?"
 	addresses, err := query.SelectStrings(c.tx, stmt, c.nodeID)
 	if err != nil {
