@@ -71,8 +71,8 @@ func (c *ClusterTx) GetNodeByAddress(address string) (NodeInfo, error) {
 	}
 }
 
-// NodePendingByAddress returns the pending node with the given network address.
-func (c *ClusterTx) NodePendingByAddress(address string) (NodeInfo, error) {
+// GetPendingNodeByAddress returns the pending node with the given network address.
+func (c *ClusterTx) GetPendingNodeByAddress(address string) (NodeInfo, error) {
 	null := NodeInfo{}
 	nodes, err := c.nodes(true /*pending */, "address=?", address)
 	if err != nil {
