@@ -1419,7 +1419,7 @@ func initializeDbObject(d *Daemon) (*db.Dump, error) {
 	// create the default profile and mark all patches as applied.
 	freshHook := func(db *db.Node) error {
 		for _, patchName := range patchesGetNames() {
-			err := db.PatchesMarkApplied(patchName)
+			err := db.MarkPatchAsApplied(patchName)
 			if err != nil {
 				return err
 			}

@@ -113,7 +113,7 @@ func (p *patch) apply(d *Daemon) error {
 		return errors.Wrapf(err, "Failed applying patch %q", p.name)
 	}
 
-	err = d.db.PatchesMarkApplied(p.name)
+	err = d.db.MarkPatchAsApplied(p.name)
 	if err != nil {
 		return errors.Wrapf(err, "Failed marking patch applied %q", p.name)
 	}
