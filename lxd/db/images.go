@@ -590,7 +590,7 @@ WHERE images.fingerprint = ?
 	var addresses []string  // Addresses of online nodes with the image
 
 	err := c.Transaction(func(tx *ClusterTx) error {
-		offlineThreshold, err := tx.NodeOfflineThreshold()
+		offlineThreshold, err := tx.GetNodeOfflineThreshold()
 		if err != nil {
 			return err
 		}
@@ -1148,7 +1148,7 @@ SELECT DISTINCT nodes.address FROM nodes WHERE nodes.address NOT IN (
 func (c *Cluster) getNodesByImageFingerprint(stmt, fingerprint string) ([]string, error) {
 	var addresses []string // Addresses of online nodes with the image
 	err := c.Transaction(func(tx *ClusterTx) error {
-		offlineThreshold, err := tx.NodeOfflineThreshold()
+		offlineThreshold, err := tx.GetNodeOfflineThreshold()
 		if err != nil {
 			return err
 		}

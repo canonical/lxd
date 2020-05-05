@@ -54,7 +54,7 @@ func TestHeartbeat(t *testing.T) {
 		nodes, err := tx.GetNodes()
 		require.NoError(t, err)
 
-		offlineThreshold, err := tx.NodeOfflineThreshold()
+		offlineThreshold, err := tx.GetNodeOfflineThreshold()
 		require.NoError(t, err)
 
 		for _, node := range nodes {
