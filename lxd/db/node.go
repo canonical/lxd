@@ -454,8 +454,8 @@ func (c *ClusterTx) UpdateNodeRoles(id int64, roles []ClusterRole) error {
 	return nil
 }
 
-// NodeRemove removes the node with the given id.
-func (c *ClusterTx) NodeRemove(id int64) error {
+// RemoveNode removes the node with the given id.
+func (c *ClusterTx) RemoveNode(id int64) error {
 	result, err := c.tx.Exec("DELETE FROM nodes WHERE id=?", id)
 	if err != nil {
 		return err

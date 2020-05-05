@@ -917,7 +917,7 @@ func Purge(cluster *db.Cluster, name string) error {
 			return errors.Wrapf(err, "failed to clear node %s", name)
 		}
 
-		err = tx.NodeRemove(node.ID)
+		err = tx.RemoveNode(node.ID)
 		if err != nil {
 			return errors.Wrapf(err, "failed to remove node %s", name)
 		}

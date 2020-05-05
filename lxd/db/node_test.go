@@ -145,7 +145,7 @@ func TestRenameNode(t *testing.T) {
 }
 
 // Remove a new raft node.
-func TestNodeRemove(t *testing.T) {
+func TestRemoveNode(t *testing.T) {
 	tx, cleanup := db.NewTestClusterTx(t)
 	defer cleanup()
 
@@ -155,7 +155,7 @@ func TestNodeRemove(t *testing.T) {
 	id, err := tx.CreateNode("rusp", "5.6.7.8:666")
 	require.NoError(t, err)
 
-	err = tx.NodeRemove(id)
+	err = tx.RemoveNode(id)
 	require.NoError(t, err)
 
 	_, err = tx.GetNodeByName("buzz")
