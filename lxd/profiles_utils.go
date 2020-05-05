@@ -243,7 +243,7 @@ func doProfileUpdateContainer(d *Daemon, name string, old api.ProfilePut, nodeNa
 func getProfileContainersInfo(cluster *db.Cluster, project, profile string) ([]db.InstanceArgs, error) {
 	// Query the db for information about containers associated with the
 	// given profile.
-	names, err := cluster.ProfileContainersGet(project, profile)
+	names, err := cluster.GetInstancesWithProfile(project, profile)
 	if err != nil {
 		return nil, errors.Wrapf(err, "Failed to query instances with profile '%s'", profile)
 	}
