@@ -56,7 +56,7 @@ func doProfileUpdate(d *Daemon, project, name string, id int64, profile *api.Pro
 			// Check what profile the device comes from
 			profiles := container.Profiles
 			for i := len(profiles) - 1; i >= 0; i-- {
-				_, profile, err := d.cluster.ProfileGet(projecthelpers.Default, profiles[i])
+				_, profile, err := d.cluster.GetProfile(projecthelpers.Default, profiles[i])
 				if err != nil {
 					return err
 				}
@@ -85,7 +85,7 @@ func doProfileUpdate(d *Daemon, project, name string, id int64, profile *api.Pro
 		}
 
 		if profile.Description != req.Description {
-			err = db.ProfileDescriptionUpdate(tx, id, req.Description)
+			err = db.UpdateProfileDescription(tx, id, req.Description)
 			if err != nil {
 				tx.Rollback()
 				return err
@@ -102,13 +102,13 @@ func doProfileUpdate(d *Daemon, project, name string, id int64, profile *api.Pro
 			return nil
 		}
 
-		err = db.ProfileConfigClear(tx, id)
+		err = db.ClearProfileConfig(tx, id)
 		if err != nil {
 			tx.Rollback()
 			return err
 		}
 
-		err = db.ProfileConfigAdd(tx, id, req.Config)
+		err = db.CreateProfileConfig(tx, id, req.Config)
 		if err != nil {
 			tx.Rollback()
 			return err
@@ -135,7 +135,7 @@ func doProfileUpdate(d *Daemon, project, name string, id int64, profile *api.Pro
 	nodeName := ""
 	err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
 		var err error
-		nodeName, err = tx.NodeName()
+		nodeName, err = tx.GetLocalNodeName()
 		return err
 	})
 	if err != nil {
@@ -166,7 +166,7 @@ func doProfileUpdateCluster(d *Daemon, project, name string, old api.ProfilePut)
 	nodeName := ""
 	err := d.cluster.Transaction(func(tx *db.ClusterTx) error {
 		var err error
-		nodeName, err = tx.NodeName()
+		nodeName, err = tx.GetLocalNodeName()
 		return err
 	})
 	if err != nil {
@@ -204,7 +204,7 @@ func doProfileUpdateContainer(d *Daemon, name string, old api.ProfilePut, nodeNa
 		return nil
 	}
 
-	profiles, err := d.cluster.ProfilesGet(args.Project, args.Profiles)
+	profiles, err := d.cluster.GetProfiles(args.Project, args.Profiles)
 	if err != nil {
 		return err
 	}
@@ -243,7 +243,7 @@ func doProfileUpdateContainer(d *Daemon, name string, old api.ProfilePut, nodeNa
 func getProfileContainersInfo(cluster *db.Cluster, project, profile string) ([]db.InstanceArgs, error) {
 	// Query the db for information about containers associated with the
 	// given profile.
-	names, err := cluster.ProfileContainersGet(project, profile)
+	names, err := cluster.GetInstancesWithProfile(project, profile)
 	if err != nil {
 		return nil, errors.Wrapf(err, "Failed to query instances with profile '%s'", profile)
 	}

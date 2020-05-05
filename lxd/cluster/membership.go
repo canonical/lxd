@@ -76,13 +76,13 @@ func Bootstrap(state *state.State, gateway *Gateway, name string) error {
 		}
 
 		// Add ourselves to the nodes table.
-		err = tx.NodeUpdate(1, name, address)
+		err = tx.UpdateNode(1, name, address)
 		if err != nil {
 			return errors.Wrap(err, "failed to update cluster node")
 		}
 
 		// Update our role list.
-		err = tx.NodeAddRole(1, db.ClusterRoleDatabase)
+		err = tx.CreateNodeRole(1, db.ClusterRoleDatabase)
 		if err != nil {
 			return errors.Wrapf(err, "Failed to add database role for the node")
 		}
@@ -139,7 +139,7 @@ func Bootstrap(state *state.State, gateway *Gateway, name string) error {
 	// connection, so new queries will be executed over the new network
 	// connection.
 	err = state.Cluster.ExitExclusive(func(tx *db.ClusterTx) error {
-		_, err := tx.Nodes()
+		_, err := tx.GetNodes()
 		return err
 	})
 	if err != nil {
@@ -184,7 +184,7 @@ func Accept(state *state.State, gateway *Gateway, name, address string, schema, 
 		}
 
 		// Add the new node
-		id, err = tx.NodeAddWithArch(name, address, arch)
+		id, err = tx.CreateNodeWithArch(name, address, arch)
 		if err != nil {
 			return errors.Wrap(err, "Failed to insert new node into the database")
 		}
@@ -192,7 +192,7 @@ func Accept(state *state.State, gateway *Gateway, name, address string, schema, 
 		// Mark the node as pending, so it will be skipped when
 		// performing heartbeats or sending cluster
 		// notifications.
-		err = tx.NodePending(id, true)
+		err = tx.SetNodePendingFlag(id, true)
 		if err != nil {
 			return errors.Wrap(err, "Failed to mark the new node as pending")
 		}
@@ -289,7 +289,7 @@ func Join(state *state.State, gateway *Gateway, cert *shared.CertInfo, name stri
 		if err != nil {
 			return err
 		}
-		operations, err = tx.Operations()
+		operations, err = tx.GetLocalOperations()
 		if err != nil {
 			return err
 		}
@@ -368,7 +368,7 @@ func Join(state *state.State, gateway *Gateway, cert *shared.CertInfo, name stri
 	// tables with our local configuration.
 	logger.Info("Migrate local data to cluster database")
 	err = state.Cluster.ExitExclusive(func(tx *db.ClusterTx) error {
-		node, err := tx.NodePendingByAddress(address)
+		node, err := tx.GetPendingNodeByAddress(address)
 		if err != nil {
 			return errors.Wrap(err, "failed to get ID of joining node")
 		}
@@ -433,7 +433,7 @@ func Join(state *state.State, gateway *Gateway, cert *shared.CertInfo, name stri
 
 		// Migrate outstanding operations.
 		for _, operation := range operations {
-			_, err := tx.OperationAdd("", operation.UUID, operation.Type)
+			_, err := tx.CreateOperation("", operation.UUID, operation.Type)
 			if err != nil {
 				return errors.Wrapf(err, "failed to migrate operation %s", operation.UUID)
 			}
@@ -441,14 +441,14 @@ func Join(state *state.State, gateway *Gateway, cert *shared.CertInfo, name stri
 
 		// Remove the pending flag for ourselves
 		// notifications.
-		err = tx.NodePending(node.ID, false)
+		err = tx.SetNodePendingFlag(node.ID, false)
 		if err != nil {
 			return errors.Wrapf(err, "failed to unmark the node as pending")
 		}
 
 		// Update our role list if needed.
 		if info.Role == db.RaftVoter {
-			err = tx.NodeAddRole(node.ID, db.ClusterRoleDatabase)
+			err = tx.CreateNodeRole(node.ID, db.ClusterRoleDatabase)
 			if err != nil {
 				return errors.Wrapf(err, "Failed to add database role for the node")
 			}
@@ -513,7 +513,7 @@ func Rebalance(state *state.State, gateway *Gateway) (string, []db.RaftNode, err
 		offlineThreshold = config.OfflineThreshold()
 		maxVoters = config.MaxVoters()
 		maxStandBy = config.MaxStandBy()
-		nodes, err := tx.Nodes()
+		nodes, err := tx.GetNodes()
 		if err != nil {
 			return errors.Wrap(err, "failed to get cluster nodes")
 		}
@@ -555,7 +555,7 @@ func Rebalance(state *state.State, gateway *Gateway) (string, []db.RaftNode, err
 					return "", nil, errors.Wrap(err, "Failed to demote offline node")
 				}
 				err = state.Cluster.Transaction(func(tx *db.ClusterTx) error {
-					return tx.NodeRemoveRole(node.ID, db.ClusterRoleDatabase)
+					return tx.RemoveNodeRole(node.ID, db.ClusterRoleDatabase)
 				})
 				if err != nil {
 					return "", nil, errors.Wrap(err, "Failed to update node role")
@@ -621,7 +621,7 @@ func Assign(state *state.State, gateway *Gateway, nodes []db.RaftNode) error {
 	address := ""
 	err := state.Cluster.Transaction(func(tx *db.ClusterTx) error {
 		var err error
-		address, err = tx.NodeAddress()
+		address, err = tx.GetLocalNodeAddress()
 		if err != nil {
 			return errors.Wrap(err, "Failed to fetch the address of this cluster member")
 		}
@@ -728,9 +728,9 @@ assign:
 	err = transactor(func(tx *db.ClusterTx) error {
 		var f func(id int64, role db.ClusterRole) error
 		if info.Role == db.RaftVoter {
-			f = tx.NodeAddRole
+			f = tx.CreateNodeRole
 		} else {
-			f = tx.NodeRemoveRole
+			f = tx.RemoveNodeRole
 		}
 		err = f(state.Cluster.GetNodeID(), db.ClusterRoleDatabase)
 		if err != nil {
@@ -766,7 +766,7 @@ func Leave(state *state.State, gateway *Gateway, name string, force bool) (strin
 	var address string
 	err := state.Cluster.Transaction(func(tx *db.ClusterTx) error {
 		// Get the node (if it doesn't exists an error is returned).
-		node, err := tx.NodeByName(name)
+		node, err := tx.GetNodeByName(name)
 		if err != nil {
 			return err
 		}
@@ -875,11 +875,11 @@ func Handover(state *state.State, gateway *Gateway, address string) (string, []d
 func isMemberOnline(state *state.State, cert *shared.CertInfo, address string) (bool, error) {
 	online := true
 	err := state.Cluster.Transaction(func(tx *db.ClusterTx) error {
-		offlineThreshold, err := tx.NodeOfflineThreshold()
+		offlineThreshold, err := tx.GetNodeOfflineThreshold()
 		if err != nil {
 			return err
 		}
-		node, err := tx.NodeByAddress(address)
+		node, err := tx.GetNodeByAddress(address)
 		if err != nil {
 			return err
 		}
@@ -907,17 +907,17 @@ func Purge(cluster *db.Cluster, name string) error {
 
 	return cluster.Transaction(func(tx *db.ClusterTx) error {
 		// Get the node (if it doesn't exists an error is returned).
-		node, err := tx.NodeByName(name)
+		node, err := tx.GetNodeByName(name)
 		if err != nil {
 			return errors.Wrapf(err, "failed to get node %s", name)
 		}
 
-		err = tx.NodeClear(node.ID)
+		err = tx.ClearNode(node.ID)
 		if err != nil {
 			return errors.Wrapf(err, "failed to clear node %s", name)
 		}
 
-		err = tx.NodeRemove(node.ID)
+		err = tx.RemoveNode(node.ID)
 		if err != nil {
 			return errors.Wrapf(err, "failed to remove node %s", name)
 		}
@@ -932,12 +932,12 @@ func List(state *state.State) ([]api.ClusterMember, error) {
 	var offlineThreshold time.Duration
 
 	err = state.Cluster.Transaction(func(tx *db.ClusterTx) error {
-		nodes, err = tx.Nodes()
+		nodes, err = tx.GetNodes()
 		if err != nil {
 			return err
 		}
 
-		offlineThreshold, err = tx.NodeOfflineThreshold()
+		offlineThreshold, err = tx.GetNodeOfflineThreshold()
 		if err != nil {
 			return err
 		}
@@ -1010,7 +1010,7 @@ func Count(state *state.State) (int, error) {
 	var count int
 	err := state.Cluster.Transaction(func(tx *db.ClusterTx) error {
 		var err error
-		count, err = tx.NodesCount()
+		count, err = tx.GetNodesCount()
 		return err
 	})
 	return count, err
@@ -1062,7 +1062,7 @@ func membershipCheckNodeStateForBootstrapOrJoin(tx *db.NodeTx, address string) e
 // Check that cluster-related preconditions are met for bootstrapping or
 // joining a cluster.
 func membershipCheckClusterStateForBootstrapOrJoin(tx *db.ClusterTx) error {
-	nodes, err := tx.Nodes()
+	nodes, err := tx.GetNodes()
 	if err != nil {
 		return errors.Wrap(err, "failed to fetch current cluster nodes")
 	}
@@ -1074,7 +1074,7 @@ func membershipCheckClusterStateForBootstrapOrJoin(tx *db.ClusterTx) error {
 
 // Check that cluster-related preconditions are met for accepting a new node.
 func membershipCheckClusterStateForAccept(tx *db.ClusterTx, name string, address string, schema int, api int) error {
-	nodes, err := tx.Nodes()
+	nodes, err := tx.GetNodes()
 	if err != nil {
 		return errors.Wrap(err, "Failed to fetch current cluster nodes")
 	}
@@ -1116,7 +1116,7 @@ func membershipCheckClusterStateForLeave(tx *db.ClusterTx, nodeID int64) error {
 	}
 
 	// Check that it's not the last node.
-	nodes, err := tx.Nodes()
+	nodes, err := tx.GetNodes()
 	if err != nil {
 		return err
 	}

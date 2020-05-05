@@ -194,7 +194,7 @@ func createFromMigration(d *Daemon, project string, req *api.InstancesPost) resp
 	}
 
 	// Early profile validation.
-	profiles, err := d.cluster.Profiles(project)
+	profiles, err := d.cluster.GetProfileNames(project)
 	if err != nil {
 		return response.InternalError(err)
 	}
@@ -389,7 +389,7 @@ func createFromCopy(d *Daemon, project string, req *api.InstancesPost) response.
 	if clustered {
 		var serverName string
 		err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
-			serverName, err = tx.NodeName()
+			serverName, err = tx.GetLocalNodeName()
 			return err
 		})
 		if err != nil {
@@ -621,7 +621,7 @@ func createFromBackup(d *Daemon, project string, data io.Reader, pool string) re
 		}
 
 		// Otherwise try and restore to the project's default profile pool.
-		_, profile, err := d.State().Cluster.ProfileGet(bInfo.Project, "default")
+		_, profile, err := d.State().Cluster.GetProfile(bInfo.Project, "default")
 		if err != nil {
 			return response.InternalError(errors.Wrap(err, "Failed to get default profile"))
 		}
@@ -749,7 +749,7 @@ func containersPost(d *Daemon, r *http.Request) response.Response {
 		// If no target node was specified, pick the node with the
 		// least number of containers. If there's just one node, or if
 		// the selected node is the local one, this is effectively a
-		// no-op, since NodeWithLeastContainers() will return an empty
+		// no-op, since GetNodeWithLeastInstances() will return an empty
 		// string.
 		architectures, err := instance.SuitableArchitectures(d.State(), project, req)
 		if err != nil {
@@ -757,7 +757,7 @@ func containersPost(d *Daemon, r *http.Request) response.Response {
 		}
 		err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
 			var err error
-			targetNode, err = tx.NodeWithLeastContainers(architectures)
+			targetNode, err = tx.GetNodeWithLeastInstances(architectures)
 			return err
 		})
 		if err != nil {
@@ -916,7 +916,7 @@ func containerFindStoragePool(d *Daemon, project string, req *api.InstancesPost)
 	// If we don't have a valid pool yet, look through profiles
 	if storagePool == "" {
 		for _, pName := range req.Profiles {
-			_, p, err := d.cluster.ProfileGet(project, pName)
+			_, p, err := d.cluster.GetProfile(project, pName)
 			if err != nil {
 				return "", "", "", nil, response.SmartError(err)
 			}

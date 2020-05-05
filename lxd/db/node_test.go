@@ -19,15 +19,15 @@ func TestNodeAdd(t *testing.T) {
 	tx, cleanup := db.NewTestClusterTx(t)
 	defer cleanup()
 
-	id, err := tx.NodeAdd("buzz", "1.2.3.4:666")
+	id, err := tx.CreateNode("buzz", "1.2.3.4:666")
 	require.NoError(t, err)
 	assert.Equal(t, int64(2), id)
 
-	nodes, err := tx.Nodes()
+	nodes, err := tx.GetNodes()
 	require.NoError(t, err)
 	require.Len(t, nodes, 2)
 
-	node, err := tx.NodeByAddress("1.2.3.4:666")
+	node, err := tx.GetNodeByAddress("1.2.3.4:666")
 	require.NoError(t, err)
 	assert.Equal(t, "buzz", node.Name)
 	assert.Equal(t, "1.2.3.4:666", node.Address)
@@ -36,23 +36,23 @@ func TestNodeAdd(t *testing.T) {
 	assert.Equal(t, [2]int{cluster.SchemaVersion, len(version.APIExtensions)}, node.Version())
 	assert.False(t, node.IsOffline(20*time.Second))
 
-	node, err = tx.NodeByName("buzz")
+	node, err = tx.GetNodeByName("buzz")
 	require.NoError(t, err)
 	assert.Equal(t, "buzz", node.Name)
 }
 
-func TestNodesCount(t *testing.T) {
+func TestGetNodesCount(t *testing.T) {
 	tx, cleanup := db.NewTestClusterTx(t)
 	defer cleanup()
 
-	count, err := tx.NodesCount()
+	count, err := tx.GetNodesCount()
 	require.NoError(t, err)
 	assert.Equal(t, 1, count) // There's always at least one node.
 
-	_, err = tx.NodeAdd("buzz", "1.2.3.4:666")
+	_, err = tx.CreateNode("buzz", "1.2.3.4:666")
 	require.NoError(t, err)
 
-	count, err = tx.NodesCount()
+	count, err = tx.GetNodesCount()
 	require.NoError(t, err)
 	assert.Equal(t, 2, count)
 }
@@ -71,7 +71,7 @@ func TestNodeIsOutdated_AllNodesAtSameVersion(t *testing.T) {
 	tx, cleanup := db.NewTestClusterTx(t)
 	defer cleanup()
 
-	_, err := tx.NodeAdd("buzz", "1.2.3.4:666")
+	_, err := tx.CreateNode("buzz", "1.2.3.4:666")
 	require.NoError(t, err)
 
 	outdated, err := tx.NodeIsOutdated()
@@ -84,11 +84,11 @@ func TestNodeIsOutdated_OneNodeWithHigherVersion(t *testing.T) {
 	tx, cleanup := db.NewTestClusterTx(t)
 	defer cleanup()
 
-	id, err := tx.NodeAdd("buzz", "1.2.3.4:666")
+	id, err := tx.CreateNode("buzz", "1.2.3.4:666")
 	require.NoError(t, err)
 
 	version := [2]int{cluster.SchemaVersion + 1, len(version.APIExtensions)}
-	err = tx.NodeUpdateVersion(id, version)
+	err = tx.SetNodeVersion(id, version)
 	require.NoError(t, err)
 
 	outdated, err := tx.NodeIsOutdated()
@@ -101,11 +101,11 @@ func TestNodeIsOutdated_OneNodeWithLowerVersion(t *testing.T) {
 	tx, cleanup := db.NewTestClusterTx(t)
 	defer cleanup()
 
-	id, err := tx.NodeAdd("buzz", "1.2.3.4:666")
+	id, err := tx.CreateNode("buzz", "1.2.3.4:666")
 	require.NoError(t, err)
 
 	version := [2]int{cluster.SchemaVersion, len(version.APIExtensions) - 1}
-	err = tx.NodeUpdateVersion(id, version)
+	err = tx.SetNodeVersion(id, version)
 	require.NoError(t, err)
 
 	outdated, err := tx.NodeIsOutdated()
@@ -114,11 +114,11 @@ func TestNodeIsOutdated_OneNodeWithLowerVersion(t *testing.T) {
 	assert.False(t, outdated)
 }
 
-func TestNodeName(t *testing.T) {
+func TestGetLocalNodeName(t *testing.T) {
 	tx, cleanup := db.NewTestClusterTx(t)
 	defer cleanup()
 
-	name, err := tx.NodeName()
+	name, err := tx.GetLocalNodeName()
 	require.NoError(t, err)
 
 	// The default node 1 has a conventional name 'none'.
@@ -126,89 +126,89 @@ func TestNodeName(t *testing.T) {
 }
 
 // Rename a node
-func TestNodeRename(t *testing.T) {
+func TestRenameNode(t *testing.T) {
 	tx, cleanup := db.NewTestClusterTx(t)
 	defer cleanup()
 
-	_, err := tx.NodeAdd("buzz", "1.2.3.4:666")
+	_, err := tx.CreateNode("buzz", "1.2.3.4:666")
 	require.NoError(t, err)
-	err = tx.NodeRename("buzz", "rusp")
+	err = tx.RenameNode("buzz", "rusp")
 	require.NoError(t, err)
-	node, err := tx.NodeByName("rusp")
+	node, err := tx.GetNodeByName("rusp")
 	require.NoError(t, err)
 	assert.Equal(t, "rusp", node.Name)
 
-	_, err = tx.NodeAdd("buzz", "5.6.7.8:666")
+	_, err = tx.CreateNode("buzz", "5.6.7.8:666")
 	require.NoError(t, err)
-	err = tx.NodeRename("rusp", "buzz")
+	err = tx.RenameNode("rusp", "buzz")
 	assert.Equal(t, db.ErrAlreadyDefined, err)
 }
 
 // Remove a new raft node.
-func TestNodeRemove(t *testing.T) {
+func TestRemoveNode(t *testing.T) {
 	tx, cleanup := db.NewTestClusterTx(t)
 	defer cleanup()
 
-	_, err := tx.NodeAdd("buzz", "1.2.3.4:666")
+	_, err := tx.CreateNode("buzz", "1.2.3.4:666")
 	require.NoError(t, err)
 
-	id, err := tx.NodeAdd("rusp", "5.6.7.8:666")
+	id, err := tx.CreateNode("rusp", "5.6.7.8:666")
 	require.NoError(t, err)
 
-	err = tx.NodeRemove(id)
+	err = tx.RemoveNode(id)
 	require.NoError(t, err)
 
-	_, err = tx.NodeByName("buzz")
+	_, err = tx.GetNodeByName("buzz")
 	assert.NoError(t, err)
 
-	_, err = tx.NodeByName("rusp")
+	_, err = tx.GetNodeByName("rusp")
 	assert.Equal(t, db.ErrNoSuchObject, err)
 }
 
 // Mark a node has pending.
-func TestNodePending(t *testing.T) {
+func TestSetNodePendingFlag(t *testing.T) {
 	tx, cleanup := db.NewTestClusterTx(t)
 	defer cleanup()
 
-	id, err := tx.NodeAdd("buzz", "1.2.3.4:666")
+	id, err := tx.CreateNode("buzz", "1.2.3.4:666")
 	require.NoError(t, err)
 
 	// Add the pending flag
-	err = tx.NodePending(id, true)
+	err = tx.SetNodePendingFlag(id, true)
 	require.NoError(t, err)
 
 	// Pending nodes are skipped from regular listing
-	_, err = tx.NodeByName("buzz")
+	_, err = tx.GetNodeByName("buzz")
 	assert.Equal(t, db.ErrNoSuchObject, err)
-	nodes, err := tx.Nodes()
+	nodes, err := tx.GetNodes()
 	require.NoError(t, err)
 	assert.Len(t, nodes, 1)
 
-	// But the key be retrieved with NodePendingByAddress
-	node, err := tx.NodePendingByAddress("1.2.3.4:666")
+	// But the key be retrieved with GetPendingNodeByAddress
+	node, err := tx.GetPendingNodeByAddress("1.2.3.4:666")
 	require.NoError(t, err)
 	assert.Equal(t, id, node.ID)
 
 	// Remove the pending flag
-	err = tx.NodePending(id, false)
+	err = tx.SetNodePendingFlag(id, false)
 	require.NoError(t, err)
-	node, err = tx.NodeByName("buzz")
+	node, err = tx.GetNodeByName("buzz")
 	require.NoError(t, err)
 	assert.Equal(t, id, node.ID)
 }
 
 // Update the heartbeat of a node.
-func TestNodeHeartbeat(t *testing.T) {
+func TestSetNodeHeartbeat(t *testing.T) {
 	tx, cleanup := db.NewTestClusterTx(t)
 	defer cleanup()
 
-	_, err := tx.NodeAdd("buzz", "1.2.3.4:666")
+	_, err := tx.CreateNode("buzz", "1.2.3.4:666")
 	require.NoError(t, err)
 
-	err = tx.NodeHeartbeat("1.2.3.4:666", time.Now().Add(-time.Minute))
+	err = tx.SetNodeHeartbeat("1.2.3.4:666", time.Now().Add(-time.Minute))
 	require.NoError(t, err)
 
-	nodes, err := tx.Nodes()
+	nodes, err := tx.GetNodes()
 	require.NoError(t, err)
 	require.Len(t, nodes, 2)
 
@@ -221,7 +221,7 @@ func TestNodeIsEmpty_Containers(t *testing.T) {
 	tx, cleanup := db.NewTestClusterTx(t)
 	defer cleanup()
 
-	id, err := tx.NodeAdd("buzz", "1.2.3.4:666")
+	id, err := tx.CreateNode("buzz", "1.2.3.4:666")
 	require.NoError(t, err)
 
 	message, err := tx.NodeIsEmpty(id)
@@ -237,7 +237,7 @@ INSERT INTO instances (id, node_id, name, architecture, type, project_id) VALUES
 	require.NoError(t, err)
 	assert.Equal(t, "Node still has the following containers: foo", message)
 
-	err = tx.NodeClear(id)
+	err = tx.ClearNode(id)
 	require.NoError(t, err)
 
 	message, err = tx.NodeIsEmpty(id)
@@ -251,7 +251,7 @@ func TestNodeIsEmpty_Images(t *testing.T) {
 	tx, cleanup := db.NewTestClusterTx(t)
 	defer cleanup()
 
-	id, err := tx.NodeAdd("buzz", "1.2.3.4:666")
+	id, err := tx.CreateNode("buzz", "1.2.3.4:666")
 	require.NoError(t, err)
 
 	_, err = tx.Tx().Exec(`
@@ -282,7 +282,7 @@ func TestNodeIsEmpty_CustomVolumes(t *testing.T) {
 	tx, cleanup := db.NewTestClusterTx(t)
 	defer cleanup()
 
-	id, err := tx.NodeAdd("buzz", "1.2.3.4:666")
+	id, err := tx.CreateNode("buzz", "1.2.3.4:666")
 	require.NoError(t, err)
 
 	_, err = tx.Tx().Exec(`
@@ -301,11 +301,11 @@ INSERT INTO storage_volumes(name, storage_pool_id, node_id, type, project_id)
 
 // If there are 2 online nodes, return the address of the one with the least
 // number of containers.
-func TestNodeWithLeastContainers(t *testing.T) {
+func TestGetNodeWithLeastInstances(t *testing.T) {
 	tx, cleanup := db.NewTestClusterTx(t)
 	defer cleanup()
 
-	_, err := tx.NodeAdd("buzz", "1.2.3.4:666")
+	_, err := tx.CreateNode("buzz", "1.2.3.4:666")
 	require.NoError(t, err)
 
 	// Add a container to the default node (ID 1)
@@ -314,18 +314,18 @@ INSERT INTO instances (id, node_id, name, architecture, type, project_id) VALUES
 `)
 	require.NoError(t, err)
 
-	name, err := tx.NodeWithLeastContainers(nil)
+	name, err := tx.GetNodeWithLeastInstances(nil)
 	require.NoError(t, err)
 	assert.Equal(t, "buzz", name)
 }
 
 // If there are nodes, and one of them is offline, return the name of the
 // online node, even if the offline one has more containers.
-func TestNodeWithLeastContainers_OfflineNode(t *testing.T) {
+func TestGetNodeWithLeastInstances_OfflineNode(t *testing.T) {
 	tx, cleanup := db.NewTestClusterTx(t)
 	defer cleanup()
 
-	id, err := tx.NodeAdd("buzz", "1.2.3.4:666")
+	id, err := tx.CreateNode("buzz", "1.2.3.4:666")
 	require.NoError(t, err)
 
 	// Add a container to the newly created node.
@@ -335,21 +335,21 @@ INSERT INTO instances (id, node_id, name, architecture, type, project_id) VALUES
 	require.NoError(t, err)
 
 	// Mark the default node has offline.
-	err = tx.NodeHeartbeat("0.0.0.0", time.Now().Add(-time.Minute))
+	err = tx.SetNodeHeartbeat("0.0.0.0", time.Now().Add(-time.Minute))
 	require.NoError(t, err)
 
-	name, err := tx.NodeWithLeastContainers(nil)
+	name, err := tx.GetNodeWithLeastInstances(nil)
 	require.NoError(t, err)
 	assert.Equal(t, "buzz", name)
 }
 
 // If there are 2 online nodes, and a container is pending on one of them,
 // return the address of the other one number of containers.
-func TestNodeWithLeastContainers_Pending(t *testing.T) {
+func TestGetNodeWithLeastInstances_Pending(t *testing.T) {
 	tx, cleanup := db.NewTestClusterTx(t)
 	defer cleanup()
 
-	_, err := tx.NodeAdd("buzz", "1.2.3.4:666")
+	_, err := tx.CreateNode("buzz", "1.2.3.4:666")
 	require.NoError(t, err)
 
 	// Add a pending container to the default node (ID 1)
@@ -358,21 +358,21 @@ INSERT INTO operations (id, uuid, node_id, type, project_id) VALUES (1, 'abc', 1
 `, db.OperationContainerCreate)
 	require.NoError(t, err)
 
-	name, err := tx.NodeWithLeastContainers(nil)
+	name, err := tx.GetNodeWithLeastInstances(nil)
 	require.NoError(t, err)
 	assert.Equal(t, "buzz", name)
 }
 
 // If specific architectures were selected, return only nodes with those
 // architectures.
-func TestNodeWithLeastContainers_Architecture(t *testing.T) {
+func TestGetNodeWithLeastInstances_Architecture(t *testing.T) {
 	tx, cleanup := db.NewTestClusterTx(t)
 	defer cleanup()
 
 	localArch, err := osarch.ArchitectureGetLocalID()
 	require.NoError(t, err)
 
-	_, err = tx.NodeAddWithArch("buzz", "1.2.3.4:666", localArch+1)
+	_, err = tx.CreateNodeWithArch("buzz", "1.2.3.4:666", localArch+1)
 	require.NoError(t, err)
 
 	// Add a container to the default node (ID 1)
@@ -382,7 +382,7 @@ INSERT INTO instances (id, node_id, name, architecture, type, project_id) VALUES
 	require.NoError(t, err)
 
 	// The local node is returned despite it has more containers.
-	name, err := tx.NodeWithLeastContainers([]int{localArch})
+	name, err := tx.GetNodeWithLeastInstances([]int{localArch})
 	require.NoError(t, err)
 	assert.Equal(t, "none", name)
 }

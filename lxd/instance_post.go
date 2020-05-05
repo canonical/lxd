@@ -74,7 +74,7 @@ func containerPost(d *Daemon, r *http.Request) response.Response {
 			}
 
 			// Load target node.
-			node, err := tx.NodeByName(targetNode)
+			node, err := tx.GetNodeByName(targetNode)
 			if err != nil {
 				return errors.Wrap(err, "Failed to get target node")
 			}
@@ -90,7 +90,7 @@ func containerPost(d *Daemon, r *http.Request) response.Response {
 				sourceNodeOffline = false
 				return nil
 			}
-			node, err = tx.NodeByAddress(address)
+			node, err = tx.GetNodeByAddress(address)
 			if err != nil {
 				return errors.Wrapf(err, "Failed to get source node for %s", address)
 			}
@@ -279,12 +279,12 @@ func containerPostClusteringMigrate(d *Daemon, c instance.Instance, oldName, new
 	err := d.cluster.Transaction(func(tx *db.ClusterTx) error {
 		var err error
 
-		sourceAddress, err = tx.NodeAddress()
+		sourceAddress, err = tx.GetLocalNodeAddress()
 		if err != nil {
 			return errors.Wrap(err, "Failed to get local node address")
 		}
 
-		node, err := tx.NodeByName(newNode)
+		node, err := tx.GetNodeByName(newNode)
 		if err != nil {
 			return errors.Wrap(err, "Failed to get new node address")
 		}

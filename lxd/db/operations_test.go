@@ -15,28 +15,28 @@ func TestOperation(t *testing.T) {
 	tx, cleanup := db.NewTestClusterTx(t)
 	defer cleanup()
 
-	id, err := tx.OperationAdd("default", "abcd", db.OperationContainerCreate)
+	id, err := tx.CreateOperation("default", "abcd", db.OperationContainerCreate)
 	require.NoError(t, err)
 	assert.Equal(t, int64(1), id)
 
-	operations, err := tx.Operations()
+	operations, err := tx.GetLocalOperations()
 	require.NoError(t, err)
 	assert.Len(t, operations, 1)
 	assert.Equal(t, operations[0].UUID, "abcd")
 
-	operation, err := tx.OperationByUUID("abcd")
+	operation, err := tx.GetOperationByUUID("abcd")
 	require.NoError(t, err)
 	assert.Equal(t, id, operation.ID)
 	assert.Equal(t, db.OperationContainerCreate, operation.Type)
 
-	uuids, err := tx.OperationsUUIDs()
+	uuids, err := tx.GetLocalOperationsUUIDs()
 	require.NoError(t, err)
 	assert.Equal(t, []string{"abcd"}, uuids)
 
-	err = tx.OperationRemove("abcd")
+	err = tx.RemoveOperation("abcd")
 	require.NoError(t, err)
 
-	_, err = tx.OperationByUUID("abcd")
+	_, err = tx.GetOperationByUUID("abcd")
 	assert.Equal(t, db.ErrNoSuchObject, err)
 }
 
@@ -45,27 +45,27 @@ func TestOperationNoProject(t *testing.T) {
 	tx, cleanup := db.NewTestClusterTx(t)
 	defer cleanup()
 
-	id, err := tx.OperationAdd("", "abcd", db.OperationContainerCreate)
+	id, err := tx.CreateOperation("", "abcd", db.OperationContainerCreate)
 	require.NoError(t, err)
 	assert.Equal(t, int64(1), id)
 
-	operations, err := tx.Operations()
+	operations, err := tx.GetLocalOperations()
 	require.NoError(t, err)
 	assert.Len(t, operations, 1)
 	assert.Equal(t, operations[0].UUID, "abcd")
 
-	operation, err := tx.OperationByUUID("abcd")
+	operation, err := tx.GetOperationByUUID("abcd")
 	require.NoError(t, err)
 	assert.Equal(t, id, operation.ID)
 	assert.Equal(t, db.OperationContainerCreate, operation.Type)
 
-	uuids, err := tx.OperationsUUIDs()
+	uuids, err := tx.GetLocalOperationsUUIDs()
 	require.NoError(t, err)
 	assert.Equal(t, []string{"abcd"}, uuids)
 
-	err = tx.OperationRemove("abcd")
+	err = tx.RemoveOperation("abcd")
 	require.NoError(t, err)
 
-	_, err = tx.OperationByUUID("abcd")
+	_, err = tx.GetOperationByUUID("abcd")
 	assert.Equal(t, db.ErrNoSuchObject, err)
 }

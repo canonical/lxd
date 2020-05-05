@@ -87,7 +87,7 @@ func clusterGet(d *Daemon, r *http.Request) response.Response {
 	name := ""
 	err := d.cluster.Transaction(func(tx *db.ClusterTx) error {
 		var err error
-		name, err = tx.NodeName()
+		name, err = tx.GetLocalNodeName()
 		return err
 	})
 	if err != nil {
@@ -588,7 +588,7 @@ func clusterPutJoin(d *Daemon, req api.ClusterPut) response.Response {
 			var nodeInfo db.NodeInfo
 			err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
 				var err error
-				nodeInfo, err = tx.NodeByAddress(leader)
+				nodeInfo, err = tx.GetNodeByAddress(leader)
 				return err
 			})
 			if err != nil {
@@ -906,7 +906,7 @@ func clusterNodePut(d *Daemon, r *http.Request) response.Response {
 	var current db.NodeInfo
 	var err error
 	err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
-		current, err = tx.NodeByName(name)
+		current, err = tx.GetNodeByName(name)
 		if err != nil {
 			return err
 		}
@@ -947,7 +947,7 @@ func clusterNodePut(d *Daemon, r *http.Request) response.Response {
 			dbRoles = append(dbRoles, db.ClusterRole(role))
 		}
 
-		err := tx.NodeUpdateRoles(current.ID, dbRoles)
+		err := tx.UpdateNodeRoles(current.ID, dbRoles)
 		if err != nil {
 			return err
 		}
@@ -973,7 +973,7 @@ func clusterNodePost(d *Daemon, r *http.Request) response.Response {
 	}
 
 	err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
-		return tx.NodeRename(name, req.ServerName)
+		return tx.RenameNode(name, req.ServerName)
 	})
 	if err != nil {
 		return response.SmartError(err)

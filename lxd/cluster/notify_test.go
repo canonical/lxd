@@ -121,9 +121,9 @@ func (h *notifyFixtures) Nodes(cert *shared.CertInfo, n int) func() {
 			address := servers[i].Listener.Addr().String()
 			var err error
 			if i == 0 {
-				err = tx.NodeUpdate(int64(1), name, address)
+				err = tx.UpdateNode(int64(1), name, address)
 			} else {
-				_, err = tx.NodeAdd(name, address)
+				_, err = tx.CreateNode(name, address)
 			}
 			require.NoError(h.t, err)
 		}
@@ -158,7 +158,7 @@ func (h *notifyFixtures) Nodes(cert *shared.CertInfo, n int) func() {
 func (h *notifyFixtures) Address(i int) string {
 	var address string
 	err := h.state.Cluster.Transaction(func(tx *db.ClusterTx) error {
-		nodes, err := tx.Nodes()
+		nodes, err := tx.GetNodes()
 		require.NoError(h.t, err)
 		address = nodes[i].Address
 		return nil
@@ -170,9 +170,9 @@ func (h *notifyFixtures) Address(i int) string {
 // Mark the i'th node as down.
 func (h *notifyFixtures) Down(i int) {
 	err := h.state.Cluster.Transaction(func(tx *db.ClusterTx) error {
-		nodes, err := tx.Nodes()
+		nodes, err := tx.GetNodes()
 		require.NoError(h.t, err)
-		err = tx.NodeHeartbeat(nodes[i].Address, time.Now().Add(-time.Minute))
+		err = tx.SetNodeHeartbeat(nodes[i].Address, time.Now().Add(-time.Minute))
 		require.NoError(h.t, err)
 		return nil
 	})

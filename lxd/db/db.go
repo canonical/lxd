@@ -257,7 +257,7 @@ func OpenCluster(name string, store driver.NodeStore, address, dir string, timeo
 
 	err = cluster.Transaction(func(tx *ClusterTx) error {
 		// Figure out the ID of this node.
-		nodes, err := tx.Nodes()
+		nodes, err := tx.GetNodes()
 		if err != nil {
 			return errors.Wrap(err, "Failed to fetch nodes")
 		}
@@ -283,7 +283,7 @@ func OpenCluster(name string, store driver.NodeStore, address, dir string, timeo
 		cluster.NodeID(nodeID)
 
 		// Delete any operation tied to this node
-		err = tx.OperationFlush(nodeID)
+		err = tx.removeNodeOperations(nodeID)
 		if err != nil {
 			return err
 		}

@@ -14,7 +14,7 @@ func registerDBOperation(op *Operation, opType db.OperationType) error {
 	}
 
 	err := op.state.Cluster.Transaction(func(tx *db.ClusterTx) error {
-		_, err := tx.OperationAdd(op.project, op.id, opType)
+		_, err := tx.CreateOperation(op.project, op.id, opType)
 		return err
 	})
 	if err != nil {
@@ -30,7 +30,7 @@ func removeDBOperation(op *Operation) error {
 	}
 
 	err := op.state.Cluster.Transaction(func(tx *db.ClusterTx) error {
-		return tx.OperationRemove(op.id)
+		return tx.RemoveOperation(op.id)
 	})
 
 	return err
@@ -44,7 +44,7 @@ func getServerName(op *Operation) (string, error) {
 	var serverName string
 	var err error
 	err = op.state.Cluster.Transaction(func(tx *db.ClusterTx) error {
-		serverName, err = tx.NodeName()
+		serverName, err = tx.GetLocalNodeName()
 		return err
 	})
 	if err != nil {

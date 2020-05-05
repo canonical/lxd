@@ -82,7 +82,7 @@ func (suite *lxdTestSuite) SetupTest() {
 	devicesMap := deviceConfig.Devices{}
 	devicesMap["root"] = rootDev
 
-	defaultID, _, err := suite.d.cluster.ProfileGet("default", "default")
+	defaultID, _, err := suite.d.cluster.GetProfile("default", "default")
 	if err != nil {
 		suite.T().Errorf("failed to get default profile: %v", err)
 	}

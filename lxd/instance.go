@@ -492,7 +492,7 @@ func instanceCreateInternal(s *state.State, args db.InstanceArgs) (instance.Inst
 	}
 
 	// Validate profiles.
-	profiles, err := s.Cluster.Profiles(args.Project)
+	profiles, err := s.Cluster.GetProfileNames(args.Project)
 	if err != nil {
 		return nil, err
 	}
@@ -521,7 +521,7 @@ func instanceCreateInternal(s *state.State, args db.InstanceArgs) (instance.Inst
 	var dbInst db.Instance
 
 	err = s.Cluster.Transaction(func(tx *db.ClusterTx) error {
-		node, err := tx.NodeName()
+		node, err := tx.GetLocalNodeName()
 		if err != nil {
 			return err
 		}

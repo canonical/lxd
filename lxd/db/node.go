@@ -54,8 +54,8 @@ func (n NodeInfo) Version() [2]int {
 	return [2]int{n.Schema, n.APIExtensions}
 }
 
-// NodeByAddress returns the node with the given network address.
-func (c *ClusterTx) NodeByAddress(address string) (NodeInfo, error) {
+// GetNodeByAddress returns the node with the given network address.
+func (c *ClusterTx) GetNodeByAddress(address string) (NodeInfo, error) {
 	null := NodeInfo{}
 	nodes, err := c.nodes(false /* not pending */, "address=?", address)
 	if err != nil {
@@ -71,8 +71,8 @@ func (c *ClusterTx) NodeByAddress(address string) (NodeInfo, error) {
 	}
 }
 
-// NodePendingByAddress returns the pending node with the given network address.
-func (c *ClusterTx) NodePendingByAddress(address string) (NodeInfo, error) {
+// GetPendingNodeByAddress returns the pending node with the given network address.
+func (c *ClusterTx) GetPendingNodeByAddress(address string) (NodeInfo, error) {
 	null := NodeInfo{}
 	nodes, err := c.nodes(true /*pending */, "address=?", address)
 	if err != nil {
@@ -88,8 +88,8 @@ func (c *ClusterTx) NodePendingByAddress(address string) (NodeInfo, error) {
 	}
 }
 
-// NodeByName returns the node with the given name.
-func (c *ClusterTx) NodeByName(name string) (NodeInfo, error) {
+// GetNodeByName returns the node with the given name.
+func (c *ClusterTx) GetNodeByName(name string) (NodeInfo, error) {
 	null := NodeInfo{}
 	nodes, err := c.nodes(false /* not pending */, "name=?", name)
 	if err != nil {
@@ -105,8 +105,8 @@ func (c *ClusterTx) NodeByName(name string) (NodeInfo, error) {
 	}
 }
 
-// NodeName returns the name of the node this method is invoked on.
-func (c *ClusterTx) NodeName() (string, error) {
+// GetLocalNodeName returns the name of the node this method is invoked on.
+func (c *ClusterTx) GetLocalNodeName() (string, error) {
 	stmt := "SELECT name FROM nodes WHERE id=?"
 	names, err := query.SelectStrings(c.tx, stmt, c.nodeID)
 	if err != nil {
@@ -122,8 +122,8 @@ func (c *ClusterTx) NodeName() (string, error) {
 	}
 }
 
-// NodeAddress returns the address of the node this method is invoked on.
-func (c *ClusterTx) NodeAddress() (string, error) {
+// GetLocalNodeAddress returns the address of the node this method is invoked on.
+func (c *ClusterTx) GetLocalNodeAddress() (string, error) {
 	stmt := "SELECT address FROM nodes WHERE id=?"
 	addresses, err := query.SelectStrings(c.tx, stmt, c.nodeID)
 	if err != nil {
@@ -177,19 +177,19 @@ func (c *ClusterTx) NodeIsOutdated() (bool, error) {
 	return false, nil
 }
 
-// Nodes returns all LXD nodes part of the cluster.
+// GetNodes returns all LXD nodes part of the cluster.
 //
 // If this LXD instance is not clustered, a list with a single node whose
 // address is 0.0.0.0 is returned.
-func (c *ClusterTx) Nodes() ([]NodeInfo, error) {
+func (c *ClusterTx) GetNodes() ([]NodeInfo, error) {
 	return c.nodes(false /* not pending */, "")
 }
 
-// NodesCount returns the number of nodes in the LXD cluster.
+// GetNodesCount returns the number of nodes in the LXD cluster.
 //
 // Since there's always at least one node row, even when not-clustered, the
 // return value is greater than zero
-func (c *ClusterTx) NodesCount() (int, error) {
+func (c *ClusterTx) GetNodesCount() (int, error) {
 	count, err := query.Count(c.tx, "nodes", "")
 	if err != nil {
 		return 0, errors.Wrap(err, "failed to count existing nodes")
@@ -197,10 +197,10 @@ func (c *ClusterTx) NodesCount() (int, error) {
 	return count, nil
 }
 
-// NodeRename changes the name of an existing node.
+// RenameNode changes the name of an existing node.
 //
 // Return an error if a node with the same name already exists.
-func (c *ClusterTx) NodeRename(old, new string) error {
+func (c *ClusterTx) RenameNode(old, new string) error {
 	count, err := query.Count(c.tx, "nodes", "name=?", new)
 	if err != nil {
 		return errors.Wrap(err, "failed to check existing nodes")
@@ -311,28 +311,28 @@ func (c *ClusterTx) nodes(pending bool, where string, args ...interface{}) ([]No
 	return nodes, nil
 }
 
-// NodeAdd adds a node to the current list of LXD nodes that are part of the
+// CreateNode adds a node to the current list of LXD nodes that are part of the
 // cluster. The node's architecture will be the architecture of the machine the
 // method is being run on. It returns the ID of the newly inserted row.
-func (c *ClusterTx) NodeAdd(name string, address string) (int64, error) {
+func (c *ClusterTx) CreateNode(name string, address string) (int64, error) {
 	arch, err := osarch.ArchitectureGetLocalID()
 	if err != nil {
 		return -1, err
 	}
-	return c.NodeAddWithArch(name, address, arch)
+	return c.CreateNodeWithArch(name, address, arch)
 }
 
-// NodeAddWithArch is the same as NodeAdd, but lets setting the node
+// CreateNodeWithArch is the same as NodeAdd, but lets setting the node
 // architecture explicitly.
-func (c *ClusterTx) NodeAddWithArch(name string, address string, arch int) (int64, error) {
+func (c *ClusterTx) CreateNodeWithArch(name string, address string, arch int) (int64, error) {
 	columns := []string{"name", "address", "schema", "api_extensions", "arch"}
 	values := []interface{}{name, address, cluster.SchemaVersion, version.APIExtensionsCount(), arch}
 	return query.UpsertObject(c.tx, "nodes", columns, values)
 }
 
-// NodePending toggles the pending flag for the node. A node is pending when
+// SetNodePendingFlag toggles the pending flag for the node. A node is pending when
 // it's been accepted in the cluster, but has not yet actually joined it.
-func (c *ClusterTx) NodePending(id int64, pending bool) error {
+func (c *ClusterTx) SetNodePendingFlag(id int64, pending bool) error {
 	value := 0
 	if pending {
 		value = 1
@@ -351,8 +351,8 @@ func (c *ClusterTx) NodePending(id int64, pending bool) error {
 	return nil
 }
 
-// NodeUpdate updates the name an address of a node.
-func (c *ClusterTx) NodeUpdate(id int64, name string, address string) error {
+// UpdateNode updates the name an address of a node.
+func (c *ClusterTx) UpdateNode(id int64, name string, address string) error {
 	result, err := c.tx.Exec("UPDATE nodes SET name=?, address=? WHERE id=?", name, address, id)
 	if err != nil {
 		return err
@@ -367,8 +367,8 @@ func (c *ClusterTx) NodeUpdate(id int64, name string, address string) error {
 	return nil
 }
 
-// NodeAddRole adds a role to the node.
-func (c *ClusterTx) NodeAddRole(id int64, role ClusterRole) error {
+// CreateNodeRole adds a role to the node.
+func (c *ClusterTx) CreateNodeRole(id int64, role ClusterRole) error {
 	// Translate role names to ids
 	roleID := -1
 	for k, v := range ClusterRoles {
@@ -391,8 +391,8 @@ func (c *ClusterTx) NodeAddRole(id int64, role ClusterRole) error {
 	return nil
 }
 
-// NodeRemoveRole removes a role from the node.
-func (c *ClusterTx) NodeRemoveRole(id int64, role ClusterRole) error {
+// RemoveNodeRole removes a role from the node.
+func (c *ClusterTx) RemoveNodeRole(id int64, role ClusterRole) error {
 	// Translate role names to ids
 	roleID := -1
 	for k, v := range ClusterRoles {
@@ -415,8 +415,8 @@ func (c *ClusterTx) NodeRemoveRole(id int64, role ClusterRole) error {
 	return nil
 }
 
-// NodeUpdateRoles changes the list of roles on a member.
-func (c *ClusterTx) NodeUpdateRoles(id int64, roles []ClusterRole) error {
+// UpdateNodeRoles changes the list of roles on a member.
+func (c *ClusterTx) UpdateNodeRoles(id int64, roles []ClusterRole) error {
 	getRoleID := func(role ClusterRole) (int, error) {
 		for k, v := range ClusterRoles {
 			if v == role {
@@ -454,8 +454,8 @@ func (c *ClusterTx) NodeUpdateRoles(id int64, roles []ClusterRole) error {
 	return nil
 }
 
-// NodeRemove removes the node with the given id.
-func (c *ClusterTx) NodeRemove(id int64) error {
+// RemoveNode removes the node with the given id.
+func (c *ClusterTx) RemoveNode(id int64) error {
 	result, err := c.tx.Exec("DELETE FROM nodes WHERE id=?", id)
 	if err != nil {
 		return err
@@ -470,8 +470,8 @@ func (c *ClusterTx) NodeRemove(id int64) error {
 	return nil
 }
 
-// NodeHeartbeat updates the heartbeat column of the node with the given address.
-func (c *ClusterTx) NodeHeartbeat(address string, heartbeat time.Time) error {
+// SetNodeHeartbeat updates the heartbeat column of the node with the given address.
+func (c *ClusterTx) SetNodeHeartbeat(address string, heartbeat time.Time) error {
 	stmt := "UPDATE nodes SET heartbeat=? WHERE address=?"
 	result, err := c.tx.Exec(stmt, heartbeat, address)
 	if err != nil {
@@ -562,8 +562,8 @@ SELECT fingerprint, node_id FROM images JOIN images_nodes ON images.id=images_no
 	return "", nil
 }
 
-// NodeClear removes any container or image associated with this node.
-func (c *ClusterTx) NodeClear(id int64) error {
+// ClearNode removes any instance or image associated with this node.
+func (c *ClusterTx) ClearNode(id int64) error {
 	_, err := c.tx.Exec("DELETE FROM instances WHERE node_id=?", id)
 	if err != nil {
 		return err
@@ -599,10 +599,10 @@ func (c *ClusterTx) NodeClear(id int64) error {
 	return nil
 }
 
-// NodeOfflineThreshold returns the amount of time that needs to elapse after
+// GetNodeOfflineThreshold returns the amount of time that needs to elapse after
 // which a series of unsuccessful heartbeat will make the node be considered
 // offline.
-func (c *ClusterTx) NodeOfflineThreshold() (time.Duration, error) {
+func (c *ClusterTx) GetNodeOfflineThreshold() (time.Duration, error) {
 	threshold := time.Duration(DefaultOfflineThreshold) * time.Second
 	values, err := query.SelectStrings(
 		c.tx, "SELECT value FROM config WHERE key='cluster.offline_threshold'")
@@ -619,17 +619,17 @@ func (c *ClusterTx) NodeOfflineThreshold() (time.Duration, error) {
 	return threshold, nil
 }
 
-// NodeWithLeastContainers returns the name of the non-offline node with with
+// GetNodeWithLeastInstances returns the name of the non-offline node with with
 // the least number of containers (either already created or being created with
 // an operation). If archs is not empty, then return only nodes with an
 // architecture in that list.
-func (c *ClusterTx) NodeWithLeastContainers(archs []int) (string, error) {
-	threshold, err := c.NodeOfflineThreshold()
+func (c *ClusterTx) GetNodeWithLeastInstances(archs []int) (string, error) {
+	threshold, err := c.GetNodeOfflineThreshold()
 	if err != nil {
 		return "", errors.Wrap(err, "failed to get offline threshold")
 	}
 
-	nodes, err := c.Nodes()
+	nodes, err := c.GetNodes()
 	if err != nil {
 		return "", errors.Wrap(err, "failed to get current nodes")
 	}
@@ -667,9 +667,9 @@ func (c *ClusterTx) NodeWithLeastContainers(archs []int) (string, error) {
 	return name, nil
 }
 
-// NodeUpdateVersion updates the schema and API version of the node with the
+// SetNodeVersion updates the schema and API version of the node with the
 // given id. This is used only in tests.
-func (c *ClusterTx) NodeUpdateVersion(id int64, version [2]int) error {
+func (c *ClusterTx) SetNodeVersion(id int64, version [2]int) error {
 	stmt := "UPDATE nodes SET schema=?, api_extensions=? WHERE id=?"
 
 	result, err := c.tx.Exec(stmt, version[0], version[1], id)

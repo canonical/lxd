@@ -31,7 +31,7 @@ func TestLocateImage(t *testing.T) {
 
 	// Pretend that the target node is down
 	err = cluster.Transaction(func(tx *db.ClusterTx) error {
-		return tx.NodeHeartbeat("0.0.0.0", time.Now().Add(-time.Minute))
+		return tx.SetNodeHeartbeat("0.0.0.0", time.Now().Add(-time.Minute))
 	})
 	require.NoError(t, err)
 
