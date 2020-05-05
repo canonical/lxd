@@ -278,8 +278,8 @@ func (c *Cluster) GetInstancesWithProfile(project, profile string) (map[string][
 	return results, nil
 }
 
-// ProfileCleanupLeftover removes unreferenced profiles.
-func (c *Cluster) ProfileCleanupLeftover() error {
+// RemoveUnreferencedProfiles removes unreferenced profiles.
+func (c *Cluster) RemoveUnreferencedProfiles() error {
 	stmt := `
 DELETE FROM profiles_config WHERE profile_id NOT IN (SELECT id FROM profiles);
 DELETE FROM profiles_devices WHERE profile_id NOT IN (SELECT id FROM profiles);
