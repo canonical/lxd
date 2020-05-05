@@ -1955,7 +1955,7 @@ func updatePoolPropertyForAllObjects(d *Daemon, poolName string, allcontainers [
 				return err
 			}
 
-			err = db.ProfileConfigClear(tx, pID)
+			err = db.ClearProfileConfig(tx, pID)
 			if err != nil {
 				logger.Errorf("Failed to clear old profile configuration for profile %s: %s", pName, err)
 				tx.Rollback()
