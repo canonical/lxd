@@ -1866,7 +1866,7 @@ func (c *lxc) expandConfig(profiles []api.Profile) error {
 		}
 	}
 
-	c.expandedConfig = db.ProfilesExpandConfig(c.localConfig, profiles)
+	c.expandedConfig = db.ExpandInstanceConfig(c.localConfig, profiles)
 
 	return nil
 }
