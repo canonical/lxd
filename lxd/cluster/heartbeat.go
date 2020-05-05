@@ -322,7 +322,7 @@ func (g *Gateway) heartbeat(ctx context.Context, initialHeartbeat bool) {
 				continue
 			}
 
-			err := tx.NodeHeartbeat(node.Address, time.Now())
+			err := tx.SetNodeHeartbeat(node.Address, time.Now())
 			if err != nil {
 				return err
 			}
