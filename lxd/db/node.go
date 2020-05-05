@@ -54,8 +54,8 @@ func (n NodeInfo) Version() [2]int {
 	return [2]int{n.Schema, n.APIExtensions}
 }
 
-// NodeByAddress returns the node with the given network address.
-func (c *ClusterTx) NodeByAddress(address string) (NodeInfo, error) {
+// GetNodeByAddress returns the node with the given network address.
+func (c *ClusterTx) GetNodeByAddress(address string) (NodeInfo, error) {
 	null := NodeInfo{}
 	nodes, err := c.nodes(false /* not pending */, "address=?", address)
 	if err != nil {

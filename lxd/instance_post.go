@@ -90,7 +90,7 @@ func containerPost(d *Daemon, r *http.Request) response.Response {
 				sourceNodeOffline = false
 				return nil
 			}
-			node, err = tx.NodeByAddress(address)
+			node, err = tx.GetNodeByAddress(address)
 			if err != nil {
 				return errors.Wrapf(err, "Failed to get source node for %s", address)
 			}

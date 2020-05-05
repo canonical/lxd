@@ -27,7 +27,7 @@ func TestNodeAdd(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, nodes, 2)
 
-	node, err := tx.NodeByAddress("1.2.3.4:666")
+	node, err := tx.GetNodeByAddress("1.2.3.4:666")
 	require.NoError(t, err)
 	assert.Equal(t, "buzz", node.Name)
 	assert.Equal(t, "1.2.3.4:666", node.Address)

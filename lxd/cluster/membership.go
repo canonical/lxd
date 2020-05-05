@@ -879,7 +879,7 @@ func isMemberOnline(state *state.State, cert *shared.CertInfo, address string) (
 		if err != nil {
 			return err
 		}
-		node, err := tx.NodeByAddress(address)
+		node, err := tx.GetNodeByAddress(address)
 		if err != nil {
 			return err
 		}

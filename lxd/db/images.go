@@ -604,7 +604,7 @@ WHERE images.fingerprint = ?
 			return err
 		}
 		for _, address := range allAddresses {
-			node, err := tx.NodeByAddress(address)
+			node, err := tx.GetNodeByAddress(address)
 			if err != nil {
 				return err
 			}
@@ -1158,7 +1158,7 @@ func (c *Cluster) getNodesByImageFingerprint(stmt, fingerprint string) ([]string
 			return err
 		}
 		for _, address := range allAddresses {
-			node, err := tx.NodeByAddress(address)
+			node, err := tx.GetNodeByAddress(address)
 			if err != nil {
 				return err
 			}
