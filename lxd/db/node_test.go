@@ -301,7 +301,7 @@ INSERT INTO storage_volumes(name, storage_pool_id, node_id, type, project_id)
 
 // If there are 2 online nodes, return the address of the one with the least
 // number of containers.
-func TestNodeWithLeastContainers(t *testing.T) {
+func TestGetNodeWithLeastInstances(t *testing.T) {
 	tx, cleanup := db.NewTestClusterTx(t)
 	defer cleanup()
 
@@ -314,14 +314,14 @@ INSERT INTO instances (id, node_id, name, architecture, type, project_id) VALUES
 `)
 	require.NoError(t, err)
 
-	name, err := tx.NodeWithLeastContainers(nil)
+	name, err := tx.GetNodeWithLeastInstances(nil)
 	require.NoError(t, err)
 	assert.Equal(t, "buzz", name)
 }
 
 // If there are nodes, and one of them is offline, return the name of the
 // online node, even if the offline one has more containers.
-func TestNodeWithLeastContainers_OfflineNode(t *testing.T) {
+func TestGetNodeWithLeastInstances_OfflineNode(t *testing.T) {
 	tx, cleanup := db.NewTestClusterTx(t)
 	defer cleanup()
 
@@ -338,14 +338,14 @@ INSERT INTO instances (id, node_id, name, architecture, type, project_id) VALUES
 	err = tx.SetNodeHeartbeat("0.0.0.0", time.Now().Add(-time.Minute))
 	require.NoError(t, err)
 
-	name, err := tx.NodeWithLeastContainers(nil)
+	name, err := tx.GetNodeWithLeastInstances(nil)
 	require.NoError(t, err)
 	assert.Equal(t, "buzz", name)
 }
 
 // If there are 2 online nodes, and a container is pending on one of them,
 // return the address of the other one number of containers.
-func TestNodeWithLeastContainers_Pending(t *testing.T) {
+func TestGetNodeWithLeastInstances_Pending(t *testing.T) {
 	tx, cleanup := db.NewTestClusterTx(t)
 	defer cleanup()
 
@@ -358,14 +358,14 @@ INSERT INTO operations (id, uuid, node_id, type, project_id) VALUES (1, 'abc', 1
 `, db.OperationContainerCreate)
 	require.NoError(t, err)
 
-	name, err := tx.NodeWithLeastContainers(nil)
+	name, err := tx.GetNodeWithLeastInstances(nil)
 	require.NoError(t, err)
 	assert.Equal(t, "buzz", name)
 }
 
 // If specific architectures were selected, return only nodes with those
 // architectures.
-func TestNodeWithLeastContainers_Architecture(t *testing.T) {
+func TestGetNodeWithLeastInstances_Architecture(t *testing.T) {
 	tx, cleanup := db.NewTestClusterTx(t)
 	defer cleanup()
 
@@ -382,7 +382,7 @@ INSERT INTO instances (id, node_id, name, architecture, type, project_id) VALUES
 	require.NoError(t, err)
 
 	// The local node is returned despite it has more containers.
-	name, err := tx.NodeWithLeastContainers([]int{localArch})
+	name, err := tx.GetNodeWithLeastInstances([]int{localArch})
 	require.NoError(t, err)
 	assert.Equal(t, "none", name)
 }

@@ -749,7 +749,7 @@ func containersPost(d *Daemon, r *http.Request) response.Response {
 		// If no target node was specified, pick the node with the
 		// least number of containers. If there's just one node, or if
 		// the selected node is the local one, this is effectively a
-		// no-op, since NodeWithLeastContainers() will return an empty
+		// no-op, since GetNodeWithLeastInstances() will return an empty
 		// string.
 		architectures, err := instance.SuitableArchitectures(d.State(), project, req)
 		if err != nil {
@@ -757,7 +757,7 @@ func containersPost(d *Daemon, r *http.Request) response.Response {
 		}
 		err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
 			var err error
-			targetNode, err = tx.NodeWithLeastContainers(architectures)
+			targetNode, err = tx.GetNodeWithLeastInstances(architectures)
 			return err
 		})
 		if err != nil {
