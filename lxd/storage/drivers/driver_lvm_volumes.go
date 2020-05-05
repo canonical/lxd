@@ -965,6 +965,11 @@ func (d *lvm) RestoreVolume(vol Volume, snapshotName string, op *operations.Oper
 
 		// If the volume's filesystem needs to have its UUID regenerated to allow mount then do so now.
 		if vol.contentType == ContentTypeFS && renegerateFilesystemUUIDNeeded(d.volumeFilesystem(vol)) {
+			_, err = d.activateVolume(volDevPath)
+			if err != nil {
+				return err
+			}
+
 			d.logger.Debug("Regenerating filesystem UUID", log.Ctx{"dev": volDevPath, "fs": d.volumeFilesystem(vol)})
 			err = regenerateFilesystemUUID(d.volumeFilesystem(vol), volDevPath)
 			if err != nil {
