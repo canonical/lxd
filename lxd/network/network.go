@@ -104,7 +104,7 @@ func (n *Network) Delete(withDatabase bool) error {
 	}
 
 	// Remove the network from the database
-	err := n.state.Cluster.NetworkDelete(n.name)
+	err := n.state.Cluster.DeleteNetwork(n.name)
 	if err != nil {
 		return err
 	}
@@ -148,7 +148,7 @@ func (n *Network) Rename(name string) error {
 	}
 
 	// Rename the database entry
-	err := n.state.Cluster.NetworkRename(n.name, name)
+	err := n.state.Cluster.RenameNetwork(n.name, name)
 	if err != nil {
 		return err
 	}
@@ -1138,7 +1138,7 @@ func (n *Network) Update(newNetwork api.NetworkPut, notify bool) error {
 			n.description = oldDescription
 
 			// Update the database
-			n.state.Cluster.NetworkUpdate(n.name, n.description, n.config)
+			n.state.Cluster.UpdateNetwork(n.name, n.description, n.config)
 
 			// Reset any change that was made to the bridge
 			n.setup(newConfig)
@@ -1229,7 +1229,7 @@ func (n *Network) Update(newNetwork api.NetworkPut, notify bool) error {
 		}
 
 		// Update the database.
-		err = n.state.Cluster.NetworkUpdate(n.name, n.description, n.config)
+		err = n.state.Cluster.UpdateNetwork(n.name, n.description, n.config)
 		if err != nil {
 			return err
 		}

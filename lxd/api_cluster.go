@@ -130,7 +130,7 @@ func clusterGetMemberConfig(cluster *db.Cluster) ([]api.ClusterMemberConfigKey, 
 			return errors.Wrapf(err, "Failed to fetch storage pools configuration")
 		}
 
-		networks, err = tx.NetworksNodeConfig()
+		networks, err = tx.GetNetworksLocalConfig()
 		if err != nil {
 			return errors.Wrapf(err, "Failed to fetch networks configuration")
 		}
@@ -427,13 +427,13 @@ func clusterPutJoin(d *Daemon, req api.ClusterPut) response.Response {
 		}
 
 		networks := []api.Network{}
-		networkNames, err := d.cluster.Networks()
+		networkNames, err := d.cluster.GetNetworks()
 		if err != nil && err != db.ErrNoSuchObject {
 			return err
 		}
 
 		for _, name := range networkNames {
-			_, network, err := d.cluster.NetworkGet(name)
+			_, network, err := d.cluster.GetNetwork(name)
 			if err != nil {
 				return err
 			}
@@ -798,7 +798,7 @@ func clusterInitMember(d, client lxd.InstanceServer, memberConfig []api.ClusterM
 				continue
 			}
 
-			if !shared.StringInSlice(config.Key, db.NetworkNodeConfigKeys) {
+			if !shared.StringInSlice(config.Key, db.NodeSpecificNetworkConfig) {
 				logger.Warnf("Ignoring config key %s for network %s", config.Key, config.Name)
 				continue
 			}
@@ -1035,7 +1035,7 @@ func clusterNodeDelete(d *Daemon, r *http.Request) response.Response {
 			return response.SmartError(err)
 		}
 
-		networks, err := d.cluster.Networks()
+		networks, err := d.cluster.GetNetworks()
 		if err != nil {
 			return response.SmartError(err)
 		}
@@ -1467,7 +1467,7 @@ func clusterCheckStoragePoolsMatch(cluster *db.Cluster, reqPools []api.StoragePo
 }
 
 func clusterCheckNetworksMatch(cluster *db.Cluster, reqNetworks []api.Network) error {
-	networkNames, err := cluster.NetworksNotPending()
+	networkNames, err := cluster.GetNonPendingNetworks()
 	if err != nil && err != db.ErrNoSuchObject {
 		return err
 	}
@@ -1478,12 +1478,12 @@ func clusterCheckNetworksMatch(cluster *db.Cluster, reqNetworks []api.Network) e
 				continue
 			}
 			found = true
-			_, network, err := cluster.NetworkGet(name)
+			_, network, err := cluster.GetNetwork(name)
 			if err != nil {
 				return err
 			}
 			// Exclude the keys which are node-specific.
-			exclude := db.NetworkNodeConfigKeys
+			exclude := db.NodeSpecificNetworkConfig
 			err = util.CompareConfigs(network.Config, reqNetwork.Config, exclude)
 			if err != nil {
 				return fmt.Errorf("Mismatching config for network %s: %v", name, err)

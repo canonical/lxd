@@ -12,9 +12,10 @@ import (
 	"github.com/lxc/lxd/shared/api"
 )
 
-// NetworksNodeConfig returns a map associating each network name to its
-// node-specific config values (i.e. the ones where node_id is not NULL).
-func (c *ClusterTx) NetworksNodeConfig() (map[string]map[string]string, error) {
+// GetNetworksLocalConfig returns a map associating each network name to its
+// node-specific config values on the local node (i.e. the ones where node_id
+// equals the ID of the local node).
+func (c *ClusterTx) GetNetworksLocalConfig() (map[string]map[string]string, error) {
 	names, err := query.SelectStrings(c.tx, "SELECT name FROM networks")
 	if err != nil {
 		return nil, err
@@ -33,10 +34,10 @@ func (c *ClusterTx) NetworksNodeConfig() (map[string]map[string]string, error) {
 	return networks, nil
 }
 
-// NetworkIDsNotPending returns a map associating each network name to its ID.
+// GetNonPendingNetworkIDs returns a map associating each network name to its ID.
 //
 // Pending networks are skipped.
-func (c *ClusterTx) NetworkIDsNotPending() (map[string]int64, error) {
+func (c *ClusterTx) GetNonPendingNetworkIDs() (map[string]int64, error) {
 	networks := []struct {
 		id   int64
 		name string
@@ -65,8 +66,8 @@ func (c *ClusterTx) NetworkIDsNotPending() (map[string]int64, error) {
 	return ids, nil
 }
 
-// NetworkID returns the ID of the network with the given name.
-func (c *ClusterTx) NetworkID(name string) (int64, error) {
+// GetNetworkID returns the ID of the network with the given name.
+func (c *ClusterTx) GetNetworkID(name string) (int64, error) {
 	stmt := "SELECT id FROM networks WHERE name=?"
 	ids, err := query.SelectIntegers(c.tx, stmt, name)
 	if err != nil {
@@ -82,8 +83,8 @@ func (c *ClusterTx) NetworkID(name string) (int64, error) {
 	}
 }
 
-// NetworkConfigAdd adds a new entry in the networks_config table
-func (c *ClusterTx) NetworkConfigAdd(networkID, nodeID int64, config map[string]string) error {
+// CreateNetworkConfig adds a new entry in the networks_config table
+func (c *ClusterTx) CreateNetworkConfig(networkID, nodeID int64, config map[string]string) error {
 	return networkConfigAdd(c.tx, networkID, nodeID, config)
 }
 
@@ -217,7 +218,7 @@ func (c *ClusterTx) NetworkCreatePending(node, name string, conf map[string]stri
 	if err != nil {
 		return err
 	}
-	err = c.NetworkConfigAdd(networkID, nodeInfo.ID, conf)
+	err = c.CreateNetworkConfig(networkID, nodeInfo.ID, conf)
 	if err != nil {
 		return err
 	}
@@ -251,14 +252,14 @@ func (c *ClusterTx) networkState(name string, state int) error {
 	return nil
 }
 
-// Networks returns the names of existing networks.
-func (c *Cluster) Networks() ([]string, error) {
+// GetNetworks returns the names of existing networks.
+func (c *Cluster) GetNetworks() ([]string, error) {
 	return c.networks("")
 }
 
-// NetworksNotPending returns the names of all networks that are not
+// GetNonPendingNetworks returns the names of all networks that are not
 // pending.
-func (c *Cluster) NetworksNotPending() ([]string, error) {
+func (c *Cluster) GetNonPendingNetworks() ([]string, error) {
 	return c.networks("NOT state=?", networkPending)
 }
 
@@ -296,8 +297,8 @@ const (
 	networkErrored            // Network creation failed on some nodes
 )
 
-// NetworkGet returns the network with the given name.
-func (c *Cluster) NetworkGet(name string) (int64, *api.Network, error) {
+// GetNetwork returns the network with the given name.
+func (c *Cluster) GetNetwork(name string) (int64, *api.Network, error) {
 	description := sql.NullString{}
 	id := int64(-1)
 	state := 0
@@ -314,7 +315,7 @@ func (c *Cluster) NetworkGet(name string) (int64, *api.Network, error) {
 		return -1, nil, err
 	}
 
-	config, err := c.NetworkConfigGet(id)
+	config, err := c.getNetworkConfig(id)
 	if err != nil {
 		return -1, nil, err
 	}
@@ -364,9 +365,9 @@ SELECT nodes.name FROM nodes
 	return nodes, nil
 }
 
-// NetworkGetInterface returns the network associated with the interface with
+// GetNetworkWithInterface returns the network associated with the interface with
 // the given name.
-func (c *Cluster) NetworkGetInterface(devName string) (int64, *api.Network, error) {
+func (c *Cluster) GetNetworkWithInterface(devName string) (int64, *api.Network, error) {
 	id := int64(-1)
 	name := ""
 	value := ""
@@ -394,7 +395,7 @@ func (c *Cluster) NetworkGetInterface(devName string) (int64, *api.Network, erro
 		return -1, nil, fmt.Errorf("No network found for interface: %s", devName)
 	}
 
-	config, err := c.NetworkConfigGet(id)
+	config, err := c.getNetworkConfig(id)
 	if err != nil {
 		return -1, nil, err
 	}
@@ -409,8 +410,8 @@ func (c *Cluster) NetworkGetInterface(devName string) (int64, *api.Network, erro
 	return id, &network, nil
 }
 
-// NetworkConfigGet returns the config map of the network with the given ID.
-func (c *Cluster) NetworkConfigGet(id int64) (map[string]string, error) {
+// Return the config map of the network with the given ID.
+func (c *Cluster) getNetworkConfig(id int64) (map[string]string, error) {
 	var key, value string
 	query := `
         SELECT
@@ -454,8 +455,8 @@ func (c *Cluster) NetworkConfigGet(id int64) (map[string]string, error) {
 	return config, nil
 }
 
-// NetworkCreate creates a new network.
-func (c *Cluster) NetworkCreate(name, description string, config map[string]string) (int64, error) {
+// CreateNetwork creates a new network.
+func (c *Cluster) CreateNetwork(name, description string, config map[string]string) (int64, error) {
 	var id int64
 	err := c.Transaction(func(tx *ClusterTx) error {
 		result, err := tx.tx.Exec("INSERT INTO networks (name, description, state) VALUES (?, ?, ?)", name, description, networkCreated)
@@ -489,20 +490,20 @@ func (c *Cluster) NetworkCreate(name, description string, config map[string]stri
 	return id, err
 }
 
-// NetworkUpdate updates the network with the given name.
-func (c *Cluster) NetworkUpdate(name, description string, config map[string]string) error {
-	id, _, err := c.NetworkGet(name)
+// UpdateNetwork updates the network with the given name.
+func (c *Cluster) UpdateNetwork(name, description string, config map[string]string) error {
+	id, _, err := c.GetNetwork(name)
 	if err != nil {
 		return err
 	}
 
 	err = c.Transaction(func(tx *ClusterTx) error {
-		err = NetworkUpdateDescription(tx.tx, id, description)
+		err = updateNetworkDescription(tx.tx, id, description)
 		if err != nil {
 			return err
 		}
 
-		err = NetworkConfigClear(tx.tx, id, c.nodeID)
+		err = clearNetworkConfig(tx.tx, id, c.nodeID)
 		if err != nil {
 			return err
 		}
@@ -517,9 +518,8 @@ func (c *Cluster) NetworkUpdate(name, description string, config map[string]stri
 	return err
 }
 
-// NetworkUpdateDescription updates the description of the network with the
-// given ID.
-func NetworkUpdateDescription(tx *sql.Tx, id int64, description string) error {
+// Update the description of the network with the given ID.
+func updateNetworkDescription(tx *sql.Tx, id int64, description string) error {
 	_, err := tx.Exec("UPDATE networks SET description=? WHERE id=?", description, id)
 	return err
 }
@@ -537,7 +537,7 @@ func networkConfigAdd(tx *sql.Tx, networkID, nodeID int64, config map[string]str
 			continue
 		}
 		var nodeIDValue interface{}
-		if !shared.StringInSlice(k, NetworkNodeConfigKeys) {
+		if !shared.StringInSlice(k, NodeSpecificNetworkConfig) {
 			nodeIDValue = nil
 		} else {
 			nodeIDValue = nodeID
@@ -552,9 +552,9 @@ func networkConfigAdd(tx *sql.Tx, networkID, nodeID int64, config map[string]str
 	return nil
 }
 
-// NetworkConfigClear resets the config of the network with the given ID
+// Remove any the config of the network with the given ID
 // associated with the node with the given ID.
-func NetworkConfigClear(tx *sql.Tx, networkID, nodeID int64) error {
+func clearNetworkConfig(tx *sql.Tx, networkID, nodeID int64) error {
 	_, err := tx.Exec(
 		"DELETE FROM networks_config WHERE network_id=? AND (node_id=? OR node_id IS NULL)",
 		networkID, nodeID)
@@ -565,9 +565,9 @@ func NetworkConfigClear(tx *sql.Tx, networkID, nodeID int64) error {
 	return nil
 }
 
-// NetworkDelete deletes the network with the given name.
-func (c *Cluster) NetworkDelete(name string) error {
-	id, _, err := c.NetworkGet(name)
+// DeleteNetwork deletes the network with the given name.
+func (c *Cluster) DeleteNetwork(name string) error {
+	id, _, err := c.GetNetwork(name)
 	if err != nil {
 		return err
 	}
@@ -580,9 +580,9 @@ func (c *Cluster) NetworkDelete(name string) error {
 	return nil
 }
 
-// NetworkRename renames a network.
-func (c *Cluster) NetworkRename(oldName string, newName string) error {
-	id, _, err := c.NetworkGet(oldName)
+// RenameNetwork renames a network.
+func (c *Cluster) RenameNetwork(oldName string, newName string) error {
+	id, _, err := c.GetNetwork(oldName)
 	if err != nil {
 		return err
 	}
@@ -595,7 +595,7 @@ func (c *Cluster) NetworkRename(oldName string, newName string) error {
 	return err
 }
 
-// NetworkNodeConfigKeys lists all network config keys which are node-specific.
-var NetworkNodeConfigKeys = []string{
+// NodeSpecificNetworkConfig lists all network config keys which are node-specific.
+var NodeSpecificNetworkConfig = []string{
 	"bridge.external_interfaces",
 }

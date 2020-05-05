@@ -146,7 +146,7 @@ func networksPost(d *Daemon, r *http.Request) response.Response {
 		// network without actually creating it. The only legal key
 		// value for the storage config is 'bridge.external_interfaces'.
 		for key := range req.Config {
-			if !shared.StringInSlice(key, db.NetworkNodeConfigKeys) {
+			if !shared.StringInSlice(key, db.NodeSpecificNetworkConfig) {
 				return response.SmartError(fmt.Errorf("Config key '%s' may not be used as node-specific key", key))
 			}
 		}
@@ -195,7 +195,7 @@ func networksPost(d *Daemon, r *http.Request) response.Response {
 	}
 
 	// Create the database entry
-	_, err = d.cluster.NetworkCreate(req.Name, req.Description, req.Config)
+	_, err = d.cluster.CreateNetwork(req.Name, req.Description, req.Config)
 	if err != nil {
 		return response.SmartError(fmt.Errorf("Error inserting %s into database: %s", req.Name, err))
 	}
@@ -211,7 +211,7 @@ func networksPost(d *Daemon, r *http.Request) response.Response {
 func networksPostCluster(d *Daemon, req api.NetworksPost) error {
 	// Check that no node-specific config key has been defined.
 	for key := range req.Config {
-		if shared.StringInSlice(key, db.NetworkNodeConfigKeys) {
+		if shared.StringInSlice(key, db.NodeSpecificNetworkConfig) {
 			return fmt.Errorf("Config key '%s' is node-specific", key)
 		}
 	}
@@ -229,7 +229,7 @@ func networksPostCluster(d *Daemon, req api.NetworksPost) error {
 	var networkID int64
 	err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
 		// Fetch the network ID.
-		networkID, err = tx.NetworkID(req.Name)
+		networkID, err = tx.GetNetworkID(req.Name)
 		if err != nil {
 			return err
 		}
@@ -247,7 +247,7 @@ func networksPostCluster(d *Daemon, req api.NetworksPost) error {
 		}
 
 		// Insert the global config keys.
-		return tx.NetworkConfigAdd(networkID, 0, req.Config)
+		return tx.CreateNetworkConfig(networkID, 0, req.Config)
 	})
 	if err != nil {
 		if err == db.ErrNoSuchObject {
@@ -343,7 +343,7 @@ func networkGet(d *Daemon, r *http.Request) response.Response {
 	// If no target node is specified and the daemon is clustered, we omit
 	// the node-specific fields.
 	if targetNode == "" && clustered {
-		for _, key := range db.NetworkNodeConfigKeys {
+		for _, key := range db.NodeSpecificNetworkConfig {
 			delete(n.Config, key)
 		}
 	}
@@ -361,7 +361,7 @@ func doNetworkGet(d *Daemon, name string) (api.Network, error) {
 
 	// Get some information
 	osInfo, _ := net.InterfaceByName(name)
-	_, dbInfo, _ := d.cluster.NetworkGet(name)
+	_, dbInfo, _ := d.cluster.GetNetwork(name)
 
 	// Sanity check
 	if osInfo == nil && dbInfo == nil {
@@ -432,12 +432,12 @@ func networkDelete(d *Daemon, r *http.Request) response.Response {
 
 	// Check if the network is pending, if so we just need to delete it from
 	// the database.
-	_, dbNetwork, err := d.cluster.NetworkGet(name)
+	_, dbNetwork, err := d.cluster.GetNetwork(name)
 	if err != nil {
 		return response.SmartError(err)
 	}
 	if dbNetwork.Status == "Pending" {
-		err := d.cluster.NetworkDelete(name)
+		err := d.cluster.DeleteNetwork(name)
 		if err != nil {
 			return response.SmartError(err)
 		}
@@ -551,7 +551,7 @@ func networkPut(d *Daemon, r *http.Request) response.Response {
 	name := mux.Vars(r)["name"]
 
 	// Get the existing network
-	_, dbInfo, err := d.cluster.NetworkGet(name)
+	_, dbInfo, err := d.cluster.GetNetwork(name)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -565,7 +565,7 @@ func networkPut(d *Daemon, r *http.Request) response.Response {
 	// If no target node is specified and the daemon is clustered, we omit
 	// the node-specific fields.
 	if targetNode == "" && clustered {
-		for _, key := range db.NetworkNodeConfigKeys {
+		for _, key := range db.NodeSpecificNetworkConfig {
 			delete(dbInfo.Config, key)
 		}
 	}
@@ -590,7 +590,7 @@ func networkPatch(d *Daemon, r *http.Request) response.Response {
 	name := mux.Vars(r)["name"]
 
 	// Get the existing network
-	_, dbInfo, err := d.cluster.NetworkGet(name)
+	_, dbInfo, err := d.cluster.GetNetwork(name)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -604,7 +604,7 @@ func networkPatch(d *Daemon, r *http.Request) response.Response {
 	// If no target node is specified and the daemon is clustered, we omit
 	// the node-specific fields.
 	if targetNode == "" && clustered {
-		for _, key := range db.NetworkNodeConfigKeys {
+		for _, key := range db.NodeSpecificNetworkConfig {
 			delete(dbInfo.Config, key)
 		}
 	}
@@ -836,7 +836,7 @@ func networkLeasesGet(d *Daemon, r *http.Request) response.Response {
 
 func networkStartup(s *state.State) error {
 	// Get a list of managed networks
-	networks, err := s.Cluster.NetworksNotPending()
+	networks, err := s.Cluster.GetNonPendingNetworks()
 	if err != nil {
 		return err
 	}
@@ -860,7 +860,7 @@ func networkStartup(s *state.State) error {
 
 func networkShutdown(s *state.State) error {
 	// Get a list of managed networks
-	networks, err := s.Cluster.Networks()
+	networks, err := s.Cluster.GetNetworks()
 	if err != nil {
 		return err
 	}
