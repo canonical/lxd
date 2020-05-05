@@ -366,6 +366,15 @@ func (d *lvm) SetVolumeQuota(vol Volume, size string, op *operations.Operation) 
 
 	logCtx := log.Ctx{"dev": volDevPath, "size": fmt.Sprintf("%db", sizeBytes)}
 
+	// Activate volume if needed.
+	activated, err := d.activateVolume(volDevPath)
+	if err != nil {
+		return err
+	}
+	if activated {
+		defer d.deactivateVolume(volDevPath)
+	}
+
 	// Resize filesystem if needed.
 	if vol.contentType == ContentTypeFS {
 		if sizeBytes < oldSizeBytes {
