@@ -293,9 +293,9 @@ DELETE FROM profiles_devices_config WHERE profile_device_id NOT IN (SELECT id FR
 	return nil
 }
 
-// ProfilesExpandConfig expands the given container config with the config
+// ExpandInstanceConfig expands the given instance config with the config
 // values of the given profiles.
-func ProfilesExpandConfig(config map[string]string, profiles []api.Profile) map[string]string {
+func ExpandInstanceConfig(config map[string]string, profiles []api.Profile) map[string]string {
 	expandedConfig := map[string]string{}
 
 	// Apply all the profiles

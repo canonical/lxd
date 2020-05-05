@@ -747,7 +747,7 @@ func expandInstancesConfigAndDevices(instances []db.Instance, profiles []db.Prof
 		}
 
 		expandedInstances[i] = instance
-		expandedInstances[i].Config = db.ProfilesExpandConfig(instance.Config, profiles)
+		expandedInstances[i].Config = db.ExpandInstanceConfig(instance.Config, profiles)
 		expandedInstances[i].Devices = db.ProfilesExpandDevices(
 			deviceconfig.NewDevices(instance.Devices), profiles).CloneNative()
 	}
