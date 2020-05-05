@@ -94,8 +94,8 @@ func (c *ClusterTx) RemoveOperation(uuid string) error {
 	return nil
 }
 
-// OperationFlush removes all operations for the given node.
-func (c *ClusterTx) OperationFlush(nodeID int64) error {
+// Remove all operations for the given node.
+func (c *ClusterTx) removeNodeOperations(nodeID int64) error {
 	_, err := c.tx.Exec("DELETE FROM operations WHERE node_id=?", nodeID)
 	if err != nil {
 		return err
