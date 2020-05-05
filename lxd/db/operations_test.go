@@ -24,7 +24,7 @@ func TestOperation(t *testing.T) {
 	assert.Len(t, operations, 1)
 	assert.Equal(t, operations[0].UUID, "abcd")
 
-	operation, err := tx.OperationByUUID("abcd")
+	operation, err := tx.GetOperationByUUID("abcd")
 	require.NoError(t, err)
 	assert.Equal(t, id, operation.ID)
 	assert.Equal(t, db.OperationContainerCreate, operation.Type)
@@ -36,7 +36,7 @@ func TestOperation(t *testing.T) {
 	err = tx.OperationRemove("abcd")
 	require.NoError(t, err)
 
-	_, err = tx.OperationByUUID("abcd")
+	_, err = tx.GetOperationByUUID("abcd")
 	assert.Equal(t, db.ErrNoSuchObject, err)
 }
 
@@ -54,7 +54,7 @@ func TestOperationNoProject(t *testing.T) {
 	assert.Len(t, operations, 1)
 	assert.Equal(t, operations[0].UUID, "abcd")
 
-	operation, err := tx.OperationByUUID("abcd")
+	operation, err := tx.GetOperationByUUID("abcd")
 	require.NoError(t, err)
 	assert.Equal(t, id, operation.ID)
 	assert.Equal(t, db.OperationContainerCreate, operation.Type)
@@ -66,6 +66,6 @@ func TestOperationNoProject(t *testing.T) {
 	err = tx.OperationRemove("abcd")
 	require.NoError(t, err)
 
-	_, err = tx.OperationByUUID("abcd")
+	_, err = tx.GetOperationByUUID("abcd")
 	assert.Equal(t, db.ErrNoSuchObject, err)
 }

@@ -64,7 +64,7 @@ func operationGet(d *Daemon, r *http.Request) response.Response {
 	// Then check if the query is from an operation on another node, and, if so, forward it
 	var address string
 	err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
-		operation, err := tx.OperationByUUID(id)
+		operation, err := tx.GetOperationByUUID(id)
 		if err != nil {
 			return err
 		}
@@ -113,7 +113,7 @@ func operationDelete(d *Daemon, r *http.Request) response.Response {
 	// Then check if the query is from an operation on another node, and, if so, forward it
 	var address string
 	err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
-		operation, err := tx.OperationByUUID(id)
+		operation, err := tx.GetOperationByUUID(id)
 		if err != nil {
 			return err
 		}
@@ -333,7 +333,7 @@ func operationWaitGet(d *Daemon, r *http.Request) response.Response {
 	// Then check if the query is from an operation on another node, and, if so, forward it
 	var address string
 	err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
-		operation, err := tx.OperationByUUID(id)
+		operation, err := tx.GetOperationByUUID(id)
 		if err != nil {
 			return err
 		}
@@ -414,7 +414,7 @@ func operationWebsocketGet(d *Daemon, r *http.Request) response.Response {
 
 	var address string
 	err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
-		operation, err := tx.OperationByUUID(id)
+		operation, err := tx.GetOperationByUUID(id)
 		if err != nil {
 			return err
 		}
