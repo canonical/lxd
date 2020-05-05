@@ -384,7 +384,7 @@ func (c *ClusterTx) instanceListExpanded() ([]Instance, error) {
 		}
 
 		instances[i].Config = ExpandInstanceConfig(instance.Config, profiles)
-		instances[i].Devices = ProfilesExpandDevices(deviceConfig.NewDevices(instance.Devices), profiles).CloneNative()
+		instances[i].Devices = ExpandInstanceDevices(deviceConfig.NewDevices(instance.Devices), profiles).CloneNative()
 	}
 
 	return instances, nil

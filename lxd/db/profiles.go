@@ -318,9 +318,9 @@ func ExpandInstanceConfig(config map[string]string, profiles []api.Profile) map[
 	return expandedConfig
 }
 
-// ProfilesExpandDevices expands the given container devices with the devices
+// ExpandInstanceDevices expands the given instance devices with the devices
 // defined in the given profiles.
-func ProfilesExpandDevices(devices deviceConfig.Devices, profiles []api.Profile) deviceConfig.Devices {
+func ExpandInstanceDevices(devices deviceConfig.Devices, profiles []api.Profile) deviceConfig.Devices {
 	expandedDevices := deviceConfig.Devices{}
 
 	// Apply all the profiles
