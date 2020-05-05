@@ -204,7 +204,7 @@ func doProfileUpdateContainer(d *Daemon, name string, old api.ProfilePut, nodeNa
 		return nil
 	}
 
-	profiles, err := d.cluster.ProfilesGet(args.Project, args.Profiles)
+	profiles, err := d.cluster.GetProfiles(args.Project, args.Profiles)
 	if err != nil {
 		return err
 	}

@@ -48,7 +48,7 @@ func (c *common) LocalDevices() deviceConfig.Devices {
 func (c *common) expandConfig(profiles []api.Profile) error {
 	if profiles == nil && len(c.profiles) > 0 {
 		var err error
-		profiles, err = c.state.Cluster.ProfilesGet(c.project, c.profiles)
+		profiles, err = c.state.Cluster.GetProfiles(c.project, c.profiles)
 		if err != nil {
 			return err
 		}
@@ -62,7 +62,7 @@ func (c *common) expandConfig(profiles []api.Profile) error {
 func (c *common) expandDevices(profiles []api.Profile) error {
 	if profiles == nil && len(c.profiles) > 0 {
 		var err error
-		profiles, err = c.state.Cluster.ProfilesGet(c.project, c.profiles)
+		profiles, err = c.state.Cluster.GetProfiles(c.project, c.profiles)
 		if err != nil {
 			return err
 		}
