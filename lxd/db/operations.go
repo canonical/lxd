@@ -18,8 +18,8 @@ type Operation struct {
 	Type        OperationType // Type of the operation
 }
 
-// Operations returns all operations associated with this node.
-func (c *ClusterTx) Operations() ([]Operation, error) {
+// GetLocalOperations returns all operations associated with this node.
+func (c *ClusterTx) GetLocalOperations() ([]Operation, error) {
 	return c.operations("node_id=?", c.nodeID)
 }
 

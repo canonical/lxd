@@ -19,7 +19,7 @@ func TestOperation(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, int64(1), id)
 
-	operations, err := tx.Operations()
+	operations, err := tx.GetLocalOperations()
 	require.NoError(t, err)
 	assert.Len(t, operations, 1)
 	assert.Equal(t, operations[0].UUID, "abcd")
@@ -49,7 +49,7 @@ func TestOperationNoProject(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, int64(1), id)
 
-	operations, err := tx.Operations()
+	operations, err := tx.GetLocalOperations()
 	require.NoError(t, err)
 	assert.Len(t, operations, 1)
 	assert.Equal(t, operations[0].UUID, "abcd")

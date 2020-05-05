@@ -289,7 +289,7 @@ func Join(state *state.State, gateway *Gateway, cert *shared.CertInfo, name stri
 		if err != nil {
 			return err
 		}
-		operations, err = tx.Operations()
+		operations, err = tx.GetLocalOperations()
 		if err != nil {
 			return err
 		}
