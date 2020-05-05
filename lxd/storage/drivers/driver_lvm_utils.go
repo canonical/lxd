@@ -779,3 +779,31 @@ func (d *lvm) parseLogicalVolumeSnapshot(parent Volume, lvmVolName string) strin
 
 	return ""
 }
+
+// activateVolume activates an LVM logical volume if not already present. Returns true if activated, false if not.
+func (d *lvm) activateVolume(volDevPath string) (bool, error) {
+	if !shared.PathExists(volDevPath) {
+		_, err := shared.RunCommand("lvchange", "--activate", "y", "--ignoreactivationskip", volDevPath)
+		if err != nil {
+			return false, errors.Wrapf(err, "Failed to activate LVM logical volume %q", volDevPath)
+		}
+		d.logger.Debug("Activated logical volume", log.Ctx{"dev": volDevPath})
+		return true, nil
+	}
+
+	return false, nil
+}
+
+// deactivateVolume deactivates an LVM logical volume if present. Returns true if deactivated, false if not.
+func (d *lvm) deactivateVolume(volDevPath string) (bool, error) {
+	if shared.PathExists(volDevPath) {
+		_, err := shared.RunCommand("lvchange", "--activate", "n", "--ignoreactivationskip", volDevPath)
+		if err != nil {
+			return false, errors.Wrapf(err, "Failed to deactivate LVM logical volume %q", volDevPath)
+		}
+		d.logger.Debug("Deactivated logical volume", log.Ctx{"dev": volDevPath})
+		return true, nil
+	}
+
+	return false, nil
+}
