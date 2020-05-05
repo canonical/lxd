@@ -23,9 +23,9 @@ func (c *ClusterTx) GetLocalOperations() ([]Operation, error) {
 	return c.operations("node_id=?", c.nodeID)
 }
 
-// OperationsUUIDs returns the UUIDs of all operations associated with this
+// GetLocalOperationsUUIDs returns the UUIDs of all operations associated with this
 // node.
-func (c *ClusterTx) OperationsUUIDs() ([]string, error) {
+func (c *ClusterTx) GetLocalOperationsUUIDs() ([]string, error) {
 	stmt := "SELECT uuid FROM operations WHERE node_id=?"
 	return query.SelectStrings(c.tx, stmt, c.nodeID)
 }
