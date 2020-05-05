@@ -74,7 +74,7 @@ func TestMaybeUpdate_Upgrade(t *testing.T) {
 		version := node.Version()
 		version[0]++
 
-		err = tx.NodeUpdateVersion(id, version)
+		err = tx.SetNodeVersion(id, version)
 		require.NoError(t, err)
 
 		return nil
