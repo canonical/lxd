@@ -180,66 +180,6 @@ func (c *Cluster) GetProfiles(project string, names []string) ([]api.Profile, er
 	return profiles, nil
 }
 
-// ProfileConfig gets the profile configuration map from the DB.
-func (c *Cluster) ProfileConfig(project, name string) (map[string]string, error) {
-	err := c.Transaction(func(tx *ClusterTx) error {
-		enabled, err := tx.ProjectHasProfiles(project)
-		if err != nil {
-			return errors.Wrap(err, "Check if project has profiles")
-		}
-		if !enabled {
-			project = "default"
-		}
-		return nil
-	})
-	if err != nil {
-		return nil, err
-	}
-
-	var key, value string
-	query := `
-        SELECT
-            key, value
-        FROM profiles_config
-        JOIN profiles ON profiles_config.profile_id=profiles.id
-        JOIN projects ON projects.id = profiles.project_id
-        WHERE projects.name=? AND profiles.name=?`
-	inargs := []interface{}{project, name}
-	outfmt := []interface{}{key, value}
-	results, err := queryScan(c.db, query, inargs, outfmt)
-	if err != nil {
-		return nil, errors.Wrapf(err, "Failed to get profile '%s'", name)
-	}
-
-	if len(results) == 0 {
-		/*
-		 * If we didn't get any rows here, let's check to make sure the
-		 * profile really exists; if it doesn't, let's send back a 404.
-		 */
-		query := "SELECT id FROM profiles WHERE name=?"
-		var id int
-		results, err := queryScan(c.db, query, []interface{}{name}, []interface{}{id})
-		if err != nil {
-			return nil, err
-		}
-
-		if len(results) == 0 {
-			return nil, ErrNoSuchObject
-		}
-	}
-
-	config := map[string]string{}
-
-	for _, r := range results {
-		key = r[0].(string)
-		value = r[1].(string)
-
-		config[key] = value
-	}
-
-	return config, nil
-}
-
 // ProfileDescriptionUpdate updates the description of the profile with the given ID.
 func ProfileDescriptionUpdate(tx *sql.Tx, id int64, description string) error {
 	_, err := tx.Exec("UPDATE profiles SET description=? WHERE id=?", description, id)
