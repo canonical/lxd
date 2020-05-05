@@ -368,7 +368,7 @@ func Join(state *state.State, gateway *Gateway, cert *shared.CertInfo, name stri
 	// tables with our local configuration.
 	logger.Info("Migrate local data to cluster database")
 	err = state.Cluster.ExitExclusive(func(tx *db.ClusterTx) error {
-		node, err := tx.NodePendingByAddress(address)
+		node, err := tx.GetPendingNodeByAddress(address)
 		if err != nil {
 			return errors.Wrap(err, "failed to get ID of joining node")
 		}
