@@ -222,7 +222,7 @@ func (g *Gateway) heartbeat(ctx context.Context, initialHeartbeat bool) {
 	var offlineThreshold time.Duration
 	err = g.Cluster.Transaction(func(tx *db.ClusterTx) error {
 		var err error
-		allNodes, err = tx.Nodes()
+		allNodes, err = tx.GetNodes()
 		if err != nil {
 			return err
 		}
@@ -275,7 +275,7 @@ func (g *Gateway) heartbeat(ctx context.Context, initialHeartbeat bool) {
 	var currentNodes []db.NodeInfo
 	err = g.Cluster.Transaction(func(tx *db.ClusterTx) error {
 		var err error
-		currentNodes, err = tx.Nodes()
+		currentNodes, err = tx.GetNodes()
 		if err != nil {
 			return err
 		}

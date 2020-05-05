@@ -139,7 +139,7 @@ func Bootstrap(state *state.State, gateway *Gateway, name string) error {
 	// connection, so new queries will be executed over the new network
 	// connection.
 	err = state.Cluster.ExitExclusive(func(tx *db.ClusterTx) error {
-		_, err := tx.Nodes()
+		_, err := tx.GetNodes()
 		return err
 	})
 	if err != nil {
@@ -513,7 +513,7 @@ func Rebalance(state *state.State, gateway *Gateway) (string, []db.RaftNode, err
 		offlineThreshold = config.OfflineThreshold()
 		maxVoters = config.MaxVoters()
 		maxStandBy = config.MaxStandBy()
-		nodes, err := tx.Nodes()
+		nodes, err := tx.GetNodes()
 		if err != nil {
 			return errors.Wrap(err, "failed to get cluster nodes")
 		}
@@ -932,7 +932,7 @@ func List(state *state.State) ([]api.ClusterMember, error) {
 	var offlineThreshold time.Duration
 
 	err = state.Cluster.Transaction(func(tx *db.ClusterTx) error {
-		nodes, err = tx.Nodes()
+		nodes, err = tx.GetNodes()
 		if err != nil {
 			return err
 		}
@@ -1062,7 +1062,7 @@ func membershipCheckNodeStateForBootstrapOrJoin(tx *db.NodeTx, address string) e
 // Check that cluster-related preconditions are met for bootstrapping or
 // joining a cluster.
 func membershipCheckClusterStateForBootstrapOrJoin(tx *db.ClusterTx) error {
-	nodes, err := tx.Nodes()
+	nodes, err := tx.GetNodes()
 	if err != nil {
 		return errors.Wrap(err, "failed to fetch current cluster nodes")
 	}
@@ -1074,7 +1074,7 @@ func membershipCheckClusterStateForBootstrapOrJoin(tx *db.ClusterTx) error {
 
 // Check that cluster-related preconditions are met for accepting a new node.
 func membershipCheckClusterStateForAccept(tx *db.ClusterTx, name string, address string, schema int, api int) error {
-	nodes, err := tx.Nodes()
+	nodes, err := tx.GetNodes()
 	if err != nil {
 		return errors.Wrap(err, "Failed to fetch current cluster nodes")
 	}
@@ -1116,7 +1116,7 @@ func membershipCheckClusterStateForLeave(tx *db.ClusterTx, nodeID int64) error {
 	}
 
 	// Check that it's not the last node.
-	nodes, err := tx.Nodes()
+	nodes, err := tx.GetNodes()
 	if err != nil {
 		return err
 	}

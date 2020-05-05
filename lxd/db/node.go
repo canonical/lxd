@@ -177,11 +177,11 @@ func (c *ClusterTx) NodeIsOutdated() (bool, error) {
 	return false, nil
 }
 
-// Nodes returns all LXD nodes part of the cluster.
+// GetNodes returns all LXD nodes part of the cluster.
 //
 // If this LXD instance is not clustered, a list with a single node whose
 // address is 0.0.0.0 is returned.
-func (c *ClusterTx) Nodes() ([]NodeInfo, error) {
+func (c *ClusterTx) GetNodes() ([]NodeInfo, error) {
 	return c.nodes(false /* not pending */, "")
 }
 
@@ -629,7 +629,7 @@ func (c *ClusterTx) NodeWithLeastContainers(archs []int) (string, error) {
 		return "", errors.Wrap(err, "failed to get offline threshold")
 	}
 
-	nodes, err := c.Nodes()
+	nodes, err := c.GetNodes()
 	if err != nil {
 		return "", errors.Wrap(err, "failed to get current nodes")
 	}

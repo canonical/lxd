@@ -23,7 +23,7 @@ func TestNodeAdd(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, int64(2), id)
 
-	nodes, err := tx.Nodes()
+	nodes, err := tx.GetNodes()
 	require.NoError(t, err)
 	require.Len(t, nodes, 2)
 
@@ -180,7 +180,7 @@ func TestNodePending(t *testing.T) {
 	// Pending nodes are skipped from regular listing
 	_, err = tx.GetNodeByName("buzz")
 	assert.Equal(t, db.ErrNoSuchObject, err)
-	nodes, err := tx.Nodes()
+	nodes, err := tx.GetNodes()
 	require.NoError(t, err)
 	assert.Len(t, nodes, 1)
 
@@ -208,7 +208,7 @@ func TestNodeHeartbeat(t *testing.T) {
 	err = tx.NodeHeartbeat("1.2.3.4:666", time.Now().Add(-time.Minute))
 	require.NoError(t, err)
 
-	nodes, err := tx.Nodes()
+	nodes, err := tx.GetNodes()
 	require.NoError(t, err)
 	require.Len(t, nodes, 2)
 
