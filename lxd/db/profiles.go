@@ -208,8 +208,8 @@ func ClearProfileConfig(tx *sql.Tx, id int64) error {
 	return nil
 }
 
-// ProfileConfigAdd adds a config to the profile with the given ID.
-func ProfileConfigAdd(tx *sql.Tx, id int64, config map[string]string) error {
+// CreateProfileConfig adds a config to the profile with the given ID.
+func CreateProfileConfig(tx *sql.Tx, id int64, config map[string]string) error {
 	str := fmt.Sprintf("INSERT INTO profiles_config (profile_id, key, value) VALUES(?, ?, ?)")
 	stmt, err := tx.Prepare(str)
 	defer stmt.Close()
