@@ -1671,7 +1671,7 @@ func imagePut(d *Daemon, r *http.Request) response.Response {
 	}
 	profileIds := make([]int64, len(req.Profiles))
 	for i, profile := range req.Profiles {
-		profileID, _, err := d.cluster.ProfileGet(project, profile)
+		profileID, _, err := d.cluster.GetProfile(project, profile)
 		if err == db.ErrNoSuchObject {
 			return response.BadRequest(fmt.Errorf("Profile '%s' doesn't exist", profile))
 		} else if err != nil {

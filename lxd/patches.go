@@ -1909,7 +1909,7 @@ func updatePoolPropertyForAllObjects(d *Daemon, poolName string, allcontainers [
 	profiles, err := d.cluster.GetProfileNames("default")
 	if err == nil {
 		for _, pName := range profiles {
-			pID, p, err := d.cluster.ProfileGet("default", pName)
+			pID, p, err := d.cluster.GetProfile("default", pName)
 			if err != nil {
 				logger.Errorf("Could not query database: %s", err)
 				return err

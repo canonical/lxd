@@ -621,7 +621,7 @@ func createFromBackup(d *Daemon, project string, data io.Reader, pool string) re
 		}
 
 		// Otherwise try and restore to the project's default profile pool.
-		_, profile, err := d.State().Cluster.ProfileGet(bInfo.Project, "default")
+		_, profile, err := d.State().Cluster.GetProfile(bInfo.Project, "default")
 		if err != nil {
 			return response.InternalError(errors.Wrap(err, "Failed to get default profile"))
 		}
@@ -916,7 +916,7 @@ func containerFindStoragePool(d *Daemon, project string, req *api.InstancesPost)
 	// If we don't have a valid pool yet, look through profiles
 	if storagePool == "" {
 		for _, pName := range req.Profiles {
-			_, p, err := d.cluster.ProfileGet(project, pName)
+			_, p, err := d.cluster.GetProfile(project, pName)
 			if err != nil {
 				return "", "", "", nil, response.SmartError(err)
 			}

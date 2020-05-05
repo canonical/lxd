@@ -138,7 +138,7 @@ func storagePoolVolumeUpdateUsers(d *Daemon, projectName string, oldPoolName str
 	}
 
 	for _, pName := range profiles {
-		id, profile, err := s.Cluster.ProfileGet(project.Default, pName)
+		id, profile, err := s.Cluster.GetProfile(project.Default, pName)
 		if err != nil {
 			return err
 		}
@@ -267,7 +267,7 @@ func profilesUsingPoolVolumeGetNames(db *db.Cluster, volumeName string, volumeTy
 	}
 
 	for _, pName := range profiles {
-		_, profile, err := db.ProfileGet(project.Default, pName)
+		_, profile, err := db.GetProfile(project.Default, pName)
 		if err != nil {
 			return usedBy, err
 		}
