@@ -42,8 +42,8 @@ SELECT DISTINCT nodes.address
 	return query.SelectStrings(c.tx, stmt, project)
 }
 
-// OperationByUUID returns the operation with the given UUID.
-func (c *ClusterTx) OperationByUUID(uuid string) (Operation, error) {
+// GetOperationByUUID returns the operation with the given UUID.
+func (c *ClusterTx) GetOperationByUUID(uuid string) (Operation, error) {
 	null := Operation{}
 	operations, err := c.operations("uuid=?", uuid)
 	if err != nil {
