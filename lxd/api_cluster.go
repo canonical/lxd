@@ -87,7 +87,7 @@ func clusterGet(d *Daemon, r *http.Request) response.Response {
 	name := ""
 	err := d.cluster.Transaction(func(tx *db.ClusterTx) error {
 		var err error
-		name, err = tx.NodeName()
+		name, err = tx.GetLocalNodeName()
 		return err
 	})
 	if err != nil {

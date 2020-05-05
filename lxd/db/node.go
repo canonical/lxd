@@ -105,8 +105,8 @@ func (c *ClusterTx) GetNodeByName(name string) (NodeInfo, error) {
 	}
 }
 
-// NodeName returns the name of the node this method is invoked on.
-func (c *ClusterTx) NodeName() (string, error) {
+// GetLocalNodeName returns the name of the node this method is invoked on.
+func (c *ClusterTx) GetLocalNodeName() (string, error) {
 	stmt := "SELECT name FROM nodes WHERE id=?"
 	names, err := query.SelectStrings(c.tx, stmt, c.nodeID)
 	if err != nil {

@@ -389,7 +389,7 @@ func createFromCopy(d *Daemon, project string, req *api.InstancesPost) response.
 	if clustered {
 		var serverName string
 		err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
-			serverName, err = tx.NodeName()
+			serverName, err = tx.GetLocalNodeName()
 			return err
 		})
 		if err != nil {

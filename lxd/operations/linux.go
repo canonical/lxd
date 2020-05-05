@@ -44,7 +44,7 @@ func getServerName(op *Operation) (string, error) {
 	var serverName string
 	var err error
 	err = op.state.Cluster.Transaction(func(tx *db.ClusterTx) error {
-		serverName, err = tx.NodeName()
+		serverName, err = tx.GetLocalNodeName()
 		return err
 	})
 	if err != nil {
