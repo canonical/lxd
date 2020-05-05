@@ -947,7 +947,7 @@ func clusterNodePut(d *Daemon, r *http.Request) response.Response {
 			dbRoles = append(dbRoles, db.ClusterRole(role))
 		}
 
-		err := tx.NodeUpdateRoles(current.ID, dbRoles)
+		err := tx.UpdateNodeRoles(current.ID, dbRoles)
 		if err != nil {
 			return err
 		}
