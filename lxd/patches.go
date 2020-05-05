@@ -1962,7 +1962,7 @@ func updatePoolPropertyForAllObjects(d *Daemon, poolName string, allcontainers [
 				continue
 			}
 
-			err = db.ProfileConfigAdd(tx, pID, p.Config)
+			err = db.CreateProfileConfig(tx, pID, p.Config)
 			if err != nil {
 				logger.Errorf("Failed to add new profile configuration: %s: %s", pName, err)
 				tx.Rollback()

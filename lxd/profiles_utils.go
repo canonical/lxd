@@ -108,7 +108,7 @@ func doProfileUpdate(d *Daemon, project, name string, id int64, profile *api.Pro
 			return err
 		}
 
-		err = db.ProfileConfigAdd(tx, id, req.Config)
+		err = db.CreateProfileConfig(tx, id, req.Config)
 		if err != nil {
 			tx.Rollback()
 			return err
