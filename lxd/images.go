@@ -1671,7 +1671,7 @@ func imagePut(d *Daemon, r *http.Request) response.Response {
 	}
 	profileIds := make([]int64, len(req.Profiles))
 	for i, profile := range req.Profiles {
-		profileID, _, err := d.cluster.ProfileGet(project, profile)
+		profileID, _, err := d.cluster.GetProfile(project, profile)
 		if err == db.ErrNoSuchObject {
 			return response.BadRequest(fmt.Errorf("Profile '%s' doesn't exist", profile))
 		} else if err != nil {
@@ -2344,7 +2344,7 @@ func imageSyncBetweenNodes(d *Daemon, project string, fingerprint string) error 
 
 		// -1 means that we want to replicate the image on all nodes
 		if desiredSyncNodeCount == -1 {
-			nodesCount, err := tx.NodesCount()
+			nodesCount, err := tx.GetNodesCount()
 			if err != nil {
 				return errors.Wrap(err, "Failed to get the number of nodes")
 			}

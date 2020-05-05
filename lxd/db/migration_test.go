@@ -132,10 +132,10 @@ func TestImportPreClusteringData(t *testing.T) {
 	require.NoError(t, err)
 
 	// profiles
-	profiles, err := cluster.Profiles("default")
+	profiles, err := cluster.GetProfileNames("default")
 	require.NoError(t, err)
 	assert.Equal(t, []string{"default", "users"}, profiles)
-	_, profile, err := cluster.ProfileGet("default", "default")
+	_, profile, err := cluster.GetProfile("default", "default")
 	require.NoError(t, err)
 	assert.Equal(t, map[string]string{}, profile.Config)
 	assert.Equal(t,
@@ -149,7 +149,7 @@ func TestImportPreClusteringData(t *testing.T) {
 				"nictype": "bridged",
 				"parent":  "lxdbr0"}},
 		profile.Devices)
-	_, profile, err = cluster.ProfileGet("default", "users")
+	_, profile, err = cluster.GetProfile("default", "users")
 	require.NoError(t, err)
 	assert.Equal(t,
 		map[string]string{

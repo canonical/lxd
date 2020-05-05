@@ -4,7 +4,6 @@ package db
 
 import (
 	"database/sql"
-	"fmt"
 	"testing"
 	"time"
 
@@ -266,27 +265,4 @@ func (s *dbTestSuite) Test_ImageSourceGetCachedFingerprint_no_match() {
 
 	_, err = s.db.ImageSourceGetCachedFingerprint("server.remote", "lxd", "test", "container", 0)
 	s.Equal(err, ErrNoSuchObject)
-}
-
-func (s *dbTestSuite) Test_dbProfileConfig() {
-	var err error
-	var result map[string]string
-	var expected map[string]string
-
-	tx, commit := s.CreateTestTx()
-
-	_, err = tx.Exec("INSERT INTO profiles_config (profile_id, key, value) VALUES (2, 'something', 'something else');")
-	s.Nil(err)
-
-	commit()
-
-	result, err = s.db.ProfileConfig("default", "theprofile")
-	s.Nil(err)
-
-	expected = map[string]string{"thekey": "thevalue", "something": "something else"}
-
-	for key, value := range expected {
-		s.Equal(result[key], value,
-			fmt.Sprintf("Mismatching value for key %s: %s != %s", key, result[key], value))
-	}
 }

@@ -113,7 +113,7 @@ func (p *patch) apply(d *Daemon) error {
 		return errors.Wrapf(err, "Failed applying patch %q", p.name)
 	}
 
-	err = d.db.PatchesMarkApplied(p.name)
+	err = d.db.MarkPatchAsApplied(p.name)
 	if err != nil {
 		return errors.Wrapf(err, "Failed marking patch applied %q", p.name)
 	}
@@ -136,7 +136,7 @@ func patchesGetNames() []string {
 
 // patchesApplyPostDaemonStorage applies the patches that need to run after the daemon storage is initialised.
 func patchesApply(d *Daemon, stage patchStage) error {
-	appliedPatches, err := d.db.Patches()
+	appliedPatches, err := d.db.GetAppliedPatches()
 	if err != nil {
 		return err
 	}
@@ -270,11 +270,11 @@ func patchRenameCustomVolumeLVs(name string, d *Daemon) error {
 }
 
 func patchLeftoverProfileConfig(name string, d *Daemon) error {
-	return d.cluster.ProfileCleanupLeftover()
+	return d.cluster.RemoveUnreferencedProfiles()
 }
 
 func patchInvalidProfileNames(name string, d *Daemon) error {
-	profiles, err := d.cluster.Profiles("default")
+	profiles, err := d.cluster.GetProfileNames("default")
 	if err != nil {
 		return err
 	}
@@ -1906,10 +1906,10 @@ func updatePoolPropertyForAllObjects(d *Daemon, poolName string, allcontainers [
 	// appropriate device including a pool is added to the default profile
 	// or the user explicitly passes the pool the container's storage volume
 	// is supposed to be created on.
-	profiles, err := d.cluster.Profiles("default")
+	profiles, err := d.cluster.GetProfileNames("default")
 	if err == nil {
 		for _, pName := range profiles {
-			pID, p, err := d.cluster.ProfileGet("default", pName)
+			pID, p, err := d.cluster.GetProfile("default", pName)
 			if err != nil {
 				logger.Errorf("Could not query database: %s", err)
 				return err
@@ -1955,14 +1955,14 @@ func updatePoolPropertyForAllObjects(d *Daemon, poolName string, allcontainers [
 				return err
 			}
 
-			err = db.ProfileConfigClear(tx, pID)
+			err = db.ClearProfileConfig(tx, pID)
 			if err != nil {
 				logger.Errorf("Failed to clear old profile configuration for profile %s: %s", pName, err)
 				tx.Rollback()
 				continue
 			}
 
-			err = db.ProfileConfigAdd(tx, pID, p.Config)
+			err = db.CreateProfileConfig(tx, pID, p.Config)
 			if err != nil {
 				logger.Errorf("Failed to add new profile configuration: %s: %s", pName, err)
 				tx.Rollback()
@@ -3463,7 +3463,7 @@ func patchClusteringAddRoles(name string, d *Daemon) error {
 
 	var nodes []db.NodeInfo
 	err = d.State().Cluster.Transaction(func(tx *db.ClusterTx) error {
-		nodes, err = tx.Nodes()
+		nodes, err = tx.GetNodes()
 		if err != nil {
 			return err
 		}
@@ -3474,12 +3474,12 @@ func patchClusteringAddRoles(name string, d *Daemon) error {
 			}
 
 			if shared.StringInSlice(node.Address, addresses) && !shared.StringInSlice(string(db.ClusterRoleDatabase), node.Roles) {
-				err = tx.NodeAddRole(node.ID, db.ClusterRoleDatabase)
+				err = tx.CreateNodeRole(node.ID, db.ClusterRoleDatabase)
 				if err != nil {
 					return err
 				}
 			} else if shared.StringInSlice(string(db.ClusterRoleDatabase), node.Roles) {
-				err = tx.NodeRemoveRole(node.ID, db.ClusterRoleDatabase)
+				err = tx.RemoveNodeRole(node.ID, db.ClusterRoleDatabase)
 				if err != nil {
 					return err
 				}

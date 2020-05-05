@@ -109,7 +109,7 @@ func TestBootstrap(t *testing.T) {
 
 	// The cluster database has now an entry in the nodes table
 	err = state.Cluster.Transaction(func(tx *db.ClusterTx) error {
-		nodes, err := tx.Nodes()
+		nodes, err := tx.GetNodes()
 		require.NoError(t, err)
 		require.Len(t, nodes, 1)
 		assert.Equal(t, "buzz", nodes[0].Name)
@@ -349,7 +349,7 @@ func TestJoin(t *testing.T) {
 
 	// The node has gone from the cluster db.
 	err = targetState.Cluster.Transaction(func(tx *db.ClusterTx) error {
-		nodes, err := tx.Nodes()
+		nodes, err := tx.GetNodes()
 		require.NoError(t, err)
 		assert.Len(t, nodes, 1)
 		return nil
@@ -414,7 +414,7 @@ func (h *membershipFixtures) RaftNodes() []db.RaftNode {
 // Add the given address to the nodes table of the cluster database.
 func (h *membershipFixtures) ClusterNode(address string) {
 	err := h.state.Cluster.Transaction(func(tx *db.ClusterTx) error {
-		_, err := tx.NodeAdd("rusp", address)
+		_, err := tx.CreateNode("rusp", address)
 		return err
 	})
 	require.NoError(h.t, err)

@@ -590,12 +590,12 @@ WHERE images.fingerprint = ?
 	var addresses []string  // Addresses of online nodes with the image
 
 	err := c.Transaction(func(tx *ClusterTx) error {
-		offlineThreshold, err := tx.NodeOfflineThreshold()
+		offlineThreshold, err := tx.GetNodeOfflineThreshold()
 		if err != nil {
 			return err
 		}
 
-		localAddress, err = tx.NodeAddress()
+		localAddress, err = tx.GetLocalNodeAddress()
 		if err != nil {
 			return err
 		}
@@ -604,7 +604,7 @@ WHERE images.fingerprint = ?
 			return err
 		}
 		for _, address := range allAddresses {
-			node, err := tx.NodeByAddress(address)
+			node, err := tx.GetNodeByAddress(address)
 			if err != nil {
 				return err
 			}
@@ -970,7 +970,7 @@ func (c *Cluster) CreateImage(project, fp string, fname string, sz int64, public
 		return fmt.Errorf("Invalid image type: %v", typeName)
 	}
 
-	defaultProfileID, _, err := c.ProfileGet(profileProject, "default")
+	defaultProfileID, _, err := c.GetProfile(profileProject, "default")
 	if err != nil {
 		return err
 	}
@@ -1148,7 +1148,7 @@ SELECT DISTINCT nodes.address FROM nodes WHERE nodes.address NOT IN (
 func (c *Cluster) getNodesByImageFingerprint(stmt, fingerprint string) ([]string, error) {
 	var addresses []string // Addresses of online nodes with the image
 	err := c.Transaction(func(tx *ClusterTx) error {
-		offlineThreshold, err := tx.NodeOfflineThreshold()
+		offlineThreshold, err := tx.GetNodeOfflineThreshold()
 		if err != nil {
 			return err
 		}
@@ -1158,7 +1158,7 @@ func (c *Cluster) getNodesByImageFingerprint(stmt, fingerprint string) ([]string
 			return err
 		}
 		for _, address := range allAddresses {
-			node, err := tx.NodeByAddress(address)
+			node, err := tx.GetNodeByAddress(address)
 			if err != nil {
 				return err
 			}

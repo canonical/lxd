@@ -229,7 +229,7 @@ func (c *Cluster) StorageVolumeIsAvailable(pool, volume string) (bool, error) {
 			return nil
 		}
 
-		node, err := tx.NodeName()
+		node, err := tx.GetLocalNodeName()
 		if err != nil {
 			return errors.Wrapf(err, "Fetch node name")
 		}

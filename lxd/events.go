@@ -49,7 +49,7 @@ func eventsSocket(d *Daemon, r *http.Request, w http.ResponseWriter) error {
 	// the number of DB access to just one per connection
 	var serverName string
 	err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
-		serverName, err = tx.NodeName()
+		serverName, err = tx.GetLocalNodeName()
 		return err
 	})
 	if err != nil {

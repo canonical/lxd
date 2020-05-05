@@ -1860,13 +1860,13 @@ func (c *lxc) DeviceEventHandler(runConf *deviceConfig.RunConfig) error {
 func (c *lxc) expandConfig(profiles []api.Profile) error {
 	if profiles == nil && len(c.profiles) > 0 {
 		var err error
-		profiles, err = c.state.Cluster.ProfilesGet(c.project, c.profiles)
+		profiles, err = c.state.Cluster.GetProfiles(c.project, c.profiles)
 		if err != nil {
 			return err
 		}
 	}
 
-	c.expandedConfig = db.ProfilesExpandConfig(c.localConfig, profiles)
+	c.expandedConfig = db.ExpandInstanceConfig(c.localConfig, profiles)
 
 	return nil
 }
@@ -1874,13 +1874,13 @@ func (c *lxc) expandConfig(profiles []api.Profile) error {
 func (c *lxc) expandDevices(profiles []api.Profile) error {
 	if profiles == nil && len(c.profiles) > 0 {
 		var err error
-		profiles, err = c.state.Cluster.ProfilesGet(c.project, c.profiles)
+		profiles, err = c.state.Cluster.GetProfiles(c.project, c.profiles)
 		if err != nil {
 			return err
 		}
 	}
 
-	c.expandedDevices = db.ProfilesExpandDevices(c.localDevices, profiles)
+	c.expandedDevices = db.ExpandInstanceDevices(c.localDevices, profiles)
 
 	return nil
 }
@@ -3793,7 +3793,7 @@ func (c *lxc) Update(args db.InstanceArgs, userRequested bool) error {
 	}
 
 	// Validate the new profiles
-	profiles, err := c.state.Cluster.Profiles(args.Project)
+	profiles, err := c.state.Cluster.GetProfileNames(args.Project)
 	if err != nil {
 		return errors.Wrap(err, "Failed to get profiles")
 	}

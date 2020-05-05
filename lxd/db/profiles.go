@@ -81,8 +81,8 @@ type ProfileFilter struct {
 	Name    string
 }
 
-// Profiles returns a string list of profiles.
-func (c *Cluster) Profiles(project string) ([]string, error) {
+// GetProfileNames returns the names of all profiles in the given project.
+func (c *Cluster) GetProfileNames(project string) ([]string, error) {
 	err := c.Transaction(func(tx *ClusterTx) error {
 		enabled, err := tx.ProjectHasProfiles(project)
 		if err != nil {
@@ -119,8 +119,8 @@ WHERE projects.name = ?
 	return response, nil
 }
 
-// ProfileGet returns the profile with the given name.
-func (c *Cluster) ProfileGet(project, name string) (int64, *api.Profile, error) {
+// GetProfile returns the profile with the given name.
+func (c *Cluster) GetProfile(project, name string) (int64, *api.Profile, error) {
 	var result *api.Profile
 	var id int64
 
@@ -150,8 +150,8 @@ func (c *Cluster) ProfileGet(project, name string) (int64, *api.Profile, error) 
 	return id, result, nil
 }
 
-// ProfilesGet returns the profiles with the given names in the given project.
-func (c *Cluster) ProfilesGet(project string, names []string) ([]api.Profile, error) {
+// GetProfiles returns the profiles with the given names in the given project.
+func (c *Cluster) GetProfiles(project string, names []string) ([]api.Profile, error) {
 	profiles := make([]api.Profile, len(names))
 
 	err := c.Transaction(func(tx *ClusterTx) error {
@@ -180,74 +180,14 @@ func (c *Cluster) ProfilesGet(project string, names []string) ([]api.Profile, er
 	return profiles, nil
 }
 
-// ProfileConfig gets the profile configuration map from the DB.
-func (c *Cluster) ProfileConfig(project, name string) (map[string]string, error) {
-	err := c.Transaction(func(tx *ClusterTx) error {
-		enabled, err := tx.ProjectHasProfiles(project)
-		if err != nil {
-			return errors.Wrap(err, "Check if project has profiles")
-		}
-		if !enabled {
-			project = "default"
-		}
-		return nil
-	})
-	if err != nil {
-		return nil, err
-	}
-
-	var key, value string
-	query := `
-        SELECT
-            key, value
-        FROM profiles_config
-        JOIN profiles ON profiles_config.profile_id=profiles.id
-        JOIN projects ON projects.id = profiles.project_id
-        WHERE projects.name=? AND profiles.name=?`
-	inargs := []interface{}{project, name}
-	outfmt := []interface{}{key, value}
-	results, err := queryScan(c.db, query, inargs, outfmt)
-	if err != nil {
-		return nil, errors.Wrapf(err, "Failed to get profile '%s'", name)
-	}
-
-	if len(results) == 0 {
-		/*
-		 * If we didn't get any rows here, let's check to make sure the
-		 * profile really exists; if it doesn't, let's send back a 404.
-		 */
-		query := "SELECT id FROM profiles WHERE name=?"
-		var id int
-		results, err := queryScan(c.db, query, []interface{}{name}, []interface{}{id})
-		if err != nil {
-			return nil, err
-		}
-
-		if len(results) == 0 {
-			return nil, ErrNoSuchObject
-		}
-	}
-
-	config := map[string]string{}
-
-	for _, r := range results {
-		key = r[0].(string)
-		value = r[1].(string)
-
-		config[key] = value
-	}
-
-	return config, nil
-}
-
-// ProfileDescriptionUpdate updates the description of the profile with the given ID.
-func ProfileDescriptionUpdate(tx *sql.Tx, id int64, description string) error {
+// UpdateProfileDescription updates the description of the profile with the given ID.
+func UpdateProfileDescription(tx *sql.Tx, id int64, description string) error {
 	_, err := tx.Exec("UPDATE profiles SET description=? WHERE id=?", description, id)
 	return err
 }
 
-// ProfileConfigClear resets the config of the profile with the given ID.
-func ProfileConfigClear(tx *sql.Tx, id int64) error {
+// ClearProfileConfig resets the config of the profile with the given ID.
+func ClearProfileConfig(tx *sql.Tx, id int64) error {
 	_, err := tx.Exec("DELETE FROM profiles_config WHERE profile_id=?", id)
 	if err != nil {
 		return err
@@ -268,8 +208,8 @@ func ProfileConfigClear(tx *sql.Tx, id int64) error {
 	return nil
 }
 
-// ProfileConfigAdd adds a config to the profile with the given ID.
-func ProfileConfigAdd(tx *sql.Tx, id int64, config map[string]string) error {
+// CreateProfileConfig adds a config to the profile with the given ID.
+func CreateProfileConfig(tx *sql.Tx, id int64, config map[string]string) error {
 	str := fmt.Sprintf("INSERT INTO profiles_config (profile_id, key, value) VALUES(?, ?, ?)")
 	stmt, err := tx.Prepare(str)
 	defer stmt.Close()
@@ -291,9 +231,9 @@ func ProfileConfigAdd(tx *sql.Tx, id int64, config map[string]string) error {
 	return nil
 }
 
-// ProfileContainersGet gets the names of the containers associated with the
-// profile with the given name.
-func (c *Cluster) ProfileContainersGet(project, profile string) (map[string][]string, error) {
+// GetInstancesWithProfile gets the names of the instance associated with the
+// profile with the given name in the given project.
+func (c *Cluster) GetInstancesWithProfile(project, profile string) (map[string][]string, error) {
 	err := c.Transaction(func(tx *ClusterTx) error {
 		enabled, err := tx.ProjectHasProfiles(project)
 		if err != nil {
@@ -338,8 +278,8 @@ func (c *Cluster) ProfileContainersGet(project, profile string) (map[string][]st
 	return results, nil
 }
 
-// ProfileCleanupLeftover removes unreferenced profiles.
-func (c *Cluster) ProfileCleanupLeftover() error {
+// RemoveUnreferencedProfiles removes unreferenced profiles.
+func (c *Cluster) RemoveUnreferencedProfiles() error {
 	stmt := `
 DELETE FROM profiles_config WHERE profile_id NOT IN (SELECT id FROM profiles);
 DELETE FROM profiles_devices WHERE profile_id NOT IN (SELECT id FROM profiles);
@@ -353,9 +293,9 @@ DELETE FROM profiles_devices_config WHERE profile_device_id NOT IN (SELECT id FR
 	return nil
 }
 
-// ProfilesExpandConfig expands the given container config with the config
+// ExpandInstanceConfig expands the given instance config with the config
 // values of the given profiles.
-func ProfilesExpandConfig(config map[string]string, profiles []api.Profile) map[string]string {
+func ExpandInstanceConfig(config map[string]string, profiles []api.Profile) map[string]string {
 	expandedConfig := map[string]string{}
 
 	// Apply all the profiles
@@ -378,9 +318,9 @@ func ProfilesExpandConfig(config map[string]string, profiles []api.Profile) map[
 	return expandedConfig
 }
 
-// ProfilesExpandDevices expands the given container devices with the devices
+// ExpandInstanceDevices expands the given instance devices with the devices
 // defined in the given profiles.
-func ProfilesExpandDevices(devices deviceConfig.Devices, profiles []api.Profile) deviceConfig.Devices {
+func ExpandInstanceDevices(devices deviceConfig.Devices, profiles []api.Profile) deviceConfig.Devices {
 	expandedDevices := deviceConfig.Devices{}
 
 	// Apply all the profiles

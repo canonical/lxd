@@ -47,12 +47,12 @@ func NewNotifier(state *state.State, cert *shared.CertInfo, policy NotifierPolic
 	var nodes []db.NodeInfo
 	var offlineThreshold time.Duration
 	err = state.Cluster.Transaction(func(tx *db.ClusterTx) error {
-		offlineThreshold, err = tx.NodeOfflineThreshold()
+		offlineThreshold, err = tx.GetNodeOfflineThreshold()
 		if err != nil {
 			return err
 		}
 
-		nodes, err = tx.Nodes()
+		nodes, err = tx.GetNodes()
 		if err != nil {
 			return err
 		}

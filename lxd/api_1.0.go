@@ -150,7 +150,7 @@ func api10Get(d *Daemon, r *http.Request) response.Response {
 	var serverName string
 	if clustered {
 		err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
-			serverName, err = tx.NodeName()
+			serverName, err = tx.GetLocalNodeName()
 			return err
 		})
 		if err != nil {

@@ -273,7 +273,7 @@ SELECT nodes.id, nodes.address
 //
 // Containers whose node is down are addeded to the special address "0.0.0.0".
 func (c *ClusterTx) GetInstanceNamesByNodeAddress(project string, instanceType instancetype.Type) (map[string][]string, error) {
-	offlineThreshold, err := c.NodeOfflineThreshold()
+	offlineThreshold, err := c.GetNodeOfflineThreshold()
 	if err != nil {
 		return nil, err
 	}
@@ -383,8 +383,8 @@ func (c *ClusterTx) instanceListExpanded() ([]Instance, error) {
 			profiles[j] = *ProfileToAPI(&profile)
 		}
 
-		instances[i].Config = ProfilesExpandConfig(instance.Config, profiles)
-		instances[i].Devices = ProfilesExpandDevices(deviceConfig.NewDevices(instance.Devices), profiles).CloneNative()
+		instances[i].Config = ExpandInstanceConfig(instance.Config, profiles)
+		instances[i].Devices = ExpandInstanceDevices(deviceConfig.NewDevices(instance.Devices), profiles).CloneNative()
 	}
 
 	return instances, nil
@@ -472,7 +472,7 @@ func (c *ClusterTx) UpdateInstanceNode(project, oldName, newName, newNode string
 		return errors.Wrap(err, "Failed to get instance's ID")
 	}
 
-	node, err := c.NodeByName(newNode)
+	node, err := c.GetNodeByName(newNode)
 	if err != nil {
 		return errors.Wrap(err, "Failed to get new node's info")
 	}
@@ -499,7 +499,7 @@ func (c *ClusterTx) UpdateInstanceNode(project, oldName, newName, newNode string
 
 	// Update the instance's storage volume name (since this is ceph,
 	// there's a clone of the volume for each node).
-	count, err := c.NodesCount()
+	count, err := c.GetNodesCount()
 	if err != nil {
 		return errors.Wrap(err, "Failed to get node's count")
 	}
@@ -525,7 +525,7 @@ func (c *ClusterTx) UpdateInstanceNode(project, oldName, newName, newNode string
 // GetLocalInstancesInProject retuurns all instances of the given type on the
 // local node within the given project.
 func (c *ClusterTx) GetLocalInstancesInProject(project string, instanceType instancetype.Type) ([]Instance, error) {
-	node, err := c.NodeName()
+	node, err := c.GetLocalNodeName()
 	if err != nil {
 		return nil, errors.Wrap(err, "Local node name")
 	}
