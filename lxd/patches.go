@@ -3463,7 +3463,7 @@ func patchClusteringAddRoles(name string, d *Daemon) error {
 
 	var nodes []db.NodeInfo
 	err = d.State().Cluster.Transaction(func(tx *db.ClusterTx) error {
-		nodes, err = tx.Nodes()
+		nodes, err = tx.GetNodes()
 		if err != nil {
 			return err
 		}

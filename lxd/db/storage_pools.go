@@ -348,7 +348,7 @@ func (c *ClusterTx) storagePoolState(name string, state int) error {
 // If the storage pool is not defined on all nodes, an error is returned.
 func (c *ClusterTx) StoragePoolNodeConfigs(poolID int64) (map[string]map[string]string, error) {
 	// Fetch all nodes.
-	nodes, err := c.Nodes()
+	nodes, err := c.GetNodes()
 	if err != nil {
 		return nil, err
 	}

@@ -151,7 +151,7 @@ func TestUpgradeMembersWithoutRole(t *testing.T) {
 		require.NoError(t, err)
 		_, err = tx.NodeAdd("bar", "5.6.7.8")
 		require.NoError(t, err)
-		members, err = tx.Nodes()
+		members, err = tx.GetNodes()
 		require.NoError(t, err)
 		return nil
 	})

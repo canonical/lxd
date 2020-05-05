@@ -51,7 +51,7 @@ func eventsUpdateListeners(endpoints *endpoints.Endpoints, cluster *db.Cluster, 
 	err := cluster.Transaction(func(tx *db.ClusterTx) error {
 		var err error
 
-		nodes, err = tx.Nodes()
+		nodes, err = tx.GetNodes()
 		if err != nil {
 			return err
 		}
