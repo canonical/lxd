@@ -192,7 +192,7 @@ func Accept(state *state.State, gateway *Gateway, name, address string, schema, 
 		// Mark the node as pending, so it will be skipped when
 		// performing heartbeats or sending cluster
 		// notifications.
-		err = tx.NodePending(id, true)
+		err = tx.SetNodePendingFlag(id, true)
 		if err != nil {
 			return errors.Wrap(err, "Failed to mark the new node as pending")
 		}
@@ -441,7 +441,7 @@ func Join(state *state.State, gateway *Gateway, cert *shared.CertInfo, name stri
 
 		// Remove the pending flag for ourselves
 		// notifications.
-		err = tx.NodePending(node.ID, false)
+		err = tx.SetNodePendingFlag(node.ID, false)
 		if err != nil {
 			return errors.Wrapf(err, "failed to unmark the node as pending")
 		}
