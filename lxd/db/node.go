@@ -88,8 +88,8 @@ func (c *ClusterTx) GetPendingNodeByAddress(address string) (NodeInfo, error) {
 	}
 }
 
-// NodeByName returns the node with the given name.
-func (c *ClusterTx) NodeByName(name string) (NodeInfo, error) {
+// GetNodeByName returns the node with the given name.
+func (c *ClusterTx) GetNodeByName(name string) (NodeInfo, error) {
 	null := NodeInfo{}
 	nodes, err := c.nodes(false /* not pending */, "name=?", name)
 	if err != nil {

@@ -906,7 +906,7 @@ func clusterNodePut(d *Daemon, r *http.Request) response.Response {
 	var current db.NodeInfo
 	var err error
 	err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
-		current, err = tx.NodeByName(name)
+		current, err = tx.GetNodeByName(name)
 		if err != nil {
 			return err
 		}
