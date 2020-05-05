@@ -137,6 +137,18 @@ func (d *lvm) CreateVolumeFromCopy(vol, srcVol Volume, copySnapshots bool, op *o
 		return nil
 	}
 
+	// Before doing a generic volume copy, we need to ensure volume (or snap volume parent) is activated to
+	// avoid failing with warnings about changing the origin of the snapshot when trying to activate it.
+	parent, _, _ := shared.InstanceGetParentAndSnapshotName(srcVol.Name())
+	volDevPath := d.lvmDevPath(d.config["lvm.vg_name"], srcVol.volType, srcVol.contentType, parent)
+	activated, err := d.activateVolume(volDevPath)
+	if err != nil {
+		return err
+	}
+	if activated {
+		defer d.deactivateVolume(volDevPath)
+	}
+
 	// Otherwise run the generic copy.
 	return genericVFSCopyVolume(d, nil, vol, srcVol, srcSnapshots, false, op)
 }
