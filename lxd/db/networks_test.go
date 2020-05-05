@@ -10,12 +10,12 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// The NetworksNodeConfigs method returns only node-specific config values.
-func TestNetworksNodeConfigs(t *testing.T) {
+// The GetNetworksLocalConfigs method returns only node-specific config values.
+func TestGetNetworksLocalConfigs(t *testing.T) {
 	cluster, cleanup := db.NewTestCluster(t)
 	defer cleanup()
 
-	_, err := cluster.NetworkCreate("lxdbr0", "", map[string]string{
+	_, err := cluster.CreateNetwork("lxdbr0", "", map[string]string{
 		"dns.mode":                   "none",
 		"bridge.external_interfaces": "vlan0",
 	})
@@ -25,7 +25,7 @@ func TestNetworksNodeConfigs(t *testing.T) {
 
 	err = cluster.Transaction(func(tx *db.ClusterTx) error {
 		var err error
-		config, err = tx.NetworksNodeConfig()
+		config, err = tx.GetNetworksLocalConfig()
 		return err
 	})
 	require.NoError(t, err)
@@ -48,7 +48,7 @@ func TestNetworkCreatePending(t *testing.T) {
 	err = tx.NetworkCreatePending("buzz", "network1", config)
 	require.NoError(t, err)
 
-	networkID, err := tx.NetworkID("network1")
+	networkID, err := tx.GetNetworkID("network1")
 	require.NoError(t, err)
 	assert.True(t, networkID > 0)
 

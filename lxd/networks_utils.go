@@ -16,7 +16,7 @@ import (
 )
 
 func networkAutoAttach(cluster *db.Cluster, devName string) error {
-	_, dbInfo, err := cluster.NetworkGetInterface(devName)
+	_, dbInfo, err := cluster.GetNetworkWithInterface(devName)
 	if err != nil {
 		// No match found, move on
 		return nil
@@ -26,7 +26,7 @@ func networkAutoAttach(cluster *db.Cluster, devName string) error {
 }
 
 func networkGetInterfaces(cluster *db.Cluster) ([]string, error) {
-	networks, err := cluster.Networks()
+	networks, err := cluster.GetNetworks()
 	if err != nil {
 		return nil, err
 	}
@@ -137,7 +137,7 @@ func networkValidAddressCIDRV4(value string) error {
 // networkUpdateForkdnsServersTask runs every 30s and refreshes the forkdns servers list.
 func networkUpdateForkdnsServersTask(s *state.State, heartbeatData *cluster.APIHeartbeat) error {
 	// Get a list of managed networks
-	networks, err := s.Cluster.NetworksNotPending()
+	networks, err := s.Cluster.GetNonPendingNetworks()
 	if err != nil {
 		return err
 	}

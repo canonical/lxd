@@ -6,7 +6,7 @@ import (
 
 // LoadByName loads the network info from the database by name.
 func LoadByName(s *state.State, name string) (*Network, error) {
-	id, dbInfo, err := s.Cluster.NetworkGet(name)
+	id, dbInfo, err := s.Cluster.GetNetwork(name)
 	if err != nil {
 		return nil, err
 	}
