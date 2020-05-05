@@ -472,7 +472,7 @@ func (c *ClusterTx) UpdateInstanceNode(project, oldName, newName, newNode string
 		return errors.Wrap(err, "Failed to get instance's ID")
 	}
 
-	node, err := c.NodeByName(newNode)
+	node, err := c.GetNodeByName(newNode)
 	if err != nil {
 		return errors.Wrap(err, "Failed to get new node's info")
 	}

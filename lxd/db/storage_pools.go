@@ -286,7 +286,7 @@ func (c *ClusterTx) StoragePoolCreatePending(node, name, driver string, conf map
 	}
 
 	// Get the ID of the node with the given name.
-	nodeInfo, err := c.NodeByName(node)
+	nodeInfo, err := c.GetNodeByName(node)
 	if err != nil {
 		return err
 	}

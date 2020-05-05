@@ -68,7 +68,7 @@ func TestMaybeUpdate_Upgrade(t *testing.T) {
 		id, err := tx.NodeAdd("buzz", "1.2.3.4:666")
 		require.NoError(t, err)
 
-		node, err := tx.NodeByName("buzz")
+		node, err := tx.GetNodeByName("buzz")
 		require.NoError(t, err)
 
 		version := node.Version()
