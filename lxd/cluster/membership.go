@@ -76,7 +76,7 @@ func Bootstrap(state *state.State, gateway *Gateway, name string) error {
 		}
 
 		// Add ourselves to the nodes table.
-		err = tx.NodeUpdate(1, name, address)
+		err = tx.UpdateNode(1, name, address)
 		if err != nil {
 			return errors.Wrap(err, "failed to update cluster node")
 		}
