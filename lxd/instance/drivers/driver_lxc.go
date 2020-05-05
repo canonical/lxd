@@ -1880,7 +1880,7 @@ func (c *lxc) expandDevices(profiles []api.Profile) error {
 		}
 	}
 
-	c.expandedDevices = db.ProfilesExpandDevices(c.localDevices, profiles)
+	c.expandedDevices = db.ExpandInstanceDevices(c.localDevices, profiles)
 
 	return nil
 }
