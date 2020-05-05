@@ -144,20 +144,21 @@ func genericVFSMigrateVolume(d Driver, s *state.State, vol Volume, conn io.ReadW
 
 	var rsyncArgs []string
 
-	// For VM volumes, if the root volume disk path is a file image then exclude it from being transferred via
-	// rsync, it will be transferred later using a different method.
+	// For VM volumes, if the root volume disk path is a file image in the volume's mount path then exclude it
+	// from being transferred via rsync during the filesystem volume transfer, as it will be transferred later
+	// using a different method.
 	if vol.IsVMBlock() {
 		if volSrcArgs.MigrationType.FSType != migration.MigrationFSType_BLOCK_AND_RSYNC {
 			return ErrNotSupported
 		}
 
-		path, err := d.GetVolumeDiskPath(vol)
+		diskPath, err := d.GetVolumeDiskPath(vol)
 		if err != nil {
 			return errors.Wrapf(err, "Error getting VM block volume disk path")
 		}
 
-		if !shared.IsBlockdevPath(path) {
-			rsyncArgs = []string{"--exclude", filepath.Base(path)}
+		if strings.HasPrefix(diskPath, vol.MountPath()) {
+			rsyncArgs = []string{"--exclude", filepath.Base(diskPath)}
 		}
 	} else if volSrcArgs.MigrationType.FSType != migration.MigrationFSType_RSYNC {
 		return ErrNotSupported
