@@ -667,9 +667,9 @@ func (c *ClusterTx) GetNodeWithLeastInstances(archs []int) (string, error) {
 	return name, nil
 }
 
-// NodeUpdateVersion updates the schema and API version of the node with the
+// SetNodeVersion updates the schema and API version of the node with the
 // given id. This is used only in tests.
-func (c *ClusterTx) NodeUpdateVersion(id int64, version [2]int) error {
+func (c *ClusterTx) SetNodeVersion(id int64, version [2]int) error {
 	stmt := "UPDATE nodes SET schema=?, api_extensions=? WHERE id=?"
 
 	result, err := c.tx.Exec(stmt, version[0], version[1], id)
