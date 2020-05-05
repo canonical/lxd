@@ -415,8 +415,8 @@ func (c *ClusterTx) RemoveNodeRole(id int64, role ClusterRole) error {
 	return nil
 }
 
-// NodeUpdateRoles changes the list of roles on a member.
-func (c *ClusterTx) NodeUpdateRoles(id int64, roles []ClusterRole) error {
+// UpdateNodeRoles changes the list of roles on a member.
+func (c *ClusterTx) UpdateNodeRoles(id int64, roles []ClusterRole) error {
 	getRoleID := func(role ClusterRole) (int, error) {
 		for k, v := range ClusterRoles {
 			if v == role {
