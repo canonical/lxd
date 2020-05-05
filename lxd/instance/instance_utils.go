@@ -485,7 +485,7 @@ func LoadAllInternal(s *state.State, dbInstances []db.Instance) ([]Instance, err
 	// Get the profile data
 	for project, projectProfiles := range profiles {
 		for name := range projectProfiles {
-			_, profile, err := s.Cluster.ProfileGet(project, name)
+			_, profile, err := s.Cluster.GetProfile(project, name)
 			if err != nil {
 				return nil, err
 			}

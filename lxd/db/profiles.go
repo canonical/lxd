@@ -119,8 +119,8 @@ WHERE projects.name = ?
 	return response, nil
 }
 
-// ProfileGet returns the profile with the given name.
-func (c *Cluster) ProfileGet(project, name string) (int64, *api.Profile, error) {
+// GetProfile returns the profile with the given name.
+func (c *Cluster) GetProfile(project, name string) (int64, *api.Profile, error) {
 	var result *api.Profile
 	var id int64
 
