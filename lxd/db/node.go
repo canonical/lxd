@@ -351,8 +351,8 @@ func (c *ClusterTx) SetNodePendingFlag(id int64, pending bool) error {
 	return nil
 }
 
-// NodeUpdate updates the name an address of a node.
-func (c *ClusterTx) NodeUpdate(id int64, name string, address string) error {
+// UpdateNode updates the name an address of a node.
+func (c *ClusterTx) UpdateNode(id int64, name string, address string) error {
 	result, err := c.tx.Exec("UPDATE nodes SET name=?, address=? WHERE id=?", name, address, id)
 	if err != nil {
 		return err
