@@ -29,7 +29,7 @@ func TestOperation(t *testing.T) {
 	assert.Equal(t, id, operation.ID)
 	assert.Equal(t, db.OperationContainerCreate, operation.Type)
 
-	uuids, err := tx.OperationsUUIDs()
+	uuids, err := tx.GetLocalOperationsUUIDs()
 	require.NoError(t, err)
 	assert.Equal(t, []string{"abcd"}, uuids)
 
@@ -59,7 +59,7 @@ func TestOperationNoProject(t *testing.T) {
 	assert.Equal(t, id, operation.ID)
 	assert.Equal(t, db.OperationContainerCreate, operation.Type)
 
-	uuids, err := tx.OperationsUUIDs()
+	uuids, err := tx.GetLocalOperationsUUIDs()
 	require.NoError(t, err)
 	assert.Equal(t, []string{"abcd"}, uuids)
 
