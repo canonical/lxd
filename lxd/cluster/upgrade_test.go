@@ -65,7 +65,7 @@ func TestMaybeUpdate_Upgrade(t *testing.T) {
 	})
 
 	state.Cluster.Transaction(func(tx *db.ClusterTx) error {
-		id, err := tx.NodeAdd("buzz", "1.2.3.4:666")
+		id, err := tx.CreateNode("buzz", "1.2.3.4:666")
 		require.NoError(t, err)
 
 		node, err := tx.GetNodeByName("buzz")
@@ -147,9 +147,9 @@ func TestUpgradeMembersWithoutRole(t *testing.T) {
 	// Add a couple of members to the database.
 	var members []db.NodeInfo
 	err = state.Cluster.Transaction(func(tx *db.ClusterTx) error {
-		_, err := tx.NodeAdd("foo", "1.2.3.4")
+		_, err := tx.CreateNode("foo", "1.2.3.4")
 		require.NoError(t, err)
-		_, err = tx.NodeAdd("bar", "5.6.7.8")
+		_, err = tx.CreateNode("bar", "5.6.7.8")
 		require.NoError(t, err)
 		members, err = tx.GetNodes()
 		require.NoError(t, err)

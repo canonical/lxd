@@ -39,9 +39,9 @@ func TestNetworkCreatePending(t *testing.T) {
 	tx, cleanup := db.NewTestClusterTx(t)
 	defer cleanup()
 
-	_, err := tx.NodeAdd("buzz", "1.2.3.4:666")
+	_, err := tx.CreateNode("buzz", "1.2.3.4:666")
 	require.NoError(t, err)
-	_, err = tx.NodeAdd("rusp", "5.6.7.8:666")
+	_, err = tx.CreateNode("rusp", "5.6.7.8:666")
 	require.NoError(t, err)
 
 	config := map[string]string{"bridge.external_interfaces": "foo"}
@@ -79,7 +79,7 @@ func TestNetworksCreatePending_AlreadyDefined(t *testing.T) {
 	tx, cleanup := db.NewTestClusterTx(t)
 	defer cleanup()
 
-	_, err := tx.NodeAdd("buzz", "1.2.3.4:666")
+	_, err := tx.CreateNode("buzz", "1.2.3.4:666")
 	require.NoError(t, err)
 
 	err = tx.NetworkCreatePending("buzz", "network1", map[string]string{})

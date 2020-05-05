@@ -53,9 +53,9 @@ func TestStoragePoolsCreatePending(t *testing.T) {
 	tx, cleanup := db.NewTestClusterTx(t)
 	defer cleanup()
 
-	_, err := tx.NodeAdd("buzz", "1.2.3.4:666")
+	_, err := tx.CreateNode("buzz", "1.2.3.4:666")
 	require.NoError(t, err)
-	_, err = tx.NodeAdd("rusp", "5.6.7.8:666")
+	_, err = tx.CreateNode("rusp", "5.6.7.8:666")
 	require.NoError(t, err)
 
 	config := map[string]string{"source": "/foo"}
@@ -93,7 +93,7 @@ func TestStoragePoolsCreatePending_OtherPool(t *testing.T) {
 
 	// Create a pending pool named 'pool1' on two nodes (the default 'none'
 	// and 'buzz')
-	_, err := tx.NodeAdd("buzz", "1.2.3.4:666")
+	_, err := tx.CreateNode("buzz", "1.2.3.4:666")
 	require.NoError(t, err)
 
 	config := map[string]string{"source": "/foo"}
@@ -131,7 +131,7 @@ func TestStoragePoolsCreatePending_AlreadyDefined(t *testing.T) {
 	tx, cleanup := db.NewTestClusterTx(t)
 	defer cleanup()
 
-	_, err := tx.NodeAdd("buzz", "1.2.3.4:666")
+	_, err := tx.CreateNode("buzz", "1.2.3.4:666")
 	require.NoError(t, err)
 
 	err = tx.StoragePoolCreatePending("buzz", "pool1", "dir", map[string]string{})
@@ -159,7 +159,7 @@ func TestStoragePoolVolume_Ceph(t *testing.T) {
 
 	// Create a second node (beyond the default one).
 	err := cluster.Transaction(func(tx *db.ClusterTx) error {
-		_, err := tx.NodeAdd("n1", "1.2.3.4:666")
+		_, err := tx.CreateNode("n1", "1.2.3.4:666")
 		return err
 	})
 	require.NoError(t, err)
