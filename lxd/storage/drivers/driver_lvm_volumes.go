@@ -708,6 +708,7 @@ func (d *lvm) DeleteVolumeSnapshot(snapVol Volume, op *operations.Operation) err
 
 // MountVolumeSnapshot sets up a read-only mount on top of the snapshot to avoid accidental modifications.
 func (d *lvm) MountVolumeSnapshot(snapVol Volume, op *operations.Operation) (bool, error) {
+	var err error
 	mountPath := snapVol.MountPath()
 
 	// Check if already mounted.
@@ -715,7 +716,7 @@ func (d *lvm) MountVolumeSnapshot(snapVol Volume, op *operations.Operation) (boo
 		revert := revert.New()
 		defer revert.Fail()
 
-		err := snapVol.EnsureMountPath()
+		err = snapVol.EnsureMountPath()
 		if err != nil {
 			return false, err
 		}
@@ -733,13 +734,14 @@ func (d *lvm) MountVolumeSnapshot(snapVol Volume, op *operations.Operation) (boo
 		// we do not want to modify a snapshot in case it is corrupted for some reason, so at mount time
 		// we take another snapshot of the snapshot, regenerate the temporary snapshot's UUID and then
 		// mount that.
-		if renegerateFilesystemUUIDNeeded(d.volumeFilesystem(snapVol)) {
+		regenerateFSUUID := renegerateFilesystemUUIDNeeded(d.volumeFilesystem(snapVol))
+		if regenerateFSUUID {
 			// Instantiate a new volume to be the temporary writable snapshot.
 			tmpVolName := fmt.Sprintf("%s%s", snapVol.name, tmpVolSuffix)
 			tmpVol := NewVolume(d, d.name, snapVol.volType, snapVol.contentType, tmpVolName, snapVol.config, snapVol.poolConfig)
 
 			// Create writable snapshot from source snapshot named with a tmpVolSuffix suffix.
-			_, err := d.createLogicalVolumeSnapshot(d.config["lvm.vg_name"], snapVol, tmpVol, false, d.usesThinpool())
+			_, err = d.createLogicalVolumeSnapshot(d.config["lvm.vg_name"], snapVol, tmpVol, false, d.usesThinpool())
 			if err != nil {
 				return false, errors.Wrapf(err, "Error creating temporary LVM logical volume snapshot")
 			}
@@ -748,8 +750,20 @@ func (d *lvm) MountVolumeSnapshot(snapVol Volume, op *operations.Operation) (boo
 				d.removeLogicalVolume(d.lvmDevPath(d.config["lvm.vg_name"], tmpVol.volType, tmpVol.contentType, tmpVol.name))
 			})
 
-			tmpVolDevPath := d.lvmDevPath(d.config["lvm.vg_name"], tmpVol.volType, tmpVol.contentType, tmpVol.name)
-			tmpVolFsType := d.volumeFilesystem(tmpVol)
+			// We are going to mount the temporary volume instead.
+			mountVol = tmpVol
+		}
+
+		volDevPath := d.lvmDevPath(d.config["lvm.vg_name"], mountVol.volType, mountVol.contentType, mountVol.name)
+
+		// Activate volume if needed.
+		_, err = d.activateVolume(volDevPath)
+		if err != nil {
+			return false, err
+		}
+
+		if regenerateFSUUID {
+			tmpVolFsType := d.volumeFilesystem(mountVol)
 
 			// When mounting XFS filesystems temporarily we can use the nouuid option rather than fully
 			// regenerating the filesystem UUID.
@@ -759,19 +773,15 @@ func (d *lvm) MountVolumeSnapshot(snapVol Volume, op *operations.Operation) (boo
 					mountOptions += ",nouuid"
 				}
 			} else {
-				d.logger.Debug("Regenerating filesystem UUID", log.Ctx{"dev": tmpVolDevPath, "fs": d.volumeFilesystem(tmpVol)})
-				err = regenerateFilesystemUUID(d.volumeFilesystem(tmpVol), tmpVolDevPath)
+				d.logger.Debug("Regenerating filesystem UUID", log.Ctx{"dev": volDevPath, "fs": tmpVolFsType})
+				err = regenerateFilesystemUUID(d.volumeFilesystem(mountVol), volDevPath)
 				if err != nil {
 					return false, err
 				}
 			}
-
-			// We are going to mount the temporary volume instead.
-			mountVol = tmpVol
 		}
 
 		// Finally attempt to mount the volume that needs mounting.
-		volDevPath := d.lvmDevPath(d.config["lvm.vg_name"], mountVol.volType, mountVol.contentType, mountVol.name)
 		err = TryMount(volDevPath, mountPath, d.volumeFilesystem(mountVol), mountFlags|unix.MS_RDONLY, mountOptions)
 		if err != nil {
 			return false, errors.Wrapf(err, "Failed to mount LVM snapshot volume")
@@ -782,13 +792,24 @@ func (d *lvm) MountVolumeSnapshot(snapVol Volume, op *operations.Operation) (boo
 		return true, nil
 	}
 
+	activated := false
+	if snapVol.contentType == ContentTypeBlock {
+		volDevPath := d.lvmDevPath(d.config["lvm.vg_name"], snapVol.volType, snapVol.contentType, snapVol.name)
+
+		// Activate volume if needed.
+		activated, err = d.activateVolume(volDevPath)
+		if err != nil {
+			return false, err
+		}
+	}
+
 	// For VMs, mount the filesystem volume.
 	if snapVol.IsVMBlock() {
 		fsVol := snapVol.NewVMBlockFilesystemVolume()
 		return d.MountVolumeSnapshot(fsVol, op)
 	}
 
-	return false, nil
+	return activated, nil
 }
 
 // UnmountVolumeSnapshot removes the read-only mount placed on top of a snapshot.
