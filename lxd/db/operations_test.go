@@ -33,7 +33,7 @@ func TestOperation(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, []string{"abcd"}, uuids)
 
-	err = tx.OperationRemove("abcd")
+	err = tx.RemoveOperation("abcd")
 	require.NoError(t, err)
 
 	_, err = tx.GetOperationByUUID("abcd")
@@ -63,7 +63,7 @@ func TestOperationNoProject(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, []string{"abcd"}, uuids)
 
-	err = tx.OperationRemove("abcd")
+	err = tx.RemoveOperation("abcd")
 	require.NoError(t, err)
 
 	_, err = tx.GetOperationByUUID("abcd")

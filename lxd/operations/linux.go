@@ -30,7 +30,7 @@ func removeDBOperation(op *Operation) error {
 	}
 
 	err := op.state.Cluster.Transaction(func(tx *db.ClusterTx) error {
-		return tx.OperationRemove(op.id)
+		return tx.RemoveOperation(op.id)
 	})
 
 	return err
