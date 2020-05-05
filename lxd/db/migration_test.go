@@ -132,7 +132,7 @@ func TestImportPreClusteringData(t *testing.T) {
 	require.NoError(t, err)
 
 	// profiles
-	profiles, err := cluster.Profiles("default")
+	profiles, err := cluster.GetProfileNames("default")
 	require.NoError(t, err)
 	assert.Equal(t, []string{"default", "users"}, profiles)
 	_, profile, err := cluster.ProfileGet("default", "default")

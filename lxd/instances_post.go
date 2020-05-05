@@ -194,7 +194,7 @@ func createFromMigration(d *Daemon, project string, req *api.InstancesPost) resp
 	}
 
 	// Early profile validation.
-	profiles, err := d.cluster.Profiles(project)
+	profiles, err := d.cluster.GetProfileNames(project)
 	if err != nil {
 		return response.InternalError(err)
 	}
