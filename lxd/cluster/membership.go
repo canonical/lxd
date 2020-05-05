@@ -766,7 +766,7 @@ func Leave(state *state.State, gateway *Gateway, name string, force bool) (strin
 	var address string
 	err := state.Cluster.Transaction(func(tx *db.ClusterTx) error {
 		// Get the node (if it doesn't exists an error is returned).
-		node, err := tx.NodeByName(name)
+		node, err := tx.GetNodeByName(name)
 		if err != nil {
 			return err
 		}
@@ -907,7 +907,7 @@ func Purge(cluster *db.Cluster, name string) error {
 
 	return cluster.Transaction(func(tx *db.ClusterTx) error {
 		// Get the node (if it doesn't exists an error is returned).
-		node, err := tx.NodeByName(name)
+		node, err := tx.GetNodeByName(name)
 		if err != nil {
 			return errors.Wrapf(err, "failed to get node %s", name)
 		}

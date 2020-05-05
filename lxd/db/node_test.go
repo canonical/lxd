@@ -36,7 +36,7 @@ func TestNodeAdd(t *testing.T) {
 	assert.Equal(t, [2]int{cluster.SchemaVersion, len(version.APIExtensions)}, node.Version())
 	assert.False(t, node.IsOffline(20*time.Second))
 
-	node, err = tx.NodeByName("buzz")
+	node, err = tx.GetNodeByName("buzz")
 	require.NoError(t, err)
 	assert.Equal(t, "buzz", node.Name)
 }
@@ -134,7 +134,7 @@ func TestNodeRename(t *testing.T) {
 	require.NoError(t, err)
 	err = tx.NodeRename("buzz", "rusp")
 	require.NoError(t, err)
-	node, err := tx.NodeByName("rusp")
+	node, err := tx.GetNodeByName("rusp")
 	require.NoError(t, err)
 	assert.Equal(t, "rusp", node.Name)
 
@@ -158,10 +158,10 @@ func TestNodeRemove(t *testing.T) {
 	err = tx.NodeRemove(id)
 	require.NoError(t, err)
 
-	_, err = tx.NodeByName("buzz")
+	_, err = tx.GetNodeByName("buzz")
 	assert.NoError(t, err)
 
-	_, err = tx.NodeByName("rusp")
+	_, err = tx.GetNodeByName("rusp")
 	assert.Equal(t, db.ErrNoSuchObject, err)
 }
 
@@ -178,7 +178,7 @@ func TestNodePending(t *testing.T) {
 	require.NoError(t, err)
 
 	// Pending nodes are skipped from regular listing
-	_, err = tx.NodeByName("buzz")
+	_, err = tx.GetNodeByName("buzz")
 	assert.Equal(t, db.ErrNoSuchObject, err)
 	nodes, err := tx.Nodes()
 	require.NoError(t, err)
@@ -192,7 +192,7 @@ func TestNodePending(t *testing.T) {
 	// Remove the pending flag
 	err = tx.NodePending(id, false)
 	require.NoError(t, err)
-	node, err = tx.NodeByName("buzz")
+	node, err = tx.GetNodeByName("buzz")
 	require.NoError(t, err)
 	assert.Equal(t, id, node.ID)
 }

@@ -21,7 +21,7 @@ func ResolveTarget(cluster *db.Cluster, target string) (string, error) {
 			return nil
 		}
 
-		node, err := tx.NodeByName(target)
+		node, err := tx.GetNodeByName(target)
 		if err != nil {
 			if err == db.ErrNoSuchObject {
 				return fmt.Errorf("No cluster member called '%s'", target)

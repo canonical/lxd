@@ -196,7 +196,7 @@ func (c *ClusterTx) NetworkCreatePending(node, name string, conf map[string]stri
 	}
 
 	// Get the ID of the node with the given name.
-	nodeInfo, err := c.NodeByName(node)
+	nodeInfo, err := c.GetNodeByName(node)
 	if err != nil {
 		return err
 	}
