@@ -562,8 +562,8 @@ SELECT fingerprint, node_id FROM images JOIN images_nodes ON images.id=images_no
 	return "", nil
 }
 
-// NodeClear removes any container or image associated with this node.
-func (c *ClusterTx) NodeClear(id int64) error {
+// ClearNode removes any instance or image associated with this node.
+func (c *ClusterTx) ClearNode(id int64) error {
 	_, err := c.tx.Exec("DELETE FROM instances WHERE node_id=?", id)
 	if err != nil {
 		return err

@@ -237,7 +237,7 @@ INSERT INTO instances (id, node_id, name, architecture, type, project_id) VALUES
 	require.NoError(t, err)
 	assert.Equal(t, "Node still has the following containers: foo", message)
 
-	err = tx.NodeClear(id)
+	err = tx.ClearNode(id)
 	require.NoError(t, err)
 
 	message, err = tx.NodeIsEmpty(id)
