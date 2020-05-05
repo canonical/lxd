@@ -186,8 +186,8 @@ func UpdateProfileDescription(tx *sql.Tx, id int64, description string) error {
 	return err
 }
 
-// ProfileConfigClear resets the config of the profile with the given ID.
-func ProfileConfigClear(tx *sql.Tx, id int64) error {
+// ClearProfileConfig resets the config of the profile with the given ID.
+func ClearProfileConfig(tx *sql.Tx, id int64) error {
 	_, err := tx.Exec("DELETE FROM profiles_config WHERE profile_id=?", id)
 	if err != nil {
 		return err
