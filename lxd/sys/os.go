@@ -47,6 +47,7 @@ type OS struct {
 	InotifyWatch    InotifyInfo
 	LxcPath         string // Path to the $LXD_DIR/containers directory
 	MockMode        bool   // If true some APIs will be mocked (for testing)
+	Nodev           bool
 	RunningInUserNS bool
 	UnprivUser      string
 	UnprivUID       int

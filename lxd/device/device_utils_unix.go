@@ -195,6 +195,10 @@ func UnixDeviceCreate(s *state.State, idmapSet *idmap.IdmapSet, devicesPath stri
 
 	// Create the new entry.
 	if !s.OS.RunningInUserNS {
+		if s.OS.Nodev {
+			return nil, fmt.Errorf("Can't create device as devices path is mounted nodev")
+		}
+
 		devNum := int(unix.Mkdev(d.Major, d.Minor))
 		err := unix.Mknod(devPath, uint32(d.Mode), devNum)
 		if err != nil {
