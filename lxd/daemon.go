@@ -670,6 +670,21 @@ func (d *Daemon) init() error {
 		d.os.LXCFeatures[extension] = liblxc.HasApiExtension(extension)
 	}
 
+	// Validate the devices storage.
+	testDev := shared.VarPath("devices", ".test")
+	testDevNum := int(unix.Mkdev(0, 0))
+	os.Remove(testDev)
+	err = unix.Mknod(testDev, 0600|unix.S_IFCHR, testDevNum)
+	if err == nil {
+		fd, err := os.Open(testDev)
+		if err != nil && os.IsPermission(err) {
+			logger.Warnf("Unable to access device nodes, LXD likely running on a nodev mount")
+			d.os.Nodev = true
+		}
+		fd.Close()
+		os.Remove(testDev)
+	}
+
 	/* Initialize the database */
 	dump, err := initializeDbObject(d)
 	if err != nil {
