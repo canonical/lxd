@@ -3479,7 +3479,7 @@ func patchClusteringAddRoles(name string, d *Daemon) error {
 					return err
 				}
 			} else if shared.StringInSlice(string(db.ClusterRoleDatabase), node.Roles) {
-				err = tx.NodeRemoveRole(node.ID, db.ClusterRoleDatabase)
+				err = tx.RemoveNodeRole(node.ID, db.ClusterRoleDatabase)
 				if err != nil {
 					return err
 				}
