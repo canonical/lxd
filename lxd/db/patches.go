@@ -6,8 +6,8 @@ import (
 	"fmt"
 )
 
-// Patches returns the names of all patches currently applied on this node.
-func (n *Node) Patches() ([]string, error) {
+// GetAppliedPatches returns the names of all patches currently applied on this node.
+func (n *Node) GetAppliedPatches() ([]string, error) {
 	inargs := []interface{}{}
 	outfmt := []interface{}{""}
 
