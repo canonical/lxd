@@ -815,11 +815,13 @@ func (d *lvm) MountVolumeSnapshot(snapVol Volume, op *operations.Operation) (boo
 // UnmountVolumeSnapshot removes the read-only mount placed on top of a snapshot.
 // If a temporary snapshot volume exists then it will attempt to remove it.
 func (d *lvm) UnmountVolumeSnapshot(snapVol Volume, op *operations.Operation) (bool, error) {
+	var err error
+	volDevPath := d.lvmDevPath(d.config["lvm.vg_name"], snapVol.volType, snapVol.contentType, snapVol.name)
 	mountPath := snapVol.MountPath()
 
 	// Check if already mounted.
 	if snapVol.contentType == ContentTypeFS && shared.IsMountPoint(mountPath) {
-		err := TryUnmount(mountPath, 0)
+		err = TryUnmount(mountPath, 0)
 		if err != nil {
 			return false, errors.Wrapf(err, "Failed to unmount LVM snapshot volume")
 		}
@@ -840,7 +842,22 @@ func (d *lvm) UnmountVolumeSnapshot(snapVol Volume, op *operations.Operation) (b
 			}
 		}
 
+		// We only deactivate filesystem volumes if an unmount was needed to better align with our
+		// unmount return value indicator.
+		_, err = d.deactivateVolume(volDevPath)
+		if err != nil {
+			return false, err
+		}
+
 		return true, nil
+	}
+
+	deactivated := false
+	if snapVol.contentType == ContentTypeBlock {
+		deactivated, err = d.deactivateVolume(volDevPath)
+		if err != nil {
+			return false, err
+		}
 	}
 
 	// For VMs, unmount the filesystem volume.
@@ -849,7 +866,7 @@ func (d *lvm) UnmountVolumeSnapshot(snapVol Volume, op *operations.Operation) (b
 		return d.UnmountVolumeSnapshot(fsVol, op)
 	}
 
-	return false, nil
+	return deactivated, nil
 }
 
 // VolumeSnapshots returns a list of snapshots for the volume.
