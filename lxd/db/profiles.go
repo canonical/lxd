@@ -150,8 +150,8 @@ func (c *Cluster) GetProfile(project, name string) (int64, *api.Profile, error) 
 	return id, result, nil
 }
 
-// ProfilesGet returns the profiles with the given names in the given project.
-func (c *Cluster) ProfilesGet(project string, names []string) ([]api.Profile, error) {
+// GetProfiles returns the profiles with the given names in the given project.
+func (c *Cluster) GetProfiles(project string, names []string) ([]api.Profile, error) {
 	profiles := make([]api.Profile, len(names))
 
 	err := c.Transaction(func(tx *ClusterTx) error {
