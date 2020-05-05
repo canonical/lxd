@@ -590,6 +590,18 @@ func (d *lvm) RenameVolume(vol Volume, newVolName string, op *operations.Operati
 
 // MigrateVolume sends a volume for migration.
 func (d *lvm) MigrateVolume(vol Volume, conn io.ReadWriteCloser, volSrcArgs *migration.VolumeSourceArgs, op *operations.Operation) error {
+	// Before doing a generic volume migration, we need to ensure volume (or snap volume parent) is activated
+	// to avoid failing with warnings about changing the origin of the snapshot when trying to activate it.
+	parent, _, _ := shared.InstanceGetParentAndSnapshotName(vol.Name())
+	volDevPath := d.lvmDevPath(d.config["lvm.vg_name"], vol.volType, vol.contentType, parent)
+	activated, err := d.activateVolume(volDevPath)
+	if err != nil {
+		return err
+	}
+	if activated {
+		defer d.deactivateVolume(volDevPath)
+	}
+
 	return genericVFSMigrateVolume(d, d.state, vol, conn, volSrcArgs, op)
 }
 
