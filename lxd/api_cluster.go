@@ -588,7 +588,7 @@ func clusterPutJoin(d *Daemon, req api.ClusterPut) response.Response {
 			var nodeInfo db.NodeInfo
 			err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
 				var err error
-				nodeInfo, err = tx.NodeByAddress(leader)
+				nodeInfo, err = tx.GetNodeByAddress(leader)
 				return err
 			})
 			if err != nil {
