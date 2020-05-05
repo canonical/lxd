@@ -197,10 +197,10 @@ func (c *ClusterTx) GetNodesCount() (int, error) {
 	return count, nil
 }
 
-// NodeRename changes the name of an existing node.
+// RenameNode changes the name of an existing node.
 //
 // Return an error if a node with the same name already exists.
-func (c *ClusterTx) NodeRename(old, new string) error {
+func (c *ClusterTx) RenameNode(old, new string) error {
 	count, err := query.Count(c.tx, "nodes", "name=?", new)
 	if err != nil {
 		return errors.Wrap(err, "failed to check existing nodes")
