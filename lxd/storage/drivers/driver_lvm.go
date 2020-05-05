@@ -501,12 +501,7 @@ func (d *lvm) Mount() (bool, error) {
 			return false, err
 		}
 		defer loopFile.Close()
-	}
-
-	// Activate volume group so that it's device is added to /dev.
-	_, err := shared.TryRunCommand("vgchange", "-ay", d.config["lvm.vg_name"])
-	if err != nil {
-		return false, err
+		return true, nil
 	}
 
 	return false, nil
