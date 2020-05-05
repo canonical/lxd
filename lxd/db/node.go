@@ -311,10 +311,10 @@ func (c *ClusterTx) nodes(pending bool, where string, args ...interface{}) ([]No
 	return nodes, nil
 }
 
-// NodeAdd adds a node to the current list of LXD nodes that are part of the
+// CreateNode adds a node to the current list of LXD nodes that are part of the
 // cluster. The node's architecture will be the architecture of the machine the
 // method is being run on. It returns the ID of the newly inserted row.
-func (c *ClusterTx) NodeAdd(name string, address string) (int64, error) {
+func (c *ClusterTx) CreateNode(name string, address string) (int64, error) {
 	arch, err := osarch.ArchitectureGetLocalID()
 	if err != nil {
 		return -1, err

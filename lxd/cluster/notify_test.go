@@ -123,7 +123,7 @@ func (h *notifyFixtures) Nodes(cert *shared.CertInfo, n int) func() {
 			if i == 0 {
 				err = tx.NodeUpdate(int64(1), name, address)
 			} else {
-				_, err = tx.NodeAdd(name, address)
+				_, err = tx.CreateNode(name, address)
 			}
 			require.NoError(h.t, err)
 		}

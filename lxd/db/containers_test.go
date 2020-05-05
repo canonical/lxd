@@ -20,7 +20,7 @@ func TestContainerList(t *testing.T) {
 
 	nodeID1 := int64(1) // This is the default local node
 
-	nodeID2, err := tx.NodeAdd("node2", "1.2.3.4:666")
+	nodeID2, err := tx.CreateNode("node2", "1.2.3.4:666")
 	require.NoError(t, err)
 
 	addContainer(t, tx, nodeID2, "c1")
@@ -66,7 +66,7 @@ func TestContainerList_FilterByNode(t *testing.T) {
 
 	nodeID1 := int64(1) // This is the default local node
 
-	nodeID2, err := tx.NodeAdd("node2", "1.2.3.4:666")
+	nodeID2, err := tx.CreateNode("node2", "1.2.3.4:666")
 	require.NoError(t, err)
 
 	addContainer(t, tx, nodeID2, "c1")
@@ -303,10 +303,10 @@ func TestGetInstanceNamesByNodeAddress(t *testing.T) {
 
 	nodeID1 := int64(1) // This is the default local node
 
-	nodeID2, err := tx.NodeAdd("node2", "1.2.3.4:666")
+	nodeID2, err := tx.CreateNode("node2", "1.2.3.4:666")
 	require.NoError(t, err)
 
-	nodeID3, err := tx.NodeAdd("node3", "5.6.7.8:666")
+	nodeID3, err := tx.CreateNode("node3", "5.6.7.8:666")
 	require.NoError(t, err)
 	require.NoError(t, tx.NodeHeartbeat("5.6.7.8:666", time.Now().Add(-time.Minute)))
 
@@ -333,7 +333,7 @@ func TestGetInstanceToNodeMap(t *testing.T) {
 
 	nodeID1 := int64(1) // This is the default local node
 
-	nodeID2, err := tx.NodeAdd("node2", "1.2.3.4:666")
+	nodeID2, err := tx.CreateNode("node2", "1.2.3.4:666")
 	require.NoError(t, err)
 
 	addContainer(t, tx, nodeID2, "c1")
@@ -388,7 +388,7 @@ func TestGetLocalInstancesInProject(t *testing.T) {
 
 	nodeID1 := int64(1) // This is the default local node
 
-	nodeID2, err := tx.NodeAdd("node2", "1.2.3.4:666")
+	nodeID2, err := tx.CreateNode("node2", "1.2.3.4:666")
 	require.NoError(t, err)
 
 	addContainer(t, tx, nodeID2, "c1")
