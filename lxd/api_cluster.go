@@ -973,7 +973,7 @@ func clusterNodePost(d *Daemon, r *http.Request) response.Response {
 	}
 
 	err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
-		return tx.NodeRename(name, req.ServerName)
+		return tx.RenameNode(name, req.ServerName)
 	})
 	if err != nil {
 		return response.SmartError(err)

@@ -126,13 +126,13 @@ func TestGetLocalNodeName(t *testing.T) {
 }
 
 // Rename a node
-func TestNodeRename(t *testing.T) {
+func TestRenameNode(t *testing.T) {
 	tx, cleanup := db.NewTestClusterTx(t)
 	defer cleanup()
 
 	_, err := tx.NodeAdd("buzz", "1.2.3.4:666")
 	require.NoError(t, err)
-	err = tx.NodeRename("buzz", "rusp")
+	err = tx.RenameNode("buzz", "rusp")
 	require.NoError(t, err)
 	node, err := tx.GetNodeByName("rusp")
 	require.NoError(t, err)
@@ -140,7 +140,7 @@ func TestNodeRename(t *testing.T) {
 
 	_, err = tx.NodeAdd("buzz", "5.6.7.8:666")
 	require.NoError(t, err)
-	err = tx.NodeRename("rusp", "buzz")
+	err = tx.RenameNode("rusp", "buzz")
 	assert.Equal(t, db.ErrAlreadyDefined, err)
 }
 

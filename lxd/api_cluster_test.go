@@ -505,7 +505,7 @@ func TestCluster_LeaveForce(t *testing.T) {
 }
 
 // A LXD node can be renamed.
-func TestCluster_NodeRename(t *testing.T) {
+func TestCluster_RenameNode(t *testing.T) {
 	t.Skip("issue #6122")
 	daemon, cleanup := newTestDaemon(t)
 	defer cleanup()
