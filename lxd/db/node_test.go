@@ -184,8 +184,8 @@ func TestNodePending(t *testing.T) {
 	require.NoError(t, err)
 	assert.Len(t, nodes, 1)
 
-	// But the key be retrieved with NodePendingByAddress
-	node, err := tx.NodePendingByAddress("1.2.3.4:666")
+	// But the key be retrieved with GetPendingNodeByAddress
+	node, err := tx.GetPendingNodeByAddress("1.2.3.4:666")
 	require.NoError(t, err)
 	assert.Equal(t, id, node.ID)
 
