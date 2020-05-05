@@ -427,7 +427,7 @@ func (d *lvm) createLogicalVolumeSnapshot(vgName string, srcVol, snapVol Volume,
 	args := []string{"-n", snapLvName, "-s", srcVolDevPath}
 
 	if isRecent {
-		args = append(args, "-kn")
+		args = append(args, "--setactivationskip", "y")
 	}
 
 	// If the source is not a thin volume the size needs to be specified.
@@ -463,15 +463,6 @@ func (d *lvm) createLogicalVolumeSnapshot(vgName string, srcVol, snapVol Volume,
 	})
 
 	targetVolDevPath := d.lvmDevPath(vgName, snapVol.volType, snapVol.contentType, snapVol.name)
-	if makeThinLv {
-		// Snapshots of thin logical volumes can be directly activated.
-		// Normal snapshots will complain about changing the origin (Which they never do.),
-		// so skip the activation since the logical volume will be automatically activated anyway.
-		_, err := shared.TryRunCommand("lvchange", "-ay", targetVolDevPath)
-		if err != nil {
-			return "", err
-		}
-	}
 
 	revert.Success()
 	return targetVolDevPath, nil
