@@ -279,7 +279,7 @@ func containerPostClusteringMigrate(d *Daemon, c instance.Instance, oldName, new
 	err := d.cluster.Transaction(func(tx *db.ClusterTx) error {
 		var err error
 
-		sourceAddress, err = tx.NodeAddress()
+		sourceAddress, err = tx.GetLocalNodeAddress()
 		if err != nil {
 			return errors.Wrap(err, "Failed to get local node address")
 		}

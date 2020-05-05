@@ -227,7 +227,7 @@ func (g *Gateway) heartbeat(ctx context.Context, initialHeartbeat bool) {
 			return err
 		}
 
-		localAddress, err = tx.NodeAddress()
+		localAddress, err = tx.GetLocalNodeAddress()
 		if err != nil {
 			return err
 		}

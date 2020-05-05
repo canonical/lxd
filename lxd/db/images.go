@@ -595,7 +595,7 @@ WHERE images.fingerprint = ?
 			return err
 		}
 
-		localAddress, err = tx.NodeAddress()
+		localAddress, err = tx.GetLocalNodeAddress()
 		if err != nil {
 			return err
 		}
