@@ -391,8 +391,8 @@ func (c *ClusterTx) CreateNodeRole(id int64, role ClusterRole) error {
 	return nil
 }
 
-// NodeRemoveRole removes a role from the node.
-func (c *ClusterTx) NodeRemoveRole(id int64, role ClusterRole) error {
+// RemoveNodeRole removes a role from the node.
+func (c *ClusterTx) RemoveNodeRole(id int64, role ClusterRole) error {
 	// Translate role names to ids
 	roleID := -1
 	for k, v := range ClusterRoles {

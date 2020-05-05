@@ -555,7 +555,7 @@ func Rebalance(state *state.State, gateway *Gateway) (string, []db.RaftNode, err
 					return "", nil, errors.Wrap(err, "Failed to demote offline node")
 				}
 				err = state.Cluster.Transaction(func(tx *db.ClusterTx) error {
-					return tx.NodeRemoveRole(node.ID, db.ClusterRoleDatabase)
+					return tx.RemoveNodeRole(node.ID, db.ClusterRoleDatabase)
 				})
 				if err != nil {
 					return "", nil, errors.Wrap(err, "Failed to update node role")
@@ -730,7 +730,7 @@ assign:
 		if info.Role == db.RaftVoter {
 			f = tx.CreateNodeRole
 		} else {
-			f = tx.NodeRemoveRole
+			f = tx.RemoveNodeRole
 		}
 		err = f(state.Cluster.GetNodeID(), db.ClusterRoleDatabase)
 		if err != nil {
