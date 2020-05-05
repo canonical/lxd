@@ -211,7 +211,7 @@ func storagePoolsPostCluster(d *Daemon, req api.StoragePoolsPost) error {
 		}
 
 		// Take note of the name of this node
-		nodeName, err = tx.NodeName()
+		nodeName, err = tx.GetLocalNodeName()
 		if err != nil {
 			return err
 		}

@@ -135,7 +135,7 @@ func doProfileUpdate(d *Daemon, project, name string, id int64, profile *api.Pro
 	nodeName := ""
 	err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
 		var err error
-		nodeName, err = tx.NodeName()
+		nodeName, err = tx.GetLocalNodeName()
 		return err
 	})
 	if err != nil {
@@ -166,7 +166,7 @@ func doProfileUpdateCluster(d *Daemon, project, name string, old api.ProfilePut)
 	nodeName := ""
 	err := d.cluster.Transaction(func(tx *db.ClusterTx) error {
 		var err error
-		nodeName, err = tx.NodeName()
+		nodeName, err = tx.GetLocalNodeName()
 		return err
 	})
 	if err != nil {

@@ -521,7 +521,7 @@ func instanceCreateInternal(s *state.State, args db.InstanceArgs) (instance.Inst
 	var dbInst db.Instance
 
 	err = s.Cluster.Transaction(func(tx *db.ClusterTx) error {
-		node, err := tx.NodeName()
+		node, err := tx.GetLocalNodeName()
 		if err != nil {
 			return err
 		}

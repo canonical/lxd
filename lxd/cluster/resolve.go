@@ -12,7 +12,7 @@ import (
 func ResolveTarget(cluster *db.Cluster, target string) (string, error) {
 	address := ""
 	err := cluster.Transaction(func(tx *db.ClusterTx) error {
-		name, err := tx.NodeName()
+		name, err := tx.GetLocalNodeName()
 		if err != nil {
 			return err
 		}

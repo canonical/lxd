@@ -114,11 +114,11 @@ func TestNodeIsOutdated_OneNodeWithLowerVersion(t *testing.T) {
 	assert.False(t, outdated)
 }
 
-func TestNodeName(t *testing.T) {
+func TestGetLocalNodeName(t *testing.T) {
 	tx, cleanup := db.NewTestClusterTx(t)
 	defer cleanup()
 
-	name, err := tx.NodeName()
+	name, err := tx.GetLocalNodeName()
 	require.NoError(t, err)
 
 	// The default node 1 has a conventional name 'none'.

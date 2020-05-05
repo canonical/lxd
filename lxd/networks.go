@@ -241,7 +241,7 @@ func networksPostCluster(d *Daemon, req api.NetworksPost) error {
 		}
 
 		// Take note of the name of this node.
-		nodeName, err = tx.NodeName()
+		nodeName, err = tx.GetLocalNodeName()
 		if err != nil {
 			return err
 		}
@@ -745,7 +745,7 @@ func networkLeasesGet(d *Daemon, r *http.Request) response.Response {
 	// Local server name
 	var serverName string
 	err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
-		serverName, err = tx.NodeName()
+		serverName, err = tx.GetLocalNodeName()
 		return err
 	})
 	if err != nil {
