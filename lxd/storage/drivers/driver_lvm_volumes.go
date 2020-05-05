@@ -475,23 +475,45 @@ func (d *lvm) MountVolume(vol Volume, op *operations.Operation) (bool, error) {
 	return activated, nil
 }
 
-// UnmountVolume simulates unmounting a volume. As dir driver doesn't have volumes to unmount it
-// returns false indicating the volume was already unmounted.
+// UnmountVolume unmounts a volume. Returns true if we unmounted.
 func (d *lvm) UnmountVolume(vol Volume, op *operations.Operation) (bool, error) {
+	var err error
+	volDevPath := d.lvmDevPath(d.config["lvm.vg_name"], vol.volType, vol.contentType, vol.name)
 	mountPath := vol.MountPath()
 
 	// Check if already mounted.
-	if shared.IsMountPoint(mountPath) {
-		err := TryUnmount(mountPath, 0)
+	if vol.contentType == ContentTypeFS && shared.IsMountPoint(mountPath) {
+		err = TryUnmount(mountPath, 0)
 		if err != nil {
 			return false, errors.Wrapf(err, "Failed to unmount LVM logical volume")
 		}
 		d.logger.Debug("Unmounted logical volume", log.Ctx{"path": mountPath})
 
+		// We only deactivate filesystem volumes if an unmount was needed to better align with our
+		// unmount return value indicator.
+		_, err = d.deactivateVolume(volDevPath)
+		if err != nil {
+			return false, err
+		}
+
 		return true, nil
 	}
 
-	return false, nil
+	deactivated := false
+	if vol.contentType == ContentTypeBlock {
+		deactivated, err = d.deactivateVolume(volDevPath)
+		if err != nil {
+			return false, err
+		}
+	}
+
+	// For VMs, unmount the filesystem volume.
+	if vol.IsVMBlock() {
+		fsVol := vol.NewVMBlockFilesystemVolume()
+		return d.UnmountVolume(fsVol, op)
+	}
+
+	return deactivated, nil
 }
 
 // RenameVolume renames a volume and its snapshots.
