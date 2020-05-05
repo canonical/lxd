@@ -645,6 +645,11 @@ func (d *lvm) copyThinpoolVolume(vol, srcVol Volume, srcSnapshots []Volume, refr
 		// volumes with the same UUID to be mounted at the same time). This should be done before volume
 		// resize as some filesystems will need to mount the filesystem to resize.
 		if renegerateFilesystemUUIDNeeded(d.volumeFilesystem(vol)) {
+			_, err = d.activateVolume(volDevPath)
+			if err != nil {
+				return err
+			}
+
 			d.logger.Debug("Regenerating filesystem UUID", log.Ctx{"dev": volDevPath, "fs": d.volumeFilesystem(vol)})
 			err = regenerateFilesystemUUID(d.volumeFilesystem(vol), volDevPath)
 			if err != nil {
