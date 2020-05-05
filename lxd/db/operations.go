@@ -59,8 +59,8 @@ func (c *ClusterTx) GetOperationByUUID(uuid string) (Operation, error) {
 	}
 }
 
-// OperationAdd adds a new operations to the table.
-func (c *ClusterTx) OperationAdd(project, uuid string, typ OperationType) (int64, error) {
+// CreateOperation adds a new operations to the table.
+func (c *ClusterTx) CreateOperation(project, uuid string, typ OperationType) (int64, error) {
 	var projectID interface{}
 
 	if project != "" {

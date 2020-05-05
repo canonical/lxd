@@ -14,7 +14,7 @@ func registerDBOperation(op *Operation, opType db.OperationType) error {
 	}
 
 	err := op.state.Cluster.Transaction(func(tx *db.ClusterTx) error {
-		_, err := tx.OperationAdd(op.project, op.id, opType)
+		_, err := tx.CreateOperation(op.project, op.id, opType)
 		return err
 	})
 	if err != nil {
