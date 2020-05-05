@@ -436,19 +436,26 @@ func (d *lvm) GetVolumeDiskPath(vol Volume) (string, error) {
 	return "", ErrNotSupported
 }
 
-// MountVolume simulates mounting a volume. As dir driver doesn't have volumes to mount it returns
-// false indicating that there is no need to issue an unmount.
+// MountVolume mounts a volume. Returns true if this volume was our mount.
 func (d *lvm) MountVolume(vol Volume, op *operations.Operation) (bool, error) {
-	mountPath := vol.MountPath()
+	var err error
+	activated := false
+
+	// Activate LVM volume if needed.
+	volDevPath := d.lvmDevPath(d.config["lvm.vg_name"], vol.volType, vol.contentType, vol.name)
+	activated, err = d.activateVolume(volDevPath)
+	if err != nil {
+		return false, err
+	}
 
 	// Check if already mounted.
+	mountPath := vol.MountPath()
 	if vol.contentType == ContentTypeFS && !shared.IsMountPoint(mountPath) {
-		err := vol.EnsureMountPath()
+		err = vol.EnsureMountPath()
 		if err != nil {
 			return false, err
 		}
 
-		volDevPath := d.lvmDevPath(d.config["lvm.vg_name"], vol.volType, vol.contentType, vol.name)
 		mountFlags, mountOptions := resolveMountOptions(d.volumeMountOptions(vol))
 		err = TryMount(volDevPath, mountPath, d.volumeFilesystem(vol), mountFlags, mountOptions)
 		if err != nil {
@@ -465,7 +472,7 @@ func (d *lvm) MountVolume(vol Volume, op *operations.Operation) (bool, error) {
 		return d.MountVolume(fsVol, op)
 	}
 
-	return false, nil
+	return activated, nil
 }
 
 // UnmountVolume simulates unmounting a volume. As dir driver doesn't have volumes to unmount it
