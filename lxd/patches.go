@@ -136,7 +136,7 @@ func patchesGetNames() []string {
 
 // patchesApplyPostDaemonStorage applies the patches that need to run after the daemon storage is initialised.
 func patchesApply(d *Daemon, stage patchStage) error {
-	appliedPatches, err := d.db.Patches()
+	appliedPatches, err := d.db.GetAppliedPatches()
 	if err != nil {
 		return err
 	}

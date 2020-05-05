@@ -82,7 +82,7 @@ func setupStorageDriver(s *state.State, forceCheck bool) error {
 	// but the upgrade somehow got messed up then there will be no
 	// "storage_api" entry in the db.
 	if len(pools) > 0 && !forceCheck {
-		appliedPatches, err := s.Node.Patches()
+		appliedPatches, err := s.Node.GetAppliedPatches()
 		if err != nil {
 			return err
 		}
