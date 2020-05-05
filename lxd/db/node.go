@@ -599,10 +599,10 @@ func (c *ClusterTx) NodeClear(id int64) error {
 	return nil
 }
 
-// NodeOfflineThreshold returns the amount of time that needs to elapse after
+// GetNodeOfflineThreshold returns the amount of time that needs to elapse after
 // which a series of unsuccessful heartbeat will make the node be considered
 // offline.
-func (c *ClusterTx) NodeOfflineThreshold() (time.Duration, error) {
+func (c *ClusterTx) GetNodeOfflineThreshold() (time.Duration, error) {
 	threshold := time.Duration(DefaultOfflineThreshold) * time.Second
 	values, err := query.SelectStrings(
 		c.tx, "SELECT value FROM config WHERE key='cluster.offline_threshold'")
@@ -624,7 +624,7 @@ func (c *ClusterTx) NodeOfflineThreshold() (time.Duration, error) {
 // an operation). If archs is not empty, then return only nodes with an
 // architecture in that list.
 func (c *ClusterTx) NodeWithLeastContainers(archs []int) (string, error) {
-	threshold, err := c.NodeOfflineThreshold()
+	threshold, err := c.GetNodeOfflineThreshold()
 	if err != nil {
 		return "", errors.Wrap(err, "failed to get offline threshold")
 	}

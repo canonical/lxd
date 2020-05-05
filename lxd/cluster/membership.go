@@ -875,7 +875,7 @@ func Handover(state *state.State, gateway *Gateway, address string) (string, []d
 func isMemberOnline(state *state.State, cert *shared.CertInfo, address string) (bool, error) {
 	online := true
 	err := state.Cluster.Transaction(func(tx *db.ClusterTx) error {
-		offlineThreshold, err := tx.NodeOfflineThreshold()
+		offlineThreshold, err := tx.GetNodeOfflineThreshold()
 		if err != nil {
 			return err
 		}
@@ -937,7 +937,7 @@ func List(state *state.State) ([]api.ClusterMember, error) {
 			return err
 		}
 
-		offlineThreshold, err = tx.NodeOfflineThreshold()
+		offlineThreshold, err = tx.GetNodeOfflineThreshold()
 		if err != nil {
 			return err
 		}
