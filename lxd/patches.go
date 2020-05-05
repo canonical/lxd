@@ -270,7 +270,7 @@ func patchRenameCustomVolumeLVs(name string, d *Daemon) error {
 }
 
 func patchLeftoverProfileConfig(name string, d *Daemon) error {
-	return d.cluster.ProfileCleanupLeftover()
+	return d.cluster.RemoveUnreferencedProfiles()
 }
 
 func patchInvalidProfileNames(name string, d *Daemon) error {
