@@ -85,7 +85,7 @@ func doProfileUpdate(d *Daemon, project, name string, id int64, profile *api.Pro
 		}
 
 		if profile.Description != req.Description {
-			err = db.ProfileDescriptionUpdate(tx, id, req.Description)
+			err = db.UpdateProfileDescription(tx, id, req.Description)
 			if err != nil {
 				tx.Rollback()
 				return err
