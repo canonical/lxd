@@ -52,7 +52,7 @@ func NewNotifier(state *state.State, cert *shared.CertInfo, policy NotifierPolic
 			return err
 		}
 
-		nodes, err = tx.Nodes()
+		nodes, err = tx.GetNodes()
 		if err != nil {
 			return err
 		}
