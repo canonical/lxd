@@ -19,7 +19,7 @@ func TestNodeAdd(t *testing.T) {
 	tx, cleanup := db.NewTestClusterTx(t)
 	defer cleanup()
 
-	id, err := tx.NodeAdd("buzz", "1.2.3.4:666")
+	id, err := tx.CreateNode("buzz", "1.2.3.4:666")
 	require.NoError(t, err)
 	assert.Equal(t, int64(2), id)
 
@@ -49,7 +49,7 @@ func TestGetNodesCount(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, 1, count) // There's always at least one node.
 
-	_, err = tx.NodeAdd("buzz", "1.2.3.4:666")
+	_, err = tx.CreateNode("buzz", "1.2.3.4:666")
 	require.NoError(t, err)
 
 	count, err = tx.GetNodesCount()
@@ -71,7 +71,7 @@ func TestNodeIsOutdated_AllNodesAtSameVersion(t *testing.T) {
 	tx, cleanup := db.NewTestClusterTx(t)
 	defer cleanup()
 
-	_, err := tx.NodeAdd("buzz", "1.2.3.4:666")
+	_, err := tx.CreateNode("buzz", "1.2.3.4:666")
 	require.NoError(t, err)
 
 	outdated, err := tx.NodeIsOutdated()
@@ -84,7 +84,7 @@ func TestNodeIsOutdated_OneNodeWithHigherVersion(t *testing.T) {
 	tx, cleanup := db.NewTestClusterTx(t)
 	defer cleanup()
 
-	id, err := tx.NodeAdd("buzz", "1.2.3.4:666")
+	id, err := tx.CreateNode("buzz", "1.2.3.4:666")
 	require.NoError(t, err)
 
 	version := [2]int{cluster.SchemaVersion + 1, len(version.APIExtensions)}
@@ -101,7 +101,7 @@ func TestNodeIsOutdated_OneNodeWithLowerVersion(t *testing.T) {
 	tx, cleanup := db.NewTestClusterTx(t)
 	defer cleanup()
 
-	id, err := tx.NodeAdd("buzz", "1.2.3.4:666")
+	id, err := tx.CreateNode("buzz", "1.2.3.4:666")
 	require.NoError(t, err)
 
 	version := [2]int{cluster.SchemaVersion, len(version.APIExtensions) - 1}
@@ -130,7 +130,7 @@ func TestRenameNode(t *testing.T) {
 	tx, cleanup := db.NewTestClusterTx(t)
 	defer cleanup()
 
-	_, err := tx.NodeAdd("buzz", "1.2.3.4:666")
+	_, err := tx.CreateNode("buzz", "1.2.3.4:666")
 	require.NoError(t, err)
 	err = tx.RenameNode("buzz", "rusp")
 	require.NoError(t, err)
@@ -138,7 +138,7 @@ func TestRenameNode(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, "rusp", node.Name)
 
-	_, err = tx.NodeAdd("buzz", "5.6.7.8:666")
+	_, err = tx.CreateNode("buzz", "5.6.7.8:666")
 	require.NoError(t, err)
 	err = tx.RenameNode("rusp", "buzz")
 	assert.Equal(t, db.ErrAlreadyDefined, err)
@@ -149,10 +149,10 @@ func TestNodeRemove(t *testing.T) {
 	tx, cleanup := db.NewTestClusterTx(t)
 	defer cleanup()
 
-	_, err := tx.NodeAdd("buzz", "1.2.3.4:666")
+	_, err := tx.CreateNode("buzz", "1.2.3.4:666")
 	require.NoError(t, err)
 
-	id, err := tx.NodeAdd("rusp", "5.6.7.8:666")
+	id, err := tx.CreateNode("rusp", "5.6.7.8:666")
 	require.NoError(t, err)
 
 	err = tx.NodeRemove(id)
@@ -170,7 +170,7 @@ func TestNodePending(t *testing.T) {
 	tx, cleanup := db.NewTestClusterTx(t)
 	defer cleanup()
 
-	id, err := tx.NodeAdd("buzz", "1.2.3.4:666")
+	id, err := tx.CreateNode("buzz", "1.2.3.4:666")
 	require.NoError(t, err)
 
 	// Add the pending flag
@@ -202,7 +202,7 @@ func TestNodeHeartbeat(t *testing.T) {
 	tx, cleanup := db.NewTestClusterTx(t)
 	defer cleanup()
 
-	_, err := tx.NodeAdd("buzz", "1.2.3.4:666")
+	_, err := tx.CreateNode("buzz", "1.2.3.4:666")
 	require.NoError(t, err)
 
 	err = tx.NodeHeartbeat("1.2.3.4:666", time.Now().Add(-time.Minute))
@@ -221,7 +221,7 @@ func TestNodeIsEmpty_Containers(t *testing.T) {
 	tx, cleanup := db.NewTestClusterTx(t)
 	defer cleanup()
 
-	id, err := tx.NodeAdd("buzz", "1.2.3.4:666")
+	id, err := tx.CreateNode("buzz", "1.2.3.4:666")
 	require.NoError(t, err)
 
 	message, err := tx.NodeIsEmpty(id)
@@ -251,7 +251,7 @@ func TestNodeIsEmpty_Images(t *testing.T) {
 	tx, cleanup := db.NewTestClusterTx(t)
 	defer cleanup()
 
-	id, err := tx.NodeAdd("buzz", "1.2.3.4:666")
+	id, err := tx.CreateNode("buzz", "1.2.3.4:666")
 	require.NoError(t, err)
 
 	_, err = tx.Tx().Exec(`
@@ -282,7 +282,7 @@ func TestNodeIsEmpty_CustomVolumes(t *testing.T) {
 	tx, cleanup := db.NewTestClusterTx(t)
 	defer cleanup()
 
-	id, err := tx.NodeAdd("buzz", "1.2.3.4:666")
+	id, err := tx.CreateNode("buzz", "1.2.3.4:666")
 	require.NoError(t, err)
 
 	_, err = tx.Tx().Exec(`
@@ -305,7 +305,7 @@ func TestNodeWithLeastContainers(t *testing.T) {
 	tx, cleanup := db.NewTestClusterTx(t)
 	defer cleanup()
 
-	_, err := tx.NodeAdd("buzz", "1.2.3.4:666")
+	_, err := tx.CreateNode("buzz", "1.2.3.4:666")
 	require.NoError(t, err)
 
 	// Add a container to the default node (ID 1)
@@ -325,7 +325,7 @@ func TestNodeWithLeastContainers_OfflineNode(t *testing.T) {
 	tx, cleanup := db.NewTestClusterTx(t)
 	defer cleanup()
 
-	id, err := tx.NodeAdd("buzz", "1.2.3.4:666")
+	id, err := tx.CreateNode("buzz", "1.2.3.4:666")
 	require.NoError(t, err)
 
 	// Add a container to the newly created node.
@@ -349,7 +349,7 @@ func TestNodeWithLeastContainers_Pending(t *testing.T) {
 	tx, cleanup := db.NewTestClusterTx(t)
 	defer cleanup()
 
-	_, err := tx.NodeAdd("buzz", "1.2.3.4:666")
+	_, err := tx.CreateNode("buzz", "1.2.3.4:666")
 	require.NoError(t, err)
 
 	// Add a pending container to the default node (ID 1)
