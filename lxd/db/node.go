@@ -619,11 +619,11 @@ func (c *ClusterTx) GetNodeOfflineThreshold() (time.Duration, error) {
 	return threshold, nil
 }
 
-// NodeWithLeastContainers returns the name of the non-offline node with with
+// GetNodeWithLeastInstances returns the name of the non-offline node with with
 // the least number of containers (either already created or being created with
 // an operation). If archs is not empty, then return only nodes with an
 // architecture in that list.
-func (c *ClusterTx) NodeWithLeastContainers(archs []int) (string, error) {
+func (c *ClusterTx) GetNodeWithLeastInstances(archs []int) (string, error) {
 	threshold, err := c.GetNodeOfflineThreshold()
 	if err != nil {
 		return "", errors.Wrap(err, "failed to get offline threshold")
