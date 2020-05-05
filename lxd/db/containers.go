@@ -273,7 +273,7 @@ SELECT nodes.id, nodes.address
 //
 // Containers whose node is down are addeded to the special address "0.0.0.0".
 func (c *ClusterTx) GetInstanceNamesByNodeAddress(project string, instanceType instancetype.Type) (map[string][]string, error) {
-	offlineThreshold, err := c.NodeOfflineThreshold()
+	offlineThreshold, err := c.GetNodeOfflineThreshold()
 	if err != nil {
 		return nil, err
 	}

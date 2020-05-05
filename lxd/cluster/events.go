@@ -56,7 +56,7 @@ func eventsUpdateListeners(endpoints *endpoints.Endpoints, cluster *db.Cluster, 
 			return err
 		}
 
-		offlineThreshold, err = tx.NodeOfflineThreshold()
+		offlineThreshold, err = tx.GetNodeOfflineThreshold()
 		if err != nil {
 			return err
 		}
