@@ -3793,7 +3793,7 @@ func (c *lxc) Update(args db.InstanceArgs, userRequested bool) error {
 	}
 
 	// Validate the new profiles
-	profiles, err := c.state.Cluster.Profiles(args.Project)
+	profiles, err := c.state.Cluster.GetProfileNames(args.Project)
 	if err != nil {
 		return errors.Wrap(err, "Failed to get profiles")
 	}

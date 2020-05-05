@@ -81,8 +81,8 @@ type ProfileFilter struct {
 	Name    string
 }
 
-// Profiles returns a string list of profiles.
-func (c *Cluster) Profiles(project string) ([]string, error) {
+// GetProfileNames returns the names of all profiles in the given project.
+func (c *Cluster) GetProfileNames(project string) ([]string, error) {
 	err := c.Transaction(func(tx *ClusterTx) error {
 		enabled, err := tx.ProjectHasProfiles(project)
 		if err != nil {
