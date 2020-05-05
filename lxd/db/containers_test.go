@@ -308,7 +308,7 @@ func TestGetInstanceNamesByNodeAddress(t *testing.T) {
 
 	nodeID3, err := tx.CreateNode("node3", "5.6.7.8:666")
 	require.NoError(t, err)
-	require.NoError(t, tx.NodeHeartbeat("5.6.7.8:666", time.Now().Add(-time.Minute)))
+	require.NoError(t, tx.SetNodeHeartbeat("5.6.7.8:666", time.Now().Add(-time.Minute)))
 
 	addContainer(t, tx, nodeID2, "c1")
 	addContainer(t, tx, nodeID1, "c2")

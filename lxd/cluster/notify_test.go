@@ -172,7 +172,7 @@ func (h *notifyFixtures) Down(i int) {
 	err := h.state.Cluster.Transaction(func(tx *db.ClusterTx) error {
 		nodes, err := tx.GetNodes()
 		require.NoError(h.t, err)
-		err = tx.NodeHeartbeat(nodes[i].Address, time.Now().Add(-time.Minute))
+		err = tx.SetNodeHeartbeat(nodes[i].Address, time.Now().Add(-time.Minute))
 		require.NoError(h.t, err)
 		return nil
 	})

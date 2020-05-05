@@ -36,7 +36,7 @@ func TestHeartbeat(t *testing.T) {
 		nodes, err := tx.GetNodes()
 		require.NoError(t, err)
 		for _, node := range nodes {
-			err := tx.NodeHeartbeat(node.Address, time.Now().Add(-time.Minute))
+			err := tx.SetNodeHeartbeat(node.Address, time.Now().Add(-time.Minute))
 			require.NoError(t, err)
 		}
 		return nil

@@ -470,8 +470,8 @@ func (c *ClusterTx) RemoveNode(id int64) error {
 	return nil
 }
 
-// NodeHeartbeat updates the heartbeat column of the node with the given address.
-func (c *ClusterTx) NodeHeartbeat(address string, heartbeat time.Time) error {
+// SetNodeHeartbeat updates the heartbeat column of the node with the given address.
+func (c *ClusterTx) SetNodeHeartbeat(address string, heartbeat time.Time) error {
 	stmt := "UPDATE nodes SET heartbeat=? WHERE address=?"
 	result, err := c.tx.Exec(stmt, heartbeat, address)
 	if err != nil {
