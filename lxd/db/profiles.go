@@ -231,9 +231,9 @@ func CreateProfileConfig(tx *sql.Tx, id int64, config map[string]string) error {
 	return nil
 }
 
-// ProfileContainersGet gets the names of the containers associated with the
-// profile with the given name.
-func (c *Cluster) ProfileContainersGet(project, profile string) (map[string][]string, error) {
+// GetInstancesWithProfile gets the names of the instance associated with the
+// profile with the given name in the given project.
+func (c *Cluster) GetInstancesWithProfile(project, profile string) (map[string][]string, error) {
 	err := c.Transaction(func(tx *ClusterTx) error {
 		enabled, err := tx.ProjectHasProfiles(project)
 		if err != nil {
