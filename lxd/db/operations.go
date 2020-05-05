@@ -30,8 +30,8 @@ func (c *ClusterTx) GetLocalOperationsUUIDs() ([]string, error) {
 	return query.SelectStrings(c.tx, stmt, c.nodeID)
 }
 
-// OperationNodes returns a list of nodes that have running operations
-func (c *ClusterTx) OperationNodes(project string) ([]string, error) {
+// GetNodesWithRunningOperations returns a list of nodes that have running operations
+func (c *ClusterTx) GetNodesWithRunningOperations(project string) ([]string, error) {
 	stmt := `
 SELECT DISTINCT nodes.address
   FROM operations

@@ -247,7 +247,7 @@ func operationsGet(d *Daemon, r *http.Request) response.Response {
 	err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
 		var err error
 
-		nodes, err = tx.OperationNodes(project)
+		nodes, err = tx.GetNodesWithRunningOperations(project)
 		if err != nil {
 			return err
 		}
