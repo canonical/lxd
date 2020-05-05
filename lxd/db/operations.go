@@ -78,8 +78,8 @@ func (c *ClusterTx) CreateOperation(project, uuid string, typ OperationType) (in
 	return query.UpsertObject(c.tx, "operations", columns, values)
 }
 
-// OperationRemove removes the operation with the given UUID.
-func (c *ClusterTx) OperationRemove(uuid string) error {
+// RemoveOperation removes the operation with the given UUID.
+func (c *ClusterTx) RemoveOperation(uuid string) error {
 	result, err := c.tx.Exec("DELETE FROM operations WHERE uuid=?", uuid)
 	if err != nil {
 		return err
