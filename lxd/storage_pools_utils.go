@@ -85,7 +85,7 @@ func storagePoolUsedByGet(state *state.State, project string, poolID int64, pool
 func profilesUsingPoolGetNames(db *db.Cluster, project string, poolName string) ([]string, error) {
 	usedBy := []string{}
 
-	profiles, err := db.Profiles(project)
+	profiles, err := db.GetProfileNames(project)
 	if err != nil {
 		return usedBy, err
 	}

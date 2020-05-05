@@ -2404,7 +2404,7 @@ func (vm *qemu) Update(args db.InstanceArgs, userRequested bool) error {
 	}
 
 	// Validate the new profiles.
-	profiles, err := vm.state.Cluster.Profiles(args.Project)
+	profiles, err := vm.state.Cluster.GetProfileNames(args.Project)
 	if err != nil {
 		return errors.Wrap(err, "Failed to get profiles")
 	}
