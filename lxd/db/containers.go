@@ -383,7 +383,7 @@ func (c *ClusterTx) instanceListExpanded() ([]Instance, error) {
 			profiles[j] = *ProfileToAPI(&profile)
 		}
 
-		instances[i].Config = ProfilesExpandConfig(instance.Config, profiles)
+		instances[i].Config = ExpandInstanceConfig(instance.Config, profiles)
 		instances[i].Devices = ProfilesExpandDevices(deviceConfig.NewDevices(instance.Devices), profiles).CloneNative()
 	}
 
