@@ -184,7 +184,7 @@ func Accept(state *state.State, gateway *Gateway, name, address string, schema, 
 		}
 
 		// Add the new node
-		id, err = tx.NodeAddWithArch(name, address, arch)
+		id, err = tx.CreateNodeWithArch(name, address, arch)
 		if err != nil {
 			return errors.Wrap(err, "Failed to insert new node into the database")
 		}
