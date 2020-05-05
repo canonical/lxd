@@ -367,8 +367,8 @@ func (c *ClusterTx) UpdateNode(id int64, name string, address string) error {
 	return nil
 }
 
-// NodeAddRole adds a role to the node.
-func (c *ClusterTx) NodeAddRole(id int64, role ClusterRole) error {
+// CreateNodeRole adds a role to the node.
+func (c *ClusterTx) CreateNodeRole(id int64, role ClusterRole) error {
 	// Translate role names to ids
 	roleID := -1
 	for k, v := range ClusterRoles {

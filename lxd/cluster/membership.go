@@ -82,7 +82,7 @@ func Bootstrap(state *state.State, gateway *Gateway, name string) error {
 		}
 
 		// Update our role list.
-		err = tx.NodeAddRole(1, db.ClusterRoleDatabase)
+		err = tx.CreateNodeRole(1, db.ClusterRoleDatabase)
 		if err != nil {
 			return errors.Wrapf(err, "Failed to add database role for the node")
 		}
@@ -448,7 +448,7 @@ func Join(state *state.State, gateway *Gateway, cert *shared.CertInfo, name stri
 
 		// Update our role list if needed.
 		if info.Role == db.RaftVoter {
-			err = tx.NodeAddRole(node.ID, db.ClusterRoleDatabase)
+			err = tx.CreateNodeRole(node.ID, db.ClusterRoleDatabase)
 			if err != nil {
 				return errors.Wrapf(err, "Failed to add database role for the node")
 			}
@@ -728,7 +728,7 @@ assign:
 	err = transactor(func(tx *db.ClusterTx) error {
 		var f func(id int64, role db.ClusterRole) error
 		if info.Role == db.RaftVoter {
-			f = tx.NodeAddRole
+			f = tx.CreateNodeRole
 		} else {
 			f = tx.NodeRemoveRole
 		}

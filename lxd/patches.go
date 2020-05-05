@@ -3474,7 +3474,7 @@ func patchClusteringAddRoles(name string, d *Daemon) error {
 			}
 
 			if shared.StringInSlice(node.Address, addresses) && !shared.StringInSlice(string(db.ClusterRoleDatabase), node.Roles) {
-				err = tx.NodeAddRole(node.ID, db.ClusterRoleDatabase)
+				err = tx.CreateNodeRole(node.ID, db.ClusterRoleDatabase)
 				if err != nil {
 					return err
 				}
