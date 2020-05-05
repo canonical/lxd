@@ -198,14 +198,14 @@ func TestSetNodePendingFlag(t *testing.T) {
 }
 
 // Update the heartbeat of a node.
-func TestNodeHeartbeat(t *testing.T) {
+func TestSetNodeHeartbeat(t *testing.T) {
 	tx, cleanup := db.NewTestClusterTx(t)
 	defer cleanup()
 
 	_, err := tx.CreateNode("buzz", "1.2.3.4:666")
 	require.NoError(t, err)
 
-	err = tx.NodeHeartbeat("1.2.3.4:666", time.Now().Add(-time.Minute))
+	err = tx.SetNodeHeartbeat("1.2.3.4:666", time.Now().Add(-time.Minute))
 	require.NoError(t, err)
 
 	nodes, err := tx.GetNodes()
@@ -335,7 +335,7 @@ INSERT INTO instances (id, node_id, name, architecture, type, project_id) VALUES
 	require.NoError(t, err)
 
 	// Mark the default node has offline.
-	err = tx.NodeHeartbeat("0.0.0.0", time.Now().Add(-time.Minute))
+	err = tx.SetNodeHeartbeat("0.0.0.0", time.Now().Add(-time.Minute))
 	require.NoError(t, err)
 
 	name, err := tx.NodeWithLeastContainers(nil)
