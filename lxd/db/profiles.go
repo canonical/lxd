@@ -180,8 +180,8 @@ func (c *Cluster) GetProfiles(project string, names []string) ([]api.Profile, er
 	return profiles, nil
 }
 
-// ProfileDescriptionUpdate updates the description of the profile with the given ID.
-func ProfileDescriptionUpdate(tx *sql.Tx, id int64, description string) error {
+// UpdateProfileDescription updates the description of the profile with the given ID.
+func UpdateProfileDescription(tx *sql.Tx, id int64, description string) error {
 	_, err := tx.Exec("UPDATE profiles SET description=? WHERE id=?", description, id)
 	return err
 }
