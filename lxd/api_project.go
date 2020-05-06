@@ -148,7 +148,7 @@ func projectsPost(d *Daemon, r *http.Request) response.Response {
 			}
 
 			if project.Config["features.images"] == "false" {
-				err = tx.ProjectLaunchWithoutImages(project.Name)
+				err = tx.InitProjectWithoutImages(project.Name)
 				if err != nil {
 					return err
 				}
