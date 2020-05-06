@@ -457,8 +457,8 @@ func (c *Cluster) GetStoragePoolDrivers() ([]string, error) {
 	return drivers, nil
 }
 
-// StoragePoolGetID returns the id of a single storage pool.
-func (c *Cluster) StoragePoolGetID(poolName string) (int64, error) {
+// GetStoragePoolID returns the id of a single storage pool.
+func (c *Cluster) GetStoragePoolID(poolName string) (int64, error) {
 	poolID := int64(-1)
 	query := "SELECT id FROM storage_pools WHERE name=?"
 	inargs := []interface{}{poolName}

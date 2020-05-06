@@ -90,7 +90,7 @@ func storagePoolVolumesGet(d *Daemon, r *http.Request) response.Response {
 	recursion := util.IsRecursionRequest(r)
 
 	// Retrieve ID of the storage pool (and check if the storage pool exists).
-	poolID, err := d.cluster.StoragePoolGetID(poolName)
+	poolID, err := d.cluster.GetStoragePoolID(poolName)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -207,7 +207,7 @@ func storagePoolVolumesTypeGet(d *Daemon, r *http.Request) response.Response {
 	}
 
 	// Retrieve ID of the storage pool (and check if the storage pool exists).
-	poolID, err := d.cluster.StoragePoolGetID(poolName)
+	poolID, err := d.cluster.GetStoragePoolID(poolName)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -298,7 +298,7 @@ func storagePoolVolumesTypePost(d *Daemon, r *http.Request) response.Response {
 	}
 
 	poolName := mux.Vars(r)["name"]
-	poolID, err := d.cluster.StoragePoolGetID(poolName)
+	poolID, err := d.cluster.GetStoragePoolID(poolName)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -403,7 +403,7 @@ func storagePoolVolumesPost(d *Daemon, r *http.Request) response.Response {
 	}
 
 	poolName := mux.Vars(r)["name"]
-	poolID, err := d.cluster.StoragePoolGetID(poolName)
+	poolID, err := d.cluster.GetStoragePoolID(poolName)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -555,9 +555,9 @@ func storagePoolVolumeTypePost(d *Daemon, r *http.Request, volumeTypeName string
 	// Retrieve ID of the storage pool (and check if the storage pool exists).
 	var poolID int64
 	if req.Pool != "" {
-		poolID, err = d.cluster.StoragePoolGetID(req.Pool)
+		poolID, err = d.cluster.GetStoragePoolID(req.Pool)
 	} else {
-		poolID, err = d.cluster.StoragePoolGetID(poolName)
+		poolID, err = d.cluster.GetStoragePoolID(poolName)
 	}
 	if err != nil {
 		return response.SmartError(err)
@@ -796,7 +796,7 @@ func storagePoolVolumeTypeGet(d *Daemon, r *http.Request, volumeTypeName string)
 	}
 
 	// Get the ID of the storage pool the storage volume is supposed to be attached to.
-	poolID, err := d.cluster.StoragePoolGetID(poolName)
+	poolID, err := d.cluster.GetStoragePoolID(poolName)
 	if err != nil {
 		return response.SmartError(err)
 	}

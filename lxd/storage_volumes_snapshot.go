@@ -100,7 +100,7 @@ func storagePoolVolumeSnapshotsTypePost(d *Daemon, r *http.Request) response.Res
 	}
 
 	// Retrieve ID of the storage pool (and check if the storage pool exists).
-	poolID, err := d.cluster.StoragePoolGetID(poolName)
+	poolID, err := d.cluster.GetStoragePoolID(poolName)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -191,7 +191,7 @@ func storagePoolVolumeSnapshotsTypeGet(d *Daemon, r *http.Request) response.Resp
 	}
 
 	// Retrieve ID of the storage pool (and check if the storage pool exists).
-	poolID, err := d.cluster.StoragePoolGetID(poolName)
+	poolID, err := d.cluster.GetStoragePoolID(poolName)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -723,7 +723,7 @@ func autoCreateCustomVolumeSnapshots(ctx context.Context, d *Daemon, volumes []d
 			}
 
 			// Get pool ID
-			poolID, err := d.cluster.StoragePoolGetID(v.PoolName)
+			poolID, err := d.cluster.GetStoragePoolID(v.PoolName)
 			if err != nil {
 				logger.Error("Error retrieving pool ID", log.Ctx{"err": err, "pool": v.PoolName})
 				ch <- nil
@@ -789,7 +789,7 @@ func volumeDetermineNextSnapshotName(d *Daemon, volume db.StorageVolumeArgs, def
 	}
 
 	for _, pool := range pools {
-		poolID, err := d.cluster.StoragePoolGetID(pool)
+		poolID, err := d.cluster.GetStoragePoolID(pool)
 		if err != nil {
 			return "", err
 		}

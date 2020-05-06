@@ -164,7 +164,7 @@ func (d *disk) validateConfig(instConf instance.ConfigReader) error {
 			return fmt.Errorf("Storage volumes cannot be specified as absolute paths")
 		}
 
-		_, err := d.state.Cluster.StoragePoolGetID(d.config["pool"])
+		_, err := d.state.Cluster.GetStoragePoolID(d.config["pool"])
 		if err != nil {
 			return fmt.Errorf("The %q storage pool doesn't exist", d.config["pool"])
 		}

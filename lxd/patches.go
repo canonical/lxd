@@ -3042,7 +3042,7 @@ func patchStorageApiPermissions(name string, d *Daemon) error {
 
 		// Retrieve ID of the storage pool (and check if the storage pool
 		// exists).
-		poolID, err := d.cluster.StoragePoolGetID(poolName)
+		poolID, err := d.cluster.GetStoragePoolID(poolName)
 		if err != nil && !os.IsNotExist(err) {
 			return err
 		}

@@ -117,7 +117,7 @@ func storagePoolsPost(d *Daemon, r *http.Request) response.Response {
 			return response.BadRequest(err)
 		}
 
-		poolID, err := d.cluster.StoragePoolGetID(req.Name)
+		poolID, err := d.cluster.GetStoragePoolID(req.Name)
 		if err != nil {
 			return response.NotFound(err)
 		}
@@ -531,7 +531,7 @@ func storagePoolClusterFillWithNodeConfig(dbConfig, reqConfig map[string]string)
 func storagePoolDelete(d *Daemon, r *http.Request) response.Response {
 	poolName := mux.Vars(r)["name"]
 
-	poolID, err := d.cluster.StoragePoolGetID(poolName)
+	poolID, err := d.cluster.GetStoragePoolID(poolName)
 	if err != nil {
 		return response.NotFound(err)
 	}
