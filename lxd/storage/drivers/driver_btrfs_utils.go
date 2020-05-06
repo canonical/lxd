@@ -254,6 +254,7 @@ func (d *btrfs) sendSubvolume(path string, parent string, conn io.ReadWriteClose
 		_, err := io.Copy(conn, stdoutPipe)
 		chStdoutPipe <- err
 		conn.Close()
+		cmd.Process.Kill() // This closes stderr.
 	}()
 
 	// Run the command.
