@@ -281,7 +281,7 @@ func Join(state *state.State, gateway *Gateway, cert *shared.CertInfo, name stri
 	var operations []db.Operation
 
 	err = state.Cluster.Transaction(func(tx *db.ClusterTx) error {
-		pools, err = tx.StoragePoolsNodeConfig()
+		pools, err = tx.GetStoragePoolsLocalConfig()
 		if err != nil {
 			return err
 		}

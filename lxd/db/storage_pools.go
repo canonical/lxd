@@ -14,9 +14,9 @@ import (
 	"github.com/lxc/lxd/shared/api"
 )
 
-// StoragePoolsNodeConfig returns a map associating each storage pool name to
+// GetStoragePoolsLocalConfig returns a map associating each storage pool name to
 // its node-specific config values (i.e. the ones where node_id is not NULL).
-func (c *ClusterTx) StoragePoolsNodeConfig() (map[string]map[string]string, error) {
+func (c *ClusterTx) GetStoragePoolsLocalConfig() (map[string]map[string]string, error) {
 	names, err := query.SelectStrings(c.tx, "SELECT name FROM storage_pools")
 	if err != nil {
 		return nil, err

@@ -125,7 +125,7 @@ func clusterGetMemberConfig(cluster *db.Cluster) ([]api.ClusterMemberConfigKey, 
 	err := cluster.Transaction(func(tx *db.ClusterTx) error {
 		var err error
 
-		pools, err = tx.StoragePoolsNodeConfig()
+		pools, err = tx.GetStoragePoolsLocalConfig()
 		if err != nil {
 			return errors.Wrapf(err, "Failed to fetch storage pools configuration")
 		}
