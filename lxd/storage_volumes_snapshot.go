@@ -197,7 +197,7 @@ func storagePoolVolumeSnapshotsTypeGet(d *Daemon, r *http.Request) response.Resp
 	}
 
 	// Get the names of all storage volume snapshots of a given volume.
-	volumes, err := d.cluster.StoragePoolVolumeSnapshotsGetType(projectName, volumeName, volumeType, poolID)
+	volumes, err := d.cluster.GetLocalStoragePoolVolumeSnapshotsWithType(projectName, volumeName, volumeType, poolID)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -795,7 +795,7 @@ func volumeDetermineNextSnapshotName(d *Daemon, volume db.StorageVolumeArgs, def
 		}
 
 		for _, project := range projects {
-			snaps, err := d.cluster.StoragePoolVolumeSnapshotsGetType(project, volume.Name, db.StoragePoolVolumeTypeCustom, poolID)
+			snaps, err := d.cluster.GetLocalStoragePoolVolumeSnapshotsWithType(project, volume.Name, db.StoragePoolVolumeTypeCustom, poolID)
 			if err != nil {
 				return "", err
 			}

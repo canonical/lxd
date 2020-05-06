@@ -312,7 +312,7 @@ func VolumeSnapshotsGet(s *state.State, projectName string, pool string, volume 
 		return nil, err
 	}
 
-	snapshots, err := s.Cluster.StoragePoolVolumeSnapshotsGetType(projectName, volume, volType, poolID)
+	snapshots, err := s.Cluster.GetLocalStoragePoolVolumeSnapshotsWithType(projectName, volume, volType, poolID)
 	if err != nil {
 		return nil, err
 	}

@@ -109,7 +109,7 @@ func daemonStorageValidate(s *state.State, target string) error {
 		return errors.Wrapf(err, "Unable to load storage volume %q", target)
 	}
 
-	snapshots, err := s.Cluster.StoragePoolVolumeSnapshotsGetType(project.Default, volumeName, db.StoragePoolVolumeTypeCustom, poolID)
+	snapshots, err := s.Cluster.GetLocalStoragePoolVolumeSnapshotsWithType(project.Default, volumeName, db.StoragePoolVolumeTypeCustom, poolID)
 	if err != nil {
 		return errors.Wrapf(err, "Unable to load storage volume snapshots %q", target)
 	}
