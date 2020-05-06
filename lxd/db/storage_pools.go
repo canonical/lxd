@@ -432,9 +432,9 @@ func (c *Cluster) storagePools(where string, args ...interface{}) ([]string, err
 	return pools, nil
 }
 
-// StoragePoolsGetDrivers returns the names of all storage volumes attached to
-// a given storage pool.
-func (c *Cluster) StoragePoolsGetDrivers() ([]string, error) {
+// GetStoragePoolDrivers returns the names of all storage drivers currently
+// being used by at least one storage pool.
+func (c *Cluster) GetStoragePoolDrivers() ([]string, error) {
 	var poolDriver string
 	query := "SELECT DISTINCT driver FROM storage_pools"
 	inargs := []interface{}{}
