@@ -15,10 +15,10 @@ func TestRaftNodes(t *testing.T) {
 	tx, cleanup := db.NewTestNodeTx(t)
 	defer cleanup()
 
-	id1, err := tx.RaftNodeAdd("1.2.3.4:666")
+	id1, err := tx.CreateRaftNode("1.2.3.4:666")
 	require.NoError(t, err)
 
-	id2, err := tx.RaftNodeAdd("5.6.7.8:666")
+	id2, err := tx.CreateRaftNode("5.6.7.8:666")
 	require.NoError(t, err)
 
 	nodes, err := tx.GetRaftNodes()
@@ -35,10 +35,10 @@ func TestGetRaftNodeAddresses(t *testing.T) {
 	tx, cleanup := db.NewTestNodeTx(t)
 	defer cleanup()
 
-	_, err := tx.RaftNodeAdd("1.2.3.4:666")
+	_, err := tx.CreateRaftNode("1.2.3.4:666")
 	require.NoError(t, err)
 
-	_, err = tx.RaftNodeAdd("5.6.7.8:666")
+	_, err = tx.CreateRaftNode("5.6.7.8:666")
 	require.NoError(t, err)
 
 	addresses, err := tx.GetRaftNodeAddresses()
@@ -52,10 +52,10 @@ func TestGetRaftNodeAddress(t *testing.T) {
 	tx, cleanup := db.NewTestNodeTx(t)
 	defer cleanup()
 
-	_, err := tx.RaftNodeAdd("1.2.3.4:666")
+	_, err := tx.CreateRaftNode("1.2.3.4:666")
 	require.NoError(t, err)
 
-	id, err := tx.RaftNodeAdd("5.6.7.8:666")
+	id, err := tx.CreateRaftNode("5.6.7.8:666")
 	require.NoError(t, err)
 
 	address, err := tx.GetRaftNodeAddress(id)
@@ -83,11 +83,11 @@ func TestCreateFirstRaftNode(t *testing.T) {
 }
 
 // Add a new raft node.
-func TestRaftNodeAdd(t *testing.T) {
+func TestCreateRaftNode(t *testing.T) {
 	tx, cleanup := db.NewTestNodeTx(t)
 	defer cleanup()
 
-	id, err := tx.RaftNodeAdd("1.2.3.4:666")
+	id, err := tx.CreateRaftNode("1.2.3.4:666")
 	assert.Equal(t, int64(1), id)
 	assert.NoError(t, err)
 }
@@ -97,7 +97,7 @@ func TestRaftNodeDelete(t *testing.T) {
 	tx, cleanup := db.NewTestNodeTx(t)
 	defer cleanup()
 
-	id, err := tx.RaftNodeAdd("1.2.3.4:666")
+	id, err := tx.CreateRaftNode("1.2.3.4:666")
 	require.NoError(t, err)
 
 	err = tx.RaftNodeDelete(id)
@@ -118,7 +118,7 @@ func TestRaftNodesReplace(t *testing.T) {
 	tx, cleanup := db.NewTestNodeTx(t)
 	defer cleanup()
 
-	_, err := tx.RaftNodeAdd("1.2.3.4:666")
+	_, err := tx.CreateRaftNode("1.2.3.4:666")
 	require.NoError(t, err)
 
 	nodes := []db.RaftNode{
