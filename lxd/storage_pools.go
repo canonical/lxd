@@ -560,7 +560,7 @@ func storagePoolDelete(d *Daemon, r *http.Request) response.Response {
 		return response.EmptySyncResponse
 	}
 
-	volumeNames, err := d.cluster.StoragePoolVolumesGetNames(poolID)
+	volumeNames, err := d.cluster.GetStoragePoolVolumesNames(poolID)
 	if err != nil {
 		return response.InternalError(err)
 	}
@@ -627,7 +627,7 @@ func storagePoolDelete(d *Daemon, r *http.Request) response.Response {
 }
 
 func storagePoolDeleteCheckPreconditions(cluster *db.Cluster, poolName string, poolID int64) response.Response {
-	volumeNames, err := cluster.StoragePoolVolumesGetNames(poolID)
+	volumeNames, err := cluster.GetStoragePoolVolumesNames(poolID)
 	if err != nil {
 		return response.InternalError(err)
 	}
