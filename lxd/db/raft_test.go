@@ -31,7 +31,7 @@ func TestRaftNodes(t *testing.T) {
 }
 
 // Fetch the addresses of all raft nodes.
-func TestRaftNodeAddresses(t *testing.T) {
+func TestGetRaftNodeAddresses(t *testing.T) {
 	tx, cleanup := db.NewTestNodeTx(t)
 	defer cleanup()
 
@@ -41,7 +41,7 @@ func TestRaftNodeAddresses(t *testing.T) {
 	_, err = tx.RaftNodeAdd("5.6.7.8:666")
 	require.NoError(t, err)
 
-	addresses, err := tx.RaftNodeAddresses()
+	addresses, err := tx.GetRaftNodeAddresses()
 	require.NoError(t, err)
 
 	assert.Equal(t, []string{"1.2.3.4:666", "5.6.7.8:666"}, addresses)

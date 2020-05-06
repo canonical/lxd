@@ -1021,7 +1021,7 @@ func Count(state *state.State) (int, error) {
 func Enabled(node *db.Node) (bool, error) {
 	enabled := false
 	err := node.Transaction(func(tx *db.NodeTx) error {
-		addresses, err := tx.RaftNodeAddresses()
+		addresses, err := tx.GetRaftNodeAddresses()
 		if err != nil {
 			return err
 		}
