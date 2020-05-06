@@ -90,6 +90,13 @@ test_storage_volume_attach() {
   # attach second container
   lxc storage volume attach "lxdtest-$(basename "${LXD_DIR}")" testvolume c2 testvolume
 
+  # check that setting perms on the root of the custom volume persists after a reboot.
+  lxc exec c2 -- stat -c '%a' /testvolume | grep 711
+  lxc exec c2 -- chmod 0700 /testvolume
+  lxc exec c2 -- stat -c '%a' /testvolume | grep 700
+  lxc restart --force c2
+  lxc exec c2 -- stat -c '%a' /testvolume | grep 700
+
   # delete containers
   lxc delete -f c1
   lxc delete -f c2
