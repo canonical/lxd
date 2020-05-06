@@ -783,7 +783,7 @@ func volumeDetermineNextSnapshotName(d *Daemon, volume db.StorageVolumeArgs, def
 		return "", err
 	}
 
-	pools, err := d.cluster.StoragePools()
+	pools, err := d.cluster.GetStoragePoolNames()
 	if err != nil {
 		return "", err
 	}

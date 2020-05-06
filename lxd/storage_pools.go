@@ -44,7 +44,7 @@ var storagePoolCmd = APIEndpoint{
 func storagePoolsGet(d *Daemon, r *http.Request) response.Response {
 	recursion := util.IsRecursionRequest(r)
 
-	pools, err := d.cluster.StoragePools()
+	pools, err := d.cluster.GetStoragePoolNames()
 	if err != nil && err != db.ErrNoSuchObject {
 		return response.SmartError(err)
 	}

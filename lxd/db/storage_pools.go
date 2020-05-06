@@ -390,8 +390,8 @@ WHERE storage_pools.id = ? AND storage_pools.state = ?
 	return configs, nil
 }
 
-// StoragePools returns the names of all storage pools.
-func (c *Cluster) StoragePools() ([]string, error) {
+// GetStoragePoolNames returns the names of all storage pools.
+func (c *Cluster) GetStoragePoolNames() ([]string, error) {
 	return c.storagePools("")
 }
 
