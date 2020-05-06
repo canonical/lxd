@@ -788,7 +788,7 @@ func (g *Gateway) raftAddress(databaseID uint64) (string, error) {
 	var address string
 	err := g.db.Transaction(func(tx *db.NodeTx) error {
 		var err error
-		address, err = tx.RaftNodeAddress(int64(databaseID))
+		address, err = tx.GetRaftNodeAddress(int64(databaseID))
 		return err
 	})
 	if err != nil {
