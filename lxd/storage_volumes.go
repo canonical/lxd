@@ -96,7 +96,7 @@ func storagePoolVolumesGet(d *Daemon, r *http.Request) response.Response {
 	}
 
 	// Get all instance volumes currently attached to the storage pool by ID of the pool and project.
-	volumes, err := d.cluster.StoragePoolVolumesGet(projectName, poolID, supportedVolumeTypesInstances)
+	volumes, err := d.cluster.GetStoragePoolVolumes(projectName, poolID, supportedVolumeTypesInstances)
 	if err != nil && err != db.ErrNoSuchObject {
 		return response.SmartError(err)
 	}
@@ -109,7 +109,7 @@ func storagePoolVolumesGet(d *Daemon, r *http.Request) response.Response {
 	}
 
 	// Get all custom volumes currently attached to the storage pool by ID of the pool and project.
-	custVolumes, err := d.cluster.StoragePoolVolumesGet(customVolProjectName, poolID, []int{db.StoragePoolVolumeTypeCustom})
+	custVolumes, err := d.cluster.GetStoragePoolVolumes(customVolProjectName, poolID, []int{db.StoragePoolVolumeTypeCustom})
 	if err != nil && err != db.ErrNoSuchObject {
 		return response.SmartError(err)
 	}
@@ -122,7 +122,7 @@ func storagePoolVolumesGet(d *Daemon, r *http.Request) response.Response {
 	// table, but are effectively a cache which is not tied to projects, so we always link the to the default
 	// project. This means that we want to filter image volumes and return only the ones that have fingerprint
 	// matching images actually in use by the project.
-	imageVolumes, err := d.cluster.StoragePoolVolumesGet(project.Default, poolID, []int{db.StoragePoolVolumeTypeImage})
+	imageVolumes, err := d.cluster.GetStoragePoolVolumes(project.Default, poolID, []int{db.StoragePoolVolumeTypeImage})
 	if err != nil && err != db.ErrNoSuchObject {
 		return response.SmartError(err)
 	}

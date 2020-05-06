@@ -774,9 +774,9 @@ WHERE storage_volumes.type = ?
 	return response, nil
 }
 
-// StoragePoolVolumesGet returns all storage volumes attached to a given
+// GetStoragePoolVolumes returns all storage volumes attached to a given
 // storage pool on any node.
-func (c *Cluster) StoragePoolVolumesGet(project string, poolID int64, volumeTypes []int) ([]*api.StorageVolume, error) {
+func (c *Cluster) GetStoragePoolVolumes(project string, poolID int64, volumeTypes []int) ([]*api.StorageVolume, error) {
 	var nodeIDs []int
 
 	err := c.Transaction(func(tx *ClusterTx) error {
