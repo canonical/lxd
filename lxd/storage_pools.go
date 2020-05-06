@@ -217,7 +217,7 @@ func storagePoolsPostCluster(d *Daemon, req api.StoragePoolsPost) error {
 		}
 
 		// Insert the global config keys.
-		return tx.StoragePoolConfigAdd(poolID, 0, req.Config)
+		return tx.CreateStoragePoolConfig(poolID, 0, req.Config)
 	})
 	if err != nil {
 		if err == db.ErrNoSuchObject {

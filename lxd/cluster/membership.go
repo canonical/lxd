@@ -404,7 +404,7 @@ func Join(state *state.State, gateway *Gateway, cert *shared.CertInfo, name stri
 				if !ok {
 					return fmt.Errorf("joining node has no config for pool %s", name)
 				}
-				err = tx.StoragePoolConfigAdd(id, node.ID, config)
+				err = tx.CreateStoragePoolConfig(id, node.ID, config)
 				if err != nil {
 					return errors.Wrap(err, "failed to add joining node's pool config")
 				}
