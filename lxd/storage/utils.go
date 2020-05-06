@@ -128,7 +128,7 @@ func VolumeDBCreate(s *state.State, project, poolName, volumeName, volumeDescrip
 	}
 
 	// Load storage pool the volume will be attached to.
-	poolID, poolStruct, err := s.Cluster.StoragePoolGet(poolName)
+	poolID, poolStruct, err := s.Cluster.GetStoragePool(poolName)
 	if err != nil {
 		return err
 	}

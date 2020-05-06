@@ -232,7 +232,7 @@ func qemuCreate(s *state.State, args db.InstanceArgs) (instance.Instance, error)
 	storagePool := rootDiskDevice["pool"]
 
 	// Get the storage pool ID for the instance.
-	poolID, pool, err := s.Cluster.StoragePoolGet(storagePool)
+	poolID, pool, err := s.Cluster.GetStoragePool(storagePool)
 	if err != nil {
 		return nil, err
 	}
