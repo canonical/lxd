@@ -114,7 +114,7 @@ func TestRemoteRaftNode_NonExisting(t *testing.T) {
 }
 
 // Replace all existing raft nodes.
-func TestRaftNodesReplace(t *testing.T) {
+func TestReplaceRaftNodes(t *testing.T) {
 	tx, cleanup := db.NewTestNodeTx(t)
 	defer cleanup()
 
@@ -125,7 +125,7 @@ func TestRaftNodesReplace(t *testing.T) {
 		{ID: 2, Address: "2.2.2.2:666"},
 		{ID: 3, Address: "3.3.3.3:666"},
 	}
-	err = tx.RaftNodesReplace(nodes)
+	err = tx.ReplaceRaftNodes(nodes)
 	assert.NoError(t, err)
 
 	newNodes, err := tx.GetRaftNodes()
