@@ -833,13 +833,6 @@ func (d *ceph) SetVolumeQuota(vol Volume, size string, op *operations.Operation)
 		return err
 	}
 
-	// The grow/shrink functions use Mount/Unmount which may cause an unmap, so make sure to keep a reference.
-	oldKeepDevice := vol.keepDevice
-	vol.keepDevice = true
-	defer func() {
-		vol.keepDevice = oldKeepDevice
-	}()
-
 	oldSizeBytes, err := BlockDevSizeBytes(RBDDevPath)
 	if err != nil {
 		return errors.Wrapf(err, "Error getting current size")
@@ -925,19 +918,19 @@ func (d *ceph) GetVolumeDiskPath(vol Volume) (string, error) {
 func (d *ceph) MountVolume(vol Volume, op *operations.Operation) (bool, error) {
 	mountPath := vol.MountPath()
 
-	if vol.contentType == ContentTypeFS && !shared.IsMountPoint(mountPath) {
-		RBDFilesystem := d.getRBDFilesystem(vol)
+	// Activate RBD volume if needed.
+	RBDDevPath, err := d.getRBDMappedDevPath(vol)
+	if err != nil {
+		return false, err
+	}
 
+	if vol.contentType == ContentTypeFS && !shared.IsMountPoint(mountPath) {
 		err := vol.EnsureMountPath()
 		if err != nil {
 			return false, err
 		}
 
-		RBDDevPath, err := d.getRBDMappedDevPath(vol)
-		if err != nil {
-			return false, err
-		}
-
+		RBDFilesystem := d.getRBDFilesystem(vol)
 		mountFlags, mountOptions := resolveMountOptions(d.getRBDMountOptions(vol))
 		err = TryMount(RBDDevPath, mountPath, RBDFilesystem, mountFlags, mountOptions)
 		if err != nil {
@@ -959,35 +952,39 @@ func (d *ceph) MountVolume(vol Volume, op *operations.Operation) (bool, error) {
 
 // UnmountVolume simulates unmounting a volume.
 func (d *ceph) UnmountVolume(vol Volume, op *operations.Operation) (bool, error) {
-	// For VMs, also unmount the filesystem dataset.
-	if vol.IsVMBlock() {
-		fsVol := vol.NewVMBlockFilesystemVolume()
-
-		_, err := d.UnmountVolume(fsVol, op)
-		if err != nil {
-			return false, err
-		}
-	}
-
 	// Attempt to unmount the volume.
 	mountPath := vol.MountPath()
-	if shared.IsMountPoint(mountPath) {
+	if vol.contentType == ContentTypeFS && shared.IsMountPoint(mountPath) {
 		err := TryUnmount(mountPath, unix.MNT_DETACH)
 		if err != nil {
 			return false, err
 		}
 		d.logger.Debug("Unmounted RBD volume", log.Ctx{"path": mountPath})
+
+		// Attempt to unmap.
+		err = d.rbdUnmapVolume(vol, true)
+		if err != nil {
+			return false, err
+		}
+
+		return true, nil
 	}
 
-	// Attempt to unmap.
-	if !vol.keepDevice {
+	if vol.contentType == ContentTypeBlock {
+		// Attempt to unmap.
 		err := d.rbdUnmapVolume(vol, true)
 		if err != nil {
-			return true, err
+			return false, err
 		}
 	}
 
-	return true, nil
+	// For VMs, unmount the filesystem volume.
+	if vol.IsVMBlock() {
+		fsVol := vol.NewVMBlockFilesystemVolume()
+		return d.UnmountVolume(fsVol, op)
+	}
+
+	return false, nil
 }
 
 // RenameVolume renames a volume and its snapshots.
