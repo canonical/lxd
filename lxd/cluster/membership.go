@@ -260,7 +260,7 @@ func Join(state *state.State, gateway *Gateway, cert *shared.CertInfo, name stri
 		}
 
 		// Set the raft nodes list to the one that was returned by Accept().
-		err = tx.RaftNodesReplace(raftNodes)
+		err = tx.ReplaceRaftNodes(raftNodes)
 		if err != nil {
 			return errors.Wrap(err, "failed to set raft nodes")
 		}
@@ -653,7 +653,7 @@ func Assign(state *state.State, gateway *Gateway, nodes []db.RaftNode) error {
 	// Replace our local list of raft nodes with the given one (which
 	// includes ourselves).
 	err = state.Node.Transaction(func(tx *db.NodeTx) error {
-		err = tx.RaftNodesReplace(nodes)
+		err = tx.ReplaceRaftNodes(nodes)
 		if err != nil {
 			return errors.Wrap(err, "Failed to set raft nodes")
 		}
