@@ -168,7 +168,7 @@ func TestStoragePoolVolume_Ceph(t *testing.T) {
 	require.NoError(t, err)
 
 	config := map[string]string{"k": "v"}
-	volumeID, err := cluster.StoragePoolVolumeCreate("default", "v1", "", 1, poolID, config)
+	volumeID, err := cluster.CreateStoragePoolVolume("default", "v1", "", 1, poolID, config)
 	require.NoError(t, err)
 
 	// The returned volume ID is the one of the volume created on the local
@@ -213,7 +213,7 @@ func TestStoragePoolVolume_Ceph(t *testing.T) {
 }
 
 // Test creating a volume snapshot.
-func TestStoragePoolVolumeCreate_Snapshot(t *testing.T) {
+func TestCreateStoragePoolVolume_Snapshot(t *testing.T) {
 	cluster, cleanup := db.NewTestCluster(t)
 	defer cleanup()
 
@@ -221,7 +221,7 @@ func TestStoragePoolVolumeCreate_Snapshot(t *testing.T) {
 	require.NoError(t, err)
 
 	config := map[string]string{"k": "v"}
-	_, err = cluster.StoragePoolVolumeCreate("default", "v1", "", 1, poolID, config)
+	_, err = cluster.CreateStoragePoolVolume("default", "v1", "", 1, poolID, config)
 	require.NoError(t, err)
 
 	config = map[string]string{"k": "v"}
