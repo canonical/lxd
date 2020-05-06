@@ -323,26 +323,59 @@ func (d *btrfs) CreateVolumeFromMigration(vol Volume, conn io.ReadWriteCloser, v
 		return ErrNotSupported
 	}
 
-	// Handle btrfs send/receive migration.
-	if len(volTargetArgs.Snapshots) > 0 {
-		snapshotsDir := GetVolumeSnapshotDir(d.name, vol.volType, vol.name)
+	revert := revert.New()
+	defer revert.Fail()
 
-		// Create the parent directory.
-		err := createParentSnapshotDirIfMissing(d.name, vol.volType, vol.name)
+	var migrationHeader BTRFSMetaDataHeader
+
+	// Inspect negotiated features to see if we are expecting to get a metadata migration header frame.
+	if shared.StringInSlice(migration.BTRFSFeatureMigrationHeader, volTargetArgs.MigrationType.Features) {
+		buf, err := ioutil.ReadAll(conn)
 		if err != nil {
-			return err
+			return errors.Wrapf(err, "Failed reading migration header")
 		}
 
-		// Transfer the snapshots.
-		for _, snapName := range volTargetArgs.Snapshots {
-			fullSnapshotName := GetSnapshotVolumeName(vol.name, snapName)
-			wrapper := migration.ProgressWriter(op, "fs_progress", fullSnapshotName)
+		err = json.Unmarshal(buf, &migrationHeader)
+		if err != nil {
+			return errors.Wrapf(err, "Failed decoding migration header")
+		}
 
-			err = d.receiveSubvolume(snapshotsDir, snapshotsDir, conn, wrapper)
+		d.logger.Debug("Received migration meta data header", log.Ctx{"name": vol.name})
+	} else {
+		// Populate the migrationHeader subvolumes with root volumes only to support older LXD sources.
+		for _, snapName := range volTargetArgs.Snapshots {
+			migrationHeader.Subvolumes = append(migrationHeader.Subvolumes, BTRFSSubVolume{
+				Snapshot: snapName,
+				Path:     string(filepath.Separator),
+				Readonly: true, // Snapshots are made readonly.
+			})
+		}
+
+		migrationHeader.Subvolumes = append(migrationHeader.Subvolumes, BTRFSSubVolume{
+			Snapshot: "",
+			Path:     string(filepath.Separator),
+			Readonly: false,
+		})
+	}
+
+	receiveVolume := func(v Volume, recvPath string) error {
+		wrapper := migration.ProgressWriter(op, "fs_progress", v.name)
+		_, snapName, _ := shared.InstanceGetParentAndSnapshotName(v.name)
+
+		for _, subVol := range migrationHeader.Subvolumes {
+			if subVol.Snapshot != snapName {
+				continue // Skip any subvolumes that dont belong to our volume (empty for main).
+			}
+
+			path := filepath.Join(v.MountPath(), subVol.Path)
+			d.logger.Debug("Receiving volume", log.Ctx{"name": v.name, "recvPath": recvPath, "path": path})
+			err := d.receiveSubvolume(recvPath, path, conn, wrapper)
 			if err != nil {
 				return err
 			}
 		}
+
+		return nil
 	}
 
 	// Get instances directory (e.g. /var/lib/lxd/storage-pools/btrfs/containers).
@@ -360,12 +393,51 @@ func (d *btrfs) CreateVolumeFromMigration(vol Volume, conn io.ReadWriteCloser, v
 		return errors.Wrapf(err, "Failed to chmod %q", tmpVolumesMountPoint)
 	}
 
-	wrapper := migration.ProgressWriter(op, "fs_progress", vol.name)
-	err = d.receiveSubvolume(tmpVolumesMountPoint, vol.MountPath(), conn, wrapper)
+	// Handle btrfs send/receive migration.
+	if len(volTargetArgs.Snapshots) > 0 {
+		// Create the parent directory.
+		err := createParentSnapshotDirIfMissing(d.name, vol.volType, vol.name)
+		if err != nil {
+			return err
+		}
+		revert.Add(func() { deleteParentSnapshotDirIfEmpty(d.name, vol.volType, vol.name) })
+
+		// Transfer the snapshots.
+		for _, snapName := range volTargetArgs.Snapshots {
+			snapVol, _ := vol.NewSnapshot(snapName)
+			err = receiveVolume(snapVol, tmpVolumesMountPoint)
+			if err != nil {
+				return err
+			}
+		}
+	}
+
+	// Receive main volume.
+	err = receiveVolume(vol, tmpVolumesMountPoint)
 	if err != nil {
 		return err
 	}
 
+	// Restore readonly property on subvolumes that need it.
+	for _, subVol := range migrationHeader.Subvolumes {
+		if !subVol.Readonly {
+			continue // All subvolumes are made writable during receive process so we can skip these.
+		}
+
+		v := vol
+		if subVol.Snapshot != "" {
+			v, _ = vol.NewSnapshot(subVol.Snapshot)
+		}
+
+		path := filepath.Join(v.MountPath(), subVol.Path)
+		d.logger.Debug("Setting subvolume readonly", log.Ctx{"name": v.name, "path": path})
+		err = d.setSubvolumeReadonlyProperty(path, true)
+		if err != nil {
+			return err
+		}
+	}
+
+	revert.Success()
 	return nil
 }
 
