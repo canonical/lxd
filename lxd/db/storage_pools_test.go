@@ -11,8 +11,8 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// The StoragePoolsNodeConfigs method returns only node-specific config values.
-func TestStoragePoolsNodeConfigs(t *testing.T) {
+// The GetStoragePoolsLocalConfigs method returns only node-specific config values.
+func TestGetStoragePoolsLocalConfigs(t *testing.T) {
 	cluster, cleanup := db.NewTestCluster(t)
 	defer cleanup()
 
@@ -39,7 +39,7 @@ func TestStoragePoolsNodeConfigs(t *testing.T) {
 
 	err = cluster.Transaction(func(tx *db.ClusterTx) error {
 		var err error
-		config, err = tx.StoragePoolsNodeConfig()
+		config, err = tx.GetStoragePoolsLocalConfig()
 		return err
 	})
 	require.NoError(t, err)
