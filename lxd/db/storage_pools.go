@@ -493,7 +493,7 @@ func (c *Cluster) GetStoragePool(poolName string) (int64, *api.StoragePool, erro
 		return -1, nil, err
 	}
 
-	config, err := c.StoragePoolConfigGet(poolID)
+	config, err := c.getStoragePoolConfig(poolID)
 	if err != nil {
 		return -1, nil, err
 	}
@@ -542,8 +542,8 @@ SELECT nodes.name FROM nodes
 	return nodes, nil
 }
 
-// StoragePoolConfigGet returns the config of a storage pool.
-func (c *Cluster) StoragePoolConfigGet(poolID int64) (map[string]string, error) {
+// Return the config of a storage pool.
+func (c *Cluster) getStoragePoolConfig(poolID int64) (map[string]string, error) {
 	var key, value string
 	query := "SELECT key, value FROM storage_pools_config WHERE storage_pool_id=? AND (node_id=? OR node_id IS NULL)"
 	inargs := []interface{}{poolID, c.nodeID}
