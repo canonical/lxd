@@ -74,12 +74,12 @@ func (n *NodeTx) GetRaftNodeAddress(id int64) (string, error) {
 	}
 }
 
-// RaftNodeFirst adds a the first node of the cluster. It ensures that the
-// database ID is 1, to match the server ID of first raft log entry.
+// CreateFirstRaftNode adds a the first node of the cluster. It ensures that the
+// database ID is 1, to match the server ID of the first raft log entry.
 //
 // This method is supposed to be called when there are no rows in raft_nodes,
 // and it will replace whatever existing row has ID 1.
-func (n *NodeTx) RaftNodeFirst(address string) error {
+func (n *NodeTx) CreateFirstRaftNode(address string) error {
 	columns := []string{"id", "address"}
 	values := []interface{}{int64(1), address}
 	id, err := query.UpsertObject(n.tx, "raft_nodes", columns, values)
