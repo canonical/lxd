@@ -907,19 +907,19 @@ func (d *ceph) GetVolumeDiskPath(vol Volume) (string, error) {
 func (d *ceph) MountVolume(vol Volume, op *operations.Operation) (bool, error) {
 	mountPath := vol.MountPath()
 
-	if vol.contentType == ContentTypeFS && !shared.IsMountPoint(mountPath) {
-		RBDFilesystem := d.getRBDFilesystem(vol)
+	// Activate RBD volume if needed.
+	RBDDevPath, err := d.getRBDMappedDevPath(vol)
+	if err != nil {
+		return false, err
+	}
 
+	if vol.contentType == ContentTypeFS && !shared.IsMountPoint(mountPath) {
 		err := vol.EnsureMountPath()
 		if err != nil {
 			return false, err
 		}
 
-		RBDDevPath, err := d.getRBDMappedDevPath(vol)
-		if err != nil {
-			return false, err
-		}
-
+		RBDFilesystem := d.getRBDFilesystem(vol)
 		mountFlags, mountOptions := resolveMountOptions(d.getRBDMountOptions(vol))
 		err = TryMount(RBDDevPath, mountPath, RBDFilesystem, mountFlags, mountOptions)
 		if err != nil {
