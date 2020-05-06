@@ -138,6 +138,11 @@ func GetStorage() (*api.ResourcesStorage, error) {
 			// Device node
 			diskDev, err := ioutil.ReadFile(filepath.Join(entryPath, "dev"))
 			if err != nil {
+				if os.IsNotExist(err) {
+					// This happens on multipath devices, just skip as we only care about the main node.
+					continue
+				}
+
 				return nil, errors.Wrapf(err, "Failed to read \"%s\"", filepath.Join(entryPath, "dev"))
 			}
 			disk.Device = strings.TrimSpace(string(diskDev))
