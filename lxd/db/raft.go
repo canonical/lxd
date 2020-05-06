@@ -47,10 +47,10 @@ func (n *NodeTx) GetRaftNodes() ([]RaftNode, error) {
 	return nodes, nil
 }
 
-// RaftNodeAddresses returns the addresses of all LXD nodes that are members of
+// GetRaftNodeAddresses returns the addresses of all LXD nodes that are members of
 // the dqlite Raft cluster (possibly including the local node). If this LXD
 // instance is not running in clustered mode, an empty list is returned.
-func (n *NodeTx) RaftNodeAddresses() ([]string, error) {
+func (n *NodeTx) GetRaftNodeAddresses() ([]string, error) {
 	return query.SelectStrings(n.tx, "SELECT address FROM raft_nodes")
 }
 
