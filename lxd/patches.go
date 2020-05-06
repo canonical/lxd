@@ -234,7 +234,7 @@ func patchRenameCustomVolumeLVs(name string, d *Daemon) error {
 			continue
 		}
 
-		volumes, err := d.cluster.StoragePoolNodeVolumesGetType(project.Default, db.StoragePoolVolumeTypeCustom, poolID)
+		volumes, err := d.cluster.GetLocalStoragePoolVolumesWithType(project.Default, db.StoragePoolVolumeTypeCustom, poolID)
 		if err != nil {
 			return err
 		}
@@ -3047,7 +3047,7 @@ func patchStorageApiPermissions(name string, d *Daemon) error {
 			return err
 		}
 
-		volumes, err := d.cluster.StoragePoolNodeVolumesGetType(project.Default, db.StoragePoolVolumeTypeCustom, poolID)
+		volumes, err := d.cluster.GetLocalStoragePoolVolumesWithType(project.Default, db.StoragePoolVolumeTypeCustom, poolID)
 		if err != nil && err != db.ErrNoSuchObject {
 			return err
 		}

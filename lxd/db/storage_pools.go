@@ -906,9 +906,9 @@ SELECT storage_volumes_snapshots.name, storage_volumes_snapshots.description FRO
 	return result, nil
 }
 
-// StoragePoolNodeVolumesGetType returns all storage volumes attached to a
+// GetLocalStoragePoolVolumesWithType returns all storage volumes attached to a
 // given storage pool of a given volume type, on the current node.
-func (c *Cluster) StoragePoolNodeVolumesGetType(projectName string, volumeType int, poolID int64) ([]string, error) {
+func (c *Cluster) GetLocalStoragePoolVolumesWithType(projectName string, volumeType int, poolID int64) ([]string, error) {
 	return c.storagePoolVolumesGetType(projectName, volumeType, poolID, c.nodeID)
 }
 
