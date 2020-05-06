@@ -92,9 +92,9 @@ func (n *NodeTx) CreateFirstRaftNode(address string) error {
 	return nil
 }
 
-// RaftNodeAdd adds a node to the current list of LXD nodes that are part of the
+// CreateRaftNode adds a node to the current list of LXD nodes that are part of the
 // dqlite Raft cluster. It returns the ID of the newly inserted row.
-func (n *NodeTx) RaftNodeAdd(address string) (int64, error) {
+func (n *NodeTx) CreateRaftNode(address string) (int64, error) {
 	columns := []string{"address"}
 	values := []interface{}{address}
 	return query.UpsertObject(n.tx, "raft_nodes", columns, values)
