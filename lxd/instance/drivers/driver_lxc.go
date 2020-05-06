@@ -3729,7 +3729,7 @@ func (c *lxc) VolatileSet(changes map[string]string) error {
 	var err error
 	if c.IsSnapshot() {
 		err = c.state.Cluster.Transaction(func(tx *db.ClusterTx) error {
-			return tx.InstanceSnapshotConfigUpdate(c.id, changes)
+			return tx.UpdateInstanceSnapshotConfig(c.id, changes)
 		})
 	} else {
 		err = c.state.Cluster.Transaction(func(tx *db.ClusterTx) error {

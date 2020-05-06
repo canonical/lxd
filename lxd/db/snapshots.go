@@ -86,8 +86,8 @@ func InstanceSnapshotToInstance(instance *Instance, snapshot *InstanceSnapshot) 
 	}
 }
 
-// InstanceSnapshotConfigUpdate inserts/updates/deletes the provided config keys.
-func (c *ClusterTx) InstanceSnapshotConfigUpdate(id int, values map[string]string) error {
+// UpdateInstanceSnapshotConfig inserts/updates/deletes the provided config keys.
+func (c *ClusterTx) UpdateInstanceSnapshotConfig(id int, values map[string]string) error {
 	insertSQL := "INSERT OR REPLACE INTO instances_snapshots_config (instance_snapshot_id, key, value) VALUES"
 	deleteSQL := "DELETE FROM instances_snapshots_config WHERE key IN %s AND instance_snapshot_id=?"
 	return c.configUpdate(id, values, insertSQL, deleteSQL)

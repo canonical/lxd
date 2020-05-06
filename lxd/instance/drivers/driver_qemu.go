@@ -3280,7 +3280,7 @@ func (vm *qemu) VolatileSet(changes map[string]string) error {
 	var err error
 	if vm.IsSnapshot() {
 		err = vm.state.Cluster.Transaction(func(tx *db.ClusterTx) error {
-			return tx.InstanceSnapshotConfigUpdate(vm.id, changes)
+			return tx.UpdateInstanceSnapshotConfig(vm.id, changes)
 		})
 	} else {
 		err = vm.state.Cluster.Transaction(func(tx *db.ClusterTx) error {
