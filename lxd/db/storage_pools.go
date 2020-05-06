@@ -691,8 +691,8 @@ func clearStoragePoolConfig(tx *sql.Tx, poolID, nodeID int64) error {
 	return nil
 }
 
-// StoragePoolDelete deletes storage pool.
-func (c *Cluster) StoragePoolDelete(poolName string) (*api.StoragePool, error) {
+// RemoveStoragePool deletes storage pool.
+func (c *Cluster) RemoveStoragePool(poolName string) (*api.StoragePool, error) {
 	poolID, pool, err := c.GetStoragePool(poolName)
 	if err != nil {
 		return nil, err
