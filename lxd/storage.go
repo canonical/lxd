@@ -125,7 +125,7 @@ func storagePoolDriversCacheUpdate(s *state.State) {
 	// appropriate. (Should be cheaper then querying the db all the time,
 	// especially if we keep adding more storage drivers.)
 
-	drivers, err := s.Cluster.StoragePoolsGetDrivers()
+	drivers, err := s.Cluster.GetStoragePoolDrivers()
 	if err != nil && err != db.ErrNoSuchObject {
 		return
 	}
