@@ -456,7 +456,7 @@ func (c *ClusterTx) UpdateInstanceNode(project, oldName, newName, newNode string
 		return errors.Wrap(err, "Failed to get instance's storage pool ID")
 	}
 
-	poolDriver, err := c.StoragePoolDriver(poolID)
+	poolDriver, err := c.GetStoragePoolDriver(poolID)
 	if err != nil {
 		return errors.Wrap(err, "Failed to get instance's storage pool driver")
 	}
