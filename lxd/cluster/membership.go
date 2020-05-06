@@ -386,7 +386,7 @@ func Join(state *state.State, gateway *Gateway, cert *shared.CertInfo, name stri
 				return errors.Wrap(err, "failed to add joining node's to the pool")
 			}
 
-			driver, err := tx.StoragePoolDriver(id)
+			driver, err := tx.GetStoragePoolDriver(id)
 			if err != nil {
 				return errors.Wrap(err, "failed to get storage pool driver")
 			}
