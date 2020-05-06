@@ -537,7 +537,7 @@ func internalImport(d *Daemon, r *http.Request) response.Response {
 	}
 
 	// Check if a storage volume entry for the instance already exists.
-	_, volume, ctVolErr := d.cluster.StoragePoolNodeVolumeGetTypeByProject(projectName, req.Name, instanceDBVolType, pool.ID())
+	_, volume, ctVolErr := d.cluster.GetLocalStoragePoolVolume(projectName, req.Name, instanceDBVolType, pool.ID())
 	if ctVolErr != nil {
 		if ctVolErr != db.ErrNoSuchObject {
 			return response.SmartError(ctVolErr)
@@ -576,7 +576,7 @@ func internalImport(d *Daemon, r *http.Request) response.Response {
 		}
 
 		// Remove the storage volume db entry for the instance since force was specified.
-		err := d.cluster.StoragePoolVolumeDelete(projectName, req.Name, instanceDBVolType, pool.ID())
+		err := d.cluster.RemoveStoragePoolVolume(projectName, req.Name, instanceDBVolType, pool.ID())
 		if err != nil {
 			return response.SmartError(err)
 		}
@@ -664,7 +664,7 @@ func internalImport(d *Daemon, r *http.Request) response.Response {
 		parts := strings.SplitN(snap.Name, shared.SnapshotDelimiter, 2)
 
 		// Check if an entry for the snapshot already exists in the db.
-		_, snapErr := d.cluster.InstanceSnapshotID(projectName, parts[0], parts[1])
+		_, snapErr := d.cluster.GetInstanceSnapshotID(projectName, parts[0], parts[1])
 		if snapErr != nil {
 			if snapErr != db.ErrNoSuchObject {
 				return response.SmartError(snapErr)
@@ -677,7 +677,7 @@ func internalImport(d *Daemon, r *http.Request) response.Response {
 		}
 
 		// Check if a storage volume entry for the snapshot already exists.
-		_, _, csVolErr := d.cluster.StoragePoolNodeVolumeGetTypeByProject(projectName, snap.Name, instanceDBVolType, pool.ID())
+		_, _, csVolErr := d.cluster.GetLocalStoragePoolVolume(projectName, snap.Name, instanceDBVolType, pool.ID())
 		if csVolErr != nil {
 			if csVolErr != db.ErrNoSuchObject {
 				return response.SmartError(csVolErr)
@@ -697,7 +697,7 @@ func internalImport(d *Daemon, r *http.Request) response.Response {
 		}
 
 		if csVolErr == nil {
-			err := d.cluster.StoragePoolVolumeDelete(projectName, snap.Name, instanceDBVolType, pool.ID())
+			err := d.cluster.RemoveStoragePoolVolume(projectName, snap.Name, instanceDBVolType, pool.ID())
 			if err != nil {
 				return response.SmartError(err)
 			}

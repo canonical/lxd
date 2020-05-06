@@ -92,10 +92,10 @@ func TestImportPreClusteringData(t *testing.T) {
 	assert.Equal(t, []string{"none"}, network.Locations)
 
 	// storage
-	pools, err := cluster.StoragePools()
+	pools, err := cluster.GetStoragePoolNames()
 	require.NoError(t, err)
 	assert.Equal(t, []string{"default"}, pools)
-	id, pool, err := cluster.StoragePoolGet("default")
+	id, pool, err := cluster.GetStoragePool("default")
 	require.NoError(t, err)
 	assert.Equal(t, int64(1), id)
 	assert.Equal(t, "/foo/bar", pool.Config["source"])
@@ -105,7 +105,7 @@ func TestImportPreClusteringData(t *testing.T) {
 	assert.Equal(t, "true", pool.Config["zfs.clone_copy"])
 	assert.Equal(t, "Created", pool.Status)
 	assert.Equal(t, []string{"none"}, pool.Locations)
-	volumes, err := cluster.StoragePoolNodeVolumesGet("default", id, []int{1})
+	volumes, err := cluster.GetLocalStoragePoolVolumes("default", id, []int{1})
 	require.NoError(t, err)
 	assert.Len(t, volumes, 1)
 	assert.Equal(t, "/foo/bar", volumes[0].Config["source"])

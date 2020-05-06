@@ -98,7 +98,7 @@ func TestBootstrap(t *testing.T) {
 
 	// The node-local database has now an entry in the raft_nodes table
 	err = state.Node.Transaction(func(tx *db.NodeTx) error {
-		nodes, err := tx.RaftNodes()
+		nodes, err := tx.GetRaftNodes()
 		require.NoError(t, err)
 		require.Len(t, nodes, 1)
 		assert.Equal(t, uint64(1), nodes[0].ID)
@@ -393,7 +393,7 @@ func (h *membershipFixtures) ClusterAddress(address string) {
 // Add the given address to the raft_nodes table.
 func (h *membershipFixtures) RaftNode(address string) {
 	err := h.state.Node.Transaction(func(tx *db.NodeTx) error {
-		_, err := tx.RaftNodeAdd(address)
+		_, err := tx.CreateRaftNode(address)
 		return err
 	})
 	require.NoError(h.t, err)
@@ -404,7 +404,7 @@ func (h *membershipFixtures) RaftNodes() []db.RaftNode {
 	var nodes []db.RaftNode
 	err := h.state.Node.Transaction(func(tx *db.NodeTx) error {
 		var err error
-		nodes, err = tx.RaftNodes()
+		nodes, err = tx.GetRaftNodes()
 		return err
 	})
 	require.NoError(h.t, err)

@@ -54,8 +54,8 @@ func (c *ClusterTx) ProjectHasProfiles(name string) (bool, error) {
 	return projectHasProfiles(c.tx, name)
 }
 
-// ProjectNames returns the names of all available projects.
-func (c *ClusterTx) ProjectNames() ([]string, error) {
+// GetProjectNames returns the names of all available projects.
+func (c *ClusterTx) GetProjectNames() ([]string, error) {
 	stmt := "SELECT name FROM projects"
 
 	names, err := query.SelectStrings(c.tx, stmt)
@@ -66,8 +66,9 @@ func (c *ClusterTx) ProjectNames() ([]string, error) {
 	return names, nil
 }
 
-// ProjectMap returns the names and ids of all available projects.
-func (c *ClusterTx) ProjectMap() (map[int64]string, error) {
+// GetProjectIDsToNames returns a map associating each project ID to its
+// project name.
+func (c *ClusterTx) GetProjectIDsToNames() (map[int64]string, error) {
 	stmt := "SELECT id, name FROM projects"
 
 	rows, err := c.tx.Query(stmt)
@@ -129,8 +130,8 @@ func (c *ClusterTx) ProjectHasImages(name string) (bool, error) {
 	return enabled, nil
 }
 
-// ProjectUpdate updates the project matching the given key parameters.
-func (c *ClusterTx) ProjectUpdate(name string, object api.ProjectPut) error {
+// UpdateProject updates the project matching the given key parameters.
+func (c *ClusterTx) UpdateProject(name string, object api.ProjectPut) error {
 	stmt := c.stmt(projectUpdate)
 	result, err := stmt.Exec(object.Description, name)
 	if err != nil {
@@ -170,8 +171,10 @@ DELETE FROM projects_config WHERE projects_config.project_id = ?
 	return nil
 }
 
-// ProjectLaunchWithoutImages updates the images_profiles table when a Project is created with features.images=false.
-func (c *ClusterTx) ProjectLaunchWithoutImages(project string) error {
+// InitProjectWithoutImages updates populates the images_profiles table with
+// all images from the default project when a project is created with
+// features.images=false.
+func (c *ClusterTx) InitProjectWithoutImages(project string) error {
 	defaultProfileID, err := c.ProfileID(project, "default")
 	if err != nil {
 		return errors.Wrap(err, "Fetch project ID")

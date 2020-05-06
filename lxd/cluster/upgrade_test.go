@@ -59,7 +59,7 @@ func TestMaybeUpdate_Upgrade(t *testing.T) {
 			{ID: 1, Address: "0.0.0.0:666"},
 			{ID: 2, Address: "1.2.3.4:666"},
 		}
-		err := tx.RaftNodesReplace(nodes)
+		err := tx.ReplaceRaftNodes(nodes)
 		require.NoError(t, err)
 		return nil
 	})

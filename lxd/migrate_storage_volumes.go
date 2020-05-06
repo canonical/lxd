@@ -69,10 +69,10 @@ func (s *migrationSourceWs) DoStorage(state *state.State, projectName string, po
 		var err error
 		snaps, err := storagePools.VolumeSnapshotsGet(state, projectName, poolName, volName, db.StoragePoolVolumeTypeCustom)
 		if err == nil {
-			poolID, err := state.Cluster.StoragePoolGetID(poolName)
+			poolID, err := state.Cluster.GetStoragePoolID(poolName)
 			if err == nil {
 				for _, snap := range snaps {
-					_, snapVolume, err := state.Cluster.StoragePoolNodeVolumeGetTypeByProject(projectName, snap.Name, db.StoragePoolVolumeTypeCustom, poolID)
+					_, snapVolume, err := state.Cluster.GetLocalStoragePoolVolume(projectName, snap.Name, db.StoragePoolVolumeTypeCustom, poolID)
 					if err != nil {
 						continue
 					}

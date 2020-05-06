@@ -44,7 +44,7 @@ var storagePoolCmd = APIEndpoint{
 func storagePoolsGet(d *Daemon, r *http.Request) response.Response {
 	recursion := util.IsRecursionRequest(r)
 
-	pools, err := d.cluster.StoragePools()
+	pools, err := d.cluster.GetStoragePoolNames()
 	if err != nil && err != db.ErrNoSuchObject {
 		return response.SmartError(err)
 	}
@@ -55,7 +55,7 @@ func storagePoolsGet(d *Daemon, r *http.Request) response.Response {
 		if !recursion {
 			resultString = append(resultString, fmt.Sprintf("/%s/storage-pools/%s", version.APIVersion, pool))
 		} else {
-			plID, pl, err := d.cluster.StoragePoolGet(pool)
+			plID, pl, err := d.cluster.GetStoragePool(pool)
 			if err != nil {
 				continue
 			}
@@ -117,7 +117,7 @@ func storagePoolsPost(d *Daemon, r *http.Request) response.Response {
 			return response.BadRequest(err)
 		}
 
-		poolID, err := d.cluster.StoragePoolGetID(req.Name)
+		poolID, err := d.cluster.GetStoragePoolID(req.Name)
 		if err != nil {
 			return response.NotFound(err)
 		}
@@ -199,13 +199,13 @@ func storagePoolsPostCluster(d *Daemon, req api.StoragePoolsPost) error {
 		var err error
 
 		// Check that the pool was defined at all.
-		poolID, err = tx.StoragePoolID(req.Name)
+		poolID, err = tx.GetStoragePoolID(req.Name)
 		if err != nil {
 			return err
 		}
 
 		// Fetch the node-specific configs.
-		configs, err = tx.StoragePoolNodeConfigs(poolID)
+		configs, err = tx.GetStoragePoolNodeConfigs(poolID)
 		if err != nil {
 			return err
 		}
@@ -217,7 +217,7 @@ func storagePoolsPostCluster(d *Daemon, req api.StoragePoolsPost) error {
 		}
 
 		// Insert the global config keys.
-		return tx.StoragePoolConfigAdd(poolID, 0, req.Config)
+		return tx.CreateStoragePoolConfig(poolID, 0, req.Config)
 	})
 	if err != nil {
 		if err == db.ErrNoSuchObject {
@@ -295,7 +295,7 @@ func storagePoolGet(d *Daemon, r *http.Request) response.Response {
 	poolName := mux.Vars(r)["name"]
 
 	// Get the existing storage pool.
-	poolID, pool, err := d.cluster.StoragePoolGet(poolName)
+	poolID, pool, err := d.cluster.GetStoragePool(poolName)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -333,7 +333,7 @@ func storagePoolPut(d *Daemon, r *http.Request) response.Response {
 	poolName := mux.Vars(r)["name"]
 
 	// Get the existing storage pool.
-	_, dbInfo, err := d.cluster.StoragePoolGet(poolName)
+	_, dbInfo, err := d.cluster.GetStoragePool(poolName)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -408,7 +408,7 @@ func storagePoolPatch(d *Daemon, r *http.Request) response.Response {
 	poolName := mux.Vars(r)["name"]
 
 	// Get the existing network
-	_, dbInfo, err := d.cluster.StoragePoolGet(poolName)
+	_, dbInfo, err := d.cluster.GetStoragePool(poolName)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -531,7 +531,7 @@ func storagePoolClusterFillWithNodeConfig(dbConfig, reqConfig map[string]string)
 func storagePoolDelete(d *Daemon, r *http.Request) response.Response {
 	poolName := mux.Vars(r)["name"]
 
-	poolID, err := d.cluster.StoragePoolGetID(poolName)
+	poolID, err := d.cluster.GetStoragePoolID(poolName)
 	if err != nil {
 		return response.NotFound(err)
 	}
@@ -547,20 +547,20 @@ func storagePoolDelete(d *Daemon, r *http.Request) response.Response {
 
 	// Check if the pool is pending, if so we just need to delete it from
 	// the database.
-	_, dbPool, err := d.cluster.StoragePoolGet(poolName)
+	_, dbPool, err := d.cluster.GetStoragePool(poolName)
 	if err != nil {
 		return response.SmartError(err)
 	}
 
 	if dbPool.Status == "Pending" {
-		_, err := d.cluster.StoragePoolDelete(poolName)
+		_, err := d.cluster.RemoveStoragePool(poolName)
 		if err != nil {
 			return response.SmartError(err)
 		}
 		return response.EmptySyncResponse
 	}
 
-	volumeNames, err := d.cluster.StoragePoolVolumesGetNames(poolID)
+	volumeNames, err := d.cluster.GetStoragePoolVolumesNames(poolID)
 	if err != nil {
 		return response.InternalError(err)
 	}
@@ -627,7 +627,7 @@ func storagePoolDelete(d *Daemon, r *http.Request) response.Response {
 }
 
 func storagePoolDeleteCheckPreconditions(cluster *db.Cluster, poolName string, poolID int64) response.Response {
-	volumeNames, err := cluster.StoragePoolVolumesGetNames(poolID)
+	volumeNames, err := cluster.GetStoragePoolVolumesNames(poolID)
 	if err != nil {
 		return response.InternalError(err)
 	}
@@ -635,7 +635,7 @@ func storagePoolDeleteCheckPreconditions(cluster *db.Cluster, poolName string, p
 	var projects []string
 
 	err = cluster.Transaction(func(tx *db.ClusterTx) error {
-		projects, err = tx.ProjectNames()
+		projects, err = tx.GetProjectNames()
 		return err
 	})
 	if err != nil {
@@ -644,7 +644,7 @@ func storagePoolDeleteCheckPreconditions(cluster *db.Cluster, poolName string, p
 
 	if len(volumeNames) > 0 {
 		for _, project := range projects {
-			volumes, err := cluster.StoragePoolVolumesGet(project, poolID, supportedVolumeTypes)
+			volumes, err := cluster.GetStoragePoolVolumes(project, poolID, supportedVolumeTypes)
 			if err != nil {
 				return response.InternalError(err)
 			}

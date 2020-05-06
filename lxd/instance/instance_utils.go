@@ -545,7 +545,7 @@ func LoadFromAllProjects(s *state.State) ([]Instance, error) {
 
 	err := s.Cluster.Transaction(func(tx *db.ClusterTx) error {
 		var err error
-		projects, err = tx.ProjectNames()
+		projects, err = tx.GetProjectNames()
 		return err
 	})
 	if err != nil {

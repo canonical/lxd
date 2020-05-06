@@ -104,7 +104,7 @@ func ConnectIfVolumeIsRemote(cluster *db.Cluster, poolID int64, volumeName strin
 		var driver string
 		err := cluster.Transaction(func(tx *db.ClusterTx) error {
 			var err error
-			driver, err = tx.StoragePoolDriver(poolID)
+			driver, err = tx.GetStoragePoolDriver(poolID)
 			return err
 		})
 		if err != nil {

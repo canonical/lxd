@@ -353,9 +353,9 @@ func TestGetInstancePool(t *testing.T) {
 	cluster, cleanup := db.NewTestCluster(t)
 	defer cleanup()
 
-	poolID, err := cluster.StoragePoolCreate("default", "", "dir", nil)
+	poolID, err := cluster.CreateStoragePool("default", "", "dir", nil)
 	require.NoError(t, err)
-	_, err = cluster.StoragePoolVolumeCreate("default", "c1", "", db.StoragePoolVolumeTypeContainer, poolID, nil)
+	_, err = cluster.CreateStoragePoolVolume("default", "c1", "", db.StoragePoolVolumeTypeContainer, poolID, nil)
 	require.NoError(t, err)
 
 	err = cluster.Transaction(func(tx *db.ClusterTx) error {

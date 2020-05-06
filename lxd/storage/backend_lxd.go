@@ -193,7 +193,7 @@ func (b *lxdBackend) Update(driverOnly bool, newDesc string, newConfig map[strin
 
 	// Update the database if something changed.
 	if len(changedConfig) != 0 || newDesc != b.db.Description {
-		err = b.state.Cluster.StoragePoolUpdate(b.name, newDesc, newConfig)
+		err = b.state.Cluster.UpdateStoragePool(b.name, newDesc, newConfig)
 		if err != nil {
 			return err
 		}
@@ -398,7 +398,7 @@ func (b *lxdBackend) instanceRootVolumeConfig(inst instance.Instance) (map[strin
 	}
 
 	// Get volume config.
-	_, vol, err := b.state.Cluster.StoragePoolNodeVolumeGetTypeByProject(inst.Project(), inst.Name(), volDBType, b.ID())
+	_, vol, err := b.state.Cluster.GetLocalStoragePoolVolume(inst.Project(), inst.Name(), volDBType, b.ID())
 	if err != nil {
 		if err == db.ErrNoSuchObject {
 			return nil, fmt.Errorf("Volume doesn't exist")
@@ -1196,24 +1196,24 @@ func (b *lxdBackend) RenameInstance(inst instance.Instance, newName string, op *
 	for _, srcSnapshot := range snapshots {
 		_, snapName, _ := shared.InstanceGetParentAndSnapshotName(srcSnapshot)
 		newSnapVolName := drivers.GetSnapshotVolumeName(newName, snapName)
-		err = b.state.Cluster.StoragePoolVolumeRename(inst.Project(), srcSnapshot, newSnapVolName, volDBType, b.ID())
+		err = b.state.Cluster.RenameStoragePoolVolume(inst.Project(), srcSnapshot, newSnapVolName, volDBType, b.ID())
 		if err != nil {
 			return err
 		}
 
 		revert.Add(func() {
-			b.state.Cluster.StoragePoolVolumeRename(inst.Project(), newSnapVolName, srcSnapshot, volDBType, b.ID())
+			b.state.Cluster.RenameStoragePoolVolume(inst.Project(), newSnapVolName, srcSnapshot, volDBType, b.ID())
 		})
 	}
 
 	// Rename the parent volume DB record.
-	err = b.state.Cluster.StoragePoolVolumeRename(inst.Project(), inst.Name(), newName, volDBType, b.ID())
+	err = b.state.Cluster.RenameStoragePoolVolume(inst.Project(), inst.Name(), newName, volDBType, b.ID())
 	if err != nil {
 		return err
 	}
 
 	revert.Add(func() {
-		b.state.Cluster.StoragePoolVolumeRename(inst.Project(), newName, inst.Name(), volDBType, b.ID())
+		b.state.Cluster.RenameStoragePoolVolume(inst.Project(), newName, inst.Name(), volDBType, b.ID())
 	})
 
 	// Rename the volume and its snapshots on the storage device.
@@ -1311,7 +1311,7 @@ func (b *lxdBackend) DeleteInstance(inst instance.Instance, op *operations.Opera
 	vol := b.newVolume(volType, contentType, volStorageName, nil)
 
 	// Delete the volume from the storage device. Must come after snapshots are removed.
-	// Must come before DB StoragePoolVolumeDelete so that the volume ID is still available.
+	// Must come before DB RemoveStoragePoolVolume so that the volume ID is still available.
 	logger.Debug("Deleting instance volume", log.Ctx{"volName": volStorageName})
 
 	if b.driver.HasVolume(vol) {
@@ -1333,7 +1333,7 @@ func (b *lxdBackend) DeleteInstance(inst instance.Instance, op *operations.Opera
 	}
 
 	// Remove the volume record from the database.
-	err = b.state.Cluster.StoragePoolVolumeDelete(inst.Project(), inst.Name(), volDBType, b.ID())
+	err = b.state.Cluster.RemoveStoragePoolVolume(inst.Project(), inst.Name(), volDBType, b.ID())
 	if err != nil {
 		return errors.Wrapf(err, "Error deleting storage volume from database")
 	}
@@ -1373,7 +1373,7 @@ func (b *lxdBackend) UpdateInstance(inst instance.Instance, newDesc string, newC
 	}
 
 	// Get current config to compare what has changed.
-	_, curVol, err := b.state.Cluster.StoragePoolNodeVolumeGetTypeByProject(inst.Project(), inst.Name(), volDBType, b.ID())
+	_, curVol, err := b.state.Cluster.GetLocalStoragePoolVolume(inst.Project(), inst.Name(), volDBType, b.ID())
 	if err != nil {
 		if err == db.ErrNoSuchObject {
 			return fmt.Errorf("Volume doesn't exist")
@@ -1412,7 +1412,7 @@ func (b *lxdBackend) UpdateInstance(inst instance.Instance, newDesc string, newC
 
 	// Update the database if something changed.
 	if len(changedConfig) != 0 || newDesc != curVol.Description {
-		err = b.state.Cluster.StoragePoolVolumeUpdateByProject(inst.Project(), inst.Name(), volDBType, b.ID(), newDesc, newConfig)
+		err = b.state.Cluster.UpdateStoragePoolVolume(inst.Project(), inst.Name(), volDBType, b.ID(), newDesc, newConfig)
 		if err != nil {
 			return err
 		}
@@ -1763,14 +1763,14 @@ func (b *lxdBackend) RenameInstanceSnapshot(inst instance.Instance, newName stri
 	})
 
 	// Rename DB volume record.
-	err = b.state.Cluster.StoragePoolVolumeRename(inst.Project(), inst.Name(), newVolName, volDBType, b.ID())
+	err = b.state.Cluster.RenameStoragePoolVolume(inst.Project(), inst.Name(), newVolName, volDBType, b.ID())
 	if err != nil {
 		return err
 	}
 
 	revert.Add(func() {
 		// Rename DB volume record back.
-		b.state.Cluster.StoragePoolVolumeRename(inst.Project(), newVolName, inst.Name(), volDBType, b.ID())
+		b.state.Cluster.RenameStoragePoolVolume(inst.Project(), newVolName, inst.Name(), volDBType, b.ID())
 	})
 
 	// Ensure the backup file reflects current config.
@@ -1811,7 +1811,7 @@ func (b *lxdBackend) DeleteInstanceSnapshot(inst instance.Instance, op *operatio
 	parentStorageName := project.Instance(inst.Project(), parentName)
 
 	// Delete the snapshot from the storage device.
-	// Must come before DB StoragePoolVolumeDelete so that the volume ID is still available.
+	// Must come before DB RemoveStoragePoolVolume so that the volume ID is still available.
 	logger.Debug("Deleting instance snapshot volume", log.Ctx{"volName": parentStorageName, "snapshotName": snapName})
 
 	snapVolName := drivers.GetSnapshotVolumeName(parentStorageName, snapName)
@@ -1833,7 +1833,7 @@ func (b *lxdBackend) DeleteInstanceSnapshot(inst instance.Instance, op *operatio
 	}
 
 	// Remove the snapshot volume record from the database.
-	err = b.state.Cluster.StoragePoolVolumeDelete(inst.Project(), drivers.GetSnapshotVolumeName(parentName, snapName), volDBType, b.ID())
+	err = b.state.Cluster.RemoveStoragePoolVolume(inst.Project(), drivers.GetSnapshotVolumeName(parentName, snapName), volDBType, b.ID())
 	if err != nil {
 		return err
 	}
@@ -2032,7 +2032,7 @@ func (b *lxdBackend) EnsureImage(fingerprint string, op *operations.Operation) e
 	}
 
 	// Try and load any existing volume config on this storage pool so we can compare filesystems if needed.
-	_, imgDBVol, err := b.state.Cluster.StoragePoolNodeVolumeGetTypeByProject(project.Default, fingerprint, db.StoragePoolVolumeTypeImage, b.ID())
+	_, imgDBVol, err := b.state.Cluster.GetLocalStoragePoolVolume(project.Default, fingerprint, db.StoragePoolVolumeTypeImage, b.ID())
 	if err != nil {
 		if err != db.ErrNoSuchObject {
 			return err
@@ -2104,7 +2104,7 @@ func (b *lxdBackend) DeleteImage(fingerprint string, op *operations.Operation) e
 	}
 
 	// Load the storage volume in order to get the volume config which is needed for some drivers.
-	_, storageVol, err := b.state.Cluster.StoragePoolNodeVolumeGetTypeByProject(project.Default, fingerprint, db.StoragePoolVolumeTypeImage, b.ID())
+	_, storageVol, err := b.state.Cluster.GetLocalStoragePoolVolume(project.Default, fingerprint, db.StoragePoolVolumeTypeImage, b.ID())
 	if err != nil {
 		return err
 	}
@@ -2118,7 +2118,7 @@ func (b *lxdBackend) DeleteImage(fingerprint string, op *operations.Operation) e
 		}
 	}
 
-	err = b.state.Cluster.StoragePoolVolumeDelete(project.Default, fingerprint, db.StoragePoolVolumeTypeImage, b.ID())
+	err = b.state.Cluster.RemoveStoragePoolVolume(project.Default, fingerprint, db.StoragePoolVolumeTypeImage, b.ID())
 	if err != nil {
 		return err
 	}
@@ -2131,7 +2131,7 @@ func (b *lxdBackend) DeleteImage(fingerprint string, op *operations.Operation) e
 // current volume's config then an error is returned.
 func (b *lxdBackend) updateVolumeDescriptionOnly(project, volName string, dbVolType int, newDesc string, newConfig map[string]string) error {
 	// Get current config to compare what has changed.
-	_, curVol, err := b.state.Cluster.StoragePoolNodeVolumeGetTypeByProject(project, volName, dbVolType, b.ID())
+	_, curVol, err := b.state.Cluster.GetLocalStoragePoolVolume(project, volName, dbVolType, b.ID())
 	if err != nil {
 		if err == db.ErrNoSuchObject {
 			return fmt.Errorf("Volume doesn't exist")
@@ -2149,7 +2149,7 @@ func (b *lxdBackend) updateVolumeDescriptionOnly(project, volName string, dbVolT
 
 	// Update the database if description changed. Use current config.
 	if newDesc != curVol.Description {
-		err = b.state.Cluster.StoragePoolVolumeUpdateByProject(project, volName, dbVolType, b.ID(), newDesc, curVol.Config)
+		err = b.state.Cluster.UpdateStoragePoolVolume(project, volName, dbVolType, b.ID(), newDesc, curVol.Config)
 		if err != nil {
 			return err
 		}
@@ -2192,7 +2192,7 @@ func (b *lxdBackend) CreateCustomVolume(projectName string, volName string, desc
 	revertDB := true
 	defer func() {
 		if revertDB {
-			b.state.Cluster.StoragePoolVolumeDelete(projectName, volName, db.StoragePoolVolumeTypeCustom, b.ID())
+			b.state.Cluster.RemoveStoragePoolVolume(projectName, volName, db.StoragePoolVolumeTypeCustom, b.ID())
 		}
 	}()
 
@@ -2234,7 +2234,7 @@ func (b *lxdBackend) CreateCustomVolumeFromCopy(projectName string, volName stri
 	}
 
 	// Check source volume exists and is custom type.
-	_, srcVolRow, err := b.state.Cluster.StoragePoolNodeVolumeGetTypeByProject(projectName, srcVolName, db.StoragePoolVolumeTypeCustom, srcPool.ID())
+	_, srcVolRow, err := b.state.Cluster.GetLocalStoragePoolVolume(projectName, srcVolName, db.StoragePoolVolumeTypeCustom, srcPool.ID())
 	if err != nil {
 		if err == db.ErrNoSuchObject {
 			return fmt.Errorf("Source volume doesn't exist")
@@ -2277,7 +2277,7 @@ func (b *lxdBackend) CreateCustomVolumeFromCopy(projectName string, volName stri
 		defer func() {
 			// Remove any DB volume rows created if we are reverting.
 			for _, volName := range revertDBVolumes {
-				b.state.Cluster.StoragePoolVolumeDelete(projectName, volName, db.StoragePoolVolumeTypeCustom, b.ID())
+				b.state.Cluster.RemoveStoragePoolVolume(projectName, volName, db.StoragePoolVolumeTypeCustom, b.ID())
 			}
 		}()
 
@@ -2429,7 +2429,7 @@ func (b *lxdBackend) CreateCustomVolumeFromMigration(projectName string, conn io
 	defer func() {
 		// Remove any DB volume rows created if we are reverting.
 		for _, volName := range revertDBVolumes {
-			b.state.Cluster.StoragePoolVolumeDelete(projectName, volName, db.StoragePoolVolumeTypeCustom, b.ID())
+			b.state.Cluster.RemoveStoragePoolVolume(projectName, volName, db.StoragePoolVolumeTypeCustom, b.ID())
 		}
 	}()
 
@@ -2501,23 +2501,23 @@ func (b *lxdBackend) RenameCustomVolume(projectName string, volName string, newV
 	for _, srcSnapshot := range snapshots {
 		_, snapName, _ := shared.InstanceGetParentAndSnapshotName(srcSnapshot.Name)
 		newSnapVolName := drivers.GetSnapshotVolumeName(newVolName, snapName)
-		err = b.state.Cluster.StoragePoolVolumeRename(projectName, srcSnapshot.Name, newSnapVolName, db.StoragePoolVolumeTypeCustom, b.ID())
+		err = b.state.Cluster.RenameStoragePoolVolume(projectName, srcSnapshot.Name, newSnapVolName, db.StoragePoolVolumeTypeCustom, b.ID())
 		if err != nil {
 			return err
 		}
 
 		revert.Add(func() {
-			b.state.Cluster.StoragePoolVolumeRename(projectName, newSnapVolName, srcSnapshot.Name, db.StoragePoolVolumeTypeCustom, b.ID())
+			b.state.Cluster.RenameStoragePoolVolume(projectName, newSnapVolName, srcSnapshot.Name, db.StoragePoolVolumeTypeCustom, b.ID())
 		})
 	}
 
-	err = b.state.Cluster.StoragePoolVolumeRename(projectName, volName, newVolName, db.StoragePoolVolumeTypeCustom, b.ID())
+	err = b.state.Cluster.RenameStoragePoolVolume(projectName, volName, newVolName, db.StoragePoolVolumeTypeCustom, b.ID())
 	if err != nil {
 		return err
 	}
 
 	revert.Add(func() {
-		b.state.Cluster.StoragePoolVolumeRename(projectName, newVolName, volName, db.StoragePoolVolumeTypeCustom, b.ID())
+		b.state.Cluster.RenameStoragePoolVolume(projectName, newVolName, volName, db.StoragePoolVolumeTypeCustom, b.ID())
 	})
 
 	// Get the volume name on storage.
@@ -2587,7 +2587,7 @@ func (b *lxdBackend) UpdateCustomVolume(projectName string, volName string, newD
 	}
 
 	// Get current config to compare what has changed.
-	_, curVol, err := b.state.Cluster.StoragePoolNodeVolumeGetTypeByProject(projectName, volName, db.StoragePoolVolumeTypeCustom, b.ID())
+	_, curVol, err := b.state.Cluster.GetLocalStoragePoolVolume(projectName, volName, db.StoragePoolVolumeTypeCustom, b.ID())
 	if err != nil {
 		if err == db.ErrNoSuchObject {
 			return fmt.Errorf("Volume doesn't exist")
@@ -2638,7 +2638,7 @@ func (b *lxdBackend) UpdateCustomVolume(projectName string, volName string, newD
 
 	// Update the database if something changed.
 	if len(changedConfig) != 0 || newDesc != curVol.Description {
-		err = b.state.Cluster.StoragePoolVolumeUpdateByProject(projectName, volName, db.StoragePoolVolumeTypeCustom, b.ID(), newDesc, newConfig)
+		err = b.state.Cluster.UpdateStoragePoolVolume(projectName, volName, db.StoragePoolVolumeTypeCustom, b.ID(), newDesc, newConfig)
 		if err != nil {
 			return err
 		}
@@ -2659,7 +2659,7 @@ func (b *lxdBackend) UpdateCustomVolumeSnapshot(projectName string, volName stri
 	}
 
 	// Get current config to compare what has changed.
-	volID, curVol, err := b.state.Cluster.StoragePoolNodeVolumeGetTypeByProject(projectName, volName, db.StoragePoolVolumeTypeCustom, b.ID())
+	volID, curVol, err := b.state.Cluster.GetLocalStoragePoolVolume(projectName, volName, db.StoragePoolVolumeTypeCustom, b.ID())
 	if err != nil {
 		if err == db.ErrNoSuchObject {
 			return fmt.Errorf("Volume doesn't exist")
@@ -2731,7 +2731,7 @@ func (b *lxdBackend) DeleteCustomVolume(projectName string, volName string, op *
 	}
 
 	// Finally, remove the volume record from the database.
-	err = b.state.Cluster.StoragePoolVolumeDelete(projectName, volName, db.StoragePoolVolumeTypeCustom, b.ID())
+	err = b.state.Cluster.RemoveStoragePoolVolume(projectName, volName, db.StoragePoolVolumeTypeCustom, b.ID())
 	if err != nil {
 		return err
 	}
@@ -2756,7 +2756,7 @@ func (b *lxdBackend) MountCustomVolume(projectName, volName string, op *operatio
 	logger.Debug("MountCustomVolume started")
 	defer logger.Debug("MountCustomVolume finished")
 
-	_, volume, err := b.state.Cluster.StoragePoolNodeVolumeGetTypeByProject(projectName, volName, db.StoragePoolVolumeTypeCustom, b.id)
+	_, volume, err := b.state.Cluster.GetLocalStoragePoolVolume(projectName, volName, db.StoragePoolVolumeTypeCustom, b.id)
 	if err != nil {
 		return false, err
 	}
@@ -2774,7 +2774,7 @@ func (b *lxdBackend) UnmountCustomVolume(projectName, volName string, op *operat
 	logger.Debug("UnmountCustomVolume started")
 	defer logger.Debug("UnmountCustomVolume finished")
 
-	_, volume, err := b.state.Cluster.StoragePoolNodeVolumeGetTypeByProject(projectName, volName, db.StoragePoolVolumeTypeCustom, b.id)
+	_, volume, err := b.state.Cluster.GetLocalStoragePoolVolume(projectName, volName, db.StoragePoolVolumeTypeCustom, b.id)
 	if err != nil {
 		return false, err
 	}
@@ -2803,7 +2803,7 @@ func (b *lxdBackend) CreateCustomVolumeSnapshot(projectName, volName string, new
 	fullSnapshotName := drivers.GetSnapshotVolumeName(volName, newSnapshotName)
 
 	// Check snapshot volume doesn't exist already.
-	_, _, err := b.state.Cluster.StoragePoolNodeVolumeGetTypeByProject(projectName, fullSnapshotName, db.StoragePoolVolumeTypeCustom, b.ID())
+	_, _, err := b.state.Cluster.GetLocalStoragePoolVolume(projectName, fullSnapshotName, db.StoragePoolVolumeTypeCustom, b.ID())
 	if err != db.ErrNoSuchObject {
 		if err != nil {
 			return err
@@ -2813,7 +2813,7 @@ func (b *lxdBackend) CreateCustomVolumeSnapshot(projectName, volName string, new
 	}
 
 	// Load parent volume information and check it exists.
-	_, parentVol, err := b.state.Cluster.StoragePoolNodeVolumeGetTypeByProject(projectName, volName, db.StoragePoolVolumeTypeCustom, b.ID())
+	_, parentVol, err := b.state.Cluster.GetLocalStoragePoolVolume(projectName, volName, db.StoragePoolVolumeTypeCustom, b.ID())
 	if err != nil {
 		if err == db.ErrNoSuchObject {
 			return fmt.Errorf("Parent volume doesn't exist")
@@ -2831,7 +2831,7 @@ func (b *lxdBackend) CreateCustomVolumeSnapshot(projectName, volName string, new
 	revertDB := true
 	defer func() {
 		if revertDB {
-			b.state.Cluster.StoragePoolVolumeDelete(projectName, fullSnapshotName, db.StoragePoolVolumeTypeCustom, b.ID())
+			b.state.Cluster.RemoveStoragePoolVolume(projectName, fullSnapshotName, db.StoragePoolVolumeTypeCustom, b.ID())
 		}
 	}()
 
@@ -2876,7 +2876,7 @@ func (b *lxdBackend) RenameCustomVolumeSnapshot(projectName, volName string, new
 	}
 
 	newVolName := drivers.GetSnapshotVolumeName(parentName, newSnapshotName)
-	err = b.state.Cluster.StoragePoolVolumeRename(projectName, volName, newVolName, db.StoragePoolVolumeTypeCustom, b.ID())
+	err = b.state.Cluster.RenameStoragePoolVolume(projectName, volName, newVolName, db.StoragePoolVolumeTypeCustom, b.ID())
 	if err != nil {
 		// Get the volume name on storage.
 		newVolStorageName := project.StorageVolume(projectName, newVolName)
@@ -2909,7 +2909,7 @@ func (b *lxdBackend) DeleteCustomVolumeSnapshot(projectName, volName string, op 
 	vol := b.newVolume(drivers.VolumeTypeCustom, drivers.ContentTypeFS, volStorageName, nil)
 
 	// Delete the snapshot from the storage device.
-	// Must come before DB StoragePoolVolumeDelete so that the volume ID is still available.
+	// Must come before DB RemoveStoragePoolVolume so that the volume ID is still available.
 	if b.driver.HasVolume(vol) {
 		err := b.driver.DeleteVolumeSnapshot(vol, op)
 		if err != nil {
@@ -2918,7 +2918,7 @@ func (b *lxdBackend) DeleteCustomVolumeSnapshot(projectName, volName string, op 
 	}
 
 	// Remove the snapshot volume record from the database.
-	err := b.state.Cluster.StoragePoolVolumeDelete(projectName, volName, db.StoragePoolVolumeTypeCustom, b.ID())
+	err := b.state.Cluster.RemoveStoragePoolVolume(projectName, volName, db.StoragePoolVolumeTypeCustom, b.ID())
 	if err != nil {
 		return err
 	}
@@ -2952,7 +2952,7 @@ func (b *lxdBackend) RestoreCustomVolume(projectName, volName string, snapshotNa
 	}
 
 	// Get the volume config.
-	_, dbVol, err := b.state.Cluster.StoragePoolNodeVolumeGetTypeByProject(projectName, volName, db.StoragePoolVolumeTypeCustom, b.ID())
+	_, dbVol, err := b.state.Cluster.GetLocalStoragePoolVolume(projectName, volName, db.StoragePoolVolumeTypeCustom, b.ID())
 	if err != nil {
 		if err == db.ErrNoSuchObject {
 			return fmt.Errorf("Volume doesn't exist")
@@ -3054,7 +3054,7 @@ func (b *lxdBackend) UpdateInstanceBackupFile(inst instance.Instance, op *operat
 
 	contentType := InstanceContentType(inst)
 
-	_, volume, err := b.state.Cluster.StoragePoolNodeVolumeGetTypeByProject(inst.Project(), inst.Name(), volDBType, b.ID())
+	_, volume, err := b.state.Cluster.GetLocalStoragePoolVolume(inst.Project(), inst.Name(), volDBType, b.ID())
 	if err != nil {
 		return err
 	}

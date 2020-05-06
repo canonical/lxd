@@ -11,23 +11,23 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// The StoragePoolsNodeConfigs method returns only node-specific config values.
-func TestStoragePoolsNodeConfigs(t *testing.T) {
+// The GetStoragePoolsLocalConfigs method returns only node-specific config values.
+func TestGetStoragePoolsLocalConfigs(t *testing.T) {
 	cluster, cleanup := db.NewTestCluster(t)
 	defer cleanup()
 
 	// Create a storage pool named "local" (like the default LXD clustering
 	// one), then delete it and create another one.
-	_, err := cluster.StoragePoolCreate("local", "", "dir", map[string]string{
+	_, err := cluster.CreateStoragePool("local", "", "dir", map[string]string{
 		"rsync.bwlimit": "1",
 		"source":        "/foo/bar",
 	})
 	require.NoError(t, err)
 
-	_, err = cluster.StoragePoolDelete("local")
+	_, err = cluster.RemoveStoragePool("local")
 	require.NoError(t, err)
 
-	_, err = cluster.StoragePoolCreate("BTRFS", "", "dir", map[string]string{
+	_, err = cluster.CreateStoragePool("BTRFS", "", "dir", map[string]string{
 		"rsync.bwlimit": "1",
 		"source":        "/egg/baz",
 	})
@@ -39,7 +39,7 @@ func TestStoragePoolsNodeConfigs(t *testing.T) {
 
 	err = cluster.Transaction(func(tx *db.ClusterTx) error {
 		var err error
-		config, err = tx.StoragePoolsNodeConfig()
+		config, err = tx.GetStoragePoolsLocalConfig()
 		return err
 	})
 	require.NoError(t, err)
@@ -62,7 +62,7 @@ func TestStoragePoolsCreatePending(t *testing.T) {
 	err = tx.StoragePoolCreatePending("buzz", "pool1", "dir", config)
 	require.NoError(t, err)
 
-	poolID, err := tx.StoragePoolID("pool1")
+	poolID, err := tx.GetStoragePoolID("pool1")
 	require.NoError(t, err)
 	assert.True(t, poolID > 0)
 
@@ -71,7 +71,7 @@ func TestStoragePoolsCreatePending(t *testing.T) {
 	require.NoError(t, err)
 
 	// The initial node (whose name is 'none' by default) is missing.
-	_, err = tx.StoragePoolNodeConfigs(poolID)
+	_, err = tx.GetStoragePoolNodeConfigs(poolID)
 	require.EqualError(t, err, "Pool not defined on nodes: none")
 
 	config = map[string]string{"source": "/egg"}
@@ -79,7 +79,7 @@ func TestStoragePoolsCreatePending(t *testing.T) {
 	require.NoError(t, err)
 
 	// Now the storage is defined on all nodes.
-	configs, err := tx.StoragePoolNodeConfigs(poolID)
+	configs, err := tx.GetStoragePoolNodeConfigs(poolID)
 	require.NoError(t, err)
 	assert.Len(t, configs, 3)
 	assert.Equal(t, map[string]string{"source": "/foo"}, configs["buzz"])
@@ -109,7 +109,7 @@ func TestStoragePoolsCreatePending_OtherPool(t *testing.T) {
 	err = tx.StoragePoolCreatePending("none", "pool2", "dir", config)
 	require.NoError(t, err)
 
-	poolID, err := tx.StoragePoolID("pool2")
+	poolID, err := tx.GetStoragePoolID("pool2")
 	require.NoError(t, err)
 
 	config = map[string]string{}
@@ -118,7 +118,7 @@ func TestStoragePoolsCreatePending_OtherPool(t *testing.T) {
 
 	// The node-level configs of the second pool do not contain any key
 	// from the first pool.
-	configs, err := tx.StoragePoolNodeConfigs(poolID)
+	configs, err := tx.GetStoragePoolNodeConfigs(poolID)
 	require.NoError(t, err)
 	assert.Len(t, configs, 2)
 	assert.Equal(t, map[string]string{}, configs["none"])
@@ -164,11 +164,11 @@ func TestStoragePoolVolume_Ceph(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	poolID, err := cluster.StoragePoolCreate("p1", "", "ceph", nil)
+	poolID, err := cluster.CreateStoragePool("p1", "", "ceph", nil)
 	require.NoError(t, err)
 
 	config := map[string]string{"k": "v"}
-	volumeID, err := cluster.StoragePoolVolumeCreate("default", "v1", "", 1, poolID, config)
+	volumeID, err := cluster.CreateStoragePoolVolume("default", "v1", "", 1, poolID, config)
 	require.NoError(t, err)
 
 	// The returned volume ID is the one of the volume created on the local
@@ -185,7 +185,7 @@ func TestStoragePoolVolume_Ceph(t *testing.T) {
 
 	// Update the volume
 	config["k"] = "v2"
-	err = cluster.StoragePoolVolumeUpdateByProject("default", "v1", 1, poolID, "volume 1", config)
+	err = cluster.UpdateStoragePoolVolume("default", "v1", 1, poolID, "volume 1", config)
 	require.NoError(t, err)
 	for _, nodeID := range []int64{1, 2} {
 		_, volume, err := cluster.StoragePoolVolumeGetType("default", "v1", 1, poolID, nodeID)
@@ -193,7 +193,7 @@ func TestStoragePoolVolume_Ceph(t *testing.T) {
 		assert.Equal(t, "volume 1", volume.Description)
 		assert.Equal(t, config, volume.Config)
 	}
-	err = cluster.StoragePoolVolumeRename("default", "v1", "v1-new", 1, poolID)
+	err = cluster.RenameStoragePoolVolume("default", "v1", "v1-new", 1, poolID)
 	require.NoError(t, err)
 	for _, nodeID := range []int64{1, 2} {
 		_, volume, err := cluster.StoragePoolVolumeGetType("default", "v1-new", 1, poolID, nodeID)
@@ -203,7 +203,7 @@ func TestStoragePoolVolume_Ceph(t *testing.T) {
 	require.NoError(t, err)
 
 	// Delete the volume
-	err = cluster.StoragePoolVolumeDelete("default", "v1-new", 1, poolID)
+	err = cluster.RemoveStoragePoolVolume("default", "v1-new", 1, poolID)
 	require.NoError(t, err)
 	for _, nodeID := range []int64{1, 2} {
 		_, volume, err := cluster.StoragePoolVolumeGetType("default", "v1-new", 1, poolID, nodeID)
@@ -213,15 +213,15 @@ func TestStoragePoolVolume_Ceph(t *testing.T) {
 }
 
 // Test creating a volume snapshot.
-func TestStoragePoolVolumeCreate_Snapshot(t *testing.T) {
+func TestCreateStoragePoolVolume_Snapshot(t *testing.T) {
 	cluster, cleanup := db.NewTestCluster(t)
 	defer cleanup()
 
-	poolID, err := cluster.StoragePoolCreate("p1", "", "dir", nil)
+	poolID, err := cluster.CreateStoragePool("p1", "", "dir", nil)
 	require.NoError(t, err)
 
 	config := map[string]string{"k": "v"}
-	_, err = cluster.StoragePoolVolumeCreate("default", "v1", "", 1, poolID, config)
+	_, err = cluster.CreateStoragePoolVolume("default", "v1", "", 1, poolID, config)
 	require.NoError(t, err)
 
 	config = map[string]string{"k": "v"}

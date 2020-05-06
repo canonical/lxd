@@ -90,13 +90,13 @@ func storagePoolVolumesGet(d *Daemon, r *http.Request) response.Response {
 	recursion := util.IsRecursionRequest(r)
 
 	// Retrieve ID of the storage pool (and check if the storage pool exists).
-	poolID, err := d.cluster.StoragePoolGetID(poolName)
+	poolID, err := d.cluster.GetStoragePoolID(poolName)
 	if err != nil {
 		return response.SmartError(err)
 	}
 
 	// Get all instance volumes currently attached to the storage pool by ID of the pool and project.
-	volumes, err := d.cluster.StoragePoolVolumesGet(projectName, poolID, supportedVolumeTypesInstances)
+	volumes, err := d.cluster.GetStoragePoolVolumes(projectName, poolID, supportedVolumeTypesInstances)
 	if err != nil && err != db.ErrNoSuchObject {
 		return response.SmartError(err)
 	}
@@ -109,7 +109,7 @@ func storagePoolVolumesGet(d *Daemon, r *http.Request) response.Response {
 	}
 
 	// Get all custom volumes currently attached to the storage pool by ID of the pool and project.
-	custVolumes, err := d.cluster.StoragePoolVolumesGet(customVolProjectName, poolID, []int{db.StoragePoolVolumeTypeCustom})
+	custVolumes, err := d.cluster.GetStoragePoolVolumes(customVolProjectName, poolID, []int{db.StoragePoolVolumeTypeCustom})
 	if err != nil && err != db.ErrNoSuchObject {
 		return response.SmartError(err)
 	}
@@ -122,7 +122,7 @@ func storagePoolVolumesGet(d *Daemon, r *http.Request) response.Response {
 	// table, but are effectively a cache which is not tied to projects, so we always link the to the default
 	// project. This means that we want to filter image volumes and return only the ones that have fingerprint
 	// matching images actually in use by the project.
-	imageVolumes, err := d.cluster.StoragePoolVolumesGet(project.Default, poolID, []int{db.StoragePoolVolumeTypeImage})
+	imageVolumes, err := d.cluster.GetStoragePoolVolumes(project.Default, poolID, []int{db.StoragePoolVolumeTypeImage})
 	if err != nil && err != db.ErrNoSuchObject {
 		return response.SmartError(err)
 	}
@@ -207,13 +207,13 @@ func storagePoolVolumesTypeGet(d *Daemon, r *http.Request) response.Response {
 	}
 
 	// Retrieve ID of the storage pool (and check if the storage pool exists).
-	poolID, err := d.cluster.StoragePoolGetID(poolName)
+	poolID, err := d.cluster.GetStoragePoolID(poolName)
 	if err != nil {
 		return response.SmartError(err)
 	}
 
 	// Get the names of all storage volumes of a given volume type currently attached to the storage pool.
-	volumes, err := d.cluster.StoragePoolNodeVolumesGetType(projectName, volumeType, poolID)
+	volumes, err := d.cluster.GetLocalStoragePoolVolumesWithType(projectName, volumeType, poolID)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -237,7 +237,7 @@ func storagePoolVolumesTypeGet(d *Daemon, r *http.Request) response.Response {
 
 			resultString = append(resultString, fmt.Sprintf("/%s/storage-pools/%s/volumes/%s/%s", version.APIVersion, poolName, apiEndpoint, volume))
 		} else {
-			_, vol, err := d.cluster.StoragePoolNodeVolumeGetTypeByProject(projectName, volume, volumeType, poolID)
+			_, vol, err := d.cluster.GetLocalStoragePoolVolume(projectName, volume, volumeType, poolID)
 			if err != nil {
 				continue
 			}
@@ -298,13 +298,13 @@ func storagePoolVolumesTypePost(d *Daemon, r *http.Request) response.Response {
 	}
 
 	poolName := mux.Vars(r)["name"]
-	poolID, err := d.cluster.StoragePoolGetID(poolName)
+	poolID, err := d.cluster.GetStoragePoolID(poolName)
 	if err != nil {
 		return response.SmartError(err)
 	}
 
 	// Check if destination volume exists.
-	_, _, err = d.cluster.StoragePoolNodeVolumeGetTypeByProject(projectName, req.Name, db.StoragePoolVolumeTypeCustom, poolID)
+	_, _, err = d.cluster.GetLocalStoragePoolVolume(projectName, req.Name, db.StoragePoolVolumeTypeCustom, poolID)
 	if err != db.ErrNoSuchObject {
 		if err != nil {
 			return response.SmartError(err)
@@ -403,13 +403,13 @@ func storagePoolVolumesPost(d *Daemon, r *http.Request) response.Response {
 	}
 
 	poolName := mux.Vars(r)["name"]
-	poolID, err := d.cluster.StoragePoolGetID(poolName)
+	poolID, err := d.cluster.GetStoragePoolID(poolName)
 	if err != nil {
 		return response.SmartError(err)
 	}
 
 	// Check if destination volume exists.
-	_, _, err = d.cluster.StoragePoolNodeVolumeGetTypeByProject(projectName, req.Name, db.StoragePoolVolumeTypeCustom, poolID)
+	_, _, err = d.cluster.GetLocalStoragePoolVolume(projectName, req.Name, db.StoragePoolVolumeTypeCustom, poolID)
 	if err != db.ErrNoSuchObject {
 		if err != nil {
 			return response.SmartError(err)
@@ -555,9 +555,9 @@ func storagePoolVolumeTypePost(d *Daemon, r *http.Request, volumeTypeName string
 	// Retrieve ID of the storage pool (and check if the storage pool exists).
 	var poolID int64
 	if req.Pool != "" {
-		poolID, err = d.cluster.StoragePoolGetID(req.Pool)
+		poolID, err = d.cluster.GetStoragePoolID(req.Pool)
 	} else {
-		poolID, err = d.cluster.StoragePoolGetID(poolName)
+		poolID, err = d.cluster.GetStoragePoolID(poolName)
 	}
 	if err != nil {
 		return response.SmartError(err)
@@ -594,7 +594,7 @@ func storagePoolVolumeTypePost(d *Daemon, r *http.Request, volumeTypeName string
 	}
 
 	// Check that the name isn't already in use.
-	_, err = d.cluster.StoragePoolNodeVolumeGetTypeIDByProject(projectName, req.Name, volumeType, poolID)
+	_, err = d.cluster.GetStoragePoolNodeVolumeID(projectName, req.Name, volumeType, poolID)
 	if err != db.ErrNoSuchObject {
 		if err != nil {
 			return response.InternalError(err)
@@ -796,7 +796,7 @@ func storagePoolVolumeTypeGet(d *Daemon, r *http.Request, volumeTypeName string)
 	}
 
 	// Get the ID of the storage pool the storage volume is supposed to be attached to.
-	poolID, err := d.cluster.StoragePoolGetID(poolName)
+	poolID, err := d.cluster.GetStoragePoolID(poolName)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -812,7 +812,7 @@ func storagePoolVolumeTypeGet(d *Daemon, r *http.Request, volumeTypeName string)
 	}
 
 	// Get the storage volume.
-	_, volume, err := d.cluster.StoragePoolNodeVolumeGetTypeByProject(projectName, volumeName, volumeType, poolID)
+	_, volume, err := d.cluster.GetLocalStoragePoolVolume(projectName, volumeName, volumeType, poolID)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -891,7 +891,7 @@ func storagePoolVolumeTypePut(d *Daemon, r *http.Request, volumeTypeName string)
 	}
 
 	// Get the existing storage volume.
-	_, vol, err := d.cluster.StoragePoolNodeVolumeGetTypeByProject(projectName, volumeName, volumeType, pool.ID())
+	_, vol, err := d.cluster.GetLocalStoragePoolVolume(projectName, volumeName, volumeType, pool.ID())
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -1021,7 +1021,7 @@ func storagePoolVolumeTypePatch(d *Daemon, r *http.Request, volumeTypeName strin
 	}
 
 	// Get the existing storage volume.
-	_, vol, err := d.cluster.StoragePoolNodeVolumeGetTypeByProject(projectName, volumeName, volumeType, pool.ID())
+	_, vol, err := d.cluster.GetLocalStoragePoolVolume(projectName, volumeName, volumeType, pool.ID())
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -1108,7 +1108,7 @@ func storagePoolVolumeTypeDelete(d *Daemon, r *http.Request, volumeTypeName stri
 		return resp
 	}
 
-	poolID, _, err := d.cluster.StoragePoolGet(poolName)
+	poolID, _, err := d.cluster.GetStoragePool(poolName)
 	if err != nil {
 		return response.SmartError(err)
 	}
