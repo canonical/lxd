@@ -145,6 +145,8 @@ func MatchTypes(offer MigrationHeader, fallbackType MigrationFSType, ourTypes []
 			var offeredFeatures []string
 			if offerFSType == MigrationFSType_ZFS {
 				offeredFeatures = offer.GetZfsFeaturesSlice()
+			} else if offerFSType == MigrationFSType_BTRFS {
+				offeredFeatures = offer.GetBtrfsFeaturesSlice()
 			} else if offerFSType == MigrationFSType_RSYNC {
 				offeredFeatures = offer.GetRsyncFeaturesSlice()
 				if !shared.StringInSlice("bidirectional", offeredFeatures) {
