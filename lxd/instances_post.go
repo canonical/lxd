@@ -792,7 +792,7 @@ func containersPost(d *Daemon, r *http.Request) response.Response {
 	}
 
 	// If no storage pool is found, error out.
-	pools, err := d.cluster.StoragePools()
+	pools, err := d.cluster.GetStoragePoolNames()
 	if err != nil || len(pools) == 0 {
 		return response.BadRequest(fmt.Errorf("No storage pool found. Please create a new storage pool"))
 	}
@@ -933,7 +933,7 @@ func containerFindStoragePool(d *Daemon, project string, req *api.InstancesPost)
 	// If there is just a single pool in the database, use that
 	if storagePool == "" {
 		logger.Debugf("No valid storage pool in the container's local root disk device and profiles found")
-		pools, err := d.cluster.StoragePools()
+		pools, err := d.cluster.GetStoragePoolNames()
 		if err != nil {
 			if err == db.ErrNoSuchObject {
 				return "", "", "", nil, response.BadRequest(fmt.Errorf("This LXD instance does not have any storage pools configured"))

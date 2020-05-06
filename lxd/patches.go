@@ -201,7 +201,7 @@ func patchNetworkPIDFiles(name string, d *Daemon) error {
 
 func patchGenericStorage(name string, d *Daemon) error {
 	// Load all the pools.
-	pools, _ := d.cluster.StoragePools()
+	pools, _ := d.cluster.GetStoragePoolNames()
 
 	for _, poolName := range pools {
 		pool, err := storagePools.GetPoolByName(d.State(), poolName)
@@ -222,7 +222,7 @@ func patchGenericStorage(name string, d *Daemon) error {
 
 func patchRenameCustomVolumeLVs(name string, d *Daemon) error {
 	// Ignore the error since it will also fail if there are no pools.
-	pools, _ := d.cluster.StoragePools()
+	pools, _ := d.cluster.GetStoragePoolNames()
 
 	for _, poolName := range pools {
 		poolID, pool, err := d.cluster.StoragePoolGet(poolName)
@@ -485,7 +485,7 @@ func upgradeFromStorageTypeBtrfs(name string, d *Daemon, defaultPoolName string,
 	}
 
 	var poolID int64
-	pools, err := d.cluster.StoragePools()
+	pools, err := d.cluster.GetStoragePoolNames()
 	if err == nil { // Already exist valid storage pools.
 		// Check if the storage pool already has a db entry.
 		if shared.StringInSlice(defaultPoolName, pools) {
@@ -785,7 +785,7 @@ func upgradeFromStorageTypeDir(name string, d *Daemon, defaultPoolName string, d
 	}
 
 	var poolID int64
-	pools, err := d.cluster.StoragePools()
+	pools, err := d.cluster.GetStoragePoolNames()
 	if err == nil { // Already exist valid storage pools.
 		// Check if the storage pool already has a db entry.
 		if shared.StringInSlice(defaultPoolName, pools) {
@@ -1087,7 +1087,7 @@ func upgradeFromStorageTypeLvm(name string, d *Daemon, defaultPoolName string, d
 	// are already configured. If so, we can assume that a partial upgrade
 	// has been performed and can skip the next steps.
 	var poolID int64
-	pools, err := d.cluster.StoragePools()
+	pools, err := d.cluster.GetStoragePoolNames()
 	if err == nil { // Already exist valid storage pools.
 		// Check if the storage pool already has a db entry.
 		if shared.StringInSlice(defaultPoolName, pools) {
@@ -1605,7 +1605,7 @@ func upgradeFromStorageTypeZfs(name string, d *Daemon, defaultPoolName string, d
 	// are already configured. If so, we can assume that a partial upgrade
 	// has been performed and can skip the next steps.
 	var poolID int64
-	pools, err := d.cluster.StoragePools()
+	pools, err := d.cluster.GetStoragePoolNames()
 	if err == nil { // Already exist valid storage pools.
 		// Check if the storage pool already has a db entry.
 		if shared.StringInSlice(poolName, pools) {
@@ -2047,7 +2047,7 @@ func updatePoolPropertyForAllObjects(d *Daemon, poolName string, allcontainers [
 }
 
 func patchStorageApiV1(name string, d *Daemon) error {
-	pools, err := d.cluster.StoragePools()
+	pools, err := d.cluster.GetStoragePoolNames()
 	if err != nil && err == db.ErrNoSuchObject {
 		// No pool was configured in the previous update. So we're on a
 		// pristine LXD instance.
@@ -2191,7 +2191,7 @@ func patchStorageApiLvmKeys(name string, d *Daemon) error {
 }
 
 func patchStorageApiKeys(name string, d *Daemon) error {
-	pools, err := d.cluster.StoragePools()
+	pools, err := d.cluster.GetStoragePoolNames()
 	if err != nil && err == db.ErrNoSuchObject {
 		// No pool was configured in the previous update. So we're on a
 		// pristine LXD instance.
@@ -2248,7 +2248,7 @@ func patchStorageApiKeys(name string, d *Daemon) error {
 // In case any of the objects images/containers/snapshots are missing storage
 // volume configuration entries, let's add the defaults.
 func patchStorageApiUpdateStorageConfigs(name string, d *Daemon) error {
-	pools, err := d.cluster.StoragePools()
+	pools, err := d.cluster.GetStoragePoolNames()
 	if err != nil {
 		if err == db.ErrNoSuchObject {
 			return nil
@@ -2396,7 +2396,7 @@ func patchStorageApiUpdateStorageConfigs(name string, d *Daemon) error {
 }
 
 func patchStorageApiLxdOnBtrfs(name string, d *Daemon) error {
-	pools, err := d.cluster.StoragePools()
+	pools, err := d.cluster.GetStoragePoolNames()
 	if err != nil {
 		if err == db.ErrNoSuchObject {
 			return nil
@@ -2453,7 +2453,7 @@ func patchStorageApiLxdOnBtrfs(name string, d *Daemon) error {
 }
 
 func patchStorageApiDetectLVSize(name string, d *Daemon) error {
-	pools, err := d.cluster.StoragePools()
+	pools, err := d.cluster.GetStoragePoolNames()
 	if err != nil {
 		if err == db.ErrNoSuchObject {
 			return nil
@@ -2548,7 +2548,7 @@ func patchStorageApiInsertZfsDriver(name string, d *Daemon) error {
 }
 
 func patchStorageZFSnoauto(name string, d *Daemon) error {
-	pools, err := d.cluster.StoragePools()
+	pools, err := d.cluster.GetStoragePoolNames()
 	if err != nil {
 		if err == db.ErrNoSuchObject {
 			return nil
@@ -2611,7 +2611,7 @@ func patchStorageZFSnoauto(name string, d *Daemon) error {
 }
 
 func patchStorageZFSVolumeSize(name string, d *Daemon) error {
-	pools, err := d.cluster.StoragePools()
+	pools, err := d.cluster.GetStoragePoolNames()
 	if err != nil && err == db.ErrNoSuchObject {
 		// No pool was configured in the previous update. So we're on a
 		// pristine LXD instance.
@@ -2697,7 +2697,7 @@ func patchNetworkDnsmasqHosts(name string, d *Daemon) error {
 }
 
 func patchStorageApiDirBindMount(name string, d *Daemon) error {
-	pools, err := d.cluster.StoragePools()
+	pools, err := d.cluster.GetStoragePoolNames()
 	if err != nil && err == db.ErrNoSuchObject {
 		// No pool was configured in the previous update. So we're on a
 		// pristine LXD instance.
@@ -2782,7 +2782,7 @@ func patchFixUploadedAt(name string, d *Daemon) error {
 }
 
 func patchStorageApiCephSizeRemove(name string, d *Daemon) error {
-	pools, err := d.cluster.StoragePools()
+	pools, err := d.cluster.GetStoragePoolNames()
 	if err != nil && err == db.ErrNoSuchObject {
 		// No pool was configured in the previous update. So we're on a
 		// pristine LXD instance.
@@ -2979,7 +2979,7 @@ func patchStorageApiPermissions(name string, d *Daemon) error {
 		return err
 	}
 
-	pools, err := d.cluster.StoragePools()
+	pools, err := d.cluster.GetStoragePoolNames()
 	if err != nil && err == db.ErrNoSuchObject {
 		// No pool was configured in the previous update. So we're on a
 		// pristine LXD instance.
@@ -3140,7 +3140,7 @@ func patchCandidConfigKey(name string, d *Daemon) error {
 
 func patchMoveBackups(name string, d *Daemon) error {
 	// Get all storage pools
-	pools, err := d.cluster.StoragePools()
+	pools, err := d.cluster.GetStoragePoolNames()
 	if err != nil {
 		if err == db.ErrNoSuchObject {
 			return nil
@@ -3258,7 +3258,7 @@ func patchMoveBackups(name string, d *Daemon) error {
 }
 
 func patchStorageApiRenameContainerSnapshotsDir(name string, d *Daemon) error {
-	pools, err := d.cluster.StoragePools()
+	pools, err := d.cluster.GetStoragePoolNames()
 	if err != nil && err == db.ErrNoSuchObject {
 		// No pool was configured so we're on a pristine LXD instance.
 		return nil
