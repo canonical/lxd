@@ -706,9 +706,9 @@ func (c *Cluster) RemoveStoragePool(poolName string) (*api.StoragePool, error) {
 	return pool, nil
 }
 
-// StoragePoolVolumesGetNames gets the names of all storage volumes attached to
+// GetStoragePoolVolumesNames gets the names of all storage volumes attached to
 // a given storage pool.
-func (c *Cluster) StoragePoolVolumesGetNames(poolID int64) ([]string, error) {
+func (c *Cluster) GetStoragePoolVolumesNames(poolID int64) ([]string, error) {
 	var volumeName string
 	query := "SELECT name FROM storage_volumes_all WHERE storage_pool_id=? AND node_id=?"
 	inargs := []interface{}{poolID, c.nodeID}
