@@ -594,7 +594,7 @@ func storagePoolVolumeTypePost(d *Daemon, r *http.Request, volumeTypeName string
 	}
 
 	// Check that the name isn't already in use.
-	_, err = d.cluster.StoragePoolNodeVolumeGetTypeIDByProject(projectName, req.Name, volumeType, poolID)
+	_, err = d.cluster.GetStoragePoolNodeVolumeID(projectName, req.Name, volumeType, poolID)
 	if err != db.ErrNoSuchObject {
 		if err != nil {
 			return response.InternalError(err)
