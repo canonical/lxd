@@ -26,10 +26,10 @@ const (
 	RaftSpare   = client.Spare
 )
 
-// RaftNodes returns information about all LXD nodes that are members of the
+// GetRaftNodes returns information about all LXD nodes that are members of the
 // dqlite Raft cluster (possibly including the local node). If this LXD
 // instance is not running in clustered mode, an empty list is returned.
-func (n *NodeTx) RaftNodes() ([]RaftNode, error) {
+func (n *NodeTx) GetRaftNodes() ([]RaftNode, error) {
 	nodes := []RaftNode{}
 	dest := func(i int) []interface{} {
 		nodes = append(nodes, RaftNode{})

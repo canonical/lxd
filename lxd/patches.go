@@ -3446,7 +3446,7 @@ func patchStorageApiUpdateContainerSnapshots(name string, d *Daemon) error {
 func patchClusteringAddRoles(name string, d *Daemon) error {
 	addresses := []string{}
 	err := d.State().Node.Transaction(func(tx *db.NodeTx) error {
-		nodes, err := tx.RaftNodes()
+		nodes, err := tx.GetRaftNodes()
 		if err != nil {
 			return errors.Wrap(err, "Failed to fetch current raft nodes")
 		}

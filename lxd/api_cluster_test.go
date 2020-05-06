@@ -143,7 +143,7 @@ func TestCluster_Join(t *testing.T) {
 	// entry for the joining node itself.
 	state := daemons[1].State()
 	err = state.Node.Transaction(func(tx *db.NodeTx) error {
-		nodes, err := tx.RaftNodes()
+		nodes, err := tx.GetRaftNodes()
 		require.NoError(t, err)
 		require.True(t, len(nodes) >= 1, "no rows in raft_nodes table")
 		assert.Equal(t, int64(1), nodes[0].ID)
@@ -240,7 +240,7 @@ func TestCluster_JoinServerAddress(t *testing.T) {
 	// entry for the joining node itself.
 	state := daemons[1].State()
 	err = state.Node.Transaction(func(tx *db.NodeTx) error {
-		nodes, err := tx.RaftNodes()
+		nodes, err := tx.GetRaftNodes()
 		require.NoError(t, err)
 		require.True(t, len(nodes) >= 1, "no rows in raft_nodes table")
 		assert.Equal(t, int64(1), nodes[0].ID)

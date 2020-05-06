@@ -39,7 +39,7 @@ func DetermineRaftNode(tx *db.NodeTx) (*db.RaftNode, error) {
 		return &db.RaftNode{ID: 1}, nil
 	}
 
-	nodes, err := tx.RaftNodes()
+	nodes, err := tx.GetRaftNodes()
 	if err != nil {
 		return nil, err
 	}
