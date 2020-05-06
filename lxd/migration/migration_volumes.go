@@ -72,6 +72,23 @@ func TypesToHeader(types ...Type) MigrationHeader {
 		header.ZfsFeatures = &features
 	}
 
+	// Add BTRFS features if preferred type is BTRFS.
+	if preferredType.FSType == MigrationFSType_BTRFS {
+		features := BtrfsFeatures{
+			MigrationHeader:  &missingFeature,
+			HeaderSubvolumes: &missingFeature,
+		}
+		for _, feature := range preferredType.Features {
+			if feature == BTRFSFeatureMigrationHeader {
+				features.MigrationHeader = &hasFeature
+			} else if feature == BTRFSFeatureSubvolumes {
+				features.HeaderSubvolumes = &hasFeature
+			}
+		}
+
+		header.BtrfsFeatures = &features
+	}
+
 	// Check all the types for an Rsync method, if found add its features to the header's RsyncFeatures list.
 	for _, t := range types {
 		if t.FSType != MigrationFSType_RSYNC && t.FSType != MigrationFSType_BLOCK_AND_RSYNC {
