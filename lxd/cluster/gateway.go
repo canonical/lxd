@@ -197,7 +197,7 @@ func (g *Gateway) HandlerFuncs(nodeRefreshTask func(*APIHeartbeat)) map[string]h
 				// Accept Raft node updates from any node (joining nodes just send raft nodes heartbeat data).
 				logger.Debugf("Replace current raft nodes with %+v", raftNodes)
 				err = g.db.Transaction(func(tx *db.NodeTx) error {
-					return tx.RaftNodesReplace(raftNodes)
+					return tx.ReplaceRaftNodes(raftNodes)
 				})
 				if err != nil {
 					logger.Errorf("Error updating raft nodes: %v", err)
@@ -497,7 +497,7 @@ func (g *Gateway) Reset(cert *shared.CertInfo) error {
 		return err
 	}
 	err = g.db.Transaction(func(tx *db.NodeTx) error {
-		return tx.RaftNodesReplace(nil)
+		return tx.ReplaceRaftNodes(nil)
 	})
 	if err != nil {
 		return err

@@ -82,7 +82,7 @@ func Recover(database *db.Node) error {
 		nodes := []db.RaftNode{
 			{ID: info.ID, Address: info.Address},
 		}
-		return tx.RaftNodesReplace(nodes)
+		return tx.ReplaceRaftNodes(nodes)
 	})
 	if err != nil {
 		return errors.Wrap(err, "Failed to update database nodes")
