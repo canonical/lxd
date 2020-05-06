@@ -576,7 +576,7 @@ func internalImport(d *Daemon, r *http.Request) response.Response {
 		}
 
 		// Remove the storage volume db entry for the instance since force was specified.
-		err := d.cluster.StoragePoolVolumeDelete(projectName, req.Name, instanceDBVolType, pool.ID())
+		err := d.cluster.RemoveStoragePoolVolume(projectName, req.Name, instanceDBVolType, pool.ID())
 		if err != nil {
 			return response.SmartError(err)
 		}
@@ -697,7 +697,7 @@ func internalImport(d *Daemon, r *http.Request) response.Response {
 		}
 
 		if csVolErr == nil {
-			err := d.cluster.StoragePoolVolumeDelete(projectName, snap.Name, instanceDBVolType, pool.ID())
+			err := d.cluster.RemoveStoragePoolVolume(projectName, snap.Name, instanceDBVolType, pool.ID())
 			if err != nil {
 				return response.SmartError(err)
 			}
