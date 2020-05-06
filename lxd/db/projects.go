@@ -130,8 +130,8 @@ func (c *ClusterTx) ProjectHasImages(name string) (bool, error) {
 	return enabled, nil
 }
 
-// ProjectUpdate updates the project matching the given key parameters.
-func (c *ClusterTx) ProjectUpdate(name string, object api.ProjectPut) error {
+// UpdateProject updates the project matching the given key parameters.
+func (c *ClusterTx) UpdateProject(name string, object api.ProjectPut) error {
 	stmt := c.stmt(projectUpdate)
 	result, err := stmt.Exec(object.Description, name)
 	if err != nil {

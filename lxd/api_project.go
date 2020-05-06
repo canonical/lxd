@@ -369,7 +369,7 @@ func projectChange(d *Daemon, project *api.Project, req api.ProjectPut) response
 			return err
 		}
 
-		err = tx.ProjectUpdate(project.Name, req)
+		err = tx.UpdateProject(project.Name, req)
 		if err != nil {
 			return errors.Wrap(err, "Persist profile changes")
 		}
