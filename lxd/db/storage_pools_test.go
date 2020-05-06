@@ -24,7 +24,7 @@ func TestGetStoragePoolsLocalConfigs(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	_, err = cluster.StoragePoolDelete("local")
+	_, err = cluster.RemoveStoragePool("local")
 	require.NoError(t, err)
 
 	_, err = cluster.CreateStoragePool("BTRFS", "", "dir", map[string]string{

@@ -553,7 +553,7 @@ func storagePoolDelete(d *Daemon, r *http.Request) response.Response {
 	}
 
 	if dbPool.Status == "Pending" {
-		_, err := d.cluster.StoragePoolDelete(poolName)
+		_, err := d.cluster.RemoveStoragePool(poolName)
 		if err != nil {
 			return response.SmartError(err)
 		}

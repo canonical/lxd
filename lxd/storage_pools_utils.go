@@ -256,7 +256,7 @@ func dbStoragePoolCreateAndUpdateCache(s *state.State, poolName string, poolDesc
 // Helper around the low-level DB API, which also updates the driver names
 // cache.
 func dbStoragePoolDeleteAndUpdateCache(s *state.State, poolName string) error {
-	_, err := s.Cluster.StoragePoolDelete(poolName)
+	_, err := s.Cluster.RemoveStoragePool(poolName)
 	if err != nil {
 		return err
 	}
