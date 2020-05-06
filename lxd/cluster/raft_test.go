@@ -22,7 +22,7 @@ func setRaftRole(t *testing.T, database *db.Node, address string) client.NodeSto
 		if err != nil {
 			return err
 		}
-		_, err = tx.RaftNodeAdd(address)
+		_, err = tx.CreateRaftNode(address)
 		return err
 	}))
 
