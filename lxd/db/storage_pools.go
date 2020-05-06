@@ -71,10 +71,10 @@ func (c *ClusterTx) GetStoragePoolDriver(id int64) (string, error) {
 	}
 }
 
-// StoragePoolIDsNotPending returns a map associating each storage pool name to its ID.
+// GetNonPendingStoragePoolsNamesToIDs returns a map associating each storage pool name to its ID.
 //
 // Pending storage pools are skipped.
-func (c *ClusterTx) StoragePoolIDsNotPending() (map[string]int64, error) {
+func (c *ClusterTx) GetNonPendingStoragePoolsNamesToIDs() (map[string]int64, error) {
 	pools := []struct {
 		id   int64
 		name string
