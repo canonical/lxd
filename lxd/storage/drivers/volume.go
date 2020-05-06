@@ -69,7 +69,6 @@ type Volume struct {
 	contentType       ContentType
 	config            map[string]string
 	driver            Driver
-	keepDevice        bool
 	customMountPath   string
 	allowUnsafeResize bool // Whether to allow potentially destructive unchecked resizing of volume.
 }
