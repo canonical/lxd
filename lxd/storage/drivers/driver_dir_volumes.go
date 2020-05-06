@@ -301,12 +301,16 @@ func (d *dir) GetVolumeDiskPath(vol Volume) (string, error) {
 	return genericVFSGetVolumeDiskPath(vol)
 }
 
-// MountVolume simulates mounting a volume. As dir driver doesn't have volumes to mount it returns
+// MountVolume simulates mounting a volume. As the driver doesn't have volumes to mount it returns
 // false indicating that there is no need to issue an unmount.
 func (d *dir) MountVolume(vol Volume, op *operations.Operation) (bool, error) {
-	err := vol.EnsureMountPath()
-	if err != nil {
-		return false, err
+	// Don't attempt to modify the permission of an existing custom volume root.
+	// A user inside the instance may have modified this and we don't want to reset it on restart.
+	if !shared.PathExists(vol.MountPath()) || vol.volType != VolumeTypeCustom {
+		err := vol.EnsureMountPath()
+		if err != nil {
+			return false, err
+		}
 	}
 
 	return false, nil
@@ -395,12 +399,17 @@ func (d *dir) DeleteVolumeSnapshot(snapVol Volume, op *operations.Operation) err
 
 // MountVolumeSnapshot sets up a read-only mount on top of the snapshot to avoid accidental modifications.
 func (d *dir) MountVolumeSnapshot(snapVol Volume, op *operations.Operation) (bool, error) {
-	err := snapVol.EnsureMountPath()
-	if err != nil {
-		return false, err
+	snapPath := snapVol.MountPath()
+
+	// Don't attempt to modify the permission of an existing custom volume root.
+	// A user inside the instance may have modified this and we don't want to reset it on restart.
+	if !shared.PathExists(snapPath) || snapVol.volType != VolumeTypeCustom {
+		err := snapVol.EnsureMountPath()
+		if err != nil {
+			return false, err
+		}
 	}
 
-	snapPath := snapVol.MountPath()
 	return mountReadOnly(snapPath, snapPath)
 }
 
