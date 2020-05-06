@@ -1222,9 +1222,9 @@ func storagePoolVolumeTypeToName(volumeType int) (string, error) {
 	return "", fmt.Errorf("Invalid storage volume type")
 }
 
-// StoragePoolInsertZfsDriver replaces the driver of all storage pools without
-// a driver, setting it to 'zfs'.
-func (c *Cluster) StoragePoolInsertZfsDriver() error {
+// FillMissingStoragePoolDriver fills the driver of all storage pools without a
+// driver, setting it to 'zfs'.
+func (c *Cluster) FillMissingStoragePoolDriver() error {
 	err := exec(c.db, "UPDATE storage_pools SET driver='zfs', description='' WHERE driver=''")
 	return err
 }

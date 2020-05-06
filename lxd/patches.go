@@ -2544,7 +2544,7 @@ func patchStorageApiDetectLVSize(name string, d *Daemon) error {
 }
 
 func patchStorageApiInsertZfsDriver(name string, d *Daemon) error {
-	return d.cluster.StoragePoolInsertZfsDriver()
+	return d.cluster.FillMissingStoragePoolDriver()
 }
 
 func patchStorageZFSnoauto(name string, d *Daemon) error {
