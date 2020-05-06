@@ -237,7 +237,7 @@ func storagePoolVolumesTypeGet(d *Daemon, r *http.Request) response.Response {
 
 			resultString = append(resultString, fmt.Sprintf("/%s/storage-pools/%s/volumes/%s/%s", version.APIVersion, poolName, apiEndpoint, volume))
 		} else {
-			_, vol, err := d.cluster.StoragePoolNodeVolumeGetTypeByProject(projectName, volume, volumeType, poolID)
+			_, vol, err := d.cluster.GetLocalStoragePoolVolume(projectName, volume, volumeType, poolID)
 			if err != nil {
 				continue
 			}
@@ -304,7 +304,7 @@ func storagePoolVolumesTypePost(d *Daemon, r *http.Request) response.Response {
 	}
 
 	// Check if destination volume exists.
-	_, _, err = d.cluster.StoragePoolNodeVolumeGetTypeByProject(projectName, req.Name, db.StoragePoolVolumeTypeCustom, poolID)
+	_, _, err = d.cluster.GetLocalStoragePoolVolume(projectName, req.Name, db.StoragePoolVolumeTypeCustom, poolID)
 	if err != db.ErrNoSuchObject {
 		if err != nil {
 			return response.SmartError(err)
@@ -409,7 +409,7 @@ func storagePoolVolumesPost(d *Daemon, r *http.Request) response.Response {
 	}
 
 	// Check if destination volume exists.
-	_, _, err = d.cluster.StoragePoolNodeVolumeGetTypeByProject(projectName, req.Name, db.StoragePoolVolumeTypeCustom, poolID)
+	_, _, err = d.cluster.GetLocalStoragePoolVolume(projectName, req.Name, db.StoragePoolVolumeTypeCustom, poolID)
 	if err != db.ErrNoSuchObject {
 		if err != nil {
 			return response.SmartError(err)
@@ -812,7 +812,7 @@ func storagePoolVolumeTypeGet(d *Daemon, r *http.Request, volumeTypeName string)
 	}
 
 	// Get the storage volume.
-	_, volume, err := d.cluster.StoragePoolNodeVolumeGetTypeByProject(projectName, volumeName, volumeType, poolID)
+	_, volume, err := d.cluster.GetLocalStoragePoolVolume(projectName, volumeName, volumeType, poolID)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -891,7 +891,7 @@ func storagePoolVolumeTypePut(d *Daemon, r *http.Request, volumeTypeName string)
 	}
 
 	// Get the existing storage volume.
-	_, vol, err := d.cluster.StoragePoolNodeVolumeGetTypeByProject(projectName, volumeName, volumeType, pool.ID())
+	_, vol, err := d.cluster.GetLocalStoragePoolVolume(projectName, volumeName, volumeType, pool.ID())
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -1021,7 +1021,7 @@ func storagePoolVolumeTypePatch(d *Daemon, r *http.Request, volumeTypeName strin
 	}
 
 	// Get the existing storage volume.
-	_, vol, err := d.cluster.StoragePoolNodeVolumeGetTypeByProject(projectName, volumeName, volumeType, pool.ID())
+	_, vol, err := d.cluster.GetLocalStoragePoolVolume(projectName, volumeName, volumeType, pool.ID())
 	if err != nil {
 		return response.SmartError(err)
 	}

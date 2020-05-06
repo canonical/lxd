@@ -537,7 +537,7 @@ func internalImport(d *Daemon, r *http.Request) response.Response {
 	}
 
 	// Check if a storage volume entry for the instance already exists.
-	_, volume, ctVolErr := d.cluster.StoragePoolNodeVolumeGetTypeByProject(projectName, req.Name, instanceDBVolType, pool.ID())
+	_, volume, ctVolErr := d.cluster.GetLocalStoragePoolVolume(projectName, req.Name, instanceDBVolType, pool.ID())
 	if ctVolErr != nil {
 		if ctVolErr != db.ErrNoSuchObject {
 			return response.SmartError(ctVolErr)
@@ -677,7 +677,7 @@ func internalImport(d *Daemon, r *http.Request) response.Response {
 		}
 
 		// Check if a storage volume entry for the snapshot already exists.
-		_, _, csVolErr := d.cluster.StoragePoolNodeVolumeGetTypeByProject(projectName, snap.Name, instanceDBVolType, pool.ID())
+		_, _, csVolErr := d.cluster.GetLocalStoragePoolVolume(projectName, snap.Name, instanceDBVolType, pool.ID())
 		if csVolErr != nil {
 			if csVolErr != db.ErrNoSuchObject {
 				return response.SmartError(csVolErr)
