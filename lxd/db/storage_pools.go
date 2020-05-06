@@ -866,10 +866,10 @@ SELECT storage_volumes_all.name
 	return response, nil
 }
 
-// StoragePoolVolumeSnapshotsGetType get all snapshots of a storage volume
-// attached to a given storage pool of a given volume type, on the given node.
+// GetLocalStoragePoolVolumeSnapshotsWithType get all snapshots of a storage volume
+// attached to a given storage pool of a given volume type, on the local node.
 // Returns snapshots slice ordered by when they were created, oldest first.
-func (c *Cluster) StoragePoolVolumeSnapshotsGetType(projectName string, volumeName string, volumeType int, poolID int64) ([]StorageVolumeArgs, error) {
+func (c *Cluster) GetLocalStoragePoolVolumeSnapshotsWithType(projectName string, volumeName string, volumeType int, poolID int64) ([]StorageVolumeArgs, error) {
 	result := []StorageVolumeArgs{}
 
 	// ORDER BY id is important here as the users of this function can expect that the results
