@@ -64,17 +64,17 @@ func TestGetRaftNodeAddress(t *testing.T) {
 }
 
 // Add the first raft node.
-func TestRaftNodeFirst(t *testing.T) {
+func TestCreateFirstRaftNode(t *testing.T) {
 	tx, cleanup := db.NewTestNodeTx(t)
 	defer cleanup()
 
-	err := tx.RaftNodeFirst("1.2.3.4:666")
+	err := tx.CreateFirstRaftNode("1.2.3.4:666")
 	assert.NoError(t, err)
 
 	err = tx.RaftNodeDelete(1)
 	assert.NoError(t, err)
 
-	err = tx.RaftNodeFirst("5.6.7.8:666")
+	err = tx.CreateFirstRaftNode("5.6.7.8:666")
 	assert.NoError(t, err)
 
 	address, err := tx.GetRaftNodeAddress(1)
