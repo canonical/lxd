@@ -644,7 +644,7 @@ func storagePoolDeleteCheckPreconditions(cluster *db.Cluster, poolName string, p
 
 	if len(volumeNames) > 0 {
 		for _, project := range projects {
-			volumes, err := cluster.StoragePoolVolumesGet(project, poolID, supportedVolumeTypes)
+			volumes, err := cluster.GetStoragePoolVolumes(project, poolID, supportedVolumeTypes)
 			if err != nil {
 				return response.InternalError(err)
 			}
