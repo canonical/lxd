@@ -214,7 +214,7 @@ func (c *Cluster) StorageVolumeIsAvailable(pool, volume string) (bool, error) {
 	isAvailable := false
 
 	err := c.Transaction(func(tx *ClusterTx) error {
-		id, err := tx.StoragePoolID(pool)
+		id, err := tx.GetStoragePoolID(pool)
 		if err != nil {
 			return errors.Wrapf(err, "Fetch storage pool ID for %q", pool)
 		}

@@ -62,7 +62,7 @@ func TestStoragePoolsCreatePending(t *testing.T) {
 	err = tx.StoragePoolCreatePending("buzz", "pool1", "dir", config)
 	require.NoError(t, err)
 
-	poolID, err := tx.StoragePoolID("pool1")
+	poolID, err := tx.GetStoragePoolID("pool1")
 	require.NoError(t, err)
 	assert.True(t, poolID > 0)
 
@@ -109,7 +109,7 @@ func TestStoragePoolsCreatePending_OtherPool(t *testing.T) {
 	err = tx.StoragePoolCreatePending("none", "pool2", "dir", config)
 	require.NoError(t, err)
 
-	poolID, err := tx.StoragePoolID("pool2")
+	poolID, err := tx.GetStoragePoolID("pool2")
 	require.NoError(t, err)
 
 	config = map[string]string{}
