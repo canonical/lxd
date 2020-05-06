@@ -635,7 +635,7 @@ func storagePoolDeleteCheckPreconditions(cluster *db.Cluster, poolName string, p
 	var projects []string
 
 	err = cluster.Transaction(func(tx *db.ClusterTx) error {
-		projects, err = tx.ProjectNames()
+		projects, err = tx.GetProjectNames()
 		return err
 	})
 	if err != nil {

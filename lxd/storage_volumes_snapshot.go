@@ -776,7 +776,7 @@ func volumeDetermineNextSnapshotName(d *Daemon, volume db.StorageVolumeArgs, def
 	var projects []string
 
 	err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
-		projects, err = tx.ProjectNames()
+		projects, err = tx.GetProjectNames()
 		return err
 	})
 	if err != nil {
