@@ -213,7 +213,7 @@ func storagePoolVolumesTypeGet(d *Daemon, r *http.Request) response.Response {
 	}
 
 	// Get the names of all storage volumes of a given volume type currently attached to the storage pool.
-	volumes, err := d.cluster.StoragePoolNodeVolumesGetType(projectName, volumeType, poolID)
+	volumes, err := d.cluster.GetLocalStoragePoolVolumesWithType(projectName, volumeType, poolID)
 	if err != nil {
 		return response.SmartError(err)
 	}
