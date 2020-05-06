@@ -31,12 +31,12 @@ func (p *pipe) Read(b []byte) (int, error) {
 	select {
 	case msg := <-p.ch:
 		if msg.err == io.EOF {
-			return -1, msg.err
+			return 0, msg.err
 		}
 		n := copy(b, msg.data)
 		return n, msg.err
 	case <-p.ctx.Done():
-		return -1, p.ctx.Err()
+		return 0, p.ctx.Err()
 	}
 }
 
@@ -51,7 +51,7 @@ func (p *pipe) Write(b []byte) (int, error) {
 	case p.otherEnd.ch <- msg: // Sent msg to the other side's Read function.
 		return len(msg.data), msg.err
 	case <-p.ctx.Done():
-		return -1, p.ctx.Err()
+		return 0, p.ctx.Err()
 	}
 }
 
