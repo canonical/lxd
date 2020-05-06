@@ -66,8 +66,9 @@ func (c *ClusterTx) GetProjectNames() ([]string, error) {
 	return names, nil
 }
 
-// ProjectMap returns the names and ids of all available projects.
-func (c *ClusterTx) ProjectMap() (map[int64]string, error) {
+// GetProjectIDsToNames returns a map associating each project ID to its
+// project name.
+func (c *ClusterTx) GetProjectIDsToNames() (map[int64]string, error) {
 	stmt := "SELECT id, name FROM projects"
 
 	rows, err := c.tx.Query(stmt)
