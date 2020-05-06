@@ -660,7 +660,7 @@ func (c *Cluster) UpdateStoragePool(poolName, description string, poolConfig map
 			return err
 		}
 
-		err = StoragePoolConfigClear(tx.tx, poolID, c.nodeID)
+		err = clearStoragePoolConfig(tx.tx, poolID, c.nodeID)
 		if err != nil {
 			return err
 		}
@@ -681,8 +681,8 @@ func updateStoragePoolDescription(tx *sql.Tx, id int64, description string) erro
 	return err
 }
 
-// StoragePoolConfigClear deletes the storage pool config.
-func StoragePoolConfigClear(tx *sql.Tx, poolID, nodeID int64) error {
+// Delete the storage pool config.
+func clearStoragePoolConfig(tx *sql.Tx, poolID, nodeID int64) error {
 	_, err := tx.Exec("DELETE FROM storage_pools_config WHERE storage_pool_id=? AND (node_id=? OR node_id IS NULL)", poolID, nodeID)
 	if err != nil {
 		return err
