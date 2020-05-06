@@ -93,7 +93,7 @@ func daemonStorageValidate(s *state.State, target string) error {
 	volumeName := fields[1]
 
 	// Validate pool exists.
-	poolID, dbPool, err := s.Cluster.StoragePoolGet(poolName)
+	poolID, dbPool, err := s.Cluster.GetStoragePool(poolName)
 	if err != nil {
 		return errors.Wrapf(err, "Unable to load storage pool %q", poolName)
 	}
@@ -104,12 +104,12 @@ func daemonStorageValidate(s *state.State, target string) error {
 	}
 
 	// Confirm volume exists.
-	_, _, err = s.Cluster.StoragePoolNodeVolumeGetTypeByProject(project.Default, volumeName, db.StoragePoolVolumeTypeCustom, poolID)
+	_, _, err = s.Cluster.GetLocalStoragePoolVolume(project.Default, volumeName, db.StoragePoolVolumeTypeCustom, poolID)
 	if err != nil {
 		return errors.Wrapf(err, "Unable to load storage volume %q", target)
 	}
 
-	snapshots, err := s.Cluster.StoragePoolVolumeSnapshotsGetType(project.Default, volumeName, db.StoragePoolVolumeTypeCustom, poolID)
+	snapshots, err := s.Cluster.GetLocalStoragePoolVolumeSnapshotsWithType(project.Default, volumeName, db.StoragePoolVolumeTypeCustom, poolID)
 	if err != nil {
 		return errors.Wrapf(err, "Unable to load storage volume snapshots %q", target)
 	}

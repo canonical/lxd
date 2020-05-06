@@ -125,7 +125,7 @@ func clusterGetMemberConfig(cluster *db.Cluster) ([]api.ClusterMemberConfigKey, 
 	err := cluster.Transaction(func(tx *db.ClusterTx) error {
 		var err error
 
-		pools, err = tx.StoragePoolsNodeConfig()
+		pools, err = tx.GetStoragePoolsLocalConfig()
 		if err != nil {
 			return errors.Wrapf(err, "Failed to fetch storage pools configuration")
 		}
@@ -413,13 +413,13 @@ func clusterPutJoin(d *Daemon, req api.ClusterPut) response.Response {
 		// Get all defined storage pools and networks, so they can be compared
 		// to the ones in the cluster.
 		pools := []api.StoragePool{}
-		poolNames, err := d.cluster.StoragePools()
+		poolNames, err := d.cluster.GetStoragePoolNames()
 		if err != nil && err != db.ErrNoSuchObject {
 			return err
 		}
 
 		for _, name := range poolNames {
-			_, pool, err := d.cluster.StoragePoolGet(name)
+			_, pool, err := d.cluster.GetStoragePool(name)
 			if err != nil {
 				return err
 			}
@@ -499,13 +499,13 @@ func clusterPutJoin(d *Daemon, req api.ClusterPut) response.Response {
 		}
 
 		// For ceph pools we have to trigger the local mountpoint creation too.
-		poolNames, err = d.cluster.StoragePools()
+		poolNames, err = d.cluster.GetStoragePoolNames()
 		if err != nil && err != db.ErrNoSuchObject {
 			return err
 		}
 
 		for _, name := range poolNames {
-			id, pool, err := d.cluster.StoragePoolGet(name)
+			id, pool, err := d.cluster.GetStoragePool(name)
 			if err != nil {
 				return err
 			}
@@ -1048,7 +1048,7 @@ func clusterNodeDelete(d *Daemon, r *http.Request) response.Response {
 		}
 
 		// Delete all the pools on this node
-		pools, err := d.cluster.StoragePools()
+		pools, err := d.cluster.GetStoragePoolNames()
 		if err != nil && err != db.ErrNoSuchObject {
 			return response.SmartError(err)
 		}
@@ -1421,7 +1421,7 @@ type internalClusterPostHandoverRequest struct {
 }
 
 func clusterCheckStoragePoolsMatch(cluster *db.Cluster, reqPools []api.StoragePool) error {
-	poolNames, err := cluster.StoragePoolsNotPending()
+	poolNames, err := cluster.GetNonPendingStoragePoolNames()
 	if err != nil && err != db.ErrNoSuchObject {
 		return err
 	}
@@ -1432,7 +1432,7 @@ func clusterCheckStoragePoolsMatch(cluster *db.Cluster, reqPools []api.StoragePo
 				continue
 			}
 			found = true
-			_, pool, err := cluster.StoragePoolGet(name)
+			_, pool, err := cluster.GetStoragePool(name)
 			if err != nil {
 				return err
 			}
@@ -1448,7 +1448,7 @@ func clusterCheckStoragePoolsMatch(cluster *db.Cluster, reqPools []api.StoragePo
 			break
 		}
 		if !found {
-			_, pool, err := cluster.StoragePoolGet(name)
+			_, pool, err := cluster.GetStoragePool(name)
 			if err != nil {
 				return err
 			}

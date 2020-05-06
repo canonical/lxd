@@ -232,7 +232,7 @@ func qemuCreate(s *state.State, args db.InstanceArgs) (instance.Instance, error)
 	storagePool := rootDiskDevice["pool"]
 
 	// Get the storage pool ID for the instance.
-	poolID, pool, err := s.Cluster.StoragePoolGet(storagePool)
+	poolID, pool, err := s.Cluster.GetStoragePool(storagePool)
 	if err != nil {
 		return nil, err
 	}
@@ -249,7 +249,7 @@ func qemuCreate(s *state.State, args db.InstanceArgs) (instance.Instance, error)
 		_, err = s.Cluster.StoragePoolVolumeSnapshotCreate(args.Project, args.Name, "", db.StoragePoolVolumeTypeVM, poolID, volumeConfig, time.Time{})
 
 	} else {
-		_, err = s.Cluster.StoragePoolVolumeCreate(args.Project, args.Name, "", db.StoragePoolVolumeTypeVM, poolID, volumeConfig)
+		_, err = s.Cluster.CreateStoragePoolVolume(args.Project, args.Name, "", db.StoragePoolVolumeTypeVM, poolID, volumeConfig)
 	}
 	if err != nil {
 		return nil, err
@@ -2605,7 +2605,7 @@ func (vm *qemu) Update(args db.InstanceArgs, userRequested bool) error {
 
 		// Snapshots should update only their descriptions and expiry date.
 		if vm.IsSnapshot() {
-			err = db.InstanceSnapshotUpdate(tx, vm.id, vm.description, vm.expiryDate)
+			err = db.UpdateInstanceSnapshot(tx, vm.id, vm.description, vm.expiryDate)
 			if err != nil {
 				tx.Rollback()
 				return errors.Wrap(err, "Snapshot update")
@@ -3280,7 +3280,7 @@ func (vm *qemu) VolatileSet(changes map[string]string) error {
 	var err error
 	if vm.IsSnapshot() {
 		err = vm.state.Cluster.Transaction(func(tx *db.ClusterTx) error {
-			return tx.InstanceSnapshotConfigUpdate(vm.id, changes)
+			return tx.UpdateInstanceSnapshotConfig(vm.id, changes)
 		})
 	} else {
 		err = vm.state.Cluster.Transaction(func(tx *db.ClusterTx) error {

@@ -210,7 +210,7 @@ func (g *Gateway) heartbeat(ctx context.Context, initialHeartbeat bool) {
 	// send us a fresh update through the heartbeat pool.
 	logger.Debugf("Heartbeat updating local raft nodes to %+v", raftNodes)
 	err = g.db.Transaction(func(tx *db.NodeTx) error {
-		return tx.RaftNodesReplace(raftNodes)
+		return tx.ReplaceRaftNodes(raftNodes)
 	})
 	if err != nil {
 		logger.Warnf("Failed to replace local raft nodes: %v", err)

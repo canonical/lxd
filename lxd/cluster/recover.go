@@ -18,7 +18,7 @@ func ListDatabaseNodes(database *db.Node) ([]string, error) {
 	nodes := []db.RaftNode{}
 	err := database.Transaction(func(tx *db.NodeTx) error {
 		var err error
-		nodes, err = tx.RaftNodes()
+		nodes, err = tx.GetRaftNodes()
 		return err
 	})
 	if err != nil {
@@ -82,7 +82,7 @@ func Recover(database *db.Node) error {
 		nodes := []db.RaftNode{
 			{ID: info.ID, Address: info.Address},
 		}
-		return tx.RaftNodesReplace(nodes)
+		return tx.ReplaceRaftNodes(nodes)
 	})
 	if err != nil {
 		return errors.Wrap(err, "Failed to update database nodes")

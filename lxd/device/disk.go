@@ -164,7 +164,7 @@ func (d *disk) validateConfig(instConf instance.ConfigReader) error {
 			return fmt.Errorf("Storage volumes cannot be specified as absolute paths")
 		}
 
-		_, err := d.state.Cluster.StoragePoolGetID(d.config["pool"])
+		_, err := d.state.Cluster.GetStoragePoolID(d.config["pool"])
 		if err != nil {
 			return fmt.Errorf("The %q storage pool doesn't exist", d.config["pool"])
 		}
@@ -303,7 +303,7 @@ func (d *disk) startContainer() (*deviceConfig.RunConfig, error) {
 		// If ownerShift is none and pool is specified then check whether the pool itself
 		// has owner shifting enabled, and if so enable shifting on this device too.
 		if ownerShift == deviceConfig.MountOwnerShiftNone && d.config["pool"] != "" {
-			poolID, _, err := d.state.Cluster.StoragePoolGet(d.config["pool"])
+			poolID, _, err := d.state.Cluster.GetStoragePool(d.config["pool"])
 			if err != nil {
 				return nil, err
 			}
@@ -314,7 +314,7 @@ func (d *disk) startContainer() (*deviceConfig.RunConfig, error) {
 				return nil, err
 			}
 
-			_, volume, err := d.state.Cluster.StoragePoolNodeVolumeGetTypeByProject(storageProjectName, d.config["source"], db.StoragePoolVolumeTypeCustom, poolID)
+			_, volume, err := d.state.Cluster.GetLocalStoragePoolVolume(storageProjectName, d.config["source"], db.StoragePoolVolumeTypeCustom, poolID)
 			if err != nil {
 				return nil, err
 			}
@@ -908,12 +908,12 @@ func (d *disk) createDevice() (string, error) {
 
 func (d *disk) storagePoolVolumeAttachShift(projectName, poolName, volumeName string, volumeType int, remapPath string) error {
 	// Load the DB records.
-	poolID, pool, err := d.state.Cluster.StoragePoolGet(poolName)
+	poolID, pool, err := d.state.Cluster.GetStoragePool(poolName)
 	if err != nil {
 		return err
 	}
 
-	_, volume, err := d.state.Cluster.StoragePoolNodeVolumeGetTypeByProject(projectName, volumeName, volumeType, poolID)
+	_, volume, err := d.state.Cluster.GetLocalStoragePoolVolume(projectName, volumeName, volumeType, poolID)
 	if err != nil {
 		return err
 	}
@@ -1056,7 +1056,7 @@ func (d *disk) storagePoolVolumeAttachShift(projectName, poolName, volumeName st
 	// Update last idmap.
 	poolVolumePut.Config["volatile.idmap.last"] = jsonIdmap
 
-	err = d.state.Cluster.StoragePoolVolumeUpdateByProject(projectName, volumeName, volumeType, poolID, poolVolumePut.Description, poolVolumePut.Config)
+	err = d.state.Cluster.UpdateStoragePoolVolume(projectName, volumeName, volumeType, poolID, poolVolumePut.Description, poolVolumePut.Config)
 	if err != nil {
 		return err
 	}

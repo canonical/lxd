@@ -26,10 +26,10 @@ const (
 	RaftSpare   = client.Spare
 )
 
-// RaftNodes returns information about all LXD nodes that are members of the
+// GetRaftNodes returns information about all LXD nodes that are members of the
 // dqlite Raft cluster (possibly including the local node). If this LXD
 // instance is not running in clustered mode, an empty list is returned.
-func (n *NodeTx) RaftNodes() ([]RaftNode, error) {
+func (n *NodeTx) GetRaftNodes() ([]RaftNode, error) {
 	nodes := []RaftNode{}
 	dest := func(i int) []interface{} {
 		nodes = append(nodes, RaftNode{})
@@ -47,16 +47,16 @@ func (n *NodeTx) RaftNodes() ([]RaftNode, error) {
 	return nodes, nil
 }
 
-// RaftNodeAddresses returns the addresses of all LXD nodes that are members of
+// GetRaftNodeAddresses returns the addresses of all LXD nodes that are members of
 // the dqlite Raft cluster (possibly including the local node). If this LXD
 // instance is not running in clustered mode, an empty list is returned.
-func (n *NodeTx) RaftNodeAddresses() ([]string, error) {
+func (n *NodeTx) GetRaftNodeAddresses() ([]string, error) {
 	return query.SelectStrings(n.tx, "SELECT address FROM raft_nodes")
 }
 
-// RaftNodeAddress returns the address of the LXD raft node with the given ID,
+// GetRaftNodeAddress returns the address of the LXD raft node with the given ID,
 // if any matching row exists.
-func (n *NodeTx) RaftNodeAddress(id int64) (string, error) {
+func (n *NodeTx) GetRaftNodeAddress(id int64) (string, error) {
 	stmt := "SELECT address FROM raft_nodes WHERE id=?"
 	addresses, err := query.SelectStrings(n.tx, stmt, id)
 	if err != nil {
@@ -74,12 +74,12 @@ func (n *NodeTx) RaftNodeAddress(id int64) (string, error) {
 	}
 }
 
-// RaftNodeFirst adds a the first node of the cluster. It ensures that the
-// database ID is 1, to match the server ID of first raft log entry.
+// CreateFirstRaftNode adds a the first node of the cluster. It ensures that the
+// database ID is 1, to match the server ID of the first raft log entry.
 //
 // This method is supposed to be called when there are no rows in raft_nodes,
 // and it will replace whatever existing row has ID 1.
-func (n *NodeTx) RaftNodeFirst(address string) error {
+func (n *NodeTx) CreateFirstRaftNode(address string) error {
 	columns := []string{"id", "address"}
 	values := []interface{}{int64(1), address}
 	id, err := query.UpsertObject(n.tx, "raft_nodes", columns, values)
@@ -92,17 +92,17 @@ func (n *NodeTx) RaftNodeFirst(address string) error {
 	return nil
 }
 
-// RaftNodeAdd adds a node to the current list of LXD nodes that are part of the
+// CreateRaftNode adds a node to the current list of LXD nodes that are part of the
 // dqlite Raft cluster. It returns the ID of the newly inserted row.
-func (n *NodeTx) RaftNodeAdd(address string) (int64, error) {
+func (n *NodeTx) CreateRaftNode(address string) (int64, error) {
 	columns := []string{"address"}
 	values := []interface{}{address}
 	return query.UpsertObject(n.tx, "raft_nodes", columns, values)
 }
 
-// RaftNodeDelete removes a node from the current list of LXD nodes that are
+// RemoteRaftNode removes a node from the current list of LXD nodes that are
 // part of the dqlite Raft cluster.
-func (n *NodeTx) RaftNodeDelete(id int64) error {
+func (n *NodeTx) RemoteRaftNode(id int64) error {
 	deleted, err := query.DeleteObject(n.tx, "raft_nodes", id)
 	if err != nil {
 		return err
@@ -113,8 +113,8 @@ func (n *NodeTx) RaftNodeDelete(id int64) error {
 	return nil
 }
 
-// RaftNodesReplace replaces the current list of raft nodes.
-func (n *NodeTx) RaftNodesReplace(nodes []RaftNode) error {
+// ReplaceRaftNodes replaces the current list of raft nodes.
+func (n *NodeTx) ReplaceRaftNodes(nodes []RaftNode) error {
 	_, err := n.tx.Exec("DELETE FROM raft_nodes")
 	if err != nil {
 		return err

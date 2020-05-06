@@ -411,7 +411,7 @@ func createFromCopy(d *Daemon, project string, req *api.InstancesPost) response.
 				return clusterCopyContainerInternal(d, source, project, req)
 			}
 
-			_, pool, err := d.cluster.StoragePoolGet(sourcePoolName)
+			_, pool, err := d.cluster.GetStoragePool(sourcePoolName)
 			if err != nil {
 				err = errors.Wrap(err, "Failed to fetch instance's pool info")
 				return response.SmartError(err)
@@ -611,7 +611,7 @@ func createFromBackup(d *Daemon, project string, data io.Reader, pool string) re
 	})
 
 	// Check storage pool exists.
-	_, _, err = d.State().Cluster.StoragePoolGet(bInfo.Pool)
+	_, _, err = d.State().Cluster.GetStoragePool(bInfo.Pool)
 	if errors.Cause(err) == db.ErrNoSuchObject {
 		// The storage pool doesn't exist. If backup is in binary format (so we cannot alter
 		// the backup.yaml) or the pool has been specified directly from the user restoring
@@ -792,7 +792,7 @@ func containersPost(d *Daemon, r *http.Request) response.Response {
 	}
 
 	// If no storage pool is found, error out.
-	pools, err := d.cluster.StoragePools()
+	pools, err := d.cluster.GetStoragePoolNames()
 	if err != nil || len(pools) == 0 {
 		return response.BadRequest(fmt.Errorf("No storage pool found. Please create a new storage pool"))
 	}
@@ -904,7 +904,7 @@ func containerFindStoragePool(d *Daemon, project string, req *api.InstancesPost)
 
 	// Handle copying/moving between two storage-api LXD instances.
 	if storagePool != "" {
-		_, err := d.cluster.StoragePoolGetID(storagePool)
+		_, err := d.cluster.GetStoragePoolID(storagePool)
 		if err == db.ErrNoSuchObject {
 			storagePool = ""
 			// Unset the local root disk device storage pool if not
@@ -933,7 +933,7 @@ func containerFindStoragePool(d *Daemon, project string, req *api.InstancesPost)
 	// If there is just a single pool in the database, use that
 	if storagePool == "" {
 		logger.Debugf("No valid storage pool in the container's local root disk device and profiles found")
-		pools, err := d.cluster.StoragePools()
+		pools, err := d.cluster.GetStoragePoolNames()
 		if err != nil {
 			if err == db.ErrNoSuchObject {
 				return "", "", "", nil, response.BadRequest(fmt.Errorf("This LXD instance does not have any storage pools configured"))

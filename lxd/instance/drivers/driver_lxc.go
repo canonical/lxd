@@ -219,7 +219,7 @@ func lxcCreate(s *state.State, args db.InstanceArgs) (instance.Instance, error) 
 	storagePool := rootDiskDevice["pool"]
 
 	// Get the storage pool ID for the container
-	poolID, dbPool, err := s.Cluster.StoragePoolGet(storagePool)
+	poolID, dbPool, err := s.Cluster.GetStoragePool(storagePool)
 	if err != nil {
 		c.Delete()
 		return nil, err
@@ -237,7 +237,7 @@ func lxcCreate(s *state.State, args db.InstanceArgs) (instance.Instance, error) 
 	if c.IsSnapshot() {
 		_, err = s.Cluster.StoragePoolVolumeSnapshotCreate(args.Project, args.Name, "", db.StoragePoolVolumeTypeContainer, poolID, volumeConfig, time.Time{})
 	} else {
-		_, err = s.Cluster.StoragePoolVolumeCreate(args.Project, args.Name, "", db.StoragePoolVolumeTypeContainer, poolID, volumeConfig)
+		_, err = s.Cluster.CreateStoragePoolVolume(args.Project, args.Name, "", db.StoragePoolVolumeTypeContainer, poolID, volumeConfig)
 	}
 	if err != nil {
 		c.Delete()
@@ -248,7 +248,7 @@ func lxcCreate(s *state.State, args db.InstanceArgs) (instance.Instance, error) 
 	pool, err := storagePools.GetPoolByInstance(c.state, c)
 	if err != nil {
 		c.Delete()
-		s.Cluster.StoragePoolVolumeDelete(args.Project, args.Name, db.StoragePoolVolumeTypeContainer, poolID)
+		s.Cluster.RemoveStoragePoolVolume(args.Project, args.Name, db.StoragePoolVolumeTypeContainer, poolID)
 		logger.Error("Failed to initialize container storage", ctxMap)
 		return nil, err
 	}
@@ -3729,7 +3729,7 @@ func (c *lxc) VolatileSet(changes map[string]string) error {
 	var err error
 	if c.IsSnapshot() {
 		err = c.state.Cluster.Transaction(func(tx *db.ClusterTx) error {
-			return tx.InstanceSnapshotConfigUpdate(c.id, changes)
+			return tx.UpdateInstanceSnapshotConfig(c.id, changes)
 		})
 	} else {
 		err = c.state.Cluster.Transaction(func(tx *db.ClusterTx) error {
@@ -4360,7 +4360,7 @@ func (c *lxc) Update(args db.InstanceArgs, userRequested bool) error {
 
 		// Snapshots should update only their descriptions and expiry date.
 		if c.IsSnapshot() {
-			err = db.InstanceSnapshotUpdate(tx, c.id, c.description, c.expiryDate)
+			err = db.UpdateInstanceSnapshot(tx, c.id, c.description, c.expiryDate)
 			if err != nil {
 				tx.Rollback()
 				return errors.Wrap(err, "Snapshot update")

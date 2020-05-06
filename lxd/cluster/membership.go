@@ -56,7 +56,7 @@ func Bootstrap(state *state.State, gateway *Gateway, name string) error {
 		}
 
 		// Add ourselves as first raft node
-		err = tx.RaftNodeFirst(address)
+		err = tx.CreateFirstRaftNode(address)
 		if err != nil {
 			return errors.Wrap(err, "failed to insert first raft node")
 		}
@@ -260,7 +260,7 @@ func Join(state *state.State, gateway *Gateway, cert *shared.CertInfo, name stri
 		}
 
 		// Set the raft nodes list to the one that was returned by Accept().
-		err = tx.RaftNodesReplace(raftNodes)
+		err = tx.ReplaceRaftNodes(raftNodes)
 		if err != nil {
 			return errors.Wrap(err, "failed to set raft nodes")
 		}
@@ -281,7 +281,7 @@ func Join(state *state.State, gateway *Gateway, cert *shared.CertInfo, name stri
 	var operations []db.Operation
 
 	err = state.Cluster.Transaction(func(tx *db.ClusterTx) error {
-		pools, err = tx.StoragePoolsNodeConfig()
+		pools, err = tx.GetStoragePoolsLocalConfig()
 		if err != nil {
 			return err
 		}
@@ -376,17 +376,17 @@ func Join(state *state.State, gateway *Gateway, cert *shared.CertInfo, name stri
 		tx.NodeID(node.ID)
 
 		// Storage pools.
-		ids, err := tx.StoragePoolIDsNotPending()
+		ids, err := tx.GetNonPendingStoragePoolsNamesToIDs()
 		if err != nil {
 			return errors.Wrap(err, "failed to get cluster storage pool IDs")
 		}
 		for name, id := range ids {
-			err := tx.StoragePoolNodeJoin(id, node.ID)
+			err := tx.UpdateStoragePoolAfterNodeJoin(id, node.ID)
 			if err != nil {
 				return errors.Wrap(err, "failed to add joining node's to the pool")
 			}
 
-			driver, err := tx.StoragePoolDriver(id)
+			driver, err := tx.GetStoragePoolDriver(id)
 			if err != nil {
 				return errors.Wrap(err, "failed to get storage pool driver")
 			}
@@ -394,7 +394,7 @@ func Join(state *state.State, gateway *Gateway, cert *shared.CertInfo, name stri
 			if shared.StringInSlice(driver, []string{"ceph", "cephfs"}) {
 				// For ceph pools we have to create volume
 				// entries for the joining node.
-				err := tx.StoragePoolNodeJoinCeph(id, node.ID)
+				err := tx.UpdateCephStoragePoolAfterNodeJoin(id, node.ID)
 				if err != nil {
 					return errors.Wrap(err, "failed to create ceph volumes for joining node")
 				}
@@ -404,7 +404,7 @@ func Join(state *state.State, gateway *Gateway, cert *shared.CertInfo, name stri
 				if !ok {
 					return fmt.Errorf("joining node has no config for pool %s", name)
 				}
-				err = tx.StoragePoolConfigAdd(id, node.ID, config)
+				err = tx.CreateStoragePoolConfig(id, node.ID, config)
 				if err != nil {
 					return errors.Wrap(err, "failed to add joining node's pool config")
 				}
@@ -653,7 +653,7 @@ func Assign(state *state.State, gateway *Gateway, nodes []db.RaftNode) error {
 	// Replace our local list of raft nodes with the given one (which
 	// includes ourselves).
 	err = state.Node.Transaction(func(tx *db.NodeTx) error {
-		err = tx.RaftNodesReplace(nodes)
+		err = tx.ReplaceRaftNodes(nodes)
 		if err != nil {
 			return errors.Wrap(err, "Failed to set raft nodes")
 		}
@@ -1021,7 +1021,7 @@ func Count(state *state.State) (int, error) {
 func Enabled(node *db.Node) (bool, error) {
 	enabled := false
 	err := node.Transaction(func(tx *db.NodeTx) error {
-		addresses, err := tx.RaftNodeAddresses()
+		addresses, err := tx.GetRaftNodeAddresses()
 		if err != nil {
 			return err
 		}
@@ -1034,7 +1034,7 @@ func Enabled(node *db.Node) (bool, error) {
 // Check that node-related preconditions are met for bootstrapping or joining a
 // cluster.
 func membershipCheckNodeStateForBootstrapOrJoin(tx *db.NodeTx, address string) error {
-	nodes, err := tx.RaftNodes()
+	nodes, err := tx.GetRaftNodes()
 	if err != nil {
 		return errors.Wrap(err, "failed to fetch current raft nodes")
 	}

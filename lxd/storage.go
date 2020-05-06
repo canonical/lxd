@@ -65,7 +65,7 @@ func resetContainerDiskIdmap(container instance.Container, srcIdmap *idmap.Idmap
 }
 
 func setupStorageDriver(s *state.State, forceCheck bool) error {
-	pools, err := s.Cluster.StoragePoolsNotPending()
+	pools, err := s.Cluster.GetNonPendingStoragePoolNames()
 	if err != nil {
 		if err == db.ErrNoSuchObject {
 			logger.Debugf("No existing storage pools detected")
@@ -125,7 +125,7 @@ func storagePoolDriversCacheUpdate(s *state.State) {
 	// appropriate. (Should be cheaper then querying the db all the time,
 	// especially if we keep adding more storage drivers.)
 
-	drivers, err := s.Cluster.StoragePoolsGetDrivers()
+	drivers, err := s.Cluster.GetStoragePoolDrivers()
 	if err != nil && err != db.ErrNoSuchObject {
 		return
 	}

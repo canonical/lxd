@@ -128,13 +128,13 @@ func VolumeDBCreate(s *state.State, project, poolName, volumeName, volumeDescrip
 	}
 
 	// Load storage pool the volume will be attached to.
-	poolID, poolStruct, err := s.Cluster.StoragePoolGet(poolName)
+	poolID, poolStruct, err := s.Cluster.GetStoragePool(poolName)
 	if err != nil {
 		return err
 	}
 
 	// Check that a storage volume of the same storage volume type does not already exist.
-	volumeID, _ := s.Cluster.StoragePoolNodeVolumeGetTypeIDByProject(project, volumeName, volumeType, poolID)
+	volumeID, _ := s.Cluster.GetStoragePoolNodeVolumeID(project, volumeName, volumeType, poolID)
 	if volumeID > 0 {
 		return fmt.Errorf("A storage volume of type %s already exists", volumeTypeName)
 	}
@@ -159,7 +159,7 @@ func VolumeDBCreate(s *state.State, project, poolName, volumeName, volumeDescrip
 	if snapshot {
 		_, err = s.Cluster.StoragePoolVolumeSnapshotCreate(project, volumeName, volumeDescription, volumeType, poolID, volumeConfig, expiryDate)
 	} else {
-		_, err = s.Cluster.StoragePoolVolumeCreate(project, volumeName, volumeDescription, volumeType, poolID, volumeConfig)
+		_, err = s.Cluster.CreateStoragePoolVolume(project, volumeName, volumeDescription, volumeType, poolID, volumeConfig)
 	}
 	if err != nil {
 		return fmt.Errorf("Error inserting %s of type %s into database: %s", poolName, volumeTypeName, err)
@@ -307,12 +307,12 @@ func VolumeFillDefault(name string, config map[string]string, parentPool *api.St
 
 // VolumeSnapshotsGet returns a list of snapshots of the form <volume>/<snapshot-name>.
 func VolumeSnapshotsGet(s *state.State, projectName string, pool string, volume string, volType int) ([]db.StorageVolumeArgs, error) {
-	poolID, err := s.Cluster.StoragePoolGetID(pool)
+	poolID, err := s.Cluster.GetStoragePoolID(pool)
 	if err != nil {
 		return nil, err
 	}
 
-	snapshots, err := s.Cluster.StoragePoolVolumeSnapshotsGetType(projectName, volume, volType, poolID)
+	snapshots, err := s.Cluster.GetLocalStoragePoolVolumeSnapshotsWithType(projectName, volume, volType, poolID)
 	if err != nil {
 		return nil, err
 	}

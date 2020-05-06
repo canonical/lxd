@@ -60,7 +60,7 @@ func TestDetermineRaftNode(t *testing.T) {
 			require.NoError(t, err)
 
 			for _, address := range c.addresses {
-				_, err := tx.RaftNodeAdd(address)
+				_, err := tx.CreateRaftNode(address)
 				require.NoError(t, err)
 			}
 

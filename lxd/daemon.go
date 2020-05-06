@@ -1308,7 +1308,7 @@ func (d *Daemon) setupRBACServer(rbacURL string, rbacKey string, rbacExpiry int6
 		var result map[int64]string
 		err := d.cluster.Transaction(func(tx *db.ClusterTx) error {
 			var err error
-			result, err = tx.ProjectMap()
+			result, err = tx.GetProjectIDsToNames()
 			return err
 		})
 
