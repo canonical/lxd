@@ -822,13 +822,6 @@ func (d *ceph) SetVolumeQuota(vol Volume, size string, op *operations.Operation)
 		return err
 	}
 
-	// The grow/shrink functions use Mount/Unmount which may cause an unmap, so make sure to keep a reference.
-	oldKeepDevice := vol.keepDevice
-	vol.keepDevice = true
-	defer func() {
-		vol.keepDevice = oldKeepDevice
-	}()
-
 	oldSizeBytes, err := BlockDevSizeBytes(RBDDevPath)
 	if err != nil {
 		return errors.Wrapf(err, "Error getting current size")
