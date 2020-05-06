@@ -144,51 +144,14 @@ func ethtoolAddCardInfo(name string, info *api.ResourcesNetworkCard) error {
 	return nil
 }
 
-func ethtoolAddPortInfo(info *api.ResourcesNetworkCardPort) error {
-	// Open FD
-	ethtoolFd, err := unix.Socket(unix.AF_INET, unix.SOCK_DGRAM, unix.IPPROTO_IP)
-	if err != nil {
-		return errors.Wrap(err, "Failed to open IPPROTO_IP socket")
-	}
-	defer unix.Close(ethtoolFd)
-
-	// Prepare the request struct
-	req := ethtoolReq{}
-	copy(req.name[:], []byte(info.ID))
-
-	// Try to get MAC address
-	ethPermaddr := ethtoolPermAddr{
-		cmd:  0x00000020,
-		size: 32,
-	}
-	req.data = uintptr(unsafe.Pointer(&ethPermaddr))
-
-	_, _, errno := unix.Syscall(unix.SYS_IOCTL, uintptr(ethtoolFd), unix.SIOCETHTOOL, uintptr(unsafe.Pointer(&req)))
-	if errno == 0 {
-		hwaddr := net.HardwareAddr(ethPermaddr.data[0:ethPermaddr.size])
-		info.Address = hwaddr.String()
-	}
-
-	// Link state
-	ethGlink := ethtoolValue{
-		cmd: 0x0000000a,
-	}
-	req.data = uintptr(unsafe.Pointer(&ethGlink))
-
-	_, _, errno = unix.Syscall(unix.SYS_IOCTL, uintptr(ethtoolFd), unix.SIOCETHTOOL, uintptr(unsafe.Pointer(&req)))
-	if errno != 0 {
-		return errors.Wrap(unix.Errno(errno), "Failed to ETHTOOL_GLINK")
-	}
-
-	info.LinkDetected = ethGlink.data == 1
-
+func ethtoolGset(ethtoolFd int, req *ethtoolReq, info *api.ResourcesNetworkCardPort) error {
 	// Interface info
 	ethCmd := ethtoolCmd{
 		cmd: 0x00000001,
 	}
 	req.data = uintptr(unsafe.Pointer(&ethCmd))
 
-	_, _, errno = unix.Syscall(unix.SYS_IOCTL, uintptr(ethtoolFd), unix.SIOCETHTOOL, uintptr(unsafe.Pointer(&req)))
+	_, _, errno := unix.Syscall(unix.SYS_IOCTL, uintptr(ethtoolFd), unix.SIOCETHTOOL, uintptr(unsafe.Pointer(&req)))
 	if errno != 0 {
 		return errors.Wrap(unix.Errno(errno), "Failed to ETHTOOL_GSET")
 	}
@@ -251,6 +214,53 @@ func ethtoolAddPortInfo(info *api.ResourcesNetworkCardPort) error {
 		if hasBit(ethCmd.supported, port.bit) {
 			info.SupportedPorts = append(info.SupportedPorts, port.name)
 		}
+	}
+
+	return nil
+}
+
+func ethtoolAddPortInfo(info *api.ResourcesNetworkCardPort) error {
+	// Open FD
+	ethtoolFd, err := unix.Socket(unix.AF_INET, unix.SOCK_DGRAM, unix.IPPROTO_IP)
+	if err != nil {
+		return errors.Wrap(err, "Failed to open IPPROTO_IP socket")
+	}
+	defer unix.Close(ethtoolFd)
+
+	// Prepare the request struct
+	req := ethtoolReq{}
+	copy(req.name[:], []byte(info.ID))
+
+	// Try to get MAC address
+	ethPermaddr := ethtoolPermAddr{
+		cmd:  0x00000020,
+		size: 32,
+	}
+	req.data = uintptr(unsafe.Pointer(&ethPermaddr))
+
+	_, _, errno := unix.Syscall(unix.SYS_IOCTL, uintptr(ethtoolFd), unix.SIOCETHTOOL, uintptr(unsafe.Pointer(&req)))
+	if errno == 0 {
+		hwaddr := net.HardwareAddr(ethPermaddr.data[0:ethPermaddr.size])
+		info.Address = hwaddr.String()
+	}
+
+	// Link state
+	ethGlink := ethtoolValue{
+		cmd: 0x0000000a,
+	}
+	req.data = uintptr(unsafe.Pointer(&ethGlink))
+
+	_, _, errno = unix.Syscall(unix.SYS_IOCTL, uintptr(ethtoolFd), unix.SIOCETHTOOL, uintptr(unsafe.Pointer(&req)))
+	if errno != 0 {
+		return errors.Wrap(unix.Errno(errno), "Failed to ETHTOOL_GLINK")
+	}
+
+	info.LinkDetected = ethGlink.data == 1
+
+	// Interface info
+	err = ethtoolGset(ethtoolFd, &req, info)
+	if err != nil {
+		return err
 	}
 
 	return nil
