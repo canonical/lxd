@@ -54,8 +54,8 @@ func (c *ClusterTx) ProjectHasProfiles(name string) (bool, error) {
 	return projectHasProfiles(c.tx, name)
 }
 
-// ProjectNames returns the names of all available projects.
-func (c *ClusterTx) ProjectNames() ([]string, error) {
+// GetProjectNames returns the names of all available projects.
+func (c *ClusterTx) GetProjectNames() ([]string, error) {
 	stmt := "SELECT name FROM projects"
 
 	names, err := query.SelectStrings(c.tx, stmt)
