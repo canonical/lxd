@@ -1018,8 +1018,8 @@ func (c *Cluster) RemoveStoragePoolVolume(project, volumeName string, volumeType
 	return err
 }
 
-// StoragePoolVolumeRename renames the storage volume attached to a given storage pool.
-func (c *Cluster) StoragePoolVolumeRename(project, oldVolumeName string, newVolumeName string, volumeType int, poolID int64) error {
+// RenameStoragePoolVolume renames the storage volume attached to a given storage pool.
+func (c *Cluster) RenameStoragePoolVolume(project, oldVolumeName string, newVolumeName string, volumeType int, poolID int64) error {
 	volumeID, _, err := c.GetLocalStoragePoolVolume(project, oldVolumeName, volumeType, poolID)
 	if err != nil {
 		return err
