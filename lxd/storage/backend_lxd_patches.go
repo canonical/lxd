@@ -34,7 +34,7 @@ func lxdPatchStorageCreateVM(b *lxdBackend) error {
 func lxdPatchStorageRenameCustomVolumeAddProject(b *lxdBackend) error {
 	// Get all custom volumes in default project on this node.
 	// At this time, all custom volumes are in the default project.
-	volumes, err := b.state.Cluster.StoragePoolNodeVolumesGet(project.Default, b.ID(), []int{db.StoragePoolVolumeTypeCustom})
+	volumes, err := b.state.Cluster.GetLocalStoragePoolVolumes(project.Default, b.ID(), []int{db.StoragePoolVolumeTypeCustom})
 	if err != nil && err != db.ErrNoSuchObject {
 		return errors.Wrapf(err, "Failed getting custom volumes for default project")
 	}

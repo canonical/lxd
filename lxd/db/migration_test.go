@@ -105,7 +105,7 @@ func TestImportPreClusteringData(t *testing.T) {
 	assert.Equal(t, "true", pool.Config["zfs.clone_copy"])
 	assert.Equal(t, "Created", pool.Status)
 	assert.Equal(t, []string{"none"}, pool.Locations)
-	volumes, err := cluster.StoragePoolNodeVolumesGet("default", id, []int{1})
+	volumes, err := cluster.GetLocalStoragePoolVolumes("default", id, []int{1})
 	require.NoError(t, err)
 	assert.Len(t, volumes, 1)
 	assert.Equal(t, "/foo/bar", volumes[0].Config["source"])
