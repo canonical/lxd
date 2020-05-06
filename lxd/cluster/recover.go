@@ -18,7 +18,7 @@ func ListDatabaseNodes(database *db.Node) ([]string, error) {
 	nodes := []db.RaftNode{}
 	err := database.Transaction(func(tx *db.NodeTx) error {
 		var err error
-		nodes, err = tx.RaftNodes()
+		nodes, err = tx.GetRaftNodes()
 		return err
 	})
 	if err != nil {

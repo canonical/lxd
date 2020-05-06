@@ -1034,7 +1034,7 @@ func Enabled(node *db.Node) (bool, error) {
 // Check that node-related preconditions are met for bootstrapping or joining a
 // cluster.
 func membershipCheckNodeStateForBootstrapOrJoin(tx *db.NodeTx, address string) error {
-	nodes, err := tx.RaftNodes()
+	nodes, err := tx.GetRaftNodes()
 	if err != nil {
 		return errors.Wrap(err, "failed to fetch current raft nodes")
 	}

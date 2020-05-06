@@ -21,7 +21,7 @@ func TestRaftNodes(t *testing.T) {
 	id2, err := tx.RaftNodeAdd("5.6.7.8:666")
 	require.NoError(t, err)
 
-	nodes, err := tx.RaftNodes()
+	nodes, err := tx.GetRaftNodes()
 	require.NoError(t, err)
 
 	assert.Equal(t, uint64(id1), nodes[0].ID)
@@ -128,7 +128,7 @@ func TestRaftNodesReplace(t *testing.T) {
 	err = tx.RaftNodesReplace(nodes)
 	assert.NoError(t, err)
 
-	newNodes, err := tx.RaftNodes()
+	newNodes, err := tx.GetRaftNodes()
 	require.NoError(t, err)
 
 	assert.Equal(t, nodes, newNodes)
