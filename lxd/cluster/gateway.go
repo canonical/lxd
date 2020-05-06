@@ -548,7 +548,7 @@ func (g *Gateway) LeaderAddress() (string, error) {
 	}
 	addresses := []string{}
 	err = g.db.Transaction(func(tx *db.NodeTx) error {
-		nodes, err := tx.RaftNodes()
+		nodes, err := tx.GetRaftNodes()
 		if err != nil {
 			return err
 		}
