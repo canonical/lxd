@@ -18,7 +18,7 @@ func TestGetStoragePoolsLocalConfigs(t *testing.T) {
 
 	// Create a storage pool named "local" (like the default LXD clustering
 	// one), then delete it and create another one.
-	_, err := cluster.StoragePoolCreate("local", "", "dir", map[string]string{
+	_, err := cluster.CreateStoragePool("local", "", "dir", map[string]string{
 		"rsync.bwlimit": "1",
 		"source":        "/foo/bar",
 	})
@@ -27,7 +27,7 @@ func TestGetStoragePoolsLocalConfigs(t *testing.T) {
 	_, err = cluster.StoragePoolDelete("local")
 	require.NoError(t, err)
 
-	_, err = cluster.StoragePoolCreate("BTRFS", "", "dir", map[string]string{
+	_, err = cluster.CreateStoragePool("BTRFS", "", "dir", map[string]string{
 		"rsync.bwlimit": "1",
 		"source":        "/egg/baz",
 	})
@@ -164,7 +164,7 @@ func TestStoragePoolVolume_Ceph(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	poolID, err := cluster.StoragePoolCreate("p1", "", "ceph", nil)
+	poolID, err := cluster.CreateStoragePool("p1", "", "ceph", nil)
 	require.NoError(t, err)
 
 	config := map[string]string{"k": "v"}
@@ -217,7 +217,7 @@ func TestStoragePoolVolumeCreate_Snapshot(t *testing.T) {
 	cluster, cleanup := db.NewTestCluster(t)
 	defer cleanup()
 
-	poolID, err := cluster.StoragePoolCreate("p1", "", "dir", nil)
+	poolID, err := cluster.CreateStoragePool("p1", "", "dir", nil)
 	require.NoError(t, err)
 
 	config := map[string]string{"k": "v"}

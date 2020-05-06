@@ -566,8 +566,8 @@ func (c *Cluster) getStoragePoolConfig(poolID int64) (map[string]string, error) 
 	return config, nil
 }
 
-// StoragePoolCreate creates new storage pool.
-func (c *Cluster) StoragePoolCreate(poolName string, poolDescription string, poolDriver string, poolConfig map[string]string) (int64, error) {
+// CreateStoragePool creates new storage pool.
+func (c *Cluster) CreateStoragePool(poolName string, poolDescription string, poolDriver string, poolConfig map[string]string) (int64, error) {
 	var id int64
 	err := c.Transaction(func(tx *ClusterTx) error {
 		result, err := tx.tx.Exec("INSERT INTO storage_pools (name, description, driver, state) VALUES (?, ?, ?, ?)", poolName, poolDescription, poolDriver, storagePoolCreated)
