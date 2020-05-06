@@ -1074,9 +1074,9 @@ func storagePoolVolumeReplicateIfCeph(tx *sql.Tx, volumeID int64, project, volum
 	return nil
 }
 
-// StoragePoolVolumeCreate creates a new storage volume attached to a given
+// CreateStoragePoolVolume creates a new storage volume attached to a given
 // storage pool.
-func (c *Cluster) StoragePoolVolumeCreate(project, volumeName, volumeDescription string, volumeType int, poolID int64, volumeConfig map[string]string) (int64, error) {
+func (c *Cluster) CreateStoragePoolVolume(project, volumeName, volumeDescription string, volumeType int, poolID int64, volumeConfig map[string]string) (int64, error) {
 	var thisVolumeID int64
 
 	if shared.IsSnapshot(volumeName) {
