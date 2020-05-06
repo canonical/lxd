@@ -193,7 +193,7 @@ func (b *lxdBackend) Update(driverOnly bool, newDesc string, newConfig map[strin
 
 	// Update the database if something changed.
 	if len(changedConfig) != 0 || newDesc != b.db.Description {
-		err = b.state.Cluster.StoragePoolUpdate(b.name, newDesc, newConfig)
+		err = b.state.Cluster.UpdateStoragePool(b.name, newDesc, newConfig)
 		if err != nil {
 			return err
 		}
