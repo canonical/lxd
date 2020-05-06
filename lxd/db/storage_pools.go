@@ -1170,9 +1170,9 @@ SELECT storage_volumes_all.id
 	return int64(result[0]), nil
 }
 
-// StoragePoolNodeVolumeGetTypeIDByProject gets the ID of a storage volume on a given storage pool
+// GetStoragePoolNodeVolumeID gets the ID of a storage volume on a given storage pool
 // of a given storage volume type and project, on the current node.
-func (c *Cluster) StoragePoolNodeVolumeGetTypeIDByProject(projectName string, volumeName string, volumeType int, poolID int64) (int64, error) {
+func (c *Cluster) GetStoragePoolNodeVolumeID(projectName string, volumeName string, volumeType int, poolID int64) (int64, error) {
 	return c.storagePoolVolumeGetTypeID(projectName, volumeName, volumeType, poolID, c.nodeID)
 }
 
