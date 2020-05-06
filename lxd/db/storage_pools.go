@@ -395,9 +395,9 @@ func (c *Cluster) GetStoragePoolNames() ([]string, error) {
 	return c.storagePools("")
 }
 
-// StoragePoolsNotPending returns the names of all storage pools that are not
+// GetNonPendingStoragePoolNames returns the names of all storage pools that are not
 // pending.
-func (c *Cluster) StoragePoolsNotPending() ([]string, error) {
+func (c *Cluster) GetNonPendingStoragePoolNames() ([]string, error) {
 	return c.storagePools("NOT state=?", storagePoolPending)
 }
 
