@@ -171,8 +171,10 @@ DELETE FROM projects_config WHERE projects_config.project_id = ?
 	return nil
 }
 
-// ProjectLaunchWithoutImages updates the images_profiles table when a Project is created with features.images=false.
-func (c *ClusterTx) ProjectLaunchWithoutImages(project string) error {
+// InitProjectWithoutImages updates populates the images_profiles table with
+// all images from the default project when a project is created with
+// features.images=false.
+func (c *ClusterTx) InitProjectWithoutImages(project string) error {
 	defaultProfileID, err := c.ProfileID(project, "default")
 	if err != nil {
 		return errors.Wrap(err, "Fetch project ID")
