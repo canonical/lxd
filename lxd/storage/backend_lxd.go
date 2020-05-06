@@ -1196,24 +1196,24 @@ func (b *lxdBackend) RenameInstance(inst instance.Instance, newName string, op *
 	for _, srcSnapshot := range snapshots {
 		_, snapName, _ := shared.InstanceGetParentAndSnapshotName(srcSnapshot)
 		newSnapVolName := drivers.GetSnapshotVolumeName(newName, snapName)
-		err = b.state.Cluster.StoragePoolVolumeRename(inst.Project(), srcSnapshot, newSnapVolName, volDBType, b.ID())
+		err = b.state.Cluster.RenameStoragePoolVolume(inst.Project(), srcSnapshot, newSnapVolName, volDBType, b.ID())
 		if err != nil {
 			return err
 		}
 
 		revert.Add(func() {
-			b.state.Cluster.StoragePoolVolumeRename(inst.Project(), newSnapVolName, srcSnapshot, volDBType, b.ID())
+			b.state.Cluster.RenameStoragePoolVolume(inst.Project(), newSnapVolName, srcSnapshot, volDBType, b.ID())
 		})
 	}
 
 	// Rename the parent volume DB record.
-	err = b.state.Cluster.StoragePoolVolumeRename(inst.Project(), inst.Name(), newName, volDBType, b.ID())
+	err = b.state.Cluster.RenameStoragePoolVolume(inst.Project(), inst.Name(), newName, volDBType, b.ID())
 	if err != nil {
 		return err
 	}
 
 	revert.Add(func() {
-		b.state.Cluster.StoragePoolVolumeRename(inst.Project(), newName, inst.Name(), volDBType, b.ID())
+		b.state.Cluster.RenameStoragePoolVolume(inst.Project(), newName, inst.Name(), volDBType, b.ID())
 	})
 
 	// Rename the volume and its snapshots on the storage device.
@@ -1763,14 +1763,14 @@ func (b *lxdBackend) RenameInstanceSnapshot(inst instance.Instance, newName stri
 	})
 
 	// Rename DB volume record.
-	err = b.state.Cluster.StoragePoolVolumeRename(inst.Project(), inst.Name(), newVolName, volDBType, b.ID())
+	err = b.state.Cluster.RenameStoragePoolVolume(inst.Project(), inst.Name(), newVolName, volDBType, b.ID())
 	if err != nil {
 		return err
 	}
 
 	revert.Add(func() {
 		// Rename DB volume record back.
-		b.state.Cluster.StoragePoolVolumeRename(inst.Project(), newVolName, inst.Name(), volDBType, b.ID())
+		b.state.Cluster.RenameStoragePoolVolume(inst.Project(), newVolName, inst.Name(), volDBType, b.ID())
 	})
 
 	// Ensure the backup file reflects current config.
@@ -2501,23 +2501,23 @@ func (b *lxdBackend) RenameCustomVolume(projectName string, volName string, newV
 	for _, srcSnapshot := range snapshots {
 		_, snapName, _ := shared.InstanceGetParentAndSnapshotName(srcSnapshot.Name)
 		newSnapVolName := drivers.GetSnapshotVolumeName(newVolName, snapName)
-		err = b.state.Cluster.StoragePoolVolumeRename(projectName, srcSnapshot.Name, newSnapVolName, db.StoragePoolVolumeTypeCustom, b.ID())
+		err = b.state.Cluster.RenameStoragePoolVolume(projectName, srcSnapshot.Name, newSnapVolName, db.StoragePoolVolumeTypeCustom, b.ID())
 		if err != nil {
 			return err
 		}
 
 		revert.Add(func() {
-			b.state.Cluster.StoragePoolVolumeRename(projectName, newSnapVolName, srcSnapshot.Name, db.StoragePoolVolumeTypeCustom, b.ID())
+			b.state.Cluster.RenameStoragePoolVolume(projectName, newSnapVolName, srcSnapshot.Name, db.StoragePoolVolumeTypeCustom, b.ID())
 		})
 	}
 
-	err = b.state.Cluster.StoragePoolVolumeRename(projectName, volName, newVolName, db.StoragePoolVolumeTypeCustom, b.ID())
+	err = b.state.Cluster.RenameStoragePoolVolume(projectName, volName, newVolName, db.StoragePoolVolumeTypeCustom, b.ID())
 	if err != nil {
 		return err
 	}
 
 	revert.Add(func() {
-		b.state.Cluster.StoragePoolVolumeRename(projectName, newVolName, volName, db.StoragePoolVolumeTypeCustom, b.ID())
+		b.state.Cluster.RenameStoragePoolVolume(projectName, newVolName, volName, db.StoragePoolVolumeTypeCustom, b.ID())
 	})
 
 	// Get the volume name on storage.
@@ -2876,7 +2876,7 @@ func (b *lxdBackend) RenameCustomVolumeSnapshot(projectName, volName string, new
 	}
 
 	newVolName := drivers.GetSnapshotVolumeName(parentName, newSnapshotName)
-	err = b.state.Cluster.StoragePoolVolumeRename(projectName, volName, newVolName, db.StoragePoolVolumeTypeCustom, b.ID())
+	err = b.state.Cluster.RenameStoragePoolVolume(projectName, volName, newVolName, db.StoragePoolVolumeTypeCustom, b.ID())
 	if err != nil {
 		// Get the volume name on storage.
 		newVolStorageName := project.StorageVolume(projectName, newVolName)
