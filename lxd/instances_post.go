@@ -904,7 +904,7 @@ func containerFindStoragePool(d *Daemon, project string, req *api.InstancesPost)
 
 	// Handle copying/moving between two storage-api LXD instances.
 	if storagePool != "" {
-		_, err := d.cluster.StoragePoolGetID(storagePool)
+		_, err := d.cluster.GetStoragePoolID(storagePool)
 		if err == db.ErrNoSuchObject {
 			storagePool = ""
 			// Unset the local root disk device storage pool if not

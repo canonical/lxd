@@ -143,7 +143,7 @@ func (d *Daemon) ImageDownload(op *operations.Operation, server string, protocol
 		}
 
 		// Get the ID of the target storage pool
-		poolID, err := d.cluster.StoragePoolGetID(storagePool)
+		poolID, err := d.cluster.GetStoragePoolID(storagePool)
 		if err != nil {
 			return nil, err
 		}
