@@ -56,7 +56,7 @@ func Bootstrap(state *state.State, gateway *Gateway, name string) error {
 		}
 
 		// Add ourselves as first raft node
-		err = tx.RaftNodeFirst(address)
+		err = tx.CreateFirstRaftNode(address)
 		if err != nil {
 			return errors.Wrap(err, "failed to insert first raft node")
 		}
