@@ -184,7 +184,7 @@ func containerPost(d *Daemon, r *http.Request) response.Response {
 				err = errors.Wrap(err, "Failed to fetch instance's pool name")
 				return response.SmartError(err)
 			}
-			_, pool, err := d.cluster.StoragePoolGet(poolName)
+			_, pool, err := d.cluster.GetStoragePool(poolName)
 			if err != nil {
 				err = errors.Wrap(err, "Failed to fetch instance's pool info")
 				return response.SmartError(err)

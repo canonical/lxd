@@ -219,7 +219,7 @@ func lxcCreate(s *state.State, args db.InstanceArgs) (instance.Instance, error) 
 	storagePool := rootDiskDevice["pool"]
 
 	// Get the storage pool ID for the container
-	poolID, dbPool, err := s.Cluster.StoragePoolGet(storagePool)
+	poolID, dbPool, err := s.Cluster.GetStoragePool(storagePool)
 	if err != nil {
 		c.Delete()
 		return nil, err

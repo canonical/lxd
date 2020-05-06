@@ -55,7 +55,7 @@ func storagePoolsGet(d *Daemon, r *http.Request) response.Response {
 		if !recursion {
 			resultString = append(resultString, fmt.Sprintf("/%s/storage-pools/%s", version.APIVersion, pool))
 		} else {
-			plID, pl, err := d.cluster.StoragePoolGet(pool)
+			plID, pl, err := d.cluster.GetStoragePool(pool)
 			if err != nil {
 				continue
 			}
@@ -295,7 +295,7 @@ func storagePoolGet(d *Daemon, r *http.Request) response.Response {
 	poolName := mux.Vars(r)["name"]
 
 	// Get the existing storage pool.
-	poolID, pool, err := d.cluster.StoragePoolGet(poolName)
+	poolID, pool, err := d.cluster.GetStoragePool(poolName)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -333,7 +333,7 @@ func storagePoolPut(d *Daemon, r *http.Request) response.Response {
 	poolName := mux.Vars(r)["name"]
 
 	// Get the existing storage pool.
-	_, dbInfo, err := d.cluster.StoragePoolGet(poolName)
+	_, dbInfo, err := d.cluster.GetStoragePool(poolName)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -408,7 +408,7 @@ func storagePoolPatch(d *Daemon, r *http.Request) response.Response {
 	poolName := mux.Vars(r)["name"]
 
 	// Get the existing network
-	_, dbInfo, err := d.cluster.StoragePoolGet(poolName)
+	_, dbInfo, err := d.cluster.GetStoragePool(poolName)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -547,7 +547,7 @@ func storagePoolDelete(d *Daemon, r *http.Request) response.Response {
 
 	// Check if the pool is pending, if so we just need to delete it from
 	// the database.
-	_, dbPool, err := d.cluster.StoragePoolGet(poolName)
+	_, dbPool, err := d.cluster.GetStoragePool(poolName)
 	if err != nil {
 		return response.SmartError(err)
 	}
