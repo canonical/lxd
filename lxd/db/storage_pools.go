@@ -953,15 +953,15 @@ func (c *Cluster) storagePoolVolumeGetType(project string, volumeName string, vo
 	return volumeID, &storageVolume, nil
 }
 
-// StoragePoolNodeVolumeGetTypeByProject gets a single storage volume attached to a
+// GetLocalStoragePoolVolume gets a single storage volume attached to a
 // given storage pool of a given type, on the current node in the given project.
-func (c *Cluster) StoragePoolNodeVolumeGetTypeByProject(project, volumeName string, volumeType int, poolID int64) (int64, *api.StorageVolume, error) {
+func (c *Cluster) GetLocalStoragePoolVolume(project, volumeName string, volumeType int, poolID int64) (int64, *api.StorageVolume, error) {
 	return c.storagePoolVolumeGetType(project, volumeName, volumeType, poolID, c.nodeID)
 }
 
 // StoragePoolVolumeUpdateByProject updates the storage volume attached to a given storage pool.
 func (c *Cluster) StoragePoolVolumeUpdateByProject(project, volumeName string, volumeType int, poolID int64, volumeDescription string, volumeConfig map[string]string) error {
-	volumeID, _, err := c.StoragePoolNodeVolumeGetTypeByProject(project, volumeName, volumeType, poolID)
+	volumeID, _, err := c.GetLocalStoragePoolVolume(project, volumeName, volumeType, poolID)
 	if err != nil {
 		return err
 	}
@@ -994,7 +994,7 @@ func (c *Cluster) StoragePoolVolumeUpdateByProject(project, volumeName string, v
 // StoragePoolVolumeDelete deletes the storage volume attached to a given storage
 // pool.
 func (c *Cluster) StoragePoolVolumeDelete(project, volumeName string, volumeType int, poolID int64) error {
-	volumeID, _, err := c.StoragePoolNodeVolumeGetTypeByProject(project, volumeName, volumeType, poolID)
+	volumeID, _, err := c.GetLocalStoragePoolVolume(project, volumeName, volumeType, poolID)
 	if err != nil {
 		return err
 	}
@@ -1020,7 +1020,7 @@ func (c *Cluster) StoragePoolVolumeDelete(project, volumeName string, volumeType
 
 // StoragePoolVolumeRename renames the storage volume attached to a given storage pool.
 func (c *Cluster) StoragePoolVolumeRename(project, oldVolumeName string, newVolumeName string, volumeType int, poolID int64) error {
-	volumeID, _, err := c.StoragePoolNodeVolumeGetTypeByProject(project, oldVolumeName, volumeType, poolID)
+	volumeID, _, err := c.GetLocalStoragePoolVolume(project, oldVolumeName, volumeType, poolID)
 	if err != nil {
 		return err
 	}

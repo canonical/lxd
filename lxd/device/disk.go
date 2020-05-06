@@ -314,7 +314,7 @@ func (d *disk) startContainer() (*deviceConfig.RunConfig, error) {
 				return nil, err
 			}
 
-			_, volume, err := d.state.Cluster.StoragePoolNodeVolumeGetTypeByProject(storageProjectName, d.config["source"], db.StoragePoolVolumeTypeCustom, poolID)
+			_, volume, err := d.state.Cluster.GetLocalStoragePoolVolume(storageProjectName, d.config["source"], db.StoragePoolVolumeTypeCustom, poolID)
 			if err != nil {
 				return nil, err
 			}
@@ -913,7 +913,7 @@ func (d *disk) storagePoolVolumeAttachShift(projectName, poolName, volumeName st
 		return err
 	}
 
-	_, volume, err := d.state.Cluster.StoragePoolNodeVolumeGetTypeByProject(projectName, volumeName, volumeType, poolID)
+	_, volume, err := d.state.Cluster.GetLocalStoragePoolVolume(projectName, volumeName, volumeType, poolID)
 	if err != nil {
 		return err
 	}

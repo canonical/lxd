@@ -104,7 +104,7 @@ func daemonStorageValidate(s *state.State, target string) error {
 	}
 
 	// Confirm volume exists.
-	_, _, err = s.Cluster.StoragePoolNodeVolumeGetTypeByProject(project.Default, volumeName, db.StoragePoolVolumeTypeCustom, poolID)
+	_, _, err = s.Cluster.GetLocalStoragePoolVolume(project.Default, volumeName, db.StoragePoolVolumeTypeCustom, poolID)
 	if err != nil {
 		return errors.Wrapf(err, "Unable to load storage volume %q", target)
 	}
