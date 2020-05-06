@@ -103,12 +103,12 @@ func (c *ClusterTx) GetNonPendingStoragePoolsNamesToIDs() (map[string]int64, err
 	return ids, nil
 }
 
-// StoragePoolNodeJoin adds a new entry in the storage_pools_nodes table.
+// UpdateStoragePoolAfterNodeJoin adds a new entry in the storage_pools_nodes table.
 //
 // It should only be used when a new node joins the cluster, when it's safe to
 // assume that the relevant pool has already been created on the joining node,
 // and we just need to track it.
-func (c *ClusterTx) StoragePoolNodeJoin(poolID, nodeID int64) error {
+func (c *ClusterTx) UpdateStoragePoolAfterNodeJoin(poolID, nodeID int64) error {
 	columns := []string{"storage_pool_id", "node_id"}
 	values := []interface{}{poolID, nodeID}
 	_, err := query.UpsertObject(c.tx, "storage_pools_nodes", columns, values)
@@ -119,9 +119,9 @@ func (c *ClusterTx) StoragePoolNodeJoin(poolID, nodeID int64) error {
 	return nil
 }
 
-// StoragePoolNodeJoinCeph updates internal state to reflect that nodeID is
+// UpdateCephStoragePoolAfterNodeJoin updates internal state to reflect that nodeID is
 // joining a cluster where poolID is a ceph pool.
-func (c *ClusterTx) StoragePoolNodeJoinCeph(poolID, nodeID int64) error {
+func (c *ClusterTx) UpdateCephStoragePoolAfterNodeJoin(poolID, nodeID int64) error {
 	// Get the IDs of the other nodes (they should be all linked to
 	// the pool).
 	stmt := "SELECT node_id FROM storage_pools_nodes WHERE storage_pool_id=?"
