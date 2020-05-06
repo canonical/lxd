@@ -203,7 +203,7 @@ func TestStoragePoolVolume_Ceph(t *testing.T) {
 	require.NoError(t, err)
 
 	// Delete the volume
-	err = cluster.StoragePoolVolumeDelete("default", "v1-new", 1, poolID)
+	err = cluster.RemoveStoragePoolVolume("default", "v1-new", 1, poolID)
 	require.NoError(t, err)
 	for _, nodeID := range []int64{1, 2} {
 		_, volume, err := cluster.StoragePoolVolumeGetType("default", "v1-new", 1, poolID, nodeID)

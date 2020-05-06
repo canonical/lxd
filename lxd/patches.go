@@ -1565,7 +1565,7 @@ func upgradeFromStorageTypeLvm(name string, d *Daemon, defaultPoolName string, d
 			// This image didn't exist as a logical volume on the
 			// old LXD instance so we need to kick it from the
 			// storage volumes database for this pool.
-			err := d.cluster.StoragePoolVolumeDelete("default", img, db.StoragePoolVolumeTypeImage, poolID)
+			err := d.cluster.RemoveStoragePoolVolume("default", img, db.StoragePoolVolumeTypeImage, poolID)
 			if err != nil {
 				return err
 			}
