@@ -474,8 +474,8 @@ func (c *Cluster) GetStoragePoolID(poolName string) (int64, error) {
 	return poolID, nil
 }
 
-// StoragePoolGet returns a single storage pool.
-func (c *Cluster) StoragePoolGet(poolName string) (int64, *api.StoragePool, error) {
+// GetStoragePool returns a single storage pool.
+func (c *Cluster) GetStoragePool(poolName string) (int64, *api.StoragePool, error) {
 	var poolDriver string
 	poolID := int64(-1)
 	description := sql.NullString{}
@@ -649,7 +649,7 @@ func storagePoolDriverGet(tx *sql.Tx, id int64) (string, error) {
 
 // StoragePoolUpdate updates a storage pool.
 func (c *Cluster) StoragePoolUpdate(poolName, description string, poolConfig map[string]string) error {
-	poolID, _, err := c.StoragePoolGet(poolName)
+	poolID, _, err := c.GetStoragePool(poolName)
 	if err != nil {
 		return err
 	}
@@ -693,7 +693,7 @@ func StoragePoolConfigClear(tx *sql.Tx, poolID, nodeID int64) error {
 
 // StoragePoolDelete deletes storage pool.
 func (c *Cluster) StoragePoolDelete(poolName string) (*api.StoragePool, error) {
-	poolID, pool, err := c.StoragePoolGet(poolName)
+	poolID, pool, err := c.GetStoragePool(poolName)
 	if err != nil {
 		return nil, err
 	}
