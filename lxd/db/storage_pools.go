@@ -54,8 +54,8 @@ func (c *ClusterTx) GetStoragePoolID(name string) (int64, error) {
 	}
 }
 
-// StoragePoolDriver returns the driver of the pool with the given ID.
-func (c *ClusterTx) StoragePoolDriver(id int64) (string, error) {
+// GetStoragePoolDriver returns the driver of the pool with the given ID.
+func (c *ClusterTx) GetStoragePoolDriver(id int64) (string, error) {
 	stmt := "SELECT driver FROM storage_pools WHERE id=?"
 	drivers, err := query.SelectStrings(c.tx, stmt, id)
 	if err != nil {

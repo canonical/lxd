@@ -219,7 +219,7 @@ func (c *Cluster) StorageVolumeIsAvailable(pool, volume string) (bool, error) {
 			return errors.Wrapf(err, "Fetch storage pool ID for %q", pool)
 		}
 
-		driver, err := tx.StoragePoolDriver(id)
+		driver, err := tx.GetStoragePoolDriver(id)
 		if err != nil {
 			return errors.Wrapf(err, "Fetch storage pool driver for %q", pool)
 		}
