@@ -37,8 +37,8 @@ storage_pools_config JOIN storage_pools ON storage_pools.id=storage_pools_config
 	return pools, nil
 }
 
-// StoragePoolID returns the ID of the pool with the given name.
-func (c *ClusterTx) StoragePoolID(name string) (int64, error) {
+// GetStoragePoolID returns the ID of the pool with the given name.
+func (c *ClusterTx) GetStoragePoolID(name string) (int64, error) {
 	stmt := "SELECT id FROM storage_pools WHERE name=?"
 	ids, err := query.SelectIntegers(c.tx, stmt, name)
 	if err != nil {

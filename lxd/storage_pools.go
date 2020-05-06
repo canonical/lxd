@@ -199,7 +199,7 @@ func storagePoolsPostCluster(d *Daemon, req api.StoragePoolsPost) error {
 		var err error
 
 		// Check that the pool was defined at all.
-		poolID, err = tx.StoragePoolID(req.Name)
+		poolID, err = tx.GetStoragePoolID(req.Name)
 		if err != nil {
 			return err
 		}
