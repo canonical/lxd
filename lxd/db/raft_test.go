@@ -48,7 +48,7 @@ func TestGetRaftNodeAddresses(t *testing.T) {
 }
 
 // Fetch the address of the raft node with the given ID.
-func TestRaftNodeAddress(t *testing.T) {
+func TestGetRaftNodeAddress(t *testing.T) {
 	tx, cleanup := db.NewTestNodeTx(t)
 	defer cleanup()
 
@@ -58,7 +58,7 @@ func TestRaftNodeAddress(t *testing.T) {
 	id, err := tx.RaftNodeAdd("5.6.7.8:666")
 	require.NoError(t, err)
 
-	address, err := tx.RaftNodeAddress(id)
+	address, err := tx.GetRaftNodeAddress(id)
 	require.NoError(t, err)
 	assert.Equal(t, "5.6.7.8:666", address)
 }
@@ -77,7 +77,7 @@ func TestRaftNodeFirst(t *testing.T) {
 	err = tx.RaftNodeFirst("5.6.7.8:666")
 	assert.NoError(t, err)
 
-	address, err := tx.RaftNodeAddress(1)
+	address, err := tx.GetRaftNodeAddress(1)
 	require.NoError(t, err)
 	assert.Equal(t, "5.6.7.8:666", address)
 }

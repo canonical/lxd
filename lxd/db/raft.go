@@ -54,9 +54,9 @@ func (n *NodeTx) GetRaftNodeAddresses() ([]string, error) {
 	return query.SelectStrings(n.tx, "SELECT address FROM raft_nodes")
 }
 
-// RaftNodeAddress returns the address of the LXD raft node with the given ID,
+// GetRaftNodeAddress returns the address of the LXD raft node with the given ID,
 // if any matching row exists.
-func (n *NodeTx) RaftNodeAddress(id int64) (string, error) {
+func (n *NodeTx) GetRaftNodeAddress(id int64) (string, error) {
 	stmt := "SELECT address FROM raft_nodes WHERE id=?"
 	addresses, err := query.SelectStrings(n.tx, stmt, id)
 	if err != nil {
