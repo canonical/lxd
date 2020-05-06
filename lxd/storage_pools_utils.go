@@ -29,7 +29,7 @@ func storagePoolUpdate(state *state.State, name, newDescription string, newConfi
 // /1.0/profiles/default
 func storagePoolUsedByGet(state *state.State, project string, poolID int64, poolName string) ([]string, error) {
 	// Retrieve all non-custom volumes that exist on this storage pool.
-	volumes, err := state.Cluster.StoragePoolNodeVolumesGet(project, poolID, []int{db.StoragePoolVolumeTypeContainer, db.StoragePoolVolumeTypeImage, db.StoragePoolVolumeTypeCustom, db.StoragePoolVolumeTypeVM})
+	volumes, err := state.Cluster.GetLocalStoragePoolVolumes(project, poolID, []int{db.StoragePoolVolumeTypeContainer, db.StoragePoolVolumeTypeImage, db.StoragePoolVolumeTypeCustom, db.StoragePoolVolumeTypeVM})
 	if err != nil && err != db.ErrNoSuchObject {
 		return []string{}, err
 	}

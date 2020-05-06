@@ -804,9 +804,9 @@ SELECT DISTINCT node_id
 	return volumes, nil
 }
 
-// StoragePoolNodeVolumesGet returns all storage volumes attached to a given
+// GetLocalStoragePoolVolumes returns all storage volumes attached to a given
 // storage pool on the current node.
-func (c *Cluster) StoragePoolNodeVolumesGet(project string, poolID int64, volumeTypes []int) ([]*api.StorageVolume, error) {
+func (c *Cluster) GetLocalStoragePoolVolumes(project string, poolID int64, volumeTypes []int) ([]*api.StorageVolume, error) {
 	return c.storagePoolVolumesGet(project, poolID, c.nodeID, volumeTypes)
 }
 
