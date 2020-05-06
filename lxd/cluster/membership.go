@@ -381,7 +381,7 @@ func Join(state *state.State, gateway *Gateway, cert *shared.CertInfo, name stri
 			return errors.Wrap(err, "failed to get cluster storage pool IDs")
 		}
 		for name, id := range ids {
-			err := tx.StoragePoolNodeJoin(id, node.ID)
+			err := tx.UpdateStoragePoolAfterNodeJoin(id, node.ID)
 			if err != nil {
 				return errors.Wrap(err, "failed to add joining node's to the pool")
 			}
@@ -394,7 +394,7 @@ func Join(state *state.State, gateway *Gateway, cert *shared.CertInfo, name stri
 			if shared.StringInSlice(driver, []string{"ceph", "cephfs"}) {
 				// For ceph pools we have to create volume
 				// entries for the joining node.
-				err := tx.StoragePoolNodeJoinCeph(id, node.ID)
+				err := tx.UpdateCephStoragePoolAfterNodeJoin(id, node.ID)
 				if err != nil {
 					return errors.Wrap(err, "failed to create ceph volumes for joining node")
 				}
