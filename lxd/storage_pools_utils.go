@@ -228,7 +228,7 @@ func storagePoolCreateLocal(state *state.State, id int64, req api.StoragePoolsPo
 	configDiff, _ := storagePools.ConfigDiff(req.Config, updatedConfig)
 	if len(configDiff) > 0 {
 		// Create the database entry for the storage pool.
-		err = state.Cluster.StoragePoolUpdate(req.Name, req.Description, updatedConfig)
+		err = state.Cluster.UpdateStoragePool(req.Name, req.Description, updatedConfig)
 		if err != nil {
 			return nil, fmt.Errorf("Error inserting %s into database: %s", req.Name, err)
 		}

@@ -647,15 +647,15 @@ func storagePoolDriverGet(tx *sql.Tx, id int64) (string, error) {
 	}
 }
 
-// StoragePoolUpdate updates a storage pool.
-func (c *Cluster) StoragePoolUpdate(poolName, description string, poolConfig map[string]string) error {
+// UpdateStoragePool updates a storage pool.
+func (c *Cluster) UpdateStoragePool(poolName, description string, poolConfig map[string]string) error {
 	poolID, _, err := c.GetStoragePool(poolName)
 	if err != nil {
 		return err
 	}
 
 	err = c.Transaction(func(tx *ClusterTx) error {
-		err = StoragePoolUpdateDescription(tx.tx, poolID, description)
+		err = updateStoragePoolDescription(tx.tx, poolID, description)
 		if err != nil {
 			return err
 		}
@@ -675,8 +675,8 @@ func (c *Cluster) StoragePoolUpdate(poolName, description string, poolConfig map
 	return err
 }
 
-// StoragePoolUpdateDescription updates the storage pool description.
-func StoragePoolUpdateDescription(tx *sql.Tx, id int64, description string) error {
+// Uupdate the storage pool description.
+func updateStoragePoolDescription(tx *sql.Tx, id int64, description string) error {
 	_, err := tx.Exec("UPDATE storage_pools SET description=? WHERE id=?", description, id)
 	return err
 }

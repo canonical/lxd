@@ -507,7 +507,7 @@ func upgradeFromStorageTypeBtrfs(name string, d *Daemon, defaultPoolName string,
 		if pool.Config == nil {
 			pool.Config = poolConfig
 		}
-		err = d.cluster.StoragePoolUpdate(defaultPoolName, "", pool.Config)
+		err = d.cluster.UpdateStoragePool(defaultPoolName, "", pool.Config)
 		if err != nil {
 			return err
 		}
@@ -807,7 +807,7 @@ func upgradeFromStorageTypeDir(name string, d *Daemon, defaultPoolName string, d
 		if pool.Config == nil {
 			pool.Config = poolConfig
 		}
-		err = d.cluster.StoragePoolUpdate(defaultPoolName, pool.Description, pool.Config)
+		err = d.cluster.UpdateStoragePool(defaultPoolName, pool.Description, pool.Config)
 		if err != nil {
 			return err
 		}
@@ -1109,7 +1109,7 @@ func upgradeFromStorageTypeLvm(name string, d *Daemon, defaultPoolName string, d
 		if pool.Config == nil {
 			pool.Config = poolConfig
 		}
-		err = d.cluster.StoragePoolUpdate(defaultPoolName, pool.Description, pool.Config)
+		err = d.cluster.UpdateStoragePool(defaultPoolName, pool.Description, pool.Config)
 		if err != nil {
 			return err
 		}
@@ -1627,7 +1627,7 @@ func upgradeFromStorageTypeZfs(name string, d *Daemon, defaultPoolName string, d
 		if pool.Config == nil {
 			pool.Config = poolConfig
 		}
-		err = d.cluster.StoragePoolUpdate(poolName, pool.Description, pool.Config)
+		err = d.cluster.UpdateStoragePool(poolName, pool.Description, pool.Config)
 		if err != nil {
 			return err
 		}
@@ -2236,7 +2236,7 @@ func patchStorageApiKeys(name string, d *Daemon) error {
 		}
 
 		// Update the config in the database.
-		err = d.cluster.StoragePoolUpdate(poolName, pool.Description, pool.Config)
+		err = d.cluster.UpdateStoragePool(poolName, pool.Description, pool.Config)
 		if err != nil {
 			return err
 		}
@@ -2324,7 +2324,7 @@ func patchStorageApiUpdateStorageConfigs(name string, d *Daemon) error {
 		}
 
 		// Update the storage pool config.
-		err = d.cluster.StoragePoolUpdate(poolName, pool.Description, pool.Config)
+		err = d.cluster.UpdateStoragePool(poolName, pool.Description, pool.Config)
 		if err != nil {
 			return err
 		}
@@ -2441,7 +2441,7 @@ func patchStorageApiLxdOnBtrfs(name string, d *Daemon) error {
 		pool.Config["source"] = driver.GetStoragePoolMountPoint(poolName)
 
 		// Update the storage pool config.
-		err = d.cluster.StoragePoolUpdate(poolName, pool.Description, pool.Config)
+		err = d.cluster.UpdateStoragePool(poolName, pool.Description, pool.Config)
 		if err != nil {
 			return err
 		}
@@ -2811,7 +2811,7 @@ func patchStorageApiCephSizeRemove(name string, d *Daemon) error {
 		}
 
 		// Update the config in the database.
-		err = d.cluster.StoragePoolUpdate(poolName, pool.Description,
+		err = d.cluster.UpdateStoragePool(poolName, pool.Description,
 			pool.Config)
 		if err != nil {
 			return err
