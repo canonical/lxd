@@ -242,7 +242,7 @@ func storagePoolCreateLocal(state *state.State, id int64, req api.StoragePoolsPo
 
 // Helper around the low-level DB API, which also updates the driver names cache.
 func dbStoragePoolCreateAndUpdateCache(s *state.State, poolName string, poolDescription string, poolDriver string, poolConfig map[string]string) (int64, error) {
-	id, err := s.Cluster.StoragePoolCreate(poolName, poolDescription, poolDriver, poolConfig)
+	id, err := s.Cluster.CreateStoragePool(poolName, poolDescription, poolDriver, poolConfig)
 	if err != nil {
 		return id, err
 	}
