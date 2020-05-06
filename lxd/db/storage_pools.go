@@ -728,8 +728,8 @@ func (c *Cluster) GetStoragePoolVolumesNames(poolID int64) ([]string, error) {
 	return out, nil
 }
 
-// StoragePoolVolumesGetAllByType return a list of volumes by type.
-func (c *Cluster) StoragePoolVolumesGetAllByType(volumeType int) ([]StorageVolumeArgs, error) {
+// GetStoragePoolVolumesWithType return a list of all volumes of the given type.
+func (c *Cluster) GetStoragePoolVolumesWithType(volumeType int) ([]StorageVolumeArgs, error) {
 	var id int64
 	var name string
 	var description string
