@@ -220,8 +220,8 @@ SELECT ?, key, value
 	return nil
 }
 
-// StoragePoolConfigAdd adds a new entry in the storage_pools_config table
-func (c *ClusterTx) StoragePoolConfigAdd(poolID, nodeID int64, config map[string]string) error {
+// CreateStoragePoolConfig adds a new entry in the storage_pools_config table
+func (c *ClusterTx) CreateStoragePoolConfig(poolID, nodeID int64, config map[string]string) error {
 	return storagePoolConfigAdd(c.tx, poolID, nodeID, config)
 }
 
@@ -308,7 +308,7 @@ func (c *ClusterTx) StoragePoolCreatePending(node, name, driver string, conf map
 	if err != nil {
 		return err
 	}
-	err = c.StoragePoolConfigAdd(poolID, nodeInfo.ID, conf)
+	err = c.CreateStoragePoolConfig(poolID, nodeInfo.ID, conf)
 	if err != nil {
 		return err
 	}
