@@ -1109,7 +1109,7 @@ func (d *zfs) UnmountVolume(vol Volume, op *operations.Operation) (bool, error) 
 	// Check if still mounted.
 	if shared.IsMountPoint(mountPath) {
 		// Unmount the dataset.
-		_, err := shared.RunCommand("zfs", "unmount", dataset)
+		err := TryUnmount(mountPath, 0)
 		if err != nil {
 			return false, err
 		}
