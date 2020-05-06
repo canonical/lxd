@@ -1,5 +1,11 @@
 package migration
 
+// BTRFSFeatureMigrationHeader indicates a migration header will be sent/recv in data channel first.
+const BTRFSFeatureMigrationHeader = "migration_header"
+
+// BTRFSFeatureSubvolumes indicates migration can send/recv subvolumes.
+const BTRFSFeatureSubvolumes = "header_subvolumes"
+
 // GetRsyncFeaturesSlice returns a slice of strings representing the supported RSYNC features
 func (m *MigrationHeader) GetRsyncFeaturesSlice() []string {
 	features := []string{}
@@ -37,6 +43,26 @@ func (m *MigrationHeader) GetZfsFeaturesSlice() []string {
 	if m.ZfsFeatures != nil {
 		if m.ZfsFeatures.Compress != nil && *m.ZfsFeatures.Compress == true {
 			features = append(features, "compress")
+		}
+	}
+
+	return features
+}
+
+// GetBtrfsFeaturesSlice returns a slice of strings representing the supported BTRFS features.
+func (m *MigrationHeader) GetBtrfsFeaturesSlice() []string {
+	features := []string{}
+	if m == nil {
+		return features
+	}
+
+	if m.BtrfsFeatures != nil {
+		if m.BtrfsFeatures.MigrationHeader != nil && *m.BtrfsFeatures.MigrationHeader == true {
+			features = append(features, BTRFSFeatureMigrationHeader)
+		}
+
+		if m.BtrfsFeatures.HeaderSubvolumes != nil && *m.BtrfsFeatures.HeaderSubvolumes == true {
+			features = append(features, BTRFSFeatureSubvolumes)
 		}
 	}
 
