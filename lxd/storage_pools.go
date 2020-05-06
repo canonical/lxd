@@ -205,7 +205,7 @@ func storagePoolsPostCluster(d *Daemon, req api.StoragePoolsPost) error {
 		}
 
 		// Fetch the node-specific configs.
-		configs, err = tx.StoragePoolNodeConfigs(poolID)
+		configs, err = tx.GetStoragePoolNodeConfigs(poolID)
 		if err != nil {
 			return err
 		}

@@ -71,7 +71,7 @@ func TestStoragePoolsCreatePending(t *testing.T) {
 	require.NoError(t, err)
 
 	// The initial node (whose name is 'none' by default) is missing.
-	_, err = tx.StoragePoolNodeConfigs(poolID)
+	_, err = tx.GetStoragePoolNodeConfigs(poolID)
 	require.EqualError(t, err, "Pool not defined on nodes: none")
 
 	config = map[string]string{"source": "/egg"}
@@ -79,7 +79,7 @@ func TestStoragePoolsCreatePending(t *testing.T) {
 	require.NoError(t, err)
 
 	// Now the storage is defined on all nodes.
-	configs, err := tx.StoragePoolNodeConfigs(poolID)
+	configs, err := tx.GetStoragePoolNodeConfigs(poolID)
 	require.NoError(t, err)
 	assert.Len(t, configs, 3)
 	assert.Equal(t, map[string]string{"source": "/foo"}, configs["buzz"])
@@ -118,7 +118,7 @@ func TestStoragePoolsCreatePending_OtherPool(t *testing.T) {
 
 	// The node-level configs of the second pool do not contain any key
 	// from the first pool.
-	configs, err := tx.StoragePoolNodeConfigs(poolID)
+	configs, err := tx.GetStoragePoolNodeConfigs(poolID)
 	require.NoError(t, err)
 	assert.Len(t, configs, 2)
 	assert.Equal(t, map[string]string{}, configs["none"])
