@@ -307,7 +307,7 @@ func VolumeFillDefault(name string, config map[string]string, parentPool *api.St
 
 // VolumeSnapshotsGet returns a list of snapshots of the form <volume>/<snapshot-name>.
 func VolumeSnapshotsGet(s *state.State, projectName string, pool string, volume string, volType int) ([]db.StorageVolumeArgs, error) {
-	poolID, err := s.Cluster.StoragePoolGetID(pool)
+	poolID, err := s.Cluster.GetStoragePoolID(pool)
 	if err != nil {
 		return nil, err
 	}
