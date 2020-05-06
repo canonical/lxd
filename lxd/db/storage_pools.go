@@ -991,9 +991,9 @@ func (c *Cluster) UpdateStoragePoolVolume(project, volumeName string, volumeType
 	return err
 }
 
-// StoragePoolVolumeDelete deletes the storage volume attached to a given storage
+// RemoveStoragePoolVolume deletes the storage volume attached to a given storage
 // pool.
-func (c *Cluster) StoragePoolVolumeDelete(project, volumeName string, volumeType int, poolID int64) error {
+func (c *Cluster) RemoveStoragePoolVolume(project, volumeName string, volumeType int, poolID int64) error {
 	volumeID, _, err := c.GetLocalStoragePoolVolume(project, volumeName, volumeType, poolID)
 	if err != nil {
 		return err
