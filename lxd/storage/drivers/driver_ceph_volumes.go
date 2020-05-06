@@ -160,8 +160,9 @@ func (d *ceph) CreateVolume(vol Volume, filler *VolumeFiller, op *operations.Ope
 	}
 
 	// Run the volume filler function if supplied.
-	if filler != nil && filler.Fill != nil {
-		err := vol.MountTask(func(mountPath string, op *operations.Operation) error {
+
+	err = vol.MountTask(func(mountPath string, op *operations.Operation) error {
+		if filler != nil && filler.Fill != nil {
 			if vol.contentType == ContentTypeFS {
 				return filler.Fill(mountPath, "")
 			}
@@ -183,12 +184,22 @@ func (d *ceph) CreateVolume(vol Volume, filler *VolumeFiller, op *operations.Ope
 					return err
 				}
 			}
-
-			return err
-		}, op)
-		if err != nil {
-			return err
 		}
+
+		if vol.contentType == ContentTypeFS {
+			// Run EnsureMountPath again after mounting and filling to ensure the mount directory has
+			// the correct permissions set.
+			err = vol.EnsureMountPath()
+			if err != nil {
+				return err
+			}
+		}
+
+		return nil
+	}, op)
+	if err != nil {
+		return err
+
 	}
 
 	// Create a readonly snapshot of the image volume which will be used a the
