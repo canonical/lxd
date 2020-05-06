@@ -664,7 +664,7 @@ func internalImport(d *Daemon, r *http.Request) response.Response {
 		parts := strings.SplitN(snap.Name, shared.SnapshotDelimiter, 2)
 
 		// Check if an entry for the snapshot already exists in the db.
-		_, snapErr := d.cluster.InstanceSnapshotID(projectName, parts[0], parts[1])
+		_, snapErr := d.cluster.GetInstanceSnapshotID(projectName, parts[0], parts[1])
 		if snapErr != nil {
 			if snapErr != db.ErrNoSuchObject {
 				return response.SmartError(snapErr)

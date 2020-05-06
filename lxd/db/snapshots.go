@@ -93,9 +93,9 @@ func (c *ClusterTx) UpdateInstanceSnapshotConfig(id int, values map[string]strin
 	return c.configUpdate(id, values, insertSQL, deleteSQL)
 }
 
-// InstanceSnapshotUpdate updates the description and expiry date of the
+// UpdateInstanceSnapshot updates the description and expiry date of the
 // instance snapshot with the given ID.
-func InstanceSnapshotUpdate(tx *sql.Tx, id int, description string, expiryDate time.Time) error {
+func UpdateInstanceSnapshot(tx *sql.Tx, id int, description string, expiryDate time.Time) error {
 	str := fmt.Sprintf("UPDATE instances_snapshots SET description=?, expiry_date=? WHERE id=?")
 	stmt, err := tx.Prepare(str)
 	if err != nil {
@@ -115,8 +115,8 @@ func InstanceSnapshotUpdate(tx *sql.Tx, id int, description string, expiryDate t
 	return nil
 }
 
-// InstanceSnapshotID returns the ID of the snapshot with the given name.
-func (c *Cluster) InstanceSnapshotID(project, instance, name string) (int, error) {
+// GetInstanceSnapshotID returns the ID of the snapshot with the given name.
+func (c *Cluster) GetInstanceSnapshotID(project, instance, name string) (int, error) {
 	var id int64
 	err := c.Transaction(func(tx *ClusterTx) error {
 		var err error

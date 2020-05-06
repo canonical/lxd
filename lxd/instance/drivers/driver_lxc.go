@@ -4360,7 +4360,7 @@ func (c *lxc) Update(args db.InstanceArgs, userRequested bool) error {
 
 		// Snapshots should update only their descriptions and expiry date.
 		if c.IsSnapshot() {
-			err = db.InstanceSnapshotUpdate(tx, c.id, c.description, c.expiryDate)
+			err = db.UpdateInstanceSnapshot(tx, c.id, c.description, c.expiryDate)
 			if err != nil {
 				tx.Rollback()
 				return errors.Wrap(err, "Snapshot update")

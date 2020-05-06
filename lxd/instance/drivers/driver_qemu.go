@@ -2605,7 +2605,7 @@ func (vm *qemu) Update(args db.InstanceArgs, userRequested bool) error {
 
 		// Snapshots should update only their descriptions and expiry date.
 		if vm.IsSnapshot() {
-			err = db.InstanceSnapshotUpdate(tx, vm.id, vm.description, vm.expiryDate)
+			err = db.UpdateInstanceSnapshot(tx, vm.id, vm.description, vm.expiryDate)
 			if err != nil {
 				tx.Rollback()
 				return errors.Wrap(err, "Snapshot update")
