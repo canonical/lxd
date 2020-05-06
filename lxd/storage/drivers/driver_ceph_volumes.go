@@ -941,35 +941,39 @@ func (d *ceph) MountVolume(vol Volume, op *operations.Operation) (bool, error) {
 
 // UnmountVolume simulates unmounting a volume.
 func (d *ceph) UnmountVolume(vol Volume, op *operations.Operation) (bool, error) {
-	// For VMs, also unmount the filesystem dataset.
-	if vol.IsVMBlock() {
-		fsVol := vol.NewVMBlockFilesystemVolume()
-
-		_, err := d.UnmountVolume(fsVol, op)
-		if err != nil {
-			return false, err
-		}
-	}
-
 	// Attempt to unmount the volume.
 	mountPath := vol.MountPath()
-	if shared.IsMountPoint(mountPath) {
+	if vol.contentType == ContentTypeFS && shared.IsMountPoint(mountPath) {
 		err := TryUnmount(mountPath, unix.MNT_DETACH)
 		if err != nil {
 			return false, err
 		}
 		d.logger.Debug("Unmounted RBD volume", log.Ctx{"path": mountPath})
+
+		// Attempt to unmap.
+		err = d.rbdUnmapVolume(vol, true)
+		if err != nil {
+			return false, err
+		}
+
+		return true, nil
 	}
 
-	// Attempt to unmap.
-	if !vol.keepDevice {
+	if vol.contentType == ContentTypeBlock {
+		// Attempt to unmap.
 		err := d.rbdUnmapVolume(vol, true)
 		if err != nil {
-			return true, err
+			return false, err
 		}
 	}
 
-	return true, nil
+	// For VMs, unmount the filesystem volume.
+	if vol.IsVMBlock() {
+		fsVol := vol.NewVMBlockFilesystemVolume()
+		return d.UnmountVolume(fsVol, op)
+	}
+
+	return false, nil
 }
 
 // RenameVolume renames a volume and its snapshots.
