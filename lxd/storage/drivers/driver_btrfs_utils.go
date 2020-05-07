@@ -14,6 +14,7 @@ import (
 	"github.com/pkg/errors"
 	"golang.org/x/sys/unix"
 
+	"github.com/lxc/lxd/lxd/revert"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/ioprogress"
 	"github.com/lxc/lxd/shared/logger"
@@ -254,6 +255,7 @@ func (d *btrfs) sendSubvolume(path string, parent string, conn io.ReadWriteClose
 		_, err := io.Copy(conn, stdoutPipe)
 		chStdoutPipe <- err
 		conn.Close()
+		cmd.Process.Kill() // This closes stderr.
 	}()
 
 	// Run the command.
@@ -288,9 +290,14 @@ func (d *btrfs) sendSubvolume(path string, parent string, conn io.ReadWriteClose
 	return nil
 }
 
-func (d *btrfs) receiveSubvolume(path string, targetPath string, conn io.ReadWriteCloser, writeWrapper func(io.WriteCloser) io.WriteCloser) error {
+// receiveSubvolume receives a BTRFS volume to the recvPath and then moves it to the targetPath.
+// Sets any moved subvolume to writable.
+func (d *btrfs) receiveSubvolume(recvPath string, targetPath string, conn io.ReadWriteCloser, writeWrapper func(io.WriteCloser) io.WriteCloser) error {
+	revert := revert.New()
+	defer revert.Fail()
+
 	// Assemble btrfs send command.
-	cmd := exec.Command("btrfs", "receive", "-e", path)
+	cmd := exec.Command("btrfs", "receive", "-e", recvPath)
 
 	// Prepare stdin/stderr.
 	stdin, err := cmd.StdinPipe()
@@ -340,22 +347,37 @@ func (d *btrfs) receiveSubvolume(path string, targetPath string, conn io.ReadWri
 		return fmt.Errorf("Problem with btrfs receive: (%v) %s", errs, string(output))
 	}
 
-	// If we receive and target paths match, we're done.
-	if path == targetPath {
+	if recvPath == targetPath {
 		return nil
 	}
 
-	// Handle older LXD versions.
-	receivedSnapshot := fmt.Sprintf("%s/.migration-send", path)
+	// Location we would expect to receive the root subvolume.
+	receivedSnapshot := fmt.Sprintf("%s/.migration-send", recvPath)
+
+	// Handle non-root subvolumes.
 	if !shared.PathExists(receivedSnapshot) {
-		receivedSnapshot = fmt.Sprintf("%s/.root", path)
+		receivedSnapshot = fmt.Sprintf("%s/%s", recvPath, filepath.Base(targetPath))
 	}
 
-	// Mark the received subvolume writable.
-	_, err = shared.RunCommand("btrfs", "property", "set", "-ts", receivedSnapshot, "ro", "false")
+	// Handle older LXD versions.
+	if !shared.PathExists(receivedSnapshot) {
+		receivedSnapshot = fmt.Sprintf("%s/.root", recvPath)
+	}
+
+	if !shared.PathExists(receivedSnapshot) {
+		return fmt.Errorf("Received subvolume is not found")
+	}
+
+	// Set writable to allow subvolume to be moved.
+	err = d.setSubvolumeReadonlyProperty(receivedSnapshot, false)
 	if err != nil {
 		return err
 	}
+
+	revert.Add(func() { os.RemoveAll(receivedSnapshot) })
+
+	// Clear the target for the subvol to use.
+	os.Remove(targetPath)
 
 	// And move it to the target path.
 	err = os.Rename(receivedSnapshot, targetPath)
@@ -363,6 +385,7 @@ func (d *btrfs) receiveSubvolume(path string, targetPath string, conn io.ReadWri
 		return errors.Wrapf(err, "Failed to rename '%s' to '%s'", receivedSnapshot, targetPath)
 	}
 
+	revert.Success()
 	return nil
 }
 
@@ -431,4 +454,36 @@ func (d *btrfs) getSubvolumesMetaData(vol Volume) ([]BTRFSSubVolume, error) {
 	}
 
 	return subVols, nil
+}
+
+// BTRFSMetaDataHeader is the meta data header about the volumes being sent/stored.
+type BTRFSMetaDataHeader struct {
+	Subvolumes []BTRFSSubVolume // Sub volumes inside the volume (including the top level ones).
+}
+
+// metadataHeader scans the volume and any specified snapshots, returning a header containing subvolume meta data.
+func (d *btrfs) metadataHeader(vol Volume, snapshots []string) (*BTRFSMetaDataHeader, error) {
+	var migrationHeader BTRFSMetaDataHeader
+
+	// Add snapshots to volumes list.
+	for _, snapName := range snapshots {
+		snapVol, _ := vol.NewSnapshot(snapName)
+
+		// Add snapshot root volume to volumes list.
+		subVols, err := d.getSubvolumesMetaData(snapVol)
+		if err != nil {
+			return nil, err
+		}
+
+		migrationHeader.Subvolumes = append(migrationHeader.Subvolumes, subVols...)
+	}
+
+	// Add main root volume to volumes list.
+	subVols, err := d.getSubvolumesMetaData(vol)
+	if err != nil {
+		return nil, err
+	}
+
+	migrationHeader.Subvolumes = append(migrationHeader.Subvolumes, subVols...)
+	return &migrationHeader, nil
 }
