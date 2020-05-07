@@ -347,8 +347,9 @@ SELECT storage_volumes_all.id
 	return ids64, nil
 }
 
-// StorageVolumeCleanupImages removes the volumes with the given fingerprints.
-func (c *Cluster) StorageVolumeCleanupImages(fingerprints []string) error {
+// RemoveStorageVolumeImages removes the volumes associated with the images
+// with the given fingerprints.
+func (c *Cluster) RemoveStorageVolumeImages(fingerprints []string) error {
 	stmt := fmt.Sprintf(
 		"DELETE FROM storage_volumes WHERE type=? AND name NOT IN %s",
 		query.Params(len(fingerprints)))
