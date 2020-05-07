@@ -14,9 +14,9 @@ import (
 	"github.com/lxc/lxd/shared"
 )
 
-// StoragePoolVolumeSnapshotCreate creates a new storage volume snapshot attached to a given
+// CreateStorageVolumeSnapshot creates a new storage volume snapshot attached to a given
 // storage pool.
-func (c *Cluster) StoragePoolVolumeSnapshotCreate(project, volumeName, volumeDescription string, volumeType int, poolID int64, volumeConfig map[string]string, expiryDate time.Time) (int64, error) {
+func (c *Cluster) CreateStorageVolumeSnapshot(project, volumeName, volumeDescription string, volumeType int, poolID int64, volumeConfig map[string]string, expiryDate time.Time) (int64, error) {
 	var thisVolumeID int64
 
 	var snapshotName string
