@@ -2668,7 +2668,7 @@ func (b *lxdBackend) UpdateCustomVolumeSnapshot(projectName string, volName stri
 		return err
 	}
 
-	curExpiryDate, err := b.state.Cluster.StorageVolumeSnapshotExpiryGet(volID)
+	curExpiryDate, err := b.state.Cluster.GetStorageVolumeSnapshotExpiry(volID)
 	if err != nil {
 		return err
 	}
