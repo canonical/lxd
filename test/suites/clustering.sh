@@ -612,6 +612,82 @@ test_clustering_storage() {
   fi
 }
 
+# On a single-node cluster storage pools can be created either with the
+# two-stage process required multi-node clusters, or directly with the normal
+# procedure for non-clustered daemons.
+test_clustering_storage_single_node() {
+  # shellcheck disable=2039
+  local LXD_DIR
+
+  setup_clustering_bridge
+  prefix="lxd$$"
+  bridge="${prefix}"
+
+  # The random storage backend is not supported in clustering tests,
+  # since we need to have the same storage driver on all nodes.
+  driver="${LXD_BACKEND}"
+  if [ "${driver}" = "random" ] || [ "${driver}" = "lvm" ]; then
+    driver="dir"
+  fi
+
+  setup_clustering_netns 1
+  LXD_ONE_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
+  chmod +x "${LXD_ONE_DIR}"
+  ns1="${prefix}1"
+  spawn_lxd_and_bootstrap_cluster "${ns1}" "${bridge}" "${LXD_ONE_DIR}" "${driver}"
+
+  # Create a pending storage pool on the node.
+  driver_config=""
+  if [ "${driver}" = "btrfs" ]; then
+      driver_config="size=20GB"
+  fi
+  if [ "${driver}" = "zfs" ]; then
+      driver_config="size=20GB"
+  fi
+  if [ "${driver}" = "ceph" ]; then
+      driver_config="source=lxdtest-$(basename "${TEST_DIR}")-pool1"
+  fi
+  driver_config_node="${driver_config}"
+  if [ "${driver}" = "zfs" ]; then
+      driver_config_node="${driver_config_node} zfs.pool_name=pool1-$(basename "${TEST_DIR}")-${ns1}"
+  fi
+
+  if [ -n "${driver_config_node}" ]; then
+    # shellcheck disable=SC2086
+    LXD_DIR="${LXD_ONE_DIR}" lxc storage create pool1 "${driver}" ${driver_config_node} --target node1
+  else
+    LXD_DIR="${LXD_ONE_DIR}" lxc storage create pool1 "${driver}" --target node1
+  fi
+
+  # Finalize the storage pool creation
+  LXD_DIR="${LXD_ONE_DIR}" lxc storage create pool1 "${driver}"
+
+  LXD_DIR="${LXD_ONE_DIR}" lxc storage show pool1 | grep status: | grep -q Created
+
+  # Delete the storage pool
+  LXD_DIR="${LXD_ONE_DIR}" lxc storage delete pool1
+
+  # Create the storage pool directly, without the two-stage process.
+  if [ -n "${driver_config_node}" ]; then
+    # shellcheck disable=SC2086
+    LXD_DIR="${LXD_ONE_DIR}" lxc storage create pool1 "${driver}" ${driver_config_node}
+  else
+    LXD_DIR="${LXD_ONE_DIR}" lxc storage create pool1 "${driver}"
+  fi
+
+  # Delete the storage pool
+  LXD_DIR="${LXD_ONE_DIR}" lxc storage delete pool1
+
+  LXD_DIR="${LXD_ONE_DIR}" lxd shutdown
+  sleep 0.5
+  rm -f "${LXD_ONE_DIR}/unix.socket"
+
+  teardown_clustering_netns
+  teardown_clustering_bridge
+
+  kill_lxd "${LXD_ONE_DIR}"
+}
+
 test_clustering_network() {
   # shellcheck disable=2039
   local LXD_DIR
