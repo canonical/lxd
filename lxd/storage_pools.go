@@ -138,15 +138,27 @@ func storagePoolsPost(d *Daemon, r *http.Request) response.Response {
 		}
 
 		if count == 1 {
-			// No targetNode was specified and we're either a single-node
-			// cluster or not clustered at all, so create the storage
-			// pool immediately.
-			err = storagePoolCreateGlobal(d.State(), req)
-		} else {
-			// No targetNode was specified and we're clustered, so finalize the
-			// config in the db and actually create the pool on all nodes.
-			err = storagePoolsPostCluster(d, req)
+			// No targetNode was specified and we're either a
+			// single-node cluster or not clustered at all, so
+			// create the storage pool immediately, unless there's
+			// a pending storage pool (in that case we follow the
+			// regular two-stage process).
+			_, err := d.cluster.GetStoragePoolID(req.Name)
+			if err != nil {
+				if err != db.ErrNoSuchObject {
+					return response.InternalError(err)
+				}
+				err = storagePoolCreateGlobal(d.State(), req)
+				if err != nil {
+					return response.InternalError(err)
+				}
+				return resp
+			}
 		}
+
+		// No targetNode was specified and we're clustered, so finalize the
+		// config in the db and actually create the pool on all nodes.
+		err = storagePoolsPostCluster(d, req)
 		if err != nil {
 			return response.InternalError(err)
 		}
