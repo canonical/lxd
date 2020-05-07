@@ -87,8 +87,8 @@ func (c *Cluster) CreateStorageVolumeSnapshot(project, volumeName, volumeDescrip
 	return thisVolumeID, err
 }
 
-// StoragePoolVolumeSnapshotUpdateByProject updates the storage volume snapshot attached to a given storage pool.
-func (c *Cluster) StoragePoolVolumeSnapshotUpdateByProject(project, volumeName string, volumeType int, poolID int64, volumeDescription string, volumeConfig map[string]string, expiryDate time.Time) error {
+// UpdateStorageVolumeSnapshot updates the storage volume snapshot attached to a given storage pool.
+func (c *Cluster) UpdateStorageVolumeSnapshot(project, volumeName string, volumeType int, poolID int64, volumeDescription string, volumeConfig map[string]string, expiryDate time.Time) error {
 	volumeID, _, err := c.GetLocalStoragePoolVolume(project, volumeName, volumeType, poolID)
 	if err != nil {
 		return err
