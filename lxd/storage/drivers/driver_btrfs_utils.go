@@ -455,3 +455,35 @@ func (d *btrfs) getSubvolumesMetaData(vol Volume) ([]BTRFSSubVolume, error) {
 
 	return subVols, nil
 }
+
+// BTRFSMetaDataHeader is the meta data header about the volumes being sent/stored.
+type BTRFSMetaDataHeader struct {
+	Subvolumes []BTRFSSubVolume // Sub volumes inside the volume (including the top level ones).
+}
+
+// metadataHeader scans the volume and any specified snapshots, returning a header containing subvolume meta data.
+func (d *btrfs) metadataHeader(vol Volume, snapshots []string) (*BTRFSMetaDataHeader, error) {
+	var migrationHeader BTRFSMetaDataHeader
+
+	// Add snapshots to volumes list.
+	for _, snapName := range snapshots {
+		snapVol, _ := vol.NewSnapshot(snapName)
+
+		// Add snapshot root volume to volumes list.
+		subVols, err := d.getSubvolumesMetaData(snapVol)
+		if err != nil {
+			return nil, err
+		}
+
+		migrationHeader.Subvolumes = append(migrationHeader.Subvolumes, subVols...)
+	}
+
+	// Add main root volume to volumes list.
+	subVols, err := d.getSubvolumesMetaData(vol)
+	if err != nil {
+		return nil, err
+	}
+
+	migrationHeader.Subvolumes = append(migrationHeader.Subvolumes, subVols...)
+	return &migrationHeader, nil
+}
