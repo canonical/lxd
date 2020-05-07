@@ -326,8 +326,14 @@ func (r *ProtocolLXD) GetImageAliasType(imageType string, name string) (*api.Ima
 		return nil, "", err
 	}
 
-	if imageType != "" && alias.Type != imageType {
-		return nil, "", fmt.Errorf("Alias doesn't exist for the specified type")
+	if imageType != "" {
+		if alias.Type == "" {
+			alias.Type = "container"
+		}
+
+		if alias.Type != imageType {
+			return nil, "", fmt.Errorf("Alias doesn't exist for the specified type")
+		}
 	}
 
 	return alias, etag, nil
