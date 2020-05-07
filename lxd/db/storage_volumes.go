@@ -39,13 +39,13 @@ type StorageVolumeArgs struct {
 	ProjectName string
 }
 
-// StorageVolumeNodeAddresses returns the addresses of all nodes on which the
+// GetStorageVolumeNodeAddresses returns the addresses of all nodes on which the
 // volume with the given name if defined.
 //
 // The volume name can be either a regular name or a volume snapshot name.
 //
 // The empty string is used in place of the address of the current node.
-func (c *ClusterTx) StorageVolumeNodeAddresses(poolID int64, project, name string, typ int) ([]string, error) {
+func (c *ClusterTx) GetStorageVolumeNodeAddresses(poolID int64, project, name string, typ int) ([]string, error) {
 	nodes := []struct {
 		id      int64
 		address string
