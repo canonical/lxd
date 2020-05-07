@@ -145,8 +145,8 @@ func (c *Cluster) GetStorageVolumeSnapshotExpiry(volumeID int64) (time.Time, err
 	return expiry, nil
 }
 
-// StorageVolumeSnapshotsGetExpired returns a list of expired volume snapshots.
-func (c *Cluster) StorageVolumeSnapshotsGetExpired() ([]StorageVolumeArgs, error) {
+// GetExpiredStorageVolumeSnapshots returns a list of expired volume snapshots.
+func (c *Cluster) GetExpiredStorageVolumeSnapshots() ([]StorageVolumeArgs, error) {
 	var result []StorageVolumeArgs
 	var volumeName string
 	var snapshotName string

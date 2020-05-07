@@ -556,7 +556,7 @@ func storagePoolVolumeSnapshotTypeDelete(d *Daemon, r *http.Request) response.Re
 func pruneExpireCustomVolumeSnapshotsTask(d *Daemon) (task.Func, task.Schedule) {
 	f := func(ctx context.Context) {
 		// Get the list of expired custom volume snapshots.
-		expiredSnapshots, err := d.cluster.StorageVolumeSnapshotsGetExpired()
+		expiredSnapshots, err := d.cluster.GetExpiredStorageVolumeSnapshots()
 		if err != nil {
 			logger.Error("Unable to retrieve the list of expired custom volume snapshots", log.Ctx{"err": err})
 			return
