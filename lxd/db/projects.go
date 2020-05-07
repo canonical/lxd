@@ -120,7 +120,7 @@ SELECT projects_config.value
 // ProjectHasImages is a helper to check if a project has the images
 // feature enabled.
 func (c *ClusterTx) ProjectHasImages(name string) (bool, error) {
-	project, err := c.ProjectGet(name)
+	project, err := c.GetProject(name)
 	if err != nil {
 		return false, errors.Wrap(err, "fetch project")
 	}
@@ -146,7 +146,7 @@ func (c *ClusterTx) UpdateProject(name string, object api.ProjectPut) error {
 		return fmt.Errorf("Query updated %d rows instead of 1", n)
 	}
 
-	id, err := c.ProjectID(name)
+	id, err := c.GetProjectID(name)
 	if err != nil {
 		return errors.Wrap(err, "Fetch project ID")
 	}
@@ -175,7 +175,7 @@ DELETE FROM projects_config WHERE projects_config.project_id = ?
 // all images from the default project when a project is created with
 // features.images=false.
 func (c *ClusterTx) InitProjectWithoutImages(project string) error {
-	defaultProfileID, err := c.ProfileID(project, "default")
+	defaultProfileID, err := c.GetProfileID(project, "default")
 	if err != nil {
 		return errors.Wrap(err, "Fetch project ID")
 	}

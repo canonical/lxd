@@ -55,7 +55,7 @@ type InstanceSnapshot struct {
 	ExpiryDate   time.Time
 }
 
-// InstanceSnapshotFilter can be used to filter results yielded by InstanceSnapshotList.
+// InstanceSnapshotFilter can be used to filter results yielded by GetInstanceSnapshots.
 type InstanceSnapshotFilter struct {
 	Project  string
 	Instance string
@@ -120,7 +120,7 @@ func (c *Cluster) GetInstanceSnapshotID(project, instance, name string) (int, er
 	var id int64
 	err := c.Transaction(func(tx *ClusterTx) error {
 		var err error
-		id, err = tx.InstanceSnapshotID(project, instance, name)
+		id, err = tx.GetInstanceSnapshotID(project, instance, name)
 		return err
 	})
 	return int(id), err

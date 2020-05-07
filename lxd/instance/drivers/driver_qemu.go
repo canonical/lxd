@@ -246,7 +246,7 @@ func qemuCreate(s *state.State, args db.InstanceArgs) (instance.Instance, error)
 
 	// Create a new database entry for the instance's storage volume.
 	if vm.IsSnapshot() {
-		_, err = s.Cluster.StoragePoolVolumeSnapshotCreate(args.Project, args.Name, "", db.StoragePoolVolumeTypeVM, poolID, volumeConfig, time.Time{})
+		_, err = s.Cluster.CreateStorageVolumeSnapshot(args.Project, args.Name, "", db.StoragePoolVolumeTypeVM, poolID, volumeConfig, time.Time{})
 
 	} else {
 		_, err = s.Cluster.CreateStoragePoolVolume(args.Project, args.Name, "", db.StoragePoolVolumeTypeVM, poolID, volumeConfig)
@@ -2184,7 +2184,7 @@ func (vm *qemu) Snapshots() ([]instance.Instance, error) {
 	// Get all the snapshots
 	err := vm.state.Cluster.Transaction(func(tx *db.ClusterTx) error {
 		var err error
-		snaps, err = tx.GetInstanceSnapshots(vm.Project(), vm.name)
+		snaps, err = tx.GetInstanceSnapshotsWithName(vm.Project(), vm.name)
 		if err != nil {
 			return err
 		}
@@ -2271,7 +2271,7 @@ func (vm *qemu) Rename(newName string) error {
 			oldSnapName := strings.SplitN(sname, shared.SnapshotDelimiter, 2)[1]
 			baseSnapName := filepath.Base(sname)
 			err := vm.state.Cluster.Transaction(func(tx *db.ClusterTx) error {
-				return tx.InstanceSnapshotRename(vm.project, oldName, oldSnapName, baseSnapName)
+				return tx.RenameInstanceSnapshot(vm.project, oldName, oldSnapName, baseSnapName)
 			})
 			if err != nil {
 				logger.Error("Failed renaming snapshot", ctxMap)
@@ -2285,10 +2285,10 @@ func (vm *qemu) Rename(newName string) error {
 		if vm.IsSnapshot() {
 			oldParts := strings.SplitN(oldName, shared.SnapshotDelimiter, 2)
 			newParts := strings.SplitN(newName, shared.SnapshotDelimiter, 2)
-			return tx.InstanceSnapshotRename(vm.project, oldParts[0], oldParts[1], newParts[1])
+			return tx.RenameInstanceSnapshot(vm.project, oldParts[0], oldParts[1], newParts[1])
 		}
 
-		return tx.InstanceRename(vm.project, oldName, newName)
+		return tx.RenameInstance(vm.project, oldName, newName)
 	})
 	if err != nil {
 		logger.Error("Failed renaming instance", ctxMap)

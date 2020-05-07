@@ -14,7 +14,7 @@ import (
 	"github.com/lxc/lxd/shared/api"
 )
 
-func TestInstanceSnapshotList(t *testing.T) {
+func TestGetInstanceSnapshots(t *testing.T) {
 	tx, cleanup := db.NewTestClusterTx(t)
 	defer cleanup()
 
@@ -33,7 +33,7 @@ func TestInstanceSnapshotList(t *testing.T) {
 	addInstanceSnapshotDevice(t, tx, "c2", "snap3", "root", "disk", map[string]string{"x": "y"})
 
 	filter := db.InstanceSnapshotFilter{}
-	snapshots, err := tx.InstanceSnapshotList(filter)
+	snapshots, err := tx.GetInstanceSnapshots(filter)
 	require.NoError(t, err)
 	assert.Len(t, snapshots, 3)
 
@@ -58,7 +58,7 @@ func TestInstanceSnapshotList(t *testing.T) {
 	assert.Equal(t, map[string]string{"type": "disk", "x": "y"}, s3.Devices["root"])
 }
 
-func TestInstanceSnapshotList_FilterByInstance(t *testing.T) {
+func TestGetInstanceSnapshots_FilterByInstance(t *testing.T) {
 	tx, cleanup := db.NewTestClusterTx(t)
 	defer cleanup()
 
@@ -71,7 +71,7 @@ func TestInstanceSnapshotList_FilterByInstance(t *testing.T) {
 	addInstanceSnapshot(t, tx, 2, "snap2")
 
 	filter := db.InstanceSnapshotFilter{Project: "default", Instance: "c2"}
-	snapshots, err := tx.InstanceSnapshotList(filter)
+	snapshots, err := tx.GetInstanceSnapshots(filter)
 	require.NoError(t, err)
 	assert.Len(t, snapshots, 2)
 
@@ -84,14 +84,14 @@ func TestInstanceSnapshotList_FilterByInstance(t *testing.T) {
 	assert.Equal(t, "c2", s2.Instance)
 }
 
-func TestInstanceSnapshotList_SameNameInDifferentProjects(t *testing.T) {
+func TestGetInstanceSnapshots_SameNameInDifferentProjects(t *testing.T) {
 	tx, cleanup := db.NewTestClusterTx(t)
 	defer cleanup()
 
 	// Create an additional project
 	project1 := api.ProjectsPost{}
 	project1.Name = "p1"
-	_, err := tx.ProjectCreate(project1)
+	_, err := tx.CreateProject(project1)
 	require.NoError(t, err)
 
 	// Create an instance in the default project.
@@ -104,7 +104,7 @@ func TestInstanceSnapshotList_SameNameInDifferentProjects(t *testing.T) {
 		Ephemeral:    false,
 		Stateful:     true,
 	}
-	_, err = tx.InstanceCreate(i1default)
+	_, err = tx.CreateInstance(i1default)
 	require.NoError(t, err)
 
 	// Create an instance in project p1 using the same name.
@@ -117,7 +117,7 @@ func TestInstanceSnapshotList_SameNameInDifferentProjects(t *testing.T) {
 		Ephemeral:    false,
 		Stateful:     true,
 	}
-	_, err = tx.InstanceCreate(i1p1)
+	_, err = tx.CreateInstance(i1p1)
 	require.NoError(t, err)
 
 	// Create two snapshots with the same names.
@@ -126,7 +126,7 @@ func TestInstanceSnapshotList_SameNameInDifferentProjects(t *testing.T) {
 		Instance: "i1",
 		Name:     "s1",
 	}
-	_, err = tx.InstanceSnapshotCreate(s1default)
+	_, err = tx.CreateInstanceSnapshot(s1default)
 	require.NoError(t, err)
 
 	s1p1 := db.InstanceSnapshot{
@@ -134,11 +134,11 @@ func TestInstanceSnapshotList_SameNameInDifferentProjects(t *testing.T) {
 		Instance: "i1",
 		Name:     "s1",
 	}
-	_, err = tx.InstanceSnapshotCreate(s1p1)
+	_, err = tx.CreateInstanceSnapshot(s1p1)
 	require.NoError(t, err)
 
 	filter := db.InstanceSnapshotFilter{Project: "p1", Instance: "i1"}
-	snapshots, err := tx.InstanceSnapshotList(filter)
+	snapshots, err := tx.GetInstanceSnapshots(filter)
 	require.NoError(t, err)
 
 	assert.Len(t, snapshots, 1)
@@ -147,7 +147,7 @@ func TestInstanceSnapshotList_SameNameInDifferentProjects(t *testing.T) {
 	assert.Equal(t, "i1", snapshots[0].Instance)
 	assert.Equal(t, "s1", snapshots[0].Name)
 
-	snapshot, err := tx.InstanceSnapshotGet("default", "i1", "s1")
+	snapshot, err := tx.GetInstanceSnapshot("default", "i1", "s1")
 	require.NoError(t, err)
 
 	assert.Equal(t, "default", snapshot.Project)

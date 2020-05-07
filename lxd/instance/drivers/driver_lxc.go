@@ -235,7 +235,7 @@ func lxcCreate(s *state.State, args db.InstanceArgs) (instance.Instance, error) 
 
 	// Create a new database entry for the container's storage volume
 	if c.IsSnapshot() {
-		_, err = s.Cluster.StoragePoolVolumeSnapshotCreate(args.Project, args.Name, "", db.StoragePoolVolumeTypeContainer, poolID, volumeConfig, time.Time{})
+		_, err = s.Cluster.CreateStorageVolumeSnapshot(args.Project, args.Name, "", db.StoragePoolVolumeTypeContainer, poolID, volumeConfig, time.Time{})
 	} else {
 		_, err = s.Cluster.CreateStoragePoolVolume(args.Project, args.Name, "", db.StoragePoolVolumeTypeContainer, poolID, volumeConfig)
 	}
@@ -3187,7 +3187,7 @@ func (c *lxc) Snapshots() ([]instance.Instance, error) {
 	// Get all the snapshots
 	err := c.state.Cluster.Transaction(func(tx *db.ClusterTx) error {
 		var err error
-		snaps, err = tx.GetInstanceSnapshots(c.Project(), c.name)
+		snaps, err = tx.GetInstanceSnapshotsWithName(c.Project(), c.name)
 		if err != nil {
 			return err
 		}
@@ -3596,7 +3596,7 @@ func (c *lxc) Rename(newName string) error {
 			oldSnapName := strings.SplitN(sname, shared.SnapshotDelimiter, 2)[1]
 			baseSnapName := filepath.Base(sname)
 			err := c.state.Cluster.Transaction(func(tx *db.ClusterTx) error {
-				return tx.InstanceSnapshotRename(c.project, oldName, oldSnapName, baseSnapName)
+				return tx.RenameInstanceSnapshot(c.project, oldName, oldSnapName, baseSnapName)
 			})
 			if err != nil {
 				logger.Error("Failed renaming snapshot", ctxMap)
@@ -3610,10 +3610,10 @@ func (c *lxc) Rename(newName string) error {
 		if c.IsSnapshot() {
 			oldParts := strings.SplitN(oldName, shared.SnapshotDelimiter, 2)
 			newParts := strings.SplitN(newName, shared.SnapshotDelimiter, 2)
-			return tx.InstanceSnapshotRename(c.project, oldParts[0], oldParts[1], newParts[1])
+			return tx.RenameInstanceSnapshot(c.project, oldParts[0], oldParts[1], newParts[1])
 		}
 
-		return tx.InstanceRename(c.project, oldName, newName)
+		return tx.RenameInstance(c.project, oldName, newName)
 	})
 	if err != nil {
 		logger.Error("Failed renaming container", ctxMap)

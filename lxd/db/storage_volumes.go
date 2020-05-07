@@ -39,13 +39,13 @@ type StorageVolumeArgs struct {
 	ProjectName string
 }
 
-// StorageVolumeNodeAddresses returns the addresses of all nodes on which the
+// GetStorageVolumeNodeAddresses returns the addresses of all nodes on which the
 // volume with the given name if defined.
 //
 // The volume name can be either a regular name or a volume snapshot name.
 //
 // The empty string is used in place of the address of the current node.
-func (c *ClusterTx) StorageVolumeNodeAddresses(poolID int64, project, name string, typ int) ([]string, error) {
+func (c *ClusterTx) GetStorageVolumeNodeAddresses(poolID int64, project, name string, typ int) ([]string, error) {
 	nodes := []struct {
 		id      int64
 		address string
@@ -148,8 +148,8 @@ func (c *Cluster) storageVolumeConfigGet(volumeID int64, isSnapshot bool) (map[s
 	return config, nil
 }
 
-// StorageVolumeDescriptionGet gets the description of a storage volume.
-func (c *Cluster) StorageVolumeDescriptionGet(volumeID int64) (string, error) {
+// GetStorageVolumeDescription gets the description of a storage volume.
+func (c *Cluster) GetStorageVolumeDescription(volumeID int64) (string, error) {
 	description := sql.NullString{}
 	query := "SELECT description FROM storage_volumes_all WHERE id=?"
 	inargs := []interface{}{volumeID}
@@ -166,12 +166,12 @@ func (c *Cluster) StorageVolumeDescriptionGet(volumeID int64) (string, error) {
 	return description.String, nil
 }
 
-// StorageVolumeNextSnapshot returns the index of the next snapshot of the storage
+// GetNextStorageVolumeSnapshotIndex returns the index of the next snapshot of the storage
 // volume with the given name should have.
 //
 // Note, the code below doesn't deal with snapshots of snapshots.
 // To do that, we'll need to weed out based on # slashes in names
-func (c *Cluster) StorageVolumeNextSnapshot(name string, typ int, pattern string) int {
+func (c *Cluster) GetNextStorageVolumeSnapshotIndex(name string, typ int, pattern string) int {
 	q := fmt.Sprintf(`
 SELECT storage_volumes_snapshots.name FROM storage_volumes_snapshots
   JOIN storage_volumes ON storage_volumes_snapshots.storage_volume_id=storage_volumes.id
@@ -347,8 +347,9 @@ SELECT storage_volumes_all.id
 	return ids64, nil
 }
 
-// StorageVolumeCleanupImages removes the volumes with the given fingerprints.
-func (c *Cluster) StorageVolumeCleanupImages(fingerprints []string) error {
+// RemoveStorageVolumeImages removes the volumes associated with the images
+// with the given fingerprints.
+func (c *Cluster) RemoveStorageVolumeImages(fingerprints []string) error {
 	stmt := fmt.Sprintf(
 		"DELETE FROM storage_volumes WHERE type=? AND name NOT IN %s",
 		query.Params(len(fingerprints)))
@@ -360,9 +361,9 @@ func (c *Cluster) StorageVolumeCleanupImages(fingerprints []string) error {
 	return err
 }
 
-// StorageVolumeMoveToLVMThinPoolNameKey upgrades the config keys of LVM
+// UpgradeStorageVolumConfigToLVMThinPoolNameKey upgrades the config keys of LVM
 // volumes.
-func (c *Cluster) StorageVolumeMoveToLVMThinPoolNameKey() error {
+func (c *Cluster) UpgradeStorageVolumConfigToLVMThinPoolNameKey() error {
 	err := exec(c.db, "UPDATE storage_pools_config SET key='lvm.thinpool_name' WHERE key='volume.lvm.thinpool_name';")
 	if err != nil {
 		return err
