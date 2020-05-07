@@ -425,12 +425,12 @@ func LoadInstanceDatabaseObject(tx *db.ClusterTx, project, name string) (*db.Ins
 		instanceName := parts[0]
 		snapshotName := parts[1]
 
-		instance, err := tx.InstanceGet(project, instanceName)
+		instance, err := tx.GetInstance(project, instanceName)
 		if err != nil {
 			return nil, errors.Wrapf(err, "Failed to fetch instance %q in project %q", name, project)
 		}
 
-		snapshot, err := tx.InstanceSnapshotGet(project, instanceName, snapshotName)
+		snapshot, err := tx.GetInstanceSnapshot(project, instanceName, snapshotName)
 		if err != nil {
 			return nil, errors.Wrapf(err, "Failed to fetch snapshot %q of instance %q in project %q", snapshotName, instanceName, project)
 		}
@@ -438,7 +438,7 @@ func LoadInstanceDatabaseObject(tx *db.ClusterTx, project, name string) (*db.Ins
 		c := db.InstanceSnapshotToInstance(instance, snapshot)
 		container = &c
 	} else {
-		container, err = tx.InstanceGet(project, name)
+		container, err = tx.GetInstance(project, name)
 		if err != nil {
 			return nil, errors.Wrapf(err, "Failed to fetch instance %q in project %q", name, project)
 		}
@@ -525,7 +525,7 @@ func LoadByProject(s *state.State, project string) ([]Instance, error) {
 			Type:    instancetype.Any,
 		}
 		var err error
-		cts, err = tx.InstanceList(filter)
+		cts, err = tx.GetInstances(filter)
 		if err != nil {
 			return err
 		}

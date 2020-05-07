@@ -84,8 +84,8 @@ var projectDelete = cluster.RegisterStmt(`
 DELETE FROM projects WHERE name = ?
 `)
 
-// ProjectURIs returns all available project URIs.
-func (c *ClusterTx) ProjectURIs(filter ProjectFilter) ([]string, error) {
+// GetProjectURIs returns all available project URIs.
+func (c *ClusterTx) GetProjectURIs(filter ProjectFilter) ([]string, error) {
 	// Check which filter criteria are active.
 	criteria := map[string]interface{}{}
 	if filter.Name != "" {
@@ -112,8 +112,8 @@ func (c *ClusterTx) ProjectURIs(filter ProjectFilter) ([]string, error) {
 	return query.SelectURIs(stmt, formatter, args...)
 }
 
-// ProjectList returns all available projects.
-func (c *ClusterTx) ProjectList(filter ProjectFilter) ([]api.Project, error) {
+// GetProjects returns all available projects.
+func (c *ClusterTx) GetProjects(filter ProjectFilter) ([]api.Project, error) {
 	// Result slice.
 	objects := make([]api.Project, 0)
 
@@ -183,12 +183,12 @@ func (c *ClusterTx) ProjectList(filter ProjectFilter) ([]api.Project, error) {
 	return objects, nil
 }
 
-// ProjectGet returns the project with the given key.
-func (c *ClusterTx) ProjectGet(name string) (*api.Project, error) {
+// GetProject returns the project with the given key.
+func (c *ClusterTx) GetProject(name string) (*api.Project, error) {
 	filter := ProjectFilter{}
 	filter.Name = name
 
-	objects, err := c.ProjectList(filter)
+	objects, err := c.GetProjects(filter)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to fetch Project")
 	}
@@ -270,7 +270,7 @@ func (c *ClusterTx) ProjectConfigRef(filter ProjectFilter) (map[string]map[strin
 
 // ProjectExists checks if a project with the given key exists.
 func (c *ClusterTx) ProjectExists(name string) (bool, error) {
-	_, err := c.ProjectID(name)
+	_, err := c.GetProjectID(name)
 	if err != nil {
 		if err == ErrNoSuchObject {
 			return false, nil
@@ -281,8 +281,8 @@ func (c *ClusterTx) ProjectExists(name string) (bool, error) {
 	return true, nil
 }
 
-// ProjectCreate adds a new project to the database.
-func (c *ClusterTx) ProjectCreate(object api.ProjectsPost) (int64, error) {
+// CreateProject adds a new project to the database.
+func (c *ClusterTx) CreateProject(object api.ProjectsPost) (int64, error) {
 	// Check if a project with the same key exists.
 	exists, err := c.ProjectExists(object.Name)
 	if err != nil {
@@ -385,8 +385,8 @@ func (c *ClusterTx) ProjectUsedByRef(filter ProjectFilter) (map[string][]string,
 	return index, nil
 }
 
-// ProjectID return the ID of the project with the given key.
-func (c *ClusterTx) ProjectID(name string) (int64, error) {
+// GetProjectID return the ID of the project with the given key.
+func (c *ClusterTx) GetProjectID(name string) (int64, error) {
 	stmt := c.stmt(projectID)
 	rows, err := stmt.Query(name)
 	if err != nil {
@@ -414,8 +414,8 @@ func (c *ClusterTx) ProjectID(name string) (int64, error) {
 	return id, nil
 }
 
-// ProjectRename renames the project matching the given key parameters.
-func (c *ClusterTx) ProjectRename(name string, to string) error {
+// RenameProject renames the project matching the given key parameters.
+func (c *ClusterTx) RenameProject(name string, to string) error {
 	stmt := c.stmt(projectRename)
 	result, err := stmt.Exec(to, name)
 	if err != nil {
@@ -432,8 +432,8 @@ func (c *ClusterTx) ProjectRename(name string, to string) error {
 	return nil
 }
 
-// ProjectDelete deletes the project matching the given key parameters.
-func (c *ClusterTx) ProjectDelete(name string) error {
+// DeleteProject deletes the project matching the given key parameters.
+func (c *ClusterTx) DeleteProject(name string) error {
 	stmt := c.stmt(projectDelete)
 	result, err := stmt.Exec(name)
 	if err != nil {

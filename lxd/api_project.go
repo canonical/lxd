@@ -47,7 +47,7 @@ func projectsGet(d *Daemon, r *http.Request) response.Response {
 	err := d.cluster.Transaction(func(tx *db.ClusterTx) error {
 		filter := db.ProjectFilter{}
 		if recursion {
-			projects, err := tx.ProjectList(filter)
+			projects, err := tx.GetProjects(filter)
 			if err != nil {
 				return err
 			}
@@ -63,7 +63,7 @@ func projectsGet(d *Daemon, r *http.Request) response.Response {
 
 			result = filtered
 		} else {
-			uris, err := tx.ProjectURIs(filter)
+			uris, err := tx.GetProjectURIs(filter)
 			if err != nil {
 				return err
 			}
@@ -136,7 +136,7 @@ func projectsPost(d *Daemon, r *http.Request) response.Response {
 
 	var id int64
 	err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
-		id, err = tx.ProjectCreate(project)
+		id, err = tx.CreateProject(project)
 		if err != nil {
 			return errors.Wrap(err, "Add project to database")
 		}
@@ -179,7 +179,7 @@ func projectCreateDefaultProfile(tx *db.ClusterTx, project string) error {
 	profile.Name = projecthelpers.Default
 	profile.Description = fmt.Sprintf("Default LXD profile for project %s", project)
 
-	_, err := tx.ProfileCreate(profile)
+	_, err := tx.CreateProfile(profile)
 	if err != nil {
 		return errors.Wrap(err, "Add default profile to database")
 	}
@@ -198,7 +198,7 @@ func projectGet(d *Daemon, r *http.Request) response.Response {
 	var project *api.Project
 	err := d.cluster.Transaction(func(tx *db.ClusterTx) error {
 		var err error
-		project, err = tx.ProjectGet(name)
+		project, err = tx.GetProject(name)
 		return err
 	})
 	if err != nil {
@@ -225,7 +225,7 @@ func projectPut(d *Daemon, r *http.Request) response.Response {
 	var project *api.Project
 	err := d.cluster.Transaction(func(tx *db.ClusterTx) error {
 		var err error
-		project, err = tx.ProjectGet(name)
+		project, err = tx.GetProject(name)
 		return err
 	})
 	if err != nil {
@@ -265,7 +265,7 @@ func projectPatch(d *Daemon, r *http.Request) response.Response {
 	var project *api.Project
 	err := d.cluster.Transaction(func(tx *db.ClusterTx) error {
 		var err error
-		project, err = tx.ProjectGet(name)
+		project, err = tx.GetProject(name)
 		return err
 	})
 	if err != nil {
@@ -382,7 +382,7 @@ func projectChange(d *Daemon, project *api.Project, req api.ProjectPut) response
 				}
 			} else {
 				// Delete the project-specific default profile.
-				err = tx.ProfileDelete(project.Name, projecthelpers.Default)
+				err = tx.DeleteProfile(project.Name, projecthelpers.Default)
 				if err != nil {
 					return errors.Wrap(err, "Delete project default profile")
 				}
@@ -419,7 +419,7 @@ func projectPost(d *Daemon, r *http.Request) response.Response {
 	run := func(op *operations.Operation) error {
 		var id int64
 		err := d.cluster.Transaction(func(tx *db.ClusterTx) error {
-			project, err := tx.ProjectGet(req.Name)
+			project, err := tx.GetProject(req.Name)
 			if err != nil && err != db.ErrNoSuchObject {
 				return errors.Wrapf(err, "Check if project %q exists", req.Name)
 			}
@@ -428,7 +428,7 @@ func projectPost(d *Daemon, r *http.Request) response.Response {
 				return fmt.Errorf("A project named '%s' already exists", req.Name)
 			}
 
-			project, err = tx.ProjectGet(name)
+			project, err = tx.GetProject(name)
 			if err != nil {
 				return errors.Wrapf(err, "Fetch project %q", name)
 			}
@@ -437,12 +437,12 @@ func projectPost(d *Daemon, r *http.Request) response.Response {
 				return fmt.Errorf("Only empty projects can be renamed")
 			}
 
-			id, err = tx.ProjectID(name)
+			id, err = tx.GetProjectID(name)
 			if err != nil {
 				return errors.Wrapf(err, "Fetch project id %q", name)
 			}
 
-			return tx.ProjectRename(name, req.Name)
+			return tx.RenameProject(name, req.Name)
 		})
 		if err != nil {
 			return err
@@ -476,7 +476,7 @@ func projectDelete(d *Daemon, r *http.Request) response.Response {
 
 	var id int64
 	err := d.cluster.Transaction(func(tx *db.ClusterTx) error {
-		project, err := tx.ProjectGet(name)
+		project, err := tx.GetProject(name)
 		if err != nil {
 			return errors.Wrapf(err, "Fetch project %q", name)
 		}
@@ -484,12 +484,12 @@ func projectDelete(d *Daemon, r *http.Request) response.Response {
 			return fmt.Errorf("Only empty projects can be removed")
 		}
 
-		id, err = tx.ProjectID(name)
+		id, err = tx.GetProjectID(name)
 		if err != nil {
 			return errors.Wrapf(err, "Fetch project id %q", name)
 		}
 
-		return tx.ProjectDelete(name)
+		return tx.DeleteProject(name)
 	})
 
 	if err != nil {
