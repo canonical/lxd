@@ -58,6 +58,11 @@ message zfsFeatures {
 	optional bool		compress = 1;
 }
 
+message btrfsFeatures {
+	optional bool		migration_header = 1;
+	optional bool		header_subvolumes = 2;
+}
+
 message MigrationHeader {
 	required MigrationFSType		fs		= 1;
 	optional CRIUType			criu		= 2;
@@ -69,6 +74,7 @@ message MigrationHeader {
 	optional bool				refresh		= 9;
 	optional zfsFeatures			zfsFeatures 	= 10;
 	optional int64				volumeSize	= 11;
+	optional btrfsFeatures			btrfsFeatures 	= 12;
 }
 
 message MigrationControl {
