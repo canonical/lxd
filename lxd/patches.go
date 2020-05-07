@@ -2187,7 +2187,7 @@ func patchStorageApiDirCleanup(name string, d *Daemon) error {
 }
 
 func patchStorageApiLvmKeys(name string, d *Daemon) error {
-	return d.cluster.StorageVolumeMoveToLVMThinPoolNameKey()
+	return d.cluster.UpgradeStorageVolumConfigToLVMThinPoolNameKey()
 }
 
 func patchStorageApiKeys(name string, d *Daemon) error {
