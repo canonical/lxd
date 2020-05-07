@@ -361,9 +361,9 @@ func (c *Cluster) RemoveStorageVolumeImages(fingerprints []string) error {
 	return err
 }
 
-// StorageVolumeMoveToLVMThinPoolNameKey upgrades the config keys of LVM
+// UpgradeStorageVolumConfigToLVMThinPoolNameKey upgrades the config keys of LVM
 // volumes.
-func (c *Cluster) StorageVolumeMoveToLVMThinPoolNameKey() error {
+func (c *Cluster) UpgradeStorageVolumConfigToLVMThinPoolNameKey() error {
 	err := exec(c.db, "UPDATE storage_pools_config SET key='lvm.thinpool_name' WHERE key='volume.lvm.thinpool_name';")
 	if err != nil {
 		return err
