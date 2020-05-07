@@ -166,12 +166,12 @@ func (c *Cluster) GetStorageVolumeDescription(volumeID int64) (string, error) {
 	return description.String, nil
 }
 
-// StorageVolumeNextSnapshot returns the index of the next snapshot of the storage
+// GetNextStorageVolumeSnapshotIndex returns the index of the next snapshot of the storage
 // volume with the given name should have.
 //
 // Note, the code below doesn't deal with snapshots of snapshots.
 // To do that, we'll need to weed out based on # slashes in names
-func (c *Cluster) StorageVolumeNextSnapshot(name string, typ int, pattern string) int {
+func (c *Cluster) GetNextStorageVolumeSnapshotIndex(name string, typ int, pattern string) int {
 	q := fmt.Sprintf(`
 SELECT storage_volumes_snapshots.name FROM storage_volumes_snapshots
   JOIN storage_volumes ON storage_volumes_snapshots.storage_volume_id=storage_volumes.id
