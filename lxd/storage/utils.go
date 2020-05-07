@@ -157,7 +157,7 @@ func VolumeDBCreate(s *state.State, project, poolName, volumeName, volumeDescrip
 
 	// Create the database entry for the storage volume.
 	if snapshot {
-		_, err = s.Cluster.StoragePoolVolumeSnapshotCreate(project, volumeName, volumeDescription, volumeType, poolID, volumeConfig, expiryDate)
+		_, err = s.Cluster.CreateStorageVolumeSnapshot(project, volumeName, volumeDescription, volumeType, poolID, volumeConfig, expiryDate)
 	} else {
 		_, err = s.Cluster.CreateStoragePoolVolume(project, volumeName, volumeDescription, volumeType, poolID, volumeConfig)
 	}
