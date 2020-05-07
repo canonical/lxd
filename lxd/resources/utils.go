@@ -88,3 +88,7 @@ func hasBit(n uint32, pos uint) bool {
 	val := n & (1 << pos)
 	return (val > 0)
 }
+
+func hasBitField(n []uint32, bit uint) bool {
+	return (n[bit/32] & (1 << (bit % 32))) != 0
+}
