@@ -29,7 +29,7 @@ func TestStorageVolumeNodeAddresses(t *testing.T) {
 	addVolume(t, tx, poolID, nodeID3, "volume2")
 	addVolume(t, tx, poolID, nodeID2, "volume2")
 
-	addresses, err := tx.StorageVolumeNodeAddresses(poolID, "default", "volume1", 1)
+	addresses, err := tx.GetStorageVolumeNodeAddresses(poolID, "default", "volume1", 1)
 	require.NoError(t, err)
 
 	assert.Equal(t, []string{"", "1.2.3.4:666"}, addresses)
