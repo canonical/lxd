@@ -2183,7 +2183,7 @@ func patchStorageApiDirCleanup(name string, d *Daemon) error {
 	if err != nil {
 		return err
 	}
-	return d.cluster.StorageVolumeCleanupImages(fingerprints)
+	return d.cluster.RemoveStorageVolumeImages(fingerprints)
 }
 
 func patchStorageApiLvmKeys(name string, d *Daemon) error {
