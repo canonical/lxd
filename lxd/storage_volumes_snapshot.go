@@ -374,7 +374,7 @@ func storagePoolVolumeSnapshotTypeGet(d *Daemon, r *http.Request) response.Respo
 		return response.SmartError(err)
 	}
 
-	expiry, err := d.cluster.StorageVolumeSnapshotExpiryGet(volID)
+	expiry, err := d.cluster.GetStorageVolumeSnapshotExpiry(volID)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -442,7 +442,7 @@ func storagePoolVolumeSnapshotTypePut(d *Daemon, r *http.Request) response.Respo
 		return response.SmartError(err)
 	}
 
-	expiry, err := d.cluster.StorageVolumeSnapshotExpiryGet(volID)
+	expiry, err := d.cluster.GetStorageVolumeSnapshotExpiry(volID)
 	if err != nil {
 		return response.SmartError(err)
 	}
