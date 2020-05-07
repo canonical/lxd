@@ -117,6 +117,34 @@ type ethtoolValue struct {
 	data uint32
 }
 
+const ethtoolLinkModeMaskMaxKernelNu32 = 127 // SCHAR_MAX
+type ethtoolLinkSettings struct {
+	cmd                 uint32
+	speed               uint32
+	duplex              uint8
+	port                uint8
+	phyAddress          uint8
+	autoneg             uint8
+	mdioSupport         uint8
+	ethTpMdix           uint8
+	ethTpMdixCtrl       uint8
+	linkModeMasksNwords int8
+	transceiver         uint8
+	reserved1           [3]uint8
+	reserved            [7]uint32
+	linkModeMasks       [0]uint32
+	linkModeData        [3 * ethtoolLinkModeMaskMaxKernelNu32]uint32
+	// __u32 map_supported[link_mode_masks_nwords];
+	// __u32 map_advertising[link_mode_masks_nwords];
+	// __u32 map_lp_advertising[link_mode_masks_nwords];
+}
+
+type ethtoolLinkModeMaps struct {
+	mapSupported     []uint32
+	mapAdvertising   []uint32
+	mapLpAdvertising []uint32
+}
+
 func ethtoolAddCardInfo(name string, info *api.ResourcesNetworkCard) error {
 	// Open FD
 	ethtoolFd, err := unix.Socket(unix.AF_INET, unix.SOCK_DGRAM, unix.IPPROTO_IP)
@@ -151,7 +179,7 @@ func ethtoolGset(ethtoolFd int, req *ethtoolReq, info *api.ResourcesNetworkCardP
 	}
 	req.data = uintptr(unsafe.Pointer(&ethCmd))
 
-	_, _, errno := unix.Syscall(unix.SYS_IOCTL, uintptr(ethtoolFd), unix.SIOCETHTOOL, uintptr(unsafe.Pointer(&req)))
+	_, _, errno := unix.Syscall(unix.SYS_IOCTL, uintptr(ethtoolFd), unix.SIOCETHTOOL, uintptr(unsafe.Pointer(req)))
 	if errno != 0 {
 		return errors.Wrap(unix.Errno(errno), "Failed to ETHTOOL_GSET")
 	}
@@ -219,6 +247,107 @@ func ethtoolGset(ethtoolFd int, req *ethtoolReq, info *api.ResourcesNetworkCardP
 	return nil
 }
 
+func ethtoolLink(ethtoolFd int, req *ethtoolReq, info *api.ResourcesNetworkCardPort) error {
+	// Interface info
+	ethLinkSettings := ethtoolLinkSettings{
+		cmd: 0x0000004c,
+	}
+	req.data = uintptr(unsafe.Pointer(&ethLinkSettings))
+
+	// Retrieve size of masks
+	_, _, errno := unix.Syscall(unix.SYS_IOCTL, uintptr(ethtoolFd), unix.SIOCETHTOOL, uintptr(unsafe.Pointer(req)))
+	if errno != 0 {
+		return errors.Wrap(unix.Errno(errno), "Failed to ETHTOOL_GLINKSETTINGS")
+	}
+
+	// This insane interface gives us the size of the masks as a negative value.
+	if ethLinkSettings.linkModeMasksNwords >= 0 || ethLinkSettings.cmd != 0x0000004c {
+		return errors.Wrap(unix.Errno(unix.EINVAL), "Failed to ETHTOOL_GLINKSETTINGS")
+	}
+
+	// Set the size of the masks we want to retrieve.
+	ethLinkSettings.linkModeMasksNwords = -ethLinkSettings.linkModeMasksNwords
+	_, _, errno = unix.Syscall(unix.SYS_IOCTL, uintptr(ethtoolFd), unix.SIOCETHTOOL, uintptr(unsafe.Pointer(req)))
+	if errno != 0 {
+		return errors.Wrap(unix.Errno(errno), "Failed to ETHTOOL_GLINKSETTINGS")
+	}
+
+	if ethLinkSettings.linkModeMasksNwords <= 0 || ethLinkSettings.cmd != 0x0000004c {
+		return errors.Wrap(unix.Errno(unix.EINVAL), "Failed to ETHTOOL_GLINKSETTINGS")
+	}
+
+	// Copy the mode maps.
+	ethLinkModeMap := ethtoolLinkModeMaps{}
+	ethLinkModeMap.mapSupported = append(ethLinkModeMap.mapSupported, ethLinkSettings.linkModeData[:4*ethLinkSettings.linkModeMasksNwords]...)
+
+	// Unused right now
+	offset := ethLinkSettings.linkModeMasksNwords
+	ethLinkModeMap.mapAdvertising = append(ethLinkModeMap.mapAdvertising, ethLinkSettings.linkModeData[offset:4*ethLinkSettings.linkModeMasksNwords]...)
+
+	// Unused right now
+	offset += ethLinkSettings.linkModeMasksNwords
+	ethLinkModeMap.mapLpAdvertising = append(ethLinkModeMap.mapLpAdvertising, ethLinkSettings.linkModeData[offset:4*ethLinkSettings.linkModeMasksNwords]...)
+
+	// Link negotiation
+	info.AutoNegotiation = ethLinkSettings.autoneg == 1
+
+	if info.LinkDetected {
+		// Link duplex
+		if ethLinkSettings.duplex == 0x00 {
+			info.LinkDuplex = "half"
+		} else if ethLinkSettings.duplex == 0x01 {
+			info.LinkDuplex = "full"
+		}
+
+		// Link speed
+		info.LinkSpeed = uint64(ethLinkSettings.speed)
+	}
+
+	// Transceiver
+	if ethLinkSettings.transceiver == 0x00 {
+		info.TransceiverType = "internal"
+	} else if ethLinkSettings.transceiver == 0x01 {
+		info.TransceiverType = "external"
+	}
+
+	// Port
+	if ethLinkSettings.port == 0x00 {
+		info.PortType = "twisted pair"
+	} else if ethLinkSettings.port == 0x01 {
+		info.PortType = "AUI"
+	} else if ethLinkSettings.port == 0x02 {
+		info.PortType = "media-independent"
+	} else if ethLinkSettings.port == 0x03 {
+		info.PortType = "fibre"
+	} else if ethLinkSettings.port == 0x04 {
+		info.PortType = "BNC"
+	} else if ethLinkSettings.port == 0x05 {
+		info.PortType = "direct attach"
+	} else if ethLinkSettings.port == 0xef {
+		info.PortType = "none"
+	} else if ethLinkSettings.port == 0xff {
+		info.PortType = "other"
+	}
+
+	// Supported modes
+	info.SupportedModes = []string{}
+	for _, mode := range ethtoolModes {
+		if hasBitField(ethLinkModeMap.mapSupported, mode.bit) {
+			info.SupportedModes = append(info.SupportedModes, mode.name)
+		}
+	}
+
+	// Supported ports
+	info.SupportedPorts = []string{}
+	for _, port := range ethtoolPorts {
+		if hasBitField(ethLinkModeMap.mapSupported, port.bit) {
+			info.SupportedPorts = append(info.SupportedPorts, port.name)
+		}
+	}
+
+	return nil
+}
+
 func ethtoolAddPortInfo(info *api.ResourcesNetworkCardPort) error {
 	// Open FD
 	ethtoolFd, err := unix.Socket(unix.AF_INET, unix.SOCK_DGRAM, unix.IPPROTO_IP)
@@ -258,9 +387,9 @@ func ethtoolAddPortInfo(info *api.ResourcesNetworkCardPort) error {
 	info.LinkDetected = ethGlink.data == 1
 
 	// Interface info
-	err = ethtoolGset(ethtoolFd, &req, info)
+	err = ethtoolLink(ethtoolFd, &req, info)
 	if err != nil {
-		return err
+		return ethtoolGset(ethtoolFd, &req, info)
 	}
 
 	return nil
