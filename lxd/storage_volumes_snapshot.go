@@ -79,7 +79,7 @@ func storagePoolVolumeSnapshotsTypePost(d *Daemon, r *http.Request) response.Res
 
 	// Get a snapshot name.
 	if req.Name == "" {
-		i := d.cluster.StorageVolumeNextSnapshot(volumeName, volumeType, "snap%d")
+		i := d.cluster.GetNextStorageVolumeSnapshotIndex(volumeName, volumeType, "snap%d")
 		req.Name = fmt.Sprintf("snap%d", i)
 	}
 
@@ -374,7 +374,7 @@ func storagePoolVolumeSnapshotTypeGet(d *Daemon, r *http.Request) response.Respo
 		return response.SmartError(err)
 	}
 
-	expiry, err := d.cluster.StorageVolumeSnapshotExpiryGet(volID)
+	expiry, err := d.cluster.GetStorageVolumeSnapshotExpiry(volID)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -442,7 +442,7 @@ func storagePoolVolumeSnapshotTypePut(d *Daemon, r *http.Request) response.Respo
 		return response.SmartError(err)
 	}
 
-	expiry, err := d.cluster.StorageVolumeSnapshotExpiryGet(volID)
+	expiry, err := d.cluster.GetStorageVolumeSnapshotExpiry(volID)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -556,7 +556,7 @@ func storagePoolVolumeSnapshotTypeDelete(d *Daemon, r *http.Request) response.Re
 func pruneExpireCustomVolumeSnapshotsTask(d *Daemon) (task.Func, task.Schedule) {
 	f := func(ctx context.Context) {
 		// Get the list of expired custom volume snapshots.
-		expiredSnapshots, err := d.cluster.StorageVolumeSnapshotsGetExpired()
+		expiredSnapshots, err := d.cluster.GetExpiredStorageVolumeSnapshots()
 		if err != nil {
 			logger.Error("Unable to retrieve the list of expired custom volume snapshots", log.Ctx{"err": err})
 			return
@@ -730,7 +730,7 @@ func autoCreateCustomVolumeSnapshots(ctx context.Context, d *Daemon, volumes []d
 				return
 			}
 
-			_, err = d.cluster.StoragePoolVolumeSnapshotCreate(v.ProjectName, snapshotName, v.Description, db.StoragePoolVolumeTypeCustom, poolID, v.Config, expiry)
+			_, err = d.cluster.CreateStorageVolumeSnapshot(v.ProjectName, snapshotName, v.Description, db.StoragePoolVolumeTypeCustom, poolID, v.Config, expiry)
 			if err != nil {
 				logger.Error("Error creating volume snaphost", log.Ctx{"err": err, "volume": v})
 			}
@@ -766,7 +766,7 @@ func volumeDetermineNextSnapshotName(d *Daemon, volume db.StorageVolumeArgs, def
 	if count > 1 {
 		return "", fmt.Errorf("Snapshot pattern may contain '%%d' only once")
 	} else if count == 1 {
-		i := d.cluster.StorageVolumeNextSnapshot(volume.Name, db.StoragePoolVolumeTypeCustom, pattern)
+		i := d.cluster.GetNextStorageVolumeSnapshotIndex(volume.Name, db.StoragePoolVolumeTypeCustom, pattern)
 		return strings.Replace(pattern, "%d", strconv.Itoa(i), 1), nil
 	}
 
@@ -814,7 +814,7 @@ func volumeDetermineNextSnapshotName(d *Daemon, volume db.StorageVolumeArgs, def
 	}
 
 	if snapshotExists {
-		i := d.cluster.StorageVolumeNextSnapshot(volume.Name, db.StoragePoolVolumeTypeCustom, pattern)
+		i := d.cluster.GetNextStorageVolumeSnapshotIndex(volume.Name, db.StoragePoolVolumeTypeCustom, pattern)
 		return strings.Replace(pattern, "%d", strconv.Itoa(i), 1), nil
 	}
 

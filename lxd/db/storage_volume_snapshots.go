@@ -14,9 +14,9 @@ import (
 	"github.com/lxc/lxd/shared"
 )
 
-// StoragePoolVolumeSnapshotCreate creates a new storage volume snapshot attached to a given
+// CreateStorageVolumeSnapshot creates a new storage volume snapshot attached to a given
 // storage pool.
-func (c *Cluster) StoragePoolVolumeSnapshotCreate(project, volumeName, volumeDescription string, volumeType int, poolID int64, volumeConfig map[string]string, expiryDate time.Time) (int64, error) {
+func (c *Cluster) CreateStorageVolumeSnapshot(project, volumeName, volumeDescription string, volumeType int, poolID int64, volumeConfig map[string]string, expiryDate time.Time) (int64, error) {
 	var thisVolumeID int64
 
 	var snapshotName string
@@ -87,8 +87,8 @@ func (c *Cluster) StoragePoolVolumeSnapshotCreate(project, volumeName, volumeDes
 	return thisVolumeID, err
 }
 
-// StoragePoolVolumeSnapshotUpdateByProject updates the storage volume snapshot attached to a given storage pool.
-func (c *Cluster) StoragePoolVolumeSnapshotUpdateByProject(project, volumeName string, volumeType int, poolID int64, volumeDescription string, volumeConfig map[string]string, expiryDate time.Time) error {
+// UpdateStorageVolumeSnapshot updates the storage volume snapshot attached to a given storage pool.
+func (c *Cluster) UpdateStorageVolumeSnapshot(project, volumeName string, volumeType int, poolID int64, volumeDescription string, volumeConfig map[string]string, expiryDate time.Time) error {
 	volumeID, _, err := c.GetLocalStoragePoolVolume(project, volumeName, volumeType, poolID)
 	if err != nil {
 		return err
@@ -126,8 +126,8 @@ func (c *Cluster) StoragePoolVolumeSnapshotUpdateByProject(project, volumeName s
 	return err
 }
 
-// StorageVolumeSnapshotExpiryGet gets the expiry date of a storage volume snapshot.
-func (c *Cluster) StorageVolumeSnapshotExpiryGet(volumeID int64) (time.Time, error) {
+// GetStorageVolumeSnapshotExpiry gets the expiry date of a storage volume snapshot.
+func (c *Cluster) GetStorageVolumeSnapshotExpiry(volumeID int64) (time.Time, error) {
 	var expiry time.Time
 
 	query := "SELECT expiry_date FROM storage_volumes_snapshots WHERE id=?"
@@ -145,8 +145,8 @@ func (c *Cluster) StorageVolumeSnapshotExpiryGet(volumeID int64) (time.Time, err
 	return expiry, nil
 }
 
-// StorageVolumeSnapshotsGetExpired returns a list of expired volume snapshots.
-func (c *Cluster) StorageVolumeSnapshotsGetExpired() ([]StorageVolumeArgs, error) {
+// GetExpiredStorageVolumeSnapshots returns a list of expired volume snapshots.
+func (c *Cluster) GetExpiredStorageVolumeSnapshots() ([]StorageVolumeArgs, error) {
 	var result []StorageVolumeArgs
 	var volumeName string
 	var snapshotName string

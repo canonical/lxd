@@ -283,7 +283,7 @@ func patchInvalidProfileNames(name string, d *Daemon) error {
 		if strings.Contains(profile, "/") || shared.StringInSlice(profile, []string{".", ".."}) {
 			logger.Info("Removing unreachable profile (invalid name)", log.Ctx{"name": profile})
 			err := d.cluster.Transaction(func(tx *db.ClusterTx) error {
-				return tx.ProfileDelete("default", profile)
+				return tx.DeleteProfile("default", profile)
 			})
 			if err != nil {
 				return err
@@ -658,7 +658,7 @@ func upgradeFromStorageTypeBtrfs(name string, d *Daemon, defaultPoolName string,
 				}
 			} else if err == db.ErrNoSuchObject {
 				// Insert storage volumes for containers into the database.
-				_, err := d.cluster.StoragePoolVolumeSnapshotCreate("default", cs, "", db.StoragePoolVolumeTypeContainer, poolID, snapshotPoolVolumeConfig, time.Time{})
+				_, err := d.cluster.CreateStorageVolumeSnapshot("default", cs, "", db.StoragePoolVolumeTypeContainer, poolID, snapshotPoolVolumeConfig, time.Time{})
 				if err != nil {
 					logger.Errorf("Could not insert a storage volume for snapshot \"%s\"", cs)
 					return err
@@ -977,7 +977,7 @@ func upgradeFromStorageTypeDir(name string, d *Daemon, defaultPoolName string, d
 			}
 		} else if err == db.ErrNoSuchObject {
 			// Insert storage volumes for containers into the database.
-			_, err := d.cluster.StoragePoolVolumeSnapshotCreate("default", cs, "", db.StoragePoolVolumeTypeContainer, poolID, snapshotPoolVolumeConfig, time.Time{})
+			_, err := d.cluster.CreateStorageVolumeSnapshot("default", cs, "", db.StoragePoolVolumeTypeContainer, poolID, snapshotPoolVolumeConfig, time.Time{})
 			if err != nil {
 				logger.Errorf("Could not insert a storage volume for snapshot \"%s\"", cs)
 				return err
@@ -1330,7 +1330,7 @@ func upgradeFromStorageTypeLvm(name string, d *Daemon, defaultPoolName string, d
 				}
 			} else if err == db.ErrNoSuchObject {
 				// Insert storage volumes for containers into the database.
-				_, err := d.cluster.StoragePoolVolumeSnapshotCreate("default", cs, "", db.StoragePoolVolumeTypeContainer, poolID, snapshotPoolVolumeConfig, time.Time{})
+				_, err := d.cluster.CreateStorageVolumeSnapshot("default", cs, "", db.StoragePoolVolumeTypeContainer, poolID, snapshotPoolVolumeConfig, time.Time{})
 				if err != nil {
 					logger.Errorf("Could not insert a storage volume for snapshot \"%s\"", cs)
 					return err
@@ -1791,7 +1791,7 @@ func upgradeFromStorageTypeZfs(name string, d *Daemon, defaultPoolName string, d
 				}
 			} else if err == db.ErrNoSuchObject {
 				// Insert storage volumes for containers into the database.
-				_, err := d.cluster.StoragePoolVolumeSnapshotCreate("default", cs, "", db.StoragePoolVolumeTypeContainer, poolID, snapshotPoolVolumeConfig, time.Time{})
+				_, err := d.cluster.CreateStorageVolumeSnapshot("default", cs, "", db.StoragePoolVolumeTypeContainer, poolID, snapshotPoolVolumeConfig, time.Time{})
 				if err != nil {
 					logger.Errorf("Could not insert a storage volume for snapshot \"%s\"", cs)
 					return err
@@ -2183,11 +2183,11 @@ func patchStorageApiDirCleanup(name string, d *Daemon) error {
 	if err != nil {
 		return err
 	}
-	return d.cluster.StorageVolumeCleanupImages(fingerprints)
+	return d.cluster.RemoveStorageVolumeImages(fingerprints)
 }
 
 func patchStorageApiLvmKeys(name string, d *Daemon) error {
-	return d.cluster.StorageVolumeMoveToLVMThinPoolNameKey()
+	return d.cluster.UpgradeStorageVolumConfigToLVMThinPoolNameKey()
 }
 
 func patchStorageApiKeys(name string, d *Daemon) error {

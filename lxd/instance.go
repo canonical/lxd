@@ -539,7 +539,7 @@ func instanceCreateInternal(s *state.State, args db.InstanceArgs) (instance.Inst
 			parts := strings.SplitN(args.Name, shared.SnapshotDelimiter, 2)
 			instanceName := parts[0]
 			snapshotName := parts[1]
-			instance, err := tx.InstanceGet(args.Project, instanceName)
+			instance, err := tx.GetInstance(args.Project, instanceName)
 			if err != nil {
 				return fmt.Errorf("Get instance %q in project %q", instanceName, args.Project)
 			}
@@ -554,13 +554,13 @@ func instanceCreateInternal(s *state.State, args db.InstanceArgs) (instance.Inst
 				Devices:      args.Devices.CloneNative(),
 				ExpiryDate:   args.ExpiryDate,
 			}
-			_, err = tx.InstanceSnapshotCreate(snapshot)
+			_, err = tx.CreateInstanceSnapshot(snapshot)
 			if err != nil {
 				return errors.Wrap(err, "Add snapshot info to the database")
 			}
 
 			// Read back the snapshot, to get ID and creation time.
-			s, err := tx.InstanceSnapshotGet(args.Project, instanceName, snapshotName)
+			s, err := tx.GetInstanceSnapshot(args.Project, instanceName, snapshotName)
 			if err != nil {
 				return errors.Wrap(err, "Fetch created snapshot from the database")
 			}
@@ -589,13 +589,13 @@ func instanceCreateInternal(s *state.State, args db.InstanceArgs) (instance.Inst
 			ExpiryDate:   args.ExpiryDate,
 		}
 
-		_, err = tx.InstanceCreate(dbInst)
+		_, err = tx.CreateInstance(dbInst)
 		if err != nil {
 			return errors.Wrap(err, "Add instance info to the database")
 		}
 
 		// Read back the instance, to get ID and creation time.
-		dbRow, err := tx.InstanceGet(args.Project, args.Name)
+		dbRow, err := tx.GetInstance(args.Project, args.Name)
 		if err != nil {
 			return errors.Wrap(err, "Fetch created instance from the database")
 		}

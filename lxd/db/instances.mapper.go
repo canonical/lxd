@@ -203,8 +203,8 @@ var instanceDelete = cluster.RegisterStmt(`
 DELETE FROM instances WHERE project_id = (SELECT projects.id FROM projects WHERE projects.name = ?) AND name = ?
 `)
 
-// InstanceList returns all available instances.
-func (c *ClusterTx) InstanceList(filter InstanceFilter) ([]Instance, error) {
+// GetInstances returns all available instances.
+func (c *ClusterTx) GetInstances(filter InstanceFilter) ([]Instance, error) {
 	// Result slice.
 	objects := make([]Instance, 0)
 
@@ -412,14 +412,14 @@ func (c *ClusterTx) InstanceList(filter InstanceFilter) ([]Instance, error) {
 	return objects, nil
 }
 
-// InstanceGet returns the instance with the given key.
-func (c *ClusterTx) InstanceGet(project string, name string) (*Instance, error) {
+// GetInstance returns the instance with the given key.
+func (c *ClusterTx) GetInstance(project string, name string) (*Instance, error) {
 	filter := InstanceFilter{}
 	filter.Project = project
 	filter.Name = name
 	filter.Type = -1
 
-	objects, err := c.InstanceList(filter)
+	objects, err := c.GetInstances(filter)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to fetch Instance")
 	}
@@ -434,8 +434,8 @@ func (c *ClusterTx) InstanceGet(project string, name string) (*Instance, error) 
 	}
 }
 
-// InstanceID return the ID of the instance with the given key.
-func (c *ClusterTx) InstanceID(project string, name string) (int64, error) {
+// GetInstanceID return the ID of the instance with the given key.
+func (c *ClusterTx) GetInstanceID(project string, name string) (int64, error) {
 	stmt := c.stmt(instanceID)
 	rows, err := stmt.Query(project, name)
 	if err != nil {
@@ -465,7 +465,7 @@ func (c *ClusterTx) InstanceID(project string, name string) (int64, error) {
 
 // InstanceExists checks if a instance with the given key exists.
 func (c *ClusterTx) InstanceExists(project string, name string) (bool, error) {
-	_, err := c.InstanceID(project, name)
+	_, err := c.GetInstanceID(project, name)
 	if err != nil {
 		if err == ErrNoSuchObject {
 			return false, nil
@@ -476,8 +476,8 @@ func (c *ClusterTx) InstanceExists(project string, name string) (bool, error) {
 	return true, nil
 }
 
-// InstanceCreate adds a new instance to the database.
-func (c *ClusterTx) InstanceCreate(object Instance) (int64, error) {
+// CreateInstance adds a new instance to the database.
+func (c *ClusterTx) CreateInstance(object Instance) (int64, error) {
 	// Check if a instance with the same key exists.
 	exists, err := c.InstanceExists(object.Project, object.Name)
 	if err != nil {
@@ -860,8 +860,8 @@ func (c *ClusterTx) InstanceDevicesRef(filter InstanceFilter) (map[string]map[st
 	return index, nil
 }
 
-// InstanceRename renames the instance matching the given key parameters.
-func (c *ClusterTx) InstanceRename(project string, name string, to string) error {
+// RenameInstance renames the instance matching the given key parameters.
+func (c *ClusterTx) RenameInstance(project string, name string, to string) error {
 	stmt := c.stmt(instanceRename)
 	result, err := stmt.Exec(to, project, name)
 	if err != nil {
@@ -878,8 +878,8 @@ func (c *ClusterTx) InstanceRename(project string, name string, to string) error
 	return nil
 }
 
-// InstanceDelete deletes the instance matching the given key parameters.
-func (c *ClusterTx) InstanceDelete(project string, name string) error {
+// RemoveInstance deletes the instance matching the given key parameters.
+func (c *ClusterTx) RemoveInstance(project string, name string) error {
 	stmt := c.stmt(instanceDelete)
 	result, err := stmt.Exec(project, name)
 	if err != nil {

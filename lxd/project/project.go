@@ -69,7 +69,7 @@ func StorageVolumeProject(c *db.Cluster, projectName string, volumeType int) (st
 	var err error
 
 	err = c.Transaction(func(tx *db.ClusterTx) error {
-		project, err = tx.ProjectGet(projectName)
+		project, err = tx.GetProject(projectName)
 		if err != nil {
 			return err
 		}
