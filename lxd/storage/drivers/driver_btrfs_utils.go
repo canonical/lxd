@@ -390,3 +390,15 @@ func (d *btrfs) volumeSize(vol Volume) string {
 
 	return size
 }
+
+// setSubvolumeReadonlyProperty sets the readonly property on the subvolume to true or false.
+func (d *btrfs) setSubvolumeReadonlyProperty(path string, readonly bool) error {
+	// Silently ignore requests to set subvolume readonly property if running in a user namespace as we won't
+	// be able to change it if it is readonly already, and making it readonly will mean we cannot undo it.
+	if d.state.OS.RunningInUserNS {
+		return nil
+	}
+
+	_, err := shared.RunCommand("btrfs", "property", "set", "-ts", path, "ro", fmt.Sprintf("%t", readonly))
+	return err
+}
