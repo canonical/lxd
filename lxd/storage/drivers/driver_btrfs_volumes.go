@@ -881,6 +881,22 @@ func (d *btrfs) CreateVolumeSnapshot(snapVol Volume, op *operations.Operation) e
 		return err
 	}
 
+	// Set any subvolumes that were readonly in the source also readonly in the snapshot.
+	srcVol := NewVolume(d, d.name, snapVol.volType, snapVol.contentType, parentName, snapVol.config, snapVol.poolConfig)
+	subVols, err := d.getSubvolumesMetaData(srcVol)
+	if err != nil {
+		return err
+	}
+
+	for _, subVol := range subVols {
+		if subVol.Readonly {
+			err = d.setSubvolumeReadonlyProperty(filepath.Join(snapPath, subVol.Path), true)
+			if err != nil {
+				return err
+			}
+		}
+	}
+
 	return nil
 }
 
