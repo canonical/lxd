@@ -484,6 +484,14 @@ func (d *btrfs) metadataHeader(vol Volume, snapshots []string) (*BTRFSMetaDataHe
 		return nil, err
 	}
 
+	// If vol is a snapshot itself, we need to fixup the metadata.
+	if vol.IsSnapshot() {
+		subVols[0].Readonly = false
+		for i := range subVols {
+			subVols[i].Snapshot = ""
+		}
+	}
+
 	migrationHeader.Subvolumes = append(migrationHeader.Subvolumes, subVols...)
 	return &migrationHeader, nil
 }
