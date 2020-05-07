@@ -730,7 +730,7 @@ func autoCreateCustomVolumeSnapshots(ctx context.Context, d *Daemon, volumes []d
 				return
 			}
 
-			_, err = d.cluster.StoragePoolVolumeSnapshotCreate(v.ProjectName, snapshotName, v.Description, db.StoragePoolVolumeTypeCustom, poolID, v.Config, expiry)
+			_, err = d.cluster.CreateStorageVolumeSnapshot(v.ProjectName, snapshotName, v.Description, db.StoragePoolVolumeTypeCustom, poolID, v.Config, expiry)
 			if err != nil {
 				logger.Error("Error creating volume snaphost", log.Ctx{"err": err, "volume": v})
 			}

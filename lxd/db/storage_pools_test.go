@@ -225,7 +225,7 @@ func TestCreateStoragePoolVolume_Snapshot(t *testing.T) {
 	require.NoError(t, err)
 
 	config = map[string]string{"k": "v"}
-	_, err = cluster.StoragePoolVolumeSnapshotCreate("default", "v1/snap0", "", 1, poolID, config, time.Time{})
+	_, err = cluster.CreateStorageVolumeSnapshot("default", "v1/snap0", "", 1, poolID, config, time.Time{})
 	require.NoError(t, err)
 
 	n := cluster.StorageVolumeNextSnapshot("v1", 1, "snap%d")
