@@ -63,7 +63,7 @@ func profilesGet(d *Daemon, r *http.Request) response.Response {
 			Project: projectName,
 		}
 		if recursion {
-			profiles, err := tx.ProfileList(filter)
+			profiles, err := tx.GetProfiles(filter)
 			if err != nil {
 				return err
 			}
@@ -74,7 +74,7 @@ func profilesGet(d *Daemon, r *http.Request) response.Response {
 
 			result = apiProfiles
 		} else {
-			result, err = tx.ProfileURIs(filter)
+			result, err = tx.GetProfileURIs(filter)
 		}
 		return err
 	})
@@ -127,7 +127,7 @@ func profilesPost(d *Daemon, r *http.Request) response.Response {
 			projectName = project.Default
 		}
 
-		current, _ := tx.ProfileGet(projectName, req.Name)
+		current, _ := tx.GetProfile(projectName, req.Name)
 		if current != nil {
 			return fmt.Errorf("The profile already exists")
 		}
@@ -139,7 +139,7 @@ func profilesPost(d *Daemon, r *http.Request) response.Response {
 			Config:      req.Config,
 			Devices:     req.Devices,
 		}
-		_, err = tx.ProfileCreate(profile)
+		_, err = tx.CreateProfile(profile)
 		return err
 	})
 	if err != nil {
@@ -166,7 +166,7 @@ func profileGet(d *Daemon, r *http.Request) response.Response {
 			projectName = project.Default
 		}
 
-		profile, err := tx.ProfileGet(projectName, name)
+		profile, err := tx.GetProfile(projectName, name)
 		if err != nil {
 			return errors.Wrap(err, "Fetch profile")
 		}
@@ -226,7 +226,7 @@ func profilePut(d *Daemon, r *http.Request) response.Response {
 			projectName = project.Default
 		}
 
-		current, err := tx.ProfileGet(projectName, name)
+		current, err := tx.GetProfile(projectName, name)
 		if err != nil {
 			return errors.Wrapf(err, "Failed to retrieve profile='%s'", name)
 		}
@@ -292,7 +292,7 @@ func profilePatch(d *Daemon, r *http.Request) response.Response {
 			projectName = project.Default
 		}
 
-		current, err := tx.ProfileGet(projectName, name)
+		current, err := tx.GetProfile(projectName, name)
 		if err != nil {
 			return errors.Wrapf(err, "Failed to retrieve profile='%s'", name)
 		}
@@ -402,12 +402,12 @@ func profilePost(d *Daemon, r *http.Request) response.Response {
 		}
 
 		// Check that the name isn't already in use
-		_, err = tx.ProfileGet(projectName, req.Name)
+		_, err = tx.GetProfile(projectName, req.Name)
 		if err == nil {
 			return fmt.Errorf("Name '%s' already in use", req.Name)
 		}
 
-		return tx.ProfileRename(projectName, name, req.Name)
+		return tx.RenameProfile(projectName, name, req.Name)
 	})
 	if err != nil {
 		return response.SmartError(err)
@@ -435,7 +435,7 @@ func profileDelete(d *Daemon, r *http.Request) response.Response {
 			projectName = project.Default
 		}
 
-		profile, err := tx.ProfileGet(projectName, name)
+		profile, err := tx.GetProfile(projectName, name)
 		if err != nil {
 			return err
 		}
@@ -443,7 +443,7 @@ func profileDelete(d *Daemon, r *http.Request) response.Response {
 			return fmt.Errorf("Profile is currently in use")
 		}
 
-		return tx.ProfileDelete(projectName, name)
+		return tx.DeleteProfile(projectName, name)
 	})
 	if err != nil {
 		return response.SmartError(err)

@@ -335,12 +335,12 @@ SELECT instances.name, nodes.id, nodes.address, nodes.heartbeat
 // Load all instances across all projects and expands their config and devices
 // using the profiles they are associated to.
 func (c *ClusterTx) instanceListExpanded() ([]Instance, error) {
-	instances, err := c.InstanceList(InstanceFilter{})
+	instances, err := c.GetInstances(InstanceFilter{})
 	if err != nil {
 		return nil, errors.Wrap(err, "Load instances")
 	}
 
-	projects, err := c.ProjectList(ProjectFilter{})
+	projects, err := c.GetProjects(ProjectFilter{})
 	if err != nil {
 		return nil, errors.Wrap(err, "Load projects")
 	}
@@ -351,7 +351,7 @@ func (c *ClusterTx) instanceListExpanded() ([]Instance, error) {
 		projectHasProfiles[project.Name] = shared.IsTrue(project.Config["features.profiles"])
 	}
 
-	profiles, err := c.ProfileList(ProfileFilter{})
+	profiles, err := c.GetProfiles(ProfileFilter{})
 	if err != nil {
 		return nil, errors.Wrap(err, "Load profiles")
 	}
@@ -467,7 +467,7 @@ func (c *ClusterTx) UpdateInstanceNode(project, oldName, newName, newNode string
 
 	// Update the name of the container and of its snapshots, and the node
 	// ID they are associated with.
-	containerID, err := c.InstanceID(project, oldName)
+	containerID, err := c.GetInstanceID(project, oldName)
 	if err != nil {
 		return errors.Wrap(err, "Failed to get instance's ID")
 	}
@@ -536,7 +536,7 @@ func (c *ClusterTx) GetLocalInstancesInProject(project string, instanceType inst
 		Type:    instanceType,
 	}
 
-	return c.InstanceList(filter)
+	return c.GetInstances(filter)
 }
 
 // CreateInstanceConfig inserts a new config for the container with the given ID.
@@ -604,11 +604,11 @@ func (c *Cluster) RemoveInstance(project, name string) error {
 	if strings.Contains(name, shared.SnapshotDelimiter) {
 		parts := strings.SplitN(name, shared.SnapshotDelimiter, 2)
 		return c.Transaction(func(tx *ClusterTx) error {
-			return tx.InstanceSnapshotDelete(project, parts[0], parts[1])
+			return tx.DeleteInstanceSnapshot(project, parts[0], parts[1])
 		})
 	}
 	return c.Transaction(func(tx *ClusterTx) error {
-		return tx.InstanceDelete(project, name)
+		return tx.RemoveInstance(project, name)
 	})
 }
 
@@ -633,12 +633,12 @@ WHERE instances.id=?
 	return project, name, err
 }
 
-// InstanceID returns the ID of the instance with the given name.
-func (c *Cluster) InstanceID(project, name string) (int, error) {
+// GetInstanceID returns the ID of the instance with the given name.
+func (c *Cluster) GetInstanceID(project, name string) (int, error) {
 	var id int64
 	err := c.Transaction(func(tx *ClusterTx) error {
 		var err error
-		id, err = tx.InstanceID(project, name)
+		id, err = tx.GetInstanceID(project, name)
 		return err
 	})
 	return int(id), err
@@ -930,9 +930,9 @@ ORDER BY date(instances_snapshots.creation_date)
 	return result, nil
 }
 
-// GetInstanceSnapshots returns all snapshots of a given instance.
-func (c *ClusterTx) GetInstanceSnapshots(project string, name string) ([]Instance, error) {
-	instance, err := c.InstanceGet(project, name)
+// GetInstanceSnapshotsWithName returns all snapshots of a given instance.
+func (c *ClusterTx) GetInstanceSnapshotsWithName(project string, name string) ([]Instance, error) {
+	instance, err := c.GetInstance(project, name)
 	if err != nil {
 		return nil, err
 	}
@@ -941,7 +941,7 @@ func (c *ClusterTx) GetInstanceSnapshots(project string, name string) ([]Instanc
 		Instance: name,
 	}
 
-	snapshots, err := c.InstanceSnapshotList(filter)
+	snapshots, err := c.GetInstanceSnapshots(filter)
 	if err != nil {
 		return nil, err
 	}

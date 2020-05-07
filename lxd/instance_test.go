@@ -53,14 +53,14 @@ func (suite *containerTestSuite) TestContainer_ProfilesMulti() {
 			Config:      map[string]string{"security.privileged": "true"},
 			Project:     "default",
 		}
-		_, err := tx.ProfileCreate(profile)
+		_, err := tx.CreateProfile(profile)
 		return err
 	})
 
 	suite.Req.Nil(err, "Failed to create the unprivileged profile.")
 	defer func() {
 		suite.d.cluster.Transaction(func(tx *db.ClusterTx) error {
-			return tx.ProfileDelete("default", "unpriviliged")
+			return tx.DeleteProfile("default", "unpriviliged")
 		})
 	}()
 

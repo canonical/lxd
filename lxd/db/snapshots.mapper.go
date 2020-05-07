@@ -89,8 +89,8 @@ var instanceSnapshotDelete = cluster.RegisterStmt(`
 DELETE FROM instances_snapshots WHERE instance_id = (SELECT instances.id FROM instances JOIN projects ON projects.id = instances.project_id WHERE projects.name = ? AND instances.name = ?) AND name = ?
 `)
 
-// InstanceSnapshotList returns all available instance_snapshots.
-func (c *ClusterTx) InstanceSnapshotList(filter InstanceSnapshotFilter) ([]InstanceSnapshot, error) {
+// GetInstanceSnapshots returns all available instance_snapshots.
+func (c *ClusterTx) GetInstanceSnapshots(filter InstanceSnapshotFilter) ([]InstanceSnapshot, error) {
 	// Result slice.
 	objects := make([]InstanceSnapshot, 0)
 
@@ -204,14 +204,14 @@ func (c *ClusterTx) InstanceSnapshotList(filter InstanceSnapshotFilter) ([]Insta
 	return objects, nil
 }
 
-// InstanceSnapshotGet returns the instance_snapshot with the given key.
-func (c *ClusterTx) InstanceSnapshotGet(project string, instance string, name string) (*InstanceSnapshot, error) {
+// GetInstanceSnapshot returns the instance_snapshot with the given key.
+func (c *ClusterTx) GetInstanceSnapshot(project string, instance string, name string) (*InstanceSnapshot, error) {
 	filter := InstanceSnapshotFilter{}
 	filter.Project = project
 	filter.Instance = instance
 	filter.Name = name
 
-	objects, err := c.InstanceSnapshotList(filter)
+	objects, err := c.GetInstanceSnapshots(filter)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to fetch InstanceSnapshot")
 	}
@@ -226,8 +226,8 @@ func (c *ClusterTx) InstanceSnapshotGet(project string, instance string, name st
 	}
 }
 
-// InstanceSnapshotID return the ID of the instance_snapshot with the given key.
-func (c *ClusterTx) InstanceSnapshotID(project string, instance string, name string) (int64, error) {
+// GetInstanceSnapshotID return the ID of the instance_snapshot with the given key.
+func (c *ClusterTx) GetInstanceSnapshotID(project string, instance string, name string) (int64, error) {
 	stmt := c.stmt(instanceSnapshotID)
 	rows, err := stmt.Query(project, instance, name)
 	if err != nil {
@@ -257,7 +257,7 @@ func (c *ClusterTx) InstanceSnapshotID(project string, instance string, name str
 
 // InstanceSnapshotExists checks if a instance_snapshot with the given key exists.
 func (c *ClusterTx) InstanceSnapshotExists(project string, instance string, name string) (bool, error) {
-	_, err := c.InstanceSnapshotID(project, instance, name)
+	_, err := c.GetInstanceSnapshotID(project, instance, name)
 	if err != nil {
 		if err == ErrNoSuchObject {
 			return false, nil
@@ -268,8 +268,8 @@ func (c *ClusterTx) InstanceSnapshotExists(project string, instance string, name
 	return true, nil
 }
 
-// InstanceSnapshotCreate adds a new instance_snapshot to the database.
-func (c *ClusterTx) InstanceSnapshotCreate(object InstanceSnapshot) (int64, error) {
+// CreateInstanceSnapshot adds a new instance_snapshot to the database.
+func (c *ClusterTx) CreateInstanceSnapshot(object InstanceSnapshot) (int64, error) {
 	// Check if a instance_snapshot with the same key exists.
 	exists, err := c.InstanceSnapshotExists(object.Project, object.Instance, object.Name)
 	if err != nil {
@@ -559,8 +559,8 @@ func (c *ClusterTx) InstanceSnapshotDevicesRef(filter InstanceSnapshotFilter) (m
 	return index, nil
 }
 
-// InstanceSnapshotRename renames the instance_snapshot matching the given key parameters.
-func (c *ClusterTx) InstanceSnapshotRename(project string, instance string, name string, to string) error {
+// RenameInstanceSnapshot renames the instance_snapshot matching the given key parameters.
+func (c *ClusterTx) RenameInstanceSnapshot(project string, instance string, name string, to string) error {
 	stmt := c.stmt(instanceSnapshotRename)
 	result, err := stmt.Exec(to, project, instance, name)
 	if err != nil {
@@ -577,8 +577,8 @@ func (c *ClusterTx) InstanceSnapshotRename(project string, instance string, name
 	return nil
 }
 
-// InstanceSnapshotDelete deletes the instance_snapshot matching the given key parameters.
-func (c *ClusterTx) InstanceSnapshotDelete(project string, instance string, name string) error {
+// DeleteInstanceSnapshot deletes the instance_snapshot matching the given key parameters.
+func (c *ClusterTx) DeleteInstanceSnapshot(project string, instance string, name string) error {
 	stmt := c.stmt(instanceSnapshotDelete)
 	result, err := stmt.Exec(project, instance, name)
 	if err != nil {

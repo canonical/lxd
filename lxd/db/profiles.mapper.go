@@ -119,8 +119,8 @@ var profileDelete = cluster.RegisterStmt(`
 DELETE FROM profiles WHERE project_id = (SELECT projects.id FROM projects WHERE projects.name = ?) AND name = ?
 `)
 
-// ProfileURIs returns all available profile URIs.
-func (c *ClusterTx) ProfileURIs(filter ProfileFilter) ([]string, error) {
+// GetProfileURIs returns all available profile URIs.
+func (c *ClusterTx) GetProfileURIs(filter ProfileFilter) ([]string, error) {
 	// Check which filter criteria are active.
 	criteria := map[string]interface{}{}
 	if filter.Project != "" {
@@ -156,8 +156,8 @@ func (c *ClusterTx) ProfileURIs(filter ProfileFilter) ([]string, error) {
 	return query.SelectURIs(stmt, formatter, args...)
 }
 
-// ProfileList returns all available profiles.
-func (c *ClusterTx) ProfileList(filter ProfileFilter) ([]Profile, error) {
+// GetProfiles returns all available profiles.
+func (c *ClusterTx) GetProfiles(filter ProfileFilter) ([]Profile, error) {
 	// Result slice.
 	objects := make([]Profile, 0)
 
@@ -270,13 +270,13 @@ func (c *ClusterTx) ProfileList(filter ProfileFilter) ([]Profile, error) {
 	return objects, nil
 }
 
-// ProfileGet returns the profile with the given key.
-func (c *ClusterTx) ProfileGet(project string, name string) (*Profile, error) {
+// GetProfile returns the profile with the given key.
+func (c *ClusterTx) GetProfile(project string, name string) (*Profile, error) {
 	filter := ProfileFilter{}
 	filter.Project = project
 	filter.Name = name
 
-	objects, err := c.ProfileList(filter)
+	objects, err := c.GetProfiles(filter)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to fetch Profile")
 	}
@@ -293,7 +293,7 @@ func (c *ClusterTx) ProfileGet(project string, name string) (*Profile, error) {
 
 // ProfileExists checks if a profile with the given key exists.
 func (c *ClusterTx) ProfileExists(project string, name string) (bool, error) {
-	_, err := c.ProfileID(project, name)
+	_, err := c.GetProfileID(project, name)
 	if err != nil {
 		if err == ErrNoSuchObject {
 			return false, nil
@@ -304,8 +304,8 @@ func (c *ClusterTx) ProfileExists(project string, name string) (bool, error) {
 	return true, nil
 }
 
-// ProfileID return the ID of the profile with the given key.
-func (c *ClusterTx) ProfileID(project string, name string) (int64, error) {
+// GetProfileID return the ID of the profile with the given key.
+func (c *ClusterTx) GetProfileID(project string, name string) (int64, error) {
 	stmt := c.stmt(profileID)
 	rows, err := stmt.Query(project, name)
 	if err != nil {
@@ -599,8 +599,8 @@ func (c *ClusterTx) ProfileUsedByRef(filter ProfileFilter) (map[string]map[strin
 	return index, nil
 }
 
-// ProfileCreate adds a new profile to the database.
-func (c *ClusterTx) ProfileCreate(object Profile) (int64, error) {
+// CreateProfile adds a new profile to the database.
+func (c *ClusterTx) CreateProfile(object Profile) (int64, error) {
 	// Check if a profile with the same key exists.
 	exists, err := c.ProfileExists(object.Project, object.Name)
 	if err != nil {
@@ -671,8 +671,8 @@ func (c *ClusterTx) ProfileCreate(object Profile) (int64, error) {
 	return id, nil
 }
 
-// ProfileRename renames the profile matching the given key parameters.
-func (c *ClusterTx) ProfileRename(project string, name string, to string) error {
+// RenameProfile renames the profile matching the given key parameters.
+func (c *ClusterTx) RenameProfile(project string, name string, to string) error {
 	stmt := c.stmt(profileRename)
 	result, err := stmt.Exec(to, project, name)
 	if err != nil {
@@ -689,8 +689,8 @@ func (c *ClusterTx) ProfileRename(project string, name string, to string) error 
 	return nil
 }
 
-// ProfileDelete deletes the profile matching the given key parameters.
-func (c *ClusterTx) ProfileDelete(project string, name string) error {
+// DeleteProfile deletes the profile matching the given key parameters.
+func (c *ClusterTx) DeleteProfile(project string, name string) error {
 	stmt := c.stmt(profileDelete)
 	result, err := stmt.Exec(project, name)
 	if err != nil {

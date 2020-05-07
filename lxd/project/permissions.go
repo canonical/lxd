@@ -694,7 +694,7 @@ func projectHasLimitsOrRestrictions(project *api.Project) bool {
 // If the skipIfNoLimits flag is true, profiles and instances won't be loaded
 // if the profile has no limits set on it, and nil will be returned.
 func fetchProject(tx *db.ClusterTx, projectName string, skipIfNoLimits bool) (*api.Project, []db.Profile, []db.Instance, error) {
-	project, err := tx.ProjectGet(projectName)
+	project, err := tx.GetProject(projectName)
 	if err != nil {
 		return nil, nil, nil, errors.Wrap(err, "Fetch project database object")
 	}
@@ -714,12 +714,12 @@ func fetchProject(tx *db.ClusterTx, projectName string, skipIfNoLimits bool) (*a
 		profilesFilter.Project = Default
 	}
 
-	profiles, err := tx.ProfileList(profilesFilter)
+	profiles, err := tx.GetProfiles(profilesFilter)
 	if err != nil {
 		return nil, nil, nil, errors.Wrap(err, "Fetch profiles from database")
 	}
 
-	instances, err := tx.InstanceList(db.InstanceFilter{Project: projectName})
+	instances, err := tx.GetInstances(db.InstanceFilter{Project: projectName})
 	if err != nil {
 		return nil, nil, nil, errors.Wrap(err, "Fetch project instances from database")
 	}

@@ -65,7 +65,7 @@ func (c *ClusterTx) CreateOperation(project, uuid string, typ OperationType) (in
 
 	if project != "" {
 		var err error
-		projectID, err = c.ProjectID(project)
+		projectID, err = c.GetProjectID(project)
 		if err != nil {
 			return -1, errors.Wrap(err, "Fetch project ID")
 		}

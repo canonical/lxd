@@ -29,7 +29,7 @@ func TestAllowInstanceCreation_Below(t *testing.T) {
 	tx, cleanup := db.NewTestClusterTx(t)
 	defer cleanup()
 
-	_, err := tx.ProjectCreate(api.ProjectsPost{
+	_, err := tx.CreateProject(api.ProjectsPost{
 		Name: "p1",
 		ProjectPut: api.ProjectPut{
 			Config: map[string]string{
@@ -39,7 +39,7 @@ func TestAllowInstanceCreation_Below(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	_, err = tx.InstanceCreate(db.Instance{
+	_, err = tx.CreateInstance(db.Instance{
 		Project:      "p1",
 		Name:         "c1",
 		Type:         instancetype.Container,
@@ -63,7 +63,7 @@ func TestAllowInstanceCreation_Above(t *testing.T) {
 	tx, cleanup := db.NewTestClusterTx(t)
 	defer cleanup()
 
-	_, err := tx.ProjectCreate(api.ProjectsPost{
+	_, err := tx.CreateProject(api.ProjectsPost{
 		Name: "p1",
 		ProjectPut: api.ProjectPut{
 			Config: map[string]string{
@@ -73,7 +73,7 @@ func TestAllowInstanceCreation_Above(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	_, err = tx.InstanceCreate(db.Instance{
+	_, err = tx.CreateInstance(db.Instance{
 		Project:      "p1",
 		Name:         "c1",
 		Type:         instancetype.Container,
@@ -97,7 +97,7 @@ func TestAllowInstanceCreation_DifferentType(t *testing.T) {
 	tx, cleanup := db.NewTestClusterTx(t)
 	defer cleanup()
 
-	_, err := tx.ProjectCreate(api.ProjectsPost{
+	_, err := tx.CreateProject(api.ProjectsPost{
 		Name: "p1",
 		ProjectPut: api.ProjectPut{
 			Config: map[string]string{
@@ -107,7 +107,7 @@ func TestAllowInstanceCreation_DifferentType(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	_, err = tx.InstanceCreate(db.Instance{
+	_, err = tx.CreateInstance(db.Instance{
 		Project:      "p1",
 		Name:         "vm1",
 		Type:         instancetype.VM,
