@@ -550,7 +550,7 @@ func internalImport(d *Daemon, r *http.Request) response.Response {
 	}
 
 	// Check if an entry for the instance already exists in the db.
-	_, instanceErr := d.cluster.InstanceID(projectName, req.Name)
+	_, instanceErr := d.cluster.GetInstanceID(projectName, req.Name)
 	if instanceErr != nil {
 		if instanceErr != db.ErrNoSuchObject {
 			return response.SmartError(instanceErr)

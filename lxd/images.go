@@ -1015,7 +1015,7 @@ func autoUpdateImagesTask(d *Daemon) (task.Func, task.Schedule) {
 func autoUpdateImages(ctx context.Context, d *Daemon) error {
 	projectNames := []string{}
 	err := d.cluster.Transaction(func(tx *db.ClusterTx) error {
-		projects, err := tx.ProjectList(db.ProjectFilter{})
+		projects, err := tx.GetProjects(db.ProjectFilter{})
 		if err != nil {
 			return err
 		}

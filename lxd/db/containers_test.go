@@ -35,7 +35,7 @@ func TestContainerList(t *testing.T) {
 	addContainerDevice(t, tx, "c3", "root", "disk", map[string]string{"x": "y"})
 
 	filter := db.InstanceFilter{Type: instancetype.Container}
-	containers, err := tx.InstanceList(filter)
+	containers, err := tx.GetInstances(filter)
 	require.NoError(t, err)
 	assert.Len(t, containers, 3)
 
@@ -79,7 +79,7 @@ func TestContainerList_FilterByNode(t *testing.T) {
 		Type:    instancetype.Container,
 	}
 
-	containers, err := tx.InstanceList(filter)
+	containers, err := tx.GetInstances(filter)
 	require.NoError(t, err)
 	assert.Len(t, containers, 2)
 
@@ -98,21 +98,21 @@ func TestInstanceList_ContainerWithSameNameInDifferentProjects(t *testing.T) {
 	// Create a project with no features
 	project1 := api.ProjectsPost{}
 	project1.Name = "blah"
-	_, err := tx.ProjectCreate(project1)
+	_, err := tx.CreateProject(project1)
 	require.NoError(t, err)
 
 	// Create a project with the profiles feature and a custom profile.
 	project2 := api.ProjectsPost{}
 	project2.Name = "test"
 	project2.Config = map[string]string{"features.profiles": "true"}
-	_, err = tx.ProjectCreate(project2)
+	_, err = tx.CreateProject(project2)
 	require.NoError(t, err)
 
 	profile := db.Profile{
 		Project: "test",
 		Name:    "intranet",
 	}
-	_, err = tx.ProfileCreate(profile)
+	_, err = tx.CreateProfile(profile)
 	require.NoError(t, err)
 
 	// Create a container in project1 using the default profile from the
@@ -127,7 +127,7 @@ func TestInstanceList_ContainerWithSameNameInDifferentProjects(t *testing.T) {
 		Stateful:     true,
 		Profiles:     []string{"default"},
 	}
-	_, err = tx.InstanceCreate(c1p1)
+	_, err = tx.CreateInstance(c1p1)
 	require.NoError(t, err)
 
 	// Create a container in project2 using the custom profile from the
@@ -142,10 +142,10 @@ func TestInstanceList_ContainerWithSameNameInDifferentProjects(t *testing.T) {
 		Stateful:     true,
 		Profiles:     []string{"intranet"},
 	}
-	_, err = tx.InstanceCreate(c1p2)
+	_, err = tx.CreateInstance(c1p2)
 	require.NoError(t, err)
 
-	containers, err := tx.InstanceList(db.InstanceFilter{})
+	containers, err := tx.GetInstances(db.InstanceFilter{})
 	require.NoError(t, err)
 
 	assert.Len(t, containers, 2)
@@ -168,7 +168,7 @@ func TestInstanceListExpanded(t *testing.T) {
 		Devices: map[string]map[string]string{"root": {"type": "disk", "b": "2"}},
 	}
 
-	_, err := tx.ProfileCreate(profile)
+	_, err := tx.CreateProfile(profile)
 	require.NoError(t, err)
 
 	container := db.Instance{
@@ -184,7 +184,7 @@ func TestInstanceListExpanded(t *testing.T) {
 		Profiles:     []string{"default", "profile1"},
 	}
 
-	_, err = tx.InstanceCreate(container)
+	_, err = tx.CreateInstance(container)
 	require.NoError(t, err)
 
 	containers, err := tx.InstanceListExpanded()
@@ -199,7 +199,7 @@ func TestInstanceListExpanded(t *testing.T) {
 	})
 }
 
-func TestInstanceCreate(t *testing.T) {
+func TestCreateInstance(t *testing.T) {
 	tx, cleanup := db.NewTestClusterTx(t)
 	defer cleanup()
 
@@ -218,12 +218,12 @@ func TestInstanceCreate(t *testing.T) {
 		Profiles:     []string{"default"},
 	}
 
-	id, err := tx.InstanceCreate(object)
+	id, err := tx.CreateInstance(object)
 	require.NoError(t, err)
 
 	assert.Equal(t, int64(1), id)
 
-	c1, err := tx.InstanceGet("default", "c1")
+	c1, err := tx.GetInstance("default", "c1")
 	require.NoError(t, err)
 
 	assert.Equal(t, "c1", c1.Name)
@@ -233,7 +233,7 @@ func TestInstanceCreate(t *testing.T) {
 	assert.Equal(t, []string{"default"}, c1.Profiles)
 }
 
-func TestInstanceCreate_Snapshot(t *testing.T) {
+func TestCreateInstance_Snapshot(t *testing.T) {
 	tx, cleanup := db.NewTestClusterTx(t)
 	defer cleanup()
 
@@ -258,7 +258,7 @@ func TestInstanceCreate_Snapshot(t *testing.T) {
 		Profiles: []string{"default"},
 	}
 
-	id, err := tx.InstanceCreate(instance)
+	id, err := tx.CreateInstance(instance)
 	require.NoError(t, err)
 
 	assert.Equal(t, int64(1), id)
@@ -287,12 +287,12 @@ func TestInstanceCreate_Snapshot(t *testing.T) {
 		Profiles: []string{"default"},
 	}
 
-	id, err = tx.InstanceCreate(snapshot)
+	id, err = tx.CreateInstance(snapshot)
 	require.NoError(t, err)
 
 	assert.Equal(t, int64(2), id)
 
-	_, err = tx.InstanceGet("default", "foo/snap0")
+	_, err = tx.GetInstance("default", "foo/snap0")
 	require.NoError(t, err)
 }
 
@@ -371,7 +371,7 @@ func TestGetInstancePool(t *testing.T) {
 				},
 			},
 		}
-		_, err := tx.InstanceCreate(container)
+		_, err := tx.CreateInstance(container)
 		return err
 	})
 	require.NoError(t, err)

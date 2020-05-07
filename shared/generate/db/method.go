@@ -278,7 +278,7 @@ func (m *Method) get(buf *file.Buffer) error {
 		buf.L("filter.Type = -1")
 	}
 	buf.N()
-	buf.L("objects, err := c.%sList(filter)", lex.Camel(m.entity))
+	buf.L("objects, err := c.Get%s(filter)", lex.Plural(lex.Camel(m.entity)))
 	buf.L("if err != nil {")
 	buf.L("        return nil, errors.Wrap(err, \"Failed to fetch %s\")", lex.Camel(m.entity))
 	buf.L("}")
@@ -865,7 +865,30 @@ func (m *Method) delete(buf *file.Buffer) error {
 }
 
 func (m *Method) begin(buf *file.Buffer, comment string, args string, rets string) {
-	name := fmt.Sprintf("%s%s", lex.Camel(m.entity), m.kind)
+	name := ""
+	entity := lex.Camel(m.entity)
+	switch m.kind {
+	case "URIs":
+		name = fmt.Sprintf("Get%sURIs", entity)
+	case "List":
+		name = fmt.Sprintf("Get%s", lex.Plural(entity))
+	case "Get":
+		name = fmt.Sprintf("Get%s", entity)
+	case "ID":
+		name = fmt.Sprintf("Get%sID", entity)
+	case "Exists":
+		name = fmt.Sprintf("%sExists", entity)
+	case "Create":
+		name = fmt.Sprintf("Create%s", entity)
+	case "Rename":
+		name = fmt.Sprintf("Rename%s", entity)
+	case "Update":
+		name = fmt.Sprintf("Update%s", entity)
+	case "Delete":
+		name = fmt.Sprintf("Remove%s", entity)
+	default:
+		name = fmt.Sprintf("%s%s", entity, m.kind)
+	}
 	receiver := fmt.Sprintf("c %s", dbTxType(m.db))
 
 	buf.L("// %s %s", name, comment)
