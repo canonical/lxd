@@ -86,18 +86,11 @@ func (d *btrfs) getSubvolumes(path string) ([]string, error) {
 	return result, nil
 }
 
-func (d *btrfs) snapshotSubvolume(path string, dest string, readonly bool, recursion bool) error {
+// snapshotSubvolume creates a snapshot of the specified path at the dest supplied. If recursion is true and
+// sub volumes are found below the path then they are created at the relative location in dest.
+func (d *btrfs) snapshotSubvolume(path string, dest string, recursion bool) error {
 	// Single subvolume deletion.
 	snapshot := func(path string, dest string) error {
-		if readonly && !d.state.OS.RunningInUserNS {
-			_, err := shared.RunCommand("btrfs", "subvolume", "snapshot", "-r", path, dest)
-			if err != nil {
-				return err
-			}
-
-			return nil
-		}
-
 		_, err := shared.RunCommand("btrfs", "subvolume", "snapshot", path, dest)
 		if err != nil {
 			return err
@@ -106,43 +99,32 @@ func (d *btrfs) snapshotSubvolume(path string, dest string, readonly bool, recur
 		return nil
 	}
 
+	// First snapshot the root.
+	err := snapshot(path, dest)
+	if err != nil {
+		return err
+	}
+
 	// Now snapshot all subvolumes of the root.
 	if recursion {
 		// Get the subvolumes list.
-		subsubvols, err := d.getSubvolumes(path)
+		subSubVols, err := d.getSubvolumes(path)
 		if err != nil {
 			return err
 		}
-		sort.Sort(sort.StringSlice(subsubvols))
+		sort.Sort(sort.StringSlice(subSubVols))
 
-		if len(subsubvols) > 0 && readonly {
-			// Creating subvolumes requires the parent to be writable.
-			readonly = false
-		}
+		for _, subSubVol := range subSubVols {
+			subSubVolSnapPath := filepath.Join(dest, subSubVol)
 
-		// First snapshot the root.
-		err = snapshot(path, dest)
-		if err != nil {
-			return err
-		}
-
-		for _, subsubvol := range subsubvols {
 			// Clear the target for the subvol to use.
-			os.Remove(filepath.Join(dest, subsubvol))
+			os.Remove(subSubVolSnapPath)
 
-			err := snapshot(filepath.Join(path, subsubvol), filepath.Join(dest, subsubvol))
+			err := snapshot(filepath.Join(path, subSubVol), subSubVolSnapPath)
 			if err != nil {
 				return err
 			}
 		}
-
-		return nil
-	}
-
-	// Handle standalone volume.
-	err := snapshot(path, dest)
-	if err != nil {
-		return err
 	}
 
 	return nil
