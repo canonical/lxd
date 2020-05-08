@@ -47,10 +47,16 @@ func certificatesGet(d *Daemon, r *http.Request) response.Response {
 	if recursion {
 		certResponses := []api.Certificate{}
 
-		baseCerts, err := d.cluster.GetCertificates()
+		var baseCerts []db.Certificate
+		var err error
+		err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
+			baseCerts, err = tx.GetCertificates(db.CertificateFilter{})
+			return err
+		})
 		if err != nil {
 			return response.SmartError(err)
 		}
+
 		for _, baseCert := range baseCerts {
 			resp := api.Certificate{}
 			resp.Fingerprint = baseCert.Fingerprint
@@ -78,7 +84,12 @@ func certificatesGet(d *Daemon, r *http.Request) response.Response {
 func readSavedClientCAList(d *Daemon) {
 	d.clientCerts = map[string]x509.Certificate{}
 
-	dbCerts, err := d.cluster.GetCertificates()
+	var dbCerts []db.Certificate
+	var err error
+	err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
+		dbCerts, err = tx.GetCertificates(db.CertificateFilter{})
+		return err
+	})
 	if err != nil {
 		logger.Infof("Error reading certificates from database: %s", err)
 		return
@@ -181,14 +192,14 @@ func certificatesPost(d *Daemon, r *http.Request) response.Response {
 		}
 
 		// Store the certificate in the cluster database
-		dbCert := db.CertInfo{
+		dbCert := db.Certificate{
 			Fingerprint: shared.CertFingerprint(cert),
 			Type:        1,
 			Name:        name,
 			Certificate: string(pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: cert.Raw})),
 		}
 
-		err = d.cluster.CreateCertificate(&dbCert)
+		err = d.cluster.CreateCertificate(dbCert)
 		if err != nil {
 			return response.SmartError(err)
 		}

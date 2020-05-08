@@ -108,7 +108,19 @@ func (s *Stmt) objects(buf *file.Buffer) error {
 				column = mapping.FieldColumnName(field.Name)
 			}
 
-			where += fmt.Sprintf("%s = ? ", column)
+			comparison, ok := field.Config["comparison"]
+			if !ok {
+				comparison = []string{"equal"}
+			}
+			switch comparison[0] {
+			case "equal":
+				where += fmt.Sprintf("%s = ? ", column)
+			case "like":
+				where += fmt.Sprintf("%s LIKE ? ", column)
+			default:
+				panic("unknown 'comparison' value")
+			}
+
 		}
 
 	}
