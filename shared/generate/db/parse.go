@@ -51,11 +51,7 @@ func Filters(pkg *ast.Package, entity string) [][]string {
 		filters = append(filters, strings.Split(rest, "And"))
 	}
 
-	sort.SliceStable(filters, func(i, j int) bool {
-		return len(filters[i]) > len(filters[j])
-	})
-
-	return filters
+	return sortFilters(filters)
 }
 
 // RefFilters parses all filtering statement defined for the given entity reference.
@@ -73,11 +69,34 @@ func RefFilters(pkg *ast.Package, entity string, ref string) [][]string {
 		filters = append(filters, strings.Split(rest, "And"))
 	}
 
-	sort.SliceStable(filters, func(i, j int) bool {
-		return len(filters[i]) > len(filters[j])
-	})
+	return sortFilters(filters)
+}
 
+func sortFilters(filters [][]string) [][]string {
+	sort.Slice(filters, func(i, j int) bool {
+		n1 := len(filters[i])
+		n2 := len(filters[j])
+		if n1 != n2 {
+			return n1 > n2
+		}
+		f1 := sortFilter(filters[i])
+		f2 := sortFilter(filters[j])
+		for k := range f1 {
+			if f1[k] == f2[k] {
+				continue
+			}
+			return f1[k] > f2[k]
+		}
+		panic("duplicate filter")
+	})
 	return filters
+}
+
+func sortFilter(filter []string) []string {
+	f := make([]string, len(filter))
+	copy(f, filter)
+	sort.Sort(sort.Reverse(sort.StringSlice(f)))
+	return f
 }
 
 // Criteria returns a list of criteria

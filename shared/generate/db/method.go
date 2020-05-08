@@ -885,7 +885,7 @@ func (m *Method) begin(buf *file.Buffer, comment string, args string, rets strin
 	case "Update":
 		name = fmt.Sprintf("Update%s", entity)
 	case "Delete":
-		name = fmt.Sprintf("Remove%s", entity)
+		name = fmt.Sprintf("Delete%s", entity)
 	default:
 		name = fmt.Sprintf("%s%s", entity, m.kind)
 	}
