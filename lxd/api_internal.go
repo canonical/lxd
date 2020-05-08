@@ -584,7 +584,7 @@ func internalImport(d *Daemon, r *http.Request) response.Response {
 
 	if instanceErr == nil {
 		// Remove the storage volume db entry for the instance since force was specified.
-		err := d.cluster.RemoveInstance(projectName, req.Name)
+		err := d.cluster.DeleteInstance(projectName, req.Name)
 		if err != nil {
 			return response.SmartError(err)
 		}
@@ -690,7 +690,7 @@ func internalImport(d *Daemon, r *http.Request) response.Response {
 		}
 
 		if snapErr == nil {
-			err := d.cluster.RemoveInstance(projectName, snap.Name)
+			err := d.cluster.DeleteInstance(projectName, snap.Name)
 			if err != nil {
 				return response.SmartError(err)
 			}

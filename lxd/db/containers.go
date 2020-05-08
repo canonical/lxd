@@ -599,8 +599,8 @@ func (c *ClusterTx) configUpdate(id int, values map[string]string, insertSQL, de
 	return nil
 }
 
-// RemoveInstance removes the instance with the given name from the database.
-func (c *Cluster) RemoveInstance(project, name string) error {
+// DeleteInstance removes the instance with the given name from the database.
+func (c *Cluster) DeleteInstance(project, name string) error {
 	if strings.Contains(name, shared.SnapshotDelimiter) {
 		parts := strings.SplitN(name, shared.SnapshotDelimiter, 2)
 		return c.Transaction(func(tx *ClusterTx) error {
@@ -608,7 +608,7 @@ func (c *Cluster) RemoveInstance(project, name string) error {
 		})
 	}
 	return c.Transaction(func(tx *ClusterTx) error {
-		return tx.RemoveInstance(project, name)
+		return tx.DeleteInstance(project, name)
 	})
 }
 
