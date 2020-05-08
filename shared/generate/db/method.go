@@ -609,7 +609,7 @@ func (m *Method) exists(buf *file.Buffer) error {
 	m.begin(buf, comment, args, rets)
 	defer m.end(buf)
 
-	buf.L("_, err := c.%sID(%s)", lex.Camel(m.entity), FieldParams(nk))
+	buf.L("_, err := c.Get%sID(%s)", lex.Camel(m.entity), FieldParams(nk))
 	buf.L("if err != nil {")
 	buf.L("        if err == ErrNoSuchObject {")
 	buf.L("                return false, nil")
@@ -885,7 +885,7 @@ func (m *Method) begin(buf *file.Buffer, comment string, args string, rets strin
 	case "Update":
 		name = fmt.Sprintf("Update%s", entity)
 	case "Delete":
-		name = fmt.Sprintf("Remove%s", entity)
+		name = fmt.Sprintf("Delete%s", entity)
 	default:
 		name = fmt.Sprintf("%s%s", entity, m.kind)
 	}

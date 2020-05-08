@@ -2970,7 +2970,7 @@ func (vm *qemu) Delete() error {
 	}
 
 	// Remove the database record of the instance or snapshot instance.
-	if err := vm.state.Cluster.RemoveInstance(vm.Project(), vm.Name()); err != nil {
+	if err := vm.state.Cluster.DeleteInstance(vm.Project(), vm.Name()); err != nil {
 		logger.Error("Failed deleting instance entry", log.Ctx{"project": vm.Project(), "instance": vm.Name(), "err": err})
 		return err
 	}
