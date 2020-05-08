@@ -60,15 +60,19 @@ func TestImportPreClusteringData(t *testing.T) {
 	defer cluster.Close()
 
 	// certificates
-	certs, err := cluster.GetCertificates()
+	err = cluster.Transaction(func(tx *db.ClusterTx) error {
+		certs, err := tx.GetCertificates(db.CertificateFilter{})
+		require.NoError(t, err)
+		assert.Len(t, certs, 1)
+		cert := certs[0]
+		assert.Equal(t, 1, cert.ID)
+		assert.Equal(t, "abcd:efgh", cert.Fingerprint)
+		assert.Equal(t, 1, cert.Type)
+		assert.Equal(t, "foo", cert.Name)
+		assert.Equal(t, "FOO", cert.Certificate)
+		return nil
+	})
 	require.NoError(t, err)
-	assert.Len(t, certs, 1)
-	cert := certs[0]
-	assert.Equal(t, 1, cert.ID)
-	assert.Equal(t, "abcd:efgh", cert.Fingerprint)
-	assert.Equal(t, 1, cert.Type)
-	assert.Equal(t, "foo", cert.Name)
-	assert.Equal(t, "FOO", cert.Certificate)
 
 	// config
 	err = cluster.Transaction(func(tx *db.ClusterTx) error {
