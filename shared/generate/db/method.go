@@ -609,7 +609,7 @@ func (m *Method) exists(buf *file.Buffer) error {
 	m.begin(buf, comment, args, rets)
 	defer m.end(buf)
 
-	buf.L("_, err := c.%sID(%s)", lex.Camel(m.entity), FieldParams(nk))
+	buf.L("_, err := c.Get%sID(%s)", lex.Camel(m.entity), FieldParams(nk))
 	buf.L("if err != nil {")
 	buf.L("        if err == ErrNoSuchObject {")
 	buf.L("                return false, nil")
