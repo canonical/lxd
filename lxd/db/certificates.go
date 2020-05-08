@@ -2,126 +2,68 @@
 
 package db
 
-import (
-	"database/sql"
-)
+// Code generation directives.
+//
+//go:generate -command mapper lxd-generate db mapper -t certificates.mapper.go
+//go:generate mapper reset
+//
+//go:generate mapper stmt -p db -e certificate objects
+//go:generate mapper stmt -p db -e certificate objects-by-Fingerprint
+//go:generate mapper stmt -p db -e certificate id
+//go:generate mapper stmt -p db -e certificate create struct=Certificate
+//go:generate mapper stmt -p db -e certificate delete
+//
+//go:generate mapper method -p db -e certificate List
+//go:generate mapper method -p db -e certificate Get
+//go:generate mapper method -p db -e certificate ID struct=Certificate
+//go:generate mapper method -p db -e certificate Exists struct=Certificate
+//go:generate mapper method -p db -e certificate Create struct=Certificate
+//go:generate mapper method -p db -e certificate Delete
 
-// CertInfo is here to pass the certificates content
+// Certificate is here to pass the certificates content
 // from the database around
-type CertInfo struct {
+type Certificate struct {
 	ID          int
-	Fingerprint string
+	Fingerprint string `db:"primary=yes&comparison=like"`
 	Type        int
 	Name        string
 	Certificate string
 }
 
-// GetCertificates returns all certificates from the DB as CertBaseInfo objects.
-func (c *Cluster) GetCertificates() (certs []*CertInfo, err error) {
-	err = c.Transaction(func(tx *ClusterTx) error {
-		rows, err := tx.tx.Query(
-			"SELECT id, fingerprint, type, name, certificate FROM certificates",
-		)
-		if err != nil {
-			return err
-		}
-
-		defer rows.Close()
-
-		for rows.Next() {
-			cert := new(CertInfo)
-			rows.Scan(
-				&cert.ID,
-				&cert.Fingerprint,
-				&cert.Type,
-				&cert.Name,
-				&cert.Certificate,
-			)
-			certs = append(certs, cert)
-		}
-
-		return rows.Err()
-	})
-	if err != nil {
-		return certs, err
-	}
-
-	return certs, nil
+// CertificateFilter can be used to filter results yielded by GetCertInfos
+type CertificateFilter struct {
+	Fingerprint string // Matched with LIKE
 }
 
 // GetCertificate gets an CertBaseInfo object from the database.
 // The argument fingerprint will be queried with a LIKE query, means you can
 // pass a shortform and will get the full fingerprint.
-// There can never be more than one image with a given fingerprint, as it is
+// There can never be more than one certificate with a given fingerprint, as it is
 // enforced by a UNIQUE constraint in the schema.
-func (c *Cluster) GetCertificate(fingerprint string) (cert *CertInfo, err error) {
-	cert = new(CertInfo)
-
-	inargs := []interface{}{fingerprint + "%"}
-	outfmt := []interface{}{
-		&cert.ID,
-		&cert.Fingerprint,
-		&cert.Type,
-		&cert.Name,
-		&cert.Certificate,
-	}
-
-	query := `
-		SELECT
-			id, fingerprint, type, name, certificate
-		FROM
-			certificates
-		WHERE fingerprint LIKE ?`
-
-	if err = dbQueryRowScan(c.db, query, inargs, outfmt); err != nil {
-		if err == sql.ErrNoRows {
-			return nil, ErrNoSuchObject
-		}
-
-		return nil, err
-	}
-
-	return cert, err
+func (c *Cluster) GetCertificate(fingerprint string) (cert *Certificate, err error) {
+	err = c.Transaction(func(tx *ClusterTx) error {
+		cert, err = tx.GetCertificate(fingerprint + "%")
+		return err
+	})
+	return
 }
 
 // CreateCertificate stores a CertInfo object in the db, it will ignore the ID
 // field from the CertInfo.
-func (c *Cluster) CreateCertificate(cert *CertInfo) error {
+func (c *Cluster) CreateCertificate(cert Certificate) error {
 	err := c.Transaction(func(tx *ClusterTx) error {
-		stmt, err := tx.tx.Prepare(`
-			INSERT INTO certificates (
-				fingerprint,
-				type,
-				name,
-				certificate
-			) VALUES (?, ?, ?, ?)`,
-		)
-		if err != nil {
-			return err
-		}
-		defer stmt.Close()
-		_, err = stmt.Exec(
-			cert.Fingerprint,
-			cert.Type,
-			cert.Name,
-			cert.Certificate,
-		)
-		if err != nil {
-			return err
-		}
-		return nil
+		_, err := tx.CreateCertificate(cert)
+		return err
 	})
 	return err
 }
 
 // DeleteCertificate deletes a certificate from the db.
 func (c *Cluster) DeleteCertificate(fingerprint string) error {
-	err := exec(c.db, "DELETE FROM certificates WHERE fingerprint=?", fingerprint)
-	if err != nil {
-		return err
-	}
-
-	return nil
+	err := c.Transaction(func(tx *ClusterTx) error {
+		return tx.DeleteCertificate(fingerprint)
+	})
+	return err
 }
 
 // UpdateCertificate updates the certificate with the given fingerprint.
