@@ -4,7 +4,6 @@
 package shared
 
 import (
-	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -41,63 +40,6 @@ import (
 
 // This is an adaption from https://codereview.appspot.com/4589049, to be
 // included in the stdlib with the stdlib's license.
-
-void configure_pty(int fd) {
-	struct termios term_settings;
-	struct winsize win;
-
-	if (tcgetattr(fd, &term_settings) < 0) {
-		fprintf(stderr, "Failed to get settings: %s\n", strerror(errno));
-		return;
-	}
-
-	term_settings.c_iflag |= IMAXBEL;
-	term_settings.c_iflag |= IUTF8;
-	term_settings.c_iflag |= BRKINT;
-	term_settings.c_iflag |= IXANY;
-
-	term_settings.c_cflag |= HUPCL;
-
-	if (tcsetattr(fd, TCSANOW, &term_settings) < 0) {
-		fprintf(stderr, "Failed to set settings: %s\n", strerror(errno));
-		return;
-	}
-
-	if (ioctl(fd, TIOCGWINSZ, &win) < 0) {
-		fprintf(stderr, "Failed to get the terminal size: %s\n", strerror(errno));
-		return;
-	}
-
-	win.ws_col = 80;
-	win.ws_row = 25;
-
-	if (ioctl(fd, TIOCSWINSZ, &win) < 0) {
-		fprintf(stderr, "Failed to set the terminal size: %s\n", strerror(errno));
-		return;
-	}
-
-	if (fcntl(fd, F_SETFD, FD_CLOEXEC) < 0) {
-		fprintf(stderr, "Failed to set FD_CLOEXEC: %s\n", strerror(errno));
-		return;
-	}
-
-	return;
-}
-
-void create_pty(int *master, int *slave, uid_t uid, gid_t gid) {
-	if (openpty(master, slave, NULL, NULL, NULL) < 0) {
-		fprintf(stderr, "Failed to openpty: %s\n", strerror(errno));
-		return;
-	}
-
-	configure_pty(*master);
-	configure_pty(*slave);
-
-	if (fchown(*slave, uid, gid) < 0) {
-		fprintf(stderr, "Warning: error chowning pty to container root\n");
-		fprintf(stderr, "Continuing...\n");
-	}
-}
 
 int get_poll_revents(int lfd, int timeout, int flags, int *revents, int *saved_errno)
 {
@@ -158,24 +100,6 @@ func GetPollRevents(fd int, timeout int, flags int) (int, int, error) {
 	}
 
 	return int(ret), int(revents), err
-}
-
-func OpenPty(uid, gid int64) (master *os.File, slave *os.File, err error) {
-	fd_master := C.int(-1)
-	fd_slave := C.int(-1)
-	rootUid := C.uid_t(uid)
-	rootGid := C.gid_t(gid)
-
-	C.create_pty(&fd_master, &fd_slave, rootUid, rootGid)
-
-	if fd_master == -1 || fd_slave == -1 {
-		return nil, nil, errors.New("Failed to create a new pts pair")
-	}
-
-	master = os.NewFile(uintptr(fd_master), "master")
-	slave = os.NewFile(uintptr(fd_slave), "slave")
-
-	return master, slave, nil
 }
 
 // UserId is an adaption from https://codereview.appspot.com/4589049.
