@@ -391,3 +391,92 @@ func DeviceTotalMemory() (int64, error) {
 
 	return -1, fmt.Errorf("Couldn't find MemTotal")
 }
+
+// OpenPty creates a new PTS pair, configures them and returns them.
+func OpenPty(uid, gid int64) (*os.File, *os.File, error) {
+	revert := true
+
+	// Create a PTS pair.
+	master, err := os.OpenFile("/dev/ptmx", os.O_RDWR, 0)
+	if err != nil {
+		return nil, nil, err
+	}
+	defer func() {
+		if revert {
+			master.Close()
+		}
+	}()
+
+	// Get the slave side.
+	id := 0
+	_, _, errno := unix.Syscall(unix.SYS_IOCTL, uintptr(master.Fd()), unix.TIOCGPTN, uintptr(unsafe.Pointer(&id)))
+	if errno != 0 {
+		return nil, nil, unix.Errno(errno)
+	}
+
+	// Unlock the slave side.
+	val := 0
+	_, _, errno = unix.Syscall(unix.SYS_IOCTL, uintptr(master.Fd()), unix.TIOCSPTLCK, uintptr(unsafe.Pointer(&val)))
+	if errno != 0 {
+		return nil, nil, unix.Errno(errno)
+	}
+
+	// Open the slave.
+	slave, err := os.OpenFile(fmt.Sprintf("/dev/pts/%d", id), os.O_RDWR|unix.O_NOCTTY, 0)
+	if err != nil {
+		return nil, nil, err
+	}
+	defer func() {
+		if revert {
+			slave.Close()
+		}
+	}()
+
+	// Configure both sides
+	for _, entry := range []*os.File{master, slave} {
+		// Get termios.
+		t, err := unix.IoctlGetTermios(int(entry.Fd()), unix.TCGETS)
+		if err != nil {
+			return nil, nil, err
+		}
+
+		// Set flags.
+		t.Cflag |= unix.IMAXBEL
+		t.Cflag |= unix.IUTF8
+		t.Cflag |= unix.BRKINT
+		t.Cflag |= unix.IXANY
+		t.Cflag |= unix.HUPCL
+
+		// Set termios.
+		err = unix.IoctlSetTermios(int(entry.Fd()), unix.TCSETS, t)
+		if err != nil {
+			return nil, nil, err
+		}
+
+		// Set the default window size.
+		sz := &unix.Winsize{
+			Col: 80,
+			Row: 25,
+		}
+
+		err = unix.IoctlSetWinsize(int(entry.Fd()), unix.TIOCSWINSZ, sz)
+		if err != nil {
+			return nil, nil, err
+		}
+
+		// Set CLOEXEC.
+		_, _, errno = unix.Syscall(unix.SYS_FCNTL, uintptr(entry.Fd()), unix.F_SETFD, unix.FD_CLOEXEC)
+		if errno != 0 {
+			return nil, nil, unix.Errno(errno)
+		}
+	}
+
+	// Fix the ownership of the slave side.
+	err = os.Chown(slave.Name(), int(uid), int(gid))
+	if err != nil {
+		return nil, nil, err
+	}
+
+	revert = false
+	return master, slave, nil
+}
