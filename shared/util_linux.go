@@ -407,16 +407,16 @@ func OpenPty(uid, gid int64) (*os.File, *os.File, error) {
 		}
 	}()
 
-	// Get the slave side.
-	id := 0
-	_, _, errno := unix.Syscall(unix.SYS_IOCTL, uintptr(master.Fd()), unix.TIOCGPTN, uintptr(unsafe.Pointer(&id)))
+	// Unlock the master and slave.
+	val := 0
+	_, _, errno = unix.Syscall(unix.SYS_IOCTL, uintptr(master.Fd()), unix.TIOCSPTLCK, uintptr(unsafe.Pointer(&val)))
 	if errno != 0 {
 		return nil, nil, unix.Errno(errno)
 	}
 
-	// Unlock the slave side.
-	val := 0
-	_, _, errno = unix.Syscall(unix.SYS_IOCTL, uintptr(master.Fd()), unix.TIOCSPTLCK, uintptr(unsafe.Pointer(&val)))
+	// Get the slave side.
+	id := 0
+	_, _, errno := unix.Syscall(unix.SYS_IOCTL, uintptr(master.Fd()), unix.TIOCGPTN, uintptr(unsafe.Pointer(&id)))
 	if errno != 0 {
 		return nil, nil, unix.Errno(errno)
 	}
