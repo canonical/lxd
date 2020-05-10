@@ -409,22 +409,28 @@ func OpenPty(uid, gid int64) (*os.File, *os.File, error) {
 
 	// Unlock the master and slave.
 	val := 0
-	_, _, errno = unix.Syscall(unix.SYS_IOCTL, uintptr(master.Fd()), unix.TIOCSPTLCK, uintptr(unsafe.Pointer(&val)))
+	_, _, errno := unix.Syscall(unix.SYS_IOCTL, uintptr(master.Fd()), unix.TIOCSPTLCK, uintptr(unsafe.Pointer(&val)))
 	if errno != 0 {
 		return nil, nil, unix.Errno(errno)
 	}
 
-	// Get the slave side.
-	id := 0
-	_, _, errno := unix.Syscall(unix.SYS_IOCTL, uintptr(master.Fd()), unix.TIOCGPTN, uintptr(unsafe.Pointer(&id)))
-	if errno != 0 {
-		return nil, nil, unix.Errno(errno)
-	}
+	var slave *os.File
+	slaveFd, err := unix.IoctlRetInt(int(master.Fd()), unix.TIOCGPTPEER)
+	if err == nil {
+		slave = os.NewFile(uintptr(slaveFd), fmt.Sprintf("%d", slaveFd))
+	} else {
+		// Get the slave side.
+		id := 0
+		_, _, errno = unix.Syscall(unix.SYS_IOCTL, uintptr(master.Fd()), unix.TIOCGPTN, uintptr(unsafe.Pointer(&id)))
+		if errno != 0 {
+			return nil, nil, unix.Errno(errno)
+		}
 
-	// Open the slave.
-	slave, err := os.OpenFile(fmt.Sprintf("/dev/pts/%d", id), os.O_RDWR|unix.O_NOCTTY, 0)
-	if err != nil {
-		return nil, nil, err
+		// Open the slave.
+		slave, err = os.OpenFile(fmt.Sprintf("/dev/pts/%d", id), os.O_RDWR|unix.O_NOCTTY, 0)
+		if err != nil {
+			return nil, nil, err
+		}
 	}
 	defer func() {
 		if revert {
