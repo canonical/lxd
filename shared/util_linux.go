@@ -472,7 +472,7 @@ func OpenPty(uid, gid int64) (*os.File, *os.File, error) {
 	}
 
 	// Fix the ownership of the slave side.
-	err = os.Chown(slave.Name(), int(uid), int(gid))
+	err = unix.Fchown(int(slave.Fd()), int(uid), int(gid))
 	if err != nil {
 		return nil, nil, err
 	}
