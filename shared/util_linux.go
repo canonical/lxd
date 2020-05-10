@@ -397,7 +397,7 @@ func OpenPty(uid, gid int64) (*os.File, *os.File, error) {
 	revert := true
 
 	// Create a PTS pair.
-	master, err := os.OpenFile("/dev/ptmx", os.O_RDWR, 0)
+	master, err := os.OpenFile("/dev/ptmx", os.O_RDWR|unix.O_CLOEXEC, 0)
 	if err != nil {
 		return nil, nil, err
 	}
