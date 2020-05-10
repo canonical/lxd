@@ -397,7 +397,7 @@ func OpenPty(uid, gid int64) (*os.File, *os.File, error) {
 	revert := true
 
 	// Create a PTS pair.
-	master, err := os.OpenFile("/dev/ptmx", os.O_RDWR, 0)
+	master, err := os.OpenFile("/dev/ptmx", os.O_RDWR|unix.O_CLOEXEC, 0)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -407,24 +407,30 @@ func OpenPty(uid, gid int64) (*os.File, *os.File, error) {
 		}
 	}()
 
-	// Get the slave side.
-	id := 0
-	_, _, errno := unix.Syscall(unix.SYS_IOCTL, uintptr(master.Fd()), unix.TIOCGPTN, uintptr(unsafe.Pointer(&id)))
-	if errno != 0 {
-		return nil, nil, unix.Errno(errno)
-	}
-
-	// Unlock the slave side.
+	// Unlock the master and slave.
 	val := 0
-	_, _, errno = unix.Syscall(unix.SYS_IOCTL, uintptr(master.Fd()), unix.TIOCSPTLCK, uintptr(unsafe.Pointer(&val)))
+	_, _, errno := unix.Syscall(unix.SYS_IOCTL, uintptr(master.Fd()), unix.TIOCSPTLCK, uintptr(unsafe.Pointer(&val)))
 	if errno != 0 {
 		return nil, nil, unix.Errno(errno)
 	}
 
-	// Open the slave.
-	slave, err := os.OpenFile(fmt.Sprintf("/dev/pts/%d", id), os.O_RDWR|unix.O_NOCTTY, 0)
-	if err != nil {
-		return nil, nil, err
+	var slave *os.File
+	slaveFd, err := unix.IoctlRetInt(int(master.Fd()), unix.TIOCGPTPEER)
+	if err == nil {
+		slave = os.NewFile(uintptr(slaveFd), fmt.Sprintf("%d", slaveFd))
+	} else {
+		// Get the slave side.
+		id := 0
+		_, _, errno = unix.Syscall(unix.SYS_IOCTL, uintptr(master.Fd()), unix.TIOCGPTN, uintptr(unsafe.Pointer(&id)))
+		if errno != 0 {
+			return nil, nil, unix.Errno(errno)
+		}
+
+		// Open the slave.
+		slave, err = os.OpenFile(fmt.Sprintf("/dev/pts/%d", id), os.O_RDWR|unix.O_NOCTTY, 0)
+		if err != nil {
+			return nil, nil, err
+		}
 	}
 	defer func() {
 		if revert {
@@ -472,7 +478,7 @@ func OpenPty(uid, gid int64) (*os.File, *os.File, error) {
 	}
 
 	// Fix the ownership of the slave side.
-	err = os.Chown(slave.Name(), int(uid), int(gid))
+	err = unix.Fchown(int(slave.Fd()), int(uid), int(gid))
 	if err != nil {
 		return nil, nil, err
 	}
