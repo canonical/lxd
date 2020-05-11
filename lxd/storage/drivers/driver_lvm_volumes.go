@@ -792,33 +792,14 @@ func (d *lvm) VolumeSnapshots(vol Volume, op *operations.Operation) ([]string, e
 	}
 
 	snapshots := []string{}
-	fullVolName := d.lvmFullVolumeName(vol.volType, vol.contentType, vol.name)
-
-	// If block volume, remove the block suffix ready for comparison with LV list.
-	if vol.IsVMBlock() {
-		fullVolName = strings.TrimSuffix(fullVolName, lvmBlockVolSuffix)
-	}
-
-	prefix := fmt.Sprintf("%s-", fullVolName)
-
 	scanner := bufio.NewScanner(stdout)
 	for scanner.Scan() {
-		snapLine := strings.TrimSpace(scanner.Text())
-
-		// If block volume, skip any LVs that don't end with the block suffix, and then for those that do
-		// remove the block suffix so that they can be compared with the fullVolName prefix.
-		if vol.IsVMBlock() {
-			if !strings.HasSuffix(snapLine, lvmBlockVolSuffix) {
-				continue // Ignore non-block volumes.
-			}
-
-			snapLine = strings.TrimSuffix(snapLine, lvmBlockVolSuffix)
+		snapName := d.parseLogicalVolumeSnapshot(vol, strings.TrimSpace(scanner.Text()))
+		if snapName == "" {
+			continue // Skip logical volumes that are not recognised as a snapshot of our parent vol.
 		}
 
-		if strings.HasPrefix(snapLine, prefix) {
-			// Remove volume name prefix (including snapshot delimiter) and unescape snapshot name.
-			snapshots = append(snapshots, strings.Replace(strings.TrimPrefix(snapLine, prefix), "--", "-", -1))
-		}
+		snapshots = append(snapshots, snapName)
 	}
 
 	errMsg, err := ioutil.ReadAll(stderr)
@@ -828,7 +809,7 @@ func (d *lvm) VolumeSnapshots(vol Volume, op *operations.Operation) ([]string, e
 
 	err = cmd.Wait()
 	if err != nil {
-		return nil, errors.Wrapf(err, "Failed to get snapshot list for volume %q: %v", fullVolName, strings.TrimSpace(string(errMsg)))
+		return nil, errors.Wrapf(err, "Failed to get snapshot list for volume %q: %v", vol.name, strings.TrimSpace(string(errMsg)))
 	}
 
 	return snapshots, nil
