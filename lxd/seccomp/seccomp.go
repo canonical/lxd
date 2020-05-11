@@ -19,6 +19,7 @@ import (
 	liblxc "gopkg.in/lxc/go-lxc.v2"
 
 	deviceConfig "github.com/lxc/lxd/lxd/device/config"
+	"github.com/lxc/lxd/lxd/project"
 	"github.com/lxc/lxd/lxd/state"
 	"github.com/lxc/lxd/lxd/ucred"
 	"github.com/lxc/lxd/lxd/util"
@@ -378,7 +379,7 @@ var seccompPath = shared.VarPath("security", "seccomp")
 
 // ProfilePath returns the seccomp path for the instance.
 func ProfilePath(c Instance) string {
-	return path.Join(seccompPath, c.Name())
+	return path.Join(seccompPath, project.Instance(c.Project(), c.Name()))
 }
 
 // InstanceNeedsPolicy returns whether the instance needs a policy or not.
