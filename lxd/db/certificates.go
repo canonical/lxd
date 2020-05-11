@@ -12,6 +12,7 @@ package db
 //go:generate mapper stmt -p db -e certificate id
 //go:generate mapper stmt -p db -e certificate create struct=Certificate
 //go:generate mapper stmt -p db -e certificate delete
+//go:generate mapper stmt -p db -e certificate rename
 //
 //go:generate mapper method -p db -e certificate List
 //go:generate mapper method -p db -e certificate Get
@@ -19,6 +20,7 @@ package db
 //go:generate mapper method -p db -e certificate Exists struct=Certificate
 //go:generate mapper method -p db -e certificate Create struct=Certificate
 //go:generate mapper method -p db -e certificate Delete
+//go:generate mapper method -p db -e certificate Rename
 
 // Certificate is here to pass the certificates content
 // from the database around
@@ -66,11 +68,10 @@ func (c *Cluster) DeleteCertificate(fingerprint string) error {
 	return err
 }
 
-// UpdateCertificate updates the certificate with the given fingerprint.
-func (c *Cluster) UpdateCertificate(fingerprint string, certName string, certType int) error {
+// RenameCertificate updates a certificate's name.
+func (c *Cluster) RenameCertificate(fingerprint string, name string) error {
 	err := c.Transaction(func(tx *ClusterTx) error {
-		_, err := tx.tx.Exec("UPDATE certificates SET name=?, type=? WHERE fingerprint=?", certName, certType, fingerprint)
-		return err
+		return c.RenameCertificate(fingerprint, name)
 	})
 	return err
 }
