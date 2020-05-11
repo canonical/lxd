@@ -331,7 +331,7 @@ migration() {
 
   # Test some migration between projects
   lxc_remote project create l1:proj -c features.images=false -c features.profiles=false
-  lxc_remote project switch l1 proj
+  lxc_remote project switch l1:proj
 
   lxc_remote init testimage l1:c1
   lxc_remote copy l1:c1 l2:
@@ -358,7 +358,7 @@ migration() {
   lxc_remote delete l1:c1 -f
   lxc_remote delete l2:c1
 
-  lxc_remote project switch l1 default
+  lxc_remote project switch l1:default
   lxc_remote project delete l1:proj
 
   if ! which criu >/dev/null 2>&1; then
