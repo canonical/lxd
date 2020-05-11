@@ -106,7 +106,7 @@ type nftGenericItem struct {
 // nftParseRuleset parses the ruleset and returns the generic parts as a slice of items.
 func (d Nftables) nftParseRuleset() ([]nftGenericItem, error) {
 	// Dump ruleset as JSON. Use -nn flags to avoid doing DNS lookups of IPs mentioned in any rules.
-	cmd := exec.Command("nft", "list", "ruleset", "--json", "-nn")
+	cmd := exec.Command("nft", "--json", "-nn", "list", "ruleset")
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
 		return nil, err
