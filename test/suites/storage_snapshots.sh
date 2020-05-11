@@ -90,6 +90,15 @@ test_storage_volume_snapshots() {
   lxc storage volume detach "${storage_pool}" "${storage_volume}" c1
   lxc delete -f c1
   lxc storage volume delete "${storage_pool}" "${storage_volume}"
+
+  # Check snapshots naming conflicts.
+  lxc storage volume create "${storage_pool}" "vol1"
+  lxc storage volume create "${storage_pool}" "vol1-snap0"
+  lxc storage volume snapshot "${storage_pool}" "vol1" "snap0"
+  lxc storage volume delete "${storage_pool}" "vol1"
+  lxc storage volume delete "${storage_pool}" "vol1-snap0"
+
+
   lxc storage delete "${storage_pool}"
 
   # shellcheck disable=SC2031
