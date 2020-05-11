@@ -26,6 +26,9 @@ const lvmBlockVolSuffix = ".block"
 // lvmSnapshotSeparator separator character used between volume name and snaphot name in logical volume names.
 const lvmSnapshotSeparator = "-"
 
+// lvmEscapedHyphen used to escape hyphens in volume names to avoid conflicts with lvmSnapshotSeparator.
+const lvmEscapedHyphen = "--"
+
 var errLVMNotFound = fmt.Errorf("Not found")
 
 // usesThinpool indicates whether the config specifies to use a thin pool or not.
@@ -515,7 +518,7 @@ func (d *lvm) lvmFullVolumeName(volType VolumeType, contentType ContentType, vol
 	}
 
 	// Escape the volume name to a name suitable for using as a logical volume.
-	lvName := strings.Replace(strings.Replace(volName, "-", "--", -1), shared.SnapshotDelimiter, lvmSnapshotSeparator, -1)
+	lvName := strings.Replace(strings.Replace(volName, "-", lvmEscapedHyphen, -1), shared.SnapshotDelimiter, lvmSnapshotSeparator, -1)
 
 	return fmt.Sprintf("%s_%s%s", volTypePrefix, lvName, contentTypeSuffix)
 }
