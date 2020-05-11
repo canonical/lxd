@@ -743,3 +743,39 @@ func (d *lvm) thinPoolVolumeUsage(volDevPath string) (uint64, uint64, error) {
 
 	return totalSize, usedSize, nil
 }
+
+// parseLogicalVolumeSnapshot parses a raw logical volume name (from lvs command) and checks whether it is a
+// snapshot of the supplied parent volume. Returns unescaped parsed snapshot name if snapshot volume recognised,
+// empty string if not. The parent is required due to limitations in the naming scheme that LXD has historically
+// been used for naming logical volumes meaning that additional context of the parent is required to accurately
+// recognise snapshot volumes that belong to the parent.
+func (d *lvm) parseLogicalVolumeSnapshot(parent Volume, lvmVolName string) string {
+	fullVolName := d.lvmFullVolumeName(parent.volType, parent.contentType, parent.name)
+
+	// If block volume, remove the block suffix ready for comparison with LV list.
+	// Note: Only VM volumes currently support content type block for VMs. Not custom volumes.
+	if parent.IsVMBlock() {
+		if !strings.HasSuffix(lvmVolName, lvmBlockVolSuffix) {
+			return ""
+		}
+
+		// Remove the block suffix so that snapshot names can be compared and extracted without the suffix.
+		fullVolName = strings.TrimSuffix(fullVolName, lvmBlockVolSuffix)
+		lvmVolName = strings.TrimSuffix(lvmVolName, lvmBlockVolSuffix)
+	}
+
+	// Prefix we would expect for a snapshot of the parent volume.
+	snapPrefix := fmt.Sprintf("%s%s", fullVolName, lvmSnapshotSeparator)
+
+	// Prefix used when escaping "-" in volume names. Doesn't indicate a snapshot of parent.
+	badPrefix := fmt.Sprintf("%s%s", fullVolName, lvmEscapedHyphen)
+
+	// Check the volume matches the snapshot prefix, but doesn't match the prefix that indicates a similarly
+	// named volume that just has escaped "-" characters in it.
+	if strings.HasPrefix(lvmVolName, snapPrefix) && !strings.HasPrefix(lvmVolName, badPrefix) {
+		// Remove volume name prefix (including snapshot delimiter) and unescape snapshot name.
+		return strings.Replace(strings.TrimPrefix(lvmVolName, snapPrefix), lvmEscapedHyphen, "-", -1)
+	}
+
+	return ""
+}
