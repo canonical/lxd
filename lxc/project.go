@@ -404,6 +404,7 @@ func (c *cmdProjectList) Run(cmd *cobra.Command, args []string) error {
 	if len(args) > 0 {
 		remote = args[0]
 	}
+	remoteName := strings.TrimSuffix(remote, ":")
 
 	resources, err := c.global.ParseServers(remote)
 	if err != nil {
@@ -418,7 +419,7 @@ func (c *cmdProjectList) Run(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	currentProject := conf.Remotes[remote].Project
+	currentProject := conf.Remotes[remoteName].Project
 	if currentProject == "" {
 		currentProject = "default"
 	}
@@ -681,16 +682,15 @@ func (c *cmdProjectSwitch) Run(cmd *cobra.Command, args []string) error {
 	conf := c.global.conf
 
 	// Sanity checks
-	exit, err := c.global.CheckArgs(cmd, args, 1, 2)
+	exit, err := c.global.CheckArgs(cmd, args, 1, 1)
 	if exit {
 		return err
 	}
 
-	remote := conf.DefaultRemote
-	project := args[0]
-	if len(args) > 1 {
-		remote = args[0]
-		project = args[1]
+	// Parse the remote
+	remote, project, err := conf.ParseRemote(args[0])
+	if err != nil {
+		return err
 	}
 
 	// Make sure the remote exists
