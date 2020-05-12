@@ -244,13 +244,35 @@ func (d *btrfs) CreateVolumeFromCopy(vol Volume, srcVol Volume, copySnapshots bo
 	revert := revert.New()
 	defer revert.Fail()
 
-	// Recursively copy the main volume.
-	err := d.snapshotSubvolume(srcVol.MountPath(), vol.MountPath(), true)
+	// Scan source for subvolumes (so we can apply the readonly properties on the new volume).
+	subVols, err := d.getSubvolumesMetaData(srcVol)
 	if err != nil {
 		return err
 	}
 
-	revert.Add(func() { d.deleteSubvolume(vol.MountPath(), true) })
+	target := vol.MountPath()
+
+	// Recursively copy the main volume.
+	err = d.snapshotSubvolume(srcVol.MountPath(), target, true)
+	if err != nil {
+		return err
+	}
+
+	revert.Add(func() { d.deleteSubvolume(target, true) })
+
+	// Restore readonly property on subvolumes in reverse order (except root which should be left writable).
+	subVolCount := len(subVols)
+	for i := range subVols {
+		i = subVolCount - 1 - i
+		subVol := subVols[i]
+		if subVol.Readonly && subVol.Path != string(filepath.Separator) {
+			targetSubVolPath := filepath.Join(target, subVol.Path)
+			err = d.setSubvolumeReadonlyProperty(targetSubVolPath, true)
+			if err != nil {
+				return err
+			}
+		}
+	}
 
 	// Default to non-expanded config, so we only use user specified volume size.
 	// This is so the pool default volume size isn't take into account for volume copies.
@@ -689,8 +711,8 @@ func (d *btrfs) MigrateVolume(vol Volume, conn io.ReadWriteCloser, volSrcArgs *m
 		return nil
 	}
 
-	// Generate migration header, containing subvolume info.
-	migrationHeader, err := d.metadataHeader(vol, volSrcArgs.Snapshots)
+	// Generate restoration header, containing info on the subvolumes and how they should be restored.
+	migrationHeader, err := d.restorationHeader(vol, volSrcArgs.Snapshots)
 	if err != nil {
 		return err
 	}
@@ -727,11 +749,11 @@ func (d *btrfs) MigrateVolume(vol Volume, conn io.ReadWriteCloser, volSrcArgs *m
 
 	// sendVolume sends a volume and its subvolumes (if negotiated subvolumes feature) to recipient.
 	sendVolume := func(v Volume, sourcePrefix string, parentPrefix string) error {
-		snapName := "" // Default to empty if volume isn't a snapshot and is main volume.
+		snapName := "" // Default to empty (sending main volume) from migrationHeader.Subvolumes.
 
-		// Detect snapshot by comparing to main volume.
-		// We can't use IsSnapshot() as the main vol may itself be a snapshot.
-		if v.name != vol.name {
+		// Detect if we are sending a snapshot by comparing to main volume name.
+		// We can't only use IsSnapshot() as the main vol may itself be a snapshot.
+		if v.IsSnapshot() && v.name != vol.name {
 			_, snapName, _ = shared.InstanceGetParentAndSnapshotName(v.name)
 		}
 
@@ -740,6 +762,8 @@ func (d *btrfs) MigrateVolume(vol Volume, conn io.ReadWriteCloser, volSrcArgs *m
 		if volSrcArgs.TrackProgress {
 			wrapper = migration.ProgressTracker(op, "fs_progress", v.name)
 		}
+
+		sentVols := 0
 
 		// Send volume (and any subvolumes if supported) to target.
 		for _, subVolume := range migrationHeader.Subvolumes {
@@ -781,6 +805,12 @@ func (d *btrfs) MigrateVolume(vol Volume, conn io.ReadWriteCloser, volSrcArgs *m
 			if err != nil {
 				return errors.Wrapf(err, "Failed sending volume %v:%s", v.name, subVolume.Path)
 			}
+			sentVols++
+		}
+
+		// Ensure we found and sent at least root subvolume of the volume requested.
+		if sentVols < 1 {
+			return fmt.Errorf("No matching subvolume(s) for %q found in subvolumes list", v.name)
 		}
 
 		return nil
@@ -1103,29 +1133,49 @@ func (d *btrfs) VolumeSnapshots(vol Volume, op *operations.Operation) ([]string,
 
 // RestoreVolume restores a volume from a snapshot.
 func (d *btrfs) RestoreVolume(vol Volume, snapshotName string, op *operations.Operation) error {
-	// Create a backup so we can revert.
-	backupSubvolume := fmt.Sprintf("%s%s", vol.MountPath(), tmpVolSuffix)
-	err := os.Rename(vol.MountPath(), backupSubvolume)
-	if err != nil {
-		return errors.Wrapf(err, "Failed to rename %q to %q", vol.MountPath(), backupSubvolume)
-	}
+	revert := revert.New()
+	defer revert.Fail()
 
-	// Setup revert logic.
-	undoSnapshot := true
-	defer func() {
-		if undoSnapshot {
-			os.Rename(vol.MountPath(), backupSubvolume)
-		}
-	}()
+	srcVol := NewVolume(d, d.name, vol.volType, vol.contentType, GetSnapshotVolumeName(vol.name, snapshotName), vol.config, vol.poolConfig)
 
-	// Restore the snapshot.
-	source := GetVolumeMountPath(d.name, vol.volType, GetSnapshotVolumeName(vol.name, snapshotName))
-	err = d.snapshotSubvolume(source, vol.MountPath(), true)
+	// Scan source for subvolumes (so we can apply the readonly properties on the restored snapshot).
+	subVols, err := d.getSubvolumesMetaData(srcVol)
 	if err != nil {
 		return err
 	}
 
-	undoSnapshot = false
+	target := vol.MountPath()
+
+	// Create a backup so we can revert.
+	backupSubvolume := fmt.Sprintf("%s%s", target, tmpVolSuffix)
+	err = os.Rename(target, backupSubvolume)
+	if err != nil {
+		return errors.Wrapf(err, "Failed to rename %q to %q", target, backupSubvolume)
+	}
+	revert.Add(func() { os.Rename(backupSubvolume, target) })
+
+	// Restore the snapshot.
+	err = d.snapshotSubvolume(srcVol.MountPath(), target, true)
+	if err != nil {
+		return err
+	}
+	revert.Add(func() { d.deleteSubvolume(target, true) })
+
+	// Restore readonly property on subvolumes in reverse order (except root which should be left writable).
+	subVolCount := len(subVols)
+	for i := range subVols {
+		i = subVolCount - 1 - i
+		subVol := subVols[i]
+		if subVol.Readonly && subVol.Path != string(filepath.Separator) {
+			targetSubVolPath := filepath.Join(target, subVol.Path)
+			err = d.setSubvolumeReadonlyProperty(targetSubVolPath, true)
+			if err != nil {
+				return err
+			}
+		}
+	}
+
+	revert.Success()
 
 	// Remove the backup subvolume.
 	return d.deleteSubvolume(backupSubvolume, true)
