@@ -727,11 +727,11 @@ func (d *btrfs) MigrateVolume(vol Volume, conn io.ReadWriteCloser, volSrcArgs *m
 
 	// sendVolume sends a volume and its subvolumes (if negotiated subvolumes feature) to recipient.
 	sendVolume := func(v Volume, sourcePrefix string, parentPrefix string) error {
-		snapName := "" // Default to empty if volume isn't a snapshot and is main volume.
+		snapName := "" // Default to empty (sending main volume) from migrationHeader.Subvolumes.
 
-		// Detect snapshot by comparing to main volume.
-		// We can't use IsSnapshot() as the main vol may itself be a snapshot.
-		if v.name != vol.name {
+		// Detect if we are sending a snapshot by comparing to main volume name.
+		// We can't only use IsSnapshot() as the main vol may itself be a snapshot.
+		if v.IsSnapshot() && v.name != vol.name {
 			_, snapName, _ = shared.InstanceGetParentAndSnapshotName(v.name)
 		}
 
