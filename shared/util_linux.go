@@ -415,9 +415,16 @@ func OpenPty(uid, gid int64) (*os.File, *os.File, error) {
 	}
 
 	var slave *os.File
-	slaveFd, err := unix.IoctlRetInt(int(master.Fd()), unix.TIOCGPTPEER)
-	if err == nil {
-		slave = os.NewFile(uintptr(slaveFd), fmt.Sprintf("%d", slaveFd))
+	slaveFd, _, errno := unix.Syscall(unix.SYS_IOCTL, uintptr(master.Fd()), unix.TIOCGPTPEER, uintptr(unix.O_NOCTTY|unix.O_CLOEXEC|os.O_RDWR))
+	if errno == 0 {
+		// Get the slave side.
+		id := 0
+		_, _, errno = unix.Syscall(unix.SYS_IOCTL, uintptr(master.Fd()), unix.TIOCGPTN, uintptr(unsafe.Pointer(&id)))
+		if errno != 0 {
+			return nil, nil, unix.Errno(errno)
+		}
+
+		slave = os.NewFile(slaveFd, fmt.Sprintf("/dev/pts/%d", id))
 	} else {
 		// Get the slave side.
 		id := 0
