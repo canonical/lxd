@@ -194,18 +194,31 @@ func (e *Endpoints) up(config *Config) error {
 			e.inherited[network] = false
 		}
 
-		// Errors here are not fatal and are just logged.
-		e.listeners[network] = networkCreateListener(config.NetworkAddress, e.cert)
+		// Errors here are not fatal and are just logged (unless we're
+		// clustered, see below).
+		var networkAddressErr error
+		e.listeners[network], networkAddressErr = networkCreateListener(config.NetworkAddress, e.cert)
 
 		isCovered := util.IsAddressCovered(config.ClusterAddress, config.NetworkAddress)
-		if config.ClusterAddress != "" && !isCovered {
-			e.listeners[cluster], err = clusterCreateListener(config.ClusterAddress, e.cert)
-			if err != nil {
-				return err
+		if config.ClusterAddress != "" {
+			if isCovered {
+				// In case of clustering we fail if we coun't
+				// bind the network address.
+				if networkAddressErr != nil {
+					return networkAddressErr
+				}
+
+			} else {
+				e.listeners[cluster], err = networkCreateListener(config.ClusterAddress, e.cert)
+				if err != nil {
+					return err
+				}
 			}
 
 			logger.Infof("Starting cluster handler:")
 			e.serveHTTP(cluster)
+		} else if networkAddressErr != nil {
+			logger.Error("Cannot listen on https socket, skipping...", log.Ctx{"err": networkAddressErr})
 		}
 
 	}
