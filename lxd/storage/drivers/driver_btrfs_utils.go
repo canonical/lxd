@@ -424,9 +424,9 @@ func (d *btrfs) setSubvolumeReadonlyProperty(path string, readonly bool) error {
 
 // BTRFSSubVolume is the structure used to store information about a subvolume.
 type BTRFSSubVolume struct {
-	Path     string // Path inside the volume where the subvolume belongs (so / is the top of the volume tree).
-	Snapshot string // Snapshot name the subvolume belongs to.
-	Readonly bool   // Is the sub volume read only or not.
+	Path     string `json:"path" yaml:"path"`         // Path inside the volume where the subvolume belongs (so / is the top of the volume tree).
+	Snapshot string `json:"snapshot" yaml:"snapshot"` // Snapshot name the subvolume belongs to.
+	Readonly bool   `json:"readonly" yaml:"readonly"` // Is the sub volume read only or not.
 }
 
 // getSubvolumesMetaData retrieves subvolume meta data with paths relative to the root volume.
@@ -467,7 +467,7 @@ func (d *btrfs) getSubvolumesMetaData(vol Volume) ([]BTRFSSubVolume, error) {
 
 // BTRFSMetaDataHeader is the meta data header about the volumes being sent/stored.
 type BTRFSMetaDataHeader struct {
-	Subvolumes []BTRFSSubVolume // Sub volumes inside the volume (including the top level ones).
+	Subvolumes []BTRFSSubVolume `json:"subvolumes" yaml:"subvolumes"` // Sub volumes inside the volume (including the top level ones).
 }
 
 // restorationHeader scans the volume and any specified snapshots, returning a header containing subvolume metadata
