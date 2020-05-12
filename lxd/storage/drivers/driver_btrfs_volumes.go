@@ -689,8 +689,8 @@ func (d *btrfs) MigrateVolume(vol Volume, conn io.ReadWriteCloser, volSrcArgs *m
 		return nil
 	}
 
-	// Generate migration header, containing subvolume info.
-	migrationHeader, err := d.metadataHeader(vol, volSrcArgs.Snapshots)
+	// Generate restoration header, containing info on the subvolumes and how they should be restored.
+	migrationHeader, err := d.restorationHeader(vol, volSrcArgs.Snapshots)
 	if err != nil {
 		return err
 	}
