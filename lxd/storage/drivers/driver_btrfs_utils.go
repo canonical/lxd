@@ -461,8 +461,13 @@ type BTRFSMetaDataHeader struct {
 	Subvolumes []BTRFSSubVolume // Sub volumes inside the volume (including the top level ones).
 }
 
-// metadataHeader scans the volume and any specified snapshots, returning a header containing subvolume meta data.
-func (d *btrfs) metadataHeader(vol Volume, snapshots []string) (*BTRFSMetaDataHeader, error) {
+// restorationHeader scans the volume and any specified snapshots, returning a header containing subvolume metadata
+// for use in restoring a volume and its snapshots onto another system. The metadata returned represents how the
+// subvolumes should be restored, not necessarily how they are on disk now. Most of the time this is the same,
+// however in circumstances where the volume being scanned is itself a snapshot, the returned metadata will
+// not report the volume as readonly or as being a snapshot, as the expectation is that this volume will be
+// restored on the target system as a normal volume and not a snapshot.
+func (d *btrfs) restorationHeader(vol Volume, snapshots []string) (*BTRFSMetaDataHeader, error) {
 	var migrationHeader BTRFSMetaDataHeader
 
 	// Add snapshots to volumes list.
@@ -484,7 +489,9 @@ func (d *btrfs) metadataHeader(vol Volume, snapshots []string) (*BTRFSMetaDataHe
 		return nil, err
 	}
 
-	// If vol is a snapshot itself, we need to fixup the metadata.
+	// If vol is a snapshot itself, we force the volume as writable (even if it isn't on disk) and remove the
+	// snapshot name indicator as the expectation is that this volume is going to be restored on the target
+	// system as a normal (non-snapshot) writable volume.
 	if vol.IsSnapshot() {
 		subVols[0].Readonly = false
 		for i := range subVols {
