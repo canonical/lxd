@@ -1111,29 +1111,49 @@ func (d *btrfs) VolumeSnapshots(vol Volume, op *operations.Operation) ([]string,
 
 // RestoreVolume restores a volume from a snapshot.
 func (d *btrfs) RestoreVolume(vol Volume, snapshotName string, op *operations.Operation) error {
-	// Create a backup so we can revert.
-	backupSubvolume := fmt.Sprintf("%s%s", vol.MountPath(), tmpVolSuffix)
-	err := os.Rename(vol.MountPath(), backupSubvolume)
-	if err != nil {
-		return errors.Wrapf(err, "Failed to rename %q to %q", vol.MountPath(), backupSubvolume)
-	}
+	revert := revert.New()
+	defer revert.Fail()
 
-	// Setup revert logic.
-	undoSnapshot := true
-	defer func() {
-		if undoSnapshot {
-			os.Rename(vol.MountPath(), backupSubvolume)
-		}
-	}()
+	srcVol := NewVolume(d, d.name, vol.volType, vol.contentType, GetSnapshotVolumeName(vol.name, snapshotName), vol.config, vol.poolConfig)
 
-	// Restore the snapshot.
-	source := GetVolumeMountPath(d.name, vol.volType, GetSnapshotVolumeName(vol.name, snapshotName))
-	err = d.snapshotSubvolume(source, vol.MountPath(), true)
+	// Scan source for subvolumes (so we can apply the readonly properties on the restored snapshot).
+	subVols, err := d.getSubvolumesMetaData(srcVol)
 	if err != nil {
 		return err
 	}
 
-	undoSnapshot = false
+	target := vol.MountPath()
+
+	// Create a backup so we can revert.
+	backupSubvolume := fmt.Sprintf("%s%s", target, tmpVolSuffix)
+	err = os.Rename(target, backupSubvolume)
+	if err != nil {
+		return errors.Wrapf(err, "Failed to rename %q to %q", target, backupSubvolume)
+	}
+	revert.Add(func() { os.Rename(backupSubvolume, target) })
+
+	// Restore the snapshot.
+	err = d.snapshotSubvolume(srcVol.MountPath(), target, true)
+	if err != nil {
+		return err
+	}
+	revert.Add(func() { d.deleteSubvolume(target, true) })
+
+	// Restore readonly property on subvolumes in reverse order (except root which should be left writable).
+	subVolCount := len(subVols)
+	for i := range subVols {
+		i = subVolCount - 1 - i
+		subVol := subVols[i]
+		if subVol.Readonly && subVol.Path != string(filepath.Separator) {
+			targetSubVolPath := filepath.Join(target, subVol.Path)
+			err = d.setSubvolumeReadonlyProperty(targetSubVolPath, true)
+			if err != nil {
+				return err
+			}
+		}
+	}
+
+	revert.Success()
 
 	// Remove the backup subvolume.
 	return d.deleteSubvolume(backupSubvolume, true)
