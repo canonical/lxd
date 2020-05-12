@@ -21,19 +21,42 @@ type msg struct {
 // The reason for this is to emulate the WebsocketIO's behaviour by allowing a single persistent
 // connection to be used for multiple sessions.
 type pipe struct {
-	ch       chan msg
-	ctx      context.Context
-	otherEnd *pipe
+	ch           chan msg
+	ctx          context.Context
+	otherEnd     *pipe
+	msgRemainder []byte
 }
 
 // Read reads from the pipe into p. Returns number of bytes read and any errors.
 func (p *pipe) Read(b []byte) (int, error) {
+	if p.msgRemainder != nil {
+		n := copy(b, p.msgRemainder)
+		if len(p.msgRemainder) > n {
+			tmpBuf := make([]byte, len(p.msgRemainder)-n)
+			copy(tmpBuf, p.msgRemainder[n:])
+			p.msgRemainder = tmpBuf
+		} else {
+			p.msgRemainder = nil
+		}
+
+		return n, nil
+	}
+
 	select {
 	case msg := <-p.ch:
 		if msg.err == io.EOF {
 			return 0, msg.err
 		}
 		n := copy(b, msg.data)
+
+		// Store the remainder of the message for next Read.
+		if len(msg.data) > n {
+			p.msgRemainder = make([]byte, len(msg.data)-n)
+			copy(p.msgRemainder, msg.data[n:])
+		} else {
+			p.msgRemainder = nil
+		}
+
 		return n, msg.err
 	case <-p.ctx.Done():
 		return 0, p.ctx.Err()
@@ -43,9 +66,12 @@ func (p *pipe) Read(b []byte) (int, error) {
 // Write writes to the pipe from p. Returns number of bytes written and any errors.
 func (p *pipe) Write(b []byte) (int, error) {
 	msg := msg{
-		data: append(b[:0:0], b...), // Create copy of b in case it is modified externally.
+		data: make([]byte, len(b)),
 		err:  nil,
 	}
+
+	// Create copy of b in case it is modified externally.
+	copy(msg.data, b)
 
 	select {
 	case p.otherEnd.ch <- msg: // Sent msg to the other side's Read function.
