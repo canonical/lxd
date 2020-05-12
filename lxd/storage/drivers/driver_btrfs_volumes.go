@@ -244,13 +244,35 @@ func (d *btrfs) CreateVolumeFromCopy(vol Volume, srcVol Volume, copySnapshots bo
 	revert := revert.New()
 	defer revert.Fail()
 
-	// Recursively copy the main volume.
-	err := d.snapshotSubvolume(srcVol.MountPath(), vol.MountPath(), true)
+	// Scan source for subvolumes (so we can apply the readonly properties on the new volume).
+	subVols, err := d.getSubvolumesMetaData(srcVol)
 	if err != nil {
 		return err
 	}
 
-	revert.Add(func() { d.deleteSubvolume(vol.MountPath(), true) })
+	target := vol.MountPath()
+
+	// Recursively copy the main volume.
+	err = d.snapshotSubvolume(srcVol.MountPath(), target, true)
+	if err != nil {
+		return err
+	}
+
+	revert.Add(func() { d.deleteSubvolume(target, true) })
+
+	// Restore readonly property on subvolumes in reverse order (except root which should be left writable).
+	subVolCount := len(subVols)
+	for i := range subVols {
+		i = subVolCount - 1 - i
+		subVol := subVols[i]
+		if subVol.Readonly && subVol.Path != string(filepath.Separator) {
+			targetSubVolPath := filepath.Join(target, subVol.Path)
+			err = d.setSubvolumeReadonlyProperty(targetSubVolPath, true)
+			if err != nil {
+				return err
+			}
+		}
+	}
 
 	// Default to non-expanded config, so we only use user specified volume size.
 	// This is so the pool default volume size isn't take into account for volume copies.
