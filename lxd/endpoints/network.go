@@ -9,8 +9,8 @@ import (
 
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
-	log "github.com/lxc/lxd/shared/log15"
 	"github.com/lxc/lxd/shared/logger"
+	"github.com/pkg/errors"
 )
 
 // NetworkPublicKey returns the public key of the TLS certificate used by the
@@ -151,13 +151,12 @@ func (e *Endpoints) NetworkUpdateCert(cert *shared.CertInfo) {
 }
 
 // Create a new net.Listener bound to the tcp socket of the network endpoint.
-func networkCreateListener(address string, cert *shared.CertInfo) net.Listener {
+func networkCreateListener(address string, cert *shared.CertInfo) (net.Listener, error) {
 	listener, err := net.Listen("tcp", util.CanonicalNetworkAddress(address))
 	if err != nil {
-		logger.Error("Cannot listen on https socket, skipping...", log.Ctx{"err": err})
-		return nil
+		return nil, errors.Wrap(err, "Bind network address")
 	}
-	return networkTLSListener(listener, cert)
+	return networkTLSListener(listener, cert), nil
 }
 
 // A variation of the standard tls.Listener that supports atomically swapping
