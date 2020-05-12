@@ -396,6 +396,20 @@ func (d *lvm) createLogicalVolume(vgName, thinPoolName string, vol Volume, makeT
 		}
 	}
 
+	isRecent, err := d.lvmVersionIsAtLeast(lvmVersion, "2.02.99")
+	if err != nil {
+		return errors.Wrapf(err, "Error checking LVM version")
+	}
+
+	if isRecent {
+		// Disable auto activation of volume on LVM versions that support it.
+		// Must be done after volume create so that zeroing and signature wiping can take place.
+		_, err := shared.RunCommand("lvchange", "--setactivationskip", "y", volDevPath)
+		if err != nil {
+			return errors.Wrapf(err, "Failed to set activation skip on LVM logical volume %q", volDevPath)
+		}
+	}
+
 	d.logger.Debug("Logical volume created", log.Ctx{"vg_name": vgName, "lv_name": lvFullName, "size": fmt.Sprintf("%db", lvSizeBytes), "fs": d.volumeFilesystem(vol)})
 	return nil
 }
@@ -413,7 +427,7 @@ func (d *lvm) createLogicalVolumeSnapshot(vgName string, srcVol, snapVol Volume,
 	args := []string{"-n", snapLvName, "-s", srcVolDevPath}
 
 	if isRecent {
-		args = append(args, "-kn")
+		args = append(args, "--setactivationskip", "y")
 	}
 
 	// If the source is not a thin volume the size needs to be specified.
@@ -449,15 +463,6 @@ func (d *lvm) createLogicalVolumeSnapshot(vgName string, srcVol, snapVol Volume,
 	})
 
 	targetVolDevPath := d.lvmDevPath(vgName, snapVol.volType, snapVol.contentType, snapVol.name)
-	if makeThinLv {
-		// Snapshots of thin logical volumes can be directly activated.
-		// Normal snapshots will complain about changing the origin (Which they never do.),
-		// so skip the activation since the logical volume will be automatically activated anyway.
-		_, err := shared.TryRunCommand("lvchange", "-ay", targetVolDevPath)
-		if err != nil {
-			return "", err
-		}
-	}
 
 	revert.Success()
 	return targetVolDevPath, nil
@@ -640,6 +645,11 @@ func (d *lvm) copyThinpoolVolume(vol, srcVol Volume, srcSnapshots []Volume, refr
 		// volumes with the same UUID to be mounted at the same time). This should be done before volume
 		// resize as some filesystems will need to mount the filesystem to resize.
 		if renegerateFilesystemUUIDNeeded(d.volumeFilesystem(vol)) {
+			_, err = d.activateVolume(volDevPath)
+			if err != nil {
+				return err
+			}
+
 			d.logger.Debug("Regenerating filesystem UUID", log.Ctx{"dev": volDevPath, "fs": d.volumeFilesystem(vol)})
 			err = regenerateFilesystemUUID(d.volumeFilesystem(vol), volDevPath)
 			if err != nil {
@@ -778,4 +788,32 @@ func (d *lvm) parseLogicalVolumeSnapshot(parent Volume, lvmVolName string) strin
 	}
 
 	return ""
+}
+
+// activateVolume activates an LVM logical volume if not already present. Returns true if activated, false if not.
+func (d *lvm) activateVolume(volDevPath string) (bool, error) {
+	if !shared.PathExists(volDevPath) {
+		_, err := shared.RunCommand("lvchange", "--activate", "y", "--ignoreactivationskip", volDevPath)
+		if err != nil {
+			return false, errors.Wrapf(err, "Failed to activate LVM logical volume %q", volDevPath)
+		}
+		d.logger.Debug("Activated logical volume", log.Ctx{"dev": volDevPath})
+		return true, nil
+	}
+
+	return false, nil
+}
+
+// deactivateVolume deactivates an LVM logical volume if present. Returns true if deactivated, false if not.
+func (d *lvm) deactivateVolume(volDevPath string) (bool, error) {
+	if shared.PathExists(volDevPath) {
+		_, err := shared.RunCommand("lvchange", "--activate", "n", "--ignoreactivationskip", volDevPath)
+		if err != nil {
+			return false, errors.Wrapf(err, "Failed to deactivate LVM logical volume %q", volDevPath)
+		}
+		d.logger.Debug("Deactivated logical volume", log.Ctx{"dev": volDevPath})
+		return true, nil
+	}
+
+	return false, nil
 }
