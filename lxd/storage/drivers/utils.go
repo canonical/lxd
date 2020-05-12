@@ -709,13 +709,13 @@ func BTRFSSubVolumeIsRo(path string) bool {
 	return strings.HasPrefix(string(output), "ro=true")
 }
 
-// BTRFSSubVolumeMakeRo makes a subvolume read only.
+// BTRFSSubVolumeMakeRo makes a subvolume read only. Deprecated use btrfs.setSubvolumeReadonlyProperty().
 func BTRFSSubVolumeMakeRo(path string) error {
 	_, err := shared.RunCommand("btrfs", "property", "set", "-ts", path, "ro", "true")
 	return err
 }
 
-// BTRFSSubVolumeMakeRw makes a sub volume read/write.
+// BTRFSSubVolumeMakeRw makes a sub volume read/write. Deprecated use btrfs.setSubvolumeReadonlyProperty().
 func BTRFSSubVolumeMakeRw(path string) error {
 	_, err := shared.RunCommand("btrfs", "property", "set", "-ts", path, "ro", "false")
 	return err
