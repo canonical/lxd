@@ -6,9 +6,7 @@ import (
 	"time"
 
 	"github.com/lxc/lxd/lxd/util"
-	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/logger"
-	"github.com/pkg/errors"
 )
 
 // ClusterAddress returns the cluster addresss of the cluster endpoint, or an
@@ -91,13 +89,4 @@ func (e *Endpoints) ClusterUpdateAddress(address string) error {
 	}
 
 	return nil
-}
-
-func clusterCreateListener(address string, cert *shared.CertInfo) (net.Listener, error) {
-	listener, err := net.Listen("tcp", util.CanonicalNetworkAddress(address))
-	if err != nil {
-		return nil, errors.Wrap(err, "Listen to cluster address")
-	}
-
-	return networkTLSListener(listener, cert), nil
 }
