@@ -741,6 +741,8 @@ func (d *btrfs) MigrateVolume(vol Volume, conn io.ReadWriteCloser, volSrcArgs *m
 			wrapper = migration.ProgressTracker(op, "fs_progress", v.name)
 		}
 
+		sentVols := 0
+
 		// Send volume (and any subvolumes if supported) to target.
 		for _, subVolume := range migrationHeader.Subvolumes {
 			if subVolume.Snapshot != snapName {
@@ -781,6 +783,12 @@ func (d *btrfs) MigrateVolume(vol Volume, conn io.ReadWriteCloser, volSrcArgs *m
 			if err != nil {
 				return errors.Wrapf(err, "Failed sending volume %v:%s", v.name, subVolume.Path)
 			}
+			sentVols++
+		}
+
+		// Ensure we found and sent at least root subvolume of the volume requested.
+		if sentVols < 1 {
+			return fmt.Errorf("No matching subvolume(s) for %q found in subvolumes list", v.name)
 		}
 
 		return nil
