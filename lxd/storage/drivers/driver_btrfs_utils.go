@@ -131,7 +131,7 @@ func (d *btrfs) snapshotSubvolume(path string, dest string, recursion bool) erro
 	return nil
 }
 
-func (d *btrfs) deleteSubvolume(path string, recursion bool) error {
+func (d *btrfs) deleteSubvolume(rootPath string, recursion bool) error {
 	// Single subvolume deletion.
 	destroy := func(path string) error {
 		// Attempt (but don't fail on) to delete any qgroup on the subvolume.
@@ -139,9 +139,6 @@ func (d *btrfs) deleteSubvolume(path string, recursion bool) error {
 		if err == nil {
 			shared.RunCommand("btrfs", "qgroup", "destroy", qgroup, path)
 		}
-
-		// Attempt to make the subvolume writable.
-		d.setSubvolumeReadonlyProperty(path, false)
 
 		// Temporarily change ownership & mode to help with nesting.
 		os.Chmod(path, 0700)
@@ -153,32 +150,44 @@ func (d *btrfs) deleteSubvolume(path string, recursion bool) error {
 		return err
 	}
 
+	err := d.setSubvolumeReadonlyProperty(rootPath, false)
+	if err != nil {
+		return errors.Wrapf(err, "Failed setting subvolume writable %q", rootPath)
+	}
+
 	// Delete subsubvols.
 	if recursion {
 		// Get the subvolumes list.
-		subsubvols, err := d.getSubvolumes(path)
+		subSubVols, err := d.getSubvolumes(rootPath)
 		if err != nil {
 			return err
 		}
-		sort.Sort(sort.Reverse(sort.StringSlice(subsubvols)))
 
-		if len(subsubvols) > 0 {
-			// Attempt to make the root subvolume writable so any subvolumes can be removed.
-			d.setSubvolumeReadonlyProperty(path, false)
+		// Perform a first pass and ensure all sub volumes are writable.
+		sort.Sort(sort.StringSlice(subSubVols))
+		for _, subSubVol := range subSubVols {
+			subSubVolPath := filepath.Join(rootPath, subSubVol)
+			err = d.setSubvolumeReadonlyProperty(subSubVolPath, false)
+			if err != nil {
+				return errors.Wrapf(err, "Failed setting subvolume writable %q", subSubVolPath)
+			}
 		}
 
-		for _, subsubvol := range subsubvols {
-			err := destroy(filepath.Join(path, subsubvol))
+		// Perform a second pass to delete subvolumes.
+		sort.Sort(sort.Reverse(sort.StringSlice(subSubVols)))
+		for _, subSubVol := range subSubVols {
+			subSubVolPath := filepath.Join(rootPath, subSubVol)
+			err := destroy(subSubVolPath)
 			if err != nil {
-				return err
+				return errors.Wrapf(err, "Failed deleting subvolume %q", subSubVolPath)
 			}
 		}
 	}
 
-	// Delete the subvol itself.
-	err := destroy(path)
+	// Delete the root subvol itself.
+	err = destroy(rootPath)
 	if err != nil {
-		return err
+		return errors.Wrapf(err, "Failed deleting subvolume %q", rootPath)
 	}
 
 	return nil
@@ -415,9 +424,9 @@ func (d *btrfs) setSubvolumeReadonlyProperty(path string, readonly bool) error {
 
 // BTRFSSubVolume is the structure used to store information about a subvolume.
 type BTRFSSubVolume struct {
-	Path     string // Path inside the volume where the subvolume belongs (so / is the top of the volume tree).
-	Snapshot string // Snapshot name the subvolume belongs to.
-	Readonly bool   // Is the sub volume read only or not.
+	Path     string `json:"path" yaml:"path"`         // Path inside the volume where the subvolume belongs (so / is the top of the volume tree).
+	Snapshot string `json:"snapshot" yaml:"snapshot"` // Snapshot name the subvolume belongs to.
+	Readonly bool   `json:"readonly" yaml:"readonly"` // Is the sub volume read only or not.
 }
 
 // getSubvolumesMetaData retrieves subvolume meta data with paths relative to the root volume.
@@ -458,11 +467,16 @@ func (d *btrfs) getSubvolumesMetaData(vol Volume) ([]BTRFSSubVolume, error) {
 
 // BTRFSMetaDataHeader is the meta data header about the volumes being sent/stored.
 type BTRFSMetaDataHeader struct {
-	Subvolumes []BTRFSSubVolume // Sub volumes inside the volume (including the top level ones).
+	Subvolumes []BTRFSSubVolume `json:"subvolumes" yaml:"subvolumes"` // Sub volumes inside the volume (including the top level ones).
 }
 
-// metadataHeader scans the volume and any specified snapshots, returning a header containing subvolume meta data.
-func (d *btrfs) metadataHeader(vol Volume, snapshots []string) (*BTRFSMetaDataHeader, error) {
+// restorationHeader scans the volume and any specified snapshots, returning a header containing subvolume metadata
+// for use in restoring a volume and its snapshots onto another system. The metadata returned represents how the
+// subvolumes should be restored, not necessarily how they are on disk now. Most of the time this is the same,
+// however in circumstances where the volume being scanned is itself a snapshot, the returned metadata will
+// not report the volume as readonly or as being a snapshot, as the expectation is that this volume will be
+// restored on the target system as a normal volume and not a snapshot.
+func (d *btrfs) restorationHeader(vol Volume, snapshots []string) (*BTRFSMetaDataHeader, error) {
 	var migrationHeader BTRFSMetaDataHeader
 
 	// Add snapshots to volumes list.
@@ -484,7 +498,9 @@ func (d *btrfs) metadataHeader(vol Volume, snapshots []string) (*BTRFSMetaDataHe
 		return nil, err
 	}
 
-	// If vol is a snapshot itself, we need to fixup the metadata.
+	// If vol is a snapshot itself, we force the volume as writable (even if it isn't on disk) and remove the
+	// snapshot name indicator as the expectation is that this volume is going to be restored on the target
+	// system as a normal (non-snapshot) writable volume.
 	if vol.IsSnapshot() {
 		subVols[0].Readonly = false
 		for i := range subVols {
