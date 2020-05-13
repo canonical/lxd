@@ -1,6 +1,7 @@
 package drivers
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -9,8 +10,10 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/pkg/errors"
+	"gopkg.in/yaml.v2"
 
 	"github.com/lxc/lxd/lxd/migration"
 	"github.com/lxc/lxd/lxd/operations"
@@ -910,7 +913,45 @@ func (d *btrfs) BackupVolume(vol Volume, tarWriter *instancewriter.InstanceTarWr
 		return genericVFSBackupVolume(d, vol, tarWriter, snapshots, op)
 	}
 
-	// Handle the optimized tarballs.
+	// Optimized backup.
+	var err error
+	var volSnapshots []string
+
+	// Retrieve the snapshots if requested.
+	if snapshots {
+		volSnapshots, err = d.VolumeSnapshots(vol, op)
+		if err != nil {
+			return err
+		}
+	}
+
+	// Generate driver restoration header.
+	optimizedHeader, err := d.restorationHeader(vol, volSnapshots)
+	if err != nil {
+		return err
+	}
+
+	// Convert to YAML.
+	optimizedHeaderYAML, err := yaml.Marshal(&optimizedHeader)
+	if err != nil {
+		return err
+	}
+	r := bytes.NewReader(optimizedHeaderYAML)
+
+	indexFileInfo := instancewriter.FileInfo{
+		FileName:    "backup/optimized_header.yaml",
+		FileSize:    int64(len(optimizedHeaderYAML)),
+		FileMode:    0644,
+		FileModTime: time.Now(),
+	}
+
+	// Write to tarball.
+	err = tarWriter.WriteFileFromReader(r, &indexFileInfo)
+	if err != nil {
+		return err
+	}
+
+	// sendToFile sends a subvolume to backup file.
 	sendToFile := func(path string, parent string, fileName string) error {
 		// Prepare btrfs send arguments.
 		args := []string{"send"}
@@ -929,7 +970,7 @@ func (d *btrfs) BackupVolume(vol Volume, tarWriter *instancewriter.InstanceTarWr
 		defer os.Remove(tmpFile.Name())
 
 		// Write the subvolume to the file.
-		d.logger.Debug("Generating optimized volume file", log.Ctx{"sourcePath": path, "file": tmpFile.Name(), "name": fileName})
+		d.logger.Debug("Generating optimized volume file", log.Ctx{"sourcePath": path, "parent": parent, "file": tmpFile.Name(), "name": fileName})
 		err = shared.RunCommandWithFds(nil, tmpFile, "btrfs", args...)
 		if err != nil {
 			return err
@@ -949,44 +990,104 @@ func (d *btrfs) BackupVolume(vol Volume, tarWriter *instancewriter.InstanceTarWr
 		return tmpFile.Close()
 	}
 
-	// Handle snapshots.
+	// addVolume adds a volume and its subvolumes to backup file.
+	addVolume := func(v Volume, sourcePrefix string, parentPrefix string, fileNamePrefix string) error {
+		snapName := "" // Default to empty (sending main volume) from migrationHeader.Subvolumes.
+
+		// Detect if we are adding a snapshot by comparing to main volume name.
+		// We can't only use IsSnapshot() as the main vol may itself be a snapshot.
+		if v.IsSnapshot() && v.name != vol.name {
+			_, snapName, _ = shared.InstanceGetParentAndSnapshotName(v.name)
+		}
+
+		sentVols := 0
+
+		// Add volume (and any subvolumes if supported) to backup file.
+		for _, subVolume := range optimizedHeader.Subvolumes {
+			if subVolume.Snapshot != snapName {
+				continue // Only add subvolumes related to snapshot name (empty for main vol).
+			}
+
+			// Detect if parent subvolume exists, and if so use it for differential.
+			parentPath := ""
+			if parentPrefix != "" && btrfsIsSubVolume(filepath.Join(parentPrefix, subVolume.Path)) {
+				parentPath = filepath.Join(parentPrefix, subVolume.Path)
+
+				// Set parent subvolume readonly if needed so we can add the subvolume.
+				if !BTRFSSubVolumeIsRo(parentPath) {
+					err = d.setSubvolumeReadonlyProperty(parentPath, true)
+					if err != nil {
+						return err
+					}
+					defer d.setSubvolumeReadonlyProperty(parentPath, false)
+				}
+			}
+
+			// Set subvolume readonly if needed so we can add it.
+			sourcePath := filepath.Join(sourcePrefix, subVolume.Path)
+			if !BTRFSSubVolumeIsRo(sourcePath) {
+				err = d.setSubvolumeReadonlyProperty(sourcePath, true)
+				if err != nil {
+					return err
+				}
+				defer d.setSubvolumeReadonlyProperty(sourcePath, false)
+			}
+
+			// Default to no subvolume name for root subvolume to maintain backwards compatibility
+			// with earlier optimized dump format. Although restoring this backup file on an earlier
+			// system will not restore the subvolumes stored inside the backup.
+			subVolName := ""
+			if subVolume.Path != string(filepath.Separator) {
+				// Encode the path of the subvolume (without the leading /) into the filename so
+				// that we find the file from the optimized header's Path field on restore.
+				subVolName = fmt.Sprintf("_%s", PathNameEncode(strings.TrimPrefix(subVolume.Path, string(filepath.Separator))))
+			}
+
+			fileName := fmt.Sprintf("%s%s.bin", fileNamePrefix, subVolName)
+			err = sendToFile(sourcePath, parentPath, filepath.Join("backup", fileName))
+			if err != nil {
+				return errors.Wrapf(err, "Failed adding volume %v:%s", v.name, subVolume.Path)
+			}
+
+			sentVols++
+		}
+
+		// Ensure we found and sent at least root subvolume of the volume requested.
+		if sentVols < 1 {
+			return fmt.Errorf("No matching subvolume(s) for %q found in subvolumes list", v.name)
+		}
+
+		return nil
+	}
+
+	// Backup snapshots if populated.
 	finalParent := ""
-	if snapshots {
-		// Retrieve the snapshots.
-		volSnapshots, err := d.VolumeSnapshots(vol, op)
+	for i, snapName := range volSnapshots {
+		snapVol, _ := vol.NewSnapshot(snapName)
+
+		// Locate the parent snapshot.
+		parentSnapshotPath := ""
+		if i > 0 {
+			parentSnapshotPath = GetVolumeMountPath(d.name, vol.volType, GetSnapshotVolumeName(vol.name, volSnapshots[i-1]))
+		}
+
+		// Make a binary btrfs backup.
+		snapDir := "snapshots"
+		fileName := snapName
+		if vol.volType == VolumeTypeVM {
+			snapDir = "virtual-machine-snapshots"
+			if vol.contentType == ContentTypeFS {
+				fileName = fmt.Sprintf("%s-config", snapName)
+			}
+		}
+
+		fileNamePrefix := filepath.Join(snapDir, fileName)
+		err := addVolume(snapVol, snapVol.MountPath(), parentSnapshotPath, fileNamePrefix)
 		if err != nil {
 			return err
 		}
 
-		for i, snap := range volSnapshots {
-			fullSnapshotName := GetSnapshotVolumeName(vol.name, snap)
-
-			// Figure out parent and current subvolumes.
-			parent := ""
-			if i > 0 {
-				parent = GetVolumeMountPath(d.name, vol.volType, GetSnapshotVolumeName(vol.name, volSnapshots[i-1]))
-			}
-
-			cur := GetVolumeMountPath(d.name, vol.volType, fullSnapshotName)
-
-			// Make a binary btrfs backup.
-			prefix := "snapshots"
-			fileName := fmt.Sprintf("%s.bin", snap)
-			if vol.volType == VolumeTypeVM {
-				prefix = "virtual-machine-snapshots"
-				if vol.contentType == ContentTypeFS {
-					fileName = fmt.Sprintf("%s-config.bin", snap)
-				}
-			}
-
-			target := fmt.Sprintf("backup/%s/%s", prefix, fileName)
-			err := sendToFile(cur, parent, target)
-			if err != nil {
-				return err
-			}
-
-			finalParent = cur
-		}
+		finalParent = snapVol.MountPath()
 	}
 
 	// Make a temporary copy of the instance.
@@ -1017,18 +1118,17 @@ func (d *btrfs) BackupVolume(vol Volume, tarWriter *instancewriter.InstanceTarWr
 		return err
 	}
 
-	// Dump the container to a file.
-	fileName := "container.bin"
+	// Dump the instance to a file.
+	fileNamePrefix := "container"
 	if vol.volType == VolumeTypeVM {
 		if vol.contentType == ContentTypeFS {
-			fileName = "virtual-machine-config.bin"
+			fileNamePrefix = "virtual-machine-config"
 		} else {
-			fileName = "virtual-machine.bin"
+			fileNamePrefix = "virtual-machine"
 		}
 	}
 
-	// Dump the container to a file.
-	err = sendToFile(targetVolume, finalParent, fmt.Sprintf("backup/%s", fileName))
+	err = addVolume(vol, targetVolume, finalParent, fileNamePrefix)
 	if err != nil {
 		return err
 	}
