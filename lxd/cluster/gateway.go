@@ -13,9 +13,11 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"reflect"
 	"strconv"
 	"sync"
 	"time"
+	"unsafe"
 
 	dqlite "github.com/canonical/go-dqlite"
 	client "github.com/canonical/go-dqlite/client"
@@ -964,6 +966,15 @@ func runDqliteProxy(ctx context.Context, bindAddress string, acceptCh chan net.C
 
 // Copies data between a remote TLS network connection and a local unix socket.
 func dqliteProxy(ctx context.Context, remote net.Conn, local net.Conn) {
+	// Go doesn't currently expose the underlying TCP connection of a TLS
+	// connection, but we need it in order to gracefully stop proxying with
+	// ReadClose(). We use some reflect/unsafe black magic to extract the
+	// private remote.conn field, which is indeed the underlying TCP
+	// connection.
+	field := reflect.ValueOf(remote.(*tls.Conn)).Elem().FieldByName("conn")
+	field = reflect.NewAt(field.Type(), unsafe.Pointer(field.UnsafeAddr())).Elem()
+	tcp := field.Interface().(*net.TCPConn)
+
 	remoteToLocal := make(chan error, 0)
 	localToRemote := make(chan error, 0)
 
@@ -1002,7 +1013,7 @@ func dqliteProxy(ctx context.Context, remote net.Conn, local net.Conn) {
 		if err != nil {
 			errs[0] = fmt.Errorf("local -> remote: %v", err)
 		}
-		remote.Close()
+		tcp.CloseRead()
 		if err := <-remoteToLocal; err != nil {
 			errs[1] = fmt.Errorf("remote -> local: %v", err)
 		}
