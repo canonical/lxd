@@ -13,16 +13,17 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"reflect"
 	"strconv"
 	"sync"
 	"time"
+	"unsafe"
 
 	dqlite "github.com/canonical/go-dqlite"
 	client "github.com/canonical/go-dqlite/client"
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
-	"github.com/lxc/lxd/shared/eagain"
 	"github.com/lxc/lxd/shared/logger"
 	"github.com/pkg/errors"
 )
@@ -374,7 +375,31 @@ func (g *Gateway) raftDial() client.DialFunc {
 			}
 			address = string(addr)
 		}
-		return dqliteNetworkDial(ctx, address, g, false)
+		conn, err := dqliteNetworkDial(ctx, address, g, false)
+		if err != nil {
+			return nil, err
+		}
+
+		listener, err := net.Listen("unix", "")
+		if err != nil {
+			return nil, errors.Wrap(err, "Failed to create unix listener")
+		}
+
+		goUnix, err := net.Dial("unix", listener.Addr().String())
+		if err != nil {
+			return nil, errors.Wrap(err, "Failed to connect to unix listener")
+		}
+
+		cUnix, err := listener.Accept()
+		if err != nil {
+			return nil, errors.Wrap(err, "Failed to connect to unix listener")
+		}
+
+		listener.Close()
+
+		go dqliteProxy(context.Background(), conn, goUnix)
+
+		return cUnix, nil
 	}
 }
 
@@ -657,7 +682,7 @@ func (g *Gateway) init() error {
 			g.store.inMemory = client.NewInmemNodeStore()
 			g.store.Set(context.Background(), []client.NodeInfo{*info})
 		} else {
-			go runDqliteProxy(g.bindAddress, g.acceptCh)
+			go runDqliteProxy(g.ctx, g.bindAddress, g.acceptCh)
 			g.store.inMemory = nil
 			options = append(options, dqlite.WithDialFunc(g.raftDial()))
 		}
@@ -888,41 +913,6 @@ func dqliteNetworkDial(ctx context.Context, addr string, g *Gateway, checkLeader
 		return nil, fmt.Errorf("Missing or unexpected Upgrade header in response")
 	}
 
-	listener, err := net.Listen("unix", "")
-	if err != nil {
-		return nil, errors.Wrap(err, "Failed to create unix listener")
-	}
-
-	goUnix, err := net.Dial("unix", listener.Addr().String())
-	if err != nil {
-		return nil, errors.Wrap(err, "Failed to connect to unix listener")
-	}
-
-	cUnix, err := listener.Accept()
-	if err != nil {
-		return nil, errors.Wrap(err, "Failed to connect to unix listener")
-	}
-
-	listener.Close()
-
-	go func() {
-		_, err := io.Copy(eagain.Writer{Writer: goUnix}, eagain.Reader{Reader: conn})
-		if err != nil {
-			logger.Warnf("Dqlite client proxy TLS -> Unix: %v", err)
-		}
-		goUnix.Close()
-		conn.Close()
-	}()
-
-	go func() {
-		_, err := io.Copy(eagain.Writer{Writer: conn}, eagain.Reader{Reader: goUnix})
-		if err != nil {
-			logger.Warnf("Dqlite client proxy Unix -> TLS: %v", err)
-		}
-		conn.Close()
-		goUnix.Close()
-	}()
-
 	// We successfully established a connection with the leader. Maybe the
 	// leader is ourselves, and we were recently elected. In that case
 	// trigger a full heartbeat now: it will be a no-op if we aren't
@@ -931,7 +921,7 @@ func dqliteNetworkDial(ctx context.Context, addr string, g *Gateway, checkLeader
 		go g.heartbeat(g.ctx, true)
 	}
 
-	return cUnix, nil
+	return conn, nil
 }
 
 // Create a dial function that connects to the local dqlite.
@@ -962,32 +952,98 @@ func DqliteLog(l client.LogLevel, format string, a ...interface{}) {
 
 // Copy incoming TLS streams from upgraded HTTPS connections into Unix sockets
 // connected to the dqlite task.
-func runDqliteProxy(bindAddress string, acceptCh chan net.Conn) {
+func runDqliteProxy(ctx context.Context, bindAddress string, acceptCh chan net.Conn) {
 	for {
-		src := <-acceptCh
-		dst, err := net.Dial("unix", bindAddress)
+		remote := <-acceptCh
+		local, err := net.Dial("unix", bindAddress)
 		if err != nil {
 			continue
 		}
 
-		go func() {
-			_, err := io.Copy(eagain.Writer{Writer: dst}, eagain.Reader{Reader: src})
-			if err != nil {
-				logger.Warnf("Dqlite server proxy TLS -> Unix: %v", err)
-			}
-			src.Close()
-			dst.Close()
-		}()
-
-		go func() {
-			_, err := io.Copy(eagain.Writer{Writer: src}, eagain.Reader{Reader: dst})
-			if err != nil {
-				logger.Warnf("Dqlite server proxy Unix -> TLS: %v", err)
-			}
-			src.Close()
-			dst.Close()
-		}()
+		go dqliteProxy(ctx, remote, local)
 	}
+}
+
+// Copies data between a remote TLS network connection and a local unix socket.
+func dqliteProxy(ctx context.Context, remote net.Conn, local net.Conn) {
+	// Go doesn't currently expose the underlying TCP connection of a TLS
+	// connection, but we need it in order to gracefully stop proxying with
+	// ReadClose(). We use some reflect/unsafe black magic to extract the
+	// private remote.conn field, which is indeed the underlying TCP
+	// connection.
+	field := reflect.ValueOf(remote.(*tls.Conn)).Elem().FieldByName("conn")
+	field = reflect.NewAt(field.Type(), unsafe.Pointer(field.UnsafeAddr())).Elem()
+	tcp := field.Interface().(*net.TCPConn)
+
+	remoteToLocal := make(chan error, 0)
+	localToRemote := make(chan error, 0)
+
+	// Start copying data back and forth until either the client or the
+	// server get closed or hit an error.
+	go func() {
+		_, err := io.Copy(local, remote)
+		remoteToLocal <- err
+	}()
+
+	go func() {
+		_, err := io.Copy(remote, local)
+		localToRemote <- err
+	}()
+
+	errs := make([]error, 2)
+
+	select {
+	case <-ctx.Done():
+		// Force closing, ignore errors.
+		remote.Close()
+		local.Close()
+		<-remoteToLocal
+		<-localToRemote
+	case err := <-remoteToLocal:
+		if err != nil {
+			errs[0] = fmt.Errorf("remote -> local: %v", err)
+		}
+		local.(*net.UnixConn).CloseRead()
+		if err := <-localToRemote; err != nil {
+			errs[1] = fmt.Errorf("local -> remote: %v", err)
+		}
+		remote.Close()
+		local.Close()
+	case err := <-localToRemote:
+		if err != nil {
+			errs[0] = fmt.Errorf("local -> remote: %v", err)
+		}
+		tcp.CloseRead()
+		if err := <-remoteToLocal; err != nil {
+			errs[1] = fmt.Errorf("remote -> local: %v", err)
+		}
+		local.Close()
+
+	}
+
+	if errs[0] != nil || errs[1] != nil {
+		err := dqliteProxyError{first: errs[0], second: errs[1]}
+		logger.Warnf("Dqlite proxy: %v", err)
+	}
+}
+
+type dqliteProxyError struct {
+	first  error
+	second error
+}
+
+func (e dqliteProxyError) Error() string {
+	msg := ""
+	if e.first != nil {
+		msg += "first: " + e.first.Error()
+	}
+	if e.second != nil {
+		if e.first != nil {
+			msg += " "
+		}
+		msg += "second: " + e.second.Error()
+	}
+	return msg
 }
 
 // Conditionally uses the in-memory or the on-disk server store.
