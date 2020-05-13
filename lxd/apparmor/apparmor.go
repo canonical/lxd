@@ -48,7 +48,7 @@ const profileBase = `
 
   # Handle binfmt
   mount fstype=binfmt_misc -> /proc/sys/fs/binfmt_misc/,
-  deny /proc/sys/fs/binfmt_misc/{,**} rwklx,
+  deny /proc/sys/fs/binfmt_misc/** rwklx,
 
   # Handle cgroupfs
   mount options=(ro, nosuid, nodev, noexec, remount, strictatime) -> /sys/fs/cgroup/,
