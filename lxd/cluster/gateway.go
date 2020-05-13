@@ -374,7 +374,47 @@ func (g *Gateway) raftDial() client.DialFunc {
 			}
 			address = string(addr)
 		}
-		return dqliteNetworkDial(ctx, address, g, false)
+		conn, err := dqliteNetworkDial(ctx, address, g, false)
+		if err != nil {
+			return nil, err
+		}
+
+		listener, err := net.Listen("unix", "")
+		if err != nil {
+			return nil, errors.Wrap(err, "Failed to create unix listener")
+		}
+
+		goUnix, err := net.Dial("unix", listener.Addr().String())
+		if err != nil {
+			return nil, errors.Wrap(err, "Failed to connect to unix listener")
+		}
+
+		cUnix, err := listener.Accept()
+		if err != nil {
+			return nil, errors.Wrap(err, "Failed to connect to unix listener")
+		}
+
+		listener.Close()
+
+		go func() {
+			_, err := io.Copy(eagain.Writer{Writer: goUnix}, eagain.Reader{Reader: conn})
+			if err != nil {
+				logger.Warnf("Dqlite client proxy TLS -> Unix: %v", err)
+			}
+			goUnix.Close()
+			conn.Close()
+		}()
+
+		go func() {
+			_, err := io.Copy(eagain.Writer{Writer: conn}, eagain.Reader{Reader: goUnix})
+			if err != nil {
+				logger.Warnf("Dqlite client proxy Unix -> TLS: %v", err)
+			}
+			conn.Close()
+			goUnix.Close()
+		}()
+
+		return cUnix, nil
 	}
 }
 
@@ -888,41 +928,6 @@ func dqliteNetworkDial(ctx context.Context, addr string, g *Gateway, checkLeader
 		return nil, fmt.Errorf("Missing or unexpected Upgrade header in response")
 	}
 
-	listener, err := net.Listen("unix", "")
-	if err != nil {
-		return nil, errors.Wrap(err, "Failed to create unix listener")
-	}
-
-	goUnix, err := net.Dial("unix", listener.Addr().String())
-	if err != nil {
-		return nil, errors.Wrap(err, "Failed to connect to unix listener")
-	}
-
-	cUnix, err := listener.Accept()
-	if err != nil {
-		return nil, errors.Wrap(err, "Failed to connect to unix listener")
-	}
-
-	listener.Close()
-
-	go func() {
-		_, err := io.Copy(eagain.Writer{Writer: goUnix}, eagain.Reader{Reader: conn})
-		if err != nil {
-			logger.Warnf("Dqlite client proxy TLS -> Unix: %v", err)
-		}
-		goUnix.Close()
-		conn.Close()
-	}()
-
-	go func() {
-		_, err := io.Copy(eagain.Writer{Writer: conn}, eagain.Reader{Reader: goUnix})
-		if err != nil {
-			logger.Warnf("Dqlite client proxy Unix -> TLS: %v", err)
-		}
-		conn.Close()
-		goUnix.Close()
-	}()
-
 	// We successfully established a connection with the leader. Maybe the
 	// leader is ourselves, and we were recently elected. In that case
 	// trigger a full heartbeat now: it will be a no-op if we aren't
@@ -931,7 +936,7 @@ func dqliteNetworkDial(ctx context.Context, addr string, g *Gateway, checkLeader
 		go g.heartbeat(g.ctx, true)
 	}
 
-	return cUnix, nil
+	return conn, nil
 }
 
 // Create a dial function that connects to the local dqlite.
