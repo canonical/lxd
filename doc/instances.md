@@ -340,7 +340,7 @@ Supported instance types: container
 
 Sets up a new network device based on an existing one using the same MAC address but a different IP.
 
-LXD currently supports IPVLAN in L3S mode.
+LXD currently supports IPVLAN in L2 and L3S mode.
 
 In this mode, the gateway is automatically set by LXD, however IP addresses must be manually specified using either one or both of `ipv4.address` and `ipv6.address` settings before instance is started.
 
