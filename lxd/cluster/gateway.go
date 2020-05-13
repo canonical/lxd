@@ -22,7 +22,6 @@ import (
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
-	"github.com/lxc/lxd/shared/eagain"
 	"github.com/lxc/lxd/shared/logger"
 	"github.com/pkg/errors"
 )
@@ -396,23 +395,7 @@ func (g *Gateway) raftDial() client.DialFunc {
 
 		listener.Close()
 
-		go func() {
-			_, err := io.Copy(eagain.Writer{Writer: goUnix}, eagain.Reader{Reader: conn})
-			if err != nil {
-				logger.Warnf("Dqlite client proxy TLS -> Unix: %v", err)
-			}
-			goUnix.Close()
-			conn.Close()
-		}()
-
-		go func() {
-			_, err := io.Copy(eagain.Writer{Writer: conn}, eagain.Reader{Reader: goUnix})
-			if err != nil {
-				logger.Warnf("Dqlite client proxy Unix -> TLS: %v", err)
-			}
-			conn.Close()
-			goUnix.Close()
-		}()
+		go dqliteProxy(context.Background(), conn, goUnix)
 
 		return cUnix, nil
 	}
