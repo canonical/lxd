@@ -3,6 +3,7 @@ package drivers
 import (
 	"io"
 
+	"github.com/lxc/lxd/lxd/backup"
 	"github.com/lxc/lxd/lxd/migration"
 	"github.com/lxc/lxd/lxd/operations"
 	"github.com/lxc/lxd/shared/api"
@@ -74,7 +75,7 @@ func (d *mock) CreateVolume(vol Volume, filler *VolumeFiller, op *operations.Ope
 }
 
 // CreateVolumeFromBackup restores a backup tarball onto the storage device.
-func (d *mock) CreateVolumeFromBackup(vol Volume, snapshots []string, srcData io.ReadSeeker, optimizedStorage bool, op *operations.Operation) (func(vol Volume) error, func(), error) {
+func (d *mock) CreateVolumeFromBackup(vol Volume, srcBackup backup.Info, srcData io.ReadSeeker, op *operations.Operation) (func(vol Volume) error, func(), error) {
 	return nil, nil, nil
 }
 
