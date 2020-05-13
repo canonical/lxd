@@ -31,7 +31,8 @@ type Info struct {
 	Backend          string           `json:"backend" yaml:"backend"`
 	Pool             string           `json:"pool" yaml:"pool"`
 	Snapshots        []string         `json:"snapshots,omitempty" yaml:"snapshots,omitempty"`
-	OptimizedStorage *bool            `json:"optimized,omitempty" yaml:"optimized,omitempty"` // Optional field to handle older optimized backups that don't have this field.
+	OptimizedStorage *bool            `json:"optimized,omitempty" yaml:"optimized,omitempty"`               // Optional field to handle older optimized backups that don't have this field.
+	OptimizedHeader  *bool            `json:"optimized_header,omitempty" yaml:"optimized_header,omitempty"` // Optional field to handle older optimized backups that don't have this field.
 	Type             api.InstanceType `json:"type" yaml:"type"`
 }
 
