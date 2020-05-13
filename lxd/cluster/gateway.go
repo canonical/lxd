@@ -697,7 +697,7 @@ func (g *Gateway) init() error {
 			g.store.inMemory = client.NewInmemNodeStore()
 			g.store.Set(context.Background(), []client.NodeInfo{*info})
 		} else {
-			go runDqliteProxy(g.bindAddress, g.acceptCh)
+			go runDqliteProxy(g.ctx, g.bindAddress, g.acceptCh)
 			g.store.inMemory = nil
 			options = append(options, dqlite.WithDialFunc(g.raftDial()))
 		}
@@ -967,32 +967,89 @@ func DqliteLog(l client.LogLevel, format string, a ...interface{}) {
 
 // Copy incoming TLS streams from upgraded HTTPS connections into Unix sockets
 // connected to the dqlite task.
-func runDqliteProxy(bindAddress string, acceptCh chan net.Conn) {
+func runDqliteProxy(ctx context.Context, bindAddress string, acceptCh chan net.Conn) {
 	for {
-		src := <-acceptCh
-		dst, err := net.Dial("unix", bindAddress)
+		remote := <-acceptCh
+		local, err := net.Dial("unix", bindAddress)
 		if err != nil {
 			continue
 		}
 
-		go func() {
-			_, err := io.Copy(eagain.Writer{Writer: dst}, eagain.Reader{Reader: src})
-			if err != nil {
-				logger.Warnf("Dqlite server proxy TLS -> Unix: %v", err)
-			}
-			src.Close()
-			dst.Close()
-		}()
-
-		go func() {
-			_, err := io.Copy(eagain.Writer{Writer: src}, eagain.Reader{Reader: dst})
-			if err != nil {
-				logger.Warnf("Dqlite server proxy Unix -> TLS: %v", err)
-			}
-			src.Close()
-			dst.Close()
-		}()
+		go dqliteProxy(ctx, remote, local)
 	}
+}
+
+// Copies data between a remote TLS network connection and a local unix socket.
+func dqliteProxy(ctx context.Context, remote net.Conn, local net.Conn) {
+	remoteToLocal := make(chan error, 0)
+	localToRemote := make(chan error, 0)
+
+	// Start copying data back and forth until either the client or the
+	// server get closed or hit an error.
+	go func() {
+		_, err := io.Copy(local, remote)
+		remoteToLocal <- err
+	}()
+
+	go func() {
+		_, err := io.Copy(remote, local)
+		localToRemote <- err
+	}()
+
+	errs := make([]error, 2)
+
+	select {
+	case <-ctx.Done():
+		// Force closing, ignore errors.
+		remote.Close()
+		local.Close()
+		<-remoteToLocal
+		<-localToRemote
+	case err := <-remoteToLocal:
+		if err != nil {
+			errs[0] = fmt.Errorf("remote -> local: %v", err)
+		}
+		local.(*net.UnixConn).CloseRead()
+		if err := <-localToRemote; err != nil {
+			errs[1] = fmt.Errorf("local -> remote: %v", err)
+		}
+		remote.Close()
+		local.Close()
+	case err := <-localToRemote:
+		if err != nil {
+			errs[0] = fmt.Errorf("local -> remote: %v", err)
+		}
+		remote.Close()
+		if err := <-remoteToLocal; err != nil {
+			errs[1] = fmt.Errorf("remote -> local: %v", err)
+		}
+		local.Close()
+
+	}
+
+	if errs[0] != nil || errs[1] != nil {
+		err := dqliteProxyError{first: errs[0], second: errs[1]}
+		logger.Warnf("Dqlite proxy: %v", err)
+	}
+}
+
+type dqliteProxyError struct {
+	first  error
+	second error
+}
+
+func (e dqliteProxyError) Error() string {
+	msg := ""
+	if e.first != nil {
+		msg += "first: " + e.first.Error()
+	}
+	if e.second != nil {
+		if e.first != nil {
+			msg += " "
+		}
+		msg += "second: " + e.second.Error()
+	}
+	return msg
 }
 
 // Conditionally uses the in-memory or the on-disk server store.
