@@ -32,6 +32,7 @@ import (
 extern void attach_userns(int pid);
 extern char* advance_arg(bool required);
 extern int dosetns(int pid, char *nstype);
+extern bool setnsat(int ns_fd, const char *ns);
 
 static inline bool same_fsinfo(struct stat *s1, struct stat *s2,
 			       struct statfs *sfs1, struct statfs *sfs2)
@@ -206,17 +207,6 @@ static void mknod_emulate(void)
 #endif
 
 const char *ns_names[] = { "user", "pid", "uts", "ipc", "net", "cgroup", NULL };
-
-static bool setnsat(int ns_fd, const char *ns)
-{
-	__do_close int fd = -EBADF;
-
-	fd = openat(ns_fd, ns, O_RDONLY | O_CLOEXEC);
-	if (fd < 0)
-		return false;
-
-	return setns(fd, 0) == 0;
-}
 
 static bool change_creds(int ns_fd, cap_t caps, uid_t nsuid, gid_t nsgid, uid_t nsfsuid, gid_t nsfsgid)
 {
