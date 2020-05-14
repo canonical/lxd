@@ -5127,6 +5127,19 @@ func (c *lxc) templateApplyNow(trigger string) error {
 	return nil
 }
 
+func (c *lxc) inheritInitPidFd() (int, *os.File) {
+	if c.state.OS.PidFds {
+		pidFdFile, err := c.InitPidFd()
+		if err != nil {
+			return -1, nil
+		}
+
+		return 3, pidFdFile
+	}
+
+	return -1, nil
+}
+
 // FileExists returns whether file exists inside instance.
 func (c *lxc) FileExists(path string) error {
 	// Setup container storage if needed
@@ -5139,14 +5152,21 @@ func (c *lxc) FileExists(path string) error {
 		}
 	}
 
+	pidFdNr, pidFd := c.inheritInitPidFd()
+	if pidFdNr >= 0 {
+		defer pidFd.Close()
+	}
+
 	// Check if the file exists in the container
 	_, stderr, err := shared.RunCommandSplit(
 		nil,
+		[]*os.File{pidFd},
 		c.state.OS.ExecPath,
 		"forkfile",
 		"exists",
 		c.RootfsPath(),
 		fmt.Sprintf("%d", c.InitPID()),
+		fmt.Sprintf("%d", pidFdNr),
 		path,
 	)
 
@@ -5194,14 +5214,21 @@ func (c *lxc) FilePull(srcpath string, dstpath string) (int64, int64, os.FileMod
 		}
 	}
 
+	pidFdNr, pidFd := c.inheritInitPidFd()
+	if pidFdNr >= 0 {
+		defer pidFd.Close()
+	}
+
 	// Get the file from the container
 	_, stderr, err := shared.RunCommandSplit(
 		nil,
+		[]*os.File{pidFd},
 		c.state.OS.ExecPath,
 		"forkfile",
 		"pull",
 		c.RootfsPath(),
 		fmt.Sprintf("%d", c.InitPID()),
+		fmt.Sprintf("%d", pidFdNr),
 		srcpath,
 		dstpath,
 	)
@@ -5346,14 +5373,21 @@ func (c *lxc) FilePush(fileType string, srcpath string, dstpath string, uid int6
 		defaultMode = 0750
 	}
 
+	pidFdNr, pidFd := c.inheritInitPidFd()
+	if pidFdNr >= 0 {
+		defer pidFd.Close()
+	}
+
 	// Push the file to the container
 	_, stderr, err := shared.RunCommandSplit(
 		nil,
+		[]*os.File{pidFd},
 		c.state.OS.ExecPath,
 		"forkfile",
 		"push",
 		c.RootfsPath(),
 		fmt.Sprintf("%d", c.InitPID()),
+		fmt.Sprintf("%d", pidFdNr),
 		srcpath,
 		dstpath,
 		fileType,
@@ -5417,14 +5451,21 @@ func (c *lxc) FileRemove(path string) error {
 		}
 	}
 
+	pidFdNr, pidFd := c.inheritInitPidFd()
+	if pidFdNr >= 0 {
+		defer pidFd.Close()
+	}
+
 	// Remove the file from the container
 	_, stderr, err := shared.RunCommandSplit(
 		nil,
+		[]*os.File{pidFd},
 		c.state.OS.ExecPath,
 		"forkfile",
 		"remove",
 		c.RootfsPath(),
 		fmt.Sprintf("%d", c.InitPID()),
+		fmt.Sprintf("%d", pidFdNr),
 		path,
 	)
 
@@ -6486,6 +6527,17 @@ func (c *lxc) InitPID() int {
 	}
 
 	return c.c.InitPid()
+}
+
+// InitPidFd returns pidfd of init process.
+func (c *lxc) InitPidFd() (*os.File, error) {
+	// Load the go-lxc struct
+	err := c.initLXC(false)
+	if err != nil {
+		return nil, err
+	}
+
+	return c.c.InitPidFd()
 }
 
 // LocalConfig returns local config.
