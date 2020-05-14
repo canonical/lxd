@@ -462,8 +462,8 @@ func (d *btrfs) CreateVolumeFromMigration(vol Volume, conn io.ReadWriteCloser, v
 		})
 	}
 
-	receiveVolume := func(v Volume, recvPath string) error {
-		wrapper := migration.ProgressWriter(op, "fs_progress", v.name)
+	// receiveVolume receives all subvolumes in an LXD volume from the source.
+	receiveVolume := func(v Volume, receivePath string) error {
 		_, snapName, _ := shared.InstanceGetParentAndSnapshotName(v.name)
 
 		for _, subVol := range migrationHeader.Subvolumes {
@@ -471,11 +471,20 @@ func (d *btrfs) CreateVolumeFromMigration(vol Volume, conn io.ReadWriteCloser, v
 				continue // Skip any subvolumes that dont belong to our volume (empty for main).
 			}
 
-			path := filepath.Join(v.MountPath(), subVol.Path)
-			d.logger.Debug("Receiving volume", log.Ctx{"name": v.name, "recvPath": recvPath, "path": path})
-			err := d.receiveSubvolume(recvPath, path, conn, wrapper)
+			subVolTargetPath := filepath.Join(v.MountPath(), subVol.Path)
+			d.logger.Debug("Receiving volume", log.Ctx{"name": v.name, "receivePath": receivePath, "path": subVolTargetPath})
+			subVolRecvPath, err := d.receiveSubVolume(conn, receivePath)
 			if err != nil {
 				return err
+			}
+
+			// Clear the target for the subvol to use.
+			os.Remove(subVolTargetPath)
+
+			// And move it to the target path.
+			err = os.Rename(subVolRecvPath, subVolTargetPath)
+			if err != nil {
+				return errors.Wrapf(err, "Failed to rename '%s' to '%s'", subVolRecvPath, subVolTargetPath)
 			}
 		}
 
