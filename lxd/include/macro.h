@@ -268,4 +268,8 @@ enum {
 		__internal_ret__;                             \
 	})
 
+#ifndef P_PIDFD
+#define P_PIDFD 3
+#endif
+
 #endif /* __LXC_MACRO_H */

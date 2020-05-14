@@ -877,11 +877,20 @@ func CallForkmknod(c Instance, dev deviceConfig.Device, requestPID int) int {
 		return int(-C.EPERM)
 	}
 
-	_, stderr, err := shared.RunCommandSplit(nil, util.GetExecPath(),
-		"forksyscall", "mknod", dev["pid"], dev["path"],
-		dev["mode_t"], dev["dev_t"],
-		fmt.Sprintf("%d", uid), fmt.Sprintf("%d", gid),
-		fmt.Sprintf("%d", fsuid), fmt.Sprintf("%d", fsgid))
+	_, stderr, err := shared.RunCommandSplit(
+		nil,
+		nil,
+		util.GetExecPath(),
+		"forksyscall",
+		"mknod",
+		dev["pid"],
+		dev["path"],
+		dev["mode_t"],
+		dev["dev_t"],
+		fmt.Sprintf("%d", uid),
+		fmt.Sprintf("%d", gid),
+		fmt.Sprintf("%d", fsuid),
+		fmt.Sprintf("%d", fsgid))
 	if err != nil {
 		errno, err := strconv.Atoi(stderr)
 		if err != nil || errno == C.ENOANO {
@@ -1155,7 +1164,10 @@ func (s *Server) HandleSetxattrSyscall(c Instance, siov *Iovec) int {
 		return 0
 	}
 
-	_, stderr, err := shared.RunCommandSplit(nil, util.GetExecPath(),
+	_, stderr, err := shared.RunCommandSplit(
+		nil,
+		nil,
+		util.GetExecPath(),
 		"forksyscall",
 		"setxattr",
 		fmt.Sprintf("%d", args.pid),
@@ -1435,7 +1447,10 @@ func (s *Server) HandleMountSyscall(c Instance, siov *Iovec) int {
 		ctx["fuse_source"] = fuseSource
 		ctx["fuse_target"] = args.target
 		ctx["fuse_opts"] = fuseOpts
-		_, _, err = shared.RunCommandSplit(nil, util.GetExecPath(),
+		_, _, err = shared.RunCommandSplit(
+			nil,
+			nil,
+			util.GetExecPath(),
 			"forksyscall",
 			"mount",
 			fmt.Sprintf("%d", args.pid),
@@ -1448,7 +1463,10 @@ func (s *Server) HandleMountSyscall(c Instance, siov *Iovec) int {
 			fmt.Sprintf("%s", args.target),
 			fmt.Sprintf("%s", fuseOpts))
 	} else {
-		_, _, err = shared.RunCommandSplit(nil, util.GetExecPath(),
+		_, _, err = shared.RunCommandSplit(
+			nil,
+			nil,
+			util.GetExecPath(),
 			"forksyscall",
 			"mount",
 			fmt.Sprintf("%d", args.pid),

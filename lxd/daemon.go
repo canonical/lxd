@@ -606,6 +606,13 @@ func (d *Daemon) init() error {
 		logger.Infof(" - netnsid-based network retrieval: no")
 	}
 
+	d.os.PidFds = canUsePidFds()
+	if d.os.PidFds {
+		logger.Infof(" - pidfds: yes")
+	} else {
+		logger.Infof(" - pidfds: no")
+	}
+
 	d.os.UeventInjection = canUseUeventInjection()
 	if d.os.UeventInjection {
 		logger.Infof(" - uevent injection: yes")

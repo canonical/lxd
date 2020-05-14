@@ -25,8 +25,9 @@ import (
 
 extern char* advance_arg(bool required);
 extern void error(char *msg);
-extern void attach_userns(int pid);
-extern int dosetns(int pid, char *nstype);
+extern void attach_userns_fd(int ns_fd);
+extern bool setnsat(int ns_fd, const char *ns);
+extern int pidfd_nsfd(int pidfd, pid_t pid);
 
 int copy(int target, int source, bool append)
 {
@@ -58,7 +59,7 @@ int copy(int target, int source, bool append)
 	return 0;
 }
 
-int manip_file_in_ns(char *rootfs, int pid, char *host, char *container, bool is_put, char *type, uid_t uid, gid_t gid, mode_t mode, uid_t defaultUid, gid_t defaultGid, mode_t defaultMode, bool append) {
+int manip_file_in_ns(char *rootfs, int ns_fd, char *host, char *container, bool is_put, char *type, uid_t uid, gid_t gid, mode_t mode, uid_t defaultUid, gid_t defaultGid, mode_t defaultMode, bool append) {
 	__do_close int host_fd = -EBADF, container_fd = -EBADF;
 	int ret = -1;
 	int container_open_flags;
@@ -80,10 +81,10 @@ int manip_file_in_ns(char *rootfs, int pid, char *host, char *container, bool is
 		}
 	}
 
-	if (pid > 0) {
-		attach_userns(pid);
+	if (ns_fd >= 0) {
+		attach_userns_fd(ns_fd);
 
-		if (dosetns(pid, "mnt") < 0) {
+		if (!setnsat(ns_fd, "mnt")) {
 			error("error: setns");
 			return -1;
 		}
@@ -272,7 +273,7 @@ int manip_file_in_ns(char *rootfs, int pid, char *host, char *container, bool is
 	return ret;
 }
 
-void forkdofile(bool is_put, char *rootfs, pid_t pid) {
+void forkdofile(bool is_put, char *rootfs, int ns_fd) {
 	char *cur = NULL;
 
 	uid_t uid = 0;
@@ -321,18 +322,18 @@ void forkdofile(bool is_put, char *rootfs, pid_t pid) {
 
 	printf("%d: %s to %s\n", is_put, source, target);
 
-	_exit(manip_file_in_ns(rootfs, pid, source, target, is_put, type, uid, gid, mode, defaultUid, defaultGid, defaultMode, append));
+	_exit(manip_file_in_ns(rootfs, ns_fd, source, target, is_put, type, uid, gid, mode, defaultUid, defaultGid, defaultMode, append));
 }
 
-void forkcheckfile(char *rootfs, pid_t pid) {
+void forkcheckfile(char *rootfs, int ns_fd) {
 	char *path = NULL;
 
 	path = advance_arg(true);
 
-	if (pid > 0) {
-		attach_userns(pid);
+	if (ns_fd >= 0) {
+		attach_userns_fd(ns_fd);
 
-		if (dosetns(pid, "mnt") < 0) {
+		if (!setnsat(ns_fd, "mnt")) {
 			error("error: setns");
 			_exit(1);
 		}
@@ -356,16 +357,16 @@ void forkcheckfile(char *rootfs, pid_t pid) {
 	_exit(0);
 }
 
-void forkremovefile(char *rootfs, pid_t pid) {
+void forkremovefile(char *rootfs, int ns_fd) {
 	char *path = NULL;
 	struct stat sb;
 
 	path = advance_arg(true);
 
-	if (pid > 0) {
-		attach_userns(pid);
+	if (ns_fd >= 0) {
+		attach_userns_fd(ns_fd);
 
-		if (dosetns(pid, "mnt") < 0) {
+		if (!setnsat(ns_fd, "mnt")) {
 			error("error: setns");
 			_exit(1);
 		}
@@ -403,6 +404,7 @@ void forkremovefile(char *rootfs, pid_t pid) {
 
 void forkfile(void)
 {
+	int ns_fd = -EBADF, pidfd = -EBADF;
 	char *command = NULL;
 	char *rootfs = NULL;
 	pid_t pid = 0;
@@ -419,24 +421,31 @@ void forkfile(void)
 		return;
 	}
 
-	// Get the container PID
-	pid = atoi(advance_arg(true));
-
 	// Check that we're root
 	if (geteuid() != 0) {
 		fprintf(stderr, "Error: forkfile requires root privileges\n");
 		_exit(1);
 	}
 
+	// Get the container PID
+	pid = atoi(advance_arg(true));
+	pidfd = atoi(advance_arg(true));
+
+	if (pid > 0 || pidfd >= 0) {
+		ns_fd = pidfd_nsfd(pidfd, pid);
+		if (ns_fd < 0)
+			_exit(1);
+	}
+
 	// Call the subcommands
 	if (strcmp(command, "push") == 0) {
-		forkdofile(true, rootfs, pid);
+		forkdofile(true, rootfs, ns_fd);
 	} else if (strcmp(command, "pull") == 0) {
-		forkdofile(false, rootfs, pid);
+		forkdofile(false, rootfs, ns_fd);
 	} else if (strcmp(command, "exists") == 0) {
-		forkcheckfile(rootfs, pid);
+		forkcheckfile(rootfs, ns_fd);
 	} else if (strcmp(command, "remove") == 0) {
-		forkremovefile(rootfs, pid);
+		forkremovefile(rootfs, ns_fd);
 	}
 }
 */
@@ -462,29 +471,29 @@ func (c *cmdForkfile) Command() *cobra.Command {
 
 	// pull
 	cmdPull := &cobra.Command{}
-	cmdPull.Use = "pull <rootfs> <PID> <source> <destination>"
-	cmdPull.Args = cobra.ExactArgs(4)
+	cmdPull.Use = "pull <rootfs> <PID> <PidFd> <source> <destination>"
+	cmdPull.Args = cobra.ExactArgs(5)
 	cmdPull.RunE = c.Run
 	cmd.AddCommand(cmdPull)
 
 	// push
 	cmdPush := &cobra.Command{}
-	cmdPush.Use = "push <rootfs> <PID> <source> <destination> <type> <uid> <gid> <mode> <root uid> <root gid> <default mode> <write type>"
-	cmdPush.Args = cobra.ExactArgs(12)
+	cmdPush.Use = "push <rootfs> <PID> <PidFd> <source> <destination> <type> <uid> <gid> <mode> <root uid> <root gid> <default mode> <write type>"
+	cmdPush.Args = cobra.ExactArgs(13)
 	cmdPush.RunE = c.Run
 	cmd.AddCommand(cmdPush)
 
 	// exists
 	cmdExists := &cobra.Command{}
-	cmdExists.Use = "exists <rootfs> <PID> <path>"
-	cmdExists.Args = cobra.ExactArgs(3)
+	cmdExists.Use = "exists <rootfs> <PID> <PidFd> <path>"
+	cmdExists.Args = cobra.ExactArgs(4)
 	cmdExists.RunE = c.Run
 	cmd.AddCommand(cmdExists)
 
 	// remove
 	cmdRemove := &cobra.Command{}
-	cmdRemove.Use = "remove <rootfs> <PID> <path>"
-	cmdRemove.Args = cobra.ExactArgs(3)
+	cmdRemove.Use = "remove <rootfs> <PID> <PidFd> <path>"
+	cmdRemove.Args = cobra.ExactArgs(4)
 	cmdRemove.RunE = c.Run
 	cmd.AddCommand(cmdRemove)
 
