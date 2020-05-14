@@ -6032,7 +6032,21 @@ func (c *lxc) insertMountLXD(source, target, fstype string, flags int, mntnsPID 
 	mntsrc := filepath.Join("/dev/.lxd-mounts", filepath.Base(tmpMount))
 	pidStr := fmt.Sprintf("%d", pid)
 
-	_, err = shared.RunCommand(c.state.OS.ExecPath, "forkmount", "lxd-mount", pidStr, mntsrc, target, fmt.Sprintf("%v", shiftfs))
+	pidFdNr, pidFd := c.inheritInitPidFd()
+	if pidFdNr >= 0 {
+		defer pidFd.Close()
+	}
+
+	_, err = shared.RunCommandInheritFds(
+		[]*os.File{pidFd},
+		c.state.OS.ExecPath,
+		"forkmount",
+		"lxd-mount",
+		pidStr,
+		fmt.Sprintf("%d", pidFdNr),
+		mntsrc,
+		target,
+		fmt.Sprintf("%v", shiftfs))
 	if err != nil {
 		return err
 	}
@@ -6089,8 +6103,19 @@ func (c *lxc) removeMount(mount string) error {
 		}
 	} else {
 		// Remove the mount from the container
-		pidStr := fmt.Sprintf("%d", pid)
-		_, err := shared.RunCommand(c.state.OS.ExecPath, "forkmount", "lxd-umount", pidStr, mount)
+		pidFdNr, pidFd := c.inheritInitPidFd()
+		if pidFdNr >= 0 {
+			defer pidFd.Close()
+		}
+
+		_, err := shared.RunCommandInheritFds(
+			[]*os.File{pidFd},
+			c.state.OS.ExecPath,
+			"forkmount",
+			"lxd-umount",
+			fmt.Sprintf("%d", pid),
+			fmt.Sprintf("%d", pidFdNr),
+			mount)
 		if err != nil {
 			return err
 		}
