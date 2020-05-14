@@ -899,19 +899,15 @@ func (d *btrfs) MigrateVolume(vol Volume, conn io.ReadWriteCloser, volSrcArgs *m
 	}
 
 	// Transfer the snapshots (and any subvolumes if supported) to target first.
-	for i, snapName := range volSrcArgs.Snapshots {
+	lastVolPath := "" // Used as parent for differential transfers.
+	for _, snapName := range volSrcArgs.Snapshots {
 		snapVol, _ := vol.NewSnapshot(snapName)
-
-		// Locate the parent snapshot.
-		parentSnapshotPath := ""
-		if i > 0 {
-			parentSnapshotPath = GetVolumeMountPath(d.name, vol.volType, GetSnapshotVolumeName(vol.name, volSrcArgs.Snapshots[i-1]))
-		}
-
-		err = sendVolume(snapVol, snapVol.MountPath(), parentSnapshotPath)
+		err = sendVolume(snapVol, snapVol.MountPath(), lastVolPath)
 		if err != nil {
 			return err
 		}
+
+		lastVolPath = snapVol.MountPath()
 	}
 
 	// Get instances directory (e.g. /var/lib/lxd/storage-pools/btrfs/containers).
@@ -938,13 +934,7 @@ func (d *btrfs) MigrateVolume(vol Volume, conn io.ReadWriteCloser, volSrcArgs *m
 	defer d.deleteSubvolume(migrationSendSnapshotPrefix, true)
 
 	// Send main volume (and any subvolumes if supported) to target.
-	parentPrefix := "" // Default to no differential parent subvolume.
-	if len(volSrcArgs.Snapshots) > 0 {
-		// Compare to latest snapshot.
-		parentPrefix = GetVolumeMountPath(d.name, vol.volType, GetSnapshotVolumeName(vol.name, volSrcArgs.Snapshots[len(volSrcArgs.Snapshots)-1]))
-	}
-
-	return sendVolume(vol, migrationSendSnapshotPrefix, parentPrefix)
+	return sendVolume(vol, migrationSendSnapshotPrefix, lastVolPath)
 }
 
 // BackupVolume copies a volume (and optionally its snapshots) to a specified target path.
