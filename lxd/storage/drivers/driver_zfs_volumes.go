@@ -16,6 +16,7 @@ import (
 	"github.com/pkg/errors"
 	"golang.org/x/sys/unix"
 
+	"github.com/lxc/lxd/lxd/backup"
 	"github.com/lxc/lxd/lxd/migration"
 	"github.com/lxc/lxd/lxd/operations"
 	"github.com/lxc/lxd/lxd/revert"
@@ -248,10 +249,10 @@ func (d *zfs) CreateVolume(vol Volume, filler *VolumeFiller, op *operations.Oper
 }
 
 // CreateVolumeFromBackup re-creates a volume from its exported state.
-func (d *zfs) CreateVolumeFromBackup(vol Volume, snapshots []string, srcData io.ReadSeeker, optimized bool, op *operations.Operation) (func(vol Volume) error, func(), error) {
+func (d *zfs) CreateVolumeFromBackup(vol Volume, srcBackup backup.Info, srcData io.ReadSeeker, op *operations.Operation) (func(vol Volume) error, func(), error) {
 	// Handle the non-optimized tarballs through the generic unpacker.
-	if !optimized {
-		return genericVFSBackupUnpack(d, vol, snapshots, srcData, op)
+	if !*srcBackup.OptimizedStorage {
+		return genericVFSBackupUnpack(d, vol, srcBackup.Snapshots, srcData, op)
 	}
 
 	if d.HasVolume(vol) {
@@ -263,7 +264,7 @@ func (d *zfs) CreateVolumeFromBackup(vol Volume, snapshots []string, srcData io.
 		fsVol := vol.NewVMBlockFilesystemVolume()
 
 		// The revert and post hooks define below will also apply to what is done here.
-		_, _, err := d.CreateVolumeFromBackup(fsVol, snapshots, srcData, optimized, op)
+		_, _, err := d.CreateVolumeFromBackup(fsVol, srcBackup, srcData, op)
 		if err != nil {
 			return nil, nil, err
 		}
@@ -275,7 +276,7 @@ func (d *zfs) CreateVolumeFromBackup(vol Volume, snapshots []string, srcData io.
 	// Define a revert function that will be used both to revert if an error occurs inside this
 	// function but also return it for use from the calling functions if no error internally.
 	revertHook := func() {
-		for _, snapName := range snapshots {
+		for _, snapName := range srcBackup.Snapshots {
 			fullSnapshotName := GetSnapshotVolumeName(vol.name, snapName)
 			snapVol := NewVolume(d, d.name, vol.volType, vol.contentType, fullSnapshotName, vol.config, vol.poolConfig)
 			d.DeleteVolumeSnapshot(snapVol, op)
@@ -329,7 +330,7 @@ func (d *zfs) CreateVolumeFromBackup(vol Volume, snapshots []string, srcData io.
 		return nil, nil, err
 	}
 
-	if len(snapshots) > 0 {
+	if len(srcBackup.Snapshots) > 0 {
 		// Create new snapshots directory.
 		err := createParentSnapshotDirIfMissing(d.name, vol.volType, vol.name)
 		if err != nil {
@@ -338,7 +339,7 @@ func (d *zfs) CreateVolumeFromBackup(vol Volume, snapshots []string, srcData io.
 	}
 
 	// Restore backups from oldest to newest.
-	for _, snapName := range snapshots {
+	for _, snapName := range srcBackup.Snapshots {
 		prefix := "snapshots"
 		fileName := fmt.Sprintf("%s.bin", snapName)
 		if vol.volType == VolumeTypeVM {

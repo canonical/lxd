@@ -8,6 +8,7 @@ import (
 	deviceConfig "github.com/lxc/lxd/lxd/device/config"
 	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/instance/instancetype"
+	storageDrivers "github.com/lxc/lxd/lxd/storage/drivers"
 	"github.com/lxc/lxd/shared"
 )
 
@@ -91,7 +92,7 @@ func (d *unixCommon) Register() error {
 		// Derive the host side path for the instance device file.
 		ourPrefix := deviceJoinPath("unix", deviceName)
 		relativeDestPath := strings.TrimPrefix(unixDeviceDestPath(devConfig), "/")
-		devName := deviceNameEncode(deviceJoinPath(ourPrefix, relativeDestPath))
+		devName := storageDrivers.PathNameEncode(deviceJoinPath(ourPrefix, relativeDestPath))
 		devPath := filepath.Join(devicesPath, devName)
 
 		runConf := deviceConfig.RunConfig{}

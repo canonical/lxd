@@ -509,7 +509,7 @@ func (b *lxdBackend) CreateInstanceFromBackup(srcBackup backup.Info, srcData io.
 	defer revert.Fail()
 
 	// Unpack the backup into the new storage volume(s).
-	volPostHook, revertHook, err := b.driver.CreateVolumeFromBackup(vol, srcBackup.Snapshots, srcData, *srcBackup.OptimizedStorage, op)
+	volPostHook, revertHook, err := b.driver.CreateVolumeFromBackup(vol, srcBackup, srcData, op)
 	if err != nil {
 		return nil, nil, err
 	}

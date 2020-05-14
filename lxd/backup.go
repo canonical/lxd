@@ -167,6 +167,12 @@ func backupCreate(s *state.State, args db.InstanceBackupArgs, sourceInst instanc
 
 // backupWriteIndex generates an index.yaml file and then writes it to the root of the backup tarball.
 func backupWriteIndex(sourceInst instance.Instance, pool storagePools.Pool, optimized bool, snapshots bool, tarWriter *instancewriter.InstanceTarWriter) error {
+	// Indicate whether the driver will include a driver-specific optimized header.
+	poolDriverOptimizedHeader := false
+	if optimized {
+		poolDriverOptimizedHeader = pool.Driver().Info().OptimizedBackupHeader
+	}
+
 	indexInfo := backup.Info{
 		Name:             sourceInst.Name(),
 		Pool:             pool.Name(),
@@ -174,6 +180,7 @@ func backupWriteIndex(sourceInst instance.Instance, pool storagePools.Pool, opti
 		Backend:          pool.Driver().Info().Name,
 		Type:             api.InstanceType(sourceInst.Type().String()),
 		OptimizedStorage: &optimized,
+		OptimizedHeader:  &poolDriverOptimizedHeader,
 	}
 
 	if snapshots {
@@ -188,7 +195,7 @@ func backupWriteIndex(sourceInst instance.Instance, pool storagePools.Pool, opti
 		}
 	}
 
-	// Convert to JSON.
+	// Convert to YAML.
 	indexData, err := yaml.Marshal(&indexInfo)
 	if err != nil {
 		return err

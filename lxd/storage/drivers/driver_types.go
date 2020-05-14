@@ -8,6 +8,7 @@ type Info struct {
 	Remote                bool         // Whether the driver uses a remote backing store.
 	OptimizedImages       bool         // Whether driver stores images as separate volume.
 	OptimizedBackups      bool         // Whether driver supports optimized volume backups.
+	OptimizedBackupHeader bool         // Whether driver generates an optimised backup header file in backup.
 	PreservesInodes       bool         // Whether driver preserves inodes when volumes are moved hosts.
 	BlockBacking          bool         // Whether driver uses block devices as backing store.
 	RunningQuotaResize    bool         // Whether quota resize is supported whilst instance running.
