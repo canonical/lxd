@@ -1140,15 +1140,9 @@ func (d *btrfs) BackupVolume(vol Volume, tarWriter *instancewriter.InstanceTarWr
 	}
 
 	// Backup snapshots if populated.
-	finalParent := ""
-	for i, snapName := range volSnapshots {
+	lastVolPath := "" // Used as parent for differential exports.
+	for _, snapName := range volSnapshots {
 		snapVol, _ := vol.NewSnapshot(snapName)
-
-		// Locate the parent snapshot.
-		parentSnapshotPath := ""
-		if i > 0 {
-			parentSnapshotPath = GetVolumeMountPath(d.name, vol.volType, GetSnapshotVolumeName(vol.name, volSnapshots[i-1]))
-		}
 
 		// Make a binary btrfs backup.
 		snapDir := "snapshots"
@@ -1161,12 +1155,12 @@ func (d *btrfs) BackupVolume(vol Volume, tarWriter *instancewriter.InstanceTarWr
 		}
 
 		fileNamePrefix := filepath.Join(snapDir, fileName)
-		err := addVolume(snapVol, snapVol.MountPath(), parentSnapshotPath, fileNamePrefix)
+		err := addVolume(snapVol, snapVol.MountPath(), lastVolPath, fileNamePrefix)
 		if err != nil {
 			return err
 		}
 
-		finalParent = snapVol.MountPath()
+		lastVolPath = snapVol.MountPath()
 	}
 
 	// Make a temporary copy of the instance.
@@ -1207,7 +1201,7 @@ func (d *btrfs) BackupVolume(vol Volume, tarWriter *instancewriter.InstanceTarWr
 		}
 	}
 
-	err = addVolume(vol, targetVolume, finalParent, fileNamePrefix)
+	err = addVolume(vol, targetVolume, lastVolPath, fileNamePrefix)
 	if err != nil {
 		return err
 	}
