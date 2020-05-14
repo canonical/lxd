@@ -16,7 +16,6 @@ import (
 	"golang.org/x/sys/unix"
 	"gopkg.in/yaml.v2"
 
-	"github.com/lxc/lxd/lxd/revert"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/ioprogress"
 	"github.com/lxc/lxd/shared/logger"
@@ -298,105 +297,6 @@ func (d *btrfs) sendSubvolume(path string, parent string, conn io.ReadWriteClose
 		return fmt.Errorf("Btrfs send failed: %v (%s)", errs, string(output))
 	}
 
-	return nil
-}
-
-// receiveSubvolume receives a BTRFS volume to the recvPath and then moves it to the targetPath.
-// Sets any moved subvolume to writable.
-func (d *btrfs) receiveSubvolume(recvPath string, targetPath string, conn io.ReadWriteCloser, writeWrapper func(io.WriteCloser) io.WriteCloser) error {
-	revert := revert.New()
-	defer revert.Fail()
-
-	// Assemble btrfs send command.
-	cmd := exec.Command("btrfs", "receive", "-e", recvPath)
-
-	// Prepare stdin/stderr.
-	stdin, err := cmd.StdinPipe()
-	if err != nil {
-		return err
-	}
-
-	stderr, err := cmd.StderrPipe()
-	if err != nil {
-		return err
-	}
-
-	// Forward input through stdin.
-	chCopyConn := make(chan error, 1)
-	go func() {
-		_, err = io.Copy(stdin, conn)
-		stdin.Close()
-		chCopyConn <- err
-	}()
-
-	// Run the command.
-	err = cmd.Start()
-	if err != nil {
-		return err
-	}
-
-	// Read any error.
-	output, err := ioutil.ReadAll(stderr)
-	if err != nil {
-		logger.Debugf("Problem reading btrfs receive stderr %s", err)
-	}
-
-	// Handle errors.
-	errs := []error{}
-	chCopyConnErr := <-chCopyConn
-
-	err = cmd.Wait()
-	if err != nil {
-		errs = append(errs, err)
-
-		if chCopyConnErr != nil {
-			errs = append(errs, chCopyConnErr)
-		}
-	}
-
-	if len(errs) > 0 {
-		return fmt.Errorf("Problem with btrfs receive: (%v) %s", errs, string(output))
-	}
-
-	if recvPath == targetPath {
-		return nil
-	}
-
-	// Location we would expect to receive the root subvolume.
-	receivedSnapshot := fmt.Sprintf("%s/.migration-send", recvPath)
-
-	// Handle non-root subvolumes.
-	if !shared.PathExists(receivedSnapshot) {
-		receivedSnapshot = fmt.Sprintf("%s/%s", recvPath, filepath.Base(targetPath))
-	}
-
-	// Handle older LXD versions.
-	if !shared.PathExists(receivedSnapshot) {
-		receivedSnapshot = fmt.Sprintf("%s/.root", recvPath)
-	}
-
-	if !shared.PathExists(receivedSnapshot) {
-		return fmt.Errorf("Received subvolume is not found")
-	}
-
-	// Set writable to allow subvolume to be moved.
-	err = d.setSubvolumeReadonlyProperty(receivedSnapshot, false)
-	if err != nil {
-		return err
-	}
-
-	revert.Add(func() { os.RemoveAll(receivedSnapshot) })
-
-	// Clear the target for the subvol to use.
-	os.Remove(targetPath)
-
-	// And move it to the target path.
-	err = os.Rename(receivedSnapshot, targetPath)
-	if err != nil {
-		return errors.Wrapf(err, "Failed to rename '%s' to '%s'", receivedSnapshot, targetPath)
-	}
-
-	revert.Success()
 	return nil
 }
 
