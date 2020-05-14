@@ -1124,18 +1124,18 @@ func (d *Daemon) Kill() {
 func (d *Daemon) Stop() error {
 	logger.Info("Starting shutdown sequence")
 	errs := []error{}
-	trackError := func(err error) {
+	trackError := func(err error, desc string) {
 		if err != nil {
-			errs = append(errs, err)
+			errs = append(errs, errors.Wrap(err, desc))
 		}
 	}
 
 	if d.endpoints != nil {
-		trackError(d.endpoints.Down())
+		trackError(d.endpoints.Down(), "Shutdown endpoints")
 	}
 
-	trackError(d.tasks.Stop(3 * time.Second))        // Give tasks a bit of time to cleanup.
-	trackError(d.clusterTasks.Stop(3 * time.Second)) // Give tasks a bit of time to cleanup.
+	trackError(d.tasks.Stop(3*time.Second), "Stop tasks")                // Give tasks a bit of time to cleanup.
+	trackError(d.clusterTasks.Stop(3*time.Second), "Stop cluster tasks") // Give tasks a bit of time to cleanup.
 
 	shouldUnmount := false
 	if d.cluster != nil {
@@ -1163,19 +1163,15 @@ func (d *Daemon) Stop() error {
 		if errors.Cause(err) == sqldriver.ErrBadConn {
 			logger.Debugf("Could not close remote database cleanly: %v", err)
 		} else {
-			trackError(err)
+			trackError(err, "Close cluster database")
 		}
 	}
 	if d.db != nil {
-		trackError(d.db.Close())
+		trackError(d.db.Close(), "Close local database")
 	}
 
 	if d.gateway != nil {
-		trackError(d.gateway.Shutdown())
-	}
-
-	if d.endpoints != nil {
-		trackError(d.endpoints.Down())
+		trackError(d.gateway.Shutdown(), "Shutdown dqlite")
 	}
 
 	if shouldUnmount {
@@ -1191,7 +1187,7 @@ func (d *Daemon) Stop() error {
 	}
 
 	if d.seccomp != nil {
-		trackError(d.seccomp.Stop())
+		trackError(d.seccomp.Stop(), "Stop seccomp")
 	}
 
 	var err error
