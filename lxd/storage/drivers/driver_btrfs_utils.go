@@ -458,3 +458,41 @@ func (d *btrfs) loadOptimizedBackupHeader(r io.ReadSeeker) (*BTRFSMetaDataHeader
 
 	return nil, fmt.Errorf("Optimized backup header file not found")
 }
+
+// receiveSubVolume receives a subvolume from an io.Reader into the receivePath, then sets it writable and returns
+// the path to the received subvolume.
+func (d *btrfs) receiveSubVolume(r io.Reader, receivePath string) (string, error) {
+	// Check target path is empty before receive.
+	files, err := ioutil.ReadDir(receivePath)
+	if err != nil {
+		return "", errors.Wrapf(err, "Failed listing contents of %q", receivePath)
+	}
+	if len(files) > 0 {
+		return "", fmt.Errorf("Target path is not empty %q", receivePath)
+	}
+
+	err = shared.RunCommandWithFds(r, nil, "btrfs", "receive", "-e", receivePath)
+	if err != nil {
+		return "", err
+	}
+
+	// Check contents of target path is expected after receive.
+	files, err = ioutil.ReadDir(receivePath)
+	if err != nil {
+		return "", errors.Wrapf(err, "Failed listing contents of %q", receivePath)
+	}
+
+	if len(files) != 1 {
+		return "", fmt.Errorf("Unpack target path contains %d files, expected 1 file after unpack", len(files))
+	}
+
+	subVolPath := filepath.Join(receivePath, files[0].Name())
+
+	// Set writable to allow subvolume to be moved (or deleted if needed) later.
+	err = d.setSubvolumeReadonlyProperty(subVolPath, false)
+	if err != nil {
+		return "", err
+	}
+
+	return subVolPath, nil
+}
