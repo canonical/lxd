@@ -1,6 +1,7 @@
 package drivers
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -13,6 +14,7 @@ import (
 
 	"github.com/pkg/errors"
 	"golang.org/x/sys/unix"
+	"gopkg.in/yaml.v2"
 
 	"github.com/lxc/lxd/lxd/revert"
 	"github.com/lxc/lxd/shared"
@@ -512,4 +514,47 @@ func (d *btrfs) restorationHeader(vol Volume, snapshots []string) (*BTRFSMetaDat
 
 	migrationHeader.Subvolumes = append(migrationHeader.Subvolumes, subVols...)
 	return &migrationHeader, nil
+}
+
+// loadOptimizedBackupHeader extracts optimized backup header from a given ReadSeeker.
+func (d *btrfs) loadOptimizedBackupHeader(r io.ReadSeeker) (*BTRFSMetaDataHeader, error) {
+	header := BTRFSMetaDataHeader{}
+
+	// Extract
+	r.Seek(0, 0)
+	_, _, unpacker, err := shared.DetectCompressionFile(r)
+	if err != nil {
+		return nil, err
+	}
+
+	if unpacker == nil {
+		return nil, fmt.Errorf("Unsupported backup compression")
+	}
+
+	tr, cancelFunc, err := shared.CompressedTarReader(context.Background(), r, unpacker)
+	if err != nil {
+		return nil, err
+	}
+	defer cancelFunc()
+
+	for {
+		hdr, err := tr.Next()
+		if err == io.EOF {
+			break // End of archive
+		}
+		if err != nil {
+			return nil, errors.Wrapf(err, "Error reading backup file for optimized backup header file")
+		}
+
+		if hdr.Name == "backup/optimized_header.yaml" {
+			err = yaml.NewDecoder(tr).Decode(&header)
+			if err != nil {
+				return nil, errors.Wrapf(err, "Error parsing optimized backup header file")
+			}
+
+			return &header, nil
+		}
+	}
+
+	return nil, fmt.Errorf("Optimized backup header file not found")
 }
