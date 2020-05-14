@@ -1,6 +1,7 @@
 package drivers
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -13,8 +14,8 @@ import (
 
 	"github.com/pkg/errors"
 	"golang.org/x/sys/unix"
+	"gopkg.in/yaml.v2"
 
-	"github.com/lxc/lxd/lxd/revert"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/ioprogress"
 	"github.com/lxc/lxd/shared/logger"
@@ -299,105 +300,6 @@ func (d *btrfs) sendSubvolume(path string, parent string, conn io.ReadWriteClose
 	return nil
 }
 
-// receiveSubvolume receives a BTRFS volume to the recvPath and then moves it to the targetPath.
-// Sets any moved subvolume to writable.
-func (d *btrfs) receiveSubvolume(recvPath string, targetPath string, conn io.ReadWriteCloser, writeWrapper func(io.WriteCloser) io.WriteCloser) error {
-	revert := revert.New()
-	defer revert.Fail()
-
-	// Assemble btrfs send command.
-	cmd := exec.Command("btrfs", "receive", "-e", recvPath)
-
-	// Prepare stdin/stderr.
-	stdin, err := cmd.StdinPipe()
-	if err != nil {
-		return err
-	}
-
-	stderr, err := cmd.StderrPipe()
-	if err != nil {
-		return err
-	}
-
-	// Forward input through stdin.
-	chCopyConn := make(chan error, 1)
-	go func() {
-		_, err = io.Copy(stdin, conn)
-		stdin.Close()
-		chCopyConn <- err
-	}()
-
-	// Run the command.
-	err = cmd.Start()
-	if err != nil {
-		return err
-	}
-
-	// Read any error.
-	output, err := ioutil.ReadAll(stderr)
-	if err != nil {
-		logger.Debugf("Problem reading btrfs receive stderr %s", err)
-	}
-
-	// Handle errors.
-	errs := []error{}
-	chCopyConnErr := <-chCopyConn
-
-	err = cmd.Wait()
-	if err != nil {
-		errs = append(errs, err)
-
-		if chCopyConnErr != nil {
-			errs = append(errs, chCopyConnErr)
-		}
-	}
-
-	if len(errs) > 0 {
-		return fmt.Errorf("Problem with btrfs receive: (%v) %s", errs, string(output))
-	}
-
-	if recvPath == targetPath {
-		return nil
-	}
-
-	// Location we would expect to receive the root subvolume.
-	receivedSnapshot := fmt.Sprintf("%s/.migration-send", recvPath)
-
-	// Handle non-root subvolumes.
-	if !shared.PathExists(receivedSnapshot) {
-		receivedSnapshot = fmt.Sprintf("%s/%s", recvPath, filepath.Base(targetPath))
-	}
-
-	// Handle older LXD versions.
-	if !shared.PathExists(receivedSnapshot) {
-		receivedSnapshot = fmt.Sprintf("%s/.root", recvPath)
-	}
-
-	if !shared.PathExists(receivedSnapshot) {
-		return fmt.Errorf("Received subvolume is not found")
-	}
-
-	// Set writable to allow subvolume to be moved.
-	err = d.setSubvolumeReadonlyProperty(receivedSnapshot, false)
-	if err != nil {
-		return err
-	}
-
-	revert.Add(func() { os.RemoveAll(receivedSnapshot) })
-
-	// Clear the target for the subvol to use.
-	os.Remove(targetPath)
-
-	// And move it to the target path.
-	err = os.Rename(receivedSnapshot, targetPath)
-	if err != nil {
-		return errors.Wrapf(err, "Failed to rename '%s' to '%s'", receivedSnapshot, targetPath)
-	}
-
-	revert.Success()
-	return nil
-}
-
 // volumeSize returns the size to use when creating new a volume.
 func (d *btrfs) volumeSize(vol Volume) string {
 	size := vol.ExpandedConfig("size")
@@ -423,6 +325,7 @@ func (d *btrfs) setSubvolumeReadonlyProperty(path string, readonly bool) error {
 }
 
 // BTRFSSubVolume is the structure used to store information about a subvolume.
+// Note: This is used by both migration and backup subsystems so do not modify without considering both!
 type BTRFSSubVolume struct {
 	Path     string `json:"path" yaml:"path"`         // Path inside the volume where the subvolume belongs (so / is the top of the volume tree).
 	Snapshot string `json:"snapshot" yaml:"snapshot"` // Snapshot name the subvolume belongs to.
@@ -466,6 +369,7 @@ func (d *btrfs) getSubvolumesMetaData(vol Volume) ([]BTRFSSubVolume, error) {
 }
 
 // BTRFSMetaDataHeader is the meta data header about the volumes being sent/stored.
+// Note: This is used by both migration and backup subsystems so do not modify without considering both!
 type BTRFSMetaDataHeader struct {
 	Subvolumes []BTRFSSubVolume `json:"subvolumes" yaml:"subvolumes"` // Sub volumes inside the volume (including the top level ones).
 }
@@ -510,4 +414,85 @@ func (d *btrfs) restorationHeader(vol Volume, snapshots []string) (*BTRFSMetaDat
 
 	migrationHeader.Subvolumes = append(migrationHeader.Subvolumes, subVols...)
 	return &migrationHeader, nil
+}
+
+// loadOptimizedBackupHeader extracts optimized backup header from a given ReadSeeker.
+func (d *btrfs) loadOptimizedBackupHeader(r io.ReadSeeker) (*BTRFSMetaDataHeader, error) {
+	header := BTRFSMetaDataHeader{}
+
+	// Extract
+	r.Seek(0, 0)
+	_, _, unpacker, err := shared.DetectCompressionFile(r)
+	if err != nil {
+		return nil, err
+	}
+
+	if unpacker == nil {
+		return nil, fmt.Errorf("Unsupported backup compression")
+	}
+
+	tr, cancelFunc, err := shared.CompressedTarReader(context.Background(), r, unpacker)
+	if err != nil {
+		return nil, err
+	}
+	defer cancelFunc()
+
+	for {
+		hdr, err := tr.Next()
+		if err == io.EOF {
+			break // End of archive
+		}
+		if err != nil {
+			return nil, errors.Wrapf(err, "Error reading backup file for optimized backup header file")
+		}
+
+		if hdr.Name == "backup/optimized_header.yaml" {
+			err = yaml.NewDecoder(tr).Decode(&header)
+			if err != nil {
+				return nil, errors.Wrapf(err, "Error parsing optimized backup header file")
+			}
+
+			return &header, nil
+		}
+	}
+
+	return nil, fmt.Errorf("Optimized backup header file not found")
+}
+
+// receiveSubVolume receives a subvolume from an io.Reader into the receivePath, then sets it writable and returns
+// the path to the received subvolume.
+func (d *btrfs) receiveSubVolume(r io.Reader, receivePath string) (string, error) {
+	// Check target path is empty before receive.
+	files, err := ioutil.ReadDir(receivePath)
+	if err != nil {
+		return "", errors.Wrapf(err, "Failed listing contents of %q", receivePath)
+	}
+	if len(files) > 0 {
+		return "", fmt.Errorf("Target path is not empty %q", receivePath)
+	}
+
+	err = shared.RunCommandWithFds(r, nil, "btrfs", "receive", "-e", receivePath)
+	if err != nil {
+		return "", err
+	}
+
+	// Check contents of target path is expected after receive.
+	files, err = ioutil.ReadDir(receivePath)
+	if err != nil {
+		return "", errors.Wrapf(err, "Failed listing contents of %q", receivePath)
+	}
+
+	if len(files) != 1 {
+		return "", fmt.Errorf("Unpack target path contains %d files, expected 1 file after unpack", len(files))
+	}
+
+	subVolPath := filepath.Join(receivePath, files[0].Name())
+
+	// Set writable to allow subvolume to be moved (or deleted if needed) later.
+	err = d.setSubvolumeReadonlyProperty(subVolPath, false)
+	if err != nil {
+		return "", err
+	}
+
+	return subVolPath, nil
 }

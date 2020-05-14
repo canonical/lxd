@@ -189,7 +189,7 @@ func (d *disk) validateConfig(instConf instance.ConfigReader) error {
 // getDevicePath returns the absolute path on the host for this instance and supplied device config.
 func (d *disk) getDevicePath(devName string, devConfig deviceConfig.Device) string {
 	relativeDestPath := strings.TrimPrefix(devConfig["path"], "/")
-	devPath := deviceNameEncode(deviceJoinPath("disk", devName, relativeDestPath))
+	devPath := storageDrivers.PathNameEncode(deviceJoinPath("disk", devName, relativeDestPath))
 	return filepath.Join(d.inst.DevicesPath(), devPath)
 }
 
@@ -1514,7 +1514,7 @@ func (d *disk) getParentBlocks(path string) ([]string, error) {
 // generateVMConfigDrive generates an ISO containing the cloud init config for a VM.
 // Returns the path to the ISO.
 func (d *disk) generateVMConfigDrive() (string, error) {
-	scratchDir := filepath.Join(d.inst.DevicesPath(), deviceNameEncode(d.name))
+	scratchDir := filepath.Join(d.inst.DevicesPath(), storageDrivers.PathNameEncode(d.name))
 
 	// Check we have the mkisofs tool available.
 	mkisofsPath, err := exec.LookPath("mkisofs")
