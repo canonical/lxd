@@ -42,8 +42,8 @@ func GetInfo(r io.ReadSeeker) (*Info, error) {
 	hasIndexFile := false
 
 	// Define some bools used to create points for OptimizedStorage field.
-	optimizedStorageTrue := true
 	optimizedStorageFalse := false
+	optimizedHeaderFalse := false
 
 	// Extract
 	r.Seek(0, 0)
@@ -84,6 +84,11 @@ func GetInfo(r io.ReadSeeker) (*Info, error) {
 				result.Type = api.InstanceTypeContainer
 			}
 
+			// Default to no optimized header if not specified.
+			if result.OptimizedHeader == nil {
+				result.OptimizedHeader = &optimizedHeaderFalse
+			}
+
 			if result.OptimizedStorage != nil {
 				// No need to continue looking for optimized storage hint using the presence of the
 				// container.bin file below, as the index.yaml file tells us directly.
@@ -98,6 +103,7 @@ func GetInfo(r io.ReadSeeker) (*Info, error) {
 
 		// If the tarball contains a binary dump of the container, then this is an optimized backup.
 		if hdr.Name == "backup/container.bin" {
+			optimizedStorageTrue := true
 			result.OptimizedStorage = &optimizedStorageTrue
 
 			// Stop read loop if index.yaml already parsed.
