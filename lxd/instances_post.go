@@ -687,15 +687,18 @@ func createFromBackup(d *Daemon, project string, data io.Reader, pool string) re
 			return fmt.Errorf("Internal import request: %v", resp.String())
 		}
 
-		c, err := instance.LoadByProjectAndName(d.State(), project, bInfo.Name)
+		inst, err := instance.LoadByProjectAndName(d.State(), project, bInfo.Name)
 		if err != nil {
 			return errors.Wrap(err, "Load instance")
 		}
 
+		// Clean up created instance if the post hook fails below.
+		runRevert.Add(func() { inst.Delete() })
+
 		// Run the storage post hook to perform any final actions now that the instance has been created
 		// in the database (this normally includes unmounting volumes that were mounted).
 		if postHook != nil {
-			err = postHook(c)
+			err = postHook(inst)
 			if err != nil {
 				return errors.Wrap(err, "Post hook")
 			}
