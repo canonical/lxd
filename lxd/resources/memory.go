@@ -15,6 +15,7 @@ import (
 )
 
 var sysDevicesNode = "/sys/devices/system/node"
+var sysDevicesSystemMemory = "/sys/devices/system/memory"
 
 type meminfo struct {
 	Cached         uint64
@@ -134,6 +135,60 @@ func parseMeminfo(path string) (*meminfo, error) {
 	return &memory, nil
 }
 
+func getTotalMemory() uint64 {
+	memoryBlockSizePath := filepath.Join(sysDevicesSystemMemory, "block_size_bytes")
+
+	if !sysfsExists(memoryBlockSizePath) {
+		return 0
+	}
+
+	// Get block size
+	content, err := ioutil.ReadFile(memoryBlockSizePath)
+	if err != nil {
+		return 0
+	}
+
+	blockSize, err := strconv.ParseUint(strings.TrimSpace(string(content)), 16, 64)
+	if err != nil {
+		return 0
+	}
+
+	var count uint64 = 0
+
+	entries, err := ioutil.ReadDir(sysDevicesSystemMemory)
+	if err != nil {
+		return 0
+	}
+
+	// Count the number of blocks
+	for _, entry := range entries {
+		// Only consider directories
+		if !entry.IsDir() {
+			continue
+		}
+
+		entryName := entry.Name()
+		entryPath := filepath.Join(sysDevicesSystemMemory, entryName)
+
+		// Ignore directories not starting with "memory"
+		if !strings.HasPrefix(entryName, "memory") {
+			continue
+		}
+
+		content, err := ioutil.ReadFile(filepath.Join(entryPath, "online"))
+		if err != nil {
+			return 0
+		}
+
+		// Only count the block if it's online
+		if strings.TrimSpace(string(content)) == "1" {
+			count++
+		}
+	}
+
+	return blockSize * count
+}
+
 // GetMemory returns a filled api.ResourcesMemory struct ready for use by LXD
 func GetMemory() (*api.ResourcesMemory, error) {
 	memory := api.ResourcesMemory{}
@@ -142,6 +197,14 @@ func GetMemory() (*api.ResourcesMemory, error) {
 	info, err := parseMeminfo("/proc/meminfo")
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to parse /proc/meminfo")
+	}
+
+	// Calculate the total memory from /sys/devices/system/memory, as the previously determined
+	// value reports the amount of available system memory minus the amount reserved for the kernel.
+	// If successful, replace the previous value, retrieved from /proc/meminfo.
+	memTotal := getTotalMemory()
+	if memTotal > 0 {
+		info.Total = memTotal
 	}
 
 	// Fill used values
