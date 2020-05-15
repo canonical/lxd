@@ -204,6 +204,8 @@ hosts/subnets.
 
 ## Network security
 
+### Bridged NIC security
+
 The default networking mode in LXD is to provide a 'managed' private network bridge that each instance connects to.
 In this mode, there is an interface on the host called `lxdbr0` that acts as the bridge for the instances.
 
@@ -221,6 +223,12 @@ This assumes that the instances are not using any IPv6 privacy extensions when g
 In this default configuration, whilst DNS names cannot not be spoofed, the instance is connected to an Ethernet
 bridge and can transmit any layer 2 traffic that it wishes, which means an untrusted instance can effectively do
 MAC or IP spoofing on the bridge.
+
+It is also possible in the default configuration for instances connected to the bridge to modify the LXD host's
+IPv6 routing table by sending (potentially malicious) IPv6 router advertisements to the bridge. This is because
+the `lxdbr0` interface is created with `/proc/sys/net/ipv6/conf/lxdbr0/accept_ra` set to `2` meaning that the
+LXD host will accept router advertisements even though `forwarding` is enabled (see
+https://www.kernel.org/doc/Documentation/networking/ip-sysctl.txt for more info).
 
 However LXD offers several `bridged` NIC security features that can be used to control the type of traffic that
 an instance is allowed to send onto the network. These NIC settings should be added to the profile that the
@@ -250,4 +258,19 @@ same network as their parent.
 The IP filtering features block ARP and NDP advertisements that contain a spoofed IP, as well as blocking any
 packets that contain a spoofed source address.
 
+If `security.ipv4\_filtering` or `security.ipv6\_filtering` is enabled and the instance cannot be allocated an IP
+address (because `ipvX.address=none` or there is no DHCP service enabled on the bridge) then all IP traffic for
+that protocol is blocked from the instance.
 
+When `security.ipv6\_filtering` is enabled IPv6 router advertisements are blocked from the instance.
+
+### Routed NIC security
+
+An alternative networking mode is available called `routed` that provides a veth pair between container and host.
+In this networking mode the LXD host functions as a router and static routes are added to the host directing
+traffic for the container's IPs towards the container's veth interface.
+
+By default the veth interface created on the host has its `accept_ra` setting disabled to prevent router
+advertisements from the container modifying the IPv6 routing table on the LXD host. In addition to that the
+`rp_filter` on the host is set to `1` to prevent source address spoofing for IPs that the host does not know the
+container has.
