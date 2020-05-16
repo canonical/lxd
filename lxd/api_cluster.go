@@ -634,7 +634,7 @@ func clusterPutJoin(d *Daemon, req api.ClusterPut) response.Response {
 		// role changes.
 		_, _, err = client.RawQuery("POST", "/internal/cluster/rebalance", nil, "")
 		if err != nil {
-			return errors.Wrap(err, "Failed cluster rebalance request")
+			logger.Warnf("Failed to trigger cluster rebalance: %v", err)
 		}
 
 		return nil
