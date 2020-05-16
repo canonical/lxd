@@ -533,16 +533,20 @@ func Rebalance(state *state.State, gateway *Gateway) (string, []db.RaftNode, err
 	candidates := make([]string, 0)
 	for i, info := range currentRaftNodes {
 		node := nodesByAddress[info.Address]
-		if node.IsOffline(offlineThreshold) && info.Role != db.RaftSpare {
-			// Even the heartbeat timestamp is not recent
-			// enough, let's try to connect to the node,
-			// just in case the heartbeat is lagging behind
-			// for some reason and the node is actually up.
-			client, err := Connect(node.Address, gateway.cert, true)
-			if err == nil {
-				_, _, err = client.GetServer()
-			}
-			if err != nil {
+		if node.IsOffline(offlineThreshold) {
+			if info.Role != db.RaftSpare {
+				// Even the heartbeat timestamp is not recent
+				// enough, let's try to connect to the node,
+				// just in case the heartbeat is lagging behind
+				// for some reason and the node is actually up.
+				restclient, err := Connect(node.Address, gateway.cert, true)
+				if err == nil {
+					_, _, err = restclient.GetServer()
+				}
+				if err == nil {
+					// This isn't actually offline.
+					goto append
+				}
 				client, err := gateway.getClient()
 				if err != nil {
 					return "", nil, errors.Wrap(err, "Failed to connect to local dqlite node")
@@ -550,20 +554,25 @@ func Rebalance(state *state.State, gateway *Gateway) (string, []db.RaftNode, err
 				defer client.Close()
 				ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 				defer cancel()
+				logger.Infof(
+					"Demote offline node %s (%s) to spare", node.Name, node.Address)
 				err = client.Assign(ctx, info.ID, db.RaftSpare)
 				if err != nil {
 					return "", nil, errors.Wrap(err, "Failed to demote offline node")
 				}
-				err = state.Cluster.Transaction(func(tx *db.ClusterTx) error {
-					return tx.RemoveNodeRole(node.ID, db.ClusterRoleDatabase)
-				})
-				if err != nil {
-					return "", nil, errors.Wrap(err, "Failed to update node role")
+				if info.Role == db.RaftVoter {
+					err := state.Cluster.Transaction(func(tx *db.ClusterTx) error {
+						return tx.RemoveNodeRole(node.ID, db.ClusterRoleDatabase)
+					})
+					if err != nil {
+						return "", nil, errors.Wrap(err, "Failed to update node role")
+					}
 				}
 				currentRaftNodes[i].Role = db.RaftSpare
-				continue
 			}
+			continue
 		}
+	append:
 		switch info.Role {
 		case db.RaftVoter:
 			voters = append(voters, info.Address)
