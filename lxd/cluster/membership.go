@@ -601,7 +601,7 @@ func Rebalance(state *state.State, gateway *Gateway) (string, []db.RaftNode, err
 	address := ""
 	for _, candidate := range candidates {
 		node := nodesByAddress[candidate]
-		logger.Debugf(
+		logger.Infof(
 			"Found spare node %s (%s) to be promoted to %s", node.Name, node.Address, role)
 		address = node.Address
 		break
@@ -624,8 +624,6 @@ func Rebalance(state *state.State, gateway *Gateway) (string, []db.RaftNode, err
 
 // Assign a new role to the local dqlite node.
 func Assign(state *state.State, gateway *Gateway, nodes []db.RaftNode) error {
-	logger.Info("Assign new role to dqlite node")
-
 	// Figure out our own address.
 	address := ""
 	err := state.Cluster.Transaction(func(tx *db.ClusterTx) error {
@@ -725,6 +723,44 @@ assign:
 		return errors.Wrap(err, "Failed to connect to cluster leader")
 	}
 	defer client.Close()
+
+	// If we're stepping back to spare, let's first transition to stand-by
+	// and wait for the configuration change to be notified to us. This
+	// prevent us from thinking we're still voters and potentially disrupt
+	// the cluster.
+	if info.Role == db.RaftSpare {
+		err = client.Assign(ctx, info.ID, db.RaftStandBy)
+		if err != nil {
+			return errors.Wrap(err, "Failed to step back to stand-by")
+		}
+		local, err := gateway.getClient()
+		if err != nil {
+			return errors.Wrap(err, "Failed to get local dqlite client")
+		}
+		notified := false
+		for i := 0; i < 10; i++ {
+			time.Sleep(500 * time.Millisecond)
+			servers, err := local.Cluster(context.Background())
+			if err != nil {
+				return errors.Wrap(err, "Failed to get current cluster")
+			}
+			for _, server := range servers {
+				if server.ID != info.ID {
+					continue
+				}
+				if server.Role == db.RaftStandBy {
+					notified = true
+					break
+				}
+			}
+			if notified {
+				break
+			}
+		}
+		if !notified {
+			return fmt.Errorf("Timeout waiting for configuration change notification")
+		}
+	}
 
 	err = client.Assign(ctx, info.ID, info.Role)
 	if err != nil {
