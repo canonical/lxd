@@ -285,7 +285,7 @@ lxc config device add container-name home disk source=/home/$USER path=/home/ubu
 
 For unprivileged containers, you will also need one of:
 
- - Pass `shifted=true` to the `lxc config device add` call. This depends on `shiftfs` being supported (see `lxc info`)
+ - Pass `shift=true` to the `lxc config device add` call. This depends on `shiftfs` being supported (see `lxc info`)
  - raw.idmap entry (see [Idmaps for user namespace](userns-idmap.md))
  - Recursive POSIX ACLs placed on your home directory
 
