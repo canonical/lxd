@@ -5,8 +5,8 @@ import (
 	"encoding/binary"
 	"errors"
 
-	"github.com/boltdb/bolt"
 	"github.com/hashicorp/go-msgpack/codec"
+	bolt "go.etcd.io/bbolt"
 )
 
 const (

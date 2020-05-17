@@ -8,11 +8,11 @@ import (
 	"path/filepath"
 	"strconv"
 
-	"github.com/boltdb/bolt"
 	"github.com/hashicorp/go-msgpack/codec"
 	"github.com/lxc/lxd/lxd/cluster/raft"
 	"github.com/lxc/lxd/shared"
 	"github.com/pkg/errors"
+	bolt "go.etcd.io/bbolt"
 )
 
 // MigrateToDqlite10 migrates the on-disk global database format to dqlite 1.0.
