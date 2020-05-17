@@ -1,4 +1,4 @@
-// +build 386 arm ppc s390
+// +build 386 arm ppc s390 mips mipsle
 
 package util
 
