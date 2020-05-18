@@ -777,44 +777,6 @@ func genericVFSBackupUnpack(d Driver, vol Volume, snapshots []string, srcData io
 	return postHook, revertExternal.Fail, nil
 }
 
-// genericVFSResizeBlockFile resizes an existing block file to the specified size. Returns true if resize took
-// place, false if not. Both requested size and existing file size are rounded to nearest block size using
-// roundVolumeBlockFileSizeBytes() before decision whether to resize is taken.
-func genericVFSResizeBlockFile(filePath string, sizeBytes int64) (bool, error) {
-	if sizeBytes <= 0 {
-		return false, fmt.Errorf("Size cannot be zero")
-	}
-
-	fi, err := os.Stat(filePath)
-	if err != nil {
-		return false, err
-	}
-
-	oldSizeBytes := fi.Size()
-
-	// Round the supplied size the same way the block files created are so its accurate comparison.
-	newSizeBytes, err := roundVolumeBlockFileSizeBytes(sizeBytes)
-	if err != nil {
-		return false, err
-	}
-
-	if newSizeBytes < oldSizeBytes {
-		return false, errors.Wrap(ErrCannotBeShrunk, "You cannot shrink block volumes")
-	}
-
-	if newSizeBytes == oldSizeBytes {
-		return false, nil
-	}
-
-	// Resize block file.
-	err = ensureVolumeBlockFile(filePath, sizeBytes)
-	if err != nil {
-		return false, err
-	}
-
-	return true, nil
-}
-
 // genericVFSCopyVolume copies a volume and its snapshots using a non-optimized method.
 // initVolume is run against the main volume (not the snapshots) and is often used for quota initialization.
 func genericVFSCopyVolume(d Driver, initVolume func(vol Volume) (func(), error), vol Volume, srcVol Volume, srcSnapshots []Volume, refresh bool, op *operations.Operation) error {
