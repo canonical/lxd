@@ -57,7 +57,7 @@ func (d *dir) CreateVolume(vol Volume, filler *VolumeFiller, op *operations.Oper
 	// Run the volume filler function if supplied.
 	if filler != nil && filler.Fill != nil {
 		d.logger.Debug("Running filler function", log.Ctx{"path": volPath})
-		err = filler.Fill(volPath, rootBlockPath)
+		err = filler.Fill(vol, rootBlockPath)
 		if err != nil {
 			return err
 		}
@@ -281,7 +281,7 @@ func (d *dir) SetVolumeQuota(vol Volume, size string, op *operations.Operation) 
 		}
 
 		// Move the GPT alt header to end of disk if needed and resize has taken place (not needed in
-		// unsafe resize mode as it is  expected the caller will do all necessary post resize actions
+		// unsafe resize mode as it is expected the caller will do all necessary post resize actions
 		// themselves).
 		if vol.IsVMBlock() && resized && !vol.allowUnsafeResize {
 			err = d.moveGPTAltHeader(rootBlockPath)

@@ -932,8 +932,8 @@ func (b *lxdBackend) RefreshInstance(inst instance.Instance, src instance.Instan
 // imageFiller returns a function that can be used as a filler function with CreateVolume().
 // The function returned will unpack the specified image archive into the specified mount path
 // provided, and for VM images, a raw root block path is required to unpack the qcow2 image into.
-func (b *lxdBackend) imageFiller(fingerprint string, op *operations.Operation) func(mountPath, rootBlockPath string) error {
-	return func(mountPath, rootBlockPath string) error {
+func (b *lxdBackend) imageFiller(fingerprint string, op *operations.Operation) func(vol drivers.Volume, rootBlockPath string) error {
+	return func(vol drivers.Volume, rootBlockPath string) error {
 		var tracker *ioprogress.ProgressTracker
 		if op != nil { // Not passed when being done as part of pre-migration setup.
 			metadata := make(map[string]interface{})
@@ -944,7 +944,7 @@ func (b *lxdBackend) imageFiller(fingerprint string, op *operations.Operation) f
 				}}
 		}
 		imageFile := shared.VarPath("images", fingerprint)
-		return ImageUnpack(imageFile, mountPath, rootBlockPath, b.driver.Info().BlockBacking, b.state.OS.RunningInUserNS, tracker)
+		return ImageUnpack(imageFile, vol, rootBlockPath, b.driver.Info().BlockBacking, b.state.OS.RunningInUserNS, tracker)
 	}
 }
 

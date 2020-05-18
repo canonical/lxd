@@ -48,7 +48,7 @@ func (d *cephfs) CreateVolume(vol Volume, filler *VolumeFiller, op *operations.O
 	// Fill the volume.
 	if filler != nil && filler.Fill != nil {
 		d.logger.Debug("Running filler function", log.Ctx{"path": volPath})
-		err = filler.Fill(volPath, "")
+		err = filler.Fill(vol, "")
 		if err != nil {
 			return err
 		}
