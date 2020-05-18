@@ -83,6 +83,7 @@ type Gateway struct {
 	// raft cluster.
 	server   *dqlite.Node
 	acceptCh chan net.Conn
+	stopCh   chan struct{}
 
 	// A dialer that will connect to the dqlite server using a loopback
 	// net.Conn. It's non-nil when clustering is not enabled on this LXD
@@ -397,7 +398,7 @@ func (g *Gateway) raftDial() client.DialFunc {
 
 		listener.Close()
 
-		go dqliteProxy(context.Background(), conn, goUnix)
+		go dqliteProxy(g.stopCh, conn, goUnix)
 
 		return cUnix, nil
 	}
@@ -456,6 +457,7 @@ func (g *Gateway) Shutdown() error {
 		}
 
 		g.server.Close()
+		close(g.stopCh)
 
 		// Unset the memory dial, since Shutdown() is also called for
 		// switching between in-memory and network mode.
@@ -638,6 +640,8 @@ func (g *Gateway) LeaderAddress() (string, error) {
 // node is a database node), and a gRPC dialer.
 func (g *Gateway) init() error {
 	logger.Debugf("Initializing database gateway")
+	g.stopCh = make(chan struct{}, 0)
+
 	info, err := loadInfo(g.db, g.cert)
 	if err != nil {
 		return errors.Wrap(err, "Failed to create raft factory")
@@ -682,7 +686,7 @@ func (g *Gateway) init() error {
 			g.store.inMemory = client.NewInmemNodeStore()
 			g.store.Set(context.Background(), []client.NodeInfo{*info})
 		} else {
-			go runDqliteProxy(g.ctx, g.bindAddress, g.acceptCh)
+			go runDqliteProxy(g.stopCh, g.bindAddress, g.acceptCh)
 			g.store.inMemory = nil
 			options = append(options, dqlite.WithDialFunc(g.raftDial()))
 		}
@@ -952,7 +956,7 @@ func DqliteLog(l client.LogLevel, format string, a ...interface{}) {
 
 // Copy incoming TLS streams from upgraded HTTPS connections into Unix sockets
 // connected to the dqlite task.
-func runDqliteProxy(ctx context.Context, bindAddress string, acceptCh chan net.Conn) {
+func runDqliteProxy(stopCh chan struct{}, bindAddress string, acceptCh chan net.Conn) {
 	for {
 		remote := <-acceptCh
 		local, err := net.Dial("unix", bindAddress)
@@ -960,12 +964,12 @@ func runDqliteProxy(ctx context.Context, bindAddress string, acceptCh chan net.C
 			continue
 		}
 
-		go dqliteProxy(ctx, remote, local)
+		go dqliteProxy(stopCh, remote, local)
 	}
 }
 
 // Copies data between a remote TLS network connection and a local unix socket.
-func dqliteProxy(ctx context.Context, remote net.Conn, local net.Conn) {
+func dqliteProxy(stopCh chan struct{}, remote net.Conn, local net.Conn) {
 	// Go doesn't currently expose the underlying TCP connection of a TLS
 	// connection, but we need it in order to gracefully stop proxying with
 	// ReadClose(). We use some reflect/unsafe black magic to extract the
@@ -993,7 +997,7 @@ func dqliteProxy(ctx context.Context, remote net.Conn, local net.Conn) {
 	errs := make([]error, 2)
 
 	select {
-	case <-ctx.Done():
+	case <-stopCh:
 		// Force closing, ignore errors.
 		remote.Close()
 		local.Close()
