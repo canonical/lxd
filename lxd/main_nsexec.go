@@ -37,6 +37,7 @@ package main
 #include <unistd.h>
 
 #include "include/memory_utils.h"
+#include "include/process_utils.h"
 #include "include/syscall_numbers.h"
 
 // External functions
@@ -253,16 +254,6 @@ void attach_userns(int pid)
 void attach_userns_fd(int ns_fd)
 {
 	return __attach_userns(-1, ns_fd);
-}
-
-int pidfd_open(pid_t pid, unsigned int flags)
-{
-	return syscall(__NR_pidfd_open, pid, flags);
-}
-
-int pidfd_send_signal(int pidfd, int sig, siginfo_t *info, unsigned int flags)
-{
-	return syscall(__NR_pidfd_send_signal, pidfd, sig, info, flags);
 }
 
 int pidfd_nsfd(int pidfd, pid_t pid)
