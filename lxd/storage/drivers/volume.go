@@ -326,3 +326,8 @@ func (v Volume) NewVMBlockFilesystemVolume() Volume {
 
 	return NewVolume(v.driver, v.pool, v.volType, ContentTypeFS, v.name, newConf, v.poolConfig)
 }
+
+// SetQuota calls SetVolumeQuota on the Volume's driver.
+func (v Volume) SetQuota(size string, op *operations.Operation) error {
+	return v.driver.SetVolumeQuota(v, size, op)
+}
