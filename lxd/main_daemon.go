@@ -81,9 +81,11 @@ func (c *cmdDaemon) Run(cmd *cobra.Command, args []string) error {
 	case sig := <-ch:
 		if sig == unix.SIGPWR {
 			logger.Infof("Received '%s signal', shutting down containers", sig)
+			d.Kill()
 			containersShutdown(s)
 			networkShutdown(s)
 		} else {
+			d.Kill()
 			logger.Infof("Received '%s signal', exiting", sig)
 		}
 
