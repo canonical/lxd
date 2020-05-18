@@ -514,8 +514,9 @@ func ImageUnpack(imageFile, destPath, destBlockFile string, blockBackend, runnin
 			return errors.Wrapf(err, "Failed to remove %q", imgPath)
 		}
 
-		// Transfer the content.
-		_, err = rsync.LocalCopy(tempDir, destPath, "", true)
+		// Transfer the content excluding the destBlockFile name so that we don't delete the block file
+		// created above if the storage driver stores image files in the same directory as destPath.
+		_, err = rsync.LocalCopy(tempDir, destPath, "", true, "--exclude", filepath.Base(destBlockFile))
 		if err != nil {
 			return err
 		}
