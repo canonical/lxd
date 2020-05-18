@@ -56,7 +56,7 @@ func (d *lvm) CreateVolume(vol Volume, filler *VolumeFiller, op *operations.Oper
 		if filler != nil && filler.Fill != nil {
 			if vol.contentType == ContentTypeFS {
 				d.logger.Debug("Running filler function", log.Ctx{"path": volPath})
-				err = filler.Fill(mountPath, "")
+				err = filler.Fill(vol, "")
 				if err != nil {
 					return err
 				}
@@ -69,7 +69,7 @@ func (d *lvm) CreateVolume(vol Volume, filler *VolumeFiller, op *operations.Oper
 
 				// Run the filler.
 				d.logger.Debug("Running filler function", log.Ctx{"dev": devPath, "path": volPath})
-				err = filler.Fill(mountPath, devPath)
+				err = filler.Fill(vol, devPath)
 				if err != nil {
 					return err
 				}

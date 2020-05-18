@@ -165,7 +165,7 @@ func (d *ceph) CreateVolume(vol Volume, filler *VolumeFiller, op *operations.Ope
 	err = vol.MountTask(func(mountPath string, op *operations.Operation) error {
 		if filler != nil && filler.Fill != nil {
 			if vol.contentType == ContentTypeFS {
-				return filler.Fill(mountPath, "")
+				return filler.Fill(vol, "")
 			}
 
 			devPath, err := d.GetVolumeDiskPath(vol)
@@ -173,7 +173,7 @@ func (d *ceph) CreateVolume(vol Volume, filler *VolumeFiller, op *operations.Ope
 				return err
 			}
 
-			err = filler.Fill(mountPath, devPath)
+			err = filler.Fill(vol, devPath)
 			if err != nil {
 				return err
 			}
