@@ -32,6 +32,7 @@ import (
 #include "include/compiler.h"
 #include "include/lxd_seccomp.h"
 #include "include/memory_utils.h"
+#include "include/process_utils.h"
 #include "include/syscall_numbers.h"
 
 __ro_after_init bool netnsid_aware = false;
@@ -42,8 +43,6 @@ __ro_after_init char errbuf[4096];
 
 extern int can_inject_uevent(const char *uevent, size_t len);
 extern int wait_for_pid(pid_t pid);
-extern int pidfd_open(pid_t pid, unsigned int flags);
-extern int pidfd_send_signal(int pidfd, int sig, siginfo_t *info, unsigned int flags);
 
 static int netns_set_nsid(int fd)
 {

@@ -31,6 +31,8 @@ import (
 #include <sys/types.h>
 #include <sys/un.h>
 
+#include "../lxd/include/process_utils.h"
+
 #define ABSTRACT_UNIX_SOCK_LEN sizeof(((struct sockaddr_un *)0)->sun_path)
 
 static int read_pid(int fd)
@@ -151,4 +153,34 @@ again:
 
 func ReadPid(r *os.File) int {
 	return int(C.read_pid(C.int(r.Fd())))
+}
+
+func unCloexec(fd int) error {
+	var err error = nil
+	flags, _, errno := unix.Syscall(unix.SYS_FCNTL, uintptr(fd), unix.F_GETFD, 0)
+	if errno != 0 {
+		err = errno
+		return err
+	}
+
+	flags &^= unix.FD_CLOEXEC
+	_, _, errno = unix.Syscall(unix.SYS_FCNTL, uintptr(fd), unix.F_SETFD, flags)
+	if errno != 0 {
+		err = errno
+	}
+	return err
+}
+
+func PidFdOpen(Pid int, Flags uint32) (*os.File, error) {
+	pidFd, errno := C.pidfd_open(C.int(Pid), C.uint32_t(Flags))
+	if errno != nil {
+		return nil, errno
+	}
+
+	errno = unCloexec(int(pidFd))
+	if errno != nil {
+		return nil, errno
+	}
+
+	return os.NewFile(uintptr(pidFd), fmt.Sprintf("%d", Pid)), nil
 }

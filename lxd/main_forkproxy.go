@@ -40,10 +40,13 @@ import (
 #include <sys/wait.h>
 #include <unistd.h>
 
+#include "include/memory_utils.h"
+
 extern char* advance_arg(bool required);
-extern void attach_userns(int pid);
-extern int dosetns(int pid, char *nstype);
+extern void attach_userns_fd(int pid);
+extern bool setnsat(int ns_fd, const char *ns);
 extern int wait_for_pid(pid_t pid);
+extern int pidfd_nsfd(int pidfd, pid_t pid);
 
 int whoami = -ESRCH;
 
@@ -79,7 +82,7 @@ again:
 void forkproxy(void)
 {
 	unsigned int needs_mntns = 0;
-	int connect_pid, listen_pid, log_fd;
+	int connect_pid, connect_pidfd, listen_pid, listen_pidfd, log_fd;
 	size_t unix_prefix_len = sizeof("unix:") - 1;
 	ssize_t ret;
 	pid_t pid;
@@ -94,9 +97,11 @@ void forkproxy(void)
 	     strcmp(cur, "-h") == 0))
 		_exit(EXIT_FAILURE);
 
-	listen_pid = atoi(cur);
+	listen_pid = atoi(advance_arg(true));
+	listen_pidfd = atoi(advance_arg(true));
 	listen_addr = advance_arg(true);
 	connect_pid = atoi(advance_arg(true));
+	connect_pidfd = atoi(advance_arg(true));
 	connect_addr = advance_arg(true);
 	log_path = advance_arg(true);
 	pid_path = advance_arg(true);
@@ -154,6 +159,8 @@ void forkproxy(void)
 	}
 
 	if (pid == 0) {
+		int listen_nsfd;
+
 		whoami = FORKPROXY_CHILD;
 
 		fclose(pid_file);
@@ -162,22 +169,28 @@ void forkproxy(void)
 			fprintf(stderr, "%s - Failed to close fd %d\n",
 				strerror(errno), sk_fds[0]);
 
+		listen_nsfd = pidfd_nsfd(listen_pidfd, listen_pid);
+		if (listen_nsfd < 0) {
+			fprintf(stderr, "Error: %m - Failed to safely open namespace file descriptor based on pidfd %d\n", listen_pidfd);
+			_exit(EXIT_FAILURE);
+		}
+
 		// Attach to the user namespace of the listener
-		attach_userns(listen_pid);
+		attach_userns_fd(listen_nsfd);
 
 		// Attach to the network namespace of the listener
-		ret = dosetns(listen_pid, "net");
-		if (ret < 0) {
-			fprintf(stderr, "Failed setns to listener network namespace: %s\n",
-				strerror(errno));
+		if (!setnsat(listen_nsfd, "net")) {
+			fprintf(stderr, "Error: %m - Failed setns to listener network namespace\n");
 			_exit(EXIT_FAILURE);
 		}
 
-		if ((needs_mntns & LISTEN_NEEDS_MNTNS) && dosetns(listen_pid, "mnt")) {
-			fprintf(stderr, "Failed setns to listener mount namespace: %s\n",
-				strerror(errno));
+		if ((needs_mntns & LISTEN_NEEDS_MNTNS) && !setnsat(listen_nsfd, "mnt")) {
+			fprintf(stderr, "Error: %m - Failed setns to listener mount namespace\n");
 			_exit(EXIT_FAILURE);
 		}
+
+		close_prot_errno_disarm(listen_nsfd);
+		close_prot_errno_disarm(listen_pidfd);
 
 		ret = dup3(sk_fds[1], FORKPROXY_UDS_SOCK_FD_NUM, O_CLOEXEC);
 		if (ret < 0) {
@@ -192,6 +205,8 @@ void forkproxy(void)
 			fprintf(stderr, "%s - Failed to close fd %d\n",
 				strerror(errno), sk_fds[1]);
 	} else {
+		int connect_nsfd;
+
 		whoami = FORKPROXY_PARENT;
 
 		ret = close(sk_fds[1]);
@@ -199,23 +214,29 @@ void forkproxy(void)
 			fprintf(stderr, "%s - Failed to close fd %d\n",
 				strerror(errno), sk_fds[1]);
 
-		// Attach to the user namespace of the listener
-		attach_userns(connect_pid);
-
-		// Attach to the network namespace of the listener
-		ret = dosetns(connect_pid, "net");
-		if (ret < 0) {
-			fprintf(stderr, "Failed setns to listener network namespace: %s\n",
-				strerror(errno));
+		connect_nsfd = pidfd_nsfd(connect_pidfd, connect_pid);
+		if (connect_nsfd < 0) {
+			fprintf(stderr, "Error: %m - Failed to safely open namespace file descriptor based on pidfd %d\n", connect_pidfd);
 			_exit(EXIT_FAILURE);
 		}
 
-		// Attach to the mount namespace of the listener
-		if ((needs_mntns & CONNECT_NEEDS_MNTNS) && dosetns(connect_pid, "mnt")) {
-			fprintf(stderr, "Failed setns to listener mount namespace: %s\n",
-				strerror(errno));
+		// Attach to the user namespace of the connector
+		attach_userns_fd(connect_nsfd);
+
+		// Attach to the network namespace of the connector
+		if (!setnsat(connect_nsfd, "net")) {
+			fprintf(stderr, "Error: %m - Failed setns to connector network namespace\n");
 			_exit(EXIT_FAILURE);
 		}
+
+		// Attach to the mount namespace of the connector
+		if ((needs_mntns & CONNECT_NEEDS_MNTNS) && !setnsat(connect_nsfd, "mnt")) {
+			fprintf(stderr, "Error: %m - Failed setns to connector mount namespace\n");
+			_exit(EXIT_FAILURE);
+		}
+
+		close_prot_errno_disarm(connect_nsfd);
+		close_prot_errno_disarm(connect_pidfd);
 
 		ret = dup3(sk_fds[0], FORKPROXY_UDS_SOCK_FD_NUM, O_CLOEXEC);
 		if (ret < 0) {
@@ -305,7 +326,7 @@ type udpSession struct {
 func (c *cmdForkproxy) Command() *cobra.Command {
 	// Main subcommand
 	cmd := &cobra.Command{}
-	cmd.Use = "forkproxy <listen PID> <listen address> <connect PID> <connect address> <log path> <pid path> <listen gid> <listen uid> <listen mode> <security gid> <security uid>"
+	cmd.Use = "forkproxy <listen PID> <listen PidFd> <listen address> <connect PID> <connect PidFd> <connect address> <log path> <pid path> <listen gid> <listen uid> <listen mode> <security gid> <security uid>"
 	cmd.Short = "Setup network connection proxying"
 	cmd.Long = `Description:
   Setup network connection proxying
@@ -314,8 +335,10 @@ func (c *cmdForkproxy) Command() *cobra.Command {
   container, connecting one side to the host and the other to the
   container.
 `
+	cmd.Args = cobra.ExactArgs(15)
 	cmd.RunE = c.Run
 	cmd.Hidden = true
+	cmd.DisableFlagParsing = true
 
 	return cmd
 }
@@ -434,7 +457,7 @@ func (c *cmdForkproxy) Run(cmd *cobra.Command, args []string) error {
 	}
 
 	// Sanity checks
-	if len(args) != 12 {
+	if len(args) != 15 {
 		cmd.Help()
 
 		if len(args) == 0 {
@@ -449,13 +472,13 @@ func (c *cmdForkproxy) Run(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("Failed to call forkproxy constructor")
 	}
 
-	listenAddr := args[1]
+	listenAddr := args[3]
 	lAddr, err := device.ProxyParseAddr(listenAddr)
 	if err != nil {
 		return err
 	}
 
-	connectAddr := args[3]
+	connectAddr := args[6]
 	cAddr, err := device.ProxyParseAddr(connectAddr)
 	if err != nil {
 		return err
@@ -504,16 +527,16 @@ func (c *cmdForkproxy) Run(cmd *cobra.Command, args []string) error {
 			var err error
 
 			listenAddrGID := -1
-			if args[6] != "" {
-				listenAddrGID, err = strconv.Atoi(args[6])
+			if args[9] != "" {
+				listenAddrGID, err = strconv.Atoi(args[9])
 				if err != nil {
 					return err
 				}
 			}
 
 			listenAddrUID := -1
-			if args[7] != "" {
-				listenAddrUID, err = strconv.Atoi(args[7])
+			if args[10] != "" {
+				listenAddrUID, err = strconv.Atoi(args[10])
 				if err != nil {
 					return err
 				}
@@ -527,8 +550,8 @@ func (c *cmdForkproxy) Run(cmd *cobra.Command, args []string) error {
 			}
 
 			var listenAddrMode os.FileMode
-			if args[8] != "" {
-				tmp, err := strconv.ParseUint(args[8], 8, 0)
+			if args[11] != "" {
+				tmp, err := strconv.ParseUint(args[11], 8, 0)
 				if err != nil {
 					return err
 				}
@@ -596,16 +619,16 @@ func (c *cmdForkproxy) Run(cmd *cobra.Command, args []string) error {
 
 	// Drop privilege if requested
 	gid := uint64(0)
-	if args[9] != "" {
-		gid, err = strconv.ParseUint(args[9], 10, 32)
+	if args[12] != "" {
+		gid, err = strconv.ParseUint(args[12], 10, 32)
 		if err != nil {
 			return err
 		}
 	}
 
 	uid := uint64(0)
-	if args[10] != "" {
-		uid, err = strconv.ParseUint(args[10], 10, 32)
+	if args[13] != "" {
+		uid, err = strconv.ParseUint(args[13], 10, 32)
 		if err != nil {
 			return err
 		}
@@ -685,7 +708,7 @@ func (c *cmdForkproxy) Run(cmd *cobra.Command, args []string) error {
 				continue
 			}
 
-			err := listenerInstance(epFd, lAddr, cAddr, curFd, srcConn, args[11] == "true")
+			err := listenerInstance(epFd, lAddr, cAddr, curFd, srcConn, args[14] == "true")
 			if err != nil {
 				fmt.Printf("Warning: Failed to prepare new listener instance: %s\n", err)
 			}
