@@ -176,7 +176,7 @@ func (d *zfs) CreateVolume(vol Volume, filler *VolumeFiller, op *operations.Oper
 		if filler != nil && filler.Fill != nil {
 			if vol.contentType == ContentTypeFS {
 				// Run the filler.
-				err := filler.Fill(mountPath, "")
+				err := filler.Fill(vol, "")
 				if err != nil {
 					return err
 				}
@@ -188,7 +188,7 @@ func (d *zfs) CreateVolume(vol Volume, filler *VolumeFiller, op *operations.Oper
 				}
 
 				// Run the filler.
-				err = filler.Fill(mountPath, devPath)
+				err = filler.Fill(vol, devPath)
 				if err != nil {
 					return err
 				}
