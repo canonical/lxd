@@ -19,7 +19,7 @@ import (
 )
 
 // LocalCopy copies a directory using rsync (with the --devices option).
-func LocalCopy(source string, dest string, bwlimit string, xattrs bool) (string, error) {
+func LocalCopy(source string, dest string, bwlimit string, xattrs bool, rsyncArgs ...string) (string, error) {
 	err := os.MkdirAll(dest, 0755)
 	if err != nil {
 		return "", err
@@ -52,10 +52,15 @@ func LocalCopy(source string, dest string, bwlimit string, xattrs bool) (string,
 		args = append(args, "--bwlimit", bwlimit)
 	}
 
+	if len(rsyncArgs) > 0 {
+		args = append(args, rsyncArgs...)
+	}
+
 	args = append(args,
 		rsyncVerbosity,
 		shared.AddSlash(source),
 		dest)
+
 	msg, err := shared.RunCommand("rsync", args...)
 	if err != nil {
 		runError, ok := err.(shared.RunError)
