@@ -106,7 +106,7 @@ WHERE projects.name = ?
 	inargs := []interface{}{project}
 	var name string
 	outfmt := []interface{}{name}
-	result, err := queryScan(c.db, q, inargs, outfmt)
+	result, err := queryScan(c, q, inargs, outfmt)
 	if err != nil {
 		return []string{}, err
 	}
@@ -262,7 +262,7 @@ func (c *Cluster) GetInstancesWithProfile(project, profile string) (map[string][
 	var name string
 	outfmt := []interface{}{name, name}
 
-	output, err := queryScan(c.db, q, inargs, outfmt)
+	output, err := queryScan(c, q, inargs, outfmt)
 	if err != nil {
 		return nil, err
 	}
@@ -285,7 +285,7 @@ DELETE FROM profiles_config WHERE profile_id NOT IN (SELECT id FROM profiles);
 DELETE FROM profiles_devices WHERE profile_id NOT IN (SELECT id FROM profiles);
 DELETE FROM profiles_devices_config WHERE profile_device_id NOT IN (SELECT id FROM profiles_devices);
 `
-	err := exec(c.db, stmt)
+	err := exec(c, stmt)
 	if err != nil {
 		return err
 	}

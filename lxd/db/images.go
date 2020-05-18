@@ -33,7 +33,7 @@ SELECT images.fingerprint
 	var fp string
 	inargs := []interface{}{c.nodeID}
 	outfmt := []interface{}{fp}
-	dbResults, err := queryScan(c.db, q, inargs, outfmt)
+	dbResults, err := queryScan(c, q, inargs, outfmt)
 	if err != nil {
 		return []string{}, err
 	}
@@ -75,7 +75,7 @@ SELECT fingerprint
 	var fp string
 	inargs := []interface{}{project}
 	outfmt := []interface{}{fp}
-	dbResults, err := queryScan(c.db, q, inargs, outfmt)
+	dbResults, err := queryScan(c, q, inargs, outfmt)
 	if err != nil {
 		return []string{}, err
 	}
@@ -113,7 +113,7 @@ func (c *Cluster) GetExpiredImages(expiry int64) ([]ExpiredImage, error) {
 
 	inargs := []interface{}{}
 	outfmt := []interface{}{fpStr, useStr, uploadStr, projectName}
-	dbResults, err := queryScan(c.db, q, inargs, outfmt)
+	dbResults, err := queryScan(c, q, inargs, outfmt)
 	if err != nil {
 		return []ExpiredImage{}, err
 	}
@@ -164,7 +164,7 @@ func (c *Cluster) CreateImageSource(id int, server string, protocol string, cert
 		return fmt.Errorf("Invalid protocol: %s", protocol)
 	}
 
-	err := exec(c.db, stmt, id, server, protocolInt, certificate, alias)
+	err := exec(c, stmt, id, server, protocolInt, certificate, alias)
 	return err
 }
 
@@ -178,7 +178,7 @@ func (c *Cluster) GetImageSource(imageID int) (int, api.ImageSource, error) {
 
 	arg1 := []interface{}{imageID}
 	arg2 := []interface{}{&id, &result.Server, &protocolInt, &result.Certificate, &result.Alias}
-	err := dbQueryRowScan(c.db, q, arg1, arg2)
+	err := dbQueryRowScan(c, q, arg1, arg2)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return -1, api.ImageSource{}, ErrNoSuchObject
@@ -240,7 +240,7 @@ func (c *Cluster) ImageSourceGetCachedFingerprint(server string, protocol string
 	fingerprint := ""
 
 	arg2 := []interface{}{&fingerprint}
-	err := dbQueryRowScan(c.db, q, arg1, arg2)
+	err := dbQueryRowScan(c, q, arg1, arg2)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return "", ErrNoSuchObject
@@ -277,7 +277,7 @@ SELECT COUNT(*) > 0
 `
 	inargs := []interface{}{project, fingerprint}
 	outargs := []interface{}{&exists}
-	err = dbQueryRowScan(c.db, query, inargs, outargs)
+	err = dbQueryRowScan(c, query, inargs, outargs)
 	if err == sql.ErrNoRows {
 		return exists, ErrNoSuchObject
 	}
@@ -311,7 +311,7 @@ SELECT COUNT(*) > 0
 `
 	inargs := []interface{}{project, fingerprint}
 	outargs := []interface{}{&referenced}
-	err = dbQueryRowScan(c.db, query, inargs, outargs)
+	err = dbQueryRowScan(c, query, inargs, outargs)
 	if err == sql.ErrNoRows {
 		return referenced, nil
 	}
@@ -373,7 +373,7 @@ func (c *Cluster) GetImage(project, fingerprint string, public bool, strictMatch
 		query += " AND public=1"
 	}
 
-	err = dbQueryRowScan(c.db, query, inargs, outfmt)
+	err = dbQueryRowScan(c, query, inargs, outfmt)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return -1, nil, ErrNoSuchObject
@@ -394,7 +394,7 @@ SELECT COUNT(images.id)
 		count := 0
 		outfmt := []interface{}{&count}
 
-		err = dbQueryRowScan(c.db, query, inargs, outfmt)
+		err = dbQueryRowScan(c, query, inargs, outfmt)
 		if err != nil {
 			return -1, nil, err
 		}
@@ -442,7 +442,7 @@ func (c *Cluster) GetImageFromAnyProject(fingerprint string) (int, *api.Image, e
         WHERE fingerprint = ?
         LIMIT 1`
 
-	err := dbQueryRowScan(c.db, query, inargs, outfmt)
+	err := dbQueryRowScan(c, query, inargs, outfmt)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return -1, nil, ErrNoSuchObject
@@ -492,7 +492,7 @@ func (c *Cluster) imageFill(id int, image *api.Image, create, expire, used, uplo
 	var key, value, name, desc string
 	inargs := []interface{}{id}
 	outfmt := []interface{}{key, value}
-	results, err := queryScan(c.db, q, inargs, outfmt)
+	results, err := queryScan(c, q, inargs, outfmt)
 	if err != nil {
 		return err
 	}
@@ -510,7 +510,7 @@ func (c *Cluster) imageFill(id int, image *api.Image, create, expire, used, uplo
 	q = "SELECT name, description FROM images_aliases WHERE image_id=?"
 	inargs = []interface{}{id}
 	outfmt = []interface{}{name, desc}
-	results, err = queryScan(c.db, q, inargs, outfmt)
+	results, err = queryScan(c, q, inargs, outfmt)
 	if err != nil {
 		return err
 	}
@@ -559,7 +559,7 @@ WHERE images_profiles.image_id = ? AND projects.name = ?
 	var name string
 	inargs := []interface{}{id, project}
 	outfmt := []interface{}{name}
-	results, err := queryScan(c.db, q, inargs, outfmt)
+	results, err := queryScan(c, q, inargs, outfmt)
 	if err != nil {
 		return err
 	}
@@ -648,7 +648,7 @@ func (c *Cluster) AddImageToLocalNode(project, fingerprint string) error {
 
 // DeleteImage deletes the image with the given ID.
 func (c *Cluster) DeleteImage(id int) error {
-	err := exec(c.db, "DELETE FROM images WHERE id=?", id)
+	err := exec(c, "DELETE FROM images WHERE id=?", id)
 	if err != nil {
 		return err
 	}
@@ -681,7 +681,7 @@ SELECT images_aliases.name
 	var name string
 	inargs := []interface{}{project}
 	outfmt := []interface{}{name}
-	results, err := queryScan(c.db, q, inargs, outfmt)
+	results, err := queryScan(c, q, inargs, outfmt)
 	if err != nil {
 		return nil, err
 	}
@@ -727,7 +727,7 @@ func (c *Cluster) GetImageAlias(project, name string, isTrustedClient bool) (int
 
 	arg1 := []interface{}{project, name}
 	arg2 := []interface{}{&id, &fingerprint, &imageType, &description}
-	err = dbQueryRowScan(c.db, q, arg1, arg2)
+	err = dbQueryRowScan(c, q, arg1, arg2)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return -1, entry, ErrNoSuchObject
@@ -746,7 +746,7 @@ func (c *Cluster) GetImageAlias(project, name string, isTrustedClient bool) (int
 
 // RenameImageAlias renames the alias with the given ID.
 func (c *Cluster) RenameImageAlias(id int, name string) error {
-	err := exec(c.db, "UPDATE images_aliases SET name=? WHERE id=?", name, id)
+	err := exec(c, "UPDATE images_aliases SET name=? WHERE id=?", name, id)
 	return err
 }
 
@@ -766,7 +766,7 @@ func (c *Cluster) DeleteImageAlias(project, name string) error {
 		return err
 	}
 
-	err = exec(c.db, `
+	err = exec(c, `
 DELETE
   FROM images_aliases
  WHERE project_id = (SELECT id FROM projects WHERE name = ?) AND name = ?
@@ -776,7 +776,7 @@ DELETE
 
 // MoveImageAlias changes the image ID associated with an alias.
 func (c *Cluster) MoveImageAlias(source int, destination int) error {
-	err := exec(c.db, "UPDATE images_aliases SET image_id=? WHERE image_id=?", destination, source)
+	err := exec(c, "UPDATE images_aliases SET image_id=? WHERE image_id=?", destination, source)
 	return err
 }
 
@@ -800,14 +800,14 @@ func (c *Cluster) CreateImageAlias(project, name string, imageID int, desc strin
 INSERT INTO images_aliases (name, image_id, description, project_id)
      VALUES (?, ?, ?, (SELECT id FROM projects WHERE name = ?))
 `
-	err = exec(c.db, stmt, name, imageID, desc, project)
+	err = exec(c, stmt, name, imageID, desc, project)
 	return err
 }
 
 // UpdateImageAlias updates the alias with the given ID.
 func (c *Cluster) UpdateImageAlias(id int, imageID int, desc string) error {
 	stmt := `UPDATE images_aliases SET image_id=?, description=? WHERE id=?`
-	err := exec(c.db, stmt, imageID, desc, id)
+	err := exec(c, stmt, imageID, desc, id)
 	return err
 }
 
@@ -839,14 +839,14 @@ func (c *Cluster) CopyDefaultImageProfiles(id int, newID int) error {
 // given fingerprint.
 func (c *Cluster) UpdateImageLastUseDate(fingerprint string, date time.Time) error {
 	stmt := `UPDATE images SET last_use_date=? WHERE fingerprint=?`
-	err := exec(c.db, stmt, date, fingerprint)
+	err := exec(c, stmt, date, fingerprint)
 	return err
 }
 
 // InitImageLastUseDate inits the last_use_date field of the image with the given fingerprint.
 func (c *Cluster) InitImageLastUseDate(fingerprint string) error {
 	stmt := `UPDATE images SET cached=1, last_use_date=strftime("%s") WHERE fingerprint=?`
-	err := exec(c.db, stmt, fingerprint)
+	err := exec(c, stmt, fingerprint)
 	return err
 }
 
@@ -1043,7 +1043,7 @@ func (c *Cluster) GetPoolsWithImage(imageFingerprint string) ([]int64, error) {
 	inargs := []interface{}{c.nodeID, imageFingerprint, StoragePoolVolumeTypeImage}
 	outargs := []interface{}{poolID}
 
-	result, err := queryScan(c.db, query, inargs, outargs)
+	result, err := queryScan(c, query, inargs, outargs)
 	if err != nil {
 		return []int64{}, err
 	}
@@ -1066,7 +1066,7 @@ func (c *Cluster) GetPoolNamesFromIDs(poolIDs []int64) ([]string, error) {
 		inargs := []interface{}{poolID}
 		outargs := []interface{}{poolName}
 
-		result, err := queryScan(c.db, query, inargs, outargs)
+		result, err := queryScan(c, query, inargs, outargs)
 		if err != nil {
 			return []string{}, err
 		}
@@ -1081,7 +1081,7 @@ func (c *Cluster) GetPoolNamesFromIDs(poolIDs []int64) ([]string, error) {
 
 // UpdateImageUploadDate updates the upload_date column and an image row.
 func (c *Cluster) UpdateImageUploadDate(id int, uploadedAt time.Time) error {
-	err := exec(c.db, "UPDATE images SET upload_date=? WHERE id=?", uploadedAt, id)
+	err := exec(c, "UPDATE images SET upload_date=? WHERE id=?", uploadedAt, id)
 	return err
 }
 
