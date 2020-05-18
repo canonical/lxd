@@ -1117,6 +1117,7 @@ func (d *Daemon) Kill() {
 			logger.Warnf("Could not handover member's responsibilities: %v", err)
 		}
 		d.gateway.Kill()
+		d.cluster.Kill()
 	}
 }
 
@@ -1128,10 +1129,6 @@ func (d *Daemon) Stop() error {
 		if err != nil {
 			errs = append(errs, errors.Wrap(err, desc))
 		}
-	}
-
-	if d.endpoints != nil {
-		trackError(d.endpoints.Down(), "Shutdown endpoints")
 	}
 
 	trackError(d.tasks.Stop(3*time.Second), "Stop tasks")                // Give tasks a bit of time to cleanup.
@@ -1172,6 +1169,10 @@ func (d *Daemon) Stop() error {
 
 	if d.gateway != nil {
 		trackError(d.gateway.Shutdown(), "Shutdown dqlite")
+	}
+
+	if d.endpoints != nil {
+		trackError(d.endpoints.Down(), "Shutdown endpoints")
 	}
 
 	if shouldUnmount {

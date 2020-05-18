@@ -3,23 +3,21 @@
 package db
 
 import (
-	"fmt"
+	"database/sql"
+
+	"github.com/lxc/lxd/lxd/db/query"
 )
 
 // GetAppliedPatches returns the names of all patches currently applied on this node.
 func (n *Node) GetAppliedPatches() ([]string, error) {
-	inargs := []interface{}{}
-	outfmt := []interface{}{""}
-
-	query := fmt.Sprintf("SELECT name FROM patches")
-	result, err := queryScan(n.db, query, inargs, outfmt)
+	var response []string
+	err := query.Transaction(n.db, func(tx *sql.Tx) error {
+		var err error
+		response, err = query.SelectStrings(tx, "SELECT name FROM patches")
+		return err
+	})
 	if err != nil {
 		return []string{}, err
-	}
-
-	response := []string{}
-	for _, r := range result {
-		response = append(response, r[0].(string))
 	}
 
 	return response, nil

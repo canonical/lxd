@@ -115,31 +115,3 @@ func AddDevicesToEntity(tx *sql.Tx, w string, cID int64, devices deviceConfig.De
 
 	return nil
 }
-
-func dbDeviceConfig(db *sql.DB, id int, isprofile bool) (deviceConfig.Device, error) {
-	var query string
-	var key, value string
-	newdev := deviceConfig.Device{} // That's a map[string]string
-	inargs := []interface{}{id}
-	outfmt := []interface{}{key, value}
-
-	if isprofile {
-		query = `SELECT key, value FROM profiles_devices_config WHERE profile_device_id=?`
-	} else {
-		query = `SELECT key, value FROM instances_devices_config WHERE instance_device_id=?`
-	}
-
-	results, err := queryScan(db, query, inargs, outfmt)
-
-	if err != nil {
-		return newdev, err
-	}
-
-	for _, r := range results {
-		key = r[0].(string)
-		value = r[1].(string)
-		newdev[key] = value
-	}
-
-	return newdev, nil
-}

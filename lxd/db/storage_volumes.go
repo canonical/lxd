@@ -107,7 +107,7 @@ SELECT nodes.name FROM storage_volumes_all
 	inargs := []interface{}{volumeID}
 	outargs := []interface{}{&name}
 
-	err := dbQueryRowScan(c.db, query, inargs, outargs)
+	err := dbQueryRowScan(c, query, inargs, outargs)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return "", ErrNoSuchObject
@@ -131,7 +131,7 @@ func (c *Cluster) storageVolumeConfigGet(volumeID int64, isSnapshot bool) (map[s
 	inargs := []interface{}{volumeID}
 	outargs := []interface{}{key, value}
 
-	results, err := queryScan(c.db, query, inargs, outargs)
+	results, err := queryScan(c, query, inargs, outargs)
 	if err != nil {
 		return nil, err
 	}
@@ -155,7 +155,7 @@ func (c *Cluster) GetStorageVolumeDescription(volumeID int64) (string, error) {
 	inargs := []interface{}{volumeID}
 	outargs := []interface{}{&description}
 
-	err := dbQueryRowScan(c.db, query, inargs, outargs)
+	err := dbQueryRowScan(c, query, inargs, outargs)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return "", ErrNoSuchObject
@@ -181,7 +181,7 @@ SELECT storage_volumes_snapshots.name FROM storage_volumes_snapshots
 	var numstr string
 	inargs := []interface{}{typ, name}
 	outfmt := []interface{}{numstr}
-	results, err := queryScan(c.db, q, inargs, outfmt)
+	results, err := queryScan(c, q, inargs, outfmt)
 	if err != nil {
 		return 0
 	}
@@ -357,23 +357,23 @@ func (c *Cluster) RemoveStorageVolumeImages(fingerprints []string) error {
 	for _, fingerprint := range fingerprints {
 		args = append(args, fingerprint)
 	}
-	err := exec(c.db, stmt, args...)
+	err := exec(c, stmt, args...)
 	return err
 }
 
 // UpgradeStorageVolumConfigToLVMThinPoolNameKey upgrades the config keys of LVM
 // volumes.
 func (c *Cluster) UpgradeStorageVolumConfigToLVMThinPoolNameKey() error {
-	err := exec(c.db, "UPDATE storage_pools_config SET key='lvm.thinpool_name' WHERE key='volume.lvm.thinpool_name';")
+	err := exec(c, "UPDATE storage_pools_config SET key='lvm.thinpool_name' WHERE key='volume.lvm.thinpool_name';")
 	if err != nil {
 		return err
 	}
 
-	err = exec(c.db, "DELETE FROM storage_volumes_config WHERE key='lvm.thinpool_name';")
+	err = exec(c, "DELETE FROM storage_volumes_config WHERE key='lvm.thinpool_name';")
 	if err != nil {
 		return err
 	}
-	err = exec(c.db, "DELETE FROM storage_volumes_snapshots_config WHERE key='lvm.thinpool_name';")
+	err = exec(c, "DELETE FROM storage_volumes_snapshots_config WHERE key='lvm.thinpool_name';")
 	if err != nil {
 		return err
 	}
