@@ -1,6 +1,7 @@
 package storage
 
 import (
+	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -447,9 +448,10 @@ func validateVolumeCommonRules(vol drivers.Volume) map[string]func(string) error
 // VM Format A: Separate metadata tarball and root qcow2 file.
 // 	- Unpack metadata tarball into mountPath.
 //	- Check rootBlockPath is a file and convert qcow2 file into raw format in rootBlockPath.
-func ImageUnpack(imageFile, destPath, destBlockFile string, blockBackend, runningInUserns bool, tracker *ioprogress.ProgressTracker) error {
+func ImageUnpack(imageFile string, vol drivers.Volume, destBlockFile string, blockBackend, runningInUserns bool, tracker *ioprogress.ProgressTracker) error {
 	// For all formats, first unpack the metadata (or combined) tarball into destPath.
 	imageRootfsFile := imageFile + ".rootfs"
+	destPath := vol.MountPath()
 
 	// If no destBlockFile supplied then this is a container image unpack.
 	if destBlockFile == "" {
@@ -496,9 +498,62 @@ func ImageUnpack(imageFile, destPath, destBlockFile string, blockBackend, runnin
 		return fmt.Errorf("Root block path isn't a file: %s", destBlockFile)
 	}
 
+	// convertBlockImage converts the qcow2 block image file into a raw block device. If needed it will attempt
+	// to enlarge the destination volume to accommodate the unpacked qcow2 image file.
+	convertBlockImage := func(v drivers.Volume, imgPath string, dstPath string) error {
+		// Get info about qcow2 file.
+		imgJSON, err := shared.RunCommand("qemu-img", "info", "--output=json", imgPath)
+		if err != nil {
+			return errors.Wrapf(err, "Failed reading image info %q", dstPath)
+		}
+
+		imgInfo := struct {
+			Format      string `json:"format"`
+			VirtualSize int64  `json:"virtual-size"`
+		}{}
+
+		err = json.Unmarshal([]byte(imgJSON), &imgInfo)
+		if err != nil {
+			return err
+		}
+
+		if imgInfo.Format != "qcow2" {
+			return fmt.Errorf("Unexpected image format %q", imgInfo.Format)
+		}
+
+		if shared.PathExists(dstPath) {
+			volSizeBytes, err := drivers.BlockDevSizeBytes(dstPath)
+			if err != nil {
+				return errors.Wrapf(err, "Error getting current size")
+			}
+
+			if volSizeBytes < imgInfo.VirtualSize {
+				logger.Debugf("Increasing %q volume size from %d to %d to accomomdate image %q unpack", dstPath, volSizeBytes, imgInfo.VirtualSize, imgPath)
+				err = vol.SetQuota(fmt.Sprintf("%d", imgInfo.VirtualSize), nil)
+				if err != nil {
+					return errors.Wrapf(err, "Error increasing volume size")
+				}
+			}
+		}
+
+		// Convert the qcow2 format to a raw block device.
+		_, err = shared.RunCommand("qemu-img", "convert", "-f", "qcow2", "-O", "raw", imgPath, dstPath)
+		if err != nil {
+			return errors.Wrapf(err, "Failed converting image to raw at %q", dstPath)
+		}
+
+		return nil
+	}
+
 	if shared.PathExists(imageRootfsFile) {
 		// Unpack the main image file.
 		err := shared.Unpack(imageFile, destPath, blockBackend, runningInUserns, tracker)
+		if err != nil {
+			return err
+		}
+
+		// Convert the qcow2 format to a raw block device.
+		err = convertBlockImage(vol, imageRootfsFile, destBlockFile)
 		if err != nil {
 			return err
 		}
@@ -522,11 +577,12 @@ func ImageUnpack(imageFile, destPath, destBlockFile string, blockBackend, runnin
 			return err
 		}
 
-		// Convert the qcow2 format to a raw block device.
 		imgPath := filepath.Join(tempDir, "rootfs.img")
-		_, err = shared.RunCommand("qemu-img", "convert", "-O", "raw", imgPath, destBlockFile)
+
+		// Convert the qcow2 format to a raw block device.
+		err = convertBlockImage(vol, imgPath, destBlockFile)
 		if err != nil {
-			return fmt.Errorf("Failed converting image to raw at %s: %v", destBlockFile, err)
+			return err
 		}
 
 		// Delete the qcow2.
