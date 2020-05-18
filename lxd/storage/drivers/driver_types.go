@@ -19,7 +19,7 @@ type Info struct {
 
 // VolumeFiller provides a struct for filling a volume.
 type VolumeFiller struct {
-	Fill func(mountPath, rootBlockPath string) error // Function to fill the volume.
+	Fill func(vol Volume, rootBlockPath string) error // Function to fill the volume.
 
 	Fingerprint string // If the Filler will unpack an image, it should be this fingerprint.
 }
