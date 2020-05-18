@@ -27,6 +27,8 @@
 		#if _MIPS_SIM == _MIPS_SIM_ABI64	/* n64 */
 			#define __NR_pidfd_open 5434
 		#endif
+	#elif defined __ia64__
+		#define __NR_clone3 (424 + 1024)
 	#else
 		#define __NR_pidfd_open 424
 	#endif
@@ -45,6 +47,8 @@
 		#if _MIPS_SIM == _MIPS_SIM_ABI64	/* n64 */
 			#define __NR_pidfd_send_signal 5424
 		#endif
+	#elif defined __ia64__
+		#define __NR_pidfd_send_signal (424 + 1024)
 	#else
 		#define __NR_pidfd_send_signal 424
 	#endif
