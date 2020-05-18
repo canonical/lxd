@@ -324,34 +324,51 @@ func roundVolumeBlockFileSizeBytes(sizeBytes int64) (int64, error) {
 	return int64(sizeBytes/minBlockBoundary) * minBlockBoundary, nil
 }
 
-// ensureVolumeBlockFile creates or resizes the raw block file for a volume to the specified size.
-func ensureVolumeBlockFile(path string, sizeBytes int64) error {
+// ensureVolumeBlockFile creates new block file or resizes the raw block file for a volume to the specified size.
+// Returns true if resize took place, false if not. Requested size is rounded to nearest block size using
+// roundVolumeBlockFileSizeBytes() before decision whether to resize is taken.
+func ensureVolumeBlockFile(path string, sizeBytes int64) (bool, error) {
 	if sizeBytes <= 0 {
-		return fmt.Errorf("Size cannot be zero")
+		return false, fmt.Errorf("Size cannot be zero")
 	}
 
 	// Get rounded block size to avoid qemu boundary issues.
 	sizeBytes, err := roundVolumeBlockFileSizeBytes(sizeBytes)
 	if err != nil {
-		return err
+		return false, err
 	}
 
 	if shared.PathExists(path) {
+		fi, err := os.Stat(path)
+		if err != nil {
+			return false, err
+		}
+
+		oldSizeBytes := fi.Size()
+		if sizeBytes < oldSizeBytes {
+			return false, errors.Wrap(ErrCannotBeShrunk, "You cannot shrink block volumes")
+		}
+
+		if sizeBytes == oldSizeBytes {
+			return false, nil
+		}
+
 		_, err = shared.RunCommand("qemu-img", "resize", "-f", "raw", path, fmt.Sprintf("%d", sizeBytes))
 		if err != nil {
-			return errors.Wrapf(err, "Failed resizing disk image %q to size %d", path, sizeBytes)
+			return false, errors.Wrapf(err, "Failed resizing disk image %q to size %d", path, sizeBytes)
 		}
-	} else {
-		// If path doesn't exist, then there has been no filler function
-		// supplied to create it from another source. So instead create an empty
-		// volume (use for PXE booting a VM).
-		_, err = shared.RunCommand("qemu-img", "create", "-f", "raw", path, fmt.Sprintf("%d", sizeBytes))
-		if err != nil {
-			return errors.Wrapf(err, "Failed creating disk image %q as size %d", path, sizeBytes)
-		}
+
+		return true, nil
 	}
 
-	return nil
+	// If path doesn't exist, then there has been no filler function supplied to create it from another source.
+	// So instead create an empty volume (use for PXE booting a VM).
+	_, err = shared.RunCommand("qemu-img", "create", "-f", "raw", path, fmt.Sprintf("%d", sizeBytes))
+	if err != nil {
+		return false, errors.Wrapf(err, "Failed creating disk image %q as size %d", path, sizeBytes)
+	}
+
+	return false, nil
 }
 
 // mkfsOptions represents options for filesystem creation.
