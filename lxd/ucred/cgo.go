@@ -1,4 +1,4 @@
-// +build linux,cgo,gccgo
+// +build linux,cgo
 
 package ucred
 
