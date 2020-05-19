@@ -30,8 +30,8 @@ func GetFileStat(p string) (uid int, gid int, major uint32, minor uint32, inode 
 	inode = uint64(stat.Ino)
 	nlink = int(stat.Nlink)
 	if stat.Mode&unix.S_IFBLK != 0 || stat.Mode&unix.S_IFCHR != 0 {
-		major = unix.Major(stat.Rdev)
-		minor = unix.Minor(stat.Rdev)
+		major = unix.Major(uint64(stat.Rdev))
+		minor = unix.Minor(uint64(stat.Rdev))
 	}
 
 	return
