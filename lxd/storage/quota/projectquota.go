@@ -22,6 +22,7 @@ import (
 #include <fcntl.h>
 #include <stdint.h>
 #include <stdlib.h>
+#include <stdbool.h>
 #include <unistd.h>
 
 #ifndef FS_XFLAG_PROJINHERIT
@@ -110,7 +111,7 @@ int quota_set(char *dev_path, uint32_t id, uint64_t hard_bytes) {
 	return 0;
 }
 
-int quota_set_path(char *path, uint32_t id) {
+int quota_set_path(char *path, uint32_t id, bool inherit) {
 	struct fsxattr attr;
 	int fd;
 	int ret;
@@ -125,7 +126,10 @@ int quota_set_path(char *path, uint32_t id) {
 		return -1;
 	}
 
-	attr.fsx_xflags |= FS_XFLAG_PROJINHERIT;
+	if (inherit) {
+		attr.fsx_xflags |= FS_XFLAG_PROJINHERIT;
+	}
+
 	attr.fsx_projid = id;
 
 	ret = ioctl(fd, FS_IOC_FSSETXATTR, &attr);
