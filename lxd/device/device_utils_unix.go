@@ -41,8 +41,8 @@ func unixDeviceAttributes(path string) (string, uint32, uint32, error) {
 	}
 
 	// Return the device information
-	major := unix.Major(stat.Rdev)
-	minor := unix.Minor(stat.Rdev)
+	major := unix.Major(uint64(stat.Rdev))
+	minor := unix.Minor(uint64(stat.Rdev))
 	return dType, major, minor, nil
 }
 
