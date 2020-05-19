@@ -5,9 +5,11 @@ import (
 	"io/ioutil"
 	"os"
 	"os/exec"
+	"runtime"
 	"sort"
 	"strings"
 
+	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 	"golang.org/x/sys/unix"
 
@@ -91,6 +93,22 @@ func (c *cmdMigrate) Run(cmd *cobra.Command, args []string) error {
 	// Get and sort the mounts
 	mounts := args[2:]
 	sort.Strings(mounts)
+
+	// Create the mount namespace and ensure we're not moved around
+	runtime.LockOSThread()
+	defer runtime.UnlockOSThread()
+
+	// Unshare a new mntns so our mounts don't leak
+	err = unix.Unshare(unix.CLONE_NEWNS)
+	if err != nil {
+		return errors.Wrap(err, "Failed to unshare mount namespace")
+	}
+
+	// Prevent mount propagation back to initial namespace
+	err = unix.Mount("", "/", "", unix.MS_REC|unix.MS_PRIVATE, "")
+	if err != nil {
+		return errors.Wrap(err, "Failed to disable mount propagation")
+	}
 
 	// Create the temporary directory to be used for the mounts
 	path, err := ioutil.TempDir("", "lxd-p2c_mount_")
