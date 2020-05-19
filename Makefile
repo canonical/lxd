@@ -19,7 +19,7 @@ endif
 	go get -t -v -d ./...
 	CC=$(CC) go install -v -tags "$(TAG_SQLITE3)" $(DEBUG) ./...
 	CGO_ENABLED=0 go install -v -tags netgo ./lxd-p2c
-	go install -v -tags agent ./lxd-agent
+	CGO_ENABLED=0 go install -v -tags agent,netgo ./lxd-agent
 	@echo "LXD built successfully"
 
 .PHONY: client
@@ -30,7 +30,7 @@ client:
 
 .PHONY: lxd-agent
 lxd-agent:
-	go install -v -tags agent ./lxd-agent
+	CGO_ENABLED=0 go install -v -tags agent,netgo ./lxd-agent
 	@echo "LXD agent built successfully"
 
 .PHONY: lxd-p2c
