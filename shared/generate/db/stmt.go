@@ -492,28 +492,9 @@ func (s *Stmt) update(buf *file.Buffer) error {
 		}
 	}
 
-	mapping, err = Parse(s.packages[s.pkg], lex.Capital(s.entity))
-	if err != nil {
-		return errors.Wrap(err, "Parse entity struct")
-	}
-
-	nk := mapping.NaturalKey()
-	where := make([]string, len(nk))
-
-	for i, field := range nk {
-		if field.IsScalar() {
-			ref := lex.Snake(field.Name)
-			where[i] = fmt.Sprintf("%s_id = (SELECT id FROM %s WHERE name = ?)", ref, lex.Plural(ref))
-		} else {
-
-			where[i] = fmt.Sprintf("%s = ?", field.Column())
-		}
-
-	}
-
 	sql := fmt.Sprintf(
 		stmts[s.kind], entityTable(s.entity),
-		strings.Join(updates, ", "), strings.Join(where, ", "))
+		strings.Join(updates, ", "), "id = ?")
 	s.register(buf, sql)
 
 	return nil
