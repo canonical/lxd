@@ -119,6 +119,14 @@ var profileDelete = cluster.RegisterStmt(`
 DELETE FROM profiles WHERE project_id = (SELECT projects.id FROM projects WHERE projects.name = ?) AND name = ?
 `)
 
+var profileDeleteConfigRef = cluster.RegisterStmt(`
+DELETE FROM profiles_config WHERE profile_id = ?
+`)
+
+var profileDeleteDevicesRef = cluster.RegisterStmt(`
+DELETE FROM profiles_devices WHERE profile_id = ?
+`)
+
 // GetProfileURIs returns all available profile URIs.
 func (c *ClusterTx) GetProfileURIs(filter ProfileFilter) ([]string, error) {
 	// Check which filter criteria are active.
