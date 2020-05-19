@@ -277,7 +277,7 @@ func (c *Cluster) networks(where string, args ...interface{}) ([]string, error) 
 
 	var name string
 	outfmt := []interface{}{name}
-	result, err := queryScan(c.db, q, inargs, outfmt)
+	result, err := queryScan(c, q, inargs, outfmt)
 	if err != nil {
 		return []string{}, err
 	}
@@ -306,7 +306,7 @@ func (c *Cluster) GetNetwork(name string) (int64, *api.Network, error) {
 	q := "SELECT id, description, state FROM networks WHERE name=?"
 	arg1 := []interface{}{name}
 	arg2 := []interface{}{&id, &description, &state}
-	err := dbQueryRowScan(c.db, q, arg1, arg2)
+	err := dbQueryRowScan(c, q, arg1, arg2)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return -1, nil, ErrNoSuchObject
@@ -375,7 +375,7 @@ func (c *Cluster) GetNetworkWithInterface(devName string) (int64, *api.Network, 
 	q := "SELECT networks.id, networks.name, networks_config.value FROM networks LEFT JOIN networks_config ON networks.id=networks_config.network_id WHERE networks_config.key=\"bridge.external_interfaces\" AND networks_config.node_id=?"
 	arg1 := []interface{}{c.nodeID}
 	arg2 := []interface{}{id, name, value}
-	result, err := queryScan(c.db, q, arg1, arg2)
+	result, err := queryScan(c, q, arg1, arg2)
 	if err != nil {
 		return -1, nil, err
 	}
@@ -421,7 +421,7 @@ func (c *Cluster) getNetworkConfig(id int64) (map[string]string, error) {
                 AND (node_id=? OR node_id IS NULL)`
 	inargs := []interface{}{id, c.nodeID}
 	outfmt := []interface{}{key, value}
-	results, err := queryScan(c.db, query, inargs, outfmt)
+	results, err := queryScan(c, query, inargs, outfmt)
 	if err != nil {
 		return nil, fmt.Errorf("Failed to get network '%d'", id)
 	}
@@ -433,7 +433,7 @@ func (c *Cluster) getNetworkConfig(id int64) (map[string]string, error) {
 		 */
 		query := "SELECT id FROM networks WHERE id=?"
 		var r int
-		results, err := queryScan(c.db, query, []interface{}{id}, []interface{}{r})
+		results, err := queryScan(c, query, []interface{}{id}, []interface{}{r})
 		if err != nil {
 			return nil, err
 		}
@@ -572,7 +572,7 @@ func (c *Cluster) DeleteNetwork(name string) error {
 		return err
 	}
 
-	err = exec(c.db, "DELETE FROM networks WHERE id=?", id)
+	err = exec(c, "DELETE FROM networks WHERE id=?", id)
 	if err != nil {
 		return err
 	}

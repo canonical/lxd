@@ -134,7 +134,7 @@ func (c *Cluster) GetStorageVolumeSnapshotExpiry(volumeID int64) (time.Time, err
 	inargs := []interface{}{volumeID}
 	outargs := []interface{}{&expiry}
 
-	err := dbQueryRowScan(c.db, query, inargs, outargs)
+	err := dbQueryRowScan(c, query, inargs, outargs)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return expiry, ErrNoSuchObject
@@ -163,7 +163,7 @@ JOIN projects ON storage_volumes.project_id = projects.id
 WHERE storage_volumes.type = ?`
 	infmt := []interface{}{StoragePoolVolumeTypeCustom}
 	outfmt := []interface{}{volumeName, snapshotName, expiryDate, poolName, projectName}
-	dbResults, err := queryScan(c.db, q, infmt, outfmt)
+	dbResults, err := queryScan(c, q, infmt, outfmt)
 	if err != nil {
 		return nil, err
 	}

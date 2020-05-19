@@ -625,7 +625,7 @@ WHERE instances.id=?
 	name := ""
 	arg1 := []interface{}{id}
 	arg2 := []interface{}{&project, &name}
-	err := dbQueryRowScan(c.db, q, arg1, arg2)
+	err := dbQueryRowScan(c, q, arg1, arg2)
 	if err == sql.ErrNoRows {
 		return "", "", ErrNoSuchObject
 	}
@@ -698,7 +698,7 @@ func (c *Cluster) GetInstanceConfig(id int, key string) (string, error) {
 	value := ""
 	arg1 := []interface{}{id, key}
 	arg2 := []interface{}{&value}
-	err := dbQueryRowScan(c.db, q, arg1, arg2)
+	err := dbQueryRowScan(c, q, arg1, arg2)
 	if err == sql.ErrNoRows {
 		return "", ErrNoSuchObject
 	}
@@ -709,7 +709,7 @@ func (c *Cluster) GetInstanceConfig(id int, key string) (string, error) {
 // DeleteInstanceConfigKey removes the given key from the config of the instance
 // with the given ID.
 func (c *Cluster) DeleteInstanceConfigKey(id int, key string) error {
-	err := exec(c.db, "DELETE FROM instances_config WHERE key=? AND instance_id=?", key, id)
+	err := exec(c, "DELETE FROM instances_config WHERE key=? AND instance_id=?", key, id)
 	return err
 }
 
@@ -721,7 +721,7 @@ func (c *Cluster) UpdateInstanceStatefulFlag(id int, stateful bool) error {
 		statefulInt = 1
 	}
 
-	err := exec(c.db, "UPDATE instances SET stateful=? WHERE id=?", statefulInt, id)
+	err := exec(c, "UPDATE instances SET stateful=? WHERE id=?", statefulInt, id)
 	return err
 }
 
@@ -775,7 +775,7 @@ func (c *Cluster) LegacyContainersList() ([]string, error) {
 	inargs := []interface{}{instancetype.Container}
 	var container string
 	outfmt := []interface{}{container}
-	result, err := queryScan(c.db, q, inargs, outfmt)
+	result, err := queryScan(c, q, inargs, outfmt)
 	if err != nil {
 		return nil, err
 	}
@@ -803,7 +803,7 @@ WHERE type=? ORDER BY instances.name, instances_snapshots.name
 	var container string
 	var snapshot string
 	outfmt := []interface{}{container, snapshot}
-	result, err := queryScan(c.db, q, inargs, outfmt)
+	result, err := queryScan(c, q, inargs, outfmt)
 	if err != nil {
 		return nil, err
 	}
@@ -819,7 +819,7 @@ WHERE type=? ORDER BY instances.name, instances_snapshots.name
 // ResetInstancesPowerState resets the power state of all instances.
 func (c *Cluster) ResetInstancesPowerState() error {
 	// Reset all container states
-	err := exec(c.db, "DELETE FROM instances_config WHERE key='volatile.last_state.power'")
+	err := exec(c, "DELETE FROM instances_config WHERE key='volatile.last_state.power'")
 	return err
 }
 
@@ -881,7 +881,7 @@ func UpdateInstance(tx *sql.Tx, id int, description string, architecture int, ep
 // UpdateInstanceSnapshotCreationDate updates the creation_date field of the instance snapshot with ID.
 func (c *Cluster) UpdateInstanceSnapshotCreationDate(instanceID int, date time.Time) error {
 	stmt := `UPDATE instances_snapshots SET creation_date=? WHERE id=?`
-	err := exec(c.db, stmt, date, instanceID)
+	err := exec(c, stmt, date, instanceID)
 	return err
 }
 
@@ -918,7 +918,7 @@ ORDER BY date(instances_snapshots.creation_date)
 `
 	inargs := []interface{}{project, name}
 	outfmt := []interface{}{name}
-	dbResults, err := queryScan(c.db, q, inargs, outfmt)
+	dbResults, err := queryScan(c, q, inargs, outfmt)
 	if err != nil {
 		return result, err
 	}
@@ -968,7 +968,7 @@ WHERE projects.name=? AND instances.name=?`
 	var numstr string
 	inargs := []interface{}{project, name}
 	outfmt := []interface{}{numstr}
-	results, err := queryScan(c.db, q, inargs, outfmt)
+	results, err := queryScan(c, q, inargs, outfmt)
 	if err != nil {
 		return 0
 	}
@@ -1071,7 +1071,7 @@ func (c *Cluster) getInstanceBackupID(name string) (int, error) {
 	id := -1
 	arg1 := []interface{}{name}
 	arg2 := []interface{}{&id}
-	err := dbQueryRowScan(c.db, q, arg1, arg2)
+	err := dbQueryRowScan(c, q, arg1, arg2)
 	if err == sql.ErrNoRows {
 		return -1, ErrNoSuchObject
 	}
@@ -1098,7 +1098,7 @@ SELECT instances_backups.id, instances_backups.instance_id,
 	arg1 := []interface{}{project, name}
 	arg2 := []interface{}{&args.ID, &args.InstanceID, &args.CreationDate,
 		&args.ExpiryDate, &instanceOnlyInt, &optimizedStorageInt}
-	err := dbQueryRowScan(c.db, q, arg1, arg2)
+	err := dbQueryRowScan(c, q, arg1, arg2)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return args, ErrNoSuchObject
@@ -1129,7 +1129,7 @@ JOIN projects ON projects.id=instances.project_id
 WHERE projects.name=? AND instances.name=?`
 	inargs := []interface{}{project, name}
 	outfmt := []interface{}{name}
-	dbResults, err := queryScan(c.db, q, inargs, outfmt)
+	dbResults, err := queryScan(c, q, inargs, outfmt)
 	if err != nil {
 		return nil, err
 	}
@@ -1190,7 +1190,7 @@ func (c *Cluster) DeleteInstanceBackup(name string) error {
 		return err
 	}
 
-	err = exec(c.db, "DELETE FROM instances_backups WHERE id=?", id)
+	err = exec(c, "DELETE FROM instances_backups WHERE id=?", id)
 	if err != nil {
 		return err
 	}
@@ -1233,7 +1233,7 @@ func (c *Cluster) GetExpiredInstanceBackups() ([]InstanceBackupArgs, error) {
 
 	q := `SELECT instances_backups.name, instances_backups.expiry_date, instances_backups.instance_id FROM instances_backups`
 	outfmt := []interface{}{name, expiryDate, instanceID}
-	dbResults, err := queryScan(c.db, q, nil, outfmt)
+	dbResults, err := queryScan(c, q, nil, outfmt)
 	if err != nil {
 		return nil, err
 	}
