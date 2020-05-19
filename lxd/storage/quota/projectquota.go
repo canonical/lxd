@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 	"unsafe"
 
@@ -22,6 +23,8 @@ import (
 #include <fcntl.h>
 #include <stdint.h>
 #include <stdlib.h>
+#include <stdbool.h>
+#include <unistd.h>
 
 #ifndef FS_XFLAG_PROJINHERIT
 struct fsxattr {
@@ -109,7 +112,7 @@ int quota_set(char *dev_path, uint32_t id, uint64_t hard_bytes) {
 	return 0;
 }
 
-int quota_set_path(char *path, uint32_t id) {
+int quota_set_path(char *path, uint32_t id, bool inherit) {
 	struct fsxattr attr;
 	int fd;
 	int ret;
@@ -120,17 +123,23 @@ int quota_set_path(char *path, uint32_t id) {
 
 	ret = ioctl(fd, FS_IOC_FSGETXATTR, &attr);
 	if (ret < 0) {
+		close(fd);
 		return -1;
 	}
 
-	attr.fsx_xflags |= FS_XFLAG_PROJINHERIT;
+	if (inherit) {
+		attr.fsx_xflags |= FS_XFLAG_PROJINHERIT;
+	}
+
 	attr.fsx_projid = id;
 
 	ret = ioctl(fd, FS_IOC_FSSETXATTR, &attr);
 	if (ret < 0) {
+		close(fd);
 		return -1;
 	}
 
+	close(fd);
 	return 0;
 }
 
@@ -145,9 +154,11 @@ int32_t quota_get_path(char *path) {
 
 	ret = ioctl(fd, FS_IOC_FSGETXATTR, &attr);
 	if (ret < 0) {
+		close(fd);
 		return -1;
 	}
 
+	close(fd);
 	return attr.fsx_projid;
 }
 
@@ -222,17 +233,41 @@ func GetProject(path string) (uint32, error) {
 	return uint32(id), nil
 }
 
-// SetProject sets the project quota ID for the given path
+// SetProject recursively sets the project quota ID (and project inherit flag on directories) for the given path.
 func SetProject(path string, id uint32) error {
-	// Call ioctl through CGo
-	cPath := C.CString(path)
-	defer C.free(unsafe.Pointer(cPath))
+	err := filepath.Walk(path, func(filePath string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
 
-	if C.quota_set_path(cPath, C.uint32_t(id)) != 0 {
-		return fmt.Errorf("Failed to set project id '%d' on '%s'", id, path)
-	}
+		inherit := false
 
-	return nil
+		if info.IsDir() {
+			inherit = true // Only can set FS_XFLAG_PROJINHERIT on directories.
+		}
+
+		// Call ioctl through CGo.
+		cPath := C.CString(filePath)
+		defer C.free(unsafe.Pointer(cPath))
+
+		if C.quota_set_path(cPath, C.uint32_t(id), C.bool(inherit)) != 0 {
+			// Currently project ID cannot be set on non-regular files after file creation.
+			// However if the parent directory has a project and the inherit flag set on it then
+			// non-regular files do get accounted for under the parent's project, so we do still try
+			// and set the post-create project on non-regular files in case at some point in the future
+			// this inconsistency in behavior is fixed. However because it doesn't work today we will
+			// ignore any errors setting project on non-regular files.
+			if !info.Mode().IsRegular() {
+				return nil
+			}
+
+			return fmt.Errorf(`Failed to set project ID "%d" on %q (inherit %t)`, id, filePath, inherit)
+		}
+
+		return nil
+	})
+
+	return err
 }
 
 // DeleteProject unsets the project id from the path and clears the quota for the project id

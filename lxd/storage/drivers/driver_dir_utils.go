@@ -74,12 +74,7 @@ func (d *dir) deleteQuota(path string, volID int64) error {
 		return nil
 	}
 
-	err = quota.SetProject(path, 0)
-	if err != nil {
-		return err
-	}
-
-	err = quota.SetProjectQuota(path, d.quotaProjectID(volID), 0)
+	err = quota.DeleteProject(path, d.quotaProjectID(volID))
 	if err != nil {
 		return err
 	}
