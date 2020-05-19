@@ -300,7 +300,10 @@ func ethtoolLink(ethtoolFd int, req *ethtoolReq, info *api.ResourcesNetworkCardP
 		}
 
 		// Link speed
-		info.LinkSpeed = uint64(ethLinkSettings.speed)
+		speed := uint64(ethLinkSettings.speed)
+		if speed < uint64(^uint32(0)) {
+			info.LinkSpeed = speed
+		}
 	}
 
 	// Transceiver
