@@ -415,7 +415,7 @@ func (c *Cluster) storagePools(where string, args ...interface{}) ([]string, err
 		}
 	}
 
-	result, err := queryScan(c.db, stmt, inargs, outargs)
+	result, err := queryScan(c, stmt, inargs, outargs)
 	if err != nil {
 		return []string{}, err
 	}
@@ -440,7 +440,7 @@ func (c *Cluster) GetStoragePoolDrivers() ([]string, error) {
 	inargs := []interface{}{}
 	outargs := []interface{}{poolDriver}
 
-	result, err := queryScan(c.db, query, inargs, outargs)
+	result, err := queryScan(c, query, inargs, outargs)
 	if err != nil {
 		return []string{}, err
 	}
@@ -464,7 +464,7 @@ func (c *Cluster) GetStoragePoolID(poolName string) (int64, error) {
 	inargs := []interface{}{poolName}
 	outargs := []interface{}{&poolID}
 
-	err := dbQueryRowScan(c.db, query, inargs, outargs)
+	err := dbQueryRowScan(c, query, inargs, outargs)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return -1, ErrNoSuchObject
@@ -485,7 +485,7 @@ func (c *Cluster) GetStoragePool(poolName string) (int64, *api.StoragePool, erro
 	inargs := []interface{}{poolName}
 	outargs := []interface{}{&poolID, &poolDriver, &description, &state}
 
-	err := dbQueryRowScan(c.db, query, inargs, outargs)
+	err := dbQueryRowScan(c, query, inargs, outargs)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return -1, nil, ErrNoSuchObject
@@ -549,7 +549,7 @@ func (c *Cluster) getStoragePoolConfig(poolID int64) (map[string]string, error) 
 	inargs := []interface{}{poolID, c.nodeID}
 	outargs := []interface{}{key, value}
 
-	results, err := queryScan(c.db, query, inargs, outargs)
+	results, err := queryScan(c, query, inargs, outargs)
 	if err != nil {
 		return nil, err
 	}
@@ -698,7 +698,7 @@ func (c *Cluster) RemoveStoragePool(poolName string) (*api.StoragePool, error) {
 		return nil, err
 	}
 
-	err = exec(c.db, "DELETE FROM storage_pools WHERE id=?", poolID)
+	err = exec(c, "DELETE FROM storage_pools WHERE id=?", poolID)
 	if err != nil {
 		return nil, err
 	}
@@ -714,7 +714,7 @@ func (c *Cluster) GetStoragePoolVolumesNames(poolID int64) ([]string, error) {
 	inargs := []interface{}{poolID, c.nodeID}
 	outargs := []interface{}{volumeName}
 
-	result, err := queryScan(c.db, query, inargs, outargs)
+	result, err := queryScan(c, query, inargs, outargs)
 	if err != nil {
 		return []string{}, err
 	}
@@ -747,7 +747,7 @@ WHERE storage_volumes.type = ?
 	inargs := []interface{}{volumeType}
 	outargs := []interface{}{id, name, description, poolName, projectName}
 
-	result, err := queryScan(c.db, stmt, inargs, outargs)
+	result, err := queryScan(c, stmt, inargs, outargs)
 	if err != nil {
 		return nil, err
 	}
@@ -853,7 +853,7 @@ SELECT storage_volumes_all.name
 	inargs := []interface{}{project, poolID, nodeID, volumeType}
 	outargs := []interface{}{poolName}
 
-	result, err := queryScan(c.db, query, inargs, outargs)
+	result, err := queryScan(c, query, inargs, outargs)
 	if err != nil {
 		return []string{}, err
 	}
@@ -890,7 +890,7 @@ SELECT storage_volumes_snapshots.name, storage_volumes_snapshots.description FRO
 	inargs := []interface{}{poolID, c.nodeID, volumeType, volumeName, projectName}
 	typeGuide := StorageVolumeArgs{} // StorageVolume struct used to guide the types expected.
 	outfmt := []interface{}{typeGuide.Name, typeGuide.Description}
-	dbResults, err := queryScan(c.db, query, inargs, outfmt)
+	dbResults, err := queryScan(c, query, inargs, outfmt)
 	if err != nil {
 		return result, err
 	}
@@ -1225,6 +1225,6 @@ func storagePoolVolumeTypeToName(volumeType int) (string, error) {
 // FillMissingStoragePoolDriver fills the driver of all storage pools without a
 // driver, setting it to 'zfs'.
 func (c *Cluster) FillMissingStoragePoolDriver() error {
-	err := exec(c.db, "UPDATE storage_pools SET driver='zfs', description='' WHERE driver=''")
+	err := exec(c, "UPDATE storage_pools SET driver='zfs', description='' WHERE driver=''")
 	return err
 }

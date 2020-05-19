@@ -131,10 +131,11 @@ func (n *Node) Begin() (*sql.Tx, error) {
 
 // Cluster mediates access to LXD's data stored in the cluster dqlite database.
 type Cluster struct {
-	db     *sql.DB // Handle to the cluster dqlite database, gated behind gRPC SQL.
-	nodeID int64   // Node ID of this LXD instance.
-	mu     sync.RWMutex
-	stmts  map[int]*sql.Stmt // Prepared statements by code.
+	db      *sql.DB // Handle to the cluster dqlite database, gated behind gRPC SQL.
+	nodeID  int64   // Node ID of this LXD instance.
+	mu      sync.RWMutex
+	stmts   map[int]*sql.Stmt // Prepared statements by code.
+	closing bool              // True when daemon is shutting down, prevents retries
 }
 
 // OpenCluster creates a new Cluster object for interacting with the dqlite
@@ -329,6 +330,12 @@ func (c *Cluster) SetDefaultTimeout(timeout time.Duration) {
 	driver.SetContextTimeout(timeout)
 }
 
+// Kill should be called upon shutdown, it will prevent retrying failed
+// database queries.
+func (c *Cluster) Kill() {
+	c.closing = true
+}
+
 // GetNodeID returns the current nodeID (0 if not set)
 func (c *Cluster) GetNodeID() int64 {
 	return c.nodeID
@@ -381,12 +388,19 @@ func (c *Cluster) transaction(f func(*ClusterTx) error) error {
 		stmts:  c.stmts,
 	}
 
-	return query.Retry(func() error {
+	return c.retry(func() error {
 		return query.Transaction(c.db, func(tx *sql.Tx) error {
 			clusterTx.tx = tx
 			return f(clusterTx)
 		})
 	})
+}
+
+func (c *Cluster) retry(f func() error) error {
+	if c.closing {
+		return f()
+	}
+	return query.Retry(f)
 }
 
 // NodeID sets the the node NodeID associated with this cluster instance. It's used for
@@ -447,19 +461,19 @@ func TxCommit(tx *sql.Tx) error {
 	return err
 }
 
-func dbQueryRowScan(db *sql.DB, q string, args []interface{}, outargs []interface{}) error {
-	return query.Retry(func() error {
-		return query.Transaction(db, func(tx *sql.Tx) error {
+func dbQueryRowScan(c *Cluster, q string, args []interface{}, outargs []interface{}) error {
+	return c.retry(func() error {
+		return query.Transaction(c.db, func(tx *sql.Tx) error {
 			return tx.QueryRow(q, args...).Scan(outargs...)
 		})
 	})
 }
 
-func doDbQueryScan(db *sql.DB, q string, args []interface{}, outargs []interface{}) ([][]interface{}, error) {
+func doDbQueryScan(c *Cluster, q string, args []interface{}, outargs []interface{}) ([][]interface{}, error) {
 	result := [][]interface{}{}
 
-	err := query.Retry(func() error {
-		return query.Transaction(db, func(tx *sql.Tx) error {
+	err := c.retry(func() error {
+		return query.Transaction(c.db, func(tx *sql.Tx) error {
 			rows, err := tx.Query(q, args...)
 			if err != nil {
 				return err
@@ -530,13 +544,13 @@ func doDbQueryScan(db *sql.DB, q string, args []interface{}, outargs []interface
  * The result will be an array (one per output row) of arrays (one per output argument)
  * of interfaces, containing pointers to the actual output arguments.
  */
-func queryScan(db *sql.DB, q string, inargs []interface{}, outfmt []interface{}) ([][]interface{}, error) {
-	return doDbQueryScan(db, q, inargs, outfmt)
+func queryScan(c *Cluster, q string, inargs []interface{}, outfmt []interface{}) ([][]interface{}, error) {
+	return doDbQueryScan(c, q, inargs, outfmt)
 }
 
-func exec(db *sql.DB, q string, args ...interface{}) error {
-	err := query.Retry(func() error {
-		return query.Transaction(db, func(tx *sql.Tx) error {
+func exec(c *Cluster, q string, args ...interface{}) error {
+	err := c.retry(func() error {
+		return query.Transaction(c.db, func(tx *sql.Tx) error {
 			_, err := tx.Exec(q, args...)
 			return err
 		})
