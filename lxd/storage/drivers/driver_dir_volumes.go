@@ -108,11 +108,16 @@ func (d *dir) CreateVolumeFromBackup(vol Volume, srcBackup backup.Info, srcData 
 			}
 		}
 
-		_, err := d.setupInitialQuota(vol)
+		revert := revert.New()
+		defer revert.Fail()
+
+		revertQuota, err := d.setupInitialQuota(vol)
 		if err != nil {
 			return err
 		}
+		revert.Add(revertQuota)
 
+		revert.Success()
 		return nil
 	}
 
