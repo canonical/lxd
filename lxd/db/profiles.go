@@ -37,6 +37,8 @@ import (
 //go:generate mapper stmt -p db -e profile create-devices-ref
 //go:generate mapper stmt -p db -e profile rename
 //go:generate mapper stmt -p db -e profile delete
+//go:generate mapper stmt -p db -e profile delete-config-ref
+//go:generate mapper stmt -p db -e profile delete-devices-ref
 //
 //go:generate mapper method -p db -e profile URIs
 //go:generate mapper method -p db -e profile List
