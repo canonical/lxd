@@ -71,7 +71,7 @@ chain out{{.chainSeparator}}{{.deviceLabel}} {
 chain pstrt{{.chainSeparator}}{{.deviceLabel}} {
 	type nat hook postrouting priority 100; policy accept;
 	{{- range .rules}}
-	{{.family}} saddr {{.connectHost}} ip daddr {{.connectHost}} {{.connType}} dport {{.connectPort}} masquerade
+	{{.family}} saddr {{.connectHost}} {{.family}} daddr {{.connectHost}} {{.connType}} dport {{.connectPort}} masquerade
 	{{- end}}
 }
 `))
