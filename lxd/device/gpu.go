@@ -263,8 +263,8 @@ func (d *gpu) getNvidiaNonCardDevices() ([]nvidiaNonCardDevice, error) {
 
 		tmpNividiaGpu := nvidiaNonCardDevice{
 			path:  nvidiaPath,
-			major: unix.Major(stat.Rdev),
-			minor: unix.Minor(stat.Rdev),
+			major: unix.Major(uint64(stat.Rdev)),
+			minor: unix.Minor(uint64(stat.Rdev)),
 		}
 
 		nvidiaDevices = append(nvidiaDevices, tmpNividiaGpu)
