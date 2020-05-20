@@ -2597,56 +2597,26 @@ func (vm *qemu) Update(args db.InstanceArgs, userRequested bool) error {
 	}
 
 	// Finally, apply the changes to the database.
-	err = query.Retry(func() error {
-		tx, err := vm.state.Cluster.Begin()
+	err = vm.state.Cluster.Transaction(func(tx *db.ClusterTx) error {
+		// Snapshots should update only their descriptions and expiry date.
+		if vm.IsSnapshot() {
+			return tx.UpdateInstanceSnapshot(vm.id, vm.description, vm.expiryDate)
+		}
+
+		object, err := tx.GetInstance(vm.project, vm.name)
 		if err != nil {
 			return err
 		}
 
-		// Snapshots should update only their descriptions and expiry date.
-		if vm.IsSnapshot() {
-			err = db.UpdateInstanceSnapshot(tx, vm.id, vm.description, vm.expiryDate)
-			if err != nil {
-				tx.Rollback()
-				return errors.Wrap(err, "Snapshot update")
-			}
-		} else {
-			err = db.DeleteInstanceConfig(tx, vm.id)
-			if err != nil {
-				tx.Rollback()
-				return err
+		object.Description = vm.description
+		object.Architecture = vm.architecture
+		object.Ephemeral = vm.ephemeral
+		object.ExpiryDate = vm.expiryDate
+		object.Config = vm.localConfig
+		object.Profiles = vm.profiles
+		object.Devices = vm.localDevices.CloneNative()
 
-			}
-			err = db.CreateInstanceConfig(tx, vm.id, vm.localConfig)
-			if err != nil {
-				tx.Rollback()
-				return errors.Wrap(err, "Config insert")
-			}
-
-			err = db.AddProfilesToInstance(tx, vm.id, vm.project, vm.profiles)
-			if err != nil {
-				tx.Rollback()
-				return errors.Wrap(err, "Profiles insert")
-			}
-
-			err = db.AddDevicesToEntity(tx, "instance", int64(vm.id), vm.localDevices)
-			if err != nil {
-				tx.Rollback()
-				return errors.Wrap(err, "Device add")
-			}
-
-			err = db.UpdateInstance(tx, vm.id, vm.description, vm.architecture, vm.ephemeral, vm.expiryDate)
-			if err != nil {
-				tx.Rollback()
-				return errors.Wrap(err, "Instance update")
-			}
-
-		}
-
-		if err := db.TxCommit(tx); err != nil {
-			return err
-		}
-		return nil
+		return tx.UpdateInstance(vm.project, vm.name, *object)
 	})
 	if err != nil {
 		return errors.Wrap(err, "Failed to update database")
