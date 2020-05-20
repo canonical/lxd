@@ -301,9 +301,10 @@ func (d Xtables) ebtablesCmd() string {
 // InstanceClearBridgeFilter removes any filter rules that were added to apply bridged device IP filtering.
 func (d Xtables) InstanceClearBridgeFilter(projectName string, instanceName string, deviceName string, parentName string, hostName string, hwAddr string, IPv4 net.IP, IPv6 net.IP) error {
 	comment := d.instanceDeviceIPTablesComment(projectName, instanceName, deviceName)
+	ebtablesCmd := d.ebtablesCmd()
 
 	// Get a current list of rules active on the host.
-	out, err := shared.RunCommand("ebtables", "--concurrent", "-L", "--Lmac2", "--Lx")
+	out, err := shared.RunCommand(ebtablesCmd, "--concurrent", "-L", "--Lmac2", "--Lx")
 	if err != nil {
 		return fmt.Errorf("Failed to get a list of network filters to for %q: %v", deviceName, err)
 	}
@@ -314,7 +315,7 @@ func (d Xtables) InstanceClearBridgeFilter(projectName string, instanceName stri
 	errs := []error{}
 	// Iterate through each active rule on the host and try and match it to one the LXD rules.
 	for _, line := range strings.Split(out, "\n") {
-		line = strings.TrimSpace(line)
+		line = strings.TrimPrefix(strings.TrimSpace(line), "ebtables ") // Remove command from the output.
 		fields := strings.Fields(line)
 		fieldsLen := len(fields)
 
@@ -331,7 +332,7 @@ func (d Xtables) InstanceClearBridgeFilter(projectName string, instanceName stri
 
 			// If we get this far, then the current host rule matches one of our LXD
 			// rules, so we should run the modified command to delete it.
-			_, err = shared.RunCommand(fields[0], append([]string{"--concurrent"}, fields[1:]...)...)
+			_, err = shared.RunCommand(ebtablesCmd, append([]string{"--concurrent"}, fields...)...)
 			if err != nil {
 				errs = append(errs, err)
 			}
