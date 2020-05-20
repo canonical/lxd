@@ -62,6 +62,9 @@ import (
 //go:generate mapper stmt -p db -e instance create-devices-ref
 //go:generate mapper stmt -p db -e instance rename
 //go:generate mapper stmt -p db -e instance delete
+//go:generate mapper stmt -p db -e instance delete-config-ref
+//go:generate mapper stmt -p db -e instance delete-devices-ref
+//go:generate mapper stmt -p db -e instance delete-profiles-ref
 //
 //go:generate mapper method -p db -e instance List
 //go:generate mapper method -p db -e instance Get

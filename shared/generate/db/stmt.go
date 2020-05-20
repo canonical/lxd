@@ -536,12 +536,8 @@ func (s *Stmt) deleteRef(buf *file.Buffer) error {
 
 	where := fmt.Sprintf("%s_id = ?", s.entity)
 
-	if field.Type.Name == "map[string]string" || field.Type.Name == "map[string]map[string]string" {
-		// Assume this is a config or devices table
-		sql := fmt.Sprintf(stmts["delete"], table, where)
-		s.register(buf, sql)
-
-	}
+	sql := fmt.Sprintf(stmts["delete"], table, where)
+	s.register(buf, sql)
 
 	return nil
 }

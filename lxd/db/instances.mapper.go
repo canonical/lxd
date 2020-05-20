@@ -203,6 +203,18 @@ var instanceDelete = cluster.RegisterStmt(`
 DELETE FROM instances WHERE project_id = (SELECT projects.id FROM projects WHERE projects.name = ?) AND name = ?
 `)
 
+var instanceDeleteConfigRef = cluster.RegisterStmt(`
+DELETE FROM instances_config WHERE instance_id = ?
+`)
+
+var instanceDeleteDevicesRef = cluster.RegisterStmt(`
+DELETE FROM instances_devices WHERE instance_id = ?
+`)
+
+var instanceDeleteProfilesRef = cluster.RegisterStmt(`
+DELETE FROM instances_profiles WHERE instance_id = ?
+`)
+
 // GetInstances returns all available instances.
 func (c *ClusterTx) GetInstances(filter InstanceFilter) ([]Instance, error) {
 	// Result slice.
