@@ -82,26 +82,18 @@ func (suite *lxdTestSuite) SetupTest() {
 	devicesMap := deviceConfig.Devices{}
 	devicesMap["root"] = rootDev
 
-	defaultID, _, err := suite.d.cluster.GetProfile("default", "default")
+	err = suite.d.cluster.Transaction(func(tx *db.ClusterTx) error {
+		profile, err := tx.GetProfile("default", "default")
+		if err != nil {
+			return err
+		}
+		profile.Devices = devicesMap.CloneNative()
+		return tx.UpdateProfile("default", "default", *profile)
+	})
 	if err != nil {
-		suite.T().Errorf("failed to get default profile: %v", err)
+		suite.T().Errorf("failed to update default profile: %v", err)
 	}
 
-	tx, err := suite.d.cluster.Begin()
-	if err != nil {
-		suite.T().Errorf("failed to begin transaction: %v", err)
-	}
-
-	err = db.AddDevicesToEntity(tx, "profile", defaultID, devicesMap)
-	if err != nil {
-		tx.Rollback()
-		suite.T().Errorf("failed to rollback transaction: %v", err)
-	}
-
-	err = tx.Commit()
-	if err != nil {
-		suite.T().Errorf("failed to commit transaction: %v", err)
-	}
 	suite.Req = require.New(suite.T())
 }
 
