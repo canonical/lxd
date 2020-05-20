@@ -18,7 +18,6 @@ import (
 	"github.com/lxc/lxd/lxd/cluster"
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/db/query"
-	deviceConfig "github.com/lxc/lxd/lxd/device/config"
 	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/instance/instancetype"
 	"github.com/lxc/lxd/lxd/project"
@@ -1909,7 +1908,7 @@ func updatePoolPropertyForAllObjects(d *Daemon, poolName string, allcontainers [
 	profiles, err := d.cluster.GetProfileNames("default")
 	if err == nil {
 		for _, pName := range profiles {
-			pID, p, err := d.cluster.GetProfile("default", pName)
+			_, p, err := d.cluster.GetProfile("default", pName)
 			if err != nil {
 				logger.Errorf("Could not query database: %s", err)
 				return err
@@ -1950,37 +1949,17 @@ func updatePoolPropertyForAllObjects(d *Daemon, poolName string, allcontainers [
 			// This is nasty, but we need to clear the profiles config and
 			// devices in order to add the new root device including the
 			// newly added storage pool.
-			tx, err := d.cluster.Begin()
+			err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
+				return tx.UpdateProfile("default", pName, db.Profile{
+					Project: "default",
+					Name:    pName,
+					Config:  p.Config,
+					Devices: p.Devices,
+				})
+			})
 			if err != nil {
+				logger.Errorf("Failed to update old configuration for profile %s: %s", pName, err)
 				return err
-			}
-
-			err = db.ClearProfileConfig(tx, pID)
-			if err != nil {
-				logger.Errorf("Failed to clear old profile configuration for profile %s: %s", pName, err)
-				tx.Rollback()
-				continue
-			}
-
-			err = db.CreateProfileConfig(tx, pID, p.Config)
-			if err != nil {
-				logger.Errorf("Failed to add new profile configuration: %s: %s", pName, err)
-				tx.Rollback()
-				continue
-			}
-
-			err = db.AddDevicesToEntity(tx, "profile", pID, deviceConfig.NewDevices(p.Devices))
-			if err != nil {
-				logger.Errorf("Failed to add new profile profile root disk device: %s: %s", pName, err)
-				tx.Rollback()
-				continue
-			}
-
-			err = tx.Commit()
-			if err != nil {
-				logger.Errorf("Failed to commit database transaction: %s: %s", pName, err)
-				tx.Rollback()
-				continue
 			}
 		}
 	}
