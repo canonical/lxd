@@ -4352,56 +4352,26 @@ func (c *lxc) Update(args db.InstanceArgs, userRequested bool) error {
 	}
 
 	// Finally, apply the changes to the database
-	err = query.Retry(func() error {
-		tx, err := c.state.Cluster.Begin()
+	err = c.state.Cluster.Transaction(func(tx *db.ClusterTx) error {
+		// Snapshots should update only their descriptions and expiry date.
+		if c.IsSnapshot() {
+			return tx.UpdateInstanceSnapshot(c.id, c.description, c.expiryDate)
+		}
+
+		object, err := tx.GetInstance(c.project, c.name)
 		if err != nil {
 			return err
 		}
 
-		// Snapshots should update only their descriptions and expiry date.
-		if c.IsSnapshot() {
-			err = db.UpdateInstanceSnapshot(tx, c.id, c.description, c.expiryDate)
-			if err != nil {
-				tx.Rollback()
-				return errors.Wrap(err, "Snapshot update")
-			}
-		} else {
-			err = db.DeleteInstanceConfig(tx, c.id)
-			if err != nil {
-				tx.Rollback()
-				return err
+		object.Description = c.description
+		object.Architecture = c.architecture
+		object.Ephemeral = c.ephemeral
+		object.ExpiryDate = c.expiryDate
+		object.Config = c.localConfig
+		object.Profiles = c.profiles
+		object.Devices = c.localDevices.CloneNative()
 
-			}
-			err = db.CreateInstanceConfig(tx, c.id, c.localConfig)
-			if err != nil {
-				tx.Rollback()
-				return errors.Wrap(err, "Config insert")
-			}
-
-			err = db.AddProfilesToInstance(tx, c.id, c.project, c.profiles)
-			if err != nil {
-				tx.Rollback()
-				return errors.Wrap(err, "Profiles insert")
-			}
-
-			err = db.AddDevicesToEntity(tx, "instance", int64(c.id), c.localDevices)
-			if err != nil {
-				tx.Rollback()
-				return errors.Wrap(err, "Device add")
-			}
-
-			err = db.UpdateInstance(tx, c.id, c.description, c.architecture, c.ephemeral, c.expiryDate)
-			if err != nil {
-				tx.Rollback()
-				return errors.Wrap(err, "Container update")
-			}
-
-		}
-
-		if err := db.TxCommit(tx); err != nil {
-			return err
-		}
-		return nil
+		return tx.UpdateInstance(c.project, c.name, *object)
 	})
 	if err != nil {
 		return errors.Wrap(err, "Failed to update database")

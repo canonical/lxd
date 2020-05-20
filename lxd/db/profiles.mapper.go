@@ -119,6 +119,20 @@ var profileDelete = cluster.RegisterStmt(`
 DELETE FROM profiles WHERE project_id = (SELECT projects.id FROM projects WHERE projects.name = ?) AND name = ?
 `)
 
+var profileDeleteConfigRef = cluster.RegisterStmt(`
+DELETE FROM profiles_config WHERE profile_id = ?
+`)
+
+var profileDeleteDevicesRef = cluster.RegisterStmt(`
+DELETE FROM profiles_devices WHERE profile_id = ?
+`)
+
+var profileUpdate = cluster.RegisterStmt(`
+UPDATE profiles
+  SET project_id = (SELECT id FROM projects WHERE name = ?), name = ?, description = ?
+ WHERE id = ?
+`)
+
 // GetProfileURIs returns all available profile URIs.
 func (c *ClusterTx) GetProfileURIs(filter ProfileFilter) ([]string, error) {
 	// Check which filter criteria are active.
@@ -703,6 +717,87 @@ func (c *ClusterTx) DeleteProfile(project string, name string) error {
 	}
 	if n != 1 {
 		return fmt.Errorf("Query deleted %d rows instead of 1", n)
+	}
+
+	return nil
+}
+
+// UpdateProfile updates the profile matching the given key parameters.
+func (c *ClusterTx) UpdateProfile(project string, name string, object Profile) error {
+	id, err := c.GetProfileID(project, name)
+	if err != nil {
+		return errors.Wrap(err, "Get profile")
+	}
+
+	stmt := c.stmt(profileUpdate)
+	result, err := stmt.Exec(object.Project, object.Name, object.Description, id)
+	if err != nil {
+		return errors.Wrap(err, "Update profile")
+	}
+
+	n, err := result.RowsAffected()
+	if err != nil {
+		return errors.Wrap(err, "Fetch affected rows")
+	}
+	if n != 1 {
+		return fmt.Errorf("Query updated %d rows instead of 1", n)
+	}
+
+	// Delete current config.
+	stmt = c.stmt(profileDeleteConfigRef)
+	_, err = stmt.Exec(id)
+	if err != nil {
+		return errors.Wrap(err, "Delete current config")
+	}
+
+	// Insert config reference.
+	stmt = c.stmt(profileCreateConfigRef)
+	for key, value := range object.Config {
+		if value == "" {
+			continue
+		}
+		_, err := stmt.Exec(id, key, value)
+		if err != nil {
+			return errors.Wrap(err, "Insert config for profile")
+		}
+	}
+
+	// Delete current devices.
+	stmt = c.stmt(profileDeleteDevicesRef)
+	_, err = stmt.Exec(id)
+	if err != nil {
+		return errors.Wrap(err, "Delete current devices")
+	}
+
+	// Insert devices reference.
+	for name, config := range object.Devices {
+		typ, ok := config["type"]
+		if !ok {
+			return fmt.Errorf("No type for device %s", name)
+		}
+		typCode, err := dbDeviceTypeToInt(typ)
+		if err != nil {
+			return errors.Wrapf(err, "Device type code for %s", typ)
+		}
+		stmt = c.stmt(profileCreateDevicesRef)
+		result, err := stmt.Exec(id, name, typCode)
+		if err != nil {
+			return errors.Wrapf(err, "Insert device %s", name)
+		}
+		deviceID, err := result.LastInsertId()
+		if err != nil {
+			return errors.Wrap(err, "Failed to fetch device ID")
+		}
+		stmt = c.stmt(profileCreateDevicesConfigRef)
+		for key, value := range config {
+			if value == "" {
+				continue
+			}
+			_, err := stmt.Exec(deviceID, key, value)
+			if err != nil {
+				return errors.Wrap(err, "Insert config for profile")
+			}
+		}
 	}
 
 	return nil

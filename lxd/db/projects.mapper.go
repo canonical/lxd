@@ -77,7 +77,7 @@ UPDATE projects SET name = ? WHERE name = ?
 var projectUpdate = cluster.RegisterStmt(`
 UPDATE projects
   SET description = ?
- WHERE name = ?
+ WHERE id = ?
 `)
 
 var projectDelete = cluster.RegisterStmt(`

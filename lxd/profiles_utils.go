@@ -2,10 +2,8 @@ package main
 
 import (
 	"fmt"
-	"reflect"
 
 	"github.com/lxc/lxd/lxd/db"
-	"github.com/lxc/lxd/lxd/db/query"
 	deviceConfig "github.com/lxc/lxd/lxd/device/config"
 	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/instance/instancetype"
@@ -78,53 +76,14 @@ func doProfileUpdate(d *Daemon, project, name string, id int64, profile *api.Pro
 	}
 
 	// Update the database
-	err = query.Retry(func() error {
-		tx, err := d.cluster.Begin()
-		if err != nil {
-			return err
-		}
-
-		if profile.Description != req.Description {
-			err = db.UpdateProfileDescription(tx, id, req.Description)
-			if err != nil {
-				tx.Rollback()
-				return err
-			}
-		}
-
-		// Optimize for description-only changes
-		if reflect.DeepEqual(profile.Config, req.Config) && reflect.DeepEqual(profile.Devices, req.Devices) {
-			err = db.TxCommit(tx)
-			if err != nil {
-				return err
-			}
-
-			return nil
-		}
-
-		err = db.ClearProfileConfig(tx, id)
-		if err != nil {
-			tx.Rollback()
-			return err
-		}
-
-		err = db.CreateProfileConfig(tx, id, req.Config)
-		if err != nil {
-			tx.Rollback()
-			return err
-		}
-
-		err = db.AddDevicesToEntity(tx, "profile", id, deviceConfig.NewDevices(req.Devices))
-		if err != nil {
-			tx.Rollback()
-			return err
-		}
-
-		err = db.TxCommit(tx)
-		if err != nil {
-			return err
-		}
-		return nil
+	err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
+		return tx.UpdateProfile(project, name, db.Profile{
+			Project:     project,
+			Name:        name,
+			Description: req.Description,
+			Config:      req.Config,
+			Devices:     req.Devices,
+		})
 	})
 	if err != nil {
 		return err

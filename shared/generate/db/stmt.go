@@ -50,6 +50,10 @@ func (s *Stmt) Generate(buf *file.Buffer) error {
 		return s.createRef(buf)
 	}
 
+	if strings.HasPrefix(s.kind, "delete") && strings.HasSuffix(s.kind, "-ref") {
+		return s.deleteRef(buf)
+	}
+
 	if strings.HasSuffix(s.kind, "-ref") || strings.Contains(s.kind, "-ref-by-") {
 		return s.ref(buf)
 	}
@@ -417,7 +421,6 @@ func (s *Stmt) createRef(buf *file.Buffer) error {
 
 		sql := fmt.Sprintf(stmts["create"], table, columns, params)
 		s.register(buf, sql)
-
 	} else if field.Type.Name == "map[string]map[string]string" {
 		// Assume this is a devices table
 		columns := fmt.Sprintf("%s_id, name, type", s.entity)
@@ -443,35 +446,7 @@ func (s *Stmt) id(buf *file.Buffer) error {
 	if err != nil {
 		return errors.Wrap(err, "Parse entity struct")
 	}
-	nk := mapping.NaturalKey()
-	criteria := ""
-	for i, field := range nk {
-		if i > 0 {
-			criteria += " AND "
-		}
-
-		var column string
-		if field.IsScalar() {
-			column = field.Config.Get("join")
-		} else {
-			column = mapping.FieldColumnName(field.Name)
-		}
-
-		criteria += fmt.Sprintf("%s = ?", column)
-	}
-
-	table := entityTable(s.entity)
-	for _, field := range mapping.ScalarFields() {
-		join := field.Config.Get("join")
-		right := strings.Split(join, ".")[0]
-		via := entityTable(s.entity)
-		if field.Config.Get("via") != "" {
-			via = entityTable(field.Config.Get("via"))
-		}
-		table += fmt.Sprintf(" JOIN %s ON %s.%s_id = %s.id", right, via, lex.Singular(right), right)
-	}
-
-	sql := fmt.Sprintf(stmts[s.kind], entityTable(s.entity), table, criteria)
+	sql := naturalKeySelect(s.entity, mapping)
 	s.register(buf, sql)
 
 	return nil
@@ -517,28 +492,9 @@ func (s *Stmt) update(buf *file.Buffer) error {
 		}
 	}
 
-	mapping, err = Parse(s.packages[s.pkg], lex.Capital(s.entity))
-	if err != nil {
-		return errors.Wrap(err, "Parse entity struct")
-	}
-
-	nk := mapping.NaturalKey()
-	where := make([]string, len(nk))
-
-	for i, field := range nk {
-		if field.IsScalar() {
-			ref := lex.Snake(field.Name)
-			where[i] = fmt.Sprintf("%s_id = (SELECT id FROM %s WHERE name = ?)", ref, lex.Plural(ref))
-		} else {
-
-			where[i] = fmt.Sprintf("%s = ?", field.Column())
-		}
-
-	}
-
 	sql := fmt.Sprintf(
 		stmts[s.kind], entityTable(s.entity),
-		strings.Join(updates, ", "), strings.Join(where, ", "))
+		strings.Join(updates, ", "), "id = ?")
 	s.register(buf, sql)
 
 	return nil
@@ -555,6 +511,34 @@ func (s *Stmt) delete(buf *file.Buffer) error {
 
 	sql := fmt.Sprintf(stmts[s.kind], table, where)
 	s.register(buf, sql)
+	return nil
+}
+
+func (s *Stmt) deleteRef(buf *file.Buffer) error {
+	// Base snake-case name of the references (e.g. "used-by-ref" -> "used_by")
+	name := strings.Replace(s.kind[len("create-"):strings.Index(s.kind, "-ref")], "-", "_", -1)
+
+	// Field name of the reference
+	fieldName := lex.Camel(name)
+
+	// Table name where reference objects can be fetched.
+	table := fmt.Sprintf("%s_%s", entityTable(s.entity), name)
+
+	mapping, err := Parse(s.packages[s.pkg], lex.Camel(s.entity))
+	if err != nil {
+		return err
+	}
+
+	field := mapping.FieldByName(fieldName)
+	if field == nil {
+		return fmt.Errorf("Entity %s has no field named %s", s.entity, fieldName)
+	}
+
+	where := fmt.Sprintf("%s_id = ?", s.entity)
+
+	sql := fmt.Sprintf(stmts["delete"], table, where)
+	s.register(buf, sql)
+
 	return nil
 }
 
@@ -603,6 +587,41 @@ func naturalKeyWhere(mapping *Mapping) string {
 	}
 
 	return strings.Join(where, " AND ")
+}
+
+// Return a select statement that returns the ID of an entity given its natural key.
+func naturalKeySelect(entity string, mapping *Mapping) string {
+	nk := mapping.NaturalKey()
+	criteria := ""
+	for i, field := range nk {
+		if i > 0 {
+			criteria += " AND "
+		}
+
+		var column string
+		if field.IsScalar() {
+			column = field.Config.Get("join")
+		} else {
+			column = mapping.FieldColumnName(field.Name)
+		}
+
+		criteria += fmt.Sprintf("%s = ?", column)
+	}
+
+	table := entityTable(entity)
+	for _, field := range mapping.ScalarFields() {
+		join := field.Config.Get("join")
+		right := strings.Split(join, ".")[0]
+		via := entityTable(entity)
+		if field.Config.Get("via") != "" {
+			via = entityTable(field.Config.Get("via"))
+		}
+		table += fmt.Sprintf(" JOIN %s ON %s.%s_id = %s.id", right, via, lex.Singular(right), right)
+	}
+
+	sql := fmt.Sprintf(stmts["id"], entityTable(entity), table, criteria)
+
+	return sql
 }
 
 // Output a line of code that registers the given statement and declares the

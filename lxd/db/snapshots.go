@@ -3,7 +3,6 @@
 package db
 
 import (
-	"database/sql"
 	"fmt"
 	"time"
 
@@ -95,9 +94,9 @@ func (c *ClusterTx) UpdateInstanceSnapshotConfig(id int, values map[string]strin
 
 // UpdateInstanceSnapshot updates the description and expiry date of the
 // instance snapshot with the given ID.
-func UpdateInstanceSnapshot(tx *sql.Tx, id int, description string, expiryDate time.Time) error {
+func (c *ClusterTx) UpdateInstanceSnapshot(id int, description string, expiryDate time.Time) error {
 	str := fmt.Sprintf("UPDATE instances_snapshots SET description=?, expiry_date=? WHERE id=?")
-	stmt, err := tx.Prepare(str)
+	stmt, err := c.tx.Prepare(str)
 	if err != nil {
 		return err
 	}

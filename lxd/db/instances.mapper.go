@@ -203,6 +203,24 @@ var instanceDelete = cluster.RegisterStmt(`
 DELETE FROM instances WHERE project_id = (SELECT projects.id FROM projects WHERE projects.name = ?) AND name = ?
 `)
 
+var instanceDeleteConfigRef = cluster.RegisterStmt(`
+DELETE FROM instances_config WHERE instance_id = ?
+`)
+
+var instanceDeleteDevicesRef = cluster.RegisterStmt(`
+DELETE FROM instances_devices WHERE instance_id = ?
+`)
+
+var instanceDeleteProfilesRef = cluster.RegisterStmt(`
+DELETE FROM instances_profiles WHERE instance_id = ?
+`)
+
+var instanceUpdate = cluster.RegisterStmt(`
+UPDATE instances
+  SET project_id = (SELECT id FROM projects WHERE name = ?), name = ?, node_id = (SELECT id FROM nodes WHERE name = ?), type = ?, architecture = ?, ephemeral = ?, creation_date = ?, stateful = ?, last_use_date = ?, description = ?, expiry_date = ?
+ WHERE id = ?
+`)
+
 // GetInstances returns all available instances.
 func (c *ClusterTx) GetInstances(filter InstanceFilter) ([]Instance, error) {
 	// Result slice.
@@ -894,5 +912,98 @@ func (c *ClusterTx) DeleteInstance(project string, name string) error {
 		return fmt.Errorf("Query deleted %d rows instead of 1", n)
 	}
 
+	return nil
+}
+
+// UpdateInstance updates the instance matching the given key parameters.
+func (c *ClusterTx) UpdateInstance(project string, name string, object Instance) error {
+	id, err := c.GetInstanceID(project, name)
+	if err != nil {
+		return errors.Wrap(err, "Get instance")
+	}
+
+	stmt := c.stmt(instanceUpdate)
+	result, err := stmt.Exec(object.Project, object.Name, object.Node, object.Type, object.Architecture, object.Ephemeral, object.CreationDate, object.Stateful, object.LastUseDate, object.Description, object.ExpiryDate, id)
+	if err != nil {
+		return errors.Wrap(err, "Update instance")
+	}
+
+	n, err := result.RowsAffected()
+	if err != nil {
+		return errors.Wrap(err, "Fetch affected rows")
+	}
+	if n != 1 {
+		return fmt.Errorf("Query updated %d rows instead of 1", n)
+	}
+
+	// Delete current config.
+	stmt = c.stmt(instanceDeleteConfigRef)
+	_, err = stmt.Exec(id)
+	if err != nil {
+		return errors.Wrap(err, "Delete current config")
+	}
+
+	// Insert config reference.
+	stmt = c.stmt(instanceCreateConfigRef)
+	for key, value := range object.Config {
+		if value == "" {
+			continue
+		}
+		_, err := stmt.Exec(id, key, value)
+		if err != nil {
+			return errors.Wrap(err, "Insert config for instance")
+		}
+	}
+
+	// Delete current devices.
+	stmt = c.stmt(instanceDeleteDevicesRef)
+	_, err = stmt.Exec(id)
+	if err != nil {
+		return errors.Wrap(err, "Delete current devices")
+	}
+
+	// Insert devices reference.
+	for name, config := range object.Devices {
+		typ, ok := config["type"]
+		if !ok {
+			return fmt.Errorf("No type for device %s", name)
+		}
+		typCode, err := dbDeviceTypeToInt(typ)
+		if err != nil {
+			return errors.Wrapf(err, "Device type code for %s", typ)
+		}
+		stmt = c.stmt(instanceCreateDevicesRef)
+		result, err := stmt.Exec(id, name, typCode)
+		if err != nil {
+			return errors.Wrapf(err, "Insert device %s", name)
+		}
+		deviceID, err := result.LastInsertId()
+		if err != nil {
+			return errors.Wrap(err, "Failed to fetch device ID")
+		}
+		stmt = c.stmt(instanceCreateDevicesConfigRef)
+		for key, value := range config {
+			if value == "" {
+				continue
+			}
+			_, err := stmt.Exec(deviceID, key, value)
+			if err != nil {
+				return errors.Wrap(err, "Insert config for instance")
+			}
+		}
+	}
+
+	// Delete current profiles.
+	stmt = c.stmt(instanceDeleteProfilesRef)
+	_, err = stmt.Exec(id)
+	if err != nil {
+		return errors.Wrap(err, "Delete current profiles")
+	}
+
+	// Insert profiles reference.
+	err = AddProfilesToInstance(c.tx, int(id), object.Project, object.Profiles)
+	if err != nil {
+		return errors.Wrap(err, "Insert profiles for instance")
+	}
 	return nil
 }
