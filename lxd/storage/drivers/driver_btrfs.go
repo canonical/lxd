@@ -34,6 +34,7 @@ func (d *btrfs) load() error {
 		"storage_create_vm_again":                  nil,
 		"storage_zfs_volmode":                      nil,
 		"storage_rename_custom_volume_add_project": nil,
+		"storage_lvm_skipactivation":               nil,
 	}
 
 	// Done if previously loaded.
