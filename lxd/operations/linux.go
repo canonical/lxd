@@ -18,7 +18,7 @@ func registerDBOperation(op *Operation, opType db.OperationType) error {
 		return err
 	})
 	if err != nil {
-		return errors.Wrapf(err, "failed to add Operation %s to database", op.id)
+		return errors.Wrapf(err, "failed to add %q Operation %s to database", opType.Description(), op.id)
 	}
 
 	return nil
