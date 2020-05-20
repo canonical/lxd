@@ -834,8 +834,8 @@ func (m *Method) update(buf *file.Buffer) error {
 
 	fields = mapping.RefFields()
 	for _, field := range fields {
-		switch field.Type.Name {
-		case "map[string]string":
+		switch field.Name {
+		case "Config":
 			buf.L("// Delete current config. ")
 			buf.L("stmt = c.stmt(%s)", stmtCodeVar(m.entity, "deleteConfigRef"))
 			buf.L("_, err = stmt.Exec(id)")
@@ -855,14 +855,13 @@ func (m *Method) update(buf *file.Buffer) error {
 			buf.L("        }")
 			buf.L("}")
 			buf.N()
-		case "map[string]map[string]string":
+		case "Devices":
 			buf.L("// Delete current devices. ")
 			buf.L("stmt = c.stmt(%s)", stmtCodeVar(m.entity, "deleteDevicesRef"))
 			buf.L("_, err = stmt.Exec(id)")
 			buf.L("if err != nil {")
 			buf.L("        return errors.Wrap(err, \"Delete current devices\")")
 			buf.L("}")
-			buf.N()
 			buf.N()
 			buf.L("// Insert devices reference. ")
 			buf.L("for name, config := range object.%s {", field.Name)
@@ -895,6 +894,19 @@ func (m *Method) update(buf *file.Buffer) error {
 			buf.L("        }")
 			buf.L("}")
 			buf.N()
+		case "Profiles":
+			buf.L("// Delete current profiles. ")
+			buf.L("stmt = c.stmt(%s)", stmtCodeVar(m.entity, "deleteProfilesRef"))
+			buf.L("_, err = stmt.Exec(id)")
+			buf.L("if err != nil {")
+			buf.L("        return errors.Wrap(err, \"Delete current profiles\")")
+			buf.L("}")
+			buf.N()
+			buf.L("// Insert profiles reference. ")
+			buf.L("err = AddProfilesToInstance(c.tx, int(id), object.Project, object.Profiles)")
+			buf.L("if err != nil {")
+			buf.L("        return errors.Wrap(err, \"Insert profiles for %s\")", m.entity)
+			buf.L("}")
 		}
 	}
 
