@@ -97,6 +97,7 @@ var patches = []patch{
 	{name: "storage_create_vm_again", stage: patchPostDaemonStorage, run: patchGenericStorage},
 	{name: "storage_zfs_volmode", stage: patchPostDaemonStorage, run: patchGenericStorage},
 	{name: "storage_rename_custom_volume_add_project", stage: patchPreDaemonStorage, run: patchGenericStorage},
+	{name: "storage_lvm_skipactivation", stage: patchPostDaemonStorage, run: patchGenericStorage},
 }
 
 type patch struct {
