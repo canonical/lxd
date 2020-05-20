@@ -25,8 +25,8 @@ func (d Xtables) String() string {
 	return "xtables"
 }
 
-// Compat returns whether the host is compatible with this driver and whether the driver backend is in use.
-func (d Xtables) Compat() (bool, bool) {
+// Compat returns whether the driver backend is in use, and any host compatibility errors.
+func (d Xtables) Compat() (bool, error) {
 	// xtables commands can be powered by nftables, so check we are using non-nft version first, otherwise
 	// we should be using the nftables driver instead.
 	cmds := []string{"iptables", "ip6tables", "ebtables"}
@@ -34,34 +34,32 @@ func (d Xtables) Compat() (bool, bool) {
 		// Check command exists.
 		_, err := exec.LookPath(cmd)
 		if err != nil {
-			logger.Debugf("Firewall xtables backend command %q missing", cmd)
-			return false, false
+			return false, fmt.Errorf("Backend command %q missing", cmd)
 		}
 
 		// Check whether it is an nftables shim.
 		if d.xtablesIsNftables(cmd) {
-			logger.Debugf("Firewall xtables backend command %q is an nftables shim", cmd)
-			return false, false
+			return false, fmt.Errorf("Backend command %q is an nftables shim", cmd)
 		}
 	}
 
 	// Check whether any of the backends are in use already.
 	if d.iptablesInUse("iptables") {
 		logger.Debug("Firewall xtables detected iptables is in use")
-		return true, true
+		return true, nil
 	}
 
 	if d.iptablesInUse("ip6tables") {
 		logger.Debug("Firewall xtables detected ip6tables is in use")
-		return true, true
+		return true, nil
 	}
 
 	if d.ebtablesInUse() {
 		logger.Debug("Firewall xtables detected ebtables is in use")
-		return true, true
+		return true, nil
 	}
 
-	return true, false
+	return false, nil
 }
 
 // xtablesIsNftables checks whether the specified xtables backend command is actually an nftables shim.
