@@ -46,6 +46,7 @@ net.ipv6.neigh.default.gc\_thresh3  | 8192       | 1024      | This is the maxim
 net.core.bpf_jit_limit              | 3000000000 | 264241152 | This is a limit on the size of eBPF JIT allocations which is usually set to PAGE_SIZE * 40000. When your kernel is compiled with `CONFIG_BPF_JIT_ALWAYS_ON=y` then `/proc/sys/net/core/bpf_jit_enable` is set to `1` and can't be changed. On such kernels the eBPF JIT compiler will treat failure to JIT compile a bpf program such as a `seccomp` filter as fatal when it would continue on another kernel. On such kernels the limit for eBPF jitted programs needs to be increased siginficantly.
 kernel.keys.maxkeys                 | 2000       | 200       | This is the maximum number of keys a non-root user can use, should be higher than the number of containers
 kernel.keys.maxbytes                | 2000000    | 20000     | This is the maximum size of the keyring non-root users can use
+fs.aio-max-nr                       | 524288     | 65536     | This is the maximum number of concurrent async I/O operations. You might need to increase it further if you have a lot of workloads that use the AIO subsystem (e.g. MySQL)
 
 Then, reboot the server.
 
