@@ -132,8 +132,13 @@ func (c *ClusterTx) ProjectHasImages(name string) (bool, error) {
 
 // UpdateProject updates the project matching the given key parameters.
 func (c *ClusterTx) UpdateProject(name string, object api.ProjectPut) error {
+	id, err := c.GetProjectID(name)
+	if err != nil {
+		return errors.Wrap(err, "Fetch project ID")
+	}
+
 	stmt := c.stmt(projectUpdate)
-	result, err := stmt.Exec(object.Description, name)
+	result, err := stmt.Exec(object.Description, id)
 	if err != nil {
 		return errors.Wrap(err, "Update project")
 	}
@@ -144,11 +149,6 @@ func (c *ClusterTx) UpdateProject(name string, object api.ProjectPut) error {
 	}
 	if n != 1 {
 		return fmt.Errorf("Query updated %d rows instead of 1", n)
-	}
-
-	id, err := c.GetProjectID(name)
-	if err != nil {
-		return errors.Wrap(err, "Fetch project ID")
 	}
 
 	// Clear config.

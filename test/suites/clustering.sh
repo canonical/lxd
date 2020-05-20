@@ -1758,7 +1758,7 @@ test_clustering_rebalance() {
   # Respawn the second node. It won't be able to disrupt the current leader,
   # since dqlite uses pre-vote.
   respawn_lxd_cluster_member "${ns2}" "${LXD_TWO_DIR}"
-  sleep 15
+  sleep 25
 
   LXD_DIR="${LXD_ONE_DIR}" lxc cluster show node2 | grep -q "status: Online"
   LXD_DIR="${LXD_ONE_DIR}" lxc cluster show node2 | grep -q "database: false"

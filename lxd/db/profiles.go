@@ -37,6 +37,9 @@ import (
 //go:generate mapper stmt -p db -e profile create-devices-ref
 //go:generate mapper stmt -p db -e profile rename
 //go:generate mapper stmt -p db -e profile delete
+//go:generate mapper stmt -p db -e profile delete-config-ref
+//go:generate mapper stmt -p db -e profile delete-devices-ref
+//go:generate mapper stmt -p db -e profile update struct=Profile
 //
 //go:generate mapper method -p db -e profile URIs
 //go:generate mapper method -p db -e profile List
@@ -49,6 +52,7 @@ import (
 //go:generate mapper method -p db -e profile Create struct=Profile
 //go:generate mapper method -p db -e profile Rename
 //go:generate mapper method -p db -e profile Delete
+//go:generate mapper method -p db -e profile Update struct=Profile
 
 // Profile is a value object holding db-related details about a profile.
 type Profile struct {

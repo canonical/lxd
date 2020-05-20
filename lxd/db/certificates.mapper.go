@@ -41,6 +41,10 @@ var certificateDelete = cluster.RegisterStmt(`
 DELETE FROM certificates WHERE fingerprint = ?
 `)
 
+var certificateRename = cluster.RegisterStmt(`
+UPDATE certificates SET name = ? WHERE fingerprint = ?
+`)
+
 // GetCertificates returns all available certificates.
 func (c *ClusterTx) GetCertificates(filter CertificateFilter) ([]Certificate, error) {
 	// Result slice.
@@ -201,5 +205,23 @@ func (c *ClusterTx) DeleteCertificate(fingerprint string) error {
 		return fmt.Errorf("Query deleted %d rows instead of 1", n)
 	}
 
+	return nil
+}
+
+// RenameCertificate renames the certificate matching the given key parameters.
+func (c *ClusterTx) RenameCertificate(fingerprint string, to string) error {
+	stmt := c.stmt(certificateRename)
+	result, err := stmt.Exec(to, fingerprint)
+	if err != nil {
+		return errors.Wrap(err, "Rename certificate")
+	}
+
+	n, err := result.RowsAffected()
+	if err != nil {
+		return errors.Wrap(err, "Fetch affected rows")
+	}
+	if n != 1 {
+		return fmt.Errorf("Query affected %d rows instead of 1", n)
+	}
 	return nil
 }
