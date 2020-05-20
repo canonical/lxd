@@ -9,6 +9,13 @@ test_container_devices_nic_bridged_filtering() {
     false
   fi
 
+  ebtablesCmd="ebtables"
+  if [ "$firewallDriver" = "xtables" ]; then
+        if which "ebtables-legacy"; then
+            ebtablesCmd="ebtables-legacy"
+        fi
+  fi
+
   ctPrefix="nt$$"
   brName="lxdt$$"
 
@@ -61,7 +68,7 @@ test_container_devices_nic_bridged_filtering() {
   # Check MAC filter is present in firewall.
   ctAHost=$(lxc config get "${ctPrefix}A" volatile.eth0.host_name)
   if [ "$firewallDriver" = "xtables" ]; then
-    if ! ebtables --concurrent -L --Lmac2 --Lx | grep -e "-s ! ${ctAMAC} -i ${ctAHost} -j DROP" ; then
+    if ! "${ebtablesCmd}" --concurrent -L --Lmac2 --Lx | grep -e "-s ! ${ctAMAC} -i ${ctAHost} -j DROP" ; then
       echo "MAC filter not applied as part of mac_filtering in ebtables"
       false
     fi
@@ -111,7 +118,7 @@ test_container_devices_nic_bridged_filtering() {
   # Stop CT A and check filters are cleaned up.
   lxc stop -f "${ctPrefix}A"
   if [ "$firewallDriver" = "xtables" ]; then
-    if ebtables --concurrent -L --Lmac2 --Lx | grep -e "-s ! ${ctAMAC} -i ${ctAHost} -j DROP" ; then
+    if "${ebtablesCmd}" --concurrent -L --Lmac2 --Lx | grep -e "-s ! ${ctAMAC} -i ${ctAHost} -j DROP" ; then
         echo "MAC filter still applied as part of mac_filtering in ebtables"
         false
     fi
@@ -140,11 +147,11 @@ test_container_devices_nic_bridged_filtering() {
   # Check MAC and IPv4 filter is present in firewall.
   ctAHost=$(lxc config get "${ctPrefix}A" volatile.eth0.host_name)
   if [ "$firewallDriver" = "xtables" ]; then
-    if ! ebtables --concurrent -L --Lmac2 --Lx | grep -e "-s ! ${ctAMAC} -i ${ctAHost} -j DROP" ; then
+    if ! "${ebtablesCmd}" --concurrent -L --Lmac2 --Lx | grep -e "-s ! ${ctAMAC} -i ${ctAHost} -j DROP" ; then
       echo "MAC filter not applied as part of ipv4_filtering in ebtables"
       false
     fi
-    if ! ebtables --concurrent -L --Lmac2 --Lx | grep -e "192.0.2.2" ; then
+    if ! "${ebtablesCmd}" --concurrent -L --Lmac2 --Lx | grep -e "192.0.2.2" ; then
         echo "IPv4 filter not applied as part of ipv4_filtering in ebtables"
         false
     fi
@@ -199,7 +206,7 @@ test_container_devices_nic_bridged_filtering() {
   # Stop CT A and check filters are cleaned up in firewall.
   lxc stop -f "${ctPrefix}A"
   if [ "$firewallDriver" = "xtables" ]; then
-    if ebtables --concurrent -L --Lmac2 --Lx | grep -e "${ctAHost}" ; then
+    if "${ebtablesCmd}" --concurrent -L --Lmac2 --Lx | grep -e "${ctAHost}" ; then
         echo "IPv4 filter still applied as part of ipv4_filtering in ebtables"
         false
     fi
@@ -278,7 +285,7 @@ test_container_devices_nic_bridged_filtering() {
   macHex=$(echo "${ctAMAC}" |sed "s/://g")
 
   if [ "$firewallDriver" = "xtables" ]; then
-    if ! ebtables --concurrent -L --Lmac2 --Lx | grep -e "-s ! ${ctAMAC} -i ${ctAHost} -j DROP" ; then
+    if ! "${ebtablesCmd}" --concurrent -L --Lmac2 --Lx | grep -e "-s ! ${ctAMAC} -i ${ctAHost} -j DROP" ; then
         echo "MAC filter not applied as part of ipv6_filtering in ebtables"
         false
     fi
@@ -296,13 +303,13 @@ test_container_devices_nic_bridged_filtering() {
     fi
 
     # Check IPv6 filter is present in ebtables.
-    if ! ebtables --concurrent -L --Lmac2 --Lx | grep -e "2001:db8::2" ; then
+    if ! "${ebtablesCmd}" --concurrent -L --Lmac2 --Lx | grep -e "2001:db8::2" ; then
         echo "IPv6 filter not applied as part of ipv6_filtering in ebtables"
         false
     fi
 
     # Check IPv6 RA filter is present in ebtables.
-    if ! ebtables --concurrent -L --Lmac2 --Lx | grep -e "-i ${ctAHost} --ip6-proto ipv6-icmp --ip6-icmp-type router-advertisement -j DROP" ; then
+    if ! "${ebtablesCmd}" --concurrent -L --Lmac2 --Lx | grep -e "-i ${ctAHost} --ip6-proto ipv6-icmp --ip6-icmp-type router-advertisement -j DROP" ; then
         echo "IPv6 RA filter not applied as part of ipv6_filtering in ebtables"
         false
     fi
@@ -378,7 +385,7 @@ test_container_devices_nic_bridged_filtering() {
   # Stop CT A and check filters are cleaned up.
   lxc stop -f "${ctPrefix}A"
   if [ "$firewallDriver" = "xtables" ]; then
-    if ebtables --concurrent -L --Lmac2 --Lx | grep -e "${ctAHost}" ; then
+    if "${ebtablesCmd}" --concurrent -L --Lmac2 --Lx | grep -e "${ctAHost}" ; then
         echo "IPv6 filter still applied as part of ipv6_filtering in ebtables"
         false
     fi
@@ -459,7 +466,7 @@ test_container_devices_nic_bridged_filtering() {
 
   if [ "$firewallDriver" = "xtables" ]; then
     # Check MAC filter is present in ebtables.
-    if ! ebtables --concurrent -L --Lmac2 --Lx | grep -e "-s ! ${ctAMAC} -i ${ctAHost} -j DROP" ; then
+    if ! "${ebtablesCmd}" --concurrent -L --Lmac2 --Lx | grep -e "-s ! ${ctAMAC} -i ${ctAHost} -j DROP" ; then
         echo "MAC filter not applied as part of ipv4_filtering in ebtables"
         false
     fi
@@ -471,13 +478,13 @@ test_container_devices_nic_bridged_filtering() {
     fi
 
     # Check IPv4 filter is present in ebtables.
-    if ! ebtables --concurrent -L --Lmac2 --Lx | grep -e "192.0.2.2" ; then
+    if ! "${ebtablesCmd}" --concurrent -L --Lmac2 --Lx | grep -e "192.0.2.2" ; then
         echo "IPv4 filter not applied as part of ipv4_filtering in ebtables"
         false
     fi
 
     # Check IPv6 filter is present in ebtables.
-    if ! ebtables --concurrent -L --Lmac2 --Lx | grep -e "2001:db8::2" ; then
+    if ! "${ebtablesCmd}" --concurrent -L --Lmac2 --Lx | grep -e "2001:db8::2" ; then
         echo "IPv6 filter not applied as part of ipv6_filtering in ebtables"
         false
     fi
@@ -529,7 +536,7 @@ test_container_devices_nic_bridged_filtering() {
   # Delete container and check filters are cleaned up.
   lxc delete -f "${ctPrefix}A"
   if [ "$firewallDriver" = "xtables" ]; then
-    if ebtables --concurrent -L --Lmac2 --Lx | grep -e "${ctAHost}" ; then
+    if "${ebtablesCmd}" --concurrent -L --Lmac2 --Lx | grep -e "${ctAHost}" ; then
         echo "ebtables filter still applied after delete"
         false
     fi
@@ -560,7 +567,7 @@ test_container_devices_nic_bridged_filtering() {
   ctAMAC=$(lxc config get "${ctPrefix}A" volatile.eth0.hwaddr)
 
   if [ "$firewallDriver" = "xtables" ]; then
-    if ! ebtables --concurrent -L --Lmac2 --Lx | grep -e "-s ! ${ctAMAC} -i ${ctAHost} -j DROP" ; then
+    if ! "${ebtablesCmd}" --concurrent -L --Lmac2 --Lx | grep -e "-s ! ${ctAMAC} -i ${ctAHost} -j DROP" ; then
         echo "MAC ebtables filter not applied as part of mac_filtering in ebtables"
         false
     fi
@@ -589,8 +596,8 @@ test_container_devices_nic_bridged_filtering() {
   # Stop container and check filters are cleaned up.
   lxc stop -f "${ctPrefix}A"
   if [ "$firewallDriver" = "xtables" ]; then
-    if ebtables --concurrent -L --Lmac2 --Lx | grep -e "${ctAHost}" ; then
-        echo "MAC filter still applied as part of mac_filtering in ebtables"
+    if "${ebtablesCmd}" --concurrent -L --Lmac2 --Lx | grep -e "${ctAHost}" ; then
+        echo "MAC filter still applied as part of unmanaged bridge mac_filtering in ebtables"
         false
     fi
   else
@@ -625,12 +632,12 @@ test_container_devices_nic_bridged_filtering() {
   ctAHost=$(lxc config get "${ctPrefix}A" volatile.eth0.host_name)
 
   if [ "$firewallDriver" = "xtables" ]; then
-    ebtables --concurrent -L --Lmac2 --Lx | grep -e "-A INPUT -p ARP -i ${ctAHost} -j DROP"
-    ebtables --concurrent -L --Lmac2 --Lx | grep -e "-A FORWARD -p ARP -i ${ctAHost} -j DROP"
-    ebtables --concurrent -L --Lmac2 --Lx | grep -e "-A INPUT -p IPv4 -i ${ctAHost} -j DROP"
-    ebtables --concurrent -L --Lmac2 --Lx | grep -e "-A FORWARD -p IPv4 -i ${ctAHost} -j DROP"
-    ebtables --concurrent -L --Lmac2 --Lx | grep -e "-A INPUT -p IPv6 -i ${ctAHost} -j DROP"
-    ebtables --concurrent -L --Lmac2 --Lx | grep -e "-A FORWARD -p IPv6 -i ${ctAHost} -j DROP"
+    "${ebtablesCmd}" --concurrent -L --Lmac2 --Lx | grep -e "-A INPUT -p ARP -i ${ctAHost} -j DROP"
+    "${ebtablesCmd}" --concurrent -L --Lmac2 --Lx | grep -e "-A FORWARD -p ARP -i ${ctAHost} -j DROP"
+    "${ebtablesCmd}" --concurrent -L --Lmac2 --Lx | grep -e "-A INPUT -p IPv4 -i ${ctAHost} -j DROP"
+    "${ebtablesCmd}" --concurrent -L --Lmac2 --Lx | grep -e "-A FORWARD -p IPv4 -i ${ctAHost} -j DROP"
+    "${ebtablesCmd}" --concurrent -L --Lmac2 --Lx | grep -e "-A INPUT -p IPv6 -i ${ctAHost} -j DROP"
+    "${ebtablesCmd}" --concurrent -L --Lmac2 --Lx | grep -e "-A FORWARD -p IPv6 -i ${ctAHost} -j DROP"
   else
     for table in "in" "fwd"
     do
@@ -643,7 +650,7 @@ test_container_devices_nic_bridged_filtering() {
   # Delete container and check filters are cleaned up.
   lxc delete -f "${ctPrefix}A"
   if [ "$firewallDriver" = "xtables" ]; then
-    if ebtables --concurrent -L --Lmac2 --Lx | grep -e "${ctAHost}" ; then
+    if "${ebtablesCmd}" --concurrent -L --Lmac2 --Lx | grep -e "${ctAHost}" ; then
         echo "Filters still applied as part of IP filter in ebtables"
         false
     fi
