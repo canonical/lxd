@@ -257,10 +257,11 @@ func (d Xtables) instanceDeviceIPTablesComment(projectName string, instanceName 
 // InstanceSetupBridgeFilter sets up the filter rules to apply bridged device IP filtering.
 func (d Xtables) InstanceSetupBridgeFilter(projectName string, instanceName string, deviceName string, parentName string, hostName string, hwAddr string, IPv4 net.IP, IPv6 net.IP) error {
 	comment := d.instanceDeviceIPTablesComment(projectName, instanceName, deviceName)
+	ebtablesCmd := d.ebtablesCmd()
 
 	rules := d.generateFilterEbtablesRules(hostName, hwAddr, IPv4, IPv6)
 	for _, rule := range rules {
-		_, err := shared.RunCommand(rule[0], append([]string{"--concurrent"}, rule[1:]...)...)
+		_, err := shared.RunCommand(ebtablesCmd, append([]string{"--concurrent"}, rule...)...)
 		if err != nil {
 			return err
 		}
