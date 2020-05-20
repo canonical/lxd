@@ -286,6 +286,17 @@ func (d Xtables) InstanceSetupBridgeFilter(projectName string, instanceName stri
 	return nil
 }
 
+// ebtablesCmd detects if the ebtables-legacy command is available, and uses that instead of the nftables ebtables
+// shim command which isn't fully implemented.
+func (d Xtables) ebtablesCmd() string {
+	_, err := exec.LookPath("ebtables-legacy")
+	if err == nil {
+		return "ebtables-legacy"
+	}
+
+	return "ebtables"
+}
+
 // InstanceClearBridgeFilter removes any filter rules that were added to apply bridged device IP filtering.
 func (d Xtables) InstanceClearBridgeFilter(projectName string, instanceName string, deviceName string, parentName string, hostName string, hwAddr string, IPv4 net.IP, IPv6 net.IP) error {
 	comment := d.instanceDeviceIPTablesComment(projectName, instanceName, deviceName)
