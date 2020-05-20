@@ -15,7 +15,6 @@ import (
 	deviceConfig "github.com/lxc/lxd/lxd/device/config"
 	"github.com/lxc/lxd/lxd/project"
 	"github.com/lxc/lxd/shared"
-	"github.com/lxc/lxd/shared/logger"
 	"github.com/lxc/lxd/shared/version"
 )
 
@@ -38,60 +37,57 @@ func (d Nftables) String() string {
 	return "nftables"
 }
 
-// Compat returns whether the host is compatible with this driver and whether the driver backend is in use.
-func (d Nftables) Compat() (bool, bool) {
+// Compat returns whether the driver backend is in use, and any host compatibility errors.
+func (d Nftables) Compat() (bool, error) {
 	// Get the kernel version.
 	uname, err := shared.Uname()
 	if err != nil {
-		return false, false
+		return false, err
 	}
 
 	// We require a 5.x kernel to avoid weird conflicts with xtables.
 	if len(uname.Release) > 1 {
 		verInt, err := strconv.Atoi(uname.Release[0:1])
 		if err != nil {
-			return false, false
+			return false, errors.Wrapf(err, "Failed parsing kernel version")
 		}
 
 		if verInt < 5 {
-			return false, false
+			return false, fmt.Errorf("Kernel version does not meet minimum requirement of 5")
 		}
 	}
 
 	// Check if nftables nft command exists, if not use xtables.
 	_, err = exec.LookPath("nft")
 	if err != nil {
-		return false, false
+		return false, fmt.Errorf("Backend command %q missing", "nft")
 	}
 
 	// Get nftables version.
 	nftVersion, err := d.hostVersion()
 	if err != nil {
-		logger.Debugf("Firewall nftables failed detecting nft version: %v", err)
-		return false, false
+		return false, errors.Wrapf(err, "Failed detecting nft version")
 	}
 
 	// Check nft version meets minimum required.
 	minVer, _ := version.NewDottedVersion(nftablesMinVersion)
 	if nftVersion.Compare(minVer) < 0 {
-		logger.Debugf("Firewall nftables detected nft version %q is too low, need %q or above", nftVersion, nftablesMinVersion)
-		return false, false
+		return false, fmt.Errorf("nft version %q is too low, need %q or above", nftVersion, nftablesMinVersion)
 	}
 
 	// Check whether in use by parsing ruleset and looking for existing rules.
 	ruleset, err := d.nftParseRuleset()
 	if err != nil {
-		logger.Errorf("Firewall nftables unable to parse existing ruleset: %v", err)
-		return false, false
+		return false, errors.Wrapf(err, "Failed parsing nftables existing ruleset")
 	}
 
 	for _, item := range ruleset {
 		if item.Type == "rule" {
-			return true, true // At least one rule found indicates in use.
+			return true, nil // At least one rule found indicates in use.
 		}
 	}
 
-	return true, false
+	return false, nil
 }
 
 // nftGenericItem represents some common fields amongst the different nftables types.
