@@ -3,10 +3,7 @@
 package db
 
 import (
-	"database/sql"
 	"fmt"
-
-	deviceConfig "github.com/lxc/lxd/lxd/device/config"
 )
 
 func dbDeviceTypeToString(t int) (string, error) {
@@ -61,57 +58,4 @@ func dbDeviceTypeToInt(t string) (int, error) {
 	default:
 		return -1, fmt.Errorf("Invalid device type %s", t)
 	}
-}
-
-// AddDevicesToEntity adds the given devices to the entity of the given type with the
-// given ID.
-func AddDevicesToEntity(tx *sql.Tx, w string, cID int64, devices deviceConfig.Devices) error {
-	// Prepare the devices entry SQL
-	str1 := fmt.Sprintf("INSERT INTO %ss_devices (%s_id, name, type) VALUES (?, ?, ?)", w, w)
-	stmt1, err := tx.Prepare(str1)
-	if err != nil {
-		return err
-	}
-	defer stmt1.Close()
-
-	// Prepare the devices config entry SQL
-	str2 := fmt.Sprintf("INSERT INTO %ss_devices_config (%s_device_id, key, value) VALUES (?, ?, ?)", w, w)
-	stmt2, err := tx.Prepare(str2)
-	if err != nil {
-		return err
-	}
-	defer stmt2.Close()
-
-	// Insert all the devices
-	for k, v := range devices {
-		t, err := dbDeviceTypeToInt(v["type"])
-		if err != nil {
-			return err
-		}
-
-		result, err := stmt1.Exec(cID, k, t)
-		if err != nil {
-			return err
-		}
-
-		id64, err := result.LastInsertId()
-		if err != nil {
-			return fmt.Errorf("Error inserting device %s into database", k)
-		}
-		id := int(id64)
-
-		for ck, cv := range v {
-			// The type is stored as int in the parent entry
-			if ck == "type" || cv == "" {
-				continue
-			}
-
-			_, err = stmt2.Exec(id, ck, cv)
-			if err != nil {
-				return err
-			}
-		}
-	}
-
-	return nil
 }
