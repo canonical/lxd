@@ -54,11 +54,11 @@ func UpsertObject(tx *sql.Tx, table string, columns []string, values []interface
 		table, strings.Join(columns, ", "), Params(n))
 	result, err := tx.Exec(stmt, values...)
 	if err != nil {
-		return -1, err
+		return -1, fmt.Errorf("insert or replaced row: %v", err)
 	}
 	id, err := result.LastInsertId()
 	if err != nil {
-		return -1, err
+		return -1, fmt.Errorf("get last inserted ID: %v", err)
 	}
 	return id, nil
 }
