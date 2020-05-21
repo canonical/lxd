@@ -291,6 +291,10 @@ func (c *Cluster) ImageSourceGetCachedFingerprint(server string, protocol string
 
 // ImageExists returns whether an image with the given fingerprint exists.
 func (c *Cluster) ImageExists(project string, fingerprint string) (bool, error) {
+	table := "images JOIN projects ON projects.id = images.project_id"
+	where := "projects.name = ? AND fingerprint=?"
+
+	var exists bool
 	err := c.Transaction(func(tx *ClusterTx) error {
 		enabled, err := tx.ProjectHasImages(project)
 		if err != nil {
@@ -299,27 +303,18 @@ func (c *Cluster) ImageExists(project string, fingerprint string) (bool, error) 
 		if !enabled {
 			project = "default"
 		}
+		count, err := query.Count(tx.tx, table, where, project, fingerprint)
+		if err != nil {
+			return err
+		}
+		exists = count > 0
 		return nil
 	})
 	if err != nil {
 		return false, err
 	}
 
-	var exists bool
-	query := `
-SELECT COUNT(*) > 0
-  FROM images
-  JOIN projects ON projects.id = images.project_id
- WHERE projects.name = ? AND fingerprint=?
-`
-	inargs := []interface{}{project, fingerprint}
-	outargs := []interface{}{&exists}
-	err = dbQueryRowScan(c, query, inargs, outargs)
-	if err == sql.ErrNoRows {
-		return exists, ErrNoSuchObject
-	}
-
-	return exists, err
+	return exists, nil
 }
 
 // ImageIsReferencedByOtherProjects returns true if the image with the given
