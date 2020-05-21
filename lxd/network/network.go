@@ -24,6 +24,7 @@ import (
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
+	log "github.com/lxc/lxd/shared/log15"
 	"github.com/lxc/lxd/shared/logger"
 	"github.com/lxc/lxd/shared/subprocess"
 	"github.com/lxc/lxd/shared/version"
@@ -430,11 +431,16 @@ func (n *Network) setup(oldConfig map[string]string) error {
 			}
 
 			if n.config["ipv4.dhcp.gateway"] != "" {
-				dnsmasqCmd = append(dnsmasqCmd, fmt.Sprintf("--dhcp-option=3,%s", n.config["ipv4.dhcp.gateway"]))
+				dnsmasqCmd = append(dnsmasqCmd, fmt.Sprintf("--dhcp-option-force=3,%s", n.config["ipv4.dhcp.gateway"]))
 			}
 
 			if mtu != "1500" {
 				dnsmasqCmd = append(dnsmasqCmd, fmt.Sprintf("--dhcp-option-force=26,%s", mtu))
+			}
+
+			dnsSearch := n.config["dns.search"]
+			if dnsSearch != "" {
+				dnsmasqCmd = append(dnsmasqCmd, fmt.Sprintf("--dhcp-option-force=119,%s", strings.Trim(dnsSearch, " ")))
 			}
 
 			expiry := "1h"
@@ -536,6 +542,11 @@ func (n *Network) setup(oldConfig map[string]string) error {
 		if err != nil {
 			return err
 		}
+		subnetSize, _ := subnet.Mask.Size()
+
+		if subnetSize > 64 {
+			logger.Warn("IPv6 networks with a prefix larger than 64 aren't properly supported by dnsmasq", log.Ctx{"network": n.name})
+		}
 
 		// Update the dnsmasq config
 		dnsmasqCmd = append(dnsmasqCmd, []string{fmt.Sprintf("--listen-address=%s", ip.String()), "--enable-ra"}...)
@@ -559,7 +570,6 @@ func (n *Network) setup(oldConfig map[string]string) error {
 			}
 
 			if shared.IsTrue(n.config["ipv6.dhcp.stateful"]) {
-				subnetSize, _ := subnet.Mask.Size()
 				if n.config["ipv6.dhcp.ranges"] != "" {
 					for _, dhcpRange := range strings.Split(n.config["ipv6.dhcp.ranges"], ",") {
 						dhcpRange = strings.TrimSpace(dhcpRange)
