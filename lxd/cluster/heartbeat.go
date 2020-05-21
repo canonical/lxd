@@ -52,7 +52,6 @@ type APIHeartbeat struct {
 // If allNodes provided is an empty set then this is considered a non-full state list.
 func (hbState *APIHeartbeat) Update(fullStateList bool, raftNodes []db.RaftNode, allNodes []db.NodeInfo, offlineThreshold time.Duration) {
 	var maxSchemaVersion, maxAPIExtensionsVersion int
-	hbState.Time = time.Now()
 
 	if hbState.Members == nil {
 		hbState.Members = make(map[int64]APIHeartbeatMember)
@@ -121,8 +120,10 @@ func (hbState *APIHeartbeat) Send(ctx context.Context, cert *shared.CertInfo, lo
 		}
 		logger.Debugf("Sending heartbeat to %s", address)
 
-		err := HeartbeatNode(ctx, address, cert, heartbeatData)
+		// Update timestamp to current, used for time skew detection
+		heartbeatData.Time = time.Now().UTC()
 
+		err := HeartbeatNode(ctx, address, cert, heartbeatData)
 		if err == nil {
 			hbState.Lock()
 			// Ensure only update nodes that exist in Members already.

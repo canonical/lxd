@@ -471,6 +471,8 @@ func Join(state *state.State, gateway *Gateway, cert *shared.CertInfo, name stri
 func notifyNodesUpdate(raftNodes []db.RaftNode, id uint64, cert *shared.CertInfo) {
 	// Generate partial heartbeat request containing just a raft node list.
 	hbState := &APIHeartbeat{}
+	hbState.Time = time.Now().UTC()
+
 	nodes := make([]db.NodeInfo, len(raftNodes))
 	for i, raftNode := range raftNodes {
 		nodes[i].ID = int64(raftNode.ID)
