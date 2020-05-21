@@ -986,7 +986,7 @@ func getImageMetadata(fname string) (*api.ImageMetadata, string, error) {
 }
 
 func doImagesGet(d *Daemon, recursion bool, project string, public bool, clauses []filter.Clause) (interface{}, error) {
-	results, err := d.cluster.GetImages(project, public)
+	results, err := d.cluster.GetImagesFingerprints(project, public)
 	if err != nil {
 		return []string{}, err
 	}
@@ -1113,7 +1113,7 @@ func autoUpdateImages(ctx context.Context, d *Daemon) error {
 }
 
 func autoUpdateImagesInProject(ctx context.Context, d *Daemon, project string) error {
-	images, err := d.cluster.GetImages(project, false)
+	images, err := d.cluster.GetImagesFingerprints(project, false)
 	if err != nil {
 		return errors.Wrap(err, "Unable to retrieve the list of images")
 	}
