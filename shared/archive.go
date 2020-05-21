@@ -83,13 +83,14 @@ func CompressedTarReader(ctx context.Context, r io.ReadSeeker, unpacker []string
 			return nil, cancelFunc, err
 		}
 
-		// Wait for context and command to finish in go routine so reader can return.
-		go func() {
-			select {
-			case <-ctx.Done():
-				cmd.Wait()
-			}
-		}()
+		ctxCancelFunc := cancelFunc
+
+		// Now that unpacker process has started, wrap context cancel function with one that waits for
+		// the unpacker process to complete.
+		cancelFunc = func() {
+			ctxCancelFunc()
+			cmd.Wait()
+		}
 
 		tr = tar.NewReader(stdout)
 	} else {
