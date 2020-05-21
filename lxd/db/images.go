@@ -265,27 +265,28 @@ func (c *Cluster) ImageSourceGetCachedFingerprint(server string, protocol string
 			WHERE server=? AND protocol=? AND alias=? AND auto_update=1 AND images.architecture=?
 `
 
-	arg1 := []interface{}{server, protocolInt, alias, architecture}
+	args := []interface{}{server, protocolInt, alias, architecture}
 	if imageType != instancetype.Any {
 		q += "AND images.type=?\n"
-		arg1 = []interface{}{server, protocolInt, alias, architecture, imageType}
+		args = append(args, imageType)
 	}
 
 	q += "ORDER BY creation_date DESC"
 
-	fingerprint := ""
-
-	arg2 := []interface{}{&fingerprint}
-	err := dbQueryRowScan(c, q, arg1, arg2)
+	var fingerprints []string
+	err := c.Transaction(func(tx *ClusterTx) error {
+		var err error
+		fingerprints, err = query.SelectStrings(tx.tx, q, args...)
+		return err
+	})
 	if err != nil {
-		if err == sql.ErrNoRows {
-			return "", ErrNoSuchObject
-		}
-
 		return "", err
 	}
+	if len(fingerprints) == 0 {
+		return "", ErrNoSuchObject
+	}
 
-	return fingerprint, nil
+	return fingerprints[0], nil
 }
 
 // ImageExists returns whether an image with the given fingerprint exists.
