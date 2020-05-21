@@ -1263,7 +1263,12 @@ func pruneExpiredImagesTask(d *Daemon) (task.Func, task.Schedule) {
 func pruneLeftoverImages(d *Daemon) {
 	opRun := func(op *operations.Operation) error {
 		// Get all images
-		images, err := d.cluster.GetLocalImages()
+		var images []string
+		err := d.cluster.Transaction(func(tx *db.ClusterTx) error {
+			var err error
+			images, err = tx.GetLocalImagesFingerprints()
+			return err
+		})
 		if err != nil {
 			return errors.Wrap(err, "Unable to retrieve the list of images")
 		}
