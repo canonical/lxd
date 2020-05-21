@@ -79,7 +79,7 @@ import (
 //go:generate mapper method -p db -e instance Delete
 //go:generate mapper method -p db -e instance Update struct=Instance
 
-// Instance is a value object holding db-related details about a container.
+// Instance is a value object holding db-related details about an instance.
 type Instance struct {
 	ID           int
 	Project      string `db:"primary=yes&join=projects.name"`

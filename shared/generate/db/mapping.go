@@ -201,6 +201,8 @@ func (f *Field) ZeroValue() string {
 		// FIXME: we use -1 since at the moment integer criteria are
 		// required to be positive.
 		return "-1"
+	case "bool":
+		return "false"
 	default:
 		panic("unsupported zero value")
 	}
