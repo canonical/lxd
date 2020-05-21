@@ -502,7 +502,6 @@ func Rebalance(state *state.State, gateway *Gateway) (string, []db.RaftNode, err
 	// Fetch the nodes from the database, to get their last heartbeat
 	// timestamp and check whether they are offline.
 	nodesByAddress := map[string]db.NodeInfo{}
-	var offlineThreshold time.Duration
 	var maxVoters int64
 	var maxStandBy int64
 	err = state.Cluster.Transaction(func(tx *db.ClusterTx) error {
@@ -510,7 +509,6 @@ func Rebalance(state *state.State, gateway *Gateway) (string, []db.RaftNode, err
 		if err != nil {
 			return errors.Wrap(err, "failed load cluster configuration")
 		}
-		offlineThreshold = config.OfflineThreshold()
 		maxVoters = config.MaxVoters()
 		maxStandBy = config.MaxStandBy()
 		nodes, err := tx.GetNodes()
@@ -533,20 +531,8 @@ func Rebalance(state *state.State, gateway *Gateway) (string, []db.RaftNode, err
 	candidates := make([]string, 0)
 	for i, info := range currentRaftNodes {
 		node := nodesByAddress[info.Address]
-		if node.IsOffline(offlineThreshold) {
+		if !hasConnectivity(gateway.cert, node.Address) {
 			if info.Role != db.RaftSpare {
-				// Even the heartbeat timestamp is not recent
-				// enough, let's try to connect to the node,
-				// just in case the heartbeat is lagging behind
-				// for some reason and the node is actually up.
-				restclient, err := Connect(node.Address, gateway.cert, true)
-				if err == nil {
-					_, _, err = restclient.GetServer()
-				}
-				if err == nil {
-					// This isn't actually offline.
-					goto append
-				}
 				client, err := gateway.getClient()
 				if err != nil {
 					return "", nil, errors.Wrap(err, "Failed to connect to local dqlite node")
@@ -572,7 +558,7 @@ func Rebalance(state *state.State, gateway *Gateway) (string, []db.RaftNode, err
 			}
 			continue
 		}
-	append:
+
 		switch info.Role {
 		case db.RaftVoter:
 			voters = append(voters, info.Address)
@@ -902,11 +888,7 @@ func Handover(state *state.State, gateway *Gateway, address string) (string, []d
 		if node.Role == db.RaftVoter || node.Address == address {
 			continue
 		}
-		online, err := isMemberOnline(state, gateway.cert, node.Address)
-		if err != nil {
-			return "", nil, errors.Wrapf(err, "Failed to check if %s is online", node.Address)
-		}
-		if !online {
+		if !hasConnectivity(gateway.cert, node.Address) {
 			continue
 		}
 		nodes[i].Role = db.RaftVoter
@@ -914,36 +896,6 @@ func Handover(state *state.State, gateway *Gateway, address string) (string, []d
 	}
 
 	return "", nil, nil
-}
-
-// Check if the member with the given address is one.
-func isMemberOnline(state *state.State, cert *shared.CertInfo, address string) (bool, error) {
-	online := true
-	err := state.Cluster.Transaction(func(tx *db.ClusterTx) error {
-		offlineThreshold, err := tx.GetNodeOfflineThreshold()
-		if err != nil {
-			return err
-		}
-		node, err := tx.GetNodeByAddress(address)
-		if err != nil {
-			return err
-		}
-		if node.IsOffline(offlineThreshold) {
-			online = false
-		}
-		return nil
-	})
-	if err != nil {
-		return false, err
-	}
-	// Even if the heartbeat timestamp is not recent enough, let's try to
-	// connect to the node, just in case the heartbeat is lagging behind
-	// for some reason and the node is actually up.
-	if !online && hasConnectivity(cert, address) {
-		online = true
-	}
-
-	return online, nil
 }
 
 // Purge removes a node entirely from the cluster database.

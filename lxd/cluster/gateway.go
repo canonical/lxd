@@ -428,6 +428,45 @@ func (g *Gateway) Kill() {
 	g.cancel()
 }
 
+// TransferLeadership attempts to transfer leadership to another node.
+func (g *Gateway) TransferLeadership() error {
+	client, err := g.getClient()
+	if err != nil {
+		return err
+	}
+	defer client.Close()
+
+	// Try to find a voter that is also online.
+	servers, err := client.Cluster(context.Background())
+	if err != nil {
+		return err
+	}
+	var id uint64
+	for _, server := range servers {
+		if server.ID == g.info.ID || server.Role != db.RaftVoter {
+			continue
+		}
+		address, err := g.raftAddress(server.ID)
+		if err != nil {
+			return err
+		}
+		if !hasConnectivity(g.cert, address) {
+			continue
+		}
+		id = server.ID
+		break
+	}
+
+	if id == 0 {
+		return fmt.Errorf("No online voter found")
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	return client.Transfer(ctx, id)
+}
+
 // Shutdown this gateway, stopping the gRPC server and possibly the raft factory.
 func (g *Gateway) Shutdown() error {
 	logger.Debugf("Stop database gateway")
@@ -435,25 +474,6 @@ func (g *Gateway) Shutdown() error {
 	if g.server != nil {
 		if g.info.Role == db.RaftVoter {
 			g.Sync()
-		}
-
-		// If this is not a standalone node and we are the cluster
-		// leader, let's try to transfer leadership.
-		if g.memoryDial == nil {
-			isLeader, err := g.isLeader()
-			if err == nil && isLeader {
-				client, err := g.getClient()
-				if err == nil {
-					ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-					defer cancel()
-					logger.Info("Transfer leadership")
-					err := client.Transfer(ctx, 0)
-					if err != nil {
-						logger.Warnf("Failed to transfer leadership: %v", err)
-					}
-					client.Close()
-				}
-			}
 		}
 
 		g.server.Close()
