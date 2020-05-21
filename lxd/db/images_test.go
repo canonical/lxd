@@ -39,3 +39,22 @@ func TestLocateImage(t *testing.T) {
 	require.Equal(t, "", address)
 	require.EqualError(t, err, "image not available on any online node")
 }
+
+func TestImageExists(t *testing.T) {
+	cluster, cleanup := db.NewTestCluster(t)
+	defer cleanup()
+
+	exists, err := cluster.ImageExists("default", "abc")
+	require.NoError(t, err)
+
+	assert.False(t, exists)
+
+	err = cluster.CreateImage(
+		"default", "abc", "x.gz", 16, false, false, "amd64", time.Now(), time.Now(), map[string]string{}, "container")
+	require.NoError(t, err)
+
+	exists, err = cluster.ImageExists("default", "abc")
+	require.NoError(t, err)
+
+	assert.True(t, exists)
+}
