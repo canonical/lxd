@@ -146,6 +146,16 @@ exists, so you must repeat this command each reboot and after
 LXD is restarted.  Also note this only works if the bridge
 `dns.mode` is not `none`.
 
+## IPv6 prefix size
+For optimal operation, a prefix size of 64 is preferred.
+Larger subnets (prefix smaller than 64) should work properly too but
+aren't typically that useful for SLAAC.
+
+Smaller subnets while in theory possible when using stateful DHCPv6 for
+IPv6 allocation aren't properly supported by dnsmasq and may be the
+source of issue. If you must use one of those, static allocation or
+another standalone RA daemon be used.
+
 ## Allow DHCP, DNS with Firewalld
 
 In order to allow instances to access the DHCP and DNS server that LXD runs on the host when using firewalld
