@@ -173,30 +173,64 @@ func (c *Cluster) CreateImageSource(id int, server string, protocol string, cert
 // GetImageSource returns the image source with the given ID.
 func (c *Cluster) GetImageSource(imageID int) (int, api.ImageSource, error) {
 	q := `SELECT id, server, protocol, certificate, alias FROM images_source WHERE image_id=?`
-
-	id := 0
-	protocolInt := -1
-	result := api.ImageSource{}
-
-	arg1 := []interface{}{imageID}
-	arg2 := []interface{}{&id, &result.Server, &protocolInt, &result.Certificate, &result.Alias}
-	err := dbQueryRowScan(c, q, arg1, arg2)
-	if err != nil {
-		if err == sql.ErrNoRows {
-			return -1, api.ImageSource{}, ErrNoSuchObject
+	sources := []struct {
+		ID          int
+		Server      string
+		Protocol    int
+		Certificate string
+		Alias       string
+	}{}
+	dest := func(i int) []interface{} {
+		sources = append(sources, struct {
+			ID          int
+			Server      string
+			Protocol    int
+			Certificate string
+			Alias       string
+		}{})
+		return []interface{}{
+			&sources[i].ID,
+			&sources[i].Server,
+			&sources[i].Protocol,
+			&sources[i].Certificate,
+			&sources[i].Alias,
 		}
 
+	}
+	err := c.Transaction(func(tx *ClusterTx) error {
+		stmt, err := tx.tx.Prepare(q)
+		if err != nil {
+			return err
+		}
+		defer stmt.Close()
+		err = query.SelectObjects(stmt, dest, imageID)
+		if err != nil {
+			return err
+		}
+		return nil
+	})
+	if err != nil {
 		return -1, api.ImageSource{}, err
 	}
-
-	protocol, found := ImageSourceProtocol[protocolInt]
-	if !found {
-		return -1, api.ImageSource{}, fmt.Errorf("Invalid protocol: %d", protocolInt)
+	if len(sources) == 0 {
+		return -1, api.ImageSource{}, ErrNoSuchObject
 	}
 
-	result.Protocol = protocol
+	source := sources[0]
 
-	return id, result, nil
+	protocol, found := ImageSourceProtocol[source.Protocol]
+	if !found {
+		return -1, api.ImageSource{}, fmt.Errorf("Invalid protocol: %d", source.Protocol)
+	}
+
+	result := api.ImageSource{
+		Server:      source.Server,
+		Protocol:    protocol,
+		Certificate: source.Certificate,
+		Alias:       source.Alias,
+	}
+
+	return source.ID, result, nil
 
 }
 
