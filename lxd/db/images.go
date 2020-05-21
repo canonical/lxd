@@ -320,6 +320,10 @@ func (c *Cluster) ImageExists(project string, fingerprint string) (bool, error) 
 // ImageIsReferencedByOtherProjects returns true if the image with the given
 // fingerprint is referenced by projects other than the given one.
 func (c *Cluster) ImageIsReferencedByOtherProjects(project string, fingerprint string) (bool, error) {
+	table := "images JOIN projects ON projects.id = images.project_id"
+	where := "projects.name != ? AND fingerprint=?"
+
+	var referenced bool
 	err := c.Transaction(func(tx *ClusterTx) error {
 		enabled, err := tx.ProjectHasImages(project)
 		if err != nil {
@@ -328,27 +332,18 @@ func (c *Cluster) ImageIsReferencedByOtherProjects(project string, fingerprint s
 		if !enabled {
 			project = "default"
 		}
+		count, err := query.Count(tx.tx, table, where, project, fingerprint)
+		if err != nil {
+			return err
+		}
+		referenced = count > 0
 		return nil
 	})
 	if err != nil {
 		return false, err
 	}
 
-	var referenced bool
-	query := `
-SELECT COUNT(*) > 0
-  FROM images
-  JOIN projects ON projects.id = images.project_id
- WHERE projects.name != ? AND fingerprint=?
-`
-	inargs := []interface{}{project, fingerprint}
-	outargs := []interface{}{&referenced}
-	err = dbQueryRowScan(c, query, inargs, outargs)
-	if err == sql.ErrNoRows {
-		return referenced, nil
-	}
-
-	return referenced, err
+	return referenced, nil
 }
 
 // GetImage gets an Image object from the database.
