@@ -210,6 +210,7 @@ var APIExtensions = []string{
 	"container_nic_ipvlan_mode",
 	"resources_system",
 	"images_push_relay",
+	"network_dns_search",
 }
 
 // APIExtensionsCount returns the number of available API extensions.

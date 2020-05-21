@@ -1038,3 +1038,6 @@ This adds system information to the output of `/1.0/resources`.
 This adds the push and relay modes to image copy.
 It also introduces the following new endpoint:
  - `POST 1.0/images/<fingerprint>/export`
+
+## network\_dns\_search
+This introduces the `dns.search` config option on networks.
