@@ -59,6 +59,7 @@ bridge.hwaddr                   | string    | -                     | -         
 bridge.mode                     | string    | -                     | standard                  | Bridge operation mode ("standard" or "fan")
 bridge.mtu                      | integer   | -                     | 1500                      | Bridge MTU (default varies if tunnel or fan setup)
 dns.domain                      | string    | -                     | lxd                       | Domain to advertise to DHCP clients and use for DNS resolution
+dns.search                      | string    | -                     | -                         | Full comma eparate domain search list, defaulting to dns.domain
 dns.mode                        | string    | -                     | managed                   | DNS registration mode ("none" for no DNS record, "managed" for LXD generated static records or "dynamic" for client generated records)
 fan.overlay\_subnet             | string    | fan mode              | 240.0.0.0/8               | Subnet to use as the overlay for the FAN (CIDR notation)
 fan.type                        | string    | fan mode              | vxlan                     | The tunneling type for the FAN ("vxlan" or "ipip")
@@ -145,6 +146,16 @@ This resolved configuration will persist as long as the bridge
 exists, so you must repeat this command each reboot and after
 LXD is restarted.  Also note this only works if the bridge
 `dns.mode` is not `none`.
+
+## IPv6 prefix size
+For optimal operation, a prefix size of 64 is preferred.
+Larger subnets (prefix smaller than 64) should work properly too but
+aren't typically that useful for SLAAC.
+
+Smaller subnets while in theory possible when using stateful DHCPv6 for
+IPv6 allocation aren't properly supported by dnsmasq and may be the
+source of issue. If you must use one of those, static allocation or
+another standalone RA daemon be used.
 
 ## Allow DHCP, DNS with Firewalld
 
