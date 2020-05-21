@@ -15,6 +15,7 @@ import (
 	"github.com/spf13/cobra"
 	"golang.org/x/sys/unix"
 
+	"github.com/lxc/lxd/lxd/daemon"
 	"github.com/lxc/lxd/lxd/device"
 	deviceConfig "github.com/lxc/lxd/lxd/device/config"
 	"github.com/lxc/lxd/shared"
@@ -834,12 +835,12 @@ func genericRelay(dst net.Conn, src net.Conn, timeout bool) {
 
 	select {
 	case errSnd := <-chSend:
-		if errSnd != nil {
+		if daemon.Debug && errSnd != nil {
 			fmt.Printf("Warning: Error while sending data: %v\n", errSnd)
 		}
 
 	case errRcv := <-chRecv:
-		if errRcv != nil {
+		if daemon.Debug && errRcv != nil {
 			fmt.Printf("Warning: Error while reading data: %v\n", errRcv)
 		}
 	}
@@ -927,12 +928,12 @@ func unixRelay(dst io.ReadWriteCloser, src io.ReadWriteCloser) {
 
 	select {
 	case errSnd := <-chSend:
-		if errSnd != nil {
+		if daemon.Debug && errSnd != nil {
 			fmt.Printf("Warning: Error while sending data: %v\n", errSnd)
 		}
 
 	case errRcv := <-chRecv:
-		if errRcv != nil {
+		if daemon.Debug && errRcv != nil {
 			fmt.Printf("Warning: Error while reading data: %v\n", errRcv)
 		}
 	}
