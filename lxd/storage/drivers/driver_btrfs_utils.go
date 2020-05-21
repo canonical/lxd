@@ -452,6 +452,7 @@ func (d *btrfs) loadOptimizedBackupHeader(r io.ReadSeeker) (*BTRFSMetaDataHeader
 				return nil, errors.Wrapf(err, "Error parsing optimized backup header file")
 			}
 
+			cancelFunc()
 			return &header, nil
 		}
 	}
