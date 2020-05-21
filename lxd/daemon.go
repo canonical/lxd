@@ -1534,6 +1534,9 @@ func (d *Daemon) NodeRefreshTask(heartbeatData *cluster.APIHeartbeat) {
 
 		if isDegraded || voters < int(maxVoters) || standbys < int(maxStandBy) {
 			go func() {
+				// Wait a little bit, just to avoid spurious
+				// attempts due to nodes being shut down.
+				time.Sleep(5 * time.Second)
 				d.clusterMembershipMutex.Lock()
 				defer d.clusterMembershipMutex.Unlock()
 				err := rebalanceMemberRoles(d)
