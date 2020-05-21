@@ -33,22 +33,8 @@ SELECT images.fingerprint
 	return query.SelectStrings(c.tx, q, c.nodeID)
 }
 
-// GetImages returns the names of all images (optionally only the public ones).
-func (c *Cluster) GetImages(project string, public bool) ([]string, error) {
-	err := c.Transaction(func(tx *ClusterTx) error {
-		enabled, err := tx.ProjectHasImages(project)
-		if err != nil {
-			return errors.Wrap(err, "Check if project has images")
-		}
-		if !enabled {
-			project = "default"
-		}
-		return nil
-	})
-	if err != nil {
-		return nil, err
-	}
-
+// GetImagesFingerprints returns the names of all images (optionally only the public ones).
+func (c *Cluster) GetImagesFingerprints(project string, public bool) ([]string, error) {
 	q := `
 SELECT fingerprint
   FROM images
@@ -59,20 +45,24 @@ SELECT fingerprint
 		q += " AND public=1"
 	}
 
-	var fp string
-	inargs := []interface{}{project}
-	outfmt := []interface{}{fp}
-	dbResults, err := queryScan(c, q, inargs, outfmt)
+	var fingerprints []string
+
+	err := c.Transaction(func(tx *ClusterTx) error {
+		enabled, err := tx.ProjectHasImages(project)
+		if err != nil {
+			return errors.Wrap(err, "Check if project has images")
+		}
+		if !enabled {
+			project = "default"
+		}
+		fingerprints, err = query.SelectStrings(tx.tx, q, project)
+		return err
+	})
 	if err != nil {
-		return []string{}, err
+		return nil, err
 	}
 
-	results := []string{}
-	for _, r := range dbResults {
-		results = append(results, r[0].(string))
-	}
-
-	return results, nil
+	return fingerprints, nil
 }
 
 // ExpiredImage used to store expired image info.
