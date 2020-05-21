@@ -1286,6 +1286,7 @@ func handoverMemberRole(d *Daemon) error {
 	}
 
 	// Find the cluster leader.
+findLeader:
 	leader, err := d.gateway.LeaderAddress()
 	if err != nil {
 		return err
@@ -1295,6 +1296,15 @@ func handoverMemberRole(d *Daemon) error {
 		//
 		// TODO: retry a few times?
 		return nil
+	}
+
+	if leader == address {
+		logger.Info("Transfer leadership")
+		err := d.gateway.TransferLeadership()
+		if err != nil {
+			return errors.Wrapf(err, "Failed to transfer leadership")
+		}
+		goto findLeader
 	}
 
 	cert := d.endpoints.NetworkCert()
