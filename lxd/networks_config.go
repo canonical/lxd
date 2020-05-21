@@ -97,6 +97,7 @@ var networkConfigKeys = map[string]func(value string) error{
 	"ipv6.routing":       shared.IsBool,
 
 	"dns.domain": shared.IsAny,
+	"dns.search": shared.IsAny,
 	"dns.mode": func(value string) error {
 		return shared.IsOneOf(value, []string{"dynamic", "managed", "none"})
 	},
