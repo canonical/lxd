@@ -17,6 +17,7 @@ import (
 	"github.com/lxc/lxd/shared/api"
 	cli "github.com/lxc/lxd/shared/cmd"
 	"github.com/lxc/lxd/shared/i18n"
+	"github.com/lxc/lxd/shared/units"
 )
 
 type column struct {
@@ -81,7 +82,9 @@ Pre-defined column shorthand chars:
   b - Storage pool
   c - Creation date
   d - Description
+  D - disk usage
   l - Last used date
+  m - Memory usage
   n - Name
   N - Number of Processes
   p - PID of the instance's init process
@@ -421,9 +424,14 @@ func (c *cmdList) parseColumns(clustered bool) ([]column, bool, error) {
 		'4': {i18n.G("IPV4"), c.IP4ColumnData, true, false},
 		'6': {i18n.G("IPV6"), c.IP6ColumnData, true, false},
 		'a': {i18n.G("ARCHITECTURE"), c.ArchitectureColumnData, false, false},
+		'b': {i18n.G("STORAGE POOL"), c.StoragePoolColumnData, false, false},
 		'c': {i18n.G("CREATED AT"), c.CreatedColumnData, false, false},
 		'd': {i18n.G("DESCRIPTION"), c.descriptionColumnData, false, false},
+		'D': {i18n.G("DISK USAGE"), c.diskUsageColumnData, true, false},
+		'f': {i18n.G("BASE IMAGE"), c.baseImageColumnData, false, false},
+		'F': {i18n.G("BASE IMAGE"), c.baseImageFullColumnData, false, false},
 		'l': {i18n.G("LAST USED AT"), c.LastUsedColumnData, false, false},
+		'm': {i18n.G("MEMORY USAGE"), c.memoryUsageColumnData, true, false},
 		'n': {i18n.G("NAME"), c.nameColumnData, false, false},
 		'N': {i18n.G("PROCESSES"), c.NumberOfProcessesColumnData, true, false},
 		'p': {i18n.G("PID"), c.PIDColumnData, true, false},
@@ -431,9 +439,6 @@ func (c *cmdList) parseColumns(clustered bool) ([]column, bool, error) {
 		'S': {i18n.G("SNAPSHOTS"), c.numberSnapshotsColumnData, false, true},
 		's': {i18n.G("STATE"), c.statusColumnData, false, false},
 		't': {i18n.G("TYPE"), c.typeColumnData, false, false},
-		'b': {i18n.G("STORAGE POOL"), c.StoragePoolColumnData, false, false},
-		'f': {i18n.G("BASE IMAGE"), c.baseImageColumnData, false, false},
-		'F': {i18n.G("BASE IMAGE"), c.baseImageFullColumnData, false, false},
 	}
 
 	if c.flagFast {
@@ -645,6 +650,24 @@ func (c *cmdList) IP6ColumnData(cInfo api.InstanceFull) string {
 		}
 		sort.Sort(sort.Reverse(sort.StringSlice(ipv6s)))
 		return strings.Join(ipv6s, "\n")
+	}
+
+	return ""
+}
+
+func (c *cmdList) memoryUsageColumnData(cInfo api.InstanceFull) string {
+	if cInfo.IsActive() && cInfo.State != nil && cInfo.State.Memory.Usage > 0 {
+		return units.GetByteSizeString(cInfo.State.Memory.Usage, 2)
+	}
+
+	return ""
+}
+
+func (c *cmdList) diskUsageColumnData(cInfo api.InstanceFull) string {
+	rootDisk, _, _ := shared.GetRootDiskDevice(cInfo.ExpandedDevices)
+
+	if cInfo.State != nil && cInfo.State.Disk != nil && cInfo.State.Disk[rootDisk].Usage > 0 {
+		return units.GetByteSizeString(cInfo.State.Disk[rootDisk].Usage, 2)
 	}
 
 	return ""
