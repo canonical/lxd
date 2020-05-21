@@ -8,6 +8,7 @@ import (
 	"sync"
 
 	"github.com/gorilla/mux"
+	"github.com/pkg/errors"
 
 	lxd "github.com/lxc/lxd/client"
 	"github.com/lxc/lxd/lxd/cluster"
@@ -557,8 +558,7 @@ func storagePoolDelete(d *Daemon, r *http.Request) response.Response {
 		}
 	}
 
-	// Check if the pool is pending, if so we just need to delete it from
-	// the database.
+	// Check if the pool is pending, if so we just need to delete it from the database.
 	_, dbPool, err := d.cluster.GetStoragePool(poolName)
 	if err != nil {
 		return response.SmartError(err)
@@ -579,7 +579,7 @@ func storagePoolDelete(d *Daemon, r *http.Request) response.Response {
 
 	pool, err := storagePools.GetPoolByName(d.State(), poolName)
 	if err != nil {
-		return response.InternalError(err)
+		return response.InternalError(errors.Wrapf(err, "Error loading pool %q", poolName))
 	}
 
 	// Only delete images if locally stored or running on initial member.
@@ -587,12 +587,12 @@ func storagePoolDelete(d *Daemon, r *http.Request) response.Response {
 		for _, volume := range volumeNames {
 			_, imgInfo, err := d.cluster.GetImage(projectParam(r), volume, false, false)
 			if err != nil {
-				return response.InternalError(err)
+				return response.InternalError(errors.Wrapf(err, "Failed getting image info for %q", volume))
 			}
 
 			err = doDeleteImageFromPool(d.State(), imgInfo.Fingerprint, poolName)
 			if err != nil {
-				return response.InternalError(err)
+				return response.InternalError(errors.Wrapf(err, "Error deleting image %q from pool", volume))
 			}
 		}
 	}
