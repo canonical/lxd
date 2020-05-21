@@ -20,6 +20,7 @@ import (
 
 	"github.com/flosch/pongo2"
 	"github.com/gorilla/websocket"
+	"github.com/kballard/go-shellquote"
 	"github.com/pborman/uuid"
 	"github.com/pkg/errors"
 	"golang.org/x/sys/unix"
@@ -774,7 +775,11 @@ func (vm *qemu) Start(stateful bool) error {
 	}
 
 	if vm.expandedConfig["raw.qemu"] != "" {
-		fields := strings.Split(vm.expandedConfig["raw.qemu"], " ")
+		fields, err := shellquote.Split(vm.expandedConfig["raw.qemu"])
+		if err != nil {
+			op.Done(err)
+			return err
+		}
 		qemuCmd = append(qemuCmd, fields...)
 	}
 
