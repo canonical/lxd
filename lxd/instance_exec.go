@@ -279,7 +279,7 @@ func (s *execWs) Do(op *operations.Operation) error {
 
 					err = cmd.WindowResize(int(ptys[0].Fd()), winchWidth, winchHeight)
 					if err != nil {
-						logger.Debug("Failed to set window size", winchWidth, winchHeight, log.Ctx{"err": err, "width": winchWidth, "height": winchHeight})
+						logger.Debug("Failed to set window size", log.Ctx{"err": err, "width": winchWidth, "height": winchHeight})
 						continue
 					}
 				} else if command.Command == "signal" {
