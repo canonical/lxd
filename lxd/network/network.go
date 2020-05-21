@@ -431,7 +431,7 @@ func (n *Network) setup(oldConfig map[string]string) error {
 			}
 
 			if n.config["ipv4.dhcp.gateway"] != "" {
-				dnsmasqCmd = append(dnsmasqCmd, fmt.Sprintf("--dhcp-option=3,%s", n.config["ipv4.dhcp.gateway"]))
+				dnsmasqCmd = append(dnsmasqCmd, fmt.Sprintf("--dhcp-option-force=3,%s", n.config["ipv4.dhcp.gateway"]))
 			}
 
 			if mtu != "1500" {
