@@ -117,6 +117,9 @@ type Gateway struct {
 
 	// Abstract unix socket that the local dqlite task is listening to.
 	bindAddress string
+
+	// Keep track of skews
+	timeSkew bool
 }
 
 // Current dqlite protocol version.
@@ -181,6 +184,24 @@ func (g *Gateway) HandlerFuncs(nodeRefreshTask func(*APIHeartbeat)) map[string]h
 				logger.Errorf("Error decoding heartbeat body: %v", err)
 				http.Error(w, "400 invalid heartbeat payload", http.StatusBadRequest)
 				return
+			}
+
+			// Look for time skews
+			if heartbeatData.Time.Add(5 * time.Second).Before(time.Now().UTC()) {
+				if !g.timeSkew {
+					logger.Warnf("Time skew detected between leader and local (%s vs %s)", heartbeatData.Time, time.Now().UTC())
+				}
+				g.timeSkew = true
+			} else if heartbeatData.Time.Add(-5 * time.Second).After(time.Now().UTC()) {
+				if !g.timeSkew {
+					logger.Warnf("Time skew detected between leader and local (%s vs %s)", heartbeatData.Time, time.Now().UTC())
+				}
+				g.timeSkew = true
+			} else {
+				if g.timeSkew {
+					logger.Warnf("Time skew resolved")
+					g.timeSkew = false
+				}
 			}
 
 			raftNodes := make([]db.RaftNode, 0)
