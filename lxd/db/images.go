@@ -15,6 +15,47 @@ import (
 	"github.com/lxc/lxd/shared/osarch"
 )
 
+// Code generation directives.
+//
+//go:generate -command mapper lxd-generate db mapper -t images.mapper.go
+//go:generate mapper reset
+//
+//go:generate mapper stmt -p db -e image objects
+//go:generate mapper stmt -p db -e image objects-by-Project
+//go:generate mapper stmt -p db -e image objects-by-Project-and-Public
+//go:generate mapper stmt -p db -e image objects-by-Project-and-Fingerprint
+//go:generate mapper stmt -p db -e image objects-by-Fingerprint
+//go:generate mapper stmt -p db -e image objects-by-Cached
+//
+//go:generate mapper method -p db -e image List
+//go:generate mapper method -p db -e image Get
+
+// Image is a value object holding db-related details about an image.
+type Image struct {
+	ID           int
+	Project      string `db:"primary=yes&join=projects.name"`
+	Fingerprint  string `db:"primary=yes&comparison=like"`
+	Type         int
+	Filename     string
+	Size         int64
+	Public       bool
+	Architecture int
+	CreationDate time.Time
+	ExpiryDate   time.Time
+	UploadDate   time.Time
+	Cached       bool
+	LastUseDate  time.Time
+	AutoUpdate   int
+}
+
+// ImageFilter can be used to filter results yielded by GetImages.
+type ImageFilter struct {
+	Project     string
+	Fingerprint string // Matched with LIKE
+	Public      bool
+	Cached      bool
+}
+
 // ImageSourceProtocol maps image source protocol codes to human-readable names.
 var ImageSourceProtocol = map[int]string{
 	0: "lxd",
