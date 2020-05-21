@@ -208,6 +208,7 @@ func (d *btrfs) CreateVolumeFromBackup(vol Volume, srcBackup backup.Info, srcDat
 					return "", err
 				}
 
+				cancelFunc()
 				return subVolRecvPath, nil
 			}
 		}
