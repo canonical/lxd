@@ -275,6 +275,7 @@ var columnarTypeNames = []string{
 	"bool",
 	"instancetype.Type",
 	"int",
+	"int64",
 	"string",
 	"time.Time",
 }
