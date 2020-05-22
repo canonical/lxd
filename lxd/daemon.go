@@ -97,7 +97,8 @@ type Daemon struct {
 
 	// Serialize changes to cluster membership (joins, leaves, role
 	// changes).
-	clusterMembershipMutex sync.Mutex
+	clusterMembershipMutex   sync.Mutex
+	clusterMembershipClosing bool // Prevent further rebalances
 }
 
 type externalAuth struct {
@@ -1112,6 +1113,9 @@ func (d *Daemon) numRunningContainers() (int, error) {
 // retried in case of failure.
 func (d *Daemon) Kill() {
 	if d.gateway != nil {
+		d.clusterMembershipMutex.Lock()
+		d.clusterMembershipClosing = true
+		d.clusterMembershipMutex.Unlock()
 		err := handoverMemberRole(d)
 		if err != nil {
 			logger.Warnf("Could not handover member's responsibilities: %v", err)
@@ -1144,11 +1148,15 @@ func (d *Daemon) Stop() error {
 		ch := make(chan bool)
 		go func() {
 			n, err := d.numRunningContainers()
+			if err != nil {
+				logger.Warnf("Failed to get number of running containers: %v", err)
+			}
 			ch <- err != nil || n == 0
 		}()
 		select {
 		case shouldUnmount = <-ch:
 		case <-time.After(2 * time.Second):
+			logger.Warnf("Give up waiting to get number of running containers")
 			shouldUnmount = true
 		}
 
@@ -1539,6 +1547,9 @@ func (d *Daemon) NodeRefreshTask(heartbeatData *cluster.APIHeartbeat) {
 				time.Sleep(5 * time.Second)
 				d.clusterMembershipMutex.Lock()
 				defer d.clusterMembershipMutex.Unlock()
+				if d.clusterMembershipClosing {
+					return
+				}
 				err := rebalanceMemberRoles(d)
 				if err != nil && errors.Cause(err) != cluster.ErrNotLeader {
 					logger.Warnf("Could not rebalance cluster member roles: %v", err)

@@ -490,7 +490,7 @@ func (g *Gateway) TransferLeadership() error {
 
 // Shutdown this gateway, stopping the gRPC server and possibly the raft factory.
 func (g *Gateway) Shutdown() error {
-	logger.Debugf("Stop database gateway")
+	logger.Infof("Stop database gateway")
 
 	if g.server != nil {
 		if g.info.Role == db.RaftVoter {
