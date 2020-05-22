@@ -1760,6 +1760,7 @@ test_clustering_rebalance() {
   respawn_lxd_cluster_member "${ns2}" "${LXD_TWO_DIR}"
   sleep 25
 
+  LXD_DIR="${LXD_ONE_DIR}" lxc cluster list
   LXD_DIR="${LXD_ONE_DIR}" lxc cluster show node2 | grep -q "status: Online"
   LXD_DIR="${LXD_ONE_DIR}" lxc cluster show node2 | grep -q "database: false"
 
