@@ -153,8 +153,6 @@ func (c *Cluster) GetExpiredImages(expiry int64) ([]ExpiredImage, error) {
 
 // CreateImageSource inserts a new image source.
 func (c *Cluster) CreateImageSource(id int, server string, protocol string, certificate string, alias string) error {
-	stmt := `INSERT INTO images_source (image_id, server, protocol, certificate, alias) values (?, ?, ?, ?, ?)`
-
 	protocolInt := -1
 	for protoInt, protoString := range ImageSourceProtocol {
 		if protoString == protocol {
@@ -166,7 +164,23 @@ func (c *Cluster) CreateImageSource(id int, server string, protocol string, cert
 		return fmt.Errorf("Invalid protocol: %s", protocol)
 	}
 
-	err := exec(c, stmt, id, server, protocolInt, certificate, alias)
+	err := c.Transaction(func(tx *ClusterTx) error {
+		_, err := query.UpsertObject(tx.tx, "images_source", []string{
+			"image_id",
+			"server",
+			"protocol",
+			"certificate",
+			"alias",
+		}, []interface{}{
+			id,
+			server,
+			protocolInt,
+			certificate,
+			alias,
+		})
+		return err
+	})
+
 	return err
 }
 
