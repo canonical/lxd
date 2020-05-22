@@ -52,7 +52,7 @@ backend = "ringbuf"
 size = "{{.ringbufSizeBytes}}B"
 
 # SCSI controller
-{{- if ne .architecture "ppc64le"}}
+{{- if eq .architecture "x86_64" "aarch64" }}
 [device "qemu_pcie1"]
 driver = "pcie-root-port"
 port = "0x10"
@@ -64,7 +64,7 @@ addr = "0x2"
 
 [device "qemu_scsi"]
 driver = "virtio-scsi-pci"
-{{- if eq .architecture "ppc64le"}}
+{{- if eq .architecture "ppc64le" }}
 bus = "pci.0"
 {{- else}}
 bus = "qemu_pcie1"
@@ -72,7 +72,7 @@ addr = "0x0"
 {{- end}}
 
 # Balloon driver
-{{- if ne .architecture "ppc64le"}}
+{{- if eq .architecture "x86_64" "aarch64" }}
 [device "qemu_pcie2"]
 driver = "pcie-root-port"
 port = "0x11"
@@ -83,7 +83,7 @@ addr = "0x2.0x1"
 
 [device "qemu_ballon"]
 driver = "virtio-balloon-pci"
-{{- if eq .architecture "ppc64le"}}
+{{- if eq .architecture "ppc64le" }}
 bus = "pci.0"
 {{- else}}
 bus = "qemu_pcie2"
@@ -95,7 +95,7 @@ addr = "0x0"
 qom-type = "rng-random"
 filename = "/dev/urandom"
 
-{{if ne .architecture "ppc64le" -}}
+{{if eq .architecture "x86_64" "aarch64" -}}
 [device "qemu_pcie3"]
 driver = "pcie-root-port"
 port = "0x12"
@@ -127,7 +127,7 @@ size = "{{.memSizeBytes}}B"
 
 var qemuVsock = template.Must(template.New("qemuVsock").Parse(`
 # Vsock
-{{if ne .architecture "ppc64le" -}}
+{{if eq .architecture "x86_64" "aarch64" -}}
 [device "qemu_pcie4"]
 driver = "pcie-root-port"
 port = "0x13"
@@ -271,7 +271,7 @@ bootindex = "{{.bootIndex}}"
 // qemuDevTapCommon is common PCI device template for tap based netdevs.
 // Use 0x4.0x as the PCIe address prefix for nic devices to allow up to 8 devices of this type.
 var qemuDevTapCommon = template.Must(template.New("qemuDevTapCommon").Parse(`
-{{if ne .architecture "ppc64le" -}}
+{{if eq .architecture "x86_64" "aarch64" -}}
 [device "qemu_pcie{{.chassisIndex}}"]
 driver = "pcie-root-port"
 port = "0x{{.nicIndex}}"
