@@ -734,7 +734,8 @@ func (vm *qemu) Start(stateful bool) error {
 		"-chroot", vm.Path(),
 	}
 
-	if vm.architecture != osarch.ARCH_64BIT_POWERPC_LITTLE_ENDIAN {
+	// SMBIOS only on x86_64 and aarch64.
+	if shared.IntInSlice(vm.architecture, []int{osarch.ARCH_64BIT_INTEL_X86, osarch.ARCH_64BIT_ARMV8_LITTLE_ENDIAN}) {
 		qemuCmd = append(qemuCmd, "-smbios", "type=2,manufacturer=Canonical Ltd.,product=LXD")
 	}
 
@@ -964,8 +965,8 @@ func (vm *qemu) openUnixSocket(sockPath string) (*net.UnixConn, error) {
 }
 
 func (vm *qemu) setupNvram() error {
-	// No UEFI nvram for ppc64le.
-	if vm.architecture == osarch.ARCH_64BIT_POWERPC_LITTLE_ENDIAN {
+	// UEFI only on x86_64 and aarch64.
+	if !shared.IntInSlice(vm.architecture, []int{osarch.ARCH_64BIT_INTEL_X86, osarch.ARCH_64BIT_ARMV8_LITTLE_ENDIAN}) {
 		return nil
 	}
 
@@ -1754,8 +1755,8 @@ func (vm *qemu) addMonitorConfig(sb *strings.Builder) error {
 
 // addFirmwareConfig adds the qemu config required for adding a secure boot compatible EFI firmware.
 func (vm *qemu) addFirmwareConfig(sb *strings.Builder) error {
-	// No UEFI nvram for ppc64le.
-	if vm.architecture == osarch.ARCH_64BIT_POWERPC_LITTLE_ENDIAN {
+	// UEFI only on x86_64 and aarch64.
+	if !shared.IntInSlice(vm.architecture, []int{osarch.ARCH_64BIT_INTEL_X86, osarch.ARCH_64BIT_ARMV8_LITTLE_ENDIAN}) {
 		return nil
 	}
 
