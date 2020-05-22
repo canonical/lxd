@@ -1760,6 +1760,7 @@ test_clustering_rebalance() {
   respawn_lxd_cluster_member "${ns2}" "${LXD_TWO_DIR}"
   sleep 25
 
+  LXD_DIR="${LXD_ONE_DIR}" lxc cluster list
   LXD_DIR="${LXD_ONE_DIR}" lxc cluster show node2 | grep -q "status: Online"
   LXD_DIR="${LXD_ONE_DIR}" lxc cluster show node2 | grep -q "database: false"
 
@@ -1859,8 +1860,8 @@ test_clustering_remove_raft_node() {
   # Force removing the raft node.
   LXD_DIR="${LXD_ONE_DIR}" lxd cluster remove-raft-node -q "10.1.1.102"
 
-  # Wait for a heartbeat to propagate.
-  sleep 15
+  # Wait for a heartbeat to propagate and a rebalance to be performed.
+  sleep 20
 
   # We're back to 3 database nodes.
   LXD_DIR="${LXD_ONE_DIR}" lxc cluster list | grep "node1" | grep -q "YES"
