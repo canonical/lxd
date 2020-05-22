@@ -19,6 +19,9 @@ gic-version = "host"
 {{if eq .architecture "ppc64le" -}}
 type = "pseries"
 {{end -}}
+{{if eq .architecture "s390x" -}}
+type = "s390-ccw-virtio"
+{{end -}}
 accel = "kvm"
 usb = "off"
 graphics = "off"
@@ -63,12 +66,16 @@ addr = "0x2"
 {{- end }}
 
 [device "qemu_scsi"]
+{{- if ne .architecture "s390x"}}
 driver = "virtio-scsi-pci"
 {{- if eq .architecture "ppc64le" }}
 bus = "pci.0"
 {{- else}}
 bus = "qemu_pcie1"
 addr = "0x0"
+{{- end}}
+{{- else}}
+driver = "virtio-scsi-ccw"
 {{- end}}
 
 # Balloon driver
@@ -82,12 +89,16 @@ addr = "0x2.0x1"
 {{- end }}
 
 [device "qemu_ballon"]
+{{- if ne .architecture "s390x"}}
 driver = "virtio-balloon-pci"
 {{- if eq .architecture "ppc64le" }}
 bus = "pci.0"
 {{- else}}
 bus = "qemu_pcie2"
 addr = "0x0"
+{{- end}}
+{{- else}}
+driver = "virtio-balloon-ccw"
 {{- end}}
 
 # Random number generator
@@ -105,13 +116,17 @@ addr = "0x2.0x2"
 {{- end }}
 
 [device "dev-qemu_rng"]
-driver = "virtio-rng-pci"
 rng = "qemu_rng"
+{{if ne .architecture "s390x" -}}
+driver = "virtio-rng-pci"
 {{- if eq .architecture "ppc64le"}}
 bus = "pci.0"
 {{- else}}
 bus = "qemu_pcie3"
 addr = "0x0"
+{{- end}}
+{{- else}}
+driver = "virtio-rng-ccw"
 {{- end}}
 
 # Console
@@ -137,14 +152,18 @@ addr = "0x2.0x3"
 {{- end }}
 
 [device]
-driver = "vhost-vsock-pci"
 guest-cid = "{{.vsockID}}"
+{{if ne .architecture "s390x" -}}
+driver = "vhost-vsock-pci"
 {{if eq .architecture "ppc64le" -}}
 bus = "pci.0"
 {{else -}}
 bus = "qemu_pcie4"
 addr = "0x0"
 {{end -}}
+{{- else}}
+driver = "vhost-vsock-ccw"
+{{- end}}
 `))
 
 var qemuCPU = template.Must(template.New("qemuCPU").Parse(`
@@ -214,11 +233,15 @@ readonly = "on"
 path = "{{.path}}"
 
 [device "dev-qemu_config"]
-driver = "virtio-9p-pci"
 fsdev = "qemu_config"
 mount_tag = "config"
+{{if ne .architecture "s390x" -}}
+driver = "virtio-9p-pci"
 multifunction = "on"
 addr = "0x3.0x{{.diskIndex}}"
+{{- else}}
+driver = "virtio-9p-ccw"
+{{- end}}
 `))
 
 // Devices use "lxd_" prefix indicating that this is a user named device.
@@ -238,11 +261,15 @@ sock_fd = "{{.proxyFD}}"
 {{- end}}
 
 [device "dev-lxd_{{.devName}}"]
-driver = "virtio-9p-pci"
 fsdev = "lxd_{{.devName}}"
 mount_tag = "{{.mountTag}}"
+{{if ne .architecture "s390x" -}}
+driver = "virtio-9p-pci"
 multifunction = "on"
 addr = "0x3.0x{{.diskIndex}}"
+{{- else}}
+driver = "virtio-9p-ccw"
+{{- end}}
 `))
 
 // Devices use "lxd_" prefix indicating that this is a user named device.
@@ -282,15 +309,19 @@ multifunction = "on"
 {{- end }}
 
 [device "dev-lxd_{{.devName}}"]
-driver = "virtio-net-pci"
 netdev = "lxd_{{.devName}}"
 mac = "{{.devHwaddr}}"
+{{if ne .architecture "s390x" -}}
+driver = "virtio-net-pci"
 {{if eq .architecture "ppc64le" -}}
 bus = "pci.0"
 {{else -}}
 bus = "qemu_pcie{{.chassisIndex}}"
 addr = "0x0"
 {{end -}}
+{{- else}}
+driver = "virtio-net-ccw"
+{{- end}}
 bootindex = "{{.bootIndex}}"
 `))
 

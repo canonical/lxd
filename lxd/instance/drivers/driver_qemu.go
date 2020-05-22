@@ -1005,6 +1005,8 @@ func (vm *qemu) qemuArchConfig() (string, error) {
 		return "qemu-system-aarch64", nil
 	} else if vm.architecture == osarch.ARCH_64BIT_POWERPC_LITTLE_ENDIAN {
 		return "qemu-system-ppc64", nil
+	} else if vm.architecture == osarch.ARCH_64BIT_S390_BIG_ENDIAN {
+		return "qemu-system-s390x", nil
 	}
 
 	return "", fmt.Errorf("Architecture isn't supported for virtual machines")
@@ -1839,22 +1841,24 @@ func (vm *qemu) addDriveDirConfig(sb *strings.Builder, diskIndex int, fdFiles *[
 	// For read only shares, do not use proxy.
 	if shared.StringInSlice("ro", driveConf.Opts) {
 		return qemuDriveDir.Execute(sb, map[string]interface{}{
-			"devName":   driveConf.DevName,
-			"mountTag":  mountTag,
-			"path":      driveConf.DevPath,
-			"readonly":  true,
-			"diskIndex": diskIndex,
+			"architecture": vm.architectureName,
+			"devName":      driveConf.DevName,
+			"mountTag":     mountTag,
+			"path":         driveConf.DevPath,
+			"readonly":     true,
+			"diskIndex":    diskIndex,
 		})
 	}
 
 	// Only use proxy for writable shares.
 	proxyFD := vm.addFileDescriptor(fdFiles, driveConf.DevPath)
 	return qemuDriveDir.Execute(sb, map[string]interface{}{
-		"devName":   driveConf.DevName,
-		"mountTag":  mountTag,
-		"proxyFD":   proxyFD,
-		"readonly":  false,
-		"diskIndex": diskIndex,
+		"architecture": vm.architectureName,
+		"devName":      driveConf.DevName,
+		"mountTag":     mountTag,
+		"proxyFD":      proxyFD,
+		"readonly":     false,
+		"diskIndex":    diskIndex,
 	})
 }
 
@@ -1887,11 +1891,12 @@ func (vm *qemu) addDriveConfig(sb *strings.Builder, bootIndexes map[string]int, 
 	}
 
 	return qemuDrive.Execute(sb, map[string]interface{}{
-		"devName":   driveConf.DevName,
-		"devPath":   driveConf.DevPath,
-		"bootIndex": bootIndexes[driveConf.DevName],
-		"cacheMode": cacheMode,
-		"aioMode":   aioMode,
+		"architecture": vm.architectureName,
+		"devName":      driveConf.DevName,
+		"devPath":      driveConf.DevPath,
+		"bootIndex":    bootIndexes[driveConf.DevName],
+		"cacheMode":    cacheMode,
+		"aioMode":      aioMode,
 	})
 }
 
