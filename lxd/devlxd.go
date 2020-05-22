@@ -15,6 +15,7 @@ import (
 	"unsafe"
 
 	"github.com/gorilla/mux"
+	"golang.org/x/sys/unix"
 
 	"github.com/lxc/lxd/lxd/daemon"
 	"github.com/lxc/lxd/lxd/instance"
@@ -173,22 +174,22 @@ func hoistReq(f func(*Daemon, instance.Instance, http.ResponseWriter, *http.Requ
 			return
 		}
 
-		c, err := findContainerForPid(cred.PID, d.State())
+		c, err := findContainerForPid(cred.Pid, d.State())
 		if err != nil {
 			http.Error(w, err.Error(), 500)
 			return
 		}
 
 		// Access control
-		rootUID := int64(0)
+		rootUID := uint32(0)
 
 		idmapset, err := c.CurrentIdmap()
 		if err == nil && idmapset != nil {
 			uid, _ := idmapset.ShiftIntoNs(0, 0)
-			rootUID = int64(uid)
+			rootUID = uint32(uid)
 		}
 
-		if rootUID != cred.UID {
+		if rootUID != cred.Uid {
 			http.Error(w, "Access denied for non-root user", 401)
 			return
 		}
@@ -241,10 +242,10 @@ func devLxdAPI(d *Daemon) http.Handler {
  * from our http handlers, since there appears to be no way to pass information
  * around here.
  */
-var pidMapper = ConnPidMapper{m: map[*net.UnixConn]*ucred.UCred{}}
+var pidMapper = ConnPidMapper{m: map[*net.UnixConn]*unix.Ucred{}}
 
 type ConnPidMapper struct {
-	m     map[*net.UnixConn]*ucred.UCred
+	m     map[*net.UnixConn]*unix.Ucred
 	mLock sync.Mutex
 }
 
