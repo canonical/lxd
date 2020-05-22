@@ -1103,7 +1103,7 @@ func (b *lxdBackend) CreateInstanceFromMigration(inst instance.Instance, conn io
 		// transfer the base image files too.
 		if args.MigrationType.FSType == migration.MigrationFSType_RSYNC {
 			fingerprint := inst.ExpandedConfig()["volatile.base_image"]
-			_, _, err = b.state.Cluster.GetImage(inst.Project(), fingerprint, false, true)
+			_, _, err = b.state.Cluster.GetImage(inst.Project(), fingerprint, false)
 			if err != db.ErrNoSuchObject && err != nil {
 				return err
 			}
