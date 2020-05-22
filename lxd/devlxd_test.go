@@ -110,7 +110,7 @@ func TestCredsSendRecv(t *testing.T) {
 			result <- -1
 			return
 		}
-		result <- cred.PID
+		result <- cred.Pid
 	}()
 
 	conn, err := connect(fmt.Sprintf("%s/test-devlxd-sock", testDir))

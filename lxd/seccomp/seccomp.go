@@ -580,7 +580,7 @@ type Server struct {
 
 // Iovec defines an iovec to move data between kernel and userspace.
 type Iovec struct {
-	ucred  *ucred.UCred
+	ucred  *unix.Ucred
 	memFd  int
 	procFd int
 	msg    *C.struct_seccomp_notify_proxy_msg
@@ -591,7 +591,7 @@ type Iovec struct {
 }
 
 // NewSeccompIovec creates a new seccomp iovec.
-func NewSeccompIovec(ucred *ucred.UCred) *Iovec {
+func NewSeccompIovec(ucred *unix.Ucred) *Iovec {
 	msgPtr := C.malloc(C.sizeof_struct_seccomp_notify_proxy_msg)
 	msg := (*C.struct_seccomp_notify_proxy_msg)(msgPtr)
 	C.memset(msgPtr, 0, C.sizeof_struct_seccomp_notify_proxy_msg)
@@ -666,25 +666,25 @@ func (siov *Iovec) IsValidSeccompIovec(size uint64) bool {
 	}
 	if siov.msg.__reserved != 0 {
 		logger.Warnf("Disconnected from seccomp socket after client sent non-zero reserved field: pid=%v",
-			siov.ucred.PID)
+			siov.ucred.Pid)
 		return false
 	}
 
 	if siov.msg.sizes.seccomp_notif != C.expected_sizes.seccomp_notif {
 		logger.Warnf("Disconnected from seccomp socket since client uses different seccomp_notif sizes: %d != %d, pid=%v",
-			siov.msg.sizes.seccomp_notif, C.expected_sizes.seccomp_notif, siov.ucred.PID)
+			siov.msg.sizes.seccomp_notif, C.expected_sizes.seccomp_notif, siov.ucred.Pid)
 		return false
 	}
 
 	if siov.msg.sizes.seccomp_notif_resp != C.expected_sizes.seccomp_notif_resp {
 		logger.Warnf("Disconnected from seccomp socket since client uses different seccomp_notif_resp sizes: %d != %d, pid=%v",
-			siov.msg.sizes.seccomp_notif_resp, C.expected_sizes.seccomp_notif_resp, siov.ucred.PID)
+			siov.msg.sizes.seccomp_notif_resp, C.expected_sizes.seccomp_notif_resp, siov.ucred.Pid)
 		return false
 	}
 
 	if siov.msg.sizes.seccomp_data != C.expected_sizes.seccomp_data {
 		logger.Warnf("Disconnected from seccomp socket since client uses different seccomp_data sizes: %d != %d, pid=%v",
-			siov.msg.sizes.seccomp_data, C.expected_sizes.seccomp_data, siov.ucred.PID)
+			siov.msg.sizes.seccomp_data, C.expected_sizes.seccomp_data, siov.ucred.Pid)
 		return false
 	}
 
@@ -705,13 +705,13 @@ retry:
 			logger.Debugf("Caught EINTR, retrying...")
 			goto retry
 		}
-		logger.Debugf("Disconnected from seccomp socket after failed write for process %v: %s", siov.ucred.PID, err)
-		return fmt.Errorf("Failed to send response to seccomp client %v", siov.ucred.PID)
+		logger.Debugf("Disconnected from seccomp socket after failed write for process %v: %s", siov.ucred.Pid, err)
+		return fmt.Errorf("Failed to send response to seccomp client %v", siov.ucred.Pid)
 	}
 
 	if uint64(bytes) != uint64(C.SECCOMP_MSG_SIZE_MIN) {
-		logger.Debugf("Disconnected from seccomp socket after short write: pid=%v", siov.ucred.PID)
-		return fmt.Errorf("Failed to send full response to seccomp client %v", siov.ucred.PID)
+		logger.Debugf("Disconnected from seccomp socket after short write: pid=%v", siov.ucred.Pid)
+		return fmt.Errorf("Failed to send full response to seccomp client %v", siov.ucred.Pid)
 	}
 
 	return nil
@@ -765,7 +765,7 @@ func NewSeccompServer(s *state.State, path string, findPID func(pid int32, state
 					return
 				}
 
-				logger.Debugf("Connected to seccomp socket: pid=%v", ucred.PID)
+				logger.Debugf("Connected to seccomp socket: pid=%v", ucred.Pid)
 
 				unixFile, err := c.(*net.UnixConn).File()
 				if err != nil {
@@ -776,7 +776,7 @@ func NewSeccompServer(s *state.State, path string, findPID func(pid int32, state
 					siov := NewSeccompIovec(ucred)
 					bytes, err := siov.ReceiveSeccompIovec(int(unixFile.Fd()))
 					if err != nil {
-						logger.Debugf("Disconnected from seccomp socket after failed receive: pid=%v, err=%s", ucred.PID, err)
+						logger.Debugf("Disconnected from seccomp socket after failed receive: pid=%v, err=%s", ucred.Pid, err)
 						c.Close()
 						return
 					}
