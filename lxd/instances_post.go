@@ -83,7 +83,7 @@ func createFromImage(d *Daemon, project string, req *api.InstancesPost) response
 				return err
 			}
 		} else {
-			_, info, err = d.cluster.GetImage(project, hash, false, false)
+			_, info, err = d.cluster.GetImage(project, hash, false)
 			if err != nil {
 				return err
 			}
