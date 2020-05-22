@@ -2747,7 +2747,7 @@ func patchFixUploadedAt(name string, d *Daemon) error {
 	}
 
 	for _, fingerprint := range images {
-		id, image, err := d.cluster.GetImage("default", fingerprint, false, true)
+		id, image, err := d.cluster.GetImage("default", fingerprint, false)
 		if err != nil {
 			return err
 		}

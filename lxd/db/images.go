@@ -45,7 +45,7 @@ type Image struct {
 	UploadDate   time.Time
 	Cached       bool
 	LastUseDate  time.Time
-	AutoUpdate   int
+	AutoUpdate   bool
 }
 
 // ImageFilter can be used to filter results yielded by GetImages.
@@ -185,7 +185,7 @@ func (c *Cluster) CreateImageSource(id int, server string, protocol string, cert
 }
 
 // GetImageSource returns the image source with the given ID.
-func (c *Cluster) GetImageSource(imageID int) (int, api.ImageSource, error) {
+func (c *ClusterTx) GetImageSource(imageID int) (int, api.ImageSource, error) {
 	q := `SELECT id, server, protocol, certificate, alias FROM images_source WHERE image_id=?`
 	sources := []struct {
 		ID          int
@@ -211,21 +211,17 @@ func (c *Cluster) GetImageSource(imageID int) (int, api.ImageSource, error) {
 		}
 
 	}
-	err := c.Transaction(func(tx *ClusterTx) error {
-		stmt, err := tx.tx.Prepare(q)
-		if err != nil {
-			return err
-		}
-		defer stmt.Close()
-		err = query.SelectObjects(stmt, dest, imageID)
-		if err != nil {
-			return err
-		}
-		return nil
-	})
+	stmt, err := c.tx.Prepare(q)
 	if err != nil {
 		return -1, api.ImageSource{}, err
 	}
+	defer stmt.Close()
+
+	err = query.SelectObjects(stmt, dest, imageID)
+	if err != nil {
+		return -1, api.ImageSource{}, err
+	}
+
 	if len(sources) == 0 {
 		return -1, api.ImageSource{}, ErrNoSuchObject
 	}
@@ -361,13 +357,18 @@ func (c *Cluster) ImageIsReferencedByOtherProjects(project string, fingerprint s
 }
 
 // GetImage gets an Image object from the database.
-// If strictMatching is false, The fingerprint argument will be queried with a LIKE query, means you can
-// pass a shortform and will get the full fingerprint.
-// There can never be more than one image with a given fingerprint, as it is
-// enforced by a UNIQUE constraint in the schema.
-func (c *Cluster) GetImage(project, fingerprint string, public bool, strictMatching bool) (int, *api.Image, error) {
-	profileProject := project
+//
+// The fingerprint argument will be queried with a LIKE query, means you can
+// pass a shortform and will get the full fingerprint. However in case the
+// shortform matches more than one image, an error will be returned.
+func (c *Cluster) GetImage(project, fingerprint string, public bool) (int, *api.Image, error) {
+	var image api.Image
+	var object Image
+	if fingerprint == "" {
+		return -1, nil, ErrNoSuchObject
+	}
 	err := c.Transaction(func(tx *ClusterTx) error {
+		profileProject := project
 		enabled, err := tx.ProjectHasImages(project)
 		if err != nil {
 			return errors.Wrap(err, "Check if project has images")
@@ -375,87 +376,51 @@ func (c *Cluster) GetImage(project, fingerprint string, public bool, strictMatch
 		if !enabled {
 			project = "default"
 		}
+		images, err := tx.GetImages(ImageFilter{
+			Project:     project,
+			Fingerprint: fingerprint + "%",
+			Public:      public,
+		})
+		if err != nil {
+			return errors.Wrap(err, "Failed to fetch images")
+		}
+
+		switch len(images) {
+		case 0:
+			return ErrNoSuchObject
+		case 1:
+			object = images[0]
+		default:
+			return fmt.Errorf("More than one image matches")
+		}
+
+		image.Fingerprint = object.Fingerprint
+		image.Filename = object.Filename
+		image.Size = object.Size
+		image.Cached = object.Cached
+		image.Public = object.Public
+		image.AutoUpdate = object.AutoUpdate
+
+		err = tx.imageFill(
+			object.ID, &image,
+			&object.CreationDate, &object.ExpiryDate, &object.LastUseDate,
+			&object.UploadDate, object.Architecture, object.Type)
+		if err != nil {
+			return errors.Wrapf(err, "Fill image details")
+		}
+
+		err = tx.imageFillProfiles(object.ID, &image, profileProject)
+		if err != nil {
+			return errors.Wrapf(err, "Fill image profiles")
+		}
+
 		return nil
 	})
 	if err != nil {
 		return -1, nil, err
 	}
 
-	var create, expire, used, upload *time.Time // These hold the db-returned times
-
-	// The object we'll actually return
-	image := api.Image{}
-	id := -1
-	arch := -1
-	imageType := -1
-
-	// These two humongous things will be filled by the call to DbQueryRowScan
-	outfmt := []interface{}{&id, &image.Fingerprint, &image.Filename,
-		&image.Size, &image.Cached, &image.Public, &image.AutoUpdate, &arch,
-		&create, &expire, &used, &upload, &imageType}
-
-	inargs := []interface{}{project}
-	query := `
-        SELECT
-            images.id, fingerprint, filename, size, cached, public, auto_update, architecture,
-            creation_date, expiry_date, last_use_date, upload_date, type
-        FROM images
-        JOIN projects ON projects.id = images.project_id
-       WHERE projects.name = ?`
-	if strictMatching {
-		inargs = append(inargs, fingerprint)
-		query += " AND fingerprint = ?"
-	} else {
-		inargs = append(inargs, fingerprint+"%")
-		query += " AND fingerprint LIKE ?"
-	}
-
-	if public {
-		query += " AND public=1"
-	}
-
-	err = dbQueryRowScan(c, query, inargs, outfmt)
-	if err != nil {
-		if err == sql.ErrNoRows {
-			return -1, nil, ErrNoSuchObject
-		}
-
-		return -1, nil, err // Likely: there are no rows for this fingerprint
-	}
-
-	// Validate we only have a single match
-	if !strictMatching {
-		query = `
-SELECT COUNT(images.id)
-  FROM images
-  JOIN projects ON projects.id = images.project_id
- WHERE projects.name = ?
-   AND fingerprint LIKE ?
-`
-		count := 0
-		outfmt := []interface{}{&count}
-
-		err = dbQueryRowScan(c, query, inargs, outfmt)
-		if err != nil {
-			return -1, nil, err
-		}
-
-		if count > 1 {
-			return -1, nil, fmt.Errorf("Partial fingerprint matches more than one image")
-		}
-	}
-
-	err = c.imageFill(id, &image, create, expire, used, upload, arch, imageType)
-	if err != nil {
-		return -1, nil, errors.Wrapf(err, "Fill image details")
-	}
-
-	err = c.imageFillProfiles(id, &image, profileProject)
-	if err != nil {
-		return -1, nil, errors.Wrapf(err, "Fill image profiles")
-	}
-
-	return id, &image, nil
+	return object.ID, &image, nil
 }
 
 // GetImageFromAnyProject returns an image matching the given fingerprint, if
@@ -492,7 +457,9 @@ func (c *Cluster) GetImageFromAnyProject(fingerprint string) (int, *api.Image, e
 		return -1, nil, err // Likely: there are no rows for this fingerprint
 	}
 
-	err = c.imageFill(id, &image, create, expire, used, upload, arch, imageType)
+	err = c.Transaction(func(tx *ClusterTx) error {
+		return tx.imageFill(id, &image, create, expire, used, upload, arch, imageType)
+	})
 	if err != nil {
 		return -1, nil, errors.Wrapf(err, "Fill image details")
 	}
@@ -502,7 +469,7 @@ func (c *Cluster) GetImageFromAnyProject(fingerprint string) (int, *api.Image, e
 
 // Fill extra image fields such as properties and alias. This is called after
 // fetching a single row from the images table.
-func (c *Cluster) imageFill(id int, image *api.Image, create, expire, used, upload *time.Time, arch int, imageType int) error {
+func (c *ClusterTx) imageFill(id int, image *api.Image, create, expire, used, upload *time.Time, arch int, imageType int) error {
 	// Some of the dates can be nil in the DB, let's process them.
 	if create != nil {
 		image.CreatedAt = *create
@@ -529,39 +496,33 @@ func (c *Cluster) imageFill(id int, image *api.Image, create, expire, used, uplo
 	image.UploadedAt = *upload
 
 	// Get the properties
-	q := "SELECT key, value FROM images_properties where image_id=?"
-	var key, value, name, desc string
-	inargs := []interface{}{id}
-	outfmt := []interface{}{key, value}
-	results, err := queryScan(c, q, inargs, outfmt)
+	properties, err := query.SelectConfig(c.tx, "images_properties", "image_id=?", id)
 	if err != nil {
 		return err
 	}
-
-	properties := map[string]string{}
-	for _, r := range results {
-		key = r[0].(string)
-		value = r[1].(string)
-		properties[key] = value
-	}
-
 	image.Properties = properties
 
 	// Get the aliases
-	q = "SELECT name, description FROM images_aliases WHERE image_id=?"
-	inargs = []interface{}{id}
-	outfmt = []interface{}{name, desc}
-	results, err = queryScan(c, q, inargs, outfmt)
+	aliases := []api.ImageAlias{}
+	dest := func(i int) []interface{} {
+		aliases = append(aliases, api.ImageAlias{})
+		return []interface{}{
+			&aliases[i].Name,
+			&aliases[i].Description,
+		}
+
+	}
+	q := "SELECT name, description FROM images_aliases WHERE image_id=?"
+	stmt, err := c.tx.Prepare(q)
 	if err != nil {
 		return err
 	}
 
-	aliases := []api.ImageAlias{}
-	for _, r := range results {
-		name = r[0].(string)
-		desc = r[1].(string)
-		a := api.ImageAlias{Name: name, Description: desc}
-		aliases = append(aliases, a)
+	defer stmt.Close()
+
+	err = query.SelectObjects(stmt, dest, id)
+	if err != nil {
+		return err
 	}
 
 	image.Aliases = aliases
@@ -574,20 +535,14 @@ func (c *Cluster) imageFill(id int, image *api.Image, create, expire, used, uplo
 	return nil
 }
 
-func (c *Cluster) imageFillProfiles(id int, image *api.Image, project string) error {
+func (c *ClusterTx) imageFillProfiles(id int, image *api.Image, project string) error {
 	// Check which project name to use
-	err := c.Transaction(func(tx *ClusterTx) error {
-		enabled, err := tx.ProjectHasProfiles(project)
-		if err != nil {
-			return errors.Wrap(err, "Check if project has profiles")
-		}
-		if !enabled {
-			project = "default"
-		}
-		return nil
-	})
+	enabled, err := c.ProjectHasProfiles(project)
 	if err != nil {
-		return err
+		return errors.Wrap(err, "Check if project has profiles")
+	}
+	if !enabled {
+		project = "default"
 	}
 
 	// Get the profiles
@@ -597,21 +552,13 @@ SELECT profiles.name FROM profiles
 	JOIN projects ON profiles.project_id = projects.id
 WHERE images_profiles.image_id = ? AND projects.name = ?
 `
-	var name string
-	inargs := []interface{}{id, project}
-	outfmt := []interface{}{name}
-	results, err := queryScan(c, q, inargs, outfmt)
+	profiles, err := query.SelectStrings(c.tx, q, id, project)
 	if err != nil {
 		return err
 	}
 
-	profiles := make([]string, 0)
-	for _, r := range results {
-		name = r[0].(string)
-		profiles = append(profiles, name)
-	}
-
 	image.Profiles = profiles
+
 	return nil
 }
 
@@ -675,7 +622,7 @@ WHERE images.fingerprint = ?
 // AddImageToLocalNode creates a new entry in the images_nodes table for
 // tracking that the local node has the given image.
 func (c *Cluster) AddImageToLocalNode(project, fingerprint string) error {
-	imageID, _, err := c.GetImage(project, fingerprint, false, true)
+	imageID, _, err := c.GetImage(project, fingerprint, false)
 	if err != nil {
 		return err
 	}
