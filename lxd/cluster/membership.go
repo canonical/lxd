@@ -494,6 +494,11 @@ func notifyNodesUpdate(raftNodes []db.RaftNode, id uint64, cert *shared.CertInfo
 // If there's such spare node, return its address as well as the new list of
 // raft nodes.
 func Rebalance(state *state.State, gateway *Gateway) (string, []db.RaftNode, error) {
+	// If we're a standalone node, do nothing.
+	if gateway.memoryDial != nil {
+		return "", nil, nil
+	}
+
 	// First get the current raft members, since this method should be
 	// called after a node has left.
 	currentRaftNodes, err := gateway.currentRaftNodes()
