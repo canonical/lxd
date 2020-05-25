@@ -97,7 +97,7 @@ type Daemon struct {
 
 	// Serialize changes to cluster membership (joins, leaves, role
 	// changes).
-	clusterMembershipMutex   sync.Mutex
+	clusterMembershipMutex   sync.RWMutex
 	clusterMembershipClosing bool // Prevent further rebalances
 }
 
