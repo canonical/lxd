@@ -1041,3 +1041,6 @@ It also introduces the following new endpoint:
 
 ## network\_dns\_search
 This introduces the `dns.search` config option on networks.
+
+## container\_nic\_routed\_limits
+This introduces `limits.ingress`, `limits.egress` and `limits.max` for routed NICs.
