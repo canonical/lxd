@@ -5810,12 +5810,20 @@ func (c *lxc) networkState() map[string]api.InstanceStateNetwork {
 	}
 
 	if !couldUseNetnsGetifaddrs {
+		pidFdNr, pidFd := c.inheritInitPidFd()
+		if pidFdNr >= 0 {
+			defer pidFd.Close()
+		}
+
 		// Get the network state from the container
-		out, err := shared.RunCommand(
+		_, out, err := shared.RunCommandSplit(
+			nil,
+			[]*os.File{pidFd},
 			c.state.OS.ExecPath,
 			"forknet",
 			"info",
-			fmt.Sprintf("%d", pid))
+			fmt.Sprintf("%d", pid),
+			fmt.Sprintf("%d", pidFdNr))
 
 		// Process forkgetnet response
 		if err != nil {

@@ -22,11 +22,12 @@ import (
 #include <unistd.h>
 
 extern char *advance_arg(bool required);
-extern int dosetns(int pid, char *nstype);
 extern int dosetns_file(char *file, char *nstype);
+extern bool setnsat(int ns_fd, const char *ns);
+extern int pidfd_nsfd(int pidfd, pid_t pid);
 
-void forkdonetinfo(pid_t pid) {
-	if (dosetns(pid, "net") < 0) {
+void forkdonetinfo(int ns_fd) {
+	if (!setnsat(ns_fd, "net")) {
 		fprintf(stderr, "Failed setns to container network namespace: %s\n", strerror(errno));
 		_exit(1);
 	}
@@ -70,8 +71,15 @@ void forknet(void)
 
 	// Call the subcommands
 	if (strcmp(command, "info") == 0) {
+		int ns_fd, pidfd;
 		pid = atoi(cur);
-		forkdonetinfo(pid);
+
+		pidfd = atoi(advance_arg(true));
+		ns_fd = pidfd_nsfd(pidfd, pid);
+		if (ns_fd < 0)
+			_exit(1);
+
+		forkdonetinfo(ns_fd);
 	}
 
 	if (strcmp(command, "detach") == 0)
@@ -100,8 +108,8 @@ func (c *cmdForknet) Command() *cobra.Command {
 
 	// pull
 	cmdInfo := &cobra.Command{}
-	cmdInfo.Use = "info <PID>"
-	cmdInfo.Args = cobra.ExactArgs(1)
+	cmdInfo.Use = "info <PID> <PidFd>"
+	cmdInfo.Args = cobra.ExactArgs(2)
 	cmdInfo.RunE = c.RunInfo
 	cmd.AddCommand(cmdInfo)
 
