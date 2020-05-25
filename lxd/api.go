@@ -64,8 +64,8 @@ type lxdHttpServer struct {
 }
 
 func (s *lxdHttpServer) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
-	// Set CORS headers, unless this is an internal or gRPC request.
-	if !strings.HasPrefix(req.URL.Path, "/internal") && !strings.HasPrefix(req.URL.Path, "/protocol.SQL") {
+	// Set CORS headers, unless this is an internal request.
+	if !strings.HasPrefix(req.URL.Path, "/internal") {
 		<-s.d.setupChan
 		err := s.d.cluster.Transaction(func(tx *db.ClusterTx) error {
 			config, err := cluster.ConfigLoad(tx)

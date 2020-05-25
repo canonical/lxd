@@ -108,6 +108,15 @@ var internalRAFTSnapshotCmd = APIEndpoint{
 }
 
 func internalWaitReady(d *Daemon, r *http.Request) response.Response {
+	// Check that we're not shutting down.
+	var isClosing bool
+	d.clusterMembershipMutex.RLock()
+	isClosing = d.clusterMembershipClosing
+	d.clusterMembershipMutex.RUnlock()
+	if isClosing {
+		return response.Unavailable(fmt.Errorf("LXD daemon is shutting down"))
+	}
+
 	select {
 	case <-d.readyChan:
 	default:
