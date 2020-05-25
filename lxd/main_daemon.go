@@ -85,8 +85,8 @@ func (c *cmdDaemon) Run(cmd *cobra.Command, args []string) error {
 			containersShutdown(s)
 			networkShutdown(s)
 		} else {
-			d.Kill()
 			logger.Infof("Received '%s signal', exiting", sig)
+			d.Kill()
 		}
 
 	case <-d.shutdownChan:
