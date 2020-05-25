@@ -360,7 +360,7 @@ func (c *cmdConfigGet) Command() *cobra.Command {
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
 		`Get values for instance or server configuration keys`))
 
-	cmd.Flags().BoolVar(&c.flagExpanded, "expanded", false, i18n.G("Access the expanded configuration"))
+	cmd.Flags().BoolVarP(&c.flagExpanded, "expanded", "e", false, i18n.G("Access the expanded configuration"))
 	cmd.Flags().StringVar(&c.config.flagTarget, "target", "", i18n.G("Cluster member name")+"``")
 	cmd.RunE = c.Run
 
@@ -610,7 +610,7 @@ func (c *cmdConfigShow) Command() *cobra.Command {
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
 		`Show instance or server configurations`))
 
-	cmd.Flags().BoolVar(&c.flagExpanded, "expanded", false, i18n.G("Show the expanded configuration"))
+	cmd.Flags().BoolVarP(&c.flagExpanded, "expanded", "e", false, i18n.G("Show the expanded configuration"))
 	cmd.Flags().StringVar(&c.config.flagTarget, "target", "", i18n.G("Cluster member name")+"``")
 	cmd.RunE = c.Run
 
