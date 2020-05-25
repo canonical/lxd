@@ -29,9 +29,9 @@ import (
 
 #include "include/memory_utils.h"
 
-extern void attach_userns(int pid);
 extern char* advance_arg(bool required);
-extern int dosetns(int pid, char *nstype);
+extern void attach_userns_fd(int ns_fd);
+extern int pidfd_nsfd(int pidfd, pid_t pid);
 extern bool setnsat(int ns_fd, const char *ns);
 
 static inline bool same_fsinfo(struct stat *s1, struct stat *s2,
@@ -59,15 +59,10 @@ static bool chdirchroot_in_mntns(int cwd_fd, int root_fd)
 	return true;
 }
 
-static bool acquire_basic_creds(pid_t pid)
+static bool acquire_basic_creds(pid_t pid, int ns_fd)
 {
-	__do_close int cwd_fd = -EBADF, mnt_fd = -EBADF, root_fd = -EBADF;
+	__do_close int cwd_fd = -EBADF, root_fd = -EBADF;
 	char buf[256];
-
-	snprintf(buf, sizeof(buf), "/proc/%d/ns/mnt", pid);
-	mnt_fd = open(buf, O_RDONLY | O_CLOEXEC);
-	if (mnt_fd < 0)
-		return false;
 
 	snprintf(buf, sizeof(buf), "/proc/%d/root", pid);
 	root_fd = open(buf, O_PATH | O_RDONLY | O_CLOEXEC | O_NOFOLLOW);
@@ -79,7 +74,7 @@ static bool acquire_basic_creds(pid_t pid)
 	if (cwd_fd < 0)
 		return false;
 
-	if (setns(mnt_fd, CLONE_NEWNS))
+	if (!setnsat(ns_fd, "mnt"))
 		return false;
 
 	return chdirchroot_in_mntns(cwd_fd, root_fd);
@@ -140,7 +135,7 @@ static bool acquire_final_creds(pid_t pid, uid_t uid, gid_t gid, uid_t fsuid, gi
 // <PID> <root-uid> <root-gid> <path> <mode> <dev>
 static void mknod_emulate(void)
 {
-	__do_close int target_dir_fd = -EBADF;
+	__do_close int target_dir_fd = -EBADF, pidfd = -EBADF, ns_fd = -EBADF;
 	char *target = NULL, *target_dir = NULL;
 	int ret;
 	char path[PATH_MAX];
@@ -152,6 +147,10 @@ static void mknod_emulate(void)
 	struct statfs sfs;
 
 	pid = atoi(advance_arg(true));
+	pidfd = atoi(advance_arg(true));
+	ns_fd = pidfd_nsfd(pidfd, pid);
+	if (ns_fd < 0)
+		_exit(EXIT_FAILURE);
 	target = advance_arg(true);
 	mode = atoi(advance_arg(true));
 	dev = atoi(advance_arg(true));
@@ -160,7 +159,7 @@ static void mknod_emulate(void)
 	fsuid = atoi(advance_arg(true));
 	fsgid = atoi(advance_arg(true));
 
-	if (!acquire_basic_creds(pid)) {
+	if (!acquire_basic_creds(pid, ns_fd)) {
 		fprintf(stderr, "%d", ENOANO);
 		_exit(EXIT_FAILURE);
 	}
@@ -238,10 +237,9 @@ static bool change_creds(int ns_fd, cap_t caps, uid_t nsuid, gid_t nsgid, uid_t 
 
 static void setxattr_emulate(void)
 {
-	__do_close int ns_fd = -EBADF, target_fd = -EBADF;
+	__do_close int ns_fd = -EBADF, pidfd = -EBADF, target_fd = -EBADF;
 	int flags = 0;
 	char *name, *target;
-	char path[PATH_MAX];
 	uid_t nsfsuid, nsuid;
 	gid_t nsfsgid, nsgid;
 	pid_t pid = 0;
@@ -252,6 +250,10 @@ static void setxattr_emulate(void)
 	size_t size;
 
 	pid = atoi(advance_arg(true));
+	pidfd = atoi(advance_arg(true));
+	ns_fd = pidfd_nsfd(pidfd, pid);
+	if (ns_fd < 0)
+		_exit(EXIT_FAILURE);
 	nsuid = atoi(advance_arg(true));
 	nsgid = atoi(advance_arg(true));
 	nsfsuid = atoi(advance_arg(true));
@@ -263,14 +265,7 @@ static void setxattr_emulate(void)
 	size = atoi(advance_arg(true));
 	data = advance_arg(true);
 
-	snprintf(path, sizeof(path), "/proc/%d/ns", pid);
-	ns_fd = open(path, O_PATH | O_RDONLY | O_CLOEXEC | O_DIRECTORY);
-	if (ns_fd < 0) {
-		fprintf(stderr, "%d", ENOANO);
-		_exit(EXIT_FAILURE);
-	}
-
-	if (!acquire_basic_creds(pid)) {
+	if (!acquire_basic_creds(pid, ns_fd)) {
 		fprintf(stderr, "%d", ENOANO);
 		_exit(EXIT_FAILURE);
 	}
@@ -370,7 +365,7 @@ static int preserve_ns(const int pid, const char *ns)
 
 static void mount_emulate(void)
 {
-	__do_close int mnt_fd = -EBADF;
+	__do_close int mnt_fd = -EBADF, pidfd = -EBADF, ns_fd = -EBADF;
 	char *source = NULL, *shiftfs = NULL, *target = NULL, *fstype = NULL;
 	bool use_fuse;
 	uid_t uid = -1, fsuid = -1;
@@ -381,6 +376,11 @@ static void mount_emulate(void)
 	const void *data;
 
 	pid = atoi(advance_arg(true));
+	pidfd = atoi(advance_arg(true));
+	ns_fd = pidfd_nsfd(pidfd, pid);
+	if (ns_fd < 0)
+		_exit(EXIT_FAILURE);
+
 	use_fuse = (atoi(advance_arg(true)) == 1);
 	if (!use_fuse) {
 		source = advance_arg(true);
@@ -401,15 +401,15 @@ static void mount_emulate(void)
 		_exit(EXIT_FAILURE);
 
 	if (use_fuse) {
-		attach_userns(pid);
+		attach_userns_fd(ns_fd);
 
 		// Attach to pid namespace so that if we spawn a fuse daemon
 		// it'll belong to the correct pid namespace and dies with the
 		// container.
-		dosetns(pid, "pid");
+		setnsat(ns_fd, "pid");
 	}
 
-	if (!acquire_basic_creds(pid))
+	if (!acquire_basic_creds(pid, ns_fd))
 		_exit(EXIT_FAILURE);
 
 	if (!acquire_final_creds(pid, uid, gid, fsuid, fsgid))
@@ -466,8 +466,8 @@ static void mount_emulate(void)
 			_exit(EXIT_FAILURE);
 		}
 
-		attach_userns(pid);
-		if (!acquire_basic_creds(pid)) {
+		attach_userns_fd(ns_fd);
+		if (!acquire_basic_creds(pid, ns_fd)) {
 			umount2(target, MNT_DETACH);
 			umount2(target, MNT_DETACH);
 			_exit(EXIT_FAILURE);
@@ -555,7 +555,7 @@ type cmdForksyscall struct {
 func (c *cmdForksyscall) Command() *cobra.Command {
 	// Main subcommand
 	cmd := &cobra.Command{}
-	cmd.Use = "forksyscall <syscall> <PID> [...]"
+	cmd.Use = "forksyscall <syscall> <PID> <PidFd> [...]"
 	cmd.Short = "Perform syscall operations"
 	cmd.Long = `Description:
   Perform syscall operations
