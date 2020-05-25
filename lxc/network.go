@@ -855,7 +855,15 @@ func (c *cmdNetworkList) Run(cmd *cobra.Command, args []string) error {
 		}
 
 		strUsedBy := fmt.Sprintf("%d", len(network.UsedBy))
-		details := []string{network.Name, network.Type, strManaged, network.Description, strUsedBy}
+		details := []string{
+			network.Name,
+			network.Type,
+			strManaged,
+			network.Config["ipv4.address"],
+			network.Config["ipv6.address"],
+			network.Description,
+			strUsedBy,
+		}
 		if resource.server.IsClustered() {
 			details = append(details, strings.ToUpper(network.Status))
 		}
@@ -867,6 +875,8 @@ func (c *cmdNetworkList) Run(cmd *cobra.Command, args []string) error {
 		i18n.G("NAME"),
 		i18n.G("TYPE"),
 		i18n.G("MANAGED"),
+		i18n.G("IPV4"),
+		i18n.G("IPV6"),
 		i18n.G("DESCRIPTION"),
 		i18n.G("USED BY"),
 	}
