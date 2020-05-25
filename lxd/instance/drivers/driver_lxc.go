@@ -1835,18 +1835,25 @@ func (c *lxc) DeviceEventHandler(runConf *deviceConfig.RunConfig) error {
 
 	// Generate uevent inside container if requested.
 	if len(runConf.Uevents) > 0 {
+
+		pidFdNr, pidFd := c.inheritInitPidFd()
+		if pidFdNr >= 0 {
+			defer pidFd.Close()
+		}
+
 		for _, eventParts := range runConf.Uevents {
 			ueventArray := make([]string, 4)
 			ueventArray[0] = "forkuevent"
 			ueventArray[1] = "inject"
 			ueventArray[2] = fmt.Sprintf("%d", c.InitPID())
+			ueventArray[3] = fmt.Sprintf("%d", pidFdNr)
 			length := 0
 			for _, part := range eventParts {
 				length = length + len(part) + 1
 			}
-			ueventArray[3] = fmt.Sprintf("%d", length)
+			ueventArray[4] = fmt.Sprintf("%d", length)
 			ueventArray = append(ueventArray, eventParts...)
-			_, err := shared.RunCommand(c.state.OS.ExecPath, ueventArray...)
+			_, _, err := shared.RunCommandSplit(nil, []*os.File{pidFd}, c.state.OS.ExecPath, ueventArray...)
 			if err != nil {
 				return err
 			}
