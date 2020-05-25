@@ -64,6 +64,7 @@ type OS struct {
 
 	// Kernel features
 	NetnsGetifaddrs         bool
+	PidFds                  bool
 	SeccompListener         bool
 	SeccompListenerContinue bool
 	Shiftfs                 bool

@@ -72,4 +72,8 @@
 
 #define __cgfsng_ops
 
+#ifndef __returns_twice
+#define __returns_twice __attribute__((returns_twice))
+#endif
+
 #endif /* __LXC_COMPILER_H */

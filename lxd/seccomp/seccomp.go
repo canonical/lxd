@@ -465,6 +465,20 @@ func InstanceNeedsIntercept(s *state.State, c Instance) (bool, error) {
 	return needed, nil
 }
 
+// InheritInitPidFd prepares a pidfd to inherit for the init process of the container.
+func inheritPidFd(pid int, s *state.State) (int, *os.File) {
+	if s.OS.PidFds {
+		pidFdFile, err := shared.PidFdOpen(pid, 0)
+		if err != nil {
+			return -1, nil
+		}
+
+		return 3, pidFdFile
+	}
+
+	return -1, nil
+}
+
 func seccompGetPolicyContent(s *state.State, c Instance) (string, error) {
 	config := c.ExpandedConfig()
 
@@ -871,17 +885,32 @@ func TaskIDs(pid int) (int64, int64, int64, int64, error) {
 }
 
 // CallForkmknod executes fork mknod.
-func CallForkmknod(c Instance, dev deviceConfig.Device, requestPID int) int {
+func CallForkmknod(c Instance, dev deviceConfig.Device, requestPID int, s *state.State) int {
 	uid, gid, fsuid, fsgid, err := TaskIDs(requestPID)
 	if err != nil {
 		return int(-C.EPERM)
 	}
 
-	_, stderr, err := shared.RunCommandSplit(nil, util.GetExecPath(),
-		"forksyscall", "mknod", dev["pid"], dev["path"],
-		dev["mode_t"], dev["dev_t"],
-		fmt.Sprintf("%d", uid), fmt.Sprintf("%d", gid),
-		fmt.Sprintf("%d", fsuid), fmt.Sprintf("%d", fsgid))
+	pidFdNr, pidFd := inheritPidFd(requestPID, s)
+	if pidFdNr >= 0 {
+		defer pidFd.Close()
+	}
+
+	_, stderr, err := shared.RunCommandSplit(
+		nil,
+		[]*os.File{pidFd},
+		util.GetExecPath(),
+		"forksyscall",
+		"mknod",
+		dev["pid"],
+		fmt.Sprintf("%d", pidFdNr),
+		dev["path"],
+		dev["mode_t"],
+		dev["dev_t"],
+		fmt.Sprintf("%d", uid),
+		fmt.Sprintf("%d", gid),
+		fmt.Sprintf("%d", fsuid),
+		fmt.Sprintf("%d", fsgid))
 	if err != nil {
 		errno, err := strconv.Atoi(stderr)
 		if err != nil || errno == C.ENOANO {
@@ -921,7 +950,7 @@ func (s *Server) doDeviceSyscall(c Instance, args *MknodArgs, siov *Iovec) int {
 	dev["mode_t"] = fmt.Sprintf("%d", args.cMode)
 	dev["dev_t"] = fmt.Sprintf("%d", args.cDev)
 
-	errno := CallForkmknod(c, dev, int(args.cPid))
+	errno := CallForkmknod(c, dev, int(args.cPid), s.s)
 	if errno != int(-C.ENOMEDIUM) {
 		return errno
 	}
@@ -1072,6 +1101,12 @@ func (s *Server) HandleSetxattrSyscall(c Instance, siov *Iovec) int {
 	args := SetxattrArgs{}
 
 	args.pid = int(siov.req.pid)
+
+	pidFdNr, pidFd := inheritPidFd(args.pid, s.s)
+	if pidFdNr >= 0 {
+		defer pidFd.Close()
+	}
+
 	uid, gid, fsuid, fsgid, err := TaskIDs(args.pid)
 	if err != nil {
 		if s.s.OS.SeccompListenerContinue {
@@ -1155,10 +1190,14 @@ func (s *Server) HandleSetxattrSyscall(c Instance, siov *Iovec) int {
 		return 0
 	}
 
-	_, stderr, err := shared.RunCommandSplit(nil, util.GetExecPath(),
+	_, stderr, err := shared.RunCommandSplit(
+		nil,
+		[]*os.File{pidFd},
+		util.GetExecPath(),
 		"forksyscall",
 		"setxattr",
 		fmt.Sprintf("%d", args.pid),
+		fmt.Sprintf("%d", pidFdNr),
 		fmt.Sprintf("%d", args.nsuid),
 		fmt.Sprintf("%d", args.nsgid),
 		fmt.Sprintf("%d", args.nsfsuid),
@@ -1335,6 +1374,11 @@ func (s *Server) HandleMountSyscall(c Instance, siov *Iovec) int {
 		shift: s.MountSyscallShift(c),
 	}
 
+	pidFdNr, pidFd := inheritPidFd(args.pid, s.s)
+	if pidFdNr >= 0 {
+		defer pidFd.Close()
+	}
+
 	// const char *source
 	args.source = ""
 	if siov.req.data.args[0] != 0 {
@@ -1435,10 +1479,14 @@ func (s *Server) HandleMountSyscall(c Instance, siov *Iovec) int {
 		ctx["fuse_source"] = fuseSource
 		ctx["fuse_target"] = args.target
 		ctx["fuse_opts"] = fuseOpts
-		_, _, err = shared.RunCommandSplit(nil, util.GetExecPath(),
+		_, _, err = shared.RunCommandSplit(
+			nil,
+			[]*os.File{pidFd},
+			util.GetExecPath(),
 			"forksyscall",
 			"mount",
 			fmt.Sprintf("%d", args.pid),
+			fmt.Sprintf("%d", pidFdNr),
 			fmt.Sprintf("%d", 1),
 			fmt.Sprintf("%d", nsuid),
 			fmt.Sprintf("%d", nsgid),
@@ -1448,10 +1496,14 @@ func (s *Server) HandleMountSyscall(c Instance, siov *Iovec) int {
 			fmt.Sprintf("%s", args.target),
 			fmt.Sprintf("%s", fuseOpts))
 	} else {
-		_, _, err = shared.RunCommandSplit(nil, util.GetExecPath(),
+		_, _, err = shared.RunCommandSplit(
+			nil,
+			[]*os.File{pidFd},
+			util.GetExecPath(),
 			"forksyscall",
 			"mount",
 			fmt.Sprintf("%d", args.pid),
+			fmt.Sprintf("%d", pidFdNr),
 			fmt.Sprintf("%d", 0),
 			fmt.Sprintf("%s", args.source),
 			fmt.Sprintf("%s", args.target),

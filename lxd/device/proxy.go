@@ -31,7 +31,9 @@ type proxy struct {
 
 type proxyProcInfo struct {
 	listenPid      string
+	listenPidFd    string
 	connectPid     string
+	connectPidFd   string
 	connectAddr    string
 	listenAddr     string
 	listenAddrGID  string
@@ -40,6 +42,7 @@ type proxyProcInfo struct {
 	securityUID    string
 	securityGID    string
 	proxyProtocol  string
+	inheritFds     []*os.File
 }
 
 // validateConfig checks the supplied config for correctness.
@@ -190,12 +193,16 @@ func (d *proxy) Start() (*deviceConfig.RunConfig, error) {
 			logFileName := fmt.Sprintf("proxy.%s.log", d.name)
 			logPath := filepath.Join(d.inst.LogPath(), logFileName)
 
-			_, err = shared.RunCommand(
+			_, err = shared.RunCommandInheritFds(
+				proxyValues.inheritFds,
 				d.state.OS.ExecPath,
 				"forkproxy",
+				"--",
 				proxyValues.listenPid,
+				proxyValues.listenPidFd,
 				proxyValues.listenAddr,
 				proxyValues.connectPid,
+				proxyValues.connectPidFd,
 				proxyValues.connectAddr,
 				logPath,
 				pidPath,
@@ -206,6 +213,10 @@ func (d *proxy) Start() (*deviceConfig.RunConfig, error) {
 				proxyValues.securityUID,
 				proxyValues.proxyProtocol,
 			)
+			for _, file := range proxyValues.inheritFds {
+				file.Close()
+			}
+
 			if err != nil {
 				return fmt.Errorf("Error occurred when starting proxy device: %s", err)
 			}
@@ -426,7 +437,22 @@ func (d *proxy) setupProxyProcInfo() (*proxyProcInfo, error) {
 	containerPid := strconv.Itoa(cc.InitPid())
 	lxdPid := strconv.Itoa(os.Getpid())
 
-	var listenPid, connectPid string
+	containerPidFd := -1
+	lxdPidFd := -1
+	var inheritFd []*os.File = nil
+	if d.state.OS.PidFds {
+		cPidFd, err := cc.InitPidFd()
+		if err == nil {
+			dPidFd, err := shared.PidFdOpen(os.Getpid(), 0)
+			if err == nil {
+				inheritFd = []*os.File{cPidFd, dPidFd}
+				containerPidFd = 3
+				lxdPidFd = 4
+			}
+		}
+	}
+
+	var listenPid, listenPidFd, connectPid, connectPidFd string
 
 	connectAddr := d.config["connect"]
 	listenAddr := d.config["listen"]
@@ -434,11 +460,19 @@ func (d *proxy) setupProxyProcInfo() (*proxyProcInfo, error) {
 	switch d.config["bind"] {
 	case "host", "":
 		listenPid = lxdPid
+		listenPidFd = fmt.Sprintf("%d", lxdPidFd)
+
 		connectPid = containerPid
+		connectPidFd = fmt.Sprintf("%d", containerPidFd)
+
 		listenAddr = d.rewriteHostAddr(listenAddr)
 	case "guest", "container":
 		listenPid = containerPid
+		listenPidFd = fmt.Sprintf("%d", containerPidFd)
+
 		connectPid = lxdPid
+		connectPidFd = fmt.Sprintf("%d", lxdPidFd)
+
 		connectAddr = d.rewriteHostAddr(connectAddr)
 	default:
 		return nil, fmt.Errorf("Invalid binding side given. Must be \"host\" or \"guest\"")
@@ -451,7 +485,9 @@ func (d *proxy) setupProxyProcInfo() (*proxyProcInfo, error) {
 
 	p := &proxyProcInfo{
 		listenPid:      listenPid,
+		listenPidFd:    listenPidFd,
 		connectPid:     connectPid,
+		connectPidFd:   connectPidFd,
 		connectAddr:    connectAddr,
 		listenAddr:     listenAddr,
 		listenAddrGID:  d.config["gid"],
@@ -460,6 +496,7 @@ func (d *proxy) setupProxyProcInfo() (*proxyProcInfo, error) {
 		securityGID:    d.config["security.gid"],
 		securityUID:    d.config["security.uid"],
 		proxyProtocol:  d.config["proxy_protocol"],
+		inheritFds:     inheritFd,
 	}
 
 	return p, nil
