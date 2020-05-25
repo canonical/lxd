@@ -37,6 +37,8 @@ package main
 #include <unistd.h>
 
 #include "include/memory_utils.h"
+#include "include/process_utils.h"
+#include "include/syscall_numbers.h"
 
 // External functions
 extern void checkfeature();
@@ -137,9 +139,12 @@ int dosetns_file(char *file, char *nstype) {
 	return 0;
 }
 
-static int preserve_ns(const int pid, const char *ns)
+static int preserve_ns(pid_t pid, int ns_fd, const char *ns)
 {
 	int ret;
+	if (ns_fd >= 0)
+		return openat(ns_fd, ns, O_RDONLY | O_CLOEXEC);
+
 // 5 /proc + 21 /int_as_str + 3 /ns + 20 /NS_NAME + 1 \0
 #define __NS_PATH_LEN 50
 	char path[__NS_PATH_LEN];
@@ -158,21 +163,22 @@ static int preserve_ns(const int pid, const char *ns)
 }
 
 // in_same_namespace - Check whether two processes are in the same namespace.
-// @pid1 - PID of the first process.
-// @pid2 - PID of the second process.
+// @pid1	- PID of the first process.
+// @pid2	- PID of the second process.
+// @ns_fd2	- ns_fd @pid2.
 // @ns   - Name of the namespace to check. Must correspond to one of the names
 //         for the namespaces as shown in /proc/<pid/ns/
 //
 // If the two processes are not in the same namespace returns an fd to the
 // namespace of the second process identified by @pid2. If the two processes are
 // in the same namespace returns -EINVAL, -1 if an error occurred.
-static int in_same_namespace(pid_t pid1, pid_t pid2, const char *ns)
+static int in_same_namespace(pid_t pid1, pid_t pid2, int ns_fd_pid2, const char *ns)
 {
 	__do_close int ns_fd1 = -EBADF, ns_fd2 = -EBADF;
 	int ret = -1;
 	struct stat ns_st1, ns_st2;
 
-	ns_fd1 = preserve_ns(pid1, ns);
+	ns_fd1 = preserve_ns(pid1, -EBADF, ns);
 	if (ns_fd1 < 0) {
 		// The kernel does not support this namespace. This is not an
 		// error.
@@ -182,7 +188,7 @@ static int in_same_namespace(pid_t pid1, pid_t pid2, const char *ns)
 		return -1;
 	}
 
-	ns_fd2 = preserve_ns(pid2, ns);
+	ns_fd2 = preserve_ns(pid2, ns_fd_pid2, ns);
 	if (ns_fd2 < 0)
 		return -1;
 
@@ -202,11 +208,12 @@ static int in_same_namespace(pid_t pid1, pid_t pid2, const char *ns)
 	return move_fd(ns_fd2);
 }
 
-void attach_userns(int pid) {
+static void __attach_userns(int pid, int ns_fd)
+{
 	__do_close int userns_fd = -EBADF;
 	int ret;
 
-	userns_fd = in_same_namespace(getpid(), pid, "user");
+	userns_fd = in_same_namespace(getpid(), pid, ns_fd, "user");
 	if (userns_fd < 0) {
 		if (userns_fd == -EINVAL)
 			return;
@@ -237,6 +244,52 @@ void attach_userns(int pid) {
 		fprintf(stderr, "Failed setgroups to container root groups: %s\n", strerror(errno));
 		_exit(1);
 	}
+}
+
+void attach_userns(int pid)
+{
+	return __attach_userns(pid, -EBADF);
+}
+
+void attach_userns_fd(int ns_fd)
+{
+	return __attach_userns(-1, ns_fd);
+}
+
+int pidfd_nsfd(int pidfd, pid_t pid)
+{
+	__do_close int ns_fd = -EBADF;
+	int ret;
+	char path[100];
+
+	ret = snprintf(path, sizeof(path), "/proc/%d/ns", pid);
+	if (ret < 0 || (size_t)ret >= sizeof(path))
+		return -E2BIG;
+
+	ns_fd = open(path, O_DIRECTORY | O_RDONLY | O_CLOEXEC);
+	if (ns_fd < 0)
+		return -errno;
+
+	if (pidfd >= 0) {
+		// Verify that the pid has not been recycled and our /proc/<pid> handle
+		// is still valid.
+		ret = pidfd_send_signal(pidfd, 0, NULL, 0);
+		if (ret && errno != EPERM)
+			return -errno;
+	}
+
+	return move_fd(ns_fd);
+}
+
+bool setnsat(int ns_fd, const char *ns)
+{
+	__do_close int fd = -EBADF;
+
+	fd = openat(ns_fd, ns, O_RDONLY | O_CLOEXEC);
+	if (fd < 0)
+		return false;
+
+	return setns(fd, 0) == 0;
 }
 
 static ssize_t lxc_read_nointr(int fd, void *buf, size_t count)

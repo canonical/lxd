@@ -34,8 +34,9 @@ import (
 #endif
 
 extern char *advance_arg(bool required);
-extern void attach_userns(int pid);
-extern int dosetns(int pid, char *nstype);
+extern void attach_userns_fd(int ns_fd);
+extern bool setnsat(int ns_fd, const char *ns);
+extern int pidfd_nsfd(int pidfd, pid_t pid);
 
 struct nlmsg {
 	struct nlmsghdr *nlmsghdr;
@@ -151,6 +152,7 @@ void forkuevent(void)
 	char *cur = NULL;
 	pid_t pid = 0;
 	size_t len = 0;
+	int ns_fd = -EBADF, pidfd = -EBADF;
 
 	cur = advance_arg(false);
 	if (cur == NULL || (strcmp(cur, "--help") == 0 || strcmp(cur, "--version") == 0 || strcmp(cur, "-h") == 0)) {
@@ -165,6 +167,11 @@ void forkuevent(void)
 		_exit(1);
 	}
 	pid = atoi(cur);
+
+	pidfd = atoi(advance_arg(true));
+	ns_fd = pidfd_nsfd(pidfd, pid);
+	if (ns_fd < 0)
+		_exit(1);
 
 	// Get the size
 	cur = advance_arg(false);
@@ -188,9 +195,9 @@ void forkuevent(void)
 		_exit(1);
 	}
 
-	attach_userns(pid);
+	attach_userns_fd(ns_fd);
 
-	if (dosetns(pid, "net") < 0) {
+	if (!setnsat(ns_fd, "net")) {
 		fprintf(stderr, "Failed to setns to container network namespace: %s\n", strerror(errno));
 		_exit(1);
 	}
@@ -222,8 +229,8 @@ func (c *cmdForkuevent) Command() *cobra.Command {
 
 	// pull
 	cmdInject := &cobra.Command{}
-	cmdInject.Use = "inject <PID> <len> <uevent parts>..."
-	cmdInject.Args = cobra.MinimumNArgs(3)
+	cmdInject.Use = "inject <PID> <PidFd> <len> <uevent parts>..."
+	cmdInject.Args = cobra.MinimumNArgs(4)
 	cmdInject.RunE = c.Run
 	cmd.AddCommand(cmdInject)
 

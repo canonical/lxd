@@ -26,13 +26,17 @@ import (
 #include <linux/filter.h>
 #include <linux/audit.h>
 #include <sys/ptrace.h>
+#include <sys/wait.h>
 
 #include "../shared/netutils/netns_getifaddrs.c"
 #include "include/compiler.h"
 #include "include/lxd_seccomp.h"
 #include "include/memory_utils.h"
+#include "include/process_utils.h"
+#include "include/syscall_numbers.h"
 
 __ro_after_init bool netnsid_aware = false;
+__ro_after_init bool pidfd_aware = false;
 __ro_after_init bool uevent_aware = false;
 __ro_after_init int seccomp_notify_aware = 0;
 __ro_after_init char errbuf[4096];
@@ -291,11 +295,40 @@ static void is_seccomp_notify_aware(void)
 
 }
 
+static void is_pidfd_aware(void)
+{
+	__do_close int pidfd = -EBADF;
+	int ret;
+
+	pidfd = pidfd_open(getpid(), 0);
+	if (pidfd < 0)
+		return;
+
+	// We don't care whether or not children were in a waitable state. We
+	// just care whether waitid() recognizes P_PIDFD.
+	ret = waitid(P_PIDFD, pidfd, NULL,
+		    // Type of children to wait for.
+		    __WALL |
+		    // How to wait for them.
+		    WNOHANG | WNOWAIT |
+		    // What state to wait for.
+		    WEXITED | WSTOPPED | WCONTINUED);
+	if (ret < 0 && errno != ECHILD)
+		return;
+
+	ret = pidfd_send_signal(pidfd, 0, NULL, 0);
+	if (ret)
+		return;
+
+	pidfd_aware = true;
+}
+
 void checkfeature(void)
 {
 	__do_close int hostnetns_fd = -EBADF, newnetns_fd = -EBADF;
 
 	is_netnsid_aware(&hostnetns_fd, &newnetns_fd);
+	is_pidfd_aware();
 	is_uevent_aware();
 	is_seccomp_notify_aware();
 
@@ -329,4 +362,8 @@ func canUseSeccompListener() bool {
 
 func canUseSeccompListenerContinue() bool {
 	return bool(C.seccomp_notify_aware == 2)
+}
+
+func canUsePidFds() bool {
+	return bool(C.pidfd_aware)
 }

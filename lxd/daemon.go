@@ -597,6 +597,23 @@ func (d *Daemon) init() error {
 		}
 	}
 
+	// Detect LXC features
+	d.os.LXCFeatures = map[string]bool{}
+	lxcExtensions := []string{
+		"mount_injection_file",
+		"seccomp_notify",
+		"network_ipvlan",
+		"network_l2proxy",
+		"network_gateway_device_route",
+		"network_phys_macvlan_mtu",
+		"network_veth_router",
+		"cgroup2",
+		"pidfd",
+	}
+	for _, extension := range lxcExtensions {
+		d.os.LXCFeatures[extension] = liblxc.HasApiExtension(extension)
+	}
+
 	// Look for kernel features
 	logger.Infof("Kernel features:")
 	d.os.NetnsGetifaddrs = canUseNetnsGetifaddrs()
@@ -604,6 +621,15 @@ func (d *Daemon) init() error {
 		logger.Infof(" - netnsid-based network retrieval: yes")
 	} else {
 		logger.Infof(" - netnsid-based network retrieval: no")
+	}
+
+	if canUsePidFds() && d.os.LXCFeatures["pidfd"] {
+		d.os.PidFds = true
+	}
+	if d.os.PidFds {
+		logger.Infof(" - pidfds: yes")
+	} else {
+		logger.Infof(" - pidfds: no")
 	}
 
 	d.os.UeventInjection = canUseUeventInjection()
@@ -653,22 +679,6 @@ func (d *Daemon) init() error {
 		} else {
 			logger.Infof(" - shiftfs support: no")
 		}
-	}
-
-	// Detect LXC features
-	d.os.LXCFeatures = map[string]bool{}
-	lxcExtensions := []string{
-		"mount_injection_file",
-		"seccomp_notify",
-		"network_ipvlan",
-		"network_l2proxy",
-		"network_gateway_device_route",
-		"network_phys_macvlan_mtu",
-		"network_veth_router",
-		"cgroup2",
-	}
-	for _, extension := range lxcExtensions {
-		d.os.LXCFeatures[extension] = liblxc.HasApiExtension(extension)
 	}
 
 	// Validate the devices storage.

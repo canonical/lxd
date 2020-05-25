@@ -35,8 +35,9 @@ import (
 
 extern char* advance_arg(bool required);
 extern void error(char *msg);
-extern void attach_userns(int pid);
-extern int dosetns(int pid, char *nstype);
+extern void attach_userns_fd(int ns_fd);
+extern bool setnsat(int ns_fd, const char *ns);
+extern int pidfd_nsfd(int pidfd, pid_t pid);
 
 int mkdir_p(const char *dir, mode_t mode)
 {
@@ -129,13 +130,13 @@ void create(char *src, char *dest)
 	}
 }
 
-static void do_lxd_forkmount(pid_t pid)
+static void do_lxd_forkmount(int ns_fd)
 {
 	char *src, *dest, *shiftfs;
 
-	attach_userns(pid);
+	attach_userns_fd(ns_fd);
 
-	if (dosetns(pid, "mnt") < 0) {
+	if (!setnsat(ns_fd, "mnt")) {
 		fprintf(stderr, "Failed setns to container mount namespace: %s\n", strerror(errno));
 		_exit(1);
 	}
@@ -188,13 +189,12 @@ static void do_lxd_forkmount(pid_t pid)
 	_exit(0);
 }
 
-void do_lxd_forkumount(pid_t pid)
+void do_lxd_forkumount(int ns_fd)
 {
 	int ret;
 	char *path = NULL;
 
-	ret = dosetns(pid, "mnt");
-	if (ret < 0) {
+	if (!setnsat(ns_fd, "mnt")) {
 		fprintf(stderr, "Failed to setns to container mount namespace: %s\n", strerror(errno));
 		_exit(1);
 	}
@@ -329,6 +329,7 @@ void forkmount(void)
 
 	char *command = NULL;
 	pid_t pid = 0;
+	int ns_fd = -EBADF, pidfd;
 
 	// Get the subcommand
 	command = advance_arg(false);
@@ -350,8 +351,15 @@ void forkmount(void)
 			return;
 		}
 		pid = atoi(cur);
+		if (pid <= 0)
+			_exit(EXIT_FAILURE);
 
-		do_lxd_forkmount(pid);
+		pidfd = atoi(advance_arg(true));
+		ns_fd = pidfd_nsfd(pidfd, pid);
+		if (ns_fd < 0)
+			_exit(EXIT_FAILURE);
+
+		do_lxd_forkmount(ns_fd);
 	} else if (strcmp(command, "lxc-mount") == 0) {
 		do_lxc_forkmount();
 	} else if (strcmp(command, "lxd-umount") == 0) {
@@ -361,8 +369,15 @@ void forkmount(void)
 			return;
 		}
 		pid = atoi(cur);
+		if (pid <= 0)
+			_exit(EXIT_FAILURE);
 
-		do_lxd_forkumount(pid);
+		pidfd = atoi(advance_arg(true));
+		ns_fd = pidfd_nsfd(pidfd, pid);
+		if (ns_fd < 0)
+			_exit(EXIT_FAILURE);
+
+		do_lxd_forkumount(ns_fd);
 	} else if (strcmp(command, "lxc-umount") == 0) {
 		do_lxc_forkumount();
 	}
@@ -395,8 +410,8 @@ func (c *cmdForkmount) Command() *cobra.Command {
 	cmd.AddCommand(cmdLXCMount)
 
 	cmdLXDMount := &cobra.Command{}
-	cmdLXDMount.Use = "lxd-mount <PID> <source> <destination> <shiftfs>"
-	cmdLXDMount.Args = cobra.ExactArgs(4)
+	cmdLXDMount.Use = "lxd-mount <PID> <PidFd> <source> <destination> <shiftfs>"
+	cmdLXDMount.Args = cobra.ExactArgs(5)
 	cmdLXDMount.RunE = c.Run
 	cmd.AddCommand(cmdLXDMount)
 
@@ -408,8 +423,8 @@ func (c *cmdForkmount) Command() *cobra.Command {
 	cmd.AddCommand(cmdLXCUmount)
 
 	cmdLXDUmount := &cobra.Command{}
-	cmdLXDUmount.Use = "lxd-umount <PID> <path>"
-	cmdLXDUmount.Args = cobra.ExactArgs(2)
+	cmdLXDUmount.Use = "lxd-umount <PID> <PidFd> <path>"
+	cmdLXDUmount.Args = cobra.ExactArgs(3)
 	cmdLXDUmount.RunE = c.Run
 	cmd.AddCommand(cmdLXDUmount)
 
