@@ -211,6 +211,7 @@ var APIExtensions = []string{
 	"resources_system",
 	"images_push_relay",
 	"network_dns_search",
+	"container_nic_routed_limits",
 }
 
 // APIExtensionsCount returns the number of available API extensions.

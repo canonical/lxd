@@ -23,7 +23,7 @@ type nicRouted struct {
 }
 
 func (d *nicRouted) CanHotPlug() (bool, []string) {
-	return false, []string{}
+	return false, []string{"limits.ingress", "limits.egress", "limits.max"}
 }
 
 // validateConfig checks the supplied config for correctness.
@@ -40,6 +40,9 @@ func (d *nicRouted) validateConfig(instConf instance.ConfigReader) error {
 		"hwaddr",
 		"host_name",
 		"vlan",
+		"limits.ingress",
+		"limits.egress",
+		"limits.max",
 		"ipv4.gateway",
 		"ipv6.gateway",
 		"ipv4.host_address",
@@ -292,14 +295,43 @@ func (d *nicRouted) setupParentSysctls(parentName string) error {
 	return nil
 }
 
+// Update returns an error as most devices do not support live updates without being restarted.
+func (d *nicRouted) Update(oldDevices deviceConfig.Devices, isRunning bool) error {
+	v := d.volatileGet()
+
+	// If instance is running, apply host side limits.
+	if isRunning {
+		err := d.validateEnvironment()
+		if err != nil {
+			return err
+		}
+
+		// Apply host-side limits.
+		d.config["host_name"] = v["host_name"]
+		err = networkSetVethLimits(d.config)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
 // postStart is run after the instance is started.
 func (d *nicRouted) postStart() error {
 	v := d.volatileGet()
 
 	// If volatile host_name is defined (and it should be), then configure the host-side interface.
 	if v["host_name"] != "" {
+		// Apply host-side limits.
+		d.config["host_name"] = v["host_name"]
+		err := networkSetVethLimits(d.config)
+		if err != nil {
+			return err
+		}
+
 		// Attempt to disable IPv6 router advertisement acceptance.
-		err := util.SysctlSet(fmt.Sprintf("net/ipv6/conf/%s/accept_ra", v["host_name"]), "0")
+		err = util.SysctlSet(fmt.Sprintf("net/ipv6/conf/%s/accept_ra", v["host_name"]), "0")
 		if err != nil && !os.IsNotExist(err) {
 			return err
 		}
