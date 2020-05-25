@@ -12,9 +12,9 @@ import (
 
 // patchStorageSkipActivation set skipactivation=y on all LXD LVM logical volumes (excluding thin pool volumes).
 func (d *lvm) patchStorageSkipActivation() error {
-	out, err := shared.RunCommand("lvs", "--noheadings", "-o", "lv_name,lv_attr", d.name)
+	out, err := shared.RunCommand("lvs", "--noheadings", "-o", "lv_name,lv_attr", d.config["lvm.vg_name"])
 	if err != nil {
-		return errors.Wrapf(err, "Error getting LVM logical volume list for storage pool %q", d.name)
+		return errors.Wrapf(err, "Error getting LVM logical volume list for storage pool %q", d.config["lvm.vg_name"])
 	}
 
 	for _, line := range strings.Split(out, "\n") {
@@ -33,17 +33,17 @@ func (d *lvm) patchStorageSkipActivation() error {
 
 		// Skip volumes that already have k flag set, meaning setactivationskip=y.
 		if strings.HasSuffix(volAttr, "k") {
-			logger.Infof("Skipping volume %q that already has skipactivation=y set in pool %q", volName, d.name)
+			logger.Infof("Skipping volume %q that already has skipactivation=y set in pool %q", volName, d.config["lvm.vg_name"])
 			continue
 		}
 
 		// Set the --setactivationskip flag enabled on the volume.
-		_, err = shared.RunCommand("lvchange", "--setactivationskip", "y", fmt.Sprintf("%s/%s", d.name, volName))
+		_, err = shared.RunCommand("lvchange", "--setactivationskip", "y", fmt.Sprintf("%s/%s", d.config["lvm.vg_name"], volName))
 		if err != nil {
-			return errors.Wrapf(err, "Error setting setactivationskip=y on LVM logical volume %q for storage pool %q", volName, d.name)
+			return errors.Wrapf(err, "Error setting setactivationskip=y on LVM logical volume %q for storage pool %q", volName, d.config["lvm.vg_name"])
 		}
 
-		logger.Infof("Set setactivationskip=y on volume %q in pool %q", volName, d.name)
+		logger.Infof("Set setactivationskip=y on volume %q in pool %q", volName, d.config["lvm.vg_name"])
 	}
 
 	return nil
