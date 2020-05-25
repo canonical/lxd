@@ -474,6 +474,9 @@ name                    | string    | kernel assigned   | no        | The name o
 host\_name              | string    | randomly assigned | no        | The name of the interface inside the host
 mtu                     | integer   | parent MTU        | no        | The MTU of the new interface
 hwaddr                  | string    | randomly assigned | no        | The MAC address of the new interface
+limits.ingress          | string    | -                 | no        | I/O limit in bit/s for incoming traffic (various suffixes supported, see below)
+limits.egress           | string    | -                 | no        | I/O limit in bit/s for outgoing traffic (various suffixes supported, see below)
+limits.max              | string    | -                 | no        | Same as modifying both limits.ingress and limits.egress
 ipv4.address            | string    | -                 | no        | Comma delimited list of IPv4 static addresses to add to the instance
 ipv4.gateway            | string    | auto              | no        | Whether to add an automatic default IPv4 gateway, can be "auto" or "none"
 ipv4.host\_address      | string    | 169.254.0.1       | no        | The IPv4 address to add to the host-side veth interface.
