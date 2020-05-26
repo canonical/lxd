@@ -138,7 +138,7 @@ func InstanceTypeToVolumeType(instType instancetype.Type) (drivers.VolumeType, e
 // VolumeDBCreate creates a volume in the database.
 func VolumeDBCreate(s *state.State, project, poolName, volumeName, volumeDescription, volumeTypeName string, snapshot bool, volumeConfig map[string]string, expiryDate time.Time) error {
 	// Convert the volume type name to our internal integer representation.
-	volumeType, err := VolumeTypeNameToType(volumeTypeName)
+	volDBType, err := VolumeTypeNameToType(volumeTypeName)
 	if err != nil {
 		return err
 	}
@@ -150,7 +150,7 @@ func VolumeDBCreate(s *state.State, project, poolName, volumeName, volumeDescrip
 	}
 
 	// Check that a storage volume of the same storage volume type does not already exist.
-	volumeID, _ := s.Cluster.GetStoragePoolNodeVolumeID(project, volumeName, volumeType, poolID)
+	volumeID, _ := s.Cluster.GetStoragePoolNodeVolumeID(project, volumeName, volDBType, poolID)
 	if volumeID > 0 {
 		return fmt.Errorf("A storage volume of type %s already exists", volumeTypeName)
 	}
@@ -160,8 +160,13 @@ func VolumeDBCreate(s *state.State, project, poolName, volumeName, volumeDescrip
 		volumeConfig = map[string]string{}
 	}
 
+	volType, err := VolumeDBTypeToType(volDBType)
+	if err != nil {
+		return err
+	}
+
 	// Validate the requested storage volume configuration.
-	err = VolumeValidateConfig(s, poolName, volumeConfig, poolStruct)
+	err = VolumeValidateConfig(s, volumeName, volType, volumeConfig, poolStruct)
 	if err != nil {
 		return err
 	}
@@ -173,12 +178,12 @@ func VolumeDBCreate(s *state.State, project, poolName, volumeName, volumeDescrip
 
 	// Create the database entry for the storage volume.
 	if snapshot {
-		_, err = s.Cluster.CreateStorageVolumeSnapshot(project, volumeName, volumeDescription, volumeType, poolID, volumeConfig, expiryDate)
+		_, err = s.Cluster.CreateStorageVolumeSnapshot(project, volumeName, volumeDescription, volDBType, poolID, volumeConfig, expiryDate)
 	} else {
-		_, err = s.Cluster.CreateStoragePoolVolume(project, volumeName, volumeDescription, volumeType, poolID, volumeConfig)
+		_, err = s.Cluster.CreateStoragePoolVolume(project, volumeName, volumeDescription, volDBType, poolID, volumeConfig)
 	}
 	if err != nil {
-		return fmt.Errorf("Error inserting %s of type %s into database: %s", poolName, volumeTypeName, err)
+		return fmt.Errorf("Error inserting %q of type %q into database %q", poolName, volumeTypeName, err)
 	}
 
 	return nil
