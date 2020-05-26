@@ -782,12 +782,21 @@ func (c *Cluster) GetImageAlias(project, name string, isTrustedClient bool) (int
 
 // RenameImageAlias renames the alias with the given ID.
 func (c *Cluster) RenameImageAlias(id int, name string) error {
-	err := exec(c, "UPDATE images_aliases SET name=? WHERE id=?", name, id)
+	q := "UPDATE images_aliases SET name=? WHERE id=?"
+	err := c.Transaction(func(tx *ClusterTx) error {
+		_, err := tx.tx.Exec(q, name, id)
+		return err
+	})
 	return err
 }
 
 // DeleteImageAlias deletes the alias with the given name.
 func (c *Cluster) DeleteImageAlias(project, name string) error {
+	q := `
+DELETE
+  FROM images_aliases
+ WHERE project_id = (SELECT id FROM projects WHERE name = ?) AND name = ?
+`
 	err := c.Transaction(func(tx *ClusterTx) error {
 		enabled, err := tx.ProjectHasImages(project)
 		if err != nil {
@@ -796,23 +805,23 @@ func (c *Cluster) DeleteImageAlias(project, name string) error {
 		if !enabled {
 			project = "default"
 		}
-		return nil
+
+		_, err = tx.tx.Exec(q, project, name)
+		return err
 	})
 	if err != nil {
 		return err
 	}
-
-	err = exec(c, `
-DELETE
-  FROM images_aliases
- WHERE project_id = (SELECT id FROM projects WHERE name = ?) AND name = ?
-`, project, name)
-	return err
+	return nil
 }
 
 // MoveImageAlias changes the image ID associated with an alias.
 func (c *Cluster) MoveImageAlias(source int, destination int) error {
-	err := exec(c, "UPDATE images_aliases SET image_id=? WHERE image_id=?", destination, source)
+	q := "UPDATE images_aliases SET image_id=? WHERE image_id=?"
+	err := c.Transaction(func(tx *ClusterTx) error {
+		_, err := tx.tx.Exec(q, destination, source)
+		return err
+	})
 	return err
 }
 
