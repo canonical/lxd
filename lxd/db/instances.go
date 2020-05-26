@@ -620,17 +620,19 @@ func (c *Cluster) DeleteInstance(project, name string) error {
 // GetInstanceProjectAndName returns the project and the name of the instance
 // with the given ID.
 func (c *Cluster) GetInstanceProjectAndName(id int) (string, string, error) {
+	var project string
+	var name string
 	q := `
 SELECT projects.name, instances.name
   FROM instances
   JOIN projects ON projects.id = instances.project_id
 WHERE instances.id=?
 `
-	project := ""
-	name := ""
-	arg1 := []interface{}{id}
-	arg2 := []interface{}{&project, &name}
-	err := dbQueryRowScan(c, q, arg1, arg2)
+	err := c.Transaction(func(tx *ClusterTx) error {
+		return tx.tx.QueryRow(q, id).Scan(&project, &name)
+
+	})
+
 	if err == sql.ErrNoRows {
 		return "", "", ErrNoSuchObject
 	}
