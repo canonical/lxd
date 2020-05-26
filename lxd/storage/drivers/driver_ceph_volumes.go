@@ -163,17 +163,21 @@ func (d *ceph) CreateVolume(vol Volume, filler *VolumeFiller, op *operations.Ope
 	// Run the volume filler function if supplied.
 
 	err = vol.MountTask(func(mountPath string, op *operations.Operation) error {
+		// Run the volume filler function if supplied.
 		if filler != nil && filler.Fill != nil {
-			if vol.contentType == ContentTypeFS {
-				return filler.Fill(vol, "")
+			var err error
+			var devPath string
+
+			if vol.contentType == ContentTypeBlock {
+				// Get the device path.
+				devPath, err = d.GetVolumeDiskPath(vol)
+				if err != nil {
+					return err
+				}
 			}
 
-			devPath, err := d.GetVolumeDiskPath(vol)
-			if err != nil {
-				return err
-			}
-
-			err = filler.Fill(vol, devPath)
+			// Run the filler.
+			err = d.runFiller(vol, devPath, filler)
 			if err != nil {
 				return err
 			}
