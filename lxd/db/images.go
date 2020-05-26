@@ -5,6 +5,7 @@ package db
 import (
 	"database/sql"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/pkg/errors"
@@ -1106,24 +1107,29 @@ func (c *Cluster) GetPoolsWithImage(imageFingerprint string) ([]int64, error) {
 	return poolIDs, nil
 }
 
-// GetPoolNamesFromIDs get the names of all storage pools on which a given image exists.
+// GetPoolNamesFromIDs get the names of the storage pools with the given IDs.
 func (c *Cluster) GetPoolNamesFromIDs(poolIDs []int64) ([]string, error) {
-	var poolName string
-	query := "SELECT name FROM storage_pools WHERE id=?"
+	params := make([]string, len(poolIDs))
+	args := make([]interface{}, len(poolIDs))
+	for i, id := range poolIDs {
+		params[i] = "?"
+		args[i] = id
+	}
+	q := fmt.Sprintf("SELECT name FROM storage_pools WHERE id IN (%s)", strings.Join(params, ","))
 
-	poolNames := []string{}
-	for _, poolID := range poolIDs {
-		inargs := []interface{}{poolID}
-		outargs := []interface{}{poolName}
+	var poolNames []string
 
-		result, err := queryScan(c, query, inargs, outargs)
-		if err != nil {
-			return []string{}, err
-		}
+	err := c.Transaction(func(tx *ClusterTx) error {
+		var err error
+		poolNames, err = query.SelectStrings(tx.tx, q, args...)
+		return err
+	})
+	if err != nil {
+		return nil, err
+	}
 
-		for _, r := range result {
-			poolNames = append(poolNames, r[0].(string))
-		}
+	if len(poolNames) != len(poolIDs) {
+		return nil, fmt.Errorf("Found only %d matches, expected %d", len(poolNames), len(poolIDs))
 	}
 
 	return poolNames, nil
@@ -1131,7 +1137,11 @@ func (c *Cluster) GetPoolNamesFromIDs(poolIDs []int64) ([]string, error) {
 
 // UpdateImageUploadDate updates the upload_date column and an image row.
 func (c *Cluster) UpdateImageUploadDate(id int, uploadedAt time.Time) error {
-	err := exec(c, "UPDATE images SET upload_date=? WHERE id=?", uploadedAt, id)
+	q := "UPDATE images SET upload_date=? WHERE id=?"
+	err := c.Transaction(func(tx *ClusterTx) error {
+		_, err := tx.tx.Exec(q, uploadedAt, id)
+		return err
+	})
 	return err
 }
 
