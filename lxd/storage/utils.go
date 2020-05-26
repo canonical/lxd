@@ -150,7 +150,7 @@ func VolumeDBCreate(s *state.State, project, poolName, volumeName, volumeDescrip
 		return err
 	}
 
-	err = VolumeFillDefault(poolName, volumeConfig, poolStruct)
+	err = VolumeFillDefault(volumeConfig, poolStruct)
 	if err != nil {
 		return err
 	}
