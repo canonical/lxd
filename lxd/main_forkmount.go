@@ -343,6 +343,9 @@ void forkmount(void)
 		_exit(1);
 	}
 
+	// skip "--"
+	advance_arg(true);
+
 	// Call the subcommands
 	if (strcmp(command, "lxd-mount") == 0) {
 		// Get the pid
