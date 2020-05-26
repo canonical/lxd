@@ -103,7 +103,7 @@ func (p *Process) Start() error {
 			return
 		}
 
-		exitcode := int64(procstate.Sys().(syscall.WaitStatus).ExitStatus())
+		exitcode := int64(procstate.ExitCode())
 		p.exitCode = exitcode
 		close(p.chExit)
 	}()

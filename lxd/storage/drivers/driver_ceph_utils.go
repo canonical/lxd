@@ -10,7 +10,6 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
-	"syscall"
 	"time"
 
 	"github.com/pborman/uuid"
@@ -157,13 +156,12 @@ again:
 		if ok {
 			exitError, ok := runError.Err.(*exec.ExitError)
 			if ok {
-				waitStatus := exitError.Sys().(syscall.WaitStatus)
-				if waitStatus.ExitStatus() == 22 {
+				if exitError.ExitCode() == 22 {
 					// EINVAL (already unmapped).
 					return nil
 				}
 
-				if waitStatus.ExitStatus() == 16 {
+				if exitError.ExitCode() == 16 {
 					// EBUSY (currently in use).
 					busyCount++
 					if busyCount == 10 {
@@ -203,8 +201,7 @@ again:
 		if ok {
 			exitError, ok := runError.Err.(*exec.ExitError)
 			if ok {
-				waitStatus := exitError.Sys().(syscall.WaitStatus)
-				if waitStatus.ExitStatus() == 22 {
+				if exitError.ExitCode() == 22 {
 					// EINVAL (already unmapped).
 					return nil
 				}
@@ -256,8 +253,7 @@ func (d *ceph) rbdProtectVolumeSnapshot(vol Volume, snapshotName string) error {
 		if ok {
 			exitError, ok := runError.Err.(*exec.ExitError)
 			if ok {
-				waitStatus := exitError.Sys().(syscall.WaitStatus)
-				if waitStatus.ExitStatus() == 16 {
+				if exitError.ExitCode() == 16 {
 					// EBUSY (snapshot already protected).
 					return nil
 				}
@@ -287,8 +283,7 @@ func (d *ceph) rbdUnprotectVolumeSnapshot(vol Volume, snapshotName string) error
 		if ok {
 			exitError, ok := runError.Err.(*exec.ExitError)
 			if ok {
-				waitStatus := exitError.Sys().(syscall.WaitStatus)
-				if waitStatus.ExitStatus() == 22 {
+				if exitError.ExitCode() == 22 {
 					// EBUSY (snapshot already unprotected).
 					return nil
 				}
