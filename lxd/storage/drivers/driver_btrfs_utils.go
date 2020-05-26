@@ -300,18 +300,6 @@ func (d *btrfs) sendSubvolume(path string, parent string, conn io.ReadWriteClose
 	return nil
 }
 
-// volumeSize returns the size to use when creating new a volume.
-func (d *btrfs) volumeSize(vol Volume) string {
-	size := vol.ExpandedConfig("size")
-
-	// Block images always need a size.
-	if vol.contentType == ContentTypeBlock && (size == "" || size == "0") {
-		return defaultBlockSize
-	}
-
-	return size
-}
-
 // setSubvolumeReadonlyProperty sets the readonly property on the subvolume to true or false.
 func (d *btrfs) setSubvolumeReadonlyProperty(path string, readonly bool) error {
 	// Silently ignore requests to set subvolume readonly property if running in a user namespace as we won't
