@@ -7,7 +7,6 @@ import (
 	"net"
 	"os"
 	"os/exec"
-	"syscall"
 	"time"
 
 	"github.com/pborman/uuid"
@@ -67,8 +66,7 @@ func LocalCopy(source string, dest string, bwlimit string, xattrs bool, rsyncArg
 		if ok {
 			exitError, ok := runError.Err.(*exec.ExitError)
 			if ok {
-				waitStatus := exitError.Sys().(syscall.WaitStatus)
-				if waitStatus.ExitStatus() == 24 {
+				if exitError.ExitCode() == 24 {
 					return msg, nil
 				}
 			}

@@ -1844,8 +1844,8 @@ func (c *lxc) DeviceEventHandler(runConf *deviceConfig.RunConfig) error {
 		for _, eventParts := range runConf.Uevents {
 			ueventArray := make([]string, 4)
 			ueventArray[0] = "forkuevent"
-			ueventArray[1] = "--"
 			ueventArray[2] = "inject"
+			ueventArray[1] = "--"
 			ueventArray[3] = fmt.Sprintf("%d", c.InitPID())
 			ueventArray[4] = fmt.Sprintf("%d", pidFdNr)
 			length := 0
@@ -2262,8 +2262,8 @@ func (c *lxc) detachInterfaceRename(netns string, ifName string, hostName string
 	_, err := shared.RunCommand(
 		c.state.OS.ExecPath,
 		"forknet",
-		"--",
 		"detach",
+		"--",
 		netns,
 		fmt.Sprintf("%d", lxdPID),
 		ifName,
@@ -5825,19 +5825,19 @@ func (c *lxc) networkState() map[string]api.InstanceStateNetwork {
 		}
 
 		// Get the network state from the container
-		_, out, err := shared.RunCommandSplit(
+		out, _, err := shared.RunCommandSplit(
 			nil,
 			[]*os.File{pidFd},
 			c.state.OS.ExecPath,
 			"forknet",
-			"--",
 			"info",
+			"--",
 			fmt.Sprintf("%d", pid),
 			fmt.Sprintf("%d", pidFdNr))
 
 		// Process forkgetnet response
 		if err != nil {
-			logger.Error("Error calling 'lxd forkgetnet", log.Ctx{"container": c.name, "err": err, "pid": pid})
+			logger.Error("Error calling 'lxd forknet", log.Ctx{"container": c.name, "err": err, "pid": pid})
 			return result
 		}
 
@@ -5849,7 +5849,7 @@ func (c *lxc) networkState() map[string]api.InstanceStateNetwork {
 		nw := map[string]api.InstanceStateNetwork{}
 		err = json.Unmarshal([]byte(out), &nw)
 		if err != nil {
-			logger.Error("Failure to read forkgetnet json", log.Ctx{"container": c.name, "err": err})
+			logger.Error("Failure to read forknet json", log.Ctx{"container": c.name, "err": err})
 			return result
 		}
 		result = nw

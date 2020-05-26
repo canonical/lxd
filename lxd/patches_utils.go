@@ -9,7 +9,6 @@ import (
 	"sort"
 	"strconv"
 	"strings"
-	"syscall"
 
 	"github.com/lxc/lxd/lxd/project"
 	"github.com/lxc/lxd/lxd/state"
@@ -171,8 +170,7 @@ func lvmLVExists(lvName string) (bool, error) {
 		if ok {
 			exitError, ok := runErr.Err.(*exec.ExitError)
 			if ok {
-				waitStatus := exitError.Sys().(syscall.WaitStatus)
-				if waitStatus.ExitStatus() == 5 {
+				if exitError.ExitCode() == 5 {
 					// logical volume not found
 					return false, nil
 				}

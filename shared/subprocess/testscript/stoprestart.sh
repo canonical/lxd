@@ -2,4 +2,4 @@
 echo "hello again"
 echo "waiting now"
 
-sleep 10
+sleep 5

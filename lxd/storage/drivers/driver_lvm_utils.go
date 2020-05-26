@@ -7,7 +7,6 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
-	"syscall"
 
 	"github.com/pkg/errors"
 
@@ -120,8 +119,7 @@ func (d *lvm) isLVMNotFoundExitError(err error) bool {
 	if ok {
 		exitError, ok := runErr.Err.(*exec.ExitError)
 		if ok {
-			waitStatus := exitError.Sys().(syscall.WaitStatus)
-			if waitStatus.ExitStatus() == 5 {
+			if exitError.ExitCode() == 5 {
 				return true
 			}
 		}
