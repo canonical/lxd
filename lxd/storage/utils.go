@@ -453,7 +453,7 @@ func validateVolumeCommonRules(vol drivers.Volume) map[string]func(string) error
 // VM Format A: Separate metadata tarball and root qcow2 file.
 // 	- Unpack metadata tarball into mountPath.
 //	- Check rootBlockPath is a file and convert qcow2 file into raw format in rootBlockPath.
-func ImageUnpack(imageFile string, vol drivers.Volume, destBlockFile string, blockBackend, runningInUserns bool, tracker *ioprogress.ProgressTracker) error {
+func ImageUnpack(imageFile string, vol drivers.Volume, destBlockFile string, blockBackend, runningInUserns bool, tracker *ioprogress.ProgressTracker) (int64, error) {
 	// For all formats, first unpack the metadata (or combined) tarball into destPath.
 	imageRootfsFile := imageFile + ".rootfs"
 	destPath := vol.MountPath()
@@ -465,29 +465,29 @@ func ImageUnpack(imageFile string, vol drivers.Volume, destBlockFile string, blo
 		// Unpack the main image file.
 		err := shared.Unpack(imageFile, destPath, blockBackend, runningInUserns, tracker)
 		if err != nil {
-			return err
+			return -1, err
 		}
 
 		// Check for separate root file.
 		if shared.PathExists(imageRootfsFile) {
 			err = os.MkdirAll(rootfsPath, 0755)
 			if err != nil {
-				return fmt.Errorf("Error creating rootfs directory")
+				return -1, fmt.Errorf("Error creating rootfs directory")
 			}
 
 			err = shared.Unpack(imageRootfsFile, rootfsPath, blockBackend, runningInUserns, tracker)
 			if err != nil {
-				return err
+				return -1, err
 			}
 		}
 
 		// Check that the container image unpack has resulted in a rootfs dir.
 		if !shared.PathExists(rootfsPath) {
-			return fmt.Errorf("Image is missing a rootfs: %s", imageFile)
+			return -1, fmt.Errorf("Image is missing a rootfs: %s", imageFile)
 		}
 
 		// Done with this.
-		return nil
+		return 0, nil
 	}
 
 	// If a rootBlockPath is supplied then this is a VM image unpack.
@@ -495,21 +495,21 @@ func ImageUnpack(imageFile string, vol drivers.Volume, destBlockFile string, blo
 	// Validate the target.
 	fileInfo, err := os.Stat(destBlockFile)
 	if err != nil && !os.IsNotExist(err) {
-		return err
+		return -1, err
 	}
 
 	if fileInfo != nil && fileInfo.IsDir() {
 		// If the dest block file exists, and it is a directory, fail.
-		return fmt.Errorf("Root block path isn't a file: %s", destBlockFile)
+		return -1, fmt.Errorf("Root block path isn't a file: %s", destBlockFile)
 	}
 
 	// convertBlockImage converts the qcow2 block image file into a raw block device. If needed it will attempt
 	// to enlarge the destination volume to accommodate the unpacked qcow2 image file.
-	convertBlockImage := func(v drivers.Volume, imgPath string, dstPath string) error {
+	convertBlockImage := func(v drivers.Volume, imgPath string, dstPath string) (int64, error) {
 		// Get info about qcow2 file.
 		imgJSON, err := shared.RunCommand("qemu-img", "info", "--output=json", imgPath)
 		if err != nil {
-			return errors.Wrapf(err, "Failed reading image info %q", dstPath)
+			return -1, errors.Wrapf(err, "Failed reading image info %q", dstPath)
 		}
 
 		imgInfo := struct {
@@ -519,17 +519,17 @@ func ImageUnpack(imageFile string, vol drivers.Volume, destBlockFile string, blo
 
 		err = json.Unmarshal([]byte(imgJSON), &imgInfo)
 		if err != nil {
-			return err
+			return -1, err
 		}
 
 		if imgInfo.Format != "qcow2" {
-			return fmt.Errorf("Unexpected image format %q", imgInfo.Format)
+			return -1, fmt.Errorf("Unexpected image format %q", imgInfo.Format)
 		}
 
 		if shared.PathExists(dstPath) {
 			volSizeBytes, err := drivers.BlockDevSizeBytes(dstPath)
 			if err != nil {
-				return errors.Wrapf(err, "Error getting current size")
+				return -1, errors.Wrapf(err, "Error getting current size")
 			}
 
 			if volSizeBytes < imgInfo.VirtualSize {
@@ -548,7 +548,7 @@ func ImageUnpack(imageFile string, vol drivers.Volume, destBlockFile string, blo
 				logger.Debugf("Increasing %q volume size from %d to %d to accomomdate image %q unpack", dstPath, volSizeBytes, imgInfo.VirtualSize, imgPath)
 				err = vol.SetQuota(fmt.Sprintf("%d", imgInfo.VirtualSize), nil)
 				if err != nil {
-					return errors.Wrapf(err, "Error increasing volume size")
+					return -1, errors.Wrapf(err, "Error increasing volume size")
 				}
 			}
 		}
@@ -556,67 +556,69 @@ func ImageUnpack(imageFile string, vol drivers.Volume, destBlockFile string, blo
 		// Convert the qcow2 format to a raw block device.
 		_, err = shared.RunCommand("qemu-img", "convert", "-f", "qcow2", "-O", "raw", imgPath, dstPath)
 		if err != nil {
-			return errors.Wrapf(err, "Failed converting image to raw at %q", dstPath)
+			return -1, errors.Wrapf(err, "Failed converting image to raw at %q", dstPath)
 		}
 
-		return nil
+		return imgInfo.VirtualSize, nil
 	}
+
+	var imgSize int64
 
 	if shared.PathExists(imageRootfsFile) {
 		// Unpack the main image file.
 		err := shared.Unpack(imageFile, destPath, blockBackend, runningInUserns, tracker)
 		if err != nil {
-			return err
+			return -1, err
 		}
 
 		// Convert the qcow2 format to a raw block device.
-		err = convertBlockImage(vol, imageRootfsFile, destBlockFile)
+		imgSize, err = convertBlockImage(vol, imageRootfsFile, destBlockFile)
 		if err != nil {
-			return err
+			return -1, err
 		}
 
 		// Convert the qcow2 format to a raw block device.
 		_, err = shared.RunCommand("qemu-img", "convert", "-O", "raw", imageRootfsFile, destBlockFile)
 		if err != nil {
-			return fmt.Errorf("Failed converting image to raw at %s: %v", destBlockFile, err)
+			return -1, fmt.Errorf("Failed converting image to raw at %s: %v", destBlockFile, err)
 		}
 	} else {
 		// Dealing with unified tarballs require an initial unpack to a temporary directory.
 		tempDir, err := ioutil.TempDir(shared.VarPath("images"), "lxd_image_unpack_")
 		if err != nil {
-			return err
+			return -1, err
 		}
 		defer os.RemoveAll(tempDir)
 
 		// Unpack the whole image.
 		err = shared.Unpack(imageFile, tempDir, blockBackend, runningInUserns, tracker)
 		if err != nil {
-			return err
+			return -1, err
 		}
 
 		imgPath := filepath.Join(tempDir, "rootfs.img")
 
 		// Convert the qcow2 format to a raw block device.
-		err = convertBlockImage(vol, imgPath, destBlockFile)
+		imgSize, err = convertBlockImage(vol, imgPath, destBlockFile)
 		if err != nil {
-			return err
+			return -1, err
 		}
 
 		// Delete the qcow2.
 		err = os.Remove(imgPath)
 		if err != nil {
-			return errors.Wrapf(err, "Failed to remove %q", imgPath)
+			return -1, errors.Wrapf(err, "Failed to remove %q", imgPath)
 		}
 
 		// Transfer the content excluding the destBlockFile name so that we don't delete the block file
 		// created above if the storage driver stores image files in the same directory as destPath.
 		_, err = rsync.LocalCopy(tempDir, destPath, "", true, "--exclude", filepath.Base(destBlockFile))
 		if err != nil {
-			return err
+			return -1, err
 		}
 	}
 
-	return nil
+	return imgSize, nil
 }
 
 // InstanceContentType returns the instance's content type.
