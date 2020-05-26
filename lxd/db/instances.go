@@ -766,17 +766,16 @@ INSERT INTO instances_profiles (instance_id, profile_id, apply_order)
 // use it for new code.
 func (c *Cluster) LegacyContainersList() ([]string, error) {
 	q := fmt.Sprintf("SELECT name FROM instances WHERE type=? ORDER BY name")
-	inargs := []interface{}{instancetype.Container}
-	var container string
-	outfmt := []interface{}{container}
-	result, err := queryScan(c, q, inargs, outfmt)
-	if err != nil {
-		return nil, err
-	}
 
 	var ret []string
-	for _, container := range result {
-		ret = append(ret, container[0].(string))
+
+	err := c.Transaction(func(tx *ClusterTx) error {
+		var err error
+		ret, err = query.SelectStrings(tx.tx, q, instancetype.Container)
+		return err
+	})
+	if err != nil {
+		return nil, err
 	}
 
 	return ret, nil
