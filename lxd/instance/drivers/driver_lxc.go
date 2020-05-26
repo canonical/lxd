@@ -5837,9 +5837,10 @@ func (c *lxc) networkState() map[string]api.InstanceStateNetwork {
 
 		// Process forkgetnet response
 		if err != nil {
-			logger.Error("Error calling 'lxd forkgetnet", log.Ctx{"container": c.name, "err": err, "pid": pid})
+			logger.Error("Error calling 'lxd forknet", log.Ctx{"container": c.name, "err": err, "pid": pid})
 			return result
 		}
+		logger.Errorf("stgraber: %v", out)
 
 		// If we can use netns_getifaddrs() but it failed and the setns() +
 		// netns_getifaddrs() succeeded we should just always fallback to the
@@ -5849,7 +5850,7 @@ func (c *lxc) networkState() map[string]api.InstanceStateNetwork {
 		nw := map[string]api.InstanceStateNetwork{}
 		err = json.Unmarshal([]byte(out), &nw)
 		if err != nil {
-			logger.Error("Failure to read forkgetnet json", log.Ctx{"container": c.name, "err": err})
+			logger.Error("Failure to read forknet json", log.Ctx{"container": c.name, "err": err})
 			return result
 		}
 		result = nw
