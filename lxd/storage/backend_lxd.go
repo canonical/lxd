@@ -2071,16 +2071,30 @@ func (b *lxdBackend) EnsureImage(fingerprint string, op *operations.Operation) e
 		Fill:        b.imageFiller(fingerprint, op),
 	}
 
+	revert := revert.New()
+	defer revert.Fail()
+
 	err = b.driver.CreateVolume(imgVol, &volFiller, op)
 	if err != nil {
 		return err
 	}
+	revert.Add(func() { b.driver.DeleteVolume(imgVol, op) })
 
-	err = VolumeDBCreate(b.state, project.Default, b.name, fingerprint, "", db.StoragePoolVolumeTypeNameImage, false, nil, time.Time{})
+	var volConfig map[string]string
+
+	// If the volume filler has recorded the size of the unpacked volume, then store this in the image DB row.
+	if volFiller.Size != 0 {
+		volConfig = map[string]string{
+			"volatile.rootfs.size": fmt.Sprintf("%d", volFiller.Size),
+		}
+	}
+
+	err = VolumeDBCreate(b.state, project.Default, b.name, fingerprint, "", db.StoragePoolVolumeTypeNameImage, false, volConfig, time.Time{})
 	if err != nil {
 		return err
 	}
 
+	revert.Success()
 	return nil
 }
 
