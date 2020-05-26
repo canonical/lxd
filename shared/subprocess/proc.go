@@ -48,6 +48,9 @@ func (p *Process) Stop() error {
 		}
 	}
 
+	// Wait for any background goroutine to be done.
+	<-p.chExit
+
 	// Check if either the existence check or the kill resulted in an already finished error.
 	if strings.Contains(err.Error(), "process already finished") {
 		return ErrNotRunning
@@ -103,8 +106,7 @@ func (p *Process) Start() error {
 			return
 		}
 
-		exitcode := int64(procstate.Sys().(syscall.WaitStatus).ExitStatus())
-		p.exitCode = exitcode
+		p.exitCode = int64(procstate.ExitCode())
 		close(p.chExit)
 	}()
 
