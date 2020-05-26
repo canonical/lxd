@@ -276,13 +276,17 @@ test_container_devices_nic_bridged() {
   fi
 
   # Check that MTU is inherited from parent device when not specified on device.
-  lxc network set "${brName}" bridge.mtu "1405"
+  lxc stop "${ctName}" --force
   lxc config device unset "${ctName}" eth0 mtu
+  lxc network set "${brName}" bridge.mtu "1405"
+  lxc start "${ctName}"
   if ! lxc exec "${ctName}" -- grep "1405" /sys/class/net/eth0/mtu ; then
     echo "mtu not inherited from parent"
     false
   fi
+  lxc stop "${ctName}" --force
   lxc network unset "${brName}" bridge.mtu
+  lxc start "${ctName}"
 
   # Add an external 3rd party route to the bridge interface and check that it and the container
   # routes remain when the network is reconfigured.
