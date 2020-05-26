@@ -150,7 +150,7 @@ func VolumeDBCreate(s *state.State, project, poolName, volumeName, volumeDescrip
 		return err
 	}
 
-	err = VolumeFillDefault(poolName, volumeConfig, poolStruct)
+	err = VolumeFillDefault(volumeConfig, poolStruct)
 	if err != nil {
 		return err
 	}
@@ -283,7 +283,7 @@ func VolumeValidateConfig(s *state.State, name string, config map[string]string,
 }
 
 // VolumeFillDefault fills default settings into a volume config.
-func VolumeFillDefault(name string, config map[string]string, parentPool *api.StoragePool) error {
+func VolumeFillDefault(config map[string]string, parentPool *api.StoragePool) error {
 	if parentPool.Driver == "lvm" || parentPool.Driver == "ceph" {
 		if config["block.filesystem"] == "" {
 			config["block.filesystem"] = parentPool.Config["volume.block.filesystem"]
