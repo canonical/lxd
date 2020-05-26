@@ -680,9 +680,9 @@ func CreateInstanceConfig(tx *sql.Tx, id int, config map[string]string) error {
 func (c *Cluster) GetInstanceConfig(id int, key string) (string, error) {
 	q := "SELECT value FROM instances_config WHERE instance_id=? AND key=?"
 	value := ""
-	arg1 := []interface{}{id, key}
-	arg2 := []interface{}{&value}
-	err := dbQueryRowScan(c, q, arg1, arg2)
+	err := c.Transaction(func(tx *ClusterTx) error {
+		return tx.tx.QueryRow(q, id, key).Scan(&value)
+	})
 	if err == sql.ErrNoRows {
 		return "", ErrNoSuchObject
 	}
@@ -693,7 +693,16 @@ func (c *Cluster) GetInstanceConfig(id int, key string) (string, error) {
 // DeleteInstanceConfigKey removes the given key from the config of the instance
 // with the given ID.
 func (c *Cluster) DeleteInstanceConfigKey(id int, key string) error {
-	err := exec(c, "DELETE FROM instances_config WHERE key=? AND instance_id=?", key, id)
+	return c.Transaction(func(tx *ClusterTx) error {
+		return tx.DeleteInstanceConfigKey(int64(id), key)
+	})
+}
+
+// DeleteInstanceConfigKey removes the given key from the config of the instance
+// with the given ID.
+func (c *ClusterTx) DeleteInstanceConfigKey(id int64, key string) error {
+	q := "DELETE FROM instances_config WHERE key=? AND instance_id=?"
+	_, err := c.tx.Exec(q, key, id)
 	return err
 }
 
@@ -704,9 +713,10 @@ func (c *Cluster) UpdateInstanceStatefulFlag(id int, stateful bool) error {
 	if stateful {
 		statefulInt = 1
 	}
-
-	err := exec(c, "UPDATE instances SET stateful=? WHERE id=?", statefulInt, id)
-	return err
+	return c.Transaction(func(tx *ClusterTx) error {
+		_, err := tx.tx.Exec("UPDATE instances SET stateful=? WHERE id=?", statefulInt, id)
+		return err
+	})
 }
 
 // AddProfilesToInstance associates the instance with the given ID with the

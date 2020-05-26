@@ -373,26 +373,31 @@ func containerPostClusteringMigrate(d *Daemon, c instance.Instance, oldName, new
 		}
 
 		// Restore the original value of "volatile.apply_template"
-		id, err := d.cluster.GetInstanceID(c.Project(), destName)
-		if err != nil {
-			return errors.Wrap(err, "Failed to get ID of moved instance")
-		}
-
-		err = d.cluster.DeleteInstanceConfigKey(id, "volatile.apply_template")
-		if err != nil {
-			return errors.Wrap(err, "Failed to remove volatile.apply_template config key")
-		}
-
-		if origVolatileApplyTemplate != "" {
-			config := map[string]string{
-				"volatile.apply_template": origVolatileApplyTemplate,
-			}
-			err := d.cluster.Transaction(func(tx *db.ClusterTx) error {
-				return tx.CreateInstanceConfig(id, config)
-			})
+		project := c.Project()
+		err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
+			id, err := tx.GetInstanceID(project, destName)
 			if err != nil {
-				return errors.Wrap(err, "Failed to set volatile.apply_template config key")
+				return errors.Wrap(err, "Failed to get ID of moved instance")
 			}
+			err = tx.DeleteInstanceConfigKey(id, "volatile.apply_template")
+			if err != nil {
+				return errors.Wrap(err, "Failed to remove volatile.apply_template config key")
+			}
+
+			if origVolatileApplyTemplate != "" {
+				config := map[string]string{
+					"volatile.apply_template": origVolatileApplyTemplate,
+				}
+				err = tx.CreateInstanceConfig(int(id), config)
+				if err != nil {
+					return errors.Wrap(err, "Failed to set volatile.apply_template config key")
+				}
+			}
+
+			return nil
+		})
+		if err != nil {
+			return err
 		}
 
 		return nil
