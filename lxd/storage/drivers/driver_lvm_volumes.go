@@ -380,7 +380,7 @@ func (d *lvm) SetVolumeQuota(vol Volume, size string, op *operations.Operation) 
 	if vol.contentType == ContentTypeFS {
 		if sizeBytes < oldSizeBytes {
 			// Shrink filesystem to new size first, then shrink logical volume.
-			err = shrinkFileSystem(d.volumeFilesystem(vol), volDevPath, vol, sizeBytes)
+			err = shrinkFileSystem(vol.ConfigBlockFilesystem(), volDevPath, vol, sizeBytes)
 			if err != nil {
 				return err
 			}
@@ -397,7 +397,7 @@ func (d *lvm) SetVolumeQuota(vol Volume, size string, op *operations.Operation) 
 				return err
 			}
 
-			err = growFileSystem(d.volumeFilesystem(vol), volDevPath, vol)
+			err = growFileSystem(vol.ConfigBlockFilesystem(), volDevPath, vol)
 			if err != nil {
 				return err
 			}
@@ -458,7 +458,7 @@ func (d *lvm) MountVolume(vol Volume, op *operations.Operation) (bool, error) {
 		}
 
 		mountFlags, mountOptions := resolveMountOptions(d.volumeMountOptions(vol))
-		err = TryMount(volDevPath, mountPath, d.volumeFilesystem(vol), mountFlags, mountOptions)
+		err = TryMount(volDevPath, mountPath, vol.ConfigBlockFilesystem(), mountFlags, mountOptions)
 		if err != nil {
 			return false, errors.Wrapf(err, "Failed to mount LVM logical volume")
 		}
@@ -735,7 +735,7 @@ func (d *lvm) MountVolumeSnapshot(snapVol Volume, op *operations.Operation) (boo
 		// we do not want to modify a snapshot in case it is corrupted for some reason, so at mount time
 		// we take another snapshot of the snapshot, regenerate the temporary snapshot's UUID and then
 		// mount that.
-		regenerateFSUUID := renegerateFilesystemUUIDNeeded(d.volumeFilesystem(snapVol))
+		regenerateFSUUID := renegerateFilesystemUUIDNeeded(snapVol.ConfigBlockFilesystem())
 		if regenerateFSUUID {
 			// Instantiate a new volume to be the temporary writable snapshot.
 			tmpVolName := fmt.Sprintf("%s%s", snapVol.name, tmpVolSuffix)
@@ -764,7 +764,7 @@ func (d *lvm) MountVolumeSnapshot(snapVol Volume, op *operations.Operation) (boo
 		}
 
 		if regenerateFSUUID {
-			tmpVolFsType := d.volumeFilesystem(mountVol)
+			tmpVolFsType := mountVol.ConfigBlockFilesystem()
 
 			// When mounting XFS filesystems temporarily we can use the nouuid option rather than fully
 			// regenerating the filesystem UUID.
@@ -775,7 +775,7 @@ func (d *lvm) MountVolumeSnapshot(snapVol Volume, op *operations.Operation) (boo
 				}
 			} else {
 				d.logger.Debug("Regenerating filesystem UUID", log.Ctx{"dev": volDevPath, "fs": tmpVolFsType})
-				err = regenerateFilesystemUUID(d.volumeFilesystem(mountVol), volDevPath)
+				err = regenerateFilesystemUUID(mountVol.ConfigBlockFilesystem(), volDevPath)
 				if err != nil {
 					return false, err
 				}
@@ -783,7 +783,7 @@ func (d *lvm) MountVolumeSnapshot(snapVol Volume, op *operations.Operation) (boo
 		}
 
 		// Finally attempt to mount the volume that needs mounting.
-		err = TryMount(volDevPath, mountPath, d.volumeFilesystem(mountVol), mountFlags|unix.MS_RDONLY, mountOptions)
+		err = TryMount(volDevPath, mountPath, mountVol.ConfigBlockFilesystem(), mountFlags|unix.MS_RDONLY, mountOptions)
 		if err != nil {
 			return false, errors.Wrapf(err, "Failed to mount LVM snapshot volume")
 		}
@@ -965,14 +965,14 @@ func (d *lvm) RestoreVolume(vol Volume, snapshotName string, op *operations.Oper
 		})
 
 		// If the volume's filesystem needs to have its UUID regenerated to allow mount then do so now.
-		if vol.contentType == ContentTypeFS && renegerateFilesystemUUIDNeeded(d.volumeFilesystem(vol)) {
+		if vol.contentType == ContentTypeFS && renegerateFilesystemUUIDNeeded(vol.ConfigBlockFilesystem()) {
 			_, err = d.activateVolume(volDevPath)
 			if err != nil {
 				return err
 			}
 
-			d.logger.Debug("Regenerating filesystem UUID", log.Ctx{"dev": volDevPath, "fs": d.volumeFilesystem(vol)})
-			err = regenerateFilesystemUUID(d.volumeFilesystem(vol), volDevPath)
+			d.logger.Debug("Regenerating filesystem UUID", log.Ctx{"dev": volDevPath, "fs": vol.ConfigBlockFilesystem()})
+			err = regenerateFilesystemUUID(vol.ConfigBlockFilesystem(), volDevPath)
 			if err != nil {
 				return err
 			}
