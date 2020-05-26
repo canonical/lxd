@@ -227,7 +227,7 @@ func lxcCreate(s *state.State, args db.InstanceArgs) (instance.Instance, error) 
 
 	// Fill in any default volume config
 	volumeConfig := map[string]string{}
-	err = storagePools.VolumeFillDefault(storagePool, volumeConfig, dbPool)
+	err = storagePools.VolumeFillDefault(volumeConfig, dbPool)
 	if err != nil {
 		c.Delete()
 		return nil, err
