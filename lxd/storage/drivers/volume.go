@@ -331,3 +331,30 @@ func (v Volume) NewVMBlockFilesystemVolume() Volume {
 func (v Volume) SetQuota(size string, op *operations.Operation) error {
 	return v.driver.SetVolumeQuota(v, size, op)
 }
+
+// ConfigBlockFilesystem returns the filesystem to use for block volumes. Returns config value "block.filesystem"
+// if defined in volume or pool's volume config, otherwise the DefaultFilesystem.
+func (v Volume) ConfigBlockFilesystem() string {
+	fs := v.ExpandedConfig("block.filesystem")
+	if fs != "" {
+		return fs
+	}
+
+	return DefaultFilesystem
+}
+
+// ConfigSize returns the size to use when creating new a volume. Returns config value "size" if defined in volume
+// or pool's volume config, otherwise for block volumes and block-backed volumes the defaultBlockSize. For other
+// volumes an empty string is returned if no size is defined.
+func (v Volume) ConfigSize() string {
+	size := v.ExpandedConfig("size")
+
+	// If volume size isn't defined in either volume or pool config, then for block volumes or block-backed
+	// volumes return the defaultBlockSize.
+	if (size == "" || size == "0") && (v.contentType == ContentTypeBlock || v.driver.Info().BlockBacking) {
+		return defaultBlockSize
+	}
+
+	// Return defined size or empty string if not defined.
+	return size
+}
