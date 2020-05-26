@@ -992,21 +992,6 @@ func (c *Cluster) UpdateImage(id int, fname string, sz int64, public bool, autoU
 
 // CreateImage creates a new image.
 func (c *Cluster) CreateImage(project, fp string, fname string, sz int64, public bool, autoUpdate bool, architecture string, createdAt time.Time, expiresAt time.Time, properties map[string]string, typeName string) error {
-	profileProject := project
-	err := c.Transaction(func(tx *ClusterTx) error {
-		enabled, err := tx.ProjectHasImages(project)
-		if err != nil {
-			return errors.Wrap(err, "Check if project has images")
-		}
-		if !enabled {
-			project = "default"
-		}
-		return nil
-	})
-	if err != nil {
-		return err
-	}
-
 	arch, err := osarch.ArchitectureId(architecture)
 	if err != nil {
 		arch = 0
@@ -1025,12 +1010,21 @@ func (c *Cluster) CreateImage(project, fp string, fname string, sz int64, public
 		return fmt.Errorf("Invalid image type: %v", typeName)
 	}
 
-	defaultProfileID, _, err := c.GetProfile(profileProject, "default")
-	if err != nil {
-		return err
-	}
-
 	err = c.Transaction(func(tx *ClusterTx) error {
+		profileProject := project
+		enabled, err := tx.ProjectHasImages(project)
+		if err != nil {
+			return errors.Wrap(err, "Check if project has images")
+		}
+		if !enabled {
+			project = "default"
+		}
+
+		defaultProfileID, _, err := tx.getProfile(profileProject, "default")
+		if err != nil {
+			return err
+		}
+
 		publicInt := 0
 		if public {
 			publicInt = 1
