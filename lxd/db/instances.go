@@ -651,29 +651,6 @@ func (c *Cluster) GetInstanceID(project, name string) (int, error) {
 	return int(id), err
 }
 
-// DeleteInstanceConfig removes any config associated with the instance with
-// the given ID.
-func DeleteInstanceConfig(tx *sql.Tx, id int) error {
-	_, err := tx.Exec("DELETE FROM instances_config WHERE instance_id=?", id)
-	if err != nil {
-		return err
-	}
-	_, err = tx.Exec("DELETE FROM instances_profiles WHERE instance_id=?", id)
-	if err != nil {
-		return err
-	}
-	_, err = tx.Exec(`DELETE FROM instances_devices_config WHERE id IN
-		(SELECT instances_devices_config.id
-		 FROM instances_devices_config JOIN instances_devices
-		 ON instances_devices_config.instance_device_id=instances_devices.id
-		 WHERE instances_devices.instance_id=?)`, id)
-	if err != nil {
-		return err
-	}
-	_, err = tx.Exec("DELETE FROM instances_devices WHERE instance_id=?", id)
-	return err
-}
-
 // CreateInstanceConfig inserts a new config for the instance with the given ID.
 func CreateInstanceConfig(tx *sql.Tx, id int, config map[string]string) error {
 	stmt, err := tx.Prepare("INSERT INTO instances_config (instance_id, key, value) values (?, ?, ?)")
