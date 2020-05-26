@@ -33,9 +33,13 @@ test_storage_driver_btrfs() {
     lxc snapshot c1pool1 snap0
 
     # Create some subvolumes and populate with test files. Mark the intermedia subvolume as read only.
+    OWNER="$(stat -c %u:%g "${LXD_DIR}/storage-pools/lxdtest-$(basename "${LXD_DIR}")-pool1/containers/c1pool1/rootfs")"
     btrfs subvolume create "${LXD_DIR}/storage-pools/lxdtest-$(basename "${LXD_DIR}")-pool1/containers/c1pool1/rootfs/a"
+    chown "${OWNER}" "${LXD_DIR}/storage-pools/lxdtest-$(basename "${LXD_DIR}")-pool1/containers/c1pool1/rootfs/a"
     btrfs subvolume create "${LXD_DIR}/storage-pools/lxdtest-$(basename "${LXD_DIR}")-pool1/containers/c1pool1/rootfs/a/b"
+    chown "${OWNER}" "${LXD_DIR}/storage-pools/lxdtest-$(basename "${LXD_DIR}")-pool1/containers/c1pool1/rootfs/a/b"
     btrfs subvolume create "${LXD_DIR}/storage-pools/lxdtest-$(basename "${LXD_DIR}")-pool1/containers/c1pool1/rootfs/a/b/c"
+    chown "${OWNER}" "${LXD_DIR}/storage-pools/lxdtest-$(basename "${LXD_DIR}")-pool1/containers/c1pool1/rootfs/a/b/c"
     lxc exec c1pool1 -- touch /a/a1.txt
     lxc exec c1pool1 -- touch /a/b/b1.txt
     lxc exec c1pool1 -- touch /a/b/c/c1.txt
