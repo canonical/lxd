@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"os/exec"
 	"strings"
-	"syscall"
 
 	"github.com/pkg/errors"
 
@@ -207,11 +206,9 @@ func (d *common) moveGPTAltHeader(devPath string) error {
 	if ok {
 		exitError, ok := runErr.Err.(*exec.ExitError)
 		if ok {
-			waitStatus := exitError.Sys().(syscall.WaitStatus)
-
 			// sgdisk manpage says exit status 3 means:
 			// "Non-GPT disk detected and no -g option, but operation requires a write action".
-			if waitStatus.ExitStatus() == 3 {
+			if exitError.ExitCode() == 3 {
 				return nil // Non-error as non-GPT disk specified.
 			}
 		}
