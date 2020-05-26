@@ -98,10 +98,14 @@ func (p *Process) Start() error {
 	}
 
 	p.Pid = int64(cmd.Process.Pid)
-	p.chExit = make(chan struct{})
-	p.hasMonitor = true
+
+	// Reset exitCode/exitErr
+	p.exitCode = 0
+	p.exitErr = nil
 
 	// Spawn a goroutine waiting for it to exit.
+	p.chExit = make(chan struct{})
+	p.hasMonitor = true
 	go func() {
 		procstate, err := cmd.Process.Wait()
 		if err != nil {
