@@ -393,7 +393,7 @@ func (d *lvm) createLogicalVolume(vgName, thinPoolName string, vol Volume, makeT
 }
 
 // createLogicalVolumeSnapshot creates a snapshot of a logical volume.
-func (d *lvm) createLogicalVolumeSnapshot(vgName string, srcVol, snapVol Volume, readonly bool, makeThinLv bool) (string, error) {
+func (d *lvm) createLogicalVolumeSnapshot(vgName string, srcVol Volume, snapVol Volume, readonly bool, makeThinLv bool) (string, error) {
 	srcVolDevPath := d.lvmDevPath(vgName, srcVol.volType, srcVol.contentType, srcVol.name)
 	isRecent, err := d.lvmVersionIsAtLeast(lvmVersion, "2.02.99")
 	if err != nil {
