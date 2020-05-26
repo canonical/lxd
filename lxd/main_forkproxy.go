@@ -335,10 +335,9 @@ func (c *cmdForkproxy) Command() *cobra.Command {
   container, connecting one side to the host and the other to the
   container.
 `
-	cmd.Args = cobra.ExactArgs(15)
+	cmd.Args = cobra.ExactArgs(14)
 	cmd.RunE = c.Run
 	cmd.Hidden = true
-	cmd.DisableFlagParsing = true
 
 	return cmd
 }
@@ -457,7 +456,7 @@ func (c *cmdForkproxy) Run(cmd *cobra.Command, args []string) error {
 	}
 
 	// Sanity checks
-	if len(args) != 15 {
+	if len(args) != 14 {
 		cmd.Help()
 
 		if len(args) == 0 {
@@ -472,13 +471,13 @@ func (c *cmdForkproxy) Run(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("Failed to call forkproxy constructor")
 	}
 
-	listenAddr := args[3]
+	listenAddr := args[2]
 	lAddr, err := device.ProxyParseAddr(listenAddr)
 	if err != nil {
 		return err
 	}
 
-	connectAddr := args[6]
+	connectAddr := args[5]
 	cAddr, err := device.ProxyParseAddr(connectAddr)
 	if err != nil {
 		return err
@@ -527,16 +526,16 @@ func (c *cmdForkproxy) Run(cmd *cobra.Command, args []string) error {
 			var err error
 
 			listenAddrGID := -1
-			if args[9] != "" {
-				listenAddrGID, err = strconv.Atoi(args[9])
+			if args[8] != "" {
+				listenAddrGID, err = strconv.Atoi(args[8])
 				if err != nil {
 					return err
 				}
 			}
 
 			listenAddrUID := -1
-			if args[10] != "" {
-				listenAddrUID, err = strconv.Atoi(args[10])
+			if args[9] != "" {
+				listenAddrUID, err = strconv.Atoi(args[9])
 				if err != nil {
 					return err
 				}
@@ -550,8 +549,8 @@ func (c *cmdForkproxy) Run(cmd *cobra.Command, args []string) error {
 			}
 
 			var listenAddrMode os.FileMode
-			if args[11] != "" {
-				tmp, err := strconv.ParseUint(args[11], 8, 0)
+			if args[10] != "" {
+				tmp, err := strconv.ParseUint(args[10], 8, 0)
 				if err != nil {
 					return err
 				}
@@ -619,16 +618,16 @@ func (c *cmdForkproxy) Run(cmd *cobra.Command, args []string) error {
 
 	// Drop privilege if requested
 	gid := uint64(0)
-	if args[12] != "" {
-		gid, err = strconv.ParseUint(args[12], 10, 32)
+	if args[11] != "" {
+		gid, err = strconv.ParseUint(args[11], 10, 32)
 		if err != nil {
 			return err
 		}
 	}
 
 	uid := uint64(0)
-	if args[13] != "" {
-		uid, err = strconv.ParseUint(args[13], 10, 32)
+	if args[12] != "" {
+		uid, err = strconv.ParseUint(args[12], 10, 32)
 		if err != nil {
 			return err
 		}
@@ -708,7 +707,7 @@ func (c *cmdForkproxy) Run(cmd *cobra.Command, args []string) error {
 				continue
 			}
 
-			err := listenerInstance(epFd, lAddr, cAddr, curFd, srcConn, args[14] == "true")
+			err := listenerInstance(epFd, lAddr, cAddr, curFd, srcConn, args[13] == "true")
 			if err != nil {
 				fmt.Printf("Warning: Failed to prepare new listener instance: %s\n", err)
 			}

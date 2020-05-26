@@ -1844,14 +1844,15 @@ func (c *lxc) DeviceEventHandler(runConf *deviceConfig.RunConfig) error {
 		for _, eventParts := range runConf.Uevents {
 			ueventArray := make([]string, 4)
 			ueventArray[0] = "forkuevent"
-			ueventArray[1] = "inject"
-			ueventArray[2] = fmt.Sprintf("%d", c.InitPID())
-			ueventArray[3] = fmt.Sprintf("%d", pidFdNr)
+			ueventArray[1] = "--"
+			ueventArray[2] = "inject"
+			ueventArray[3] = fmt.Sprintf("%d", c.InitPID())
+			ueventArray[4] = fmt.Sprintf("%d", pidFdNr)
 			length := 0
 			for _, part := range eventParts {
 				length = length + len(part) + 1
 			}
-			ueventArray[4] = fmt.Sprintf("%d", length)
+			ueventArray[5] = fmt.Sprintf("%d", length)
 			ueventArray = append(ueventArray, eventParts...)
 			_, _, err := shared.RunCommandSplit(nil, []*os.File{pidFd}, c.state.OS.ExecPath, ueventArray...)
 			if err != nil {
@@ -5828,6 +5829,7 @@ func (c *lxc) networkState() map[string]api.InstanceStateNetwork {
 			[]*os.File{pidFd},
 			c.state.OS.ExecPath,
 			"forknet",
+			"--",
 			"info",
 			fmt.Sprintf("%d", pid),
 			fmt.Sprintf("%d", pidFdNr))
