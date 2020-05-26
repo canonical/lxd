@@ -997,8 +997,13 @@ func (b *lxdBackend) CreateInstanceFromImage(inst instance.Instance, fingerprint
 			return err
 		}
 
-		// No config for an image volume so set to nil.
-		imgVol := b.newVolume(drivers.VolumeTypeImage, contentType, fingerprint, nil)
+		// Try and load existing volume config on this storage pool so we can compare filesystems if needed.
+		_, imgDBVol, err := b.state.Cluster.GetLocalStoragePoolVolume(project.Default, fingerprint, db.StoragePoolVolumeTypeImage, b.ID())
+		if err != nil {
+			return errors.Wrapf(err, "Failed loading image record for %q", fingerprint)
+		}
+
+		imgVol := b.newVolume(drivers.VolumeTypeImage, contentType, fingerprint, imgDBVol.Config)
 		err = b.driver.CreateVolumeFromCopy(vol, imgVol, false, op)
 
 		// If the driver returns ErrCannotBeShrunk, this means that the cached volume is larger than the
