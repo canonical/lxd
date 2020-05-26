@@ -240,7 +240,7 @@ func qemuCreate(s *state.State, args db.InstanceArgs) (instance.Instance, error)
 
 	// Fill in any default volume config.
 	volumeConfig := map[string]string{}
-	err = storagePools.VolumeFillDefault(storagePool, volumeConfig, pool)
+	err = storagePools.VolumeFillDefault(volumeConfig, pool)
 	if err != nil {
 		return nil, err
 	}
