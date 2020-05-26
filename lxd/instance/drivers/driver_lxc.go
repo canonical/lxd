@@ -2262,6 +2262,7 @@ func (c *lxc) detachInterfaceRename(netns string, ifName string, hostName string
 	_, err := shared.RunCommand(
 		c.state.OS.ExecPath,
 		"forknet",
+		"--",
 		"detach",
 		netns,
 		fmt.Sprintf("%d", lxdPID),
