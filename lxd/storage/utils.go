@@ -107,6 +107,22 @@ func VolumeTypeToDBType(volType drivers.VolumeType) (int, error) {
 	return -1, fmt.Errorf("Invalid storage volume type")
 }
 
+// VolumeDBTypeToType converts internal volume type DB code to driver representation.
+func VolumeDBTypeToType(volDBType int) (drivers.VolumeType, error) {
+	switch volDBType {
+	case db.StoragePoolVolumeTypeContainer:
+		return drivers.VolumeTypeContainer, nil
+	case db.StoragePoolVolumeTypeVM:
+		return drivers.VolumeTypeVM, nil
+	case db.StoragePoolVolumeTypeImage:
+		return drivers.VolumeTypeImage, nil
+	case db.StoragePoolVolumeTypeCustom:
+		return drivers.VolumeTypeCustom, nil
+	}
+
+	return "", fmt.Errorf("Invalid storage volume type")
+}
+
 // InstanceTypeToVolumeType converts instance type to volume type.
 func InstanceTypeToVolumeType(instType instancetype.Type) (drivers.VolumeType, error) {
 	switch instType {
@@ -122,7 +138,7 @@ func InstanceTypeToVolumeType(instType instancetype.Type) (drivers.VolumeType, e
 // VolumeDBCreate creates a volume in the database.
 func VolumeDBCreate(s *state.State, project, poolName, volumeName, volumeDescription, volumeTypeName string, snapshot bool, volumeConfig map[string]string, expiryDate time.Time) error {
 	// Convert the volume type name to our internal integer representation.
-	volumeType, err := VolumeTypeNameToType(volumeTypeName)
+	volDBType, err := VolumeTypeNameToType(volumeTypeName)
 	if err != nil {
 		return err
 	}
@@ -134,7 +150,7 @@ func VolumeDBCreate(s *state.State, project, poolName, volumeName, volumeDescrip
 	}
 
 	// Check that a storage volume of the same storage volume type does not already exist.
-	volumeID, _ := s.Cluster.GetStoragePoolNodeVolumeID(project, volumeName, volumeType, poolID)
+	volumeID, _ := s.Cluster.GetStoragePoolNodeVolumeID(project, volumeName, volDBType, poolID)
 	if volumeID > 0 {
 		return fmt.Errorf("A storage volume of type %s already exists", volumeTypeName)
 	}
@@ -144,8 +160,13 @@ func VolumeDBCreate(s *state.State, project, poolName, volumeName, volumeDescrip
 		volumeConfig = map[string]string{}
 	}
 
+	volType, err := VolumeDBTypeToType(volDBType)
+	if err != nil {
+		return err
+	}
+
 	// Validate the requested storage volume configuration.
-	err = VolumeValidateConfig(s, poolName, volumeConfig, poolStruct)
+	err = VolumeValidateConfig(s, volumeName, volType, volumeConfig, poolStruct)
 	if err != nil {
 		return err
 	}
@@ -157,12 +178,12 @@ func VolumeDBCreate(s *state.State, project, poolName, volumeName, volumeDescrip
 
 	// Create the database entry for the storage volume.
 	if snapshot {
-		_, err = s.Cluster.CreateStorageVolumeSnapshot(project, volumeName, volumeDescription, volumeType, poolID, volumeConfig, expiryDate)
+		_, err = s.Cluster.CreateStorageVolumeSnapshot(project, volumeName, volumeDescription, volDBType, poolID, volumeConfig, expiryDate)
 	} else {
-		_, err = s.Cluster.CreateStoragePoolVolume(project, volumeName, volumeDescription, volumeType, poolID, volumeConfig)
+		_, err = s.Cluster.CreateStoragePoolVolume(project, volumeName, volumeDescription, volDBType, poolID, volumeConfig)
 	}
 	if err != nil {
-		return fmt.Errorf("Error inserting %s of type %s into database: %s", poolName, volumeTypeName, err)
+		return fmt.Errorf("Error inserting %q of type %q into database %q", poolName, volumeTypeName, err)
 	}
 
 	return nil
@@ -229,15 +250,15 @@ var StorageVolumeConfigKeys = map[string]func(value string) ([]string, error){
 }
 
 // VolumeValidateConfig validations volume config. Deprecated.
-func VolumeValidateConfig(s *state.State, name string, config map[string]string, parentPool *api.StoragePool) error {
+func VolumeValidateConfig(s *state.State, volName string, volType drivers.VolumeType, config map[string]string, parentPool *api.StoragePool) error {
 	logger := logging.AddContext(logger.Log, log.Ctx{"driver": parentPool.Driver, "pool": parentPool.Name})
 
 	// Validate volume config using the new driver interface if supported.
 	driver, err := drivers.Load(s, parentPool.Driver, parentPool.Name, parentPool.Config, logger, nil, commonRules())
 	if err != drivers.ErrUnknownDriver {
-		// Note: This legacy validation function doesn't have the concept of validating
-		// different volumes types, so the types are hard coded as Custom and FS.
-		return driver.ValidateVolume(drivers.NewVolume(driver, parentPool.Name, drivers.VolumeTypeCustom, drivers.ContentTypeFS, name, config, parentPool.Config), false)
+		// Note: This legacy validation function doesn't have the concept of validating different content
+		// types, so it is hardcoded as ContentTypeFS.
+		return driver.ValidateVolume(drivers.NewVolume(driver, parentPool.Name, volType, drivers.ContentTypeFS, volName, config, parentPool.Config), false)
 	}
 
 	// Otherwise fallback to doing legacy validation.
