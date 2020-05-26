@@ -827,6 +827,10 @@ func (c *Cluster) MoveImageAlias(source int, destination int) error {
 
 // CreateImageAlias inserts an alias ento the database.
 func (c *Cluster) CreateImageAlias(project, name string, imageID int, desc string) error {
+	stmt := `
+INSERT INTO images_aliases (name, image_id, description, project_id)
+     VALUES (?, ?, ?, (SELECT id FROM projects WHERE name = ?))
+`
 	err := c.Transaction(func(tx *ClusterTx) error {
 		enabled, err := tx.ProjectHasImages(project)
 		if err != nil {
@@ -835,24 +839,24 @@ func (c *Cluster) CreateImageAlias(project, name string, imageID int, desc strin
 		if !enabled {
 			project = "default"
 		}
-		return nil
+
+		_, err = tx.tx.Exec(stmt, name, imageID, desc, project)
+		return err
 	})
 	if err != nil {
 		return err
 	}
 
-	stmt := `
-INSERT INTO images_aliases (name, image_id, description, project_id)
-     VALUES (?, ?, ?, (SELECT id FROM projects WHERE name = ?))
-`
-	err = exec(c, stmt, name, imageID, desc, project)
-	return err
+	return nil
 }
 
 // UpdateImageAlias updates the alias with the given ID.
 func (c *Cluster) UpdateImageAlias(id int, imageID int, desc string) error {
 	stmt := `UPDATE images_aliases SET image_id=?, description=? WHERE id=?`
-	err := exec(c, stmt, imageID, desc, id)
+	err := c.Transaction(func(tx *ClusterTx) error {
+		_, err := tx.tx.Exec(stmt, imageID, desc, id)
+		return err
+	})
 	return err
 }
 
@@ -884,14 +888,20 @@ func (c *Cluster) CopyDefaultImageProfiles(id int, newID int) error {
 // given fingerprint.
 func (c *Cluster) UpdateImageLastUseDate(fingerprint string, date time.Time) error {
 	stmt := `UPDATE images SET last_use_date=? WHERE fingerprint=?`
-	err := exec(c, stmt, date, fingerprint)
+	err := c.Transaction(func(tx *ClusterTx) error {
+		_, err := tx.tx.Exec(stmt, date, fingerprint)
+		return err
+	})
 	return err
 }
 
 // InitImageLastUseDate inits the last_use_date field of the image with the given fingerprint.
 func (c *Cluster) InitImageLastUseDate(fingerprint string) error {
 	stmt := `UPDATE images SET cached=1, last_use_date=strftime("%s") WHERE fingerprint=?`
-	err := exec(c, stmt, fingerprint)
+	err := c.Transaction(func(tx *ClusterTx) error {
+		_, err := tx.tx.Exec(stmt, fingerprint)
+		return err
+	})
 	return err
 }
 
