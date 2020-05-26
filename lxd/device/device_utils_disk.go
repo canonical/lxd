@@ -6,7 +6,6 @@ import (
 	"os"
 	"os/exec"
 	"strings"
-	"syscall"
 	"time"
 
 	"golang.org/x/sys/unix"
@@ -149,13 +148,12 @@ again:
 		if ok {
 			exitError, ok := runError.Err.(*exec.ExitError)
 			if ok {
-				waitStatus := exitError.Sys().(syscall.WaitStatus)
-				if waitStatus.ExitStatus() == 22 {
+				if exitError.ExitCode() == 22 {
 					// EINVAL (already unmapped)
 					return nil
 				}
 
-				if waitStatus.ExitStatus() == 16 {
+				if exitError.ExitCode() == 16 {
 					// EBUSY (currently in use)
 					busyCount++
 					if busyCount == 10 {
