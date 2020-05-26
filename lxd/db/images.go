@@ -733,21 +733,6 @@ SELECT images_aliases.name
 func (c *Cluster) GetImageAlias(project, name string, isTrustedClient bool) (int, api.ImageAliasesEntry, error) {
 	id := -1
 	entry := api.ImageAliasesEntry{}
-
-	err := c.Transaction(func(tx *ClusterTx) error {
-		enabled, err := tx.ProjectHasImages(project)
-		if err != nil {
-			return errors.Wrap(err, "Check if project has images")
-		}
-		if !enabled {
-			project = "default"
-		}
-		return nil
-	})
-	if err != nil {
-		return id, entry, err
-	}
-
 	q := `SELECT images_aliases.id, images.fingerprint, images.type, images_aliases.description
 			 FROM images_aliases
 			 INNER JOIN images
@@ -759,24 +744,38 @@ func (c *Cluster) GetImageAlias(project, name string, isTrustedClient bool) (int
 		q = q + ` AND images.public=1`
 	}
 
-	var fingerprint, description string
-	var imageType int
+	err := c.Transaction(func(tx *ClusterTx) error {
+		enabled, err := tx.ProjectHasImages(project)
+		if err != nil {
+			return errors.Wrap(err, "Check if project has images")
+		}
+		if !enabled {
+			project = "default"
+		}
+		var fingerprint, description string
+		var imageType int
 
-	arg1 := []interface{}{project, name}
-	arg2 := []interface{}{&id, &fingerprint, &imageType, &description}
-	err = dbQueryRowScan(c, q, arg1, arg2)
-	if err != nil {
-		if err == sql.ErrNoRows {
-			return -1, entry, ErrNoSuchObject
+		arg1 := []interface{}{project, name}
+		arg2 := []interface{}{&id, &fingerprint, &imageType, &description}
+		err = tx.tx.QueryRow(q, arg1...).Scan(arg2...)
+		if err != nil {
+			if err == sql.ErrNoRows {
+				return ErrNoSuchObject
+			}
+
+			return err
 		}
 
+		entry.Name = name
+		entry.Target = fingerprint
+		entry.Description = description
+		entry.Type = instancetype.Type(imageType).String()
+
+		return nil
+	})
+	if err != nil {
 		return -1, entry, err
 	}
-
-	entry.Name = name
-	entry.Target = fingerprint
-	entry.Description = description
-	entry.Type = instancetype.Type(imageType).String()
 
 	return id, entry, nil
 }
