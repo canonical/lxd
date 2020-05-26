@@ -160,6 +160,9 @@ void forkuevent(void)
 		_exit(1);
 	}
 
+	// skip "--"
+	advance_arg(false);
+
 	// Get the pid
 	cur = advance_arg(false);
 	if (cur == NULL || (strcmp(cur, "--help") == 0 || strcmp(cur, "--version") == 0 || strcmp(cur, "-h") == 0)) {

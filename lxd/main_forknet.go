@@ -57,6 +57,9 @@ void forknet(void)
 		return;
 	}
 
+	// skip "--"
+	advance_arg(true);
+
 	// Get the pid
 	cur = advance_arg(false);
 	if (cur == NULL || (strcmp(cur, "--help") == 0 || strcmp(cur, "--version") == 0 || strcmp(cur, "-h") == 0)) {
