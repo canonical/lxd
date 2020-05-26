@@ -50,26 +50,6 @@ func (d *lvm) thinpoolName() string {
 	return "LXDThinPool"
 }
 
-// volumeFilesystem returns the filesystem to use for logical volumes.
-func (d *lvm) volumeFilesystem(vol Volume) string {
-	fs := vol.ExpandedConfig("block.filesystem")
-	if fs != "" {
-		return fs
-	}
-
-	return DefaultFilesystem
-}
-
-// volumeSize returns the size to use when creating new a volume.
-func (d *lvm) volumeSize(vol Volume) string {
-	size := vol.ExpandedConfig("size")
-	if size == "" || size == "0" {
-		return defaultBlockSize
-	}
-
-	return size
-}
-
 // mountOptions returns the mount options for volumes.
 func (d *lvm) volumeMountOptions(vol Volume) string {
 	if d.config["block.mount_options"] != "" {
