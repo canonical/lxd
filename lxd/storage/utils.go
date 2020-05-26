@@ -435,6 +435,11 @@ func validateVolumeCommonRules(vol drivers.Volume) map[string]func(string) error
 		rules["security.unmapped"] = shared.IsBool
 	}
 
+	// volatile.rootfs.size is only used for image volumes.
+	if vol.Type() == drivers.VolumeTypeImage {
+		rules["volatile.rootfs.size"] = shared.IsInt64
+	}
+
 	return rules
 }
 
