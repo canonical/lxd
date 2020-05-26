@@ -66,7 +66,7 @@ func (d *btrfs) CreateVolume(vol Volume, filler *VolumeFiller, op *operations.Op
 	// We expect the filler function to have converted the qcow2 image to raw into the rootBlockPath.
 	if vol.contentType == ContentTypeBlock {
 		// Convert to bytes.
-		sizeBytes, err := units.ParseByteSizeString(d.volumeSize(vol))
+		sizeBytes, err := units.ParseByteSizeString(vol.ConfigSize())
 		if err != nil {
 			return err
 		}
@@ -85,7 +85,7 @@ func (d *btrfs) CreateVolume(vol Volume, filler *VolumeFiller, op *operations.Op
 		}
 	} else if vol.contentType == ContentTypeFS {
 		// Set initial quota for filesystem volumes.
-		err := d.SetVolumeQuota(vol, d.volumeSize(vol), op)
+		err := d.SetVolumeQuota(vol, vol.ConfigSize(), op)
 		if err != nil {
 			return err
 		}
@@ -363,7 +363,7 @@ func (d *btrfs) CreateVolumeFromCopy(vol Volume, srcVol Volume, copySnapshots bo
 
 	// If source is an image then take into account default volume sizes if not specified.
 	if srcVol.volType == VolumeTypeImage {
-		volSize = d.volumeSize(vol)
+		volSize = vol.ConfigSize()
 	}
 
 	err = d.SetVolumeQuota(vol, volSize, op)

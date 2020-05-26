@@ -124,7 +124,7 @@ func (d *ceph) CreateVolume(vol Volume, filler *VolumeFiller, op *operations.Ope
 	}
 
 	// Create volume.
-	err := d.rbdCreateVolume(vol, d.volumeSize(vol))
+	err := d.rbdCreateVolume(vol, vol.ConfigSize())
 	if err != nil {
 		return err
 	}
@@ -327,7 +327,7 @@ func (d *ceph) CreateVolumeFromCopy(vol Volume, srcVol Volume, copySnapshots boo
 
 		// If source is an image then take into account default volume sizes if not specified.
 		if srcVol.volType == VolumeTypeImage {
-			volSize = d.volumeSize(vol)
+			volSize = vol.ConfigSize()
 		}
 
 		err = d.SetVolumeQuota(vol, volSize, op)

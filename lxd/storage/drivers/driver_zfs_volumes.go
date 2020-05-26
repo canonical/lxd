@@ -134,12 +134,12 @@ func (d *zfs) CreateVolume(vol Volume, filler *VolumeFiller, op *operations.Oper
 		}
 
 		// Apply the size limit.
-		err = d.SetVolumeQuota(vol, d.volumeSize(vol), op)
+		err = d.SetVolumeQuota(vol, vol.ConfigSize(), op)
 		if err != nil {
 			return err
 		}
 	} else {
-		sizeBytes, err := units.ParseByteSizeString(d.volumeSize(vol))
+		sizeBytes, err := units.ParseByteSizeString(vol.ConfigSize())
 		if err != nil {
 			return err
 		}
@@ -593,7 +593,7 @@ func (d *zfs) CreateVolumeFromCopy(vol Volume, srcVol Volume, copySnapshots bool
 
 	// If source is an image then take into account default volume sizes if not specified.
 	if srcVol.volType == VolumeTypeImage {
-		volSize = d.volumeSize(vol)
+		volSize = vol.ConfigSize()
 	}
 
 	err := d.SetVolumeQuota(vol, volSize, op)

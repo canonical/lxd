@@ -529,16 +529,6 @@ func (d *ceph) rbdListVolumeSnapshots(vol Volume) ([]string, error) {
 	return snapshots, nil
 }
 
-// volumeSize returns the size to use when creating new a volume.
-func (d *ceph) volumeSize(vol Volume) string {
-	size := vol.ExpandedConfig("size")
-	if size == "" || size == "0" {
-		return defaultBlockSize
-	}
-
-	return size
-}
-
 // getRBDFilesystem returns the filesystem the RBD storage volume is supposed to be created with.
 func (d *ceph) getRBDFilesystem(vol Volume) string {
 	if vol.config["block.filesystem"] != "" {
