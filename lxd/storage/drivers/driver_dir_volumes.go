@@ -72,7 +72,7 @@ func (d *dir) CreateVolume(vol Volume, filler *VolumeFiller, op *operations.Oper
 			return err
 		}
 
-		err = ensureVolumeBlockFile(rootBlockPath, sizeBytes)
+		_, err = ensureVolumeBlockFile(rootBlockPath, sizeBytes)
 		if err != nil {
 			return err
 		}
@@ -275,7 +275,7 @@ func (d *dir) SetVolumeQuota(vol Volume, size string, op *operations.Operation) 
 			return err
 		}
 
-		resized, err := genericVFSResizeBlockFile(rootBlockPath, sizeBytes)
+		resized, err := ensureVolumeBlockFile(rootBlockPath, sizeBytes)
 		if err != nil {
 			return err
 		}
