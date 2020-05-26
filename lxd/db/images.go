@@ -689,12 +689,16 @@ func (c *Cluster) AddImageToLocalNode(project, fingerprint string) error {
 
 // DeleteImage deletes the image with the given ID.
 func (c *Cluster) DeleteImage(id int) error {
-	err := exec(c, "DELETE FROM images WHERE id=?", id)
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return c.Transaction(func(tx *ClusterTx) error {
+		deleted, err := query.DeleteObject(tx.tx, "images", int64(id))
+		if err != nil {
+			return err
+		}
+		if !deleted {
+			return fmt.Errorf("No image with ID %d", id)
+		}
+		return nil
+	})
 }
 
 // GetImageAliases returns the names of the aliases of all images.
