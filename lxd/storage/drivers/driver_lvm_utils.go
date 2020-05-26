@@ -57,7 +57,7 @@ func (d *lvm) volumeMountOptions(vol Volume) string {
 	}
 
 	// Use some special options if the filesystem for the volume is BTRFS.
-	if d.volumeFilesystem(vol) == "btrfs" {
+	if vol.ConfigBlockFilesystem() == "btrfs" {
 		return "user_subvol_rm_allowed,discard"
 	}
 
@@ -319,7 +319,7 @@ func (d *lvm) roundedSizeBytesString(size string) (int64, error) {
 func (d *lvm) createLogicalVolume(vgName, thinPoolName string, vol Volume, makeThinLv bool) error {
 	var err error
 
-	lvSizeBytes, err := d.roundedSizeBytesString(d.volumeSize(vol))
+	lvSizeBytes, err := d.roundedSizeBytesString(vol.ConfigSize())
 	if err != nil {
 		return err
 	}
@@ -370,7 +370,7 @@ func (d *lvm) createLogicalVolume(vgName, thinPoolName string, vol Volume, makeT
 	volDevPath := d.lvmDevPath(vgName, vol.volType, vol.contentType, vol.name)
 
 	if vol.contentType == ContentTypeFS {
-		_, err = makeFSType(volDevPath, d.volumeFilesystem(vol), nil)
+		_, err = makeFSType(volDevPath, vol.ConfigBlockFilesystem(), nil)
 		if err != nil {
 			return errors.Wrapf(err, "Error making filesystem on LVM logical volume")
 		}
@@ -390,7 +390,7 @@ func (d *lvm) createLogicalVolume(vgName, thinPoolName string, vol Volume, makeT
 		}
 	}
 
-	d.logger.Debug("Logical volume created", log.Ctx{"vg_name": vgName, "lv_name": lvFullName, "size": fmt.Sprintf("%db", lvSizeBytes), "fs": d.volumeFilesystem(vol)})
+	d.logger.Debug("Logical volume created", log.Ctx{"vg_name": vgName, "lv_name": lvFullName, "size": fmt.Sprintf("%db", lvSizeBytes), "fs": vol.ConfigBlockFilesystem()})
 	return nil
 }
 
@@ -414,7 +414,7 @@ func (d *lvm) createLogicalVolumeSnapshot(vgName string, srcVol, snapVol Volume,
 	// According to LVM tools 15-20% of the original volume should be sufficient.
 	// However, let's not be stingy at first otherwise we might force users to fiddle around with lvextend.
 	if !makeThinLv {
-		lvSizeBytes, err := d.roundedSizeBytesString(d.volumeSize(snapVol))
+		lvSizeBytes, err := d.roundedSizeBytesString(snapVol.ConfigSize())
 		if err != nil {
 			return "", err
 		}
@@ -624,14 +624,14 @@ func (d *lvm) copyThinpoolVolume(vol, srcVol Volume, srcSnapshots []Volume, refr
 		// Generate a new filesystem UUID if needed (this is required because some filesystems won't allow
 		// volumes with the same UUID to be mounted at the same time). This should be done before volume
 		// resize as some filesystems will need to mount the filesystem to resize.
-		if renegerateFilesystemUUIDNeeded(d.volumeFilesystem(vol)) {
+		if renegerateFilesystemUUIDNeeded(vol.ConfigBlockFilesystem()) {
 			_, err = d.activateVolume(volDevPath)
 			if err != nil {
 				return err
 			}
 
-			d.logger.Debug("Regenerating filesystem UUID", log.Ctx{"dev": volDevPath, "fs": d.volumeFilesystem(vol)})
-			err = regenerateFilesystemUUID(d.volumeFilesystem(vol), volDevPath)
+			d.logger.Debug("Regenerating filesystem UUID", log.Ctx{"dev": volDevPath, "fs": vol.ConfigBlockFilesystem()})
+			err = regenerateFilesystemUUID(vol.ConfigBlockFilesystem(), volDevPath)
 			if err != nil {
 				return err
 			}
@@ -652,7 +652,7 @@ func (d *lvm) copyThinpoolVolume(vol, srcVol Volume, srcSnapshots []Volume, refr
 
 	// If source is an image then take into account default volume sizes if not specified.
 	if srcVol.volType == VolumeTypeImage {
-		volSize = d.volumeSize(vol)
+		volSize = vol.ConfigSize()
 	}
 
 	err = d.SetVolumeQuota(vol, volSize, nil)
