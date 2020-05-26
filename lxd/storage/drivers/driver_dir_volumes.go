@@ -15,7 +15,6 @@ import (
 	"github.com/lxc/lxd/lxd/storage/quota"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/instancewriter"
-	log "github.com/lxc/lxd/shared/log15"
 	"github.com/lxc/lxd/shared/units"
 )
 
@@ -55,12 +54,9 @@ func (d *dir) CreateVolume(vol Volume, filler *VolumeFiller, op *operations.Oper
 	}
 
 	// Run the volume filler function if supplied.
-	if filler != nil && filler.Fill != nil {
-		d.logger.Debug("Running filler function", log.Ctx{"path": volPath})
-		err = filler.Fill(vol, rootBlockPath)
-		if err != nil {
-			return err
-		}
+	err = d.runFiller(vol, rootBlockPath, filler)
+	if err != nil {
+		return err
 	}
 
 	// If we are creating a block volume, resize it to the requested size or the default.
