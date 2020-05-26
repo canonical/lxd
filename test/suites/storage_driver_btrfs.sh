@@ -101,7 +101,9 @@ test_storage_driver_btrfs() {
 
     # Delete /a in c1pool1 and restore snap 1.
     btrfs property set "${LXD_DIR}/storage-pools/lxdtest-$(basename "${LXD_DIR}")-pool1/containers/c1pool1/rootfs/a/b" ro false
-    lxc exec c1pool1 -- rm -rf /a
+    btrfs subvol delete "${LXD_DIR}/storage-pools/lxdtest-$(basename "${LXD_DIR}")-pool1/containers/c1pool1/rootfs/a/b/c"
+    btrfs subvol delete "${LXD_DIR}/storage-pools/lxdtest-$(basename "${LXD_DIR}")-pool1/containers/c1pool1/rootfs/a/b"
+    btrfs subvol delete "${LXD_DIR}/storage-pools/lxdtest-$(basename "${LXD_DIR}")-pool1/containers/c1pool1/rootfs/a"
     lxc restore c1pool1 snap1
     lxc exec c1pool1 -- stat /a/a1.txt
     lxc exec c1pool1 -- stat /a/b/b1.txt
