@@ -1,6 +1,7 @@
 package subprocess
 
 import (
+	"fmt"
 	"io/ioutil"
 	"os"
 	"os/exec"
@@ -13,9 +14,11 @@ import (
 
 // Process struct. Has ability to set runtime arguments
 type Process struct {
-	exitCode int64         `yaml:"-"`
-	exitErr  error         `yaml:"-"`
-	chExit   chan struct{} `yaml:"-"`
+	exitCode int64 `yaml:"-"`
+	exitErr  error `yaml:"-"`
+
+	chExit     chan struct{} `yaml:"-"`
+	hasMonitor bool          `yaml:"-"`
 
 	Name   string   `yaml:"name"`
 	Args   []string `yaml:"args,flow"`
@@ -46,6 +49,10 @@ func (p *Process) Stop() error {
 		if err == nil {
 			return nil // Killed successfully.
 		}
+	}
+
+	if p.hasMonitor {
+		<-p.chExit
 	}
 
 	// Check if either the existence check or the kill resulted in an already finished error.
@@ -92,6 +99,7 @@ func (p *Process) Start() error {
 
 	p.Pid = int64(cmd.Process.Pid)
 	p.chExit = make(chan struct{})
+	p.hasMonitor = true
 
 	// Spawn a goroutine waiting for it to exit.
 	go func() {
@@ -177,6 +185,10 @@ func (p *Process) Signal(signal int64) error {
 
 // Wait will wait for the given process object exit code
 func (p *Process) Wait() (int64, error) {
+	if !p.hasMonitor {
+		return -1, fmt.Errorf("Unable to wait on process we didn't spawn")
+	}
+
 	<-p.chExit
 	return p.exitCode, p.exitErr
 }
