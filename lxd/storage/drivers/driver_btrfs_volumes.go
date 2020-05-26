@@ -54,12 +54,9 @@ func (d *btrfs) CreateVolume(vol Volume, filler *VolumeFiller, op *operations.Op
 		}
 	}
 
-	// Run the volume filler function if supplied.
-	if filler != nil && filler.Fill != nil {
-		err = filler.Fill(vol, rootBlockPath)
-		if err != nil {
-			return err
-		}
+	err = d.runFiller(vol, rootBlockPath, filler)
+	if err != nil {
+		return err
 	}
 
 	// If we are creating a block volume, resize it to the requested size or the default.
