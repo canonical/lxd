@@ -6060,6 +6060,7 @@ func (c *lxc) insertMountLXD(source, target, fstype string, flags int, mntnsPID 
 		c.state.OS.ExecPath,
 		"forkmount",
 		"lxd-mount",
+		"--",
 		pidStr,
 		fmt.Sprintf("%d", pidFdNr),
 		mntsrc,
@@ -6083,7 +6084,18 @@ func (c *lxc) insertMountLXC(source, target, fstype string, flags int) error {
 		target = "/" + target
 	}
 
-	_, err := shared.RunCommand(c.state.OS.ExecPath, "forkmount", "lxc-mount", cname, c.state.OS.LxcPath, configPath, source, target, fstype, fmt.Sprintf("%d", flags))
+	_, err := shared.RunCommand(
+		c.state.OS.ExecPath,
+		"forkmount",
+		"lxc-mount",
+		"--",
+		cname,
+		c.state.OS.LxcPath,
+		configPath,
+		source,
+		target,
+		fstype,
+		fmt.Sprintf("%d", flags))
 	if err != nil {
 		return err
 	}
@@ -6115,7 +6127,15 @@ func (c *lxc) removeMount(mount string) error {
 			mount = "/" + mount
 		}
 
-		_, err := shared.RunCommand(c.state.OS.ExecPath, "forkmount", "lxc-umount", cname, c.state.OS.LxcPath, configPath, mount)
+		_, err := shared.RunCommand(
+			c.state.OS.ExecPath,
+			"forkmount",
+			"lxc-umount",
+			"--",
+			cname,
+			c.state.OS.LxcPath,
+			configPath,
+			mount)
 		if err != nil {
 			return err
 		}
@@ -6131,6 +6151,7 @@ func (c *lxc) removeMount(mount string) error {
 			c.state.OS.ExecPath,
 			"forkmount",
 			"lxd-umount",
+			"--",
 			fmt.Sprintf("%d", pid),
 			fmt.Sprintf("%d", pidFdNr),
 			mount)
