@@ -517,7 +517,7 @@ func (c *ClusterTx) ProfileDevicesRef(filter ProfileFilter) (map[string]map[stri
 		if !ok {
 			// First time we see this device, let's int the config
 			// and add the type.
-			deviceType, err := dbDeviceTypeToString(object.Type)
+			deviceType, err := deviceTypeToString(object.Type)
 			if err != nil {
 				return nil, errors.Wrapf(
 					err, "unexpected device type code '%d'", object.Type)
@@ -660,7 +660,7 @@ func (c *ClusterTx) CreateProfile(object Profile) (int64, error) {
 		if !ok {
 			return -1, fmt.Errorf("No type for device %s", name)
 		}
-		typCode, err := dbDeviceTypeToInt(typ)
+		typCode, err := deviceTypeToInt(typ)
 		if err != nil {
 			return -1, errors.Wrapf(err, "Device type code for %s", typ)
 		}
@@ -775,7 +775,7 @@ func (c *ClusterTx) UpdateProfile(project string, name string, object Profile) e
 		if !ok {
 			return fmt.Errorf("No type for device %s", name)
 		}
-		typCode, err := dbDeviceTypeToInt(typ)
+		typCode, err := deviceTypeToInt(typ)
 		if err != nil {
 			return errors.Wrapf(err, "Device type code for %s", typ)
 		}

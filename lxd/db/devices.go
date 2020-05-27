@@ -6,7 +6,7 @@ import (
 	"fmt"
 )
 
-func dbDeviceTypeToString(t int) (string, error) {
+func deviceTypeToString(t int) (string, error) {
 	switch t {
 	case 0:
 		return "none", nil
@@ -33,7 +33,7 @@ func dbDeviceTypeToString(t int) (string, error) {
 	}
 }
 
-func dbDeviceTypeToInt(t string) (int, error) {
+func deviceTypeToInt(t string) (int, error) {
 	switch t {
 	case "none":
 		return 0, nil

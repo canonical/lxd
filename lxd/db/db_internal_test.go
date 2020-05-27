@@ -244,25 +244,25 @@ func (s *dbTestSuite) Test_CreateImageAlias() {
 	s.Equal(alias.Target, "fingerprint")
 }
 
-func (s *dbTestSuite) Test_ImageSourceGetCachedFingerprint() {
+func (s *dbTestSuite) Test_GetCachedImageSourceFingerprint() {
 	imageID, _, err := s.db.GetImage("default", "fingerprint", false)
 	s.Nil(err)
 
 	err = s.db.CreateImageSource(imageID, "server.remote", "simplestreams", "", "test")
 	s.Nil(err)
 
-	fingerprint, err := s.db.ImageSourceGetCachedFingerprint("server.remote", "simplestreams", "test", "container", 0)
+	fingerprint, err := s.db.GetCachedImageSourceFingerprint("server.remote", "simplestreams", "test", "container", 0)
 	s.Nil(err)
 	s.Equal(fingerprint, "fingerprint")
 }
 
-func (s *dbTestSuite) Test_ImageSourceGetCachedFingerprint_no_match() {
+func (s *dbTestSuite) Test_GetCachedImageSourceFingerprint_no_match() {
 	imageID, _, err := s.db.GetImage("default", "fingerprint", false)
 	s.Nil(err)
 
 	err = s.db.CreateImageSource(imageID, "server.remote", "simplestreams", "", "test")
 	s.Nil(err)
 
-	_, err = s.db.ImageSourceGetCachedFingerprint("server.remote", "lxd", "test", "container", 0)
+	_, err = s.db.GetCachedImageSourceFingerprint("server.remote", "lxd", "test", "container", 0)
 	s.Equal(err, ErrNoSuchObject)
 }
