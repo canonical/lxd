@@ -33,7 +33,7 @@ import (
 )
 
 // Create a new backup.
-func backupCreate(s *state.State, args db.InstanceBackupArgs, sourceInst instance.Instance) error {
+func backupCreate(s *state.State, args db.InstanceBackup, sourceInst instance.Instance) error {
 	logger := logging.AddContext(logger.Log, log.Ctx{"project": sourceInst.Project(), "instance": sourceInst.Name(), "name": args.Name})
 	logger.Debug("Instance backup started")
 	defer logger.Debug("Instance backup finished")
