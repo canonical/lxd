@@ -666,14 +666,14 @@ func ResolveImage(s *state.State, project string, source api.InstanceSource) (st
 			return "", fmt.Errorf("Property match is only supported for local images")
 		}
 
-		hashes, err := s.Cluster.GetImages(project, false)
+		hashes, err := s.Cluster.GetImagesFingerprints(project, false)
 		if err != nil {
 			return "", err
 		}
 
 		var image *api.Image
 		for _, imageHash := range hashes {
-			_, img, err := s.Cluster.GetImage(project, imageHash, false, true)
+			_, img, err := s.Cluster.GetImage(project, imageHash, false)
 			if err != nil {
 				continue
 			}
@@ -757,7 +757,7 @@ func SuitableArchitectures(s *state.State, project string, req api.InstancesPost
 
 		// Handle local images.
 		if req.Source.Server == "" {
-			_, img, err := s.Cluster.GetImage(project, hash, false, false)
+			_, img, err := s.Cluster.GetImage(project, hash, false)
 			if err != nil {
 				return nil, err
 			}

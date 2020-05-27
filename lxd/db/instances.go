@@ -79,7 +79,7 @@ import (
 //go:generate mapper method -p db -e instance Delete
 //go:generate mapper method -p db -e instance Update struct=Instance
 
-// Instance is a value object holding db-related details about a container.
+// Instance is a value object holding db-related details about an instance.
 type Instance struct {
 	ID           int
 	Project      string `db:"primary=yes&join=projects.name"`
@@ -620,17 +620,19 @@ func (c *Cluster) DeleteInstance(project, name string) error {
 // GetInstanceProjectAndName returns the project and the name of the instance
 // with the given ID.
 func (c *Cluster) GetInstanceProjectAndName(id int) (string, string, error) {
+	var project string
+	var name string
 	q := `
 SELECT projects.name, instances.name
   FROM instances
   JOIN projects ON projects.id = instances.project_id
 WHERE instances.id=?
 `
-	project := ""
-	name := ""
-	arg1 := []interface{}{id}
-	arg2 := []interface{}{&project, &name}
-	err := dbQueryRowScan(c, q, arg1, arg2)
+	err := c.Transaction(func(tx *ClusterTx) error {
+		return tx.tx.QueryRow(q, id).Scan(&project, &name)
+
+	})
+
 	if err == sql.ErrNoRows {
 		return "", "", ErrNoSuchObject
 	}
@@ -647,29 +649,6 @@ func (c *Cluster) GetInstanceID(project, name string) (int, error) {
 		return err
 	})
 	return int(id), err
-}
-
-// DeleteInstanceConfig removes any config associated with the instance with
-// the given ID.
-func DeleteInstanceConfig(tx *sql.Tx, id int) error {
-	_, err := tx.Exec("DELETE FROM instances_config WHERE instance_id=?", id)
-	if err != nil {
-		return err
-	}
-	_, err = tx.Exec("DELETE FROM instances_profiles WHERE instance_id=?", id)
-	if err != nil {
-		return err
-	}
-	_, err = tx.Exec(`DELETE FROM instances_devices_config WHERE id IN
-		(SELECT instances_devices_config.id
-		 FROM instances_devices_config JOIN instances_devices
-		 ON instances_devices_config.instance_device_id=instances_devices.id
-		 WHERE instances_devices.instance_id=?)`, id)
-	if err != nil {
-		return err
-	}
-	_, err = tx.Exec("DELETE FROM instances_devices WHERE instance_id=?", id)
-	return err
 }
 
 // CreateInstanceConfig inserts a new config for the instance with the given ID.
