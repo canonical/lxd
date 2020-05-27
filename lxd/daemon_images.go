@@ -98,7 +98,7 @@ func (d *Daemon) ImageDownload(op *operations.Operation, server string, protocol
 	}
 	if preferCached && interval > 0 && alias != fp {
 		for _, architecture := range d.os.Architectures {
-			cachedFingerprint, err := d.cluster.ImageSourceGetCachedFingerprint(server, protocol, alias, imageType, architecture)
+			cachedFingerprint, err := d.cluster.GetCachedImageSourceFingerprint(server, protocol, alias, imageType, architecture)
 			if err == nil && cachedFingerprint != fp {
 				fp = cachedFingerprint
 				break
