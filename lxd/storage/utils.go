@@ -764,19 +764,9 @@ func InstanceDiskBlockSize(pool Pool, inst instance.Instance, op *operations.Ope
 		return -1, err
 	}
 
-	var blockDiskSize int64
-
-	if shared.IsBlockdevPath(rootDrivePath) {
-		blockDiskSize, err = drivers.BlockDevSizeBytes(rootDrivePath)
-		if err != nil {
-			return -1, errors.Wrapf(err, "Error getting block device size %q", rootDrivePath)
-		}
-	} else {
-		fi, err := os.Lstat(rootDrivePath)
-		if err != nil {
-			return -1, errors.Wrapf(err, "Error getting block file size %q", rootDrivePath)
-		}
-		blockDiskSize = fi.Size()
+	blockDiskSize, err := drivers.BlockDiskSizeBytes(rootDrivePath)
+	if err != nil {
+		return -1, errors.Wrapf(err, "Error getting block disk size %q", rootDrivePath)
 	}
 
 	return blockDiskSize, nil
