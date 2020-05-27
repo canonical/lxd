@@ -3,7 +3,6 @@
 package db
 
 import (
-	"database/sql"
 	"fmt"
 
 	deviceConfig "github.com/lxc/lxd/lxd/device/config"
@@ -192,57 +191,6 @@ func (c *Cluster) GetProfiles(project string, names []string) ([]api.Profile, er
 	}
 
 	return profiles, nil
-}
-
-// UpdateProfileDescription updates the description of the profile with the given ID.
-func UpdateProfileDescription(tx *sql.Tx, id int64, description string) error {
-	_, err := tx.Exec("UPDATE profiles SET description=? WHERE id=?", description, id)
-	return err
-}
-
-// ClearProfileConfig resets the config of the profile with the given ID.
-func ClearProfileConfig(tx *sql.Tx, id int64) error {
-	_, err := tx.Exec("DELETE FROM profiles_config WHERE profile_id=?", id)
-	if err != nil {
-		return err
-	}
-
-	_, err = tx.Exec(`DELETE FROM profiles_devices_config WHERE id IN
-		(SELECT profiles_devices_config.id
-		 FROM profiles_devices_config JOIN profiles_devices
-		 ON profiles_devices_config.profile_device_id=profiles_devices.id
-		 WHERE profiles_devices.profile_id=?)`, id)
-	if err != nil {
-		return err
-	}
-	_, err = tx.Exec("DELETE FROM profiles_devices WHERE profile_id=?", id)
-	if err != nil {
-		return err
-	}
-	return nil
-}
-
-// CreateProfileConfig adds a config to the profile with the given ID.
-func CreateProfileConfig(tx *sql.Tx, id int64, config map[string]string) error {
-	str := fmt.Sprintf("INSERT INTO profiles_config (profile_id, key, value) VALUES(?, ?, ?)")
-	stmt, err := tx.Prepare(str)
-	defer stmt.Close()
-	if err != nil {
-		return err
-	}
-
-	for k, v := range config {
-		if v == "" {
-			continue
-		}
-
-		_, err = stmt.Exec(id, k, v)
-		if err != nil {
-			return err
-		}
-	}
-
-	return nil
 }
 
 // GetInstancesWithProfile gets the names of the instance associated with the
