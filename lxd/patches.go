@@ -386,13 +386,13 @@ func patchStorageApi(name string, d *Daemon) error {
 	}
 
 	// Get list of existing public images.
-	imgPublic, err := d.cluster.GetImages("default", true)
+	imgPublic, err := d.cluster.GetImagesFingerprints("default", true)
 	if err != nil {
 		return err
 	}
 
 	// Get list of existing private images.
-	imgPrivate, err := d.cluster.GetImages("default", false)
+	imgPrivate, err := d.cluster.GetImagesFingerprints("default", false)
 	if err != nil {
 		return err
 	}
@@ -2159,7 +2159,7 @@ INSERT INTO storage_pools_config(storage_pool_id, node_id, key, value)
 }
 
 func patchStorageApiDirCleanup(name string, d *Daemon) error {
-	fingerprints, err := d.cluster.GetImages("default", false)
+	fingerprints, err := d.cluster.GetImagesFingerprints("default", false)
 	if err != nil {
 		return err
 	}
@@ -2741,13 +2741,13 @@ func patchStorageApiDirBindMount(name string, d *Daemon) error {
 }
 
 func patchFixUploadedAt(name string, d *Daemon) error {
-	images, err := d.cluster.GetImages("default", false)
+	images, err := d.cluster.GetImagesFingerprints("default", false)
 	if err != nil {
 		return err
 	}
 
 	for _, fingerprint := range images {
-		id, image, err := d.cluster.GetImage("default", fingerprint, false, true)
+		id, image, err := d.cluster.GetImage("default", fingerprint, false)
 		if err != nil {
 			return err
 		}

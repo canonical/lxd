@@ -129,27 +129,37 @@ func (c *Cluster) GetProfile(project, name string) (int64, *api.Profile, error) 
 	var id int64
 
 	err := c.Transaction(func(tx *ClusterTx) error {
-		enabled, err := tx.ProjectHasProfiles(project)
-		if err != nil {
-			return errors.Wrap(err, "Check if project has profiles")
-		}
-		if !enabled {
-			project = "default"
-		}
-
-		profile, err := tx.GetProfile(project, name)
-		if err != nil {
-			return err
-		}
-
-		result = ProfileToAPI(profile)
-		id = int64(profile.ID)
-
-		return nil
+		var err error
+		id, result, err = tx.getProfile(project, name)
+		return err
 	})
 	if err != nil {
 		return -1, nil, err
 	}
+
+	return id, result, nil
+}
+
+// Returns the profile with the given name.
+func (c *ClusterTx) getProfile(project, name string) (int64, *api.Profile, error) {
+	var result *api.Profile
+	var id int64
+
+	enabled, err := c.ProjectHasProfiles(project)
+	if err != nil {
+		return -1, nil, errors.Wrap(err, "Check if project has profiles")
+	}
+	if !enabled {
+		project = "default"
+	}
+
+	profile, err := c.GetProfile(project, name)
+	if err != nil {
+		return -1, nil, err
+	}
+
+	result = ProfileToAPI(profile)
+	id = int64(profile.ID)
 
 	return id, result, nil
 }
