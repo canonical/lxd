@@ -324,7 +324,7 @@ func roundVolumeBlockFileSizeBytes(sizeBytes int64) (int64, error) {
 	return int64(sizeBytes/minBlockBoundary) * minBlockBoundary, nil
 }
 
-// ensureVolumeBlockFile creates new block file or resizes the raw block file for a volume to the specified size.
+// ensureVolumeBlockFile creates new block file or enlarges the raw block file for a volume to the specified size.
 // Returns true if resize took place, false if not. Requested size is rounded to nearest block size using
 // roundVolumeBlockFileSizeBytes() before decision whether to resize is taken.
 func ensureVolumeBlockFile(path string, sizeBytes int64) (bool, error) {
