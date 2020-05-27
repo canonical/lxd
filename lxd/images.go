@@ -303,6 +303,7 @@ func imgPostContInfo(d *Daemon, r *http.Request, req api.ImagesPost, op *operati
 	}
 	info.Size = fi.Size()
 	info.Fingerprint = fmt.Sprintf("%x", sha256.Sum(nil))
+	info.CreatedAt = time.Now().UTC()
 
 	_, _, err = d.cluster.GetImage(project, info.Fingerprint, false)
 	if err != db.ErrNoSuchObject {
