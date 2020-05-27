@@ -17,6 +17,7 @@ import (
 	"time"
 
 	"github.com/CanonicalLtd/candidclient"
+	dqliteclient "github.com/canonical/go-dqlite/client"
 	"github.com/canonical/go-dqlite/driver"
 	"github.com/gorilla/mux"
 	"github.com/pkg/errors"
@@ -790,14 +791,21 @@ func (d *Daemon) init() error {
 			contextTimeout = time.Minute
 		}
 
-		d.cluster, err = db.OpenCluster(
-			"db.bin", store, clusterAddress, dir,
-			d.config.DqliteSetupTimeout, dump,
+		options := []driver.Option{
 			driver.WithDialFunc(d.gateway.DialFunc()),
 			driver.WithContext(d.gateway.Context()),
-			driver.WithConnectionTimeout(10*time.Second),
+			driver.WithConnectionTimeout(10 * time.Second),
 			driver.WithContextTimeout(contextTimeout),
 			driver.WithLogFunc(cluster.DqliteLog),
+		}
+
+		if shared.StringInSlice("database", trace) {
+			options = append(options, driver.WithTracing(dqliteclient.LogDebug))
+		}
+
+		d.cluster, err = db.OpenCluster(
+			"db.bin", store, clusterAddress, dir,
+			d.config.DqliteSetupTimeout, dump, options...,
 		)
 		if err == nil {
 			break
