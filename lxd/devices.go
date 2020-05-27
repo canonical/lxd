@@ -112,12 +112,15 @@ func deviceNetlinkListener() (chan []string, chan []string, chan device.USBEvent
 			}
 			ueventLen := 0
 			ueventParts := strings.Split(string(ueventBuf), "\x00")
+			for i, part := range ueventParts {
+				if strings.HasPrefix(part, "SEQNUM=") {
+					ueventParts = append(ueventParts[:i], ueventParts[i+1:]...)
+					break
+				}
+			}
+
 			props := map[string]string{}
 			for _, part := range ueventParts {
-				if strings.HasPrefix(part, "SEQNUM=") {
-					continue
-				}
-
 				// libudev string prefix distinguishes udev events from kernel uevents
 				if strings.HasPrefix(part, "libudev") {
 					udevEvent = true
@@ -135,6 +138,13 @@ func deviceNetlinkListener() (chan []string, chan []string, chan device.USBEvent
 			}
 
 			ueventLen--
+
+			if udevEvent {
+				// The kernel always prepends this and udev expects it.
+				kernelPrefix := fmt.Sprintf("%s@%s", props["ACTION"], props["DEVPATH"])
+				ueventParts = append([]string{kernelPrefix}, ueventParts...)
+				ueventLen += len(kernelPrefix)
+			}
 
 			if props["SUBSYSTEM"] == "cpu" && !udevEvent {
 				if props["DRIVER"] != "processor" {
