@@ -1842,7 +1842,7 @@ func (c *lxc) DeviceEventHandler(runConf *deviceConfig.RunConfig) error {
 		}
 
 		for _, eventParts := range runConf.Uevents {
-			ueventArray := make([]string, 4)
+			ueventArray := make([]string, 6)
 			ueventArray[0] = "forkuevent"
 			ueventArray[2] = "inject"
 			ueventArray[1] = "--"
