@@ -10,6 +10,7 @@ import (
 	"github.com/lxc/lxd/lxd/revert"
 	"github.com/lxc/lxd/lxd/storage/locking"
 	"github.com/lxc/lxd/shared"
+	"github.com/lxc/lxd/shared/units"
 )
 
 // tmpVolSuffix Suffix to use for any temporary volumes created by LXD.
@@ -332,6 +333,11 @@ func (v Volume) SetQuota(size string, op *operations.Operation) error {
 	return v.driver.SetVolumeQuota(v, size, op)
 }
 
+// SetConfigSize sets the size config property on the Volume (does not resize volume).
+func (v Volume) SetConfigSize(size string) {
+	v.config["size"] = size
+}
+
 // ConfigBlockFilesystem returns the filesystem to use for block volumes. Returns config value "block.filesystem"
 // if defined in volume or pool's volume config, otherwise the DefaultFilesystem.
 func (v Volume) ConfigBlockFilesystem() string {
@@ -357,4 +363,65 @@ func (v Volume) ConfigSize() string {
 
 	// Return defined size or empty string if not defined.
 	return size
+}
+
+// ConfigSizeFromSource derives the volume size to use for a new volume when copying from a source volume.
+// Where possible (if the source volume has a volatile.rootfs.size property), it checks that the source volume
+// isn't larger than the volume's "size" setting and the pool's "volume.size" setting.
+func (v Volume) ConfigSizeFromSource(srcVol Volume) (string, error) {
+	// If source is not an image, then only use volume specified size. This is so the pool volume size isn't
+	// taken into account for non-image volume copies.
+	if srcVol.volType != VolumeTypeImage {
+		return v.config["size"], nil
+	}
+
+	// VM config filesystem volumes should always have a fixed specified size, so just return volume size.
+	if v.volType == VolumeTypeVM && v.contentType == ContentTypeFS {
+		return v.config["size"], nil
+	}
+
+	// If the source image doesn't have any size information, then use volume/pool/default size in that order.
+	if srcVol.config["volatile.rootfs.size"] == "" {
+		return v.ConfigSize(), nil
+	}
+
+	imgSizeBytes, err := units.ParseByteSizeString(srcVol.config["volatile.rootfs.size"])
+	if err != nil {
+		return "", err
+	}
+
+	// If volume/pool size is specified (excluding default size), then check it against the image minimum size.
+	volSize := v.ExpandedConfig("size")
+	if volSize != "" && volSize != "0" {
+		volSizeBytes, err := units.ParseByteSizeString(volSize)
+		if err != nil {
+			return volSize, err
+		}
+
+		// The volume/pool specified size is smaller than image minimum size. We must not continue as
+		// these specified sizes provide protection against unpacking a massive image and filling the pool.
+		if volSizeBytes < imgSizeBytes {
+			return "", fmt.Errorf("Source image size (%d) exceeds specified volume size (%d)", imgSizeBytes, volSizeBytes)
+		}
+
+		// Use the specified volume size.
+		return volSize, nil
+	}
+
+	// If volume/pool size is not specified, then fallback to default volume size if relevant and compare.
+	volSize = v.ConfigSize()
+	if volSize != "" && volSize != "0" {
+		volSizeBytes, err := units.ParseByteSizeString(volSize)
+		if err != nil {
+			return "", err
+		}
+
+		// Use image minimum size as volSize if the default volume size is smaller.
+		if volSizeBytes < imgSizeBytes {
+			return srcVol.config["volatile.rootfs.size"], nil
+		}
+	}
+
+	// Use the default volume size.
+	return volSize, nil
 }

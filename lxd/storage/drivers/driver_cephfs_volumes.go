@@ -16,7 +16,6 @@ import (
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/instancewriter"
 	"github.com/lxc/lxd/shared/ioprogress"
-	log "github.com/lxc/lxd/shared/log15"
 	"github.com/lxc/lxd/shared/units"
 )
 
@@ -46,12 +45,9 @@ func (d *cephfs) CreateVolume(vol Volume, filler *VolumeFiller, op *operations.O
 	}()
 
 	// Fill the volume.
-	if filler != nil && filler.Fill != nil {
-		d.logger.Debug("Running filler function", log.Ctx{"path": volPath})
-		err = filler.Fill(volPath, "")
-		if err != nil {
-			return err
-		}
+	err = d.runFiller(vol, "", filler)
+	if err != nil {
+		return err
 	}
 
 	revertPath = false

@@ -53,33 +53,30 @@ func (d *lvm) CreateVolume(vol Volume, filler *VolumeFiller, op *operations.Oper
 	}
 
 	err = vol.MountTask(func(mountPath string, op *operations.Operation) error {
+		// Run the volume filler function if supplied.
 		if filler != nil && filler.Fill != nil {
-			if vol.contentType == ContentTypeFS {
-				d.logger.Debug("Running filler function", log.Ctx{"path": volPath})
-				err = filler.Fill(mountPath, "")
-				if err != nil {
-					return err
-				}
-			} else {
+			var err error
+			var devPath string
+
+			if vol.contentType == ContentTypeBlock {
 				// Get the device path.
-				devPath, err := d.GetVolumeDiskPath(vol)
+				devPath, err = d.GetVolumeDiskPath(vol)
 				if err != nil {
 					return err
 				}
+			}
 
-				// Run the filler.
-				d.logger.Debug("Running filler function", log.Ctx{"dev": devPath, "path": volPath})
-				err = filler.Fill(mountPath, devPath)
+			// Run the filler.
+			err = d.runFiller(vol, devPath, filler)
+			if err != nil {
+				return err
+			}
+
+			// Move the GPT alt header to end of disk if needed.
+			if vol.IsVMBlock() {
+				err = d.moveGPTAltHeader(devPath)
 				if err != nil {
 					return err
-				}
-
-				// Move the GPT alt header to end of disk if needed.
-				if vol.IsVMBlock() {
-					err = d.moveGPTAltHeader(devPath)
-					if err != nil {
-						return err
-					}
 				}
 			}
 		}

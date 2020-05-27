@@ -163,17 +163,21 @@ func (d *ceph) CreateVolume(vol Volume, filler *VolumeFiller, op *operations.Ope
 	// Run the volume filler function if supplied.
 
 	err = vol.MountTask(func(mountPath string, op *operations.Operation) error {
+		// Run the volume filler function if supplied.
 		if filler != nil && filler.Fill != nil {
-			if vol.contentType == ContentTypeFS {
-				return filler.Fill(mountPath, "")
+			var err error
+			var devPath string
+
+			if vol.contentType == ContentTypeBlock {
+				// Get the device path.
+				devPath, err = d.GetVolumeDiskPath(vol)
+				if err != nil {
+					return err
+				}
 			}
 
-			devPath, err := d.GetVolumeDiskPath(vol)
-			if err != nil {
-				return err
-			}
-
-			err = filler.Fill(mountPath, devPath)
+			// Run the filler.
+			err = d.runFiller(vol, devPath, filler)
 			if err != nil {
 				return err
 			}
@@ -321,16 +325,9 @@ func (d *ceph) CreateVolumeFromCopy(vol Volume, srcVol Volume, copySnapshots boo
 			}
 		}
 
-		// Default to non-expanded config, so we only use user specified volume size.
-		// This is so the pool default volume size isn't take into account for volume copies.
-		volSize := vol.config["size"]
-
-		// If source is an image then take into account default volume sizes if not specified.
-		if srcVol.volType == VolumeTypeImage {
-			volSize = vol.ConfigSize()
-		}
-
-		err = d.SetVolumeQuota(vol, volSize, op)
+		// Resize volume to the size specified. Only uses volume "size" property and does not use
+		// pool/defaults to give the caller more control over the size being used.
+		err = d.SetVolumeQuota(vol, vol.config["size"], nil)
 		if err != nil {
 			return err
 		}
@@ -834,7 +831,7 @@ func (d *ceph) SetVolumeQuota(vol Volume, size string, op *operations.Operation)
 		return err
 	}
 
-	oldSizeBytes, err := BlockDevSizeBytes(RBDDevPath)
+	oldSizeBytes, err := BlockDiskSizeBytes(RBDDevPath)
 	if err != nil {
 		return errors.Wrapf(err, "Error getting current size")
 	}

@@ -174,31 +174,28 @@ func (d *zfs) CreateVolume(vol Volume, filler *VolumeFiller, op *operations.Oper
 	err := vol.MountTask(func(mountPath string, op *operations.Operation) error {
 		// Run the volume filler function if supplied.
 		if filler != nil && filler.Fill != nil {
-			if vol.contentType == ContentTypeFS {
-				// Run the filler.
-				err := filler.Fill(mountPath, "")
-				if err != nil {
-					return err
-				}
-			} else {
+			var err error
+			var devPath string
+
+			if vol.contentType == ContentTypeBlock {
 				// Get the device path.
-				devPath, err := d.GetVolumeDiskPath(vol)
+				devPath, err = d.GetVolumeDiskPath(vol)
 				if err != nil {
 					return err
 				}
+			}
 
-				// Run the filler.
-				err = filler.Fill(mountPath, devPath)
+			// Run the filler.
+			err = d.runFiller(vol, devPath, filler)
+			if err != nil {
+				return err
+			}
+
+			// Move the GPT alt header to end of disk if needed.
+			if vol.IsVMBlock() {
+				err = d.moveGPTAltHeader(devPath)
 				if err != nil {
 					return err
-				}
-
-				// Move the GPT alt header to end of disk if needed.
-				if vol.IsVMBlock() {
-					err = d.moveGPTAltHeader(devPath)
-					if err != nil {
-						return err
-					}
 				}
 			}
 		}
@@ -587,16 +584,9 @@ func (d *zfs) CreateVolumeFromCopy(vol Volume, srcVol Volume, copySnapshots bool
 		}
 	}
 
-	// Default to non-expanded config, so we only use user specified volume size.
-	// This is so the pool default volume size isn't take into account for volume copies.
-	volSize := vol.config["size"]
-
-	// If source is an image then take into account default volume sizes if not specified.
-	if srcVol.volType == VolumeTypeImage {
-		volSize = vol.ConfigSize()
-	}
-
-	err := d.SetVolumeQuota(vol, volSize, op)
+	// Resize volume to the size specified. Only uses volume "size" property and does not use pool/defaults
+	// to give the caller more control over the size being used.
+	err := d.SetVolumeQuota(vol, vol.config["size"], nil)
 	if err != nil {
 		return err
 	}

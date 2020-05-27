@@ -54,12 +54,9 @@ func (d *btrfs) CreateVolume(vol Volume, filler *VolumeFiller, op *operations.Op
 		}
 	}
 
-	// Run the volume filler function if supplied.
-	if filler != nil && filler.Fill != nil {
-		err = filler.Fill(volPath, rootBlockPath)
-		if err != nil {
-			return err
-		}
+	err = d.runFiller(vol, rootBlockPath, filler)
+	if err != nil {
+		return err
 	}
 
 	// If we are creating a block volume, resize it to the requested size or the default.
@@ -72,7 +69,9 @@ func (d *btrfs) CreateVolume(vol Volume, filler *VolumeFiller, op *operations.Op
 		}
 
 		_, err = ensureVolumeBlockFile(rootBlockPath, sizeBytes)
-		if err != nil {
+
+		// Ignore ErrCannotBeShrunk as this just means the filler has needed to increase the volume size.
+		if err != nil && errors.Cause(err) != ErrCannotBeShrunk {
 			return err
 		}
 
@@ -357,16 +356,9 @@ func (d *btrfs) CreateVolumeFromCopy(vol Volume, srcVol Volume, copySnapshots bo
 		}
 	}
 
-	// Default to non-expanded config, so we only use user specified volume size.
-	// This is so the pool default volume size isn't take into account for volume copies.
-	volSize := vol.config["size"]
-
-	// If source is an image then take into account default volume sizes if not specified.
-	if srcVol.volType == VolumeTypeImage {
-		volSize = vol.ConfigSize()
-	}
-
-	err = d.SetVolumeQuota(vol, volSize, op)
+	// Resize volume to the size specified. Only uses volume "size" property and does not use pool/defaults
+	// to give the caller more control over the size being used.
+	err = d.SetVolumeQuota(vol, vol.config["size"], nil)
 	if err != nil {
 		return err
 	}
@@ -667,7 +659,7 @@ func (d *btrfs) SetVolumeQuota(vol Volume, size string, op *operations.Operation
 		}
 
 		// Move the GPT alt header to end of disk if needed and resize has taken place (not needed in
-		// unsafe resize mode as it is  expected the caller will do all necessary post resize actions
+		// unsafe resize mode as it is expected the caller will do all necessary post resize actions
 		// themselves).
 		if vol.IsVMBlock() && resized && !vol.allowUnsafeResize {
 			err = d.moveGPTAltHeader(rootBlockPath)

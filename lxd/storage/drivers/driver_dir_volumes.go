@@ -15,7 +15,6 @@ import (
 	"github.com/lxc/lxd/lxd/storage/quota"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/instancewriter"
-	log "github.com/lxc/lxd/shared/log15"
 	"github.com/lxc/lxd/shared/units"
 )
 
@@ -55,12 +54,9 @@ func (d *dir) CreateVolume(vol Volume, filler *VolumeFiller, op *operations.Oper
 	}
 
 	// Run the volume filler function if supplied.
-	if filler != nil && filler.Fill != nil {
-		d.logger.Debug("Running filler function", log.Ctx{"path": volPath})
-		err = filler.Fill(volPath, rootBlockPath)
-		if err != nil {
-			return err
-		}
+	err = d.runFiller(vol, rootBlockPath, filler)
+	if err != nil {
+		return err
 	}
 
 	// If we are creating a block volume, resize it to the requested size or the default.
@@ -73,7 +69,9 @@ func (d *dir) CreateVolume(vol Volume, filler *VolumeFiller, op *operations.Oper
 		}
 
 		_, err = ensureVolumeBlockFile(rootBlockPath, sizeBytes)
-		if err != nil {
+
+		// Ignore ErrCannotBeShrunk as this just means the filler has needed to increase the volume size.
+		if err != nil && errors.Cause(err) != ErrCannotBeShrunk {
 			return err
 		}
 
@@ -281,7 +279,7 @@ func (d *dir) SetVolumeQuota(vol Volume, size string, op *operations.Operation) 
 		}
 
 		// Move the GPT alt header to end of disk if needed and resize has taken place (not needed in
-		// unsafe resize mode as it is  expected the caller will do all necessary post resize actions
+		// unsafe resize mode as it is expected the caller will do all necessary post resize actions
 		// themselves).
 		if vol.IsVMBlock() && resized && !vol.allowUnsafeResize {
 			err = d.moveGPTAltHeader(rootBlockPath)
