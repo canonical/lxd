@@ -1219,9 +1219,9 @@ func UpdateInstance(tx *sql.Tx, id int, description string, architecture int, ep
 	return nil
 }
 
-// AddProfilesToInstance associates the instance with the given ID with the
-// profiles with the given names in the given project.
-func AddProfilesToInstance(tx *sql.Tx, id int, project string, profiles []string) error {
+// Associate the instance with the given ID with the profiles with the given
+// names in the given project.
+func addProfilesToInstance(tx *sql.Tx, id int, project string, profiles []string) error {
 	enabled, err := projectHasProfiles(tx, project)
 	if err != nil {
 		return errors.Wrap(err, "Check if project has profiles")

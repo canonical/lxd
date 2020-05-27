@@ -572,7 +572,7 @@ func (c *ClusterTx) CreateInstance(object Instance) (int64, error) {
 	}
 
 	// Insert profiles reference.
-	err = AddProfilesToInstance(c.tx, int(id), object.Project, object.Profiles)
+	err = addProfilesToInstance(c.tx, int(id), object.Project, object.Profiles)
 	if err != nil {
 		return -1, errors.Wrap(err, "Insert profiles for instance")
 	}
@@ -1001,7 +1001,7 @@ func (c *ClusterTx) UpdateInstance(project string, name string, object Instance)
 	}
 
 	// Insert profiles reference.
-	err = AddProfilesToInstance(c.tx, int(id), object.Project, object.Profiles)
+	err = addProfilesToInstance(c.tx, int(id), object.Project, object.Profiles)
 	if err != nil {
 		return errors.Wrap(err, "Insert profiles for instance")
 	}
