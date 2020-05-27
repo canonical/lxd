@@ -319,7 +319,7 @@ func (c *ClusterTx) CreateInstanceSnapshot(object InstanceSnapshot) (int64, erro
 		if !ok {
 			return -1, fmt.Errorf("No type for device %s", name)
 		}
-		typCode, err := dbDeviceTypeToInt(typ)
+		typCode, err := deviceTypeToInt(typ)
 		if err != nil {
 			return -1, errors.Wrapf(err, "Device type code for %s", typ)
 		}
@@ -542,7 +542,7 @@ func (c *ClusterTx) InstanceSnapshotDevicesRef(filter InstanceSnapshotFilter) (m
 		if !ok {
 			// First time we see this device, let's int the config
 			// and add the type.
-			deviceType, err := dbDeviceTypeToString(object.Type)
+			deviceType, err := deviceTypeToString(object.Type)
 			if err != nil {
 				return nil, errors.Wrapf(
 					err, "unexpected device type code '%d'", object.Type)

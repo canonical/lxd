@@ -2,4 +2,4 @@
 
 package db
 
-var DeviceTypeToInt = dbDeviceTypeToInt
+var DeviceTypeToInt = deviceTypeToInt
