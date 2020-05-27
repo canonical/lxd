@@ -594,7 +594,6 @@ func (b *lxdBackend) CreateInstanceFromBackup(srcBackup backup.Info, srcData io.
 				// has still been restored successfully.
 				if errors.Cause(err) == drivers.ErrCannotBeShrunk {
 					logger.Warn("Could not apply volume quota from root disk config as restored volume cannot be shrunk", log.Ctx{"size": rootDiskConf["size"]})
-
 				} else {
 					return err
 				}
@@ -932,8 +931,8 @@ func (b *lxdBackend) RefreshInstance(inst instance.Instance, src instance.Instan
 // imageFiller returns a function that can be used as a filler function with CreateVolume().
 // The function returned will unpack the specified image archive into the specified mount path
 // provided, and for VM images, a raw root block path is required to unpack the qcow2 image into.
-func (b *lxdBackend) imageFiller(fingerprint string, op *operations.Operation) func(mountPath, rootBlockPath string) error {
-	return func(mountPath, rootBlockPath string) error {
+func (b *lxdBackend) imageFiller(fingerprint string, op *operations.Operation) func(vol drivers.Volume, rootBlockPath string) (int64, error) {
+	return func(vol drivers.Volume, rootBlockPath string) (int64, error) {
 		var tracker *ioprogress.ProgressTracker
 		if op != nil { // Not passed when being done as part of pre-migration setup.
 			metadata := make(map[string]interface{})
@@ -944,7 +943,7 @@ func (b *lxdBackend) imageFiller(fingerprint string, op *operations.Operation) f
 				}}
 		}
 		imageFile := shared.VarPath("images", fingerprint)
-		return ImageUnpack(imageFile, mountPath, rootBlockPath, b.driver.Info().BlockBacking, b.state.OS.RunningInUserNS, tracker)
+		return ImageUnpack(imageFile, vol, rootBlockPath, b.driver.Info().BlockBacking, b.state.OS.RunningInUserNS, tracker)
 	}
 }
 
@@ -997,8 +996,22 @@ func (b *lxdBackend) CreateInstanceFromImage(inst instance.Instance, fingerprint
 			return err
 		}
 
-		// No config for an image volume so set to nil.
-		imgVol := b.newVolume(drivers.VolumeTypeImage, contentType, fingerprint, nil)
+		// Try and load existing volume config on this storage pool so we can compare filesystems if needed.
+		_, imgDBVol, err := b.state.Cluster.GetLocalStoragePoolVolume(project.Default, fingerprint, db.StoragePoolVolumeTypeImage, b.ID())
+		if err != nil {
+			return errors.Wrapf(err, "Failed loading image record for %q", fingerprint)
+		}
+
+		imgVol := b.newVolume(drivers.VolumeTypeImage, contentType, fingerprint, imgDBVol.Config)
+
+		// Derive size to use for new volume from source (and check it doesn't exceed volume size limits).
+		volSize, err := vol.ConfigSizeFromSource(imgVol)
+		if err != nil {
+			return err
+		}
+
+		vol.SetConfigSize(volSize)
+
 		err = b.driver.CreateVolumeFromCopy(vol, imgVol, false, op)
 
 		// If the driver returns ErrCannotBeShrunk, this means that the cached volume is larger than the
@@ -2066,16 +2079,30 @@ func (b *lxdBackend) EnsureImage(fingerprint string, op *operations.Operation) e
 		Fill:        b.imageFiller(fingerprint, op),
 	}
 
+	revert := revert.New()
+	defer revert.Fail()
+
 	err = b.driver.CreateVolume(imgVol, &volFiller, op)
 	if err != nil {
 		return err
 	}
+	revert.Add(func() { b.driver.DeleteVolume(imgVol, op) })
 
-	err = VolumeDBCreate(b.state, project.Default, b.name, fingerprint, "", db.StoragePoolVolumeTypeNameImage, false, nil, time.Time{})
+	var volConfig map[string]string
+
+	// If the volume filler has recorded the size of the unpacked volume, then store this in the image DB row.
+	if volFiller.Size != 0 {
+		volConfig = map[string]string{
+			"volatile.rootfs.size": fmt.Sprintf("%d", volFiller.Size),
+		}
+	}
+
+	err = VolumeDBCreate(b.state, project.Default, b.name, fingerprint, "", db.StoragePoolVolumeTypeNameImage, false, volConfig, time.Time{})
 	if err != nil {
 		return err
 	}
 
+	revert.Success()
 	return nil
 }
 

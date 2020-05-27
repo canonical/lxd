@@ -458,20 +458,13 @@ func genericVFSBackupVolume(d Driver, vol Volume, tarWriter *instancewriter.Inst
 				var blockDiskSize int64
 				var exclude []string
 
-				if shared.IsBlockdevPath(blockPath) {
-					// Get size of disk block device for tarball header.
-					blockDiskSize, err = BlockDevSizeBytes(blockPath)
-					if err != nil {
-						return errors.Wrapf(err, "Error getting block device size %q", blockPath)
-					}
-				} else {
-					// Get size of disk image file for tarball header.
-					fi, err := os.Lstat(blockPath)
-					if err != nil {
-						return errors.Wrapf(err, "Error getting block file size %q", blockPath)
-					}
-					blockDiskSize = fi.Size()
+				// Get size of disk block device for tarball header.
+				blockDiskSize, err = BlockDiskSizeBytes(blockPath)
+				if err != nil {
+					return errors.Wrapf(err, "Error getting block device size %q", blockPath)
+				}
 
+				if !shared.IsBlockdevPath(blockPath) {
 					// Exclude the VM root disk path from the config volume backup part.
 					// We will read it as a block device later instead.
 					exclude = append(exclude, blockPath)
