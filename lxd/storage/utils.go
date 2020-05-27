@@ -528,6 +528,18 @@ func ImageUnpack(imageFile string, vol drivers.Volume, destBlockFile string, blo
 			}
 
 			if volSizeBytes < imgInfo.VirtualSize {
+				// Create a partial image volume struct and then use it to check that target
+				// volume size can be increased as needed.
+				imgVolConfig := map[string]string{
+					"volatile.rootfs.size": fmt.Sprintf("%d", imgInfo.VirtualSize),
+				}
+				imgVol := drivers.NewVolume(nil, "", drivers.VolumeTypeImage, drivers.ContentTypeBlock, "", imgVolConfig, nil)
+
+				_, err = vol.ConfigSizeFromSource(imgVol)
+				if err != nil {
+					return -1, err
+				}
+
 				logger.Debugf("Increasing %q volume size from %d to %d to accomomdate image %q unpack", dstPath, volSizeBytes, imgInfo.VirtualSize, imgPath)
 				err = vol.SetQuota(fmt.Sprintf("%d", imgInfo.VirtualSize), nil)
 				if err != nil {
