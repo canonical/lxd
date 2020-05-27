@@ -752,23 +752,33 @@ func ShiftZFSSkipper(dir string, absPath string, fi os.FileInfo) bool {
 	return false
 }
 
-// BlockDevSizeBytes returns the size of a block device.
-func BlockDevSizeBytes(blockDevPath string) (int64, error) {
-	// Attempt to open the device path.
-	f, err := os.Open(blockDevPath)
+// BlockDiskSizeBytes returns the size of a block disk (path can be either block device or raw file).
+func BlockDiskSizeBytes(blockDiskPath string) (int64, error) {
+	if shared.IsBlockdevPath(blockDiskPath) {
+		// Attempt to open the device path.
+		f, err := os.Open(blockDiskPath)
+		if err != nil {
+			return -1, err
+		}
+		defer f.Close()
+		fd := int(f.Fd())
+
+		// Retrieve the block size.
+		res, err := unix.IoctlGetInt(fd, unix.BLKGETSIZE64)
+		if err != nil {
+			return -1, err
+		}
+
+		return int64(res), nil
+	}
+
+	// Block device is assumed to be a raw file.
+	fi, err := os.Lstat(blockDiskPath)
 	if err != nil {
 		return -1, err
 	}
-	defer f.Close()
-	fd := int(f.Fd())
 
-	// Retrieve the block size.
-	res, err := unix.IoctlGetInt(fd, unix.BLKGETSIZE64)
-	if err != nil {
-		return -1, err
-	}
-
-	return int64(res), nil
+	return fi.Size(), nil
 }
 
 // PathNameEncode encodes a path string to be used as part of a file name.
