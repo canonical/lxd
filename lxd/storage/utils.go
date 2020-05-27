@@ -527,9 +527,9 @@ func ImageUnpack(imageFile string, vol drivers.Volume, destBlockFile string, blo
 		}
 
 		if shared.PathExists(dstPath) {
-			volSizeBytes, err := drivers.BlockDevSizeBytes(dstPath)
+			volSizeBytes, err := drivers.BlockDiskSizeBytes(dstPath)
 			if err != nil {
-				return -1, errors.Wrapf(err, "Error getting current size")
+				return -1, errors.Wrapf(err, "Error getting current size of %q", dstPath)
 			}
 
 			if volSizeBytes < imgInfo.VirtualSize {
