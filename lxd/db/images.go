@@ -340,10 +340,10 @@ func (c *Cluster) CreateImageSource(id int, server string, protocol string, cert
 	return err
 }
 
-// ImageSourceGetCachedFingerprint tries to find a source entry of a locally
+// GetCachedImageSourceFingerprint tries to find a source entry of a locally
 // cached image that matches the given remote details (server, protocol and
 // alias). Return the fingerprint linked to the matching entry, if any.
-func (c *Cluster) ImageSourceGetCachedFingerprint(server string, protocol string, alias string, typeName string, architecture int) (string, error) {
+func (c *Cluster) GetCachedImageSourceFingerprint(server string, protocol string, alias string, typeName string, architecture int) (string, error) {
 	imageType := instancetype.Any
 	if typeName != "" {
 		var err error
