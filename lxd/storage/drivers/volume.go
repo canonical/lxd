@@ -333,6 +333,11 @@ func (v Volume) SetQuota(size string, op *operations.Operation) error {
 	return v.driver.SetVolumeQuota(v, size, op)
 }
 
+// SetConfigSize sets the size config property on the Volume (does not resize volume).
+func (v Volume) SetConfigSize(size string) {
+	v.config["size"] = size
+}
+
 // ConfigBlockFilesystem returns the filesystem to use for block volumes. Returns config value "block.filesystem"
 // if defined in volume or pool's volume config, otherwise the DefaultFilesystem.
 func (v Volume) ConfigBlockFilesystem() string {
