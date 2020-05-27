@@ -12,11 +12,9 @@ import (
 	log "github.com/lxc/lxd/shared/log15"
 )
 
-// InstanceBackupArgs is a value object holding all db-related details about a backup.
-type InstanceBackupArgs struct {
-	// Don't set manually
-	ID int
-
+// InstanceBackup is a value object holding all db-related details about a backup.
+type InstanceBackup struct {
+	ID                   int
 	InstanceID           int
 	Name                 string
 	CreationDate         time.Time
@@ -41,8 +39,8 @@ func (c *Cluster) getInstanceBackupID(name string) (int, error) {
 }
 
 // GetInstanceBackup returns the backup with the given name.
-func (c *Cluster) GetInstanceBackup(project, name string) (InstanceBackupArgs, error) {
-	args := InstanceBackupArgs{}
+func (c *Cluster) GetInstanceBackup(project, name string) (InstanceBackup, error) {
+	args := InstanceBackup{}
 	args.Name = name
 
 	instanceOnlyInt := -1
@@ -103,7 +101,7 @@ WHERE projects.name=? AND instances.name=?`
 }
 
 // CreateInstanceBackup creates a new backup.
-func (c *Cluster) CreateInstanceBackup(args InstanceBackupArgs) error {
+func (c *Cluster) CreateInstanceBackup(args InstanceBackup) error {
 	_, err := c.getInstanceBackupID(args.Name)
 	if err == nil {
 		return ErrAlreadyDefined
@@ -186,8 +184,8 @@ func (c *Cluster) RenameInstanceBackup(oldName, newName string) error {
 }
 
 // GetExpiredInstanceBackups returns a list of expired instance backups.
-func (c *Cluster) GetExpiredInstanceBackups() ([]InstanceBackupArgs, error) {
-	var result []InstanceBackupArgs
+func (c *Cluster) GetExpiredInstanceBackups() ([]InstanceBackup, error) {
+	var result []InstanceBackup
 	var name string
 	var expiryDate string
 	var instanceID int
@@ -205,7 +203,7 @@ func (c *Cluster) GetExpiredInstanceBackups() ([]InstanceBackupArgs, error) {
 		var backupExpiry time.Time
 		err = backupExpiry.UnmarshalText([]byte(timestamp.(string)))
 		if err != nil {
-			return []InstanceBackupArgs{}, err
+			return []InstanceBackup{}, err
 		}
 
 		// Since zero time causes some issues due to timezones, we check the
@@ -217,7 +215,7 @@ func (c *Cluster) GetExpiredInstanceBackups() ([]InstanceBackupArgs, error) {
 
 		// Backup has expired
 		if time.Now().Unix()-backupExpiry.Unix() >= 0 {
-			result = append(result, InstanceBackupArgs{
+			result = append(result, InstanceBackup{
 				Name:       r[0].(string),
 				InstanceID: r[2].(int),
 				ExpiryDate: backupExpiry,
