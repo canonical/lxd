@@ -16,8 +16,6 @@ import (
 	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/logger"
 	"github.com/pkg/errors"
-
-	log "github.com/lxc/lxd/shared/log15"
 )
 
 // Code generation directives.
@@ -158,20 +156,6 @@ type InstanceArgs struct {
 	Profiles     []string
 	Stateful     bool
 	ExpiryDate   time.Time
-}
-
-// InstanceBackupArgs is a value object holding all db-related details about a backup.
-type InstanceBackupArgs struct {
-	// Don't set manually
-	ID int
-
-	InstanceID           int
-	Name                 string
-	CreationDate         time.Time
-	ExpiryDate           time.Time
-	InstanceOnly         bool
-	OptimizedStorage     bool
-	CompressionAlgorithm string
 }
 
 // GetInstanceNames returns the names of all containers the given project.
@@ -604,215 +588,11 @@ func (c *ClusterTx) configUpdate(id int, values map[string]string, insertSQL, de
 	return nil
 }
 
-// DeleteInstance removes the instance with the given name from the database.
-func (c *Cluster) DeleteInstance(project, name string) error {
-	if strings.Contains(name, shared.SnapshotDelimiter) {
-		parts := strings.SplitN(name, shared.SnapshotDelimiter, 2)
-		return c.Transaction(func(tx *ClusterTx) error {
-			return tx.DeleteInstanceSnapshot(project, parts[0], parts[1])
-		})
-	}
-	return c.Transaction(func(tx *ClusterTx) error {
-		return tx.DeleteInstance(project, name)
-	})
-}
-
-// GetInstanceProjectAndName returns the project and the name of the instance
-// with the given ID.
-func (c *Cluster) GetInstanceProjectAndName(id int) (string, string, error) {
-	var project string
-	var name string
-	q := `
-SELECT projects.name, instances.name
-  FROM instances
-  JOIN projects ON projects.id = instances.project_id
-WHERE instances.id=?
-`
-	err := c.Transaction(func(tx *ClusterTx) error {
-		return tx.tx.QueryRow(q, id).Scan(&project, &name)
-
-	})
-
-	if err == sql.ErrNoRows {
-		return "", "", ErrNoSuchObject
-	}
-
-	return project, name, err
-}
-
-// GetInstanceID returns the ID of the instance with the given name.
-func (c *Cluster) GetInstanceID(project, name string) (int, error) {
-	var id int64
-	err := c.Transaction(func(tx *ClusterTx) error {
-		var err error
-		id, err = tx.GetInstanceID(project, name)
-		return err
-	})
-	return int(id), err
-}
-
-// CreateInstanceConfig inserts a new config for the instance with the given ID.
-func CreateInstanceConfig(tx *sql.Tx, id int, config map[string]string) error {
-	stmt, err := tx.Prepare("INSERT INTO instances_config (instance_id, key, value) values (?, ?, ?)")
-	if err != nil {
-		return err
-	}
-	defer stmt.Close()
-
-	for k, v := range config {
-		if v == "" {
-			continue
-		}
-
-		_, err := stmt.Exec(id, k, v)
-		if err != nil {
-			logger.Debugf("Error adding configuration item %s = %s to container %d",
-				k, v, id)
-			return err
-		}
-	}
-
-	return nil
-}
-
-// GetInstanceConfig returns the value of the given key in the configuration
-// of the instance with the given ID.
-func (c *Cluster) GetInstanceConfig(id int, key string) (string, error) {
-	q := "SELECT value FROM instances_config WHERE instance_id=? AND key=?"
-	value := ""
-	arg1 := []interface{}{id, key}
-	arg2 := []interface{}{&value}
-	err := dbQueryRowScan(c, q, arg1, arg2)
-	if err == sql.ErrNoRows {
-		return "", ErrNoSuchObject
-	}
-
-	return value, err
-}
-
 // DeleteInstanceConfigKey removes the given key from the config of the instance
 // with the given ID.
-func (c *Cluster) DeleteInstanceConfigKey(id int, key string) error {
-	err := exec(c, "DELETE FROM instances_config WHERE key=? AND instance_id=?", key, id)
-	return err
-}
-
-// UpdateInstanceStatefulFlag toggles the stateful flag of the instance with
-// the given ID.
-func (c *Cluster) UpdateInstanceStatefulFlag(id int, stateful bool) error {
-	statefulInt := 0
-	if stateful {
-		statefulInt = 1
-	}
-
-	err := exec(c, "UPDATE instances SET stateful=? WHERE id=?", statefulInt, id)
-	return err
-}
-
-// AddProfilesToInstance associates the instance with the given ID with the
-// profiles with the given names in the given project.
-func AddProfilesToInstance(tx *sql.Tx, id int, project string, profiles []string) error {
-	enabled, err := projectHasProfiles(tx, project)
-	if err != nil {
-		return errors.Wrap(err, "Check if project has profiles")
-	}
-	if !enabled {
-		project = "default"
-	}
-
-	applyOrder := 1
-	str := `
-INSERT INTO instances_profiles (instance_id, profile_id, apply_order)
-  VALUES (
-    ?,
-    (SELECT profiles.id
-     FROM profiles
-     JOIN projects ON projects.id=profiles.project_id
-     WHERE projects.name=? AND profiles.name=?),
-    ?
-  )
-`
-	stmt, err := tx.Prepare(str)
-	if err != nil {
-		return err
-	}
-	defer stmt.Close()
-	for _, profile := range profiles {
-		_, err = stmt.Exec(id, project, profile, applyOrder)
-		if err != nil {
-			logger.Debugf("Error adding profile %s to container: %s",
-				profile, err)
-			return err
-		}
-		applyOrder = applyOrder + 1
-	}
-
-	return nil
-}
-
-// LegacyContainersList returns the names of all the containers.
-//
-// NOTE: this is a pre-projects legacy API that is used only by patches. Don't
-// use it for new code.
-func (c *Cluster) LegacyContainersList() ([]string, error) {
-	q := fmt.Sprintf("SELECT name FROM instances WHERE type=? ORDER BY name")
-	inargs := []interface{}{instancetype.Container}
-	var container string
-	outfmt := []interface{}{container}
-	result, err := queryScan(c, q, inargs, outfmt)
-	if err != nil {
-		return nil, err
-	}
-
-	var ret []string
-	for _, container := range result {
-		ret = append(ret, container[0].(string))
-	}
-
-	return ret, nil
-}
-
-// LegacySnapshotsList returns the names of all the snapshots.
-//
-// NOTE: this is a pre-projects legacy API that is used only by patches. Don't
-// use it for new code.
-func (c *Cluster) LegacySnapshotsList() ([]string, error) {
-	q := fmt.Sprintf(`
-SELECT instances.name, instances_snapshots.name
-FROM instances_snapshots
-JOIN instances ON instances.id = instances_snapshots.instance_id
-WHERE type=? ORDER BY instances.name, instances_snapshots.name
-`)
-	inargs := []interface{}{instancetype.Container}
-	var container string
-	var snapshot string
-	outfmt := []interface{}{container, snapshot}
-	result, err := queryScan(c, q, inargs, outfmt)
-	if err != nil {
-		return nil, err
-	}
-
-	var ret []string
-	for _, r := range result {
-		ret = append(ret, r[0].(string)+shared.SnapshotDelimiter+r[1].(string))
-	}
-
-	return ret, nil
-}
-
-// ResetInstancesPowerState resets the power state of all instances.
-func (c *Cluster) ResetInstancesPowerState() error {
-	// Reset all container states
-	err := exec(c, "DELETE FROM instances_config WHERE key='volatile.last_state.power'")
-	return err
-}
-
-// UpdateInstancePowerState sets the the power state of the instance with the
-// given ID.
-func (c *Cluster) UpdateInstancePowerState(id int, state string) error {
-	err := c.Transaction(func(tx *ClusterTx) error {
-		return tx.UpdateInstancePowerState(id, state)
-	})
+func (c *ClusterTx) DeleteInstanceConfigKey(id int64, key string) error {
+	q := "DELETE FROM instances_config WHERE key=? AND instance_id=?"
+	_, err := c.tx.Exec(q, key, id)
 	return err
 }
 
@@ -834,41 +614,6 @@ func (c *ClusterTx) UpdateInstancePowerState(id int, state string) error {
 	return nil
 }
 
-// UpdateInstance updates the description, architecture and ephemeral flag of
-// the instance with the given ID.
-func UpdateInstance(tx *sql.Tx, id int, description string, architecture int, ephemeral bool,
-	expiryDate time.Time) error {
-	str := fmt.Sprintf("UPDATE instances SET description=?, architecture=?, ephemeral=?, expiry_date=? WHERE id=?")
-	stmt, err := tx.Prepare(str)
-	if err != nil {
-		return err
-	}
-	defer stmt.Close()
-
-	ephemeralInt := 0
-	if ephemeral {
-		ephemeralInt = 1
-	}
-
-	if expiryDate.IsZero() {
-		_, err = stmt.Exec(description, architecture, ephemeralInt, "", id)
-	} else {
-		_, err = stmt.Exec(description, architecture, ephemeralInt, expiryDate, id)
-	}
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
-// UpdateInstanceSnapshotCreationDate updates the creation_date field of the instance snapshot with ID.
-func (c *Cluster) UpdateInstanceSnapshotCreationDate(instanceID int, date time.Time) error {
-	stmt := `UPDATE instances_snapshots SET creation_date=? WHERE id=?`
-	err := exec(c, stmt, date, instanceID)
-	return err
-}
-
 // UpdateInstanceLastUsedDate updates the last_use_date field of the instance
 // with the given ID.
 func (c *ClusterTx) UpdateInstanceLastUsedDate(id int, date time.Time) error {
@@ -885,33 +630,6 @@ func (c *ClusterTx) UpdateInstanceLastUsedDate(id int, date time.Time) error {
 	}
 
 	return nil
-}
-
-// GetInstanceSnapshotsNames returns the names of all snapshots of the instance
-// in the given project with the given name.
-func (c *Cluster) GetInstanceSnapshotsNames(project, name string) ([]string, error) {
-	result := []string{}
-
-	q := `
-SELECT instances_snapshots.name
-  FROM instances_snapshots
-  JOIN instances ON instances.id = instances_snapshots.instance_id
-  JOIN projects ON projects.id = instances.project_id
-WHERE projects.name=? AND instances.name=?
-ORDER BY date(instances_snapshots.creation_date)
-`
-	inargs := []interface{}{project, name}
-	outfmt := []interface{}{name}
-	dbResults, err := queryScan(c, q, inargs, outfmt)
-	if err != nil {
-		return result, err
-	}
-
-	for _, r := range dbResults {
-		result = append(result, name+shared.SnapshotDelimiter+r[0].(string))
-	}
-
-	return result, nil
 }
 
 // GetInstanceSnapshotsWithName returns all snapshots of a given instance.
@@ -938,54 +656,6 @@ func (c *ClusterTx) GetInstanceSnapshotsWithName(project string, name string) ([
 	}
 
 	return instances, nil
-}
-
-// GetNextInstanceSnapshotIndex returns the index that the next snapshot of the
-// instance with the given name and pattern should have.
-func (c *Cluster) GetNextInstanceSnapshotIndex(project string, name string, pattern string) int {
-	q := `
-SELECT instances_snapshots.name
-  FROM instances_snapshots
-  JOIN instances ON instances.id = instances_snapshots.instance_id
-  JOIN projects ON projects.id = instances.project_id
-WHERE projects.name=? AND instances.name=?`
-	var numstr string
-	inargs := []interface{}{project, name}
-	outfmt := []interface{}{numstr}
-	results, err := queryScan(c, q, inargs, outfmt)
-	if err != nil {
-		return 0
-	}
-	max := 0
-
-	for _, r := range results {
-		snapOnlyName := r[0].(string)
-		fields := strings.SplitN(pattern, "%d", 2)
-
-		var num int
-		count, err := fmt.Sscanf(snapOnlyName, fmt.Sprintf("%s%%d%s", fields[0], fields[1]), &num)
-		if err != nil || count != 1 {
-			continue
-		}
-		if num >= max {
-			max = num + 1
-		}
-	}
-
-	return max
-}
-
-// GetInstancePool returns the storage pool of a given instance.
-//
-// This is a non-transactional variant of ClusterTx.GetInstancePool().
-func (c *Cluster) GetInstancePool(project, instanceName string) (string, error) {
-	var poolName string
-	err := c.Transaction(func(tx *ClusterTx) error {
-		var err error
-		poolName, err = tx.GetInstancePool(project, instanceName)
-		return err
-	})
-	return poolName, err
 }
 
 // GetInstancePool returns the storage pool of a given instance.
@@ -1049,132 +719,281 @@ SELECT storage_pools.name FROM storage_pools
 	return poolName, nil
 }
 
-// Returns the ID of the instance backup with the given name.
-func (c *Cluster) getInstanceBackupID(name string) (int, error) {
-	q := "SELECT id FROM instances_backups WHERE name=?"
-	id := -1
-	arg1 := []interface{}{name}
-	arg2 := []interface{}{&id}
-	err := dbQueryRowScan(c, q, arg1, arg2)
-	if err == sql.ErrNoRows {
-		return -1, ErrNoSuchObject
+// DeleteInstance removes the instance with the given name from the database.
+func (c *Cluster) DeleteInstance(project, name string) error {
+	if strings.Contains(name, shared.SnapshotDelimiter) {
+		parts := strings.SplitN(name, shared.SnapshotDelimiter, 2)
+		return c.Transaction(func(tx *ClusterTx) error {
+			return tx.DeleteInstanceSnapshot(project, parts[0], parts[1])
+		})
 	}
-
-	return id, err
+	return c.Transaction(func(tx *ClusterTx) error {
+		return tx.DeleteInstance(project, name)
+	})
 }
 
-// GetInstanceBackup returns the backup with the given name.
-func (c *Cluster) GetInstanceBackup(project, name string) (InstanceBackupArgs, error) {
-	args := InstanceBackupArgs{}
-	args.Name = name
-
-	instanceOnlyInt := -1
-	optimizedStorageInt := -1
+// GetInstanceProjectAndName returns the project and the name of the instance
+// with the given ID.
+func (c *Cluster) GetInstanceProjectAndName(id int) (string, string, error) {
+	var project string
+	var name string
 	q := `
-SELECT instances_backups.id, instances_backups.instance_id,
-       instances_backups.creation_date, instances_backups.expiry_date,
-       instances_backups.container_only, instances_backups.optimized_storage
-    FROM instances_backups
-    JOIN instances ON instances.id=instances_backups.instance_id
-    JOIN projects ON projects.id=instances.project_id
-    WHERE projects.name=? AND instances_backups.name=?
+SELECT projects.name, instances.name
+  FROM instances
+  JOIN projects ON projects.id = instances.project_id
+WHERE instances.id=?
 `
-	arg1 := []interface{}{project, name}
-	arg2 := []interface{}{&args.ID, &args.InstanceID, &args.CreationDate,
-		&args.ExpiryDate, &instanceOnlyInt, &optimizedStorageInt}
-	err := dbQueryRowScan(c, q, arg1, arg2)
-	if err != nil {
-		if err == sql.ErrNoRows {
-			return args, ErrNoSuchObject
-		}
+	err := c.Transaction(func(tx *ClusterTx) error {
+		return tx.tx.QueryRow(q, id).Scan(&project, &name)
 
-		return args, err
+	})
+
+	if err == sql.ErrNoRows {
+		return "", "", ErrNoSuchObject
 	}
 
-	if instanceOnlyInt == 1 {
-		args.InstanceOnly = true
-	}
-
-	if optimizedStorageInt == 1 {
-		args.OptimizedStorage = true
-	}
-
-	return args, nil
+	return project, name, err
 }
 
-// GetInstanceBackups returns the names of all backups of the instance with the
-// given name.
-func (c *Cluster) GetInstanceBackups(project, name string) ([]string, error) {
-	var result []string
+// GetInstanceID returns the ID of the instance with the given name.
+func (c *Cluster) GetInstanceID(project, name string) (int, error) {
+	var id int64
+	err := c.Transaction(func(tx *ClusterTx) error {
+		var err error
+		id, err = tx.GetInstanceID(project, name)
+		return err
+	})
+	return int(id), err
+}
 
-	q := `SELECT instances_backups.name FROM instances_backups
-JOIN instances ON instances_backups.instance_id=instances.id
-JOIN projects ON projects.id=instances.project_id
-WHERE projects.name=? AND instances.name=?`
-	inargs := []interface{}{project, name}
-	outfmt := []interface{}{name}
-	dbResults, err := queryScan(c, q, inargs, outfmt)
+// GetInstanceConfig returns the value of the given key in the configuration
+// of the instance with the given ID.
+func (c *Cluster) GetInstanceConfig(id int, key string) (string, error) {
+	q := "SELECT value FROM instances_config WHERE instance_id=? AND key=?"
+	value := ""
+	err := c.Transaction(func(tx *ClusterTx) error {
+		return tx.tx.QueryRow(q, id, key).Scan(&value)
+	})
+	if err == sql.ErrNoRows {
+		return "", ErrNoSuchObject
+	}
+
+	return value, err
+}
+
+// DeleteInstanceConfigKey removes the given key from the config of the instance
+// with the given ID.
+func (c *Cluster) DeleteInstanceConfigKey(id int, key string) error {
+	return c.Transaction(func(tx *ClusterTx) error {
+		return tx.DeleteInstanceConfigKey(int64(id), key)
+	})
+}
+
+// UpdateInstanceStatefulFlag toggles the stateful flag of the instance with
+// the given ID.
+func (c *Cluster) UpdateInstanceStatefulFlag(id int, stateful bool) error {
+	statefulInt := 0
+	if stateful {
+		statefulInt = 1
+	}
+	return c.Transaction(func(tx *ClusterTx) error {
+		_, err := tx.tx.Exec("UPDATE instances SET stateful=? WHERE id=?", statefulInt, id)
+		return err
+	})
+}
+
+// LegacyContainersList returns the names of all the containers.
+//
+// NOTE: this is a pre-projects legacy API that is used only by patches. Don't
+// use it for new code.
+func (c *Cluster) LegacyContainersList() ([]string, error) {
+	q := fmt.Sprintf("SELECT name FROM instances WHERE type=? ORDER BY name")
+
+	var ret []string
+
+	err := c.Transaction(func(tx *ClusterTx) error {
+		var err error
+		ret, err = query.SelectStrings(tx.tx, q, instancetype.Container)
+		return err
+	})
 	if err != nil {
 		return nil, err
 	}
 
+	return ret, nil
+}
+
+// LegacySnapshotsList returns the names of all the snapshots.
+//
+// NOTE: this is a pre-projects legacy API that is used only by patches. Don't
+// use it for new code.
+func (c *Cluster) LegacySnapshotsList() ([]string, error) {
+	q := fmt.Sprintf(`
+SELECT instances.name, instances_snapshots.name
+FROM instances_snapshots
+JOIN instances ON instances.id = instances_snapshots.instance_id
+WHERE type=? ORDER BY instances.name, instances_snapshots.name
+`)
+	inargs := []interface{}{instancetype.Container}
+	var container string
+	var snapshot string
+	outfmt := []interface{}{container, snapshot}
+	result, err := queryScan(c, q, inargs, outfmt)
+	if err != nil {
+		return nil, err
+	}
+
+	var ret []string
+	for _, r := range result {
+		ret = append(ret, r[0].(string)+shared.SnapshotDelimiter+r[1].(string))
+	}
+
+	return ret, nil
+}
+
+// ResetInstancesPowerState resets the power state of all instances.
+func (c *Cluster) ResetInstancesPowerState() error {
+	// Reset all container states
+	err := exec(c, "DELETE FROM instances_config WHERE key='volatile.last_state.power'")
+	return err
+}
+
+// UpdateInstancePowerState sets the the power state of the instance with the
+// given ID.
+func (c *Cluster) UpdateInstancePowerState(id int, state string) error {
+	err := c.Transaction(func(tx *ClusterTx) error {
+		return tx.UpdateInstancePowerState(id, state)
+	})
+	return err
+}
+
+// UpdateInstanceSnapshotCreationDate updates the creation_date field of the instance snapshot with ID.
+func (c *Cluster) UpdateInstanceSnapshotCreationDate(instanceID int, date time.Time) error {
+	stmt := `UPDATE instances_snapshots SET creation_date=? WHERE id=?`
+	err := exec(c, stmt, date, instanceID)
+	return err
+}
+
+// GetInstanceSnapshotsNames returns the names of all snapshots of the instance
+// in the given project with the given name.
+func (c *Cluster) GetInstanceSnapshotsNames(project, name string) ([]string, error) {
+	result := []string{}
+
+	q := `
+SELECT instances_snapshots.name
+  FROM instances_snapshots
+  JOIN instances ON instances.id = instances_snapshots.instance_id
+  JOIN projects ON projects.id = instances.project_id
+WHERE projects.name=? AND instances.name=?
+ORDER BY date(instances_snapshots.creation_date)
+`
+	inargs := []interface{}{project, name}
+	outfmt := []interface{}{name}
+	dbResults, err := queryScan(c, q, inargs, outfmt)
+	if err != nil {
+		return result, err
+	}
+
 	for _, r := range dbResults {
-		result = append(result, r[0].(string))
+		result = append(result, name+shared.SnapshotDelimiter+r[0].(string))
 	}
 
 	return result, nil
 }
 
-// CreateInstanceBackup creates a new backup.
-func (c *Cluster) CreateInstanceBackup(args InstanceBackupArgs) error {
-	_, err := c.getInstanceBackupID(args.Name)
-	if err == nil {
-		return ErrAlreadyDefined
+// GetNextInstanceSnapshotIndex returns the index that the next snapshot of the
+// instance with the given name and pattern should have.
+func (c *Cluster) GetNextInstanceSnapshotIndex(project string, name string, pattern string) int {
+	q := `
+SELECT instances_snapshots.name
+  FROM instances_snapshots
+  JOIN instances ON instances.id = instances_snapshots.instance_id
+  JOIN projects ON projects.id = instances.project_id
+WHERE projects.name=? AND instances.name=?`
+	var numstr string
+	inargs := []interface{}{project, name}
+	outfmt := []interface{}{numstr}
+	results, err := queryScan(c, q, inargs, outfmt)
+	if err != nil {
+		return 0
+	}
+	max := 0
+
+	for _, r := range results {
+		snapOnlyName := r[0].(string)
+		fields := strings.SplitN(pattern, "%d", 2)
+
+		var num int
+		count, err := fmt.Sscanf(snapOnlyName, fmt.Sprintf("%s%%d%s", fields[0], fields[1]), &num)
+		if err != nil || count != 1 {
+			continue
+		}
+		if num >= max {
+			max = num + 1
+		}
 	}
 
-	err = c.Transaction(func(tx *ClusterTx) error {
-		instanceOnlyInt := 0
-		if args.InstanceOnly {
-			instanceOnlyInt = 1
-		}
-
-		optimizedStorageInt := 0
-		if args.OptimizedStorage {
-			optimizedStorageInt = 1
-		}
-
-		str := fmt.Sprintf("INSERT INTO instances_backups (instance_id, name, creation_date, expiry_date, container_only, optimized_storage) VALUES (?, ?, ?, ?, ?, ?)")
-		stmt, err := tx.tx.Prepare(str)
-		if err != nil {
-			return err
-		}
-		defer stmt.Close()
-		result, err := stmt.Exec(args.InstanceID, args.Name,
-			args.CreationDate.Unix(), args.ExpiryDate.Unix(), instanceOnlyInt,
-			optimizedStorageInt)
-		if err != nil {
-			return err
-		}
-
-		_, err = result.LastInsertId()
-		if err != nil {
-			return fmt.Errorf("Error inserting %q into database", args.Name)
-		}
-
-		return nil
-	})
-
-	return err
+	return max
 }
 
-// DeleteInstanceBackup removes the instance backup with the given name from the database.
-func (c *Cluster) DeleteInstanceBackup(name string) error {
-	id, err := c.getInstanceBackupID(name)
+// GetInstancePool returns the storage pool of a given instance.
+//
+// This is a non-transactional variant of ClusterTx.GetInstancePool().
+func (c *Cluster) GetInstancePool(project, instanceName string) (string, error) {
+	var poolName string
+	err := c.Transaction(func(tx *ClusterTx) error {
+		var err error
+		poolName, err = tx.GetInstancePool(project, instanceName)
+		return err
+	})
+	return poolName, err
+}
+
+// CreateInstanceConfig inserts a new config for the instance with the given ID.
+func CreateInstanceConfig(tx *sql.Tx, id int, config map[string]string) error {
+	stmt, err := tx.Prepare("INSERT INTO instances_config (instance_id, key, value) values (?, ?, ?)")
 	if err != nil {
 		return err
 	}
+	defer stmt.Close()
 
-	err = exec(c, "DELETE FROM instances_backups WHERE id=?", id)
+	for k, v := range config {
+		if v == "" {
+			continue
+		}
+
+		_, err := stmt.Exec(id, k, v)
+		if err != nil {
+			logger.Debugf("Error adding configuration item %s = %s to container %d",
+				k, v, id)
+			return err
+		}
+	}
+
+	return nil
+}
+
+// UpdateInstance updates the description, architecture and ephemeral flag of
+// the instance with the given ID.
+func UpdateInstance(tx *sql.Tx, id int, description string, architecture int, ephemeral bool,
+	expiryDate time.Time) error {
+	str := fmt.Sprintf("UPDATE instances SET description=?, architecture=?, ephemeral=?, expiry_date=? WHERE id=?")
+	stmt, err := tx.Prepare(str)
+	if err != nil {
+		return err
+	}
+	defer stmt.Close()
+
+	ephemeralInt := 0
+	if ephemeral {
+		ephemeralInt = 1
+	}
+
+	if expiryDate.IsZero() {
+		_, err = stmt.Exec(description, architecture, ephemeralInt, "", id)
+	} else {
+		_, err = stmt.Exec(description, architecture, ephemeralInt, expiryDate, id)
+	}
 	if err != nil {
 		return err
 	}
@@ -1182,71 +1001,43 @@ func (c *Cluster) DeleteInstanceBackup(name string) error {
 	return nil
 }
 
-// RenameInstanceBackup renames an instance backup from the given current name
-// to the new one.
-func (c *Cluster) RenameInstanceBackup(oldName, newName string) error {
-	err := c.Transaction(func(tx *ClusterTx) error {
-		str := fmt.Sprintf("UPDATE instances_backups SET name = ? WHERE name = ?")
-		stmt, err := tx.tx.Prepare(str)
-		if err != nil {
-			return err
-		}
-		defer stmt.Close()
-
-		logger.Debug(
-			"Calling SQL Query",
-			log.Ctx{
-				"query":   "UPDATE instances_backups SET name = ? WHERE name = ?",
-				"oldName": oldName,
-				"newName": newName})
-		if _, err := stmt.Exec(newName, oldName); err != nil {
-			return err
-		}
-
-		return nil
-	})
-	return err
-}
-
-// GetExpiredInstanceBackups returns a list of expired instance backups.
-func (c *Cluster) GetExpiredInstanceBackups() ([]InstanceBackupArgs, error) {
-	var result []InstanceBackupArgs
-	var name string
-	var expiryDate string
-	var instanceID int
-
-	q := `SELECT instances_backups.name, instances_backups.expiry_date, instances_backups.instance_id FROM instances_backups`
-	outfmt := []interface{}{name, expiryDate, instanceID}
-	dbResults, err := queryScan(c, q, nil, outfmt)
+// Associate the instance with the given ID with the profiles with the given
+// names in the given project.
+func addProfilesToInstance(tx *sql.Tx, id int, project string, profiles []string) error {
+	enabled, err := projectHasProfiles(tx, project)
 	if err != nil {
-		return nil, err
+		return errors.Wrap(err, "Check if project has profiles")
+	}
+	if !enabled {
+		project = "default"
 	}
 
-	for _, r := range dbResults {
-		timestamp := r[1]
-
-		var backupExpiry time.Time
-		err = backupExpiry.UnmarshalText([]byte(timestamp.(string)))
+	applyOrder := 1
+	str := `
+INSERT INTO instances_profiles (instance_id, profile_id, apply_order)
+  VALUES (
+    ?,
+    (SELECT profiles.id
+     FROM profiles
+     JOIN projects ON projects.id=profiles.project_id
+     WHERE projects.name=? AND profiles.name=?),
+    ?
+  )
+`
+	stmt, err := tx.Prepare(str)
+	if err != nil {
+		return err
+	}
+	defer stmt.Close()
+	for _, profile := range profiles {
+		_, err = stmt.Exec(id, project, profile, applyOrder)
 		if err != nil {
-			return []InstanceBackupArgs{}, err
+			logger.Debugf("Error adding profile %s to container: %s",
+				profile, err)
+			return err
 		}
-
-		// Since zero time causes some issues due to timezones, we check the
-		// unix timestamp instead of IsZero().
-		if backupExpiry.Unix() <= 0 {
-			// Backup doesn't expire
-			continue
-		}
-
-		// Backup has expired
-		if time.Now().Unix()-backupExpiry.Unix() >= 0 {
-			result = append(result, InstanceBackupArgs{
-				Name:       r[0].(string),
-				InstanceID: r[2].(int),
-				ExpiryDate: backupExpiry,
-			})
-		}
+		applyOrder = applyOrder + 1
 	}
 
-	return result, nil
+	return nil
 }

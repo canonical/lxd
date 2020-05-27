@@ -549,7 +549,7 @@ func (c *ClusterTx) CreateInstance(object Instance) (int64, error) {
 		if !ok {
 			return -1, fmt.Errorf("No type for device %s", name)
 		}
-		typCode, err := dbDeviceTypeToInt(typ)
+		typCode, err := deviceTypeToInt(typ)
 		if err != nil {
 			return -1, errors.Wrapf(err, "Device type code for %s", typ)
 		}
@@ -572,7 +572,7 @@ func (c *ClusterTx) CreateInstance(object Instance) (int64, error) {
 	}
 
 	// Insert profiles reference.
-	err = AddProfilesToInstance(c.tx, int(id), object.Project, object.Profiles)
+	err = addProfilesToInstance(c.tx, int(id), object.Project, object.Profiles)
 	if err != nil {
 		return -1, errors.Wrap(err, "Insert profiles for instance")
 	}
@@ -861,7 +861,7 @@ func (c *ClusterTx) InstanceDevicesRef(filter InstanceFilter) (map[string]map[st
 		if !ok {
 			// First time we see this device, let's int the config
 			// and add the type.
-			deviceType, err := dbDeviceTypeToString(object.Type)
+			deviceType, err := deviceTypeToString(object.Type)
 			if err != nil {
 				return nil, errors.Wrapf(
 					err, "unexpected device type code '%d'", object.Type)
@@ -968,7 +968,7 @@ func (c *ClusterTx) UpdateInstance(project string, name string, object Instance)
 		if !ok {
 			return fmt.Errorf("No type for device %s", name)
 		}
-		typCode, err := dbDeviceTypeToInt(typ)
+		typCode, err := deviceTypeToInt(typ)
 		if err != nil {
 			return errors.Wrapf(err, "Device type code for %s", typ)
 		}
@@ -1001,7 +1001,7 @@ func (c *ClusterTx) UpdateInstance(project string, name string, object Instance)
 	}
 
 	// Insert profiles reference.
-	err = AddProfilesToInstance(c.tx, int(id), object.Project, object.Profiles)
+	err = addProfilesToInstance(c.tx, int(id), object.Project, object.Profiles)
 	if err != nil {
 		return errors.Wrap(err, "Insert profiles for instance")
 	}

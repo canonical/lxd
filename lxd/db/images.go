@@ -75,6 +75,161 @@ SELECT images.fingerprint
 	return query.SelectStrings(c.tx, q, c.nodeID)
 }
 
+// GetImageSource returns the image source with the given ID.
+func (c *ClusterTx) GetImageSource(imageID int) (int, api.ImageSource, error) {
+	q := `SELECT id, server, protocol, certificate, alias FROM images_source WHERE image_id=?`
+	sources := []struct {
+		ID          int
+		Server      string
+		Protocol    int
+		Certificate string
+		Alias       string
+	}{}
+	dest := func(i int) []interface{} {
+		sources = append(sources, struct {
+			ID          int
+			Server      string
+			Protocol    int
+			Certificate string
+			Alias       string
+		}{})
+		return []interface{}{
+			&sources[i].ID,
+			&sources[i].Server,
+			&sources[i].Protocol,
+			&sources[i].Certificate,
+			&sources[i].Alias,
+		}
+
+	}
+	stmt, err := c.tx.Prepare(q)
+	if err != nil {
+		return -1, api.ImageSource{}, err
+	}
+	defer stmt.Close()
+
+	err = query.SelectObjects(stmt, dest, imageID)
+	if err != nil {
+		return -1, api.ImageSource{}, err
+	}
+
+	if len(sources) == 0 {
+		return -1, api.ImageSource{}, ErrNoSuchObject
+	}
+
+	source := sources[0]
+
+	protocol, found := ImageSourceProtocol[source.Protocol]
+	if !found {
+		return -1, api.ImageSource{}, fmt.Errorf("Invalid protocol: %d", source.Protocol)
+	}
+
+	result := api.ImageSource{
+		Server:      source.Server,
+		Protocol:    protocol,
+		Certificate: source.Certificate,
+		Alias:       source.Alias,
+	}
+
+	return source.ID, result, nil
+
+}
+
+// Fill extra image fields such as properties and alias. This is called after
+// fetching a single row from the images table.
+func (c *ClusterTx) imageFill(id int, image *api.Image, create, expire, used, upload *time.Time, arch int, imageType int) error {
+	// Some of the dates can be nil in the DB, let's process them.
+	if create != nil {
+		image.CreatedAt = *create
+	} else {
+		image.CreatedAt = time.Time{}
+	}
+
+	if expire != nil {
+		image.ExpiresAt = *expire
+	} else {
+		image.ExpiresAt = time.Time{}
+	}
+
+	if used != nil {
+		image.LastUsedAt = *used
+	} else {
+		image.LastUsedAt = time.Time{}
+	}
+
+	image.Architecture, _ = osarch.ArchitectureName(arch)
+	image.Type = instancetype.Type(imageType).String()
+
+	// The upload date is enforced by NOT NULL in the schema, so it can never be nil.
+	image.UploadedAt = *upload
+
+	// Get the properties
+	properties, err := query.SelectConfig(c.tx, "images_properties", "image_id=?", id)
+	if err != nil {
+		return err
+	}
+	image.Properties = properties
+
+	// Get the aliases
+	aliases := []api.ImageAlias{}
+	dest := func(i int) []interface{} {
+		aliases = append(aliases, api.ImageAlias{})
+		return []interface{}{
+			&aliases[i].Name,
+			&aliases[i].Description,
+		}
+
+	}
+	q := "SELECT name, description FROM images_aliases WHERE image_id=?"
+	stmt, err := c.tx.Prepare(q)
+	if err != nil {
+		return err
+	}
+
+	defer stmt.Close()
+
+	err = query.SelectObjects(stmt, dest, id)
+	if err != nil {
+		return err
+	}
+
+	image.Aliases = aliases
+
+	_, source, err := c.GetImageSource(id)
+	if err == nil {
+		image.UpdateSource = &source
+	}
+
+	return nil
+}
+
+func (c *ClusterTx) imageFillProfiles(id int, image *api.Image, project string) error {
+	// Check which project name to use
+	enabled, err := c.ProjectHasProfiles(project)
+	if err != nil {
+		return errors.Wrap(err, "Check if project has profiles")
+	}
+	if !enabled {
+		project = "default"
+	}
+
+	// Get the profiles
+	q := `
+SELECT profiles.name FROM profiles
+	JOIN images_profiles ON images_profiles.profile_id = profiles.id
+	JOIN projects ON profiles.project_id = projects.id
+WHERE images_profiles.image_id = ? AND projects.name = ?
+`
+	profiles, err := query.SelectStrings(c.tx, q, id, project)
+	if err != nil {
+		return err
+	}
+
+	image.Profiles = profiles
+
+	return nil
+}
+
 // GetImagesFingerprints returns the names of all images (optionally only the public ones).
 func (c *Cluster) GetImagesFingerprints(project string, public bool) ([]string, error) {
 	q := `
@@ -185,70 +340,10 @@ func (c *Cluster) CreateImageSource(id int, server string, protocol string, cert
 	return err
 }
 
-// GetImageSource returns the image source with the given ID.
-func (c *ClusterTx) GetImageSource(imageID int) (int, api.ImageSource, error) {
-	q := `SELECT id, server, protocol, certificate, alias FROM images_source WHERE image_id=?`
-	sources := []struct {
-		ID          int
-		Server      string
-		Protocol    int
-		Certificate string
-		Alias       string
-	}{}
-	dest := func(i int) []interface{} {
-		sources = append(sources, struct {
-			ID          int
-			Server      string
-			Protocol    int
-			Certificate string
-			Alias       string
-		}{})
-		return []interface{}{
-			&sources[i].ID,
-			&sources[i].Server,
-			&sources[i].Protocol,
-			&sources[i].Certificate,
-			&sources[i].Alias,
-		}
-
-	}
-	stmt, err := c.tx.Prepare(q)
-	if err != nil {
-		return -1, api.ImageSource{}, err
-	}
-	defer stmt.Close()
-
-	err = query.SelectObjects(stmt, dest, imageID)
-	if err != nil {
-		return -1, api.ImageSource{}, err
-	}
-
-	if len(sources) == 0 {
-		return -1, api.ImageSource{}, ErrNoSuchObject
-	}
-
-	source := sources[0]
-
-	protocol, found := ImageSourceProtocol[source.Protocol]
-	if !found {
-		return -1, api.ImageSource{}, fmt.Errorf("Invalid protocol: %d", source.Protocol)
-	}
-
-	result := api.ImageSource{
-		Server:      source.Server,
-		Protocol:    protocol,
-		Certificate: source.Certificate,
-		Alias:       source.Alias,
-	}
-
-	return source.ID, result, nil
-
-}
-
-// ImageSourceGetCachedFingerprint tries to find a source entry of a locally
+// GetCachedImageSourceFingerprint tries to find a source entry of a locally
 // cached image that matches the given remote details (server, protocol and
 // alias). Return the fingerprint linked to the matching entry, if any.
-func (c *Cluster) ImageSourceGetCachedFingerprint(server string, protocol string, alias string, typeName string, architecture int) (string, error) {
+func (c *Cluster) GetCachedImageSourceFingerprint(server string, protocol string, alias string, typeName string, architecture int) (string, error) {
 	imageType := instancetype.Any
 	if typeName != "" {
 		var err error
@@ -469,101 +564,6 @@ func (c *Cluster) GetImageFromAnyProject(fingerprint string) (int, *api.Image, e
 	}
 
 	return object.ID, &image, nil
-}
-
-// Fill extra image fields such as properties and alias. This is called after
-// fetching a single row from the images table.
-func (c *ClusterTx) imageFill(id int, image *api.Image, create, expire, used, upload *time.Time, arch int, imageType int) error {
-	// Some of the dates can be nil in the DB, let's process them.
-	if create != nil {
-		image.CreatedAt = *create
-	} else {
-		image.CreatedAt = time.Time{}
-	}
-
-	if expire != nil {
-		image.ExpiresAt = *expire
-	} else {
-		image.ExpiresAt = time.Time{}
-	}
-
-	if used != nil {
-		image.LastUsedAt = *used
-	} else {
-		image.LastUsedAt = time.Time{}
-	}
-
-	image.Architecture, _ = osarch.ArchitectureName(arch)
-	image.Type = instancetype.Type(imageType).String()
-
-	// The upload date is enforced by NOT NULL in the schema, so it can never be nil.
-	image.UploadedAt = *upload
-
-	// Get the properties
-	properties, err := query.SelectConfig(c.tx, "images_properties", "image_id=?", id)
-	if err != nil {
-		return err
-	}
-	image.Properties = properties
-
-	// Get the aliases
-	aliases := []api.ImageAlias{}
-	dest := func(i int) []interface{} {
-		aliases = append(aliases, api.ImageAlias{})
-		return []interface{}{
-			&aliases[i].Name,
-			&aliases[i].Description,
-		}
-
-	}
-	q := "SELECT name, description FROM images_aliases WHERE image_id=?"
-	stmt, err := c.tx.Prepare(q)
-	if err != nil {
-		return err
-	}
-
-	defer stmt.Close()
-
-	err = query.SelectObjects(stmt, dest, id)
-	if err != nil {
-		return err
-	}
-
-	image.Aliases = aliases
-
-	_, source, err := c.GetImageSource(id)
-	if err == nil {
-		image.UpdateSource = &source
-	}
-
-	return nil
-}
-
-func (c *ClusterTx) imageFillProfiles(id int, image *api.Image, project string) error {
-	// Check which project name to use
-	enabled, err := c.ProjectHasProfiles(project)
-	if err != nil {
-		return errors.Wrap(err, "Check if project has profiles")
-	}
-	if !enabled {
-		project = "default"
-	}
-
-	// Get the profiles
-	q := `
-SELECT profiles.name FROM profiles
-	JOIN images_profiles ON images_profiles.profile_id = profiles.id
-	JOIN projects ON profiles.project_id = projects.id
-WHERE images_profiles.image_id = ? AND projects.name = ?
-`
-	profiles, err := query.SelectStrings(c.tx, q, id, project)
-	if err != nil {
-		return err
-	}
-
-	image.Profiles = profiles
-
-	return nil
 }
 
 // LocateImage returns the address of an online node that has a local copy of
