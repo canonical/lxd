@@ -1004,6 +1004,15 @@ func (b *lxdBackend) CreateInstanceFromImage(inst instance.Instance, fingerprint
 		}
 
 		imgVol := b.newVolume(drivers.VolumeTypeImage, contentType, fingerprint, imgDBVol.Config)
+
+		// Derive size to use for new volume from source (and check it doesn't exceed volume size limits).
+		volSize, err := vol.ConfigSizeFromSource(imgVol)
+		if err != nil {
+			return err
+		}
+
+		vol.SetConfigSize(volSize)
+
 		err = b.driver.CreateVolumeFromCopy(vol, imgVol, false, op)
 
 		// If the driver returns ErrCannotBeShrunk, this means that the cached volume is larger than the
