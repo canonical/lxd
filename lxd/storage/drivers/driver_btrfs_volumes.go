@@ -69,7 +69,9 @@ func (d *btrfs) CreateVolume(vol Volume, filler *VolumeFiller, op *operations.Op
 		}
 
 		_, err = ensureVolumeBlockFile(rootBlockPath, sizeBytes)
-		if err != nil {
+
+		// Ignore ErrCannotBeShrunk as this just means the filler has needed to increase the volume size.
+		if err != nil && errors.Cause(err) != ErrCannotBeShrunk {
 			return err
 		}
 
