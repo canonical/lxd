@@ -47,16 +47,20 @@ func (p *Process) Stop() error {
 	if err == nil {
 		err = pr.Kill()
 		if err == nil {
+			if p.hasMonitor {
+				<-p.chExit
+			}
+
 			return nil // Killed successfully.
 		}
 	}
 
-	if p.hasMonitor {
-		<-p.chExit
-	}
-
 	// Check if either the existence check or the kill resulted in an already finished error.
 	if strings.Contains(err.Error(), "process already finished") {
+		if p.hasMonitor {
+			<-p.chExit
+		}
+
 		return ErrNotRunning
 	}
 
