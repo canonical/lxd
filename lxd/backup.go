@@ -121,11 +121,18 @@ func backupCreate(s *state.State, args db.InstanceBackup, sourceInst instance.In
 
 	// Setup tar writer go routine, with optional compression.
 	tarWriterRes := make(chan error, 0)
+	var compressErr error
+
 	go func(resCh chan<- error) {
 		logger.Debug("Started backup tarball writer")
 		defer logger.Debug("Finished backup tarball writer")
 		if compress != "none" {
-			err = compressFile(compress, tarPipeReader, tarFileWriter)
+			compressErr = compressFile(compress, tarPipeReader, tarFileWriter)
+
+			// If a compression error occurred, close the tarPipeWriter to end the export.
+			if compressErr != nil {
+				tarPipeWriter.Close()
+			}
 		} else {
 			_, err = io.Copy(tarFileWriter, tarPipeReader)
 		}
@@ -135,6 +142,13 @@ func backupCreate(s *state.State, args db.InstanceBackup, sourceInst instance.In
 	// Write index file.
 	logger.Debug("Adding backup index file")
 	err = backupWriteIndex(sourceInst, pool, b.OptimizedStorage(), !b.InstanceOnly(), tarWriter)
+
+	// Check compression errors.
+	if compressErr != nil {
+		return compressErr
+	}
+
+	// Check backupWriteIndex for errors.
 	if err != nil {
 		return errors.Wrapf(err, "Error writing backup index file")
 	}
