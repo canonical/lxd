@@ -25,6 +25,7 @@ import (
 	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/instance/instancetype"
 	"github.com/lxc/lxd/lxd/network"
+	"github.com/lxc/lxd/lxd/revert"
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
 	log "github.com/lxc/lxd/shared/log15"
@@ -183,6 +184,9 @@ func (d *nicBridged) Start() (*deviceConfig.RunConfig, error) {
 		return nil, err
 	}
 
+	revert := revert.New()
+	defer revert.Fail()
+
 	saveData := make(map[string]string)
 	saveData["host_name"] = d.config["host_name"]
 
@@ -206,10 +210,11 @@ func (d *nicBridged) Start() (*deviceConfig.RunConfig, error) {
 		return nil, err
 	}
 
+	revert.Add(func() { NetworkRemoveInterface(saveData["host_name"]) })
+
 	// Apply and host-side limits and routes.
 	err = networkSetupHostVethDevice(d.config, nil, saveData)
 	if err != nil {
-		NetworkRemoveInterface(saveData["host_name"])
 		return nil, err
 	}
 
@@ -223,21 +228,19 @@ func (d *nicBridged) Start() (*deviceConfig.RunConfig, error) {
 	// Apply and host-side network filters (uses enriched host_name from networkSetupHostVethDevice).
 	err = d.setupHostFilters(nil)
 	if err != nil {
-		NetworkRemoveInterface(saveData["host_name"])
 		return nil, err
 	}
+	revert.Add(func() { d.removeFilters(d.config) })
 
 	// Attach host side veth interface to bridge.
 	err = network.AttachInterface(d.config["parent"], saveData["host_name"])
 	if err != nil {
-		NetworkRemoveInterface(saveData["host_name"])
 		return nil, err
 	}
 
 	// Attempt to disable router advertisement acceptance.
 	err = util.SysctlSet(fmt.Sprintf("net/ipv6/conf/%s/accept_ra", saveData["host_name"]), "0")
 	if err != nil && !os.IsNotExist(err) {
-		NetworkRemoveInterface(saveData["host_name"])
 		return nil, err
 	}
 
@@ -262,6 +265,7 @@ func (d *nicBridged) Start() (*deviceConfig.RunConfig, error) {
 			}...)
 	}
 
+	revert.Success()
 	return &runConf, nil
 }
 
