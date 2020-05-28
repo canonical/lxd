@@ -62,6 +62,7 @@ func (d *nicBridged) validateConfig(instConf instance.ConfigReader) error {
 		"maas.subnet.ipv4",
 		"maas.subnet.ipv6",
 		"boot.priority",
+		"vlan",
 	}
 
 	// Check that if network proeperty is set that conflicting keys are not present.
@@ -137,8 +138,48 @@ func (d *nicBridged) validateConfig(instConf instance.ConfigReader) error {
 		requiredFields = append(requiredFields, "parent")
 	}
 
+	// Check that IP filtering isn't being used with VLAN filtering.
+	if shared.IsTrue(d.config["security.ipv4_filtering"]) || shared.IsTrue(d.config["security.ipv6_filtering"]) {
+		if d.config["vlan"] != "" || d.config["vlan.tagged"] != "" {
+			return fmt.Errorf("IP filtering cannot be used with VLAN filtering")
+		}
+	}
+
+	rules := nicValidationRules(requiredFields, optionalFields)
+
+	// Add bridge specific vlan validation.
+	rules["vlan"] = func(value string) error {
+		if value == "" || value == "none" {
+			return nil
+		}
+
+		return networkValidVLAN(value)
+	}
+
+	// Add bridge specific vlan.tagged validation.
+	rules["vlan.tagged"] = func(value string) error {
+		if value == "" {
+			return nil
+		}
+
+		err := networkValidVLANList(value)
+		if err != nil {
+			return err
+		}
+
+		// Check that none of the supplied VLAN IDs are the same as the untagged VLAN ID.
+		for _, vlanID := range strings.Split(value, ",") {
+			vlanID = strings.TrimSpace(vlanID)
+			if vlanID == d.config["vlan"] {
+				return fmt.Errorf("Tagged VLAN ID %q cannot be the same as untagged VLAN ID", vlanID)
+			}
+		}
+
+		return nil
+	}
+
 	// Now run normal validation.
-	err := d.config.Validate(nicValidationRules(requiredFields, optionalFields))
+	err := d.config.Validate(rules)
 	if err != nil {
 		return err
 	}
