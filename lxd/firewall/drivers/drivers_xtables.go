@@ -78,8 +78,10 @@ func (d Xtables) xtablesIsNftables(cmd string) bool {
 
 // iptablesInUse returns whether the specified iptables backend command has any rules defined.
 func (d Xtables) iptablesInUse(iptablesCmd string) bool {
-	tables := []string{"filter", "nat", "mangle", "raw"}
-	for _, table := range tables {
+	// tableIsUse checks an individual iptables table for active rules. We do this rather than using the
+	// iptables-save command because we cannot guarantee that this command is available and don't want mixed
+	// behaviour when iptables command is an nft shim and the iptables-save command is legacy.
+	tableIsUse := func(table string) bool {
 		cmd := exec.Command(iptablesCmd, "-S", "-t", table)
 		stdout, err := cmd.StdoutPipe()
 		if err != nil {
@@ -97,8 +99,17 @@ func (d Xtables) iptablesInUse(iptablesCmd string) bool {
 
 			// Check for lines that indicate a rule being used.
 			if strings.HasPrefix(line, "-A") || strings.HasPrefix(line, "-R") || strings.HasPrefix(line, "-I") {
+				cmd.Process.Kill()
 				return true
 			}
+		}
+
+		return false
+	}
+
+	for _, table := range []string{"filter", "nat", "mangle", "raw"} {
+		if tableIsUse(table) {
+			return true
 		}
 	}
 
