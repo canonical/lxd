@@ -576,12 +576,6 @@ func ImageUnpack(imageFile string, vol drivers.Volume, destBlockFile string, blo
 		if err != nil {
 			return -1, err
 		}
-
-		// Convert the qcow2 format to a raw block device.
-		_, err = shared.RunCommand("qemu-img", "convert", "-O", "raw", imageRootfsFile, destBlockFile)
-		if err != nil {
-			return -1, fmt.Errorf("Failed converting image to raw at %s: %v", destBlockFile, err)
-		}
 	} else {
 		// Dealing with unified tarballs require an initial unpack to a temporary directory.
 		tempDir, err := ioutil.TempDir(shared.VarPath("images"), "lxd_image_unpack_")
