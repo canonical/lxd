@@ -18,7 +18,8 @@ import (
 	"github.com/lxc/lxd/shared/idmap"
 )
 
-const minBlockBoundary = 8192
+// MinBlockBoundary minimum block boundary size to use.
+const MinBlockBoundary = 8192
 
 // wipeDirectory empties the contents of a directory, but leaves it in place.
 func wipeDirectory(path string) error {
