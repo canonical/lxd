@@ -553,8 +553,10 @@ func ImageUnpack(imageFile string, vol drivers.Volume, destBlockFile string, blo
 			}
 		}
 
-		// Convert the qcow2 format to a raw block device.
-		_, err = shared.RunCommand("qemu-img", "convert", "-f", "qcow2", "-O", "raw", imgPath, dstPath)
+		// Convert the qcow2 format to a raw block device using qemu's dd mode to avoid issues with
+		// loop backed storage pools. Use the MinBlockBoundary block size to speed up conversion.
+		logger.Debugf("Converting qcow2 image %q to raw disk %q", imgPath, dstPath)
+		_, err = shared.RunCommand("qemu-img", "dd", "-f", "qcow2", "-O", "raw", fmt.Sprintf("bs=%d", drivers.MinBlockBoundary), fmt.Sprintf("if=%s", imgPath), fmt.Sprintf("of=%s", dstPath))
 		if err != nil {
 			return -1, errors.Wrapf(err, "Failed converting image to raw at %q", dstPath)
 		}
