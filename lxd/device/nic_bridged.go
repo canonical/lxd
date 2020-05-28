@@ -285,6 +285,12 @@ func (d *nicBridged) Start() (*deviceConfig.RunConfig, error) {
 		return nil, err
 	}
 
+	// Setup VLAN settings on bridge port.
+	err = d.setupBridgePortVLANs(saveData["host_name"])
+	if err != nil {
+		return nil, err
+	}
+
 	err = d.volatileSet(saveData)
 	if err != nil {
 		return nil, err
@@ -1187,4 +1193,58 @@ func (d *nicBridged) networkDHCPv6CreateIAAddress(IP net.IP) []byte {
 	binary.BigEndian.PutUint32(data[20:24], uint32(0))                    // Preferred liftetime
 	binary.BigEndian.PutUint32(data[24:28], uint32(0))                    // Valid lifetime
 	return data
+}
+
+// setupBridgePortVLANs configures the bridge port with the specified VLAN settings in device config.
+func (d *nicBridged) setupBridgePortVLANs(hostName string) error {
+	// Enable vlan_filtering on bridge if needed.
+	if d.config["vlan"] != "" || d.config["vlan.tagged"] != "" {
+		vlanFilteringStatus, err := network.BridgeVLANFilteringStatus(d.config["parent"])
+		if err != nil {
+			return err
+		}
+
+		if vlanFilteringStatus != "1" {
+			return fmt.Errorf("VLAN filtering is not enabled in parent bridge %q", d.config["parent"])
+		}
+	}
+
+	// Set port on bridge to specified untagged PVID.
+	if d.config["vlan"] != "" {
+		// Get default PVID membership on port.
+		defaultPVID, err := network.BridgeVLANDefaultPVID(d.config["parent"])
+		if err != nil {
+			return err
+		}
+
+		// If the default is different to the specified untagged VLAN or if tagged VLAN is set to "none"
+		// then remove the default untagged membership.
+		if defaultPVID != d.config["vlan"] || d.config["vlan"] == "none" {
+			_, err = shared.RunCommand("bridge", "vlan", "del", "dev", hostName, "vid", defaultPVID)
+			if err != nil {
+				return err
+			}
+		}
+
+		// Configure the untagged membership settings of the port if VLAN ID specified.
+		if d.config["vlan"] != "none" {
+			_, err = shared.RunCommand("bridge", "vlan", "add", "dev", hostName, "vid", d.config["vlan"], "pvid", "untagged", "master")
+			if err != nil {
+				return err
+			}
+		}
+	}
+
+	// Add any tagged VLAN memberships.
+	if d.config["vlan.tagged"] != "" {
+		for _, vlanID := range strings.Split(d.config["vlan.tagged"], ",") {
+			vlanID = strings.TrimSpace(vlanID)
+			_, err := shared.RunCommand("bridge", "vlan", "add", "dev", hostName, "vid", vlanID)
+			if err != nil {
+				return err
+			}
+		}
+	}
+
+	return nil
 }
