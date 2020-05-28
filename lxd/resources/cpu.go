@@ -38,43 +38,48 @@ func getCPUCache(path string) ([]api.ResourcesCPUCache, error) {
 
 		// Setup the cache entry
 		cache := api.ResourcesCPUCache{}
+		cache.Type = "Unknown"
 
 		// Get the cache level
 		cacheLevel, err := readUint(filepath.Join(entryPath, "level"))
 		if err != nil {
 			return nil, errors.Wrapf(err, "Failed to read \"%s\"", filepath.Join(entryPath, "level"))
 		}
-
 		cache.Level = cacheLevel
 
 		// Get the cache size
 		content, err := ioutil.ReadFile(filepath.Join(entryPath, "size"))
 		if err != nil {
-			return nil, errors.Wrapf(err, "Failed to read \"%s\"", filepath.Join(entryPath, "size"))
-		}
-		cacheSizeStr := strings.TrimSpace(string(content))
+			if !os.IsNotExist(err) {
+				return nil, errors.Wrapf(err, "Failed to read \"%s\"", filepath.Join(entryPath, "size"))
+			}
+		} else {
+			cacheSizeStr := strings.TrimSpace(string(content))
 
-		// Handle cache sizes in KiB
-		cacheSizeMultiplier := uint64(1)
-		if strings.HasSuffix(cacheSizeStr, "K") {
-			cacheSizeMultiplier = 1024
-			cacheSizeStr = strings.TrimSuffix(cacheSizeStr, "K")
-		}
+			// Handle cache sizes in KiB
+			cacheSizeMultiplier := uint64(1)
+			if strings.HasSuffix(cacheSizeStr, "K") {
+				cacheSizeMultiplier = 1024
+				cacheSizeStr = strings.TrimSuffix(cacheSizeStr, "K")
+			}
 
-		cacheSize, err := strconv.ParseUint((cacheSizeStr), 10, 64)
-		if err != nil {
-			return nil, errors.Wrap(err, "Failed to parse cache size")
-		}
+			cacheSize, err := strconv.ParseUint((cacheSizeStr), 10, 64)
+			if err != nil {
+				return nil, errors.Wrap(err, "Failed to parse cache size")
+			}
 
-		cache.Size = cacheSize * cacheSizeMultiplier
+			cache.Size = cacheSize * cacheSizeMultiplier
+		}
 
 		// Get the cache type
 		cacheType, err := ioutil.ReadFile(filepath.Join(entryPath, "type"))
 		if err != nil {
-			return nil, errors.Wrapf(err, "Failed to read \"%s\"", filepath.Join(entryPath, "type"))
+			if !os.IsNotExist(err) {
+				return nil, errors.Wrapf(err, "Failed to read \"%s\"", filepath.Join(entryPath, "type"))
+			}
+		} else {
+			cache.Type = strings.TrimSpace(string(cacheType))
 		}
-
-		cache.Type = strings.TrimSpace(string(cacheType))
 
 		// Add to the list
 		caches = append(caches, cache)
