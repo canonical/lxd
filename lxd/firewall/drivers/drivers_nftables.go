@@ -10,6 +10,7 @@ import (
 	"strings"
 	"text/template"
 
+	"github.com/pborman/uuid"
 	"github.com/pkg/errors"
 
 	deviceConfig "github.com/lxc/lxd/lxd/device/config"
@@ -73,6 +74,19 @@ func (d Nftables) Compat() (bool, error) {
 	minVer, _ := version.NewDottedVersion(nftablesMinVersion)
 	if nftVersion.Compare(minVer) < 0 {
 		return false, fmt.Errorf("nft version %q is too low, need %q or above", nftVersion, nftablesMinVersion)
+	}
+
+	// Check that nftables works at all (some kernels let you list ruleset despite missing support).
+	testTable := fmt.Sprintf("lxd_test_%s", uuid.New())
+
+	_, err = shared.RunCommandCLocale("nft", "create", "table", testTable)
+	if err != nil {
+		return false, errors.Wrapf(err, "Failed to create a dummy table")
+	}
+
+	_, err = shared.RunCommandCLocale("nft", "delete", "table", testTable)
+	if err != nil {
+		return false, errors.Wrapf(err, "Failed to delete a dummy table")
 	}
 
 	// Check whether in use by parsing ruleset and looking for existing rules.
