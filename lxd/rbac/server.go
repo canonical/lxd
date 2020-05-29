@@ -2,6 +2,7 @@ package rbac
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -37,7 +38,7 @@ type rbacResourcePostResponse struct {
 }
 
 type rbacStatus struct {
-	LastChange time.Time `json:"last-change"`
+	LastChange string `json:"last-change"`
 }
 
 // Server represents an RBAC server.
@@ -47,8 +48,10 @@ type Server struct {
 
 	lastSyncID string
 	client     *httpbakery.Client
-	lastChange time.Time
-	statusDone chan int
+	lastChange string
+
+	ctx       context.Context
+	ctxCancel context.CancelFunc
 
 	resources     map[string]string // Maps name to identifier
 	resourcesLock sync.Mutex
@@ -66,13 +69,15 @@ func NewServer(apiURL string, apiKey string, agentAuthURL string, agentUsername 
 		apiURL:          apiURL,
 		apiKey:          apiKey,
 		lastSyncID:      "",
-		lastChange:      time.Time{},
+		lastChange:      "",
 		resources:       make(map[string]string),
 		permissions:     make(map[string]map[string][]string),
 		permissionsLock: &sync.Mutex{},
 	}
 
-	//
+	// Setup context
+	r.ctx, r.ctxCancel = context.WithCancel(context.Background())
+
 	var keyPair bakery.KeyPair
 	keyPair.Private.UnmarshalText([]byte(agentPrivateKey))
 	keyPair.Public.UnmarshalText([]byte(agentPublicKey))
@@ -101,19 +106,87 @@ func NewServer(apiURL string, apiKey string, agentAuthURL string, agentUsername 
 	return &r, nil
 }
 
-// StartStatusCheck starts a periodic status checker.
+// StartStatusCheck runs a status checking loop.
 func (r *Server) StartStatusCheck() {
-	// Initialize the last changed timestamp
+	var status rbacStatus
+
+	// Figure out the new URL.
+	u, err := url.Parse(r.apiURL)
+	if err != nil {
+		logger.Errorf("Failed to parse RBAC url: %v", err)
+		return
+	}
+	u.Path = path.Join(u.Path, "/api/service/v1/changes")
+
+	go func() {
+		for {
+			if status.LastChange != "" {
+				values := url.Values{}
+				values.Set("last-change", status.LastChange)
+				u.RawQuery = values.Encode()
+			}
+
+			req, err := http.NewRequestWithContext(r.ctx, "GET", u.String(), nil)
+			if err != nil {
+				if err == context.Canceled {
+					return
+				}
+
+				logger.Errorf("Failed to prepare RBAC query: %v", err)
+				return
+			}
+
+			resp, err := r.client.Do(req)
+			if err != nil {
+				resp.Body.Close()
+				if err == context.Canceled {
+					return
+				}
+
+				logger.Errorf("Failed to hit new RBAC URL, falling back: %v", err)
+				r.oldStatusCheck()
+				return
+			}
+
+			if resp.StatusCode == 404 {
+				resp.Body.Close()
+				logger.Debugf("RBAC server doesn't support new monitoring API, falling back.")
+				r.oldStatusCheck()
+				return
+			}
+
+			if resp.StatusCode != 200 {
+				resp.Body.Close()
+				logger.Debugf("RBAC server disconnected, re-connecting. (code=%v)", resp.StatusCode)
+				continue
+			}
+
+			err = json.NewDecoder(resp.Body).Decode(&status)
+			resp.Body.Close()
+			if err != nil {
+				logger.Errorf("Failed to parse RBAC response, re-trying: %v", err)
+				continue
+			}
+
+			r.lastChange = status.LastChange
+			logger.Debugf("RBAC change detected, flushing cache")
+			r.flushCache()
+		}
+	}()
+}
+
+func (r *Server) oldStatusCheck() {
+	// NOTE: Can be dropped once new RBAC hits stable.
 	r.hasStatusChanged()
 
-	r.statusDone = make(chan int)
 	go func() {
 		for {
 			select {
-			case <-r.statusDone:
+			case <-r.ctx.Done():
 				return
 			case <-time.After(time.Minute):
 				if r.hasStatusChanged() {
+					logger.Debugf("RBAC change detected, flushing cache")
 					r.flushCache()
 				}
 			}
@@ -123,7 +196,7 @@ func (r *Server) StartStatusCheck() {
 
 // StopStatusCheck stops the periodic status checker.
 func (r *Server) StopStatusCheck() {
-	close(r.statusDone)
+	r.ctxCancel()
 }
 
 // SyncProjects updates the list of projects in RBAC
@@ -272,12 +345,12 @@ func (r *Server) hasStatusChanged() bool {
 		return true
 	}
 
-	if r.lastChange.IsZero() {
+	if r.lastChange == "" {
 		r.lastChange = status.LastChange
 		return true
 	}
 
-	hasChanged := !r.lastChange.Equal(status.LastChange)
+	hasChanged := r.lastChange != status.LastChange
 	r.lastChange = status.LastChange
 
 	return hasChanged
