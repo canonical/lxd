@@ -299,6 +299,11 @@ func (d Nftables) InstanceSetupBridgeFilter(projectName string, instanceName str
 		"hwAddrHex":      fmt.Sprintf("0x%s", hex.EncodeToString(mac)),
 	}
 
+	// Filter VLAN tagged frames when using IP filtering.
+	if IPv4 != nil || IPv6 != nil {
+		tplFields["vlanFilter"] = true
+	}
+
 	if IPv4 != nil {
 		if IPv4.String() == FilterIPv4All {
 			tplFields["ipv4FilterAll"] = true
