@@ -6860,20 +6860,20 @@ func (c *lxc) maasUpdate(oldDevices map[string]map[string]string) error {
 		return fmt.Errorf("Can't perform the operation because MAAS is currently unavailable")
 	}
 
-	exists, err := c.state.MAAS.DefinedContainer(project.Instance(c.project, c.name))
+	exists, err := c.state.MAAS.DefinedContainer(c)
 	if err != nil {
 		return err
 	}
 
 	if exists {
 		if len(interfaces) == 0 && len(oldInterfaces) > 0 {
-			return c.state.MAAS.DeleteContainer(project.Instance(c.project, c.name))
+			return c.state.MAAS.DeleteContainer(c)
 		}
 
-		return c.state.MAAS.UpdateContainer(project.Instance(c.project, c.name), interfaces)
+		return c.state.MAAS.UpdateContainer(c, interfaces)
 	}
 
-	return c.state.MAAS.CreateContainer(project.Instance(c.project, c.name), interfaces)
+	return c.state.MAAS.CreateContainer(c, interfaces)
 }
 
 func (c *lxc) maasRename(newName string) error {
@@ -6899,7 +6899,7 @@ func (c *lxc) maasRename(newName string) error {
 		return fmt.Errorf("Can't perform the operation because MAAS is currently unavailable")
 	}
 
-	exists, err := c.state.MAAS.DefinedContainer(project.Instance(c.project, c.name))
+	exists, err := c.state.MAAS.DefinedContainer(c)
 	if err != nil {
 		return err
 	}
@@ -6908,7 +6908,7 @@ func (c *lxc) maasRename(newName string) error {
 		return c.maasUpdate(nil)
 	}
 
-	return c.state.MAAS.RenameContainer(project.Instance(c.project, c.name), project.Instance(c.project, newName))
+	return c.state.MAAS.RenameContainer(c, newName)
 }
 
 func (c *lxc) maasDelete() error {
@@ -6934,7 +6934,7 @@ func (c *lxc) maasDelete() error {
 		return fmt.Errorf("Can't perform the operation because MAAS is currently unavailable")
 	}
 
-	exists, err := c.state.MAAS.DefinedContainer(project.Instance(c.project, c.name))
+	exists, err := c.state.MAAS.DefinedContainer(c)
 	if err != nil {
 		return err
 	}
@@ -6943,7 +6943,7 @@ func (c *lxc) maasDelete() error {
 		return nil
 	}
 
-	return c.state.MAAS.DeleteContainer(project.Instance(c.project, c.name))
+	return c.state.MAAS.DeleteContainer(c)
 }
 
 func (c *lxc) cgroup(cc *liblxc.Container) (*cgroup.CGroup, error) {
