@@ -283,6 +283,20 @@ func (n *Network) setup(oldConfig map[string]string) error {
 		}
 	}
 
+	// Enable VLAN filtering for Linux bridges.
+	if n.config["bridge.driver"] != "openvswitch" {
+		err = BridgeVLANFilterSetStatus(n.name, "1")
+		if err != nil {
+			return err
+		}
+
+		// Set the default PVID for new ports to 1.
+		err = BridgeVLANSetDefaultPVID(n.name, "1")
+		if err != nil {
+			return err
+		}
+	}
+
 	// Bring it up
 	_, err = shared.RunCommand("ip", "link", "set", "dev", n.name, "up")
 	if err != nil {
