@@ -153,13 +153,15 @@ func (c *Controller) CreateContainer(name string, interfaces []ContainerInterfac
 	}
 
 	for _, iface := range interfaces {
-		if len(iface.Subnets) != 1 {
+		if len(iface.Subnets) < 1 {
 			return fmt.Errorf("Bad subnet provided for interface '%s'", iface.Name)
 		}
 
-		_, ok := subnets[iface.Subnets[0].Name]
-		if !ok {
-			return fmt.Errorf("Subnet '%s' doesn't exist in MAAS", interfaces[0].Subnets[0].Name)
+		for _, subnet := range iface.Subnets {
+			_, ok := subnets[subnet.Name]
+			if !ok {
+				return fmt.Errorf("Subnet '%s' doesn't exist in MAAS", interfaces[0].Subnets[0].Name)
+			}
 		}
 	}
 
@@ -266,13 +268,15 @@ func (c *Controller) UpdateContainer(name string, interfaces []ContainerInterfac
 	}
 
 	for _, iface := range interfaces {
-		if len(iface.Subnets) != 1 {
+		if len(iface.Subnets) < 1 {
 			return fmt.Errorf("Bad subnet provided for interface '%s'", iface.Name)
 		}
 
-		_, ok := subnets[iface.Subnets[0].Name]
-		if !ok {
-			return fmt.Errorf("Subnet '%s' doesn't exist in MAAS", interfaces[0].Subnets[0].Name)
+		for _, subnet := range iface.Subnets {
+			_, ok := subnets[subnet.Name]
+			if !ok {
+				return fmt.Errorf("Subnet '%s' doesn't exist in MAAS", interfaces[0].Subnets[0].Name)
+			}
 		}
 	}
 
