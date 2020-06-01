@@ -1044,3 +1044,9 @@ This introduces the `dns.search` config option on networks.
 
 ## container\_nic\_routed\_limits
 This introduces `limits.ingress`, `limits.egress` and `limits.max` for routed NICs.
+
+## instance\_nic\_bridged\_vlan
+
+This introduces the `vlan` and `vlan.tagged` settings for `bridged` NICs.
+
+`vlan` specifies the untagged VLAN to join, and `vlan.tagged` is a comma delimited list of tagged VLANs to join.
