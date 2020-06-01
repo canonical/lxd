@@ -533,14 +533,12 @@ func (c *Cluster) GetImageFromAnyProject(fingerprint string) (int, *api.Image, e
 		if err != nil {
 			return errors.Wrap(err, "Failed to fetch images")
 		}
-		switch len(images) {
-		case 0:
+
+		if len(images) == 0 {
 			return ErrNoSuchObject
-		case 1:
-			object = images[0]
-		default:
-			return fmt.Errorf("More than one image matches")
 		}
+
+		object = images[0]
 
 		image.Fingerprint = object.Fingerprint
 		image.Filename = object.Filename
@@ -560,7 +558,7 @@ func (c *Cluster) GetImageFromAnyProject(fingerprint string) (int, *api.Image, e
 		return nil
 	})
 	if err != nil {
-		return -1, nil, errors.Wrapf(err, "Fill image details")
+		return -1, nil, errors.Wrapf(err, "Get image %q", fingerprint)
 	}
 
 	return object.ID, &image, nil
