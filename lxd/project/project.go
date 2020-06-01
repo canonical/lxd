@@ -26,6 +26,15 @@ func Instance(projectName string, instanceName string) string {
 	return instanceName
 }
 
+// DNS adds ".<project>" as a suffix to instance name when the given project name is not "default".
+func DNS(projectName string, instanceName string) string {
+	if projectName != Default {
+		return fmt.Sprintf("%s.%s", instanceName, projectName)
+	}
+
+	return instanceName
+}
+
 // InstanceParts takes a project prefixed Instance name string and returns the project and instance name.
 // If a non-project prefixed Instance name is supplied, then the project is returned as "default" and the instance
 // name is returned unmodified in the 2nd return value. This is suitable for passing back into Prefix().
