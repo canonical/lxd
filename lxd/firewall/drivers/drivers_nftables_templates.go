@@ -83,12 +83,16 @@ chain pstrt{{.chainSeparator}}{{.deviceLabel}} {
 // Nftables doesn't support the equivalent of "arp saddr" and "arp saddr ether" at this time so in order to filter
 // NDP advertisements that come from the genuine Ethernet MAC address but have a spoofed NDP source MAC/IP adddress
 // we need to use manual header offset extraction. This also drops IPv6 router advertisements from instance.
+// If IP filtering is enabled, this also drops tagged VLAN (802.1Q) frames.
 var nftablesInstanceBridgeFilter = template.Must(template.New("nftablesInstanceBridgeFilter").Parse(`
 chain in{{.chainSeparator}}{{.deviceLabel}} {
 	type filter hook input priority -200; policy accept;
 	iifname "{{.hostName}}" ether saddr != {{.hwAddr}} drop
 	iifname "{{.hostName}}" ether type arp arp saddr ether != {{.hwAddr}} drop
 	iifname "{{.hostName}}" ether type ip6 icmpv6 type 136 @nh,528,48 != {{.hwAddrHex}} drop
+	{{if .vlanFilter -}}
+	iifname "{{.hostName}}" ether type vlan drop
+	{{- end}}
 	{{if .ipv4FilterAll -}}
 	iifname "{{.hostName}}" ether type arp drop
 	iifname "{{.hostName}}" ether type ip drop
@@ -115,6 +119,9 @@ chain fwd{{.chainSeparator}}{{.deviceLabel}} {
 	iifname "{{.hostName}}" ether saddr != {{.hwAddr}} drop
 	iifname "{{.hostName}}" ether type arp arp saddr ether != {{.hwAddr}} drop
 	iifname "{{.hostName}}" ether type ip6 icmpv6 type 136 @nh,528,48 != {{.hwAddrHex}} drop
+	{{if .vlanFilter -}}
+	iifname "{{.hostName}}" ether type vlan drop
+	{{- end}}
 	{{if .ipv4FilterAll -}}
 	iifname "{{.hostName}}" ether type arp drop
 	iifname "{{.hostName}}" ether type ip drop
