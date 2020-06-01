@@ -449,6 +449,12 @@ func (d Xtables) generateFilterEbtablesRules(hostName string, hwAddr string, IPv
 		{"ebtables", "-t", "filter", "-A", "FORWARD", "-s", "!", hwAddr, "-i", hostName, "-j", "DROP"},
 	}
 
+	if IPv4 != nil || IPv6 != nil {
+		// Filter VLAN tagged frames when using IP filtering.
+		rules = append(rules, []string{"ebtables", "-t", "filter", "-A", "INPUT", "-p", "802_1Q", "-i", hostName, "-j", "DROP"})
+		rules = append(rules, []string{"ebtables", "-t", "filter", "-A", "FORWARD", "-p", "802_1Q", "-i", hostName, "-j", "DROP"})
+	}
+
 	if IPv4 != nil {
 		if IPv4.String() == FilterIPv4All {
 			rules = append(rules,
