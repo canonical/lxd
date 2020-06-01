@@ -4169,7 +4169,7 @@ func (vm *qemu) maasRename(newName string) error {
 		return fmt.Errorf("Can't perform the operation because MAAS is currently unavailable")
 	}
 
-	exists, err := vm.state.MAAS.DefinedContainer(project.Instance(vm.project, vm.name))
+	exists, err := vm.state.MAAS.DefinedContainer(vm)
 	if err != nil {
 		return err
 	}
@@ -4178,7 +4178,7 @@ func (vm *qemu) maasRename(newName string) error {
 		return vm.maasUpdate(nil)
 	}
 
-	return vm.state.MAAS.RenameContainer(project.Instance(vm.project, vm.name), project.Instance(vm.project, newName))
+	return vm.state.MAAS.RenameContainer(vm, newName)
 }
 
 func (vm *qemu) maasDelete() error {
@@ -4204,7 +4204,7 @@ func (vm *qemu) maasDelete() error {
 		return fmt.Errorf("Can't perform the operation because MAAS is currently unavailable")
 	}
 
-	exists, err := vm.state.MAAS.DefinedContainer(project.Instance(vm.project, vm.name))
+	exists, err := vm.state.MAAS.DefinedContainer(vm)
 	if err != nil {
 		return err
 	}
@@ -4213,7 +4213,7 @@ func (vm *qemu) maasDelete() error {
 		return nil
 	}
 
-	return vm.state.MAAS.DeleteContainer(project.Instance(vm.project, vm.name))
+	return vm.state.MAAS.DeleteContainer(vm)
 }
 
 func (vm *qemu) maasUpdate(oldDevices map[string]map[string]string) error {
@@ -4250,20 +4250,20 @@ func (vm *qemu) maasUpdate(oldDevices map[string]map[string]string) error {
 		return fmt.Errorf("Can't perform the operation because MAAS is currently unavailable")
 	}
 
-	exists, err := vm.state.MAAS.DefinedContainer(project.Instance(vm.project, vm.name))
+	exists, err := vm.state.MAAS.DefinedContainer(vm)
 	if err != nil {
 		return err
 	}
 
 	if exists {
 		if len(interfaces) == 0 && len(oldInterfaces) > 0 {
-			return vm.state.MAAS.DeleteContainer(project.Instance(vm.project, vm.name))
+			return vm.state.MAAS.DeleteContainer(vm)
 		}
 
-		return vm.state.MAAS.UpdateContainer(project.Instance(vm.project, vm.name), interfaces)
+		return vm.state.MAAS.UpdateContainer(vm, interfaces)
 	}
 
-	return vm.state.MAAS.CreateContainer(project.Instance(vm.project, vm.name), interfaces)
+	return vm.state.MAAS.CreateContainer(vm, interfaces)
 }
 
 // UpdateBackupFile writes the instance's backup.yaml file to storage.
