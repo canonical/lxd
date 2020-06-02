@@ -92,9 +92,14 @@ func GetIP(subnet *net.IPNet, host int64) net.IP {
 	return newIP
 }
 
+// IsNativeBridge returns whether the bridge name specified is a Linux native bridge.
+func IsNativeBridge(bridgeName string) bool {
+	return shared.PathExists(fmt.Sprintf("/sys/class/net/%s/bridge", bridgeName))
+}
+
 // AttachInterface attaches an interface to a bridge.
 func AttachInterface(bridgeName string, devName string) error {
-	if shared.PathExists(fmt.Sprintf("/sys/class/net/%s/bridge", bridgeName)) {
+	if IsNativeBridge(bridgeName) {
 		_, err := shared.RunCommand("ip", "link", "set", "dev", devName, "master", bridgeName)
 		if err != nil {
 			return err
@@ -115,7 +120,7 @@ func AttachInterface(bridgeName string, devName string) error {
 
 // DetachInterface detaches an interface from a bridge.
 func DetachInterface(bridgeName string, devName string) error {
-	if shared.PathExists(fmt.Sprintf("/sys/class/net/%s/bridge", bridgeName)) {
+	if IsNativeBridge(bridgeName) {
 		_, err := shared.RunCommand("ip", "link", "set", "dev", devName, "nomaster")
 		if err != nil {
 			return err
