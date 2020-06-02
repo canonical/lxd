@@ -100,6 +100,7 @@ func AttachInterface(netName string, devName string) error {
 			return err
 		}
 	} else {
+		// Check if interface is already connected to a bridge, if not connect it to the specified bridge.
 		_, err := shared.RunCommand("ovs-vsctl", "port-to-br", devName)
 		if err != nil {
 			_, err := shared.RunCommand("ovs-vsctl", "add-port", netName, devName)
@@ -120,6 +121,7 @@ func DetachInterface(netName string, devName string) error {
 			return err
 		}
 	} else {
+		// Check if interface is connected to a bridge, if so, then remove it from the bridge.
 		_, err := shared.RunCommand("ovs-vsctl", "port-to-br", devName)
 		if err == nil {
 			_, err := shared.RunCommand("ovs-vsctl", "del-port", netName, devName)
