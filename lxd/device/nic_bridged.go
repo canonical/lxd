@@ -237,6 +237,7 @@ func (d *nicBridged) Start() (*deviceConfig.RunConfig, error) {
 	if err != nil {
 		return nil, err
 	}
+	revert.Add(func() { network.DetachInterface(d.config["parent"], saveData["host_name"]) })
 
 	// Attempt to disable router advertisement acceptance.
 	err = util.SysctlSet(fmt.Sprintf("net/ipv6/conf/%s/accept_ra", saveData["host_name"]), "0")
@@ -355,10 +356,16 @@ func (d *nicBridged) postStop() error {
 	}
 
 	if d.config["host_name"] != "" && shared.PathExists(fmt.Sprintf("/sys/class/net/%s", d.config["host_name"])) {
-		// Removing host-side end of veth pair will delete the peer end too.
-		err := NetworkRemoveInterface(d.config["host_name"])
+		// Detach host-side end of veth pair from bridge (required for openvswitch particularly).
+		err := network.DetachInterface(d.config["parent"], d.config["host_name"])
 		if err != nil {
-			return fmt.Errorf("Failed to remove interface %s: %s", d.config["host_name"], err)
+			return errors.Wrapf(err, "Failed to detach interface %q from %q", d.config["host_name"], d.config["parent"])
+		}
+
+		// Removing host-side end of veth pair will delete the peer end too.
+		err = NetworkRemoveInterface(d.config["host_name"])
+		if err != nil {
+			return errors.Wrapf(err, "Failed to remove interface %q", d.config["host_name"])
 		}
 	}
 
