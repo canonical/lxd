@@ -6,7 +6,16 @@ import (
 	"strings"
 
 	"github.com/juju/gomaasapi"
+
+	"github.com/lxc/lxd/lxd/project"
 )
+
+// Instance is a MAAS specific instance interface.
+// This is used rather than instance.Instance to avoid import loops.
+type Instance interface {
+	Name() string
+	Project() string
+}
 
 // Controller represents a MAAS server's machine functions
 type Controller struct {
@@ -102,8 +111,22 @@ func NewController(url string, key string, machine string) (*Controller, error) 
 	return &c, err
 }
 
-func (c *Controller) getDevice(name string) (gomaasapi.Device, error) {
-	devs, err := c.machine.Devices(gomaasapi.DevicesArgs{Hostname: []string{name}})
+func (c *Controller) getDomain(inst Instance) string {
+	fields := strings.Split(c.machine.FQDN(), ".")
+	domain := strings.Join(fields[1:], ".")
+
+	if inst.Project() == project.Default {
+		return domain
+	}
+
+	return fmt.Sprintf("%s.%s", inst.Project(), domain)
+}
+
+func (c *Controller) getDevice(name string, domain string) (gomaasapi.Device, error) {
+	devs, err := c.machine.Devices(gomaasapi.DevicesArgs{
+		Hostname: []string{name},
+		Domain:   domain,
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -134,7 +157,7 @@ func (c *Controller) getSubnets() (map[string]gomaasapi.Subnet, error) {
 }
 
 // CreateContainer defines a new MAAS device for the controller
-func (c *Controller) CreateContainer(name string, interfaces []ContainerInterface) error {
+func (c *Controller) CreateContainer(inst Instance, interfaces []ContainerInterface) error {
 	// Parse the provided interfaces
 	macInterfaces, err := parseInterfaces(interfaces)
 	if err != nil {
@@ -153,19 +176,22 @@ func (c *Controller) CreateContainer(name string, interfaces []ContainerInterfac
 	}
 
 	for _, iface := range interfaces {
-		if len(iface.Subnets) != 1 {
+		if len(iface.Subnets) < 1 {
 			return fmt.Errorf("Bad subnet provided for interface '%s'", iface.Name)
 		}
 
-		_, ok := subnets[iface.Subnets[0].Name]
-		if !ok {
-			return fmt.Errorf("Subnet '%s' doesn't exist in MAAS", interfaces[0].Subnets[0].Name)
+		for _, subnet := range iface.Subnets {
+			_, ok := subnets[subnet.Name]
+			if !ok {
+				return fmt.Errorf("Subnet '%s' doesn't exist in MAAS", interfaces[0].Subnets[0].Name)
+			}
 		}
 	}
 
 	// Create the device and first interface
 	device, err := c.machine.CreateDevice(gomaasapi.CreateMachineDeviceArgs{
-		Hostname:      name,
+		Hostname:      inst.Name(),
+		Domain:        c.getDomain(inst),
 		InterfaceName: interfaces[0].Name,
 		MACAddress:    interfaces[0].MACAddress,
 		VLAN:          subnets[interfaces[0].Subnets[0].Name].VLAN(),
@@ -181,7 +207,7 @@ func (c *Controller) CreateContainer(name string, interfaces []ContainerInterfac
 			return
 		}
 
-		c.DeleteContainer(name)
+		c.DeleteContainer(inst)
 	}()
 
 	// Create the rest of the interfaces
@@ -197,7 +223,7 @@ func (c *Controller) CreateContainer(name string, interfaces []ContainerInterfac
 	}
 
 	// Get a fresh copy of the device
-	device, err = c.getDevice(name)
+	device, err = c.getDevice(inst.Name(), c.getDomain(inst))
 	if err != nil {
 		return err
 	}
@@ -228,8 +254,11 @@ func (c *Controller) CreateContainer(name string, interfaces []ContainerInterfac
 }
 
 // DefinedContainer returns true if the container is defined in MAAS
-func (c *Controller) DefinedContainer(name string) (bool, error) {
-	devs, err := c.machine.Devices(gomaasapi.DevicesArgs{Hostname: []string{name}})
+func (c *Controller) DefinedContainer(inst Instance) (bool, error) {
+	devs, err := c.machine.Devices(gomaasapi.DevicesArgs{
+		Hostname: []string{inst.Name()},
+		Domain:   c.getDomain(inst),
+	})
 	if err != nil {
 		return false, err
 	}
@@ -242,7 +271,7 @@ func (c *Controller) DefinedContainer(name string) (bool, error) {
 }
 
 // UpdateContainer updates the MAAS device's interfaces with the new provided state
-func (c *Controller) UpdateContainer(name string, interfaces []ContainerInterface) error {
+func (c *Controller) UpdateContainer(inst Instance, interfaces []ContainerInterface) error {
 	// Parse the provided interfaces
 	macInterfaces, err := parseInterfaces(interfaces)
 	if err != nil {
@@ -255,7 +284,7 @@ func (c *Controller) UpdateContainer(name string, interfaces []ContainerInterfac
 		return err
 	}
 
-	device, err := c.getDevice(name)
+	device, err := c.getDevice(inst.Name(), c.getDomain(inst))
 	if err != nil {
 		return err
 	}
@@ -266,13 +295,15 @@ func (c *Controller) UpdateContainer(name string, interfaces []ContainerInterfac
 	}
 
 	for _, iface := range interfaces {
-		if len(iface.Subnets) != 1 {
+		if len(iface.Subnets) < 1 {
 			return fmt.Errorf("Bad subnet provided for interface '%s'", iface.Name)
 		}
 
-		_, ok := subnets[iface.Subnets[0].Name]
-		if !ok {
-			return fmt.Errorf("Subnet '%s' doesn't exist in MAAS", interfaces[0].Subnets[0].Name)
+		for _, subnet := range iface.Subnets {
+			_, ok := subnets[subnet.Name]
+			if !ok {
+				return fmt.Errorf("Subnet '%s' doesn't exist in MAAS", interfaces[0].Subnets[0].Name)
+			}
 		}
 	}
 
@@ -377,8 +408,8 @@ func (c *Controller) UpdateContainer(name string, interfaces []ContainerInterfac
 }
 
 // RenameContainer renames the MAAS device for the container without releasing any allocation
-func (c *Controller) RenameContainer(name string, newName string) error {
-	device, err := c.getDevice(name)
+func (c *Controller) RenameContainer(inst Instance, newName string) error {
+	device, err := c.getDevice(inst.Name(), c.getDomain(inst))
 	if err != nil {
 		return err
 	}
@@ -401,8 +432,8 @@ func (c *Controller) RenameContainer(name string, newName string) error {
 }
 
 // DeleteContainer removes the MAAS device for the container
-func (c *Controller) DeleteContainer(name string) error {
-	device, err := c.getDevice(name)
+func (c *Controller) DeleteContainer(inst Instance) error {
+	device, err := c.getDevice(inst.Name(), c.getDomain(inst))
 	if err != nil {
 		return err
 	}
