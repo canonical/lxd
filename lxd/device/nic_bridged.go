@@ -286,8 +286,13 @@ func (d *nicBridged) Start() (*deviceConfig.RunConfig, error) {
 		return nil, err
 	}
 
-	// Setup VLAN settings on bridge port.
-	err = d.setupBridgePortVLANs(saveData["host_name"])
+	// Detech bridge type and setup VLAN settings on bridge port.
+	if network.IsNativeBridge(d.config["parent"]) {
+		err = d.setupNativeBridgePortVLANs(saveData["host_name"])
+	} else {
+		err = d.setupOVSBridgePortVLANs(saveData["host_name"])
+	}
+
 	if err != nil {
 		return nil, err
 	}
@@ -1202,8 +1207,8 @@ func (d *nicBridged) networkDHCPv6CreateIAAddress(IP net.IP) []byte {
 	return data
 }
 
-// setupBridgePortVLANs configures the bridge port with the specified VLAN settings in device config.
-func (d *nicBridged) setupBridgePortVLANs(hostName string) error {
+// setupNativeBridgePortVLANs configures the bridge port with the specified VLAN settings on the native bridge.
+func (d *nicBridged) setupNativeBridgePortVLANs(hostName string) error {
 	// Check vlan_filtering is enabled on bridge if needed.
 	if d.config["vlan"] != "" || d.config["vlan.tagged"] != "" {
 		vlanFilteringStatus, err := network.BridgeVLANFilteringStatus(d.config["parent"])
@@ -1218,6 +1223,11 @@ func (d *nicBridged) setupBridgePortVLANs(hostName string) error {
 
 	// Set port on bridge to specified untagged PVID.
 	if d.config["vlan"] != "" {
+		// Reject VLAN ID 0 if specified (as main validation allows VLAN ID 0 to accommodate ovs).
+		if d.config["vlan"] == "0" {
+			return fmt.Errorf("VLAN ID 0 is not allowed for native Linux bridges")
+		}
+
 		// Get default PVID membership on port.
 		defaultPVID, err := network.BridgeVLANDefaultPVID(d.config["parent"])
 		if err != nil {
@@ -1246,10 +1256,64 @@ func (d *nicBridged) setupBridgePortVLANs(hostName string) error {
 	if d.config["vlan.tagged"] != "" {
 		for _, vlanID := range strings.Split(d.config["vlan.tagged"], ",") {
 			vlanID = strings.TrimSpace(vlanID)
+
+			// Reject VLAN ID 0 if specified (as main validation allows VLAN ID 0 to accommodate ovs).
+			if vlanID == "0" {
+				return fmt.Errorf("VLAN ID 0 is not allowed for native Linux bridges")
+			}
+
 			_, err := shared.RunCommand("bridge", "vlan", "add", "dev", hostName, "vid", vlanID)
 			if err != nil {
 				return err
 			}
+		}
+	}
+
+	return nil
+}
+
+// setupOVSBridgePortVLANs configures the bridge port with the specified VLAN settings on the openvswitch bridge.
+func (d *nicBridged) setupOVSBridgePortVLANs(hostName string) error {
+	// Set port on bridge to specified untagged PVID.
+	if d.config["vlan"] != "" {
+		if d.config["vlan"] == "none" && d.config["vlan.tagged"] == "" {
+			return fmt.Errorf("vlan=none is not supported with openvswitch bridges when not using vlan.tagged")
+		}
+
+		// Configure the untagged 'native' membership settings of the port if VLAN ID specified.
+		// Also set the vlan_mode=access, which will drop any tagged frames.
+		// Order is important here, as vlan_mode is set to "access", assuming that vlan.tagged is not used.
+		// If vlan.tagged is specified, then we expect it to also change the vlan_mode as needed.
+		if d.config["vlan"] != "none" {
+			_, err := shared.RunCommand("ovs-vsctl", "set", "port", hostName, "vlan_mode=access", fmt.Sprintf("tag=%s", d.config["vlan"]))
+			if err != nil {
+				return err
+			}
+		}
+	}
+
+	// Add any tagged VLAN memberships.
+	if d.config["vlan.tagged"] != "" {
+		vlanIDs := strings.Split(d.config["vlan.tagged"], ",")
+
+		// Remove any spaces from raw config string.
+		for i, vlanID := range vlanIDs {
+			vlanIDs[i] = strings.TrimSpace(vlanID)
+		}
+
+		vlanMode := "trunk" // Default to only allowing tagged frames (drop untagged frames).
+		if d.config["vlan"] != "none" {
+			// If untagged vlan mode isn't "none" then allow untagged frames for port's 'native' VLAN.
+			vlanMode = "native-untagged"
+		}
+
+		// Configure the tagged membership settings of the port if VLAN ID specified.
+		// Also set the vlan_mode as needed from above.
+		// Must come after the ovs-vsctl command used for setting "vlan" mode above so that the correct
+		// vlan_mode is retained.
+		_, err := shared.RunCommand("ovs-vsctl", "set", "port", hostName, fmt.Sprintf("vlan_mode=%s", vlanMode), fmt.Sprintf("trunks=%s", strings.Join(vlanIDs, ",")))
+		if err != nil {
+			return err
 		}
 	}
 
