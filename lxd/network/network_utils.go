@@ -93,9 +93,9 @@ func GetIP(subnet *net.IPNet, host int64) net.IP {
 }
 
 // AttachInterface attaches an interface to a bridge.
-func AttachInterface(netName string, devName string) error {
-	if shared.PathExists(fmt.Sprintf("/sys/class/net/%s/bridge", netName)) {
-		_, err := shared.RunCommand("ip", "link", "set", "dev", devName, "master", netName)
+func AttachInterface(bridgeName string, devName string) error {
+	if shared.PathExists(fmt.Sprintf("/sys/class/net/%s/bridge", bridgeName)) {
+		_, err := shared.RunCommand("ip", "link", "set", "dev", devName, "master", bridgeName)
 		if err != nil {
 			return err
 		}
@@ -103,7 +103,7 @@ func AttachInterface(netName string, devName string) error {
 		// Check if interface is already connected to a bridge, if not connect it to the specified bridge.
 		_, err := shared.RunCommand("ovs-vsctl", "port-to-br", devName)
 		if err != nil {
-			_, err := shared.RunCommand("ovs-vsctl", "add-port", netName, devName)
+			_, err := shared.RunCommand("ovs-vsctl", "add-port", bridgeName, devName)
 			if err != nil {
 				return err
 			}
@@ -114,8 +114,8 @@ func AttachInterface(netName string, devName string) error {
 }
 
 // DetachInterface detaches an interface from a bridge.
-func DetachInterface(netName string, devName string) error {
-	if shared.PathExists(fmt.Sprintf("/sys/class/net/%s/bridge", netName)) {
+func DetachInterface(bridgeName string, devName string) error {
+	if shared.PathExists(fmt.Sprintf("/sys/class/net/%s/bridge", bridgeName)) {
 		_, err := shared.RunCommand("ip", "link", "set", "dev", devName, "nomaster")
 		if err != nil {
 			return err
@@ -124,7 +124,7 @@ func DetachInterface(netName string, devName string) error {
 		// Check if interface is connected to a bridge, if so, then remove it from the bridge.
 		_, err := shared.RunCommand("ovs-vsctl", "port-to-br", devName)
 		if err == nil {
-			_, err := shared.RunCommand("ovs-vsctl", "del-port", netName, devName)
+			_, err := shared.RunCommand("ovs-vsctl", "del-port", bridgeName, devName)
 			if err != nil {
 				return err
 			}
