@@ -71,7 +71,7 @@ test_container_devices_nic_bridged_vlan() {
   ! lxc config device set "${prefix}-ctA" eth0 vlan = 4096 # Check out of range VLAN ID.
   ! lxc config device set "${prefix}-ctA" eth0 vlan = 0 # Check out of range VLAN ID.
   ! lxc config device set "${prefix}-ctA" eth0 vlan.tagged = 5,invalid, 6 # Check invalid VLAN ID list.
-  ! lxc config device set "${prefix}-ctA" eth0 vlan.tagged=0 # Check out of range VLAN ID list.
+  ! lxc config device set "${prefix}-ctA" eth0 vlan.tagged=-1 # Check out of range VLAN ID list.
   ! lxc config device set "${prefix}-ctA" eth0 vlan.tagged=4096 # Check out of range VLAN ID list.
   lxc config device remove "${prefix}-ctA" eth0
 
