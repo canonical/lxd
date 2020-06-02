@@ -1197,7 +1197,7 @@ func (d *nicBridged) networkDHCPv6CreateIAAddress(IP net.IP) []byte {
 
 // setupBridgePortVLANs configures the bridge port with the specified VLAN settings in device config.
 func (d *nicBridged) setupBridgePortVLANs(hostName string) error {
-	// Enable vlan_filtering on bridge if needed.
+	// Check vlan_filtering is enabled on bridge if needed.
 	if d.config["vlan"] != "" || d.config["vlan.tagged"] != "" {
 		vlanFilteringStatus, err := network.BridgeVLANFilteringStatus(d.config["parent"])
 		if err != nil {
