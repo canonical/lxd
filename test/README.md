@@ -25,3 +25,5 @@ LXD\_TMPFS                      | 0                         | Sets up a tmpfs fo
 LXD\_NIC\_SRIOV\_PARENT         | ""                        | Enables SR-IOV NIC tests using the specified parent device
 LXD\_IB\_PHYSICAL\_PARENT       | ""                        | Enables Infiniband physical tests using the specified parent device
 LXD\_IB\_SRIOV\_PARENT          | ""                        | Enables Infiniband SR-IOV tests using the specified parent device
+LXD\_NIC\_BRIDGED\_DRIVER       | ""                        | Specifies bridged NIC driver for tests (either native or openvswitch, defaults to native)
+
