@@ -699,8 +699,8 @@ func networkValidVLAN(value string) error {
 		return fmt.Errorf("Invalid VLAN ID: %s", value)
 	}
 
-	if vlanID < 1 || vlanID > 4094 {
-		return fmt.Errorf("Out of range (1-4094) VLAN ID: %s", value)
+	if vlanID < 0 || vlanID > 4094 {
+		return fmt.Errorf("Out of range (0-4094) VLAN ID: %s", value)
 	}
 
 	return nil
