@@ -2,22 +2,31 @@ test_container_devices_nic_bridged_vlan() {
   ensure_import_testimage
   ensure_has_localhost_remote "${LXD_ADDR}"
   prefix="lxdvlan$$"
+  bridgeDriver=${LXD_NIC_BRIDGED_DRIVER:-"native"}
+
+  if [ "$bridgeDriver" != "native" ] && [ "$bridgeDriver" != "openvswitch" ]; then
+    echo "Unrecognised bridge driver: ${bridgeDriver}"
+    false
+  fi
 
   # Standard bridge with random subnet.
   lxc network create "${prefix}"
+  lxc network set "${prefix}" bridge.driver "${bridgeDriver}"
 
-  if ! grep "1" "/sys/class/net/${prefix}/bridge/vlan_filtering"; then
-    echo "vlan filtering not enabled on managed bridge interface"
-    false
+  if [ "$bridgeDriver" = "native" ]; then
+    if ! grep "1" "/sys/class/net/${prefix}/bridge/vlan_filtering"; then
+      echo "vlan filtering not enabled on managed bridge interface"
+      false
+    fi
+
+    if ! grep "1" "/sys/class/net/${prefix}/bridge/default_pvid"; then
+      echo "vlan default PVID not 1 on managed bridge interface"
+      false
+    fi
+
+    # Make sure VLAN filtering on bridge is disabled initially (for IP filtering tests).
+    echo 0 > "/sys/class/net/${prefix}/bridge/vlan_filtering"
   fi
-
-  if ! grep "1" "/sys/class/net/${prefix}/bridge/default_pvid"; then
-    echo "vlan default PVID not 1 on managed bridge interface"
-    false
-  fi
-
-  # Make sure VLAN filtering on bridge is disabled initially (for IP filtering tests).
-  echo 0 > "/sys/class/net/${prefix}/bridge/vlan_filtering"
 
   # Create profile for new containers.
   lxc profile copy default "${prefix}"
@@ -39,27 +48,31 @@ test_container_devices_nic_bridged_vlan() {
   lxc stop -f "${prefix}-ctA"
 
   # Test tagged VLAN traffic is filtered when IP filtering is enabled.
-  lxc config device override "${prefix}-ctA" eth0 security.ipv4_filtering=true
-  lxc start "${prefix}-ctA"
-  lxc exec "${prefix}-ctA" -- ip link add link eth0 name eth0.2 type vlan id 2
-  lxc exec "${prefix}-ctA" -- ip link set eth0.2 up
-  lxc exec "${prefix}-ctA" -- ip a add 192.0.2.1/24 dev eth0.2
-  ! lxc exec "${prefix}-ctA" -- ping -c2 -W1 192.0.2.2 || false
-  ! lxc exec "${prefix}-ctB" -- ping -c2 -W1 192.0.2.1 || false
-  lxc stop -f "${prefix}-ctA"
-  lxc config device remove "${prefix}-ctA" eth0
+  if [ "$bridgeDriver" = "native" ]; then
+    lxc config device override "${prefix}-ctA" eth0 security.ipv4_filtering=true
+    lxc start "${prefix}-ctA"
+    lxc exec "${prefix}-ctA" -- ip link add link eth0 name eth0.2 type vlan id 2
+    lxc exec "${prefix}-ctA" -- ip link set eth0.2 up
+    lxc exec "${prefix}-ctA" -- ip a add 192.0.2.1/24 dev eth0.2
+    ! lxc exec "${prefix}-ctA" -- ping -c2 -W1 192.0.2.2 || false
+    ! lxc exec "${prefix}-ctB" -- ping -c2 -W1 192.0.2.1 || false
+    lxc stop -f "${prefix}-ctA"
+    lxc config device remove "${prefix}-ctA" eth0
+  fi
 
   # Test tagged VLAN traffic is filtered when using MAC filtering with spoofed MAC address.
-  lxc config device override "${prefix}-ctA" eth0 security.mac_filtering=true
-  lxc start "${prefix}-ctA"
-  lxc exec "${prefix}-ctA" -- ip link add link eth0 name eth0.2 type vlan id 2
-  lxc exec "${prefix}-ctA" -- ip link set eth0.2 up
-  lxc exec "${prefix}-ctA" -- ip a add 192.0.2.1/24 dev eth0.2
-  lxc config device set "${prefix}-ctA" -- eth0 hwaddr 00:16:3e:92:f3:c1
-  ! lxc exec "${prefix}-ctA" -- ping -c2 -W1 192.0.2.2 || false
-  ! lxc exec "${prefix}-ctB" -- ping -c2 -W1 192.0.2.1 || false
-  lxc stop -f "${prefix}-ctA"
-  lxc config device remove "${prefix}-ctA" eth0
+  if [ "$bridgeDriver" = "native" ]; then
+    lxc config device override "${prefix}-ctA" eth0 security.mac_filtering=true
+    lxc start "${prefix}-ctA"
+    lxc exec "${prefix}-ctA" -- ip link add link eth0 name eth0.2 type vlan id 2
+    lxc exec "${prefix}-ctA" -- ip link set eth0.2 up
+    lxc exec "${prefix}-ctA" -- ip a add 192.0.2.1/24 dev eth0.2
+    lxc exec "${prefix}-ctA" -- ip link set eth0.2 address 00:16:3e:92:f3:c1
+    ! lxc exec "${prefix}-ctA" -- ping -c2 -W1 192.0.2.2 || false
+    ! lxc exec "${prefix}-ctB" -- ping -c2 -W1 192.0.2.1 || false
+    lxc stop -f "${prefix}-ctA"
+    lxc config device remove "${prefix}-ctA" eth0
+  fi
 
   # Test VLAN validation.
   lxc config device override "${prefix}-ctA" eth0 vlan=2 # Test valid untagged VLAN ID.
@@ -76,7 +89,10 @@ test_container_devices_nic_bridged_vlan() {
   lxc config device remove "${prefix}-ctA" eth0
 
   # Test untagged VLANs (and that tagged VLANs are filtered).
-  echo 1 > "/sys/class/net/${prefix}/bridge/vlan_filtering"
+  if [ "$bridgeDriver" = "native" ]; then
+    echo 1 > "/sys/class/net/${prefix}/bridge/vlan_filtering"
+  fi
+
   lxc config device override "${prefix}-ctA" eth0 vlan=2
   lxc start "${prefix}-ctA"
   lxc exec "${prefix}-ctA" -- ip link set eth0 up
@@ -102,7 +118,10 @@ test_container_devices_nic_bridged_vlan() {
   lxc config device remove "${prefix}-ctB" eth0
 
   # Test tagged VLANs (and that vlan=none filters untagged frames).
-  echo 1 > "/sys/class/net/${prefix}/bridge/vlan_filtering"
+  if [ "$bridgeDriver" = "native" ]; then
+    echo 1 > "/sys/class/net/${prefix}/bridge/vlan_filtering"
+  fi
+
   lxc config device override "${prefix}-ctA" eth0 vlan.tagged=2 vlan=none
   lxc start "${prefix}-ctA"
   lxc exec "${prefix}-ctA" -- ip link set eth0 up
@@ -126,28 +145,30 @@ test_container_devices_nic_bridged_vlan() {
   lxc stop -f "${prefix}-ctB"
   lxc config device remove "${prefix}-ctB" eth0
 
-  # Test custom default VLAN PVID is respected on unmanaged bridge.
-  ip link add "${prefix}B" type bridge
-  ip link set "${prefix}B" up
-  echo 0 > "/sys/class/net/${prefix}B/bridge/vlan_filtering"
-  echo 2 > "/sys/class/net/${prefix}B/bridge/default_pvid"
-  lxc config device override "${prefix}-ctA" eth0 parent="${prefix}B" vlan.tagged=3
-  ! lxc start "${prefix}-ctA" # Check it fails to start with vlan_filtering disabled.
-  echo 1 > "/sys/class/net/${prefix}B/bridge/vlan_filtering"
-  lxc start "${prefix}-ctA"
-  lxc exec "${prefix}-ctA" -- ip link set eth0 up
-  lxc exec "${prefix}-ctA" -- ip a add 192.0.2.1/24 dev eth0
-  lxc config device override "${prefix}-ctB" eth0 parent="${prefix}B" vlan=2 # Specify VLAN 2 explicitly (ctA is implicit).
-  lxc start "${prefix}-ctB"
-  lxc exec "${prefix}-ctB" -- ip link set eth0 up
-  lxc exec "${prefix}-ctB" -- ip a add 192.0.2.2/24 dev eth0
-  lxc exec "${prefix}-ctA" -- ping -c2 -W1 192.0.2.2
-  lxc exec "${prefix}-ctB" -- ping -c2 -W1 192.0.2.1
-  lxc stop -f "${prefix}-ctA"
-  lxc config device remove "${prefix}-ctA" eth0
-  lxc stop -f "${prefix}-ctB"
-  lxc config device remove "${prefix}-ctB" eth0
-  ip link delete "${prefix}B"
+  # Test custom default VLAN PVID is respected on unmanaged native bridge.
+  if [ "$bridgeDriver" = "native" ]; then
+    ip link add "${prefix}B" type bridge
+    ip link set "${prefix}B" up
+    echo 0 > "/sys/class/net/${prefix}B/bridge/vlan_filtering"
+    echo 2 > "/sys/class/net/${prefix}B/bridge/default_pvid"
+    lxc config device override "${prefix}-ctA" eth0 parent="${prefix}B" vlan.tagged=3
+    ! lxc start "${prefix}-ctA" # Check it fails to start with vlan_filtering disabled.
+    echo 1 > "/sys/class/net/${prefix}B/bridge/vlan_filtering"
+    lxc start "${prefix}-ctA"
+    lxc exec "${prefix}-ctA" -- ip link set eth0 up
+    lxc exec "${prefix}-ctA" -- ip a add 192.0.2.1/24 dev eth0
+    lxc config device override "${prefix}-ctB" eth0 parent="${prefix}B" vlan=2 # Specify VLAN 2 explicitly (ctA is implicit).
+    lxc start "${prefix}-ctB"
+    lxc exec "${prefix}-ctB" -- ip link set eth0 up
+    lxc exec "${prefix}-ctB" -- ip a add 192.0.2.2/24 dev eth0
+    lxc exec "${prefix}-ctA" -- ping -c2 -W1 192.0.2.2
+    lxc exec "${prefix}-ctB" -- ping -c2 -W1 192.0.2.1
+    lxc stop -f "${prefix}-ctA"
+    lxc config device remove "${prefix}-ctA" eth0
+    lxc stop -f "${prefix}-ctB"
+    lxc config device remove "${prefix}-ctB" eth0
+    ip link delete "${prefix}B"
+  fi
 
   # Cleanup.
   lxc delete -f "${prefix}-ctA"
