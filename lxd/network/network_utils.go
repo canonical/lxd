@@ -16,6 +16,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/pkg/errors"
+
 	"github.com/lxc/lxd/lxd/dnsmasq"
 	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/instance/instancetype"
@@ -848,4 +850,44 @@ func UsesIPv6Firewall(netConfig map[string]string) bool {
 	}
 
 	return false
+}
+
+// BridgeVLANFilteringStatus returns whether VLAN filtering is enabled on a bridge interface.
+func BridgeVLANFilteringStatus(interfaceName string) (string, error) {
+	content, err := ioutil.ReadFile(fmt.Sprintf("/sys/class/net/%s/bridge/vlan_filtering", interfaceName))
+	if err != nil {
+		return "", errors.Wrapf(err, "Failed getting bridge VLAN status for %q", interfaceName)
+	}
+
+	return strings.TrimSpace(fmt.Sprintf("%s", content)), nil
+}
+
+// BridgeVLANFilterSetStatus sets the status of VLAN filtering on a bridge interface.
+func BridgeVLANFilterSetStatus(interfaceName string, status string) error {
+	err := ioutil.WriteFile(fmt.Sprintf("/sys/class/net/%s/bridge/vlan_filtering", interfaceName), []byte(status), 0)
+	if err != nil {
+		return errors.Wrapf(err, "Failed enabling VLAN filtering on bridge %q", interfaceName)
+	}
+
+	return nil
+}
+
+// BridgeVLANDefaultPVID returns the VLAN default port VLAN ID (PVID).
+func BridgeVLANDefaultPVID(interfaceName string) (string, error) {
+	content, err := ioutil.ReadFile(fmt.Sprintf("/sys/class/net/%s/bridge/default_pvid", interfaceName))
+	if err != nil {
+		return "", errors.Wrapf(err, "Failed getting bridge VLAN default PVID for %q", interfaceName)
+	}
+
+	return strings.TrimSpace(fmt.Sprintf("%s", content)), nil
+}
+
+// BridgeVLANSetDefaultPVID sets the VLAN default port VLAN ID (PVID).
+func BridgeVLANSetDefaultPVID(interfaceName string, vlanID string) error {
+	err := ioutil.WriteFile(fmt.Sprintf("/sys/class/net/%s/bridge/default_pvid", interfaceName), []byte(vlanID), 0)
+	if err != nil {
+		return errors.Wrapf(err, "Failed setting bridge VLAN default PVID for %q", interfaceName)
+	}
+
+	return nil
 }

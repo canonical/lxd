@@ -314,6 +314,8 @@ security.ipv6\_filtering | boolean   | false             | no        | Prevent t
 maas.subnet.ipv4         | string    | -                 | no        | MAAS IPv4 subnet to register the instance in
 maas.subnet.ipv6         | string    | -                 | no        | MAAS IPv6 subnet to register the instance in
 boot.priority            | integer   | -                 | no        | Boot priority for VMs (higher boots first)
+vlan                     | integer   | -                 | no        | The VLAN ID to use for untagged traffic (Can be `none` to remove port from default VLAN)
+vlan.tagged              | integer   | -                 | no        | Comma delimited list of VLAN IDs to join for tagged traffic
 
 #### nictype: macvlan
 
