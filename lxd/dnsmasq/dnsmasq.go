@@ -41,7 +41,7 @@ func UpdateStaticEntry(network string, projectName string, instanceName string, 
 	}
 
 	if netConfig["dns.mode"] == "" || netConfig["dns.mode"] == "managed" {
-		line += fmt.Sprintf(",%s", instanceName)
+		line += fmt.Sprintf(",%s", project.DNS(projectName, instanceName))
 	}
 
 	if line == hwaddr {
