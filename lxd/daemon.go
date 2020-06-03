@@ -416,7 +416,7 @@ func (d *Daemon) createCmd(restAPI *mux.Router, version string, c APIEndpoint) {
 		untrustedOk := (r.Method == "GET" && c.Get.AllowUntrusted) || (r.Method == "POST" && c.Post.AllowUntrusted)
 		if trusted {
 			logger.Debug("Handling", log.Ctx{"method": r.Method, "url": r.URL.RequestURI(), "ip": r.RemoteAddr, "user": username})
-			r = r.WithContext(context.WithValue(r.Context(), "username", username))
+			r = r.WithContext(context.WithValue(context.WithValue(r.Context(), "username", username), "protocol", protocol))
 		} else if untrustedOk && r.Header.Get("X-LXD-authenticated") == "" {
 			logger.Debug(fmt.Sprintf("Allowing untrusted %s", r.Method), log.Ctx{"url": r.URL.RequestURI(), "ip": r.RemoteAddr})
 		} else if derr, ok := err.(*bakery.DischargeRequiredError); ok {
@@ -1369,11 +1369,19 @@ func (d *Daemon) userIsAdmin(r *http.Request) bool {
 		return true
 	}
 
+	if r.Context().Value("protocol") == "tls" {
+		return true
+	}
+
 	return d.rbac.IsAdmin(r.Context().Value("username").(string))
 }
 
 func (d *Daemon) userHasPermission(r *http.Request, project string, permission string) bool {
 	if d.externalAuth == nil || d.rbac == nil || r.RemoteAddr == "@" {
+		return true
+	}
+
+	if r.Context().Value("protocol") == "tls" {
 		return true
 	}
 
