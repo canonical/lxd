@@ -260,8 +260,6 @@ LXD supports different kind of network devices:
  - [sriov](#nictype-sriov): Passes a virtual function of an SR-IOV enabled physical network device into the instance.
  - [routed](#nictype-routed): Creates a virtual device pair to connect the host to the instance and sets up static routes and proxy ARP/NDP entries to allow the instance to join the network of a designated parent interface.
 
-Currently, only the `bridged` type is supported with virtual machines.
-
 Different network interface types have different additional properties.
 
 Each possible `nictype` value is documented below along with the relevant properties for nics of that type.
