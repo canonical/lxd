@@ -213,6 +213,7 @@ var APIExtensions = []string{
 	"network_dns_search",
 	"container_nic_routed_limits",
 	"instance_nic_bridged_vlan",
+	"network_state_bond_bridge",
 }
 
 // APIExtensionsCount returns the number of available API extensions.
