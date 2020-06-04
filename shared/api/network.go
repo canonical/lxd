@@ -69,6 +69,10 @@ type NetworkState struct {
 	Mtu       int                   `json:"mtu" yaml:"mtu"`
 	State     string                `json:"state" yaml:"state"`
 	Type      string                `json:"type" yaml:"type"`
+
+	// API extension: network_state_bond_bridge
+	Bond   *NetworkStateBond   `json:"bond" yaml:"bond"`
+	Bridge *NetworkStateBridge `json:"bridge" yaml:"bridge"`
 }
 
 // NetworkStateAddress represents a network address
@@ -85,4 +89,31 @@ type NetworkStateCounters struct {
 	BytesSent       int64 `json:"bytes_sent" yaml:"bytes_sent"`
 	PacketsReceived int64 `json:"packets_received" yaml:"packets_received"`
 	PacketsSent     int64 `json:"packets_sent" yaml:"packets_sent"`
+}
+
+// NetworkStateBond represents bond specific state
+// API extension: network_state_bond_bridge
+type NetworkStateBond struct {
+	Mode           string `json:"mode" yaml:"mode"`
+	TransmitPolicy string `json:"transmit_policy" yaml:"transmit_policy"`
+	UpDelay        uint64 `json:"up_delay" yaml:"up_delay"`
+	DownDelay      uint64 `json:"down_delay" yaml:"down_delay"`
+
+	MIIFrequency uint64 `json:"mii_frequency" yaml:"mii_frequency"`
+	MIIState     string `json:"mii_state" yaml:"mii_state"`
+
+	LowerDevices []string `json:"lower_devices" yaml:"lower_devices"`
+}
+
+// NetworkStateBridge represents bond specific state
+// API extension: network_state_bond_bridge
+type NetworkStateBridge struct {
+	ID           string `json:"id" yaml:"id"`
+	STP          bool   `json:"stp" yaml:"stp"`
+	ForwardDelay uint64 `json:"forward_delay" yaml:"forward_delay"`
+
+	VLANDefault   uint64 `json:"vlan_default" yaml:"vlan_default"`
+	VLANFiltering bool   `json:"vlan_filtering" yaml:"vlan_filtering"`
+
+	UpperDevices []string `json:"upper_devices" yaml:"upper_devices"`
 }
