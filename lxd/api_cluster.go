@@ -9,7 +9,6 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
-	"time"
 
 	dqlitedriver "github.com/canonical/go-dqlite/driver"
 	"github.com/gorilla/mux"
@@ -218,19 +217,11 @@ func clusterPut(d *Daemon, r *http.Request) response.Response {
 
 func clusterPutBootstrap(d *Daemon, req api.ClusterPut) response.Response {
 	run := func(op *operations.Operation) error {
-		// The default timeout when non-clustered is one minute, let's
-		// lower it down now that we'll likely have to make requests
-		// over the network.
-		//
-		// FIXME: this is a workaround for #5234.
-		d.cluster.SetDefaultTimeout(5 * time.Second)
-
 		// Start clustering tasks
 		d.startClusterTasks()
 
 		err := cluster.Bootstrap(d.State(), d.gateway, req.ServerName)
 		if err != nil {
-			d.cluster.SetDefaultTimeout(time.Minute)
 			d.stopClusterTasks()
 			return err
 		}
@@ -468,19 +459,11 @@ func clusterPutJoin(d *Daemon, req api.ClusterPut) response.Response {
 			nodes[i].Role = db.RaftRole(node.Role)
 		}
 
-		// The default timeout when non-clustered is one minute, let's
-		// lower it down now that we'll likely have to make requests
-		// over the network.
-		//
-		// FIXME: this is a workaround for #5234.
-		d.cluster.SetDefaultTimeout(5 * time.Second)
-
 		// Start clustering tasks
 		d.startClusterTasks()
 
 		err = cluster.Join(d.State(), d.gateway, cert, req.ServerName, nodes)
 		if err != nil {
-			d.cluster.SetDefaultTimeout(time.Minute)
 			d.stopClusterTasks()
 			return err
 		}
