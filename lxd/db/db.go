@@ -324,12 +324,6 @@ func ForLocalInspectionWithPreparedStmts(db *sql.DB) (*Cluster, error) {
 	return c, nil
 }
 
-// SetDefaultTimeout sets the default go-dqlite driver timeout.
-func (c *Cluster) SetDefaultTimeout(timeout time.Duration) {
-	driver := c.db.Driver().(*driver.Driver)
-	driver.SetContextTimeout(timeout)
-}
-
 // Kill should be called upon shutdown, it will prevent retrying failed
 // database queries.
 func (c *Cluster) Kill() {
