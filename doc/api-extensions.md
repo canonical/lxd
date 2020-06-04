@@ -1046,7 +1046,30 @@ This introduces the `dns.search` config option on networks.
 This introduces `limits.ingress`, `limits.egress` and `limits.max` for routed NICs.
 
 ## instance\_nic\_bridged\_vlan
-
 This introduces the `vlan` and `vlan.tagged` settings for `bridged` NICs.
 
 `vlan` specifies the untagged VLAN to join, and `vlan.tagged` is a comma delimited list of tagged VLANs to join.
+
+## network\_state\_bond\_bridge
+This adds a "bridge" and "bond" section to the /1.0/networks/NAME/state API.
+
+Those contain additional state information relevant to those particular types.
+
+Bond:
+
+ - Mode
+ - Transmit hash
+ - Up delay
+ - Down delay
+ - MII frequency
+ - MII state
+ - Lower devices
+
+Bridge:
+
+ - ID
+ - Forward delay
+ - STP mode
+ - Default VLAN
+ - VLAN filtering
+ - Upper devices
