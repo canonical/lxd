@@ -53,6 +53,7 @@ import (
 	"github.com/lxc/lxd/shared/instancewriter"
 	log "github.com/lxc/lxd/shared/log15"
 	"github.com/lxc/lxd/shared/logger"
+	"github.com/lxc/lxd/shared/logging"
 	"github.com/lxc/lxd/shared/netutils"
 	"github.com/lxc/lxd/shared/osarch"
 	"github.com/lxc/lxd/shared/units"
@@ -1535,6 +1536,8 @@ func (c *lxc) deviceUpdate(deviceName string, rawConfig deviceConfig.Device, old
 
 // deviceStop loads a new device and calls its Stop() function.
 func (c *lxc) deviceStop(deviceName string, rawConfig deviceConfig.Device, stopHookNetnsPath string) error {
+	logger := logging.AddContext(logger.Log, log.Ctx{"device": deviceName, "project": c.Project(), "instance": c.Name()})
+	logger.Debug("Stopping device")
 	d, configCopy, err := c.deviceLoad(deviceName, rawConfig)
 
 	// If deviceLoad fails with unsupported device type then return.
@@ -1552,7 +1555,7 @@ func (c *lxc) deviceStop(deviceName string, rawConfig deviceConfig.Device, stopH
 
 		}
 
-		logger.Errorf("Device stop validation failed for '%s': %v", deviceName, err)
+		logger.Error("Device stop validation failed for", log.Ctx{"err": err})
 	}
 
 	canHotPlug, _ := d.CanHotPlug()
@@ -1896,6 +1899,10 @@ func (c *lxc) expandDevices(profiles []api.Profile) error {
 // Start functions
 func (c *lxc) startCommon() (string, []func() error, error) {
 	var ourStart bool
+
+	revert := revert.New()
+	defer revert.Fail()
+
 	postStartHooks := []func() error{}
 
 	// Load the go-lxc struct
@@ -2045,13 +2052,23 @@ func (c *lxc) startCommon() (string, []func() error, error) {
 	nicID := -1
 
 	// Setup devices in sorted order, this ensures that device mounts are added in path order.
-	for _, dev := range c.expandedDevices.Sorted() {
+	for _, d := range c.expandedDevices.Sorted() {
+		dev := d // Ensure device variable has local scope for revert.
+
 		// Start the device.
 		runConf, err := c.deviceStart(dev.Name, dev.Config, false)
 		if err != nil {
 			return "", postStartHooks, errors.Wrapf(err, "Failed to start device %q", dev.Name)
 		}
 
+		// Stop device on failure to setup container, pass non-empty stopHookNetnsPath so that stop code
+		// doesn't think container is running.
+		revert.Add(func() {
+			err := c.deviceStop(dev.Name, dev.Config, "startfailed")
+			if err != nil {
+				logger.Errorf("Failed to cleanup device %q: %v", dev.Name, err)
+			}
+		})
 		if runConf == nil {
 			continue
 		}
@@ -2250,6 +2267,7 @@ func (c *lxc) startCommon() (string, []func() error, error) {
 	// Unmount any previously mounted shiftfs
 	unix.Unmount(c.RootfsPath(), unix.MNT_DETACH)
 
+	revert.Success()
 	return configPath, postStartHooks, nil
 }
 

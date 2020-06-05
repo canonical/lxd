@@ -54,6 +54,7 @@ import (
 	"github.com/lxc/lxd/shared/instancewriter"
 	log "github.com/lxc/lxd/shared/log15"
 	"github.com/lxc/lxd/shared/logger"
+	"github.com/lxc/lxd/shared/logging"
 	"github.com/lxc/lxd/shared/osarch"
 	"github.com/lxc/lxd/shared/termios"
 	"github.com/lxc/lxd/shared/units"
@@ -666,7 +667,9 @@ func (vm *qemu) Start(stateful bool) error {
 	devConfs := make([]*deviceConfig.RunConfig, 0, len(vm.expandedDevices))
 
 	// Setup devices in sorted order, this ensures that device mounts are added in path order.
-	for _, dev := range vm.expandedDevices.Sorted() {
+	for _, d := range vm.expandedDevices.Sorted() {
+		dev := d // Ensure device variable has local scope for revert.
+
 		// Start the device.
 		runConf, err := vm.deviceStart(dev.Name, dev.Config, false)
 		if err != nil {
@@ -678,15 +681,12 @@ func (vm *qemu) Start(stateful bool) error {
 			continue
 		}
 
-		// Use a local function argument to ensure the current device is added to the reverter.
-		func(localDev deviceConfig.DeviceNamed) {
-			revert.Add(func() {
-				err := vm.deviceStop(localDev.Name, localDev.Config)
-				if err != nil {
-					logger.Errorf("Failed to cleanup device %q: %v", localDev.Name, err)
-				}
-			})
-		}(dev)
+		revert.Add(func() {
+			err := vm.deviceStop(dev.Name, dev.Config)
+			if err != nil {
+				logger.Errorf("Failed to cleanup device %q: %v", dev.Name, err)
+			}
+		})
 
 		devConfs = append(devConfs, runConf)
 	}
@@ -1100,6 +1100,8 @@ func (vm *qemu) deviceStart(deviceName string, rawConfig deviceConfig.Device, is
 
 // deviceStop loads a new device and calls its Stop() function.
 func (vm *qemu) deviceStop(deviceName string, rawConfig deviceConfig.Device) error {
+	logger := logging.AddContext(logger.Log, log.Ctx{"device": deviceName, "project": vm.Project(), "instance": vm.Name()})
+	logger.Debug("Stopping device")
 	d, _, err := vm.deviceLoad(deviceName, rawConfig)
 
 	// If deviceLoad fails with unsupported device type then return.
@@ -1117,7 +1119,7 @@ func (vm *qemu) deviceStop(deviceName string, rawConfig deviceConfig.Device) err
 
 		}
 
-		logger.Errorf("Device stop validation failed for '%s': %v", deviceName, err)
+		logger.Error("Device stop validation failed for", log.Ctx{"err": err})
 	}
 
 	canHotPlug, _ := d.CanHotPlug()
