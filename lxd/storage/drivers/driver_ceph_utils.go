@@ -524,26 +524,6 @@ func (d *ceph) rbdListVolumeSnapshots(vol Volume) ([]string, error) {
 	return snapshots, nil
 }
 
-// getRBDMountOptions returns the mount options the storage volume is supposed to be mounted with
-// the option string that is returned needs to be passed to the approriate
-// helper (currently named "LXDResolveMountoptions") which will take on the job
-// of splitting it into appropriate flags and string options.
-func (d *ceph) getRBDMountOptions(vol Volume) string {
-	if vol.config["block.mount_options"] != "" {
-		return vol.config["block.mount_options"]
-	}
-
-	if vol.poolConfig["volume.block.mount_options"] != "" {
-		return vol.poolConfig["volume.block.mount_options"]
-	}
-
-	if vol.ConfigBlockFilesystem() == "btrfs" {
-		return "user_subvol_rm_allowed,discard"
-	}
-
-	return "discard"
-}
-
 // copyWithSnapshots creates a non-sparse copy of a container including its snapshots.
 // This does not introduce a dependency relation between the source RBD storage
 // volume and the target RBD storage volume.
