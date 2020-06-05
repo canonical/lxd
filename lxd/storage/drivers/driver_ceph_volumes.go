@@ -139,7 +139,7 @@ func (d *ceph) CreateVolume(vol Volume, filler *VolumeFiller, op *operations.Ope
 	revert.Add(func() { d.rbdUnmapVolume(vol, true) })
 
 	// Get filesystem.
-	RBDFilesystem := d.getRBDFilesystem(vol)
+	RBDFilesystem := vol.ConfigBlockFilesystem()
 
 	if vol.contentType == ContentTypeFS {
 		_, err = makeFSType(RBDDevPath, RBDFilesystem, nil)
@@ -311,7 +311,7 @@ func (d *ceph) CreateVolumeFromCopy(vol Volume, srcVol Volume, copySnapshots boo
 		if vol.contentType == ContentTypeFS {
 			// Re-generate the UUID. Do this first as ensuring permissions and setting quota can
 			// rely on being able to mount the volume.
-			err = d.generateUUID(d.getRBDFilesystem(v), RBDDevPath)
+			err = d.generateUUID(v.ConfigBlockFilesystem(), RBDDevPath)
 			if err != nil {
 				return err
 			}
@@ -587,7 +587,7 @@ func (d *ceph) CreateVolumeFromMigration(vol Volume, conn io.ReadWriteCloser, vo
 	defer d.rbdUnmapVolume(vol, true)
 
 	// Re-generate the UUID.
-	err = d.generateUUID(d.getRBDFilesystem(vol), RBDDevPath)
+	err = d.generateUUID(vol.ConfigBlockFilesystem(), RBDDevPath)
 	if err != nil {
 		return err
 	}
@@ -824,7 +824,7 @@ func (d *ceph) SetVolumeQuota(vol Volume, size string, op *operations.Operation)
 		return nil
 	}
 
-	fsType := d.getRBDFilesystem(vol)
+	fsType := vol.ConfigBlockFilesystem()
 
 	RBDDevPath, err := d.getRBDMappedDevPath(vol)
 	if err != nil {
@@ -928,8 +928,8 @@ func (d *ceph) MountVolume(vol Volume, op *operations.Operation) (bool, error) {
 			return false, err
 		}
 
-		RBDFilesystem := d.getRBDFilesystem(vol)
-		mountFlags, mountOptions := resolveMountOptions(d.getRBDMountOptions(vol))
+		RBDFilesystem := vol.ConfigBlockFilesystem()
+		mountFlags, mountOptions := resolveMountOptions(vol.ConfigBlockMountOptions())
 		err = TryMount(RBDDevPath, mountPath, RBDFilesystem, mountFlags, mountOptions)
 		if err != nil {
 			return false, err
@@ -1311,8 +1311,8 @@ func (d *ceph) MountVolumeSnapshot(snapVol Volume, op *operations.Operation) (bo
 			return false, nil
 		}
 
-		RBDFilesystem := d.getRBDFilesystem(snapVol)
-		mountFlags, mountOptions := resolveMountOptions(d.getRBDMountOptions(snapVol))
+		RBDFilesystem := snapVol.ConfigBlockFilesystem()
+		mountFlags, mountOptions := resolveMountOptions(snapVol.ConfigBlockMountOptions())
 
 		if renegerateFilesystemUUIDNeeded(RBDFilesystem) {
 			if RBDFilesystem == "xfs" {
@@ -1453,7 +1453,7 @@ func (d *ceph) RestoreVolume(vol Volume, snapshotName string, op *operations.Ope
 	defer d.rbdUnmapVolume(snapVol, true)
 
 	// Re-generate the UUID.
-	err = d.generateUUID(d.getRBDFilesystem(snapVol), RBDDevPath)
+	err = d.generateUUID(snapVol.ConfigBlockFilesystem(), RBDDevPath)
 	if err != nil {
 		return err
 	}
