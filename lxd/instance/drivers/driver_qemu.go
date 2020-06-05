@@ -667,7 +667,9 @@ func (vm *qemu) Start(stateful bool) error {
 	devConfs := make([]*deviceConfig.RunConfig, 0, len(vm.expandedDevices))
 
 	// Setup devices in sorted order, this ensures that device mounts are added in path order.
-	for _, dev := range vm.expandedDevices.Sorted() {
+	for _, d := range vm.expandedDevices.Sorted() {
+		dev := d // Ensure device variable has local scope for revert.
+
 		// Start the device.
 		runConf, err := vm.deviceStart(dev.Name, dev.Config, false)
 		if err != nil {
@@ -679,15 +681,12 @@ func (vm *qemu) Start(stateful bool) error {
 			continue
 		}
 
-		// Use a local function argument to ensure the current device is added to the reverter.
-		func(localDev deviceConfig.DeviceNamed) {
-			revert.Add(func() {
-				err := vm.deviceStop(localDev.Name, localDev.Config)
-				if err != nil {
-					logger.Errorf("Failed to cleanup device %q: %v", localDev.Name, err)
-				}
-			})
-		}(dev)
+		revert.Add(func() {
+			err := vm.deviceStop(dev.Name, dev.Config)
+			if err != nil {
+				logger.Errorf("Failed to cleanup device %q: %v", dev.Name, err)
+			}
+		})
 
 		devConfs = append(devConfs, runConf)
 	}
