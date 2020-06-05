@@ -25,6 +25,9 @@ const vmBlockFilesystemSize = "50MB"
 // DefaultFilesystem filesytem to use for block devices by default.
 const DefaultFilesystem = "ext4"
 
+// defaultFilesystemMountOpts mount options to use for filesystem block devices by default.
+const defaultFilesystemMountOptions = "discard"
+
 // volIDQuotaSkip is used to indicate to drivers that quotas should not be setup, used during backup import.
 const volIDQuotaSkip = int64(-1)
 
@@ -347,6 +350,22 @@ func (v Volume) ConfigBlockFilesystem() string {
 	}
 
 	return DefaultFilesystem
+}
+
+// ConfigBlockMountOptions returns the filesystem mount options to use for block volumes. Returns config value
+// "block.mount_options" if defined in volume or pool's volume config, otherwise defaultFilesystemMountOptions.
+func (v Volume) ConfigBlockMountOptions() string {
+	fs := v.ExpandedConfig("block.mount_options")
+	if fs != "" {
+		return fs
+	}
+
+	// Use some special options if the filesystem for the volume is BTRFS.
+	if v.ConfigBlockFilesystem() == "btrfs" {
+		return "user_subvol_rm_allowed,discard"
+	}
+
+	return defaultFilesystemMountOptions
 }
 
 // ConfigSize returns the size to use when creating new a volume. Returns config value "size" if defined in volume
