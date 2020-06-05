@@ -524,19 +524,6 @@ func (d *ceph) rbdListVolumeSnapshots(vol Volume) ([]string, error) {
 	return snapshots, nil
 }
 
-// getRBDFilesystem returns the filesystem the RBD storage volume is supposed to be created with.
-func (d *ceph) getRBDFilesystem(vol Volume) string {
-	if vol.config["block.filesystem"] != "" {
-		return vol.config["block.filesystem"]
-	}
-
-	if vol.poolConfig["volume.block.filesystem"] != "" {
-		return vol.poolConfig["volume.block.filesystem"]
-	}
-
-	return "ext4"
-}
-
 // getRBDMountOptions returns the mount options the storage volume is supposed to be mounted with
 // the option string that is returned needs to be passed to the approriate
 // helper (currently named "LXDResolveMountoptions") which will take on the job
