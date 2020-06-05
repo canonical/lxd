@@ -537,7 +537,7 @@ func (d *ceph) getRBDMountOptions(vol Volume) string {
 		return vol.poolConfig["volume.block.mount_options"]
 	}
 
-	if d.getRBDFilesystem(vol) == "btrfs" {
+	if vol.ConfigBlockFilesystem() == "btrfs" {
 		return "user_subvol_rm_allowed,discard"
 	}
 
@@ -1032,7 +1032,7 @@ func (d *ceph) getRBDVolumeName(vol Volume, snapName string, zombie bool, withPo
 
 	// Only use filesystem suffix on filesystem type image volumes (for all content types).
 	if vol.volType == VolumeTypeImage || vol.volType == cephVolumeTypeZombieImage {
-		parentName = fmt.Sprintf("%s_%s", parentName, d.getRBDFilesystem(vol))
+		parentName = fmt.Sprintf("%s_%s", parentName, vol.ConfigBlockFilesystem())
 	}
 
 	if vol.contentType == ContentTypeBlock {
