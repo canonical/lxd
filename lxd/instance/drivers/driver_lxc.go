@@ -53,6 +53,7 @@ import (
 	"github.com/lxc/lxd/shared/instancewriter"
 	log "github.com/lxc/lxd/shared/log15"
 	"github.com/lxc/lxd/shared/logger"
+	"github.com/lxc/lxd/shared/logging"
 	"github.com/lxc/lxd/shared/netutils"
 	"github.com/lxc/lxd/shared/osarch"
 	"github.com/lxc/lxd/shared/units"
@@ -1535,6 +1536,8 @@ func (c *lxc) deviceUpdate(deviceName string, rawConfig deviceConfig.Device, old
 
 // deviceStop loads a new device and calls its Stop() function.
 func (c *lxc) deviceStop(deviceName string, rawConfig deviceConfig.Device, stopHookNetnsPath string) error {
+	logger := logging.AddContext(logger.Log, log.Ctx{"device": deviceName, "project": c.Project(), "instance": c.Name()})
+	logger.Debug("Stopping device")
 	d, configCopy, err := c.deviceLoad(deviceName, rawConfig)
 
 	// If deviceLoad fails with unsupported device type then return.
@@ -1552,7 +1555,7 @@ func (c *lxc) deviceStop(deviceName string, rawConfig deviceConfig.Device, stopH
 
 		}
 
-		logger.Errorf("Device stop validation failed for '%s': %v", deviceName, err)
+		logger.Error("Device stop validation failed for", log.Ctx{"err": err})
 	}
 
 	canHotPlug, _ := d.CanHotPlug()
