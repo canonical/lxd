@@ -49,20 +49,6 @@ func (d *lvm) thinpoolName() string {
 	return "LXDThinPool"
 }
 
-// mountOptions returns the mount options for volumes.
-func (d *lvm) volumeMountOptions(vol Volume) string {
-	if d.config["block.mount_options"] != "" {
-		return d.config["block.mount_options"]
-	}
-
-	// Use some special options if the filesystem for the volume is BTRFS.
-	if vol.ConfigBlockFilesystem() == "btrfs" {
-		return "user_subvol_rm_allowed,discard"
-	}
-
-	return "discard"
-}
-
 // openLoopFile opens a loopback file and disable auto detach.
 func (d *lvm) openLoopFile(source string) (*os.File, error) {
 	if source == "" {
