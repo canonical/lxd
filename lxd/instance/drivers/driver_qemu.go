@@ -54,6 +54,7 @@ import (
 	"github.com/lxc/lxd/shared/instancewriter"
 	log "github.com/lxc/lxd/shared/log15"
 	"github.com/lxc/lxd/shared/logger"
+	"github.com/lxc/lxd/shared/logging"
 	"github.com/lxc/lxd/shared/osarch"
 	"github.com/lxc/lxd/shared/termios"
 	"github.com/lxc/lxd/shared/units"
@@ -1100,6 +1101,8 @@ func (vm *qemu) deviceStart(deviceName string, rawConfig deviceConfig.Device, is
 
 // deviceStop loads a new device and calls its Stop() function.
 func (vm *qemu) deviceStop(deviceName string, rawConfig deviceConfig.Device) error {
+	logger := logging.AddContext(logger.Log, log.Ctx{"device": deviceName, "project": vm.Project(), "instance": vm.Name()})
+	logger.Debug("Stopping device")
 	d, _, err := vm.deviceLoad(deviceName, rawConfig)
 
 	// If deviceLoad fails with unsupported device type then return.
@@ -1117,7 +1120,7 @@ func (vm *qemu) deviceStop(deviceName string, rawConfig deviceConfig.Device) err
 
 		}
 
-		logger.Errorf("Device stop validation failed for '%s': %v", deviceName, err)
+		logger.Error("Device stop validation failed for", log.Ctx{"err": err})
 	}
 
 	canHotPlug, _ := d.CanHotPlug()
