@@ -532,7 +532,7 @@ func (c *cmdInit) askStoragePool(config *cmdInitData, d lxd.InstanceServer, pool
 
 				// Ask for the name of the cluster
 				pool.Config["source"] = cli.AskString("Name of the CEPHfs volume: ", "", nil)
-			} else if cli.AskBool("Would you like to use an existing block device? (yes/no) [default=no]: ", "no") {
+			} else if cli.AskBool("Would you like to use an existing empty disk or partition? (yes/no) [default=no]: ", "no") {
 				deviceExists := func(path string) error {
 					if !shared.IsBlockdevPath(path) {
 						return fmt.Errorf("'%s' is not a block device", path)
@@ -549,13 +549,13 @@ func (c *cmdInit) askStoragePool(config *cmdInitData, d lxd.InstanceServer, pool
 					return errors.Wrapf(err, "Couldn't statfs %s", shared.VarPath())
 				}
 
-				/* choose 15 GB < x < 100GB, where x is 20% of the disk size */
+				/* choose 5 GB < x < 30GB, where x is 20% of the disk size */
 				defaultSize := uint64(st.Frsize) * st.Blocks / (1024 * 1024 * 1024) / 5
-				if defaultSize > 100 {
-					defaultSize = 100
+				if defaultSize > 30 {
+					defaultSize = 30
 				}
-				if defaultSize < 15 {
-					defaultSize = 15
+				if defaultSize < 5 {
+					defaultSize = 5
 				}
 
 				pool.Config["size"] = cli.AskString(
