@@ -65,6 +65,32 @@ Storage volume configuration keys can be set using the lxc tool with:
 lxc storage volume set [<remote>:]<pool> <volume> <key> <value>
 ```
 
+# Where to store LXD data
+Depending on the storage backends used, LXD can either share the filesystem with its host or keep its data separate.
+
+## Sharing with the host
+This is usually the most space efficient way to run LXD and possibly the easiest to manage.
+It can be done with:
+
+ - `dir` backend on any backing filesystem
+ - `btrfs` backend if the host is btrfs and you point LXD to a dedicated subvolume
+ - `zfs` backend if the host is zfs and you point LXD to a dedicated dataset on your zpool
+
+## Dedicated disk/partition
+In this mode, LXD's storage will be completely independent from the host.
+This can be done by having LXD use an empty partition on your main disk or by having it use a full dedicated disk.
+
+This is supported by all storage drivers except `dir`, `ceph` and `cephfs`.
+
+## Loop disk
+If neither of the options above are possible for you, LXD can create a loop file
+on your main drive and then have the selected storage driver use that.
+
+This is functionally similar to using a disk/partition but uses a large file on your main drive instead.
+This comes at a performance penalty as every writes need to go through the storage driver and then your main
+drive's filesystem. The loop files also usually cannot be shrunk.
+They will grow up to the limit you select but deleting instances or images will not cause the file to shrink.
+
 # Storage Backends and supported functions
 ## Feature comparison
 LXD supports using ZFS, btrfs, LVM or just plain directories for storage of images, instances and custom volumes.  
