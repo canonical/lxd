@@ -132,6 +132,12 @@ driver = "virtio-rng-ccw"
 # Console
 [chardev "console"]
 backend = "pty"
+
+# Graphical console
+[spice]
+unix = "on"
+addr = "{{.spicePath}}"
+disable-ticketing = "on"
 `))
 
 var qemuMemory = template.Must(template.New("qemuMemory").Parse(`

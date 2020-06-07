@@ -1167,6 +1167,10 @@ func (vm *qemu) nvramPath() string {
 	return filepath.Join(vm.Path(), "qemu.nvram")
 }
 
+func (vm *qemu) spicePath() string {
+	return filepath.Join(vm.LogPath(), "qemu.spice")
+}
+
 // generateConfigShare generates the config share directory that will be exported to the VM via
 // a 9P share. Due to the unknown size of templates inside the images this directory is created
 // inside the VM's config volume so that it can be restricted by quota.
@@ -1550,6 +1554,7 @@ func (vm *qemu) generateQemuConfigFile(devConfs []*deviceConfig.RunConfig, fdFil
 	err := qemuBase.Execute(sb, map[string]interface{}{
 		"architecture":     vm.architectureName,
 		"ringbufSizeBytes": qmp.RingbufSize,
+		"spicePath":        vm.spicePath(),
 	})
 	if err != nil {
 		return "", err
