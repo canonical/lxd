@@ -1633,6 +1633,12 @@ func (vm *qemu) generateQemuConfigFile(devConfs []*deviceConfig.RunConfig, fdFil
 		}
 	}
 
+	// GPU for console.
+	err = vm.addVGAConfig(sb, chassisIndex)
+	if err != nil {
+		return "", err
+	}
+
 	// Write the agent mount config.
 	agentMountJSON, err := json.Marshal(agentMounts)
 	if err != nil {
@@ -1674,6 +1680,14 @@ func (vm *qemu) addVsockConfig(sb *strings.Builder) error {
 	return qemuVsock.Execute(sb, map[string]interface{}{
 		"architecture": vm.architectureName,
 		"vsockID":      vm.vsockID(),
+	})
+}
+
+// addVGAConfig adds the qemu config required for setting up the host->VM vsock socket.
+func (vm *qemu) addVGAConfig(sb *strings.Builder, chassisIndex int) error {
+	return qemuVGA.Execute(sb, map[string]interface{}{
+		"architecture": vm.architectureName,
+		"chassisIndex": chassisIndex,
 	})
 }
 
