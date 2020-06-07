@@ -468,7 +468,7 @@ func (vm *qemu) generateAgentCert() (string, string, string, string, error) {
 // Freeze freezes the instance.
 func (vm *qemu) Freeze() error {
 	// Connect to the monitor.
-	monitor, err := qmp.Connect(vm.getMonitorPath(), vm.getMonitorEventHandler())
+	monitor, err := qmp.Connect(vm.monitorPath(), vm.getMonitorEventHandler())
 	if err != nil {
 		return err
 	}
@@ -493,7 +493,7 @@ func (vm *qemu) onStop(target string) error {
 	// Cleanup.
 	vm.cleanupDevices()
 	os.Remove(vm.pidFilePath())
-	os.Remove(vm.getMonitorPath())
+	os.Remove(vm.monitorPath())
 	vm.unmount()
 
 	// Record power state.
@@ -530,7 +530,7 @@ func (vm *qemu) Shutdown(timeout time.Duration) error {
 	}
 
 	// Connect to the monitor.
-	monitor, err := qmp.Connect(vm.getMonitorPath(), vm.getMonitorEventHandler())
+	monitor, err := qmp.Connect(vm.monitorPath(), vm.getMonitorEventHandler())
 	if err != nil {
 		op.Done(err)
 		return err
@@ -656,7 +656,7 @@ func (vm *qemu) Start(stateful bool) error {
 
 	// Copy OVMF settings firmware to nvram file.
 	// This firmware file can be modified by the VM so it must be copied from the defaults.
-	if !shared.PathExists(vm.getNvramPath()) {
+	if !shared.PathExists(vm.nvramPath()) {
 		err = vm.setupNvram()
 		if err != nil {
 			op.Done(err)
@@ -868,7 +868,7 @@ func (vm *qemu) Start(stateful bool) error {
 	})
 
 	// Start QMP monitoring.
-	monitor, err := qmp.Connect(vm.getMonitorPath(), vm.getMonitorEventHandler())
+	monitor, err := qmp.Connect(vm.monitorPath(), vm.getMonitorEventHandler())
 	if err != nil {
 		op.Done(err)
 		return err
@@ -989,8 +989,8 @@ func (vm *qemu) setupNvram() error {
 		return fmt.Errorf("Required EFI firmware settings file missing: %s", srcOvmfFile)
 	}
 
-	os.Remove(vm.getNvramPath())
-	err = shared.FileCopy(srcOvmfFile, vm.getNvramPath())
+	os.Remove(vm.nvramPath())
+	err = shared.FileCopy(srcOvmfFile, vm.nvramPath())
 	if err != nil {
 		return err
 	}
@@ -1159,12 +1159,16 @@ func (vm *qemu) runHooks(hooks []func() error) error {
 	return nil
 }
 
-func (vm *qemu) getMonitorPath() string {
+func (vm *qemu) monitorPath() string {
 	return filepath.Join(vm.LogPath(), "qemu.monitor")
 }
 
-func (vm *qemu) getNvramPath() string {
+func (vm *qemu) nvramPath() string {
 	return filepath.Join(vm.Path(), "qemu.nvram")
+}
+
+func (vm *qemu) spicePath() string {
+	return filepath.Join(vm.LogPath(), "qemu.spice")
 }
 
 // generateConfigShare generates the config share directory that will be exported to the VM via
@@ -1550,6 +1554,7 @@ func (vm *qemu) generateQemuConfigFile(devConfs []*deviceConfig.RunConfig, fdFil
 	err := qemuBase.Execute(sb, map[string]interface{}{
 		"architecture":     vm.architectureName,
 		"ringbufSizeBytes": qmp.RingbufSize,
+		"spicePath":        vm.spicePath(),
 	})
 	if err != nil {
 		return "", err
@@ -1633,6 +1638,12 @@ func (vm *qemu) generateQemuConfigFile(devConfs []*deviceConfig.RunConfig, fdFil
 		}
 	}
 
+	// GPU for console.
+	err = vm.addVGAConfig(sb, chassisIndex)
+	if err != nil {
+		return "", err
+	}
+
 	// Write the agent mount config.
 	agentMountJSON, err := json.Marshal(agentMounts)
 	if err != nil {
@@ -1674,6 +1685,14 @@ func (vm *qemu) addVsockConfig(sb *strings.Builder) error {
 	return qemuVsock.Execute(sb, map[string]interface{}{
 		"architecture": vm.architectureName,
 		"vsockID":      vm.vsockID(),
+	})
+}
+
+// addVGAConfig adds the qemu config required for setting up the host->VM vsock socket.
+func (vm *qemu) addVGAConfig(sb *strings.Builder, chassisIndex int) error {
+	return qemuVGA.Execute(sb, map[string]interface{}{
+		"architecture": vm.architectureName,
+		"chassisIndex": chassisIndex,
 	})
 }
 
@@ -1753,7 +1772,7 @@ func (vm *qemu) addCPUConfig(sb *strings.Builder) error {
 func (vm *qemu) addMonitorConfig(sb *strings.Builder) error {
 	return qemuControlSocket.Execute(sb, map[string]interface{}{
 		"architecture": vm.architectureName,
-		"path":         vm.getMonitorPath(),
+		"path":         vm.monitorPath(),
 	})
 }
 
@@ -1767,7 +1786,7 @@ func (vm *qemu) addFirmwareConfig(sb *strings.Builder) error {
 	return qemuDriveFirmware.Execute(sb, map[string]interface{}{
 		"architecture": vm.architectureName,
 		"roPath":       filepath.Join(vm.ovmfPath(), "OVMF_CODE.fd"),
-		"nvramPath":    vm.getNvramPath(),
+		"nvramPath":    vm.nvramPath(),
 	})
 }
 
@@ -2003,7 +2022,7 @@ func (vm *qemu) Stop(stateful bool) error {
 	}
 
 	// Connect to the monitor.
-	monitor, err := qmp.Connect(vm.getMonitorPath(), vm.getMonitorEventHandler())
+	monitor, err := qmp.Connect(vm.monitorPath(), vm.getMonitorEventHandler())
 	if err != nil {
 		// If we fail to connect, it's most likely because the VM is already off.
 		op.Done(nil)
@@ -2050,7 +2069,7 @@ func (vm *qemu) Stop(stateful bool) error {
 // Unfreeze restores the instance to running.
 func (vm *qemu) Unfreeze() error {
 	// Connect to the monitor.
-	monitor, err := qmp.Connect(vm.getMonitorPath(), vm.getMonitorEventHandler())
+	monitor, err := qmp.Connect(vm.monitorPath(), vm.getMonitorEventHandler())
 	if err != nil {
 		return err
 	}
@@ -3421,7 +3440,7 @@ func (vm *qemu) Console() (*os.File, chan error, error) {
 	vmConsoleLock.Unlock()
 
 	// Connect to the monitor.
-	monitor, err := qmp.Connect(vm.getMonitorPath(), vm.getMonitorEventHandler())
+	monitor, err := qmp.Connect(vm.monitorPath(), vm.getMonitorEventHandler())
 	if err != nil {
 		return nil, nil, err // The VM isn't running as no monitor socket available.
 	}
@@ -3792,7 +3811,7 @@ func (vm *qemu) diskState() (map[string]api.InstanceStateDisk, error) {
 // an API call to get the current state.
 func (vm *qemu) agentGetState() (*api.InstanceState, error) {
 	// Check if the agent is running.
-	monitor, err := qmp.Connect(vm.getMonitorPath(), vm.getMonitorEventHandler())
+	monitor, err := qmp.Connect(vm.monitorPath(), vm.getMonitorEventHandler())
 	if err != nil {
 		return nil, err
 	}
@@ -3909,7 +3928,7 @@ func (vm *qemu) InitPID() int {
 
 func (vm *qemu) statusCode() api.StatusCode {
 	// Connect to the monitor.
-	monitor, err := qmp.Connect(vm.getMonitorPath(), vm.getMonitorEventHandler())
+	monitor, err := qmp.Connect(vm.monitorPath(), vm.getMonitorEventHandler())
 	if err != nil {
 		// If we fail to connect, chances are the VM isn't running.
 		return api.Stopped

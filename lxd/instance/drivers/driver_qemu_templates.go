@@ -132,6 +132,12 @@ driver = "virtio-rng-ccw"
 # Console
 [chardev "console"]
 backend = "pty"
+
+# Graphical console
+[spice]
+unix = "on"
+addr = "{{.spicePath}}"
+disable-ticketing = "on"
 `))
 
 var qemuMemory = template.Must(template.New("qemuMemory").Parse(`
@@ -163,6 +169,31 @@ addr = "0x0"
 {{end -}}
 {{- else}}
 driver = "vhost-vsock-ccw"
+{{- end}}
+`))
+
+var qemuVGA = template.Must(template.New("qemuVGA").Parse(`
+# VGA
+{{if eq .architecture "x86_64" "aarch64" -}}
+[device "qemu_pcie{{.chassisIndex}}"]
+driver = "pcie-root-port"
+port = "0x4"
+chassis = "{{.chassisIndex}}"
+bus = "pcie.0"
+addr = "0x4.0x1"
+{{- end }}
+
+[device "dev-qemu_vga"]
+{{if ne .architecture "s390x" -}}
+driver = "virtio-vga"
+{{- if eq .architecture "ppc64le"}}
+bus = "pci.0"
+{{- else}}
+bus = "qemu_pcie{{.chassisIndex}}"
+addr = "0x0"
+{{- end}}
+{{- else}}
+driver = "virtio-gpu-ccw"
 {{- end}}
 `))
 
