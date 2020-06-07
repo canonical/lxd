@@ -138,7 +138,6 @@ func (r *Server) StartStatusCheck() {
 
 			resp, err := r.client.Do(req)
 			if err != nil {
-				resp.Body.Close()
 				if err == context.Canceled {
 					return
 				}
