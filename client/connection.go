@@ -123,6 +123,15 @@ func ConnectLXDUnix(path string, args *ConnectionArgs) (InstanceServer, error) {
 		args = &ConnectionArgs{}
 	}
 
+	// Initialize the client struct
+	server := ProtocolLXD{
+		httpHost:      "http://unix.socket",
+		httpUnixPath:  path,
+		httpProtocol:  "unix",
+		httpUserAgent: args.UserAgent,
+		chConnected:   make(chan struct{}, 1),
+	}
+
 	// Determine the socket path
 	if path == "" {
 		path = os.Getenv("LXD_SOCKET")
@@ -137,15 +146,6 @@ func ConnectLXDUnix(path string, args *ConnectionArgs) (InstanceServer, error) {
 	}
 
 	path = shared.HostPath(path)
-
-	// Initialize the client struct
-	server := ProtocolLXD{
-		httpHost:      "http://unix.socket",
-		httpUnixPath:  path,
-		httpProtocol:  "unix",
-		httpUserAgent: args.UserAgent,
-		chConnected:   make(chan struct{}, 1),
-	}
 
 	// Setup the HTTP client
 	httpClient, err := unixHTTPClient(args.HTTPClient, path)
