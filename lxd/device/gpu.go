@@ -33,7 +33,7 @@ type gpu struct {
 
 // validateConfig checks the supplied config for correctness.
 func (d *gpu) validateConfig(instConf instance.ConfigReader) error {
-	if !instanceSupported(instConf.Type(), instancetype.Container) {
+	if !instanceSupported(instConf.Type(), instancetype.Container, instancetype.VM) {
 		return ErrUnsupportedDevType
 	}
 
@@ -52,12 +52,28 @@ func (d *gpu) validateConfig(instConf instance.ConfigReader) error {
 		return err
 	}
 
-	if d.config["pci"] != "" && (d.config["id"] != "" || d.config["productid"] != "" || d.config["vendorid"] != "") {
-		return fmt.Errorf("Cannot use id, productid or vendorid when pci is set")
+	if d.config["pci"] != "" {
+		for _, field := range []string{"id", "productid", "vendorid"} {
+			if d.config[field] != "" {
+				return fmt.Errorf(`Cannot use %q when when "pci" is set`, field)
+			}
+		}
 	}
 
-	if d.config["id"] != "" && (d.config["pci"] != "" || d.config["productid"] != "" || d.config["vendorid"] != "") {
-		return fmt.Errorf("Cannot use pci, productid or vendorid when id is set")
+	if d.config["id"] != "" {
+		for _, field := range []string{"pci", "productid", "vendorid"} {
+			if d.config[field] != "" {
+				return fmt.Errorf(`Cannot use %q when when "id" is set`, field)
+			}
+		}
+	}
+
+	if instConf.Type() == instancetype.VM {
+		for _, field := range []string{"uid", "gid", "mode"} {
+			if d.config[field] != "" {
+				return fmt.Errorf("Cannot use %q when instannce type is VM", field)
+			}
+		}
 	}
 
 	return nil
