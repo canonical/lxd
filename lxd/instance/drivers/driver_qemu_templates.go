@@ -349,9 +349,26 @@ fd = "{{.tapFD}}"
 
 // Devices use "lxd_" prefix indicating that this is a user named device.
 var qemuNetdevPhysical = template.Must(template.New("qemuNetdevPhysical").Parse(`
+{{if eq .architecture "x86_64" "aarch64" -}}
+[device "qemu_pcie{{.chassisIndex}}"]
+driver = "pcie-root-port"
+port = "0x{{.nicIndex}}"
+chassis = "{{.chassisIndex}}"
+bus = "pcie.0"
+addr = "0x4.0x{{.nicIndex}}"
+multifunction = "on"
+{{- end }}
+
 # Network card ("{{.devName}}" device)
 [device "dev-lxd_{{.devName}}"]
 driver = "vfio-pci"
 host = "{{.pciSlotName}}"
 bootindex = "{{.bootIndex}}"
+{{if eq .architecture "ppc64le" -}}
+bus = "pci.0"
+{{else -}}
+bus = "qemu_pcie{{.chassisIndex}}"
+addr = "0x0"
+{{end -}}
+
 `))
