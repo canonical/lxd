@@ -1552,15 +1552,34 @@ func (vm *qemu) generateQemuConfigFile(devConfs []*deviceConfig.RunConfig, fdFil
 	var sb *strings.Builder = &strings.Builder{}
 
 	err := qemuBase.Execute(sb, map[string]interface{}{
-		"architecture":     vm.architectureName,
-		"ringbufSizeBytes": qmp.RingbufSize,
-		"spicePath":        vm.spicePath(),
+		"architecture": vm.architectureName,
+		"spicePath":    vm.spicePath(),
 	})
 	if err != nil {
 		return "", err
 	}
 
 	// Now add the dynamic parts of the config.
+	err = vm.addSerialConfig(sb)
+	if err != nil {
+		return "", err
+	}
+
+	err = vm.addSCSIConfig(sb)
+	if err != nil {
+		return "", err
+	}
+
+	err = vm.addBalloonConfig(sb)
+	if err != nil {
+		return "", err
+	}
+
+	err = vm.addRNGConfig(sb)
+	if err != nil {
+		return "", err
+	}
+
 	err = vm.addMemoryConfig(sb)
 	if err != nil {
 		return "", err
@@ -1685,6 +1704,35 @@ func (vm *qemu) addVsockConfig(sb *strings.Builder) error {
 	return qemuVsock.Execute(sb, map[string]interface{}{
 		"architecture": vm.architectureName,
 		"vsockID":      vm.vsockID(),
+	})
+}
+
+// addSerialConfig adds the qemu config required for setting up the host->VM vsock socket.
+func (vm *qemu) addSerialConfig(sb *strings.Builder) error {
+	return qemuSerial.Execute(sb, map[string]interface{}{
+		"architecture":     vm.architectureName,
+		"ringbufSizeBytes": qmp.RingbufSize,
+	})
+}
+
+// addSCSIConfig adds the qemu config required for setting up the host->VM vsock socket.
+func (vm *qemu) addSCSIConfig(sb *strings.Builder) error {
+	return qemuSCSI.Execute(sb, map[string]interface{}{
+		"architecture": vm.architectureName,
+	})
+}
+
+// addBalloonConfig adds the qemu config required for setting up the host->VM vsock socket.
+func (vm *qemu) addBalloonConfig(sb *strings.Builder) error {
+	return qemuBalloon.Execute(sb, map[string]interface{}{
+		"architecture": vm.architectureName,
+	})
+}
+
+// addRNGConfig adds the qemu config required for setting up the host->VM vsock socket.
+func (vm *qemu) addRNGConfig(sb *strings.Builder) error {
+	return qemuRNG.Execute(sb, map[string]interface{}{
+		"architecture": vm.architectureName,
 	})
 }
 
