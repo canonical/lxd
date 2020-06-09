@@ -512,20 +512,21 @@ Input (instance based on a local image with the "ubuntu/devel" alias):
 
 ```js
 {
-    "name": "my-new-instance",                                          // 64 chars max, ASCII, no slash, no colon and no comma
+    "name": "my-new-instance",                    // 64 chars max, ASCII, no slash, no colon and no comma
     "architecture": "x86_64",
-    "profiles": ["default"],                                            // List of profiles
-    "ephemeral": true,                                                  // Whether to destroy the instance on shutdown
-    "config": {"limits.cpu": "2"},                                      // Config override.
-    "devices": {                                                        // Optional list of devices the instance should have
+    "profiles": ["default"],                      // List of profiles
+    "ephemeral": true,                            // Whether to destroy the instance on shutdown
+    "config": {"limits.cpu": "2"},                // Config override.
+    "type": "container",                          // Optional Can be: "virtual-machine", "container" by default it set to "container"
+    "devices": {                                  // Optional list of devices the instance should have
         "kvm": {
             "path": "/dev/kvm",
             "type": "unix-char"
         },
     },
-    "instance_type": "c2.micro",                                        // An optional instance type to use as basis for limits
-    "source": {"type": "image",                                         // Can be: "image", "migration", "copy" or "none"
-               "alias": "ubuntu/devel"},                                // Name of the alias
+    "instance_type": "c2.micro",                  // An optional instance type to use as basis for limits
+    "source": {"type": "image",                   // Can be: "image", "migration", "copy" or "none"
+               "alias": "ubuntu/devel"},          // Name of the alias
 }
 ```
 
@@ -533,19 +534,20 @@ Input (instance based on a local image identified by its fingerprint):
 
 ```js
 {
-    "name": "my-new-instance",                                          // 64 chars max, ASCII, no slash, no colon and no comma
+    "name": "my-new-instance",                    // 64 chars max, ASCII, no slash, no colon and no comma
     "architecture": "x86_64",
-    "profiles": ["default"],                                            // List of profiles
-    "ephemeral": true,                                                  // Whether to destroy the instance on shutdown
-    "config": {"limits.cpu": "2"},                                      // Config override.
-    "devices": {                                                        // Optional list of devices the instance should have
+    "profiles": ["default"],                      // List of profiles
+    "ephemeral": true,                            // Whether to destroy the instance on shutdown
+    "config": {"limits.cpu": "2"},                // Config override.
+     "type": "container",                         // Optional Can be: "virtual-machine", "container" by default it set to "container"
+    "devices": {                                  // Optional list of devices the instance should have
         "kvm": {
             "path": "/dev/kvm",
             "type": "unix-char"
         },
     },
-    "source": {"type": "image",                                         // Can be: "image", "migration", "copy" or "none"
-               "fingerprint": "SHA-256"},                               // Fingerprint
+    "source": {"type": "image",                   // Can be: "image", "migration", "copy" or "none"
+               "fingerprint": "SHA-256"},         // Fingerprint
 }
 ```
 
@@ -553,19 +555,20 @@ Input (instance based on most recent match based on image properties):
 
 ```js
 {
-    "name": "my-new-instance",                                          // 64 chars max, ASCII, no slash, no colon and no comma
+    "name": "my-new-instance",                    // 64 chars max, ASCII, no slash, no colon and no comma
     "architecture": "x86_64",
-    "profiles": ["default"],                                            // List of profiles
-    "ephemeral": true,                                                  // Whether to destroy the instance on shutdown
-    "config": {"limits.cpu": "2"},                                      // Config override.
-    "devices": {                                                        // Optional list of devices the instance should have
+    "profiles": ["default"],                      // List of profiles
+    "ephemeral": true,                            // Whether to destroy the instance on shutdown
+    "config": {"limits.cpu": "2"},                // Config override can be empty.
+    "type": "container",                          // Optional Can be: "virtual-machine", "container" by default it set to "container"
+    "devices": {                                  // Optional list of devices the instance should have
         "kvm": {
             "path": "/dev/kvm",
             "type": "unix-char"
         },
     },
-    "source": {"type": "image",                                         // Can be: "image", "migration", "copy" or "none"
-               "properties": {                                          // Properties
+    "source": {"type": "image",                   // Can be: "image", "migration", "copy" or "none"
+               "properties": {                    // Properties
                     "os": "ubuntu",
                     "release": "18.04",
                     "architecture": "x86_64"
@@ -577,18 +580,19 @@ Input (instance without a pre-populated rootfs, useful when attaching to an exis
 
 ```js
 {
-    "name": "my-new-instance",                                          // 64 chars max, ASCII, no slash, no colon and no comma
+    "name": "my-new-instance",                    // 64 chars max, ASCII, no slash, no colon and no comma
     "architecture": "x86_64",
-    "profiles": ["default"],                                            // List of profiles
-    "ephemeral": true,                                                  // Whether to destroy the instance on shutdown
-    "config": {"limits.cpu": "2"},                                      // Config override.
-    "devices": {                                                        // Optional list of devices the instance should have
+    "profiles": ["default"],                      // List of profiles
+    "ephemeral": true,                            // Whether to destroy the instance on shutdown
+    "config": {"limits.cpu": "2"},                // Config override.
+    "type": "container",                          // Optional Can be: "virtual-machine", "container" by default it set to "container"
+    "devices": {                                  // Optional list of devices the instance should have
         "kvm": {
             "path": "/dev/kvm",
             "type": "unix-char"
         },
     },
-    "source": {"type": "none"},                                         // Can be: "image", "migration", "copy" or "none"
+    "source": {"type": "none"},                   // Can be: "image", "migration", "copy" or "none"
 }
 ```
 
@@ -596,23 +600,24 @@ Input (using a public remote image):
 
 ```js
 {
-    "name": "my-new-instance",                                          // 64 chars max, ASCII, no slash, no colon and no comma
+    "name": "my-new-instance",                    // 64 chars max, ASCII, no slash, no colon and no comma
     "architecture": "x86_64",
-    "profiles": ["default"],                                            // List of profiles
-    "ephemeral": true,                                                  // Whether to destroy the instance on shutdown
-    "config": {"limits.cpu": "2"},                                      // Config override.
-    "devices": {                                                        // Optional list of devices the instance should have
+    "profiles": ["default"],                      // List of profiles
+    "ephemeral": true,                            // Whether to destroy the instance on shutdown
+    "config": {"limits.cpu": "2"},                // Config override.
+    "type": "container",                          // Optional Can be: "virtual-machine", "container" by default it set to "container"
+    "devices": {                                  // Optional list of devices the instance should have
         "kvm": {
             "path": "/dev/kvm",
             "type": "unix-char"
         },
     },
-    "source": {"type": "image",                                         // Can be: "image", "migration", "copy" or "none"
-               "mode": "pull",                                          // One of "local" (default) or "pull"
-               "server": "https://10.0.2.3:8443",                       // Remote server (pull mode only)
-               "protocol": "lxd",                                       // Protocol (one of lxd or simplestreams, defaults to lxd)
-               "certificate": "PEM certificate",                        // Optional PEM certificate. If not mentioned, system CA is used.
-               "alias": "ubuntu/devel"},                                // Name of the alias
+    "source": {"type": "image",                   // Can be: "image", "migration", "copy" or "none"
+               "mode": "pull",                    // One of "local" (default) or "pull"
+               "server": "https://10.0.2.3:8443", // Remote server (pull mode only)
+               "protocol": "lxd",                 // Protocol (one of lxd or simplestreams, defaults to lxd)
+               "certificate": "PEM certificate",  // Optional PEM certificate. If not mentioned, system CA is used.
+               "alias": "ubuntu/devel"},          // Name of the alias
 }
 ```
 
@@ -620,23 +625,24 @@ Input (using a private remote image after having obtained a secret for that imag
 
 ```js
 {
-    "name": "my-new-instance",                                          // 64 chars max, ASCII, no slash, no colon and no comma
+    "name": "my-new-instance",                    // 64 chars max, ASCII, no slash, no colon and no comma
     "architecture": "x86_64",
-    "profiles": ["default"],                                            // List of profiles
-    "ephemeral": true,                                                  // Whether to destroy the instance on shutdown
-    "config": {"limits.cpu": "2"},                                      // Config override.
-    "devices": {                                                        // Optional list of devices the instance should have
+    "profiles": ["default"],                      // List of profiles
+    "ephemeral": true,                            // Whether to destroy the instance on shutdown
+    "config": {"limits.cpu": "2"},                // Config override.
+    "type": "container",                          // Optional Can be: "virtual-machine", "container" by default it set to "container"
+    "devices": {                                  // Optional list of devices the instance should have
         "kvm": {
             "path": "/dev/kvm",
             "type": "unix-char"
         },
     },
-    "source": {"type": "image",                                         // Can be: "image", "migration", "copy" or "none"
-               "mode": "pull",                                          // One of "local" (default) or "pull"
-               "server": "https://10.0.2.3:8443",                       // Remote server (pull mode only)
-               "secret": "my-secret-string",                            // Secret to use to retrieve the image (pull mode only)
-               "certificate": "PEM certificate",                        // Optional PEM certificate. If not mentioned, system CA is used.
-               "alias": "ubuntu/devel"},                                // Name of the alias
+    "source": {"type": "image",                   // Can be: "image", "migration", "copy" or "none"
+               "mode": "pull",                    // One of "local" (default) or "pull"
+               "server": "https://10.0.2.3:8443", // Remote server (pull mode only)
+               "secret": "my-secret-string",      // Secret to use to retrieve the image (pull mode only)
+               "certificate": "PEM certificate",  // Optional PEM certificate. If not mentioned, system CA is used.
+               "alias": "ubuntu/devel"},          // Name of the alias
 }
 ```
 
@@ -644,24 +650,25 @@ Input (using a remote instance, sent over the migration websocket):
 
 ```js
 {
-    "name": "my-new-instance",                                                      // 64 chars max, ASCII, no slash, no colon and no comma
+    "name": "my-new-instance",                    // 64 chars max, ASCII, no slash, no colon and no comma
     "architecture": "x86_64",
-    "profiles": ["default"],                                                        // List of profiles
-    "ephemeral": true,                                                              // Whether to destroy the instance on shutdown
-    "config": {"limits.cpu": "2"},                                                  // Config override.
-    "devices": {                                                                    // Optional list of devices the instance should have
+    "profiles": ["default"],                      // List of profiles
+    "ephemeral": true,                            // Whether to destroy the instance on shutdown
+    "config": {"limits.cpu": "2"},                // Config override.
+    "type": "container",                          // Optional Can be: "virtual-machine", "container" by default it set to "container"
+    "devices": {                                  // Optional list of devices the instance should have
         "kvm": {
             "path": "/dev/kvm",
             "type": "unix-char"
         },
     },
-    "source": {"type": "migration",                                                 // Can be: "image", "migration", "copy" or "none"
-               "mode": "pull",                                                      // "pull" and "push" is supported for now
-               "operation": "https://10.0.2.3:8443/1.0/operations/<UUID>",          // Full URL to the remote operation (pull mode only)
-               "certificate": "PEM certificate",                                    // Optional PEM certificate. If not mentioned, system CA is used.
-               "base-image": "<fingerprint>",                                       // Optional, the base image the instance was created from
-               "instance_only": true,                                               // Whether to migrate only the instance without snapshots. Can be "true" or "false".
-               "secrets": {"control": "my-secret-string",                           // Secrets to use when talking to the migration source
+    "source": {"type": "migration",                                         // Can be: "image", "migration", "copy" or "none"
+               "mode": "pull",                                              // "pull" and "push" is supported for now
+               "operation": "https://10.0.2.3:8443/1.0/operations/<UUID>",  // Full URL to the remote operation (pull mode only)
+               "certificate": "PEM certificate",                            // Optional PEM certificate. If not mentioned, system CA is used.
+               "base-image": "<fingerprint>",                               // Optional, the base image the instance was created from
+               "instance_only": true,                                       // Whether to migrate only the instance without snapshots. Can be "true" or "false".
+               "secrets": {"control": "my-secret-string",                   // Secrets to use when talking to the migration source
                            "criu":    "my-other-secret",
                            "fs":      "my third secret"}
     }
@@ -672,19 +679,20 @@ Input (using a local instance):
 
 ```js
 {
-    "name": "my-new-instance",                                                      // 64 chars max, ASCII, no slash, no colon and no comma
-    "profiles": ["default"],                                                        // List of profiles
-    "ephemeral": true,                                                              // Whether to destroy the instance on shutdown
-    "config": {"limits.cpu": "2"},                                                  // Config override.
-    "devices": {                                                                    // Optional list of devices the instance should have
+    "name": "my-new-instance",                       // 64 chars max, ASCII, no slash, no colon and no comma
+    "profiles": ["default"],                         // List of profiles
+    "ephemeral": true,                               // Whether to destroy the instance on shutdown
+    "config": {"limits.cpu": "2"},                   // Config override.
+    "type": "container",                             // Optional Can be: "virtual-machine", "container" by default it set to "container"
+    "devices": {                                     // Optional list of devices the instance should have
         "kvm": {
             "path": "/dev/kvm",
             "type": "unix-char"
         },
     },
-    "source": {"type": "copy",                                                      // Can be: "image", "migration", "copy" or "none"
-               "instance_only": true,                                               // Whether to copy only the instance without snapshots. Can be "true" or "false".
-               "source": "my-old-instance"}                                         // Name of the source instance
+    "source": {"type": "copy",                       // Can be: "image", "migration", "copy" or "none"
+               "instance_only": true,                // Whether to copy only the instance without snapshots. Can be "true" or "false".
+               "source": "my-old-instance"}          // Name of the source instance
 }
 ```
 
@@ -692,22 +700,23 @@ Input (using a remote instance, in push mode sent over the migration websocket v
 
 ```js
 {
-    "name": "my-new-instance",                                                      // 64 chars max, ASCII, no slash, no colon and no comma
+    "name": "my-new-instance",                       // 64 chars max, ASCII, no slash, no colon and no comma
     "architecture": "x86_64",
-    "profiles": ["default"],                                                        // List of profiles
-    "ephemeral": true,                                                              // Whether to destroy the instance on shutdown
-    "config": {"limits.cpu": "2"},                                                  // Config override.
-    "devices": {                                                                    // Optional list of devices the instance should have
+    "profiles": ["default"],                         // List of profiles
+    "ephemeral": true,                               // Whether to destroy the instance on shutdown
+    "config": {"limits.cpu": "2"},                   // Config override can be empty.
+    "type": "container",                             // Optional Can be: "virtual-machine", "container" by default it set to "container"
+    "devices": {                                     // Optional list of devices the instance should have
         "kvm": {
             "path": "/dev/kvm",
             "type": "unix-char"
         },
     },
-    "source": {"type": "migration",                                                 // Can be: "image", "migration", "copy" or "none"
-               "mode": "push",                                                      // "pull" and "push" are supported
-               "base-image": "<fingerprint>",                                       // Optional, the base image the instance was created from
-               "live": true,                                                        // Whether migration is performed live
-               "instance_only": true}                                               // Whether to migrate only the instance without snapshots. Can be "true" or "false".
+    "source": {"type": "migration",                  // Can be: "image", "migration", "copy" or "none"
+               "mode": "push",                       // "pull" and "push" are supported
+               "base-image": "<fingerprint>",        // Optional, the base image the instance was created from
+               "live": true,                         // Whether migration is performed live
+               "instance_only": true}                // Whether to migrate only the instance without snapshots. Can be "true" or "false".
 }
 ```
 
