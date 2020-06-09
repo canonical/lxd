@@ -41,6 +41,24 @@ value = "1"
 [boot-opts]
 strict = "on"
 
+# Console
+[chardev "console"]
+backend = "pty"
+
+# Graphical console
+[spice]
+unix = "on"
+addr = "{{.spicePath}}"
+disable-ticketing = "on"
+`))
+
+var qemuMemory = template.Must(template.New("qemuMemory").Parse(`
+# Memory
+[memory]
+size = "{{.memSizeBytes}}B"
+`))
+
+var qemuSerial = template.Must(template.New("qemuSerial").Parse(`
 # LXD serial identifier
 [device]
 driver = "virtio-serial"
@@ -53,7 +71,9 @@ chardev = "vserial"
 [chardev "vserial"]
 backend = "ringbuf"
 size = "{{.ringbufSizeBytes}}B"
+`))
 
+var qemuSCSI = template.Must(template.New("qemuSCSI").Parse(`
 # SCSI controller
 {{- if eq .architecture "x86_64" "aarch64" }}
 [device "qemu_pcie1"]
@@ -77,7 +97,9 @@ addr = "0x0"
 {{- else}}
 driver = "virtio-scsi-ccw"
 {{- end}}
+`))
 
+var qemuBalloon = template.Must(template.New("qemuBalloon").Parse(`
 # Balloon driver
 {{- if eq .architecture "x86_64" "aarch64" }}
 [device "qemu_pcie2"]
@@ -100,7 +122,9 @@ addr = "0x0"
 {{- else}}
 driver = "virtio-balloon-ccw"
 {{- end}}
+`))
 
+var qemuRNG = template.Must(template.New("qemuRNG").Parse(`
 # Random number generator
 [object "qemu_rng"]
 qom-type = "rng-random"
@@ -128,22 +152,6 @@ addr = "0x0"
 {{- else}}
 driver = "virtio-rng-ccw"
 {{- end}}
-
-# Console
-[chardev "console"]
-backend = "pty"
-
-# Graphical console
-[spice]
-unix = "on"
-addr = "{{.spicePath}}"
-disable-ticketing = "on"
-`))
-
-var qemuMemory = template.Must(template.New("qemuMemory").Parse(`
-# Memory
-[memory]
-size = "{{.memSizeBytes}}B"
 `))
 
 var qemuVsock = template.Must(template.New("qemuVsock").Parse(`

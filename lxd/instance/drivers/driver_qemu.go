@@ -1552,15 +1552,34 @@ func (vm *qemu) generateQemuConfigFile(devConfs []*deviceConfig.RunConfig, fdFil
 	var sb *strings.Builder = &strings.Builder{}
 
 	err := qemuBase.Execute(sb, map[string]interface{}{
-		"architecture":     vm.architectureName,
-		"ringbufSizeBytes": qmp.RingbufSize,
-		"spicePath":        vm.spicePath(),
+		"architecture": vm.architectureName,
+		"spicePath":    vm.spicePath(),
 	})
 	if err != nil {
 		return "", err
 	}
 
 	// Now add the dynamic parts of the config.
+	err = vm.addSerialConfig(sb)
+	if err != nil {
+		return "", err
+	}
+
+	err = vm.addSCSIConfig(sb)
+	if err != nil {
+		return "", err
+	}
+
+	err = vm.addBalloonConfig(sb)
+	if err != nil {
+		return "", err
+	}
+
+	err = vm.addRNGConfig(sb)
+	if err != nil {
+		return "", err
+	}
+
 	err = vm.addMemoryConfig(sb)
 	if err != nil {
 		return "", err
@@ -1691,7 +1710,36 @@ func (vm *qemu) addVsockConfig(sb *strings.Builder) error {
 	})
 }
 
-// addVGAConfig adds the qemu config required for setting up the host->VM vsock socket.
+// addSerialConfig adds the qemu config required for the identifier serial device.
+func (vm *qemu) addSerialConfig(sb *strings.Builder) error {
+	return qemuSerial.Execute(sb, map[string]interface{}{
+		"architecture":     vm.architectureName,
+		"ringbufSizeBytes": qmp.RingbufSize,
+	})
+}
+
+// addSCSIConfig adds the qemu config required for SCSI devices.
+func (vm *qemu) addSCSIConfig(sb *strings.Builder) error {
+	return qemuSCSI.Execute(sb, map[string]interface{}{
+		"architecture": vm.architectureName,
+	})
+}
+
+// addBalloonConfig adds the qemu config required for the memory balloon drive.
+func (vm *qemu) addBalloonConfig(sb *strings.Builder) error {
+	return qemuBalloon.Execute(sb, map[string]interface{}{
+		"architecture": vm.architectureName,
+	})
+}
+
+// addRNGConfig adds the qemu config required for the random number generator.
+func (vm *qemu) addRNGConfig(sb *strings.Builder) error {
+	return qemuRNG.Execute(sb, map[string]interface{}{
+		"architecture": vm.architectureName,
+	})
+}
+
+// addVGAConfig adds the qemu config required for the default graphics card.
 func (vm *qemu) addVGAConfig(sb *strings.Builder, chassisIndex int, gpuIndex int) error {
 	return qemuVGA.Execute(sb, map[string]interface{}{
 		"architecture": vm.architectureName,
