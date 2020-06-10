@@ -1560,22 +1560,31 @@ func (vm *qemu) generateQemuConfigFile(devConfs []*deviceConfig.RunConfig, fdFil
 	}
 
 	// Now add the dynamic parts of the config.
-	err = vm.addSerialConfig(sb)
+	err = qemuSerial.Execute(sb, map[string]interface{}{
+		"architecture":     vm.architectureName,
+		"ringbufSizeBytes": qmp.RingbufSize,
+	})
 	if err != nil {
 		return "", err
 	}
 
-	err = vm.addSCSIConfig(sb)
+	err = qemuSCSI.Execute(sb, map[string]interface{}{
+		"architecture": vm.architectureName,
+	})
 	if err != nil {
 		return "", err
 	}
 
-	err = vm.addBalloonConfig(sb)
+	err = qemuBalloon.Execute(sb, map[string]interface{}{
+		"architecture": vm.architectureName,
+	})
 	if err != nil {
 		return "", err
 	}
 
-	err = vm.addRNGConfig(sb)
+	err = qemuRNG.Execute(sb, map[string]interface{}{
+		"architecture": vm.architectureName,
+	})
 	if err != nil {
 		return "", err
 	}
@@ -1590,17 +1599,24 @@ func (vm *qemu) generateQemuConfigFile(devConfs []*deviceConfig.RunConfig, fdFil
 		return "", err
 	}
 
-	err = vm.addFirmwareConfig(sb)
+	err = qemuDriveFirmware.Execute(sb, map[string]interface{}{
+		"architecture": vm.architectureName,
+		"roPath":       filepath.Join(vm.ovmfPath(), "OVMF_CODE.fd"),
+		"nvramPath":    vm.nvramPath(),
+	})
+
+	err = qemuVsock.Execute(sb, map[string]interface{}{
+		"architecture": vm.architectureName,
+		"vsockID":      vm.vsockID(),
+	})
 	if err != nil {
 		return "", err
 	}
 
-	err = vm.addVsockConfig(sb)
-	if err != nil {
-		return "", err
-	}
-
-	err = vm.addMonitorConfig(sb)
+	err = qemuControlSocket.Execute(sb, map[string]interface{}{
+		"architecture": vm.architectureName,
+		"path":         vm.monitorPath(),
+	})
 	if err != nil {
 		return "", err
 	}
@@ -1613,14 +1629,22 @@ func (vm *qemu) generateQemuConfigFile(devConfs []*deviceConfig.RunConfig, fdFil
 	gpuIndex := 0
 	chassisIndex := 5 // Internal devices defined in the templates use indexes 1-4.
 
-	err = vm.addConfDriveConfig(sb, diskIndex)
+	err = qemuDriveConfig.Execute(sb, map[string]interface{}{
+		"architecture": vm.architectureName,
+		"path":         filepath.Join(vm.Path(), "config"),
+		"diskIndex":    diskIndex,
+	})
 	if err != nil {
 		return "", err
 	}
 	diskIndex++ // The config drive is a 9p device which uses a PCIe function so increment index.
 
 	// GPU for console.
-	err = vm.addVGAConfig(sb, chassisIndex, gpuIndex)
+	err = qemuVGA.Execute(sb, map[string]interface{}{
+		"architecture": vm.architectureName,
+		"chassisIndex": chassisIndex,
+		"gpuIndex":     gpuIndex,
+	})
 	if err != nil {
 		return "", err
 	}
@@ -1702,52 +1726,6 @@ func (vm *qemu) addMemoryConfig(sb *strings.Builder) error {
 	})
 }
 
-// addVsockConfig adds the qemu config required for setting up the host->VM vsock socket.
-func (vm *qemu) addVsockConfig(sb *strings.Builder) error {
-	return qemuVsock.Execute(sb, map[string]interface{}{
-		"architecture": vm.architectureName,
-		"vsockID":      vm.vsockID(),
-	})
-}
-
-// addSerialConfig adds the qemu config required for the identifier serial device.
-func (vm *qemu) addSerialConfig(sb *strings.Builder) error {
-	return qemuSerial.Execute(sb, map[string]interface{}{
-		"architecture":     vm.architectureName,
-		"ringbufSizeBytes": qmp.RingbufSize,
-	})
-}
-
-// addSCSIConfig adds the qemu config required for SCSI devices.
-func (vm *qemu) addSCSIConfig(sb *strings.Builder) error {
-	return qemuSCSI.Execute(sb, map[string]interface{}{
-		"architecture": vm.architectureName,
-	})
-}
-
-// addBalloonConfig adds the qemu config required for the memory balloon drive.
-func (vm *qemu) addBalloonConfig(sb *strings.Builder) error {
-	return qemuBalloon.Execute(sb, map[string]interface{}{
-		"architecture": vm.architectureName,
-	})
-}
-
-// addRNGConfig adds the qemu config required for the random number generator.
-func (vm *qemu) addRNGConfig(sb *strings.Builder) error {
-	return qemuRNG.Execute(sb, map[string]interface{}{
-		"architecture": vm.architectureName,
-	})
-}
-
-// addVGAConfig adds the qemu config required for the default graphics card.
-func (vm *qemu) addVGAConfig(sb *strings.Builder, chassisIndex int, gpuIndex int) error {
-	return qemuVGA.Execute(sb, map[string]interface{}{
-		"architecture": vm.architectureName,
-		"chassisIndex": chassisIndex,
-		"gpuIndex":     gpuIndex,
-	})
-}
-
 // addCPUConfig adds the qemu config required for setting the number of virtualised CPUs.
 func (vm *qemu) addCPUConfig(sb *strings.Builder) error {
 	// Default to a single core.
@@ -1818,37 +1796,6 @@ func (vm *qemu) addCPUConfig(sb *strings.Builder) error {
 	}
 
 	return qemuCPU.Execute(sb, ctx)
-}
-
-// addMonitorConfig adds the qemu config required for setting up the host side VM monitor device.
-func (vm *qemu) addMonitorConfig(sb *strings.Builder) error {
-	return qemuControlSocket.Execute(sb, map[string]interface{}{
-		"architecture": vm.architectureName,
-		"path":         vm.monitorPath(),
-	})
-}
-
-// addFirmwareConfig adds the qemu config required for adding a secure boot compatible EFI firmware.
-func (vm *qemu) addFirmwareConfig(sb *strings.Builder) error {
-	// UEFI only on x86_64 and aarch64.
-	if !shared.IntInSlice(vm.architecture, []int{osarch.ARCH_64BIT_INTEL_X86, osarch.ARCH_64BIT_ARMV8_LITTLE_ENDIAN}) {
-		return nil
-	}
-
-	return qemuDriveFirmware.Execute(sb, map[string]interface{}{
-		"architecture": vm.architectureName,
-		"roPath":       filepath.Join(vm.ovmfPath(), "OVMF_CODE.fd"),
-		"nvramPath":    vm.nvramPath(),
-	})
-}
-
-// addConfDriveConfig adds the qemu config required for adding the config drive.
-func (vm *qemu) addConfDriveConfig(sb *strings.Builder, diskIndex int) error {
-	return qemuDriveConfig.Execute(sb, map[string]interface{}{
-		"architecture": vm.architectureName,
-		"path":         filepath.Join(vm.Path(), "config"),
-		"diskIndex":    diskIndex,
-	})
 }
 
 // addFileDescriptor adds a file path to the list of files to open and pass file descriptor to qemu.
