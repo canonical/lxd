@@ -692,7 +692,7 @@ func (vm *qemu) Start(stateful bool) error {
 	}
 
 	// Get qemu configuration.
-	qemuBinary, err := vm.qemuArchConfig()
+	qemuBinary, qemuBus, err := vm.qemuArchConfig()
 	if err != nil {
 		op.Done(err)
 		return err
@@ -701,7 +701,7 @@ func (vm *qemu) Start(stateful bool) error {
 	// Define a set of files to open and pass their file descriptors to qemu command.
 	fdFiles := make([]string, 0)
 
-	confFile, err := vm.generateQemuConfigFile(devConfs, &fdFiles)
+	confFile, err := vm.generateQemuConfigFile(qemuBus, devConfs, &fdFiles)
 	if err != nil {
 		op.Done(err)
 		return err
@@ -998,18 +998,18 @@ func (vm *qemu) setupNvram() error {
 	return nil
 }
 
-func (vm *qemu) qemuArchConfig() (string, error) {
+func (vm *qemu) qemuArchConfig() (string, string, error) {
 	if vm.architecture == osarch.ARCH_64BIT_INTEL_X86 {
-		return "qemu-system-x86_64", nil
+		return "qemu-system-x86_64", "pcie", nil
 	} else if vm.architecture == osarch.ARCH_64BIT_ARMV8_LITTLE_ENDIAN {
-		return "qemu-system-aarch64", nil
+		return "qemu-system-aarch64", "pcie", nil
 	} else if vm.architecture == osarch.ARCH_64BIT_POWERPC_LITTLE_ENDIAN {
-		return "qemu-system-ppc64", nil
+		return "qemu-system-ppc64", "pci", nil
 	} else if vm.architecture == osarch.ARCH_64BIT_S390_BIG_ENDIAN {
-		return "qemu-system-s390x", nil
+		return "qemu-system-s390x", "ccw", nil
 	}
 
-	return "", fmt.Errorf("Architecture isn't supported for virtual machines")
+	return "", "", fmt.Errorf("Architecture isn't supported for virtual machines")
 }
 
 // deviceVolatileGetFunc returns a function that retrieves a named device's volatile config and
@@ -1548,7 +1548,7 @@ func (vm *qemu) deviceBootPriorities() (map[string]int, error) {
 
 // generateQemuConfigFile writes the qemu config file and returns its location.
 // It writes the config file inside the VM's log path.
-func (vm *qemu) generateQemuConfigFile(devConfs []*deviceConfig.RunConfig, fdFiles *[]string) (string, error) {
+func (vm *qemu) generateQemuConfigFile(bus string, devConfs []*deviceConfig.RunConfig, fdFiles *[]string) (string, error) {
 	var sb *strings.Builder = &strings.Builder{}
 
 	err := qemuBase.Execute(sb, map[string]interface{}{
