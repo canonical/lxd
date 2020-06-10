@@ -177,10 +177,11 @@ var qemuVGA = template.Must(template.New("qemuVGA").Parse(`
 {{if eq .architecture "x86_64" "aarch64" -}}
 [device "qemu_pcie{{.chassisIndex}}"]
 driver = "pcie-root-port"
-port = "0x4"
+port = "0x{{.gpuIndex}}"
 chassis = "{{.chassisIndex}}"
 bus = "pcie.0"
-addr = "0x4.0x1"
+addr = "0x5.0x{{.gpuIndex}}"
+multifunction = "on"
 {{- end }}
 
 [device "dev-qemu_vga"]
