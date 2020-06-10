@@ -246,6 +246,7 @@ mode = "control"
 `))
 
 var qemuDriveFirmware = template.Must(template.New("qemuDriveFirmware").Parse(`
+{{if eq .architecture "x86_64" "aarch64" -}}
 # Firmware (read only)
 [drive]
 file = "{{.roPath}}"
@@ -260,6 +261,7 @@ file = "{{.nvramPath}}"
 if = "pflash"
 format = "raw"
 unit = "1"
+{{- end }}
 `))
 
 // Devices use "qemu_" prefix indicating that this is a internally named device.
