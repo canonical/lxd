@@ -1591,6 +1591,7 @@ func (vm *qemu) generateQemuConfigFile(devConfs []*deviceConfig.RunConfig, fdFil
 	// of each type to be added.
 	nicIndex := 0
 	diskIndex := 0
+	gpuIndex := 0
 	chassisIndex := 5 // Internal devices defined in the templates use indexes 1-4.
 
 	err = vm.addConfDriveConfig(sb, diskIndex)
@@ -1598,6 +1599,14 @@ func (vm *qemu) generateQemuConfigFile(devConfs []*deviceConfig.RunConfig, fdFil
 		return "", err
 	}
 	diskIndex++ // The config drive is a 9p device which uses a PCIe function so increment index.
+
+	// GPU for console.
+	err = vm.addVGAConfig(sb, chassisIndex, gpuIndex)
+	if err != nil {
+		return "", err
+	}
+	gpuIndex++     // The built in GPU device uses a PCIe function so increment index.
+	chassisIndex++ // The built in GPU device uses a root port so increment index.
 
 	bootIndexes, err := vm.deviceBootPriorities()
 	if err != nil {
@@ -1636,12 +1645,6 @@ func (vm *qemu) generateQemuConfigFile(devConfs []*deviceConfig.RunConfig, fdFil
 			nicIndex++
 			chassisIndex++
 		}
-	}
-
-	// GPU for console.
-	err = vm.addVGAConfig(sb, chassisIndex)
-	if err != nil {
-		return "", err
 	}
 
 	// Write the agent mount config.
@@ -1689,10 +1692,11 @@ func (vm *qemu) addVsockConfig(sb *strings.Builder) error {
 }
 
 // addVGAConfig adds the qemu config required for setting up the host->VM vsock socket.
-func (vm *qemu) addVGAConfig(sb *strings.Builder, chassisIndex int) error {
+func (vm *qemu) addVGAConfig(sb *strings.Builder, chassisIndex int, gpuIndex int) error {
 	return qemuVGA.Execute(sb, map[string]interface{}{
 		"architecture": vm.architectureName,
 		"chassisIndex": chassisIndex,
+		"gpuIndex":     gpuIndex,
 	})
 }
 
