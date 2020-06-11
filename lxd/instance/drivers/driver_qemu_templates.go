@@ -60,68 +60,71 @@ size = "{{.memSizeBytes}}B"
 
 var qemuSerial = template.Must(template.New("qemuSerial").Parse(`
 # LXD serial identifier
-[device]
-driver = "virtio-serial"
+[device "dev-qemu_serial"]
+{{- if eq .bus "pci" "pcie"}}
+driver = "virtio-serial-pci"
+bus = "{{.devBus}}"
+addr = "{{.devAddr}}"
+{{- end}}
+{{if eq .bus "ccw" -}}
+driver = "virtio-serial-ccw"
+{{- end}}
+{{if .multifunction -}}
+multifunction = "on"
+{{- end }}
 
-[device]
-driver = "virtserialport"
-name = "org.linuxcontainers.lxd"
-chardev = "vserial"
-
-[chardev "vserial"]
+[chardev "qemu_serial-chardev"]
 backend = "ringbuf"
 size = "{{.ringbufSizeBytes}}B"
+
+[device "qemu_serial"]
+driver = "virtserialport"
+name = "org.linuxcontainers.lxd"
+chardev = "qemu_serial-chardev"
+bus = "dev-qemu_serial.0"
+`))
+
+var qemuPCIe = template.Must(template.New("qemuPCIe").Parse(`
+[device "qemu_pcie{{.index}}"]
+driver = "pcie-root-port"
+bus = "pcie.0"
+addr = "{{.addr}}"
+chassis = "{{.index}}"
+{{if .multifunction -}}
+multifunction = "on"
+{{- end }}
 `))
 
 var qemuSCSI = template.Must(template.New("qemuSCSI").Parse(`
 # SCSI controller
-{{- if eq .architecture "x86_64" "aarch64" }}
-[device "qemu_pcie1"]
-driver = "pcie-root-port"
-port = "0x10"
-chassis = "1"
-bus = "pcie.0"
-multifunction = "on"
-addr = "0x2"
-{{- end }}
-
 [device "qemu_scsi"]
-{{- if ne .architecture "s390x"}}
+{{- if eq .bus "pci" "pcie"}}
 driver = "virtio-scsi-pci"
-{{- if eq .architecture "ppc64le" }}
-bus = "pci.0"
-{{- else}}
-bus = "qemu_pcie1"
-addr = "0x0"
+bus = "{{.devBus}}"
+addr = "{{.devAddr}}"
 {{- end}}
-{{- else}}
+{{if eq .bus "ccw" -}}
 driver = "virtio-scsi-ccw"
 {{- end}}
+{{if .multifunction -}}
+multifunction = "on"
+{{- end }}
 `))
 
 var qemuBalloon = template.Must(template.New("qemuBalloon").Parse(`
 # Balloon driver
-{{- if eq .architecture "x86_64" "aarch64" }}
-[device "qemu_pcie2"]
-driver = "pcie-root-port"
-port = "0x11"
-chassis = "2"
-bus = "pcie.0"
-addr = "0x2.0x1"
-{{- end }}
-
-[device "qemu_ballon"]
-{{- if ne .architecture "s390x"}}
+[device "qemu_balloon"]
+{{- if eq .bus "pci" "pcie"}}
 driver = "virtio-balloon-pci"
-{{- if eq .architecture "ppc64le" }}
-bus = "pci.0"
-{{- else}}
-bus = "qemu_pcie2"
-addr = "0x0"
+bus = "{{.devBus}}"
+addr = "{{.devAddr}}"
 {{- end}}
-{{- else}}
+{{if eq .bus "ccw" -}}
 driver = "virtio-balloon-ccw"
 {{- end}}
+{{if .multifunction -}}
+multifunction = "on"
+{{- end }}
 `))
 
 var qemuRNG = template.Must(template.New("qemuRNG").Parse(`
@@ -130,80 +133,52 @@ var qemuRNG = template.Must(template.New("qemuRNG").Parse(`
 qom-type = "rng-random"
 filename = "/dev/urandom"
 
-{{if eq .architecture "x86_64" "aarch64" -}}
-[device "qemu_pcie3"]
-driver = "pcie-root-port"
-port = "0x12"
-chassis = "3"
-bus = "pcie.0"
-addr = "0x2.0x2"
-{{- end }}
-
 [device "dev-qemu_rng"]
-rng = "qemu_rng"
-{{if ne .architecture "s390x" -}}
+{{- if eq .bus "pci" "pcie"}}
 driver = "virtio-rng-pci"
-{{- if eq .architecture "ppc64le"}}
-bus = "pci.0"
-{{- else}}
-bus = "qemu_pcie3"
-addr = "0x0"
+bus = "{{.devBus}}"
+addr = "{{.devAddr}}"
 {{- end}}
-{{- else}}
+{{if eq .bus "ccw" -}}
 driver = "virtio-rng-ccw"
 {{- end}}
+rng = "qemu_rng"
+{{if .multifunction -}}
+multifunction = "on"
+{{- end }}
 `))
 
 var qemuVsock = template.Must(template.New("qemuVsock").Parse(`
 # Vsock
-{{if eq .architecture "x86_64" "aarch64" -}}
-[device "qemu_pcie4"]
-driver = "pcie-root-port"
-port = "0x13"
-chassis = "4"
-bus = "pcie.0"
-addr = "0x2.0x3"
-{{- end }}
-
-[device]
-guest-cid = "{{.vsockID}}"
-{{if ne .architecture "s390x" -}}
+[device "qemu_vsock"]
+{{- if eq .bus "pci" "pcie"}}
 driver = "vhost-vsock-pci"
-{{if eq .architecture "ppc64le" -}}
-bus = "pci.0"
-{{else -}}
-bus = "qemu_pcie4"
-addr = "0x0"
-{{end -}}
-{{- else}}
+bus = "{{.devBus}}"
+addr = "{{.devAddr}}"
+{{- end}}
+{{if eq .bus "ccw" -}}
 driver = "vhost-vsock-ccw"
 {{- end}}
+guest-cid = "{{.vsockID}}"
+{{if .multifunction -}}
+multifunction = "on"
+{{- end }}
 `))
 
 var qemuVGA = template.Must(template.New("qemuVGA").Parse(`
 # VGA
-{{if eq .architecture "x86_64" "aarch64" -}}
-[device "qemu_pcie{{.chassisIndex}}"]
-driver = "pcie-root-port"
-port = "0x{{.gpuIndex}}"
-chassis = "{{.chassisIndex}}"
-bus = "pcie.0"
-addr = "0x5.0x{{.gpuIndex}}"
-multifunction = "on"
-{{- end }}
-
-[device "dev-qemu_vga"]
-{{if ne .architecture "s390x" -}}
+[device "qemu_vga"]
+{{- if eq .bus "pci" "pcie"}}
 driver = "virtio-vga"
-{{- if eq .architecture "ppc64le"}}
-bus = "pci.0"
-{{- else}}
-bus = "qemu_pcie{{.chassisIndex}}"
-addr = "0x0"
+bus = "{{.devBus}}"
+addr = "{{.devAddr}}"
 {{- end}}
-{{- else}}
+{{if eq .bus "ccw" -}}
 driver = "virtio-gpu-ccw"
 {{- end}}
+{{if .multifunction -}}
+multifunction = "on"
+{{- end }}
 `))
 
 var qemuCPU = template.Must(template.New("qemuCPU").Parse(`
@@ -265,7 +240,6 @@ unit = "1"
 `))
 
 // Devices use "qemu_" prefix indicating that this is a internally named device.
-// Use 0x3.0x as the PCIe address prefix for 9p disk devices to allow up to 8 devices of this type.
 var qemuDriveConfig = template.Must(template.New("qemuDriveConfig").Parse(`
 # Config drive
 [fsdev "qemu_config"]
@@ -275,19 +249,22 @@ readonly = "on"
 path = "{{.path}}"
 
 [device "dev-qemu_config"]
-fsdev = "qemu_config"
-mount_tag = "config"
-{{if ne .architecture "s390x" -}}
+{{- if eq .bus "pci" "pcie"}}
 driver = "virtio-9p-pci"
-multifunction = "on"
-addr = "0x3.0x{{.diskIndex}}"
-{{- else}}
+bus = "{{.devBus}}"
+addr = "{{.devAddr}}"
+{{- end}}
+{{if eq .bus "ccw" -}}
 driver = "virtio-9p-ccw"
 {{- end}}
+mount_tag = "config"
+fsdev = "qemu_config"
+{{if .multifunction -}}
+multifunction = "on"
+{{- end }}
 `))
 
 // Devices use "lxd_" prefix indicating that this is a user named device.
-// Use 0x3.0x as the PCIe address prefix for 9p disk devices to allow up to 8 devices of this type.
 var qemuDriveDir = template.Must(template.New("qemuDriveDir").Parse(`
 # {{.devName}} drive
 [fsdev "lxd_{{.devName}}"]
@@ -303,15 +280,19 @@ sock_fd = "{{.proxyFD}}"
 {{- end}}
 
 [device "dev-lxd_{{.devName}}"]
-fsdev = "lxd_{{.devName}}"
-mount_tag = "{{.mountTag}}"
-{{if ne .architecture "s390x" -}}
+{{- if eq .bus "pci" "pcie"}}
 driver = "virtio-9p-pci"
-multifunction = "on"
-addr = "0x3.0x{{.diskIndex}}"
-{{- else}}
+bus = "{{.devBus}}"
+addr = "{{.devAddr}}"
+{{- end}}
+{{if eq .bus "ccw" -}}
 driver = "virtio-9p-ccw"
 {{- end}}
+fsdev = "lxd_{{.devName}}"
+mount_tag = "{{.mountTag}}"
+{{if .multifunction -}}
+multifunction = "on"
+{{- end }}
 `))
 
 // Devices use "lxd_" prefix indicating that this is a user named device.
@@ -335,36 +316,28 @@ scsi-id = "{{.bootIndex}}"
 lun = "1"
 drive = "lxd_{{.devName}}"
 bootindex = "{{.bootIndex}}"
+{{if .multifunction -}}
+multifunction = "on"
+{{- end }}
 `))
 
 // qemuDevTapCommon is common PCI device template for tap based netdevs.
-// Use 0x4.0x as the PCIe address prefix for nic devices to allow up to 8 devices of this type.
 var qemuDevTapCommon = template.Must(template.New("qemuDevTapCommon").Parse(`
-{{if eq .architecture "x86_64" "aarch64" -}}
-[device "qemu_pcie{{.chassisIndex}}"]
-driver = "pcie-root-port"
-port = "0x{{.nicIndex}}"
-chassis = "{{.chassisIndex}}"
-bus = "pcie.0"
-addr = "0x4.0x{{.nicIndex}}"
-multifunction = "on"
-{{- end }}
-
 [device "dev-lxd_{{.devName}}"]
-netdev = "lxd_{{.devName}}"
-mac = "{{.devHwaddr}}"
-{{if ne .architecture "s390x" -}}
+{{- if eq .bus "pci" "pcie"}}
 driver = "virtio-net-pci"
-{{if eq .architecture "ppc64le" -}}
-bus = "pci.0"
-{{else -}}
-bus = "qemu_pcie{{.chassisIndex}}"
-addr = "0x0"
-{{end -}}
-{{- else}}
+bus = "{{.devBus}}"
+addr = "{{.devAddr}}"
+{{- end}}
+{{if eq .bus "ccw" -}}
 driver = "virtio-net-ccw"
 {{- end}}
+netdev = "lxd_{{.devName}}"
+mac = "{{.devHwaddr}}"
 bootindex = "{{.bootIndex}}"
+{{if .multifunction -}}
+multifunction = "on"
+{{- end }}
 `))
 
 // Devices use "lxd_" prefix indicating that this is a user named device.
@@ -391,26 +364,19 @@ fd = "{{.tapFD}}"
 
 // Devices use "lxd_" prefix indicating that this is a user named device.
 var qemuNetdevPhysical = template.Must(template.New("qemuNetdevPhysical").Parse(`
-{{if eq .architecture "x86_64" "aarch64" -}}
-[device "qemu_pcie{{.chassisIndex}}"]
-driver = "pcie-root-port"
-port = "0x{{.nicIndex}}"
-chassis = "{{.chassisIndex}}"
-bus = "pcie.0"
-addr = "0x4.0x{{.nicIndex}}"
-multifunction = "on"
-{{- end }}
-
 # Network card ("{{.devName}}" device)
 [device "dev-lxd_{{.devName}}"]
+{{- if eq .bus "pci" "pcie"}}
 driver = "vfio-pci"
+bus = "{{.devBus}}"
+addr = "{{.devAddr}}"
+{{- end}}
+{{if eq .bus "ccw" -}}
+driver = "vfio-ccw"
+{{- end}}
 host = "{{.pciSlotName}}"
 bootindex = "{{.bootIndex}}"
-{{if eq .architecture "ppc64le" -}}
-bus = "pci.0"
-{{else -}}
-bus = "qemu_pcie{{.chassisIndex}}"
-addr = "0x0"
-{{end -}}
-
+{{if .multifunction -}}
+multifunction = "on"
+{{- end }}
 `))
