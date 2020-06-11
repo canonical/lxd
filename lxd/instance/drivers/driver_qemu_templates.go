@@ -169,7 +169,11 @@ var qemuVGA = template.Must(template.New("qemuVGA").Parse(`
 # VGA
 [device "qemu_vga"]
 {{- if eq .bus "pci" "pcie"}}
+{{if eq .architecture "x86_64" -}}
 driver = "virtio-vga"
+{{- else}}
+driver = "virtio-gpu-pci"
+{{- end}}
 bus = "{{.devBus}}"
 addr = "{{.devAddr}}"
 {{- end}}
