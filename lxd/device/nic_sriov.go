@@ -376,12 +376,12 @@ func (d *nicSRIOV) setupSriovParent(vfDevice string, vfID int, volatile map[stri
 	}
 
 	// Unbind VF device from the host so that the settings will take effect when we rebind it.
-	err = networkDeviceUnbind(vfPCIDev)
+	err = pciDeviceUnbind(vfPCIDev)
 	if err != nil {
 		return vfPCIDev, err
 	}
 
-	revert.Add(func() { networkDeviceBind(vfPCIDev) })
+	revert.Add(func() { pciDeviceProbe(vfPCIDev) })
 
 	// Setup VF VLAN if specified.
 	if d.config["vlan"] != "" {
@@ -442,7 +442,7 @@ func (d *nicSRIOV) setupSriovParent(vfDevice string, vfID int, volatile map[stri
 
 	if d.inst.Type() == instancetype.Container {
 		// Bind VF device onto the host so that the settings will take effect.
-		err = networkDeviceBind(vfPCIDev)
+		err = pciDeviceProbe(vfPCIDev)
 		if err != nil {
 			return vfPCIDev, err
 		}
@@ -457,19 +457,7 @@ func (d *nicSRIOV) setupSriovParent(vfDevice string, vfID int, volatile map[stri
 		}
 	} else if d.inst.Type() == instancetype.VM {
 		// Register VF device with vfio-pci driver so it can be passed to VM.
-		err = networkVFIOPCIRegister(vfPCIDev)
-		if err != nil {
-			return vfPCIDev, err
-		}
-
-		vfioDev := pciDevice{
-			Driver:   "vfio-pci",
-			SlotName: vfPCIDev.SlotName,
-		}
-
-		revert.Add(func() { networkDeviceUnbind(vfioDev) })
-
-		err = networkDeviceBindWait(vfioDev)
+		err = pciDeviceDriverOverride(vfPCIDev, "vfio-pci")
 		if err != nil {
 			return vfPCIDev, err
 		}
@@ -630,7 +618,7 @@ func (d *nicSRIOV) networkGetVirtFuncInfo(devName string, vfID int) (VirtFuncInf
 // networkGetVFDevicePCISlot returns the PCI slot name for a network virtual function device.
 func (d *nicSRIOV) networkGetVFDevicePCISlot(vfID string) (pciDevice, error) {
 	ueventFile := fmt.Sprintf("/sys/class/net/%s/device/virtfn%s/uevent", d.config["parent"], vfID)
-	pciDev, err := networkGetDevicePCIDevice(ueventFile)
+	pciDev, err := pciParseUeventFile(ueventFile)
 	if err != nil {
 		return pciDev, err
 	}
@@ -646,38 +634,33 @@ func (d *nicSRIOV) restoreSriovParent(volatile map[string]string) error {
 		return nil
 	}
 
+	revert := revert.New()
+	defer revert.Fail()
+
 	// Get VF device's PCI info so we can unbind and rebind it from the host.
 	vfPCIDev, err := d.networkGetVFDevicePCISlot(volatile["last_state.vf.id"])
 	if err != nil {
 		return err
 	}
 
-	if d.inst.Type() == instancetype.Container {
-		// Unbind VF device from the host so that the settings will take effect when we rebind it.
-		err = networkDeviceUnbind(vfPCIDev)
-		if err != nil {
-			return err
-		}
-	} else if d.inst.Type() == instancetype.VM {
-		// Unbind VF device from vfio-pci driver so that we can rebind it on host.
-		vfioDev := pciDevice{
-			Driver:   "vfio-pci",
-			SlotName: vfPCIDev.SlotName,
-		}
+	// Unbind VF device from the host so that the restored settings will take effect when we rebind it.
+	err = pciDeviceUnbind(vfPCIDev)
+	if err != nil {
+		return err
+	}
 
-		err := networkDeviceUnbind(vfioDev)
-		if err != nil {
-			return err
-		}
-
+	if d.inst.Type() == instancetype.VM {
 		// Before we bind the device back to the host, ensure we restore the original driver info as it
 		// should be currently set to vfio-pci.
-		vfPCIDev.Driver = volatile["last_state.pci.driver"]
+		err = pciDeviceSetDriverOverride(vfPCIDev, volatile["last_state.pci.driver"])
+		if err != nil {
+			return err
+		}
 	}
 
 	// However we return from this function, we must try to rebind the VF so its not orphaned.
 	// The OS won't let an already bound device be bound again so is safe to call twice.
-	defer networkDeviceBind(vfPCIDev)
+	revert.Add(func() { pciDeviceProbe(vfPCIDev) })
 
 	// Reset VF VLAN if specified
 	if volatile["last_state.vf.vlan"] != "" {
@@ -710,7 +693,7 @@ func (d *nicSRIOV) restoreSriovParent(volatile map[string]string) error {
 	}
 
 	// Bind VF device onto the host so that the settings will take effect.
-	err = networkDeviceBind(vfPCIDev)
+	err = pciDeviceProbe(vfPCIDev)
 	if err != nil {
 		return err
 	}
@@ -730,5 +713,6 @@ func (d *nicSRIOV) restoreSriovParent(volatile map[string]string) error {
 		return err
 	}
 
+	revert.Success()
 	return nil
 }
