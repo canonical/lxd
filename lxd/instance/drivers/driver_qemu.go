@@ -1777,6 +1777,8 @@ func (vm *qemu) generateQemuConfigFile(bus string, devConfs []*deviceConfig.RunC
 		"devBus":        devBus,
 		"devAddr":       devAddr,
 		"multifunction": multi,
+
+		"architecture": vm.architectureName,
 	})
 	if err != nil {
 		return "", err
