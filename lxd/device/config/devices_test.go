@@ -14,10 +14,10 @@ func TestSortableDevices(t *testing.T) {
 	}
 
 	expectedSorted := DevicesSortable{
-		DeviceNamed{Name: "dev4", Config: Device{"type": "disk", "path": "/foo"}},
-		DeviceNamed{Name: "dev3", Config: Device{"type": "disk", "path": "/foo/bar"}},
 		DeviceNamed{Name: "dev1", Config: Device{"type": "nic"}},
 		DeviceNamed{Name: "dev2", Config: Device{"type": "nic"}},
+		DeviceNamed{Name: "dev4", Config: Device{"type": "disk", "path": "/foo"}},
+		DeviceNamed{Name: "dev3", Config: Device{"type": "disk", "path": "/foo/bar"}},
 	}
 
 	result := devices.Sorted()
@@ -26,10 +26,10 @@ func TestSortableDevices(t *testing.T) {
 	}
 
 	expectedReversed := DevicesSortable{
-		DeviceNamed{Name: "dev2", Config: Device{"type": "nic"}},
-		DeviceNamed{Name: "dev1", Config: Device{"type": "nic"}},
 		DeviceNamed{Name: "dev3", Config: Device{"type": "disk", "path": "/foo/bar"}},
 		DeviceNamed{Name: "dev4", Config: Device{"type": "disk", "path": "/foo"}},
+		DeviceNamed{Name: "dev2", Config: Device{"type": "nic"}},
+		DeviceNamed{Name: "dev1", Config: Device{"type": "nic"}},
 	}
 
 	result = devices.Reversed()
