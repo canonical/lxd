@@ -1722,6 +1722,28 @@ func (vm *qemu) generateQemuConfigFile(bus string, devConfs []*deviceConfig.RunC
 	}
 
 	devBus, devAddr, multi = allocateBusAddr("generic")
+	err = qemuKeyboard.Execute(sb, map[string]interface{}{
+		"bus":           bus,
+		"devBus":        devBus,
+		"devAddr":       devAddr,
+		"multifunction": multi,
+	})
+	if err != nil {
+		return "", err
+	}
+
+	devBus, devAddr, multi = allocateBusAddr("generic")
+	err = qemuTablet.Execute(sb, map[string]interface{}{
+		"bus":           bus,
+		"devBus":        devBus,
+		"devAddr":       devAddr,
+		"multifunction": multi,
+	})
+	if err != nil {
+		return "", err
+	}
+
+	devBus, devAddr, multi = allocateBusAddr("generic")
 	err = qemuVsock.Execute(sb, map[string]interface{}{
 		"bus":           bus,
 		"devBus":        devBus,
