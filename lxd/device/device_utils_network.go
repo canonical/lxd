@@ -1,13 +1,11 @@
 package device
 
 import (
-	"bufio"
 	"crypto/rand"
 	"encoding/hex"
 	"fmt"
 	"io/ioutil"
 	"net"
-	"os"
 	"regexp"
 	"strconv"
 	"strings"
@@ -732,87 +730,6 @@ func networkParsePortRange(r string) (int64, int64, error) {
 	return base, size, nil
 }
 
-// pciDevice represents info about a PCI uevent device.
-type pciDevice struct {
-	ID       string
-	SlotName string
-	Driver   string
-}
-
-// networkGetDevicePCISlot returns the PCI device info for a given uevent file.
-func networkGetDevicePCIDevice(ueventFilePath string) (pciDevice, error) {
-	dev := pciDevice{}
-
-	file, err := os.Open(ueventFilePath)
-	if err != nil {
-		return dev, err
-	}
-	defer file.Close()
-
-	scanner := bufio.NewScanner(file)
-	for scanner.Scan() {
-		// Looking for something like this "PCI_SLOT_NAME=0000:05:10.0"
-		fields := strings.SplitN(scanner.Text(), "=", 2)
-		if len(fields) == 2 {
-			if fields[0] == "PCI_SLOT_NAME" {
-				dev.SlotName = fields[1]
-			} else if fields[0] == "PCI_ID" {
-				dev.ID = fields[1]
-			} else if fields[0] == "DRIVER" {
-				dev.Driver = fields[1]
-			}
-		}
-	}
-
-	err = scanner.Err()
-	if err != nil {
-		return dev, err
-	}
-
-	if dev.SlotName == "" {
-		return dev, fmt.Errorf("Device uevent file could not be parsed")
-	}
-
-	return dev, nil
-}
-
-// networkDeviceUnbind unbinds a network device from the OS using its PCI Slot Name and driver name.
-func networkDeviceUnbind(pciDev pciDevice) error {
-	driverUnbindPath := fmt.Sprintf("/sys/bus/pci/drivers/%s/unbind", pciDev.Driver)
-	err := ioutil.WriteFile(driverUnbindPath, []byte(pciDev.SlotName), 0600)
-	if err != nil {
-		return errors.Wrapf(err, "Failed unbinding device %q via %q", pciDev.SlotName, driverUnbindPath)
-	}
-
-	return nil
-}
-
-// networkDeviceBind binds a network device to the OS using its PCI Slot Name and driver name.
-func networkDeviceBind(pciDev pciDevice) error {
-	driverBindPath := fmt.Sprintf("/sys/bus/pci/drivers/%s/bind", pciDev.Driver)
-	err := ioutil.WriteFile(driverBindPath, []byte(pciDev.SlotName), 0600)
-	if err != nil {
-		return errors.Wrapf(err, "Failed binding device %q via %q", pciDev.SlotName, driverBindPath)
-	}
-
-	return nil
-}
-
-// networkDeviceBindWait waits for network device to appear after being binded to a driver.
-func networkDeviceBindWait(pciDev pciDevice) error {
-	devicePath := fmt.Sprintf("/sys/bus/pci/drivers/%s/%s", pciDev.Driver, pciDev.SlotName)
-
-	for i := 0; i < 10; i++ {
-		if shared.PathExists(devicePath) {
-			return nil
-		}
-
-		time.Sleep(50 * time.Millisecond)
-	}
-
-	return fmt.Errorf("Bind of device %q took too long", devicePath)
-}
-
 // networkInterfaceBindWait waits for network interface to appear after being binded to a driver.
 func networkInterfaceBindWait(ifName string) error {
 	for i := 0; i < 10; i++ {
@@ -824,22 +741,4 @@ func networkInterfaceBindWait(ifName string) error {
 	}
 
 	return fmt.Errorf("Bind of interface %q took too long", ifName)
-}
-
-// networkVFIOPCIRegister registers the PCI device with the VFIO-PCI driver.
-// Should also bind the device to the vfio-pci driver if it is present. Requires the vfio-pci module is loaded.
-func networkVFIOPCIRegister(pciDev pciDevice) error {
-	// vfio-pci module takes device IDs as "n n" but networkGetDevicePCIDevice returns them as "n:n".
-	devIDParts := strings.SplitN(pciDev.ID, ":", 2)
-	if len(devIDParts) < 2 {
-		return fmt.Errorf("Invalid device ID from %q", pciDev.ID)
-	}
-
-	vfioPCINewIDPath := "/sys/bus/pci/drivers/vfio-pci/new_id"
-	err := ioutil.WriteFile(vfioPCINewIDPath, []byte(fmt.Sprintf("%s %s", devIDParts[0], devIDParts[1])), 0600)
-	if err != nil {
-		return errors.Wrapf(err, "Failed registering PCI device ID %q to %q", pciDev.ID, vfioPCINewIDPath)
-	}
-
-	return nil
 }
