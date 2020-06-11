@@ -1772,7 +1772,7 @@ func (vm *qemu) generateQemuConfigFile(bus string, devConfs []*deviceConfig.RunC
 	}
 
 	devBus, devAddr, multi = allocateBusAddr("")
-	err = qemuVGA.Execute(sb, map[string]interface{}{
+	err = qemuGPU.Execute(sb, map[string]interface{}{
 		"bus":           bus,
 		"devBus":        devBus,
 		"devAddr":       devAddr,

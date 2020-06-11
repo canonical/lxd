@@ -165,9 +165,9 @@ multifunction = "on"
 {{- end }}
 `))
 
-var qemuVGA = template.Must(template.New("qemuVGA").Parse(`
-# VGA
-[device "qemu_vga"]
+var qemuGPU = template.Must(template.New("qemuGPU").Parse(`
+# GPU
+[device "qemu_gpu"]
 {{- if eq .bus "pci" "pcie"}}
 {{if eq .architecture "x86_64" -}}
 driver = "virtio-vga"
