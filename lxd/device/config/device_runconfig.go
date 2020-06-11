@@ -41,4 +41,5 @@ type RunConfig struct {
 	Mounts           []MountEntryItem // Mounts to setup/remove.
 	Uevents          [][]string       // Uevents to inject.
 	PostHooks        []func() error   // Functions to be run after device attach/detach.
+	GPUDevice        []RunConfigItem  // GPU device configuration settings.
 }
