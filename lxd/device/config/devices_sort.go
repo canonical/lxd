@@ -19,6 +19,18 @@ func (devices DevicesSortable) Less(i, j int) bool {
 
 	// First sort by types.
 	if a.Config["type"] != b.Config["type"] {
+		// In VMs, network interface names are derived from PCI
+		// location. As a result of that, we must ensure that nic devices will
+		// always show up at the same spot regardless of what other devices may be
+		// added. Easiest way to do this is to always have them show up first.
+		if a.Config["type"] == "nic" {
+			return true
+		}
+
+		if b.Config["type"] == "nic" {
+			return false
+		}
+
 		return a.Config["type"] < b.Config["type"]
 	}
 
