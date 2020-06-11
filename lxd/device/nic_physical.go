@@ -129,7 +129,7 @@ func (d *nicPhysical) Start() (*deviceConfig.RunConfig, error) {
 	} else if d.inst.Type() == instancetype.VM {
 		// Get PCI information about the network interface.
 		ueventPath := fmt.Sprintf("/sys/class/net/%s/device/uevent", saveData["host_name"])
-		pciDev, err := networkGetDevicePCIDevice(ueventPath)
+		pciDev, err := pciParseUeventFile(ueventPath)
 		if err != nil {
 			return nil, errors.Wrapf(err, "Failed to get PCI device info for %q", saveData["host_name"])
 		}
@@ -137,28 +137,7 @@ func (d *nicPhysical) Start() (*deviceConfig.RunConfig, error) {
 		saveData["last_state.pci.slot.name"] = pciDev.SlotName
 		saveData["last_state.pci.driver"] = pciDev.Driver
 
-		// Unbind the interface from the host.
-		err = networkDeviceUnbind(pciDev)
-		if err != nil {
-			return nil, err
-		}
-
-		revert.Add(func() { networkDeviceBind(pciDev) })
-
-		// Register the device with the vfio-pci module.
-		err = networkVFIOPCIRegister(pciDev)
-		if err != nil {
-			return nil, err
-		}
-
-		vfioDev := pciDevice{
-			Driver:   "vfio-pci",
-			SlotName: pciDev.SlotName,
-		}
-
-		revert.Add(func() { networkDeviceUnbind(vfioDev) })
-
-		err = networkDeviceBindWait(vfioDev)
+		err = pciDeviceDriverOverride(pciDev, "vfio-pci")
 		if err != nil {
 			return nil, err
 		}
@@ -224,17 +203,7 @@ func (d *nicPhysical) postStop() error {
 			SlotName: v["last_state.pci.slot.name"],
 		}
 
-		err := networkDeviceUnbind(vfioDev)
-		if err != nil {
-			return err
-		}
-
-		hostDev := pciDevice{
-			Driver:   v["last_state.pci.driver"],
-			SlotName: v["last_state.pci.slot.name"],
-		}
-
-		err = networkDeviceBind(hostDev)
+		err := pciDeviceDriverOverride(vfioDev, v["last_state.pci.driver"])
 		if err != nil {
 			return err
 		}
