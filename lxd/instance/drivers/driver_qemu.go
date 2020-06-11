@@ -1559,32 +1559,7 @@ func (vm *qemu) generateQemuConfigFile(bus string, devConfs []*deviceConfig.RunC
 		return "", err
 	}
 
-	// Now add the dynamic parts of the config.
-	err = qemuSerial.Execute(sb, map[string]interface{}{
-		"architecture":     vm.architectureName,
-		"ringbufSizeBytes": qmp.RingbufSize,
-	})
-	if err != nil {
-		return "", err
-	}
-
-	err = qemuSCSI.Execute(sb, map[string]interface{}{
-		"architecture": vm.architectureName,
-	})
-	if err != nil {
-		return "", err
-	}
-
-	err = qemuBalloon.Execute(sb, map[string]interface{}{
-		"architecture": vm.architectureName,
-	})
-	if err != nil {
-		return "", err
-	}
-
-	err = qemuRNG.Execute(sb, map[string]interface{}{
-		"architecture": vm.architectureName,
-	})
+	err = vm.addCPUConfig(sb)
 	if err != nil {
 		return "", err
 	}
@@ -1594,63 +1569,217 @@ func (vm *qemu) generateQemuConfigFile(bus string, devConfs []*deviceConfig.RunC
 		return "", err
 	}
 
-	err = vm.addCPUConfig(sb)
-	if err != nil {
-		return "", err
-	}
-
 	err = qemuDriveFirmware.Execute(sb, map[string]interface{}{
 		"architecture": vm.architectureName,
 		"roPath":       filepath.Join(vm.ovmfPath(), "OVMF_CODE.fd"),
 		"nvramPath":    vm.nvramPath(),
-	})
-
-	err = qemuVsock.Execute(sb, map[string]interface{}{
-		"architecture": vm.architectureName,
-		"vsockID":      vm.vsockID(),
 	})
 	if err != nil {
 		return "", err
 	}
 
 	err = qemuControlSocket.Execute(sb, map[string]interface{}{
-		"architecture": vm.architectureName,
-		"path":         vm.monitorPath(),
+		"path": vm.monitorPath(),
 	})
 	if err != nil {
 		return "", err
 	}
 
-	// Indexes used for PCIe address generation (each device type group is assigned their own PCIe address
-	// prefix in the templates). Each PCIe device is added as a multifunction device allowing up to 8 devices
-	// of each type to be added.
-	nicIndex := 0
-	diskIndex := 0
-	gpuIndex := 0
-	chassisIndex := 5 // Internal devices defined in the templates use indexes 1-4.
+	// allocateBusAddress is used to create any needed root ports and provide
+	// the bus and address that should be used by a device. It supports
+	// automatically setting up multi-function devices and optimize their use.
+	portNum := 0
+	devNum := 1
 
+	type entry struct {
+		bridgeDev int // Device number on the root bridge.
+		bridgeFn  int // Function number on the root bridge.
+
+		dev string // Existing device name.
+		fn  int    // Function number on the existing device.
+	}
+	entries := map[string]*entry{}
+
+	var rootPort *entry
+	allocateRootPort := func() *entry {
+		if rootPort == nil {
+			rootPort = &entry{
+				bridgeDev: devNum,
+			}
+			devNum++
+		} else {
+			if rootPort.bridgeFn == 7 {
+				rootPort.bridgeFn = 0
+				rootPort.bridgeDev = devNum
+				devNum++
+			} else {
+				rootPort.bridgeFn++
+			}
+		}
+
+		return rootPort
+	}
+
+	allocateBusAddr := func(group string) (string, string, bool) {
+		// FIXME: Need to figure out if ccw needs any bus logic.
+		if bus == "ccw" {
+			return "", "", false
+		}
+
+		// Find a device group if specified.
+		var p *entry
+		if group != "" {
+			var ok bool
+			p, ok = entries[group]
+			if ok {
+				// Check if group is full.
+				if p.fn == 7 {
+					p.fn = 0
+					if bus == "pci" {
+						p.bridgeDev = devNum
+						devNum++
+					} else if bus == "pcie" {
+						r := allocateRootPort()
+						p.bridgeDev = r.bridgeDev
+						p.bridgeFn = r.bridgeFn
+					}
+				} else {
+					p.fn++
+				}
+			} else {
+				// Create a new group.
+				p = &entry{}
+
+				if bus == "pci" {
+					p.bridgeDev = devNum
+					devNum++
+				} else if bus == "pcie" {
+					r := allocateRootPort()
+					p.bridgeDev = r.bridgeDev
+					p.bridgeFn = r.bridgeFn
+				}
+
+				entries[group] = p
+			}
+		} else {
+			// Create a new temporary group.
+			p = &entry{}
+
+			if bus == "pci" {
+				p.bridgeDev = devNum
+				devNum++
+			} else if bus == "pcie" {
+				r := allocateRootPort()
+				p.bridgeDev = r.bridgeDev
+				p.bridgeFn = r.bridgeFn
+			}
+		}
+
+		multi := p.fn == 0 && group != ""
+
+		if bus == "pci" {
+			return "pci.0", fmt.Sprintf("%x.%d", p.bridgeDev, p.fn), multi
+		}
+
+		if bus == "pcie" {
+			if p.fn == 0 {
+				qemuPCIe.Execute(sb, map[string]interface{}{
+					"index":         portNum,
+					"addr":          fmt.Sprintf("%x.%d", p.bridgeDev, p.bridgeFn),
+					"multifunction": p.bridgeFn == 0,
+				})
+				p.dev = fmt.Sprintf("qemu_pcie%d", portNum)
+				portNum++
+			}
+
+			return p.dev, fmt.Sprintf("00.%d", p.fn), multi
+		}
+
+		return "", "", false
+	}
+
+	// Now add the fixed set of devices.
+	devBus, devAddr, multi := allocateBusAddr("generic")
+	err = qemuBalloon.Execute(sb, map[string]interface{}{
+		"bus":           bus,
+		"devBus":        devBus,
+		"devAddr":       devAddr,
+		"multifunction": multi,
+	})
+	if err != nil {
+		return "", err
+	}
+
+	devBus, devAddr, multi = allocateBusAddr("generic")
+	err = qemuRNG.Execute(sb, map[string]interface{}{
+		"bus":           bus,
+		"devBus":        devBus,
+		"devAddr":       devAddr,
+		"multifunction": multi,
+	})
+	if err != nil {
+		return "", err
+	}
+
+	devBus, devAddr, multi = allocateBusAddr("generic")
+	err = qemuVsock.Execute(sb, map[string]interface{}{
+		"bus":           bus,
+		"devBus":        devBus,
+		"devAddr":       devAddr,
+		"vsockID":       vm.vsockID(),
+		"multifunction": multi,
+	})
+	if err != nil {
+		return "", err
+	}
+
+	devBus, devAddr, multi = allocateBusAddr("generic")
+	err = qemuSerial.Execute(sb, map[string]interface{}{
+		"bus":              bus,
+		"devBus":           devBus,
+		"devAddr":          devAddr,
+		"ringbufSizeBytes": qmp.RingbufSize,
+		"multifunction":    multi,
+	})
+	if err != nil {
+		return "", err
+	}
+
+	devBus, devAddr, multi = allocateBusAddr("")
+	err = qemuSCSI.Execute(sb, map[string]interface{}{
+		"bus":           bus,
+		"devBus":        devBus,
+		"devAddr":       devAddr,
+		"multifunction": multi,
+	})
+	if err != nil {
+		return "", err
+	}
+
+	devBus, devAddr, multi = allocateBusAddr("9p")
 	err = qemuDriveConfig.Execute(sb, map[string]interface{}{
-		"architecture": vm.architectureName,
-		"path":         filepath.Join(vm.Path(), "config"),
-		"diskIndex":    diskIndex,
+		"bus":           bus,
+		"devBus":        devBus,
+		"devAddr":       devAddr,
+		"path":          filepath.Join(vm.Path(), "config"),
+		"multifunction": multi,
 	})
 	if err != nil {
 		return "", err
 	}
-	diskIndex++ // The config drive is a 9p device which uses a PCIe function so increment index.
 
-	// GPU for console.
+	devBus, devAddr, multi = allocateBusAddr("")
 	err = qemuVGA.Execute(sb, map[string]interface{}{
-		"architecture": vm.architectureName,
-		"chassisIndex": chassisIndex,
-		"gpuIndex":     gpuIndex,
+		"bus":           bus,
+		"devBus":        devBus,
+		"devAddr":       devAddr,
+		"multifunction": multi,
 	})
 	if err != nil {
 		return "", err
 	}
-	gpuIndex++     // The built in GPU device uses a PCIe function so increment index.
-	chassisIndex++ // The built in GPU device uses a root port so increment index.
 
+	// Dynamic devices.
 	bootIndexes, err := vm.deviceBootPriorities()
 	if err != nil {
 		return "", errors.Wrap(err, "Error calculating boot indexes")
@@ -1658,7 +1787,6 @@ func (vm *qemu) generateQemuConfigFile(bus string, devConfs []*deviceConfig.RunC
 
 	// Record the mounts we are going to do inside the VM using the agent.
 	agentMounts := []instancetype.VMAgentMount{}
-
 	for _, runConf := range devConfs {
 		// Add drive devices.
 		if len(runConf.Mounts) > 0 {
@@ -1666,8 +1794,7 @@ func (vm *qemu) generateQemuConfigFile(bus string, devConfs []*deviceConfig.RunC
 				if drive.TargetPath == "/" {
 					err = vm.addRootDriveConfig(sb, bootIndexes, drive)
 				} else if drive.FSType == "9p" {
-					err = vm.addDriveDirConfig(sb, diskIndex, fdFiles, &agentMounts, drive)
-					diskIndex++ // 9p devices use a PCIe function so increment index.
+					err = vm.addDriveDirConfig(sb, bus, allocateBusAddr, fdFiles, &agentMounts, drive)
 				} else {
 					err = vm.addDriveConfig(sb, bootIndexes, drive)
 				}
@@ -1679,14 +1806,10 @@ func (vm *qemu) generateQemuConfigFile(bus string, devConfs []*deviceConfig.RunC
 
 		// Add network device.
 		if len(runConf.NetworkInterface) > 0 {
-			err = vm.addNetDevConfig(sb, chassisIndex, nicIndex, bootIndexes, runConf.NetworkInterface, fdFiles)
+			err = vm.addNetDevConfig(sb, bus, allocateBusAddr, bootIndexes, runConf.NetworkInterface, fdFiles)
 			if err != nil {
 				return "", err
 			}
-
-			// NIC devices use a PCIe function so increment indexes.
-			nicIndex++
-			chassisIndex++
 		}
 	}
 
@@ -1840,7 +1963,7 @@ func (vm *qemu) addRootDriveConfig(sb *strings.Builder, bootIndexes map[string]i
 }
 
 // addDriveDirConfig adds the qemu config required for adding a supplementary drive directory share.
-func (vm *qemu) addDriveDirConfig(sb *strings.Builder, diskIndex int, fdFiles *[]string, agentMounts *[]instancetype.VMAgentMount, driveConf deviceConfig.MountEntryItem) error {
+func (vm *qemu) addDriveDirConfig(sb *strings.Builder, bus string, allocateBusAddr func(group string) (string, string, bool), fdFiles *[]string, agentMounts *[]instancetype.VMAgentMount, driveConf deviceConfig.MountEntryItem) error {
 	mountTag := fmt.Sprintf("lxd_%s", driveConf.DevName)
 
 	agentMount := instancetype.VMAgentMount{
@@ -1858,27 +1981,33 @@ func (vm *qemu) addDriveDirConfig(sb *strings.Builder, diskIndex int, fdFiles *[
 	// Record the 9p mount for the agent.
 	*agentMounts = append(*agentMounts, agentMount)
 
+	devBus, devAddr, multi := allocateBusAddr("9p")
+
 	// For read only shares, do not use proxy.
 	if shared.StringInSlice("ro", driveConf.Opts) {
 		return qemuDriveDir.Execute(sb, map[string]interface{}{
-			"architecture": vm.architectureName,
-			"devName":      driveConf.DevName,
-			"mountTag":     mountTag,
-			"path":         driveConf.DevPath,
-			"readonly":     true,
-			"diskIndex":    diskIndex,
+			"bus":           bus,
+			"devBus":        devBus,
+			"devAddr":       devAddr,
+			"devName":       driveConf.DevName,
+			"mountTag":      mountTag,
+			"path":          driveConf.DevPath,
+			"readonly":      true,
+			"multifunction": multi,
 		})
 	}
 
 	// Only use proxy for writable shares.
 	proxyFD := vm.addFileDescriptor(fdFiles, driveConf.DevPath)
 	return qemuDriveDir.Execute(sb, map[string]interface{}{
-		"architecture": vm.architectureName,
-		"devName":      driveConf.DevName,
-		"mountTag":     mountTag,
-		"proxyFD":      proxyFD,
-		"readonly":     false,
-		"diskIndex":    diskIndex,
+		"bus":           bus,
+		"devBus":        devBus,
+		"devAddr":       devAddr,
+		"devName":       driveConf.DevName,
+		"mountTag":      mountTag,
+		"proxyFD":       proxyFD,
+		"readonly":      false,
+		"multifunction": multi,
 	})
 }
 
@@ -1911,17 +2040,16 @@ func (vm *qemu) addDriveConfig(sb *strings.Builder, bootIndexes map[string]int, 
 	}
 
 	return qemuDrive.Execute(sb, map[string]interface{}{
-		"architecture": vm.architectureName,
-		"devName":      driveConf.DevName,
-		"devPath":      driveConf.DevPath,
-		"bootIndex":    bootIndexes[driveConf.DevName],
-		"cacheMode":    cacheMode,
-		"aioMode":      aioMode,
+		"devName":   driveConf.DevName,
+		"devPath":   driveConf.DevPath,
+		"bootIndex": bootIndexes[driveConf.DevName],
+		"cacheMode": cacheMode,
+		"aioMode":   aioMode,
 	})
 }
 
 // addNetDevConfig adds the qemu config required for adding a network device.
-func (vm *qemu) addNetDevConfig(sb *strings.Builder, chassisIndex, nicIndex int, bootIndexes map[string]int, nicConfig []deviceConfig.RunConfigItem, fdFiles *[]string) error {
+func (vm *qemu) addNetDevConfig(sb *strings.Builder, bus string, allocateBusAddr func(group string) (string, string, bool), bootIndexes map[string]int, nicConfig []deviceConfig.RunConfigItem, fdFiles *[]string) error {
 	var devName, nicName, devHwaddr, pciSlotName string
 	for _, nicItem := range nicConfig {
 		if nicItem.Key == "devName" {
@@ -1937,12 +2065,10 @@ func (vm *qemu) addNetDevConfig(sb *strings.Builder, chassisIndex, nicIndex int,
 
 	var tpl *template.Template
 	tplFields := map[string]interface{}{
-		"architecture": vm.architectureName,
-		"devName":      devName,
-		"devHwaddr":    devHwaddr,
-		"bootIndex":    bootIndexes[devName],
-		"nicIndex":     nicIndex,
-		"chassisIndex": chassisIndex,
+		"bus":       bus,
+		"devName":   devName,
+		"devHwaddr": devHwaddr,
+		"bootIndex": bootIndexes[devName],
 	}
 
 	// Detect MACVTAP interface types and figure out which tap device is being used.
@@ -1971,6 +2097,10 @@ func (vm *qemu) addNetDevConfig(sb *strings.Builder, chassisIndex, nicIndex int,
 		tpl = qemuNetdevPhysical
 	}
 
+	devBus, devAddr, multi := allocateBusAddr("")
+	tplFields["devBus"] = devBus
+	tplFields["devAddr"] = devAddr
+	tplFields["multifunction"] = multi
 	if tpl != nil {
 		return tpl.Execute(sb, tplFields)
 	}

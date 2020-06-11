@@ -77,7 +77,7 @@ func (m *Monitor) run() error {
 	go func() {
 		for {
 			// Read the ringbuffer.
-			resp, err := m.qmp.Run([]byte(fmt.Sprintf(`{"execute": "ringbuf-read", "arguments": {"device": "vserial", "size": %d, "format": "utf8"}}`, RingbufSize)))
+			resp, err := m.qmp.Run([]byte(fmt.Sprintf(`{"execute": "ringbuf-read", "arguments": {"device": "qemu_serial-chardev", "size": %d, "format": "utf8"}}`, RingbufSize)))
 			if err != nil {
 				m.Disconnect()
 				return
