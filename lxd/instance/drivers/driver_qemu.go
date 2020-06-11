@@ -1726,8 +1726,9 @@ func (vm *qemu) generateQemuConfigFile(bus string, devConfs []*deviceConfig.RunC
 		"bus":           bus,
 		"devBus":        devBus,
 		"devAddr":       devAddr,
-		"vsockID":       vm.vsockID(),
 		"multifunction": multi,
+
+		"vsockID": vm.vsockID(),
 	})
 	if err != nil {
 		return "", err
@@ -1735,11 +1736,12 @@ func (vm *qemu) generateQemuConfigFile(bus string, devConfs []*deviceConfig.RunC
 
 	devBus, devAddr, multi = allocateBusAddr("generic")
 	err = qemuSerial.Execute(sb, map[string]interface{}{
-		"bus":              bus,
-		"devBus":           devBus,
-		"devAddr":          devAddr,
+		"bus":           bus,
+		"devBus":        devBus,
+		"devAddr":       devAddr,
+		"multifunction": multi,
+
 		"ringbufSizeBytes": qmp.RingbufSize,
-		"multifunction":    multi,
 	})
 	if err != nil {
 		return "", err
@@ -1761,8 +1763,9 @@ func (vm *qemu) generateQemuConfigFile(bus string, devConfs []*deviceConfig.RunC
 		"bus":           bus,
 		"devBus":        devBus,
 		"devAddr":       devAddr,
-		"path":          filepath.Join(vm.Path(), "config"),
 		"multifunction": multi,
+
+		"path": filepath.Join(vm.Path(), "config"),
 	})
 	if err != nil {
 		return "", err
@@ -1989,11 +1992,12 @@ func (vm *qemu) addDriveDirConfig(sb *strings.Builder, bus string, allocateBusAd
 			"bus":           bus,
 			"devBus":        devBus,
 			"devAddr":       devAddr,
-			"devName":       driveConf.DevName,
-			"mountTag":      mountTag,
-			"path":          driveConf.DevPath,
-			"readonly":      true,
 			"multifunction": multi,
+
+			"devName":  driveConf.DevName,
+			"mountTag": mountTag,
+			"path":     driveConf.DevPath,
+			"readonly": true,
 		})
 	}
 
@@ -2003,11 +2007,12 @@ func (vm *qemu) addDriveDirConfig(sb *strings.Builder, bus string, allocateBusAd
 		"bus":           bus,
 		"devBus":        devBus,
 		"devAddr":       devAddr,
-		"devName":       driveConf.DevName,
-		"mountTag":      mountTag,
-		"proxyFD":       proxyFD,
-		"readonly":      false,
 		"multifunction": multi,
+
+		"devName":  driveConf.DevName,
+		"mountTag": mountTag,
+		"proxyFD":  proxyFD,
+		"readonly": false,
 	})
 }
 
