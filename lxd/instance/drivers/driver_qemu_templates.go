@@ -165,16 +165,52 @@ multifunction = "on"
 {{- end }}
 `))
 
-var qemuVGA = template.Must(template.New("qemuVGA").Parse(`
-# VGA
-[device "qemu_vga"]
+var qemuGPU = template.Must(template.New("qemuGPU").Parse(`
+# GPU
+[device "qemu_gpu"]
 {{- if eq .bus "pci" "pcie"}}
+{{if eq .architecture "x86_64" -}}
 driver = "virtio-vga"
+{{- else}}
+driver = "virtio-gpu-pci"
+{{- end}}
 bus = "{{.devBus}}"
 addr = "{{.devAddr}}"
 {{- end}}
 {{if eq .bus "ccw" -}}
 driver = "virtio-gpu-ccw"
+{{- end}}
+{{if .multifunction -}}
+multifunction = "on"
+{{- end }}
+`))
+
+var qemuKeyboard = template.Must(template.New("qemuKeyboard").Parse(`
+# Input
+[device "qemu_keyboard"]
+{{- if eq .bus "pci" "pcie"}}
+driver = "virtio-keyboard-pci"
+bus = "{{.devBus}}"
+addr = "{{.devAddr}}"
+{{- end}}
+{{if eq .bus "ccw" -}}
+driver = "virtio-keyboard-ccw"
+{{- end}}
+{{if .multifunction -}}
+multifunction = "on"
+{{- end }}
+`))
+
+var qemuTablet = template.Must(template.New("qemuTablet").Parse(`
+# Input
+[device "qemu_tablet"]
+{{- if eq .bus "pci" "pcie"}}
+driver = "virtio-tablet-pci"
+bus = "{{.devBus}}"
+addr = "{{.devAddr}}"
+{{- end}}
+{{if eq .bus "ccw" -}}
+driver = "virtio-tablet-ccw"
 {{- end}}
 {{if .multifunction -}}
 multifunction = "on"
