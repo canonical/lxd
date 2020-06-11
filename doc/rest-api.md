@@ -517,6 +517,7 @@ Input (instance based on a local image with the "ubuntu/devel" alias):
     "profiles": ["default"],                                            // List of profiles
     "ephemeral": true,                                                  // Whether to destroy the instance on shutdown
     "config": {"limits.cpu": "2"},                                      // Config override.
+    "type": "container",                                                // Optional Can be: "virtual-machine", "container" by default it set to "container"
     "devices": {                                                        // Optional list of devices the instance should have
         "kvm": {
             "path": "/dev/kvm",
@@ -538,6 +539,7 @@ Input (instance based on a local image identified by its fingerprint):
     "profiles": ["default"],                                            // List of profiles
     "ephemeral": true,                                                  // Whether to destroy the instance on shutdown
     "config": {"limits.cpu": "2"},                                      // Config override.
+    "type": "container",                                                // Optional Can be: "virtual-machine", "container" by default it set to "container"
     "devices": {                                                        // Optional list of devices the instance should have
         "kvm": {
             "path": "/dev/kvm",
@@ -558,6 +560,7 @@ Input (instance based on most recent match based on image properties):
     "profiles": ["default"],                                            // List of profiles
     "ephemeral": true,                                                  // Whether to destroy the instance on shutdown
     "config": {"limits.cpu": "2"},                                      // Config override.
+    "type": "container",                                                // Optional Can be: "virtual-machine", "container" by default it set to "container"
     "devices": {                                                        // Optional list of devices the instance should have
         "kvm": {
             "path": "/dev/kvm",
@@ -582,6 +585,7 @@ Input (instance without a pre-populated rootfs, useful when attaching to an exis
     "profiles": ["default"],                                            // List of profiles
     "ephemeral": true,                                                  // Whether to destroy the instance on shutdown
     "config": {"limits.cpu": "2"},                                      // Config override.
+    "type": "container",                                                // Optional Can be: "virtual-machine", "container" by default it set to "container"
     "devices": {                                                        // Optional list of devices the instance should have
         "kvm": {
             "path": "/dev/kvm",
@@ -601,6 +605,7 @@ Input (using a public remote image):
     "profiles": ["default"],                                            // List of profiles
     "ephemeral": true,                                                  // Whether to destroy the instance on shutdown
     "config": {"limits.cpu": "2"},                                      // Config override.
+    "type": "container",                                                // Optional Can be: "virtual-machine", "container" by default it set to "container"
     "devices": {                                                        // Optional list of devices the instance should have
         "kvm": {
             "path": "/dev/kvm",
@@ -625,6 +630,7 @@ Input (using a private remote image after having obtained a secret for that imag
     "profiles": ["default"],                                            // List of profiles
     "ephemeral": true,                                                  // Whether to destroy the instance on shutdown
     "config": {"limits.cpu": "2"},                                      // Config override.
+    "type": "container",                                                // Optional Can be: "virtual-machine", "container" by default it set to "container"
     "devices": {                                                        // Optional list of devices the instance should have
         "kvm": {
             "path": "/dev/kvm",
@@ -649,6 +655,7 @@ Input (using a remote instance, sent over the migration websocket):
     "profiles": ["default"],                                                        // List of profiles
     "ephemeral": true,                                                              // Whether to destroy the instance on shutdown
     "config": {"limits.cpu": "2"},                                                  // Config override.
+    "type": "container",                                                            // Optional Can be: "virtual-machine", "container" by default it set to "container"
     "devices": {                                                                    // Optional list of devices the instance should have
         "kvm": {
             "path": "/dev/kvm",
@@ -676,6 +683,7 @@ Input (using a local instance):
     "profiles": ["default"],                                                        // List of profiles
     "ephemeral": true,                                                              // Whether to destroy the instance on shutdown
     "config": {"limits.cpu": "2"},                                                  // Config override.
+    "type": "container",                                                            // Optional Can be: "virtual-machine", "container" by default it set to "container"
     "devices": {                                                                    // Optional list of devices the instance should have
         "kvm": {
             "path": "/dev/kvm",
@@ -697,6 +705,7 @@ Input (using a remote instance, in push mode sent over the migration websocket v
     "profiles": ["default"],                                                        // List of profiles
     "ephemeral": true,                                                              // Whether to destroy the instance on shutdown
     "config": {"limits.cpu": "2"},                                                  // Config override.
+    "type": "container",                                                            // Optional Can be: "virtual-machine", "container" by default it set to "container"
     "devices": {                                                                    // Optional list of devices the instance should have
         "kvm": {
             "path": "/dev/kvm",
