@@ -1728,6 +1728,14 @@ func (vm *qemu) generateQemuConfigFile(busName string, devConfs []*deviceConfig.
 				return "", err
 			}
 		}
+
+		// Add GPU device.
+		if len(runConf.GPUDevice) > 0 {
+			err = vm.addGPUDevConfig(sb, bus, runConf.GPUDevice)
+			if err != nil {
+				return "", err
+			}
+		}
 	}
 
 	// Write the agent mount config.
@@ -2005,7 +2013,7 @@ func (vm *qemu) addNetDevConfig(sb *strings.Builder, bus *qemuBus, bootIndexes m
 
 		// Append the tap device file path to the list of files to be opened and passed to qemu.
 		tplFields["tapFD"] = vm.addFileDescriptor(fdFiles, fmt.Sprintf("/dev/tap%d", ifindex))
-		tpl = qemuNetdevTapFD
+		tpl = qemuNetDevTapFD
 	} else if shared.PathExists(fmt.Sprintf("/sys/class/net/%s/tun_flags", nicName)) {
 		// Detect TAP (via TUN driver) device.
 		tplFields["ifName"] = nicName
@@ -2013,7 +2021,7 @@ func (vm *qemu) addNetDevConfig(sb *strings.Builder, bus *qemuBus, bootIndexes m
 	} else if pciSlotName != "" {
 		// Detect physical passthrough device.
 		tplFields["pciSlotName"] = pciSlotName
-		tpl = qemuNetdevPhysical
+		tpl = qemuNetDevPhysical
 	}
 
 	devBus, devAddr, multi := bus.allocate("")
@@ -2025,6 +2033,83 @@ func (vm *qemu) addNetDevConfig(sb *strings.Builder, bus *qemuBus, bootIndexes m
 	}
 
 	return fmt.Errorf("Unrecognised device type")
+}
+
+// addGPUDevConfig adds the qemu config required for adding a GPU device.
+func (vm *qemu) addGPUDevConfig(sb *strings.Builder, bus *qemuBus, gpuConfig []deviceConfig.RunConfigItem) error {
+	var devName, pciSlotName string
+	for _, gpuItem := range gpuConfig {
+		if gpuItem.Key == "devName" {
+			devName = gpuItem.Value
+		} else if gpuItem.Key == "pciSlotName" {
+			pciSlotName = gpuItem.Value
+		}
+	}
+
+	devBus, devAddr, multi := bus.allocate(fmt.Sprintf("lxd_%s", devName))
+	tplFields := map[string]interface{}{
+		"bus":           bus.name,
+		"devBus":        devBus,
+		"devAddr":       devAddr,
+		"multifunction": multi,
+
+		"devName":     devName,
+		"pciSlotName": pciSlotName,
+		"vga":         true,
+	}
+
+	// Add main GPU device in VGA mode to qemu config.
+	err := qemuGPUDevPhysical.Execute(sb, tplFields)
+	if err != nil {
+		return err
+	}
+
+	// Add any other related IOMMU VFs as generic PCI devices.
+	iommuGroupPath := filepath.Join("/sys/bus/pci/devices", pciSlotName, "iommu_group", "devices")
+
+	if shared.PathExists(iommuGroupPath) {
+		// Extract parent slot name by removing any virtual function ID.
+		parts := strings.SplitN(pciSlotName, ".", 2)
+		prefix := parts[0]
+
+		// Iterate the members of the IOMMU group and override any that match the parent slot name prefix.
+		err := filepath.Walk(iommuGroupPath, func(path string, _ os.FileInfo, err error) error {
+			if err != nil {
+				return err
+			}
+
+			iommuSlotName := filepath.Base(path) // Virtual function's address is dir name.
+
+			// Match any VFs that are related to the GPU device (but not the GPU device itself).
+			if strings.HasPrefix(iommuSlotName, prefix) && iommuSlotName != pciSlotName {
+				// Add VF device without VGA mode to qemu config.
+				devBus, devAddr, multi := bus.allocate(fmt.Sprintf("lxd_%s", devName))
+				tplFields := map[string]interface{}{
+					"bus":           bus.name,
+					"devBus":        devBus,
+					"devAddr":       devAddr,
+					"multifunction": multi,
+
+					// Generate associated device name by combining main device name and VF ID.
+					"devName":     fmt.Sprintf("%s_%s", devName, devAddr),
+					"pciSlotName": iommuSlotName,
+					"vga":         false,
+				}
+
+				err := qemuGPUDevPhysical.Execute(sb, tplFields)
+				if err != nil {
+					return err
+				}
+			}
+
+			return nil
+		})
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 // pidFilePath returns the path where the qemu process should write its PID.
