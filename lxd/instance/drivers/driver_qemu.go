@@ -63,6 +63,9 @@ import (
 // qemuAsyncIO is used to indicate disk should use unsafe cache I/O.
 const qemuUnsafeIO = "unsafeio"
 
+// qemuSerialChardevName is used to communicate state via qmp between Qemu and LXD.
+const qemuSerialChardevName = "qemu_serial-chardev"
+
 var errQemuAgentOffline = fmt.Errorf("LXD VM agent isn't currently running")
 
 var vmConsole = map[int]bool{}
