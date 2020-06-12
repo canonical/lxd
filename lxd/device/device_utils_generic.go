@@ -150,10 +150,12 @@ func pciDeviceDriverOverride(pciDev pciDevice, driverOverride string) error {
 		SlotName: pciDev.SlotName,
 	}
 
-	// Wait for the device to be bound to the overridden driver.
-	err = pciDeviceProbeWait(vfioDev)
-	if err != nil {
-		return err
+	// Wait for the device to be bound to the overridden driver if specified.
+	if vfioDev.Driver != "" {
+		err = pciDeviceProbeWait(vfioDev)
+		if err != nil {
+			return err
+		}
 	}
 
 	revert.Success()
