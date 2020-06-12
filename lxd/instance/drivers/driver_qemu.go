@@ -1548,7 +1548,7 @@ func (vm *qemu) deviceBootPriorities() (map[string]int, error) {
 
 // generateQemuConfigFile writes the qemu config file and returns its location.
 // It writes the config file inside the VM's log path.
-func (vm *qemu) generateQemuConfigFile(bus string, devConfs []*deviceConfig.RunConfig, fdFiles *[]string) (string, error) {
+func (vm *qemu) generateQemuConfigFile(busName string, devConfs []*deviceConfig.RunConfig, fdFiles *[]string) (string, error) {
 	var sb *strings.Builder = &strings.Builder{}
 
 	err := qemuBase.Execute(sb, map[string]interface{}{
@@ -1585,123 +1585,13 @@ func (vm *qemu) generateQemuConfigFile(bus string, devConfs []*deviceConfig.RunC
 		return "", err
 	}
 
-	// allocateBusAddress is used to create any needed root ports and provide
-	// the bus and address that should be used by a device. It supports
-	// automatically setting up multi-function devices and optimize their use.
-	portNum := 0
-	devNum := 1
-
-	type entry struct {
-		bridgeDev int // Device number on the root bridge.
-		bridgeFn  int // Function number on the root bridge.
-
-		dev string // Existing device name.
-		fn  int    // Function number on the existing device.
-	}
-	entries := map[string]*entry{}
-
-	var rootPort *entry
-	allocateRootPort := func() *entry {
-		if rootPort == nil {
-			rootPort = &entry{
-				bridgeDev: devNum,
-			}
-			devNum++
-		} else {
-			if rootPort.bridgeFn == 7 {
-				rootPort.bridgeFn = 0
-				rootPort.bridgeDev = devNum
-				devNum++
-			} else {
-				rootPort.bridgeFn++
-			}
-		}
-
-		return rootPort
-	}
-
-	allocateBusAddr := func(group string) (string, string, bool) {
-		// FIXME: Need to figure out if ccw needs any bus logic.
-		if bus == "ccw" {
-			return "", "", false
-		}
-
-		// Find a device group if specified.
-		var p *entry
-		if group != "" {
-			var ok bool
-			p, ok = entries[group]
-			if ok {
-				// Check if group is full.
-				if p.fn == 7 {
-					p.fn = 0
-					if bus == "pci" {
-						p.bridgeDev = devNum
-						devNum++
-					} else if bus == "pcie" {
-						r := allocateRootPort()
-						p.bridgeDev = r.bridgeDev
-						p.bridgeFn = r.bridgeFn
-					}
-				} else {
-					p.fn++
-				}
-			} else {
-				// Create a new group.
-				p = &entry{}
-
-				if bus == "pci" {
-					p.bridgeDev = devNum
-					devNum++
-				} else if bus == "pcie" {
-					r := allocateRootPort()
-					p.bridgeDev = r.bridgeDev
-					p.bridgeFn = r.bridgeFn
-				}
-
-				entries[group] = p
-			}
-		} else {
-			// Create a new temporary group.
-			p = &entry{}
-
-			if bus == "pci" {
-				p.bridgeDev = devNum
-				devNum++
-			} else if bus == "pcie" {
-				r := allocateRootPort()
-				p.bridgeDev = r.bridgeDev
-				p.bridgeFn = r.bridgeFn
-			}
-		}
-
-		multi := p.fn == 0 && group != ""
-
-		if bus == "pci" {
-			return "pci.0", fmt.Sprintf("%x.%d", p.bridgeDev, p.fn), multi
-		}
-
-		if bus == "pcie" {
-			if p.fn == 0 {
-				qemuPCIe.Execute(sb, map[string]interface{}{
-					"index":         portNum,
-					"addr":          fmt.Sprintf("%x.%d", p.bridgeDev, p.bridgeFn),
-					"multifunction": p.bridgeFn == 0,
-				})
-				p.dev = fmt.Sprintf("qemu_pcie%d", portNum)
-				portNum++
-			}
-
-			return p.dev, fmt.Sprintf("00.%d", p.fn), multi
-		}
-
-		return "", "", false
-	}
+	// Setup the bus allocator.
+	bus := qemuNewBus(busName, sb)
 
 	// Now add the fixed set of devices.
-	devBus, devAddr, multi := allocateBusAddr("generic")
+	devBus, devAddr, multi := bus.allocate("generic")
 	err = qemuBalloon.Execute(sb, map[string]interface{}{
-		"bus":           bus,
+		"bus":           bus.name,
 		"devBus":        devBus,
 		"devAddr":       devAddr,
 		"multifunction": multi,
@@ -1710,9 +1600,9 @@ func (vm *qemu) generateQemuConfigFile(bus string, devConfs []*deviceConfig.RunC
 		return "", err
 	}
 
-	devBus, devAddr, multi = allocateBusAddr("generic")
+	devBus, devAddr, multi = bus.allocate("generic")
 	err = qemuRNG.Execute(sb, map[string]interface{}{
-		"bus":           bus,
+		"bus":           bus.name,
 		"devBus":        devBus,
 		"devAddr":       devAddr,
 		"multifunction": multi,
@@ -1721,9 +1611,9 @@ func (vm *qemu) generateQemuConfigFile(bus string, devConfs []*deviceConfig.RunC
 		return "", err
 	}
 
-	devBus, devAddr, multi = allocateBusAddr("generic")
+	devBus, devAddr, multi = bus.allocate("generic")
 	err = qemuKeyboard.Execute(sb, map[string]interface{}{
-		"bus":           bus,
+		"bus":           bus.name,
 		"devBus":        devBus,
 		"devAddr":       devAddr,
 		"multifunction": multi,
@@ -1732,9 +1622,9 @@ func (vm *qemu) generateQemuConfigFile(bus string, devConfs []*deviceConfig.RunC
 		return "", err
 	}
 
-	devBus, devAddr, multi = allocateBusAddr("generic")
+	devBus, devAddr, multi = bus.allocate("generic")
 	err = qemuTablet.Execute(sb, map[string]interface{}{
-		"bus":           bus,
+		"bus":           bus.name,
 		"devBus":        devBus,
 		"devAddr":       devAddr,
 		"multifunction": multi,
@@ -1743,9 +1633,9 @@ func (vm *qemu) generateQemuConfigFile(bus string, devConfs []*deviceConfig.RunC
 		return "", err
 	}
 
-	devBus, devAddr, multi = allocateBusAddr("generic")
+	devBus, devAddr, multi = bus.allocate("generic")
 	err = qemuVsock.Execute(sb, map[string]interface{}{
-		"bus":           bus,
+		"bus":           bus.name,
 		"devBus":        devBus,
 		"devAddr":       devAddr,
 		"multifunction": multi,
@@ -1756,9 +1646,9 @@ func (vm *qemu) generateQemuConfigFile(bus string, devConfs []*deviceConfig.RunC
 		return "", err
 	}
 
-	devBus, devAddr, multi = allocateBusAddr("generic")
+	devBus, devAddr, multi = bus.allocate("generic")
 	err = qemuSerial.Execute(sb, map[string]interface{}{
-		"bus":           bus,
+		"bus":           bus.name,
 		"devBus":        devBus,
 		"devAddr":       devAddr,
 		"multifunction": multi,
@@ -1769,9 +1659,9 @@ func (vm *qemu) generateQemuConfigFile(bus string, devConfs []*deviceConfig.RunC
 		return "", err
 	}
 
-	devBus, devAddr, multi = allocateBusAddr("")
+	devBus, devAddr, multi = bus.allocate("")
 	err = qemuSCSI.Execute(sb, map[string]interface{}{
-		"bus":           bus,
+		"bus":           bus.name,
 		"devBus":        devBus,
 		"devAddr":       devAddr,
 		"multifunction": multi,
@@ -1780,9 +1670,9 @@ func (vm *qemu) generateQemuConfigFile(bus string, devConfs []*deviceConfig.RunC
 		return "", err
 	}
 
-	devBus, devAddr, multi = allocateBusAddr("9p")
+	devBus, devAddr, multi = bus.allocate("9p")
 	err = qemuDriveConfig.Execute(sb, map[string]interface{}{
-		"bus":           bus,
+		"bus":           bus.name,
 		"devBus":        devBus,
 		"devAddr":       devAddr,
 		"multifunction": multi,
@@ -1793,9 +1683,9 @@ func (vm *qemu) generateQemuConfigFile(bus string, devConfs []*deviceConfig.RunC
 		return "", err
 	}
 
-	devBus, devAddr, multi = allocateBusAddr("")
+	devBus, devAddr, multi = bus.allocate("")
 	err = qemuGPU.Execute(sb, map[string]interface{}{
-		"bus":           bus,
+		"bus":           bus.name,
 		"devBus":        devBus,
 		"devAddr":       devAddr,
 		"multifunction": multi,
@@ -1821,7 +1711,7 @@ func (vm *qemu) generateQemuConfigFile(bus string, devConfs []*deviceConfig.RunC
 				if drive.TargetPath == "/" {
 					err = vm.addRootDriveConfig(sb, bootIndexes, drive)
 				} else if drive.FSType == "9p" {
-					err = vm.addDriveDirConfig(sb, bus, allocateBusAddr, fdFiles, &agentMounts, drive)
+					err = vm.addDriveDirConfig(sb, bus, fdFiles, &agentMounts, drive)
 				} else {
 					err = vm.addDriveConfig(sb, bootIndexes, drive)
 				}
@@ -1833,7 +1723,7 @@ func (vm *qemu) generateQemuConfigFile(bus string, devConfs []*deviceConfig.RunC
 
 		// Add network device.
 		if len(runConf.NetworkInterface) > 0 {
-			err = vm.addNetDevConfig(sb, bus, allocateBusAddr, bootIndexes, runConf.NetworkInterface, fdFiles)
+			err = vm.addNetDevConfig(sb, bus, bootIndexes, runConf.NetworkInterface, fdFiles)
 			if err != nil {
 				return "", err
 			}
@@ -1990,7 +1880,7 @@ func (vm *qemu) addRootDriveConfig(sb *strings.Builder, bootIndexes map[string]i
 }
 
 // addDriveDirConfig adds the qemu config required for adding a supplementary drive directory share.
-func (vm *qemu) addDriveDirConfig(sb *strings.Builder, bus string, allocateBusAddr func(group string) (string, string, bool), fdFiles *[]string, agentMounts *[]instancetype.VMAgentMount, driveConf deviceConfig.MountEntryItem) error {
+func (vm *qemu) addDriveDirConfig(sb *strings.Builder, bus *qemuBus, fdFiles *[]string, agentMounts *[]instancetype.VMAgentMount, driveConf deviceConfig.MountEntryItem) error {
 	mountTag := fmt.Sprintf("lxd_%s", driveConf.DevName)
 
 	agentMount := instancetype.VMAgentMount{
@@ -2008,12 +1898,12 @@ func (vm *qemu) addDriveDirConfig(sb *strings.Builder, bus string, allocateBusAd
 	// Record the 9p mount for the agent.
 	*agentMounts = append(*agentMounts, agentMount)
 
-	devBus, devAddr, multi := allocateBusAddr("9p")
+	devBus, devAddr, multi := bus.allocate("9p")
 
 	// For read only shares, do not use proxy.
 	if shared.StringInSlice("ro", driveConf.Opts) {
 		return qemuDriveDir.Execute(sb, map[string]interface{}{
-			"bus":           bus,
+			"bus":           bus.name,
 			"devBus":        devBus,
 			"devAddr":       devAddr,
 			"multifunction": multi,
@@ -2028,7 +1918,7 @@ func (vm *qemu) addDriveDirConfig(sb *strings.Builder, bus string, allocateBusAd
 	// Only use proxy for writable shares.
 	proxyFD := vm.addFileDescriptor(fdFiles, driveConf.DevPath)
 	return qemuDriveDir.Execute(sb, map[string]interface{}{
-		"bus":           bus,
+		"bus":           bus.name,
 		"devBus":        devBus,
 		"devAddr":       devAddr,
 		"multifunction": multi,
@@ -2078,7 +1968,7 @@ func (vm *qemu) addDriveConfig(sb *strings.Builder, bootIndexes map[string]int, 
 }
 
 // addNetDevConfig adds the qemu config required for adding a network device.
-func (vm *qemu) addNetDevConfig(sb *strings.Builder, bus string, allocateBusAddr func(group string) (string, string, bool), bootIndexes map[string]int, nicConfig []deviceConfig.RunConfigItem, fdFiles *[]string) error {
+func (vm *qemu) addNetDevConfig(sb *strings.Builder, bus *qemuBus, bootIndexes map[string]int, nicConfig []deviceConfig.RunConfigItem, fdFiles *[]string) error {
 	var devName, nicName, devHwaddr, pciSlotName string
 	for _, nicItem := range nicConfig {
 		if nicItem.Key == "devName" {
@@ -2094,7 +1984,7 @@ func (vm *qemu) addNetDevConfig(sb *strings.Builder, bus string, allocateBusAddr
 
 	var tpl *template.Template
 	tplFields := map[string]interface{}{
-		"bus":       bus,
+		"bus":       bus.name,
 		"devName":   devName,
 		"devHwaddr": devHwaddr,
 		"bootIndex": bootIndexes[devName],
@@ -2126,7 +2016,7 @@ func (vm *qemu) addNetDevConfig(sb *strings.Builder, bus string, allocateBusAddr
 		tpl = qemuNetdevPhysical
 	}
 
-	devBus, devAddr, multi := allocateBusAddr("")
+	devBus, devAddr, multi := bus.allocate("")
 	tplFields["devBus"] = devBus
 	tplFields["devAddr"] = devAddr
 	tplFields["multifunction"] = multi
