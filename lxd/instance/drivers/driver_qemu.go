@@ -1588,8 +1588,14 @@ func (vm *qemu) generateQemuConfigFile(busName string, devConfs []*deviceConfig.
 	// Setup the bus allocator.
 	bus := qemuNewBus(busName, sb)
 
-	// Now add the fixed set of devices.
-	devBus, devAddr, multi := bus.allocate("generic")
+	// Now add the fixed set of devices. The multi-function groups used for these fixed internal devices are
+	// specifically chosen to ensure that we consume exactly 4 PCI bus ports (on PCIe bus). This ensures that
+	// the first user device NIC added will use the 5th PCI bus port and will be consistently named enp5s0
+	// on PCIe (which we need to maintain compatibility with network configuration in our existing VM images).
+	// It's also meant to group all low-bandwidth internal devices onto a single address. PCIe bus allows a
+	// total of 256 devices, but this assumes 32 chassis * 8 function. By using VFs for the internal fixed
+	// devices we avoid consuming a chassis for each one.
+	devBus, devAddr, multi := bus.allocate(busFunctionGroupGeneric)
 	err = qemuBalloon.Execute(sb, map[string]interface{}{
 		"bus":           bus.name,
 		"devBus":        devBus,
@@ -1600,7 +1606,7 @@ func (vm *qemu) generateQemuConfigFile(busName string, devConfs []*deviceConfig.
 		return "", err
 	}
 
-	devBus, devAddr, multi = bus.allocate("generic")
+	devBus, devAddr, multi = bus.allocate(busFunctionGroupGeneric)
 	err = qemuRNG.Execute(sb, map[string]interface{}{
 		"bus":           bus.name,
 		"devBus":        devBus,
@@ -1611,7 +1617,7 @@ func (vm *qemu) generateQemuConfigFile(busName string, devConfs []*deviceConfig.
 		return "", err
 	}
 
-	devBus, devAddr, multi = bus.allocate("generic")
+	devBus, devAddr, multi = bus.allocate(busFunctionGroupGeneric)
 	err = qemuKeyboard.Execute(sb, map[string]interface{}{
 		"bus":           bus.name,
 		"devBus":        devBus,
@@ -1622,7 +1628,7 @@ func (vm *qemu) generateQemuConfigFile(busName string, devConfs []*deviceConfig.
 		return "", err
 	}
 
-	devBus, devAddr, multi = bus.allocate("generic")
+	devBus, devAddr, multi = bus.allocate(busFunctionGroupGeneric)
 	err = qemuTablet.Execute(sb, map[string]interface{}{
 		"bus":           bus.name,
 		"devBus":        devBus,
@@ -1633,7 +1639,7 @@ func (vm *qemu) generateQemuConfigFile(busName string, devConfs []*deviceConfig.
 		return "", err
 	}
 
-	devBus, devAddr, multi = bus.allocate("generic")
+	devBus, devAddr, multi = bus.allocate(busFunctionGroupGeneric)
 	err = qemuVsock.Execute(sb, map[string]interface{}{
 		"bus":           bus.name,
 		"devBus":        devBus,
@@ -1646,7 +1652,7 @@ func (vm *qemu) generateQemuConfigFile(busName string, devConfs []*deviceConfig.
 		return "", err
 	}
 
-	devBus, devAddr, multi = bus.allocate("generic")
+	devBus, devAddr, multi = bus.allocate(busFunctionGroupGeneric)
 	err = qemuSerial.Execute(sb, map[string]interface{}{
 		"bus":           bus.name,
 		"devBus":        devBus,
@@ -1659,7 +1665,7 @@ func (vm *qemu) generateQemuConfigFile(busName string, devConfs []*deviceConfig.
 		return "", err
 	}
 
-	devBus, devAddr, multi = bus.allocate("")
+	devBus, devAddr, multi = bus.allocate(busFunctionGroupNone)
 	err = qemuSCSI.Execute(sb, map[string]interface{}{
 		"bus":           bus.name,
 		"devBus":        devBus,
@@ -1670,7 +1676,7 @@ func (vm *qemu) generateQemuConfigFile(busName string, devConfs []*deviceConfig.
 		return "", err
 	}
 
-	devBus, devAddr, multi = bus.allocate("9p")
+	devBus, devAddr, multi = bus.allocate(busFunctionGroup9p)
 	err = qemuDriveConfig.Execute(sb, map[string]interface{}{
 		"bus":           bus.name,
 		"devBus":        devBus,
@@ -1683,7 +1689,7 @@ func (vm *qemu) generateQemuConfigFile(busName string, devConfs []*deviceConfig.
 		return "", err
 	}
 
-	devBus, devAddr, multi = bus.allocate("")
+	devBus, devAddr, multi = bus.allocate(busFunctionGroupNone)
 	err = qemuGPU.Execute(sb, map[string]interface{}{
 		"bus":           bus.name,
 		"devBus":        devBus,
@@ -1704,6 +1710,11 @@ func (vm *qemu) generateQemuConfigFile(busName string, devConfs []*deviceConfig.
 
 	// Record the mounts we are going to do inside the VM using the agent.
 	agentMounts := []instancetype.VMAgentMount{}
+
+	// These devices are sorted so that NICs are added first to ensure that the first NIC can use the 5th
+	// PCIe bus port and will be consistently named enp5s0 for compatibility with network configuration in our
+	// existing VM images. Even on non-PCIe busses having NICs first means that their names won't change when
+	// other devices are added.
 	for _, runConf := range devConfs {
 		// Add drive devices.
 		if len(runConf.Mounts) > 0 {
@@ -1906,7 +1917,7 @@ func (vm *qemu) addDriveDirConfig(sb *strings.Builder, bus *qemuBus, fdFiles *[]
 	// Record the 9p mount for the agent.
 	*agentMounts = append(*agentMounts, agentMount)
 
-	devBus, devAddr, multi := bus.allocate("9p")
+	devBus, devAddr, multi := bus.allocate(busFunctionGroup9p)
 
 	// For read only shares, do not use proxy.
 	if shared.StringInSlice("ro", driveConf.Opts) {
@@ -2024,7 +2035,7 @@ func (vm *qemu) addNetDevConfig(sb *strings.Builder, bus *qemuBus, bootIndexes m
 		tpl = qemuNetDevPhysical
 	}
 
-	devBus, devAddr, multi := bus.allocate("")
+	devBus, devAddr, multi := bus.allocate(busFunctionGroupNone)
 	tplFields["devBus"] = devBus
 	tplFields["devAddr"] = devAddr
 	tplFields["multifunction"] = multi
