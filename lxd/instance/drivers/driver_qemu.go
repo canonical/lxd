@@ -2005,7 +2005,7 @@ func (vm *qemu) addNetDevConfig(sb *strings.Builder, bus *qemuBus, bootIndexes m
 
 		// Append the tap device file path to the list of files to be opened and passed to qemu.
 		tplFields["tapFD"] = vm.addFileDescriptor(fdFiles, fmt.Sprintf("/dev/tap%d", ifindex))
-		tpl = qemuNetdevTapFD
+		tpl = qemuNetDevTapFD
 	} else if shared.PathExists(fmt.Sprintf("/sys/class/net/%s/tun_flags", nicName)) {
 		// Detect TAP (via TUN driver) device.
 		tplFields["ifName"] = nicName
@@ -2013,7 +2013,7 @@ func (vm *qemu) addNetDevConfig(sb *strings.Builder, bus *qemuBus, bootIndexes m
 	} else if pciSlotName != "" {
 		// Detect physical passthrough device.
 		tplFields["pciSlotName"] = pciSlotName
-		tpl = qemuNetdevPhysical
+		tpl = qemuNetDevPhysical
 	}
 
 	devBus, devAddr, multi := bus.allocate("")
