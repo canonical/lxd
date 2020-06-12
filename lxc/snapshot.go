@@ -3,10 +3,13 @@ package main
 import (
 	"github.com/spf13/cobra"
 
+	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 	cli "github.com/lxc/lxd/shared/cmd"
 	"github.com/lxc/lxd/shared/i18n"
 
+	"fmt"
+	"strings"
 	"time"
 )
 
@@ -56,6 +59,16 @@ func (c *cmdSnapshot) Run(cmd *cobra.Command, args []string) error {
 	remote, name, err := conf.ParseRemote(args[0])
 	if err != nil {
 		return err
+	}
+
+	if shared.IsSnapshot(name) {
+		if snapname == "" {
+			fields := strings.SplitN(name, shared.SnapshotDelimiter, 2)
+			name = fields[0]
+			snapname = fields[1]
+		} else {
+			return fmt.Errorf(i18n.G("Invalid instance name: %s"), name)
+		}
 	}
 
 	d, err := conf.GetInstanceServer(remote)
