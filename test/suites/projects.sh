@@ -1,12 +1,12 @@
 # Use the default project.
 test_projects_default() {
   # The default project is used by the default profile
-  lxc project show default | grep -q "/1.0/profiles/default?project=default"
+  lxc project show default | grep -q "/1.0/profiles/default$"
 
   # Containers and images are assigned to the default project
   ensure_import_testimage
   lxc init testimage c1
-  lxc project show default | grep -q "/1.0/profiles/default?project=default"
+  lxc project show default | grep -q "/1.0/profiles/default$"
   lxc project show default | grep -q "/1.0/images/"
   lxc delete c1
 }

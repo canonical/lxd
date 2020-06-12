@@ -18,5 +18,5 @@ func TestProjectsList(t *testing.T) {
 	require.NoError(t, err)
 
 	assert.Len(t, project.UsedBy, 1)
-	assert.Equal(t, "/1.0/profiles/default?project=default", project.UsedBy[0])
+	assert.Equal(t, "/1.0/profiles/default", project.UsedBy[0])
 }

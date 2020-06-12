@@ -278,6 +278,11 @@ func (c *ClusterTx) GetProfiles(filter ProfileFilter) ([]Profile, error) {
 		if value == nil {
 			value = []string{}
 		}
+		for j, entry := range value {
+			if len(entry) > 16 && entry[len(entry)-16:] == "?project=default" {
+				value[j] = entry[0 : len(entry)-16]
+			}
+		}
 		objects[i].UsedBy = value
 	}
 
