@@ -80,7 +80,7 @@ size = "{{.ringbufSizeBytes}}B"
 [device "qemu_serial"]
 driver = "virtserialport"
 name = "org.linuxcontainers.lxd"
-chardev = "qemu_serial-chardev"
+chardev = "{{.chardevName}}"
 bus = "dev-qemu_serial.0"
 `))
 
