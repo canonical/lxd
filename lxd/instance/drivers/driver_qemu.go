@@ -63,6 +63,9 @@ import (
 // qemuAsyncIO is used to indicate disk should use unsafe cache I/O.
 const qemuUnsafeIO = "unsafeio"
 
+// qemuSerialChardevName is used to communicate state via qmp between Qemu and LXD.
+const qemuSerialChardevName = "qemu_serial-chardev"
+
 var errQemuAgentOffline = fmt.Errorf("LXD VM agent isn't currently running")
 
 var vmConsole = map[int]bool{}
@@ -468,7 +471,7 @@ func (vm *qemu) generateAgentCert() (string, string, string, string, error) {
 // Freeze freezes the instance.
 func (vm *qemu) Freeze() error {
 	// Connect to the monitor.
-	monitor, err := qmp.Connect(vm.monitorPath(), vm.getMonitorEventHandler())
+	monitor, err := qmp.Connect(vm.monitorPath(), qemuSerialChardevName, vm.getMonitorEventHandler())
 	if err != nil {
 		return err
 	}
@@ -530,7 +533,7 @@ func (vm *qemu) Shutdown(timeout time.Duration) error {
 	}
 
 	// Connect to the monitor.
-	monitor, err := qmp.Connect(vm.monitorPath(), vm.getMonitorEventHandler())
+	monitor, err := qmp.Connect(vm.monitorPath(), qemuSerialChardevName, vm.getMonitorEventHandler())
 	if err != nil {
 		op.Done(err)
 		return err
@@ -868,7 +871,7 @@ func (vm *qemu) Start(stateful bool) error {
 	})
 
 	// Start QMP monitoring.
-	monitor, err := qmp.Connect(vm.monitorPath(), vm.getMonitorEventHandler())
+	monitor, err := qmp.Connect(vm.monitorPath(), qemuSerialChardevName, vm.getMonitorEventHandler())
 	if err != nil {
 		op.Done(err)
 		return err
@@ -1588,8 +1591,14 @@ func (vm *qemu) generateQemuConfigFile(busName string, devConfs []*deviceConfig.
 	// Setup the bus allocator.
 	bus := qemuNewBus(busName, sb)
 
-	// Now add the fixed set of devices.
-	devBus, devAddr, multi := bus.allocate("generic")
+	// Now add the fixed set of devices. The multi-function groups used for these fixed internal devices are
+	// specifically chosen to ensure that we consume exactly 4 PCI bus ports (on PCIe bus). This ensures that
+	// the first user device NIC added will use the 5th PCI bus port and will be consistently named enp5s0
+	// on PCIe (which we need to maintain compatibility with network configuration in our existing VM images).
+	// It's also meant to group all low-bandwidth internal devices onto a single address. PCIe bus allows a
+	// total of 256 devices, but this assumes 32 chassis * 8 function. By using VFs for the internal fixed
+	// devices we avoid consuming a chassis for each one.
+	devBus, devAddr, multi := bus.allocate(busFunctionGroupGeneric)
 	err = qemuBalloon.Execute(sb, map[string]interface{}{
 		"bus":           bus.name,
 		"devBus":        devBus,
@@ -1600,7 +1609,7 @@ func (vm *qemu) generateQemuConfigFile(busName string, devConfs []*deviceConfig.
 		return "", err
 	}
 
-	devBus, devAddr, multi = bus.allocate("generic")
+	devBus, devAddr, multi = bus.allocate(busFunctionGroupGeneric)
 	err = qemuRNG.Execute(sb, map[string]interface{}{
 		"bus":           bus.name,
 		"devBus":        devBus,
@@ -1611,7 +1620,7 @@ func (vm *qemu) generateQemuConfigFile(busName string, devConfs []*deviceConfig.
 		return "", err
 	}
 
-	devBus, devAddr, multi = bus.allocate("generic")
+	devBus, devAddr, multi = bus.allocate(busFunctionGroupGeneric)
 	err = qemuKeyboard.Execute(sb, map[string]interface{}{
 		"bus":           bus.name,
 		"devBus":        devBus,
@@ -1622,7 +1631,7 @@ func (vm *qemu) generateQemuConfigFile(busName string, devConfs []*deviceConfig.
 		return "", err
 	}
 
-	devBus, devAddr, multi = bus.allocate("generic")
+	devBus, devAddr, multi = bus.allocate(busFunctionGroupGeneric)
 	err = qemuTablet.Execute(sb, map[string]interface{}{
 		"bus":           bus.name,
 		"devBus":        devBus,
@@ -1633,7 +1642,7 @@ func (vm *qemu) generateQemuConfigFile(busName string, devConfs []*deviceConfig.
 		return "", err
 	}
 
-	devBus, devAddr, multi = bus.allocate("generic")
+	devBus, devAddr, multi = bus.allocate(busFunctionGroupGeneric)
 	err = qemuVsock.Execute(sb, map[string]interface{}{
 		"bus":           bus.name,
 		"devBus":        devBus,
@@ -1646,20 +1655,21 @@ func (vm *qemu) generateQemuConfigFile(busName string, devConfs []*deviceConfig.
 		return "", err
 	}
 
-	devBus, devAddr, multi = bus.allocate("generic")
+	devBus, devAddr, multi = bus.allocate(busFunctionGroupGeneric)
 	err = qemuSerial.Execute(sb, map[string]interface{}{
 		"bus":           bus.name,
 		"devBus":        devBus,
 		"devAddr":       devAddr,
 		"multifunction": multi,
 
+		"chardevName":      qemuSerialChardevName,
 		"ringbufSizeBytes": qmp.RingbufSize,
 	})
 	if err != nil {
 		return "", err
 	}
 
-	devBus, devAddr, multi = bus.allocate("")
+	devBus, devAddr, multi = bus.allocate(busFunctionGroupNone)
 	err = qemuSCSI.Execute(sb, map[string]interface{}{
 		"bus":           bus.name,
 		"devBus":        devBus,
@@ -1670,7 +1680,7 @@ func (vm *qemu) generateQemuConfigFile(busName string, devConfs []*deviceConfig.
 		return "", err
 	}
 
-	devBus, devAddr, multi = bus.allocate("9p")
+	devBus, devAddr, multi = bus.allocate(busFunctionGroup9p)
 	err = qemuDriveConfig.Execute(sb, map[string]interface{}{
 		"bus":           bus.name,
 		"devBus":        devBus,
@@ -1683,7 +1693,7 @@ func (vm *qemu) generateQemuConfigFile(busName string, devConfs []*deviceConfig.
 		return "", err
 	}
 
-	devBus, devAddr, multi = bus.allocate("")
+	devBus, devAddr, multi = bus.allocate(busFunctionGroupNone)
 	err = qemuGPU.Execute(sb, map[string]interface{}{
 		"bus":           bus.name,
 		"devBus":        devBus,
@@ -1704,6 +1714,11 @@ func (vm *qemu) generateQemuConfigFile(busName string, devConfs []*deviceConfig.
 
 	// Record the mounts we are going to do inside the VM using the agent.
 	agentMounts := []instancetype.VMAgentMount{}
+
+	// These devices are sorted so that NICs are added first to ensure that the first NIC can use the 5th
+	// PCIe bus port and will be consistently named enp5s0 for compatibility with network configuration in our
+	// existing VM images. Even on non-PCIe busses having NICs first means that their names won't change when
+	// other devices are added.
 	for _, runConf := range devConfs {
 		// Add drive devices.
 		if len(runConf.Mounts) > 0 {
@@ -1906,7 +1921,7 @@ func (vm *qemu) addDriveDirConfig(sb *strings.Builder, bus *qemuBus, fdFiles *[]
 	// Record the 9p mount for the agent.
 	*agentMounts = append(*agentMounts, agentMount)
 
-	devBus, devAddr, multi := bus.allocate("9p")
+	devBus, devAddr, multi := bus.allocate(busFunctionGroup9p)
 
 	// For read only shares, do not use proxy.
 	if shared.StringInSlice("ro", driveConf.Opts) {
@@ -2024,7 +2039,7 @@ func (vm *qemu) addNetDevConfig(sb *strings.Builder, bus *qemuBus, bootIndexes m
 		tpl = qemuNetDevPhysical
 	}
 
-	devBus, devAddr, multi := bus.allocate("")
+	devBus, devAddr, multi := bus.allocate(busFunctionGroupNone)
 	tplFields["devBus"] = devBus
 	tplFields["devAddr"] = devAddr
 	tplFields["multifunction"] = multi
@@ -2155,7 +2170,7 @@ func (vm *qemu) Stop(stateful bool) error {
 	}
 
 	// Connect to the monitor.
-	monitor, err := qmp.Connect(vm.monitorPath(), vm.getMonitorEventHandler())
+	monitor, err := qmp.Connect(vm.monitorPath(), qemuSerialChardevName, vm.getMonitorEventHandler())
 	if err != nil {
 		// If we fail to connect, it's most likely because the VM is already off.
 		op.Done(nil)
@@ -2202,7 +2217,7 @@ func (vm *qemu) Stop(stateful bool) error {
 // Unfreeze restores the instance to running.
 func (vm *qemu) Unfreeze() error {
 	// Connect to the monitor.
-	monitor, err := qmp.Connect(vm.monitorPath(), vm.getMonitorEventHandler())
+	monitor, err := qmp.Connect(vm.monitorPath(), qemuSerialChardevName, vm.getMonitorEventHandler())
 	if err != nil {
 		return err
 	}
@@ -3573,7 +3588,7 @@ func (vm *qemu) Console() (*os.File, chan error, error) {
 	vmConsoleLock.Unlock()
 
 	// Connect to the monitor.
-	monitor, err := qmp.Connect(vm.monitorPath(), vm.getMonitorEventHandler())
+	monitor, err := qmp.Connect(vm.monitorPath(), qemuSerialChardevName, vm.getMonitorEventHandler())
 	if err != nil {
 		return nil, nil, err // The VM isn't running as no monitor socket available.
 	}
@@ -3944,7 +3959,7 @@ func (vm *qemu) diskState() (map[string]api.InstanceStateDisk, error) {
 // an API call to get the current state.
 func (vm *qemu) agentGetState() (*api.InstanceState, error) {
 	// Check if the agent is running.
-	monitor, err := qmp.Connect(vm.monitorPath(), vm.getMonitorEventHandler())
+	monitor, err := qmp.Connect(vm.monitorPath(), qemuSerialChardevName, vm.getMonitorEventHandler())
 	if err != nil {
 		return nil, err
 	}
@@ -4061,7 +4076,7 @@ func (vm *qemu) InitPID() int {
 
 func (vm *qemu) statusCode() api.StatusCode {
 	// Connect to the monitor.
-	monitor, err := qmp.Connect(vm.monitorPath(), vm.getMonitorEventHandler())
+	monitor, err := qmp.Connect(vm.monitorPath(), qemuSerialChardevName, vm.getMonitorEventHandler())
 	if err != nil {
 		// If we fail to connect, chances are the VM isn't running.
 		return api.Stopped
