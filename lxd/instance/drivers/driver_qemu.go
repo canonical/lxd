@@ -471,7 +471,7 @@ func (vm *qemu) generateAgentCert() (string, string, string, string, error) {
 // Freeze freezes the instance.
 func (vm *qemu) Freeze() error {
 	// Connect to the monitor.
-	monitor, err := qmp.Connect(vm.monitorPath(), vm.getMonitorEventHandler())
+	monitor, err := qmp.Connect(vm.monitorPath(), qemuSerialChardevName, vm.getMonitorEventHandler())
 	if err != nil {
 		return err
 	}
@@ -533,7 +533,7 @@ func (vm *qemu) Shutdown(timeout time.Duration) error {
 	}
 
 	// Connect to the monitor.
-	monitor, err := qmp.Connect(vm.monitorPath(), vm.getMonitorEventHandler())
+	monitor, err := qmp.Connect(vm.monitorPath(), qemuSerialChardevName, vm.getMonitorEventHandler())
 	if err != nil {
 		op.Done(err)
 		return err
@@ -871,7 +871,7 @@ func (vm *qemu) Start(stateful bool) error {
 	})
 
 	// Start QMP monitoring.
-	monitor, err := qmp.Connect(vm.monitorPath(), vm.getMonitorEventHandler())
+	monitor, err := qmp.Connect(vm.monitorPath(), qemuSerialChardevName, vm.getMonitorEventHandler())
 	if err != nil {
 		op.Done(err)
 		return err
@@ -1662,6 +1662,7 @@ func (vm *qemu) generateQemuConfigFile(busName string, devConfs []*deviceConfig.
 		"devAddr":       devAddr,
 		"multifunction": multi,
 
+		"chardevName":      qemuSerialChardevName,
 		"ringbufSizeBytes": qmp.RingbufSize,
 	})
 	if err != nil {
@@ -2169,7 +2170,7 @@ func (vm *qemu) Stop(stateful bool) error {
 	}
 
 	// Connect to the monitor.
-	monitor, err := qmp.Connect(vm.monitorPath(), vm.getMonitorEventHandler())
+	monitor, err := qmp.Connect(vm.monitorPath(), qemuSerialChardevName, vm.getMonitorEventHandler())
 	if err != nil {
 		// If we fail to connect, it's most likely because the VM is already off.
 		op.Done(nil)
@@ -2216,7 +2217,7 @@ func (vm *qemu) Stop(stateful bool) error {
 // Unfreeze restores the instance to running.
 func (vm *qemu) Unfreeze() error {
 	// Connect to the monitor.
-	monitor, err := qmp.Connect(vm.monitorPath(), vm.getMonitorEventHandler())
+	monitor, err := qmp.Connect(vm.monitorPath(), qemuSerialChardevName, vm.getMonitorEventHandler())
 	if err != nil {
 		return err
 	}
@@ -3587,7 +3588,7 @@ func (vm *qemu) Console() (*os.File, chan error, error) {
 	vmConsoleLock.Unlock()
 
 	// Connect to the monitor.
-	monitor, err := qmp.Connect(vm.monitorPath(), vm.getMonitorEventHandler())
+	monitor, err := qmp.Connect(vm.monitorPath(), qemuSerialChardevName, vm.getMonitorEventHandler())
 	if err != nil {
 		return nil, nil, err // The VM isn't running as no monitor socket available.
 	}
@@ -3958,7 +3959,7 @@ func (vm *qemu) diskState() (map[string]api.InstanceStateDisk, error) {
 // an API call to get the current state.
 func (vm *qemu) agentGetState() (*api.InstanceState, error) {
 	// Check if the agent is running.
-	monitor, err := qmp.Connect(vm.monitorPath(), vm.getMonitorEventHandler())
+	monitor, err := qmp.Connect(vm.monitorPath(), qemuSerialChardevName, vm.getMonitorEventHandler())
 	if err != nil {
 		return nil, err
 	}
@@ -4075,7 +4076,7 @@ func (vm *qemu) InitPID() int {
 
 func (vm *qemu) statusCode() api.StatusCode {
 	// Connect to the monitor.
-	monitor, err := qmp.Connect(vm.monitorPath(), vm.getMonitorEventHandler())
+	monitor, err := qmp.Connect(vm.monitorPath(), qemuSerialChardevName, vm.getMonitorEventHandler())
 	if err != nil {
 		// If we fail to connect, chances are the VM isn't running.
 		return api.Stopped
