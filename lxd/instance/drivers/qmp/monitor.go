@@ -24,14 +24,15 @@ type Monitor struct {
 	path string
 	qmp  *qmp.SocketMonitor
 
-	agentReady   bool
-	disconnected bool
-	chDisconnect chan struct{}
-	eventHandler func(name string, data map[string]interface{})
+	agentReady    bool
+	disconnected  bool
+	chDisconnect  chan struct{}
+	eventHandler  func(name string, data map[string]interface{})
+	serialCharDev string
 }
 
 // Connect creates or retrieves an existing QMP monitor for the path.
-func Connect(path string, eventHandler func(name string, data map[string]interface{})) (*Monitor, error) {
+func Connect(path string, serialCharDev string, eventHandler func(name string, data map[string]interface{})) (*Monitor, error) {
 	monitorsLock.Lock()
 	defer monitorsLock.Unlock()
 
@@ -59,6 +60,7 @@ func Connect(path string, eventHandler func(name string, data map[string]interfa
 	monitor.qmp = qmpConn
 	monitor.chDisconnect = make(chan struct{}, 1)
 	monitor.eventHandler = eventHandler
+	monitor.serialCharDev = serialCharDev
 
 	// Spawn goroutines.
 	err = monitor.run()
@@ -77,7 +79,7 @@ func (m *Monitor) run() error {
 	go func() {
 		for {
 			// Read the ringbuffer.
-			resp, err := m.qmp.Run([]byte(fmt.Sprintf(`{"execute": "ringbuf-read", "arguments": {"device": "qemu_serial-chardev", "size": %d, "format": "utf8"}}`, RingbufSize)))
+			resp, err := m.qmp.Run([]byte(fmt.Sprintf(`{"execute": "ringbuf-read", "arguments": {"device": "%s", "size": %d, "format": "utf8"}}`, m.serialCharDev, RingbufSize)))
 			if err != nil {
 				m.Disconnect()
 				return
