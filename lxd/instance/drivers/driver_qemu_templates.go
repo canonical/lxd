@@ -357,8 +357,8 @@ multifunction = "on"
 {{- end }}
 `))
 
-// qemuDevTapCommon is common PCI device template for tap based netdevs.
-var qemuDevTapCommon = template.Must(template.New("qemuDevTapCommon").Parse(`
+// qemuNetDevTapCommon is common PCI device template for tap based netdevs.
+var qemuNetDevTapCommon = template.Must(template.New("qemuNetDevTapCommon").Parse(`
 [device "dev-lxd_{{.devName}}"]
 {{- if eq .bus "pci" "pcie"}}
 driver = "virtio-net-pci"
@@ -377,7 +377,7 @@ multifunction = "on"
 `))
 
 // Devices use "lxd_" prefix indicating that this is a user named device.
-var qemuNetDevTapTun = template.Must(qemuDevTapCommon.New("qemuNetDevTapTun").Parse(`
+var qemuNetDevTapTun = template.Must(qemuNetDevTapCommon.New("qemuNetDevTapTun").Parse(`
 # Network card ("{{.devName}}" device)
 [netdev "lxd_{{.devName}}"]
 type = "tap"
@@ -385,21 +385,21 @@ vhost = "on"
 ifname = "{{.ifName}}"
 script = "no"
 downscript = "no"
-{{ template "qemuDevTapCommon" . -}}
+{{ template "qemuNetDevTapCommon" . -}}
 `))
 
 // Devices use "lxd_" prefix indicating that this is a user named device.
-var qemuNetdevTapFD = template.Must(qemuDevTapCommon.New("qemuNetdevTapFD").Parse(`
+var qemuNetDevTapFD = template.Must(qemuNetDevTapCommon.New("qemuNetDevTapFD").Parse(`
 # Network card ("{{.devName}}" device)
 [netdev "lxd_{{.devName}}"]
 type = "tap"
 vhost = "on"
 fd = "{{.tapFD}}"
-{{ template "qemuDevTapCommon" . -}}
+{{ template "qemuNetDevTapCommon" . -}}
 `))
 
 // Devices use "lxd_" prefix indicating that this is a user named device.
-var qemuNetdevPhysical = template.Must(template.New("qemuNetdevPhysical").Parse(`
+var qemuNetDevPhysical = template.Must(template.New("qemuNetDevPhysical").Parse(`
 # Network card ("{{.devName}}" device)
 [device "dev-lxd_{{.devName}}"]
 {{- if eq .bus "pci" "pcie"}}
