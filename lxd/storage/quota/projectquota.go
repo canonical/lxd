@@ -241,9 +241,13 @@ func SetProject(path string, id uint32) error {
 		}
 
 		inherit := false
-
 		if info.IsDir() {
 			inherit = true // Only can set FS_XFLAG_PROJINHERIT on directories.
+		} else if !info.Mode().IsRegular() {
+			// Cannot set project ID on non-regular files after file creation. Infact trying to set
+			// project ID on some file types just blocks forever (such as pipe files).
+			// So skip them as they don't take up disk space anyway.
+			return nil
 		}
 
 		// Call ioctl through CGo.
@@ -251,16 +255,6 @@ func SetProject(path string, id uint32) error {
 		defer C.free(unsafe.Pointer(cPath))
 
 		if C.quota_set_path(cPath, C.uint32_t(id), C.bool(inherit)) != 0 {
-			// Currently project ID cannot be set on non-regular files after file creation.
-			// However if the parent directory has a project and the inherit flag set on it then
-			// non-regular files do get accounted for under the parent's project, so we do still try
-			// and set the post-create project on non-regular files in case at some point in the future
-			// this inconsistency in behavior is fixed. However because it doesn't work today we will
-			// ignore any errors setting project on non-regular files.
-			if !info.Mode().IsRegular() {
-				return nil
-			}
-
 			return fmt.Errorf(`Failed to set project ID "%d" on %q (inherit %t)`, id, filePath, inherit)
 		}
 
