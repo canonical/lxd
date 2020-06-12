@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: lxd\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2020-06-04 17:09-0400\n"
+"POT-Creation-Date: 2020-06-11 23:19-0400\n"
 "PO-Revision-Date: 2019-09-06 07:09+0000\n"
 "Last-Translator: Luigi Operoso <brokenpip3@gmail.com>\n"
 "Language-Team: Italian <https://hosted.weblate.org/projects/linux-containers/"
@@ -831,12 +831,12 @@ msgstr "Creazione del container in corso"
 msgid "Create any directories necessary"
 msgstr ""
 
-#: lxc/snapshot.go:23
+#: lxc/snapshot.go:26
 #, fuzzy
 msgid "Create instance snapshots"
 msgstr "Creazione del container in corso"
 
-#: lxc/snapshot.go:24
+#: lxc/snapshot.go:27
 msgid ""
 "Create instance snapshots\n"
 "\n"
@@ -1011,7 +1011,7 @@ msgstr ""
 #: lxc/project.go:673 lxc/publish.go:31 lxc/query.go:31 lxc/remote.go:33
 #: lxc/remote.go:84 lxc/remote.go:423 lxc/remote.go:459 lxc/remote.go:539
 #: lxc/remote.go:601 lxc/remote.go:651 lxc/remote.go:689 lxc/rename.go:21
-#: lxc/restore.go:24 lxc/snapshot.go:24 lxc/storage.go:33 lxc/storage.go:89
+#: lxc/restore.go:24 lxc/snapshot.go:27 lxc/storage.go:33 lxc/storage.go:89
 #: lxc/storage.go:163 lxc/storage.go:213 lxc/storage.go:333 lxc/storage.go:388
 #: lxc/storage.go:508 lxc/storage.go:582 lxc/storage.go:651 lxc/storage.go:735
 #: lxc/storage_volume.go:33 lxc/storage_volume.go:140 lxc/storage_volume.go:219
@@ -1491,7 +1491,7 @@ msgid ""
 "lxd init"
 msgstr ""
 
-#: lxc/snapshot.go:35
+#: lxc/snapshot.go:38
 msgid "Ignore any configured auto-expiry for the instance"
 msgstr ""
 
@@ -1608,6 +1608,11 @@ msgstr ""
 #, fuzzy, c-format
 msgid "Invalid format %q"
 msgstr "Proprietà errata: %s"
+
+#: lxc/snapshot.go:70
+#, fuzzy, c-format
+msgid "Invalid instance name: %s"
+msgstr "Il nome del container è: %s"
 
 #: lxc/list.go:522
 #, c-format
@@ -2978,11 +2983,7 @@ msgstr ""
 msgid "Show storage pool configurations and resources"
 msgstr ""
 
-#: lxc/storage_volume.go:1362
-msgid "Show storage volum configurations"
-msgstr ""
-
-#: lxc/storage_volume.go:1363
+#: lxc/storage_volume.go:1362 lxc/storage_volume.go:1363
 msgid "Show storage volume configurations"
 msgstr ""
 
@@ -3461,7 +3462,7 @@ msgid ""
 "available)"
 msgstr ""
 
-#: lxc/snapshot.go:34
+#: lxc/snapshot.go:37
 msgid "Whether or not to snapshot the instance's running state"
 msgstr ""
 
@@ -4071,7 +4072,7 @@ msgid ""
 "    Delete local instance \"c1\"."
 msgstr ""
 
-#: lxc/snapshot.go:29
+#: lxc/snapshot.go:32
 msgid ""
 "lxc snapshot u1 snap0\n"
 "    Create a snapshot of \"u1\" called \"snap0\"."
@@ -4367,7 +4368,7 @@ msgstr ""
 msgid "show [<remote>:][<instance>[/<snapshot>]]"
 msgstr "Creazione del container in corso"
 
-#: lxc/snapshot.go:22
+#: lxc/snapshot.go:25
 #, fuzzy
 msgid "snapshot [<remote>:]<instance> [<snapshot name>]"
 msgstr "Creazione del container in corso"

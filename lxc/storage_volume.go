@@ -1359,7 +1359,7 @@ type cmdStorageVolumeShow struct {
 func (c *cmdStorageVolumeShow) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = i18n.G("show [<remote>:]<pool> <volume>[/<snapshot>]")
-	cmd.Short = i18n.G("Show storage volum configurations")
+	cmd.Short = i18n.G("Show storage volume configurations")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
 		`Show storage volume configurations`))
 	cmd.Example = cli.FormatSection("", i18n.G(

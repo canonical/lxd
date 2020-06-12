@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: LXD\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2020-06-04 17:09-0400\n"
+"POT-Creation-Date: 2020-06-11 23:19-0400\n"
 "PO-Revision-Date: 2020-05-22 19:59+0000\n"
 "Last-Translator: KATOH Yasufumi <karma@jazz.email.ne.jp>\n"
 "Language-Team: Japanese <https://hosted.weblate.org/projects/linux-"
@@ -849,11 +849,11 @@ msgstr "イメージからインスタンスを作成し、起動します"
 msgid "Create any directories necessary"
 msgstr "必要なディレクトリをすべて作成します"
 
-#: lxc/snapshot.go:23
+#: lxc/snapshot.go:26
 msgid "Create instance snapshots"
 msgstr "インスタンスのスナップショットを作成します"
 
-#: lxc/snapshot.go:24
+#: lxc/snapshot.go:27
 msgid ""
 "Create instance snapshots\n"
 "\n"
@@ -1027,7 +1027,7 @@ msgstr "ストレージボリュームを削除します"
 #: lxc/project.go:673 lxc/publish.go:31 lxc/query.go:31 lxc/remote.go:33
 #: lxc/remote.go:84 lxc/remote.go:423 lxc/remote.go:459 lxc/remote.go:539
 #: lxc/remote.go:601 lxc/remote.go:651 lxc/remote.go:689 lxc/rename.go:21
-#: lxc/restore.go:24 lxc/snapshot.go:24 lxc/storage.go:33 lxc/storage.go:89
+#: lxc/restore.go:24 lxc/snapshot.go:27 lxc/storage.go:33 lxc/storage.go:89
 #: lxc/storage.go:163 lxc/storage.go:213 lxc/storage.go:333 lxc/storage.go:388
 #: lxc/storage.go:508 lxc/storage.go:582 lxc/storage.go:651 lxc/storage.go:735
 #: lxc/storage_volume.go:33 lxc/storage_volume.go:140 lxc/storage_volume.go:219
@@ -1545,7 +1545,7 @@ msgid ""
 "lxd init"
 msgstr "初めてこのマシンで LXD を使う場合、lxd init と実行する必要があります"
 
-#: lxc/snapshot.go:35
+#: lxc/snapshot.go:38
 msgid "Ignore any configured auto-expiry for the instance"
 msgstr "設定されている自動でのインスタンスの有効期限設定を無視します"
 
@@ -1666,6 +1666,11 @@ msgstr ""
 #, c-format
 msgid "Invalid format %q"
 msgstr "不正なフォーマット %q"
+
+#: lxc/snapshot.go:70
+#, fuzzy, c-format
+msgid "Invalid instance name: %s"
+msgstr "インスタンス名: %s"
 
 #: lxc/list.go:522
 #, c-format
@@ -3174,11 +3179,7 @@ msgstr "プロジェクトの設定を表示します"
 msgid "Show storage pool configurations and resources"
 msgstr "ストレージプールの設定とリソースを表示します"
 
-#: lxc/storage_volume.go:1362
-msgid "Show storage volum configurations"
-msgstr "ストレージボリュームの設定を表示します"
-
-#: lxc/storage_volume.go:1363
+#: lxc/storage_volume.go:1362 lxc/storage_volume.go:1363
 msgid "Show storage volume configurations"
 msgstr "ストレージボリュームの設定を表示する"
 
@@ -3682,7 +3683,7 @@ msgstr ""
 "スナップショットからインスタンスの稼動状態をリストアするかどうか (取得可能な"
 "場合)"
 
-#: lxc/snapshot.go:34
+#: lxc/snapshot.go:37
 msgid "Whether or not to snapshot the instance's running state"
 msgstr "インスタンスの稼動状態のスナップショットを取得するかどうか"
 
@@ -4382,7 +4383,7 @@ msgstr ""
 "lxc query -X DELETE --wait /1.0/instances/c1\n"
 "    ローカルのインスタンス \"c1\" を削除します。"
 
-#: lxc/snapshot.go:29
+#: lxc/snapshot.go:32
 msgid ""
 "lxc snapshot u1 snap0\n"
 "    Create a snapshot of \"u1\" called \"snap0\"."
@@ -4690,7 +4691,7 @@ msgstr "show [<remote>:]<project>"
 msgid "show [<remote>:][<instance>[/<snapshot>]]"
 msgstr "show [<remote>:][<instance>[/<snapshot>]]"
 
-#: lxc/snapshot.go:22
+#: lxc/snapshot.go:25
 msgid "snapshot [<remote>:]<instance> [<snapshot name>]"
 msgstr "snapshot [<remote>:]<instance> [<snapshot name>]"
 
@@ -4799,6 +4800,9 @@ msgstr "y"
 #: lxc/image.go:1069
 msgid "yes"
 msgstr "yes"
+
+#~ msgid "Show storage volum configurations"
+#~ msgstr "ストレージボリュームの設定を表示します"
 
 #~ msgid ""
 #~ "Copy the instance without its snapshots (deprecated, use instance-only)"
