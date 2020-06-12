@@ -416,3 +416,24 @@ bootindex = "{{.bootIndex}}"
 multifunction = "on"
 {{- end }}
 `))
+
+// Devices use "lxd_" prefix indicating that this is a user named device.
+var qemuGPUDevPhysical = template.Must(template.New("qemuGPUDevPhysical").Parse(`
+# GPU card ("{{.devName}}" device)
+[device "dev-lxd_{{.devName}}"]
+{{- if eq .bus "pci" "pcie"}}
+driver = "vfio-pci"
+bus = "{{.devBus}}"
+addr = "{{.devAddr}}"
+{{- end}}
+{{if eq .bus "ccw" -}}
+driver = "vfio-ccw"
+{{- end}}
+host = "{{.pciSlotName}}"
+{{if .vga -}}
+x-vga = "on"
+{{- end }}
+{{if .multifunction -}}
+multifunction = "on"
+{{- end }}
+`))
