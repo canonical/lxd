@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: LXD\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2020-06-04 17:09-0400\n"
+"POT-Creation-Date: 2020-06-11 23:13-0400\n"
 "PO-Revision-Date: 2019-01-04 18:07+0000\n"
 "Last-Translator: Deleted User <noreply+12102@weblate.org>\n"
 "Language-Team: French <https://hosted.weblate.org/projects/linux-containers/"
@@ -3212,12 +3212,7 @@ msgstr "Afficher la configuration étendue"
 msgid "Show storage pool configurations and resources"
 msgstr ""
 
-#: lxc/storage_volume.go:1362
-#, fuzzy
-msgid "Show storage volum configurations"
-msgstr "Afficher la configuration étendue"
-
-#: lxc/storage_volume.go:1363
+#: lxc/storage_volume.go:1362 lxc/storage_volume.go:1363
 #, fuzzy
 msgid "Show storage volume configurations"
 msgstr "Afficher la configuration étendue"
@@ -5088,6 +5083,10 @@ msgstr ""
 #: lxc/image.go:1069
 msgid "yes"
 msgstr "oui"
+
+#, fuzzy
+#~ msgid "Show storage volum configurations"
+#~ msgstr "Afficher la configuration étendue"
 
 #, fuzzy
 #~ msgid ""
