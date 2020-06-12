@@ -692,7 +692,7 @@ required    | boolean   | false             | no        | Whether or not this de
 
 ### Type: gpu
 
-Supported instance types: container
+Supported instance types: container, VM
 
 GPU device entries simply make the requested gpu device appear in the
 instance.
@@ -705,9 +705,9 @@ vendorid    | string    | -                 | no        | The vendor id of the G
 productid   | string    | -                 | no        | The product id of the GPU device
 id          | string    | -                 | no        | The card id of the GPU device
 pci         | string    | -                 | no        | The pci address of the GPU device
-uid         | int       | 0                 | no        | UID of the device owner in the instance
-gid         | int       | 0                 | no        | GID of the device owner in the instance
-mode        | int       | 0660              | no        | Mode of the device in the instance
+uid         | int       | 0                 | no        | UID of the device owner in the instance (container only)
+gid         | int       | 0                 | no        | GID of the device owner in the instance (container only)
+mode        | int       | 0660              | no        | Mode of the device in the instance (container only)
 
 ### Type: proxy
 
