@@ -179,15 +179,6 @@ func profileGet(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	// For backward-compatibility, we strip the "?project" query parameter
-	// in case the project is the default one.
-	for i, uri := range resp.UsedBy {
-		suffix := "?project=default"
-		if strings.HasSuffix(uri, suffix) {
-			resp.UsedBy[i] = uri[:len(uri)-len(suffix)]
-		}
-	}
-
 	etag := []interface{}{resp.Config, resp.Description, resp.Devices}
 	return response.SyncResponseETag(true, resp, etag)
 }

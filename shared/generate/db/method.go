@@ -531,6 +531,13 @@ func (m *Method) fillSliceReferenceField(buf *file.Buffer, nk []*Field, field *F
 	buf.L("        if value == nil {")
 	buf.L("                value = %s{}", field.Type.Name)
 	buf.L("        }")
+	if field.Name == "UsedBy" {
+		buf.L("        for j, entry := range value {")
+		buf.L("                if len(entry) > 16 && entry[len(entry)-16:] == \"?project=default\" {")
+		buf.L("                         value[j] = entry[0:len(entry)-16]")
+		buf.L("                }")
+		buf.L("        }")
+	}
 	buf.L("        objects[i].%s = value", field.Name)
 	buf.L("}")
 	buf.N()
