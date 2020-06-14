@@ -205,39 +205,44 @@ func (c *cmdAction) Run(cmd *cobra.Command, args []string) error {
 	conf := c.global.conf
 
 	var names []string
-	if len(args) == 0 {
-		if !c.flagAll {
-			cmd.Help()
-			return nil
+	if c.flagAll {
+		// If no server passed, use current default.
+		if len(args) == 0 {
+			args = []string{fmt.Sprintf("%s:", conf.DefaultRemote)}
 		}
 
-		d, err := conf.GetInstanceServer(conf.DefaultRemote)
+		// Get all the servers.
+		resources, err := c.global.ParseServers(args...)
 		if err != nil {
 			return err
 		}
 
-		ctslist, err := d.GetInstances(api.InstanceTypeAny)
-		if err != nil {
-			return err
-		}
-
-		for _, ct := range ctslist {
-			switch cmd.Name() {
-			case "start":
-				if ct.StatusCode == api.Running {
-					continue
-				}
-			case "stop":
-				if ct.StatusCode == api.Stopped {
-					continue
-				}
+		for _, resource := range resources {
+			// We don't allow instance names with --all.
+			if resource.name != "" {
+				return fmt.Errorf(i18n.G("Both --all and instance name given"))
 			}
-			names = append(names, ct.Name)
+
+			ctslist, err := resource.server.GetInstances(api.InstanceTypeAny)
+			if err != nil {
+				return err
+			}
+
+			for _, ct := range ctslist {
+				switch cmd.Name() {
+				case "start":
+					if ct.StatusCode == api.Running {
+						continue
+					}
+				case "stop":
+					if ct.StatusCode == api.Stopped {
+						continue
+					}
+				}
+				names = append(names, fmt.Sprintf("%s:%s", resource.remote, ct.Name))
+			}
 		}
 	} else {
-		if c.flagAll {
-			return fmt.Errorf(i18n.G("Both --all and instance name given"))
-		}
 		names = args
 	}
 
