@@ -370,6 +370,7 @@ func (c *cmdGlobal) PostRun(cmd *cobra.Command, args []string) error {
 }
 
 type remoteResource struct {
+	remote string
 	server lxd.InstanceServer
 	name   string
 }
@@ -387,7 +388,8 @@ func (c *cmdGlobal) ParseServers(remotes ...string) ([]remoteResource, error) {
 
 		// Setup the struct
 		resource := remoteResource{
-			name: name,
+			remote: remoteName,
+			name:   name,
 		}
 
 		// Look at our cache
