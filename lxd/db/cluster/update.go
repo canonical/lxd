@@ -65,6 +65,13 @@ var updates = map[int]schema.Update{
 	26: updateFromV25,
 	27: updateFromV26,
 	28: updateFromV27,
+	29: updateFromV28,
+}
+
+// Attempt to add missing project feature
+func updateFromV28(tx *sql.Tx) error {
+	tx.Exec("INSERT INTO projects_config (project_id, key, value) VALUES (1, 'features.storage.volumes', 'true');")
+	return nil
 }
 
 // Add expiry date to storage volume snapshots
