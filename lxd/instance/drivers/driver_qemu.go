@@ -2061,6 +2061,9 @@ func (vm *qemu) addGPUDevConfig(sb *strings.Builder, bus *qemuBus, gpuConfig []d
 		}
 	}
 
+	// Pass-through VGA mode if enabled on the host device.
+	vgaMode := shared.PathExists(filepath.Join("/sys/bus/pci/devices", pciSlotName, "boot_vga"))
+
 	devBus, devAddr, multi := bus.allocate(fmt.Sprintf("lxd_%s", devName))
 	tplFields := map[string]interface{}{
 		"bus":           bus.name,
@@ -2070,7 +2073,7 @@ func (vm *qemu) addGPUDevConfig(sb *strings.Builder, bus *qemuBus, gpuConfig []d
 
 		"devName":     devName,
 		"pciSlotName": pciSlotName,
-		"vga":         true,
+		"vga":         vgaMode,
 	}
 
 	// Add main GPU device in VGA mode to qemu config.
