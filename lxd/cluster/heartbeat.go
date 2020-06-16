@@ -125,7 +125,7 @@ func (hbState *APIHeartbeat) Send(ctx context.Context, cert *shared.CertInfo, lo
 
 		err := HeartbeatNode(ctx, address, cert, heartbeatData)
 		if err == nil {
-			hbState.Lock()
+			heartbeatData.Lock()
 			// Ensure only update nodes that exist in Members already.
 			hbNode, existing := hbState.Members[nodeID]
 			if !existing {
@@ -135,8 +135,8 @@ func (hbState *APIHeartbeat) Send(ctx context.Context, cert *shared.CertInfo, lo
 			hbNode.LastHeartbeat = time.Now()
 			hbNode.Online = true
 			hbNode.updated = true
-			hbState.Members[nodeID] = hbNode
-			hbState.Unlock()
+			heartbeatData.Members[nodeID] = hbNode
+			heartbeatData.Unlock()
 			logger.Debugf("Successful heartbeat for %s", address)
 		} else {
 			logger.Debugf("Failed heartbeat for %s: %v", address, err)
@@ -365,7 +365,9 @@ func HeartbeatNode(taskCtx context.Context, address string, cert *shared.CertInf
 	}
 
 	buffer := bytes.Buffer{}
+	heartbeatData.Lock()
 	err = json.NewEncoder(&buffer).Encode(heartbeatData)
+	heartbeatData.Unlock()
 	if err != nil {
 		return err
 	}
