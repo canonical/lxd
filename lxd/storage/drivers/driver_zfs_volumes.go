@@ -646,13 +646,31 @@ func (d *zfs) CreateVolumeFromMigration(vol Volume, conn io.ReadWriteCloser, vol
 		return err
 	}
 
-	// Filter only the snapshots.
-	for _, entry := range entries {
-		if strings.HasPrefix(entry, "@snapshot-") {
-			continue
+	// keepDataset returns whether to keep the data set or delete it. Data sets that are non-snapshots or
+	// snapshots that match the requested snapshots in volTargetArgs.Snapshots are kept. Any other snapshot
+	// data sets should be removed.
+	keepDataset := func(dataSetName string) bool {
+		// Keep non-snapshot data sets and snapshots that don't have the LXD snapshot prefix indicator.
+		dataSetSnapshotPrefix := "@snapshot-"
+		if !strings.HasPrefix(dataSetName, "@") || !strings.HasPrefix(dataSetName, dataSetSnapshotPrefix) {
+			return false
 		}
 
-		if strings.HasPrefix(entry, "@") {
+		// Check if snapshot data set matches one of the requested snapshots in volTargetArgs.Snapshots.
+		// If so, then keep it, otherwise request it be removed.
+		entrySnapName := strings.TrimPrefix(dataSetName, dataSetSnapshotPrefix)
+		for _, snapName := range volTargetArgs.Snapshots {
+			if entrySnapName == snapName {
+				return true // Keep snapshot data set if present in the requested snapshots list.
+			}
+		}
+
+		return false // Delete any other snapshot data sets that have been transferred.
+	}
+
+	// Remove any snapshots that were transferred but are not needed.
+	for _, entry := range entries {
+		if !keepDataset(entry) {
 			_, err := shared.RunCommand("zfs", "destroy", fmt.Sprintf("%s%s", d.dataset(vol, false), entry))
 			if err != nil {
 				return err
