@@ -1073,3 +1073,7 @@ Bridge:
  - Default VLAN
  - VLAN filtering
  - Upper devices
+
+## resources\_cpu\_isolated
+Add an `Isolated` property on CPU threads to indicate if the thread is
+physically `Online` but is configured not to accept tasks.
