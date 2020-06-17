@@ -1016,3 +1016,7 @@ Those are taken from the os-release data on the system.
 
 ## resources\_system
 This adds system information to the output of `/1.0/resources`.
+
+## resources\_cpu\_isolated
+Add an `Isolated` property on CPU threads to indicate if the thread is
+physically `Online` but is configured not to accept tasks.
