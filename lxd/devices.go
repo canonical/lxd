@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path"
 	"path/filepath"
@@ -16,6 +15,7 @@ import (
 	"github.com/lxc/lxd/lxd/device"
 	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/instance/instancetype"
+	"github.com/lxc/lxd/lxd/resources"
 	"github.com/lxc/lxd/lxd/state"
 	"github.com/lxc/lxd/shared"
 	log "github.com/lxc/lxd/shared/log15"
@@ -55,7 +55,7 @@ static int get_hidraw_devinfo(int fd, struct hidraw_devinfo *info)
 import "C"
 
 type deviceTaskCPU struct {
-	id    int
+	id    int64
 	strId string
 	count *int
 }
@@ -337,34 +337,16 @@ func deviceTaskBalance(s *state.State) {
 		}
 	}
 
-	effectiveCpusInt, err := instance.ParseCpuset(effectiveCpus)
+	effectiveCpusInt, err := resources.ParseCpuset(effectiveCpus)
 	if err != nil {
 		logger.Errorf("Error parsing effective CPU set")
 		return
 	}
 
-	isolatedCpusInt := []int{}
-	if shared.PathExists("/sys/devices/system/cpu/isolated") {
-		buf, err := ioutil.ReadFile("/sys/devices/system/cpu/isolated")
-		if err != nil {
-			logger.Errorf("Error reading host's isolated cpu")
-			return
-		}
-
-		// File might exist even though there are no isolated cpus.
-		isolatedCpus := strings.TrimSpace(string(buf))
-		if isolatedCpus != "" {
-			isolatedCpusInt, err = instance.ParseCpuset(isolatedCpus)
-			if err != nil {
-				logger.Errorf("Error parsing isolated CPU set: %s", string(isolatedCpus))
-				return
-			}
-		}
-	}
-
+	isolatedCpusInt := resources.GetCPUIsolated()
 	effectiveCpusSlice := []string{}
 	for _, id := range effectiveCpusInt {
-		if shared.IntInSlice(id, isolatedCpusInt) {
+		if shared.Int64InSlice(id, isolatedCpusInt) {
 			continue
 		}
 
@@ -377,7 +359,7 @@ func deviceTaskBalance(s *state.State) {
 	if err != nil && shared.PathExists("/sys/fs/cgroup/cpuset/lxc") {
 		logger.Warn("Error setting lxd's cpuset.cpus", log.Ctx{"err": err})
 	}
-	cpus, err := instance.ParseCpuset(effectiveCpus)
+	cpus, err := resources.ParseCpuset(effectiveCpus)
 	if err != nil {
 		logger.Error("Error parsing host's cpu set", log.Ctx{"cpuset": effectiveCpus, "err": err})
 		return
@@ -390,7 +372,7 @@ func deviceTaskBalance(s *state.State) {
 		return
 	}
 
-	fixedInstances := map[int][]instance.Instance{}
+	fixedInstances := map[int64][]instance.Instance{}
 	balancedInstances := map[instance.Instance]int{}
 	for _, c := range instances {
 		conf := c.ExpandedConfig()
@@ -410,12 +392,12 @@ func deviceTaskBalance(s *state.State) {
 			balancedInstances[c] = count
 		} else {
 			// Pinned
-			containerCpus, err := instance.ParseCpuset(cpulimit)
+			containerCpus, err := resources.ParseCpuset(cpulimit)
 			if err != nil {
 				return
 			}
 			for _, nr := range containerCpus {
-				if !shared.IntInSlice(nr, cpus) {
+				if !shared.Int64InSlice(nr, cpus) {
 					continue
 				}
 
@@ -431,7 +413,7 @@ func deviceTaskBalance(s *state.State) {
 
 	// Balance things
 	pinning := map[instance.Instance][]string{}
-	usage := map[int]deviceTaskCPU{}
+	usage := map[int64]deviceTaskCPU{}
 
 	for _, id := range cpus {
 		cpu := deviceTaskCPU{}

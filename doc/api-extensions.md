@@ -977,17 +977,17 @@ This adds a new `size` field to the output of `/1.0/instances/<name>/snapshots/<
 This adds a writable endpoint for cluster members, allowing the editing of their roles.
 
 ## container\_nic\_routed\_host\_address
-This introduces the `ipv4.host_address` and `ipv6.host_address` NIC config keys that can be used to control the
+This introduces the `ipv4.host\_address` and `ipv6.host\_address` NIC config keys that can be used to control the
 host-side veth interface's IP addresses. This can be useful when using multiple routed NICs at the same time and
 needing a predictable next-hop address to use.
 
 This also alters the behaviour of `ipv4.gateway` and `ipv6.gateway` NIC config keys. When they are set to "auto"
-the container will have its default gateway set to the value of `ipv4.host_address` or `ipv6.host_address` respectively.
+the container will have its default gateway set to the value of `ipv4.host\_address` or `ipv6.host\_address` respectively.
 
 The default values are:
 
-`ipv4.host_address`: 169.254.0.1
-`ipv6.host_address`: fe80::1
+`ipv4.host\_address`: 169.254.0.1
+`ipv6.host\_address`: fe80::1
 
 This is backward compatible with the previous default behaviour.
 
@@ -1015,11 +1015,11 @@ This introduces two new fields in `/1.0`, `os` and `os\_version`.
 Those are taken from the os-release data on the system.
 
 ## container\_nic\_routed\_host\_table
-This introduces the `ipv4.host_table` and `ipv6.host_table` NIC config keys that can be used to add static routes
+This introduces the `ipv4.host\_table` and `ipv6.host\_table` NIC config keys that can be used to add static routes
 for the instance's IPs to a custom policy routing table by ID.
 
 ## container\_nic\_ipvlan\_host\_table
-This introduces the `ipv4.host_table` and `ipv6.host_table` NIC config keys that can be used to add static routes
+This introduces the `ipv4.host\_table` and `ipv6.host\_table` NIC config keys that can be used to add static routes
 for the instance's IPs to a custom policy routing table by ID.
 
 ## container\_nic\_ipvlan\_mode
@@ -1073,3 +1073,7 @@ Bridge:
  - Default VLAN
  - VLAN filtering
  - Upper devices
+
+## resources\_cpu\_isolated
+Add an `Isolated` property on CPU threads to indicate if the thread is
+physically `Online` but is configured not to accept tasks.
