@@ -74,6 +74,9 @@ type ResourcesCPUThread struct {
 	NUMANode uint64 `json:"numa_node" yaml:"numa_node"`
 	Thread   uint64 `json:"thread" yaml:"thread"`
 	Online   bool   `json:"online" yaml:"online"`
+
+	// API extension: resource_cpu_isolated
+	Isolated bool   `json:"isolated" yaml:"isolated"`
 }
 
 // ResourcesGPU represents the GPU resources available on the system
