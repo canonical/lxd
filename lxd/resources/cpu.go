@@ -18,6 +18,68 @@ import (
 
 var sysDevicesCPU = "/sys/devices/system/cpu"
 
+// GetCPUIsolated returns a slice of IDs corresponding to isolated threads.
+func GetCPUIsolated() []int64 {
+	isolatedPath := filepath.Join(sysDevicesCPU, "isolated")
+
+	isolatedCpusInt := []int64{}
+	if sysfsExists(isolatedPath) {
+		buf, err := ioutil.ReadFile(isolatedPath)
+		if err != nil {
+			return isolatedCpusInt
+		}
+
+		// File might exist even though there are no isolated cpus.
+		isolatedCpus := strings.TrimSpace(string(buf))
+		if isolatedCpus != "" {
+			isolatedCpusInt, err = ParseCpuset(isolatedCpus)
+			if err != nil {
+				return isolatedCpusInt
+			}
+		}
+	}
+
+	return isolatedCpusInt
+}
+
+// ParseCpuset parses a limits.cpu range into a list of CPU ids.
+func ParseCpuset(cpu string) ([]int64, error) {
+	cpus := []int64{}
+	chunks := strings.Split(cpu, ",")
+	for _, chunk := range chunks {
+		if strings.Contains(chunk, "-") {
+			// Range
+			fields := strings.SplitN(chunk, "-", 2)
+			if len(fields) != 2 {
+				return nil, fmt.Errorf("Invalid cpuset value: %s", cpu)
+			}
+
+			low, err := strconv.ParseInt(fields[0], 10, 64)
+			if err != nil {
+				return nil, fmt.Errorf("Invalid cpuset value: %s", cpu)
+			}
+
+			high, err := strconv.ParseInt(fields[1], 10, 64)
+			if err != nil {
+				return nil, fmt.Errorf("Invalid cpuset value: %s", cpu)
+			}
+
+			for i := low; i <= high; i++ {
+				cpus = append(cpus, i)
+			}
+		} else {
+			// Simple entry
+			nr, err := strconv.ParseInt(chunk, 10, 64)
+			if err != nil {
+				return nil, fmt.Errorf("Invalid cpuset value: %s", cpu)
+			}
+			cpus = append(cpus, nr)
+		}
+	}
+
+	return cpus, nil
+}
+
 func getCPUCache(path string) ([]api.ResourcesCPUCache, error) {
 	caches := []api.ResourcesCPUCache{}
 
@@ -91,6 +153,9 @@ func getCPUCache(path string) ([]api.ResourcesCPUCache, error) {
 // GetCPU returns a filled api.ResourcesCPU struct ready for use by LXD
 func GetCPU() (*api.ResourcesCPU, error) {
 	cpu := api.ResourcesCPU{}
+
+	// Get the isolated CPUs
+	isolated := GetCPUIsolated()
 
 	// Temporary storage
 	cpuSockets := map[uint64]*api.ResourcesCPUSocket{}
@@ -299,6 +364,7 @@ func GetCPU() (*api.ResourcesCPU, error) {
 			}
 		}
 		thread.ID = threadNumber
+		thread.Isolated = int64InSlice(threadNumber, isolated)
 		thread.Thread = uint64(len(resCore.Threads))
 
 		// NUMA node

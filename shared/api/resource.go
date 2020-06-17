@@ -76,7 +76,7 @@ type ResourcesCPUThread struct {
 	Online   bool   `json:"online" yaml:"online"`
 
 	// API extension: resource_cpu_isolated
-	Isolated bool   `json:"isolated" yaml:"isolated"`
+	Isolated bool `json:"isolated" yaml:"isolated"`
 }
 
 // ResourcesGPU represents the GPU resources available on the system
