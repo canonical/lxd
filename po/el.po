@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: lxd\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2020-06-11 23:19-0400\n"
+"POT-Creation-Date: 2020-06-16 20:18-0400\n"
 "PO-Revision-Date: 2017-02-14 08:00+0000\n"
 "Last-Translator: Simos Xenitellis <simos.65@gmail.com>\n"
 "Language-Team: Greek <https://hosted.weblate.org/projects/linux-containers/"
@@ -211,6 +211,14 @@ msgstr ""
 #: lxc/info.go:171
 #, c-format
 msgid "- Port %d (%s)"
+msgstr ""
+
+#: lxc/action.go:260
+msgid "--console can't be used with --all"
+msgstr ""
+
+#: lxc/action.go:264
+msgid "--console only works with a single instance"
 msgstr ""
 
 #: lxc/init.go:122
@@ -420,7 +428,7 @@ msgstr ""
 msgid "Bad syntax, expecting <device>,<key>=<value>: %s"
 msgstr ""
 
-#: lxc/action.go:239
+#: lxc/action.go:232
 msgid "Both --all and instance name given"
 msgstr ""
 
@@ -1206,7 +1214,7 @@ msgstr ""
 msgid "Force removing a member, even if degraded"
 msgstr ""
 
-#: lxc/action.go:120
+#: lxc/action.go:122
 msgid "Force the instance to shutdown"
 msgstr ""
 
@@ -1373,7 +1381,7 @@ msgstr ""
 msgid "Ignore any configured auto-expiry for the storage volume"
 msgstr ""
 
-#: lxc/action.go:116
+#: lxc/action.go:117
 msgid "Ignore the instance state"
 msgstr ""
 
@@ -1405,6 +1413,10 @@ msgstr ""
 
 #: lxc/image.go:1331
 msgid "Image refreshed successfully!"
+msgstr ""
+
+#: lxc/action.go:118
+msgid "Immediately attach to the console"
 msgstr ""
 
 #: lxc/import.go:28
@@ -1502,7 +1514,7 @@ msgid ""
 "Invalid name in '%s', empty string is only allowed when defining maxWidth"
 msgstr ""
 
-#: lxc/main.go:423
+#: lxc/main.go:425
 msgid "Invalid number of arguments"
 msgstr ""
 
@@ -2040,7 +2052,7 @@ msgstr ""
 msgid "Must run as root to import from directory"
 msgstr ""
 
-#: lxc/action.go:151
+#: lxc/action.go:153
 msgid "Must supply instance name for: "
 msgstr ""
 
@@ -2596,7 +2608,7 @@ msgstr ""
 msgid "Retrieving image: %s"
 msgstr ""
 
-#: lxc/action.go:111
+#: lxc/action.go:112
 msgid "Run against all instances"
 msgstr ""
 
@@ -2900,7 +2912,7 @@ msgstr ""
 msgid "Socket %d:"
 msgstr ""
 
-#: lxc/action.go:269
+#: lxc/action.go:293
 #, c-format
 msgid "Some instances failed to %s"
 msgstr ""
@@ -2982,7 +2994,7 @@ msgstr ""
 msgid "Storage volume moved successfully!"
 msgstr ""
 
-#: lxc/action.go:114
+#: lxc/action.go:115
 msgid "Store the instance state"
 msgstr ""
 
@@ -3103,7 +3115,7 @@ msgstr ""
 msgid "Threads:"
 msgstr ""
 
-#: lxc/action.go:121
+#: lxc/action.go:123
 msgid "Time to wait for the instance before killing it"
 msgstr ""
 
@@ -3119,7 +3131,7 @@ msgstr ""
 msgid "To create a new network, use: lxc network create"
 msgstr ""
 
-#: lxc/console.go:172
+#: lxc/console.go:175
 msgid "To detach from the console, press: <ctrl>+a q"
 msgstr ""
 
@@ -3164,7 +3176,7 @@ msgstr ""
 msgid "Transferring instance: %s"
 msgstr ""
 
-#: lxc/action.go:196 lxc/launch.go:99
+#: lxc/action.go:198 lxc/launch.go:99
 #, c-format
 msgid "Try `lxc info --show-log %s` for more info"
 msgstr ""
@@ -3583,7 +3595,7 @@ msgstr ""
 msgid "enabled"
 msgstr ""
 
-#: lxc/action.go:261
+#: lxc/action.go:285
 #, c-format
 msgid "error: %v"
 msgstr ""

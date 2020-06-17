@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: LXD\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2020-06-11 23:19-0400\n"
+"POT-Creation-Date: 2020-06-16 20:18-0400\n"
 "PO-Revision-Date: 2020-05-22 19:59+0000\n"
 "Last-Translator: KATOH Yasufumi <karma@jazz.email.ne.jp>\n"
 "Language-Team: Japanese <https://hosted.weblate.org/projects/linux-"
@@ -328,6 +328,16 @@ msgstr "- パーティション %d"
 msgid "- Port %d (%s)"
 msgstr "- ポート %d (%s)"
 
+#: lxc/action.go:260
+#, fuzzy
+msgid "--console can't be used with --all"
+msgstr "--mode と --target は同時に指定できません"
+
+#: lxc/action.go:264
+#, fuzzy
+msgid "--console only works with a single instance"
+msgstr "移動先のインスタンスに適用するプロファイル"
+
 #: lxc/init.go:122
 msgid "--empty cannot be combined with an image name"
 msgstr "--empty はイメージ名と同時に指定できません"
@@ -547,7 +557,7 @@ msgid "Bad syntax, expecting <device>,<key>=<value>: %s"
 msgstr ""
 "書式が不適切です。次のような形式で指定してください <device>,<key>=<value>: %s"
 
-#: lxc/action.go:239
+#: lxc/action.go:232
 msgid "Both --all and instance name given"
 msgstr "--all とインスタンス名を両方同時に指定することはできません"
 
@@ -1371,7 +1381,7 @@ msgstr "強制的に擬似端末を割り当てます"
 msgid "Force removing a member, even if degraded"
 msgstr "degraded 状態であっても強制的にメンバを削除します"
 
-#: lxc/action.go:120
+#: lxc/action.go:122
 msgid "Force the instance to shutdown"
 msgstr "インスタンスを強制シャットダウンします"
 
@@ -1553,7 +1563,7 @@ msgstr "設定されている自動でのインスタンスの有効期限設定
 msgid "Ignore any configured auto-expiry for the storage volume"
 msgstr "設定されている自動でのストレージボリュームの有効期限設定を無視します"
 
-#: lxc/action.go:116
+#: lxc/action.go:117
 msgid "Ignore the instance state"
 msgstr "インスタンスの状態を無視します"
 
@@ -1586,6 +1596,11 @@ msgstr "イメージは以下のフィンガープリントでインポートさ
 #: lxc/image.go:1331
 msgid "Image refreshed successfully!"
 msgstr "イメージの更新が成功しました!"
+
+#: lxc/action.go:118
+#, fuzzy
+msgid "Immediately attach to the console"
+msgstr "インスタンスのコンソールに接続します"
 
 #: lxc/import.go:28
 msgid "Import backups of instances including their snapshots."
@@ -1691,7 +1706,7 @@ msgid ""
 msgstr ""
 "'%s' は不正な名前です。空文字列は maxWidth を指定しているときのみ指定できます"
 
-#: lxc/main.go:423
+#: lxc/main.go:425
 msgid "Invalid number of arguments"
 msgstr "引数の数が不正です"
 
@@ -2340,7 +2355,7 @@ msgstr "ストレージボリュームの移動中: %s"
 msgid "Must run as root to import from directory"
 msgstr "ディレクトリからのインポートは root で実行する必要があります"
 
-#: lxc/action.go:151
+#: lxc/action.go:153
 msgid "Must supply instance name for: "
 msgstr "インスタンス名を指定する必要があります: "
 
@@ -2902,7 +2917,7 @@ msgstr "インスタンスのコンソールログを取得します"
 msgid "Retrieving image: %s"
 msgstr "イメージの取得中: %s"
 
-#: lxc/action.go:111
+#: lxc/action.go:112
 msgid "Run against all instances"
 msgstr "すべてのインスタンスに対してコマンドを実行します"
 
@@ -3238,7 +3253,7 @@ msgstr "スナップショット:"
 msgid "Socket %d:"
 msgstr "ソケット %d:"
 
-#: lxc/action.go:269
+#: lxc/action.go:293
 #, c-format
 msgid "Some instances failed to %s"
 msgstr "一部のインスタンスで %s が失敗しました"
@@ -3320,7 +3335,7 @@ msgstr "ストレージボリュームのコピーが成功しました!"
 msgid "Storage volume moved successfully!"
 msgstr "ストレージボリュームの移動が成功しました!"
 
-#: lxc/action.go:114
+#: lxc/action.go:115
 msgid "Store the instance state"
 msgstr "インスタンスの状態を保存します"
 
@@ -3457,7 +3472,7 @@ msgstr ""
 msgid "Threads:"
 msgstr "スレッド:"
 
-#: lxc/action.go:121
+#: lxc/action.go:123
 msgid "Time to wait for the instance before killing it"
 msgstr "インスタンスを強制停止するまで待つ時間"
 
@@ -3476,7 +3491,7 @@ msgid "To create a new network, use: lxc network create"
 msgstr ""
 "新しいネットワークを作成するには、lxc network create を使用してください"
 
-#: lxc/console.go:172
+#: lxc/console.go:175
 msgid "To detach from the console, press: <ctrl>+a q"
 msgstr "コンソールから切り離すには <ctrl>+a q を押します"
 
@@ -3525,7 +3540,7 @@ msgstr "イメージを転送中: %s"
 msgid "Transferring instance: %s"
 msgstr "インスタンスを転送中: %s"
 
-#: lxc/action.go:196 lxc/launch.go:99
+#: lxc/action.go:198 lxc/launch.go:99
 #, c-format
 msgid "Try `lxc info --show-log %s` for more info"
 msgstr "更に情報を得るために `lxc info --show-log %s` を実行してみてください"
@@ -3957,7 +3972,7 @@ msgstr "enable [<remote>:] <name>"
 msgid "enabled"
 msgstr "有効"
 
-#: lxc/action.go:261
+#: lxc/action.go:285
 #, c-format
 msgid "error: %v"
 msgstr "エラー: %v"

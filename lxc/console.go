@@ -129,11 +129,14 @@ func (c *cmdConsole) Run(cmd *cobra.Command, args []string) error {
 		return nil
 	}
 
+	return c.Console(d, name)
+}
+
+func (c *cmdConsole) Console(d lxd.InstanceServer, name string) error {
 	// Configure the terminal
 	cfd := int(os.Stdin.Fd())
 
-	var oldTTYstate *termios.State
-	oldTTYstate, err = termios.MakeRaw(cfd)
+	oldTTYstate, err := termios.MakeRaw(cfd)
 	if err != nil {
 		return err
 	}
