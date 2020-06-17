@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: LXD\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2020-06-15 13:56-0400\n"
+"POT-Creation-Date: 2020-06-17 10:29-0400\n"
 "PO-Revision-Date: 2019-12-12 14:53+0000\n"
 "Last-Translator: Stéphane Graber <stgraber@stgraber.org>\n"
 "Language-Team: German <https://hosted.weblate.org/projects/linux-containers/"
@@ -340,6 +340,16 @@ msgstr ""
 msgid "- Port %d (%s)"
 msgstr ""
 
+#: lxc/action.go:260
+#, fuzzy
+msgid "--console can't be used with --all"
+msgstr "--refresh kann nur mit Containern verwendet werden"
+
+#: lxc/action.go:264
+#, fuzzy
+msgid "--console only works with a single instance"
+msgstr "kann nicht zum selben Container Namen kopieren"
+
 #: lxc/init.go:122
 msgid "--empty cannot be combined with an image name"
 msgstr ""
@@ -557,7 +567,7 @@ msgstr "Ungültige Abbild Eigenschaft: %s\n"
 msgid "Bad syntax, expecting <device>,<key>=<value>: %s"
 msgstr ""
 
-#: lxc/action.go:223
+#: lxc/action.go:232
 msgid "Both --all and instance name given"
 msgstr ""
 
@@ -1408,7 +1418,7 @@ msgstr ""
 msgid "Force removing a member, even if degraded"
 msgstr ""
 
-#: lxc/action.go:120
+#: lxc/action.go:122
 #, fuzzy
 msgid "Force the instance to shutdown"
 msgstr "Herunterfahren des Containers erzwingen."
@@ -1580,7 +1590,7 @@ msgstr ""
 msgid "Ignore any configured auto-expiry for the storage volume"
 msgstr ""
 
-#: lxc/action.go:116
+#: lxc/action.go:117
 #, fuzzy
 msgid "Ignore the instance state"
 msgstr "Herunterfahren des Containers erzwingen."
@@ -1614,6 +1624,11 @@ msgstr "Abbild mit Fingerabdruck %s importiert\n"
 #: lxc/image.go:1324
 msgid "Image refreshed successfully!"
 msgstr ""
+
+#: lxc/action.go:118
+#, fuzzy
+msgid "Immediately attach to the console"
+msgstr "Herunterfahren des Containers erzwingen."
 
 #: lxc/import.go:28
 msgid "Import backups of instances including their snapshots."
@@ -2300,7 +2315,7 @@ msgstr "Kein Zertifikat für diese Verbindung"
 msgid "Must run as root to import from directory"
 msgstr ""
 
-#: lxc/action.go:151
+#: lxc/action.go:153
 #, fuzzy
 msgid "Must supply instance name for: "
 msgstr "der Name des Ursprung Containers muss angegeben werden"
@@ -2882,7 +2897,7 @@ msgstr "Herunterfahren des Containers erzwingen."
 msgid "Retrieving image: %s"
 msgstr ""
 
-#: lxc/action.go:111
+#: lxc/action.go:112
 msgid "Run against all instances"
 msgstr ""
 
@@ -3201,7 +3216,7 @@ msgstr ""
 msgid "Socket %d:"
 msgstr ""
 
-#: lxc/action.go:274
+#: lxc/action.go:293
 #, fuzzy, c-format
 msgid "Some instances failed to %s"
 msgstr "Anhalten des Containers fehlgeschlagen!"
@@ -3289,7 +3304,7 @@ msgstr "Profil %s erstellt\n"
 msgid "Storage volume moved successfully!"
 msgstr "Profil %s erstellt\n"
 
-#: lxc/action.go:114
+#: lxc/action.go:115
 #, fuzzy
 msgid "Store the instance state"
 msgstr "Herunterfahren des Containers erzwingen."
@@ -3416,7 +3431,7 @@ msgstr ""
 msgid "Threads:"
 msgstr ""
 
-#: lxc/action.go:121
+#: lxc/action.go:123
 #, fuzzy
 msgid "Time to wait for the instance before killing it"
 msgstr "Wartezeit bevor der Container gestoppt wird."
@@ -3434,7 +3449,7 @@ msgstr ""
 msgid "To create a new network, use: lxc network create"
 msgstr ""
 
-#: lxc/console.go:172
+#: lxc/console.go:175
 msgid "To detach from the console, press: <ctrl>+a q"
 msgstr ""
 
@@ -3479,7 +3494,7 @@ msgstr ""
 msgid "Transferring instance: %s"
 msgstr "kann nicht zum selben Container Namen kopieren"
 
-#: lxc/action.go:196 lxc/launch.go:99
+#: lxc/action.go:198 lxc/launch.go:99
 #, c-format
 msgid "Try `lxc info --show-log %s` for more info"
 msgstr ""
@@ -4004,7 +4019,7 @@ msgstr ""
 msgid "enabled"
 msgstr ""
 
-#: lxc/action.go:266
+#: lxc/action.go:285
 #, fuzzy, c-format
 msgid "error: %v"
 msgstr "Fehler: %v\n"
