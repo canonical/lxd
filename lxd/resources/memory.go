@@ -153,14 +153,13 @@ func getTotalMemory() uint64 {
 		return 0
 	}
 
-	var count uint64 = 0
-
 	entries, err := ioutil.ReadDir(sysDevicesSystemMemory)
 	if err != nil {
 		return 0
 	}
 
 	// Count the number of blocks
+	var count uint64
 	for _, entry := range entries {
 		// Only consider directories
 		if !entry.IsDir() {
