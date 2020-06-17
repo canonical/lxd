@@ -2061,8 +2061,8 @@ func (vm *qemu) addGPUDevConfig(sb *strings.Builder, bus *qemuBus, gpuConfig []d
 		}
 	}
 
-	// Pass-through VGA mode if enabled on the host device.
-	vgaMode := shared.PathExists(filepath.Join("/sys/bus/pci/devices", pciSlotName, "boot_vga"))
+	// Pass-through VGA mode if enabled on the host device and architecture is x86_64.
+	vgaMode := shared.PathExists(filepath.Join("/sys/bus/pci/devices", pciSlotName, "boot_vga")) && vm.architecture == osarch.ARCH_64BIT_INTEL_X86
 
 	devBus, devAddr, multi := bus.allocate(fmt.Sprintf("lxd_%s", devName))
 	tplFields := map[string]interface{}{
