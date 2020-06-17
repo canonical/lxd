@@ -9,7 +9,6 @@ import (
 
 	"github.com/pkg/errors"
 
-	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 )
 
@@ -134,14 +133,19 @@ func systemGetType() string {
 		return "unknown"
 	}
 
+	runDetectVirt := func(flag string) error {
+		cmd := exec.Command("systemd-detect-virt", flag)
+		return cmd.Run()
+	}
+
 	// If this returns 0, we're in a container.
-	_, err = shared.RunCommand("systemd-detect-virt", "--container")
+	err = runDetectVirt("--container")
 	if err == nil {
 		return "container"
 	}
 
 	// If this returns 0, we're in a VM.
-	_, err = shared.RunCommand("systemd-detect-virt", "--vm")
+	err = runDetectVirt("--vm")
 	if err == nil {
 		return "virtual-machine"
 	}
