@@ -98,6 +98,7 @@ type cmdAction struct {
 	global *cmdGlobal
 
 	flagAll       bool
+	flagConsole   bool
 	flagForce     bool
 	flagStateful  bool
 	flagStateless bool
@@ -114,6 +115,7 @@ func (c *cmdAction) Command(action string) *cobra.Command {
 		cmd.Flags().BoolVar(&c.flagStateful, "stateful", false, i18n.G("Store the instance state"))
 	} else if action == "start" {
 		cmd.Flags().BoolVar(&c.flagStateless, "stateless", false, i18n.G("Ignore the instance state"))
+		cmd.Flags().BoolVar(&c.flagConsole, "console", false, i18n.G("Immediately attach to the console"))
 	}
 
 	if shared.StringInSlice(action, []string{"restart", "stop"}) {
@@ -198,6 +200,13 @@ func (c *cmdAction) doAction(action string, conf *config.Config, nameArg string)
 
 	progress.Done("")
 
+	// Handle console attach
+	if c.flagConsole {
+		console := cmdConsole{}
+		console.global = c.global
+		return console.Console(d, name)
+	}
+
 	return nil
 }
 
@@ -244,6 +253,16 @@ func (c *cmdAction) Run(cmd *cobra.Command, args []string) error {
 		}
 	} else {
 		names = args
+	}
+
+	if c.flagConsole {
+		if c.flagAll {
+			return fmt.Errorf(i18n.G("--console can't be used with --all"))
+		}
+
+		if len(names) != 1 {
+			return fmt.Errorf(i18n.G("--console only works with a single instance"))
+		}
 	}
 
 	// Run the action for every listed instance
