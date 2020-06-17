@@ -4458,7 +4458,7 @@ func (vm *qemu) cpuTopology(limit string) (int, int, int, map[uint64]uint64, map
 	}
 
 	// Expand the pins.
-	pins, err := instance.ParseCpuset(limit)
+	pins, err := resources.ParseCpuset(limit)
 	if err != nil {
 		return -1, -1, -1, nil, nil, err
 	}
