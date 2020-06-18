@@ -116,6 +116,8 @@ func (c *cmdAction) Command(action string) *cobra.Command {
 	} else if action == "start" {
 		cmd.Flags().BoolVar(&c.flagStateless, "stateless", false, i18n.G("Ignore the instance state"))
 		cmd.Flags().BoolVar(&c.flagConsole, "console", false, i18n.G("Immediately attach to the console"))
+	} else if action == "restart" {
+		cmd.Flags().BoolVar(&c.flagConsole, "console", false, i18n.G("Immediately attach to the console"))
 	}
 
 	if shared.StringInSlice(action, []string{"restart", "stop"}) {
