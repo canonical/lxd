@@ -155,13 +155,25 @@ func storagePoolVolumesGet(d *Daemon, r *http.Request) response.Response {
 		if !recursion {
 			volName, snapName, ok := shared.InstanceGetParentAndSnapshotName(volume.Name)
 			if ok {
-				resultString = append(resultString,
-					fmt.Sprintf("/%s/storage-pools/%s/volumes/%s/%s/snapshots/%s",
-						version.APIVersion, poolName, apiEndpoint, volName, snapName))
+				if projectName == project.Default {
+					resultString = append(resultString,
+						fmt.Sprintf("/%s/storage-pools/%s/volumes/%s/%s/snapshots/%s",
+							version.APIVersion, poolName, apiEndpoint, volName, snapName))
+				} else {
+					resultString = append(resultString,
+						fmt.Sprintf("/%s/storage-pools/%s/volumes/%s/%s/snapshots/%s?project=%s",
+							version.APIVersion, poolName, apiEndpoint, volName, snapName, projectName))
+				}
 			} else {
-				resultString = append(resultString,
-					fmt.Sprintf("/%s/storage-pools/%s/volumes/%s/%s",
-						version.APIVersion, poolName, apiEndpoint, volume.Name))
+				if projectName == project.Default {
+					resultString = append(resultString,
+						fmt.Sprintf("/%s/storage-pools/%s/volumes/%s/%s",
+							version.APIVersion, poolName, apiEndpoint, volume.Name))
+				} else {
+					resultString = append(resultString,
+						fmt.Sprintf("/%s/storage-pools/%s/volumes/%s/%s?project=%s",
+							version.APIVersion, poolName, apiEndpoint, volume.Name, projectName))
+				}
 			}
 		} else {
 			volumeUsedBy, err := storagePoolVolumeUsedByGet(d.State(), projectName, poolName, volume.Name, volume.Type)

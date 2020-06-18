@@ -203,24 +203,35 @@ func storagePoolVolumeUpdateUsers(d *Daemon, projectName string, oldPoolName str
 }
 
 // volumeUsedBy = append(volumeUsedBy, fmt.Sprintf("/%s/containers/%s", version.APIVersion, ct))
-func storagePoolVolumeUsedByGet(s *state.State, project, poolName string, volumeName string, volumeTypeName string) ([]string, error) {
-	// Handle container volumes
-	if volumeTypeName == "container" {
+func storagePoolVolumeUsedByGet(s *state.State, projectName string, poolName string, volumeName string, volumeTypeName string) ([]string, error) {
+	// Handle instance volumes.
+	if volumeTypeName == "container" || volumeTypeName == "virtual-machine" {
 		cName, sName, snap := shared.InstanceGetParentAndSnapshotName(volumeName)
-
 		if snap {
-			return []string{fmt.Sprintf("/%s/containers/%s/snapshots/%s", version.APIVersion, cName, sName)}, nil
+			if projectName == project.Default {
+				return []string{fmt.Sprintf("/%s/instances/%s/snapshots/%s", version.APIVersion, cName, sName)}, nil
+			} else {
+				return []string{fmt.Sprintf("/%s/instances/%s/snapshots/%s?project=%s", version.APIVersion, cName, sName, projectName)}, nil
+			}
 		}
 
-		return []string{fmt.Sprintf("/%s/containers/%s", version.APIVersion, cName)}, nil
+		if projectName == project.Default {
+			return []string{fmt.Sprintf("/%s/instances/%s", version.APIVersion, cName)}, nil
+		} else {
+			return []string{fmt.Sprintf("/%s/instances/%s?project=%s", version.APIVersion, cName, projectName)}, nil
+		}
 	}
 
-	// Handle image volumes
+	// Handle image volumes.
 	if volumeTypeName == "image" {
-		return []string{fmt.Sprintf("/%s/images/%s", version.APIVersion, volumeName)}, nil
+		if projectName == project.Default {
+			return []string{fmt.Sprintf("/%s/images/%s", version.APIVersion, volumeName)}, nil
+		} else {
+			return []string{fmt.Sprintf("/%s/images/%s?project=%s", version.APIVersion, volumeName, projectName)}, nil
+		}
 	}
 
-	// Check if the daemon itself is using it
+	// Check if the daemon itself is using it.
 	used, err := storagePools.VolumeUsedByDaemon(s, poolName, volumeName)
 	if err != nil {
 		return []string{}, err
@@ -230,29 +241,34 @@ func storagePoolVolumeUsedByGet(s *state.State, project, poolName string, volume
 		return []string{fmt.Sprintf("/%s", version.APIVersion)}, nil
 	}
 
-	// Look for containers using this volume
-	ctsUsingVolume, err := storagePools.VolumeUsedByInstancesGet(s, project, poolName, volumeName)
+	// Look for instances using this volume.
+	volumeUsedBy := []string{}
+
+	ctsUsingVolume, err := storagePools.VolumeUsedByInstancesGet(s, projectName, poolName, volumeName)
 	if err != nil {
 		return []string{}, err
 	}
 
-	volumeUsedBy := []string{}
 	for _, ct := range ctsUsingVolume {
-		volumeUsedBy = append(volumeUsedBy,
-			fmt.Sprintf("/%s/containers/%s", version.APIVersion, ct))
+		if projectName == project.Default {
+			volumeUsedBy = append(volumeUsedBy, fmt.Sprintf("/%s/instances/%s", version.APIVersion, ct))
+		} else {
+			volumeUsedBy = append(volumeUsedBy, fmt.Sprintf("/%s/instances/%s?project=%s", version.APIVersion, ct, projectName))
+		}
 	}
 
+	// Look for profiles using this volume.
 	profiles, err := profilesUsingPoolVolumeGetNames(s.Cluster, volumeName, volumeTypeName)
 	if err != nil {
 		return []string{}, err
 	}
 
-	if len(volumeUsedBy) == 0 && len(profiles) == 0 {
-		return []string{}, nil
-	}
-
 	for _, pName := range profiles {
-		volumeUsedBy = append(volumeUsedBy, fmt.Sprintf("/%s/profiles/%s", version.APIVersion, pName))
+		if projectName == project.Default {
+			volumeUsedBy = append(volumeUsedBy, fmt.Sprintf("/%s/profiles/%s", version.APIVersion, pName))
+		} else {
+			volumeUsedBy = append(volumeUsedBy, fmt.Sprintf("/%s/profiles/%s?project=%s", version.APIVersion, pName, projectName))
+		}
 	}
 
 	return volumeUsedBy, nil
