@@ -80,7 +80,7 @@ func (n *Network) IsUsed() bool {
 	}
 
 	for _, inst := range insts {
-		if IsInUse(inst, n.name) {
+		if IsInUseByInstance(inst, n.name) {
 			return true
 		}
 	}
