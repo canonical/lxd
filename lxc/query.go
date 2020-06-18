@@ -7,6 +7,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"net/url"
+	"strings"
 
 	"github.com/spf13/cobra"
 
@@ -70,6 +71,11 @@ func (c *cmdQuery) Run(cmd *cobra.Command, args []string) error {
 	remote, path, err := conf.ParseRemote(args[0])
 	if err != nil {
 		return err
+	}
+
+	// Validate path
+	if !strings.HasPrefix(path, "/") {
+		return fmt.Errorf(i18n.G("Query path must start with /"))
 	}
 
 	// Attempt to connect
