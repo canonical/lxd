@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: LXD\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2020-06-16 20:18-0400\n"
+"POT-Creation-Date: 2020-06-18 13:55-0400\n"
 "PO-Revision-Date: 2019-01-04 18:07+0000\n"
 "Last-Translator: Deleted User <noreply+12102@weblate.org>\n"
 "Language-Team: French <https://hosted.weblate.org/projects/linux-containers/"
@@ -334,11 +334,11 @@ msgstr ""
 msgid "- Port %d (%s)"
 msgstr ""
 
-#: lxc/action.go:260
+#: lxc/action.go:262
 msgid "--console can't be used with --all"
 msgstr ""
 
-#: lxc/action.go:264
+#: lxc/action.go:266
 #, fuzzy
 msgid "--console only works with a single instance"
 msgstr "Profil à appliquer au nouveau conteneur"
@@ -391,7 +391,7 @@ msgstr "Accepter le certificat"
 msgid "Access the expanded configuration"
 msgstr "Afficher la configuration étendue"
 
-#: lxc/query.go:41
+#: lxc/query.go:42
 msgid "Action (defaults to GET)"
 msgstr "Action (GET par défaut)"
 
@@ -560,7 +560,7 @@ msgstr "Mauvaise propriété : %s"
 msgid "Bad syntax, expecting <device>,<key>=<value>: %s"
 msgstr ""
 
-#: lxc/action.go:232
+#: lxc/action.go:234
 msgid "Both --all and instance name given"
 msgstr ""
 
@@ -1081,7 +1081,7 @@ msgstr "Copie de l'image : %s"
 #: lxc/profile.go:821 lxc/profile.go:875 lxc/project.go:29 lxc/project.go:86
 #: lxc/project.go:151 lxc/project.go:214 lxc/project.go:334 lxc/project.go:384
 #: lxc/project.go:476 lxc/project.go:531 lxc/project.go:591 lxc/project.go:620
-#: lxc/project.go:673 lxc/publish.go:31 lxc/query.go:31 lxc/remote.go:33
+#: lxc/project.go:673 lxc/publish.go:31 lxc/query.go:32 lxc/remote.go:33
 #: lxc/remote.go:84 lxc/remote.go:423 lxc/remote.go:459 lxc/remote.go:539
 #: lxc/remote.go:601 lxc/remote.go:651 lxc/remote.go:689 lxc/rename.go:21
 #: lxc/restore.go:24 lxc/snapshot.go:27 lxc/storage.go:33 lxc/storage.go:89
@@ -1428,7 +1428,7 @@ msgstr "Forcer l'allocation d'un pseudo-terminal"
 msgid "Force removing a member, even if degraded"
 msgstr ""
 
-#: lxc/action.go:122
+#: lxc/action.go:124
 #, fuzzy
 msgid "Force the instance to shutdown"
 msgstr "Forcer le conteneur à s'arrêter"
@@ -1644,7 +1644,7 @@ msgstr "Image importée avec l'empreinte : %s"
 msgid "Image refreshed successfully!"
 msgstr "Image copiée avec succès !"
 
-#: lxc/action.go:118
+#: lxc/action.go:118 lxc/action.go:120
 #, fuzzy
 msgid "Immediately attach to the console"
 msgstr "Forcer l'arrêt du conteneur (seulement pour stop)"
@@ -1679,7 +1679,7 @@ msgstr "Ignorer l'état du conteneur (seulement pour start)"
 msgid "Infiniband:"
 msgstr ""
 
-#: lxc/query.go:42
+#: lxc/query.go:43
 msgid "Input data"
 msgstr ""
 
@@ -2375,7 +2375,7 @@ msgstr "Copie de l'image : %s"
 msgid "Must run as root to import from directory"
 msgstr ""
 
-#: lxc/action.go:153
+#: lxc/action.go:155
 #, fuzzy
 msgid "Must supply instance name for: "
 msgstr "Vous devez fournir le nom d'un conteneur pour : "
@@ -2621,7 +2621,7 @@ msgstr ""
 msgid "Print help"
 msgstr ""
 
-#: lxc/query.go:40
+#: lxc/query.go:41
 msgid "Print the raw response"
 msgstr ""
 
@@ -2760,6 +2760,10 @@ msgstr "Création du conteneur"
 #: lxc/file.go:623 lxc/file.go:779
 #, c-format
 msgid "Pushing %s to %s: %%s"
+msgstr ""
+
+#: lxc/query.go:78
+msgid "Query path must start with /"
 msgstr ""
 
 #: lxc/image.go:458 lxc/image.go:843 lxc/image.go:1355
@@ -3008,7 +3012,7 @@ msgstr "ENSEMBLE DE STOCKAGE"
 msgid "STORAGE VOLUMES"
 msgstr "ENSEMBLE DE STOCKAGE"
 
-#: lxc/query.go:30 lxc/query.go:31
+#: lxc/query.go:31 lxc/query.go:32
 msgid "Send a raw query to LXD"
 msgstr ""
 
@@ -3294,7 +3298,7 @@ msgstr "Instantanés :"
 msgid "Socket %d:"
 msgstr ""
 
-#: lxc/action.go:293
+#: lxc/action.go:295
 #, fuzzy, c-format
 msgid "Some instances failed to %s"
 msgstr "L'arrêt du conteneur a échoué !"
@@ -3515,7 +3519,7 @@ msgstr ""
 msgid "Threads:"
 msgstr ""
 
-#: lxc/action.go:123
+#: lxc/action.go:125
 #, fuzzy
 msgid "Time to wait for the instance before killing it"
 msgstr "Temps d'attente du conteneur avant de le tuer"
@@ -3580,7 +3584,7 @@ msgstr "Transfert de l'image : %s"
 msgid "Transferring instance: %s"
 msgstr "Transfert de l'image : %s"
 
-#: lxc/action.go:198 lxc/launch.go:99
+#: lxc/action.go:200 lxc/launch.go:99
 #, c-format
 msgid "Try `lxc info --show-log %s` for more info"
 msgstr "Essayer `lxc info --show-log %s` pour plus d'informations"
@@ -3727,7 +3731,7 @@ msgstr "Créé : %s"
 msgid "WWN: %s"
 msgstr "Nom : %s"
 
-#: lxc/query.go:39
+#: lxc/query.go:40
 msgid "Wait for the operation to complete"
 msgstr ""
 
@@ -4131,7 +4135,7 @@ msgstr ""
 msgid "enabled"
 msgstr "activé"
 
-#: lxc/action.go:285
+#: lxc/action.go:287
 #, c-format
 msgid "error: %v"
 msgstr "erreur : %v"
@@ -4517,7 +4521,7 @@ msgid ""
 "    Update a project using the content of project.yaml"
 msgstr ""
 
-#: lxc/query.go:33
+#: lxc/query.go:34
 msgid ""
 "lxc query -X DELETE --wait /1.0/instances/c1\n"
 "    Delete local instance \"c1\"."
@@ -4675,7 +4679,7 @@ msgstr ""
 "\n"
 "lxc %s [<remote>:]<container> [[<remote>:]<container>...]%s"
 
-#: lxc/query.go:29
+#: lxc/query.go:30
 msgid "query [<remote>:]<API path>"
 msgstr ""
 
