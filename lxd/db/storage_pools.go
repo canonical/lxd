@@ -77,7 +77,7 @@ func (c *ClusterTx) GetStoragePoolUsedBy(name string) ([]string, error) {
 		return []interface{}{&vols[i].volName, &vols[i].volType, &vols[i].projectName, &vols[i].nodeID}
 	}
 
-	stmt, err := c.tx.Prepare("SELECT storage_volumes.name, storage_volumes.type, projects.name, storage_volumes.node_id FROM storage_volumes LEFT JOIN projects ON projects.id=storage_volumes.project_id WHERE storage_pool_id=? AND (node_id=? OR storage_volumes.type == 2) ORDER BY storage_volumes.type ASC, projects.name ASC, storage_volumes.name ASC, storage_volumes.node_id ASC")
+	stmt, err := c.tx.Prepare("SELECT storage_volumes.name, storage_volumes.type, projects.name, storage_volumes.node_id FROM storage_volumes JOIN projects ON projects.id=storage_volumes.project_id WHERE storage_pool_id=? AND (node_id=? OR storage_volumes.type == 2) ORDER BY storage_volumes.type ASC, projects.name ASC, storage_volumes.name ASC, storage_volumes.node_id ASC")
 	if err != nil {
 		return nil, err
 	}
@@ -100,7 +100,7 @@ func (c *ClusterTx) GetStoragePoolUsedBy(name string) ([]string, error) {
 		// Handle images.
 		if r.volType == StoragePoolVolumeTypeImage {
 			// Get the projects using an image.
-			stmt := "SELECT projects.name FROM images LEFT JOIN projects ON projects.id=images.project_id WHERE fingerprint=?"
+			stmt := "SELECT projects.name FROM images JOIN projects ON projects.id=images.project_id WHERE fingerprint=?"
 			projects, err := query.SelectStrings(c.tx, stmt, r.volName)
 			if err != nil {
 				return nil, err
