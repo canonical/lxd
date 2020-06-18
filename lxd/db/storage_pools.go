@@ -88,16 +88,16 @@ func (c *ClusterTx) GetStoragePoolUsedBy(name string) ([]string, error) {
 	}
 
 	for _, r := range vols {
-		// Handle the containers.
-		if r.volType == StoragePoolVolumeTypeContainer {
+		// Handle instances.
+		if r.volType == StoragePoolVolumeTypeContainer || r.volType == StoragePoolVolumeTypeVM {
 			if r.projectName == "default" {
-				usedby = append(usedby, fmt.Sprintf("/1.0/container/%s", r.volName))
+				usedby = append(usedby, fmt.Sprintf("/1.0/instances/%s", r.volName))
 			} else {
-				usedby = append(usedby, fmt.Sprintf("/1.0/container/%s?project=%s", r.volName, r.projectName))
+				usedby = append(usedby, fmt.Sprintf("/1.0/instances/%s?project=%s", r.volName, r.projectName))
 			}
 		}
 
-		// Handle the images.
+		// Handle images.
 		if r.volType == StoragePoolVolumeTypeImage {
 			// Get the projects using an image.
 			stmt := "SELECT projects.name FROM images LEFT JOIN projects ON projects.id=images.project_id WHERE fingerprint=?"
@@ -115,7 +115,7 @@ func (c *ClusterTx) GetStoragePoolUsedBy(name string) ([]string, error) {
 			}
 		}
 
-		// Handle the custom volumes.
+		// Handle custom storage volumes.
 		if r.volType == StoragePoolVolumeTypeCustom {
 			if len(nodes) > 1 {
 				if r.projectName == "default" {
@@ -129,15 +129,6 @@ func (c *ClusterTx) GetStoragePoolUsedBy(name string) ([]string, error) {
 				} else {
 					usedby = append(usedby, fmt.Sprintf("/1.0/storage-pools/%s/volumes/custom/%s?project=%s", name, r.volName, r.projectName))
 				}
-			}
-		}
-
-		// Handle the virtual machines.
-		if r.volType == StoragePoolVolumeTypeVM {
-			if r.projectName == "default" {
-				usedby = append(usedby, fmt.Sprintf("/1.0/virtual-machine/%s", r.volName))
-			} else {
-				usedby = append(usedby, fmt.Sprintf("/1.0/virtual-machine/%s?project=%s", r.volName, r.projectName))
 			}
 		}
 	}
