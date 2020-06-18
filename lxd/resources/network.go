@@ -304,7 +304,7 @@ func GetNetwork() (*api.ResourcesNetwork, error) {
 				return nil, errors.Wrapf(err, "Failed to track down \"%s\"", devicePath)
 			}
 
-			if strings.HasPrefix(linkTarget, "/sys/devices/pci") && sysfsExists(filepath.Join(devicePath, "subsystem")) {
+			if strings.Contains(linkTarget, "/pci") && sysfsExists(filepath.Join(devicePath, "subsystem")) {
 				virtio := strings.HasPrefix(filepath.Base(linkTarget), "virtio")
 				if virtio {
 					linkTarget = filepath.Dir(linkTarget)
