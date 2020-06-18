@@ -333,6 +333,8 @@ func (c *Cluster) GetNetwork(name string) (int64, *api.Network, error) {
 		network.Status = "Pending"
 	case networkCreated:
 		network.Status = "Created"
+	case networkErrored:
+		network.Status = "Errored"
 	default:
 		network.Status = "Unknown"
 	}
