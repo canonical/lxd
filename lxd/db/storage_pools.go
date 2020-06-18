@@ -636,6 +636,8 @@ func (c *Cluster) GetStoragePool(poolName string) (int64, *api.StoragePool, erro
 		storagePool.Status = "Pending"
 	case storagePoolCreated:
 		storagePool.Status = "Created"
+	case storagePoolErrored:
+		storagePool.Status = "Errored"
 	default:
 		storagePool.Status = "Unknown"
 	}
