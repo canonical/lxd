@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: lxd\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2020-06-16 20:18-0400\n"
+"POT-Creation-Date: 2020-06-18 13:55-0400\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: Automatically generated\n"
 "Language-Team: none\n"
@@ -210,11 +210,11 @@ msgstr ""
 msgid "- Port %d (%s)"
 msgstr ""
 
-#: lxc/action.go:260
+#: lxc/action.go:262
 msgid "--console can't be used with --all"
 msgstr ""
 
-#: lxc/action.go:264
+#: lxc/action.go:266
 msgid "--console only works with a single instance"
 msgstr ""
 
@@ -263,7 +263,7 @@ msgstr ""
 msgid "Access the expanded configuration"
 msgstr ""
 
-#: lxc/query.go:41
+#: lxc/query.go:42
 msgid "Action (defaults to GET)"
 msgstr ""
 
@@ -425,7 +425,7 @@ msgstr ""
 msgid "Bad syntax, expecting <device>,<key>=<value>: %s"
 msgstr ""
 
-#: lxc/action.go:232
+#: lxc/action.go:234
 msgid "Both --all and instance name given"
 msgstr ""
 
@@ -889,7 +889,7 @@ msgstr ""
 #: lxc/profile.go:821 lxc/profile.go:875 lxc/project.go:29 lxc/project.go:86
 #: lxc/project.go:151 lxc/project.go:214 lxc/project.go:334 lxc/project.go:384
 #: lxc/project.go:476 lxc/project.go:531 lxc/project.go:591 lxc/project.go:620
-#: lxc/project.go:673 lxc/publish.go:31 lxc/query.go:31 lxc/remote.go:33
+#: lxc/project.go:673 lxc/publish.go:31 lxc/query.go:32 lxc/remote.go:33
 #: lxc/remote.go:84 lxc/remote.go:423 lxc/remote.go:459 lxc/remote.go:539
 #: lxc/remote.go:601 lxc/remote.go:651 lxc/remote.go:689 lxc/rename.go:21
 #: lxc/restore.go:24 lxc/snapshot.go:27 lxc/storage.go:33 lxc/storage.go:89
@@ -1207,7 +1207,7 @@ msgstr ""
 msgid "Force removing a member, even if degraded"
 msgstr ""
 
-#: lxc/action.go:122
+#: lxc/action.go:124
 msgid "Force the instance to shutdown"
 msgstr ""
 
@@ -1408,7 +1408,7 @@ msgstr ""
 msgid "Image refreshed successfully!"
 msgstr ""
 
-#: lxc/action.go:118
+#: lxc/action.go:118 lxc/action.go:120
 msgid "Immediately attach to the console"
 msgstr ""
 
@@ -1440,7 +1440,7 @@ msgstr ""
 msgid "Infiniband:"
 msgstr ""
 
-#: lxc/query.go:42
+#: lxc/query.go:43
 msgid "Input data"
 msgstr ""
 
@@ -2043,7 +2043,7 @@ msgstr ""
 msgid "Must run as root to import from directory"
 msgstr ""
 
-#: lxc/action.go:153
+#: lxc/action.go:155
 msgid "Must supply instance name for: "
 msgstr ""
 
@@ -2275,7 +2275,7 @@ msgstr ""
 msgid "Print help"
 msgstr ""
 
-#: lxc/query.go:40
+#: lxc/query.go:41
 msgid "Print the raw response"
 msgstr ""
 
@@ -2407,6 +2407,10 @@ msgstr ""
 #: lxc/file.go:623 lxc/file.go:779
 #, c-format
 msgid "Pushing %s to %s: %%s"
+msgstr ""
+
+#: lxc/query.go:78
+msgid "Query path must start with /"
 msgstr ""
 
 #: lxc/image.go:458 lxc/image.go:843 lxc/image.go:1355
@@ -2638,7 +2642,7 @@ msgstr ""
 msgid "STORAGE VOLUMES"
 msgstr ""
 
-#: lxc/query.go:30 lxc/query.go:31
+#: lxc/query.go:31 lxc/query.go:32
 msgid "Send a raw query to LXD"
 msgstr ""
 
@@ -2902,7 +2906,7 @@ msgstr ""
 msgid "Socket %d:"
 msgstr ""
 
-#: lxc/action.go:293
+#: lxc/action.go:295
 #, c-format
 msgid "Some instances failed to %s"
 msgstr ""
@@ -3105,7 +3109,7 @@ msgstr ""
 msgid "Threads:"
 msgstr ""
 
-#: lxc/action.go:123
+#: lxc/action.go:125
 msgid "Time to wait for the instance before killing it"
 msgstr ""
 
@@ -3166,7 +3170,7 @@ msgstr ""
 msgid "Transferring instance: %s"
 msgstr ""
 
-#: lxc/action.go:198 lxc/launch.go:99
+#: lxc/action.go:200 lxc/launch.go:99
 #, c-format
 msgid "Try `lxc info --show-log %s` for more info"
 msgstr ""
@@ -3304,7 +3308,7 @@ msgstr ""
 msgid "WWN: %s"
 msgstr ""
 
-#: lxc/query.go:39
+#: lxc/query.go:40
 msgid "Wait for the operation to complete"
 msgstr ""
 
@@ -3585,7 +3589,7 @@ msgstr ""
 msgid "enabled"
 msgstr ""
 
-#: lxc/action.go:285
+#: lxc/action.go:287
 #, c-format
 msgid "error: %v"
 msgstr ""
@@ -3904,7 +3908,7 @@ msgid ""
 "    Update a project using the content of project.yaml"
 msgstr ""
 
-#: lxc/query.go:33
+#: lxc/query.go:34
 msgid ""
 "lxc query -X DELETE --wait /1.0/instances/c1\n"
 "    Delete local instance \"c1\"."
@@ -4026,7 +4030,7 @@ msgid ""
 "<path>...]"
 msgstr ""
 
-#: lxc/query.go:29
+#: lxc/query.go:30
 msgid "query [<remote>:]<API path>"
 msgstr ""
 
