@@ -56,13 +56,16 @@ func storagePoolsGet(d *Daemon, r *http.Request) response.Response {
 		if !recursion {
 			resultString = append(resultString, fmt.Sprintf("/%s/storage-pools/%s", version.APIVersion, pool))
 		} else {
-			plID, pl, err := d.cluster.GetStoragePool(pool)
+			_, pl, err := d.cluster.GetStoragePool(pool)
 			if err != nil {
 				continue
 			}
-
 			// Get all users of the storage pool.
-			poolUsedBy, err := storagePoolUsedByGet(d.State(), projectParam(r), plID, pool)
+			poolUsedBy := []string{}
+			err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
+				poolUsedBy, err = tx.GetStoragePoolUsedBy(pool)
+				return err
+			})
 			if err != nil {
 				return response.SmartError(err)
 			}
@@ -308,14 +311,18 @@ func storagePoolGet(d *Daemon, r *http.Request) response.Response {
 	poolName := mux.Vars(r)["name"]
 
 	// Get the existing storage pool.
-	poolID, pool, err := d.cluster.GetStoragePool(poolName)
+	_, pool, err := d.cluster.GetStoragePool(poolName)
 	if err != nil {
 		return response.SmartError(err)
 	}
 
 	// Get all users of the storage pool.
-	poolUsedBy, err := storagePoolUsedByGet(d.State(), projectParam(r), poolID, poolName)
-	if err != nil && err != db.ErrNoSuchObject {
+	poolUsedBy := []string{}
+	err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
+		poolUsedBy, err = tx.GetStoragePoolUsedBy(poolName)
+		return err
+	})
+	if err != nil {
 		return response.SmartError(err)
 	}
 	pool.UsedBy = poolUsedBy

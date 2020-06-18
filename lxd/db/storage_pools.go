@@ -5,6 +5,7 @@ package db
 import (
 	"database/sql"
 	"fmt"
+	"sort"
 	"strings"
 
 	"github.com/pkg/errors"
@@ -35,6 +36,140 @@ storage_pools_config JOIN storage_pools ON storage_pools.id=storage_pools_config
 		pools[name] = config
 	}
 	return pools, nil
+}
+
+// GetStoragePoolUsedBy looks up all users of a storage pool.
+func (c *ClusterTx) GetStoragePoolUsedBy(name string) ([]string, error) {
+	usedby := []string{}
+
+	// Get the pool ID.
+	id, err := c.GetStoragePoolID(name)
+	if err != nil {
+		return nil, err
+	}
+
+	// Get the cluster nodes.
+	nodes, err := c.GetNodes()
+	if err != nil {
+		return nil, err
+	}
+	nodesName := map[int64]string{}
+
+	for _, node := range nodes {
+		nodesName[node.ID] = node.Name
+	}
+
+	// Get all the storage volumes on this node.
+	vols := []struct {
+		volName     string
+		volType     int64
+		projectName string
+		nodeID      int64
+	}{}
+	dest := func(i int) []interface{} {
+		vols = append(vols, struct {
+			volName     string
+			volType     int64
+			projectName string
+			nodeID      int64
+		}{})
+
+		return []interface{}{&vols[i].volName, &vols[i].volType, &vols[i].projectName, &vols[i].nodeID}
+	}
+
+	stmt, err := c.tx.Prepare("SELECT storage_volumes.name, storage_volumes.type, projects.name, storage_volumes.node_id FROM storage_volumes LEFT JOIN projects ON projects.id=storage_volumes.project_id WHERE storage_pool_id=? AND (node_id=? OR storage_volumes.type == 2) ORDER BY storage_volumes.type ASC, projects.name ASC, storage_volumes.name ASC, storage_volumes.node_id ASC")
+	if err != nil {
+		return nil, err
+	}
+
+	err = query.SelectObjects(stmt, dest, id, c.nodeID)
+	if err != nil {
+		return nil, err
+	}
+
+	for _, r := range vols {
+		// Handle the containers.
+		if r.volType == StoragePoolVolumeTypeContainer {
+			if r.projectName == "default" {
+				usedby = append(usedby, fmt.Sprintf("/1.0/container/%s", r.volName))
+			} else {
+				usedby = append(usedby, fmt.Sprintf("/1.0/container/%s?project=%s", r.volName, r.projectName))
+			}
+		}
+
+		// Handle the images.
+		if r.volType == StoragePoolVolumeTypeImage {
+			// Get the projects using an image.
+			stmt := "SELECT projects.name FROM images LEFT JOIN projects ON projects.id=images.project_id WHERE fingerprint=?"
+			projects, err := query.SelectStrings(c.tx, stmt, r.volName)
+			if err != nil {
+				return nil, err
+			}
+
+			for _, project := range projects {
+				if project == "default" {
+					usedby = append(usedby, fmt.Sprintf("/1.0/images/%s", r.volName))
+				} else {
+					usedby = append(usedby, fmt.Sprintf("/1.0/images/%s?project=%s", r.volName, project))
+				}
+			}
+		}
+
+		// Handle the custom volumes.
+		if r.volType == StoragePoolVolumeTypeCustom {
+			if len(nodes) > 1 {
+				if r.projectName == "default" {
+					usedby = append(usedby, fmt.Sprintf("/1.0/storage-pools/%s/volumes/custom/%s?target=%s", name, r.volName, nodesName[r.nodeID]))
+				} else {
+					usedby = append(usedby, fmt.Sprintf("/1.0/storage-pools/%s/volumes/custom/%s?project=%s&target=%s", name, r.volName, r.projectName, nodesName[r.nodeID]))
+				}
+			} else {
+				if r.projectName == "default" {
+					usedby = append(usedby, fmt.Sprintf("/1.0/storage-pools/%s/volumes/custom/%s", name, r.volName))
+				} else {
+					usedby = append(usedby, fmt.Sprintf("/1.0/storage-pools/%s/volumes/custom/%s?project=%s", name, r.volName, r.projectName))
+				}
+			}
+		}
+
+		// Handle the virtual machines.
+		if r.volType == StoragePoolVolumeTypeVM {
+			if r.projectName == "default" {
+				usedby = append(usedby, fmt.Sprintf("/1.0/virtual-machine/%s", r.volName))
+			} else {
+				usedby = append(usedby, fmt.Sprintf("/1.0/virtual-machine/%s?project=%s", r.volName, r.projectName))
+			}
+		}
+	}
+
+	// Get all the profiles using the storage pool.
+	profiles, err := c.GetProfiles(ProfileFilter{})
+	if err != nil {
+		return nil, err
+	}
+
+	for _, profile := range profiles {
+		for _, v := range profile.Devices {
+			if v["type"] != "disk" {
+				continue
+			}
+
+			if v["pool"] != name {
+				continue
+			}
+		}
+
+		if profile.Project == "default" {
+			usedby = append(usedby, fmt.Sprintf("/1.0/profiles/%s", profile.Name))
+		} else {
+			usedby = append(usedby, fmt.Sprintf("/1.0/profiles/%s?project=%s", profile.Name, profile.Project))
+		}
+	}
+
+	// Sort the output.
+	sort.Strings(usedby)
+
+	return usedby, nil
 }
 
 // GetStoragePoolID returns the ID of the pool with the given name.
