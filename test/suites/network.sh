@@ -18,7 +18,7 @@ test_network() {
   [ "$(lxc network get lxdt$$ ipv6.dhcp.stateful)" = "true" ]
   lxc network unset lxdt$$ ipv6.dhcp.stateful
   [ "$(lxc network get lxdt$$ ipv6.dhcp.stateful)" = "" ]
-  lxc query -X PATCH -d "{\\\"config\\\": {\\\"ipv6.dhcp.stateful\\\": \\\"true\\\"}}" lxd/1.0/networks/lxdt$$
+  lxc query -X PATCH -d "{\\\"config\\\": {\\\"ipv6.dhcp.stateful\\\": \\\"true\\\"}}" /1.0/networks/lxdt$$
   [ "$(lxc network get lxdt$$ ipv6.dhcp.stateful)" = "true" ]
 
   # delete the network
