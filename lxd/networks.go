@@ -402,16 +402,41 @@ func doNetworkGet(d *Daemon, name string) (api.Network, error) {
 
 	// Look for containers using the interface
 	if n.Type != "loopback" {
+		// Look at instances.
 		insts, err := instance.LoadFromAllProjects(d.State())
 		if err != nil {
 			return api.Network{}, err
 		}
 
 		for _, inst := range insts {
-			if network.IsInUse(inst, n.Name) {
+			if network.IsInUseByInstance(inst, n.Name) {
 				uri := fmt.Sprintf("/%s/instances/%s", version.APIVersion, inst.Name())
 				if inst.Project() != project.Default {
 					uri += fmt.Sprintf("?project=%s", inst.Project())
+				}
+				n.UsedBy = append(n.UsedBy, uri)
+			}
+		}
+
+		// Look for profiles.
+		var profiles []db.Profile
+		err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
+			profiles, err = tx.GetProfiles(db.ProfileFilter{})
+			if err != nil {
+				return err
+			}
+
+			return nil
+		})
+		if err != nil {
+			return api.Network{}, err
+		}
+
+		for _, profile := range profiles {
+			if network.IsInUseByProfile(*db.ProfileToAPI(&profile), n.Name) {
+				uri := fmt.Sprintf("/%s/profiles/%s", version.APIVersion, profile.Name)
+				if profile.Project != project.Default {
+					uri += fmt.Sprintf("?project=%s", profile.Project)
 				}
 				n.UsedBy = append(n.UsedBy, uri)
 			}
