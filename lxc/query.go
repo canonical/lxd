@@ -45,12 +45,16 @@ func (c *cmdQuery) Command() *cobra.Command {
 }
 
 func (c *cmdQuery) pretty(input interface{}) string {
-	pretty, err := json.MarshalIndent(input, "", "\t")
+	pretty := bytes.NewBufferString("")
+	enc := json.NewEncoder(pretty)
+	enc.SetEscapeHTML(false)
+	enc.SetIndent("", "\t")
+	err := enc.Encode(input)
 	if err != nil {
 		return fmt.Sprintf("%v", input)
 	}
 
-	return fmt.Sprintf("%s", pretty)
+	return fmt.Sprintf("%s", pretty.String())
 }
 
 func (c *cmdQuery) Run(cmd *cobra.Command, args []string) error {
