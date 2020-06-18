@@ -1912,6 +1912,11 @@ func (vm *qemu) addDriveDirConfig(sb *strings.Builder, bus *qemuBus, fdFiles *[]
 		FSType: driveConf.FSType,
 	}
 
+	// If mount type is 9p, we need to specify to use the virtio transport to support more VM guest OSes.
+	if agentMount.FSType == "9p" {
+		agentMount.Options = append(agentMount.Options, "trans=virtio")
+	}
+
 	// Indicate to agent to mount this readonly. Note: This is purely to indicate to VM guest that this is
 	// readonly, it should *not* be used as a security measure, as the VM guest could remount it R/W.
 	if shared.StringInSlice("ro", driveConf.Opts) {
