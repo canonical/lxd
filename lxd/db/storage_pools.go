@@ -117,7 +117,7 @@ func (c *ClusterTx) GetStoragePoolUsedBy(name string) ([]string, error) {
 
 		// Handle custom storage volumes.
 		if r.volType == StoragePoolVolumeTypeCustom {
-			if len(nodes) > 1 {
+			if nodesName[r.nodeID] != "none" {
 				if r.projectName == "default" {
 					usedby = append(usedby, fmt.Sprintf("/1.0/storage-pools/%s/volumes/custom/%s?target=%s", name, r.volName, nodesName[r.nodeID]))
 				} else {

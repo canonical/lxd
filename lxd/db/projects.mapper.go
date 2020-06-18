@@ -177,9 +177,12 @@ func (c *ClusterTx) GetProjects(filter ProjectFilter) ([]api.Project, error) {
 		if value == nil {
 			value = []string{}
 		}
-		for j, entry := range value {
-			if len(entry) > 16 && entry[len(entry)-16:] == "?project=default" {
-				value[j] = entry[0 : len(entry)-16]
+		for j := range value {
+			if len(value[j]) > 12 && value[j][len(value[j])-12:] == "&target=none" {
+				value[j] = value[j][0 : len(value[j])-12]
+			}
+			if len(value[j]) > 16 && value[j][len(value[j])-16:] == "?project=default" {
+				value[j] = value[j][0 : len(value[j])-16]
 			}
 		}
 		objects[i].UsedBy = value
