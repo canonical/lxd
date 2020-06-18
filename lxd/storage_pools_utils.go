@@ -2,14 +2,12 @@ package main
 
 import (
 	"fmt"
-	"strings"
 
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/state"
 	storagePools "github.com/lxc/lxd/lxd/storage"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
-	"github.com/lxc/lxd/shared/version"
 )
 
 func storagePoolUpdate(state *state.State, name, newDescription string, newConfig map[string]string, withDB bool) error {
@@ -19,67 +17,6 @@ func storagePoolUpdate(state *state.State, name, newDescription string, newConfi
 	}
 
 	return pool.Update(!withDB, newDescription, newConfig, nil)
-}
-
-// Report all LXD objects that are currently using the given storage pool.
-// Volumes of type "custom" are not reported.
-// /1.0/containers/alp1
-// /1.0/containers/alp1/snapshots/snap0
-// /1.0/images/cedce20b5b236f1071134beba7a5fd2aa923fda49eea4c66454dd559a5d6e906
-// /1.0/profiles/default
-func storagePoolUsedByGet(state *state.State, project string, poolID int64, poolName string) ([]string, error) {
-	// Retrieve all non-custom volumes that exist on this storage pool.
-	volumes, err := state.Cluster.GetLocalStoragePoolVolumes(project, poolID, []int{db.StoragePoolVolumeTypeContainer, db.StoragePoolVolumeTypeImage, db.StoragePoolVolumeTypeCustom, db.StoragePoolVolumeTypeVM})
-	if err != nil && err != db.ErrNoSuchObject {
-		return []string{}, err
-	}
-
-	// Retrieve all profiles that exist on this storage pool.
-	profiles, err := profilesUsingPoolGetNames(state.Cluster, project, poolName)
-
-	if err != nil {
-		return []string{}, err
-	}
-
-	slicelen := len(volumes) + len(profiles)
-	if slicelen == 0 {
-		return []string{}, nil
-	}
-
-	// Save some allocation cycles by preallocating the correct len.
-	poolUsedBy := make([]string, slicelen)
-	for i := 0; i < len(volumes); i++ {
-		apiEndpoint, _ := storagePoolVolumeTypeNameToAPIEndpoint(volumes[i].Type)
-		switch apiEndpoint {
-		case storagePoolVolumeAPIEndpointContainers:
-			if strings.Index(volumes[i].Name, shared.SnapshotDelimiter) > 0 {
-				parentName, snapOnlyName, _ := shared.InstanceGetParentAndSnapshotName(volumes[i].Name)
-				poolUsedBy[i] = fmt.Sprintf("/%s/containers/%s/snapshots/%s", version.APIVersion, parentName, snapOnlyName)
-			} else {
-				poolUsedBy[i] = fmt.Sprintf("/%s/containers/%s", version.APIVersion, volumes[i].Name)
-			}
-		case storagePoolVolumeAPIEndpointVMs:
-			if strings.Index(volumes[i].Name, shared.SnapshotDelimiter) > 0 {
-				parentName, snapOnlyName, _ := shared.InstanceGetParentAndSnapshotName(volumes[i].Name)
-				poolUsedBy[i] = fmt.Sprintf("/%s/virtual-machines/%s/snapshots/%s", version.APIVersion, parentName, snapOnlyName)
-			} else {
-				poolUsedBy[i] = fmt.Sprintf("/%s/virtual-machines/%s", version.APIVersion, volumes[i].Name)
-			}
-		case storagePoolVolumeAPIEndpointImages:
-			poolUsedBy[i] = fmt.Sprintf("/%s/images/%s", version.APIVersion, volumes[i].Name)
-		case storagePoolVolumeAPIEndpointCustom:
-			poolUsedBy[i] = fmt.Sprintf("/%s/storage-pools/%s/volumes/%s/%s", version.APIVersion, poolName, volumes[i].Type, volumes[i].Name)
-		default:
-			// If that happens the db is busted, so report an error.
-			return []string{}, fmt.Errorf("invalid storage type for storage volume \"%s\"", volumes[i].Name)
-		}
-	}
-
-	for i := 0; i < len(profiles); i++ {
-		poolUsedBy[i+len(volumes)] = fmt.Sprintf("/%s/profiles/%s", version.APIVersion, profiles[i])
-	}
-
-	return poolUsedBy, err
 }
 
 func profilesUsingPoolGetNames(db *db.Cluster, project string, poolName string) ([]string, error) {

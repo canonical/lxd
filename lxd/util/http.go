@@ -36,7 +36,9 @@ func WriteJSON(w http.ResponseWriter, body interface{}, debug bool) error {
 		output = io.MultiWriter(w, captured)
 	}
 
-	err := json.NewEncoder(output).Encode(body)
+	enc := json.NewEncoder(output)
+	enc.SetEscapeHTML(false)
+	err := enc.Encode(body)
 
 	if captured != nil {
 		shared.DebugJson(captured)
