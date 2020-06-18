@@ -1020,3 +1020,14 @@ This adds system information to the output of `/1.0/resources`.
 ## resources\_cpu\_isolated
 Add an `Isolated` property on CPU threads to indicate if the thread is
 physically `Online` but is configured not to accept tasks.
+
+## usedby\_consistency
+This extension indicates that UsedBy should now be consistent with
+suitable ?project= and ?target= when appropriate.
+
+The 5 entities that have UsedBy are:
+ - Profiles
+ - Projects
+ - Networks
+ - Storage pools
+ - Storage volumes
