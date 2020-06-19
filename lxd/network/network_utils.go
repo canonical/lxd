@@ -18,6 +18,7 @@ import (
 
 	"github.com/pkg/errors"
 
+	deviceConfig "github.com/lxc/lxd/lxd/device/config"
 	"github.com/lxc/lxd/lxd/dnsmasq"
 	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/instance/instancetype"
@@ -28,10 +29,20 @@ import (
 	"github.com/lxc/lxd/shared/logger"
 )
 
-// IsInUse indicates if network is reference by any instance's NIC devices.
+// IsInUseByInstance indicates if network is referenced by an instance's NIC devices.
 // Checks if the device's parent or network properties match the network name.
-func IsInUse(c instance.Instance, networkName string) bool {
-	for _, d := range c.ExpandedDevices() {
+func IsInUseByInstance(c instance.Instance, networkName string) bool {
+	return isInUseByDevices(c.ExpandedDevices(), networkName)
+}
+
+// IsInUseByProfile indicates if network is referenced by a profile's NIC devices.
+// Checks if the device's parent or network properties match the network name.
+func IsInUseByProfile(profile api.Profile, networkName string) bool {
+	return isInUseByDevices(deviceConfig.NewDevices(profile.Devices), networkName)
+}
+
+func isInUseByDevices(devices deviceConfig.Devices, networkName string) bool {
+	for _, d := range devices {
 		if d["type"] != "nic" {
 			continue
 		}
