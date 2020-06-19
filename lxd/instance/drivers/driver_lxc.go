@@ -5556,7 +5556,7 @@ func (c *lxc) Console() (*os.File, chan error, error) {
 		rootUID, rootGID = idmapset.ShiftIntoNs(0, 0)
 	}
 
-	master, slave, err := shared.OpenPty(rootUID, rootGID)
+	ptmx, pts, err := shared.OpenPty(rootUID, rootGID)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -5564,9 +5564,9 @@ func (c *lxc) Console() (*os.File, chan error, error) {
 	cmd := exec.Cmd{}
 	cmd.Path = c.state.OS.ExecPath
 	cmd.Args = args
-	cmd.Stdin = slave
-	cmd.Stdout = slave
-	cmd.Stderr = slave
+	cmd.Stdin = pts
+	cmd.Stdout = pts
+	cmd.Stderr = pts
 
 	err = cmd.Start()
 	if err != nil {
@@ -5575,8 +5575,8 @@ func (c *lxc) Console() (*os.File, chan error, error) {
 
 	go func() {
 		err = cmd.Wait()
-		master.Close()
-		slave.Close()
+		ptmx.Close()
+		pts.Close()
 	}()
 
 	go func() {
@@ -5584,7 +5584,7 @@ func (c *lxc) Console() (*os.File, chan error, error) {
 		cmd.Process.Kill()
 	}()
 
-	return master, chDisconnect, nil
+	return ptmx, chDisconnect, nil
 }
 
 // ConsoleLog returns console log.
