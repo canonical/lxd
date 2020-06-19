@@ -298,7 +298,22 @@ const (
 )
 
 // GetNetwork returns the network with the given name.
+//
+// The network must be in the created stated, not pending.
 func (c *Cluster) GetNetwork(name string) (int64, *api.Network, error) {
+	return c.getNetwork(name, true)
+}
+
+// GetNetworkInAnyState returns the network with the given name.
+//
+// The network can be in any state.
+func (c *Cluster) GetNetworkInAnyState(name string) (int64, *api.Network, error) {
+	return c.getNetwork(name, false)
+}
+
+// Get the network with the given name. If onlyCreated is true, only return
+// networks in the created state.
+func (c *Cluster) getNetwork(name string, onlyCreated bool) (int64, *api.Network, error) {
 	description := sql.NullString{}
 	id := int64(-1)
 	state := 0
@@ -306,6 +321,10 @@ func (c *Cluster) GetNetwork(name string) (int64, *api.Network, error) {
 	q := "SELECT id, description, state FROM networks WHERE name=?"
 	arg1 := []interface{}{name}
 	arg2 := []interface{}{&id, &description, &state}
+	if onlyCreated {
+		q += " AND state=?"
+		arg1 = append(arg1, networkCreated)
+	}
 	err := dbQueryRowScan(c, q, arg1, arg2)
 	if err != nil {
 		if err == sql.ErrNoRows {
@@ -494,7 +513,7 @@ func (c *Cluster) CreateNetwork(name, description string, config map[string]stri
 
 // UpdateNetwork updates the network with the given name.
 func (c *Cluster) UpdateNetwork(name, description string, config map[string]string) error {
-	id, _, err := c.GetNetwork(name)
+	id, _, err := c.GetNetworkInAnyState(name)
 	if err != nil {
 		return err
 	}
@@ -569,7 +588,7 @@ func clearNetworkConfig(tx *sql.Tx, networkID, nodeID int64) error {
 
 // DeleteNetwork deletes the network with the given name.
 func (c *Cluster) DeleteNetwork(name string) error {
-	id, _, err := c.GetNetwork(name)
+	id, _, err := c.GetNetworkInAnyState(name)
 	if err != nil {
 		return err
 	}
@@ -584,7 +603,7 @@ func (c *Cluster) DeleteNetwork(name string) error {
 
 // RenameNetwork renames a network.
 func (c *Cluster) RenameNetwork(oldName string, newName string) error {
-	id, _, err := c.GetNetwork(oldName)
+	id, _, err := c.GetNetworkInAnyState(oldName)
 	if err != nil {
 		return err
 	}
