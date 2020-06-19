@@ -8,6 +8,7 @@ import (
 	"io/ioutil"
 	"os"
 	"os/signal"
+	"strings"
 	"time"
 
 	"github.com/pkg/errors"
@@ -211,10 +212,16 @@ func (c *cmdAgent) mountHostShares() {
 	}
 
 	for _, mount := range agentMounts {
+		// Convert relative mounts to absolute from / otherwise dir creation fails or mount fails.
+		if !strings.HasPrefix(mount.Target, "/") {
+			mount.Target = fmt.Sprintf("/%s", mount.Target)
+		}
+
 		if !shared.PathExists(mount.Target) {
 			err := os.MkdirAll(mount.Target, 0755)
 			if err != nil {
 				logger.Errorf("Failed to create mount target %q", mount.Target)
+				continue // Don't try to mount if mount point can't be created.
 			}
 		}
 
