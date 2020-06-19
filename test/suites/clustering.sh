@@ -732,6 +732,13 @@ test_clustering_network() {
   ! LXD_DIR="${LXD_ONE_DIR}" lxc network create "${net}" --target node2 || false
   LXD_DIR="${LXD_ONE_DIR}" lxc network show "${net}" | grep status: | grep -q Pending
 
+  # A container can't be started when associated with a pending network.
+  LXD_DIR="${LXD_TWO_DIR}" ensure_import_testimage
+  LXD_DIR="${LXD_ONE_DIR}" lxc init --target node2 -n "${net}" testimage bar
+  ! LXD_DIR="${LXD_ONE_DIR}" lxc start bar || false
+  LXD_DIR="${LXD_ONE_DIR}" lxc delete bar
+  LXD_DIR="${LXD_ONE_DIR}" lxc image delete testimage
+
   # The bridge.external_interfaces config key is not legal for the final network creation
   ! LXD_DIR="${LXD_ONE_DIR}" lxc network create "${net}" bridge.external_interfaces=foo || false
 
