@@ -1341,6 +1341,18 @@ WantedBy=multi-user.target
 		return err
 	}
 
+	// Udev rules
+	err = os.MkdirAll(filepath.Join(configDrivePath, "udev"), 0500)
+	if err != nil {
+		return err
+	}
+
+	lxdAgentRules := `ACTION=="add", SYMLINK=="virtio-ports/org.linuxcontainers.lxd", TAG+="systemd", ACTION=="add", RUN+="/bin/systemctl start lxd-agent.service"`
+	err = ioutil.WriteFile(filepath.Join(configDrivePath, "udev", "99-lxd-agent.rules"), []byte(lxdAgentRules), 0400)
+	if err != nil {
+		return err
+	}
+
 	// Install script for manual installs.
 	lxdConfigShareInstall := `#!/bin/sh
 if [ ! -e "systemd" ] || [ ! -e "lxd-agent" ]; then
@@ -1353,6 +1365,7 @@ if [ ! -e "/lib/systemd/system" ]; then
     exit 1
 fi
 
+cp udev/99-lxd-agent.rules /lib/udev/rules.d/
 cp systemd/lxd-agent.service /lib/systemd/system/
 cp systemd/lxd-agent-9p.service /lib/systemd/system/
 systemctl daemon-reload
