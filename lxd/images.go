@@ -390,13 +390,17 @@ func imgPostURLInfo(d *Daemon, req api.ImagesPost, op *operations.Operation, pro
 		return nil, err
 	}
 
-	architecturesStr := []string{}
-	for _, arch := range d.os.Architectures {
-		architecturesStr = append(architecturesStr, fmt.Sprintf("%d", arch))
+	architectures := []string{}
+	for _, architecture := range d.os.Architectures {
+		architectureName, err := osarch.ArchitectureName(architecture)
+		if err != nil {
+			return nil, err
+		}
+		architectures = append(architectures, architectureName)
 	}
 
 	head.Header.Set("User-Agent", version.UserAgent)
-	head.Header.Set("LXD-Server-Architectures", strings.Join(architecturesStr, ", "))
+	head.Header.Set("LXD-Server-Architectures", strings.Join(architectures, ", "))
 	head.Header.Set("LXD-Server-Version", version.Version)
 
 	raw, err := myhttp.Do(head)
