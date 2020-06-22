@@ -22,6 +22,7 @@ import (
 	"time"
 
 	"github.com/gorilla/mux"
+	"github.com/kballard/go-shellquote"
 	"github.com/pkg/errors"
 	"gopkg.in/yaml.v2"
 
@@ -112,7 +113,13 @@ func compressFile(compress string, infile io.Reader, outfile io.Writer) error {
 	reproducible := []string{"gzip"}
 	var cmd *exec.Cmd
 
-	if compress == "squashfs" {
+	// Parse the command.
+	fields, err := shellquote.Split(compress)
+	if err != nil {
+		return err
+	}
+
+	if fields[0] == "squashfs" {
 		// 'tar2sqfs' do not support writing to stdout. So write to a temporary
 		//  file first and then replay the compressed content to outfile.
 		tempfile, err := ioutil.TempFile("", "lxd_compress_")
@@ -123,7 +130,11 @@ func compressFile(compress string, infile io.Reader, outfile io.Writer) error {
 		defer os.Remove(tempfile.Name())
 
 		// Prepare 'tar2sqfs' arguments
-		args := []string{"tar2sqfs", "--no-skip", "--force", "--compressor", "xz", tempfile.Name()}
+		args := []string{"tar2sqfs"}
+		if len(fields) > 1 {
+			args = append(args, fields[1:]...)
+		}
+		args = append(args, "--no-skip", "--force", "--compressor", "xz", tempfile.Name())
 		cmd = exec.Command(args[0], args[1:]...)
 		cmd.Stdin = infile
 
@@ -139,11 +150,14 @@ func compressFile(compress string, infile io.Reader, outfile io.Writer) error {
 		}
 	} else {
 		args := []string{"-c"}
-		if shared.StringInSlice(compress, reproducible) {
+		if len(fields) > 1 {
+			args = append(args, fields[1:]...)
+		}
+		if shared.StringInSlice(fields[0], reproducible) {
 			args = append(args, "-n")
 		}
 
-		cmd := exec.Command(compress, args...)
+		cmd := exec.Command(fields[0], args...)
 		cmd.Stdin = infile
 		cmd.Stdout = outfile
 		err := cmd.Run()
