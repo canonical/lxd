@@ -9,6 +9,7 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/kballard/go-shellquote"
 	"golang.org/x/crypto/scrypt"
 
 	"github.com/lxc/lxd/lxd/config"
@@ -373,7 +374,13 @@ func validateCompression(value string) error {
 		value = "tar2sqfs"
 	}
 
-	_, err := exec.LookPath(value)
+	// Parse the command.
+	fields, err := shellquote.Split(value)
+	if err != nil {
+		return err
+	}
+
+	_, err = exec.LookPath(fields[0])
 	return err
 }
 
