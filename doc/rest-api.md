@@ -834,6 +834,8 @@ Input:
     },
     "devices": {
         "root": {
+            "path": "/",
+            "pool": "default",
             "size": "5GB"
         }
     },
