@@ -220,15 +220,23 @@ func TestCreateStoragePoolVolume_Snapshot(t *testing.T) {
 	poolID, err := cluster.CreateStoragePool("p1", "", "dir", nil)
 	require.NoError(t, err)
 
+	poolID1, err := cluster.CreateStoragePool("p2", "", "dir", nil)
+	require.NoError(t, err)
+
 	config := map[string]string{"k": "v"}
 	_, err = cluster.CreateStoragePoolVolume("default", "v1", "", 1, poolID, config)
+	require.NoError(t, err)
+
+	_, err = cluster.CreateStoragePoolVolume("default", "v1", "", 1, poolID1, config)
 	require.NoError(t, err)
 
 	config = map[string]string{"k": "v"}
 	_, err = cluster.CreateStorageVolumeSnapshot("default", "v1/snap0", "", 1, poolID, config, time.Time{})
 	require.NoError(t, err)
 
-	n := cluster.GetNextStorageVolumeSnapshotIndex("v1", 1, "snap%d")
+	n := cluster.GetNextStorageVolumeSnapshotIndex("p1", "v1", 1, "snap%d")
 	assert.Equal(t, n, 1)
 
+	n = cluster.GetNextStorageVolumeSnapshotIndex("p2", "v1", 1, "snap%d")
+	assert.Equal(t, n, 0)
 }
