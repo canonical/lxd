@@ -662,15 +662,17 @@ func (c *Cluster) GetStorageVolumeDescription(volumeID int64) (string, error) {
 //
 // Note, the code below doesn't deal with snapshots of snapshots.
 // To do that, we'll need to weed out based on # slashes in names
-func (c *Cluster) GetNextStorageVolumeSnapshotIndex(name string, typ int, pattern string) int {
+func (c *Cluster) GetNextStorageVolumeSnapshotIndex(pool, name string, typ int, pattern string) int {
 	q := fmt.Sprintf(`
 SELECT storage_volumes_snapshots.name FROM storage_volumes_snapshots
   JOIN storage_volumes ON storage_volumes_snapshots.storage_volume_id=storage_volumes.id
+  JOIN storage_pools ON storage_volumes.storage_pool_id=storage_pools.id
  WHERE storage_volumes.type=?
    AND storage_volumes.name=?
+   AND storage_pools.name=?
 `)
 	var numstr string
-	inargs := []interface{}{typ, name}
+	inargs := []interface{}{typ, name, pool}
 	outfmt := []interface{}{numstr}
 	results, err := queryScan(c, q, inargs, outfmt)
 	if err != nil {

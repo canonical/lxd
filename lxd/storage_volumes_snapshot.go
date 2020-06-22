@@ -79,7 +79,7 @@ func storagePoolVolumeSnapshotsTypePost(d *Daemon, r *http.Request) response.Res
 
 	// Get a snapshot name.
 	if req.Name == "" {
-		i := d.cluster.GetNextStorageVolumeSnapshotIndex(volumeName, volumeType, "snap%d")
+		i := d.cluster.GetNextStorageVolumeSnapshotIndex(poolName, volumeName, volumeType, "snap%d")
 		req.Name = fmt.Sprintf("snap%d", i)
 	}
 
@@ -766,7 +766,7 @@ func volumeDetermineNextSnapshotName(d *Daemon, volume db.StorageVolumeArgs, def
 	if count > 1 {
 		return "", fmt.Errorf("Snapshot pattern may contain '%%d' only once")
 	} else if count == 1 {
-		i := d.cluster.GetNextStorageVolumeSnapshotIndex(volume.Name, db.StoragePoolVolumeTypeCustom, pattern)
+		i := d.cluster.GetNextStorageVolumeSnapshotIndex(volume.PoolName, volume.Name, db.StoragePoolVolumeTypeCustom, pattern)
 		return strings.Replace(pattern, "%d", strconv.Itoa(i), 1), nil
 	}
 
@@ -814,7 +814,7 @@ func volumeDetermineNextSnapshotName(d *Daemon, volume db.StorageVolumeArgs, def
 	}
 
 	if snapshotExists {
-		i := d.cluster.GetNextStorageVolumeSnapshotIndex(volume.Name, db.StoragePoolVolumeTypeCustom, pattern)
+		i := d.cluster.GetNextStorageVolumeSnapshotIndex(volume.PoolName, volume.Name, db.StoragePoolVolumeTypeCustom, pattern)
 		return strings.Replace(pattern, "%d", strconv.Itoa(i), 1), nil
 	}
 
