@@ -146,6 +146,9 @@ test_basic_usage() {
   curl -k -s --cert "${LXD_CONF}/client3.crt" --key "${LXD_CONF}/client3.key" -X GET "https://${LXD_ADDR}/1.0/images" | grep "/1.0/images/" && false
   lxc image delete foo-image-compressed
 
+  # Test compression options
+  lxc publish bar --alias=foo-image-compressed --compression="gzip --rsyncable" prop=val1
+  lxc image delete foo-image-compressed
 
   # Test privileged container publish
   lxc profile create priv
