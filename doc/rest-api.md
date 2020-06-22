@@ -743,7 +743,7 @@ Output:
     },
     "created_at": "2016-02-16T01:05:05Z",
     "devices": {
-        "rootfs": {
+        "root": {
             "path": "/",
             "type": "disk"
         }
@@ -794,7 +794,7 @@ Input (update instance configuration):
         "volatile.eth0.hwaddr": "00:16:3e:1c:94:38"
     },
     "devices": {
-        "rootfs": {
+        "root": {
             "path": "/",
             "type": "disk"
         }
@@ -833,7 +833,9 @@ Input:
         "limits.cpu": "4"
     },
     "devices": {
-        "rootfs": {
+        "root": {
+            "path": "/",
+            "pool": "default",
             "size": "5GB"
         }
     },
