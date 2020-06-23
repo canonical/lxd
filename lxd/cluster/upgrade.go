@@ -142,7 +142,7 @@ func upgradeMembersWithoutRole(gateway *Gateway, members []db.NodeInfo, nodes []
 	for _, member := range members {
 		found := false
 		for _, node := range nodes {
-			if member.ID == 1 || member.Address == node.Address {
+			if member.ID == 1 && node.ID == 1 || member.Address == node.Address {
 				found = true
 				break
 			}
