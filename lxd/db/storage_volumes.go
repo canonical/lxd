@@ -246,7 +246,17 @@ func (c *Cluster) storagePoolVolumeGetType(project string, volumeName string, vo
 		return -1, nil, err
 	}
 
+	volumeContentType, err := c.getStorageVolumeContentType(volumeID)
+	if err != nil {
+		return -1, nil, err
+	}
+
 	volumeTypeName, err := storagePoolVolumeTypeToName(volumeType)
+	if err != nil {
+		return -1, nil, err
+	}
+
+	volumeContentTypeName, err := storagePoolVolumeContentTypeToName(volumeContentType)
 	if err != nil {
 		return -1, nil, err
 	}
@@ -258,6 +268,7 @@ func (c *Cluster) storagePoolVolumeGetType(project string, volumeName string, vo
 	storageVolume.Description = volumeDescription
 	storageVolume.Config = volumeConfig
 	storageVolume.Location = volumeNode
+	storageVolume.ContentType = volumeContentTypeName
 
 	return volumeID, &storageVolume, nil
 }
@@ -540,6 +551,8 @@ type StorageVolumeArgs struct {
 	// At least on of ProjectID or ProjectName must be set.
 	ProjectID   int64
 	ProjectName string
+
+	ContentType string
 }
 
 // GetStorageVolumeNodeAddresses returns the addresses of all nodes on which the
@@ -667,6 +680,24 @@ func (c *Cluster) GetStorageVolumeDescription(volumeID int64) (string, error) {
 	}
 
 	return description.String, nil
+}
+
+// getStorageVolumeContentType gets the content type of a storage volume.
+func (c *Cluster) getStorageVolumeContentType(volumeID int64) (int, error) {
+	var contentType int
+	query := "SELECT content_type FROM storage_volumes_all WHERE id=?"
+	inargs := []interface{}{volumeID}
+	outargs := []interface{}{&contentType}
+
+	err := dbQueryRowScan(c, query, inargs, outargs)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return -1, ErrNoSuchObject
+		}
+		return -1, err
+	}
+
+	return contentType, nil
 }
 
 // GetNextStorageVolumeSnapshotIndex returns the index of the next snapshot of the storage
@@ -900,4 +931,16 @@ func storagePoolVolumeTypeToName(volumeType int) (string, error) {
 	}
 
 	return "", fmt.Errorf("Invalid storage volume type")
+}
+
+// Convert a volume integer content type code to its human-readable name.
+func storagePoolVolumeContentTypeToName(contentType int) (string, error) {
+	switch contentType {
+	case StoragePoolVolumeContentTypeFS:
+		return StoragePoolVolumeContentTypeNameFS, nil
+	case StoragePoolVolumeContentTypeBlock:
+		return StoragePoolVolumeContentTypeNameBlock, nil
+	}
+
+	return "", fmt.Errorf("Invalid storage volume content type")
 }
