@@ -192,8 +192,12 @@ func (c *cmdStorageVolumeAttach) Run(cmd *cobra.Command, args []string) error {
 	device := map[string]string{
 		"type":   "disk",
 		"pool":   resource.name,
-		"path":   devPath,
 		"source": vol.Name,
+	}
+
+	// Ignore path for block volumes
+	if vol.ContentType != "block" {
+		device["path"] = devPath
 	}
 
 	// Add the device to the instance
@@ -271,8 +275,12 @@ func (c *cmdStorageVolumeAttachProfile) Run(cmd *cobra.Command, args []string) e
 	device := map[string]string{
 		"type":   "disk",
 		"pool":   resource.name,
-		"path":   devPath,
 		"source": vol.Name,
+	}
+
+	// Ignore path for block volumes
+	if vol.ContentType != "block" {
+		device["path"] = devPath
 	}
 
 	// Add the device to the instance
@@ -451,9 +459,10 @@ func (c *cmdStorageVolumeCopy) Run(cmd *cobra.Command, args []string) error {
 
 // Create
 type cmdStorageVolumeCreate struct {
-	global        *cmdGlobal
-	storage       *cmdStorage
-	storageVolume *cmdStorageVolume
+	global          *cmdGlobal
+	storage         *cmdStorage
+	storageVolume   *cmdStorageVolume
+	flagContentType string
 }
 
 func (c *cmdStorageVolumeCreate) Command() *cobra.Command {
@@ -464,6 +473,7 @@ func (c *cmdStorageVolumeCreate) Command() *cobra.Command {
 		`Create new custom storage volumes`))
 
 	cmd.Flags().StringVar(&c.storage.flagTarget, "target", "", i18n.G("Cluster member name")+"``")
+	cmd.Flags().StringVar(&c.flagContentType, "type", "filesystem", i18n.G("Content type, block or filesystem")+"``")
 	cmd.RunE = c.Run
 
 	return cmd
@@ -497,6 +507,7 @@ func (c *cmdStorageVolumeCreate) Run(cmd *cobra.Command, args []string) error {
 	vol := api.StorageVolumesPost{}
 	vol.Name = volName
 	vol.Type = volType
+	vol.ContentType = c.flagContentType
 	vol.Config = map[string]string{}
 
 	for i := 2; i < len(args); i++ {
@@ -1103,10 +1114,16 @@ func (c *cmdStorageVolumeList) Run(cmd *cobra.Command, args []string) error {
 	data := [][]string{}
 	for _, volume := range volumes {
 		usedby := strconv.Itoa(len(volume.UsedBy))
-		entry := []string{volume.Type, volume.Name, volume.Description, usedby}
+
+		entry := []string{volume.Type, volume.Name, volume.Description, volume.ContentType, usedby}
 		if shared.IsSnapshot(volume.Name) {
 			entry[0] = fmt.Sprintf("%s (snapshot)", volume.Type)
 		}
+
+		if entry[3] == "" {
+			entry[3] = "filesystem"
+		}
+
 		if resource.server.IsClustered() {
 			entry = append(entry, volume.Location)
 		}
@@ -1118,6 +1135,7 @@ func (c *cmdStorageVolumeList) Run(cmd *cobra.Command, args []string) error {
 		i18n.G("TYPE"),
 		i18n.G("NAME"),
 		i18n.G("DESCRIPTION"),
+		i18n.G("CONTENT TYPE"),
 		i18n.G("USED BY"),
 	}
 	if resource.server.IsClustered() {
