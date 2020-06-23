@@ -20,7 +20,7 @@ const tmpVolSuffix = ".lxdtmp"
 const defaultBlockSize = "10GB"
 
 // vmBlockFilesystemSize is the size of a VM block volume's associated filesystem volume.
-const vmBlockFilesystemSize = "50MB"
+const vmBlockFilesystemSize = "100MB"
 
 // DefaultFilesystem filesytem to use for block devices by default.
 const DefaultFilesystem = "ext4"
