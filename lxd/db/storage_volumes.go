@@ -504,6 +504,18 @@ const (
 	StoragePoolVolumeTypeNameCustom    string = "custom"
 )
 
+// Content types.
+const (
+	StoragePoolVolumeContentTypeFS = iota
+	StoragePoolVolumeContentTypeBlock
+)
+
+// Content type names.
+const (
+	StoragePoolVolumeContentTypeNameFS    string = "filesystem"
+	StoragePoolVolumeContentTypeNameBlock string = "block"
+)
+
 // StorageVolumeArgs is a value object holding all db-related details about a
 // storage volume.
 type StorageVolumeArgs struct {
