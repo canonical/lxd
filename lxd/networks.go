@@ -151,7 +151,7 @@ func networksPost(d *Daemon, r *http.Request) response.Response {
 			}
 		}
 		err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
-			return tx.NetworkCreatePending(targetNode, req.Name, req.Config)
+			return tx.CreatePendingNetwork(targetNode, req.Name, req.Config)
 		})
 		if err != nil {
 			if err == db.ErrAlreadyDefined {
@@ -262,17 +262,28 @@ func networksPostCluster(d *Daemon, req api.NetworksPost) error {
 		nodeReq.Config[key] = value
 	}
 
-	err = doNetworksCreate(d, nodeReq, false)
-	if err != nil {
-		return err
-	}
-
 	// Notify all other nodes to create the network.
 	notifier, err := cluster.NewNotifier(d.State(), d.endpoints.NetworkCert(), cluster.NotifyAll)
 	if err != nil {
 		return err
 	}
-	notifyErr := notifier(func(client lxd.InstanceServer) error {
+
+	// We need to mark the network as created now, because the
+	// network.LoadByName call invoked by doNetworkCreate would fail with
+	// not-found otherwise.
+	createErr := d.cluster.Transaction(func(tx *db.ClusterTx) error {
+		return tx.NetworkCreated(req.Name)
+	})
+	if createErr != nil {
+		goto error
+	}
+
+	err = doNetworksCreate(d, nodeReq, false)
+	if err != nil {
+		return err
+	}
+
+	createErr = notifier(func(client lxd.InstanceServer) error {
 		server, _, err := client.GetServer()
 		if err != nil {
 			return err
@@ -285,21 +296,21 @@ func networksPostCluster(d *Daemon, req api.NetworksPost) error {
 
 		return client.CreateNetwork(nodeReq)
 	})
+	if createErr != nil {
+		goto error
+	}
 
-	errored := notifyErr != nil
+	return nil
 
-	// Finally update the network state.
+error:
 	err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
-		if errored {
-			return tx.NetworkErrored(req.Name)
-		}
-		return tx.NetworkCreated(req.Name)
+		return tx.NetworkErrored(req.Name)
 	})
 	if err != nil {
 		return err
 	}
 
-	return notifyErr
+	return createErr
 }
 
 // Create the network on the system. The withDatabase flag is used to decide
@@ -361,7 +372,7 @@ func doNetworkGet(d *Daemon, name string) (api.Network, error) {
 
 	// Get some information
 	osInfo, _ := net.InterfaceByName(name)
-	_, dbInfo, _ := d.cluster.GetNetwork(name)
+	_, dbInfo, _ := d.cluster.GetNetworkInAnyState(name)
 
 	// Sanity check
 	if osInfo == nil && dbInfo == nil {
@@ -457,7 +468,7 @@ func networkDelete(d *Daemon, r *http.Request) response.Response {
 
 	// Check if the network is pending, if so we just need to delete it from
 	// the database.
-	_, dbNetwork, err := d.cluster.GetNetwork(name)
+	_, dbNetwork, err := d.cluster.GetNetworkInAnyState(name)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -576,7 +587,7 @@ func networkPut(d *Daemon, r *http.Request) response.Response {
 	name := mux.Vars(r)["name"]
 
 	// Get the existing network
-	_, dbInfo, err := d.cluster.GetNetwork(name)
+	_, dbInfo, err := d.cluster.GetNetworkInAnyState(name)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -615,7 +626,7 @@ func networkPatch(d *Daemon, r *http.Request) response.Response {
 	name := mux.Vars(r)["name"]
 
 	// Get the existing network
-	_, dbInfo, err := d.cluster.GetNetwork(name)
+	_, dbInfo, err := d.cluster.GetNetworkInAnyState(name)
 	if err != nil {
 		return response.SmartError(err)
 	}

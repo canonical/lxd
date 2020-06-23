@@ -410,7 +410,7 @@ func clusterPutJoin(d *Daemon, req api.ClusterPut) response.Response {
 		}
 
 		for _, name := range poolNames {
-			_, pool, err := d.cluster.GetStoragePool(name)
+			_, pool, err := d.cluster.GetStoragePoolInAnyState(name)
 			if err != nil {
 				return err
 			}
@@ -424,7 +424,7 @@ func clusterPutJoin(d *Daemon, req api.ClusterPut) response.Response {
 		}
 
 		for _, name := range networkNames {
-			_, network, err := d.cluster.GetNetwork(name)
+			_, network, err := d.cluster.GetNetworkInAnyState(name)
 			if err != nil {
 				return err
 			}
@@ -488,7 +488,7 @@ func clusterPutJoin(d *Daemon, req api.ClusterPut) response.Response {
 		}
 
 		for _, name := range poolNames {
-			id, pool, err := d.cluster.GetStoragePool(name)
+			id, pool, err := d.cluster.GetStoragePoolInAnyState(name)
 			if err != nil {
 				return err
 			}
@@ -1425,7 +1425,7 @@ func clusterCheckStoragePoolsMatch(cluster *db.Cluster, reqPools []api.StoragePo
 				continue
 			}
 			found = true
-			_, pool, err := cluster.GetStoragePool(name)
+			_, pool, err := cluster.GetStoragePoolInAnyState(name)
 			if err != nil {
 				return err
 			}
@@ -1441,7 +1441,7 @@ func clusterCheckStoragePoolsMatch(cluster *db.Cluster, reqPools []api.StoragePo
 			break
 		}
 		if !found {
-			_, pool, err := cluster.GetStoragePool(name)
+			_, pool, err := cluster.GetStoragePoolInAnyState(name)
 			if err != nil {
 				return err
 			}
@@ -1471,7 +1471,7 @@ func clusterCheckNetworksMatch(cluster *db.Cluster, reqNetworks []api.Network) e
 				continue
 			}
 			found = true
-			_, network, err := cluster.GetNetwork(name)
+			_, network, err := cluster.GetNetworkInAnyState(name)
 			if err != nil {
 				return err
 			}
