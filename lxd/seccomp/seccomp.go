@@ -91,21 +91,21 @@ static int device_allowed(dev_t dev, mode_t mode)
 {
 	switch (mode & S_IFMT) {
 	case S_IFCHR:
-		if ((dev == makedev(0, 0))) // whiteout
+		if (dev == makedev(0, 0)) // whiteout
 			return 0;
-		else if ((dev == makedev(5, 1))) // /dev/console
+		else if (dev == makedev(5, 1)) // /dev/console
 			return 0;
-		else if ((dev == makedev(1, 7))) // /dev/full
+		else if (dev == makedev(1, 7)) // /dev/full
 			return 0;
-		else if ((dev == makedev(1, 3))) // /dev/null
+		else if (dev == makedev(1, 3)) // /dev/null
 			return 0;
-		else if ((dev == makedev(1, 8))) // /dev/random
+		else if (dev == makedev(1, 8)) // /dev/random
 			return 0;
-		else if ((dev == makedev(5, 0))) // /dev/tty
+		else if (dev == makedev(5, 0)) // /dev/tty
 			return 0;
-		else if ((dev == makedev(1, 9))) // /dev/urandom
+		else if (dev == makedev(1, 9)) // /dev/urandom
 			return 0;
-		else if ((dev == makedev(1, 5))) // /dev/zero
+		else if (dev == makedev(1, 5)) // /dev/zero
 			return 0;
 	}
 
