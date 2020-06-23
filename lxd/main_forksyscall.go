@@ -34,12 +34,6 @@ extern void attach_userns_fd(int ns_fd);
 extern int pidfd_nsfd(int pidfd, pid_t pid);
 extern bool setnsat(int ns_fd, const char *ns);
 
-static inline bool same_fsinfo(struct stat *s1, struct stat *s2,
-			       struct statfs *sfs1, struct statfs *sfs2)
-{
-	return ((sfs1->f_type == sfs2->f_type) && (s1->st_dev == s2->st_dev));
-}
-
 static bool chdirchroot_in_mntns(int cwd_fd, int root_fd)
 {
 	ssize_t len;
@@ -209,8 +203,6 @@ const char *ns_names[] = { "user", "pid", "uts", "ipc", "net", "cgroup", NULL };
 
 static bool change_creds(int ns_fd, cap_t caps, uid_t nsuid, gid_t nsgid, uid_t nsfsuid, gid_t nsfsgid)
 {
-	__do_close int fd = -EBADF;
-
 	if (prctl(PR_SET_KEEPCAPS, 1))
 		return false;
 
