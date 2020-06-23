@@ -449,12 +449,6 @@ func (d Xtables) generateFilterEbtablesRules(hostName string, hwAddr string, IPv
 		{"ebtables", "-t", "filter", "-A", "FORWARD", "-s", "!", hwAddr, "-i", hostName, "-j", "DROP"},
 	}
 
-	if IPv4 != nil || IPv6 != nil {
-		// Filter VLAN tagged frames when using IP filtering.
-		rules = append(rules, []string{"ebtables", "-t", "filter", "-A", "INPUT", "-p", "802_1Q", "-i", hostName, "-j", "DROP"})
-		rules = append(rules, []string{"ebtables", "-t", "filter", "-A", "FORWARD", "-p", "802_1Q", "-i", hostName, "-j", "DROP"})
-	}
-
 	if IPv4 != nil {
 		if IPv4.String() == FilterIPv4All {
 			rules = append(rules,
@@ -499,6 +493,19 @@ func (d Xtables) generateFilterEbtablesRules(hostName string, hwAddr string, IPv
 				[]string{"ebtables", "-t", "filter", "-A", "FORWARD", "-p", "IPv6", "-i", hostName, "--ip6-proto", "ipv6-icmp", "--ip6-icmp-type", "router-advertisement", "-j", "DROP"},
 			)
 		}
+	}
+
+	if IPv4 != nil || IPv6 != nil {
+		// Filter unwanted ethernet frames when using IP filtering.
+		rules = append(rules, []string{"ebtables", "-t", "filter", "-A", "INPUT", "-p", "ARP", "-i", hostName, "-j", "ACCEPT"})
+		rules = append(rules, []string{"ebtables", "-t", "filter", "-A", "INPUT", "-p", "IPv4", "-i", hostName, "-j", "ACCEPT"})
+		rules = append(rules, []string{"ebtables", "-t", "filter", "-A", "INPUT", "-p", "IPv6", "-i", hostName, "-j", "ACCEPT"})
+		rules = append(rules, []string{"ebtables", "-t", "filter", "-A", "INPUT", "-i", hostName, "-j", "DROP"})
+
+		rules = append(rules, []string{"ebtables", "-t", "filter", "-A", "FORWARD", "-p", "ARP", "-i", hostName, "-j", "ACCEPT"})
+		rules = append(rules, []string{"ebtables", "-t", "filter", "-A", "FORWARD", "-p", "IPv4", "-i", hostName, "-j", "ACCEPT"})
+		rules = append(rules, []string{"ebtables", "-t", "filter", "-A", "FORWARD", "-p", "IPv6", "-i", hostName, "-j", "ACCEPT"})
+		rules = append(rules, []string{"ebtables", "-t", "filter", "-A", "FORWARD", "-i", hostName, "-j", "DROP"})
 	}
 
 	return rules
