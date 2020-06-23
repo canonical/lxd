@@ -147,9 +147,9 @@ WHERE networks.id = ? AND networks.state = ?
 	return configs, nil
 }
 
-// NetworkCreatePending creates a new pending network on the node with
+// CreatePendingNetwork creates a new pending network on the node with
 // the given name.
-func (c *ClusterTx) NetworkCreatePending(node, name string, conf map[string]string) error {
+func (c *ClusterTx) CreatePendingNetwork(node, name string, conf map[string]string) error {
 	// First check if a network with the given name exists, and, if
 	// so, that it's in the pending state.
 	network := struct {
