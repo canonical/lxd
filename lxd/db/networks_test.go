@@ -35,7 +35,7 @@ func TestGetNetworksLocalConfigs(t *testing.T) {
 	})
 }
 
-func TestNetworkCreatePending(t *testing.T) {
+func TestCreatePendingNetwork(t *testing.T) {
 	tx, cleanup := db.NewTestClusterTx(t)
 	defer cleanup()
 
@@ -45,7 +45,7 @@ func TestNetworkCreatePending(t *testing.T) {
 	require.NoError(t, err)
 
 	config := map[string]string{"bridge.external_interfaces": "foo"}
-	err = tx.NetworkCreatePending("buzz", "network1", config)
+	err = tx.CreatePendingNetwork("buzz", "network1", config)
 	require.NoError(t, err)
 
 	networkID, err := tx.GetNetworkID("network1")
@@ -53,7 +53,7 @@ func TestNetworkCreatePending(t *testing.T) {
 	assert.True(t, networkID > 0)
 
 	config = map[string]string{"bridge.external_interfaces": "bar"}
-	err = tx.NetworkCreatePending("rusp", "network1", config)
+	err = tx.CreatePendingNetwork("rusp", "network1", config)
 	require.NoError(t, err)
 
 	// The initial node (whose name is 'none' by default) is missing.
@@ -61,7 +61,7 @@ func TestNetworkCreatePending(t *testing.T) {
 	require.EqualError(t, err, "Network not defined on nodes: none")
 
 	config = map[string]string{"bridge.external_interfaces": "egg"}
-	err = tx.NetworkCreatePending("none", "network1", config)
+	err = tx.CreatePendingNetwork("none", "network1", config)
 	require.NoError(t, err)
 
 	// Now the storage is defined on all nodes.
@@ -82,10 +82,10 @@ func TestNetworksCreatePending_AlreadyDefined(t *testing.T) {
 	_, err := tx.CreateNode("buzz", "1.2.3.4:666")
 	require.NoError(t, err)
 
-	err = tx.NetworkCreatePending("buzz", "network1", map[string]string{})
+	err = tx.CreatePendingNetwork("buzz", "network1", map[string]string{})
 	require.NoError(t, err)
 
-	err = tx.NetworkCreatePending("buzz", "network1", map[string]string{})
+	err = tx.CreatePendingNetwork("buzz", "network1", map[string]string{})
 	require.Equal(t, db.ErrAlreadyDefined, err)
 }
 
@@ -94,6 +94,6 @@ func TestNetworksCreatePending_NonExistingNode(t *testing.T) {
 	tx, cleanup := db.NewTestClusterTx(t)
 	defer cleanup()
 
-	err := tx.NetworkCreatePending("buzz", "network1", map[string]string{})
+	err := tx.CreatePendingNetwork("buzz", "network1", map[string]string{})
 	require.Equal(t, db.ErrNoSuchObject, err)
 }
