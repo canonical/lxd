@@ -398,6 +398,11 @@ test_clustering_storage() {
   fi
   LXD_DIR="${LXD_ONE_DIR}" lxc storage show pool1 | grep status: | grep -q Pending
 
+  # A container can't be created when associated with a pending pool.
+  LXD_DIR="${LXD_TWO_DIR}" ensure_import_testimage
+  ! LXD_DIR="${LXD_ONE_DIR}" lxc init --target node2 -s pool1 testimage bar || false
+  LXD_DIR="${LXD_ONE_DIR}" lxc image delete testimage
+
   # The source config key is not legal for the final pool creation
   if [ "${driver}" = "dir" ]; then
     ! LXD_DIR="${LXD_ONE_DIR}" lxc storage create pool1 dir source=/foo || false
