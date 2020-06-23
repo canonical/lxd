@@ -120,6 +120,48 @@ test_storage_local_volume_handling() {
           ! lxc storage volume show "lxdtest-$(basename "${LXD_DIR}")-${target_driver}" vol1 || false
           lxc storage volume show "lxdtest-$(basename "${LXD_DIR}")-${source_driver}" vol1
           lxc storage volume delete "lxdtest-$(basename "${LXD_DIR}")-${source_driver}" vol1
+
+          if [ "${source_driver}" = "cephfs" ] || [ "${target_driver}" = "cephfs" ]; then
+            continue
+          fi
+
+          # create custom block volume without snapshots
+          lxc storage volume create "lxdtest-$(basename "${LXD_DIR}")-${source_driver}" vol1 --type=block size=4194304
+          lxc storage volume copy "lxdtest-$(basename "${LXD_DIR}")-${source_driver}/vol1" "lxdtest-$(basename "${LXD_DIR}")-${target_driver}/vol1"
+          lxc storage volume show "lxdtest-$(basename "${LXD_DIR}")-${target_driver}" vol1 | grep -q 'content_type: block'
+
+          # create custom block volume with a snapshot
+          lxc storage volume create "lxdtest-$(basename "${LXD_DIR}")-${source_driver}" vol2 --type=block size=4194304
+          lxc storage volume snapshot "lxdtest-$(basename "${LXD_DIR}")-${source_driver}" vol2
+          lxc storage volume show "lxdtest-$(basename "${LXD_DIR}")-${source_driver}" vol2/snap0 | grep -q 'content_type: block'
+
+          # restore snapshot
+          lxc storage volume restore "lxdtest-$(basename "${LXD_DIR}")-${source_driver}" vol2 snap0
+          lxc storage volume show "lxdtest-$(basename "${LXD_DIR}")-${source_driver}" vol2 | grep -q 'content_type: block'
+
+          # copy with snapshots
+          lxc storage volume copy "lxdtest-$(basename "${LXD_DIR}")-${source_driver}/vol2" "lxdtest-$(basename "${LXD_DIR}")-${target_driver}/vol2"
+          lxc storage volume show "lxdtest-$(basename "${LXD_DIR}")-${target_driver}" vol2 | grep -q 'content_type: block'
+          lxc storage volume show "lxdtest-$(basename "${LXD_DIR}")-${target_driver}" vol2/snap0 | grep -q 'content_type: block'
+
+          # copy without snapshots
+          lxc storage volume copy "lxdtest-$(basename "${LXD_DIR}")-${source_driver}/vol2" "lxdtest-$(basename "${LXD_DIR}")-${target_driver}/vol3" --volume-only
+          lxc storage volume show "lxdtest-$(basename "${LXD_DIR}")-${target_driver}" vol3 | grep -q 'content_type: block'
+          ! lxc storage volume show "lxdtest-$(basename "${LXD_DIR}")-${target_driver}" vol3/snap0 | grep -q 'content_type: block' || false
+
+          # move images
+          lxc storage volume move "lxdtest-$(basename "${LXD_DIR}")-${source_driver}/vol2" "lxdtest-$(basename "${LXD_DIR}")-${target_driver}/vol4"
+          ! lxc storage volume show "lxdtest-$(basename "${LXD_DIR}")-${source_driver}" vol2 | grep -q 'content_type: block' || false
+          lxc storage volume show "lxdtest-$(basename "${LXD_DIR}")-${target_driver}" vol4 | grep -q 'content_type: block'
+          lxc storage volume show "lxdtest-$(basename "${LXD_DIR}")-${target_driver}" vol4/snap0 | grep -q 'content_type: block'
+
+          # clean up
+          lxc storage volume delete "lxdtest-$(basename "${LXD_DIR}")-${source_driver}" vol1
+          lxc storage volume delete "lxdtest-$(basename "${LXD_DIR}")-${target_driver}" vol1
+          lxc storage volume delete "lxdtest-$(basename "${LXD_DIR}")-${target_driver}" vol2
+          lxc storage volume delete "lxdtest-$(basename "${LXD_DIR}")-${target_driver}" vol3
+          lxc storage volume delete "lxdtest-$(basename "${LXD_DIR}")-${target_driver}" vol4
+
         fi
       done
     done
