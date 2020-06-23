@@ -11,6 +11,9 @@ type StorageVolumesPost struct {
 
 	// API extension: storage_api_local_volume_handling
 	Source StorageVolumeSource `json:"source" yaml:"source"`
+
+	// API extension: custom_block_volumes
+	ContentType string `json:"content_type" yaml:"content_type"`
 }
 
 // StorageVolumePost represents the fields required to rename a LXD storage pool volume
@@ -52,6 +55,9 @@ type StorageVolume struct {
 
 	// API extension: clustering
 	Location string `json:"location" yaml:"location"`
+
+	// API extension: custom_block_volumes
+	ContentType string `json:"content_type" yaml:"content_type"`
 }
 
 // StorageVolumePut represents the modifiable fields of a LXD storage volume.
