@@ -151,7 +151,7 @@ func networksPost(d *Daemon, r *http.Request) response.Response {
 			}
 		}
 		err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
-			return tx.NetworkCreatePending(targetNode, req.Name, req.Config)
+			return tx.CreatePendingNetwork(targetNode, req.Name, req.Config)
 		})
 		if err != nil {
 			if err == db.ErrAlreadyDefined {
