@@ -83,16 +83,13 @@ chain pstrt{{.chainSeparator}}{{.deviceLabel}} {
 // Nftables doesn't support the equivalent of "arp saddr" and "arp saddr ether" at this time so in order to filter
 // NDP advertisements that come from the genuine Ethernet MAC address but have a spoofed NDP source MAC/IP adddress
 // we need to use manual header offset extraction. This also drops IPv6 router advertisements from instance.
-// If IP filtering is enabled, this also drops tagged VLAN (802.1Q) frames.
+// If IP filtering is enabled, this also drops unwanted ethernet frames.
 var nftablesInstanceBridgeFilter = template.Must(template.New("nftablesInstanceBridgeFilter").Parse(`
 chain in{{.chainSeparator}}{{.deviceLabel}} {
 	type filter hook input priority -200; policy accept;
 	iifname "{{.hostName}}" ether saddr != {{.hwAddr}} drop
 	iifname "{{.hostName}}" ether type arp arp saddr ether != {{.hwAddr}} drop
 	iifname "{{.hostName}}" ether type ip6 icmpv6 type 136 @nh,528,48 != {{.hwAddrHex}} drop
-	{{if .vlanFilter -}}
-	iifname "{{.hostName}}" ether type vlan drop
-	{{- end}}
 	{{if .ipv4FilterAll -}}
 	iifname "{{.hostName}}" ether type arp drop
 	iifname "{{.hostName}}" ether type ip drop
@@ -112,6 +109,9 @@ chain in{{.chainSeparator}}{{.deviceLabel}} {
 	iifname "{{.hostName}}" ether type ip6 ip6 saddr != {{.ipv6Addr}} drop
 	iifname "{{.hostName}}" ether type ip6 icmpv6 type 134 drop
 	{{- end}}
+	{{if .filterUnwantedFrames -}}
+	iifname "{{.hostName}}" ether type != {arp, ip, ip6} drop
+	{{- end}}
 }
 
 chain fwd{{.chainSeparator}}{{.deviceLabel}} {
@@ -119,9 +119,6 @@ chain fwd{{.chainSeparator}}{{.deviceLabel}} {
 	iifname "{{.hostName}}" ether saddr != {{.hwAddr}} drop
 	iifname "{{.hostName}}" ether type arp arp saddr ether != {{.hwAddr}} drop
 	iifname "{{.hostName}}" ether type ip6 icmpv6 type 136 @nh,528,48 != {{.hwAddrHex}} drop
-	{{if .vlanFilter -}}
-	iifname "{{.hostName}}" ether type vlan drop
-	{{- end}}
 	{{if .ipv4FilterAll -}}
 	iifname "{{.hostName}}" ether type arp drop
 	iifname "{{.hostName}}" ether type ip drop
@@ -137,6 +134,9 @@ chain fwd{{.chainSeparator}}{{.deviceLabel}} {
 	iifname "{{.hostName}}" ether type ip6 ip6 saddr != {{.ipv6Addr}} drop
 	iifname "{{.hostName}}" ether type ip6 icmpv6 type 136 @nh,384,128 != {{.ipv6AddrHex}} drop
 	iifname "{{.hostName}}" ether type ip6 icmpv6 type 134 drop
+	{{- end}}
+	{{if .filterUnwantedFrames -}}
+	iifname "{{.hostName}}" ether type != {arp, ip, ip6} drop
 	{{- end}}
 }
 `))
