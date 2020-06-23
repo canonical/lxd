@@ -358,9 +358,9 @@ const (
 	storagePoolErrored            // Storage pool creation failed on some nodes
 )
 
-// StoragePoolCreatePending creates a new pending storage pool on the node with
+// CreatePendingStoragePool creates a new pending storage pool on the node with
 // the given name.
-func (c *ClusterTx) StoragePoolCreatePending(node, name, driver string, conf map[string]string) error {
+func (c *ClusterTx) CreatePendingStoragePool(node, name, driver string, conf map[string]string) error {
 	// First check if a storage pool with the given name exists, and, if
 	// so, that it has a matching driver and it's in the pending state.
 	pool := struct {
