@@ -599,10 +599,6 @@ func (d *btrfs) ValidateVolume(vol Volume, removeUnknownKeys bool) error {
 
 // UpdateVolume applies config changes to the volume.
 func (d *btrfs) UpdateVolume(vol Volume, changedConfig map[string]string) error {
-	if vol.contentType != ContentTypeFS {
-		return ErrNotSupported
-	}
-
 	if vol.volType != VolumeTypeCustom {
 		return ErrNotSupported
 	}

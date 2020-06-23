@@ -254,7 +254,7 @@ func qemuCreate(s *state.State, args db.InstanceArgs) (instance.Instance, error)
 		_, err = s.Cluster.CreateStorageVolumeSnapshot(args.Project, args.Name, "", db.StoragePoolVolumeTypeVM, poolID, volumeConfig, time.Time{})
 
 	} else {
-		_, err = s.Cluster.CreateStoragePoolVolume(args.Project, args.Name, "", db.StoragePoolVolumeTypeVM, poolID, volumeConfig)
+		_, err = s.Cluster.CreateStoragePoolVolume(args.Project, args.Name, "", db.StoragePoolVolumeTypeVM, poolID, volumeConfig, db.StoragePoolVolumeContentTypeBlock)
 	}
 	if err != nil {
 		return nil, err
