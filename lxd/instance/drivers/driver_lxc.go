@@ -238,7 +238,7 @@ func lxcCreate(s *state.State, args db.InstanceArgs) (instance.Instance, error) 
 	if c.IsSnapshot() {
 		_, err = s.Cluster.CreateStorageVolumeSnapshot(args.Project, args.Name, "", db.StoragePoolVolumeTypeContainer, poolID, volumeConfig, time.Time{})
 	} else {
-		_, err = s.Cluster.CreateStoragePoolVolume(args.Project, args.Name, "", db.StoragePoolVolumeTypeContainer, poolID, volumeConfig)
+		_, err = s.Cluster.CreateStoragePoolVolume(args.Project, args.Name, "", db.StoragePoolVolumeTypeContainer, poolID, volumeConfig, db.StoragePoolVolumeContentTypeFS)
 	}
 	if err != nil {
 		c.Delete()

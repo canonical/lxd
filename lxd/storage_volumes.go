@@ -296,6 +296,11 @@ func storagePoolVolumesTypePost(d *Daemon, r *http.Request) response.Response {
 		return response.BadRequest(fmt.Errorf("Storage volume names may not contain slashes"))
 	}
 
+	_, err = storagePools.VolumeContentTypeNameToContentType(req.ContentType)
+	if err != nil {
+		return response.BadRequest(fmt.Errorf("Invalid content type %q", req.ContentType))
+	}
+
 	req.Type = mux.Vars(r)["type"]
 
 	// We currently only allow to create storage volumes of type storagePoolVolumeTypeCustom.
@@ -345,9 +350,19 @@ func doVolumeCreateOrCopy(d *Daemon, projectName, poolName string, req *api.Stor
 		return response.SmartError(err)
 	}
 
+	volumeDBContentType, err := storagePools.VolumeContentTypeNameToContentType(req.ContentType)
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	contentType, err := storagePools.VolumeDBContentTypeToContentType(volumeDBContentType)
+	if err != nil {
+		return response.SmartError(err)
+	}
+
 	run = func(op *operations.Operation) error {
 		if req.Source.Name == "" {
-			return pool.CreateCustomVolume(projectName, req.Name, req.Description, req.Config, op)
+			return pool.CreateCustomVolume(projectName, req.Name, req.Description, req.Config, contentType, op)
 		}
 
 		return pool.CreateCustomVolumeFromCopy(projectName, req.Name, req.Description, req.Config, req.Source.Pool, req.Source.Name, req.Source.VolumeOnly, op)

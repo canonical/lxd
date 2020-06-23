@@ -11,7 +11,6 @@ import (
 	"github.com/lxc/lxd/lxd/operations"
 	"github.com/lxc/lxd/lxd/state"
 	storagePools "github.com/lxc/lxd/lxd/storage"
-	storageDrivers "github.com/lxc/lxd/lxd/storage/drivers"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/logger"
@@ -49,11 +48,26 @@ func (s *migrationSourceWs) DoStorage(state *state.State, projectName string, po
 		return err
 	}
 
+	_, vol, err := state.Cluster.GetLocalStoragePoolVolume(projectName, volName, db.StoragePoolVolumeTypeCustom, pool.ID())
+	if err != nil {
+		return err
+	}
+
+	dbContentType, err := storagePools.VolumeContentTypeNameToContentType(vol.ContentType)
+	if err != nil {
+		return err
+	}
+
+	volContentType, err := storagePools.VolumeDBContentTypeToContentType(dbContentType)
+	if err != nil {
+		return err
+	}
+
 	// The refresh argument passed to MigrationTypes() is always set
 	// to false here. The migration source/sender doesn't need to care whether
 	// or not it's doing a refresh as the migration sink/receiver will know
 	// this, and adjust the migration types accordingly.
-	poolMigrationTypes = pool.MigrationTypes(storageDrivers.ContentTypeFS, false)
+	poolMigrationTypes = pool.MigrationTypes(volContentType, false)
 	if len(poolMigrationTypes) < 0 {
 		return fmt.Errorf("No source migration types available")
 	}
@@ -69,18 +83,15 @@ func (s *migrationSourceWs) DoStorage(state *state.State, projectName string, po
 		var err error
 		snaps, err := storagePools.VolumeSnapshotsGet(state, projectName, poolName, volName, db.StoragePoolVolumeTypeCustom)
 		if err == nil {
-			poolID, err := state.Cluster.GetStoragePoolID(poolName)
-			if err == nil {
-				for _, snap := range snaps {
-					_, snapVolume, err := state.Cluster.GetLocalStoragePoolVolume(projectName, snap.Name, db.StoragePoolVolumeTypeCustom, poolID)
-					if err != nil {
-						continue
-					}
-
-					snapshots = append(snapshots, volumeSnapshotToProtobuf(snapVolume))
-					_, snapName, _ := shared.InstanceGetParentAndSnapshotName(snap.Name)
-					snapshotNames = append(snapshotNames, snapName)
+			for _, snap := range snaps {
+				_, snapVolume, err := state.Cluster.GetLocalStoragePoolVolume(projectName, snap.Name, db.StoragePoolVolumeTypeCustom, pool.ID())
+				if err != nil {
+					continue
 				}
+
+				snapshots = append(snapshots, volumeSnapshotToProtobuf(snapVolume))
+				_, snapName, _ := shared.InstanceGetParentAndSnapshotName(snap.Name)
+				snapshotNames = append(snapshotNames, snapName)
 			}
 		}
 	}
@@ -107,8 +118,7 @@ func (s *migrationSourceWs) DoStorage(state *state.State, projectName string, po
 		return err
 	}
 
-	contentType := storageDrivers.ContentTypeFS
-	migrationTypes, err := migration.MatchTypes(respHeader, storagePools.FallbackMigrationType(contentType), poolMigrationTypes)
+	migrationTypes, err := migration.MatchTypes(respHeader, storagePools.FallbackMigrationType(volContentType), poolMigrationTypes)
 	if err != nil {
 		logger.Errorf("Failed to negotiate migration type: %v", err)
 		s.sendControl(err)
@@ -120,6 +130,7 @@ func (s *migrationSourceWs) DoStorage(state *state.State, projectName string, po
 		MigrationType: migrationTypes[0],
 		Snapshots:     snapshotNames,
 		TrackProgress: true,
+		ContentType:   vol.ContentType,
 	}
 
 	err = pool.MigrateCustomVolume(projectName, &shared.WebsocketIO{Conn: s.fsConn}, volSourceArgs, migrateOp)
@@ -251,10 +262,19 @@ func (c *migrationSink) DoStorage(state *state.State, projectName string, poolNa
 		return err
 	}
 
+	dbContentType, err := storagePools.VolumeContentTypeNameToContentType(req.ContentType)
+	if err != nil {
+		return err
+	}
+
+	contentType, err := storagePools.VolumeDBContentTypeToContentType(dbContentType)
+	if err != nil {
+		return err
+	}
+
 	// Extract the source's migration type and then match it against our pool's
 	// supported types and features. If a match is found the combined features list
 	// will be sent back to requester.
-	contentType := storageDrivers.ContentTypeFS
 	respTypes, err := migration.MatchTypes(offerHeader, storagePools.FallbackMigrationType(contentType), pool.MigrationTypes(contentType, c.refresh))
 	if err != nil {
 		return err
@@ -274,6 +294,7 @@ func (c *migrationSink) DoStorage(state *state.State, projectName string, poolNa
 			Description:   req.Description,
 			MigrationType: respTypes[0],
 			TrackProgress: true,
+			ContentType:   req.ContentType,
 		}
 
 		// A zero length Snapshots slice indicates volume only migration in

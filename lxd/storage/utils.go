@@ -173,9 +173,14 @@ func VolumeContentTypeNameToContentType(contentTypeName string) (int, error) {
 }
 
 // VolumeDBCreate creates a volume in the database.
-func VolumeDBCreate(s *state.State, project, poolName, volumeName, volumeDescription, volumeTypeName string, snapshot bool, volumeConfig map[string]string, expiryDate time.Time) error {
+func VolumeDBCreate(s *state.State, project, poolName, volumeName, volumeDescription, volumeTypeName string, snapshot bool, volumeConfig map[string]string, expiryDate time.Time, contentTypeName string) error {
 	// Convert the volume type name to our internal integer representation.
 	volDBType, err := VolumeTypeNameToType(volumeTypeName)
+	if err != nil {
+		return err
+	}
+
+	volDBContentType, err := VolumeContentTypeNameToContentType(contentTypeName)
 	if err != nil {
 		return err
 	}
@@ -217,7 +222,7 @@ func VolumeDBCreate(s *state.State, project, poolName, volumeName, volumeDescrip
 	if snapshot {
 		_, err = s.Cluster.CreateStorageVolumeSnapshot(project, volumeName, volumeDescription, volDBType, poolID, volumeConfig, expiryDate)
 	} else {
-		_, err = s.Cluster.CreateStoragePoolVolume(project, volumeName, volumeDescription, volDBType, poolID, volumeConfig)
+		_, err = s.Cluster.CreateStoragePoolVolume(project, volumeName, volumeDescription, volDBType, poolID, volumeConfig, volDBContentType)
 	}
 	if err != nil {
 		return fmt.Errorf("Error inserting %q of type %q into database %q", poolName, volumeTypeName, err)
