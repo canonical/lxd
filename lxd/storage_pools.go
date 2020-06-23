@@ -185,7 +185,7 @@ func storagePoolsPost(d *Daemon, r *http.Request) response.Response {
 	}
 
 	err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
-		return tx.StoragePoolCreatePending(targetNode, req.Name, req.Driver, req.Config)
+		return tx.CreatePendingStoragePool(targetNode, req.Name, req.Driver, req.Config)
 	})
 	if err != nil {
 		if err == db.ErrAlreadyDefined {
