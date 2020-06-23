@@ -88,7 +88,7 @@ func TestImportPreClusteringData(t *testing.T) {
 	networks, err := cluster.GetNetworks()
 	require.NoError(t, err)
 	assert.Equal(t, []string{"lxcbr0"}, networks)
-	id, network, err := cluster.GetNetwork("lxcbr0")
+	id, network, err := cluster.GetNetworkInAnyState("lxcbr0")
 	require.NoError(t, err)
 	assert.Equal(t, int64(1), id)
 	assert.Equal(t, "true", network.Config["ipv4.nat"])

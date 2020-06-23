@@ -358,9 +358,9 @@ const (
 	storagePoolErrored            // Storage pool creation failed on some nodes
 )
 
-// StoragePoolCreatePending creates a new pending storage pool on the node with
+// CreatePendingStoragePool creates a new pending storage pool on the node with
 // the given name.
-func (c *ClusterTx) StoragePoolCreatePending(node, name, driver string, conf map[string]string) error {
+func (c *ClusterTx) CreatePendingStoragePool(node, name, driver string, conf map[string]string) error {
 	// First check if a storage pool with the given name exists, and, if
 	// so, that it has a matching driver and it's in the pending state.
 	pool := struct {
@@ -601,7 +601,21 @@ func (c *Cluster) GetStoragePoolID(poolName string) (int64, error) {
 }
 
 // GetStoragePool returns a single storage pool.
+//
+// The pool must be in the created stated, not pending.
 func (c *Cluster) GetStoragePool(poolName string) (int64, *api.StoragePool, error) {
+	return c.getStoragePool(poolName, true)
+}
+
+// GetStoragePoolInAnyState returns the storage pool with the given name.
+//
+// The pool can be in any state.
+func (c *Cluster) GetStoragePoolInAnyState(name string) (int64, *api.StoragePool, error) {
+	return c.getStoragePool(name, false)
+}
+
+// GetStoragePool returns a single storage pool.
+func (c *Cluster) getStoragePool(poolName string, onlyCreated bool) (int64, *api.StoragePool, error) {
 	var poolDriver string
 	poolID := int64(-1)
 	description := sql.NullString{}
@@ -610,6 +624,10 @@ func (c *Cluster) GetStoragePool(poolName string) (int64, *api.StoragePool, erro
 	query := "SELECT id, driver, description, state FROM storage_pools WHERE name=?"
 	inargs := []interface{}{poolName}
 	outargs := []interface{}{&poolID, &poolDriver, &description, &state}
+	if onlyCreated {
+		query += " AND state=?"
+		inargs = append(inargs, networkCreated)
+	}
 
 	err := dbQueryRowScan(c, query, inargs, outargs)
 	if err != nil {
@@ -636,6 +654,8 @@ func (c *Cluster) GetStoragePool(poolName string) (int64, *api.StoragePool, erro
 		storagePool.Status = "Pending"
 	case storagePoolCreated:
 		storagePool.Status = "Created"
+	case storagePoolErrored:
+		storagePool.Status = "Errored"
 	default:
 		storagePool.Status = "Unknown"
 	}
@@ -775,7 +795,7 @@ func storagePoolDriverGet(tx *sql.Tx, id int64) (string, error) {
 
 // UpdateStoragePool updates a storage pool.
 func (c *Cluster) UpdateStoragePool(poolName, description string, poolConfig map[string]string) error {
-	poolID, _, err := c.GetStoragePool(poolName)
+	poolID, _, err := c.GetStoragePoolInAnyState(poolName)
 	if err != nil {
 		return err
 	}
@@ -819,7 +839,7 @@ func clearStoragePoolConfig(tx *sql.Tx, poolID, nodeID int64) error {
 
 // RemoveStoragePool deletes storage pool.
 func (c *Cluster) RemoveStoragePool(poolName string) (*api.StoragePool, error) {
-	poolID, pool, err := c.GetStoragePool(poolName)
+	poolID, pool, err := c.GetStoragePoolInAnyState(poolName)
 	if err != nil {
 		return nil, err
 	}

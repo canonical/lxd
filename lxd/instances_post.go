@@ -411,7 +411,7 @@ func createFromCopy(d *Daemon, project string, req *api.InstancesPost) response.
 				return clusterCopyContainerInternal(d, source, project, req)
 			}
 
-			_, pool, err := d.cluster.GetStoragePool(sourcePoolName)
+			_, pool, err := d.cluster.GetStoragePoolInAnyState(sourcePoolName)
 			if err != nil {
 				err = errors.Wrap(err, "Failed to fetch instance's pool info")
 				return response.SmartError(err)
@@ -611,7 +611,7 @@ func createFromBackup(d *Daemon, project string, data io.Reader, pool string) re
 	})
 
 	// Check storage pool exists.
-	_, _, err = d.State().Cluster.GetStoragePool(bInfo.Pool)
+	_, _, err = d.State().Cluster.GetStoragePoolInAnyState(bInfo.Pool)
 	if errors.Cause(err) == db.ErrNoSuchObject {
 		// The storage pool doesn't exist. If backup is in binary format (so we cannot alter
 		// the backup.yaml) or the pool has been specified directly from the user restoring
