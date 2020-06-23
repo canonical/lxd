@@ -27,6 +27,9 @@ type StorageVolumeSnapshot struct {
 
 	Name   string            `json:"name" yaml:"name"`
 	Config map[string]string `json:"config" yaml:"config"`
+
+	// API extension: custom_block_volumes
+	ContentType string `json:"content_type" yaml:"content_type"`
 }
 
 // StorageVolumeSnapshotPut represents the modifiable fields of a LXD storage volume
