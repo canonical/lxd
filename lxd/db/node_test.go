@@ -372,7 +372,12 @@ func TestGetNodeWithLeastInstances_Architecture(t *testing.T) {
 	localArch, err := osarch.ArchitectureGetLocalID()
 	require.NoError(t, err)
 
-	_, err = tx.CreateNodeWithArch("buzz", "1.2.3.4:666", localArch+1)
+	testArch := osarch.ARCH_64BIT_S390_BIG_ENDIAN
+	if localArch == testArch {
+		testArch = osarch.ARCH_64BIT_INTEL_X86
+	}
+
+	_, err = tx.CreateNodeWithArch("buzz", "1.2.3.4:666", testArch)
 	require.NoError(t, err)
 
 	// Add a container to the default node (ID 1)
