@@ -148,12 +148,12 @@ func (c *ClusterTx) GetStoragePoolUsedBy(name string) ([]string, error) {
 			if v["pool"] != name {
 				continue
 			}
-		}
 
-		if profile.Project == "default" {
-			usedby = append(usedby, fmt.Sprintf("/1.0/profiles/%s", profile.Name))
-		} else {
-			usedby = append(usedby, fmt.Sprintf("/1.0/profiles/%s?project=%s", profile.Name, profile.Project))
+			if profile.Project == "default" {
+				usedby = append(usedby, fmt.Sprintf("/1.0/profiles/%s", profile.Name))
+			} else {
+				usedby = append(usedby, fmt.Sprintf("/1.0/profiles/%s?project=%s", profile.Name, profile.Project))
+			}
 		}
 	}
 
