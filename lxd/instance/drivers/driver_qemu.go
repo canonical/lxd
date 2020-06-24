@@ -1387,6 +1387,12 @@ echo "To start it now, unmount this filesystem and run: systemctl start lxd-agen
 		return err
 	}
 
+	// Instance data for devlxd.
+	err = vm.writeInstanceData()
+	if err != nil {
+		return err
+	}
+
 	// Templated files.
 	err = os.MkdirAll(filepath.Join(configDrivePath, "files"), 0500)
 	if err != nil {
@@ -4588,4 +4594,37 @@ func (vm *qemu) cpuTopology(limit string) (int, int, int, map[uint64]uint64, map
 	}
 
 	return nrSockets, nrCores, nrThreads, vcpus, numaNodes, nil
+}
+func (vm *qemu) writeInstanceData() error {
+	// Only write instance-data file if security.devlxd is true.
+	if !shared.IsTrue(vm.expandedConfig["security.devlxd"]) {
+		return nil
+	}
+
+	// Instance data for devlxd.
+	configDrivePath := filepath.Join(vm.Path(), "config")
+	userConfig := make(map[string]string)
+
+	for k, v := range vm.ExpandedConfig() {
+		if !strings.HasPrefix(k, "user.") {
+			continue
+		}
+
+		userConfig[k] = v
+	}
+
+	out, err := json.Marshal(struct {
+		Name   string            `json:"name"`
+		Config map[string]string `json:"config,omitempty"`
+	}{vm.Name(), userConfig})
+	if err != nil {
+		return err
+	}
+
+	err = ioutil.WriteFile(filepath.Join(configDrivePath, "instance-data"), out, 0600)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
