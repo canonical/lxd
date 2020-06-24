@@ -144,7 +144,7 @@ func (d *zfs) Create() error {
 			return err
 		}
 
-		err = createSparseFile(loopPath, size)
+		err = ensureSparseFile(loopPath, size)
 		if err != nil {
 			return err
 		}

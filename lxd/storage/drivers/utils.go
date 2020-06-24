@@ -292,8 +292,9 @@ func deleteParentSnapshotDirIfEmpty(poolName string, volType VolumeType, volName
 	return nil
 }
 
-// createSparseFile creates a sparse empty file at specified location with specified size.
-func createSparseFile(filePath string, sizeBytes int64) error {
+// ensureSparseFile creates a sparse empty file at specified location with specified size.
+// If the path already exists, the file is truncated to the requested size.
+func ensureSparseFile(filePath string, sizeBytes int64) error {
 	f, err := os.Create(filePath)
 	if err != nil {
 		return errors.Wrapf(err, "Failed to open %s", filePath)
@@ -354,7 +355,7 @@ func ensureVolumeBlockFile(path string, sizeBytes int64) (bool, error) {
 			return false, nil
 		}
 
-		_, err = shared.RunCommand("qemu-img", "resize", "-f", "raw", path, fmt.Sprintf("%d", sizeBytes))
+		err = ensureSparseFile(path, sizeBytes)
 		if err != nil {
 			return false, errors.Wrapf(err, "Failed resizing disk image %q to size %d", path, sizeBytes)
 		}
@@ -364,7 +365,7 @@ func ensureVolumeBlockFile(path string, sizeBytes int64) (bool, error) {
 
 	// If path doesn't exist, then there has been no filler function supplied to create it from another source.
 	// So instead create an empty volume (use for PXE booting a VM).
-	_, err = shared.RunCommand("qemu-img", "create", "-f", "raw", path, fmt.Sprintf("%d", sizeBytes))
+	err = ensureSparseFile(path, sizeBytes)
 	if err != nil {
 		return false, errors.Wrapf(err, "Failed creating disk image %q as size %d", path, sizeBytes)
 	}

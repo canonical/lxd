@@ -103,7 +103,7 @@ func (d *btrfs) Create() error {
 			return err
 		}
 
-		err = createSparseFile(d.config["source"], size)
+		err = ensureSparseFile(d.config["source"], size)
 		if err != nil {
 			return errors.Wrap(err, "Failed to create the sparse file")
 		}
