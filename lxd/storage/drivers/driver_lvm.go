@@ -129,7 +129,7 @@ func (d *lvm) Create() error {
 			return fmt.Errorf("Source file location already exists")
 		}
 
-		err = createSparseFile(d.config["source"], size)
+		err = ensureSparseFile(d.config["source"], size)
 		if err != nil {
 			return errors.Wrapf(err, "Failed to create sparse file %q", d.config["source"])
 		}
