@@ -641,8 +641,29 @@ func (c *ClusterTx) GetNodeWithLeastInstances(archs []int) (string, error) {
 			continue
 		}
 
-		if len(archs) > 0 && !shared.IntInSlice(node.Architecture, archs) {
-			continue
+		if len(archs) > 0 {
+			// Get personalities too.
+			personalities, err := osarch.ArchitecturePersonalities(node.Architecture)
+			if err != nil {
+				return "", err
+			}
+
+			supported := []int{node.Architecture}
+			supported = append(supported, personalities...)
+
+			match := false
+			fmt.Printf("stgraber: supported=%v requested=%v\n", supported, archs)
+			for _, entry := range supported {
+				if shared.IntInSlice(entry, archs) {
+					fmt.Printf("stgraber: supported\n")
+					match = true
+				}
+			}
+
+			if !match {
+				fmt.Printf("stgraber: unsupported\n")
+				continue
+			}
 		}
 
 		// Fetch the number of containers already created on this node.
