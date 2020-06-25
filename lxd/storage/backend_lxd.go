@@ -2071,7 +2071,14 @@ func (b *lxdBackend) EnsureImage(fingerprint string, op *operations.Operation) e
 
 	// Check if we already have a suitable volume on storage device.
 	if b.driver.HasVolume(imgVol) {
-		return nil
+		if imgDBVol != nil {
+			// We already have a valid volume, just return.
+			return nil
+		}
+
+		// We somehow have an unrecorded on-disk volume, assume it's a partial unpack and delete it.
+		logger.Warn("Deleting leftover/partially unpacked image volume")
+		b.driver.DeleteVolume(imgVol, op)
 	}
 
 	volFiller := drivers.VolumeFiller{
