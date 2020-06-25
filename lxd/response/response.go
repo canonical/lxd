@@ -301,9 +301,12 @@ func (r *fileResponse) Render(w http.ResponseWriter) error {
 		return nil
 	}
 
-	// Now the complex multipart answer
-	body := &bytes.Buffer{}
-	mw := multipart.NewWriter(body)
+	// Now the complex multipart answer.
+	mw := multipart.NewWriter(w)
+	defer mw.Close()
+
+	w.Header().Set("Content-Type", mw.FormDataContentType())
+	w.Header().Set("Transfer-Encoding", "chunked")
 
 	for _, entry := range r.files {
 		var rd io.Reader
@@ -329,13 +332,8 @@ func (r *fileResponse) Render(w http.ResponseWriter) error {
 			return err
 		}
 	}
-	mw.Close()
 
-	w.Header().Set("Content-Type", mw.FormDataContentType())
-	w.Header().Set("Content-Length", fmt.Sprintf("%d", body.Len()))
-
-	_, err := io.Copy(w, body)
-	return err
+	return nil
 }
 
 func (r *fileResponse) String() string {
