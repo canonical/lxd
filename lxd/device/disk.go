@@ -1530,10 +1530,10 @@ func (d *disk) generateVMConfigDrive() (string, error) {
 
 	instanceConfig := d.inst.ExpandedConfig()
 
-	// Use an empty user-data file if no custom vendor-data supplied.
+	// Use an empty vendor-data file if no custom vendor-data supplied.
 	vendorData := instanceConfig["user.vendor-data"]
 	if vendorData == "" {
-		vendorData = "#cloud-config"
+		vendorData = "#cloud-config\n{}"
 	}
 
 	err = ioutil.WriteFile(filepath.Join(scratchDir, "vendor-data"), []byte(vendorData), 0400)
@@ -1544,7 +1544,7 @@ func (d *disk) generateVMConfigDrive() (string, error) {
 	// Use an empty user-data file if no custom user-data supplied.
 	userData := instanceConfig["user.user-data"]
 	if userData == "" {
-		userData = "#cloud-config"
+		userData = "#cloud-config\n{}"
 	}
 
 	err = ioutil.WriteFile(filepath.Join(scratchDir, "user-data"), []byte(userData), 0400)
