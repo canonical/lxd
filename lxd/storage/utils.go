@@ -169,7 +169,7 @@ func VolumeContentTypeNameToContentType(contentTypeName string) (int, error) {
 		return db.StoragePoolVolumeContentTypeBlock, nil
 	}
 
-	return -1, fmt.Errorf("Invalid storage volume content type name")
+	return -1, fmt.Errorf("Invalid storage volume content type name: %s", contentTypeName)
 }
 
 // VolumeDBCreate creates a volume in the database.
