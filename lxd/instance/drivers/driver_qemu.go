@@ -3385,7 +3385,7 @@ func (vm *qemu) Export(w io.Writer, properties map[string]string) error {
 	}
 
 	// Convert from raw to qcow2 and add to tarball.
-	tmpPath, err := ioutil.TempDir("", "lxd_export_")
+	tmpPath, err := ioutil.TempDir(shared.VarPath("images"), "lxd_export_")
 	if err != nil {
 		return err
 	}

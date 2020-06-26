@@ -3,7 +3,6 @@ package main
 import (
 	"fmt"
 
-	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/state"
 	storagePools "github.com/lxc/lxd/lxd/storage"
 	"github.com/lxc/lxd/shared"
@@ -17,34 +16,6 @@ func storagePoolUpdate(state *state.State, name, newDescription string, newConfi
 	}
 
 	return pool.Update(!withDB, newDescription, newConfig, nil)
-}
-
-func profilesUsingPoolGetNames(db *db.Cluster, project string, poolName string) ([]string, error) {
-	usedBy := []string{}
-
-	profiles, err := db.GetProfileNames(project)
-	if err != nil {
-		return usedBy, err
-	}
-
-	for _, pName := range profiles {
-		_, profile, err := db.GetProfile(project, pName)
-		if err != nil {
-			return usedBy, err
-		}
-
-		for _, v := range profile.Devices {
-			if v["type"] != "disk" {
-				continue
-			}
-
-			if v["pool"] == poolName {
-				usedBy = append(usedBy, pName)
-			}
-		}
-	}
-
-	return usedBy, nil
 }
 
 // storagePoolDBCreate creates a storage pool DB entry and returns the created Pool ID.
