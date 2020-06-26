@@ -60,6 +60,7 @@ func storagePoolsGet(d *Daemon, r *http.Request) response.Response {
 			if err != nil {
 				continue
 			}
+
 			// Get all users of the storage pool.
 			poolUsedBy := []string{}
 			err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
@@ -559,9 +560,28 @@ func storagePoolDelete(d *Daemon, r *http.Request) response.Response {
 	// If this is not an internal cluster request, check if the storage
 	// pool has any volumes associated with it, if so error out.
 	if !isClusterNotification(r) {
-		response := storagePoolDeleteCheckPreconditions(d.cluster, poolName, poolID)
-		if response != nil {
-			return response
+		// Get all users of the storage pool.
+		poolUsedBy := []string{}
+		err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
+			poolUsedBy, err = tx.GetStoragePoolUsedBy(poolName)
+			return err
+		})
+		if err != nil {
+			return response.SmartError(err)
+		}
+
+		blocking := []string{}
+		for _, entry := range poolUsedBy {
+			// Image are never a deletion blocker.
+			if strings.HasPrefix(entry, "/1.0/images/") {
+				continue
+			}
+
+			blocking = append(blocking, entry)
+		}
+
+		if len(blocking) > 0 {
+			return response.BadRequest(fmt.Errorf("The pool is currently in use by:\n - %s", strings.Join(blocking, "\n - ")))
 		}
 	}
 
@@ -643,50 +663,4 @@ func storagePoolDelete(d *Daemon, r *http.Request) response.Response {
 	}
 
 	return response.EmptySyncResponse
-}
-
-func storagePoolDeleteCheckPreconditions(cluster *db.Cluster, poolName string, poolID int64) response.Response {
-	volumeNames, err := cluster.GetStoragePoolVolumesNames(poolID)
-	if err != nil {
-		return response.InternalError(err)
-	}
-
-	var projects []string
-
-	err = cluster.Transaction(func(tx *db.ClusterTx) error {
-		projects, err = tx.GetProjectNames()
-		return err
-	})
-	if err != nil {
-		return response.InternalError(err)
-	}
-
-	if len(volumeNames) > 0 {
-		for _, project := range projects {
-			volumes, err := cluster.GetStoragePoolVolumes(project, poolID, supportedVolumeTypes)
-			if err != nil {
-				return response.InternalError(err)
-			}
-
-			for _, volume := range volumes {
-				if volume.Type != "image" {
-					return response.BadRequest(fmt.Errorf("storage pool %q has volumes attached to it", poolName))
-				}
-			}
-		}
-	}
-
-	for _, project := range projects {
-		// Check if the storage pool is still referenced in any profiles.
-		profiles, err := profilesUsingPoolGetNames(cluster, project, poolName)
-		if err != nil {
-			return response.SmartError(err)
-		}
-
-		if len(profiles) > 0 {
-			return response.BadRequest(fmt.Errorf("Storage pool %q has profiles using it:\n%s", poolName, strings.Join(profiles, "\n")))
-		}
-	}
-
-	return nil
 }
