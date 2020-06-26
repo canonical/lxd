@@ -255,6 +255,11 @@ func (c *cmdAction) Run(cmd *cobra.Command, args []string) error {
 		}
 	} else {
 		names = args
+
+		if len(args) == 0 {
+			cmd.Usage()
+			return nil
+		}
 	}
 
 	if c.flagConsole {
