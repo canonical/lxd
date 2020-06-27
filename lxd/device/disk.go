@@ -164,7 +164,7 @@ func (d *disk) validateConfig(instConf instance.ConfigReader) error {
 			return fmt.Errorf("Storage volumes cannot be specified as absolute paths")
 		}
 
-		_, err := d.state.Cluster.GetStoragePoolID(d.config["pool"])
+		poolID, err := d.state.Cluster.GetStoragePoolID(d.config["pool"])
 		if err != nil {
 			return fmt.Errorf("The %q storage pool doesn't exist", d.config["pool"])
 		}
@@ -179,6 +179,28 @@ func (d *disk) validateConfig(instConf instance.ConfigReader) error {
 			}
 			if !isAvailable {
 				return fmt.Errorf("Storage volume %q is already attached to an instance on a different node", d.config["source"])
+			}
+		}
+
+		// Block volumes may only be attached to VMs.
+		if d.inst != nil && d.config["path"] != "/" {
+			storageProjectName, err := project.StorageVolumeProject(d.state.Cluster, d.inst.Project(), db.StoragePoolVolumeTypeCustom)
+			if err != nil {
+				return err
+			}
+
+			_, volume, err := d.state.Cluster.GetLocalStoragePoolVolume(storageProjectName, d.config["source"], db.StoragePoolVolumeTypeCustom, poolID)
+			if err != nil {
+				return err
+			}
+
+			contentType, err := storagePools.VolumeContentTypeNameToContentType(volume.ContentType)
+			if err != nil {
+				return err
+			}
+
+			if contentType == db.StoragePoolVolumeContentTypeBlock && d.inst.Type() != instancetype.VM {
+				return fmt.Errorf("Block volumes cannot be used on containers")
 			}
 		}
 	}
@@ -761,10 +783,22 @@ func (d *disk) mountPoolVolume(reverter *revert.Reverter) (string, error) {
 		reverter.Add(func() { pool.UnmountCustomVolume(storageProjectName, volumeName, nil) })
 	}
 
-	if d.inst.Type() == instancetype.Container {
+	_, vol, err := d.state.Cluster.GetLocalStoragePoolVolume(storageProjectName, volumeName, db.StoragePoolVolumeTypeCustom, pool.ID())
+	if err != nil {
+		return "", errors.Wrapf(err, "Failed to fetch local storage volume record")
+	}
+
+	if d.inst.Type() == instancetype.Container && vol.ContentType == db.StoragePoolVolumeContentTypeNameFS {
 		err = d.storagePoolVolumeAttachShift(storageProjectName, pool.Name(), volumeName, db.StoragePoolVolumeTypeCustom, srcPath)
 		if err != nil {
 			return "", errors.Wrapf(err, "Failed shifting storage volume %q of type %q on storage pool %q", volumeName, volumeTypeName, pool.Name())
+		}
+	}
+
+	if vol.ContentType == db.StoragePoolVolumeContentTypeNameBlock {
+		srcPath, err = pool.GetCustomVolumeDisk(storageProjectName, volumeName)
+		if err != nil {
+			return "", errors.Wrapf(err, "Failed to get disk path")
 		}
 	}
 

@@ -488,6 +488,7 @@ CREATE TABLE "storage_volumes" (
     type INTEGER NOT NULL,
     description TEXT,
     project_id INTEGER NOT NULL,
+    content_type INTEGER NOT NULL DEFAULT 0,
     UNIQUE (storage_pool_id, node_id, project_id, name, type),
     FOREIGN KEY (storage_pool_id) REFERENCES storage_pools (id) ON DELETE CASCADE,
     FOREIGN KEY (node_id) REFERENCES nodes (id) ON DELETE CASCADE,
@@ -500,14 +501,16 @@ CREATE VIEW storage_volumes_all (
          node_id,
          type,
          description,
-         project_id) AS
+         project_id,
+         content_type) AS
   SELECT id,
          name,
          storage_pool_id,
          node_id,
          type,
          description,
-         project_id
+         project_id,
+         content_type
     FROM storage_volumes UNION
   SELECT storage_volumes_snapshots.id,
          printf('%s/%s',
@@ -517,7 +520,8 @@ CREATE VIEW storage_volumes_all (
          storage_volumes.node_id,
          storage_volumes.type,
          storage_volumes_snapshots.description,
-         storage_volumes.project_id
+         storage_volumes.project_id,
+         storage_volumes.content_type
     FROM storage_volumes
     JOIN storage_volumes_snapshots ON storage_volumes.id = storage_volumes_snapshots.storage_volume_id;
 CREATE TRIGGER storage_volumes_check_id
@@ -561,5 +565,5 @@ CREATE TABLE storage_volumes_snapshots_config (
     UNIQUE (storage_volume_snapshot_id, key)
 );
 
-INSERT INTO schema (version, updated_at) VALUES (30, strftime("%s"))
+INSERT INTO schema (version, updated_at) VALUES (31, strftime("%s"))
 `

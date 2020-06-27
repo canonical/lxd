@@ -384,6 +384,7 @@ func storagePoolVolumeSnapshotTypeGet(d *Daemon, r *http.Request) response.Respo
 	snapshot.Description = volume.Description
 	snapshot.Name = snapshotName
 	snapshot.ExpiresAt = &expiry
+	snapshot.ContentType = volume.ContentType
 
 	etag := []interface{}{snapshot.Name, snapshot.Description, snapshot.Config, expiry}
 

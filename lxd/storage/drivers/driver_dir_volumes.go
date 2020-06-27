@@ -208,10 +208,6 @@ func (d *dir) ValidateVolume(vol Volume, removeUnknownKeys bool) error {
 
 // UpdateVolume applies config changes to the volume.
 func (d *dir) UpdateVolume(vol Volume, changedConfig map[string]string) error {
-	if vol.contentType != ContentTypeFS {
-		return ErrNotSupported
-	}
-
 	if _, changed := changedConfig["size"]; changed {
 		err := d.SetVolumeQuota(vol, changedConfig["size"], nil)
 		if err != nil {

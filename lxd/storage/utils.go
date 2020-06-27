@@ -136,10 +136,51 @@ func InstanceTypeToVolumeType(instType instancetype.Type) (drivers.VolumeType, e
 	return "", fmt.Errorf("Invalid instance type")
 }
 
+// VolumeContentTypeToDBContentType converts volume type to internal code.
+func VolumeContentTypeToDBContentType(contentType drivers.ContentType) (int, error) {
+	switch contentType {
+	case drivers.ContentTypeBlock:
+		return db.StoragePoolVolumeContentTypeBlock, nil
+	case drivers.ContentTypeFS:
+		return db.StoragePoolVolumeContentTypeFS, nil
+	}
+
+	return -1, fmt.Errorf("Invalid volume content type")
+}
+
+// VolumeDBContentTypeToContentType converts internal content type DB code to driver representation.
+func VolumeDBContentTypeToContentType(volDBType int) (drivers.ContentType, error) {
+	switch volDBType {
+	case db.StoragePoolVolumeContentTypeBlock:
+		return drivers.ContentTypeBlock, nil
+	case db.StoragePoolVolumeContentTypeFS:
+		return drivers.ContentTypeFS, nil
+	}
+
+	return "", fmt.Errorf("Invalid volume content type")
+}
+
+// VolumeContentTypeNameToContentType converts volume content type string internal code.
+func VolumeContentTypeNameToContentType(contentTypeName string) (int, error) {
+	switch contentTypeName {
+	case db.StoragePoolVolumeContentTypeNameFS:
+		return db.StoragePoolVolumeContentTypeFS, nil
+	case db.StoragePoolVolumeContentTypeNameBlock:
+		return db.StoragePoolVolumeContentTypeBlock, nil
+	}
+
+	return -1, fmt.Errorf("Invalid storage volume content type name: %s", contentTypeName)
+}
+
 // VolumeDBCreate creates a volume in the database.
-func VolumeDBCreate(s *state.State, project, poolName, volumeName, volumeDescription, volumeTypeName string, snapshot bool, volumeConfig map[string]string, expiryDate time.Time) error {
+func VolumeDBCreate(s *state.State, project, poolName, volumeName, volumeDescription, volumeTypeName string, snapshot bool, volumeConfig map[string]string, expiryDate time.Time, contentTypeName string) error {
 	// Convert the volume type name to our internal integer representation.
 	volDBType, err := VolumeTypeNameToType(volumeTypeName)
+	if err != nil {
+		return err
+	}
+
+	volDBContentType, err := VolumeContentTypeNameToContentType(contentTypeName)
 	if err != nil {
 		return err
 	}
@@ -181,7 +222,7 @@ func VolumeDBCreate(s *state.State, project, poolName, volumeName, volumeDescrip
 	if snapshot {
 		_, err = s.Cluster.CreateStorageVolumeSnapshot(project, volumeName, volumeDescription, volDBType, poolID, volumeConfig, expiryDate)
 	} else {
-		_, err = s.Cluster.CreateStoragePoolVolume(project, volumeName, volumeDescription, volDBType, poolID, volumeConfig)
+		_, err = s.Cluster.CreateStoragePoolVolume(project, volumeName, volumeDescription, volDBType, poolID, volumeConfig, volDBContentType)
 	}
 	if err != nil {
 		return fmt.Errorf("Error inserting %q of type %q into database %q", poolName, volumeTypeName, err)

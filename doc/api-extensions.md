@@ -1088,3 +1088,8 @@ The 5 entities that have UsedBy are:
  - Networks
  - Storage pools
  - Storage volumes
+
+## custom\_block\_volumes
+
+This adds support for creating and attaching custom block volumes to instances.
+It introduces the new `--type` flag when creating custom storage volumes, and accepts the values `fs` and `block`.

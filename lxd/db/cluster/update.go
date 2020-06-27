@@ -67,6 +67,55 @@ var updates = map[int]schema.Update{
 	28: updateFromV27,
 	29: updateFromV28,
 	30: updateFromV29,
+	31: updateFromV30,
+}
+
+// Add content type field to storage volumes
+func updateFromV30(tx *sql.Tx) error {
+	stmts := `ALTER TABLE storage_volumes ADD COLUMN content_type INTEGER NOT NULL DEFAULT 0;
+UPDATE storage_volumes SET content_type = 1 WHERE type = 3;
+UPDATE storage_volumes SET content_type = 1 WHERE storage_volumes.id IN (
+	SELECT storage_volumes.id
+	  FROM storage_volumes
+	  JOIN images ON storage_volumes.name = images.fingerprint
+	  WHERE images.type = 1
+);
+DROP VIEW storage_volumes_all;
+CREATE VIEW storage_volumes_all (
+         id,
+         name,
+         storage_pool_id,
+         node_id,
+         type,
+         description,
+         project_id,
+         content_type) AS
+  SELECT id,
+         name,
+         storage_pool_id,
+         node_id,
+         type,
+         description,
+         project_id,
+         content_type
+    FROM storage_volumes UNION
+  SELECT storage_volumes_snapshots.id,
+         printf('%s/%s', storage_volumes.name, storage_volumes_snapshots.name),
+         storage_volumes.storage_pool_id,
+         storage_volumes.node_id,
+         storage_volumes.type,
+         storage_volumes_snapshots.description,
+         storage_volumes.project_id,
+         storage_volumes.content_type
+    FROM storage_volumes
+    JOIN storage_volumes_snapshots ON storage_volumes.id = storage_volumes_snapshots.storage_volume_id;
+`
+	_, err := tx.Exec(stmts)
+	if err != nil {
+		return errors.Wrap(err, "Failed to add storage volume content type")
+	}
+
+	return nil
 }
 
 // Add storage volumes to projects references and fix images.
