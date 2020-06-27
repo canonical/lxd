@@ -160,7 +160,7 @@ func genericVFSMigrateVolume(d Driver, s *state.State, vol Volume, conn io.ReadW
 		if strings.HasPrefix(diskPath, vol.MountPath()) {
 			rsyncArgs = []string{"--exclude", filepath.Base(diskPath)}
 		}
-	} else if volSrcArgs.MigrationType.FSType != migration.MigrationFSType_RSYNC {
+	} else if vol.contentType == ContentTypeBlock && volSrcArgs.MigrationType.FSType != migration.MigrationFSType_BLOCK_AND_RSYNC || vol.contentType == ContentTypeFS && volSrcArgs.MigrationType.FSType != migration.MigrationFSType_RSYNC {
 		return ErrNotSupported
 	}
 
@@ -225,12 +225,14 @@ func genericVFSMigrateVolume(d Driver, s *state.State, vol Volume, conn io.ReadW
 
 		// Send snapshot to target (ensure local snapshot volume is mounted if needed).
 		err = snapshot.MountTask(func(mountPath string, op *operations.Operation) error {
-			err := sendFSVol(snapshot, conn, mountPath)
-			if err != nil {
-				return err
+			if vol.contentType != ContentTypeBlock || vol.volType != VolumeTypeCustom {
+				err := sendFSVol(snapshot, conn, mountPath)
+				if err != nil {
+					return err
+				}
 			}
 
-			if vol.IsVMBlock() {
+			if vol.IsVMBlock() || vol.contentType == ContentTypeBlock && vol.volType == VolumeTypeCustom {
 				err = sendBlockVol(snapshot, conn)
 				if err != nil {
 					return err
@@ -246,13 +248,15 @@ func genericVFSMigrateVolume(d Driver, s *state.State, vol Volume, conn io.ReadW
 
 	// Send volume to target (ensure local volume is mounted if needed).
 	return vol.MountTask(func(mountPath string, op *operations.Operation) error {
-		err := sendFSVol(vol, conn, mountPath)
-		if err != nil {
-			return err
+		if vol.contentType != ContentTypeBlock || vol.volType != VolumeTypeCustom {
+			err := sendFSVol(vol, conn, mountPath)
+			if err != nil {
+				return err
+			}
 		}
 
-		if vol.IsVMBlock() {
-			err = sendBlockVol(vol, conn)
+		if vol.IsVMBlock() || vol.contentType == ContentTypeBlock && vol.volType == VolumeTypeCustom {
+			err := sendBlockVol(vol, conn)
 			if err != nil {
 				return err
 			}
@@ -266,7 +270,7 @@ func genericVFSMigrateVolume(d Driver, s *state.State, vol Volume, conn io.ReadW
 // initVolume is run against the main volume (not the snapshots) and is often used for quota initialization.
 func genericVFSCreateVolumeFromMigration(d Driver, initVolume func(vol Volume) (func(), error), vol Volume, conn io.ReadWriteCloser, volTargetArgs migration.VolumeTargetArgs, preFiller *VolumeFiller, op *operations.Operation) error {
 	// Check migration transport type matches volume type.
-	if vol.IsVMBlock() {
+	if vol.contentType == ContentTypeBlock {
 		if volTargetArgs.MigrationType.FSType != migration.MigrationFSType_BLOCK_AND_RSYNC {
 			return ErrNotSupported
 		}
@@ -336,7 +340,7 @@ func genericVFSCreateVolumeFromMigration(d Driver, initVolume func(vol Volume) (
 		path := shared.AddSlash(mountPath)
 		pathBlock := ""
 
-		if vol.IsVMBlock() {
+		if vol.IsVMBlock() || vol.contentType == ContentTypeBlock && vol.volType == VolumeTypeCustom {
 			pathBlock, err = d.GetVolumeDiskPath(vol)
 			if err != nil {
 				return errors.Wrapf(err, "Error getting VM block volume disk path")
@@ -348,14 +352,15 @@ func genericVFSCreateVolumeFromMigration(d Driver, initVolume func(vol Volume) (
 			fullSnapshotName := GetSnapshotVolumeName(vol.name, snapName)
 			snapVol := NewVolume(d, d.Name(), vol.volType, vol.contentType, fullSnapshotName, vol.config, vol.poolConfig)
 
-			// Receive the filesystem snapshot first (as it is sent first).
-			err = recvFSVol(snapVol.name, conn, path)
-			if err != nil {
-				return err
+			if snapVol.contentType != ContentTypeBlock || snapVol.volType != VolumeTypeCustom { // Receive the filesystem snapshot first (as it is sent first).
+				err = recvFSVol(snapVol.name, conn, path)
+				if err != nil {
+					return err
+				}
 			}
 
 			// Receive the block snapshot next (if needed).
-			if vol.IsVMBlock() {
+			if vol.IsVMBlock() || vol.contentType == ContentTypeBlock && vol.volType == VolumeTypeCustom {
 				err = recvBlockVol(snapVol.name, conn, pathBlock)
 				if err != nil {
 					return err
@@ -383,14 +388,16 @@ func genericVFSCreateVolumeFromMigration(d Driver, initVolume func(vol Volume) (
 			}
 		}
 
-		// Receive main volume.
-		err = recvFSVol(vol.name, conn, path)
-		if err != nil {
-			return err
+		if vol.contentType != ContentTypeBlock || vol.volType != VolumeTypeCustom {
+			// Receive main volume.
+			err = recvFSVol(vol.name, conn, path)
+			if err != nil {
+				return err
+			}
 		}
 
 		// Receive the final main volume sync if needed.
-		if volTargetArgs.Live {
+		if volTargetArgs.Live && (vol.contentType != ContentTypeBlock || vol.volType != VolumeTypeCustom) {
 			d.Logger().Debug("Starting main volume final sync", log.Ctx{"volName": vol.name, "path": path})
 			err = recvFSVol(vol.name, conn, path)
 			if err != nil {
@@ -406,7 +413,7 @@ func genericVFSCreateVolumeFromMigration(d Driver, initVolume func(vol Volume) (
 		}
 
 		// Receive the block volume next (if needed).
-		if vol.IsVMBlock() {
+		if vol.IsVMBlock() || vol.contentType == ContentTypeBlock && vol.volType == VolumeTypeCustom {
 			err = recvBlockVol(vol.name, conn, pathBlock)
 			if err != nil {
 				return err

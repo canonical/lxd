@@ -215,6 +215,7 @@ var APIExtensions = []string{
 	"instance_nic_bridged_vlan",
 	"network_state_bond_bridge",
 	"usedby_consistency",
+	"custom_block_volumes",
 }
 
 // APIExtensionsCount returns the number of available API extensions.

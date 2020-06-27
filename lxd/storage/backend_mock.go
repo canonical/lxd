@@ -179,7 +179,7 @@ func (b *mockBackend) UpdateImage(fingerprint, newDesc string, newConfig map[str
 	return nil
 }
 
-func (b *mockBackend) CreateCustomVolume(projectName string, volName string, desc string, config map[string]string, op *operations.Operation) error {
+func (b *mockBackend) CreateCustomVolume(projectName string, volName string, desc string, config map[string]string, contentType drivers.ContentType, op *operations.Operation) error {
 	return nil
 }
 
@@ -205,6 +205,10 @@ func (b *mockBackend) MigrateCustomVolume(projectName string, conn io.ReadWriteC
 
 func (b *mockBackend) CreateCustomVolumeFromMigration(projectName string, conn io.ReadWriteCloser, args migration.VolumeTargetArgs, op *operations.Operation) error {
 	return nil
+}
+
+func (b *mockBackend) GetCustomVolumeDisk(projectName string, volName string) (string, error) {
+	return "", nil
 }
 
 func (b *mockBackend) GetCustomVolumeUsage(projectName string, volName string) (int64, error) {

@@ -26,6 +26,7 @@ type VolumeSourceArgs struct {
 	MultiSync     bool
 	FinalSync     bool
 	Data          interface{} // Optional store to persist storage driver state between MultiSync phases.
+	ContentType   string
 }
 
 // VolumeTargetArgs represents the arguments needed to setup a volume migration sink.
@@ -39,6 +40,7 @@ type VolumeTargetArgs struct {
 	Refresh       bool
 	Live          bool
 	VolumeSize    int64
+	ContentType   string
 }
 
 // TypesToHeader converts one or more Types to a MigrationHeader. It uses the first type argument

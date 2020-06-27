@@ -246,7 +246,17 @@ func (c *Cluster) storagePoolVolumeGetType(project string, volumeName string, vo
 		return -1, nil, err
 	}
 
+	volumeContentType, err := c.getStorageVolumeContentType(volumeID)
+	if err != nil {
+		return -1, nil, err
+	}
+
 	volumeTypeName, err := storagePoolVolumeTypeToName(volumeType)
+	if err != nil {
+		return -1, nil, err
+	}
+
+	volumeContentTypeName, err := storagePoolVolumeContentTypeToName(volumeContentType)
 	if err != nil {
 		return -1, nil, err
 	}
@@ -258,6 +268,7 @@ func (c *Cluster) storagePoolVolumeGetType(project string, volumeName string, vo
 	storageVolume.Description = volumeDescription
 	storageVolume.Config = volumeConfig
 	storageVolume.Location = volumeNode
+	storageVolume.ContentType = volumeContentTypeName
 
 	return volumeID, &storageVolume, nil
 }
@@ -385,7 +396,7 @@ func storagePoolVolumeReplicateIfCeph(tx *sql.Tx, volumeID int64, project, volum
 
 // CreateStoragePoolVolume creates a new storage volume attached to a given
 // storage pool.
-func (c *Cluster) CreateStoragePoolVolume(project, volumeName, volumeDescription string, volumeType int, poolID int64, volumeConfig map[string]string) (int64, error) {
+func (c *Cluster) CreateStoragePoolVolume(project, volumeName, volumeDescription string, volumeType int, poolID int64, volumeConfig map[string]string, contentType int) (int64, error) {
 	var thisVolumeID int64
 
 	if shared.IsSnapshot(volumeName) {
@@ -410,10 +421,10 @@ func (c *Cluster) CreateStoragePoolVolume(project, volumeName, volumeDescription
 			var volumeID int64
 
 			result, err := tx.tx.Exec(`
-INSERT INTO storage_volumes (storage_pool_id, node_id, type, name, description, project_id)
- VALUES (?, ?, ?, ?, ?, (SELECT id FROM projects WHERE name = ?))
+INSERT INTO storage_volumes (storage_pool_id, node_id, type, name, description, project_id, content_type)
+ VALUES (?, ?, ?, ?, ?, (SELECT id FROM projects WHERE name = ?), ?)
 `,
-				poolID, nodeID, volumeType, volumeName, volumeDescription, project)
+				poolID, nodeID, volumeType, volumeName, volumeDescription, project, contentType)
 			if err != nil {
 				return err
 			}
@@ -504,6 +515,18 @@ const (
 	StoragePoolVolumeTypeNameCustom    string = "custom"
 )
 
+// Content types.
+const (
+	StoragePoolVolumeContentTypeFS = iota
+	StoragePoolVolumeContentTypeBlock
+)
+
+// Content type names.
+const (
+	StoragePoolVolumeContentTypeNameFS    string = "filesystem"
+	StoragePoolVolumeContentTypeNameBlock string = "block"
+)
+
 // StorageVolumeArgs is a value object holding all db-related details about a
 // storage volume.
 type StorageVolumeArgs struct {
@@ -528,6 +551,8 @@ type StorageVolumeArgs struct {
 	// At least on of ProjectID or ProjectName must be set.
 	ProjectID   int64
 	ProjectName string
+
+	ContentType string
 }
 
 // GetStorageVolumeNodeAddresses returns the addresses of all nodes on which the
@@ -655,6 +680,24 @@ func (c *Cluster) GetStorageVolumeDescription(volumeID int64) (string, error) {
 	}
 
 	return description.String, nil
+}
+
+// getStorageVolumeContentType gets the content type of a storage volume.
+func (c *Cluster) getStorageVolumeContentType(volumeID int64) (int, error) {
+	var contentType int
+	query := "SELECT content_type FROM storage_volumes_all WHERE id=?"
+	inargs := []interface{}{volumeID}
+	outargs := []interface{}{&contentType}
+
+	err := dbQueryRowScan(c, query, inargs, outargs)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return -1, ErrNoSuchObject
+		}
+		return -1, err
+	}
+
+	return contentType, nil
 }
 
 // GetNextStorageVolumeSnapshotIndex returns the index of the next snapshot of the storage
@@ -888,4 +931,16 @@ func storagePoolVolumeTypeToName(volumeType int) (string, error) {
 	}
 
 	return "", fmt.Errorf("Invalid storage volume type")
+}
+
+// Convert a volume integer content type code to its human-readable name.
+func storagePoolVolumeContentTypeToName(contentType int) (string, error) {
+	switch contentType {
+	case StoragePoolVolumeContentTypeFS:
+		return StoragePoolVolumeContentTypeNameFS, nil
+	case StoragePoolVolumeContentTypeBlock:
+		return StoragePoolVolumeContentTypeNameBlock, nil
+	}
+
+	return "", fmt.Errorf("Invalid storage volume content type")
 }

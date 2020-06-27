@@ -570,7 +570,7 @@ func upgradeFromStorageTypeBtrfs(name string, d *Daemon, defaultPoolName string,
 			}
 		} else if err == db.ErrNoSuchObject {
 			// Insert storage volumes for containers into the database.
-			_, err := d.cluster.CreateStoragePoolVolume("default", ct, "", db.StoragePoolVolumeTypeContainer, poolID, containerPoolVolumeConfig)
+			_, err := d.cluster.CreateStoragePoolVolume("default", ct, "", db.StoragePoolVolumeTypeContainer, poolID, containerPoolVolumeConfig, db.StoragePoolVolumeContentTypeFS)
 			if err != nil {
 				logger.Errorf("Could not insert a storage volume for container \"%s\"", ct)
 				return err
@@ -739,7 +739,7 @@ func upgradeFromStorageTypeBtrfs(name string, d *Daemon, defaultPoolName string,
 			}
 		} else if err == db.ErrNoSuchObject {
 			// Insert storage volumes for containers into the database.
-			_, err := d.cluster.CreateStoragePoolVolume("default", img, "", db.StoragePoolVolumeTypeImage, poolID, imagePoolVolumeConfig)
+			_, err := d.cluster.CreateStoragePoolVolume("default", img, "", db.StoragePoolVolumeTypeImage, poolID, imagePoolVolumeConfig, db.StoragePoolVolumeContentTypeFS)
 			if err != nil {
 				logger.Errorf("Could not insert a storage volume for image \"%s\"", img)
 				return err
@@ -860,7 +860,7 @@ func upgradeFromStorageTypeDir(name string, d *Daemon, defaultPoolName string, d
 			}
 		} else if err == db.ErrNoSuchObject {
 			// Insert storage volumes for containers into the database.
-			_, err := d.cluster.CreateStoragePoolVolume("default", ct, "", db.StoragePoolVolumeTypeContainer, poolID, containerPoolVolumeConfig)
+			_, err := d.cluster.CreateStoragePoolVolume("default", ct, "", db.StoragePoolVolumeTypeContainer, poolID, containerPoolVolumeConfig, db.StoragePoolVolumeContentTypeFS)
 			if err != nil {
 				logger.Errorf("Could not insert a storage volume for container \"%s\"", ct)
 				return err
@@ -1007,7 +1007,7 @@ func upgradeFromStorageTypeDir(name string, d *Daemon, defaultPoolName string, d
 			}
 		} else if err == db.ErrNoSuchObject {
 			// Insert storage volumes for containers into the database.
-			_, err := d.cluster.CreateStoragePoolVolume("default", img, "", db.StoragePoolVolumeTypeImage, poolID, imagePoolVolumeConfig)
+			_, err := d.cluster.CreateStoragePoolVolume("default", img, "", db.StoragePoolVolumeTypeImage, poolID, imagePoolVolumeConfig, db.StoragePoolVolumeContentTypeFS)
 			if err != nil {
 				logger.Errorf("Could not insert a storage volume for image \"%s\"", img)
 				return err
@@ -1169,7 +1169,7 @@ func upgradeFromStorageTypeLvm(name string, d *Daemon, defaultPoolName string, d
 			}
 		} else if err == db.ErrNoSuchObject {
 			// Insert storage volumes for containers into the database.
-			_, err := d.cluster.CreateStoragePoolVolume("default", ct, "", db.StoragePoolVolumeTypeContainer, poolID, containerPoolVolumeConfig)
+			_, err := d.cluster.CreateStoragePoolVolume("default", ct, "", db.StoragePoolVolumeTypeContainer, poolID, containerPoolVolumeConfig, db.StoragePoolVolumeContentTypeFS)
 			if err != nil {
 				logger.Errorf("Could not insert a storage volume for container \"%s\"", ct)
 				return err
@@ -1513,7 +1513,7 @@ func upgradeFromStorageTypeLvm(name string, d *Daemon, defaultPoolName string, d
 			}
 		} else if err == db.ErrNoSuchObject {
 			// Insert storage volumes for containers into the database.
-			_, err := d.cluster.CreateStoragePoolVolume("default", img, "", db.StoragePoolVolumeTypeImage, poolID, imagePoolVolumeConfig)
+			_, err := d.cluster.CreateStoragePoolVolume("default", img, "", db.StoragePoolVolumeTypeImage, poolID, imagePoolVolumeConfig, db.StoragePoolVolumeContentTypeFS)
 			if err != nil {
 				logger.Errorf("Could not insert a storage volume for image \"%s\"", img)
 				return err
@@ -1705,7 +1705,7 @@ func upgradeFromStorageTypeZfs(name string, d *Daemon, defaultPoolName string, d
 			}
 		} else if err == db.ErrNoSuchObject {
 			// Insert storage volumes for containers into the database.
-			_, err := d.cluster.CreateStoragePoolVolume("default", ct, "", db.StoragePoolVolumeTypeContainer, poolID, containerPoolVolumeConfig)
+			_, err := d.cluster.CreateStoragePoolVolume("default", ct, "", db.StoragePoolVolumeTypeContainer, poolID, containerPoolVolumeConfig, db.StoragePoolVolumeContentTypeFS)
 			if err != nil {
 				logger.Errorf("Could not insert a storage volume for container \"%s\"", ct)
 				return err
@@ -1847,7 +1847,7 @@ func upgradeFromStorageTypeZfs(name string, d *Daemon, defaultPoolName string, d
 			}
 		} else if err == db.ErrNoSuchObject {
 			// Insert storage volumes for containers into the database.
-			_, err := d.cluster.CreateStoragePoolVolume("default", img, "", db.StoragePoolVolumeTypeImage, poolID, imagePoolVolumeConfig)
+			_, err := d.cluster.CreateStoragePoolVolume("default", img, "", db.StoragePoolVolumeTypeImage, poolID, imagePoolVolumeConfig, db.StoragePoolVolumeContentTypeFS)
 			if err != nil {
 				logger.Errorf("Could not insert a storage volume for image \"%s\"", img)
 				return err

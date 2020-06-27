@@ -905,7 +905,7 @@ func (d *ceph) SetVolumeQuota(vol Volume, size string, op *operations.Operation)
 
 // GetVolumeDiskPath returns the location of a root disk block device.
 func (d *ceph) GetVolumeDiskPath(vol Volume) (string, error) {
-	if vol.IsVMBlock() {
+	if vol.IsVMBlock() || vol.volType == VolumeTypeCustom && vol.contentType == ContentTypeBlock {
 		return d.getRBDMappedDevPath(vol)
 	}
 

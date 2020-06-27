@@ -269,10 +269,6 @@ func (d *lvm) ValidateVolume(vol Volume, removeUnknownKeys bool) error {
 
 // UpdateVolume applies config changes to the volume.
 func (d *lvm) UpdateVolume(vol Volume, changedConfig map[string]string) error {
-	if vol.contentType != ContentTypeFS {
-		return ErrNotSupported
-	}
-
 	if _, changed := changedConfig["size"]; changed {
 		err := d.SetVolumeQuota(vol, changedConfig["size"], nil)
 		if err != nil {
@@ -426,7 +422,7 @@ func (d *lvm) SetVolumeQuota(vol Volume, size string, op *operations.Operation) 
 
 // GetVolumeDiskPath returns the location of a disk volume.
 func (d *lvm) GetVolumeDiskPath(vol Volume) (string, error) {
-	if vol.IsVMBlock() {
+	if vol.IsVMBlock() || vol.volType == VolumeTypeCustom && vol.contentType == ContentTypeBlock {
 		volDevPath := d.lvmDevPath(d.config["lvm.vg_name"], vol.volType, vol.contentType, vol.name)
 		return volDevPath, nil
 	}
