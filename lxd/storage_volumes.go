@@ -296,6 +296,11 @@ func storagePoolVolumesTypePost(d *Daemon, r *http.Request) response.Response {
 		return response.BadRequest(fmt.Errorf("Storage volume names may not contain slashes"))
 	}
 
+	// Backward compatibility.
+	if req.ContentType == "" {
+		req.ContentType = "filesystem"
+	}
+
 	_, err = storagePools.VolumeContentTypeNameToContentType(req.ContentType)
 	if err != nil {
 		return response.BadRequest(fmt.Errorf("Invalid content type %q", req.ContentType))
