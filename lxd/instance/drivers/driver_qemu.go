@@ -775,7 +775,13 @@ func (vm *qemu) Start(stateful bool) error {
 	}
 
 	if shared.IsTrue(vm.expandedConfig["limits.memory.hugepages"]) {
-		qemuCmd = append(qemuCmd, "-mem-path", "/dev/hugepages/", "-mem-prealloc")
+		hugetlb, err := util.HugepagesPath()
+		if err != nil {
+			op.Done(err)
+			return err
+		}
+
+		qemuCmd = append(qemuCmd, "-mem-path", hugetlb, "-mem-prealloc")
 	}
 
 	if vm.expandedConfig["raw.qemu"] != "" {
