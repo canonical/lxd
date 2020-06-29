@@ -890,20 +890,6 @@ func dqliteNetworkDial(ctx context.Context, addr string, g *Gateway, checkLeader
 			return nil, err
 		}
 
-		// If the remote server has detected that we are out of date, let's
-		// trigger an upgrade.
-		if response.StatusCode == http.StatusUpgradeRequired {
-			g.lock.Lock()
-			defer g.lock.Unlock()
-			if !g.upgradeTriggered {
-				err = triggerUpdate()
-				if err == nil {
-					g.upgradeTriggered = true
-				}
-			}
-			return nil, fmt.Errorf("Upgrade needed")
-		}
-
 		// If the endpoint does not exists, it means that the target node is
 		// running version 1 of dqlite protocol. In that case we simply behave
 		// as the node was at an older LXD version.
@@ -951,6 +937,21 @@ func dqliteNetworkDial(ctx context.Context, addr string, g *Gateway, checkLeader
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to read response")
 	}
+
+	// If the remote server has detected that we are out of date, let's
+	// trigger an upgrade.
+	if response.StatusCode == http.StatusUpgradeRequired {
+		g.lock.Lock()
+		defer g.lock.Unlock()
+		if !g.upgradeTriggered {
+			err = triggerUpdate()
+			if err == nil {
+				g.upgradeTriggered = true
+			}
+		}
+		return nil, fmt.Errorf("Upgrade needed")
+	}
+
 	if response.StatusCode != http.StatusSwitchingProtocols {
 		return nil, fmt.Errorf("Dialing failed: expected status code 101 got %d", response.StatusCode)
 	}
