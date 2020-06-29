@@ -65,6 +65,21 @@ Storage volume configuration keys can be set using the lxc tool with:
 lxc storage volume set [<remote>:]<pool> <volume> <key> <value>
 ```
 
+## Storage volume content types
+Storage volumes can be either `filesystem` or `block` type.
+
+Containers and container images are always going to be using `filesystem`.
+Virtual machines and virtual machine images are always going to be using `block`.
+
+Custom storage volumes can be either types with the default being `filesystem`.
+Those custom storage volumes of type `block` can only be attached to virtual machines.
+
+Block custom storage volumes can be created with:
+
+```bash
+lxc storage volume create [<remote>]:<pool> <name> --type=block
+```
+
 # Where to store LXD data
 Depending on the storage backends used, LXD can either share the filesystem with its host or keep its data separate.
 
