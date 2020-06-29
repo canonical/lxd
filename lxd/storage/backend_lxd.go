@@ -2372,6 +2372,31 @@ func (b *lxdBackend) CreateCustomVolumeFromCopy(projectName string, volName stri
 		return fmt.Errorf("Failed to negotiate copy migration type: %v", err)
 	}
 
+	// If we're copying block volumes, the target block volume needs to be
+	// at least the size of the source volume, otherwise we'll run into
+	// "no space left on device".
+	var volSize int64
+
+	if contentType == drivers.ContentTypeBlock {
+		// Get the src volume name on storage.
+		srcVolStorageName := project.StorageVolume(projectName, srcVolName)
+		srcVol := srcPool.newVolume(drivers.VolumeTypeCustom, contentType, srcVolStorageName, srcVolRow.Config)
+
+		srcVol.MountTask(func(mountPath string, op *operations.Operation) error {
+			volDiskPath, err := srcPool.driver.GetVolumeDiskPath(srcVol)
+			if err != nil {
+				return err
+			}
+
+			volSize, err = drivers.BlockDiskSizeBytes(volDiskPath)
+			if err != nil {
+				return err
+			}
+
+			return nil
+		}, nil)
+	}
+
 	ctx, cancel := context.WithCancel(context.Background())
 
 	// Use in-memory pipe pair to simulate a connection between the sender and receiver.
@@ -2402,7 +2427,7 @@ func (b *lxdBackend) CreateCustomVolumeFromCopy(projectName string, volName stri
 			Snapshots:     snapshotNames,
 			MigrationType: migrationTypes[0],
 			TrackProgress: false, // Do not use a progress tracker on receiver.
-
+			VolumeSize:    volSize,
 		}, op)
 
 		if err != nil {
@@ -2472,6 +2497,14 @@ func (b *lxdBackend) CreateCustomVolumeFromMigration(projectName string, conn io
 
 	// Check the supplied config and remove any fields not relevant for destination pool type.
 	vol := b.newVolume(drivers.VolumeTypeCustom, drivers.ContentTypeFS, volStorageName, args.Config)
+
+	// VolumeSize is set to the actual size of the underlying block device.
+	// The target should use this value if present, otherwise it might get an error like
+	// "no space left on device".
+	if args.VolumeSize > 0 {
+		vol.SetConfigSize(fmt.Sprintf("%d", args.VolumeSize))
+	}
+
 	err := b.driver.ValidateVolume(vol, true)
 	if err != nil {
 		return err
