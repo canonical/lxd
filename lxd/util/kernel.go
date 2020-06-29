@@ -42,3 +42,38 @@ func HasFilesystem(filesystem string) bool {
 
 	return false
 }
+
+// HugepagesPath attempts to locate the mount point of the hugepages filesystem.
+func HugepagesPath() (string, error) {
+	// Find the source mount of the path
+	file, err := os.Open("/proc/mounts")
+	if err != nil {
+		return "", err
+	}
+	defer file.Close()
+
+	scanner := bufio.NewScanner(file)
+	matches := []string{}
+	for scanner.Scan() {
+		line := scanner.Text()
+		cols := strings.Fields(line)
+
+		if cols[2] == "hugetlbfs" {
+			matches = append(matches, cols[1])
+		}
+	}
+
+	if len(matches) == 0 {
+		return "", fmt.Errorf("No hugetlbfs mount found, can't use hugepages")
+	}
+
+	if len(matches) > 1 {
+		if shared.StringInSlice("/dev/hugepages", matches) {
+			return "/dev/hugepages", nil
+		}
+
+		return "", fmt.Errorf("More than one hugetlbfs instance found and none at standard /dev/hugepages")
+	}
+
+	return matches[0], nil
+}
