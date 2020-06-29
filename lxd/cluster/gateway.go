@@ -261,9 +261,11 @@ func (g *Gateway) HandlerFuncs(nodeRefreshTask func(*APIHeartbeat)) map[string]h
 			return
 		}
 
-		// Before actually establishing the connection, our dialer
-		// probes the node to see if it's currently the leader
-		// (otherwise it tries with another node or retry later).
+		// NOTE: this is kept for backward compatibility when upgrading
+		// a cluster with version <= 4.2.
+		//
+		// Once all nodes are on >= 4.3 this code is effectively
+		// unused.
 		if r.Method == "HEAD" {
 			// We can safely know about current leader only if we are a voter.
 			if g.info.Role != db.RaftVoter {
@@ -383,7 +385,18 @@ func (g *Gateway) DialFunc() client.DialFunc {
 			return g.memoryDial(ctx, address)
 		}
 
-		return dqliteNetworkDial(ctx, address, g, true)
+		conn, err := dqliteNetworkDial(ctx, address, g)
+		if err != nil {
+			return nil, err
+		}
+
+		// We successfully established a connection with the leader. Maybe the
+		// leader is ourselves, and we were recently elected. In that case
+		// trigger a full heartbeat now: it will be a no-op if we aren't
+		// actually leaders.
+		go g.heartbeat(g.ctx, true)
+
+		return conn, nil
 	}
 }
 
@@ -397,7 +410,7 @@ func (g *Gateway) raftDial() client.DialFunc {
 			}
 			address = string(addr)
 		}
-		conn, err := dqliteNetworkDial(ctx, address, g, false)
+		conn, err := dqliteNetworkDial(ctx, address, g)
 		if err != nil {
 			return nil, err
 		}
@@ -867,40 +880,13 @@ func (g *Gateway) raftAddress(databaseID uint64) (string, error) {
 	return address, nil
 }
 
-func dqliteNetworkDial(ctx context.Context, addr string, g *Gateway, checkLeader bool) (net.Conn, error) {
+func dqliteNetworkDial(ctx context.Context, addr string, g *Gateway) (net.Conn, error) {
 	config, err := tlsClientConfig(g.cert)
 	if err != nil {
 		return nil, err
 	}
 
 	path := fmt.Sprintf("https://%s%s", addr, databaseEndpoint)
-	if checkLeader {
-		// Make a probe HEAD request to check if the target node is the leader.
-		request, err := http.NewRequest("HEAD", path, nil)
-		if err != nil {
-			return nil, err
-		}
-		setDqliteVersionHeader(request)
-		request = request.WithContext(ctx)
-		transport, cleanup := tlsTransport(config)
-		defer cleanup()
-		client := &http.Client{Transport: transport}
-		response, err := client.Do(request)
-		if err != nil {
-			return nil, err
-		}
-
-		// If the endpoint does not exists, it means that the target node is
-		// running version 1 of dqlite protocol. In that case we simply behave
-		// as the node was at an older LXD version.
-		if response.StatusCode == http.StatusNotFound {
-			return nil, db.ErrSomeNodesAreBehind
-		}
-
-		if response.StatusCode != http.StatusOK {
-			return nil, fmt.Errorf(response.Status)
-		}
-	}
 
 	// Establish the connection
 	request := &http.Request{
@@ -957,14 +943,6 @@ func dqliteNetworkDial(ctx context.Context, addr string, g *Gateway, checkLeader
 	}
 	if response.Header.Get("Upgrade") != "dqlite" {
 		return nil, fmt.Errorf("Missing or unexpected Upgrade header in response")
-	}
-
-	// We successfully established a connection with the leader. Maybe the
-	// leader is ourselves, and we were recently elected. In that case
-	// trigger a full heartbeat now: it will be a no-op if we aren't
-	// actually leaders.
-	if checkLeader {
-		go g.heartbeat(g.ctx, true)
 	}
 
 	return conn, nil
