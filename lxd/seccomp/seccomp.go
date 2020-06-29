@@ -1222,13 +1222,21 @@ func (s *Server) HandleSetxattrSyscall(c Instance, siov *Iovec) int {
 
 // MountArgs arguments for mount.
 type MountArgs struct {
-	source string
-	target string
-	fstype string
-	flags  int
-	data   string
-	pid    int
-	shift  bool
+	source  string
+	target  string
+	fstype  string
+	flags   int
+	data    string
+	pid     int
+	shift   bool
+	uid     int64
+	gid     int64
+	fsuid   int64
+	fsgid   int64
+	nsuid   int64
+	nsgid   int64
+	nsfsuid int64
+	nsfsgid int64
 }
 
 const knownFlags C.ulong = C.MS_BIND | C.MS_LAZYTIME | C.MS_MANDLOCK |
@@ -1445,14 +1453,32 @@ func (s *Server) HandleMountSyscall(c Instance, siov *Iovec) int {
 		return 0
 	}
 
-	nsuid, nsgid, nsfsuid, nsfsgid, err := TaskIDs(args.pid)
+	idmapset, err := c.CurrentIdmap()
 	if err != nil {
 		ctx["syscall_continue"] = "true"
 		C.seccomp_notify_update_response(siov.resp, 0, C.uint32_t(seccompUserNotifFlagContinue))
 		return 0
 	}
 
-	err = s.mountHandleHugetlbfsArgs(c, &args, nsuid, nsgid)
+	args.uid, args.gid, args.fsuid, args.fsgid, err = TaskIDs(args.pid)
+	if err != nil {
+		ctx["syscall_continue"] = "true"
+		C.seccomp_notify_update_response(siov.resp, 0, C.uint32_t(seccompUserNotifFlagContinue))
+		return 0
+	}
+	ctx["host_uid"] = args.uid
+	ctx["host_gid"] = args.gid
+	ctx["host_fsuid"] = args.fsuid
+	ctx["host_fsgid"] = args.fsgid
+
+	args.nsuid, args.nsgid = idmapset.ShiftFromNs(args.uid, args.gid)
+	args.nsfsuid, args.nsfsgid = idmapset.ShiftFromNs(args.fsuid, args.fsgid)
+	ctx["ns_uid"] = args.nsuid
+	ctx["ns_gid"] = args.nsgid
+	ctx["ns_fsuid"] = args.nsfsuid
+	ctx["ns_fsgid"] = args.nsfsgid
+
+	err = s.mountHandleHugetlbfsArgs(c, &args, args.uid, args.gid)
 	if err != nil {
 		ctx["syscall_continue"] = "true"
 		C.seccomp_notify_update_response(siov.resp, 0, C.uint32_t(seccompUserNotifFlagContinue))
@@ -1488,10 +1514,10 @@ func (s *Server) HandleMountSyscall(c Instance, siov *Iovec) int {
 			fmt.Sprintf("%d", args.pid),
 			fmt.Sprintf("%d", pidFdNr),
 			fmt.Sprintf("%d", 1),
-			fmt.Sprintf("%d", nsuid),
-			fmt.Sprintf("%d", nsgid),
-			fmt.Sprintf("%d", nsfsuid),
-			fmt.Sprintf("%d", nsfsgid),
+			fmt.Sprintf("%d", args.uid),
+			fmt.Sprintf("%d", args.gid),
+			fmt.Sprintf("%d", args.fsuid),
+			fmt.Sprintf("%d", args.fsgid),
 			fmt.Sprintf("%s", fuseSource),
 			fmt.Sprintf("%s", args.target),
 			fmt.Sprintf("%s", fuseOpts))
@@ -1510,10 +1536,14 @@ func (s *Server) HandleMountSyscall(c Instance, siov *Iovec) int {
 			fmt.Sprintf("%s", args.fstype),
 			fmt.Sprintf("%d", args.flags),
 			fmt.Sprintf("%t", args.shift),
-			fmt.Sprintf("%d", nsuid),
-			fmt.Sprintf("%d", nsgid),
-			fmt.Sprintf("%d", nsfsuid),
-			fmt.Sprintf("%d", nsfsgid),
+			fmt.Sprintf("%d", args.uid),
+			fmt.Sprintf("%d", args.gid),
+			fmt.Sprintf("%d", args.fsuid),
+			fmt.Sprintf("%d", args.fsgid),
+			fmt.Sprintf("%d", args.nsuid),
+			fmt.Sprintf("%d", args.nsgid),
+			fmt.Sprintf("%d", args.nsfsuid),
+			fmt.Sprintf("%d", args.nsfsgid),
 			fmt.Sprintf("%s", args.data))
 	}
 	if err != nil {

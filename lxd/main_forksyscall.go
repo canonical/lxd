@@ -360,8 +360,8 @@ static void mount_emulate(void)
 	__do_close int mnt_fd = -EBADF, pidfd = -EBADF, ns_fd = -EBADF;
 	char *source = NULL, *shiftfs = NULL, *target = NULL, *fstype = NULL;
 	bool use_fuse;
-	uid_t uid = -1, fsuid = -1;
-	gid_t gid = -1, fsgid = -1;
+	uid_t nsuid = -1, uid = -1, nsfsuid = -1, fsuid = -1;
+	gid_t nsgid = -1, gid = -1, nsfsgid = -1, fsgid = -1;
 	int ret;
 	pid_t pid = -1;
 	unsigned long flags = 0;
@@ -385,8 +385,13 @@ static void mount_emulate(void)
 	gid = atoi(advance_arg(true));
 	fsuid = atoi(advance_arg(true));
 	fsgid = atoi(advance_arg(true));
-	if (!use_fuse)
+	if (!use_fuse) {
+		nsuid = atoi(advance_arg(true));
+		nsgid = atoi(advance_arg(true));
+		nsfsuid = atoi(advance_arg(true));
+		nsfsgid = atoi(advance_arg(true));
 		data = advance_arg(false);
+	}
 
 	mnt_fd = preserve_ns(getpid(), "mnt");
 	if (mnt_fd < 0)
@@ -465,7 +470,7 @@ static void mount_emulate(void)
 			_exit(EXIT_FAILURE);
 		}
 
-		if (!acquire_final_creds(pid, uid, gid, fsuid, fsgid)) {
+		if (!acquire_final_creds(pid, nsuid, nsgid, nsfsuid, nsfsgid)) {
 			umount2(target, MNT_DETACH);
 			umount2(target, MNT_DETACH);
 			_exit(EXIT_FAILURE);
