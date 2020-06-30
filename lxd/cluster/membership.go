@@ -495,7 +495,6 @@ func Rebalance(state *state.State, gateway *Gateway) (string, []db.RaftNode, err
 
 	// Fetch the nodes from the database, to get their last heartbeat
 	// timestamp and check whether they are offline.
-	nodesByAddress := map[string]db.NodeInfo{}
 	var maxVoters int64
 	var maxStandBy int64
 	err = state.Cluster.Transaction(func(tx *db.ClusterTx) error {
@@ -505,13 +504,6 @@ func Rebalance(state *state.State, gateway *Gateway) (string, []db.RaftNode, err
 		}
 		maxVoters = config.MaxVoters()
 		maxStandBy = config.MaxStandBy()
-		nodes, err := tx.GetNodes()
-		if err != nil {
-			return errors.Wrap(err, "failed to get cluster nodes")
-		}
-		for _, node := range nodes {
-			nodesByAddress[node.Address] = node
-		}
 		return nil
 	})
 	if err != nil {
@@ -524,8 +516,7 @@ func Rebalance(state *state.State, gateway *Gateway) (string, []db.RaftNode, err
 	standbys := make([]string, 0)
 	candidates := make([]string, 0)
 	for i, info := range currentRaftNodes {
-		node := nodesByAddress[info.Address]
-		if !hasConnectivity(gateway.cert, node.Address) {
+		if !hasConnectivity(gateway.cert, info.Address) {
 			if info.Role != db.RaftSpare {
 				client, err := gateway.getClient()
 				if err != nil {
@@ -534,8 +525,7 @@ func Rebalance(state *state.State, gateway *Gateway) (string, []db.RaftNode, err
 				defer client.Close()
 				ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 				defer cancel()
-				logger.Infof(
-					"Demote offline node %s (%s) to spare", node.Name, node.Address)
+				logger.Infof("Demote offline node %s to spare", info.Address)
 				err = client.Assign(ctx, info.ID, db.RaftSpare)
 				if err != nil {
 					return "", nil, errors.Wrap(err, "Failed to demote offline node")
@@ -572,10 +562,8 @@ func Rebalance(state *state.State, gateway *Gateway) (string, []db.RaftNode, err
 	// Check if we have a spare node that we can promote to the missing role.
 	address := ""
 	for _, candidate := range candidates {
-		node := nodesByAddress[candidate]
-		logger.Infof(
-			"Found spare node %s (%s) to be promoted to %s", node.Name, node.Address, role)
-		address = node.Address
+		logger.Infof("Found spare node %s to be promoted to %s", candidate, role)
+		address = candidate
 		break
 	}
 
