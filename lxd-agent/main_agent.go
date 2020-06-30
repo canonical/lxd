@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"net/http"
 	"os"
 	"os/signal"
 	"strings"
@@ -135,8 +136,18 @@ func (c *cmdAgent) Run(cmd *cobra.Command, args []string) error {
 
 	d := newDaemon(c.global.flagLogDebug, c.global.flagLogVerbose)
 
+	servers := make(map[string]*http.Server, 2)
+
 	// Prepare the HTTP server.
-	httpServer := restServer(tlsConfig, cert, c.global.flagLogDebug, d)
+	servers["http"] = restServer(tlsConfig, cert, c.global.flagLogDebug, d)
+
+	// Prepare the devlxd server.
+	devlxdListener, err := createDevLxdlListener("/dev")
+	if err != nil {
+		return err
+	}
+
+	servers["devlxd"] = devLxdServer(d)
 
 	// Create a cancellation context.
 	ctx, cancelFunc := context.WithCancel(context.Background())
@@ -144,17 +155,41 @@ func (c *cmdAgent) Run(cmd *cobra.Command, args []string) error {
 	// Start status notifier in background.
 	go c.startStatusNotifier(ctx)
 
+	errChan := make(chan error, 1)
+
+	// Start the server.
+	go func() {
+		err := servers["http"].ServeTLS(networkTLSListener(l, tlsConfig), "agent.crt", "agent.key")
+		if err != nil {
+			errChan <- err
+		}
+	}()
+
+	// Only start the devlxd listener if instance-data is present.
+	if shared.PathExists("instance-data") {
+		go func() {
+			err := servers["devlxd"].Serve(devlxdListener)
+			if err != nil {
+				errChan <- err
+			}
+		}()
+	}
+
 	// Cancel context when SIGTEM is received.
 	chSignal := make(chan os.Signal, 1)
 	signal.Notify(chSignal, unix.SIGTERM)
-	go func() {
-		<-chSignal
+
+	select {
+	case <-chSignal:
 		cancelFunc()
 		os.Exit(0)
-	}()
+	case err := <-errChan:
+		fmt.Fprintln(os.Stderr, err)
+		cancelFunc()
+		os.Exit(1)
+	}
 
-	// Start the server.
-	return httpServer.ServeTLS(networkTLSListener(l, tlsConfig), "agent.crt", "agent.key")
+	return nil
 }
 
 // startStatusNotifier sends status of agent to vserial ring buffer every 10s or when context is done.
