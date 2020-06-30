@@ -295,16 +295,11 @@ func deleteParentSnapshotDirIfEmpty(poolName string, volType VolumeType, volName
 // ensureSparseFile creates a sparse empty file at specified location with specified size.
 // If the path already exists, the file is truncated to the requested size.
 func ensureSparseFile(filePath string, sizeBytes int64) error {
-	f, err := os.Create(filePath)
+	f, err := os.OpenFile(filePath, os.O_RDWR|os.O_CREATE, 0600)
 	if err != nil {
 		return errors.Wrapf(err, "Failed to open %s", filePath)
 	}
 	defer f.Close()
-
-	err = f.Chmod(0600)
-	if err != nil {
-		return errors.Wrapf(err, "Failed to chmod %s", filePath)
-	}
 
 	err = f.Truncate(sizeBytes)
 	if err != nil {
