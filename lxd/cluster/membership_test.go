@@ -327,7 +327,7 @@ func TestJoin(t *testing.T) {
 	assert.Equal(t, db.RaftStandBy, raftNodes[1].Role)
 
 	// The List function returns all nodes in the cluster.
-	nodes, err := cluster.List(state)
+	nodes, err := cluster.List(state, gateway)
 	require.NoError(t, err)
 	assert.Len(t, nodes, 2)
 	assert.Equal(t, "Online", nodes[0].Status)
