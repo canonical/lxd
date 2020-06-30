@@ -168,8 +168,8 @@ func SetupTrust(cert, targetAddress, targetCert, targetPassword string) error {
 	return nil
 }
 
-// Probe network connectivity to the member with the given address.
-func hasConnectivity(cert *shared.CertInfo, address string) bool {
+// HasConnectivity probes the member with the given address for connectivity.
+func HasConnectivity(cert *shared.CertInfo, address string) bool {
 	config, err := tlsClientConfig(cert)
 	if err != nil {
 		return false

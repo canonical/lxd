@@ -486,100 +486,35 @@ func Rebalance(state *state.State, gateway *Gateway) (string, []db.RaftNode, err
 		return "", nil, nil
 	}
 
-	// First get the current raft members, since this method should be
-	// called after a node has left.
-	currentRaftNodes, err := gateway.currentRaftNodes()
+	nodes, err := gateway.currentRaftNodes()
 	if err != nil {
-		return "", nil, errors.Wrap(err, "failed to get current raft nodes")
+		return "", nil, errors.Wrap(err, "Get current raft nodes")
 	}
 
-	// Fetch the nodes from the database, to get their last heartbeat
-	// timestamp and check whether they are offline.
-	var maxVoters int64
-	var maxStandBy int64
-	err = state.Cluster.Transaction(func(tx *db.ClusterTx) error {
-		config, err := ConfigLoad(tx)
-		if err != nil {
-			return errors.Wrap(err, "failed load cluster configuration")
-		}
-		maxVoters = config.MaxVoters()
-		maxStandBy = config.MaxStandBy()
-		return nil
-	})
+	roles, err := newRolesChanges(state, gateway, nodes)
 	if err != nil {
 		return "", nil, err
 	}
 
-	// Group by role. If a node is offline, we'll try to demote it right
-	// away.
-	voters := make([]string, 0)
-	standbys := make([]string, 0)
-	candidates := make([]string, 0)
-	for i, info := range currentRaftNodes {
-		if !hasConnectivity(gateway.cert, info.Address) {
-			if info.Role != db.RaftSpare {
-				client, err := gateway.getClient()
-				if err != nil {
-					return "", nil, errors.Wrap(err, "Failed to connect to local dqlite node")
-				}
-				defer client.Close()
-				ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-				defer cancel()
-				logger.Infof("Demote offline node %s to spare", info.Address)
-				err = client.Assign(ctx, info.ID, db.RaftSpare)
-				if err != nil {
-					return "", nil, errors.Wrap(err, "Failed to demote offline node")
-				}
-				currentRaftNodes[i].Role = db.RaftSpare
-			}
-			continue
-		}
+	role, candidates := roles.Adjust(gateway.info.ID)
 
-		switch info.Role {
-		case db.RaftVoter:
-			voters = append(voters, info.Address)
-		case db.RaftStandBy:
-			standbys = append(standbys, info.Address)
-		case db.RaftSpare:
-			candidates = append(candidates, info.Address)
-		}
-	}
-
-	var role db.RaftRole
-
-	if len(voters) < int(maxVoters) && len(currentRaftNodes) >= 3 {
-		role = db.RaftVoter
-		// Include stand-by nodes among the ones that can be promoted,
-		// preferring them over spare ones.
-		candidates = append(standbys, candidates...)
-	} else if len(standbys) < int(maxStandBy) {
-		role = db.RaftStandBy
-	} else {
-		// We're already at full capacity or would have a two-member cluster.
-		return "", nil, nil
+	if role == -1 {
+		// No node to promote
+		return "", nodes, nil
 	}
 
 	// Check if we have a spare node that we can promote to the missing role.
-	address := ""
-	for _, candidate := range candidates {
-		logger.Infof("Found spare node %s to be promoted to %s", candidate, role)
-		address = candidate
-		break
-	}
+	address := candidates[0].Address
+	logger.Infof("Found node %s whose role needs to be changed to %s", address, role)
 
-	if address == "" {
-		// No node to promote
-		return "", currentRaftNodes, nil
-	}
-
-	for i, node := range currentRaftNodes {
+	for i, node := range nodes {
 		if node.Address == address {
-			currentRaftNodes[i].Role = role
+			nodes[i].Role = role
 			break
 		}
 	}
 
-	return address, currentRaftNodes, nil
+	return address, nodes, nil
 }
 
 // Assign a new role to the local dqlite node.
@@ -882,7 +817,7 @@ func newRolesChanges(state *state.State, gateway *Gateway, nodes []db.RaftNode) 
 	cluster := map[client.NodeInfo]*client.NodeMetadata{}
 
 	for _, node := range nodes {
-		if hasConnectivity(gateway.cert, node.Address) {
+		if HasConnectivity(gateway.cert, node.Address) {
 			cluster[node] = &client.NodeMetadata{}
 		} else {
 			cluster[node] = nil
