@@ -840,7 +840,7 @@ func clusterAcceptMember(
 func clusterNodesGet(d *Daemon, r *http.Request) response.Response {
 	recursion := util.IsRecursionRequest(r)
 
-	nodes, err := cluster.List(d.State())
+	nodes, err := cluster.List(d.State(), d.gateway)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -863,7 +863,7 @@ func clusterNodesGet(d *Daemon, r *http.Request) response.Response {
 func clusterNodeGet(d *Daemon, r *http.Request) response.Response {
 	name := mux.Vars(r)["name"]
 
-	nodes, err := cluster.List(d.State())
+	nodes, err := cluster.List(d.State(), d.gateway)
 	if err != nil {
 		return response.SmartError(err)
 	}

@@ -81,12 +81,6 @@ func Bootstrap(state *state.State, gateway *Gateway, name string) error {
 			return errors.Wrap(err, "failed to update cluster node")
 		}
 
-		// Update our role list.
-		err = tx.CreateNodeRole(1, db.ClusterRoleDatabase)
-		if err != nil {
-			return errors.Wrapf(err, "Failed to add database role for the node")
-		}
-
 		return nil
 	})
 	if err != nil {
@@ -446,14 +440,6 @@ func Join(state *state.State, gateway *Gateway, cert *shared.CertInfo, name stri
 			return errors.Wrapf(err, "failed to unmark the node as pending")
 		}
 
-		// Update our role list if needed.
-		if info.Role == db.RaftVoter {
-			err = tx.CreateNodeRole(node.ID, db.ClusterRoleDatabase)
-			if err != nil {
-				return errors.Wrapf(err, "Failed to add database role for the node")
-			}
-		}
-
 		// Generate partial heartbeat request containing just a raft node list.
 		notifyNodesUpdate(raftNodes, info.ID, cert)
 
@@ -552,14 +538,6 @@ func Rebalance(state *state.State, gateway *Gateway) (string, []db.RaftNode, err
 				err = client.Assign(ctx, info.ID, db.RaftSpare)
 				if err != nil {
 					return "", nil, errors.Wrap(err, "Failed to demote offline node")
-				}
-				if info.Role == db.RaftVoter {
-					err := state.Cluster.Transaction(func(tx *db.ClusterTx) error {
-						return tx.RemoveNodeRole(node.ID, db.ClusterRoleDatabase)
-					})
-					if err != nil {
-						return "", nil, errors.Wrap(err, "Failed to update node role")
-					}
 				}
 				currentRaftNodes[i].Role = db.RaftSpare
 			}
@@ -762,19 +740,9 @@ assign:
 
 	gateway.info = info
 
-	// Unlock regular access to our cluster database and add the database role.
+	// Unlock regular access to our cluster database.
 	err = transactor(func(tx *db.ClusterTx) error {
-		var f func(id int64, role db.ClusterRole) error
-		if info.Role == db.RaftVoter {
-			f = tx.CreateNodeRole
-		} else {
-			f = tx.RemoveNodeRole
-		}
-		err = f(state.Cluster.GetNodeID(), db.ClusterRoleDatabase)
-		if err != nil {
-			return errors.Wrapf(err, "Failed to change role for the node")
-		}
-		return err
+		return nil
 	})
 	if err != nil {
 		return errors.Wrap(err, "Cluster database initialization failed")
@@ -930,7 +898,7 @@ func Purge(cluster *db.Cluster, name string) error {
 }
 
 // List the nodes of the cluster.
-func List(state *state.State) ([]api.ClusterMember, error) {
+func List(state *state.State, gateway *Gateway) ([]api.ClusterMember, error) {
 	var err error
 	var nodes []db.NodeInfo
 	var offlineThreshold time.Duration
@@ -952,14 +920,46 @@ func List(state *state.State) ([]api.ClusterMember, error) {
 		return nil, err
 	}
 
+	store := gateway.NodeStore()
+	dial := gateway.DialFunc()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	cli, err := client.FindLeader(ctx, store, client.WithDialFunc(dial))
+	if err != nil {
+		return nil, err
+	}
+	defer cli.Close()
+
+	raftNodes, err := cli.Cluster(ctx)
+	if err != nil {
+		return nil, err
+	}
+	raftRoles := map[string]client.NodeRole{} // Address to role
+	for _, node := range raftNodes {
+		address := node.Address
+		if address == "1" {
+			addr, err := gateway.raftAddress(1)
+			if err != nil {
+				return nil, err
+			}
+			address = string(addr)
+		}
+		raftRoles[address] = node.Role
+	}
+
 	result := make([]api.ClusterMember, len(nodes))
 	now := time.Now()
 	version := nodes[0].Version()
 	for i, node := range nodes {
 		result[i].ServerName = node.Name
 		result[i].URL = fmt.Sprintf("https://%s", node.Address)
-		result[i].Database = shared.StringInSlice(string(db.ClusterRoleDatabase), node.Roles)
+		result[i].Database = raftRoles[node.Address] == db.RaftVoter
 		result[i].Roles = node.Roles
+		if result[i].Database {
+			result[i].Roles = append(result[i].Roles, string(db.ClusterRoleDatabase))
+		}
 		result[i].Architecture, err = osarch.ArchitectureName(node.Architecture)
 		if err != nil {
 			return nil, err
