@@ -97,6 +97,7 @@ var patches = []patch{
 	{name: "storage_zfs_volmode", stage: patchPostDaemonStorage, run: patchGenericStorage},
 	{name: "storage_rename_custom_volume_add_project", stage: patchPreDaemonStorage, run: patchGenericStorage},
 	{name: "storage_lvm_skipactivation", stage: patchPostDaemonStorage, run: patchGenericStorage},
+	{name: "clustering_drop_database_role", stage: patchPostDaemonStorage, run: patchClusteringDropDatabaseRole},
 }
 
 type patch struct {
@@ -3473,6 +3474,22 @@ func patchClusteringAddRoles(name string, d *Daemon) error {
 	}
 
 	return nil
+}
+
+func patchClusteringDropDatabaseRole(name string, d *Daemon) error {
+	return d.State().Cluster.Transaction(func(tx *db.ClusterTx) error {
+		nodes, err := tx.GetNodes()
+		if err != nil {
+			return err
+		}
+		for _, node := range nodes {
+			err := tx.UpdateNodeRoles(node.ID, nil)
+			if err != nil {
+				return err
+			}
+		}
+		return nil
+	})
 }
 
 // Patches end here
