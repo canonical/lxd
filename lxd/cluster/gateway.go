@@ -403,14 +403,11 @@ func (g *Gateway) DialFunc() client.DialFunc {
 // Dial function for establishing raft connections.
 func (g *Gateway) raftDial() client.DialFunc {
 	return func(ctx context.Context, address string) (net.Conn, error) {
-		if address == "1" {
-			addr, err := g.raftAddress(1)
-			if err != nil {
-				return nil, err
-			}
-			address = string(addr)
+		nodeAddress, err := g.nodeAddress(address)
+		if err != nil {
+			return nil, err
 		}
-		conn, err := dqliteNetworkDial(ctx, address, g)
+		conn, err := dqliteNetworkDial(ctx, nodeAddress, g)
 		if err != nil {
 			return nil, err
 		}
@@ -480,7 +477,7 @@ func (g *Gateway) TransferLeadership() error {
 		if server.ID == g.info.ID || server.Role != db.RaftVoter {
 			continue
 		}
-		address, err := g.raftAddress(server.ID)
+		address, err := g.nodeAddress(server.Address)
 		if err != nil {
 			return err
 		}
@@ -851,28 +848,35 @@ func (g *Gateway) currentRaftNodes() ([]db.RaftNode, error) {
 		return nil, err
 	}
 	for i, server := range servers {
-		address, err := g.raftAddress(server.ID)
+		address, err := g.nodeAddress(server.Address)
 		if err != nil {
-			if err != db.ErrNoSuchObject {
-				return nil, errors.Wrap(err, "Failed to fetch raft server address")
-			}
-			// Use the initial address as fallback. This is an edge
-			// case that happens when a new leader is elected and
-			// its raft_nodes table is not fully up-to-date yet.
-			address = server.Address
+			return nil, errors.Wrap(err, "Failed to fetch raft server address")
 		}
 		servers[i].Address = address
 	}
 	return servers, nil
 }
 
-// Look up a server address in the raft_nodes table.
-func (g *Gateway) raftAddress(databaseID uint64) (string, error) {
+// Translate a raft address to a node address. They are always the same except
+// for the bootstrap node, which has address "1".
+func (g *Gateway) nodeAddress(raftAddress string) (string, error) {
+	if raftAddress != "1" {
+		return raftAddress, nil
+	}
 	var address string
 	err := g.db.Transaction(func(tx *db.NodeTx) error {
 		var err error
-		address, err = tx.GetRaftNodeAddress(int64(databaseID))
-		return err
+		address, err = tx.GetRaftNodeAddress(1)
+		if err != nil {
+			if err != db.ErrNoSuchObject {
+				return errors.Wrap(err, "Failed to fetch raft server address")
+			}
+			// Use the initial address as fallback. This is an edge
+			// case that happens when listing members on a
+			// non-clustered node.
+			address = raftAddress
+		}
+		return nil
 	})
 	if err != nil {
 		return "", err
