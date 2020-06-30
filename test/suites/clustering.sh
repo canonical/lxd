@@ -1673,7 +1673,7 @@ test_clustering_handover() {
 
   LXD_DIR="${LXD_THREE_DIR}" lxc cluster list
 
-  # Respawn the first node, which is now a stand-by, and the second node, which
+  # Respawn the first node, which is now a spare, and the second node, which
   # is still a voter.
   respawn_lxd_cluster_member "${ns1}" "${LXD_ONE_DIR}"
   respawn_lxd_cluster_member "${ns2}" "${LXD_TWO_DIR}"
@@ -1687,14 +1687,13 @@ test_clustering_handover() {
   wait "$pid1"
   wait "$pid2"
 
-  # Wait some time to allow for a leadership change.
-  sleep 10
+  # Bringing back one of them restore the quorum.
+  respawn_lxd_cluster_member "${ns2}" "${LXD_TWO_DIR}"
 
-  # The first node has been promoted back to voter, and since the fourth node is
-  # still up, the cluster is online.
   LXD_DIR="${LXD_ONE_DIR}" lxc cluster list
 
   LXD_DIR="${LXD_ONE_DIR}" lxd shutdown
+  LXD_DIR="${LXD_TWO_DIR}" lxd shutdown
   LXD_DIR="${LXD_FOUR_DIR}" lxd shutdown
   sleep 0.5
   rm -f "${LXD_ONE_DIR}/unix.socket"
@@ -1757,8 +1756,8 @@ test_clustering_rebalance() {
   LXD_DIR="${LXD_ONE_DIR}" lxc config set cluster.offline_threshold 12
   kill -9 "$(cat "${LXD_TWO_DIR}/lxd.pid")"
 
-  # Wait for the second node to be considered offline. We need at most 2 full
-  # hearbeats.
+  # Wait for the second node to be considered offline and be replaced by the
+  # fourth node.
   sleep 25
 
   # The second node is offline and has been demoted.
