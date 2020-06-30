@@ -25,9 +25,11 @@ type ClusterRole string
 const ClusterRoleDatabase = ClusterRole("database")
 
 // ClusterRoles maps role ids into human-readable names.
-var ClusterRoles = map[int]ClusterRole{
-	0: ClusterRoleDatabase,
-}
+//
+// Note: the database role is currently stored directly in the raft
+// configuration which acts as single source of truth for it. This map should
+// only contain LXD-specific cluster roles.
+var ClusterRoles = map[int]ClusterRole{}
 
 // NodeInfo holds information about a single LXD instance in a cluster.
 type NodeInfo struct {

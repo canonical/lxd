@@ -97,6 +97,7 @@ var patches = []patch{
 	{name: "storage_zfs_volmode", stage: patchPostDaemonStorage, run: patchGenericStorage},
 	{name: "storage_rename_custom_volume_add_project", stage: patchPreDaemonStorage, run: patchGenericStorage},
 	{name: "storage_lvm_skipactivation", stage: patchPostDaemonStorage, run: patchGenericStorage},
+	{name: "clustering_drop_database_role", stage: patchPostDaemonStorage, run: patchClusteringDropDatabaseRole},
 }
 
 type patch struct {
@@ -3424,55 +3425,23 @@ func patchStorageApiUpdateContainerSnapshots(name string, d *Daemon) error {
 }
 
 func patchClusteringAddRoles(name string, d *Daemon) error {
-	addresses := []string{}
-	err := d.State().Node.Transaction(func(tx *db.NodeTx) error {
-		nodes, err := tx.GetRaftNodes()
-		if err != nil {
-			return errors.Wrap(err, "Failed to fetch current raft nodes")
-		}
+	return nil
+}
 
-		for _, node := range nodes {
-			addresses = append(addresses, node.Address)
-		}
-
-		return nil
-	})
-	if err != nil {
-		return err
-	}
-
-	var nodes []db.NodeInfo
-	err = d.State().Cluster.Transaction(func(tx *db.ClusterTx) error {
-		nodes, err = tx.GetNodes()
+func patchClusteringDropDatabaseRole(name string, d *Daemon) error {
+	return d.State().Cluster.Transaction(func(tx *db.ClusterTx) error {
+		nodes, err := tx.GetNodes()
 		if err != nil {
 			return err
 		}
-
 		for _, node := range nodes {
-			if node.Address == "0.0.0.0" {
-				continue
-			}
-
-			if shared.StringInSlice(node.Address, addresses) && !shared.StringInSlice(string(db.ClusterRoleDatabase), node.Roles) {
-				err = tx.CreateNodeRole(node.ID, db.ClusterRoleDatabase)
-				if err != nil {
-					return err
-				}
-			} else if shared.StringInSlice(string(db.ClusterRoleDatabase), node.Roles) {
-				err = tx.RemoveNodeRole(node.ID, db.ClusterRoleDatabase)
-				if err != nil {
-					return err
-				}
+			err := tx.UpdateNodeRoles(node.ID, nil)
+			if err != nil {
+				return err
 			}
 		}
-
 		return nil
 	})
-	if err != nil {
-		return err
-	}
-
-	return nil
 }
 
 // Patches end here
