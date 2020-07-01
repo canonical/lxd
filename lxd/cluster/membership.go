@@ -938,13 +938,9 @@ func List(state *state.State, gateway *Gateway) ([]api.ClusterMember, error) {
 	}
 	raftRoles := map[string]client.NodeRole{} // Address to role
 	for _, node := range raftNodes {
-		address := node.Address
-		if address == "1" {
-			addr, err := gateway.raftAddress(1)
-			if err != nil {
-				return nil, err
-			}
-			address = string(addr)
+		address, err := gateway.nodeAddress(node.Address)
+		if err != nil {
+			return nil, err
 		}
 		raftRoles[address] = node.Role
 	}
