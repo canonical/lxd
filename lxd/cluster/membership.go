@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"time"
 
+	"github.com/canonical/go-dqlite/app"
 	"github.com/canonical/go-dqlite/client"
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/db/cluster"
@@ -839,38 +840,77 @@ func Leave(state *state.State, gateway *Gateway, name string, force bool) (strin
 func Handover(state *state.State, gateway *Gateway, address string) (string, []db.RaftNode, error) {
 	nodes, err := gateway.currentRaftNodes()
 	if err != nil {
-		return "", nil, errors.Wrap(err, "Failed to get current raft nodes")
+		return "", nil, errors.Wrap(err, "Get current raft nodes")
 	}
 
-	// If the member which is shutting down is not a voter, there's nothing
-	// to do.
-	found := false
+	var nodeID uint64
 	for _, node := range nodes {
-		if node.Address != address {
-			continue
+		if node.Address == address {
+			nodeID = node.ID
 		}
-		if node.Role != db.RaftVoter {
-			return "", nil, nil
-		}
-		found = true
-		break
+
 	}
-	if !found {
+	if nodeID == 0 {
 		return "", nil, errors.Wrapf(err, "No dqlite node has address %s", address)
 	}
 
+	roles, err := newRolesChanges(state, gateway, nodes)
+	if err != nil {
+		return "", nil, err
+	}
+	role, candidates := roles.Handover(nodeID)
+
+	if role != db.RaftVoter {
+		return "", nil, nil
+	}
+
 	for i, node := range nodes {
-		if node.Role == db.RaftVoter || node.Address == address {
-			continue
+		if node.Address == candidates[0].Address {
+			nodes[i].Role = role
+			return node.Address, nodes, nil
 		}
-		if !hasConnectivity(gateway.cert, node.Address) {
-			continue
-		}
-		nodes[i].Role = db.RaftVoter
-		return node.Address, nodes, nil
 	}
 
 	return "", nil, nil
+}
+
+// Build an app.RolesChanges object feeded with the current cluster state.
+func newRolesChanges(state *state.State, gateway *Gateway, nodes []db.RaftNode) (*app.RolesChanges, error) {
+	var maxVoters int
+	var maxStandBy int
+	err := state.Cluster.Transaction(func(tx *db.ClusterTx) error {
+		config, err := ConfigLoad(tx)
+		if err != nil {
+			return errors.Wrap(err, "Load cluster configuration")
+		}
+		maxVoters = int(config.MaxVoters())
+		maxStandBy = int(config.MaxStandBy())
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	cluster := map[client.NodeInfo]*client.NodeMetadata{}
+
+	for _, node := range nodes {
+		if hasConnectivity(gateway.cert, node.Address) {
+			cluster[node] = &client.NodeMetadata{}
+		} else {
+			cluster[node] = nil
+		}
+
+	}
+
+	roles := &app.RolesChanges{
+		Config: app.RolesConfig{
+			Voters:   maxVoters,
+			StandBys: maxStandBy,
+		},
+		State: cluster,
+	}
+
+	return roles, nil
 }
 
 // Purge removes a node entirely from the cluster database.
