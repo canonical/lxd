@@ -615,15 +615,31 @@ assign:
 
 	client, err := client.FindLeader(ctx, gateway.NodeStore(), client.WithDialFunc(gateway.raftDial()))
 	if err != nil {
-		return errors.Wrap(err, "Failed to connect to cluster leader")
+		return errors.Wrap(err, "Connect to cluster leader")
 	}
 	defer client.Close()
 
-	// If we're stepping back to spare, let's first transition to stand-by
-	// and wait for the configuration change to be notified to us. This
-	// prevent us from thinking we're still voters and potentially disrupt
-	// the cluster.
-	if info.Role == db.RaftSpare {
+	// Figure out our current role.
+	role := db.RaftRole(-1)
+	cluster, err := client.Cluster(ctx)
+	if err != nil {
+		return errors.Wrap(err, "Fetch current cluster configuration")
+	}
+	for _, server := range cluster {
+		if server.ID == info.ID {
+			role = server.Role
+			break
+		}
+	}
+	if role == -1 {
+		return fmt.Errorf("Node %s does not belong to the current raft configuration", address)
+	}
+
+	// If we're stepping back from voter to spare, let's first transition
+	// to stand-by first and wait for the configuration change to be
+	// notified to us. This prevent us from thinking we're still voters and
+	// potentially disrupt the cluster.
+	if role == db.RaftVoter && info.Role == db.RaftSpare {
 		err = client.Assign(ctx, info.ID, db.RaftStandBy)
 		if err != nil {
 			return errors.Wrap(err, "Failed to step back to stand-by")
@@ -788,9 +804,9 @@ func Handover(state *state.State, gateway *Gateway, address string) (string, []d
 	if err != nil {
 		return "", nil, err
 	}
-	role, candidates := roles.Handover(nodeID)
 
-	if role != db.RaftVoter {
+	role, candidates := roles.Handover(nodeID)
+	if role == -1 {
 		return "", nil, nil
 	}
 
