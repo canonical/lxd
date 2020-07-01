@@ -657,6 +657,13 @@ assign:
 		}
 	}
 
+	// Give the Assign operation a bit more budget in case we're promoting
+	// to voter, since that might require a snapshot transfer.
+	if info.Role == db.RaftVoter {
+		ctx, cancel = context.WithTimeout(context.Background(), 20*time.Second)
+		defer cancel()
+	}
+
 	err = client.Assign(ctx, info.ID, info.Role)
 	if err != nil {
 		return errors.Wrap(err, "Failed to assign role")
