@@ -1199,9 +1199,7 @@ func internalClusterPostRebalance(d *Daemon, r *http.Request) response.Response 
 // Check if there's a dqlite node whose role should be changed, and post a
 // change role request if so.
 func rebalanceMemberRoles(d *Daemon) error {
-	logger.Debugf("Rebalance cluster")
-
-	// Check if we have a spare node to promote.
+again:
 	address, nodes, err := cluster.Rebalance(d.State(), d.gateway)
 	if err != nil {
 		return err
@@ -1212,13 +1210,31 @@ func rebalanceMemberRoles(d *Daemon) error {
 		return nil
 	}
 
+	// Process demotions of offline nodes immediately.
+	for _, node := range nodes {
+		if node.Address != address || node.Role != db.RaftSpare {
+			continue
+		}
+
+		if cluster.HasConnectivity(d.endpoints.NetworkCert(), address) {
+			break
+		}
+
+		err := d.gateway.DemoteOfflineNode(node.ID)
+		if err != nil {
+			return errors.Wrapf(err, "Demote offline node %s", node.Address)
+		}
+
+		goto again
+	}
+
 	// Tell the node to promote itself.
 	err = changeMemberRole(d, address, nodes)
 	if err != nil {
 		return err
 	}
 
-	return nil
+	goto again
 }
 
 // Post a change role request to the member with the given address. The nodes

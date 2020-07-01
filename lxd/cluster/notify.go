@@ -73,7 +73,7 @@ func NewNotifier(state *state.State, cert *shared.CertInfo, policy NotifierPolic
 			// enough, let's try to connect to the node, just in
 			// case the heartbeat is lagging behind for some reason
 			// and the node is actually up.
-			if !hasConnectivity(cert, node.Address) {
+			if !HasConnectivity(cert, node.Address) {
 				switch policy {
 				case NotifyAll:
 					return nil, fmt.Errorf("peer node %s is down", node.Address)
