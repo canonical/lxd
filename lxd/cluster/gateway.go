@@ -481,7 +481,7 @@ func (g *Gateway) TransferLeadership() error {
 		if err != nil {
 			return err
 		}
-		if !hasConnectivity(g.cert, address) {
+		if !HasConnectivity(g.cert, address) {
 			continue
 		}
 		id = server.ID
@@ -496,6 +496,24 @@ func (g *Gateway) TransferLeadership() error {
 	defer cancel()
 
 	return client.Transfer(ctx, id)
+}
+
+// DemoteOfflineNode force demoting an offline node.
+func (g *Gateway) DemoteOfflineNode(raftID uint64) error {
+	cli, err := g.getClient()
+	if err != nil {
+		return errors.Wrap(err, "Connect to local dqlite node")
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	err = cli.Assign(ctx, raftID, db.RaftSpare)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 // Shutdown this gateway, stopping the gRPC server and possibly the raft factory.
