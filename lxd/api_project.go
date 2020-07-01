@@ -112,20 +112,9 @@ func projectsPost(d *Daemon, r *http.Request) response.Response {
 	}
 
 	// Sanity checks
-	if project.Name == "" {
-		return response.BadRequest(fmt.Errorf("No name provided"))
-	}
-
-	if strings.Contains(project.Name, "/") {
-		return response.BadRequest(fmt.Errorf("Project names may not contain slashes"))
-	}
-
-	if project.Name == "*" {
-		return response.BadRequest(fmt.Errorf("Reserved project name"))
-	}
-
-	if shared.StringInSlice(project.Name, []string{".", ".."}) {
-		return response.BadRequest(fmt.Errorf("Invalid project name '%s'", project.Name))
+	err = projectValidateName(project.Name)
+	if err != nil {
+		return response.BadRequest(err)
 	}
 
 	// Validate the configuration
@@ -442,6 +431,11 @@ func projectPost(d *Daemon, r *http.Request) response.Response {
 				return errors.Wrapf(err, "Fetch project id %q", name)
 			}
 
+			err = projectValidateName(name)
+			if err != nil {
+				return err
+			}
+
 			return tx.RenameProject(name, req.Name)
 		})
 		if err != nil {
@@ -572,6 +566,30 @@ func projectValidateConfig(config map[string]string) error {
 		if err != nil {
 			return err
 		}
+	}
+
+	return nil
+}
+
+func projectValidateName(name string) error {
+	if name == "" {
+		return fmt.Errorf("No name provided")
+	}
+
+	if strings.Contains(name, "/") {
+		return fmt.Errorf("Project names may not contain slashes")
+	}
+
+	if strings.Contains(name, " ") {
+		return fmt.Errorf("Project names may not contain spaces")
+	}
+
+	if name == "*" {
+		return fmt.Errorf("Reserved project name")
+	}
+
+	if shared.StringInSlice(name, []string{".", ".."}) {
+		return fmt.Errorf("Invalid project name '%s'", name)
 	}
 
 	return nil
