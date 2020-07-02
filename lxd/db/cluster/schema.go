@@ -311,8 +311,14 @@ CREATE TABLE nodes (
     heartbeat DATETIME DEFAULT CURRENT_TIMESTAMP,
     pending INTEGER NOT NULL DEFAULT 0,
     arch INTEGER NOT NULL DEFAULT 0 CHECK (arch > 0),
+    failure_domain_id INTEGER DEFAULT NULL REFERENCES nodes_failure_domains (id) ON DELETE SET NULL,
     UNIQUE (name),
     UNIQUE (address)
+);
+CREATE TABLE nodes_failure_domains (
+    id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+    name TEXT NOT NULL,
+    UNIQUE (name)
 );
 CREATE TABLE nodes_roles (
     node_id INTEGER NOT NULL,
@@ -565,5 +571,5 @@ CREATE TABLE storage_volumes_snapshots_config (
     UNIQUE (storage_volume_snapshot_id, key)
 );
 
-INSERT INTO schema (version, updated_at) VALUES (31, strftime("%s"))
+INSERT INTO schema (version, updated_at) VALUES (32, strftime("%s"))
 `

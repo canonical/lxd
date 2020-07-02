@@ -68,6 +68,26 @@ var updates = map[int]schema.Update{
 	29: updateFromV28,
 	30: updateFromV29,
 	31: updateFromV30,
+	32: updateFromV31,
+}
+
+// Add failure_domain column to nodes table.
+func updateFromV31(tx *sql.Tx) error {
+	stmts := `
+CREATE TABLE nodes_failure_domains (
+    id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+    name TEXT NOT NULL,
+    UNIQUE (name)
+);
+ALTER TABLE nodes
+ ADD COLUMN failure_domain_id INTEGER DEFAULT NULL REFERENCES nodes_failure_domains (id) ON DELETE SET NULL;
+`
+	_, err := tx.Exec(stmts)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 // Add content type field to storage volumes
