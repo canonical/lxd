@@ -44,7 +44,7 @@ func LocalCopy(source string, dest string, bwlimit string, xattrs bool, rsyncArg
 	}
 
 	if xattrs {
-		args = append(args, "--xattrs")
+		args = append(args, "--xattrs", "--filter=-x security.selinux")
 	}
 
 	if bwlimit != "" {
@@ -355,7 +355,7 @@ func Recv(path string, conn io.ReadWriteCloser, tracker *ioprogress.ProgressTrac
 func rsyncFeatureArgs(features []string) []string {
 	args := []string{}
 	if shared.StringInSlice("xattrs", features) {
-		args = append(args, "--xattrs")
+		args = append(args, "--xattrs", "--filter=-x security.selinux")
 	}
 
 	if shared.StringInSlice("delete", features) {

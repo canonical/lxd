@@ -77,7 +77,7 @@ func rsyncSendSetup(path string, rsyncArgs string) (*exec.Cmd, net.Conn, io.Read
 		"--numeric-ids",
 		"--partial",
 		"--sparse",
-		"--xattrs",
+		"--xattrs", "--filter=-x security.selinux",
 		"--delete",
 		"--compress",
 		"--compress-level=2",
