@@ -1093,3 +1093,8 @@ The 5 entities that have UsedBy are:
 
 This adds support for creating and attaching custom block volumes to instances.
 It introduces the new `--type` flag when creating custom storage volumes, and accepts the values `fs` and `block`.
+
+## clustering\_failure\_domains
+
+This extension adds a new `failure_domain` field to the `PUT /1.0/cluster/<node>` API,
+which can be used to set the failure domain of a node.

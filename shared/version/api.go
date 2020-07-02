@@ -216,6 +216,7 @@ var APIExtensions = []string{
 	"network_state_bond_bridge",
 	"usedby_consistency",
 	"custom_block_volumes",
+	"clustering_failure_domains",
 }
 
 // APIExtensionsCount returns the number of available API extensions.
