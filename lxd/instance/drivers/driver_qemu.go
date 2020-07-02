@@ -2577,8 +2577,130 @@ func (vm *qemu) Rename(newName string) error {
 
 // Update the instance config.
 func (vm *qemu) Update(args db.InstanceArgs, userRequested bool) error {
+	// Only user.* keys can be changed on a running VM
 	if vm.IsRunning() {
-		return fmt.Errorf("Update whilst running not supported")
+		if args.Config == nil {
+			args.Config = map[string]string{}
+		}
+
+		if userRequested {
+			// Validate the new config.
+			err := instance.ValidConfig(vm.state.OS, args.Config, false, false)
+			if err != nil {
+				return errors.Wrap(err, "Invalid config")
+			}
+		}
+
+		oldExpandedConfig := map[string]string{}
+		err := shared.DeepCopy(&vm.expandedConfig, &oldExpandedConfig)
+		if err != nil {
+			return err
+		}
+
+		oldLocalConfig := map[string]string{}
+		err = shared.DeepCopy(&vm.localConfig, &oldLocalConfig)
+		if err != nil {
+			return err
+		}
+
+		undoChanges := true
+		defer func() {
+			if undoChanges {
+				vm.expandedConfig = oldExpandedConfig
+				vm.localConfig = oldLocalConfig
+			}
+		}()
+
+		vm.localConfig = args.Config
+
+		// Expand the config and refresh the LXC config.
+		err = vm.expandConfig(nil)
+		if err != nil {
+			return errors.Wrap(err, "Expand config")
+		}
+
+		// Diff the configurations.
+		changedConfig := []string{}
+		for key := range oldExpandedConfig {
+			if oldExpandedConfig[key] != vm.expandedConfig[key] {
+				if !shared.StringInSlice(key, changedConfig) {
+					changedConfig = append(changedConfig, key)
+				}
+			}
+		}
+
+		for key := range vm.expandedConfig {
+			if oldExpandedConfig[key] != vm.expandedConfig[key] {
+				if !shared.StringInSlice(key, changedConfig) {
+					changedConfig = append(changedConfig, key)
+				}
+			}
+		}
+
+		for _, key := range changedConfig {
+			if !strings.HasPrefix(key, "user.") {
+				return fmt.Errorf("Only user.* keys can be updated on running VMs")
+			}
+		}
+
+		if userRequested {
+			// Do some validation of the config diff.
+			err = instance.ValidConfig(vm.state.OS, vm.expandedConfig, false, true)
+			if err != nil {
+				return errors.Wrap(err, "Invalid expanded config")
+			}
+		}
+
+		err = vm.state.Cluster.Transaction(func(tx *db.ClusterTx) error {
+			object, err := tx.GetInstance(vm.project, vm.name)
+			if err != nil {
+				return err
+			}
+
+			object.Config = vm.localConfig
+
+			return tx.UpdateInstance(vm.project, vm.name, *object)
+		})
+		if err != nil {
+			return errors.Wrap(err, "Failed to update database")
+		}
+
+		err = vm.UpdateBackupFile()
+		if err != nil && !os.IsNotExist(err) {
+			return errors.Wrap(err, "Failed to write backup file")
+		}
+
+		// Success, update the closure to mark that the changes should be kept.
+		undoChanges = false
+
+		err = vm.writeInstanceData()
+		if err != nil {
+			return errors.Wrap(err, "Failed to write instance-data file")
+		}
+
+		// Send devlxd notifications only for user.* key changes
+		for _, key := range changedConfig {
+			if !strings.HasPrefix(key, "user.") {
+				continue
+			}
+
+			msg := map[string]string{
+				"key":       key,
+				"old_value": oldExpandedConfig[key],
+				"value":     vm.expandedConfig[key],
+			}
+
+			err = vm.devlxdEventSend("config", msg)
+			if err != nil {
+				return err
+			}
+		}
+
+		endpoint := fmt.Sprintf("/1.0/virtual-machines/%s", vm.name)
+
+		vm.state.Events.SendLifecycle(vm.project, "virtual-machine-updated", endpoint, nil)
+
+		return nil
 	}
 
 	// Set sane defaults for unset keys.
@@ -4595,6 +4717,47 @@ func (vm *qemu) cpuTopology(limit string) (int, int, int, map[uint64]uint64, map
 
 	return nrSockets, nrCores, nrThreads, vcpus, numaNodes, nil
 }
+
+func (vm *qemu) expandConfig(profiles []api.Profile) error {
+	if profiles == nil && len(vm.profiles) > 0 {
+		var err error
+		profiles, err = vm.state.Cluster.GetProfiles(vm.project, vm.profiles)
+		if err != nil {
+			return err
+		}
+	}
+
+	vm.expandedConfig = db.ExpandInstanceConfig(vm.localConfig, profiles)
+
+	return nil
+}
+
+func (vm *qemu) devlxdEventSend(eventType string, eventMessage interface{}) error {
+	event := shared.Jmap{}
+	event["type"] = eventType
+	event["timestamp"] = time.Now()
+	event["metadata"] = eventMessage
+
+	client, err := vm.getAgentClient()
+	if err != nil {
+		return err
+	}
+
+	agent, err := lxdClient.ConnectLXDHTTP(nil, client)
+	if err != nil {
+		logger.Errorf("Failed to connect to lxd-agent on %s: %v", vm.Name(), err)
+		return fmt.Errorf("Failed to connect to lxd-agent")
+	}
+	defer agent.Disconnect()
+
+	_, _, err = agent.RawQuery("POST", "/1.0/events", &event, "")
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
 func (vm *qemu) writeInstanceData() error {
 	// Only write instance-data file if security.devlxd is true.
 	if !shared.IsTrue(vm.expandedConfig["security.devlxd"]) {
