@@ -75,4 +75,7 @@ type ClusterMemberPut struct {
 
 	// API extension: clustering_architecture
 	Architecture string `json:"architecture" yaml:"architecture"`
+
+	// API extension: clustering_failure_domains
+	FailureDomain string `json:"failure_domain" yaml:"failure_domain"`
 }
