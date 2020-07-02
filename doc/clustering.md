@@ -217,6 +217,17 @@ transition to the Blocked state, until you upgrade the very last
 one. At that point the blocked nodes will notice that there is no
 out-of-date node left and will become operational again.
 
+### Failure domains
+
+Failure domains can be used to indicate which nodes should be given preference
+when trying to assign roles to a cluster member that has been shutdown or has
+crashed. For example, if a cluster member that currently has the database role
+gets shutdown, LXD will try to assign its database role to another cluster
+member in the same failure domain, if one is available.
+
+To change the failure domain of a cluster member you can use the `lxc cluster
+edit <member>` command line tool, or the `PUT /1.0/cluster/<member>` REST API.
+
 ### Recover from quorum loss
 
 Every LXD cluster has up to 3 members that serve as database nodes. If you
