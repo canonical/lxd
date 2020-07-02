@@ -898,16 +898,32 @@ func List(state *state.State, gateway *Gateway) ([]api.ClusterMember, error) {
 	var err error
 	var nodes []db.NodeInfo
 	var offlineThreshold time.Duration
+	domains := map[string]string{}
 
 	err = state.Cluster.Transaction(func(tx *db.ClusterTx) error {
 		nodes, err = tx.GetNodes()
 		if err != nil {
-			return err
+			return errors.Wrap(err, "Load nodes")
 		}
 
 		offlineThreshold, err = tx.GetNodeOfflineThreshold()
 		if err != nil {
-			return err
+			return errors.Wrap(err, "Load offline threshold config")
+		}
+
+		nodesDomains, err := tx.GetNodesFailureDomains()
+		if err != nil {
+			return errors.Wrap(err, "Load nodes failure domains")
+		}
+
+		domainsNames, err := tx.GetFailureDomainsNames()
+		if err != nil {
+			return errors.Wrap(err, "Load failure domains names")
+		}
+
+		for _, node := range nodes {
+			domainID := nodesDomains[node.Address]
+			domains[node.Address] = domainsNames[domainID]
 		}
 
 		return nil
@@ -956,6 +972,7 @@ func List(state *state.State, gateway *Gateway) ([]api.ClusterMember, error) {
 		if err != nil {
 			return nil, err
 		}
+		result[i].FailureDomain = domains[node.Address]
 
 		if node.IsOffline(offlineThreshold) {
 			result[i].Status = "Offline"
