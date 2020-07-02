@@ -123,7 +123,7 @@ func (c *cmdClusterList) Run(cmd *cobra.Command, args []string) error {
 		if member.Database {
 			database = "YES"
 		}
-		line := []string{member.ServerName, member.URL, database, strings.ToUpper(member.Status), member.Message, member.Architecture}
+		line := []string{member.ServerName, member.URL, database, strings.ToUpper(member.Status), member.Message, member.Architecture, member.FailureDomain}
 		data = append(data, line)
 	}
 	sort.Sort(byName(data))
@@ -135,6 +135,7 @@ func (c *cmdClusterList) Run(cmd *cobra.Command, args []string) error {
 		i18n.G("STATE"),
 		i18n.G("MESSAGE"),
 		i18n.G("ARCHITECTURE"),
+		i18n.G("FAILURE DOMAIN"),
 	}
 
 	return utils.RenderTable(c.flagFormat, header, data, members)
