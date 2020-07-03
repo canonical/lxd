@@ -2,18 +2,21 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"net/http"
 	"strings"
 
 	"github.com/lxc/lxd/lxd/response"
 	"github.com/lxc/lxd/shared"
+	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/logger"
 )
 
 var eventsCmd = APIEndpoint{
 	Path: "events",
 
-	Get: APIEndpointAction{Handler: eventsGet},
+	Get:  APIEndpointAction{Handler: eventsGet},
+	Post: APIEndpointAction{Handler: eventsPost},
 }
 
 type eventsServe struct {
@@ -32,7 +35,8 @@ func (r *eventsServe) String() string {
 func eventsSocket(d *Daemon, r *http.Request, w http.ResponseWriter) error {
 	typeStr := r.FormValue("type")
 	if typeStr == "" {
-		typeStr = "logging,operation,lifecycle"
+		// We add 'config' here to allow listeners on /dev/lxd/sock to receive config changes.
+		typeStr = "logging,operation,lifecycle,config"
 	}
 
 	// Upgrade the connection to websocket
@@ -82,4 +86,20 @@ func eventsSocket(d *Daemon, r *http.Request, w http.ResponseWriter) error {
 
 func eventsGet(d *Daemon, r *http.Request) response.Response {
 	return &eventsServe{req: r, d: d}
+}
+
+func eventsPost(d *Daemon, r *http.Request) response.Response {
+	var event api.Event
+
+	err := json.NewDecoder(r.Body).Decode(&event)
+	if err != nil {
+		return response.InternalError(err)
+	}
+
+	err = d.events.Send("", event.Type, event.Metadata)
+	if err != nil {
+		return response.InternalError(err)
+	}
+
+	return response.SyncResponse(true, nil)
 }
