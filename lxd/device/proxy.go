@@ -439,7 +439,7 @@ func (d *proxy) setupProxyProcInfo() (*proxyProcInfo, error) {
 
 	containerPidFd := -1
 	lxdPidFd := -1
-	var inheritFd []*os.File = nil
+	var inheritFd []*os.File
 	if d.state.OS.PidFds {
 		cPidFd, err := cc.InitPidFd()
 		if err == nil {
