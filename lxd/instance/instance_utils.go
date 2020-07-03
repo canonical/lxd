@@ -124,16 +124,16 @@ func ValidConfig(sysOS *sys.OS, config map[string]string, profile bool, expanded
 	}
 
 	_, rawSeccomp := config["raw.seccomp"]
-	_, whitelist := config["security.syscalls.whitelist"]
-	_, blacklist := config["security.syscalls.blacklist"]
-	blacklistDefault := shared.IsTrue(config["security.syscalls.blacklist_default"])
-	blacklistCompat := shared.IsTrue(config["security.syscalls.blacklist_compat"])
+	_, isAllow := config["security.syscalls.whitelist"]
+	_, isDeny := config["security.syscalls.blacklist"]
+	isDenyDefault := shared.IsTrue(config["security.syscalls.blacklist_default"])
+	isDenyCompat := shared.IsTrue(config["security.syscalls.blacklist_compat"])
 
-	if rawSeccomp && (whitelist || blacklist || blacklistDefault || blacklistCompat) {
+	if rawSeccomp && (isAllow || isDeny || isDenyDefault || isDenyCompat) {
 		return fmt.Errorf("raw.seccomp is mutually exclusive with security.syscalls*")
 	}
 
-	if whitelist && (blacklist || blacklistDefault || blacklistCompat) {
+	if isAllow && (isDeny || isDenyDefault || isDenyCompat) {
 		return fmt.Errorf("security.syscalls.whitelist is mutually exclusive with security.syscalls.blacklist*")
 	}
 
@@ -230,7 +230,7 @@ func lxcValidConfig(rawLxc string) error {
 			}
 		}
 
-		// Blacklist some keys
+		// block some keys
 		if key == "lxc.logfile" || key == "lxc.log.file" {
 			return fmt.Errorf("Setting lxc.logfile is not allowed")
 		}
