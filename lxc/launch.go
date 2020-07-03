@@ -14,6 +14,8 @@ import (
 type cmdLaunch struct {
 	global *cmdGlobal
 	init   *cmdInit
+
+	flagConsole bool
 }
 
 func (c *cmdLaunch) Command() *cobra.Command {
@@ -30,6 +32,8 @@ lxc launch ubuntu:18.04 u1 < config.yaml
 	cmd.Hidden = false
 
 	cmd.RunE = c.Run
+
+	cmd.Flags().BoolVar(&c.flagConsole, "console", false, i18n.G("Immediately attach to the console"))
 
 	return cmd
 }
@@ -98,7 +102,14 @@ func (c *cmdLaunch) Run(cmd *cobra.Command, args []string) error {
 
 		return fmt.Errorf("%s\n"+i18n.G("Try `lxc info --show-log %s` for more info"), err, prettyName)
 	}
-
 	progress.Done("")
+
+	// Handle console attach
+	if c.flagConsole {
+		console := cmdConsole{}
+		console.global = c.global
+		return console.Console(d, name)
+	}
+
 	return nil
 }
