@@ -2011,6 +2011,7 @@ func (vm *qemu) addDriveConfig(sb *strings.Builder, bootIndexes map[string]int, 
 		"bootIndex": bootIndexes[driveConf.DevName],
 		"cacheMode": cacheMode,
 		"aioMode":   aioMode,
+		"shared":    driveConf.TargetPath != "/",
 	})
 }
 
