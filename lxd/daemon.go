@@ -610,6 +610,7 @@ func (d *Daemon) init() error {
 		"network_veth_router",
 		"cgroup2",
 		"pidfd",
+		"seccomp_allow_deny_syntax",
 	}
 	for _, extension := range lxcExtensions {
 		d.os.LXCFeatures[extension] = liblxc.HasApiExtension(extension)

@@ -389,6 +389,8 @@ func InstanceNeedsPolicy(c Instance) bool {
 	// Check for text keys
 	keys := []string{
 		"raw.seccomp",
+		"security.syscalls.allow",
+		"security.syscalls.deny",
 		"security.syscalls.whitelist",
 		"security.syscalls.blacklist",
 	}
@@ -402,6 +404,7 @@ func InstanceNeedsPolicy(c Instance) bool {
 
 	// Check for boolean keys that default to false
 	keys = []string{
+		"security.syscalls.deny_compat",
 		"security.syscalls.blacklist_compat",
 		"security.syscalls.intercept.mknod",
 		"security.syscalls.intercept.setxattr",
@@ -415,15 +418,12 @@ func InstanceNeedsPolicy(c Instance) bool {
 	}
 
 	// Check for boolean keys that default to true
-	keys = []string{
-		"security.syscalls.blacklist_default",
+	value, ok := config["security.syscalls.deny_default"]
+	if !ok {
+		value, ok = config["security.syscalls.blacklist_default"]
 	}
-
-	for _, k := range keys {
-		value, ok := config[k]
-		if !ok || shared.IsTrue(value) {
-			return true
-		}
+	if !ok || shared.IsTrue(value) {
+		return true
 	}
 
 	return false
@@ -490,14 +490,28 @@ func seccompGetPolicyContent(s *state.State, c Instance) (string, error) {
 
 	// Policy header
 	policy := seccompHeader
-	whitelist := config["security.syscalls.whitelist"]
-	if whitelist != "" {
-		policy += "whitelist\n[all]\n"
-		policy += whitelist
+	allowlist := config["security.syscalls.allow"]
+	if allowlist == "" {
+		allowlist = config["security.syscalls.whitelist"]
+	}
+	if allowlist != "" {
+		if s.OS.LXCFeatures["seccomp_allow_deny_syntax"] {
+			policy += "allowlist\n[all]\n"
+		} else {
+			policy += "whitelist\n[all]\n"
+		}
+		policy += allowlist
 	} else {
-		policy += "blacklist\n"
+		if s.OS.LXCFeatures["seccomp_allow_deny_syntax"] {
+			policy += "denylist\n[all]\n"
+		} else {
+			policy += "blacklist\n[all]\n"
+		}
 
-		defaultFlag, ok := config["security.syscalls.blacklist_default"]
+		defaultFlag, ok := config["security.syscalls.deny_default"]
+		if !ok {
+			defaultFlag, ok = config["security.syscalls.blacklist_default"]
+		}
 		if !ok || shared.IsTrue(defaultFlag) {
 			policy += defaultSeccompPolicy
 		}
@@ -531,12 +545,15 @@ func seccompGetPolicyContent(s *state.State, c Instance) (string, error) {
 		}
 	}
 
-	if whitelist != "" {
+	if allowlist != "" {
 		return policy, nil
 	}
 
-	// Additional blacklist entries
-	compat := config["security.syscalls.blacklist_compat"]
+	// Additional deny entries
+	compat, ok := config["security.syscalls.deny_compat"]
+	if !ok {
+		compat = config["security.syscalls.blacklist_compat"]
+	}
 	if shared.IsTrue(compat) {
 		arch, err := osarch.ArchitectureName(c.Architecture())
 		if err != nil {
@@ -545,9 +562,12 @@ func seccompGetPolicyContent(s *state.State, c Instance) (string, error) {
 		policy += fmt.Sprintf(compatBlockingPolicy, arch)
 	}
 
-	blacklist := config["security.syscalls.blacklist"]
-	if blacklist != "" {
-		policy += blacklist
+	denylist, ok := config["security.syscalls.deny"]
+	if !ok {
+		denylist = config["security.syscalls.blacklist"]
+	}
+	if denylist != "" {
+		policy += denylist
 	}
 
 	return policy, nil
