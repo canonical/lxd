@@ -777,7 +777,8 @@ func (vm *qemu) Start(stateful bool) error {
 		}
 	}
 
-	if shared.IsTrue(vm.expandedConfig["limits.memory.hugepages"]) {
+	// Handle hugepages on architectures where we don't set NUMA nodes.
+	if vm.architecture != osarch.ARCH_64BIT_INTEL_X86 && shared.IsTrue(vm.expandedConfig["limits.memory.hugepages"]) {
 		hugetlb, err := util.HugepagesPath()
 		if err != nil {
 			op.Done(err)
@@ -1590,12 +1591,7 @@ func (vm *qemu) generateQemuConfigFile(busName string, devConfs []*deviceConfig.
 		return "", err
 	}
 
-	err = vm.addCPUConfig(sb)
-	if err != nil {
-		return "", err
-	}
-
-	err = vm.addMemoryConfig(sb)
+	err = vm.addCPUMemoryConfig(sb)
 	if err != nil {
 		return "", err
 	}
@@ -1798,27 +1794,8 @@ func (vm *qemu) generateQemuConfigFile(busName string, devConfs []*deviceConfig.
 	return configPath, ioutil.WriteFile(configPath, []byte(sb.String()), 0640)
 }
 
-// addMemoryConfig adds the qemu config required for setting the size of the VM's memory.
-func (vm *qemu) addMemoryConfig(sb *strings.Builder) error {
-	// Configure memory limit.
-	memSize := vm.expandedConfig["limits.memory"]
-	if memSize == "" {
-		memSize = "1GiB" // Default to 1GiB if no memory limit specified.
-	}
-
-	memSizeBytes, err := units.ParseByteSizeString(memSize)
-	if err != nil {
-		return fmt.Errorf("limits.memory invalid: %v", err)
-	}
-
-	return qemuMemory.Execute(sb, map[string]interface{}{
-		"architecture": vm.architectureName,
-		"memSizeBytes": memSizeBytes,
-	})
-}
-
-// addCPUConfig adds the qemu config required for setting the number of virtualised CPUs.
-func (vm *qemu) addCPUConfig(sb *strings.Builder) error {
+// addCPUMemoryConfig adds the qemu config required for setting the number of virtualised CPUs and memory.
+func (vm *qemu) addCPUMemoryConfig(sb *strings.Builder) error {
 	// Default to a single core.
 	cpus := vm.expandedConfig["limits.cpu"]
 	if cpus == "" {
@@ -1830,6 +1807,7 @@ func (vm *qemu) addCPUConfig(sb *strings.Builder) error {
 	}
 
 	cpuCount, err := strconv.Atoi(cpus)
+	hostNodes := []uint64{}
 	if err == nil {
 		// If not pinning, default to exposing cores.
 		ctx["cpuCount"] = cpuCount
@@ -1863,7 +1841,9 @@ func (vm *qemu) addCPUConfig(sb *strings.Builder) error {
 		numa := []map[string]uint64{}
 		numaIDs := []uint64{}
 		numaNode := uint64(0)
-		for _, entry := range numaNodes {
+		for hostNode, entry := range numaNodes {
+			hostNodes = append(hostNodes, hostNode)
+
 			numaIDs = append(numaIDs, numaNode)
 			for _, vcpu := range entry {
 				numa = append(numa, map[string]uint64{
@@ -1884,8 +1864,45 @@ func (vm *qemu) addCPUConfig(sb *strings.Builder) error {
 		ctx["cpuThreads"] = nrThreads
 		ctx["cpuNumaNodes"] = numaIDs
 		ctx["cpuNumaMapping"] = numa
+		ctx["cpuNumaHostNodes"] = hostNodes
 	}
 
+	// Configure memory limit.
+	memSize := vm.expandedConfig["limits.memory"]
+	if memSize == "" {
+		memSize = "1GiB" // Default to 1GiB if no memory limit specified.
+	}
+
+	memSizeBytes, err := units.ParseByteSizeString(memSize)
+	if err != nil {
+		return fmt.Errorf("limits.memory invalid: %v", err)
+	}
+
+	ctx["hugepages"] = ""
+	if shared.IsTrue(vm.expandedConfig["limits.memory.hugepages"]) {
+		hugetlb, err := util.HugepagesPath()
+		if err != nil {
+			return err
+		}
+
+		ctx["hugepages"] = hugetlb
+	}
+
+	// Determine per-node memory limit.
+	memSizeBytes = memSizeBytes / 1024 / 1024
+	nodeMemory := int64(memSizeBytes / int64(len(hostNodes)))
+	memSizeBytes = nodeMemory * int64(len(hostNodes))
+	ctx["memory"] = nodeMemory
+
+	err = qemuMemory.Execute(sb, map[string]interface{}{
+		"architecture": vm.architectureName,
+		"memSizeBytes": memSizeBytes,
+	})
+	if err != nil {
+		return err
+	}
+
+	// Configure the CPU limit.
 	return qemuCPU.Execute(sb, ctx)
 }
 
