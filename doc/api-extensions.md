@@ -1031,3 +1031,11 @@ The 5 entities that have UsedBy are:
  - Networks
  - Storage pools
  - Storage volumes
+
+## container\_syscall\_filtering\_allow\_deny\_syntax
+A number of new syscalls related container configuration keys were updated.
+
+ * `security.syscalls.deny_default`
+ * `security.syscalls.deny_compat`
+ * `security.syscalls.deny`
+ * `security.syscalls.allow`
