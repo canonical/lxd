@@ -47,6 +47,9 @@ func LocalCopy(source string, dest string, bwlimit string, xattrs bool, rsyncArg
 
 	if xattrs {
 		args = append(args, "--xattrs")
+		if AtLeast("3.1.3") {
+			args = append(args, "--filter=-x security.selinux")
+		}
 	}
 
 	if bwlimit != "" {
@@ -358,6 +361,9 @@ func rsyncFeatureArgs(features []string) []string {
 	args := []string{}
 	if shared.StringInSlice("xattrs", features) {
 		args = append(args, "--xattrs")
+		if AtLeast("3.1.3") {
+			args = append(args, "--filter=-x security.selinux")
+		}
 	}
 
 	if shared.StringInSlice("delete", features) {
