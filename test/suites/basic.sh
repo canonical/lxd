@@ -447,7 +447,7 @@ test_basic_usage() {
   init=$(lxc info lxd-seccomp-test | grep Pid | cut -f2 -d" ")
   [ "$(grep Seccomp "/proc/${init}/status" | cut -f2)" -eq "2" ]
   lxc stop --force lxd-seccomp-test
-  lxc config set lxd-seccomp-test security.syscalls.blacklist_default false
+  lxc config set lxd-seccomp-test security.syscalls.deny_default false
   lxc start lxd-seccomp-test
   init=$(lxc info lxd-seccomp-test | grep Pid | cut -f2 -d" ")
   [ "$(grep Seccomp "/proc/${init}/status" | cut -f2)" -eq "0" ]

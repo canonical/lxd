@@ -322,9 +322,13 @@ var KnownInstanceConfigKeys = map[string]func(value string) error{
 
 	"security.secureboot": IsBool,
 
+	"security.syscalls.allow":                   IsAny,
 	"security.syscalls.blacklist_default":       IsBool,
 	"security.syscalls.blacklist_compat":        IsBool,
 	"security.syscalls.blacklist":               IsAny,
+	"security.syscalls.deny_default":            IsBool,
+	"security.syscalls.deny_compat":             IsBool,
+	"security.syscalls.deny":                    IsAny,
 	"security.syscalls.intercept.mknod":         IsBool,
 	"security.syscalls.intercept.mount":         IsBool,
 	"security.syscalls.intercept.mount.allowed": IsAny,

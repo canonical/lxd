@@ -81,16 +81,16 @@ security.privileged                         | boolean   | false             | no
 security.protection.delete                  | boolean   | false             | yes           | -                         | Prevents the instance from being deleted
 security.protection.shift                   | boolean   | false             | yes           | container                 | Prevents the instance's filesystem from being uid/gid shifted on startup
 security.secureboot                         | boolean   | true              | no            | virtual-machine           | Controls whether UEFI secure boot is enabled with the default Microsoft keys
-security.syscalls.blacklist                 | string    | -                 | no            | container                 | A '\n' separated list of syscalls to blacklist
-security.syscalls.blacklist\_compat         | boolean   | false             | no            | container                 | On x86\_64 this enables blocking of compat\_\* syscalls, it is a no-op on other arches
-security.syscalls.blacklist\_default        | boolean   | true              | no            | container                 | Enables the default syscall blacklist
+security.syscalls.allow                     | string    | -                 | no            | container                 | A '\n' separated list of syscalls to allow (mutually exclusive with security.syscalls.deny\*)
+security.syscalls.deny                      | string    | -                 | no            | container                 | A '\n' separated list of syscalls to deny
+security.syscalls.deny\_compat              | boolean   | false             | no            | container                 | On x86\_64 this enables blocking of compat\_\* syscalls, it is a no-op on other arches
+security.syscalls.deny\_default             | boolean   | true              | no            | container                 | Enables the default syscall deny
 security.syscalls.intercept.mknod           | boolean   | false             | no            | container                 | Handles the `mknod` and `mknodat` system calls (allows creation of a limited subset of char/block devices)
 security.syscalls.intercept.mount           | boolean   | false             | no            | container                 | Handles the `mount` system call
 security.syscalls.intercept.mount.allowed   | string    | -                 | yes           | container                 | Specify a comma-separated list of filesystems that are safe to mount for processes inside the instance
 security.syscalls.intercept.mount.fuse      | string    | -                 | yes           | container                 | Whether to redirect mounts of a given filesystem to their fuse implemenation (e.g. ext4=fuse2fs)
 security.syscalls.intercept.mount.shift     | boolean   | false             | yes           | container                 | Whether to mount shiftfs on top of filesystems handled through mount syscall interception
 security.syscalls.intercept.setxattr        | boolean   | false             | no            | container                 | Handles the `setxattr` system call (allows setting a limited subset of restricted extended attributes)
-security.syscalls.whitelist                 | string    | -                 | no            | container                 | A '\n' separated list of syscalls to whitelist (mutually exclusive with security.syscalls.blacklist\*)
 snapshots.schedule                          | string    | -                 | no            | -                         | Cron expression (`<minute> <hour> <dom> <month> <dow>`)
 snapshots.schedule.stopped                  | bool      | false             | no            | -                         | Controls whether or not stopped instances are to be snapshoted automatically
 snapshots.pattern                           | string    | snap%d            | no            | -                         | Pongo2 template string which represents the snapshot name (used for scheduled snapshots and unnamed snapshots)

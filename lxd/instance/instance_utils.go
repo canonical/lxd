@@ -102,6 +102,24 @@ func CompareSnapshots(source Instance, target Instance) ([]Instance, []Instance,
 	return toSync, toDelete, nil
 }
 
+func exclusiveConfigKeys(key1 string, key2 string, config map[string]string) (val string, ok bool, err error) {
+	if config[key1] != "" && config[key2] != "" {
+		return "", false, fmt.Errorf("Mutually exclusive keys %s and %s are set", key1, key2)
+	}
+
+	val, ok = config[key1]
+	if ok {
+		return
+	}
+
+	val, ok = config[key2]
+	if ok {
+		return
+	}
+
+	return "", false, nil
+}
+
 // ValidConfig validates an instance's config.
 func ValidConfig(sysOS *sys.OS, config map[string]string, profile bool, expanded bool) error {
 	if config == nil {
@@ -124,20 +142,37 @@ func ValidConfig(sysOS *sys.OS, config map[string]string, profile bool, expanded
 	}
 
 	_, rawSeccomp := config["raw.seccomp"]
-	_, whitelist := config["security.syscalls.whitelist"]
-	_, blacklist := config["security.syscalls.blacklist"]
-	blacklistDefault := shared.IsTrue(config["security.syscalls.blacklist_default"])
-	blacklistCompat := shared.IsTrue(config["security.syscalls.blacklist_compat"])
+	_, isAllow, err := exclusiveConfigKeys("security.syscalls.allow", "security.syscalls.whitelist", config)
+	if err != nil {
+		return err
+	}
 
-	if rawSeccomp && (whitelist || blacklist || blacklistDefault || blacklistCompat) {
+	_, isDeny, err := exclusiveConfigKeys("security.syscalls.deny", "security.syscalls.blacklist", config)
+	if err != nil {
+		return err
+	}
+
+	val, _, err := exclusiveConfigKeys("security.syscalls.deny_default", "security.syscalls.blacklist_default", config)
+	if err != nil {
+		return err
+	}
+	isDenyDefault := shared.IsTrue(val)
+
+	val, _, err = exclusiveConfigKeys("security.syscalls.deny_compat", "security.syscalls.blacklist_compat", config)
+	if err != nil {
+		return err
+	}
+	isDenyCompat := shared.IsTrue(val)
+
+	if rawSeccomp && (isAllow || isDeny || isDenyDefault || isDenyCompat) {
 		return fmt.Errorf("raw.seccomp is mutually exclusive with security.syscalls*")
 	}
 
-	if whitelist && (blacklist || blacklistDefault || blacklistCompat) {
-		return fmt.Errorf("security.syscalls.whitelist is mutually exclusive with security.syscalls.blacklist*")
+	if isAllow && (isDeny || isDenyDefault || isDenyCompat) {
+		return fmt.Errorf("security.syscalls.allow is mutually exclusive with security.syscalls.deny*")
 	}
 
-	_, err := seccomp.SyscallInterceptMountFilter(config)
+	_, err = seccomp.SyscallInterceptMountFilter(config)
 	if err != nil {
 		return err
 	}
@@ -174,7 +209,7 @@ func validConfigKey(os *sys.OS, key string, value string) error {
 	if key == "raw.lxc" {
 		return lxcValidConfig(value)
 	}
-	if key == "security.syscalls.blacklist_compat" {
+	if key == "security.syscalls.deny_compat" || key == "security.syscalls.blacklist_compat" {
 		for _, arch := range os.Architectures {
 			if arch == osarch.ARCH_64BIT_INTEL_X86 ||
 				arch == osarch.ARCH_64BIT_ARMV8_LITTLE_ENDIAN ||
@@ -182,7 +217,7 @@ func validConfigKey(os *sys.OS, key string, value string) error {
 				return nil
 			}
 		}
-		return fmt.Errorf("security.syscalls.blacklist_compat isn't supported on this architecture")
+		return fmt.Errorf("%s isn't supported on this architecture", key)
 	}
 	return nil
 }
@@ -230,7 +265,7 @@ func lxcValidConfig(rawLxc string) error {
 			}
 		}
 
-		// Blacklist some keys
+		// block some keys
 		if key == "lxc.logfile" || key == "lxc.log.file" {
 			return fmt.Errorf("Setting lxc.logfile is not allowed")
 		}
