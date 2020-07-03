@@ -507,10 +507,13 @@ func (vm *qemu) onStop(target string) error {
 	}
 
 	if target == "reboot" {
-		err := vm.Start(false)
-		if err != nil {
-			return err
-		}
+		err = vm.Start(false)
+	} else if vm.ephemeral {
+		// Destroy ephemeral virtual machines
+		err = vm.Delete()
+	}
+	if err != nil {
+		return err
 	}
 
 	if op != nil {
