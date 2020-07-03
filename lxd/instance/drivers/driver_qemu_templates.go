@@ -343,6 +343,9 @@ if = "none"
 cache = "{{.cacheMode}}"
 aio = "{{.aioMode}}"
 discard = "on"
+{{if .shared -}}
+file.locking = "off"
+{{- end }}
 
 [device "dev-lxd_{{.devName}}"]
 driver = "scsi-hd"
