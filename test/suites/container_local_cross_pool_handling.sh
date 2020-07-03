@@ -33,7 +33,7 @@ test_container_local_cross_pool_handling() {
       lxc storage create "lxdtest-$(basename "${LXD_DIR}")-zfs" zfs size=100GB
     fi
 
-    for driver in "btrfs" "ceph" "dir" "lvm", "zfs"; do
+    for driver in "btrfs" "ceph" "dir" "lvm" "zfs"; do
       if [ "$lxd_backend" = "$driver" ]; then
         pool_opts=
 
