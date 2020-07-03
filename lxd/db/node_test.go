@@ -391,3 +391,31 @@ INSERT INTO instances (id, node_id, name, architecture, type, project_id) VALUES
 	require.NoError(t, err)
 	assert.Equal(t, "none", name)
 }
+
+func TestUpdateNodeFailureDomain(t *testing.T) {
+	tx, cleanup := db.NewTestClusterTx(t)
+	defer cleanup()
+
+	id, err := tx.CreateNode("buzz", "1.2.3.4:666")
+	require.NoError(t, err)
+
+	domain, err := tx.GetNodeFailureDomain(id)
+	require.NoError(t, err)
+	assert.Equal(t, "default", domain)
+
+	assert.NoError(t, tx.UpdateNodeFailureDomain(id, "foo"))
+
+	domain, err = tx.GetNodeFailureDomain(id)
+	require.NoError(t, err)
+	assert.Equal(t, "foo", domain)
+
+	domains, err := tx.GetNodesFailureDomains()
+	require.NoError(t, err)
+	assert.Equal(t, map[string]uint64{"0.0.0.0": 0, "1.2.3.4:666": 1}, domains)
+
+	assert.NoError(t, tx.UpdateNodeFailureDomain(id, "default"))
+
+	domains, err = tx.GetNodesFailureDomains()
+	require.NoError(t, err)
+	assert.Equal(t, map[string]uint64{"0.0.0.0": 0, "1.2.3.4:666": 0}, domains)
+}

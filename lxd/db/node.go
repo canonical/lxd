@@ -3,6 +3,7 @@
 package db
 
 import (
+	"database/sql"
 	"fmt"
 	"strconv"
 	"strings"
@@ -228,7 +229,7 @@ func (c *ClusterTx) RenameNode(old, new string) error {
 // Nodes returns all LXD nodes part of the cluster.
 func (c *ClusterTx) nodes(pending bool, where string, args ...interface{}) ([]NodeInfo, error) {
 	// Get node roles
-	sql := "SELECT node_id, role FROM nodes_roles;"
+	sql := "SELECT node_id, role FROM nodes_roles"
 
 	nodeRoles := map[int64][]string{}
 	rows, err := c.tx.Query(sql)
@@ -454,6 +455,137 @@ func (c *ClusterTx) UpdateNodeRoles(id int64, roles []ClusterRole) error {
 	}
 
 	return nil
+}
+
+// UpdateNodeFailureDomain changes the failure domain of a node.
+func (c *ClusterTx) UpdateNodeFailureDomain(id int64, domain string) error {
+	var domainID interface{}
+
+	if domain == "" {
+		return fmt.Errorf("Failure domain name can't be empty")
+	}
+
+	if domain == "default" {
+		domainID = nil
+	} else {
+		row := c.tx.QueryRow("SELECT id FROM nodes_failure_domains WHERE name=?", domain)
+		err := row.Scan(&domainID)
+		if err != nil {
+			if err != sql.ErrNoRows {
+				return errors.Wrapf(err, "Load failure domain name")
+			}
+			result, err := c.tx.Exec("INSERT INTO nodes_failure_domains (name) VALUES (?)", domain)
+			if err != nil {
+				return errors.Wrapf(err, "Create new failure domain")
+			}
+			domainID, err = result.LastInsertId()
+			if err != nil {
+				return errors.Wrapf(err, "Get last inserted ID")
+			}
+		}
+	}
+
+	result, err := c.tx.Exec("UPDATE nodes SET failure_domain_id=? WHERE id=?", domainID, id)
+	if err != nil {
+		return err
+	}
+	n, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if n != 1 {
+		return fmt.Errorf("Query updated %d rows instead of 1", n)
+	}
+
+	return nil
+}
+
+// GetNodeFailureDomain returns the failure domain associated with the node with the given ID.
+func (c *ClusterTx) GetNodeFailureDomain(id int64) (string, error) {
+	stmt := `
+SELECT coalesce(nodes_failure_domains.name,'default')
+  FROM nodes LEFT JOIN nodes_failure_domains ON nodes.failure_domain_id = nodes_failure_domains.id
+ WHERE nodes.id=?
+`
+	var domain string
+
+	err := c.tx.QueryRow(stmt, id).Scan(&domain)
+	if err != nil {
+		return "", err
+	}
+	return domain, nil
+}
+
+// GetNodesFailureDomains returns a map associating each node address with its
+// failure domain code.
+func (c *ClusterTx) GetNodesFailureDomains() (map[string]uint64, error) {
+	stmt, err := c.tx.Prepare("SELECT address, coalesce(failure_domain_id, 0) FROM nodes")
+	if err != nil {
+		return nil, err
+	}
+
+	rows := []struct {
+		Address         string
+		FailureDomainID int64
+	}{}
+
+	dest := func(i int) []interface{} {
+		rows = append(rows, struct {
+			Address         string
+			FailureDomainID int64
+		}{})
+		return []interface{}{&rows[len(rows)-1].Address, &rows[len(rows)-1].FailureDomainID}
+	}
+
+	err = query.SelectObjects(stmt, dest)
+	if err != nil {
+		return nil, err
+	}
+
+	domains := map[string]uint64{}
+
+	for _, row := range rows {
+		domains[row.Address] = uint64(row.FailureDomainID)
+	}
+
+	return domains, nil
+}
+
+// GetFailureDomainsNames return a map associating failure domain IDs to their
+// names.
+func (c *ClusterTx) GetFailureDomainsNames() (map[uint64]string, error) {
+	stmt, err := c.tx.Prepare("SELECT id, name FROM nodes_failure_domains")
+	if err != nil {
+		return nil, err
+	}
+
+	rows := []struct {
+		ID   int64
+		Name string
+	}{}
+
+	dest := func(i int) []interface{} {
+		rows = append(rows, struct {
+			ID   int64
+			Name string
+		}{})
+		return []interface{}{&rows[len(rows)-1].ID, &rows[len(rows)-1].Name}
+	}
+
+	err = query.SelectObjects(stmt, dest)
+	if err != nil {
+		return nil, err
+	}
+
+	domains := map[uint64]string{
+		0: "default", // Default failure domain, when not set
+	}
+
+	for _, row := range rows {
+		domains[uint64(row.ID)] = row.Name
+	}
+
+	return domains, nil
 }
 
 // RemoveNode removes the node with the given id.

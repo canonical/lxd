@@ -824,6 +824,8 @@ func Handover(state *state.State, gateway *Gateway, address string) (string, []d
 func newRolesChanges(state *state.State, gateway *Gateway, nodes []db.RaftNode) (*app.RolesChanges, error) {
 	var maxVoters int
 	var maxStandBy int
+	var domains map[string]uint64
+
 	err := state.Cluster.Transaction(func(tx *db.ClusterTx) error {
 		config, err := ConfigLoad(tx)
 		if err != nil {
@@ -831,6 +833,12 @@ func newRolesChanges(state *state.State, gateway *Gateway, nodes []db.RaftNode) 
 		}
 		maxVoters = int(config.MaxVoters())
 		maxStandBy = int(config.MaxStandBy())
+
+		domains, err = tx.GetNodesFailureDomains()
+		if err != nil {
+			return errors.Wrap(err, "Load failure domains")
+		}
+
 		return nil
 	})
 	if err != nil {
@@ -841,7 +849,9 @@ func newRolesChanges(state *state.State, gateway *Gateway, nodes []db.RaftNode) 
 
 	for _, node := range nodes {
 		if HasConnectivity(gateway.cert, node.Address) {
-			cluster[node] = &client.NodeMetadata{}
+			cluster[node] = &client.NodeMetadata{
+				FailureDomain: domains[node.Address],
+			}
 		} else {
 			cluster[node] = nil
 		}
@@ -888,16 +898,32 @@ func List(state *state.State, gateway *Gateway) ([]api.ClusterMember, error) {
 	var err error
 	var nodes []db.NodeInfo
 	var offlineThreshold time.Duration
+	domains := map[string]string{}
 
 	err = state.Cluster.Transaction(func(tx *db.ClusterTx) error {
 		nodes, err = tx.GetNodes()
 		if err != nil {
-			return err
+			return errors.Wrap(err, "Load nodes")
 		}
 
 		offlineThreshold, err = tx.GetNodeOfflineThreshold()
 		if err != nil {
-			return err
+			return errors.Wrap(err, "Load offline threshold config")
+		}
+
+		nodesDomains, err := tx.GetNodesFailureDomains()
+		if err != nil {
+			return errors.Wrap(err, "Load nodes failure domains")
+		}
+
+		domainsNames, err := tx.GetFailureDomainsNames()
+		if err != nil {
+			return errors.Wrap(err, "Load failure domains names")
+		}
+
+		for _, node := range nodes {
+			domainID := nodesDomains[node.Address]
+			domains[node.Address] = domainsNames[domainID]
 		}
 
 		return nil
@@ -946,6 +972,7 @@ func List(state *state.State, gateway *Gateway) ([]api.ClusterMember, error) {
 		if err != nil {
 			return nil, err
 		}
+		result[i].FailureDomain = domains[node.Address]
 
 		if node.IsOffline(offlineThreshold) {
 			result[i].Status = "Offline"
