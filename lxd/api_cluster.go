@@ -887,11 +887,17 @@ func clusterNodePut(d *Daemon, r *http.Request) response.Response {
 
 	// Find the requested one.
 	var current db.NodeInfo
+	var currentFailureDomain string
 	var err error
 	err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
 		current, err = tx.GetNodeByName(name)
 		if err != nil {
-			return err
+			return errors.Wrap(err, "Load current node state")
+		}
+
+		currentFailureDomain, err = tx.GetNodeFailureDomain(current.ID)
+		if err != nil {
+			return errors.Wrap(err, "Load current failure domain")
 		}
 
 		return nil
@@ -901,7 +907,11 @@ func clusterNodePut(d *Daemon, r *http.Request) response.Response {
 	}
 
 	// Validate the request is fine
-	err = util.EtagCheck(r, current.Roles)
+	etag := []interface{}{
+		current.Roles,
+		currentFailureDomain,
+	}
+	err = util.EtagCheck(r, etag)
 	if err != nil {
 		return response.PreconditionFailed(err)
 	}
@@ -932,7 +942,12 @@ func clusterNodePut(d *Daemon, r *http.Request) response.Response {
 
 		err := tx.UpdateNodeRoles(current.ID, dbRoles)
 		if err != nil {
-			return err
+			return errors.Wrap(err, "Update roles")
+		}
+
+		err = tx.UpdateNodeFailureDomain(current.ID, req.FailureDomain)
+		if err != nil {
+			return errors.Wrap(err, "Update failure domain")
 		}
 
 		return nil
