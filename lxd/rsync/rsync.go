@@ -7,6 +7,7 @@ import (
 	"net"
 	"os"
 	"os/exec"
+	"strings"
 	"time"
 
 	"github.com/pborman/uuid"
@@ -15,6 +16,7 @@ import (
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/ioprogress"
 	"github.com/lxc/lxd/shared/logger"
+	"github.com/lxc/lxd/shared/version"
 )
 
 // LocalCopy copies a directory using rsync (with the --devices option).
@@ -368,4 +370,33 @@ func rsyncFeatureArgs(features []string) []string {
 	}
 
 	return args
+}
+
+// AtLeast compares the local version to a minimum version.
+func AtLeast(min string) bool {
+	// Parse the current version.
+	out, err := shared.RunCommand("rsync", "--version")
+	if err != nil {
+		return false
+	}
+
+	fields := strings.Split(strings.Split(out, "\n")[0], "  ")
+	if len(fields) < 3 {
+		return false
+	}
+
+	versionStr := strings.TrimPrefix(fields[1], "version ")
+
+	ver, err := version.NewDottedVersion(versionStr)
+	if err != nil {
+		return false
+	}
+
+	// Load minium version.
+	minVer, err := version.NewDottedVersion(min)
+	if err != nil {
+		return false
+	}
+
+	return ver.Compare(minVer) >= 0
 }
