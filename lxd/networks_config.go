@@ -73,7 +73,7 @@ var networkConfigKeys = map[string]func(value string) error{
 	"ipv4.dhcp.gateway": device.NetworkValidAddressV4,
 	"ipv4.dhcp.expiry":  shared.IsAny,
 	"ipv4.dhcp.ranges":  shared.IsAny,
-	"ipv4.routes":       shared.IsAny,
+	"ipv4.routes":       device.NetworkValidNetworkV4List,
 	"ipv4.routing":      shared.IsBool,
 
 	"ipv6.address": func(value string) error {
@@ -93,7 +93,7 @@ var networkConfigKeys = map[string]func(value string) error{
 	"ipv6.dhcp.expiry":   shared.IsAny,
 	"ipv6.dhcp.stateful": shared.IsBool,
 	"ipv6.dhcp.ranges":   shared.IsAny,
-	"ipv6.routes":        shared.IsAny,
+	"ipv6.routes":        device.NetworkValidNetworkV6List,
 	"ipv6.routing":       shared.IsBool,
 
 	"dns.domain": shared.IsAny,
