@@ -492,7 +492,7 @@ func (c *cmdImageExport) Run(cmd *cobra.Command, args []string) error {
 	targetMeta := fingerprint
 	if len(args) > 1 {
 		target = args[1]
-		if shared.IsDir(args[1]) {
+		if shared.IsDir(shared.HostPath(args[1])) {
 			targetMeta = filepath.Join(args[1], targetMeta)
 		} else {
 			targetMeta = args[1]
