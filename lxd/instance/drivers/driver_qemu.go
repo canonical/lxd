@@ -1814,6 +1814,7 @@ func (vm *qemu) addCPUMemoryConfig(sb *strings.Builder) error {
 		ctx["cpuSockets"] = 1
 		ctx["cpuCores"] = cpuCount
 		ctx["cpuThreads"] = 1
+		hostNodes = []uint64{0}
 	} else {
 		// Expand to a set of CPU identifiers and get the pinning map.
 		nrSockets, nrCores, nrThreads, vcpus, numaNodes, err := vm.cpuTopology(cpus)
