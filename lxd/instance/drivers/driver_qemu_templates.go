@@ -55,7 +55,7 @@ disable-ticketing = "on"
 var qemuMemory = template.Must(template.New("qemuMemory").Parse(`
 # Memory
 [memory]
-size = "{{.memSizeBytes}}B"
+size = "{{.memSizeBytes}}M"
 `))
 
 var qemuSerial = template.Must(template.New("qemuSerial").Parse(`
@@ -226,10 +226,28 @@ cores = "{{.cpuCores}}"
 threads = "{{.cpuThreads}}"
 
 {{if eq .architecture "x86_64" -}}
+{{$memory := .memory -}}
+{{$hugepages := .hugepages -}}
+{{range $index, $element := .cpuNumaHostNodes}}
+[object "mem{{$index}}"]
+{{if ne $hugepages "" -}}
+qom-type = "memory-backend-file"
+mem-path = "{{$hugepages}}"
+prealloc = "on"
+discard-data = "on"
+{{- else}}
+qom-type = "memory-backend-ram"
+{{- end }}
+size = "{{$memory}}M"
+host-nodes = "{{$element}}"
+policy = "bind"
+{{end}}
+
 {{range $index, $element := .cpuNumaNodes}}
 [numa]
 type = "node"
 nodeid = "{{$element}}"
+memdev = "mem{{$element}}"
 {{end}}
 
 {{range .cpuNumaMapping}}
