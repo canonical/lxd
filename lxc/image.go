@@ -560,7 +560,7 @@ func (c *cmdImageExport) Run(cmd *cobra.Command, args []string) error {
 	}
 
 	// Rename files
-	if shared.IsDir(target) {
+	if shared.IsDir(shared.HostPath(target)) {
 		if resp.MetaName != "" {
 			err := os.Rename(targetMeta, shared.HostPath(filepath.Join(target, resp.MetaName)))
 			if err != nil {
