@@ -80,7 +80,7 @@ func (c *cmdDaemon) Run(cmd *cobra.Command, args []string) error {
 	select {
 	case sig := <-ch:
 		if sig == unix.SIGPWR {
-			logger.Infof("Received '%s signal', shutting down containers", sig)
+			logger.Infof("Received '%s signal', shutting down instances", sig)
 			d.Kill()
 			containersShutdown(s)
 			networkShutdown(s)
@@ -90,7 +90,7 @@ func (c *cmdDaemon) Run(cmd *cobra.Command, args []string) error {
 		}
 
 	case <-d.shutdownChan:
-		logger.Infof("Asked to shutdown by API, shutting down containers")
+		logger.Infof("Asked to shutdown by API, shutting down instances")
 		d.Kill()
 		containersShutdown(s)
 		networkShutdown(s)
