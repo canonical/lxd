@@ -856,7 +856,7 @@ func (d *Daemon) init() error {
 
 		logger.Debugf("Restarting all the containers following directory rename")
 		s := d.State()
-		containersShutdown(s)
+		instancesShutdown(s)
 		containersRestart(s)
 	}
 
