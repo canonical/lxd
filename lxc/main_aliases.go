@@ -44,7 +44,20 @@ func findAlias(aliases map[string]string, origArgs []string) ([]string, []string
 	return aliasKey, aliasValue, foundAlias
 }
 
-func expandAlias(conf *config.Config, origArgs []string) ([]string, bool) {
+func expandAlias(conf *config.Config, args []string) ([]string, bool) {
+	var newArgs []string
+	var origArgs []string
+
+	for _, arg := range args {
+		if arg[0] != '-' {
+			break
+		}
+
+		newArgs = append(newArgs, arg)
+	}
+
+	origArgs = args[len(newArgs):]
+
 	aliasKey, aliasValue, foundAlias := findAlias(conf.Aliases, origArgs)
 	if !foundAlias {
 		aliasKey, aliasValue, foundAlias = findAlias(defaultAliases, origArgs)
@@ -53,7 +66,6 @@ func expandAlias(conf *config.Config, origArgs []string) ([]string, bool) {
 		}
 	}
 
-	var newArgs []string
 	if !strings.HasPrefix(aliasValue[0], "/") {
 		newArgs = append(newArgs, origArgs[0])
 	}
