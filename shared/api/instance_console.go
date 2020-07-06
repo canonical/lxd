@@ -14,4 +14,7 @@ type InstanceConsoleControl struct {
 type InstanceConsolePost struct {
 	Width  int `json:"width" yaml:"width"`
 	Height int `json:"height" yaml:"height"`
+
+	// API extension: console_vga_type
+	Type string `json:"type" yaml:"type"`
 }
