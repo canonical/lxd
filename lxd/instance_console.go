@@ -34,6 +34,9 @@ type consoleWs struct {
 	// websocket connections to bridge pty fds to
 	conns map[int]*websocket.Conn
 
+	// map dynamic websocket connections to their associated console file
+	dynamic map[*websocket.Conn]*os.File
+
 	// locks needed to access the "conns" member
 	connsLock sync.Mutex
 
@@ -70,6 +73,17 @@ func (s *consoleWs) Metadata() interface{} {
 }
 
 func (s *consoleWs) Connect(op *operations.Operation, r *http.Request, w http.ResponseWriter) error {
+	switch s.protocol {
+	case instance.ConsoleTypeConsole:
+		return s.connectConsole(op, r, w)
+	case instance.ConsoleTypeVGA:
+		return s.connectVGA(op, r, w)
+	default:
+		return fmt.Errorf("Unknown protocol %q", s.protocol)
+	}
+}
+
+func (s *consoleWs) connectConsole(op *operations.Operation, r *http.Request, w http.ResponseWriter) error {
 	secret := r.FormValue("secret")
 	if secret == "" {
 		return fmt.Errorf("missing secret")
@@ -110,7 +124,70 @@ func (s *consoleWs) Connect(op *operations.Operation, r *http.Request, w http.Re
 	return os.ErrPermission
 }
 
+func (s *consoleWs) connectVGA(op *operations.Operation, r *http.Request, w http.ResponseWriter) error {
+	secret := r.FormValue("secret")
+	if secret == "" {
+		return fmt.Errorf("missing secret")
+	}
+
+	for fd, fdSecret := range s.fds {
+		if secret != fdSecret {
+			continue
+		}
+
+		conn, err := shared.WebsocketUpgrader.Upgrade(w, r, nil)
+		if err != nil {
+			return err
+		}
+
+		if fd == -1 {
+			logger.Debug("VGA control websocket connected")
+
+			s.connsLock.Lock()
+			s.conns[fd] = conn
+			s.connsLock.Unlock()
+
+			s.controlConnected <- true
+			return nil
+		}
+
+		logger.Debug("VGA dynamic websocket connected")
+
+		console, _, err := s.instance.Console("vga")
+		if err != nil {
+			conn.Close()
+			return err
+		}
+
+		// Mirror the console and websocket.
+		go func() {
+			shared.WebsocketConsoleMirror(conn, console, console)
+		}()
+
+		s.connsLock.Lock()
+		s.dynamic[conn] = console
+		s.connsLock.Unlock()
+
+		return nil
+	}
+
+	// If we didn't find the right secret, the user provided a bad one,
+	// which 403, not 404, since this operation actually exists.
+	return os.ErrPermission
+}
+
 func (s *consoleWs) Do(op *operations.Operation) error {
+	switch s.protocol {
+	case instance.ConsoleTypeConsole:
+		return s.doConsole(op)
+	case instance.ConsoleTypeVGA:
+		return s.doVGA(op)
+	default:
+		return fmt.Errorf("Unknown protocol %q", s.protocol)
+	}
+}
+
+func (s *consoleWs) doConsole(op *operations.Operation) error {
 	defer logger.Debug("Console websocket finished")
 	<-s.allConnected
 
@@ -242,6 +319,52 @@ func (s *consoleWs) Do(op *operations.Operation) error {
 	return nil
 }
 
+func (s *consoleWs) doVGA(op *operations.Operation) error {
+	defer logger.Debug("VGA websocket finished")
+
+	consoleDoneCh := make(chan struct{})
+
+	// The control socket is used to terminate the operation.
+	go func() {
+		defer logger.Debugf("VGA control websocket finished")
+		res := <-s.controlConnected
+		if !res {
+			return
+		}
+
+		for {
+			s.connsLock.Lock()
+			conn := s.conns[-1]
+			s.connsLock.Unlock()
+
+			_, _, err := conn.NextReader()
+			if err != nil {
+				logger.Debugf("Got error getting next reader %s", err)
+				close(consoleDoneCh)
+				return
+			}
+		}
+	}()
+
+	// Wait until the control channel is done.
+	<-consoleDoneCh
+	s.connsLock.Lock()
+	control := s.conns[-1]
+	s.connsLock.Unlock()
+	control.Close()
+
+	// Close all dynamic connections.
+	for conn, console := range s.dynamic {
+		conn.Close()
+		console.Close()
+	}
+
+	// Indicate to the control socket go routine to end if not already.
+	close(s.controlConnected)
+
+	return nil
+}
+
 func containerConsolePost(d *Daemon, r *http.Request) response.Response {
 	instanceType, err := urlInstanceTypeDetect(r)
 	if err != nil {
@@ -280,19 +403,30 @@ func containerConsolePost(d *Daemon, r *http.Request) response.Response {
 		return operations.ForwardedOperationResponse(project, &opAPI)
 	}
 
+	if post.Type == "" {
+		post.Type = instance.ConsoleTypeConsole
+	}
+
+	// Basic parameter validation.
+	if !shared.StringInSlice(post.Type, []string{instance.ConsoleTypeConsole, instance.ConsoleTypeVGA}) {
+		return response.BadRequest(fmt.Errorf("Unknown console type %q", post.Type))
+	}
+
 	inst, err := instance.LoadByProjectAndName(d.State(), project, name)
 	if err != nil {
 		return response.SmartError(err)
 	}
 
-	err = fmt.Errorf("Instance is not running")
-	if !inst.IsRunning() {
-		return response.BadRequest(err)
+	if post.Type == instance.ConsoleTypeVGA && inst.Type() != instancetype.VM {
+		return response.BadRequest(fmt.Errorf("VGA console is only supported by virtual machines"))
 	}
 
-	err = fmt.Errorf("Instance is frozen")
+	if !inst.IsRunning() {
+		return response.BadRequest(fmt.Errorf("Instance is not running"))
+	}
+
 	if inst.IsFrozen() {
-		return response.BadRequest(err)
+		return response.BadRequest(fmt.Errorf("Instance is frozen"))
 	}
 
 	ws := &consoleWs{}
@@ -300,6 +434,7 @@ func containerConsolePost(d *Daemon, r *http.Request) response.Response {
 	ws.conns = map[int]*websocket.Conn{}
 	ws.conns[-1] = nil
 	ws.conns[0] = nil
+	ws.dynamic = map[*websocket.Conn]*os.File{}
 	for i := -1; i < len(ws.conns)-1; i++ {
 		ws.fds[i], err = shared.RandomCryptoString()
 		if err != nil {
