@@ -959,7 +959,7 @@ Input (run bash):
     "environment": {},              // Optional extra environment variables to set
     "wait-for-websocket": false,    // Whether to wait for a connection before starting the process
     "record-output": false,         // Whether to store stdout and stderr (only valid with wait-for-websocket=false) (requires API extension container_exec_recording)
-    "interactive": true,            // Whether to allocate a pts device instead of PIPEs
+    "interactive": true,            // Whether to allocate a pty device instead of PIPEs
     "width": 80,                    // Initial width of the terminal (optional)
     "height": 25,                   // Initial height of the terminal (optional)
     "user": 1000,                   // User to run the command as (optional)
@@ -977,7 +977,7 @@ stderr. That's unless record-output is set to true, in which case,
 stdout and stderr will be redirected to a log file.
 
 If interactive is set to true, a single websocket is returned and is mapped to a
-pts device for stdin, stdout and stderr of the execed process.
+pty device for stdin, stdout and stderr of the execed process.
 
 If interactive is set to false (default), three pipes will be setup, one
 for each of stdin, stdout and stderr.

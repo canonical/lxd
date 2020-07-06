@@ -401,56 +401,56 @@ func OpenPty(uid, gid int64) (*os.File, *os.File, error) {
 	revert := true
 
 	// Create a PTS pair.
-	ptmx, err := os.OpenFile("/dev/ptmx", os.O_RDWR|unix.O_CLOEXEC, 0)
+	ptx, err := os.OpenFile("/dev/ptmx", os.O_RDWR|unix.O_CLOEXEC, 0)
 	if err != nil {
 		return nil, nil, err
 	}
 	defer func() {
 		if revert {
-			ptmx.Close()
+			ptx.Close()
 		}
 	}()
 
-	// Unlock the ptmx and pts.
+	// Unlock the ptx and pty.
 	val := 0
-	_, _, errno := unix.Syscall(unix.SYS_IOCTL, uintptr(ptmx.Fd()), unix.TIOCSPTLCK, uintptr(unsafe.Pointer(&val)))
+	_, _, errno := unix.Syscall(unix.SYS_IOCTL, uintptr(ptx.Fd()), unix.TIOCSPTLCK, uintptr(unsafe.Pointer(&val)))
 	if errno != 0 {
 		return nil, nil, unix.Errno(errno)
 	}
 
-	var pts *os.File
-	ptsFd, _, errno := unix.Syscall(unix.SYS_IOCTL, uintptr(ptmx.Fd()), unix.TIOCGPTPEER, uintptr(unix.O_NOCTTY|unix.O_CLOEXEC|os.O_RDWR))
+	var pty *os.File
+	ptyFd, _, errno := unix.Syscall(unix.SYS_IOCTL, uintptr(ptx.Fd()), unix.TIOCGPTPEER, uintptr(unix.O_NOCTTY|unix.O_CLOEXEC|os.O_RDWR))
 	if errno == 0 {
-		// Get the pts side.
+		// Get the pty side.
 		id := 0
-		_, _, errno = unix.Syscall(unix.SYS_IOCTL, uintptr(ptmx.Fd()), unix.TIOCGPTN, uintptr(unsafe.Pointer(&id)))
+		_, _, errno = unix.Syscall(unix.SYS_IOCTL, uintptr(ptx.Fd()), unix.TIOCGPTN, uintptr(unsafe.Pointer(&id)))
 		if errno != 0 {
 			return nil, nil, unix.Errno(errno)
 		}
 
-		pts = os.NewFile(ptsFd, fmt.Sprintf("/dev/pts/%d", id))
+		pty = os.NewFile(ptyFd, fmt.Sprintf("/dev/pts/%d", id))
 	} else {
-		// Get the pts side.
+		// Get the pty side.
 		id := 0
-		_, _, errno = unix.Syscall(unix.SYS_IOCTL, uintptr(ptmx.Fd()), unix.TIOCGPTN, uintptr(unsafe.Pointer(&id)))
+		_, _, errno = unix.Syscall(unix.SYS_IOCTL, uintptr(ptx.Fd()), unix.TIOCGPTN, uintptr(unsafe.Pointer(&id)))
 		if errno != 0 {
 			return nil, nil, unix.Errno(errno)
 		}
 
-		// Open the pts.
-		pts, err = os.OpenFile(fmt.Sprintf("/dev/pts/%d", id), os.O_RDWR|unix.O_NOCTTY, 0)
+		// Open the pty.
+		pty, err = os.OpenFile(fmt.Sprintf("/dev/pts/%d", id), os.O_RDWR|unix.O_NOCTTY, 0)
 		if err != nil {
 			return nil, nil, err
 		}
 	}
 	defer func() {
 		if revert {
-			pts.Close()
+			pty.Close()
 		}
 	}()
 
 	// Configure both sides
-	for _, entry := range []*os.File{ptmx, pts} {
+	for _, entry := range []*os.File{ptx, pty} {
 		// Get termios.
 		t, err := unix.IoctlGetTermios(int(entry.Fd()), unix.TCGETS)
 		if err != nil {
@@ -488,14 +488,14 @@ func OpenPty(uid, gid int64) (*os.File, *os.File, error) {
 		}
 	}
 
-	// Fix the ownership of the pts side.
-	err = unix.Fchown(int(pts.Fd()), int(uid), int(gid))
+	// Fix the ownership of the pty side.
+	err = unix.Fchown(int(pty.Fd()), int(uid), int(gid))
 	if err != nil {
 		return nil, nil, err
 	}
 
 	revert = false
-	return ptmx, pts, nil
+	return ptx, pty, nil
 }
 
 // Extensively commented directly in the code. Please leave the comments!

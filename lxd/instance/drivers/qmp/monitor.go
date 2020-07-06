@@ -227,14 +227,14 @@ func (m *Monitor) Console(target string) (*os.File, error) {
 	// Look for the requested console.
 	for _, v := range respDecoded.Return {
 		if v.Label == target {
-			ptsPath := strings.TrimPrefix(v.Filename, "pty:")
+			ptyPath := strings.TrimPrefix(v.Filename, "pty:")
 
-			if !shared.PathExists(ptsPath) {
+			if !shared.PathExists(ptyPath) {
 				continue
 			}
 
 			// Open the PTS device
-			console, err := os.OpenFile(ptsPath, os.O_RDWR, 0600)
+			console, err := os.OpenFile(ptyPath, os.O_RDWR, 0600)
 			if err != nil {
 				return nil, err
 			}
