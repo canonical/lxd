@@ -5534,7 +5534,11 @@ func (c *lxc) FileRemove(path string) error {
 }
 
 // Console attaches to the instance console.
-func (c *lxc) Console() (*os.File, chan error, error) {
+func (c *lxc) Console(protocol string) (*os.File, chan error, error) {
+	if protocol != instance.ConsoleTypeConsole {
+		return nil, nil, fmt.Errorf("Container instances don't support %q output", protocol)
+	}
+
 	chDisconnect := make(chan error, 1)
 
 	args := []string{
