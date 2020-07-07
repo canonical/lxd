@@ -4,13 +4,16 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"net"
 	"os"
+	"os/exec"
 	"strconv"
 
 	"github.com/gorilla/websocket"
 	"github.com/spf13/cobra"
 
 	"github.com/lxc/lxd/client"
+	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 	cli "github.com/lxc/lxd/shared/cmd"
 	"github.com/lxc/lxd/shared/i18n"
@@ -22,6 +25,7 @@ type cmdConsole struct {
 	global *cmdGlobal
 
 	flagShowLog bool
+	flagType    string
 }
 
 func (c *cmdConsole) Command() *cobra.Command {
@@ -36,6 +40,7 @@ as well as retrieve past log entries from it.`))
 
 	cmd.RunE = c.Run
 	cmd.Flags().BoolVar(&c.flagShowLog, "show-log", false, i18n.G("Retrieve the instance's console log"))
+	cmd.Flags().StringVar(&c.flagType, "type", "console", i18n.G("Type of connection to establish: 'console' for serial console, 'vga' for SPICE graphical output"))
 
 	return cmd
 }
@@ -101,6 +106,11 @@ func (c *cmdConsole) Run(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
+	// Validate flags.
+	if !shared.StringInSlice(c.flagType, []string{"console", "vga"}) {
+		return fmt.Errorf("Unknown output type %q", c.flagType)
+	}
+
 	// Connect to LXD
 	remote, name, err := conf.ParseRemote(args[0])
 	if err != nil {
@@ -114,6 +124,10 @@ func (c *cmdConsole) Run(cmd *cobra.Command, args []string) error {
 
 	// Show the current log if requested
 	if c.flagShowLog {
+		if c.flagType != "console" {
+			return fmt.Errorf("The --show-log flag is only supported for by 'console' output type")
+		}
+
 		console := &lxd.InstanceConsoleLogArgs{}
 		log, err := d.GetInstanceConsoleLog(name, console)
 		if err != nil {
@@ -133,6 +147,16 @@ func (c *cmdConsole) Run(cmd *cobra.Command, args []string) error {
 }
 
 func (c *cmdConsole) Console(d lxd.InstanceServer, name string) error {
+	switch c.flagType {
+	case "console":
+		return c.console(d, name)
+	case "vga":
+		return c.vga(d, name)
+	}
+	return fmt.Errorf("Unknown console type %q", c.flagType)
+}
+
+func (c *cmdConsole) console(d lxd.InstanceServer, name string) error {
 	// Configure the terminal
 	cfd := int(os.Stdin.Fd())
 
@@ -154,6 +178,7 @@ func (c *cmdConsole) Console(d lxd.InstanceServer, name string) error {
 	req := api.InstanceConsolePost{
 		Width:  width,
 		Height: height,
+		Type:   "console",
 	}
 
 	consoleDisconnect := make(chan bool)
@@ -181,6 +206,116 @@ func (c *cmdConsole) Console(d lxd.InstanceServer, name string) error {
 	}
 
 	// Wait for the operation to complete
+	err = op.Wait()
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (c *cmdConsole) vga(d lxd.InstanceServer, name string) error {
+	conf := c.global.conf
+
+	// We currently use the control websocket just to abort in case of errors.
+	controlDone := make(chan struct{}, 1)
+	handler := func(control *websocket.Conn) {
+		<-controlDone
+		closeMsg := websocket.FormatCloseMessage(websocket.CloseNormalClosure, "")
+		control.WriteMessage(websocket.CloseMessage, closeMsg)
+	}
+
+	// Prepare the remote console.
+	req := api.InstanceConsolePost{
+		Type: "vga",
+	}
+
+	consoleDisconnect := make(chan bool)
+	sendDisconnect := make(chan bool)
+	defer close(sendDisconnect)
+
+	consoleArgs := lxd.InstanceConsoleArgs{
+		Control:           handler,
+		ConsoleDisconnect: consoleDisconnect,
+	}
+
+	go func() {
+		<-sendDisconnect
+		close(consoleDisconnect)
+	}()
+
+	// Create a temporary unix socket mirroring the instance's spice socket.
+	if !shared.PathExists(conf.ConfigPath("sockets")) {
+		err := os.MkdirAll(conf.ConfigPath("sockets"), 0700)
+		if err != nil {
+			return err
+		}
+	}
+
+	path, err := ioutil.TempFile(conf.ConfigPath("sockets"), "*.spice")
+	if err != nil {
+		return err
+	}
+	err = os.Remove(path.Name())
+	if err != nil {
+		return err
+	}
+	path.Close()
+
+	socket := path.Name()
+	listener, err := net.Listen("unix", socket)
+	if err != nil {
+		return err
+	}
+	defer listener.Close()
+	defer os.Remove(path.Name())
+
+	op, connect, err := d.ConsoleInstanceDynamic(name, req, &consoleArgs)
+	if err != nil {
+		return err
+	}
+
+	// Handle connections to the socket.
+	go func() {
+		count := 0
+
+		for {
+			conn, err := listener.Accept()
+			if err != nil {
+				return
+			}
+			count++
+
+			go func(conn io.ReadWriteCloser) {
+				err = connect(conn)
+				if err != nil {
+					sendDisconnect <- true
+				}
+
+				count--
+				if count == 0 {
+					sendDisconnect <- true
+				}
+			}(conn)
+		}
+	}()
+
+	// Use either spicy or remote-viewer if available.
+	spicy, err := exec.LookPath("spicy")
+	if err == nil {
+		shared.RunCommand(spicy, fmt.Sprintf("--uri=spice+unix://%s", socket))
+	} else {
+		remoteViewer, err := exec.LookPath("remote-viewer")
+		if err == nil {
+			shared.RunCommand(remoteViewer, fmt.Sprintf("spice+unix://%s", socket))
+		} else {
+			fmt.Println(i18n.G("LXD automatically uses either spicy or remote-viewer when present."))
+			fmt.Println(i18n.G("As neither could be found, the raw SPICE socket can be found at:"))
+			fmt.Printf("  %s\n", socket)
+		}
+	}
+
+	// Wait for the operation to complete.
 	err = op.Wait()
 	if err != nil {
 		return err
