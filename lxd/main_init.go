@@ -165,7 +165,7 @@ func (c *cmdInit) availableStorageDrivers(poolType string) []string {
 	}
 
 	// Get info for supported drivers.
-	s := state.NewState(nil, nil, nil, sys.DefaultOS(), nil, nil, nil, nil, nil)
+	s := state.NewState(nil, nil, nil, nil, sys.DefaultOS(), nil, nil, nil, nil, nil)
 	supportedDrivers := storageDrivers.SupportedDrivers(s)
 
 	drivers := make([]string, 0, len(supportedDrivers))
