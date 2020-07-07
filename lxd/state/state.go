@@ -3,6 +3,7 @@
 package state
 
 import (
+	"context"
 	"net/http"
 	"net/url"
 
@@ -38,11 +39,13 @@ type State struct {
 
 	// Firewall instance
 	Firewall firewall.Firewall
+
+	Context context.Context
 }
 
 // NewState returns a new State object with the given database and operating
 // system components.
-func NewState(node *db.Node, cluster *db.Cluster, maas *maas.Controller, os *sys.OS, endpoints *endpoints.Endpoints, events *events.Server, devlxdEvents *events.Server, firewall firewall.Firewall, proxy func(req *http.Request) (*url.URL, error)) *State {
+func NewState(ctx context.Context, node *db.Node, cluster *db.Cluster, maas *maas.Controller, os *sys.OS, endpoints *endpoints.Endpoints, events *events.Server, devlxdEvents *events.Server, firewall firewall.Firewall, proxy func(req *http.Request) (*url.URL, error)) *State {
 	return &State{
 		Node:         node,
 		Cluster:      cluster,
@@ -53,5 +56,6 @@ func NewState(node *db.Node, cluster *db.Cluster, maas *maas.Controller, os *sys
 		Events:       events,
 		Firewall:     firewall,
 		Proxy:        proxy,
+		Context:      ctx,
 	}
 }
