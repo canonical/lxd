@@ -90,7 +90,14 @@ func (c *cmdDaemon) Run(cmd *cobra.Command, args []string) error {
 		}
 
 	case <-d.shutdownChan:
-		logger.Infof("Asked to shutdown by API, shutting down instances")
+		logger.Infof("Asked to shutdown by API, waiting for all operations to finish")
+		// Cancelling the context will make everyone aware that we're shutting down.
+		d.cancel()
+		// waitForOperations will block until all operations are done, or it's forced to shut down.
+		// For the latter case, we re-use the shutdown channel which is filled when a shutdown is
+		// initiated using `lxd shutdown`.
+		waitForOperations(s, d.shutdownChan)
+
 		d.Kill()
 		instancesShutdown(s)
 		networkShutdown(s)
