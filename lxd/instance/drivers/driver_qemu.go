@@ -3753,7 +3753,7 @@ func (vm *qemu) FileRemove(path string) error {
 }
 
 // Console gets access to the instance's console.
-func (vm *qemu) Console() (*os.File, chan error, error) {
+func (vm *qemu) Console(protocol string) (*os.File, chan error, error) {
 	chDisconnect := make(chan error, 1)
 
 	// Avoid duplicate connects.

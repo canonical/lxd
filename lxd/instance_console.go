@@ -51,6 +51,9 @@ type consoleWs struct {
 
 	// terminal height
 	height int
+
+	// channel type (either console or vga)
+	protocol string
 }
 
 func (s *consoleWs) Metadata() interface{} {
@@ -112,7 +115,7 @@ func (s *consoleWs) Do(op *operations.Operation) error {
 	<-s.allConnected
 
 	// Get console from instance.
-	console, consoleDisconnectCh, err := s.instance.Console()
+	console, consoleDisconnectCh, err := s.instance.Console(s.protocol)
 	if err != nil {
 		return err
 	}
@@ -309,6 +312,7 @@ func containerConsolePost(d *Daemon, r *http.Request) response.Response {
 	ws.instance = inst
 	ws.width = post.Width
 	ws.height = post.Height
+	ws.protocol = post.Type
 
 	resources := map[string][]string{}
 	resources["instances"] = []string{ws.instance.Name()}
