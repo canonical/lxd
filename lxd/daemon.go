@@ -1370,6 +1370,10 @@ func (d *Daemon) userIsAdmin(r *http.Request) bool {
 		return true
 	}
 
+	if r.Context().Value("protocol") == "cluster" {
+		return true
+	}
+
 	if r.Context().Value("protocol") == "tls" {
 		return true
 	}
@@ -1379,6 +1383,10 @@ func (d *Daemon) userIsAdmin(r *http.Request) bool {
 
 func (d *Daemon) userHasPermission(r *http.Request, project string, permission string) bool {
 	if d.externalAuth == nil || d.rbac == nil || r.RemoteAddr == "@" {
+		return true
+	}
+
+	if r.Context().Value("protocol") == "cluster" {
 		return true
 	}
 
