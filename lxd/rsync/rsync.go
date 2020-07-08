@@ -12,12 +12,14 @@ import (
 
 	"github.com/pborman/uuid"
 
-	"github.com/lxc/lxd/lxd/daemon"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/ioprogress"
 	"github.com/lxc/lxd/shared/logger"
 	"github.com/lxc/lxd/shared/version"
 )
+
+// Debug controls additional debugging in rsync output.
+var Debug bool
 
 // LocalCopy copies a directory using rsync (with the --devices option).
 func LocalCopy(source string, dest string, bwlimit string, xattrs bool, rsyncArgs ...string) (string, error) {
@@ -27,7 +29,7 @@ func LocalCopy(source string, dest string, bwlimit string, xattrs bool, rsyncArg
 	}
 
 	rsyncVerbosity := "-q"
-	if daemon.Debug {
+	if Debug {
 		rsyncVerbosity = "-vi"
 	}
 
