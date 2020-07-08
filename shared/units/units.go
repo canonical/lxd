@@ -5,6 +5,19 @@ import (
 	"strconv"
 )
 
+func handleOverflow(val int64, mult int64) (int64, error) {
+	result := val * mult
+	if val == 0 || mult == 0 || val == 1 || mult == 1 {
+		return result, nil
+	}
+
+	if val != 0 && (result/val) != mult {
+		return -1, fmt.Errorf("Overflow multiplying %d with %d", val, mult)
+	}
+
+	return result, nil
+}
+
 // ParseByteSizeString parses a human representation of an amount of
 // data into a number of bytes
 func ParseByteSizeString(input string) (int64, error) {
@@ -70,7 +83,7 @@ func ParseByteSizeString(input string) (int64, error) {
 		return -1, fmt.Errorf("Invalid value: %s", input)
 	}
 
-	return valueInt * multiplicator, nil
+	return handleOverflow(valueInt, multiplicator)
 }
 
 // ParseBitSizeString parses a human representation of an amount of
@@ -139,7 +152,7 @@ func ParseBitSizeString(input string) (int64, error) {
 		return -1, fmt.Errorf("Unsupported suffix: %s", suffix)
 	}
 
-	return valueInt * multiplicator, nil
+	return handleOverflow(valueInt, multiplicator)
 }
 
 // GetByteSizeString takes a number of bytes and precision and returns a
