@@ -12,6 +12,7 @@ import (
 	"github.com/lxc/lxd/lxd/events"
 	"github.com/lxc/lxd/lxd/operations"
 	"github.com/lxc/lxd/lxd/response"
+	"github.com/lxc/lxd/lxd/rsync"
 	"github.com/lxc/lxd/shared/logger"
 	"github.com/lxc/lxd/shared/logging"
 	"github.com/lxc/lxd/shared/version"
@@ -48,6 +49,7 @@ func (c *cmdGlobal) Run(cmd *cobra.Command, args []string) error {
 
 	// Set logging global variables
 	daemon.Debug = c.flagLogDebug
+	rsync.Debug = c.flagLogDebug
 	daemon.Verbose = c.flagLogVerbose
 
 	// Set debug for the operations package
