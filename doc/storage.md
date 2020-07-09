@@ -466,3 +466,18 @@ sudo zpool set autoexpand=off lxd
 ```
 
 (NOTE: For users of the snap, use `/var/snap/lxd/common/lxd/ instead of /var/lib/lxd/`)
+
+#### Enabling TRIM on existing pools
+LXD will automatically enable trimming support on all newly created pools on ZFS 0.8 or later.
+
+This helps with the lifetime of SSDs by allowing better block re-use by the controller.
+This also will allow freeing space on the root filesystem when using a loop backed ZFS pool.
+
+For systems which were upgraded from pre-0.8 to 0.8, this can be enabled with a one time action of:
+
+ - zpool upgrade ZPOOL-NAME
+ - zpool set autotrim=on ZPOOL-NAME
+ - zpool trim ZPOOL-NAME
+
+This will make sure that TRIM is automatically issued in the future as
+well as cause TRIM on all currently unused space.

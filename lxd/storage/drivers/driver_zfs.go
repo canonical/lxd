@@ -22,6 +22,7 @@ import (
 var zfsVersion string
 var zfsLoaded bool
 var zfsDirectIO bool
+var zfsTrim bool
 
 var zfsDefaultSettings = map[string]string{
 	"mountpoint": "none",
@@ -88,9 +89,10 @@ func (d *zfs) load() error {
 		return err
 	}
 
-	// If v0.8 is older or the same as current version, we can use direct I/O.
-	if ver80.Compare(ourVer) <= 0 {
+	// If running 0.8 or older, we can use direct I/O and trim.
+	if ourVer.Compare(ver80) >= 0 {
 		zfsDirectIO = true
+		zfsTrim = true
 	}
 
 	zfsLoaded = true
@@ -154,6 +156,14 @@ func (d *zfs) Create() error {
 		if err != nil {
 			return err
 		}
+
+		// Apply auto-trim if supported.
+		if zfsTrim {
+			_, err := shared.RunCommand("zpool", "set", "autotrim=on", d.config["zfs.pool_name"])
+			if err != nil {
+				return err
+			}
+		}
 	} else if filepath.IsAbs(d.config["source"]) {
 		// Handle existing block devices.
 		if !shared.IsBlockdevPath(d.config["source"]) {
@@ -177,6 +187,14 @@ func (d *zfs) Create() error {
 		_, err := shared.RunCommand("zpool", "create", "-f", "-m", "none", "-O", "compression=on", d.config["zfs.pool_name"], d.config["source"])
 		if err != nil {
 			return err
+		}
+
+		// Apply auto-trim if supported.
+		if zfsTrim {
+			_, err := shared.RunCommand("zpool", "set", "autotrim=on", d.config["zfs.pool_name"])
+			if err != nil {
+				return err
+			}
 		}
 
 		// We don't need to keep the original source path around for import.
