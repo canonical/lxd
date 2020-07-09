@@ -1035,7 +1035,7 @@ The 5 entities that have UsedBy are:
 ## container\_syscall\_filtering\_allow\_deny\_syntax
 A number of new syscalls related container configuration keys were updated.
 
- * `security.syscalls.deny_default`
- * `security.syscalls.deny_compat`
+ * `security.syscalls.deny\_default`
+ * `security.syscalls.deny\_compat`
  * `security.syscalls.deny`
  * `security.syscalls.allow`
