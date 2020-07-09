@@ -878,7 +878,7 @@ func (g *Gateway) currentRaftNodes() ([]db.RaftNode, error) {
 // Translate a raft address to a node address. They are always the same except
 // for the bootstrap node, which has address "1".
 func (g *Gateway) nodeAddress(raftAddress string) (string, error) {
-	if raftAddress != "1" {
+	if raftAddress != "1" && raftAddress != "0" {
 		return raftAddress, nil
 	}
 	var address string
