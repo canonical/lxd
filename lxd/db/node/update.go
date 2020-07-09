@@ -96,6 +96,7 @@ var updates = map[int]schema.Update{
 	37: updateFromV36,
 	38: updateFromV37,
 	39: updateFromV38,
+	40: updateFromV39,
 }
 
 // UpdateFromPreClustering is the last schema version where clustering support
@@ -103,6 +104,56 @@ var updates = map[int]schema.Update{
 const UpdateFromPreClustering = 36
 
 // Schema updates begin here
+
+// Fix the address of the bootstrap node being set to "0" in the raft_nodes
+// table.
+func updateFromV39(tx *sql.Tx) error {
+	nodes := []struct {
+		ID      uint64
+		Address string
+	}{}
+	dest := func(i int) []interface{} {
+		nodes = append(nodes, struct {
+			ID      uint64
+			Address string
+		}{})
+		return []interface{}{&nodes[i].ID, &nodes[i].Address}
+	}
+	stmt, err := tx.Prepare("SELECT id, address FROM raft_nodes")
+	if err != nil {
+		return err
+	}
+
+	defer stmt.Close()
+
+	err = query.SelectObjects(stmt, dest)
+	if err != nil {
+		return errors.Wrap(err, "Failed to fetch raft nodes")
+	}
+
+	if len(nodes) != 1 {
+		return nil
+	}
+
+	info := nodes[0]
+	if info.ID != 1 || info.Address != "0" {
+		return nil
+	}
+
+	config, err := query.SelectConfig(tx, "config", "")
+	if err != nil {
+		return err
+	}
+	address := config["cluster.https_address"]
+	if address != "" {
+		_, err := tx.Exec("UPDATE raft_nodes SET address=? WHERE id=1", address)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
 
 // Add role column to raft_nodes table. All existing entries will have role "0"
 // which means voter.
