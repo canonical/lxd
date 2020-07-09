@@ -96,6 +96,9 @@ type ResourcesGPUCard struct {
 	SRIOV  *ResourcesGPUCardSRIOV  `json:"sriov,omitempty" yaml:"sriov,omitempty"`
 	Nvidia *ResourcesGPUCardNvidia `json:"nvidia,omitempty" yaml:"nvidia,omitempty"`
 
+	// API extension: resources_gpu_mdev
+	Mdev map[string]ResourcesGPUCardMdev `json:"mdev,omitempty" yaml:"mdev,omitempty"`
+
 	NUMANode   uint64 `json:"numa_node" yaml:"numa_node"`
 	PCIAddress string `json:"pci_address,omitempty" yaml:"pci_address,omitempty"`
 
@@ -143,6 +146,16 @@ type ResourcesGPUCardNvidia struct {
 	// API extension: resources_v2
 	CardName   string `json:"card_name" yaml:"card_name"`
 	CardDevice string `json:"card_device" yaml:"card_device"`
+}
+
+// ResourcesGPUCardMdev represents the mediated devices configuration of the GPU
+// API extension: resources_gpu_mdev
+type ResourcesGPUCardMdev struct {
+	API         string   `json:"api" yaml:"api"`
+	Available   uint64   `json:"available" yaml:"available"`
+	Name        string   `json:"name,omitempty" yaml:"name,omitempty"`
+	Description string   `json:"description,omitempty" yaml:"description,omitempty"`
+	Devices     []string `json:"devices" yaml:"devices"`
 }
 
 // ResourcesNetwork represents the network cards available on the system
