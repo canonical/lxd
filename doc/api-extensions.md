@@ -1106,3 +1106,6 @@ A number of new syscalls related container configuration keys were updated.
  * `security.syscalls.deny\_compat`
  * `security.syscalls.deny`
  * `security.syscalls.allow`
+
+## resources\_gpu\_mdev
+Expose available mediated device profiles and devices in /1.0/resources.
