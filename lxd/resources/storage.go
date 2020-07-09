@@ -74,14 +74,19 @@ func storageAddDriveInfo(devicePath string, disk *api.ResourcesStorageDisk) erro
 			disk.Type = "sata"
 		}
 
-		// Firmware version
+		// Firmware version (if not found in sysfs)
 		if udevProperties["E:ID_REVISION"] != "" && disk.FirmwareVersion == "" {
 			disk.FirmwareVersion = udevProperties["E:ID_REVISION"]
 		}
 
 		// Serial number
-		if udevProperties["E:ID_SERIAL_SHORT"] != "" && disk.Serial == "" {
+		if udevProperties["E:ID_SERIAL_SHORT"] != "" {
 			disk.Serial = udevProperties["E:ID_SERIAL_SHORT"]
+		}
+
+		// Model number
+		if udevProperties["E:ID_MODEL"] != "" {
+			disk.Model = udevProperties["E:ID_MODEL"]
 		}
 
 		// Rotation per minute
