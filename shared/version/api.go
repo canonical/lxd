@@ -218,6 +218,7 @@ var APIExtensions = []string{
 	"custom_block_volumes",
 	"clustering_failure_domains",
 	"resources_gpu_mdev",
+	"console_vga_type",
 }
 
 // APIExtensionsCount returns the number of available API extensions.

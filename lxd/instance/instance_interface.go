@@ -25,6 +25,12 @@ const HookStopNS = "onstopns"
 // HookStop hook used when instance has stopped.
 const HookStop = "onstop"
 
+// Possible values for the protocol argument of the Instance.Console() method.
+const (
+	ConsoleTypeConsole = "console"
+	ConsoleTypeVGA     = "vga"
+)
+
 // ConfigReader is used to read instance config.
 type ConfigReader interface {
 	Type() instancetype.Type
@@ -72,8 +78,8 @@ type Instance interface {
 	FilePush(fileType string, srcpath string, dstpath string, uid int64, gid int64, mode int, write string) error
 	FileRemove(path string) error
 
-	// Console - Allocate and run a console tty.
-	Console() (*os.File, chan error, error)
+	// Console - Allocate and run a console tty or a spice Unix socket.
+	Console(protocol string) (*os.File, chan error, error)
 	Exec(req api.InstanceExecPost, stdin *os.File, stdout *os.File, stderr *os.File) (Cmd, error)
 
 	// Status

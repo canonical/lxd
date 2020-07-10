@@ -1109,3 +1109,12 @@ A number of new syscalls related container configuration keys were updated.
 
 ## resources\_gpu\_mdev
 Expose available mediated device profiles and devices in /1.0/resources.
+
+## console\_vga\_type
+
+This extends the `/1.0/console` endpoint to take a `?type=` argument, which can
+be set to `console` (default) or `vga` (the new type added by this extension).
+
+When POST'ing to `/1.0/<instance name>/console?type=vga` the data websocket
+returned by the operation in the metadata field will be a bidirectional proxy
+attached to a SPICE unix socket of the target virtual machine.

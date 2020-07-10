@@ -919,9 +919,12 @@ Input (attach to /dev/console):
 ```js
 {
     "width": 80,                    // Initial width of the terminal (optional)
-    "height": 25                    // Initial height of the terminal (optional)
+    "height": 25,                   // Initial height of the terminal (optional)
+    "type": "console"               // Connection type ("console" or "vga").
 }
 ```
+
+The "vga" connection type is supported only for virtual machines.
 
 The control websocket can be used to send out-of-band messages during a console session.
 This is currently used for window size changes.
