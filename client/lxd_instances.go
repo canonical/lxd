@@ -229,7 +229,7 @@ func (r *ProtocolLXD) CreateInstance(instance api.InstancesPost) (Operation, err
 	return op, nil
 }
 
-func (r *ProtocolLXD) tryCreateInstance(req api.InstancesPost, urls []string) (RemoteOperation, error) {
+func (r *ProtocolLXD) tryCreateInstance(req api.InstancesPost, urls []string, op Operation) (RemoteOperation, error) {
 	if len(urls) == 0 {
 		return nil, fmt.Errorf("The source server isn't listening on the network")
 	}
@@ -275,6 +275,9 @@ func (r *ProtocolLXD) tryCreateInstance(req api.InstancesPost, urls []string) (R
 
 		if !success {
 			rop.err = remoteOperationError("Failed instance creation", errors)
+			if op != nil {
+				op.Cancel()
+			}
 		}
 
 		close(rop.chDone)
@@ -343,7 +346,7 @@ func (r *ProtocolLXD) CreateInstanceFromImage(source ImageServer, image api.Imag
 		req.Source.Secret = secret
 	}
 
-	return r.tryCreateInstance(req, info.Addresses)
+	return r.tryCreateInstance(req, info.Addresses, nil)
 }
 
 // CopyInstance copies a instance from a remote server. Additional options can be passed using InstanceCopyArgs.
@@ -560,7 +563,7 @@ func (r *ProtocolLXD) CopyInstance(source InstanceServer, instance api.Instance,
 	req.Source.Websockets = sourceSecrets
 	req.Source.Certificate = info.Certificate
 
-	return r.tryCreateInstance(req, info.Addresses)
+	return r.tryCreateInstance(req, info.Addresses, op)
 }
 
 // UpdateInstance updates the instance definition.
@@ -1346,7 +1349,7 @@ func (r *ProtocolLXD) CopyInstanceSnapshot(source InstanceServer, instanceName s
 	req.Source.Websockets = sourceSecrets
 	req.Source.Certificate = info.Certificate
 
-	return r.tryCreateInstance(req, info.Addresses)
+	return r.tryCreateInstance(req, info.Addresses, op)
 }
 
 // RenameInstanceSnapshot requests that LXD renames the snapshot.
