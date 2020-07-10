@@ -309,6 +309,85 @@ func gpuAddDeviceInfo(devicePath string, nvidiaCards map[string]*api.ResourcesGP
 		card.DRM = &drm
 	}
 
+	// DRM information
+	mdevPath := filepath.Join(devicePath, "mdev_supported_types")
+	if sysfsExists(mdevPath) {
+		card.Mdev = map[string]api.ResourcesGPUCardMdev{}
+
+		// List all the devices
+		entries, err := ioutil.ReadDir(mdevPath)
+		if err != nil {
+			return errors.Wrapf(err, "Failed to list \"%s\"", mdevPath)
+		}
+
+		// Fill in the struct
+		for _, entry := range entries {
+			mdev := api.ResourcesGPUCardMdev{}
+			entryName := entry.Name()
+			entryPath := filepath.Join(mdevPath, entryName)
+
+			// API
+			apiPath := filepath.Join(entryPath, "device_api")
+			if sysfsExists(apiPath) {
+				api, err := ioutil.ReadFile(apiPath)
+				if err != nil {
+					return errors.Wrapf(err, "Failed to read \"%s\"", apiPath)
+				}
+
+				mdev.API = strings.TrimSpace(string(api))
+			}
+
+			// Available
+			availablePath := filepath.Join(entryPath, "available_instances")
+			if sysfsExists(availablePath) {
+				available, err := readUint(availablePath)
+				if err != nil {
+					return errors.Wrapf(err, "Failed to read \"%s\"", availablePath)
+				}
+
+				mdev.Available = available
+			}
+
+			// Description
+			descriptionPath := filepath.Join(entryPath, "description")
+			if sysfsExists(descriptionPath) {
+				description, err := ioutil.ReadFile(descriptionPath)
+				if err != nil {
+					return errors.Wrapf(err, "Failed to read \"%s\"", descriptionPath)
+				}
+
+				mdev.Description = strings.TrimSpace(string(description))
+			}
+
+			// Devices
+			mdevDevicesPath := filepath.Join(entryPath, "devices")
+			if sysfsExists(mdevDevicesPath) {
+				devs, err := ioutil.ReadDir(mdevDevicesPath)
+				if err != nil {
+					return errors.Wrapf(err, "Failed to list \"%s\"", mdevDevicesPath)
+				}
+
+				mdev.Devices = []string{}
+				for _, dev := range devs {
+					mdev.Devices = append(mdev.Devices, dev.Name())
+				}
+			}
+
+			// Name
+			namePath := filepath.Join(entryPath, "name")
+			if sysfsExists(namePath) {
+				name, err := ioutil.ReadFile(namePath)
+				if err != nil {
+					return errors.Wrapf(err, "Failed to read \"%s\"", namePath)
+				}
+
+				mdev.Name = strings.TrimSpace(string(name))
+			}
+
+			card.Mdev[entryName] = mdev
+		}
+	}
+
 	return nil
 }
 

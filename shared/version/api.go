@@ -217,6 +217,7 @@ var APIExtensions = []string{
 	"usedby_consistency",
 	"custom_block_volumes",
 	"clustering_failure_domains",
+	"resources_gpu_mdev",
 }
 
 // APIExtensionsCount returns the number of available API extensions.
