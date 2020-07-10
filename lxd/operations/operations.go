@@ -292,7 +292,9 @@ func (op *Operation) Cancel() (chan error, error) {
 	op.status = api.Cancelling
 	op.lock.Unlock()
 
-	if op.onCancel != nil {
+	hasOnCancel := op.onCancel != nil
+
+	if hasOnCancel {
 		go func(op *Operation, oldStatus api.StatusCode, chanCancel chan error) {
 			err := op.onCancel(op)
 			if err != nil {
@@ -330,7 +332,7 @@ func (op *Operation) Cancel() (chan error, error) {
 		}
 	}
 
-	if op.onCancel == nil {
+	if !hasOnCancel {
 		op.lock.Lock()
 		op.status = api.Cancelled
 		op.lock.Unlock()
