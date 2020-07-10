@@ -7,7 +7,7 @@
 msgid   ""
 msgstr  "Project-Id-Version: lxd\n"
         "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-        "POT-Creation-Date: 2020-06-19 20:31-0400\n"
+        "POT-Creation-Date: 2020-07-14 23:29-0400\n"
         "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
         "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
         "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -201,11 +201,11 @@ msgstr  ""
 msgid   "- Port %d (%s)"
 msgstr  ""
 
-#: lxc/action.go:262
+#: lxc/action.go:267
 msgid   "--console can't be used with --all"
 msgstr  ""
 
-#: lxc/action.go:266
+#: lxc/action.go:271
 msgid   "--console only works with a single instance"
 msgstr  ""
 
@@ -324,6 +324,10 @@ msgstr  ""
 msgid   "Architecture: %v"
 msgstr  ""
 
+#: lxc/console.go:313
+msgid   "As neither could be found, the raw SPICE socket can be found at:"
+msgstr  ""
+
 #: lxc/init.go:277
 msgid   "Asked for a VM but image is of type container"
 msgstr  ""
@@ -352,11 +356,11 @@ msgstr  ""
 msgid   "Attach new storage volumes to profiles"
 msgstr  ""
 
-#: lxc/console.go:30
+#: lxc/console.go:34
 msgid   "Attach to instance consoles"
 msgstr  ""
 
-#: lxc/console.go:31
+#: lxc/console.go:35
 msgid   "Attach to instance consoles\n"
         "\n"
         "This command allows you to interact with the boot console of an instance\n"
@@ -581,7 +585,7 @@ msgstr  ""
 msgid   "Config parsing error: %s"
 msgstr  ""
 
-#: lxc/console.go:128
+#: lxc/console.go:142
 msgid   "Console log:"
 msgstr  ""
 
@@ -676,7 +680,7 @@ msgstr  ""
 msgid   "Create an empty instance"
 msgstr  ""
 
-#: lxc/launch.go:22 lxc/launch.go:23
+#: lxc/launch.go:24 lxc/launch.go:25
 msgid   "Create and start instances from images"
 msgstr  ""
 
@@ -818,7 +822,7 @@ msgstr  ""
 msgid   "Delete storage volumes"
 msgstr  ""
 
-#: lxc/action.go:31 lxc/action.go:50 lxc/action.go:70 lxc/action.go:91 lxc/alias.go:22 lxc/alias.go:54 lxc/alias.go:100 lxc/alias.go:144 lxc/alias.go:195 lxc/cluster.go:31 lxc/cluster.go:74 lxc/cluster.go:153 lxc/cluster.go:203 lxc/cluster.go:253 lxc/cluster.go:336 lxc/cluster.go:421 lxc/config.go:30 lxc/config.go:89 lxc/config.go:360 lxc/config.go:452 lxc/config.go:610 lxc/config.go:734 lxc/config_device.go:24 lxc/config_device.go:76 lxc/config_device.go:188 lxc/config_device.go:261 lxc/config_device.go:327 lxc/config_device.go:416 lxc/config_device.go:507 lxc/config_device.go:513 lxc/config_device.go:613 lxc/config_device.go:681 lxc/config_metadata.go:27 lxc/config_metadata.go:52 lxc/config_metadata.go:174 lxc/config_template.go:28 lxc/config_template.go:65 lxc/config_template.go:108 lxc/config_template.go:150 lxc/config_template.go:236 lxc/config_template.go:295 lxc/config_trust.go:28 lxc/config_trust.go:57 lxc/config_trust.go:115 lxc/config_trust.go:193 lxc/console.go:31 lxc/copy.go:40 lxc/delete.go:30 lxc/exec.go:40 lxc/export.go:32 lxc/file.go:72 lxc/file.go:105 lxc/file.go:154 lxc/file.go:217 lxc/file.go:407 lxc/image.go:38 lxc/image.go:128 lxc/image.go:270 lxc/image.go:321 lxc/image.go:446 lxc/image.go:605 lxc/image.go:833 lxc/image.go:968 lxc/image.go:1266 lxc/image.go:1345 lxc/image_alias.go:25 lxc/image_alias.go:58 lxc/image_alias.go:105 lxc/image_alias.go:150 lxc/image_alias.go:252 lxc/import.go:28 lxc/info.go:33 lxc/init.go:40 lxc/launch.go:23 lxc/list.go:45 lxc/main.go:50 lxc/manpage.go:19 lxc/monitor.go:30 lxc/move.go:36 lxc/network.go:32 lxc/network.go:108 lxc/network.go:181 lxc/network.go:254 lxc/network.go:326 lxc/network.go:376 lxc/network.go:461 lxc/network.go:546 lxc/network.go:669 lxc/network.go:727 lxc/network.go:807 lxc/network.go:892 lxc/network.go:961 lxc/network.go:1011 lxc/network.go:1081 lxc/network.go:1143 lxc/operation.go:24 lxc/operation.go:53 lxc/operation.go:102 lxc/operation.go:181 lxc/profile.go:29 lxc/profile.go:101 lxc/profile.go:164 lxc/profile.go:244 lxc/profile.go:300 lxc/profile.go:354 lxc/profile.go:404 lxc/profile.go:528 lxc/profile.go:577 lxc/profile.go:636 lxc/profile.go:712 lxc/profile.go:762 lxc/profile.go:821 lxc/profile.go:875 lxc/project.go:29 lxc/project.go:86 lxc/project.go:151 lxc/project.go:214 lxc/project.go:334 lxc/project.go:384 lxc/project.go:476 lxc/project.go:531 lxc/project.go:591 lxc/project.go:620 lxc/project.go:673 lxc/publish.go:31 lxc/query.go:32 lxc/remote.go:33 lxc/remote.go:84 lxc/remote.go:423 lxc/remote.go:459 lxc/remote.go:539 lxc/remote.go:601 lxc/remote.go:651 lxc/remote.go:689 lxc/rename.go:21 lxc/restore.go:24 lxc/snapshot.go:27 lxc/storage.go:33 lxc/storage.go:89 lxc/storage.go:163 lxc/storage.go:213 lxc/storage.go:333 lxc/storage.go:388 lxc/storage.go:508 lxc/storage.go:582 lxc/storage.go:651 lxc/storage.go:735 lxc/storage_volume.go:33 lxc/storage_volume.go:140 lxc/storage_volume.go:219 lxc/storage_volume.go:302 lxc/storage_volume.go:463 lxc/storage_volume.go:540 lxc/storage_volume.go:616 lxc/storage_volume.go:698 lxc/storage_volume.go:779 lxc/storage_volume.go:979 lxc/storage_volume.go:1070 lxc/storage_volume.go:1143 lxc/storage_volume.go:1174 lxc/storage_volume.go:1287 lxc/storage_volume.go:1363 lxc/storage_volume.go:1462 lxc/storage_volume.go:1495 lxc/storage_volume.go:1571 lxc/version.go:22
+#: lxc/action.go:31 lxc/action.go:50 lxc/action.go:70 lxc/action.go:91 lxc/alias.go:22 lxc/alias.go:54 lxc/alias.go:100 lxc/alias.go:144 lxc/alias.go:195 lxc/cluster.go:31 lxc/cluster.go:74 lxc/cluster.go:153 lxc/cluster.go:203 lxc/cluster.go:253 lxc/cluster.go:336 lxc/cluster.go:421 lxc/config.go:30 lxc/config.go:89 lxc/config.go:360 lxc/config.go:452 lxc/config.go:610 lxc/config.go:734 lxc/config_device.go:24 lxc/config_device.go:76 lxc/config_device.go:188 lxc/config_device.go:261 lxc/config_device.go:327 lxc/config_device.go:416 lxc/config_device.go:507 lxc/config_device.go:513 lxc/config_device.go:613 lxc/config_device.go:681 lxc/config_metadata.go:27 lxc/config_metadata.go:52 lxc/config_metadata.go:174 lxc/config_template.go:28 lxc/config_template.go:65 lxc/config_template.go:108 lxc/config_template.go:150 lxc/config_template.go:236 lxc/config_template.go:295 lxc/config_trust.go:28 lxc/config_trust.go:57 lxc/config_trust.go:115 lxc/config_trust.go:193 lxc/console.go:35 lxc/copy.go:40 lxc/delete.go:30 lxc/exec.go:40 lxc/export.go:32 lxc/file.go:72 lxc/file.go:105 lxc/file.go:154 lxc/file.go:217 lxc/file.go:407 lxc/image.go:38 lxc/image.go:128 lxc/image.go:270 lxc/image.go:321 lxc/image.go:446 lxc/image.go:605 lxc/image.go:833 lxc/image.go:968 lxc/image.go:1266 lxc/image.go:1345 lxc/image_alias.go:25 lxc/image_alias.go:58 lxc/image_alias.go:105 lxc/image_alias.go:150 lxc/image_alias.go:252 lxc/import.go:28 lxc/info.go:33 lxc/init.go:40 lxc/launch.go:25 lxc/list.go:45 lxc/main.go:50 lxc/manpage.go:19 lxc/monitor.go:30 lxc/move.go:36 lxc/network.go:32 lxc/network.go:108 lxc/network.go:181 lxc/network.go:254 lxc/network.go:326 lxc/network.go:376 lxc/network.go:461 lxc/network.go:546 lxc/network.go:669 lxc/network.go:727 lxc/network.go:807 lxc/network.go:892 lxc/network.go:961 lxc/network.go:1011 lxc/network.go:1081 lxc/network.go:1143 lxc/operation.go:24 lxc/operation.go:53 lxc/operation.go:102 lxc/operation.go:181 lxc/profile.go:29 lxc/profile.go:101 lxc/profile.go:164 lxc/profile.go:244 lxc/profile.go:300 lxc/profile.go:354 lxc/profile.go:404 lxc/profile.go:528 lxc/profile.go:577 lxc/profile.go:636 lxc/profile.go:712 lxc/profile.go:762 lxc/profile.go:821 lxc/profile.go:875 lxc/project.go:29 lxc/project.go:86 lxc/project.go:151 lxc/project.go:214 lxc/project.go:334 lxc/project.go:384 lxc/project.go:476 lxc/project.go:531 lxc/project.go:591 lxc/project.go:620 lxc/project.go:673 lxc/publish.go:31 lxc/query.go:32 lxc/remote.go:33 lxc/remote.go:84 lxc/remote.go:423 lxc/remote.go:459 lxc/remote.go:539 lxc/remote.go:601 lxc/remote.go:651 lxc/remote.go:689 lxc/rename.go:21 lxc/restore.go:24 lxc/snapshot.go:27 lxc/storage.go:33 lxc/storage.go:89 lxc/storage.go:163 lxc/storage.go:213 lxc/storage.go:333 lxc/storage.go:388 lxc/storage.go:508 lxc/storage.go:582 lxc/storage.go:651 lxc/storage.go:735 lxc/storage_volume.go:33 lxc/storage_volume.go:140 lxc/storage_volume.go:219 lxc/storage_volume.go:302 lxc/storage_volume.go:463 lxc/storage_volume.go:540 lxc/storage_volume.go:616 lxc/storage_volume.go:698 lxc/storage_volume.go:779 lxc/storage_volume.go:979 lxc/storage_volume.go:1070 lxc/storage_volume.go:1143 lxc/storage_volume.go:1174 lxc/storage_volume.go:1287 lxc/storage_volume.go:1363 lxc/storage_volume.go:1462 lxc/storage_volume.go:1495 lxc/storage_volume.go:1571 lxc/version.go:22
 msgid   "Description"
 msgstr  ""
 
@@ -1302,7 +1306,7 @@ msgstr  ""
 msgid   "Image refreshed successfully!"
 msgstr  ""
 
-#: lxc/action.go:118 lxc/action.go:120
+#: lxc/action.go:118 lxc/action.go:120 lxc/launch.go:36
 msgid   "Immediately attach to the console"
 msgstr  ""
 
@@ -1446,6 +1450,10 @@ msgstr  ""
 
 #: lxc/manpage.go:37
 msgid   "LXD - Command line client"
+msgstr  ""
+
+#: lxc/console.go:312
+msgid   "LXD automatically uses either spicy or remote-viewer when present."
 msgstr  ""
 
 #: lxc/cluster.go:110
@@ -2142,7 +2150,7 @@ msgstr  ""
 msgid   "Processes: %d"
 msgstr  ""
 
-#: lxc/main_aliases.go:125 lxc/main_aliases.go:132
+#: lxc/main_aliases.go:137 lxc/main_aliases.go:144
 #, c-format
 msgid   "Processing aliases failed: %s"
 msgstr  ""
@@ -2443,7 +2451,7 @@ msgstr  ""
 msgid   "Restore storage volume snapshots"
 msgstr  ""
 
-#: lxc/console.go:38
+#: lxc/console.go:42
 msgid   "Retrieve the instance's console log"
 msgstr  ""
 
@@ -2740,7 +2748,7 @@ msgstr  ""
 msgid   "Socket %d:"
 msgstr  ""
 
-#: lxc/action.go:295
+#: lxc/action.go:300
 #, c-format
 msgid   "Some instances failed to %s"
 msgstr  ""
@@ -2753,7 +2761,7 @@ msgstr  ""
 msgid   "Start instances"
 msgstr  ""
 
-#: lxc/launch.go:68
+#: lxc/launch.go:72
 #, c-format
 msgid   "Starting %s"
 msgstr  ""
@@ -2950,7 +2958,7 @@ msgstr  ""
 msgid   "To create a new network, use: lxc network create"
 msgstr  ""
 
-#: lxc/console.go:175
+#: lxc/console.go:200
 msgid   "To detach from the console, press: <ctrl>+a q"
 msgstr  ""
 
@@ -2994,9 +3002,13 @@ msgstr  ""
 msgid   "Transferring instance: %s"
 msgstr  ""
 
-#: lxc/action.go:200 lxc/launch.go:99
+#: lxc/action.go:200 lxc/launch.go:103
 #, c-format
 msgid   "Try `lxc info --show-log %s` for more info"
+msgstr  ""
+
+#: lxc/console.go:43
+msgid   "Type of connection to establish: 'console' for serial console, 'vga' for SPICE graphical output"
 msgstr  ""
 
 #: lxc/image.go:895 lxc/info.go:246 lxc/info.go:460
@@ -3217,7 +3229,7 @@ msgstr  ""
 msgid   "config"
 msgstr  ""
 
-#: lxc/console.go:29
+#: lxc/console.go:33
 msgid   "console [<remote>:]<instance>"
 msgstr  ""
 
@@ -3401,7 +3413,7 @@ msgstr  ""
 msgid   "enabled"
 msgstr  ""
 
-#: lxc/action.go:287
+#: lxc/action.go:292
 #, c-format
 msgid   "error: %v"
 msgstr  ""
@@ -3495,7 +3507,7 @@ msgstr  ""
 msgid   "init [[<remote>:]<image>] [<remote>:][<name>] [< config"
 msgstr  ""
 
-#: lxc/launch.go:21
+#: lxc/launch.go:23
 msgid   "launch [<remote>:]<image> [<remote>:][<name>]"
 msgstr  ""
 
@@ -3615,7 +3627,7 @@ msgid   "lxc init ubuntu:18.04 u1\n"
         "    Create the instance with configuration from config.yaml"
 msgstr  ""
 
-#: lxc/launch.go:25
+#: lxc/launch.go:27
 msgid   "lxc launch ubuntu:18.04 u1\n"
         "\n"
         "lxc launch ubuntu:18.04 u1 < config.yaml\n"

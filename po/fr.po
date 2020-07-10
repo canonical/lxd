@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: LXD\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2020-06-19 20:31-0400\n"
+"POT-Creation-Date: 2020-07-14 23:29-0400\n"
 "PO-Revision-Date: 2019-01-04 18:07+0000\n"
 "Last-Translator: Deleted User <noreply+12102@weblate.org>\n"
 "Language-Team: French <https://hosted.weblate.org/projects/linux-containers/"
@@ -334,11 +334,11 @@ msgstr ""
 msgid "- Port %d (%s)"
 msgstr ""
 
-#: lxc/action.go:262
+#: lxc/action.go:267
 msgid "--console can't be used with --all"
 msgstr ""
 
-#: lxc/action.go:266
+#: lxc/action.go:271
 #, fuzzy
 msgid "--console only works with a single instance"
 msgstr "Profil à appliquer au nouveau conteneur"
@@ -467,6 +467,10 @@ msgstr "Architecture : %s"
 msgid "Architecture: %v"
 msgstr "Architecture : %s"
 
+#: lxc/console.go:313
+msgid "As neither could be found, the raw SPICE socket can be found at:"
+msgstr ""
+
 #: lxc/init.go:277
 msgid "Asked for a VM but image is of type container"
 msgstr ""
@@ -498,12 +502,12 @@ msgstr "Afficher la configuration étendue"
 msgid "Attach new storage volumes to profiles"
 msgstr ""
 
-#: lxc/console.go:30
+#: lxc/console.go:34
 #, fuzzy
 msgid "Attach to instance consoles"
 msgstr "Forcer l'arrêt du conteneur (seulement pour stop)"
 
-#: lxc/console.go:31
+#: lxc/console.go:35
 msgid ""
 "Attach to instance consoles\n"
 "\n"
@@ -761,7 +765,7 @@ msgstr "Clé/valeur de configuration à appliquer au nouveau conteneur"
 msgid "Config parsing error: %s"
 msgstr "Erreur lors de la lecture de la configuration : %s"
 
-#: lxc/console.go:128
+#: lxc/console.go:142
 msgid "Console log:"
 msgstr ""
 
@@ -865,7 +869,7 @@ msgstr ""
 msgid "Create an empty instance"
 msgstr "Création du conteneur"
 
-#: lxc/launch.go:22 lxc/launch.go:23
+#: lxc/launch.go:24 lxc/launch.go:25
 #, fuzzy
 msgid "Create and start instances from images"
 msgstr "Création du conteneur"
@@ -1056,7 +1060,7 @@ msgstr "Copie de l'image : %s"
 #: lxc/config_template.go:65 lxc/config_template.go:108
 #: lxc/config_template.go:150 lxc/config_template.go:236
 #: lxc/config_template.go:295 lxc/config_trust.go:28 lxc/config_trust.go:57
-#: lxc/config_trust.go:115 lxc/config_trust.go:193 lxc/console.go:31
+#: lxc/config_trust.go:115 lxc/config_trust.go:193 lxc/console.go:35
 #: lxc/copy.go:40 lxc/delete.go:30 lxc/exec.go:40 lxc/export.go:32
 #: lxc/file.go:72 lxc/file.go:105 lxc/file.go:154 lxc/file.go:217
 #: lxc/file.go:407 lxc/image.go:38 lxc/image.go:128 lxc/image.go:270
@@ -1064,7 +1068,7 @@ msgstr "Copie de l'image : %s"
 #: lxc/image.go:968 lxc/image.go:1266 lxc/image.go:1345 lxc/image_alias.go:25
 #: lxc/image_alias.go:58 lxc/image_alias.go:105 lxc/image_alias.go:150
 #: lxc/image_alias.go:252 lxc/import.go:28 lxc/info.go:33 lxc/init.go:40
-#: lxc/launch.go:23 lxc/list.go:45 lxc/main.go:50 lxc/manpage.go:19
+#: lxc/launch.go:25 lxc/list.go:45 lxc/main.go:50 lxc/manpage.go:19
 #: lxc/monitor.go:30 lxc/move.go:36 lxc/network.go:32 lxc/network.go:108
 #: lxc/network.go:181 lxc/network.go:254 lxc/network.go:326 lxc/network.go:376
 #: lxc/network.go:461 lxc/network.go:546 lxc/network.go:669 lxc/network.go:727
@@ -1640,7 +1644,7 @@ msgstr "Image importée avec l'empreinte : %s"
 msgid "Image refreshed successfully!"
 msgstr "Image copiée avec succès !"
 
-#: lxc/action.go:118 lxc/action.go:120
+#: lxc/action.go:118 lxc/action.go:120 lxc/launch.go:36
 #, fuzzy
 msgid "Immediately attach to the console"
 msgstr "Forcer l'arrêt du conteneur (seulement pour stop)"
@@ -1792,6 +1796,10 @@ msgstr ""
 
 #: lxc/manpage.go:37
 msgid "LXD - Command line client"
+msgstr ""
+
+#: lxc/console.go:312
+msgid "LXD automatically uses either spicy or remote-viewer when present."
 msgstr ""
 
 #: lxc/cluster.go:110
@@ -2630,7 +2638,7 @@ msgstr ""
 msgid "Processes: %d"
 msgstr "Processus : %d"
 
-#: lxc/main_aliases.go:125 lxc/main_aliases.go:132
+#: lxc/main_aliases.go:137 lxc/main_aliases.go:144
 #, fuzzy, c-format
 msgid "Processing aliases failed: %s"
 msgstr "l'analyse des alias a échoué %s\n"
@@ -2956,7 +2964,7 @@ msgstr "Forcer le conteneur à s'arrêter"
 msgid "Restore storage volume snapshots"
 msgstr "Forcer le conteneur à s'arrêter"
 
-#: lxc/console.go:38
+#: lxc/console.go:42
 #, fuzzy
 msgid "Retrieve the instance's console log"
 msgstr "Forcer l'arrêt du conteneur (seulement pour stop)"
@@ -3294,7 +3302,7 @@ msgstr "Instantanés :"
 msgid "Socket %d:"
 msgstr ""
 
-#: lxc/action.go:295
+#: lxc/action.go:300
 #, fuzzy, c-format
 msgid "Some instances failed to %s"
 msgstr "L'arrêt du conteneur a échoué !"
@@ -3308,7 +3316,7 @@ msgstr "Source :"
 msgid "Start instances"
 msgstr "Création du conteneur"
 
-#: lxc/launch.go:68
+#: lxc/launch.go:72
 #, c-format
 msgid "Starting %s"
 msgstr "Démarrage de %s"
@@ -3533,7 +3541,7 @@ msgstr "Pour attacher un réseau à un conteneur, utiliser : lxc network attach"
 msgid "To create a new network, use: lxc network create"
 msgstr "Pour créer un réseau, utiliser : lxc network create"
 
-#: lxc/console.go:175
+#: lxc/console.go:200
 msgid "To detach from the console, press: <ctrl>+a q"
 msgstr ""
 
@@ -3580,10 +3588,16 @@ msgstr "Transfert de l'image : %s"
 msgid "Transferring instance: %s"
 msgstr "Transfert de l'image : %s"
 
-#: lxc/action.go:200 lxc/launch.go:99
+#: lxc/action.go:200 lxc/launch.go:103
 #, c-format
 msgid "Try `lxc info --show-log %s` for more info"
 msgstr "Essayer `lxc info --show-log %s` pour plus d'informations"
+
+#: lxc/console.go:43
+msgid ""
+"Type of connection to establish: 'console' for serial console, 'vga' for "
+"SPICE graphical output"
+msgstr ""
 
 #: lxc/image.go:895 lxc/info.go:246 lxc/info.go:460
 #, fuzzy, c-format
@@ -3848,7 +3862,7 @@ msgstr ""
 msgid "config"
 msgstr ""
 
-#: lxc/console.go:29
+#: lxc/console.go:33
 #, fuzzy
 msgid "console [<remote>:]<instance>"
 msgstr ""
@@ -4131,7 +4145,7 @@ msgstr ""
 msgid "enabled"
 msgstr "activé"
 
-#: lxc/action.go:287
+#: lxc/action.go:292
 #, c-format
 msgid "error: %v"
 msgstr "erreur : %v"
@@ -4265,7 +4279,7 @@ msgstr ""
 "\n"
 "lxc %s [<remote>:]<container> [[<remote>:]<container>...]%s"
 
-#: lxc/launch.go:21
+#: lxc/launch.go:23
 msgid "launch [<remote>:]<image> [<remote>:][<name>]"
 msgstr ""
 
@@ -4420,7 +4434,7 @@ msgid ""
 "    Create the instance with configuration from config.yaml"
 msgstr ""
 
-#: lxc/launch.go:25
+#: lxc/launch.go:27
 msgid ""
 "lxc launch ubuntu:18.04 u1\n"
 "\n"
