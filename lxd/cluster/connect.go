@@ -143,7 +143,7 @@ func SetupTrust(cert, targetAddress, targetCert, targetPassword string) error {
 
 	block, _ := pem.Decode([]byte(cert))
 	if block == nil {
-		return errors.Wrap(err, "failed to decode certificate")
+		return fmt.Errorf("failed to decode certificate")
 	}
 
 	certificate := base64.StdEncoding.EncodeToString(block.Bytes)
