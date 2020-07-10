@@ -228,6 +228,7 @@ threads = "{{.cpuThreads}}"
 {{if eq .architecture "x86_64" -}}
 {{$memory := .memory -}}
 {{$hugepages := .hugepages -}}
+{{if .cpuNumaHostNodes -}}
 {{range $index, $element := .cpuNumaHostNodes}}
 [object "mem{{$index}}"]
 {{if ne $hugepages "" -}}
@@ -241,6 +242,18 @@ qom-type = "memory-backend-ram"
 size = "{{$memory}}M"
 host-nodes = "{{$element}}"
 policy = "bind"
+{{end}}
+{{else}}
+[object "mem0"]
+{{if ne $hugepages "" -}}
+qom-type = "memory-backend-file"
+mem-path = "{{$hugepages}}"
+prealloc = "on"
+discard-data = "on"
+{{- else}}
+qom-type = "memory-backend-ram"
+{{- end }}
+size = "{{$memory}}M"
 {{end}}
 
 {{range $index, $element := .cpuNumaNodes}}
