@@ -242,6 +242,11 @@ qom-type = "memory-backend-ram"
 size = "{{$memory}}M"
 host-nodes = "{{$element}}"
 policy = "bind"
+
+[numa]
+type = "node"
+nodeid = "{{$element}}"
+memdev = "mem{{$element}}"
 {{end}}
 {{else}}
 [object "mem0"]
@@ -254,13 +259,11 @@ discard-data = "on"
 qom-type = "memory-backend-ram"
 {{- end }}
 size = "{{$memory}}M"
-{{end}}
 
-{{range $index, $element := .cpuNumaNodes}}
 [numa]
 type = "node"
-nodeid = "{{$element}}"
-memdev = "mem{{$element}}"
+nodeid = "0"
+memdev = "mem0"
 {{end}}
 
 {{range .cpuNumaMapping}}
