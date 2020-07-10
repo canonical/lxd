@@ -1096,13 +1096,16 @@ It introduces the new `--type` flag when creating custom storage volumes, and ac
 
 ## clustering\_failure\_domains
 
-This extension adds a new `failure_domain` field to the `PUT /1.0/cluster/<node>` API,
+This extension adds a new `failure\_domain` field to the `PUT /1.0/cluster/<node>` API,
 which can be used to set the failure domain of a node.
 
 ## container\_syscall\_filtering\_allow\_deny\_syntax
 A number of new syscalls related container configuration keys were updated.
 
- * `security.syscalls.deny_default`
- * `security.syscalls.deny_compat`
+ * `security.syscalls.deny\_default`
+ * `security.syscalls.deny\_compat`
  * `security.syscalls.deny`
  * `security.syscalls.allow`
+
+## resources\_gpu\_mdev
+Expose available mediated device profiles and devices in /1.0/resources.
