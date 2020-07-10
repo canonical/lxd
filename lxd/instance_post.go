@@ -219,6 +219,11 @@ func containerPost(d *Daemon, r *http.Request) response.Response {
 			return ws.Do(d.State(), op)
 		}
 
+		cancel := func(op *operations.Operation) error {
+			ws.disconnect()
+			return nil
+		}
+
 		if req.Target != nil {
 			// Push mode
 			err := ws.ConnectContainerTarget(*req.Target)
@@ -235,7 +240,7 @@ func containerPost(d *Daemon, r *http.Request) response.Response {
 		}
 
 		// Pull mode.
-		op, err := operations.OperationCreate(d.State(), project, operations.OperationClassWebsocket, db.OperationContainerMigrate, resources, ws.Metadata(), run, nil, ws.Connect)
+		op, err := operations.OperationCreate(d.State(), project, operations.OperationClassWebsocket, db.OperationContainerMigrate, resources, ws.Metadata(), run, cancel, ws.Connect)
 		if err != nil {
 			return response.InternalError(err)
 		}
