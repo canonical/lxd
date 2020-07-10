@@ -303,11 +303,17 @@ func (c *cmdConsole) vga(d lxd.InstanceServer, name string) error {
 	// Use either spicy or remote-viewer if available.
 	spicy, err := exec.LookPath("spicy")
 	if err == nil {
-		shared.RunCommand(spicy, fmt.Sprintf("--uri=spice+unix://%s", socket))
+		_, err := shared.RunCommand(spicy, fmt.Sprintf("--uri=spice+unix://%s", socket))
+		if err != nil {
+			return err
+		}
 	} else {
 		remoteViewer, err := exec.LookPath("remote-viewer")
 		if err == nil {
-			shared.RunCommand(remoteViewer, fmt.Sprintf("spice+unix://%s", socket))
+			_, err := shared.RunCommand(remoteViewer, fmt.Sprintf("spice+unix://%s", socket))
+			if err != nil {
+				return err
+			}
 		} else {
 			fmt.Println(i18n.G("LXD automatically uses either spicy or remote-viewer when present."))
 			fmt.Println(i18n.G("As neither could be found, the raw SPICE socket can be found at:"))
