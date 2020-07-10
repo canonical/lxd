@@ -156,6 +156,8 @@ type InstanceServer interface {
 
 	ExecInstance(instanceName string, exec api.InstanceExecPost, args *InstanceExecArgs) (op Operation, err error)
 	ConsoleInstance(instanceName string, console api.InstanceConsolePost, args *InstanceConsoleArgs) (op Operation, err error)
+	ConsoleInstanceDynamic(instanceName string, console api.InstanceConsolePost, args *InstanceConsoleArgs) (Operation, func(io.ReadWriteCloser) error, error)
+
 	GetInstanceConsoleLog(instanceName string, args *InstanceConsoleLogArgs) (content io.ReadCloser, err error)
 	DeleteInstanceConsoleLog(instanceName string, args *InstanceConsoleLogArgs) (err error)
 

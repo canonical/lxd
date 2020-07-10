@@ -1788,6 +1788,14 @@ func (r *ProtocolLXD) ConsoleInstance(instanceName string, console api.InstanceC
 		return nil, fmt.Errorf("The server is missing the required \"console\" API extension")
 	}
 
+	if console.Type == "" {
+		console.Type = "console"
+	}
+
+	if console.Type == "vga" && !r.HasExtension("console_vga_type") {
+		return nil, fmt.Errorf("The server is missing the required \"console_vga_type\" API extension")
+	}
+
 	// Send the request
 	op, _, err := r.queryOperation("POST", fmt.Sprintf("%s/%s/console", path, url.PathEscape(instanceName)), console, "")
 	if err != nil {
@@ -1850,6 +1858,94 @@ func (r *ProtocolLXD) ConsoleInstance(instanceName string, console api.InstanceC
 	}()
 
 	return op, nil
+}
+
+// ConsoleInstanceDynamic requests that LXD attaches to the console device of a
+// instance with the possibility of opening multiple connections to it.
+//
+// Every time the returned 'console' function is called, a new connection will
+// be established and proxied to the given io.ReadWriteCloser.
+func (r *ProtocolLXD) ConsoleInstanceDynamic(instanceName string, console api.InstanceConsolePost, args *InstanceConsoleArgs) (Operation, func(io.ReadWriteCloser) error, error) {
+	path, _, err := r.instanceTypeToPath(api.InstanceTypeAny)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	if !r.HasExtension("console") {
+		return nil, nil, fmt.Errorf("The server is missing the required \"console\" API extension")
+	}
+
+	if console.Type == "" {
+		console.Type = "console"
+	}
+
+	if console.Type == "vga" && !r.HasExtension("console_vga_type") {
+		return nil, nil, fmt.Errorf("The server is missing the required \"console_vga_type\" API extension")
+	}
+
+	// Send the request.
+	op, _, err := r.queryOperation("POST", fmt.Sprintf("%s/%s/console", path, url.PathEscape(instanceName)), console, "")
+	if err != nil {
+		return nil, nil, err
+	}
+	opAPI := op.Get()
+
+	if args == nil {
+		return nil, nil, fmt.Errorf("No arguments provided")
+	}
+
+	if args.Control == nil {
+		return nil, nil, fmt.Errorf("A control channel must be set")
+	}
+
+	// Parse the fds.
+	fds := map[string]string{}
+
+	value, ok := opAPI.Metadata["fds"]
+	if ok {
+		values := value.(map[string]interface{})
+		for k, v := range values {
+			fds[k] = v.(string)
+		}
+	}
+
+	// Call the control handler with a connection to the control socket.
+	if fds["control"] == "" {
+		return nil, nil, fmt.Errorf("Did not receive a file descriptor for the control channel")
+	}
+
+	controlConn, err := r.GetOperationWebsocket(opAPI.ID, fds["control"])
+	if err != nil {
+		return nil, nil, err
+	}
+
+	go args.Control(controlConn)
+
+	// Handle main disconnect.
+	go func(consoleDisconnect <-chan bool) {
+		<-consoleDisconnect
+		msg := websocket.FormatCloseMessage(websocket.CloseNormalClosure, "Detaching from console")
+		// We don't care if this fails. This is just for convenience.
+		controlConn.WriteMessage(websocket.CloseMessage, msg)
+		controlConn.Close()
+	}(args.ConsoleDisconnect)
+
+	f := func(rwc io.ReadWriteCloser) error {
+		// Connect to the websocket.
+		conn, err := r.GetOperationWebsocket(opAPI.ID, fds["0"])
+		if err != nil {
+			return err
+		}
+
+		// Attach reader/writer.
+		shared.WebsocketSendStream(conn, rwc, -1)
+		<-shared.WebsocketRecvStream(rwc, conn)
+		conn.Close()
+
+		return nil
+	}
+
+	return op, f, nil
 }
 
 // GetInstanceConsoleLog requests that LXD attaches to the console device of a instance.
