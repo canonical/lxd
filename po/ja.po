@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: LXD\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2020-07-02 12:54+0200\n"
+"POT-Creation-Date: 2020-07-10 15:48-0400\n"
 "PO-Revision-Date: 2020-05-22 19:59+0000\n"
 "Last-Translator: KATOH Yasufumi <karma@jazz.email.ne.jp>\n"
 "Language-Team: Japanese <https://hosted.weblate.org/projects/linux-"
@@ -464,6 +464,10 @@ msgstr "アーキテクチャ: %s"
 msgid "Architecture: %v"
 msgstr "アーキテクチャ: %v"
 
+#: lxc/console.go:313
+msgid "As neither could be found, the raw SPICE socket can be found at:"
+msgstr ""
+
 #: lxc/init.go:277
 msgid "Asked for a VM but image is of type container"
 msgstr "VMを要求しましたが、イメージタイプがコンテナです"
@@ -492,11 +496,11 @@ msgstr "新たにストレージボリュームをインスタンスに追加し
 msgid "Attach new storage volumes to profiles"
 msgstr "新しいストレージボリュームをプロファイルに追加します"
 
-#: lxc/console.go:30
+#: lxc/console.go:34
 msgid "Attach to instance consoles"
 msgstr "インスタンスのコンソールに接続します"
 
-#: lxc/console.go:31
+#: lxc/console.go:35
 msgid ""
 "Attach to instance consoles\n"
 "\n"
@@ -755,7 +759,7 @@ msgstr "移動先のインスタンスに適用するキー/値の設定"
 msgid "Config parsing error: %s"
 msgstr "設定の構文エラー: %s"
 
-#: lxc/console.go:128
+#: lxc/console.go:142
 msgid "Console log:"
 msgstr "コンソールログ:"
 
@@ -859,7 +863,7 @@ msgstr "既存のイメージに対するエイリアスを作成します"
 msgid "Create an empty instance"
 msgstr "空のインスタンスを作成"
 
-#: lxc/launch.go:22 lxc/launch.go:23
+#: lxc/launch.go:24 lxc/launch.go:25
 msgid "Create and start instances from images"
 msgstr "イメージからインスタンスを作成し、起動します"
 
@@ -1021,7 +1025,7 @@ msgstr "ストレージボリュームを削除します"
 #: lxc/config_template.go:65 lxc/config_template.go:108
 #: lxc/config_template.go:150 lxc/config_template.go:236
 #: lxc/config_template.go:295 lxc/config_trust.go:28 lxc/config_trust.go:57
-#: lxc/config_trust.go:115 lxc/config_trust.go:193 lxc/console.go:31
+#: lxc/config_trust.go:115 lxc/config_trust.go:193 lxc/console.go:35
 #: lxc/copy.go:40 lxc/delete.go:30 lxc/exec.go:40 lxc/export.go:32
 #: lxc/file.go:72 lxc/file.go:105 lxc/file.go:154 lxc/file.go:217
 #: lxc/file.go:407 lxc/image.go:38 lxc/image.go:129 lxc/image.go:277
@@ -1029,7 +1033,7 @@ msgstr "ストレージボリュームを削除します"
 #: lxc/image.go:975 lxc/image.go:1273 lxc/image.go:1352 lxc/image_alias.go:25
 #: lxc/image_alias.go:58 lxc/image_alias.go:105 lxc/image_alias.go:150
 #: lxc/image_alias.go:252 lxc/import.go:28 lxc/info.go:33 lxc/init.go:40
-#: lxc/launch.go:23 lxc/list.go:45 lxc/main.go:50 lxc/manpage.go:19
+#: lxc/launch.go:25 lxc/list.go:45 lxc/main.go:50 lxc/manpage.go:19
 #: lxc/monitor.go:30 lxc/move.go:36 lxc/network.go:32 lxc/network.go:108
 #: lxc/network.go:181 lxc/network.go:254 lxc/network.go:326 lxc/network.go:376
 #: lxc/network.go:461 lxc/network.go:546 lxc/network.go:669 lxc/network.go:727
@@ -1609,7 +1613,7 @@ msgstr "イメージは以下のフィンガープリントでインポートさ
 msgid "Image refreshed successfully!"
 msgstr "イメージの更新が成功しました!"
 
-#: lxc/action.go:118 lxc/action.go:120
+#: lxc/action.go:118 lxc/action.go:120 lxc/launch.go:36
 #, fuzzy
 msgid "Immediately attach to the console"
 msgstr "インスタンスのコンソールに接続します"
@@ -1767,6 +1771,10 @@ msgstr "LOCATION"
 #: lxc/manpage.go:37
 msgid "LXD - Command line client"
 msgstr "LXD - コマンドラインクライアント"
+
+#: lxc/console.go:312
+msgid "LXD automatically uses either spicy or remote-viewer when present."
+msgstr ""
 
 #: lxc/cluster.go:110
 msgid "LXD server isn't part of a cluster"
@@ -2612,7 +2620,7 @@ msgstr "バージョン番号を表示します"
 msgid "Processes: %d"
 msgstr "プロセス数: %d"
 
-#: lxc/main_aliases.go:125 lxc/main_aliases.go:132
+#: lxc/main_aliases.go:137 lxc/main_aliases.go:144
 #, c-format
 msgid "Processing aliases failed: %s"
 msgstr "エイリアスの処理が失敗しました: %s"
@@ -2924,7 +2932,7 @@ msgstr "スナップショットからインスタンスをリストアします
 msgid "Restore storage volume snapshots"
 msgstr "スナップショットからストレージボリュームをリストアします"
 
-#: lxc/console.go:38
+#: lxc/console.go:42
 msgid "Retrieve the instance's console log"
 msgstr "インスタンスのコンソールログを取得します"
 
@@ -3282,7 +3290,7 @@ msgstr "取得元:"
 msgid "Start instances"
 msgstr "インスタンスを起動します"
 
-#: lxc/launch.go:68
+#: lxc/launch.go:72
 #, c-format
 msgid "Starting %s"
 msgstr "%s を起動中"
@@ -3507,7 +3515,7 @@ msgid "To create a new network, use: lxc network create"
 msgstr ""
 "新しいネットワークを作成するには、lxc network create を使用してください"
 
-#: lxc/console.go:175
+#: lxc/console.go:200
 msgid "To detach from the console, press: <ctrl>+a q"
 msgstr "コンソールから切り離すには <ctrl>+a q を押します"
 
@@ -3556,10 +3564,16 @@ msgstr "イメージを転送中: %s"
 msgid "Transferring instance: %s"
 msgstr "インスタンスを転送中: %s"
 
-#: lxc/action.go:200 lxc/launch.go:99
+#: lxc/action.go:200 lxc/launch.go:103
 #, c-format
 msgid "Try `lxc info --show-log %s` for more info"
 msgstr "更に情報を得るために `lxc info --show-log %s` を実行してみてください"
+
+#: lxc/console.go:43
+msgid ""
+"Type of connection to establish: 'console' for serial console, 'vga' for "
+"SPICE graphical output"
+msgstr ""
 
 #: lxc/image.go:902 lxc/info.go:246 lxc/info.go:460
 #, c-format
@@ -3800,7 +3814,7 @@ msgstr "cluster"
 msgid "config"
 msgstr "config"
 
-#: lxc/console.go:29
+#: lxc/console.go:33
 msgid "console [<remote>:]<instance>"
 msgstr "console [<remote>:]<instance>"
 
@@ -4088,7 +4102,7 @@ msgstr "info [<remote>:][<instance>]"
 msgid "init [[<remote>:]<image>] [<remote>:][<name>] [< config"
 msgstr "init [[<remote>:]<image>] [<remote>:][<name>] [< config"
 
-#: lxc/launch.go:21
+#: lxc/launch.go:23
 msgid "launch [<remote>:]<image> [<remote>:][<name>]"
 msgstr "launch [<remote>:]<image> [<remote>:][<name>]"
 
@@ -4270,7 +4284,7 @@ msgstr ""
 "lxc init ubuntu:18.04 u1 < config.yaml\n"
 "    config.yaml の設定を使ってインスタンスを作成します"
 
-#: lxc/launch.go:25
+#: lxc/launch.go:27
 msgid ""
 "lxc launch ubuntu:18.04 u1\n"
 "\n"

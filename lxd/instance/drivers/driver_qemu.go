@@ -3753,7 +3753,18 @@ func (vm *qemu) FileRemove(path string) error {
 }
 
 // Console gets access to the instance's console.
-func (vm *qemu) Console() (*os.File, chan error, error) {
+func (vm *qemu) Console(protocol string) (*os.File, chan error, error) {
+	switch protocol {
+	case instance.ConsoleTypeConsole:
+		return vm.console()
+	case instance.ConsoleTypeVGA:
+		return vm.vga()
+	default:
+		return nil, nil, fmt.Errorf("Unknown protocol %q", protocol)
+	}
+}
+
+func (vm *qemu) console() (*os.File, chan error, error) {
 	chDisconnect := make(chan error, 1)
 
 	// Avoid duplicate connects.
@@ -3791,6 +3802,22 @@ func (vm *qemu) Console() (*os.File, chan error, error) {
 	}()
 
 	return console, chDisconnect, nil
+}
+
+func (vm *qemu) vga() (*os.File, chan error, error) {
+	// Open the spice socket
+	conn, err := net.Dial("unix", vm.spicePath())
+	if err != nil {
+		return nil, nil, errors.Wrapf(err, "Connect to SPICE socket %q", vm.spicePath())
+	}
+
+	file, err := (conn.(*net.UnixConn)).File()
+	if err != nil {
+		return nil, nil, errors.Wrap(err, "Get socket file")
+	}
+	conn.Close()
+
+	return file, nil, nil
 }
 
 // Exec a command inside the instance.
