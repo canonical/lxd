@@ -301,16 +301,16 @@ func (c *cmdConsole) vga(d lxd.InstanceServer, name string) error {
 	}()
 
 	// Use either spicy or remote-viewer if available.
-	spicy, err := exec.LookPath("spicy")
+	remoteViewer, err := exec.LookPath("remote-viewer")
 	if err == nil {
-		_, err := shared.RunCommand(spicy, fmt.Sprintf("--uri=spice+unix://%s", socket))
+		_, err := shared.RunCommand(remoteViewer, fmt.Sprintf("spice+unix://%s", socket))
 		if err != nil {
 			return err
 		}
 	} else {
-		remoteViewer, err := exec.LookPath("remote-viewer")
+		spicy, err := exec.LookPath("spicy")
 		if err == nil {
-			_, err := shared.RunCommand(remoteViewer, fmt.Sprintf("spice+unix://%s", socket))
+			_, err := shared.RunCommand(spicy, fmt.Sprintf("--uri=spice+unix://%s", socket))
 			if err != nil {
 				return err
 			}
