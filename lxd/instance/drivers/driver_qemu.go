@@ -3345,7 +3345,7 @@ func (vm *qemu) deviceRemove(deviceName string, rawConfig deviceConfig.Device) e
 }
 
 // Export publishes the instance.
-func (vm *qemu) Export(w io.Writer, properties map[string]string) error {
+func (vm *qemu) Export(w io.Writer, properties map[string]string) (api.ImageMetadata, error) {
 	ctxMap := log.Ctx{
 		"project":   vm.project,
 		"name":      vm.name,
@@ -3353,8 +3353,10 @@ func (vm *qemu) Export(w io.Writer, properties map[string]string) error {
 		"ephemeral": vm.ephemeral,
 		"used":      vm.lastUsedDate}
 
+	meta := api.ImageMetadata{}
+
 	if vm.IsRunning() {
-		return fmt.Errorf("Cannot export a running instance as an image")
+		return meta, fmt.Errorf("Cannot export a running instance as an image")
 	}
 
 	logger.Info("Exporting instance", ctxMap)
@@ -3363,7 +3365,7 @@ func (vm *qemu) Export(w io.Writer, properties map[string]string) error {
 	ourStart, err := vm.mount()
 	if err != nil {
 		logger.Error("Failed exporting instance", ctxMap)
-		return err
+		return meta, err
 	}
 	if ourStart {
 		defer vm.unmount()
@@ -3398,7 +3400,7 @@ func (vm *qemu) Export(w io.Writer, properties map[string]string) error {
 		if err != nil {
 			tarWriter.Close()
 			logger.Error("Failed exporting instance", ctxMap)
-			return err
+			return meta, err
 		}
 		defer os.RemoveAll(tempDir)
 
@@ -3410,7 +3412,7 @@ func (vm *qemu) Export(w io.Writer, properties map[string]string) error {
 			if err != nil {
 				tarWriter.Close()
 				logger.Error("Failed exporting instance", ctxMap)
-				return err
+				return meta, err
 			}
 
 			arch, _ = osarch.ArchitectureName(parent.Architecture())
@@ -3422,12 +3424,11 @@ func (vm *qemu) Export(w io.Writer, properties map[string]string) error {
 			arch, err = osarch.ArchitectureName(vm.state.OS.Architectures[0])
 			if err != nil {
 				logger.Error("Failed exporting instance", ctxMap)
-				return err
+				return meta, err
 			}
 		}
 
 		// Fill in the metadata.
-		meta := api.ImageMetadata{}
 		meta.Architecture = arch
 		meta.CreationDate = time.Now().UTC().Unix()
 		meta.Properties = properties
@@ -3436,7 +3437,7 @@ func (vm *qemu) Export(w io.Writer, properties map[string]string) error {
 		if err != nil {
 			tarWriter.Close()
 			logger.Error("Failed exporting instance", ctxMap)
-			return err
+			return meta, err
 		}
 
 		// Write the actual file.
@@ -3445,55 +3446,55 @@ func (vm *qemu) Export(w io.Writer, properties map[string]string) error {
 		if err != nil {
 			tarWriter.Close()
 			logger.Error("Failed exporting instance", ctxMap)
-			return err
+			return meta, err
 		}
 
 		fi, err := os.Lstat(fnam)
 		if err != nil {
 			tarWriter.Close()
 			logger.Error("Failed exporting instance", ctxMap)
-			return err
+			return meta, err
 		}
 
 		tmpOffset := len(filepath.Dir(fnam)) + 1
 		if err := tarWriter.WriteFile(fnam[tmpOffset:], fnam, fi, false); err != nil {
 			tarWriter.Close()
 			logger.Error("Failed exporting instance", ctxMap)
-			return err
+			return meta, err
 		}
 	} else {
-		if properties != nil {
-			// Parse the metadata.
-			content, err := ioutil.ReadFile(fnam)
-			if err != nil {
-				tarWriter.Close()
-				logger.Error("Failed exporting instance", ctxMap)
-				return err
-			}
+		// Parse the metadata.
+		content, err := ioutil.ReadFile(fnam)
+		if err != nil {
+			tarWriter.Close()
+			logger.Error("Failed exporting instance", ctxMap)
+			return meta, err
+		}
 
-			metadata := new(api.ImageMetadata)
-			err = yaml.Unmarshal(content, &metadata)
-			if err != nil {
-				tarWriter.Close()
-				logger.Error("Failed exporting instance", ctxMap)
-				return err
-			}
-			metadata.Properties = properties
+		err = yaml.Unmarshal(content, &meta)
+		if err != nil {
+			tarWriter.Close()
+			logger.Error("Failed exporting instance", ctxMap)
+			return meta, err
+		}
+
+		if properties != nil {
+			meta.Properties = properties
 
 			// Generate a new metadata.yaml.
 			tempDir, err := ioutil.TempDir("", "lxd_lxd_metadata_")
 			if err != nil {
 				tarWriter.Close()
 				logger.Error("Failed exporting instance", ctxMap)
-				return err
+				return meta, err
 			}
 			defer os.RemoveAll(tempDir)
 
-			data, err := yaml.Marshal(&metadata)
+			data, err := yaml.Marshal(&meta)
 			if err != nil {
 				tarWriter.Close()
 				logger.Error("Failed exporting instance", ctxMap)
-				return err
+				return meta, err
 			}
 
 			// Write the actual file.
@@ -3502,7 +3503,7 @@ func (vm *qemu) Export(w io.Writer, properties map[string]string) error {
 			if err != nil {
 				tarWriter.Close()
 				logger.Error("Failed exporting instance", ctxMap)
-				return err
+				return meta, err
 			}
 		}
 
@@ -3512,7 +3513,7 @@ func (vm *qemu) Export(w io.Writer, properties map[string]string) error {
 			tarWriter.Close()
 			logger.Debugf("Error statting %s during export", fnam)
 			logger.Error("Failed exporting instance", ctxMap)
-			return err
+			return meta, err
 		}
 
 		if properties != nil {
@@ -3525,43 +3526,43 @@ func (vm *qemu) Export(w io.Writer, properties map[string]string) error {
 			tarWriter.Close()
 			logger.Debugf("Error writing to tarfile: %s", err)
 			logger.Error("Failed exporting instance", ctxMap)
-			return err
+			return meta, err
 		}
 	}
 
 	// Convert and include the root image.
 	pool, err := vm.getStoragePool()
 	if err != nil {
-		return err
+		return meta, err
 	}
 
 	rootDrivePath, err := pool.GetInstanceDisk(vm)
 	if err != nil {
-		return err
+		return meta, err
 	}
 
 	// Convert from raw to qcow2 and add to tarball.
 	tmpPath, err := ioutil.TempDir(shared.VarPath("images"), "lxd_export_")
 	if err != nil {
-		return err
+		return meta, err
 	}
 	defer os.RemoveAll(tmpPath)
 
 	fPath := fmt.Sprintf("%s/rootfs.img", tmpPath)
 	_, err = shared.RunCommand("qemu-img", "convert", "-c", "-O", "qcow2", rootDrivePath, fPath)
 	if err != nil {
-		return fmt.Errorf("Failed converting image to qcow2: %v", err)
+		return meta, fmt.Errorf("Failed converting image to qcow2: %v", err)
 	}
 
 	fi, err := os.Lstat(fPath)
 	if err != nil {
-		return err
+		return meta, err
 	}
 
 	imgOffset := len(tmpPath) + 1
 	err = tarWriter.WriteFile(fPath[imgOffset:], fPath, fi, false)
 	if err != nil {
-		return err
+		return meta, err
 	}
 
 	// Include all the templates.
@@ -3570,18 +3571,18 @@ func (vm *qemu) Export(w io.Writer, properties map[string]string) error {
 		err = filepath.Walk(fnam, writeToTar)
 		if err != nil {
 			logger.Error("Failed exporting instance", ctxMap)
-			return err
+			return meta, err
 		}
 	}
 
 	err = tarWriter.Close()
 	if err != nil {
 		logger.Error("Failed exporting instance", ctxMap)
-		return err
+		return meta, err
 	}
 
 	logger.Info("Exported instance", ctxMap)
-	return nil
+	return meta, nil
 }
 
 // Migrate migrates the instance to another node.
