@@ -174,7 +174,7 @@ func compressFile(compress string, infile io.Reader, outfile io.Writer) error {
  * This function takes a container or snapshot from the local image server and
  * exports it as an image.
  */
-func imgPostContInfo(d *Daemon, r *http.Request, req api.ImagesPost, op *operations.Operation, builddir string) (*api.Image, error) {
+func imgPostInstanceInfo(d *Daemon, r *http.Request, req api.ImagesPost, op *operations.Operation, builddir string) (*api.Image, error) {
 	info := api.Image{}
 	info.Properties = map[string]string{}
 	project := projectParam(r)
@@ -293,7 +293,8 @@ func imgPostContInfo(d *Daemon, r *http.Request, req api.ImagesPost, op *operati
 	}
 
 	// Export instance to writer.
-	err = c.Export(writer, req.Properties)
+	var meta api.ImageMetadata
+	meta, err = c.Export(writer, req.Properties)
 
 	// Clean up file handles.
 	// When compression is used, Close on imageProgressWriter/tarWriter is required for compressFile/gzip to
@@ -337,7 +338,7 @@ func imgPostContInfo(d *Daemon, r *http.Request, req api.ImagesPost, op *operati
 	}
 
 	info.Architecture, _ = osarch.ArchitectureName(c.Architecture())
-	info.Properties = req.Properties
+	info.Properties = meta.Properties
 
 	// Create the database entry
 	err = d.cluster.CreateImage(c.Project(), info.Fingerprint, info.Filename, info.Size, info.Public, info.AutoUpdate, info.Architecture, info.CreatedAt, info.ExpiresAt, info.Properties, info.Type)
@@ -821,7 +822,7 @@ func imagesPost(d *Daemon, r *http.Request) response.Response {
 			} else {
 				/* Processing image creation from container */
 				imagePublishLock.Lock()
-				info, err = imgPostContInfo(d, r, req, op, builddir)
+				info, err = imgPostInstanceInfo(d, r, req, op, builddir)
 				imagePublishLock.Unlock()
 			}
 		}
