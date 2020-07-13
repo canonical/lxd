@@ -7,8 +7,8 @@ msgid ""
 msgstr ""
 "Project-Id-Version: LXD\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2020-07-10 15:48-0400\n"
-"PO-Revision-Date: 2020-05-22 19:59+0000\n"
+"POT-Creation-Date: 2020-07-12 23:37-0400\n"
+"PO-Revision-Date: 2020-07-03 17:01+0000\n"
 "Last-Translator: KATOH Yasufumi <karma@jazz.email.ne.jp>\n"
 "Language-Team: Japanese <https://hosted.weblate.org/projects/linux-"
 "containers/lxd/ja/>\n"
@@ -17,7 +17,7 @@ msgstr ""
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=1; plural=0;\n"
-"X-Generator: Weblate 4.1-dev\n"
+"X-Generator: Weblate 4.2-dev\n"
 
 #: lxc/storage.go:225
 msgid ""
@@ -329,14 +329,12 @@ msgid "- Port %d (%s)"
 msgstr "- ポート %d (%s)"
 
 #: lxc/action.go:267
-#, fuzzy
 msgid "--console can't be used with --all"
-msgstr "--mode と --target は同時に指定できません"
+msgstr "--console と --all は同時に指定できません"
 
 #: lxc/action.go:271
-#, fuzzy
 msgid "--console only works with a single instance"
-msgstr "移動先のインスタンスに適用するプロファイル"
+msgstr "--console は単一のインスタンスのときのみ指定できます"
 
 #: lxc/init.go:122
 msgid "--empty cannot be combined with an image name"
@@ -464,7 +462,7 @@ msgstr "アーキテクチャ: %s"
 msgid "Architecture: %v"
 msgstr "アーキテクチャ: %v"
 
-#: lxc/console.go:313
+#: lxc/console.go:319
 msgid "As neither could be found, the raw SPICE socket can be found at:"
 msgstr ""
 
@@ -588,7 +586,7 @@ msgstr "COMMON NAME"
 
 #: lxc/storage_volume.go:1138
 msgid "CONTENT TYPE"
-msgstr ""
+msgstr "CONTENT TYPE"
 
 #: lxc/info.go:327
 #, c-format
@@ -765,7 +763,7 @@ msgstr "コンソールログ:"
 
 #: lxc/storage_volume.go:476
 msgid "Content type, block or filesystem"
-msgstr ""
+msgstr "ストレージボリュームのタイプ、block もしくは filesystem"
 
 #: lxc/info.go:115
 #, c-format
@@ -1342,7 +1340,7 @@ msgstr "イメージのエクスポート中: %s"
 
 #: lxc/cluster.go:138
 msgid "FAILURE DOMAIN"
-msgstr ""
+msgstr "FAILURE DOMAIN"
 
 #: lxc/config_template.go:278
 msgid "FILENAME"
@@ -1614,9 +1612,8 @@ msgid "Image refreshed successfully!"
 msgstr "イメージの更新が成功しました!"
 
 #: lxc/action.go:118 lxc/action.go:120 lxc/launch.go:36
-#, fuzzy
 msgid "Immediately attach to the console"
-msgstr "インスタンスのコンソールに接続します"
+msgstr "起動直後にインスタンスのコンソールに接続します"
 
 #: lxc/import.go:28
 msgid "Import backups of instances including their snapshots."
@@ -1699,9 +1696,9 @@ msgid "Invalid format %q"
 msgstr "不正なフォーマット %q"
 
 #: lxc/snapshot.go:70
-#, fuzzy, c-format
+#, c-format
 msgid "Invalid instance name: %s"
-msgstr "インスタンス名: %s"
+msgstr "不正なインスタンス名: %s"
 
 #: lxc/list.go:522
 #, c-format
@@ -1772,7 +1769,7 @@ msgstr "LOCATION"
 msgid "LXD - Command line client"
 msgstr "LXD - コマンドラインクライアント"
 
-#: lxc/console.go:312
+#: lxc/console.go:318
 msgid "LXD automatically uses either spicy or remote-viewer when present."
 msgstr ""
 
@@ -2743,7 +2740,7 @@ msgstr "ファイル %s をコンテナ %s 内にコピーします: %%s"
 
 #: lxc/query.go:78
 msgid "Query path must start with /"
-msgstr ""
+msgstr "query のパスは / で始める必要があります"
 
 #: lxc/image.go:458 lxc/image.go:843 lxc/image.go:1355
 msgid "Query virtual machine images"

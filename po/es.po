@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: lxd\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2020-07-10 15:48-0400\n"
+"POT-Creation-Date: 2020-07-12 23:37-0400\n"
 "PO-Revision-Date: 2019-09-06 07:09+0000\n"
 "Last-Translator: Stéphane Graber <stgraber@stgraber.org>\n"
 "Language-Team: Spanish <https://hosted.weblate.org/projects/linux-containers/"
@@ -464,7 +464,7 @@ msgstr "Arquitectura: %s"
 msgid "Architecture: %v"
 msgstr "Arquitectura: %s"
 
-#: lxc/console.go:313
+#: lxc/console.go:319
 msgid "As neither could be found, the raw SPICE socket can be found at:"
 msgstr ""
 
@@ -1720,7 +1720,7 @@ msgstr ""
 msgid "LXD - Command line client"
 msgstr ""
 
-#: lxc/console.go:312
+#: lxc/console.go:318
 msgid "LXD automatically uses either spicy or remote-viewer when present."
 msgstr ""
 
