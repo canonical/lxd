@@ -173,7 +173,7 @@ func compressFile(compress string, infile io.Reader, outfile io.Writer) error {
  * This function takes a container or snapshot from the local image server and
  * exports it as an image.
  */
-func imgPostContInfo(d *Daemon, r *http.Request, req api.ImagesPost, op *operations.Operation, builddir string) (*api.Image, error) {
+func imgPostInstanceInfo(d *Daemon, r *http.Request, req api.ImagesPost, op *operations.Operation, builddir string) (*api.Image, error) {
 	info := api.Image{}
 	info.Properties = map[string]string{}
 	project := projectParam(r)
@@ -772,7 +772,7 @@ func imagesPost(d *Daemon, r *http.Request) response.Response {
 			} else {
 				/* Processing image creation from container */
 				imagePublishLock.Lock()
-				info, err = imgPostContInfo(d, r, req, op, builddir)
+				info, err = imgPostInstanceInfo(d, r, req, op, builddir)
 				imagePublishLock.Unlock()
 			}
 		}
