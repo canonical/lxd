@@ -293,7 +293,8 @@ func imgPostInstanceInfo(d *Daemon, r *http.Request, req api.ImagesPost, op *ope
 	}
 
 	// Export instance to writer.
-	err = c.Export(writer, req.Properties)
+	var meta api.ImageMetadata
+	meta, err = c.Export(writer, req.Properties)
 
 	// Clean up file handles.
 	// When compression is used, Close on imageProgressWriter/tarWriter is required for compressFile/gzip to
@@ -337,7 +338,7 @@ func imgPostInstanceInfo(d *Daemon, r *http.Request, req api.ImagesPost, op *ope
 	}
 
 	info.Architecture, _ = osarch.ArchitectureName(c.Architecture())
-	info.Properties = req.Properties
+	info.Properties = meta.Properties
 
 	// Create the database entry
 	err = d.cluster.CreateImage(c.Project(), info.Fingerprint, info.Filename, info.Size, info.Public, info.AutoUpdate, info.Architecture, info.CreatedAt, info.ExpiresAt, info.Properties, info.Type)

@@ -4546,7 +4546,7 @@ func (c *lxc) updateDevices(removeDevices deviceConfig.Devices, addDevices devic
 }
 
 // Export backs up the instance.
-func (c *lxc) Export(w io.Writer, properties map[string]string) error {
+func (c *lxc) Export(w io.Writer, properties map[string]string) (api.ImageMetadata, error) {
 	ctxMap := log.Ctx{
 		"project":   c.project,
 		"name":      c.name,
@@ -4554,8 +4554,10 @@ func (c *lxc) Export(w io.Writer, properties map[string]string) error {
 		"ephemeral": c.ephemeral,
 		"used":      c.lastUsedDate}
 
+	meta := api.ImageMetadata{}
+
 	if c.IsRunning() {
-		return fmt.Errorf("Cannot export a running instance as an image")
+		return meta, fmt.Errorf("Cannot export a running instance as an image")
 	}
 
 	logger.Info("Exporting instance", ctxMap)
@@ -4564,7 +4566,7 @@ func (c *lxc) Export(w io.Writer, properties map[string]string) error {
 	ourStart, err := c.mount()
 	if err != nil {
 		logger.Error("Failed exporting instance", ctxMap)
-		return err
+		return meta, err
 	}
 	if ourStart {
 		defer c.unmount()
@@ -4574,7 +4576,7 @@ func (c *lxc) Export(w io.Writer, properties map[string]string) error {
 	idmap, err := c.DiskIdmap()
 	if err != nil {
 		logger.Error("Failed exporting instance", ctxMap)
-		return err
+		return meta, err
 	}
 
 	// Create the tarball.
@@ -4607,7 +4609,7 @@ func (c *lxc) Export(w io.Writer, properties map[string]string) error {
 		if err != nil {
 			tarWriter.Close()
 			logger.Error("Failed exporting instance", ctxMap)
-			return err
+			return meta, err
 		}
 		defer os.RemoveAll(tempDir)
 
@@ -4619,7 +4621,7 @@ func (c *lxc) Export(w io.Writer, properties map[string]string) error {
 			if err != nil {
 				tarWriter.Close()
 				logger.Error("Failed exporting instance", ctxMap)
-				return err
+				return meta, err
 			}
 
 			arch, _ = osarch.ArchitectureName(parent.Architecture())
@@ -4631,12 +4633,11 @@ func (c *lxc) Export(w io.Writer, properties map[string]string) error {
 			arch, err = osarch.ArchitectureName(c.state.OS.Architectures[0])
 			if err != nil {
 				logger.Error("Failed exporting instance", ctxMap)
-				return err
+				return meta, err
 			}
 		}
 
 		// Fill in the metadata.
-		meta := api.ImageMetadata{}
 		meta.Architecture = arch
 		meta.CreationDate = time.Now().UTC().Unix()
 		meta.Properties = properties
@@ -4645,7 +4646,7 @@ func (c *lxc) Export(w io.Writer, properties map[string]string) error {
 		if err != nil {
 			tarWriter.Close()
 			logger.Error("Failed exporting instance", ctxMap)
-			return err
+			return meta, err
 		}
 
 		// Write the actual file.
@@ -4654,14 +4655,14 @@ func (c *lxc) Export(w io.Writer, properties map[string]string) error {
 		if err != nil {
 			tarWriter.Close()
 			logger.Error("Failed exporting instance", ctxMap)
-			return err
+			return meta, err
 		}
 
 		fi, err := os.Lstat(fnam)
 		if err != nil {
 			tarWriter.Close()
 			logger.Error("Failed exporting instance", ctxMap)
-			return err
+			return meta, err
 		}
 
 		tmpOffset := len(path.Dir(fnam)) + 1
@@ -4669,41 +4670,41 @@ func (c *lxc) Export(w io.Writer, properties map[string]string) error {
 			tarWriter.Close()
 			logger.Debugf("Error writing to tarfile: %s", err)
 			logger.Error("Failed exporting instance", ctxMap)
-			return err
+			return meta, err
 		}
 	} else {
-		if properties != nil {
-			// Parse the metadata.
-			content, err := ioutil.ReadFile(fnam)
-			if err != nil {
-				tarWriter.Close()
-				logger.Error("Failed exporting instance", ctxMap)
-				return err
-			}
+		// Parse the metadata.
+		content, err := ioutil.ReadFile(fnam)
+		if err != nil {
+			tarWriter.Close()
+			logger.Error("Failed exporting instance", ctxMap)
+			return meta, err
+		}
 
-			metadata := new(api.ImageMetadata)
-			err = yaml.Unmarshal(content, &metadata)
-			if err != nil {
-				tarWriter.Close()
-				logger.Error("Failed exporting instance", ctxMap)
-				return err
-			}
-			metadata.Properties = properties
+		err = yaml.Unmarshal(content, &meta)
+		if err != nil {
+			tarWriter.Close()
+			logger.Error("Failed exporting instance", ctxMap)
+			return meta, err
+		}
+
+		if properties != nil {
+			meta.Properties = properties
 
 			// Generate a new metadata.yaml.
 			tempDir, err := ioutil.TempDir("", "lxd_lxd_metadata_")
 			if err != nil {
 				tarWriter.Close()
 				logger.Error("Failed exporting instance", ctxMap)
-				return err
+				return meta, err
 			}
 			defer os.RemoveAll(tempDir)
 
-			data, err := yaml.Marshal(&metadata)
+			data, err := yaml.Marshal(&meta)
 			if err != nil {
 				tarWriter.Close()
 				logger.Error("Failed exporting instance", ctxMap)
-				return err
+				return meta, err
 			}
 
 			// Write the actual file.
@@ -4712,7 +4713,7 @@ func (c *lxc) Export(w io.Writer, properties map[string]string) error {
 			if err != nil {
 				tarWriter.Close()
 				logger.Error("Failed exporting instance", ctxMap)
-				return err
+				return meta, err
 			}
 		}
 
@@ -4722,7 +4723,7 @@ func (c *lxc) Export(w io.Writer, properties map[string]string) error {
 			tarWriter.Close()
 			logger.Debugf("Error statting %s during export", fnam)
 			logger.Error("Failed exporting instance", ctxMap)
-			return err
+			return meta, err
 		}
 
 		if properties != nil {
@@ -4735,7 +4736,7 @@ func (c *lxc) Export(w io.Writer, properties map[string]string) error {
 			tarWriter.Close()
 			logger.Debugf("Error writing to tarfile: %s", err)
 			logger.Error("Failed exporting instance", ctxMap)
-			return err
+			return meta, err
 		}
 	}
 
@@ -4744,7 +4745,7 @@ func (c *lxc) Export(w io.Writer, properties map[string]string) error {
 	err = filepath.Walk(fnam, writeToTar)
 	if err != nil {
 		logger.Error("Failed exporting instance", ctxMap)
-		return err
+		return meta, err
 	}
 
 	// Include all the templates.
@@ -4753,18 +4754,18 @@ func (c *lxc) Export(w io.Writer, properties map[string]string) error {
 		err = filepath.Walk(fnam, writeToTar)
 		if err != nil {
 			logger.Error("Failed exporting instance", ctxMap)
-			return err
+			return meta, err
 		}
 	}
 
 	err = tarWriter.Close()
 	if err != nil {
 		logger.Error("Failed exporting instance", ctxMap)
-		return err
+		return meta, err
 	}
 
 	logger.Info("Exported instance", ctxMap)
-	return nil
+	return meta, nil
 }
 
 func collectCRIULogFile(c instance.Instance, imagesDir string, function string, method string) error {
