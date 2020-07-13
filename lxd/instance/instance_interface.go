@@ -66,7 +66,7 @@ type Instance interface {
 	Update(newConfig db.InstanceArgs, userRequested bool) error
 
 	Delete() error
-	Export(w io.Writer, properties map[string]string) error
+	Export(w io.Writer, properties map[string]string) (api.ImageMetadata, error)
 
 	// Live configuration.
 	CGroupSet(key string, value string) error
