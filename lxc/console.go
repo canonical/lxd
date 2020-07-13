@@ -40,7 +40,7 @@ as well as retrieve past log entries from it.`))
 
 	cmd.RunE = c.Run
 	cmd.Flags().BoolVar(&c.flagShowLog, "show-log", false, i18n.G("Retrieve the instance's console log"))
-	cmd.Flags().StringVar(&c.flagType, "type", "console", i18n.G("Type of connection to establish: 'console' for serial console, 'vga' for SPICE graphical output"))
+	cmd.Flags().StringVarP(&c.flagType, "type", "t", "console", i18n.G("Type of connection to establish: 'console' for serial console, 'vga' for SPICE graphical output"))
 
 	return cmd
 }
