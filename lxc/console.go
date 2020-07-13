@@ -147,6 +147,9 @@ func (c *cmdConsole) Run(cmd *cobra.Command, args []string) error {
 }
 
 func (c *cmdConsole) Console(d lxd.InstanceServer, name string) error {
+	if c.flagType == "" {
+		c.flagType = "console"
+	}
 	switch c.flagType {
 	case "console":
 		return c.console(d, name)
