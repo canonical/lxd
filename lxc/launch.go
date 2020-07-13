@@ -15,7 +15,7 @@ type cmdLaunch struct {
 	global *cmdGlobal
 	init   *cmdInit
 
-	flagConsole bool
+	flagConsole string
 }
 
 func (c *cmdLaunch) Command() *cobra.Command {
@@ -33,7 +33,8 @@ lxc launch ubuntu:18.04 u1 < config.yaml
 
 	cmd.RunE = c.Run
 
-	cmd.Flags().BoolVar(&c.flagConsole, "console", false, i18n.G("Immediately attach to the console"))
+	cmd.Flags().StringVar(&c.flagConsole, "console", "", i18n.G("Immediately attach to the console"))
+	cmd.Flags().Lookup("console").NoOptDefVal = "console"
 
 	return cmd
 }
@@ -105,9 +106,10 @@ func (c *cmdLaunch) Run(cmd *cobra.Command, args []string) error {
 	progress.Done("")
 
 	// Handle console attach
-	if c.flagConsole {
+	if c.flagConsole != "" {
 		console := cmdConsole{}
 		console.global = c.global
+		console.flagType = c.flagConsole
 		return console.Console(d, name)
 	}
 
