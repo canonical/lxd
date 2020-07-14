@@ -149,7 +149,7 @@ WHERE networks.id = ? AND networks.state = ?
 
 // CreatePendingNetwork creates a new pending network on the node with
 // the given name.
-func (c *ClusterTx) CreatePendingNetwork(node, name string, conf map[string]string) error {
+func (c *ClusterTx) CreatePendingNetwork(node, name string, netType NetworkType, conf map[string]string) error {
 	// First check if a network with the given name exists, and, if
 	// so, that it's in the pending state.
 	network := struct {
@@ -182,8 +182,8 @@ func (c *ClusterTx) CreatePendingNetwork(node, name string, conf map[string]stri
 	if networkID == 0 {
 		// No existing network with the given name was found, let's create
 		// one.
-		columns := []string{"name"}
-		values := []interface{}{name}
+		columns := []string{"name", "type"}
+		values := []interface{}{name, netType}
 		networkID, err = query.UpsertObject(c.tx, "networks", columns, values)
 		if err != nil {
 			return err
