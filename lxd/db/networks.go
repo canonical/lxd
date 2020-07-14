@@ -641,4 +641,5 @@ func (c *Cluster) RenameNetwork(oldName string, newName string) error {
 // NodeSpecificNetworkConfig lists all network config keys which are node-specific.
 var NodeSpecificNetworkConfig = []string{
 	"bridge.external_interfaces",
+	"parent",
 }
