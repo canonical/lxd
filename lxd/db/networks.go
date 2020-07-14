@@ -485,7 +485,11 @@ func (c *Cluster) getNetworkConfig(id int64) (map[string]string, error) {
 }
 
 // CreateNetwork creates a new network.
-func (c *Cluster) CreateNetwork(name, description string, config map[string]string) (int64, error) {
+func (c *Cluster) CreateNetwork(name, description string, netType NetworkType, config map[string]string) (int64, error) {
+	if netType != NetworkTypeBridge {
+		return -1, fmt.Errorf("Unsupported network type: %v", netType)
+	}
+
 	var id int64
 	err := c.Transaction(func(tx *ClusterTx) error {
 		result, err := tx.tx.Exec("INSERT INTO networks (name, description, state) VALUES (?, ?, ?)", name, description, networkCreated)
