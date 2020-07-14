@@ -108,22 +108,25 @@ func networksPost(d *Daemon, r *http.Request) response.Response {
 		return response.BadRequest(fmt.Errorf("No name provided"))
 	}
 
-	err = networkValidName(req.Name)
-	if err != nil {
-		return response.BadRequest(err)
-	}
-
-	if req.Type != "" && req.Type != "bridge" {
-		return response.BadRequest(fmt.Errorf("Only 'bridge' type networks can be created"))
+	if req.Type == "" {
+		req.Type = "bridge"
 	}
 
 	if req.Config == nil {
 		req.Config = map[string]string{}
 	}
 
-	err = networkValidateConfig(req.Name, req.Config)
+	err = network.Validate(req.Name, req.Type, req.Config)
 	if err != nil {
 		return response.BadRequest(err)
+	}
+
+	var dbNetType db.NetworkType
+	switch req.Type {
+	case "bridge":
+		dbNetType = db.NetworkTypeBridge
+	default:
+		dbNetType = db.NetworkTypeBridge
 	}
 
 	url := fmt.Sprintf("/%s/networks/%s", version.APIVersion, req.Name)
@@ -151,7 +154,7 @@ func networksPost(d *Daemon, r *http.Request) response.Response {
 			}
 		}
 		err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
-			return tx.CreatePendingNetwork(targetNode, req.Name, req.Config)
+			return tx.CreatePendingNetwork(targetNode, req.Name, dbNetType, req.Config)
 		})
 		if err != nil {
 			if err == db.ErrAlreadyDefined {
@@ -195,7 +198,7 @@ func networksPost(d *Daemon, r *http.Request) response.Response {
 	}
 
 	// Create the database entry
-	_, err = d.cluster.CreateNetwork(req.Name, req.Description, req.Config)
+	_, err = d.cluster.CreateNetwork(req.Name, req.Description, dbNetType, req.Config)
 	if err != nil {
 		return response.SmartError(fmt.Errorf("Error inserting %s into database: %s", req.Name, err))
 	}
