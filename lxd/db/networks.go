@@ -297,6 +297,14 @@ const (
 	networkErrored            // Network creation failed on some nodes
 )
 
+// NetworkType indicates type of network.
+type NetworkType int
+
+// Network types.
+const (
+	NetworkTypeBridge NetworkType = iota // Network type bridge.
+)
+
 // GetNetwork returns the network with the given name.
 //
 // The network must be in the created stated, not pending.
