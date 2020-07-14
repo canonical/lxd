@@ -304,24 +304,33 @@ func (c *cmdConsole) vga(d lxd.InstanceServer, name string) error {
 	}()
 
 	// Use either spicy or remote-viewer if available.
-	remoteViewer, err := exec.LookPath("remote-viewer")
-	if err == nil {
-		_, err := shared.RunCommand(remoteViewer, fmt.Sprintf("spice+unix://%s", socket))
-		if err != nil {
-			return err
-		}
-	} else {
-		spicy, err := exec.LookPath("spicy")
-		if err == nil {
-			_, err := shared.RunCommand(spicy, fmt.Sprintf("--uri=spice+unix://%s", socket))
-			if err != nil {
-				return err
-			}
+	remoteViewer, _ := exec.LookPath("remote-viewer")
+	spicy, _ := exec.LookPath("spicy")
+
+	if remoteViewer != "" || spicy != "" {
+		var cmd *exec.Cmd
+		if remoteViewer != "" {
+			cmd = exec.Command(remoteViewer, fmt.Sprintf("spice+unix://%s", socket))
 		} else {
-			fmt.Println(i18n.G("LXD automatically uses either spicy or remote-viewer when present."))
-			fmt.Println(i18n.G("As neither could be found, the raw SPICE socket can be found at:"))
-			fmt.Printf("  %s\n", socket)
+			cmd = exec.Command(spicy, fmt.Sprintf("--uri=spice+unix://%s", socket))
 		}
+
+		// Start the command.
+		cmd.Stdout = os.Stdout
+		cmd.Stderr = os.Stderr
+		cmd.Start()
+
+		defer func() {
+			if cmd.Process == nil {
+				return
+			}
+
+			cmd.Process.Kill()
+		}()
+	} else {
+		fmt.Println(i18n.G("LXD automatically uses either spicy or remote-viewer when present."))
+		fmt.Println(i18n.G("As neither could be found, the raw SPICE socket can be found at:"))
+		fmt.Printf("  %s\n", socket)
 	}
 
 	// Wait for the operation to complete.
