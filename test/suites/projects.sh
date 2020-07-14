@@ -504,7 +504,6 @@ test_projects_limits() {
   lxc profile device add default root disk path="/" pool="${pool}"
 
   deps/import-busybox --project p1 --alias testimage
-  fingerprint="$(lxc image list -c f --format json | jq -r .[0].fingerprint)"
 
   # Create a couple of containers in the project.
   lxc init testimage c1
@@ -633,6 +632,83 @@ test_projects_limits() {
   lxc profile set default limits.cpu=3
   lxc config set c2 limits.cpu=3
 
+  # Can't set the project's disk limit because not all instances have
+  # the "size" config defined on the root device.
+  ! lxc project set p1 limits.disk 1GB || false
+
+  # Set a disk limit on the default profile and also on instance c2
+  lxc profile device set default root size=100MB
+  lxc config device add c2 root disk path="/" pool="${pool}" size=50MB
+
+  # Create a custom volume without any size property defined.
+  lxc storage volume create "${pool}" v1
+
+  # Can't set the project's disk limit because not all volumes have
+  # the "size" config defined.
+  ! lxc project set p1 limits.disk 1GB || false
+
+  # Set a size on the custom volume.
+  lxc storage volume set "${pool}" v1 size 50MB
+
+  # Can't set the project's disk limit below the current aggregate count.
+  ! lxc project set p1 limits.disk 190MB || false
+
+  # Set the project's disk limit
+  lxc project set p1 limits.disk 250MB
+
+  # Can't update the project's disk limit below the current aggregate count.
+  ! lxc project set p1 limits.disk 190MB || false
+
+  # Changing profile or instance root device size or volume size above the
+  # aggregate project's limit is not possible.
+  ! lxc profile device set default root size=160MB || false
+  ! lxc config device set c2 root size 110MB || false
+  ! lxc storage volume set "${pool}" v1 size 110MB
+
+  # Can't create a custom volume without specifying a size.
+  ! lxc storage volume create "${pool}" v2 || false
+
+  # Disk limits can be updated if they stay within limits.
+  lxc project set p1 limits.disk 200800kB
+  lxc profile device set default root size=90MB
+  lxc config device set c2 root size 60MB
+
+  # Can't upload an image if that would exceed the current quota.
+  ! deps/import-busybox --project p1 --template start --alias otherimage || false
+
+  # Can't export publish an instance as image if that would exceed the current
+  # quota.
+  ! lxc publish c1 --alias=c1image || false
+
+  # Run the following part of the test only against the dir or zfs backend,
+  # since it on other backends it requires resize the rootfs to a value which is
+  # too small for resize2fs.
+  if [ "${LXD_BACKEND}" = "dir" ] || [ "${LXD_BACKEND}" = "zfs" ]; then
+     # Add a remote LXD to be used as image server.
+    # shellcheck disable=2039
+    local LXD_REMOTE_DIR
+    LXD_REMOTE_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
+    chmod +x "${LXD_REMOTE_DIR}"
+    spawn_lxd "${LXD_REMOTE_DIR}" true
+    LXD_REMOTE_ADDR=$(cat "${LXD_REMOTE_DIR}/lxd.addr")
+    (LXD_DIR=${LXD_REMOTE_DIR} deps/import-busybox --alias remoteimage --template start --public)
+
+    lxc remote add l2 "${LXD_REMOTE_ADDR}" --accept-certificate --password foo
+
+    # Relax all constraints except the disk limits, which won't be enough for the
+    # image to be downloaded.
+    lxc profile device set default root size=500kB
+    lxc project set p1 limits.disk 111000kB
+    lxc project unset p1 limits.containers
+    lxc project unset p1 limits.cpu
+    lxc project unset p1 limits.memory
+    lxc project unset p1 limits.processes
+
+    # Can't download a remote image if that would exceed the current quota.
+    ! lxc init l2:remoteimage c3 || false
+  fi
+
+  lxc storage volume delete "${pool}" v1
   lxc delete c1
   lxc delete c2
   lxc image delete testimage
@@ -640,6 +716,11 @@ test_projects_limits() {
 
   lxc project switch default
   lxc project delete p1
+
+  if [ "${LXD_BACKEND}" = "dir" ] || [ "${LXD_BACKEND}" = "zfs" ]; then
+    lxc remote remove l2
+    kill_lxd "$LXD_REMOTE_DIR"
+  fi
 }
 
 # Set restrictions on projects.
