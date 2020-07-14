@@ -654,16 +654,13 @@ func (c *ClusterTx) GetNodeWithLeastInstances(archs []int) (string, error) {
 			supported = append(supported, personalities...)
 
 			match := false
-			fmt.Printf("stgraber: supported=%v requested=%v\n", supported, archs)
 			for _, entry := range supported {
 				if shared.IntInSlice(entry, archs) {
-					fmt.Printf("stgraber: supported\n")
 					match = true
 				}
 			}
 
 			if !match {
-				fmt.Printf("stgraber: unsupported\n")
 				continue
 			}
 		}
