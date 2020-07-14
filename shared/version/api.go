@@ -209,6 +209,7 @@ var APIExtensions = []string{
 	"usedby_consistency",
 	"resources_gpu_mdev",
 	"console_vga_type",
+	"projects_limits_disk",
 }
 
 // APIExtensionsCount returns the number of available API extensions.
