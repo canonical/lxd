@@ -418,6 +418,7 @@ func checkRestrictions(project *api.Project, instances []db.Instance, profiles [
 
 var allAggregateLimits = []string{
 	"limits.cpu",
+	"limits.disk",
 	"limits.memory",
 	"limits.processes",
 }
@@ -599,6 +600,8 @@ func AllowProjectUpdate(tx *db.ClusterTx, projectName string, config map[string]
 		case "limits.cpu":
 			fallthrough
 		case "limits.memory":
+			fallthrough
+		case "limits.disk":
 			aggregateKeys = append(aggregateKeys, key)
 
 		}
@@ -785,11 +788,31 @@ func getInstanceLimits(instance db.Instance, keys []string) (map[string]int64, e
 	limits := map[string]int64{}
 
 	for _, key := range keys {
-		value, ok := instance.Config[key]
-		if !ok || value == "" {
-			return nil, fmt.Errorf(
-				"Instance %s in project %s has no '%s' config, either directly or via a profile",
-				instance.Name, instance.Project, key)
+		var value string
+		var ok bool
+		if key == "limits.disk" {
+			_, device, err := shared.GetRootDiskDevice(instance.Devices)
+			if err != nil {
+				return nil, fmt.Errorf(
+					"Instance %s in project %s has no root device",
+					instance.Name, instance.Project)
+			}
+
+			value, ok = device["size"]
+			if !ok || value == "" {
+				return nil, fmt.Errorf(
+					"Instance %s in project %s has no 'size' config set on the root device, "+
+						"either directly or via a profile",
+					instance.Name, instance.Project)
+			}
+		} else {
+			value, ok = instance.Config[key]
+			if !ok || value == "" {
+				return nil, fmt.Errorf(
+					"Instance %s in project %s has no '%s' config, "+
+						"either directly or via a profile",
+					instance.Name, instance.Project, key)
+			}
 		}
 
 		parser := aggregateLimitConfigValueParsers[key]
@@ -832,6 +855,9 @@ var aggregateLimitConfigValueParsers = map[string]func(string) (int64, error){
 
 		return int64(limit), nil
 	},
+	"limits.disk": func(value string) (int64, error) {
+		return units.ParseByteSizeString(value)
+	},
 }
 
 var aggregateLimitConfigValuePrinters = map[string]func(int64) string{
@@ -843,5 +869,8 @@ var aggregateLimitConfigValuePrinters = map[string]func(int64) string{
 	},
 	"limits.cpu": func(limit int64) string {
 		return fmt.Sprintf("%d", limit)
+	},
+	"limits.disk": func(limit int64) string {
+		return units.GetByteSizeString(limit, 1)
 	},
 }
