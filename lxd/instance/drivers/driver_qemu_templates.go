@@ -59,7 +59,7 @@ size = "{{.memSizeBytes}}M"
 `))
 
 var qemuSerial = template.Must(template.New("qemuSerial").Parse(`
-# LXD serial identifier
+# Virtual serial bus
 [device "dev-qemu_serial"]
 {{- if eq .bus "pci" "pcie"}}
 driver = "virtio-serial-pci"
@@ -73,7 +73,8 @@ driver = "virtio-serial-ccw"
 multifunction = "on"
 {{- end }}
 
-[chardev "qemu_serial-chardev"]
+# LXD serial identifier
+[chardev "{{.chardevName}}"]
 backend = "ringbuf"
 size = "{{.ringbufSizeBytes}}B"
 
@@ -81,6 +82,28 @@ size = "{{.ringbufSizeBytes}}B"
 driver = "virtserialport"
 name = "org.linuxcontainers.lxd"
 chardev = "{{.chardevName}}"
+bus = "dev-qemu_serial.0"
+
+# Spice agent
+[chardev "qemu_spice-chardev"]
+backend = "spicevmc"
+name = "vdagent"
+
+[device "qemu_spice"]
+driver = "virtserialport"
+name = "com.redhat.spice.0"
+chardev = "qemu_spice-chardev"
+bus = "dev-qemu_serial.0"
+
+# Spice folder
+[chardev "qemu_spicedir-chardev"]
+backend = "spiceport"
+name = "org.spice-space.webdav.0"
+
+[device "qemu_spicedir"]
+driver = "virtserialport"
+name = "org.spice-space.webdav.0"
+chardev = "qemu_spicedir-chardev"
 bus = "dev-qemu_serial.0"
 `))
 
