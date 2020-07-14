@@ -455,6 +455,16 @@ func (d *Daemon) createCmd(restAPI *mux.Router, version string, c APIEndpoint) {
 		var resp response.Response
 		resp = response.NotImplemented(nil)
 
+		// Return Unavailable Error (503) if daemon is shutting down.
+		// There are some exceptions:
+		// - internal calls, e.g. lxd shutdown
+		// - events endpoint as this is accessed when running `lxd shutdown`
+		// - /1.0 endpoint
+		if version != "internal" && c.Path != "events" && c.Path != "" && d.ctx.Err() == context.Canceled {
+			response.Unavailable(fmt.Errorf("LXD is shutting down")).Render(w)
+			return
+		}
+
 		handleRequest := func(action APIEndpointAction) response.Response {
 			if action.Handler == nil {
 				return response.NotImplemented(nil)
