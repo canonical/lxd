@@ -1118,3 +1118,8 @@ be set to `console` (default) or `vga` (the new type added by this extension).
 When POST'ing to `/1.0/<instance name>/console?type=vga` the data websocket
 returned by the operation in the metadata field will be a bidirectional proxy
 attached to a SPICE unix socket of the target virtual machine.
+
+## projects\_limits\_disk
+Add `limits.disk` to the available project configuration keys. If set, it limits
+the total amount of disk space that instances volumes, custom volumes and images
+volumes can use in the project.
