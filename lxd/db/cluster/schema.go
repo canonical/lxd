@@ -281,6 +281,7 @@ CREATE TABLE networks (
     name TEXT NOT NULL,
     description TEXT,
     state INTEGER NOT NULL DEFAULT 0,
+    type INTEGER NOT NULL DEFAULT 0,
     UNIQUE (name)
 );
 CREATE TABLE networks_config (
@@ -571,5 +572,5 @@ CREATE TABLE storage_volumes_snapshots_config (
     UNIQUE (storage_volume_snapshot_id, key)
 );
 
-INSERT INTO schema (version, updated_at) VALUES (32, strftime("%s"))
+INSERT INTO schema (version, updated_at) VALUES (33, strftime("%s"))
 `
