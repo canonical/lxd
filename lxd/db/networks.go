@@ -149,7 +149,11 @@ WHERE networks.id = ? AND networks.state = ?
 
 // CreatePendingNetwork creates a new pending network on the node with
 // the given name.
-func (c *ClusterTx) CreatePendingNetwork(node, name string, conf map[string]string) error {
+func (c *ClusterTx) CreatePendingNetwork(node, name string, netType NetworkType, conf map[string]string) error {
+	if netType != NetworkTypeBridge {
+		return fmt.Errorf("Unsupported network type: %v", netType)
+	}
+
 	// First check if a network with the given name exists, and, if
 	// so, that it's in the pending state.
 	network := struct {
