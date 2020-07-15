@@ -911,10 +911,6 @@ func networkShutdown(s *state.State) error {
 			return err
 		}
 
-		if !n.IsRunning() {
-			continue
-		}
-
 		err = n.Stop()
 		if err != nil {
 			logger.Error("Failed to bring down network", log.Ctx{"err": err, "name": name})
