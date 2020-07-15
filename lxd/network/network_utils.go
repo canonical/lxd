@@ -879,8 +879,8 @@ func GetMACSlice(hwaddr string) []string {
 	return buf
 }
 
-// UsesIPv4Firewall returns whether network config will need to use the IPv4 firewall.
-func UsesIPv4Firewall(netConfig map[string]string) bool {
+// usesIPv4Firewall returns whether network config will need to use the IPv4 firewall.
+func usesIPv4Firewall(netConfig map[string]string) bool {
 	if netConfig == nil {
 		return false
 	}
@@ -896,8 +896,8 @@ func UsesIPv4Firewall(netConfig map[string]string) bool {
 	return false
 }
 
-// UsesIPv6Firewall returns whether network config will need to use the IPv6 firewall.
-func UsesIPv6Firewall(netConfig map[string]string) bool {
+// usesIPv6Firewall returns whether network config will need to use the IPv6 firewall.
+func usesIPv6Firewall(netConfig map[string]string) bool {
 	if netConfig == nil {
 		return false
 	}
