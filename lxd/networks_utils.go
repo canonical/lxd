@@ -1,10 +1,7 @@
 package main
 
 import (
-	"fmt"
 	"net"
-	"regexp"
-	"strconv"
 	"strings"
 
 	"github.com/lxc/lxd/lxd/cluster"
@@ -49,89 +46,6 @@ func networkGetInterfaces(cluster *db.Cluster) ([]string, error) {
 	}
 
 	return networks, nil
-}
-
-func networkValidName(value string) error {
-	// Not a veth-liked name
-	if strings.HasPrefix(value, "veth") {
-		return fmt.Errorf("Interface name cannot be prefix with veth")
-	}
-
-	// Validate the length
-	if len(value) < 2 {
-		return fmt.Errorf("Interface name is too short (minimum 2 characters)")
-	}
-
-	if len(value) > 15 {
-		return fmt.Errorf("Interface name is too long (maximum 15 characters)")
-	}
-
-	// Validate the character set
-	match, _ := regexp.MatchString("^[-_a-zA-Z0-9.]*$", value)
-	if !match {
-		return fmt.Errorf("Interface name contains invalid characters")
-	}
-
-	return nil
-}
-
-func networkValidPort(value string) error {
-	if value == "" {
-		return nil
-	}
-
-	valueInt, err := strconv.ParseInt(value, 10, 64)
-	if err != nil {
-		return fmt.Errorf("Invalid value for an integer: %s", value)
-	}
-
-	if valueInt < 1 || valueInt > 65536 {
-		return fmt.Errorf("Invalid port number: %s", value)
-	}
-
-	return nil
-}
-
-func networkValidAddressCIDRV6(value string) error {
-	if value == "" {
-		return nil
-	}
-
-	ip, subnet, err := net.ParseCIDR(value)
-	if err != nil {
-		return err
-	}
-
-	if ip.To4() != nil {
-		return fmt.Errorf("Not an IPv6 address: %s", value)
-	}
-
-	if ip.String() == subnet.IP.String() {
-		return fmt.Errorf("Not a usable IPv6 address: %s", value)
-	}
-
-	return nil
-}
-
-func networkValidAddressCIDRV4(value string) error {
-	if value == "" {
-		return nil
-	}
-
-	ip, subnet, err := net.ParseCIDR(value)
-	if err != nil {
-		return err
-	}
-
-	if ip.To4() == nil {
-		return fmt.Errorf("Not an IPv4 address: %s", value)
-	}
-
-	if ip.String() == subnet.IP.String() {
-		return fmt.Errorf("Not a usable IPv4 address: %s", value)
-	}
-
-	return nil
 }
 
 // networkUpdateForkdnsServersTask runs every 30s and refreshes the forkdns servers list.
