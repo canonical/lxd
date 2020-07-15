@@ -13,6 +13,7 @@ import (
 	"github.com/lxc/lxd/lxd/state"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/logger"
+	"github.com/lxc/lxd/shared/version"
 
 	log "github.com/lxc/lxd/shared/log15"
 )
@@ -67,9 +68,9 @@ func profileShort(c instance) string {
 	return fmt.Sprintf("lxd-%s", name)
 }
 
-// getProfileContent generates the apparmor profile template from the given container.
+// profileContent generates the apparmor profile template from the given container.
 // This includes the stock lxc includes as well as stuff from raw.apparmor.
-func getAAProfileContent(state *state.State, c instance) string {
+func profileContent(state *state.State, c instance) (string, error) {
 	// Prepare raw.apparmor.
 	rawContent := ""
 	rawApparmor, ok := c.ExpandedConfig()["raw.apparmor"]
@@ -82,7 +83,7 @@ func getAAProfileContent(state *state.State, c instance) string {
 	// Render the profile.
 	var sb *strings.Builder = &strings.Builder{}
 	err := containerProfile.Execute(sb, map[string]interface{}{
-		"feature_unix":     aaParserSupports("unix"),
+		"feature_unix":     parserSupports("unix"),
 		"feature_cgns":     shared.PathExists("/proc/self/ns/cgroup"),
 		"feature_stacking": state.OS.AppArmorStacking && !state.OS.AppArmorStacked,
 		"namespace":        Namespace(c),
@@ -92,10 +93,10 @@ func getAAProfileContent(state *state.State, c instance) string {
 		"raw":              rawContent,
 	})
 	if err != nil {
-		return ""
+		return "", err
 	}
 
-	return sb.String()
+	return sb.String(), nil
 }
 
 func runApparmor(state *state.State, command string, c instance) error {
@@ -120,18 +121,26 @@ func runApparmor(state *state.State, command string, c instance) error {
 func getCacheDir() string {
 	basePath := path.Join(aaPath, "cache")
 
-	major, minor, _, err := getAAParserVersion()
+	ver, err := getVersion()
 	if err != nil {
+		logger.Errorf("Unable to get AppArmor version: %v", err)
 		return basePath
 	}
 
-	// multiple policy cache directories were only added in v2.13
-	if major < 2 || (major == 2 && minor < 13) {
+	// Multiple policy cache directories were only added in v2.13.
+	minVer, err := version.NewDottedVersion("2.13")
+	if err != nil {
+		logger.Errorf("Unable to parse AppArmor version 2.13: %v", err)
+		return basePath
+	}
+
+	if ver.Compare(minVer) < 0 {
 		return basePath
 	}
 
 	output, err := shared.RunCommand("apparmor_parser", "-L", basePath, "--print-cache-dir")
 	if err != nil {
+		logger.Errorf("Unable to get AppArmor cache directory: %v", err)
 		return basePath
 	}
 
@@ -157,7 +166,8 @@ func LoadProfile(state *state.State, c instance) error {
 		return nil
 	}
 
-	if err := mkApparmorNamespace(state, c, Namespace(c)); err != nil {
+	err := mkApparmorNamespace(state, c, Namespace(c))
+	if err != nil {
 		return err
 	}
 
@@ -178,18 +188,24 @@ func LoadProfile(state *state.State, c instance) error {
 		return err
 	}
 
-	updated := getAAProfileContent(state, c)
+	updated, err := profileContent(state, c)
+	if err != nil {
+		return err
+	}
 
 	if string(content) != string(updated) {
-		if err := os.MkdirAll(path.Join(aaPath, "cache"), 0700); err != nil {
+		err = os.MkdirAll(path.Join(aaPath, "cache"), 0700)
+		if err != nil {
 			return err
 		}
 
-		if err := os.MkdirAll(path.Join(aaPath, "profiles"), 0700); err != nil {
+		err = os.MkdirAll(path.Join(aaPath, "profiles"), 0700)
+		if err != nil {
 			return err
 		}
 
-		if err := ioutil.WriteFile(profile, []byte(updated), 0600); err != nil {
+		err = ioutil.WriteFile(profile, []byte(updated), 0600)
+		if err != nil {
 			return err
 		}
 	}
@@ -236,39 +252,32 @@ func DeleteProfile(state *state.State, c instance) {
 	os.Remove(path.Join(aaPath, "profiles", profileShort(c)))
 }
 
-func aaParserSupports(feature string) bool {
-	major, minor, micro, err := getAAParserVersion()
+func parserSupports(feature string) bool {
+	ver, err := getVersion()
 	if err != nil {
+		logger.Errorf("Unable to get AppArmor version: %v", err)
 		return false
 	}
 
-	switch feature {
-	case "unix":
-		if major < 2 {
+	if feature == "unix" {
+		minVer, err := version.NewDottedVersion("2.10.95")
+		if err != nil {
+			logger.Errorf("Unable to parse AppArmor version 2.10.95: %v", err)
 			return false
 		}
 
-		if major == 2 && minor < 10 {
-			return false
-		}
-
-		if major == 2 && minor == 10 && micro < 95 {
-			return false
-		}
+		return ver.Compare(minVer) >= 0
 	}
 
-	return true
+	return false
 }
 
-func getAAParserVersion() (major int, minor int, micro int, err error) {
-	var out string
-
-	out, err = shared.RunCommand("apparmor_parser", "--version")
+func getVersion() (*version.DottedVersion, error) {
+	out, err := shared.RunCommand("apparmor_parser", "--version")
 	if err != nil {
-		return
+		return nil, err
 	}
 
-	_, err = fmt.Sscanf(strings.Split(out, "\n")[0], "AppArmor parser version %d.%d.%d", &major, &minor, &micro)
-
-	return
+	fields := strings.Fields(strings.Split(out, "\n")[0])
+	return version.NewDottedVersion(fields[len(fields)-1])
 }
