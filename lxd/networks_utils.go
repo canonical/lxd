@@ -80,8 +80,8 @@ func networkUpdateForkdnsServersTask(s *state.State, heartbeatData *cluster.APIH
 			return err
 		}
 
-		if n.Config()["bridge.mode"] == "fan" {
-			err := n.RefreshForkdnsServerAddresses(heartbeatData)
+		if n.Type() == "bridge" && n.Config()["bridge.mode"] == "fan" {
+			err := n.HandleHeartbeat(heartbeatData)
 			if err != nil {
 				return err
 			}
