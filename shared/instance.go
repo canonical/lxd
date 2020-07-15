@@ -2,6 +2,7 @@ package shared
 
 import (
 	"fmt"
+	"net"
 	"regexp"
 	"strconv"
 	"strings"
@@ -159,6 +160,186 @@ func IsRootDiskDevice(device map[string]string) bool {
 	}
 
 	return false
+}
+
+// IsNetworkAddress validates an IP (v4 or v6) address string. If string is empty, returns valid.
+func IsNetworkAddress(value string) error {
+	if value == "" {
+		return nil
+	}
+
+	ip := net.ParseIP(value)
+	if ip == nil {
+		return fmt.Errorf("Not an IP address: %s", value)
+	}
+
+	return nil
+}
+
+// IsNetworkV4 validates an IPv4 CIDR string. If string is empty, returns valid.
+func IsNetworkV4(value string) error {
+	if value == "" {
+		return nil
+	}
+
+	ip, subnet, err := net.ParseCIDR(value)
+	if err != nil {
+		return err
+	}
+
+	if ip.To4() == nil {
+		return fmt.Errorf("Not an IPv4 network: %s", value)
+	}
+
+	if ip.String() != subnet.IP.String() {
+		return fmt.Errorf("Not an IPv4 network address: %s", value)
+	}
+
+	return nil
+}
+
+// IsNetworkAddressV4 validates an IPv4 addresss string. If string is empty, returns valid.
+func IsNetworkAddressV4(value string) error {
+	if value == "" {
+		return nil
+	}
+
+	ip := net.ParseIP(value)
+	if ip == nil || ip.To4() == nil {
+		return fmt.Errorf("Not an IPv4 address: %s", value)
+	}
+
+	return nil
+}
+
+// IsNetworkAddressCIDRV4 validates an IPv4 addresss string in CIDR format. If string is empty, returns valid.
+func IsNetworkAddressCIDRV4(value string) error {
+	if value == "" {
+		return nil
+	}
+
+	ip, subnet, err := net.ParseCIDR(value)
+	if err != nil {
+		return err
+	}
+
+	if ip.To4() == nil {
+		return fmt.Errorf("Not an IPv4 address: %s", value)
+	}
+
+	if ip.String() == subnet.IP.String() {
+		return fmt.Errorf("Not a usable IPv4 address: %s", value)
+	}
+
+	return nil
+}
+
+// IsNetworkAddressV4List validates a comma delimited list of IPv4 addresses.
+func IsNetworkAddressV4List(value string) error {
+	for _, v := range strings.Split(value, ",") {
+		v = strings.TrimSpace(v)
+		err := IsNetworkAddressV4(v)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// IsNetworkV4List validates a comma delimited list of IPv4 CIDR strings.
+func IsNetworkV4List(value string) error {
+	for _, network := range strings.Split(value, ",") {
+		network = strings.TrimSpace(network)
+		err := IsNetworkV4(network)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// IsNetworkV6 validates an IPv6 CIDR string. If string is empty, returns valid.
+func IsNetworkV6(value string) error {
+	if value == "" {
+		return nil
+	}
+
+	ip, subnet, err := net.ParseCIDR(value)
+	if err != nil {
+		return err
+	}
+
+	if ip == nil || ip.To4() != nil {
+		return fmt.Errorf("Not an IPv6 network: %s", value)
+	}
+
+	if ip.String() != subnet.IP.String() {
+		return fmt.Errorf("Not an IPv6 network address: %s", value)
+	}
+
+	return nil
+}
+
+// IsNetworkAddressV6 validates an IPv6 addresss string. If string is empty, returns valid.
+func IsNetworkAddressV6(value string) error {
+	if value == "" {
+		return nil
+	}
+
+	ip := net.ParseIP(value)
+	if ip == nil || ip.To4() != nil {
+		return fmt.Errorf("Not an IPv6 address: %s", value)
+	}
+
+	return nil
+}
+
+// IsNetworkAddressCIDRV6 validates an IPv6 addresss string in CIDR format. If string is empty, returns valid.
+func IsNetworkAddressCIDRV6(value string) error {
+	if value == "" {
+		return nil
+	}
+
+	ip, subnet, err := net.ParseCIDR(value)
+	if err != nil {
+		return err
+	}
+
+	if ip.To4() != nil {
+		return fmt.Errorf("Not an IPv6 address: %s", value)
+	}
+
+	if ip.String() == subnet.IP.String() {
+		return fmt.Errorf("Not a usable IPv6 address: %s", value)
+	}
+
+	return nil
+}
+
+//IsNetworkAddressV6List validates a comma delimited list of IPv6 addresses.
+func IsNetworkAddressV6List(value string) error {
+	for _, v := range strings.Split(value, ",") {
+		v = strings.TrimSpace(v)
+		err := IsNetworkAddressV6(v)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// IsNetworkV6List validates a comma delimited list of IPv6 CIDR strings.
+func IsNetworkV6List(value string) error {
+	for _, network := range strings.Split(value, ",") {
+		network = strings.TrimSpace(network)
+		err := IsNetworkV6(network)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 // GetRootDiskDevice returns the container device that is configured as root disk
