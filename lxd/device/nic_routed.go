@@ -52,14 +52,14 @@ func (d *nicRouted) validateConfig(instConf instance.ConfigReader) error {
 			return nil
 		}
 
-		return NetworkValidAddressV4List(value)
+		return shared.IsNetworkAddressV4List(value)
 	}
 	rules["ipv6.address"] = func(value string) error {
 		if value == "" {
 			return nil
 		}
 
-		return NetworkValidAddressV6List(value)
+		return shared.IsNetworkAddressV6List(value)
 	}
 
 	err := d.config.Validate(rules)
