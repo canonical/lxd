@@ -559,7 +559,7 @@ func networkPost(d *Daemon, r *http.Request) response.Response {
 		return response.BadRequest(fmt.Errorf("No name provided"))
 	}
 
-	err = networkValidName(req.Name)
+	err = network.ValidNetworkName(req.Name)
 	if err != nil {
 		return response.BadRequest(err)
 	}
