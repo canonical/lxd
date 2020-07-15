@@ -698,12 +698,15 @@ type projectInfo struct {
 	Project   *api.Project
 	Profiles  []db.Profile
 	Instances []db.Instance
+	Volumes   []db.StorageVolumeArgs
 }
 
-// Fetch the given project from the database along with its profiles and instances.
+// Fetch the given project from the database along with its profiles, instances
+// and possibly custom volumes.
 //
-// If the skipIfNoLimits flag is true, profiles and instances won't be loaded
-// if the profile has no limits set on it, and nil will be returned.
+// If the skipIfNoLimits flag is true, then profiles, instances and volumes
+// won't be loaded if the profile has no limits set on it, and nil will be
+// returned.
 func fetchProject(tx *db.ClusterTx, projectName string, skipIfNoLimits bool) (*projectInfo, error) {
 	project, err := tx.GetProject(projectName)
 	if err != nil {
@@ -735,10 +738,16 @@ func fetchProject(tx *db.ClusterTx, projectName string, skipIfNoLimits bool) (*p
 		return nil, errors.Wrap(err, "Fetch project instances from database")
 	}
 
+	volumes, err := tx.GetCustomVolumesInProject(projectName)
+	if err != nil {
+		return nil, errors.Wrap(err, "Fetch project custom volumes from database")
+	}
+
 	info := &projectInfo{
 		Project:   project,
 		Profiles:  profiles,
 		Instances: instances,
+		Volumes:   volumes,
 	}
 
 	return info, nil
