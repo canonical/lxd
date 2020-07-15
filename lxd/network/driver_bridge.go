@@ -488,7 +488,7 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 	}
 
 	// Remove any existing IPv4 firewall rules.
-	if UsesIPv4Firewall(n.config) || UsesIPv4Firewall(oldConfig) {
+	if usesIPv4Firewall(n.config) || usesIPv4Firewall(oldConfig) {
 		err = n.state.Firewall.NetworkClear(n.name, 4)
 		if err != nil {
 			return err
@@ -670,7 +670,7 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 	}
 
 	// Remove any existing IPv6 firewall rules.
-	if UsesIPv6Firewall(n.config) || UsesIPv6Firewall(oldConfig) {
+	if usesIPv6Firewall(n.config) || usesIPv6Firewall(oldConfig) {
 		err = n.state.Firewall.NetworkClear(n.name, 6)
 		if err != nil {
 			return err
@@ -1242,14 +1242,14 @@ func (n *bridge) Stop() error {
 	}
 
 	// Cleanup firewall rules.
-	if UsesIPv4Firewall(n.config) {
+	if usesIPv4Firewall(n.config) {
 		err := n.state.Firewall.NetworkClear(n.name, 4)
 		if err != nil {
 			return err
 		}
 	}
 
-	if UsesIPv6Firewall(n.config) {
+	if usesIPv6Firewall(n.config) {
 		err := n.state.Firewall.NetworkClear(n.name, 6)
 		if err != nil {
 			return err
