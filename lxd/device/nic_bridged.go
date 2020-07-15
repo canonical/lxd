@@ -607,7 +607,7 @@ func (d *nicBridged) setFilters() (err error) {
 // networkAllocateVethFilterIPs retrieves previously allocated IPs, or allocate new ones if needed.
 // This function only works with LXD managed networks, and as such, requires the managed network's
 // config to be supplied.
-func (d *nicBridged) allocateFilterIPs(n *network.Network) (net.IP, net.IP, error) {
+func (d *nicBridged) allocateFilterIPs(n network.Network) (net.IP, net.IP, error) {
 	var IPv4, IPv6 net.IP
 
 	// Check if there is a valid static IPv4 address defined.
@@ -746,7 +746,7 @@ func (d *nicBridged) networkDHCPValidIP(subnet *net.IPNet, ranges []network.DHCP
 // getDHCPFreeIPv4 attempts to find a free IPv4 address for the device.
 // It first checks whether there is an existing allocation for the instance.
 // If no previous allocation, then a free IP is picked from the ranges configured.
-func (d *nicBridged) getDHCPFreeIPv4(usedIPs map[[4]byte]dnsmasq.DHCPAllocation, n *network.Network, ctName string, deviceMAC string) (net.IP, error) {
+func (d *nicBridged) getDHCPFreeIPv4(usedIPs map[[4]byte]dnsmasq.DHCPAllocation, n network.Network, ctName string, deviceMAC string) (net.IP, error) {
 	MAC, err := net.ParseMAC(deviceMAC)
 	if err != nil {
 		return nil, err
@@ -820,7 +820,7 @@ func (d *nicBridged) getDHCPFreeIPv4(usedIPs map[[4]byte]dnsmasq.DHCPAllocation,
 // DHCPv6 stateful mode is enabled without custom ranges, then an EUI64 IP is generated from the
 // device's MAC address. Finally if stateful custom ranges are enabled, then a free IP is picked
 // from the ranges configured.
-func (d *nicBridged) getDHCPFreeIPv6(usedIPs map[[16]byte]dnsmasq.DHCPAllocation, n *network.Network, ctName string, deviceMAC string) (net.IP, error) {
+func (d *nicBridged) getDHCPFreeIPv6(usedIPs map[[16]byte]dnsmasq.DHCPAllocation, n network.Network, ctName string, deviceMAC string) (net.IP, error) {
 	netConfig := n.Config()
 	lxdIP, subnet, err := net.ParseCIDR(netConfig["ipv6.address"])
 	if err != nil {
