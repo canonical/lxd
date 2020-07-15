@@ -157,15 +157,15 @@ func checkRestrictionsAndAggregateLimits(tx *db.ClusterTx, info *projectInfo) er
 		return nil
 	}
 
-	instances := expandInstancesConfigAndDevices(info.Instances, info.Profiles)
+	info.Instances = expandInstancesConfigAndDevices(info.Instances, info.Profiles)
 
-	err := checkAggregateLimits(info.Project, instances, aggregateKeys)
+	err := checkAggregateLimits(info, aggregateKeys)
 	if err != nil {
 		return err
 	}
 
 	if isRestricted {
-		err = checkRestrictions(info.Project, instances, info.Profiles)
+		err = checkRestrictions(info.Project, info.Instances, info.Profiles)
 		if err != nil {
 			return err
 		}
@@ -174,19 +174,19 @@ func checkRestrictionsAndAggregateLimits(tx *db.ClusterTx, info *projectInfo) er
 	return nil
 }
 
-func checkAggregateLimits(project *api.Project, instances []db.Instance, aggregateKeys []string) error {
+func checkAggregateLimits(info *projectInfo, aggregateKeys []string) error {
 	if len(aggregateKeys) == 0 {
 		return nil
 	}
 
-	totals, err := getTotalsAcrossInstances(instances, aggregateKeys)
+	totals, err := getTotalsAcrossProjectEntities(info, aggregateKeys)
 	if err != nil {
 		return err
 	}
 
 	for _, key := range aggregateKeys {
 		parser := aggregateLimitConfigValueParsers[key]
-		max, err := parser(project.Config[key])
+		max, err := parser(info.Project.Config[key])
 		if err != nil {
 			return err
 		}
@@ -194,7 +194,7 @@ func checkAggregateLimits(project *api.Project, instances []db.Instance, aggrega
 		if totals[key] > max {
 			return fmt.Errorf(
 				"Reached maximum aggregate value %s for %q in project %s",
-				project.Config[key], key, project.Name)
+				info.Project.Config[key], key, info.Project.Name)
 		}
 	}
 	return nil
@@ -564,7 +564,7 @@ func AllowProjectUpdate(tx *db.ClusterTx, projectName string, config map[string]
 		return err
 	}
 
-	instances := expandInstancesConfigAndDevices(info.Instances, info.Profiles)
+	info.Instances = expandInstancesConfigAndDevices(info.Instances, info.Profiles)
 
 	// List of keys that need to check aggregate values across all project
 	// instances.
@@ -579,7 +579,7 @@ func AllowProjectUpdate(tx *db.ClusterTx, projectName string, config map[string]
 				},
 			}
 
-			err := checkRestrictions(project, instances, info.Profiles)
+			err := checkRestrictions(project, info.Instances, info.Profiles)
 			if err != nil {
 				return errors.Wrapf(err, "Conflict detected when changing %q in project %q", key, projectName)
 			}
@@ -591,7 +591,7 @@ func AllowProjectUpdate(tx *db.ClusterTx, projectName string, config map[string]
 		case "limits.containers":
 			fallthrough
 		case "limits.virtual-machines":
-			err := validateInstanceCountLimit(instances, key, config[key], projectName)
+			err := validateInstanceCountLimit(info.Instances, key, config[key], projectName)
 			if err != nil {
 				return errors.Wrapf(err, "Can't change %q in project %q", key, projectName)
 			}
@@ -608,7 +608,7 @@ func AllowProjectUpdate(tx *db.ClusterTx, projectName string, config map[string]
 	}
 
 	if len(aggregateKeys) > 0 {
-		totals, err := getTotalsAcrossInstances(instances, aggregateKeys)
+		totals, err := getTotalsAcrossProjectEntities(info, aggregateKeys)
 		if err != nil {
 			return err
 		}
@@ -781,17 +781,34 @@ func expandInstancesConfigAndDevices(instances []db.Instance, profiles []db.Prof
 	return expandedInstances
 }
 
-// Sum of the effective instance-level value for the given limits across all
-// project instances. If excludeInstance is not the empty string, exclude the
-// instance with that name.
-func getTotalsAcrossInstances(instances []db.Instance, keys []string) (map[string]int64, error) {
+// Sum of the effective values for the given limits across all project
+// enties (instances and custom volumes).
+func getTotalsAcrossProjectEntities(info *projectInfo, keys []string) (map[string]int64, error) {
 	totals := map[string]int64{}
 
 	for _, key := range keys {
 		totals[key] = 0
+		if key == "limits.disk" {
+			for _, volume := range info.Volumes {
+				value, ok := volume.Config["size"]
+				if !ok {
+					return nil, fmt.Errorf(
+						"Custom volume %s in project %s has no 'size' config set",
+						volume.Name, info.Project.Name)
+				}
+
+				limit, err := units.ParseByteSizeString(value)
+				if err != nil {
+					return nil, errors.Wrapf(
+						err, "Parse 'size' for custom volume %s in project %s",
+						volume.Name, info.Project.Name)
+				}
+				totals[key] += limit
+			}
+		}
 	}
 
-	for _, instance := range instances {
+	for _, instance := range info.Instances {
 		limits, err := getInstanceLimits(instance, keys)
 		if err != nil {
 			return nil, err
