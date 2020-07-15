@@ -944,3 +944,44 @@ func storagePoolVolumeContentTypeToName(contentType int) (string, error) {
 
 	return "", fmt.Errorf("Invalid storage volume content type")
 }
+
+// GetCustomVolumesInProject returns all custom volumes in the given project.
+func (c *ClusterTx) GetCustomVolumesInProject(project string) ([]StorageVolumeArgs, error) {
+	sql := `
+SELECT storage_volumes.id, storage_volumes.name, storage_pools.name
+FROM storage_volumes
+JOIN storage_pools ON storage_pools.id = storage_volumes.storage_pool_id
+JOIN projects ON projects.id = storage_volumes.project_id
+WHERE storage_volumes.type = ? AND projects.name = ?
+`
+	stmt, err := c.tx.Prepare(sql)
+	if err != nil {
+		return nil, err
+	}
+	defer stmt.Close()
+
+	volumes := []StorageVolumeArgs{}
+	dest := func(i int) []interface{} {
+		volumes = append(volumes, StorageVolumeArgs{})
+		return []interface{}{
+			&volumes[i].ID,
+			&volumes[i].Name,
+			&volumes[i].PoolName,
+		}
+	}
+
+	err = query.SelectObjects(stmt, dest, StoragePoolVolumeTypeCustom, project)
+	if err != nil {
+		return nil, errors.Wrap(err, "Fetch custom volumes")
+	}
+
+	for i, volume := range volumes {
+		config, err := query.SelectConfig(c.tx, "storage_volumes_config", "storage_volume_id=?", volume.ID)
+		if err != nil {
+			return nil, errors.Wrap(err, "Fetch custom volume config")
+		}
+		volumes[i].Config = config
+	}
+
+	return volumes, nil
+}
