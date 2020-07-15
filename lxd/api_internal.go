@@ -129,6 +129,12 @@ func internalWaitReady(d *Daemon, r *http.Request) response.Response {
 func internalShutdown(d *Daemon, r *http.Request) response.Response {
 	d.shutdownChan <- struct{}{}
 
+	force := queryParam(r, "force")
+
+	if force == "true" {
+		d.shutdownChan <- struct{}{}
+	}
+
 	return response.EmptySyncResponse
 }
 

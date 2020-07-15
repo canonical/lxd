@@ -2,6 +2,8 @@ package main
 
 import (
 	"fmt"
+	"net/url"
+	"strconv"
 	"strings"
 	"time"
 
@@ -13,6 +15,7 @@ import (
 type cmdShutdown struct {
 	global *cmdGlobal
 
+	flagForce   bool
 	flagTimeout int
 }
 
@@ -31,6 +34,7 @@ func (c *cmdShutdown) Command() *cobra.Command {
 `
 	cmd.RunE = c.Run
 	cmd.Flags().IntVarP(&c.flagTimeout, "timeout", "t", 0, "Number of seconds to wait before giving up"+"``")
+	cmd.Flags().BoolVarP(&c.flagForce, "force", "f", false, "Force shutdown instead of waiting for running operations to finish"+"``")
 
 	return cmd
 }
@@ -45,7 +49,10 @@ func (c *cmdShutdown) Run(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	_, _, err = d.RawQuery("PUT", "/internal/shutdown", nil, "")
+	v := url.Values{}
+	v.Set("force", strconv.FormatBool(c.flagForce))
+
+	_, _, err = d.RawQuery("PUT", fmt.Sprintf("/internal/shutdown?%s", v.Encode()), nil, "")
 	if err != nil && !strings.HasSuffix(err.Error(), ": EOF") {
 		// NOTE: if we got an EOF error here it means that the daemon
 		// has shutdown so quickly that it already closed the unix
