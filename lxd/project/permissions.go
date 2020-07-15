@@ -560,6 +560,39 @@ func AllowInstanceUpdate(tx *db.ClusterTx, projectName, instanceName string, req
 	return nil
 }
 
+// AllowVolumeUpdate returns an error if any project-specific limit or
+// restriction is violated when updating an existing custom volume.
+func AllowVolumeUpdate(tx *db.ClusterTx, projectName, volumeName string, req api.StorageVolumePut, currentConfig map[string]string) error {
+	info, err := fetchProject(tx, projectName, true)
+	if err != nil {
+		return err
+	}
+
+	if info == nil {
+		return nil
+	}
+
+	// If "limits.disk" is not set, there's nothing to do.
+	if info.Project.Config["limits.disk"] == "" {
+		return nil
+	}
+
+	// Change the volume being updated.
+	for i, volume := range info.Volumes {
+		if volume.Name != volumeName {
+			continue
+		}
+		info.Volumes[i].Config = req.Config
+	}
+
+	err = checkRestrictionsAndAggregateLimits(tx, info)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
 // AllowProfileUpdate checks that project limits and restrictions are not
 // violated when changing a profile.
 func AllowProfileUpdate(tx *db.ClusterTx, projectName, profileName string, req api.ProfilePut) error {
