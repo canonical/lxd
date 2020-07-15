@@ -18,12 +18,12 @@ import (
 // AllowInstanceCreation returns an error if any project-specific limit or
 // restriction is violated when creating a new instance.
 func AllowInstanceCreation(tx *db.ClusterTx, projectName string, req api.InstancesPost) error {
-	project, profiles, instances, err := fetchProject(tx, projectName, true)
+	info, err := fetchProject(tx, projectName, true)
 	if err != nil {
 		return err
 	}
 
-	if project == nil {
+	if info == nil {
 		return nil
 	}
 
@@ -37,13 +37,13 @@ func AllowInstanceCreation(tx *db.ClusterTx, projectName string, req api.Instanc
 		return fmt.Errorf("Unexpected instance type '%s'", instanceType)
 	}
 
-	err = checkInstanceCountLimit(project, len(instances), instanceType)
+	err = checkInstanceCountLimit(info.Project, len(info.Instances), instanceType)
 	if err != nil {
 		return err
 	}
 
 	// Add the instance being created.
-	instances = append(instances, db.Instance{
+	info.Instances = append(info.Instances, db.Instance{
 		Name:     req.Name,
 		Profiles: req.Profiles,
 		Config:   req.Config,
@@ -51,12 +51,12 @@ func AllowInstanceCreation(tx *db.ClusterTx, projectName string, req api.Instanc
 
 	// Special case restriction checks on volatile.* keys.
 	err = checkRestrictionsOnVolatileConfig(
-		project, instanceType, req.Name, req.Config, map[string]string{})
+		info.Project, instanceType, req.Name, req.Config, map[string]string{})
 	if err != nil {
 		return err
 	}
 
-	err = checkRestrictionsAndAggregateLimits(tx, project, instances, profiles)
+	err = checkRestrictionsAndAggregateLimits(tx, info)
 	if err != nil {
 		return err
 	}
@@ -136,12 +136,12 @@ func checkRestrictionsOnVolatileConfig(project *api.Project, instanceType instan
 
 // Check that we would not violate the project limits or restrictions if we
 // were to commit the given instances and profiles.
-func checkRestrictionsAndAggregateLimits(tx *db.ClusterTx, project *api.Project, instances []db.Instance, profiles []db.Profile) error {
+func checkRestrictionsAndAggregateLimits(tx *db.ClusterTx, info *projectInfo) error {
 	// List of config keys for which we need to check aggregate values
 	// across all project instances.
 	aggregateKeys := []string{}
 	isRestricted := false
-	for key, value := range project.Config {
+	for key, value := range info.Project.Config {
 		if shared.StringInSlice(key, allAggregateLimits) {
 			aggregateKeys = append(aggregateKeys, key)
 			continue
@@ -157,15 +157,15 @@ func checkRestrictionsAndAggregateLimits(tx *db.ClusterTx, project *api.Project,
 		return nil
 	}
 
-	instances = expandInstancesConfigAndDevices(instances, profiles)
+	instances := expandInstancesConfigAndDevices(info.Instances, info.Profiles)
 
-	err := checkAggregateLimits(project, instances, aggregateKeys)
+	err := checkAggregateLimits(info.Project, instances, aggregateKeys)
 	if err != nil {
 		return err
 	}
 
 	if isRestricted {
-		err = checkRestrictions(project, instances, profiles)
+		err = checkRestrictions(info.Project, instances, info.Profiles)
 		if err != nil {
 			return err
 		}
@@ -493,35 +493,35 @@ func isVMLowLevelOptionForbidden(key string) bool {
 // restriction is violated when updating an existing instance.
 func AllowInstanceUpdate(tx *db.ClusterTx, projectName, instanceName string, req api.InstancePut, currentConfig map[string]string) error {
 	var updatedInstance *db.Instance
-	project, profiles, instances, err := fetchProject(tx, projectName, true)
+	info, err := fetchProject(tx, projectName, true)
 	if err != nil {
 		return err
 	}
 
-	if project == nil {
+	if info == nil {
 		return nil
 	}
 
 	// Change the instance being updated.
-	for i, instance := range instances {
+	for i, instance := range info.Instances {
 		if instance.Name != instanceName {
 			continue
 		}
-		instances[i].Profiles = req.Profiles
-		instances[i].Config = req.Config
-		instances[i].Devices = req.Devices
-		updatedInstance = &instances[i]
+		info.Instances[i].Profiles = req.Profiles
+		info.Instances[i].Config = req.Config
+		info.Instances[i].Devices = req.Devices
+		updatedInstance = &info.Instances[i]
 	}
 
 	// Special case restriction checks on volatile.* keys, since we want to
 	// detect if they were changed or added.
 	err = checkRestrictionsOnVolatileConfig(
-		project, updatedInstance.Type, updatedInstance.Name, req.Config, currentConfig)
+		info.Project, updatedInstance.Type, updatedInstance.Name, req.Config, currentConfig)
 	if err != nil {
 		return err
 	}
 
-	err = checkRestrictionsAndAggregateLimits(tx, project, instances, profiles)
+	err = checkRestrictionsAndAggregateLimits(tx, info)
 	if err != nil {
 		return err
 	}
@@ -532,24 +532,24 @@ func AllowInstanceUpdate(tx *db.ClusterTx, projectName, instanceName string, req
 // AllowProfileUpdate checks that project limits and restrictions are not
 // violated when changing a profile.
 func AllowProfileUpdate(tx *db.ClusterTx, projectName, profileName string, req api.ProfilePut) error {
-	project, profiles, instances, err := fetchProject(tx, projectName, true)
+	info, err := fetchProject(tx, projectName, true)
 	if err != nil {
 		return err
 	}
-	if project == nil {
+	if info == nil {
 		return nil
 	}
 
 	// Change the profile being updated.
-	for i, profile := range profiles {
+	for i, profile := range info.Profiles {
 		if profile.Name != profileName {
 			continue
 		}
-		profiles[i].Config = req.Config
-		profiles[i].Devices = req.Devices
+		info.Profiles[i].Config = req.Config
+		info.Profiles[i].Devices = req.Devices
 	}
 
-	err = checkRestrictionsAndAggregateLimits(tx, project, instances, profiles)
+	err = checkRestrictionsAndAggregateLimits(tx, info)
 	if err != nil {
 		return err
 	}
@@ -559,12 +559,12 @@ func AllowProfileUpdate(tx *db.ClusterTx, projectName, profileName string, req a
 
 // AllowProjectUpdate checks the new config to be set on a project is valid.
 func AllowProjectUpdate(tx *db.ClusterTx, projectName string, config map[string]string, changed []string) error {
-	_, profiles, instances, err := fetchProject(tx, projectName, false)
+	info, err := fetchProject(tx, projectName, false)
 	if err != nil {
 		return err
 	}
 
-	instances = expandInstancesConfigAndDevices(instances, profiles)
+	instances := expandInstancesConfigAndDevices(info.Instances, info.Profiles)
 
 	// List of keys that need to check aggregate values across all project
 	// instances.
@@ -579,7 +579,7 @@ func AllowProjectUpdate(tx *db.ClusterTx, projectName string, config map[string]
 				},
 			}
 
-			err := checkRestrictions(project, instances, profiles)
+			err := checkRestrictions(project, instances, info.Profiles)
 			if err != nil {
 				return errors.Wrapf(err, "Conflict detected when changing %q in project %q", key, projectName)
 			}
@@ -692,18 +692,26 @@ func projectHasLimitsOrRestrictions(project *api.Project) bool {
 	return false
 }
 
+// Hold information associated with the project, such as profiles and
+// instances.
+type projectInfo struct {
+	Project   *api.Project
+	Profiles  []db.Profile
+	Instances []db.Instance
+}
+
 // Fetch the given project from the database along with its profiles and instances.
 //
 // If the skipIfNoLimits flag is true, profiles and instances won't be loaded
 // if the profile has no limits set on it, and nil will be returned.
-func fetchProject(tx *db.ClusterTx, projectName string, skipIfNoLimits bool) (*api.Project, []db.Profile, []db.Instance, error) {
+func fetchProject(tx *db.ClusterTx, projectName string, skipIfNoLimits bool) (*projectInfo, error) {
 	project, err := tx.GetProject(projectName)
 	if err != nil {
-		return nil, nil, nil, errors.Wrap(err, "Fetch project database object")
+		return nil, errors.Wrap(err, "Fetch project database object")
 	}
 
 	if skipIfNoLimits && !projectHasLimitsOrRestrictions(project) {
-		return nil, nil, nil, nil
+		return nil, nil
 	}
 
 	profilesFilter := db.ProfileFilter{}
@@ -719,15 +727,21 @@ func fetchProject(tx *db.ClusterTx, projectName string, skipIfNoLimits bool) (*a
 
 	profiles, err := tx.GetProfiles(profilesFilter)
 	if err != nil {
-		return nil, nil, nil, errors.Wrap(err, "Fetch profiles from database")
+		return nil, errors.Wrap(err, "Fetch profiles from database")
 	}
 
 	instances, err := tx.GetInstances(db.InstanceFilter{Project: projectName})
 	if err != nil {
-		return nil, nil, nil, errors.Wrap(err, "Fetch project instances from database")
+		return nil, errors.Wrap(err, "Fetch project instances from database")
 	}
 
-	return project, profiles, instances, nil
+	info := &projectInfo{
+		Project:   project,
+		Profiles:  profiles,
+		Instances: instances,
+	}
+
+	return info, nil
 }
 
 // Expand the configuration and devices of the given instances, taking the give
