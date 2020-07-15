@@ -325,6 +325,13 @@ func storagePoolVolumesTypePost(d *Daemon, r *http.Request) response.Response {
 		return response.Conflict(fmt.Errorf("Volume by that name already exists"))
 	}
 
+	err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
+		return project.AllowVolumeCreation(tx, projectName, req)
+	})
+	if err != nil {
+		return response.SmartError(err)
+	}
+
 	switch req.Source.Type {
 	case "":
 		return doVolumeCreateOrCopy(d, projectName, poolName, &req)
