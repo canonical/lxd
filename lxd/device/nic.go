@@ -44,15 +44,15 @@ func nicValidationRules(requiredFields []string, optionalFields []string) map[st
 		"security.ipv6_filtering": shared.IsAny,
 		"maas.subnet.ipv4":        shared.IsAny,
 		"maas.subnet.ipv6":        shared.IsAny,
-		"ipv4.address":            NetworkValidAddressV4,
-		"ipv6.address":            NetworkValidAddressV6,
-		"ipv4.routes":             NetworkValidNetworkV4List,
-		"ipv6.routes":             NetworkValidNetworkV6List,
+		"ipv4.address":            shared.IsNetworkAddressV4,
+		"ipv6.address":            shared.IsNetworkAddressV6,
+		"ipv4.routes":             shared.IsNetworkV4List,
+		"ipv6.routes":             shared.IsNetworkV6List,
 		"boot.priority":           shared.IsUint32,
-		"ipv4.gateway":            NetworkValidGateway,
-		"ipv6.gateway":            NetworkValidGateway,
-		"ipv4.host_address":       NetworkValidAddressV4,
-		"ipv6.host_address":       NetworkValidAddressV6,
+		"ipv4.gateway":            networkValidGateway,
+		"ipv6.gateway":            networkValidGateway,
+		"ipv4.host_address":       shared.IsNetworkAddressV4,
+		"ipv6.host_address":       shared.IsNetworkAddressV6,
 	}
 
 	validators := map[string]func(value string) error{}
