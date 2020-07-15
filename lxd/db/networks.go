@@ -325,10 +325,11 @@ func (c *Cluster) getNetwork(name string, onlyCreated bool) (int64, *api.Network
 	description := sql.NullString{}
 	id := int64(-1)
 	state := 0
+	var netType NetworkType
 
-	q := "SELECT id, description, state FROM networks WHERE name=?"
+	q := "SELECT id, description, state, type FROM networks WHERE name=?"
 	arg1 := []interface{}{name}
-	arg2 := []interface{}{&id, &description, &state}
+	arg2 := []interface{}{&id, &description, &state, &netType}
 	if onlyCreated {
 		q += " AND state=?"
 		arg1 = append(arg1, networkCreated)
@@ -350,7 +351,6 @@ func (c *Cluster) getNetwork(name string, onlyCreated bool) (int64, *api.Network
 	network := api.Network{
 		Name:    name,
 		Managed: true,
-		Type:    "bridge",
 	}
 	network.Description = description.String
 	network.Config = config
@@ -364,6 +364,13 @@ func (c *Cluster) getNetwork(name string, onlyCreated bool) (int64, *api.Network
 		network.Status = "Errored"
 	default:
 		network.Status = "Unknown"
+	}
+
+	switch netType {
+	case NetworkTypeBridge:
+		network.Type = "bridge"
+	default:
+		network.Type = "bridge"
 	}
 
 	nodes, err := c.networkNodes(id)
