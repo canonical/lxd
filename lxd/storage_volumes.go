@@ -949,6 +949,14 @@ func storagePoolVolumeTypePut(d *Daemon, r *http.Request, volumeTypeName string)
 	}
 
 	if volumeType == db.StoragePoolVolumeTypeCustom {
+		// Possibly check if project limits are honored.
+		err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
+			return project.AllowVolumeUpdate(tx, projectName, volumeName, req, vol.Config)
+		})
+		if err != nil {
+			return response.SmartError(err)
+		}
+
 		// Restore custom volume from snapshot if requested. This should occur first
 		// before applying config changes so that changes are applied to the
 		// restored volume.
