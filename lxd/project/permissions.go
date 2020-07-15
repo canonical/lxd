@@ -134,6 +134,37 @@ func checkRestrictionsOnVolatileConfig(project *api.Project, instanceType instan
 	return nil
 }
 
+// AllowVolumeCreation returns an error if any project-specific limit or
+// restriction is violated when creating a new custom volume in a project.
+func AllowVolumeCreation(tx *db.ClusterTx, projectName string, req api.StorageVolumesPost) error {
+	info, err := fetchProject(tx, projectName, true)
+	if err != nil {
+		return err
+	}
+
+	if info == nil {
+		return nil
+	}
+
+	// If "limits.disk" is not set, there's nothing to do.
+	if info.Project.Config["limits.disk"] == "" {
+		return nil
+	}
+
+	// Add the volume being created.
+	info.Volumes = append(info.Volumes, db.StorageVolumeArgs{
+		Name:   req.Name,
+		Config: req.Config,
+	})
+
+	err = checkRestrictionsAndAggregateLimits(tx, info)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
 // Check that we would not violate the project limits or restrictions if we
 // were to commit the given instances and profiles.
 func checkRestrictionsAndAggregateLimits(tx *db.ClusterTx, info *projectInfo) error {
