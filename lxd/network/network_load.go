@@ -6,7 +6,8 @@ import (
 )
 
 var drivers = map[string]func() Network{
-	"bridge": func() Network { return &bridge{} },
+	"bridge":  func() Network { return &bridge{} },
+	"macvlan": func() Network { return &macvlan{} },
 }
 
 // LoadByName loads the network info from the database by name.
