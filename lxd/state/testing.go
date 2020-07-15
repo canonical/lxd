@@ -3,6 +3,7 @@
 package state
 
 import (
+	"context"
 	"testing"
 
 	"github.com/lxc/lxd/lxd/db"
@@ -26,7 +27,7 @@ func NewTestState(t *testing.T) (*State, func()) {
 		osCleanup()
 	}
 
-	state := NewState(node, cluster, nil, os, nil, nil, nil, firewall.New(), nil)
+	state := NewState(context.TODO(), node, cluster, nil, os, nil, nil, nil, firewall.New(), nil)
 
 	return state, cleanup
 }

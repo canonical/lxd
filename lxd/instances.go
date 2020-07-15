@@ -313,7 +313,7 @@ func containersOnDisk() (map[string][]string, error) {
 	return containers, nil
 }
 
-func containersShutdown(s *state.State) error {
+func instancesShutdown(s *state.State) error {
 	var wg sync.WaitGroup
 
 	dbAvailable := true

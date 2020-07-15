@@ -1,6 +1,7 @@
 package operations
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 	"sync"
@@ -93,6 +94,7 @@ type Operation struct {
 	canceler    *cancel.Canceler
 	description string
 	permission  string
+	dbOpType    db.OperationType
 
 	// Those functions are called at various points in the Operation lifecycle
 	onRun     func(*Operation) error
@@ -112,12 +114,18 @@ type Operation struct {
 // OperationCreate creates a new operation and returns it. If it cannot be
 // created, it returns an error.
 func OperationCreate(s *state.State, project string, opClass operationClass, opType db.OperationType, opResources map[string][]string, opMetadata interface{}, onRun func(*Operation) error, onCancel func(*Operation) error, onConnect func(*Operation, *http.Request, http.ResponseWriter) error) (*Operation, error) {
+	// Don't allow new operations when LXD is shutting down.
+	if s != nil && s.Context.Err() == context.Canceled {
+		return nil, fmt.Errorf("LXD is shutting down")
+	}
+
 	// Main attributes
 	op := Operation{}
 	op.project = project
 	op.id = uuid.NewRandom().String()
 	op.description = opType.Description()
 	op.permission = opType.Permission()
+	op.dbOpType = opType
 	op.class = opClass
 	op.createdAt = time.Now()
 	op.updatedAt = op.createdAt
@@ -284,7 +292,9 @@ func (op *Operation) Cancel() (chan error, error) {
 	op.status = api.Cancelling
 	op.lock.Unlock()
 
-	if op.onCancel != nil {
+	hasOnCancel := op.onCancel != nil
+
+	if hasOnCancel {
 		go func(op *Operation, oldStatus api.StatusCode, chanCancel chan error) {
 			err := op.onCancel(op)
 			if err != nil {
@@ -322,7 +332,7 @@ func (op *Operation) Cancel() (chan error, error) {
 		}
 	}
 
-	if op.onCancel == nil {
+	if !hasOnCancel {
 		op.lock.Lock()
 		op.status = api.Cancelled
 		op.lock.Unlock()
@@ -545,4 +555,9 @@ func (op *Operation) Project() string {
 // Status returns the operation status.
 func (op *Operation) Status() api.StatusCode {
 	return op.status
+}
+
+// Type returns the db operation type.
+func (op *Operation) Type() db.OperationType {
+	return op.dbOpType
 }
