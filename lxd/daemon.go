@@ -100,6 +100,9 @@ type Daemon struct {
 	// changes).
 	clusterMembershipMutex   sync.RWMutex
 	clusterMembershipClosing bool // Prevent further rebalances
+
+	ctx    context.Context
+	cancel context.CancelFunc
 }
 
 type externalAuth struct {
@@ -152,6 +155,7 @@ func (m *IdentityClientWrapper) DeclaredIdentity(ctx context.Context, declared m
 func newDaemon(config *DaemonConfig, os *sys.OS) *Daemon {
 	lxdEvents := events.NewServer(daemon.Debug, daemon.Verbose)
 	devlxdEvents := events.NewServer(daemon.Debug, daemon.Verbose)
+	ctx, cancel := context.WithCancel(context.Background())
 
 	return &Daemon{
 		config:       config,
@@ -161,6 +165,8 @@ func newDaemon(config *DaemonConfig, os *sys.OS) *Daemon {
 		setupChan:    make(chan struct{}),
 		readyChan:    make(chan struct{}),
 		shutdownChan: make(chan struct{}),
+		ctx:          ctx,
+		cancel:       cancel,
 	}
 }
 
@@ -355,7 +361,10 @@ func writeMacaroonsRequiredResponse(b *identchecker.Bakery, r *http.Request, w h
 
 // State creates a new State instance linked to our internal db and os.
 func (d *Daemon) State() *state.State {
-	return state.NewState(d.db, d.cluster, d.maas, d.os, d.endpoints, d.events, d.devlxdEvents, d.firewall, d.proxy)
+	// If the daemon is shutting down, the context will be cancelled.
+	// This information will be available throughout the code, and can be used to prevent new
+	// operations from starting during shutdown.
+	return state.NewState(d.ctx, d.db, d.cluster, d.maas, d.os, d.endpoints, d.events, d.devlxdEvents, d.firewall, d.proxy)
 }
 
 // UnixSocket returns the full path to the unix.socket file that this daemon is
@@ -445,6 +454,16 @@ func (d *Daemon) createCmd(restAPI *mux.Router, version string, c APIEndpoint) {
 		// Actually process the request
 		var resp response.Response
 		resp = response.NotImplemented(nil)
+
+		// Return Unavailable Error (503) if daemon is shutting down.
+		// There are some exceptions:
+		// - internal calls, e.g. lxd shutdown
+		// - events endpoint as this is accessed when running `lxd shutdown`
+		// - /1.0 endpoint
+		if version != "internal" && c.Path != "events" && c.Path != "" && d.ctx.Err() == context.Canceled {
+			response.Unavailable(fmt.Errorf("LXD is shutting down")).Render(w)
+			return
+		}
 
 		handleRequest := func(action APIEndpointAction) response.Response {
 			if action.Handler == nil {
@@ -856,7 +875,7 @@ func (d *Daemon) init() error {
 
 		logger.Debugf("Restarting all the containers following directory rename")
 		s := d.State()
-		containersShutdown(s)
+		instancesShutdown(s)
 		containersRestart(s)
 	}
 

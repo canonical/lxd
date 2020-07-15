@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/gorilla/mux"
 	"github.com/gorilla/websocket"
@@ -14,9 +15,11 @@ import (
 	"github.com/lxc/lxd/lxd/operations"
 	"github.com/lxc/lxd/lxd/project"
 	"github.com/lxc/lxd/lxd/response"
+	"github.com/lxc/lxd/lxd/state"
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
+	"github.com/lxc/lxd/shared/logger"
 )
 
 var operationCmd = APIEndpoint{
@@ -42,6 +45,72 @@ var operationWebsocket = APIEndpoint{
 	Path: "operations/{id}/websocket",
 
 	Get: APIEndpointAction{Handler: operationWebsocketGet, AllowUntrusted: true},
+}
+
+// waitForOperations waits for operations to finish. There's a timeout for console/exec operations
+// that when reached will shut down the instances forcefully.
+// It also watches the cancel channel, and will return if it receives data.
+func waitForOperations(s *state.State, chCancel chan struct{}) {
+	timeout := time.After(5 * time.Minute)
+	tick := time.Tick(time.Second)
+	logTick := time.Tick(time.Minute)
+
+	for {
+		<-tick
+
+		// Get all the operations
+		operations.Lock()
+		ops := operations.Operations()
+		operations.Unlock()
+
+		runningOps := 0
+
+		for _, op := range ops {
+			if op.Status() == api.Running {
+				runningOps++
+			}
+		}
+
+		// No more running operations left. Exit function.
+		if runningOps == 0 {
+			logger.Info("All running operations finished, shutting down")
+			return
+		}
+
+		execConsoleOps := 0
+
+		for _, op := range ops {
+			opType := op.Type()
+			if opType == db.OperationCommandExec || opType == db.OperationConsoleShow {
+				execConsoleOps++
+			}
+
+			_, opAPI, _ := op.Render()
+			if opAPI.MayCancel {
+				op.Cancel()
+			}
+		}
+
+		select {
+		case <-timeout:
+			// We wait up to 5 minutes for exec/console operations to finish.
+			// If there are still running operations, we shut down the instances
+			// which will terminate the operations.
+			if execConsoleOps > 0 {
+				logger.Info("Shutdown timeout reached, shutting down instances")
+				instancesShutdown(s)
+			}
+
+		case <-logTick:
+			// Print log message every minute.
+			logger.Infof("Waiting for %d operation(s) to finish", runningOps)
+		case <-chCancel:
+			// Return here, and ignore any running operations.
+			logger.Info("Forcing shutdown, ignoring running operations")
+			return
+		default:
+		}
+	}
 }
 
 // API functions
