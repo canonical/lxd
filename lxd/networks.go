@@ -674,8 +674,14 @@ func networkPatch(d *Daemon, r *http.Request) response.Response {
 }
 
 func doNetworkUpdate(d *Daemon, name string, oldConfig map[string]string, req api.NetworkPut, notify bool) response.Response {
+	// Load the network
+	n, err := network.LoadByName(d.State(), name)
+	if err != nil {
+		return response.NotFound(err)
+	}
+
 	// Validate the configuration
-	err := networkValidateConfig(name, req.Config)
+	err = network.Validate(name, n.Type(), req.Config)
 	if err != nil {
 		return response.BadRequest(err)
 	}
@@ -685,12 +691,6 @@ func doNetworkUpdate(d *Daemon, name string, oldConfig map[string]string, req ap
 		if req.Config["fan.underlay_subnet"] == "" {
 			req.Config["fan.underlay_subnet"] = "auto"
 		}
-	}
-
-	// Load the network
-	n, err := network.LoadByName(d.State(), name)
-	if err != nil {
-		return response.NotFound(err)
 	}
 
 	err = n.Update(req, notify)
