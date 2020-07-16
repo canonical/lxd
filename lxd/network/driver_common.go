@@ -3,13 +3,20 @@ package network
 import (
 	"fmt"
 	"net"
+	"os"
 	"strings"
 
 	"github.com/pkg/errors"
 
+	lxd "github.com/lxc/lxd/client"
+	"github.com/lxc/lxd/lxd/cluster"
 	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/state"
 	"github.com/lxc/lxd/shared"
+	"github.com/lxc/lxd/shared/api"
+	log "github.com/lxc/lxd/shared/log15"
+	"github.com/lxc/lxd/shared/logger"
+	"github.com/lxc/lxd/shared/logging"
 )
 
 // DHCPRange represents a range of IPs from start to end.
@@ -20,19 +27,18 @@ type DHCPRange struct {
 
 // common represents a generic LXD network.
 type common struct {
-	// Properties
+	logger      logger.Logger
 	state       *state.State
 	id          int64
 	name        string
 	netType     string
 	description string
-
-	// config
-	config map[string]string
+	config      map[string]string
 }
 
 // init initialise internal variables.
 func (n *common) init(state *state.State, id int64, name string, netType string, description string, config map[string]string) {
+	n.logger = logging.AddContext(logger.Log, log.Ctx{"driver": netType, "network": name})
 	n.id = id
 	n.name = name
 	n.netType = netType
@@ -41,8 +47,8 @@ func (n *common) init(state *state.State, id int64, name string, netType string,
 	n.description = description
 }
 
-// commonRules returns a map of config rules common to all drivers.
-func (n *common) commonRules() map[string]func(string) error {
+// validationRules returns a map of config rules common to all drivers.
+func (n *common) validationRules() map[string]func(string) error {
 	return map[string]func(string) error{}
 }
 
@@ -51,7 +57,7 @@ func (n *common) validate(config map[string]string, driverRules map[string]func(
 	checkedFields := map[string]struct{}{}
 
 	// Get rules common for all drivers.
-	rules := n.commonRules()
+	rules := n.validationRules()
 
 	// Merge driver specific rules into common rules.
 	for field, validator := range driverRules {
@@ -176,4 +182,126 @@ func (n *common) DHCPv6Ranges() []DHCPRange {
 	}
 
 	return dhcpRanges
+}
+
+// update the internal config variables, and if not cluster notification, notifies all nodes and updates database.
+func (n *common) update(applyNetwork api.NetworkPut, clusterNotification bool) error {
+	// Update internal config before database has been updated (so that if update is a notification we apply
+	// the config being supplied and not that in the database).
+	n.description = applyNetwork.Description
+	n.config = applyNetwork.Config
+
+	// If this update isn't coming via a cluster notification itself, then notify all nodes of change and then
+	// update the database.
+	if !clusterNotification {
+		// Notify all other nodes to update the network.
+		notifier, err := cluster.NewNotifier(n.state, n.state.Endpoints.NetworkCert(), cluster.NotifyAll)
+		if err != nil {
+			return err
+		}
+
+		err = notifier(func(client lxd.InstanceServer) error {
+			return client.UpdateNetwork(n.name, applyNetwork, "")
+		})
+		if err != nil {
+			return err
+		}
+
+		// Update the database.
+		err = n.state.Cluster.UpdateNetwork(n.name, applyNetwork.Description, applyNetwork.Config)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// configChanged compares supplied new config with existing config. Returns a boolean indicating if differences in
+// the config or description were found (and the database record needs updating), and a list of non-user config
+// keys that have changed, and a copy of the current internal network config that can be used to revert if needed.
+func (n *common) configChanged(newNetwork api.NetworkPut) (bool, []string, api.NetworkPut, error) {
+	// Backup the current state.
+	oldNetwork := api.NetworkPut{
+		Description: n.description,
+		Config:      map[string]string{},
+	}
+
+	err := shared.DeepCopy(&n.config, &oldNetwork.Config)
+	if err != nil {
+		return false, nil, oldNetwork, err
+	}
+
+	// Diff the configurations.
+	changedKeys := []string{}
+	dbUpdateNeeded := false
+
+	if newNetwork.Description != n.description {
+		dbUpdateNeeded = true
+	}
+
+	for k, v := range oldNetwork.Config {
+		if v != newNetwork.Config[k] {
+			dbUpdateNeeded = true
+
+			// Add non-user changed key to list of changed keys.
+			if !strings.HasPrefix(k, "user.") && !shared.StringInSlice(k, changedKeys) {
+				changedKeys = append(changedKeys, k)
+			}
+		}
+	}
+
+	for k, v := range newNetwork.Config {
+		if v != oldNetwork.Config[k] {
+			dbUpdateNeeded = true
+
+			// Add non-user changed key to list of changed keys.
+			if !strings.HasPrefix(k, "user.") && !shared.StringInSlice(k, changedKeys) {
+				changedKeys = append(changedKeys, k)
+			}
+		}
+	}
+
+	return dbUpdateNeeded, changedKeys, oldNetwork, nil
+}
+
+// rename the network directory, update database record and update internal variables.
+func (n *common) rename(newName string) error {
+	// Clear new directory if exists.
+	if shared.PathExists(shared.VarPath("networks", newName)) {
+		os.RemoveAll(shared.VarPath("networks", newName))
+	}
+
+	// Rename directory to new name.
+	if shared.PathExists(shared.VarPath("networks", n.name)) {
+		err := os.Rename(shared.VarPath("networks", n.name), shared.VarPath("networks", newName))
+		if err != nil {
+			return err
+		}
+	}
+
+	// Rename the database entry.
+	err := n.state.Cluster.RenameNetwork(n.name, newName)
+	if err != nil {
+		return err
+	}
+
+	// Reinitialise internal name variable and logger context with new name.
+	n.init(n.state, n.id, newName, n.netType, n.description, n.config)
+
+	return nil
+}
+
+// delete the network from the database if clusterNotification is false.
+func (n *common) delete(clusterNotification bool) error {
+	// Only delete database record if not cluster notification.
+	if !clusterNotification {
+		// Remove the network from the database.
+		err := n.state.Cluster.DeleteNetwork(n.name)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
 }

@@ -133,9 +133,8 @@ func networksPost(d *Daemon, r *http.Request) response.Response {
 	resp := response.SyncResponseLocation(true, nil, url)
 
 	if isClusterNotification(r) {
-		// This is an internal request which triggers the actual
-		// creation of the network across all nodes, after they have
-		// been previously defined.
+		// This is an internal request which triggers the actual creation of the network across all nodes
+		// after they have been previously defined.
 		err = doNetworksCreate(d, req, true)
 		if err != nil {
 			return response.SmartError(err)
@@ -165,7 +164,7 @@ func networksPost(d *Daemon, r *http.Request) response.Response {
 		return resp
 	}
 
-	// Check if we're clustered
+	// Check if we're clustered.
 	count, err := cluster.Count(d.State())
 	if err != nil {
 		return response.SmartError(err)
@@ -180,14 +179,13 @@ func networksPost(d *Daemon, r *http.Request) response.Response {
 		return resp
 	}
 
+	// No targetNode was specified and we're either a single-node cluster or not clustered at all,
+	// so create the network immediately.
 	err = network.FillConfig(&req)
 	if err != nil {
 		return response.SmartError(err)
 	}
 
-	// No targetNode was specified and we're either a single-node
-	// cluster or not clustered at all, so create the storage
-	// pool immediately.
 	networks, err := networkGetInterfaces(d.cluster)
 	if err != nil {
 		return response.InternalError(err)
@@ -197,13 +195,14 @@ func networksPost(d *Daemon, r *http.Request) response.Response {
 		return response.BadRequest(fmt.Errorf("The network already exists"))
 	}
 
-	// Create the database entry
+	// Create the database entry.
 	_, err = d.cluster.CreateNetwork(req.Name, req.Description, dbNetType, req.Config)
 	if err != nil {
 		return response.SmartError(fmt.Errorf("Error inserting %s into database: %s", req.Name, err))
 	}
 
-	err = doNetworksCreate(d, req, true)
+	// Create network and pass false to clusterNotification so the database record is removed on error.
+	err = doNetworksCreate(d, req, false)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -215,7 +214,7 @@ func networksPostCluster(d *Daemon, req api.NetworksPost) error {
 	// Check that no node-specific config key has been defined.
 	for key := range req.Config {
 		if shared.StringInSlice(key, db.NodeSpecificNetworkConfig) {
-			return fmt.Errorf("Config key '%s' is node-specific", key)
+			return fmt.Errorf("Config key %q is node-specific", key)
 		}
 	}
 
@@ -316,10 +315,10 @@ error:
 	return createErr
 }
 
-// Create the network on the system. The withDatabase flag is used to decide
-// whether to cleanup the database if an error occurs.
-func doNetworksCreate(d *Daemon, req api.NetworksPost, withDatabase bool) error {
-	// Start the network
+// Create the network on the system. The clusterNotification flag is used to indicate whether creation request
+// is coming from a cluster notification (and if so we should not delete the database record on error).
+func doNetworksCreate(d *Daemon, req api.NetworksPost, clusterNotification bool) error {
+	// Start the network.
 	n, err := network.LoadByName(d.State(), req.Name)
 	if err != nil {
 		return err
@@ -327,7 +326,7 @@ func doNetworksCreate(d *Daemon, req api.NetworksPost, withDatabase bool) error 
 
 	err = n.Start()
 	if err != nil {
-		n.Delete(withDatabase)
+		n.Delete(clusterNotification)
 		return err
 	}
 
@@ -489,9 +488,9 @@ func networkDelete(d *Daemon, r *http.Request) response.Response {
 		return response.NotFound(err)
 	}
 
-	withDatabase := true
+	clusterNotification := false
 	if isClusterNotification(r) {
-		withDatabase = false // We just want to delete the network from the system
+		clusterNotification = true // We just want to delete the network from the system.
 	} else {
 		// Sanity checks
 		if n.IsUsed() {
@@ -512,7 +511,7 @@ func networkDelete(d *Daemon, r *http.Request) response.Response {
 	}
 
 	// Delete the network
-	err = n.Delete(withDatabase)
+	err = n.Delete(clusterNotification)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -574,7 +573,7 @@ func networkPost(d *Daemon, r *http.Request) response.Response {
 	}
 
 	if shared.StringInSlice(req.Name, networks) {
-		return response.Conflict(fmt.Errorf("Network '%s' already exists", req.Name))
+		return response.Conflict(fmt.Errorf("Network %q already exists", req.Name))
 	}
 
 	// Rename it
@@ -676,7 +675,7 @@ func networkPatch(d *Daemon, r *http.Request) response.Response {
 	return doNetworkUpdate(d, name, dbInfo.Config, req, isClusterNotification(r))
 }
 
-func doNetworkUpdate(d *Daemon, name string, oldConfig map[string]string, req api.NetworkPut, notify bool) response.Response {
+func doNetworkUpdate(d *Daemon, name string, oldConfig map[string]string, req api.NetworkPut, clusterNotification bool) response.Response {
 	// Load the network
 	n, err := network.LoadByName(d.State(), name)
 	if err != nil {
@@ -689,14 +688,7 @@ func doNetworkUpdate(d *Daemon, name string, oldConfig map[string]string, req ap
 		return response.BadRequest(err)
 	}
 
-	// When switching to a fan bridge, auto-detect the underlay
-	if req.Config["bridge.mode"] == "fan" {
-		if req.Config["fan.underlay_subnet"] == "" {
-			req.Config["fan.underlay_subnet"] = "auto"
-		}
-	}
-
-	err = n.Update(req, notify)
+	err = n.Update(req, clusterNotification)
 	if err != nil {
 		return response.SmartError(err)
 	}
