@@ -482,7 +482,7 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 
 	// Configure IPv4 firewall (includes fan)
 	if n.config["bridge.mode"] == "fan" || !shared.StringInSlice(n.config["ipv4.address"], []string{"", "none"}) {
-		if n.HasDHCPv4() && n.HasIPv4Firewall() {
+		if n.HasDHCPv4() && n.hasIPv4Firewall() {
 			// Setup basic iptables overrides for DHCP/DNS
 			err = n.state.Firewall.NetworkSetupDHCPDNSAccess(n.name, 4)
 			if err != nil {
@@ -491,7 +491,7 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 		}
 
 		// Attempt a workaround for broken DHCP clients
-		if n.HasIPv4Firewall() {
+		if n.hasIPv4Firewall() {
 			err = n.state.Firewall.NetworkSetupDHCPv4Checksum(n.name)
 			if err != nil {
 				return err
@@ -505,14 +505,14 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 				return err
 			}
 
-			if n.HasIPv4Firewall() {
+			if n.hasIPv4Firewall() {
 				err = n.state.Firewall.NetworkSetupForwardingPolicy(n.name, 4, true)
 				if err != nil {
 					return err
 				}
 			}
 		} else {
-			if n.HasIPv4Firewall() {
+			if n.hasIPv4Firewall() {
 				err = n.state.Firewall.NetworkSetupForwardingPolicy(n.name, 4, false)
 				if err != nil {
 					return err
@@ -1648,8 +1648,8 @@ func (n *bridge) updateForkdnsServersFile(addresses []string) error {
 	return nil
 }
 
-// HasIPv4Firewall indicates whether the network has IPv4 firewall enabled.
-func (n *bridge) HasIPv4Firewall() bool {
+// hasIPv4Firewall indicates whether the network has IPv4 firewall enabled.
+func (n *bridge) hasIPv4Firewall() bool {
 	if n.config["ipv4.firewall"] == "" || shared.IsTrue(n.config["ipv4.firewall"]) {
 		return true
 	}
@@ -1657,8 +1657,8 @@ func (n *bridge) HasIPv4Firewall() bool {
 	return false
 }
 
-// HasIPv6Firewall indicates whether the network has IPv6 firewall enabled.
-func (n *bridge) HasIPv6Firewall() bool {
+// hasIPv6Firewall indicates whether the network has IPv6 firewall enabled.
+func (n *bridge) hasIPv6Firewall() bool {
 	if n.config["ipv6.firewall"] == "" || shared.IsTrue(n.config["ipv6.firewall"]) {
 		return true
 	}
