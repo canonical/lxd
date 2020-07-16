@@ -2,6 +2,7 @@ package network
 
 import (
 	"github.com/lxc/lxd/lxd/state"
+	"github.com/lxc/lxd/shared/api"
 )
 
 var drivers = map[string]func() Network{
@@ -41,4 +42,28 @@ func Validate(name string, netType string, config map[string]string) error {
 	n := driverFunc()
 	n.init(nil, 0, name, netType, "", config)
 	return n.Validate(config)
+}
+
+// FillConfig populates the supplied api.NetworkPost with automatically populated values.
+func FillConfig(req *api.NetworksPost) error {
+	driverFunc, ok := drivers[req.Type]
+	if !ok {
+		return ErrUnknownDriver
+	}
+
+	n := driverFunc()
+	n.init(nil, 0, req.Name, req.Type, req.Description, req.Config)
+
+	err := n.fillConfig(req)
+	if err != nil {
+		return err
+	}
+
+	// Replace "auto" by actual values.
+	err = fillAuto(req.Config)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
