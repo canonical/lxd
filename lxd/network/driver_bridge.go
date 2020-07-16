@@ -239,8 +239,10 @@ func (n *bridge) isRunning() bool {
 }
 
 // Delete deletes a network.
-func (n *bridge) Delete(withDatabase bool) error {
-	// Bring the network down
+func (n *bridge) Delete(clusterNotification bool) error {
+	n.logger.Debug("Delete", log.Ctx{"clusterNotification": clusterNotification})
+
+	// Bring the network down.
 	if n.isRunning() {
 		err := n.Stop()
 		if err != nil {
@@ -248,19 +250,7 @@ func (n *bridge) Delete(withDatabase bool) error {
 		}
 	}
 
-	// If withDatabase is false, this is a cluster notification, and we
-	// don't want to perform any database work.
-	if !withDatabase {
-		return nil
-	}
-
-	// Remove the network from the database
-	err := n.state.Cluster.DeleteNetwork(n.name)
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return n.common.delete(clusterNotification)
 }
 
 // Rename renames a network.
