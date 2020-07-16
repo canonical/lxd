@@ -11,6 +11,7 @@ import (
 	"math/rand"
 	"net"
 	"os"
+	"regexp"
 	"strconv"
 	"strings"
 	"sync"
@@ -28,6 +29,48 @@ import (
 	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/logger"
 )
+
+// ValidNetworkName validates network name.
+func ValidNetworkName(value string) error {
+	// Not a veth-liked name
+	if strings.HasPrefix(value, "veth") {
+		return fmt.Errorf("Interface name cannot be prefix with veth")
+	}
+
+	// Validate the length
+	if len(value) < 2 {
+		return fmt.Errorf("Interface name is too short (minimum 2 characters)")
+	}
+
+	if len(value) > 15 {
+		return fmt.Errorf("Interface name is too long (maximum 15 characters)")
+	}
+
+	// Validate the character set
+	match, _ := regexp.MatchString("^[-_a-zA-Z0-9.]*$", value)
+	if !match {
+		return fmt.Errorf("Interface name contains invalid characters")
+	}
+
+	return nil
+}
+
+func networkValidPort(value string) error {
+	if value == "" {
+		return nil
+	}
+
+	valueInt, err := strconv.ParseInt(value, 10, 64)
+	if err != nil {
+		return fmt.Errorf("Invalid value for an integer: %s", value)
+	}
+
+	if valueInt < 1 || valueInt > 65536 {
+		return fmt.Errorf("Invalid port number: %s", value)
+	}
+
+	return nil
+}
 
 // IsInUseByInstance indicates if network is referenced by an instance's NIC devices.
 // Checks if the device's parent or network properties match the network name.
@@ -836,8 +879,8 @@ func GetMACSlice(hwaddr string) []string {
 	return buf
 }
 
-// UsesIPv4Firewall returns whether network config will need to use the IPv4 firewall.
-func UsesIPv4Firewall(netConfig map[string]string) bool {
+// usesIPv4Firewall returns whether network config will need to use the IPv4 firewall.
+func usesIPv4Firewall(netConfig map[string]string) bool {
 	if netConfig == nil {
 		return false
 	}
@@ -853,8 +896,8 @@ func UsesIPv4Firewall(netConfig map[string]string) bool {
 	return false
 }
 
-// UsesIPv6Firewall returns whether network config will need to use the IPv6 firewall.
-func UsesIPv6Firewall(netConfig map[string]string) bool {
+// usesIPv6Firewall returns whether network config will need to use the IPv6 firewall.
+func usesIPv6Firewall(netConfig map[string]string) bool {
 	if netConfig == nil {
 		return false
 	}

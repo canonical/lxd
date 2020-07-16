@@ -149,7 +149,7 @@ WHERE networks.id = ? AND networks.state = ?
 
 // CreatePendingNetwork creates a new pending network on the node with
 // the given name.
-func (c *ClusterTx) CreatePendingNetwork(node, name string, conf map[string]string) error {
+func (c *ClusterTx) CreatePendingNetwork(node, name string, netType NetworkType, conf map[string]string) error {
 	// First check if a network with the given name exists, and, if
 	// so, that it's in the pending state.
 	network := struct {
@@ -182,8 +182,8 @@ func (c *ClusterTx) CreatePendingNetwork(node, name string, conf map[string]stri
 	if networkID == 0 {
 		// No existing network with the given name was found, let's create
 		// one.
-		columns := []string{"name"}
-		values := []interface{}{name}
+		columns := []string{"name", "type"}
+		values := []interface{}{name, netType}
 		networkID, err = query.UpsertObject(c.tx, "networks", columns, values)
 		if err != nil {
 			return err
@@ -297,6 +297,14 @@ const (
 	networkErrored            // Network creation failed on some nodes
 )
 
+// NetworkType indicates type of network.
+type NetworkType int
+
+// Network types.
+const (
+	NetworkTypeBridge NetworkType = iota // Network type bridge.
+)
+
 // GetNetwork returns the network with the given name.
 //
 // The network must be in the created stated, not pending.
@@ -317,10 +325,11 @@ func (c *Cluster) getNetwork(name string, onlyCreated bool) (int64, *api.Network
 	description := sql.NullString{}
 	id := int64(-1)
 	state := 0
+	var netType NetworkType
 
-	q := "SELECT id, description, state FROM networks WHERE name=?"
+	q := "SELECT id, description, state, type FROM networks WHERE name=?"
 	arg1 := []interface{}{name}
-	arg2 := []interface{}{&id, &description, &state}
+	arg2 := []interface{}{&id, &description, &state, &netType}
 	if onlyCreated {
 		q += " AND state=?"
 		arg1 = append(arg1, networkCreated)
@@ -342,7 +351,6 @@ func (c *Cluster) getNetwork(name string, onlyCreated bool) (int64, *api.Network
 	network := api.Network{
 		Name:    name,
 		Managed: true,
-		Type:    "bridge",
 	}
 	network.Description = description.String
 	network.Config = config
@@ -356,6 +364,13 @@ func (c *Cluster) getNetwork(name string, onlyCreated bool) (int64, *api.Network
 		network.Status = "Errored"
 	default:
 		network.Status = "Unknown"
+	}
+
+	switch netType {
+	case NetworkTypeBridge:
+		network.Type = "bridge"
+	default:
+		network.Type = "bridge"
 	}
 
 	nodes, err := c.networkNodes(id)
@@ -477,10 +492,10 @@ func (c *Cluster) getNetworkConfig(id int64) (map[string]string, error) {
 }
 
 // CreateNetwork creates a new network.
-func (c *Cluster) CreateNetwork(name, description string, config map[string]string) (int64, error) {
+func (c *Cluster) CreateNetwork(name, description string, netType NetworkType, config map[string]string) (int64, error) {
 	var id int64
 	err := c.Transaction(func(tx *ClusterTx) error {
-		result, err := tx.tx.Exec("INSERT INTO networks (name, description, state) VALUES (?, ?, ?)", name, description, networkCreated)
+		result, err := tx.tx.Exec("INSERT INTO networks (name, description, state, type) VALUES (?, ?, ?, ?)", name, description, networkCreated, netType)
 		if err != nil {
 			return err
 		}

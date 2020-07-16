@@ -69,6 +69,17 @@ var updates = map[int]schema.Update{
 	30: updateFromV29,
 	31: updateFromV30,
 	32: updateFromV31,
+	33: updateFromV32,
+}
+
+// Add type field to networks.
+func updateFromV32(tx *sql.Tx) error {
+	_, err := tx.Exec("ALTER TABLE networks ADD COLUMN type INTEGER NOT NULL DEFAULT 0;")
+	if err != nil {
+		return errors.Wrap(err, "Failed to add type column to networks table")
+	}
+
+	return nil
 }
 
 // Add failure_domain column to nodes table.
