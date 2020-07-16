@@ -3,6 +3,7 @@ package network
 import (
 	"fmt"
 	"net"
+	"os"
 	"strings"
 
 	"github.com/pkg/errors"
@@ -262,6 +263,33 @@ func (n *common) configChanged(newNetwork api.NetworkPut) (bool, []string, api.N
 	}
 
 	return dbUpdateNeeded, changedKeys, oldNetwork, nil
+}
+
+// rename the network directory, update database record and update internal variables.
+func (n *common) rename(newName string) error {
+	// Clear new directory if exists.
+	if shared.PathExists(shared.VarPath("networks", newName)) {
+		os.RemoveAll(shared.VarPath("networks", newName))
+	}
+
+	// Rename directory to new name.
+	if shared.PathExists(shared.VarPath("networks", n.name)) {
+		err := os.Rename(shared.VarPath("networks", n.name), shared.VarPath("networks", newName))
+		if err != nil {
+			return err
+		}
+	}
+
+	// Rename the database entry.
+	err := n.state.Cluster.RenameNetwork(n.name, newName)
+	if err != nil {
+		return err
+	}
+
+	// Reinitialise internal name variable and logger context with new name.
+	n.init(n.state, n.id, newName, n.netType, n.description, n.config)
+
+	return nil
 }
 
 // delete the network from the database if clusterNotification is false.
