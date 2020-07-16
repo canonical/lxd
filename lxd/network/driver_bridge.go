@@ -86,8 +86,8 @@ func (n *bridge) Validate(config map[string]string) error {
 
 			for _, entry := range strings.Split(value, ",") {
 				entry = strings.TrimSpace(entry)
-				if ValidNetworkName(entry) != nil {
-					return fmt.Errorf("Invalid interface name '%s'", entry)
+				if err := ValidNetworkName(entry); err != nil {
+					return errors.Wrapf(err, "Invalid interface name %q", entry)
 				}
 			}
 
