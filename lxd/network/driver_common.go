@@ -46,8 +46,8 @@ func (n *common) init(state *state.State, id int64, name string, netType string,
 	n.description = description
 }
 
-// commonRules returns a map of config rules common to all drivers.
-func (n *common) commonRules() map[string]func(string) error {
+// validationRules returns a map of config rules common to all drivers.
+func (n *common) validationRules() map[string]func(string) error {
 	return map[string]func(string) error{}
 }
 
@@ -56,7 +56,7 @@ func (n *common) validate(config map[string]string, driverRules map[string]func(
 	checkedFields := map[string]struct{}{}
 
 	// Get rules common for all drivers.
-	rules := n.commonRules()
+	rules := n.validationRules()
 
 	// Merge driver specific rules into common rules.
 	for field, validator := range driverRules {
