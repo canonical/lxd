@@ -13,6 +13,9 @@ import (
 	"github.com/lxc/lxd/lxd/state"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
+	log "github.com/lxc/lxd/shared/log15"
+	"github.com/lxc/lxd/shared/logger"
+	"github.com/lxc/lxd/shared/logging"
 )
 
 // DHCPRange represents a range of IPs from start to end.
@@ -23,19 +26,18 @@ type DHCPRange struct {
 
 // common represents a generic LXD network.
 type common struct {
-	// Properties
+	logger      logger.Logger
 	state       *state.State
 	id          int64
 	name        string
 	netType     string
 	description string
-
-	// config
-	config map[string]string
+	config      map[string]string
 }
 
 // init initialise internal variables.
 func (n *common) init(state *state.State, id int64, name string, netType string, description string, config map[string]string) {
+	n.logger = logging.AddContext(logger.Log, log.Ctx{"driver": netType, "network": name})
 	n.id = id
 	n.name = name
 	n.netType = netType
