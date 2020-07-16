@@ -133,9 +133,8 @@ func networksPost(d *Daemon, r *http.Request) response.Response {
 	resp := response.SyncResponseLocation(true, nil, url)
 
 	if isClusterNotification(r) {
-		// This is an internal request which triggers the actual
-		// creation of the network across all nodes, after they have
-		// been previously defined.
+		// This is an internal request which triggers the actual creation of the network across all nodes
+		// after they have been previously defined.
 		err = doNetworksCreate(d, req, true)
 		if err != nil {
 			return response.SmartError(err)
@@ -165,7 +164,7 @@ func networksPost(d *Daemon, r *http.Request) response.Response {
 		return resp
 	}
 
-	// Check if we're clustered
+	// Check if we're clustered.
 	count, err := cluster.Count(d.State())
 	if err != nil {
 		return response.SmartError(err)
@@ -180,14 +179,13 @@ func networksPost(d *Daemon, r *http.Request) response.Response {
 		return resp
 	}
 
+	// No targetNode was specified and we're either a single-node cluster or not clustered at all,
+	// so create the network immediately.
 	err = network.FillConfig(&req)
 	if err != nil {
 		return response.SmartError(err)
 	}
 
-	// No targetNode was specified and we're either a single-node
-	// cluster or not clustered at all, so create the storage
-	// pool immediately.
 	networks, err := networkGetInterfaces(d.cluster)
 	if err != nil {
 		return response.InternalError(err)
@@ -197,13 +195,14 @@ func networksPost(d *Daemon, r *http.Request) response.Response {
 		return response.BadRequest(fmt.Errorf("The network already exists"))
 	}
 
-	// Create the database entry
+	// Create the database entry.
 	_, err = d.cluster.CreateNetwork(req.Name, req.Description, dbNetType, req.Config)
 	if err != nil {
 		return response.SmartError(fmt.Errorf("Error inserting %s into database: %s", req.Name, err))
 	}
 
-	err = doNetworksCreate(d, req, true)
+	// Create network and pass false to clusterNotification so the database record is removed on error.
+	err = doNetworksCreate(d, req, false)
 	if err != nil {
 		return response.SmartError(err)
 	}
