@@ -23,6 +23,7 @@ type cmdNetwork struct {
 	global *cmdGlobal
 
 	flagTarget string
+	flagType   string
 }
 
 func (c *cmdNetwork) Command() *cobra.Command {
@@ -251,10 +252,11 @@ func (c *cmdNetworkCreate) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = i18n.G("create [<remote>:]<network> [key=value...]")
 	cmd.Short = i18n.G("Create new networks")
-	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
-		`Create new networks`))
+	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(`Create new networks`))
 
 	cmd.Flags().StringVar(&c.network.flagTarget, "target", "", i18n.G("Cluster member name")+"``")
+	cmd.Flags().StringVarP(&c.network.flagType, "type", "t", "bridge", i18n.G("Network type"))
+
 	cmd.RunE = c.Run
 
 	return cmd
@@ -280,6 +282,7 @@ func (c *cmdNetworkCreate) Run(cmd *cobra.Command, args []string) error {
 	network := api.NetworksPost{}
 	network.Name = resource.name
 	network.Config = map[string]string{}
+	network.Type = c.network.flagType
 
 	for i := 1; i < len(args); i++ {
 		entry := strings.SplitN(args[i], "=", 2)

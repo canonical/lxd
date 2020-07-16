@@ -346,14 +346,14 @@ func (c *cmdInit) askNetworking(config *cmdInitData, d lxd.InstanceServer) error
 
 	for {
 		// Define the network
-		network := api.NetworksPost{}
-		network.Config = map[string]string{}
+		net := api.NetworksPost{}
+		net.Config = map[string]string{}
 
 		// Network name
-		network.Name = cli.AskString("What should the new bridge be called? [default=lxdbr0]: ", "lxdbr0", networkValidName)
-		_, _, err := d.GetNetwork(network.Name)
+		net.Name = cli.AskString("What should the new bridge be called? [default=lxdbr0]: ", "lxdbr0", network.ValidNetworkName)
+		_, _, err := d.GetNetwork(net.Name)
 		if err == nil {
-			fmt.Printf("The requested network bridge \"%s\" already exists. Please choose another name.\n", network.Name)
+			fmt.Printf("The requested network bridge \"%s\" already exists. Please choose another name.\n", net.Name)
 			continue
 		}
 
@@ -361,39 +361,39 @@ func (c *cmdInit) askNetworking(config *cmdInitData, d lxd.InstanceServer) error
 		config.Node.Profiles[0].Devices["eth0"] = map[string]string{
 			"type":    "nic",
 			"name":    "eth0",
-			"network": network.Name,
+			"network": net.Name,
 		}
 
 		// IPv4
-		network.Config["ipv4.address"] = cli.AskString("What IPv4 address should be used? (CIDR subnet notation, “auto” or “none”) [default=auto]: ", "auto", func(value string) error {
+		net.Config["ipv4.address"] = cli.AskString("What IPv4 address should be used? (CIDR subnet notation, “auto” or “none”) [default=auto]: ", "auto", func(value string) error {
 			if shared.StringInSlice(value, []string{"auto", "none"}) {
 				return nil
 			}
 
-			return networkValidAddressCIDRV4(value)
+			return shared.IsNetworkAddressCIDRV4(value)
 		})
 
-		if !shared.StringInSlice(network.Config["ipv4.address"], []string{"auto", "none"}) {
-			network.Config["ipv4.nat"] = fmt.Sprintf("%v",
+		if !shared.StringInSlice(net.Config["ipv4.address"], []string{"auto", "none"}) {
+			net.Config["ipv4.nat"] = fmt.Sprintf("%v",
 				cli.AskBool("Would you like LXD to NAT IPv4 traffic on your bridge? [default=yes]: ", "yes"))
 		}
 
 		// IPv6
-		network.Config["ipv6.address"] = cli.AskString("What IPv6 address should be used? (CIDR subnet notation, “auto” or “none”) [default=auto]: ", "auto", func(value string) error {
+		net.Config["ipv6.address"] = cli.AskString("What IPv6 address should be used? (CIDR subnet notation, “auto” or “none”) [default=auto]: ", "auto", func(value string) error {
 			if shared.StringInSlice(value, []string{"auto", "none"}) {
 				return nil
 			}
 
-			return networkValidAddressCIDRV6(value)
+			return shared.IsNetworkAddressCIDRV6(value)
 		})
 
-		if !shared.StringInSlice(network.Config["ipv6.address"], []string{"auto", "none"}) {
-			network.Config["ipv6.nat"] = fmt.Sprintf("%v",
+		if !shared.StringInSlice(net.Config["ipv6.address"], []string{"auto", "none"}) {
+			net.Config["ipv6.nat"] = fmt.Sprintf("%v",
 				cli.AskBool("Would you like LXD to NAT IPv6 traffic on your bridge? [default=yes]: ", "yes"))
 		}
 
 		// Add the new network
-		config.Node.Networks = append(config.Node.Networks, network)
+		config.Node.Networks = append(config.Node.Networks, net)
 		break
 	}
 
