@@ -315,10 +315,10 @@ error:
 	return createErr
 }
 
-// Create the network on the system. The withDatabase flag is used to decide
-// whether to cleanup the database if an error occurs.
-func doNetworksCreate(d *Daemon, req api.NetworksPost, withDatabase bool) error {
-	// Start the network
+// Create the network on the system. The clusterNotification flag is used to indicate whether creation request
+// is coming from a cluster notification (and if so we should not delete the database record on error).
+func doNetworksCreate(d *Daemon, req api.NetworksPost, clusterNotification bool) error {
+	// Start the network.
 	n, err := network.LoadByName(d.State(), req.Name)
 	if err != nil {
 		return err
@@ -326,7 +326,7 @@ func doNetworksCreate(d *Daemon, req api.NetworksPost, withDatabase bool) error 
 
 	err = n.Start()
 	if err != nil {
-		n.Delete(withDatabase)
+		n.Delete(clusterNotification)
 		return err
 	}
 
@@ -488,9 +488,9 @@ func networkDelete(d *Daemon, r *http.Request) response.Response {
 		return response.NotFound(err)
 	}
 
-	withDatabase := true
+	clusterNotification := false
 	if isClusterNotification(r) {
-		withDatabase = false // We just want to delete the network from the system
+		clusterNotification = true // We just want to delete the network from the system.
 	} else {
 		// Sanity checks
 		if n.IsUsed() {
@@ -511,7 +511,7 @@ func networkDelete(d *Daemon, r *http.Request) response.Response {
 	}
 
 	// Delete the network
-	err = n.Delete(withDatabase)
+	err = n.Delete(clusterNotification)
 	if err != nil {
 		return response.SmartError(err)
 	}
