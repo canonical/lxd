@@ -15,11 +15,11 @@ import (
 
 	"github.com/pkg/errors"
 
-	lxd "github.com/lxc/lxd/client"
 	"github.com/lxc/lxd/lxd/cluster"
 	"github.com/lxc/lxd/lxd/daemon"
 	"github.com/lxc/lxd/lxd/dnsmasq"
 	"github.com/lxc/lxd/lxd/node"
+	"github.com/lxc/lxd/lxd/revert"
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
@@ -1268,142 +1268,81 @@ func (n *bridge) Stop() error {
 	return nil
 }
 
-// Update updates the network.
-func (n *bridge) Update(newNetwork api.NetworkPut, notify bool) error {
+// Update updates the network. Accepts notification boolean indicating if this update request is coming from a
+// cluster notification, in which case do not update the database, just apply local changes needed.
+func (n *bridge) Update(newNetwork api.NetworkPut, clusterNotification bool) error {
 	err := fillAuto(newNetwork.Config)
 	if err != nil {
 		return err
 	}
-	newConfig := newNetwork.Config
 
-	// Backup the current state
-	oldConfig := map[string]string{}
-	oldDescription := n.description
-	err = shared.DeepCopy(&n.config, &oldConfig)
+	dbUpdateNeeeded, changedKeys, oldNetwork, err := n.common.configChanged(newNetwork)
 	if err != nil {
 		return err
 	}
 
-	// Define a function which reverts everything.  Defer this function
-	// so that it doesn't need to be explicitly called in every failing
-	// return path.  Track whether or not we want to undo the changes
-	// using a closure.
-	undoChanges := true
-	defer func() {
-		if undoChanges {
-			// Revert changes to the struct
-			n.config = oldConfig
-			n.description = oldDescription
+	if !dbUpdateNeeeded {
+		return nil // Nothing changed.
+	}
 
-			// Update the database
-			n.state.Cluster.UpdateNetwork(n.name, n.description, n.config)
+	revert := revert.New()
+	defer revert.Fail()
 
-			// Reset any change that was made to the bridge
-			n.setup(newConfig)
-		}
-	}()
+	// Define a function which reverts everything.
+	revert.Add(func() {
+		// Reset changes to all nodes and database.
+		n.common.update(oldNetwork, clusterNotification)
 
-	// Diff the configurations
-	changedConfig := []string{}
-	userOnly := true
-	for key := range oldConfig {
-		if oldConfig[key] != newConfig[key] {
-			if !strings.HasPrefix(key, "user.") {
-				userOnly = false
-			}
+		// Reset any change that was made to local bridge.
+		n.setup(newNetwork.Config)
+	})
 
-			if !shared.StringInSlice(key, changedConfig) {
-				changedConfig = append(changedConfig, key)
-			}
+	// Bring the bridge down entirely if the driver has changed.
+	if shared.StringInSlice("bridge.driver", changedKeys) && n.isRunning() {
+		err = n.Stop()
+		if err != nil {
+			return err
 		}
 	}
 
-	for key := range newConfig {
-		if oldConfig[key] != newConfig[key] {
-			if !strings.HasPrefix(key, "user.") {
-				userOnly = false
-			}
-
-			if !shared.StringInSlice(key, changedConfig) {
-				changedConfig = append(changedConfig, key)
-			}
-		}
-	}
-
-	// Skip on no change
-	if len(changedConfig) == 0 && newNetwork.Description == n.description {
-		return nil
-	}
-
-	// Update the network
-	if !userOnly {
-		if shared.StringInSlice("bridge.driver", changedConfig) && n.isRunning() {
-			err = n.Stop()
-			if err != nil {
-				return err
-			}
+	// Detach any external interfaces should no longer be attached.
+	if shared.StringInSlice("bridge.external_interfaces", changedKeys) && n.isRunning() {
+		devices := []string{}
+		for _, dev := range strings.Split(newNetwork.Config["bridge.external_interfaces"], ",") {
+			dev = strings.TrimSpace(dev)
+			devices = append(devices, dev)
 		}
 
-		if shared.StringInSlice("bridge.external_interfaces", changedConfig) && n.isRunning() {
-			devices := []string{}
-			for _, dev := range strings.Split(newConfig["bridge.external_interfaces"], ",") {
-				dev = strings.TrimSpace(dev)
-				devices = append(devices, dev)
+		for _, dev := range strings.Split(oldNetwork.Config["bridge.external_interfaces"], ",") {
+			dev = strings.TrimSpace(dev)
+			if dev == "" {
+				continue
 			}
 
-			for _, dev := range strings.Split(oldConfig["bridge.external_interfaces"], ",") {
-				dev = strings.TrimSpace(dev)
-				if dev == "" {
-					continue
-				}
-
-				if !shared.StringInSlice(dev, devices) && shared.PathExists(fmt.Sprintf("/sys/class/net/%s", dev)) {
-					err = DetachInterface(n.name, dev)
-					if err != nil {
-						return err
-					}
+			if !shared.StringInSlice(dev, devices) && shared.PathExists(fmt.Sprintf("/sys/class/net/%s", dev)) {
+				err = DetachInterface(n.name, dev)
+				if err != nil {
+					return err
 				}
 			}
 		}
 	}
 
-	// Apply changes
-	n.config = newConfig
-	n.description = newNetwork.Description
+	// Apply changes to database.
+	err = n.common.update(newNetwork, clusterNotification)
+	if err != nil {
+		return err
+	}
 
-	// Update the database
-	if !notify {
-		// Notify all other nodes to update the network.
-		notifier, err := cluster.NewNotifier(n.state, n.state.Endpoints.NetworkCert(), cluster.NotifyAll)
-		if err != nil {
-			return err
-		}
-
-		err = notifier(func(client lxd.InstanceServer) error {
-			return client.UpdateNetwork(n.name, newNetwork, "")
-		})
-		if err != nil {
-			return err
-		}
-
-		// Update the database.
-		err = n.state.Cluster.UpdateNetwork(n.name, n.description, n.config)
+	// Restart the network if needed.
+	if len(changedKeys) > 0 {
+		err = n.setup(oldNetwork.Config)
 		if err != nil {
 			return err
 		}
 	}
 
-	// Restart the network
-	if !userOnly {
-		err = n.setup(oldConfig)
-		if err != nil {
-			return err
-		}
-	}
-
-	// Success, update the closure to mark that the changes should be kept.
-	undoChanges = false
-
+	revert.Success()
 	return nil
 }
 
