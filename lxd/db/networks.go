@@ -307,7 +307,8 @@ type NetworkType int
 
 // Network types.
 const (
-	NetworkTypeBridge NetworkType = iota // Network type bridge.
+	NetworkTypeBridge  NetworkType = iota // Network type bridge.
+	NetworkTypeMacvlan                    // Network type macvlan.
 )
 
 // GetNetworkInAnyState returns the network with the given name.
@@ -367,6 +368,8 @@ func (c *Cluster) getNetwork(name string, onlyCreated bool) (int64, *api.Network
 	switch netType {
 	case NetworkTypeBridge:
 		network.Type = "bridge"
+	case NetworkTypeMacvlan:
+		network.Type = "macvlan"
 	default:
 		network.Type = "" // Unknown
 	}
