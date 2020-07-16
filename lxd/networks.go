@@ -272,7 +272,7 @@ func networksPostCluster(d *Daemon, req api.NetworksPost) error {
 	}
 
 	// We need to mark the network as created now, because the
-	// network.LoadByName call invoked by doNetworkCreate would fail with
+	// network.LoadByName call invoked by doNetworksCreate would fail with
 	// not-found otherwise.
 	createErr := d.cluster.Transaction(func(tx *db.ClusterTx) error {
 		return tx.NetworkCreated(req.Name)
