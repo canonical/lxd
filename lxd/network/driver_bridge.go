@@ -41,6 +41,37 @@ type bridge struct {
 	common
 }
 
+// fillConfig fills requested config with any default values.
+func (n *bridge) fillConfig(req *api.NetworksPost) error {
+	// Set some default values where needed.
+	if req.Config["bridge.mode"] == "fan" {
+		if req.Config["fan.underlay_subnet"] == "" {
+			req.Config["fan.underlay_subnet"] = "auto"
+		}
+	} else {
+		if req.Config["ipv4.address"] == "" {
+			req.Config["ipv4.address"] = "auto"
+		}
+
+		if req.Config["ipv4.address"] == "auto" && req.Config["ipv4.nat"] == "" {
+			req.Config["ipv4.nat"] = "true"
+		}
+
+		if req.Config["ipv6.address"] == "" {
+			content, err := ioutil.ReadFile("/proc/sys/net/ipv6/conf/default/disable_ipv6")
+			if err == nil && string(content) == "0\n" {
+				req.Config["ipv6.address"] = "auto"
+			}
+		}
+
+		if req.Config["ipv6.address"] == "auto" && req.Config["ipv6.nat"] == "" {
+			req.Config["ipv6.nat"] = "true"
+		}
+	}
+
+	return nil
+}
+
 // Validate network config.
 func (n *bridge) Validate(config map[string]string) error {
 	// Build driver specific rules dynamically.
@@ -55,8 +86,8 @@ func (n *bridge) Validate(config map[string]string) error {
 
 			for _, entry := range strings.Split(value, ",") {
 				entry = strings.TrimSpace(entry)
-				if ValidNetworkName(entry) != nil {
-					return fmt.Errorf("Invalid interface name '%s'", entry)
+				if err := ValidNetworkName(entry); err != nil {
+					return errors.Wrapf(err, "Invalid interface name %q", entry)
 				}
 			}
 

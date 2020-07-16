@@ -459,40 +459,6 @@ func ForkdnsServersList(networkName string) ([]string, error) {
 	return servers, nil
 }
 
-// FillConfig populates the supplied api.NetworkPost with automatically populated values.
-func FillConfig(req *api.NetworksPost) error {
-	// Set some default values where needed
-	if req.Config["bridge.mode"] == "fan" {
-		if req.Config["fan.underlay_subnet"] == "" {
-			req.Config["fan.underlay_subnet"] = "auto"
-		}
-	} else {
-		if req.Config["ipv4.address"] == "" {
-			req.Config["ipv4.address"] = "auto"
-		}
-		if req.Config["ipv4.address"] == "auto" && req.Config["ipv4.nat"] == "" {
-			req.Config["ipv4.nat"] = "true"
-		}
-
-		if req.Config["ipv6.address"] == "" {
-			content, err := ioutil.ReadFile("/proc/sys/net/ipv6/conf/default/disable_ipv6")
-			if err == nil && string(content) == "0\n" {
-				req.Config["ipv6.address"] = "auto"
-			}
-		}
-		if req.Config["ipv6.address"] == "auto" && req.Config["ipv6.nat"] == "" {
-			req.Config["ipv6.nat"] = "true"
-		}
-	}
-
-	// Replace "auto" by actual values
-	err := fillAuto(req.Config)
-	if err != nil {
-		return err
-	}
-	return nil
-}
-
 func fillAuto(config map[string]string) error {
 	if config["ipv4.address"] == "auto" {
 		subnet, err := randomSubnetV4()

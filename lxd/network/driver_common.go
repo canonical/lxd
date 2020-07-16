@@ -47,6 +47,11 @@ func (n *common) init(state *state.State, id int64, name string, netType string,
 	n.description = description
 }
 
+// fillConfig fills requested config with any default values, by default this is a no-op.
+func (n *common) fillConfig(req *api.NetworksPost) error {
+	return nil
+}
+
 // validationRules returns a map of config rules common to all drivers.
 func (n *common) validationRules() map[string]func(string) error {
 	return map[string]func(string) error{}
@@ -303,5 +308,10 @@ func (n *common) delete(clusterNotification bool) error {
 		}
 	}
 
+	return nil
+}
+
+// HandleHeartbeat is a no-op.
+func (n *common) HandleHeartbeat(heartbeatData *cluster.APIHeartbeat) error {
 	return nil
 }
