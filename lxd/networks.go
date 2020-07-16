@@ -214,7 +214,7 @@ func networksPostCluster(d *Daemon, req api.NetworksPost) error {
 	// Check that no node-specific config key has been defined.
 	for key := range req.Config {
 		if shared.StringInSlice(key, db.NodeSpecificNetworkConfig) {
-			return fmt.Errorf("Config key '%s' is node-specific", key)
+			return fmt.Errorf("Config key %q is node-specific", key)
 		}
 	}
 
