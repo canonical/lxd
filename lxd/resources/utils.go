@@ -1,6 +1,7 @@
 package resources
 
 import (
+	"encoding/hex"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -100,4 +101,26 @@ func hasBit(n uint32, pos uint) bool {
 
 func hasBitField(n []uint32, bit uint) bool {
 	return (n[bit/32] & (1 << (bit % 32))) != 0
+}
+
+func udevDecode(s string) (string, error) {
+	// Inverse of https://github.com/systemd/systemd/blob/master/src/basic/device-nodes.c#L22
+	ret := ""
+	for i := 0; i < len(s); i++ {
+		// udev converts non-devnode supported chars to four byte encode hex strings.
+		if s[i] == '\\' && i+4 <= len(s) && s[i+1] == 'x' {
+			hexValue := s[i+2 : i+4]
+			strValue, err := hex.DecodeString(hexValue)
+			if err == nil {
+				ret += string(strValue)
+				i += 3
+			} else {
+				return ret, err
+			}
+		} else {
+			ret += s[i : i+1]
+		}
+	}
+
+	return ret, nil
 }

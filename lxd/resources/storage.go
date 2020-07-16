@@ -84,8 +84,16 @@ func storageAddDriveInfo(devicePath string, disk *api.ResourcesStorageDisk) erro
 			disk.Serial = udevProperties["E:ID_SERIAL_SHORT"]
 		}
 
-		// Model number
-		if udevProperties["E:ID_MODEL"] != "" {
+		// Model number (attempt to get original string from encoded value)
+		if udevProperties["E:ID_MODEL_ENC"] != "" {
+			model, err := udevDecode(udevProperties["E:ID_MODEL_ENC"])
+			if err == nil {
+				// The raw value often has padding spaces, trim them.
+				disk.Model = strings.TrimSpace(model)
+			} else if udevProperties["E:ID_MODEL"] != "" {
+				disk.Model = udevProperties["E:ID_MODEL"]
+			}
+		} else if udevProperties["E:ID_MODEL"] != "" {
 			disk.Model = udevProperties["E:ID_MODEL"]
 		}
 
