@@ -34,6 +34,7 @@ import (
 	"github.com/lxc/lxd/lxd/instance/instancetype"
 	"github.com/lxc/lxd/lxd/node"
 	"github.com/lxc/lxd/lxd/operations"
+	projectutils "github.com/lxc/lxd/lxd/project"
 	"github.com/lxc/lxd/lxd/response"
 	"github.com/lxc/lxd/lxd/state"
 	storagePools "github.com/lxc/lxd/lxd/storage"
@@ -706,8 +707,20 @@ func imagesPost(d *Daemon, r *http.Request) response.Response {
 		return response.InternalError(err)
 	}
 
-	_, err = io.Copy(post, r.Body)
+	// Possibly set a quota on the amount of disk space this project is
+	// allowed to use.
+	var budget int64
+	err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
+		budget, err = projectutils.GetImageSpaceBudget(tx, project)
+		return err
+	})
 	if err != nil {
+		return response.SmartError(err)
+	}
+
+	_, err = io.Copy(shared.NewQuotaWriter(post, budget), r.Body)
+	if err != nil {
+		logger.Errorf("Store image POST data to disk: %v", err)
 		cleanup(builddir, post)
 		return response.InternalError(err)
 	}
