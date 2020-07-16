@@ -121,12 +121,13 @@ func networksPost(d *Daemon, r *http.Request) response.Response {
 		return response.BadRequest(err)
 	}
 
+	// Convert requested network type to DB type code.
 	var dbNetType db.NetworkType
 	switch req.Type {
 	case "bridge":
 		dbNetType = db.NetworkTypeBridge
 	default:
-		dbNetType = db.NetworkTypeBridge
+		return response.BadRequest(fmt.Errorf("Unrecognised network type"))
 	}
 
 	url := fmt.Sprintf("/%s/networks/%s", version.APIVersion, req.Name)
