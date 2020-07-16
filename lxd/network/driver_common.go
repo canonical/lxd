@@ -310,3 +310,8 @@ func (n *common) delete(clusterNotification bool) error {
 
 	return nil
 }
+
+// HandleHeartbeat is a no-op.
+func (n *common) HandleHeartbeat(heartbeatData *cluster.APIHeartbeat) error {
+	return nil
+}
