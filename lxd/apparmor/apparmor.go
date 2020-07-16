@@ -1,21 +1,17 @@
 package apparmor
 
 import (
-	"crypto/sha256"
 	"fmt"
-	"io"
 	"io/ioutil"
 	"os"
-	"path"
+	"path/filepath"
 	"strings"
 
-	"github.com/lxc/lxd/lxd/project"
+	"github.com/pkg/errors"
+
 	"github.com/lxc/lxd/lxd/state"
 	"github.com/lxc/lxd/shared"
-	"github.com/lxc/lxd/shared/logger"
 	"github.com/lxc/lxd/shared/version"
-
-	log "github.com/lxc/lxd/shared/log15"
 )
 
 const (
@@ -26,252 +22,170 @@ const (
 
 var aaPath = shared.VarPath("security", "apparmor")
 
-type instance interface {
-	Project() string
-	Name() string
-	IsNesting() bool
-	IsPrivileged() bool
-	ExpandedConfig() map[string]string
-}
-
-func mkApparmorName(name string) string {
-	if len(name)+7 >= 253 {
-		hash := sha256.New()
-		io.WriteString(hash, name)
-		return fmt.Sprintf("%x", hash.Sum(nil))
-	}
-
-	return name
-}
-
-// Namespace returns the instance's apparmor namespace.
-func Namespace(c instance) string {
-	/* / is not allowed in apparmor namespace names; let's also trim the
-	 * leading / so it doesn't look like "-var-lib-lxd"
-	 */
-	lxddir := strings.Replace(strings.Trim(shared.VarPath(""), "/"), "/", "-", -1)
-	lxddir = mkApparmorName(lxddir)
-	name := project.Instance(c.Project(), c.Name())
-	return fmt.Sprintf("lxd-%s_<%s>", name, lxddir)
-}
-
-// ProfileFull returns the instance's apparmor profile.
-func ProfileFull(c instance) string {
-	lxddir := shared.VarPath("")
-	lxddir = mkApparmorName(lxddir)
-	name := project.Instance(c.Project(), c.Name())
-	return fmt.Sprintf("lxd-%s_<%s>", name, lxddir)
-}
-
-func profileShort(c instance) string {
-	name := project.Instance(c.Project(), c.Name())
-	return fmt.Sprintf("lxd-%s", name)
-}
-
-// profileContent generates the apparmor profile template from the given container.
-// This includes the stock lxc includes as well as stuff from raw.apparmor.
-func profileContent(state *state.State, c instance) (string, error) {
-	// Prepare raw.apparmor.
-	rawContent := ""
-	rawApparmor, ok := c.ExpandedConfig()["raw.apparmor"]
-	if ok {
-		for _, line := range strings.Split(strings.Trim(rawApparmor, "\n"), "\n") {
-			rawContent += fmt.Sprintf("  %s\n", line)
-		}
-	}
-
-	// Render the profile.
-	var sb *strings.Builder = &strings.Builder{}
-	err := containerProfile.Execute(sb, map[string]interface{}{
-		"feature_unix":     parserSupports("unix"),
-		"feature_cgns":     shared.PathExists("/proc/self/ns/cgroup"),
-		"feature_stacking": state.OS.AppArmorStacking && !state.OS.AppArmorStacked,
-		"namespace":        Namespace(c),
-		"nesting":          c.IsNesting(),
-		"name":             ProfileFull(c),
-		"unprivileged":     !c.IsPrivileged() || state.OS.RunningInUserNS,
-		"raw":              rawContent,
-	})
-	if err != nil {
-		return "", err
-	}
-
-	return sb.String(), nil
-}
-
-func runApparmor(state *state.State, command string, c instance) error {
+// runApparmor runs the relevant AppArmor command.
+func runApparmor(state *state.State, command string, name string) error {
 	if !state.OS.AppArmorAvailable {
 		return nil
 	}
 
-	output, err := shared.RunCommand("apparmor_parser", []string{
+	_, err := shared.RunCommand("apparmor_parser", []string{
 		fmt.Sprintf("-%sWL", command),
-		path.Join(aaPath, "cache"),
-		path.Join(aaPath, "profiles", profileShort(c)),
+		filepath.Join(aaPath, "cache"),
+		filepath.Join(aaPath, "profiles", name),
 	}...)
 
 	if err != nil {
-		logger.Error("Running apparmor",
-			log.Ctx{"action": command, "output": output, "err": err})
-	}
-
-	return err
-}
-
-func getCacheDir() string {
-	basePath := path.Join(aaPath, "cache")
-
-	ver, err := getVersion()
-	if err != nil {
-		logger.Errorf("Unable to get AppArmor version: %v", err)
-		return basePath
-	}
-
-	// Multiple policy cache directories were only added in v2.13.
-	minVer, err := version.NewDottedVersion("2.13")
-	if err != nil {
-		logger.Errorf("Unable to parse AppArmor version 2.13: %v", err)
-		return basePath
-	}
-
-	if ver.Compare(minVer) < 0 {
-		return basePath
-	}
-
-	output, err := shared.RunCommand("apparmor_parser", "-L", basePath, "--print-cache-dir")
-	if err != nil {
-		logger.Errorf("Unable to get AppArmor cache directory: %v", err)
-		return basePath
-	}
-
-	return strings.TrimSpace(output)
-}
-
-func mkApparmorNamespace(state *state.State, c instance, namespace string) error {
-	if !state.OS.AppArmorStacking || state.OS.AppArmorStacked {
-		return nil
-	}
-
-	p := path.Join("/sys/kernel/security/apparmor/policy/namespaces", namespace)
-	if err := os.Mkdir(p, 0755); !os.IsExist(err) {
 		return err
 	}
 
 	return nil
 }
 
-// LoadProfile ensures that the instances's policy is loaded into the kernel so the it can boot.
-func LoadProfile(state *state.State, c instance) error {
-	if !state.OS.AppArmorAdmin {
-		return nil
-	}
-
-	err := mkApparmorNamespace(state, c, Namespace(c))
-	if err != nil {
-		return err
-	}
-
-	/* In order to avoid forcing a profile parse (potentially slow) on
-	 * every container start, let's use apparmor's binary policy cache,
-	 * which checks mtime of the files to figure out if the policy needs to
-	 * be regenerated.
-	 *
-	 * Since it uses mtimes, we shouldn't just always write out our local
-	 * apparmor template; instead we should check to see whether the
-	 * template is the same as ours. If it isn't we should write our
-	 * version out so that the new changes are reflected and we definitely
-	 * force a recompile.
-	 */
-	profile := path.Join(aaPath, "profiles", profileShort(c))
-	content, err := ioutil.ReadFile(profile)
-	if err != nil && !os.IsNotExist(err) {
-		return err
-	}
-
-	updated, err := profileContent(state, c)
-	if err != nil {
-		return err
-	}
-
-	if string(content) != string(updated) {
-		err = os.MkdirAll(path.Join(aaPath, "cache"), 0700)
-		if err != nil {
-			return err
-		}
-
-		err = os.MkdirAll(path.Join(aaPath, "profiles"), 0700)
-		if err != nil {
-			return err
-		}
-
-		err = ioutil.WriteFile(profile, []byte(updated), 0600)
-		if err != nil {
-			return err
-		}
-	}
-
-	return runApparmor(state, cmdLoad, c)
-}
-
-// Destroy ensures that the instances's policy namespace is unloaded to free kernel memory.
-// This does not delete the policy from disk or cache.
-func Destroy(state *state.State, c instance) error {
-	if !state.OS.AppArmorAdmin {
-		return nil
-	}
-
-	if state.OS.AppArmorStacking && !state.OS.AppArmorStacked {
-		p := path.Join("/sys/kernel/security/apparmor/policy/namespaces", Namespace(c))
-		if err := os.Remove(p); err != nil {
-			logger.Error("Error removing apparmor namespace", log.Ctx{"err": err, "ns": p})
-		}
-	}
-
-	return runApparmor(state, cmdUnload, c)
-}
-
-// ParseProfile parses the profile without loading it into the kernel.
-func ParseProfile(state *state.State, c instance) error {
+// createNamespace creates a new AppArmor namespace.
+func createNamespace(state *state.State, name string) error {
 	if !state.OS.AppArmorAvailable {
 		return nil
 	}
 
-	return runApparmor(state, cmdParse, c)
-}
-
-// DeleteProfile removes the policy from cache/disk.
-func DeleteProfile(state *state.State, c instance) {
-	if !state.OS.AppArmorAdmin {
-		return
+	if !state.OS.AppArmorStacking || state.OS.AppArmorStacked {
+		return nil
 	}
 
-	/* It's ok if these deletes fail: if the container was never started,
-	 * we'll have never written a profile or cached it.
-	 */
-	os.Remove(path.Join(getCacheDir(), profileShort(c)))
-	os.Remove(path.Join(aaPath, "profiles", profileShort(c)))
+	p := filepath.Join("/sys/kernel/security/apparmor/policy/namespaces", name)
+	err := os.Mkdir(p, 0755)
+	if err != nil && !os.IsExist(err) {
+		return err
+	}
+
+	return nil
 }
 
-func parserSupports(feature string) bool {
+// deleteNamespace destroys an AppArmor namespace.
+func deleteNamespace(state *state.State, name string) error {
+	if !state.OS.AppArmorAvailable {
+		return nil
+	}
+
+	if !state.OS.AppArmorStacking || state.OS.AppArmorStacked {
+		return nil
+	}
+
+	p := filepath.Join("/sys/kernel/security/apparmor/policy/namespaces", name)
+	err := os.Remove(p)
+	if err != nil && !os.IsNotExist(err) {
+		return err
+	}
+
+	return nil
+}
+
+// hasProfile checks if the profile is already loaded.
+func hasProfile(state *state.State, name string) (bool, error) {
+	mangled := strings.Replace(name, "/", ".", -1)
+
+	profilesPath := "/sys/kernel/security/apaprmor/policy/profiles"
+	if shared.PathExists(profilesPath) {
+		entries, err := ioutil.ReadDir(profilesPath)
+		if err != nil {
+			return false, err
+		}
+
+		for _, entry := range entries {
+			fields := strings.Split(entry.Name(), ".")
+			if mangled == strings.Join(fields[0:len(fields)-2], ".") {
+				return true, nil
+			}
+		}
+	}
+
+	return false, nil
+}
+
+// parseProfile parses the profile without loading it into the kernel.
+func parseProfile(state *state.State, name string) error {
+	if !state.OS.AppArmorAvailable {
+		return nil
+	}
+
+	return runApparmor(state, cmdParse, name)
+}
+
+// loadProfile loads the AppArmor profile into the kernel.
+func loadProfile(state *state.State, name string) error {
+	if !state.OS.AppArmorAdmin {
+		return nil
+	}
+
+	return runApparmor(state, cmdLoad, name)
+}
+
+// unloadProfile removes the profile from the kernel.
+func unloadProfile(state *state.State, name string) error {
+	if !state.OS.AppArmorAvailable {
+		return nil
+	}
+
+	ok, err := hasProfile(state, name)
+	if err != nil {
+		return err
+	}
+
+	if !ok {
+		return nil
+	}
+
+	return runApparmor(state, cmdUnload, name)
+}
+
+// deleteProfile unloads and delete profile and cache for a profile.
+func deleteProfile(state *state.State, name string) error {
+	if !state.OS.AppArmorAdmin {
+		return nil
+	}
+
+	cacheDir, err := getCacheDir()
+	if err != nil {
+		return err
+	}
+
+	err = unloadProfile(state, name)
+	if err != nil {
+		return err
+	}
+
+	err = os.Remove(filepath.Join(cacheDir, name))
+	if err != nil && !os.IsNotExist(err) {
+		return errors.Wrapf(err, "Failed to remove: %s", filepath.Join(cacheDir, name))
+	}
+
+	err = os.Remove(filepath.Join(aaPath, "profiles", name))
+	if err != nil && !os.IsNotExist(err) {
+		return errors.Wrapf(err, "Failed to remove: %s", filepath.Join(aaPath, "profiles", name))
+	}
+
+	return nil
+}
+
+// parserSupports checks if the parser supports a particular feature.
+func parserSupports(feature string) (bool, error) {
 	ver, err := getVersion()
 	if err != nil {
-		logger.Errorf("Unable to get AppArmor version: %v", err)
-		return false
+		return false, err
 	}
 
 	if feature == "unix" {
 		minVer, err := version.NewDottedVersion("2.10.95")
 		if err != nil {
-			logger.Errorf("Unable to parse AppArmor version 2.10.95: %v", err)
-			return false
+			return false, err
 		}
 
-		return ver.Compare(minVer) >= 0
+		return ver.Compare(minVer) >= 0, nil
 	}
 
-	return false
+	return false, nil
 }
 
+// getVersion reads and parses the AppArmor version.
 func getVersion() (*version.DottedVersion, error) {
 	out, err := shared.RunCommand("apparmor_parser", "--version")
 	if err != nil {
@@ -280,4 +194,31 @@ func getVersion() (*version.DottedVersion, error) {
 
 	fields := strings.Fields(strings.Split(out, "\n")[0])
 	return version.NewDottedVersion(fields[len(fields)-1])
+}
+
+// getCacheDir returns the applicable AppArmor cache directory.
+func getCacheDir() (string, error) {
+	basePath := filepath.Join(aaPath, "cache")
+
+	ver, err := getVersion()
+	if err != nil {
+		return "", err
+	}
+
+	// Multiple policy cache directories were only added in v2.13.
+	minVer, err := version.NewDottedVersion("2.13")
+	if err != nil {
+		return "", err
+	}
+
+	if ver.Compare(minVer) < 0 {
+		return basePath, nil
+	}
+
+	output, err := shared.RunCommand("apparmor_parser", "-L", basePath, "--print-cache-dir")
+	if err != nil {
+		return "", err
+	}
+
+	return strings.TrimSpace(output), nil
 }

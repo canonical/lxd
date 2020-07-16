@@ -977,7 +977,7 @@ func (c *lxc) initLXC(config bool) error {
 			}
 		} else {
 			// If not currently confined, use the container's profile
-			profile := apparmor.ProfileFull(c)
+			profile := apparmor.InstanceProfileName(c)
 
 			/* In the nesting case, we want to enable the inside
 			 * LXD to load its profile. Unprivileged containers can
@@ -987,7 +987,7 @@ func (c *lxc) initLXC(config bool) error {
 			 * profile.
 			 */
 			if c.state.OS.AppArmorStacking && !c.state.OS.AppArmorStacked {
-				profile = fmt.Sprintf("%s//&:%s:", profile, apparmor.Namespace(c))
+				profile = fmt.Sprintf("%s//&:%s:", profile, apparmor.InstanceNamespaceName(c))
 			}
 
 			err := lxcSetConfigItem(cc, "lxc.apparmor.profile", profile)
@@ -2474,7 +2474,7 @@ func (c *lxc) onStart(_ map[string]string) error {
 	}
 
 	// Load the container AppArmor profile
-	err = apparmor.LoadProfile(c.state, c)
+	err = apparmor.InstanceLoad(c.state, c)
 	if err != nil {
 		if ourStart {
 			c.unmount()
@@ -2488,7 +2488,7 @@ func (c *lxc) onStart(_ map[string]string) error {
 		// Run any template that needs running
 		err = c.templateApplyNow(c.localConfig[key])
 		if err != nil {
-			apparmor.Destroy(c.state, c)
+			apparmor.InstanceUnload(c.state, c)
 			if ourStart {
 				c.unmount()
 			}
@@ -2498,7 +2498,7 @@ func (c *lxc) onStart(_ map[string]string) error {
 		// Remove the volatile key from the DB
 		err := c.state.Cluster.DeleteInstanceConfigKey(c.id, key)
 		if err != nil {
-			apparmor.Destroy(c.state, c)
+			apparmor.InstanceUnload(c.state, c)
 			if ourStart {
 				c.unmount()
 			}
@@ -2508,7 +2508,7 @@ func (c *lxc) onStart(_ map[string]string) error {
 
 	err = c.templateApplyNow("start")
 	if err != nil {
-		apparmor.Destroy(c.state, c)
+		apparmor.InstanceUnload(c.state, c)
 		if ourStart {
 			c.unmount()
 		}
@@ -2856,7 +2856,7 @@ func (c *lxc) onStop(args map[string]string) error {
 		c.IsRunning()
 
 		// Unload the apparmor profile
-		err = apparmor.Destroy(c.state, c)
+		err = apparmor.InstanceUnload(c.state, c)
 		if err != nil {
 			logger.Error("Failed to destroy apparmor namespace", log.Ctx{"container": c.Name(), "err": err})
 		}
@@ -3441,7 +3441,7 @@ func (c *lxc) cleanup() {
 	c.removeDiskDevices()
 
 	// Remove the security profiles
-	apparmor.DeleteProfile(c.state, c)
+	apparmor.InstanceDelete(c.state, c)
 	seccomp.DeleteProfile(c)
 
 	// Remove the devices path
@@ -4010,7 +4010,7 @@ func (c *lxc) Update(args db.InstanceArgs, userRequested bool) error {
 
 	// If apparmor changed, re-validate the apparmor profile
 	if shared.StringInSlice("raw.apparmor", changedConfig) || shared.StringInSlice("security.nesting", changedConfig) {
-		err = apparmor.ParseProfile(c.state, c)
+		err = apparmor.InstanceParse(c.state, c)
 		if err != nil {
 			return errors.Wrap(err, "Parse AppArmor profile")
 		}
@@ -4082,7 +4082,7 @@ func (c *lxc) Update(args db.InstanceArgs, userRequested bool) error {
 
 			if key == "raw.apparmor" || key == "security.nesting" {
 				// Update the AppArmor profile
-				err = apparmor.LoadProfile(c.state, c)
+				err = apparmor.InstanceLoad(c.state, c)
 				if err != nil {
 					return err
 				}
