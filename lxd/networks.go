@@ -391,13 +391,12 @@ func doNetworkGet(d *Daemon, name string) (api.Network, error) {
 	// Set the device type as needed
 	if osInfo != nil && shared.IsLoopback(osInfo) {
 		n.Type = "loopback"
-	} else if dbInfo != nil || shared.PathExists(fmt.Sprintf("/sys/class/net/%s/bridge", n.Name)) {
-		if dbInfo != nil {
-			n.Managed = true
-			n.Description = dbInfo.Description
-			n.Config = dbInfo.Config
-		}
-
+	} else if dbInfo != nil {
+		n.Managed = true
+		n.Description = dbInfo.Description
+		n.Config = dbInfo.Config
+		n.Type = dbInfo.Type
+	} else if shared.PathExists(fmt.Sprintf("/sys/class/net/%s/bridge", n.Name)) {
 		n.Type = "bridge"
 	} else if shared.PathExists(fmt.Sprintf("/proc/net/vlan/%s", n.Name)) {
 		n.Type = "vlan"
