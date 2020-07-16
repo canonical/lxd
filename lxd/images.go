@@ -174,7 +174,7 @@ func compressFile(compress string, infile io.Reader, outfile io.Writer) error {
  * This function takes a container or snapshot from the local image server and
  * exports it as an image.
  */
-func imgPostInstanceInfo(d *Daemon, r *http.Request, req api.ImagesPost, op *operations.Operation, builddir string) (*api.Image, error) {
+func imgPostInstanceInfo(d *Daemon, r *http.Request, req api.ImagesPost, op *operations.Operation, builddir string, budget int64) (*api.Image, error) {
 	info := api.Image{}
 	info.Properties = map[string]string{}
 	project := projectParam(r)
@@ -294,6 +294,8 @@ func imgPostInstanceInfo(d *Daemon, r *http.Request, req api.ImagesPost, op *ope
 
 	// Export instance to writer.
 	var meta api.ImageMetadata
+
+	writer = shared.NewQuotaWriter(writer, budget)
 	meta, err = c.Export(writer, req.Properties)
 
 	// Clean up file handles.
@@ -786,7 +788,7 @@ func imagesPost(d *Daemon, r *http.Request) response.Response {
 			} else {
 				/* Processing image creation from container */
 				imagePublishLock.Lock()
-				info, err = imgPostInstanceInfo(d, r, req, op, builddir)
+				info, err = imgPostInstanceInfo(d, r, req, op, builddir, budget)
 				imagePublishLock.Unlock()
 			}
 		}
