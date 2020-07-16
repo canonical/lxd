@@ -7,9 +7,12 @@ import (
 
 	"github.com/pkg/errors"
 
+	lxd "github.com/lxc/lxd/client"
+	"github.com/lxc/lxd/lxd/cluster"
 	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/state"
 	"github.com/lxc/lxd/shared"
+	"github.com/lxc/lxd/shared/api"
 )
 
 // DHCPRange represents a range of IPs from start to end.
@@ -176,4 +179,85 @@ func (n *common) DHCPv6Ranges() []DHCPRange {
 	}
 
 	return dhcpRanges
+}
+
+// update the internal config variables, and if not cluster notification, notifies all nodes and updates database.
+func (n *common) update(applyNetwork api.NetworkPut, clusterNotification bool) error {
+	// Update internal config before database has been updated (so that if update is a notification we apply
+	// the config being supplied and not that in the database).
+	n.description = applyNetwork.Description
+	n.config = applyNetwork.Config
+
+	// If this update isn't coming via a cluster notification itself, then notify all nodes of change and then
+	// update the database.
+	if !clusterNotification {
+		// Notify all other nodes to update the network.
+		notifier, err := cluster.NewNotifier(n.state, n.state.Endpoints.NetworkCert(), cluster.NotifyAll)
+		if err != nil {
+			return err
+		}
+
+		err = notifier(func(client lxd.InstanceServer) error {
+			return client.UpdateNetwork(n.name, applyNetwork, "")
+		})
+		if err != nil {
+			return err
+		}
+
+		// Update the database.
+		err = n.state.Cluster.UpdateNetwork(n.name, applyNetwork.Description, applyNetwork.Config)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// configChanged compares supplied new config with existing config. Returns a boolean indicating if differences in
+// the config or description were found (and the database record needs updating), and a list of non-user config
+// keys that have changed, and a copy of the current internal network config that can be used to revert if needed.
+func (n *common) configChanged(newNetwork api.NetworkPut) (bool, []string, api.NetworkPut, error) {
+	// Backup the current state.
+	oldNetwork := api.NetworkPut{
+		Description: n.description,
+		Config:      map[string]string{},
+	}
+
+	err := shared.DeepCopy(&n.config, &oldNetwork.Config)
+	if err != nil {
+		return false, nil, oldNetwork, err
+	}
+
+	// Diff the configurations.
+	changedKeys := []string{}
+	dbUpdateNeeded := false
+
+	if newNetwork.Description != n.description {
+		dbUpdateNeeded = true
+	}
+
+	for k, v := range oldNetwork.Config {
+		if v != newNetwork.Config[k] {
+			dbUpdateNeeded = true
+
+			// Add non-user changed key to list of changed keys.
+			if !strings.HasPrefix(k, "user.") && !shared.StringInSlice(k, changedKeys) {
+				changedKeys = append(changedKeys, k)
+			}
+		}
+	}
+
+	for k, v := range newNetwork.Config {
+		if v != oldNetwork.Config[k] {
+			dbUpdateNeeded = true
+
+			// Add non-user changed key to list of changed keys.
+			if !strings.HasPrefix(k, "user.") && !shared.StringInSlice(k, changedKeys) {
+				changedKeys = append(changedKeys, k)
+			}
+		}
+	}
+
+	return dbUpdateNeeded, changedKeys, oldNetwork, nil
 }
