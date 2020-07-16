@@ -30,7 +30,7 @@ var imagesDownloading = map[string]chan bool{}
 var imagesDownloadingLock sync.Mutex
 
 // ImageDownload resolves the image fingerprint and if not in the database, downloads it
-func (d *Daemon) ImageDownload(op *operations.Operation, server string, protocol string, certificate string, secret string, alias string, imageType string, forContainer bool, autoUpdate bool, storagePool string, preferCached bool, project string) (*api.Image, error) {
+func (d *Daemon) ImageDownload(op *operations.Operation, server string, protocol string, certificate string, secret string, alias string, imageType string, forContainer bool, autoUpdate bool, storagePool string, preferCached bool, project string, budget int64) (*api.Image, error) {
 	var err error
 	var ctxMap log.Ctx
 
@@ -294,6 +294,11 @@ func (d *Daemon) ImageDownload(op *operations.Operation, server string, protocol
 		if info.Type == "" {
 			info.Type = "container"
 		}
+		if budget > 0 && info.Size > budget {
+			return nil, fmt.Errorf(
+				"Remote image with size %d exceeds allowed bugdget of %d",
+				info.Size, budget)
+		}
 
 		// Download the image
 		var resp *lxd.ImageFileResponse
@@ -388,7 +393,8 @@ func (d *Daemon) ImageDownload(op *operations.Operation, server string, protocol
 		sha256 := sha256.New()
 
 		// Download the image
-		size, err := io.Copy(io.MultiWriter(f, sha256), body)
+		writer := shared.NewQuotaWriter(io.MultiWriter(f, sha256), budget)
+		size, err := io.Copy(writer, body)
 		if err != nil {
 			return nil, err
 		}
