@@ -370,7 +370,7 @@ func (c *Cluster) getNetwork(name string, onlyCreated bool) (int64, *api.Network
 	case NetworkTypeBridge:
 		network.Type = "bridge"
 	default:
-		network.Type = "bridge"
+		network.Type = "" // Unknown
 	}
 
 	nodes, err := c.networkNodes(id)
