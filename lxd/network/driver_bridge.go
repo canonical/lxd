@@ -1281,6 +1281,8 @@ func (n *bridge) Stop() error {
 // Update updates the network. Accepts notification boolean indicating if this update request is coming from a
 // cluster notification, in which case do not update the database, just apply local changes needed.
 func (n *bridge) Update(newNetwork api.NetworkPut, clusterNotification bool) error {
+	n.logger.Debug("Update", log.Ctx{"clusterNotification": clusterNotification})
+
 	err := fillAuto(newNetwork.Config)
 	if err != nil {
 		return err
