@@ -37,6 +37,10 @@ func AllowInstanceCreation(tx *db.ClusterTx, projectName string, req api.Instanc
 		return fmt.Errorf("Unexpected instance type '%s'", instanceType)
 	}
 
+	if req.Profiles == nil {
+		req.Profiles = []string{"default"}
+	}
+
 	err = checkInstanceCountLimit(info.Project, len(info.Instances), instanceType)
 	if err != nil {
 		return err
@@ -47,6 +51,7 @@ func AllowInstanceCreation(tx *db.ClusterTx, projectName string, req api.Instanc
 		Name:     req.Name,
 		Profiles: req.Profiles,
 		Config:   req.Config,
+		Project:  projectName,
 	})
 
 	// Special case restriction checks on volatile.* keys.
