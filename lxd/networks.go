@@ -573,7 +573,7 @@ func networkPost(d *Daemon, r *http.Request) response.Response {
 	}
 
 	if shared.StringInSlice(req.Name, networks) {
-		return response.Conflict(fmt.Errorf("Network '%s' already exists", req.Name))
+		return response.Conflict(fmt.Errorf("Network %q already exists", req.Name))
 	}
 
 	// Rename it
