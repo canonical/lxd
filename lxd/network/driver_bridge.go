@@ -24,7 +24,6 @@ import (
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 	log "github.com/lxc/lxd/shared/log15"
-	"github.com/lxc/lxd/shared/logger"
 	"github.com/lxc/lxd/shared/subprocess"
 	"github.com/lxc/lxd/shared/version"
 )
@@ -327,6 +326,8 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 		return nil
 	}
 
+	n.logger.Debug("Setting up network")
+
 	// Create directory
 	if !shared.PathExists(shared.VarPath("networks", n.name)) {
 		err := os.MkdirAll(shared.VarPath("networks", n.name), 0711)
@@ -446,6 +447,7 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 			entry = strings.TrimSpace(entry)
 			iface, err := net.InterfaceByName(entry)
 			if err != nil {
+				n.logger.Warn("Skipping attaching missing external interface", log.Ctx{"interface": entry})
 				continue
 			}
 
@@ -691,7 +693,7 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 		subnetSize, _ := subnet.Mask.Size()
 
 		if subnetSize > 64 {
-			logger.Warn("IPv6 networks with a prefix larger than 64 aren't properly supported by dnsmasq", log.Ctx{"network": n.name})
+			n.logger.Warn("IPv6 networks with a prefix larger than 64 aren't properly supported by dnsmasq")
 		}
 
 		// Update the dnsmasq config
@@ -1454,7 +1456,7 @@ func (n *bridge) HandleHeartbeat(heartbeatData *cluster.APIHeartbeat) error {
 		return err
 	}
 
-	logger.Infof("Refreshing forkdns peers for %v", n.name)
+	n.logger.Info("Refreshing forkdns peers")
 
 	cert := n.state.Endpoints.NetworkCert()
 	for _, node := range heartbeatData.Members {
@@ -1488,7 +1490,7 @@ func (n *bridge) HandleHeartbeat(heartbeatData *cluster.APIHeartbeat) error {
 	curList, err := ForkdnsServersList(n.name)
 	if err != nil {
 		// Only warn here, but continue on to regenerate the servers list from cluster info.
-		logger.Warnf("Failed to load existing forkdns server list: %v", err)
+		n.logger.Warn("Failed to load existing forkdns server list", log.Ctx{"err": err})
 	}
 
 	// If current list is same as cluster list, nothing to do.
@@ -1501,7 +1503,7 @@ func (n *bridge) HandleHeartbeat(heartbeatData *cluster.APIHeartbeat) error {
 		return err
 	}
 
-	logger.Infof("Updated forkdns server list for '%s': %v", n.name, addresses)
+	n.logger.Info("Updated forkdns server list", log.Ctx{"nodes": addresses})
 	return nil
 }
 
