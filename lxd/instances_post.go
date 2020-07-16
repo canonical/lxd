@@ -76,9 +76,18 @@ func createFromImage(d *Daemon, project string, req *api.InstancesPost) response
 				imgType = "virtual-machine"
 			}
 
+			var budget int64
+			err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
+				budget, err = projecthelpers.GetImageSpaceBudget(tx, project)
+				return err
+			})
+			if err != nil {
+				return err
+			}
+
 			info, err = d.ImageDownload(
 				op, req.Source.Server, req.Source.Protocol, req.Source.Certificate,
-				req.Source.Secret, hash, imgType, true, autoUpdate, "", true, project)
+				req.Source.Secret, hash, imgType, true, autoUpdate, "", true, project, budget)
 			if err != nil {
 				return err
 			}
