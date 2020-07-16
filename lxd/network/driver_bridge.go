@@ -255,13 +255,15 @@ func (n *bridge) Delete(clusterNotification bool) error {
 }
 
 // Rename renames a network.
-func (n *bridge) Rename(name string) error {
-	// Sanity checks
+func (n *bridge) Rename(newName string) error {
+	n.logger.Debug("Rename", log.Ctx{"newName": newName})
+
+	// Sanity checks.
 	if n.IsUsed() {
 		return fmt.Errorf("The network is currently in use")
 	}
 
-	// Bring the network down
+	// Bring the network down.
 	if n.isRunning() {
 		err := n.Stop()
 		if err != nil {
@@ -269,34 +271,22 @@ func (n *bridge) Rename(name string) error {
 		}
 	}
 
-	// Rename directory
-	if shared.PathExists(shared.VarPath("networks", name)) {
-		os.RemoveAll(shared.VarPath("networks", name))
-	}
-
-	if shared.PathExists(shared.VarPath("networks", n.name)) {
-		err := os.Rename(shared.VarPath("networks", n.name), shared.VarPath("networks", name))
-		if err != nil {
-			return err
-		}
-	}
-
+	// Rename forkdns log file.
 	forkDNSLogPath := fmt.Sprintf("forkdns.%s.log", n.name)
 	if shared.PathExists(shared.LogPath(forkDNSLogPath)) {
-		err := os.Rename(forkDNSLogPath, shared.LogPath(fmt.Sprintf("forkdns.%s.log", name)))
+		err := os.Rename(forkDNSLogPath, shared.LogPath(fmt.Sprintf("forkdns.%s.log", newName)))
 		if err != nil {
 			return err
 		}
 	}
 
-	// Rename the database entry
-	err := n.state.Cluster.RenameNetwork(n.name, name)
+	// Rename common steps.
+	err := n.common.rename(newName)
 	if err != nil {
 		return err
 	}
-	n.name = name
 
-	// Bring the network up
+	// Bring the network up.
 	err = n.Start()
 	if err != nil {
 		return err
