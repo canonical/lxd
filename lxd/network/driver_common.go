@@ -263,3 +263,17 @@ func (n *common) configChanged(newNetwork api.NetworkPut) (bool, []string, api.N
 
 	return dbUpdateNeeded, changedKeys, oldNetwork, nil
 }
+
+// delete the network from the database if clusterNotification is false.
+func (n *common) delete(clusterNotification bool) error {
+	// Only delete database record if not cluster notification.
+	if !clusterNotification {
+		// Remove the network from the database.
+		err := n.state.Cluster.DeleteNetwork(n.name)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
