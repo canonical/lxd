@@ -688,13 +688,6 @@ func doNetworkUpdate(d *Daemon, name string, oldConfig map[string]string, req ap
 		return response.BadRequest(err)
 	}
 
-	// When switching to a fan bridge, auto-detect the underlay
-	if req.Config["bridge.mode"] == "fan" {
-		if req.Config["fan.underlay_subnet"] == "" {
-			req.Config["fan.underlay_subnet"] = "auto"
-		}
-	}
-
 	err = n.Update(req, clusterNotification)
 	if err != nil {
 		return response.SmartError(err)
