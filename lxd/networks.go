@@ -676,7 +676,7 @@ func networkPatch(d *Daemon, r *http.Request) response.Response {
 	return doNetworkUpdate(d, name, dbInfo.Config, req, isClusterNotification(r))
 }
 
-func doNetworkUpdate(d *Daemon, name string, oldConfig map[string]string, req api.NetworkPut, notify bool) response.Response {
+func doNetworkUpdate(d *Daemon, name string, oldConfig map[string]string, req api.NetworkPut, clusterNotification bool) response.Response {
 	// Load the network
 	n, err := network.LoadByName(d.State(), name)
 	if err != nil {
@@ -696,7 +696,7 @@ func doNetworkUpdate(d *Daemon, name string, oldConfig map[string]string, req ap
 		}
 	}
 
-	err = n.Update(req, notify)
+	err = n.Update(req, clusterNotification)
 	if err != nil {
 		return response.SmartError(err)
 	}
