@@ -165,6 +165,50 @@ func AllowVolumeCreation(tx *db.ClusterTx, projectName string, req api.StorageVo
 	return nil
 }
 
+// GetImageSpaceBudget returns how much disk space is left in the given project
+// for writing images.
+//
+// If no limit is in place, return -1.
+func GetImageSpaceBudget(tx *db.ClusterTx, projectName string) (int64, error) {
+	info, err := fetchProject(tx, projectName, true)
+	if err != nil {
+		return -1, err
+	}
+
+	if info == nil {
+		return -1, nil
+	}
+
+	// If "features.images" is not enabled, the budget is unlimited.
+	if !shared.IsTrue(info.Project.Config["features.images"]) {
+		return -1, nil
+	}
+
+	// If "limits.disk" is not set, the budget is unlimited.
+	if info.Project.Config["limits.disk"] == "" {
+		return -1, nil
+	}
+
+	parser := aggregateLimitConfigValueParsers["limits.disk"]
+	quota, err := parser(info.Project.Config["limits.disk"])
+	if err != nil {
+		return -1, err
+	}
+
+	info.Instances = expandInstancesConfigAndDevices(info.Instances, info.Profiles)
+
+	totals, err := getTotalsAcrossProjectEntities(info, []string{"limits.disk"})
+	if err != nil {
+		return -1, err
+	}
+
+	if totals["limits.disk"] < quota {
+		return quota - totals["limits.disk"], nil
+	}
+
+	return 0, nil
+}
+
 // Check that we would not violate the project limits or restrictions if we
 // were to commit the given instances and profiles.
 func checkRestrictionsAndAggregateLimits(tx *db.ClusterTx, info *projectInfo) error {
