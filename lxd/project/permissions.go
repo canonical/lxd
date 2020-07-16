@@ -740,6 +740,10 @@ func AllowProjectUpdate(tx *db.ClusterTx, projectName string, config map[string]
 // Check that limits.containers or limits.virtual-machines is equal or above
 // the current count.
 func validateInstanceCountLimit(instances []db.Instance, key, value, project string) error {
+	if value == "" {
+		return nil
+	}
+
 	instanceType := countConfigInstanceType[key]
 	limit, err := strconv.Atoi(value)
 	if err != nil {
@@ -775,6 +779,10 @@ var countConfigInstanceType = map[string]api.InstanceType{
 // Validates an aggregate limit, checking that the new value is not below the
 // current total amount.
 func validateAggregateLimit(totals map[string]int64, key, value string) error {
+	if value == "" {
+		return nil
+	}
+
 	parser := aggregateLimitConfigValueParsers[key]
 	limit, err := parser(value)
 	if err != nil {
