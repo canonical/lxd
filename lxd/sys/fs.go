@@ -55,6 +55,10 @@ func (s *OS) initDirs() error {
 		{s.LogDir, 0700},
 		{filepath.Join(s.VarDir, "networks"), 0711},
 		{filepath.Join(s.VarDir, "security"), 0700},
+		{filepath.Join(s.VarDir, "security", "apparmor"), 0700},
+		{filepath.Join(s.VarDir, "security", "apparmor", "cache"), 0700},
+		{filepath.Join(s.VarDir, "security", "apparmor", "profiles"), 0700},
+		{filepath.Join(s.VarDir, "security", "seccomp"), 0700},
 		{filepath.Join(s.VarDir, "shmounts"), 0711},
 		// snapshots is 0700 as liblxc does not need to access this.
 		{filepath.Join(s.VarDir, "snapshots"), 0700},
