@@ -233,7 +233,7 @@ func (n *bridge) Validate(config map[string]string) error {
 	return nil
 }
 
-// IsRunning returns whether the network is up.
+// isRunning returns whether the network is up.
 func (n *bridge) isRunning() bool {
 	return shared.PathExists(fmt.Sprintf("/sys/class/net/%s", n.name))
 }
