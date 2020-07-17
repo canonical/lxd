@@ -33,6 +33,7 @@ import (
 	"github.com/lxc/lxd/lxd/db/query"
 	"github.com/lxc/lxd/lxd/device"
 	deviceConfig "github.com/lxc/lxd/lxd/device/config"
+	"github.com/lxc/lxd/lxd/device/nictype"
 	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/instance/instancetype"
 	"github.com/lxc/lxd/lxd/instance/operationlock"
@@ -1766,10 +1767,20 @@ func (c *lxc) deviceResetVolatile(devName string, oldConfig, newConfig deviceCon
 	volatileClear := make(map[string]string)
 	devicePrefix := fmt.Sprintf("volatile.%s.", devName)
 
+	newNICType, err := nictype.NICType(c.state, newConfig)
+	if err != nil {
+		return err
+	}
+
+	oldNICType, err := nictype.NICType(c.state, oldConfig)
+	if err != nil {
+		return err
+	}
+
 	// If the device type has changed, remove all old volatile keys.
 	// This will occur if the newConfig is empty (i.e the device is actually being removed) or
 	// if the device type is being changed but keeping the same name.
-	if newConfig["type"] != oldConfig["type"] || newConfig.NICType() != oldConfig.NICType() {
+	if newConfig["type"] != oldConfig["type"] || newNICType != oldNICType {
 		for k := range c.localConfig {
 			if !strings.HasPrefix(k, devicePrefix) {
 				continue
@@ -3962,7 +3973,18 @@ func (c *lxc) Update(args db.InstanceArgs, userRequested bool) error {
 		// between oldDevice and newDevice. The result of this is that as long as the
 		// devices are otherwise identical except for the fields returned here, then the
 		// device is considered to be being "updated" rather than "added & removed".
-		if oldDevice["type"] != newDevice["type"] || oldDevice.NICType() != newDevice.NICType() {
+
+		oldNICType, err := nictype.NICType(c.state, newDevice)
+		if err != nil {
+			return []string{} // Cannot hot-update due to config error.
+		}
+
+		newNICType, err := nictype.NICType(c.state, oldDevice)
+		if err != nil {
+			return []string{} // Cannot hot-update due to config error.
+		}
+
+		if oldDevice["type"] != newDevice["type"] || oldNICType != newNICType {
 			return []string{} // Device types aren't the same, so this cannot be an update.
 		}
 
@@ -6363,8 +6385,13 @@ func (c *lxc) FillNetworkDevice(name string, m deviceConfig.Device) (deviceConfi
 		return nil
 	}
 
+	nicType, err := nictype.NICType(c.state, m)
+	if err != nil {
+		return nil, err
+	}
+
 	// Fill in the MAC address
-	if !shared.StringInSlice(m.NICType(), []string{"physical", "ipvlan", "sriov"}) && m["hwaddr"] == "" {
+	if !shared.StringInSlice(nicType, []string{"physical", "ipvlan", "sriov"}) && m["hwaddr"] == "" {
 		configKey := fmt.Sprintf("volatile.%s.hwaddr", name)
 		volatileHwaddr := c.localConfig[configKey]
 		if volatileHwaddr == "" {
