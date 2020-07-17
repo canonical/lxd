@@ -18,6 +18,7 @@ import (
 	"time"
 
 	deviceConfig "github.com/lxc/lxd/lxd/device/config"
+	"github.com/lxc/lxd/lxd/device/nictype"
 	"github.com/lxc/lxd/lxd/dnsmasq"
 	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/instance/instancetype"
@@ -72,23 +73,28 @@ func networkValidPort(value string) error {
 
 // IsInUseByInstance indicates if network is referenced by an instance's NIC devices.
 // Checks if the device's parent or network properties match the network name.
-func IsInUseByInstance(c instance.Instance, networkName string) bool {
-	return isInUseByDevices(c.ExpandedDevices(), networkName)
+func IsInUseByInstance(s *state.State, c instance.Instance, networkName string) (bool, error) {
+	return isInUseByDevices(s, c.ExpandedDevices(), networkName)
 }
 
 // IsInUseByProfile indicates if network is referenced by a profile's NIC devices.
 // Checks if the device's parent or network properties match the network name.
-func IsInUseByProfile(profile api.Profile, networkName string) bool {
-	return isInUseByDevices(deviceConfig.NewDevices(profile.Devices), networkName)
+func IsInUseByProfile(s *state.State, profile api.Profile, networkName string) (bool, error) {
+	return isInUseByDevices(s, deviceConfig.NewDevices(profile.Devices), networkName)
 }
 
-func isInUseByDevices(devices deviceConfig.Devices, networkName string) bool {
+func isInUseByDevices(s *state.State, devices deviceConfig.Devices, networkName string) (bool, error) {
 	for _, d := range devices {
 		if d["type"] != "nic" {
 			continue
 		}
 
-		if !shared.StringInSlice(d.NICType(), []string{"bridged", "macvlan", "ipvlan", "physical", "sriov"}) {
+		nicType, err := nictype.NICType(s, d)
+		if err != nil {
+			return false, err
+		}
+
+		if !shared.StringInSlice(nicType, []string{"bridged", "macvlan", "ipvlan", "physical", "sriov"}) {
 			continue
 		}
 
@@ -102,11 +108,11 @@ func isInUseByDevices(devices deviceConfig.Devices, networkName string) bool {
 		}
 
 		if GetHostDevice(d["parent"], d["vlan"]) == networkName {
-			return true
+			return true, nil
 		}
 	}
 
-	return false
+	return false, nil
 }
 
 // GetIP returns a net.IP representing the IP belonging to the subnet for the host number supplied.
@@ -302,7 +308,12 @@ func UpdateDNSMasqStatic(s *state.State, networkName string) error {
 		// Go through all its devices (including profiles).
 		for k, d := range inst.ExpandedDevices() {
 			// Skip uninteresting entries.
-			if d["type"] != "nic" || d.NICType() != "bridged" {
+			if d["type"] != "nic" {
+				continue
+			}
+
+			nicType, err := nictype.NICType(s, d)
+			if err != nil || nicType != "bridged" {
 				continue
 			}
 
