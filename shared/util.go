@@ -120,9 +120,7 @@ func HostPathFollow(path string) string {
 	}
 
 	// Check if we're running in a snap package.
-	_, inSnap := os.LookupEnv("SNAP")
-	snapName := os.Getenv("SNAP_NAME")
-	if !inSnap || snapName != "lxd" {
+	if !InSnap() {
 		return path
 	}
 
@@ -174,9 +172,7 @@ func HostPath(path string) string {
 	}
 
 	// Check if we're running in a snap package
-	_, inSnap := os.LookupEnv("SNAP")
-	snapName := os.Getenv("SNAP_NAME")
-	if !inSnap || snapName != "lxd" {
+	if !InSnap() {
 		return path
 	}
 
@@ -1218,4 +1214,16 @@ func GetSnapshotExpiry(refDate time.Time, s string) (time.Time, error) {
 		time.Hour*time.Duration(expiry["H"]) + time.Minute*time.Duration(expiry["M"]))
 
 	return t, nil
+}
+
+// InSnap returns true if we're running inside the LXD snap.
+func InSnap() bool {
+	// Detect the snap.
+	_, snapPath := os.LookupEnv("SNAP")
+	snapName := os.Getenv("SNAP_NAME")
+	if snapPath && snapName == "lxd" {
+		return true
+	}
+
+	return false
 }
