@@ -85,7 +85,7 @@ func (d *nicP2P) Start() (*deviceConfig.RunConfig, error) {
 	}
 
 	// Apply and host-side limits and routes.
-	err = networkSetupHostVethDevice(d.config, nil, saveData)
+	err = networkSetupHostVethDevice(d.state, d.config, nil, saveData)
 	if err != nil {
 		NetworkRemoveInterface(saveData["host_name"])
 		return nil, err
@@ -131,7 +131,7 @@ func (d *nicP2P) Update(oldDevices deviceConfig.Devices, isRunning bool) error {
 	v := d.volatileGet()
 
 	// Apply and host-side limits and routes.
-	err = networkSetupHostVethDevice(d.config, oldConfig, v)
+	err = networkSetupHostVethDevice(d.state, d.config, oldConfig, v)
 	if err != nil {
 		return err
 	}
