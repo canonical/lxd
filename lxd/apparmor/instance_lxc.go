@@ -4,7 +4,7 @@ import (
 	"text/template"
 )
 
-var containerProfile = template.Must(template.New("containerProfile").Parse(`#include <tunables/global>
+var lxcProfile = template.Must(template.New("lxcProfile").Parse(`#include <tunables/global>
 profile "{{ .name }}" flags=(attach_disconnected,mediate_deleted) {
   ### Base profile
   capability,
