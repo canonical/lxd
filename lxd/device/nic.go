@@ -1,29 +1,8 @@
 package device
 
 import (
-	deviceConfig "github.com/lxc/lxd/lxd/device/config"
 	"github.com/lxc/lxd/shared"
 )
-
-// nicTypes defines the supported nic type devices and defines their creation functions.
-var nicTypes = map[string]func() device{
-	"physical": func() device { return &nicPhysical{} },
-	"ipvlan":   func() device { return &nicIPVLAN{} },
-	"p2p":      func() device { return &nicP2P{} },
-	"bridged":  func() device { return &nicBridged{} },
-	"routed":   func() device { return &nicRouted{} },
-	"macvlan":  func() device { return &nicMACVLAN{} },
-	"sriov":    func() device { return &nicSRIOV{} },
-}
-
-// nicLoadByType returns a NIC device instantiated with supplied config.
-func nicLoadByType(c deviceConfig.Device) device {
-	f := nicTypes[c.NICType()]
-	if f != nil {
-		return f()
-	}
-	return nil
-}
 
 // nicValidationRules returns config validation rules for nic devices.
 func nicValidationRules(requiredFields []string, optionalFields []string) map[string]func(value string) error {
