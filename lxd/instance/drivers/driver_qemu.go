@@ -33,6 +33,7 @@ import (
 	"github.com/lxc/lxd/lxd/db/query"
 	"github.com/lxc/lxd/lxd/device"
 	deviceConfig "github.com/lxc/lxd/lxd/device/config"
+	"github.com/lxc/lxd/lxd/device/nictype"
 	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/instance/drivers/qmp"
 	"github.com/lxc/lxd/lxd/instance/instancetype"
@@ -2896,7 +2897,17 @@ func (vm *qemu) Update(args db.InstanceArgs, userRequested bool) error {
 		// between oldDevice and newDevice. The result of this is that as long as the
 		// devices are otherwise identical except for the fields returned here, then the
 		// device is considered to be being "updated" rather than "added & removed".
-		if oldDevice["type"] != newDevice["type"] || oldDevice.NICType() != newDevice.NICType() {
+		oldNICType, err := nictype.NICType(vm.state, newDevice)
+		if err != nil {
+			return []string{} // Cannot hot-update due to config error.
+		}
+
+		newNICType, err := nictype.NICType(vm.state, oldDevice)
+		if err != nil {
+			return []string{} // Cannot hot-update due to config error.
+		}
+
+		if oldDevice["type"] != newDevice["type"] || oldNICType != newNICType {
 			return []string{} // Device types aren't the same, so this cannot be an update.
 		}
 
@@ -3076,10 +3087,20 @@ func (vm *qemu) deviceResetVolatile(devName string, oldConfig, newConfig deviceC
 	volatileClear := make(map[string]string)
 	devicePrefix := fmt.Sprintf("volatile.%s.", devName)
 
+	newNICType, err := nictype.NICType(vm.state, newConfig)
+	if err != nil {
+		return err
+	}
+
+	oldNICType, err := nictype.NICType(vm.state, oldConfig)
+	if err != nil {
+		return err
+	}
+
 	// If the device type has changed, remove all old volatile keys.
 	// This will occur if the newConfig is empty (i.e the device is actually being removed) or
 	// if the device type is being changed but keeping the same name.
-	if newConfig["type"] != oldConfig["type"] || newConfig.NICType() != oldConfig.NICType() {
+	if newConfig["type"] != oldConfig["type"] || newNICType != oldNICType {
 		for k := range vm.localConfig {
 			if !strings.HasPrefix(k, devicePrefix) {
 				continue
@@ -4036,9 +4057,14 @@ func (vm *qemu) RenderState() (*api.InstanceState, error) {
 			status.Processes = -1
 			networks := map[string]api.InstanceStateNetwork{}
 			for k, m := range vm.ExpandedDevices() {
+				nicType, err := nictype.NICType(vm.state, m)
+				if err != nil {
+					return nil, err
+				}
+
 				// We only care about bridged nics as these can use a local DHCP server that allows
 				// us to parse the leases file below.
-				if m["type"] != "nic" || m.NICType() != "bridged" {
+				if m["type"] != "nic" || nicType != "bridged" {
 					continue
 				}
 
@@ -4429,8 +4455,13 @@ func (vm *qemu) FillNetworkDevice(name string, m deviceConfig.Device) (deviceCon
 		return nil
 	}
 
+	nicType, err := nictype.NICType(vm.state, m)
+	if err != nil {
+		return nil, err
+	}
+
 	// Fill in the MAC address
-	if !shared.StringInSlice(m.NICType(), []string{"physical", "ipvlan", "sriov"}) && m["hwaddr"] == "" {
+	if !shared.StringInSlice(nicType, []string{"physical", "ipvlan", "sriov"}) && m["hwaddr"] == "" {
 		configKey := fmt.Sprintf("volatile.%s.hwaddr", name)
 		volatileHwaddr := vm.localConfig[configKey]
 		if volatileHwaddr == "" {
