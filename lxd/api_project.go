@@ -530,6 +530,7 @@ var projectConfigKeys = map[string]func(value string) error{
 	"limits.memory":                  shared.IsSize,
 	"limits.processes":               shared.IsUint32,
 	"limits.cpu":                     shared.IsUint32,
+	"limits.disk":                    shared.IsSize,
 	"restricted":                     shared.IsBool,
 	"restricted.containers.nesting":  isEitherAllowOrBlock,
 	"restricted.containers.lowlevel": isEitherAllowOrBlock,
