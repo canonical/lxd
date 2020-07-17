@@ -4,23 +4,10 @@ import (
 	"fmt"
 
 	deviceConfig "github.com/lxc/lxd/lxd/device/config"
+	"github.com/lxc/lxd/lxd/device/nictype"
 	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/state"
 )
-
-// devTypes defines supported top-level device type creation functions.
-var devTypes = map[string]func(deviceConfig.Device) device{
-	"nic":          nicLoadByType,
-	"infiniband":   infinibandLoadByType,
-	"proxy":        func(c deviceConfig.Device) device { return &proxy{} },
-	"gpu":          func(c deviceConfig.Device) device { return &gpu{} },
-	"usb":          func(c deviceConfig.Device) device { return &usb{} },
-	"unix-char":    func(c deviceConfig.Device) device { return &unixCommon{} },
-	"unix-block":   func(c deviceConfig.Device) device { return &unixCommon{} },
-	"unix-hotplug": func(c deviceConfig.Device) device { return &unixHotplug{} },
-	"disk":         func(c deviceConfig.Device) device { return &disk{} },
-	"none":         func(c deviceConfig.Device) device { return &none{} },
-}
 
 // load instantiates a device and initialises its internal state. It does not validate the config supplied.
 func load(inst instance.Instance, state *state.State, name string, conf deviceConfig.Device, volatileGet VolatileGetter, volatileSet VolatileSetter) (device, error) {
@@ -28,15 +15,56 @@ func load(inst instance.Instance, state *state.State, name string, conf deviceCo
 		return nil, fmt.Errorf("Missing device type for device %q", name)
 	}
 
-	devFunc := devTypes[conf["type"]]
-
-	// Check if top-level type is recognised, if it is known type it will return a function.
-	if devFunc == nil {
-		return nil, ErrUnsupportedDevType
+	// NIC type is required to lookup network devices.
+	nicType, err := nictype.NICType(state, conf)
+	if err != nil {
+		return nil, err
 	}
 
-	// Run the device create function and check it succeeds.
-	dev := devFunc(conf)
+	// Lookup device type implementation.
+	var dev device
+	switch conf["type"] {
+	case "nic":
+		switch nicType {
+		case "physical":
+			dev = &nicPhysical{}
+		case "ipvlan":
+			dev = &nicIPVLAN{}
+		case "p2p":
+			dev = &nicP2P{}
+		case "bridged":
+			dev = &nicBridged{}
+		case "routed":
+			dev = &nicRouted{}
+		case "macvlan":
+			dev = &nicMACVLAN{}
+		case "sriov":
+			dev = &nicSRIOV{}
+		}
+	case "infiniband":
+		switch nicType {
+		case "physical":
+			dev = &infinibandPhysical{}
+		case "sriov":
+			dev = &infinibandSRIOV{}
+		}
+	case "proxy":
+		dev = &proxy{}
+	case "gpu":
+		dev = &gpu{}
+	case "usb":
+		dev = &usb{}
+	case "unix-char", "unix-block":
+		dev = &unixCommon{}
+	case "unix-hotplug":
+		dev = &unixHotplug{}
+	case "disk":
+		dev = &disk{}
+	case "none":
+		dev = &none{}
+	}
+
+	// Check a valid device type has been found.
 	if dev == nil {
 		return nil, ErrUnsupportedDevType
 	}
