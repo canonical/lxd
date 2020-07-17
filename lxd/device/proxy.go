@@ -17,6 +17,7 @@ import (
 	liblxc "gopkg.in/lxc/go-lxc.v2"
 
 	deviceConfig "github.com/lxc/lxd/lxd/device/config"
+	"github.com/lxc/lxd/lxd/device/nictype"
 	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/instance/instancetype"
 	"github.com/lxc/lxd/lxd/project"
@@ -322,7 +323,16 @@ func (d *proxy) setupNAT() error {
 	var hostName string
 
 	for devName, devConfig := range d.inst.ExpandedDevices() {
-		if devConfig["type"] != "nic" || (devConfig["type"] == "nic" && devConfig.NICType() != "bridged") {
+		if devConfig["type"] != "nic" {
+			continue
+		}
+
+		nicType, err := nictype.NICType(d.state, devConfig)
+		if err != nil {
+			return err
+		}
+
+		if nicType != "bridged" {
 			continue
 		}
 
