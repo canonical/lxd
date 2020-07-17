@@ -804,7 +804,7 @@ func networkLeasesGet(d *Daemon, r *http.Request) response.Response {
 		}
 	}
 
-	// Local server name
+	// Local server name.
 	var serverName string
 	err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
 		serverName, err = tx.GetLocalNodeName()
@@ -814,7 +814,7 @@ func networkLeasesGet(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	// Get dynamic leases
+	// Get dynamic leases.
 	leaseFile := shared.VarPath("networks", name, "dnsmasq.leases")
 	if !shared.PathExists(leaseFile) {
 		return response.SyncResponse(true, leases)
@@ -828,7 +828,7 @@ func networkLeasesGet(d *Daemon, r *http.Request) response.Response {
 	for _, lease := range strings.Split(string(content), "\n") {
 		fields := strings.Fields(lease)
 		if len(fields) >= 5 {
-			// Parse the MAC
+			// Parse the MAC.
 			mac := network.GetMACSlice(fields[1])
 			macStr := strings.Join(mac, ":")
 
@@ -836,7 +836,7 @@ func networkLeasesGet(d *Daemon, r *http.Request) response.Response {
 				macStr = fields[4][len(fields[4])-17:]
 			}
 
-			// Look for an existing static entry
+			// Look for an existing static entry.
 			found := false
 			for _, entry := range leases {
 				if entry.Hwaddr == macStr && entry.Address == fields[2] {
@@ -849,7 +849,7 @@ func networkLeasesGet(d *Daemon, r *http.Request) response.Response {
 				continue
 			}
 
-			// Add the lease to the list
+			// Add the lease to the list.
 			leases = append(leases, api.NetworkLease{
 				Hostname: fields[3],
 				Address:  fields[2],
@@ -860,7 +860,7 @@ func networkLeasesGet(d *Daemon, r *http.Request) response.Response {
 		}
 	}
 
-	// Collect leases from other servers
+	// Collect leases from other servers.
 	if !isClusterNotification(r) {
 		notifier, err := cluster.NewNotifier(d.State(), d.endpoints.NetworkCert(), cluster.NotifyAlive)
 		if err != nil {
@@ -880,7 +880,7 @@ func networkLeasesGet(d *Daemon, r *http.Request) response.Response {
 			return response.SmartError(err)
 		}
 
-		// Filter based on project
+		// Filter based on project.
 		filteredLeases := []api.NetworkLease{}
 		for _, lease := range leases {
 			if !shared.StringInSlice(lease.Hwaddr, projectMacs) {
