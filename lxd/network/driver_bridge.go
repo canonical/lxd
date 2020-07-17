@@ -15,6 +15,7 @@ import (
 
 	"github.com/pkg/errors"
 
+	"github.com/lxc/lxd/lxd/apparmor"
 	"github.com/lxc/lxd/lxd/cluster"
 	"github.com/lxc/lxd/lxd/daemon"
 	"github.com/lxc/lxd/lxd/dnsmasq"
@@ -280,6 +281,12 @@ func (n *bridge) Delete(clusterNotification bool) error {
 		if err != nil {
 			return err
 		}
+	}
+
+	// Delete apparmor profiles.
+	err := apparmor.NetworkDelete(n.state, n)
+	if err != nil {
+		return err
 	}
 
 	return n.common.delete(clusterNotification)
@@ -571,7 +578,8 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 	command := "dnsmasq"
 	dnsmasqCmd := []string{"--keep-in-foreground", "--strict-order", "--bind-interfaces",
 		"--except-interface=lo",
-		"--no-ping", // --no-ping is very important to prevent delays to lease file updates.
+		"--pid-file=", // Disable attempt at writing a PID file.
+		"--no-ping",   // --no-ping is very important to prevent delays to lease file updates.
 		fmt.Sprintf("--interface=%s", n.name)}
 
 	dnsmasqVersion, err := dnsmasq.GetVersion()
@@ -1107,6 +1115,12 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 		}
 	}
 
+	// Generate and load apparmor profiles.
+	err = apparmor.NetworkLoad(n.state, n)
+	if err != nil {
+		return err
+	}
+
 	// Kill any existing dnsmasq and forkdns daemon for this network
 	err = dnsmasq.Kill(n.name, false)
 	if err != nil {
@@ -1168,12 +1182,20 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 			return err
 		}
 
-		// Create subprocess object dnsmasq (occasionally races, try a few times)
+		// Create subprocess object dnsmasq.
 		p, err := subprocess.NewProcess(command, dnsmasqCmd, "", "")
 		if err != nil {
 			return fmt.Errorf("Failed to create subprocess: %s", err)
 		}
 
+		// Apply AppArmor confinement.
+		if n.config["raw.dnsmasq"] == "" {
+			p.SetApparmor(apparmor.DnsmasqProfileName(n))
+		} else {
+			n.logger.Warn("Skipping AppArmor for dnsmasq due to raw.dnsmasq being set", log.Ctx{"name": n.name})
+		}
+
+		// Start dnsmasq.
 		err = p.Start()
 		if err != nil {
 			return fmt.Errorf("Failed to run: %s %s: %v", command, strings.Join(dnsmasqCmd, " "), err)
@@ -1294,6 +1316,12 @@ func (n *bridge) Stop() error {
 				return err
 			}
 		}
+	}
+
+	// Unload apparmor profiles.
+	err = apparmor.NetworkUnload(n.state, n)
+	if err != nil {
+		return err
 	}
 
 	return nil
