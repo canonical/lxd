@@ -14,6 +14,7 @@ import (
 	"github.com/pkg/errors"
 
 	deviceConfig "github.com/lxc/lxd/lxd/device/config"
+	"github.com/lxc/lxd/lxd/device/nictype"
 	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/instance/instancetype"
 	"github.com/lxc/lxd/lxd/network"
@@ -335,7 +336,7 @@ func networkCreateTap(hostName string, m deviceConfig.Device) error {
 }
 
 // networkSetupHostVethDevice configures a nic device's host side veth settings.
-func networkSetupHostVethDevice(device deviceConfig.Device, oldDevice deviceConfig.Device, v map[string]string) error {
+func networkSetupHostVethDevice(s *state.State, device deviceConfig.Device, oldDevice deviceConfig.Device, v map[string]string) error {
 	// If not configured, check if volatile data contains the most recently added host_name.
 	if device["host_name"] == "" {
 		device["host_name"] = v["host_name"]
@@ -369,11 +370,11 @@ func networkSetupHostVethDevice(device deviceConfig.Device, oldDevice deviceConf
 			oldDevice["hwaddr"] = v["hwaddr"]
 		}
 
-		networkRemoveVethRoutes(oldDevice)
+		networkRemoveVethRoutes(s, oldDevice)
 	}
 
 	// Setup static routes to container.
-	err = networkSetVethRoutes(device)
+	err = networkSetVethRoutes(s, device)
 	if err != nil {
 		return err
 	}
@@ -382,10 +383,16 @@ func networkSetupHostVethDevice(device deviceConfig.Device, oldDevice deviceConf
 }
 
 // networkSetVethRoutes applies any static routes configured from the host to the container nic.
-func networkSetVethRoutes(m deviceConfig.Device) error {
+func networkSetVethRoutes(s *state.State, m deviceConfig.Device) error {
 	// Decide whether the route should point to the veth parent or the bridge parent.
 	routeDev := m["host_name"]
-	if m.NICType() == "bridged" {
+
+	nicType, err := nictype.NICType(s, m)
+	if err != nil {
+		return err
+	}
+
+	if nicType == "bridged" {
 		routeDev = m["parent"]
 	}
 
@@ -420,16 +427,22 @@ func networkSetVethRoutes(m deviceConfig.Device) error {
 
 // networkRemoveVethRoutes removes any routes created for this device on the host that were first added
 // with networkSetVethRoutes(). Expects to be passed the device config from the oldExpandedDevices.
-func networkRemoveVethRoutes(m deviceConfig.Device) {
+func networkRemoveVethRoutes(s *state.State, m deviceConfig.Device) {
 	// Decide whether the route should point to the veth parent or the bridge parent
 	routeDev := m["host_name"]
-	if m.NICType() == "bridged" {
+	nicType, err := nictype.NICType(s, m)
+	if err != nil {
+		logger.Errorf("Failed to get NIC type for %q", m["name"])
+		return
+	}
+
+	if nicType == "bridged" {
 		routeDev = m["parent"]
 	}
 
 	if m["ipv4.routes"] != "" || m["ipv6.routes"] != "" {
 		if routeDev == "" {
-			logger.Errorf("Failed to remove static routes as route dev isn't set")
+			logger.Errorf("Failed to remove static routes as route dev isn't set for %q", m["name"])
 			return
 		}
 
