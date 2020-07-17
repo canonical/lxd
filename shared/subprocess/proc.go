@@ -10,6 +10,8 @@ import (
 
 	"github.com/pkg/errors"
 	"gopkg.in/yaml.v2"
+
+	"github.com/lxc/lxd/shared"
 )
 
 // Process struct. Has ability to set runtime arguments
@@ -20,11 +22,25 @@ type Process struct {
 	chExit     chan struct{} `yaml:"-"`
 	hasMonitor bool          `yaml:"-"`
 
-	Name   string   `yaml:"name"`
-	Args   []string `yaml:"args,flow"`
-	Pid    int64    `yaml:"pid"`
-	Stdout string   `yaml:"stdout"`
-	Stderr string   `yaml:"stderr"`
+	Name     string   `yaml:"name"`
+	Args     []string `yaml:"args,flow"`
+	Apparmor string   `yaml:"apparmor"`
+	Pid      int64    `yaml:"pid"`
+	Stdout   string   `yaml:"stdout"`
+	Stderr   string   `yaml:"stderr"`
+}
+
+func (p *Process) hasApparmor() bool {
+	_, err := exec.LookPath("aa-exec")
+	if err != nil {
+		return false
+	}
+
+	if !shared.PathExists("/sys/kernel/security/apparmor") {
+		return false
+	}
+
+	return true
 }
 
 // GetPid returns the pid for the given process object
@@ -36,6 +52,11 @@ func (p *Process) GetPid() (int64, error) {
 	}
 
 	return 0, ErrNotRunning
+}
+
+// SetApparmor allows setting the AppArmor profile.
+func (p *Process) SetApparmor(profile string) {
+	p.Apparmor = profile
 }
 
 // Stop will stop the given process object
@@ -69,7 +90,13 @@ func (p *Process) Stop() error {
 
 // Start will start the given process object
 func (p *Process) Start() error {
-	cmd := exec.Command(p.Name, p.Args...)
+	var cmd *exec.Cmd
+
+	if p.Apparmor != "" && p.hasApparmor() {
+		cmd = exec.Command("aa-exec", append([]string{"-p", p.Apparmor, p.Name}, p.Args...)...)
+	} else {
+		cmd = exec.Command(p.Name, p.Args...)
+	}
 	cmd.Stdin = nil
 	cmd.SysProcAttr = &syscall.SysProcAttr{}
 	cmd.SysProcAttr.Setsid = true
