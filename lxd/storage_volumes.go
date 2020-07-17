@@ -335,6 +335,13 @@ func storagePoolVolumesTypePost(d *Daemon, r *http.Request) response.Response {
 		return response.Conflict(fmt.Errorf("Volume by that name already exists"))
 	}
 
+	err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
+		return project.AllowVolumeCreation(tx, projectName, req)
+	})
+	if err != nil {
+		return response.SmartError(err)
+	}
+
 	switch req.Source.Type {
 	case "":
 		return doVolumeCreateOrCopy(d, projectName, poolName, &req)
@@ -942,6 +949,14 @@ func storagePoolVolumeTypePut(d *Daemon, r *http.Request, volumeTypeName string)
 	}
 
 	if volumeType == db.StoragePoolVolumeTypeCustom {
+		// Possibly check if project limits are honored.
+		err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
+			return project.AllowVolumeUpdate(tx, projectName, volumeName, req, vol.Config)
+		})
+		if err != nil {
+			return response.SmartError(err)
+		}
+
 		// Restore custom volume from snapshot if requested. This should occur first
 		// before applying config changes so that changes are applied to the
 		// restored volume.

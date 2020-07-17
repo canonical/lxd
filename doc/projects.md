@@ -23,7 +23,8 @@ features.storage.volumes             | boolean   | -                     | true 
 limits.containers                    | integer   | -                     | -                         | Maximum number of containers that can be created in the project
 limits.virtual-machines              | integer   | -                     | -                         | Maximum number of VMs that can be created in the project
 limits.cpu                           | integer   | -                     | -                         | Maximum value for the sum of individual "limits.cpu" configs set on the instances of the project
-limits.memory                        | integer   | -                     | -                         | Maximum value for the sum of individual "limits.memory" configs set on the instances of the project
+limits.disk                          | string    | -                     | -                         | Maximum value of aggregate disk space used by all instances volumes, custom volumes and images of the project
+limits.memory                        | string    | -                     | -                         | Maximum value for the sum of individual "limits.memory" configs set on the instances of the project
 limits.processes                     | integer   | -                     | -                         | Maximum value for the sum of individual "limits.processes" configs set on the instances of the project
 restricted                           | boolean   | -                     | true                      | Block access to security-sensitive features
 restricted.containers.nesting        | string    | -                     | block                     | Prevents setting security.nesting=true.
