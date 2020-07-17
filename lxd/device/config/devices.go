@@ -84,7 +84,8 @@ func (list Devices) Contains(k string, d Device) bool {
 	return deviceEquals(old, d)
 }
 
-// Update returns the difference between two sets
+// Update returns the difference between two sets. Accepts a function to detect which devices have been updated,
+// which prevents them being removed and re-added if they're config has changed, but the device supports hot plug.
 func (list Devices) Update(newlist Devices, updateFields func(Device, Device) []string) (map[string]Device, map[string]Device, map[string]Device, []string) {
 	rmlist := map[string]Device{}
 	addlist := map[string]Device{}
