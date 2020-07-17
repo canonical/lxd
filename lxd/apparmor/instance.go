@@ -157,7 +157,7 @@ func instanceProfile(state *state.State, inst instance) (string, error) {
 
 	// Render the profile.
 	var sb *strings.Builder = &strings.Builder{}
-	err = lxcProfile.Execute(sb, map[string]interface{}{
+	err = lxcProfileTpl.Execute(sb, map[string]interface{}{
 		"feature_unix":     unixSupported,
 		"feature_cgns":     shared.PathExists("/proc/self/ns/cgroup"),
 		"feature_stacking": state.OS.AppArmorStacking && !state.OS.AppArmorStacked,
