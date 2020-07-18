@@ -455,6 +455,7 @@ test_projects_storage() {
   lxc storage volume delete "${pool}" vol2
 
   lxc project switch default
+  lxc storage volume delete "${pool}" vol
   lxc project delete foo
 }
 
