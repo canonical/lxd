@@ -147,15 +147,13 @@ WHERE networks.id = ? AND networks.state = ?
 	return configs, nil
 }
 
-// CreatePendingNetwork creates a new pending network on the node with
-// the given name.
+// CreatePendingNetwork creates a new pending network on the node with the given name.
 func (c *ClusterTx) CreatePendingNetwork(node, name string, netType NetworkType, conf map[string]string) error {
 	if netType != NetworkTypeBridge {
 		return fmt.Errorf("Unsupported network type: %v", netType)
 	}
 
-	// First check if a network with the given name exists, and, if
-	// so, that it's in the pending state.
+	// First check if a network with the given name exists, and, if so, that it's in the pending state.
 	network := struct {
 		id    int64
 		state int
@@ -165,27 +163,29 @@ func (c *ClusterTx) CreatePendingNetwork(node, name string, netType NetworkType,
 	dest := func(i int) []interface{} {
 		// Sanity check that there is at most one pool with the given name.
 		if i != 0 {
-			errConsistency = fmt.Errorf("more than one network exists with the given name")
+			errConsistency = fmt.Errorf("More than one network exists with the given name")
 		}
 		return []interface{}{&network.id, &network.state}
 	}
+
 	stmt, err := c.tx.Prepare("SELECT id, state FROM networks WHERE name=?")
 	if err != nil {
 		return err
 	}
 	defer stmt.Close()
+
 	err = query.SelectObjects(stmt, dest, name)
 	if err != nil {
 		return err
 	}
+
 	if errConsistency != nil {
 		return errConsistency
 	}
 
 	var networkID = network.id
 	if networkID == 0 {
-		// No existing network with the given name was found, let's create
-		// one.
+		// No existing network with the given name was found, let's create one.
 		columns := []string{"name"}
 		values := []interface{}{name}
 		networkID, err = query.UpsertObject(c.tx, "networks", columns, values)
@@ -206,8 +206,7 @@ func (c *ClusterTx) CreatePendingNetwork(node, name string, netType NetworkType,
 	}
 
 	// Check that no network entry for this node and network exists yet.
-	count, err := query.Count(
-		c.tx, "networks_nodes", "network_id=? AND node_id=?", networkID, nodeInfo.ID)
+	count, err := query.Count(c.tx, "networks_nodes", "network_id=? AND node_id=?", networkID, nodeInfo.ID)
 	if err != nil {
 		return err
 	}
@@ -222,6 +221,7 @@ func (c *ClusterTx) CreatePendingNetwork(node, name string, netType NetworkType,
 	if err != nil {
 		return err
 	}
+
 	err = c.CreateNetworkConfig(networkID, nodeInfo.ID, conf)
 	if err != nil {
 		return err
