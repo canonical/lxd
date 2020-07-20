@@ -1635,7 +1635,7 @@ func doImageGet(db *db.Cluster, project, fingerprint string, public bool) (*api.
 }
 
 func imageValidSecret(fingerprint string, secret string) (*operations.Operation, bool) {
-	for _, op := range operations.Operations() {
+	for _, op := range operations.Clone() {
 		if op.Resources() == nil {
 			continue
 		}
