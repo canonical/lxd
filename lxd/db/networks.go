@@ -361,13 +361,13 @@ func (c *Cluster) getNetwork(name string, onlyCreated bool) (int64, *api.Network
 
 	switch state {
 	case networkPending:
-		network.Status = "Pending"
+		network.Status = api.NetworkStatusPending
 	case networkCreated:
-		network.Status = "Created"
+		network.Status = api.NetworkStatusCreated
 	case networkErrored:
-		network.Status = "Errored"
+		network.Status = api.NetworkStatusErrored
 	default:
-		network.Status = "Unknown"
+		network.Status = api.NetworkStatusUnknown
 	}
 
 	nodes, err := c.networkNodes(id)
