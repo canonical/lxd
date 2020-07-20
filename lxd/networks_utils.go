@@ -10,6 +10,7 @@ import (
 	"github.com/lxc/lxd/lxd/state"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
+	"github.com/lxc/lxd/shared/logger"
 )
 
 func networkAutoAttach(cluster *db.Cluster, devName string) error {
@@ -59,7 +60,8 @@ func networkUpdateForkdnsServersTask(s *state.State, heartbeatData *cluster.APIH
 	for _, name := range networks {
 		n, err := network.LoadByName(s, name)
 		if err != nil {
-			return err
+			logger.Errorf("Failed to load network %q for heartbeat", name)
+			continue
 		}
 
 		if n.Type() == "bridge" && n.Config()["bridge.mode"] == "fan" {
