@@ -257,8 +257,7 @@ func (c *Cluster) GetNetworks() ([]string, error) {
 	return c.networks("")
 }
 
-// GetNonPendingNetworks returns the names of all networks that are not
-// pending.
+// GetNonPendingNetworks returns the names of all networks that are not pending.
 func (c *Cluster) GetNonPendingNetworks() ([]string, error) {
 	return c.networks("NOT state=?", networkPending)
 }
