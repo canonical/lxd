@@ -59,9 +59,7 @@ func waitForOperations(s *state.State, chCancel chan struct{}) {
 		<-tick
 
 		// Get all the operations
-		operations.Lock()
-		ops := operations.Operations()
-		operations.Unlock()
+		ops := operations.Clone()
 
 		runningOps := 0
 
@@ -209,9 +207,7 @@ func operationsGet(d *Daemon, r *http.Request) response.Response {
 
 	localOperationURLs := func() (shared.Jmap, error) {
 		// Get all the operations
-		operations.Lock()
-		localOps := operations.Operations()
-		operations.Unlock()
+		localOps := operations.Clone()
 
 		// Build a list of URLs
 		body := shared.Jmap{}
@@ -234,9 +230,7 @@ func operationsGet(d *Daemon, r *http.Request) response.Response {
 
 	localOperations := func() (shared.Jmap, error) {
 		// Get all the operations
-		operations.Lock()
-		localOps := operations.Operations()
-		operations.Unlock()
+		localOps := operations.Clone()
 
 		// Build a list of operations
 		body := shared.Jmap{}
