@@ -11,6 +11,7 @@ import (
 	"github.com/lxc/lxd/lxd/network"
 	"github.com/lxc/lxd/lxd/revert"
 	"github.com/lxc/lxd/shared"
+	"github.com/lxc/lxd/shared/api"
 )
 
 type nicMACVLAN struct {
@@ -51,6 +52,10 @@ func (d *nicMACVLAN) validateConfig(instConf instance.ConfigReader) error {
 		n, err := network.LoadByName(d.state, d.config["network"])
 		if err != nil {
 			return errors.Wrapf(err, "Error loading network config for %q", d.config["network"])
+		}
+
+		if n.Status() == api.NetworkStatusPending {
+			return fmt.Errorf("Specified network is not fully created")
 		}
 
 		if n.Type() != "macvlan" {
