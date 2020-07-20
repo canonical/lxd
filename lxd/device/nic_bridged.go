@@ -456,8 +456,7 @@ func (d *nicBridged) Remove() error {
 	return nil
 }
 
-// rebuildDnsmasqEntry rebuilds the dnsmasq host entry if connected to an LXD managed network
-// and reloads dnsmasq.
+// rebuildDnsmasqEntry rebuilds the dnsmasq host entry if connected to an LXD managed network and reloads dnsmasq.
 func (d *nicBridged) rebuildDnsmasqEntry() error {
 	// Rebuild dnsmasq config if a bridged device has changed and parent is a managed network.
 	if !shared.PathExists(shared.VarPath("networks", d.config["parent"], "dnsmasq.pid")) {
@@ -467,7 +466,7 @@ func (d *nicBridged) rebuildDnsmasqEntry() error {
 	dnsmasq.ConfigMutex.Lock()
 	defer dnsmasq.ConfigMutex.Unlock()
 
-	_, dbInfo, err := d.state.Cluster.GetNetwork(d.config["parent"])
+	_, dbInfo, err := d.state.Cluster.GetNetworkInAnyState(d.config["parent"])
 	if err != nil {
 		return err
 	}
