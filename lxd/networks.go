@@ -322,6 +322,12 @@ func doNetworksCreate(d *Daemon, req api.NetworksPost, clusterNotification bool)
 		return err
 	}
 
+	// Validate so that when run on a cluster node the full config (including node specific config) is checked.
+	err = n.Validate(n.Config())
+	if err != nil {
+		return err
+	}
+
 	err = n.Start()
 	if err != nil {
 		n.Delete(clusterNotification)
