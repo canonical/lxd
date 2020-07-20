@@ -173,6 +173,6 @@ test_container_devices_nic_bridged_vlan() {
   # Cleanup.
   lxc delete -f "${prefix}-ctA"
   lxc delete -f "${prefix}-ctB"
-  lxc network delete "${prefix}"
   lxc profile delete "${prefix}"
+  lxc network delete "${prefix}"
 }

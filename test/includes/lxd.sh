@@ -152,16 +152,16 @@ kill_lxd() {
             lxc image delete "${image}" --force-local || true
         done
 
-        # Delete all networks
-        echo "==> Deleting all networks"
-        for network in $(lxc network list --force-local | grep YES | grep "^| " | cut -d' ' -f2); do
-            lxc network delete "${network}" --force-local || true
-        done
-
         # Delete all profiles
         echo "==> Deleting all profiles"
         for profile in $(lxc profile list --force-local | tail -n+3 | grep "^| " | cut -d' ' -f2); do
             lxc profile delete "${profile}" --force-local || true
+        done
+
+        # Delete all networks
+        echo "==> Deleting all networks"
+        for network in $(lxc network list --force-local | grep YES | grep "^| " | cut -d' ' -f2); do
+            lxc network delete "${network}" --force-local || true
         done
 
         # Clear config of the default profile since the profile itself cannot
