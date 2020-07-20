@@ -27,6 +27,18 @@ type NetworkPut struct {
 	Description string `json:"description" yaml:"description"`
 }
 
+// NetworkStatusPending network is pending creation on other cluster nodes.
+const NetworkStatusPending = "Pending"
+
+// NetworkStatusCreated network is fully created.
+const NetworkStatusCreated = "Created"
+
+// NetworkStatusErrored network is in error status.
+const NetworkStatusErrored = "Errored"
+
+// NetworkStatusUnknown network is in unknown status.
+const NetworkStatusUnknown = "Unknown"
+
 // Network represents a LXD network
 type Network struct {
 	NetworkPut `yaml:",inline"`
