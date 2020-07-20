@@ -255,8 +255,8 @@ test_container_devices_nic_bridged_filtering() {
     echo "br_netfilter didn't load, skipping IPv6 filter checks"
     lxc delete -f "${ctPrefix}A"
     lxc delete -f "${ctPrefix}B"
-    lxc network delete "${brName}"
     lxc profile delete "${ctPrefix}"
+    lxc network delete "${brName}"
     return
   fi
 
@@ -665,6 +665,6 @@ test_container_devices_nic_bridged_filtering() {
   fi
 
   # Cleanup.
-  lxc network delete "${brName}"
   lxc profile delete "${ctPrefix}"
+  lxc network delete "${brName}"
 }
