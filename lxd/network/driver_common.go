@@ -34,10 +34,11 @@ type common struct {
 	netType     string
 	description string
 	config      map[string]string
+	status      string
 }
 
 // init initialise internal variables.
-func (n *common) init(state *state.State, id int64, name string, netType string, description string, config map[string]string) {
+func (n *common) init(state *state.State, id int64, name string, netType string, description string, config map[string]string, status string) {
 	n.logger = logging.AddContext(logger.Log, log.Ctx{"driver": netType, "network": name})
 	n.id = id
 	n.name = name
@@ -45,6 +46,7 @@ func (n *common) init(state *state.State, id int64, name string, netType string,
 	n.config = config
 	n.state = state
 	n.description = description
+	n.status = status
 }
 
 // fillConfig fills requested config with any default values, by default this is a no-op.
@@ -99,6 +101,11 @@ func (n *common) validate(config map[string]string, driverRules map[string]func(
 // Name returns the network name.
 func (n *common) Name() string {
 	return n.name
+}
+
+// Status returns the network status.
+func (n *common) Status() string {
+	return n.status
 }
 
 // Type returns the network type.
@@ -292,7 +299,7 @@ func (n *common) rename(newName string) error {
 	}
 
 	// Reinitialise internal name variable and logger context with new name.
-	n.init(n.state, n.id, newName, n.netType, n.description, n.config)
+	n.init(n.state, n.id, newName, n.netType, n.description, n.config, n.status)
 
 	return nil
 }

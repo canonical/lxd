@@ -11,7 +11,7 @@ var drivers = map[string]func() Network{
 
 // LoadByName loads the network info from the database by name.
 func LoadByName(s *state.State, name string) (Network, error) {
-	id, netInfo, err := s.Cluster.GetNetwork(name)
+	id, netInfo, err := s.Cluster.GetNetworkInAnyState(name)
 	if err != nil {
 		return nil, err
 	}
@@ -22,7 +22,7 @@ func LoadByName(s *state.State, name string) (Network, error) {
 	}
 
 	n := driverFunc()
-	n.init(s, id, name, netInfo.Type, netInfo.Description, netInfo.Config)
+	n.init(s, id, name, netInfo.Type, netInfo.Description, netInfo.Config, netInfo.Status)
 
 	return n, nil
 }
@@ -40,7 +40,7 @@ func Validate(name string, netType string, config map[string]string) error {
 	}
 
 	n := driverFunc()
-	n.init(nil, 0, name, netType, "", config)
+	n.init(nil, 0, name, netType, "", config, "Unknown")
 	return n.Validate(config)
 }
 
@@ -52,7 +52,7 @@ func FillConfig(req *api.NetworksPost) error {
 	}
 
 	n := driverFunc()
-	n.init(nil, 0, req.Name, req.Type, req.Description, req.Config)
+	n.init(nil, 0, req.Name, req.Type, req.Description, req.Config, "Unknown")
 
 	err := n.fillConfig(req)
 	if err != nil {

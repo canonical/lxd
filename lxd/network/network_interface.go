@@ -9,13 +9,14 @@ import (
 // Network represents a LXD network.
 type Network interface {
 	// Load.
-	init(state *state.State, id int64, name string, netType string, description string, config map[string]string)
+	init(state *state.State, id int64, name string, netType string, description string, config map[string]string, status string)
 	fillConfig(*api.NetworksPost) error
 
 	// Config.
 	Validate(config map[string]string) error
 	Name() string
 	Type() string
+	Status() string
 	Config() map[string]string
 	IsUsed() bool
 	HasDHCPv4() bool

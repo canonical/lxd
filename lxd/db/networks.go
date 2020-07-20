@@ -147,11 +147,9 @@ WHERE networks.id = ? AND networks.state = ?
 	return configs, nil
 }
 
-// CreatePendingNetwork creates a new pending network on the node with
-// the given name.
+// CreatePendingNetwork creates a new pending network on the node with the given name.
 func (c *ClusterTx) CreatePendingNetwork(node, name string, netType NetworkType, conf map[string]string) error {
-	// First check if a network with the given name exists, and, if
-	// so, that it's in the pending state.
+	// First check if a network with the given name exists, and, if so, that it's in the pending state.
 	network := struct {
 		id    int64
 		state int
@@ -161,27 +159,29 @@ func (c *ClusterTx) CreatePendingNetwork(node, name string, netType NetworkType,
 	dest := func(i int) []interface{} {
 		// Sanity check that there is at most one pool with the given name.
 		if i != 0 {
-			errConsistency = fmt.Errorf("more than one network exists with the given name")
+			errConsistency = fmt.Errorf("More than one network exists with the given name")
 		}
 		return []interface{}{&network.id, &network.state}
 	}
+
 	stmt, err := c.tx.Prepare("SELECT id, state FROM networks WHERE name=?")
 	if err != nil {
 		return err
 	}
 	defer stmt.Close()
+
 	err = query.SelectObjects(stmt, dest, name)
 	if err != nil {
 		return err
 	}
+
 	if errConsistency != nil {
 		return errConsistency
 	}
 
 	var networkID = network.id
 	if networkID == 0 {
-		// No existing network with the given name was found, let's create
-		// one.
+		// No existing network with the given name was found, let's create one.
 		columns := []string{"name", "type"}
 		values := []interface{}{name, netType}
 		networkID, err = query.UpsertObject(c.tx, "networks", columns, values)
@@ -189,9 +189,9 @@ func (c *ClusterTx) CreatePendingNetwork(node, name string, netType NetworkType,
 			return err
 		}
 	} else {
-		// Check that the existing network  is in the pending state.
-		if network.state != networkPending {
-			return fmt.Errorf("network is not in pending state")
+		// Check that the existing network is in the pending state.
+		if network.state != networkPending && network.state != networkErrored {
+			return fmt.Errorf("Network is not in pending or errored state")
 		}
 	}
 
@@ -202,8 +202,7 @@ func (c *ClusterTx) CreatePendingNetwork(node, name string, netType NetworkType,
 	}
 
 	// Check that no network entry for this node and network exists yet.
-	count, err := query.Count(
-		c.tx, "networks_nodes", "network_id=? AND node_id=?", networkID, nodeInfo.ID)
+	count, err := query.Count(c.tx, "networks_nodes", "network_id=? AND node_id=?", networkID, nodeInfo.ID)
 	if err != nil {
 		return err
 	}
@@ -218,6 +217,7 @@ func (c *ClusterTx) CreatePendingNetwork(node, name string, netType NetworkType,
 	if err != nil {
 		return err
 	}
+
 	err = c.CreateNetworkConfig(networkID, nodeInfo.ID, conf)
 	if err != nil {
 		return err
@@ -257,8 +257,7 @@ func (c *Cluster) GetNetworks() ([]string, error) {
 	return c.networks("")
 }
 
-// GetNonPendingNetworks returns the names of all networks that are not
-// pending.
+// GetNonPendingNetworks returns the names of all networks that are not pending.
 func (c *Cluster) GetNonPendingNetworks() ([]string, error) {
 	return c.networks("NOT state=?", networkPending)
 }
@@ -305,13 +304,6 @@ const (
 	NetworkTypeBridge NetworkType = iota // Network type bridge.
 )
 
-// GetNetwork returns the network with the given name.
-//
-// The network must be in the created stated, not pending.
-func (c *Cluster) GetNetwork(name string) (int64, *api.Network, error) {
-	return c.getNetwork(name, true)
-}
-
 // GetNetworkInAnyState returns the network with the given name.
 //
 // The network can be in any state.
@@ -357,13 +349,13 @@ func (c *Cluster) getNetwork(name string, onlyCreated bool) (int64, *api.Network
 
 	switch state {
 	case networkPending:
-		network.Status = "Pending"
+		network.Status = api.NetworkStatusPending
 	case networkCreated:
-		network.Status = "Created"
+		network.Status = api.NetworkStatusCreated
 	case networkErrored:
-		network.Status = "Errored"
+		network.Status = api.NetworkStatusErrored
 	default:
-		network.Status = "Unknown"
+		network.Status = api.NetworkStatusUnknown
 	}
 
 	switch netType {
