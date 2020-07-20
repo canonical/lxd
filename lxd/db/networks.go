@@ -309,13 +309,6 @@ const (
 	NetworkTypeBridge NetworkType = iota // Network type bridge.
 )
 
-// GetNetwork returns the network with the given name.
-//
-// The network must be in the created stated, not pending.
-func (c *Cluster) GetNetwork(name string) (int64, *api.Network, error) {
-	return c.getNetwork(name, true)
-}
-
 // GetNetworkInAnyState returns the network with the given name.
 //
 // The network can be in any state.
