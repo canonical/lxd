@@ -108,17 +108,17 @@ func networksPost(d *Daemon, r *http.Request) response.Response {
 		return response.BadRequest(fmt.Errorf("No name provided"))
 	}
 
+	err = network.ValidNetworkName(req.Name)
+	if err != nil {
+		return response.BadRequest(err)
+	}
+
 	if req.Type == "" {
 		req.Type = "bridge"
 	}
 
 	if req.Config == nil {
 		req.Config = map[string]string{}
-	}
-
-	err = network.Validate(req.Name, req.Type, req.Config)
-	if err != nil {
-		return response.BadRequest(err)
 	}
 
 	// Convert requested network type to DB type code.
