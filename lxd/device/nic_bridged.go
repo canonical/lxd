@@ -28,6 +28,7 @@ import (
 	"github.com/lxc/lxd/lxd/revert"
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
+	"github.com/lxc/lxd/shared/api"
 	log "github.com/lxc/lxd/shared/log15"
 	"github.com/lxc/lxd/shared/logger"
 )
@@ -81,6 +82,10 @@ func (d *nicBridged) validateConfig(instConf instance.ConfigReader) error {
 		n, err := network.LoadByName(d.state, d.config["network"])
 		if err != nil {
 			return errors.Wrapf(err, "Error loading network config for %q", d.config["network"])
+		}
+
+		if n.Status() == api.NetworkStatusPending {
+			return fmt.Errorf("Specified network is not fully created")
 		}
 
 		if n.Type() != "bridge" {
