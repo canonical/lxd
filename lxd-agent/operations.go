@@ -74,9 +74,7 @@ func operationsGet(d *Daemon, r *http.Request) response.Response {
 
 	localOperationURLs := func() (shared.Jmap, error) {
 		// Get all the operations
-		operations.Lock()
-		ops := operations.Operations()
-		operations.Unlock()
+		ops := operations.Clone()
 
 		// Build a list of URLs
 		body := shared.Jmap{}
@@ -96,9 +94,7 @@ func operationsGet(d *Daemon, r *http.Request) response.Response {
 
 	localOperations := func() (shared.Jmap, error) {
 		// Get all the operations
-		operations.Lock()
-		ops := operations.Operations()
-		operations.Unlock()
+		ops := operations.Clone()
 
 		// Build a list of operations
 		body := shared.Jmap{}
