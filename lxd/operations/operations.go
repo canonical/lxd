@@ -59,9 +59,17 @@ func Unlock() {
 	operationsLock.Unlock()
 }
 
-// Operations returns a map of operations.
-func Operations() map[string]*Operation {
-	return operations
+// Clone returns a clone of the internal operations map containing references to the actual operations.
+func Clone() map[string]*Operation {
+	operationsLock.Lock()
+	defer operationsLock.Unlock()
+
+	localOperations := make(map[string]*Operation, len(operations))
+	for k, v := range operations {
+		localOperations[k] = v
+	}
+
+	return localOperations
 }
 
 // OperationGetInternal returns the operation with the given id. It returns an
