@@ -474,7 +474,7 @@ func networkDelete(d *Daemon, r *http.Request) response.Response {
 	if err != nil {
 		return response.SmartError(err)
 	}
-	if dbNetwork.Status == "Pending" {
+	if dbNetwork.Status == api.NetworkStatusPending {
 		err := d.cluster.DeleteNetwork(name)
 		if err != nil {
 			return response.SmartError(err)

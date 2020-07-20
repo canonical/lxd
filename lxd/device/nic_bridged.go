@@ -28,6 +28,7 @@ import (
 	"github.com/lxc/lxd/lxd/revert"
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
+	"github.com/lxc/lxd/shared/api"
 	log "github.com/lxc/lxd/shared/log15"
 	"github.com/lxc/lxd/shared/logger"
 )
@@ -82,6 +83,15 @@ func (d *nicBridged) validateConfig(instConf instance.ConfigReader) error {
 		if err != nil {
 			return errors.Wrapf(err, "Error loading network config for %q", d.config["network"])
 		}
+
+		if n.Status() == api.NetworkStatusPending {
+			return fmt.Errorf("Specified network is not fully created")
+		}
+
+		if n.Type() != "bridge" {
+			return fmt.Errorf("Specified network must be of type bridge")
+		}
+
 		netConfig := n.Config()
 
 		if d.config["ipv4.address"] != "" {
@@ -128,6 +138,7 @@ func (d *nicBridged) validateConfig(instConf instance.ConfigReader) error {
 			d.config["mtu"] = netConfig["bridge.mtu"]
 		}
 
+		// Copy certain keys verbatim from the network's settings.
 		inheritKeys := []string{"maas.subnet.ipv4", "maas.subnet.ipv6"}
 		for _, inheritKey := range inheritKeys {
 			if _, found := netConfig[inheritKey]; found {
@@ -456,8 +467,7 @@ func (d *nicBridged) Remove() error {
 	return nil
 }
 
-// rebuildDnsmasqEntry rebuilds the dnsmasq host entry if connected to an LXD managed network
-// and reloads dnsmasq.
+// rebuildDnsmasqEntry rebuilds the dnsmasq host entry if connected to an LXD managed network and reloads dnsmasq.
 func (d *nicBridged) rebuildDnsmasqEntry() error {
 	// Rebuild dnsmasq config if a bridged device has changed and parent is a managed network.
 	if !shared.PathExists(shared.VarPath("networks", d.config["parent"], "dnsmasq.pid")) {
@@ -467,7 +477,7 @@ func (d *nicBridged) rebuildDnsmasqEntry() error {
 	dnsmasq.ConfigMutex.Lock()
 	defer dnsmasq.ConfigMutex.Unlock()
 
-	_, dbInfo, err := d.state.Cluster.GetNetwork(d.config["parent"])
+	_, dbInfo, err := d.state.Cluster.GetNetworkInAnyState(d.config["parent"])
 	if err != nil {
 		return err
 	}
