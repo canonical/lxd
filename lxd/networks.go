@@ -17,6 +17,7 @@ import (
 	lxd "github.com/lxc/lxd/client"
 	"github.com/lxc/lxd/lxd/cluster"
 	"github.com/lxc/lxd/lxd/db"
+	"github.com/lxc/lxd/lxd/device/nictype"
 	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/network"
 	"github.com/lxc/lxd/lxd/project"
@@ -438,7 +439,12 @@ func doNetworkGet(d *Daemon, name string) (api.Network, error) {
 		}
 
 		for _, inst := range insts {
-			if network.IsInUseByInstance(inst, n.Name) {
+			inUse, err := network.IsInUseByInstance(d.State(), inst, n.Name)
+			if err != nil {
+				return api.Network{}, err
+			}
+
+			if inUse {
 				uri := fmt.Sprintf("/%s/instances/%s", version.APIVersion, inst.Name())
 				if inst.Project() != project.Default {
 					uri += fmt.Sprintf("?project=%s", inst.Project())
@@ -462,7 +468,12 @@ func doNetworkGet(d *Daemon, name string) (api.Network, error) {
 		}
 
 		for _, profile := range profiles {
-			if network.IsInUseByProfile(*db.ProfileToAPI(&profile), n.Name) {
+			inUse, err := network.IsInUseByProfile(d.State(), *db.ProfileToAPI(&profile), n.Name)
+			if err != nil {
+				return api.Network{}, err
+			}
+
+			if inUse {
 				uri := fmt.Sprintf("/%s/profiles/%s", version.APIVersion, profile.Name)
 				if profile.Project != project.Default {
 					uri += fmt.Sprintf("?project=%s", profile.Project)
@@ -508,7 +519,12 @@ func networkDelete(d *Daemon, r *http.Request) response.Response {
 		clusterNotification = true // We just want to delete the network from the system.
 	} else {
 		// Sanity checks
-		if n.IsUsed() {
+		inUse, err := n.IsUsed()
+		if err != nil {
+			return response.SmartError(err)
+		}
+
+		if inUse {
 			return response.BadRequest(fmt.Errorf("The network is currently in use"))
 		}
 
@@ -733,48 +749,53 @@ func networkLeasesGet(d *Daemon, r *http.Request) response.Response {
 		}
 
 		for _, inst := range instances {
-			// Go through all its devices (including profiles
-			for k, d := range inst.ExpandedDevices() {
-				// Skip uninteresting entries
-				if d["type"] != "nic" || d.NICType() != "bridged" {
+			// Go through all its devices (including profiles).
+			for k, dev := range inst.ExpandedDevices() {
+				// Skip uninteresting entries.
+				if dev["type"] != "nic" {
+					continue
+				}
+
+				nicType, err := nictype.NICType(d.State(), dev)
+				if err != nil || nicType != "bridged" {
 					continue
 				}
 
 				// Temporarily populate parent from network setting if used.
-				if d["network"] != "" {
-					d["parent"] = d["network"]
+				if dev["network"] != "" {
+					dev["parent"] = dev["network"]
 				}
 
-				if d["parent"] != name {
+				if dev["parent"] != name {
 					continue
 				}
 
-				// Fill in the hwaddr from volatile
-				if d["hwaddr"] == "" {
-					d["hwaddr"] = inst.LocalConfig()[fmt.Sprintf("volatile.%s.hwaddr", k)]
+				// Fill in the hwaddr from volatile.
+				if dev["hwaddr"] == "" {
+					dev["hwaddr"] = inst.LocalConfig()[fmt.Sprintf("volatile.%s.hwaddr", k)]
 				}
 
-				// Record the MAC
-				if d["hwaddr"] != "" {
-					projectMacs = append(projectMacs, d["hwaddr"])
+				// Record the MAC.
+				if dev["hwaddr"] != "" {
+					projectMacs = append(projectMacs, dev["hwaddr"])
 				}
 
-				// Add the lease
-				if d["ipv4.address"] != "" {
+				// Add the lease.
+				if dev["ipv4.address"] != "" {
 					leases = append(leases, api.NetworkLease{
 						Hostname: inst.Name(),
-						Address:  d["ipv4.address"],
-						Hwaddr:   d["hwaddr"],
+						Address:  dev["ipv4.address"],
+						Hwaddr:   dev["hwaddr"],
 						Type:     "static",
 						Location: inst.Location(),
 					})
 				}
 
-				if d["ipv6.address"] != "" {
+				if dev["ipv6.address"] != "" {
 					leases = append(leases, api.NetworkLease{
 						Hostname: inst.Name(),
-						Address:  d["ipv6.address"],
-						Hwaddr:   d["hwaddr"],
+						Address:  dev["ipv6.address"],
+						Hwaddr:   dev["hwaddr"],
 						Type:     "static",
 						Location: inst.Location(),
 					})
@@ -783,7 +804,7 @@ func networkLeasesGet(d *Daemon, r *http.Request) response.Response {
 		}
 	}
 
-	// Local server name
+	// Local server name.
 	var serverName string
 	err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
 		serverName, err = tx.GetLocalNodeName()
@@ -793,7 +814,7 @@ func networkLeasesGet(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	// Get dynamic leases
+	// Get dynamic leases.
 	leaseFile := shared.VarPath("networks", name, "dnsmasq.leases")
 	if !shared.PathExists(leaseFile) {
 		return response.SyncResponse(true, leases)
@@ -807,7 +828,7 @@ func networkLeasesGet(d *Daemon, r *http.Request) response.Response {
 	for _, lease := range strings.Split(string(content), "\n") {
 		fields := strings.Fields(lease)
 		if len(fields) >= 5 {
-			// Parse the MAC
+			// Parse the MAC.
 			mac := network.GetMACSlice(fields[1])
 			macStr := strings.Join(mac, ":")
 
@@ -815,7 +836,7 @@ func networkLeasesGet(d *Daemon, r *http.Request) response.Response {
 				macStr = fields[4][len(fields[4])-17:]
 			}
 
-			// Look for an existing static entry
+			// Look for an existing static entry.
 			found := false
 			for _, entry := range leases {
 				if entry.Hwaddr == macStr && entry.Address == fields[2] {
@@ -828,7 +849,7 @@ func networkLeasesGet(d *Daemon, r *http.Request) response.Response {
 				continue
 			}
 
-			// Add the lease to the list
+			// Add the lease to the list.
 			leases = append(leases, api.NetworkLease{
 				Hostname: fields[3],
 				Address:  fields[2],
@@ -839,7 +860,7 @@ func networkLeasesGet(d *Daemon, r *http.Request) response.Response {
 		}
 	}
 
-	// Collect leases from other servers
+	// Collect leases from other servers.
 	if !isClusterNotification(r) {
 		notifier, err := cluster.NewNotifier(d.State(), d.endpoints.NetworkCert(), cluster.NotifyAlive)
 		if err != nil {
@@ -859,7 +880,7 @@ func networkLeasesGet(d *Daemon, r *http.Request) response.Response {
 			return response.SmartError(err)
 		}
 
-		// Filter based on project
+		// Filter based on project.
 		filteredLeases := []api.NetworkLease{}
 		for _, lease := range leases {
 			if !shared.StringInSlice(lease.Hwaddr, projectMacs) {

@@ -19,21 +19,6 @@ func (device Device) Clone() Device {
 	return copy
 }
 
-// NICType returns the derived NIC Type for a NIC device.
-// If the "network" property is specified then this implicitly (at least for now) means the nictype is "bridged".
-// Otherwise the "nictype" property is returned. If the device type is not a NIC then an empty string is returned.
-func (device Device) NICType() string {
-	if device["type"] == "nic" {
-		if device["network"] != "" {
-			return "bridged"
-		}
-
-		return device["nictype"]
-	}
-
-	return ""
-}
-
 // Validate accepts a map of field/validation functions to run against the device's config.
 func (device Device) Validate(rules map[string]func(value string) error) error {
 	checkedFields := map[string]struct{}{}
@@ -99,7 +84,8 @@ func (list Devices) Contains(k string, d Device) bool {
 	return deviceEquals(old, d)
 }
 
-// Update returns the difference between two sets
+// Update returns the difference between two sets. Accepts a function to detect which devices have been updated,
+// which prevents them being removed and re-added if they're config has changed, but the device supports hot plug.
 func (list Devices) Update(newlist Devices, updateFields func(Device, Device) []string) (map[string]Device, map[string]Device, map[string]Device, []string) {
 	rmlist := map[string]Device{}
 	addlist := map[string]Device{}
