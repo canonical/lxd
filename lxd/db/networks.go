@@ -161,7 +161,7 @@ func (c *ClusterTx) CreatePendingNetwork(node, name string, netType NetworkType,
 
 	var errConsistency error
 	dest := func(i int) []interface{} {
-		// Sanity check that there is at most one pool with the given name.
+		// Sanity check that there is at most one network with the given name.
 		if i != 0 {
 			errConsistency = fmt.Errorf("More than one network exists with the given name")
 		}
