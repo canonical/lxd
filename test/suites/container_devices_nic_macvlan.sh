@@ -102,6 +102,21 @@ test_container_devices_nic_macvlan() {
     false
   fi
 
+  # Test using macvlan network.
+
+  # Create macvlan network and add NIC device using that network.
+  lxc network create "${ctName}net" --type=macvlan parent="${ctName}"
+  lxc config device add "${ctName}" eth0 nic \
+    network="${ctName}net" \
+    name=eth0
+  lxc exec "${ctName}" -- ip addr add "192.0.2.1${ipRand}/24" dev eth0
+  lxc exec "${ctName}" -- ip addr add "2001:db8::1${ipRand}/64" dev eth0
+  lxc exec "${ctName}" -- ip link set eth0 up
+  lxc exec "${ctName}" -- ping -c2 -W1 "192.0.2.2${ipRand}"
+  lxc exec "${ctName}" -- ping6 -c2 -W1 "2001:db8::2${ipRand}"
+  lxc config device remove "${ctName}" eth0
+  lxc network delete "${ctName}net"
+
   # Check we haven't left any NICS lying around.
   endNicCount=$(find /sys/class/net | wc -l)
   if [ "$startNicCount" != "$endNicCount" ]; then
