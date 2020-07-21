@@ -1333,8 +1333,8 @@ func (n *bridge) Stop() error {
 
 // Update updates the network. Accepts notification boolean indicating if this update request is coming from a
 // cluster notification, in which case do not update the database, just apply local changes needed.
-func (n *bridge) Update(newNetwork api.NetworkPut, clusterNotification bool) error {
-	n.logger.Debug("Update", log.Ctx{"clusterNotification": clusterNotification})
+func (n *bridge) Update(newNetwork api.NetworkPut, targetNode string, clusterNotification bool) error {
+	n.logger.Debug("Update", log.Ctx{"clusterNotification": clusterNotification, "newNetwork": newNetwork})
 
 	// When switching to a fan bridge, auto-detect the underlay if not specified.
 	if newNetwork.Config["bridge.mode"] == "fan" {
@@ -1364,7 +1364,7 @@ func (n *bridge) Update(newNetwork api.NetworkPut, clusterNotification bool) err
 	// Define a function which reverts everything.
 	revert.Add(func() {
 		// Reset changes to all nodes and database.
-		n.common.update(oldNetwork, clusterNotification)
+		n.common.update(oldNetwork, targetNode, clusterNotification)
 
 		// Reset any change that was made to local bridge.
 		n.setup(newNetwork.Config)
@@ -1402,7 +1402,7 @@ func (n *bridge) Update(newNetwork api.NetworkPut, clusterNotification bool) err
 	}
 
 	// Apply changes to database.
-	err = n.common.update(newNetwork, clusterNotification)
+	err = n.common.update(newNetwork, targetNode, clusterNotification)
 	if err != nil {
 		return err
 	}
