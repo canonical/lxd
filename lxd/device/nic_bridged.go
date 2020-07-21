@@ -265,7 +265,7 @@ func (d *nicBridged) Start() (*deviceConfig.RunConfig, error) {
 	revert.Add(func() { NetworkRemoveInterface(saveData["host_name"]) })
 
 	// Apply and host-side limits and routes.
-	err = networkSetupHostVethDevice(d.config, nil, saveData)
+	err = networkSetupHostVethDevice(d.state, d.config, nil, saveData)
 	if err != nil {
 		return nil, err
 	}
@@ -358,7 +358,7 @@ func (d *nicBridged) Update(oldDevices deviceConfig.Devices, isRunning bool) err
 		}
 
 		// Apply and host-side limits and routes.
-		err = networkSetupHostVethDevice(d.config, oldConfig, v)
+		err = networkSetupHostVethDevice(d.state, d.config, oldConfig, v)
 		if err != nil {
 			return err
 		}
@@ -432,7 +432,7 @@ func (d *nicBridged) postStop() error {
 		}
 	}
 
-	networkRemoveVethRoutes(d.config)
+	networkRemoveVethRoutes(d.state, d.config)
 	d.removeFilters(d.config)
 
 	return nil

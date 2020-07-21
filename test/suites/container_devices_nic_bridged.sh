@@ -517,6 +517,6 @@ test_container_devices_nic_bridged() {
 
   # Cleanup.
   lxc delete "${ctName}" -f
-  lxc network delete "${brName}"
   lxc profile delete "${ctName}"
+  lxc network delete "${brName}"
 }

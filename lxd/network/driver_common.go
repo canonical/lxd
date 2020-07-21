@@ -119,21 +119,51 @@ func (n *common) Config() map[string]string {
 	return n.config
 }
 
-// IsUsed returns whether the network is used by any instances.
-func (n *common) IsUsed() bool {
-	// Look for instances using the interface
+// IsUsed returns whether the network is used by any instances or profiles.
+func (n *common) IsUsed() (bool, error) {
+	// Look for instances using the network.
 	insts, err := instance.LoadFromAllProjects(n.state)
 	if err != nil {
-		return true
+		return false, err
 	}
 
 	for _, inst := range insts {
-		if IsInUseByInstance(inst, n.name) {
-			return true
+		inUse, err := IsInUseByInstance(n.state, inst, n.name)
+		if err != nil {
+			return false, err
+		}
+
+		if inUse {
+			return true, nil
 		}
 	}
 
-	return false
+	// Look for profiles using the network.
+	var profiles []db.Profile
+	err = n.state.Cluster.Transaction(func(tx *db.ClusterTx) error {
+		profiles, err = tx.GetProfiles(db.ProfileFilter{})
+		if err != nil {
+			return err
+		}
+
+		return nil
+	})
+	if err != nil {
+		return false, err
+	}
+
+	for _, profile := range profiles {
+		inUse, err := IsInUseByProfile(n.state, *db.ProfileToAPI(&profile), n.name)
+		if err != nil {
+			return false, err
+		}
+
+		if inUse {
+			return true, nil
+		}
+	}
+
+	return false, nil
 }
 
 // HasDHCPv4 indicates whether the network has DHCPv4 enabled.

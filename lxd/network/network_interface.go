@@ -18,7 +18,7 @@ type Network interface {
 	Type() string
 	Status() string
 	Config() map[string]string
-	IsUsed() bool
+	IsUsed() (bool, error)
 	HasDHCPv4() bool
 	HasDHCPv6() bool
 	DHCPv4Ranges() []DHCPRange
