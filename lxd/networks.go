@@ -601,9 +601,15 @@ func networkPost(d *Daemon, r *http.Request) response.Response {
 }
 
 func networkPut(d *Daemon, r *http.Request) response.Response {
+	// If a target was specified, forward the request to the relevant node.
+	resp := forwardedResponseIfTargetIsRemote(d, r)
+	if resp != nil {
+		return resp
+	}
+
 	name := mux.Vars(r)["name"]
 
-	// Get the existing network
+	// Get the existing network.
 	_, dbInfo, err := d.cluster.GetNetworkInAnyState(name)
 	if err != nil {
 		return response.SmartError(err)
@@ -615,95 +621,84 @@ func networkPut(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	// If no target node is specified and the daemon is clustered, we omit
-	// the node-specific fields.
+	// If no target node is specified and the daemon is clustered, we omit the node-specific fields so that
+	// the e-tag can be generated correctly. This is because the GET request used to populate the request
+	// will also remove node-specific keys when no target is specified.
 	if targetNode == "" && clustered {
 		for _, key := range db.NodeSpecificNetworkConfig {
 			delete(dbInfo.Config, key)
 		}
 	}
 
-	// Validate the ETag
+	// Validate the ETag.
 	etag := []interface{}{dbInfo.Name, dbInfo.Managed, dbInfo.Type, dbInfo.Description, dbInfo.Config}
-
 	err = util.EtagCheck(r, etag)
 	if err != nil {
 		return response.PreconditionFailed(err)
 	}
 
+	// Decode the request.
 	req := api.NetworkPut{}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		return response.BadRequest(err)
 	}
 
-	return doNetworkUpdate(d, name, dbInfo.Config, req, isClusterNotification(r))
+	// In clustered mode, we differentiate between node specific and non-node specific config keys based on
+	// whether the user has specified a target to apply the config to.
+	if clustered {
+		if targetNode == "" {
+			// If no target is specified, then ensure only non-node-specific config keys are changed.
+			for k := range req.Config {
+				if shared.StringInSlice(k, db.NodeSpecificNetworkConfig) {
+					return response.BadRequest(fmt.Errorf("Config key %q is node-specific", k))
+				}
+			}
+		} else {
+			// If a target is specified, then ensure only node-specific config keys are changed.
+			for k, v := range req.Config {
+				if !shared.StringInSlice(k, db.NodeSpecificNetworkConfig) && dbInfo.Config[k] != v {
+					return response.BadRequest(fmt.Errorf("Config key %q may not be used as node-specific key", k))
+				}
+			}
+		}
+	}
+
+	return doNetworkUpdate(d, name, req, targetNode, isClusterNotification(r))
 }
 
 func networkPatch(d *Daemon, r *http.Request) response.Response {
-	name := mux.Vars(r)["name"]
+	return networkPut(d, r)
+}
 
-	// Get the existing network
-	_, dbInfo, err := d.cluster.GetNetworkInAnyState(name)
+// doNetworkUpdate loads the current local network config, merges with the requested network config, validates
+// and applies the changes. Will also notify other cluster nodes of non-node specific config if needed.
+func doNetworkUpdate(d *Daemon, name string, req api.NetworkPut, targetNode string, clusterNotification bool) response.Response {
+	// Load the local node-specific network.
+	n, err := network.LoadByName(d.State(), name)
 	if err != nil {
-		return response.SmartError(err)
+		return response.NotFound(err)
 	}
 
-	targetNode := queryParam(r, "target")
-	clustered, err := cluster.Enabled(d.db)
-	if err != nil {
-		return response.SmartError(err)
-	}
-
-	// If no target node is specified and the daemon is clustered, we omit
-	// the node-specific fields.
-	if targetNode == "" && clustered {
-		for _, key := range db.NodeSpecificNetworkConfig {
-			delete(dbInfo.Config, key)
-		}
-	}
-
-	// Validate the ETag
-	etag := []interface{}{dbInfo.Name, dbInfo.Managed, dbInfo.Type, dbInfo.Description, dbInfo.Config}
-
-	err = util.EtagCheck(r, etag)
-	if err != nil {
-		return response.PreconditionFailed(err)
-	}
-
-	req := api.NetworkPut{}
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		return response.BadRequest(err)
-	}
-
-	// Config stacking
 	if req.Config == nil {
 		req.Config = map[string]string{}
 	}
 
-	for k, v := range dbInfo.Config {
+	// Merge the current node-specific network config with the submitted config to allow validation.
+	for k, v := range n.Config() {
 		_, ok := req.Config[k]
 		if !ok {
 			req.Config[k] = v
 		}
 	}
 
-	return doNetworkUpdate(d, name, dbInfo.Config, req, isClusterNotification(r))
-}
-
-func doNetworkUpdate(d *Daemon, name string, oldConfig map[string]string, req api.NetworkPut, clusterNotification bool) response.Response {
-	// Load the network
-	n, err := network.LoadByName(d.State(), name)
-	if err != nil {
-		return response.NotFound(err)
-	}
-
-	// Validate the configuration
+	// Validate the merged configuration.
 	err = network.Validate(name, n.Type(), req.Config)
 	if err != nil {
 		return response.BadRequest(err)
 	}
 
-	err = n.Update(req, clusterNotification)
+	// Apply the new configuration (will also notify other cluster nodes if needed).
+	err = n.Update(req, targetNode, clusterNotification)
 	if err != nil {
 		return response.SmartError(err)
 	}
