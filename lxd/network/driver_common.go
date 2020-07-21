@@ -10,6 +10,7 @@ import (
 
 	lxd "github.com/lxc/lxd/client"
 	"github.com/lxc/lxd/lxd/cluster"
+	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/state"
 	"github.com/lxc/lxd/shared"
@@ -197,7 +198,7 @@ func (n *common) DHCPv6Ranges() []DHCPRange {
 }
 
 // update the internal config variables, and if not cluster notification, notifies all nodes and updates database.
-func (n *common) update(applyNetwork api.NetworkPut, clusterNotification bool) error {
+func (n *common) update(applyNetwork api.NetworkPut, targetNode string, clusterNotification bool) error {
 	// Update internal config before database has been updated (so that if update is a notification we apply
 	// the config being supplied and not that in the database).
 	n.description = applyNetwork.Description
@@ -206,21 +207,34 @@ func (n *common) update(applyNetwork api.NetworkPut, clusterNotification bool) e
 	// If this update isn't coming via a cluster notification itself, then notify all nodes of change and then
 	// update the database.
 	if !clusterNotification {
-		// Notify all other nodes to update the network.
-		notifier, err := cluster.NewNotifier(n.state, n.state.Endpoints.NetworkCert(), cluster.NotifyAll)
-		if err != nil {
-			return err
-		}
+		if targetNode == "" {
+			// Notify all other nodes to update the network if no target specified.
+			notifier, err := cluster.NewNotifier(n.state, n.state.Endpoints.NetworkCert(), cluster.NotifyAll)
+			if err != nil {
+				return err
+			}
 
-		err = notifier(func(client lxd.InstanceServer) error {
-			return client.UpdateNetwork(n.name, applyNetwork, "")
-		})
-		if err != nil {
-			return err
+			sendNetwork := applyNetwork
+			sendNetwork.Config = make(map[string]string)
+			for k, v := range applyNetwork.Config {
+				// Don't forward node specific keys (these will be merged in on recipient node).
+				if shared.StringInSlice(k, db.NodeSpecificNetworkConfig) {
+					continue
+				}
+
+				sendNetwork.Config[k] = v
+			}
+
+			err = notifier(func(client lxd.InstanceServer) error {
+				return client.UpdateNetwork(n.name, sendNetwork, "")
+			})
+			if err != nil {
+				return err
+			}
 		}
 
 		// Update the database.
-		err = n.state.Cluster.UpdateNetwork(n.name, applyNetwork.Description, applyNetwork.Config)
+		err := n.state.Cluster.UpdateNetwork(n.name, applyNetwork.Description, applyNetwork.Config)
 		if err != nil {
 			return err
 		}

@@ -151,20 +151,21 @@ WHERE networks.id = ? AND networks.state = ?
 func (c *ClusterTx) CreatePendingNetwork(node, name string, netType NetworkType, conf map[string]string) error {
 	// First check if a network with the given name exists, and, if so, that it's in the pending state.
 	network := struct {
-		id    int64
-		state int
+		id      int64
+		state   int
+		netType NetworkType
 	}{}
 
 	var errConsistency error
 	dest := func(i int) []interface{} {
-		// Sanity check that there is at most one pool with the given name.
+		// Sanity check that there is at most one network with the given name.
 		if i != 0 {
 			errConsistency = fmt.Errorf("More than one network exists with the given name")
 		}
-		return []interface{}{&network.id, &network.state}
+		return []interface{}{&network.id, &network.state, &network.netType}
 	}
 
-	stmt, err := c.tx.Prepare("SELECT id, state FROM networks WHERE name=?")
+	stmt, err := c.tx.Prepare("SELECT id, state, type FROM networks WHERE name=?")
 	if err != nil {
 		return err
 	}
@@ -192,6 +193,11 @@ func (c *ClusterTx) CreatePendingNetwork(node, name string, netType NetworkType,
 		// Check that the existing network is in the pending state.
 		if network.state != networkPending && network.state != networkErrored {
 			return fmt.Errorf("Network is not in pending or errored state")
+		}
+
+		// Check that the existing network type matches the requested type.
+		if network.netType != netType {
+			return fmt.Errorf("Requested network type doesn't match type in existing database record")
 		}
 	}
 
@@ -520,7 +526,7 @@ func (c *Cluster) CreateNetwork(name, description string, netType NetworkType, c
 
 // UpdateNetwork updates the network with the given name.
 func (c *Cluster) UpdateNetwork(name, description string, config map[string]string) error {
-	id, _, err := c.GetNetworkInAnyState(name)
+	id, netInfo, err := c.GetNetworkInAnyState(name)
 	if err != nil {
 		return err
 	}
@@ -540,6 +546,15 @@ func (c *Cluster) UpdateNetwork(name, description string, config map[string]stri
 		if err != nil {
 			return err
 		}
+
+		// Update network status if change applied successfully.
+		if netInfo.Status == api.NetworkStatusErrored {
+			err = tx.NetworkCreated(name)
+			if err != nil {
+				return err
+			}
+		}
+
 		return nil
 	})
 
