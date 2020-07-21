@@ -130,6 +130,8 @@ func networksPost(d *Daemon, r *http.Request) response.Response {
 		dbNetType = db.NetworkTypeBridge
 	case "macvlan":
 		dbNetType = db.NetworkTypeMacvlan
+	case "sriov":
+		dbNetType = db.NetworkTypeSriov
 	default:
 		return response.BadRequest(fmt.Errorf("Unrecognised network type"))
 	}
