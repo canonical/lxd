@@ -526,7 +526,7 @@ func (c *Cluster) CreateNetwork(name, description string, netType NetworkType, c
 
 // UpdateNetwork updates the network with the given name.
 func (c *Cluster) UpdateNetwork(name, description string, config map[string]string) error {
-	id, _, err := c.GetNetworkInAnyState(name)
+	id, netInfo, err := c.GetNetworkInAnyState(name)
 	if err != nil {
 		return err
 	}
@@ -546,6 +546,15 @@ func (c *Cluster) UpdateNetwork(name, description string, config map[string]stri
 		if err != nil {
 			return err
 		}
+
+		// Update network status if change applied successfully.
+		if netInfo.Status == api.NetworkStatusErrored {
+			err = tx.NetworkCreated(name)
+			if err != nil {
+				return err
+			}
+		}
+
 		return nil
 	})
 
