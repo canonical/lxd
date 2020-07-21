@@ -28,7 +28,7 @@ type Network interface {
 	Start() error
 	Stop() error
 	Rename(name string) error
-	Update(newNetwork api.NetworkPut, clusterNotification bool) error
+	Update(newNetwork api.NetworkPut, targetNode string, clusterNotification bool) error
 	HandleHeartbeat(heartbeatData *cluster.APIHeartbeat) error
 	Delete(clusterNotification bool) error
 }
