@@ -21,6 +21,7 @@ import (
 	"github.com/lxc/lxd/lxd/network"
 	"github.com/lxc/lxd/lxd/project"
 	"github.com/lxc/lxd/lxd/response"
+	"github.com/lxc/lxd/lxd/revert"
 	"github.com/lxc/lxd/lxd/state"
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
@@ -218,8 +219,19 @@ func networksPostCluster(d *Daemon, req api.NetworksPost) error {
 		}
 	}
 
+	// Check that the requested network type matches the type created when adding the local node config.
+	// If network doesn't exist yet, ignore not found error, as this will be checked by NetworkNodeConfigs().
+	_, netInfo, err := d.cluster.GetNetworkInAnyState(req.Name)
+	if err != nil && err != db.ErrNoSuchObject {
+		return err
+	}
+
+	if err != db.ErrNoSuchObject && req.Type != netInfo.Type {
+		return fmt.Errorf("Requested network type %q doesn't match type in existing database record %q", req.Type, netInfo.Type)
+	}
+
 	// Add default values.
-	err := network.FillConfig(&req)
+	err = network.FillConfig(&req)
 	if err != nil {
 		return err
 	}
@@ -254,6 +266,7 @@ func networksPostCluster(d *Daemon, req api.NetworksPost) error {
 		if err == db.ErrNoSuchObject {
 			return fmt.Errorf("Network not pending on any node (use --target <node> first)")
 		}
+
 		return err
 	}
 
@@ -269,13 +282,22 @@ func networksPostCluster(d *Daemon, req api.NetworksPost) error {
 		return err
 	}
 
+	revert := revert.New()
+	defer revert.Fail()
+
+	revert.Add(func() {
+		d.cluster.Transaction(func(tx *db.ClusterTx) error {
+			return tx.NetworkErrored(req.Name)
+		})
+	})
+
 	// We need to mark the network as created now, because the network.LoadByName call invoked by
 	// doNetworksCreate would fail with not-found otherwise.
-	createErr := d.cluster.Transaction(func(tx *db.ClusterTx) error {
+	err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
 		return tx.NetworkCreated(req.Name)
 	})
-	if createErr != nil {
-		goto error
+	if err != nil {
+		return err
 	}
 
 	err = doNetworksCreate(d, nodeReq, false)
@@ -283,7 +305,7 @@ func networksPostCluster(d *Daemon, req api.NetworksPost) error {
 		return err
 	}
 
-	createErr = notifier(func(client lxd.InstanceServer) error {
+	err = notifier(func(client lxd.InstanceServer) error {
 		server, _, err := client.GetServer()
 		if err != nil {
 			return err
@@ -296,21 +318,12 @@ func networksPostCluster(d *Daemon, req api.NetworksPost) error {
 
 		return client.CreateNetwork(nodeReq)
 	})
-	if createErr != nil {
-		goto error
-	}
-
-	return nil
-
-error:
-	err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
-		return tx.NetworkErrored(req.Name)
-	})
 	if err != nil {
 		return err
 	}
 
-	return createErr
+	revert.Success()
+	return nil
 }
 
 // Create the network on the system. The clusterNotification flag is used to indicate whether creation request
