@@ -149,7 +149,7 @@ func networksPost(d *Daemon, r *http.Request) response.Response {
 		// Check that only NodeSpecificNetworkConfig keys are specified.
 		for key := range req.Config {
 			if !shared.StringInSlice(key, db.NodeSpecificNetworkConfig) {
-				return response.SmartError(fmt.Errorf("Config key %q may not be used as node-specific key", key))
+				return response.BadRequest(fmt.Errorf("Config key %q may not be used as node-specific key", key))
 			}
 		}
 
@@ -158,7 +158,7 @@ func networksPost(d *Daemon, r *http.Request) response.Response {
 		})
 		if err != nil {
 			if err == db.ErrAlreadyDefined {
-				return response.BadRequest(fmt.Errorf("The network already defined on node %q", targetNode))
+				return response.BadRequest(fmt.Errorf("The network is already defined on node %q", targetNode))
 			}
 			return response.SmartError(err)
 		}
