@@ -4,6 +4,9 @@ import (
 	"fmt"
 
 	"github.com/spf13/cobra"
+
+	// Used by cgo
+	_ "github.com/lxc/lxd/lxd/include"
 )
 
 /*
