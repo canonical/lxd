@@ -22,6 +22,7 @@ import (
 	"github.com/lxc/lxd/lxd/dnsmasq"
 	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/instance/instancetype"
+	"github.com/lxc/lxd/lxd/network/openvswitch"
 	"github.com/lxc/lxd/lxd/project"
 	"github.com/lxc/lxd/lxd/state"
 	"github.com/lxc/lxd/shared"
@@ -163,13 +164,10 @@ func AttachInterface(bridgeName string, devName string) error {
 			return err
 		}
 	} else {
-		// Check if interface is already connected to a bridge, if not connect it to the specified bridge.
-		_, err := shared.RunCommand("ovs-vsctl", "port-to-br", devName)
+		ovs := openvswitch.NewOVS()
+		err := ovs.BridgeAddPort(bridgeName, devName)
 		if err != nil {
-			_, err := shared.RunCommand("ovs-vsctl", "add-port", bridgeName, devName)
-			if err != nil {
-				return err
-			}
+			return err
 		}
 	}
 
@@ -184,13 +182,10 @@ func DetachInterface(bridgeName string, devName string) error {
 			return err
 		}
 	} else {
-		// Check if interface is connected to a bridge, if so, then remove it from the bridge.
-		_, err := shared.RunCommand("ovs-vsctl", "port-to-br", devName)
-		if err == nil {
-			_, err := shared.RunCommand("ovs-vsctl", "del-port", bridgeName, devName)
-			if err != nil {
-				return err
-			}
+		ovs := openvswitch.NewOVS()
+		err := ovs.BridgeDeletePort(bridgeName, devName)
+		if err != nil {
+			return err
 		}
 	}
 
