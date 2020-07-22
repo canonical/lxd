@@ -25,6 +25,7 @@ import (
 	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/instance/instancetype"
 	"github.com/lxc/lxd/lxd/network"
+	"github.com/lxc/lxd/lxd/network/openvswitch"
 	"github.com/lxc/lxd/lxd/revert"
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
@@ -1284,6 +1285,8 @@ func (d *nicBridged) setupNativeBridgePortVLANs(hostName string) error {
 
 // setupOVSBridgePortVLANs configures the bridge port with the specified VLAN settings on the openvswitch bridge.
 func (d *nicBridged) setupOVSBridgePortVLANs(hostName string) error {
+	ovs := openvswitch.NewOVS()
+
 	// Set port on bridge to specified untagged PVID.
 	if d.config["vlan"] != "" {
 		if d.config["vlan"] == "none" && d.config["vlan.tagged"] == "" {
@@ -1295,7 +1298,7 @@ func (d *nicBridged) setupOVSBridgePortVLANs(hostName string) error {
 		// Order is important here, as vlan_mode is set to "access", assuming that vlan.tagged is not used.
 		// If vlan.tagged is specified, then we expect it to also change the vlan_mode as needed.
 		if d.config["vlan"] != "none" {
-			_, err := shared.RunCommand("ovs-vsctl", "set", "port", hostName, "vlan_mode=access", fmt.Sprintf("tag=%s", d.config["vlan"]))
+			err := ovs.PortSet(hostName, "vlan_mode=access", fmt.Sprintf("tag=%s", d.config["vlan"]))
 			if err != nil {
 				return err
 			}
@@ -1319,9 +1322,9 @@ func (d *nicBridged) setupOVSBridgePortVLANs(hostName string) error {
 
 		// Configure the tagged membership settings of the port if VLAN ID specified.
 		// Also set the vlan_mode as needed from above.
-		// Must come after the ovs-vsctl command used for setting "vlan" mode above so that the correct
+		// Must come after the PortSet command used for setting "vlan" mode above so that the correct
 		// vlan_mode is retained.
-		_, err := shared.RunCommand("ovs-vsctl", "set", "port", hostName, fmt.Sprintf("vlan_mode=%s", vlanMode), fmt.Sprintf("trunks=%s", strings.Join(vlanIDs, ",")))
+		err := ovs.PortSet(hostName, fmt.Sprintf("vlan_mode=%s", vlanMode), fmt.Sprintf("trunks=%s", strings.Join(vlanIDs, ",")))
 		if err != nil {
 			return err
 		}

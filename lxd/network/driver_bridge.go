@@ -19,6 +19,7 @@ import (
 	"github.com/lxc/lxd/lxd/cluster"
 	"github.com/lxc/lxd/lxd/daemon"
 	"github.com/lxc/lxd/lxd/dnsmasq"
+	"github.com/lxc/lxd/lxd/network/openvswitch"
 	"github.com/lxc/lxd/lxd/node"
 	"github.com/lxc/lxd/lxd/revert"
 	"github.com/lxc/lxd/lxd/util"
@@ -367,12 +368,12 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 	// Create the bridge interface
 	if !n.isRunning() {
 		if n.config["bridge.driver"] == "openvswitch" {
-			_, err := exec.LookPath("ovs-vsctl")
-			if err != nil {
+			ovs := openvswitch.NewOVS()
+			if !ovs.Installed() {
 				return fmt.Errorf("Open vSwitch isn't installed on this system")
 			}
 
-			_, err = shared.RunCommand("ovs-vsctl", "add-br", n.name)
+			err := ovs.BridgeAdd(n.name)
 			if err != nil {
 				return err
 			}
@@ -1274,7 +1275,8 @@ func (n *bridge) Stop() error {
 
 	// Destroy the bridge interface
 	if n.config["bridge.driver"] == "openvswitch" {
-		_, err := shared.RunCommand("ovs-vsctl", "del-br", n.name)
+		ovs := openvswitch.NewOVS()
+		err := ovs.BridgeDelete(n.name)
 		if err != nil {
 			return err
 		}
