@@ -326,6 +326,7 @@ Device configuration properties:
 Key                     | Type      | Default           | Required  | Description
 :--                     | :--       | :--               | :--       | :--
 parent                  | string    | -                 | yes       | The name of the host device
+network                 | string    | -                 | yes       | The LXD network to link device to (instead of parent)
 name                    | string    | kernel assigned   | no        | The name of the interface inside the instance
 mtu                     | integer   | parent MTU        | no        | The MTU of the new interface
 hwaddr                  | string    | randomly assigned | no        | The MAC address of the new interface
@@ -410,6 +411,7 @@ Device configuration properties:
 Key                     | Type      | Default           | Required  | Description
 :--                     | :--       | :--               | :--       | :--
 parent                  | string    | -                 | yes       | The name of the host device
+network                 | string    | -                 | yes       | The LXD network to link device to (instead of parent)
 name                    | string    | kernel assigned   | no        | The name of the interface inside the instance
 mtu                     | integer   | kernel assigned   | no        | The MTU of the new interface
 hwaddr                  | string    | randomly assigned | no        | The MAC address of the new interface
