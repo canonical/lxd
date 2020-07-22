@@ -18,6 +18,11 @@
  */
 package main
 
+import (
+	// Used by cgo
+	_ "github.com/lxc/lxd/lxd/include"
+)
+
 /*
 #ifndef _GNU_SOURCE
 #define _GNU_SOURCE 1

@@ -8,6 +8,9 @@ import (
 	"os"
 	"unsafe"
 
+	// Used by cgo
+	_ "github.com/lxc/lxd/lxd/include"
+
 	"golang.org/x/sys/unix"
 )
 

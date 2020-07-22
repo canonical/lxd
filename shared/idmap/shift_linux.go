@@ -12,6 +12,9 @@ import (
 
 	"golang.org/x/sys/unix"
 
+	// Used by cgo
+	_ "github.com/lxc/lxd/lxd/include"
+
 	"github.com/lxc/lxd/shared"
 )
 
