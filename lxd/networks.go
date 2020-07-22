@@ -130,6 +130,8 @@ func networksPost(d *Daemon, r *http.Request) response.Response {
 		dbNetType = db.NetworkTypeBridge
 	case "macvlan":
 		dbNetType = db.NetworkTypeMacvlan
+	case "sriov":
+		dbNetType = db.NetworkTypeSriov
 	default:
 		return response.BadRequest(fmt.Errorf("Unrecognised network type"))
 	}
@@ -199,11 +201,18 @@ func networksPost(d *Daemon, r *http.Request) response.Response {
 		return response.BadRequest(fmt.Errorf("The network already exists"))
 	}
 
+	revert := revert.New()
+	defer revert.Fail()
+
 	// Create the database entry.
 	_, err = d.cluster.CreateNetwork(req.Name, req.Description, dbNetType, req.Config)
 	if err != nil {
 		return response.SmartError(errors.Wrapf(err, "Error inserting %q into database", req.Name))
 	}
+
+	revert.Add(func() {
+		d.cluster.DeleteNetwork(req.Name)
+	})
 
 	// Create network and pass false to clusterNotification so the database record is removed on error.
 	err = doNetworksCreate(d, req, false)
@@ -211,6 +220,7 @@ func networksPost(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
+	revert.Success()
 	return resp
 }
 
