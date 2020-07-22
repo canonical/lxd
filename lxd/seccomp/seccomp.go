@@ -18,6 +18,9 @@ import (
 	"golang.org/x/sys/unix"
 	liblxc "gopkg.in/lxc/go-lxc.v2"
 
+	// Used by cgo
+	_ "github.com/lxc/lxd/lxd/include"
+
 	deviceConfig "github.com/lxc/lxd/lxd/device/config"
 	"github.com/lxc/lxd/lxd/project"
 	"github.com/lxc/lxd/lxd/state"
