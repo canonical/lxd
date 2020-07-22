@@ -180,7 +180,7 @@ This will then allow LXD's own firewall rules to take effect.
 ### How to let Firewalld control the LXD's iptables rules
 
 When using firewalld and LXD together, iptables rules can overlaps. For example, firewalld could erase LXD iptables rules if it is started after LXD daemon, then LXD container will not be able to do any oubound internet access.
-On way to fix it is to delegate to firewalld the LXD's iptables rules and to disable the LXD ones.
+One way to fix it is to delegate to firewalld the LXD's iptables rules and to disable the LXD ones.
 
 First step is to [allow DNS and DHCP](#allow-dhcp-dns-with-firewalld).
 
