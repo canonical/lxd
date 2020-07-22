@@ -135,6 +135,28 @@ test_container_devices_nic_sriov() {
     false
   fi
 
+  lxc stop -f "${ctName}"
+  lxc config device remove "${ctName}" eth0
+  lxc config device remove "${ctName}" eth1
+
+  # Create sriov network and add NIC device using that network.
+  lxc network create "${ctName}net" --type=sriov parent="${parent}"
+  lxc config device add "${ctName}" eth0 nic \
+    network="${ctName}net" \
+    name=eth0 \
+    hwaddr="${ctMAC1}"
+  lxc start "${ctName}"
+
+  # Check custom MAC is applied.
+  vfID=$(lxc config get "${ctName}" volatile.eth0.last_state.vf.id)
+  if ! ip link show "${parent}" | grep "vf ${vfID}" | grep "${ctMAC1}"; then
+    echo "eth0 MAC not set"
+    false
+  fi
+
+  lxc config device remove "${ctName}" eth0
+  lxc network delete "${ctName}net"
+
   lxc delete -f "${ctName}"
 
   # Check we haven't left any NICS lying around.
