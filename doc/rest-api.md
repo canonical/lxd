@@ -1835,7 +1835,9 @@ In the remote image URL case, the following dict must be used:
 
 After the input is received by LXD, a background operation is started
 which will add the image to the store and possibly do some backend
-filesystem-specific optimizations.
+filesystem-specific optimizations. The server hosting the remote image 
+should set the LXD-Image-Hash header else the operation will fail with 
+"Error: Missing LXD-Image-Hash header".
 
 ### `/1.0/images/<fingerprint>`
 #### GET (optional `?secret=SECRET`)

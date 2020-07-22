@@ -79,7 +79,9 @@ Tarball, can be compressed and contains:
  - `metadata.yaml`
  - `templates/` (optional)
 
-In this mode, the image identifier is the SHA-256 of the tarball.
+In this mode, the image identifier is the SHA-256 of the tarball. If the image 
+is hosted on a server, the server hosting the remote image should set the 
+LXD-Image-Hash header else the operation will fail with "Error: Missing LXD-Image-Hash header".
 
 ### Split tarballs
 Two (possibly compressed) tarballs. One for metadata, one for the rootfs.
