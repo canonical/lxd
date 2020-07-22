@@ -221,6 +221,7 @@ var APIExtensions = []string{
 	"console_vga_type",
 	"projects_limits_disk",
 	"network_type_macvlan",
+	"network_type_sriov",
 }
 
 // APIExtensionsCount returns the number of available API extensions.
