@@ -20,6 +20,7 @@ import (
 	"github.com/lxc/lxd/lxd/device/nictype"
 	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/network"
+	"github.com/lxc/lxd/lxd/network/openvswitch"
 	"github.com/lxc/lxd/lxd/project"
 	"github.com/lxc/lxd/lxd/response"
 	"github.com/lxc/lxd/lxd/revert"
@@ -434,8 +435,8 @@ func doNetworkGet(d *Daemon, name string) (api.Network, error) {
 	} else if shared.PathExists(fmt.Sprintf("/sys/class/net/%s/bonding", n.Name)) {
 		n.Type = "bond"
 	} else {
-		_, err := shared.RunCommand("ovs-vsctl", "br-exists", n.Name)
-		if err == nil {
+		ovs := openvswitch.NewOVS()
+		if exists, _ := ovs.BridgeExists(n.Name); exists {
 			n.Type = "bridge"
 		} else {
 			n.Type = "unknown"
