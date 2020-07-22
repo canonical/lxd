@@ -9,6 +9,9 @@ import (
 	"unsafe"
 
 	"github.com/pkg/errors"
+
+	// Used by cgo
+	_ "github.com/lxc/lxd/lxd/include"
 )
 
 /*

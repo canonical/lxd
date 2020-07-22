@@ -1,6 +1,9 @@
 package main
 
 import (
+	// Used by cgo
+	_ "github.com/lxc/lxd/lxd/include"
+
 	"github.com/lxc/lxd/shared/logger"
 )
 
