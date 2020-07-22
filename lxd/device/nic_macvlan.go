@@ -3,12 +3,15 @@ package device
 import (
 	"fmt"
 
+	"github.com/pkg/errors"
+
 	deviceConfig "github.com/lxc/lxd/lxd/device/config"
 	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/instance/instancetype"
 	"github.com/lxc/lxd/lxd/network"
 	"github.com/lxc/lxd/lxd/revert"
 	"github.com/lxc/lxd/shared"
+	"github.com/lxc/lxd/shared/api"
 )
 
 type nicMACVLAN struct {
@@ -21,9 +24,11 @@ func (d *nicMACVLAN) validateConfig(instConf instance.ConfigReader) error {
 		return ErrUnsupportedDevType
 	}
 
-	requiredFields := []string{"parent"}
+	var requiredFields []string
 	optionalFields := []string{
 		"name",
+		"network",
+		"parent",
 		"mtu",
 		"hwaddr",
 		"vlan",
@@ -31,6 +36,49 @@ func (d *nicMACVLAN) validateConfig(instConf instance.ConfigReader) error {
 		"maas.subnet.ipv6",
 		"boot.priority",
 	}
+
+	// Check that if network proeperty is set that conflicting keys are not present.
+	if d.config["network"] != "" {
+		requiredFields = append(requiredFields, "network")
+
+		bannedKeys := []string{"nictype", "parent", "mtu", "maas.subnet.ipv4", "maas.subnet.ipv6"}
+		for _, bannedKey := range bannedKeys {
+			if d.config[bannedKey] != "" {
+				return fmt.Errorf("Cannot use %q property in conjunction with %q property", bannedKey, "network")
+			}
+		}
+
+		// If network property is specified, lookup network settings and apply them to the device's config.
+		n, err := network.LoadByName(d.state, d.config["network"])
+		if err != nil {
+			return errors.Wrapf(err, "Error loading network config for %q", d.config["network"])
+		}
+
+		if n.Status() == api.NetworkStatusPending {
+			return fmt.Errorf("Specified network is not fully created")
+		}
+
+		if n.Type() != "macvlan" {
+			return fmt.Errorf("Specified network must be of type macvlan")
+		}
+
+		netConfig := n.Config()
+
+		// Get actual parent device from network's parent setting.
+		d.config["parent"] = netConfig["parent"]
+
+		// Copy certain keys verbatim from the network's settings.
+		inheritKeys := []string{"maas.subnet.ipv4", "maas.subnet.ipv6"}
+		for _, inheritKey := range inheritKeys {
+			if _, found := netConfig[inheritKey]; found {
+				d.config[inheritKey] = netConfig[inheritKey]
+			}
+		}
+	} else {
+		// If no network property supplied, then parent property is required.
+		requiredFields = append(requiredFields, "parent")
+	}
+
 	err := d.config.Validate(nicValidationRules(requiredFields, optionalFields))
 	if err != nil {
 		return err
