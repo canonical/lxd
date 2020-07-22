@@ -3,6 +3,8 @@
 LXD supports the following network types:
 
  - [bridge](#network-bridge): Creates an L2 bridge for connecting instances to (can provide local DHCP and DNS).
+ - [macvlan](#network-macvlan): Provides preset configuration to use when connecting instances to a parent macvlan interface.
+ - [sriov](#network-sriov): Provides preset configuration to use when connecting instances to a parent SR-IOV interface.
 
 The configuration keys are namespaced with the following namespaces currently supported for all network types:
 
@@ -204,3 +206,31 @@ firewall-cmd --direct --get-all-rules
 ```
 
 Warning: what is exposed above is not a fool-proof approach and may end up inadvertently introducing a security risk.
+
+## network: macvlan
+
+The macvlan network type allows one to specify presets to use when connecting instances to a parent interface
+using macvlan NICs. This allows the instance NIC itself to simply specify the `network` it is connecting to without
+knowing any of the underlying configuration details.
+
+Network configuration properties:
+
+Key                             | Type      | Condition             | Default                   | Description
+:--                             | :--       | :--                   | :--                       | :--
+parent                          | string    | -                     | -                         | Parent interface to create macvlan NICs on
+maas.subnet.ipv4                | string    | ipv4 address          | -                         | MAAS IPv4 subnet to register instances in (when using `network` property on nic)
+maas.subnet.ipv6                | string    | ipv6 address          | -                         | MAAS IPv6 subnet to register instances in (when using `network` property on nic)
+
+## network: sriov
+
+The sriov network type allows one to specify presets to use when connecting instances to a parent interface
+using sriov NICs. This allows the instance NIC itself to simply specify the `network` it is connecting to without
+knowing any of the underlying configuration details.
+
+Network configuration properties:
+
+Key                             | Type      | Condition             | Default                   | Description
+:--                             | :--       | :--                   | :--                       | :--
+parent                          | string    | -                     | -                         | Parent interface to create sriov NICs on
+maas.subnet.ipv4                | string    | ipv4 address          | -                         | MAAS IPv4 subnet to register instances in (when using `network` property on nic)
+maas.subnet.ipv6                | string    | ipv6 address          | -                         | MAAS IPv6 subnet to register instances in (when using `network` property on nic)
