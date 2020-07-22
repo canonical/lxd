@@ -38,7 +38,7 @@ test_container_devices_nic_sriov() {
     parent="${parent}"
   lxc start "${ctName}"
 
-  # Check spoof checking has been disabled (the default)
+  # Check spoof checking has been disabled (the default).
   vfID=$(lxc config get "${ctName}" volatile.eth0.last_state.vf.id)
   if ip link show "${parent}" | grep "vf ${vfID}" | grep "spoof checking on"; then
     echo "spoof checking is still enabled"
@@ -47,7 +47,7 @@ test_container_devices_nic_sriov() {
 
   lxc config device set "${ctName}" eth0 vlan 1234
 
-  # Check custom vlan has been enabled
+  # Check custom vlan has been enabled.
   vfID=$(lxc config get "${ctName}" volatile.eth0.last_state.vf.id)
   if ! ip link show "${parent}" | grep "vf ${vfID}" | grep "vlan 1234"; then
     echo "vlan not set"
@@ -65,7 +65,7 @@ test_container_devices_nic_sriov() {
 
   lxc config device set "${ctName}" eth0 vlan 0
 
-  # Check custom vlan has been disabled
+  # Check custom vlan has been disabled.
   vfID=$(lxc config get "${ctName}" volatile.eth0.last_state.vf.id)
   if ip link show "${parent}" | grep "vf ${vfID}" | grep "vlan"; then
     # Mellanox cards display vlan 0 as vlan 4095!
@@ -89,7 +89,7 @@ test_container_devices_nic_sriov() {
   lxc config device set "${ctName}" eth0 hwaddr "${ctMAC1}"
   lxc start "${ctName}"
 
-  # Check custom MAC is applied
+  # Check custom MAC is applied.
   vfID=$(lxc config get "${ctName}" volatile.eth0.last_state.vf.id)
   if ! ip link show "${parent}" | grep "vf ${vfID}" | grep "${ctMAC1}"; then
     echo "eth0 MAC not set"
@@ -98,24 +98,24 @@ test_container_devices_nic_sriov() {
 
   lxc stop -f "${ctName}"
 
-  # Disable mac filtering and try fresh boot
+  # Disable mac filtering and try fresh boot.
   lxc config device set "${ctName}" eth0 security.mac_filtering false
   lxc start "${ctName}"
 
-  # Check spoof checking has been disabled (the default)
+  # Check spoof checking has been disabled (the default).
   vfID=$(lxc config get "${ctName}" volatile.eth0.last_state.vf.id)
   if ! ip link show "${parent}" | grep "vf ${vfID}" | grep "spoof checking off"; then
     echo "spoof checking is still enabled"
     false
   fi
 
-  # Hot plug fresh device
+  # Hot plug fresh device.
   lxc config device add "${ctName}" eth1 nic \
     nictype=sriov \
     parent="${parent}" \
     security.mac_filtering=true
 
-  # Check spoof checking has been enabled
+  # Check spoof checking has been enabled.
   vfID=$(lxc config get "${ctName}" volatile.eth1.last_state.vf.id)
   if ! ip link show "${parent}" | grep "vf ${vfID}" | grep "spoof checking on"; then
     echo "spoof checking is still disabled"
@@ -124,16 +124,38 @@ test_container_devices_nic_sriov() {
 
   lxc stop -f "${ctName}"
 
-  # Test setting MAC offline
+  # Test setting MAC offline.
   lxc config device set "${ctName}" eth1 hwaddr "${ctMAC2}"
   lxc start "${ctName}"
 
-  # Check custom MAC is applied
+  # Check custom MAC is applied.
   vfID=$(lxc config get "${ctName}" volatile.eth1.last_state.vf.id)
   if ! ip link show "${parent}" | grep "vf ${vfID}" | grep "${ctMAC2}"; then
     echo "eth1 MAC not set"
     false
   fi
+
+  lxc stop -f "${ctName}"
+  lxc config device remove "${ctName}" eth0
+  lxc config device remove "${ctName}" eth1
+
+  # Create sriov network and add NIC device using that network.
+  lxc network create "${ctName}net" --type=sriov parent="${parent}"
+  lxc config device add "${ctName}" eth0 nic \
+    network="${ctName}net" \
+    name=eth0 \
+    hwaddr="${ctMAC1}"
+  lxc start "${ctName}"
+
+  # Check custom MAC is applied.
+  vfID=$(lxc config get "${ctName}" volatile.eth0.last_state.vf.id)
+  if ! ip link show "${parent}" | grep "vf ${vfID}" | grep "${ctMAC1}"; then
+    echo "eth0 MAC not set"
+    false
+  fi
+
+  lxc config device remove "${ctName}" eth0
+  lxc network delete "${ctName}net"
 
   lxc delete -f "${ctName}"
 

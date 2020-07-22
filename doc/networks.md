@@ -1,36 +1,29 @@
 # Network configuration
 
-The key/value configuration is namespaced with the following namespaces
-currently supported:
+LXD supports the following network types:
 
- - `bridge` (L2 interface configuration)
- - `fan` (configuration specific to the Ubuntu FAN overlay)
- - `tunnel` (cross-host tunneling configuration)
- - `ipv4` (L3 IPv4 configuration)
- - `ipv6` (L3 IPv6 configuration)
- - `dns` (DNS server and resolution configuration)
- - `raw` (raw configuration file content)
+ - [bridge](#network-bridge): Creates an L2 bridge for connecting instances to (can provide local DHCP and DNS).
+ - [macvlan](#network-macvlan): Provides preset configuration to use when connecting instances to a parent macvlan interface.
+ - [sriov](#network-sriov): Provides preset configuration to use when connecting instances to a parent SR-IOV interface.
+
+The configuration keys are namespaced with the following namespaces currently supported for all network types:
+
+ - `maas` (MAAS network identification)
  - `user` (free form key/value for user metadata)
 
-## Bridges
+## network: bridge
 
-As one of the possible network configuration types under LXD,
-LXD supports creating and managing network bridges. LXD bridges
-can leverage underlying native Linux bridges and Open vSwitch.
+As one of the possible network configuration types under LXD, LXD supports creating and managing network bridges.
+LXD bridges can leverage underlying native Linux bridges and Open vSwitch.
 
-Creation and management of LXD bridges is performed via the `lxc network`
-command. A bridge created by LXD is by default "managed" which
-means that LXD also will additionally set up a local `dnsmasq`
-DHCP server and if desired also perform NAT for the bridge (this
-is the default.)
+Creation and management of LXD bridges is performed via the `lxc network` command.
+A bridge created by LXD is by default "managed" which means that LXD also will additionally set up a local `dnsmasq`
+DHCP server and if desired also perform NAT for the bridge (this is the default.)
 
-When a bridge is managed by LXD, configuration values
-under the `bridge` namespace can be used to configure it.
+When a bridge is managed by LXD, configuration values under the `bridge` namespace can be used to configure it.
 
-Additionally, LXD can utilize a pre-existing Linux
-bridge. In this case, the bridge does not need to be created via
-`lxc network` and can simply be referenced in an instance or
-profile device configuration as follows:
+Additionally, LXD can utilize a pre-existing Linux bridge. In this case, the bridge does not need to be created via
+`lxc network` and can simply be referenced in an instance or profile device configuration as follows:
 
 ```
 devices:
@@ -41,15 +34,23 @@ devices:
      type: nic
 ```
 
-## Configuration Settings
+Network configuration properties:
 
-A complete list of configuration settings for LXD networks can
-be found below.
+A complete list of configuration settings for LXD networks can be found below.
 
-It is expected that IP addresses and subnets are given using CIDR
-notation (`1.1.1.1/24` or `fd80:1234::1/64`). The exception being
-tunnel local and remote addresses which are just plain addresses
-(`1.1.1.1` or `fd80:1234::1`).
+The following configuration key namespaces are currently supported for bridge networks:
+
+ - `bridge` (L2 interface configuration)
+ - `fan` (configuration specific to the Ubuntu FAN overlay)
+ - `tunnel` (cross-host tunneling configuration)
+ - `ipv4` (L3 IPv4 configuration)
+ - `ipv6` (L3 IPv6 configuration)
+ - `dns` (DNS server and resolution configuration)
+ - `raw` (raw configuration file content)
+
+It is expected that IP addresses and subnets are given using CIDR notation (`1.1.1.1/24` or `fd80:1234::1/64`).
+
+The exception being tunnel local and remote addresses which are just plain addresses (`1.1.1.1` or `fd80:1234::1`).
 
 Key                             | Type      | Condition             | Default                   | Description
 :--                             | :--       | :--                   | :--                       | :--
@@ -98,14 +99,13 @@ tunnel.NAME.protocol            | string    | standard mode         | -         
 tunnel.NAME.remote              | string    | gre or vxlan          | -                         | Remote address for the tunnel (not necessary for multicast vxlan)
 tunnel.NAME.ttl                 | integer   | vxlan                 | 1                         | Specific TTL to use for multicast routing topologies
 
-
 Those keys can be set using the lxc tool with:
 
 ```bash
 lxc network set <network> <key> <value>
 ```
 
-## Integration with systemd-resolved
+### Integration with systemd-resolved
 
 If the system running LXD uses systemd-resolved to perform DNS
 lookups, it's possible to notify resolved of the domain(s) that
@@ -147,7 +147,7 @@ exists, so you must repeat this command each reboot and after
 LXD is restarted.  Also note this only works if the bridge
 `dns.mode` is not `none`.
 
-## IPv6 prefix size
+### IPv6 prefix size
 For optimal operation, a prefix size of 64 is preferred.
 Larger subnets (prefix smaller than 64) should work properly too but
 aren't typically that useful for SLAAC.
@@ -157,7 +157,7 @@ IPv6 allocation aren't properly supported by dnsmasq and may be the
 source of issue. If you must use one of those, static allocation or
 another standalone RA daemon be used.
 
-## Allow DHCP, DNS with Firewalld
+### Allow DHCP, DNS with Firewalld
 
 In order to allow instances to access the DHCP and DNS server that LXD runs on the host when using firewalld
 you need to add the host's bridge interface to the `trusted` zone in firewalld.
@@ -177,10 +177,10 @@ firewall-cmd --zone=trusted --change-interface=lxdbr0 --permanent
 This will then allow LXD's own firewall rules to take effect.
 
 
-## How to let Firewalld control the LXD's iptables rules
+### How to let Firewalld control the LXD's iptables rules
 
 When using firewalld and LXD together, iptables rules can overlaps. For example, firewalld could erase LXD iptables rules if it is started after LXD daemon, then LXD container will not be able to do any oubound internet access.
-On way to fix it is to delegate to firewalld the LXD's iptables rules and to disable the LXD ones.
+One way to fix it is to delegate to firewalld the LXD's iptables rules and to disable the LXD ones.
 
 First step is to [allow DNS and DHCP](#allow-dhcp-dns-with-firewalld).
 
@@ -202,7 +202,35 @@ firewall-cmd --reload
 ```
 To check the rules are taken into account by firewalld:
 ```
-firewall-cmd --direct --get-all-rules 
+firewall-cmd --direct --get-all-rules
 ```
 
 Warning: what is exposed above is not a fool-proof approach and may end up inadvertently introducing a security risk.
+
+## network: macvlan
+
+The macvlan network type allows one to specify presets to use when connecting instances to a parent interface
+using macvlan NICs. This allows the instance NIC itself to simply specify the `network` it is connecting to without
+knowing any of the underlying configuration details.
+
+Network configuration properties:
+
+Key                             | Type      | Condition             | Default                   | Description
+:--                             | :--       | :--                   | :--                       | :--
+parent                          | string    | -                     | -                         | Parent interface to create macvlan NICs on
+maas.subnet.ipv4                | string    | ipv4 address          | -                         | MAAS IPv4 subnet to register instances in (when using `network` property on nic)
+maas.subnet.ipv6                | string    | ipv6 address          | -                         | MAAS IPv6 subnet to register instances in (when using `network` property on nic)
+
+## network: sriov
+
+The sriov network type allows one to specify presets to use when connecting instances to a parent interface
+using sriov NICs. This allows the instance NIC itself to simply specify the `network` it is connecting to without
+knowing any of the underlying configuration details.
+
+Network configuration properties:
+
+Key                             | Type      | Condition             | Default                   | Description
+:--                             | :--       | :--                   | :--                       | :--
+parent                          | string    | -                     | -                         | Parent interface to create sriov NICs on
+maas.subnet.ipv4                | string    | ipv4 address          | -                         | MAAS IPv4 subnet to register instances in (when using `network` property on nic)
+maas.subnet.ipv6                | string    | ipv6 address          | -                         | MAAS IPv6 subnet to register instances in (when using `network` property on nic)
