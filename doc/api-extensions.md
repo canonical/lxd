@@ -1123,3 +1123,17 @@ attached to a SPICE unix socket of the target virtual machine.
 Add `limits.disk` to the available project configuration keys. If set, it limits
 the total amount of disk space that instances volumes, custom volumes and images
 volumes can use in the project.
+
+## network\_type\_macvlan
+Adds support for additional network type `macvlan` and adds `parent` configuration key for this network type to
+specify which parent interface should be used for creating NIC device interfaces on top of.
+
+Also adds `network` configuration key support for `macvlan` NICs to allow them to specify the associated network of
+the same type that they should use as the basis for the NIC device.
+
+## network\_type\_sriov
+Adds support for additional network type `sriov` and adds `parent` configuration key for this network type to
+specify which parent interface should be used for creating NIC device interfaces on top of.
+
+Also adds `network` configuration key support for `sriov` NICs to allow them to specify the associated network of
+the same type that they should use as the basis for the NIC device.
