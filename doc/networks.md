@@ -2,9 +2,17 @@
 
 LXD supports the following network types:
 
- - [bridge](#network-bridge): Creates an L2 bridge for connecting instances to (can provide local DHCP and DNS).
+ - [bridge](#network-bridge): Creates an L2 bridge for connecting instances to (can provide local DHCP and DNS). This is the default.
  - [macvlan](#network-macvlan): Provides preset configuration to use when connecting instances to a parent macvlan interface.
  - [sriov](#network-sriov): Provides preset configuration to use when connecting instances to a parent SR-IOV interface.
+
+The desired type can be specified using the `--type` argument, e.g.
+
+```bash
+lxc network create <name> --type=bridge [options...]
+```
+
+If no `--type` argument is specified, the default type of `bridge` is used.
 
 The configuration keys are namespaced with the following namespaces currently supported for all network types:
 
