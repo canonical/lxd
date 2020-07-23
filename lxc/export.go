@@ -81,7 +81,26 @@ func (c *cmdExport) Run(cmd *cobra.Command, args []string) error {
 		return errors.Wrap(err, "Create instance backup")
 	}
 
+	// Watch the background operation
+	progress := utils.ProgressRenderer{
+		Format: i18n.G("Backing up instance: %s"),
+		Quiet:  c.global.flagQuiet,
+	}
+
+	_, err = op.AddHandler(progress.UpdateOp)
+	if err != nil {
+		progress.Done("")
+		return err
+	}
+
 	// Wait until backup is done
+	err = utils.CancelableWait(op, &progress)
+	if err != nil {
+		progress.Done("")
+		return err
+	}
+	progress.Done("")
+
 	err = op.Wait()
 	if err != nil {
 		return err
@@ -113,7 +132,7 @@ func (c *cmdExport) Run(cmd *cobra.Command, args []string) error {
 	defer target.Close()
 
 	// Prepare the download request
-	progress := utils.ProgressRenderer{
+	progress = utils.ProgressRenderer{
 		Format: i18n.G("Exporting the backup: %s"),
 		Quiet:  c.global.flagQuiet,
 	}

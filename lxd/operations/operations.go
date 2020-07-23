@@ -290,7 +290,7 @@ func (op *Operation) Cancel() (chan error, error) {
 	}
 
 	if !op.mayCancel() {
-		return nil, fmt.Errorf("This Operation can't be cancelled")
+		return nil, fmt.Errorf("This operation can't be cancelled")
 	}
 
 	chanCancel := make(chan error, 1)
