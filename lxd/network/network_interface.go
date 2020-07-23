@@ -10,7 +10,7 @@ import (
 type Network interface {
 	// Load.
 	init(state *state.State, id int64, name string, netType string, description string, config map[string]string, status string)
-	fillConfig(*api.NetworksPost) error
+	fillConfig(config map[string]string) error
 
 	// Config.
 	Validate(config map[string]string) error
