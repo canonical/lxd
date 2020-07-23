@@ -51,7 +51,7 @@ func (n *common) init(state *state.State, id int64, name string, netType string,
 }
 
 // fillConfig fills requested config with any default values, by default this is a no-op.
-func (n *common) fillConfig(req *api.NetworksPost) error {
+func (n *common) fillConfig(config map[string]string) error {
 	return nil
 }
 
