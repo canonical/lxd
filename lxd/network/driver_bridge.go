@@ -1343,15 +1343,14 @@ func (n *bridge) Stop() error {
 func (n *bridge) Update(newNetwork api.NetworkPut, targetNode string, clusterNotification bool) error {
 	n.logger.Debug("Update", log.Ctx{"clusterNotification": clusterNotification, "newNetwork": newNetwork})
 
-	// When switching to a fan bridge, auto-detect the underlay if not specified.
-	if newNetwork.Config["bridge.mode"] == "fan" {
-		if newNetwork.Config["fan.underlay_subnet"] == "" {
-			newNetwork.Config["fan.underlay_subnet"] = "auto"
-		}
+	// Populate default values if they are missing.
+	err := n.fillConfig(newNetwork.Config)
+	if err != nil {
+		return err
 	}
 
 	// Populate auto fields.
-	err := fillAuto(newNetwork.Config)
+	err = fillAuto(newNetwork.Config)
 	if err != nil {
 		return err
 	}
