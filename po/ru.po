@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: lxd\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2020-07-15 11:38+0100\n"
+"POT-Creation-Date: 2020-07-23 13:16-0400\n"
 "PO-Revision-Date: 2018-06-22 15:57+0000\n"
 "Last-Translator: Александр Киль <shorrey@gmail.com>\n"
 "Language-Team: Russian <https://hosted.weblate.org/projects/linux-containers/"
@@ -535,7 +535,12 @@ msgstr "Авто-обновление: %s"
 msgid "BASE IMAGE"
 msgstr ""
 
-#: lxc/export.go:133
+#: lxc/export.go:86
+#, fuzzy, c-format
+msgid "Backing up instance: %s"
+msgstr "Невозможно добавить имя контейнера в список"
+
+#: lxc/export.go:152
 msgid "Backup exported successfully!"
 msgstr ""
 
@@ -1314,7 +1319,7 @@ msgstr "Невозможно добавить имя контейнера в с�
 msgid "Export instances as backup tarballs."
 msgstr "Невозможно добавить имя контейнера в список"
 
-#: lxc/export.go:117
+#: lxc/export.go:136
 #, fuzzy, c-format
 msgid "Exporting the backup: %s"
 msgstr "Копирование образа: %s"
