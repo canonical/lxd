@@ -41,7 +41,7 @@ The `my-server` remote there is another LXD server and in that example
 selects an image based on its fingerprint.
 
 ### Direct pushing of the image files
-This is mostly useful for airgaped environments where images cannot be
+This is mostly useful for air-gapped environments where images cannot be
 directly retrieved from an external server.
 
 In such a scenario, image files can be downloaded on another system using:
@@ -124,10 +124,10 @@ auto-updated and can be disabled by setting `images.auto_update_interval` to 0.
 A list of profiles can be associated with an image using the `lxc image edit`
 command. After associating profiles with an image, an instance launched
 using the image will have the profiles applied in order. If `nil` is passed
-as the list of profiles, only the `default` profile will be associated with 
+as the list of profiles, only the `default` profile will be associated with
 the image. If an empty list is passed, then no profile will be associated
 with the image, not even the `default` profile. An image's associated
-profiles can be overridden when launching an instance by using the 
+profiles can be overridden when launching an instance by using the
 `--profile` and the `--no-profiles` flags to `lxc launch`.
 
 ## Image format
