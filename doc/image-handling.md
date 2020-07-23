@@ -1,5 +1,4 @@
 # Image handling
-
 ## Introduction
 LXD uses an image based workflow. It comes with a built-in image store
 where the user or external tools can import images.
@@ -9,6 +8,80 @@ Containers are then started from those images.
 It's possible to spawn remote instances using local images or local
 instances using remote images. In such cases, the image may be cached
 on the target LXD.
+
+## Sources
+LXD supports importing images from three different sources:
+
+ - Remote image server (LXD or simplestreams)
+ - Direct pushing of the image files
+ - File on a remote web server
+
+### Remote image server (LXD or simplestreams)
+This is the most common source of images and the only one of the three
+options which is supported directly at instance creation time.
+
+With this option, an image server is provided to the target LXD server
+along with any needed certificate to validate it (only HTTPS is supported).
+
+The image itself is then selected either by its fingerprint (SHA256) or
+one of its aliases.
+
+From a CLI point of view, this is what's done behind those common actions:
+
+ - lxc launch ubuntu:20.04 u1
+ - lxc launch images:centos/8 c1
+ - lxc launch my-server:SHA256 a1
+ - lxc image copy images:gentoo local: --copy-aliases --auto-update
+
+In the cases of `ubuntu` and `images` above, those remotes use
+simplestreams as a read-only image server protocol and select images by
+one of their aliases.
+
+The `my-server` remote there is another LXD server and in that example
+selects an image based on its fingerprint.
+
+### Direct pushing of the image files
+This is mostly useful for airgaped environments where images cannot be
+directly retrieved from an external server.
+
+In such a scenario, image files can be downloaded on another system using:
+
+ - lxc image export ubuntu:20.04
+
+Then transferred to the target system and manually imported into the
+local image store with:
+
+ - lxc image import META ROOTFS --alias ubuntu-20.04
+
+`lxc image import` supports both unified images (single file) and split
+images (two files) with the example above using the latter.
+
+### File on a remote web server
+As an alternative to running a full image server only to distribute a
+single image to users, LXD also supports importing images by URL.
+
+There are a few limitations to that method though:
+
+ - Only unified (single file) images are supported
+ - Additional http headers must be returned by the remote server
+
+LXD will set the following headers when querying the server:
+
+ - `LXD-Server-Architectures` to a comma separate list of architectures the client supports
+ - `LXD-Server-Version` to the version of LXD in use
+
+
+And expects `LXD-Image-Hash` and `LXD-Image-URL` to be set by the remote server.
+The former being the SHA256 of the image being downloaded and the latter
+the URL to download the image from.
+
+This allows for reasonably complex image servers to be implemented using
+only a basic web server with support for custom headers.
+
+
+On the client side, this is used with:
+
+`lxc image import URL --alias some-name`
 
 ## Caching
 When spawning an instance from a remote image, the remote image is
