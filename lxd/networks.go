@@ -692,7 +692,7 @@ func networkPut(d *Daemon, r *http.Request) response.Response {
 		}
 	}
 
-	return doNetworkUpdate(d, name, req, targetNode, isClusterNotification(r))
+	return doNetworkUpdate(d, name, req, targetNode, isClusterNotification(r), r.Method)
 }
 
 func networkPatch(d *Daemon, r *http.Request) response.Response {
@@ -701,7 +701,7 @@ func networkPatch(d *Daemon, r *http.Request) response.Response {
 
 // doNetworkUpdate loads the current local network config, merges with the requested network config, validates
 // and applies the changes. Will also notify other cluster nodes of non-node specific config if needed.
-func doNetworkUpdate(d *Daemon, name string, req api.NetworkPut, targetNode string, clusterNotification bool) response.Response {
+func doNetworkUpdate(d *Daemon, name string, req api.NetworkPut, targetNode string, clusterNotification bool, httpMethod string) response.Response {
 	// Load the local node-specific network.
 	n, err := network.LoadByName(d.State(), name)
 	if err != nil {
@@ -712,11 +712,23 @@ func doNetworkUpdate(d *Daemon, name string, req api.NetworkPut, targetNode stri
 		req.Config = map[string]string{}
 	}
 
-	// Merge the current node-specific network config with the submitted config to allow validation.
-	for k, v := range n.Config() {
-		_, ok := req.Config[k]
-		if !ok {
-			req.Config[k] = v
+	if targetNode == "" && httpMethod != http.MethodPatch {
+		// If non-node specific config being updated via "put" method, then merge the current
+		// node-specific network config with the submitted config to allow validation.
+		// This allows removal of non-node specific keys when they are absent from request config.
+		for k, v := range n.Config() {
+			if shared.StringInSlice(k, db.NodeSpecificNetworkConfig) {
+				req.Config[k] = v
+			}
+		}
+	} else if httpMethod == http.MethodPatch {
+		// If config being updated via "patch" method, then merge all existing config with the keys that
+		// are present in the request config.
+		for k, v := range n.Config() {
+			_, ok := req.Config[k]
+			if !ok {
+				req.Config[k] = v
+			}
 		}
 	}
 
