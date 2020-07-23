@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: lxd\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2020-07-15 11:38+0100\n"
+"POT-Creation-Date: 2020-07-23 13:16-0400\n"
 "PO-Revision-Date: 2019-09-06 07:09+0000\n"
 "Last-Translator: Stéphane Graber <stgraber@stgraber.org>\n"
 "Language-Team: Portuguese (Brazil) <https://hosted.weblate.org/projects/"
@@ -545,7 +545,12 @@ msgstr "Atualização automática: %s"
 msgid "BASE IMAGE"
 msgstr "IMAGEM BASE"
 
-#: lxc/export.go:133
+#: lxc/export.go:86
+#, fuzzy, c-format
+msgid "Backing up instance: %s"
+msgstr "Editar arquivos no container"
+
+#: lxc/export.go:152
 msgid "Backup exported successfully!"
 msgstr "Backup exportado com sucesso!"
 
@@ -1330,7 +1335,7 @@ msgstr ""
 msgid "Export instances as backup tarballs."
 msgstr ""
 
-#: lxc/export.go:117
+#: lxc/export.go:136
 #, c-format
 msgid "Exporting the backup: %s"
 msgstr ""
