@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: LXD\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2020-07-14 23:29-0400\n"
+"POT-Creation-Date: 2020-07-23 22:07-0400\n"
 "PO-Revision-Date: 2020-03-27 12:50+0000\n"
 "Last-Translator: KATOH Yasufumi <karma@jazz.email.ne.jp>\n"
 "Language-Team: Japanese <https://hosted.weblate.org/projects/linux-"
@@ -328,12 +328,12 @@ msgstr "- パーティション %d"
 msgid "- Port %d (%s)"
 msgstr "- ポート %d (%s)"
 
-#: lxc/action.go:267
+#: lxc/action.go:270
 #, fuzzy
 msgid "--console can't be used with --all"
 msgstr "--mode と --target は同時に指定できません"
 
-#: lxc/action.go:271
+#: lxc/action.go:274
 #, fuzzy
 msgid "--console only works with a single instance"
 msgstr "移動先のインスタンスに適用するプロファイル"
@@ -466,7 +466,7 @@ msgstr "アーキテクチャ: %s"
 msgid "Architecture: %v"
 msgstr "アーキテクチャ: %v"
 
-#: lxc/console.go:313
+#: lxc/console.go:332
 msgid "As neither could be found, the raw SPICE socket can be found at:"
 msgstr ""
 
@@ -533,7 +533,12 @@ msgstr "自動更新: %s"
 msgid "BASE IMAGE"
 msgstr "BASE IMAGE"
 
-#: lxc/export.go:133
+#: lxc/export.go:86
+#, fuzzy, c-format
+msgid "Backing up instance: %s"
+msgstr "インスタンスのインポート中: %s"
+
+#: lxc/export.go:152
 msgid "Backup exported successfully!"
 msgstr "バックアップのエクスポートが成功しました!"
 
@@ -559,7 +564,7 @@ msgid "Bad syntax, expecting <device>,<key>=<value>: %s"
 msgstr ""
 "書式が不適切です。次のような形式で指定してください <device>,<key>=<value>: %s"
 
-#: lxc/action.go:234
+#: lxc/action.go:237
 msgid "Both --all and instance name given"
 msgstr "--all とインスタンス名を両方同時に指定することはできません"
 
@@ -1320,7 +1325,7 @@ msgstr "インスタンスのバックアップをエクスポートします"
 msgid "Export instances as backup tarballs."
 msgstr "インスタンスを tarball 形式のバックアップとしてエクスポートします。"
 
-#: lxc/export.go:117
+#: lxc/export.go:136
 #, c-format
 msgid "Exporting the backup: %s"
 msgstr "バックアップのエクスポート中: %s"
@@ -1383,7 +1388,7 @@ msgstr "強制的に擬似端末を割り当てます"
 msgid "Force removing a member, even if degraded"
 msgstr "degraded 状態であっても強制的にメンバを削除します"
 
-#: lxc/action.go:124
+#: lxc/action.go:126
 msgid "Force the instance to shutdown"
 msgstr "インスタンスを強制シャットダウンします"
 
@@ -1599,7 +1604,7 @@ msgstr "イメージは以下のフィンガープリントでインポートさ
 msgid "Image refreshed successfully!"
 msgstr "イメージの更新が成功しました!"
 
-#: lxc/action.go:118 lxc/action.go:120 lxc/launch.go:36
+#: lxc/action.go:121 lxc/launch.go:36
 #, fuzzy
 msgid "Immediately attach to the console"
 msgstr "インスタンスのコンソールに接続します"
@@ -1758,7 +1763,7 @@ msgstr "LOCATION"
 msgid "LXD - Command line client"
 msgstr "LXD - コマンドラインクライアント"
 
-#: lxc/console.go:312
+#: lxc/console.go:331
 msgid "LXD automatically uses either spicy or remote-viewer when present."
 msgstr ""
 
@@ -2361,7 +2366,7 @@ msgstr "ストレージボリュームの移動中: %s"
 msgid "Must run as root to import from directory"
 msgstr "ディレクトリからのインポートは root で実行する必要があります"
 
-#: lxc/action.go:155
+#: lxc/action.go:157
 msgid "Must supply instance name for: "
 msgstr "インスタンス名を指定する必要があります: "
 
@@ -3264,7 +3269,7 @@ msgstr "スナップショット:"
 msgid "Socket %d:"
 msgstr "ソケット %d:"
 
-#: lxc/action.go:300
+#: lxc/action.go:303
 #, c-format
 msgid "Some instances failed to %s"
 msgstr "一部のインスタンスで %s が失敗しました"
@@ -3277,7 +3282,7 @@ msgstr "取得元:"
 msgid "Start instances"
 msgstr "インスタンスを起動します"
 
-#: lxc/launch.go:72
+#: lxc/launch.go:73
 #, c-format
 msgid "Starting %s"
 msgstr "%s を起動中"
@@ -3483,7 +3488,7 @@ msgstr ""
 msgid "Threads:"
 msgstr "スレッド:"
 
-#: lxc/action.go:125
+#: lxc/action.go:127
 msgid "Time to wait for the instance before killing it"
 msgstr "インスタンスを強制停止するまで待つ時間"
 
@@ -3502,7 +3507,7 @@ msgid "To create a new network, use: lxc network create"
 msgstr ""
 "新しいネットワークを作成するには、lxc network create を使用してください"
 
-#: lxc/console.go:200
+#: lxc/console.go:203
 msgid "To detach from the console, press: <ctrl>+a q"
 msgstr "コンソールから切り離すには <ctrl>+a q を押します"
 
@@ -3551,7 +3556,7 @@ msgstr "イメージを転送中: %s"
 msgid "Transferring instance: %s"
 msgstr "インスタンスを転送中: %s"
 
-#: lxc/action.go:200 lxc/launch.go:103
+#: lxc/action.go:202 lxc/launch.go:104
 #, c-format
 msgid "Try `lxc info --show-log %s` for more info"
 msgstr "更に情報を得るために `lxc info --show-log %s` を実行してみてください"
@@ -3989,7 +3994,7 @@ msgstr "enable [<remote>:] <name>"
 msgid "enabled"
 msgstr "有効"
 
-#: lxc/action.go:292
+#: lxc/action.go:295
 #, c-format
 msgid "error: %v"
 msgstr "エラー: %v"

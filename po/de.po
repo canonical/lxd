@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: LXD\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2020-07-14 23:29-0400\n"
+"POT-Creation-Date: 2020-07-23 22:07-0400\n"
 "PO-Revision-Date: 2019-12-12 14:53+0000\n"
 "Last-Translator: Stéphane Graber <stgraber@stgraber.org>\n"
 "Language-Team: German <https://hosted.weblate.org/projects/linux-containers/"
@@ -340,12 +340,12 @@ msgstr ""
 msgid "- Port %d (%s)"
 msgstr ""
 
-#: lxc/action.go:267
+#: lxc/action.go:270
 #, fuzzy
 msgid "--console can't be used with --all"
 msgstr "--refresh kann nur mit Containern verwendet werden"
 
-#: lxc/action.go:271
+#: lxc/action.go:274
 #, fuzzy
 msgid "--console only works with a single instance"
 msgstr "kann nicht zum selben Container Namen kopieren"
@@ -477,7 +477,7 @@ msgstr "Architektur: %s\n"
 msgid "Architecture: %v"
 msgstr "Architektur: %s\n"
 
-#: lxc/console.go:313
+#: lxc/console.go:332
 msgid "As neither could be found, the raw SPICE socket can be found at:"
 msgstr ""
 
@@ -545,7 +545,12 @@ msgstr "automatisches Update: %s"
 msgid "BASE IMAGE"
 msgstr ""
 
-#: lxc/export.go:133
+#: lxc/export.go:86
+#, fuzzy, c-format
+msgid "Backing up instance: %s"
+msgstr "Herunterfahren des Containers erzwingen."
+
+#: lxc/export.go:152
 #, fuzzy
 msgid "Backup exported successfully!"
 msgstr "Profil %s erstellt\n"
@@ -571,7 +576,7 @@ msgstr "Ungültige Abbild Eigenschaft: %s\n"
 msgid "Bad syntax, expecting <device>,<key>=<value>: %s"
 msgstr ""
 
-#: lxc/action.go:234
+#: lxc/action.go:237
 msgid "Both --all and instance name given"
 msgstr ""
 
@@ -1354,7 +1359,7 @@ msgstr "Herunterfahren des Containers erzwingen."
 msgid "Export instances as backup tarballs."
 msgstr "Herunterfahren des Containers erzwingen."
 
-#: lxc/export.go:117
+#: lxc/export.go:136
 #, fuzzy, c-format
 msgid "Exporting the backup: %s"
 msgstr "Herunterfahren des Containers erzwingen."
@@ -1422,7 +1427,7 @@ msgstr ""
 msgid "Force removing a member, even if degraded"
 msgstr ""
 
-#: lxc/action.go:124
+#: lxc/action.go:126
 #, fuzzy
 msgid "Force the instance to shutdown"
 msgstr "Herunterfahren des Containers erzwingen."
@@ -1629,7 +1634,7 @@ msgstr "Abbild mit Fingerabdruck %s importiert\n"
 msgid "Image refreshed successfully!"
 msgstr ""
 
-#: lxc/action.go:118 lxc/action.go:120 lxc/launch.go:36
+#: lxc/action.go:121 lxc/launch.go:36
 #, fuzzy
 msgid "Immediately attach to the console"
 msgstr "Herunterfahren des Containers erzwingen."
@@ -1786,7 +1791,7 @@ msgstr ""
 msgid "LXD - Command line client"
 msgstr ""
 
-#: lxc/console.go:312
+#: lxc/console.go:331
 msgid "LXD automatically uses either spicy or remote-viewer when present."
 msgstr ""
 
@@ -2323,7 +2328,7 @@ msgstr "Kein Zertifikat für diese Verbindung"
 msgid "Must run as root to import from directory"
 msgstr ""
 
-#: lxc/action.go:155
+#: lxc/action.go:157
 #, fuzzy
 msgid "Must supply instance name for: "
 msgstr "der Name des Ursprung Containers muss angegeben werden"
@@ -3228,7 +3233,7 @@ msgstr ""
 msgid "Socket %d:"
 msgstr ""
 
-#: lxc/action.go:300
+#: lxc/action.go:303
 #, fuzzy, c-format
 msgid "Some instances failed to %s"
 msgstr "Anhalten des Containers fehlgeschlagen!"
@@ -3242,7 +3247,7 @@ msgstr ""
 msgid "Start instances"
 msgstr "kann nicht zum selben Container Namen kopieren"
 
-#: lxc/launch.go:72
+#: lxc/launch.go:73
 #, c-format
 msgid "Starting %s"
 msgstr ""
@@ -3443,7 +3448,7 @@ msgstr ""
 msgid "Threads:"
 msgstr ""
 
-#: lxc/action.go:125
+#: lxc/action.go:127
 #, fuzzy
 msgid "Time to wait for the instance before killing it"
 msgstr "Wartezeit bevor der Container gestoppt wird."
@@ -3461,7 +3466,7 @@ msgstr ""
 msgid "To create a new network, use: lxc network create"
 msgstr ""
 
-#: lxc/console.go:200
+#: lxc/console.go:203
 msgid "To detach from the console, press: <ctrl>+a q"
 msgstr ""
 
@@ -3506,7 +3511,7 @@ msgstr ""
 msgid "Transferring instance: %s"
 msgstr "kann nicht zum selben Container Namen kopieren"
 
-#: lxc/action.go:200 lxc/launch.go:103
+#: lxc/action.go:202 lxc/launch.go:104
 #, c-format
 msgid "Try `lxc info --show-log %s` for more info"
 msgstr ""
@@ -4037,7 +4042,7 @@ msgstr ""
 msgid "enabled"
 msgstr ""
 
-#: lxc/action.go:292
+#: lxc/action.go:295
 #, fuzzy, c-format
 msgid "error: %v"
 msgstr "Fehler: %v\n"
