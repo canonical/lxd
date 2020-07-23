@@ -56,7 +56,7 @@ func FillConfig(req *api.NetworksPost) error {
 	n := driverFunc()
 	n.init(nil, 0, req.Name, req.Type, req.Description, req.Config, "Unknown")
 
-	err := n.fillConfig(req)
+	err := n.fillConfig(req.Config)
 	if err != nil {
 		return err
 	}
