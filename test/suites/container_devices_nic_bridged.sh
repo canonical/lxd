@@ -405,8 +405,8 @@ test_container_devices_nic_bridged() {
   lxc config device add "${ctName}" eth0 nic nictype=bridged parent="${brName}" name=eth0
   lxc start "${ctName}"
   lxc exec "${ctName}" -- udhcpc -i eth0 -n -q
-  lxc network unset "${brName}" ipv4.address
-  lxc network unset "${brName}" ipv6.address
+  lxc network set "${brName}" ipv4.address none
+  lxc network set "${brName}" ipv6.address none
 
   if [ -f "${LXD_DIR}/networks/${brName}/dnsmasq.leases" ] ; then
     echo "dnsmasq.leases file still present after disabling DHCP"

@@ -44,30 +44,30 @@ type bridge struct {
 }
 
 // fillConfig fills requested config with any default values.
-func (n *bridge) fillConfig(req *api.NetworksPost) error {
+func (n *bridge) fillConfig(config map[string]string) error {
 	// Set some default values where needed.
-	if req.Config["bridge.mode"] == "fan" {
-		if req.Config["fan.underlay_subnet"] == "" {
-			req.Config["fan.underlay_subnet"] = "auto"
+	if config["bridge.mode"] == "fan" {
+		if config["fan.underlay_subnet"] == "" {
+			config["fan.underlay_subnet"] = "auto"
 		}
 	} else {
-		if req.Config["ipv4.address"] == "" {
-			req.Config["ipv4.address"] = "auto"
+		if config["ipv4.address"] == "" {
+			config["ipv4.address"] = "auto"
 		}
 
-		if req.Config["ipv4.address"] == "auto" && req.Config["ipv4.nat"] == "" {
-			req.Config["ipv4.nat"] = "true"
+		if config["ipv4.address"] == "auto" && config["ipv4.nat"] == "" {
+			config["ipv4.nat"] = "true"
 		}
 
-		if req.Config["ipv6.address"] == "" {
+		if config["ipv6.address"] == "" {
 			content, err := ioutil.ReadFile("/proc/sys/net/ipv6/conf/default/disable_ipv6")
 			if err == nil && string(content) == "0\n" {
-				req.Config["ipv6.address"] = "auto"
+				config["ipv6.address"] = "auto"
 			}
 		}
 
-		if req.Config["ipv6.address"] == "auto" && req.Config["ipv6.nat"] == "" {
-			req.Config["ipv6.nat"] = "true"
+		if config["ipv6.address"] == "auto" && config["ipv6.nat"] == "" {
+			config["ipv6.nat"] = "true"
 		}
 	}
 
@@ -694,10 +694,7 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 		}
 
 		// Restore container specific IPv4 routes to interface.
-		err = n.applyBootRoutesV4(ctRoutes)
-		if err != nil {
-			return err
-		}
+		n.applyBootRoutesV4(ctRoutes)
 	}
 
 	// Remove any existing IPv6 firewall rules.
@@ -864,10 +861,7 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 		}
 
 		// Restore container specific IPv6 routes to interface.
-		err = n.applyBootRoutesV6(ctRoutes)
-		if err != nil {
-			return err
-		}
+		n.applyBootRoutesV6(ctRoutes)
 	}
 
 	// Configure the fan.
@@ -1343,15 +1337,14 @@ func (n *bridge) Stop() error {
 func (n *bridge) Update(newNetwork api.NetworkPut, targetNode string, clusterNotification bool) error {
 	n.logger.Debug("Update", log.Ctx{"clusterNotification": clusterNotification, "newNetwork": newNetwork})
 
-	// When switching to a fan bridge, auto-detect the underlay if not specified.
-	if newNetwork.Config["bridge.mode"] == "fan" {
-		if newNetwork.Config["fan.underlay_subnet"] == "" {
-			newNetwork.Config["fan.underlay_subnet"] = "auto"
-		}
+	// Populate default values if they are missing.
+	err := n.fillConfig(newNetwork.Config)
+	if err != nil {
+		return err
 	}
 
 	// Populate auto fields.
-	err := fillAuto(newNetwork.Config)
+	err = fillAuto(newNetwork.Config)
 	if err != nil {
 		return err
 	}
@@ -1580,31 +1573,29 @@ func (n *bridge) bootRoutesV6() ([]string, error) {
 }
 
 // applyBootRoutesV4 applies a list of IPv4 boot routes to the network's device.
-func (n *bridge) applyBootRoutesV4(routes []string) error {
+func (n *bridge) applyBootRoutesV4(routes []string) {
 	for _, route := range routes {
 		cmd := []string{"-4", "route", "replace", "dev", n.name, "proto", "boot"}
 		cmd = append(cmd, strings.Fields(route)...)
 		_, err := shared.RunCommand("ip", cmd...)
 		if err != nil {
-			return err
+			// If it fails, then we can't stop as the route has already gone, so just log and continue.
+			n.logger.Error("Failed to restore route", log.Ctx{"err": err})
 		}
 	}
-
-	return nil
 }
 
 // applyBootRoutesV6 applies a list of IPv6 boot routes to the network's device.
-func (n *bridge) applyBootRoutesV6(routes []string) error {
+func (n *bridge) applyBootRoutesV6(routes []string) {
 	for _, route := range routes {
 		cmd := []string{"-6", "route", "replace", "dev", n.name, "proto", "boot"}
 		cmd = append(cmd, strings.Fields(route)...)
 		_, err := shared.RunCommand("ip", cmd...)
 		if err != nil {
-			return err
+			// If it fails, then we can't stop as the route has already gone, so just log and continue.
+			n.logger.Error("Failed to restore route", log.Ctx{"err": err})
 		}
 	}
-
-	return nil
 }
 
 func (n *bridge) fanAddress(underlay *net.IPNet, overlay *net.IPNet) (string, string, string, error) {

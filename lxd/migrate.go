@@ -105,7 +105,9 @@ func (c *migrationFields) sendControl(err error) {
 	c.controlLock.Lock()
 	defer c.controlLock.Unlock()
 
-	migration.ProtoSendControl(c.controlConn, err)
+	if c.controlConn != nil {
+		migration.ProtoSendControl(c.controlConn, err)
+	}
 
 	if err != nil {
 		c.disconnect()
