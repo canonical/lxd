@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: LXD\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2020-07-15 11:38+0100\n"
+"POT-Creation-Date: 2020-07-23 13:16-0400\n"
 "PO-Revision-Date: 2019-01-04 18:07+0000\n"
 "Last-Translator: Deleted User <noreply+12102@weblate.org>\n"
 "Language-Team: French <https://hosted.weblate.org/projects/linux-containers/"
@@ -538,7 +538,12 @@ msgstr "Mise à jour auto. : %s"
 msgid "BASE IMAGE"
 msgstr ""
 
-#: lxc/export.go:133
+#: lxc/export.go:86
+#, fuzzy, c-format
+msgid "Backing up instance: %s"
+msgstr "Ignorer l'état du conteneur (seulement pour start)"
+
+#: lxc/export.go:152
 #, fuzzy
 msgid "Backup exported successfully!"
 msgstr "Image copiée avec succès !"
@@ -1373,7 +1378,7 @@ msgstr "Forcer l'arrêt du conteneur (seulement pour stop)"
 msgid "Export instances as backup tarballs."
 msgstr "Forcer l'arrêt du conteneur (seulement pour stop)"
 
-#: lxc/export.go:117
+#: lxc/export.go:136
 #, fuzzy, c-format
 msgid "Exporting the backup: %s"
 msgstr "Import de l'image : %s"
