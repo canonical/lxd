@@ -19,6 +19,7 @@ import (
 	"github.com/lxc/lxd/lxd/cluster"
 	"github.com/lxc/lxd/lxd/daemon"
 	"github.com/lxc/lxd/lxd/dnsmasq"
+	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/network/openvswitch"
 	"github.com/lxc/lxd/lxd/node"
 	"github.com/lxc/lxd/lxd/revert"
@@ -41,6 +42,33 @@ var forkdnsServersLock sync.Mutex
 // bridge represents a LXD bridge network.
 type bridge struct {
 	common
+}
+
+// getHwaddr retrieves existing static or volatile MAC address from config.
+func (n *bridge) getHwaddr(config map[string]string) string {
+	hwAddr := config["bridge.hwaddr"]
+	if hwAddr == "" {
+		hwAddr = config["volatile.bridge.hwaddr"]
+	}
+
+	return hwAddr
+}
+
+// fillHwaddr populates the volatile.bridge.hwaddr in config if it, nor bridge.hwaddr, are already set.
+// Returns MAC address generated if needed to, otherwise empty string.
+func (n *bridge) fillHwaddr(config map[string]string) (string, error) {
+	// If no existing MAC address, generate a new one and store in volatile.
+	if n.getHwaddr(config) == "" {
+		hwAddr, err := instance.DeviceNextInterfaceHWAddr()
+		if err != nil {
+			return "", errors.Wrapf(err, "Failed generating MAC address")
+		}
+
+		config["volatile.bridge.hwaddr"] = hwAddr
+		return config["volatile.bridge.hwaddr"], nil
+	}
+
+	return "", nil
 }
 
 // fillConfig fills requested config with any default values.
@@ -71,6 +99,13 @@ func (n *bridge) fillConfig(config map[string]string) error {
 		}
 	}
 
+	// If no static hwaddr specified generate a volatile one to store in DB record so that
+	// there are no races when starting the network at the same time on multiple cluster nodes.
+	_, err := n.fillHwaddr(config)
+	if err != nil {
+		return err
+	}
+
 	return nil
 }
 
@@ -95,8 +130,21 @@ func (n *bridge) Validate(config map[string]string) error {
 
 			return nil
 		},
-		"bridge.hwaddr": shared.IsAny,
-		"bridge.mtu":    shared.IsInt64,
+		"bridge.hwaddr": func(value string) error {
+			if value == "" {
+				return nil
+			}
+
+			return shared.IsNetworkMAC(value)
+		},
+		"volatile.bridge.hwaddr": func(value string) error {
+			if value == "" {
+				return nil
+			}
+
+			return shared.IsNetworkMAC(value)
+		},
+		"bridge.mtu": shared.IsInt64,
 		"bridge.mode": func(value string) error {
 			return shared.IsOneOf(value, []string{"standard", "fan"})
 		},
@@ -455,9 +503,14 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 		return err
 	}
 
-	// Set the MAC address.
-	if n.config["bridge.hwaddr"] != "" {
-		_, err = shared.RunCommand("ip", "link", "set", "dev", n.name, "address", n.config["bridge.hwaddr"])
+	// If static or persistent volatile MAC address present, use that.
+	// We do not generate missing persistent volatile MAC address at start time so as not to cause DB races
+	// when starting an existing network without volatile key in a cluster. This also allows the previous
+	// behavior for networks (i.e random MAC at start if not specified) until the network is next updated.
+	hwAddr := n.getHwaddr(n.config)
+	if hwAddr != "" {
+		// Set the MAC address on the bridge interface.
+		_, err = shared.RunCommand("ip", "link", "set", "dev", n.name, "address", hwAddr)
 		if err != nil {
 			return err
 		}
