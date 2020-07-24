@@ -2,7 +2,8 @@ package device
 
 import (
 	"fmt"
-	"regexp"
+	"net"
+	"strings"
 
 	deviceConfig "github.com/lxc/lxd/lxd/device/config"
 	"github.com/lxc/lxd/lxd/state"
@@ -117,25 +118,14 @@ func infinibandAddDevices(s *state.State, devicesPath string, deviceName string,
 // infinibandValidMAC validates an infiniband MAC address. Supports both short and long variants,
 // e.g. "4a:c8:f9:1b:aa:57:ef:19" and "a0:00:0f:c0:fe:80:00:00:00:00:00:00:4a:c8:f9:1b:aa:57:ef:19".
 func infinibandValidMAC(value string) error {
-	regexHwaddrLong, err := regexp.Compile("^([0-9a-fA-F]{2}:){19}[0-9a-fA-F]{2}$")
-	if err != nil {
-		return err
+	_, err := net.ParseMAC(value)
+
+	// Check valid lengths and delimiter.
+	if err != nil || (len(value) != 23 && len(value) != 59) || strings.ContainsAny(value, "-.") {
+		return fmt.Errorf("Invalid value, must be either 8 or 20 bytes of hex separated by colons")
 	}
 
-	regexHwaddrShort, err := regexp.Compile("^([0-9a-fA-F]{2}:){7}[0-9a-fA-F]{2}$")
-	if err != nil {
-		return err
-	}
-
-	if regexHwaddrShort.MatchString(value) {
-		return nil
-	}
-
-	if regexHwaddrLong.MatchString(value) {
-		return nil
-	}
-
-	return fmt.Errorf("Invalid value, must be either 8 or 20 bytes of lower case hex separated by colons")
+	return nil
 }
 
 // infinibandSetDevMAC detects whether the supplied MAC is a short or long form variant.
