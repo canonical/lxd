@@ -29,6 +29,7 @@ import (
 	"github.com/lxc/lxd/shared/logger"
 	"github.com/lxc/lxd/shared/subprocess"
 	"github.com/lxc/lxd/shared/units"
+	"github.com/lxc/lxd/shared/validate"
 )
 
 // Special disk "source" value used for generating a VM cloud-init config ISO.
@@ -74,23 +75,23 @@ func (d *disk) validateConfig(instConf instance.ConfigReader) error {
 	}
 
 	rules := map[string]func(string) error{
-		"required":          shared.IsBool,
-		"optional":          shared.IsBool, // "optional" is deprecated, replaced by "required".
-		"readonly":          shared.IsBool,
-		"recursive":         shared.IsBool,
-		"shift":             shared.IsBool,
-		"source":            shared.IsAny,
-		"limits.read":       shared.IsAny,
-		"limits.write":      shared.IsAny,
-		"limits.max":        shared.IsAny,
-		"size":              shared.IsAny,
-		"pool":              shared.IsAny,
+		"required":          validate.IsBool,
+		"optional":          validate.IsBool, // "optional" is deprecated, replaced by "required".
+		"readonly":          validate.IsBool,
+		"recursive":         validate.IsBool,
+		"shift":             validate.IsBool,
+		"source":            validate.IsAny,
+		"limits.read":       validate.IsAny,
+		"limits.write":      validate.IsAny,
+		"limits.max":        validate.IsAny,
+		"size":              validate.IsAny,
+		"pool":              validate.IsAny,
 		"propagation":       validatePropagation,
-		"raw.mount.options": shared.IsAny,
-		"ceph.cluster_name": shared.IsAny,
-		"ceph.user_name":    shared.IsAny,
-		"boot.priority":     shared.IsUint32,
-		"path":              shared.IsAny,
+		"raw.mount.options": validate.IsAny,
+		"ceph.cluster_name": validate.IsAny,
+		"ceph.user_name":    validate.IsAny,
+		"boot.priority":     validate.IsUint32,
+		"path":              validate.IsAny,
 	}
 
 	err := d.config.Validate(rules)

@@ -12,6 +12,7 @@ import (
 	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/instance/instancetype"
 	"github.com/lxc/lxd/shared"
+	"github.com/lxc/lxd/shared/validate"
 )
 
 // unixHotplugIsOurDevice indicates whether the unixHotplug device event qualifies as part of our device.
@@ -47,12 +48,12 @@ func (d *unixHotplug) validateConfig(instConf instance.ConfigReader) error {
 	}
 
 	rules := map[string]func(string) error{
-		"vendorid":  shared.IsDeviceID,
-		"productid": shared.IsDeviceID,
+		"vendorid":  validate.IsDeviceID,
+		"productid": validate.IsDeviceID,
 		"uid":       unixValidUserID,
 		"gid":       unixValidUserID,
 		"mode":      unixValidOctalFileMode,
-		"required":  shared.IsBool,
+		"required":  validate.IsBool,
 	}
 
 	err := d.config.Validate(rules)

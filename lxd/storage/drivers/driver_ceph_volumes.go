@@ -21,6 +21,7 @@ import (
 	"github.com/lxc/lxd/shared/ioprogress"
 	log "github.com/lxc/lxd/shared/log15"
 	"github.com/lxc/lxd/shared/units"
+	"github.com/lxc/lxd/shared/validate"
 )
 
 // CreateVolume creates an empty volume and can optionally fill it by executing the supplied
@@ -711,8 +712,8 @@ func (d *ceph) HasVolume(vol Volume) bool {
 // ValidateVolume validates the supplied volume config.
 func (d *ceph) ValidateVolume(vol Volume, removeUnknownKeys bool) error {
 	rules := map[string]func(value string) error{
-		"block.filesystem":    shared.IsAny,
-		"block.mount_options": shared.IsAny,
+		"block.filesystem":    validate.IsAny,
+		"block.mount_options": validate.IsAny,
 	}
 
 	return d.validateVolume(vol, rules, removeUnknownKeys)
