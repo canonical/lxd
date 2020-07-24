@@ -4,7 +4,7 @@ import (
 	"fmt"
 )
 
-func ExampleInfinibandValidMAC() {
+func Example_infinibandValidMAC() {
 	tests := []string{
 		"00:00:00:00:fe:80:00:00:00:00:00:00:02:00:5e:10:00:00:00:01", // valid long form
 		"a0:00:0f:c0:fe:80:00:00:00:00:00:00:4a:c8:f9:1b:aa:57:ef:19", // valid long form
