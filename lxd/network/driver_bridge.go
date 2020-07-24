@@ -45,31 +45,38 @@ type bridge struct {
 	common
 }
 
-// getHwaddr retrieves existing static or volatile MAC address from config.
-func (n *bridge) getHwaddr(config map[string]string) string {
-	hwAddr := config["bridge.hwaddr"]
-	if hwAddr == "" {
-		hwAddr = config["volatile.bridge.hwaddr"]
+// fillHwaddr populates the volatile.bridge.hwaddr in config if it, nor bridge.hwaddr, are already set.
+func (n *bridge) fillHwaddr(config map[string]string) error {
+	if config["bridge.hwaddr"] != "" || config["volatile.bridge.hwaddr"] != "" {
+		return nil
 	}
 
-	return hwAddr
+	// If no existing MAC address, generate a new one and store in volatile.
+	hwAddr, err := instance.DeviceNextInterfaceHWAddr()
+	if err != nil {
+		return errors.Wrapf(err, "Failed generating MAC address")
+	}
+
+	config["volatile.bridge.hwaddr"] = hwAddr
+	return nil
 }
 
-// fillHwaddr populates the volatile.bridge.hwaddr in config if it, nor bridge.hwaddr, are already set.
-// Returns MAC address generated if needed to, otherwise empty string.
-func (n *bridge) fillHwaddr(config map[string]string) (string, error) {
-	// If no existing MAC address, generate a new one and store in volatile.
-	if n.getHwaddr(config) == "" {
-		hwAddr, err := instance.DeviceNextInterfaceHWAddr()
-		if err != nil {
-			return "", errors.Wrapf(err, "Failed generating MAC address")
-		}
-
-		config["volatile.bridge.hwaddr"] = hwAddr
-		return config["volatile.bridge.hwaddr"], nil
+// stableMACSafe returns whether it is safe to use the stable volatile MAC for the bridge interface.
+// It is not suitable to use the stable volatile MAC when "bridge.external_interfaces" is non-empty and the bridge
+// interface has no IPv4 or IPv6 address set. This is because in a clustered environment the same bridge config is
+// applied to all nodes, and if the bridge is being used to connect multiple nodes to the same network segment it
+// would cause MAC conflicts to use the the same stable MAC on all nodes. Normally if an IP address is specified
+// then connecting multiple nodes to the same network segment would also cause IP conflicts, so if an IP is defined
+// then we assume this is not being done. However if IP addresses are explicitly set to "none" and
+// "bridge.external_interfaces" then it may not be safe to use a stable volatile MAC in a clustered environment.
+func (n *bridge) stableMACSafe() bool {
+	// We can't be sure that multiple clustered nodes aren't connected to the same network segment so don't
+	// use a stable volatile MAC for the bridge interface to avoid introducing a MAC conflict.
+	if n.config["bridge.external_interfaces"] != "" && n.config["ipv4.address"] == "none" && n.config["ipv6.address"] == "none" {
+		return false
 	}
 
-	return "", nil
+	return true
 }
 
 // fillConfig fills requested config with any default values.
@@ -102,7 +109,7 @@ func (n *bridge) fillConfig(config map[string]string) error {
 
 	// If no static hwaddr specified generate a volatile one to store in DB record so that
 	// there are no races when starting the network at the same time on multiple cluster nodes.
-	_, err := n.fillHwaddr(config)
+	err := n.fillHwaddr(config)
 	if err != nil {
 		return err
 	}
@@ -413,7 +420,8 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 		}
 	}
 
-	// Create the bridge interface.
+	// Create the bridge interface if doesn't exist.
+	createdBridge := false
 	if !n.isRunning() {
 		if n.config["bridge.driver"] == "openvswitch" {
 			ovs := openvswitch.NewOVS()
@@ -431,6 +439,8 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 				return err
 			}
 		}
+
+		createdBridge = true
 	}
 
 	// Get a list of tunnels.
@@ -504,13 +514,30 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 		return err
 	}
 
-	// If static or persistent volatile MAC address present, use that.
-	// We do not generate missing persistent volatile MAC address at start time so as not to cause DB races
-	// when starting an existing network without volatile key in a cluster. This also allows the previous
-	// behavior for networks (i.e random MAC at start if not specified) until the network is next updated.
-	hwAddr := n.getHwaddr(n.config)
+	// Always prefer static MAC address if set.
+	hwAddr := n.config["bridge.hwaddr"]
+
+	// If no static MAC address set, and it is safe to use the stable volatile address, then use that.
+	if hwAddr == "" && n.stableMACSafe() {
+		// We do not generate missing stable volatile MAC address at start time so as not to cause DB races
+		// when starting an existing network without volatile key in a cluster. This also allows the old
+		// behavior for networks (i.e random MAC at start) until the network is next updated.
+		hwAddr = n.config["volatile.bridge.hwaddr"]
+	}
+
+	// If MAC address is not set statically and no stable volatile MAC address available, then generate a
+	// temporary one to use on initial bridge setup. Do this explicitly rather than letting the bridge device
+	// generate one so that the MAC address stays stable when ports are connected to it.
+	if hwAddr == "" && createdBridge {
+		hwAddr, err = instance.DeviceNextInterfaceHWAddr()
+		if err != nil {
+			return errors.Wrapf(err, "Failed generating temporary MAC address")
+		}
+		n.logger.Info("Generated temporary MAC for bridge interface", log.Ctx{"hwaddr": hwAddr})
+	}
+
+	// Set the MAC address on the bridge interface if specified.
 	if hwAddr != "" {
-		// Set the MAC address on the bridge interface.
 		_, err = shared.RunCommand("ip", "link", "set", "dev", n.name, "address", hwAddr)
 		if err != nil {
 			return err
