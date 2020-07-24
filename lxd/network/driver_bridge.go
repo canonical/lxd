@@ -115,7 +115,7 @@ func (n *bridge) Validate(config map[string]string) error {
 	// Add rules that apply to all driver types.
 	rules := map[string]func(value string) error{
 		"bridge.driver": func(value string) error {
-			return validate.IsOneOf(value, []string{"native", "openvswitch"})
+			return validate.IsOneOf(value, []string{"native", "openvswitch", "ovn"})
 		},
 		"bridge.hwaddr": func(value string) error {
 			if value == "" {
@@ -249,6 +249,13 @@ func (n *bridge) Validate(config map[string]string) error {
 					rules[k] = validate.IsUint8
 				}
 			}
+		}
+	}
+
+	// Add rules for ovn driver type.
+	if config["bridge.driver"] == "ovn" {
+		rules["dns.mode"] = func(value string) error {
+			return validate.IsOneOf(value, []string{"managed", "none"})
 		}
 	}
 
