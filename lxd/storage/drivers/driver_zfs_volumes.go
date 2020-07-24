@@ -25,6 +25,7 @@ import (
 	"github.com/lxc/lxd/shared/ioprogress"
 	log "github.com/lxc/lxd/shared/log15"
 	"github.com/lxc/lxd/shared/units"
+	"github.com/lxc/lxd/shared/validate"
 )
 
 // CreateVolume creates an empty volume and can optionally fill it by executing the supplied
@@ -795,8 +796,8 @@ func (d *zfs) HasVolume(vol Volume) bool {
 // ValidateVolume validates the supplied volume config.
 func (d *zfs) ValidateVolume(vol Volume, removeUnknownKeys bool) error {
 	rules := map[string]func(value string) error{
-		"zfs.remove_snapshots": shared.IsBool,
-		"zfs.use_refquota":     shared.IsBool,
+		"zfs.remove_snapshots": validate.IsBool,
+		"zfs.use_refquota":     validate.IsBool,
 	}
 
 	return d.validateVolume(vol, rules, removeUnknownKeys)

@@ -6,9 +6,9 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/lxc/lxd/lxd/revert"
-	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 	log "github.com/lxc/lxd/shared/log15"
+	"github.com/lxc/lxd/shared/validate"
 )
 
 // macvlan represents a LXD macvlan network.
@@ -26,8 +26,8 @@ func (n *macvlan) Validate(config map[string]string) error {
 
 			return nil
 		},
-		"maas.subnet.ipv4": shared.IsAny,
-		"maas.subnet.ipv6": shared.IsAny,
+		"maas.subnet.ipv4": validate.IsAny,
+		"maas.subnet.ipv6": validate.IsAny,
 	}
 
 	err := n.validate(config, rules)

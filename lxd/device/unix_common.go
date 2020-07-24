@@ -10,6 +10,7 @@ import (
 	"github.com/lxc/lxd/lxd/instance/instancetype"
 	storageDrivers "github.com/lxc/lxd/lxd/storage/drivers"
 	"github.com/lxc/lxd/shared"
+	"github.com/lxc/lxd/shared/validate"
 )
 
 // unixIsOurDeviceType checks that device file type matches what we are expecting in the config.
@@ -46,14 +47,14 @@ func (d *unixCommon) validateConfig(instConf instance.ConfigReader) error {
 	}
 
 	rules := map[string]func(string) error{
-		"source":   shared.IsAny,
-		"path":     shared.IsAny,
+		"source":   validate.IsAny,
+		"path":     validate.IsAny,
 		"major":    unixValidDeviceNum,
 		"minor":    unixValidDeviceNum,
 		"uid":      unixValidUserID,
 		"gid":      unixValidUserID,
 		"mode":     unixValidOctalFileMode,
-		"required": shared.IsBool,
+		"required": validate.IsBool,
 	}
 
 	err := d.config.Validate(rules)

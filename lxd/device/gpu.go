@@ -17,6 +17,7 @@ import (
 	"github.com/lxc/lxd/lxd/instance/instancetype"
 	"github.com/lxc/lxd/lxd/resources"
 	"github.com/lxc/lxd/shared"
+	"github.com/lxc/lxd/shared/validate"
 )
 
 const gpuDRIDevPath = "/dev/dri"
@@ -39,10 +40,10 @@ func (d *gpu) validateConfig(instConf instance.ConfigReader) error {
 	}
 
 	rules := map[string]func(string) error{
-		"vendorid":  shared.IsDeviceID,
-		"productid": shared.IsDeviceID,
-		"id":        shared.IsAny,
-		"pci":       shared.IsAny,
+		"vendorid":  validate.IsDeviceID,
+		"productid": validate.IsDeviceID,
+		"id":        validate.IsAny,
+		"pci":       validate.IsAny,
 		"uid":       unixValidUserID,
 		"gid":       unixValidUserID,
 		"mode":      unixValidOctalFileMode,
