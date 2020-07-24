@@ -24,6 +24,7 @@ import (
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/logger"
+	"github.com/lxc/lxd/shared/validate"
 )
 
 type proxy struct {
@@ -72,12 +73,12 @@ func (d *proxy) validateConfig(instConf instance.ConfigReader) error {
 		"connect":        validateAddr,
 		"bind":           validateBind,
 		"mode":           unixValidOctalFileMode,
-		"nat":            shared.IsBool,
+		"nat":            validate.IsBool,
 		"gid":            unixValidUserID,
 		"uid":            unixValidUserID,
 		"security.uid":   unixValidUserID,
 		"security.gid":   unixValidUserID,
-		"proxy_protocol": shared.IsBool,
+		"proxy_protocol": validate.IsBool,
 	}
 
 	err := d.config.Validate(rules)

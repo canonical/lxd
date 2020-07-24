@@ -16,6 +16,7 @@ import (
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/units"
+	"github.com/lxc/lxd/shared/validate"
 	"github.com/lxc/lxd/shared/version"
 )
 
@@ -341,10 +342,10 @@ func (d *zfs) Delete(op *operations.Operation) error {
 // Validate checks that all provide keys are supported and that no conflicting or missing configuration is present.
 func (d *zfs) Validate(config map[string]string) error {
 	rules := map[string]func(value string) error{
-		"zfs.pool_name":               shared.IsAny,
-		"zfs.clone_copy":              shared.IsBool,
-		"volume.zfs.remove_snapshots": shared.IsBool,
-		"volume.zfs.use_refquota":     shared.IsBool,
+		"zfs.pool_name":               validate.IsAny,
+		"zfs.clone_copy":              validate.IsBool,
+		"volume.zfs.remove_snapshots": validate.IsBool,
+		"volume.zfs.use_refquota":     validate.IsBool,
 	}
 
 	return d.validatePool(config, rules)

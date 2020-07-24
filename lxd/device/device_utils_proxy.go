@@ -7,6 +7,7 @@ import (
 
 	deviceConfig "github.com/lxc/lxd/lxd/device/config"
 	"github.com/lxc/lxd/shared"
+	"github.com/lxc/lxd/shared/validate"
 )
 
 // ProxyParseAddr validates a proxy address and parses it into its constituent parts.
@@ -37,7 +38,7 @@ func ProxyParseAddr(addr string) (*deviceConfig.ProxyAddress, error) {
 
 	// Validate that it's a valid address.
 	if shared.StringInSlice(newProxyAddr.ConnType, []string{"udp", "tcp"}) {
-		err := shared.IsNetworkAddress(address)
+		err := validate.IsNetworkAddress(address)
 		if err != nil {
 			return nil, err
 		}

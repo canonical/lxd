@@ -6,9 +6,9 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/lxc/lxd/lxd/revert"
-	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 	log "github.com/lxc/lxd/shared/log15"
+	"github.com/lxc/lxd/shared/validate"
 )
 
 // sriov represents a LXD sriov network.
@@ -26,8 +26,8 @@ func (n *sriov) Validate(config map[string]string) error {
 
 			return nil
 		},
-		"maas.subnet.ipv4": shared.IsAny,
-		"maas.subnet.ipv6": shared.IsAny,
+		"maas.subnet.ipv4": validate.IsAny,
+		"maas.subnet.ipv6": validate.IsAny,
 	}
 
 	err := n.validate(config, rules)
