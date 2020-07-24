@@ -5,7 +5,6 @@ import (
 	"encoding/hex"
 	"fmt"
 	"io/ioutil"
-	"regexp"
 	"strconv"
 	"strings"
 	"sync"
@@ -541,20 +540,6 @@ func networkSetVethLimits(m deviceConfig.Device) error {
 	}
 
 	return nil
-}
-
-// networkValidMAC validates an ethernet MAC address. e.g. "32:47:ae:06:22:f9".
-func networkValidMAC(value string) error {
-	regexHwaddr, err := regexp.Compile("^([0-9a-fA-F]{2}:){5}[0-9a-fA-F]{2}$")
-	if err != nil {
-		return err
-	}
-
-	if regexHwaddr.MatchString(value) {
-		return nil
-	}
-
-	return fmt.Errorf("Invalid value, must 6 bytes of lower case hex separated by colons")
 }
 
 // networkValidGateway validates the gateway value.
