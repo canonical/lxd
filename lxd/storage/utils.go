@@ -28,6 +28,7 @@ import (
 	"github.com/lxc/lxd/shared/logger"
 	"github.com/lxc/lxd/shared/logging"
 	"github.com/lxc/lxd/shared/units"
+	"github.com/lxc/lxd/shared/validate"
 )
 
 // ValidName validates the provided name, and returns an error if it's not a valid storage name.
@@ -198,7 +199,7 @@ var SupportedPoolTypes = []string{"btrfs", "ceph", "cephfs", "dir", "lvm", "zfs"
 // Deprecated: these are being moved to the per-storage-driver implementations.
 var StorageVolumeConfigKeys = map[string]func(value string) ([]string, error){
 	"block.filesystem": func(value string) ([]string, error) {
-		err := shared.IsOneOf(value, []string{"btrfs", "ext4", "xfs"})
+		err := validate.IsOneOf(value, []string{"btrfs", "ext4", "xfs"})
 		if err != nil {
 			return nil, err
 		}
@@ -206,13 +207,13 @@ var StorageVolumeConfigKeys = map[string]func(value string) ([]string, error){
 		return []string{"ceph", "lvm"}, nil
 	},
 	"block.mount_options": func(value string) ([]string, error) {
-		return []string{"ceph", "lvm"}, shared.IsAny(value)
+		return []string{"ceph", "lvm"}, validate.IsAny(value)
 	},
 	"security.shifted": func(value string) ([]string, error) {
-		return SupportedPoolTypes, shared.IsBool(value)
+		return SupportedPoolTypes, validate.IsBool(value)
 	},
 	"security.unmapped": func(value string) ([]string, error) {
-		return SupportedPoolTypes, shared.IsBool(value)
+		return SupportedPoolTypes, validate.IsBool(value)
 	},
 	"size": func(value string) ([]string, error) {
 		if value == "" {
@@ -227,13 +228,13 @@ var StorageVolumeConfigKeys = map[string]func(value string) ([]string, error){
 		return SupportedPoolTypes, nil
 	},
 	"volatile.idmap.last": func(value string) ([]string, error) {
-		return SupportedPoolTypes, shared.IsAny(value)
+		return SupportedPoolTypes, validate.IsAny(value)
 	},
 	"volatile.idmap.next": func(value string) ([]string, error) {
-		return SupportedPoolTypes, shared.IsAny(value)
+		return SupportedPoolTypes, validate.IsAny(value)
 	},
 	"zfs.remove_snapshots": func(value string) ([]string, error) {
-		err := shared.IsBool(value)
+		err := validate.IsBool(value)
 		if err != nil {
 			return nil, err
 		}
@@ -241,7 +242,7 @@ var StorageVolumeConfigKeys = map[string]func(value string) ([]string, error){
 		return []string{"zfs"}, nil
 	},
 	"zfs.use_refquota": func(value string) ([]string, error) {
-		err := shared.IsBool(value)
+		err := validate.IsBool(value)
 		if err != nil {
 			return nil, err
 		}
@@ -377,23 +378,23 @@ func VolumePropertiesTranslate(targetConfig map[string]string, targetParentPoolD
 // validatePoolCommonRules returns a map of pool config rules common to all drivers.
 func validatePoolCommonRules() map[string]func(string) error {
 	return map[string]func(string) error{
-		"source":                  shared.IsAny,
-		"volatile.initial_source": shared.IsAny,
-		"volume.size":             shared.IsSize,
-		"size":                    shared.IsSize,
-		"rsync.bwlimit":           shared.IsAny,
+		"source":                  validate.IsAny,
+		"volatile.initial_source": validate.IsAny,
+		"volume.size":             validate.IsSize,
+		"size":                    validate.IsSize,
+		"rsync.bwlimit":           validate.IsAny,
 	}
 }
 
 // validateVolumeCommonRules returns a map of volume config rules common to all drivers.
 func validateVolumeCommonRules(vol drivers.Volume) map[string]func(string) error {
 	rules := map[string]func(string) error{
-		"volatile.idmap.last": shared.IsAny,
-		"volatile.idmap.next": shared.IsAny,
+		"volatile.idmap.last": validate.IsAny,
+		"volatile.idmap.next": validate.IsAny,
 
 		// Note: size should not be modifiable for non-custom volumes and should be checked
 		// in the relevant volume update functions.
-		"size": shared.IsSize,
+		"size": validate.IsSize,
 
 		"snapshots.expiry": func(value string) error {
 			// Validate expression
@@ -416,28 +417,28 @@ func validateVolumeCommonRules(vol drivers.Volume) map[string]func(string) error
 
 			return nil
 		},
-		"snapshots.pattern": shared.IsAny,
+		"snapshots.pattern": validate.IsAny,
 	}
 
 	// block.mount_options is only relevant for drivers that are block backed and when there
 	// is a filesystem to actually mount.
 	if vol.IsBlockBacked() && vol.ContentType() == drivers.ContentTypeFS {
-		rules["block.mount_options"] = shared.IsAny
+		rules["block.mount_options"] = validate.IsAny
 
 		// Note: block.filesystem should not be modifiable after volume created. This should
 		// be checked in the relevant volume update functions.
-		rules["block.filesystem"] = shared.IsAny
+		rules["block.filesystem"] = validate.IsAny
 	}
 
 	// security.shifted and security.unmapped are only relevant for custom volumes.
 	if vol.Type() == drivers.VolumeTypeCustom {
-		rules["security.shifted"] = shared.IsBool
-		rules["security.unmapped"] = shared.IsBool
+		rules["security.shifted"] = validate.IsBool
+		rules["security.unmapped"] = validate.IsBool
 	}
 
 	// volatile.rootfs.size is only used for image volumes.
 	if vol.Type() == drivers.VolumeTypeImage {
-		rules["volatile.rootfs.size"] = shared.IsInt64
+		rules["volatile.rootfs.size"] = validate.IsInt64
 	}
 
 	return rules

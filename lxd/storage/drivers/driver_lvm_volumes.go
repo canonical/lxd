@@ -21,6 +21,7 @@ import (
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/instancewriter"
 	log "github.com/lxc/lxd/shared/log15"
+	"github.com/lxc/lxd/shared/validate"
 )
 
 // CreateVolume creates an empty volume and can optionally fill it by executing the supplied filler function.
@@ -245,10 +246,10 @@ func (d *lvm) ValidateVolume(vol Volume, removeUnknownKeys bool) error {
 			if value == "" {
 				return nil
 			}
-			return shared.IsOneOf(value, lvmAllowedFilesystems)
+			return validate.IsOneOf(value, lvmAllowedFilesystems)
 		},
-		"lvm.stripes":      shared.IsUint32,
-		"lvm.stripes.size": shared.IsSize,
+		"lvm.stripes":      validate.IsUint32,
+		"lvm.stripes.size": validate.IsSize,
 	}
 
 	err := d.validateVolume(vol, rules, removeUnknownKeys)

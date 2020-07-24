@@ -23,6 +23,7 @@ import (
 	"github.com/lxc/lxd/shared/api"
 	cli "github.com/lxc/lxd/shared/cmd"
 	"github.com/lxc/lxd/shared/idmap"
+	"github.com/lxc/lxd/shared/validate"
 	"github.com/lxc/lxd/shared/version"
 )
 
@@ -370,7 +371,7 @@ func (c *cmdInit) askNetworking(config *cmdInitData, d lxd.InstanceServer) error
 				return nil
 			}
 
-			return shared.IsNetworkAddressCIDRV4(value)
+			return validate.IsNetworkAddressCIDRV4(value)
 		})
 
 		if !shared.StringInSlice(net.Config["ipv4.address"], []string{"auto", "none"}) {
@@ -384,7 +385,7 @@ func (c *cmdInit) askNetworking(config *cmdInitData, d lxd.InstanceServer) error
 				return nil
 			}
 
-			return shared.IsNetworkAddressCIDRV6(value)
+			return validate.IsNetworkAddressCIDRV6(value)
 		})
 
 		if !shared.StringInSlice(net.Config["ipv6.address"], []string{"auto", "none"}) {

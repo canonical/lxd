@@ -14,6 +14,7 @@ import (
 	"github.com/lxc/lxd/shared/api"
 	log "github.com/lxc/lxd/shared/log15"
 	"github.com/lxc/lxd/shared/units"
+	"github.com/lxc/lxd/shared/validate"
 )
 
 var cephAllowedFilesystems = []string{"btrfs", "ext4", "xfs"}
@@ -237,21 +238,21 @@ func (d *ceph) Delete(op *operations.Operation) error {
 // Validate checks that all provide keys are supported and that no conflicting or missing configuration is present.
 func (d *ceph) Validate(config map[string]string) error {
 	rules := map[string]func(value string) error{
-		"ceph.cluster_name":       shared.IsAny,
-		"ceph.osd.force_reuse":    shared.IsBool,
-		"ceph.osd.pg_num":         shared.IsAny,
-		"ceph.osd.pool_name":      shared.IsAny,
-		"ceph.osd.data_pool_name": shared.IsAny,
-		"ceph.rbd.clone_copy":     shared.IsBool,
-		"ceph.user.name":          shared.IsAny,
-		"volatile.pool.pristine":  shared.IsAny,
+		"ceph.cluster_name":       validate.IsAny,
+		"ceph.osd.force_reuse":    validate.IsBool,
+		"ceph.osd.pg_num":         validate.IsAny,
+		"ceph.osd.pool_name":      validate.IsAny,
+		"ceph.osd.data_pool_name": validate.IsAny,
+		"ceph.rbd.clone_copy":     validate.IsBool,
+		"ceph.user.name":          validate.IsAny,
+		"volatile.pool.pristine":  validate.IsAny,
 		"volume.block.filesystem": func(value string) error {
 			if value == "" {
 				return nil
 			}
-			return shared.IsOneOf(value, cephAllowedFilesystems)
+			return validate.IsOneOf(value, cephAllowedFilesystems)
 		},
-		"volume.block.mount_options": shared.IsAny,
+		"volume.block.mount_options": validate.IsAny,
 	}
 
 	return d.validatePool(config, rules)

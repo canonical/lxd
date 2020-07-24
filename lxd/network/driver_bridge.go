@@ -28,6 +28,7 @@ import (
 	"github.com/lxc/lxd/shared/api"
 	log "github.com/lxc/lxd/shared/log15"
 	"github.com/lxc/lxd/shared/subprocess"
+	"github.com/lxc/lxd/shared/validate"
 	"github.com/lxc/lxd/shared/version"
 )
 
@@ -114,7 +115,7 @@ func (n *bridge) Validate(config map[string]string) error {
 	// Build driver specific rules dynamically.
 	rules := map[string]func(value string) error{
 		"bridge.driver": func(value string) error {
-			return shared.IsOneOf(value, []string{"native", "openvswitch"})
+			return validate.IsOneOf(value, []string{"native", "openvswitch"})
 		},
 		"bridge.external_interfaces": func(value string) error {
 			if value == "" {
@@ -135,81 +136,81 @@ func (n *bridge) Validate(config map[string]string) error {
 				return nil
 			}
 
-			return shared.IsNetworkMAC(value)
+			return validate.IsNetworkMAC(value)
 		},
 		"volatile.bridge.hwaddr": func(value string) error {
 			if value == "" {
 				return nil
 			}
 
-			return shared.IsNetworkMAC(value)
+			return validate.IsNetworkMAC(value)
 		},
-		"bridge.mtu": shared.IsInt64,
+		"bridge.mtu": validate.IsInt64,
 		"bridge.mode": func(value string) error {
-			return shared.IsOneOf(value, []string{"standard", "fan"})
+			return validate.IsOneOf(value, []string{"standard", "fan"})
 		},
 
-		"fan.overlay_subnet": shared.IsNetworkV4,
+		"fan.overlay_subnet": validate.IsNetworkV4,
 		"fan.underlay_subnet": func(value string) error {
 			if value == "auto" {
 				return nil
 			}
 
-			return shared.IsNetworkV4(value)
+			return validate.IsNetworkV4(value)
 		},
 		"fan.type": func(value string) error {
-			return shared.IsOneOf(value, []string{"vxlan", "ipip"})
+			return validate.IsOneOf(value, []string{"vxlan", "ipip"})
 		},
 
 		"ipv4.address": func(value string) error {
-			if shared.IsOneOf(value, []string{"none", "auto"}) == nil {
+			if validate.IsOneOf(value, []string{"none", "auto"}) == nil {
 				return nil
 			}
 
-			return shared.IsNetworkAddressCIDRV4(value)
+			return validate.IsNetworkAddressCIDRV4(value)
 		},
-		"ipv4.firewall": shared.IsBool,
-		"ipv4.nat":      shared.IsBool,
+		"ipv4.firewall": validate.IsBool,
+		"ipv4.nat":      validate.IsBool,
 		"ipv4.nat.order": func(value string) error {
-			return shared.IsOneOf(value, []string{"before", "after"})
+			return validate.IsOneOf(value, []string{"before", "after"})
 		},
-		"ipv4.nat.address":  shared.IsNetworkAddressV4,
-		"ipv4.dhcp":         shared.IsBool,
-		"ipv4.dhcp.gateway": shared.IsNetworkAddressV4,
-		"ipv4.dhcp.expiry":  shared.IsAny,
-		"ipv4.dhcp.ranges":  shared.IsAny,
-		"ipv4.routes":       shared.IsNetworkV4List,
-		"ipv4.routing":      shared.IsBool,
+		"ipv4.nat.address":  validate.IsNetworkAddressV4,
+		"ipv4.dhcp":         validate.IsBool,
+		"ipv4.dhcp.gateway": validate.IsNetworkAddressV4,
+		"ipv4.dhcp.expiry":  validate.IsAny,
+		"ipv4.dhcp.ranges":  validate.IsAny,
+		"ipv4.routes":       validate.IsNetworkV4List,
+		"ipv4.routing":      validate.IsBool,
 
 		"ipv6.address": func(value string) error {
-			if shared.IsOneOf(value, []string{"none", "auto"}) == nil {
+			if validate.IsOneOf(value, []string{"none", "auto"}) == nil {
 				return nil
 			}
 
-			return shared.IsNetworkAddressCIDRV6(value)
+			return validate.IsNetworkAddressCIDRV6(value)
 		},
-		"ipv6.firewall": shared.IsBool,
-		"ipv6.nat":      shared.IsBool,
+		"ipv6.firewall": validate.IsBool,
+		"ipv6.nat":      validate.IsBool,
 		"ipv6.nat.order": func(value string) error {
-			return shared.IsOneOf(value, []string{"before", "after"})
+			return validate.IsOneOf(value, []string{"before", "after"})
 		},
-		"ipv6.nat.address":   shared.IsNetworkAddressV6,
-		"ipv6.dhcp":          shared.IsBool,
-		"ipv6.dhcp.expiry":   shared.IsAny,
-		"ipv6.dhcp.stateful": shared.IsBool,
-		"ipv6.dhcp.ranges":   shared.IsAny,
-		"ipv6.routes":        shared.IsNetworkV6List,
-		"ipv6.routing":       shared.IsBool,
+		"ipv6.nat.address":   validate.IsNetworkAddressV6,
+		"ipv6.dhcp":          validate.IsBool,
+		"ipv6.dhcp.expiry":   validate.IsAny,
+		"ipv6.dhcp.stateful": validate.IsBool,
+		"ipv6.dhcp.ranges":   validate.IsAny,
+		"ipv6.routes":        validate.IsNetworkV6List,
+		"ipv6.routing":       validate.IsBool,
 
-		"dns.domain": shared.IsAny,
+		"dns.domain": validate.IsAny,
 		"dns.mode": func(value string) error {
-			return shared.IsOneOf(value, []string{"dynamic", "managed", "none"})
+			return validate.IsOneOf(value, []string{"dynamic", "managed", "none"})
 		},
 
-		"raw.dnsmasq": shared.IsAny,
+		"raw.dnsmasq": validate.IsAny,
 
-		"maas.subnet.ipv4": shared.IsAny,
-		"maas.subnet.ipv6": shared.IsAny,
+		"maas.subnet.ipv4": validate.IsAny,
+		"maas.subnet.ipv6": validate.IsAny,
 	}
 
 	// Add dynamic validation rules.
@@ -232,22 +233,22 @@ func (n *bridge) Validate(config map[string]string) error {
 			switch tunnelKey {
 			case "protocol":
 				rules[k] = func(value string) error {
-					return shared.IsOneOf(value, []string{"gre", "vxlan"})
+					return validate.IsOneOf(value, []string{"gre", "vxlan"})
 				}
 			case "local":
-				rules[k] = shared.IsNetworkAddress
+				rules[k] = validate.IsNetworkAddress
 			case "remote":
-				rules[k] = shared.IsNetworkAddress
+				rules[k] = validate.IsNetworkAddress
 			case "port":
 				rules[k] = networkValidPort
 			case "group":
-				rules[k] = shared.IsNetworkAddress
+				rules[k] = validate.IsNetworkAddress
 			case "id":
-				rules[k] = shared.IsInt64
+				rules[k] = validate.IsInt64
 			case "inteface":
 				rules[k] = ValidNetworkName
 			case "ttl":
-				rules[k] = shared.IsUint8
+				rules[k] = validate.IsUint8
 			}
 		}
 	}

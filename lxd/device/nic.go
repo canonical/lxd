@@ -1,37 +1,37 @@
 package device
 
 import (
-	"github.com/lxc/lxd/shared"
+	"github.com/lxc/lxd/shared/validate"
 )
 
 // nicValidationRules returns config validation rules for nic devices.
 func nicValidationRules(requiredFields []string, optionalFields []string) map[string]func(value string) error {
 	// Define a set of default validators for each field name.
 	defaultValidators := map[string]func(value string) error{
-		"name":                    shared.IsAny,
-		"parent":                  shared.IsAny,
-		"network":                 shared.IsAny,
-		"mtu":                     shared.IsAny,
+		"name":                    validate.IsAny,
+		"parent":                  validate.IsAny,
+		"network":                 validate.IsAny,
+		"mtu":                     validate.IsAny,
 		"vlan":                    networkValidVLAN,
-		"hwaddr":                  shared.IsNetworkMAC,
-		"host_name":               shared.IsAny,
-		"limits.ingress":          shared.IsAny,
-		"limits.egress":           shared.IsAny,
-		"limits.max":              shared.IsAny,
-		"security.mac_filtering":  shared.IsAny,
-		"security.ipv4_filtering": shared.IsAny,
-		"security.ipv6_filtering": shared.IsAny,
-		"maas.subnet.ipv4":        shared.IsAny,
-		"maas.subnet.ipv6":        shared.IsAny,
-		"ipv4.address":            shared.IsNetworkAddressV4,
-		"ipv6.address":            shared.IsNetworkAddressV6,
-		"ipv4.routes":             shared.IsNetworkV4List,
-		"ipv6.routes":             shared.IsNetworkV6List,
-		"boot.priority":           shared.IsUint32,
+		"hwaddr":                  validate.IsNetworkMAC,
+		"host_name":               validate.IsAny,
+		"limits.ingress":          validate.IsAny,
+		"limits.egress":           validate.IsAny,
+		"limits.max":              validate.IsAny,
+		"security.mac_filtering":  validate.IsAny,
+		"security.ipv4_filtering": validate.IsAny,
+		"security.ipv6_filtering": validate.IsAny,
+		"maas.subnet.ipv4":        validate.IsAny,
+		"maas.subnet.ipv6":        validate.IsAny,
+		"ipv4.address":            validate.IsNetworkAddressV4,
+		"ipv6.address":            validate.IsNetworkAddressV6,
+		"ipv4.routes":             validate.IsNetworkV4List,
+		"ipv6.routes":             validate.IsNetworkV6List,
+		"boot.priority":           validate.IsUint32,
 		"ipv4.gateway":            networkValidGateway,
 		"ipv6.gateway":            networkValidGateway,
-		"ipv4.host_address":       shared.IsNetworkAddressV4,
-		"ipv6.host_address":       shared.IsNetworkAddressV6,
+		"ipv4.host_address":       validate.IsNetworkAddressV4,
+		"ipv6.host_address":       validate.IsNetworkAddressV6,
 	}
 
 	validators := map[string]func(value string) error{}
@@ -66,7 +66,7 @@ func nicValidationRules(requiredFields []string, optionalFields []string) map[st
 
 		// Wrap the default validator in a not empty check as field is required.
 		validators[k] = func(value string) error {
-			err := shared.IsNotEmpty(value)
+			err := validate.IsNotEmpty(value)
 			if err != nil {
 				return err
 			}

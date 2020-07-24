@@ -16,6 +16,7 @@ import (
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/units"
+	"github.com/lxc/lxd/shared/validate"
 )
 
 var btrfsVersion string
@@ -243,7 +244,7 @@ func (d *btrfs) Delete(op *operations.Operation) error {
 // Validate checks that all provide keys are supported and that no conflicting or missing configuration is present.
 func (d *btrfs) Validate(config map[string]string) error {
 	rules := map[string]func(value string) error{
-		"btrfs.mount_options": shared.IsAny,
+		"btrfs.mount_options": validate.IsAny,
 	}
 
 	return d.validatePool(config, rules)
