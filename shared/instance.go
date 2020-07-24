@@ -2,7 +2,6 @@ package shared
 
 import (
 	"fmt"
-	"net"
 	"regexp"
 	"strconv"
 	"strings"
@@ -12,6 +11,7 @@ import (
 	"gopkg.in/robfig/cron.v2"
 
 	"github.com/lxc/lxd/shared/units"
+	"github.com/lxc/lxd/shared/validate"
 )
 
 type InstanceAction string
@@ -23,130 +23,6 @@ const (
 	Freeze   InstanceAction = "freeze"
 	Unfreeze InstanceAction = "unfreeze"
 )
-
-func IsInt64(value string) error {
-	if value == "" {
-		return nil
-	}
-
-	_, err := strconv.ParseInt(value, 10, 64)
-	if err != nil {
-		return fmt.Errorf("Invalid value for an integer: %s", value)
-	}
-
-	return nil
-}
-
-func IsUint8(value string) error {
-	if value == "" {
-		return nil
-	}
-
-	_, err := strconv.ParseUint(value, 10, 8)
-	if err != nil {
-		return fmt.Errorf("Invalid value for an integer: %s. Must be between 0 and 255", value)
-	}
-
-	return nil
-}
-
-func IsUint32(value string) error {
-	if value == "" {
-		return nil
-	}
-
-	_, err := strconv.ParseUint(value, 10, 32)
-	if err != nil {
-		return fmt.Errorf("Invalid value for uint32: %s: %v", value, err)
-	}
-
-	return nil
-}
-
-func IsPriority(value string) error {
-	if value == "" {
-		return nil
-	}
-
-	valueInt, err := strconv.ParseInt(value, 10, 64)
-	if err != nil {
-		return fmt.Errorf("Invalid value for an integer: %s", value)
-	}
-
-	if valueInt < 0 || valueInt > 10 {
-		return fmt.Errorf("Invalid value for a limit '%s'. Must be between 0 and 10", value)
-	}
-
-	return nil
-}
-
-func IsBool(value string) error {
-	if value == "" {
-		return nil
-	}
-
-	if !StringInSlice(strings.ToLower(value), []string{"true", "false", "yes", "no", "1", "0", "on", "off"}) {
-		return fmt.Errorf("Invalid value for a boolean: %s", value)
-	}
-
-	return nil
-}
-
-func IsOneOf(value string, valid []string) error {
-	if value == "" {
-		return nil
-	}
-
-	if !StringInSlice(value, valid) {
-		return fmt.Errorf("Invalid value: %s (not one of %s)", value, valid)
-	}
-
-	return nil
-}
-
-func IsAny(value string) error {
-	return nil
-}
-
-func IsNotEmpty(value string) error {
-	if value == "" {
-		return fmt.Errorf("Required value")
-	}
-
-	return nil
-}
-
-// IsSize checks if string is valid size according to units.ParseByteSizeString.
-func IsSize(value string) error {
-	if value == "" {
-		return nil
-	}
-
-	_, err := units.ParseByteSizeString(value)
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
-// IsDeviceID validates string is four lowercase hex characters suitable as Vendor or Device ID.
-func IsDeviceID(value string) error {
-	if value == "" {
-		return nil
-	}
-
-	regexHexLc, err := regexp.Compile("^[0-9a-f]+$")
-	if err != nil {
-		return err
-	}
-
-	if len(value) != 4 || !regexHexLc.MatchString(value) {
-		return fmt.Errorf("Invalid value, must be four lower case hex characters")
-	}
-
-	return nil
-}
 
 // IsRootDiskDevice returns true if the given device representation is configured as root disk for
 // a container. It typically get passed a specific entry of api.Instance.Devices.
@@ -160,200 +36,6 @@ func IsRootDiskDevice(device map[string]string) bool {
 	}
 
 	return false
-}
-
-// IsNetworkMAC validates an ethernet MAC address. e.g. "32:47:ae:06:22:f9".
-func IsNetworkMAC(value string) error {
-	regexHwaddr, err := regexp.Compile("^([0-9a-fA-F]{2}:){5}[0-9a-fA-F]{2}$")
-	if err != nil {
-		return err
-	}
-
-	if regexHwaddr.MatchString(value) {
-		return nil
-	}
-
-	return fmt.Errorf("Invalid value, must 6 bytes of lower case hex separated by colons")
-}
-
-// IsNetworkAddress validates an IP (v4 or v6) address string. If string is empty, returns valid.
-func IsNetworkAddress(value string) error {
-	if value == "" {
-		return nil
-	}
-
-	ip := net.ParseIP(value)
-	if ip == nil {
-		return fmt.Errorf("Not an IP address: %s", value)
-	}
-
-	return nil
-}
-
-// IsNetworkV4 validates an IPv4 CIDR string. If string is empty, returns valid.
-func IsNetworkV4(value string) error {
-	if value == "" {
-		return nil
-	}
-
-	ip, subnet, err := net.ParseCIDR(value)
-	if err != nil {
-		return err
-	}
-
-	if ip.To4() == nil {
-		return fmt.Errorf("Not an IPv4 network: %s", value)
-	}
-
-	if ip.String() != subnet.IP.String() {
-		return fmt.Errorf("Not an IPv4 network address: %s", value)
-	}
-
-	return nil
-}
-
-// IsNetworkAddressV4 validates an IPv4 addresss string. If string is empty, returns valid.
-func IsNetworkAddressV4(value string) error {
-	if value == "" {
-		return nil
-	}
-
-	ip := net.ParseIP(value)
-	if ip == nil || ip.To4() == nil {
-		return fmt.Errorf("Not an IPv4 address: %s", value)
-	}
-
-	return nil
-}
-
-// IsNetworkAddressCIDRV4 validates an IPv4 addresss string in CIDR format. If string is empty, returns valid.
-func IsNetworkAddressCIDRV4(value string) error {
-	if value == "" {
-		return nil
-	}
-
-	ip, subnet, err := net.ParseCIDR(value)
-	if err != nil {
-		return err
-	}
-
-	if ip.To4() == nil {
-		return fmt.Errorf("Not an IPv4 address: %s", value)
-	}
-
-	if ip.String() == subnet.IP.String() {
-		return fmt.Errorf("Not a usable IPv4 address: %s", value)
-	}
-
-	return nil
-}
-
-// IsNetworkAddressV4List validates a comma delimited list of IPv4 addresses.
-func IsNetworkAddressV4List(value string) error {
-	for _, v := range strings.Split(value, ",") {
-		v = strings.TrimSpace(v)
-		err := IsNetworkAddressV4(v)
-		if err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-// IsNetworkV4List validates a comma delimited list of IPv4 CIDR strings.
-func IsNetworkV4List(value string) error {
-	for _, network := range strings.Split(value, ",") {
-		network = strings.TrimSpace(network)
-		err := IsNetworkV4(network)
-		if err != nil {
-			return err
-		}
-	}
-
-	return nil
-}
-
-// IsNetworkV6 validates an IPv6 CIDR string. If string is empty, returns valid.
-func IsNetworkV6(value string) error {
-	if value == "" {
-		return nil
-	}
-
-	ip, subnet, err := net.ParseCIDR(value)
-	if err != nil {
-		return err
-	}
-
-	if ip == nil || ip.To4() != nil {
-		return fmt.Errorf("Not an IPv6 network: %s", value)
-	}
-
-	if ip.String() != subnet.IP.String() {
-		return fmt.Errorf("Not an IPv6 network address: %s", value)
-	}
-
-	return nil
-}
-
-// IsNetworkAddressV6 validates an IPv6 addresss string. If string is empty, returns valid.
-func IsNetworkAddressV6(value string) error {
-	if value == "" {
-		return nil
-	}
-
-	ip := net.ParseIP(value)
-	if ip == nil || ip.To4() != nil {
-		return fmt.Errorf("Not an IPv6 address: %s", value)
-	}
-
-	return nil
-}
-
-// IsNetworkAddressCIDRV6 validates an IPv6 addresss string in CIDR format. If string is empty, returns valid.
-func IsNetworkAddressCIDRV6(value string) error {
-	if value == "" {
-		return nil
-	}
-
-	ip, subnet, err := net.ParseCIDR(value)
-	if err != nil {
-		return err
-	}
-
-	if ip.To4() != nil {
-		return fmt.Errorf("Not an IPv6 address: %s", value)
-	}
-
-	if ip.String() == subnet.IP.String() {
-		return fmt.Errorf("Not a usable IPv6 address: %s", value)
-	}
-
-	return nil
-}
-
-//IsNetworkAddressV6List validates a comma delimited list of IPv6 addresses.
-func IsNetworkAddressV6List(value string) error {
-	for _, v := range strings.Split(value, ",") {
-		v = strings.TrimSpace(v)
-		err := IsNetworkAddressV6(v)
-		if err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-// IsNetworkV6List validates a comma delimited list of IPv6 CIDR strings.
-func IsNetworkV6List(value string) error {
-	for _, network := range strings.Split(value, ",") {
-		network = strings.TrimSpace(network)
-		err := IsNetworkV6(network)
-		if err != nil {
-			return err
-		}
-	}
-
-	return nil
 }
 
 // GetRootDiskDevice returns the container device that is configured as root disk
@@ -389,11 +71,11 @@ var HugePageSizeSuffix = [...]string{"64KB", "1MB", "2MB", "1GB"}
 // to an appropriate checker function, which validates whether or not a
 // given value is syntactically legal.
 var KnownInstanceConfigKeys = map[string]func(value string) error{
-	"boot.autostart":             IsBool,
-	"boot.autostart.delay":       IsInt64,
-	"boot.autostart.priority":    IsInt64,
-	"boot.stop.priority":         IsInt64,
-	"boot.host_shutdown_timeout": IsInt64,
+	"boot.autostart":             validate.IsBool,
+	"boot.autostart.delay":       validate.IsInt64,
+	"boot.autostart.priority":    validate.IsInt64,
+	"boot.stop.priority":         validate.IsInt64,
+	"boot.host_shutdown_timeout": validate.IsInt64,
 
 	"limits.cpu": func(value string) error {
 		if value == "" {
@@ -451,14 +133,14 @@ var KnownInstanceConfigKeys = map[string]func(value string) error{
 
 		return nil
 	},
-	"limits.cpu.priority": IsPriority,
+	"limits.cpu.priority": validate.IsPriority,
 
-	"limits.disk.priority": IsPriority,
+	"limits.disk.priority": validate.IsPriority,
 
-	"limits.hugepages.64KB": IsSize,
-	"limits.hugepages.1MB":  IsSize,
-	"limits.hugepages.2MB":  IsSize,
-	"limits.hugepages.1GB":  IsSize,
+	"limits.hugepages.64KB": validate.IsSize,
+	"limits.hugepages.1MB":  validate.IsSize,
+	"limits.hugepages.2MB":  validate.IsSize,
+	"limits.hugepages.1GB":  validate.IsSize,
 
 	"limits.memory": func(value string) error {
 		if value == "" {
@@ -482,55 +164,55 @@ var KnownInstanceConfigKeys = map[string]func(value string) error{
 		return nil
 	},
 	"limits.memory.enforce": func(value string) error {
-		return IsOneOf(value, []string{"soft", "hard"})
+		return validate.IsOneOf(value, []string{"soft", "hard"})
 	},
-	"limits.memory.swap":          IsBool,
-	"limits.memory.swap.priority": IsPriority,
-	"limits.memory.hugepages":     IsBool,
+	"limits.memory.swap":          validate.IsBool,
+	"limits.memory.swap.priority": validate.IsPriority,
+	"limits.memory.hugepages":     validate.IsBool,
 
-	"limits.network.priority": IsPriority,
+	"limits.network.priority": validate.IsPriority,
 
-	"limits.processes": IsInt64,
+	"limits.processes": validate.IsInt64,
 
-	"linux.kernel_modules": IsAny,
+	"linux.kernel_modules": validate.IsAny,
 
-	"migration.incremental.memory":            IsBool,
-	"migration.incremental.memory.iterations": IsUint32,
-	"migration.incremental.memory.goal":       IsUint32,
+	"migration.incremental.memory":            validate.IsBool,
+	"migration.incremental.memory.iterations": validate.IsUint32,
+	"migration.incremental.memory.goal":       validate.IsUint32,
 
-	"nvidia.runtime":             IsBool,
-	"nvidia.driver.capabilities": IsAny,
-	"nvidia.require.cuda":        IsAny,
-	"nvidia.require.driver":      IsAny,
+	"nvidia.runtime":             validate.IsBool,
+	"nvidia.driver.capabilities": validate.IsAny,
+	"nvidia.require.cuda":        validate.IsAny,
+	"nvidia.require.driver":      validate.IsAny,
 
-	"security.nesting":       IsBool,
-	"security.privileged":    IsBool,
-	"security.devlxd":        IsBool,
-	"security.devlxd.images": IsBool,
+	"security.nesting":       validate.IsBool,
+	"security.privileged":    validate.IsBool,
+	"security.devlxd":        validate.IsBool,
+	"security.devlxd.images": validate.IsBool,
 
-	"security.protection.delete": IsBool,
-	"security.protection.shift":  IsBool,
+	"security.protection.delete": validate.IsBool,
+	"security.protection.shift":  validate.IsBool,
 
-	"security.idmap.base":     IsUint32,
-	"security.idmap.isolated": IsBool,
-	"security.idmap.size":     IsUint32,
+	"security.idmap.base":     validate.IsUint32,
+	"security.idmap.isolated": validate.IsBool,
+	"security.idmap.size":     validate.IsUint32,
 
-	"security.secureboot": IsBool,
+	"security.secureboot": validate.IsBool,
 
-	"security.syscalls.allow":                   IsAny,
-	"security.syscalls.blacklist_default":       IsBool,
-	"security.syscalls.blacklist_compat":        IsBool,
-	"security.syscalls.blacklist":               IsAny,
-	"security.syscalls.deny_default":            IsBool,
-	"security.syscalls.deny_compat":             IsBool,
-	"security.syscalls.deny":                    IsAny,
-	"security.syscalls.intercept.mknod":         IsBool,
-	"security.syscalls.intercept.mount":         IsBool,
-	"security.syscalls.intercept.mount.allowed": IsAny,
-	"security.syscalls.intercept.mount.fuse":    IsAny,
-	"security.syscalls.intercept.mount.shift":   IsBool,
-	"security.syscalls.intercept.setxattr":      IsBool,
-	"security.syscalls.whitelist":               IsAny,
+	"security.syscalls.allow":                   validate.IsAny,
+	"security.syscalls.blacklist_default":       validate.IsBool,
+	"security.syscalls.blacklist_compat":        validate.IsBool,
+	"security.syscalls.blacklist":               validate.IsAny,
+	"security.syscalls.deny_default":            validate.IsBool,
+	"security.syscalls.deny_compat":             validate.IsBool,
+	"security.syscalls.deny":                    validate.IsAny,
+	"security.syscalls.intercept.mknod":         validate.IsBool,
+	"security.syscalls.intercept.mount":         validate.IsBool,
+	"security.syscalls.intercept.mount.allowed": validate.IsAny,
+	"security.syscalls.intercept.mount.fuse":    validate.IsAny,
+	"security.syscalls.intercept.mount.shift":   validate.IsBool,
+	"security.syscalls.intercept.setxattr":      validate.IsBool,
+	"security.syscalls.whitelist":               validate.IsAny,
 
 	"snapshots.schedule": func(value string) error {
 		if value == "" {
@@ -548,8 +230,8 @@ var KnownInstanceConfigKeys = map[string]func(value string) error{
 
 		return nil
 	},
-	"snapshots.schedule.stopped": IsBool,
-	"snapshots.pattern":          IsAny,
+	"snapshots.schedule.stopped": validate.IsBool,
+	"snapshots.pattern":          validate.IsAny,
 	"snapshots.expiry": func(value string) error {
 		// Validate expression
 		_, err := GetSnapshotExpiry(time.Time{}, value)
@@ -557,20 +239,20 @@ var KnownInstanceConfigKeys = map[string]func(value string) error{
 	},
 
 	// Caller is responsible for full validation of any raw.* value
-	"raw.apparmor": IsAny,
-	"raw.idmap":    IsAny,
-	"raw.lxc":      IsAny,
-	"raw.qemu":     IsAny,
-	"raw.seccomp":  IsAny,
+	"raw.apparmor": validate.IsAny,
+	"raw.idmap":    validate.IsAny,
+	"raw.lxc":      validate.IsAny,
+	"raw.qemu":     validate.IsAny,
+	"raw.seccomp":  validate.IsAny,
 
-	"volatile.apply_template":   IsAny,
-	"volatile.base_image":       IsAny,
-	"volatile.last_state.idmap": IsAny,
-	"volatile.last_state.power": IsAny,
-	"volatile.idmap.base":       IsAny,
-	"volatile.idmap.current":    IsAny,
-	"volatile.idmap.next":       IsAny,
-	"volatile.apply_quota":      IsAny,
+	"volatile.apply_template":   validate.IsAny,
+	"volatile.base_image":       validate.IsAny,
+	"volatile.last_state.idmap": validate.IsAny,
+	"volatile.last_state.power": validate.IsAny,
+	"volatile.idmap.base":       validate.IsAny,
+	"volatile.idmap.current":    validate.IsAny,
+	"volatile.idmap.next":       validate.IsAny,
+	"volatile.apply_quota":      validate.IsAny,
 }
 
 // ConfigKeyChecker returns a function that will check whether or not
@@ -586,69 +268,69 @@ func ConfigKeyChecker(key string) (func(value string) error, error) {
 
 	if strings.HasPrefix(key, "volatile.") {
 		if strings.HasSuffix(key, ".hwaddr") {
-			return IsAny, nil
+			return validate.IsAny, nil
 		}
 
 		if strings.HasSuffix(key, ".name") {
-			return IsAny, nil
+			return validate.IsAny, nil
 		}
 
 		if strings.HasSuffix(key, ".host_name") {
-			return IsAny, nil
+			return validate.IsAny, nil
 		}
 
 		if strings.HasSuffix(key, ".mtu") {
-			return IsAny, nil
+			return validate.IsAny, nil
 		}
 
 		if strings.HasSuffix(key, ".created") {
-			return IsAny, nil
+			return validate.IsAny, nil
 		}
 
 		if strings.HasSuffix(key, ".id") {
-			return IsAny, nil
+			return validate.IsAny, nil
 		}
 
 		if strings.HasSuffix(key, ".vlan") {
-			return IsAny, nil
+			return validate.IsAny, nil
 		}
 
 		if strings.HasSuffix(key, ".spoofcheck") {
-			return IsAny, nil
+			return validate.IsAny, nil
 		}
 
 		if strings.HasSuffix(key, ".apply_quota") {
-			return IsAny, nil
+			return validate.IsAny, nil
 		}
 
 		if strings.HasSuffix(key, "vm.uuid") {
-			return IsAny, nil
+			return validate.IsAny, nil
 		}
 
 		if strings.HasSuffix(key, ".ceph_rbd") {
-			return IsAny, nil
+			return validate.IsAny, nil
 		}
 
 		if strings.HasSuffix(key, ".driver") {
-			return IsAny, nil
+			return validate.IsAny, nil
 		}
 	}
 
 	if strings.HasPrefix(key, "environment.") {
-		return IsAny, nil
+		return validate.IsAny, nil
 	}
 
 	if strings.HasPrefix(key, "user.") {
-		return IsAny, nil
+		return validate.IsAny, nil
 	}
 
 	if strings.HasPrefix(key, "image.") {
-		return IsAny, nil
+		return validate.IsAny, nil
 	}
 
 	if strings.HasPrefix(key, "limits.kernel.") &&
 		(len(key) > len("limits.kernel.")) {
-		return IsAny, nil
+		return validate.IsAny, nil
 	}
 
 	return nil, fmt.Errorf("Unknown configuration key: %s", key)
