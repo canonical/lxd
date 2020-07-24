@@ -16,6 +16,7 @@ import (
 	"github.com/lxc/lxd/shared/api"
 	log "github.com/lxc/lxd/shared/log15"
 	"github.com/lxc/lxd/shared/units"
+	"github.com/lxc/lxd/shared/validate"
 )
 
 const lvmVgPoolMarker = "lxd_pool" // Indicator tag used to mark volume groups as in use by LXD.
@@ -428,19 +429,19 @@ func (d *lvm) Delete(op *operations.Operation) error {
 
 func (d *lvm) Validate(config map[string]string) error {
 	rules := map[string]func(value string) error{
-		"lvm.vg_name":                shared.IsAny,
-		"lvm.thinpool_name":          shared.IsAny,
-		"lvm.use_thinpool":           shared.IsBool,
-		"volume.block.mount_options": shared.IsAny,
+		"lvm.vg_name":                validate.IsAny,
+		"lvm.thinpool_name":          validate.IsAny,
+		"lvm.use_thinpool":           validate.IsBool,
+		"volume.block.mount_options": validate.IsAny,
 		"volume.block.filesystem": func(value string) error {
 			if value == "" {
 				return nil
 			}
-			return shared.IsOneOf(value, lvmAllowedFilesystems)
+			return validate.IsOneOf(value, lvmAllowedFilesystems)
 		},
-		"volume.lvm.stripes":      shared.IsUint32,
-		"volume.lvm.stripes.size": shared.IsSize,
-		"lvm.vg.force_reuse":      shared.IsBool,
+		"volume.lvm.stripes":      validate.IsUint32,
+		"volume.lvm.stripes.size": validate.IsSize,
+		"lvm.vg.force_reuse":      validate.IsBool,
 	}
 
 	err := d.validatePool(config, rules)

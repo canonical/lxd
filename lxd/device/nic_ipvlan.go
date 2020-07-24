@@ -11,6 +11,7 @@ import (
 	"github.com/lxc/lxd/lxd/network"
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
+	"github.com/lxc/lxd/shared/validate"
 )
 
 const ipvlanModeL3S = "l3s"
@@ -53,7 +54,7 @@ func (d *nicIPVLAN) validateConfig(instConf instance.ConfigReader) error {
 				v = strings.TrimSpace(v)
 
 				// If valid non-CIDR address specified, append a /24 subnet.
-				if shared.IsNetworkAddressV4(v) == nil {
+				if validate.IsNetworkAddressV4(v) == nil {
 					v = fmt.Sprintf("%s/24", v)
 				}
 
@@ -70,7 +71,7 @@ func (d *nicIPVLAN) validateConfig(instConf instance.ConfigReader) error {
 			return nil
 		}
 
-		return shared.IsNetworkAddressV4List(value)
+		return validate.IsNetworkAddressV4List(value)
 	}
 	rules["ipv6.address"] = func(value string) error {
 		if value == "" {
@@ -82,7 +83,7 @@ func (d *nicIPVLAN) validateConfig(instConf instance.ConfigReader) error {
 				v = strings.TrimSpace(v)
 
 				// If valid non-CIDR address specified, append a /64 subnet.
-				if shared.IsNetworkAddressV6(v) == nil {
+				if validate.IsNetworkAddressV6(v) == nil {
 					v = fmt.Sprintf("%s/64", v)
 				}
 
@@ -99,7 +100,7 @@ func (d *nicIPVLAN) validateConfig(instConf instance.ConfigReader) error {
 			return nil
 		}
 
-		return shared.IsNetworkAddressV6List(value)
+		return validate.IsNetworkAddressV6List(value)
 	}
 	rules["mode"] = func(value string) error {
 		if value == "" {
@@ -120,7 +121,7 @@ func (d *nicIPVLAN) validateConfig(instConf instance.ConfigReader) error {
 				return nil
 			}
 
-			return shared.IsNetworkAddressV4(value)
+			return validate.IsNetworkAddressV4(value)
 		}
 
 		rules["ipv6.gateway"] = func(value string) error {
@@ -128,7 +129,7 @@ func (d *nicIPVLAN) validateConfig(instConf instance.ConfigReader) error {
 				return nil
 			}
 
-			return shared.IsNetworkAddressV6(value)
+			return validate.IsNetworkAddressV6(value)
 		}
 	}
 
@@ -282,7 +283,7 @@ func (d *nicIPVLAN) Start() (*deviceConfig.RunConfig, error) {
 				addr = fmt.Sprintf("%s/32", addr)
 			}
 
-			if mode == ipvlanModeL2 && shared.IsNetworkAddressV4(addr) == nil {
+			if mode == ipvlanModeL2 && validate.IsNetworkAddressV4(addr) == nil {
 				addr = fmt.Sprintf("%s/24", addr)
 			}
 
@@ -306,7 +307,7 @@ func (d *nicIPVLAN) Start() (*deviceConfig.RunConfig, error) {
 				addr = fmt.Sprintf("%s/128", addr)
 			}
 
-			if mode == "l2" && shared.IsNetworkAddressV4(addr) == nil {
+			if mode == "l2" && validate.IsNetworkAddressV4(addr) == nil {
 				addr = fmt.Sprintf("%s/64", addr)
 			}
 

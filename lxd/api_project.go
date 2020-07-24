@@ -18,6 +18,7 @@ import (
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
+	"github.com/lxc/lxd/shared/validate"
 	"github.com/lxc/lxd/shared/version"
 )
 
@@ -513,29 +514,29 @@ func projectIsEmpty(project *api.Project) bool {
 }
 
 func isEitherAllowOrBlock(value string) error {
-	return shared.IsOneOf(value, []string{"block", "allow"})
+	return validate.IsOneOf(value, []string{"block", "allow"})
 }
 
 func isEitherAllowOrBlockOrManaged(value string) error {
-	return shared.IsOneOf(value, []string{"block", "allow", "managed"})
+	return validate.IsOneOf(value, []string{"block", "allow", "managed"})
 }
 
 // Validate the project configuration
 var projectConfigKeys = map[string]func(value string) error{
-	"features.profiles":              shared.IsBool,
-	"features.images":                shared.IsBool,
-	"features.storage.volumes":       shared.IsBool,
-	"limits.containers":              shared.IsUint32,
-	"limits.virtual-machines":        shared.IsUint32,
-	"limits.memory":                  shared.IsSize,
-	"limits.processes":               shared.IsUint32,
-	"limits.cpu":                     shared.IsUint32,
-	"limits.disk":                    shared.IsSize,
-	"restricted":                     shared.IsBool,
+	"features.profiles":              validate.IsBool,
+	"features.images":                validate.IsBool,
+	"features.storage.volumes":       validate.IsBool,
+	"limits.containers":              validate.IsUint32,
+	"limits.virtual-machines":        validate.IsUint32,
+	"limits.memory":                  validate.IsSize,
+	"limits.processes":               validate.IsUint32,
+	"limits.cpu":                     validate.IsUint32,
+	"limits.disk":                    validate.IsSize,
+	"restricted":                     validate.IsBool,
 	"restricted.containers.nesting":  isEitherAllowOrBlock,
 	"restricted.containers.lowlevel": isEitherAllowOrBlock,
 	"restricted.containers.privilege": func(value string) error {
-		return shared.IsOneOf(value, []string{"allow", "unprivileged", "isolated"})
+		return validate.IsOneOf(value, []string{"allow", "unprivileged", "isolated"})
 	},
 	"restricted.virtual-machines.lowlevel": isEitherAllowOrBlock,
 	"restricted.devices.unix-char":         isEitherAllowOrBlock,

@@ -10,6 +10,7 @@ import (
 	storageDrivers "github.com/lxc/lxd/lxd/storage/drivers"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/units"
+	"github.com/lxc/lxd/shared/validate"
 )
 
 var storagePoolConfigKeys = map[string]func(value string) error{
@@ -18,13 +19,13 @@ var storagePoolConfigKeys = map[string]func(value string) error{
 	// of filesystems come with their own additional ones (e.g.
 	// "user_subvol_rm_allowed" for btrfs or "zfsutils" for zfs). So
 	// shared.IsAny() must do.)
-	"btrfs.mount_options": shared.IsAny,
+	"btrfs.mount_options": validate.IsAny,
 
 	// valid drivers: ceph
-	"ceph.cluster_name":       shared.IsAny,
-	"ceph.osd.force_reuse":    shared.IsBool,
-	"ceph.osd.pool_name":      shared.IsAny,
-	"ceph.osd.data_pool_name": shared.IsAny,
+	"ceph.cluster_name":       validate.IsAny,
+	"ceph.osd.force_reuse":    validate.IsBool,
+	"ceph.osd.pool_name":      validate.IsAny,
+	"ceph.osd.data_pool_name": validate.IsAny,
 	"ceph.osd.pg_num": func(value string) error {
 		if value == "" {
 			return nil
@@ -33,58 +34,58 @@ var storagePoolConfigKeys = map[string]func(value string) error{
 		_, err := units.ParseByteSizeString(value)
 		return err
 	},
-	"ceph.rbd.clone_copy": shared.IsBool,
-	"ceph.user.name":      shared.IsAny,
+	"ceph.rbd.clone_copy": validate.IsBool,
+	"ceph.user.name":      validate.IsAny,
 
 	// valid drivers: cephfs
-	"cephfs.cluster_name": shared.IsAny,
-	"cephfs.path":         shared.IsAny,
-	"cephfs.user.name":    shared.IsAny,
+	"cephfs.cluster_name": validate.IsAny,
+	"cephfs.path":         validate.IsAny,
+	"cephfs.user.name":    validate.IsAny,
 
 	// valid drivers: lvm
-	"lvm.thinpool_name":       shared.IsAny,
-	"lvm.use_thinpool":        shared.IsBool,
-	"lvm.vg_name":             shared.IsAny,
-	"volume.lvm.stripes":      shared.IsUint32,
-	"volume.lvm.stripes.size": shared.IsSize,
-	"lvm.vg.force_reuse":      shared.IsBool,
+	"lvm.thinpool_name":       validate.IsAny,
+	"lvm.use_thinpool":        validate.IsBool,
+	"lvm.vg_name":             validate.IsAny,
+	"volume.lvm.stripes":      validate.IsUint32,
+	"volume.lvm.stripes.size": validate.IsSize,
+	"lvm.vg.force_reuse":      validate.IsBool,
 
 	// valid drivers: btrfs, lvm, zfs
-	"size": shared.IsSize,
+	"size": validate.IsSize,
 
 	// valid drivers: btrfs, dir, lvm, zfs
-	"source": shared.IsAny,
+	"source": validate.IsAny,
 
 	// Using it as an indicator whether we created the pool or are just
 	// re-using it. Note that the valid drivers only list ceph for now. This
 	// approach is however generalizable. It's just that we currently don't
 	// really need it for the other drivers.
 	// valid drivers: ceph
-	"volatile.pool.pristine":  shared.IsAny,
-	"volatile.initial_source": shared.IsAny,
+	"volatile.pool.pristine":  validate.IsAny,
+	"volatile.initial_source": validate.IsAny,
 
 	// valid drivers: ceph, lvm
 	"volume.block.filesystem": func(value string) error {
-		return shared.IsOneOf(value, []string{"btrfs", "ext4", "xfs"})
+		return validate.IsOneOf(value, []string{"btrfs", "ext4", "xfs"})
 	},
-	"volume.block.mount_options": shared.IsAny,
+	"volume.block.mount_options": validate.IsAny,
 
 	// valid drivers: ceph, lvm
-	"volume.size": shared.IsSize,
+	"volume.size": validate.IsSize,
 
 	// valid drivers: zfs
-	"volume.zfs.remove_snapshots": shared.IsBool,
-	"volume.zfs.use_refquota":     shared.IsBool,
+	"volume.zfs.remove_snapshots": validate.IsBool,
+	"volume.zfs.use_refquota":     validate.IsBool,
 
 	// valid drivers: zfs
-	"zfs.clone_copy": shared.IsBool,
-	"zfs.pool_name":  shared.IsAny,
-	"rsync.bwlimit":  shared.IsAny,
+	"zfs.clone_copy": validate.IsBool,
+	"zfs.pool_name":  validate.IsAny,
+	"rsync.bwlimit":  validate.IsAny,
 }
 
 func storagePoolValidateConfig(name string, driver string, config map[string]string, oldConfig map[string]string) error {
 	err := func(value string) error {
-		return shared.IsOneOf(value, storageDrivers.AllDriverNames())
+		return validate.IsOneOf(value, storageDrivers.AllDriverNames())
 	}(driver)
 	if err != nil {
 		return err

@@ -13,6 +13,7 @@ import (
 	"github.com/lxc/lxd/lxd/network"
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
+	"github.com/lxc/lxd/shared/validate"
 )
 
 const nicRoutedIPv4GW = "169.254.0.1"
@@ -57,14 +58,14 @@ func (d *nicRouted) validateConfig(instConf instance.ConfigReader) error {
 			return nil
 		}
 
-		return shared.IsNetworkAddressV4List(value)
+		return validate.IsNetworkAddressV4List(value)
 	}
 	rules["ipv6.address"] = func(value string) error {
 		if value == "" {
 			return nil
 		}
 
-		return shared.IsNetworkAddressV6List(value)
+		return validate.IsNetworkAddressV6List(value)
 	}
 
 	err := d.config.Validate(rules)
