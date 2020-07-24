@@ -112,12 +112,52 @@ func (n *bridge) fillConfig(config map[string]string) error {
 
 // Validate network config.
 func (n *bridge) Validate(config map[string]string) error {
-	// Build driver specific rules dynamically.
+	// Add rules that apply to all driver types.
 	rules := map[string]func(value string) error{
 		"bridge.driver": func(value string) error {
 			return validate.IsOneOf(value, []string{"native", "openvswitch"})
 		},
-		"bridge.external_interfaces": func(value string) error {
+		"bridge.hwaddr": func(value string) error {
+			if value == "" {
+				return nil
+			}
+
+			return validate.IsNetworkMAC(value)
+		},
+		"bridge.mtu": validate.IsInt64,
+		"ipv4.address": func(value string) error {
+			if validate.IsOneOf(value, []string{"none", "auto"}) == nil {
+				return nil
+			}
+
+			return validate.IsNetworkAddressCIDRV4(value)
+		},
+		"ipv4.dhcp":         validate.IsBool,
+		"ipv4.dhcp.gateway": validate.IsNetworkAddressV4,
+		"ipv4.dhcp.expiry":  validate.IsAny,
+		"ipv4.dhcp.ranges":  validate.IsAny,
+		"ipv6.address": func(value string) error {
+			if validate.IsOneOf(value, []string{"none", "auto"}) == nil {
+				return nil
+			}
+
+			return validate.IsNetworkAddressCIDRV6(value)
+		},
+		"ipv6.dhcp":          validate.IsBool,
+		"ipv6.dhcp.expiry":   validate.IsAny,
+		"ipv6.dhcp.stateful": validate.IsBool,
+		"dns.domain":         validate.IsAny,
+		"dns.search":         validate.IsAny,
+		"maas.subnet.ipv4":   validate.IsAny,
+		"maas.subnet.ipv6":   validate.IsAny,
+	}
+
+	// Add rules for native and openvswitch driver types.
+	if shared.StringInSlice(config["bridge.driver"], []string{"native", "openvswitch"}) {
+		rules["bridge.mode"] = func(value string) error {
+			return validate.IsOneOf(value, []string{"standard", "fan"})
+		}
+		rules["bridge.external_interfaces"] = func(value string) error {
 			if value == "" {
 				return nil
 			}
@@ -130,130 +170,89 @@ func (n *bridge) Validate(config map[string]string) error {
 			}
 
 			return nil
-		},
-		"bridge.hwaddr": func(value string) error {
+		}
+		rules["volatile.bridge.hwaddr"] = func(value string) error {
 			if value == "" {
 				return nil
 			}
 
 			return validate.IsNetworkMAC(value)
-		},
-		"volatile.bridge.hwaddr": func(value string) error {
-			if value == "" {
-				return nil
-			}
-
-			return validate.IsNetworkMAC(value)
-		},
-		"bridge.mtu": validate.IsInt64,
-		"bridge.mode": func(value string) error {
-			return validate.IsOneOf(value, []string{"standard", "fan"})
-		},
-
-		"fan.overlay_subnet": validate.IsNetworkV4,
-		"fan.underlay_subnet": func(value string) error {
+		}
+		rules["fan.overlay_subnet"] = validate.IsNetworkV4
+		rules["fan.underlay_subnet"] = func(value string) error {
 			if value == "auto" {
 				return nil
 			}
 
 			return validate.IsNetworkV4(value)
-		},
-		"fan.type": func(value string) error {
+		}
+		rules["fan.type"] = func(value string) error {
 			return validate.IsOneOf(value, []string{"vxlan", "ipip"})
-		},
-
-		"ipv4.address": func(value string) error {
-			if validate.IsOneOf(value, []string{"none", "auto"}) == nil {
-				return nil
-			}
-
-			return validate.IsNetworkAddressCIDRV4(value)
-		},
-		"ipv4.firewall": validate.IsBool,
-		"ipv4.nat":      validate.IsBool,
-		"ipv4.nat.order": func(value string) error {
+		}
+		rules["ipv4.firewall"] = validate.IsBool
+		rules["ipv4.nat"] = validate.IsBool
+		rules["ipv4.nat.order"] = func(value string) error {
 			return validate.IsOneOf(value, []string{"before", "after"})
-		},
-		"ipv4.nat.address":  validate.IsNetworkAddressV4,
-		"ipv4.dhcp":         validate.IsBool,
-		"ipv4.dhcp.gateway": validate.IsNetworkAddressV4,
-		"ipv4.dhcp.expiry":  validate.IsAny,
-		"ipv4.dhcp.ranges":  validate.IsAny,
-		"ipv4.routes":       validate.IsNetworkV4List,
-		"ipv4.routing":      validate.IsBool,
-
-		"ipv6.address": func(value string) error {
-			if validate.IsOneOf(value, []string{"none", "auto"}) == nil {
-				return nil
-			}
-
-			return validate.IsNetworkAddressCIDRV6(value)
-		},
-		"ipv6.firewall": validate.IsBool,
-		"ipv6.nat":      validate.IsBool,
-		"ipv6.nat.order": func(value string) error {
+		}
+		rules["ipv4.nat.address"] = validate.IsNetworkAddressV4
+		rules["ipv4.routing"] = validate.IsBool
+		rules["ipv4.routes"] = validate.IsNetworkV4List
+		rules["ipv6.dhcp.ranges"] = validate.IsAny
+		rules["ipv6.firewall"] = validate.IsBool
+		rules["ipv6.nat"] = validate.IsBool
+		rules["ipv6.nat.order"] = func(value string) error {
 			return validate.IsOneOf(value, []string{"before", "after"})
-		},
-		"ipv6.nat.address":   validate.IsNetworkAddressV6,
-		"ipv6.dhcp":          validate.IsBool,
-		"ipv6.dhcp.expiry":   validate.IsAny,
-		"ipv6.dhcp.stateful": validate.IsBool,
-		"ipv6.dhcp.ranges":   validate.IsAny,
-		"ipv6.routes":        validate.IsNetworkV6List,
-		"ipv6.routing":       validate.IsBool,
-
-		"dns.domain": validate.IsAny,
-		"dns.search": validate.IsAny,
-		"dns.mode": func(value string) error {
+		}
+		rules["ipv6.nat.address"] = validate.IsNetworkAddressV6
+		rules["ipv6.routing"] = validate.IsBool
+		rules["ipv6.routes"] = validate.IsNetworkV6List
+		rules["dns.mode"] = func(value string) error {
 			return validate.IsOneOf(value, []string{"dynamic", "managed", "none"})
-		},
+		}
+		rules["raw.dnsmasq"] = validate.IsAny
 
-		"raw.dnsmasq": validate.IsAny,
-
-		"maas.subnet.ipv4": validate.IsAny,
-		"maas.subnet.ipv6": validate.IsAny,
-	}
-
-	// Add dynamic validation rules.
-	for k := range config {
-		// Tunnel keys have the remote name in their name, so extract the real key
-		if strings.HasPrefix(k, "tunnel.") {
-			// Validate remote name in key.
-			fields := strings.Split(k, ".")
-			if len(fields) != 3 {
-				return fmt.Errorf("Invalid network configuration key: %s", k)
-			}
-
-			if len(n.name)+len(fields[1]) > 14 {
-				return fmt.Errorf("Network name too long for tunnel interface: %s-%s", n.name, fields[1])
-			}
-
-			tunnelKey := fields[2]
-
-			// Add the correct validation rule for the dynamic field based on last part of key.
-			switch tunnelKey {
-			case "protocol":
-				rules[k] = func(value string) error {
-					return validate.IsOneOf(value, []string{"gre", "vxlan"})
+		// Add dynamic validation rules for tunnel keys.
+		for k := range config {
+			// Tunnel keys have the remote name in their name, so extract the real key
+			if strings.HasPrefix(k, "tunnel.") {
+				// Validate remote name in key.
+				fields := strings.Split(k, ".")
+				if len(fields) != 3 {
+					return fmt.Errorf("Invalid network configuration key: %s", k)
 				}
-			case "local":
-				rules[k] = validate.IsNetworkAddress
-			case "remote":
-				rules[k] = validate.IsNetworkAddress
-			case "port":
-				rules[k] = networkValidPort
-			case "group":
-				rules[k] = validate.IsNetworkAddress
-			case "id":
-				rules[k] = validate.IsInt64
-			case "inteface":
-				rules[k] = ValidNetworkName
-			case "ttl":
-				rules[k] = validate.IsUint8
+
+				if len(n.name)+len(fields[1]) > 14 {
+					return fmt.Errorf("Network name too long for tunnel interface: %s-%s", n.name, fields[1])
+				}
+
+				tunnelKey := fields[2]
+
+				// Add the correct validation rule for the dynamic field based on last part of key.
+				switch tunnelKey {
+				case "protocol":
+					rules[k] = func(value string) error {
+						return validate.IsOneOf(value, []string{"gre", "vxlan"})
+					}
+				case "local":
+					rules[k] = validate.IsNetworkAddress
+				case "remote":
+					rules[k] = validate.IsNetworkAddress
+				case "port":
+					rules[k] = networkValidPort
+				case "group":
+					rules[k] = validate.IsNetworkAddress
+				case "id":
+					rules[k] = validate.IsInt64
+				case "inteface":
+					rules[k] = ValidNetworkName
+				case "ttl":
+					rules[k] = validate.IsUint8
+				}
 			}
 		}
 	}
 
+	// Run validation on rules.
 	err := n.validate(config, rules)
 	if err != nil {
 		return err
@@ -261,53 +260,56 @@ func (n *bridge) Validate(config map[string]string) error {
 
 	// Peform composite key checks after per-key validation.
 
-	// Validate network name when used in fan mode.
-	bridgeMode := config["bridge.mode"]
-	if bridgeMode == "fan" && len(n.name) > 11 {
-		return fmt.Errorf("Network name too long to use with the FAN (must be 11 characters or less)")
+	// Bridge mode checks.
+	if config["bridge.mode"] == "fan" {
+		// Validate network name when used in fan mode.
+		if len(n.name) > 11 {
+			return fmt.Errorf("Network name too long to use with the FAN (must be 11 characters or less)")
+		}
+
+		for k, v := range config {
+			// Bridge mode checks
+			if !shared.StringInSlice(k, []string{"ipv4.dhcp.expiry", "ipv4.firewall", "ipv4.nat", "ipv4.nat.order"}) && v != "" {
+				return fmt.Errorf("IPv4 configuration key %q may not be set when in 'fan' mode", k)
+			}
+
+			if strings.HasPrefix(k, "ipv6.") && v != "" {
+				return fmt.Errorf("IPv6 configuration key %q may not be set when in 'fan' mode", k)
+			}
+		}
+	} else {
+		for k, v := range config {
+			if strings.HasPrefix(k, "fan.") && v != "" {
+				return fmt.Errorf("FAN configuration key %q may only be set when in 'fan' mode", k)
+			}
+		}
 	}
 
-	for k, v := range config {
-		key := k
-		// Bridge mode checks
-		if bridgeMode == "fan" && strings.HasPrefix(key, "ipv4.") && !shared.StringInSlice(key, []string{"ipv4.dhcp.expiry", "ipv4.firewall", "ipv4.nat", "ipv4.nat.order"}) && v != "" {
-			return fmt.Errorf("IPv4 configuration may not be set when in 'fan' mode")
+	// MTU checks.
+	if config["bridge.mtu"] != "" {
+		mtu, err := strconv.ParseInt(config["bridge.mtu"], 10, 64)
+		if err != nil {
+			return fmt.Errorf("Invalid value for an integer %q", config["bridge.mtu"])
 		}
 
-		if bridgeMode == "fan" && strings.HasPrefix(key, "ipv6.") && v != "" {
-			return fmt.Errorf("IPv6 configuration may not be set when in 'fan' mode")
+		ipv6 := config["ipv6.address"]
+		if ipv6 != "" && ipv6 != "none" && mtu < 1280 {
+			return fmt.Errorf("The minimum MTU for an IPv6 network is 1280")
 		}
 
-		if bridgeMode != "fan" && strings.HasPrefix(key, "fan.") && v != "" {
-			return fmt.Errorf("FAN configuration may only be set when in 'fan' mode")
+		ipv4 := config["ipv4.address"]
+		if ipv4 != "" && ipv4 != "none" && mtu < 68 {
+			return fmt.Errorf("The minimum MTU for an IPv4 network is 68")
 		}
 
-		// MTU checks
-		if key == "bridge.mtu" && v != "" {
-			mtu, err := strconv.ParseInt(v, 10, 64)
-			if err != nil {
-				return fmt.Errorf("Invalid value for an integer: %s", v)
-			}
-
-			ipv6 := config["ipv6.address"]
-			if ipv6 != "" && ipv6 != "none" && mtu < 1280 {
-				return fmt.Errorf("The minimum MTU for an IPv6 network is 1280")
-			}
-
-			ipv4 := config["ipv4.address"]
-			if ipv4 != "" && ipv4 != "none" && mtu < 68 {
-				return fmt.Errorf("The minimum MTU for an IPv4 network is 68")
-			}
-
-			if config["bridge.mode"] == "fan" {
-				if config["fan.type"] == "ipip" {
-					if mtu > 1480 {
-						return fmt.Errorf("Maximum MTU for an IPIP FAN bridge is 1480")
-					}
-				} else {
-					if mtu > 1450 {
-						return fmt.Errorf("Maximum MTU for a VXLAN FAN bridge is 1450")
-					}
+		if config["bridge.mode"] == "fan" {
+			if config["fan.type"] == "ipip" {
+				if mtu > 1480 {
+					return fmt.Errorf("Maximum MTU for an IPIP FAN bridge is 1480")
+				}
+			} else {
+				if mtu > 1450 {
+					return fmt.Errorf("Maximum MTU for a VXLAN FAN bridge is 1450")
 				}
 			}
 		}
