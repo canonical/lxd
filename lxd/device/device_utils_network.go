@@ -511,31 +511,31 @@ func networkSetVethLimits(m deviceConfig.Device) error {
 
 	// Apply new limits
 	if m["limits.ingress"] != "" {
-		out, err := shared.RunCommand("tc", "qdisc", "add", "dev", veth, "root", "handle", "1:0", "htb", "default", "10")
+		_, err := shared.RunCommand("tc", "qdisc", "add", "dev", veth, "root", "handle", "1:0", "htb", "default", "10")
 		if err != nil {
-			return fmt.Errorf("Failed to create root tc qdisc: %s", out)
+			return fmt.Errorf("Failed to create root tc qdisc: %s", err)
 		}
 
-		out, err = shared.RunCommand("tc", "class", "add", "dev", veth, "parent", "1:0", "classid", "1:10", "htb", "rate", fmt.Sprintf("%dbit", ingressInt))
+		_, err = shared.RunCommand("tc", "class", "add", "dev", veth, "parent", "1:0", "classid", "1:10", "htb", "rate", fmt.Sprintf("%dbit", ingressInt))
 		if err != nil {
-			return fmt.Errorf("Failed to create limit tc class: %s", out)
+			return fmt.Errorf("Failed to create limit tc class: %s", err)
 		}
 
-		out, err = shared.RunCommand("tc", "filter", "add", "dev", veth, "parent", "1:0", "protocol", "all", "u32", "match", "u32", "0", "0", "flowid", "1:1")
+		_, err = shared.RunCommand("tc", "filter", "add", "dev", veth, "parent", "1:0", "protocol", "all", "u32", "match", "u32", "0", "0", "flowid", "1:1")
 		if err != nil {
-			return fmt.Errorf("Failed to create tc filter: %s", out)
+			return fmt.Errorf("Failed to create tc filter: %s", err)
 		}
 	}
 
 	if m["limits.egress"] != "" {
-		out, err := shared.RunCommand("tc", "qdisc", "add", "dev", veth, "handle", "ffff:0", "ingress")
+		_, err := shared.RunCommand("tc", "qdisc", "add", "dev", veth, "handle", "ffff:0", "ingress")
 		if err != nil {
-			return fmt.Errorf("Failed to create ingress tc qdisc: %s", out)
+			return fmt.Errorf("Failed to create ingress tc qdisc: %s", err)
 		}
 
-		out, err = shared.RunCommand("tc", "filter", "add", "dev", veth, "parent", "ffff:0", "protocol", "all", "u32", "match", "u32", "0", "0", "police", "rate", fmt.Sprintf("%dbit", egressInt), "burst", "1024k", "mtu", "64kb", "drop")
+		_, err = shared.RunCommand("tc", "filter", "add", "dev", veth, "parent", "ffff:0", "protocol", "all", "u32", "match", "u32", "0", "0", "police", "rate", fmt.Sprintf("%dbit", egressInt), "burst", "1024k", "mtu", "64kb", "drop")
 		if err != nil {
-			return fmt.Errorf("Failed to create ingress tc qdisc: %s", out)
+			return fmt.Errorf("Failed to create ingress tc qdisc: %s", err)
 		}
 	}
 
