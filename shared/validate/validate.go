@@ -350,3 +350,17 @@ func IsNetworkV6List(value string) error {
 
 	return nil
 }
+
+// IsNetworkVLAN validates a VLAN ID.
+func IsNetworkVLAN(value string) error {
+	vlanID, err := strconv.Atoi(value)
+	if err != nil {
+		return fmt.Errorf("Invalid VLAN ID: %s", value)
+	}
+
+	if vlanID < 0 || vlanID > 4094 {
+		return fmt.Errorf("Out of range (0-4094) VLAN ID: %s", value)
+	}
+
+	return nil
+}
