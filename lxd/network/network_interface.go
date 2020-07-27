@@ -25,6 +25,7 @@ type Network interface {
 	DHCPv6Ranges() []DHCPRange
 
 	// Actions.
+	Create(clusterNotification bool) error
 	Start() error
 	Stop() error
 	Rename(name string) error
