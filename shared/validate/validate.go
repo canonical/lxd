@@ -33,10 +33,6 @@ func Optional(f func(value string) error) func(value string) error {
 
 // IsInt64 validates whether the string can be converted to an int64.
 func IsInt64(value string) error {
-	if value == "" {
-		return nil
-	}
-
 	_, err := strconv.ParseInt(value, 10, 64)
 	if err != nil {
 		return fmt.Errorf("Invalid value for an integer %q", value)
