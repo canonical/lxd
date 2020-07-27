@@ -152,7 +152,7 @@ func (n *bridge) Validate(config map[string]string) error {
 
 			return validate.IsNetworkMAC(value)
 		},
-		"bridge.mtu": validate.IsInt64,
+		"bridge.mtu": validate.Optional(validate.IsInt64),
 		"bridge.mode": func(value string) error {
 			return validate.IsOneOf(value, []string{"standard", "fan"})
 		},
@@ -252,7 +252,7 @@ func (n *bridge) Validate(config map[string]string) error {
 			case "group":
 				rules[k] = validate.IsNetworkAddress
 			case "id":
-				rules[k] = validate.IsInt64
+				rules[k] = validate.Optional(validate.IsInt64)
 			case "inteface":
 				rules[k] = ValidNetworkName
 			case "ttl":
