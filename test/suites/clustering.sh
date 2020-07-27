@@ -543,6 +543,7 @@ test_clustering_storage() {
 
     # Copy the container without specifying a target, it will be placed on node2
     # since it's the one with the least number of containers (0 vs 1)
+    sleep 6 # Wait for pending operations to be removed from the database
     LXD_DIR="${LXD_ONE_DIR}" lxc copy foo bar
     LXD_DIR="${LXD_ONE_DIR}" lxc info bar | grep -q "Location: node2"
 
