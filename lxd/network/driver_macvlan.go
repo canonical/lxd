@@ -26,6 +26,8 @@ func (n *macvlan) Validate(config map[string]string) error {
 
 			return nil
 		},
+		"mtu":              validate.Optional(validate.IsInt64),
+		"vlan":             validate.Optional(validate.IsNetworkVLAN),
 		"maas.subnet.ipv4": validate.IsAny,
 		"maas.subnet.ipv6": validate.IsAny,
 	}

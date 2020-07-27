@@ -32,6 +32,7 @@ import (
 	"github.com/lxc/lxd/shared/api"
 	log "github.com/lxc/lxd/shared/log15"
 	"github.com/lxc/lxd/shared/logger"
+	"github.com/lxc/lxd/shared/validate"
 )
 
 type nicBridged struct {
@@ -166,7 +167,7 @@ func (d *nicBridged) validateConfig(instConf instance.ConfigReader) error {
 			return nil
 		}
 
-		return networkValidVLAN(value)
+		return validate.IsNetworkVLAN(value)
 	}
 
 	// Add bridge specific vlan.tagged validation.
