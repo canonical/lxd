@@ -551,20 +551,6 @@ func networkValidGateway(value string) error {
 	return fmt.Errorf("Invalid gateway: %s", value)
 }
 
-// networkValidVLAN validates a VLAN ID.
-func networkValidVLAN(value string) error {
-	vlanID, err := strconv.Atoi(value)
-	if err != nil {
-		return fmt.Errorf("Invalid VLAN ID: %s", value)
-	}
-
-	if vlanID < 0 || vlanID > 4094 {
-		return fmt.Errorf("Out of range (0-4094) VLAN ID: %s", value)
-	}
-
-	return nil
-}
-
 // networkParsePortRange validates a port range in the form n-n.
 func networkParsePortRange(r string) (int64, int64, error) {
 	entries := strings.Split(r, "-")
