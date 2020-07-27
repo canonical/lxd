@@ -12,7 +12,7 @@ func nicValidationRules(requiredFields []string, optionalFields []string) map[st
 		"parent":                  validate.IsAny,
 		"network":                 validate.IsAny,
 		"mtu":                     validate.IsAny,
-		"vlan":                    networkValidVLAN,
+		"vlan":                    validate.IsNetworkVLAN,
 		"hwaddr":                  validate.IsNetworkMAC,
 		"host_name":               validate.IsAny,
 		"limits.ingress":          validate.IsAny,
