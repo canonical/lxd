@@ -72,10 +72,10 @@ var HugePageSizeSuffix = [...]string{"64KB", "1MB", "2MB", "1GB"}
 // given value is syntactically legal.
 var KnownInstanceConfigKeys = map[string]func(value string) error{
 	"boot.autostart":             validate.IsBool,
-	"boot.autostart.delay":       validate.IsInt64,
-	"boot.autostart.priority":    validate.IsInt64,
-	"boot.stop.priority":         validate.IsInt64,
-	"boot.host_shutdown_timeout": validate.IsInt64,
+	"boot.autostart.delay":       validate.Optional(validate.IsInt64),
+	"boot.autostart.priority":    validate.Optional(validate.IsInt64),
+	"boot.stop.priority":         validate.Optional(validate.IsInt64),
+	"boot.host_shutdown_timeout": validate.Optional(validate.IsInt64),
 
 	"limits.cpu": func(value string) error {
 		if value == "" {
@@ -172,7 +172,7 @@ var KnownInstanceConfigKeys = map[string]func(value string) error{
 
 	"limits.network.priority": validate.IsPriority,
 
-	"limits.processes": validate.IsInt64,
+	"limits.processes": validate.Optional(validate.IsInt64),
 
 	"linux.kernel_modules": validate.IsAny,
 

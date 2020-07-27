@@ -20,12 +20,19 @@ func stringInSlice(key string, list []string) bool {
 	return false
 }
 
+// Optional wraps a validator function to make it an optional field.
+func Optional(f func(value string) error) func(value string) error {
+	return func(value string) error {
+		if value == "" {
+			return nil
+		}
+
+		return f(value)
+	}
+}
+
 // IsInt64 validates whether the string can be converted to an int64.
 func IsInt64(value string) error {
-	if value == "" {
-		return nil
-	}
-
 	_, err := strconv.ParseInt(value, 10, 64)
 	if err != nil {
 		return fmt.Errorf("Invalid value for an integer %q", value)
@@ -339,6 +346,20 @@ func IsNetworkV6List(value string) error {
 		if err != nil {
 			return err
 		}
+	}
+
+	return nil
+}
+
+// IsNetworkVLAN validates a VLAN ID.
+func IsNetworkVLAN(value string) error {
+	vlanID, err := strconv.Atoi(value)
+	if err != nil {
+		return fmt.Errorf("Invalid VLAN ID: %s", value)
+	}
+
+	if vlanID < 0 || vlanID > 4094 {
+		return fmt.Errorf("Out of range (0-4094) VLAN ID: %s", value)
 	}
 
 	return nil
