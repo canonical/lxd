@@ -310,6 +310,7 @@ const (
 	NetworkTypeBridge  NetworkType = iota // Network type bridge.
 	NetworkTypeMacvlan                    // Network type macvlan.
 	NetworkTypeSriov                      // Network type sriov.
+	NetworkTypeOVN                        // Network type ovn.
 )
 
 // GetNetworkInAnyState returns the network with the given name.
@@ -373,6 +374,8 @@ func (c *Cluster) getNetwork(name string, onlyCreated bool) (int64, *api.Network
 		network.Type = "macvlan"
 	case NetworkTypeSriov:
 		network.Type = "sriov"
+	case NetworkTypeOVN:
+		network.Type = "ovn"
 	default:
 		network.Type = "" // Unknown
 	}
