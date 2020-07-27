@@ -226,6 +226,8 @@ Network configuration properties:
 Key                             | Type      | Condition             | Default                   | Description
 :--                             | :--       | :--                   | :--                       | :--
 parent                          | string    | -                     | -                         | Parent interface to create macvlan NICs on
+mtu                             | integer   | -                     | -                         | The MTU of the new interface
+vlan                            | integer   | -                     | -                         | The VLAN ID to attach to
 maas.subnet.ipv4                | string    | ipv4 address          | -                         | MAAS IPv4 subnet to register instances in (when using `network` property on nic)
 maas.subnet.ipv6                | string    | ipv6 address          | -                         | MAAS IPv6 subnet to register instances in (when using `network` property on nic)
 
@@ -240,5 +242,7 @@ Network configuration properties:
 Key                             | Type      | Condition             | Default                   | Description
 :--                             | :--       | :--                   | :--                       | :--
 parent                          | string    | -                     | -                         | Parent interface to create sriov NICs on
+mtu                             | integer   | -                     | -                         | The MTU of the new interface
+vlan                            | integer   | -                     | -                         | The VLAN ID to attach to
 maas.subnet.ipv4                | string    | ipv4 address          | -                         | MAAS IPv4 subnet to register instances in (when using `network` property on nic)
 maas.subnet.ipv6                | string    | ipv6 address          | -                         | MAAS IPv6 subnet to register instances in (when using `network` property on nic)
