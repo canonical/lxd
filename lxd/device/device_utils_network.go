@@ -23,6 +23,7 @@ import (
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/logger"
 	"github.com/lxc/lxd/shared/units"
+	"github.com/lxc/lxd/shared/validate"
 )
 
 // Instances can be started in parallel, so lock the creation of VLANs.
@@ -555,7 +556,7 @@ func networkValidGateway(value string) error {
 func networkValidVLANList(value string) error {
 	for _, vlanID := range strings.Split(value, ",") {
 		vlanID = strings.TrimSpace(vlanID)
-		err := networkValidVLAN(vlanID)
+		err := validate.IsNetworkVLAN(vlanID)
 		if err != nil {
 			return err
 		}
