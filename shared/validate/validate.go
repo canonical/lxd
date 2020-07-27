@@ -20,6 +20,17 @@ func stringInSlice(key string, list []string) bool {
 	return false
 }
 
+// Optional wraps a validator function to make it an optional field.
+func Optional(f func(value string) error) func(value string) error {
+	return func(value string) error {
+		if value == "" {
+			return nil
+		}
+
+		return f(value)
+	}
+}
+
 // IsInt64 validates whether the string can be converted to an int64.
 func IsInt64(value string) error {
 	if value == "" {
