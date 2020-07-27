@@ -351,6 +351,12 @@ func doNetworksCreate(d *Daemon, req api.NetworksPost, clusterNotification bool)
 		return err
 	}
 
+	// Run initial creation setup for the network driver.
+	err = n.Create(clusterNotification)
+	if err != nil {
+		return err
+	}
+
 	err = n.Start()
 	if err != nil {
 		n.Delete(clusterNotification)
