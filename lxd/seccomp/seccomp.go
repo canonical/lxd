@@ -1469,6 +1469,14 @@ func (s *Server) HandleMountSyscall(c Instance, siov *Iovec) int {
 		return 0
 	}
 
+	err = shared.PidfdSendSignal(int(pidFd.Fd()), 0, 0)
+	if err != nil {
+		ctx["err"] = fmt.Sprintf("Failed to send signal to target process for of mount syscall: %s", err)
+		ctx["syscall_continue"] = "true"
+		C.seccomp_notify_update_response(siov.resp, 0, C.uint32_t(seccompUserNotifFlagContinue))
+		return 0
+	}
+
 	// const char *source
 	args.source = C.GoString(&mntSource[0])
 	ctx["source"] = args.source
