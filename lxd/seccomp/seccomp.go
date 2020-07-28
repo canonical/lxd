@@ -1417,7 +1417,7 @@ func (s *Server) HandleMountSyscall(c Instance, siov *Iovec) int {
 
 	// process_vm_readv() doesn't like crossing page boundaries when
 	// reading individual syscall args.
-	bufSize := uint64(4096)
+	bufSize := 4096
 	if bufSize > pageSize {
 		bufSize = pageSize
 	}
@@ -1442,28 +1442,36 @@ func (s *Server) HandleMountSyscall(c Instance, siov *Iovec) int {
 	}
 
 	if siov.req.data.args[0] != 0 {
-		localIov[0].Len = bufSize
-		remoteIov[0].Len = int(bufSize)
+		localIov[0].SetLen(bufSize)
+		remoteIov[0].Len = bufSize
 	}
 
 	if siov.req.data.args[1] != 0 {
-		localIov[1].Len = bufSize
-		remoteIov[1].Len = int(bufSize)
+		localIov[1].SetLen(bufSize)
+		remoteIov[1].Len = bufSize
 	}
 
 	if siov.req.data.args[2] != 0 {
-		localIov[2].Len = bufSize
-		remoteIov[2].Len = int(bufSize)
+		localIov[2].SetLen(bufSize)
+		remoteIov[2].Len = bufSize
 	}
 
 	if siov.req.data.args[4] != 0 {
-		localIov[3].Len = bufSize
-		remoteIov[3].Len = int(bufSize)
+		localIov[3].SetLen(bufSize)
+		remoteIov[3].Len = bufSize
 	}
 
 	_, err := unix.ProcessVMReadv(args.pid, localIov, remoteIov, 0)
 	if err != nil {
 		ctx["err"] = fmt.Sprintf("Failed to read process memory of mount syscall: %s", err)
+		ctx["syscall_continue"] = "true"
+		C.seccomp_notify_update_response(siov.resp, 0, C.uint32_t(seccompUserNotifFlagContinue))
+		return 0
+	}
+
+	err = shared.PidfdSendSignal(int(pidFd.Fd()), 0, 0)
+	if err != nil {
+		ctx["err"] = fmt.Sprintf("Failed to send signal to target process for of mount syscall: %s", err)
 		ctx["syscall_continue"] = "true"
 		C.seccomp_notify_update_response(siov.resp, 0, C.uint32_t(seccompUserNotifFlagContinue))
 		return 0
@@ -1761,11 +1769,11 @@ func (s *Server) MountSyscallShift(c Instance) bool {
 	return false
 }
 
-var pageSize uint64 = 4096
+var pageSize int = 4096
 
 func init() {
 	tmp := unix.Getpagesize()
 	if tmp > 0 {
-		pageSize = uint64(tmp)
+		pageSize = tmp
 	}
 }
