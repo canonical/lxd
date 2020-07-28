@@ -327,17 +327,17 @@ func containerPostClusteringMigrate(d *Daemon, c instance.Instance, oldName, new
 		}
 
 		// First make a copy on the new node of the container to be moved.
-		entry, _, err := source.GetContainer(oldName)
+		entry, _, err := source.GetInstance(oldName)
 		if err != nil {
 			return errors.Wrap(err, "Failed to get instance info")
 		}
 
-		args := lxd.ContainerCopyArgs{
+		args := lxd.InstanceCopyArgs{
 			Name: destName,
 			Mode: "pull",
 		}
 
-		copyOp, err := dest.CopyContainer(source, *entry, &args)
+		copyOp, err := dest.CopyInstance(source, *entry, &args)
 		if err != nil {
 			return errors.Wrap(err, "Failed to issue copy instance API request")
 		}
@@ -348,7 +348,7 @@ func containerPostClusteringMigrate(d *Daemon, c instance.Instance, oldName, new
 		}
 
 		// Delete the container on the original node.
-		deleteOp, err := source.DeleteContainer(oldName)
+		deleteOp, err := source.DeleteInstance(oldName)
 		if err != nil {
 			return errors.Wrap(err, "Failed to issue delete instance API request")
 		}
