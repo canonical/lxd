@@ -187,3 +187,12 @@ func PidFdOpen(Pid int, Flags uint32) (*os.File, error) {
 
 	return os.NewFile(uintptr(pidFd), fmt.Sprintf("%d", Pid)), nil
 }
+
+func PidfdSendSignal(Pidfd int, Signal int, Flags uint32) error {
+	ret, errno := C.pidfd_send_signal(C.int(Pidfd), C.int(Signal), nil, C.uint32_t(Flags))
+	if ret != 0 {
+		return errno
+	}
+
+	return nil
+}
