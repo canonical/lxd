@@ -91,7 +91,7 @@ func isInUseByDevices(s *state.State, devices deviceConfig.Devices, networkName 
 			return false, err
 		}
 
-		if !shared.StringInSlice(nicType, []string{"bridged", "macvlan", "ipvlan", "physical", "sriov"}) {
+		if !shared.StringInSlice(nicType, []string{"bridged", "macvlan", "ipvlan", "physical", "sriov", "ovn"}) {
 			continue
 		}
 
