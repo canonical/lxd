@@ -1,10 +1,12 @@
 package device
 
 import (
+	"bytes"
 	"crypto/rand"
 	"encoding/hex"
 	"fmt"
 	"io/ioutil"
+	"net"
 	"strconv"
 	"strings"
 	"sync"
@@ -602,4 +604,24 @@ func networkInterfaceBindWait(ifName string) error {
 	}
 
 	return fmt.Errorf("Bind of interface %q took too long", ifName)
+}
+
+// networkDHCPValidIP returns whether an IP fits inside one of the supplied DHCP ranges and subnet.
+func networkDHCPValidIP(subnet *net.IPNet, ranges []network.DHCPRange, IP net.IP) bool {
+	inSubnet := subnet.Contains(IP)
+	if !inSubnet {
+		return false
+	}
+
+	if len(ranges) > 0 {
+		for _, IPRange := range ranges {
+			if bytes.Compare(IP, IPRange.Start) >= 0 && bytes.Compare(IP, IPRange.End) <= 0 {
+				return true
+			}
+		}
+	} else if inSubnet {
+		return true
+	}
+
+	return false
 }
