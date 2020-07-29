@@ -307,9 +307,11 @@ func (d *nicRouted) Update(oldDevices deviceConfig.Devices, isRunning bool) erro
 			return err
 		}
 
+		// Populate device config with volatile fields if needed.
+		networkVethFillFromVolatile(d.config, v)
+
 		// Apply host-side limits.
-		d.config["host_name"] = v["host_name"]
-		err = networkSetVethLimits(d.config)
+		err = networkSetupHostVethLimits(d.config)
 		if err != nil {
 			return err
 		}
@@ -322,77 +324,76 @@ func (d *nicRouted) Update(oldDevices deviceConfig.Devices, isRunning bool) erro
 func (d *nicRouted) postStart() error {
 	v := d.volatileGet()
 
-	// If volatile host_name is defined (and it should be), then configure the host-side interface.
-	if v["host_name"] != "" {
-		// Apply host-side limits.
-		d.config["host_name"] = v["host_name"]
-		err := networkSetVethLimits(d.config)
+	// Populate device config with volatile fields if needed.
+	networkVethFillFromVolatile(d.config, v)
+
+	// Apply host-side limits.
+	err := networkSetupHostVethLimits(d.config)
+	if err != nil {
+		return err
+	}
+
+	// Attempt to disable IPv6 router advertisement acceptance.
+	err = util.SysctlSet(fmt.Sprintf("net/ipv6/conf/%s/accept_ra", d.config["host_name"]), "0")
+	if err != nil && !os.IsNotExist(err) {
+		return err
+	}
+
+	// Prevent source address spoofing by requiring a return path.
+	err = util.SysctlSet(fmt.Sprintf("net/ipv4/conf/%s/rp_filter", d.config["host_name"]), "1")
+	if err != nil && !os.IsNotExist(err) {
+		return err
+	}
+
+	// Apply firewall rules for reverse path filtering of IPv4 and IPv6.
+	err = d.state.Firewall.InstanceSetupRPFilter(d.inst.Project(), d.inst.Name(), d.name, d.config["host_name"])
+	if err != nil {
+		return errors.Wrapf(err, "Error setting up reverse path filter")
+	}
+
+	if d.config["ipv4.address"] != "" {
+		// Add dummy link-local gateway IPs to the host end of the veth pair. This ensures that
+		// liveness detection of the gateways inside the instance work and ensure that traffic
+		// doesn't periodically halt whilst ARP is re-detected.
+		_, err := shared.RunCommand("ip", "-4", "addr", "add", fmt.Sprintf("%s/32", d.ipv4HostAddress()), "dev", d.config["host_name"])
 		if err != nil {
 			return err
 		}
 
-		// Attempt to disable IPv6 router advertisement acceptance.
-		err = util.SysctlSet(fmt.Sprintf("net/ipv6/conf/%s/accept_ra", v["host_name"]), "0")
-		if err != nil && !os.IsNotExist(err) {
-			return err
-		}
-
-		// Prevent source address spoofing by requiring a return path.
-		err = util.SysctlSet(fmt.Sprintf("net/ipv4/conf/%s/rp_filter", v["host_name"]), "1")
-		if err != nil && !os.IsNotExist(err) {
-			return err
-		}
-
-		// Apply firewall rules for reverse path filtering of IPv4 and IPv6.
-		err = d.state.Firewall.InstanceSetupRPFilter(d.inst.Project(), d.inst.Name(), d.name, v["host_name"])
-		if err != nil {
-			return errors.Wrapf(err, "Error setting up reverse path filter")
-		}
-
-		if d.config["ipv4.address"] != "" {
-			// Add dummy link-local gateway IPs to the host end of the veth pair. This ensures that
-			// liveness detection of the gateways inside the instance work and ensure that traffic
-			// doesn't periodically halt whilst ARP is re-detected.
-			_, err := shared.RunCommand("ip", "-4", "addr", "add", fmt.Sprintf("%s/32", d.ipv4HostAddress()), "dev", v["host_name"])
-			if err != nil {
-				return err
-			}
-
-			// Add static routes to instance IPs to custom routing tables if specified.
-			// This is in addition to the static route added by liblxc to the main routing table, which
-			// is still critical to ensure that reverse path filtering doesn't kick in blocking traffic
-			// from the instance.
-			if d.config["ipv4.host_table"] != "" {
-				for _, addr := range strings.Split(d.config["ipv4.address"], ",") {
-					addr = strings.TrimSpace(addr)
-					_, err := shared.RunCommand("ip", "-4", "route", "add", "table", d.config["ipv4.host_table"], fmt.Sprintf("%s/32", addr), "dev", v["host_name"])
-					if err != nil {
-						return err
-					}
+		// Add static routes to instance IPs to custom routing tables if specified.
+		// This is in addition to the static route added by liblxc to the main routing table, which
+		// is still critical to ensure that reverse path filtering doesn't kick in blocking traffic
+		// from the instance.
+		if d.config["ipv4.host_table"] != "" {
+			for _, addr := range strings.Split(d.config["ipv4.address"], ",") {
+				addr = strings.TrimSpace(addr)
+				_, err := shared.RunCommand("ip", "-4", "route", "add", "table", d.config["ipv4.host_table"], fmt.Sprintf("%s/32", addr), "dev", d.config["host_name"])
+				if err != nil {
+					return err
 				}
 			}
 		}
+	}
 
-		if d.config["ipv6.address"] != "" {
-			// Add dummy link-local gateway IPs to the host end of the veth pair. This ensures that
-			// liveness detection of the gateways inside the instance work and ensure that traffic
-			// doesn't periodically halt whilst NDP is re-detected.
-			_, err := shared.RunCommand("ip", "-6", "addr", "add", fmt.Sprintf("%s/128", d.ipv6HostAddress()), "dev", v["host_name"])
-			if err != nil {
-				return err
-			}
+	if d.config["ipv6.address"] != "" {
+		// Add dummy link-local gateway IPs to the host end of the veth pair. This ensures that
+		// liveness detection of the gateways inside the instance work and ensure that traffic
+		// doesn't periodically halt whilst NDP is re-detected.
+		_, err := shared.RunCommand("ip", "-6", "addr", "add", fmt.Sprintf("%s/128", d.ipv6HostAddress()), "dev", d.config["host_name"])
+		if err != nil {
+			return err
+		}
 
-			// Add static routes to instance IPs to custom routing tables if specified.
-			// This is in addition to the static route added by liblxc to the main routing table, which
-			// is still critical to ensure that reverse path filtering doesn't kick in blocking traffic
-			// from the instance.
-			if d.config["ipv6.host_table"] != "" {
-				for _, addr := range strings.Split(d.config["ipv6.address"], ",") {
-					addr = strings.TrimSpace(addr)
-					_, err := shared.RunCommand("ip", "-6", "route", "add", "table", d.config["ipv6.host_table"], fmt.Sprintf("%s/128", addr), "dev", v["host_name"])
-					if err != nil {
-						return err
-					}
+		// Add static routes to instance IPs to custom routing tables if specified.
+		// This is in addition to the static route added by liblxc to the main routing table, which
+		// is still critical to ensure that reverse path filtering doesn't kick in blocking traffic
+		// from the instance.
+		if d.config["ipv6.host_table"] != "" {
+			for _, addr := range strings.Split(d.config["ipv6.address"], ",") {
+				addr = strings.TrimSpace(addr)
+				_, err := shared.RunCommand("ip", "-6", "route", "add", "table", d.config["ipv6.host_table"], fmt.Sprintf("%s/128", addr), "dev", d.config["host_name"])
+				if err != nil {
+					return err
 				}
 			}
 		}
