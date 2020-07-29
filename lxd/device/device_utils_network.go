@@ -336,51 +336,41 @@ func networkCreateTap(hostName string, m deviceConfig.Device) error {
 	return nil
 }
 
-// networkSetupHostVethDevice configures a nic device's host side veth settings.
-func networkSetupHostVethDevice(s *state.State, device deviceConfig.Device, oldDevice deviceConfig.Device, v map[string]string) error {
-	// If not configured, check if volatile data contains the most recently added host_name.
-	if device["host_name"] == "" {
-		device["host_name"] = v["host_name"]
-	}
-
-	// If not configured, check if volatile data contains the most recently added hwaddr.
-	if device["hwaddr"] == "" {
-		device["hwaddr"] = v["hwaddr"]
-	}
-
+// networkSetupHostVethRoutes configures a nic device's host side veth routes.
+// Accepts an optional oldDevice that will have its old host routes removed before adding the new device routes.
+// This allows live update of a veth device.
+func networkSetupHostVethRoutes(s *state.State, device deviceConfig.Device, oldDevice deviceConfig.Device, v map[string]string) error {
 	// Check whether host device resolution succeeded.
 	if device["host_name"] == "" {
-		return fmt.Errorf("Failed to find host side veth name for device \"%s\"", device["name"])
-	}
-
-	// Refresh tc limits.
-	err := networkSetVethLimits(device)
-	if err != nil {
-		return err
+		return fmt.Errorf("Failed to find host side veth name for device %q", device["name"])
 	}
 
 	// If oldDevice provided, remove old routes if any remain.
 	if oldDevice != nil {
-		// If not configured, copy the volatile host_name into old device to support live updates.
-		if oldDevice["host_name"] == "" {
-			oldDevice["host_name"] = v["host_name"]
-		}
-
-		// If not configured, copy the volatile hwaddr into old device to support live updates.
-		if oldDevice["hwaddr"] == "" {
-			oldDevice["hwaddr"] = v["hwaddr"]
-		}
-
+		networkVethFillFromVolatile(oldDevice, v)
 		networkRemoveVethRoutes(s, oldDevice)
 	}
 
 	// Setup static routes to container.
-	err = networkSetVethRoutes(s, device)
+	err := networkSetVethRoutes(s, device)
 	if err != nil {
 		return err
 	}
 
 	return nil
+}
+
+// networkVethFillFromVolatile fills veth host_name and hwaddr fields from volatile if not set in device config.
+func networkVethFillFromVolatile(device deviceConfig.Device, volatile map[string]string) {
+	// If not configured, check if volatile data contains the most recently added host_name.
+	if device["host_name"] == "" {
+		device["host_name"] = volatile["host_name"]
+	}
+
+	// If not configured, check if volatile data contains the most recently added hwaddr.
+	if device["hwaddr"] == "" {
+		device["hwaddr"] = volatile["hwaddr"]
+	}
 }
 
 // networkSetVethRoutes applies any static routes configured from the host to the container nic.
@@ -475,13 +465,14 @@ func networkRemoveVethRoutes(s *state.State, m deviceConfig.Device) {
 	}
 }
 
-// networkSetVethLimits applies any network rate limits to the veth device specified in the config.
-func networkSetVethLimits(m deviceConfig.Device) error {
+// networkSetupHostVethLimits applies any network rate limits to the veth device specified in the config.
+func networkSetupHostVethLimits(m deviceConfig.Device) error {
 	var err error
 
 	veth := m["host_name"]
-	if !shared.PathExists(fmt.Sprintf("/sys/class/net/%s", veth)) {
-		return fmt.Errorf("Unknown or missing host side veth: %s", veth)
+
+	if veth == "" || !shared.PathExists(fmt.Sprintf("/sys/class/net/%s", veth)) {
+		return fmt.Errorf("Unknown or missing host side veth device %q", veth)
 	}
 
 	// Apply max limit
