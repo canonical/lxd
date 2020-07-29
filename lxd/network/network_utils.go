@@ -99,9 +99,8 @@ func isInUseByDevices(s *state.State, devices deviceConfig.Devices, networkName 
 			continue
 		}
 
-		// Temporarily populate parent from network setting if used.
-		if d["network"] != "" {
-			d["parent"] = d["network"]
+		if d["network"] != "" && d["network"] == networkName {
+			return true, nil
 		}
 
 		if d["parent"] == "" {
