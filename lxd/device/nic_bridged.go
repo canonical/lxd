@@ -223,8 +223,17 @@ func (d *nicBridged) Start() (*deviceConfig.RunConfig, error) {
 
 	revert.Add(func() { NetworkRemoveInterface(saveData["host_name"]) })
 
-	// Apply and host-side limits and routes.
-	err = networkSetupHostVethDevice(d.state, d.config, nil, saveData)
+	// Populate device config with volatile fields if needed.
+	networkVethFillFromVolatile(d.config, saveData)
+
+	// Apply host-side routes.
+	err = networkSetupHostVethRoutes(d.state, d.config, nil, saveData)
+	if err != nil {
+		return nil, err
+	}
+
+	// Apply host-side limits.
+	err = networkSetupHostVethLimits(d.config)
 	if err != nil {
 		return nil, err
 	}
@@ -297,6 +306,9 @@ func (d *nicBridged) Update(oldDevices deviceConfig.Devices, isRunning bool) err
 
 	v := d.volatileGet()
 
+	// Populate device config with volatile fields if needed.
+	networkVethFillFromVolatile(d.config, v)
+
 	// If instance is running, apply host side limits and filters first before rebuilding
 	// dnsmasq config below so that existing config can be used as part of the filter removal.
 	if isRunning {
@@ -305,8 +317,14 @@ func (d *nicBridged) Update(oldDevices deviceConfig.Devices, isRunning bool) err
 			return err
 		}
 
-		// Apply and host-side limits and routes.
-		err = networkSetupHostVethDevice(d.state, d.config, oldConfig, v)
+		// Apply host-side routes.
+		err = networkSetupHostVethRoutes(d.state, d.config, oldConfig, v)
+		if err != nil {
+			return err
+		}
+
+		// Apply host-side limits.
+		err = networkSetupHostVethLimits(d.config)
 		if err != nil {
 			return err
 		}
@@ -327,12 +345,12 @@ func (d *nicBridged) Update(oldDevices deviceConfig.Devices, isRunning bool) err
 	// If an IPv6 address has changed, if the instance is running we should bounce the host-side
 	// veth interface to give the instance a chance to detect the change and re-apply for an
 	// updated lease with new IP address.
-	if d.config["ipv6.address"] != oldConfig["ipv6.address"] && v["host_name"] != "" && shared.PathExists(fmt.Sprintf("/sys/class/net/%s", v["host_name"])) {
-		_, err := shared.RunCommand("ip", "link", "set", v["host_name"], "down")
+	if d.config["ipv6.address"] != oldConfig["ipv6.address"] && d.config["host_name"] != "" && shared.PathExists(fmt.Sprintf("/sys/class/net/%s", d.config["host_name"])) {
+		_, err := shared.RunCommand("ip", "link", "set", d.config["host_name"], "down")
 		if err != nil {
 			return err
 		}
-		_, err = shared.RunCommand("ip", "link", "set", v["host_name"], "up")
+		_, err = shared.RunCommand("ip", "link", "set", d.config["host_name"], "up")
 		if err != nil {
 			return err
 		}
@@ -358,13 +376,7 @@ func (d *nicBridged) postStop() error {
 
 	v := d.volatileGet()
 
-	if d.config["host_name"] == "" {
-		d.config["host_name"] = v["host_name"]
-	}
-
-	if d.config["hwaddr"] == "" {
-		d.config["hwaddr"] = v["hwaddr"]
-	}
+	networkVethFillFromVolatile(d.config, v)
 
 	if d.config["host_name"] != "" && shared.PathExists(fmt.Sprintf("/sys/class/net/%s", d.config["host_name"])) {
 		// Detach host-side end of veth pair from bridge (required for openvswitch particularly).
