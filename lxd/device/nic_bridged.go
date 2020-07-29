@@ -106,7 +106,7 @@ func (d *nicBridged) validateConfig(instConf instance.ConfigReader) error {
 
 			// Check the static IP supplied is valid for the linked network. It should be part of the
 			// network's subnet, but not necessarily part of the dynamic allocation ranges.
-			if !d.networkDHCPValidIP(subnet, nil, net.ParseIP(d.config["ipv4.address"])) {
+			if !networkDHCPValidIP(subnet, nil, net.ParseIP(d.config["ipv4.address"])) {
 				return fmt.Errorf("Device IP address %q not within network %q subnet", d.config["ipv4.address"], d.config["network"])
 			}
 		}
@@ -124,7 +124,7 @@ func (d *nicBridged) validateConfig(instConf instance.ConfigReader) error {
 
 			// Check the static IP supplied is valid for the linked network. It should be part of the
 			// network's subnet, but not necessarily part of the dynamic allocation ranges.
-			if !d.networkDHCPValidIP(subnet, nil, net.ParseIP(d.config["ipv6.address"])) {
+			if !networkDHCPValidIP(subnet, nil, net.ParseIP(d.config["ipv6.address"])) {
 				return fmt.Errorf("Device IP address %q not within network %q subnet", d.config["ipv6.address"], d.config["network"])
 			}
 		}
@@ -165,7 +165,7 @@ func (d *nicBridged) validateEnvironment() error {
 	}
 
 	if !shared.PathExists(fmt.Sprintf("/sys/class/net/%s", d.config["parent"])) {
-		return fmt.Errorf("Parent device '%s' doesn't exist", d.config["parent"])
+		return fmt.Errorf("Parent device %q doesn't exist", d.config["parent"])
 	}
 
 	return nil
@@ -661,7 +661,7 @@ func (d *nicBridged) allocateFilterIPs(n network.Network) (net.IP, net.IP, error
 		// Check the existing static DHCP IP is still valid in the subnet & ranges, if not
 		// then we'll need to generate a new one.
 		ranges := n.DHCPv4Ranges()
-		if d.networkDHCPValidIP(subnet, ranges, curIPv4.IP.To4()) {
+		if networkDHCPValidIP(subnet, ranges, curIPv4.IP.To4()) {
 			IPv4 = curIPv4.IP.To4()
 		}
 	}
@@ -676,7 +676,7 @@ func (d *nicBridged) allocateFilterIPs(n network.Network) (net.IP, net.IP, error
 		// Check the existing static DHCP IP is still valid in the subnet & ranges, if not
 		// then we'll need to generate a new one.
 		ranges := n.DHCPv6Ranges()
-		if d.networkDHCPValidIP(subnet, ranges, curIPv6.IP.To16()) {
+		if networkDHCPValidIP(subnet, ranges, curIPv6.IP.To16()) {
 			IPv6 = curIPv6.IP.To16()
 		}
 	}
@@ -733,26 +733,6 @@ func (d *nicBridged) allocateFilterIPs(n network.Network) (net.IP, net.IP, error
 	return IPv4, IPv6, nil
 }
 
-// networkDHCPValidIP returns whether an IP fits inside one of the supplied DHCP ranges and subnet.
-func (d *nicBridged) networkDHCPValidIP(subnet *net.IPNet, ranges []network.DHCPRange, IP net.IP) bool {
-	inSubnet := subnet.Contains(IP)
-	if !inSubnet {
-		return false
-	}
-
-	if len(ranges) > 0 {
-		for _, IPRange := range ranges {
-			if bytes.Compare(IP, IPRange.Start) >= 0 && bytes.Compare(IP, IPRange.End) <= 0 {
-				return true
-			}
-		}
-	} else if inSubnet {
-		return true
-	}
-
-	return false
-}
-
 // getDHCPFreeIPv4 attempts to find a free IPv4 address for the device.
 // It first checks whether there is an existing allocation for the instance.
 // If no previous allocation, then a free IP is picked from the ranges configured.
@@ -772,7 +752,7 @@ func (d *nicBridged) getDHCPFreeIPv4(usedIPs map[[4]byte]dnsmasq.DHCPAllocation,
 	// Lets see if there is already an allocation for our device and that it sits within subnet.
 	// If there are custom DHCP ranges defined, check also that the IP falls within one of the ranges.
 	for _, DHCP := range usedIPs {
-		if (ctName == DHCP.Name || bytes.Compare(MAC, DHCP.MAC) == 0) && d.networkDHCPValidIP(subnet, dhcpRanges, DHCP.IP) {
+		if (ctName == DHCP.Name || bytes.Compare(MAC, DHCP.MAC) == 0) && networkDHCPValidIP(subnet, dhcpRanges, DHCP.IP) {
 			return DHCP.IP, nil
 		}
 	}
@@ -844,7 +824,7 @@ func (d *nicBridged) getDHCPFreeIPv6(usedIPs map[[16]byte]dnsmasq.DHCPAllocation
 	// allocations using instance name. If there are custom DHCP ranges defined, check also
 	// that the IP falls within one of the ranges.
 	for _, DHCP := range usedIPs {
-		if ctName == DHCP.Name && d.networkDHCPValidIP(subnet, dhcpRanges, DHCP.IP) {
+		if ctName == DHCP.Name && networkDHCPValidIP(subnet, dhcpRanges, DHCP.IP) {
 			return DHCP.IP, nil
 		}
 	}
