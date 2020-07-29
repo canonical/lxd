@@ -32,6 +32,8 @@ func NICType(s *state.State, d deviceConfig.Device) (string, error) {
 				nicType = "macvlan"
 			case "sriov":
 				nicType = "sriov"
+			case "ovn":
+				nicType = "ovn"
 			default:
 				return "", fmt.Errorf("Unrecognised NIC network type for network %q", d["network"])
 			}
