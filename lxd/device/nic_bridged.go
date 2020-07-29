@@ -109,7 +109,7 @@ func (d *nicBridged) validateConfig(instConf instance.ConfigReader) error {
 
 			// Check the static IP supplied is valid for the linked network. It should be part of the
 			// network's subnet, but not necessarily part of the dynamic allocation ranges.
-			if !d.networkDHCPValidIP(subnet, nil, net.ParseIP(d.config["ipv4.address"])) {
+			if !networkDHCPValidIP(subnet, nil, net.ParseIP(d.config["ipv4.address"])) {
 				return fmt.Errorf("Device IP address %q not within network %q subnet", d.config["ipv4.address"], d.config["network"])
 			}
 		}
@@ -127,7 +127,7 @@ func (d *nicBridged) validateConfig(instConf instance.ConfigReader) error {
 
 			// Check the static IP supplied is valid for the linked network. It should be part of the
 			// network's subnet, but not necessarily part of the dynamic allocation ranges.
-			if !d.networkDHCPValidIP(subnet, nil, net.ParseIP(d.config["ipv6.address"])) {
+			if !networkDHCPValidIP(subnet, nil, net.ParseIP(d.config["ipv6.address"])) {
 				return fmt.Errorf("Device IP address %q not within network %q subnet", d.config["ipv6.address"], d.config["network"])
 			}
 		}
@@ -208,7 +208,7 @@ func (d *nicBridged) validateEnvironment() error {
 	}
 
 	if !shared.PathExists(fmt.Sprintf("/sys/class/net/%s", d.config["parent"])) {
-		return fmt.Errorf("Parent device '%s' doesn't exist", d.config["parent"])
+		return fmt.Errorf("Parent device %q doesn't exist", d.config["parent"])
 	}
 
 	return nil
@@ -266,8 +266,17 @@ func (d *nicBridged) Start() (*deviceConfig.RunConfig, error) {
 
 	revert.Add(func() { NetworkRemoveInterface(saveData["host_name"]) })
 
-	// Apply and host-side limits and routes.
-	err = networkSetupHostVethDevice(d.state, d.config, nil, saveData)
+	// Populate device config with volatile fields if needed.
+	networkVethFillFromVolatile(d.config, saveData)
+
+	// Apply host-side routes.
+	err = networkSetupHostVethRoutes(d.state, d.config, nil, saveData)
+	if err != nil {
+		return nil, err
+	}
+
+	// Apply host-side limits.
+	err = networkSetupHostVethLimits(d.config)
 	if err != nil {
 		return nil, err
 	}
@@ -351,6 +360,9 @@ func (d *nicBridged) Update(oldDevices deviceConfig.Devices, isRunning bool) err
 
 	v := d.volatileGet()
 
+	// Populate device config with volatile fields if needed.
+	networkVethFillFromVolatile(d.config, v)
+
 	// If instance is running, apply host side limits and filters first before rebuilding
 	// dnsmasq config below so that existing config can be used as part of the filter removal.
 	if isRunning {
@@ -359,8 +371,14 @@ func (d *nicBridged) Update(oldDevices deviceConfig.Devices, isRunning bool) err
 			return err
 		}
 
-		// Apply and host-side limits and routes.
-		err = networkSetupHostVethDevice(d.state, d.config, oldConfig, v)
+		// Apply host-side routes.
+		err = networkSetupHostVethRoutes(d.state, d.config, oldConfig, v)
+		if err != nil {
+			return err
+		}
+
+		// Apply host-side limits.
+		err = networkSetupHostVethLimits(d.config)
 		if err != nil {
 			return err
 		}
@@ -381,12 +399,12 @@ func (d *nicBridged) Update(oldDevices deviceConfig.Devices, isRunning bool) err
 	// If an IPv6 address has changed, if the instance is running we should bounce the host-side
 	// veth interface to give the instance a chance to detect the change and re-apply for an
 	// updated lease with new IP address.
-	if d.config["ipv6.address"] != oldConfig["ipv6.address"] && v["host_name"] != "" && shared.PathExists(fmt.Sprintf("/sys/class/net/%s", v["host_name"])) {
-		_, err := shared.RunCommand("ip", "link", "set", v["host_name"], "down")
+	if d.config["ipv6.address"] != oldConfig["ipv6.address"] && d.config["host_name"] != "" && shared.PathExists(fmt.Sprintf("/sys/class/net/%s", d.config["host_name"])) {
+		_, err := shared.RunCommand("ip", "link", "set", d.config["host_name"], "down")
 		if err != nil {
 			return err
 		}
-		_, err = shared.RunCommand("ip", "link", "set", v["host_name"], "up")
+		_, err = shared.RunCommand("ip", "link", "set", d.config["host_name"], "up")
 		if err != nil {
 			return err
 		}
@@ -412,13 +430,7 @@ func (d *nicBridged) postStop() error {
 
 	v := d.volatileGet()
 
-	if d.config["host_name"] == "" {
-		d.config["host_name"] = v["host_name"]
-	}
-
-	if d.config["hwaddr"] == "" {
-		d.config["hwaddr"] = v["hwaddr"]
-	}
+	networkVethFillFromVolatile(d.config, v)
 
 	if d.config["host_name"] != "" && shared.PathExists(fmt.Sprintf("/sys/class/net/%s", d.config["host_name"])) {
 		// Detach host-side end of veth pair from bridge (required for openvswitch particularly).
@@ -715,7 +727,7 @@ func (d *nicBridged) allocateFilterIPs(n network.Network) (net.IP, net.IP, error
 		// Check the existing static DHCP IP is still valid in the subnet & ranges, if not
 		// then we'll need to generate a new one.
 		ranges := n.DHCPv4Ranges()
-		if d.networkDHCPValidIP(subnet, ranges, curIPv4.IP.To4()) {
+		if networkDHCPValidIP(subnet, ranges, curIPv4.IP.To4()) {
 			IPv4 = curIPv4.IP.To4()
 		}
 	}
@@ -730,7 +742,7 @@ func (d *nicBridged) allocateFilterIPs(n network.Network) (net.IP, net.IP, error
 		// Check the existing static DHCP IP is still valid in the subnet & ranges, if not
 		// then we'll need to generate a new one.
 		ranges := n.DHCPv6Ranges()
-		if d.networkDHCPValidIP(subnet, ranges, curIPv6.IP.To16()) {
+		if networkDHCPValidIP(subnet, ranges, curIPv6.IP.To16()) {
 			IPv6 = curIPv6.IP.To16()
 		}
 	}
@@ -787,26 +799,6 @@ func (d *nicBridged) allocateFilterIPs(n network.Network) (net.IP, net.IP, error
 	return IPv4, IPv6, nil
 }
 
-// networkDHCPValidIP returns whether an IP fits inside one of the supplied DHCP ranges and subnet.
-func (d *nicBridged) networkDHCPValidIP(subnet *net.IPNet, ranges []network.DHCPRange, IP net.IP) bool {
-	inSubnet := subnet.Contains(IP)
-	if !inSubnet {
-		return false
-	}
-
-	if len(ranges) > 0 {
-		for _, IPRange := range ranges {
-			if bytes.Compare(IP, IPRange.Start) >= 0 && bytes.Compare(IP, IPRange.End) <= 0 {
-				return true
-			}
-		}
-	} else if inSubnet {
-		return true
-	}
-
-	return false
-}
-
 // getDHCPFreeIPv4 attempts to find a free IPv4 address for the device.
 // It first checks whether there is an existing allocation for the instance.
 // If no previous allocation, then a free IP is picked from the ranges configured.
@@ -826,7 +818,7 @@ func (d *nicBridged) getDHCPFreeIPv4(usedIPs map[[4]byte]dnsmasq.DHCPAllocation,
 	// Lets see if there is already an allocation for our device and that it sits within subnet.
 	// If there are custom DHCP ranges defined, check also that the IP falls within one of the ranges.
 	for _, DHCP := range usedIPs {
-		if (ctName == DHCP.Name || bytes.Compare(MAC, DHCP.MAC) == 0) && d.networkDHCPValidIP(subnet, dhcpRanges, DHCP.IP) {
+		if (ctName == DHCP.Name || bytes.Compare(MAC, DHCP.MAC) == 0) && networkDHCPValidIP(subnet, dhcpRanges, DHCP.IP) {
 			return DHCP.IP, nil
 		}
 	}
@@ -898,7 +890,7 @@ func (d *nicBridged) getDHCPFreeIPv6(usedIPs map[[16]byte]dnsmasq.DHCPAllocation
 	// allocations using instance name. If there are custom DHCP ranges defined, check also
 	// that the IP falls within one of the ranges.
 	for _, DHCP := range usedIPs {
-		if ctName == DHCP.Name && d.networkDHCPValidIP(subnet, dhcpRanges, DHCP.IP) {
+		if ctName == DHCP.Name && networkDHCPValidIP(subnet, dhcpRanges, DHCP.IP) {
 			return DHCP.IP, nil
 		}
 	}
