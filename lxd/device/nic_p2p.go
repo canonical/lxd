@@ -6,6 +6,7 @@ import (
 	deviceConfig "github.com/lxc/lxd/lxd/device/config"
 	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/instance/instancetype"
+	"github.com/lxc/lxd/lxd/revert"
 	"github.com/lxc/lxd/shared"
 )
 
@@ -61,6 +62,9 @@ func (d *nicP2P) Start() (*deviceConfig.RunConfig, error) {
 		return nil, err
 	}
 
+	revert := revert.New()
+	defer revert.Fail()
+
 	saveData := make(map[string]string)
 	saveData["host_name"] = d.config["host_name"]
 
@@ -84,10 +88,20 @@ func (d *nicP2P) Start() (*deviceConfig.RunConfig, error) {
 		return nil, err
 	}
 
-	// Apply and host-side limits and routes.
-	err = networkSetupHostVethDevice(d.state, d.config, nil, saveData)
+	revert.Add(func() { NetworkRemoveInterface(saveData["host_name"]) })
+
+	// Populate device config with volatile fields if needed.
+	networkVethFillFromVolatile(d.config, saveData)
+
+	// Apply host-side routes.
+	err = networkSetupHostVethRoutes(d.state, d.config, nil, saveData)
 	if err != nil {
-		NetworkRemoveInterface(saveData["host_name"])
+		return nil, err
+	}
+
+	// Apply host-side limits.
+	err = networkSetupHostVethLimits(d.config)
+	if err != nil {
 		return nil, err
 	}
 
@@ -112,6 +126,7 @@ func (d *nicP2P) Start() (*deviceConfig.RunConfig, error) {
 			}...)
 	}
 
+	revert.Success()
 	return &runConf, nil
 }
 
@@ -130,8 +145,17 @@ func (d *nicP2P) Update(oldDevices deviceConfig.Devices, isRunning bool) error {
 
 	v := d.volatileGet()
 
-	// Apply and host-side limits and routes.
-	err = networkSetupHostVethDevice(d.state, d.config, oldConfig, v)
+	// Populate device config with volatile fields if needed.
+	networkVethFillFromVolatile(d.config, v)
+
+	// Apply host-side routes.
+	err = networkSetupHostVethRoutes(d.state, d.config, oldConfig, v)
+	if err != nil {
+		return err
+	}
+
+	// Apply host-side limits.
+	err = networkSetupHostVethLimits(d.config)
 	if err != nil {
 		return err
 	}
@@ -156,9 +180,7 @@ func (d *nicP2P) postStop() error {
 
 	v := d.volatileGet()
 
-	if d.config["host_name"] == "" {
-		d.config["host_name"] = v["host_name"]
-	}
+	networkVethFillFromVolatile(d.config, v)
 
 	if d.config["host_name"] != "" && shared.PathExists(fmt.Sprintf("/sys/class/net/%s", d.config["host_name"])) {
 		// Removing host-side end of veth pair will delete the peer end too.
