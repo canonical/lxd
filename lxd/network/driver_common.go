@@ -231,8 +231,7 @@ func (n *common) DHCPv6Ranges() []DHCPRange {
 func (n *common) update(applyNetwork api.NetworkPut, targetNode string, clusterNotification bool) error {
 	// Update internal config before database has been updated (so that if update is a notification we apply
 	// the config being supplied and not that in the database).
-	n.description = applyNetwork.Description
-	n.config = applyNetwork.Config
+	n.init(n.state, n.id, n.name, n.netType, applyNetwork.Description, applyNetwork.Config, n.status)
 
 	// If this update isn't coming via a cluster notification itself, then notify all nodes of change and then
 	// update the database.
