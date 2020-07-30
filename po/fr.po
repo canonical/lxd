@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: LXD\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2020-07-23 22:07-0400\n"
+"POT-Creation-Date: 2020-07-31 15:13-0400\n"
 "PO-Revision-Date: 2019-01-04 18:07+0000\n"
 "Last-Translator: Deleted User <noreply+12102@weblate.org>\n"
 "Language-Team: French <https://hosted.weblate.org/projects/linux-containers/"
@@ -1386,7 +1386,7 @@ msgstr "NOM"
 msgid "FINGERPRINT"
 msgstr "EMPREINTE"
 
-#: lxc/move.go:225
+#: lxc/move.go:236
 #, fuzzy
 msgid "Failed to connect to cluster member"
 msgstr "Profil à appliquer au nouveau conteneur"
@@ -2248,12 +2248,12 @@ msgstr "  Mémoire utilisée :"
 msgid "Memory:"
 msgstr "  Mémoire utilisée :"
 
-#: lxc/move.go:238
+#: lxc/move.go:249
 #, fuzzy
 msgid "Migration API failure"
 msgstr "Échec lors de la migration vers l'hôte source: %s"
 
-#: lxc/move.go:243
+#: lxc/move.go:254
 msgid "Migration operation failure"
 msgstr ""
 
@@ -3437,16 +3437,20 @@ msgstr ""
 msgid "TYPE"
 msgstr "TYPE"
 
-#: lxc/move.go:159
+#: lxc/move.go:160
 msgid "The --instance-only flag can't be used with --target"
 msgstr ""
 
-#: lxc/move.go:163
+#: lxc/move.go:164
 msgid "The --mode flag can't be used with --target"
 msgstr ""
 
-#: lxc/move.go:155
+#: lxc/move.go:156
 msgid "The --stateless flag can't be used with --target"
+msgstr ""
+
+#: lxc/move.go:176
+msgid "The destination LXD server is not clustered"
 msgstr ""
 
 #: lxc/config_device.go:136 lxc/config_device.go:153 lxc/config_device.go:363
@@ -3495,7 +3499,7 @@ msgstr "L'image locale '%s' n'a pas été trouvée, essayer '%s:' à la place."
 msgid "The profile device doesn't exist"
 msgstr "Le périphérique indiqué n'existe pas"
 
-#: lxc/move.go:230
+#: lxc/move.go:241
 msgid "The source LXD server is not clustered"
 msgstr ""
 
@@ -3788,7 +3792,7 @@ msgstr "impossible de copier vers le même nom de conteneur"
 msgid "You must specify a destination instance name when using --target"
 msgstr "vous devez spécifier un nom de conteneur source"
 
-#: lxc/copy.go:75 lxc/move.go:214
+#: lxc/copy.go:75 lxc/move.go:225
 #, fuzzy
 msgid "You must specify a source instance name"
 msgstr "vous devez spécifier un nom de conteneur source"

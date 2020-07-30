@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: LXD\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2020-07-23 22:07-0400\n"
+"POT-Creation-Date: 2020-07-31 15:13-0400\n"
 "PO-Revision-Date: 2020-03-27 12:50+0000\n"
 "Last-Translator: KATOH Yasufumi <karma@jazz.email.ne.jp>\n"
 "Language-Team: Japanese <https://hosted.weblate.org/projects/linux-"
@@ -1344,7 +1344,7 @@ msgstr "FILENAME"
 msgid "FINGERPRINT"
 msgstr "FINGERPRINT"
 
-#: lxc/move.go:225
+#: lxc/move.go:236
 msgid "Failed to connect to cluster member"
 msgstr "クラスタメンバへの接続に失敗しました"
 
@@ -2239,11 +2239,11 @@ msgstr "メモリ消費量:"
 msgid "Memory:"
 msgstr "メモリ:"
 
-#: lxc/move.go:238
+#: lxc/move.go:249
 msgid "Migration API failure"
 msgstr "マイグレーション API が失敗しました"
 
-#: lxc/move.go:243
+#: lxc/move.go:254
 msgid "Migration operation failure"
 msgstr "マイグレーションが失敗しました"
 
@@ -3390,17 +3390,22 @@ msgstr "TARGET"
 msgid "TYPE"
 msgstr "TYPE"
 
-#: lxc/move.go:159
+#: lxc/move.go:160
 msgid "The --instance-only flag can't be used with --target"
 msgstr "--instance-only と --target は同時に指定できません"
 
-#: lxc/move.go:163
+#: lxc/move.go:164
 msgid "The --mode flag can't be used with --target"
 msgstr "--mode と --target は同時に指定できません"
 
-#: lxc/move.go:155
+#: lxc/move.go:156
 msgid "The --stateless flag can't be used with --target"
 msgstr "--stateless と --target は同時に指定できません"
+
+#: lxc/move.go:176
+#, fuzzy
+msgid "The destination LXD server is not clustered"
+msgstr "移動元の LXD サーバはクラスタに属していません"
 
 #: lxc/config_device.go:136 lxc/config_device.go:153 lxc/config_device.go:363
 msgid "The device already exists"
@@ -3444,7 +3449,7 @@ msgstr ""
 msgid "The profile device doesn't exist"
 msgstr "プロファイルのデバイスが存在しません"
 
-#: lxc/move.go:230
+#: lxc/move.go:241
 msgid "The source LXD server is not clustered"
 msgstr "移動元の LXD サーバはクラスタに属していません"
 
@@ -3742,7 +3747,7 @@ msgid "You must specify a destination instance name when using --target"
 msgstr ""
 "--target オプションを使うときはコピー先のインスタンス名を指定してください"
 
-#: lxc/copy.go:75 lxc/move.go:214
+#: lxc/copy.go:75 lxc/move.go:225
 msgid "You must specify a source instance name"
 msgstr "コピー元のインスタンス名を指定してください"
 
