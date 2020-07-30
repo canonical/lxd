@@ -939,10 +939,18 @@ func networkStartup(s *state.State) error {
 			return err
 		}
 
+		err = n.Validate(n.Config())
+		if err != nil {
+			// Don't cause LXD to fail to start entirely on network start up failure.
+			logger.Error("Failed to validate network", log.Ctx{"err": err, "name": name})
+			continue
+		}
+
 		err = n.Start()
 		if err != nil {
 			// Don't cause LXD to fail to start entirely on network start up failure.
 			logger.Error("Failed to bring up network", log.Ctx{"err": err, "name": name})
+			continue
 		}
 	}
 
