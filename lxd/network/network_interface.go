@@ -1,7 +1,10 @@
 package network
 
 import (
+	"net"
+
 	"github.com/lxc/lxd/lxd/cluster"
+	"github.com/lxc/lxd/lxd/dnsmasq/dhcpalloc"
 	"github.com/lxc/lxd/lxd/state"
 	"github.com/lxc/lxd/shared/api"
 )
@@ -19,10 +22,10 @@ type Network interface {
 	Status() string
 	Config() map[string]string
 	IsUsed() (bool, error)
-	HasDHCPv4() bool
-	HasDHCPv6() bool
-	DHCPv4Ranges() []DHCPRange
-	DHCPv6Ranges() []DHCPRange
+	DHCPv4Subnet() *net.IPNet
+	DHCPv6Subnet() *net.IPNet
+	DHCPv4Ranges() []dhcpalloc.DHCPRange
+	DHCPv6Ranges() []dhcpalloc.DHCPRange
 
 	// Actions.
 	Create(clusterNotification bool) error
