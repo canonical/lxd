@@ -200,6 +200,10 @@ func TestInstanceListExpanded(t *testing.T) {
 }
 
 func TestCreateInstance(t *testing.T) {
+	db.GetRemoteDrivers = func() []string {
+		return []string{"ceph", "cephfs"}
+	}
+
 	tx, cleanup := db.NewTestClusterTx(t)
 	defer cleanup()
 
