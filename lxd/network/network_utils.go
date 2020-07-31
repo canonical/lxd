@@ -19,6 +19,7 @@ import (
 	deviceConfig "github.com/lxc/lxd/lxd/device/config"
 	"github.com/lxc/lxd/lxd/device/nictype"
 	"github.com/lxc/lxd/lxd/dnsmasq"
+	"github.com/lxc/lxd/lxd/dnsmasq/dhcpalloc"
 	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/instance/instancetype"
 	"github.com/lxc/lxd/lxd/network/openvswitch"
@@ -622,21 +623,21 @@ func pingSubnet(subnet *net.IPNet) bool {
 
 	// Ping first IP
 	wgChecks.Add(1)
-	go ping(GetIP(subnet, 1))
+	go ping(dhcpalloc.GetIP(subnet, 1))
 
 	// Poke port on first IP
 	wgChecks.Add(1)
-	go poke(GetIP(subnet, 1))
+	go poke(dhcpalloc.GetIP(subnet, 1))
 
 	// Ping check
 	if subnet.IP.To4() != nil {
 		// Ping last IP
 		wgChecks.Add(1)
-		go ping(GetIP(subnet, -2))
+		go ping(dhcpalloc.GetIP(subnet, -2))
 
 		// Poke port on last IP
 		wgChecks.Add(1)
-		go poke(GetIP(subnet, -2))
+		go poke(dhcpalloc.GetIP(subnet, -2))
 	}
 
 	wgChecks.Wait()
