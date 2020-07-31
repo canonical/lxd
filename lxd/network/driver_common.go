@@ -166,25 +166,14 @@ func (n *common) IsUsed() (bool, error) {
 	return false, nil
 }
 
-// HasDHCPv4 indicates whether the network has DHCPv4 enabled.
-func (n *common) HasDHCPv4() bool {
-	if n.config["ipv4.dhcp"] == "" || shared.IsTrue(n.config["ipv4.dhcp"]) {
-		return true
-	}
-
-	return false
+// DHCPv4Subnet returns nil always.
+func (n *common) DHCPv4Subnet() *net.IPNet {
+	return nil
 }
 
-// HasDHCPv6 indicates whether the network has DHCPv6 enabled (includes stateless SLAAC router advertisement mode).
-// Technically speaking stateless SLAAC RA mode isn't DHCPv6, but for consistency with LXD's config paradigm, DHCP
-// here means "an ability to automatically allocate IPs and routes", rather than stateful DHCP with leases.
-// To check if true stateful DHCPv6 is enabled check the "ipv6.dhcp.stateful" config key.
-func (n *common) HasDHCPv6() bool {
-	if n.config["ipv6.dhcp"] == "" || shared.IsTrue(n.config["ipv6.dhcp"]) {
-		return true
-	}
-
-	return false
+// DHCPv6Subnet returns nil always.
+func (n *common) DHCPv6Subnet() *net.IPNet {
+	return nil
 }
 
 // DHCPv4Ranges returns a parsed set of DHCPv4 ranges for this network.
