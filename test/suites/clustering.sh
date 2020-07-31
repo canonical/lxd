@@ -1961,17 +1961,17 @@ test_clustering_failure_domains() {
   # Set failure domains
 
   # shellcheck disable=SC2039
-  echo -e "roles: [\"database\"]\nfailure_domain: \"az1\"" | LXD_DIR="${LXD_THREE_DIR}" lxc cluster edit node1
+  printf "roles: [\"database\"]\nfailure_domain: \"az1\"" | LXD_DIR="${LXD_THREE_DIR}" lxc cluster edit node1
   # shellcheck disable=SC2039
-  echo -e "roles: [\"database\"]\nfailure_domain: \"az2\"" | LXD_DIR="${LXD_THREE_DIR}" lxc cluster edit node2
+  printf "roles: [\"database\"]\nfailure_domain: \"az2\"" | LXD_DIR="${LXD_THREE_DIR}" lxc cluster edit node2
   # shellcheck disable=SC2039
-  echo -e "roles: [\"database\"]\nfailure_domain: \"az3\"" | LXD_DIR="${LXD_THREE_DIR}" lxc cluster edit node3
+  printf "roles: [\"database\"]\nfailure_domain: \"az3\"" | LXD_DIR="${LXD_THREE_DIR}" lxc cluster edit node3
   # shellcheck disable=SC2039
-  echo -e "roles: []\nfailure_domain: \"az1\"" | LXD_DIR="${LXD_THREE_DIR}" lxc cluster edit node4
+  printf "roles: []\nfailure_domain: \"az1\"" | LXD_DIR="${LXD_THREE_DIR}" lxc cluster edit node4
   # shellcheck disable=SC2039
-  echo -e "roles: []\nfailure_domain: \"az2\"" | LXD_DIR="${LXD_THREE_DIR}" lxc cluster edit node5
+  printf "roles: []\nfailure_domain: \"az2\"" | LXD_DIR="${LXD_THREE_DIR}" lxc cluster edit node5
   # shellcheck disable=SC2039
-  echo -e "roles: []\nfailure_domain: \"az3\"" | LXD_DIR="${LXD_THREE_DIR}" lxc cluster edit node6
+  printf "roles: []\nfailure_domain: \"az3\"" | LXD_DIR="${LXD_THREE_DIR}" lxc cluster edit node6
 
   LXD_DIR="${LXD_ONE_DIR}" lxc cluster show node2 | grep -q "failure_domain: az2"
 
