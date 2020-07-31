@@ -7,7 +7,7 @@
 msgid   ""
 msgstr  "Project-Id-Version: lxd\n"
         "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-        "POT-Creation-Date: 2020-07-30 10:11-0400\n"
+        "POT-Creation-Date: 2020-07-30 14:25-0400\n"
         "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
         "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
         "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -1093,7 +1093,7 @@ msgstr  ""
 msgid   "FINGERPRINT"
 msgstr  ""
 
-#: lxc/move.go:225
+#: lxc/move.go:236
 msgid   "Failed to connect to cluster member"
 msgstr  ""
 
@@ -1830,11 +1830,11 @@ msgstr  ""
 msgid   "Memory:"
 msgstr  ""
 
-#: lxc/move.go:238
+#: lxc/move.go:249
 msgid   "Migration API failure"
 msgstr  ""
 
-#: lxc/move.go:243
+#: lxc/move.go:254
 msgid   "Migration operation failure"
 msgstr  ""
 
@@ -2893,16 +2893,20 @@ msgstr  ""
 msgid   "TYPE"
 msgstr  ""
 
-#: lxc/move.go:159
+#: lxc/move.go:160
 msgid   "The --instance-only flag can't be used with --target"
 msgstr  ""
 
-#: lxc/move.go:163
+#: lxc/move.go:164
 msgid   "The --mode flag can't be used with --target"
 msgstr  ""
 
-#: lxc/move.go:155
+#: lxc/move.go:156
 msgid   "The --stateless flag can't be used with --target"
+msgstr  ""
+
+#: lxc/move.go:176
+msgid   "The destination LXD server is not clustered"
 msgstr  ""
 
 #: lxc/config_device.go:136 lxc/config_device.go:153 lxc/config_device.go:363
@@ -2939,7 +2943,7 @@ msgstr  ""
 msgid   "The profile device doesn't exist"
 msgstr  ""
 
-#: lxc/move.go:230
+#: lxc/move.go:241
 msgid   "The source LXD server is not clustered"
 msgstr  ""
 
@@ -3198,7 +3202,7 @@ msgstr  ""
 msgid   "You must specify a destination instance name when using --target"
 msgstr  ""
 
-#: lxc/copy.go:75 lxc/move.go:214
+#: lxc/copy.go:75 lxc/move.go:225
 msgid   "You must specify a source instance name"
 msgstr  ""
 

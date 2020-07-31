@@ -148,22 +148,33 @@ func (c *cmdMove) Run(cmd *cobra.Command, args []string) error {
 		destResource = args[1]
 	}
 
-	// If the target option was specified, we're moving an instance from a
-	// cluster member to another, let's use the dedicated API.
 	if c.flagTarget != "" {
-		if c.flagStateless {
-			return fmt.Errorf(i18n.G("The --stateless flag can't be used with --target"))
+		// If the target option was specified, we're moving an instance from a
+		// cluster member to another, let's use the dedicated API.
+		if sourceRemote == destRemote {
+			if c.flagStateless {
+				return fmt.Errorf(i18n.G("The --stateless flag can't be used with --target"))
+			}
+
+			if c.flagInstanceOnly {
+				return fmt.Errorf(i18n.G("The --instance-only flag can't be used with --target"))
+			}
+
+			if c.flagMode != moveDefaultMode {
+				return fmt.Errorf(i18n.G("The --mode flag can't be used with --target"))
+			}
+
+			return moveClusterInstance(conf, sourceResource, destResource, c.flagTarget)
 		}
 
-		if c.flagInstanceOnly {
-			return fmt.Errorf(i18n.G("The --instance-only flag can't be used with --target"))
+		dest, err := conf.GetInstanceServer(destRemote)
+		if err != nil {
+			return err
 		}
 
-		if c.flagMode != moveDefaultMode {
-			return fmt.Errorf(i18n.G("The --mode flag can't be used with --target"))
+		if !dest.IsClustered() {
+			return fmt.Errorf(i18n.G("The destination LXD server is not clustered"))
 		}
-
-		return moveClusterInstance(conf, sourceResource, destResource, c.flagTarget)
 	}
 
 	cpy := cmdCopy{}
