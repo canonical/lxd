@@ -110,14 +110,15 @@ func GetVersion() (*version.DottedVersion, error) {
 	return version.NewDottedVersion(lines[2])
 }
 
-// DHCPStaticIPs retrieves the dnsmasq statically allocated IPs for a container.
-// Returns IPv4 and IPv6 DHCPAllocation structs respectively.
-func DHCPStaticIPs(network, projectName, instanceName string) (DHCPAllocation, DHCPAllocation, error) {
+// DHCPStaticAllocation retrieves the dnsmasq statically allocated MAC and IPs for an instance.
+// Returns MAC, IPv4 and IPv6 DHCPAllocation structs respectively.
+func DHCPStaticAllocation(network, projectName, instanceName string) (net.HardwareAddr, DHCPAllocation, DHCPAllocation, error) {
 	var IPv4, IPv6 DHCPAllocation
+	var mac net.HardwareAddr
 
 	file, err := os.Open(shared.VarPath("networks", network, "dnsmasq.hosts", project.Instance(projectName, instanceName)))
 	if err != nil {
-		return IPv4, IPv6, err
+		return nil, IPv4, IPv6, err
 	}
 	defer file.Close()
 
@@ -129,24 +130,31 @@ func DHCPStaticIPs(network, projectName, instanceName string) (DHCPAllocation, D
 			if strings.Count(field, ".") == 3 {
 				IP := net.ParseIP(field)
 				if IP.To4() == nil {
-					return IPv4, IPv6, fmt.Errorf("Error parsing IP address: %v", field)
+					return nil, IPv4, IPv6, fmt.Errorf("Error parsing IP address %q", field)
 				}
-				IPv4 = DHCPAllocation{Name: instanceName, Static: true, IP: IP.To4()}
+				IPv4 = DHCPAllocation{Name: instanceName, Static: true, IP: IP.To4(), MAC: mac}
 
 			} else if strings.HasPrefix(field, "[") && strings.HasSuffix(field, "]") {
 				IP := net.ParseIP(field[1 : len(field)-1])
 				if IP == nil {
-					return IPv4, IPv6, fmt.Errorf("Error parsing IP address: %v", field)
+					return nil, IPv4, IPv6, fmt.Errorf("Error parsing IP address %q", field)
 				}
-				IPv6 = DHCPAllocation{Name: instanceName, Static: true, IP: IP}
+				IPv6 = DHCPAllocation{Name: instanceName, Static: true, IP: IP, MAC: mac}
+			} else if strings.Count(field, ":") == 5 {
+				// This field is expected to come first, so that mac variable can be used with
+				// populating the DHCPAllocation structs too.
+				mac, err = net.ParseMAC(field)
+				if err != nil {
+					return nil, IPv4, IPv6, fmt.Errorf("Error parsing MAC address %q", field)
+				}
 			}
 		}
 	}
 	if err := scanner.Err(); err != nil {
-		return IPv4, IPv6, err
+		return nil, IPv4, IPv6, err
 	}
 
-	return IPv4, IPv6, nil
+	return mac, IPv4, IPv6, nil
 }
 
 // DHCPAllocatedIPs returns a map of IPs currently allocated (statically and dynamically)
