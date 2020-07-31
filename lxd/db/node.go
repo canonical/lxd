@@ -433,6 +433,11 @@ func (c *ClusterTx) UpdateNodeRoles(id int64, roles []ClusterRole) error {
 	// Translate role names to ids
 	roleIDs := []int{}
 	for _, role := range roles {
+		// Skip internal-only roles.
+		if role == ClusterRoleDatabase {
+			continue
+		}
+
 		roleID, err := getRoleID(role)
 		if err != nil {
 			return err
