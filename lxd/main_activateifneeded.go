@@ -51,7 +51,7 @@ func (c *cmdActivateifneeded) Run(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("This must be run as root")
 	}
 
-	// Don't start a full daemon, we just need DB access
+	// Don't start a full daemon, we just need database access
 	d := defaultDaemon()
 
 	// Check if either the local database or the legacy local database
@@ -60,7 +60,7 @@ func (c *cmdActivateifneeded) Run(cmd *cobra.Command, args []string) error {
 	if !shared.PathExists(d.os.LocalDatabasePath()) {
 		path = d.os.LegacyLocalDatabasePath()
 		if !shared.PathExists(path) {
-			logger.Debugf("No DB, so no need to start the daemon now")
+			logger.Debugf("No local database, so no need to start the daemon now")
 			return nil
 		}
 	}
@@ -97,7 +97,7 @@ func (c *cmdActivateifneeded) Run(cmd *cobra.Command, args []string) error {
 	if !shared.PathExists(path) {
 		path = d.os.LegacyGlobalDatabasePath()
 		if !shared.PathExists(path) {
-			logger.Debugf("No DB, so no need to start the daemon now")
+			logger.Debugf("No global database, so no need to start the daemon now")
 			return nil
 		}
 	}
