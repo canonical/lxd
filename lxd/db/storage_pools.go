@@ -15,6 +15,9 @@ import (
 	"github.com/lxc/lxd/shared/api"
 )
 
+// GetRemoteDrivers returns a list of remote storage driver names.
+var GetRemoteDrivers func() []string
+
 // GetStoragePoolsLocalConfig returns a map associating each storage pool name to
 // its node-specific config values (i.e. the ones where node_id is not NULL).
 func (c *ClusterTx) GetStoragePoolsLocalConfig() (map[string]map[string]string, error) {
@@ -64,25 +67,41 @@ func (c *ClusterTx) GetStoragePoolUsedBy(name string) ([]string, error) {
 		volName     string
 		volType     int64
 		projectName string
-		nodeID      int64
+		nodeID      *int64
 	}{}
 	dest := func(i int) []interface{} {
 		vols = append(vols, struct {
 			volName     string
 			volType     int64
 			projectName string
-			nodeID      int64
+			nodeID      *int64
 		}{})
 
 		return []interface{}{&vols[i].volName, &vols[i].volType, &vols[i].projectName, &vols[i].nodeID}
 	}
 
-	stmt, err := c.tx.Prepare("SELECT storage_volumes.name, storage_volumes.type, projects.name, storage_volumes.node_id FROM storage_volumes JOIN projects ON projects.id=storage_volumes.project_id WHERE storage_pool_id=? AND (node_id=? OR storage_volumes.type == 2) ORDER BY storage_volumes.type ASC, projects.name ASC, storage_volumes.name ASC, storage_volumes.node_id ASC")
+	remoteDrivers := GetRemoteDrivers()
+
+	s := fmt.Sprintf(`
+SELECT storage_volumes.name, storage_volumes.type, projects.name, storage_volumes.node_id
+  FROM storage_volumes
+  JOIN projects ON projects.id=storage_volumes.project_id
+  JOIN storage_pools ON storage_pools.id=storage_volumes.storage_pool_id
+  WHERE storage_pool_id=? AND ((node_id=? OR node_id IS NULL AND storage_pools.driver IN %s) OR storage_volumes.type == 2)
+  ORDER BY storage_volumes.type ASC, projects.name ASC, storage_volumes.name ASC, storage_volumes.node_id ASC`, query.Params(len(remoteDrivers)))
+
+	stmt, err := c.tx.Prepare(s)
 	if err != nil {
 		return nil, err
 	}
 
-	err = query.SelectObjects(stmt, dest, id, c.nodeID)
+	args := []interface{}{id, c.nodeID}
+
+	for _, driver := range remoteDrivers {
+		args = append(args, driver)
+	}
+
+	err = query.SelectObjects(stmt, dest, args...)
 	if err != nil {
 		return nil, err
 	}
@@ -117,11 +136,11 @@ func (c *ClusterTx) GetStoragePoolUsedBy(name string) ([]string, error) {
 
 		// Handle custom storage volumes.
 		if r.volType == StoragePoolVolumeTypeCustom {
-			if nodesName[r.nodeID] != "none" {
+			if r.nodeID != nil && nodesName[*r.nodeID] != "none" {
 				if r.projectName == "default" {
-					usedby = append(usedby, fmt.Sprintf("/1.0/storage-pools/%s/volumes/custom/%s?target=%s", name, r.volName, nodesName[r.nodeID]))
+					usedby = append(usedby, fmt.Sprintf("/1.0/storage-pools/%s/volumes/custom/%s?target=%s", name, r.volName, nodesName[*r.nodeID]))
 				} else {
-					usedby = append(usedby, fmt.Sprintf("/1.0/storage-pools/%s/volumes/custom/%s?project=%s&target=%s", name, r.volName, r.projectName, nodesName[r.nodeID]))
+					usedby = append(usedby, fmt.Sprintf("/1.0/storage-pools/%s/volumes/custom/%s?project=%s&target=%s", name, r.volName, r.projectName, nodesName[*r.nodeID]))
 				}
 			} else {
 				if r.projectName == "default" {
@@ -868,4 +887,21 @@ var StoragePoolNodeConfigKeys = []string{
 	"zfs.pool_name",
 	"lvm.thinpool",
 	"lvm.vg_name",
+}
+
+func (c *Cluster) isRemoteStorage(poolID int64) (bool, error) {
+	isRemoteStorage := false
+
+	err := c.Transaction(func(tx *ClusterTx) error {
+		driver, err := tx.GetStoragePoolDriver(poolID)
+		if err != nil {
+			return err
+		}
+
+		isRemoteStorage = shared.StringInSlice(driver, GetRemoteDrivers())
+
+		return nil
+	})
+
+	return isRemoteStorage, err
 }
