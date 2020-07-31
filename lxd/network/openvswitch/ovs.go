@@ -1,7 +1,9 @@
 package openvswitch
 
 import (
+	"fmt"
 	"os/exec"
+	"strings"
 
 	"github.com/lxc/lxd/shared"
 )
@@ -103,6 +105,38 @@ func (o *OVS) BridgePortDelete(bridgeName string, portName string) error {
 // BridgePortSet sets port options.
 func (o *OVS) BridgePortSet(portName string, options ...string) error {
 	_, err := shared.RunCommand("ovs-vsctl", append([]string{"set", "port", portName}, options...)...)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// InterfaceAssociateOVNSwitchPort removes any existing OVS ports associated to the specified ovnSwitchPortName
+// and then associates the specified interfaceName to the OVN switch port.
+func (o *OVS) InterfaceAssociateOVNSwitchPort(interfaceName string, ovnSwitchPortName OVNSwitchPort) error {
+	// Clear existing ports that were formerly associated to ovnSwitchPortName.
+	existingPorts, err := shared.RunCommand("ovs-vsctl", "--format=csv", "--no-headings", "--data=bare", "--colum=name", "find", "interface", fmt.Sprintf("external-ids:iface-id=%s", string(ovnSwitchPortName)))
+	if err != nil {
+		return err
+	}
+
+	existingPorts = strings.TrimSpace(existingPorts)
+	if existingPorts != "" {
+		for _, port := range strings.Split(existingPorts, "\n") {
+			_, err = shared.RunCommand("ovs-vsctl", "del-port", port)
+			if err != nil {
+				return err
+			}
+
+			// Atempt to remove port, but don't fail if doesn't exist or can't be removed, at least
+			// the OVS association has been successfully removed, so the new port being added next
+			// won't fail to work properly.
+			shared.RunCommand("ip", "link", "del", port)
+		}
+	}
+
+	_, err = shared.RunCommand("ovs-vsctl", "set", "interface", interfaceName, fmt.Sprintf("external_ids:iface-id=%s", string(ovnSwitchPortName)))
 	if err != nil {
 		return err
 	}
