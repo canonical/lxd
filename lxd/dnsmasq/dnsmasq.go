@@ -157,32 +157,32 @@ func DHCPStaticAllocation(network, projectName, instanceName string) (net.Hardwa
 	return mac, IPv4, IPv6, nil
 }
 
-// DHCPAllocatedIPs returns a map of IPs currently allocated (statically and dynamically)
+// DHCPAllAllocations returns a map of IPs currently allocated (statically and dynamically)
 // in dnsmasq for a specific network. The returned map is keyed by a 16 byte array representing
 // the net.IP format. The value of each map item is a DHCPAllocation struct containing at least
-// whether the allocation was static or dynamic and optionally container name or MAC address.
+// whether the allocation was static or dynamic and optionally instance name or MAC address.
 // MAC addresses are only included for dynamic IPv4 allocations (where name is not reliable).
-// Static allocations are not overridden by dynamic allocations, allowing for container name to be
+// Static allocations are not overridden by dynamic allocations, allowing for instance name to be
 // included for static IPv6 allocations. IPv6 addresses that are dynamically assigned cannot be
-// reliably linked to containers using either name or MAC because dnsmasq does not record the MAC
-// address for these records, and the recorded host name can be set by the container if the dns.mode
+// reliably linked to instances using either name or MAC because dnsmasq does not record the MAC
+// address for these records, and the recorded host name can be set by the instance if the dns.mode
 // for the network is set to "dynamic" and so cannot be trusted, so in this case we do not return
 // any identifying info.
-func DHCPAllocatedIPs(network string) (map[[4]byte]DHCPAllocation, map[[16]byte]DHCPAllocation, error) {
+func DHCPAllAllocations(network string) (map[[4]byte]DHCPAllocation, map[[16]byte]DHCPAllocation, error) {
 	IPv4s := make(map[[4]byte]DHCPAllocation)
 	IPv6s := make(map[[16]byte]DHCPAllocation)
 
 	// First read all statically allocated IPs.
 	files, err := ioutil.ReadDir(shared.VarPath("networks", network, "dnsmasq.hosts"))
-	if err != nil {
-		return IPv4s, IPv6s, err
+	if err != nil && os.IsNotExist(err) {
+		return nil, nil, err
 	}
 
 	for _, entry := range files {
 		projectName, instanceName := project.InstanceParts(entry.Name())
-		IPv4, IPv6, err := DHCPStaticIPs(network, projectName, instanceName)
+		_, IPv4, IPv6, err := DHCPStaticAllocation(network, projectName, instanceName)
 		if err != nil {
-			return IPv4s, IPv6s, err
+			return nil, nil, err
 		}
 
 		if IPv4.IP != nil {
@@ -201,7 +201,7 @@ func DHCPAllocatedIPs(network string) (map[[4]byte]DHCPAllocation, map[[16]byte]
 	// Next read all dynamic allocated IPs.
 	file, err := os.Open(shared.VarPath("networks", network, "dnsmasq.leases"))
 	if err != nil {
-		return IPv4s, IPv6s, err
+		return nil, nil, err
 	}
 	defer file.Close()
 
@@ -211,7 +211,7 @@ func DHCPAllocatedIPs(network string) (map[[4]byte]DHCPAllocation, map[[16]byte]
 		if len(fields) == 5 {
 			IP := net.ParseIP(fields[2])
 			if IP == nil {
-				return IPv4s, IPv6s, fmt.Errorf("Error parsing IP address: %v", fields[2])
+				return nil, nil, fmt.Errorf("Error parsing IP address: %v", fields[2])
 			}
 
 			// Handle IPv6 addresses.
@@ -232,7 +232,7 @@ func DHCPAllocatedIPs(network string) (map[[4]byte]DHCPAllocation, map[[16]byte]
 				// MAC only available in IPv4 leases.
 				MAC, err := net.ParseMAC(fields[1])
 				if err != nil {
-					return IPv4s, IPv6s, err
+					return nil, nil, err
 				}
 
 				var IPKey [4]byte
@@ -252,7 +252,7 @@ func DHCPAllocatedIPs(network string) (map[[4]byte]DHCPAllocation, map[[16]byte]
 		}
 	}
 	if err := scanner.Err(); err != nil {
-		return IPv4s, IPv6s, err
+		return nil, nil, err
 	}
 
 	return IPv4s, IPv6s, nil
