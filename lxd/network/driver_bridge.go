@@ -1828,3 +1828,33 @@ func (n *bridge) hasIPv6Firewall() bool {
 
 	return false
 }
+
+// DHCPv4Subnet returns the DHCPv4 subnet (if DHCP is enabled on network).
+func (n *bridge) DHCPv4Subnet() *net.IPNet {
+	// DHCP is disabled on this network (an empty ipv4.dhcp setting indicates enabled by default).
+	if n.config["ipv4.dhcp"] != "" && !shared.IsTrue(n.config["ipv4.dhcp"]) {
+		return nil
+	}
+
+	_, subnet, err := net.ParseCIDR(n.config["ipv4.address"])
+	if err != nil {
+		return nil
+	}
+
+	return subnet
+}
+
+// DHCPv6Subnet returns the DHCPv6 subnet (if DHCP or SLAAC is enabled on network).
+func (n *bridge) DHCPv6Subnet() *net.IPNet {
+	// DHCP is disabled on this network (an empty ipv6.dhcp setting indicates enabled by default).
+	if n.config["ipv6.dhcp"] != "" && !shared.IsTrue(n.config["ipv6.dhcp"]) {
+		return nil
+	}
+
+	_, subnet, err := net.ParseCIDR(n.config["ipv6.address"])
+	if err != nil {
+		return nil
+	}
+
+	return subnet
+}
