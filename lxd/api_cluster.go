@@ -870,7 +870,7 @@ func clusterNodeGet(d *Daemon, r *http.Request) response.Response {
 
 	for _, node := range nodes {
 		if node.ServerName == name {
-			return response.SyncResponseETag(true, node, node.Roles)
+			return response.SyncResponseETag(true, node, node.ClusterMemberPut)
 		}
 	}
 
@@ -886,32 +886,25 @@ func clusterNodePut(d *Daemon, r *http.Request) response.Response {
 	name := mux.Vars(r)["name"]
 
 	// Find the requested one.
-	var current db.NodeInfo
-	var currentFailureDomain string
-	var err error
-	err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
-		current, err = tx.GetNodeByName(name)
-		if err != nil {
-			return errors.Wrap(err, "Load current node state")
-		}
-
-		currentFailureDomain, err = tx.GetNodeFailureDomain(current.ID)
-		if err != nil {
-			return errors.Wrap(err, "Load current failure domain")
-		}
-
-		return nil
-	})
+	nodes, err := cluster.List(d.State(), d.gateway)
 	if err != nil {
 		return response.SmartError(err)
 	}
 
-	// Validate the request is fine
-	etag := []interface{}{
-		current.Roles,
-		currentFailureDomain,
+	var current *api.ClusterMember
+	for _, node := range nodes {
+		if node.ServerName == name {
+			current = &node
+			break
+		}
 	}
-	err = util.EtagCheck(r, etag)
+
+	if current == nil {
+		return response.NotFound(fmt.Errorf("Member '%s' not found", name))
+	}
+
+	// Validate the request is fine
+	err = util.EtagCheck(r, current.ClusterMemberPut)
 	if err != nil {
 		return response.PreconditionFailed(err)
 	}
@@ -935,17 +928,22 @@ func clusterNodePut(d *Daemon, r *http.Request) response.Response {
 
 	// Update the database
 	err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
+		nodeInfo, err := tx.GetNodeByName(name)
+		if err != nil {
+			return errors.Wrap(err, "Loading node information")
+		}
+
 		dbRoles := []db.ClusterRole{}
 		for _, role := range req.Roles {
 			dbRoles = append(dbRoles, db.ClusterRole(role))
 		}
 
-		err := tx.UpdateNodeRoles(current.ID, dbRoles)
+		err = tx.UpdateNodeRoles(nodeInfo.ID, dbRoles)
 		if err != nil {
 			return errors.Wrap(err, "Update roles")
 		}
 
-		err = tx.UpdateNodeFailureDomain(current.ID, req.FailureDomain)
+		err = tx.UpdateNodeFailureDomain(nodeInfo.ID, req.FailureDomain)
 		if err != nil {
 			return errors.Wrap(err, "Update failure domain")
 		}
