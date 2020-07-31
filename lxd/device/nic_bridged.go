@@ -288,7 +288,7 @@ func (d *nicBridged) Start() (*deviceConfig.RunConfig, error) {
 		return nil, err
 	}
 
-	// Apply and host-side network filters (uses enriched host_name from networkSetupHostVethDevice).
+	// Apply and host-side network filters (uses enriched host_name from networkVethFillFromVolatile).
 	err = d.setupHostFilters(nil)
 	if err != nil {
 		return nil, err
@@ -383,7 +383,7 @@ func (d *nicBridged) Update(oldDevices deviceConfig.Devices, isRunning bool) err
 			return err
 		}
 
-		// Apply and host-side network filters (uses enriched host_name from networkSetupHostVethDevice).
+		// Apply and host-side network filters (uses enriched host_name from networkVethFillFromVolatile).
 		err = d.setupHostFilters(oldConfig)
 		if err != nil {
 			return err
