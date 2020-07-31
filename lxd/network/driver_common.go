@@ -11,6 +11,7 @@ import (
 	lxd "github.com/lxc/lxd/client"
 	"github.com/lxc/lxd/lxd/cluster"
 	"github.com/lxc/lxd/lxd/db"
+	"github.com/lxc/lxd/lxd/dnsmasq/dhcpalloc"
 	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/state"
 	"github.com/lxc/lxd/shared"
@@ -19,12 +20,6 @@ import (
 	"github.com/lxc/lxd/shared/logger"
 	"github.com/lxc/lxd/shared/logging"
 )
-
-// DHCPRange represents a range of IPs from start to end.
-type DHCPRange struct {
-	Start net.IP
-	End   net.IP
-}
 
 // common represents a generic LXD network.
 type common struct {
@@ -166,37 +161,26 @@ func (n *common) IsUsed() (bool, error) {
 	return false, nil
 }
 
-// HasDHCPv4 indicates whether the network has DHCPv4 enabled.
-func (n *common) HasDHCPv4() bool {
-	if n.config["ipv4.dhcp"] == "" || shared.IsTrue(n.config["ipv4.dhcp"]) {
-		return true
-	}
-
-	return false
+// DHCPv4Subnet returns nil always.
+func (n *common) DHCPv4Subnet() *net.IPNet {
+	return nil
 }
 
-// HasDHCPv6 indicates whether the network has DHCPv6 enabled (includes stateless SLAAC router advertisement mode).
-// Technically speaking stateless SLAAC RA mode isn't DHCPv6, but for consistency with LXD's config paradigm, DHCP
-// here means "an ability to automatically allocate IPs and routes", rather than stateful DHCP with leases.
-// To check if true stateful DHCPv6 is enabled check the "ipv6.dhcp.stateful" config key.
-func (n *common) HasDHCPv6() bool {
-	if n.config["ipv6.dhcp"] == "" || shared.IsTrue(n.config["ipv6.dhcp"]) {
-		return true
-	}
-
-	return false
+// DHCPv6Subnet returns nil always.
+func (n *common) DHCPv6Subnet() *net.IPNet {
+	return nil
 }
 
 // DHCPv4Ranges returns a parsed set of DHCPv4 ranges for this network.
-func (n *common) DHCPv4Ranges() []DHCPRange {
-	dhcpRanges := make([]DHCPRange, 0)
+func (n *common) DHCPv4Ranges() []dhcpalloc.DHCPRange {
+	dhcpRanges := make([]dhcpalloc.DHCPRange, 0)
 	if n.config["ipv4.dhcp.ranges"] != "" {
 		for _, r := range strings.Split(n.config["ipv4.dhcp.ranges"], ",") {
 			parts := strings.SplitN(strings.TrimSpace(r), "-", 2)
 			if len(parts) == 2 {
 				startIP := net.ParseIP(parts[0])
 				endIP := net.ParseIP(parts[1])
-				dhcpRanges = append(dhcpRanges, DHCPRange{
+				dhcpRanges = append(dhcpRanges, dhcpalloc.DHCPRange{
 					Start: startIP.To4(),
 					End:   endIP.To4(),
 				})
@@ -208,15 +192,15 @@ func (n *common) DHCPv4Ranges() []DHCPRange {
 }
 
 // DHCPv6Ranges returns a parsed set of DHCPv6 ranges for this network.
-func (n *common) DHCPv6Ranges() []DHCPRange {
-	dhcpRanges := make([]DHCPRange, 0)
+func (n *common) DHCPv6Ranges() []dhcpalloc.DHCPRange {
+	dhcpRanges := make([]dhcpalloc.DHCPRange, 0)
 	if n.config["ipv6.dhcp.ranges"] != "" {
 		for _, r := range strings.Split(n.config["ipv6.dhcp.ranges"], ",") {
 			parts := strings.SplitN(strings.TrimSpace(r), "-", 2)
 			if len(parts) == 2 {
 				startIP := net.ParseIP(parts[0])
 				endIP := net.ParseIP(parts[1])
-				dhcpRanges = append(dhcpRanges, DHCPRange{
+				dhcpRanges = append(dhcpRanges, dhcpalloc.DHCPRange{
 					Start: startIP.To16(),
 					End:   endIP.To16(),
 				})
@@ -231,8 +215,7 @@ func (n *common) DHCPv6Ranges() []DHCPRange {
 func (n *common) update(applyNetwork api.NetworkPut, targetNode string, clusterNotification bool) error {
 	// Update internal config before database has been updated (so that if update is a notification we apply
 	// the config being supplied and not that in the database).
-	n.description = applyNetwork.Description
-	n.config = applyNetwork.Config
+	n.init(n.state, n.id, n.name, n.netType, applyNetwork.Description, applyNetwork.Config, n.status)
 
 	// If this update isn't coming via a cluster notification itself, then notify all nodes of change and then
 	// update the database.

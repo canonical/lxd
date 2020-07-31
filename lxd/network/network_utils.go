@@ -2,12 +2,9 @@ package network
 
 import (
 	"bufio"
-	"encoding/binary"
 	"encoding/hex"
 	"fmt"
 	"io/ioutil"
-	"math"
-	"math/big"
 	"math/rand"
 	"net"
 	"os"
@@ -22,6 +19,7 @@ import (
 	deviceConfig "github.com/lxc/lxd/lxd/device/config"
 	"github.com/lxc/lxd/lxd/device/nictype"
 	"github.com/lxc/lxd/lxd/dnsmasq"
+	"github.com/lxc/lxd/lxd/dnsmasq/dhcpalloc"
 	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/instance/instancetype"
 	"github.com/lxc/lxd/lxd/network/openvswitch"
@@ -115,41 +113,6 @@ func isInUseByDevices(s *state.State, devices deviceConfig.Devices, networkName 
 	}
 
 	return false, nil
-}
-
-// GetIP returns a net.IP representing the IP belonging to the subnet for the host number supplied.
-func GetIP(subnet *net.IPNet, host int64) net.IP {
-	// Convert IP to a big int.
-	bigIP := big.NewInt(0)
-	bigIP.SetBytes(subnet.IP.To16())
-
-	// Deal with negative offsets.
-	bigHost := big.NewInt(host)
-	bigCount := big.NewInt(host)
-	if host < 0 {
-		mask, size := subnet.Mask.Size()
-
-		bigHosts := big.NewFloat(0)
-		bigHosts.SetFloat64((math.Pow(2, float64(size-mask))))
-		bigHostsInt, _ := bigHosts.Int(nil)
-
-		bigCount.Set(bigHostsInt)
-		bigCount.Add(bigCount, bigHost)
-	}
-
-	// Get the new IP int.
-	bigIP.Add(bigIP, bigCount)
-
-	// Generate an IPv6.
-	if subnet.IP.To4() == nil {
-		newIP := bigIP.Bytes()
-		return newIP
-	}
-
-	// Generate an IPv4.
-	newIP := make(net.IP, 4)
-	binary.BigEndian.PutUint32(newIP, uint32(bigIP.Int64()))
-	return newIP
 }
 
 // IsNativeBridge returns whether the bridge name specified is a Linux native bridge.
@@ -336,7 +299,7 @@ func UpdateDNSMasqStatic(s *state.State, networkName string) error {
 			}
 
 			if (shared.IsTrue(d["security.ipv4_filtering"]) && d["ipv4.address"] == "") || (shared.IsTrue(d["security.ipv6_filtering"]) && d["ipv6.address"] == "") {
-				curIPv4, curIPv6, err := dnsmasq.DHCPStaticIPs(d["parent"], inst.Project(), inst.Name())
+				_, curIPv4, curIPv6, err := dnsmasq.DHCPStaticAllocation(d["parent"], inst.Project(), inst.Name())
 				if err != nil && !os.IsNotExist(err) {
 					return err
 				}
@@ -660,21 +623,21 @@ func pingSubnet(subnet *net.IPNet) bool {
 
 	// Ping first IP
 	wgChecks.Add(1)
-	go ping(GetIP(subnet, 1))
+	go ping(dhcpalloc.GetIP(subnet, 1))
 
 	// Poke port on first IP
 	wgChecks.Add(1)
-	go poke(GetIP(subnet, 1))
+	go poke(dhcpalloc.GetIP(subnet, 1))
 
 	// Ping check
 	if subnet.IP.To4() != nil {
 		// Ping last IP
 		wgChecks.Add(1)
-		go ping(GetIP(subnet, -2))
+		go ping(dhcpalloc.GetIP(subnet, -2))
 
 		// Poke port on last IP
 		wgChecks.Add(1)
-		go poke(GetIP(subnet, -2))
+		go poke(dhcpalloc.GetIP(subnet, -2))
 	}
 
 	wgChecks.Wait()

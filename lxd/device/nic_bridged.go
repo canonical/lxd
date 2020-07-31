@@ -2,11 +2,9 @@ package device
 
 import (
 	"bufio"
-	"bytes"
 	"encoding/binary"
 	"encoding/hex"
 	"fmt"
-	"math/big"
 	"math/rand"
 	"net"
 	"os"
@@ -15,12 +13,12 @@ import (
 
 	"github.com/google/gopacket"
 	"github.com/google/gopacket/layers"
-	"github.com/mdlayher/netx/eui64"
 	"github.com/pkg/errors"
 
 	"github.com/lxc/lxd/lxd/db"
 	deviceConfig "github.com/lxc/lxd/lxd/device/config"
 	"github.com/lxc/lxd/lxd/dnsmasq"
+	"github.com/lxc/lxd/lxd/dnsmasq/dhcpalloc"
 	firewallDrivers "github.com/lxc/lxd/lxd/firewall/drivers"
 	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/instance/instancetype"
@@ -98,8 +96,8 @@ func (d *nicBridged) validateConfig(instConf instance.ConfigReader) error {
 
 		if d.config["ipv4.address"] != "" {
 			// Check that DHCPv4 is enabled on parent network (needed to use static assigned IPs).
-			if !n.HasDHCPv4() {
-				return fmt.Errorf("Cannot specify %q when %q is disabled on network %q", "ipv4.address", "ipv4.dhcp", d.config["network"])
+			if n.DHCPv4Subnet() == nil {
+				return fmt.Errorf("Cannot specify %q when DHCP is disabled on network %q", "ipv4.address", d.config["network"])
 			}
 
 			_, subnet, err := net.ParseCIDR(netConfig["ipv4.address"])
@@ -109,15 +107,15 @@ func (d *nicBridged) validateConfig(instConf instance.ConfigReader) error {
 
 			// Check the static IP supplied is valid for the linked network. It should be part of the
 			// network's subnet, but not necessarily part of the dynamic allocation ranges.
-			if !networkDHCPValidIP(subnet, nil, net.ParseIP(d.config["ipv4.address"])) {
+			if !dhcpalloc.DHCPValidIP(subnet, nil, net.ParseIP(d.config["ipv4.address"])) {
 				return fmt.Errorf("Device IP address %q not within network %q subnet", d.config["ipv4.address"], d.config["network"])
 			}
 		}
 
 		if d.config["ipv6.address"] != "" {
 			// Check that DHCPv6 is enabled on parent network (needed to use static assigned IPs).
-			if !n.HasDHCPv6() || !shared.IsTrue(netConfig["ipv6.dhcp.stateful"]) {
-				return fmt.Errorf("Cannot specify %q when %q or %q are disabled on network %q", "ipv6.address", "ipv6.dhcp", "ipv6.dhcp.stateful", d.config["network"])
+			if n.DHCPv6Subnet() == nil || !shared.IsTrue(netConfig["ipv6.dhcp.stateful"]) {
+				return fmt.Errorf("Cannot specify %q when DHCP or %q are disabled on network %q", "ipv6.address", "ipv6.dhcp.stateful", d.config["network"])
 			}
 
 			_, subnet, err := net.ParseCIDR(netConfig["ipv6.address"])
@@ -127,7 +125,7 @@ func (d *nicBridged) validateConfig(instConf instance.ConfigReader) error {
 
 			// Check the static IP supplied is valid for the linked network. It should be part of the
 			// network's subnet, but not necessarily part of the dynamic allocation ranges.
-			if !networkDHCPValidIP(subnet, nil, net.ParseIP(d.config["ipv6.address"])) {
+			if !dhcpalloc.DHCPValidIP(subnet, nil, net.ParseIP(d.config["ipv6.address"])) {
 				return fmt.Errorf("Device IP address %q not within network %q subnet", d.config["ipv6.address"], d.config["network"])
 			}
 		}
@@ -288,7 +286,7 @@ func (d *nicBridged) Start() (*deviceConfig.RunConfig, error) {
 		return nil, err
 	}
 
-	// Apply and host-side network filters (uses enriched host_name from networkSetupHostVethDevice).
+	// Apply and host-side network filters (uses enriched host_name from networkVethFillFromVolatile).
 	err = d.setupHostFilters(nil)
 	if err != nil {
 		return nil, err
@@ -383,7 +381,7 @@ func (d *nicBridged) Update(oldDevices deviceConfig.Devices, isRunning bool) err
 			return err
 		}
 
-		// Apply and host-side network filters (uses enriched host_name from networkSetupHostVethDevice).
+		// Apply and host-side network filters (uses enriched host_name from networkVethFillFromVolatile).
 		err = d.setupHostFilters(oldConfig)
 		if err != nil {
 			return err
@@ -503,7 +501,7 @@ func (d *nicBridged) rebuildDnsmasqEntry() error {
 	// If IP filtering is enabled, and no static IP in config, check if there is already a
 	// dynamically assigned static IP in dnsmasq config and write that back out in new config.
 	if (shared.IsTrue(d.config["security.ipv4_filtering"]) && ipv4Address == "") || (shared.IsTrue(d.config["security.ipv6_filtering"]) && ipv6Address == "") {
-		curIPv4, curIPv6, err := dnsmasq.DHCPStaticIPs(d.config["parent"], d.inst.Project(), d.inst.Name())
+		_, curIPv4, curIPv6, err := dnsmasq.DHCPStaticAllocation(d.config["parent"], d.inst.Project(), d.inst.Name())
 		if err != nil && !os.IsNotExist(err) {
 			return err
 		}
@@ -591,7 +589,7 @@ func (d *nicBridged) removeFilters(m deviceConfig.Device) {
 
 	// Read current static DHCP IP allocation configured from dnsmasq host config (if exists).
 	// This covers the case when IPs are not defined in config, but have been assigned in managed DHCP.
-	IPv4Alloc, IPv6Alloc, err := dnsmasq.DHCPStaticIPs(m["parent"], d.inst.Project(), d.inst.Name())
+	_, IPv4Alloc, IPv6Alloc, err := dnsmasq.DHCPStaticAllocation(m["parent"], d.inst.Project(), d.inst.Name())
 	if err != nil {
 		if os.IsNotExist(err) {
 			return
@@ -637,8 +635,17 @@ func (d *nicBridged) setFilters() (err error) {
 		}
 	}
 
+	// Parse device config.
+	mac, err := net.ParseMAC(d.config["hwaddr"])
+	if err != nil {
+		return errors.Wrapf(err, "Invalid hwaddr")
+	}
+
+	// Parse static IPs, relies on invalid IPs being set to nil.
+	IPv4 := net.ParseIP(d.config["ipv4.address"])
+	IPv6 := net.ParseIP(d.config["ipv6.address"])
+
 	// Check if the parent is managed and load config. If parent is unmanaged continue anyway.
-	var IPv4, IPv6 net.IP
 	n, err := network.LoadByName(d.state, d.config["parent"])
 	if err != nil && err != db.ErrNoSuchObject {
 		return err
@@ -651,21 +658,45 @@ func (d *nicBridged) setFilters() (err error) {
 		}
 	}
 
-	// If parent bridge is unmanaged we cannot allocate static IPs.
-	if n != nil {
-		// Retrieve existing IPs, or allocate new ones if needed.
-		IPv4, IPv6, err = d.allocateFilterIPs(n)
-		if err != nil {
+	// If parent bridge is managed, allocate the static IPs (if needed).
+	if n != nil && (IPv4 == nil || IPv6 == nil) {
+		opts := &dhcpalloc.Options{
+			ProjectName: d.inst.Project(),
+			HostName:    d.inst.Name(),
+			HostMAC:     mac,
+			Network:     n,
+		}
+
+		err = dhcpalloc.AllocateTask(opts, func(t *dhcpalloc.Transaction) error {
+			if shared.IsTrue(d.config["security.ipv4_filtering"]) && IPv4 == nil {
+				IPv4, err = t.AllocateIPv4()
+
+				// If DHCP not supported, skip error, and will result in total protocol filter.
+				if err != nil && err != dhcpalloc.ErrDHCPNotSupported {
+					return err
+				}
+			}
+
+			if shared.IsTrue(d.config["security.ipv6_filtering"]) && IPv6 == nil {
+				IPv6, err = t.AllocateIPv6()
+
+				// If DHCP not supported, skip error, and will result in total protocol filter.
+				if err != nil && err != dhcpalloc.ErrDHCPNotSupported {
+					return err
+				}
+			}
+
+			return nil
+		})
+		if err != nil && err != dhcpalloc.ErrDHCPNotSupported {
 			return err
 		}
 	}
 
 	// If anything goes wrong, clean up so we don't leave orphaned rules.
-	defer func() {
-		if err != nil {
-			d.removeFilters(d.config)
-		}
-	}()
+	revert := revert.New()
+	defer revert.Fail()
+	revert.Add(func() { d.removeFilters(d.config) })
 
 	// If no allocated IPv4 address for filtering and filtering enabled, then block all IPv4 traffic.
 	if shared.IsTrue(d.config["security.ipv4_filtering"]) && IPv4 == nil {
@@ -677,290 +708,13 @@ func (d *nicBridged) setFilters() (err error) {
 		IPv6 = net.ParseIP(firewallDrivers.FilterIPv6All)
 	}
 
-	return d.state.Firewall.InstanceSetupBridgeFilter(d.inst.Project(), d.inst.Name(), d.name, d.config["parent"], d.config["host_name"], d.config["hwaddr"], IPv4, IPv6)
-}
-
-// networkAllocateVethFilterIPs retrieves previously allocated IPs, or allocate new ones if needed.
-// This function only works with LXD managed networks, and as such, requires the managed network's
-// config to be supplied.
-func (d *nicBridged) allocateFilterIPs(n network.Network) (net.IP, net.IP, error) {
-	var IPv4, IPv6 net.IP
-
-	// Check if there is a valid static IPv4 address defined.
-	if d.config["ipv4.address"] != "" {
-		IPv4 = net.ParseIP(d.config["ipv4.address"])
-		if IPv4 == nil {
-			return nil, nil, fmt.Errorf("Invalid static IPv4 address %s", d.config["ipv4.address"])
-		}
-	}
-
-	// Check if there is a valid static IPv6 address defined.
-	if d.config["ipv6.address"] != "" {
-		IPv6 = net.ParseIP(d.config["ipv6.address"])
-		if IPv6 == nil {
-			return nil, nil, fmt.Errorf("Invalid static IPv6 address %s", d.config["ipv6.address"])
-		}
-	}
-
-	netConfig := n.Config()
-
-	// Check the conditions required to dynamically allocated IPs.
-	canIPv4Allocate := netConfig["ipv4.address"] != "" && netConfig["ipv4.address"] != "none" && n.HasDHCPv4()
-	canIPv6Allocate := netConfig["ipv6.address"] != "" && netConfig["ipv6.address"] != "none" && n.HasDHCPv6()
-
-	dnsmasq.ConfigMutex.Lock()
-	defer dnsmasq.ConfigMutex.Unlock()
-
-	// Read current static IP allocation configured from dnsmasq host config (if exists).
-	curIPv4, curIPv6, err := dnsmasq.DHCPStaticIPs(d.config["parent"], d.inst.Project(), d.inst.Name())
-	if err != nil && !os.IsNotExist(err) {
-		return nil, nil, err
-	}
-
-	// If no static IPv4, then check if there is a valid static DHCP IPv4 address defined.
-	if IPv4 == nil && curIPv4.IP != nil && canIPv4Allocate {
-		_, subnet, err := net.ParseCIDR(netConfig["ipv4.address"])
-		if err != nil {
-			return nil, nil, err
-		}
-
-		// Check the existing static DHCP IP is still valid in the subnet & ranges, if not
-		// then we'll need to generate a new one.
-		ranges := n.DHCPv4Ranges()
-		if networkDHCPValidIP(subnet, ranges, curIPv4.IP.To4()) {
-			IPv4 = curIPv4.IP.To4()
-		}
-	}
-
-	// If no static IPv6, then check if there is a valid static DHCP IPv6 address defined.
-	if IPv6 == nil && curIPv6.IP != nil && canIPv6Allocate {
-		_, subnet, err := net.ParseCIDR(netConfig["ipv6.address"])
-		if err != nil {
-			return IPv4, IPv6, err
-		}
-
-		// Check the existing static DHCP IP is still valid in the subnet & ranges, if not
-		// then we'll need to generate a new one.
-		ranges := n.DHCPv6Ranges()
-		if networkDHCPValidIP(subnet, ranges, curIPv6.IP.To16()) {
-			IPv6 = curIPv6.IP.To16()
-		}
-	}
-
-	// If we need to generate either a new IPv4 or IPv6, load existing IPs used in network.
-	if (IPv4 == nil && canIPv4Allocate) || (IPv6 == nil && canIPv6Allocate) {
-		// Get existing allocations in network.
-		IPv4Allocs, IPv6Allocs, err := dnsmasq.DHCPAllocatedIPs(d.config["parent"])
-		if err != nil {
-			return nil, nil, err
-		}
-
-		// Allocate a new IPv4 address if IPv4 filtering enabled.
-		if IPv4 == nil && canIPv4Allocate && shared.IsTrue(d.config["security.ipv4_filtering"]) {
-			IPv4, err = d.getDHCPFreeIPv4(IPv4Allocs, n, d.inst.Name(), d.config["hwaddr"])
-			if err != nil {
-				return nil, nil, err
-			}
-		}
-
-		// Allocate a new IPv6 address if IPv6 filtering enabled.
-		if IPv6 == nil && canIPv6Allocate && shared.IsTrue(d.config["security.ipv6_filtering"]) {
-			IPv6, err = d.getDHCPFreeIPv6(IPv6Allocs, n, d.inst.Name(), d.config["hwaddr"])
-			if err != nil {
-				return nil, nil, err
-			}
-		}
-	}
-
-	// If parent is a DHCP enabled managed network and either IPv4 or IPv6 assigned is different than what is in dnsmasq config, rebuild config.
-	if shared.PathExists(shared.VarPath("networks", d.config["parent"], "dnsmasq.pid")) &&
-		((IPv4 != nil && bytes.Compare(curIPv4.IP, IPv4.To4()) != 0) || (IPv6 != nil && bytes.Compare(curIPv6.IP, IPv6.To16()) != 0)) {
-		var IPv4Str, IPv6Str string
-
-		if IPv4 != nil {
-			IPv4Str = IPv4.String()
-		}
-
-		if IPv6 != nil {
-			IPv6Str = IPv6.String()
-		}
-
-		err = dnsmasq.UpdateStaticEntry(d.config["parent"], d.inst.Project(), d.inst.Name(), netConfig, d.config["hwaddr"], IPv4Str, IPv6Str)
-		if err != nil {
-			return nil, nil, err
-		}
-
-		err = dnsmasq.Kill(d.config["parent"], true)
-		if err != nil {
-			return nil, nil, err
-		}
-	}
-
-	return IPv4, IPv6, nil
-}
-
-// getDHCPFreeIPv4 attempts to find a free IPv4 address for the device.
-// It first checks whether there is an existing allocation for the instance.
-// If no previous allocation, then a free IP is picked from the ranges configured.
-func (d *nicBridged) getDHCPFreeIPv4(usedIPs map[[4]byte]dnsmasq.DHCPAllocation, n network.Network, ctName string, deviceMAC string) (net.IP, error) {
-	MAC, err := net.ParseMAC(deviceMAC)
+	err = d.state.Firewall.InstanceSetupBridgeFilter(d.inst.Project(), d.inst.Name(), d.name, d.config["parent"], d.config["host_name"], d.config["hwaddr"], IPv4, IPv6)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
-	lxdIP, subnet, err := net.ParseCIDR(n.Config()["ipv4.address"])
-	if err != nil {
-		return nil, err
-	}
-
-	dhcpRanges := n.DHCPv4Ranges()
-
-	// Lets see if there is already an allocation for our device and that it sits within subnet.
-	// If there are custom DHCP ranges defined, check also that the IP falls within one of the ranges.
-	for _, DHCP := range usedIPs {
-		if (ctName == DHCP.Name || bytes.Compare(MAC, DHCP.MAC) == 0) && networkDHCPValidIP(subnet, dhcpRanges, DHCP.IP) {
-			return DHCP.IP, nil
-		}
-	}
-
-	// If no custom ranges defined, convert subnet pool to a range.
-	if len(dhcpRanges) <= 0 {
-		dhcpRanges = append(dhcpRanges, network.DHCPRange{
-			Start: network.GetIP(subnet, 1).To4(),
-			End:   network.GetIP(subnet, -2).To4()},
-		)
-	}
-
-	// If no valid existing allocation found, try and find a free one in the subnet pool/ranges.
-	for _, IPRange := range dhcpRanges {
-		inc := big.NewInt(1)
-		startBig := big.NewInt(0)
-		startBig.SetBytes(IPRange.Start)
-		endBig := big.NewInt(0)
-		endBig.SetBytes(IPRange.End)
-
-		for {
-			if startBig.Cmp(endBig) >= 0 {
-				break
-			}
-
-			IP := net.IP(startBig.Bytes())
-
-			// Check IP generated is not LXD's IP.
-			if IP.Equal(lxdIP) {
-				startBig.Add(startBig, inc)
-				continue
-			}
-
-			// Check IP is not already allocated.
-			var IPKey [4]byte
-			copy(IPKey[:], IP.To4())
-
-			_, inUse := usedIPs[IPKey]
-			if inUse {
-				startBig.Add(startBig, inc)
-				continue
-			}
-
-			return IP, nil
-		}
-	}
-
-	return nil, fmt.Errorf("No available IP could not be found")
-}
-
-// getDHCPFreeIPv6 attempts to find a free IPv6 address for the device.
-// It first checks whether there is an existing allocation for the instance. Due to the limitations
-// of dnsmasq lease file format, we can only search for previous static allocations.
-// If no previous allocation, then if SLAAC (stateless) mode is enabled on the network, or if
-// DHCPv6 stateful mode is enabled without custom ranges, then an EUI64 IP is generated from the
-// device's MAC address. Finally if stateful custom ranges are enabled, then a free IP is picked
-// from the ranges configured.
-func (d *nicBridged) getDHCPFreeIPv6(usedIPs map[[16]byte]dnsmasq.DHCPAllocation, n network.Network, ctName string, deviceMAC string) (net.IP, error) {
-	netConfig := n.Config()
-	lxdIP, subnet, err := net.ParseCIDR(netConfig["ipv6.address"])
-	if err != nil {
-		return nil, err
-	}
-
-	dhcpRanges := n.DHCPv6Ranges()
-
-	// Lets see if there is already an allocation for our device and that it sits within subnet.
-	// Because of dnsmasq's lease file format we can only match safely against static
-	// allocations using instance name. If there are custom DHCP ranges defined, check also
-	// that the IP falls within one of the ranges.
-	for _, DHCP := range usedIPs {
-		if ctName == DHCP.Name && networkDHCPValidIP(subnet, dhcpRanges, DHCP.IP) {
-			return DHCP.IP, nil
-		}
-	}
-
-	// Try using an EUI64 IP when in either SLAAC or DHCPv6 stateful mode without custom ranges.
-	if !shared.IsTrue(netConfig["ipv6.dhcp.stateful"]) || netConfig["ipv6.dhcp.ranges"] == "" {
-		MAC, err := net.ParseMAC(deviceMAC)
-		if err != nil {
-			return nil, err
-		}
-
-		IP, err := eui64.ParseMAC(subnet.IP, MAC)
-		if err != nil {
-			return nil, err
-		}
-
-		// Check IP is not already allocated and not the LXD IP.
-		var IPKey [16]byte
-		copy(IPKey[:], IP.To16())
-		_, inUse := usedIPs[IPKey]
-		if !inUse && !IP.Equal(lxdIP) {
-			return IP, nil
-		}
-	}
-
-	// If no custom ranges defined, convert subnet pool to a range.
-	if len(dhcpRanges) <= 0 {
-		dhcpRanges = append(dhcpRanges, network.DHCPRange{
-			Start: network.GetIP(subnet, 1).To16(),
-			End:   network.GetIP(subnet, -1).To16()},
-		)
-	}
-
-	// If we get here, then someone already has our SLAAC IP, or we are using custom ranges.
-	// Try and find a free one in the subnet pool/ranges.
-	for _, IPRange := range dhcpRanges {
-		inc := big.NewInt(1)
-		startBig := big.NewInt(0)
-		startBig.SetBytes(IPRange.Start)
-		endBig := big.NewInt(0)
-		endBig.SetBytes(IPRange.End)
-
-		for {
-			if startBig.Cmp(endBig) >= 0 {
-				break
-			}
-
-			IP := net.IP(startBig.Bytes())
-
-			// Check IP generated is not LXD's IP.
-			if IP.Equal(lxdIP) {
-				startBig.Add(startBig, inc)
-				continue
-			}
-
-			// Check IP is not already allocated.
-			var IPKey [16]byte
-			copy(IPKey[:], IP.To16())
-
-			_, inUse := usedIPs[IPKey]
-			if inUse {
-				startBig.Add(startBig, inc)
-				continue
-			}
-
-			return IP, nil
-		}
-	}
-
-	return nil, fmt.Errorf("No available IP could not be found")
+	revert.Success()
+	return nil
 }
 
 const (
