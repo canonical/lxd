@@ -19,6 +19,7 @@ import (
 	"github.com/lxc/lxd/lxd/cluster"
 	"github.com/lxc/lxd/lxd/daemon"
 	"github.com/lxc/lxd/lxd/dnsmasq"
+	"github.com/lxc/lxd/lxd/dnsmasq/dhcpalloc"
 	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/network/openvswitch"
 	"github.com/lxc/lxd/lxd/node"
@@ -626,7 +627,7 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 
 	// Configure IPv4 firewall (includes fan).
 	if n.config["bridge.mode"] == "fan" || !shared.StringInSlice(n.config["ipv4.address"], []string{"", "none"}) {
-		if n.HasDHCPv4() && n.hasIPv4Firewall() {
+		if n.DHCPv4Subnet() != nil && n.hasIPv4Firewall() {
 			// Setup basic iptables overrides for DHCP/DNS.
 			err = n.state.Firewall.NetworkSetupDHCPDNSAccess(n.name, 4)
 			if err != nil {
@@ -703,7 +704,7 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 
 		// Update the dnsmasq config.
 		dnsmasqCmd = append(dnsmasqCmd, fmt.Sprintf("--listen-address=%s", ip.String()))
-		if n.HasDHCPv4() {
+		if n.DHCPv4Subnet() != nil {
 			if !shared.StringInSlice("--dhcp-no-override", dnsmasqCmd) {
 				dnsmasqCmd = append(dnsmasqCmd, []string{"--dhcp-no-override", "--dhcp-authoritative", fmt.Sprintf("--dhcp-leasefile=%s", shared.VarPath("networks", n.name, "dnsmasq.leases")), fmt.Sprintf("--dhcp-hostsfile=%s", shared.VarPath("networks", n.name, "dnsmasq.hosts"))}...)
 			}
@@ -732,7 +733,7 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 					dnsmasqCmd = append(dnsmasqCmd, []string{"--dhcp-range", fmt.Sprintf("%s,%s", strings.Replace(dhcpRange, "-", ",", -1), expiry)}...)
 				}
 			} else {
-				dnsmasqCmd = append(dnsmasqCmd, []string{"--dhcp-range", fmt.Sprintf("%s,%s,%s", GetIP(subnet, 2).String(), GetIP(subnet, -2).String(), expiry)}...)
+				dnsmasqCmd = append(dnsmasqCmd, []string{"--dhcp-range", fmt.Sprintf("%s,%s,%s", dhcpalloc.GetIP(subnet, 2).String(), dhcpalloc.GetIP(subnet, -2).String(), expiry)}...)
 			}
 		}
 
@@ -825,7 +826,7 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 
 		// Update the dnsmasq config.
 		dnsmasqCmd = append(dnsmasqCmd, []string{fmt.Sprintf("--listen-address=%s", ip.String()), "--enable-ra"}...)
-		if n.HasDHCPv6() {
+		if n.DHCPv6Subnet() != nil {
 			if n.config["ipv6.firewall"] == "" || shared.IsTrue(n.config["ipv6.firewall"]) {
 				// Setup basic iptables overrides for DHCP/DNS.
 				err = n.state.Firewall.NetworkSetupDHCPDNSAccess(n.name, 6)
@@ -851,7 +852,7 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 						dnsmasqCmd = append(dnsmasqCmd, []string{"--dhcp-range", fmt.Sprintf("%s,%d,%s", strings.Replace(dhcpRange, "-", ",", -1), subnetSize, expiry)}...)
 					}
 				} else {
-					dnsmasqCmd = append(dnsmasqCmd, []string{"--dhcp-range", fmt.Sprintf("%s,%s,%d,%s", GetIP(subnet, 2), GetIP(subnet, -1), subnetSize, expiry)}...)
+					dnsmasqCmd = append(dnsmasqCmd, []string{"--dhcp-range", fmt.Sprintf("%s,%s,%d,%s", dhcpalloc.GetIP(subnet, 2), dhcpalloc.GetIP(subnet, -1), subnetSize, expiry)}...)
 				}
 			} else {
 				dnsmasqCmd = append(dnsmasqCmd, []string{"--dhcp-range", fmt.Sprintf("::,constructor:%s,ra-stateless,ra-names", n.name)}...)
@@ -1032,7 +1033,7 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 			"--dhcp-no-override", "--dhcp-authoritative",
 			fmt.Sprintf("--dhcp-leasefile=%s", shared.VarPath("networks", n.name, "dnsmasq.leases")),
 			fmt.Sprintf("--dhcp-hostsfile=%s", shared.VarPath("networks", n.name, "dnsmasq.hosts")),
-			"--dhcp-range", fmt.Sprintf("%s,%s,%s", GetIP(hostSubnet, 2).String(), GetIP(hostSubnet, -2).String(), expiry)}...)
+			"--dhcp-range", fmt.Sprintf("%s,%s,%s", dhcpalloc.GetIP(hostSubnet, 2).String(), dhcpalloc.GetIP(hostSubnet, -2).String(), expiry)}...)
 
 		// Setup the tunnel.
 		if n.config["fan.type"] == "ipip" {
