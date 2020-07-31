@@ -21,6 +21,7 @@ import (
 	"github.com/lxc/lxd/lxd/db"
 	deviceConfig "github.com/lxc/lxd/lxd/device/config"
 	"github.com/lxc/lxd/lxd/dnsmasq"
+	"github.com/lxc/lxd/lxd/dnsmasq/dhcpalloc"
 	firewallDrivers "github.com/lxc/lxd/lxd/firewall/drivers"
 	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/instance/instancetype"
@@ -124,7 +125,7 @@ func (d *nicBridged) validateConfig(instConf instance.ConfigReader) error {
 
 			// Check the static IP supplied is valid for the linked network. It should be part of the
 			// network's subnet, but not necessarily part of the dynamic allocation ranges.
-			if !networkDHCPValidIP(subnet, nil, net.ParseIP(d.config["ipv6.address"])) {
+			if !dhcpalloc.DHCPValidIP(subnet, nil, net.ParseIP(d.config["ipv6.address"])) {
 				return fmt.Errorf("Device IP address %q not within network %q subnet", d.config["ipv6.address"], d.config["network"])
 			}
 		}
