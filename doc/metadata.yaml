@@ -76,7 +76,7 @@ navigation:
         - title: Main API extensions
           location: api-extensions.md
 
-        - title: Container API documentation
+        - title: Instance API documentation
           location: dev-lxd.md
 
     - title: Internals & debugging
@@ -84,7 +84,7 @@ navigation:
         - title: Container environment
           location: container-environment.md
 
-        - title: Container migration
+        - title: Instance migration
           location: migration.md
 
         - title: Daemon behavior
