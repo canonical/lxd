@@ -70,3 +70,8 @@ Once everything is mounted where it should be, you can now run `lxd import NAME-
 If any matching database entry for resources declared in `backup.yaml` is found
 during import, the command will refuse to restore the instance.  This can be
 overridden by passing `--force`.
+
+NOTE: When dealing with mounts and the snap, you may need to either
+perform a full restart of the snap with `snap stop` and `snap start` or
+perform the mounts from within the snap environment using `nsenter
+--mount=/run/snapd/ns/lxd.mnt`.
