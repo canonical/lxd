@@ -150,7 +150,7 @@ func instanceProfile(state *state.State, inst instance) (string, error) {
 	}
 
 	// Check for features.
-	unixSupported, err := parserSupports("unix")
+	unixSupported, err := parserSupports(state, "unix")
 	if err != nil {
 		return "", err
 	}
