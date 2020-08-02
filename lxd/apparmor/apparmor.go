@@ -143,7 +143,7 @@ func deleteProfile(state *state.State, name string) error {
 		return nil
 	}
 
-	cacheDir, err := getCacheDir()
+	cacheDir, err := getCacheDir(state)
 	if err != nil {
 		return err
 	}
@@ -167,8 +167,12 @@ func deleteProfile(state *state.State, name string) error {
 }
 
 // parserSupports checks if the parser supports a particular feature.
-func parserSupports(feature string) (bool, error) {
-	ver, err := getVersion()
+func parserSupports(state *state.State, feature string) (bool, error) {
+	if !state.OS.AppArmorAvailable {
+		return false, nil
+	}
+
+	ver, err := getVersion(state)
 	if err != nil {
 		return false, err
 	}
@@ -186,7 +190,11 @@ func parserSupports(feature string) (bool, error) {
 }
 
 // getVersion reads and parses the AppArmor version.
-func getVersion() (*version.DottedVersion, error) {
+func getVersion(state *state.State) (*version.DottedVersion, error) {
+	if !state.OS.AppArmorAvailable {
+		return version.NewDottedVersion("0.0")
+	}
+
 	out, err := shared.RunCommand("apparmor_parser", "--version")
 	if err != nil {
 		return nil, err
@@ -197,10 +205,14 @@ func getVersion() (*version.DottedVersion, error) {
 }
 
 // getCacheDir returns the applicable AppArmor cache directory.
-func getCacheDir() (string, error) {
+func getCacheDir(state *state.State) (string, error) {
 	basePath := filepath.Join(aaPath, "cache")
 
-	ver, err := getVersion()
+	if !state.OS.AppArmorAvailable {
+		return basePath, nil
+	}
+
+	ver, err := getVersion(state)
 	if err != nil {
 		return "", err
 	}
