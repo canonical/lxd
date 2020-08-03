@@ -163,10 +163,6 @@ func IsNetworkAddress(value string) error {
 
 // IsNetworkV4 validates an IPv4 CIDR string. If string is empty, returns valid.
 func IsNetworkV4(value string) error {
-	if value == "" {
-		return nil
-	}
-
 	ip, subnet, err := net.ParseCIDR(value)
 	if err != nil {
 		return err
