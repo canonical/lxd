@@ -43,10 +43,6 @@ func IsInt64(value string) error {
 
 // IsUint8 validates whether the string can be converted to an uint8.
 func IsUint8(value string) error {
-	if value == "" {
-		return nil
-	}
-
 	_, err := strconv.ParseUint(value, 10, 8)
 	if err != nil {
 		return fmt.Errorf("Invalid value for an integer %q. Must be between 0 and 255", value)
@@ -57,10 +53,6 @@ func IsUint8(value string) error {
 
 // IsUint32 validates whether the string can be converted to an uint32.
 func IsUint32(value string) error {
-	if value == "" {
-		return nil
-	}
-
 	_, err := strconv.ParseUint(value, 10, 32)
 	if err != nil {
 		return fmt.Errorf("Invalid value for uint32 %q: %v", value, err)
@@ -71,10 +63,6 @@ func IsUint32(value string) error {
 
 // IsPriority validates priority number.
 func IsPriority(value string) error {
-	if value == "" {
-		return nil
-	}
-
 	valueInt, err := strconv.ParseInt(value, 10, 64)
 	if err != nil {
 		return fmt.Errorf("Invalid value for an integer %q", value)
@@ -89,10 +77,6 @@ func IsPriority(value string) error {
 
 // IsBool validates if string can be understood as a bool.
 func IsBool(value string) error {
-	if value == "" {
-		return nil
-	}
-
 	if !stringInSlice(strings.ToLower(value), []string{"true", "false", "yes", "no", "1", "0", "on", "off"}) {
 		return fmt.Errorf("Invalid value for a boolean %q", value)
 	}
@@ -129,10 +113,6 @@ func IsNotEmpty(value string) error {
 
 // IsSize checks if string is valid size according to units.ParseByteSizeString.
 func IsSize(value string) error {
-	if value == "" {
-		return nil
-	}
-
 	_, err := units.ParseByteSizeString(value)
 	if err != nil {
 		return err
@@ -143,10 +123,6 @@ func IsSize(value string) error {
 
 // IsDeviceID validates string is four lowercase hex characters suitable as Vendor or Device ID.
 func IsDeviceID(value string) error {
-	if value == "" {
-		return nil
-	}
-
 	regexHexLc, err := regexp.Compile("^[0-9a-f]+$")
 	if err != nil {
 		return err
@@ -173,10 +149,6 @@ func IsNetworkMAC(value string) error {
 
 // IsNetworkAddress validates an IP (v4 or v6) address string. If string is empty, returns valid.
 func IsNetworkAddress(value string) error {
-	if value == "" {
-		return nil
-	}
-
 	ip := net.ParseIP(value)
 	if ip == nil {
 		return fmt.Errorf("Not an IP address %q", value)
@@ -187,10 +159,6 @@ func IsNetworkAddress(value string) error {
 
 // IsNetworkV4 validates an IPv4 CIDR string. If string is empty, returns valid.
 func IsNetworkV4(value string) error {
-	if value == "" {
-		return nil
-	}
-
 	ip, subnet, err := net.ParseCIDR(value)
 	if err != nil {
 		return err
@@ -209,10 +177,6 @@ func IsNetworkV4(value string) error {
 
 // IsNetworkAddressV4 validates an IPv4 addresss string. If string is empty, returns valid.
 func IsNetworkAddressV4(value string) error {
-	if value == "" {
-		return nil
-	}
-
 	ip := net.ParseIP(value)
 	if ip == nil || ip.To4() == nil {
 		return fmt.Errorf("Not an IPv4 address: %s", value)
@@ -223,10 +187,6 @@ func IsNetworkAddressV4(value string) error {
 
 // IsNetworkAddressCIDRV4 validates an IPv4 addresss string in CIDR format. If string is empty, returns valid.
 func IsNetworkAddressCIDRV4(value string) error {
-	if value == "" {
-		return nil
-	}
-
 	ip, subnet, err := net.ParseCIDR(value)
 	if err != nil {
 		return err
@@ -270,10 +230,6 @@ func IsNetworkV4List(value string) error {
 
 // IsNetworkV6 validates an IPv6 CIDR string. If string is empty, returns valid.
 func IsNetworkV6(value string) error {
-	if value == "" {
-		return nil
-	}
-
 	ip, subnet, err := net.ParseCIDR(value)
 	if err != nil {
 		return err
@@ -292,10 +248,6 @@ func IsNetworkV6(value string) error {
 
 // IsNetworkAddressV6 validates an IPv6 addresss string. If string is empty, returns valid.
 func IsNetworkAddressV6(value string) error {
-	if value == "" {
-		return nil
-	}
-
 	ip := net.ParseIP(value)
 	if ip == nil || ip.To4() != nil {
 		return fmt.Errorf("Not an IPv6 address: %s", value)
@@ -306,10 +258,6 @@ func IsNetworkAddressV6(value string) error {
 
 // IsNetworkAddressCIDRV6 validates an IPv6 addresss string in CIDR format. If string is empty, returns valid.
 func IsNetworkAddressCIDRV6(value string) error {
-	if value == "" {
-		return nil
-	}
-
 	ip, subnet, err := net.ParseCIDR(value)
 	if err != nil {
 		return err
@@ -326,7 +274,7 @@ func IsNetworkAddressCIDRV6(value string) error {
 	return nil
 }
 
-//IsNetworkAddressV6List validates a comma delimited list of IPv6 addresses.
+// IsNetworkAddressV6List validates a comma delimited list of IPv6 addresses.
 func IsNetworkAddressV6List(value string) error {
 	for _, v := range strings.Split(value, ",") {
 		v = strings.TrimSpace(v)
@@ -359,7 +307,7 @@ func IsNetworkVLAN(value string) error {
 	}
 
 	if vlanID < 0 || vlanID > 4094 {
-		return fmt.Errorf("Out of range (0-4094) VLAN ID: %s", value)
+		return fmt.Errorf("Out of VLAN ID range (0-4094): %s", value)
 	}
 
 	return nil

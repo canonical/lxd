@@ -431,7 +431,7 @@ func (d *lvm) Validate(config map[string]string) error {
 	rules := map[string]func(value string) error{
 		"lvm.vg_name":                validate.IsAny,
 		"lvm.thinpool_name":          validate.IsAny,
-		"lvm.use_thinpool":           validate.IsBool,
+		"lvm.use_thinpool":           validate.Optional(validate.IsBool),
 		"volume.block.mount_options": validate.IsAny,
 		"volume.block.filesystem": func(value string) error {
 			if value == "" {
@@ -439,9 +439,9 @@ func (d *lvm) Validate(config map[string]string) error {
 			}
 			return validate.IsOneOf(value, lvmAllowedFilesystems)
 		},
-		"volume.lvm.stripes":      validate.IsUint32,
-		"volume.lvm.stripes.size": validate.IsSize,
-		"lvm.vg.force_reuse":      validate.IsBool,
+		"volume.lvm.stripes":      validate.Optional(validate.IsUint32),
+		"volume.lvm.stripes.size": validate.Optional(validate.IsSize),
+		"lvm.vg.force_reuse":      validate.Optional(validate.IsBool),
 	}
 
 	err := d.validatePool(config, rules)

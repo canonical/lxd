@@ -116,21 +116,8 @@ func (d *nicIPVLAN) validateConfig(instConf instance.ConfigReader) error {
 	}
 
 	if d.config["mode"] == ipvlanModeL2 {
-		rules["ipv4.gateway"] = func(value string) error {
-			if value == "" {
-				return nil
-			}
-
-			return validate.IsNetworkAddressV4(value)
-		}
-
-		rules["ipv6.gateway"] = func(value string) error {
-			if value == "" {
-				return nil
-			}
-
-			return validate.IsNetworkAddressV6(value)
-		}
+		rules["ipv4.gateway"] = validate.Optional(validate.IsNetworkAddressV4)
+		rules["ipv6.gateway"] = validate.Optional(validate.IsNetworkAddressV6)
 	}
 
 	err := d.config.Validate(rules)
@@ -307,7 +294,7 @@ func (d *nicIPVLAN) Start() (*deviceConfig.RunConfig, error) {
 				addr = fmt.Sprintf("%s/128", addr)
 			}
 
-			if mode == "l2" && validate.IsNetworkAddressV4(addr) == nil {
+			if mode == "l2" && validate.IsNetworkAddressV6(addr) == nil {
 				addr = fmt.Sprintf("%s/64", addr)
 			}
 
