@@ -23,7 +23,7 @@ var storagePoolConfigKeys = map[string]func(value string) error{
 
 	// valid drivers: ceph
 	"ceph.cluster_name":       validate.IsAny,
-	"ceph.osd.force_reuse":    validate.IsBool,
+	"ceph.osd.force_reuse":    validate.Optional(validate.IsBool),
 	"ceph.osd.pool_name":      validate.IsAny,
 	"ceph.osd.data_pool_name": validate.IsAny,
 	"ceph.osd.pg_num": func(value string) error {
@@ -34,7 +34,7 @@ var storagePoolConfigKeys = map[string]func(value string) error{
 		_, err := units.ParseByteSizeString(value)
 		return err
 	},
-	"ceph.rbd.clone_copy": validate.IsBool,
+	"ceph.rbd.clone_copy": validate.Optional(validate.IsBool),
 	"ceph.user.name":      validate.IsAny,
 
 	// valid drivers: cephfs
@@ -44,11 +44,11 @@ var storagePoolConfigKeys = map[string]func(value string) error{
 
 	// valid drivers: lvm
 	"lvm.thinpool_name":       validate.IsAny,
-	"lvm.use_thinpool":        validate.IsBool,
+	"lvm.use_thinpool":        validate.Optional(validate.IsBool),
 	"lvm.vg_name":             validate.IsAny,
 	"volume.lvm.stripes":      validate.Optional(validate.IsUint32),
 	"volume.lvm.stripes.size": validate.IsSize,
-	"lvm.vg.force_reuse":      validate.IsBool,
+	"lvm.vg.force_reuse":      validate.Optional(validate.IsBool),
 
 	// valid drivers: btrfs, lvm, zfs
 	"size": validate.IsSize,
@@ -74,11 +74,11 @@ var storagePoolConfigKeys = map[string]func(value string) error{
 	"volume.size": validate.IsSize,
 
 	// valid drivers: zfs
-	"volume.zfs.remove_snapshots": validate.IsBool,
-	"volume.zfs.use_refquota":     validate.IsBool,
+	"volume.zfs.remove_snapshots": validate.Optional(validate.IsBool),
+	"volume.zfs.use_refquota":     validate.Optional(validate.IsBool),
 
 	// valid drivers: zfs
-	"zfs.clone_copy": validate.IsBool,
+	"zfs.clone_copy": validate.Optional(validate.IsBool),
 	"zfs.pool_name":  validate.IsAny,
 	"rsync.bwlimit":  validate.IsAny,
 }

@@ -796,8 +796,8 @@ func (d *zfs) HasVolume(vol Volume) bool {
 // ValidateVolume validates the supplied volume config.
 func (d *zfs) ValidateVolume(vol Volume, removeUnknownKeys bool) error {
 	rules := map[string]func(value string) error{
-		"zfs.remove_snapshots": validate.IsBool,
-		"zfs.use_refquota":     validate.IsBool,
+		"zfs.remove_snapshots": validate.Optional(validate.IsBool),
+		"zfs.use_refquota":     validate.Optional(validate.IsBool),
 	}
 
 	return d.validateVolume(vol, rules, removeUnknownKeys)

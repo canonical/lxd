@@ -239,11 +239,11 @@ func (d *ceph) Delete(op *operations.Operation) error {
 func (d *ceph) Validate(config map[string]string) error {
 	rules := map[string]func(value string) error{
 		"ceph.cluster_name":       validate.IsAny,
-		"ceph.osd.force_reuse":    validate.IsBool,
+		"ceph.osd.force_reuse":    validate.Optional(validate.IsBool),
 		"ceph.osd.pg_num":         validate.IsAny,
 		"ceph.osd.pool_name":      validate.IsAny,
 		"ceph.osd.data_pool_name": validate.IsAny,
-		"ceph.rbd.clone_copy":     validate.IsBool,
+		"ceph.rbd.clone_copy":     validate.Optional(validate.IsBool),
 		"ceph.user.name":          validate.IsAny,
 		"volatile.pool.pristine":  validate.IsAny,
 		"volume.block.filesystem": func(value string) error {

@@ -251,10 +251,10 @@ var StorageVolumeConfigKeys = map[string]func(value string) ([]string, error){
 		return []string{"ceph", "lvm"}, validate.IsAny(value)
 	},
 	"security.shifted": func(value string) ([]string, error) {
-		return SupportedPoolTypes, validate.IsBool(value)
+		return SupportedPoolTypes, validate.Optional(validate.IsBool)(value)
 	},
 	"security.unmapped": func(value string) ([]string, error) {
-		return SupportedPoolTypes, validate.IsBool(value)
+		return SupportedPoolTypes, validate.Optional(validate.IsBool)(value)
 	},
 	"size": func(value string) ([]string, error) {
 		if value == "" {
@@ -275,7 +275,7 @@ var StorageVolumeConfigKeys = map[string]func(value string) ([]string, error){
 		return SupportedPoolTypes, validate.IsAny(value)
 	},
 	"zfs.remove_snapshots": func(value string) ([]string, error) {
-		err := validate.IsBool(value)
+		err := validate.Optional(validate.IsBool)(value)
 		if err != nil {
 			return nil, err
 		}
@@ -283,7 +283,7 @@ var StorageVolumeConfigKeys = map[string]func(value string) ([]string, error){
 		return []string{"zfs"}, nil
 	},
 	"zfs.use_refquota": func(value string) ([]string, error) {
-		err := validate.IsBool(value)
+		err := validate.Optional(validate.IsBool)(value)
 		if err != nil {
 			return nil, err
 		}
@@ -473,8 +473,8 @@ func validateVolumeCommonRules(vol drivers.Volume) map[string]func(string) error
 
 	// security.shifted and security.unmapped are only relevant for custom volumes.
 	if vol.Type() == drivers.VolumeTypeCustom {
-		rules["security.shifted"] = validate.IsBool
-		rules["security.unmapped"] = validate.IsBool
+		rules["security.shifted"] = validate.Optional(validate.IsBool)
+		rules["security.unmapped"] = validate.Optional(validate.IsBool)
 	}
 
 	// volatile.rootfs.size is only used for image volumes.
