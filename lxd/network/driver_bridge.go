@@ -244,13 +244,13 @@ func (n *bridge) Validate(config map[string]string) error {
 					return validate.IsOneOf(value, []string{"gre", "vxlan"})
 				}
 			case "local":
-				rules[k] = validate.IsNetworkAddress
+				rules[k] = validate.Optional(validate.IsNetworkAddress)
 			case "remote":
-				rules[k] = validate.IsNetworkAddress
+				rules[k] = validate.Optional(validate.IsNetworkAddress)
 			case "port":
 				rules[k] = networkValidPort
 			case "group":
-				rules[k] = validate.IsNetworkAddress
+				rules[k] = validate.Optional(validate.IsNetworkAddress)
 			case "id":
 				rules[k] = validate.Optional(validate.IsInt64)
 			case "inteface":
