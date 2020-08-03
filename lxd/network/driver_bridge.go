@@ -256,7 +256,7 @@ func (n *bridge) Validate(config map[string]string) error {
 			case "inteface":
 				rules[k] = ValidNetworkName
 			case "ttl":
-				rules[k] = validate.IsUint8
+				rules[k] = validate.Optional(validate.IsUint8)
 			}
 		}
 	}
