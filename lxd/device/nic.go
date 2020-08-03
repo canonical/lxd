@@ -23,14 +23,14 @@ func nicValidationRules(requiredFields []string, optionalFields []string) map[st
 		"security.ipv6_filtering": validate.IsAny,
 		"maas.subnet.ipv4":        validate.IsAny,
 		"maas.subnet.ipv6":        validate.IsAny,
-		"ipv4.address":            validate.IsNetworkAddressV4,
+		"ipv4.address":            validate.Optional(validate.IsNetworkAddressV4),
 		"ipv6.address":            validate.IsNetworkAddressV6,
 		"ipv4.routes":             validate.IsNetworkV4List,
 		"ipv6.routes":             validate.IsNetworkV6List,
 		"boot.priority":           validate.Optional(validate.IsUint32),
 		"ipv4.gateway":            networkValidGateway,
 		"ipv6.gateway":            networkValidGateway,
-		"ipv4.host_address":       validate.IsNetworkAddressV4,
+		"ipv4.host_address":       validate.Optional(validate.IsNetworkAddressV4),
 		"ipv6.host_address":       validate.IsNetworkAddressV6,
 	}
 
