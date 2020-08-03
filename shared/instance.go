@@ -71,7 +71,7 @@ var HugePageSizeSuffix = [...]string{"64KB", "1MB", "2MB", "1GB"}
 // to an appropriate checker function, which validates whether or not a
 // given value is syntactically legal.
 var KnownInstanceConfigKeys = map[string]func(value string) error{
-	"boot.autostart":             validate.IsBool,
+	"boot.autostart":             validate.Optional(validate.IsBool),
 	"boot.autostart.delay":       validate.Optional(validate.IsInt64),
 	"boot.autostart.priority":    validate.Optional(validate.IsInt64),
 	"boot.stop.priority":         validate.Optional(validate.IsInt64),
@@ -166,9 +166,9 @@ var KnownInstanceConfigKeys = map[string]func(value string) error{
 	"limits.memory.enforce": func(value string) error {
 		return validate.IsOneOf(value, []string{"soft", "hard"})
 	},
-	"limits.memory.swap":          validate.IsBool,
+	"limits.memory.swap":          validate.Optional(validate.IsBool),
 	"limits.memory.swap.priority": validate.Optional(validate.IsPriority),
-	"limits.memory.hugepages":     validate.IsBool,
+	"limits.memory.hugepages":     validate.Optional(validate.IsBool),
 
 	"limits.network.priority": validate.Optional(validate.IsPriority),
 
@@ -176,42 +176,42 @@ var KnownInstanceConfigKeys = map[string]func(value string) error{
 
 	"linux.kernel_modules": validate.IsAny,
 
-	"migration.incremental.memory":            validate.IsBool,
+	"migration.incremental.memory":            validate.Optional(validate.IsBool),
 	"migration.incremental.memory.iterations": validate.Optional(validate.IsUint32),
 	"migration.incremental.memory.goal":       validate.Optional(validate.IsUint32),
 
-	"nvidia.runtime":             validate.IsBool,
+	"nvidia.runtime":             validate.Optional(validate.IsBool),
 	"nvidia.driver.capabilities": validate.IsAny,
 	"nvidia.require.cuda":        validate.IsAny,
 	"nvidia.require.driver":      validate.IsAny,
 
-	"security.nesting":       validate.IsBool,
-	"security.privileged":    validate.IsBool,
-	"security.devlxd":        validate.IsBool,
-	"security.devlxd.images": validate.IsBool,
+	"security.nesting":       validate.Optional(validate.IsBool),
+	"security.privileged":    validate.Optional(validate.IsBool),
+	"security.devlxd":        validate.Optional(validate.IsBool),
+	"security.devlxd.images": validate.Optional(validate.IsBool),
 
-	"security.protection.delete": validate.IsBool,
-	"security.protection.shift":  validate.IsBool,
+	"security.protection.delete": validate.Optional(validate.IsBool),
+	"security.protection.shift":  validate.Optional(validate.IsBool),
 
 	"security.idmap.base":     validate.Optional(validate.IsUint32),
-	"security.idmap.isolated": validate.IsBool,
+	"security.idmap.isolated": validate.Optional(validate.IsBool),
 	"security.idmap.size":     validate.Optional(validate.IsUint32),
 
-	"security.secureboot": validate.IsBool,
+	"security.secureboot": validate.Optional(validate.IsBool),
 
 	"security.syscalls.allow":                   validate.IsAny,
-	"security.syscalls.blacklist_default":       validate.IsBool,
-	"security.syscalls.blacklist_compat":        validate.IsBool,
+	"security.syscalls.blacklist_default":       validate.Optional(validate.IsBool),
+	"security.syscalls.blacklist_compat":        validate.Optional(validate.IsBool),
 	"security.syscalls.blacklist":               validate.IsAny,
-	"security.syscalls.deny_default":            validate.IsBool,
-	"security.syscalls.deny_compat":             validate.IsBool,
+	"security.syscalls.deny_default":            validate.Optional(validate.IsBool),
+	"security.syscalls.deny_compat":             validate.Optional(validate.IsBool),
 	"security.syscalls.deny":                    validate.IsAny,
-	"security.syscalls.intercept.mknod":         validate.IsBool,
-	"security.syscalls.intercept.mount":         validate.IsBool,
+	"security.syscalls.intercept.mknod":         validate.Optional(validate.IsBool),
+	"security.syscalls.intercept.mount":         validate.Optional(validate.IsBool),
 	"security.syscalls.intercept.mount.allowed": validate.IsAny,
 	"security.syscalls.intercept.mount.fuse":    validate.IsAny,
-	"security.syscalls.intercept.mount.shift":   validate.IsBool,
-	"security.syscalls.intercept.setxattr":      validate.IsBool,
+	"security.syscalls.intercept.mount.shift":   validate.Optional(validate.IsBool),
+	"security.syscalls.intercept.setxattr":      validate.Optional(validate.IsBool),
 	"security.syscalls.whitelist":               validate.IsAny,
 
 	"snapshots.schedule": func(value string) error {
@@ -230,7 +230,7 @@ var KnownInstanceConfigKeys = map[string]func(value string) error{
 
 		return nil
 	},
-	"snapshots.schedule.stopped": validate.IsBool,
+	"snapshots.schedule.stopped": validate.Optional(validate.IsBool),
 	"snapshots.pattern":          validate.IsAny,
 	"snapshots.expiry": func(value string) error {
 		// Validate expression
