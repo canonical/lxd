@@ -50,6 +50,15 @@ func validInterfaceName(value string) error {
 	return nil
 }
 
+// validVirtualNetworkName validates a virtual network name (one that doesn't have an actual network interface).
+func validVirtualNetworkName(value string) error {
+	if strings.Contains(value, "/") {
+		return fmt.Errorf(`Network name cannot contain "/"`)
+	}
+
+	return nil
+}
+
 func networkValidPort(value string) error {
 	if value == "" {
 		return nil
