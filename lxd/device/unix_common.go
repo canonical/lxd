@@ -54,7 +54,7 @@ func (d *unixCommon) validateConfig(instConf instance.ConfigReader) error {
 		"uid":      unixValidUserID,
 		"gid":      unixValidUserID,
 		"mode":     unixValidOctalFileMode,
-		"required": validate.IsBool,
+		"required": validate.Optional(validate.IsBool),
 	}
 
 	err := d.config.Validate(rules)

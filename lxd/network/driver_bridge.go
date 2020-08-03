@@ -177,18 +177,18 @@ func (n *bridge) Validate(config map[string]string) error {
 
 			return validate.IsNetworkAddressCIDRV4(value)
 		},
-		"ipv4.firewall": validate.IsBool,
-		"ipv4.nat":      validate.IsBool,
+		"ipv4.firewall": validate.Optional(validate.IsBool),
+		"ipv4.nat":      validate.Optional(validate.IsBool),
 		"ipv4.nat.order": func(value string) error {
 			return validate.IsOneOf(value, []string{"before", "after"})
 		},
 		"ipv4.nat.address":  validate.IsNetworkAddressV4,
-		"ipv4.dhcp":         validate.IsBool,
+		"ipv4.dhcp":         validate.Optional(validate.IsBool),
 		"ipv4.dhcp.gateway": validate.IsNetworkAddressV4,
 		"ipv4.dhcp.expiry":  validate.IsAny,
 		"ipv4.dhcp.ranges":  validate.IsAny,
 		"ipv4.routes":       validate.IsNetworkV4List,
-		"ipv4.routing":      validate.IsBool,
+		"ipv4.routing":      validate.Optional(validate.IsBool),
 
 		"ipv6.address": func(value string) error {
 			if validate.IsOneOf(value, []string{"none", "auto"}) == nil {
@@ -197,18 +197,18 @@ func (n *bridge) Validate(config map[string]string) error {
 
 			return validate.IsNetworkAddressCIDRV6(value)
 		},
-		"ipv6.firewall": validate.IsBool,
-		"ipv6.nat":      validate.IsBool,
+		"ipv6.firewall": validate.Optional(validate.IsBool),
+		"ipv6.nat":      validate.Optional(validate.IsBool),
 		"ipv6.nat.order": func(value string) error {
 			return validate.IsOneOf(value, []string{"before", "after"})
 		},
 		"ipv6.nat.address":   validate.IsNetworkAddressV6,
-		"ipv6.dhcp":          validate.IsBool,
+		"ipv6.dhcp":          validate.Optional(validate.IsBool),
 		"ipv6.dhcp.expiry":   validate.IsAny,
-		"ipv6.dhcp.stateful": validate.IsBool,
+		"ipv6.dhcp.stateful": validate.Optional(validate.IsBool),
 		"ipv6.dhcp.ranges":   validate.IsAny,
 		"ipv6.routes":        validate.IsNetworkV6List,
-		"ipv6.routing":       validate.IsBool,
+		"ipv6.routing":       validate.Optional(validate.IsBool),
 
 		"dns.domain": validate.IsAny,
 		"dns.mode": func(value string) error {
