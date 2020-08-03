@@ -230,10 +230,6 @@ func IsNetworkV4List(value string) error {
 
 // IsNetworkV6 validates an IPv6 CIDR string. If string is empty, returns valid.
 func IsNetworkV6(value string) error {
-	if value == "" {
-		return nil
-	}
-
 	ip, subnet, err := net.ParseCIDR(value)
 	if err != nil {
 		return err
