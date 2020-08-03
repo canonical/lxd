@@ -53,13 +53,7 @@ func (d *nicRouted) validateConfig(instConf instance.ConfigReader) error {
 	}
 
 	rules := nicValidationRules(requiredFields, optionalFields)
-	rules["ipv4.address"] = func(value string) error {
-		if value == "" {
-			return nil
-		}
-
-		return validate.IsNetworkAddressV4List(value)
-	}
+	rules["ipv4.address"] = validate.Optional(validate.IsNetworkAddressV4List)
 	rules["ipv6.address"] = validate.Optional(validate.IsNetworkAddressV6List)
 
 	err := d.config.Validate(rules)
