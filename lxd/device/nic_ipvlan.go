@@ -121,11 +121,7 @@ func (d *nicIPVLAN) validateConfig(instConf instance.ConfigReader) error {
 		}
 
 		rules["ipv6.gateway"] = func(value string) error {
-			if value == "" {
-				return nil
-			}
-
-			return validate.IsNetworkAddressV6(value)
+			return validate.Optional(validate.IsNetworkAddressV6)(value)
 		}
 	}
 
