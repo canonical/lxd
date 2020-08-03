@@ -133,9 +133,9 @@ var KnownInstanceConfigKeys = map[string]func(value string) error{
 
 		return nil
 	},
-	"limits.cpu.priority": validate.IsPriority,
+	"limits.cpu.priority": validate.Optional(validate.IsPriority),
 
-	"limits.disk.priority": validate.IsPriority,
+	"limits.disk.priority": validate.Optional(validate.IsPriority),
 
 	"limits.hugepages.64KB": validate.IsSize,
 	"limits.hugepages.1MB":  validate.IsSize,
@@ -167,10 +167,10 @@ var KnownInstanceConfigKeys = map[string]func(value string) error{
 		return validate.IsOneOf(value, []string{"soft", "hard"})
 	},
 	"limits.memory.swap":          validate.IsBool,
-	"limits.memory.swap.priority": validate.IsPriority,
+	"limits.memory.swap.priority": validate.Optional(validate.IsPriority),
 	"limits.memory.hugepages":     validate.IsBool,
 
-	"limits.network.priority": validate.IsPriority,
+	"limits.network.priority": validate.Optional(validate.IsPriority),
 
 	"limits.processes": validate.Optional(validate.IsInt64),
 
