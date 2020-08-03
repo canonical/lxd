@@ -27,20 +27,34 @@ func LoadByName(s *state.State, name string) (Network, error) {
 	return n, nil
 }
 
-// Validate validates the supplied network configuration for the specified network type.
+// ValidateName validates the supplied network name for the specified network type.
+func ValidateName(name string, netType string) error {
+	driverFunc, ok := drivers[netType]
+	if !ok {
+		return ErrUnknownDriver
+	}
+
+	n := driverFunc()
+	n.init(nil, 0, name, netType, "", nil, "Unknown")
+
+	return n.ValidateName(name)
+}
+
+// Validate validates the supplied network name and configuration for the specified network type.
 func Validate(name string, netType string, config map[string]string) error {
 	driverFunc, ok := drivers[netType]
 	if !ok {
 		return ErrUnknownDriver
 	}
 
-	err := ValidNetworkName(name)
+	n := driverFunc()
+	n.init(nil, 0, name, netType, "", config, "Unknown")
+
+	err := n.ValidateName(name)
 	if err != nil {
 		return err
 	}
 
-	n := driverFunc()
-	n.init(nil, 0, name, netType, "", config, "Unknown")
 	return n.Validate(config)
 }
 
