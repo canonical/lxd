@@ -158,13 +158,13 @@ func (n *bridge) Validate(config map[string]string) error {
 			return validate.IsOneOf(value, []string{"standard", "fan"})
 		},
 
-		"fan.overlay_subnet": validate.IsNetworkV4,
+		"fan.overlay_subnet": validate.Optional(validate.IsNetworkV4),
 		"fan.underlay_subnet": func(value string) error {
 			if value == "auto" {
 				return nil
 			}
 
-			return validate.IsNetworkV4(value)
+			return validate.Optional(validate.IsNetworkV4)(value)
 		},
 		"fan.type": func(value string) error {
 			return validate.IsOneOf(value, []string{"vxlan", "ipip"})
