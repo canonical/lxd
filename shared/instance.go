@@ -177,8 +177,8 @@ var KnownInstanceConfigKeys = map[string]func(value string) error{
 	"linux.kernel_modules": validate.IsAny,
 
 	"migration.incremental.memory":            validate.IsBool,
-	"migration.incremental.memory.iterations": validate.IsUint32,
-	"migration.incremental.memory.goal":       validate.IsUint32,
+	"migration.incremental.memory.iterations": validate.Optional(validate.IsUint32),
+	"migration.incremental.memory.goal":       validate.Optional(validate.IsUint32),
 
 	"nvidia.runtime":             validate.IsBool,
 	"nvidia.driver.capabilities": validate.IsAny,
@@ -193,9 +193,9 @@ var KnownInstanceConfigKeys = map[string]func(value string) error{
 	"security.protection.delete": validate.IsBool,
 	"security.protection.shift":  validate.IsBool,
 
-	"security.idmap.base":     validate.IsUint32,
+	"security.idmap.base":     validate.Optional(validate.IsUint32),
 	"security.idmap.isolated": validate.IsBool,
-	"security.idmap.size":     validate.IsUint32,
+	"security.idmap.size":     validate.Optional(validate.IsUint32),
 
 	"security.secureboot": validate.IsBool,
 
