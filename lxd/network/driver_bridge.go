@@ -202,7 +202,7 @@ func (n *bridge) Validate(config map[string]string) error {
 		"ipv6.nat.order": func(value string) error {
 			return validate.IsOneOf(value, []string{"before", "after"})
 		},
-		"ipv6.nat.address":   validate.IsNetworkAddressV6,
+		"ipv6.nat.address":   validate.Optional(validate.IsNetworkAddressV6),
 		"ipv6.dhcp":          validate.Optional(validate.IsBool),
 		"ipv6.dhcp.expiry":   validate.IsAny,
 		"ipv6.dhcp.stateful": validate.Optional(validate.IsBool),
