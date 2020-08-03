@@ -343,9 +343,9 @@ func (d *zfs) Delete(op *operations.Operation) error {
 func (d *zfs) Validate(config map[string]string) error {
 	rules := map[string]func(value string) error{
 		"zfs.pool_name":               validate.IsAny,
-		"zfs.clone_copy":              validate.IsBool,
-		"volume.zfs.remove_snapshots": validate.IsBool,
-		"volume.zfs.use_refquota":     validate.IsBool,
+		"zfs.clone_copy":              validate.Optional(validate.IsBool),
+		"volume.zfs.remove_snapshots": validate.Optional(validate.IsBool),
+		"volume.zfs.use_refquota":     validate.Optional(validate.IsBool),
 	}
 
 	return d.validatePool(config, rules)

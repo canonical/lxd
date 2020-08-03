@@ -73,12 +73,12 @@ func (d *proxy) validateConfig(instConf instance.ConfigReader) error {
 		"connect":        validateAddr,
 		"bind":           validateBind,
 		"mode":           unixValidOctalFileMode,
-		"nat":            validate.IsBool,
+		"nat":            validate.Optional(validate.IsBool),
 		"gid":            unixValidUserID,
 		"uid":            unixValidUserID,
 		"security.uid":   unixValidUserID,
 		"security.gid":   unixValidUserID,
-		"proxy_protocol": validate.IsBool,
+		"proxy_protocol": validate.Optional(validate.IsBool),
 	}
 
 	err := d.config.Validate(rules)
