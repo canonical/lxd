@@ -113,10 +113,6 @@ func IsNotEmpty(value string) error {
 
 // IsSize checks if string is valid size according to units.ParseByteSizeString.
 func IsSize(value string) error {
-	if value == "" {
-		return nil
-	}
-
 	_, err := units.ParseByteSizeString(value)
 	if err != nil {
 		return err
