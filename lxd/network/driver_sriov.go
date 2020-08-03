@@ -3,8 +3,6 @@ package network
 import (
 	"fmt"
 
-	"github.com/pkg/errors"
-
 	"github.com/lxc/lxd/lxd/revert"
 	"github.com/lxc/lxd/shared/api"
 	log "github.com/lxc/lxd/shared/log15"
@@ -16,16 +14,15 @@ type sriov struct {
 	common
 }
 
+// ValidateName validates network name.
+func (n *sriov) ValidateName(name string) error {
+	return validVirtualNetworkName(name)
+}
+
 // Validate network config.
 func (n *sriov) Validate(config map[string]string) error {
 	rules := map[string]func(value string) error{
-		"parent": func(value string) error {
-			if err := ValidNetworkName(value); err != nil {
-				return errors.Wrapf(err, "Invalid interface name %q", value)
-			}
-
-			return nil
-		},
+		"parent":           validInterfaceName,
 		"mtu":              validate.Optional(validate.IsInt64),
 		"vlan":             validate.Optional(validate.IsNetworkVLAN),
 		"maas.subnet.ipv4": validate.IsAny,
