@@ -57,10 +57,6 @@ func IsUint8(value string) error {
 
 // IsUint32 validates whether the string can be converted to an uint32.
 func IsUint32(value string) error {
-	if value == "" {
-		return nil
-	}
-
 	_, err := strconv.ParseUint(value, 10, 32)
 	if err != nil {
 		return fmt.Errorf("Invalid value for uint32 %q: %v", value, err)
