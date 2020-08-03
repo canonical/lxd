@@ -182,9 +182,9 @@ func (n *bridge) Validate(config map[string]string) error {
 		"ipv4.nat.order": func(value string) error {
 			return validate.IsOneOf(value, []string{"before", "after"})
 		},
-		"ipv4.nat.address":  validate.IsNetworkAddressV4,
+		"ipv4.nat.address":  validate.Optional(validate.IsNetworkAddressV4),
 		"ipv4.dhcp":         validate.Optional(validate.IsBool),
-		"ipv4.dhcp.gateway": validate.IsNetworkAddressV4,
+		"ipv4.dhcp.gateway": validate.Optional(validate.IsNetworkAddressV4),
 		"ipv4.dhcp.expiry":  validate.IsAny,
 		"ipv4.dhcp.ranges":  validate.IsAny,
 		"ipv4.routes":       validate.IsNetworkV4List,
