@@ -47,11 +47,11 @@ var storagePoolConfigKeys = map[string]func(value string) error{
 	"lvm.use_thinpool":        validate.Optional(validate.IsBool),
 	"lvm.vg_name":             validate.IsAny,
 	"volume.lvm.stripes":      validate.Optional(validate.IsUint32),
-	"volume.lvm.stripes.size": validate.IsSize,
+	"volume.lvm.stripes.size": validate.Optional(validate.IsSize),
 	"lvm.vg.force_reuse":      validate.Optional(validate.IsBool),
 
 	// valid drivers: btrfs, lvm, zfs
-	"size": validate.IsSize,
+	"size": validate.Optional(validate.IsSize),
 
 	// valid drivers: btrfs, dir, lvm, zfs
 	"source": validate.IsAny,
@@ -71,7 +71,7 @@ var storagePoolConfigKeys = map[string]func(value string) error{
 	"volume.block.mount_options": validate.IsAny,
 
 	// valid drivers: ceph, lvm
-	"volume.size": validate.IsSize,
+	"volume.size": validate.Optional(validate.IsSize),
 
 	// valid drivers: zfs
 	"volume.zfs.remove_snapshots": validate.Optional(validate.IsBool),

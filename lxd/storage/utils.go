@@ -380,8 +380,8 @@ func validatePoolCommonRules() map[string]func(string) error {
 	return map[string]func(string) error{
 		"source":                  validate.IsAny,
 		"volatile.initial_source": validate.IsAny,
-		"volume.size":             validate.IsSize,
-		"size":                    validate.IsSize,
+		"volume.size":             validate.Optional(validate.IsSize),
+		"size":                    validate.Optional(validate.IsSize),
 		"rsync.bwlimit":           validate.IsAny,
 	}
 }
@@ -394,7 +394,7 @@ func validateVolumeCommonRules(vol drivers.Volume) map[string]func(string) error
 
 		// Note: size should not be modifiable for non-custom volumes and should be checked
 		// in the relevant volume update functions.
-		"size": validate.IsSize,
+		"size": validate.Optional(validate.IsSize),
 
 		"snapshots.expiry": func(value string) error {
 			// Validate expression
