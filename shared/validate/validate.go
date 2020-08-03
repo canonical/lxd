@@ -307,7 +307,7 @@ func IsNetworkVLAN(value string) error {
 	}
 
 	if vlanID < 0 || vlanID > 4094 {
-		return fmt.Errorf("Out of range (0-4094) VLAN ID: %s", value)
+		return fmt.Errorf("Out of VLAN ID range (0-4094): %s", value)
 	}
 
 	return nil
