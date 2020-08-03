@@ -274,7 +274,7 @@ func IsNetworkAddressCIDRV6(value string) error {
 	return nil
 }
 
-//IsNetworkAddressV6List validates a comma delimited list of IPv6 addresses.
+// IsNetworkAddressV6List validates a comma delimited list of IPv6 addresses.
 func IsNetworkAddressV6List(value string) error {
 	for _, v := range strings.Split(value, ",") {
 		v = strings.TrimSpace(v)
