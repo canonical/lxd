@@ -187,7 +187,7 @@ func (n *bridge) Validate(config map[string]string) error {
 		"ipv4.dhcp.gateway": validate.Optional(validate.IsNetworkAddressV4),
 		"ipv4.dhcp.expiry":  validate.IsAny,
 		"ipv4.dhcp.ranges":  validate.IsAny,
-		"ipv4.routes":       validate.IsNetworkV4List,
+		"ipv4.routes":       validate.Optional(validate.IsNetworkV4List),
 		"ipv4.routing":      validate.Optional(validate.IsBool),
 
 		"ipv6.address": func(value string) error {
@@ -207,7 +207,7 @@ func (n *bridge) Validate(config map[string]string) error {
 		"ipv6.dhcp.expiry":   validate.IsAny,
 		"ipv6.dhcp.stateful": validate.Optional(validate.IsBool),
 		"ipv6.dhcp.ranges":   validate.IsAny,
-		"ipv6.routes":        validate.IsNetworkV6List,
+		"ipv6.routes":        validate.Optional(validate.IsNetworkV6List),
 		"ipv6.routing":       validate.Optional(validate.IsBool),
 
 		"dns.domain": validate.IsAny,
