@@ -303,7 +303,7 @@ func (d *nicIPVLAN) Start() (*deviceConfig.RunConfig, error) {
 				addr = fmt.Sprintf("%s/128", addr)
 			}
 
-			if mode == "l2" && validate.IsNetworkAddressV4(addr) == nil {
+			if mode == "l2" && validate.IsNetworkAddressV6(addr) == nil {
 				addr = fmt.Sprintf("%s/64", addr)
 			}
 
