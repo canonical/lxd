@@ -137,10 +137,10 @@ var KnownInstanceConfigKeys = map[string]func(value string) error{
 
 	"limits.disk.priority": validate.Optional(validate.IsPriority),
 
-	"limits.hugepages.64KB": validate.IsSize,
-	"limits.hugepages.1MB":  validate.IsSize,
-	"limits.hugepages.2MB":  validate.IsSize,
-	"limits.hugepages.1GB":  validate.IsSize,
+	"limits.hugepages.64KB": validate.Optional(validate.IsSize),
+	"limits.hugepages.1MB":  validate.Optional(validate.IsSize),
+	"limits.hugepages.2MB":  validate.Optional(validate.IsSize),
+	"limits.hugepages.1GB":  validate.Optional(validate.IsSize),
 
 	"limits.memory": func(value string) error {
 		if value == "" {
