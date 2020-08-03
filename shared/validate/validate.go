@@ -43,10 +43,6 @@ func IsInt64(value string) error {
 
 // IsUint8 validates whether the string can be converted to an uint8.
 func IsUint8(value string) error {
-	if value == "" {
-		return nil
-	}
-
 	_, err := strconv.ParseUint(value, 10, 8)
 	if err != nil {
 		return fmt.Errorf("Invalid value for an integer %q. Must be between 0 and 255", value)
