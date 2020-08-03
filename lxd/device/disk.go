@@ -75,11 +75,11 @@ func (d *disk) validateConfig(instConf instance.ConfigReader) error {
 	}
 
 	rules := map[string]func(string) error{
-		"required":          validate.IsBool,
-		"optional":          validate.IsBool, // "optional" is deprecated, replaced by "required".
-		"readonly":          validate.IsBool,
-		"recursive":         validate.IsBool,
-		"shift":             validate.IsBool,
+		"required":          validate.Optional(validate.IsBool),
+		"optional":          validate.Optional(validate.IsBool), // "optional" is deprecated, replaced by "required".
+		"readonly":          validate.Optional(validate.IsBool),
+		"recursive":         validate.Optional(validate.IsBool),
+		"shift":             validate.Optional(validate.IsBool),
 		"source":            validate.IsAny,
 		"limits.read":       validate.IsAny,
 		"limits.write":      validate.IsAny,
@@ -90,7 +90,7 @@ func (d *disk) validateConfig(instConf instance.ConfigReader) error {
 		"raw.mount.options": validate.IsAny,
 		"ceph.cluster_name": validate.IsAny,
 		"ceph.user_name":    validate.IsAny,
-		"boot.priority":     validate.IsUint32,
+		"boot.priority":     validate.Optional(validate.IsUint32),
 		"path":              validate.IsAny,
 	}
 

@@ -158,13 +158,13 @@ func (n *bridge) Validate(config map[string]string) error {
 			return validate.IsOneOf(value, []string{"standard", "fan"})
 		},
 
-		"fan.overlay_subnet": validate.IsNetworkV4,
+		"fan.overlay_subnet": validate.Optional(validate.IsNetworkV4),
 		"fan.underlay_subnet": func(value string) error {
 			if value == "auto" {
 				return nil
 			}
 
-			return validate.IsNetworkV4(value)
+			return validate.Optional(validate.IsNetworkV4)(value)
 		},
 		"fan.type": func(value string) error {
 			return validate.IsOneOf(value, []string{"vxlan", "ipip"})
@@ -175,40 +175,40 @@ func (n *bridge) Validate(config map[string]string) error {
 				return nil
 			}
 
-			return validate.IsNetworkAddressCIDRV4(value)
+			return validate.Optional(validate.IsNetworkAddressCIDRV4)(value)
 		},
-		"ipv4.firewall": validate.IsBool,
-		"ipv4.nat":      validate.IsBool,
+		"ipv4.firewall": validate.Optional(validate.IsBool),
+		"ipv4.nat":      validate.Optional(validate.IsBool),
 		"ipv4.nat.order": func(value string) error {
 			return validate.IsOneOf(value, []string{"before", "after"})
 		},
-		"ipv4.nat.address":  validate.IsNetworkAddressV4,
-		"ipv4.dhcp":         validate.IsBool,
-		"ipv4.dhcp.gateway": validate.IsNetworkAddressV4,
+		"ipv4.nat.address":  validate.Optional(validate.IsNetworkAddressV4),
+		"ipv4.dhcp":         validate.Optional(validate.IsBool),
+		"ipv4.dhcp.gateway": validate.Optional(validate.IsNetworkAddressV4),
 		"ipv4.dhcp.expiry":  validate.IsAny,
 		"ipv4.dhcp.ranges":  validate.IsAny,
-		"ipv4.routes":       validate.IsNetworkV4List,
-		"ipv4.routing":      validate.IsBool,
+		"ipv4.routes":       validate.Optional(validate.IsNetworkV4List),
+		"ipv4.routing":      validate.Optional(validate.IsBool),
 
 		"ipv6.address": func(value string) error {
 			if validate.IsOneOf(value, []string{"none", "auto"}) == nil {
 				return nil
 			}
 
-			return validate.IsNetworkAddressCIDRV6(value)
+			return validate.Optional(validate.IsNetworkAddressCIDRV6)(value)
 		},
-		"ipv6.firewall": validate.IsBool,
-		"ipv6.nat":      validate.IsBool,
+		"ipv6.firewall": validate.Optional(validate.IsBool),
+		"ipv6.nat":      validate.Optional(validate.IsBool),
 		"ipv6.nat.order": func(value string) error {
 			return validate.IsOneOf(value, []string{"before", "after"})
 		},
-		"ipv6.nat.address":   validate.IsNetworkAddressV6,
-		"ipv6.dhcp":          validate.IsBool,
+		"ipv6.nat.address":   validate.Optional(validate.IsNetworkAddressV6),
+		"ipv6.dhcp":          validate.Optional(validate.IsBool),
 		"ipv6.dhcp.expiry":   validate.IsAny,
-		"ipv6.dhcp.stateful": validate.IsBool,
+		"ipv6.dhcp.stateful": validate.Optional(validate.IsBool),
 		"ipv6.dhcp.ranges":   validate.IsAny,
-		"ipv6.routes":        validate.IsNetworkV6List,
-		"ipv6.routing":       validate.IsBool,
+		"ipv6.routes":        validate.Optional(validate.IsNetworkV6List),
+		"ipv6.routing":       validate.Optional(validate.IsBool),
 
 		"dns.domain": validate.IsAny,
 		"dns.search": validate.IsAny,
@@ -245,19 +245,19 @@ func (n *bridge) Validate(config map[string]string) error {
 					return validate.IsOneOf(value, []string{"gre", "vxlan"})
 				}
 			case "local":
-				rules[k] = validate.IsNetworkAddress
+				rules[k] = validate.Optional(validate.IsNetworkAddress)
 			case "remote":
-				rules[k] = validate.IsNetworkAddress
+				rules[k] = validate.Optional(validate.IsNetworkAddress)
 			case "port":
 				rules[k] = networkValidPort
 			case "group":
-				rules[k] = validate.IsNetworkAddress
+				rules[k] = validate.Optional(validate.IsNetworkAddress)
 			case "id":
 				rules[k] = validate.Optional(validate.IsInt64)
 			case "inteface":
 				rules[k] = ValidNetworkName
 			case "ttl":
-				rules[k] = validate.IsUint8
+				rules[k] = validate.Optional(validate.IsUint8)
 			}
 		}
 	}

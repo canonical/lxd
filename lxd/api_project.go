@@ -523,16 +523,16 @@ func isEitherAllowOrBlockOrManaged(value string) error {
 
 // Validate the project configuration
 var projectConfigKeys = map[string]func(value string) error{
-	"features.profiles":              validate.IsBool,
-	"features.images":                validate.IsBool,
-	"features.storage.volumes":       validate.IsBool,
-	"limits.containers":              validate.IsUint32,
-	"limits.virtual-machines":        validate.IsUint32,
-	"limits.memory":                  validate.IsSize,
-	"limits.processes":               validate.IsUint32,
-	"limits.cpu":                     validate.IsUint32,
-	"limits.disk":                    validate.IsSize,
-	"restricted":                     validate.IsBool,
+	"features.profiles":              validate.Optional(validate.IsBool),
+	"features.images":                validate.Optional(validate.IsBool),
+	"features.storage.volumes":       validate.Optional(validate.IsBool),
+	"limits.containers":              validate.Optional(validate.IsUint32),
+	"limits.virtual-machines":        validate.Optional(validate.IsUint32),
+	"limits.memory":                  validate.Optional(validate.IsSize),
+	"limits.processes":               validate.Optional(validate.IsUint32),
+	"limits.cpu":                     validate.Optional(validate.IsUint32),
+	"limits.disk":                    validate.Optional(validate.IsSize),
+	"restricted":                     validate.Optional(validate.IsBool),
 	"restricted.containers.nesting":  isEitherAllowOrBlock,
 	"restricted.containers.lowlevel": isEitherAllowOrBlock,
 	"restricted.containers.privilege": func(value string) error {

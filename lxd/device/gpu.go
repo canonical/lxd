@@ -40,8 +40,8 @@ func (d *gpu) validateConfig(instConf instance.ConfigReader) error {
 	}
 
 	rules := map[string]func(string) error{
-		"vendorid":  validate.IsDeviceID,
-		"productid": validate.IsDeviceID,
+		"vendorid":  validate.Optional(validate.IsDeviceID),
+		"productid": validate.Optional(validate.IsDeviceID),
 		"id":        validate.IsAny,
 		"pci":       validate.IsAny,
 		"uid":       unixValidUserID,
