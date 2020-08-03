@@ -63,10 +63,6 @@ func IsUint32(value string) error {
 
 // IsPriority validates priority number.
 func IsPriority(value string) error {
-	if value == "" {
-		return nil
-	}
-
 	valueInt, err := strconv.ParseInt(value, 10, 64)
 	if err != nil {
 		return fmt.Errorf("Invalid value for an integer %q", value)
