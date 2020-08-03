@@ -123,10 +123,6 @@ func IsSize(value string) error {
 
 // IsDeviceID validates string is four lowercase hex characters suitable as Vendor or Device ID.
 func IsDeviceID(value string) error {
-	if value == "" {
-		return nil
-	}
-
 	regexHexLc, err := regexp.Compile("^[0-9a-f]+$")
 	if err != nil {
 		return err
