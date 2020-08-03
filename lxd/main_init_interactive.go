@@ -371,7 +371,7 @@ func (c *cmdInit) askNetworking(config *cmdInitData, d lxd.InstanceServer) error
 				return nil
 			}
 
-			return validate.IsNetworkAddressCIDRV4(value)
+			return validate.Optional(validate.IsNetworkAddressCIDRV4)(value)
 		})
 
 		if !shared.StringInSlice(net.Config["ipv4.address"], []string{"auto", "none"}) {
