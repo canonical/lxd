@@ -153,10 +153,6 @@ func IsNetworkMAC(value string) error {
 
 // IsNetworkAddress validates an IP (v4 or v6) address string. If string is empty, returns valid.
 func IsNetworkAddress(value string) error {
-	if value == "" {
-		return nil
-	}
-
 	ip := net.ParseIP(value)
 	if ip == nil {
 		return fmt.Errorf("Not an IP address %q", value)
