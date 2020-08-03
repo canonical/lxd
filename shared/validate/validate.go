@@ -262,10 +262,6 @@ func IsNetworkAddressV6(value string) error {
 
 // IsNetworkAddressCIDRV6 validates an IPv6 addresss string in CIDR format. If string is empty, returns valid.
 func IsNetworkAddressCIDRV6(value string) error {
-	if value == "" {
-		return nil
-	}
-
 	ip, subnet, err := net.ParseCIDR(value)
 	if err != nil {
 		return err
