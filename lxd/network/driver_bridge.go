@@ -118,6 +118,11 @@ func (n *bridge) fillConfig(config map[string]string) error {
 	return nil
 }
 
+// ValidateName validates network name.
+func (n *bridge) ValidateName(name string) error {
+	return validInterfaceName(name)
+}
+
 // Validate network config.
 func (n *bridge) Validate(config map[string]string) error {
 	// Build driver specific rules dynamically.
@@ -132,7 +137,7 @@ func (n *bridge) Validate(config map[string]string) error {
 
 			for _, entry := range strings.Split(value, ",") {
 				entry = strings.TrimSpace(entry)
-				if err := ValidNetworkName(entry); err != nil {
+				if err := validInterfaceName(entry); err != nil {
 					return errors.Wrapf(err, "Invalid interface name %q", entry)
 				}
 			}
@@ -254,7 +259,7 @@ func (n *bridge) Validate(config map[string]string) error {
 			case "id":
 				rules[k] = validate.Optional(validate.IsInt64)
 			case "inteface":
-				rules[k] = ValidNetworkName
+				rules[k] = validInterfaceName
 			case "ttl":
 				rules[k] = validate.Optional(validate.IsUint8)
 			}
