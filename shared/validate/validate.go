@@ -181,10 +181,6 @@ func IsNetworkV4(value string) error {
 
 // IsNetworkAddressV4 validates an IPv4 addresss string. If string is empty, returns valid.
 func IsNetworkAddressV4(value string) error {
-	if value == "" {
-		return nil
-	}
-
 	ip := net.ParseIP(value)
 	if ip == nil || ip.To4() == nil {
 		return fmt.Errorf("Not an IPv4 address: %s", value)
