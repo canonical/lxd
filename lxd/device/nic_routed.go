@@ -55,13 +55,7 @@ func (d *nicRouted) validateConfig(instConf instance.ConfigReader) error {
 
 		return validate.IsNetworkAddressV4List(value)
 	}
-	rules["ipv6.address"] = func(value string) error {
-		if value == "" {
-			return nil
-		}
-
-		return validate.IsNetworkAddressV6List(value)
-	}
+	rules["ipv6.address"] = validate.Optional(validate.IsNetworkAddressV6List)
 
 	err := d.config.Validate(rules)
 	if err != nil {
