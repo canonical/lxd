@@ -248,10 +248,6 @@ func IsNetworkV6(value string) error {
 
 // IsNetworkAddressV6 validates an IPv6 addresss string. If string is empty, returns valid.
 func IsNetworkAddressV6(value string) error {
-	if value == "" {
-		return nil
-	}
-
 	ip := net.ParseIP(value)
 	if ip == nil || ip.To4() != nil {
 		return fmt.Errorf("Not an IPv6 address: %s", value)
