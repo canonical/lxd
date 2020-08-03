@@ -77,10 +77,6 @@ func IsPriority(value string) error {
 
 // IsBool validates if string can be understood as a bool.
 func IsBool(value string) error {
-	if value == "" {
-		return nil
-	}
-
 	if !stringInSlice(strings.ToLower(value), []string{"true", "false", "yes", "no", "1", "0", "on", "off"}) {
 		return fmt.Errorf("Invalid value for a boolean %q", value)
 	}
