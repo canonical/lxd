@@ -175,7 +175,7 @@ func (n *bridge) Validate(config map[string]string) error {
 				return nil
 			}
 
-			return validate.IsNetworkAddressCIDRV4(value)
+			return validate.Optional(validate.IsNetworkAddressCIDRV4)(value)
 		},
 		"ipv4.firewall": validate.Optional(validate.IsBool),
 		"ipv4.nat":      validate.Optional(validate.IsBool),
