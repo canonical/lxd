@@ -117,11 +117,7 @@ func (d *nicIPVLAN) validateConfig(instConf instance.ConfigReader) error {
 
 	if d.config["mode"] == ipvlanModeL2 {
 		rules["ipv4.gateway"] = func(value string) error {
-			if value == "" {
-				return nil
-			}
-
-			return validate.IsNetworkAddressV4(value)
+			return validate.Optional(validate.IsNetworkAddressV4)(value)
 		}
 
 		rules["ipv6.gateway"] = func(value string) error {
