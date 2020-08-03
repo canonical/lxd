@@ -144,7 +144,7 @@ int dosetns_file(char *file, char *nstype) {
 	return 0;
 }
 
-static int preserve_ns(pid_t pid, int ns_fd, const char *ns)
+int preserve_ns(pid_t pid, int ns_fd, const char *ns)
 {
 	int ret;
 	if (ns_fd >= 0)
