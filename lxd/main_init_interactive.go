@@ -385,7 +385,7 @@ func (c *cmdInit) askNetworking(config *cmdInitData, d lxd.InstanceServer) error
 				return nil
 			}
 
-			return validate.IsNetworkAddressCIDRV6(value)
+			return validate.Optional(validate.IsNetworkAddressCIDRV6)(value)
 		})
 
 		if !shared.StringInSlice(net.Config["ipv6.address"], []string{"auto", "none"}) {

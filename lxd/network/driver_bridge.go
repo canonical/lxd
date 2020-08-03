@@ -195,7 +195,7 @@ func (n *bridge) Validate(config map[string]string) error {
 				return nil
 			}
 
-			return validate.IsNetworkAddressCIDRV6(value)
+			return validate.Optional(validate.IsNetworkAddressCIDRV6)(value)
 		},
 		"ipv6.firewall": validate.Optional(validate.IsBool),
 		"ipv6.nat":      validate.Optional(validate.IsBool),
