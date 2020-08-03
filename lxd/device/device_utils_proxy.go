@@ -38,7 +38,7 @@ func ProxyParseAddr(addr string) (*deviceConfig.ProxyAddress, error) {
 
 	// Validate that it's a valid address.
 	if shared.StringInSlice(newProxyAddr.ConnType, []string{"udp", "tcp"}) {
-		err := validate.IsNetworkAddress(address)
+		err := validate.Optional(validate.IsNetworkAddress)(address)
 		if err != nil {
 			return nil, err
 		}
