@@ -90,7 +90,7 @@ func (d *disk) validateConfig(instConf instance.ConfigReader) error {
 		"raw.mount.options": validate.IsAny,
 		"ceph.cluster_name": validate.IsAny,
 		"ceph.user_name":    validate.IsAny,
-		"boot.priority":     validate.IsUint32,
+		"boot.priority":     validate.Optional(validate.IsUint32),
 		"path":              validate.IsAny,
 	}
 

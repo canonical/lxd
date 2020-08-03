@@ -439,7 +439,7 @@ func (d *lvm) Validate(config map[string]string) error {
 			}
 			return validate.IsOneOf(value, lvmAllowedFilesystems)
 		},
-		"volume.lvm.stripes":      validate.IsUint32,
+		"volume.lvm.stripes":      validate.Optional(validate.IsUint32),
 		"volume.lvm.stripes.size": validate.IsSize,
 		"lvm.vg.force_reuse":      validate.IsBool,
 	}

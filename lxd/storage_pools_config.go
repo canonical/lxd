@@ -46,7 +46,7 @@ var storagePoolConfigKeys = map[string]func(value string) error{
 	"lvm.thinpool_name":       validate.IsAny,
 	"lvm.use_thinpool":        validate.IsBool,
 	"lvm.vg_name":             validate.IsAny,
-	"volume.lvm.stripes":      validate.IsUint32,
+	"volume.lvm.stripes":      validate.Optional(validate.IsUint32),
 	"volume.lvm.stripes.size": validate.IsSize,
 	"lvm.vg.force_reuse":      validate.IsBool,
 

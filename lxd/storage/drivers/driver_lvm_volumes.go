@@ -248,7 +248,7 @@ func (d *lvm) ValidateVolume(vol Volume, removeUnknownKeys bool) error {
 			}
 			return validate.IsOneOf(value, lvmAllowedFilesystems)
 		},
-		"lvm.stripes":      validate.IsUint32,
+		"lvm.stripes":      validate.Optional(validate.IsUint32),
 		"lvm.stripes.size": validate.IsSize,
 	}
 
