@@ -1140,3 +1140,14 @@ the same type that they should use as the basis for the NIC device.
 
 ## container\_syscall\_intercept\_bpf\_devices
 This adds support to intercept the bpf syscall in containers. Specifically, it allows to manage device cgroup bpf programs.
+
+## network\_type\_ovn
+Adds support for additional network type `ovn` with the ability to specify a `bridge` type network as the `parent`.
+
+Introduces a new NIC device type of `ovn` which allows the `network` configuration key to specify which `ovn`
+type network they should connect to.
+
+Also introduces two new global config keys that apply to all `ovn` networks and NIC devices:
+
+ - network.ovn.integration\_bridge - the OVS integration bridge to use.
+ - network.ovn.northbound\_connection - the OVN northbound database connection string.
