@@ -34,7 +34,7 @@ import (
 // ValidName validates the provided name, and returns an error if it's not a valid storage name.
 func ValidName(value string) error {
 	if strings.Contains(value, "/") {
-		return fmt.Errorf("Invalid storage volume name \"%s\". Storage volumes cannot contain \"/\" in their name", value)
+		return fmt.Errorf(`Storage name cannot contain "/"`)
 	}
 
 	return nil
