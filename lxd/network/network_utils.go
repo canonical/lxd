@@ -30,26 +30,30 @@ import (
 	"github.com/lxc/lxd/shared/logger"
 )
 
-// ValidNetworkName validates network name.
-func ValidNetworkName(value string) error {
-	// Not a veth-liked name
-	if strings.HasPrefix(value, "veth") {
-		return fmt.Errorf("Interface name cannot be prefix with veth")
-	}
-
-	// Validate the length
+// validInterfaceName validates a real network interface name.
+func validInterfaceName(value string) error {
+	// Validate the length.
 	if len(value) < 2 {
-		return fmt.Errorf("Interface name is too short (minimum 2 characters)")
+		return fmt.Errorf("Network interface is too short (minimum 2 characters)")
 	}
 
 	if len(value) > 15 {
-		return fmt.Errorf("Interface name is too long (maximum 15 characters)")
+		return fmt.Errorf("Network interface is too long (maximum 15 characters)")
 	}
 
-	// Validate the character set
+	// Validate the character set.
 	match, _ := regexp.MatchString("^[-_a-zA-Z0-9.]*$", value)
 	if !match {
-		return fmt.Errorf("Interface name contains invalid characters")
+		return fmt.Errorf("Network interface contains invalid characters")
+	}
+
+	return nil
+}
+
+// validVirtualNetworkName validates a virtual network name (one that doesn't have an actual network interface).
+func validVirtualNetworkName(value string) error {
+	if strings.Contains(value, "/") {
+		return fmt.Errorf(`Network name cannot contain "/"`)
 	}
 
 	return nil

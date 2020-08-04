@@ -16,6 +16,7 @@ type Network interface {
 	fillConfig(config map[string]string) error
 
 	// Config.
+	ValidateName(name string) error
 	Validate(config map[string]string) error
 	Name() string
 	Type() string
