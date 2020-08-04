@@ -280,6 +280,10 @@ var ConfigSchema = config.Schema{
 	"storage.zfs_pool_name":        {Setter: deprecatedStorage},
 	"storage.zfs_remove_snapshots": {Setter: deprecatedStorage, Type: config.Bool},
 	"storage.zfs_use_refquota":     {Setter: deprecatedStorage, Type: config.Bool},
+
+	// OVN networking global keys.
+	"network.ovn.integration_bridge":    {Default: "br-int"},
+	"network.ovn.northbound_connection": {Default: "unix:/var/run/ovn/ovnnb_db.sock"},
 }
 
 func offlineThresholdDefault() string {
