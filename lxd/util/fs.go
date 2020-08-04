@@ -1,6 +1,7 @@
 package util
 
 import (
+	"fmt"
 	"syscall"
 
 	"github.com/lxc/lxd/shared/logger"
