@@ -39,6 +39,6 @@ func FilesystemDetect(path string) (string, error) {
 		return "nfs", nil
 	default:
 		logger.Debugf("Unknown backing filesystem type: 0x%x", fs.Type)
-		return string(fs.Type), nil
+		return fmt.Sprintf("0x%x", fs.Type), nil
 	}
 }
