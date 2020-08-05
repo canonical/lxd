@@ -435,7 +435,7 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 				return fmt.Errorf("Open vSwitch isn't installed on this system")
 			}
 
-			err := ovs.BridgeAdd(n.name)
+			err := ovs.BridgeAdd(n.name, false)
 			if err != nil {
 				return err
 			}
