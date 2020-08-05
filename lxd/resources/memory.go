@@ -135,7 +135,7 @@ func parseMeminfo(path string) (*meminfo, error) {
 	return &memory, nil
 }
 
-func getTotalMemory() uint64 {
+func getMemoryBlockSizeBytes() uint64 {
 	memoryBlockSizePath := filepath.Join(sysDevicesSystemMemory, "block_size_bytes")
 
 	if !sysfsExists(memoryBlockSizePath) {
@@ -153,7 +153,16 @@ func getTotalMemory() uint64 {
 		return 0
 	}
 
-	entries, err := ioutil.ReadDir(sysDevicesSystemMemory)
+	return blockSize
+}
+
+func getTotalMemory(sysDevicesBase string) uint64 {
+	blockSize := getMemoryBlockSizeBytes()
+	if blockSize == 0 {
+		return 0
+	}
+
+	entries, err := ioutil.ReadDir(sysDevicesBase)
 	if err != nil {
 		return 0
 	}
@@ -161,16 +170,16 @@ func getTotalMemory() uint64 {
 	// Count the number of blocks
 	var count uint64
 	for _, entry := range entries {
-		// Only consider directories
-		if !entry.IsDir() {
-			continue
-		}
-
 		entryName := entry.Name()
-		entryPath := filepath.Join(sysDevicesSystemMemory, entryName)
+		entryPath := filepath.Join(sysDevicesBase, entryName)
 
 		// Ignore directories not starting with "memory"
 		if !strings.HasPrefix(entryName, "memory") {
+			continue
+		}
+
+		// Ignore invalid entries.
+		if !sysfsExists(filepath.Join(entryPath, "online")) {
 			continue
 		}
 
@@ -201,7 +210,7 @@ func GetMemory() (*api.ResourcesMemory, error) {
 	// Calculate the total memory from /sys/devices/system/memory, as the previously determined
 	// value reports the amount of available system memory minus the amount reserved for the kernel.
 	// If successful, replace the previous value, retrieved from /proc/meminfo.
-	memTotal := getTotalMemory()
+	memTotal := getTotalMemory(sysDevicesSystemMemory)
 	if memTotal > 0 {
 		info.Total = memTotal
 	}
@@ -255,6 +264,14 @@ func GetMemory() (*api.ResourcesMemory, error) {
 
 			node.Used = info.Used
 			node.Total = info.Total
+
+			// Calculate the total memory from /sys/devices/system/node/memory, as the previously determined
+			// value reports the amount of available system memory minus the amount reserved for the kernel.
+			// If successful, replace the previous value, retrieved from /sys/devices/system/node/meminfo.
+			memTotal := getTotalMemory(entryPath)
+			if memTotal > 0 {
+				node.Total = memTotal
+			}
 
 			memory.Nodes = append(memory.Nodes, node)
 		}
