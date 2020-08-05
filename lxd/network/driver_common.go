@@ -94,6 +94,11 @@ func (n *common) validate(config map[string]string, driverRules map[string]func(
 	return nil
 }
 
+// ID returns the network ID.
+func (n *common) ID() int64 {
+	return n.id
+}
+
 // Name returns the network name.
 func (n *common) Name() string {
 	return n.name
