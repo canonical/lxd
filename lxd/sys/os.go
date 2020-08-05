@@ -63,6 +63,7 @@ type OS struct {
 	CGInfo cgroup.Info
 
 	// Kernel features
+	NativeTerminals         bool
 	NetnsGetifaddrs         bool
 	PidFds                  bool
 	SeccompListener         bool
