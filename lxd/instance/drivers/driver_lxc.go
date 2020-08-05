@@ -6654,6 +6654,17 @@ func (c *lxc) InitPidFd() (*os.File, error) {
 	return c.c.InitPidFd()
 }
 
+// DevptsFd returns dirfd of devpts mount.
+func (c *lxc) DevptsFd() (*os.File, error) {
+	// Load the go-lxc struct
+	err := c.initLXC(false)
+	if err != nil {
+		return nil, err
+	}
+
+	return c.c.DevptsFd()
+}
+
 // LocalConfig returns local config.
 func (c *lxc) LocalConfig() map[string]string {
 	return c.localConfig
