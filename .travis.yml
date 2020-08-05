@@ -4,7 +4,8 @@ os:
   - osx
 
 go:
-  - 1.9
+  - 1.13.x
+  - 1.14.x
 
 matrix:
   fast_finish: true
@@ -17,7 +18,6 @@ install:
 
 script:
   - "make client"
-  - "go test ./"
   - "go test ./client"
   - "go test ./lxc"
   - "go test ./shared"
