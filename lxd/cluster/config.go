@@ -10,11 +10,11 @@ import (
 	"time"
 
 	"github.com/kballard/go-shellquote"
+	"github.com/pkg/errors"
 	"golang.org/x/crypto/scrypt"
 
 	"github.com/lxc/lxd/lxd/config"
 	"github.com/lxc/lxd/lxd/db"
-	"github.com/pkg/errors"
 )
 
 // Config holds cluster-wide configuration values.

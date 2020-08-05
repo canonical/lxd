@@ -45,8 +45,16 @@ func (o *OVS) BridgeExists(bridgeName string) (bool, error) {
 }
 
 // BridgeAdd adds an OVS bridge.
-func (o *OVS) BridgeAdd(bridgeName string) error {
-	_, err := shared.RunCommand("ovs-vsctl", "add-br", bridgeName)
+func (o *OVS) BridgeAdd(bridgeName string, mayExist bool) error {
+	args := []string{}
+
+	if mayExist {
+		args = append(args, "--may-exist")
+	}
+
+	args = append(args, "add-br", bridgeName)
+
+	_, err := shared.RunCommand("ovs-vsctl", args...)
 	if err != nil {
 		return err
 	}
@@ -64,36 +72,36 @@ func (o *OVS) BridgeDelete(bridgeName string) error {
 	return nil
 }
 
-// BridgeAddPort adds a port to the bridge (if already attached does nothing).
-func (o *OVS) BridgeAddPort(bridgeName string, portName string) error {
-	// Check if interface is already connected to a bridge, if not, connect it to the specified bridge.
-	_, err := shared.RunCommand("ovs-vsctl", "port-to-br", portName)
+// BridgePortAdd adds a port to the bridge (if already attached does nothing).
+func (o *OVS) BridgePortAdd(bridgeName string, portName string, mayExist bool) error {
+	args := []string{}
+
+	if mayExist {
+		args = append(args, "--may-exist")
+	}
+
+	args = append(args, "add-port", bridgeName, portName)
+
+	_, err := shared.RunCommand("ovs-vsctl", args...)
 	if err != nil {
-		_, err := shared.RunCommand("ovs-vsctl", "add-port", bridgeName, portName)
-		if err != nil {
-			return err
-		}
+		return err
 	}
 
 	return nil
 }
 
-// BridgeDeletePort deletes a port from the bridge (if already deteached does nothing).
-func (o *OVS) BridgeDeletePort(bridgeName string, portName string) error {
-	// Check if interface is connected to a bridge, if so, then remove it from the bridge.
-	_, err := shared.RunCommand("ovs-vsctl", "port-to-br", portName)
-	if err == nil {
-		_, err := shared.RunCommand("ovs-vsctl", "del-port", bridgeName, portName)
-		if err != nil {
-			return err
-		}
+// BridgePortDelete deletes a port from the bridge (if already detached does nothing).
+func (o *OVS) BridgePortDelete(bridgeName string, portName string) error {
+	_, err := shared.RunCommand("ovs-vsctl", "--if-exists", "del-port", bridgeName, portName)
+	if err != nil {
+		return err
 	}
 
 	return nil
 }
 
-// PortSet sets port options.
-func (o *OVS) PortSet(portName string, options ...string) error {
+// BridgePortSet sets port options.
+func (o *OVS) BridgePortSet(portName string, options ...string) error {
 	_, err := shared.RunCommand("ovs-vsctl", append([]string{"set", "port", portName}, options...)...)
 	if err != nil {
 		return err

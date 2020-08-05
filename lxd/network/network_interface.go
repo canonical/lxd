@@ -18,6 +18,7 @@ type Network interface {
 	// Config.
 	ValidateName(name string) error
 	Validate(config map[string]string) error
+	ID() int64
 	Name() string
 	Type() string
 	Status() string
