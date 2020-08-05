@@ -3,10 +3,15 @@ package openvswitch
 import (
 	"fmt"
 	"os/exec"
+	"strconv"
 	"strings"
+	"sync"
 
 	"github.com/lxc/lxd/shared"
 )
+
+// ovnBridgeMappingMutex locks access to read/write external-ids:ovn-bridge-mappings.
+var ovnBridgeMappingMutex sync.Mutex
 
 // NewOVS initialises new OVS wrapper.
 func NewOVS() *OVS {
@@ -162,4 +167,56 @@ func (o *OVS) ChassisID() (string, error) {
 	}
 
 	return chassisID, nil
+}
+
+// OVNBridgeMappings gets the current OVN bridge mappings.
+func (o *OVS) OVNBridgeMappings(bridgeName string) ([]string, error) {
+	// ovs-vsctl's get command doesn't support its --format flag, so we always get the output quoted.
+	// However ovs-vsctl's find and list commands don't support retrieving a single column's map field.
+	// And ovs-vsctl's JSON output is unfriendly towards statically typed languages as it mixes data types
+	// in a slice. So stick with "get" command and use Go's strconv.Unquote to return the actual values.
+	mappings, err := shared.RunCommand("ovs-vsctl", "--if-exists", "get", "open_vswitch", ".", "external-ids:ovn-bridge-mappings")
+	if err != nil {
+		return nil, err
+	}
+
+	mappings = strings.TrimSpace(mappings)
+	if mappings == "" {
+		return []string{}, nil
+	}
+
+	mappings, err = strconv.Unquote(mappings)
+	if err != nil {
+		return nil, err
+	}
+
+	return strings.SplitN(mappings, ",", -1), nil
+}
+
+// OVNBridgeMappingAdd appends an OVN bridge mapping between an OVS bridge and the logical provider name.
+func (o *OVS) OVNBridgeMappingAdd(bridgeName string, providerName string) error {
+	ovnBridgeMappingMutex.Lock()
+	defer ovnBridgeMappingMutex.Unlock()
+
+	mappings, err := o.OVNBridgeMappings(bridgeName)
+	if err != nil {
+		return err
+	}
+
+	newMapping := fmt.Sprintf("%s:%s", providerName, bridgeName)
+	for _, mapping := range mappings {
+		if mapping == newMapping {
+			return nil // Mapping is already present, nothing to do.
+		}
+	}
+
+	mappings = append(mappings, newMapping)
+
+	// Set new mapping string back into OVS database.
+	_, err = shared.RunCommand("ovs-vsctl", "set", "open_vswitch", ".", fmt.Sprintf("external-ids:ovn-bridge-mappings=%s", strings.Join(mappings, ",")))
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
