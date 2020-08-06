@@ -132,10 +132,13 @@ func (s *execWs) Do(op *operations.Operation) error {
 	if s.req.Interactive {
 		ttys = make([]*os.File, 1)
 		ptys = make([]*os.File, 1)
-		ptys[0], ttys[0], err = shared.OpenPtyInDevpts(int(s.devptsFd.Fd()), s.rootUid, s.rootGid)
+
 		if s.devptsFd != nil {
+			ptys[0], ttys[0], err = shared.OpenPtyInDevpts(int(s.devptsFd.Fd()), s.rootUid, s.rootGid)
 			s.devptsFd.Close()
 			s.devptsFd = nil
+		} else {
+			ptys[0], ttys[0], err = shared.OpenPty(s.rootUid, s.rootGid)
 		}
 		if err != nil {
 			return err
