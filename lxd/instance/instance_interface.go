@@ -148,6 +148,7 @@ type Container interface {
 	ConsoleLog(opts liblxc.ConsoleLogOptions) (string, error)
 	InsertSeccompUnixDevice(prefix string, m deviceConfig.Device, pid int) error
 	DevptsFd() (*os.File, error)
+	SeccompNotifyFd() (*os.File, error)
 }
 
 // CriuMigrationArgs arguments for CRIU migration.

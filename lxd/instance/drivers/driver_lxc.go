@@ -6669,6 +6669,17 @@ func (c *lxc) DevptsFd() (*os.File, error) {
 	return c.c.DevptsFd()
 }
 
+// SeccompNotifyFd returns seccomp notify fd of the container.
+func (c *lxc) SeccompNotifyFd() (*os.File, error) {
+	// Load the go-lxc struct
+	err := c.initLXC(false)
+	if err != nil {
+		return nil, err
+	}
+
+	return c.c.SeccompNotifyFd()
+}
+
 // LocalConfig returns local config.
 func (c *lxc) LocalConfig() map[string]string {
 	return c.localConfig
