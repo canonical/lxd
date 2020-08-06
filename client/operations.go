@@ -41,11 +41,15 @@ func (op *operation) AddHandler(function func(api.Operation)) (*EventTarget, err
 
 	// Wrap the function to filter unwanted messages
 	wrapped := func(event api.Event) {
+		op.handlerLock.Lock()
+
 		newOp := api.Operation{}
 		err := json.Unmarshal(event.Metadata, &newOp)
 		if err != nil || newOp.ID != op.ID {
+			op.handlerLock.Unlock()
 			return
 		}
+		op.handlerLock.Unlock()
 
 		function(newOp)
 	}
@@ -98,14 +102,18 @@ func (op *operation) Refresh() error {
 
 // Wait lets you wait until the operation reaches a final state
 func (op *operation) Wait() error {
+	op.handlerLock.Lock()
 	// Check if not done already
 	if op.StatusCode.IsFinal() {
 		if op.Err != "" {
+			op.handlerLock.Unlock()
 			return fmt.Errorf(op.Err)
 		}
 
+		op.handlerLock.Unlock()
 		return nil
 	}
+	op.handlerLock.Unlock()
 
 	// Make sure we have a listener setup
 	err := op.setupListener()
