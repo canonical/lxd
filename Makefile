@@ -134,6 +134,8 @@ endif
 
 	go get -t -v -d ./...
 	CC=$(CC) go install -v -tags "$(TAG_SQLITE3) logdebug" $(DEBUG) ./...
+	CGO_ENABLED=0 go install -v -tags "netgo,logdebug" ./lxd-p2c
+	CGO_ENABLED=0 go install -v -tags "agent,netgo,logdebug" ./lxd-agent
 	@echo "LXD built successfully"
 
 .PHONY: nocache
@@ -145,6 +147,8 @@ endif
 
 	go get -t -v -d ./...
 	CC=$(CC) go install -a -v -tags "$(TAG_SQLITE3)" $(DEBUG) ./...
+	CGO_ENABLED=0 go install -a -v -tags netgo ./lxd-p2c
+	CGO_ENABLED=0 go install -a -v -tags agent,netgo ./lxd-agent
 	@echo "LXD built successfully"
 
 race:
