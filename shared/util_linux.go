@@ -439,7 +439,11 @@ func OpenPtyInDevpts(devpts_fd int, uid, gid int64) (*os.File, *os.File, error) 
 		}
 
 		pty = os.NewFile(ptyFd, fmt.Sprintf("/dev/pts/%d", id))
-	} else if devpts_fd < 0 {
+	} else {
+		if devpts_fd >= 0 {
+			return nil, nil, fmt.Errorf("TIOCGPTPEER required but not available")
+		}
+
 		// Get the pty side.
 		id := 0
 		_, _, errno = unix.Syscall(unix.SYS_IOCTL, uintptr(ptx.Fd()), unix.TIOCGPTN, uintptr(unsafe.Pointer(&id)))
