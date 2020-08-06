@@ -312,3 +312,14 @@ func IsNetworkVLAN(value string) error {
 
 	return nil
 }
+
+// IsURLSegmentSafe validates whether value can be used in a URL segment.
+func IsURLSegmentSafe(value string) error {
+	for _, char := range []string{"/", "?", "&"} {
+		if strings.Contains(value, char) {
+			return fmt.Errorf("Cannot contain %q", char)
+		}
+	}
+
+	return nil
+}
