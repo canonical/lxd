@@ -19,6 +19,7 @@ import (
 	log "github.com/lxc/lxd/shared/log15"
 	"github.com/lxc/lxd/shared/logger"
 	"github.com/lxc/lxd/shared/logging"
+	"github.com/lxc/lxd/shared/validate"
 )
 
 // common represents a generic LXD network.
@@ -92,6 +93,11 @@ func (n *common) validate(config map[string]string, driverRules map[string]func(
 	}
 
 	return nil
+}
+
+// ValidateName validates network name.
+func (n *common) ValidateName(name string) error {
+	return validate.IsURLSegmentSafe(name)
 }
 
 // ID returns the network ID.
