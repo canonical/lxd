@@ -791,8 +791,3 @@ func PathNameDecode(text string) string {
 	// converted back to "/" before making a final pass to convert "\0" back to original "-".
 	return strings.Replace(strings.Replace(strings.Replace(text, "--", "\000", -1), "-", "/", -1), "\000", "-", -1)
 }
-
-// OperationLockName returns the storage specific lock name to use with locking package.
-func OperationLockName(poolName string, volType string, volName string) string {
-	return fmt.Sprintf("%s/%s/%s", poolName, volType, volName)
-}
