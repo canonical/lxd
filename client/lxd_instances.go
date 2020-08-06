@@ -257,7 +257,9 @@ func (r *ProtocolLXD) tryCreateInstance(req api.InstancesPost, urls []string, op
 				continue
 			}
 
+			rop.handlerLock.Lock()
 			rop.targetOp = op
+			rop.handlerLock.Unlock()
 
 			for _, handler := range rop.handlers {
 				rop.targetOp.AddHandler(handler)
