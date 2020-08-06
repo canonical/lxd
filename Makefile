@@ -147,6 +147,18 @@ endif
 	CC=$(CC) go install -a -v -tags "$(TAG_SQLITE3)" $(DEBUG) ./...
 	@echo "LXD built successfully"
 
+race:
+ifeq ($(TAG_SQLITE3),)
+	@echo "Missing custom libsqlite3, run \"make deps\" to setup."
+	exit 1
+endif
+
+	go get -t -v -d ./...
+	CC=$(CC) go install -race -v -tags "$(TAG_SQLITE3)" $(DEBUG) ./...
+	CGO_ENABLED=0 go install -v -tags netgo ./lxd-p2c
+	CGO_ENABLED=0 go install -v -tags agent,netgo ./lxd-agent
+	@echo "LXD built successfully"
+
 .PHONY: check
 check: default
 	go get -v -x github.com/rogpeppe/godeps

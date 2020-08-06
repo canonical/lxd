@@ -593,7 +593,9 @@ func (r *ProtocolLXD) tryCopyImage(req api.ImagesPost, urls []string) (RemoteOpe
 				continue
 			}
 
+			rop.handlerLock.Lock()
 			rop.targetOp = op
+			rop.handlerLock.Unlock()
 
 			for _, handler := range rop.handlers {
 				rop.targetOp.AddHandler(handler)
@@ -768,7 +770,9 @@ func (r *ProtocolLXD) CopyImage(source ImageServer, image api.Image, args *Image
 				return
 			}
 
+			rop.handlerLock.Lock()
 			rop.targetOp = op
+			rop.handlerLock.Unlock()
 
 			for _, handler := range rop.handlers {
 				rop.targetOp.AddHandler(handler)
