@@ -933,14 +933,14 @@ func networkStartup(s *state.State) error {
 	// Get a list of managed networks.
 	networks, err := s.Cluster.GetNonPendingNetworks()
 	if err != nil {
-		return err
+		return errors.Wrapf(err, "Failed to load networks")
 	}
 
 	// Bring them all up.
 	for _, name := range networks {
 		n, err := network.LoadByName(s, name)
 		if err != nil {
-			return err
+			return errors.Wrapf(err, "Failed to load network %q", name)
 		}
 
 		err = n.Validate(n.Config())
