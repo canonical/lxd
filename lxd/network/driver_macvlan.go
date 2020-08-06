@@ -14,11 +14,6 @@ type macvlan struct {
 	common
 }
 
-// ValidateName validates network name.
-func (n *macvlan) ValidateName(name string) error {
-	return validVirtualNetworkName(name)
-}
-
 // Validate network config.
 func (n *macvlan) Validate(config map[string]string) error {
 	rules := map[string]func(value string) error{
