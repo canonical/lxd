@@ -186,7 +186,10 @@ func OperationCreate(s *state.State, project string, opClass operationClass, opT
 
 	logger.Debugf("New %s Operation: %s", op.class.String(), op.id)
 	_, md, _ := op.Render()
+
+	operationsLock.Lock()
 	op.sendEvent(md)
+	operationsLock.Unlock()
 
 	return &op, nil
 }
@@ -255,9 +258,12 @@ func (op *Operation) Run() (chan error, error) {
 				chanRun <- err
 
 				logger.Debugf("Failure for %s operation: %s: %s", op.class.String(), op.id, err)
-
 				_, md, _ := op.Render()
+
+				op.lock.Lock()
 				op.sendEvent(md)
+				op.lock.Unlock()
+
 				return
 			}
 
@@ -267,18 +273,24 @@ func (op *Operation) Run() (chan error, error) {
 			op.done()
 			chanRun <- nil
 
-			op.lock.Lock()
 			logger.Debugf("Success for %s operation: %s", op.class.String(), op.id)
 			_, md, _ := op.Render()
+
+			op.lock.Lock()
 			op.sendEvent(md)
 			op.lock.Unlock()
 		}(op, chanRun)
 	}
+
 	op.lock.Unlock()
 
 	logger.Debugf("Started %s operation: %s", op.class.String(), op.id)
 	_, md, _ := op.Render()
+
+	op.lock.Lock()
 	op.sendEvent(md)
+	op.lock.Unlock()
+
 	return chanRun, nil
 }
 
@@ -313,7 +325,11 @@ func (op *Operation) Cancel() (chan error, error) {
 
 				logger.Debugf("Failed to cancel %s Operation: %s: %s", op.class.String(), op.id, err)
 				_, md, _ := op.Render()
+
+				op.lock.Lock()
 				op.sendEvent(md)
+				op.lock.Unlock()
+
 				return
 			}
 
@@ -325,7 +341,11 @@ func (op *Operation) Cancel() (chan error, error) {
 
 			logger.Debugf("Cancelled %s Operation: %s", op.class.String(), op.id)
 			_, md, _ := op.Render()
+
+			op.lock.Lock()
 			op.sendEvent(md)
+			op.lock.Unlock()
+
 		}(op, oldStatus, chanCancel)
 	}
 
@@ -350,7 +370,10 @@ func (op *Operation) Cancel() (chan error, error) {
 
 	logger.Debugf("Cancelled %s Operation: %s", op.class.String(), op.id)
 	_, md, _ = op.Render()
+
+	op.lock.Lock()
 	op.sendEvent(md)
+	op.lock.Unlock()
 
 	return chanCancel, nil
 }
@@ -429,7 +452,8 @@ func (op *Operation) Render() (string, *api.Operation, error) {
 		return "", nil, err
 	}
 
-	return op.url, &api.Operation{
+	op.lock.Lock()
+	retOp := &api.Operation{
 		ID:          op.id,
 		Class:       op.class.String(),
 		Description: op.description,
@@ -442,7 +466,10 @@ func (op *Operation) Render() (string, *api.Operation, error) {
 		MayCancel:   op.mayCancel(),
 		Err:         op.err,
 		Location:    serverName,
-	}, nil
+	}
+	op.lock.Unlock()
+
+	return op.url, retOp, nil
 }
 
 // WaitFinal waits for the operation to be done. If timeout is -1, it will wait
@@ -495,7 +522,10 @@ func (op *Operation) UpdateResources(opResources map[string][]string) error {
 
 	logger.Debugf("Updated resources for %s Operation: %s", op.class.String(), op.id)
 	_, md, _ := op.Render()
+
+	op.lock.Lock()
 	op.sendEvent(md)
+	op.lock.Unlock()
 
 	return nil
 }
@@ -523,7 +553,10 @@ func (op *Operation) UpdateMetadata(opMetadata interface{}) error {
 
 	logger.Debugf("Updated metadata for %s Operation: %s", op.class.String(), op.id)
 	_, md, _ := op.Render()
+
+	op.lock.Lock()
 	op.sendEvent(md)
+	op.lock.Unlock()
 
 	return nil
 }
