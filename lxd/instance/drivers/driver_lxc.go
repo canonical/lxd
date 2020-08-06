@@ -3041,6 +3041,10 @@ func (c *lxc) getLxcState() (liblxc.State, error) {
 		return liblxc.StateMap["STOPPED"], err
 	}
 
+	if c.c == nil {
+		return liblxc.StateMap["STOPPED"], nil
+	}
+
 	monitor := make(chan liblxc.State, 1)
 
 	go func(c *liblxc.Container) {
