@@ -765,12 +765,12 @@ test_storage() {
 
   if [ "$lxd_backend" = "lvm" ]; then
     QUOTA1="20MB"
-    rootMinKB1="17000"
+    rootMinKB1="14000"
     rootMaxKB1="20000"
 
     # Increase quota enough to require a new 4MB LVM extent.
     QUOTA2="25MB"
-    rootMinKB2="21000"
+    rootMinKB2="19000"
     rootMaxKB2="23000"
   fi
 
