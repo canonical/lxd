@@ -120,7 +120,13 @@ func (n *bridge) fillConfig(config map[string]string) error {
 
 // ValidateName validates network name.
 func (n *bridge) ValidateName(name string) error {
-	return validInterfaceName(name)
+	err := validInterfaceName(name)
+	if err != nil {
+		return err
+	}
+
+	// Apply common name validation that applies to all network types.
+	return n.common.ValidateName(name)
 }
 
 // Validate network config.
