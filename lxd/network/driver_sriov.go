@@ -14,11 +14,6 @@ type sriov struct {
 	common
 }
 
-// ValidateName validates network name.
-func (n *sriov) ValidateName(name string) error {
-	return validVirtualNetworkName(name)
-}
-
 // Validate network config.
 func (n *sriov) Validate(config map[string]string) error {
 	rules := map[string]func(value string) error{
