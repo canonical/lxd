@@ -449,9 +449,12 @@ func (op *Operation) Render() (string, *api.Operation, error) {
 // indefinitely otherwise it will timeout after {timeout} seconds.
 func (op *Operation) WaitFinal(timeout int) (bool, error) {
 	// Check current state
+	op.lock.Lock()
 	if op.status.IsFinal() {
+		op.lock.Unlock()
 		return true, nil
 	}
+	op.lock.Unlock()
 
 	// Wait indefinitely
 	if timeout == -1 {
