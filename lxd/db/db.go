@@ -131,11 +131,12 @@ func (n *Node) Begin() (*sql.Tx, error) {
 
 // Cluster mediates access to LXD's data stored in the cluster dqlite database.
 type Cluster struct {
-	db      *sql.DB // Handle to the cluster dqlite database, gated behind gRPC SQL.
-	nodeID  int64   // Node ID of this LXD instance.
-	mu      sync.RWMutex
-	stmts   map[int]*sql.Stmt // Prepared statements by code.
-	closing bool              // True when daemon is shutting down, prevents retries
+	db        *sql.DB // Handle to the cluster dqlite database, gated behind gRPC SQL.
+	nodeID    int64   // Node ID of this LXD instance.
+	mu        sync.RWMutex
+	stmts     map[int]*sql.Stmt // Prepared statements by code.
+	closing   bool              // True when daemon is shutting down, prevents retries
+	clusterMu sync.Mutex
 }
 
 // OpenCluster creates a new Cluster object for interacting with the dqlite
@@ -327,7 +328,9 @@ func ForLocalInspectionWithPreparedStmts(db *sql.DB) (*Cluster, error) {
 // Kill should be called upon shutdown, it will prevent retrying failed
 // database queries.
 func (c *Cluster) Kill() {
+	c.clusterMu.Lock()
 	c.closing = true
+	c.clusterMu.Unlock()
 }
 
 // GetNodeID returns the current nodeID (0 if not set)
@@ -391,7 +394,11 @@ func (c *Cluster) transaction(f func(*ClusterTx) error) error {
 }
 
 func (c *Cluster) retry(f func() error) error {
-	if c.closing {
+	c.clusterMu.Lock()
+	closing := c.closing
+	c.clusterMu.Unlock()
+
+	if closing {
 		return f()
 	}
 	return query.Retry(f)
