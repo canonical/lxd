@@ -10,9 +10,9 @@ import (
 
 	"github.com/pkg/errors"
 
-	"github.com/lxc/lxd/lxd/locking"
 	"github.com/lxc/lxd/lxd/operations"
 	"github.com/lxc/lxd/lxd/revert"
+	"github.com/lxc/lxd/lxd/storage/locking"
 	"github.com/lxc/lxd/shared"
 	log "github.com/lxc/lxd/shared/log15"
 	"github.com/lxc/lxd/shared/units"
@@ -56,7 +56,7 @@ func (d *lvm) openLoopFile(source string) (*os.File, error) {
 	}
 
 	if filepath.IsAbs(source) && !shared.IsBlockdevPath(source) {
-		unlock := locking.Lock(OperationLockName(d.name, "", ""))
+		unlock := locking.Lock(d.name, "", "")
 		defer unlock()
 
 		// Try to prepare new loop device.

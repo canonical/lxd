@@ -6,9 +6,9 @@ import (
 
 	"github.com/pkg/errors"
 
-	"github.com/lxc/lxd/lxd/locking"
 	"github.com/lxc/lxd/lxd/operations"
 	"github.com/lxc/lxd/lxd/revert"
+	"github.com/lxc/lxd/lxd/storage/locking"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/units"
 )
@@ -187,7 +187,7 @@ func (v Volume) MountTask(task func(mountPath string, op *operations.Operation) 
 	// If the volume is a snapshot then call the snapshot specific mount/unmount functions as
 	// these will mount the snapshot read only.
 	if v.IsSnapshot() {
-		unlock := locking.Lock(OperationLockName(v.pool, string(v.volType), v.name))
+		unlock := locking.Lock(v.pool, string(v.volType), v.name)
 
 		ourMount, err := v.driver.MountVolumeSnapshot(v, op)
 		if err != nil {
@@ -199,13 +199,13 @@ func (v Volume) MountTask(task func(mountPath string, op *operations.Operation) 
 
 		if ourMount {
 			defer func() {
-				unlock := locking.Lock(OperationLockName(v.pool, string(v.volType), v.name))
+				unlock := locking.Lock(v.pool, string(v.volType), v.name)
 				v.driver.UnmountVolumeSnapshot(v, op)
 				unlock()
 			}()
 		}
 	} else {
-		unlock := locking.Lock(OperationLockName(v.pool, string(v.volType), v.name))
+		unlock := locking.Lock(v.pool, string(v.volType), v.name)
 
 		ourMount, err := v.driver.MountVolume(v, op)
 		if err != nil {
@@ -217,7 +217,7 @@ func (v Volume) MountTask(task func(mountPath string, op *operations.Operation) 
 
 		if ourMount {
 			defer func() {
-				unlock := locking.Lock(OperationLockName(v.pool, string(v.volType), v.name))
+				unlock := locking.Lock(v.pool, string(v.volType), v.name)
 				v.driver.UnmountVolume(v, op)
 				unlock()
 			}()
@@ -233,7 +233,7 @@ func (v Volume) UnmountTask(task func(op *operations.Operation) error, op *opera
 	// If the volume is a snapshot then call the snapshot specific mount/unmount functions as
 	// these will mount the snapshot read only.
 	if v.IsSnapshot() {
-		unlock := locking.Lock(OperationLockName(v.pool, string(v.volType), v.name))
+		unlock := locking.Lock(v.pool, string(v.volType), v.name)
 
 		ourUnmount, err := v.driver.UnmountVolumeSnapshot(v, op)
 		if err != nil {
@@ -245,13 +245,13 @@ func (v Volume) UnmountTask(task func(op *operations.Operation) error, op *opera
 
 		if ourUnmount {
 			defer func() {
-				unlock := locking.Lock(OperationLockName(v.pool, string(v.volType), v.name))
+				unlock := locking.Lock(v.pool, string(v.volType), v.name)
 				v.driver.MountVolumeSnapshot(v, op)
 				unlock()
 			}()
 		}
 	} else {
-		unlock := locking.Lock(OperationLockName(v.pool, string(v.volType), v.name))
+		unlock := locking.Lock(v.pool, string(v.volType), v.name)
 
 		ourUnmount, err := v.driver.UnmountVolume(v, op)
 		if err != nil {
@@ -263,7 +263,7 @@ func (v Volume) UnmountTask(task func(op *operations.Operation) error, op *opera
 
 		if ourUnmount {
 			defer func() {
-				unlock := locking.Lock(OperationLockName(v.pool, string(v.volType), v.name))
+				unlock := locking.Lock(v.pool, string(v.volType), v.name)
 				v.driver.MountVolume(v, op)
 				unlock()
 			}()
