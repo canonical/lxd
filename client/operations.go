@@ -257,7 +257,8 @@ func (op *operation) setupListener() error {
 type remoteOperation struct {
 	targetOp Operation
 
-	handlers []func(api.Operation)
+	handlers    []func(api.Operation)
+	handlerLock sync.Mutex
 
 	chDone chan bool
 	chPost chan bool
@@ -268,6 +269,9 @@ type remoteOperation struct {
 func (op *remoteOperation) AddHandler(function func(api.Operation)) (*EventTarget, error) {
 	var err error
 	var target *EventTarget
+
+	op.handlerLock.Lock()
+	defer op.handlerLock.Unlock()
 
 	// Attach to the existing target operation
 	if op.targetOp != nil {
