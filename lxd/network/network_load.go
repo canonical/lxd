@@ -1,6 +1,8 @@
 package network
 
 import (
+	"github.com/pkg/errors"
+
 	"github.com/lxc/lxd/lxd/state"
 	"github.com/lxc/lxd/shared/api"
 )
@@ -37,7 +39,12 @@ func ValidateName(name string, netType string) error {
 	n := driverFunc()
 	n.init(nil, 0, name, netType, "", nil, "Unknown")
 
-	return n.ValidateName(name)
+	err := n.ValidateName(name)
+	if err != nil {
+		return errors.Wrapf(err, "Network name invalid")
+	}
+
+	return nil
 }
 
 // Validate validates the supplied network name and configuration for the specified network type.
@@ -52,7 +59,7 @@ func Validate(name string, netType string, config map[string]string) error {
 
 	err := n.ValidateName(name)
 	if err != nil {
-		return err
+		return errors.Wrapf(err, "Network name invalid")
 	}
 
 	return n.Validate(config)
