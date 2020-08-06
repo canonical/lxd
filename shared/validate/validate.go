@@ -20,14 +20,28 @@ func stringInSlice(key string, list []string) bool {
 	return false
 }
 
-// Optional wraps a validator function to make it an optional field.
-func Optional(f func(value string) error) func(value string) error {
+// Required returns function that runs one or more validators, all must pass without error.
+func Required(validators ...func(value string) error) func(value string) error {
+	return func(value string) error {
+		for _, validator := range validators {
+			err := validator(value)
+			if err != nil {
+				return err
+			}
+		}
+
+		return nil
+	}
+}
+
+// Optional wraps Required() function to make it return nil if value is empty string.
+func Optional(validators ...func(value string) error) func(value string) error {
 	return func(value string) error {
 		if value == "" {
 			return nil
 		}
 
-		return f(value)
+		return Required(validators...)(value)
 	}
 }
 
