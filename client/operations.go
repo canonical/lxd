@@ -106,8 +106,9 @@ func (op *operation) Wait() error {
 	// Check if not done already
 	if op.StatusCode.IsFinal() {
 		if op.Err != "" {
+			err := op.Err
 			op.handlerLock.Unlock()
-			return fmt.Errorf(op.Err)
+			return fmt.Errorf(err)
 		}
 
 		op.handlerLock.Unlock()
