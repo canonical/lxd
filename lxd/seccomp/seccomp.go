@@ -620,14 +620,15 @@ type Server struct {
 
 // Iovec defines an iovec to move data between kernel and userspace.
 type Iovec struct {
-	ucred  *unix.Ucred
-	memFd  int
-	procFd int
-	msg    *C.struct_seccomp_notify_proxy_msg
-	req    *C.struct_seccomp_notif
-	resp   *C.struct_seccomp_notif_resp
-	cookie *C.char
-	iov    *C.struct_iovec
+	ucred    *unix.Ucred
+	memFd    int
+	procFd   int
+	notifyFd int
+	msg      *C.struct_seccomp_notify_proxy_msg
+	req      *C.struct_seccomp_notif
+	resp     *C.struct_seccomp_notif_resp
+	cookie   *C.char
+	iov      *C.struct_iovec
 }
 
 // NewSeccompIovec creates a new seccomp iovec.
@@ -655,14 +656,15 @@ func NewSeccompIovec(ucred *unix.Ucred) *Iovec {
 	C.prepare_seccomp_iovec(iov, msg, req, resp, cookie)
 
 	return &Iovec{
-		memFd:  -1,
-		procFd: -1,
-		msg:    msg,
-		req:    req,
-		resp:   resp,
-		cookie: cookie,
-		iov:    iov,
-		ucred:  ucred,
+		memFd:    -1,
+		procFd:   -1,
+		notifyFd: -1,
+		msg:      msg,
+		req:      req,
+		resp:     resp,
+		cookie:   cookie,
+		iov:      iov,
+		ucred:    ucred,
 	}
 }
 
@@ -674,6 +676,9 @@ func (siov *Iovec) PutSeccompIovec() {
 	if siov.procFd >= 0 {
 		unix.Close(siov.procFd)
 	}
+	if siov.notifyFd >= 0 {
+		unix.Close(siov.notifyFd)
+	}
 	C.free(unsafe.Pointer(siov.msg))
 	C.free(unsafe.Pointer(siov.req))
 	C.free(unsafe.Pointer(siov.resp))
@@ -681,19 +686,29 @@ func (siov *Iovec) PutSeccompIovec() {
 	C.free(unsafe.Pointer(siov.iov))
 }
 
-// ReceiveSeccompIovec receives a seccomp iovec.
-func (siov *Iovec) ReceiveSeccompIovec(fd int) (uint64, error) {
+// ReceiveSeccompIovecV1 receives a v1 seccomp iovec.
+func (siov *Iovec) ReceiveSeccompIovecV1(fd int) (uint64, error) {
 	bytes, fds, err := netutils.AbstractUnixReceiveFdData(fd, 2, unsafe.Pointer(siov.iov), 4)
 	if err != nil || err == io.EOF {
 		return 0, err
 	}
 
-	if len(fds) == 2 {
-		siov.procFd = int(fds[0])
-		siov.memFd = int(fds[1])
-	} else {
-		siov.memFd = int(fds[0])
+	siov.procFd = int(fds[0])
+	siov.memFd = int(fds[1])
+
+	return bytes, nil
+}
+
+// ReceiveSeccompIovecV2 receives a v2 seccomp iovec.
+func (siov *Iovec) ReceiveSeccompIovecV2(fd int) (uint64, error) {
+	bytes, fds, err := netutils.AbstractUnixReceiveFdData(fd, 3, unsafe.Pointer(siov.iov), 4)
+	if err != nil || err == io.EOF {
+		return 0, err
 	}
+
+	siov.procFd = int(fds[0])
+	siov.memFd = int(fds[1])
+	siov.notifyFd = int(fds[2])
 
 	return bytes, nil
 }
@@ -813,8 +828,15 @@ func NewSeccompServer(s *state.State, path string, findPID func(pid int32, state
 				}
 
 				for {
+					var bytes uint64
+					var err error
+
 					siov := NewSeccompIovec(ucred)
-					bytes, err := siov.ReceiveSeccompIovec(int(unixFile.Fd()))
+					if lxcSupportSeccompV2(server.s) {
+						bytes, err = siov.ReceiveSeccompIovecV2(int(unixFile.Fd()))
+					} else {
+						bytes, err = siov.ReceiveSeccompIovecV1(int(unixFile.Fd()))
+					}
 					if err != nil {
 						logger.Debugf("Disconnected from seccomp socket after failed receive: pid=%v, err=%s", ucred.Pid, err)
 						c.Close()
@@ -1650,6 +1672,19 @@ func (s *Server) HandleValid(fd int, siov *Iovec, findPID func(pid int32, state 
 func (s *Server) Stop() error {
 	os.Remove(s.path)
 	return s.l.Close()
+}
+
+func lxcSupportSeccompV2(state *state.State) bool {
+	err := lxcSupportSeccompNotify(state)
+	if err != nil {
+		return false
+	}
+
+	if !state.OS.LXCFeatures["seccomp_proxy_send_notify_fd"] {
+		return false
+	}
+
+	return true
 }
 
 func lxcSupportSeccompNotifyContinue(state *state.State) error {
