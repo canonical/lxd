@@ -396,23 +396,14 @@ func DeviceTotalMemory() (int64, error) {
 	return -1, fmt.Errorf("Couldn't find MemTotal")
 }
 
-// OpenPtyInDevpts creates a new PTS pair, configures them and returns them.
-func OpenPtyInDevpts(devpts_fd int, uid, gid int64) (*os.File, *os.File, error) {
+// OpenPty creates a new PTS pair, configures them and returns them.
+func OpenPty(uid, gid int64) (*os.File, *os.File, error) {
 	revert := true
-	var ptx *os.File
-	var err error
 
 	// Create a PTS pair.
-	if devpts_fd >= 0 {
-		fd, err := unix.Openat(devpts_fd, "ptmx", os.O_RDWR|unix.O_CLOEXEC, 0)
-		if err == nil {
-			ptx = os.NewFile(uintptr(fd), "/dev/pts/ptmx")
-		}
-	} else {
-		ptx, err = os.OpenFile("/dev/ptmx", os.O_RDWR|unix.O_CLOEXEC, 0)
-		if err != nil {
-			return nil, nil, err
-		}
+	ptx, err := os.OpenFile("/dev/ptmx", os.O_RDWR|unix.O_CLOEXEC, 0)
+	if err != nil {
+		return nil, nil, err
 	}
 	defer func() {
 		if revert {
@@ -429,7 +420,6 @@ func OpenPtyInDevpts(devpts_fd int, uid, gid int64) (*os.File, *os.File, error) 
 
 	var pty *os.File
 	ptyFd, _, errno := unix.Syscall(unix.SYS_IOCTL, uintptr(ptx.Fd()), unix.TIOCGPTPEER, uintptr(unix.O_NOCTTY|unix.O_CLOEXEC|os.O_RDWR))
-	// We can only fallback to looking up the fd in /dev/pts when we aren't dealing with the container's devpts instance.
 	if errno == 0 {
 		// Get the pty side.
 		id := 0
@@ -439,7 +429,7 @@ func OpenPtyInDevpts(devpts_fd int, uid, gid int64) (*os.File, *os.File, error) 
 		}
 
 		pty = os.NewFile(ptyFd, fmt.Sprintf("/dev/pts/%d", id))
-	} else if devpts_fd < 0 {
+	} else {
 		// Get the pty side.
 		id := 0
 		_, _, errno = unix.Syscall(unix.SYS_IOCTL, uintptr(ptx.Fd()), unix.TIOCGPTN, uintptr(unsafe.Pointer(&id)))
@@ -506,11 +496,6 @@ func OpenPtyInDevpts(devpts_fd int, uid, gid int64) (*os.File, *os.File, error) 
 
 	revert = false
 	return ptx, pty, nil
-}
-
-// OpenPty creates a new PTS pair, configures them and returns them.
-func OpenPty(uid, gid int64) (*os.File, *os.File, error) {
-	return OpenPtyInDevpts(-1, uid, gid)
 }
 
 // Extensively commented directly in the code. Please leave the comments!

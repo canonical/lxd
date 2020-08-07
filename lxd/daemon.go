@@ -630,7 +630,6 @@ func (d *Daemon) init() error {
 		"cgroup2",
 		"pidfd",
 		"seccomp_allow_deny_syntax",
-		"devpts_fd",
 	}
 	for _, extension := range lxcExtensions {
 		d.os.LXCFeatures[extension] = liblxc.HasApiExtension(extension)
@@ -673,13 +672,6 @@ func (d *Daemon) init() error {
 		logger.Infof(" - seccomp listener continue syscalls: yes")
 	} else {
 		logger.Infof(" - seccomp listener continue syscalls: no")
-	}
-
-	if d.os.LXCFeatures["devpts_fd"] && canUseNativeTerminals() {
-		d.os.NativeTerminals = true
-		logger.Infof(" - safe native terminal allocation : yes")
-	} else {
-		logger.Infof(" - safe native terminal allocation : no")
 	}
 
 	/*

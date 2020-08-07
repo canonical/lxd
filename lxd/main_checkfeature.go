@@ -42,7 +42,6 @@ import (
 #include "include/process_utils.h"
 #include "include/syscall_numbers.h"
 
-__ro_after_init bool tiocgptpeer_aware = false;
 __ro_after_init bool netnsid_aware = false;
 __ro_after_init bool pidfd_aware = false;
 __ro_after_init bool uevent_aware = false;
@@ -332,37 +331,6 @@ static void is_pidfd_aware(void)
 	pidfd_aware = true;
 }
 
-#ifndef TIOCGPTPEER
-	#if defined __sparc__
-		#define TIOCGPTPEER _IO('t', 137)
-	#else
-		#define TIOCGPTPEER _IO('T', 0x41)
-	#endif
-#endif
-
-static void is_tiocgptpeer_aware(void)
-{
-	__do_close int ptx_fd = -EBADF, pty_fd = -EBADF;
-	int ret;
-
-	ptx_fd = open("/dev/ptmx", O_RDWR | O_NOCTTY | O_CLOEXEC);
-	if (ptx_fd < 0)
-		return;
-
-	ret = grantpt(ptx_fd);
-	if (ret < 0)
-		return;
-
-	ret = unlockpt(ptx_fd);
-	if (ret < 0)
-		return;
-
-	pty_fd = ioctl(ptx_fd, TIOCGPTPEER, O_RDWR | O_NOCTTY | O_CLOEXEC);
-	if (pty_fd < 0)
-		return;
-
-	tiocgptpeer_aware = true;
-}
 
 void checkfeature(void)
 {
@@ -372,7 +340,6 @@ void checkfeature(void)
 	is_pidfd_aware();
 	is_uevent_aware();
 	is_seccomp_notify_aware();
-	is_tiocgptpeer_aware();
 
 	if (setns(hostnetns_fd, CLONE_NEWNET) < 0)
 		(void)sprintf(errbuf, "%s", "Failed to attach to host network namespace");
@@ -446,8 +413,4 @@ func canUseShiftfs() bool {
 	}
 
 	return true
-}
-
-func canUseNativeTerminals() bool {
-	return bool(C.tiocgptpeer_aware)
 }

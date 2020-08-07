@@ -43,7 +43,6 @@ type execWs struct {
 	controlConnected     chan struct{}
 	controlConnectedDone bool
 	fds                  map[int]string
-	devptsFd             *os.File
 }
 
 func (s *execWs) Metadata() interface{} {
@@ -132,11 +131,7 @@ func (s *execWs) Do(op *operations.Operation) error {
 	if s.req.Interactive {
 		ttys = make([]*os.File, 1)
 		ptys = make([]*os.File, 1)
-		ptys[0], ttys[0], err = shared.OpenPtyInDevpts(int(s.devptsFd.Fd()), s.rootUid, s.rootGid)
-		if s.devptsFd != nil {
-			s.devptsFd.Close()
-			s.devptsFd = nil
-		}
+		ptys[0], ttys[0], err = shared.OpenPty(s.rootUid, s.rootGid)
 		if err != nil {
 			return err
 		}
@@ -448,11 +443,6 @@ func containerExecPost(d *Daemon, r *http.Request) response.Response {
 
 			if idmapset != nil {
 				ws.rootUid, ws.rootGid = idmapset.ShiftIntoNs(0, 0)
-			}
-
-			devptsFd, err := c.DevptsFd()
-			if err == nil {
-				ws.devptsFd = devptsFd
 			}
 		}
 
