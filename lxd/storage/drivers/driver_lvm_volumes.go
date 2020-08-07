@@ -762,18 +762,19 @@ func (d *lvm) MountVolumeSnapshot(snapVol Volume, op *operations.Operation) (boo
 
 			// When mounting XFS filesystems temporarily we can use the nouuid option rather than fully
 			// regenerating the filesystem UUID.
-			if tmpVolFsType == "xfs" {
+			/*if tmpVolFsType == "xfs" {
 				idx := strings.Index(mountOptions, "nouuid")
 				if idx < 0 {
 					mountOptions += ",nouuid"
 				}
 			} else {
-				d.logger.Debug("Regenerating filesystem UUID", log.Ctx{"dev": volDevPath, "fs": tmpVolFsType})
-				err = regenerateFilesystemUUID(mountVol.ConfigBlockFilesystem(), volDevPath)
-				if err != nil {
-					return false, err
-				}
+			*/
+			d.logger.Debug("Regenerating filesystem UUID", log.Ctx{"dev": volDevPath, "fs": tmpVolFsType})
+			err = regenerateFilesystemUUID(mountVol.ConfigBlockFilesystem(), volDevPath)
+			if err != nil {
+				return false, err
 			}
+			//}
 		}
 
 		// Finally attempt to mount the volume that needs mounting.
