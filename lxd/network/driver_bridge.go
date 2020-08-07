@@ -48,6 +48,13 @@ type bridge struct {
 
 // fillHwaddr populates the volatile.bridge.hwaddr in config if it, nor bridge.hwaddr, are already set.
 func (n *bridge) fillHwaddr(config map[string]string) error {
+	// Fan bridge doesn't support having the same MAC on all nodes (it breaks host<->fan traffic).
+	// Presumably because the host's MAC address is used for routing across the fan network.
+	if config["bridge.mode"] == "fan" {
+		return nil
+	}
+
+	// Don't generate a volatile stable MAC if network already has stable MAC.
 	if config["bridge.hwaddr"] != "" || config["volatile.bridge.hwaddr"] != "" {
 		return nil
 	}
@@ -153,6 +160,10 @@ func (n *bridge) Validate(config map[string]string) error {
 		"bridge.hwaddr": func(value string) error {
 			if value == "" {
 				return nil
+			}
+
+			if n.config["bridge.mode"] == "fan" {
+				return fmt.Errorf("Cannot specify static MAC address when using fan mode")
 			}
 
 			return validate.IsNetworkMAC(value)
