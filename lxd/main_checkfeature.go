@@ -1,13 +1,9 @@
 package main
 
 import (
-	"golang.org/x/sys/unix"
-	"os"
-	"runtime"
 	// Used by cgo
 	_ "github.com/lxc/lxd/lxd/include"
 
-	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/logger"
 )
 
@@ -50,7 +46,6 @@ __ro_after_init char errbuf[4096];
 
 extern int can_inject_uevent(const char *uevent, size_t len);
 extern int wait_for_pid(pid_t pid);
-extern int preserve_ns(pid_t pid, int ns_fd, const char *ns);
 
 static int netns_set_nsid(int fd)
 {
@@ -331,7 +326,6 @@ static void is_pidfd_aware(void)
 	pidfd_aware = true;
 }
 
-
 void checkfeature(void)
 {
 	__do_close int hostnetns_fd = -EBADF, newnetns_fd = -EBADF;
@@ -375,42 +369,4 @@ func canUseSeccompListenerContinue() bool {
 
 func canUsePidFds() bool {
 	return bool(C.pidfd_aware)
-}
-
-func canUseShiftfs() bool {
-	runtime.LockOSThread()
-	defer runtime.UnlockOSThread()
-
-	hostMntNs, err := os.Open("/proc/self/ns/mnt")
-	if err != nil {
-		logger.Debugf("%s - Failed to open host mount namespace", err)
-		return false
-	}
-	defer hostMntNs.Close()
-
-	err = unix.Unshare(unix.CLONE_NEWNS)
-	if err != nil {
-		logger.Debugf("%s - Failed to unshare mount namespace", err)
-		return false
-	}
-	defer func() {
-		err = unix.Setns(int(hostMntNs.Fd()), unix.CLONE_NEWNS)
-		if err != nil {
-			logger.Debugf("%s - Failed to reattach to host mount namespace", err)
-		}
-	}()
-
-	err = unix.Mount("/", "/", "", unix.MS_REC|unix.MS_PRIVATE, "")
-	if err != nil {
-		logger.Debugf("%s - Failed to turn \"/\" into private mount", err)
-		return false
-	}
-
-	err = unix.Mount(shared.VarPath(), shared.VarPath(), "shiftfs", 0, "mark")
-	if err != nil {
-		logger.Debugf("%s - Failed to mount shiftfs", err)
-		return false
-	}
-
-	return true
 }

@@ -694,7 +694,7 @@ func (d *Daemon) init() error {
 	if shared.IsTrue(os.Getenv("LXD_SHIFTFS_DISABLE")) {
 		logger.Infof(" - shiftfs support: disabled")
 	} else {
-		if canUseShiftfs() && (util.HasFilesystem("shiftfs") || util.LoadModule("shiftfs") == nil) {
+		if util.HasFilesystem("shiftfs") || util.LoadModule("shiftfs") == nil {
 			d.os.Shiftfs = true
 			logger.Infof(" - shiftfs support: yes")
 		} else {

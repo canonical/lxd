@@ -36,7 +36,6 @@ extern char* advance_arg(bool required);
 extern void attach_userns_fd(int ns_fd);
 extern int pidfd_nsfd(int pidfd, pid_t pid);
 extern bool setnsat(int ns_fd, const char *ns);
-extern int preserve_ns(const int pid, const char *ns);
 
 static bool chdirchroot_in_mntns(int cwd_fd, int root_fd)
 {
@@ -336,6 +335,27 @@ static int make_tmpfile(char *template, bool dir)
 		return -1;
 
 	return 0;
+}
+
+static int preserve_ns(const int pid, const char *ns)
+{
+	int ret;
+// 5 /proc + 21 /int_as_str + 3 /ns + 20 /NS_NAME + 1 \0
+#define __NS_PATH_LEN 50
+	char path[__NS_PATH_LEN];
+
+	// This way we can use this function to also check whether namespaces
+	// are supported by the kernel by passing in the NULL or the empty
+	// string.
+	ret = snprintf(path, __NS_PATH_LEN, "/proc/%d/ns%s%s", pid,
+		       !ns || strcmp(ns, "") == 0 ? "" : "/",
+		       !ns || strcmp(ns, "") == 0 ? "" : ns);
+	if (ret < 0 || (size_t)ret >= __NS_PATH_LEN) {
+		errno = EFBIG;
+		return -1;
+	}
+
+	return open(path, O_RDONLY | O_CLOEXEC);
 }
 
 static void mount_emulate(void)
