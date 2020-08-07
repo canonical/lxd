@@ -102,6 +102,7 @@ _have lxc && {
       security.syscalls.allow \
       security.syscalls.deny \
       security.syscalls.deny_compat security.syscalls.deny_default \
+      security.syscalls.intercept.bpf security.syscalls.intercept.bpf.devices \
       security.syscalls.intercept.mknod security.syscalls.intercept.mount \
       security.syscalls.intercept.mount.allowed \
       security.syscalls.intercept.mount.fuse \
