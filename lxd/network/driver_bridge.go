@@ -162,6 +162,10 @@ func (n *bridge) Validate(config map[string]string) error {
 				return nil
 			}
 
+			if n.config["bridge.mode"] == "fan" {
+				return fmt.Errorf("Cannot specify static MAC address when using fan mode")
+			}
+
 			return validate.IsNetworkMAC(value)
 		},
 		"volatile.bridge.hwaddr": func(value string) error {
