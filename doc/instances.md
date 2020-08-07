@@ -85,6 +85,8 @@ security.syscalls.allow                     | string    | -                 | no
 security.syscalls.deny                      | string    | -                 | no            | container                 | A '\n' separated list of syscalls to deny
 security.syscalls.deny\_compat              | boolean   | false             | no            | container                 | On x86\_64 this enables blocking of compat\_\* syscalls, it is a no-op on other arches
 security.syscalls.deny\_default             | boolean   | true              | no            | container                 | Enables the default syscall deny
+security.syscalls.intercept.bpf             | boolean   | false             | no            | container                 | Handles the `bpf` system call
+security.syscalls.intercept.bpf.devices     | boolean   | false             | no            | container                 | Allows `bpf` programs for the devices cgroup in the unified hierarchy to be loaded.
 security.syscalls.intercept.mknod           | boolean   | false             | no            | container                 | Handles the `mknod` and `mknodat` system calls (allows creation of a limited subset of char/block devices)
 security.syscalls.intercept.mount           | boolean   | false             | no            | container                 | Handles the `mount` system call
 security.syscalls.intercept.mount.allowed   | string    | -                 | yes           | container                 | Specify a comma-separated list of filesystems that are safe to mount for processes inside the instance
