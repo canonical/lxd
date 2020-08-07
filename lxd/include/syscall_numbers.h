@@ -94,4 +94,39 @@
 	#endif
 #endif
 
+#ifndef __NR_bpf
+	#if defined __i386__
+		#define __NR_bpf 357
+	#elif defined __x86_64__
+		#define __NR_bpf 321
+	#elif defined __arm__
+		#define __NR_bpf 386
+	#elif defined __aarch64__
+		#define __NR_bpf 386
+	#elif defined __s390__
+		#define __NR_bpf 351
+	#elif defined __powerpc__
+		#define __NR_bpf 361
+	#elif defined __riscv
+		#define __NR_bpf 280
+	#elif defined __sparc__
+		#define __NR_bpf 349
+	#elif defined __ia64__
+		#define __NR_bpf (317 + 1024)
+	#elif defined _MIPS_SIM
+		#if _MIPS_SIM == _MIPS_SIM_ABI32	/* o32 */
+			#define __NR_bpf 4355
+		#endif
+		#if _MIPS_SIM == _MIPS_SIM_NABI32	/* n32 */
+			#define __NR_bpf 6319
+		#endif
+		#if _MIPS_SIM == _MIPS_SIM_ABI64	/* n64 */
+			#define __NR_bpf 5315
+		#endif
+	#else
+		#define -1
+		#warning "__NR_bpf not defined for your architecture"
+	#endif
+#endif
+
 #endif /* __LXD_SYSCALL_NUMBERS_H */
