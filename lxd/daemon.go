@@ -631,6 +631,7 @@ func (d *Daemon) init() error {
 		"pidfd",
 		"seccomp_allow_deny_syntax",
 		"devpts_fd",
+		"seccomp_proxy_send_notify_fd",
 	}
 	for _, extension := range lxcExtensions {
 		d.os.LXCFeatures[extension] = liblxc.HasApiExtension(extension)
@@ -673,6 +674,13 @@ func (d *Daemon) init() error {
 		logger.Infof(" - seccomp listener continue syscalls: yes")
 	} else {
 		logger.Infof(" - seccomp listener continue syscalls: no")
+	}
+
+	if canUseSeccompListenerAddfd() && d.os.LXCFeatures["seccomp_proxy_send_notify_fd"] {
+		d.os.SeccompListenerAddfd = true
+		logger.Infof(" - seccomp listener add file descriptors: yes")
+	} else {
+		logger.Infof(" - seccomp listener add file descriptors: no")
 	}
 
 	if d.os.LXCFeatures["devpts_fd"] && canUseNativeTerminals() {

@@ -293,6 +293,127 @@ static void is_user_notification_continue_aware(void)
 		seccomp_notify_aware = 2;
 }
 
+__noreturn static void __do_user_notification_addfd(void)
+{
+	__do_close int listener = -EBADF;
+	pid_t pid;
+	int ret;
+	struct seccomp_notif req = {};
+	struct seccomp_notif_resp resp = {};
+	struct seccomp_notif_addfd addfd = {};
+	struct pollfd pollfd;
+
+	listener = user_trap_syscall(__NR_dup, SECCOMP_FILTER_FLAG_NEW_LISTENER);
+	if (listener < 0)
+		_exit(EXIT_FAILURE);
+
+	pid = fork();
+	if (pid < 0)
+		_exit(EXIT_FAILURE);
+
+	if (pid == 0) {
+		int dup_fd, pipe_fds[2];
+		pid_t self;
+
+		// Don't bother cleaning up. On child exit all of those
+		// will be closed anyway.
+		ret = pipe(pipe_fds);
+		if (ret < 0)
+			_exit(EXIT_FAILURE);
+
+		// O_CLOEXEC doesn't matter as we're in the child and we're
+		// not going to exec.
+		dup_fd = dup(pipe_fds[0]);
+		if (dup_fd < 0)
+			_exit(EXIT_FAILURE);
+
+		self = getpid();
+
+		ret = filecmp(self, self, pipe_fds[0], dup_fd);
+		if (ret)
+			_exit(EXIT_FAILURE);
+
+		_exit(EXIT_SUCCESS);
+	}
+
+	pollfd.fd = listener;
+	pollfd.events = POLLIN | POLLOUT;
+
+	ret = poll(&pollfd, 1, 5000);
+	if (ret <= 0)
+		goto cleanup_sigkill;
+
+	if (!(pollfd.revents & POLLIN))
+		goto cleanup_sigkill;
+
+	ret = ioctl(listener, SECCOMP_IOCTL_NOTIF_RECV, &req);
+	if (ret)
+		goto cleanup_sigkill;
+
+	pollfd.fd = listener;
+	pollfd.events = POLLIN | POLLOUT;
+
+	ret = poll(&pollfd, 1, 5000);
+	if (ret <= 0)
+		goto cleanup_sigkill;
+
+	if (!(pollfd.revents & POLLOUT))
+		goto cleanup_sigkill;
+
+	if (req.data.nr != __NR_dup)
+		goto cleanup_sigkill;
+
+	addfd.srcfd	= 3;
+	addfd.id 	= req.id;
+	addfd.flags 	= 0;
+
+	// Inject the fd into the task.
+	ret = ioctl(listener, SECCOMP_IOCTL_NOTIF_ADDFD, &addfd);
+	if (ret < 0)
+		goto cleanup_sigkill;
+	close(ret);
+
+	resp.id = req.id;
+	resp.flags |= SECCOMP_USER_NOTIF_FLAG_CONTINUE;
+	ret = ioctl(listener, SECCOMP_IOCTL_NOTIF_SEND, &resp);
+	resp.error = -EPERM;
+	resp.flags = 0;
+	if (ret) {
+		ioctl(listener, SECCOMP_IOCTL_NOTIF_SEND, &resp);
+		goto cleanup_sigkill;
+	}
+
+cleanup_wait:
+	ret = wait_for_pid(pid);
+	if (ret)
+		_exit(EXIT_FAILURE);
+	_exit(EXIT_SUCCESS);
+
+cleanup_sigkill:
+	kill(pid, SIGKILL);
+	goto cleanup_wait;
+}
+
+static void is_user_notification_addfd_aware(void)
+{
+	int ret;
+	pid_t pid;
+
+	pid = fork();
+	if (pid < 0)
+		return;
+
+	if (pid == 0) {
+		__do_user_notification_addfd();
+		// Should not be reached.
+		_exit(EXIT_FAILURE);
+	}
+
+	ret = wait_for_pid(pid);
+	if (!ret)
+		seccomp_notify_aware = 3;
+}
+
 static void is_seccomp_notify_aware(void)
 {
 	__u32 action[] = { SECCOMP_RET_USER_NOTIF };
@@ -300,6 +421,8 @@ static void is_seccomp_notify_aware(void)
 	if (syscall(__NR_seccomp, SECCOMP_GET_ACTION_AVAIL, 0, &action[0]) == 0) {
 		seccomp_notify_aware = 1;
 		is_user_notification_continue_aware();
+		if (seccomp_notify_aware == 2)
+			is_user_notification_addfd_aware();
 	}
 
 }
@@ -403,9 +526,12 @@ func canUseSeccompListener() bool {
 }
 
 func canUseSeccompListenerContinue() bool {
-	return bool(C.seccomp_notify_aware == 2)
+	return bool(C.seccomp_notify_aware >= 2)
 }
 
+func canUseSeccompListenerAddfd() bool {
+	return bool(C.seccomp_notify_aware == 3)
+}
 func canUsePidFds() bool {
 	return bool(C.pidfd_aware)
 }

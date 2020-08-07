@@ -67,6 +67,7 @@ type OS struct {
 	NetnsGetifaddrs         bool
 	PidFds                  bool
 	SeccompListener         bool
+	SeccompListenerAddfd    bool
 	SeccompListenerContinue bool
 	Shiftfs                 bool
 	UeventInjection         bool
