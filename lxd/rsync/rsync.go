@@ -33,6 +33,10 @@ func LocalCopy(source string, dest string, bwlimit string, xattrs bool, rsyncArg
 		rsyncVerbosity = "-vi"
 	}
 
+	if bwlimit == "" {
+		bwlimit = "0"
+	}
+
 	args := []string{
 		"-a",
 		"-HA",
@@ -119,6 +123,9 @@ func sendSetup(name string, path string, bwlimit string, execPath string, featur
 	 * hardcoding that at the other end, so we can just ignore it.
 	 */
 	rsyncCmd := fmt.Sprintf("sh -c \"%s netcat %s %s\"", execPath, auds, name)
+	if bwlimit == "" {
+		bwlimit = "0"
+	}
 
 	args := []string{
 		"-ar",
@@ -126,10 +133,6 @@ func sendSetup(name string, path string, bwlimit string, execPath string, featur
 		"--numeric-ids",
 		"--partial",
 		"--sparse",
-	}
-
-	if bwlimit != "" {
-		args = append(args, "--bwlimit", bwlimit)
 	}
 
 	if features != nil && len(features) > 0 {
@@ -144,7 +147,9 @@ func sendSetup(name string, path string, bwlimit string, execPath string, featur
 		path,
 		"localhost:/tmp/foo",
 		"-e",
-		rsyncCmd}...)
+		rsyncCmd,
+		"--bwlimit",
+		bwlimit}...)
 
 	cmd := exec.Command("rsync", args...)
 
