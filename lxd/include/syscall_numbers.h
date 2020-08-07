@@ -34,6 +34,26 @@
 	#endif
 #endif
 
+#ifndef __NR_pidfd_getfd
+	#if defined __alpha__
+		#define __NR_pidfd_getfd 548
+	#elif defined _MIPS_SIM
+		#if _MIPS_SIM == _MIPS_SIM_ABI32	/* o32 */
+			#define __NR_pidfd_getfd 4438
+		#endif
+		#if _MIPS_SIM == _MIPS_SIM_NABI32	/* n32 */
+			#define __NR_pidfd_getfd 6438
+		#endif
+		#if _MIPS_SIM == _MIPS_SIM_ABI64	/* n64 */
+			#define __NR_pidfd_getfd 5438
+		#endif
+	#elif defined __ia64__
+		#define __NR_pidfd_getfd (438 + 1024)
+	#else
+		#define __NR_pidfd_getfd 438
+	#endif
+#endif
+
 #ifndef __NR_pidfd_send_signal
 	#if defined __alpha__
 		#define __NR_pidfd_send_signal 534
