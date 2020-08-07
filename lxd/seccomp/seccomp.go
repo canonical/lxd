@@ -15,6 +15,7 @@ import (
 	"strings"
 	"unsafe"
 
+	"github.com/pkg/errors"
 	"golang.org/x/sys/unix"
 	liblxc "gopkg.in/lxc/go-lxc.v2"
 
@@ -446,20 +447,21 @@ func InstanceNeedsIntercept(s *state.State, c Instance) (bool, error) {
 
 	config := c.ExpandedConfig()
 
-	var keys = map[string]func(state *state.State) bool{
+	var keys = map[string]func(state *state.State) error{
 		"security.syscalls.intercept.mknod":    lxcSupportSeccompNotify,
 		"security.syscalls.intercept.setxattr": lxcSupportSeccompNotify,
 		"security.syscalls.intercept.mount":    lxcSupportSeccompNotifyContinue,
 	}
 
 	needed := false
-	for key, isSupported := range keys {
+	for key, check := range keys {
 		if !shared.IsTrue(config[key]) {
 			continue
 		}
 
-		if !isSupported(s) {
-			return needed, fmt.Errorf("System doesn't support syscall interception")
+		err := check(s)
+		if err != nil {
+			return needed, err
 		}
 
 		needed = true
@@ -1650,39 +1652,40 @@ func (s *Server) Stop() error {
 	return s.l.Close()
 }
 
-func lxcSupportSeccompNotifyContinue(state *state.State) bool {
-	if !lxcSupportSeccompNotify(state) {
-		return false
+func lxcSupportSeccompNotifyContinue(state *state.State) error {
+	err := lxcSupportSeccompNotify(state)
+	if err != nil {
+		return err
 	}
 
 	if !state.OS.SeccompListenerContinue {
-		return false
+		return fmt.Errorf("Seccomp notify doesn't support continuing syscalls")
 	}
 
-	return true
+	return nil
 }
 
-func lxcSupportSeccompNotify(state *state.State) bool {
+func lxcSupportSeccompNotify(state *state.State) error {
 	if !state.OS.SeccompListener {
-		return false
+		return fmt.Errorf("Seccomp notify not supported")
 	}
 
 	if !state.OS.LXCFeatures["seccomp_notify"] {
-		return false
+		return fmt.Errorf("LXC doesn't support seccomp notify")
 	}
 
 	c, err := liblxc.NewContainer("test-seccomp", state.OS.LxcPath)
 	if err != nil {
-		return false
+		return fmt.Errorf("Failed to load seccomp notify test container")
 	}
 
 	err = c.SetConfigItem("lxc.seccomp.notify.proxy", fmt.Sprintf("unix:%s", shared.VarPath("seccomp.socket")))
 	if err != nil {
-		return false
+		return errors.Wrap(err, "LXC doesn't support notify proxy")
 	}
 
 	c.Release()
-	return true
+	return nil
 }
 
 // MountSyscallFilter creates a mount syscall filter from the config.
