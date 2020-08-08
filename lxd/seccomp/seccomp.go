@@ -541,9 +541,10 @@ func seccompGetPolicyContent(s *state.State, c Instance) (string, error) {
 
 		if shared.IsTrue(config["security.syscalls.intercept.mount"]) {
 			policy += seccompNotifyMount
-			// We can't handle the new mount API since it keeps
-			// in-kernel state across an arbitrary number of
-			// multiple syscalls.
+			// We block the new mount api for now to simplify mount
+			// syscall interception. Since it keeps state over
+			// multiple syscalls we'd need more invasive changes to
+			// make this work.
 			policy += seccompBlockNewMountAPI
 		}
 	}
