@@ -28,9 +28,9 @@
 			#define __NR_pidfd_open 5434
 		#endif
 	#elif defined __ia64__
-		#define __NR_clone3 (424 + 1024)
+		#define __NR_pidfd_open (434 + 1024)
 	#else
-		#define __NR_pidfd_open 424
+		#define __NR_pidfd_open 434
 	#endif
 #endif
 
