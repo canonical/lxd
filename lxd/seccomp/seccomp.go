@@ -11,10 +11,12 @@ import (
 	"os"
 	"path"
 	"regexp"
+	"runtime"
 	"strconv"
 	"strings"
 	"unsafe"
 
+	"github.com/pkg/errors"
 	"golang.org/x/sys/unix"
 	liblxc "gopkg.in/lxc/go-lxc.v2"
 
@@ -41,6 +43,7 @@ import (
 #include <elf.h>
 #include <errno.h>
 #include <fcntl.h>
+#include <linux/bpf.h>
 #include <linux/seccomp.h>
 #include <linux/types.h>
 #include <linux/kdev_t.h>
@@ -58,6 +61,8 @@ import (
 #include <unistd.h>
 
 #include "../include/lxd_seccomp.h"
+#include "../include/memory_utils.h"
+#include "../include/process_utils.h"
 
 struct seccomp_notif_sizes expected_sizes;
 
@@ -123,69 +128,71 @@ struct lxd_seccomp_data_arch {
 	int nr_mknodat;
 	int nr_setxattr;
 	int nr_mount;
+	int nr_bpf;
 };
 
 #define LXD_SECCOMP_NOTIFY_MKNOD    0
 #define LXD_SECCOMP_NOTIFY_MKNODAT  1
 #define LXD_SECCOMP_NOTIFY_SETXATTR 2
 #define LXD_SECCOMP_NOTIFY_MOUNT 3
+#define LXD_SECCOMP_NOTIFY_BPF 4
 
 // ordered by likelihood of usage...
 static const struct lxd_seccomp_data_arch seccomp_notify_syscall_table[] = {
-	{ -1, LXD_SECCOMP_NOTIFY_MKNOD, LXD_SECCOMP_NOTIFY_MKNODAT, LXD_SECCOMP_NOTIFY_SETXATTR, LXD_SECCOMP_NOTIFY_MOUNT },
+	{ -1, LXD_SECCOMP_NOTIFY_MKNOD, LXD_SECCOMP_NOTIFY_MKNODAT, LXD_SECCOMP_NOTIFY_SETXATTR, LXD_SECCOMP_NOTIFY_MOUNT, LXD_SECCOMP_NOTIFY_BPF },
 #ifdef AUDIT_ARCH_X86_64
-	{ AUDIT_ARCH_X86_64,      133, 259, 188, 165 },
+	{ AUDIT_ARCH_X86_64,      133, 259, 188, 165, 321 },
 #endif
 #ifdef AUDIT_ARCH_I386
-	{ AUDIT_ARCH_I386,         14, 297, 226,  21 },
+	{ AUDIT_ARCH_I386,         14, 297, 226,  21, 357 },
 #endif
 #ifdef AUDIT_ARCH_AARCH64
-	{ AUDIT_ARCH_AARCH64,      -1,  33,   5,  21 },
+	{ AUDIT_ARCH_AARCH64,      -1,  33,   5,  21, 386 },
 #endif
 #ifdef AUDIT_ARCH_ARM
-	{ AUDIT_ARCH_ARM,          14, 324, 226,  21 },
+	{ AUDIT_ARCH_ARM,          14, 324, 226,  21, 386 },
 #endif
 #ifdef AUDIT_ARCH_ARMEB
-	{ AUDIT_ARCH_ARMEB,        14, 324, 226,  21 },
+	{ AUDIT_ARCH_ARMEB,        14, 324, 226,  21, 386 },
 #endif
 #ifdef AUDIT_ARCH_S390
-	{ AUDIT_ARCH_S390,         14, 290, 224,  21 },
+	{ AUDIT_ARCH_S390,         14, 290, 224,  21, 386 },
 #endif
 #ifdef AUDIT_ARCH_S390X
-	{ AUDIT_ARCH_S390X,        14, 290, 224,  21 },
+	{ AUDIT_ARCH_S390X,        14, 290, 224,  21, 351 },
 #endif
 #ifdef AUDIT_ARCH_PPC
-	{ AUDIT_ARCH_PPC,          14, 288, 209,  21 },
+	{ AUDIT_ARCH_PPC,          14, 288, 209,  21, 361 },
 #endif
 #ifdef AUDIT_ARCH_PPC64
-	{ AUDIT_ARCH_PPC64,        14, 288, 209,  21 },
+	{ AUDIT_ARCH_PPC64,        14, 288, 209,  21, 361 },
 #endif
 #ifdef AUDIT_ARCH_PPC64LE
-	{ AUDIT_ARCH_PPC64LE,      14, 288, 209,  21 },
+	{ AUDIT_ARCH_PPC64LE,      14, 288, 209,  21, 361 },
 #endif
 #ifdef AUDIT_ARCH_SPARC
-	{ AUDIT_ARCH_SPARC,        14, 286, 169, 167 },
+	{ AUDIT_ARCH_SPARC,        14, 286, 169, 167, 349 },
 #endif
 #ifdef AUDIT_ARCH_SPARC64
-	{ AUDIT_ARCH_SPARC64,      14, 286, 169, 167 },
+	{ AUDIT_ARCH_SPARC64,      14, 286, 169, 167, 349 },
 #endif
 #ifdef AUDIT_ARCH_MIPS
-	{ AUDIT_ARCH_MIPS,         14, 290, 224,  21 },
+	{ AUDIT_ARCH_MIPS,         14, 290, 224,  21,  -1 },
 #endif
 #ifdef AUDIT_ARCH_MIPSEL
-	{ AUDIT_ARCH_MIPSEL,       14, 290, 224,  21 },
+	{ AUDIT_ARCH_MIPSEL,       14, 290, 224,  21,  -1 },
 #endif
 #ifdef AUDIT_ARCH_MIPS64
-	{ AUDIT_ARCH_MIPS64,      131, 249, 180, 160 },
+	{ AUDIT_ARCH_MIPS64,      131, 249, 180, 160,  -1 },
 #endif
 #ifdef AUDIT_ARCH_MIPS64N32
-	{ AUDIT_ARCH_MIPS64N32,   131, 253, 180, 160 },
+	{ AUDIT_ARCH_MIPS64N32,   131, 253, 180, 160,  -1 },
 #endif
 #ifdef AUDIT_ARCH_MIPSEL64
-	{ AUDIT_ARCH_MIPSEL64,    131, 249, 180, 160 },
+	{ AUDIT_ARCH_MIPSEL64,    131, 249, 180, 160,  -1 },
 #endif
 #ifdef AUDIT_ARCH_MIPSEL64N32
-	{ AUDIT_ARCH_MIPSEL64N32, 131, 253, 180, 160 },
+	{ AUDIT_ARCH_MIPSEL64N32, 131, 253, 180, 160,  -1 },
 #endif
 };
 
@@ -216,6 +223,9 @@ static int seccomp_notify_get_syscall(struct seccomp_notif *req,
 
 		if (entry->nr_mount == req->data.nr)
 			return LXD_SECCOMP_NOTIFY_MOUNT;
+
+		if (entry->nr_bpf == req->data.nr)
+			return LXD_SECCOMP_NOTIFY_BPF;
 
 		break;
 	}
@@ -249,6 +259,165 @@ static void prepare_seccomp_iovec(struct iovec *iov,
 	iov[3].iov_len = SECCOMP_COOKIE_SIZE;
 }
 
+static inline int pidfd_getfd(int pidfd, int fd, int flags)
+{
+	return syscall(__NR_pidfd_getfd, pidfd, fd, flags);
+}
+
+#define ptr_to_u64(p) ((__aligned_u64)((uintptr_t)(p)))
+
+static inline int bpf(int cmd, union bpf_attr *attr, size_t size)
+{
+	return syscall(__NR_bpf, cmd, attr, size);
+}
+
+static int handle_bpf_syscall(int notify_fd, int mem_fd, struct seccomp_notify_proxy_msg *msg,
+			      struct seccomp_notif *req, struct seccomp_notif_resp *resp,
+			      int *bpf_cmd, int *bpf_prog_type, int *bpf_attach_type)
+{
+	__do_close int pidfd = -EBADF, bpf_target_fd = -EBADF, bpf_attach_fd = -EBADF,
+		       bpf_prog_fd = -EBADF;
+	__do_free char *log_buf = NULL;
+	__do_free struct bpf_insn *insn = NULL;
+	char license[128];
+	size_t insn_size;
+	union bpf_attr attr = {}, new_attr;
+	unsigned int attr_len = sizeof(attr);
+	struct seccomp_notif_addfd addfd = {};
+	int ret;
+	int cmd;
+
+	*bpf_cmd = -EINVAL;
+	*bpf_prog_type = -EINVAL;
+	*bpf_attach_type = -EINVAL;
+
+	if (attr_len < req->data.args[2])
+		return -EFBIG;
+	attr_len = req->data.args[2];
+
+	*bpf_cmd = req->data.args[0];
+	switch (req->data.args[0]) {
+	case BPF_PROG_LOAD:
+		cmd = BPF_PROG_LOAD;
+		break;
+	case BPF_PROG_ATTACH:
+		cmd = BPF_PROG_ATTACH;
+		break;
+	case BPF_PROG_DETACH:
+		cmd = BPF_PROG_DETACH;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	ret = pread(mem_fd, &attr, attr_len, req->data.args[1]);
+	if (ret < 0)
+		return -errno;
+
+	*bpf_prog_type = attr.prog_type;
+
+	pidfd = pidfd_open(req->pid, 0);
+	if (pidfd < 0)
+		return -errno;
+
+	if (ioctl(notify_fd, SECCOMP_IOCTL_NOTIF_ID_VALID, &req->id))
+		return -errno;
+
+	switch (cmd) {
+	case BPF_PROG_LOAD:
+		if (attr.prog_type != BPF_PROG_TYPE_CGROUP_DEVICE)
+			return -EINVAL;
+
+		insn_size = sizeof(struct bpf_insn) * attr.insn_cnt;
+
+		insn = malloc(insn_size);
+		if (!insn)
+			return -ENOMEM;
+
+		ret = pread(mem_fd, insn, insn_size, attr.insns);
+		if (ret < 0)
+			return -errno;
+		if (ret != insn_size)
+			return -EIO;
+
+		memcpy(&new_attr, &attr, sizeof(attr));
+
+		if (attr.log_size > 0 && attr.log_size <= (UINT_MAX / 2)) {
+			log_buf = malloc(attr.log_size);
+			if (!log_buf)
+				return -ENOMEM;
+		} else {
+			new_attr.log_size = 0;
+		}
+
+		if (attr.license) {
+			ret = pread(mem_fd, license, sizeof(license), attr.license);
+			if (ret < 0)
+				return -errno;
+		}
+
+		new_attr.insns		= ptr_to_u64(insn);
+		new_attr.license	= ptr_to_u64(license);
+		bpf_prog_fd = bpf(cmd, &new_attr, sizeof(new_attr));
+		if (bpf_prog_fd < 0) {
+			int saved_errno = errno;
+			if (log_buf)
+				pwrite(mem_fd, log_buf, attr.log_size, attr.log_buf);
+			errno = saved_errno;
+			return -errno;
+		}
+
+		addfd.srcfd	= bpf_prog_fd;
+		addfd.id	= req->id;
+		addfd.flags	= 0;
+		ret = ioctl(notify_fd, SECCOMP_IOCTL_NOTIF_ADDFD, &addfd);
+		if (ret < 0)
+			return -errno;
+
+		resp->val = ret;
+		ret = 0;
+		break;
+	case BPF_PROG_ATTACH:
+		if (attr.attach_type != BPF_CGROUP_DEVICE)
+			return -EINVAL;
+
+		*bpf_attach_type = attr.attach_type;
+
+		bpf_target_fd = pidfd_getfd(pidfd, attr.target_fd, 0);
+		if (bpf_target_fd < 0)
+			return -errno;
+
+		bpf_attach_fd = pidfd_getfd(pidfd, attr.attach_bpf_fd, 0);
+		if (bpf_attach_fd < 0)
+			return -errno;
+
+		attr.target_fd		= bpf_target_fd;
+		attr.attach_bpf_fd	= bpf_attach_fd;
+		ret = bpf(cmd, &attr, attr_len);
+		break;
+	case BPF_PROG_DETACH:
+		if (attr.attach_type != BPF_CGROUP_DEVICE)
+			return -EINVAL;
+
+		*bpf_attach_type = attr.attach_type;
+
+		bpf_target_fd = pidfd_getfd(pidfd, attr.target_fd, 0);
+		if (bpf_target_fd < 0)
+			return -errno;
+
+		bpf_attach_fd = pidfd_getfd(pidfd, attr.attach_bpf_fd, 0);
+		if (bpf_attach_fd < 0)
+			return -errno;
+
+		attr.target_fd		= bpf_target_fd;
+		attr.attach_bpf_fd	= bpf_attach_fd;
+		ret = bpf(cmd, &attr, attr_len);
+		break;
+	}
+
+	return ret;
+}
+
 #ifndef MS_LAZYTIME
 #define MS_LAZYTIME (1<<25)
 #endif
@@ -259,6 +428,7 @@ const lxdSeccompNotifyMknod = C.LXD_SECCOMP_NOTIFY_MKNOD
 const lxdSeccompNotifyMknodat = C.LXD_SECCOMP_NOTIFY_MKNODAT
 const lxdSeccompNotifySetxattr = C.LXD_SECCOMP_NOTIFY_SETXATTR
 const lxdSeccompNotifyMount = C.LXD_SECCOMP_NOTIFY_MOUNT
+const lxdSeccompNotifyBpf = C.LXD_SECCOMP_NOTIFY_BPF
 
 const seccompHeader = `2
 `
@@ -325,6 +495,14 @@ move_mount errno 38
 // is created.
 
 const seccompNotifyMount = `mount notify [3,0,SCMP_CMP_MASKED_EQ,18446744070422410016]
+`
+
+// 5 == BPF_PROG_LOAD
+// 8 == BPF_PROG_ATTACH
+// 9 == BPF_PROG_DETACH
+const seccompNotifyBpf = `bpf notify [0,5,SCMP_CMP_EQ]
+bpf notify [0,8,SCMP_CMP_EQ]
+bpf notify [0,9,SCMP_CMP_EQ]
 `
 
 const compatBlockingPolicy = `[%s]
@@ -412,6 +590,7 @@ func InstanceNeedsPolicy(c Instance) bool {
 		"security.syscalls.intercept.mknod",
 		"security.syscalls.intercept.setxattr",
 		"security.syscalls.intercept.mount",
+		"security.syscalls.intercept.bpf",
 	}
 
 	for _, k := range keys {
@@ -446,20 +625,22 @@ func InstanceNeedsIntercept(s *state.State, c Instance) (bool, error) {
 
 	config := c.ExpandedConfig()
 
-	var keys = map[string]func(state *state.State) bool{
+	var keys = map[string]func(state *state.State) error{
 		"security.syscalls.intercept.mknod":    lxcSupportSeccompNotify,
 		"security.syscalls.intercept.setxattr": lxcSupportSeccompNotify,
 		"security.syscalls.intercept.mount":    lxcSupportSeccompNotifyContinue,
+		"security.syscalls.intercept.bpf":      lxcSupportSeccompNotifyAddfd,
 	}
 
 	needed := false
-	for key, isSupported := range keys {
+	for key, check := range keys {
 		if !shared.IsTrue(config[key]) {
 			continue
 		}
 
-		if !isSupported(s) {
-			return needed, fmt.Errorf("System doesn't support syscall interception")
+		err := check(s)
+		if err != nil {
+			return needed, err
 		}
 
 		needed = true
@@ -541,10 +722,15 @@ func seccompGetPolicyContent(s *state.State, c Instance) (string, error) {
 
 		if shared.IsTrue(config["security.syscalls.intercept.mount"]) {
 			policy += seccompNotifyMount
-			// We can't handle the new mount API since it keeps
-			// in-kernel state across an arbitrary number of
-			// multiple syscalls.
+			// We block the new mount api for now to simplify mount
+			// syscall interception. Since it keeps state over
+			// multiple syscalls we'd need more invasive changes to
+			// make this work.
 			policy += seccompBlockNewMountAPI
+		}
+
+		if shared.IsTrue(config["security.syscalls.intercept.bpf"]) {
+			policy += seccompNotifyBpf
 		}
 	}
 
@@ -617,14 +803,15 @@ type Server struct {
 
 // Iovec defines an iovec to move data between kernel and userspace.
 type Iovec struct {
-	ucred  *unix.Ucred
-	memFd  int
-	procFd int
-	msg    *C.struct_seccomp_notify_proxy_msg
-	req    *C.struct_seccomp_notif
-	resp   *C.struct_seccomp_notif_resp
-	cookie *C.char
-	iov    *C.struct_iovec
+	ucred    *unix.Ucred
+	memFd    int
+	procFd   int
+	notifyFd int
+	msg      *C.struct_seccomp_notify_proxy_msg
+	req      *C.struct_seccomp_notif
+	resp     *C.struct_seccomp_notif_resp
+	cookie   *C.char
+	iov      *C.struct_iovec
 }
 
 // NewSeccompIovec creates a new seccomp iovec.
@@ -652,14 +839,15 @@ func NewSeccompIovec(ucred *unix.Ucred) *Iovec {
 	C.prepare_seccomp_iovec(iov, msg, req, resp, cookie)
 
 	return &Iovec{
-		memFd:  -1,
-		procFd: -1,
-		msg:    msg,
-		req:    req,
-		resp:   resp,
-		cookie: cookie,
-		iov:    iov,
-		ucred:  ucred,
+		memFd:    -1,
+		procFd:   -1,
+		notifyFd: -1,
+		msg:      msg,
+		req:      req,
+		resp:     resp,
+		cookie:   cookie,
+		iov:      iov,
+		ucred:    ucred,
 	}
 }
 
@@ -671,6 +859,9 @@ func (siov *Iovec) PutSeccompIovec() {
 	if siov.procFd >= 0 {
 		unix.Close(siov.procFd)
 	}
+	if siov.notifyFd >= 0 {
+		unix.Close(siov.notifyFd)
+	}
 	C.free(unsafe.Pointer(siov.msg))
 	C.free(unsafe.Pointer(siov.req))
 	C.free(unsafe.Pointer(siov.resp))
@@ -678,19 +869,29 @@ func (siov *Iovec) PutSeccompIovec() {
 	C.free(unsafe.Pointer(siov.iov))
 }
 
-// ReceiveSeccompIovec receives a seccomp iovec.
-func (siov *Iovec) ReceiveSeccompIovec(fd int) (uint64, error) {
+// ReceiveSeccompIovecV1 receives a v1 seccomp iovec.
+func (siov *Iovec) ReceiveSeccompIovecV1(fd int) (uint64, error) {
 	bytes, fds, err := netutils.AbstractUnixReceiveFdData(fd, 2, unsafe.Pointer(siov.iov), 4)
 	if err != nil || err == io.EOF {
 		return 0, err
 	}
 
-	if len(fds) == 2 {
-		siov.procFd = int(fds[0])
-		siov.memFd = int(fds[1])
-	} else {
-		siov.memFd = int(fds[0])
+	siov.procFd = int(fds[0])
+	siov.memFd = int(fds[1])
+
+	return bytes, nil
+}
+
+// ReceiveSeccompIovecV2 receives a v2 seccomp iovec.
+func (siov *Iovec) ReceiveSeccompIovecV2(fd int) (uint64, error) {
+	bytes, fds, err := netutils.AbstractUnixReceiveFdData(fd, 3, unsafe.Pointer(siov.iov), 4)
+	if err != nil || err == io.EOF {
+		return 0, err
 	}
+
+	siov.procFd = int(fds[0])
+	siov.memFd = int(fds[1])
+	siov.notifyFd = int(fds[2])
 
 	return bytes, nil
 }
@@ -810,8 +1011,15 @@ func NewSeccompServer(s *state.State, path string, findPID func(pid int32, state
 				}
 
 				for {
+					var bytes uint64
+					var err error
+
 					siov := NewSeccompIovec(ucred)
-					bytes, err := siov.ReceiveSeccompIovec(int(unixFile.Fd()))
+					if lxcSupportSeccompV2(server.s) {
+						bytes, err = siov.ReceiveSeccompIovecV2(int(unixFile.Fd()))
+					} else {
+						bytes, err = siov.ReceiveSeccompIovecV1(int(unixFile.Fd()))
+					}
 					if err != nil {
 						logger.Debugf("Disconnected from seccomp socket after failed receive: pid=%v, err=%s", ucred.Pid, err)
 						c.Close()
@@ -1601,6 +1809,47 @@ func (s *Server) HandleMountSyscall(c Instance, siov *Iovec) int {
 	return 0
 }
 
+// HandleBpfSyscall handles mount syscalls.
+func (s *Server) HandleBpfSyscall(c Instance, siov *Iovec) int {
+	ctx := log.Ctx{"container": c.Name(),
+		"project":               c.Project(),
+		"syscall_number":        siov.req.data.nr,
+		"audit_architecture":    siov.req.data.arch,
+		"seccomp_notify_id":     siov.req.id,
+		"seccomp_notify_flags":  siov.req.flags,
+		"seccomp_notify_pid":    siov.req.pid,
+		"seccomp_notify_fd":     siov.notifyFd,
+		"seccomp_notify_mem_fd": siov.memFd,
+	}
+
+	defer logger.Debug("Handling bpf syscall", ctx)
+	var bpfCmd, bpfProgType, bpfAttachType C.int
+
+	if !shared.IsTrue(c.ExpandedConfig()["security.syscalls.intercept.bpf.devices"]) {
+		ctx["syscall_continue"] = "true"
+		ctx["syscall_handler_reason"] = fmt.Sprintf("No bpf policy specified")
+		C.seccomp_notify_update_response(siov.resp, 0, C.uint32_t(seccompUserNotifFlagContinue))
+		return 0
+	}
+
+	// Locking to a thread shouldn't be necessary but it still makes me
+	// queezy that Go could just wander off to somehwere.
+	runtime.LockOSThread()
+	ret := C.handle_bpf_syscall(C.int(siov.notifyFd), C.int(siov.memFd), siov.msg, siov.req, siov.resp, &bpfCmd, &bpfProgType, &bpfAttachType)
+	runtime.UnlockOSThread()
+	ctx["bpf_cmd"] = fmt.Sprintf("%d", bpfCmd)
+	ctx["bpf_prog_type"] = fmt.Sprintf("%d", bpfProgType)
+	ctx["bpf_attach_type"] = fmt.Sprintf("%d", bpfAttachType)
+	if ret < 0 {
+		ctx["syscall_continue"] = "true"
+		ctx["syscall_handler_error"] = fmt.Sprintf("%s - Failed to handle bpf syscall", unix.Errno(-ret))
+		C.seccomp_notify_update_response(siov.resp, 0, C.uint32_t(seccompUserNotifFlagContinue))
+		return 0
+	}
+
+	return 0
+}
+
 func (s *Server) handleSyscall(c Instance, siov *Iovec) int {
 	switch int(C.seccomp_notify_get_syscall(siov.req, siov.resp)) {
 	case lxdSeccompNotifyMknod:
@@ -1611,6 +1860,8 @@ func (s *Server) handleSyscall(c Instance, siov *Iovec) int {
 		return s.HandleSetxattrSyscall(c, siov)
 	case lxdSeccompNotifyMount:
 		return s.HandleMountSyscall(c, siov)
+	case lxdSeccompNotifyBpf:
+		return s.HandleBpfSyscall(c, siov)
 	}
 
 	return int(-C.EINVAL)
@@ -1649,39 +1900,70 @@ func (s *Server) Stop() error {
 	return s.l.Close()
 }
 
-func lxcSupportSeccompNotifyContinue(state *state.State) bool {
-	if !lxcSupportSeccompNotify(state) {
+func lxcSupportSeccompV2(state *state.State) bool {
+	err := lxcSupportSeccompNotify(state)
+	if err != nil {
 		return false
 	}
 
-	if !state.OS.SeccompListenerContinue {
+	if !state.OS.LXCFeatures["seccomp_proxy_send_notify_fd"] {
 		return false
 	}
 
 	return true
 }
 
-func lxcSupportSeccompNotify(state *state.State) bool {
+func lxcSupportSeccompNotifyContinue(state *state.State) error {
+	err := lxcSupportSeccompNotify(state)
+	if err != nil {
+		return err
+	}
+
+	if !state.OS.SeccompListenerContinue {
+		return fmt.Errorf("Seccomp notify doesn't support continuing syscalls")
+	}
+
+	return nil
+}
+
+func lxcSupportSeccompNotifyAddfd(state *state.State) error {
+	err := lxcSupportSeccompNotify(state)
+	if err != nil {
+		return err
+	}
+
+	if !state.OS.SeccompListenerContinue {
+		return fmt.Errorf("Seccomp notify doesn't support continuing syscalls")
+	}
+
+	if !state.OS.SeccompListenerAddfd {
+		return fmt.Errorf("Seccomp notify doesn't support adding file descriptors")
+	}
+
+	return nil
+}
+
+func lxcSupportSeccompNotify(state *state.State) error {
 	if !state.OS.SeccompListener {
-		return false
+		return fmt.Errorf("Seccomp notify not supported")
 	}
 
 	if !state.OS.LXCFeatures["seccomp_notify"] {
-		return false
+		return fmt.Errorf("LXC doesn't support seccomp notify")
 	}
 
 	c, err := liblxc.NewContainer("test-seccomp", state.OS.LxcPath)
 	if err != nil {
-		return false
+		return fmt.Errorf("Failed to load seccomp notify test container")
 	}
 
 	err = c.SetConfigItem("lxc.seccomp.notify.proxy", fmt.Sprintf("unix:%s", shared.VarPath("seccomp.socket")))
 	if err != nil {
-		return false
+		return errors.Wrap(err, "LXC doesn't support notify proxy")
 	}
 
 	c.Release()
-	return true
+	return nil
 }
 
 // MountSyscallFilter creates a mount syscall filter from the config.

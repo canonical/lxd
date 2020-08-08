@@ -1137,3 +1137,6 @@ specify which parent interface should be used for creating NIC device interfaces
 
 Also adds `network` configuration key support for `sriov` NICs to allow them to specify the associated network of
 the same type that they should use as the basis for the NIC device.
+
+## container\_syscall\_intercept\_bpf\_devices
+This adds support to intercept the bpf syscall in containers. Specifically, it allows to manage device cgroup bpf programs.
