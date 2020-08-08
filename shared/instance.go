@@ -206,6 +206,8 @@ var KnownInstanceConfigKeys = map[string]func(value string) error{
 	"security.syscalls.deny_default":            validate.Optional(validate.IsBool),
 	"security.syscalls.deny_compat":             validate.Optional(validate.IsBool),
 	"security.syscalls.deny":                    validate.IsAny,
+	"security.syscalls.intercept.bpf":           validate.Optional(validate.IsBool),
+	"security.syscalls.intercept.bpf.devices":   validate.Optional(validate.IsBool),
 	"security.syscalls.intercept.mknod":         validate.Optional(validate.IsBool),
 	"security.syscalls.intercept.mount":         validate.Optional(validate.IsBool),
 	"security.syscalls.intercept.mount.allowed": validate.IsAny,

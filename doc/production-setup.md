@@ -30,6 +30,8 @@ root    | soft  | nofile  | 1048576   | unset     | maximum number of open files
 root    | hard  | nofile  | 1048576   | unset     | maximum number of open files
 \*      | soft  | memlock | unlimited | unset     | maximum locked-in-memory address space (KB)
 \*      | hard  | memlock | unlimited | unset     | maximum locked-in-memory address space (KB)
+root    | soft  | memlock | unlimited | unset     | maximum locked-in-memory address space (KB) (Only need with `bpf` syscall supervision)
+root    | hard  | memlock | unlimited | unset     | maximum locked-in-memory address space (KB) (Only need with `bpf` syscall supervision)
 
 
 ### /etc/sysctl.conf
