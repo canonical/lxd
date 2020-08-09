@@ -41,7 +41,9 @@ import (
 #include "include/memory_utils.h"
 #include "include/process_utils.h"
 #include "include/syscall_numbers.h"
+#include "include/syscall_wrappers.h"
 
+__ro_after_init bool close_range_aware = false;
 __ro_after_init bool tiocgptpeer_aware = false;
 __ro_after_init bool netnsid_aware = false;
 __ro_after_init bool pidfd_aware = false;
@@ -487,6 +489,20 @@ static void is_tiocgptpeer_aware(void)
 	tiocgptpeer_aware = true;
 }
 
+static void is_close_range_aware(void)
+{
+	int fd;
+
+	fd = open("/dev/null", O_RDONLY | O_CLOEXEC);
+	if (fd < 0)
+		return;
+
+	if (close_range(fd, fd, CLOSE_RANGE_UNSHARE))
+		return;
+
+	close_range_aware = true;
+}
+
 void checkfeature(void)
 {
 	__do_close int hostnetns_fd = -EBADF, newnetns_fd = -EBADF;
@@ -496,6 +512,7 @@ void checkfeature(void)
 	is_uevent_aware();
 	is_seccomp_notify_aware();
 	is_tiocgptpeer_aware();
+	is_close_range_aware();
 
 	if (setns(hostnetns_fd, CLONE_NEWNET) < 0)
 		(void)sprintf(errbuf, "%s", "Failed to attach to host network namespace");
@@ -576,4 +593,8 @@ func canUseShiftfs() bool {
 
 func canUseNativeTerminals() bool {
 	return bool(C.tiocgptpeer_aware)
+}
+
+func canUseCloseRange() bool {
+	return bool(C.close_range_aware)
 }
