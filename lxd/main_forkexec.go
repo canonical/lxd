@@ -27,6 +27,7 @@ import (
 
 #include "include/macro.h"
 #include "include/memory_utils.h"
+#include "include/syscall_wrappers.h"
 #include <lxc/attach_options.h>
 #include <lxc/lxccontainer.h>
 
@@ -289,7 +290,11 @@ __attribute__ ((noinline)) static int __forkexec(void)
 	if (!argvp || !*argvp)
 		return log_error(EXIT_FAILURE, "No command specified");
 
-	ret = close_inherited(fds_to_ignore, ARRAY_SIZE(fds_to_ignore));
+	ret = close_range(EXEC_PIPE_FD + 1, UINT_MAX, CLOSE_RANGE_UNSHARE);
+	if (ret) {
+		if (errno == ENOSYS)
+			ret = close_inherited(fds_to_ignore, ARRAY_SIZE(fds_to_ignore));
+	}
 	if (ret)
 		return log_error(EXIT_FAILURE, "Aborting attach to prevent leaking file descriptors into container");
 
