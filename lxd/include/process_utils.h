@@ -1,5 +1,3 @@
-/* SPDX-License-Identifier: LGPL-2.1+ */
-
 #ifndef __LXD_PROCESS_UTILS_H
 #define __LXD_PROCESS_UTILS_H
 
