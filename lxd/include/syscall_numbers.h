@@ -129,4 +129,24 @@
 	#endif
 #endif
 
+#ifndef __NR_close_range
+	#if defined __alpha__
+		#define __NR_close_range 546
+	#elif defined _MIPS_SIM
+		#if _MIPS_SIM == _MIPS_SIM_ABI32	/* o32 */
+			#define __NR_close_range 4436
+		#endif
+		#if _MIPS_SIM == _MIPS_SIM_NABI32	/* n32 */
+			#define __NR_close_range 6436
+		#endif
+		#if _MIPS_SIM == _MIPS_SIM_ABI64	/* n64 */
+			#define __NR_close_range 5436
+		#endif
+	#elif defined __ia64__
+		#define __NR_close_range (436 + 1024)
+	#else
+		#define __NR_close_range 436
+	#endif
+#endif
+
 #endif /* __LXD_SYSCALL_NUMBERS_H */
