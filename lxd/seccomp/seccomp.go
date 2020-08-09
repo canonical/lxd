@@ -350,20 +350,16 @@ static int handle_bpf_syscall(int notify_fd, int mem_fd, struct seccomp_notify_p
 			new_attr.log_size = 0;
 		}
 
-		if (attr.license) {
-			ret = pread(mem_fd, license, sizeof(license), attr.license);
-			if (ret < 0)
-				return -errno;
-		}
+		if (attr.license && pread(mem_fd, license, sizeof(license), attr.license) < 0)
+			return -errno;
 
 		new_attr.insns		= ptr_to_u64(insn);
 		new_attr.license	= ptr_to_u64(license);
 		bpf_prog_fd = bpf(cmd, &new_attr, sizeof(new_attr));
 		if (bpf_prog_fd < 0) {
 			int saved_errno = errno;
-			if (log_buf)
-				pwrite(mem_fd, log_buf, attr.log_size, attr.log_buf);
-			errno = saved_errno;
+			if (log_buf && pwrite(mem_fd, log_buf, attr.log_size, attr.log_buf) != attr.log_size)
+				errno = saved_errno;
 			return -errno;
 		}
 
