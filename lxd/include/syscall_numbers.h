@@ -1,4 +1,3 @@
-/* SPDX-License-Identifier: LGPL-2.1+ */
 #ifndef __LXD_SYSCALL_NUMBERS_H
 #define __LXD_SYSCALL_NUMBERS_H
 

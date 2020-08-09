@@ -639,6 +639,13 @@ func (d *Daemon) init() error {
 
 	// Look for kernel features
 	logger.Infof("Kernel features:")
+	d.os.CloseRange = canUseCloseRange()
+	if d.os.CloseRange {
+		logger.Infof(" - closing multiple file descriptros efficiently: yes")
+	} else {
+		logger.Infof(" - closing multiple file descriptros efficiently: no")
+	}
+
 	d.os.NetnsGetifaddrs = canUseNetnsGetifaddrs()
 	if d.os.NetnsGetifaddrs {
 		logger.Infof(" - netnsid-based network retrieval: yes")
