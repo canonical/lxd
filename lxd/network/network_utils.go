@@ -2,6 +2,7 @@ package network
 
 import (
 	"bufio"
+	"bytes"
 	"encoding/hex"
 	"fmt"
 	"io/ioutil"
@@ -420,37 +421,6 @@ func ForkdnsServersList(networkName string) ([]string, error) {
 	}
 
 	return servers, nil
-}
-
-func fillAuto(config map[string]string) error {
-	if config["ipv4.address"] == "auto" {
-		subnet, err := randomSubnetV4()
-		if err != nil {
-			return err
-		}
-
-		config["ipv4.address"] = subnet
-	}
-
-	if config["ipv6.address"] == "auto" {
-		subnet, err := randomSubnetV6()
-		if err != nil {
-			return err
-		}
-
-		config["ipv6.address"] = subnet
-	}
-
-	if config["fan.underlay_subnet"] == "auto" {
-		subnet, _, err := DefaultGatewaySubnetV4()
-		if err != nil {
-			return err
-		}
-
-		config["fan.underlay_subnet"] = subnet.String()
-	}
-
-	return nil
 }
 
 func randomSubnetV4() (string, error) {
@@ -880,4 +850,19 @@ func BridgeVLANSetDefaultPVID(interfaceName string, vlanID string) error {
 	}
 
 	return nil
+}
+
+// RandomHwaddr generates a random MAC address from the provided random source.
+func randomHwaddr(r *rand.Rand) string {
+	// Generate a new random MAC address using the usual prefix.
+	ret := bytes.Buffer{}
+	for _, c := range "00:16:3e:xx:xx:xx" {
+		if c == 'x' {
+			ret.WriteString(fmt.Sprintf("%x", r.Int31n(16)))
+		} else {
+			ret.WriteString(string(c))
+		}
+	}
+
+	return ret.String()
 }
