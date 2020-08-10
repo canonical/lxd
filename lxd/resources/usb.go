@@ -17,6 +17,9 @@ var sysBusUSB = "/sys/bus/usb/devices"
 
 // GetUSB returns a filled api.ResourcesUSB struct ready for use by LXD
 func GetUSB() (*api.ResourcesUSB, error) {
+	// Load the USB database.
+	usbid.Load()
+
 	usb := api.ResourcesUSB{}
 
 	if !sysfsExists(sysBusUSB) {
