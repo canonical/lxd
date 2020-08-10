@@ -4,7 +4,10 @@ import (
 	"bufio"
 	"encoding/binary"
 	"fmt"
+	"hash/fnv"
+	"io"
 	"io/ioutil"
+	"math/rand"
 	"net"
 	"os"
 	"os/exec"
@@ -20,7 +23,6 @@ import (
 	"github.com/lxc/lxd/lxd/daemon"
 	"github.com/lxc/lxd/lxd/dnsmasq"
 	"github.com/lxc/lxd/lxd/dnsmasq/dhcpalloc"
-	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/network/openvswitch"
 	"github.com/lxc/lxd/lxd/node"
 	"github.com/lxc/lxd/lxd/revert"
@@ -46,45 +48,27 @@ type bridge struct {
 	common
 }
 
-// fillHwaddr populates the volatile.bridge.hwaddr in config if it, nor bridge.hwaddr, are already set.
-func (n *bridge) fillHwaddr(config map[string]string) error {
-	// Fan bridge doesn't support having the same MAC on all nodes (it breaks host<->fan traffic).
-	// Presumably because the host's MAC address is used for routing across the fan network.
-	if config["bridge.mode"] == "fan" {
-		return nil
-	}
-
-	// Don't generate a volatile stable MAC if network already has stable MAC.
-	if config["bridge.hwaddr"] != "" || config["volatile.bridge.hwaddr"] != "" {
-		return nil
-	}
-
-	// If no existing MAC address, generate a new one and store in volatile.
-	hwAddr, err := instance.DeviceNextInterfaceHWAddr()
-	if err != nil {
-		return errors.Wrapf(err, "Failed generating MAC address")
-	}
-
-	config["volatile.bridge.hwaddr"] = hwAddr
-	return nil
-}
-
-// stableMACSafe returns whether it is safe to use the stable volatile MAC for the bridge interface.
-// It is not suitable to use the stable volatile MAC when "bridge.external_interfaces" is non-empty and the bridge
-// interface has no IPv4 or IPv6 address set. This is because in a clustered environment the same bridge config is
-// applied to all nodes, and if the bridge is being used to connect multiple nodes to the same network segment it
-// would cause MAC conflicts to use the the same stable MAC on all nodes. Normally if an IP address is specified
-// then connecting multiple nodes to the same network segment would also cause IP conflicts, so if an IP is defined
+// checkClusterWideMACSafe returns whether it is safe to use the same MAC address for the bridge interface on all
+// cluster nodes. It is not suitable to use a static MAC address when "bridge.external_interfaces" is non-empty an
+// the bridge interface has no IPv4 or IPv6 address set. This is because in a clustered environment the same bridge
+// config is applied to all nodes, and if the bridge is being used to connect multiple nodes to the same network
+// segment it would cause MAC conflicts to use the the same MAC on all nodes. If an IP address is specified then
+// connecting multiple nodes to the same network segment would also cause IP conflicts, so if an IP is defined
 // then we assume this is not being done. However if IP addresses are explicitly set to "none" and
-// "bridge.external_interfaces" then it may not be safe to use a stable volatile MAC in a clustered environment.
-func (n *bridge) stableMACSafe() bool {
-	// We can't be sure that multiple clustered nodes aren't connected to the same network segment so don't
-	// use a stable volatile MAC for the bridge interface to avoid introducing a MAC conflict.
-	if n.config["bridge.external_interfaces"] != "" && n.config["ipv4.address"] == "none" && n.config["ipv6.address"] == "none" {
-		return false
+// "bridge.external_interfaces" is set then it may not be safe to use a the same MAC address on all nodes.
+func (n *bridge) checkClusterWideMACSafe(config map[string]string) error {
+	// Fan mode breaks if using the same MAC address on each node.
+	if config["bridge.mode"] == "fan" {
+		return fmt.Errorf(`Cannot use static "bridge.hwaddr" MAC address in fan mode`)
 	}
 
-	return true
+	// We can't be sure that multiple clustered nodes aren't connected to the same network segment so don't
+	// use a static MAC address for the bridge interface to avoid introducing a MAC conflict.
+	if config["bridge.external_interfaces"] != "" && config["ipv4.address"] == "none" && config["ipv6.address"] == "none" {
+		return fmt.Errorf(`Cannot use static "bridge.hwaddr" MAC address when bridge has no IP addresses and has external interfaces set`)
+	}
+
+	return nil
 }
 
 // fillConfig fills requested config with any default values.
@@ -115,11 +99,32 @@ func (n *bridge) fillConfig(config map[string]string) error {
 		}
 	}
 
-	// If no static hwaddr specified generate a volatile one to store in DB record so that
-	// there are no races when starting the network at the same time on multiple cluster nodes.
-	err := n.fillHwaddr(config)
-	if err != nil {
-		return err
+	// Now populate "auto" values where needed.
+	if config["ipv4.address"] == "auto" {
+		subnet, err := randomSubnetV4()
+		if err != nil {
+			return err
+		}
+
+		config["ipv4.address"] = subnet
+	}
+
+	if config["ipv6.address"] == "auto" {
+		subnet, err := randomSubnetV6()
+		if err != nil {
+			return err
+		}
+
+		config["ipv6.address"] = subnet
+	}
+
+	if config["fan.underlay_subnet"] == "auto" {
+		subnet, _, err := DefaultGatewaySubnetV4()
+		if err != nil {
+			return err
+		}
+
+		config["fan.underlay_subnet"] = subnet.String()
 	}
 
 	return nil
@@ -157,25 +162,8 @@ func (n *bridge) Validate(config map[string]string) error {
 
 			return nil
 		},
-		"bridge.hwaddr": func(value string) error {
-			if value == "" {
-				return nil
-			}
-
-			if n.config["bridge.mode"] == "fan" {
-				return fmt.Errorf("Cannot specify static MAC address when using fan mode")
-			}
-
-			return validate.IsNetworkMAC(value)
-		},
-		"volatile.bridge.hwaddr": func(value string) error {
-			if value == "" {
-				return nil
-			}
-
-			return validate.IsNetworkMAC(value)
-		},
-		"bridge.mtu": validate.Optional(validate.IsInt64),
+		"bridge.hwaddr": validate.Optional(validate.IsNetworkMAC),
+		"bridge.mtu":    validate.Optional(validate.IsInt64),
 		"bridge.mode": func(value string) error {
 			return validate.IsOneOf(value, []string{"standard", "fan"})
 		},
@@ -342,6 +330,14 @@ func (n *bridge) Validate(config map[string]string) error {
 		}
 	}
 
+	// Check using same MAC address on every cluster node is safe.
+	if config["bridge.hwaddr"] != "" {
+		err = n.checkClusterWideMACSafe(config)
+		if err != nil {
+			return err
+		}
+	}
+
 	return nil
 }
 
@@ -444,7 +440,6 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 	}
 
 	// Create the bridge interface if doesn't exist.
-	createdBridge := false
 	if !n.isRunning() {
 		if n.config["bridge.driver"] == "openvswitch" {
 			ovs := openvswitch.NewOVS()
@@ -462,8 +457,6 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 				return err
 			}
 		}
-
-		createdBridge = true
 	}
 
 	// Get a list of tunnels.
@@ -540,23 +533,44 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 	// Always prefer static MAC address if set.
 	hwAddr := n.config["bridge.hwaddr"]
 
-	// If no static MAC address set, and it is safe to use the stable volatile address, then use that.
-	if hwAddr == "" && n.stableMACSafe() {
-		// We do not generate missing stable volatile MAC address at start time so as not to cause DB races
-		// when starting an existing network without volatile key in a cluster. This also allows the old
-		// behavior for networks (i.e random MAC at start) until the network is next updated.
-		hwAddr = n.config["volatile.bridge.hwaddr"]
-	}
+	// If no cluster wide static MAC address set, then generate one.
+	if hwAddr == "" {
+		var seedNodeID int64
 
-	// If MAC address is not set statically and no stable volatile MAC address available, then generate a
-	// temporary one to use on initial bridge setup. Do this explicitly rather than letting the bridge device
-	// generate one so that the MAC address stays stable when ports are connected to it.
-	if hwAddr == "" && createdBridge {
-		hwAddr, err = instance.DeviceNextInterfaceHWAddr()
-		if err != nil {
-			return errors.Wrapf(err, "Failed generating temporary MAC address")
+		if n.checkClusterWideMACSafe(n.config) != nil {
+			// Use cluster node's ID to g enerate a stable per-node & network derived random MAC in fan
+			// mode or when cluster-wide MAC addresses are unsafe.
+			seedNodeID = n.state.Cluster.GetNodeID()
+		} else {
+			// Use a static cluster node of 0 to generate a stable per-network derived random MAC if
+			// safe to do so.
+			seedNodeID = 0
 		}
-		n.logger.Info("Generated temporary MAC for bridge interface", log.Ctx{"hwaddr": hwAddr})
+
+		// Load server certificate. This is needs to be the same certificate for all nodes in a cluster.
+		cert, err := util.LoadCert(n.state.OS.VarDir)
+		if err != nil {
+			return err
+		}
+
+		// Generate the random seed, this uses the server certificate fingerprint (to ensure that multiple
+		// standalone nodes on the same external network don't generate the same MAC for their networks).
+		// It relies on the certificate being the same for all nodes in a cluster to allow the same MAC to
+		// be generated on each bridge interface in the network (if safe to do so).
+		seed := fmt.Sprintf("%s.%d.%d", cert.Fingerprint(), seedNodeID, n.ID())
+
+		// Generate a hash from the randSourceNodeID and network ID to use as seed for random MAC.
+		// Use the FNV-1a hash algorithm to convert our seed string into an int64 for use as seed.
+		hash := fnv.New64a()
+		_, err = io.WriteString(hash, seed)
+		if err != nil {
+			return err
+		}
+
+		// Initialise a non-cryptographic random number generator using the stable seed.
+		r := rand.New(rand.NewSource(int64(hash.Sum64())))
+		hwAddr = randomHwaddr(r)
+		n.logger.Debug("Stable MAC generated", log.Ctx{"seed": seed, "hwAddr": hwAddr})
 	}
 
 	// Set the MAC address on the bridge interface if specified.
@@ -1423,12 +1437,6 @@ func (n *bridge) Update(newNetwork api.NetworkPut, targetNode string, clusterNot
 
 	// Populate default values if they are missing.
 	err := n.fillConfig(newNetwork.Config)
-	if err != nil {
-		return err
-	}
-
-	// Populate auto fields.
-	err = fillAuto(newNetwork.Config)
 	if err != nil {
 		return err
 	}
