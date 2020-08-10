@@ -98,6 +98,7 @@ var patches = []patch{
 	{name: "storage_rename_custom_volume_add_project", stage: patchPreDaemonStorage, run: patchGenericStorage},
 	{name: "storage_lvm_skipactivation", stage: patchPostDaemonStorage, run: patchGenericStorage},
 	{name: "clustering_drop_database_role", stage: patchPostDaemonStorage, run: patchClusteringDropDatabaseRole},
+	{name: "network_clear_bridge_volatile_hwaddr", stage: patchPostDaemonStorage, run: patchNetworkCearBridgeVolatileHwaddr},
 }
 
 type patch struct {
@@ -3442,6 +3443,32 @@ func patchClusteringDropDatabaseRole(name string, d *Daemon) error {
 		}
 		return nil
 	})
+}
+
+// patchNetworkCearBridgeVolatileHwaddr removes the unsupported `volatile.bridge.hwaddr` config key from networks.
+func patchNetworkCearBridgeVolatileHwaddr(name string, d *Daemon) error {
+	// Get the list of networks.
+	networks, err := d.cluster.GetNetworks()
+	if err != nil {
+		return errors.Wrapf(err, "Failed loading networks for network_clear_bridge_volatile_hwaddr patch")
+	}
+
+	for _, networkName := range networks {
+		_, net, err := d.cluster.GetNetworkInAnyState(networkName)
+		if err != nil {
+			return errors.Wrapf(err, "Failed loading network %q for network_clear_bridge_volatile_hwaddr patch", networkName)
+		}
+
+		if net.Config["volatile.bridge.hwaddr"] != "" {
+			delete(net.Config, "volatile.bridge.hwaddr")
+			err = d.cluster.UpdateNetwork(net.Name, net.Description, net.Config)
+			if err != nil {
+				return errors.Wrapf(err, "Failed updating network %q for network_clear_bridge_volatile_hwaddr patch", networkName)
+			}
+		}
+	}
+
+	return nil
 }
 
 // Patches end here
