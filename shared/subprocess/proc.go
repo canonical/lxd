@@ -28,6 +28,10 @@ type Process struct {
 	PID      int64    `yaml:"pid"`
 	Stdout   string   `yaml:"stdout"`
 	Stderr   string   `yaml:"stderr"`
+
+	UID       uint32 `yaml:"uid"`
+	GID       uint32 `yaml:"gid"`
+	SetGroups bool   `yaml:"set_groups"`
 }
 
 func (p *Process) hasApparmor() bool {
@@ -57,6 +61,12 @@ func (p *Process) GetPid() (int64, error) {
 // SetApparmor allows setting the AppArmor profile.
 func (p *Process) SetApparmor(profile string) {
 	p.Apparmor = profile
+}
+
+// SetCreds allows setting process credentials.
+func (p *Process) SetCreds(uid uint32, gid uint32) {
+	p.UID = uid
+	p.GID = gid
 }
 
 // Stop will stop the given process object
@@ -100,6 +110,12 @@ func (p *Process) Start() error {
 	cmd.Stdin = nil
 	cmd.SysProcAttr = &syscall.SysProcAttr{}
 	cmd.SysProcAttr.Setsid = true
+
+	if p.UID != 0 || p.GID != 0 {
+		cmd.SysProcAttr.Credential = &syscall.Credential{}
+		cmd.SysProcAttr.Credential.Uid = p.UID
+		cmd.SysProcAttr.Credential.Gid = p.GID
+	}
 
 	// Setup output capture.
 	if p.Stdout != "" {
