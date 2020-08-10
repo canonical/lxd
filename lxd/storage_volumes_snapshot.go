@@ -714,8 +714,6 @@ func autoCreateCustomVolumeSnapshots(ctx context.Context, d *Daemon, volumes []d
 				return
 			}
 
-			snapshotName = fmt.Sprintf("%s%s%s", v.Name, shared.SnapshotDelimiter, snapshotName)
-
 			expiry, err := shared.GetSnapshotExpiry(time.Now(), v.Config["snapshots.expiry"])
 			if err != nil {
 				logger.Error("Error getting expiry date", log.Ctx{"err": err, "volume": v})
@@ -723,17 +721,16 @@ func autoCreateCustomVolumeSnapshots(ctx context.Context, d *Daemon, volumes []d
 				return
 			}
 
-			// Get pool ID
-			poolID, err := d.cluster.GetStoragePoolID(v.PoolName)
+			pool, err := storagePools.GetPoolByName(d.State(), v.PoolName)
 			if err != nil {
-				logger.Error("Error retrieving pool ID", log.Ctx{"err": err, "pool": v.PoolName})
+				logger.Error("Error retrieving pool", log.Ctx{"err": err, "pool": v.PoolName})
 				ch <- nil
 				return
 			}
 
-			_, err = d.cluster.CreateStorageVolumeSnapshot(v.ProjectName, snapshotName, v.Description, db.StoragePoolVolumeTypeCustom, poolID, v.Config, expiry)
+			err = pool.CreateCustomVolumeSnapshot(v.ProjectName, v.Name, snapshotName, expiry, nil)
 			if err != nil {
-				logger.Error("Error creating volume snaphost", log.Ctx{"err": err, "volume": v})
+				logger.Error("Error creating volume snapshot", log.Ctx{"err": err, "volume": v})
 			}
 
 			ch <- nil
