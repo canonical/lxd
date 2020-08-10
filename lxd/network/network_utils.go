@@ -2,6 +2,7 @@ package network
 
 import (
 	"bufio"
+	"bytes"
 	"encoding/hex"
 	"fmt"
 	"io/ioutil"
@@ -807,4 +808,19 @@ func usesIPv6Firewall(netConfig map[string]string) bool {
 	}
 
 	return false
+}
+
+// RandomHwaddr generates a random MAC address from the provided random source.
+func randomHwaddr(r *rand.Rand) string {
+	// Generate a new random MAC address using the usual prefix.
+	ret := bytes.Buffer{}
+	for _, c := range "00:16:3e:xx:xx:xx" {
+		if c == 'x' {
+			ret.WriteString(fmt.Sprintf("%x", r.Int31n(16)))
+		} else {
+			ret.WriteString(string(c))
+		}
+	}
+
+	return ret.String()
 }
