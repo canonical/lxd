@@ -106,6 +106,10 @@ SELECT DISTINCT node_id
 	for _, nodeID := range nodeIDs {
 		nodeVolumes, err := c.storagePoolVolumesGet(project, poolID, int64(nodeID), volumeTypes)
 		if err != nil {
+			if err == ErrNoSuchObject {
+				continue
+			}
+
 			return nil, err
 		}
 		volumes = append(volumes, nodeVolumes...)
