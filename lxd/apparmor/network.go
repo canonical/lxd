@@ -10,6 +10,7 @@ import (
 
 // Internal copy of the network interface.
 type network interface {
+	Config() map[string]string
 	Name() string
 }
 
@@ -26,6 +27,8 @@ func NetworkLoad(state *state.State, n network) error {
 	 * version out so that the new changes are reflected and we definitely
 	 * force a recompile.
 	 */
+
+	// dnsmasq
 	profile := filepath.Join(aaPath, "profiles", dnsmasqProfileFilename(n))
 	content, err := ioutil.ReadFile(profile)
 	if err != nil && !os.IsNotExist(err) {
@@ -49,15 +52,50 @@ func NetworkLoad(state *state.State, n network) error {
 		return err
 	}
 
+	// forkdns
+	if n.Config()["bridge.mode"] == "fan" {
+		profile := filepath.Join(aaPath, "profiles", forkdnsProfileFilename(n))
+		content, err := ioutil.ReadFile(profile)
+		if err != nil && !os.IsNotExist(err) {
+			return err
+		}
+
+		updated, err := forkdnsProfile(state, n)
+		if err != nil {
+			return err
+		}
+
+		if string(content) != string(updated) {
+			err = ioutil.WriteFile(profile, []byte(updated), 0600)
+			if err != nil {
+				return err
+			}
+		}
+
+		err = loadProfile(state, forkdnsProfileFilename(n))
+		if err != nil {
+			return err
+		}
+	}
+
 	return nil
 }
 
 // NetworkUnload ensures that the network's profiles are unloaded to free kernel memory.
 // This does not delete the policy from disk or cache.
 func NetworkUnload(state *state.State, n network) error {
+	// dnsmasq
 	err := unloadProfile(state, dnsmasqProfileFilename(n))
 	if err != nil {
 		return err
+	}
+
+	// forkdns
+	if n.Config()["bridge.mode"] == "fan" {
+		err := unloadProfile(state, forkdnsProfileFilename(n))
+		if err != nil {
+			return err
+		}
 	}
 
 	return nil
@@ -65,5 +103,17 @@ func NetworkUnload(state *state.State, n network) error {
 
 // NetworkDelete removes the profiles from cache/disk.
 func NetworkDelete(state *state.State, n network) error {
-	return deleteProfile(state, dnsmasqProfileFilename(n))
+	err := deleteProfile(state, dnsmasqProfileFilename(n))
+	if err != nil {
+		return err
+	}
+
+	if n.Config()["bridge.mode"] == "fan" {
+		err := deleteProfile(state, forkdnsProfileFilename(n))
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
