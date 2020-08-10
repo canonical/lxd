@@ -4,6 +4,9 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"hash/fnv"
+	"io"
+	"math/rand"
 	"net/http"
 	"strconv"
 	"strings"
@@ -14,6 +17,7 @@ import (
 	"github.com/pkg/errors"
 	cron "gopkg.in/robfig/cron.v2"
 
+	"github.com/lxc/lxd/lxd/cluster"
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/operations"
 	"github.com/lxc/lxd/lxd/project"
@@ -625,6 +629,35 @@ func autoCreateCustomVolumeSnapshotsTask(d *Daemon) (task.Func, task.Schedule) {
 			return
 		}
 
+		// Get list of cluster nodes
+		nodes, err := cluster.List(d.State(), d.gateway)
+		if err != nil {
+			return
+		}
+
+		var availableNodeIDs []int64
+
+		for _, node := range nodes {
+			var nodeID int64
+
+			if node.Status == "Online" {
+				err := d.cluster.Transaction(func(tx *db.ClusterTx) error {
+					info, err := tx.GetNodeByName(node.ServerName)
+					if err != nil {
+						return err
+					}
+
+					nodeID = info.ID
+					return nil
+				})
+				if err != nil {
+					return
+				}
+
+				availableNodeIDs = append(availableNodeIDs, nodeID)
+			}
+		}
+
 		var volumes []db.StorageVolumeArgs
 
 		// Figure out which need snapshotting (if any)
@@ -638,6 +671,25 @@ func autoCreateCustomVolumeSnapshotsTask(d *Daemon) (task.Func, task.Schedule) {
 			sched, err := cron.Parse(fmt.Sprintf("* %s", schedule))
 			if err != nil {
 				continue
+			}
+
+			// If there is more than one node (clustering), a stable random node is chosen to perform the snapshot.
+			if len(nodes) > 1 {
+				seed := fmt.Sprintf("%d", v.ID)
+
+				hash := fnv.New64a()
+				_, err = io.WriteString(hash, seed)
+				if err != nil {
+					continue
+				}
+
+				r := rand.New(rand.NewSource(int64(hash.Sum64())))
+				selectedNodeID := availableNodeIDs[r.Int63n(int64(len(availableNodeIDs)))]
+
+				// Don't snapshot, if we're not the chosen one.
+				if d.cluster.GetNodeID() != selectedNodeID {
+					continue
+				}
 			}
 
 			// Check if it's time to snapshot
