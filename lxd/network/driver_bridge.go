@@ -1544,6 +1544,12 @@ func (n *bridge) spawnForkDNS(listenAddress string) error {
 		return fmt.Errorf("Failed to create subprocess: %s", err)
 	}
 
+	// Drop privileges.
+	p.SetCreds(n.state.OS.UnprivUID, n.state.OS.UnprivGID)
+
+	// Apply AppArmor profile.
+	p.SetApparmor(apparmor.ForkdnsProfileName(n))
+
 	err = p.Start()
 	if err != nil {
 		return fmt.Errorf("Failed to run: %s %s: %v", command, strings.Join(forkdnsargs, " "), err)
