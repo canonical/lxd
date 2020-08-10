@@ -503,7 +503,9 @@ func (vm *qemu) onStop(target string) error {
 	// Record power state.
 	err := vm.state.Cluster.UpdateInstancePowerState(vm.id, "STOPPED")
 	if err != nil {
-		op.Done(err)
+		if op != nil {
+			op.Done(err)
+		}
 		return err
 	}
 
