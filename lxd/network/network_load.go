@@ -82,11 +82,5 @@ func FillConfig(req *api.NetworksPost) error {
 		return err
 	}
 
-	// Replace "auto" by actual values.
-	err = fillAuto(req.Config)
-	if err != nil {
-		return err
-	}
-
 	return nil
 }
