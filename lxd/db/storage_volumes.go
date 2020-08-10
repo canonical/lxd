@@ -84,7 +84,8 @@ WHERE storage_volumes.type = ?
 }
 
 // GetStoragePoolVolumes returns all storage volumes attached to a given
-// storage pool on any node.
+// storage pool on any node. If there are no volumes, it returns an
+// empty list and no error.
 func (c *Cluster) GetStoragePoolVolumes(project string, poolID int64, volumeTypes []int) ([]*api.StorageVolume, error) {
 	var nodeIDs []int
 
@@ -106,6 +107,10 @@ SELECT DISTINCT node_id
 	for _, nodeID := range nodeIDs {
 		nodeVolumes, err := c.storagePoolVolumesGet(project, poolID, int64(nodeID), volumeTypes)
 		if err != nil {
+			if err == ErrNoSuchObject {
+				continue
+			}
+
 			return nil, err
 		}
 		volumes = append(volumes, nodeVolumes...)
@@ -114,13 +119,15 @@ SELECT DISTINCT node_id
 }
 
 // GetLocalStoragePoolVolumes returns all storage volumes attached to a given
-// storage pool on the current node.
+// storage pool on the current node. If there are no volumes, it returns an
+// empty list as well as ErrNoSuchObject.
 func (c *Cluster) GetLocalStoragePoolVolumes(project string, poolID int64, volumeTypes []int) ([]*api.StorageVolume, error) {
 	return c.storagePoolVolumesGet(project, poolID, c.nodeID, volumeTypes)
 }
 
 // Returns all storage volumes attached to a given storage pool on the given
-// node.
+// node. If there are no volumes, it returns an empty list as well as
+// ErrNoSuchObject.
 func (c *Cluster) storagePoolVolumesGet(project string, poolID, nodeID int64, volumeTypes []int) ([]*api.StorageVolume, error) {
 	// Get all storage volumes of all types attached to a given storage pool.
 	result := []*api.StorageVolume{}
