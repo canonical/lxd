@@ -157,14 +157,11 @@ func TestUpgradeMembersWithoutRole(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	nodes, err := gateway.RaftNodes()
-	require.NoError(t, err)
-
-	err = cluster.UpgradeMembersWithoutRole(gateway, members, nodes)
+	err = cluster.UpgradeMembersWithoutRole(gateway, members)
 	require.NoError(t, err)
 
 	// The members have been added to the raft configuration.
-	nodes, err = gateway.RaftNodes()
+	nodes, err := gateway.RaftNodes()
 	require.NoError(t, err)
 
 	assert.Len(t, nodes, 3)
