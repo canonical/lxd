@@ -4,10 +4,11 @@ So you've made it past trying out [LXD live online](https://linuxcontainers.org/
 or on a server scavenged from random parts. You like what you see,
 and now you want to try doing some serious work with LXD.
 
-With the vanilla installation of Ubuntu Server 18.04, some modifications
-to the server configuration will be needed, to avoid common pitfalls when
-using containers that require tens of thousands of file operations.
-
+The vast majority of Linux distributions do not come with optimized
+kernel settings suitable for the operation of a large number of
+containers. The instructions in this document cover the most common
+limits that you're likely to hit when running containers and suggested
+updated values.
 
 ### Common errors that may be encountered
 
