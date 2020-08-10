@@ -1237,6 +1237,26 @@ again:
 	goto again
 }
 
+// Check if there are nodes not part of the raft configuration and add them in
+// case.
+func upgradeNodesWithoutRaftRole(d *Daemon) error {
+	var allNodes []db.NodeInfo
+	err := d.cluster.Transaction(func(tx *db.ClusterTx) error {
+		var err error
+		allNodes, err = tx.GetNodes()
+		if err != nil {
+			return err
+		}
+
+		return nil
+	})
+	if err != nil {
+		return errors.Wrap(err, "Failed to get current cluster nodes")
+
+	}
+	return cluster.UpgradeMembersWithoutRole(d.gateway, allNodes)
+}
+
 // Post a change role request to the member with the given address. The nodes
 // slice contains details about all members, including the one being changed.
 func changeMemberRole(d *Daemon, address string, nodes []db.RaftNode) error {

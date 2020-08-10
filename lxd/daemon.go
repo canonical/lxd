@@ -1557,6 +1557,7 @@ func (d *Daemon) NodeRefreshTask(heartbeatData *cluster.APIHeartbeat) {
 	}
 
 	isDegraded := false
+	hasNodesNotPartOfRaft := false
 	voters := 0
 	standbys := 0
 
@@ -1578,6 +1579,9 @@ func (d *Daemon) NodeRefreshTask(heartbeatData *cluster.APIHeartbeat) {
 				voters++
 			case db.RaftStandBy:
 				standbys++
+			}
+			if node.RaftID == 0 {
+				hasNodesNotPartOfRaft = true
 			}
 
 		}
@@ -1630,6 +1634,16 @@ func (d *Daemon) NodeRefreshTask(heartbeatData *cluster.APIHeartbeat) {
 				err := rebalanceMemberRoles(d)
 				if err != nil && errors.Cause(err) != cluster.ErrNotLeader {
 					logger.Warnf("Could not rebalance cluster member roles: %v", err)
+				}
+			}()
+		}
+		if hasNodesNotPartOfRaft {
+			go func() {
+				d.clusterMembershipMutex.Lock()
+				defer d.clusterMembershipMutex.Unlock()
+				err := upgradeNodesWithoutRaftRole(d)
+				if err != nil && errors.Cause(err) != cluster.ErrNotLeader {
+					logger.Warnf("Failed upgrade raft roles: %v", err)
 				}
 			}()
 		}
