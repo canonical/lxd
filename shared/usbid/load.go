@@ -28,7 +28,8 @@ var (
 	Classes map[ClassCode]*Class
 )
 
-func init() {
+// Load reads the USB database from disk.
+func Load() {
 	usbids, err := os.Open("/usr/share/misc/usb.ids")
 	if err != nil {
 		if !os.IsNotExist(err) {
