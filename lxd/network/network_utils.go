@@ -422,37 +422,6 @@ func ForkdnsServersList(networkName string) ([]string, error) {
 	return servers, nil
 }
 
-func fillAuto(config map[string]string) error {
-	if config["ipv4.address"] == "auto" {
-		subnet, err := randomSubnetV4()
-		if err != nil {
-			return err
-		}
-
-		config["ipv4.address"] = subnet
-	}
-
-	if config["ipv6.address"] == "auto" {
-		subnet, err := randomSubnetV6()
-		if err != nil {
-			return err
-		}
-
-		config["ipv6.address"] = subnet
-	}
-
-	if config["fan.underlay_subnet"] == "auto" {
-		subnet, _, err := DefaultGatewaySubnetV4()
-		if err != nil {
-			return err
-		}
-
-		config["fan.underlay_subnet"] = subnet.String()
-	}
-
-	return nil
-}
-
 func randomSubnetV4() (string, error) {
 	for i := 0; i < 100; i++ {
 		cidr := fmt.Sprintf("10.%d.%d.1/24", rand.Intn(255), rand.Intn(255))
