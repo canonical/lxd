@@ -1269,6 +1269,9 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 		if n.state.OS.UnprivUser != "" {
 			dnsmasqCmd = append(dnsmasqCmd, []string{"-u", n.state.OS.UnprivUser}...)
 		}
+		if n.state.OS.UnprivGroup != "" {
+			dnsmasqCmd = append(dnsmasqCmd, []string{"-g", n.state.OS.UnprivGroup}...)
+		}
 
 		// Create DHCP hosts directory.
 		if !shared.PathExists(shared.VarPath("networks", n.name, "dnsmasq.hosts")) {
