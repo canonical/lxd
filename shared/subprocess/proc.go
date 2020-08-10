@@ -25,7 +25,7 @@ type Process struct {
 	Name     string   `yaml:"name"`
 	Args     []string `yaml:"args,flow"`
 	Apparmor string   `yaml:"apparmor"`
-	Pid      int64    `yaml:"pid"`
+	PID      int64    `yaml:"pid"`
 	Stdout   string   `yaml:"stdout"`
 	Stderr   string   `yaml:"stderr"`
 }
@@ -45,10 +45,10 @@ func (p *Process) hasApparmor() bool {
 
 // GetPid returns the pid for the given process object
 func (p *Process) GetPid() (int64, error) {
-	pr, _ := os.FindProcess(int(p.Pid))
+	pr, _ := os.FindProcess(int(p.PID))
 	err := pr.Signal(syscall.Signal(0))
 	if err == nil {
-		return p.Pid, nil
+		return p.PID, nil
 	}
 
 	return 0, ErrNotRunning
@@ -61,7 +61,7 @@ func (p *Process) SetApparmor(profile string) {
 
 // Stop will stop the given process object
 func (p *Process) Stop() error {
-	pr, _ := os.FindProcess(int(p.Pid))
+	pr, _ := os.FindProcess(int(p.PID))
 
 	// Check if process exists.
 	err := pr.Signal(syscall.Signal(0))
@@ -128,7 +128,7 @@ func (p *Process) Start() error {
 		return errors.Wrapf(err, "Unable to start process")
 	}
 
-	p.Pid = int64(cmd.Process.Pid)
+	p.PID = int64(cmd.Process.Pid)
 
 	// Reset exitCode/exitErr
 	p.exitCode = 0
@@ -171,7 +171,7 @@ func (p *Process) Restart() error {
 
 // Reload sends the SIGHUP signal to the given process object
 func (p *Process) Reload() error {
-	pr, _ := os.FindProcess(int(p.Pid))
+	pr, _ := os.FindProcess(int(p.PID))
 	err := pr.Signal(syscall.Signal(0))
 	if err == nil {
 		err = pr.Signal(syscall.SIGHUP)
@@ -203,7 +203,7 @@ func (p *Process) Save(path string) error {
 
 // Signal will send a signal to the given process object given a signal value
 func (p *Process) Signal(signal int64) error {
-	pr, _ := os.FindProcess(int(p.Pid))
+	pr, _ := os.FindProcess(int(p.PID))
 	err := pr.Signal(syscall.Signal(0))
 	if err == nil {
 		err = pr.Signal(syscall.Signal(signal))
