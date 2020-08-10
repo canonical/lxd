@@ -621,6 +621,12 @@ func (d *ceph) deleteVolume(vol Volume) (int, error) {
 			}
 
 			return 1, nil
+		} else if zombies == 0 {
+			// Delete.
+			err = d.rbdDeleteVolume(vol)
+			if err != nil {
+				return -1, err
+			}
 		}
 	} else {
 		if err != db.ErrNoSuchObject {
