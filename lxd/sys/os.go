@@ -49,8 +49,12 @@ type OS struct {
 	MockMode        bool   // If true some APIs will be mocked (for testing)
 	Nodev           bool
 	RunningInUserNS bool
-	UnprivUser      string
-	UnprivUID       int
+
+	// Privilege dropping
+	UnprivUser  string
+	UnprivUID   uint32
+	UnprivGroup string
+	UnprivGID   uint32
 
 	// Apparmor features
 	AppArmorAdmin     bool
@@ -109,7 +113,7 @@ func (s *OS) Init() error {
 		logger.Error("Error detecting backing fs", log.Ctx{"err": err})
 	}
 
-	// Detect if it is possible to run daemons as an unprivileged user.
+	// Detect if it is possible to run daemons as an unprivileged user and group.
 	for _, user := range []string{"lxd", "nobody"} {
 		uid, err := shared.UserId(user)
 		if err != nil {
@@ -117,7 +121,18 @@ func (s *OS) Init() error {
 		}
 
 		s.UnprivUser = user
-		s.UnprivUID = uid
+		s.UnprivUID = uint32(uid)
+		break
+	}
+
+	for _, group := range []string{"lxd", "nogroup"} {
+		gid, err := shared.GroupId(group)
+		if err != nil {
+			continue
+		}
+
+		s.UnprivGroup = group
+		s.UnprivGID = uint32(gid)
 		break
 	}
 
