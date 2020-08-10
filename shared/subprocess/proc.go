@@ -25,9 +25,13 @@ type Process struct {
 	Name     string   `yaml:"name"`
 	Args     []string `yaml:"args,flow"`
 	Apparmor string   `yaml:"apparmor"`
-	Pid      int64    `yaml:"pid"`
+	PID      int64    `yaml:"pid"`
 	Stdout   string   `yaml:"stdout"`
 	Stderr   string   `yaml:"stderr"`
+
+	UID       uint32 `yaml:"uid"`
+	GID       uint32 `yaml:"gid"`
+	SetGroups bool   `yaml:"set_groups"`
 }
 
 func (p *Process) hasApparmor() bool {
@@ -45,10 +49,10 @@ func (p *Process) hasApparmor() bool {
 
 // GetPid returns the pid for the given process object
 func (p *Process) GetPid() (int64, error) {
-	pr, _ := os.FindProcess(int(p.Pid))
+	pr, _ := os.FindProcess(int(p.PID))
 	err := pr.Signal(syscall.Signal(0))
 	if err == nil {
-		return p.Pid, nil
+		return p.PID, nil
 	}
 
 	return 0, ErrNotRunning
@@ -59,9 +63,15 @@ func (p *Process) SetApparmor(profile string) {
 	p.Apparmor = profile
 }
 
+// SetCreds allows setting process credentials.
+func (p *Process) SetCreds(uid uint32, gid uint32) {
+	p.UID = uid
+	p.GID = gid
+}
+
 // Stop will stop the given process object
 func (p *Process) Stop() error {
-	pr, _ := os.FindProcess(int(p.Pid))
+	pr, _ := os.FindProcess(int(p.PID))
 
 	// Check if process exists.
 	err := pr.Signal(syscall.Signal(0))
@@ -101,6 +111,12 @@ func (p *Process) Start() error {
 	cmd.SysProcAttr = &syscall.SysProcAttr{}
 	cmd.SysProcAttr.Setsid = true
 
+	if p.UID != 0 || p.GID != 0 {
+		cmd.SysProcAttr.Credential = &syscall.Credential{}
+		cmd.SysProcAttr.Credential.Uid = p.UID
+		cmd.SysProcAttr.Credential.Gid = p.GID
+	}
+
 	// Setup output capture.
 	if p.Stdout != "" {
 		out, err := os.Create(p.Stdout)
@@ -128,7 +144,7 @@ func (p *Process) Start() error {
 		return errors.Wrapf(err, "Unable to start process")
 	}
 
-	p.Pid = int64(cmd.Process.Pid)
+	p.PID = int64(cmd.Process.Pid)
 
 	// Reset exitCode/exitErr
 	p.exitCode = 0
@@ -171,7 +187,7 @@ func (p *Process) Restart() error {
 
 // Reload sends the SIGHUP signal to the given process object
 func (p *Process) Reload() error {
-	pr, _ := os.FindProcess(int(p.Pid))
+	pr, _ := os.FindProcess(int(p.PID))
 	err := pr.Signal(syscall.Signal(0))
 	if err == nil {
 		err = pr.Signal(syscall.SIGHUP)
@@ -203,7 +219,7 @@ func (p *Process) Save(path string) error {
 
 // Signal will send a signal to the given process object given a signal value
 func (p *Process) Signal(signal int64) error {
-	pr, _ := os.FindProcess(int(p.Pid))
+	pr, _ := os.FindProcess(int(p.PID))
 	err := pr.Signal(syscall.Signal(0))
 	if err == nil {
 		err = pr.Signal(syscall.Signal(signal))

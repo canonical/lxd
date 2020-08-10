@@ -1283,6 +1283,9 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 		if n.state.OS.UnprivUser != "" {
 			dnsmasqCmd = append(dnsmasqCmd, []string{"-u", n.state.OS.UnprivUser}...)
 		}
+		if n.state.OS.UnprivGroup != "" {
+			dnsmasqCmd = append(dnsmasqCmd, []string{"-g", n.state.OS.UnprivGroup}...)
+		}
 
 		// Create DHCP hosts directory.
 		if !shared.PathExists(shared.VarPath("networks", n.name, "dnsmasq.hosts")) {
@@ -1551,6 +1554,12 @@ func (n *bridge) spawnForkDNS(listenAddress string) error {
 	if err != nil {
 		return fmt.Errorf("Failed to create subprocess: %s", err)
 	}
+
+	// Drop privileges.
+	p.SetCreds(n.state.OS.UnprivUID, n.state.OS.UnprivGID)
+
+	// Apply AppArmor profile.
+	p.SetApparmor(apparmor.ForkdnsProfileName(n))
 
 	err = p.Start()
 	if err != nil {
