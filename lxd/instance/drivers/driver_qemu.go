@@ -766,7 +766,7 @@ func (vm *qemu) Start(stateful bool) error {
 					return err
 				}
 
-				err = os.Chown(path, vm.state.OS.UnprivUID, -1)
+				err = os.Chown(path, int(vm.state.OS.UnprivUID), -1)
 				if err != nil {
 					op.Done(err)
 					return err
