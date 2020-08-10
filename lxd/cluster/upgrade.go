@@ -121,10 +121,18 @@ func triggerUpdate() error {
 	return nil
 }
 
-// This function assigns the Spare raft role to all cluster members that are
-// not currently part of the raft configuration. It's used for upgrading a
-// cluster from a version without roles support.
-func upgradeMembersWithoutRole(gateway *Gateway, members []db.NodeInfo, nodes []db.RaftNode) error {
+// UpgradeMembersWithoutRole assigns the Spare raft role to all cluster members
+// that are not currently part of the raft configuration. It's used for
+// upgrading a cluster from a version without roles support.
+func UpgradeMembersWithoutRole(gateway *Gateway, members []db.NodeInfo) error {
+	nodes, err := gateway.currentRaftNodes()
+	if err == ErrNotLeader {
+		return nil
+	}
+	if err != nil {
+		return errors.Wrap(err, "Failed to get current raft nodes")
+	}
+
 	// Used raft IDs.
 	ids := map[uint64]bool{}
 	for _, node := range nodes {
@@ -138,7 +146,7 @@ func upgradeMembersWithoutRole(gateway *Gateway, members []db.NodeInfo, nodes []
 	defer client.Close()
 
 	// Check that each member is present in the raft configuration, and add
-	// if not.
+	// it if not.
 	for _, member := range members {
 		found := false
 		for _, node := range nodes {

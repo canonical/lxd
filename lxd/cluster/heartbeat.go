@@ -245,15 +245,6 @@ func (g *Gateway) heartbeat(ctx context.Context, initialHeartbeat bool) {
 		return
 	}
 
-	if len(allNodes) != len(raftNodes) {
-		logger.Infof("Upgrading %d nodes not part of raft configuration", len(allNodes)-len(raftNodes))
-		err = upgradeMembersWithoutRole(g, allNodes, raftNodes)
-		if err != nil {
-			logger.Warnf("Failed upgrade raft roles: %v", err)
-			return
-		}
-	}
-
 	// Cumulative set of node states (will be written back to database once done).
 	hbState := &APIHeartbeat{}
 
