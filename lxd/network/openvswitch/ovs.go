@@ -221,6 +221,46 @@ func (o *OVS) OVNBridgeMappingAdd(bridgeName string, providerName string) error 
 	return nil
 }
 
+// OVNBridgeMappingDelete deletes an OVN bridge mapping between an OVS bridge and the logical provider name.
+func (o *OVS) OVNBridgeMappingDelete(bridgeName string, providerName string) error {
+	ovnBridgeMappingMutex.Lock()
+	defer ovnBridgeMappingMutex.Unlock()
+
+	mappings, err := o.OVNBridgeMappings(bridgeName)
+	if err != nil {
+		return err
+	}
+
+	changed := false
+	newMappings := make([]string, 0, len(mappings))
+	matchMapping := fmt.Sprintf("%s:%s", providerName, bridgeName)
+	for _, mapping := range mappings {
+		if mapping != matchMapping {
+			newMappings = append(newMappings, mapping)
+		} else {
+			changed = true
+		}
+	}
+
+	if changed {
+		if len(newMappings) < 1 {
+			// Remove mapping key in OVS database.
+			_, err = shared.RunCommand("ovs-vsctl", "remove", "open_vswitch", ".", "external-ids", "ovn-bridge-mappings")
+			if err != nil {
+				return err
+			}
+		} else {
+			// Set updated mapping string back into OVS database.
+			_, err = shared.RunCommand("ovs-vsctl", "set", "open_vswitch", ".", fmt.Sprintf("external-ids:ovn-bridge-mappings=%s", strings.Join(newMappings, ",")))
+			if err != nil {
+				return err
+			}
+		}
+	}
+
+	return nil
+}
+
 // BridgePortList returns a list of ports that are connected to the bridge.
 func (o *OVS) BridgePortList(bridgeName string) ([]string, error) {
 	// Clear existing ports that were formerly associated to ovnSwitchPortName.
