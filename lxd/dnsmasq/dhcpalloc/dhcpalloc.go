@@ -22,14 +22,8 @@ import (
 // ErrDHCPNotSupported indicates network doesn't support DHCP for this IP protocol.
 var ErrDHCPNotSupported error = errors.New("Network doesn't support DHCP")
 
-// DHCPRange represents a range of IPs from start to end.
-type DHCPRange struct {
-	Start net.IP
-	End   net.IP
-}
-
 // DHCPValidIP returns whether an IP fits inside one of the supplied DHCP ranges and subnet.
-func DHCPValidIP(subnet *net.IPNet, ranges []DHCPRange, IP net.IP) bool {
+func DHCPValidIP(subnet *net.IPNet, ranges []shared.IPRange, IP net.IP) bool {
 	inSubnet := subnet.Contains(IP)
 	if !inSubnet {
 		return false
@@ -90,8 +84,8 @@ type Network interface {
 	Config() map[string]string
 	DHCPv4Subnet() *net.IPNet
 	DHCPv6Subnet() *net.IPNet
-	DHCPv4Ranges() []DHCPRange
-	DHCPv6Ranges() []DHCPRange
+	DHCPv4Ranges() []shared.IPRange
+	DHCPv6Ranges() []shared.IPRange
 }
 
 // Options to initialise the allocator with.
@@ -203,7 +197,7 @@ func (t *Transaction) getDHCPFreeIPv4(usedIPs map[[4]byte]dnsmasq.DHCPAllocation
 
 	// If no custom ranges defined, convert subnet pool to a range.
 	if len(dhcpRanges) <= 0 {
-		dhcpRanges = append(dhcpRanges, DHCPRange{
+		dhcpRanges = append(dhcpRanges, shared.IPRange{
 			Start: GetIP(subnet, 1).To4(),
 			End:   GetIP(subnet, -2).To4()},
 		)
@@ -292,7 +286,7 @@ func (t *Transaction) getDHCPFreeIPv6(usedIPs map[[16]byte]dnsmasq.DHCPAllocatio
 
 	// If no custom ranges defined, convert subnet pool to a range.
 	if len(dhcpRanges) <= 0 {
-		dhcpRanges = append(dhcpRanges, DHCPRange{
+		dhcpRanges = append(dhcpRanges, shared.IPRange{
 			Start: GetIP(subnet, 1).To16(),
 			End:   GetIP(subnet, -1).To16()},
 		)
