@@ -148,11 +148,7 @@ func (n *bridge) Validate(config map[string]string) error {
 		"bridge.driver": func(value string) error {
 			return validate.IsOneOf(value, []string{"native", "openvswitch"})
 		},
-		"bridge.external_interfaces": func(value string) error {
-			if value == "" {
-				return nil
-			}
-
+		"bridge.external_interfaces": validate.Optional(func(value string) error {
 			for _, entry := range strings.Split(value, ",") {
 				entry = strings.TrimSpace(entry)
 				if err := validInterfaceName(entry); err != nil {
@@ -161,7 +157,7 @@ func (n *bridge) Validate(config map[string]string) error {
 			}
 
 			return nil
-		},
+		}),
 		"bridge.hwaddr": validate.Optional(validate.IsNetworkMAC),
 		"bridge.mtu":    validate.Optional(validate.IsInt64),
 		"bridge.mode": func(value string) error {
