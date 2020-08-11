@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/lxc/lxd/lxd/cgroup"
 	"github.com/lxc/lxd/lxd/project"
 	"github.com/lxc/lxd/lxd/state"
 	"github.com/lxc/lxd/shared"
@@ -159,7 +160,8 @@ func instanceProfile(state *state.State, inst instance) (string, error) {
 	var sb *strings.Builder = &strings.Builder{}
 	err = lxcProfileTpl.Execute(sb, map[string]interface{}{
 		"feature_unix":     unixSupported,
-		"feature_cgns":     shared.PathExists("/proc/self/ns/cgroup"),
+		"feature_cgns":     state.OS.CGInfo.Namespacing,
+		"feature_cgroup2":  state.OS.CGInfo.Layout == cgroup.CgroupsUnified || state.OS.CGInfo.Layout == cgroup.CgroupsHybrid,
 		"feature_stacking": state.OS.AppArmorStacking && !state.OS.AppArmorStacked,
 		"namespace":        InstanceNamespaceName(inst),
 		"nesting":          inst.IsNesting(),
