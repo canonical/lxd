@@ -195,6 +195,7 @@ func (n *bridge) Validate(config map[string]string) error {
 		"ipv4.dhcp.ranges":  validate.Optional(validate.IsNetworkRangeV4List),
 		"ipv4.routes":       validate.Optional(validate.IsNetworkV4List),
 		"ipv4.routing":      validate.Optional(validate.IsBool),
+		"ipv4.ovn.ranges":   validate.Optional(validate.IsNetworkRangeV4List),
 
 		"ipv6.address": func(value string) error {
 			if validate.IsOneOf(value, []string{"none", "auto"}) == nil {
@@ -215,6 +216,7 @@ func (n *bridge) Validate(config map[string]string) error {
 		"ipv6.dhcp.ranges":   validate.Optional(validate.IsNetworkRangeV6List),
 		"ipv6.routes":        validate.Optional(validate.IsNetworkV6List),
 		"ipv6.routing":       validate.Optional(validate.IsBool),
+		"ipv6.ovn.ranges":    validate.Optional(validate.IsNetworkRangeV6List),
 
 		"dns.domain": validate.IsAny,
 		"dns.search": validate.IsAny,
@@ -330,6 +332,44 @@ func (n *bridge) Validate(config map[string]string) error {
 	// Check using same MAC address on every cluster node is safe.
 	if config["bridge.hwaddr"] != "" {
 		err = n.checkClusterWideMACSafe(config)
+		if err != nil {
+			return err
+		}
+	}
+
+	// Check IPv4 OVN ranges.
+	if config["ipv4.ovn.ranges"] != "" {
+		dhcpSubnet := n.DHCPv4Subnet()
+		allowedNets := []*net.IPNet{}
+
+		if dhcpSubnet != nil {
+			if config["ipv4.dhcp.ranges"] == "" {
+				return fmt.Errorf(`"ipv4.ovn.ranges" must be used in conjunction with non-overlapping "ipv4.dhcp.ranges" when DHCPv4 is enabled`)
+			}
+
+			allowedNets = append(allowedNets, dhcpSubnet)
+		}
+
+		_, err := parseIPRanges(config["ipv4.ovn.ranges"], allowedNets...)
+		if err != nil {
+			return err
+		}
+	}
+
+	// Check IPv6 OVN ranges.
+	if config["ipv6.ovn.ranges"] != "" {
+		dhcpSubnet := n.DHCPv6Subnet()
+		allowedNets := []*net.IPNet{}
+
+		if dhcpSubnet != nil {
+			if config["ipv6.dhcp.ranges"] == "" && shared.IsTrue(config["ipv6.dhcp.stateful"]) {
+				return fmt.Errorf(`"ipv6.ovn.ranges" must be used in conjunction with non-overlapping "ipv6.dhcp.ranges" when stateful DHCPv6 is enabled`)
+			}
+
+			allowedNets = append(allowedNets, dhcpSubnet)
+		}
+
+		_, err := parseIPRanges(config["ipv6.ovn.ranges"], allowedNets...)
 		if err != nil {
 			return err
 		}
