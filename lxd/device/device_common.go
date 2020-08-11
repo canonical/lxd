@@ -6,10 +6,14 @@ import (
 	deviceConfig "github.com/lxc/lxd/lxd/device/config"
 	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/state"
+	log "github.com/lxc/lxd/shared/log15"
+	"github.com/lxc/lxd/shared/logger"
+	"github.com/lxc/lxd/shared/logging"
 )
 
 // deviceCommon represents the common struct for all devices.
 type deviceCommon struct {
+	logger      logger.Logger
 	inst        instance.Instance
 	name        string
 	config      deviceConfig.Device
@@ -23,6 +27,13 @@ type deviceCommon struct {
 // persistent data to be accessed. This is implemented as part of deviceCommon so that the majority
 // of devices don't need to implement it and can just embed deviceCommon.
 func (d *deviceCommon) init(inst instance.Instance, state *state.State, name string, conf deviceConfig.Device, volatileGet VolatileGetter, volatileSet VolatileSetter) {
+	logCtx := log.Ctx{"driver": conf["type"], "device": name}
+	if inst != nil {
+		logCtx["project"] = inst.Project()
+		logCtx["instance"] = inst.Name()
+	}
+
+	d.logger = logging.AddContext(logger.Log, logCtx)
 	d.inst = inst
 	d.name = name
 	d.config = conf
