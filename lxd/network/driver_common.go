@@ -11,7 +11,6 @@ import (
 	lxd "github.com/lxc/lxd/client"
 	"github.com/lxc/lxd/lxd/cluster"
 	"github.com/lxc/lxd/lxd/db"
-	"github.com/lxc/lxd/lxd/dnsmasq/dhcpalloc"
 	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/state"
 	"github.com/lxc/lxd/shared"
@@ -183,15 +182,15 @@ func (n *common) DHCPv6Subnet() *net.IPNet {
 }
 
 // DHCPv4Ranges returns a parsed set of DHCPv4 ranges for this network.
-func (n *common) DHCPv4Ranges() []dhcpalloc.DHCPRange {
-	dhcpRanges := make([]dhcpalloc.DHCPRange, 0)
+func (n *common) DHCPv4Ranges() []shared.IPRange {
+	dhcpRanges := make([]shared.IPRange, 0)
 	if n.config["ipv4.dhcp.ranges"] != "" {
 		for _, r := range strings.Split(n.config["ipv4.dhcp.ranges"], ",") {
 			parts := strings.SplitN(strings.TrimSpace(r), "-", 2)
 			if len(parts) == 2 {
 				startIP := net.ParseIP(parts[0])
 				endIP := net.ParseIP(parts[1])
-				dhcpRanges = append(dhcpRanges, dhcpalloc.DHCPRange{
+				dhcpRanges = append(dhcpRanges, shared.IPRange{
 					Start: startIP.To4(),
 					End:   endIP.To4(),
 				})
@@ -203,15 +202,15 @@ func (n *common) DHCPv4Ranges() []dhcpalloc.DHCPRange {
 }
 
 // DHCPv6Ranges returns a parsed set of DHCPv6 ranges for this network.
-func (n *common) DHCPv6Ranges() []dhcpalloc.DHCPRange {
-	dhcpRanges := make([]dhcpalloc.DHCPRange, 0)
+func (n *common) DHCPv6Ranges() []shared.IPRange {
+	dhcpRanges := make([]shared.IPRange, 0)
 	if n.config["ipv6.dhcp.ranges"] != "" {
 		for _, r := range strings.Split(n.config["ipv6.dhcp.ranges"], ",") {
 			parts := strings.SplitN(strings.TrimSpace(r), "-", 2)
 			if len(parts) == 2 {
 				startIP := net.ParseIP(parts[0])
 				endIP := net.ParseIP(parts[1])
-				dhcpRanges = append(dhcpRanges, dhcpalloc.DHCPRange{
+				dhcpRanges = append(dhcpRanges, shared.IPRange{
 					Start: startIP.To16(),
 					End:   endIP.To16(),
 				})
