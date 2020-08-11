@@ -837,8 +837,8 @@ func (d *ceph) SetVolumeQuota(vol Volume, size string, op *operations.Operation)
 		return errors.Wrapf(err, "Error getting current size")
 	}
 
-	// Do nothing is volume is already specified size.
-	if oldSizeBytes == sizeBytes {
+	// Do nothing if volume is already specified size (+/- 512 bytes).
+	if oldSizeBytes+512 > sizeBytes && oldSizeBytes-512 < sizeBytes {
 		return nil
 	}
 
