@@ -313,6 +313,64 @@ func IsNetworkV6List(value string) error {
 	return nil
 }
 
+// IsNetworkRangeV4 validates an IPv4 range in the format "start-end".
+func IsNetworkRangeV4(value string) error {
+	ips := strings.SplitN(value, "-", 2)
+	if len(ips) != 2 {
+		return fmt.Errorf("IP range must contain start and end IP addresses")
+	}
+
+	for _, ip := range ips {
+		err := IsNetworkAddressV4(ip)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// IsNetworkRangeV4List validates a comma delimited list of IPv4 ranges.
+func IsNetworkRangeV4List(value string) error {
+	for _, ipRange := range strings.Split(value, ",") {
+		err := IsNetworkRangeV4(strings.TrimSpace(ipRange))
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// IsNetworkRangeV6 validates an IPv6 range in the format "start-end".
+func IsNetworkRangeV6(value string) error {
+	ips := strings.SplitN(value, "-", 2)
+	if len(ips) != 2 {
+		return fmt.Errorf("IP range must contain start and end IP addresses")
+	}
+
+	for _, ip := range ips {
+		err := IsNetworkAddressV6(ip)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// IsNetworkRangeV6List validates a comma delimited list of IPv6 ranges.
+func IsNetworkRangeV6List(value string) error {
+	for _, ipRange := range strings.Split(value, ",") {
+		err := IsNetworkRangeV6(strings.TrimSpace(ipRange))
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
 // IsNetworkVLAN validates a VLAN ID.
 func IsNetworkVLAN(value string) error {
 	vlanID, err := strconv.Atoi(value)

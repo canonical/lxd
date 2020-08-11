@@ -148,11 +148,7 @@ func (n *bridge) Validate(config map[string]string) error {
 		"bridge.driver": func(value string) error {
 			return validate.IsOneOf(value, []string{"native", "openvswitch"})
 		},
-		"bridge.external_interfaces": func(value string) error {
-			if value == "" {
-				return nil
-			}
-
+		"bridge.external_interfaces": validate.Optional(func(value string) error {
 			for _, entry := range strings.Split(value, ",") {
 				entry = strings.TrimSpace(entry)
 				if err := validInterfaceName(entry); err != nil {
@@ -161,7 +157,7 @@ func (n *bridge) Validate(config map[string]string) error {
 			}
 
 			return nil
-		},
+		}),
 		"bridge.hwaddr": validate.Optional(validate.IsNetworkMAC),
 		"bridge.mtu":    validate.Optional(validate.IsInt64),
 		"bridge.mode": func(value string) error {
@@ -196,7 +192,7 @@ func (n *bridge) Validate(config map[string]string) error {
 		"ipv4.dhcp":         validate.Optional(validate.IsBool),
 		"ipv4.dhcp.gateway": validate.Optional(validate.IsNetworkAddressV4),
 		"ipv4.dhcp.expiry":  validate.IsAny,
-		"ipv4.dhcp.ranges":  validate.IsAny,
+		"ipv4.dhcp.ranges":  validate.Optional(validate.IsNetworkRangeV4List),
 		"ipv4.routes":       validate.Optional(validate.IsNetworkV4List),
 		"ipv4.routing":      validate.Optional(validate.IsBool),
 
@@ -216,7 +212,7 @@ func (n *bridge) Validate(config map[string]string) error {
 		"ipv6.dhcp":          validate.Optional(validate.IsBool),
 		"ipv6.dhcp.expiry":   validate.IsAny,
 		"ipv6.dhcp.stateful": validate.Optional(validate.IsBool),
-		"ipv6.dhcp.ranges":   validate.IsAny,
+		"ipv6.dhcp.ranges":   validate.Optional(validate.IsNetworkRangeV6List),
 		"ipv6.routes":        validate.Optional(validate.IsNetworkV6List),
 		"ipv6.routing":       validate.Optional(validate.IsBool),
 
