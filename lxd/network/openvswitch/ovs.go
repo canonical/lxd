@@ -220,3 +220,23 @@ func (o *OVS) OVNBridgeMappingAdd(bridgeName string, providerName string) error 
 
 	return nil
 }
+
+// BridgePortList returns a list of ports that are connected to the bridge.
+func (o *OVS) BridgePortList(bridgeName string) ([]string, error) {
+	// Clear existing ports that were formerly associated to ovnSwitchPortName.
+	portString, err := shared.RunCommand("ovs-vsctl", "list-ports", bridgeName)
+	if err != nil {
+		return nil, err
+	}
+
+	ports := []string{}
+
+	portString = strings.TrimSpace(portString)
+	if portString != "" {
+		for _, port := range strings.Split(portString, "\n") {
+			ports = append(ports, strings.TrimSpace(port))
+		}
+	}
+
+	return ports, nil
+}
