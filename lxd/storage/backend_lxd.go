@@ -210,14 +210,24 @@ func (b *lxdBackend) Delete(localOnly bool, op *operations.Operation) error {
 	defer logger.Debug("Delete finished")
 
 	// If completely gone, just return
-	if !shared.PathExists(shared.VarPath("storage-pools", b.name)) {
+	path := shared.VarPath("storage-pools", b.name)
+	if !shared.PathExists(path) {
 		return nil
 	}
 
-	if localOnly && b.driver.Info().Remote && b.driver.Info().MountedRoot {
-		_, err := b.driver.Unmount()
-		if err != nil {
-			return err
+	if localOnly && b.driver.Info().Remote {
+		if b.driver.Info().MountedRoot {
+			_, err := b.driver.Unmount()
+			if err != nil {
+				return err
+			}
+		} else {
+			// Remote storage may have leftover entries caused by
+			// volumes that were moved or delete while a particular system was offline.
+			err := os.RemoveAll(path)
+			if err != nil {
+				return err
+			}
 		}
 	} else {
 		// Delete the low-level storage.
@@ -228,9 +238,8 @@ func (b *lxdBackend) Delete(localOnly bool, op *operations.Operation) error {
 	}
 
 	// Delete the mountpoint.
-	path := shared.VarPath("storage-pools", b.name)
 	err := os.Remove(path)
-	if err != nil {
+	if err != nil && !os.IsNotExist(err) {
 		return errors.Wrapf(err, "Failed to remove directory '%s'", path)
 	}
 
