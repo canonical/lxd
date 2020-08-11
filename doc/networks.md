@@ -246,3 +246,50 @@ mtu                             | integer   | -                     | -         
 vlan                            | integer   | -                     | -                         | The VLAN ID to attach to
 maas.subnet.ipv4                | string    | ipv4 address          | -                         | MAAS IPv4 subnet to register instances in (when using `network` property on nic)
 maas.subnet.ipv6                | string    | ipv6 address          | -                         | MAAS IPv6 subnet to register instances in (when using `network` property on nic)
+
+## network: ovn
+
+The ovn network type allows the creation of logical networks using the OVN SDN. This can be useful for labs and
+multi-tenant environments where the same logical subnets are used in multiple discrete networks.
+
+A LXD OVN network can be connected to an existing managed LXD bridge network in order for it to gain outbound
+access to the wider network. All connections from the OVN logical networks are NATed to a dynamic IP allocated by
+the parent network.
+
+### Standalone LXD OVN setup
+
+This will create a standalone OVN network that is connected to the parent network lxdbr0 for outbound connectivity.
+
+Install the OVN tools and configure the OVN integration bridge on the local node:
+
+```
+apt install ovn-host ovn-central
+ovs-vsctl set open_vswitch . \
+  external_ids:ovn-remote=unix:/var/run/ovn/ovnsb_db.sock \
+  external_ids:ovn-encap-type=geneve \
+  external_ids:ovn-encap-ip=n.n.n.n \ # The IP of your LXD host on the LAN
+```
+
+Create an OVN network and an instance using it:
+
+```
+lxc network create ovntest --type=ovn parent=lxdbr0
+lxc init images:ubuntu/focal c1
+lxc config device override c1 eth0 network=ovntest
+lxc start c1
+lxc ls
++------+---------+---------------------+----------------------------------------------+-----------+-----------+
+| NAME |  STATE  |        IPV4         |                     IPV6                     |   TYPE    | SNAPSHOTS |
++------+---------+---------------------+----------------------------------------------+-----------+-----------+
+| c1   | RUNNING | 10.254.118.2 (eth0) | fd42:887:cff3:5089:216:3eff:fef0:549f (eth0) | CONTAINER | 0         |
++------+---------+---------------------+----------------------------------------------+-----------+-----------+
+```
+
+Key                             | Type      | Condition             | Default                   | Description
+:--                             | :--       | :--                   | :--                       | :--
+parent                          | string    | -                     | -                         | Parent network to use for outbound external network access
+bridge.hwaddr                   | string    | -                     | -                         | MAC address for the bridge
+dns.domain                      | string    | -                     | lxd                       | Domain to advertise to DHCP clients and use for DNS resolution
+dns.search                      | string    | -                     | -                         | Full comma separated domain search list, defaulting to `dns.domain` value
+ipv4.address                    | string    | standard mode         | random unused subnet      | IPv4 address for the bridge (CIDR notation). Use "none" to turn off IPv4 or "auto" to generate a new one
+ipv6.address                    | string    | standard mode         | random unused subnet      | IPv6 address for the bridge (CIDR notation). Use "none" to turn off IPv6 or "auto" to generate a new one
