@@ -278,10 +278,10 @@ static int handle_bpf_syscall(int notify_fd, int mem_fd, struct seccomp_notify_p
 	__do_close int pidfd = -EBADF, bpf_target_fd = -EBADF, bpf_attach_fd = -EBADF,
 		       bpf_prog_fd = -EBADF;
 	__do_free struct bpf_insn *insn = NULL;
-	char log_buf[4096];
-	char license[128];
-	size_t insn_size;
-	union bpf_attr attr = {}, new_attr;
+	char log_buf[4096] = {};
+	char license[128] = {};
+	size_t insn_size = 0;
+	union bpf_attr attr = {}, new_attr = {};
 	unsigned int attr_len = sizeof(attr);
 	struct seccomp_notif_addfd addfd = {};
 	int ret;
