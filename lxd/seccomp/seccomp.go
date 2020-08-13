@@ -870,21 +870,8 @@ func (siov *Iovec) PutSeccompIovec() {
 	C.free(unsafe.Pointer(siov.iov))
 }
 
-// ReceiveSeccompIovecV1 receives a v1 seccomp iovec.
-func (siov *Iovec) ReceiveSeccompIovecV1(fd int) (uint64, error) {
-	bytes, fds, err := netutils.AbstractUnixReceiveFdData(fd, 2, unsafe.Pointer(siov.iov), 4)
-	if err != nil || err == io.EOF {
-		return 0, err
-	}
-
-	siov.procFd = int(fds[0])
-	siov.memFd = int(fds[1])
-
-	return bytes, nil
-}
-
-// ReceiveSeccompIovecV2 receives a v2 seccomp iovec.
-func (siov *Iovec) ReceiveSeccompIovecV2(fd int) (uint64, error) {
+// ReceiveSeccompIovec receives a seccomp iovec.
+func (siov *Iovec) ReceiveSeccompIovec(fd int) (uint64, error) {
 	bytes, fds, err := netutils.AbstractUnixReceiveFdData(fd, 3, unsafe.Pointer(siov.iov), 4)
 	if err != nil || err == io.EOF {
 		return 0, err
@@ -893,6 +880,7 @@ func (siov *Iovec) ReceiveSeccompIovecV2(fd int) (uint64, error) {
 	siov.procFd = int(fds[0])
 	siov.memFd = int(fds[1])
 	siov.notifyFd = int(fds[2])
+	logger.Debugf("Syscall handler received fds %d(/proc/<pid>), %d(/proc/<pid>/mem), and %d([seccomp notify])", siov.procFd, siov.memFd, siov.notifyFd)
 
 	return bytes, nil
 }
@@ -1008,19 +996,13 @@ func NewSeccompServer(s *state.State, path string, findPID func(pid int32, state
 
 				unixFile, err := c.(*net.UnixConn).File()
 				if err != nil {
+					logger.Debugf("Failed to turn unix socket client into file")
 					return
 				}
 
 				for {
-					var bytes uint64
-					var err error
-
 					siov := NewSeccompIovec(ucred)
-					if lxcSupportSeccompV2(server.s) {
-						bytes, err = siov.ReceiveSeccompIovecV2(int(unixFile.Fd()))
-					} else {
-						bytes, err = siov.ReceiveSeccompIovecV1(int(unixFile.Fd()))
-					}
+					bytes, err := siov.ReceiveSeccompIovec(int(unixFile.Fd()))
 					if err != nil {
 						logger.Debugf("Disconnected from seccomp socket after failed receive: pid=%v, err=%s", ucred.Pid, err)
 						c.Close()
@@ -1899,19 +1881,6 @@ func (s *Server) HandleValid(fd int, siov *Iovec, findPID func(pid int32, state 
 func (s *Server) Stop() error {
 	os.Remove(s.path)
 	return s.l.Close()
-}
-
-func lxcSupportSeccompV2(state *state.State) bool {
-	err := lxcSupportSeccompNotify(state)
-	if err != nil {
-		return false
-	}
-
-	if !state.OS.LXCFeatures["seccomp_proxy_send_notify_fd"] {
-		return false
-	}
-
-	return true
 }
 
 func lxcSupportSeccompNotifyContinue(state *state.State) error {

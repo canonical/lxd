@@ -584,7 +584,6 @@ func canUseShiftfs() bool {
 
 	err = unix.Mount(shared.VarPath(), shared.VarPath(), "shiftfs", 0, "mark")
 	if err != nil {
-		logger.Debugf("%s - Failed to mount shiftfs", err)
 		return false
 	}
 
