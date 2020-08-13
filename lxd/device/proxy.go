@@ -2,9 +2,7 @@ package device
 
 import (
 	"bufio"
-	"bytes"
 	"fmt"
-	"io/ioutil"
 	"net"
 	"os"
 	"path/filepath"
@@ -13,7 +11,6 @@ import (
 	"time"
 
 	"github.com/pkg/errors"
-	"golang.org/x/sys/unix"
 	liblxc "gopkg.in/lxc/go-lxc.v2"
 
 	deviceConfig "github.com/lxc/lxd/lxd/device/config"
@@ -24,6 +21,7 @@ import (
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/logger"
+	"github.com/lxc/lxd/shared/subprocess"
 	"github.com/lxc/lxd/shared/validate"
 )
 
@@ -195,10 +193,9 @@ func (d *proxy) Start() (*deviceConfig.RunConfig, error) {
 			logFileName := fmt.Sprintf("proxy.%s.log", d.name)
 			logPath := filepath.Join(d.inst.LogPath(), logFileName)
 
-			_, err = shared.RunCommandInheritFds(
-				proxyValues.inheritFds,
-				d.state.OS.ExecPath,
-				"forkproxy",
+			// Spawn the daemon using subprocess
+			command := d.state.OS.ExecPath
+			forkproxyargs := []string{"forkproxy",
 				"--",
 				proxyValues.listenPid,
 				proxyValues.listenPidFd,
@@ -206,28 +203,43 @@ func (d *proxy) Start() (*deviceConfig.RunConfig, error) {
 				proxyValues.connectPid,
 				proxyValues.connectPidFd,
 				proxyValues.connectAddr,
-				logPath,
-				pidPath,
 				proxyValues.listenAddrGID,
 				proxyValues.listenAddrUID,
 				proxyValues.listenAddrMode,
 				proxyValues.securityGID,
 				proxyValues.securityUID,
 				proxyValues.proxyProtocol,
-			)
+			}
+
+			p, err := subprocess.NewProcess(command, forkproxyargs, logPath, logPath)
+			if err != nil {
+				return fmt.Errorf("Failed to create subprocess: %s", err)
+			}
+
+			err = p.StartWithFiles(proxyValues.inheritFds)
+			if err != nil {
+				return fmt.Errorf("Failed to run: %s %s: %v", command, strings.Join(forkproxyargs, " "), err)
+			}
 			for _, file := range proxyValues.inheritFds {
 				file.Close()
 			}
 
+			err = p.Save(pidPath)
 			if err != nil {
-				return fmt.Errorf("Error occurred when starting proxy device: %s", err)
+				// Kill Process if started, but could not save the file
+				err2 := p.Stop()
+				if err != nil {
+					return fmt.Errorf("Could not kill subprocess while handling saving error: %s: %s", err, err2)
+				}
+
+				return fmt.Errorf("Failed to save subprocess details: %s", err)
 			}
 
 			// Poll log file a few times until we see "Started" to indicate successful start.
 			for i := 0; i < 10; i++ {
 				started, err := d.checkProcStarted(logPath)
-
 				if err != nil {
+					p.Stop()
 					return fmt.Errorf("Error occurred when starting proxy device: %s", err)
 				}
 
@@ -238,6 +250,7 @@ func (d *proxy) Start() (*deviceConfig.RunConfig, error) {
 				time.Sleep(time.Second)
 			}
 
+			p.Stop()
 			return fmt.Errorf("Error occurred when starting proxy device, please look in %s", logPath)
 		},
 	}
@@ -514,45 +527,21 @@ func (d *proxy) setupProxyProcInfo() (*proxyProcInfo, error) {
 }
 
 func (d *proxy) killProxyProc(pidPath string) error {
-	// Get the contents of the pid file
-	contents, err := ioutil.ReadFile(pidPath)
-	if err != nil {
-		return err
-	}
-	pidString := strings.TrimSpace(string(contents))
-
-	// Check if the process still exists
-	if !shared.PathExists(fmt.Sprintf("/proc/%s", pidString)) {
-		os.Remove(pidPath)
+	// If the pid file doesn't exist, there is no process to kill.
+	if !shared.PathExists(pidPath) {
 		return nil
 	}
 
-	// Check if it's forkdns
-	cmdArgs, err := ioutil.ReadFile(fmt.Sprintf("/proc/%s/cmdline", pidString))
+	p, err := subprocess.ImportProcess(pidPath)
 	if err != nil {
-		os.Remove(pidPath)
-		return nil
+		return fmt.Errorf("Could not read pid file: %s", err)
 	}
 
-	cmdFields := strings.Split(string(bytes.TrimRight(cmdArgs, string("\x00"))), string(byte(0)))
-	if len(cmdFields) < 5 || cmdFields[1] != "forkproxy" {
-		os.Remove(pidPath)
-		return nil
+	err = p.Stop()
+	if err != nil && err != subprocess.ErrNotRunning {
+		return fmt.Errorf("Unable to kill forkproxy: %s", err)
 	}
 
-	// Parse the pid
-	pidInt, err := strconv.Atoi(pidString)
-	if err != nil {
-		return err
-	}
-
-	// Actually kill the process
-	err = unix.Kill(pidInt, unix.SIGKILL)
-	if err != nil {
-		return err
-	}
-
-	// Cleanup
 	os.Remove(pidPath)
 	return nil
 }
