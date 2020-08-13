@@ -91,7 +91,7 @@ func isInUseByDevices(s *state.State, devices deviceConfig.Devices, networkName 
 			return false, err
 		}
 
-		if !shared.StringInSlice(nicType, []string{"bridged", "macvlan", "ipvlan", "physical", "sriov"}) {
+		if !shared.StringInSlice(nicType, []string{"bridged", "macvlan", "ipvlan", "physical", "sriov", "ovn"}) {
 			continue
 		}
 
@@ -865,4 +865,137 @@ func randomHwaddr(r *rand.Rand) string {
 	}
 
 	return ret.String()
+}
+
+// OVNInstanceDevicePortAdd adds a logical port to the OVN network's internal switch and returns the logical
+// port name for use linking an OVS port on the integration bridge to the logical switch port.
+func OVNInstanceDevicePortAdd(network Network, instanceID int, deviceName string, mac net.HardwareAddr, ips []net.IP) (openvswitch.OVNSwitchPort, error) {
+	// Check network is of type OVN.
+	n, ok := network.(*ovn)
+	if !ok {
+		return "", fmt.Errorf("Network is not OVN type")
+	}
+
+	return n.instanceDevicePortAdd(instanceID, deviceName, mac, ips)
+}
+
+// OVNInstanceDevicePortDelete deletes a logical port from the OVN network's internal switch.
+func OVNInstanceDevicePortDelete(network Network, instanceID int, deviceName string) error {
+	// Check network is of type OVN.
+	n, ok := network.(*ovn)
+	if !ok {
+		return fmt.Errorf("Network is not OVN type")
+	}
+
+	return n.instanceDevicePortDelete(instanceID, deviceName)
+}
+
+// parseIPRange parses an IP range in the format "start-end" and converts it to a shared.IPRange.
+// If allowedNets are supplied, then each IP in the range is checked that it belongs to at least one of them.
+// IPs in the range can be zero prefixed, e.g. "::1" or "0.0.0.1", however they should not overlap with any
+// supplied allowedNets prefixes. If they are within an allowed network, any zero prefixed addresses are
+// returned combined with the first allowed network they are within.
+// If no allowedNets supplied they are returned as-is.
+func parseIPRange(ipRange string, allowedNets ...*net.IPNet) (*shared.IPRange, error) {
+	inAllowedNet := func(ip net.IP, allowedNet *net.IPNet) net.IP {
+		if ip == nil {
+			return nil
+		}
+
+		ipv4 := ip.To4()
+
+		// Only match IPv6 addresses against IPv6 networks.
+		if ipv4 == nil && allowedNet.IP.To4() != nil {
+			return nil
+		}
+
+		// Combine IP with network prefix if IP starts with a zero.
+		// If IP is v4, then compare against 4-byte representation, otherwise use 16 byte representation.
+		if (ipv4 != nil && ipv4[0] == 0) || (ipv4 == nil && ip[0] == 0) {
+			allowedNet16 := allowedNet.IP.To16()
+			ipCombined := make(net.IP, net.IPv6len)
+			for i, b := range ip {
+				ipCombined[i] = allowedNet16[i] | b
+			}
+
+			ip = ipCombined
+		}
+
+		// Check start IP is within one of the allowed networks.
+		if !allowedNet.Contains(ip) {
+			return nil
+		}
+
+		return ip
+	}
+
+	rangeParts := strings.SplitN(ipRange, "-", 2)
+	if len(rangeParts) != 2 {
+		return nil, fmt.Errorf("IP range %q must contain start and end IP addresses", ipRange)
+	}
+
+	startIP := net.ParseIP(rangeParts[0])
+	endIP := net.ParseIP(rangeParts[1])
+
+	if startIP == nil {
+		return nil, fmt.Errorf("Start IP %q is invalid", rangeParts[0])
+	}
+
+	if endIP == nil {
+		return nil, fmt.Errorf("End IP %q is invalid", rangeParts[0])
+	}
+
+	if bytes.Compare(startIP, endIP) > 0 {
+		return nil, fmt.Errorf("Start IP %q must be less than End IP %q", startIP, endIP)
+	}
+
+	if len(allowedNets) > 0 {
+		matchFound := false
+		for _, allowedNet := range allowedNets {
+			if allowedNet == nil {
+				return nil, fmt.Errorf("Invalid allowed network")
+			}
+
+			combinedStartIP := inAllowedNet(startIP, allowedNet)
+			if combinedStartIP == nil {
+				continue
+			}
+
+			combinedEndIP := inAllowedNet(endIP, allowedNet)
+			if combinedEndIP == nil {
+				continue
+			}
+
+			// If both match then replace parsed IPs with combined IPs and stop searching.
+			matchFound = true
+			startIP = combinedStartIP
+			endIP = combinedEndIP
+			break
+		}
+
+		if !matchFound {
+			return nil, fmt.Errorf("IP range %q does not fall within any of the allowed networks %v", ipRange, allowedNets)
+		}
+	}
+
+	return &shared.IPRange{
+		Start: startIP,
+		End:   endIP,
+	}, nil
+}
+
+// parseIPRanges parses a comma separated list of IP ranges using parseIPRange.
+func parseIPRanges(ipRangesList string, allowedNets ...*net.IPNet) ([]*shared.IPRange, error) {
+	ipRanges := strings.Split(ipRangesList, ",")
+	netIPRanges := make([]*shared.IPRange, 0, len(ipRanges))
+	for _, ipRange := range ipRanges {
+		netIPRange, err := parseIPRange(strings.TrimSpace(ipRange), allowedNets...)
+		if err != nil {
+			return nil, err
+		}
+
+		netIPRanges = append(netIPRanges, netIPRange)
+	}
+
+	return netIPRanges, nil
 }

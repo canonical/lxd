@@ -223,6 +223,7 @@ var APIExtensions = []string{
 	"network_type_macvlan",
 	"network_type_sriov",
 	"container_syscall_intercept_bpf_devices",
+	"network_type_ovn",
 }
 
 // APIExtensionsCount returns the number of available API extensions.
