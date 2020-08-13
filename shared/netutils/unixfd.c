@@ -64,6 +64,8 @@ ssize_t lxc_abstract_unix_recv_fds_iov(int fd, int *recvfds, int num_recvfds,
 				       struct iovec *iov, size_t iovlen)
 {
 	__do_free char *cmsgbuf = NULL;
+	int new_fds[253]; /* Maximum number of supported fds to be sent in one message is 253. */
+	size_t num_new_fds = 0;
 	ssize_t ret;
 	struct msghdr msg = { 0 };
 	struct cmsghdr *cmsg = NULL;
@@ -95,14 +97,33 @@ again:
 
 	// If SO_PASSCRED is set we will always get a ucred message.
 	for (cmsg = CMSG_FIRSTHDR(&msg); cmsg; cmsg = CMSG_NXTHDR(&msg, cmsg)) {
-		if (cmsg->cmsg_type != SCM_RIGHTS)
-			continue;
+                if (cmsg->cmsg_level == SOL_SOCKET && cmsg->cmsg_type == SCM_RIGHTS) {
+			num_new_fds = (cmsg->cmsg_len - CMSG_LEN(0)) / sizeof(int);
 
-		memset(recvfds, -1, num_recvfds * sizeof(int));
-		if (cmsg &&
-		    cmsg->cmsg_len == CMSG_LEN(num_recvfds * sizeof(int)) &&
-		    cmsg->cmsg_level == SOL_SOCKET)
-			memcpy(recvfds, CMSG_DATA(cmsg), num_recvfds * sizeof(int));
+			/*
+			 * We received an insane amount of file descriptors
+			 * which exceeds the kernel limit we know about so
+			 * close them and return an error.
+			 */
+			if (num_new_fds > 253) {
+				int *fd_ptr = (int *)CMSG_DATA(cmsg);
+				for (size_t i = 0; i < num_new_fds; i++)
+					close(fd_ptr[i]);
+				return -EFBIG;
+			}
+
+			if (num_recvfds > num_new_fds) {
+				for (int i = num_new_fds; i < num_recvfds; i++)
+					recvfds[i] = -EBADF;
+				num_recvfds = num_new_fds;
+			}
+
+			memcpy(new_fds, CMSG_DATA(cmsg), num_new_fds * sizeof(int));
+			for (int i = num_recvfds; i < num_new_fds; i++)
+				close(new_fds[i]);
+
+			memcpy(recvfds, new_fds, num_recvfds * sizeof(int));
+		}
 		break;
 	}
 
