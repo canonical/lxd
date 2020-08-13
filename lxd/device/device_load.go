@@ -40,6 +40,8 @@ func load(inst instance.Instance, state *state.State, name string, conf deviceCo
 			dev = &nicMACVLAN{}
 		case "sriov":
 			dev = &nicSRIOV{}
+		case "ovn":
+			dev = &nicOVN{}
 		}
 	case "infiniband":
 		switch nicType {

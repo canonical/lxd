@@ -68,8 +68,8 @@ bridge.hwaddr                   | string    | -                     | -         
 bridge.mode                     | string    | -                     | standard                  | Bridge operation mode ("standard" or "fan")
 bridge.mtu                      | integer   | -                     | 1500                      | Bridge MTU (default varies if tunnel or fan setup)
 dns.domain                      | string    | -                     | lxd                       | Domain to advertise to DHCP clients and use for DNS resolution
-dns.search                      | string    | -                     | -                         | Full comma separated domain search list, defaulting to `dns.domain` value
 dns.mode                        | string    | -                     | managed                   | DNS registration mode ("none" for no DNS record, "managed" for LXD generated static records or "dynamic" for client generated records)
+dns.search                      | string    | -                     | -                         | Full comma separated domain search list, defaulting to `dns.domain` value
 fan.overlay\_subnet             | string    | fan mode              | 240.0.0.0/8               | Subnet to use as the overlay for the FAN (CIDR notation)
 fan.type                        | string    | fan mode              | vxlan                     | The tunneling type for the FAN ("vxlan" or "ipip")
 fan.underlay\_subnet            | string    | fan mode              | default gateway subnet    | Subnet to use as the underlay for the FAN (CIDR notation)
@@ -79,9 +79,10 @@ ipv4.dhcp.expiry                | string    | ipv4 dhcp             | 1h        
 ipv4.dhcp.gateway               | string    | ipv4 dhcp             | ipv4.address              | Address of the gateway for the subnet
 ipv4.dhcp.ranges                | string    | ipv4 dhcp             | all addresses             | Comma separated list of IP ranges to use for DHCP (FIRST-LAST format)
 ipv4.firewall                   | boolean   | ipv4 address          | true                      | Whether to generate filtering firewall rules for this network
+ipv4.nat.address                | string    | ipv4 address          | -                         | The source address used for outbound traffic from the bridge
 ipv4.nat                        | boolean   | ipv4 address          | false                     | Whether to NAT (will default to true if unset and a random ipv4.address is generated)
 ipv4.nat.order                  | string    | ipv4 address          | before                    | Whether to add the required NAT rules before or after any pre-existing rules
-ipv4.nat.address                | string    | ipv4 address          | -                         | The source address used for outbound traffic from the bridge
+ipv4.ovn.ranges                 | string    | -                     | none                      | Comma separate list of IPv4 ranges to use for child OVN networks (FIRST-LAST format)
 ipv4.routes                     | string    | ipv4 address          | -                         | Comma separated list of additional IPv4 CIDR subnets to route to the bridge
 ipv4.routing                    | boolean   | ipv4 address          | true                      | Whether to route traffic in and out of the bridge
 ipv6.address                    | string    | standard mode         | random unused subnet      | IPv6 address for the bridge (CIDR notation). Use "none" to turn off IPv6 or "auto" to generate a new one
@@ -90,9 +91,10 @@ ipv6.dhcp.expiry                | string    | ipv6 dhcp             | 1h        
 ipv6.dhcp.ranges                | string    | ipv6 stateful dhcp    | all addresses             | Comma separated list of IPv6 ranges to use for DHCP (FIRST-LAST format)
 ipv6.dhcp.stateful              | boolean   | ipv6 dhcp             | false                     | Whether to allocate addresses using DHCP
 ipv6.firewall                   | boolean   | ipv6 address          | true                      | Whether to generate filtering firewall rules for this network
+ipv6.nat.address                | string    | ipv6 address          | -                         | The source address used for outbound traffic from the bridge
 ipv6.nat                        | boolean   | ipv6 address          | false                     | Whether to NAT (will default to true if unset and a random ipv6.address is generated)
 ipv6.nat.order                  | string    | ipv6 address          | before                    | Whether to add the required NAT rules before or after any pre-existing rules
-ipv6.nat.address                | string    | ipv6 address          | -                         | The source address used for outbound traffic from the bridge
+ipv6.ovn.ranges                 | string    | -                     | none                      | Comma separate list of IPv6 ranges to use for child OVN networks (FIRST-LAST format)
 ipv6.routes                     | string    | ipv6 address          | -                         | Comma separated list of additional IPv6 CIDR subnets to route to the bridge
 ipv6.routing                    | boolean   | ipv6 address          | true                      | Whether to route traffic in and out of the bridge
 maas.subnet.ipv4                | string    | ipv4 address          | -                         | MAAS IPv4 subnet to register instances in (when using `network` property on nic)
@@ -225,11 +227,11 @@ Network configuration properties:
 
 Key                             | Type      | Condition             | Default                   | Description
 :--                             | :--       | :--                   | :--                       | :--
-parent                          | string    | -                     | -                         | Parent interface to create macvlan NICs on
-mtu                             | integer   | -                     | -                         | The MTU of the new interface
-vlan                            | integer   | -                     | -                         | The VLAN ID to attach to
 maas.subnet.ipv4                | string    | ipv4 address          | -                         | MAAS IPv4 subnet to register instances in (when using `network` property on nic)
 maas.subnet.ipv6                | string    | ipv6 address          | -                         | MAAS IPv6 subnet to register instances in (when using `network` property on nic)
+mtu                             | integer   | -                     | -                         | The MTU of the new interface
+parent                          | string    | -                     | -                         | Parent interface to create macvlan NICs on
+vlan                            | integer   | -                     | -                         | The VLAN ID to attach to
 
 ## network: sriov
 
@@ -241,8 +243,55 @@ Network configuration properties:
 
 Key                             | Type      | Condition             | Default                   | Description
 :--                             | :--       | :--                   | :--                       | :--
-parent                          | string    | -                     | -                         | Parent interface to create sriov NICs on
-mtu                             | integer   | -                     | -                         | The MTU of the new interface
-vlan                            | integer   | -                     | -                         | The VLAN ID to attach to
 maas.subnet.ipv4                | string    | ipv4 address          | -                         | MAAS IPv4 subnet to register instances in (when using `network` property on nic)
 maas.subnet.ipv6                | string    | ipv6 address          | -                         | MAAS IPv6 subnet to register instances in (when using `network` property on nic)
+mtu                             | integer   | -                     | -                         | The MTU of the new interface
+parent                          | string    | -                     | -                         | Parent interface to create sriov NICs on
+vlan                            | integer   | -                     | -                         | The VLAN ID to attach to
+
+## network: ovn
+
+The ovn network type allows the creation of logical networks using the OVN SDN. This can be useful for labs and
+multi-tenant environments where the same logical subnets are used in multiple discrete networks.
+
+A LXD OVN network can be connected to an existing managed LXD bridge network in order for it to gain outbound
+access to the wider network. All connections from the OVN logical networks are NATed to a dynamic IP allocated by
+the parent network.
+
+### Standalone LXD OVN setup
+
+This will create a standalone OVN network that is connected to the parent network lxdbr0 for outbound connectivity.
+
+Install the OVN tools and configure the OVN integration bridge on the local node:
+
+```
+apt install ovn-host ovn-central
+ovs-vsctl set open_vswitch . \
+  external_ids:ovn-remote=unix:/var/run/ovn/ovnsb_db.sock \
+  external_ids:ovn-encap-type=geneve \
+  external_ids:ovn-encap-ip=n.n.n.n \ # The IP of your LXD host on the LAN
+```
+
+Create an OVN network and an instance using it:
+
+```
+lxc network create ovntest --type=ovn parent=lxdbr0
+lxc init images:ubuntu/focal c1
+lxc config device override c1 eth0 network=ovntest
+lxc start c1
+lxc ls
++------+---------+---------------------+----------------------------------------------+-----------+-----------+
+| NAME |  STATE  |        IPV4         |                     IPV6                     |   TYPE    | SNAPSHOTS |
++------+---------+---------------------+----------------------------------------------+-----------+-----------+
+| c1   | RUNNING | 10.254.118.2 (eth0) | fd42:887:cff3:5089:216:3eff:fef0:549f (eth0) | CONTAINER | 0         |
++------+---------+---------------------+----------------------------------------------+-----------+-----------+
+```
+
+Key                             | Type      | Condition             | Default                   | Description
+:--                             | :--       | :--                   | :--                       | :--
+bridge.hwaddr                   | string    | -                     | -                         | MAC address for the bridge
+dns.domain                      | string    | -                     | lxd                       | Domain to advertise to DHCP clients and use for DNS resolution
+dns.search                      | string    | -                     | -                         | Full comma separated domain search list, defaulting to `dns.domain` value
+ipv4.address                    | string    | standard mode         | random unused subnet      | IPv4 address for the bridge (CIDR notation). Use "none" to turn off IPv4 or "auto" to generate a new one
+ipv6.address                    | string    | standard mode         | random unused subnet      | IPv6 address for the bridge (CIDR notation). Use "none" to turn off IPv6 or "auto" to generate a new one
+parent                          | string    | -                     | -                         | Parent network to use for outbound external network access

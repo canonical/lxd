@@ -80,6 +80,7 @@ _have lxc && {
       images.auto_update_cached images.auto_update_interval \
       images.compression_algorithm images.remote_cache_expiry \
       maas.api.url maas.api.key maas.machine cluster.images_minimal_replica \
+      network.ovn.integration_bridge network.ovn.northbound_connection \
       rbac.agent.url rbac.agent.username rbac.agent.public_key \
       rbac.agent.private_key rbac.api.expiry rbac.api.key rbac.api.url \
       storage.backups_volume storage.images_volume"
@@ -128,10 +129,10 @@ _have lxc && {
     networks_keys="bridge.driver bridge.external_interfaces bridge.mode \
       bridge.mtu bridge.hwaddr dns.domain dns.mode dns.search fan.overlay_subnet fan.type \
       fan.underlay_subnet ipv4.address ipv4.dhcp ipv4.dhcp.expiry ipv4.dhcp.gateway \
-      ipv4.dhcp.ranges ipv4.firewall ipv4.nat ipv4.nat.address ipv4.nat.order \
+      ipv4.dhcp.ranges ipv4.firewall ipv4.nat ipv4.nat.address ipv4.nat.order ipv4.ovn.ranges \
       ipv4.routes ipv4.routing ipv6.address ipv6.dhcp ipv6.dhcp.expiry ipv6.dhcp.ranges \
-      ipv6.dhcp.stateful ipv6.firewall ipv6.nat ipv6.nat.address ipv6.nat.order \
-      ipv6.routes ipv6.routing maas.subnet.ipv4 maas.subnet.ipv6 raw.dnsmasq"
+      ipv6.dhcp.stateful ipv6.firewall ipv6.nat ipv6.nat.address ipv6.nat.order ipv6.ovn.ranges \
+      ipv6.routes ipv6.routing maas.subnet.ipv4 maas.subnet.ipv6 mtu parent raw.dnsmasq vlan"
 
     project_keys="features.images features.profiles features.storage.volumes \
       limits.containers limits.virtual-machines limits.memory limits.processes limits.cpu \
