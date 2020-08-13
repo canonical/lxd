@@ -100,6 +100,15 @@ func (p *Process) Stop() error {
 
 // Start will start the given process object
 func (p *Process) Start() error {
+	return p.start(nil)
+}
+
+// StartWithFiles will start the given process object with extra file descriptors
+func (p *Process) StartWithFiles(fds []*os.File) error {
+	return p.start(fds)
+}
+
+func (p *Process) start(fds []*os.File) error {
 	var cmd *exec.Cmd
 
 	if p.Apparmor != "" && p.hasApparmor() {
@@ -115,6 +124,10 @@ func (p *Process) Start() error {
 		cmd.SysProcAttr.Credential = &syscall.Credential{}
 		cmd.SysProcAttr.Credential.Uid = p.UID
 		cmd.SysProcAttr.Credential.Gid = p.GID
+	}
+
+	if fds != nil {
+		cmd.ExtraFiles = fds
 	}
 
 	// Setup output capture.

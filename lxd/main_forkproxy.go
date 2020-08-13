@@ -85,13 +85,12 @@ again:
 void forkproxy(void)
 {
 	unsigned int needs_mntns = 0;
-	int connect_pid, connect_pidfd, listen_pid, listen_pidfd, log_fd;
+	int connect_pid, connect_pidfd, listen_pid, listen_pidfd;
 	size_t unix_prefix_len = sizeof("unix:") - 1;
 	ssize_t ret;
 	pid_t pid;
-	char *connect_addr, *cur, *listen_addr, *log_path, *pid_path;
+	char *connect_addr, *cur, *listen_addr;
 	int sk_fds[2] = {-EBADF, -EBADF};
-	FILE *pid_file;
 
 	// Get the pid
 	cur = advance_arg(false);
@@ -106,29 +105,6 @@ void forkproxy(void)
 	connect_pid = atoi(advance_arg(true));
 	connect_pidfd = atoi(advance_arg(true));
 	connect_addr = advance_arg(true);
-	log_path = advance_arg(true);
-	pid_path = advance_arg(true);
-
-	close(STDIN_FILENO);
-	log_fd = open(log_path, O_WRONLY | O_CREAT | O_CLOEXEC | O_TRUNC, 0600);
-	if (log_fd < 0)
-		_exit(EXIT_FAILURE);
-
-	ret = dup3(log_fd, STDOUT_FILENO, O_CLOEXEC);
-	if (ret < 0)
-		_exit(EXIT_FAILURE);
-
-	ret = dup3(log_fd, STDERR_FILENO, O_CLOEXEC);
-	if (ret < 0)
-		_exit(EXIT_FAILURE);
-
-	pid_file = fopen(pid_path, "we+");
-	if (!pid_file) {
-		fprintf(stderr,
-			"%s - Failed to create pid file for proxy daemon\n",
-			strerror(errno));
-		_exit(EXIT_FAILURE);
-	}
 
 	if (strncmp(listen_addr, "udp:", sizeof("udp:") - 1) == 0 &&
 	    strncmp(connect_addr, "udp:", sizeof("udp:") - 1) != 0) {
@@ -166,7 +142,6 @@ void forkproxy(void)
 
 		whoami = FORKPROXY_CHILD;
 
-		fclose(pid_file);
 		ret = close(sk_fds[0]);
 		if (ret < 0)
 			fprintf(stderr, "%s - Failed to close fd %d\n",
@@ -269,41 +244,6 @@ void forkproxy(void)
 		// can just rely on init doing it's job and reaping the zombie
 		// process. So, technically unsatisfying but pragmatically
 		// correct.
-
-		// daemonize
-		pid = fork();
-		if (pid < 0)
-			_exit(EXIT_FAILURE);
-
-		if (pid != 0) {
-			ret = wait_for_pid(pid);
-			if (ret < 0)
-				_exit(EXIT_FAILURE);
-
-			_exit(EXIT_SUCCESS);
-		}
-
-		pid = fork();
-		if (pid < 0)
-			_exit(EXIT_FAILURE);
-
-		if (pid != 0) {
-			ret = fprintf(pid_file, "%d", pid);
-			fclose(pid_file);
-			if (ret < 0) {
-				fprintf(stderr, "Failed to write proxy daemon pid %d to \"%s\"\n",
-					pid, pid_path);
-				ret = EXIT_FAILURE;
-			}
-			close(STDOUT_FILENO);
-			close(STDERR_FILENO);
-			_exit(EXIT_SUCCESS);
-		}
-
-		ret = setsid();
-		if (ret < 0)
-			fprintf(stderr, "%s - Failed to setsid in proxy daemon\n",
-				strerror(errno));
 	}
 }
 */
@@ -338,7 +278,7 @@ func (c *cmdForkproxy) Command() *cobra.Command {
   container, connecting one side to the host and the other to the
   container.
 `
-	cmd.Args = cobra.ExactArgs(14)
+	cmd.Args = cobra.ExactArgs(12)
 	cmd.RunE = c.Run
 	cmd.Hidden = true
 
@@ -459,7 +399,7 @@ func (c *cmdForkproxy) Run(cmd *cobra.Command, args []string) error {
 	}
 
 	// Sanity checks
-	if len(args) != 14 {
+	if len(args) != 12 {
 		cmd.Help()
 
 		if len(args) == 0 {
@@ -529,16 +469,16 @@ func (c *cmdForkproxy) Run(cmd *cobra.Command, args []string) error {
 			var err error
 
 			listenAddrGID := -1
-			if args[8] != "" {
-				listenAddrGID, err = strconv.Atoi(args[8])
+			if args[6] != "" {
+				listenAddrGID, err = strconv.Atoi(args[6])
 				if err != nil {
 					return err
 				}
 			}
 
 			listenAddrUID := -1
-			if args[9] != "" {
-				listenAddrUID, err = strconv.Atoi(args[9])
+			if args[7] != "" {
+				listenAddrUID, err = strconv.Atoi(args[7])
 				if err != nil {
 					return err
 				}
@@ -552,8 +492,8 @@ func (c *cmdForkproxy) Run(cmd *cobra.Command, args []string) error {
 			}
 
 			var listenAddrMode os.FileMode
-			if args[10] != "" {
-				tmp, err := strconv.ParseUint(args[10], 8, 0)
+			if args[8] != "" {
+				tmp, err := strconv.ParseUint(args[8], 8, 0)
 				if err != nil {
 					return err
 				}
@@ -621,16 +561,16 @@ func (c *cmdForkproxy) Run(cmd *cobra.Command, args []string) error {
 
 	// Drop privilege if requested
 	gid := uint64(0)
-	if args[11] != "" {
-		gid, err = strconv.ParseUint(args[11], 10, 32)
+	if args[9] != "" {
+		gid, err = strconv.ParseUint(args[9], 10, 32)
 		if err != nil {
 			return err
 		}
 	}
 
 	uid := uint64(0)
-	if args[12] != "" {
-		uid, err = strconv.ParseUint(args[12], 10, 32)
+	if args[10] != "" {
+		uid, err = strconv.ParseUint(args[10], 10, 32)
 		if err != nil {
 			return err
 		}
@@ -710,7 +650,7 @@ func (c *cmdForkproxy) Run(cmd *cobra.Command, args []string) error {
 				continue
 			}
 
-			err := listenerInstance(epFd, lAddr, cAddr, curFd, srcConn, args[13] == "true")
+			err := listenerInstance(epFd, lAddr, cAddr, curFd, srcConn, args[11] == "true")
 			if err != nil {
 				fmt.Printf("Warning: Failed to prepare new listener instance: %s\n", err)
 			}
