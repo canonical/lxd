@@ -4,6 +4,7 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/cobra/doc"
 
+	"github.com/lxc/lxd/shared"
 	cli "github.com/lxc/lxd/shared/cmd"
 	"github.com/lxc/lxd/shared/i18n"
 )
@@ -40,7 +41,7 @@ func (c *cmdManpage) Run(cmd *cobra.Command, args []string) error {
 
 	opts := doc.GenManTreeOptions{
 		Header:           header,
-		Path:             args[0],
+		Path:             shared.HostPath(args[0]),
 		CommandSeparator: ".",
 	}
 
