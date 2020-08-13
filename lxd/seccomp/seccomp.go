@@ -277,19 +277,19 @@ static int handle_bpf_syscall(int notify_fd, int mem_fd, struct seccomp_notify_p
 {
 	__do_close int pidfd = -EBADF, bpf_target_fd = -EBADF, bpf_attach_fd = -EBADF,
 		       bpf_prog_fd = -EBADF;
-	__do_free char *log_buf = NULL;
 	__do_free struct bpf_insn *insn = NULL;
-	char license[128];
-	size_t insn_size;
-	union bpf_attr attr = {}, new_attr;
+	char log_buf[4096] = {};
+	char license[128] = {};
+	size_t insn_size = 0;
+	union bpf_attr attr = {}, new_attr = {};
 	unsigned int attr_len = sizeof(attr);
 	struct seccomp_notif_addfd addfd = {};
 	int ret;
 	int cmd;
 
-	*bpf_cmd = -EINVAL;
-	*bpf_prog_type = -EINVAL;
-	*bpf_attach_type = -EINVAL;
+	*bpf_cmd		= -EINVAL;
+	*bpf_prog_type		= -EINVAL;
+	*bpf_attach_type	= -EINVAL;
 
 	if (attr_len < req->data.args[2])
 		return -EFBIG;
@@ -328,6 +328,11 @@ static int handle_bpf_syscall(int notify_fd, int mem_fd, struct seccomp_notify_p
 		if (attr.prog_type != BPF_PROG_TYPE_CGROUP_DEVICE)
 			return -EINVAL;
 
+		// bpf is currently limited to 1 million instructions. Don't
+		// allow the container to allocate more than that.
+		if (attr.insn_cnt > 1000000)
+			return -EINVAL;
+
 		insn_size = sizeof(struct bpf_insn) * attr.insn_cnt;
 
 		insn = malloc(insn_size);
@@ -342,13 +347,11 @@ static int handle_bpf_syscall(int notify_fd, int mem_fd, struct seccomp_notify_p
 
 		memcpy(&new_attr, &attr, sizeof(attr));
 
-		if (attr.log_size > 0 && attr.log_size <= (UINT_MAX / 2)) {
-			log_buf = malloc(attr.log_size);
-			if (!log_buf)
-				return -ENOMEM;
-		} else {
-			new_attr.log_size = 0;
-		}
+		if (attr.log_size > sizeof(log_buf))
+			new_attr.log_size = sizeof(log_buf);
+
+		if (new_attr.log_size > 0)
+			new_attr.log_buf = ptr_to_u64(log_buf);
 
 		if (attr.license && pread(mem_fd, license, sizeof(license), attr.license) < 0)
 			return -errno;
@@ -358,7 +361,9 @@ static int handle_bpf_syscall(int notify_fd, int mem_fd, struct seccomp_notify_p
 		bpf_prog_fd = bpf(cmd, &new_attr, sizeof(new_attr));
 		if (bpf_prog_fd < 0) {
 			int saved_errno = errno;
-			if (log_buf && pwrite(mem_fd, log_buf, attr.log_size, attr.log_buf) != attr.log_size)
+
+			if ((new_attr.log_size) > 0 && (pwrite(mem_fd, log_buf, new_attr.log_size,
+							       attr.log_buf) != new_attr.log_size))
 				errno = saved_errno;
 			return -errno;
 		}
