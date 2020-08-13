@@ -824,6 +824,7 @@ func NewSeccompServer(s *state.State, path string, findPID func(pid int32, state
 
 				unixFile, err := c.(*net.UnixConn).File()
 				if err != nil {
+					logger.Debugf("Failed to turn unix socket client into file")
 					return
 				}
 
