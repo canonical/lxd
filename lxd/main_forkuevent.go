@@ -35,8 +35,8 @@ import (
 
 extern char *advance_arg(bool required);
 extern void attach_userns_fd(int ns_fd);
-extern bool setnsat(int ns_fd, const char *ns);
 extern int pidfd_nsfd(int pidfd, pid_t pid);
+extern bool change_namespaces(int pidfd, int nsfd, unsigned int flags);
 
 struct nlmsg {
 	struct nlmsghdr *nlmsghdr;
@@ -200,7 +200,7 @@ void forkuevent(void)
 
 	attach_userns_fd(ns_fd);
 
-	if (!setnsat(ns_fd, "net")) {
+	if (!change_namespaces(pidfd, ns_fd, CLONE_NEWNET)) {
 		fprintf(stderr, "Failed to setns to container network namespace: %s\n", strerror(errno));
 		_exit(1);
 	}

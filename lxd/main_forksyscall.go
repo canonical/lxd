@@ -35,8 +35,8 @@ import (
 extern char* advance_arg(bool required);
 extern void attach_userns_fd(int ns_fd);
 extern int pidfd_nsfd(int pidfd, pid_t pid);
-extern bool setnsat(int ns_fd, const char *ns);
 extern int preserve_ns(const int pid, const char *ns);
+extern bool change_namespaces(int pidfd, int nsfd, unsigned int flags);
 
 static bool chdirchroot_in_mntns(int cwd_fd, int root_fd)
 {
@@ -57,7 +57,7 @@ static bool chdirchroot_in_mntns(int cwd_fd, int root_fd)
 	return true;
 }
 
-static bool acquire_basic_creds(pid_t pid, int ns_fd)
+static bool acquire_basic_creds(pid_t pid, int pidfd, int ns_fd)
 {
 	__do_close int cwd_fd = -EBADF, root_fd = -EBADF;
 	char buf[256];
@@ -72,7 +72,7 @@ static bool acquire_basic_creds(pid_t pid, int ns_fd)
 	if (cwd_fd < 0)
 		return false;
 
-	if (!setnsat(ns_fd, "mnt"))
+	if (!change_namespaces(pidfd, ns_fd, CLONE_NEWNS))
 		return false;
 
 	return chdirchroot_in_mntns(cwd_fd, root_fd);
@@ -157,7 +157,7 @@ static void mknod_emulate(void)
 	fsuid = atoi(advance_arg(true));
 	fsgid = atoi(advance_arg(true));
 
-	if (!acquire_basic_creds(pid, ns_fd)) {
+	if (!acquire_basic_creds(pid, pidfd, ns_fd)) {
 		fprintf(stderr, "%d", ENOANO);
 		_exit(EXIT_FAILURE);
 	}
@@ -203,15 +203,15 @@ static void mknod_emulate(void)
 #define CLONE_NEWCGROUP	0x02000000
 #endif
 
-const char *ns_names[] = { "user", "pid", "uts", "ipc", "net", "cgroup", NULL };
+const static int ns_flags[] = { CLONE_NEWUSER, CLONE_NEWPID, CLONE_NEWUTS, CLONE_NEWIPC, CLONE_NEWNET, CLONE_NEWCGROUP };
 
-static bool change_creds(int ns_fd, cap_t caps, uid_t nsuid, gid_t nsgid, uid_t nsfsuid, gid_t nsfsgid)
+static bool change_creds(int pidfd, int ns_fd, cap_t caps, uid_t nsuid, gid_t nsgid, uid_t nsfsuid, gid_t nsfsgid)
 {
 	if (prctl(PR_SET_KEEPCAPS, 1))
 		return false;
 
-	for (const char **ns = ns_names; ns && *ns; ns++) {
-		if (!setnsat(ns_fd, *ns))
+	for (int i = 0; ARRAY_SIZE(ns_flags); i++) {
+		if (!change_namespaces(pidfd, ns_fd, ns_flags[i]))
 			return false;
 	}
 
@@ -261,7 +261,7 @@ static void setxattr_emulate(void)
 	size = atoi(advance_arg(true));
 	data = advance_arg(true);
 
-	if (!acquire_basic_creds(pid, ns_fd)) {
+	if (!acquire_basic_creds(pid, pidfd, ns_fd)) {
 		fprintf(stderr, "%d", ENOANO);
 		_exit(EXIT_FAILURE);
 	}
@@ -296,7 +296,7 @@ static void setxattr_emulate(void)
 			_exit(EXIT_FAILURE);
 		}
 	} else {
-		if (!change_creds(ns_fd, caps, nsuid, nsgid, nsfsuid, nsfsgid)) {
+		if (!change_creds(pidfd, ns_fd, caps, nsuid, nsgid, nsfsuid, nsfsgid)) {
 			fprintf(stderr, "%d", EFAULT);
 			_exit(EXIT_FAILURE);
 		}
@@ -355,7 +355,6 @@ static void mount_emulate(void)
 	ns_fd = pidfd_nsfd(pidfd, pid);
 	if (ns_fd < 0)
 		_exit(EXIT_FAILURE);
-
 	use_fuse = (atoi(advance_arg(true)) == 1);
 	if (!use_fuse) {
 		source = advance_arg(true);
@@ -386,10 +385,10 @@ static void mount_emulate(void)
 		// Attach to pid namespace so that if we spawn a fuse daemon
 		// it'll belong to the correct pid namespace and dies with the
 		// container.
-		setnsat(ns_fd, "pid");
+		change_namespaces(pidfd, ns_fd, CLONE_NEWPID);
 	}
 
-	if (!acquire_basic_creds(pid, ns_fd))
+	if (!acquire_basic_creds(pid, pidfd, ns_fd))
 		_exit(EXIT_FAILURE);
 
 	if (!acquire_final_creds(pid, uid, gid, fsuid, fsgid))
@@ -447,7 +446,7 @@ static void mount_emulate(void)
 		}
 
 		attach_userns_fd(ns_fd);
-		if (!acquire_basic_creds(pid, ns_fd)) {
+		if (!acquire_basic_creds(pid, pidfd, ns_fd)) {
 			umount2(target, MNT_DETACH);
 			umount2(target, MNT_DETACH);
 			_exit(EXIT_FAILURE);

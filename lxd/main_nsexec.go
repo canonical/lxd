@@ -296,11 +296,11 @@ bool change_namespaces(int pidfd, int nsfd, unsigned int flags)
 	__do_close int fd = -EBADF;
 	const char *ns;
 
-	if (pidfd >= 0 && nsfd >= 0)
-		return false;
+	if (pidfd >= 0 && setns(pidfd, flags) == 0)
+		return true;
 
-	if (pidfd >= 0)
-		return setns(pidfd, flags) == 0;
+	if (nsfd < 0)
+		return false;
 
 	ns = namespace_flag_into_name(flags);
 	if (!ns)
