@@ -1,9 +1,7 @@
 package apparmor
 
 import (
-	"crypto/sha256"
 	"fmt"
-	"io"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -28,15 +26,7 @@ type instance interface {
 func InstanceProfileName(inst instance) string {
 	path := shared.VarPath("")
 	name := fmt.Sprintf("%s_<%s>", project.Instance(inst.Project(), inst.Name()), path)
-
-	// Max length in AppArmor is 253 chars.
-	if len(name)+4 >= 253 {
-		hash := sha256.New()
-		io.WriteString(hash, name)
-		name = fmt.Sprintf("%x", hash.Sum(nil))
-	}
-
-	return fmt.Sprintf("lxd-%s", name)
+	return profileName("", name)
 }
 
 // InstanceNamespaceName returns the instance's AppArmor namespace.
@@ -44,29 +34,13 @@ func InstanceNamespaceName(inst instance) string {
 	// Unlike in profile names, / isn't an allowed character so replace with a -.
 	path := strings.Replace(strings.Trim(shared.VarPath(""), "/"), "/", "-", -1)
 	name := fmt.Sprintf("%s_<%s>", project.Instance(inst.Project(), inst.Name()), path)
-
-	// Max length in AppArmor is 253 chars.
-	if len(name)+4 >= 253 {
-		hash := sha256.New()
-		io.WriteString(hash, name)
-		name = fmt.Sprintf("%x", hash.Sum(nil))
-	}
-
-	return fmt.Sprintf("lxd-%s", name)
+	return profileName("", name)
 }
 
 // instanceProfileFilename returns the name of the on-disk profile name.
 func instanceProfileFilename(inst instance) string {
 	name := project.Instance(inst.Project(), inst.Name())
-
-	// Max length in AppArmor is 253 chars.
-	if len(name)+4 >= 253 {
-		hash := sha256.New()
-		io.WriteString(hash, name)
-		name = fmt.Sprintf("%x", hash.Sum(nil))
-	}
-
-	return fmt.Sprintf("lxd-%s", name)
+	return profileName("", name)
 }
 
 // InstanceLoad ensures that the instances's policy is loaded into the kernel so the it can boot.
