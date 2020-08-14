@@ -152,8 +152,6 @@ static void is_uevent_aware(void)
 	uevent_aware = true;
 }
 
-#define ARRAY_SIZE(arr) (sizeof(arr) / sizeof((arr)[0]))
-
 static int user_trap_syscall(int nr, unsigned int flags)
 {
 	struct sock_filter filter[] = {
