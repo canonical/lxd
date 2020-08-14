@@ -62,10 +62,9 @@ int copy(int target, int source, bool append)
 
 int manip_file_in_ns(char *rootfs, int ns_fd, char *host, char *container, bool is_put, char *type, uid_t uid, gid_t gid, mode_t mode, uid_t defaultUid, gid_t defaultGid, mode_t defaultMode, bool append) {
 	__do_close int host_fd = -EBADF, container_fd = -EBADF;
-	int ret = -1;
+	int exists = -1, fret = -1;
 	int container_open_flags;
 	struct stat st;
-	int exists = 1;
 	bool is_dir_manip = type != NULL && !strcmp(type, "directory");
 	bool is_symlink_manip = type != NULL && !strcmp(type, "symlink");
 	char link_target[PATH_MAX];
@@ -221,7 +220,7 @@ int manip_file_in_ns(char *rootfs, int ns_fd, char *host, char *container, bool 
 			error("error: chown");
 			return -1;
 		}
-		ret = 0;
+		fret = 0;
 	} else {
 		if (fstat(container_fd, &st) < 0) {
 			error("error: stat");
@@ -266,12 +265,12 @@ int manip_file_in_ns(char *rootfs, int ns_fd, char *host, char *container, bool 
 			return -1;
 		} else {
 			fprintf(stderr, "type: file\n");
-			ret = copy(host_fd, container_fd, false);
+			fret = copy(host_fd, container_fd, false);
 		}
 		fprintf(stderr, "type: %s", S_ISDIR(st.st_mode) ? "directory" : "file");
 	}
 
-	return ret;
+	return fret;
 }
 
 void forkdofile(bool is_put, char *rootfs, int ns_fd) {

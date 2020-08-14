@@ -272,4 +272,6 @@ enum {
 #define P_PIDFD 3
 #endif
 
+#define ARRAY_SIZE(arr) (sizeof(arr) / sizeof((arr)[0]))
+
 #endif /* __LXC_MACRO_H */
