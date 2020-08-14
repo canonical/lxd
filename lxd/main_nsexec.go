@@ -108,25 +108,6 @@ void error(char *msg)
 	fprintf(stderr, "errno: %d\n", old_errno);
 }
 
-int dosetns(int pid, char *nstype) {
-	__do_close int ns_fd = -EBADF;
-	char buf[PATH_MAX];
-
-	sprintf(buf, "/proc/%d/ns/%s", pid, nstype);
-	ns_fd = open(buf, O_RDONLY);
-	if (ns_fd < 0) {
-		error("error: open namespace");
-		return -1;
-	}
-
-	if (setns(ns_fd, 0) < 0) {
-		error("error: setns");
-		return -1;
-	}
-
-	return 0;
-}
-
 int dosetns_file(char *file, char *nstype) {
 	__do_close int ns_fd = -EBADF;
 
