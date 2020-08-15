@@ -296,17 +296,6 @@ bool change_namespaces(int pidfd, int nsfd, unsigned int flags)
 	return setns(fd, 0) == 0;
 }
 
-bool setnsat(int ns_fd, const char *ns)
-{
-	__do_close int fd = -EBADF;
-
-	fd = openat(ns_fd, ns, O_RDONLY | O_CLOEXEC);
-	if (fd < 0)
-		return false;
-
-	return setns(fd, 0) == 0;
-}
-
 static ssize_t lxc_read_nointr(int fd, void *buf, size_t count)
 {
 	ssize_t ret;
