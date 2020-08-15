@@ -17,25 +17,49 @@ import (
 #define _GNU_SOURCE 1
 #endif
 #include <errno.h>
+#include <fcntl.h>
+#include <sched.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/stat.h>
 #include <sys/types.h>
 #include <unistd.h>
 
+#include "include/macro.h"
+#include "include/memory_utils.h"
+
 extern char *advance_arg(bool required);
-extern int dosetns_file(char *file, char *nstype);
-extern bool setnsat(int ns_fd, const char *ns);
+extern bool change_namespaces(int pidfd, int nsfd, unsigned int flags);
 extern int pidfd_nsfd(int pidfd, pid_t pid);
 
-void forkdonetinfo(int ns_fd) {
-	if (!setnsat(ns_fd, "net")) {
+void forkdonetinfo(int pidfd, int ns_fd)
+{
+	if (!change_namespaces(pidfd, ns_fd, CLONE_NEWNET)) {
 		fprintf(stderr, "Failed setns to container network namespace: %s\n", strerror(errno));
 		_exit(1);
 	}
 
 	// Jump back to Go for the rest
+}
+
+static int dosetns_file(char *file, char *nstype)
+{
+	__do_close int ns_fd = -EBADF;
+
+	ns_fd = open(file, O_RDONLY);
+	if (ns_fd < 0) {
+		fprintf(stderr, "%m - Failed to open \"%s\"", file);
+		return -1;
+	}
+
+	if (setns(ns_fd, 0) < 0) {
+		fprintf(stderr, "%m - Failed to attach to namespace \"%s\"", file);
+		return -1;
+	}
+
+	return 0;
 }
 
 void forkdonetdetach(char *file) {
@@ -85,7 +109,7 @@ void forknet(void)
 		if (ns_fd < 0)
 			_exit(1);
 
-		forkdonetinfo(ns_fd);
+		forkdonetinfo(pidfd, ns_fd);
 	}
 
 	if (strcmp(command, "detach") == 0)
