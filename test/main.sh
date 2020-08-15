@@ -1,6 +1,8 @@
 #!/bin/sh -eu
 [ -n "${GOPATH:-}" ] && export "PATH=${GOPATH}/bin:${PATH}"
 
+export DQLITE_ENGINE_V2=1
+
 # Don't translate lxc output for parsing in it in tests.
 export LC_ALL="C"
 
