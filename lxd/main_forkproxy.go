@@ -31,6 +31,7 @@ import (
 #endif
 #include <errno.h>
 #include <fcntl.h>
+#include <sched.h>
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -43,13 +44,14 @@ import (
 #include <sys/wait.h>
 #include <unistd.h>
 
+#include "include/macro.h"
 #include "include/memory_utils.h"
 
 extern char* advance_arg(bool required);
 extern void attach_userns_fd(int pid);
-extern bool setnsat(int ns_fd, const char *ns);
 extern int wait_for_pid(pid_t pid);
 extern int pidfd_nsfd(int pidfd, pid_t pid);
+extern bool change_namespaces(int pidfd, int nsfd, unsigned int flags);
 
 int whoami = -ESRCH;
 
@@ -157,12 +159,12 @@ void forkproxy(void)
 		attach_userns_fd(listen_nsfd);
 
 		// Attach to the network namespace of the listener
-		if (!setnsat(listen_nsfd, "net")) {
+		if (!change_namespaces(listen_pidfd, listen_nsfd, CLONE_NEWNET)) {
 			fprintf(stderr, "Error: %m - Failed setns to listener network namespace\n");
 			_exit(EXIT_FAILURE);
 		}
 
-		if ((needs_mntns & LISTEN_NEEDS_MNTNS) && !setnsat(listen_nsfd, "mnt")) {
+		if ((needs_mntns & LISTEN_NEEDS_MNTNS) && !change_namespaces(listen_pidfd, listen_nsfd, CLONE_NEWNS)) {
 			fprintf(stderr, "Error: %m - Failed setns to listener mount namespace\n");
 			_exit(EXIT_FAILURE);
 		}
@@ -202,13 +204,13 @@ void forkproxy(void)
 		attach_userns_fd(connect_nsfd);
 
 		// Attach to the network namespace of the connector
-		if (!setnsat(connect_nsfd, "net")) {
+		if (!change_namespaces(connect_pidfd, connect_nsfd, CLONE_NEWNET)) {
 			fprintf(stderr, "Error: %m - Failed setns to connector network namespace\n");
 			_exit(EXIT_FAILURE);
 		}
 
 		// Attach to the mount namespace of the connector
-		if ((needs_mntns & CONNECT_NEEDS_MNTNS) && !setnsat(connect_nsfd, "mnt")) {
+		if ((needs_mntns & CONNECT_NEEDS_MNTNS) && !change_namespaces(connect_pidfd, connect_nsfd, CLONE_NEWNS)) {
 			fprintf(stderr, "Error: %m - Failed setns to connector mount namespace\n");
 			_exit(EXIT_FAILURE);
 		}
