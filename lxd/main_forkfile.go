@@ -13,6 +13,7 @@ import (
 #include <dirent.h>
 #include <errno.h>
 #include <fcntl.h>
+#include <sched.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <signal.h>
@@ -27,8 +28,8 @@ import (
 extern char* advance_arg(bool required);
 extern void error(char *msg);
 extern void attach_userns_fd(int ns_fd);
-extern bool setnsat(int ns_fd, const char *ns);
 extern int pidfd_nsfd(int pidfd, pid_t pid);
+extern bool change_namespaces(int pidfd, int nsfd, unsigned int flags);
 
 int copy(int target, int source, bool append)
 {
@@ -60,7 +61,7 @@ int copy(int target, int source, bool append)
 	return 0;
 }
 
-int manip_file_in_ns(char *rootfs, int ns_fd, char *host, char *container, bool is_put, char *type, uid_t uid, gid_t gid, mode_t mode, uid_t defaultUid, gid_t defaultGid, mode_t defaultMode, bool append) {
+int manip_file_in_ns(char *rootfs, int pidfd, int ns_fd, char *host, char *container, bool is_put, char *type, uid_t uid, gid_t gid, mode_t mode, uid_t defaultUid, gid_t defaultGid, mode_t defaultMode, bool append) {
 	__do_close int host_fd = -EBADF, container_fd = -EBADF;
 	int exists = -1, fret = -1;
 	int container_open_flags;
@@ -84,7 +85,7 @@ int manip_file_in_ns(char *rootfs, int ns_fd, char *host, char *container, bool 
 	if (ns_fd >= 0) {
 		attach_userns_fd(ns_fd);
 
-		if (!setnsat(ns_fd, "mnt")) {
+		if (!change_namespaces(pidfd, ns_fd, CLONE_NEWNS)) {
 			error("error: setns");
 			return -1;
 		}
@@ -273,7 +274,7 @@ int manip_file_in_ns(char *rootfs, int ns_fd, char *host, char *container, bool 
 	return fret;
 }
 
-void forkdofile(bool is_put, char *rootfs, int ns_fd) {
+void forkdofile(bool is_put, char *rootfs, int pidfd, int ns_fd) {
 	char *cur = NULL;
 
 	uid_t uid = 0;
@@ -322,10 +323,11 @@ void forkdofile(bool is_put, char *rootfs, int ns_fd) {
 
 	printf("%d: %s to %s\n", is_put, source, target);
 
-	_exit(manip_file_in_ns(rootfs, ns_fd, source, target, is_put, type, uid, gid, mode, defaultUid, defaultGid, defaultMode, append));
+	_exit(manip_file_in_ns(rootfs, pidfd, ns_fd, source, target, is_put, type, uid, gid, mode, defaultUid, defaultGid, defaultMode, append));
 }
 
-void forkcheckfile(char *rootfs, int ns_fd) {
+void forkcheckfile(char *rootfs, int pidfd, int ns_fd)
+{
 	char *path = NULL;
 
 	path = advance_arg(true);
@@ -333,7 +335,7 @@ void forkcheckfile(char *rootfs, int ns_fd) {
 	if (ns_fd >= 0) {
 		attach_userns_fd(ns_fd);
 
-		if (!setnsat(ns_fd, "mnt")) {
+		if (!change_namespaces(pidfd, ns_fd, CLONE_NEWNS)) {
 			error("error: setns");
 			_exit(1);
 		}
@@ -357,7 +359,8 @@ void forkcheckfile(char *rootfs, int ns_fd) {
 	_exit(0);
 }
 
-void forkremovefile(char *rootfs, int ns_fd) {
+void forkremovefile(char *rootfs, int pidfd, int ns_fd)
+{
 	char *path = NULL;
 	struct stat sb;
 
@@ -366,7 +369,7 @@ void forkremovefile(char *rootfs, int ns_fd) {
 	if (ns_fd >= 0) {
 		attach_userns_fd(ns_fd);
 
-		if (!setnsat(ns_fd, "mnt")) {
+		if (!change_namespaces(pidfd, ns_fd, CLONE_NEWNS)) {
 			error("error: setns");
 			_exit(1);
 		}
@@ -439,13 +442,13 @@ void forkfile(void)
 
 	// Call the subcommands
 	if (strcmp(command, "push") == 0) {
-		forkdofile(true, rootfs, ns_fd);
+		forkdofile(true, rootfs, pidfd, ns_fd);
 	} else if (strcmp(command, "pull") == 0) {
-		forkdofile(false, rootfs, ns_fd);
+		forkdofile(false, rootfs, pidfd, ns_fd);
 	} else if (strcmp(command, "exists") == 0) {
-		forkcheckfile(rootfs, ns_fd);
+		forkcheckfile(rootfs, pidfd, ns_fd);
 	} else if (strcmp(command, "remove") == 0) {
-		forkremovefile(rootfs, ns_fd);
+		forkremovefile(rootfs, pidfd, ns_fd);
 	}
 }
 */
