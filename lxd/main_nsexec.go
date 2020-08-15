@@ -109,23 +109,6 @@ void error(char *msg)
 	fprintf(stderr, "errno: %d\n", old_errno);
 }
 
-int dosetns_file(char *file, char *nstype) {
-	__do_close int ns_fd = -EBADF;
-
-	ns_fd = open(file, O_RDONLY);
-	if (ns_fd < 0) {
-		error("error: open namespace");
-		return -1;
-	}
-
-	if (setns(ns_fd, 0) < 0) {
-		error("error: setns");
-		return -1;
-	}
-
-	return 0;
-}
-
 int preserve_ns(pid_t pid, int ns_fd, const char *ns)
 {
 	int ret;
