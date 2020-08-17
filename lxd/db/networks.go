@@ -312,6 +312,26 @@ func (c *ClusterTx) networkState(name string, state int) error {
 	return nil
 }
 
+// UpdateNetwork updates the network with the given ID.
+func (c *ClusterTx) UpdateNetwork(id int64, description string, config map[string]string) error {
+	err := updateNetworkDescription(c.tx, id, description)
+	if err != nil {
+		return err
+	}
+
+	err = clearNetworkConfig(c.tx, id, c.nodeID)
+	if err != nil {
+		return err
+	}
+
+	err = networkConfigAdd(c.tx, id, c.nodeID, config)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
 // GetNetworks returns the names of existing networks.
 func (c *Cluster) GetNetworks() ([]string, error) {
 	return c.networks("")
@@ -603,17 +623,7 @@ func (c *Cluster) UpdateNetwork(name, description string, config map[string]stri
 	}
 
 	err = c.Transaction(func(tx *ClusterTx) error {
-		err = updateNetworkDescription(tx.tx, id, description)
-		if err != nil {
-			return err
-		}
-
-		err = clearNetworkConfig(tx.tx, id, c.nodeID)
-		if err != nil {
-			return err
-		}
-
-		err = networkConfigAdd(tx.tx, id, c.nodeID, config)
+		err = tx.UpdateNetwork(id, description, config)
 		if err != nil {
 			return err
 		}
