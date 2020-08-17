@@ -690,6 +690,13 @@ func (d *Daemon) init() error {
 		logger.Infof(" - seccomp listener add file descriptors: no")
 	}
 
+	d.os.PidFdSetns = canUsePidFdSetns()
+	if d.os.PidFdSetns {
+		logger.Infof(" - attach to namespaces via pidfds: yes")
+	} else {
+		logger.Infof(" - attach to namespaces via pidfds: no")
+	}
+
 	if d.os.LXCFeatures["devpts_fd"] && canUseNativeTerminals() {
 		d.os.NativeTerminals = true
 		logger.Infof(" - safe native terminal allocation : yes")

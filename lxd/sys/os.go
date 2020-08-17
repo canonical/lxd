@@ -71,6 +71,7 @@ type OS struct {
 	NativeTerminals         bool
 	NetnsGetifaddrs         bool
 	PidFds                  bool
+	PidFdSetns              bool
 	SeccompListener         bool
 	SeccompListenerAddfd    bool
 	SeccompListenerContinue bool

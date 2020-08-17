@@ -59,6 +59,7 @@ extern void forkuevent();
 char *cmdline_buf = NULL;
 char *cmdline_cur = NULL;
 ssize_t cmdline_size = -1;
+extern int pidfd_setns_aware;
 
 int wait_for_pid(pid_t pid)
 {
@@ -106,42 +107,6 @@ void error(char *msg)
 
 	perror(msg);
 	fprintf(stderr, "errno: %d\n", old_errno);
-}
-
-int dosetns(int pid, char *nstype) {
-	__do_close int ns_fd = -EBADF;
-	char buf[PATH_MAX];
-
-	sprintf(buf, "/proc/%d/ns/%s", pid, nstype);
-	ns_fd = open(buf, O_RDONLY);
-	if (ns_fd < 0) {
-		error("error: open namespace");
-		return -1;
-	}
-
-	if (setns(ns_fd, 0) < 0) {
-		error("error: setns");
-		return -1;
-	}
-
-	return 0;
-}
-
-int dosetns_file(char *file, char *nstype) {
-	__do_close int ns_fd = -EBADF;
-
-	ns_fd = open(file, O_RDONLY);
-	if (ns_fd < 0) {
-		error("error: open namespace");
-		return -1;
-	}
-
-	if (setns(ns_fd, 0) < 0) {
-		error("error: setns");
-		return -1;
-	}
-
-	return 0;
 }
 
 int preserve_ns(pid_t pid, int ns_fd, const char *ns)
@@ -286,11 +251,45 @@ int pidfd_nsfd(int pidfd, pid_t pid)
 	return move_fd(ns_fd);
 }
 
-bool setnsat(int ns_fd, const char *ns)
+static const struct ns_info {
+	const char *proc_name;
+	int clone_flag;
+} ns_info[] = {
+	{ "user",   CLONE_NEWUSER	},
+	{ "mnt",    CLONE_NEWNS		},
+	{ "pid",    CLONE_NEWPID	},
+	{ "uts",    CLONE_NEWUTS	},
+	{ "ipc",    CLONE_NEWIPC	},
+	{ "net",    CLONE_NEWNET	},
+	{ "cgroup", CLONE_NEWCGROUP	},
+	{ "time",   CLONE_NEWTIME	},
+};
+
+static inline const char *namespace_flag_into_name(unsigned int flags)
+{
+	for (int i = 0; i < ARRAY_SIZE(ns_info); i++)
+		if (ns_info[i].clone_flag == flags)
+			return ns_info[i].proc_name;
+
+	return NULL;
+}
+
+bool change_namespaces(int pidfd, int nsfd, unsigned int flags)
 {
 	__do_close int fd = -EBADF;
+	const char *ns;
 
-	fd = openat(ns_fd, ns, O_RDONLY | O_CLOEXEC);
+	if (pidfd >= 0 && setns(pidfd, flags) == 0)
+		return true;
+
+	if (nsfd < 0)
+		return false;
+
+	ns = namespace_flag_into_name(flags);
+	if (!ns)
+		return false;
+
+	fd = openat(nsfd, ns, O_RDONLY | O_CLOEXEC);
 	if (fd < 0)
 		return false;
 

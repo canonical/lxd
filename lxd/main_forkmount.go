@@ -20,6 +20,7 @@ import (
 #include <limits.h>
 #include <lxc/lxccontainer.h>
 #include <lxc/version.h>
+#include <sched.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -39,8 +40,8 @@ import (
 extern char* advance_arg(bool required);
 extern void error(char *msg);
 extern void attach_userns_fd(int ns_fd);
-extern bool setnsat(int ns_fd, const char *ns);
 extern int pidfd_nsfd(int pidfd, pid_t pid);
+extern bool change_namespaces(int pidfd, int nsfd, unsigned int flags);
 
 int mkdir_p(const char *dir, mode_t mode)
 {
@@ -133,13 +134,13 @@ void create(char *src, char *dest)
 	}
 }
 
-static void do_lxd_forkmount(int ns_fd)
+static void do_lxd_forkmount(int pidfd, int ns_fd)
 {
 	char *src, *dest, *shiftfs;
 
 	attach_userns_fd(ns_fd);
 
-	if (!setnsat(ns_fd, "mnt")) {
+	if (!change_namespaces(pidfd, ns_fd, CLONE_NEWNS)) {
 		fprintf(stderr, "Failed setns to container mount namespace: %s\n", strerror(errno));
 		_exit(1);
 	}
@@ -192,12 +193,12 @@ static void do_lxd_forkmount(int ns_fd)
 	_exit(0);
 }
 
-void do_lxd_forkumount(int ns_fd)
+void do_lxd_forkumount(int pidfd, int ns_fd)
 {
 	int ret;
 	char *path = NULL;
 
-	if (!setnsat(ns_fd, "mnt")) {
+	if (!change_namespaces(pidfd, ns_fd, CLONE_NEWNS)) {
 		fprintf(stderr, "Failed to setns to container mount namespace: %s\n", strerror(errno));
 		_exit(1);
 	}
@@ -365,7 +366,7 @@ void forkmount(void)
 		if (ns_fd < 0)
 			_exit(EXIT_FAILURE);
 
-		do_lxd_forkmount(ns_fd);
+		do_lxd_forkmount(pidfd, ns_fd);
 	} else if (strcmp(command, "lxc-mount") == 0) {
 		do_lxc_forkmount();
 	} else if (strcmp(command, "lxd-umount") == 0) {
@@ -383,7 +384,7 @@ void forkmount(void)
 		if (ns_fd < 0)
 			_exit(EXIT_FAILURE);
 
-		do_lxd_forkumount(ns_fd);
+		do_lxd_forkumount(pidfd, ns_fd);
 	} else if (strcmp(command, "lxc-umount") == 0) {
 		do_lxc_forkumount();
 	}
