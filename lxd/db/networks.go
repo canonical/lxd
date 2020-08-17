@@ -246,8 +246,8 @@ func (c *ClusterTx) CreatePendingNetwork(node, name string, netType NetworkType,
 	var networkID = network.id
 	if networkID == 0 {
 		// No existing network with the given name was found, let's create one.
-		columns := []string{"name"}
-		values := []interface{}{name}
+		columns := []string{"name", "description"}
+		values := []interface{}{name, ""}
 		networkID, err = query.UpsertObject(c.tx, "networks", columns, values)
 		if err != nil {
 			return err
