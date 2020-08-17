@@ -356,6 +356,20 @@ func (c *Cluster) getNetwork(name string, onlyCreated bool) (int64, *api.Network
 	network.Description = description.String
 	network.Config = config
 
+	// Populate Status and Type fields by converting from DB values.
+	networkFillStatus(&network, state)
+	networkFillType(&network, netType)
+
+	nodes, err := c.networkNodes(id)
+	if err != nil {
+		return -1, nil, err
+	}
+	network.Locations = nodes
+
+	return id, &network, nil
+}
+
+func networkFillStatus(network *api.Network, state int) {
 	switch state {
 	case networkPending:
 		network.Status = api.NetworkStatusPending
@@ -366,7 +380,9 @@ func (c *Cluster) getNetwork(name string, onlyCreated bool) (int64, *api.Network
 	default:
 		network.Status = api.NetworkStatusUnknown
 	}
+}
 
+func networkFillType(network *api.Network, netType NetworkType) {
 	switch netType {
 	case NetworkTypeBridge:
 		network.Type = "bridge"
@@ -379,14 +395,6 @@ func (c *Cluster) getNetwork(name string, onlyCreated bool) (int64, *api.Network
 	default:
 		network.Type = "" // Unknown
 	}
-
-	nodes, err := c.networkNodes(id)
-	if err != nil {
-		return -1, nil, err
-	}
-	network.Locations = nodes
-
-	return id, &network, nil
 }
 
 // Return the names of the nodes the given network is defined on.
