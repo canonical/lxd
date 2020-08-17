@@ -114,6 +114,13 @@ func (c *ClusterTx) GetNonPendingNetworks() (map[int64]api.Network, error) {
 		}
 
 		network.Config = networkConfig
+
+		nodes, err := c.networkNodes(networkID)
+		if err != nil {
+			return nil, err
+		}
+		network.Locations = nodes
+
 		networks[networkID] = network
 	}
 
@@ -332,6 +339,22 @@ func (c *ClusterTx) UpdateNetwork(id int64, description string, config map[strin
 	return nil
 }
 
+// Return the names of the nodes the given network is defined on.
+func (c *ClusterTx) networkNodes(networkID int64) ([]string, error) {
+	var err error
+	stmt := `
+	SELECT nodes.name FROM nodes
+	  JOIN networks_nodes ON networks_nodes.node_id = nodes.id
+	  WHERE networks_nodes.network_id = ?
+	`
+	nodes, err := query.SelectStrings(c.tx, stmt, networkID)
+	if err != nil {
+		return nil, err
+	}
+
+	return nodes, nil
+}
+
 // GetNetworks returns the names of existing networks.
 func (c *Cluster) GetNetworks() ([]string, error) {
 	return c.networks("")
@@ -473,20 +496,21 @@ func networkFillType(network *api.Network, netType NetworkType) {
 
 // Return the names of the nodes the given network is defined on.
 func (c *Cluster) networkNodes(networkID int64) ([]string, error) {
-	stmt := `
-SELECT nodes.name FROM nodes
-  JOIN networks_nodes ON networks_nodes.node_id = nodes.id
-  WHERE networks_nodes.network_id = ?
-`
 	var nodes []string
-	err := c.Transaction(func(tx *ClusterTx) error {
-		var err error
-		nodes, err = query.SelectStrings(tx.tx, stmt, networkID)
-		return err
+	var err error
+
+	err = c.Transaction(func(tx *ClusterTx) error {
+		nodes, err = tx.networkNodes(networkID)
+		if err != nil {
+			return err
+		}
+
+		return nil
 	})
 	if err != nil {
 		return nil, err
 	}
+
 	return nodes, nil
 }
 
