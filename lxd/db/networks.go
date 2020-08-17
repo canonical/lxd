@@ -66,6 +66,59 @@ func (c *ClusterTx) GetNonPendingNetworkIDs() (map[string]int64, error) {
 	return ids, nil
 }
 
+// GetNonPendingNetworks returns a map of api.Network associated to network ID.
+//
+// Pending networks are skipped.
+func (c *ClusterTx) GetNonPendingNetworks() (map[int64]api.Network, error) {
+	stmt, err := c.tx.Prepare("SELECT id, name, description, state FROM networks WHERE state != ?")
+	if err != nil {
+		return nil, err
+	}
+	defer stmt.Close()
+
+	rows, err := stmt.Query(networkPending)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	networks := make(map[int64]api.Network)
+
+	for i := 0; rows.Next(); i++ {
+		var networkID int64
+		var networkState int
+		var network api.Network
+
+		err := rows.Scan(&networkID, &network.Name, &network.Description, &networkState)
+		if err != nil {
+			return nil, err
+		}
+
+		// Populate Status and Type fields by converting from DB values.
+		networkFillStatus(&network, networkState)
+		networkFillType(&network, NetworkTypeBridge)
+
+		networks[networkID] = network
+	}
+	err = rows.Err()
+	if err != nil {
+		return nil, err
+	}
+
+	// Populate config.
+	for networkID, network := range networks {
+		networkConfig, err := query.SelectConfig(c.tx, "networks_config", "network_id=? AND (node_id=? OR node_id IS NULL)", networkID, c.nodeID)
+		if err != nil {
+			return nil, err
+		}
+
+		network.Config = networkConfig
+		networks[networkID] = network
+	}
+
+	return networks, nil
+}
+
 // GetNetworkID returns the ID of the network with the given name.
 func (c *ClusterTx) GetNetworkID(name string) (int64, error) {
 	stmt := "SELECT id FROM networks WHERE name=?"
