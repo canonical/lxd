@@ -436,7 +436,7 @@ func (n *ovn) parentAllocateIP(ipRanges []*shared.IPRange, allAllocated []net.IP
 
 		// Iterate through IPs in range, return the first unallocated one found.
 		for {
-			if startBig.Cmp(endBig) >= 0 {
+			if startBig.Cmp(endBig) > 0 {
 				break
 			}
 
