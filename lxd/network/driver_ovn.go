@@ -15,6 +15,7 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/lxc/lxd/lxd/cluster"
+	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/dnsmasq"
 	"github.com/lxc/lxd/lxd/locking"
 	"github.com/lxc/lxd/lxd/network/openvswitch"
@@ -288,58 +289,74 @@ func (n *ovn) setupParentPortBridge(parentNet Network, routerMAC net.HardwareAdd
 		v.routerExtGwIPv6 = parentIPv6
 	}
 
-	// Retrieve and parse existing allocated IPs for this network on the parent network.
+	// Parse existing allocated IPs for this network on the parent network (if not set yet, will be nil).
 	routerExtPortIPv4 := net.ParseIP(n.config[ovnVolatileParentIPv4])
 	routerExtPortIPv6 := net.ParseIP(n.config[ovnVolatileParentIPv6])
 
 	// Decide whether we need to allocate new IP(s) and go to the expense of retrieving all allocated IPs.
 	if (parentIPv4Net != nil && routerExtPortIPv4 == nil) || (parentIPv6Net != nil && routerExtPortIPv6 == nil) {
-		allAllocatedIPv4, allAllocatedIPv6, err := n.parentAllAllocatedIPs(parentNet.Name())
-		if err != nil {
-			return nil, errors.Wrapf(err, "Failed to get all allocated IPs for parent")
-		}
-
-		if parentIPv4Net != nil && routerExtPortIPv4 == nil {
-			ipRanges, err := parseIPRanges(parentNetConf["ipv4.ovn.ranges"], parentNet.DHCPv4Subnet())
+		err := n.state.Cluster.Transaction(func(tx *db.ClusterTx) error {
+			allAllocatedIPv4, allAllocatedIPv6, err := n.parentAllAllocatedIPs(tx, parentNet.Name())
 			if err != nil {
-				return nil, errors.Wrapf(err, "Failed to parse parent IPv4 OVN ranges")
+				return errors.Wrapf(err, "Failed to get all allocated IPs for parent")
 			}
 
-			routerExtPortIPv4, err = n.parentAllocateIP(ipRanges, allAllocatedIPv4)
+			if parentIPv4Net != nil && routerExtPortIPv4 == nil {
+				if parentNetConf["ipv4.ovn.ranges"] == "" {
+					return fmt.Errorf(`Missing required "ipv4.ovn.ranges" config key on parent network`)
+				}
+
+				ipRanges, err := parseIPRanges(parentNetConf["ipv4.ovn.ranges"], parentNet.DHCPv4Subnet())
+				if err != nil {
+					return errors.Wrapf(err, "Failed to parse parent IPv4 OVN ranges")
+				}
+
+				routerExtPortIPv4, err = n.parentAllocateIP(ipRanges, allAllocatedIPv4)
+				if err != nil {
+					return errors.Wrapf(err, "Failed to allocate parent IPv4 address")
+				}
+
+				n.config[ovnVolatileParentIPv4] = routerExtPortIPv4.String()
+			}
+
+			if parentIPv6Net != nil && routerExtPortIPv6 == nil {
+				// If IPv6 OVN ranges are specified by the parent, allocate from them.
+				if parentNetConf["ipv6.ovn.ranges"] != "" {
+					ipRanges, err := parseIPRanges(parentNetConf["ipv6.ovn.ranges"], parentNet.DHCPv6Subnet())
+					if err != nil {
+						return errors.Wrapf(err, "Failed to parse parent IPv6 OVN ranges")
+					}
+
+					routerExtPortIPv6, err = n.parentAllocateIP(ipRanges, allAllocatedIPv6)
+					if err != nil {
+						return errors.Wrapf(err, "Failed to allocate parent IPv6 address")
+					}
+
+				} else {
+					// Otherwise use EUI64 derived from MAC address.
+					routerExtPortIPv6, err = eui64.ParseMAC(parentIPv6Net.IP, routerMAC)
+					if err != nil {
+						return err
+					}
+				}
+
+				n.config[ovnVolatileParentIPv6] = routerExtPortIPv6.String()
+			}
+
+			networkID, err := tx.GetNetworkID(n.name)
 			if err != nil {
-				return nil, errors.Wrapf(err, "Failed to allocate parent IPv4 address")
+				return errors.Wrapf(err, "Failed to get network ID for network %q", n.name)
 			}
 
-			n.config[ovnVolatileParentIPv4] = routerExtPortIPv4.String()
-		}
-
-		if parentIPv6Net != nil && routerExtPortIPv6 == nil {
-			// If IPv6 OVN ranges are specified by the parent, allocate from them.
-			if parentNetConf["ipv6.ovn.ranges"] != "" {
-				ipRanges, err := parseIPRanges(parentNetConf["ipv6.ovn.ranges"], parentNet.DHCPv6Subnet())
-				if err != nil {
-					return nil, errors.Wrapf(err, "Failed to parse parent IPv6 OVN ranges")
-				}
-
-				routerExtPortIPv6, err = n.parentAllocateIP(ipRanges, allAllocatedIPv6)
-				if err != nil {
-					return nil, errors.Wrapf(err, "Failed to allocate parent IPv6 address")
-				}
-
-			} else {
-				// Otherwise use EUI64 derived from MAC address.
-				routerExtPortIPv6, err = eui64.ParseMAC(parentIPv6Net.IP, routerMAC)
-				if err != nil {
-					return nil, err
-				}
+			err = tx.UpdateNetwork(networkID, n.description, n.config)
+			if err != nil {
+				return errors.Wrapf(err, "Failed saving allocated parent network IPs")
 			}
 
-			n.config[ovnVolatileParentIPv6] = routerExtPortIPv6.String()
-		}
-
-		err = n.state.Cluster.UpdateNetwork(n.name, n.description, n.config)
+			return nil
+		})
 		if err != nil {
-			return nil, errors.Wrapf(err, "Failed saving allocated parent network IPs")
+			return nil, err
 		}
 	}
 
@@ -364,9 +381,9 @@ func (n *ovn) setupParentPortBridge(parentNet Network, routerMAC net.HardwareAdd
 }
 
 // parentAllAllocatedIPs gets a list of all IPv4 and IPv6 addresses allocated to OVN networks connected to parent.
-func (n *ovn) parentAllAllocatedIPs(parentNetName string) ([]net.IP, []net.IP, error) {
-	// Get a list of managed networks.
-	networks, err := n.state.Cluster.GetNonPendingNetworks()
+func (n *ovn) parentAllAllocatedIPs(tx *db.ClusterTx, parentNetName string) ([]net.IP, []net.IP, error) {
+	// Get all managed networks.
+	networks, err := tx.GetNonPendingNetworks()
 	if err != nil {
 		return nil, nil, err
 	}
@@ -374,12 +391,7 @@ func (n *ovn) parentAllAllocatedIPs(parentNetName string) ([]net.IP, []net.IP, e
 	v4IPs := make([]net.IP, 0)
 	v6IPs := make([]net.IP, 0)
 
-	for _, name := range networks {
-		_, netInfo, err := n.state.Cluster.GetNetworkInAnyState(name)
-		if err != nil {
-			return nil, nil, err
-		}
-
+	for _, netInfo := range networks {
 		if netInfo.Type != "ovn" || netInfo.Config["parent"] != parentNetName {
 			continue
 		}
