@@ -47,6 +47,7 @@ __ro_after_init bool close_range_aware = false;
 __ro_after_init bool tiocgptpeer_aware = false;
 __ro_after_init bool netnsid_aware = false;
 __ro_after_init bool pidfd_aware = false;
+__ro_after_init bool pidfd_setns_aware = false;
 __ro_after_init bool uevent_aware = false;
 __ro_after_init int seccomp_notify_aware = 0;
 __ro_after_init char errbuf[4096];
@@ -150,8 +151,6 @@ static void is_uevent_aware(void)
 
 	uevent_aware = true;
 }
-
-#define ARRAY_SIZE(arr) (sizeof(arr) / sizeof((arr)[0]))
 
 static int user_trap_syscall(int nr, unsigned int flags)
 {
@@ -429,14 +428,14 @@ static void is_seccomp_notify_aware(void)
 
 }
 
-static void is_pidfd_aware(void)
+static int is_pidfd_aware(void)
 {
 	__do_close int pidfd = -EBADF;
 	int ret;
 
 	pidfd = pidfd_open(getpid(), 0);
 	if (pidfd < 0)
-		return;
+		return -EBADF;
 
 	// We don't care whether or not children were in a waitable state. We
 	// just care whether waitid() recognizes P_PIDFD.
@@ -448,13 +447,14 @@ static void is_pidfd_aware(void)
 		    // What state to wait for.
 		    WEXITED | WSTOPPED | WCONTINUED);
 	if (ret < 0 && errno != ECHILD)
-		return;
+		return -errno;
 
 	ret = pidfd_send_signal(pidfd, 0, NULL, 0);
 	if (ret)
-		return;
+		return -errno;
 
 	pidfd_aware = true;
+	return move_fd(pidfd);
 }
 
 #ifndef TIOCGPTPEER
@@ -505,14 +505,17 @@ static void is_close_range_aware(void)
 
 void checkfeature(void)
 {
-	__do_close int hostnetns_fd = -EBADF, newnetns_fd = -EBADF;
+	__do_close int hostnetns_fd = -EBADF, newnetns_fd = -EBADF, pidfd = -EBADF;
 
 	is_netnsid_aware(&hostnetns_fd, &newnetns_fd);
-	is_pidfd_aware();
+	pidfd = is_pidfd_aware();
 	is_uevent_aware();
 	is_seccomp_notify_aware();
 	is_tiocgptpeer_aware();
 	is_close_range_aware();
+
+	if (pidfd >= 0)
+		pidfd_setns_aware = !setns(pidfd, CLONE_NEWNET);
 
 	if (setns(hostnetns_fd, CLONE_NEWNET) < 0)
 		(void)sprintf(errbuf, "%s", "Failed to attach to host network namespace");
@@ -549,6 +552,7 @@ func canUseSeccompListenerContinue() bool {
 func canUseSeccompListenerAddfd() bool {
 	return bool(C.seccomp_notify_aware == 3)
 }
+
 func canUsePidFds() bool {
 	return bool(C.pidfd_aware)
 }
@@ -596,4 +600,8 @@ func canUseNativeTerminals() bool {
 
 func canUseCloseRange() bool {
 	return bool(C.close_range_aware)
+}
+
+func canUsePidFdSetns() bool {
+	return bool(C.pidfd_setns_aware)
 }
