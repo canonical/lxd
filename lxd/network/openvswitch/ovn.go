@@ -51,6 +51,7 @@ type OVNIPv6RAOpts struct {
 	MaxInterval        time.Duration
 	RecursiveDNSServer net.IP
 	DNSSearchList      []string
+	MTU                uint32
 }
 
 // OVNDHCPOptsSet is an existing DHCP options set in the northbound database.
@@ -67,6 +68,7 @@ type OVNDHCPv4Opts struct {
 	RecursiveDNSServer net.IP
 	DomainName         string
 	LeaseTime          time.Duration
+	MTU                uint32
 }
 
 // OVNDHCPv6Opts IPv6 DHCP option set that can be created (and then applied to a switch port by resulting ID).
@@ -193,13 +195,16 @@ func (o *OVN) LogicalRouterPortSetIPv6Advertisements(portName OVNRouterPort, opt
 		args = append(args, fmt.Sprintf("ipv6_ra_configs:min_interval=%d", opts.MinInterval/time.Second))
 	}
 
+	if opts.MTU > 0 {
+		args = append(args, fmt.Sprintf("ipv6_ra_configs:mtu=%d", opts.MTU))
+	}
+
 	if len(opts.DNSSearchList) > 0 {
 		args = append(args, fmt.Sprintf("ipv6_ra_configs:dnssl=%s", strings.Join(opts.DNSSearchList, ",")))
 	}
 
 	if opts.RecursiveDNSServer != nil {
 		args = append(args, fmt.Sprintf("ipv6_ra_configs:rdnss=%s", opts.RecursiveDNSServer.String()))
-
 	}
 
 	// Configure IPv6 Router Advertisements.
@@ -343,6 +348,10 @@ func (o *OVN) LogicalSwitchDHCPv4OptionsSet(switchName OVNSwitch, uuid string, s
 	if opts.DomainName != "" {
 		// Special quoting to allow domain names.
 		args = append(args, fmt.Sprintf(`domain_name="%s"`, opts.DomainName))
+	}
+
+	if opts.MTU > 0 {
+		args = append(args, fmt.Sprintf("mtu=%d", opts.MTU))
 	}
 
 	_, err = o.nbctl(args...)

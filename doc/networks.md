@@ -290,6 +290,7 @@ lxc ls
 Key                             | Type      | Condition             | Default                   | Description
 :--                             | :--       | :--                   | :--                       | :--
 bridge.hwaddr                   | string    | -                     | -                         | MAC address for the bridge
+bridge.mtu                      | integer   | -                     | 1442                      | Bridge MTU (default allows host to host geneve tunnels)
 dns.domain                      | string    | -                     | lxd                       | Domain to advertise to DHCP clients and use for DNS resolution
 dns.search                      | string    | -                     | -                         | Full comma separated domain search list, defaulting to `dns.domain` value
 ipv4.address                    | string    | standard mode         | random unused subnet      | IPv4 address for the bridge (CIDR notation). Use "none" to turn off IPv4 or "auto" to generate a new one
