@@ -159,7 +159,7 @@ func (n *bridge) Validate(config map[string]string) error {
 			return nil
 		}),
 		"bridge.hwaddr": validate.Optional(validate.IsNetworkMAC),
-		"bridge.mtu":    validate.Optional(validate.IsInt64),
+		"bridge.mtu":    validate.Optional(validate.IsNetworkMTU),
 		"bridge.mode": func(value string) error {
 			return validate.IsOneOf(value, []string{"standard", "fan"})
 		},
