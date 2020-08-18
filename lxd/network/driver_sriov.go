@@ -18,7 +18,7 @@ type sriov struct {
 func (n *sriov) Validate(config map[string]string) error {
 	rules := map[string]func(value string) error{
 		"parent":           validInterfaceName,
-		"mtu":              validate.Optional(validate.IsInt64),
+		"mtu":              validate.Optional(validate.IsNetworkMTU),
 		"vlan":             validate.Optional(validate.IsNetworkVLAN),
 		"maas.subnet.ipv4": validate.IsAny,
 		"maas.subnet.ipv6": validate.IsAny,
