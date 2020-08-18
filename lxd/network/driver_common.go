@@ -345,11 +345,28 @@ func (n *common) rename(newName string) error {
 func (n *common) delete(clusterNotification bool) error {
 	// Only delete database record if not cluster notification.
 	if !clusterNotification {
-		// Remove the network from the database.
-		err := n.state.Cluster.DeleteNetwork(n.name)
+		// Notify all other nodes. If any node is down, an error will be returned.
+		notifier, err := cluster.NewNotifier(n.state, n.state.Endpoints.NetworkCert(), cluster.NotifyAll)
 		if err != nil {
 			return err
 		}
+		err = notifier(func(client lxd.InstanceServer) error {
+			return client.DeleteNetwork(n.name)
+		})
+		if err != nil {
+			return err
+		}
+
+		// Remove the network from the database.
+		err = n.state.Cluster.DeleteNetwork(n.name)
+		if err != nil {
+			return err
+		}
+	}
+
+	// Cleanup storage.
+	if shared.PathExists(shared.VarPath("networks", n.name)) {
+		os.RemoveAll(shared.VarPath("networks", n.name))
 	}
 
 	return nil
