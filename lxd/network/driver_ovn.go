@@ -8,6 +8,7 @@ import (
 	"math/big"
 	"math/rand"
 	"net"
+	"strconv"
 	"strings"
 	"time"
 
@@ -27,6 +28,9 @@ import (
 	log "github.com/lxc/lxd/shared/log15"
 	"github.com/lxc/lxd/shared/validate"
 )
+
+// ovnGeneveTunnelMTU is the MTU that is safe to use when tunneling using geneve.
+const ovnGeneveTunnelMTU = 1442
 
 const ovnChassisPriorityMax = 32767
 const ovnVolatileParentIPv4 = "volatile.parent.ipv4.address"
@@ -71,6 +75,7 @@ func (n *ovn) Validate(config map[string]string) error {
 			return nil
 		},
 		"bridge.hwaddr": validate.Optional(validate.IsNetworkMAC),
+		"bridge.mtu":    validate.Optional(validate.IsNetworkMTU),
 		"ipv4.address": func(value string) error {
 			if validate.IsOneOf(value, []string{"auto"}) == nil {
 				return nil
@@ -112,6 +117,21 @@ func (n *ovn) getClient() (*openvswitch.OVN, error) {
 	client.SetDatabaseAddress(nbConnection)
 
 	return client, nil
+}
+
+// getBridgeMTU returns MTU that should be used for the bridge and instance devices. Will also be used to configure
+// the OVN DHCP and IPv6 RA options.
+func (n *ovn) getBridgeMTU() uint32 {
+	if n.config["bridge.mtu"] != "" {
+		mtu, err := strconv.ParseUint(n.config["bridge.mtu"], 10, 32)
+		if err != nil {
+			return ovnGeneveTunnelMTU
+		}
+
+		return uint32(mtu)
+	}
+
+	return ovnGeneveTunnelMTU
 }
 
 // getNetworkPrefix returns OVN network prefix to use for object names.
@@ -932,6 +952,7 @@ func (n *ovn) setup(update bool) error {
 		RecursiveDNSServer: parent.dnsIPv4,
 		DomainName:         n.getDomainName(),
 		LeaseTime:          time.Duration(time.Hour * 1),
+		MTU:                n.getBridgeMTU(),
 	})
 	if err != nil {
 		return errors.Wrapf(err, "Failed adding DHCPv4 settings for internal switch")
@@ -977,6 +998,7 @@ func (n *ovn) setup(update bool) error {
 			SendPeriodic:       true,
 			DNSSearchList:      n.getDNSSearchList(),
 			RecursiveDNSServer: parent.dnsIPv6,
+			MTU:                n.getBridgeMTU(),
 
 			// Keep these low until we support DNS search domains via DHCPv4, as otherwise RA DNSSL
 			// won't take effect until advert after DHCPv4 has run on instance.
