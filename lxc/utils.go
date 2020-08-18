@@ -8,7 +8,6 @@ import (
 	"strings"
 
 	"github.com/pkg/errors"
-	"vbom.ml/util/sortorder"
 
 	lxd "github.com/lxc/lxd/client"
 	"github.com/lxc/lxd/shared/api"
@@ -42,7 +41,7 @@ func (a stringList) Less(i, j int) bool {
 		return true
 	}
 
-	return sortorder.NaturalLess(a[i][x], a[j][x])
+	return NaturalLess(a[i][x], a[j][x])
 }
 
 // Instance name sorting
@@ -65,7 +64,7 @@ func (a byName) Less(i, j int) bool {
 		return true
 	}
 
-	return sortorder.NaturalLess(a[i][0], a[j][0])
+	return NaturalLess(a[i][0], a[j][0])
 }
 
 // Storage volume sorting
@@ -85,7 +84,7 @@ func (a byNameAndType) Less(i, j int) bool {
 	jType := strings.Split(a[j][0], " ")[0]
 
 	if iType != jType {
-		return sortorder.NaturalLess(a[i][0], a[j][0])
+		return NaturalLess(a[i][0], a[j][0])
 	}
 
 	if a[i][1] == "" {
@@ -96,7 +95,7 @@ func (a byNameAndType) Less(i, j int) bool {
 		return true
 	}
 
-	return sortorder.NaturalLess(a[i][1], a[j][1])
+	return NaturalLess(a[i][1], a[j][1])
 }
 
 // Batch operations
