@@ -112,7 +112,12 @@ func (o *OVN) getNorthboundDB() string {
 
 // nbctl executes ovn-nbctl with arguments to connect to wrapper's northbound database.
 func (o *OVN) nbctl(args ...string) (string, error) {
-	return shared.RunCommand("ovn-nbctl", append([]string{"--db", o.getNorthboundDB()}, args...)...)
+	dbAddr := o.getNorthboundDB()
+	if strings.HasPrefix(dbAddr, "unix:") {
+		dbAddr = fmt.Sprintf("unix:%s", shared.HostPathFollow(strings.TrimPrefix(dbAddr, "unix:")))
+	}
+
+	return shared.RunCommand("ovn-nbctl", append([]string{"--db", dbAddr}, args...)...)
 }
 
 // LogicalRouterAdd adds a named logical router.
