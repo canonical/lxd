@@ -51,6 +51,7 @@ func (d *nicOVN) validateConfig(instConf instance.ConfigReader) error {
 		"name",
 		"hwaddr",
 		"host_name",
+		"mtu",
 		"ipv4.address",
 		"ipv6.address",
 		"boot.priority",
@@ -68,6 +69,13 @@ func (d *nicOVN) validateConfig(instConf instance.ConfigReader) error {
 
 	if n.Type() != "ovn" {
 		return fmt.Errorf("Specified network must be of type ovn")
+	}
+
+	bannedKeys := []string{"mtu"}
+	for _, bannedKey := range bannedKeys {
+		if d.config[bannedKey] != "" {
+			return fmt.Errorf("Cannot use %q property in conjunction with %q property", bannedKey, "network")
+		}
 	}
 
 	d.network = n // Stored loaded instance for use by other functions.
@@ -108,6 +116,14 @@ func (d *nicOVN) validateConfig(instConf instance.ConfigReader) error {
 			return fmt.Errorf("Device IP address %q not within network %q subnet", d.config["ipv6.address"], d.config["network"])
 		}
 	}
+
+	// Apply network level config options to device config before validation.
+	mtu, err := network.OVNInstanceDeviceMTU(n)
+	if err != nil {
+		return err
+	}
+
+	d.config["mtu"] = fmt.Sprintf("%d", mtu)
 
 	rules := nicValidationRules(requiredFields, optionalFields)
 
