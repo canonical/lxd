@@ -193,7 +193,7 @@ func IsNetworkV4(value string) error {
 func IsNetworkAddressV4(value string) error {
 	ip := net.ParseIP(value)
 	if ip == nil || ip.To4() == nil {
-		return fmt.Errorf("Not an IPv4 address: %s", value)
+		return fmt.Errorf("Not an IPv4 address %q", value)
 	}
 
 	return nil
@@ -207,11 +207,11 @@ func IsNetworkAddressCIDRV4(value string) error {
 	}
 
 	if ip.To4() == nil {
-		return fmt.Errorf("Not an IPv4 address: %s", value)
+		return fmt.Errorf("Not an IPv4 address %q", value)
 	}
 
 	if ip.String() == subnet.IP.String() {
-		return fmt.Errorf("Not a usable IPv4 address: %s", value)
+		return fmt.Errorf("Not a usable IPv4 address %q", value)
 	}
 
 	return nil
@@ -250,11 +250,11 @@ func IsNetworkV6(value string) error {
 	}
 
 	if ip == nil || ip.To4() != nil {
-		return fmt.Errorf("Not an IPv6 network: %s", value)
+		return fmt.Errorf("Not an IPv6 network %q", value)
 	}
 
 	if ip.String() != subnet.IP.String() {
-		return fmt.Errorf("Not an IPv6 network address: %s", value)
+		return fmt.Errorf("Not an IPv6 network address %q", value)
 	}
 
 	return nil
@@ -264,7 +264,7 @@ func IsNetworkV6(value string) error {
 func IsNetworkAddressV6(value string) error {
 	ip := net.ParseIP(value)
 	if ip == nil || ip.To4() != nil {
-		return fmt.Errorf("Not an IPv6 address: %s", value)
+		return fmt.Errorf("Not an IPv6 address %q", value)
 	}
 
 	return nil
@@ -278,11 +278,11 @@ func IsNetworkAddressCIDRV6(value string) error {
 	}
 
 	if ip.To4() != nil {
-		return fmt.Errorf("Not an IPv6 address: %s", value)
+		return fmt.Errorf("Not an IPv6 address %q", value)
 	}
 
 	if ip.String() == subnet.IP.String() {
-		return fmt.Errorf("Not a usable IPv6 address: %s", value)
+		return fmt.Errorf("Not a usable IPv6 address %q", value)
 	}
 
 	return nil
@@ -375,11 +375,11 @@ func IsNetworkRangeV6List(value string) error {
 func IsNetworkVLAN(value string) error {
 	vlanID, err := strconv.Atoi(value)
 	if err != nil {
-		return fmt.Errorf("Invalid VLAN ID: %s", value)
+		return fmt.Errorf("Invalid VLAN ID %q", value)
 	}
 
 	if vlanID < 0 || vlanID > 4094 {
-		return fmt.Errorf("Out of VLAN ID range (0-4094): %s", value)
+		return fmt.Errorf("Out of VLAN ID range (0-4094) %q", value)
 	}
 
 	return nil
