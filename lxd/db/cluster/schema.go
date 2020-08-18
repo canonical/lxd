@@ -276,30 +276,31 @@ CREATE VIEW instances_snapshots_devices_ref (
      JOIN instances ON instances.id=instances_snapshots.instance_id
      JOIN projects ON projects.id=instances.project_id
      JOIN instances_snapshots ON instances_snapshots.id=instances_snapshots_devices.instance_snapshot_id;
-CREATE TABLE networks (
+CREATE TABLE "networks" (
     id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+    project_id INTEGER NOT NULL,
     name TEXT NOT NULL,
     description TEXT,
     state INTEGER NOT NULL DEFAULT 0,
     type INTEGER NOT NULL DEFAULT 0,
-    UNIQUE (name)
+    UNIQUE (project_id, name)
 );
-CREATE TABLE networks_config (
+CREATE TABLE "networks_config" (
     id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
     network_id INTEGER NOT NULL,
     node_id INTEGER,
     key TEXT NOT NULL,
     value TEXT,
     UNIQUE (network_id, node_id, key),
-    FOREIGN KEY (network_id) REFERENCES networks (id) ON DELETE CASCADE,
+    FOREIGN KEY (network_id) REFERENCES "networks" (id) ON DELETE CASCADE,
     FOREIGN KEY (node_id) REFERENCES nodes (id) ON DELETE CASCADE
 );
-CREATE TABLE networks_nodes (
+CREATE TABLE "networks_nodes" (
     id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
     network_id INTEGER NOT NULL,
     node_id INTEGER NOT NULL,
     UNIQUE (network_id, node_id),
-    FOREIGN KEY (network_id) REFERENCES networks (id) ON DELETE CASCADE,
+    FOREIGN KEY (network_id) REFERENCES "networks" (id) ON DELETE CASCADE,
     FOREIGN KEY (node_id) REFERENCES nodes (id) ON DELETE CASCADE
 );
 CREATE TABLE nodes (
@@ -572,5 +573,5 @@ CREATE TABLE storage_volumes_snapshots_config (
     UNIQUE (storage_volume_snapshot_id, key)
 );
 
-INSERT INTO schema (version, updated_at) VALUES (33, strftime("%s"))
+INSERT INTO schema (version, updated_at) VALUES (34, strftime("%s"))
 `
