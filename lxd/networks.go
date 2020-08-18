@@ -535,11 +535,9 @@ func networkDelete(d *Daemon, r *http.Request) response.Response {
 		return response.NotFound(err)
 	}
 
-	clusterNotification := false
-	if isClusterNotification(r) {
-		clusterNotification = true // We just want to delete the network from the system.
-	} else {
-		// Sanity checks
+	clusterNotification := isClusterNotification(r)
+	if !clusterNotification {
+		// Sanity checks.
 		inUse, err := n.IsUsed()
 		if err != nil {
 			return response.SmartError(err)
@@ -548,29 +546,12 @@ func networkDelete(d *Daemon, r *http.Request) response.Response {
 		if inUse {
 			return response.BadRequest(fmt.Errorf("The network is currently in use"))
 		}
-
-		// Notify all other nodes. If any node is down, an error will be returned.
-		notifier, err := cluster.NewNotifier(d.State(), d.endpoints.NetworkCert(), cluster.NotifyAll)
-		if err != nil {
-			return response.SmartError(err)
-		}
-		err = notifier(func(client lxd.InstanceServer) error {
-			return client.DeleteNetwork(name)
-		})
-		if err != nil {
-			return response.SmartError(err)
-		}
 	}
 
 	// Delete the network.
 	err = n.Delete(clusterNotification)
 	if err != nil {
 		return response.SmartError(err)
-	}
-
-	// Cleanup storage.
-	if shared.PathExists(shared.VarPath("networks", n.Name())) {
-		os.RemoveAll(shared.VarPath("networks", n.Name()))
 	}
 
 	return response.EmptySyncResponse
