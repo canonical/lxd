@@ -121,13 +121,18 @@ func networksGet(d *Daemon, r *http.Request) response.Response {
 }
 
 func networksPost(d *Daemon, r *http.Request) response.Response {
+	projectName, err := project.NetworkProject(d.State().Cluster, projectParam(r))
+	if err != nil {
+		return response.SmartError(err)
+	}
+
 	networkCreateLock.Lock()
 	defer networkCreateLock.Unlock()
 
 	req := api.NetworksPost{}
 
 	// Parse the request.
-	err := json.NewDecoder(r.Body).Decode(&req)
+	err = json.NewDecoder(r.Body).Decode(&req)
 	if err != nil {
 		return response.BadRequest(err)
 	}
@@ -173,7 +178,7 @@ func networksPost(d *Daemon, r *http.Request) response.Response {
 	if isClusterNotification(r) {
 		// This is an internal request which triggers the actual creation of the network across all nodes
 		// after they have been previously defined.
-		err = doNetworksCreate(d, req, clientType)
+		err = doNetworksCreate(d, projectName, req, clientType)
 		if err != nil {
 			return response.SmartError(err)
 		}
@@ -191,7 +196,7 @@ func networksPost(d *Daemon, r *http.Request) response.Response {
 		}
 
 		err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
-			return tx.CreatePendingNetwork(targetNode, project.Default, req.Name, dbNetType, req.Config)
+			return tx.CreatePendingNetwork(targetNode, projectName, req.Name, dbNetType, req.Config)
 		})
 		if err != nil {
 			if err == db.ErrAlreadyDefined {
@@ -209,7 +214,7 @@ func networksPost(d *Daemon, r *http.Request) response.Response {
 	}
 
 	if count > 1 {
-		err = networksPostCluster(d, req, clientType)
+		err = networksPostCluster(d, projectName, req, clientType)
 		if err != nil {
 			return response.SmartError(err)
 		}
@@ -223,7 +228,7 @@ func networksPost(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	networks, err := networkGetInterfaces(d.cluster)
+	networks, err := d.cluster.GetNetworks(projectName)
 	if err != nil {
 		return response.InternalError(err)
 	}
@@ -236,16 +241,16 @@ func networksPost(d *Daemon, r *http.Request) response.Response {
 	defer revert.Fail()
 
 	// Create the database entry.
-	_, err = d.cluster.CreateNetwork(project.Default, req.Name, req.Description, dbNetType, req.Config)
+	_, err = d.cluster.CreateNetwork(projectName, req.Name, req.Description, dbNetType, req.Config)
 	if err != nil {
 		return response.SmartError(errors.Wrapf(err, "Error inserting %q into database", req.Name))
 	}
 
 	revert.Add(func() {
-		d.cluster.DeleteNetwork(req.Name)
+		d.cluster.DeleteNetwork(projectName, req.Name)
 	})
 
-	err = doNetworksCreate(d, req, clientType)
+	err = doNetworksCreate(d, projectName, req, clientType)
 	if err != nil {
 		return response.SmartError(err)
 	}
