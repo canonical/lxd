@@ -184,7 +184,7 @@ func (c *ClusterTx) InitProjectWithoutImages(project string) error {
 	if err != nil {
 		return errors.Wrap(err, "Fetch project ID")
 	}
-	stmt := `INSERT INTO images_profiles (image_id, profile_id) 
+	stmt := `INSERT INTO images_profiles (image_id, profile_id)
 	SELECT images.id, ? FROM images WHERE project_id=1`
 	_, err = c.tx.Exec(stmt, defaultProfileID)
 	return err
