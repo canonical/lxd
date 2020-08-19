@@ -1138,18 +1138,8 @@ func (n *ovn) Delete(clientType cluster.ClientType) error {
 func (n *ovn) Rename(newName string) error {
 	n.logger.Debug("Rename", log.Ctx{"newName": newName})
 
-	// Sanity checks.
-	inUse, err := n.IsUsed()
-	if err != nil {
-		return err
-	}
-
-	if inUse {
-		return fmt.Errorf("The network is currently in use")
-	}
-
 	// Rename common steps.
-	err = n.common.rename(newName)
+	err := n.common.rename(newName)
 	if err != nil {
 		return err
 	}
