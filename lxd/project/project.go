@@ -98,3 +98,32 @@ func StorageVolumeProject(c *db.Cluster, projectName string, volumeType int) (st
 
 	return Default, nil
 }
+
+// NetworkProject returns the project name to use for the network based on the requested project.
+// If the project specified has the "features.networks" flag enabled then the project name is returned,
+// otherwise the default project name is returned.
+func NetworkProject(c *db.Cluster, projectName string) (string, error) {
+	var project *api.Project
+	var err error
+
+	err = c.Transaction(func(tx *db.ClusterTx) error {
+		project, err = tx.GetProject(projectName)
+		if err != nil {
+			return err
+		}
+
+		return nil
+	})
+
+	if err != nil {
+		return "", errors.Wrapf(err, "Failed to load project %q", projectName)
+	}
+
+	// Networks only use the project specified if the project has the features.networks feature enabled,
+	// otherwise the legacy behaviour of using the default project for networks is used.
+	if shared.IsTrue(project.Config["features.networks"]) {
+		return projectName, nil
+	}
+
+	return Default, nil
+}
