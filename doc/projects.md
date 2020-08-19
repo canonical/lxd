@@ -20,6 +20,7 @@ Key                                  | Type      | Condition             | Defau
 features.images                      | boolean   | -                     | true                      | Separate set of images and image aliases for the project
 features.profiles                    | boolean   | -                     | true                      | Separate set of profiles for the project
 features.storage.volumes             | boolean   | -                     | true                      | Separate set of storage volumes for the project
+features.networks                    | boolean   | -                     | true                      | Separate set of networks for the project
 limits.containers                    | integer   | -                     | -                         | Maximum number of containers that can be created in the project
 limits.virtual-machines              | integer   | -                     | -                         | Maximum number of VMs that can be created in the project
 limits.cpu                           | integer   | -                     | -                         | Maximum value for the sum of individual "limits.cpu" configs set on the instances of the project
