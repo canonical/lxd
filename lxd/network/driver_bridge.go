@@ -378,6 +378,17 @@ func (n *bridge) Validate(config map[string]string) error {
 	return nil
 }
 
+// Create checks whether the bridge interface name is used already.
+func (n *bridge) Create(clientType cluster.ClientType) error {
+	n.logger.Debug("Create", log.Ctx{"clientType": clientType, "config": n.config})
+
+	if shared.PathExists(fmt.Sprintf("/sys/class/net/%s", n.name)) {
+		return fmt.Errorf("Network interface %q already exists", n.name)
+	}
+
+	return nil
+}
+
 // isRunning returns whether the network is up.
 func (n *bridge) isRunning() bool {
 	return shared.PathExists(fmt.Sprintf("/sys/class/net/%s", n.name))
