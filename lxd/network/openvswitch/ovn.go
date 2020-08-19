@@ -268,7 +268,17 @@ func (o *OVN) LogicalSwitchDelete(switchName OVNSwitch) error {
 		return err
 	}
 
-	return o.logicalSwitchDHCPOptionsDelete(switchName)
+	err = o.logicalSwitchDHCPOptionsDelete(switchName)
+	if err != nil {
+		return err
+	}
+
+	err = o.logicalSwitchDNSRecordsDelete(switchName)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 // LogicalSwitchSetIPAllocation sets the IP allocation config on the logical switch.
@@ -477,6 +487,28 @@ func (o *OVN) logicalSwitchDHCPOptionsDelete(switchName OVNSwitch) error {
 	if existingOpts != "" {
 		for _, uuid := range strings.Split(existingOpts, "\n") {
 			_, err = o.nbctl("destroy", "dhcp_options", uuid)
+			if err != nil {
+				return err
+			}
+		}
+	}
+
+	return nil
+}
+
+// logicalSwitchDNSRecordsDelete deletes any DNS records defined for a switch.
+func (o *OVN) logicalSwitchDNSRecordsDelete(switchName OVNSwitch) error {
+	existingOpts, err := o.nbctl("--format=csv", "--no-headings", "--data=bare", "--colum=_uuid", "find", "dns",
+		fmt.Sprintf("external_ids:lxd_switch=%s", string(switchName)),
+	)
+	if err != nil {
+		return err
+	}
+
+	existingOpts = strings.TrimSpace(existingOpts)
+	if existingOpts != "" {
+		for _, uuid := range strings.Split(existingOpts, "\n") {
+			_, err = o.nbctl("destroy", "dns", uuid)
 			if err != nil {
 				return err
 			}
