@@ -577,28 +577,32 @@ func networkPost(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 	if clustered {
-		return response.BadRequest(fmt.Errorf("Renaming a network not supported in LXD clusters"))
+		return response.BadRequest(fmt.Errorf("Renaming clustered network not supported"))
 	}
 
 	name := mux.Vars(r)["name"]
 	req := api.NetworkPost{}
 	state := d.State()
 
-	// Parse the request
+	// Parse the request.
 	err = json.NewDecoder(r.Body).Decode(&req)
 	if err != nil {
 		return response.BadRequest(err)
 	}
 
-	// Get the existing network
+	// Get the existing network.
 	n, err := network.LoadByName(state, name)
 	if err != nil {
-		return response.NotFound(err)
+		if err == db.ErrNoSuchObject {
+			return response.NotFound(fmt.Errorf("Network not found"))
+		}
+
+		return response.InternalError(errors.Wrapf(err, "Failed loading network"))
 	}
 
-	// Sanity checks
+	// Sanity check new name.
 	if req.Name == "" {
-		return response.BadRequest(fmt.Errorf("No name provided"))
+		return response.BadRequest(fmt.Errorf("New network name not provided"))
 	}
 
 	err = network.ValidateName(req.Name, n.Type())
@@ -606,8 +610,18 @@ func networkPost(d *Daemon, r *http.Request) response.Response {
 		return response.BadRequest(err)
 	}
 
-	// Check that the name isn't already in use
-	networks, err := networkGetInterfaces(d.cluster)
+	// Check network isn't in use.
+	inUse, err := n.IsUsed()
+	if err != nil {
+		return response.InternalError(errors.Wrapf(err, "Failed checking network in use"))
+	}
+
+	if inUse {
+		return response.BadRequest(fmt.Errorf("Network is currently in use"))
+	}
+
+	// Check that the name isn't already in used by an existing managed network.
+	networks, err := d.cluster.GetNetworks()
 	if err != nil {
 		return response.InternalError(err)
 	}
@@ -616,7 +630,7 @@ func networkPost(d *Daemon, r *http.Request) response.Response {
 		return response.Conflict(fmt.Errorf("Network %q already exists", req.Name))
 	}
 
-	// Rename it
+	// Rename it.
 	err = n.Rename(req.Name)
 	if err != nil {
 		return response.SmartError(err)
