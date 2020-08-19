@@ -581,6 +581,31 @@ func (n *ovn) startParentPortBridge(parentNet Network) error {
 		return errors.Wrapf(err, "Failed to associate parent OVS bridge %q to OVN provider %q", vars.ovsBridge, parentNet.Name())
 	}
 
+	routerExtPortIPv6 := net.ParseIP(n.config[ovnVolatileParentIPv6])
+	if routerExtPortIPv6 != nil {
+		// Now that the OVN router is connected to the uplink parent bridge, attempt to ping the OVN
+		// router's external IPv6 from the LXD host running the parent bridge in an attempt to trigger the
+		// OVN router to learn the parent uplink gateway's MAC address. This is to work around a bug in
+		// older versions of OVN that meant that the OVN router would not attempt to learn the external
+		// uplink IPv6 gateway MAC address when using SNAT, meaning that external IPv6 connectivity
+		// wouldn't work until the next router advertisement was sent (which could be several minutes).
+		// By pinging the OVN router's external IP this will trigger an NDP request from the parent bridge
+		// which will cause the OVN router to learn its MAC address.
+		func() {
+			// Try several attempts as it can take a few seconds for the network to come up.
+			for i := 0; i < 5; i++ {
+				if pingIP(routerExtPortIPv6) {
+					n.logger.Debug("OVN router external IPv6 address reachable", log.Ctx{"ip": routerExtPortIPv6.String()})
+					return
+				}
+
+				time.Sleep(time.Second)
+			}
+
+			n.logger.Warn("OVN router external IPv6 address unreachable", log.Ctx{"ip": routerExtPortIPv6.String()})
+		}()
+	}
+
 	revert.Success()
 	return nil
 }
