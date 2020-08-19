@@ -233,7 +233,7 @@ func (d *nicOVN) Start() (*deviceConfig.RunConfig, error) {
 	}
 
 	// Add new OVN logical switch port for instance.
-	logicalPortName, err := network.OVNInstanceDevicePortAdd(d.network, d.inst.ID(), d.name, mac, ips)
+	logicalPortName, err := network.OVNInstanceDevicePortAdd(d.network, d.inst.ID(), d.inst.Name(), d.name, mac, ips)
 	if err != nil {
 		return nil, err
 	}
