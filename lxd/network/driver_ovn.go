@@ -1217,7 +1217,7 @@ func (n *ovn) getInstanceDevicePortName(instanceID int, deviceName string) openv
 }
 
 // instanceDevicePortAdd adds an instance device port to the internal logical switch and returns the port name.
-func (n *ovn) instanceDevicePortAdd(instanceID int, deviceName string, mac net.HardwareAddr, ips []net.IP) (openvswitch.OVNSwitchPort, error) {
+func (n *ovn) instanceDevicePortAdd(instanceID int, instanceName string, deviceName string, mac net.HardwareAddr, ips []net.IP) (openvswitch.OVNSwitchPort, error) {
 	var dhcpV4ID, dhcpv6ID string
 
 	revert := revert.New()
@@ -1276,6 +1276,11 @@ func (n *ovn) instanceDevicePortAdd(instanceID int, deviceName string, mac net.H
 		return "", err
 	}
 
+	err = client.LogicalSwitchPortSetDNS(n.getIntSwitchName(), instancePortName, fmt.Sprintf("%s.%s", instanceName, n.getDomainName()))
+	if err != nil {
+		return "", err
+	}
+
 	revert.Success()
 	return instancePortName, nil
 }
@@ -1290,6 +1295,11 @@ func (n *ovn) instanceDevicePortDelete(instanceID int, deviceName string) error 
 	}
 
 	err = client.LogicalSwitchPortDelete(instancePortName)
+	if err != nil {
+		return err
+	}
+
+	err = client.LogicalSwitchPortDeleteDNS(n.getIntSwitchName(), instancePortName)
 	if err != nil {
 		return err
 	}
