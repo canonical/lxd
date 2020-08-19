@@ -543,6 +543,22 @@ func inRoutingTable(subnet *net.IPNet) bool {
 	return false
 }
 
+// pingIP sends a single ping packet to the specified IP, returns true if responds, false if not.
+func pingIP(ip net.IP) bool {
+	cmd := "ping"
+	if ip.To4() == nil {
+		cmd = "ping6"
+	}
+
+	_, err := shared.RunCommand(cmd, "-n", "-q", ip.String(), "-c", "1", "-W", "1")
+	if err != nil {
+		// Remote didn't answer.
+		return false
+	}
+
+	return true
+}
+
 func pingSubnet(subnet *net.IPNet) bool {
 	var fail bool
 	var failLock sync.Mutex
@@ -551,14 +567,7 @@ func pingSubnet(subnet *net.IPNet) bool {
 	ping := func(ip net.IP) {
 		defer wgChecks.Done()
 
-		cmd := "ping"
-		if ip.To4() == nil {
-			cmd = "ping6"
-		}
-
-		_, err := shared.RunCommand(cmd, "-n", "-q", ip.String(), "-c", "1", "-W", "1")
-		if err != nil {
-			// Remote didn't answer
+		if !pingIP(ip) {
 			return
 		}
 
