@@ -419,14 +419,8 @@ func (n *bridge) Delete(clientType cluster.ClientType) error {
 func (n *bridge) Rename(newName string) error {
 	n.logger.Debug("Rename", log.Ctx{"newName": newName})
 
-	// Sanity checks.
-	inUse, err := n.IsUsed()
-	if err != nil {
-		return err
-	}
-
-	if inUse {
-		return fmt.Errorf("The network is currently in use")
+	if shared.PathExists(fmt.Sprintf("/sys/class/net/%s", newName)) {
+		return fmt.Errorf("Network interface %q already exists", newName)
 	}
 
 	// Bring the network down.
@@ -447,7 +441,7 @@ func (n *bridge) Rename(newName string) error {
 	}
 
 	// Rename common steps.
-	err = n.common.rename(newName)
+	err := n.common.rename(newName)
 	if err != nil {
 		return err
 	}
