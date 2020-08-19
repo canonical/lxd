@@ -612,10 +612,11 @@ func (c *Cluster) getNetworkConfig(id int64) (map[string]string, error) {
 }
 
 // CreateNetwork creates a new network.
-func (c *Cluster) CreateNetwork(name, description string, netType NetworkType, config map[string]string) (int64, error) {
+func (c *Cluster) CreateNetwork(projectName string, name string, description string, netType NetworkType, config map[string]string) (int64, error) {
 	var id int64
 	err := c.Transaction(func(tx *ClusterTx) error {
-		result, err := tx.tx.Exec("INSERT INTO networks (name, description, state, type) VALUES (?, ?, ?, ?)", name, description, networkCreated, netType)
+		result, err := tx.tx.Exec("INSERT INTO networks (project_id, name, description, state, type) VALUES ((SELECT id FROM projects WHERE name = ?), ?, ?, ?, ?)",
+			projectName, name, description, networkCreated, netType)
 		if err != nil {
 			return err
 		}
