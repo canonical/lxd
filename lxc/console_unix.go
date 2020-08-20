@@ -4,6 +4,7 @@ package main
 
 import (
 	"os"
+	"os/exec"
 	"os/signal"
 
 	"github.com/gorilla/websocket"
@@ -28,4 +29,9 @@ func (c *cmdConsole) controlSocketHandler(control *websocket.Conn) {
 
 	closeMsg := websocket.FormatCloseMessage(websocket.CloseNormalClosure, "")
 	control.WriteMessage(websocket.CloseMessage, closeMsg)
+}
+
+func (c *cmdConsole) findCommand(name string) string {
+	path, _ := exec.LookPath(name)
+	return path
 }
