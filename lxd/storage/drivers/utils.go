@@ -5,6 +5,7 @@ import (
 	"io"
 	"io/ioutil"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -476,8 +477,23 @@ func shrinkFileSystem(fsType string, devPath string, vol Volume, byteSize int64)
 		return vol.UnmountTask(func(op *operations.Operation) error {
 			output, err := shared.RunCommand("e2fsck", "-f", "-y", devPath)
 			if err != nil {
-				// e2fsck provides some context to errors on stdout.
-				return errors.Wrapf(err, "%s", strings.TrimSpace(output))
+				exitCodeFSModified := false
+				runErr, ok := err.(shared.RunError)
+				if ok {
+					exitError, ok := runErr.Err.(*exec.ExitError)
+					if ok {
+						if exitError.ExitCode() == 1 {
+							exitCodeFSModified = true
+						}
+					}
+				}
+
+				// e2fsck can return non-zero exit code if it has modified the filesystem, but
+				// this isn't an error and we can proceed.
+				if !exitCodeFSModified {
+					// e2fsck provides some context to errors on stdout.
+					return errors.Wrapf(err, "%s", strings.TrimSpace(output))
+				}
 			}
 
 			_, err = shared.RunCommand("resize2fs", devPath, strSize)
