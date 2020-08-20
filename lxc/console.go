@@ -7,6 +7,7 @@ import (
 	"net"
 	"os"
 	"os/exec"
+	"runtime"
 	"strconv"
 
 	"github.com/gorilla/websocket"
@@ -218,6 +219,7 @@ func (c *cmdConsole) console(d lxd.InstanceServer, name string) error {
 }
 
 func (c *cmdConsole) vga(d lxd.InstanceServer, name string) error {
+	var err error
 	conf := c.global.conf
 
 	// We currently use the control websocket just to abort in case of errors.
@@ -247,31 +249,48 @@ func (c *cmdConsole) vga(d lxd.InstanceServer, name string) error {
 		close(consoleDisconnect)
 	}()
 
-	// Create a temporary unix socket mirroring the instance's spice socket.
-	if !shared.PathExists(conf.ConfigPath("sockets")) {
-		err := os.MkdirAll(conf.ConfigPath("sockets"), 0700)
+	var socket string
+	var listener net.Listener
+	if runtime.GOOS != "windows" {
+		// Create a temporary unix socket mirroring the instance's spice socket.
+		if !shared.PathExists(conf.ConfigPath("sockets")) {
+			err := os.MkdirAll(conf.ConfigPath("sockets"), 0700)
+			if err != nil {
+				return err
+			}
+		}
+
+		// Generate a random file name.
+		path, err := ioutil.TempFile(conf.ConfigPath("sockets"), "*.spice")
 		if err != nil {
 			return err
 		}
-	}
+		path.Close()
 
-	path, err := ioutil.TempFile(conf.ConfigPath("sockets"), "*.spice")
-	if err != nil {
-		return err
-	}
-	err = os.Remove(path.Name())
-	if err != nil {
-		return err
-	}
-	path.Close()
+		err = os.Remove(path.Name())
+		if err != nil {
+			return err
+		}
 
-	socket := path.Name()
-	listener, err := net.Listen("unix", socket)
-	if err != nil {
-		return err
+		// Listen on the socket.
+		listener, err = net.Listen("unix", path.Name())
+		if err != nil {
+			return err
+		}
+		defer listener.Close()
+		defer os.Remove(path.Name())
+
+		socket = fmt.Sprintf("spice+unix://%s", path.Name())
+	} else {
+		listener, err = net.Listen("tcp", "127.0.0.1:0")
+		if err != nil {
+			return err
+		}
+		defer listener.Close()
+
+		addr := listener.Addr().(*net.TCPAddr)
+		socket = fmt.Sprintf("spice://127.0.0.1:%d", addr.Port)
 	}
-	defer listener.Close()
-	defer os.Remove(path.Name())
 
 	op, connect, err := d.ConsoleInstanceDynamic(name, req, &consoleArgs)
 	if err != nil {
@@ -304,15 +323,15 @@ func (c *cmdConsole) vga(d lxd.InstanceServer, name string) error {
 	}()
 
 	// Use either spicy or remote-viewer if available.
-	remoteViewer, _ := exec.LookPath("remote-viewer")
-	spicy, _ := exec.LookPath("spicy")
+	remoteViewer := c.findCommand("remote-viewer")
+	spicy := c.findCommand("spicy")
 
 	if remoteViewer != "" || spicy != "" {
 		var cmd *exec.Cmd
 		if remoteViewer != "" {
-			cmd = exec.Command(remoteViewer, fmt.Sprintf("spice+unix://%s", socket))
+			cmd = exec.Command(remoteViewer, socket)
 		} else {
-			cmd = exec.Command(spicy, fmt.Sprintf("--uri=spice+unix://%s", socket))
+			cmd = exec.Command(spicy, fmt.Sprintf("--uri=%s", socket))
 		}
 
 		// Start the command.
