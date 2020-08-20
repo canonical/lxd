@@ -677,6 +677,7 @@ SELECT storage_pools.name FROM storage_pools
    AND storage_volumes_all.node_id=?
    AND storage_volumes_all.name=?
    AND storage_volumes_all.type IN(?,?)
+   AND storage_volumes_all.project_id = instances.project_id
 `
 	inargs := []interface{}{project, c.nodeID, instanceName, StoragePoolVolumeTypeContainer, StoragePoolVolumeTypeVM}
 	outargs := []interface{}{&poolName}
