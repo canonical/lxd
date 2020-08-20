@@ -22,7 +22,6 @@ import (
 	"net/http"
 	"os"
 	"os/user"
-	"path"
 	"path/filepath"
 	"time"
 )
@@ -230,12 +229,13 @@ func FindOrGenCert(certf string, keyf string, certtype bool, addHosts bool) erro
 // GenCert will create and populate a certificate file and a key file
 func GenCert(certf string, keyf string, certtype bool, addHosts bool) error {
 	/* Create the basenames if needed */
-	dir := path.Dir(certf)
+	dir := filepath.Dir(certf)
 	err := os.MkdirAll(dir, 0750)
 	if err != nil {
 		return err
 	}
-	dir = path.Dir(keyf)
+
+	dir = filepath.Dir(keyf)
 	err = os.MkdirAll(dir, 0750)
 	if err != nil {
 		return err
