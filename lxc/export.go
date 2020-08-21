@@ -125,7 +125,7 @@ func (c *cmdExport) Run(cmd *cobra.Command, args []string) error {
 		targetName = "backup.tar.gz"
 	}
 
-	target, err := os.Create(shared.HostPath(targetName))
+	target, err := os.Create(shared.HostPathFollow(targetName))
 	if err != nil {
 		return err
 	}
