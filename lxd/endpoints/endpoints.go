@@ -5,6 +5,7 @@ import (
 	"net"
 	"net/http"
 	"sync"
+	"time"
 
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
@@ -194,23 +195,43 @@ func (e *Endpoints) up(config *Config) error {
 			e.inherited[network] = false
 		}
 
-		// Errors here are not fatal and are just logged (unless we're
-		// clustered, see below).
+		// Errors here are not fatal and are just logged (unless we're clustered, see below).
 		var networkAddressErr error
+		attempts := 0
+	againHttps:
 		e.listeners[network], networkAddressErr = networkCreateListener(config.NetworkAddress, e.cert)
 
 		isCovered := util.IsAddressCovered(config.ClusterAddress, config.NetworkAddress)
 		if config.ClusterAddress != "" {
 			if isCovered {
-				// In case of clustering we fail if we coun't
-				// bind the network address.
+				// In case of clustering we fail if we can't bind the network address.
 				if networkAddressErr != nil {
+					if attempts == 0 {
+						logger.Infof("Unable to bind https address %q, re-trying for a minute", config.NetworkAddress)
+					}
+
+					attempts++
+					if attempts < 60 {
+						time.Sleep(1 * time.Second)
+						goto againHttps
+					}
+
 					return networkAddressErr
 				}
-
 			} else {
+			againCluster:
 				e.listeners[cluster], err = networkCreateListener(config.ClusterAddress, e.cert)
 				if err != nil {
+					if attempts == 0 {
+						logger.Infof("Unable to bind cluster address %q, re-trying for a minute", config.ClusterAddress)
+					}
+
+					attempts++
+					if attempts < 60 {
+						time.Sleep(1 * time.Second)
+						goto againCluster
+					}
+
 					return err
 				}
 			}
