@@ -119,14 +119,25 @@ func (c *cmdInit) askClustering(config *cmdInitData, d lxd.InstanceServer) error
 		address := util.NetworkInterfaceAddress()
 		validateServerAddress := func(value string) error {
 			address := util.CanonicalNetworkAddress(value)
+
 			host, _, _ := net.SplitHostPort(address)
 			if shared.StringInSlice(host, []string{"", "[::]", "0.0.0.0"}) {
 				return fmt.Errorf("Invalid IP address or DNS name")
 			}
+
+			s, _, err := d.GetServer()
+			if err == nil {
+				if s.Config["cluster.https_address"] == value || s.Config["core.https_address"] == value {
+					// We already own the address, just move on.
+					return nil
+				}
+			}
+
 			listener, err := net.Listen("tcp", address)
 			if err != nil {
 				return fmt.Errorf("Can't bind address %q: %v", address, err)
 			}
+
 			listener.Close()
 			return nil
 		}
@@ -665,10 +676,20 @@ they otherwise would.
 
 		netPort := cli.AskInt("Port to bind LXD to [default=8443]: ", 1, 65535, "8443", func(netPort int64) error {
 			address := fmt.Sprintf("%s:%d", netAddr, netPort)
+
+			s, _, err := d.GetServer()
+			if err == nil {
+				if s.Config["cluster.https_address"] == address || s.Config["core.https_address"] == address {
+					// We already own the address, just move on.
+					return nil
+				}
+			}
+
 			listener, err := net.Listen("tcp", address)
 			if err != nil {
 				return fmt.Errorf("Can't bind address %q: %v", address, err)
 			}
+
 			listener.Close()
 			return nil
 		})
