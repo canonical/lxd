@@ -66,20 +66,46 @@ var networkStateCmd = APIEndpoint{
 
 // API endpoints
 func networksGet(d *Daemon, r *http.Request) response.Response {
+	projectName, err := project.NetworkProject(d.State().Cluster, projectParam(r))
+	if err != nil {
+		return response.SmartError(err)
+	}
+
 	recursion := util.IsRecursionRequest(r)
 
-	ifs, err := networkGetInterfaces(d.cluster)
+	// Get list of managed networks (that may or may not have network interfaces on the host).
+	networks, err := d.cluster.GetNetworks(projectName)
 	if err != nil {
 		return response.InternalError(err)
 	}
 
+	// Get list of actual network interfaces on the host as well if the network's project is Default.
+	if projectName == project.Default {
+		ifaces, err := net.Interfaces()
+		if err != nil {
+			return response.InternalError(err)
+		}
+
+		for _, iface := range ifaces {
+			// Ignore veth pairs (for performance reasons).
+			if strings.HasPrefix(iface.Name, "veth") {
+				continue
+			}
+
+			// Append to the list of networks if a managed network of same name doesn't exist.
+			if !shared.StringInSlice(iface.Name, networks) {
+				networks = append(networks, iface.Name)
+			}
+		}
+	}
+
 	resultString := []string{}
 	resultMap := []api.Network{}
-	for _, iface := range ifs {
+	for _, network := range networks {
 		if !recursion {
-			resultString = append(resultString, fmt.Sprintf("/%s/networks/%s", version.APIVersion, iface))
+			resultString = append(resultString, fmt.Sprintf("/%s/networks/%s", version.APIVersion, network))
 		} else {
-			net, err := doNetworkGet(d, iface)
+			net, err := doNetworkGet(d, projectName, network)
 			if err != nil {
 				continue
 			}
