@@ -301,18 +301,18 @@ func (c *ClusterTx) CreatePendingNetwork(node string, projectName string, name s
 }
 
 // NetworkCreated sets the state of the given network to "Created".
-func (c *ClusterTx) NetworkCreated(name string) error {
-	return c.networkState(name, networkCreated)
+func (c *ClusterTx) NetworkCreated(project string, name string) error {
+	return c.networkState(project, name, networkCreated)
 }
 
 // NetworkErrored sets the state of the given network to "Errored".
-func (c *ClusterTx) NetworkErrored(name string) error {
-	return c.networkState(name, networkErrored)
+func (c *ClusterTx) NetworkErrored(project string, name string) error {
+	return c.networkState(project, name, networkErrored)
 }
 
-func (c *ClusterTx) networkState(name string, state int) error {
-	stmt := "UPDATE networks SET state=? WHERE name=?"
-	result, err := c.tx.Exec(stmt, state, name)
+func (c *ClusterTx) networkState(project string, name string, state int) error {
+	stmt := "UPDATE networks SET state=? WHERE project_id = (SELECT id FROM projects WHERE name = ?) AND name=?"
+	result, err := c.tx.Exec(stmt, state, project, name)
 	if err != nil {
 		return err
 	}
@@ -363,22 +363,22 @@ func (c *ClusterTx) networkNodes(networkID int64) ([]string, error) {
 }
 
 // GetNetworks returns the names of existing networks.
-func (c *Cluster) GetNetworks() ([]string, error) {
-	return c.networks("")
+func (c *Cluster) GetNetworks(project string) ([]string, error) {
+	return c.networks(project, "")
 }
 
 // GetNonPendingNetworks returns the names of all networks that are not pending.
-func (c *Cluster) GetNonPendingNetworks() ([]string, error) {
-	return c.networks("NOT state=?", networkPending)
+func (c *Cluster) GetNonPendingNetworks(project string) ([]string, error) {
+	return c.networks(project, "NOT state=?", networkPending)
 }
 
 // Get all networks matching the given WHERE filter (if given).
-func (c *Cluster) networks(where string, args ...interface{}) ([]string, error) {
-	q := "SELECT name FROM networks"
-	inargs := []interface{}{}
+func (c *Cluster) networks(project string, where string, args ...interface{}) ([]string, error) {
+	q := "SELECT name FROM networks WHERE project_id = (SELECT id FROM projects WHERE name = ?)"
+	inargs := []interface{}{project}
 
 	if where != "" {
-		q += fmt.Sprintf(" WHERE %s", where)
+		q += fmt.Sprintf(" AND %s", where)
 		for _, arg := range args {
 			inargs = append(inargs, arg)
 		}
