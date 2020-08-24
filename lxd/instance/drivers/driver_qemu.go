@@ -219,7 +219,7 @@ func qemuCreate(s *state.State, args db.InstanceArgs) (instance.Instance, error)
 		return nil, err
 	}
 
-	err = instance.ValidDevices(s, s.Cluster, vm.Type(), vm.expandedDevices, true)
+	err = instance.ValidDevices(s, s.Cluster, vm.Project(), vm.Type(), vm.expandedDevices, true)
 	if err != nil {
 		logger.Error("Failed creating instance", ctxMap)
 		return nil, errors.Wrap(err, "Invalid devices")
@@ -2773,7 +2773,7 @@ func (vm *qemu) Update(args db.InstanceArgs, userRequested bool) error {
 		}
 
 		// Validate the new devices without using expanded devices validation (expensive checks disabled).
-		err = instance.ValidDevices(vm.state, vm.state.Cluster, vm.Type(), args.Devices, false)
+		err = instance.ValidDevices(vm.state, vm.state.Cluster, vm.Project(), vm.Type(), args.Devices, false)
 		if err != nil {
 			return errors.Wrap(err, "Invalid devices")
 		}
@@ -2946,7 +2946,7 @@ func (vm *qemu) Update(args db.InstanceArgs, userRequested bool) error {
 		}
 
 		// Do full expanded validation of the devices diff.
-		err = instance.ValidDevices(vm.state, vm.state.Cluster, vm.Type(), vm.expandedDevices, true)
+		err = instance.ValidDevices(vm.state, vm.state.Cluster, vm.Project(), vm.Type(), vm.expandedDevices, true)
 		if err != nil {
 			return errors.Wrap(err, "Invalid expanded devices")
 		}
