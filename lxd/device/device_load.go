@@ -10,7 +10,9 @@ import (
 )
 
 // load instantiates a device and initialises its internal state. It does not validate the config supplied.
-func load(inst instance.Instance, state *state.State, name string, conf deviceConfig.Device, volatileGet VolatileGetter, volatileSet VolatileSetter) (device, error) {
+func load(inst instance.Instance, state *state.State, projectName string, name string, conf deviceConfig.Device, volatileGet VolatileGetter, volatileSet VolatileSetter) (device, error) {
+	// Warning: When validating a profile, inst is expected to be provided as nil.
+
 	if conf["type"] == "" {
 		return nil, fmt.Errorf("Missing device type for device %q", name)
 	}
@@ -80,7 +82,7 @@ func load(inst instance.Instance, state *state.State, name string, conf deviceCo
 // is still returned with the validation error. If an unknown device is requested or the device is
 // not compatible with the instance type then an ErrUnsupportedDevType error is returned.
 func New(inst instance.Instance, state *state.State, name string, conf deviceConfig.Device, volatileGet VolatileGetter, volatileSet VolatileSetter) (Device, error) {
-	dev, err := load(inst, state, name, conf, volatileGet, volatileSet)
+	dev, err := load(inst, state, inst.Project(), name, conf, volatileGet, volatileSet)
 	if err != nil {
 		return nil, err
 	}
@@ -96,7 +98,7 @@ func New(inst instance.Instance, state *state.State, name string, conf deviceCon
 // Validate checks a device's config is valid. This only requires an instance.ConfigReader rather than an full
 // blown instance to allow profile devices to be validated too.
 func Validate(instConfig instance.ConfigReader, state *state.State, name string, conf deviceConfig.Device) error {
-	dev, err := load(nil, state, name, conf, nil, nil)
+	dev, err := load(nil, state, instConfig.Project(), name, conf, nil, nil)
 	if err != nil {
 		return err
 	}
