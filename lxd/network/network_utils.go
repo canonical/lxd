@@ -17,6 +17,7 @@ import (
 
 	"github.com/pkg/errors"
 
+	"github.com/lxc/lxd/lxd/db"
 	deviceConfig "github.com/lxc/lxd/lxd/device/config"
 	"github.com/lxc/lxd/lxd/device/nictype"
 	"github.com/lxc/lxd/lxd/dnsmasq"
@@ -103,8 +104,20 @@ func IsInUseByInstance(s *state.State, inst instance.Instance, networkProjectNam
 
 // IsInUseByProfile indicates if network is referenced by a profile's NIC devices.
 // Checks if the device's parent or network properties match the network name.
-func IsInUseByProfile(s *state.State, profile api.Profile, networkName string) (bool, error) {
-	return isInUseByDevices(s, deviceConfig.NewDevices(profile.Devices), networkName)
+func IsInUseByProfile(s *state.State, profile db.Profile, networkProjectName string, networkName string) (bool, error) {
+	// Get the translated network project name from the profiles's project.
+	profileNetworkProjectName, err := project.NetworkProject(s.Cluster, profile.Project)
+	if err != nil {
+		return false, err
+	}
+
+	// Skip profiles who's translated network project doesn't match the requested network's project.
+	// Because its devices can't be using this network.
+	if networkProjectName != profileNetworkProjectName {
+		return false, nil
+	}
+
+	return isInUseByDevices(s, networkProjectName, networkName, deviceConfig.NewDevices(profile.Devices))
 }
 
 func isInUseByDevices(s *state.State, networkProjectName string, networkName string, devices deviceConfig.Devices) (bool, error) {
