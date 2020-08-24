@@ -770,16 +770,24 @@ func doNetworkUpdate(d *Daemon, projectName string, name string, req api.Network
 }
 
 func networkLeasesGet(d *Daemon, r *http.Request) response.Response {
-	name := mux.Vars(r)["name"]
-	project := projectParam(r)
+	// The project we are filtering the instance leases by.
+	instProjectName := projectParam(r)
 
-	// Try to get the network
-	n, err := doNetworkGet(d, name)
+	// The project we should use the load the network.
+	networkProjectName, err := project.NetworkProject(d.State().Cluster, instProjectName)
 	if err != nil {
 		return response.SmartError(err)
 	}
 
-	// Validate that we do have leases for it
+	name := mux.Vars(r)["name"]
+
+	// Try to get the network.
+	n, err := doNetworkGet(d, networkProjectName, name)
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	// Validate that we do have leases for it.
 	if !n.Managed || n.Type != "bridge" {
 		return response.NotFound(errors.New("Leases not found"))
 	}
@@ -787,10 +795,10 @@ func networkLeasesGet(d *Daemon, r *http.Request) response.Response {
 	leases := []api.NetworkLease{}
 	projectMacs := []string{}
 
-	// Get all static leases
+	// Get all static leases.
 	if !isClusterNotification(r) {
-		// Get all the instances
-		instances, err := instance.LoadByProject(d.State(), project)
+		// Get all the instances.
+		instances, err := instance.LoadByProject(d.State(), instProjectName)
 		if err != nil {
 			return response.SmartError(err)
 		}
@@ -803,7 +811,7 @@ func networkLeasesGet(d *Daemon, r *http.Request) response.Response {
 					continue
 				}
 
-				nicType, err := nictype.NICType(d.State(), dev)
+				nicType, err := nictype.NICType(d.State(), inst.Project(), dev)
 				if err != nil || nicType != "bridged" {
 					continue
 				}
