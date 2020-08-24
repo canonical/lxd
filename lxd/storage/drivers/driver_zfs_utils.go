@@ -265,9 +265,12 @@ func (d *zfs) sendDataset(dataset string, parent string, volSrcArgs *migration.V
 	return nil
 }
 
-func (d *zfs) receiveDataset(dataset string, conn io.ReadWriteCloser, writeWrapper func(io.WriteCloser) io.WriteCloser) error {
+func (d *zfs) receiveDataset(vol Volume, conn io.ReadWriteCloser, writeWrapper func(io.WriteCloser) io.WriteCloser) error {
 	// Assemble zfs receive command.
-	cmd := exec.Command("zfs", "receive", "-x", "mountpoint", "-F", "-u", dataset)
+	cmd := exec.Command("zfs", "receive", "-x", "mountpoint", "-F", "-u", d.dataset(vol, false))
+	if vol.ContentType() == ContentTypeBlock {
+		cmd = exec.Command("zfs", "receive", "-F", "-u", d.dataset(vol, false))
+	}
 
 	// Prepare stdin/stderr.
 	stdin, err := cmd.StdinPipe()
