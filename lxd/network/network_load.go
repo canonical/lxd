@@ -3,6 +3,7 @@ package network
 import (
 	"github.com/pkg/errors"
 
+	"github.com/lxc/lxd/lxd/project"
 	"github.com/lxc/lxd/lxd/state"
 	"github.com/lxc/lxd/shared/api"
 )
@@ -15,8 +16,8 @@ var drivers = map[string]func() Network{
 }
 
 // LoadByName loads the network info from the database by name.
-func LoadByName(s *state.State, name string) (Network, error) {
-	id, netInfo, err := s.Cluster.GetNetworkInAnyState(name)
+func LoadByName(s *state.State, project string, name string) (Network, error) {
+	id, netInfo, err := s.Cluster.GetNetworkInAnyState(project, name)
 	if err != nil {
 		return nil, err
 	}
@@ -27,7 +28,7 @@ func LoadByName(s *state.State, name string) (Network, error) {
 	}
 
 	n := driverFunc()
-	n.init(s, id, name, netInfo.Type, netInfo.Description, netInfo.Config, netInfo.Status)
+	n.init(s, id, project, name, netInfo.Type, netInfo.Description, netInfo.Config, netInfo.Status)
 
 	return n, nil
 }
@@ -40,7 +41,7 @@ func ValidateName(name string, netType string) error {
 	}
 
 	n := driverFunc()
-	n.init(nil, 0, name, netType, "", nil, "Unknown")
+	n.init(nil, 0, project.Default, name, netType, "", nil, "Unknown")
 
 	err := n.ValidateName(name)
 	if err != nil {
@@ -58,7 +59,7 @@ func Validate(name string, netType string, config map[string]string) error {
 	}
 
 	n := driverFunc()
-	n.init(nil, 0, name, netType, "", config, "Unknown")
+	n.init(nil, 0, project.Default, name, netType, "", config, "Unknown")
 
 	err := n.ValidateName(name)
 	if err != nil {
@@ -76,7 +77,7 @@ func FillConfig(req *api.NetworksPost) error {
 	}
 
 	n := driverFunc()
-	n.init(nil, 0, req.Name, req.Type, req.Description, req.Config, "Unknown")
+	n.init(nil, 0, project.Default, req.Name, req.Type, req.Description, req.Config, "Unknown")
 
 	err := n.fillConfig(req.Config)
 	if err != nil {
