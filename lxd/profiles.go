@@ -111,7 +111,7 @@ func profilesPost(d *Daemon, r *http.Request) response.Response {
 	}
 
 	// At this point we don't know the instance type, so just use instancetype.Any type for validation.
-	err = instance.ValidDevices(d.State(), d.cluster, instancetype.Any, deviceConfig.NewDevices(req.Devices), false)
+	err = instance.ValidDevices(d.State(), d.cluster, projectName, instancetype.Any, deviceConfig.NewDevices(req.Devices), false)
 	if err != nil {
 		return response.BadRequest(err)
 	}
