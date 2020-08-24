@@ -348,7 +348,7 @@ func lxcCreate(s *state.State, args db.InstanceArgs) (instance.Instance, error) 
 			err = c.deviceAdd(k, m)
 			if err != nil && err != device.ErrUnsupportedDevType {
 				c.Delete()
-				return nil, errors.Wrapf(err, "Failed to add device '%s'", k)
+				return nil, errors.Wrapf(err, "Failed to add device %q", k)
 			}
 		}
 
