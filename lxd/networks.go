@@ -952,31 +952,46 @@ func networkLeasesGet(d *Daemon, r *http.Request) response.Response {
 }
 
 func networkStartup(s *state.State) error {
-	// Get a list of managed networks.
-	networks, err := s.Cluster.GetNonPendingNetworks()
+	var err error
+
+	// Get a list of projects.
+	var projectNames []string
+
+	err = s.Cluster.Transaction(func(tx *db.ClusterTx) error {
+		projectNames, err = tx.GetProjectNames()
+		return err
+	})
 	if err != nil {
-		return errors.Wrapf(err, "Failed to load networks")
+		return errors.Wrapf(err, "Failed to load projects")
 	}
 
-	// Bring them all up.
-	for _, name := range networks {
-		n, err := network.LoadByName(s, name)
+	for _, projectName := range projectNames {
+		// Get a list of managed networks.
+		networks, err := s.Cluster.GetNonPendingNetworks(projectName)
 		if err != nil {
-			return errors.Wrapf(err, "Failed to load network %q", name)
+			return errors.Wrapf(err, "Failed to load networks for project %q", projectName)
 		}
 
-		err = n.Validate(n.Config())
-		if err != nil {
-			// Don't cause LXD to fail to start entirely on network start up failure.
-			logger.Error("Failed to validate network", log.Ctx{"err": err, "name": name})
-			continue
-		}
+		// Bring them all up.
+		for _, name := range networks {
+			n, err := network.LoadByName(s, projectName, name)
+			if err != nil {
+				return errors.Wrapf(err, "Failed to load network %q in project %q", name, projectName)
+			}
 
-		err = n.Start()
-		if err != nil {
-			// Don't cause LXD to fail to start entirely on network start up failure.
-			logger.Error("Failed to bring up network", log.Ctx{"err": err, "name": name})
-			continue
+			err = n.Validate(n.Config())
+			if err != nil {
+				// Don't cause LXD to fail to start entirely on network start up failure.
+				logger.Error("Failed to validate network", log.Ctx{"err": err, "project": projectName, "name": name})
+				continue
+			}
+
+			err = n.Start()
+			if err != nil {
+				// Don't cause LXD to fail to start entirely on network start up failure.
+				logger.Error("Failed to bring up network", log.Ctx{"err": err, "project": projectName, "name": name})
+				continue
+			}
 		}
 	}
 
@@ -984,22 +999,37 @@ func networkStartup(s *state.State) error {
 }
 
 func networkShutdown(s *state.State) error {
-	// Get a list of managed networks
-	networks, err := s.Cluster.GetNetworks()
-	if err != nil {
+	var err error
+
+	// Get a list of projects.
+	var projectNames []string
+
+	err = s.Cluster.Transaction(func(tx *db.ClusterTx) error {
+		projectNames, err = tx.GetProjectNames()
 		return err
+	})
+	if err != nil {
+		return errors.Wrapf(err, "Failed to load projects")
 	}
 
-	// Bring them all up
-	for _, name := range networks {
-		n, err := network.LoadByName(s, name)
+	for _, projectName := range projectNames {
+		// Get a list of managed networks.
+		networks, err := s.Cluster.GetNetworks(projectName)
 		if err != nil {
-			return err
+			return errors.Wrapf(err, "Failed to load networks for project %q", projectName)
 		}
 
-		err = n.Stop()
-		if err != nil {
-			logger.Error("Failed to bring down network", log.Ctx{"err": err, "name": name})
+		// Bring them all down.
+		for _, name := range networks {
+			n, err := network.LoadByName(s, projectName, name)
+			if err != nil {
+				return errors.Wrapf(err, "Failed to load network %q in project %q", name, projectName)
+			}
+
+			err = n.Stop()
+			if err != nil {
+				logger.Error("Failed to bring down network", log.Ctx{"err": err, "project": projectName, "name": name})
+			}
 		}
 	}
 
