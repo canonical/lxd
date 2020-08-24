@@ -12,7 +12,7 @@ import (
 // Network represents a LXD network.
 type Network interface {
 	// Load.
-	init(state *state.State, id int64, name string, netType string, description string, config map[string]string, status string)
+	init(state *state.State, id int64, projectName string, name string, netType string, description string, config map[string]string, status string)
 	fillConfig(config map[string]string) error
 
 	// Config.
