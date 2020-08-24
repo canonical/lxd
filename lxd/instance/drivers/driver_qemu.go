@@ -225,8 +225,24 @@ func qemuCreate(s *state.State, args db.InstanceArgs) (instance.Instance, error)
 		return nil, errors.Wrap(err, "Invalid devices")
 	}
 
+	// Retrieve the container's storage pool
+	var storageInstance instance.Instance
+	if vm.IsSnapshot() {
+		parentName, _, _ := shared.InstanceGetParentAndSnapshotName(vm.name)
+
+		// Load the parent
+		storageInstance, err = instance.LoadByProjectAndName(vm.state, vm.project, parentName)
+		if err != nil {
+			vm.Delete()
+			logger.Error("Failed creating instance", ctxMap)
+			return nil, errors.Wrap(err, "Invalid parent")
+		}
+	} else {
+		storageInstance = vm
+	}
+
 	// Retrieve the instance's storage pool.
-	_, rootDiskDevice, err := shared.GetRootDiskDevice(vm.expandedDevices.CloneNative())
+	_, rootDiskDevice, err := shared.GetRootDiskDevice(storageInstance.ExpandedDevices().CloneNative())
 	if err != nil {
 		return nil, err
 	}

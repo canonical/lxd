@@ -207,7 +207,22 @@ func lxcCreate(s *state.State, args db.InstanceArgs) (instance.Instance, error) 
 	}
 
 	// Retrieve the container's storage pool
-	_, rootDiskDevice, err := shared.GetRootDiskDevice(c.expandedDevices.CloneNative())
+	var storageInstance instance.Instance
+	if c.IsSnapshot() {
+		parentName, _, _ := shared.InstanceGetParentAndSnapshotName(c.name)
+
+		// Load the parent
+		storageInstance, err = instance.LoadByProjectAndName(c.state, c.project, parentName)
+		if err != nil {
+			c.Delete()
+			logger.Error("Failed creating container", ctxMap)
+			return nil, errors.Wrap(err, "Invalid parent")
+		}
+	} else {
+		storageInstance = c
+	}
+
+	_, rootDiskDevice, err := shared.GetRootDiskDevice(storageInstance.ExpandedDevices().CloneNative())
 	if err != nil {
 		c.Delete()
 		return nil, err
