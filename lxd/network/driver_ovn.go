@@ -19,6 +19,7 @@ import (
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/locking"
 	"github.com/lxc/lxd/lxd/network/openvswitch"
+	"github.com/lxc/lxd/lxd/project"
 	"github.com/lxc/lxd/lxd/revert"
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
@@ -261,7 +262,8 @@ func (n *ovn) getIntSwitchInstancePortPrefix() string {
 // setupParentPort initialises the parent uplink connection. Returns the derived ovnParentVars settings used
 // during the initial creation of the logical network.
 func (n *ovn) setupParentPort(routerMAC net.HardwareAddr) (*ovnParentVars, error) {
-	parentNet, err := LoadByName(n.state, n.config["network"])
+	// Parent network must be in default project.
+	parentNet, err := LoadByName(n.state, project.Default, n.config["network"])
 	if err != nil {
 		return nil, errors.Wrapf(err, "Failed loading parent network")
 	}
@@ -481,7 +483,8 @@ func (n *ovn) parentAllocateIP(ipRanges []*shared.IPRange, allAllocated []net.IP
 
 // startParentPort performs any network start up logic needed to connect the parent uplink connection to OVN.
 func (n *ovn) startParentPort() error {
-	parentNet, err := LoadByName(n.state, n.config["network"])
+	// Parent network must be in default project.
+	parentNet, err := LoadByName(n.state, project.Default, n.config["network"])
 	if err != nil {
 		return errors.Wrapf(err, "Failed loading parent network")
 	}
@@ -609,7 +612,8 @@ func (n *ovn) startParentPortBridge(parentNet Network) error {
 
 // deleteParentPort deletes the parent uplink connection.
 func (n *ovn) deleteParentPort() error {
-	parentNet, err := LoadByName(n.state, n.config["network"])
+	// Parent network must be in default project.
+	parentNet, err := LoadByName(n.state, project.Default, n.config["network"])
 	if err != nil {
 		return errors.Wrapf(err, "Failed loading parent network")
 	}
