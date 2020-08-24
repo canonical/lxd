@@ -13,10 +13,10 @@ import (
 	"github.com/pkg/errors"
 )
 
-func doProfileUpdate(d *Daemon, project, name string, id int64, profile *api.Profile, req api.ProfilePut) error {
+func doProfileUpdate(d *Daemon, projectName string, name string, id int64, profile *api.Profile, req api.ProfilePut) error {
 	// Check project limits.
 	err := d.cluster.Transaction(func(tx *db.ClusterTx) error {
-		return projecthelpers.AllowProfileUpdate(tx, project, name, req)
+		return projecthelpers.AllowProfileUpdate(tx, projectName, name, req)
 	})
 	if err != nil {
 		return err
@@ -29,12 +29,12 @@ func doProfileUpdate(d *Daemon, project, name string, id int64, profile *api.Pro
 	}
 
 	// At this point we don't know the instance type, so just use instancetype.Any type for validation.
-	err = instance.ValidDevices(d.State(), d.cluster, instancetype.Any, deviceConfig.NewDevices(req.Devices), false)
+	err = instance.ValidDevices(d.State(), d.cluster, projectName, instancetype.Any, deviceConfig.NewDevices(req.Devices), false)
 	if err != nil {
 		return err
 	}
 
-	containers, err := getProfileContainersInfo(d.cluster, project, name)
+	containers, err := getProfileContainersInfo(d.cluster, projectName, name)
 	if err != nil {
 		return errors.Wrapf(err, "failed to query instances associated with profile '%s'", name)
 	}
@@ -77,8 +77,8 @@ func doProfileUpdate(d *Daemon, project, name string, id int64, profile *api.Pro
 
 	// Update the database
 	err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
-		return tx.UpdateProfile(project, name, db.Profile{
-			Project:     project,
+		return tx.UpdateProfile(projectName, name, db.Profile{
+			Project:     projectName,
 			Name:        name,
 			Description: req.Description,
 			Config:      req.Config,
