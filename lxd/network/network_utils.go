@@ -283,7 +283,9 @@ func UpdateDNSMasqStatic(s *state.State, networkName string) error {
 	var networks []string
 	if networkName == "" {
 		var err error
-		networks, err = s.Cluster.GetNetworks()
+
+		// Pass project.Default here, as currently dnsmasq (bridged) networks do not support projects.
+		networks, err = s.Cluster.GetNetworks(project.Default)
 		if err != nil {
 			return err
 		}
@@ -307,7 +309,7 @@ func UpdateDNSMasqStatic(s *state.State, networkName string) error {
 				continue
 			}
 
-			nicType, err := nictype.NICType(s, d)
+			nicType, err := nictype.NICType(s, inst.Project(), d)
 			if err != nil || nicType != "bridged" {
 				continue
 			}
@@ -362,7 +364,8 @@ func UpdateDNSMasqStatic(s *state.State, networkName string) error {
 			continue
 		}
 
-		n, err := LoadByName(s, network)
+		// Pass project.Default here, as currently dnsmasq (bridged) networks do not support projects.
+		n, err := LoadByName(s, project.Default, network)
 		if err != nil {
 			return errors.Wrapf(err, "Failed to load network %q in project %q for dnsmasq update", project.Default, network)
 		}
