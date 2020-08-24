@@ -85,8 +85,20 @@ func RandomDevName(prefix string) string {
 
 // IsInUseByInstance indicates if network is referenced by an instance's NIC devices.
 // Checks if the device's parent or network properties match the network name.
-func IsInUseByInstance(s *state.State, c instance.Instance, networkName string) (bool, error) {
-	return isInUseByDevices(s, c.ExpandedDevices(), networkName)
+func IsInUseByInstance(s *state.State, inst instance.Instance, networkProjectName string, networkName string) (bool, error) {
+	// Get the translated network project name from the instance's project.
+	instNetworkProjectName, err := project.NetworkProject(s.Cluster, inst.Project())
+	if err != nil {
+		return false, err
+	}
+
+	// Skip instances who's translated network project doesn't match the requested network's project.
+	// Because its devices can't be using this network.
+	if networkProjectName != instNetworkProjectName {
+		return false, nil
+	}
+
+	return isInUseByDevices(s, networkProjectName, networkName, inst.ExpandedDevices())
 }
 
 // IsInUseByProfile indicates if network is referenced by a profile's NIC devices.
