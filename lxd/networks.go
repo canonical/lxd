@@ -21,7 +21,6 @@ import (
 	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/network"
 	"github.com/lxc/lxd/lxd/network/openvswitch"
-	"github.com/lxc/lxd/lxd/project"
 	"github.com/lxc/lxd/lxd/response"
 	"github.com/lxc/lxd/lxd/revert"
 	"github.com/lxc/lxd/lxd/state"
@@ -405,27 +404,27 @@ func networkGet(d *Daemon, r *http.Request) response.Response {
 }
 
 func doNetworkGet(d *Daemon, name string) (api.Network, error) {
-	// Ignore veth pairs (for performance reasons)
+	// Ignore veth pairs (for performance reasons).
 	if strings.HasPrefix(name, "veth") {
 		return api.Network{}, os.ErrNotExist
 	}
 
-	// Get some information
+	// Get some information.
 	osInfo, _ := net.InterfaceByName(name)
 	_, dbInfo, _ := d.cluster.GetNetworkInAnyState(name)
 
-	// Sanity check
+	// Sanity check.
 	if osInfo == nil && dbInfo == nil {
 		return api.Network{}, os.ErrNotExist
 	}
 
-	// Prepare the response
+	// Prepare the response.
 	n := api.Network{}
 	n.Name = name
 	n.UsedBy = []string{}
 	n.Config = map[string]string{}
 
-	// Set the device type as needed
+	// Set the device type as needed.
 	if osInfo != nil && shared.IsLoopback(osInfo) {
 		n.Type = "loopback"
 	} else if dbInfo != nil {
@@ -450,57 +449,14 @@ func doNetworkGet(d *Daemon, name string) (api.Network, error) {
 		}
 	}
 
-	// Look for containers using the interface
+	// Look for instances using the interface.
 	if n.Type != "loopback" {
-		// Look at instances.
-		insts, err := instance.LoadFromAllProjects(d.State())
+		usedBy, err := network.UsedBy(d.State(), n.Name, false)
 		if err != nil {
 			return api.Network{}, err
 		}
 
-		for _, inst := range insts {
-			inUse, err := network.IsInUseByInstance(d.State(), inst, n.Name)
-			if err != nil {
-				return api.Network{}, err
-			}
-
-			if inUse {
-				uri := fmt.Sprintf("/%s/instances/%s", version.APIVersion, inst.Name())
-				if inst.Project() != project.Default {
-					uri += fmt.Sprintf("?project=%s", inst.Project())
-				}
-				n.UsedBy = append(n.UsedBy, uri)
-			}
-		}
-
-		// Look for profiles.
-		var profiles []db.Profile
-		err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
-			profiles, err = tx.GetProfiles(db.ProfileFilter{})
-			if err != nil {
-				return err
-			}
-
-			return nil
-		})
-		if err != nil {
-			return api.Network{}, err
-		}
-
-		for _, profile := range profiles {
-			inUse, err := network.IsInUseByProfile(d.State(), *db.ProfileToAPI(&profile), n.Name)
-			if err != nil {
-				return api.Network{}, err
-			}
-
-			if inUse {
-				uri := fmt.Sprintf("/%s/profiles/%s", version.APIVersion, profile.Name)
-				if profile.Project != project.Default {
-					uri += fmt.Sprintf("?project=%s", profile.Project)
-				}
-				n.UsedBy = append(n.UsedBy, uri)
-			}
-		}
+		n.UsedBy = usedBy
 	}
 
 	if dbInfo != nil {
