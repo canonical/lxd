@@ -11,7 +11,6 @@ import (
 	lxd "github.com/lxc/lxd/client"
 	"github.com/lxc/lxd/lxd/cluster"
 	"github.com/lxc/lxd/lxd/db"
-	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/state"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
@@ -131,49 +130,12 @@ func (n *common) Config() map[string]string {
 
 // IsUsed returns whether the network is used by any instances or profiles.
 func (n *common) IsUsed() (bool, error) {
-	// Look for instances using the network.
-	insts, err := instance.LoadFromAllProjects(n.state)
+	usedBy, err := UsedBy(n.state, n.project, n.name, true)
 	if err != nil {
 		return false, err
 	}
 
-	for _, inst := range insts {
-		inUse, err := IsInUseByInstance(n.state, inst, n.name)
-		if err != nil {
-			return false, err
-		}
-
-		if inUse {
-			return true, nil
-		}
-	}
-
-	// Look for profiles using the network.
-	var profiles []db.Profile
-	err = n.state.Cluster.Transaction(func(tx *db.ClusterTx) error {
-		profiles, err = tx.GetProfiles(db.ProfileFilter{})
-		if err != nil {
-			return err
-		}
-
-		return nil
-	})
-	if err != nil {
-		return false, err
-	}
-
-	for _, profile := range profiles {
-		inUse, err := IsInUseByProfile(n.state, *db.ProfileToAPI(&profile), n.name)
-		if err != nil {
-			return false, err
-		}
-
-		if inUse {
-			return true, nil
-		}
-	}
-
-	return false, nil
+	return len(usedBy) > 0, nil
 }
 
 // DHCPv4Subnet returns nil always.
