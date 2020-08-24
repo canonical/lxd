@@ -745,7 +745,8 @@ func GetLeaseAddresses(s *state.State, networkName string, hwaddr string) ([]api
 		return addresses, nil
 	}
 
-	dbInfo, err := LoadByName(s, networkName)
+	// Pass project.Default here, as currently dnsmasq (bridged) networks do not support projects.
+	dbInfo, err := LoadByName(s, project.Default, networkName)
 	if err != nil {
 		return nil, err
 	}
