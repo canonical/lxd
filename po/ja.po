@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: LXD\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2020-07-30 14:25-0400\n"
+"POT-Creation-Date: 2020-08-24 11:17-0400\n"
 "PO-Revision-Date: 2020-07-03 17:01+0000\n"
 "Last-Translator: KATOH Yasufumi <karma@jazz.email.ne.jp>\n"
 "Language-Team: Japanese <https://hosted.weblate.org/projects/linux-"
@@ -462,7 +462,7 @@ msgstr "アーキテクチャ: %s"
 msgid "Architecture: %v"
 msgstr "アーキテクチャ: %v"
 
-#: lxc/console.go:332
+#: lxc/console.go:351
 msgid "As neither could be found, the raw SPICE socket can be found at:"
 msgstr ""
 
@@ -494,11 +494,11 @@ msgstr "新たにストレージボリュームをインスタンスに追加し
 msgid "Attach new storage volumes to profiles"
 msgstr "新しいストレージボリュームをプロファイルに追加します"
 
-#: lxc/console.go:34
+#: lxc/console.go:35
 msgid "Attach to instance consoles"
 msgstr "インスタンスのコンソールに接続します"
 
-#: lxc/console.go:35
+#: lxc/console.go:36
 msgid ""
 "Attach to instance consoles\n"
 "\n"
@@ -646,7 +646,7 @@ msgid "Can't pull a directory without --recursive"
 msgstr ""
 "ディレクトリを pull する場合は --recursive オプションを使用してください"
 
-#: lxc/utils.go:229 lxc/utils.go:249
+#: lxc/utils.go:228 lxc/utils.go:248
 #, c-format
 msgid "Can't read from stdin: %s"
 msgstr "標準入力から読み込めません: %s"
@@ -762,7 +762,7 @@ msgstr "移動先のインスタンスに適用するキー/値の設定"
 msgid "Config parsing error: %s"
 msgstr "設定の構文エラー: %s"
 
-#: lxc/console.go:142
+#: lxc/console.go:143
 msgid "Console log:"
 msgstr "コンソールログ:"
 
@@ -1028,7 +1028,7 @@ msgstr "ストレージボリュームを削除します"
 #: lxc/config_template.go:65 lxc/config_template.go:108
 #: lxc/config_template.go:150 lxc/config_template.go:236
 #: lxc/config_template.go:295 lxc/config_trust.go:28 lxc/config_trust.go:57
-#: lxc/config_trust.go:115 lxc/config_trust.go:193 lxc/console.go:35
+#: lxc/config_trust.go:115 lxc/config_trust.go:193 lxc/console.go:36
 #: lxc/copy.go:40 lxc/delete.go:30 lxc/exec.go:40 lxc/export.go:32
 #: lxc/file.go:72 lxc/file.go:105 lxc/file.go:154 lxc/file.go:217
 #: lxc/file.go:407 lxc/image.go:38 lxc/image.go:129 lxc/image.go:277
@@ -1036,7 +1036,7 @@ msgstr "ストレージボリュームを削除します"
 #: lxc/image.go:975 lxc/image.go:1273 lxc/image.go:1352 lxc/image_alias.go:25
 #: lxc/image_alias.go:58 lxc/image_alias.go:105 lxc/image_alias.go:150
 #: lxc/image_alias.go:252 lxc/import.go:28 lxc/info.go:33 lxc/init.go:40
-#: lxc/launch.go:25 lxc/list.go:45 lxc/main.go:50 lxc/manpage.go:19
+#: lxc/launch.go:25 lxc/list.go:45 lxc/main.go:50 lxc/manpage.go:20
 #: lxc/monitor.go:30 lxc/move.go:36 lxc/network.go:33 lxc/network.go:109
 #: lxc/network.go:182 lxc/network.go:255 lxc/network.go:329 lxc/network.go:379
 #: lxc/network.go:464 lxc/network.go:549 lxc/network.go:672 lxc/network.go:730
@@ -1098,7 +1098,7 @@ msgstr "デバイス %s が %s で上書きされました"
 msgid "Device %s removed from %s"
 msgstr "デバイス %s が %s から削除されました"
 
-#: lxc/utils.go:136 lxc/utils.go:160
+#: lxc/utils.go:135 lxc/utils.go:159
 #, c-format
 msgid "Device already exists: %s"
 msgstr "デバイスは既に存在します: %s"
@@ -1360,7 +1360,7 @@ msgstr "FINGERPRINT"
 msgid "Failed to connect to cluster member"
 msgstr "クラスタメンバへの接続に失敗しました"
 
-#: lxc/utils.go:205
+#: lxc/utils.go:204
 #, c-format
 msgid "Failed to create alias %s"
 msgstr "エイリアス %s の作成に失敗しました"
@@ -1369,7 +1369,7 @@ msgstr "エイリアス %s の作成に失敗しました"
 msgid "Failed to get the new instance name"
 msgstr "新しいインスタンス名が取得できません"
 
-#: lxc/utils.go:195
+#: lxc/utils.go:194
 #, c-format
 msgid "Failed to remove alias %s"
 msgstr "エイリアス %s の削除に失敗しました"
@@ -1482,7 +1482,7 @@ msgstr "GPU:"
 msgid "GPUs:"
 msgstr "GPUs:"
 
-#: lxc/manpage.go:18 lxc/manpage.go:19
+#: lxc/manpage.go:19 lxc/manpage.go:20
 msgid "Generate manpages for all commands"
 msgstr "すべてのコマンドに対する man ページを作成します"
 
@@ -1770,11 +1770,11 @@ msgstr "LAST USED AT"
 msgid "LOCATION"
 msgstr "LOCATION"
 
-#: lxc/manpage.go:37
+#: lxc/manpage.go:38
 msgid "LXD - Command line client"
 msgstr "LXD - コマンドラインクライアント"
 
-#: lxc/console.go:331
+#: lxc/console.go:350
 msgid "LXD automatically uses either spicy or remote-viewer when present."
 msgstr ""
 
@@ -2939,7 +2939,7 @@ msgstr "スナップショットからインスタンスをリストアします
 msgid "Restore storage volume snapshots"
 msgstr "スナップショットからストレージボリュームをリストアします"
 
-#: lxc/console.go:42
+#: lxc/console.go:43
 msgid "Retrieve the instance's console log"
 msgstr "インスタンスのコンソールログを取得します"
 
@@ -3527,7 +3527,7 @@ msgid "To create a new network, use: lxc network create"
 msgstr ""
 "新しいネットワークを作成するには、lxc network create を使用してください"
 
-#: lxc/console.go:203
+#: lxc/console.go:204
 msgid "To detach from the console, press: <ctrl>+a q"
 msgstr "コンソールから切り離すには <ctrl>+a q を押します"
 
@@ -3581,7 +3581,7 @@ msgstr "インスタンスを転送中: %s"
 msgid "Try `lxc info --show-log %s` for more info"
 msgstr "更に情報を得るために `lxc info --show-log %s` を実行してみてください"
 
-#: lxc/console.go:43
+#: lxc/console.go:44
 msgid ""
 "Type of connection to establish: 'console' for serial console, 'vga' for "
 "SPICE graphical output"
@@ -3826,7 +3826,7 @@ msgstr "cluster"
 msgid "config"
 msgstr "config"
 
-#: lxc/console.go:33
+#: lxc/console.go:34
 msgid "console [<remote>:]<instance>"
 msgstr "console [<remote>:]<instance>"
 
@@ -3947,7 +3947,8 @@ msgid "detach-profile [<remote:>]<pool> <volume> <profile> [<device name>]"
 msgstr "detach-profile [<remote:>]<pool> <volume> <profile> [<device name>]"
 
 #: lxc/network.go:462
-msgid "detach-profile [<remote>:]<network> <instance> [<device name>]"
+#, fuzzy
+msgid "detach-profile [<remote>:]<network> <profile> [<device name>]"
 msgstr "detach-profile [<remote>:]<network> <instance> [<device name>]"
 
 #: lxc/config_device.go:22
@@ -4496,7 +4497,7 @@ msgstr ""
 "    \"default\" プール内のコンテナ \"data\" のファイルシステムプロパティを表"
 "示します。"
 
-#: lxc/manpage.go:17
+#: lxc/manpage.go:18
 msgid "manpage <target>"
 msgstr "manpage <target>"
 
