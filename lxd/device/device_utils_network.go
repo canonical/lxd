@@ -15,6 +15,7 @@ import (
 	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/instance/instancetype"
 	"github.com/lxc/lxd/lxd/network"
+	"github.com/lxc/lxd/lxd/project"
 	"github.com/lxc/lxd/lxd/revert"
 	"github.com/lxc/lxd/lxd/state"
 	"github.com/lxc/lxd/lxd/util"
@@ -360,7 +361,8 @@ func networkSetVethRoutes(s *state.State, m deviceConfig.Device) error {
 	// Decide whether the route should point to the veth parent or the bridge parent.
 	routeDev := m["host_name"]
 
-	nicType, err := nictype.NICType(s, m)
+	// Use project.Default here, as only networks in the default project can add routes on the host.
+	nicType, err := nictype.NICType(s, project.Default, m)
 	if err != nil {
 		return err
 	}
@@ -403,7 +405,9 @@ func networkSetVethRoutes(s *state.State, m deviceConfig.Device) error {
 func networkRemoveVethRoutes(s *state.State, m deviceConfig.Device) {
 	// Decide whether the route should point to the veth parent or the bridge parent
 	routeDev := m["host_name"]
-	nicType, err := nictype.NICType(s, m)
+
+	// Use project.Default here, as only networks in the default project can add routes on the host.
+	nicType, err := nictype.NICType(s, project.Default, m)
 	if err != nil {
 		logger.Errorf("Failed to get NIC type for %q", m["name"])
 		return
