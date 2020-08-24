@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: lxd\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2020-07-30 14:25-0400\n"
+"POT-Creation-Date: 2020-08-24 11:17-0400\n"
 "PO-Revision-Date: 2019-09-06 07:09+0000\n"
 "Last-Translator: Luigi Operoso <brokenpip3@gmail.com>\n"
 "Language-Team: Italian <https://hosted.weblate.org/projects/linux-containers/"
@@ -454,7 +454,7 @@ msgstr "Architettura: %s"
 msgid "Architecture: %v"
 msgstr "Architettura: %s"
 
-#: lxc/console.go:332
+#: lxc/console.go:351
 msgid "As neither could be found, the raw SPICE socket can be found at:"
 msgstr ""
 
@@ -486,11 +486,11 @@ msgstr ""
 msgid "Attach new storage volumes to profiles"
 msgstr ""
 
-#: lxc/console.go:34
+#: lxc/console.go:35
 msgid "Attach to instance consoles"
 msgstr ""
 
-#: lxc/console.go:35
+#: lxc/console.go:36
 msgid ""
 "Attach to instance consoles\n"
 "\n"
@@ -633,7 +633,7 @@ msgstr ""
 msgid "Can't pull a directory without --recursive"
 msgstr "Impossibile effettuare il pull di una directory senza --recursive"
 
-#: lxc/utils.go:229 lxc/utils.go:249
+#: lxc/utils.go:228 lxc/utils.go:248
 #, c-format
 msgid "Can't read from stdin: %s"
 msgstr "Impossible leggere da stdin: %s"
@@ -746,7 +746,7 @@ msgstr ""
 msgid "Config parsing error: %s"
 msgstr ""
 
-#: lxc/console.go:142
+#: lxc/console.go:143
 msgid "Console log:"
 msgstr ""
 
@@ -1013,7 +1013,7 @@ msgstr ""
 #: lxc/config_template.go:65 lxc/config_template.go:108
 #: lxc/config_template.go:150 lxc/config_template.go:236
 #: lxc/config_template.go:295 lxc/config_trust.go:28 lxc/config_trust.go:57
-#: lxc/config_trust.go:115 lxc/config_trust.go:193 lxc/console.go:35
+#: lxc/config_trust.go:115 lxc/config_trust.go:193 lxc/console.go:36
 #: lxc/copy.go:40 lxc/delete.go:30 lxc/exec.go:40 lxc/export.go:32
 #: lxc/file.go:72 lxc/file.go:105 lxc/file.go:154 lxc/file.go:217
 #: lxc/file.go:407 lxc/image.go:38 lxc/image.go:129 lxc/image.go:277
@@ -1021,7 +1021,7 @@ msgstr ""
 #: lxc/image.go:975 lxc/image.go:1273 lxc/image.go:1352 lxc/image_alias.go:25
 #: lxc/image_alias.go:58 lxc/image_alias.go:105 lxc/image_alias.go:150
 #: lxc/image_alias.go:252 lxc/import.go:28 lxc/info.go:33 lxc/init.go:40
-#: lxc/launch.go:25 lxc/list.go:45 lxc/main.go:50 lxc/manpage.go:19
+#: lxc/launch.go:25 lxc/list.go:45 lxc/main.go:50 lxc/manpage.go:20
 #: lxc/monitor.go:30 lxc/move.go:36 lxc/network.go:33 lxc/network.go:109
 #: lxc/network.go:182 lxc/network.go:255 lxc/network.go:329 lxc/network.go:379
 #: lxc/network.go:464 lxc/network.go:549 lxc/network.go:672 lxc/network.go:730
@@ -1083,7 +1083,7 @@ msgstr ""
 msgid "Device %s removed from %s"
 msgstr ""
 
-#: lxc/utils.go:136 lxc/utils.go:160
+#: lxc/utils.go:135 lxc/utils.go:159
 #, c-format
 msgid "Device already exists: %s"
 msgstr "La periferica esiste già: %s"
@@ -1321,7 +1321,7 @@ msgstr ""
 msgid "Failed to connect to cluster member"
 msgstr ""
 
-#: lxc/utils.go:205
+#: lxc/utils.go:204
 #, c-format
 msgid "Failed to create alias %s"
 msgstr ""
@@ -1330,7 +1330,7 @@ msgstr ""
 msgid "Failed to get the new instance name"
 msgstr ""
 
-#: lxc/utils.go:195
+#: lxc/utils.go:194
 #, c-format
 msgid "Failed to remove alias %s"
 msgstr ""
@@ -1429,7 +1429,7 @@ msgstr ""
 msgid "GPUs:"
 msgstr ""
 
-#: lxc/manpage.go:18 lxc/manpage.go:19
+#: lxc/manpage.go:19 lxc/manpage.go:20
 msgid "Generate manpages for all commands"
 msgstr ""
 
@@ -1711,11 +1711,11 @@ msgstr ""
 msgid "LOCATION"
 msgstr ""
 
-#: lxc/manpage.go:37
+#: lxc/manpage.go:38
 msgid "LXD - Command line client"
 msgstr ""
 
-#: lxc/console.go:331
+#: lxc/console.go:350
 msgid "LXD automatically uses either spicy or remote-viewer when present."
 msgstr ""
 
@@ -2775,7 +2775,7 @@ msgstr "Creazione del container in corso"
 msgid "Restore storage volume snapshots"
 msgstr ""
 
-#: lxc/console.go:42
+#: lxc/console.go:43
 msgid "Retrieve the instance's console log"
 msgstr ""
 
@@ -3314,7 +3314,7 @@ msgstr ""
 msgid "To create a new network, use: lxc network create"
 msgstr ""
 
-#: lxc/console.go:203
+#: lxc/console.go:204
 msgid "To detach from the console, press: <ctrl>+a q"
 msgstr ""
 
@@ -3364,7 +3364,7 @@ msgstr "Creazione del container in corso"
 msgid "Try `lxc info --show-log %s` for more info"
 msgstr ""
 
-#: lxc/console.go:43
+#: lxc/console.go:44
 msgid ""
 "Type of connection to establish: 'console' for serial console, 'vga' for "
 "SPICE graphical output"
@@ -3604,7 +3604,7 @@ msgstr ""
 msgid "config"
 msgstr ""
 
-#: lxc/console.go:33
+#: lxc/console.go:34
 msgid "console [<remote>:]<instance>"
 msgstr ""
 
@@ -3726,8 +3726,9 @@ msgid "detach-profile [<remote:>]<pool> <volume> <profile> [<device name>]"
 msgstr ""
 
 #: lxc/network.go:462
-msgid "detach-profile [<remote>:]<network> <instance> [<device name>]"
-msgstr ""
+#, fuzzy
+msgid "detach-profile [<remote>:]<network> <profile> [<device name>]"
+msgstr "Creazione del container in corso"
 
 #: lxc/config_device.go:22
 msgid "device"
@@ -4166,7 +4167,7 @@ msgid ""
 "\" in the \"default\" pool."
 msgstr ""
 
-#: lxc/manpage.go:17
+#: lxc/manpage.go:18
 msgid "manpage <target>"
 msgstr ""
 
