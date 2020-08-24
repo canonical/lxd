@@ -307,7 +307,11 @@ func (d *zfs) CreateVolumeFromBackup(vol Volume, srcBackup backup.Info, srcData 
 
 			if hdr.Name == srcFile {
 				// Extract the backup.
-				err = shared.RunCommandWithFds(tr, nil, "zfs", "receive", "-x", "mountpoint", "-F", target)
+				if vol.ContentType() == ContentTypeBlock {
+					err = shared.RunCommandWithFds(tr, nil, "zfs", "receive", "-F", target)
+				} else {
+					err = shared.RunCommandWithFds(tr, nil, "zfs", "receive", "-x", "mountpoint", "-F", target)
+				}
 
 				if err != nil {
 					return err
@@ -487,7 +491,12 @@ func (d *zfs) CreateVolumeFromCopy(vol Volume, srcVol Volume, copySnapshots bool
 
 		// Send/receive the snapshot.
 		var sender *exec.Cmd
-		receiver := exec.Command("zfs", "receive", "-x", "mountpoint", d.dataset(vol, false))
+		var receiver *exec.Cmd
+		if vol.ContentType() == ContentTypeBlock {
+			receiver = exec.Command("zfs", "receive", d.dataset(vol, false))
+		} else {
+			receiver = exec.Command("zfs", "receive", "-x", "mountpoint", d.dataset(vol, false))
+		}
 
 		// Handle transferring snapshots.
 		if len(snapshots) > 0 {
@@ -627,7 +636,7 @@ func (d *zfs) CreateVolumeFromMigration(vol Volume, conn io.ReadWriteCloser, vol
 			fullSnapshotName := GetSnapshotVolumeName(vol.name, snapName)
 			wrapper := migration.ProgressWriter(op, "fs_progress", fullSnapshotName)
 
-			err = d.receiveDataset(d.dataset(vol, false), conn, wrapper)
+			err = d.receiveDataset(vol, conn, wrapper)
 			if err != nil {
 				return err
 			}
@@ -636,7 +645,7 @@ func (d *zfs) CreateVolumeFromMigration(vol Volume, conn io.ReadWriteCloser, vol
 
 	// Transfer the main volume.
 	wrapper := migration.ProgressWriter(op, "fs_progress", vol.name)
-	err := d.receiveDataset(d.dataset(vol, false), conn, wrapper)
+	err := d.receiveDataset(vol, conn, wrapper)
 	if err != nil {
 		return err
 	}
