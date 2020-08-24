@@ -721,9 +721,9 @@ func networkPatch(d *Daemon, r *http.Request) response.Response {
 
 // doNetworkUpdate loads the current local network config, merges with the requested network config, validates
 // and applies the changes. Will also notify other cluster nodes of non-node specific config if needed.
-func doNetworkUpdate(d *Daemon, name string, req api.NetworkPut, targetNode string, clientType cluster.ClientType, httpMethod string, clustered bool) response.Response {
+func doNetworkUpdate(d *Daemon, projectName string, name string, req api.NetworkPut, targetNode string, clientType cluster.ClientType, httpMethod string, clustered bool) response.Response {
 	// Load the local node-specific network.
-	n, err := network.LoadByName(d.State(), name)
+	n, err := network.LoadByName(d.State(), projectName, name)
 	if err != nil {
 		return response.NotFound(err)
 	}
