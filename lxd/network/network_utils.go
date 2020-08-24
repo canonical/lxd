@@ -107,13 +107,13 @@ func IsInUseByProfile(s *state.State, profile api.Profile, networkName string) (
 	return isInUseByDevices(s, deviceConfig.NewDevices(profile.Devices), networkName)
 }
 
-func isInUseByDevices(s *state.State, devices deviceConfig.Devices, networkName string) (bool, error) {
+func isInUseByDevices(s *state.State, networkProjectName string, networkName string, devices deviceConfig.Devices) (bool, error) {
 	for _, d := range devices {
 		if d["type"] != "nic" {
 			continue
 		}
 
-		nicType, err := nictype.NICType(s, d)
+		nicType, err := nictype.NICType(s, networkProjectName, d)
 		if err != nil {
 			return false, err
 		}
