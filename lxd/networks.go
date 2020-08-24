@@ -511,16 +511,21 @@ func doNetworkGet(d *Daemon, projectName string, name string) (api.Network, erro
 }
 
 func networkDelete(d *Daemon, r *http.Request) response.Response {
+	projectName, err := project.NetworkProject(d.State().Cluster, projectParam(r))
+	if err != nil {
+		return response.SmartError(err)
+	}
+
 	name := mux.Vars(r)["name"]
 	state := d.State()
 
 	// Check if the network is pending, if so we just need to delete it from the database.
-	_, dbNetwork, err := d.cluster.GetNetworkInAnyState(name)
+	_, dbNetwork, err := d.cluster.GetNetworkInAnyState(projectName, name)
 	if err != nil {
 		return response.SmartError(err)
 	}
 	if dbNetwork.Status == api.NetworkStatusPending {
-		err := d.cluster.DeleteNetwork(name)
+		err := d.cluster.DeleteNetwork(projectName, name)
 		if err != nil {
 			return response.SmartError(err)
 		}
@@ -528,7 +533,7 @@ func networkDelete(d *Daemon, r *http.Request) response.Response {
 	}
 
 	// Get the existing network.
-	n, err := network.LoadByName(state, name)
+	n, err := network.LoadByName(state, projectName, name)
 	if err != nil {
 		return response.NotFound(err)
 	}
