@@ -6727,11 +6727,6 @@ func (c *lxc) Location() string {
 	return c.node
 }
 
-// Project returns instance project.
-func (c *lxc) Project() string {
-	return c.project
-}
-
 // Name returns instance name.
 func (c *lxc) Name() string {
 	return c.name
