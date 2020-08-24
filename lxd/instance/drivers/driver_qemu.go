@@ -2915,12 +2915,12 @@ func (vm *qemu) Update(args db.InstanceArgs, userRequested bool) error {
 		// between oldDevice and newDevice. The result of this is that as long as the
 		// devices are otherwise identical except for the fields returned here, then the
 		// device is considered to be being "updated" rather than "added & removed".
-		oldNICType, err := nictype.NICType(vm.state, newDevice)
+		oldNICType, err := nictype.NICType(vm.state, vm.Project(), newDevice)
 		if err != nil {
 			return []string{} // Cannot hot-update due to config error.
 		}
 
-		newNICType, err := nictype.NICType(vm.state, oldDevice)
+		newNICType, err := nictype.NICType(vm.state, vm.Project(), oldDevice)
 		if err != nil {
 			return []string{} // Cannot hot-update due to config error.
 		}
@@ -3105,12 +3105,12 @@ func (vm *qemu) deviceResetVolatile(devName string, oldConfig, newConfig deviceC
 	volatileClear := make(map[string]string)
 	devicePrefix := fmt.Sprintf("volatile.%s.", devName)
 
-	newNICType, err := nictype.NICType(vm.state, newConfig)
+	newNICType, err := nictype.NICType(vm.state, vm.Project(), newConfig)
 	if err != nil {
 		return err
 	}
 
-	oldNICType, err := nictype.NICType(vm.state, oldConfig)
+	oldNICType, err := nictype.NICType(vm.state, vm.Project(), oldConfig)
 	if err != nil {
 		return err
 	}
@@ -4082,7 +4082,7 @@ func (vm *qemu) RenderState() (*api.InstanceState, error) {
 			status.Processes = -1
 			networks := map[string]api.InstanceStateNetwork{}
 			for k, m := range vm.ExpandedDevices() {
-				nicType, err := nictype.NICType(vm.state, m)
+				nicType, err := nictype.NICType(vm.state, vm.Project(), m)
 				if err != nil {
 					return nil, err
 				}
@@ -4475,7 +4475,7 @@ func (vm *qemu) FillNetworkDevice(name string, m deviceConfig.Device) (deviceCon
 		return nil
 	}
 
-	nicType, err := nictype.NICType(vm.state, m)
+	nicType, err := nictype.NICType(vm.state, vm.Project(), m)
 	if err != nil {
 		return nil, err
 	}
