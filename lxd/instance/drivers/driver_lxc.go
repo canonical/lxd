@@ -201,7 +201,7 @@ func lxcCreate(s *state.State, args db.InstanceArgs) (instance.Instance, error) 
 		return nil, err
 	}
 
-	err = instance.ValidDevices(s, s.Cluster, c.Type(), c.expandedDevices, true)
+	err = instance.ValidDevices(s, s.Cluster, c.Project(), c.Type(), c.expandedDevices, true)
 	if err != nil {
 		c.Delete()
 		logger.Error("Failed creating container", ctxMap)
@@ -3847,7 +3847,7 @@ func (c *lxc) Update(args db.InstanceArgs, userRequested bool) error {
 		}
 
 		// Validate the new devices without using expanded devices validation (expensive checks disabled).
-		err = instance.ValidDevices(c.state, c.state.Cluster, c.Type(), args.Devices, false)
+		err = instance.ValidDevices(c.state, c.state.Cluster, c.Project(), c.Type(), args.Devices, false)
 		if err != nil {
 			return errors.Wrap(err, "Invalid devices")
 		}
@@ -4028,7 +4028,7 @@ func (c *lxc) Update(args db.InstanceArgs, userRequested bool) error {
 		}
 
 		// Do full expanded validation of the devices diff.
-		err = instance.ValidDevices(c.state, c.state.Cluster, c.Type(), c.expandedDevices, true)
+		err = instance.ValidDevices(c.state, c.state.Cluster, c.Project(), c.Type(), c.expandedDevices, true)
 		if err != nil {
 			return errors.Wrap(err, "Invalid expanded devices")
 		}
