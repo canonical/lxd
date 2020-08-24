@@ -420,20 +420,20 @@ const (
 // GetNetworkInAnyState returns the network with the given name.
 //
 // The network can be in any state.
-func (c *Cluster) GetNetworkInAnyState(name string) (int64, *api.Network, error) {
-	return c.getNetwork(name, false)
+func (c *Cluster) GetNetworkInAnyState(project string, name string) (int64, *api.Network, error) {
+	return c.getNetwork(project, name, false)
 }
 
 // Get the network with the given name. If onlyCreated is true, only return
 // networks in the created state.
-func (c *Cluster) getNetwork(name string, onlyCreated bool) (int64, *api.Network, error) {
+func (c *Cluster) getNetwork(project string, name string, onlyCreated bool) (int64, *api.Network, error) {
 	description := sql.NullString{}
 	id := int64(-1)
 	state := 0
 	var netType NetworkType
 
-	q := "SELECT id, description, state, type FROM networks WHERE name=?"
-	arg1 := []interface{}{name}
+	q := "SELECT id, description, state, type FROM networks WHERE project_id = (SELECT id FROM projects WHERE name = ?) AND name=?"
+	arg1 := []interface{}{project, name}
 	arg2 := []interface{}{&id, &description, &state, &netType}
 	if onlyCreated {
 		q += " AND state=?"
@@ -648,8 +648,8 @@ func (c *Cluster) CreateNetwork(projectName string, name string, description str
 }
 
 // UpdateNetwork updates the network with the given name.
-func (c *Cluster) UpdateNetwork(name, description string, config map[string]string) error {
-	id, netInfo, err := c.GetNetworkInAnyState(name)
+func (c *Cluster) UpdateNetwork(project string, name, description string, config map[string]string) error {
+	id, netInfo, err := c.GetNetworkInAnyState(project, name)
 	if err != nil {
 		return err
 	}
@@ -662,7 +662,7 @@ func (c *Cluster) UpdateNetwork(name, description string, config map[string]stri
 
 		// Update network status if change applied successfully.
 		if netInfo.Status == api.NetworkStatusErrored {
-			err = tx.NetworkCreated(name)
+			err = tx.NetworkCreated(project, name)
 			if err != nil {
 				return err
 			}
@@ -722,8 +722,8 @@ func clearNetworkConfig(tx *sql.Tx, networkID, nodeID int64) error {
 }
 
 // DeleteNetwork deletes the network with the given name.
-func (c *Cluster) DeleteNetwork(name string) error {
-	id, _, err := c.GetNetworkInAnyState(name)
+func (c *Cluster) DeleteNetwork(project string, name string) error {
+	id, _, err := c.GetNetworkInAnyState(project, name)
 	if err != nil {
 		return err
 	}
@@ -737,8 +737,8 @@ func (c *Cluster) DeleteNetwork(name string) error {
 }
 
 // RenameNetwork renames a network.
-func (c *Cluster) RenameNetwork(oldName string, newName string) error {
-	id, _, err := c.GetNetworkInAnyState(oldName)
+func (c *Cluster) RenameNetwork(project string, oldName string, newName string) error {
+	id, _, err := c.GetNetworkInAnyState(project, oldName)
 	if err != nil {
 		return err
 	}
