@@ -11,6 +11,7 @@ import (
 	"github.com/lxc/lxd/lxd/instance"
 	instanceDrivers "github.com/lxc/lxd/lxd/instance/drivers"
 	"github.com/lxc/lxd/lxd/instance/instancetype"
+	"github.com/lxc/lxd/lxd/project"
 	driver "github.com/lxc/lxd/lxd/storage"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
@@ -99,7 +100,7 @@ func (suite *containerTestSuite) TestContainer_ProfilesOverwriteDefaultNic() {
 		Name: "testFoo",
 	}
 
-	_, err := suite.d.State().Cluster.CreateNetwork("unknownbr0", "", db.NetworkTypeBridge, nil)
+	_, err := suite.d.State().Cluster.CreateNetwork(project.Default, "unknownbr0", "", db.NetworkTypeBridge, nil)
 	suite.Req.Nil(err)
 
 	c, err := instanceCreateInternal(suite.d.State(), args)
@@ -133,7 +134,7 @@ func (suite *containerTestSuite) TestContainer_LoadFromDB() {
 	}
 	state := suite.d.State()
 
-	_, err := state.Cluster.CreateNetwork("unknownbr0", "", db.NetworkTypeBridge, nil)
+	_, err := state.Cluster.CreateNetwork(project.Default, "unknownbr0", "", db.NetworkTypeBridge, nil)
 	suite.Req.Nil(err)
 
 	// Create the container

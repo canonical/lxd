@@ -7,6 +7,8 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/pkg/errors"
+
 	"github.com/lxc/lxd/lxd/db/query"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
@@ -209,7 +211,7 @@ WHERE networks.id = ? AND networks.state = ?
 }
 
 // CreatePendingNetwork creates a new pending network on the node with the given name.
-func (c *ClusterTx) CreatePendingNetwork(node, name string, netType NetworkType, conf map[string]string) error {
+func (c *ClusterTx) CreatePendingNetwork(node string, projectName string, name string, netType NetworkType, conf map[string]string) error {
 	// First check if a network with the given name exists, and, if so, that it's in the pending state.
 	network := struct {
 		id      int64
@@ -243,9 +245,14 @@ func (c *ClusterTx) CreatePendingNetwork(node, name string, netType NetworkType,
 
 	var networkID = network.id
 	if networkID == 0 {
+		projectID, err := c.GetProjectID(projectName)
+		if err != nil {
+			return errors.Wrap(err, "Fetch project ID")
+		}
+
 		// No existing network with the given name was found, let's create one.
-		columns := []string{"name", "type", "description"}
-		values := []interface{}{name, netType, ""}
+		columns := []string{"project_id", "name", "type", "description"}
+		values := []interface{}{projectID, name, netType, ""}
 		networkID, err = query.UpsertObject(c.tx, "networks", columns, values)
 		if err != nil {
 			return err
@@ -605,10 +612,11 @@ func (c *Cluster) getNetworkConfig(id int64) (map[string]string, error) {
 }
 
 // CreateNetwork creates a new network.
-func (c *Cluster) CreateNetwork(name, description string, netType NetworkType, config map[string]string) (int64, error) {
+func (c *Cluster) CreateNetwork(projectName string, name string, description string, netType NetworkType, config map[string]string) (int64, error) {
 	var id int64
 	err := c.Transaction(func(tx *ClusterTx) error {
-		result, err := tx.tx.Exec("INSERT INTO networks (name, description, state, type) VALUES (?, ?, ?, ?)", name, description, networkCreated, netType)
+		result, err := tx.tx.Exec("INSERT INTO networks (project_id, name, description, state, type) VALUES ((SELECT id FROM projects WHERE name = ?), ?, ?, ?, ?)",
+			projectName, name, description, networkCreated, netType)
 		if err != nil {
 			return err
 		}

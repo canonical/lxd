@@ -70,6 +70,67 @@ var updates = map[int]schema.Update{
 	31: updateFromV30,
 	32: updateFromV31,
 	33: updateFromV32,
+	34: updateFromV33,
+}
+
+// Add project_id field to networks, add unique index across project_id and name,
+// and set existing networks to project_id 1.
+// This is made a lot more complex because it requires re-creating the referenced tables as there is no way to
+// disable foreign keys temporarily within a transaction.
+func updateFromV33(tx *sql.Tx) error {
+	_, err := tx.Exec(`
+CREATE TABLE networks_new (
+    id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+    project_id INTEGER NOT NULL,
+    name TEXT NOT NULL,
+    description TEXT,
+    state INTEGER NOT NULL DEFAULT 0,
+    type INTEGER NOT NULL DEFAULT 0,
+    UNIQUE (project_id, name)
+);
+
+INSERT INTO networks_new (id, project_id, name, description, state, type)
+    SELECT id, 1, name, description, state, type FROM networks;
+
+CREATE TABLE networks_nodes_new (
+    id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+    network_id INTEGER NOT NULL,
+    node_id INTEGER NOT NULL,
+    UNIQUE (network_id, node_id),
+    FOREIGN KEY (network_id) REFERENCES networks_new (id) ON DELETE CASCADE,
+    FOREIGN KEY (node_id) REFERENCES nodes (id) ON DELETE CASCADE
+);
+
+INSERT INTO networks_nodes_new (id, network_id, node_id)
+    SELECT id, network_id, node_id FROM networks_nodes;
+
+CREATE TABLE networks_config_new (
+    id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+    network_id INTEGER NOT NULL,
+    node_id INTEGER,
+    key TEXT NOT NULL,
+    value TEXT,
+    UNIQUE (network_id, node_id, key),
+    FOREIGN KEY (network_id) REFERENCES networks_new (id) ON DELETE CASCADE,
+    FOREIGN KEY (node_id) REFERENCES nodes (id) ON DELETE CASCADE
+);
+
+INSERT INTO networks_config_new (id, network_id, node_id, key, value)
+    SELECT id, network_id, node_id, key, value FROM networks_config;
+
+DROP TABLE networks;
+DROP TABLE networks_nodes;
+DROP TABLE networks_config;
+
+ALTER TABLE networks_new RENAME TO networks;
+ALTER TABLE networks_nodes_new RENAME TO networks_nodes;
+ALTER TABLE networks_config_new RENAME TO networks_config;
+	`)
+	if err != nil {
+		return errors.Wrap(err, "Failed to add project_id column to networks table")
+	}
+
+	return nil
 }
 
 // Add type field to networks.
