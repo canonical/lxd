@@ -4282,11 +4282,6 @@ func (vm *qemu) Location() string {
 	return vm.node
 }
 
-// Project returns instance's project.
-func (vm *qemu) Project() string {
-	return vm.project
-}
-
 // Name returns the instance's name.
 func (vm *qemu) Name() string {
 	return vm.name
