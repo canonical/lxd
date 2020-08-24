@@ -14,6 +14,7 @@ import (
 	"github.com/lxc/lxd/lxd/instance/instancetype"
 	"github.com/lxc/lxd/lxd/network"
 	"github.com/lxc/lxd/lxd/network/openvswitch"
+	"github.com/lxc/lxd/lxd/project"
 	"github.com/lxc/lxd/lxd/revert"
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
@@ -57,8 +58,14 @@ func (d *nicOVN) validateConfig(instConf instance.ConfigReader) error {
 		"boot.priority",
 	}
 
+	// The NIC's network may be a non-default project, so lookup project and get network's project name.
+	networkProjectName, err := project.NetworkProject(d.state.Cluster, instConf.Project())
+	if err != nil {
+		return errors.Wrapf(err, "Failed loading network project name")
+	}
+
 	// Lookup network settings and apply them to the device's config.
-	n, err := network.LoadByName(d.state, d.config["network"])
+	n, err := network.LoadByName(d.state, networkProjectName, d.config["network"])
 	if err != nil {
 		return errors.Wrapf(err, "Error loading network config for %q", d.config["network"])
 	}
