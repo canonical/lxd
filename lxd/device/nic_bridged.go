@@ -24,6 +24,7 @@ import (
 	"github.com/lxc/lxd/lxd/instance/instancetype"
 	"github.com/lxc/lxd/lxd/network"
 	"github.com/lxc/lxd/lxd/network/openvswitch"
+	"github.com/lxc/lxd/lxd/project"
 	"github.com/lxc/lxd/lxd/revert"
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
@@ -79,7 +80,8 @@ func (d *nicBridged) validateConfig(instConf instance.ConfigReader) error {
 		}
 
 		// If network property is specified, lookup network settings and apply them to the device's config.
-		n, err := network.LoadByName(d.state, d.config["network"])
+		// project.Default is used here as bridge networks don't suppprt projects.
+		n, err := network.LoadByName(d.state, project.Default, d.config["network"])
 		if err != nil {
 			return errors.Wrapf(err, "Error loading network config for %q", d.config["network"])
 		}
@@ -489,7 +491,8 @@ func (d *nicBridged) rebuildDnsmasqEntry() error {
 	dnsmasq.ConfigMutex.Lock()
 	defer dnsmasq.ConfigMutex.Unlock()
 
-	_, dbInfo, err := d.state.Cluster.GetNetworkInAnyState(d.config["parent"])
+	// Use project.Default here as bridge networks don't support projects.
+	_, dbInfo, err := d.state.Cluster.GetNetworkInAnyState(project.Default, d.config["parent"])
 	if err != nil {
 		return err
 	}
@@ -646,7 +649,8 @@ func (d *nicBridged) setFilters() (err error) {
 	IPv6 := net.ParseIP(d.config["ipv6.address"])
 
 	// Check if the parent is managed and load config. If parent is unmanaged continue anyway.
-	n, err := network.LoadByName(d.state, d.config["parent"])
+	// project.Default is used here as bridge networks don't suppprt projects.
+	n, err := network.LoadByName(d.state, project.Default, d.config["parent"])
 	if err != nil && err != db.ErrNoSuchObject {
 		return err
 	}
