@@ -7,7 +7,7 @@
 msgid   ""
 msgstr  "Project-Id-Version: lxd\n"
         "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-        "POT-Creation-Date: 2020-07-30 14:25-0400\n"
+        "POT-Creation-Date: 2020-08-24 11:17-0400\n"
         "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
         "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
         "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -324,7 +324,7 @@ msgstr  ""
 msgid   "Architecture: %v"
 msgstr  ""
 
-#: lxc/console.go:332
+#: lxc/console.go:351
 msgid   "As neither could be found, the raw SPICE socket can be found at:"
 msgstr  ""
 
@@ -356,11 +356,11 @@ msgstr  ""
 msgid   "Attach new storage volumes to profiles"
 msgstr  ""
 
-#: lxc/console.go:34
+#: lxc/console.go:35
 msgid   "Attach to instance consoles"
 msgstr  ""
 
-#: lxc/console.go:35
+#: lxc/console.go:36
 msgid   "Attach to instance consoles\n"
         "\n"
         "This command allows you to interact with the boot console of an instance\n"
@@ -500,7 +500,7 @@ msgstr  ""
 msgid   "Can't pull a directory without --recursive"
 msgstr  ""
 
-#: lxc/utils.go:229 lxc/utils.go:249
+#: lxc/utils.go:228 lxc/utils.go:248
 #, c-format
 msgid   "Can't read from stdin: %s"
 msgstr  ""
@@ -598,7 +598,7 @@ msgstr  ""
 msgid   "Config parsing error: %s"
 msgstr  ""
 
-#: lxc/console.go:142
+#: lxc/console.go:143
 msgid   "Console log:"
 msgstr  ""
 
@@ -839,7 +839,7 @@ msgstr  ""
 msgid   "Delete storage volumes"
 msgstr  ""
 
-#: lxc/action.go:31 lxc/action.go:50 lxc/action.go:70 lxc/action.go:91 lxc/alias.go:22 lxc/alias.go:54 lxc/alias.go:100 lxc/alias.go:144 lxc/alias.go:195 lxc/cluster.go:31 lxc/cluster.go:74 lxc/cluster.go:154 lxc/cluster.go:204 lxc/cluster.go:254 lxc/cluster.go:337 lxc/cluster.go:422 lxc/config.go:30 lxc/config.go:89 lxc/config.go:360 lxc/config.go:452 lxc/config.go:610 lxc/config.go:734 lxc/config_device.go:24 lxc/config_device.go:76 lxc/config_device.go:188 lxc/config_device.go:261 lxc/config_device.go:327 lxc/config_device.go:416 lxc/config_device.go:507 lxc/config_device.go:513 lxc/config_device.go:613 lxc/config_device.go:681 lxc/config_metadata.go:27 lxc/config_metadata.go:52 lxc/config_metadata.go:174 lxc/config_template.go:28 lxc/config_template.go:65 lxc/config_template.go:108 lxc/config_template.go:150 lxc/config_template.go:236 lxc/config_template.go:295 lxc/config_trust.go:28 lxc/config_trust.go:57 lxc/config_trust.go:115 lxc/config_trust.go:193 lxc/console.go:35 lxc/copy.go:40 lxc/delete.go:30 lxc/exec.go:40 lxc/export.go:32 lxc/file.go:72 lxc/file.go:105 lxc/file.go:154 lxc/file.go:217 lxc/file.go:407 lxc/image.go:38 lxc/image.go:129 lxc/image.go:277 lxc/image.go:328 lxc/image.go:453 lxc/image.go:612 lxc/image.go:840 lxc/image.go:975 lxc/image.go:1273 lxc/image.go:1352 lxc/image_alias.go:25 lxc/image_alias.go:58 lxc/image_alias.go:105 lxc/image_alias.go:150 lxc/image_alias.go:252 lxc/import.go:28 lxc/info.go:33 lxc/init.go:40 lxc/launch.go:25 lxc/list.go:45 lxc/main.go:50 lxc/manpage.go:19 lxc/monitor.go:30 lxc/move.go:36 lxc/network.go:33 lxc/network.go:109 lxc/network.go:182 lxc/network.go:255 lxc/network.go:329 lxc/network.go:379 lxc/network.go:464 lxc/network.go:549 lxc/network.go:672 lxc/network.go:730 lxc/network.go:810 lxc/network.go:905 lxc/network.go:974 lxc/network.go:1024 lxc/network.go:1094 lxc/network.go:1156 lxc/operation.go:24 lxc/operation.go:53 lxc/operation.go:102 lxc/operation.go:181 lxc/profile.go:29 lxc/profile.go:101 lxc/profile.go:164 lxc/profile.go:244 lxc/profile.go:300 lxc/profile.go:354 lxc/profile.go:404 lxc/profile.go:528 lxc/profile.go:577 lxc/profile.go:636 lxc/profile.go:712 lxc/profile.go:762 lxc/profile.go:821 lxc/profile.go:875 lxc/project.go:29 lxc/project.go:86 lxc/project.go:151 lxc/project.go:214 lxc/project.go:334 lxc/project.go:384 lxc/project.go:476 lxc/project.go:531 lxc/project.go:591 lxc/project.go:620 lxc/project.go:673 lxc/publish.go:31 lxc/query.go:32 lxc/remote.go:33 lxc/remote.go:84 lxc/remote.go:423 lxc/remote.go:459 lxc/remote.go:539 lxc/remote.go:601 lxc/remote.go:651 lxc/remote.go:689 lxc/rename.go:21 lxc/restore.go:24 lxc/snapshot.go:27 lxc/storage.go:33 lxc/storage.go:89 lxc/storage.go:163 lxc/storage.go:213 lxc/storage.go:333 lxc/storage.go:388 lxc/storage.go:508 lxc/storage.go:582 lxc/storage.go:651 lxc/storage.go:735 lxc/storage_volume.go:33 lxc/storage_volume.go:140 lxc/storage_volume.go:223 lxc/storage_volume.go:310 lxc/storage_volume.go:472 lxc/storage_volume.go:551 lxc/storage_volume.go:627 lxc/storage_volume.go:709 lxc/storage_volume.go:790 lxc/storage_volume.go:990 lxc/storage_volume.go:1081 lxc/storage_volume.go:1161 lxc/storage_volume.go:1192 lxc/storage_volume.go:1305 lxc/storage_volume.go:1381 lxc/storage_volume.go:1480 lxc/storage_volume.go:1513 lxc/storage_volume.go:1589 lxc/version.go:22
+#: lxc/action.go:31 lxc/action.go:50 lxc/action.go:70 lxc/action.go:91 lxc/alias.go:22 lxc/alias.go:54 lxc/alias.go:100 lxc/alias.go:144 lxc/alias.go:195 lxc/cluster.go:31 lxc/cluster.go:74 lxc/cluster.go:154 lxc/cluster.go:204 lxc/cluster.go:254 lxc/cluster.go:337 lxc/cluster.go:422 lxc/config.go:30 lxc/config.go:89 lxc/config.go:360 lxc/config.go:452 lxc/config.go:610 lxc/config.go:734 lxc/config_device.go:24 lxc/config_device.go:76 lxc/config_device.go:188 lxc/config_device.go:261 lxc/config_device.go:327 lxc/config_device.go:416 lxc/config_device.go:507 lxc/config_device.go:513 lxc/config_device.go:613 lxc/config_device.go:681 lxc/config_metadata.go:27 lxc/config_metadata.go:52 lxc/config_metadata.go:174 lxc/config_template.go:28 lxc/config_template.go:65 lxc/config_template.go:108 lxc/config_template.go:150 lxc/config_template.go:236 lxc/config_template.go:295 lxc/config_trust.go:28 lxc/config_trust.go:57 lxc/config_trust.go:115 lxc/config_trust.go:193 lxc/console.go:36 lxc/copy.go:40 lxc/delete.go:30 lxc/exec.go:40 lxc/export.go:32 lxc/file.go:72 lxc/file.go:105 lxc/file.go:154 lxc/file.go:217 lxc/file.go:407 lxc/image.go:38 lxc/image.go:129 lxc/image.go:277 lxc/image.go:328 lxc/image.go:453 lxc/image.go:612 lxc/image.go:840 lxc/image.go:975 lxc/image.go:1273 lxc/image.go:1352 lxc/image_alias.go:25 lxc/image_alias.go:58 lxc/image_alias.go:105 lxc/image_alias.go:150 lxc/image_alias.go:252 lxc/import.go:28 lxc/info.go:33 lxc/init.go:40 lxc/launch.go:25 lxc/list.go:45 lxc/main.go:50 lxc/manpage.go:20 lxc/monitor.go:30 lxc/move.go:36 lxc/network.go:33 lxc/network.go:109 lxc/network.go:182 lxc/network.go:255 lxc/network.go:329 lxc/network.go:379 lxc/network.go:464 lxc/network.go:549 lxc/network.go:672 lxc/network.go:730 lxc/network.go:810 lxc/network.go:905 lxc/network.go:974 lxc/network.go:1024 lxc/network.go:1094 lxc/network.go:1156 lxc/operation.go:24 lxc/operation.go:53 lxc/operation.go:102 lxc/operation.go:181 lxc/profile.go:29 lxc/profile.go:101 lxc/profile.go:164 lxc/profile.go:244 lxc/profile.go:300 lxc/profile.go:354 lxc/profile.go:404 lxc/profile.go:528 lxc/profile.go:577 lxc/profile.go:636 lxc/profile.go:712 lxc/profile.go:762 lxc/profile.go:821 lxc/profile.go:875 lxc/project.go:29 lxc/project.go:86 lxc/project.go:151 lxc/project.go:214 lxc/project.go:334 lxc/project.go:384 lxc/project.go:476 lxc/project.go:531 lxc/project.go:591 lxc/project.go:620 lxc/project.go:673 lxc/publish.go:31 lxc/query.go:32 lxc/remote.go:33 lxc/remote.go:84 lxc/remote.go:423 lxc/remote.go:459 lxc/remote.go:539 lxc/remote.go:601 lxc/remote.go:651 lxc/remote.go:689 lxc/rename.go:21 lxc/restore.go:24 lxc/snapshot.go:27 lxc/storage.go:33 lxc/storage.go:89 lxc/storage.go:163 lxc/storage.go:213 lxc/storage.go:333 lxc/storage.go:388 lxc/storage.go:508 lxc/storage.go:582 lxc/storage.go:651 lxc/storage.go:735 lxc/storage_volume.go:33 lxc/storage_volume.go:140 lxc/storage_volume.go:223 lxc/storage_volume.go:310 lxc/storage_volume.go:472 lxc/storage_volume.go:551 lxc/storage_volume.go:627 lxc/storage_volume.go:709 lxc/storage_volume.go:790 lxc/storage_volume.go:990 lxc/storage_volume.go:1081 lxc/storage_volume.go:1161 lxc/storage_volume.go:1192 lxc/storage_volume.go:1305 lxc/storage_volume.go:1381 lxc/storage_volume.go:1480 lxc/storage_volume.go:1513 lxc/storage_volume.go:1589 lxc/version.go:22
 msgid   "Description"
 msgstr  ""
 
@@ -874,7 +874,7 @@ msgstr  ""
 msgid   "Device %s removed from %s"
 msgstr  ""
 
-#: lxc/utils.go:136 lxc/utils.go:160
+#: lxc/utils.go:135 lxc/utils.go:159
 #, c-format
 msgid   "Device already exists: %s"
 msgstr  ""
@@ -1097,7 +1097,7 @@ msgstr  ""
 msgid   "Failed to connect to cluster member"
 msgstr  ""
 
-#: lxc/utils.go:205
+#: lxc/utils.go:204
 #, c-format
 msgid   "Failed to create alias %s"
 msgstr  ""
@@ -1106,7 +1106,7 @@ msgstr  ""
 msgid   "Failed to get the new instance name"
 msgstr  ""
 
-#: lxc/utils.go:195
+#: lxc/utils.go:194
 #, c-format
 msgid   "Failed to remove alias %s"
 msgstr  ""
@@ -1195,7 +1195,7 @@ msgstr  ""
 msgid   "GPUs:"
 msgstr  ""
 
-#: lxc/manpage.go:18 lxc/manpage.go:19
+#: lxc/manpage.go:19 lxc/manpage.go:20
 msgid   "Generate manpages for all commands"
 msgstr  ""
 
@@ -1469,11 +1469,11 @@ msgstr  ""
 msgid   "LOCATION"
 msgstr  ""
 
-#: lxc/manpage.go:37
+#: lxc/manpage.go:38
 msgid   "LXD - Command line client"
 msgstr  ""
 
-#: lxc/console.go:331
+#: lxc/console.go:350
 msgid   "LXD automatically uses either spicy or remote-viewer when present."
 msgstr  ""
 
@@ -2476,7 +2476,7 @@ msgstr  ""
 msgid   "Restore storage volume snapshots"
 msgstr  ""
 
-#: lxc/console.go:42
+#: lxc/console.go:43
 msgid   "Retrieve the instance's console log"
 msgstr  ""
 
@@ -2987,7 +2987,7 @@ msgstr  ""
 msgid   "To create a new network, use: lxc network create"
 msgstr  ""
 
-#: lxc/console.go:203
+#: lxc/console.go:204
 msgid   "To detach from the console, press: <ctrl>+a q"
 msgstr  ""
 
@@ -3036,7 +3036,7 @@ msgstr  ""
 msgid   "Try `lxc info --show-log %s` for more info"
 msgstr  ""
 
-#: lxc/console.go:43
+#: lxc/console.go:44
 msgid   "Type of connection to establish: 'console' for serial console, 'vga' for SPICE graphical output"
 msgstr  ""
 
@@ -3258,7 +3258,7 @@ msgstr  ""
 msgid   "config"
 msgstr  ""
 
-#: lxc/console.go:33
+#: lxc/console.go:34
 msgid   "console [<remote>:]<instance>"
 msgstr  ""
 
@@ -3375,7 +3375,7 @@ msgid   "detach-profile [<remote:>]<pool> <volume> <profile> [<device name>]"
 msgstr  ""
 
 #: lxc/network.go:462
-msgid   "detach-profile [<remote>:]<network> <instance> [<device name>]"
+msgid   "detach-profile [<remote>:]<network> <profile> [<device name>]"
 msgstr  ""
 
 #: lxc/config_device.go:22
@@ -3762,7 +3762,7 @@ msgid   "lxc storage volume show default data\n"
         "    Will show the properties of the filesystem for a container called \"data\" in the \"default\" pool."
 msgstr  ""
 
-#: lxc/manpage.go:17
+#: lxc/manpage.go:18
 msgid   "manpage <target>"
 msgstr  ""
 
