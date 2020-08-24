@@ -649,10 +649,15 @@ func networkPut(d *Daemon, r *http.Request) response.Response {
 		return resp
 	}
 
+	projectName, err := project.NetworkProject(d.State().Cluster, projectParam(r))
+	if err != nil {
+		return response.SmartError(err)
+	}
+
 	name := mux.Vars(r)["name"]
 
 	// Get the existing network.
-	_, dbInfo, err := d.cluster.GetNetworkInAnyState(name)
+	_, dbInfo, err := d.cluster.GetNetworkInAnyState(projectName, name)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -707,7 +712,7 @@ func networkPut(d *Daemon, r *http.Request) response.Response {
 
 	clientType := cluster.UserAgentClientType(r.Header.Get("User-Agent"))
 
-	return doNetworkUpdate(d, name, req, targetNode, clientType, r.Method, clustered)
+	return doNetworkUpdate(d, projectName, name, req, targetNode, clientType, r.Method, clustered)
 }
 
 func networkPatch(d *Daemon, r *http.Request) response.Response {
