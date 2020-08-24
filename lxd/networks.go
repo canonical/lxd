@@ -415,9 +415,14 @@ func networkGet(d *Daemon, r *http.Request) response.Response {
 		return resp
 	}
 
+	projectName, err := project.NetworkProject(d.State().Cluster, projectParam(r))
+	if err != nil {
+		return response.SmartError(err)
+	}
+
 	name := mux.Vars(r)["name"]
 
-	n, err := doNetworkGet(d, name)
+	n, err := doNetworkGet(d, projectName, name)
 	if err != nil {
 		return response.SmartError(err)
 	}
