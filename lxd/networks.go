@@ -259,7 +259,7 @@ func networksPost(d *Daemon, r *http.Request) response.Response {
 	return resp
 }
 
-func networksPostCluster(d *Daemon, req api.NetworksPost, clientType cluster.ClientType) error {
+func networksPostCluster(d *Daemon, projectName string, req api.NetworksPost, clientType cluster.ClientType) error {
 	// Check that no node-specific config key has been defined.
 	for key := range req.Config {
 		if shared.StringInSlice(key, db.NodeSpecificNetworkConfig) {
@@ -269,7 +269,7 @@ func networksPostCluster(d *Daemon, req api.NetworksPost, clientType cluster.Cli
 
 	// Check that the requested network type matches the type created when adding the local node config.
 	// If network doesn't exist yet, ignore not found error, as this will be checked by NetworkNodeConfigs().
-	_, netInfo, err := d.cluster.GetNetworkInAnyState(req.Name)
+	_, netInfo, err := d.cluster.GetNetworkInAnyState(projectName, req.Name)
 	if err != nil && err != db.ErrNoSuchObject {
 		return err
 	}
@@ -335,20 +335,20 @@ func networksPostCluster(d *Daemon, req api.NetworksPost, clientType cluster.Cli
 
 	revert.Add(func() {
 		d.cluster.Transaction(func(tx *db.ClusterTx) error {
-			return tx.NetworkErrored(req.Name)
+			return tx.NetworkErrored(projectName, req.Name)
 		})
 	})
 
 	// We need to mark the network as created now, because the network.LoadByName call invoked by
 	// doNetworksCreate would fail with not-found otherwise.
 	err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
-		return tx.NetworkCreated(req.Name)
+		return tx.NetworkCreated(projectName, req.Name)
 	})
 	if err != nil {
 		return err
 	}
 
-	err = doNetworksCreate(d, nodeReq, clientType)
+	err = doNetworksCreate(d, projectName, nodeReq, clientType)
 	if err != nil {
 		return err
 	}
