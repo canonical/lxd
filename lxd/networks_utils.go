@@ -41,32 +41,6 @@ func networkAutoAttach(cluster *db.Cluster, devName string) error {
 	return network.AttachInterface(dbInfo.Name, devName)
 }
 
-func networkGetInterfaces(cluster *db.Cluster) ([]string, error) {
-	networks, err := cluster.GetNetworks()
-	if err != nil {
-		return nil, err
-	}
-
-	ifaces, err := net.Interfaces()
-	if err != nil {
-		return nil, err
-	}
-
-	for _, iface := range ifaces {
-		// Ignore veth pairs (for performance reasons)
-		if strings.HasPrefix(iface.Name, "veth") {
-			continue
-		}
-
-		// Append to the list
-		if !shared.StringInSlice(iface.Name, networks) {
-			networks = append(networks, iface.Name)
-		}
-	}
-
-	return networks, nil
-}
-
 // networkUpdateForkdnsServersTask runs every 30s and refreshes the forkdns servers list.
 func networkUpdateForkdnsServersTask(s *state.State, heartbeatData *cluster.APIHeartbeat) error {
 	// Get a list of managed networks
