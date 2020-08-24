@@ -356,7 +356,7 @@ func (d *proxy) setupNAT() error {
 			continue
 		}
 
-		nicType, err := nictype.NICType(d.state, devConfig)
+		nicType, err := nictype.NICType(d.state, d.inst.Project(), devConfig)
 		if err != nil {
 			return err
 		}
