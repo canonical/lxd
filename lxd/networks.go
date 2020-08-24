@@ -376,9 +376,9 @@ func networksPostCluster(d *Daemon, projectName string, req api.NetworksPost, cl
 
 // Create the network on the system. The clusterNotification flag is used to indicate whether creation request
 // is coming from a cluster notification (and if so we should not delete the database record on error).
-func doNetworksCreate(d *Daemon, req api.NetworksPost, clientType cluster.ClientType) error {
+func doNetworksCreate(d *Daemon, projectName string, req api.NetworksPost, clientType cluster.ClientType) error {
 	// Start the network.
-	n, err := network.LoadByName(d.State(), req.Name)
+	n, err := network.LoadByName(d.State(), projectName, req.Name)
 	if err != nil {
 		return err
 	}
