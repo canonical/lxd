@@ -588,8 +588,13 @@ func networkPost(d *Daemon, r *http.Request) response.Response {
 		return response.BadRequest(err)
 	}
 
+	projectName, err := project.NetworkProject(d.State().Cluster, projectParam(r))
+	if err != nil {
+		return response.SmartError(err)
+	}
+
 	// Get the existing network.
-	n, err := network.LoadByName(state, name)
+	n, err := network.LoadByName(state, projectName, name)
 	if err != nil {
 		if err == db.ErrNoSuchObject {
 			return response.NotFound(fmt.Errorf("Network not found"))
@@ -619,7 +624,7 @@ func networkPost(d *Daemon, r *http.Request) response.Response {
 	}
 
 	// Check that the name isn't already in used by an existing managed network.
-	networks, err := d.cluster.GetNetworks()
+	networks, err := d.cluster.GetNetworks(projectName)
 	if err != nil {
 		return response.InternalError(err)
 	}
