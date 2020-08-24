@@ -658,11 +658,11 @@ func (c *ClusterTx) GetInstanceSnapshotsWithName(project string, name string) ([
 	return instances, nil
 }
 
-// GetInstancePool returns the storage pool of a given instance.
-func (c *ClusterTx) GetInstancePool(project, instanceName string) (string, error) {
-	if strings.Contains(instanceName, shared.SnapshotDelimiter) {
-		return c.instancePoolSnapshot(project, instanceName)
-	}
+// GetInstancePool returns the storage pool of a given instance (or snapshot).
+func (c *ClusterTx) GetInstancePool(projectName string, instanceName string) (string, error) {
+	// Strip snapshot name if supplied in instanceName, and lookup the storage pool of the parent instance
+	// as that must always be the same as the snapshot's storage pool.
+	instanceName, _, _ = shared.InstanceGetParentAndSnapshotName(instanceName)
 
 	// Get container storage volume. Since container names are globally
 	// unique, and their storage volumes carry the same name, their storage
@@ -679,33 +679,7 @@ SELECT storage_pools.name FROM storage_pools
    AND storage_volumes_all.type IN(?,?)
    AND storage_volumes_all.project_id = instances.project_id
 `
-	inargs := []interface{}{project, c.nodeID, instanceName, StoragePoolVolumeTypeContainer, StoragePoolVolumeTypeVM}
-	outargs := []interface{}{&poolName}
-
-	err := c.tx.QueryRow(query, inargs...).Scan(outargs...)
-	if err != nil {
-		if err == sql.ErrNoRows {
-			return "", ErrNoSuchObject
-		}
-
-		return "", err
-	}
-
-	return poolName, nil
-}
-
-func (c *ClusterTx) instancePoolSnapshot(project, fullName string) (string, error) {
-	poolName := ""
-	query := `
-SELECT storage_pools.name FROM storage_pools
-  JOIN storage_volumes_all ON storage_pools.id=storage_volumes_all.storage_pool_id
-  JOIN projects ON projects.id=storage_volumes_all.project_id
- WHERE projects.name=?
-   AND storage_volumes_all.node_id=?
-   AND storage_volumes_all.name=?
-   AND storage_volumes_all.type IN(?,?)
-`
-	inargs := []interface{}{project, c.nodeID, fullName, StoragePoolVolumeTypeContainer, StoragePoolVolumeTypeVM}
+	inargs := []interface{}{projectName, c.nodeID, instanceName, StoragePoolVolumeTypeContainer, StoragePoolVolumeTypeVM}
 	outargs := []interface{}{&poolName}
 
 	err := c.tx.QueryRow(query, inargs...).Scan(outargs...)
