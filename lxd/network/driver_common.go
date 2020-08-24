@@ -25,6 +25,7 @@ type common struct {
 	logger      logger.Logger
 	state       *state.State
 	id          int64
+	project     string
 	name        string
 	netType     string
 	description string
@@ -33,9 +34,10 @@ type common struct {
 }
 
 // init initialise internal variables.
-func (n *common) init(state *state.State, id int64, name string, netType string, description string, config map[string]string, status string) {
-	n.logger = logging.AddContext(logger.Log, log.Ctx{"driver": netType, "network": name})
+func (n *common) init(state *state.State, id int64, projectName string, name string, netType string, description string, config map[string]string, status string) {
+	n.logger = logging.AddContext(logger.Log, log.Ctx{"project": projectName, "driver": netType, "network": name})
 	n.id = id
+	n.project = projectName
 	n.name = name
 	n.netType = netType
 	n.config = config
@@ -192,7 +194,7 @@ func (n *common) DHCPv6Ranges() []shared.IPRange {
 func (n *common) update(applyNetwork api.NetworkPut, targetNode string, clientType cluster.ClientType) error {
 	// Update internal config before database has been updated (so that if update is a notification we apply
 	// the config being supplied and not that in the database).
-	n.init(n.state, n.id, n.name, n.netType, applyNetwork.Description, applyNetwork.Config, n.status)
+	n.init(n.state, n.id, n.project, n.name, n.netType, applyNetwork.Description, applyNetwork.Config, n.status)
 
 	// If this update isn't coming via a cluster notification itself, then notify all nodes of change and then
 	// update the database.
@@ -224,7 +226,7 @@ func (n *common) update(applyNetwork api.NetworkPut, targetNode string, clientTy
 		}
 
 		// Update the database.
-		err := n.state.Cluster.UpdateNetwork(n.name, applyNetwork.Description, applyNetwork.Config)
+		err := n.state.Cluster.UpdateNetwork(n.project, n.name, applyNetwork.Description, applyNetwork.Config)
 		if err != nil {
 			return err
 		}
@@ -297,13 +299,13 @@ func (n *common) rename(newName string) error {
 	}
 
 	// Rename the database entry.
-	err := n.state.Cluster.RenameNetwork(n.name, newName)
+	err := n.state.Cluster.RenameNetwork(n.project, n.name, newName)
 	if err != nil {
 		return err
 	}
 
 	// Reinitialise internal name variable and logger context with new name.
-	n.init(n.state, n.id, newName, n.netType, n.description, n.config, n.status)
+	n.init(n.state, n.id, n.project, newName, n.netType, n.description, n.config, n.status)
 
 	return nil
 }
@@ -325,7 +327,7 @@ func (n *common) delete(clientType cluster.ClientType) error {
 		}
 
 		// Remove the network from the database.
-		err = n.state.Cluster.DeleteNetwork(n.name)
+		err = n.state.Cluster.DeleteNetwork(n.project, n.name)
 		if err != nil {
 			return err
 		}
