@@ -5,9 +5,11 @@ package db_test
 import (
 	"testing"
 
-	"github.com/lxc/lxd/lxd/db"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/lxc/lxd/lxd/db"
+	"github.com/lxc/lxd/lxd/project"
 )
 
 // The GetNetworksLocalConfigs method returns only node-specific config values.
@@ -15,7 +17,7 @@ func TestGetNetworksLocalConfigs(t *testing.T) {
 	cluster, cleanup := db.NewTestCluster(t)
 	defer cleanup()
 
-	_, err := cluster.CreateNetwork("lxdbr0", "", db.NetworkTypeBridge, map[string]string{
+	_, err := cluster.CreateNetwork(project.Default, "lxdbr0", "", db.NetworkTypeBridge, map[string]string{
 		"dns.mode":                   "none",
 		"bridge.external_interfaces": "vlan0",
 	})
@@ -45,7 +47,7 @@ func TestCreatePendingNetwork(t *testing.T) {
 	require.NoError(t, err)
 
 	config := map[string]string{"bridge.external_interfaces": "foo"}
-	err = tx.CreatePendingNetwork("buzz", "network1", db.NetworkTypeBridge, config)
+	err = tx.CreatePendingNetwork("buzz", project.Default, "network1", db.NetworkTypeBridge, config)
 	require.NoError(t, err)
 
 	networkID, err := tx.GetNetworkID("network1")
@@ -53,7 +55,7 @@ func TestCreatePendingNetwork(t *testing.T) {
 	assert.True(t, networkID > 0)
 
 	config = map[string]string{"bridge.external_interfaces": "bar"}
-	err = tx.CreatePendingNetwork("rusp", "network1", db.NetworkTypeBridge, config)
+	err = tx.CreatePendingNetwork("rusp", project.Default, "network1", db.NetworkTypeBridge, config)
 	require.NoError(t, err)
 
 	// The initial node (whose name is 'none' by default) is missing.
@@ -61,7 +63,7 @@ func TestCreatePendingNetwork(t *testing.T) {
 	require.EqualError(t, err, "Network not defined on nodes: none")
 
 	config = map[string]string{"bridge.external_interfaces": "egg"}
-	err = tx.CreatePendingNetwork("none", "network1", db.NetworkTypeBridge, config)
+	err = tx.CreatePendingNetwork("none", project.Default, "network1", db.NetworkTypeBridge, config)
 	require.NoError(t, err)
 
 	// Now the storage is defined on all nodes.
@@ -82,10 +84,10 @@ func TestNetworksCreatePending_AlreadyDefined(t *testing.T) {
 	_, err := tx.CreateNode("buzz", "1.2.3.4:666")
 	require.NoError(t, err)
 
-	err = tx.CreatePendingNetwork("buzz", "network1", db.NetworkTypeBridge, map[string]string{})
+	err = tx.CreatePendingNetwork("buzz", project.Default, "network1", db.NetworkTypeBridge, map[string]string{})
 	require.NoError(t, err)
 
-	err = tx.CreatePendingNetwork("buzz", "network1", db.NetworkTypeBridge, map[string]string{})
+	err = tx.CreatePendingNetwork("buzz", project.Default, "network1", db.NetworkTypeBridge, map[string]string{})
 	require.Equal(t, db.ErrAlreadyDefined, err)
 }
 
@@ -94,6 +96,6 @@ func TestNetworksCreatePending_NonExistingNode(t *testing.T) {
 	tx, cleanup := db.NewTestClusterTx(t)
 	defer cleanup()
 
-	err := tx.CreatePendingNetwork("buzz", "network1", db.NetworkTypeBridge, map[string]string{})
+	err := tx.CreatePendingNetwork("buzz", project.Default, "network1", db.NetworkTypeBridge, map[string]string{})
 	require.Equal(t, db.ErrNoSuchObject, err)
 }

@@ -163,7 +163,7 @@ func networksPost(d *Daemon, r *http.Request) response.Response {
 		}
 
 		err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
-			return tx.CreatePendingNetwork(targetNode, req.Name, dbNetType, req.Config)
+			return tx.CreatePendingNetwork(targetNode, project.Default, req.Name, dbNetType, req.Config)
 		})
 		if err != nil {
 			if err == db.ErrAlreadyDefined {
@@ -208,7 +208,7 @@ func networksPost(d *Daemon, r *http.Request) response.Response {
 	defer revert.Fail()
 
 	// Create the database entry.
-	_, err = d.cluster.CreateNetwork(req.Name, req.Description, dbNetType, req.Config)
+	_, err = d.cluster.CreateNetwork(project.Default, req.Name, req.Description, dbNetType, req.Config)
 	if err != nil {
 		return response.SmartError(errors.Wrapf(err, "Error inserting %q into database", req.Name))
 	}
