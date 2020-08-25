@@ -3,6 +3,7 @@ package device
 import (
 	"fmt"
 	"net"
+	"strconv"
 	"strings"
 
 	deviceConfig "github.com/lxc/lxd/lxd/device/config"
@@ -53,13 +54,7 @@ func ProxyParseAddr(addr string) (*deviceConfig.ProxyAddress, error) {
 		}
 
 		for i := int64(0); i < portRange; i++ {
-			var newAddr string
-			if strings.Contains(address, ":") {
-				// IPv6 addresses need to be enclosed in square brackets.
-				newAddr = fmt.Sprintf("[%s]:%d", address, portFirst+i)
-			} else {
-				newAddr = fmt.Sprintf("%s:%d", address, portFirst+i)
-			}
+			newAddr := net.JoinHostPort(address, strconv.Itoa(int(portFirst+i)))
 			newProxyAddr.Addr = append(newProxyAddr.Addr, newAddr)
 		}
 	}

@@ -127,7 +127,7 @@ func (c *cmdInit) askClustering(config *cmdInitData, d lxd.InstanceServer) error
 
 			s, _, err := d.GetServer()
 			if err == nil {
-				if s.Config["cluster.https_address"] == value || s.Config["core.https_address"] == value {
+				if s.Config["cluster.https_address"] == address || s.Config["core.https_address"] == address {
 					// We already own the address, just move on.
 					return nil
 				}
@@ -135,7 +135,7 @@ func (c *cmdInit) askClustering(config *cmdInitData, d lxd.InstanceServer) error
 
 			listener, err := net.Listen("tcp", address)
 			if err != nil {
-				return fmt.Errorf("Can't bind address %q: %v", address, err)
+				return errors.Wrapf(err, "Can't bind address %q", address)
 			}
 
 			listener.Close()
@@ -153,7 +153,7 @@ func (c *cmdInit) askClustering(config *cmdInitData, d lxd.InstanceServer) error
 				clusterAddress := cli.AskString("IP address or FQDN of an existing cluster node: ", "", nil)
 				_, _, err := net.SplitHostPort(clusterAddress)
 				if err != nil {
-					clusterAddress = fmt.Sprintf("%s:8443", clusterAddress)
+					clusterAddress = fmt.Sprintf("%s:%d", clusterAddress, shared.DefaultPort)
 				}
 				config.Cluster.ClusterAddress = clusterAddress
 
@@ -674,8 +674,8 @@ they otherwise would.
 			netAddr = fmt.Sprintf("[%s]", netAddr)
 		}
 
-		netPort := cli.AskInt("Port to bind LXD to [default=8443]: ", 1, 65535, "8443", func(netPort int64) error {
-			address := fmt.Sprintf("%s:%d", netAddr, netPort)
+		netPort := cli.AskInt(fmt.Sprintf("Port to bind LXD to [default=%d]: ", shared.DefaultPort), 1, 65535, fmt.Sprintf("%d", shared.DefaultPort), func(netPort int64) error {
+			address := util.CanonicalNetworkAddressFromAddressAndPort(netAddr, int(netPort))
 
 			s, _, err := d.GetServer()
 			if err == nil {
@@ -693,7 +693,7 @@ they otherwise would.
 			listener.Close()
 			return nil
 		})
-		config.Node.Config["core.https_address"] = fmt.Sprintf("%s:%d", netAddr, netPort)
+		config.Node.Config["core.https_address"] = util.CanonicalNetworkAddressFromAddressAndPort(netAddr, int(netPort))
 		config.Node.Config["core.trust_password"] = cli.AskPassword("Trust password for new clients: ")
 		if config.Node.Config["core.trust_password"] == "" {
 			fmt.Printf("No password set, client certificates will have to be manually trusted.")
