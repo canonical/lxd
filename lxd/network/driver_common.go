@@ -218,7 +218,7 @@ func (n *common) update(applyNetwork api.NetworkPut, targetNode string, clientTy
 			}
 
 			err = notifier(func(client lxd.InstanceServer) error {
-				return client.UpdateNetwork(n.name, sendNetwork, "")
+				return client.UseProject(n.project).UpdateNetwork(n.name, sendNetwork, "")
 			})
 			if err != nil {
 				return err
@@ -320,7 +320,7 @@ func (n *common) delete(clientType cluster.ClientType) error {
 			return err
 		}
 		err = notifier(func(client lxd.InstanceServer) error {
-			return client.DeleteNetwork(n.name)
+			return client.UseProject(n.project).DeleteNetwork(n.name)
 		})
 		if err != nil {
 			return err
