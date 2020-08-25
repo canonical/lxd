@@ -135,7 +135,7 @@ func (c *cmdInit) askClustering(config *cmdInitData, d lxd.InstanceServer) error
 
 			listener, err := net.Listen("tcp", address)
 			if err != nil {
-				return fmt.Errorf("Can't bind address %q: %v", address, err)
+				return errors.Wrapf(err, "Can't bind address %q", address)
 			}
 
 			listener.Close()
