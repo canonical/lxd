@@ -1475,6 +1475,11 @@ func (b *lxdBackend) MigrateInstance(inst instance.Instance, conn io.ReadWriteCl
 	logger.Debug("MigrateInstance started")
 	defer logger.Debug("MigrateInstance finished")
 
+	// rsync+dd can't handle running source instances
+	if inst.IsRunning() && args.MigrationType.FSType == migration.MigrationFSType_BLOCK_AND_RSYNC {
+		return fmt.Errorf("Rsync based migration doesn't support running virtual machines")
+	}
+
 	volType, err := InstanceTypeToVolumeType(inst.Type())
 	if err != nil {
 		return err
