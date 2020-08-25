@@ -89,19 +89,32 @@ WHERE storage_volumes.type = ?
 func (c *Cluster) GetStoragePoolVolumes(project string, poolID int64, volumeTypes []int) ([]*api.StorageVolume, error) {
 	var nodeIDs []int
 
+	remoteDrivers := GetRemoteDrivers()
+
 	err := c.Transaction(func(tx *ClusterTx) error {
 		var err error
-		nodeIDs, err = query.SelectIntegers(tx.tx, `
+		// Exclude storage volumes residing on ceph and cephfs as their node ID is null, and SelectIntegers() cannot deal with that.
+
+		s := fmt.Sprintf(`
 SELECT DISTINCT node_id
   FROM storage_volumes_all
   JOIN projects ON projects.id = storage_volumes_all.project_id
- WHERE (projects.name=? OR storage_volumes_all.type=?) AND storage_volumes_all.storage_pool_id=?
-`, project, StoragePoolVolumeTypeCustom, poolID)
+  JOIN storage_pools ON storage_pools.id = storage_volumes_all.storage_pool_id
+ WHERE (projects.name=? OR storage_volumes_all.type=?) AND storage_volumes_all.storage_pool_id=? AND storage_pools.driver NOT IN %s`, query.Params(len(remoteDrivers)))
+
+		args := []interface{}{project, StoragePoolVolumeTypeCustom, poolID}
+
+		for _, driver := range remoteDrivers {
+			args = append(args, driver)
+		}
+
+		nodeIDs, err = query.SelectIntegers(tx.tx, s, args...)
 		return err
 	})
 	if err != nil {
 		return nil, err
 	}
+
 	volumes := []*api.StorageVolume{}
 
 	for _, nodeID := range nodeIDs {
@@ -113,8 +126,24 @@ SELECT DISTINCT node_id
 
 			return nil, err
 		}
+
 		volumes = append(volumes, nodeVolumes...)
 	}
+
+	isRemoteStorage, err := c.isRemoteStorage(poolID)
+	if err != nil {
+		return nil, err
+	}
+
+	if isRemoteStorage {
+		nodeVolumes, err := c.storagePoolVolumesGet(project, poolID, c.nodeID, volumeTypes)
+		if err != nil && err != ErrNoSuchObject {
+			return nil, err
+		}
+
+		volumes = append(volumes, nodeVolumes...)
+	}
+
 	return volumes, nil
 }
 
@@ -157,17 +186,24 @@ func (c *Cluster) storagePoolVolumesGet(project string, poolID, nodeID int64, vo
 // type, on the given node.
 func (c *Cluster) storagePoolVolumesGetType(project string, volumeType int, poolID, nodeID int64) ([]string, error) {
 	var poolName string
-	query := `
+
+	remoteDrivers := GetRemoteDrivers()
+
+	query := fmt.Sprintf(`
 SELECT storage_volumes_all.name
   FROM storage_volumes_all
   JOIN projects ON projects.id=storage_volumes_all.project_id
+  join storage_pools ON storage_pools.id=storage_volumes_all.storage_pool_id
  WHERE projects.name=?
    AND storage_volumes_all.storage_pool_id=?
-   AND storage_volumes_all.node_id=?
    AND storage_volumes_all.type=?
-`
-	inargs := []interface{}{project, poolID, nodeID, volumeType}
+   AND (storage_volumes_all.node_id=? OR storage_volumes_all.node_id IS NULL AND storage_pools.driver IN %s)`, query.Params(len(remoteDrivers)))
+	inargs := []interface{}{project, poolID, volumeType, nodeID}
 	outargs := []interface{}{poolName}
+
+	for _, driver := range remoteDrivers {
+		inargs = append(inargs, driver)
+	}
 
 	result, err := queryScan(c, query, inargs, outargs)
 	if err != nil {
@@ -187,23 +223,29 @@ SELECT storage_volumes_all.name
 // Returns snapshots slice ordered by when they were created, oldest first.
 func (c *Cluster) GetLocalStoragePoolVolumeSnapshotsWithType(projectName string, volumeName string, volumeType int, poolID int64) ([]StorageVolumeArgs, error) {
 	result := []StorageVolumeArgs{}
+	remoteDrivers := GetRemoteDrivers()
 
 	// ORDER BY id is important here as the users of this function can expect that the results
 	// will be returned in the order that the snapshots were created. This is specifically used
 	// during migration to ensure that the storage engines can re-create snapshots using the
 	// correct deltas.
-	query := `
+	query := fmt.Sprintf(`
 SELECT storage_volumes_snapshots.name, storage_volumes_snapshots.description FROM storage_volumes_snapshots
   JOIN storage_volumes ON storage_volumes_snapshots.storage_volume_id = storage_volumes.id
   JOIN projects ON projects.id=storage_volumes.project_id
+  JOIN storage_pools ON storage_pools.id=storage_volumes.storage_pool_id
   WHERE storage_volumes.storage_pool_id=?
-    AND storage_volumes.node_id=?
     AND storage_volumes.type=?
     AND storage_volumes.name=?
     AND projects.name=?
-  ORDER BY storage_volumes_snapshots.id
-`
-	inargs := []interface{}{poolID, c.nodeID, volumeType, volumeName, projectName}
+    AND (storage_volumes.node_id=? OR storage_volumes.node_id IS NULL AND storage_pools.driver IN %s)
+  ORDER BY storage_volumes_snapshots.id`, query.Params(len(remoteDrivers)))
+	inargs := []interface{}{poolID, volumeType, volumeName, projectName, c.nodeID}
+
+	for _, driver := range remoteDrivers {
+		inargs = append(inargs, driver)
+	}
+
 	typeGuide := StorageVolumeArgs{} // StorageVolume struct used to guide the types expected.
 	outfmt := []interface{}{typeGuide.Name, typeGuide.Description}
 	dbResults, err := queryScan(c, query, inargs, outfmt)
@@ -238,9 +280,18 @@ func (c *Cluster) storagePoolVolumeGetType(project string, volumeName string, vo
 		return -1, nil, err
 	}
 
-	volumeNode, err := c.storageVolumeNodeGet(volumeID)
+	isRemoteStorage, err := c.isRemoteStorage(poolID)
 	if err != nil {
 		return -1, nil, err
+	}
+
+	volumeNode := ""
+
+	if !isRemoteStorage {
+		volumeNode, err = c.storageVolumeNodeGet(volumeID)
+		if err != nil {
+			return -1, nil, err
+		}
 	}
 
 	volumeConfig, err := c.storageVolumeConfigGet(volumeID, isSnapshot)
@@ -382,9 +433,11 @@ func storagePoolVolumeReplicateIfCeph(tx *sql.Tx, volumeID int64, project, volum
 	}
 	volumeIDs := []int64{volumeID}
 
+	remoteDrivers := GetRemoteDrivers()
+
 	// If this is a ceph volume, we want to duplicate the change across the
 	// the rows for all other nodes.
-	if driver == "ceph" || driver == "cephfs" {
+	if shared.StringInSlice(driver, remoteDrivers) {
 		volumeIDs, err = storageVolumeIDsGet(tx, project, volumeName, volumeType, poolID)
 		if err != nil {
 			return err
@@ -404,59 +457,56 @@ func storagePoolVolumeReplicateIfCeph(tx *sql.Tx, volumeID int64, project, volum
 // CreateStoragePoolVolume creates a new storage volume attached to a given
 // storage pool.
 func (c *Cluster) CreateStoragePoolVolume(project, volumeName, volumeDescription string, volumeType int, poolID int64, volumeConfig map[string]string, contentType int) (int64, error) {
-	var thisVolumeID int64
+	var volumeID int64
 
 	if shared.IsSnapshot(volumeName) {
 		return -1, fmt.Errorf("Volume name may not be a snapshot")
 	}
 
+	remoteDrivers := GetRemoteDrivers()
+
 	err := c.Transaction(func(tx *ClusterTx) error {
-		nodeIDs := []int{int(c.nodeID)}
-		driver, err := storagePoolDriverGet(tx.tx, poolID)
+		driver, err := tx.GetStoragePoolDriver(poolID)
 		if err != nil {
 			return err
 		}
-		// If the driver is ceph, create a volume entry for each node.
-		if driver == "ceph" || driver == "cephfs" {
-			nodeIDs, err = query.SelectIntegers(tx.tx, "SELECT id FROM nodes")
-			if err != nil {
-				return err
-			}
-		}
 
-		for _, nodeID := range nodeIDs {
-			var volumeID int64
+		var result sql.Result
 
-			result, err := tx.tx.Exec(`
+		if shared.StringInSlice(driver, remoteDrivers) {
+			result, err = tx.tx.Exec(`
+INSERT INTO storage_volumes (storage_pool_id, type, name, description, project_id, content_type)
+ VALUES (?, ?, ?, ?, (SELECT id FROM projects WHERE name = ?), ?)
+`,
+				poolID, volumeType, volumeName, volumeDescription, project, contentType)
+		} else {
+			result, err = tx.tx.Exec(`
 INSERT INTO storage_volumes (storage_pool_id, node_id, type, name, description, project_id, content_type)
  VALUES (?, ?, ?, ?, ?, (SELECT id FROM projects WHERE name = ?), ?)
 `,
-				poolID, nodeID, volumeType, volumeName, volumeDescription, project, contentType)
-			if err != nil {
-				return err
-			}
-			volumeID, err = result.LastInsertId()
-			if err != nil {
-				return err
-			}
-
-			if int64(nodeID) == c.nodeID {
-				// Return the ID of the volume created on this node.
-				thisVolumeID = volumeID
-			}
-
-			err = storageVolumeConfigAdd(tx.tx, volumeID, volumeConfig, false)
-			if err != nil {
-				return errors.Wrap(err, "Insert storage volume configuration")
-			}
+				poolID, c.nodeID, volumeType, volumeName, volumeDescription, project, contentType)
 		}
+		if err != nil {
+			return err
+		}
+
+		volumeID, err = result.LastInsertId()
+		if err != nil {
+			return err
+		}
+
+		err = storageVolumeConfigAdd(tx.tx, volumeID, volumeConfig, false)
+		if err != nil {
+			return errors.Wrap(err, "Insert storage volume configuration")
+		}
+
 		return nil
 	})
 	if err != nil {
-		thisVolumeID = -1
+		volumeID = -1
 	}
 
-	return thisVolumeID, err
+	return volumeID, err
 }
 
 // Return the ID of a storage volume on a given storage pool of a given storage
@@ -475,17 +525,26 @@ func (c *Cluster) storagePoolVolumeGetTypeID(project string, volumeName string, 
 }
 
 func (c *ClusterTx) storagePoolVolumeGetTypeID(project string, volumeName string, volumeType int, poolID, nodeID int64) (int64, error) {
-	result, err := query.SelectIntegers(c.tx, `
+	remoteDrivers := GetRemoteDrivers()
+
+	s := fmt.Sprintf(`
 SELECT storage_volumes_all.id
   FROM storage_volumes_all
   JOIN storage_pools ON storage_volumes_all.storage_pool_id = storage_pools.id
   JOIN projects ON storage_volumes_all.project_id = projects.id
- WHERE projects.name=?
-   AND storage_volumes_all.storage_pool_id=?
-   AND storage_volumes_all.node_id=?
-   AND storage_volumes_all.name=?
-   AND storage_volumes_all.type=?`, project, poolID, nodeID, volumeName, volumeType)
+  WHERE projects.name=?
+    AND storage_volumes_all.storage_pool_id=?
+    AND storage_volumes_all.name=?
+	AND storage_volumes_all.type=?
+	AND (storage_volumes_all.node_id=? OR storage_volumes_all.node_id IS NULL AND storage_pools.driver IN %s)`, query.Params(len(remoteDrivers)))
 
+	args := []interface{}{project, poolID, volumeName, volumeType, nodeID}
+
+	for _, driver := range remoteDrivers {
+		args = append(args, driver)
+	}
+
+	result, err := query.SelectIntegers(c.tx, s, args...)
 	if err != nil {
 		return -1, err
 	}

@@ -694,7 +694,7 @@ CREATE TABLE "storage_volumes" (
     id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
     name TEXT NOT NULL,
     storage_pool_id INTEGER NOT NULL,
-    node_id INTEGER NOT NULL,
+    node_id INTEGER,
     type INTEGER NOT NULL,
     description TEXT,
     snapshot INTEGER NOT NULL DEFAULT 0,

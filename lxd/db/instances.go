@@ -486,13 +486,6 @@ func (c *ClusterTx) UpdateInstanceNode(project, oldName, newName, newNode string
 		return nil
 	}
 
-	// Update the instance's storage volume name (since this is ceph,
-	// there's a clone of the volume for each node).
-	count, err := c.GetNodesCount()
-	if err != nil {
-		return errors.Wrap(err, "Failed to get node's count")
-	}
-
 	stmt = "UPDATE storage_volumes SET name=? WHERE name=? AND storage_pool_id=? AND type=?"
 	result, err = c.tx.Exec(stmt, newName, oldName, poolID, StoragePoolVolumeTypeContainer)
 	if err != nil {
@@ -504,7 +497,7 @@ func (c *ClusterTx) UpdateInstanceNode(project, oldName, newName, newNode string
 		return errors.Wrap(err, "Failed to get rows affected by instance volume update")
 	}
 
-	if n != int64(count) {
+	if n != 1 {
 		return fmt.Errorf("Unexpected number of updated rows in volumes table: %d", n)
 	}
 
@@ -664,23 +657,28 @@ func (c *ClusterTx) GetInstancePool(projectName string, instanceName string) (st
 	// as that must always be the same as the snapshot's storage pool.
 	instanceName, _, _ = shared.InstanceGetParentAndSnapshotName(instanceName)
 
+	remoteDrivers := GetRemoteDrivers()
+
 	// Get container storage volume. Since container names are globally
 	// unique, and their storage volumes carry the same name, their storage
 	// volumes are unique too.
 	poolName := ""
-	query := `
+	query := fmt.Sprintf(`
 SELECT storage_pools.name FROM storage_pools
   JOIN storage_volumes_all ON storage_pools.id=storage_volumes_all.storage_pool_id
   JOIN instances ON instances.name=storage_volumes_all.name
   JOIN projects ON projects.id=instances.project_id
  WHERE projects.name=?
-   AND storage_volumes_all.node_id=?
    AND storage_volumes_all.name=?
    AND storage_volumes_all.type IN(?,?)
    AND storage_volumes_all.project_id = instances.project_id
-`
-	inargs := []interface{}{projectName, c.nodeID, instanceName, StoragePoolVolumeTypeContainer, StoragePoolVolumeTypeVM}
+   AND (storage_volumes_all.node_id=? OR storage_volumes_all.node_id IS NULL AND storage_pools.driver IN %s)`, query.Params(len(remoteDrivers)))
+	inargs := []interface{}{projectName, instanceName, StoragePoolVolumeTypeContainer, StoragePoolVolumeTypeVM, c.nodeID}
 	outargs := []interface{}{&poolName}
+
+	for _, driver := range remoteDrivers {
+		inargs = append(inargs, driver)
+	}
 
 	err := c.tx.QueryRow(query, inargs...).Scan(outargs...)
 	if err != nil {

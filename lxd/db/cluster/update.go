@@ -71,6 +71,308 @@ var updates = map[int]schema.Update{
 	32: updateFromV31,
 	33: updateFromV32,
 	34: updateFromV33,
+	35: updateFromV34,
+}
+
+// Remove multiple entries of the same volume when using remote storage.
+// Also, allow node ID to be null for the instances and storage_volumes tables, and set it to null
+// for instances and storage volumes using remote storage.
+func updateFromV34(tx *sql.Tx) error {
+	stmts := `
+SELECT storage_volumes.id, storage_volumes.name
+FROM storage_volumes
+JOIN storage_pools ON storage_pools.id=storage_volumes.storage_pool_id
+WHERE storage_pools.driver IN ("ceph", "cephfs")
+ORDER BY storage_volumes.name
+`
+
+	// Get the total number of storage volume rows.
+	count, err := query.Count(tx, "storage_volumes JOIN storage_pools ON storage_pools.id=storage_volumes.storage_pool_id",
+		`storage_pools.driver IN ("ceph", "cephfs")`)
+	if err != nil {
+		return errors.Wrap(err, "Failed to get storage volumes count")
+	}
+
+	volumes := make([]struct {
+		ID   int
+		Name string
+	}, count)
+	dest := func(i int) []interface{} {
+		return []interface{}{
+			&volumes[i].ID,
+			&volumes[i].Name,
+		}
+	}
+
+	stmt, err := tx.Prepare(stmts)
+	if err != nil {
+		return errors.Wrap(err, "Failed to prepary storage volume query")
+	}
+
+	err = query.SelectObjects(stmt, dest)
+	if err != nil {
+		return errors.Wrap(err, "Failed to fetch storage volumes")
+	}
+
+	// Remove multiple entries of the same volume when using remote storage
+	for i := 1; i < count; i++ {
+		if volumes[i-1].Name == volumes[i].Name {
+			_, err = tx.Exec(`DELETE FROM storage_volumes WHERE id=?`, volumes[i-1].ID)
+			if err != nil {
+				return errors.Wrap(err, "Failed to delete row from storage_volumes")
+			}
+		}
+	}
+
+	stmts = `
+CREATE TABLE storage_volumes_new (
+    id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+    name TEXT NOT NULL,
+    storage_pool_id INTEGER NOT NULL,
+    node_id INTEGER,
+    type INTEGER NOT NULL,
+    description TEXT,
+    project_id INTEGER NOT NULL,
+    content_type INTEGER NOT NULL DEFAULT 0,
+    UNIQUE (storage_pool_id, node_id, project_id, name, type),
+    FOREIGN KEY (storage_pool_id) REFERENCES storage_pools (id) ON DELETE CASCADE,
+    FOREIGN KEY (node_id) REFERENCES nodes (id) ON DELETE CASCADE,
+    FOREIGN KEY (project_id) REFERENCES projects (id) ON DELETE CASCADE
+);`
+
+	// Create new tables where node ID can be null.
+	_, err = tx.Exec(stmts)
+	if err != nil {
+		return err
+	}
+
+	// Copy rows from storage_volumes to storage_volumes_new
+	count, err = query.Count(tx, "storage_volumes", "")
+	if err != nil {
+		return errors.Wrap(err, "Failed to get storage_volumes count")
+	}
+
+	storageVolumes := make([]struct {
+		ID            int
+		Name          string
+		StoragePoolID int
+		NodeID        string
+		Type          int
+		Description   string
+		ProjectID     int
+		ContentType   int
+	}, count)
+
+	dest = func(i int) []interface{} {
+		return []interface{}{
+			&storageVolumes[i].ID,
+			&storageVolumes[i].Name,
+			&storageVolumes[i].StoragePoolID,
+			&storageVolumes[i].NodeID,
+			&storageVolumes[i].Type,
+			&storageVolumes[i].Description,
+			&storageVolumes[i].ProjectID,
+			&storageVolumes[i].ContentType,
+		}
+	}
+
+	stmt, err = tx.Prepare(`SELECT * FROM storage_volumes;`)
+	if err != nil {
+		return errors.Wrap(err, "Failed to prepare storage volumes query")
+	}
+
+	err = query.SelectObjects(stmt, dest)
+	if err != nil {
+		return errors.Wrap(err, "Failed to fetch storage volumes")
+	}
+
+	for _, storageVolume := range storageVolumes {
+		_, err = tx.Exec(`
+INSERT INTO storage_volumes_new (id, name, storage_pool_id, node_id, type, description, project_id, content_type)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?);`,
+			storageVolume.ID, storageVolume.Name, storageVolume.StoragePoolID, storageVolume.NodeID,
+			storageVolume.Type, storageVolume.Description, storageVolume.ProjectID, storageVolume.ContentType)
+		if err != nil {
+			return err
+		}
+	}
+
+	// Store rows of storage_volumes_config as we need to re-add them at the end.
+	count, err = query.Count(tx, "storage_volumes_config", "")
+	if err != nil {
+		return errors.Wrap(err, "Failed to get storage_volumes_config count")
+	}
+
+	storageVolumeConfigs := make([]struct {
+		ID              int
+		StorageVolumeID int
+		Key             string
+		Value           string
+	}, count)
+
+	dest = func(i int) []interface{} {
+		return []interface{}{
+			&storageVolumeConfigs[i].ID,
+			&storageVolumeConfigs[i].StorageVolumeID,
+			&storageVolumeConfigs[i].Key,
+			&storageVolumeConfigs[i].Value,
+		}
+	}
+
+	stmt, err = tx.Prepare(`SELECT * FROM storage_volumes_config;`)
+	if err != nil {
+		return errors.Wrap(err, "Failed to prepare storage volumes query")
+	}
+
+	err = query.SelectObjects(stmt, dest)
+	if err != nil {
+		return errors.Wrap(err, "Failed to fetch storage volume configs")
+	}
+
+	// Store rows of storage_volumes_snapshots as we need to re-add them at the end.
+	count, err = query.Count(tx, "storage_volumes_snapshots", "")
+	if err != nil {
+		return errors.Wrap(err, "Failed to get storage_volumes_snapshots count")
+	}
+
+	storageVolumeSnapshots := make([]struct {
+		ID              int
+		StorageVolumeID int
+		Name            string
+		Description     string
+		ExpiryDate      time.Time
+	}, count)
+
+	dest = func(i int) []interface{} {
+		return []interface{}{
+			&storageVolumeSnapshots[i].ID,
+			&storageVolumeSnapshots[i].StorageVolumeID,
+			&storageVolumeSnapshots[i].Name,
+			&storageVolumeSnapshots[i].Description,
+			&storageVolumeSnapshots[i].ExpiryDate,
+		}
+	}
+
+	stmt, err = tx.Prepare(`SELECT * FROM storage_volumes_snapshots;`)
+	if err != nil {
+		return errors.Wrap(err, "Failed to prepare storage volume snapshots query")
+	}
+
+	err = query.SelectObjects(stmt, dest)
+	if err != nil {
+		return errors.Wrap(err, "Failed to fetch storage volume snapshots")
+	}
+
+	// Store rows of storage_volumes_snapshots_config as we need to re-add them at the end.
+	count, err = query.Count(tx, "storage_volumes_snapshots_config", "")
+	if err != nil {
+		return errors.Wrap(err, "Failed to get storage_volumes_snapshots_config count")
+	}
+
+	storageVolumeSnapshotConfigs := make([]struct {
+		ID                      int
+		StorageVolumeSnapshotID int
+		Key                     string
+		Value                   string
+	}, count)
+
+	dest = func(i int) []interface{} {
+		return []interface{}{
+			&storageVolumeSnapshotConfigs[i].ID,
+			&storageVolumeSnapshotConfigs[i].StorageVolumeSnapshotID,
+			&storageVolumeSnapshotConfigs[i].Key,
+			&storageVolumeSnapshotConfigs[i].Value,
+		}
+	}
+
+	stmt, err = tx.Prepare(`SELECT * FROM storage_volumes_snapshots_config;`)
+	if err != nil {
+		return errors.Wrap(err, "Failed to prepare storage volume snapshots query")
+	}
+
+	err = query.SelectObjects(stmt, dest)
+	if err != nil {
+		return errors.Wrap(err, "Failed to fetch storage volume snapshot configs")
+	}
+
+	_, err = tx.Exec(`
+PRAGMA foreign_keys = OFF;
+PRAGMA legacy_alter_table = ON;
+
+DROP TABLE storage_volumes;
+ALTER TABLE storage_volumes_new RENAME TO storage_volumes;
+
+UPDATE storage_volumes
+SET node_id=null
+WHERE storage_volumes.node_id IN (
+  SELECT node_id FROM storage_volumes
+  JOIN storage_pools ON storage_volumes.storage_pool_id=storage_pools.id
+  WHERE storage_pools.driver IN ("ceph", "cephfs")
+);
+
+PRAGMA foreign_keys = ON;
+PRAGMA legacy_alter_table = OFF;
+
+CREATE TRIGGER storage_volumes_check_id
+  BEFORE INSERT ON storage_volumes
+  WHEN NEW.id IN (SELECT id FROM storage_volumes_snapshots)
+  BEGIN
+    SELECT RAISE(FAIL, "invalid ID");
+  END;
+`)
+	if err != nil {
+		return err
+	}
+
+	// When we dropped the storage_volumes table earlier, all config entries
+	// were removed as well. Let's re-add them.
+	for _, storageVolumeConfig := range storageVolumeConfigs {
+		_, err = tx.Exec(`INSERT INTO storage_volumes_config (id, storage_volume_id, key, value) VALUES (?, ?, ?, ?);`, storageVolumeConfig.ID, storageVolumeConfig.StorageVolumeID, storageVolumeConfig.Key, storageVolumeConfig.Value)
+		if err != nil {
+			return err
+		}
+	}
+
+	// When we dropped the storage_volumes table earlier, all snapshot entries
+	// were removed as well. Let's re-add them.
+	for _, storageVolumeSnapshot := range storageVolumeSnapshots {
+		_, err = tx.Exec(`INSERT INTO storage_volumes_snapshots (id, storage_volume_id, name, description, expiry_date) VALUES (?, ?, ?, ?, ?);`, storageVolumeSnapshot.ID, storageVolumeSnapshot.StorageVolumeID, storageVolumeSnapshot.Name, storageVolumeSnapshot.Description, storageVolumeSnapshot.ExpiryDate)
+		if err != nil {
+			return err
+		}
+	}
+
+	// When we dropped the storage_volumes table earlier, all snapshot config entries
+	// were removed as well. Let's re-add them.
+	for _, storageVolumeSnapshotConfig := range storageVolumeSnapshotConfigs {
+		_, err = tx.Exec(`INSERT INTO storage_volumes_snapshots_config (id, storage_volume_snapshot_id, key, value) VALUES (?, ?, ?, ?);`, storageVolumeSnapshotConfig.ID, storageVolumeSnapshotConfig.StorageVolumeSnapshotID, storageVolumeSnapshotConfig.Key, storageVolumeSnapshotConfig.Value)
+		if err != nil {
+			return err
+		}
+	}
+
+	count, err = query.Count(tx, "storage_volumes_all", "")
+	if err != nil {
+		return errors.Wrap(err, "Failed to get storage_volumes count")
+	}
+
+	if count > 0 {
+		var maxID int64
+
+		row := tx.QueryRow("SELECT MAX(id) FROM storage_volumes_all LIMIT 1")
+		err = row.Scan(&maxID)
+		if err != nil {
+			return err
+		}
+
+		// Set sqlite_sequence to max(id)
+		_, err = tx.Exec("UPDATE sqlite_sequence SET seq = ? WHERE name = 'storage_volumes'", maxID)
+		if err != nil {
+			return errors.Wrap(err, "Increment storage volumes sequence")
+		}
+	}
+
+	return nil
 }
 
 // Add project_id field to networks, add unique index across project_id and name,

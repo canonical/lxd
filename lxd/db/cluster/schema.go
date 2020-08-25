@@ -492,7 +492,7 @@ CREATE TABLE "storage_volumes" (
     id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
     name TEXT NOT NULL,
     storage_pool_id INTEGER NOT NULL,
-    node_id INTEGER NOT NULL,
+    node_id INTEGER,
     type INTEGER NOT NULL,
     description TEXT,
     project_id INTEGER NOT NULL,
@@ -573,5 +573,5 @@ CREATE TABLE storage_volumes_snapshots_config (
     UNIQUE (storage_volume_snapshot_id, key)
 );
 
-INSERT INTO schema (version, updated_at) VALUES (34, strftime("%s"))
+INSERT INTO schema (version, updated_at) VALUES (35, strftime("%s"))
 `
