@@ -87,6 +87,14 @@ func CanonicalNetworkAddress(address string) string {
 	return address
 }
 
+// CanonicalNetworkAddressFromAddressAndPort returns a network address from separate address and port values.
+// The address accepts values such as "[::]", "::" and "localhost".
+func CanonicalNetworkAddressFromAddressAndPort(address string, port int) string {
+	// Because we accept just the host part of an IPv6 listen address (e.g. `[::]`) don't use net.JoinHostPort.
+	// If a bare IP address is supplied then CanonicalNetworkAddress will use net.JoinHostPort if needed.
+	return CanonicalNetworkAddress(fmt.Sprintf("%s:%d", address, port))
+}
+
 // ServerTLSConfig returns a new server-side tls.Config generated from the give
 // certificate info.
 func ServerTLSConfig(cert *shared.CertInfo) *tls.Config {
