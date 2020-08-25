@@ -10,14 +10,13 @@ import (
 
 	"github.com/pkg/errors"
 
-	"github.com/lxc/lxd/lxd/db/query"
 	"github.com/lxc/lxd/shared"
 )
 
 // CreateStorageVolumeSnapshot creates a new storage volume snapshot attached to a given
 // storage pool.
 func (c *Cluster) CreateStorageVolumeSnapshot(project, volumeName, volumeDescription string, volumeType int, poolID int64, volumeConfig map[string]string, expiryDate time.Time) (int64, error) {
-	var thisVolumeID int64
+	var volumeID int64
 
 	var snapshotName string
 	parts := strings.Split(volumeName, shared.SnapshotDelimiter)
@@ -25,66 +24,44 @@ func (c *Cluster) CreateStorageVolumeSnapshot(project, volumeName, volumeDescrip
 	snapshotName = parts[1]
 
 	err := c.Transaction(func(tx *ClusterTx) error {
-		nodeIDs := []int{int(c.nodeID)}
-		driver, err := storagePoolDriverGet(tx.tx, poolID)
+		// If we are creating a snapshot, figure out the volume
+		// ID of the parent.
+		parentID, err := tx.storagePoolVolumeGetTypeID(
+			project, volumeName, volumeType, poolID, c.nodeID)
+		if err != nil {
+			return errors.Wrap(err, "Find parent volume")
+		}
+
+		_, err = tx.tx.Exec("UPDATE sqlite_sequence SET seq = seq + 1 WHERE name = 'storage_volumes'")
+		if err != nil {
+			return errors.Wrap(err, "Increment storage volumes sequence")
+		}
+
+		row := tx.tx.QueryRow("SELECT seq FROM sqlite_sequence WHERE name = 'storage_volumes' LIMIT 1")
+		err = row.Scan(&volumeID)
 		if err != nil {
 			return err
 		}
 
-		// If the driver is ceph, create a volume entry for each node.
-		if driver == "ceph" || driver == "cephfs" {
-			nodeIDs, err = query.SelectIntegers(tx.tx, "SELECT id FROM nodes")
-			if err != nil {
-				return err
-			}
+		_, err = tx.tx.Exec(
+			"INSERT INTO storage_volumes_snapshots (id, storage_volume_id, name, description, expiry_date) VALUES (?, ?, ?, ?, ?)",
+			volumeID, parentID, snapshotName, volumeDescription, expiryDate)
+		if err != nil {
+			return errors.Wrap(err, "Insert volume snapshot")
 		}
 
-		for _, nodeID := range nodeIDs {
-			var volumeID int64
-
-			// If we are creating a snapshot, figure out the volume
-			// ID of the parent.
-			parentID, err := tx.storagePoolVolumeGetTypeID(
-				project, volumeName, volumeType, poolID, int64(nodeID))
-			if err != nil {
-				return errors.Wrap(err, "Find parent volume")
-			}
-
-			_, err = tx.tx.Exec("UPDATE sqlite_sequence SET seq = seq + 1 WHERE name = 'storage_volumes'")
-			if err != nil {
-				return errors.Wrap(err, "Increment storage volumes sequence")
-			}
-
-			row := tx.tx.QueryRow("SELECT seq FROM sqlite_sequence WHERE name = 'storage_volumes' LIMIT 1")
-			err = row.Scan(&volumeID)
-			if err != nil {
-				return err
-			}
-
-			_, err = tx.tx.Exec(
-				"INSERT INTO storage_volumes_snapshots (id, storage_volume_id, name, description, expiry_date) VALUES (?, ?, ?, ?, ?)",
-				volumeID, parentID, snapshotName, volumeDescription, expiryDate)
-			if err != nil {
-				return errors.Wrap(err, "Insert volume snapshot")
-			}
-
-			if int64(nodeID) == c.nodeID {
-				// Return the ID of the volume created on this node.
-				thisVolumeID = volumeID
-			}
-
-			err = storageVolumeConfigAdd(tx.tx, volumeID, volumeConfig, true)
-			if err != nil {
-				return errors.Wrap(err, "Insert storage volume configuration")
-			}
+		err = storageVolumeConfigAdd(tx.tx, volumeID, volumeConfig, true)
+		if err != nil {
+			return errors.Wrap(err, "Insert storage volume configuration")
 		}
+
 		return nil
 	})
 	if err != nil {
-		thisVolumeID = -1
+		volumeID = -1
 	}
 
-	return thisVolumeID, err
+	return volumeID, err
 }
 
 // UpdateStorageVolumeSnapshot updates the storage volume snapshot attached to a given storage pool.
