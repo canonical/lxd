@@ -364,7 +364,7 @@ func networksPostCluster(d *Daemon, projectName string, req api.NetworksPost, cl
 			nodeReq.Config[key] = value
 		}
 
-		return client.CreateNetwork(nodeReq)
+		return client.UseProject(projectName).CreateNetwork(nodeReq)
 	})
 	if err != nil {
 		return err
