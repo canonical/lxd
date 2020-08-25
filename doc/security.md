@@ -252,8 +252,8 @@ Used together these features can prevent an instance connected to a bridge from 
 These are implemented using either `xtables` (iptables, ip6tables and ebtables) or `nftables`, depending on what is
 available on the host.
 
-It's worth noting that those options effectively prevent nested containers, at least nested containers on the
-same network as their parent.
+It's worth noting that those options effectively prevent nested containers from using the parent network with a
+different MAC address (i.e using bridged or macvlan NICs).
 
 The IP filtering features block ARP and NDP advertisements that contain a spoofed IP, as well as blocking any
 packets that contain a spoofed source address.
@@ -263,6 +263,9 @@ address (because `ipvX.address=none` or there is no DHCP service enabled on the 
 that protocol is blocked from the instance.
 
 When `security.ipv6\_filtering` is enabled IPv6 router advertisements are blocked from the instance.
+
+When `security.ipv4\_filtering` or `security.ipv6\_filtering` is enabled, any Ethernet frames that are not ARP,
+IPv4 or IPv6 are dropped. This prevents stacked VLAN QinQ (802.1ad) frames from bypassing the IP filtering.
 
 ### Routed NIC security
 
