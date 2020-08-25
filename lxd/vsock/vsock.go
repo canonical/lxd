@@ -34,7 +34,7 @@ func HTTPClient(vsockID int, tlsClientCert string, tlsClientKey string, tlsServe
 		TLSClientConfig: tlsConfig,
 		// Setup a VM socket dialer.
 		Dial: func(network, addr string) (net.Conn, error) {
-			conn, err := Dial(uint32(vsockID), 8443)
+			conn, err := Dial(uint32(vsockID), shared.DefaultPort)
 			if err != nil {
 				return nil, err
 			}
