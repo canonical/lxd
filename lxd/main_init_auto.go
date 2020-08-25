@@ -8,6 +8,7 @@ import (
 
 	"github.com/lxc/lxd/client"
 	storageDrivers "github.com/lxc/lxd/lxd/storage/drivers"
+	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 )
@@ -57,7 +58,7 @@ func (c *cmdInit) RunAuto(cmd *cobra.Command, args []string, d lxd.InstanceServe
 	}
 
 	if c.flagNetworkPort == -1 {
-		c.flagNetworkPort = 8443
+		c.flagNetworkPort = shared.DefaultPort
 	}
 
 	// Fill in the node configuration
@@ -66,7 +67,7 @@ func (c *cmdInit) RunAuto(cmd *cobra.Command, args []string, d lxd.InstanceServe
 
 	// Network listening
 	if c.flagNetworkAddress != "" {
-		config.Config["core.https_address"] = fmt.Sprintf("%s:%d", c.flagNetworkAddress, c.flagNetworkPort)
+		config.Config["core.https_address"] = util.CanonicalNetworkAddressFromAddressAndPort(c.flagNetworkAddress, c.flagNetworkPort)
 
 		if c.flagTrustPassword != "" {
 			config.Config["core.trust_password"] = c.flagTrustPassword
