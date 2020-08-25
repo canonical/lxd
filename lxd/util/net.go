@@ -68,19 +68,22 @@ func (a *inMemoryAddr) String() string {
 	return ""
 }
 
-// CanonicalNetworkAddress parses the given network address and returns a
-// string of the form "host:port", possibly filling it with the default port if
-// it's missing.
+// CanonicalNetworkAddress parses the given network address and returns a string of the form "host:port",
+// possibly filling it with the default port if it's missing.
 func CanonicalNetworkAddress(address string) string {
 	_, _, err := net.SplitHostPort(address)
 	if err != nil {
-		ip := net.ParseIP(address)
-		if ip != nil && ip.To4() == nil {
-			address = fmt.Sprintf("[%s]:%s", address, shared.DefaultPort)
+		if net.ParseIP(address) != nil {
+			// If the input address is a bare IP address, then convert it to a proper listen address
+			// using the default port and wrap IPv6 addresses in square brackets.
+			address = net.JoinHostPort(address, fmt.Sprintf("%d", shared.DefaultPort))
 		} else {
-			address = fmt.Sprintf("%s:%s", address, shared.DefaultPort)
+			// Otherwise assume this is either a host name or a partial address (e.g `[::]`) without
+			// a port number, so append the default port.
+			address = fmt.Sprintf("%s:%d", address, shared.DefaultPort)
 		}
 	}
+
 	return address
 }
 
