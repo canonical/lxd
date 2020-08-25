@@ -10,10 +10,12 @@ import (
 	"time"
 
 	"github.com/canonical/go-dqlite/driver"
-	"github.com/lxc/lxd/lxd/db"
-	"github.com/lxc/lxd/lxd/db/query"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/lxc/lxd/lxd/db"
+	"github.com/lxc/lxd/lxd/db/query"
+	"github.com/lxc/lxd/lxd/project"
 )
 
 func TestLoadPreClusteringData(t *testing.T) {
@@ -85,10 +87,10 @@ func TestImportPreClusteringData(t *testing.T) {
 	require.NoError(t, err)
 
 	// networks
-	networks, err := cluster.GetNetworks()
+	networks, err := cluster.GetNetworks(project.Default)
 	require.NoError(t, err)
 	assert.Equal(t, []string{"lxcbr0"}, networks)
-	id, network, err := cluster.GetNetworkInAnyState("lxcbr0")
+	id, network, err := cluster.GetNetworkInAnyState(project.Default, "lxcbr0")
 	require.NoError(t, err)
 	assert.Equal(t, int64(1), id)
 	assert.Equal(t, "true", network.Config["ipv4.nat"])
