@@ -118,7 +118,7 @@ func (c *cmdAgent) Run(cmd *cobra.Command, args []string) error {
 	}
 
 	// Setup the listener.
-	l, err := vsock.Listen(8443)
+	l, err := vsock.Listen(shared.DefaultPort)
 	if err != nil {
 		return errors.Wrap(err, "Failed to listen on vsock")
 	}
