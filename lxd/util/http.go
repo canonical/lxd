@@ -203,7 +203,7 @@ func ListenAddresses(value string) ([]string, error) {
 	localHost, localPort, err := net.SplitHostPort(value)
 	if err != nil {
 		localHost = value
-		localPort = shared.DefaultPort
+		localPort = fmt.Sprintf("%d", shared.DefaultPort)
 	}
 
 	if localHost == "0.0.0.0" || localHost == "::" || localHost == "[::]" {
