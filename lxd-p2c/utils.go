@@ -203,9 +203,9 @@ func parseURL(URL string) (string, error) {
 		}
 	}
 
-	// If no port was provided, use port 8443
+	// If no port was provided, use default port
 	if u.Port() == "" {
-		u.Host = fmt.Sprintf("%s:8443", u.Hostname())
+		u.Host = fmt.Sprintf("%s:%d", u.Hostname(), shared.DefaultPort)
 	}
 
 	return u.String(), nil
