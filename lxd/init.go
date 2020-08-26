@@ -28,7 +28,7 @@ type initDataCluster struct {
 // It's used both by the 'lxd init' command and by the PUT /1.0/cluster API.
 //
 // In case of error, the returned function can be used to revert the changes.
-func initDataNodeApply(d lxd.InstanceServer, config initDataNode) error {
+func initDataNodeApply(d lxd.InstanceServer, config initDataNode) (func(), error) {
 	revert := revert.New()
 	defer revert.Fail()
 
@@ -37,7 +37,7 @@ func initDataNodeApply(d lxd.InstanceServer, config initDataNode) error {
 		// Get current config
 		currentServer, etag, err := d.GetServer()
 		if err != nil {
-			return errors.Wrap(err, "Failed to retrieve current server configuration")
+			return nil, errors.Wrap(err, "Failed to retrieve current server configuration")
 		}
 
 		// Setup reverter
@@ -47,7 +47,7 @@ func initDataNodeApply(d lxd.InstanceServer, config initDataNode) error {
 		newServer := api.ServerPut{}
 		err = shared.DeepCopy(currentServer.Writable(), &newServer)
 		if err != nil {
-			return errors.Wrap(err, "Failed to copy server configuration")
+			return nil, errors.Wrap(err, "Failed to copy server configuration")
 		}
 
 		for k, v := range config.Config {
@@ -57,7 +57,7 @@ func initDataNodeApply(d lxd.InstanceServer, config initDataNode) error {
 		// Apply it
 		err = d.UpdateServer(newServer, etag)
 		if err != nil {
-			return errors.Wrap(err, "Failed to update server configuration")
+			return nil, errors.Wrap(err, "Failed to update server configuration")
 		}
 	}
 
@@ -66,7 +66,7 @@ func initDataNodeApply(d lxd.InstanceServer, config initDataNode) error {
 		// Get the list of networks
 		networkNames, err := d.GetNetworkNames()
 		if err != nil {
-			return errors.Wrap(err, "Failed to retrieve list of networks")
+			return nil, errors.Wrap(err, "Failed to retrieve list of networks")
 		}
 
 		// Network creator
@@ -124,7 +124,7 @@ func initDataNodeApply(d lxd.InstanceServer, config initDataNode) error {
 			if !shared.StringInSlice(network.Name, networkNames) {
 				err := createNetwork(network)
 				if err != nil {
-					return err
+					return nil, err
 				}
 
 				continue
@@ -133,7 +133,7 @@ func initDataNodeApply(d lxd.InstanceServer, config initDataNode) error {
 			// Existing network
 			err := updateNetwork(network)
 			if err != nil {
-				return err
+				return nil, err
 			}
 		}
 	}
@@ -143,7 +143,7 @@ func initDataNodeApply(d lxd.InstanceServer, config initDataNode) error {
 		// Get the list of storagePools
 		storagePoolNames, err := d.GetStoragePoolNames()
 		if err != nil {
-			return errors.Wrap(err, "Failed to retrieve list of storage pools")
+			return nil, errors.Wrap(err, "Failed to retrieve list of storage pools")
 		}
 
 		// StoragePool creator
@@ -206,7 +206,7 @@ func initDataNodeApply(d lxd.InstanceServer, config initDataNode) error {
 			if !shared.StringInSlice(storagePool.Name, storagePoolNames) {
 				err := createStoragePool(storagePool)
 				if err != nil {
-					return err
+					return nil, err
 				}
 
 				continue
@@ -215,7 +215,7 @@ func initDataNodeApply(d lxd.InstanceServer, config initDataNode) error {
 			// Existing storagePool
 			err := updateStoragePool(storagePool)
 			if err != nil {
-				return err
+				return nil, err
 			}
 		}
 	}
@@ -225,7 +225,7 @@ func initDataNodeApply(d lxd.InstanceServer, config initDataNode) error {
 		// Get the list of profiles
 		profileNames, err := d.GetProfileNames()
 		if err != nil {
-			return errors.Wrap(err, "Failed to retrieve list of profiles")
+			return nil, errors.Wrap(err, "Failed to retrieve list of profiles")
 		}
 
 		// Profile creator
@@ -298,7 +298,7 @@ func initDataNodeApply(d lxd.InstanceServer, config initDataNode) error {
 			if !shared.StringInSlice(profile.Name, profileNames) {
 				err := createProfile(profile)
 				if err != nil {
-					return err
+					return nil, err
 				}
 
 				continue
@@ -307,13 +307,14 @@ func initDataNodeApply(d lxd.InstanceServer, config initDataNode) error {
 			// Existing profile
 			err := updateProfile(profile)
 			if err != nil {
-				return err
+				return nil, err
 			}
 		}
 	}
 
+	revertExternal := revert.Clone() // Clone before calling revert.Success() so we can return the Fail func.
 	revert.Success()
-	return nil
+	return revertExternal.Fail, nil
 }
 
 // Helper to initialize LXD clustering.
