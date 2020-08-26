@@ -20,6 +20,7 @@ import (
 	"github.com/lxc/lxd/lxd/node"
 	"github.com/lxc/lxd/lxd/operations"
 	"github.com/lxc/lxd/lxd/response"
+	"github.com/lxc/lxd/lxd/revert"
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
@@ -391,13 +392,16 @@ func clusterPutJoin(d *Daemon, req api.ClusterPut) response.Response {
 			return errors.Wrap(err, "Failed to connect to local LXD")
 		}
 
-		err = clusterInitMember(localClient, client, req.MemberConfig)
+		revert := revert.New()
+		defer revert.Fail()
+
+		localRevert, err := clusterInitMember(localClient, client, req.MemberConfig)
 		if err != nil {
 			return errors.Wrap(err, "Failed to initialize member")
 		}
+		revert.Add(localRevert)
 
-		// Get all defined storage pools and networks, so they can be compared
-		// to the ones in the cluster.
+		// Get all defined storage pools and networks, so they can be compared to the ones in the cluster.
 		pools := []api.StoragePool{}
 		poolNames, err := d.cluster.GetStoragePoolNames()
 		if err != nil && err != db.ErrNoSuchObject {
@@ -456,10 +460,10 @@ func clusterPutJoin(d *Daemon, req api.ClusterPut) response.Response {
 
 		// Start clustering tasks
 		d.startClusterTasks()
+		revert.Add(func() { d.stopClusterTasks() })
 
 		err = cluster.Join(d.State(), d.gateway, cert, req.ServerName, nodes)
 		if err != nil {
-			d.stopClusterTasks()
 			return err
 		}
 
@@ -622,6 +626,7 @@ func clusterPutJoin(d *Daemon, req api.ClusterPut) response.Response {
 			logger.Warnf("Failed to trigger cluster rebalance: %v", err)
 		}
 
+		revert.Success()
 		return nil
 	}
 
