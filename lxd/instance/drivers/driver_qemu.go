@@ -2464,8 +2464,8 @@ func (vm *qemu) Snapshots() ([]instance.Instance, error) {
 }
 
 // Backups returns a list of backups.
-func (vm *qemu) Backups() ([]backup.Backup, error) {
-	return []backup.Backup{}, nil
+func (vm *qemu) Backups() ([]backup.InstanceBackup, error) {
+	return []backup.InstanceBackup{}, nil
 }
 
 // Rename the instance.

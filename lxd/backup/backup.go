@@ -121,8 +121,8 @@ func GetInfo(r io.ReadSeeker) (*Info, error) {
 	return &result, nil
 }
 
-// Backup represents a container backup
-type Backup struct {
+// InstanceBackup represents an instance backup
+type InstanceBackup struct {
 	state    *state.State
 	instance Instance
 
@@ -137,8 +137,8 @@ type Backup struct {
 }
 
 // New instantiates a new Backup struct.
-func New(state *state.State, inst Instance, ID int, name string, creationDate, expiryDate time.Time, instanceOnly, optimizedStorage bool) *Backup {
-	return &Backup{
+func New(state *state.State, inst Instance, ID int, name string, creationDate, expiryDate time.Time, instanceOnly, optimizedStorage bool) *InstanceBackup {
+	return &InstanceBackup{
 		state:            state,
 		instance:         inst,
 		id:               ID,
@@ -151,33 +151,33 @@ func New(state *state.State, inst Instance, ID int, name string, creationDate, e
 }
 
 // CompressionAlgorithm returns the compression used for the tarball.
-func (b *Backup) CompressionAlgorithm() string {
+func (b *InstanceBackup) CompressionAlgorithm() string {
 	return b.compressionAlgorithm
 }
 
 // SetCompressionAlgorithm sets the tarball compression.
-func (b *Backup) SetCompressionAlgorithm(compression string) {
+func (b *InstanceBackup) SetCompressionAlgorithm(compression string) {
 	b.compressionAlgorithm = compression
 }
 
 // InstanceOnly returns whether only the instance itself is to be backed up.
-func (b *Backup) InstanceOnly() bool {
+func (b *InstanceBackup) InstanceOnly() bool {
 	return b.instanceOnly
 }
 
 // Name returns the name of the backup.
-func (b *Backup) Name() string {
+func (b *InstanceBackup) Name() string {
 	return b.name
 }
 
 // OptimizedStorage returns whether the backup is to be performed using
 // optimization supported by the storage driver.
-func (b *Backup) OptimizedStorage() bool {
+func (b *InstanceBackup) OptimizedStorage() bool {
 	return b.optimizedStorage
 }
 
 // Rename renames a container backup
-func (b *Backup) Rename(newName string) error {
+func (b *InstanceBackup) Rename(newName string) error {
 	oldBackupPath := shared.VarPath("backups", project.Instance(b.instance.Project(), b.name))
 	newBackupPath := shared.VarPath("backups", project.Instance(b.instance.Project(), newName))
 
@@ -215,12 +215,12 @@ func (b *Backup) Rename(newName string) error {
 }
 
 // Delete removes an instance backup
-func (b *Backup) Delete() error {
+func (b *InstanceBackup) Delete() error {
 	return DoBackupDelete(b.state, b.instance.Project(), b.name, b.instance.Name())
 }
 
 // Render returns an InstanceBackup struct of the backup.
-func (b *Backup) Render() *api.InstanceBackup {
+func (b *InstanceBackup) Render() *api.InstanceBackup {
 	return &api.InstanceBackup{
 		Name:             strings.SplitN(b.name, "/", 2)[1],
 		CreatedAt:        b.creationDate,
