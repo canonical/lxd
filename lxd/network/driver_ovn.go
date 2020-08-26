@@ -728,11 +728,11 @@ func (n *ovn) fillConfig(config map[string]string) error {
 }
 
 // Create sets up network in OVN Northbound database.
-func (n *ovn) Create(clusterNotification bool) error {
-	n.logger.Debug("Create", log.Ctx{"clusterNotification": clusterNotification, "config": n.config})
+func (n *ovn) Create(clientType cluster.ClientType) error {
+	n.logger.Debug("Create", log.Ctx{"clientType": clientType, "config": n.config})
 
 	// We only need to setup the OVN Northbound database once, not on every clustered node.
-	if !clusterNotification {
+	if clientType == cluster.ClientTypeNormal {
 		err := n.setup(false)
 		if err != nil {
 			return err
@@ -1054,10 +1054,10 @@ func (n *ovn) setup(update bool) error {
 }
 
 // Delete deletes a network.
-func (n *ovn) Delete(clusterNotification bool) error {
-	n.logger.Debug("Delete", log.Ctx{"clusterNotification": clusterNotification})
+func (n *ovn) Delete(clientType cluster.ClientType) error {
+	n.logger.Debug("Delete", log.Ctx{"clientType": clientType})
 
-	if !clusterNotification {
+	if clientType == cluster.ClientTypeNormal {
 		client, err := n.getClient()
 		if err != nil {
 			return err
@@ -1116,7 +1116,7 @@ func (n *ovn) Delete(clusterNotification bool) error {
 		return err
 	}
 
-	return n.common.delete(clusterNotification)
+	return n.common.delete(clientType)
 }
 
 // Rename renames a network.
@@ -1144,6 +1144,8 @@ func (n *ovn) Rename(newName string) error {
 
 // Start starts configures the local OVS parent uplink port.
 func (n *ovn) Start() error {
+	n.logger.Debug("Start")
+
 	if n.status == api.NetworkStatusPending {
 		return fmt.Errorf("Cannot start pending network")
 	}
@@ -1158,13 +1160,15 @@ func (n *ovn) Start() error {
 
 // Stop stops is a no-op.
 func (n *ovn) Stop() error {
+	n.logger.Debug("Stop")
+
 	return nil
 }
 
 // Update updates the network. Accepts notification boolean indicating if this update request is coming from a
 // cluster notification, in which case do not update the database, just apply local changes needed.
-func (n *ovn) Update(newNetwork api.NetworkPut, targetNode string, clusterNotification bool) error {
-	n.logger.Debug("Update", log.Ctx{"clusterNotification": clusterNotification, "newNetwork": newNetwork})
+func (n *ovn) Update(newNetwork api.NetworkPut, targetNode string, clientType cluster.ClientType) error {
+	n.logger.Debug("Update", log.Ctx{"clientType": clientType, "newNetwork": newNetwork})
 
 	// Populate default values if they are missing.
 	err := n.fillConfig(newNetwork.Config)
@@ -1187,22 +1191,22 @@ func (n *ovn) Update(newNetwork api.NetworkPut, targetNode string, clusterNotifi
 	// Define a function which reverts everything.
 	revert.Add(func() {
 		// Reset changes to all nodes and database.
-		n.common.update(oldNetwork, targetNode, clusterNotification)
+		n.common.update(oldNetwork, targetNode, clientType)
 
 		// Reset any change that was made to logical network.
-		if !clusterNotification {
+		if clientType == cluster.ClientTypeNormal {
 			n.setup(true)
 		}
 	})
 
 	// Apply changes to database.
-	err = n.common.update(newNetwork, targetNode, clusterNotification)
+	err = n.common.update(newNetwork, targetNode, clientType)
 	if err != nil {
 		return err
 	}
 
-	// Restart the logical network if needed.
-	if len(changedKeys) > 0 && !clusterNotification {
+	// Re-setup the logical network if needed.
+	if len(changedKeys) > 0 && clientType == cluster.ClientTypeNormal {
 		err = n.setup(true)
 		if err != nil {
 			return err
