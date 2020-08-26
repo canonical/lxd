@@ -39,7 +39,7 @@ profile "{{ .name }}" flags=(attach_disconnected,mediate_deleted) {
   /snap/lxd/*/bin/lxd                 mr,
 
   # Snap-specific libraries
-  /snap/lxd/*/lib/**.so*                  mr,
+  /snap/lxd/*/lib/**.so*              mr,
 {{- end }}
 }
 `))
