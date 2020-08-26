@@ -720,13 +720,14 @@ func clusterPutDisable(d *Daemon) response.Response {
 
 // clusterInitMember initialises storage pools and networks on this node. We pass two LXD client instances, one
 // connected to ourselves (the joining node) and one connected to the target cluster node to join.
-func clusterInitMember(d lxd.InstanceServer, client lxd.InstanceServer, memberConfig []api.ClusterMemberConfigKey) error {
+// Returns a revert function that can be used to undo the setup if a subsequent step fails.
+func clusterInitMember(d lxd.InstanceServer, client lxd.InstanceServer, memberConfig []api.ClusterMemberConfigKey) (func(), error) {
 	data := initDataNode{}
 
 	// Fetch all pools currently defined in the cluster.
 	pools, err := client.GetStoragePools()
 	if err != nil {
-		return errors.Wrap(err, "Failed to fetch information about cluster storage pools")
+		return nil, errors.Wrap(err, "Failed to fetch information about cluster storage pools")
 	}
 
 	// Merge the returned storage pools configs with the node-specific
@@ -779,7 +780,7 @@ func clusterInitMember(d lxd.InstanceServer, client lxd.InstanceServer, memberCo
 	// Fetch all networks currently defined in the cluster.
 	networks, err := client.GetNetworks()
 	if err != nil {
-		return errors.Wrap(err, "Failed to fetch information about cluster networks")
+		return nil, errors.Wrap(err, "Failed to fetch information about cluster networks")
 	}
 
 	// Merge the returned storage networks configs with the node-specific
@@ -817,12 +818,12 @@ func clusterInitMember(d lxd.InstanceServer, client lxd.InstanceServer, memberCo
 		data.Networks = append(data.Networks, post)
 	}
 
-	err = initDataNodeApply(d, data)
+	revert, err := initDataNodeApply(d, data)
 	if err != nil {
-		return errors.Wrap(err, "Failed to initialize storage pools and networks")
+		return nil, errors.Wrap(err, "Failed to initialize storage pools and networks")
 	}
 
-	return nil
+	return revert, nil
 }
 
 // Perform a request to the /internal/cluster/accept endpoint to check if a new
