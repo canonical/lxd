@@ -42,6 +42,16 @@ func (d *deviceCommon) init(inst instance.Instance, state *state.State, name str
 	d.volatileSet = volatileSet
 }
 
+// Name returns the name of the device.
+func (d *deviceCommon) Name() string {
+	return d.name
+}
+
+// Config returns the config for the device.
+func (d *deviceCommon) Config() deviceConfig.Device {
+	return d.config
+}
+
 // Add returns nil error as majority of devices don't need to do any host-side setup.
 func (d *deviceCommon) Add() error {
 	return nil
