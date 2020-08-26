@@ -386,7 +386,7 @@ func clusterPutJoin(d *Daemon, req api.ClusterPut) response.Response {
 		// As ServerAddress field is required to be set it means that we're using the new join API
 		// introduced with the 'clustering_join' extension.
 		// Connect to ourselves to initialize storage pools and networks using the API.
-		localClient, err := lxd.ConnectLXDUnix(d.UnixSocket(), nil)
+		localClient, err := lxd.ConnectLXDUnix(d.UnixSocket(), &lxd.ConnectionArgs{UserAgent: cluster.UserAgentJoiner})
 		if err != nil {
 			return errors.Wrap(err, "Failed to connect to local LXD")
 		}
@@ -686,11 +686,9 @@ func clusterPutDisable(d *Daemon) response.Response {
 	return response.EmptySyncResponse
 }
 
-// Initialize storage pools and networks on this node.
-//
-// We pass to LXD client instances, one connected to ourselves (the joining
-// node) and one connected to the target cluster node to join.
-func clusterInitMember(d, client lxd.InstanceServer, memberConfig []api.ClusterMemberConfigKey) error {
+// clusterInitMember initialises storage pools and networks on this node. We pass two LXD client instances, one
+// connected to ourselves (the joining node) and one connected to the target cluster node to join.
+func clusterInitMember(d lxd.InstanceServer, client lxd.InstanceServer, memberConfig []api.ClusterMemberConfigKey) error {
 	data := initDataNode{}
 
 	// Fetch all pools currently defined in the cluster.
@@ -787,9 +785,8 @@ func clusterInitMember(d, client lxd.InstanceServer, memberConfig []api.ClusterM
 		data.Networks = append(data.Networks, post)
 	}
 
-	revert, err := initDataNodeApply(d, data)
+	err = initDataNodeApply(d, data)
 	if err != nil {
-		revert()
 		return errors.Wrap(err, "Failed to initialize storage pools and networks")
 	}
 

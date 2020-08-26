@@ -142,10 +142,12 @@ func networksPost(d *Daemon, r *http.Request) response.Response {
 	url := fmt.Sprintf("/%s/networks/%s", version.APIVersion, req.Name)
 	resp := response.SyncResponseLocation(true, nil, url)
 
+	clientType := cluster.UserAgentClientType(r.Header.Get("User-Agent"))
+
 	if isClusterNotification(r) {
 		// This is an internal request which triggers the actual creation of the network across all nodes
 		// after they have been previously defined.
-		err = doNetworksCreate(d, req, true)
+		err = doNetworksCreate(d, req, clientType)
 		if err != nil {
 			return response.SmartError(err)
 		}
@@ -181,7 +183,7 @@ func networksPost(d *Daemon, r *http.Request) response.Response {
 	}
 
 	if count > 1 {
-		err = networksPostCluster(d, req)
+		err = networksPostCluster(d, req, clientType)
 		if err != nil {
 			return response.SmartError(err)
 		}
@@ -217,8 +219,7 @@ func networksPost(d *Daemon, r *http.Request) response.Response {
 		d.cluster.DeleteNetwork(req.Name)
 	})
 
-	// Create network and pass false to clusterNotification so the database record is removed on error.
-	err = doNetworksCreate(d, req, false)
+	err = doNetworksCreate(d, req, clientType)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -227,7 +228,7 @@ func networksPost(d *Daemon, r *http.Request) response.Response {
 	return resp
 }
 
-func networksPostCluster(d *Daemon, req api.NetworksPost) error {
+func networksPostCluster(d *Daemon, req api.NetworksPost, clientType cluster.ClientType) error {
 	// Check that no node-specific config key has been defined.
 	for key := range req.Config {
 		if shared.StringInSlice(key, db.NodeSpecificNetworkConfig) {
@@ -316,7 +317,7 @@ func networksPostCluster(d *Daemon, req api.NetworksPost) error {
 		return err
 	}
 
-	err = doNetworksCreate(d, nodeReq, false)
+	err = doNetworksCreate(d, nodeReq, clientType)
 	if err != nil {
 		return err
 	}
@@ -344,7 +345,7 @@ func networksPostCluster(d *Daemon, req api.NetworksPost) error {
 
 // Create the network on the system. The clusterNotification flag is used to indicate whether creation request
 // is coming from a cluster notification (and if so we should not delete the database record on error).
-func doNetworksCreate(d *Daemon, req api.NetworksPost, clusterNotification bool) error {
+func doNetworksCreate(d *Daemon, req api.NetworksPost, clientType cluster.ClientType) error {
 	// Start the network.
 	n, err := network.LoadByName(d.State(), req.Name)
 	if err != nil {
@@ -358,14 +359,14 @@ func doNetworksCreate(d *Daemon, req api.NetworksPost, clusterNotification bool)
 	}
 
 	// Run initial creation setup for the network driver.
-	err = n.Create(clusterNotification)
+	err = n.Create(clientType)
 	if err != nil {
 		return err
 	}
 
 	err = n.Start()
 	if err != nil {
-		n.Delete(clusterNotification)
+		n.Delete(clientType)
 		return err
 	}
 
@@ -535,6 +536,8 @@ func networkDelete(d *Daemon, r *http.Request) response.Response {
 		return response.NotFound(err)
 	}
 
+	clientType := cluster.UserAgentClientType(r.Header.Get("User-Agent"))
+
 	clusterNotification := isClusterNotification(r)
 	if !clusterNotification {
 		// Sanity checks.
@@ -549,7 +552,7 @@ func networkDelete(d *Daemon, r *http.Request) response.Response {
 	}
 
 	// Delete the network.
-	err = n.Delete(clusterNotification)
+	err = n.Delete(clientType)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -681,7 +684,9 @@ func networkPut(d *Daemon, r *http.Request) response.Response {
 		}
 	}
 
-	return doNetworkUpdate(d, name, req, targetNode, isClusterNotification(r), r.Method, clustered)
+	clientType := cluster.UserAgentClientType(r.Header.Get("User-Agent"))
+
+	return doNetworkUpdate(d, name, req, targetNode, clientType, r.Method, clustered)
 }
 
 func networkPatch(d *Daemon, r *http.Request) response.Response {
@@ -690,7 +695,7 @@ func networkPatch(d *Daemon, r *http.Request) response.Response {
 
 // doNetworkUpdate loads the current local network config, merges with the requested network config, validates
 // and applies the changes. Will also notify other cluster nodes of non-node specific config if needed.
-func doNetworkUpdate(d *Daemon, name string, req api.NetworkPut, targetNode string, clusterNotification bool, httpMethod string, clustered bool) response.Response {
+func doNetworkUpdate(d *Daemon, name string, req api.NetworkPut, targetNode string, clientType cluster.ClientType, httpMethod string, clustered bool) response.Response {
 	// Load the local node-specific network.
 	n, err := network.LoadByName(d.State(), name)
 	if err != nil {
@@ -730,7 +735,7 @@ func doNetworkUpdate(d *Daemon, name string, req api.NetworkPut, targetNode stri
 	}
 
 	// Apply the new configuration (will also notify other cluster nodes if needed).
-	err = n.Update(req, targetNode, clusterNotification)
+	err = n.Update(req, targetNode, clientType)
 	if err != nil {
 		return response.SmartError(err)
 	}
