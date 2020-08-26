@@ -2,6 +2,7 @@ package apparmor
 
 import (
 	"fmt"
+	"os"
 	"strings"
 	"text/template"
 
@@ -41,6 +42,13 @@ profile "{{ .name }}" flags=(attach_disconnected,mediate_deleted) {
   # Snap-specific libraries
   /snap/lxd/*/lib/**.so*              mr,
 {{- end }}
+
+{{if .libraryPath -}}
+  # Entries from LD_LIBRARY_PATH
+{{range $index, $element := .libraryPath}}
+  {{$element}}/** mr,
+{{- end }}
+{{- end }}
 }
 `))
 
@@ -59,6 +67,7 @@ func forkdnsProfile(state *state.State, n network) (string, error) {
 		"varPath":     shared.VarPath(""),
 		"rootPath":    rootPath,
 		"snap":        shared.InSnap(),
+		"libraryPath": strings.Split(os.Getenv("LD_LIBRARY_PATH"), ":"),
 	})
 	if err != nil {
 		return "", err
