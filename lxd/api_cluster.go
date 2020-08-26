@@ -744,7 +744,7 @@ func clusterInitMember(d lxd.InstanceServer, client lxd.InstanceServer, memberCo
 			continue
 		}
 
-		logger.Debugf("Populating init data for storage pool %s", pool.Name)
+		logger.Debugf("Populating init data for storage pool %q", pool.Name)
 
 		post := api.StoragePoolsPost{
 			StoragePoolPut: pool.StoragePoolPut,
@@ -767,7 +767,7 @@ func clusterInitMember(d lxd.InstanceServer, client lxd.InstanceServer, memberCo
 			}
 
 			if !shared.StringInSlice(config.Key, db.StoragePoolNodeConfigKeys) {
-				logger.Warnf("Ignoring config key %s for storage pool %s", config.Key, config.Name)
+				logger.Warnf("Ignoring config key %q for storage pool %q", config.Key, config.Name)
 				continue
 			}
 
@@ -808,7 +808,7 @@ func clusterInitMember(d lxd.InstanceServer, client lxd.InstanceServer, memberCo
 			}
 
 			if !shared.StringInSlice(config.Key, db.NodeSpecificNetworkConfig) {
-				logger.Warnf("Ignoring config key %s for network %s", config.Key, config.Name)
+				logger.Warnf("Ignoring config key %q for network %q", config.Key, config.Name)
 				continue
 			}
 
