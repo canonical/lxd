@@ -136,8 +136,8 @@ type InstanceBackup struct {
 	compressionAlgorithm string
 }
 
-// New instantiates a new Backup struct.
-func New(state *state.State, inst Instance, ID int, name string, creationDate, expiryDate time.Time, instanceOnly, optimizedStorage bool) *InstanceBackup {
+// NewInstance instantiates a new Backup struct.
+func NewInstance(state *state.State, inst Instance, ID int, name string, creationDate, expiryDate time.Time, instanceOnly, optimizedStorage bool) *InstanceBackup {
 	return &InstanceBackup{
 		state:            state,
 		instance:         inst,
