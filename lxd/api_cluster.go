@@ -386,7 +386,7 @@ func clusterPutJoin(d *Daemon, req api.ClusterPut) response.Response {
 		// As ServerAddress field is required to be set it means that we're using the new join API
 		// introduced with the 'clustering_join' extension.
 		// Connect to ourselves to initialize storage pools and networks using the API.
-		localClient, err := lxd.ConnectLXDUnix(d.UnixSocket(), nil)
+		localClient, err := lxd.ConnectLXDUnix(d.UnixSocket(), &lxd.ConnectionArgs{UserAgent: cluster.UserAgentJoiner})
 		if err != nil {
 			return errors.Wrap(err, "Failed to connect to local LXD")
 		}
