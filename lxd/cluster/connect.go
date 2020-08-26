@@ -22,6 +22,10 @@ import (
 // notifying other nodes of a cluster change.
 const UserAgentNotifier = "lxd-cluster-notifier"
 
+// UserAgentJoiner used to distinguish between a regular client request and an internal cluster request when
+// joining a node to a cluster.
+const UserAgentJoiner = "lxd-cluster-joiner"
+
 // Connect is a convenience around lxd.ConnectLXD that configures the client
 // with the correct parameters for node-to-node communication.
 //
