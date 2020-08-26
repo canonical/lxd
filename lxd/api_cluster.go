@@ -686,11 +686,9 @@ func clusterPutDisable(d *Daemon) response.Response {
 	return response.EmptySyncResponse
 }
 
-// Initialize storage pools and networks on this node.
-//
-// We pass to LXD client instances, one connected to ourselves (the joining
-// node) and one connected to the target cluster node to join.
-func clusterInitMember(d, client lxd.InstanceServer, memberConfig []api.ClusterMemberConfigKey) error {
+// clusterInitMember initialises storage pools and networks on this node. We pass two LXD client instances, one
+// connected to ourselves (the joining node) and one connected to the target cluster node to join.
+func clusterInitMember(d lxd.InstanceServer, client lxd.InstanceServer, memberConfig []api.ClusterMemberConfigKey) error {
 	data := initDataNode{}
 
 	// Fetch all pools currently defined in the cluster.
