@@ -785,9 +785,8 @@ func clusterInitMember(d lxd.InstanceServer, client lxd.InstanceServer, memberCo
 		data.Networks = append(data.Networks, post)
 	}
 
-	revert, err := initDataNodeApply(d, data)
+	err = initDataNodeApply(d, data)
 	if err != nil {
-		revert()
 		return errors.Wrap(err, "Failed to initialize storage pools and networks")
 	}
 
