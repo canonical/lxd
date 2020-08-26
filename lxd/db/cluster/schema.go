@@ -537,6 +537,17 @@ CREATE VIEW storage_volumes_all (
          storage_volumes.content_type
     FROM storage_volumes
     JOIN storage_volumes_snapshots ON storage_volumes.id = storage_volumes_snapshots.storage_volume_id;
+CREATE TABLE storage_volumes_backups (
+    id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+    storage_volume_id INTEGER NOT NULL,
+    name VARCHAR(255) NOT NULL,
+    creation_date DATETIME,
+    expiry_date DATETIME,
+    volume_only INTEGER NOT NULL default 0,
+    optimized_storage INTEGER NOT NULL default 0,
+    FOREIGN KEY (storage_volume_id) REFERENCES "storage_volumes" (id) ON DELETE CASCADE,
+    UNIQUE (storage_volume_id, name)
+);
 CREATE TRIGGER storage_volumes_check_id
   BEFORE INSERT ON storage_volumes
   WHEN NEW.id IN (SELECT id FROM storage_volumes_snapshots)
@@ -578,5 +589,5 @@ CREATE TABLE storage_volumes_snapshots_config (
     UNIQUE (storage_volume_snapshot_id, key)
 );
 
-INSERT INTO schema (version, updated_at) VALUES (37, strftime("%s"))
+INSERT INTO schema (version, updated_at) VALUES (38, strftime("%s"))
 `

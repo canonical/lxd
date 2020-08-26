@@ -74,32 +74,9 @@ var updates = map[int]schema.Update{
 	35: updateFromV34,
 	36: updateFromV35,
 	37: updateFromV36,
-	38: updateFromV37,
 }
 
-// Add storage_volumes_backups table.
-func updateFromV37(tx *sql.Tx) error {
-	stmt := `
-CREATE TABLE storage_volumes_backups (
-    id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
-    storage_volume_id INTEGER NOT NULL,
-    name VARCHAR(255) NOT NULL,
-    creation_date DATETIME,
-    expiry_date DATETIME,
-    volume_only INTEGER NOT NULL default 0,
-    optimized_storage INTEGER NOT NULL default 0,
-    FOREIGN KEY (storage_volume_id) REFERENCES "storage_volumes" (id) ON DELETE CASCADE,
-    UNIQUE (storage_volume_id, name)
-);
-`
-	_, err := tx.Exec(stmt)
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
+<<<<<<< HEAD
 // Add networks to projects references.
 func updateFromV36(tx *sql.Tx) error {
 	stmts := `
@@ -136,6 +113,29 @@ CREATE VIEW projects_used_by_ref (name,
 `
 	_, err := tx.Exec(stmts)
 	return err
+=======
+// Add storage_volumes_backups table.
+func updateFromV36(tx *sql.Tx) error {
+	stmt := `
+CREATE TABLE storage_volumes_backups (
+    id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+    storage_volume_id INTEGER NOT NULL,
+    name VARCHAR(255) NOT NULL,
+    creation_date DATETIME,
+    expiry_date DATETIME,
+    volume_only INTEGER NOT NULL default 0,
+    optimized_storage INTEGER NOT NULL default 0,
+    FOREIGN KEY (storage_volume_id) REFERENCES "storage_volumes" (id) ON DELETE CASCADE,
+    UNIQUE (storage_volume_id, name)
+);
+`
+	_, err := tx.Exec(stmt)
+	if err != nil {
+		return err
+	}
+
+	return nil
+>>>>>>> b183b8a5f... lxd/db/cluster: Add storage_volumes_backups table
 }
 
 // This fixes node IDs of storage volumes on non-remote pools which were
