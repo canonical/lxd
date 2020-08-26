@@ -8,13 +8,16 @@ import (
 	"strings"
 	"text/template"
 
+	deviceConfig "github.com/lxc/lxd/lxd/device/config"
 	"github.com/lxc/lxd/lxd/project"
 	"github.com/lxc/lxd/lxd/state"
+	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
 )
 
 // Internal copy of the device interface.
 type device interface {
+	Config() deviceConfig.Device
 	Name() string
 }
 
@@ -23,16 +26,24 @@ profile "{{ .name }}" flags=(attach_disconnected,mediate_deleted) {
   #include <abstractions/base>
 
   # Capabilities
+  capability chown,
   capability dac_read_search,
   capability dac_override,
+  capability fowner,
+  capability fsetid,
   capability kill,
   capability net_bind_service,
+  capability setgid,
+  capability setuid,
   capability sys_admin,
+  capability sys_chroot,
   capability sys_ptrace,
 
   # Network access
   network inet dgram,
   network inet6 dgram,
+  network inet stream,
+  network inet6 stream,
 
   # Forkproxy operation
   @{PROC}/** rw,
@@ -40,8 +51,14 @@ profile "{{ .name }}" flags=(attach_disconnected,mediate_deleted) {
   ptrace (read),
 
   # Needed for lxd fork commands
+  {{ .exePath }} mr,
   @{PROC}/@{pid}/cmdline r,
   {{ .rootPath }}/{etc,lib,usr/lib}/os-release r,
+{{if .sockets -}}
+{{range $index, $element := .sockets}}
+  {{$element}} rw,
+{{- end }}
+{{- end }}
 
   # Things that we definitely don't need
   deny @{PROC}/@{pid}/cgroup r,
@@ -73,6 +90,27 @@ func forkproxyProfile(state *state.State, inst instance, dev device) (string, er
 		rootPath = "/var/lib/snapd/hostfs"
 	}
 
+	// Add any socket used by forkproxy.
+	sockets := []string{}
+
+	fields := strings.SplitN(dev.Config()["listen"], ":", 2)
+	if fields[0] == "unix" && !strings.HasPrefix(fields[1], "@") {
+		if dev.Config()["bind"] == "host" || dev.Config()["bind"] == "" {
+			sockets = append(sockets, shared.HostPath(fields[1]))
+		} else {
+			sockets = append(sockets, fields[1])
+		}
+	}
+
+	fields = strings.SplitN(dev.Config()["connect"], ":", 2)
+	if fields[0] == "unix" && !strings.HasPrefix(fields[1], "@") {
+		if dev.Config()["bind"] == "host" || dev.Config()["bind"] == "" {
+			sockets = append(sockets, fields[1])
+		} else {
+			sockets = append(sockets, shared.HostPath(fields[1]))
+		}
+	}
+
 	// Render the profile.
 	var sb *strings.Builder = &strings.Builder{}
 	err := forkproxyProfileTpl.Execute(sb, map[string]interface{}{
@@ -80,7 +118,9 @@ func forkproxyProfile(state *state.State, inst instance, dev device) (string, er
 		"varPath":     shared.VarPath(""),
 		"rootPath":    rootPath,
 		"snap":        shared.InSnap(),
+		"exePath":     util.GetExecPath(),
 		"libraryPath": strings.Split(os.Getenv("LD_LIBRARY_PATH"), ":"),
+		"sockets":     sockets,
 	})
 	if err != nil {
 		return "", err
