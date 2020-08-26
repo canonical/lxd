@@ -591,7 +591,7 @@ func (n *ovn) startParentPortBridge(parentNet Network) error {
 		// wouldn't work until the next router advertisement was sent (which could be several minutes).
 		// By pinging the OVN router's external IP this will trigger an NDP request from the parent bridge
 		// which will cause the OVN router to learn its MAC address.
-		func() {
+		go func() {
 			// Try several attempts as it can take a few seconds for the network to come up.
 			for i := 0; i < 5; i++ {
 				if pingIP(routerExtPortIPv6) {
@@ -602,7 +602,9 @@ func (n *ovn) startParentPortBridge(parentNet Network) error {
 				time.Sleep(time.Second)
 			}
 
-			n.logger.Warn("OVN router external IPv6 address unreachable", log.Ctx{"ip": routerExtPortIPv6.String()})
+			// We would expect this on a chassis node that isn't the active router gateway, it doesn't
+			// always indicate a problem.
+			n.logger.Debug("OVN router external IPv6 address unreachable", log.Ctx{"ip": routerExtPortIPv6.String()})
 		}()
 	}
 
