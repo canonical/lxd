@@ -7,6 +7,7 @@ import (
 	"text/template"
 
 	"github.com/lxc/lxd/lxd/state"
+	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
 )
 
@@ -26,6 +27,7 @@ profile "{{ .name }}" flags=(attach_disconnected,mediate_deleted) {
   {{ .varPath }}/networks/{{ .networkName }}/forkdns.servers/servers.conf r,
 
   # Needed for lxd fork commands
+  {{ .exePath }} mr,
   @{PROC}/@{pid}/cmdline r,
   {{ .rootPath }}/{etc,lib,usr/lib}/os-release r,
 
@@ -68,6 +70,7 @@ func forkdnsProfile(state *state.State, n network) (string, error) {
 		"rootPath":    rootPath,
 		"snap":        shared.InSnap(),
 		"libraryPath": strings.Split(os.Getenv("LD_LIBRARY_PATH"), ":"),
+		"exePath":     util.GetExecPath(),
 	})
 	if err != nil {
 		return "", err
