@@ -17,8 +17,6 @@ import (
 type instance interface {
 	Project() string
 	Name() string
-	IsNesting() bool
-	IsPrivileged() bool
 	ExpandedConfig() map[string]string
 }
 
@@ -138,9 +136,9 @@ func instanceProfile(state *state.State, inst instance) (string, error) {
 		"feature_cgroup2":  state.OS.CGInfo.Layout == cgroup.CgroupsUnified || state.OS.CGInfo.Layout == cgroup.CgroupsHybrid,
 		"feature_stacking": state.OS.AppArmorStacking && !state.OS.AppArmorStacked,
 		"namespace":        InstanceNamespaceName(inst),
-		"nesting":          inst.IsNesting(),
+		"nesting":          shared.IsTrue(inst.ExpandedConfig()["security.nesting"]),
 		"name":             InstanceProfileName(inst),
-		"unprivileged":     !inst.IsPrivileged() || state.OS.RunningInUserNS,
+		"unprivileged":     !shared.IsTrue(inst.ExpandedConfig()["security.privileged"]) || state.OS.RunningInUserNS,
 		"raw":              rawContent,
 	})
 	if err != nil {
