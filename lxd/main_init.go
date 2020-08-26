@@ -7,6 +7,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/lxc/lxd/client"
+	"github.com/lxc/lxd/lxd/revert"
 	"github.com/lxc/lxd/lxd/state"
 	storageDrivers "github.com/lxc/lxd/lxd/storage/drivers"
 	"github.com/lxc/lxd/lxd/sys"
@@ -149,12 +150,22 @@ func (c *cmdInit) Run(cmd *cobra.Command, args []string) error {
 		return nil
 	}
 
-	err = initDataNodeApply(d, config.Node)
+	revert := revert.New()
+	defer revert.Fail()
+
+	localRevert, err := initDataNodeApply(d, config.Node)
+	if err != nil {
+		return err
+	}
+	revert.Add(localRevert)
+
+	err = initDataClusterApply(d, config.Cluster)
 	if err != nil {
 		return err
 	}
 
-	return initDataClusterApply(d, config.Cluster)
+	revert.Success()
+	return nil
 }
 
 func (c *cmdInit) availableStorageDrivers(poolType string) []string {
