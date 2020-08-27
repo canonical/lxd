@@ -15,8 +15,8 @@ import (
 	"github.com/lxc/lxd/shared/api"
 )
 
-// GetRemoteDrivers returns a list of remote storage driver names.
-var GetRemoteDrivers func() []string
+// StorageRemoteDriverNames returns a list of remote storage driver names.
+var StorageRemoteDriverNames func() []string
 
 // GetStoragePoolsLocalConfig returns a map associating each storage pool name to
 // its node-specific config values (i.e. the ones where node_id is not NULL).
