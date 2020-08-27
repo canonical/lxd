@@ -1221,7 +1221,7 @@ type internalClusterPostAcceptRequest struct {
 }
 
 type internalClusterPostNetwork struct {
-	api.Network
+	api.NetworksPost `yaml:",inline"`
 
 	Project string
 }
