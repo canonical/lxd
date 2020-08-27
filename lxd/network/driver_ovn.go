@@ -33,8 +33,8 @@ import (
 const ovnGeneveTunnelMTU = 1442
 
 const ovnChassisPriorityMax = 32767
-const ovnVolatileParentIPv4 = "volatile.parent.ipv4.address"
-const ovnVolatileParentIPv6 = "volatile.parent.ipv6.address"
+const ovnVolatileParentIPv4 = "volatile.network.ipv4.address"
+const ovnVolatileParentIPv6 = "volatile.network.ipv6.address"
 
 // ovnParentVars OVN object variables derived from parent network.
 type ovnParentVars struct {
@@ -67,7 +67,7 @@ type ovn struct {
 // Validate network config.
 func (n *ovn) Validate(config map[string]string) error {
 	rules := map[string]func(value string) error{
-		"parent": func(value string) error {
+		"network": func(value string) error {
 			if err := validInterfaceName(value); err != nil {
 				return errors.Wrapf(err, "Invalid network name %q", value)
 			}
@@ -263,7 +263,7 @@ func (n *ovn) getIntSwitchInstancePortPrefix() string {
 // setupParentPort initialises the parent uplink connection. Returns the derived ovnParentVars settings used
 // during the initial creation of the logical network.
 func (n *ovn) setupParentPort(routerMAC net.HardwareAddr) (*ovnParentVars, error) {
-	parentNet, err := LoadByName(n.state, n.config["parent"])
+	parentNet, err := LoadByName(n.state, n.config["network"])
 	if err != nil {
 		return nil, errors.Wrapf(err, "Failed loading parent network")
 	}
@@ -412,7 +412,7 @@ func (n *ovn) parentAllAllocatedIPs(tx *db.ClusterTx, parentNetName string) ([]n
 	v6IPs := make([]net.IP, 0)
 
 	for _, netInfo := range networks {
-		if netInfo.Type != "ovn" || netInfo.Config["parent"] != parentNetName {
+		if netInfo.Type != "ovn" || netInfo.Config["network"] != parentNetName {
 			continue
 		}
 
@@ -486,7 +486,7 @@ func (n *ovn) parentAllocateIP(ipRanges []*shared.IPRange, allAllocated []net.IP
 
 // startParentPort performs any network start up logic needed to connect the parent uplink connection to OVN.
 func (n *ovn) startParentPort() error {
-	parentNet, err := LoadByName(n.state, n.config["parent"])
+	parentNet, err := LoadByName(n.state, n.config["network"])
 	if err != nil {
 		return errors.Wrapf(err, "Failed loading parent network")
 	}
@@ -614,7 +614,7 @@ func (n *ovn) startParentPortBridge(parentNet Network) error {
 
 // deleteParentPort deletes the parent uplink connection.
 func (n *ovn) deleteParentPort() error {
-	parentNet, err := LoadByName(n.state, n.config["parent"])
+	parentNet, err := LoadByName(n.state, n.config["network"])
 	if err != nil {
 		return errors.Wrapf(err, "Failed loading parent network")
 	}

@@ -276,7 +276,7 @@ ovs-vsctl set open_vswitch . \
 Create an OVN network and an instance using it:
 
 ```
-lxc network create ovntest --type=ovn parent=lxdbr0
+lxc network create ovntest --type=ovn network=lxdbr0
 lxc init images:ubuntu/focal c1
 lxc config device override c1 eth0 network=ovntest
 lxc start c1
@@ -296,4 +296,4 @@ dns.domain                      | string    | -                     | lxd       
 dns.search                      | string    | -                     | -                         | Full comma separated domain search list, defaulting to `dns.domain` value
 ipv4.address                    | string    | standard mode         | random unused subnet      | IPv4 address for the bridge (CIDR notation). Use "none" to turn off IPv4 or "auto" to generate a new one
 ipv6.address                    | string    | standard mode         | random unused subnet      | IPv6 address for the bridge (CIDR notation). Use "none" to turn off IPv6 or "auto" to generate a new one
-parent                          | string    | -                     | -                         | Parent network to use for outbound external network access
+network                         | string    | -                     | -                         | Parent network to use for outbound external network access
