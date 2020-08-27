@@ -64,6 +64,11 @@ func (d *ceph) load() error {
 	return nil
 }
 
+// isRemote returns true indicating this driver uses remote storage.
+func (d *ceph) isRemote() bool {
+	return true
+}
+
 // Info returns info about the driver and its environment.
 func (d *ceph) Info() Info {
 	return Info{
