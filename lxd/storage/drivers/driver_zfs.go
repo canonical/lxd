@@ -108,7 +108,7 @@ func (d *zfs) Info() Info {
 		OptimizedImages:       true,
 		OptimizedBackups:      true,
 		PreservesInodes:       true,
-		Remote:                false,
+		Remote:                d.isRemote(),
 		VolumeTypes:           []VolumeType{VolumeTypeCustom, VolumeTypeImage, VolumeTypeContainer, VolumeTypeVM},
 		BlockBacking:          false,
 		RunningQuotaResize:    true,

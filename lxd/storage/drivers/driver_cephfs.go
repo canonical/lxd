@@ -70,7 +70,7 @@ func (d *cephfs) Info() Info {
 		Version:               cephfsVersion,
 		OptimizedImages:       false,
 		PreservesInodes:       false,
-		Remote:                true,
+		Remote:                d.isRemote(),
 		VolumeTypes:           []VolumeType{VolumeTypeCustom},
 		BlockBacking:          false,
 		RunningQuotaResize:    true,
