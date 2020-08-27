@@ -31,7 +31,7 @@ func (c *cmdInit) RunInteractive(cmd *cobra.Command, args []string, d lxd.Instan
 	// Initialize config
 	config := cmdInitData{}
 	config.Node.Config = map[string]interface{}{}
-	config.Node.Networks = []api.NetworksPost{}
+	config.Node.Networks = []internalClusterPostNetwork{}
 	config.Node.StoragePools = []api.StoragePoolsPost{}
 	config.Node.Profiles = []api.ProfilesPost{
 		{
