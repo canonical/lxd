@@ -7,6 +7,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/lxc/lxd/client"
+	"github.com/lxc/lxd/lxd/project"
 	storageDrivers "github.com/lxc/lxd/lxd/storage/drivers"
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
@@ -153,8 +154,9 @@ func (c *cmdInit) RunAuto(cmd *cobra.Command, args []string, d lxd.InstanceServe
 		}
 
 		// Define the new network
-		network := api.NetworksPost{}
+		network := internalClusterPostNetwork{}
 		network.Name = fmt.Sprintf("lxdbr%d", idx)
+		network.Project = project.Default
 		config.Networks = append(config.Networks, network)
 
 		// Add it to the profile
