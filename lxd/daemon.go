@@ -828,7 +828,7 @@ func (d *Daemon) init() error {
 	}
 
 	// Have the db package determine remote storage drivers
-	db.GetRemoteDrivers = storageDrivers.RemoteDriverNames(d.State())
+	db.StorageRemoteDriverNames = storageDrivers.RemoteDriverNames(d.State())
 
 	/* Open the cluster database */
 	for {
