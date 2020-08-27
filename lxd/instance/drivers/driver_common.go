@@ -20,6 +20,11 @@ type common struct {
 	state           *state.State
 }
 
+// Project returns instance's project.
+func (c *common) Project() string {
+	return c.project
+}
+
 // Type returns the instance's type.
 func (c *common) Type() instancetype.Type {
 	return c.dbType

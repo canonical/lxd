@@ -33,6 +33,7 @@ const (
 
 // ConfigReader is used to read instance config.
 type ConfigReader interface {
+	Project() string
 	Type() instancetype.Type
 	ExpandedConfig() map[string]string
 	ExpandedDevices() deviceConfig.Devices
@@ -99,7 +100,6 @@ type Instance interface {
 	// Properties.
 	ID() int
 	Location() string
-	Project() string
 	Name() string
 	Description() string
 	Architecture() int
