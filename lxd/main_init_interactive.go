@@ -18,6 +18,7 @@ import (
 	lxd "github.com/lxc/lxd/client"
 	"github.com/lxc/lxd/lxd/cluster"
 	"github.com/lxc/lxd/lxd/network"
+	"github.com/lxc/lxd/lxd/project"
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
@@ -310,8 +311,9 @@ func (c *cmdInit) askNetworking(config *cmdInitData, d lxd.InstanceServer) error
 			}
 		} else if config.Cluster != nil && fanKernel && cli.AskBool("Would you like to create a new Fan overlay network? (yes/no) [default=yes]: ", "yes") {
 			// Define the network
-			networkPost := api.NetworksPost{}
+			networkPost := internalClusterPostNetwork{}
 			networkPost.Name = "lxdfan0"
+			networkPost.Project = project.Default
 			networkPost.Config = map[string]string{
 				"bridge.mode": "fan",
 			}
@@ -358,8 +360,9 @@ func (c *cmdInit) askNetworking(config *cmdInitData, d lxd.InstanceServer) error
 
 	for {
 		// Define the network
-		net := api.NetworksPost{}
+		net := internalClusterPostNetwork{}
 		net.Config = map[string]string{}
+		net.Project = project.Default
 
 		// Network name
 		net.Name = cli.AskString("What should the new bridge be called? [default=lxdbr0]: ", "lxdbr0", func(netName string) error { return network.ValidateName(netName, "bridge") })
