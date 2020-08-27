@@ -1594,15 +1594,21 @@ func clusterCheckNetworksMatch(cluster *db.Cluster, reqNetworks []internalCluste
 
 		for _, networkName := range networkNames {
 			found := false
+
 			for _, reqNetwork := range reqNetworks {
 				if reqNetwork.Name != networkName || reqNetwork.Project != networkProjectName {
 					continue
 				}
 
 				found = true
+
 				_, network, err := cluster.GetNetworkInAnyState(networkProjectName, networkName)
 				if err != nil {
 					return err
+				}
+
+				if reqNetwork.Type != network.Type {
+					return fmt.Errorf("Mismatching type for network %q in project %q", networkName, networkProjectName)
 				}
 
 				// Exclude the keys which are node-specific.
@@ -1611,6 +1617,7 @@ func clusterCheckNetworksMatch(cluster *db.Cluster, reqNetworks []internalCluste
 				if err != nil {
 					return errors.Wrapf(err, "Mismatching config for network %q in project %q", networkName, networkProjectName)
 				}
+
 				break
 			}
 
