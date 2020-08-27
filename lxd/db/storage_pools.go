@@ -80,7 +80,7 @@ func (c *ClusterTx) GetStoragePoolUsedBy(name string) ([]string, error) {
 		return []interface{}{&vols[i].volName, &vols[i].volType, &vols[i].projectName, &vols[i].nodeID}
 	}
 
-	remoteDrivers := GetRemoteDrivers()
+	remoteDrivers := StorageRemoteDriverNames()
 
 	s := fmt.Sprintf(`
 SELECT storage_volumes.name, storage_volumes.type, projects.name, storage_volumes.node_id
@@ -898,7 +898,7 @@ func (c *Cluster) isRemoteStorage(poolID int64) (bool, error) {
 			return err
 		}
 
-		isRemoteStorage = shared.StringInSlice(driver, GetRemoteDrivers())
+		isRemoteStorage = shared.StringInSlice(driver, StorageRemoteDriverNames())
 
 		return nil
 	})
