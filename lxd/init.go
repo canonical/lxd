@@ -150,51 +150,51 @@ func initDataNodeApply(d lxd.InstanceServer, config initDataNode) (func(), error
 
 		// StoragePool creator
 		createStoragePool := func(storagePool api.StoragePoolsPost) error {
-			// Create the storagePool if doesn't exist
+			// Create the storagePool if doesn't exist.
 			err := d.CreateStoragePool(storagePool)
 			if err != nil {
 				return errors.Wrapf(err, "Failed to create storage pool '%s'", storagePool.Name)
 			}
 
-			// Setup reverter
+			// Setup reverter.
 			revert.Add(func() { d.DeleteStoragePool(storagePool.Name) })
 			return nil
 		}
 
-		// StoragePool updater
+		// StoragePool updater.
 		updateStoragePool := func(storagePool api.StoragePoolsPost) error {
-			// Get the current storagePool
+			// Get the current storagePool.
 			currentStoragePool, etag, err := d.GetStoragePool(storagePool.Name)
 			if err != nil {
 				return errors.Wrapf(err, "Failed to retrieve current storage pool '%s'", storagePool.Name)
 			}
 
-			// Sanity check
+			// Sanity check.
 			if currentStoragePool.Driver != storagePool.Driver {
 				return fmt.Errorf("Storage pool '%s' is of type '%s' instead of '%s'", currentStoragePool.Name, currentStoragePool.Driver, storagePool.Driver)
 			}
 
-			// Setup reverter
+			// Setup reverter.
 			revert.Add(func() { d.UpdateStoragePool(currentStoragePool.Name, currentStoragePool.Writable(), "") })
 
-			// Prepare the update
+			// Prepare the update.
 			newStoragePool := api.StoragePoolPut{}
 			err = shared.DeepCopy(currentStoragePool.Writable(), &newStoragePool)
 			if err != nil {
 				return errors.Wrapf(err, "Failed to copy configuration of storage pool '%s'", storagePool.Name)
 			}
 
-			// Description override
+			// Description override.
 			if storagePool.Description != "" {
 				newStoragePool.Description = storagePool.Description
 			}
 
-			// Config overrides
+			// Config overrides.
 			for k, v := range storagePool.Config {
 				newStoragePool.Config[k] = fmt.Sprintf("%v", v)
 			}
 
-			// Apply it
+			// Apply it.
 			err = d.UpdateStoragePool(currentStoragePool.Name, newStoragePool, etag)
 			if err != nil {
 				return errors.Wrapf(err, "Failed to update storage pool '%s'", storagePool.Name)
@@ -204,7 +204,7 @@ func initDataNodeApply(d lxd.InstanceServer, config initDataNode) (func(), error
 		}
 
 		for _, storagePool := range config.StoragePools {
-			// New storagePool
+			// New storagePool.
 			if !shared.StringInSlice(storagePool.Name, storagePoolNames) {
 				err := createStoragePool(storagePool)
 				if err != nil {
@@ -214,7 +214,7 @@ func initDataNodeApply(d lxd.InstanceServer, config initDataNode) (func(), error
 				continue
 			}
 
-			// Existing storagePool
+			// Existing storagePool.
 			err := updateStoragePool(storagePool)
 			if err != nil {
 				return nil, err
@@ -222,71 +222,71 @@ func initDataNodeApply(d lxd.InstanceServer, config initDataNode) (func(), error
 		}
 	}
 
-	// Apply profile configuration
+	// Apply profile configuration.
 	if config.Profiles != nil && len(config.Profiles) > 0 {
-		// Get the list of profiles
+		// Get the list of profiles.
 		profileNames, err := d.GetProfileNames()
 		if err != nil {
 			return nil, errors.Wrap(err, "Failed to retrieve list of profiles")
 		}
 
-		// Profile creator
+		// Profile creator.
 		createProfile := func(profile api.ProfilesPost) error {
-			// Create the profile if doesn't exist
+			// Create the profile if doesn't exist.
 			err := d.CreateProfile(profile)
 			if err != nil {
 				return errors.Wrapf(err, "Failed to create profile '%s'", profile.Name)
 			}
 
-			// Setup reverter
+			// Setup reverter.
 			revert.Add(func() { d.DeleteProfile(profile.Name) })
 			return nil
 		}
 
-		// Profile updater
+		// Profile updater.
 		updateProfile := func(profile api.ProfilesPost) error {
-			// Get the current profile
+			// Get the current profile.
 			currentProfile, etag, err := d.GetProfile(profile.Name)
 			if err != nil {
 				return errors.Wrapf(err, "Failed to retrieve current profile '%s'", profile.Name)
 			}
 
-			// Setup reverter
+			// Setup reverter.
 			revert.Add(func() { d.UpdateProfile(currentProfile.Name, currentProfile.Writable(), "") })
 
-			// Prepare the update
+			// Prepare the update.
 			newProfile := api.ProfilePut{}
 			err = shared.DeepCopy(currentProfile.Writable(), &newProfile)
 			if err != nil {
 				return errors.Wrapf(err, "Failed to copy configuration of profile '%s'", profile.Name)
 			}
 
-			// Description override
+			// Description override.
 			if profile.Description != "" {
 				newProfile.Description = profile.Description
 			}
 
-			// Config overrides
+			// Config overrides.
 			for k, v := range profile.Config {
 				newProfile.Config[k] = fmt.Sprintf("%v", v)
 			}
 
-			// Device overrides
+			// Device overrides.
 			for k, v := range profile.Devices {
-				// New device
+				// New device.
 				_, ok := newProfile.Devices[k]
 				if !ok {
 					newProfile.Devices[k] = v
 					continue
 				}
 
-				// Existing device
+				// Existing device.
 				for configKey, configValue := range v {
 					newProfile.Devices[k][configKey] = fmt.Sprintf("%v", configValue)
 				}
 			}
 
-			// Apply it
+			// Apply it.
 			err = d.UpdateProfile(currentProfile.Name, newProfile, etag)
 			if err != nil {
 				return errors.Wrapf(err, "Failed to update profile '%s'", profile.Name)
@@ -296,7 +296,7 @@ func initDataNodeApply(d lxd.InstanceServer, config initDataNode) (func(), error
 		}
 
 		for _, profile := range config.Profiles {
-			// New profile
+			// New profile.
 			if !shared.StringInSlice(profile.Name, profileNames) {
 				err := createProfile(profile)
 				if err != nil {
@@ -306,7 +306,7 @@ func initDataNodeApply(d lxd.InstanceServer, config initDataNode) (func(), error
 				continue
 			}
 
-			// Existing profile
+			// Existing profile.
 			err := updateProfile(profile)
 			if err != nil {
 				return nil, err
