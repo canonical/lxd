@@ -33,6 +33,11 @@ func (d *common) init(state *state.State, name string, config map[string]string,
 	d.logger = logger
 }
 
+// isRemote returns false indicating this driver does not use remote storage.
+func (d *common) isRemote() bool {
+	return false
+}
+
 // validatePool validates a pool config against common rules and optional driver specific rules.
 func (d *common) validatePool(config map[string]string, driverRules map[string]func(value string) error) error {
 	checkedFields := map[string]struct{}{}
