@@ -13,9 +13,9 @@ import (
 
 type initDataNode struct {
 	api.ServerPut `yaml:",inline"`
-	Networks      []api.NetworksPost     `json:"networks" yaml:"networks"`
-	StoragePools  []api.StoragePoolsPost `json:"storage_pools" yaml:"storage_pools"`
-	Profiles      []api.ProfilesPost     `json:"profiles" yaml:"profiles"`
+	Networks      []internalClusterPostNetwork `json:"networks" yaml:"networks"`
+	StoragePools  []api.StoragePoolsPost       `json:"storage_pools" yaml:"storage_pools"`
+	Profiles      []api.ProfilesPost           `json:"profiles" yaml:"profiles"`
 }
 
 type initDataCluster struct {
