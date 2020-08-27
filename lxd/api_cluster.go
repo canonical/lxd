@@ -418,10 +418,10 @@ func clusterPutJoin(d *Daemon, req api.ClusterPut) response.Response {
 		}
 
 		// Get a list of projects for networks.
-		var networkProjectNames []string
+		var projects []api.Project
 
 		err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
-			networkProjectNames, err = tx.GetProjectNames()
+			projects, err = tx.GetProjects(db.ProjectFilter{})
 			return err
 		})
 		if err != nil {
@@ -429,21 +429,25 @@ func clusterPutJoin(d *Daemon, req api.ClusterPut) response.Response {
 		}
 
 		networks := []internalClusterPostNetwork{}
-		for _, networkProjectName := range networkProjectNames {
-			networkNames, err := d.cluster.GetNetworks(networkProjectName)
+		for _, p := range projects {
+			networkNames, err := d.cluster.GetNetworks(p.Name)
 			if err != nil && err != db.ErrNoSuchObject {
 				return err
 			}
 
 			for _, name := range networkNames {
-				_, network, err := d.cluster.GetNetworkInAnyState(networkProjectName, name)
+				_, network, err := d.cluster.GetNetworkInAnyState(p.Name, name)
 				if err != nil {
 					return err
 				}
 
 				internalNetwork := internalClusterPostNetwork{
-					Network: *network,
-					Project: networkProjectName,
+					NetworksPost: api.NetworksPost{
+						NetworkPut: network.NetworkPut,
+						Name:       network.Name,
+						Type:       network.Type,
+					},
+					Project: p.Name,
 				}
 
 				networks = append(networks, internalNetwork)
@@ -451,9 +455,7 @@ func clusterPutJoin(d *Daemon, req api.ClusterPut) response.Response {
 		}
 
 		// Now request for this node to be added to the list of cluster nodes.
-		info, err := clusterAcceptMember(
-			client, req.ServerName, address, cluster.SchemaVersion,
-			version.APIExtensionsCount(), pools, networks)
+		info, err := clusterAcceptMember(client, req.ServerName, address, cluster.SchemaVersion, version.APIExtensionsCount(), pools, networks)
 		if err != nil {
 			return errors.Wrap(err, "Failed request to add member")
 		}
