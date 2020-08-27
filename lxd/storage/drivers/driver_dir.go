@@ -38,7 +38,7 @@ func (d *dir) Info() Info {
 		Version:               "1",
 		OptimizedImages:       false,
 		PreservesInodes:       false,
-		Remote:                false,
+		Remote:                d.isRemote(),
 		VolumeTypes:           []VolumeType{VolumeTypeCustom, VolumeTypeImage, VolumeTypeContainer, VolumeTypeVM},
 		BlockBacking:          false,
 		RunningQuotaResize:    true,
