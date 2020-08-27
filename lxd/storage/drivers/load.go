@@ -46,9 +46,18 @@ func Load(state *state.State, driverName string, name string, config map[string]
 	return d, nil
 }
 
+// supportedDrivers cache of supported drivers to avoid inspecting the storage layer every time.
+var supportedDrivers []Info
+
 // SupportedDrivers returns a list of supported storage drivers.
 func SupportedDrivers(s *state.State) []Info {
-	supportedDrivers := make([]Info, 0, len(drivers))
+	// Return cached list if available.
+	if supportedDrivers != nil {
+		return supportedDrivers
+	}
+
+	// Initialise fresh cache and populate.
+	supportedDrivers = make([]Info, 0, len(drivers))
 
 	for driverName := range drivers {
 		driver, err := Load(s, driverName, "", nil, nil, nil, nil)
@@ -64,12 +73,12 @@ func SupportedDrivers(s *state.State) []Info {
 
 // AllDriverNames returns a list of all storage driver names.
 func AllDriverNames() []string {
-	supportDriverNames := make([]string, 0, len(drivers))
+	driverNames := make([]string, 0, len(drivers))
 	for driverName := range drivers {
-		supportDriverNames = append(supportDriverNames, driverName)
+		driverNames = append(driverNames, driverName)
 	}
 
-	return supportDriverNames
+	return driverNames
 }
 
 // RemoteDriverNames returns a list of remote storage driver names.
