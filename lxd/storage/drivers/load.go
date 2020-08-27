@@ -73,10 +73,10 @@ func SupportedDrivers(s *state.State) []Info {
 
 // AllDriverNames returns a list of all storage driver names.
 func AllDriverNames() []string {
-	supportDriverNames := make([]string, 0, len(drivers))
+	driverNames := make([]string, 0, len(drivers))
 	for driverName := range drivers {
-		supportDriverNames = append(supportDriverNames, driverName)
+		driverNames = append(driverNames, driverName)
 	}
 
-	return supportDriverNames
+	return driverNames
 }
