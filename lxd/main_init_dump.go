@@ -7,6 +7,7 @@ import (
 	yaml "gopkg.in/yaml.v2"
 
 	lxd "github.com/lxc/lxd/client"
+	"github.com/lxc/lxd/lxd/project"
 	"github.com/lxc/lxd/shared/api"
 )
 
@@ -19,21 +20,25 @@ func (c *cmdInit) RunDump(d lxd.InstanceServer) error {
 	var config initDataNode
 	config.Config = currentServer.Config
 
-	networks, err := d.GetNetworks()
+	// Only retrieve networks in the default project as the preseed format doesn't support creating
+	// projects at this time.
+	networks, err := d.UseProject(project.Default).GetNetworks()
 	if err != nil {
-		return errors.Wrap(err, "Failed to retrieve current server configuration")
+		return errors.Wrapf(err, "Failed to retrieve current server network configuration for project %q", project.Default)
 	}
 
 	for _, network := range networks {
-		// Only list managed networks
+		// Only list managed networks.
 		if !network.Managed {
 			continue
 		}
-		networksPost := api.NetworksPost{}
+
+		networksPost := internalClusterPostNetwork{}
 		networksPost.Config = network.Config
 		networksPost.Description = network.Description
 		networksPost.Name = network.Name
 		networksPost.Type = network.Type
+		networksPost.Project = project.Default
 
 		config.Networks = append(config.Networks, networksPost)
 	}
