@@ -657,7 +657,7 @@ func (c *ClusterTx) GetInstancePool(projectName string, instanceName string) (st
 	// as that must always be the same as the snapshot's storage pool.
 	instanceName, _, _ = shared.InstanceGetParentAndSnapshotName(instanceName)
 
-	remoteDrivers := GetRemoteDrivers()
+	remoteDrivers := StorageRemoteDriverNames()
 
 	// Get container storage volume. Since container names are globally
 	// unique, and their storage volumes carry the same name, their storage
