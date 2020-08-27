@@ -71,7 +71,7 @@ func (d *ceph) Info() Info {
 		Version:               cephVersion,
 		OptimizedImages:       true,
 		PreservesInodes:       false,
-		Remote:                true,
+		Remote:                d.isRemote(),
 		VolumeTypes:           []VolumeType{VolumeTypeCustom, VolumeTypeImage, VolumeTypeContainer, VolumeTypeVM},
 		BlockBacking:          true,
 		RunningQuotaResize:    false,
