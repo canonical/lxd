@@ -74,6 +74,21 @@ var updates = map[int]schema.Update{
 	35: updateFromV34,
 	36: updateFromV35,
 	37: updateFromV36,
+	38: updateFromV37,
+}
+
+// Attempt to add missing project features.networks feature to default project.
+func updateFromV37(tx *sql.Tx) error {
+	ids, err := query.SelectIntegers(tx, `SELECT id FROM projects WHERE name = "default" LIMIT 1`)
+	if err != nil {
+		return err
+	}
+
+	if len(ids) == 1 {
+		tx.Exec("INSERT INTO projects_config (project_id, key, value) VALUES (?, 'features.networks', 'true');", ids[0])
+	}
+
+	return nil
 }
 
 // Add networks to projects references.
