@@ -49,6 +49,7 @@ profile "{{ .name }}" flags=(attach_disconnected,mediate_deleted) {
   @{PROC}/** rw,
   / rw,
   ptrace (read),
+  ptrace (trace),
 
   # Needed for lxd fork commands
   {{ .exePath }} mr,
