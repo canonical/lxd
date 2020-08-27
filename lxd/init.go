@@ -6,6 +6,7 @@ import (
 	"github.com/pkg/errors"
 
 	lxd "github.com/lxc/lxd/client"
+	"github.com/lxc/lxd/lxd/project"
 	"github.com/lxc/lxd/lxd/revert"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
@@ -32,18 +33,18 @@ func initDataNodeApply(d lxd.InstanceServer, config initDataNode) (func(), error
 	revert := revert.New()
 	defer revert.Fail()
 
-	// Apply server configuration
+	// Apply server configuration.
 	if config.Config != nil && len(config.Config) > 0 {
-		// Get current config
+		// Get current config.
 		currentServer, etag, err := d.GetServer()
 		if err != nil {
 			return nil, errors.Wrap(err, "Failed to retrieve current server configuration")
 		}
 
-		// Setup reverter
+		// Setup reverter.
 		revert.Add(func() { d.UpdateServer(currentServer.Writable(), "") })
 
-		// Prepare the update
+		// Prepare the update.
 		newServer := api.ServerPut{}
 		err = shared.DeepCopy(currentServer.Writable(), &newServer)
 		if err != nil {
@@ -54,93 +55,94 @@ func initDataNodeApply(d lxd.InstanceServer, config initDataNode) (func(), error
 			newServer.Config[k] = fmt.Sprintf("%v", v)
 		}
 
-		// Apply it
+		// Apply it.
 		err = d.UpdateServer(newServer, etag)
 		if err != nil {
 			return nil, errors.Wrap(err, "Failed to update server configuration")
 		}
 	}
 
-	// Apply network configuration
+	// Apply network configuration.
 	if config.Networks != nil && len(config.Networks) > 0 {
-		// Get the list of networks
-		networkNames, err := d.GetNetworkNames()
-		if err != nil {
-			return nil, errors.Wrap(err, "Failed to retrieve list of networks")
-		}
-
-		// Network creator
-		createNetwork := func(network api.NetworksPost) error {
-			// Create the network if doesn't exist
-			err := d.CreateNetwork(network)
+		// Network creator.
+		createNetwork := func(network internalClusterPostNetwork) error {
+			// Create the network if doesn't exist.
+			err := d.UseProject(network.Project).CreateNetwork(network.NetworksPost)
 			if err != nil {
-				return errors.Wrapf(err, "Failed to create network '%s'", network.Name)
+				return errors.Wrapf(err, "Failed to create network %q in project %q", network.Name, network.Project)
 			}
 
-			// Setup reverter
-			revert.Add(func() { d.DeleteNetwork(network.Name) })
+			// Setup reverter.
+			revert.Add(func() { d.UseProject(network.Project).DeleteNetwork(network.Name) })
 			return nil
 		}
 
-		// Network updater
-		updateNetwork := func(network api.NetworksPost) error {
-			// Get the current network
-			currentNetwork, etag, err := d.GetNetwork(network.Name)
+		// Network updater.
+		updateNetwork := func(network internalClusterPostNetwork) error {
+			// Get the current network.
+			currentNetwork, etag, err := d.UseProject(network.Project).GetNetwork(network.Name)
 			if err != nil {
-				return errors.Wrapf(err, "Failed to retrieve current network '%s'", network.Name)
+				return errors.Wrapf(err, "Failed to retrieve current network %q in project %q", network.Name, network.Project)
 			}
 
-			// Setup reverter
-			revert.Add(func() { d.UpdateNetwork(currentNetwork.Name, currentNetwork.Writable(), "") })
-
-			// Prepare the update
+			// Prepare the update.
 			newNetwork := api.NetworkPut{}
 			err = shared.DeepCopy(currentNetwork.Writable(), &newNetwork)
 			if err != nil {
-				return errors.Wrapf(err, "Failed to copy configuration of network '%s'", network.Name)
+				return errors.Wrapf(err, "Failed to copy configuration of network %q in project %q", network.Name, network.Project)
 			}
 
-			// Description override
+			// Description override.
 			if network.Description != "" {
 				newNetwork.Description = network.Description
 			}
 
-			// Config overrides
+			// Config overrides.
 			for k, v := range network.Config {
 				newNetwork.Config[k] = fmt.Sprintf("%v", v)
 			}
 
-			// Apply it
-			err = d.UpdateNetwork(currentNetwork.Name, newNetwork, etag)
+			// Apply it.
+			err = d.UseProject(network.Project).UpdateNetwork(currentNetwork.Name, newNetwork, etag)
 			if err != nil {
-				return errors.Wrapf(err, "Failed to update network '%s'", network.Name)
+				return errors.Wrapf(err, "Failed to update network %q in project %q", network.Name, network.Project)
 			}
+
+			// Setup reverter.
+			revert.Add(func() {
+				d.UseProject(network.Project).UpdateNetwork(currentNetwork.Name, currentNetwork.Writable(), "")
+			})
 
 			return nil
 		}
 
 		for _, network := range config.Networks {
-			// New network
-			if !shared.StringInSlice(network.Name, networkNames) {
-				err := createNetwork(network)
+			// Populate default project if not specified for backwards compatbility with earlier
+			// preseed dump files.
+			if network.Project == "" {
+				network.Project = project.Default
+			}
+
+			_, _, err := d.UseProject(network.Project).GetNetwork(network.Name)
+			if err != nil {
+				// New network.
+				err = createNetwork(network)
 				if err != nil {
 					return nil, err
 				}
-
-				continue
-			}
-
-			// Existing network
-			err := updateNetwork(network)
-			if err != nil {
-				return nil, err
+			} else {
+				// Existing network.
+				err = updateNetwork(network)
+				if err != nil {
+					return nil, err
+				}
 			}
 		}
 	}
 
-	// Apply storage configuration
+	// Apply storage configuration.
 	if config.StoragePools != nil && len(config.StoragePools) > 0 {
-		// Get the list of storagePools
+		// Get the list of storagePools.
 		storagePoolNames, err := d.GetStoragePoolNames()
 		if err != nil {
 			return nil, errors.Wrap(err, "Failed to retrieve list of storage pools")
