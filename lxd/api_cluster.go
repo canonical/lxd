@@ -779,45 +779,63 @@ func clusterInitMember(d lxd.InstanceServer, client lxd.InstanceServer, memberCo
 		data.StoragePools = append(data.StoragePools, post)
 	}
 
-	// Fetch all networks currently defined in the cluster.
-	networks, err := client.GetNetworks()
+	projects, err := client.GetProjects()
 	if err != nil {
-		return nil, errors.Wrap(err, "Failed to fetch information about cluster networks")
+		return nil, errors.Wrap(err, "Failed to fetch project information about cluster networks")
 	}
 
-	// Merge the returned storage networks configs with the node-specific
-	// configs provided by the user.
-	for _, network := range networks {
-		// Skip not-managed or pending networks
-		if !network.Managed || network.Status == api.NetworkStatusPending {
+	for _, p := range projects {
+		if !shared.IsTrue(p.Config["features.networks"]) && p.Name != project.Default {
+			// Skip non-default projects that can't have their own networks so we don't try
+			// and add the same default project networks twice.
 			continue
 		}
 
-		post := api.NetworksPost{
-			NetworkPut: network.NetworkPut,
-			Name:       network.Name,
-			Type:       network.Type,
+		// Fetch all networks currently defined in the cluster for the project.
+		networks, err := client.UseProject(p.Name).GetNetworks()
+		if err != nil {
+			return nil, errors.Wrapf(err, "Failed to fetch network information about cluster networks in project %q", p.Name)
 		}
 
-		// Apply the node-specific config supplied by the user.
-		for _, config := range memberConfig {
-			if config.Entity != "network" {
+		// Merge the returned networks configs with the node-specific configs provided by the user.
+		for _, network := range networks {
+			// Skip unmanaged or pending networks.
+			if !network.Managed || network.Status == api.NetworkStatusPending {
 				continue
 			}
 
-			if config.Name != network.Name {
-				continue
+			post := internalClusterPostNetwork{
+				NetworksPost: api.NetworksPost{
+					NetworkPut: network.NetworkPut,
+					Name:       network.Name,
+					Type:       network.Type,
+				},
+				Project: p.Name,
 			}
 
-			if !shared.StringInSlice(config.Key, db.NodeSpecificNetworkConfig) {
-				logger.Warnf("Ignoring config key %q for network %q", config.Key, config.Name)
-				continue
+			// Apply the node-specific config supplied by the user for networks in the default project.
+			// At this time project specific networks don't have node specific config options.
+			if p.Name == project.Default {
+				for _, config := range memberConfig {
+					if config.Entity != "network" {
+						continue
+					}
+
+					if config.Name != network.Name {
+						continue
+					}
+
+					if !shared.StringInSlice(config.Key, db.NodeSpecificNetworkConfig) {
+						logger.Warnf("Ignoring config key %q for network %q in project %q", config.Key, config.Name, p.Name)
+						continue
+					}
+
+					post.Config[config.Key] = config.Value
+				}
 			}
 
-			post.Config[config.Key] = config.Value
+			data.Networks = append(data.Networks, post)
 		}
-
-		data.Networks = append(data.Networks, post)
 	}
 
 	revert, err := initDataNodeApply(d, data)
