@@ -74,16 +74,15 @@ func AllDriverNames() []string {
 }
 
 // RemoteDriverNames returns a list of remote storage driver names.
-func RemoteDriverNames(s *state.State) func() []string {
-	return func() []string {
-		var remoteDriverNames []string
-
-		for _, driver := range SupportedDrivers(s) {
-			if driver.Remote {
-				remoteDriverNames = append(remoteDriverNames, driver.Name)
-			}
+func RemoteDriverNames() []string {
+	driverNames := make([]string, 0, len(drivers))
+	for driverName, driverFunc := range drivers {
+		if !driverFunc().isRemote() {
+			continue
 		}
 
-		return remoteDriverNames
+		driverNames = append(driverNames, driverName)
 	}
+
+	return driverNames
 }
