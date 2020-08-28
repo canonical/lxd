@@ -1,7 +1,9 @@
 package apparmor
 
 import (
+	"crypto/sha256"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -233,4 +235,25 @@ func getCacheDir(state *state.State) (string, error) {
 	}
 
 	return strings.TrimSpace(output), nil
+}
+
+// profileName handles generating valid profile names.
+func profileName(prefix string, name string) string {
+	separators := 1
+	if len(prefix) > 0 {
+		separators = 2
+	}
+
+	// Max length in AppArmor is 253 chars.
+	if len(name)+len(prefix)+3+separators >= 253 {
+		hash := sha256.New()
+		io.WriteString(hash, name)
+		name = fmt.Sprintf("%x", hash.Sum(nil))
+	}
+
+	if len(prefix) > 0 {
+		return fmt.Sprintf("lxd_%s-%s", prefix, name)
+	}
+
+	return fmt.Sprintf("lxd-%s", name)
 }

@@ -15,8 +15,8 @@ import (
 	"github.com/lxc/lxd/shared/api"
 )
 
-// GetRemoteDrivers returns a list of remote storage driver names.
-var GetRemoteDrivers func() []string
+// StorageRemoteDriverNames returns a list of remote storage driver names.
+var StorageRemoteDriverNames func() []string
 
 // GetStoragePoolsLocalConfig returns a map associating each storage pool name to
 // its node-specific config values (i.e. the ones where node_id is not NULL).
@@ -80,7 +80,7 @@ func (c *ClusterTx) GetStoragePoolUsedBy(name string) ([]string, error) {
 		return []interface{}{&vols[i].volName, &vols[i].volType, &vols[i].projectName, &vols[i].nodeID}
 	}
 
-	remoteDrivers := GetRemoteDrivers()
+	remoteDrivers := StorageRemoteDriverNames()
 
 	s := fmt.Sprintf(`
 SELECT storage_volumes.name, storage_volumes.type, projects.name, storage_volumes.node_id
@@ -898,7 +898,7 @@ func (c *Cluster) isRemoteStorage(poolID int64) (bool, error) {
 			return err
 		}
 
-		isRemoteStorage = shared.StringInSlice(driver, GetRemoteDrivers())
+		isRemoteStorage = shared.StringInSlice(driver, StorageRemoteDriverNames())
 
 		return nil
 	})

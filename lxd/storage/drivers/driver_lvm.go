@@ -91,7 +91,7 @@ func (d *lvm) Info() Info {
 		Version:               lvmVersion,
 		OptimizedImages:       d.usesThinpool(), // Only thinpool pools support optimized images.
 		PreservesInodes:       false,
-		Remote:                false,
+		Remote:                d.isRemote(),
 		VolumeTypes:           []VolumeType{VolumeTypeCustom, VolumeTypeImage, VolumeTypeContainer, VolumeTypeVM},
 		BlockBacking:          true,
 		RunningQuotaResize:    false,

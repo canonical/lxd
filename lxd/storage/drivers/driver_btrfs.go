@@ -77,7 +77,7 @@ func (d *btrfs) Info() Info {
 		OptimizedBackups:      true,
 		OptimizedBackupHeader: true,
 		PreservesInodes:       !d.state.OS.RunningInUserNS,
-		Remote:                false,
+		Remote:                d.isRemote(),
 		VolumeTypes:           []VolumeType{VolumeTypeCustom, VolumeTypeImage, VolumeTypeContainer, VolumeTypeVM},
 		BlockBacking:          false,
 		RunningQuotaResize:    true,

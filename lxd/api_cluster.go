@@ -285,17 +285,18 @@ func clusterPutJoin(d *Daemon, req api.ClusterPut) response.Response {
 		return response.BadRequest(fmt.Errorf("This server is already clustered"))
 	}
 
+	// The old pre 'clustering_join' join API approach is no longer supported.
+	if req.ServerAddress == "" {
+		return response.BadRequest(fmt.Errorf("No server address provided for this member"))
+	}
+
 	address, err := node.HTTPSAddress(d.db)
 	if err != nil {
 		return response.SmartError(err)
 	}
 
 	if address == "" {
-		if req.ServerAddress == "" {
-			return response.BadRequest(fmt.Errorf("No core.https_address config key is set on this member"))
-		}
-
-		// The user has provided a server address, and no networking
+		// As the user always provides a server address, but no networking
 		// was setup on this node, let's do the job and open the
 		// port. We'll use the same address both for the REST API and
 		// for clustering.
@@ -325,17 +326,15 @@ func clusterPutJoin(d *Daemon, req api.ClusterPut) response.Response {
 
 		address = req.ServerAddress
 	} else {
-		if req.ServerAddress != "" {
-			// The user has previously set core.https_address and
-			// is now providing a cluster address as well. If they
-			// differ we need to listen to it.
-			if !util.IsAddressCovered(req.ServerAddress, address) {
-				err := d.endpoints.ClusterUpdateAddress(req.ServerAddress)
-				if err != nil {
-					return response.SmartError(err)
-				}
-				address = req.ServerAddress
+		// The user has previously set core.https_address and
+		// is now providing a cluster address as well. If they
+		// differ we need to listen to it.
+		if !util.IsAddressCovered(req.ServerAddress, address) {
+			err := d.endpoints.ClusterUpdateAddress(req.ServerAddress)
+			if err != nil {
+				return response.SmartError(err)
 			}
+			address = req.ServerAddress
 		}
 
 		// Update the cluster.https_address config key.
@@ -384,21 +383,17 @@ func clusterPutJoin(d *Daemon, req api.ClusterPut) response.Response {
 			return err
 		}
 
-		// If the ServerAddress field is set it means that we're using
-		// the new join API introduced with the 'clustering_join'
-		// extension.
-		if req.ServerAddress != "" {
-			// Connect to ourselves to initialize storage pools and
-			// networks using the API.
-			d, err := lxd.ConnectLXDUnix(d.UnixSocket(), nil)
-			if err != nil {
-				return errors.Wrap(err, "Failed to connect to local LXD")
-			}
+		// As ServerAddress field is required to be set it means that we're using the new join API
+		// introduced with the 'clustering_join' extension.
+		// Connect to ourselves to initialize storage pools and networks using the API.
+		localClient, err := lxd.ConnectLXDUnix(d.UnixSocket(), &lxd.ConnectionArgs{UserAgent: cluster.UserAgentJoiner})
+		if err != nil {
+			return errors.Wrap(err, "Failed to connect to local LXD")
+		}
 
-			err = clusterInitMember(d, client, req.MemberConfig)
-			if err != nil {
-				return errors.Wrap(err, "Failed to initialize member")
-			}
+		err = clusterInitMember(localClient, client, req.MemberConfig)
+		if err != nil {
+			return errors.Wrap(err, "Failed to initialize member")
 		}
 
 		// Get all defined storage pools and networks, so they can be compared
@@ -691,11 +686,9 @@ func clusterPutDisable(d *Daemon) response.Response {
 	return response.EmptySyncResponse
 }
 
-// Initialize storage pools and networks on this node.
-//
-// We pass to LXD client instances, one connected to ourselves (the joining
-// node) and one connected to the target cluster node to join.
-func clusterInitMember(d, client lxd.InstanceServer, memberConfig []api.ClusterMemberConfigKey) error {
+// clusterInitMember initialises storage pools and networks on this node. We pass two LXD client instances, one
+// connected to ourselves (the joining node) and one connected to the target cluster node to join.
+func clusterInitMember(d lxd.InstanceServer, client lxd.InstanceServer, memberConfig []api.ClusterMemberConfigKey) error {
 	data := initDataNode{}
 
 	// Fetch all pools currently defined in the cluster.
@@ -792,9 +785,8 @@ func clusterInitMember(d, client lxd.InstanceServer, memberConfig []api.ClusterM
 		data.Networks = append(data.Networks, post)
 	}
 
-	revert, err := initDataNodeApply(d, data)
+	err = initDataNodeApply(d, data)
 	if err != nil {
-		revert()
 		return errors.Wrap(err, "Failed to initialize storage pools and networks")
 	}
 

@@ -324,8 +324,9 @@ func UpdateDNSMasqStatic(s *state.State, networkName string) error {
 
 		n, err := LoadByName(s, network)
 		if err != nil {
-			return err
+			return errors.Wrapf(err, "Failed to load network %q in project %q for dnsmasq update", project.Default, network)
 		}
+
 		config := n.Config()
 
 		// Wipe everything clean.

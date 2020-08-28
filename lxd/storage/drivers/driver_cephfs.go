@@ -63,6 +63,11 @@ func (d *cephfs) load() error {
 	return nil
 }
 
+// isRemote returns true indicating this driver uses remote storage.
+func (d *cephfs) isRemote() bool {
+	return true
+}
+
 // Info returns the pool driver information.
 func (d *cephfs) Info() Info {
 	return Info{
@@ -70,7 +75,7 @@ func (d *cephfs) Info() Info {
 		Version:               cephfsVersion,
 		OptimizedImages:       false,
 		PreservesInodes:       false,
-		Remote:                true,
+		Remote:                d.isRemote(),
 		VolumeTypes:           []VolumeType{VolumeTypeCustom},
 		BlockBacking:          false,
 		RunningQuotaResize:    true,

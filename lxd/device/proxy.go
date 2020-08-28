@@ -13,6 +13,7 @@ import (
 	"github.com/pkg/errors"
 	liblxc "gopkg.in/lxc/go-lxc.v2"
 
+	"github.com/lxc/lxd/lxd/apparmor"
 	deviceConfig "github.com/lxc/lxd/lxd/device/config"
 	"github.com/lxc/lxd/lxd/device/nictype"
 	"github.com/lxc/lxd/lxd/instance"
@@ -193,6 +194,12 @@ func (d *proxy) Start() (*deviceConfig.RunConfig, error) {
 			logFileName := fmt.Sprintf("proxy.%s.log", d.name)
 			logPath := filepath.Join(d.inst.LogPath(), logFileName)
 
+			// Load the apparmor profile
+			err = apparmor.ForkproxyLoad(d.state, d.inst, d)
+			if err != nil {
+				return err
+			}
+
 			// Spawn the daemon using subprocess
 			command := d.state.OS.ExecPath
 			forkproxyargs := []string{"forkproxy",
@@ -215,6 +222,8 @@ func (d *proxy) Start() (*deviceConfig.RunConfig, error) {
 			if err != nil {
 				return fmt.Errorf("Failed to create subprocess: %s", err)
 			}
+
+			p.SetApparmor(apparmor.ForkproxyProfileName(d.inst, d))
 
 			err = p.StartWithFiles(proxyValues.inheritFds)
 			if err != nil {
@@ -305,6 +314,12 @@ func (d *proxy) Stop() (*deviceConfig.RunConfig, error) {
 	}
 
 	err = d.killProxyProc(devPath)
+	if err != nil {
+		return nil, err
+	}
+
+	// Unload apparmor profile.
+	err = apparmor.ForkproxyUnload(d.state, d.inst, d)
 	if err != nil {
 		return nil, err
 	}
@@ -543,5 +558,15 @@ func (d *proxy) killProxyProc(pidPath string) error {
 	}
 
 	os.Remove(pidPath)
+	return nil
+}
+
+func (d *proxy) Remove() error {
+	// Delete apparmor profile.
+	err := apparmor.ForkproxyDelete(d.state, d.inst, d)
+	if err != nil {
+		return err
+	}
+
 	return nil
 }

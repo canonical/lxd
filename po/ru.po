@@ -7,9 +7,9 @@ msgid ""
 msgstr ""
 "Project-Id-Version: lxd\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2020-08-24 11:17-0400\n"
-"PO-Revision-Date: 2018-06-22 15:57+0000\n"
-"Last-Translator: Александр Киль <shorrey@gmail.com>\n"
+"POT-Creation-Date: 2020-08-27 23:32-0400\n"
+"PO-Revision-Date: 2020-08-02 01:42+0000\n"
+"Last-Translator: Anthony <aemeltsev@gmail.com>\n"
 "Language-Team: Russian <https://hosted.weblate.org/projects/linux-containers/"
 "lxd/ru/>\n"
 "Language: ru\n"
@@ -18,7 +18,7 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=3; plural=n%10==1 && n%100!=11 ? 0 : n%10>=2 && n"
 "%10<=4 && (n%100<10 || n%100>=20) ? 1 : 2;\n"
-"X-Generator: Weblate 3.1-dev\n"
+"X-Generator: Weblate 4.2-dev\n"
 
 #: lxc/storage.go:225
 #, fuzzy
@@ -336,7 +336,7 @@ msgstr ""
 #: lxc/info.go:171
 #, c-format
 msgid "- Port %d (%s)"
-msgstr ""
+msgstr "- Порт %d (%s)"
 
 #: lxc/action.go:270
 msgid "--console can't be used with --all"

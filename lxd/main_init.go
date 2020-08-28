@@ -149,9 +149,8 @@ func (c *cmdInit) Run(cmd *cobra.Command, args []string) error {
 		return nil
 	}
 
-	revert, err := initDataNodeApply(d, config.Node)
+	err = initDataNodeApply(d, config.Node)
 	if err != nil {
-		revert()
 		return err
 	}
 

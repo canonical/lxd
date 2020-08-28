@@ -1,9 +1,7 @@
 package apparmor
 
 import (
-	"crypto/sha256"
 	"fmt"
-	"io"
 	"strings"
 	"text/template"
 
@@ -38,6 +36,7 @@ profile "{{ .name }}" flags=(attach_disconnected,mediate_deleted) {
 
   # Additional system files
   @{PROC}/sys/net/ipv6/conf/*/mtu r,
+  @{PROC}/@{pid}/fd/ r,
 
   # System configuration access
   {{ .rootPath }}/etc/gai.conf           r,
@@ -92,27 +91,10 @@ func dnsmasqProfile(state *state.State, n network) (string, error) {
 func DnsmasqProfileName(n network) string {
 	path := shared.VarPath("")
 	name := fmt.Sprintf("%s_<%s>", n.Name(), path)
-
-	// Max length in AppArmor is 253 chars.
-	if len(name)+12 >= 253 {
-		hash := sha256.New()
-		io.WriteString(hash, name)
-		name = fmt.Sprintf("%x", hash.Sum(nil))
-	}
-
-	return fmt.Sprintf("lxd_dnsmasq-%s", name)
+	return profileName("dnsmasq", name)
 }
 
 // dnsmasqProfileFilename returns the name of the on-disk profile name.
 func dnsmasqProfileFilename(n network) string {
-	name := n.Name()
-
-	// Max length in AppArmor is 253 chars.
-	if len(name)+12 >= 253 {
-		hash := sha256.New()
-		io.WriteString(hash, name)
-		name = fmt.Sprintf("%x", hash.Sum(nil))
-	}
-
-	return fmt.Sprintf("lxd_dnsmasq-%s", name)
+	return profileName("dnsmasq", n.Name())
 }

@@ -89,7 +89,7 @@ WHERE storage_volumes.type = ?
 func (c *Cluster) GetStoragePoolVolumes(project string, poolID int64, volumeTypes []int) ([]*api.StorageVolume, error) {
 	var nodeIDs []int
 
-	remoteDrivers := GetRemoteDrivers()
+	remoteDrivers := StorageRemoteDriverNames()
 
 	err := c.Transaction(func(tx *ClusterTx) error {
 		var err error
@@ -187,7 +187,7 @@ func (c *Cluster) storagePoolVolumesGet(project string, poolID, nodeID int64, vo
 func (c *Cluster) storagePoolVolumesGetType(project string, volumeType int, poolID, nodeID int64) ([]string, error) {
 	var poolName string
 
-	remoteDrivers := GetRemoteDrivers()
+	remoteDrivers := StorageRemoteDriverNames()
 
 	query := fmt.Sprintf(`
 SELECT storage_volumes_all.name
@@ -223,7 +223,7 @@ SELECT storage_volumes_all.name
 // Returns snapshots slice ordered by when they were created, oldest first.
 func (c *Cluster) GetLocalStoragePoolVolumeSnapshotsWithType(projectName string, volumeName string, volumeType int, poolID int64) ([]StorageVolumeArgs, error) {
 	result := []StorageVolumeArgs{}
-	remoteDrivers := GetRemoteDrivers()
+	remoteDrivers := StorageRemoteDriverNames()
 
 	// ORDER BY id is important here as the users of this function can expect that the results
 	// will be returned in the order that the snapshots were created. This is specifically used
@@ -433,7 +433,7 @@ func storagePoolVolumeReplicateIfCeph(tx *sql.Tx, volumeID int64, project, volum
 	}
 	volumeIDs := []int64{volumeID}
 
-	remoteDrivers := GetRemoteDrivers()
+	remoteDrivers := StorageRemoteDriverNames()
 
 	// If this is a ceph volume, we want to duplicate the change across the
 	// the rows for all other nodes.
@@ -463,7 +463,7 @@ func (c *Cluster) CreateStoragePoolVolume(project, volumeName, volumeDescription
 		return -1, fmt.Errorf("Volume name may not be a snapshot")
 	}
 
-	remoteDrivers := GetRemoteDrivers()
+	remoteDrivers := StorageRemoteDriverNames()
 
 	err := c.Transaction(func(tx *ClusterTx) error {
 		driver, err := tx.GetStoragePoolDriver(poolID)
@@ -525,7 +525,7 @@ func (c *Cluster) storagePoolVolumeGetTypeID(project string, volumeName string, 
 }
 
 func (c *ClusterTx) storagePoolVolumeGetTypeID(project string, volumeName string, volumeType int, poolID, nodeID int64) (int64, error) {
-	remoteDrivers := GetRemoteDrivers()
+	remoteDrivers := StorageRemoteDriverNames()
 
 	s := fmt.Sprintf(`
 SELECT storage_volumes_all.id

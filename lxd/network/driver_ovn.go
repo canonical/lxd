@@ -33,8 +33,8 @@ import (
 const ovnGeneveTunnelMTU = 1442
 
 const ovnChassisPriorityMax = 32767
-const ovnVolatileParentIPv4 = "volatile.parent.ipv4.address"
-const ovnVolatileParentIPv6 = "volatile.parent.ipv6.address"
+const ovnVolatileParentIPv4 = "volatile.network.ipv4.address"
+const ovnVolatileParentIPv6 = "volatile.network.ipv6.address"
 
 // ovnParentVars OVN object variables derived from parent network.
 type ovnParentVars struct {
@@ -67,7 +67,7 @@ type ovn struct {
 // Validate network config.
 func (n *ovn) Validate(config map[string]string) error {
 	rules := map[string]func(value string) error{
-		"parent": func(value string) error {
+		"network": func(value string) error {
 			if err := validInterfaceName(value); err != nil {
 				return errors.Wrapf(err, "Invalid network name %q", value)
 			}
@@ -263,7 +263,7 @@ func (n *ovn) getIntSwitchInstancePortPrefix() string {
 // setupParentPort initialises the parent uplink connection. Returns the derived ovnParentVars settings used
 // during the initial creation of the logical network.
 func (n *ovn) setupParentPort(routerMAC net.HardwareAddr) (*ovnParentVars, error) {
-	parentNet, err := LoadByName(n.state, n.config["parent"])
+	parentNet, err := LoadByName(n.state, n.config["network"])
 	if err != nil {
 		return nil, errors.Wrapf(err, "Failed loading parent network")
 	}
@@ -412,7 +412,7 @@ func (n *ovn) parentAllAllocatedIPs(tx *db.ClusterTx, parentNetName string) ([]n
 	v6IPs := make([]net.IP, 0)
 
 	for _, netInfo := range networks {
-		if netInfo.Type != "ovn" || netInfo.Config["parent"] != parentNetName {
+		if netInfo.Type != "ovn" || netInfo.Config["network"] != parentNetName {
 			continue
 		}
 
@@ -486,7 +486,7 @@ func (n *ovn) parentAllocateIP(ipRanges []*shared.IPRange, allAllocated []net.IP
 
 // startParentPort performs any network start up logic needed to connect the parent uplink connection to OVN.
 func (n *ovn) startParentPort() error {
-	parentNet, err := LoadByName(n.state, n.config["parent"])
+	parentNet, err := LoadByName(n.state, n.config["network"])
 	if err != nil {
 		return errors.Wrapf(err, "Failed loading parent network")
 	}
@@ -591,7 +591,7 @@ func (n *ovn) startParentPortBridge(parentNet Network) error {
 		// wouldn't work until the next router advertisement was sent (which could be several minutes).
 		// By pinging the OVN router's external IP this will trigger an NDP request from the parent bridge
 		// which will cause the OVN router to learn its MAC address.
-		func() {
+		go func() {
 			// Try several attempts as it can take a few seconds for the network to come up.
 			for i := 0; i < 5; i++ {
 				if pingIP(routerExtPortIPv6) {
@@ -602,7 +602,9 @@ func (n *ovn) startParentPortBridge(parentNet Network) error {
 				time.Sleep(time.Second)
 			}
 
-			n.logger.Warn("OVN router external IPv6 address unreachable", log.Ctx{"ip": routerExtPortIPv6.String()})
+			// We would expect this on a chassis node that isn't the active router gateway, it doesn't
+			// always indicate a problem.
+			n.logger.Debug("OVN router external IPv6 address unreachable", log.Ctx{"ip": routerExtPortIPv6.String()})
 		}()
 	}
 
@@ -612,7 +614,7 @@ func (n *ovn) startParentPortBridge(parentNet Network) error {
 
 // deleteParentPort deletes the parent uplink connection.
 func (n *ovn) deleteParentPort() error {
-	parentNet, err := LoadByName(n.state, n.config["parent"])
+	parentNet, err := LoadByName(n.state, n.config["network"])
 	if err != nil {
 		return errors.Wrapf(err, "Failed loading parent network")
 	}
@@ -726,11 +728,11 @@ func (n *ovn) fillConfig(config map[string]string) error {
 }
 
 // Create sets up network in OVN Northbound database.
-func (n *ovn) Create(clusterNotification bool) error {
-	n.logger.Debug("Create", log.Ctx{"clusterNotification": clusterNotification, "config": n.config})
+func (n *ovn) Create(clientType cluster.ClientType) error {
+	n.logger.Debug("Create", log.Ctx{"clientType": clientType, "config": n.config})
 
 	// We only need to setup the OVN Northbound database once, not on every clustered node.
-	if !clusterNotification {
+	if clientType == cluster.ClientTypeNormal {
 		err := n.setup(false)
 		if err != nil {
 			return err
@@ -1052,10 +1054,10 @@ func (n *ovn) setup(update bool) error {
 }
 
 // Delete deletes a network.
-func (n *ovn) Delete(clusterNotification bool) error {
-	n.logger.Debug("Delete", log.Ctx{"clusterNotification": clusterNotification})
+func (n *ovn) Delete(clientType cluster.ClientType) error {
+	n.logger.Debug("Delete", log.Ctx{"clientType": clientType})
 
-	if !clusterNotification {
+	if clientType == cluster.ClientTypeNormal {
 		client, err := n.getClient()
 		if err != nil {
 			return err
@@ -1114,7 +1116,7 @@ func (n *ovn) Delete(clusterNotification bool) error {
 		return err
 	}
 
-	return n.common.delete(clusterNotification)
+	return n.common.delete(clientType)
 }
 
 // Rename renames a network.
@@ -1142,6 +1144,8 @@ func (n *ovn) Rename(newName string) error {
 
 // Start starts configures the local OVS parent uplink port.
 func (n *ovn) Start() error {
+	n.logger.Debug("Start")
+
 	if n.status == api.NetworkStatusPending {
 		return fmt.Errorf("Cannot start pending network")
 	}
@@ -1156,13 +1160,15 @@ func (n *ovn) Start() error {
 
 // Stop stops is a no-op.
 func (n *ovn) Stop() error {
+	n.logger.Debug("Stop")
+
 	return nil
 }
 
 // Update updates the network. Accepts notification boolean indicating if this update request is coming from a
 // cluster notification, in which case do not update the database, just apply local changes needed.
-func (n *ovn) Update(newNetwork api.NetworkPut, targetNode string, clusterNotification bool) error {
-	n.logger.Debug("Update", log.Ctx{"clusterNotification": clusterNotification, "newNetwork": newNetwork})
+func (n *ovn) Update(newNetwork api.NetworkPut, targetNode string, clientType cluster.ClientType) error {
+	n.logger.Debug("Update", log.Ctx{"clientType": clientType, "newNetwork": newNetwork})
 
 	// Populate default values if they are missing.
 	err := n.fillConfig(newNetwork.Config)
@@ -1185,22 +1191,22 @@ func (n *ovn) Update(newNetwork api.NetworkPut, targetNode string, clusterNotifi
 	// Define a function which reverts everything.
 	revert.Add(func() {
 		// Reset changes to all nodes and database.
-		n.common.update(oldNetwork, targetNode, clusterNotification)
+		n.common.update(oldNetwork, targetNode, clientType)
 
 		// Reset any change that was made to logical network.
-		if !clusterNotification {
+		if clientType == cluster.ClientTypeNormal {
 			n.setup(true)
 		}
 	})
 
 	// Apply changes to database.
-	err = n.common.update(newNetwork, targetNode, clusterNotification)
+	err = n.common.update(newNetwork, targetNode, clientType)
 	if err != nil {
 		return err
 	}
 
-	// Restart the logical network if needed.
-	if len(changedKeys) > 0 && !clusterNotification {
+	// Re-setup the logical network if needed.
+	if len(changedKeys) > 0 && clientType == cluster.ClientTypeNormal {
 		err = n.setup(true)
 		if err != nil {
 			return err
