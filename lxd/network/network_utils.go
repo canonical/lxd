@@ -15,6 +15,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/pkg/errors"
+
 	deviceConfig "github.com/lxc/lxd/lxd/device/config"
 	"github.com/lxc/lxd/lxd/device/nictype"
 	"github.com/lxc/lxd/lxd/dnsmasq"
