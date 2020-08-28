@@ -7,8 +7,8 @@ msgid ""
 msgstr ""
 "Project-Id-Version: LXD\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2020-08-24 11:17-0400\n"
-"PO-Revision-Date: 2020-07-03 17:01+0000\n"
+"POT-Creation-Date: 2020-08-27 23:32-0400\n"
+"PO-Revision-Date: 2020-07-31 19:11+0000\n"
 "Last-Translator: KATOH Yasufumi <karma@jazz.email.ne.jp>\n"
 "Language-Team: Japanese <https://hosted.weblate.org/projects/linux-"
 "containers/lxd/ja/>\n"
@@ -464,7 +464,7 @@ msgstr "アーキテクチャ: %v"
 
 #: lxc/console.go:351
 msgid "As neither could be found, the raw SPICE socket can be found at:"
-msgstr ""
+msgstr "どちらもみつかりませんでした。raw SPICE ソケットはこちらにあります:"
 
 #: lxc/init.go:277
 msgid "Asked for a VM but image is of type container"
@@ -534,9 +534,9 @@ msgid "BASE IMAGE"
 msgstr "BASE IMAGE"
 
 #: lxc/export.go:86
-#, fuzzy, c-format
+#, c-format
 msgid "Backing up instance: %s"
-msgstr "インスタンスのインポート中: %s"
+msgstr "インスタンスのバックアップ中: %s"
 
 #: lxc/export.go:152
 msgid "Backup exported successfully!"
@@ -1777,6 +1777,8 @@ msgstr "LXD - コマンドラインクライアント"
 #: lxc/console.go:350
 msgid "LXD automatically uses either spicy or remote-viewer when present."
 msgstr ""
+"LXD は spicy か remote-viewer がインストールされている場合は自動的にどちらか"
+"を使います。"
 
 #: lxc/cluster.go:110
 msgid "LXD server isn't part of a cluster"
@@ -2453,9 +2455,8 @@ msgid "Network name"
 msgstr "ネットワーク名:"
 
 #: lxc/network.go:258
-#, fuzzy
 msgid "Network type"
-msgstr "ネットワーク名:"
+msgstr "ネットワークタイプ:"
 
 #: lxc/info.go:553 lxc/network.go:788
 msgid "Network usage:"
@@ -3418,9 +3419,8 @@ msgid "The --stateless flag can't be used with --target"
 msgstr "--stateless と --target は同時に指定できません"
 
 #: lxc/move.go:176
-#, fuzzy
 msgid "The destination LXD server is not clustered"
-msgstr "移動元の LXD サーバはクラスタに属していません"
+msgstr "移動先の LXD サーバはクラスタに属していません"
 
 #: lxc/config_device.go:136 lxc/config_device.go:153 lxc/config_device.go:363
 msgid "The device already exists"
@@ -3586,6 +3586,8 @@ msgid ""
 "Type of connection to establish: 'console' for serial console, 'vga' for "
 "SPICE graphical output"
 msgstr ""
+"確立する接続のタイプ: シリアルコンソールの場合は 'console'、SPICE でのグラ"
+"フィカル出力の場合は 'vga'"
 
 #: lxc/image.go:902 lxc/info.go:246 lxc/info.go:460
 #, c-format
