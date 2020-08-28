@@ -200,7 +200,7 @@ func TestInstanceListExpanded(t *testing.T) {
 }
 
 func TestCreateInstance(t *testing.T) {
-	db.GetRemoteDrivers = func() []string {
+	db.StorageRemoteDriverNames = func() []string {
 		return []string{"ceph", "cephfs"}
 	}
 

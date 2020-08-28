@@ -18,11 +18,43 @@ import (
 	"github.com/lxc/lxd/shared/version"
 )
 
+// UserAgentNotifier used to distinguish between a regular client request and an internal cluster request when
+// notifying other nodes of a cluster change.
+const UserAgentNotifier = "lxd-cluster-notifier"
+
+// UserAgentJoiner used to distinguish between a regular client request and an internal cluster request when
+// joining a node to a cluster.
+const UserAgentJoiner = "lxd-cluster-joiner"
+
+// ClientType indicates which sort of client type is being used.
+type ClientType string
+
+// ClientTypeNotifier cluster notification client.
+const ClientTypeNotifier ClientType = "notifier"
+
+// ClientTypeJoiner cluster joiner client.
+const ClientTypeJoiner ClientType = "joiner"
+
+// ClientTypeNormal normal client.
+const ClientTypeNormal ClientType = "normal"
+
+// UserAgentClientType converts user agent to client type.
+func UserAgentClientType(userAgent string) ClientType {
+	switch userAgent {
+	case UserAgentNotifier:
+		return ClientTypeNotifier
+	case UserAgentJoiner:
+		return ClientTypeJoiner
+	}
+
+	return ClientTypeNormal
+}
+
 // Connect is a convenience around lxd.ConnectLXD that configures the client
 // with the correct parameters for node-to-node communication.
 //
 // If 'notify' switch is true, then the user agent will be set to the special
-// value 'lxd-cluster-notifier', which can be used in some cases to distinguish
+// to the UserAgentNotifier value, which can be used in some cases to distinguish
 // between a regular client request and an internal cluster request.
 func Connect(address string, cert *shared.CertInfo, notify bool) (lxd.InstanceServer, error) {
 	// Wait for a connection to the events API first for non-notify connections.
@@ -54,7 +86,7 @@ func Connect(address string, cert *shared.CertInfo, notify bool) (lxd.InstanceSe
 		UserAgent:     version.UserAgent,
 	}
 	if notify {
-		args.UserAgent = "lxd-cluster-notifier"
+		args.UserAgent = UserAgentNotifier
 	}
 
 	url := fmt.Sprintf("https://%s", address)

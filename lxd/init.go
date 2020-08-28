@@ -3,10 +3,12 @@ package main
 import (
 	"fmt"
 
+	"github.com/pkg/errors"
+
 	lxd "github.com/lxc/lxd/client"
+	"github.com/lxc/lxd/lxd/revert"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
-	"github.com/pkg/errors"
 )
 
 type initDataNode struct {
@@ -26,34 +28,26 @@ type initDataCluster struct {
 // It's used both by the 'lxd init' command and by the PUT /1.0/cluster API.
 //
 // In case of error, the returned function can be used to revert the changes.
-func initDataNodeApply(d lxd.InstanceServer, config initDataNode) (func(), error) {
-	// Handle reverts
-	reverts := []func(){}
-	revert := func() {
-		// Lets undo things in reverse order
-		for i := len(reverts) - 1; i >= 0; i-- {
-			reverts[i]()
-		}
-	}
+func initDataNodeApply(d lxd.InstanceServer, config initDataNode) error {
+	revert := revert.New()
+	defer revert.Fail()
 
 	// Apply server configuration
 	if config.Config != nil && len(config.Config) > 0 {
 		// Get current config
 		currentServer, etag, err := d.GetServer()
 		if err != nil {
-			return revert, errors.Wrap(err, "Failed to retrieve current server configuration")
+			return errors.Wrap(err, "Failed to retrieve current server configuration")
 		}
 
 		// Setup reverter
-		reverts = append(reverts, func() {
-			d.UpdateServer(currentServer.Writable(), "")
-		})
+		revert.Add(func() { d.UpdateServer(currentServer.Writable(), "") })
 
 		// Prepare the update
 		newServer := api.ServerPut{}
 		err = shared.DeepCopy(currentServer.Writable(), &newServer)
 		if err != nil {
-			return revert, errors.Wrap(err, "Failed to copy server configuration")
+			return errors.Wrap(err, "Failed to copy server configuration")
 		}
 
 		for k, v := range config.Config {
@@ -63,7 +57,7 @@ func initDataNodeApply(d lxd.InstanceServer, config initDataNode) (func(), error
 		// Apply it
 		err = d.UpdateServer(newServer, etag)
 		if err != nil {
-			return revert, errors.Wrap(err, "Failed to update server configuration")
+			return errors.Wrap(err, "Failed to update server configuration")
 		}
 	}
 
@@ -72,7 +66,7 @@ func initDataNodeApply(d lxd.InstanceServer, config initDataNode) (func(), error
 		// Get the list of networks
 		networkNames, err := d.GetNetworkNames()
 		if err != nil {
-			return revert, errors.Wrap(err, "Failed to retrieve list of networks")
+			return errors.Wrap(err, "Failed to retrieve list of networks")
 		}
 
 		// Network creator
@@ -84,10 +78,7 @@ func initDataNodeApply(d lxd.InstanceServer, config initDataNode) (func(), error
 			}
 
 			// Setup reverter
-			reverts = append(reverts, func() {
-				d.DeleteNetwork(network.Name)
-			})
-
+			revert.Add(func() { d.DeleteNetwork(network.Name) })
 			return nil
 		}
 
@@ -100,9 +91,7 @@ func initDataNodeApply(d lxd.InstanceServer, config initDataNode) (func(), error
 			}
 
 			// Setup reverter
-			reverts = append(reverts, func() {
-				d.UpdateNetwork(currentNetwork.Name, currentNetwork.Writable(), "")
-			})
+			revert.Add(func() { d.UpdateNetwork(currentNetwork.Name, currentNetwork.Writable(), "") })
 
 			// Prepare the update
 			newNetwork := api.NetworkPut{}
@@ -135,7 +124,7 @@ func initDataNodeApply(d lxd.InstanceServer, config initDataNode) (func(), error
 			if !shared.StringInSlice(network.Name, networkNames) {
 				err := createNetwork(network)
 				if err != nil {
-					return revert, err
+					return err
 				}
 
 				continue
@@ -144,7 +133,7 @@ func initDataNodeApply(d lxd.InstanceServer, config initDataNode) (func(), error
 			// Existing network
 			err := updateNetwork(network)
 			if err != nil {
-				return revert, err
+				return err
 			}
 		}
 	}
@@ -154,7 +143,7 @@ func initDataNodeApply(d lxd.InstanceServer, config initDataNode) (func(), error
 		// Get the list of storagePools
 		storagePoolNames, err := d.GetStoragePoolNames()
 		if err != nil {
-			return revert, errors.Wrap(err, "Failed to retrieve list of storage pools")
+			return errors.Wrap(err, "Failed to retrieve list of storage pools")
 		}
 
 		// StoragePool creator
@@ -166,10 +155,7 @@ func initDataNodeApply(d lxd.InstanceServer, config initDataNode) (func(), error
 			}
 
 			// Setup reverter
-			reverts = append(reverts, func() {
-				d.DeleteStoragePool(storagePool.Name)
-			})
-
+			revert.Add(func() { d.DeleteStoragePool(storagePool.Name) })
 			return nil
 		}
 
@@ -187,9 +173,7 @@ func initDataNodeApply(d lxd.InstanceServer, config initDataNode) (func(), error
 			}
 
 			// Setup reverter
-			reverts = append(reverts, func() {
-				d.UpdateStoragePool(currentStoragePool.Name, currentStoragePool.Writable(), "")
-			})
+			revert.Add(func() { d.UpdateStoragePool(currentStoragePool.Name, currentStoragePool.Writable(), "") })
 
 			// Prepare the update
 			newStoragePool := api.StoragePoolPut{}
@@ -222,7 +206,7 @@ func initDataNodeApply(d lxd.InstanceServer, config initDataNode) (func(), error
 			if !shared.StringInSlice(storagePool.Name, storagePoolNames) {
 				err := createStoragePool(storagePool)
 				if err != nil {
-					return revert, err
+					return err
 				}
 
 				continue
@@ -231,7 +215,7 @@ func initDataNodeApply(d lxd.InstanceServer, config initDataNode) (func(), error
 			// Existing storagePool
 			err := updateStoragePool(storagePool)
 			if err != nil {
-				return revert, err
+				return err
 			}
 		}
 	}
@@ -241,7 +225,7 @@ func initDataNodeApply(d lxd.InstanceServer, config initDataNode) (func(), error
 		// Get the list of profiles
 		profileNames, err := d.GetProfileNames()
 		if err != nil {
-			return revert, errors.Wrap(err, "Failed to retrieve list of profiles")
+			return errors.Wrap(err, "Failed to retrieve list of profiles")
 		}
 
 		// Profile creator
@@ -253,10 +237,7 @@ func initDataNodeApply(d lxd.InstanceServer, config initDataNode) (func(), error
 			}
 
 			// Setup reverter
-			reverts = append(reverts, func() {
-				d.DeleteProfile(profile.Name)
-			})
-
+			revert.Add(func() { d.DeleteProfile(profile.Name) })
 			return nil
 		}
 
@@ -269,9 +250,7 @@ func initDataNodeApply(d lxd.InstanceServer, config initDataNode) (func(), error
 			}
 
 			// Setup reverter
-			reverts = append(reverts, func() {
-				d.UpdateProfile(currentProfile.Name, currentProfile.Writable(), "")
-			})
+			revert.Add(func() { d.UpdateProfile(currentProfile.Name, currentProfile.Writable(), "") })
 
 			// Prepare the update
 			newProfile := api.ProfilePut{}
@@ -319,7 +298,7 @@ func initDataNodeApply(d lxd.InstanceServer, config initDataNode) (func(), error
 			if !shared.StringInSlice(profile.Name, profileNames) {
 				err := createProfile(profile)
 				if err != nil {
-					return revert, err
+					return err
 				}
 
 				continue
@@ -328,12 +307,13 @@ func initDataNodeApply(d lxd.InstanceServer, config initDataNode) (func(), error
 			// Existing profile
 			err := updateProfile(profile)
 			if err != nil {
-				return revert, err
+				return err
 			}
 		}
 	}
 
-	return nil, nil
+	revert.Success()
+	return nil
 }
 
 // Helper to initialize LXD clustering.

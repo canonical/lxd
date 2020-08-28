@@ -30,11 +30,11 @@ type Network interface {
 	DHCPv6Ranges() []shared.IPRange
 
 	// Actions.
-	Create(clusterNotification bool) error
+	Create(clientType cluster.ClientType) error
 	Start() error
 	Stop() error
 	Rename(name string) error
-	Update(newNetwork api.NetworkPut, targetNode string, clusterNotification bool) error
+	Update(newNetwork api.NetworkPut, targetNode string, clientType cluster.ClientType) error
 	HandleHeartbeat(heartbeatData *cluster.APIHeartbeat) error
-	Delete(clusterNotification bool) error
+	Delete(clientType cluster.ClientType) error
 }

@@ -46,7 +46,8 @@ func Load(state *state.State, driverName string, name string, config map[string]
 	return d, nil
 }
 
-// SupportedDrivers returns a list of supported storage drivers.
+// SupportedDrivers returns a list of supported storage drivers by loading each storage driver and running its
+// compatibility inspection process. This can take a long time if a driver is not supported.
 func SupportedDrivers(s *state.State) []Info {
 	supportedDrivers := make([]Info, 0, len(drivers))
 
@@ -64,25 +65,24 @@ func SupportedDrivers(s *state.State) []Info {
 
 // AllDriverNames returns a list of all storage driver names.
 func AllDriverNames() []string {
-	supportDriverNames := make([]string, 0, len(drivers))
+	driverNames := make([]string, 0, len(drivers))
 	for driverName := range drivers {
-		supportDriverNames = append(supportDriverNames, driverName)
+		driverNames = append(driverNames, driverName)
 	}
 
-	return supportDriverNames
+	return driverNames
 }
 
 // RemoteDriverNames returns a list of remote storage driver names.
-func RemoteDriverNames(s *state.State) func() []string {
-	return func() []string {
-		var remoteDriverNames []string
-
-		for _, driver := range SupportedDrivers(s) {
-			if driver.Remote {
-				remoteDriverNames = append(remoteDriverNames, driver.Name)
-			}
+func RemoteDriverNames() []string {
+	driverNames := make([]string, 0, len(drivers))
+	for driverName, driverFunc := range drivers {
+		if !driverFunc().isRemote() {
+			continue
 		}
 
-		return remoteDriverNames
+		driverNames = append(driverNames, driverName)
 	}
+
+	return driverNames
 }

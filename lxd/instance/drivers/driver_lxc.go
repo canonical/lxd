@@ -143,22 +143,24 @@ func lxcStatusCode(state liblxc.State) api.StatusCode {
 func lxcCreate(s *state.State, args db.InstanceArgs) (instance.Instance, error) {
 	// Create the container struct
 	c := &lxc{
-		state:        s,
+		common: common{
+			dbType:       args.Type,
+			localConfig:  args.Config,
+			localDevices: args.Devices,
+			project:      args.Project,
+			state:        s,
+			profiles:     args.Profiles,
+		},
 		id:           args.ID,
-		project:      args.Project,
 		name:         args.Name,
 		node:         args.Node,
 		description:  args.Description,
 		ephemeral:    args.Ephemeral,
 		architecture: args.Architecture,
-		dbType:       args.Type,
 		snapshot:     args.Snapshot,
 		stateful:     args.Stateful,
 		creationDate: args.CreationDate,
 		lastUsedDate: args.LastUsedDate,
-		profiles:     args.Profiles,
-		localConfig:  args.Config,
-		localDevices: args.Devices,
 		expiryDate:   args.ExpiryDate,
 	}
 
@@ -399,20 +401,22 @@ func lxcUnload(c *lxc) {
 // Create a container struct without initializing it.
 func lxcInstantiate(s *state.State, args db.InstanceArgs, expandedDevices deviceConfig.Devices) instance.Instance {
 	c := &lxc{
-		state:        s,
+		common: common{
+			dbType:       args.Type,
+			localConfig:  args.Config,
+			localDevices: args.Devices,
+			project:      args.Project,
+			state:        s,
+			profiles:     args.Profiles,
+		},
 		id:           args.ID,
-		project:      args.Project,
 		name:         args.Name,
 		description:  args.Description,
 		ephemeral:    args.Ephemeral,
 		architecture: args.Architecture,
-		dbType:       args.Type,
 		snapshot:     args.Snapshot,
 		creationDate: args.CreationDate,
 		lastUsedDate: args.LastUsedDate,
-		profiles:     args.Profiles,
-		localConfig:  args.Config,
-		localDevices: args.Devices,
 		stateful:     args.Stateful,
 		node:         args.Node,
 		expiryDate:   args.ExpiryDate,
@@ -441,32 +445,26 @@ func lxcInstantiate(s *state.State, args db.InstanceArgs, expandedDevices device
 
 // The LXC container driver.
 type lxc struct {
+	common
+
 	// Properties
 	architecture int
-	dbType       instancetype.Type
 	snapshot     bool
 	creationDate time.Time
 	lastUsedDate time.Time
 	ephemeral    bool
 	id           int
-	project      string
 	name         string
 	description  string
 	stateful     bool
 
 	// Config
-	expandedConfig  map[string]string
-	expandedDevices deviceConfig.Devices
-	fromHook        bool
-	localConfig     map[string]string
-	localDevices    deviceConfig.Devices
-	profiles        []string
+	fromHook bool
 
 	// Cache
 	c       *liblxc.Container
 	cConfig bool
 
-	state    *state.State
 	idmapset *idmap.IdmapSet
 
 	// Storage
@@ -6727,11 +6725,6 @@ func (c *lxc) NextIdmap() (*idmap.IdmapSet, error) {
 // Location returns instance location.
 func (c *lxc) Location() string {
 	return c.node
-}
-
-// Project returns instance project.
-func (c *lxc) Project() string {
-	return c.project
 }
 
 // Name returns instance name.

@@ -1,13 +1,13 @@
 package apparmor
 
 import (
-	"crypto/sha256"
 	"fmt"
-	"io"
+	"os"
 	"strings"
 	"text/template"
 
 	"github.com/lxc/lxd/lxd/state"
+	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
 )
 
@@ -27,6 +27,7 @@ profile "{{ .name }}" flags=(attach_disconnected,mediate_deleted) {
   {{ .varPath }}/networks/{{ .networkName }}/forkdns.servers/servers.conf r,
 
   # Needed for lxd fork commands
+  {{ .exePath }} mr,
   @{PROC}/@{pid}/cmdline r,
   {{ .rootPath }}/{etc,lib,usr/lib}/os-release r,
 
@@ -41,7 +42,14 @@ profile "{{ .name }}" flags=(attach_disconnected,mediate_deleted) {
   /snap/lxd/*/bin/lxd                 mr,
 
   # Snap-specific libraries
-  /snap/lxd/*/lib/**.so*                  mr,
+  /snap/lxd/*/lib/**.so*              mr,
+{{- end }}
+
+{{if .libraryPath -}}
+  # Entries from LD_LIBRARY_PATH
+{{range $index, $element := .libraryPath}}
+  {{$element}}/** mr,
+{{- end }}
 {{- end }}
 }
 `))
@@ -61,6 +69,8 @@ func forkdnsProfile(state *state.State, n network) (string, error) {
 		"varPath":     shared.VarPath(""),
 		"rootPath":    rootPath,
 		"snap":        shared.InSnap(),
+		"libraryPath": strings.Split(os.Getenv("LD_LIBRARY_PATH"), ":"),
+		"exePath":     util.GetExecPath(),
 	})
 	if err != nil {
 		return "", err
@@ -73,27 +83,10 @@ func forkdnsProfile(state *state.State, n network) (string, error) {
 func ForkdnsProfileName(n network) string {
 	path := shared.VarPath("")
 	name := fmt.Sprintf("%s_<%s>", n.Name(), path)
-
-	// Max length in AppArmor is 253 chars.
-	if len(name)+12 >= 253 {
-		hash := sha256.New()
-		io.WriteString(hash, name)
-		name = fmt.Sprintf("%x", hash.Sum(nil))
-	}
-
-	return fmt.Sprintf("lxd_forkdns-%s", name)
+	return profileName("forkdns", name)
 }
 
 // forkdnsProfileFilename returns the name of the on-disk profile name.
 func forkdnsProfileFilename(n network) string {
-	name := n.Name()
-
-	// Max length in AppArmor is 253 chars.
-	if len(name)+12 >= 253 {
-		hash := sha256.New()
-		io.WriteString(hash, name)
-		name = fmt.Sprintf("%x", hash.Sum(nil))
-	}
-
-	return fmt.Sprintf("lxd_forkdns-%s", name)
+	return profileName("forkdns", n.Name())
 }

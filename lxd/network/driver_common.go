@@ -222,14 +222,14 @@ func (n *common) DHCPv6Ranges() []shared.IPRange {
 }
 
 // update the internal config variables, and if not cluster notification, notifies all nodes and updates database.
-func (n *common) update(applyNetwork api.NetworkPut, targetNode string, clusterNotification bool) error {
+func (n *common) update(applyNetwork api.NetworkPut, targetNode string, clientType cluster.ClientType) error {
 	// Update internal config before database has been updated (so that if update is a notification we apply
 	// the config being supplied and not that in the database).
 	n.init(n.state, n.id, n.name, n.netType, applyNetwork.Description, applyNetwork.Config, n.status)
 
 	// If this update isn't coming via a cluster notification itself, then notify all nodes of change and then
 	// update the database.
-	if !clusterNotification {
+	if clientType != cluster.ClientTypeNotifier {
 		if targetNode == "" {
 			// Notify all other nodes to update the network if no target specified.
 			notifier, err := cluster.NewNotifier(n.state, n.state.Endpoints.NetworkCert(), cluster.NotifyAll)
@@ -342,9 +342,9 @@ func (n *common) rename(newName string) error {
 }
 
 // delete the network from the database if clusterNotification is false.
-func (n *common) delete(clusterNotification bool) error {
+func (n *common) delete(clientType cluster.ClientType) error {
 	// Only delete database record if not cluster notification.
-	if !clusterNotification {
+	if clientType != cluster.ClientTypeNotifier {
 		// Notify all other nodes. If any node is down, an error will be returned.
 		notifier, err := cluster.NewNotifier(n.state, n.state.Endpoints.NetworkCert(), cluster.NotifyAll)
 		if err != nil {
@@ -373,7 +373,9 @@ func (n *common) delete(clusterNotification bool) error {
 }
 
 // Create is a no-op.
-func (n *common) Create(clusterNotification bool) error {
+func (n *common) Create(clientType cluster.ClientType) error {
+	n.logger.Debug("Create", log.Ctx{"clientType": clientType, "config": n.config})
+
 	return nil
 }
 

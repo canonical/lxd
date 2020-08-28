@@ -1,9 +1,7 @@
 package apparmor
 
 import (
-	"crypto/sha256"
 	"fmt"
-	"io"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -19,8 +17,6 @@ import (
 type instance interface {
 	Project() string
 	Name() string
-	IsNesting() bool
-	IsPrivileged() bool
 	ExpandedConfig() map[string]string
 }
 
@@ -28,15 +24,7 @@ type instance interface {
 func InstanceProfileName(inst instance) string {
 	path := shared.VarPath("")
 	name := fmt.Sprintf("%s_<%s>", project.Instance(inst.Project(), inst.Name()), path)
-
-	// Max length in AppArmor is 253 chars.
-	if len(name)+4 >= 253 {
-		hash := sha256.New()
-		io.WriteString(hash, name)
-		name = fmt.Sprintf("%x", hash.Sum(nil))
-	}
-
-	return fmt.Sprintf("lxd-%s", name)
+	return profileName("", name)
 }
 
 // InstanceNamespaceName returns the instance's AppArmor namespace.
@@ -44,29 +32,13 @@ func InstanceNamespaceName(inst instance) string {
 	// Unlike in profile names, / isn't an allowed character so replace with a -.
 	path := strings.Replace(strings.Trim(shared.VarPath(""), "/"), "/", "-", -1)
 	name := fmt.Sprintf("%s_<%s>", project.Instance(inst.Project(), inst.Name()), path)
-
-	// Max length in AppArmor is 253 chars.
-	if len(name)+4 >= 253 {
-		hash := sha256.New()
-		io.WriteString(hash, name)
-		name = fmt.Sprintf("%x", hash.Sum(nil))
-	}
-
-	return fmt.Sprintf("lxd-%s", name)
+	return profileName("", name)
 }
 
 // instanceProfileFilename returns the name of the on-disk profile name.
 func instanceProfileFilename(inst instance) string {
 	name := project.Instance(inst.Project(), inst.Name())
-
-	// Max length in AppArmor is 253 chars.
-	if len(name)+4 >= 253 {
-		hash := sha256.New()
-		io.WriteString(hash, name)
-		name = fmt.Sprintf("%x", hash.Sum(nil))
-	}
-
-	return fmt.Sprintf("lxd-%s", name)
+	return profileName("", name)
 }
 
 // InstanceLoad ensures that the instances's policy is loaded into the kernel so the it can boot.
@@ -164,9 +136,9 @@ func instanceProfile(state *state.State, inst instance) (string, error) {
 		"feature_cgroup2":  state.OS.CGInfo.Layout == cgroup.CgroupsUnified || state.OS.CGInfo.Layout == cgroup.CgroupsHybrid,
 		"feature_stacking": state.OS.AppArmorStacking && !state.OS.AppArmorStacked,
 		"namespace":        InstanceNamespaceName(inst),
-		"nesting":          inst.IsNesting(),
+		"nesting":          shared.IsTrue(inst.ExpandedConfig()["security.nesting"]),
 		"name":             InstanceProfileName(inst),
-		"unprivileged":     !inst.IsPrivileged() || state.OS.RunningInUserNS,
+		"unprivileged":     !shared.IsTrue(inst.ExpandedConfig()["security.privileged"]) || state.OS.RunningInUserNS,
 		"raw":              rawContent,
 	})
 	if err != nil {
