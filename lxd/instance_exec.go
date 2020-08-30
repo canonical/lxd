@@ -181,9 +181,7 @@ func (s *execWs) Do(op *operations.Operation) error {
 		s.connsLock.Unlock()
 
 		if conn == nil {
-			if s.req.Interactive {
-				close(controlExit)
-			}
+			close(controlExit)
 		} else {
 			conn.Close()
 		}
