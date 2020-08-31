@@ -573,5 +573,5 @@ CREATE TABLE storage_volumes_snapshots_config (
     UNIQUE (storage_volume_snapshot_id, key)
 );
 
-INSERT INTO schema (version, updated_at) VALUES (35, strftime("%s"))
+INSERT INTO schema (version, updated_at) VALUES (36, strftime("%s"))
 `
