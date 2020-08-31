@@ -332,8 +332,8 @@ ALTER TABLE storage_volumes_new RENAME TO storage_volumes;
 
 UPDATE storage_volumes
 SET node_id=null
-WHERE storage_volumes.node_id IN (
-  SELECT node_id FROM storage_volumes
+WHERE storage_volumes.id IN (
+  SELECT storage_volumes.id FROM storage_volumes
   JOIN storage_pools ON storage_volumes.storage_pool_id=storage_pools.id
   WHERE storage_pools.driver IN ("ceph", "cephfs")
 );
