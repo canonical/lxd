@@ -72,6 +72,34 @@ var updates = map[int]schema.Update{
 	33: updateFromV32,
 	34: updateFromV33,
 	35: updateFromV34,
+	36: updateFromV35,
+}
+
+// This fixes node IDs of storage volumes on non-remote pools which were
+// wrongly set to NULL.
+func updateFromV35(tx *sql.Tx) error {
+	stmts := `
+WITH storage_volumes_tmp (id, node_id)
+AS (
+  SELECT storage_volumes.id, storage_pools_nodes.node_id
+  FROM storage_volumes
+	JOIN storage_pools_nodes ON storage_pools_nodes.storage_pool_id=storage_volumes.storage_pool_id
+	JOIN storage_pools ON storage_pools.id=storage_volumes.storage_pool_id
+  WHERE storage_pools.driver NOT IN ("ceph", "cephfs"))
+UPDATE storage_volumes
+SET node_id=(
+  SELECT storage_volumes_tmp.node_id
+  FROM storage_volumes_tmp
+  WHERE storage_volumes.id=storage_volumes_tmp.id)
+WHERE id IN (SELECT id FROM storage_volumes_tmp) AND node_id IS NULL
+`
+
+	_, err := tx.Exec(stmts)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 // Remove multiple entries of the same volume when using remote storage.
@@ -304,8 +332,8 @@ ALTER TABLE storage_volumes_new RENAME TO storage_volumes;
 
 UPDATE storage_volumes
 SET node_id=null
-WHERE storage_volumes.node_id IN (
-  SELECT node_id FROM storage_volumes
+WHERE storage_volumes.id IN (
+  SELECT storage_volumes.id FROM storage_volumes
   JOIN storage_pools ON storage_volumes.storage_pool_id=storage_pools.id
   WHERE storage_pools.driver IN ("ceph", "cephfs")
 );
