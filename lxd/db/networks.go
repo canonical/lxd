@@ -242,13 +242,13 @@ func (c *ClusterTx) CreatePendingNetwork(node string, projectName string, name s
 		return []interface{}{&network.id, &network.state, &network.netType}
 	}
 
-	stmt, err := c.tx.Prepare("SELECT id, state, type FROM networks WHERE name=?")
+	stmt, err := c.tx.Prepare("SELECT id, state, type FROM networks WHERE project_id = (SELECT id FROM projects WHERE name = ?) AND name=?")
 	if err != nil {
 		return err
 	}
 	defer stmt.Close()
 
-	err = query.SelectObjects(stmt, dest, name)
+	err = query.SelectObjects(stmt, dest, projectName, name)
 	if err != nil {
 		return err
 	}
