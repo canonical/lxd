@@ -1565,8 +1565,7 @@ func (c *lxc) deviceStop(deviceName string, rawConfig deviceConfig.Device, stopH
 	if err != nil {
 		// If there is no device returned, then we cannot proceed, so return as error.
 		if d == nil {
-			return fmt.Errorf("Device stop validation failed for '%s': %v", deviceName, err)
-
+			return fmt.Errorf("Device stop validation failed for %q: %v", deviceName, err)
 		}
 
 		logger.Error("Device stop validation failed for", log.Ctx{"err": err})
@@ -1729,6 +1728,8 @@ func (c *lxc) deviceHandleMounts(mounts []deviceConfig.MountEntryItem) error {
 
 // deviceRemove loads a new device and calls its Remove() function.
 func (c *lxc) deviceRemove(deviceName string, rawConfig deviceConfig.Device) error {
+	logger := logging.AddContext(logger.Log, log.Ctx{"device": deviceName, "project": c.Project(), "instance": c.Name()})
+
 	d, _, err := c.deviceLoad(deviceName, rawConfig)
 
 	// If deviceLoad fails with unsupported device type then return.
@@ -1740,7 +1741,12 @@ func (c *lxc) deviceRemove(deviceName string, rawConfig deviceConfig.Device) err
 	// scenario that a new version of LXD has additional validation restrictions than older
 	// versions we still need to allow previously valid devices to be stopped.
 	if err != nil {
-		logger.Errorf("Device remove validation failed for '%s': %v", deviceName, err)
+		// If there is no device returned, then we cannot proceed, so return as error.
+		if d == nil {
+			return fmt.Errorf("Device remove validation failed for %q: %v", deviceName, err)
+		}
+
+		logger.Error("Device remove validation failed for", log.Ctx{"err": err})
 	}
 
 	return d.Remove()
