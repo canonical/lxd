@@ -3,7 +3,9 @@ package main
 import (
 	"fmt"
 	"path/filepath"
+	"strings"
 
+	"github.com/lxc/lxd/lxd/backup"
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/project"
@@ -310,4 +312,18 @@ func profilesUsingPoolVolumeGetNames(db *db.Cluster, volumeName string, volumeTy
 	}
 
 	return usedBy, nil
+}
+
+func storagePoolVolumeBackupLoadByName(s *state.State, projectName, poolName, backupName string) (*backup.VolumeBackup, error) {
+	b, err := s.Cluster.GetStoragePoolVolumeBackup(projectName, poolName, backupName)
+	if err != nil {
+		return nil, err
+	}
+
+	volumeName := strings.Split(backupName, "/")[0]
+
+	backup := backup.NewVolume(s, projectName, poolName, volumeName, b.ID, b.Name, b.CreationDate,
+		b.ExpiryDate, b.VolumeOnly, b.OptimizedStorage)
+
+	return backup, nil
 }

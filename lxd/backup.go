@@ -290,3 +290,203 @@ func pruneExpiredContainerBackups(ctx context.Context, d *Daemon) error {
 
 	return nil
 }
+
+func volumeBackupCreate(s *state.State, args db.StoragePoolVolumeBackup, projectName string, poolName string, volumeName string) error {
+	logger := logging.AddContext(logger.Log, log.Ctx{"project": projectName, "storage_volume": volumeName, "name": args.Name})
+	logger.Debug("Volume backup started")
+	defer logger.Debug("Volume backup finished")
+
+	revert := revert.New()
+	defer revert.Fail()
+
+	// Get storage pool.
+	pool, err := storagePools.GetPoolByName(s, poolName)
+	if err != nil {
+		return errors.Wrap(err, "Load storage pool")
+	}
+
+	_, vol, err := s.Cluster.GetLocalStoragePoolVolume(projectName, volumeName, db.StoragePoolVolumeTypeCustom, pool.ID())
+	if err != nil {
+		return err
+	}
+
+	// Ignore requests for optimized backups when pool driver doesn't support it.
+	if args.OptimizedStorage && !pool.Driver().Info().OptimizedBackups {
+		args.OptimizedStorage = false
+	}
+
+	// Create the database entry.
+	err = s.Cluster.CreateStoragePoolVolumeBackup(args)
+	if err != nil {
+		if err == db.ErrAlreadyDefined {
+			return fmt.Errorf("Backup %q already exists", args.Name)
+		}
+
+		return errors.Wrap(err, "Insert backup info into database")
+	}
+
+	revert.Add(func() { s.Cluster.DeleteStoragePoolVolumeBackup(args.Name) })
+
+	backup, err := s.Cluster.GetStoragePoolVolumeBackup(projectName, poolName, args.Name)
+	if err != nil {
+		return errors.Wrap(err, "Failed to get backup from database")
+	}
+
+	// Detect compression method.
+	var compress string
+
+	backup.CompressionAlgorithm = args.CompressionAlgorithm
+
+	if backup.CompressionAlgorithm != "" {
+		compress = backup.CompressionAlgorithm
+	} else {
+		compress, err = cluster.ConfigGetString(s.Cluster, "backups.compression_algorithm")
+		if err != nil {
+			return err
+		}
+	}
+
+	// Create the target path if needed.
+	backupsPath := storagePools.GetStoragePoolVolumeBackupMountPoint(poolName, project.StorageVolume(projectName, volumeName))
+
+	if !shared.PathExists(backupsPath) {
+		err := os.MkdirAll(backupsPath, 0700)
+		if err != nil {
+			return err
+		}
+
+		revert.Add(func() { os.Remove(backupsPath) })
+	}
+
+	target := storagePools.GetStoragePoolVolumeBackupMountPoint(poolName, project.StorageVolume(projectName, backup.Name))
+
+	// Setup the tarball writer.
+	logger.Debug("Opening backup tarball for writing", log.Ctx{"path": target})
+	tarFileWriter, err := os.OpenFile(target, os.O_CREATE|os.O_WRONLY, 0600)
+	if err != nil {
+		return errors.Wrapf(err, "Error opening backup tarball for writing %q", target)
+	}
+	defer tarFileWriter.Close()
+	revert.Add(func() { os.Remove(target) })
+
+	// Create the tarball.
+	tarPipeReader, tarPipeWriter := io.Pipe()
+	defer tarPipeWriter.Close() // Ensure that go routine below always ends.
+	tarWriter := instancewriter.NewInstanceTarWriter(tarPipeWriter, nil)
+
+	// Setup tar writer go routine, with optional compression.
+	tarWriterRes := make(chan error, 0)
+	var compressErr error
+
+	go func(resCh chan<- error) {
+		logger.Debug("Started backup tarball writer")
+		defer logger.Debug("Finished backup tarball writer")
+		if compress != "none" {
+			compressErr = compressFile(compress, tarPipeReader, tarFileWriter)
+
+			// If a compression error occurred, close the tarPipeWriter to end the export.
+			if compressErr != nil {
+				tarPipeWriter.Close()
+			}
+		} else {
+			_, err = io.Copy(tarFileWriter, tarPipeReader)
+		}
+		resCh <- err
+	}(tarWriterRes)
+
+	// Write index file.
+	logger.Debug("Adding backup index file")
+	err = volumeBackupWriteIndex(s, projectName, volumeName, pool, backup.OptimizedStorage, !backup.VolumeOnly, vol.ContentType, tarWriter)
+
+	// Check compression errors.
+	if compressErr != nil {
+		return compressErr
+	}
+
+	// Check backupWriteIndex for errors.
+	if err != nil {
+		return errors.Wrapf(err, "Error writing backup index file")
+	}
+
+	err = pool.BackupCustomVolume(projectName, volumeName, tarWriter, backup.OptimizedStorage, !backup.VolumeOnly, nil)
+	if err != nil {
+		return errors.Wrap(err, "Backup create")
+	}
+
+	// Close off the tarball file.
+	err = tarWriter.Close()
+	if err != nil {
+		return errors.Wrap(err, "Error closing tarball writer")
+	}
+
+	// Close off the tarball pipe writer (this will end the go routine above).
+	err = tarPipeWriter.Close()
+	if err != nil {
+		return errors.Wrap(err, "Error closing tarball pipe writer")
+	}
+
+	err = <-tarWriterRes
+	if err != nil {
+		return errors.Wrap(err, "Error writing tarball")
+	}
+
+	revert.Success()
+	return nil
+}
+
+// volumeBackupWriteIndex generates an index.yaml file and then writes it to the root of the backup tarball.
+func volumeBackupWriteIndex(s *state.State, projectName string, volumeName string, pool storagePools.Pool, optimized bool, snapshots bool, contentType string, tarWriter *instancewriter.InstanceTarWriter) error {
+	// Indicate whether the driver will include a driver-specific optimized header.
+	poolDriverOptimizedHeader := false
+	if optimized {
+		poolDriverOptimizedHeader = pool.Driver().Info().OptimizedBackupHeader
+	}
+
+	indexInfo := backup.Info{
+		Name:             volumeName,
+		Pool:             pool.Name(),
+		Snapshots:        []string{},
+		Backend:          pool.Driver().Info().Name,
+		OptimizedStorage: &optimized,
+		OptimizedHeader:  &poolDriverOptimizedHeader,
+		ContentType:      contentType,
+	}
+
+	volID, err := s.Cluster.GetStoragePoolNodeVolumeID(projectName, volumeName, db.StoragePoolVolumeTypeCustom, pool.ID())
+	if err != nil {
+		return err
+	}
+
+	if snapshots {
+		snaps, err := s.Cluster.GetStorageVolumeSnapshotsNames(volID)
+		if err != nil {
+			return err
+		}
+
+		for _, snap := range snaps {
+			indexInfo.Snapshots = append(indexInfo.Snapshots, snap)
+		}
+	}
+
+	// Convert to YAML.
+	indexData, err := yaml.Marshal(&indexInfo)
+	if err != nil {
+		return err
+	}
+	r := bytes.NewReader(indexData)
+
+	indexFileInfo := instancewriter.FileInfo{
+		FileName:    "backup/index.yaml",
+		FileSize:    int64(len(indexData)),
+		FileMode:    0644,
+		FileModTime: time.Now(),
+	}
+
+	// Write to tarball.
+	err = tarWriter.WriteFileFromReader(r, &indexFileInfo)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
