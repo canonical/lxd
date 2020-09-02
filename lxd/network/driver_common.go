@@ -20,6 +20,11 @@ import (
 	"github.com/lxc/lxd/shared/validate"
 )
 
+// Info represents information about a network driver.
+type Info struct {
+	Projects bool // Indicates if driver can be used in network enabled projects.
+}
+
 // common represents a generic LXD network.
 type common struct {
 	logger      logger.Logger
@@ -128,6 +133,13 @@ func (n *common) Type() string {
 // Config returns the network config.
 func (n *common) Config() map[string]string {
 	return n.config
+}
+
+// Config returns the common network driver info.
+func (n *common) Info() Info {
+	return Info{
+		Projects: false,
+	}
 }
 
 // IsUsed returns whether the network is used by any instances or profiles.
