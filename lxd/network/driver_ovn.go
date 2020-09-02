@@ -17,7 +17,6 @@ import (
 
 	"github.com/lxc/lxd/lxd/cluster"
 	"github.com/lxc/lxd/lxd/db"
-	"github.com/lxc/lxd/lxd/dnsmasq"
 	"github.com/lxc/lxd/lxd/locking"
 	"github.com/lxc/lxd/lxd/network/openvswitch"
 	"github.com/lxc/lxd/lxd/project"
@@ -506,6 +505,7 @@ func (n *ovn) parentOperationLockName(parentNet Network) string {
 
 // parentPortBridgeVars returns the parent port bridge variables needed for port start/stop.
 func (n *ovn) parentPortBridgeVars(parentNet Network) *ovnParentPortBridgeVars {
+
 	ovsBridge := fmt.Sprintf("lxdovn%d", parentNet.ID())
 
 	return &ovnParentPortBridgeVars{
@@ -629,18 +629,7 @@ func (n *ovn) deleteParentPort() error {
 
 // deleteParentPortBridge deletes the dnsmasq static lease and removes parent uplink OVS bridge if not in use.
 func (n *ovn) deleteParentPortBridge(parentNet Network) error {
-	err := dnsmasq.RemoveStaticEntry(parentNet.Name(), project.Default, n.getNetworkPrefix())
-	if err != nil {
-		return err
-	}
-
-	// Reload dnsmasq.
-	err = dnsmasq.Kill(parentNet.Name(), true)
-	if err != nil {
-		return err
-	}
-
-	// Lock parent network so we don;t race each other networks using the OVS uplink bridge.
+	// Lock parent network so we don't race each other networks using the OVS uplink bridge.
 	unlock := locking.Lock(n.parentOperationLockName(parentNet))
 	defer unlock()
 
