@@ -459,7 +459,12 @@ func genericVFSBackupVolume(d Driver, vol Volume, tarWriter *instancewriter.Inst
 			if v.IsVMBlock() {
 				blockPath, err := d.GetVolumeDiskPath(v)
 				if err != nil {
-					return errors.Wrapf(err, "Error getting VM block volume disk path")
+					errMsg := "Error getting VM block volume disk path"
+					if vol.volType == VolumeTypeCustom {
+						errMsg = "Error getting custom block volume disk path"
+					}
+
+					return errors.Wrapf(err, errMsg)
 				}
 
 				var blockDiskSize int64
@@ -477,7 +482,12 @@ func genericVFSBackupVolume(d Driver, vol Volume, tarWriter *instancewriter.Inst
 					exclude = append(exclude, blockPath)
 				}
 
-				d.Logger().Debug("Copying virtual machine config volume", log.Ctx{"sourcePath": mountPath, "prefix": prefix})
+				logMsg := "Copying virtual machine config volume"
+				if vol.volType == VolumeTypeCustom {
+					logMsg = "Copying custom config volume"
+				}
+
+				d.Logger().Debug(logMsg, log.Ctx{"sourcePath": mountPath, "prefix": prefix})
 				err = filepath.Walk(mountPath, func(srcPath string, fi os.FileInfo, err error) error {
 					if err != nil {
 						return err
@@ -501,7 +511,13 @@ func genericVFSBackupVolume(d Driver, vol Volume, tarWriter *instancewriter.Inst
 				}
 
 				name := fmt.Sprintf("%s.img", prefix)
-				d.Logger().Debug("Copying virtual machine block volume", log.Ctx{"sourcePath": blockPath, "file": name, "size": blockDiskSize})
+
+				logMsg = "Copying virtual machine block volume"
+				if vol.volType == VolumeTypeCustom {
+					logMsg = "Copying custom block volume"
+				}
+
+				d.Logger().Debug(logMsg, log.Ctx{"sourcePath": blockPath, "file": name, "size": blockDiskSize})
 				from, err := os.Open(blockPath)
 				if err != nil {
 					return errors.Wrapf(err, "Error opening file for reading %q", blockPath)
@@ -520,7 +536,12 @@ func genericVFSBackupVolume(d Driver, vol Volume, tarWriter *instancewriter.Inst
 					return errors.Wrapf(err, "Error copying %q as %q to tarball", blockPath, name)
 				}
 			} else {
-				d.Logger().Debug("Copying container filesystem volume", log.Ctx{"sourcePath": mountPath, "prefix": prefix})
+				logMsg := "Copying container filesystem volume"
+				if vol.volType == VolumeTypeCustom {
+					logMsg = "Copying custom filesystem volume"
+				}
+
+				d.Logger().Debug(logMsg, log.Ctx{"sourcePath": mountPath, "prefix": prefix})
 				return filepath.Walk(mountPath, func(srcPath string, fi os.FileInfo, err error) error {
 					if err != nil {
 						if os.IsNotExist(err) {
@@ -576,6 +597,8 @@ func genericVFSBackupVolume(d Driver, vol Volume, tarWriter *instancewriter.Inst
 	prefix := "backup/container"
 	if vol.IsVMBlock() {
 		prefix = "backup/virtual-machine"
+	} else if vol.volType == VolumeTypeCustom {
+		prefix = "backup/volume"
 	}
 
 	err := backupVolume(vol, prefix)

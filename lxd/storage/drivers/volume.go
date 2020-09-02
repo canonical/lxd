@@ -59,7 +59,7 @@ const ContentTypeBlock = ContentType("block")
 // BaseDirectories maps volume types to the expected directories.
 var BaseDirectories = map[VolumeType][]string{
 	VolumeTypeContainer: {"containers", "containers-snapshots"},
-	VolumeTypeCustom:    {"custom", "custom-snapshots"},
+	VolumeTypeCustom:    {"custom", "custom-snapshots", "custom-backups"},
 	VolumeTypeImage:     {"images"},
 	VolumeTypeVM:        {"virtual-machines", "virtual-machines-snapshots"},
 }

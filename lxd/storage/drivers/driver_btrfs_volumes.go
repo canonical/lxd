@@ -291,6 +291,8 @@ func (d *btrfs) CreateVolumeFromBackup(vol Volume, srcBackup backup.Info, srcDat
 		} else {
 			srcFilePrefix = "virtual-machine"
 		}
+	} else if vol.volType == VolumeTypeCustom {
+		srcFilePrefix = "volume"
 	}
 
 	err = unpackVolume(vol, srcFilePrefix)
@@ -1029,6 +1031,10 @@ func (d *btrfs) BackupVolume(vol Volume, tarWriter *instancewriter.InstanceTarWr
 
 		// Create temporary file to store output of btrfs send.
 		backupsPath := shared.VarPath("backups")
+
+		if vol.volType == VolumeTypeCustom {
+			backupsPath = shared.VarPath("storage-pools", d.name, "custom-backups")
+		}
 		tmpFile, err := ioutil.TempFile(backupsPath, "lxd_backup_btrfs")
 		if err != nil {
 			return errors.Wrapf(err, "Failed to open temporary file for BTRFS backup")
@@ -1187,6 +1193,8 @@ func (d *btrfs) BackupVolume(vol Volume, tarWriter *instancewriter.InstanceTarWr
 		} else {
 			fileNamePrefix = "virtual-machine"
 		}
+	} else if vol.volType == VolumeTypeCustom {
+		fileNamePrefix = "volume"
 	}
 
 	err = addVolume(vol, targetVolume, lastVolPath, fileNamePrefix)

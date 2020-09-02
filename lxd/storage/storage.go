@@ -72,6 +72,12 @@ func GetStoragePoolVolumeSnapshotMountPoint(poolName string, snapshotName string
 	return shared.VarPath("storage-pools", poolName, "custom-snapshots", snapshotName)
 }
 
+// GetStoragePoolVolumeBackupMountPoint returns the mountpoint of the given pool volume backup.
+// ${LXD_DIR}/storage-pools/<pool>/custom-backups/<custom volume name>/<snapshot name>
+func GetStoragePoolVolumeBackupMountPoint(poolName string, backupName string) string {
+	return shared.VarPath("storage-pools", poolName, "custom-backups", backupName)
+}
+
 // CreateContainerMountpoint creates the provided container mountpoint and symlink.
 func CreateContainerMountpoint(mountPoint string, mountPointSymlink string, privileged bool) error {
 	mntPointSymlinkExist := shared.PathExists(mountPointSymlink)

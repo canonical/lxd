@@ -367,6 +367,8 @@ func (d *zfs) CreateVolumeFromBackup(vol Volume, srcBackup backup.Info, srcData 
 		} else {
 			fileName = "virtual-machine.bin"
 		}
+	} else if vol.volType == VolumeTypeCustom {
+		fileName = "volume.bin"
 	}
 
 	err = unpackVolume(srcData, unpacker, fmt.Sprintf("backup/%s", fileName), d.dataset(vol, false))
@@ -1390,6 +1392,10 @@ func (d *zfs) BackupVolume(vol Volume, tarWriter *instancewriter.InstanceTarWrit
 
 		// Create temporary file to store output of ZFS send.
 		backupsPath := shared.VarPath("backups")
+
+		if vol.volType == VolumeTypeCustom {
+			backupsPath = shared.VarPath("storage-pools", d.name, "custom-backups")
+		}
 		tmpFile, err := ioutil.TempFile(backupsPath, "lxd_backup_zfs")
 		if err != nil {
 			return errors.Wrapf(err, "Failed to open temporary file for ZFS backup")
@@ -1475,6 +1481,8 @@ func (d *zfs) BackupVolume(vol Volume, tarWriter *instancewriter.InstanceTarWrit
 		} else {
 			fileName = "virtual-machine.bin"
 		}
+	} else if vol.volType == VolumeTypeCustom {
+		fileName = "volume.bin"
 	}
 
 	err = sendToFile(srcSnapshot, finalParent, fmt.Sprintf("backup/%s", fileName))

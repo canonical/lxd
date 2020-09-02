@@ -2620,6 +2620,25 @@ func (b *lxdBackend) RenameCustomVolume(projectName string, volName string, newV
 		})
 	}
 
+	// Rename each backup to have the new parent volume prefix.
+	backups, err := b.state.Cluster.GetStoragePoolVolumeBackups(projectName, volName, b.ID())
+	if err != nil {
+		return err
+	}
+
+	for _, backup := range backups {
+		_, snapName, _ := shared.InstanceGetParentAndSnapshotName(backup.Name)
+		newVolBackupName := drivers.GetSnapshotVolumeName(newVolName, snapName)
+		err = b.state.Cluster.RenameVolumeBackup(backup.Name, newVolBackupName)
+		if err != nil {
+			return err
+		}
+
+		revert.Add(func() {
+			b.state.Cluster.RenameVolumeBackup(newVolBackupName, backup.Name)
+		})
+	}
+
 	err = b.state.Cluster.RenameStoragePoolVolume(projectName, volName, newVolName, db.StoragePoolVolumeTypeCustom, b.ID())
 	if err != nil {
 		return err
@@ -3396,4 +3415,69 @@ func (b *lxdBackend) CheckInstanceBackupFileSnapshots(backupConf *backup.Instanc
 	}
 
 	return existingSnapshots, nil
+}
+
+func (b *lxdBackend) BackupCustomVolume(projectName string, volName string, tarWriter *instancewriter.InstanceTarWriter, optimized bool, snapshots bool, op *operations.Operation) error {
+	logger := logging.AddContext(b.logger, log.Ctx{"project": projectName, "volume": volName, "optimized": optimized, "snapshots": snapshots})
+	logger.Debug("BackupCustomVolume started")
+	defer logger.Debug("BackupCustomVolume finished")
+
+	// Get the volume name on storage.
+	volStorageName := project.StorageVolume(projectName, volName)
+
+	_, volume, err := b.state.Cluster.GetLocalStoragePoolVolume(projectName, volName, db.StoragePoolVolumeTypeCustom, b.id)
+	if err != nil {
+		return err
+	}
+
+	vol := b.newVolume(drivers.VolumeTypeCustom, drivers.ContentType(volume.ContentType), volStorageName, volume.Config)
+
+	err = b.driver.BackupVolume(vol, tarWriter, optimized, snapshots, op)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (b *lxdBackend) CreateCustomVolumeFromBackup(srcBackup backup.Info, srcData io.ReadSeeker, op *operations.Operation) error {
+	logger := logging.AddContext(b.logger, log.Ctx{"project": srcBackup.Project, "volume": srcBackup.Name, "snapshots": srcBackup.Snapshots, "optimizedStorage": *srcBackup.OptimizedStorage})
+	logger.Debug("CreateCustomVolumeFromBackup started")
+	defer logger.Debug("CreateCustomVolumeFromBackup finished")
+
+	// Get the volume name on storage.
+	volStorageName := project.Instance(srcBackup.Project, srcBackup.Name)
+
+	// We don't know the volume's config yet as tarball hasn't been unpacked.
+	// We will apply the config as part of the post hook function returned if driver needs to.
+	vol := b.newVolume(drivers.VolumeTypeCustom, drivers.ContentType(srcBackup.ContentType), volStorageName, nil)
+
+	revert := revert.New()
+	defer revert.Fail()
+
+	// Unpack the backup into the new storage volume(s).
+	volPostHook, revertHook, err := b.driver.CreateVolumeFromBackup(vol, srcBackup, srcData, op)
+	if err != nil {
+		return err
+	}
+
+	if revertHook != nil {
+		revert.Add(revertHook)
+	}
+
+	logger.Debug("CreateCustomVolumeFromBackup post hook started")
+	defer logger.Debug("CreateCustomVolumeFromBackup post hook finished")
+
+	// If the driver returned a post hook, run it now.
+	if volPostHook != nil {
+		vol := b.newVolume(drivers.VolumeTypeCustom, drivers.ContentType(srcBackup.ContentType), volStorageName, nil)
+
+		err = volPostHook(vol)
+		if err != nil {
+			return err
+		}
+	}
+
+	revert.Success()
+	return nil
 }
