@@ -68,6 +68,21 @@ func networkValidPort(value string) error {
 	return nil
 }
 
+// RandomDevName returns a random device name with prefix.
+// If the random string combined with the prefix exceeds 13 characters then empty string is returned.
+// This is to ensure we support buggy dhclient applications: https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=858580
+func RandomDevName(prefix string) string {
+	// Return a new random veth device name.
+	randBytes := make([]byte, 4)
+	rand.Read(randBytes)
+	iface := prefix + hex.EncodeToString(randBytes)
+	if len(iface) > 13 {
+		return ""
+	}
+
+	return iface
+}
+
 // IsInUseByInstance indicates if network is referenced by an instance's NIC devices.
 // Checks if the device's parent or network properties match the network name.
 func IsInUseByInstance(s *state.State, c instance.Instance, networkName string) (bool, error) {
