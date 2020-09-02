@@ -188,7 +188,7 @@ func (d *nicRouted) Start() (*deviceConfig.RunConfig, error) {
 
 	hostName := d.config["host_name"]
 	if hostName == "" {
-		hostName = networkRandomDevName("veth")
+		hostName = network.RandomDevName("veth")
 	}
 	saveData["host_name"] = hostName
 

@@ -212,7 +212,7 @@ func networkRestorePhysicalNic(hostName string, volatile map[string]string) erro
 // is supplied in config, then the MTU of the new peer interface will inherit the parent MTU.
 // Accepts the name of the host side interface as a parameter and returns the peer interface name.
 func networkCreateVethPair(hostName string, m deviceConfig.Device) (string, error) {
-	peerName := networkRandomDevName("veth")
+	peerName := network.RandomDevName("veth")
 
 	_, err := shared.RunCommand("ip", "link", "add", "dev", hostName, "type", "veth", "peer", "name", peerName)
 	if err != nil {
