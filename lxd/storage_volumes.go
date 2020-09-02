@@ -968,9 +968,13 @@ func storagePoolVolumeTypePut(d *Daemon, r *http.Request, volumeTypeName string)
 		}
 
 		// Handle custom volume update requests.
-		err = pool.UpdateCustomVolume(projectName, vol.Name, req.Description, req.Config, nil)
-		if err != nil {
-			return response.SmartError(err)
+		// Only apply changes during a snapshot restore if a non-nil config is supplied to avoid clearing
+		// the volume's config if only restoring snapshot.
+		if req.Config != nil || req.Restore == "" {
+			err = pool.UpdateCustomVolume(projectName, vol.Name, req.Description, req.Config, nil)
+			if err != nil {
+				return response.SmartError(err)
+			}
 		}
 	} else if volumeType == db.StoragePoolVolumeTypeContainer || volumeType == db.StoragePoolVolumeTypeVM {
 		inst, err := instance.LoadByProjectAndName(d.State(), projectName, vol.Name)
