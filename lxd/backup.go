@@ -282,7 +282,7 @@ func pruneExpiredContainerBackups(ctx context.Context, d *Daemon) error {
 			return errors.Wrapf(err, "Error deleting instance backup %s", b.Name)
 		}
 
-		err = backup.DoBackupDelete(d.State(), inst.Project(), b.Name, inst.Name())
+		err = backup.DoInstanceBackupDelete(d.State(), inst.Project(), b.Name, inst.Name())
 		if err != nil {
 			return errors.Wrapf(err, "Error deleting instance backup %s", b.Name)
 		}

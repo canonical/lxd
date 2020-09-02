@@ -598,7 +598,7 @@ func createFromBackup(d *Daemon, project string, data io.Reader, pool string) re
 	// Parse the backup information.
 	backupFile.Seek(0, 0)
 	logger.Debug("Reading backup file info")
-	bInfo, err := backup.GetInfo(backupFile)
+	bInfo, err := backup.GetInfo(backupFile, true)
 	if err != nil {
 		return response.BadRequest(err)
 	}

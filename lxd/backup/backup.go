@@ -33,11 +33,12 @@ type Info struct {
 	Snapshots        []string         `json:"snapshots,omitempty" yaml:"snapshots,omitempty"`
 	OptimizedStorage *bool            `json:"optimized,omitempty" yaml:"optimized,omitempty"`               // Optional field to handle older optimized backups that don't have this field.
 	OptimizedHeader  *bool            `json:"optimized_header,omitempty" yaml:"optimized_header,omitempty"` // Optional field to handle older optimized backups that don't have this field.
-	Type             api.InstanceType `json:"type" yaml:"type"`
+	Type             api.InstanceType `json:"type,omitempty" yaml:"type,omitempty"`                         // Type is only set for instance backups.
+	ContentType      string           `json:"content_Type,omitempty" yaml:"content_type,omitempty"`         // ContentType is only set for custom volumes as there is no other way of knowing what kind it is.
 }
 
 // GetInfo extracts backup information from a given ReadSeeker.
-func GetInfo(r io.ReadSeeker) (*Info, error) {
+func GetInfo(r io.ReadSeeker, isInstance bool) (*Info, error) {
 	result := Info{}
 	hasIndexFile := false
 
@@ -80,8 +81,12 @@ func GetInfo(r io.ReadSeeker) (*Info, error) {
 			hasIndexFile = true
 
 			// Default to container if index doesn't specify instance type.
-			if result.Type == api.InstanceTypeAny {
-				result.Type = api.InstanceTypeContainer
+			if isInstance {
+				if result.Type == api.InstanceTypeAny {
+					result.Type = api.InstanceTypeContainer
+				}
+			} else {
+				result.Type = ""
 			}
 
 			// Default to no optimized header if not specified.
@@ -102,7 +107,7 @@ func GetInfo(r io.ReadSeeker) (*Info, error) {
 		}
 
 		// If the tarball contains a binary dump of the container, then this is an optimized backup.
-		if hdr.Name == "backup/container.bin" {
+		if hdr.Name == "backup/container.bin" || hdr.Name == "backup/volume.bin" {
 			optimizedStorageTrue := true
 			result.OptimizedStorage = &optimizedStorageTrue
 
@@ -132,6 +137,23 @@ type InstanceBackup struct {
 	creationDate         time.Time
 	expiryDate           time.Time
 	instanceOnly         bool
+	optimizedStorage     bool
+	compressionAlgorithm string
+}
+
+// VolumeBackup represents an instance backup
+type VolumeBackup struct {
+	state       *state.State
+	projectName string
+	poolName    string
+	volumeName  string
+
+	// Properties
+	id                   int
+	name                 string
+	creationDate         time.Time
+	expiryDate           time.Time
+	volumeOnly           bool
 	optimizedStorage     bool
 	compressionAlgorithm string
 }
@@ -216,7 +238,7 @@ func (b *InstanceBackup) Rename(newName string) error {
 
 // Delete removes an instance backup
 func (b *InstanceBackup) Delete() error {
-	return DoBackupDelete(b.state, b.instance.Project(), b.name, b.instance.Name())
+	return DoInstanceBackupDelete(b.state, b.instance.Project(), b.name, b.instance.Name())
 }
 
 // Render returns an InstanceBackup struct of the backup.
@@ -231,8 +253,104 @@ func (b *InstanceBackup) Render() *api.InstanceBackup {
 	}
 }
 
-// DoBackupDelete deletes a backup.
-func DoBackupDelete(s *state.State, projectName, backupName, containerName string) error {
+// NewVolume instantiates a new Backup struct.
+func NewVolume(state *state.State, projectName, poolName, volumeName string, ID int, name string, creationDate, expiryDate time.Time, volumeOnly, optimizedStorage bool) *VolumeBackup {
+	return &VolumeBackup{
+		state:            state,
+		projectName:      projectName,
+		poolName:         poolName,
+		volumeName:       volumeName,
+		id:               ID,
+		name:             name,
+		creationDate:     creationDate,
+		expiryDate:       expiryDate,
+		volumeOnly:       volumeOnly,
+		optimizedStorage: optimizedStorage,
+	}
+}
+
+// CompressionAlgorithm returns the compression used for the tarball.
+func (b *VolumeBackup) CompressionAlgorithm() string {
+	return b.compressionAlgorithm
+}
+
+// SetCompressionAlgorithm sets the tarball compression.
+func (b *VolumeBackup) SetCompressionAlgorithm(compression string) {
+	b.compressionAlgorithm = compression
+}
+
+// VolumeOnly returns whether only the volume itself is to be backed up.
+func (b *VolumeBackup) VolumeOnly() bool {
+	return b.volumeOnly
+}
+
+// Name returns the name of the backup.
+func (b *VolumeBackup) Name() string {
+	return b.name
+}
+
+// OptimizedStorage returns whether the backup is to be performed using
+// optimization supported by the storage driver.
+func (b *VolumeBackup) OptimizedStorage() bool {
+	return b.optimizedStorage
+}
+
+// Rename renames a container backup
+func (b *VolumeBackup) Rename(newName string) error {
+	oldBackupPath := shared.VarPath("storage-pools", b.poolName, "custom-backups", project.StorageVolume(b.projectName, b.name))
+	newBackupPath := shared.VarPath("storage-pools", b.poolName, "custom-backups", project.StorageVolume(b.projectName, newName))
+
+	// Create the new backup path
+	backupsPath := shared.VarPath("storage-pools", b.poolName, "custom-backups", project.StorageVolume(b.projectName, b.volumeName))
+	if !shared.PathExists(backupsPath) {
+		err := os.MkdirAll(backupsPath, 0700)
+		if err != nil {
+			return err
+		}
+	}
+
+	// Rename the backup directory
+	err := os.Rename(oldBackupPath, newBackupPath)
+	if err != nil {
+		return err
+	}
+
+	// Check if we can remove the container directory
+	empty, _ := shared.PathIsEmpty(backupsPath)
+	if empty {
+		err := os.Remove(backupsPath)
+		if err != nil {
+			return err
+		}
+	}
+
+	// Rename the database record
+	err = b.state.Cluster.RenameVolumeBackup(b.name, newName)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// Delete removes a volume backup
+func (b *VolumeBackup) Delete() error {
+	return DoVolumeBackupDelete(b.state, b.projectName, b.poolName, b.name, b.volumeName)
+}
+
+// Render returns a VolumeBackup struct of the backup.
+func (b *VolumeBackup) Render() *api.StoragePoolVolumeBackup {
+	return &api.StoragePoolVolumeBackup{
+		Name:             strings.SplitN(b.name, "/", 2)[1],
+		CreatedAt:        b.creationDate,
+		ExpiresAt:        b.expiryDate,
+		VolumeOnly:       b.volumeOnly,
+		OptimizedStorage: b.optimizedStorage,
+	}
+}
+
+// DoInstanceBackupDelete deletes a backup.
+func DoInstanceBackupDelete(s *state.State, projectName, backupName, containerName string) error {
 	backupPath := shared.VarPath("backups", project.Instance(projectName, backupName))
 
 	// Delete the on-disk data
@@ -255,6 +373,36 @@ func DoBackupDelete(s *state.State, projectName, backupName, containerName strin
 
 	// Remove the database record
 	err := s.Cluster.DeleteInstanceBackup(backupName)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// DoVolumeBackupDelete deletes a volume backup.
+func DoVolumeBackupDelete(s *state.State, projectName, poolName, backupName, volumeName string) error {
+	backupPath := shared.VarPath("storage-pools", poolName, "custom-backups", project.StorageVolume(projectName, backupName))
+	// Delete the on-disk data
+	if shared.PathExists(backupPath) {
+		err := os.RemoveAll(backupPath)
+		if err != nil {
+			return err
+		}
+	}
+
+	// Check if we can remove the container directory
+	backupsPath := shared.VarPath("storage-pools", poolName, "custom-backups", project.StorageVolume(projectName, volumeName))
+	empty, _ := shared.PathIsEmpty(backupsPath)
+	if empty {
+		err := os.Remove(backupsPath)
+		if err != nil {
+			return err
+		}
+	}
+
+	// Remove the database record
+	err := s.Cluster.DeleteStoragePoolVolumeBackup(backupName)
 	if err != nil {
 		return err
 	}
