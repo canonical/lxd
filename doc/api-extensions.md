@@ -1151,3 +1151,10 @@ Also introduces two new global config keys that apply to all `ovn` networks and 
 
  - network.ovn.integration\_bridge - the OVS integration bridge to use.
  - network.ovn.northbound\_connection - the OVN northbound database connection string.
+
+## network\_bridge\_ovn\_bridge
+Adds the `ovn.ovs_bridge` setting to `bridge` networks to allow the `ovn` networks that use it as their parent
+`network` to access the name of the OVS bridge (and prefix for the related veth pair interfaces).
+
+If missing, the first `ovn` network to specify a `bridge` network as its parent `network` will cause the
+setting to be populated with a random interface name prefixed with "ovn".
