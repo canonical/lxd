@@ -63,6 +63,13 @@ type ovn struct {
 	common
 }
 
+// Config returns the network driver info.
+func (n *ovn) Info() Info {
+	return Info{
+		Projects: true,
+	}
+}
+
 // Validate network config.
 func (n *ovn) Validate(config map[string]string) error {
 	rules := map[string]func(value string) error{
