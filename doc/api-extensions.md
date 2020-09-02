@@ -577,7 +577,7 @@ This introduces the new candid.api.url config option and removes
 core.macaroon.endpoint.
 
 ## backup\_compression
-This introduces a new backups.compression\_algorithm config key which
+This introduces a new `backups.compression_algorithm` config key which
 allows configuration of backup compression.
 
 ## candid\_config
@@ -680,9 +680,9 @@ option `snapshots.expiry` takes an expression in the form of `1M 2H 3d 4w 5m
 parts have to be used.
 
 Snapshots which are then created will be given an expiry date based on the
-expression. This expiry date, defined by `expires\_at`, can be manually edited
+expression. This expiry date, defined by `expires_at`, can be manually edited
 using the API or `lxc config edit`. Snapshots with a valid expiry date will be
-removed when the task in run. Expiry can be disabled by setting `expires\_at` to
+removed when the task in run. Expiry can be disabled by setting `expires_at` to
 an empty string or `0001-01-01T00:00:00Z` (zero time). This is the default if
 `snapshots.expiry` is not set.
 
@@ -717,7 +717,7 @@ used to track the current mapping for the container.
 
 This effectively gives us:
 
- - `volatile.last\_state.idmap` => On-disk idmap
+ - `volatile.last_state.idmap` => On-disk idmap
  - `volatile.idmap.current` => Current kernel map
  - `volatile.idmap.next` => Next on-disk idmap
 
@@ -760,7 +760,7 @@ by a container that a registered syscall has been performed. LXD can then
 decide to trigger various actions.
 
 ## lxc\_features
-This introduces the `lxc\_features` section output from the `lxc info` command
+This introduces the `lxc_features` section output from the `lxc info` command
 via the `GET /1.0/` route. It outputs the result of checks for key features being present in the
 underlying LXC library.
 
@@ -768,7 +768,7 @@ underlying LXC library.
 This introduces the `ipvlan` "nic" device type.
 
 ## network\_vlan\_sriov
-This introduces VLAN (`vlan`) and MAC filtering (`security.mac\_filtering`) support for SR-IOV devices.
+This introduces VLAN (`vlan`) and MAC filtering (`security.mac_filtering`) support for SR-IOV devices.
 
 ## storage\_cephfs
 Add support for CEPHFS as a storage pool driver. This can only be used
@@ -776,7 +776,7 @@ for custom volumes, images and containers should be on CEPH (RBD)
 instead.
 
 ## container\_nic\_ipfilter
-This introduces container IP filtering (`security.ipv4\_filtering` and `security.ipv6\_filtering`) support for `bridged` nic devices.
+This introduces container IP filtering (`security.ipv4_filtering` and `security.ipv6_filtering`) support for `bridged` nic devices.
 
 ## resources\_v2
 Rework the resources API at /1.0/resources, especially:
@@ -822,8 +822,8 @@ This makes use of shiftfs as an overlay filesystem.
 Export infiniband character device information (issm, umad, uverb) as part of the resources API.
 
 ## daemon\_storage
-This introduces two new configuration keys `storage.images\_volume` and
-`storage.backups\_volume` to allow for a storage volume on an existing
+This introduces two new configuration keys `storage.images_volume` and
+`storage.backups_volume` to allow for a storage volume on an existing
 pool be used for storing the daemon-wide images and backups artifacts.
 
 ## instances
@@ -853,15 +853,15 @@ This allows for editing of the expiry date on images.
 Adds a FirmwareVersion field to network card entries.
 
 ## backup\_compression\_algorithm
-This adds support for a `compression\_algorithm` property when creating a backup (`POST /1.0/containers/<name>/backups`).
+This adds support for a `compression_algorithm` property when creating a backup (`POST /1.0/containers/<name>/backups`).
 
-Setting this property overrides the server default value (`backups.compression\_algorithm`).
+Setting this property overrides the server default value (`backups.compression_algorithm`).
 
 ## ceph\_data\_pool\_name
-This adds support for an optional argument (`ceph.osd.data\_pool\_name`) when creating
+This adds support for an optional argument (`ceph.osd.data_pool_name`) when creating
 storage pools using Ceph RBD, when this argument is used the pool will store it's
-actual data in the pool specified with `data\_pool\_name` while keeping the metadata
-in the pool specified by `pool\_name`.
+actual data in the pool specified with `data_pool_name` while keeping the metadata
+in the pool specified by `pool_name`.
 
 ## container\_syscall\_intercept\_mount
 Adds the `security.syscalls.intercept.mount`,
@@ -918,7 +918,7 @@ This allows it to inherit some of the network's settings and allows better valid
 
 ## clustering\_sizing
 Support specifying a custom values for database voters and standbys.
-The new cluster.max\_voters and cluster.max\_standby configuration keys were introduced
+The new `cluster.max_voters` and `cluster.max_standby` configuration keys were introduced
 to specify to the ideal number of database voter and standbys.
 
 ## firewall\_driver
@@ -965,7 +965,7 @@ configuration keys: `snapshots.schedule` and
 
 ## trust\_ca\_certificates
 This allows for checking client certificates trusted by the provided CA (`server.ca`).
-It can be enabled by setting `core.trust\_ca\_certificates` to true.
+It can be enabled by setting `core.trust_ca_certificates` to true.
 If enabled, it will perform the check, and bypass the trusted password if true.
 An exception will be made if the connecting client certificate is in the provided CRL (`ca.crl`).
 In this case, it will ask for the password.
@@ -977,17 +977,17 @@ This adds a new `size` field to the output of `/1.0/instances/<name>/snapshots/<
 This adds a writable endpoint for cluster members, allowing the editing of their roles.
 
 ## container\_nic\_routed\_host\_address
-This introduces the `ipv4.host\_address` and `ipv6.host\_address` NIC config keys that can be used to control the
+This introduces the `ipv4.host_address` and `ipv6.host_address` NIC config keys that can be used to control the
 host-side veth interface's IP addresses. This can be useful when using multiple routed NICs at the same time and
 needing a predictable next-hop address to use.
 
 This also alters the behaviour of `ipv4.gateway` and `ipv6.gateway` NIC config keys. When they are set to "auto"
-the container will have its default gateway set to the value of `ipv4.host\_address` or `ipv6.host\_address` respectively.
+the container will have its default gateway set to the value of `ipv4.host_address` or `ipv6.host_address` respectively.
 
 The default values are:
 
-`ipv4.host\_address`: 169.254.0.1
-`ipv6.host\_address`: fe80::1
+`ipv4.host_address`: 169.254.0.1
+`ipv6.host_address`: fe80::1
 
 This is backward compatible with the previous default behaviour.
 
@@ -1007,10 +1007,10 @@ rather than per core as some hardware apparently puts threads in
 different NUMA domains.
 
 ## resources\_cpu\_core\_die
-Exposes the die\_id information on each core.
+Exposes the `die_id` information on each core.
 
 ## api\_os
-This introduces two new fields in `/1.0`, `os` and `os\_version`.
+This introduces two new fields in `/1.0`, `os` and `os_version`.
 
 Those are taken from the os-release data on the system.
 
