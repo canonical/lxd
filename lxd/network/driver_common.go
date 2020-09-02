@@ -109,6 +109,11 @@ func (n *common) Name() string {
 	return n.name
 }
 
+// Description returns the network description.
+func (n *common) Description() string {
+	return n.description
+}
+
 // Status returns the network status.
 func (n *common) Status() string {
 	return n.status
