@@ -21,6 +21,7 @@ type Network interface {
 	ID() int64
 	Name() string
 	Type() string
+	Description() string
 	Status() string
 	Config() map[string]string
 	IsUsed() (bool, error)
