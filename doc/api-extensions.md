@@ -1162,3 +1162,21 @@ setting to be populated with a random interface name prefixed with "ovn".
 ## network\_ovn\_name
 Adds the `ovn.name` setting to `ovn` networks to allow nodes joining cluster to access the logical OVN network
 name during the pre-join stage before the node is connected to the cluster database.
+
+## custom\_volume\_backup
+Add custom volume backup support.
+
+This includes the following new endpoints (see [RESTful API](rest-api.md) for details):
+
+* `GET /1.0/storage-pools/<pool>/<type>/<volume>/backups`
+* `POST /1.0/storage-pools/<pool>/<type>/<volume>/backups`
+
+* `GET /1.0/storage-pools/<pool>/<type>/<volume>/backups/<name>`
+* `POST /1.0/storage-pools/<pool>/<type>/<volume>/backups/<name>`
+* `DELETE /1.0/storage-pools/<pool>/<type>/<volume>/backups/<name>`
+
+* `GET /1.0/storage-pools/<pool>/<type>/<volume>/backups/<name>/export`
+
+The following existing endpoint has been modified:
+
+ * `POST /1.0/storage-pools/<pool>/<type>/<volume>` accepts the new source type `backup`
