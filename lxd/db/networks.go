@@ -144,9 +144,9 @@ func (c *ClusterTx) GetNonPendingNetworks() (map[string]map[int64]api.Network, e
 }
 
 // GetNetworkID returns the ID of the network with the given name.
-func (c *ClusterTx) GetNetworkID(name string) (int64, error) {
-	stmt := "SELECT id FROM networks WHERE name=?"
-	ids, err := query.SelectIntegers(c.tx, stmt, name)
+func (c *ClusterTx) GetNetworkID(projectName string, name string) (int64, error) {
+	stmt := "SELECT id FROM networks WHERE project_id = (SELECT id FROM projects WHERE name = ?) AND name=?"
+	ids, err := query.SelectIntegers(c.tx, stmt, projectName, name)
 	if err != nil {
 		return -1, err
 	}
@@ -156,7 +156,7 @@ func (c *ClusterTx) GetNetworkID(name string) (int64, error) {
 	case 1:
 		return int64(ids[0]), nil
 	default:
-		return -1, fmt.Errorf("more than one network has the given name")
+		return -1, fmt.Errorf("More than one network has the given name")
 	}
 }
 
