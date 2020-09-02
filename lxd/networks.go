@@ -150,7 +150,7 @@ func networksPost(d *Daemon, r *http.Request) response.Response {
 		req.Config = map[string]string{}
 	}
 
-	err = network.ValidateName(req.Name, req.Type)
+	err = network.ValidateNameAndProject(req.Name, projectName, req.Type)
 	if err != nil {
 		return response.BadRequest(err)
 	}
@@ -608,7 +608,7 @@ func networkPost(d *Daemon, r *http.Request) response.Response {
 		return response.BadRequest(fmt.Errorf("New network name not provided"))
 	}
 
-	err = network.ValidateName(req.Name, n.Type())
+	err = network.ValidateNameAndProject(req.Name, projectName, n.Type())
 	if err != nil {
 		return response.BadRequest(err)
 	}
