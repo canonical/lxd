@@ -1147,11 +1147,11 @@ func (vm *qemu) deviceStop(deviceName string, rawConfig deviceConfig.Device) err
 	if err != nil {
 		// If there is no device returned, then we cannot proceed, so return as error.
 		if d == nil {
-			return fmt.Errorf("Device stop validation failed for '%s': %v", deviceName, err)
+			return fmt.Errorf("Device stop validation failed for %q: %v", deviceName, err)
 
 		}
 
-		logger.Error("Device stop validation failed for", log.Ctx{"err": err})
+		logger.Error("Device stop validation failed", log.Ctx{"err": err})
 	}
 
 	canHotPlug, _ := d.CanHotPlug()
@@ -3366,6 +3366,8 @@ func (vm *qemu) deviceAdd(deviceName string, rawConfig deviceConfig.Device) erro
 }
 
 func (vm *qemu) deviceRemove(deviceName string, rawConfig deviceConfig.Device) error {
+	logger := logging.AddContext(logger.Log, log.Ctx{"device": deviceName, "project": vm.Project(), "instance": vm.Name()})
+
 	d, _, err := vm.deviceLoad(deviceName, rawConfig)
 
 	// If deviceLoad fails with unsupported device type then return.
@@ -3377,7 +3379,12 @@ func (vm *qemu) deviceRemove(deviceName string, rawConfig deviceConfig.Device) e
 	// scenario that a new version of LXD has additional validation restrictions than older
 	// versions we still need to allow previously valid devices to be stopped.
 	if err != nil {
-		logger.Errorf("Device remove validation failed for '%s': %v", deviceName, err)
+		// If there is no device returned, then we cannot proceed, so return as error.
+		if d == nil {
+			return fmt.Errorf("Device remove validation failed for %q: %v", deviceName, err)
+		}
+
+		logger.Error("Device remove validation failed", log.Ctx{"err": err})
 	}
 
 	return d.Remove()
