@@ -19,7 +19,6 @@ import (
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/locking"
 	"github.com/lxc/lxd/lxd/network/openvswitch"
-	"github.com/lxc/lxd/lxd/project"
 	"github.com/lxc/lxd/lxd/revert"
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
@@ -34,6 +33,10 @@ const ovnGeneveTunnelMTU = 1442
 const ovnChassisPriorityMax = 32767
 const ovnVolatileParentIPv4 = "volatile.network.ipv4.address"
 const ovnVolatileParentIPv6 = "volatile.network.ipv6.address"
+
+// ovnParentOVSBridge setting on the parent network indicating the name to use for the OVS bridge and prefix for
+// associated veth interfaces when using the parent network as an OVN uplink.
+const ovnParentOVSBridge = "ovn.ovs_bridge"
 
 // ovnParentVars OVN object variables derived from parent network.
 type ovnParentVars struct {
@@ -504,21 +507,40 @@ func (n *ovn) parentOperationLockName(parentNet Network) string {
 }
 
 // parentPortBridgeVars returns the parent port bridge variables needed for port start/stop.
-func (n *ovn) parentPortBridgeVars(parentNet Network) *ovnParentPortBridgeVars {
+func (n *ovn) parentPortBridgeVars(parentNet Network) (*ovnParentPortBridgeVars, error) {
+	parentConfig := parentNet.Config()
+	if parentConfig[ovnParentOVSBridge] == "" {
+		// Generate random OVS bridge name for parent uplink.
+		parentConfig[ovnParentOVSBridge] = RandomDevName("ovn")
 
-	ovsBridge := fmt.Sprintf("lxdovn%d", parentNet.ID())
+		// Store in parent config.
+		err := n.state.Cluster.Transaction(func(tx *db.ClusterTx) error {
+			err := tx.UpdateNetwork(parentNet.ID(), parentNet.Description(), parentConfig)
+			if err != nil {
+				return errors.Wrapf(err, "Failed saving parent network OVN OVS bridge name")
+			}
+
+			return nil
+		})
+		if err != nil {
+			return nil, err
+		}
+	}
 
 	return &ovnParentPortBridgeVars{
-		ovsBridge: ovsBridge,
-		parentEnd: fmt.Sprintf("%sa", ovsBridge),
-		ovsEnd:    fmt.Sprintf("%sb", ovsBridge),
-	}
+		ovsBridge: parentConfig[ovnParentOVSBridge],
+		parentEnd: fmt.Sprintf("%sa", parentConfig[ovnParentOVSBridge]),
+		ovsEnd:    fmt.Sprintf("%sb", parentConfig[ovnParentOVSBridge]),
+	}, nil
 }
 
 // startParentPortBridge creates veth pair (if doesn't exist), creates OVS bridge (if doesn't exist) and
 // connects veth pair to parent bridge and OVS bridge.
 func (n *ovn) startParentPortBridge(parentNet Network) error {
-	vars := n.parentPortBridgeVars(parentNet)
+	vars, err := n.parentPortBridgeVars(parentNet)
+	if err != nil {
+		return err
+	}
 
 	// Lock parent network so that if multiple OVN networks are trying to connect to the same parent we don't
 	// race each other setting up the connection.
@@ -540,7 +562,7 @@ func (n *ovn) startParentPortBridge(parentNet Network) error {
 	}
 
 	// Ensure correct sysctls are set on uplink veth interfaces to avoid getting IPv6 link-local addresses.
-	_, err := shared.RunCommand("sysctl",
+	_, err = shared.RunCommand("sysctl",
 		fmt.Sprintf("net.ipv6.conf.%s.disable_ipv6=1", vars.parentEnd),
 		fmt.Sprintf("net.ipv6.conf.%s.disable_ipv6=1", vars.ovsEnd),
 		fmt.Sprintf("net.ipv6.conf.%s.forwarding=0", vars.parentEnd),
@@ -635,7 +657,11 @@ func (n *ovn) deleteParentPortBridge(parentNet Network) error {
 
 	// Check OVS uplink bridge exists, if it does, check how many ports it has.
 	removeVeths := false
-	vars := n.parentPortBridgeVars(parentNet)
+	vars, err := n.parentPortBridgeVars(parentNet)
+	if err != nil {
+		return err
+	}
+
 	if shared.PathExists(fmt.Sprintf("/sys/class/net/%s", vars.ovsBridge)) {
 		ovs := openvswitch.NewOVS()
 		ports, err := ovs.BridgePortList(vars.ovsBridge)
