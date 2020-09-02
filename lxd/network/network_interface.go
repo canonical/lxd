@@ -14,6 +14,7 @@ type Network interface {
 	// Load.
 	init(state *state.State, id int64, name string, netType string, description string, config map[string]string, status string)
 	fillConfig(config map[string]string) error
+	Info() Info
 
 	// Config.
 	ValidateName(name string) error
