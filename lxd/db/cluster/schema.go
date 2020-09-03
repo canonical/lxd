@@ -461,7 +461,12 @@ CREATE VIEW projects_used_by_ref (name,
     printf('/1.0/profiles/%s?project=%s',
     profiles.name,
     projects.name)
-    FROM profiles JOIN projects ON project_id=projects.id;
+    FROM profiles JOIN projects ON project_id=projects.id UNION
+  SELECT projects.name,
+    printf('/1.0/networks/%s?project=%s',
+    networks.name,
+    projects.name)
+    FROM networks JOIN projects ON project_id=projects.id;
 CREATE TABLE storage_pools (
     id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
     name TEXT NOT NULL,
@@ -573,5 +578,5 @@ CREATE TABLE storage_volumes_snapshots_config (
     UNIQUE (storage_volume_snapshot_id, key)
 );
 
-INSERT INTO schema (version, updated_at) VALUES (36, strftime("%s"))
+INSERT INTO schema (version, updated_at) VALUES (37, strftime("%s"))
 `
