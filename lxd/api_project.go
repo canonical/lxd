@@ -539,6 +539,7 @@ var projectConfigKeys = map[string]func(value string) error{
 	"limits.processes":               validate.Optional(validate.IsUint32),
 	"limits.cpu":                     validate.Optional(validate.IsUint32),
 	"limits.disk":                    validate.Optional(validate.IsSize),
+	"limits.networks":                validate.Optional(validate.IsUint32),
 	"restricted":                     validate.Optional(validate.IsBool),
 	"restricted.containers.nesting":  isEitherAllowOrBlock,
 	"restricted.containers.lowlevel": isEitherAllowOrBlock,
