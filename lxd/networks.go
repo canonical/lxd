@@ -7,6 +7,7 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"strconv"
 	"strings"
 	"sync"
 
@@ -121,7 +122,7 @@ func networksGet(d *Daemon, r *http.Request) response.Response {
 }
 
 func networksPost(d *Daemon, r *http.Request) response.Response {
-	projectName, err := project.NetworkProject(d.State().Cluster, projectParam(r))
+	projectName, projectConfig, err := project.NetworkProject(d.State().Cluster, projectParam(r))
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -153,6 +154,26 @@ func networksPost(d *Daemon, r *http.Request) response.Response {
 	err = network.ValidateNameAndProject(req.Name, projectName, req.Type)
 	if err != nil {
 		return response.BadRequest(err)
+	}
+
+	// Check if project has limits.network and if so check we are allowed to create another network.
+	if projectName != project.Default && projectConfig != nil && projectConfig["limits.networks"] != "" {
+		networksLimit, err := strconv.Atoi(projectConfig["limits.networks"])
+		if err != nil {
+			return response.InternalError(errors.Wrapf(err, "Invalid project limits.network value"))
+		}
+
+		networks, err := d.cluster.GetNetworks(projectName)
+		if err != nil {
+			return response.InternalError(errors.Wrapf(err, "Failed loading project's networks for limits check"))
+		}
+
+		// Only check network limits if the new network name doesn't exist already in networks list.
+		// If it does then this create request will either be for adding a target node to an existing
+		// pending network or it will fail anyway as it is a duplicate.
+		if !shared.StringInSlice(req.Name, networks) && len(networks) >= networksLimit {
+			return response.BadRequest(fmt.Errorf("Networks limit has been reached for project"))
+		}
 	}
 
 	// Convert requested network type to DB type code.
@@ -204,6 +225,7 @@ func networksPost(d *Daemon, r *http.Request) response.Response {
 			}
 			return response.SmartError(err)
 		}
+
 		return resp
 	}
 
