@@ -17,6 +17,7 @@ import (
 
 	"github.com/pkg/errors"
 
+	"github.com/lxc/lxd/lxd/db"
 	deviceConfig "github.com/lxc/lxd/lxd/device/config"
 	"github.com/lxc/lxd/lxd/device/nictype"
 	"github.com/lxc/lxd/lxd/dnsmasq"
@@ -29,6 +30,7 @@ import (
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/logger"
+	"github.com/lxc/lxd/shared/version"
 )
 
 // validInterfaceName validates a real network interface name.
@@ -83,18 +85,87 @@ func RandomDevName(prefix string) string {
 	return iface
 }
 
-// IsInUseByInstance indicates if network is referenced by an instance's NIC devices.
+// UsedBy returns list of API resources using network. Accepts firstOnly argument to indicate that only the first
+// resource using network should be returned. This can help to quickly check if the network is in use.
+func UsedBy(s *state.State, networkName string, firstOnly bool) ([]string, error) {
+	var usedBy []string
+
+	// Look at instances.
+	insts, err := instance.LoadFromAllProjects(s)
+	if err != nil {
+		return nil, err
+	}
+
+	for _, inst := range insts {
+		inUse, err := isInUseByInstance(s, inst, networkName)
+		if err != nil {
+			return nil, err
+		}
+
+		if inUse {
+			uri := fmt.Sprintf("/%s/instances/%s", version.APIVersion, inst.Name())
+			if inst.Project() != project.Default {
+				uri += fmt.Sprintf("?project=%s", inst.Project())
+			}
+
+			usedBy = append(usedBy, uri)
+
+			if firstOnly {
+				return usedBy, nil
+			}
+		}
+	}
+
+	// Look for profiles.
+	var profiles []db.Profile
+	err = s.Cluster.Transaction(func(tx *db.ClusterTx) error {
+		profiles, err = tx.GetProfiles(db.ProfileFilter{})
+		if err != nil {
+			return err
+		}
+
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	for _, profile := range profiles {
+		inUse, err := isInUseByProfile(s, profile, networkName)
+		if err != nil {
+			return nil, err
+		}
+
+		if inUse {
+			uri := fmt.Sprintf("/%s/profiles/%s", version.APIVersion, profile.Name)
+			if profile.Project != project.Default {
+				uri += fmt.Sprintf("?project=%s", profile.Project)
+			}
+
+			usedBy = append(usedBy, uri)
+
+			if firstOnly {
+				return usedBy, nil
+			}
+		}
+	}
+
+	return usedBy, nil
+}
+
+// isInUseByInstance indicates if network is referenced by an instance's NIC devices.
 // Checks if the device's parent or network properties match the network name.
-func IsInUseByInstance(s *state.State, c instance.Instance, networkName string) (bool, error) {
+func isInUseByInstance(s *state.State, c instance.Instance, networkName string) (bool, error) {
 	return isInUseByDevices(s, c.ExpandedDevices(), networkName)
 }
 
-// IsInUseByProfile indicates if network is referenced by a profile's NIC devices.
+// isInUseByProfile indicates if network is referenced by a profile's NIC devices.
 // Checks if the device's parent or network properties match the network name.
-func IsInUseByProfile(s *state.State, profile api.Profile, networkName string) (bool, error) {
+func isInUseByProfile(s *state.State, profile db.Profile, networkName string) (bool, error) {
 	return isInUseByDevices(s, deviceConfig.NewDevices(profile.Devices), networkName)
 }
 
+// isInUseByDevices inspects a device's config to find references for a network being used.
 func isInUseByDevices(s *state.State, devices deviceConfig.Devices, networkName string) (bool, error) {
 	for _, d := range devices {
 		if d["type"] != "nic" {
