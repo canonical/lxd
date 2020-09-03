@@ -475,8 +475,14 @@ func doNetworkGet(d *Daemon, projectName string, name string) (api.Network, erro
 	}
 
 	// Get some information.
-	osInfo, _ := net.InterfaceByName(name)
 	_, dbInfo, _ := d.cluster.GetNetworkInAnyState(projectName, name)
+
+	// Don't allow retrieving info about the local node interfaces when not using default project.
+	if projectName != project.Default && dbInfo == nil {
+		return api.Network{}, os.ErrNotExist
+	}
+
+	osInfo, _ := net.InterfaceByName(name)
 
 	// Sanity check.
 	if osInfo == nil && dbInfo == nil {
@@ -490,13 +496,13 @@ func doNetworkGet(d *Daemon, projectName string, name string) (api.Network, erro
 	n.Config = map[string]string{}
 
 	// Set the device type as needed.
-	if osInfo != nil && shared.IsLoopback(osInfo) {
-		n.Type = "loopback"
-	} else if dbInfo != nil {
+	if dbInfo != nil {
 		n.Managed = true
 		n.Description = dbInfo.Description
 		n.Config = dbInfo.Config
 		n.Type = dbInfo.Type
+	} else if osInfo != nil && shared.IsLoopback(osInfo) {
+		n.Type = "loopback"
 	} else if shared.PathExists(fmt.Sprintf("/sys/class/net/%s/bridge", n.Name)) {
 		n.Type = "bridge"
 	} else if shared.PathExists(fmt.Sprintf("/proc/net/vlan/%s", n.Name)) {
