@@ -67,7 +67,7 @@ var networkStateCmd = APIEndpoint{
 
 // API endpoints
 func networksGet(d *Daemon, r *http.Request) response.Response {
-	projectName, err := project.NetworkProject(d.State().Cluster, projectParam(r))
+	projectName, _, err := project.NetworkProject(d.State().Cluster, projectParam(r))
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -437,7 +437,7 @@ func networkGet(d *Daemon, r *http.Request) response.Response {
 		return resp
 	}
 
-	projectName, err := project.NetworkProject(d.State().Cluster, projectParam(r))
+	projectName, _, err := project.NetworkProject(d.State().Cluster, projectParam(r))
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -533,7 +533,7 @@ func doNetworkGet(d *Daemon, projectName string, name string) (api.Network, erro
 }
 
 func networkDelete(d *Daemon, r *http.Request) response.Response {
-	projectName, err := project.NetworkProject(d.State().Cluster, projectParam(r))
+	projectName, _, err := project.NetworkProject(d.State().Cluster, projectParam(r))
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -610,7 +610,7 @@ func networkPost(d *Daemon, r *http.Request) response.Response {
 		return response.BadRequest(err)
 	}
 
-	projectName, err := project.NetworkProject(d.State().Cluster, projectParam(r))
+	projectName, _, err := project.NetworkProject(d.State().Cluster, projectParam(r))
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -671,7 +671,7 @@ func networkPut(d *Daemon, r *http.Request) response.Response {
 		return resp
 	}
 
-	projectName, err := project.NetworkProject(d.State().Cluster, projectParam(r))
+	projectName, _, err := project.NetworkProject(d.State().Cluster, projectParam(r))
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -796,7 +796,7 @@ func networkLeasesGet(d *Daemon, r *http.Request) response.Response {
 	instProjectName := projectParam(r)
 
 	// The project we should use the load the network.
-	networkProjectName, err := project.NetworkProject(d.State().Cluster, instProjectName)
+	networkProjectName, _, err := project.NetworkProject(d.State().Cluster, instProjectName)
 	if err != nil {
 		return response.SmartError(err)
 	}

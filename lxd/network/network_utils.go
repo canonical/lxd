@@ -186,7 +186,7 @@ func UsedBy(s *state.State, networkProjectName string, networkName string, first
 // Checks if the device's parent or network properties match the network name.
 func isInUseByInstance(s *state.State, inst instance.Instance, networkProjectName string, networkName string) (bool, error) {
 	// Get the translated network project name from the instance's project.
-	instNetworkProjectName, err := project.NetworkProject(s.Cluster, inst.Project())
+	instNetworkProjectName, _, err := project.NetworkProject(s.Cluster, inst.Project())
 	if err != nil {
 		return false, err
 	}
@@ -204,7 +204,7 @@ func isInUseByInstance(s *state.State, inst instance.Instance, networkProjectNam
 // Checks if the device's parent or network properties match the network name.
 func isInUseByProfile(s *state.State, profile db.Profile, networkProjectName string, networkName string) (bool, error) {
 	// Get the translated network project name from the profiles's project.
-	profileNetworkProjectName, err := project.NetworkProject(s.Cluster, profile.Project)
+	profileNetworkProjectName, _, err := project.NetworkProject(s.Cluster, profile.Project)
 	if err != nil {
 		return false, err
 	}
