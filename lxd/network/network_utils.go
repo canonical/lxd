@@ -150,6 +150,35 @@ func UsedBy(s *state.State, networkProjectName string, networkName string, first
 		}
 	}
 
+	// Only networks defined in the default project can be used by other networks.
+	if networkProjectName == project.Default {
+		// Get all managed networks across all projects.
+		var projectNetworks map[string]map[int64]api.Network
+
+		err = s.Cluster.Transaction(func(tx *db.ClusterTx) error {
+			projectNetworks, err = tx.GetNonPendingNetworks()
+			return err
+		})
+		if err != nil {
+			return nil, errors.Wrapf(err, "Failed to load all networks")
+		}
+
+		for projectName, networks := range projectNetworks {
+			for _, network := range networks {
+				// The network's config references the network we are searching for. Either by
+				// directly referencing our network or by referencing our interface as its parent.
+				if network.Config["network"] == networkName || network.Config["parent"] == networkName {
+					uri := fmt.Sprintf("/%s/networks/%s", version.APIVersion, network.Name)
+					if projectName != project.Default {
+						uri += fmt.Sprintf("?project=%s", projectName)
+					}
+
+					usedBy = append(usedBy, uri)
+				}
+			}
+		}
+	}
+
 	return usedBy, nil
 }
 
