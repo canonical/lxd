@@ -1137,7 +1137,7 @@ type cmdStorageVolumeMove struct {
 
 func (c *cmdStorageVolumeMove) Command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = i18n.G("move [<pool>/]<volume> [<pool>/]<volume>")
+	cmd.Use = i18n.G("move <pool>/<volume> <pool>/<volume>")
 	cmd.Aliases = []string{"mv"}
 	cmd.Short = i18n.G("Move storage volumes between pools")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
