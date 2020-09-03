@@ -797,6 +797,32 @@ func clusterInitMember(d lxd.InstanceServer, client lxd.InstanceServer, memberCo
 			return nil, errors.Wrapf(err, "Failed to fetch network information about cluster networks in project %q", p.Name)
 		}
 
+		if len(networks) > 0 {
+			// Ensure project exists locally and has same config as cluster project.
+			_, localProjectEtag, err := d.GetProject(p.Name)
+			if err != nil {
+				err = d.CreateProject(api.ProjectsPost{
+					Name: p.Name,
+					ProjectPut: api.ProjectPut{
+						Description: p.Description,
+						Config:      p.Config,
+					},
+				})
+				if err != nil {
+					return nil, errors.Wrapf(err, "Failed to create local node project %q", p.Name)
+				}
+			} else if p.Name != project.Default {
+				// Update project features if not default project.
+				err = d.UpdateProject(p.Name, api.ProjectPut{
+					Description: p.Description,
+					Config:      p.Config,
+				}, localProjectEtag)
+				if err != nil {
+					return nil, errors.Wrapf(err, "Failed to update local node project %q", p.Name)
+				}
+			}
+		}
+
 		// Merge the returned networks configs with the node-specific configs provided by the user.
 		for _, network := range networks {
 			// Skip unmanaged or pending networks.
