@@ -73,6 +73,45 @@ var updates = map[int]schema.Update{
 	34: updateFromV33,
 	35: updateFromV34,
 	36: updateFromV35,
+	37: updateFromV36,
+}
+
+// Add networks to projects references.
+func updateFromV36(tx *sql.Tx) error {
+	stmts := `
+DROP VIEW projects_used_by_ref;
+CREATE VIEW projects_used_by_ref (name,
+    value) AS
+  SELECT projects.name,
+    printf('/1.0/instances/%s?project=%s',
+    "instances".name,
+    projects.name)
+    FROM "instances" JOIN projects ON project_id=projects.id UNION
+  SELECT projects.name,
+    printf('/1.0/images/%s?project=%s',
+    images.fingerprint,
+    projects.name)
+    FROM images JOIN projects ON project_id=projects.id UNION
+  SELECT projects.name,
+    printf('/1.0/storage-pools/%s/volumes/custom/%s?project=%s&target=%s',
+    storage_pools.name,
+    storage_volumes.name,
+    projects.name,
+    nodes.name)
+    FROM storage_volumes JOIN storage_pools ON storage_pool_id=storage_pools.id JOIN nodes ON node_id=nodes.id JOIN projects ON project_id=projects.id WHERE storage_volumes.type=2 UNION
+  SELECT projects.name,
+    printf('/1.0/profiles/%s?project=%s',
+    profiles.name,
+    projects.name)
+    FROM profiles JOIN projects ON project_id=projects.id UNION
+  SELECT projects.name,
+    printf('/1.0/networks/%s?project=%s',
+    networks.name,
+    projects.name)
+    FROM networks JOIN projects ON project_id=projects.id;
+`
+	_, err := tx.Exec(stmts)
+	return err
 }
 
 // This fixes node IDs of storage volumes on non-remote pools which were
