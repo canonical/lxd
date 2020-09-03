@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: lxd\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2020-08-25 14:26-0400\n"
+"POT-Creation-Date: 2020-09-08 10:25-0400\n"
 "PO-Revision-Date: 2018-09-11 19:15+0000\n"
 "Last-Translator: 0x0916 <w@laoqinren.net>\n"
 "Language-Team: Chinese (Simplified) <https://hosted.weblate.org/projects/"
@@ -3987,7 +3987,7 @@ msgid "monitor [<remote>:]"
 msgstr ""
 
 #: lxc/storage_volume.go:1140
-msgid "move [<pool>/]<volume> [<pool>/]<volume>"
+msgid "move <pool>/<volume> <pool>/<volume>"
 msgstr ""
 
 #: lxc/move.go:33

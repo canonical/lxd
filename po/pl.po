@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: lxd\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2020-08-25 14:26-0400\n"
+"POT-Creation-Date: 2020-09-08 10:25-0400\n"
 "PO-Revision-Date: 2018-09-08 19:22+0000\n"
 "Last-Translator: m4sk1n <me@m4sk.in>\n"
 "Language-Team: Polish <https://hosted.weblate.org/projects/linux-containers/"
@@ -4111,7 +4111,7 @@ msgid "monitor [<remote>:]"
 msgstr ""
 
 #: lxc/storage_volume.go:1140
-msgid "move [<pool>/]<volume> [<pool>/]<volume>"
+msgid "move <pool>/<volume> <pool>/<volume>"
 msgstr ""
 
 #: lxc/move.go:33
