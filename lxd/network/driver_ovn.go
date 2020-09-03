@@ -825,19 +825,6 @@ func (n *ovn) setup(update bool) error {
 
 	revert.Add(func() { client.ChassisGroupDelete(n.getChassisGroupName()) })
 
-	// Add local chassis to chassis group.
-	ovs := openvswitch.NewOVS()
-	chassisID, err := ovs.ChassisID()
-	if err != nil {
-		return errors.Wrapf(err, "Failed getting OVS Chassis ID")
-	}
-
-	var priority uint = ovnChassisPriorityMax
-	err = client.ChassisGroupChassisAdd(n.getChassisGroupName(), chassisID, priority)
-	if err != nil {
-		return errors.Wrapf(err, "Failed adding OVS chassis %q with priority %d to chassis group %q", chassisID, priority, n.getChassisGroupName())
-	}
-
 	// Create logical router.
 	if update {
 		client.LogicalRouterDelete(n.getRouterName())
@@ -1068,9 +1055,59 @@ func (n *ovn) setup(update bool) error {
 	return nil
 }
 
+// addChassisGroupEntry adds an entry for the local OVS chassis to the OVN logical network's chassis group.
+func (n *ovn) addChassisGroupEntry() error {
+	client, err := n.getClient()
+	if err != nil {
+		return err
+	}
+
+	// Add local chassis to chassis group.
+	ovs := openvswitch.NewOVS()
+	chassisID, err := ovs.ChassisID()
+	if err != nil {
+		return errors.Wrapf(err, "Failed getting OVS Chassis ID")
+	}
+
+	var priority uint = ovnChassisPriorityMax
+	err = client.ChassisGroupChassisAdd(n.getChassisGroupName(), chassisID, priority)
+	if err != nil {
+		return errors.Wrapf(err, "Failed adding OVS chassis %q with priority %d to chassis group %q", chassisID, priority, n.getChassisGroupName())
+	}
+
+	return nil
+}
+
+// deleteChassisGroupEntry deletes an entry for the local OVS chassis from the OVN logical network's chassis group.
+func (n *ovn) deleteChassisGroupEntry() error {
+	client, err := n.getClient()
+	if err != nil {
+		return err
+	}
+
+	// Add local chassis to chassis group.
+	ovs := openvswitch.NewOVS()
+	chassisID, err := ovs.ChassisID()
+	if err != nil {
+		return errors.Wrapf(err, "Failed getting OVS Chassis ID")
+	}
+
+	err = client.ChassisGroupChassisDelete(n.getChassisGroupName(), chassisID)
+	if err != nil {
+		return errors.Wrapf(err, "Failed deleting OVS chassis %q from chassis group %q", chassisID, n.getChassisGroupName())
+	}
+
+	return nil
+}
+
 // Delete deletes a network.
 func (n *ovn) Delete(clientType cluster.ClientType) error {
 	n.logger.Debug("Delete", log.Ctx{"clientType": clientType})
+
+	err := n.Stop()
+	if err != nil {
+		return err
+	}
 
 	if clientType == cluster.ClientTypeNormal {
 		client, err := n.getClient()
@@ -1125,12 +1162,6 @@ func (n *ovn) Delete(clientType cluster.ClientType) error {
 		}
 	}
 
-	// Delete local parent uplink port.
-	err := n.deleteParentPort()
-	if err != nil {
-		return err
-	}
-
 	return n.common.delete(clientType)
 }
 
@@ -1157,7 +1188,7 @@ func (n *ovn) Rename(newName string) error {
 	return nil
 }
 
-// Start starts configures the local OVS parent uplink port.
+// Start starts adds the local OVS chassis ID to the OVN chass group and starts the local OVS parent uplink port.
 func (n *ovn) Start() error {
 	n.logger.Debug("Start")
 
@@ -1165,7 +1196,13 @@ func (n *ovn) Start() error {
 		return fmt.Errorf("Cannot start pending network")
 	}
 
-	err := n.startParentPort()
+	// Add local node's OVS chassis ID to logical chassis group.
+	err := n.addChassisGroupEntry()
+	if err != nil {
+		return err
+	}
+
+	err = n.startParentPort()
 	if err != nil {
 		return err
 	}
@@ -1173,9 +1210,25 @@ func (n *ovn) Start() error {
 	return nil
 }
 
-// Stop stops is a no-op.
+// Stop deletes the local OVS parent uplink port (if unused) and deletes the local OVS chassis ID from the
+// OVN chass group
 func (n *ovn) Stop() error {
 	n.logger.Debug("Stop")
+
+	// Delete local OVS chassis ID from logical OVN HA chassis group.
+	err := n.deleteChassisGroupEntry()
+	if err != nil {
+		return err
+	}
+
+	// Delete local parent uplink port.
+	// This must occur after the local OVS chassis ID is removed from the OVN HA chassis group so that the
+	// OVN patch port connection is removed for this network and we can correctly detect whether there are
+	// any other OVN networks using this uplink bridge before removing it.
+	err = n.deleteParentPort()
+	if err != nil {
+		return err
+	}
 
 	return nil
 }
