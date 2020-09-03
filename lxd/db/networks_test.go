@@ -50,7 +50,7 @@ func TestCreatePendingNetwork(t *testing.T) {
 	err = tx.CreatePendingNetwork("buzz", project.Default, "network1", db.NetworkTypeBridge, config)
 	require.NoError(t, err)
 
-	networkID, err := tx.GetNetworkID("network1")
+	networkID, err := tx.GetNetworkID(project.Default, "network1")
 	require.NoError(t, err)
 	assert.True(t, networkID > 0)
 
