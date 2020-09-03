@@ -823,3 +823,33 @@ func (o *OVN) ChassisGroupChassisAdd(haChassisGroupName OVNChassisGroup, chassis
 
 	return nil
 }
+
+// ChassisGroupChassisDelete deletes a chassis ID from an HA chassis group.
+func (o *OVN) ChassisGroupChassisDelete(haChassisGroupName OVNChassisGroup, chassisID string) error {
+	// Check if chassis group exists. ovn-nbctl doesn't provide an "--if-exists" option for this.
+	existingChassisGroup, err := o.nbctl("--no-headings", "--data=bare", "--colum=name", "find", "ha_chassis_group", fmt.Sprintf("name=%s", string(haChassisGroupName)))
+	if err != nil {
+		return err
+	}
+
+	// Nothing to do if chassis group doesn't exist.
+	if strings.TrimSpace(existingChassisGroup) == "" {
+		return nil
+	}
+
+	// Check if chassis exists. ovn-nbctl doesn't provide an "--if-exists" option for this.
+	existingChassis, err := o.nbctl("--no-headings", "--data=bare", "--colum=chassis_name", "find", "ha_chassis", fmt.Sprintf("chassis_name=%s", chassisID))
+	if err != nil {
+		return err
+	}
+
+	// Remove chassis from group if exists.
+	if strings.TrimSpace(existingChassis) != "" {
+		_, err := o.nbctl("ha-chassis-group-remove-chassis", string(haChassisGroupName), chassisID)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
