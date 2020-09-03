@@ -27,6 +27,7 @@ limits.cpu                           | integer   | -                     | -    
 limits.disk                          | string    | -                     | -                         | Maximum value of aggregate disk space used by all instances volumes, custom volumes and images of the project
 limits.memory                        | string    | -                     | -                         | Maximum value for the sum of individual "limits.memory" configs set on the instances of the project
 limits.processes                     | integer   | -                     | -                         | Maximum value for the sum of individual "limits.processes" configs set on the instances of the project
+limits.networks                      | integer   | -                     | -                         | Maximum value for the number of networks this project can have
 restricted                           | boolean   | -                     | true                      | Block access to security-sensitive features
 restricted.containers.nesting        | string    | -                     | block                     | Prevents setting security.nesting=true.
 restricted.containers.privilege      | string    | -                     | unpriviliged              | If "unpriviliged", prevents setting security.privileged=true. If "isolated", prevents setting security.privileged=true and also security.idmap.isolated=true. If "allow", no restriction apply.
