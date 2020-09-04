@@ -38,6 +38,10 @@ const ovnVolatileParentIPv6 = "volatile.network.ipv6.address"
 // associated veth interfaces when using the parent network as an OVN uplink.
 const ovnParentOVSBridge = "ovn.ovs_bridge"
 
+// ovnName setting on the OVN network config indicating the name of the logical OVN network. Allows the consistent
+// use of the OVN logical network name in cluster node pre-join phase before node joins clustered database.
+const ovnName = "ovn.name"
+
 // ovnParentVars OVN object variables derived from parent network.
 type ovnParentVars struct {
 	// Router.
@@ -95,7 +99,8 @@ func (n *ovn) Validate(config map[string]string) error {
 		"dns.domain": validate.IsAny,
 		"dns.search": validate.IsAny,
 
-		// Volatile keys populated automatically as needed.
+		// Populated automatically at network setup time.
+		ovnName:               validate.IsAny,
 		ovnVolatileParentIPv4: validate.Optional(validate.IsNetworkAddressV4),
 		ovnVolatileParentIPv6: validate.Optional(validate.IsNetworkAddressV6),
 	}
@@ -141,9 +146,9 @@ func (n *ovn) getNetworkPrefix() string {
 	return fmt.Sprintf("lxd-net%d", n.id)
 }
 
-// getChassisGroup returns OVN chassis group name to use.
+// getChassisGroup returns OVN chassis group name to use based on ovn.name setting in config.
 func (n *ovn) getChassisGroupName() openvswitch.OVNChassisGroup {
-	return openvswitch.OVNChassisGroup(n.getNetworkPrefix())
+	return openvswitch.OVNChassisGroup(n.config[ovnName])
 }
 
 // getRouterName returns OVN logical router name to use.
@@ -264,23 +269,29 @@ func (n *ovn) getIntSwitchInstancePortPrefix() string {
 
 // setupParentPort initialises the parent uplink connection. Returns the derived ovnParentVars settings used
 // during the initial creation of the logical network.
-func (n *ovn) setupParentPort(routerMAC net.HardwareAddr) (*ovnParentVars, error) {
-	parentNet, err := LoadByName(n.state, n.config["network"])
-	if err != nil {
-		return nil, errors.Wrapf(err, "Failed loading parent network")
+func (n *ovn) setupParentPort(tx *db.ClusterTx, parentNet Network, routerMAC net.HardwareAddr) (*ovnParentVars, error) {
+	// Store the OVN OVS bridge name in the parent network config if not set.
+	parentNetConf := parentNet.Config()
+	if parentNetConf[ovnParentOVSBridge] == "" {
+		parentNetConf[ovnParentOVSBridge] = fmt.Sprintf("lxdovn%d", parentNet.ID())
+		err := tx.UpdateNetwork(parentNet.ID(), parentNet.Description(), parentNetConf)
+		if err != nil {
+			return nil, errors.Wrapf(err, "Failed saving parent network OVN OVS bridge name")
+		}
 	}
 
 	switch parentNet.Type() {
 	case "bridge":
-		return n.setupParentPortBridge(parentNet, routerMAC)
+		return n.setupParentPortBridge(tx, parentNet, routerMAC)
 	}
 
 	return nil, fmt.Errorf("Network type %q unsupported as OVN parent", parentNet.Type())
 }
 
-// setupParentPortBridge allocates external IPs on the parent bridge.
+// setupParentPortBridge allocates external uplink IPs from the parent bridge and stores them in the OVN network
+// config. Also generates the OVS uplink bridge name and stores in the parent network's config.
 // Returns the derived ovnParentVars settings.
-func (n *ovn) setupParentPortBridge(parentNet Network, routerMAC net.HardwareAddr) (*ovnParentVars, error) {
+func (n *ovn) setupParentPortBridge(tx *db.ClusterTx, parentNet Network, routerMAC net.HardwareAddr) (*ovnParentVars, error) {
 	v := &ovnParentVars{}
 
 	bridgeNet, ok := parentNet.(*bridge)
@@ -317,68 +328,57 @@ func (n *ovn) setupParentPortBridge(parentNet Network, routerMAC net.HardwareAdd
 
 	// Decide whether we need to allocate new IP(s) and go to the expense of retrieving all allocated IPs.
 	if (parentIPv4Net != nil && routerExtPortIPv4 == nil) || (parentIPv6Net != nil && routerExtPortIPv6 == nil) {
-		err := n.state.Cluster.Transaction(func(tx *db.ClusterTx) error {
-			allAllocatedIPv4, allAllocatedIPv6, err := n.parentAllAllocatedIPs(tx, parentNet.Name())
-			if err != nil {
-				return errors.Wrapf(err, "Failed to get all allocated IPs for parent")
-			}
-
-			if parentIPv4Net != nil && routerExtPortIPv4 == nil {
-				if parentNetConf["ipv4.ovn.ranges"] == "" {
-					return fmt.Errorf(`Missing required "ipv4.ovn.ranges" config key on parent network`)
-				}
-
-				ipRanges, err := parseIPRanges(parentNetConf["ipv4.ovn.ranges"], parentNet.DHCPv4Subnet())
-				if err != nil {
-					return errors.Wrapf(err, "Failed to parse parent IPv4 OVN ranges")
-				}
-
-				routerExtPortIPv4, err = n.parentAllocateIP(ipRanges, allAllocatedIPv4)
-				if err != nil {
-					return errors.Wrapf(err, "Failed to allocate parent IPv4 address")
-				}
-
-				n.config[ovnVolatileParentIPv4] = routerExtPortIPv4.String()
-			}
-
-			if parentIPv6Net != nil && routerExtPortIPv6 == nil {
-				// If IPv6 OVN ranges are specified by the parent, allocate from them.
-				if parentNetConf["ipv6.ovn.ranges"] != "" {
-					ipRanges, err := parseIPRanges(parentNetConf["ipv6.ovn.ranges"], parentNet.DHCPv6Subnet())
-					if err != nil {
-						return errors.Wrapf(err, "Failed to parse parent IPv6 OVN ranges")
-					}
-
-					routerExtPortIPv6, err = n.parentAllocateIP(ipRanges, allAllocatedIPv6)
-					if err != nil {
-						return errors.Wrapf(err, "Failed to allocate parent IPv6 address")
-					}
-
-				} else {
-					// Otherwise use EUI64 derived from MAC address.
-					routerExtPortIPv6, err = eui64.ParseMAC(parentIPv6Net.IP, routerMAC)
-					if err != nil {
-						return err
-					}
-				}
-
-				n.config[ovnVolatileParentIPv6] = routerExtPortIPv6.String()
-			}
-
-			networkID, err := tx.GetNetworkID(n.name)
-			if err != nil {
-				return errors.Wrapf(err, "Failed to get network ID for network %q", n.name)
-			}
-
-			err = tx.UpdateNetwork(networkID, n.description, n.config)
-			if err != nil {
-				return errors.Wrapf(err, "Failed saving allocated parent network IPs")
-			}
-
-			return nil
-		})
+		allAllocatedIPv4, allAllocatedIPv6, err := n.parentAllAllocatedIPs(tx, parentNet.Name())
 		if err != nil {
-			return nil, err
+			return nil, errors.Wrapf(err, "Failed to get all allocated IPs for parent")
+		}
+
+		if parentIPv4Net != nil && routerExtPortIPv4 == nil {
+			if parentNetConf["ipv4.ovn.ranges"] == "" {
+				return nil, fmt.Errorf(`Missing required "ipv4.ovn.ranges" config key on parent network`)
+			}
+
+			ipRanges, err := parseIPRanges(parentNetConf["ipv4.ovn.ranges"], parentNet.DHCPv4Subnet())
+			if err != nil {
+				return nil, errors.Wrapf(err, "Failed to parse parent IPv4 OVN ranges")
+			}
+
+			routerExtPortIPv4, err = n.parentAllocateIP(ipRanges, allAllocatedIPv4)
+			if err != nil {
+				return nil, errors.Wrapf(err, "Failed to allocate parent IPv4 address")
+			}
+
+			n.config[ovnVolatileParentIPv4] = routerExtPortIPv4.String()
+		}
+
+		if parentIPv6Net != nil && routerExtPortIPv6 == nil {
+			// If IPv6 OVN ranges are specified by the parent, allocate from them.
+			if parentNetConf["ipv6.ovn.ranges"] != "" {
+				ipRanges, err := parseIPRanges(parentNetConf["ipv6.ovn.ranges"], parentNet.DHCPv6Subnet())
+				if err != nil {
+					return nil, errors.Wrapf(err, "Failed to parse parent IPv6 OVN ranges")
+				}
+
+				routerExtPortIPv6, err = n.parentAllocateIP(ipRanges, allAllocatedIPv6)
+				if err != nil {
+					return nil, errors.Wrapf(err, "Failed to allocate parent IPv6 address")
+				}
+
+			} else {
+				// Otherwise use EUI64 derived from MAC address.
+				routerExtPortIPv6, err = eui64.ParseMAC(parentIPv6Net.IP, routerMAC)
+				if err != nil {
+					return nil, err
+				}
+			}
+
+			n.config[ovnVolatileParentIPv6] = routerExtPortIPv6.String()
+		}
+
+		// Store allocated IPs on parent network in network config.
+		err = tx.UpdateNetwork(n.id, n.description, n.config)
+		if err != nil {
+			return nil, errors.Wrapf(err, "Failed saving allocated parent network IPs")
 		}
 	}
 
@@ -510,21 +510,7 @@ func (n *ovn) parentOperationLockName(parentNet Network) string {
 func (n *ovn) parentPortBridgeVars(parentNet Network) (*ovnParentPortBridgeVars, error) {
 	parentConfig := parentNet.Config()
 	if parentConfig[ovnParentOVSBridge] == "" {
-		// Generate random OVS bridge name for parent uplink.
-		parentConfig[ovnParentOVSBridge] = RandomDevName("ovn")
-
-		// Store in parent config.
-		err := n.state.Cluster.Transaction(func(tx *db.ClusterTx) error {
-			err := tx.UpdateNetwork(parentNet.ID(), parentNet.Description(), parentConfig)
-			if err != nil {
-				return errors.Wrapf(err, "Failed saving parent network OVN OVS bridge name")
-			}
-
-			return nil
-		})
-		if err != nil {
-			return nil, err
-		}
+		return nil, fmt.Errorf("Missing %q setting in parent network config", ovnParentOVSBridge)
 	}
 
 	return &ovnParentPortBridgeVars{
@@ -782,8 +768,37 @@ func (n *ovn) setup(update bool) error {
 		return err
 	}
 
-	// Setup parent port (do this first to check parent is suitable).
-	parent, err := n.setupParentPort(routerMAC)
+	// Parent network must be in default project.
+	parentNet, err := LoadByName(n.state, n.config["network"])
+	if err != nil {
+		return errors.Wrapf(err, "Failed loading parent network %q", n.config["network"])
+	}
+
+	var parent *ovnParentVars
+
+	// Start a transaction as we may need to modify the config in both this network and in the parent network.
+	// So do it in an atomic fashion.
+	err = n.state.Cluster.Transaction(func(tx *db.ClusterTx) error {
+		// Setup parent port (do this first to check parent is suitable).
+		// This may need to modify both the network config and the parent network config.
+		parent, err = n.setupParentPort(tx, parentNet, routerMAC)
+		if err != nil {
+			return err
+		}
+
+		// Set the OVN network name into config if missing (used for joining cluster nodes).
+		if n.config[ovnName] == "" {
+			n.config[ovnName] = n.getNetworkPrefix()
+
+			// Store updated network config.
+			err = tx.UpdateNetwork(n.id, n.description, n.config)
+			if err != nil {
+				return errors.Wrapf(err, "Failed saving OVN network name to config")
+			}
+		}
+
+		return nil
+	})
 	if err != nil {
 		return err
 	}
@@ -1057,6 +1072,11 @@ func (n *ovn) setup(update bool) error {
 
 // addChassisGroupEntry adds an entry for the local OVS chassis to the OVN logical network's chassis group.
 func (n *ovn) addChassisGroupEntry() error {
+	chassisGroupName := n.getChassisGroupName()
+	if chassisGroupName == "" {
+		return fmt.Errorf("Cannot add chassis group entry, missing %q setting", ovnName)
+	}
+
 	client, err := n.getClient()
 	if err != nil {
 		return err
@@ -1070,9 +1090,9 @@ func (n *ovn) addChassisGroupEntry() error {
 	}
 
 	var priority uint = ovnChassisPriorityMax
-	err = client.ChassisGroupChassisAdd(n.getChassisGroupName(), chassisID, priority)
+	err = client.ChassisGroupChassisAdd(chassisGroupName, chassisID, priority)
 	if err != nil {
-		return errors.Wrapf(err, "Failed adding OVS chassis %q with priority %d to chassis group %q", chassisID, priority, n.getChassisGroupName())
+		return errors.Wrapf(err, "Failed adding OVS chassis %q with priority %d to chassis group %q", chassisID, priority, chassisGroupName)
 	}
 
 	return nil
@@ -1080,6 +1100,11 @@ func (n *ovn) addChassisGroupEntry() error {
 
 // deleteChassisGroupEntry deletes an entry for the local OVS chassis from the OVN logical network's chassis group.
 func (n *ovn) deleteChassisGroupEntry() error {
+	chassisGroupName := n.getChassisGroupName()
+	if chassisGroupName == "" {
+		return fmt.Errorf("Cannot delete chassis group entry, missing %q setting", ovnName)
+	}
+
 	client, err := n.getClient()
 	if err != nil {
 		return err
@@ -1092,9 +1117,9 @@ func (n *ovn) deleteChassisGroupEntry() error {
 		return errors.Wrapf(err, "Failed getting OVS Chassis ID")
 	}
 
-	err = client.ChassisGroupChassisDelete(n.getChassisGroupName(), chassisID)
+	err = client.ChassisGroupChassisDelete(chassisGroupName, chassisID)
 	if err != nil {
-		return errors.Wrapf(err, "Failed deleting OVS chassis %q from chassis group %q", chassisID, n.getChassisGroupName())
+		return errors.Wrapf(err, "Failed deleting OVS chassis %q from chassis group %q", chassisID, chassisGroupName)
 	}
 
 	return nil
