@@ -14,7 +14,7 @@ type = "q35"
 {{end -}}
 {{if eq .architecture "aarch64" -}}
 type = "virt"
-gic-version = "host"
+gic-version = "max"
 {{end -}}
 {{if eq .architecture "ppc64le" -}}
 type = "pseries"
