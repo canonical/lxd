@@ -259,6 +259,13 @@ static void prepare_seccomp_iovec(struct iovec *iov,
 	iov[3].iov_len = SECCOMP_COOKIE_SIZE;
 }
 
+// We use the BPF_DEVCG_DEV_CHAR macro as a cheap way to detect whether the kernel has
+// the correct headers available to be compiled for bpf support. Since cgo doesn't have
+// a good way of letting us probe for structs or enums the alternative would be to vendor
+// bpf.h similar to what we do for seccomp itself. But that's annoying since bpf.h is quite
+// large. So users that want bpf interception support should make sure to have the relevant
+// header available at build time.
+#ifndef BPF_DEVCG_DEV_CHAR
 static inline int pidfd_getfd(int pidfd, int fd, int flags)
 {
 	return syscall(__NR_pidfd_getfd, pidfd, fd, flags);
@@ -418,6 +425,17 @@ static int handle_bpf_syscall(int notify_fd, int mem_fd, struct seccomp_notify_p
 
 	return ret;
 }
+
+#else // !BPF_DEVCG_DEV_CHAR
+
+static int handle_bpf_syscall(int notify_fd, int mem_fd, struct seccomp_notify_proxy_msg *msg,
+			      struct seccomp_notif *req, struct seccomp_notif_resp *resp,
+			      int *bpf_cmd, int *bpf_prog_type, int *bpf_attach_type)
+{
+	errno = ENOSYS;
+	return -errno;
+}
+#endif // BPF_DEVCG_DEV_CHAR
 
 #ifndef MS_LAZYTIME
 #define MS_LAZYTIME (1<<25)
