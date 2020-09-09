@@ -125,11 +125,17 @@ func (c *cmdExport) Run(cmd *cobra.Command, args []string) error {
 		targetName = "backup.tar.gz"
 	}
 
-	target, err := os.Create(shared.HostPathFollow(targetName))
-	if err != nil {
-		return err
+	var target *os.File
+	if targetName == "-" {
+		target = os.Stdout
+		c.global.flagQuiet = true
+	} else {
+		target, err = os.Create(shared.HostPathFollow(targetName))
+		if err != nil {
+			return err
+		}
+		defer target.Close()
 	}
-	defer target.Close()
 
 	// Prepare the download request
 	progress = utils.ProgressRenderer{
