@@ -35,14 +35,15 @@ properly, but support for those may accidentally regress in future LXD
 releases.
 
 ## Additional libraries (and development headers)
-LXD uses `dqlite` for its database, to build and setup the custom
-`sqlite3` and `dqlite` needed for it, you can run `make deps`.
+LXD uses `dqlite` for its database, to build and setup it, you can
+run `make deps`.
 
 LXD itself also uses a number of (usually packaged) C libraries:
 
  - libacl1
  - libcap2
  - libuv1 (for `dqlite`)
+ - libsqlite3 >= 3.25.0 (for `dqlite`)
 
-Make sure you have both the libraries themselves and their development
+Make sure you have all these libraries themselves and their development
 headers (-dev packages) installed.
