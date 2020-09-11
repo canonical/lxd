@@ -6,13 +6,13 @@ POTFILE=po/$(DOMAIN).pot
 VERSION=$(shell grep "var Version" shared/version/flex.go | cut -d'"' -f2)
 ARCHIVE=lxd-$(VERSION).tar
 HASH := \#
-TAG_SQLITE3=$(shell printf "$(HASH)include <sqlite3.h>\nvoid main(){int n = SQLITE_IOERR_NOT_LEADER;}" | $(CC) ${CGO_CFLAGS} -o /dev/null -xc - >/dev/null 2>&1 && echo "libsqlite3")
+TAG_SQLITE3=$(shell printf "$(HASH)include <dqlite.h>\nvoid main(){dqlite_node_id n = 1;}" | $(CC) ${CGO_CFLAGS} -o /dev/null -xc - >/dev/null 2>&1 && echo "libsqlite3")
 GOPATH ?= $(HOME)/go
 
 .PHONY: default
 default:
 ifeq ($(TAG_SQLITE3),)
-	@echo "Missing custom libsqlite3, run \"make deps\" to setup."
+	@echo "Missing dqlite, run \"make deps\" to setup."
 	exit 1
 endif
 
@@ -40,36 +40,6 @@ lxd-p2c:
 
 .PHONY: deps
 deps:
-	# sqlite
-	@if [ -d "$(GOPATH)/deps/sqlite" ]; then \
-		if [ -d "$(GOPATH)/deps/sqlite/.git" ]; then \
-			cd "$(GOPATH)/deps/sqlite"; \
-			git pull; \
-		fi; \
-	else \
-		git clone --depth=1 "https://github.com/canonical/sqlite" "$(GOPATH)/deps/sqlite"; \
-		cd "$(GOPATH)/deps/sqlite"; \
-		git log -1 --format="format:%ci%n" | sed -e 's/ [-+].*$$//;s/ /T/;s/^/D /' > manifest; \
-		git log -1 --format="format:%H" > manifest.uuid; \
-	fi
-
-	cd "$(GOPATH)/deps/sqlite" && \
-		./configure --enable-replication --disable-amalgamation --disable-tcl && \
-		make
-
-	# libco
-	@if [ -d "$(GOPATH)/deps/libco" ]; then \
-		if [ -d "$(GOPATH)/deps/libco/.git" ]; then \
-			cd "$(GOPATH)/deps/libco"; \
-			git pull; \
-		fi; \
-	else \
-		git clone --depth=1 "https://github.com/canonical/libco" "$(GOPATH)/deps/libco"; \
-	fi
-
-	cd "$(GOPATH)/deps/libco" && \
-		make
-
 	# raft
 	@if [ -d "$(GOPATH)/deps/raft" ]; then \
 		if [ -d "$(GOPATH)/deps/raft/.git" ]; then \
@@ -97,15 +67,15 @@ deps:
 
 	cd "$(GOPATH)/deps/dqlite" && \
 		autoreconf -i && \
-		PKG_CONFIG_PATH="$(GOPATH)/deps/sqlite/:$(GOPATH)/deps/libco/:$(GOPATH)/deps/raft/" ./configure && \
-		make CFLAGS="-I$(GOPATH)/deps/sqlite/ -I$(GOPATH)/deps/libco/ -I$(GOPATH)/deps/raft/include/" LDFLAGS="-L$(GOPATH)/deps/sqlite/.libs/ -L$(GOPATH)/deps/libco/ -L$(GOPATH)/deps/raft/.libs/"
+		PKG_CONFIG_PATH="$(GOPATH)/deps/raft/" ./configure && \
+		make CFLAGS="-I$(GOPATH)/deps/raft/include/" LDFLAGS="-L$(GOPATH)/deps/raft/.libs/"
 
 	# environment
 	@echo ""
 	@echo "Please set the following in your environment (possibly ~/.bashrc)"
-	@echo "export CGO_CFLAGS=\"-I$(GOPATH)/deps/sqlite/ -I$(GOPATH)/deps/libco/ -I$(GOPATH)/deps/raft/include/ -I$(GOPATH)/deps/dqlite/include/\""
-	@echo "export CGO_LDFLAGS=\"-L$(GOPATH)/deps/sqlite/.libs/ -L$(GOPATH)/deps/libco/ -L$(GOPATH)/deps/raft/.libs -L$(GOPATH)/deps/dqlite/.libs/\""
-	@echo "export LD_LIBRARY_PATH=\"$(GOPATH)/deps/sqlite/.libs/:$(GOPATH)/deps/libco/:$(GOPATH)/deps/raft/.libs/:$(GOPATH)/deps/dqlite/.libs/\""
+	@echo "export CGO_CFLAGS=\"-I$(GOPATH)/deps/raft/include/ -I$(GOPATH)/deps/dqlite/include/\""
+	@echo "export CGO_LDFLAGS=\"-L$(GOPATH)/deps/raft/.libs -L$(GOPATH)/deps/dqlite/.libs/\""
+	@echo "export LD_LIBRARY_PATH=\"$(GOPATH)/deps/raft/.libs/:$(GOPATH)/deps/dqlite/.libs/\""
 	@echo "export CGO_LDFLAGS_ALLOW=\"-Wl,-wrap,pthread_create\""
 
 
@@ -188,11 +158,7 @@ dist:
 	# Download the cluster-enabled sqlite/dqlite
 	mkdir $(TMP)/_dist/deps/
 	git clone --depth=1 https://github.com/canonical/dqlite $(TMP)/_dist/deps/dqlite
-	git clone --depth=1 https://github.com/canonical/sqlite $(TMP)/_dist/deps/sqlite
-	git clone --depth=1 https://github.com/canonical/libco $(TMP)/_dist/deps/libco
 	git clone --depth=1 https://github.com/canonical/raft $(TMP)/_dist/deps/raft
-	cd $(TMP)/_dist/deps/sqlite && git log -1 --format="format:%ci%n" | sed -e 's/ [-+].*$$//;s/ /T/;s/^/D /' > manifest
-	cd $(TMP)/_dist/deps/sqlite && git log -1 --format="format:%H" > manifest.uuid
 
 	# Write a manifest
 	cd $(TMP)/_dist && find . -type d -name .git | while read line; do GITDIR=$$(dirname $$line); echo "$${GITDIR}: $$(cd $${GITDIR} && git show-ref HEAD $${GITDIR} | cut -d' ' -f1)"; done | sort > $(TMP)/_dist/MANIFEST
