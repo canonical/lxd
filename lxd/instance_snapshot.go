@@ -7,10 +7,10 @@ import (
 	"io/ioutil"
 	"net/http"
 	"net/url"
-	"strings"
 	"time"
 
 	"github.com/gorilla/mux"
+	"github.com/pkg/errors"
 
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/instance"
@@ -22,6 +22,7 @@ import (
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
+	"github.com/lxc/lxd/shared/validate"
 	"github.com/lxc/lxd/shared/version"
 )
 
@@ -133,8 +134,9 @@ func containerSnapshotsPost(d *Daemon, r *http.Request) response.Response {
 	}
 
 	// Validate the name
-	if strings.Contains(req.Name, "/") {
-		return response.BadRequest(fmt.Errorf("Snapshot names may not contain slashes"))
+	err = validate.IsURLSegmentSafe(req.Name)
+	if err != nil {
+		return response.BadRequest(errors.Wrap(err, "Invalid snapshot name"))
 	}
 
 	fullName := name +
@@ -401,8 +403,9 @@ func snapshotPost(d *Daemon, r *http.Request, sc instance.Instance, containerNam
 	}
 
 	// Validate the name
-	if strings.Contains(newName, "/") {
-		return response.BadRequest(fmt.Errorf("Snapshot names may not contain slashes"))
+	err = validate.IsURLSegmentSafe(newName)
+	if err != nil {
+		return response.BadRequest(errors.Wrap(err, "Invalid snapshot name"))
 	}
 
 	fullName := containerName + shared.SnapshotDelimiter + newName
