@@ -1189,6 +1189,8 @@ func (n *ovn) Stop() error {
 		return err
 	}
 
+	time.Sleep(2 * time.Second) // Give some time for the chassis deletion to tear down patch ports.
+
 	// Delete local parent uplink port.
 	// This must occur after the local OVS chassis ID is removed from the OVN HA chassis group so that the
 	// OVN patch port connection is removed for this network and we can correctly detect whether there are
