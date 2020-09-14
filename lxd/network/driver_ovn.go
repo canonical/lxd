@@ -19,6 +19,7 @@ import (
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/locking"
 	"github.com/lxc/lxd/lxd/network/openvswitch"
+	"github.com/lxc/lxd/lxd/project"
 	"github.com/lxc/lxd/lxd/revert"
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
@@ -261,7 +262,8 @@ func (n *ovn) getIntSwitchInstancePortPrefix() string {
 // setupParentPort initialises the parent uplink connection. Returns the derived ovnParentVars settings used
 // during the initial creation of the logical network.
 func (n *ovn) setupParentPort(routerMAC net.HardwareAddr) (*ovnParentVars, error) {
-	parentNet, err := LoadByName(n.state, n.config["network"])
+	// Parent network must be in default project.
+	parentNet, err := LoadByName(n.state, project.Default, n.config["network"])
 	if err != nil {
 		return nil, errors.Wrapf(err, "Failed loading parent network")
 	}
@@ -395,28 +397,30 @@ func (n *ovn) setupParentPortBridge(parentNet Network, routerMAC net.HardwareAdd
 
 // parentAllAllocatedIPs gets a list of all IPv4 and IPv6 addresses allocated to OVN networks connected to parent.
 func (n *ovn) parentAllAllocatedIPs(tx *db.ClusterTx, parentNetName string) ([]net.IP, []net.IP, error) {
-	// Get all managed networks.
-	networks, err := tx.GetNonPendingNetworks()
+	// Get all managed networks across all projects.
+	projectNetworks, err := tx.GetNonPendingNetworks()
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, errors.Wrapf(err, "Failed to load all networks")
 	}
 
 	v4IPs := make([]net.IP, 0)
 	v6IPs := make([]net.IP, 0)
 
-	for _, netInfo := range networks {
-		if netInfo.Type != "ovn" || netInfo.Config["network"] != parentNetName {
-			continue
-		}
+	for _, networks := range projectNetworks {
+		for _, netInfo := range networks {
+			if netInfo.Type != "ovn" || netInfo.Config["network"] != parentNetName {
+				continue
+			}
 
-		for _, k := range []string{ovnVolatileParentIPv4, ovnVolatileParentIPv6} {
-			if netInfo.Config[k] != "" {
-				ip := net.ParseIP(netInfo.Config[k])
-				if ip != nil {
-					if ip.To4() != nil {
-						v4IPs = append(v4IPs, ip)
-					} else {
-						v6IPs = append(v6IPs, ip)
+			for _, k := range []string{ovnVolatileParentIPv4, ovnVolatileParentIPv6} {
+				if netInfo.Config[k] != "" {
+					ip := net.ParseIP(netInfo.Config[k])
+					if ip != nil {
+						if ip.To4() != nil {
+							v4IPs = append(v4IPs, ip)
+						} else {
+							v6IPs = append(v6IPs, ip)
+						}
 					}
 				}
 			}
@@ -479,7 +483,8 @@ func (n *ovn) parentAllocateIP(ipRanges []*shared.IPRange, allAllocated []net.IP
 
 // startParentPort performs any network start up logic needed to connect the parent uplink connection to OVN.
 func (n *ovn) startParentPort() error {
-	parentNet, err := LoadByName(n.state, n.config["network"])
+	// Parent network must be in default project.
+	parentNet, err := LoadByName(n.state, project.Default, n.config["network"])
 	if err != nil {
 		return errors.Wrapf(err, "Failed loading parent network")
 	}
@@ -607,7 +612,8 @@ func (n *ovn) startParentPortBridge(parentNet Network) error {
 
 // deleteParentPort deletes the parent uplink connection.
 func (n *ovn) deleteParentPort() error {
-	parentNet, err := LoadByName(n.state, n.config["network"])
+	// Parent network must be in default project.
+	parentNet, err := LoadByName(n.state, project.Default, n.config["network"])
 	if err != nil {
 		return errors.Wrapf(err, "Failed loading parent network")
 	}
@@ -1136,18 +1142,8 @@ func (n *ovn) Delete(clientType cluster.ClientType) error {
 func (n *ovn) Rename(newName string) error {
 	n.logger.Debug("Rename", log.Ctx{"newName": newName})
 
-	// Sanity checks.
-	inUse, err := n.IsUsed()
-	if err != nil {
-		return err
-	}
-
-	if inUse {
-		return fmt.Errorf("The network is currently in use")
-	}
-
 	// Rename common steps.
-	err = n.common.rename(newName)
+	err := n.common.rename(newName)
 	if err != nil {
 		return err
 	}

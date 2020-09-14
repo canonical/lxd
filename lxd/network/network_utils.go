@@ -17,6 +17,7 @@ import (
 
 	"github.com/pkg/errors"
 
+	"github.com/lxc/lxd/lxd/db"
 	deviceConfig "github.com/lxc/lxd/lxd/device/config"
 	"github.com/lxc/lxd/lxd/device/nictype"
 	"github.com/lxc/lxd/lxd/dnsmasq"
@@ -29,6 +30,7 @@ import (
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/logger"
+	"github.com/lxc/lxd/shared/version"
 )
 
 // validInterfaceName validates a real network interface name.
@@ -83,25 +85,147 @@ func RandomDevName(prefix string) string {
 	return iface
 }
 
-// IsInUseByInstance indicates if network is referenced by an instance's NIC devices.
-// Checks if the device's parent or network properties match the network name.
-func IsInUseByInstance(s *state.State, c instance.Instance, networkName string) (bool, error) {
-	return isInUseByDevices(s, c.ExpandedDevices(), networkName)
+// UsedBy returns list of API resources using network. Accepts firstOnly argument to indicate that only the first
+// resource using network should be returned. This can help to quickly check if the network is in use.
+func UsedBy(s *state.State, networkProjectName string, networkName string, firstOnly bool) ([]string, error) {
+	var usedBy []string
+
+	// Look at instances.
+	insts, err := instance.LoadFromAllProjects(s)
+	if err != nil {
+		return nil, err
+	}
+
+	for _, inst := range insts {
+		inUse, err := isInUseByInstance(s, inst, networkProjectName, networkName)
+		if err != nil {
+			return nil, err
+		}
+
+		if inUse {
+			uri := fmt.Sprintf("/%s/instances/%s", version.APIVersion, inst.Name())
+			if inst.Project() != project.Default {
+				uri += fmt.Sprintf("?project=%s", inst.Project())
+			}
+
+			usedBy = append(usedBy, uri)
+
+			if firstOnly {
+				return usedBy, nil
+			}
+		}
+	}
+
+	// Look for profiles.
+	var profiles []db.Profile
+	err = s.Cluster.Transaction(func(tx *db.ClusterTx) error {
+		profiles, err = tx.GetProfiles(db.ProfileFilter{})
+		if err != nil {
+			return err
+		}
+
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	for _, profile := range profiles {
+		inUse, err := isInUseByProfile(s, profile, networkProjectName, networkName)
+		if err != nil {
+			return nil, err
+		}
+
+		if inUse {
+			uri := fmt.Sprintf("/%s/profiles/%s", version.APIVersion, profile.Name)
+			if profile.Project != project.Default {
+				uri += fmt.Sprintf("?project=%s", profile.Project)
+			}
+
+			usedBy = append(usedBy, uri)
+
+			if firstOnly {
+				return usedBy, nil
+			}
+		}
+	}
+
+	// Only networks defined in the default project can be used by other networks.
+	if networkProjectName == project.Default {
+		// Get all managed networks across all projects.
+		var projectNetworks map[string]map[int64]api.Network
+
+		err = s.Cluster.Transaction(func(tx *db.ClusterTx) error {
+			projectNetworks, err = tx.GetNonPendingNetworks()
+			return err
+		})
+		if err != nil {
+			return nil, errors.Wrapf(err, "Failed to load all networks")
+		}
+
+		for projectName, networks := range projectNetworks {
+			for _, network := range networks {
+				// The network's config references the network we are searching for. Either by
+				// directly referencing our network or by referencing our interface as its parent.
+				if network.Config["network"] == networkName || network.Config["parent"] == networkName {
+					uri := fmt.Sprintf("/%s/networks/%s", version.APIVersion, network.Name)
+					if projectName != project.Default {
+						uri += fmt.Sprintf("?project=%s", projectName)
+					}
+
+					usedBy = append(usedBy, uri)
+				}
+			}
+		}
+	}
+
+	return usedBy, nil
 }
 
-// IsInUseByProfile indicates if network is referenced by a profile's NIC devices.
+// isInUseByInstance indicates if network is referenced by an instance's NIC devices.
 // Checks if the device's parent or network properties match the network name.
-func IsInUseByProfile(s *state.State, profile api.Profile, networkName string) (bool, error) {
-	return isInUseByDevices(s, deviceConfig.NewDevices(profile.Devices), networkName)
+func isInUseByInstance(s *state.State, inst instance.Instance, networkProjectName string, networkName string) (bool, error) {
+	// Get the translated network project name from the instance's project.
+	instNetworkProjectName, err := project.NetworkProject(s.Cluster, inst.Project())
+	if err != nil {
+		return false, err
+	}
+
+	// Skip instances who's translated network project doesn't match the requested network's project.
+	// Because its devices can't be using this network.
+	if networkProjectName != instNetworkProjectName {
+		return false, nil
+	}
+
+	return isInUseByDevices(s, networkProjectName, networkName, inst.ExpandedDevices())
 }
 
-func isInUseByDevices(s *state.State, devices deviceConfig.Devices, networkName string) (bool, error) {
+// isInUseByProfile indicates if network is referenced by a profile's NIC devices.
+// Checks if the device's parent or network properties match the network name.
+func isInUseByProfile(s *state.State, profile db.Profile, networkProjectName string, networkName string) (bool, error) {
+	// Get the translated network project name from the profiles's project.
+	profileNetworkProjectName, err := project.NetworkProject(s.Cluster, profile.Project)
+	if err != nil {
+		return false, err
+	}
+
+	// Skip profiles who's translated network project doesn't match the requested network's project.
+	// Because its devices can't be using this network.
+	if networkProjectName != profileNetworkProjectName {
+		return false, nil
+	}
+
+	return isInUseByDevices(s, networkProjectName, networkName, deviceConfig.NewDevices(profile.Devices))
+}
+
+// isInUseByDevices inspects a device's config to find references for a network being used.
+func isInUseByDevices(s *state.State, networkProjectName string, networkName string, devices deviceConfig.Devices) (bool, error) {
 	for _, d := range devices {
 		if d["type"] != "nic" {
 			continue
 		}
 
-		nicType, err := nictype.NICType(s, d)
+		nicType, err := nictype.NICType(s, networkProjectName, d)
 		if err != nil {
 			return false, err
 		}
@@ -258,7 +382,9 @@ func UpdateDNSMasqStatic(s *state.State, networkName string) error {
 	var networks []string
 	if networkName == "" {
 		var err error
-		networks, err = s.Cluster.GetNetworks()
+
+		// Pass project.Default here, as currently dnsmasq (bridged) networks do not support projects.
+		networks, err = s.Cluster.GetNetworks(project.Default)
 		if err != nil {
 			return err
 		}
@@ -282,7 +408,7 @@ func UpdateDNSMasqStatic(s *state.State, networkName string) error {
 				continue
 			}
 
-			nicType, err := nictype.NICType(s, d)
+			nicType, err := nictype.NICType(s, inst.Project(), d)
 			if err != nil || nicType != "bridged" {
 				continue
 			}
@@ -337,7 +463,8 @@ func UpdateDNSMasqStatic(s *state.State, networkName string) error {
 			continue
 		}
 
-		n, err := LoadByName(s, network)
+		// Pass project.Default here, as currently dnsmasq (bridged) networks do not support projects.
+		n, err := LoadByName(s, project.Default, network)
 		if err != nil {
 			return errors.Wrapf(err, "Failed to load network %q in project %q for dnsmasq update", project.Default, network)
 		}
@@ -717,7 +844,8 @@ func GetLeaseAddresses(s *state.State, networkName string, hwaddr string) ([]api
 		return addresses, nil
 	}
 
-	dbInfo, err := LoadByName(s, networkName)
+	// Pass project.Default here, as currently dnsmasq (bridged) networks do not support projects.
+	dbInfo, err := LoadByName(s, project.Default, networkName)
 	if err != nil {
 		return nil, err
 	}

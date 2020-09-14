@@ -66,20 +66,46 @@ var networkStateCmd = APIEndpoint{
 
 // API endpoints
 func networksGet(d *Daemon, r *http.Request) response.Response {
+	projectName, err := project.NetworkProject(d.State().Cluster, projectParam(r))
+	if err != nil {
+		return response.SmartError(err)
+	}
+
 	recursion := util.IsRecursionRequest(r)
 
-	ifs, err := networkGetInterfaces(d.cluster)
+	// Get list of managed networks (that may or may not have network interfaces on the host).
+	networks, err := d.cluster.GetNetworks(projectName)
 	if err != nil {
 		return response.InternalError(err)
 	}
 
+	// Get list of actual network interfaces on the host as well if the network's project is Default.
+	if projectName == project.Default {
+		ifaces, err := net.Interfaces()
+		if err != nil {
+			return response.InternalError(err)
+		}
+
+		for _, iface := range ifaces {
+			// Ignore veth pairs (for performance reasons).
+			if strings.HasPrefix(iface.Name, "veth") {
+				continue
+			}
+
+			// Append to the list of networks if a managed network of same name doesn't exist.
+			if !shared.StringInSlice(iface.Name, networks) {
+				networks = append(networks, iface.Name)
+			}
+		}
+	}
+
 	resultString := []string{}
 	resultMap := []api.Network{}
-	for _, iface := range ifs {
+	for _, network := range networks {
 		if !recursion {
-			resultString = append(resultString, fmt.Sprintf("/%s/networks/%s", version.APIVersion, iface))
+			resultString = append(resultString, fmt.Sprintf("/%s/networks/%s", version.APIVersion, network))
 		} else {
-			net, err := doNetworkGet(d, iface)
+			net, err := doNetworkGet(d, projectName, network)
 			if err != nil {
 				continue
 			}
@@ -95,13 +121,18 @@ func networksGet(d *Daemon, r *http.Request) response.Response {
 }
 
 func networksPost(d *Daemon, r *http.Request) response.Response {
+	projectName, err := project.NetworkProject(d.State().Cluster, projectParam(r))
+	if err != nil {
+		return response.SmartError(err)
+	}
+
 	networkCreateLock.Lock()
 	defer networkCreateLock.Unlock()
 
 	req := api.NetworksPost{}
 
 	// Parse the request.
-	err := json.NewDecoder(r.Body).Decode(&req)
+	err = json.NewDecoder(r.Body).Decode(&req)
 	if err != nil {
 		return response.BadRequest(err)
 	}
@@ -147,7 +178,7 @@ func networksPost(d *Daemon, r *http.Request) response.Response {
 	if isClusterNotification(r) {
 		// This is an internal request which triggers the actual creation of the network across all nodes
 		// after they have been previously defined.
-		err = doNetworksCreate(d, req, clientType)
+		err = doNetworksCreate(d, projectName, req, clientType)
 		if err != nil {
 			return response.SmartError(err)
 		}
@@ -165,7 +196,7 @@ func networksPost(d *Daemon, r *http.Request) response.Response {
 		}
 
 		err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
-			return tx.CreatePendingNetwork(targetNode, project.Default, req.Name, dbNetType, req.Config)
+			return tx.CreatePendingNetwork(targetNode, projectName, req.Name, dbNetType, req.Config)
 		})
 		if err != nil {
 			if err == db.ErrAlreadyDefined {
@@ -183,7 +214,7 @@ func networksPost(d *Daemon, r *http.Request) response.Response {
 	}
 
 	if count > 1 {
-		err = networksPostCluster(d, req, clientType)
+		err = networksPostCluster(d, projectName, req, clientType)
 		if err != nil {
 			return response.SmartError(err)
 		}
@@ -197,7 +228,7 @@ func networksPost(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	networks, err := networkGetInterfaces(d.cluster)
+	networks, err := d.cluster.GetNetworks(projectName)
 	if err != nil {
 		return response.InternalError(err)
 	}
@@ -210,16 +241,16 @@ func networksPost(d *Daemon, r *http.Request) response.Response {
 	defer revert.Fail()
 
 	// Create the database entry.
-	_, err = d.cluster.CreateNetwork(project.Default, req.Name, req.Description, dbNetType, req.Config)
+	_, err = d.cluster.CreateNetwork(projectName, req.Name, req.Description, dbNetType, req.Config)
 	if err != nil {
 		return response.SmartError(errors.Wrapf(err, "Error inserting %q into database", req.Name))
 	}
 
 	revert.Add(func() {
-		d.cluster.DeleteNetwork(req.Name)
+		d.cluster.DeleteNetwork(projectName, req.Name)
 	})
 
-	err = doNetworksCreate(d, req, clientType)
+	err = doNetworksCreate(d, projectName, req, clientType)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -228,7 +259,7 @@ func networksPost(d *Daemon, r *http.Request) response.Response {
 	return resp
 }
 
-func networksPostCluster(d *Daemon, req api.NetworksPost, clientType cluster.ClientType) error {
+func networksPostCluster(d *Daemon, projectName string, req api.NetworksPost, clientType cluster.ClientType) error {
 	// Check that no node-specific config key has been defined.
 	for key := range req.Config {
 		if shared.StringInSlice(key, db.NodeSpecificNetworkConfig) {
@@ -238,7 +269,7 @@ func networksPostCluster(d *Daemon, req api.NetworksPost, clientType cluster.Cli
 
 	// Check that the requested network type matches the type created when adding the local node config.
 	// If network doesn't exist yet, ignore not found error, as this will be checked by NetworkNodeConfigs().
-	_, netInfo, err := d.cluster.GetNetworkInAnyState(req.Name)
+	_, netInfo, err := d.cluster.GetNetworkInAnyState(projectName, req.Name)
 	if err != nil && err != db.ErrNoSuchObject {
 		return err
 	}
@@ -259,7 +290,7 @@ func networksPostCluster(d *Daemon, req api.NetworksPost, clientType cluster.Cli
 	var networkID int64
 	err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
 		// Fetch the network ID.
-		networkID, err = tx.GetNetworkID(req.Name)
+		networkID, err = tx.GetNetworkID(projectName, req.Name)
 		if err != nil {
 			return err
 		}
@@ -304,20 +335,20 @@ func networksPostCluster(d *Daemon, req api.NetworksPost, clientType cluster.Cli
 
 	revert.Add(func() {
 		d.cluster.Transaction(func(tx *db.ClusterTx) error {
-			return tx.NetworkErrored(req.Name)
+			return tx.NetworkErrored(projectName, req.Name)
 		})
 	})
 
 	// We need to mark the network as created now, because the network.LoadByName call invoked by
 	// doNetworksCreate would fail with not-found otherwise.
 	err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
-		return tx.NetworkCreated(req.Name)
+		return tx.NetworkCreated(projectName, req.Name)
 	})
 	if err != nil {
 		return err
 	}
 
-	err = doNetworksCreate(d, nodeReq, clientType)
+	err = doNetworksCreate(d, projectName, nodeReq, clientType)
 	if err != nil {
 		return err
 	}
@@ -333,7 +364,7 @@ func networksPostCluster(d *Daemon, req api.NetworksPost, clientType cluster.Cli
 			nodeReq.Config[key] = value
 		}
 
-		return client.CreateNetwork(nodeReq)
+		return client.UseProject(projectName).CreateNetwork(nodeReq)
 	})
 	if err != nil {
 		return err
@@ -345,9 +376,9 @@ func networksPostCluster(d *Daemon, req api.NetworksPost, clientType cluster.Cli
 
 // Create the network on the system. The clusterNotification flag is used to indicate whether creation request
 // is coming from a cluster notification (and if so we should not delete the database record on error).
-func doNetworksCreate(d *Daemon, req api.NetworksPost, clientType cluster.ClientType) error {
+func doNetworksCreate(d *Daemon, projectName string, req api.NetworksPost, clientType cluster.ClientType) error {
 	// Start the network.
-	n, err := network.LoadByName(d.State(), req.Name)
+	n, err := network.LoadByName(d.State(), projectName, req.Name)
 	if err != nil {
 		return err
 	}
@@ -384,9 +415,14 @@ func networkGet(d *Daemon, r *http.Request) response.Response {
 		return resp
 	}
 
+	projectName, err := project.NetworkProject(d.State().Cluster, projectParam(r))
+	if err != nil {
+		return response.SmartError(err)
+	}
+
 	name := mux.Vars(r)["name"]
 
-	n, err := doNetworkGet(d, name)
+	n, err := doNetworkGet(d, projectName, name)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -410,28 +446,28 @@ func networkGet(d *Daemon, r *http.Request) response.Response {
 	return response.SyncResponseETag(true, &n, etag)
 }
 
-func doNetworkGet(d *Daemon, name string) (api.Network, error) {
-	// Ignore veth pairs (for performance reasons)
+func doNetworkGet(d *Daemon, projectName string, name string) (api.Network, error) {
+	// Ignore veth pairs (for performance reasons).
 	if strings.HasPrefix(name, "veth") {
 		return api.Network{}, os.ErrNotExist
 	}
 
-	// Get some information
+	// Get some information.
 	osInfo, _ := net.InterfaceByName(name)
-	_, dbInfo, _ := d.cluster.GetNetworkInAnyState(name)
+	_, dbInfo, _ := d.cluster.GetNetworkInAnyState(projectName, name)
 
-	// Sanity check
+	// Sanity check.
 	if osInfo == nil && dbInfo == nil {
 		return api.Network{}, os.ErrNotExist
 	}
 
-	// Prepare the response
+	// Prepare the response.
 	n := api.Network{}
 	n.Name = name
 	n.UsedBy = []string{}
 	n.Config = map[string]string{}
 
-	// Set the device type as needed
+	// Set the device type as needed.
 	if osInfo != nil && shared.IsLoopback(osInfo) {
 		n.Type = "loopback"
 	} else if dbInfo != nil {
@@ -456,57 +492,14 @@ func doNetworkGet(d *Daemon, name string) (api.Network, error) {
 		}
 	}
 
-	// Look for containers using the interface
+	// Look for instances using the interface.
 	if n.Type != "loopback" {
-		// Look at instances.
-		insts, err := instance.LoadFromAllProjects(d.State())
+		usedBy, err := network.UsedBy(d.State(), projectName, n.Name, false)
 		if err != nil {
 			return api.Network{}, err
 		}
 
-		for _, inst := range insts {
-			inUse, err := network.IsInUseByInstance(d.State(), inst, n.Name)
-			if err != nil {
-				return api.Network{}, err
-			}
-
-			if inUse {
-				uri := fmt.Sprintf("/%s/instances/%s", version.APIVersion, inst.Name())
-				if inst.Project() != project.Default {
-					uri += fmt.Sprintf("?project=%s", inst.Project())
-				}
-				n.UsedBy = append(n.UsedBy, uri)
-			}
-		}
-
-		// Look for profiles.
-		var profiles []db.Profile
-		err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
-			profiles, err = tx.GetProfiles(db.ProfileFilter{})
-			if err != nil {
-				return err
-			}
-
-			return nil
-		})
-		if err != nil {
-			return api.Network{}, err
-		}
-
-		for _, profile := range profiles {
-			inUse, err := network.IsInUseByProfile(d.State(), *db.ProfileToAPI(&profile), n.Name)
-			if err != nil {
-				return api.Network{}, err
-			}
-
-			if inUse {
-				uri := fmt.Sprintf("/%s/profiles/%s", version.APIVersion, profile.Name)
-				if profile.Project != project.Default {
-					uri += fmt.Sprintf("?project=%s", profile.Project)
-				}
-				n.UsedBy = append(n.UsedBy, uri)
-			}
-		}
+		n.UsedBy = usedBy
 	}
 
 	if dbInfo != nil {
@@ -518,16 +511,21 @@ func doNetworkGet(d *Daemon, name string) (api.Network, error) {
 }
 
 func networkDelete(d *Daemon, r *http.Request) response.Response {
+	projectName, err := project.NetworkProject(d.State().Cluster, projectParam(r))
+	if err != nil {
+		return response.SmartError(err)
+	}
+
 	name := mux.Vars(r)["name"]
 	state := d.State()
 
 	// Check if the network is pending, if so we just need to delete it from the database.
-	_, dbNetwork, err := d.cluster.GetNetworkInAnyState(name)
+	_, dbNetwork, err := d.cluster.GetNetworkInAnyState(projectName, name)
 	if err != nil {
 		return response.SmartError(err)
 	}
 	if dbNetwork.Status == api.NetworkStatusPending {
-		err := d.cluster.DeleteNetwork(name)
+		err := d.cluster.DeleteNetwork(projectName, name)
 		if err != nil {
 			return response.SmartError(err)
 		}
@@ -535,7 +533,7 @@ func networkDelete(d *Daemon, r *http.Request) response.Response {
 	}
 
 	// Get the existing network.
-	n, err := network.LoadByName(state, name)
+	n, err := network.LoadByName(state, projectName, name)
 	if err != nil {
 		return response.NotFound(err)
 	}
@@ -577,28 +575,37 @@ func networkPost(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 	if clustered {
-		return response.BadRequest(fmt.Errorf("Renaming a network not supported in LXD clusters"))
+		return response.BadRequest(fmt.Errorf("Renaming clustered network not supported"))
 	}
 
 	name := mux.Vars(r)["name"]
 	req := api.NetworkPost{}
 	state := d.State()
 
-	// Parse the request
+	// Parse the request.
 	err = json.NewDecoder(r.Body).Decode(&req)
 	if err != nil {
 		return response.BadRequest(err)
 	}
 
-	// Get the existing network
-	n, err := network.LoadByName(state, name)
+	projectName, err := project.NetworkProject(d.State().Cluster, projectParam(r))
 	if err != nil {
-		return response.NotFound(err)
+		return response.SmartError(err)
 	}
 
-	// Sanity checks
+	// Get the existing network.
+	n, err := network.LoadByName(state, projectName, name)
+	if err != nil {
+		if err == db.ErrNoSuchObject {
+			return response.NotFound(fmt.Errorf("Network not found"))
+		}
+
+		return response.InternalError(errors.Wrapf(err, "Failed loading network"))
+	}
+
+	// Sanity check new name.
 	if req.Name == "" {
-		return response.BadRequest(fmt.Errorf("No name provided"))
+		return response.BadRequest(fmt.Errorf("New network name not provided"))
 	}
 
 	err = network.ValidateName(req.Name, n.Type())
@@ -606,8 +613,18 @@ func networkPost(d *Daemon, r *http.Request) response.Response {
 		return response.BadRequest(err)
 	}
 
-	// Check that the name isn't already in use
-	networks, err := networkGetInterfaces(d.cluster)
+	// Check network isn't in use.
+	inUse, err := n.IsUsed()
+	if err != nil {
+		return response.InternalError(errors.Wrapf(err, "Failed checking network in use"))
+	}
+
+	if inUse {
+		return response.BadRequest(fmt.Errorf("Network is currently in use"))
+	}
+
+	// Check that the name isn't already in used by an existing managed network.
+	networks, err := d.cluster.GetNetworks(projectName)
 	if err != nil {
 		return response.InternalError(err)
 	}
@@ -616,7 +633,7 @@ func networkPost(d *Daemon, r *http.Request) response.Response {
 		return response.Conflict(fmt.Errorf("Network %q already exists", req.Name))
 	}
 
-	// Rename it
+	// Rename it.
 	err = n.Rename(req.Name)
 	if err != nil {
 		return response.SmartError(err)
@@ -632,10 +649,15 @@ func networkPut(d *Daemon, r *http.Request) response.Response {
 		return resp
 	}
 
+	projectName, err := project.NetworkProject(d.State().Cluster, projectParam(r))
+	if err != nil {
+		return response.SmartError(err)
+	}
+
 	name := mux.Vars(r)["name"]
 
 	// Get the existing network.
-	_, dbInfo, err := d.cluster.GetNetworkInAnyState(name)
+	_, dbInfo, err := d.cluster.GetNetworkInAnyState(projectName, name)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -690,7 +712,7 @@ func networkPut(d *Daemon, r *http.Request) response.Response {
 
 	clientType := cluster.UserAgentClientType(r.Header.Get("User-Agent"))
 
-	return doNetworkUpdate(d, name, req, targetNode, clientType, r.Method, clustered)
+	return doNetworkUpdate(d, projectName, name, req, targetNode, clientType, r.Method, clustered)
 }
 
 func networkPatch(d *Daemon, r *http.Request) response.Response {
@@ -699,9 +721,9 @@ func networkPatch(d *Daemon, r *http.Request) response.Response {
 
 // doNetworkUpdate loads the current local network config, merges with the requested network config, validates
 // and applies the changes. Will also notify other cluster nodes of non-node specific config if needed.
-func doNetworkUpdate(d *Daemon, name string, req api.NetworkPut, targetNode string, clientType cluster.ClientType, httpMethod string, clustered bool) response.Response {
+func doNetworkUpdate(d *Daemon, projectName string, name string, req api.NetworkPut, targetNode string, clientType cluster.ClientType, httpMethod string, clustered bool) response.Response {
 	// Load the local node-specific network.
-	n, err := network.LoadByName(d.State(), name)
+	n, err := network.LoadByName(d.State(), projectName, name)
 	if err != nil {
 		return response.NotFound(err)
 	}
@@ -748,16 +770,24 @@ func doNetworkUpdate(d *Daemon, name string, req api.NetworkPut, targetNode stri
 }
 
 func networkLeasesGet(d *Daemon, r *http.Request) response.Response {
-	name := mux.Vars(r)["name"]
-	project := projectParam(r)
+	// The project we are filtering the instance leases by.
+	instProjectName := projectParam(r)
 
-	// Try to get the network
-	n, err := doNetworkGet(d, name)
+	// The project we should use the load the network.
+	networkProjectName, err := project.NetworkProject(d.State().Cluster, instProjectName)
 	if err != nil {
 		return response.SmartError(err)
 	}
 
-	// Validate that we do have leases for it
+	name := mux.Vars(r)["name"]
+
+	// Try to get the network.
+	n, err := doNetworkGet(d, networkProjectName, name)
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	// Validate that we do have leases for it.
 	if !n.Managed || n.Type != "bridge" {
 		return response.NotFound(errors.New("Leases not found"))
 	}
@@ -765,10 +795,10 @@ func networkLeasesGet(d *Daemon, r *http.Request) response.Response {
 	leases := []api.NetworkLease{}
 	projectMacs := []string{}
 
-	// Get all static leases
+	// Get all static leases.
 	if !isClusterNotification(r) {
-		// Get all the instances
-		instances, err := instance.LoadByProject(d.State(), project)
+		// Get all the instances.
+		instances, err := instance.LoadByProject(d.State(), instProjectName)
 		if err != nil {
 			return response.SmartError(err)
 		}
@@ -781,7 +811,7 @@ func networkLeasesGet(d *Daemon, r *http.Request) response.Response {
 					continue
 				}
 
-				nicType, err := nictype.NICType(d.State(), dev)
+				nicType, err := nictype.NICType(d.State(), inst.Project(), dev)
 				if err != nil || nicType != "bridged" {
 					continue
 				}
@@ -922,31 +952,46 @@ func networkLeasesGet(d *Daemon, r *http.Request) response.Response {
 }
 
 func networkStartup(s *state.State) error {
-	// Get a list of managed networks.
-	networks, err := s.Cluster.GetNonPendingNetworks()
+	var err error
+
+	// Get a list of projects.
+	var projectNames []string
+
+	err = s.Cluster.Transaction(func(tx *db.ClusterTx) error {
+		projectNames, err = tx.GetProjectNames()
+		return err
+	})
 	if err != nil {
-		return errors.Wrapf(err, "Failed to load networks")
+		return errors.Wrapf(err, "Failed to load projects")
 	}
 
-	// Bring them all up.
-	for _, name := range networks {
-		n, err := network.LoadByName(s, name)
+	for _, projectName := range projectNames {
+		// Get a list of managed networks.
+		networks, err := s.Cluster.GetNonPendingNetworks(projectName)
 		if err != nil {
-			return errors.Wrapf(err, "Failed to load network %q", name)
+			return errors.Wrapf(err, "Failed to load networks for project %q", projectName)
 		}
 
-		err = n.Validate(n.Config())
-		if err != nil {
-			// Don't cause LXD to fail to start entirely on network start up failure.
-			logger.Error("Failed to validate network", log.Ctx{"err": err, "name": name})
-			continue
-		}
+		// Bring them all up.
+		for _, name := range networks {
+			n, err := network.LoadByName(s, projectName, name)
+			if err != nil {
+				return errors.Wrapf(err, "Failed to load network %q in project %q", name, projectName)
+			}
 
-		err = n.Start()
-		if err != nil {
-			// Don't cause LXD to fail to start entirely on network start up failure.
-			logger.Error("Failed to bring up network", log.Ctx{"err": err, "name": name})
-			continue
+			err = n.Validate(n.Config())
+			if err != nil {
+				// Don't cause LXD to fail to start entirely on network start up failure.
+				logger.Error("Failed to validate network", log.Ctx{"err": err, "project": projectName, "name": name})
+				continue
+			}
+
+			err = n.Start()
+			if err != nil {
+				// Don't cause LXD to fail to start entirely on network start up failure.
+				logger.Error("Failed to bring up network", log.Ctx{"err": err, "project": projectName, "name": name})
+				continue
+			}
 		}
 	}
 
@@ -954,22 +999,37 @@ func networkStartup(s *state.State) error {
 }
 
 func networkShutdown(s *state.State) error {
-	// Get a list of managed networks
-	networks, err := s.Cluster.GetNetworks()
-	if err != nil {
+	var err error
+
+	// Get a list of projects.
+	var projectNames []string
+
+	err = s.Cluster.Transaction(func(tx *db.ClusterTx) error {
+		projectNames, err = tx.GetProjectNames()
 		return err
+	})
+	if err != nil {
+		return errors.Wrapf(err, "Failed to load projects")
 	}
 
-	// Bring them all up
-	for _, name := range networks {
-		n, err := network.LoadByName(s, name)
+	for _, projectName := range projectNames {
+		// Get a list of managed networks.
+		networks, err := s.Cluster.GetNetworks(projectName)
 		if err != nil {
-			return err
+			return errors.Wrapf(err, "Failed to load networks for project %q", projectName)
 		}
 
-		err = n.Stop()
-		if err != nil {
-			logger.Error("Failed to bring down network", log.Ctx{"err": err, "name": name})
+		// Bring them all down.
+		for _, name := range networks {
+			n, err := network.LoadByName(s, projectName, name)
+			if err != nil {
+				return errors.Wrapf(err, "Failed to load network %q in project %q", name, projectName)
+			}
+
+			err = n.Stop()
+			if err != nil {
+				logger.Error("Failed to bring down network", log.Ctx{"err": err, "project": projectName, "name": name})
+			}
 		}
 	}
 

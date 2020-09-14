@@ -378,6 +378,17 @@ func (n *bridge) Validate(config map[string]string) error {
 	return nil
 }
 
+// Create checks whether the bridge interface name is used already.
+func (n *bridge) Create(clientType cluster.ClientType) error {
+	n.logger.Debug("Create", log.Ctx{"clientType": clientType, "config": n.config})
+
+	if shared.PathExists(fmt.Sprintf("/sys/class/net/%s", n.name)) {
+		return fmt.Errorf("Network interface %q already exists", n.name)
+	}
+
+	return nil
+}
+
 // isRunning returns whether the network is up.
 func (n *bridge) isRunning() bool {
 	return shared.PathExists(fmt.Sprintf("/sys/class/net/%s", n.name))
@@ -408,14 +419,8 @@ func (n *bridge) Delete(clientType cluster.ClientType) error {
 func (n *bridge) Rename(newName string) error {
 	n.logger.Debug("Rename", log.Ctx{"newName": newName})
 
-	// Sanity checks.
-	inUse, err := n.IsUsed()
-	if err != nil {
-		return err
-	}
-
-	if inUse {
-		return fmt.Errorf("The network is currently in use")
+	if shared.PathExists(fmt.Sprintf("/sys/class/net/%s", newName)) {
+		return fmt.Errorf("Network interface %q already exists", newName)
 	}
 
 	// Bring the network down.
@@ -436,7 +441,7 @@ func (n *bridge) Rename(newName string) error {
 	}
 
 	// Rename common steps.
-	err = n.common.rename(newName)
+	err := n.common.rename(newName)
 	if err != nil {
 		return err
 	}

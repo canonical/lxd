@@ -68,11 +68,15 @@ func (c *ClusterTx) GetNonPendingNetworkIDs() (map[string]int64, error) {
 	return ids, nil
 }
 
-// GetNonPendingNetworks returns a map of api.Network associated to network ID.
+// GetNonPendingNetworks returns a map of api.Network associated to project and network ID.
 //
 // Pending networks are skipped.
-func (c *ClusterTx) GetNonPendingNetworks() (map[int64]api.Network, error) {
-	stmt, err := c.tx.Prepare("SELECT id, name, description, type, state FROM networks WHERE state != ?")
+func (c *ClusterTx) GetNonPendingNetworks() (map[string]map[int64]api.Network, error) {
+	stmt, err := c.tx.Prepare(`SELECT projects.name, networks.id, networks.name, networks.description, networks.type, networks.state
+		FROM networks
+		JOIN projects on projects.id = networks.project_id
+		WHERE networks.state != ?
+	`)
 	if err != nil {
 		return nil, err
 	}
@@ -84,15 +88,16 @@ func (c *ClusterTx) GetNonPendingNetworks() (map[int64]api.Network, error) {
 	}
 	defer rows.Close()
 
-	networks := make(map[int64]api.Network)
+	projectNetworks := make(map[string]map[int64]api.Network)
 
 	for i := 0; rows.Next(); i++ {
+		var projectName string
 		var networkID int64
 		var networkType NetworkType
 		var networkState int
 		var network api.Network
 
-		err := rows.Scan(&networkID, &network.Name, &network.Description, &networkType, &networkState)
+		err := rows.Scan(&projectName, &networkID, &network.Name, &network.Description, &networkType, &networkState)
 		if err != nil {
 			return nil, err
 		}
@@ -101,7 +106,14 @@ func (c *ClusterTx) GetNonPendingNetworks() (map[int64]api.Network, error) {
 		networkFillStatus(&network, networkState)
 		networkFillType(&network, networkType)
 
-		networks[networkID] = network
+		if projectNetworks[projectName] != nil {
+			projectNetworks[projectName][networkID] = network
+		} else {
+			projectNetworks[projectName] = map[int64]api.Network{
+				networkID: network,
+			}
+		}
+
 	}
 	err = rows.Err()
 	if err != nil {
@@ -109,30 +121,32 @@ func (c *ClusterTx) GetNonPendingNetworks() (map[int64]api.Network, error) {
 	}
 
 	// Populate config.
-	for networkID, network := range networks {
-		networkConfig, err := query.SelectConfig(c.tx, "networks_config", "network_id=? AND (node_id=? OR node_id IS NULL)", networkID, c.nodeID)
-		if err != nil {
-			return nil, err
+	for projectName, networks := range projectNetworks {
+		for networkID, network := range networks {
+			networkConfig, err := query.SelectConfig(c.tx, "networks_config", "network_id=? AND (node_id=? OR node_id IS NULL)", networkID, c.nodeID)
+			if err != nil {
+				return nil, err
+			}
+
+			network.Config = networkConfig
+
+			nodes, err := c.networkNodes(networkID)
+			if err != nil {
+				return nil, err
+			}
+			network.Locations = nodes
+
+			projectNetworks[projectName][networkID] = network
 		}
-
-		network.Config = networkConfig
-
-		nodes, err := c.networkNodes(networkID)
-		if err != nil {
-			return nil, err
-		}
-		network.Locations = nodes
-
-		networks[networkID] = network
 	}
 
-	return networks, nil
+	return projectNetworks, nil
 }
 
 // GetNetworkID returns the ID of the network with the given name.
-func (c *ClusterTx) GetNetworkID(name string) (int64, error) {
-	stmt := "SELECT id FROM networks WHERE name=?"
-	ids, err := query.SelectIntegers(c.tx, stmt, name)
+func (c *ClusterTx) GetNetworkID(projectName string, name string) (int64, error) {
+	stmt := "SELECT id FROM networks WHERE project_id = (SELECT id FROM projects WHERE name = ?) AND name=?"
+	ids, err := query.SelectIntegers(c.tx, stmt, projectName, name)
 	if err != nil {
 		return -1, err
 	}
@@ -142,7 +156,7 @@ func (c *ClusterTx) GetNetworkID(name string) (int64, error) {
 	case 1:
 		return int64(ids[0]), nil
 	default:
-		return -1, fmt.Errorf("more than one network has the given name")
+		return -1, fmt.Errorf("More than one network has the given name")
 	}
 }
 
@@ -228,13 +242,13 @@ func (c *ClusterTx) CreatePendingNetwork(node string, projectName string, name s
 		return []interface{}{&network.id, &network.state, &network.netType}
 	}
 
-	stmt, err := c.tx.Prepare("SELECT id, state, type FROM networks WHERE name=?")
+	stmt, err := c.tx.Prepare("SELECT id, state, type FROM networks WHERE project_id = (SELECT id FROM projects WHERE name = ?) AND name=?")
 	if err != nil {
 		return err
 	}
 	defer stmt.Close()
 
-	err = query.SelectObjects(stmt, dest, name)
+	err = query.SelectObjects(stmt, dest, projectName, name)
 	if err != nil {
 		return err
 	}
@@ -301,18 +315,18 @@ func (c *ClusterTx) CreatePendingNetwork(node string, projectName string, name s
 }
 
 // NetworkCreated sets the state of the given network to "Created".
-func (c *ClusterTx) NetworkCreated(name string) error {
-	return c.networkState(name, networkCreated)
+func (c *ClusterTx) NetworkCreated(project string, name string) error {
+	return c.networkState(project, name, networkCreated)
 }
 
 // NetworkErrored sets the state of the given network to "Errored".
-func (c *ClusterTx) NetworkErrored(name string) error {
-	return c.networkState(name, networkErrored)
+func (c *ClusterTx) NetworkErrored(project string, name string) error {
+	return c.networkState(project, name, networkErrored)
 }
 
-func (c *ClusterTx) networkState(name string, state int) error {
-	stmt := "UPDATE networks SET state=? WHERE name=?"
-	result, err := c.tx.Exec(stmt, state, name)
+func (c *ClusterTx) networkState(project string, name string, state int) error {
+	stmt := "UPDATE networks SET state=? WHERE project_id = (SELECT id FROM projects WHERE name = ?) AND name=?"
+	result, err := c.tx.Exec(stmt, state, project, name)
 	if err != nil {
 		return err
 	}
@@ -363,22 +377,22 @@ func (c *ClusterTx) networkNodes(networkID int64) ([]string, error) {
 }
 
 // GetNetworks returns the names of existing networks.
-func (c *Cluster) GetNetworks() ([]string, error) {
-	return c.networks("")
+func (c *Cluster) GetNetworks(project string) ([]string, error) {
+	return c.networks(project, "")
 }
 
 // GetNonPendingNetworks returns the names of all networks that are not pending.
-func (c *Cluster) GetNonPendingNetworks() ([]string, error) {
-	return c.networks("NOT state=?", networkPending)
+func (c *Cluster) GetNonPendingNetworks(project string) ([]string, error) {
+	return c.networks(project, "NOT state=?", networkPending)
 }
 
 // Get all networks matching the given WHERE filter (if given).
-func (c *Cluster) networks(where string, args ...interface{}) ([]string, error) {
-	q := "SELECT name FROM networks"
-	inargs := []interface{}{}
+func (c *Cluster) networks(project string, where string, args ...interface{}) ([]string, error) {
+	q := "SELECT name FROM networks WHERE project_id = (SELECT id FROM projects WHERE name = ?)"
+	inargs := []interface{}{project}
 
 	if where != "" {
-		q += fmt.Sprintf(" WHERE %s", where)
+		q += fmt.Sprintf(" AND %s", where)
 		for _, arg := range args {
 			inargs = append(inargs, arg)
 		}
@@ -420,20 +434,20 @@ const (
 // GetNetworkInAnyState returns the network with the given name.
 //
 // The network can be in any state.
-func (c *Cluster) GetNetworkInAnyState(name string) (int64, *api.Network, error) {
-	return c.getNetwork(name, false)
+func (c *Cluster) GetNetworkInAnyState(project string, name string) (int64, *api.Network, error) {
+	return c.getNetwork(project, name, false)
 }
 
 // Get the network with the given name. If onlyCreated is true, only return
 // networks in the created state.
-func (c *Cluster) getNetwork(name string, onlyCreated bool) (int64, *api.Network, error) {
+func (c *Cluster) getNetwork(project string, name string, onlyCreated bool) (int64, *api.Network, error) {
 	description := sql.NullString{}
 	id := int64(-1)
 	state := 0
 	var netType NetworkType
 
-	q := "SELECT id, description, state, type FROM networks WHERE name=?"
-	arg1 := []interface{}{name}
+	q := "SELECT id, description, state, type FROM networks WHERE project_id = (SELECT id FROM projects WHERE name = ?) AND name=?"
+	arg1 := []interface{}{project, name}
 	arg2 := []interface{}{&id, &description, &state, &netType}
 	if onlyCreated {
 		q += " AND state=?"
@@ -648,8 +662,8 @@ func (c *Cluster) CreateNetwork(projectName string, name string, description str
 }
 
 // UpdateNetwork updates the network with the given name.
-func (c *Cluster) UpdateNetwork(name, description string, config map[string]string) error {
-	id, netInfo, err := c.GetNetworkInAnyState(name)
+func (c *Cluster) UpdateNetwork(project string, name, description string, config map[string]string) error {
+	id, netInfo, err := c.GetNetworkInAnyState(project, name)
 	if err != nil {
 		return err
 	}
@@ -662,7 +676,7 @@ func (c *Cluster) UpdateNetwork(name, description string, config map[string]stri
 
 		// Update network status if change applied successfully.
 		if netInfo.Status == api.NetworkStatusErrored {
-			err = tx.NetworkCreated(name)
+			err = tx.NetworkCreated(project, name)
 			if err != nil {
 				return err
 			}
@@ -722,8 +736,8 @@ func clearNetworkConfig(tx *sql.Tx, networkID, nodeID int64) error {
 }
 
 // DeleteNetwork deletes the network with the given name.
-func (c *Cluster) DeleteNetwork(name string) error {
-	id, _, err := c.GetNetworkInAnyState(name)
+func (c *Cluster) DeleteNetwork(project string, name string) error {
+	id, _, err := c.GetNetworkInAnyState(project, name)
 	if err != nil {
 		return err
 	}
@@ -737,8 +751,8 @@ func (c *Cluster) DeleteNetwork(name string) error {
 }
 
 // RenameNetwork renames a network.
-func (c *Cluster) RenameNetwork(oldName string, newName string) error {
-	id, _, err := c.GetNetworkInAnyState(oldName)
+func (c *Cluster) RenameNetwork(project string, oldName string, newName string) error {
+	id, _, err := c.GetNetworkInAnyState(project, oldName)
 	if err != nil {
 		return err
 	}

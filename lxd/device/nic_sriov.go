@@ -18,6 +18,7 @@ import (
 	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/instance/instancetype"
 	"github.com/lxc/lxd/lxd/network"
+	"github.com/lxc/lxd/lxd/project"
 	"github.com/lxc/lxd/lxd/revert"
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
@@ -59,7 +60,8 @@ func (d *nicSRIOV) validateConfig(instConf instance.ConfigReader) error {
 		}
 
 		// If network property is specified, lookup network settings and apply them to the device's config.
-		n, err := network.LoadByName(d.state, d.config["network"])
+		// project.Default is used here as macvlan networks don't suppprt projects.
+		n, err := network.LoadByName(d.state, project.Default, d.config["network"])
 		if err != nil {
 			return errors.Wrapf(err, "Error loading network config for %q", d.config["network"])
 		}

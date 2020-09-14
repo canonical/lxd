@@ -9,15 +9,17 @@ import (
 	"time"
 
 	"github.com/canonical/go-dqlite/driver"
+	"github.com/mpvl/subtest"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
 	"github.com/lxc/lxd/lxd/cluster"
 	"github.com/lxc/lxd/lxd/db"
+	"github.com/lxc/lxd/lxd/project"
 	"github.com/lxc/lxd/lxd/state"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/osarch"
 	"github.com/lxc/lxd/shared/version"
-	"github.com/mpvl/subtest"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 )
 
 func TestBootstrap_UnmetPreconditions(t *testing.T) {
@@ -270,7 +272,7 @@ func TestJoin(t *testing.T) {
 
 	err = cluster.Bootstrap(targetState, targetGateway, "buzz")
 	require.NoError(t, err)
-	_, err = targetState.Cluster.GetNetworks()
+	_, err = targetState.Cluster.GetNetworks(project.Default)
 	require.NoError(t, err)
 
 	// Setup a joining node
