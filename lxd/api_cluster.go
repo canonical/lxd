@@ -550,6 +550,13 @@ func clusterPutJoin(d *Daemon, req api.ClusterPut) response.Response {
 			}
 		}
 
+		// Start up networks so any post-join changes can be applied now that we have a Node ID.
+		logger.Debug("Starting networks after cluster join")
+		err = networkStartup(d.State())
+		if err != nil {
+			logger.Errorf("Failed starting networks: %v", err)
+		}
+
 		client, err = cluster.Connect(req.ClusterAddress, d.endpoints.NetworkCert(), true)
 		if err != nil {
 			return err

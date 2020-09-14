@@ -109,7 +109,6 @@ tunnel.NAME.port                | integer   | vxlan                 | 0         
 tunnel.NAME.protocol            | string    | standard mode         | -                         | Tunneling protocol ("vxlan" or "gre")
 tunnel.NAME.remote              | string    | gre or vxlan          | -                         | Remote address for the tunnel (not necessary for multicast vxlan)
 tunnel.NAME.ttl                 | integer   | vxlan                 | 1                         | Specific TTL to use for multicast routing topologies
-ovn.ovs\_bridge                 | string    | -                     | -                         | Name of OVS bridge that OVN networks use to connect to this network.
 
 Those keys can be set using the lxc tool with:
 
@@ -298,4 +297,3 @@ dns.search                      | string    | -                     | -         
 ipv4.address                    | string    | standard mode         | random unused subnet      | IPv4 address for the bridge (CIDR notation). Use "none" to turn off IPv4 or "auto" to generate a new one
 ipv6.address                    | string    | standard mode         | random unused subnet      | IPv6 address for the bridge (CIDR notation). Use "none" to turn off IPv6 or "auto" to generate a new one
 network                         | string    | -                     | -                         | Parent network to use for outbound external network access
-ovn.name                        | string    | -                     | -                         | Name of OVN logical network (populated automatically at network setup time)

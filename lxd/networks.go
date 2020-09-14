@@ -364,10 +364,14 @@ func doNetworksCreate(d *Daemon, req api.NetworksPost, clientType cluster.Client
 		return err
 	}
 
-	err = n.Start()
-	if err != nil {
-		n.Delete(clientType)
-		return err
+	// Only start networks when not doing a cluster pre-join phase (this ensures that networks are only started
+	// once the node has fully joined the clustered database and has consistent config with rest of the nodes).
+	if clientType != cluster.ClientTypeJoiner {
+		err = n.Start()
+		if err != nil {
+			n.Delete(clientType)
+			return err
+		}
 	}
 
 	return nil
