@@ -100,9 +100,20 @@ func (ctw *InstanceTarWriter) WriteFile(name string, srcPath string, fi os.FileI
 
 	// Handle xattrs (for real files only).
 	if link == "" {
-		hdr.Xattrs, err = shared.GetAllXattr(srcPath)
+		xattrs, err := shared.GetAllXattr(srcPath)
 		if err != nil {
 			return errors.Wrapf(err, "Failed to read xattr for %q", srcPath)
+		}
+
+		hdr.PAXRecords = make(map[string]string, len(xattrs))
+		for key, val := range xattrs {
+			if key == "system.posix_acl_access" {
+				hdr.PAXRecords["SCHILY.acl.access"] = val
+			} else if key == "system.posix_acl_default" {
+				hdr.PAXRecords["SCHILY.acl.default"] = val
+			} else {
+				hdr.PAXRecords["SCHILY.xattr."+key] = val
+			}
 		}
 	}
 
