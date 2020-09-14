@@ -68,11 +68,15 @@ func (c *ClusterTx) GetNonPendingNetworkIDs() (map[string]int64, error) {
 	return ids, nil
 }
 
-// GetNonPendingNetworks returns a map of api.Network associated to network ID.
+// GetNonPendingNetworks returns a map of api.Network associated to project and network ID.
 //
 // Pending networks are skipped.
-func (c *ClusterTx) GetNonPendingNetworks() (map[int64]api.Network, error) {
-	stmt, err := c.tx.Prepare("SELECT id, name, description, type, state FROM networks WHERE state != ?")
+func (c *ClusterTx) GetNonPendingNetworks() (map[string]map[int64]api.Network, error) {
+	stmt, err := c.tx.Prepare(`SELECT projects.name, networks.id, networks.name, networks.description, networks.type, networks.state
+		FROM networks
+		JOIN projects on projects.id = networks.project_id
+		WHERE networks.state != ?
+	`)
 	if err != nil {
 		return nil, err
 	}
@@ -84,15 +88,16 @@ func (c *ClusterTx) GetNonPendingNetworks() (map[int64]api.Network, error) {
 	}
 	defer rows.Close()
 
-	networks := make(map[int64]api.Network)
+	projectNetworks := make(map[string]map[int64]api.Network)
 
 	for i := 0; rows.Next(); i++ {
+		var projectName string
 		var networkID int64
 		var networkType NetworkType
 		var networkState int
 		var network api.Network
 
-		err := rows.Scan(&networkID, &network.Name, &network.Description, &networkType, &networkState)
+		err := rows.Scan(&projectName, &networkID, &network.Name, &network.Description, &networkType, &networkState)
 		if err != nil {
 			return nil, err
 		}
@@ -101,7 +106,14 @@ func (c *ClusterTx) GetNonPendingNetworks() (map[int64]api.Network, error) {
 		networkFillStatus(&network, networkState)
 		networkFillType(&network, networkType)
 
-		networks[networkID] = network
+		if projectNetworks[projectName] != nil {
+			projectNetworks[projectName][networkID] = network
+		} else {
+			projectNetworks[projectName] = map[int64]api.Network{
+				networkID: network,
+			}
+		}
+
 	}
 	err = rows.Err()
 	if err != nil {
@@ -109,24 +121,26 @@ func (c *ClusterTx) GetNonPendingNetworks() (map[int64]api.Network, error) {
 	}
 
 	// Populate config.
-	for networkID, network := range networks {
-		networkConfig, err := query.SelectConfig(c.tx, "networks_config", "network_id=? AND (node_id=? OR node_id IS NULL)", networkID, c.nodeID)
-		if err != nil {
-			return nil, err
+	for projectName, networks := range projectNetworks {
+		for networkID, network := range networks {
+			networkConfig, err := query.SelectConfig(c.tx, "networks_config", "network_id=? AND (node_id=? OR node_id IS NULL)", networkID, c.nodeID)
+			if err != nil {
+				return nil, err
+			}
+
+			network.Config = networkConfig
+
+			nodes, err := c.networkNodes(networkID)
+			if err != nil {
+				return nil, err
+			}
+			network.Locations = nodes
+
+			projectNetworks[projectName][networkID] = network
 		}
-
-		network.Config = networkConfig
-
-		nodes, err := c.networkNodes(networkID)
-		if err != nil {
-			return nil, err
-		}
-		network.Locations = nodes
-
-		networks[networkID] = network
 	}
 
-	return networks, nil
+	return projectNetworks, nil
 }
 
 // GetNetworkID returns the ID of the network with the given name.
