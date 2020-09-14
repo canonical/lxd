@@ -1158,7 +1158,3 @@ Adds the `ovn.ovs_bridge` setting to `bridge` networks to allow the `ovn` networ
 
 If missing, the first `ovn` network to specify a `bridge` network as its parent `network` will cause the
 setting to be populated with a random interface name prefixed with "ovn".
-
-## network\_ovn\_name
-Adds the `ovn.name` setting to `ovn` networks to allow nodes joining cluster to access the logical OVN network
-name during the pre-join stage before the node is connected to the cluster database.
