@@ -226,8 +226,6 @@ func (n *bridge) Validate(config map[string]string) error {
 
 		"raw.dnsmasq": validate.IsAny,
 
-		ovnParentOVSBridge: validate.Optional(validInterfaceName),
-
 		"maas.subnet.ipv4": validate.IsAny,
 		"maas.subnet.ipv6": validate.IsAny,
 	}
