@@ -361,12 +361,7 @@ func (n *ovn) setupParentPortBridge(parentNet Network, routerMAC net.HardwareAdd
 				n.config[ovnVolatileParentIPv6] = routerExtPortIPv6.String()
 			}
 
-			networkID, err := tx.GetNetworkID(n.name)
-			if err != nil {
-				return errors.Wrapf(err, "Failed to get network ID for network %q", n.name)
-			}
-
-			err = tx.UpdateNetwork(networkID, n.description, n.config)
+			err = tx.UpdateNetwork(n.id, n.description, n.config)
 			if err != nil {
 				return errors.Wrapf(err, "Failed saving allocated parent network IPs")
 			}
