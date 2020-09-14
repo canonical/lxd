@@ -201,7 +201,7 @@ func lxcCreate(s *state.State, args db.InstanceArgs) (instance.Instance, error) 
 		return nil, err
 	}
 
-	err = instance.ValidDevices(s, s.Cluster, c.Type(), c.expandedDevices, true)
+	err = instance.ValidDevices(s, s.Cluster, c.Project(), c.Type(), c.expandedDevices, true)
 	if err != nil {
 		c.Delete()
 		logger.Error("Failed creating container", ctxMap)
@@ -348,7 +348,7 @@ func lxcCreate(s *state.State, args db.InstanceArgs) (instance.Instance, error) 
 			err = c.deviceAdd(k, m)
 			if err != nil && err != device.ErrUnsupportedDevType {
 				c.Delete()
-				return nil, errors.Wrapf(err, "Failed to add device '%s'", k)
+				return nil, errors.Wrapf(err, "Failed to add device %q", k)
 			}
 		}
 
@@ -1786,12 +1786,12 @@ func (c *lxc) deviceResetVolatile(devName string, oldConfig, newConfig deviceCon
 	volatileClear := make(map[string]string)
 	devicePrefix := fmt.Sprintf("volatile.%s.", devName)
 
-	newNICType, err := nictype.NICType(c.state, newConfig)
+	newNICType, err := nictype.NICType(c.state, c.Project(), newConfig)
 	if err != nil {
 		return err
 	}
 
-	oldNICType, err := nictype.NICType(c.state, oldConfig)
+	oldNICType, err := nictype.NICType(c.state, c.Project(), oldConfig)
 	if err != nil {
 		return err
 	}
@@ -3847,7 +3847,7 @@ func (c *lxc) Update(args db.InstanceArgs, userRequested bool) error {
 		}
 
 		// Validate the new devices without using expanded devices validation (expensive checks disabled).
-		err = instance.ValidDevices(c.state, c.state.Cluster, c.Type(), args.Devices, false)
+		err = instance.ValidDevices(c.state, c.state.Cluster, c.Project(), c.Type(), args.Devices, false)
 		if err != nil {
 			return errors.Wrap(err, "Invalid devices")
 		}
@@ -3997,12 +3997,12 @@ func (c *lxc) Update(args db.InstanceArgs, userRequested bool) error {
 		// devices are otherwise identical except for the fields returned here, then the
 		// device is considered to be being "updated" rather than "added & removed".
 
-		oldNICType, err := nictype.NICType(c.state, newDevice)
+		oldNICType, err := nictype.NICType(c.state, c.Project(), newDevice)
 		if err != nil {
 			return []string{} // Cannot hot-update due to config error.
 		}
 
-		newNICType, err := nictype.NICType(c.state, oldDevice)
+		newNICType, err := nictype.NICType(c.state, c.Project(), oldDevice)
 		if err != nil {
 			return []string{} // Cannot hot-update due to config error.
 		}
@@ -4028,7 +4028,7 @@ func (c *lxc) Update(args db.InstanceArgs, userRequested bool) error {
 		}
 
 		// Do full expanded validation of the devices diff.
-		err = instance.ValidDevices(c.state, c.state.Cluster, c.Type(), c.expandedDevices, true)
+		err = instance.ValidDevices(c.state, c.state.Cluster, c.Project(), c.Type(), c.expandedDevices, true)
 		if err != nil {
 			return errors.Wrap(err, "Invalid expanded devices")
 		}
@@ -6408,7 +6408,7 @@ func (c *lxc) FillNetworkDevice(name string, m deviceConfig.Device) (deviceConfi
 		return nil
 	}
 
-	nicType, err := nictype.NICType(c.state, m)
+	nicType, err := nictype.NICType(c.state, c.Project(), m)
 	if err != nil {
 		return nil, err
 	}

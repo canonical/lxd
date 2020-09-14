@@ -8,6 +8,7 @@ import (
 	"github.com/pkg/errors"
 
 	deviceConfig "github.com/lxc/lxd/lxd/device/config"
+	"github.com/lxc/lxd/lxd/project"
 	"github.com/lxc/lxd/lxd/state"
 )
 
@@ -15,13 +16,19 @@ import (
 // If the device "type" is "nic" and the "network" property is specified in the device config, then NIC type is
 // resolved from the network's type. Otherwise the device's "nictype" property is returned (which may be empty if
 // used with non-NIC device configs).
-func NICType(s *state.State, d deviceConfig.Device) (string, error) {
+func NICType(s *state.State, deviceProjectName string, d deviceConfig.Device) (string, error) {
 	// NIC devices support resolving their "nictype" from their "network" property.
 	if d["type"] == "nic" {
 		if d["network"] != "" {
-			_, netInfo, err := s.Cluster.GetNetworkInAnyState(d["network"])
+			// Translate device's project name into a network project name.
+			networkProjectName, err := project.NetworkProject(s.Cluster, deviceProjectName)
 			if err != nil {
-				return "", errors.Wrapf(err, "Failed to load network %q", d["network"])
+				return "", errors.Wrapf(err, "Failed to translate device project %q into network project", deviceProjectName)
+			}
+
+			_, netInfo, err := s.Cluster.GetNetworkInAnyState(networkProjectName, d["network"])
+			if err != nil {
+				return "", errors.Wrapf(err, "Failed to load network %q for project %q", d["network"], networkProjectName)
 			}
 
 			var nicType string

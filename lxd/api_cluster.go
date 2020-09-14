@@ -19,6 +19,7 @@ import (
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/node"
 	"github.com/lxc/lxd/lxd/operations"
+	"github.com/lxc/lxd/lxd/project"
 	"github.com/lxc/lxd/lxd/response"
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
@@ -413,13 +414,13 @@ func clusterPutJoin(d *Daemon, req api.ClusterPut) response.Response {
 		}
 
 		networks := []api.Network{}
-		networkNames, err := d.cluster.GetNetworks()
+		networkNames, err := d.cluster.GetNetworks(project.Default)
 		if err != nil && err != db.ErrNoSuchObject {
 			return err
 		}
 
 		for _, name := range networkNames {
-			_, network, err := d.cluster.GetNetworkInAnyState(name)
+			_, network, err := d.cluster.GetNetworkInAnyState(project.Default, name)
 			if err != nil {
 				return err
 			}
@@ -1030,7 +1031,7 @@ func clusterNodeDelete(d *Daemon, r *http.Request) response.Response {
 			return response.SmartError(err)
 		}
 
-		networks, err := d.cluster.GetNetworks()
+		networks, err := d.cluster.GetNetworks(project.Default)
 		if err != nil {
 			return response.SmartError(err)
 		}
@@ -1508,7 +1509,7 @@ func clusterCheckStoragePoolsMatch(cluster *db.Cluster, reqPools []api.StoragePo
 }
 
 func clusterCheckNetworksMatch(cluster *db.Cluster, reqNetworks []api.Network) error {
-	networkNames, err := cluster.GetNonPendingNetworks()
+	networkNames, err := cluster.GetNonPendingNetworks(project.Default)
 	if err != nil && err != db.ErrNoSuchObject {
 		return err
 	}
@@ -1519,7 +1520,7 @@ func clusterCheckNetworksMatch(cluster *db.Cluster, reqNetworks []api.Network) e
 				continue
 			}
 			found = true
-			_, network, err := cluster.GetNetworkInAnyState(name)
+			_, network, err := cluster.GetNetworkInAnyState(project.Default, name)
 			if err != nil {
 				return err
 			}

@@ -298,7 +298,8 @@ func patchInvalidProfileNames(name string, d *Daemon) error {
 
 func patchNetworkPermissions(name string, d *Daemon) error {
 	// Get the list of networks
-	networks, err := d.cluster.GetNetworks()
+	// Pass project.Default, as networks didn't support projects here.
+	networks, err := d.cluster.GetNetworks(project.Default)
 	if err != nil {
 		return err
 	}
@@ -2660,7 +2661,8 @@ func patchStorageZFSVolumeSize(name string, d *Daemon) error {
 
 func patchNetworkDnsmasqHosts(name string, d *Daemon) error {
 	// Get the list of networks
-	networks, err := d.cluster.GetNetworks()
+	// Pass project.Default, as dnsmasq (bridge) networks don't support projects.
+	networks, err := d.cluster.GetNetworks(project.Default)
 	if err != nil {
 		return err
 	}
@@ -3447,21 +3449,24 @@ func patchClusteringDropDatabaseRole(name string, d *Daemon) error {
 
 // patchNetworkCearBridgeVolatileHwaddr removes the unsupported `volatile.bridge.hwaddr` config key from networks.
 func patchNetworkCearBridgeVolatileHwaddr(name string, d *Daemon) error {
+	// Use project.Default, as bridge networks don't support projects.
+	projectName := project.Default
+
 	// Get the list of networks.
-	networks, err := d.cluster.GetNetworks()
+	networks, err := d.cluster.GetNetworks(projectName)
 	if err != nil {
 		return errors.Wrapf(err, "Failed loading networks for network_clear_bridge_volatile_hwaddr patch")
 	}
 
 	for _, networkName := range networks {
-		_, net, err := d.cluster.GetNetworkInAnyState(networkName)
+		_, net, err := d.cluster.GetNetworkInAnyState(projectName, networkName)
 		if err != nil {
 			return errors.Wrapf(err, "Failed loading network %q for network_clear_bridge_volatile_hwaddr patch", networkName)
 		}
 
 		if net.Config["volatile.bridge.hwaddr"] != "" {
 			delete(net.Config, "volatile.bridge.hwaddr")
-			err = d.cluster.UpdateNetwork(net.Name, net.Description, net.Config)
+			err = d.cluster.UpdateNetwork(projectName, net.Name, net.Description, net.Config)
 			if err != nil {
 				return errors.Wrapf(err, "Failed updating network %q for network_clear_bridge_volatile_hwaddr patch", networkName)
 			}

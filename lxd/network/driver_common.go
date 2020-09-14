@@ -11,7 +11,6 @@ import (
 	lxd "github.com/lxc/lxd/client"
 	"github.com/lxc/lxd/lxd/cluster"
 	"github.com/lxc/lxd/lxd/db"
-	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/state"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
@@ -26,6 +25,7 @@ type common struct {
 	logger      logger.Logger
 	state       *state.State
 	id          int64
+	project     string
 	name        string
 	netType     string
 	description string
@@ -34,9 +34,10 @@ type common struct {
 }
 
 // init initialise internal variables.
-func (n *common) init(state *state.State, id int64, name string, netType string, description string, config map[string]string, status string) {
-	n.logger = logging.AddContext(logger.Log, log.Ctx{"driver": netType, "network": name})
+func (n *common) init(state *state.State, id int64, projectName string, name string, netType string, description string, config map[string]string, status string) {
+	n.logger = logging.AddContext(logger.Log, log.Ctx{"project": projectName, "driver": netType, "network": name})
 	n.id = id
+	n.project = projectName
 	n.name = name
 	n.netType = netType
 	n.config = config
@@ -131,49 +132,12 @@ func (n *common) Config() map[string]string {
 
 // IsUsed returns whether the network is used by any instances or profiles.
 func (n *common) IsUsed() (bool, error) {
-	// Look for instances using the network.
-	insts, err := instance.LoadFromAllProjects(n.state)
+	usedBy, err := UsedBy(n.state, n.project, n.name, true)
 	if err != nil {
 		return false, err
 	}
 
-	for _, inst := range insts {
-		inUse, err := IsInUseByInstance(n.state, inst, n.name)
-		if err != nil {
-			return false, err
-		}
-
-		if inUse {
-			return true, nil
-		}
-	}
-
-	// Look for profiles using the network.
-	var profiles []db.Profile
-	err = n.state.Cluster.Transaction(func(tx *db.ClusterTx) error {
-		profiles, err = tx.GetProfiles(db.ProfileFilter{})
-		if err != nil {
-			return err
-		}
-
-		return nil
-	})
-	if err != nil {
-		return false, err
-	}
-
-	for _, profile := range profiles {
-		inUse, err := IsInUseByProfile(n.state, *db.ProfileToAPI(&profile), n.name)
-		if err != nil {
-			return false, err
-		}
-
-		if inUse {
-			return true, nil
-		}
-	}
-
-	return false, nil
+	return len(usedBy) > 0, nil
 }
 
 // DHCPv4Subnet returns nil always.
@@ -230,7 +194,7 @@ func (n *common) DHCPv6Ranges() []shared.IPRange {
 func (n *common) update(applyNetwork api.NetworkPut, targetNode string, clientType cluster.ClientType) error {
 	// Update internal config before database has been updated (so that if update is a notification we apply
 	// the config being supplied and not that in the database).
-	n.init(n.state, n.id, n.name, n.netType, applyNetwork.Description, applyNetwork.Config, n.status)
+	n.init(n.state, n.id, n.project, n.name, n.netType, applyNetwork.Description, applyNetwork.Config, n.status)
 
 	// If this update isn't coming via a cluster notification itself, then notify all nodes of change and then
 	// update the database.
@@ -254,7 +218,7 @@ func (n *common) update(applyNetwork api.NetworkPut, targetNode string, clientTy
 			}
 
 			err = notifier(func(client lxd.InstanceServer) error {
-				return client.UpdateNetwork(n.name, sendNetwork, "")
+				return client.UseProject(n.project).UpdateNetwork(n.name, sendNetwork, "")
 			})
 			if err != nil {
 				return err
@@ -262,7 +226,7 @@ func (n *common) update(applyNetwork api.NetworkPut, targetNode string, clientTy
 		}
 
 		// Update the database.
-		err := n.state.Cluster.UpdateNetwork(n.name, applyNetwork.Description, applyNetwork.Config)
+		err := n.state.Cluster.UpdateNetwork(n.project, n.name, applyNetwork.Description, applyNetwork.Config)
 		if err != nil {
 			return err
 		}
@@ -335,13 +299,13 @@ func (n *common) rename(newName string) error {
 	}
 
 	// Rename the database entry.
-	err := n.state.Cluster.RenameNetwork(n.name, newName)
+	err := n.state.Cluster.RenameNetwork(n.project, n.name, newName)
 	if err != nil {
 		return err
 	}
 
 	// Reinitialise internal name variable and logger context with new name.
-	n.init(n.state, n.id, newName, n.netType, n.description, n.config, n.status)
+	n.init(n.state, n.id, n.project, newName, n.netType, n.description, n.config, n.status)
 
 	return nil
 }
@@ -356,14 +320,14 @@ func (n *common) delete(clientType cluster.ClientType) error {
 			return err
 		}
 		err = notifier(func(client lxd.InstanceServer) error {
-			return client.DeleteNetwork(n.name)
+			return client.UseProject(n.project).DeleteNetwork(n.name)
 		})
 		if err != nil {
 			return err
 		}
 
 		// Remove the network from the database.
-		err = n.state.Cluster.DeleteNetwork(n.name)
+		err = n.state.Cluster.DeleteNetwork(n.project, n.name)
 		if err != nil {
 			return err
 		}

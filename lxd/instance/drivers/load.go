@@ -47,7 +47,7 @@ func load(s *state.State, args db.InstanceArgs, profiles []api.Profile) (instanc
 }
 
 // validDevices validate instance device configs.
-func validDevices(state *state.State, cluster *db.Cluster, instanceType instancetype.Type, devices deviceConfig.Devices, expanded bool) error {
+func validDevices(state *state.State, cluster *db.Cluster, projectName string, instanceType instancetype.Type, devices deviceConfig.Devices, expanded bool) error {
 	// Empty device list
 	if devices == nil {
 		return nil
@@ -56,6 +56,7 @@ func validDevices(state *state.State, cluster *db.Cluster, instanceType instance
 	instConf := &common{
 		dbType:       instanceType,
 		localDevices: devices.Clone(),
+		project:      projectName,
 	}
 
 	// In non-expanded validation expensive checks should be avoided.
@@ -70,7 +71,7 @@ func validDevices(state *state.State, cluster *db.Cluster, instanceType instance
 	for name, config := range instConf.localDevices {
 		err := device.Validate(instConf, state, name, config)
 		if err != nil {
-			return errors.Wrapf(err, "Device validation failed %q", name)
+			return errors.Wrapf(err, "Device validation failed for %q", name)
 		}
 
 	}
