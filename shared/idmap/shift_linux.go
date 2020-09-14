@@ -262,7 +262,12 @@ func shiftAclType(path string, aclType int, shiftIds func(uid int64, gid int64) 
 		}
 
 		// Shift the value
-		newId, _ := shiftIds((int64)(*idp), -1)
+		newId := int64(-1)
+		if tag == C.ACL_USER {
+			newId, _ = shiftIds((int64)(*idp), -1)
+		} else {
+			_, newId = shiftIds(-1, (int64)(*idp))
+		}
 
 		// Update the new entry with the shifted value
 		ret = C.acl_set_qualifier(ent, unsafe.Pointer(&newId))
@@ -275,9 +280,9 @@ func shiftAclType(path string, aclType int, shiftIds func(uid int64, gid int64) 
 
 	// Update the on-disk ACLs to match
 	if update {
-		ret := C.acl_set_file(cpath, C.uint(aclType), acl)
-		if ret == -1 {
-			return fmt.Errorf("Failed to change ACLs on %s", path)
+		ret, err := C.acl_set_file(cpath, C.uint(aclType), acl)
+		if ret < 0 {
+			return fmt.Errorf("%s - Failed to change ACLs on %s", err, path)
 		}
 	}
 
