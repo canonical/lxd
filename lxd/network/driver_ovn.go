@@ -499,7 +499,6 @@ func (n *ovn) parentOperationLockName(parentNet Network) string {
 
 // parentPortBridgeVars returns the parent port bridge variables needed for port start/stop.
 func (n *ovn) parentPortBridgeVars(parentNet Network) *ovnParentPortBridgeVars {
-
 	ovsBridge := fmt.Sprintf("lxdovn%d", parentNet.ID())
 
 	return &ovnParentPortBridgeVars{
