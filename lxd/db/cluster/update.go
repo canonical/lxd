@@ -178,7 +178,7 @@ ORDER BY storage_volumes.name
 
 	err = query.SelectObjects(stmt, dest)
 	if err != nil {
-		return errors.Wrap(err, "Failed to fetch storage volumes")
+		return errors.Wrap(err, "Failed to fetch storage volumes with remote storage")
 	}
 
 	// Remove multiple entries of the same volume when using remote storage
@@ -243,7 +243,9 @@ CREATE TABLE storage_volumes_new (
 		}
 	}
 
-	stmt, err = tx.Prepare(`SELECT * FROM storage_volumes;`)
+	stmt, err = tx.Prepare(`
+SELECT id, name, storage_pool_id, node_id, type, coalesce(description, ''), project_id, content_type
+FROM storage_volumes`)
 	if err != nil {
 		return errors.Wrap(err, "Failed to prepare storage volumes query")
 	}

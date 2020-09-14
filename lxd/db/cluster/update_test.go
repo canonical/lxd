@@ -717,3 +717,49 @@ func TestUpdateFromV26_WithVolumes(t *testing.T) {
 
 	assert.Equal(t, ids[0], 2)
 }
+
+func TestUpdateFromV34(t *testing.T) {
+	schema := cluster.Schema()
+	db, err := schema.ExerciseUpdate(35, func(db *sql.DB) {
+		// Insert two nodes.
+		_, err := db.Exec(
+			"INSERT INTO nodes VALUES (1, 'n1', '', '1.2.3.4:666', 1, 32, ?, 0, 1, NULL)",
+			time.Now())
+		require.NoError(t, err)
+
+		_, err = db.Exec(
+			"INSERT INTO nodes VALUES (2, 'n2', '', '5.6.7.8:666', 1, 32, ?, 0, 1, NULL)",
+			time.Now())
+		require.NoError(t, err)
+
+		// Insert a storage pool.
+		_, err = db.Exec("INSERT INTO storage_pools VALUES (1, 'p1', 'ceph', NULL, 0)")
+		require.NoError(t, err)
+
+		// Create two rows for the same volume on different nodes.
+		_, err = db.Exec("INSERT INTO storage_volumes VALUES (1, 'v1', 1, 1, 1, NULL, 1, 0)")
+		require.NoError(t, err)
+
+		_, err = db.Exec("INSERT INTO storage_volumes VALUES (2, 'v1', 1, 2, 1, NULL, 1, 0)")
+		require.NoError(t, err)
+	})
+	require.NoError(t, err)
+	defer db.Close()
+
+	tx, err := db.Begin()
+	require.NoError(t, err)
+	defer tx.Rollback()
+
+	// Only one volume is left and it's node ID is set to NULL.
+	count, err := query.Count(tx, "storage_volumes", "")
+	require.NoError(t, err)
+
+	assert.Equal(t, count, 1)
+
+	row := tx.QueryRow("SELECT id, node_id FROM storage_volumes")
+	var id int
+	var nodeID interface{}
+	require.NoError(t, row.Scan(&id, &nodeID))
+	assert.Equal(t, id, 2)
+	assert.Equal(t, nodeID, nil)
+}
