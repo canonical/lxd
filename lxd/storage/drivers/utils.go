@@ -384,7 +384,7 @@ func makeFSType(path string, fsType string, options *mkfsOptions) (string, error
 		fsOptions = &mkfsOptions{}
 	}
 
-	cmd := []string{fmt.Sprintf("mkfs.%s", fsType), path}
+	cmd := []string{fmt.Sprintf("mkfs.%s", fsType)}
 	if fsOptions.Label != "" {
 		cmd = append(cmd, "-L", fsOptions.Label)
 	}
@@ -392,6 +392,9 @@ func makeFSType(path string, fsType string, options *mkfsOptions) (string, error
 	if fsType == "ext4" {
 		cmd = append(cmd, "-E", "nodiscard,lazy_itable_init=0,lazy_journal_init=0")
 	}
+
+	// Always add the path to the device as the last argument for wider compatibility with versions of mkfs.
+	cmd = append(cmd, path)
 
 	msg, err = shared.TryRunCommand(cmd[0], cmd[1:]...)
 	if err != nil {
