@@ -298,4 +298,3 @@ dns.search                      | string    | -                     | -         
 ipv4.address                    | string    | standard mode         | random unused subnet      | IPv4 address for the bridge (CIDR notation). Use "none" to turn off IPv4 or "auto" to generate a new one
 ipv6.address                    | string    | standard mode         | random unused subnet      | IPv6 address for the bridge (CIDR notation). Use "none" to turn off IPv6 or "auto" to generate a new one
 network                         | string    | -                     | -                         | Parent network to use for outbound external network access
-ovn.name                        | string    | -                     | -                         | Name of OVN logical network (populated automatically at network setup time)
