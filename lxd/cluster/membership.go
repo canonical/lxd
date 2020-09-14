@@ -950,7 +950,7 @@ func List(state *state.State, gateway *Gateway) ([]api.ClusterMember, error) {
 		if node.IsOffline(offlineThreshold) {
 			result[i].Status = "Offline"
 			result[i].Message = fmt.Sprintf(
-				"no heartbeat since %s", now.Sub(node.Heartbeat))
+				"no heartbeat for %s", now.Sub(node.Heartbeat))
 		} else {
 			result[i].Status = "Online"
 			result[i].Message = "fully operational"
