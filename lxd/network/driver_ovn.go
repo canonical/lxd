@@ -395,28 +395,30 @@ func (n *ovn) setupParentPortBridge(parentNet Network, routerMAC net.HardwareAdd
 
 // parentAllAllocatedIPs gets a list of all IPv4 and IPv6 addresses allocated to OVN networks connected to parent.
 func (n *ovn) parentAllAllocatedIPs(tx *db.ClusterTx, parentNetName string) ([]net.IP, []net.IP, error) {
-	// Get all managed networks.
-	networks, err := tx.GetNonPendingNetworks()
+	// Get all managed networks across all projects.
+	projectNetworks, err := tx.GetNonPendingNetworks()
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, errors.Wrapf(err, "Failed to load all networks")
 	}
 
 	v4IPs := make([]net.IP, 0)
 	v6IPs := make([]net.IP, 0)
 
-	for _, netInfo := range networks {
-		if netInfo.Type != "ovn" || netInfo.Config["network"] != parentNetName {
-			continue
-		}
+	for _, networks := range projectNetworks {
+		for _, netInfo := range networks {
+			if netInfo.Type != "ovn" || netInfo.Config["network"] != parentNetName {
+				continue
+			}
 
-		for _, k := range []string{ovnVolatileParentIPv4, ovnVolatileParentIPv6} {
-			if netInfo.Config[k] != "" {
-				ip := net.ParseIP(netInfo.Config[k])
-				if ip != nil {
-					if ip.To4() != nil {
-						v4IPs = append(v4IPs, ip)
-					} else {
-						v6IPs = append(v6IPs, ip)
+			for _, k := range []string{ovnVolatileParentIPv4, ovnVolatileParentIPv6} {
+				if netInfo.Config[k] != "" {
+					ip := net.ParseIP(netInfo.Config[k])
+					if ip != nil {
+						if ip.To4() != nil {
+							v4IPs = append(v4IPs, ip)
+						} else {
+							v6IPs = append(v6IPs, ip)
+						}
 					}
 				}
 			}
