@@ -27,6 +27,7 @@ import (
 	"gopkg.in/yaml.v2"
 
 	lxdClient "github.com/lxc/lxd/client"
+	"github.com/lxc/lxd/lxd/apparmor"
 	"github.com/lxc/lxd/lxd/backup"
 	"github.com/lxc/lxd/lxd/cluster"
 	"github.com/lxc/lxd/lxd/db"
@@ -505,6 +506,12 @@ func (vm *qemu) Freeze() error {
 
 // onStop is run when the instance stops.
 func (vm *qemu) onStop(target string) error {
+	ctxMap := log.Ctx{
+		"project":   vm.project,
+		"name":      vm.name,
+		"ephemeral": vm.ephemeral,
+	}
+
 	// Pick up the existing stop operation lock created in Stop() function.
 	op := operationlock.Get(vm.id)
 	if op != nil && op.Action() != "stop" {
@@ -524,6 +531,13 @@ func (vm *qemu) onStop(target string) error {
 			op.Done(err)
 		}
 		return err
+	}
+
+	// Unload the apparmor profile
+	err = apparmor.InstanceUnload(vm.state, vm)
+	if err != nil {
+		ctxMap["err"] = err
+		logger.Error("Failed to unload AppArmor profile", ctxMap)
 	}
 
 	if target == "reboot" {
@@ -836,6 +850,15 @@ func (vm *qemu) Start(stateful bool) error {
 	if err != nil {
 		return err
 	}
+
+	// Load the AppArmor profile
+	err = apparmor.InstanceLoad(vm.state, vm)
+	if err != nil {
+		op.Done(err)
+		return err
+	}
+
+	p.SetApparmor(apparmor.InstanceProfileName(vm))
 
 	// Open any extra files and pass their file handles to qemu command.
 	files := []*os.File{}
@@ -3229,6 +3252,9 @@ func (vm *qemu) cleanup() {
 	// Unmount any leftovers
 	vm.removeUnixDevices()
 	vm.removeDiskDevices()
+
+	// Remove the security profiles
+	apparmor.InstanceDelete(vm.state, vm)
 
 	// Remove the devices path
 	os.Remove(vm.DevicesPath())
