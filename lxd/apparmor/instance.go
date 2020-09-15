@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/lxc/lxd/lxd/cgroup"
+	"github.com/lxc/lxd/lxd/instance/instancetype"
 	"github.com/lxc/lxd/lxd/project"
 	"github.com/lxc/lxd/lxd/state"
 	"github.com/lxc/lxd/shared"
@@ -18,6 +19,7 @@ type instance interface {
 	Project() string
 	Name() string
 	ExpandedConfig() map[string]string
+	Type() instancetype.Type
 }
 
 // InstanceProfileName returns the instance's AppArmor profile name.
@@ -43,9 +45,11 @@ func instanceProfileFilename(inst instance) string {
 
 // InstanceLoad ensures that the instances's policy is loaded into the kernel so the it can boot.
 func InstanceLoad(state *state.State, inst instance) error {
-	err := createNamespace(state, InstanceNamespaceName(inst))
-	if err != nil {
-		return err
+	if inst.Type() == instancetype.Container {
+		err := createNamespace(state, InstanceNamespaceName(inst))
+		if err != nil {
+			return err
+		}
 	}
 
 	/* In order to avoid forcing a profile parse (potentially slow) on
@@ -88,9 +92,11 @@ func InstanceLoad(state *state.State, inst instance) error {
 // InstanceUnload ensures that the instances's policy namespace is unloaded to free kernel memory.
 // This does not delete the policy from disk or cache.
 func InstanceUnload(state *state.State, inst instance) error {
-	err := deleteNamespace(state, InstanceNamespaceName(inst))
-	if err != nil {
-		return err
+	if inst.Type() == instancetype.Container {
+		err := deleteNamespace(state, InstanceNamespaceName(inst))
+		if err != nil {
+			return err
+		}
 	}
 
 	err := unloadProfile(state, InstanceProfileName(inst), instanceProfileFilename(inst))
