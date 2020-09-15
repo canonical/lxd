@@ -494,6 +494,9 @@ func doDbQueryScan(c *Cluster, q string, args []interface{}, outargs []interface
 					case int64:
 						integer := int64(0)
 						ptrargs[i] = &integer
+					case bool:
+						boolean := bool(false)
+						ptrargs[i] = &boolean
 					default:
 						return fmt.Errorf("Bad interface type: %s", t)
 					}
@@ -511,6 +514,8 @@ func doDbQueryScan(c *Cluster, q string, args []interface{}, outargs []interface
 						newargs[i] = *ptrargs[i].(*int)
 					case int64:
 						newargs[i] = *ptrargs[i].(*int64)
+					case bool:
+						newargs[i] = *ptrargs[i].(*bool)
 					default:
 						return fmt.Errorf("Bad interface type: %s", t)
 					}
