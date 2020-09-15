@@ -122,6 +122,13 @@ func (ctw *InstanceTarWriter) WriteFile(name string, srcPath string, fi os.FileI
 					continue
 				}
 				hdr.PAXRecords["SCHILY.acl.default"] = aclDefault
+			} else if key == "security.capability" {
+				vfsCaps, err := idmap.UnshiftCaps(val, ctw.idmapSet)
+				if err != nil {
+					logger.Debugf("%s - Failed to unshift vfs capabilities", err)
+					continue
+				}
+				hdr.PAXRecords["SCHILY.xattr."+key] = vfsCaps
 			} else {
 				hdr.PAXRecords["SCHILY.xattr."+key] = val
 			}
