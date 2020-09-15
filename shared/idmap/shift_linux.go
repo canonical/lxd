@@ -16,6 +16,7 @@ import (
 	_ "github.com/lxc/lxd/lxd/include"
 
 	"github.com/lxc/lxd/shared"
+	"github.com/lxc/lxd/shared/logger"
 )
 
 // #cgo LDFLAGS: -lacl
@@ -24,9 +25,11 @@ import (
 #define _GNU_SOURCE 1
 #endif
 #include <byteswap.h>
+#include <endian.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <limits.h>
+#include <linux/posix_acl_xattr.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -62,12 +65,37 @@ struct vfs_ns_cap_data {
 #endif
 
 #if __BYTE_ORDER == __BIG_ENDIAN
-#define BE32_TO_LE32(x) bswap_32(x)
+#define cpu_to_le16(w16) le16_to_cpu(w16)
+#define le16_to_cpu(w16) ((u_int16_t)((u_int16_t)(w16) >> 8) | (u_int16_t)((u_int16_t)(w16) << 8))
+#define cpu_to_le32(w32) le32_to_cpu(w32)
+#define le32_to_cpu(w32)                                                                       \
+	((u_int32_t)((u_int32_t)(w32) >> 24) | (u_int32_t)(((u_int32_t)(w32) >> 8) & 0xFF00) | \
+	 (u_int32_t)(((u_int32_t)(w32) << 8) & 0xFF0000) | (u_int32_t)((u_int32_t)(w32) << 24))
+#elif __BYTE_ORDER == __LITTLE_ENDIAN
+#define cpu_to_le16(w16) ((u_int16_t)(w16))
+#define le16_to_cpu(w16) ((u_int16_t)(w16))
+#define cpu_to_le32(w32) ((u_int32_t)(w32))
+#define le32_to_cpu(w32) ((u_int32_t)(w32))
 #else
-#define BE32_TO_LE32(x) (x)
+#error Expected endianess macro to be set
 #endif
 
-int set_vfs_ns_caps(char *path, char *caps, ssize_t len, uint32_t uid)
+static __le32 native_to_le32(int n)
+{
+	return cpu_to_le32(n);
+}
+
+static int le16_to_native(__le16 n)
+{
+	return le16_to_cpu(n);
+}
+
+static int le32_to_native(__le32 n)
+{
+	return le32_to_cpu(n);
+}
+
+static int set_vfs_ns_caps(char *path, void *caps, ssize_t len, uint32_t uid)
 {
 	// Works because vfs_ns_cap_data is a superset of vfs_cap_data (rootid
 	// field added to the end)
@@ -77,9 +105,30 @@ int set_vfs_ns_caps(char *path, char *caps, ssize_t len, uint32_t uid)
 	memcpy(&ns_xattr, caps, len);
 	ns_xattr.magic_etc &= ~(VFS_CAP_REVISION_1 | VFS_CAP_REVISION_2);
 	ns_xattr.magic_etc |= VFS_CAP_REVISION_3;
-	ns_xattr.rootid = BE32_TO_LE32(uid);
+	ns_xattr.rootid = cpu_to_le32(uid);
 
 	return setxattr(path, "security.capability", &ns_xattr, sizeof(ns_xattr), 0);
+}
+
+static uid_t get_vfs_ns_caps_uid(void *caps, ssize_t len, struct vfs_ns_cap_data *ns_xattr)
+{
+	// Works because vfs_ns_cap_data is a superset of vfs_cap_data (rootid
+	// field added to the end)
+
+	memset(ns_xattr, 0, sizeof(*ns_xattr));
+	memcpy(ns_xattr, caps, len);
+	if (ns_xattr->magic_etc & VFS_CAP_REVISION_3)
+		return le32_to_cpu(ns_xattr->rootid);
+
+	return (uid_t)-1;
+}
+
+static void update_vfs_ns_caps_uid(void *caps, ssize_t len, struct vfs_ns_cap_data *ns_xattr, uint32_t uid)
+{
+	if (ns_xattr->magic_etc & VFS_CAP_REVISION_3)
+		ns_xattr->rootid = cpu_to_le32(uid);
+
+	memcpy(caps, ns_xattr, len);
 }
 
 int set_dummy_fs_ns_caps(const char *path)
@@ -91,7 +140,7 @@ int set_dummy_fs_ns_caps(const char *path)
 	memset(&ns_xattr, 0, sizeof(ns_xattr));
         __raise_cap_permitted(CAP_NET_RAW, ns_xattr);
 	ns_xattr.magic_etc |= VFS_CAP_REVISION_3 | VFS_CAP_FLAGS_EFFECTIVE;
-	ns_xattr.rootid = BE32_TO_LE32(1000000);
+	ns_xattr.rootid = cpu_to_le32(1000000);
 
 	return setxattr(path, "security.capability", &ns_xattr, sizeof(ns_xattr), 0);
 }
@@ -153,6 +202,72 @@ int shiftowner(char *basepath, char *path, int uid, int gid)
 
 	return 0;
 }
+
+// Supported ACL a_version fields
+#ifndef POSIX_ACL_XATTR_VERSION
+struct posix_acl_xattr_entry {
+	__le16 e_tag;
+	__le16 e_perm;
+	__le32 e_id;
+};
+
+struct posix_acl_xattr_header {
+	__le32 a_version;
+}
+#endif
+
+#ifndef ACL_USER_OBJ
+#define ACL_USER_OBJ 0x01
+#endif
+
+#ifndef ACL_USER
+#define ACL_USER 0x02
+#endif
+
+#ifndef ACL_GROUP_OBJ
+#define ACL_GROUP_OBJ 0x04
+#endif
+
+#ifndef ACL_GROUP
+#define ACL_GROUP 0x08
+#endif
+
+#ifndef ACL_MASK
+#define ACL_MASK 0x10
+#endif
+
+#ifndef ACL_OTHER
+#define ACL_OTHER 0x20
+#endif
+
+static inline int posix_acl_xattr_count(size_t size)
+{
+	if (size < sizeof(struct posix_acl_xattr_header))
+		return -EINVAL;
+	size -= sizeof(struct posix_acl_xattr_header);
+	if (size % sizeof(struct posix_acl_xattr_entry))
+		return -EINVAL;
+	return size / sizeof(struct posix_acl_xattr_entry);
+}
+
+static void *posix_entry_start(void *value)
+{
+	struct posix_acl_xattr_header *header = value;
+	struct posix_acl_xattr_entry *entry = (void *)(header + 1);
+	return (void *)entry;
+}
+
+static void *posix_entry_end(void *value, size_t count)
+{
+	struct posix_acl_xattr_entry *entry = value;
+	return (void *)(entry + count);
+}
+
+static void *posix_entry_next(void *value)
+{
+	struct posix_acl_xattr_entry *entry = value;
+	return (void *)(entry + 1);
+}
 */
 import "C"
 
@@ -192,7 +307,7 @@ func SetCaps(path string, caps []byte, uid int64) error {
 	cpath := C.CString(path)
 	defer C.free(unsafe.Pointer(cpath))
 
-	ccaps := C.CString(string(caps))
+	ccaps := C.CBytes(caps)
 	defer C.free(unsafe.Pointer(ccaps))
 
 	r := C.set_vfs_ns_caps(cpath, ccaps, C.ssize_t(len(caps)), C.uint32_t(uid))
@@ -262,7 +377,12 @@ func shiftAclType(path string, aclType int, shiftIds func(uid int64, gid int64) 
 		}
 
 		// Shift the value
-		newId, _ := shiftIds((int64)(*idp), -1)
+		newId := int64(-1)
+		if tag == C.ACL_USER {
+			newId, _ = shiftIds((int64)(*idp), -1)
+		} else {
+			_, newId = shiftIds(-1, (int64)(*idp))
+		}
 
 		// Update the new entry with the shifted value
 		ret = C.acl_set_qualifier(ent, unsafe.Pointer(&newId))
@@ -275,9 +395,9 @@ func shiftAclType(path string, aclType int, shiftIds func(uid int64, gid int64) 
 
 	// Update the on-disk ACLs to match
 	if update {
-		ret := C.acl_set_file(cpath, C.uint(aclType), acl)
-		if ret == -1 {
-			return fmt.Errorf("Failed to change ACLs on %s", path)
+		ret, err := C.acl_set_file(cpath, C.uint(aclType), acl)
+		if ret < 0 {
+			return fmt.Errorf("%s - Failed to change ACLs on %s", err, path)
 		}
 	}
 
@@ -317,4 +437,88 @@ func SupportsVFS3Fscaps(prefix string) bool {
 	}
 
 	return true
+}
+
+func UnshiftACL(value string, set *IdmapSet) (string, error) {
+	buf := []byte(value)
+	cBuf := C.CBytes(buf)
+	defer C.free(cBuf)
+	var header *C.struct_posix_acl_xattr_header = (*C.struct_posix_acl_xattr_header)(cBuf)
+
+	size := len(buf)
+	if size < int(unsafe.Sizeof(*header)) {
+		return "", fmt.Errorf("Invalid ACL size")
+	}
+
+	if header.a_version != C.native_to_le32(C.POSIX_ACL_XATTR_VERSION) {
+		return "", fmt.Errorf("Invalid ACL header version %d != %d", header.a_version, C.native_to_le32(C.POSIX_ACL_XATTR_VERSION))
+	}
+
+	count := C.posix_acl_xattr_count(C.size_t(size))
+	if count < 0 {
+		return "", fmt.Errorf("Invalid ACL count")
+	}
+	if count == 0 {
+		return "", fmt.Errorf("No valid ACLs found")
+	}
+
+	entry_ptr := C.posix_entry_start(unsafe.Pointer(header))
+	end_entry_ptr := C.posix_entry_end(entry_ptr, C.size_t(count))
+	for entry_ptr != end_entry_ptr {
+		entry := (*C.struct_posix_acl_xattr_entry)(entry_ptr)
+		switch C.le16_to_native(entry.e_tag) {
+		case C.ACL_USER:
+			ouid := int64(C.le32_to_native(entry.e_id))
+			uid, _ := set.ShiftFromNs(ouid, -1)
+			if int(uid) != -1 {
+				entry.e_id = C.native_to_le32(C.int(uid))
+				logger.Debugf("Unshifting ACL_USER from uid %d to uid %d", ouid, uid)
+			}
+		case C.ACL_GROUP:
+			ogid := int64(C.le32_to_native(entry.e_id))
+			_, gid := set.ShiftFromNs(-1, ogid)
+			if int(gid) != -1 {
+				entry.e_id = C.native_to_le32(C.int(gid))
+				logger.Debugf("Unshifting ACL_GROUP from gid %d to gid %d", ogid, gid)
+			}
+		case C.ACL_USER_OBJ:
+			logger.Debugf("Ignoring ACL type ACL_USER_OBJ")
+		case C.ACL_GROUP_OBJ:
+			logger.Debugf("Ignoring ACL type ACL_GROUP_OBJ")
+		case C.ACL_MASK:
+			logger.Debugf("Ignoring ACL type ACL_MASK")
+		case C.ACL_OTHER:
+			logger.Debugf("Ignoring ACL type ACL_OTHER")
+		default:
+			logger.Debugf("Ignoring unknown ACL type %d", C.le16_to_native(entry.e_tag))
+		}
+
+		entry_ptr = C.posix_entry_next(entry_ptr)
+	}
+
+	buf = C.GoBytes(cBuf, C.int(size))
+
+	return string(buf), nil
+}
+
+func UnshiftCaps(value string, set *IdmapSet) (string, error) {
+	buf := []byte(value)
+	cBuf := C.CBytes(buf)
+	defer C.free(cBuf)
+	var nsXattr C.struct_vfs_ns_cap_data
+
+	size := C.ssize_t(len(buf))
+	ouid := C.get_vfs_ns_caps_uid(cBuf, size, &nsXattr)
+	if ouid == C.LXC_INVALID_UID {
+		return value, nil
+	}
+
+	uid, _ := set.ShiftFromNs(int64(ouid), -1)
+	if int(uid) != -1 {
+		C.update_vfs_ns_caps_uid(cBuf, size, &nsXattr, C.uid_t(uid))
+		logger.Debugf("Unshifting vfs capabilities from uid %d to uid %d", ouid, uid)
+	}
+
+	buf = C.GoBytes(cBuf, C.int(size))
+	return string(buf), nil
 }
