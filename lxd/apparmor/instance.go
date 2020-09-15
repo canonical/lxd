@@ -11,6 +11,7 @@ import (
 	"github.com/lxc/lxd/lxd/instance/instancetype"
 	"github.com/lxc/lxd/lxd/project"
 	"github.com/lxc/lxd/lxd/state"
+	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
 )
 
@@ -20,6 +21,9 @@ type instance interface {
 	Name() string
 	ExpandedConfig() map[string]string
 	Type() instancetype.Type
+	LogPath() string
+	Path() string
+	DevPaths() []string
 }
 
 // InstanceProfileName returns the instance's AppArmor profile name.
@@ -136,19 +140,55 @@ func instanceProfile(state *state.State, inst instance) (string, error) {
 
 	// Render the profile.
 	var sb *strings.Builder = &strings.Builder{}
-	err = lxcProfileTpl.Execute(sb, map[string]interface{}{
-		"feature_cgns":     state.OS.CGInfo.Namespacing,
-		"feature_cgroup2":  state.OS.CGInfo.Layout == cgroup.CgroupsUnified || state.OS.CGInfo.Layout == cgroup.CgroupsHybrid,
-		"feature_stacking": state.OS.AppArmorStacking && !state.OS.AppArmorStacked,
-		"feature_unix":     unixSupported,
-		"name":             InstanceProfileName(inst),
-		"namespace":        InstanceNamespaceName(inst),
-		"nesting":          shared.IsTrue(inst.ExpandedConfig()["security.nesting"]),
-		"raw":              rawContent,
-		"unprivileged":     !shared.IsTrue(inst.ExpandedConfig()["security.privileged"]) || state.OS.RunningInUserNS,
-	})
-	if err != nil {
-		return "", err
+	if inst.Type() == instancetype.Container {
+		err = lxcProfileTpl.Execute(sb, map[string]interface{}{
+			"feature_cgns":     state.OS.CGInfo.Namespacing,
+			"feature_cgroup2":  state.OS.CGInfo.Layout == cgroup.CgroupsUnified || state.OS.CGInfo.Layout == cgroup.CgroupsHybrid,
+			"feature_stacking": state.OS.AppArmorStacking && !state.OS.AppArmorStacked,
+			"feature_unix":     unixSupported,
+			"name":             InstanceProfileName(inst),
+			"namespace":        InstanceNamespaceName(inst),
+			"nesting":          shared.IsTrue(inst.ExpandedConfig()["security.nesting"]),
+			"raw":              rawContent,
+			"unprivileged":     !shared.IsTrue(inst.ExpandedConfig()["security.privileged"]) || state.OS.RunningInUserNS,
+		})
+		if err != nil {
+			return "", err
+		}
+	} else {
+		rootPath := ""
+		if shared.InSnap() {
+			rootPath = "/var/lib/snapd/hostfs"
+		}
+
+		// AppArmor requires deref of all paths.
+		path, err := filepath.EvalSymlinks(inst.Path())
+		if err != nil {
+			return "", err
+		}
+
+		devPaths := inst.DevPaths()
+		for i := range devPaths {
+			devPaths[i], err = filepath.EvalSymlinks(devPaths[i])
+			if err != nil {
+				return "", err
+			}
+		}
+
+		err = qemuProfileTpl.Execute(sb, map[string]interface{}{
+			"devPaths":    inst.DevPaths(),
+			"exePath":     util.GetExecPath(),
+			"libraryPath": strings.Split(os.Getenv("LD_LIBRARY_PATH"), ":"),
+			"logPath":     inst.LogPath(),
+			"name":        InstanceProfileName(inst),
+			"path":        path,
+			"raw":         rawContent,
+			"rootPath":    rootPath,
+			"snap":        shared.InSnap(),
+		})
+		if err != nil {
+			return "", err
+		}
 	}
 
 	return sb.String(), nil
