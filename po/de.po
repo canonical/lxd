@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: LXD\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2020-09-11 11:17-0400\n"
+"POT-Creation-Date: 2020-09-15 13:39-0400\n"
 "PO-Revision-Date: 2019-12-12 14:53+0000\n"
 "Last-Translator: Stéphane Graber <stgraber@stgraber.org>\n"
 "Language-Team: German <https://hosted.weblate.org/projects/linux-containers/"
@@ -373,6 +373,66 @@ msgstr "--refresh kann nur mit Containern verwendet werden"
 #, fuzzy
 msgid "--target cannot be used with instances"
 msgstr "--refresh kann nur mit Containern verwendet werden"
+
+#: lxc/alias.go:192
+#, fuzzy
+msgid "<alias>"
+msgstr "Aliasse:\n"
+
+#: lxc/alias.go:52
+#, fuzzy
+msgid "<alias> <target>"
+msgstr "Ungültiges Ziel %s"
+
+#: lxc/alias.go:141
+msgid "<old alias> <new alias>"
+msgstr ""
+
+#: lxc/storage_volume.go:1140
+#, fuzzy
+msgid "<pool>/<volume> <pool>/<volume>"
+msgstr ""
+"Ändert den Laufzustand eines Containers in %s.\n"
+"\n"
+"lxd %s <Name>\n"
+
+#: lxc/storage_volume.go:299
+#, fuzzy
+msgid "<pool>/<volume>[/<snapshot>] <pool>/<volume>"
+msgstr ""
+"Ändert den Laufzustand eines Containers in %s.\n"
+"\n"
+"lxd %s <Name>\n"
+
+#: lxc/remote.go:598 lxc/remote.go:649
+msgid "<remote>"
+msgstr ""
+
+#: lxc/remote.go:687
+msgid "<remote> <URL>"
+msgstr ""
+
+#: lxc/remote.go:536
+msgid "<remote> <new-name>"
+msgstr ""
+
+#: lxc/file.go:405
+#, fuzzy
+msgid ""
+"<source path> [<remote>:]<instance>/<path> [[<remote>:]<instance>/<path>...]"
+msgstr ""
+"Ändert den Laufzustand eines Containers in %s.\n"
+"\n"
+"lxd %s <Name>\n"
+
+#: lxc/image.go:603
+msgid ""
+"<tarball>|<directory>|<URL> [<rootfs tarball>] [<remote>:] [key=value...]"
+msgstr ""
+
+#: lxc/manpage.go:18
+msgid "<target>"
+msgstr ""
 
 #: lxc/alias.go:126 lxc/image.go:1002 lxc/image_alias.go:231
 msgid "ALIAS"
@@ -3715,139 +3775,733 @@ msgstr "der Name des Ursprung Containers muss angegeben werden"
 msgid "You must specify a source instance name"
 msgstr "der Name des Ursprung Containers muss angegeben werden"
 
-#: lxc/alias.go:52
-msgid "add <alias> <target>"
-msgstr ""
-
-#: lxc/config_trust.go:55
-msgid "add [<remote>:] <cert>"
-msgstr ""
-
-#: lxc/config_device.go:78
+#: lxc/storage_volume.go:696
 #, fuzzy
-msgid "add [<remote>:]<instance> <device> <type> [key=value...]"
-msgstr ""
-"Ändert den Laufzustand eines Containers in %s.\n"
-"\n"
-"lxd %s <Name>\n"
-
-#: lxc/profile.go:99
-#, fuzzy
-msgid "add [<remote>:]<instance> <profile>"
-msgstr ""
-"Löscht einen Container oder Container Sicherungspunkt.\n"
-"\n"
-"Entfernt einen Container (oder Sicherungspunkt) und alle dazugehörigen\n"
-"Daten (Konfiguration, Sicherungspunkte, ...).\n"
-
-#: lxc/config_device.go:83
-#, fuzzy
-msgid "add [<remote>:]<profile> <device> <type> [key=value...]"
-msgstr ""
-"Ändert den Laufzustand eines Containers in %s.\n"
-"\n"
-"lxd %s <Name>\n"
-
-#: lxc/remote.go:82
-msgid "add [<remote>] <IP|FQDN|URL>"
-msgstr ""
-
-#: lxc/alias.go:20 lxc/image_alias.go:23
-#, fuzzy
-msgid "alias"
-msgstr "Aliasse:\n"
-
-#: lxc/profile.go:161
-msgid "assign [<remote>:]<instance> <profiles>"
-msgstr ""
-
-#: lxc/network.go:106
-msgid ""
-"attach [<remote>:]<network> <instance> [<device name>] [<interface name>]"
-msgstr ""
-
-#: lxc/storage_volume.go:138
-#, fuzzy
-msgid "attach [<remote>:]<pool> <volume> <instance> [<device name>] <path>"
+msgid "[<remote:>]<pool> <volume> <profile> [<device name>]"
 msgstr ""
 "Ändert den Laufzustand eines Containers in %s.\n"
 "\n"
 "lxd %s <Name>\n"
 
 #: lxc/storage_volume.go:217
-msgid ""
-"attach-profile [<remote:>]<pool> <volume> <profile> [<device name>] <path>"
-msgstr ""
-
-#: lxc/network.go:179
-msgid ""
-"attach-profile [<remote>:]<network> <profile> [<device name>] [<interface "
-"name>]"
-msgstr ""
-
-#: lxc/cluster.go:29
-msgid "cluster"
-msgstr ""
-
-#: lxc/config.go:28
-msgid "config"
-msgstr ""
-
-#: lxc/console.go:34
 #, fuzzy
-msgid "console [<remote>:]<instance>"
+msgid "[<remote:>]<pool> <volume> <profile> [<device name>] <path>"
 msgstr ""
 "Ändert den Laufzustand eines Containers in %s.\n"
 "\n"
 "lxd %s <Name>\n"
 
-#: lxc/storage_volume.go:299
-msgid "copy <pool>/<volume>[/<snapshot>] <pool>/<volume>"
+#: lxc/cluster.go:71 lxc/config_trust.go:112 lxc/monitor.go:28
+#: lxc/network.go:804 lxc/operation.go:99 lxc/profile.go:574 lxc/project.go:381
+#: lxc/storage.go:505 lxc/version.go:20
+#, fuzzy
+msgid "[<remote>:]"
 msgstr ""
+"Ändert den Laufzustand eines Containers in %s.\n"
+"\n"
+"lxd %s <Name>\n"
 
-#: lxc/image.go:125
-msgid "copy [<remote>:]<image> <remote>:"
+#: lxc/import.go:26
+#, fuzzy
+msgid "[<remote>:] <backup file>"
 msgstr ""
+"Ändert den Laufzustand eines Containers in %s.\n"
+"\n"
+"lxd %s <Name>\n"
 
-#: lxc/profile.go:241
-msgid "copy [<remote>:]<profile> [<remote>:]<profile>"
+#: lxc/config_trust.go:55
+#, fuzzy
+msgid "[<remote>:] <cert>"
 msgstr ""
+"Löscht einen Container oder Container Sicherungspunkt.\n"
+"\n"
+"Entfernt einen Container (oder Sicherungspunkt) und alle dazugehörigen\n"
+"Daten (Konfiguration, Sicherungspunkte, ...).\n"
 
-#: lxc/copy.go:37
-msgid "copy [<remote>:]<source>[/<snapshot>] [[<remote>:]<destination>]"
+#: lxc/config_trust.go:190
+#, fuzzy
+msgid "[<remote>:] <hostname|fingerprint>"
 msgstr ""
+"Löscht einen Container oder Container Sicherungspunkt.\n"
+"\n"
+"Entfernt einen Container (oder Sicherungspunkt) und alle dazugehörigen\n"
+"Daten (Konfiguration, Sicherungspunkte, ...).\n"
+
+#: lxc/cluster.go:334
+#, fuzzy
+msgid "[<remote>:] <name>"
+msgstr ""
+"Löscht einen Container oder Container Sicherungspunkt.\n"
+"\n"
+"Entfernt einen Container (oder Sicherungspunkt) und alle dazugehörigen\n"
+"Daten (Konfiguration, Sicherungspunkte, ...).\n"
+
+#: lxc/image.go:965 lxc/list.go:42
+#, fuzzy
+msgid "[<remote>:] [<filter>...]"
+msgstr ""
+"Ändert den Laufzustand eines Containers in %s.\n"
+"\n"
+"lxd %s <Name>\n"
+
+#: lxc/image_alias.go:147
+#, fuzzy
+msgid "[<remote>:] [<filters>...]"
+msgstr ""
+"Löscht einen Container oder Container Sicherungspunkt.\n"
+"\n"
+"Entfernt einen Container (oder Sicherungspunkt) und alle dazugehörigen\n"
+"Daten (Konfiguration, Sicherungspunkte, ...).\n"
+
+#: lxc/query.go:30
+#, fuzzy
+msgid "[<remote>:]<API path>"
+msgstr ""
+"Löscht einen Container oder Container Sicherungspunkt.\n"
+"\n"
+"Entfernt einen Container (oder Sicherungspunkt) und alle dazugehörigen\n"
+"Daten (Konfiguration, Sicherungspunkte, ...).\n"
+
+#: lxc/image_alias.go:102
+#, fuzzy
+msgid "[<remote>:]<alias>"
+msgstr ""
+"Löscht einen Container oder Container Sicherungspunkt.\n"
+"\n"
+"Entfernt einen Container (oder Sicherungspunkt) und alle dazugehörigen\n"
+"Daten (Konfiguration, Sicherungspunkte, ...).\n"
 
 #: lxc/image_alias.go:56
-msgid "create [<remote>:]<alias> <fingerprint>"
-msgstr ""
-
-#: lxc/config_template.go:63
 #, fuzzy
-msgid "create [<remote>:]<instance> <template>"
+msgid "[<remote>:]<alias> <fingerprint>"
+msgstr ""
+"Löscht einen Container oder Container Sicherungspunkt.\n"
+"\n"
+"Entfernt einen Container (oder Sicherungspunkt) und alle dazugehörigen\n"
+"Daten (Konfiguration, Sicherungspunkte, ...).\n"
+
+#: lxc/image_alias.go:249
+#, fuzzy
+msgid "[<remote>:]<alias> <new-name>"
+msgstr ""
+"Ändert den Laufzustand eines Containers in %s.\n"
+"\n"
+"lxd %s <Name>\n"
+
+#: lxc/cluster.go:419
+#, fuzzy
+msgid "[<remote>:]<cluster member>"
+msgstr ""
+"Löscht einen Container oder Container Sicherungspunkt.\n"
+"\n"
+"Entfernt einen Container (oder Sicherungspunkt) und alle dazugehörigen\n"
+"Daten (Konfiguration, Sicherungspunkte, ...).\n"
+
+#: lxc/image.go:319 lxc/image.go:831 lxc/image.go:1343
+#, fuzzy
+msgid "[<remote>:]<image>"
+msgstr ""
+"Löscht einen Container oder Container Sicherungspunkt.\n"
+"\n"
+"Entfernt einen Container (oder Sicherungspunkt) und alle dazugehörigen\n"
+"Daten (Konfiguration, Sicherungspunkte, ...).\n"
+
+#: lxc/image.go:125
+#, fuzzy
+msgid "[<remote>:]<image> <remote>:"
+msgstr ""
+"Ändert den Laufzustand eines Containers in %s.\n"
+"\n"
+"lxd %s <Name>\n"
+
+#: lxc/launch.go:23
+#, fuzzy
+msgid "[<remote>:]<image> [<remote>:][<name>]"
+msgstr ""
+"Ändert den Laufzustand eines Containers in %s.\n"
+"\n"
+"lxd %s <Name>\n"
+
+#: lxc/image.go:444
+#, fuzzy
+msgid "[<remote>:]<image> [<target>]"
+msgstr ""
+"Ändert den Laufzustand eines Containers in %s.\n"
+"\n"
+"lxd %s <Name>\n"
+
+#: lxc/image.go:267 lxc/image.go:1264
+#, fuzzy
+msgid "[<remote>:]<image> [[<remote>:]<image>...]"
+msgstr ""
+"Ändert den Laufzustand eines Containers in %s.\n"
+"\n"
+"lxd %s <Name>\n"
+
+#: lxc/config_device.go:268 lxc/config_device.go:626 lxc/config_metadata.go:50
+#: lxc/config_metadata.go:172 lxc/config_template.go:234 lxc/console.go:34
+#, fuzzy
+msgid "[<remote>:]<instance>"
+msgstr ""
+"Löscht einen Container oder Container Sicherungspunkt.\n"
+"\n"
+"Entfernt einen Container (oder Sicherungspunkt) und alle dazugehörigen\n"
+"Daten (Konfiguration, Sicherungspunkte, ...).\n"
+
+#: lxc/config_device.go:188 lxc/config_device.go:698
+#, fuzzy
+msgid "[<remote>:]<instance> <device> <key>"
+msgstr ""
+"Ändert den Laufzustand eines Containers in %s.\n"
+"\n"
+"lxd %s <Name>\n"
+
+#: lxc/config_device.go:519
+#, fuzzy
+msgid "[<remote>:]<instance> <device> <key>=<value>..."
+msgstr ""
+"Ändert den Laufzustand eines Containers in %s.\n"
+"\n"
+"lxd %s <Name>\n"
+
+#: lxc/config_device.go:78
+#, fuzzy
+msgid "[<remote>:]<instance> <device> <type> [key=value...]"
+msgstr ""
+"Ändert den Laufzustand eines Containers in %s.\n"
+"\n"
+"lxd %s <Name>\n"
+
+#: lxc/config_device.go:334
+#, fuzzy
+msgid "[<remote>:]<instance> <device> [key=value...]"
+msgstr ""
+"Ändert den Laufzustand eines Containers in %s.\n"
+"\n"
+"lxd %s <Name>\n"
+
+#: lxc/config_device.go:423
+#, fuzzy
+msgid "[<remote>:]<instance> <name>..."
+msgstr ""
+"Ändert den Laufzustand eines Containers in %s.\n"
+"\n"
+"lxd %s <Name>\n"
+
+#: lxc/profile.go:99 lxc/profile.go:634
+#, fuzzy
+msgid "[<remote>:]<instance> <profile>"
+msgstr ""
+"Löscht einen Container oder Container Sicherungspunkt.\n"
+"\n"
+"Entfernt einen Container (oder Sicherungspunkt) und alle dazugehörigen\n"
+"Daten (Konfiguration, Sicherungspunkte, ...).\n"
+
+#: lxc/profile.go:161
+#, fuzzy
+msgid "[<remote>:]<instance> <profiles>"
+msgstr ""
+"Löscht einen Container oder Container Sicherungspunkt.\n"
+"\n"
+"Entfernt einen Container (oder Sicherungspunkt) und alle dazugehörigen\n"
+"Daten (Konfiguration, Sicherungspunkte, ...).\n"
+
+#: lxc/restore.go:22
+#, fuzzy
+msgid "[<remote>:]<instance> <snapshot>"
+msgstr ""
+"Löscht einen Container oder Container Sicherungspunkt.\n"
+"\n"
+"Entfernt einen Container (oder Sicherungspunkt) und alle dazugehörigen\n"
+"Daten (Konfiguration, Sicherungspunkte, ...).\n"
+
+#: lxc/config_template.go:63 lxc/config_template.go:105
+#: lxc/config_template.go:148 lxc/config_template.go:293
+#, fuzzy
+msgid "[<remote>:]<instance> <template>"
+msgstr ""
+"Löscht einen Container oder Container Sicherungspunkt.\n"
+"\n"
+"Entfernt einen Container (oder Sicherungspunkt) und alle dazugehörigen\n"
+"Daten (Konfiguration, Sicherungspunkte, ...).\n"
+
+#: lxc/snapshot.go:25
+#, fuzzy
+msgid "[<remote>:]<instance> [<snapshot name>]"
+msgstr ""
+"Löscht einen Container oder Container Sicherungspunkt.\n"
+"\n"
+"Entfernt einen Container (oder Sicherungspunkt) und alle dazugehörigen\n"
+"Daten (Konfiguration, Sicherungspunkte, ...).\n"
+
+#: lxc/action.go:29 lxc/action.go:48 lxc/action.go:68 lxc/action.go:89
+#, fuzzy
+msgid "[<remote>:]<instance> [[<remote>:]<instance>...]"
+msgstr ""
+"Ändert den Laufzustand eines Containers in %s.\n"
+"\n"
+"lxd %s <Name>\n"
+
+#: lxc/exec.go:38
+#, fuzzy
+msgid "[<remote>:]<instance> [flags] [--] <command line>"
+msgstr ""
+"Löscht einen Container oder Container Sicherungspunkt.\n"
+"\n"
+"Entfernt einen Container (oder Sicherungspunkt) und alle dazugehörigen\n"
+"Daten (Konfiguration, Sicherungspunkte, ...).\n"
+
+#: lxc/export.go:30
+#, fuzzy
+msgid "[<remote>:]<instance> [target] [--instance-only] [--optimized-storage]"
+msgstr ""
+"Ändert den Laufzustand eines Containers in %s.\n"
+"\n"
+"lxd %s <Name>\n"
+
+#: lxc/file.go:152
+#, fuzzy
+msgid "[<remote>:]<instance>/<path>"
+msgstr ""
+"Löscht einen Container oder Container Sicherungspunkt.\n"
+"\n"
+"Entfernt einen Container (oder Sicherungspunkt) und alle dazugehörigen\n"
+"Daten (Konfiguration, Sicherungspunkte, ...).\n"
+
+#: lxc/file.go:102
+#, fuzzy
+msgid "[<remote>:]<instance>/<path> [[<remote>:]<instance>/<path>...]"
+msgstr ""
+"Ändert den Laufzustand eines Containers in %s.\n"
+"\n"
+"lxd %s <Name>\n"
+
+#: lxc/file.go:215
+#, fuzzy
+msgid ""
+"[<remote>:]<instance>/<path> [[<remote>:]<instance>/<path>...] <target path>"
+msgstr ""
+"Löscht einen Container oder Container Sicherungspunkt.\n"
+"\n"
+"Entfernt einen Container (oder Sicherungspunkt) und alle dazugehörigen\n"
+"Daten (Konfiguration, Sicherungspunkte, ...).\n"
+
+#: lxc/rename.go:19
+#, fuzzy
+msgid "[<remote>:]<instance>[/<snapshot>] <instance>[/<snapshot>]"
+msgstr ""
+"Löscht einen Container oder Container Sicherungspunkt.\n"
+"\n"
+"Entfernt einen Container (oder Sicherungspunkt) und alle dazugehörigen\n"
+"Daten (Konfiguration, Sicherungspunkte, ...).\n"
+
+#: lxc/publish.go:29
+#, fuzzy
+msgid "[<remote>:]<instance>[/<snapshot>] [<remote>:] [flags] [key=value...]"
+msgstr ""
+"Löscht einen Container oder Container Sicherungspunkt.\n"
+"\n"
+"Entfernt einen Container (oder Sicherungspunkt) und alle dazugehörigen\n"
+"Daten (Konfiguration, Sicherungspunkte, ...).\n"
+
+#: lxc/move.go:33
+#, fuzzy
+msgid "[<remote>:]<instance>[/<snapshot>] [<remote>:][<instance>[/<snapshot>]]"
+msgstr ""
+"Löscht einen Container oder Container Sicherungspunkt.\n"
+"\n"
+"Entfernt einen Container (oder Sicherungspunkt) und alle dazugehörigen\n"
+"Daten (Konfiguration, Sicherungspunkte, ...).\n"
+
+#: lxc/delete.go:27
+#, fuzzy
+msgid ""
+"[<remote>:]<instance>[/<snapshot>] [[<remote>:]<instance>[/<snapshot>]...]"
+msgstr ""
+"Löscht einen Container oder Container Sicherungspunkt.\n"
+"\n"
+"Entfernt einen Container (oder Sicherungspunkt) und alle dazugehörigen\n"
+"Daten (Konfiguration, Sicherungspunkte, ...).\n"
+
+#: lxc/cluster.go:151 lxc/cluster.go:250
+#, fuzzy
+msgid "[<remote>:]<member>"
+msgstr ""
+"Löscht einen Container oder Container Sicherungspunkt.\n"
+"\n"
+"Entfernt einen Container (oder Sicherungspunkt) und alle dazugehörigen\n"
+"Daten (Konfiguration, Sicherungspunkte, ...).\n"
+
+#: lxc/cluster.go:200
+#, fuzzy
+msgid "[<remote>:]<member> <new-name>"
+msgstr ""
+"Ändert den Laufzustand eines Containers in %s.\n"
+"\n"
+"lxd %s <Name>\n"
+
+#: lxc/network.go:323 lxc/network.go:544 lxc/network.go:725 lxc/network.go:890
+#: lxc/network.go:1079
+#, fuzzy
+msgid "[<remote>:]<network>"
+msgstr ""
+"Ändert den Laufzustand eines Containers in %s.\n"
+"\n"
+"lxd %s <Name>\n"
+
+#: lxc/network.go:374
+#, fuzzy
+msgid "[<remote>:]<network> <instance> [<device name>]"
+msgstr ""
+"Ändert den Laufzustand eines Containers in %s.\n"
+"\n"
+"lxd %s <Name>\n"
+
+#: lxc/network.go:106
+#, fuzzy
+msgid "[<remote>:]<network> <instance> [<device name>] [<interface name>]"
+msgstr ""
+"Ändert den Laufzustand eines Containers in %s.\n"
+"\n"
+"lxd %s <Name>\n"
+
+#: lxc/network.go:667 lxc/network.go:1141
+#, fuzzy
+msgid "[<remote>:]<network> <key>"
+msgstr ""
+"Ändert den Laufzustand eines Containers in %s.\n"
+"\n"
+"lxd %s <Name>\n"
+
+#: lxc/network.go:1009
+#, fuzzy
+msgid "[<remote>:]<network> <key>=<value>..."
+msgstr ""
+"Ändert den Laufzustand eines Containers in %s.\n"
+"\n"
+"lxd %s <Name>\n"
+
+#: lxc/network.go:958
+#, fuzzy
+msgid "[<remote>:]<network> <new-name>"
+msgstr ""
+"Ändert den Laufzustand eines Containers in %s.\n"
+"\n"
+"lxd %s <Name>\n"
+
+#: lxc/network.go:459
+#, fuzzy
+msgid "[<remote>:]<network> <profile> [<device name>]"
+msgstr ""
+"Ändert den Laufzustand eines Containers in %s.\n"
+"\n"
+"lxd %s <Name>\n"
+
+#: lxc/network.go:179
+#, fuzzy
+msgid "[<remote>:]<network> <profile> [<device name>] [<interface name>]"
 msgstr ""
 "Ändert den Laufzustand eines Containers in %s.\n"
 "\n"
 "lxd %s <Name>\n"
 
 #: lxc/network.go:252
-msgid "create [<remote>:]<network> [key=value...]"
+#, fuzzy
+msgid "[<remote>:]<network> [key=value...]"
 msgstr ""
+"Ändert den Laufzustand eines Containers in %s.\n"
+"\n"
+"lxd %s <Name>\n"
+
+#: lxc/operation.go:50 lxc/operation.go:179
+#, fuzzy
+msgid "[<remote>:]<operation>"
+msgstr ""
+"Ändert den Laufzustand eines Containers in %s.\n"
+"\n"
+"lxd %s <Name>\n"
+
+#: lxc/storage.go:160 lxc/storage.go:211 lxc/storage.go:386 lxc/storage.go:649
+#: lxc/storage_volume.go:1067
+#, fuzzy
+msgid "[<remote>:]<pool>"
+msgstr ""
+"Ändert den Laufzustand eines Containers in %s.\n"
+"\n"
+"lxd %s <Name>\n"
 
 #: lxc/storage.go:87
-msgid "create [<remote>:]<pool> <driver> [key=value...]"
+#, fuzzy
+msgid "[<remote>:]<pool> <driver> [key=value...]"
 msgstr ""
+"Ändert den Laufzustand eines Containers in %s.\n"
+"\n"
+"lxd %s <Name>\n"
+
+#: lxc/storage.go:331 lxc/storage.go:733
+#, fuzzy
+msgid "[<remote>:]<pool> <key>"
+msgstr ""
+"Ändert den Laufzustand eines Containers in %s.\n"
+"\n"
+"lxd %s <Name>\n"
+
+#: lxc/storage.go:580
+#, fuzzy
+msgid "[<remote>:]<pool> <key> <value>"
+msgstr ""
+"Ändert den Laufzustand eines Containers in %s.\n"
+"\n"
+"lxd %s <Name>\n"
+
+#: lxc/storage_volume.go:1172
+#, fuzzy
+msgid ""
+"[<remote>:]<pool> <old name>[/<old snapshot name>] <new name>[/<new snapshot "
+"name>]"
+msgstr ""
+"Löscht einen Container oder Container Sicherungspunkt.\n"
+"\n"
+"Entfernt einen Container (oder Sicherungspunkt) und alle dazugehörigen\n"
+"Daten (Konfiguration, Sicherungspunkte, ...).\n"
+
+#: lxc/storage_volume.go:614
+#, fuzzy
+msgid "[<remote>:]<pool> <volume> <instance> [<device name>]"
+msgstr ""
+"Ändert den Laufzustand eines Containers in %s.\n"
+"\n"
+"lxd %s <Name>\n"
+
+#: lxc/storage_volume.go:138
+#, fuzzy
+msgid "[<remote>:]<pool> <volume> <instance> [<device name>] <path>"
+msgstr ""
+"Ändert den Laufzustand eines Containers in %s.\n"
+"\n"
+"lxd %s <Name>\n"
+
+#: lxc/storage_volume.go:1460
+#, fuzzy
+msgid "[<remote>:]<pool> <volume> <key>"
+msgstr ""
+"Ändert den Laufzustand eines Containers in %s.\n"
+"\n"
+"lxd %s <Name>\n"
+
+#: lxc/storage_volume.go:1285
+#, fuzzy
+msgid "[<remote>:]<pool> <volume> <key>=<value>..."
+msgstr ""
+"Ändert den Laufzustand eines Containers in %s.\n"
+"\n"
+"lxd %s <Name>\n"
+
+#: lxc/storage_volume.go:1569
+#, fuzzy
+msgid "[<remote>:]<pool> <volume> <snapshot>"
+msgstr ""
+"Löscht einen Container oder Container Sicherungspunkt.\n"
+"\n"
+"Entfernt einen Container (oder Sicherungspunkt) und alle dazugehörigen\n"
+"Daten (Konfiguration, Sicherungspunkte, ...).\n"
+
+#: lxc/storage_volume.go:1493
+#, fuzzy
+msgid "[<remote>:]<pool> <volume> [<snapshot>]"
+msgstr ""
+"Löscht einen Container oder Container Sicherungspunkt.\n"
+"\n"
+"Entfernt einen Container (oder Sicherungspunkt) und alle dazugehörigen\n"
+"Daten (Konfiguration, Sicherungspunkte, ...).\n"
 
 #: lxc/storage_volume.go:461
-msgid "create [<remote>:]<pool> <volume> [key=value...]"
+#, fuzzy
+msgid "[<remote>:]<pool> <volume> [key=value...]"
+msgstr ""
+"Ändert den Laufzustand eines Containers in %s.\n"
+"\n"
+"lxd %s <Name>\n"
+
+#: lxc/storage_volume.go:537 lxc/storage_volume.go:777
+#: lxc/storage_volume.go:1361
+#, fuzzy
+msgid "[<remote>:]<pool> <volume>[/<snapshot>]"
+msgstr ""
+"Löscht einen Container oder Container Sicherungspunkt.\n"
+"\n"
+"Entfernt einen Container (oder Sicherungspunkt) und alle dazugehörigen\n"
+"Daten (Konfiguration, Sicherungspunkte, ...).\n"
+
+#: lxc/storage_volume.go:977
+#, fuzzy
+msgid "[<remote>:]<pool> <volume>[/<snapshot>] <key>"
+msgstr ""
+"Löscht einen Container oder Container Sicherungspunkt.\n"
+"\n"
+"Entfernt einen Container (oder Sicherungspunkt) und alle dazugehörigen\n"
+"Daten (Konfiguration, Sicherungspunkte, ...).\n"
+
+#: lxc/config_device.go:270 lxc/config_device.go:628 lxc/profile.go:298
+#: lxc/profile.go:351 lxc/profile.go:402 lxc/profile.go:819
+#, fuzzy
+msgid "[<remote>:]<profile>"
+msgstr ""
+"Ändert den Laufzustand eines Containers in %s.\n"
+"\n"
+"lxd %s <Name>\n"
+
+#: lxc/config_device.go:190 lxc/config_device.go:700
+#, fuzzy
+msgid "[<remote>:]<profile> <device> <key>"
+msgstr ""
+"Ändert den Laufzustand eines Containers in %s.\n"
+"\n"
+"lxd %s <Name>\n"
+
+#: lxc/config_device.go:526
+#, fuzzy
+msgid "[<remote>:]<profile> <device> <key>=<value>..."
+msgstr ""
+"Ändert den Laufzustand eines Containers in %s.\n"
+"\n"
+"lxd %s <Name>\n"
+
+#: lxc/config_device.go:83
+#, fuzzy
+msgid "[<remote>:]<profile> <device> <type> [key=value...]"
+msgstr ""
+"Ändert den Laufzustand eines Containers in %s.\n"
+"\n"
+"lxd %s <Name>\n"
+
+#: lxc/profile.go:526 lxc/profile.go:873
+#, fuzzy
+msgid "[<remote>:]<profile> <key>"
+msgstr ""
+"Ändert den Laufzustand eines Containers in %s.\n"
+"\n"
+"lxd %s <Name>\n"
+
+#: lxc/profile.go:760
+#, fuzzy
+msgid "[<remote>:]<profile> <key><value>..."
+msgstr ""
+"Ändert den Laufzustand eines Containers in %s.\n"
+"\n"
+"lxd %s <Name>\n"
+
+#: lxc/config_device.go:425
+#, fuzzy
+msgid "[<remote>:]<profile> <name>..."
+msgstr ""
+"Ändert den Laufzustand eines Containers in %s.\n"
+"\n"
+"lxd %s <Name>\n"
+
+#: lxc/profile.go:709
+#, fuzzy
+msgid "[<remote>:]<profile> <new-name>"
+msgstr ""
+"Ändert den Laufzustand eines Containers in %s.\n"
+"\n"
+"lxd %s <Name>\n"
+
+#: lxc/profile.go:241
+#, fuzzy
+msgid "[<remote>:]<profile> [<remote>:]<profile>"
+msgstr ""
+"Ändert den Laufzustand eines Containers in %s.\n"
+"\n"
+"lxd %s <Name>\n"
+
+#: lxc/project.go:84 lxc/project.go:148 lxc/project.go:212 lxc/project.go:618
+#: lxc/project.go:671
+#, fuzzy
+msgid "[<remote>:]<project>"
+msgstr ""
+"Ändert den Laufzustand eines Containers in %s.\n"
+"\n"
+"lxd %s <Name>\n"
+
+#: lxc/project.go:332 lxc/project.go:589
+#, fuzzy
+msgid "[<remote>:]<project> <key>"
+msgstr ""
+"Ändert den Laufzustand eines Containers in %s.\n"
+"\n"
+"lxd %s <Name>\n"
+
+#: lxc/project.go:529
+#, fuzzy
+msgid "[<remote>:]<project> <key>=<value>..."
+msgstr ""
+"Ändert den Laufzustand eines Containers in %s.\n"
+"\n"
+"lxd %s <Name>\n"
+
+#: lxc/project.go:473
+#, fuzzy
+msgid "[<remote>:]<project> <new-name>"
+msgstr ""
+"Ändert den Laufzustand eines Containers in %s.\n"
+"\n"
+"lxd %s <Name>\n"
+
+#: lxc/copy.go:37
+#, fuzzy
+msgid "[<remote>:]<source>[/<snapshot>] [[<remote>:]<destination>]"
+msgstr ""
+"Löscht einen Container oder Container Sicherungspunkt.\n"
+"\n"
+"Entfernt einen Container (oder Sicherungspunkt) und alle dazugehörigen\n"
+"Daten (Konfiguration, Sicherungspunkte, ...).\n"
+
+#: lxc/config.go:87 lxc/config.go:608
+#, fuzzy
+msgid "[<remote>:][<instance>[/<snapshot>]]"
+msgstr ""
+"Löscht einen Container oder Container Sicherungspunkt.\n"
+"\n"
+"Entfernt einen Container (oder Sicherungspunkt) und alle dazugehörigen\n"
+"Daten (Konfiguration, Sicherungspunkte, ...).\n"
+
+#: lxc/info.go:31
+#, fuzzy
+msgid "[<remote>:][<instance>]"
+msgstr ""
+"Löscht einen Container oder Container Sicherungspunkt.\n"
+"\n"
+"Entfernt einen Container (oder Sicherungspunkt) und alle dazugehörigen\n"
+"Daten (Konfiguration, Sicherungspunkte, ...).\n"
+
+#: lxc/config.go:358 lxc/config.go:732
+#, fuzzy
+msgid "[<remote>:][<instance>] <key>"
+msgstr ""
+"Ändert den Laufzustand eines Containers in %s.\n"
+"\n"
+"lxd %s <Name>\n"
+
+#: lxc/config.go:450
+#, fuzzy
+msgid "[<remote>:][<instance>] <key>=<value>..."
+msgstr ""
+"Ändert den Laufzustand eines Containers in %s.\n"
+"\n"
+"lxd %s <Name>\n"
+
+#: lxc/remote.go:82
+msgid "[<remote>] <IP|FQDN|URL>"
 msgstr ""
 
-#: lxc/profile.go:298
-msgid "create [<remote>:]<profile>"
+#: lxc/init.go:38
+#, fuzzy
+msgid "[[<remote>:]<image>] [<remote>:][<name>] [< config"
 msgstr ""
-
-#: lxc/project.go:84
-msgid "create [<remote>:]<project>"
-msgstr ""
+"Ändert den Laufzustand eines Containers in %s.\n"
+"\n"
+"lxd %s <Name>\n"
 
 #: lxc/project.go:446
 msgid "current"
@@ -3857,111 +4511,8 @@ msgstr ""
 msgid "default"
 msgstr ""
 
-#: lxc/image_alias.go:102
-msgid "delete [<remote>:]<alias>"
-msgstr ""
-
-#: lxc/image.go:267
-#, fuzzy
-msgid "delete [<remote>:]<image> [[<remote>:]<image>...]"
-msgstr ""
-"Ändert den Laufzustand eines Containers in %s.\n"
-"\n"
-"lxd %s <Name>\n"
-
-#: lxc/config_template.go:105
-#, fuzzy
-msgid "delete [<remote>:]<instance> <template>"
-msgstr ""
-"Ändert den Laufzustand eines Containers in %s.\n"
-"\n"
-"lxd %s <Name>\n"
-
-#: lxc/file.go:102
-#, fuzzy
-msgid "delete [<remote>:]<instance>/<path> [[<remote>:]<instance>/<path>...]"
-msgstr ""
-"Ändert den Laufzustand eines Containers in %s.\n"
-"\n"
-"lxd %s <Name>\n"
-
-#: lxc/delete.go:27
-#, fuzzy
-msgid ""
-"delete [<remote>:]<instance>[/<snapshot>] [[<remote>:]<instance>[/"
-"<snapshot>]...]"
-msgstr ""
-"Löscht einen Container oder Container Sicherungspunkt.\n"
-"\n"
-"Entfernt einen Container (oder Sicherungspunkt) und alle dazugehörigen\n"
-"Daten (Konfiguration, Sicherungspunkte, ...).\n"
-
-#: lxc/network.go:323
-msgid "delete [<remote>:]<network>"
-msgstr ""
-
-#: lxc/operation.go:50
-msgid "delete [<remote>:]<operation>"
-msgstr ""
-
-#: lxc/storage.go:160
-msgid "delete [<remote>:]<pool>"
-msgstr ""
-
-#: lxc/storage_volume.go:537
-#, fuzzy
-msgid "delete [<remote>:]<pool> <volume>[/<snapshot>]"
-msgstr ""
-"Ändert den Laufzustand eines Containers in %s.\n"
-"\n"
-"lxd %s <Name>\n"
-
-#: lxc/profile.go:351
-msgid "delete [<remote>:]<profile>"
-msgstr ""
-
-#: lxc/project.go:148
-#, fuzzy
-msgid "delete [<remote>:]<project>"
-msgstr ""
-"Ändert den Laufzustand eines Containers in %s.\n"
-"\n"
-"lxd %s <Name>\n"
-
 #: lxc/storage.go:446
 msgid "description"
-msgstr ""
-
-#: lxc/network.go:374
-#, fuzzy
-msgid "detach [<remote>:]<network> <instance> [<device name>]"
-msgstr ""
-"Ändert den Laufzustand eines Containers in %s.\n"
-"\n"
-"lxd %s <Name>\n"
-
-#: lxc/storage_volume.go:614
-#, fuzzy
-msgid "detach [<remote>:]<pool> <volume> <instance> [<device name>]"
-msgstr ""
-"Ändert den Laufzustand eines Containers in %s.\n"
-"\n"
-"lxd %s <Name>\n"
-
-#: lxc/storage_volume.go:696
-msgid "detach-profile [<remote:>]<pool> <volume> <profile> [<device name>]"
-msgstr ""
-
-#: lxc/network.go:459
-#, fuzzy
-msgid "detach-profile [<remote>:]<network> <profile> [<device name>]"
-msgstr ""
-"Ändert den Laufzustand eines Containers in %s.\n"
-"\n"
-"lxd %s <Name>\n"
-
-#: lxc/config_device.go:22
-msgid "device"
 msgstr ""
 
 #: lxc/image.go:882
@@ -3970,84 +4521,6 @@ msgstr ""
 
 #: lxc/storage.go:445
 msgid "driver"
-msgstr ""
-
-#: lxc/cluster.go:419
-#, fuzzy
-msgid "edit [<remote>:]<cluster member>"
-msgstr ""
-"Löscht einen Container oder Container Sicherungspunkt.\n"
-"\n"
-"Entfernt einen Container (oder Sicherungspunkt) und alle dazugehörigen\n"
-"Daten (Konfiguration, Sicherungspunkte, ...).\n"
-
-#: lxc/image.go:319
-msgid "edit [<remote>:]<image>"
-msgstr ""
-
-#: lxc/config_metadata.go:50
-#, fuzzy
-msgid "edit [<remote>:]<instance>"
-msgstr ""
-"Löscht einen Container oder Container Sicherungspunkt.\n"
-"\n"
-"Entfernt einen Container (oder Sicherungspunkt) und alle dazugehörigen\n"
-"Daten (Konfiguration, Sicherungspunkte, ...).\n"
-
-#: lxc/config_template.go:148
-#, fuzzy
-msgid "edit [<remote>:]<instance> <template>"
-msgstr ""
-"Löscht einen Container oder Container Sicherungspunkt.\n"
-"\n"
-"Entfernt einen Container (oder Sicherungspunkt) und alle dazugehörigen\n"
-"Daten (Konfiguration, Sicherungspunkte, ...).\n"
-
-#: lxc/file.go:152
-#, fuzzy
-msgid "edit [<remote>:]<instance>/<path>"
-msgstr ""
-"Löscht einen Container oder Container Sicherungspunkt.\n"
-"\n"
-"Entfernt einen Container (oder Sicherungspunkt) und alle dazugehörigen\n"
-"Daten (Konfiguration, Sicherungspunkte, ...).\n"
-
-#: lxc/network.go:544
-msgid "edit [<remote>:]<network>"
-msgstr ""
-
-#: lxc/storage.go:211
-msgid "edit [<remote>:]<pool>"
-msgstr ""
-
-#: lxc/storage_volume.go:777
-#, fuzzy
-msgid "edit [<remote>:]<pool> <volume>[/<snapshot>]"
-msgstr ""
-"Löscht einen Container oder Container Sicherungspunkt.\n"
-"\n"
-"Entfernt einen Container (oder Sicherungspunkt) und alle dazugehörigen\n"
-"Daten (Konfiguration, Sicherungspunkte, ...).\n"
-
-#: lxc/profile.go:402
-msgid "edit [<remote>:]<profile>"
-msgstr ""
-
-#: lxc/project.go:212
-msgid "edit [<remote>:]<project>"
-msgstr ""
-
-#: lxc/config.go:87
-#, fuzzy
-msgid "edit [<remote>:][<instance>[/<snapshot>]]"
-msgstr ""
-"Löscht einen Container oder Container Sicherungspunkt.\n"
-"\n"
-"Entfernt einen Container (oder Sicherungspunkt) und alle dazugehörigen\n"
-"Daten (Konfiguration, Sicherungspunkte, ...).\n"
-
-#: lxc/cluster.go:334
-msgid "enable [<remote>:] <name>"
 msgstr ""
 
 #: lxc/image.go:884
@@ -4059,179 +4532,13 @@ msgstr ""
 msgid "error: %v"
 msgstr "Fehler: %v\n"
 
-#: lxc/exec.go:38
-msgid "exec [<remote>:]<instance> [flags] [--] <command line>"
-msgstr ""
-
 #: lxc/info.go:578
 #, c-format
 msgid "expires at %s"
 msgstr ""
 
-#: lxc/image.go:444
-msgid "export [<remote>:]<image> [<target>]"
-msgstr ""
-
-#: lxc/export.go:30
-#, fuzzy
-msgid ""
-"export [<remote>:]<instance> [target] [--instance-only] [--optimized-storage]"
-msgstr ""
-"Ändert den Laufzustand eines Containers in %s.\n"
-"\n"
-"lxd %s <Name>\n"
-
-#: lxc/file.go:70
-msgid "file"
-msgstr ""
-
-#: lxc/config_device.go:188
-#, fuzzy
-msgid "get [<remote>:]<instance> <device> <key>"
-msgstr ""
-"Ändert den Laufzustand eines Containers in %s.\n"
-"\n"
-"lxd %s <Name>\n"
-
-#: lxc/network.go:667
-msgid "get [<remote>:]<network> <key>"
-msgstr ""
-
-#: lxc/storage.go:331
-msgid "get [<remote>:]<pool> <key>"
-msgstr ""
-
-#: lxc/storage_volume.go:977
-#, fuzzy
-msgid "get [<remote>:]<pool> <volume>[/<snapshot>] <key>"
-msgstr ""
-"Löscht einen Container oder Container Sicherungspunkt.\n"
-"\n"
-"Entfernt einen Container (oder Sicherungspunkt) und alle dazugehörigen\n"
-"Daten (Konfiguration, Sicherungspunkte, ...).\n"
-
-#: lxc/config_device.go:190
-#, fuzzy
-msgid "get [<remote>:]<profile> <device> <key>"
-msgstr ""
-"Ändert den Laufzustand eines Containers in %s.\n"
-"\n"
-"lxd %s <Name>\n"
-
-#: lxc/profile.go:526
-msgid "get [<remote>:]<profile> <key>"
-msgstr ""
-
-#: lxc/project.go:332
-#, fuzzy
-msgid "get [<remote>:]<project> <key>"
-msgstr ""
-"Ändert den Laufzustand eines Containers in %s.\n"
-"\n"
-"lxd %s <Name>\n"
-
-#: lxc/config.go:358
-#, fuzzy
-msgid "get [<remote>:][<instance>] <key>"
-msgstr ""
-"Ändert den Laufzustand eines Containers in %s.\n"
-"\n"
-"lxd %s <Name>\n"
-
-#: lxc/remote.go:421
-msgid "get-default"
-msgstr ""
-
-#: lxc/image.go:36
-msgid "image"
-msgstr ""
-
-#: lxc/image.go:603
-msgid ""
-"import <tarball>|<directory>|<URL> [<rootfs tarball>] [<remote>:] "
-"[key=value...]"
-msgstr ""
-
-#: lxc/import.go:26
-msgid "import [<remote>:] <backup file>"
-msgstr ""
-
 #: lxc/storage.go:443
 msgid "info"
-msgstr ""
-
-#: lxc/image.go:831
-msgid "info [<remote>:]<image>"
-msgstr ""
-
-#: lxc/network.go:725
-msgid "info [<remote>:]<network>"
-msgstr ""
-
-#: lxc/storage.go:386
-msgid "info [<remote>:]<pool>"
-msgstr ""
-
-#: lxc/info.go:31
-#, fuzzy
-msgid "info [<remote>:][<instance>]"
-msgstr ""
-"Löscht einen Container oder Container Sicherungspunkt.\n"
-"\n"
-"Entfernt einen Container (oder Sicherungspunkt) und alle dazugehörigen\n"
-"Daten (Konfiguration, Sicherungspunkte, ...).\n"
-
-#: lxc/init.go:38
-#, fuzzy
-msgid "init [[<remote>:]<image>] [<remote>:][<name>] [< config"
-msgstr ""
-"Ändert den Laufzustand eines Containers in %s.\n"
-"\n"
-"lxd %s <Name>\n"
-
-#: lxc/launch.go:23
-msgid "launch [<remote>:]<image> [<remote>:][<name>]"
-msgstr ""
-
-#: lxc/alias.go:97 lxc/remote.go:456
-msgid "list"
-msgstr ""
-
-#: lxc/cluster.go:71 lxc/config_trust.go:112 lxc/network.go:804
-#: lxc/operation.go:99 lxc/profile.go:574 lxc/project.go:381 lxc/storage.go:505
-msgid "list [<remote>:]"
-msgstr ""
-
-#: lxc/image.go:965 lxc/list.go:42
-msgid "list [<remote>:] [<filter>...]"
-msgstr ""
-
-#: lxc/image_alias.go:147
-msgid "list [<remote>:] [<filters>...]"
-msgstr ""
-
-#: lxc/config_device.go:268 lxc/config_template.go:234
-#, fuzzy
-msgid "list [<remote>:]<instance>"
-msgstr ""
-"Ändert den Laufzustand eines Containers in %s.\n"
-"\n"
-"lxd %s <Name>\n"
-
-#: lxc/storage_volume.go:1067
-msgid "list [<remote>:]<pool>"
-msgstr ""
-
-#: lxc/config_device.go:270
-#, fuzzy
-msgid "list [<remote>:]<profile>"
-msgstr ""
-"Ändert den Laufzustand eines Containers in %s.\n"
-"\n"
-"lxd %s <Name>\n"
-
-#: lxc/network.go:890
-msgid "list-leases [<remote>:]<network>"
 msgstr ""
 
 #: lxc/alias.go:56
@@ -4467,42 +4774,8 @@ msgid ""
 "\" in the \"default\" pool."
 msgstr ""
 
-#: lxc/manpage.go:18
-msgid "manpage <target>"
-msgstr ""
-
-#: lxc/config_metadata.go:25
-msgid "metadata"
-msgstr ""
-
-#: lxc/monitor.go:28
-msgid "monitor [<remote>:]"
-msgstr ""
-
-#: lxc/storage_volume.go:1140
-#, fuzzy
-msgid "move <pool>/<volume> <pool>/<volume>"
-msgstr ""
-"Ändert den Laufzustand eines Containers in %s.\n"
-"\n"
-"lxd %s <Name>\n"
-
-#: lxc/move.go:33
-#, fuzzy
-msgid ""
-"move [<remote>:]<instance>[/<snapshot>] [<remote>:][<instance>[/<snapshot>]]"
-msgstr ""
-"Löscht einen Container oder Container Sicherungspunkt.\n"
-"\n"
-"Entfernt einen Container (oder Sicherungspunkt) und alle dazugehörigen\n"
-"Daten (Konfiguration, Sicherungspunkte, ...).\n"
-
 #: lxc/storage.go:444
 msgid "name"
-msgstr ""
-
-#: lxc/network.go:30
-msgid "network"
 msgstr ""
 
 #: lxc/image.go:872 lxc/image.go:877 lxc/image.go:1064
@@ -4514,358 +4787,13 @@ msgstr ""
 msgid "ok (y/n)?"
 msgstr "OK (y/n)? "
 
-#: lxc/operation.go:22
-#, fuzzy
-msgid "operation"
-msgstr "Eigenschaften:\n"
-
-#: lxc/config_device.go:334
-#, fuzzy
-msgid "override [<remote>:]<instance> <device> [key=value...]"
-msgstr ""
-"Ändert den Laufzustand eines Containers in %s.\n"
-"\n"
-"lxd %s <Name>\n"
-
-#: lxc/action.go:48
-#, fuzzy
-msgid "pause [<remote>:]<instance> [[<remote>:]<instance>...]"
-msgstr ""
-"Ändert den Laufzustand eines Containers in %s.\n"
-"\n"
-"lxd %s <Name>\n"
-
 #: lxc/config.go:53
 msgid "please use `lxc profile`"
 msgstr ""
 
-#: lxc/profile.go:27
-#, fuzzy
-msgid "profile"
-msgstr "Profil %s erstellt\n"
-
-#: lxc/project.go:27
-msgid "project"
-msgstr ""
-
-#: lxc/publish.go:29
-#, fuzzy
-msgid ""
-"publish [<remote>:]<instance>[/<snapshot>] [<remote>:] [flags] [key=value...]"
-msgstr ""
-"Löscht einen Container oder Container Sicherungspunkt.\n"
-"\n"
-"Entfernt einen Container (oder Sicherungspunkt) und alle dazugehörigen\n"
-"Daten (Konfiguration, Sicherungspunkte, ...).\n"
-
-#: lxc/file.go:215
-#, fuzzy
-msgid ""
-"pull [<remote>:]<instance>/<path> [[<remote>:]<instance>/<path>...] <target "
-"path>"
-msgstr ""
-"Löscht einen Container oder Container Sicherungspunkt.\n"
-"\n"
-"Entfernt einen Container (oder Sicherungspunkt) und alle dazugehörigen\n"
-"Daten (Konfiguration, Sicherungspunkte, ...).\n"
-
-#: lxc/file.go:405
-#, fuzzy
-msgid ""
-"push <source path> [<remote>:]<instance>/<path> [[<remote>:]<instance>/"
-"<path>...]"
-msgstr ""
-"Ändert den Laufzustand eines Containers in %s.\n"
-"\n"
-"lxd %s <Name>\n"
-
-#: lxc/query.go:30
-msgid "query [<remote>:]<API path>"
-msgstr ""
-
-#: lxc/image.go:1264
-#, fuzzy
-msgid "refresh [<remote>:]<image> [[<remote>:]<image>...]"
-msgstr ""
-"Ändert den Laufzustand eines Containers in %s.\n"
-"\n"
-"lxd %s <Name>\n"
-
-#: lxc/remote.go:31
-msgid "remote"
-msgstr ""
-
-#: lxc/alias.go:192
-msgid "remove <alias>"
-msgstr ""
-
-#: lxc/remote.go:598
-msgid "remove <remote>"
-msgstr ""
-
-#: lxc/config_trust.go:190
-msgid "remove [<remote>:] <hostname|fingerprint>"
-msgstr ""
-
-#: lxc/config_device.go:423
-#, fuzzy
-msgid "remove [<remote>:]<instance> <name>..."
-msgstr ""
-"Ändert den Laufzustand eines Containers in %s.\n"
-"\n"
-"lxd %s <Name>\n"
-
-#: lxc/profile.go:634
-#, fuzzy
-msgid "remove [<remote>:]<instance> <profile>"
-msgstr ""
-"Ändert den Laufzustand eines Containers in %s.\n"
-"\n"
-"lxd %s <Name>\n"
-
-#: lxc/cluster.go:250
-msgid "remove [<remote>:]<member>"
-msgstr ""
-
-#: lxc/config_device.go:425
-#, fuzzy
-msgid "remove [<remote>:]<profile> <name>..."
-msgstr ""
-"Ändert den Laufzustand eines Containers in %s.\n"
-"\n"
-"lxd %s <Name>\n"
-
-#: lxc/alias.go:141
-msgid "rename <old alias> <new alias>"
-msgstr ""
-
-#: lxc/remote.go:536
-msgid "rename <remote> <new-name>"
-msgstr ""
-
-#: lxc/image_alias.go:249
-msgid "rename [<remote>:]<alias> <new-name>"
-msgstr ""
-
-#: lxc/rename.go:19
-#, fuzzy
-msgid "rename [<remote>:]<instance>[/<snapshot>] <instance>[/<snapshot>]"
-msgstr ""
-"Löscht einen Container oder Container Sicherungspunkt.\n"
-"\n"
-"Entfernt einen Container (oder Sicherungspunkt) und alle dazugehörigen\n"
-"Daten (Konfiguration, Sicherungspunkte, ...).\n"
-
-#: lxc/cluster.go:200
-msgid "rename [<remote>:]<member> <new-name>"
-msgstr ""
-
-#: lxc/network.go:958
-msgid "rename [<remote>:]<network> <new-name>"
-msgstr ""
-
-#: lxc/storage_volume.go:1172
-#, fuzzy
-msgid ""
-"rename [<remote>:]<pool> <old name>[/<old snapshot name>] <new name>[/<new "
-"snapshot name>]"
-msgstr ""
-"Löscht einen Container oder Container Sicherungspunkt.\n"
-"\n"
-"Entfernt einen Container (oder Sicherungspunkt) und alle dazugehörigen\n"
-"Daten (Konfiguration, Sicherungspunkte, ...).\n"
-
-#: lxc/profile.go:709
-msgid "rename [<remote>:]<profile> <new-name>"
-msgstr ""
-
-#: lxc/project.go:473
-msgid "rename [<remote>:]<project> <new-name>"
-msgstr ""
-
-#: lxc/action.go:68
-#, fuzzy
-msgid "restart [<remote>:]<instance> [[<remote>:]<instance>...]"
-msgstr ""
-"Ändert den Laufzustand eines Containers in %s.\n"
-"\n"
-"lxd %s <Name>\n"
-
-#: lxc/restore.go:22
-#, fuzzy
-msgid "restore [<remote>:]<instance> <snapshot>"
-msgstr ""
-"Löscht einen Container oder Container Sicherungspunkt.\n"
-"\n"
-"Entfernt einen Container (oder Sicherungspunkt) und alle dazugehörigen\n"
-"Daten (Konfiguration, Sicherungspunkte, ...).\n"
-
-#: lxc/storage_volume.go:1569
-#, fuzzy
-msgid "restore [<remote>:]<pool> <volume> <snapshot>"
-msgstr ""
-"Löscht einen Container oder Container Sicherungspunkt.\n"
-"\n"
-"Entfernt einen Container (oder Sicherungspunkt) und alle dazugehörigen\n"
-"Daten (Konfiguration, Sicherungspunkte, ...).\n"
-
-#: lxc/config_device.go:519
-#, fuzzy
-msgid "set [<remote>:]<instance> <device> <key>=<value>..."
-msgstr ""
-"Ändert den Laufzustand eines Containers in %s.\n"
-"\n"
-"lxd %s <Name>\n"
-
-#: lxc/network.go:1009
-#, fuzzy
-msgid "set [<remote>:]<network> <key>=<value>..."
-msgstr ""
-"Ändert den Laufzustand eines Containers in %s.\n"
-"\n"
-"lxd %s <Name>\n"
-
-#: lxc/storage.go:580
-msgid "set [<remote>:]<pool> <key> <value>"
-msgstr ""
-
-#: lxc/storage_volume.go:1285
-#, fuzzy
-msgid "set [<remote>:]<pool> <volume> <key>=<value>..."
-msgstr ""
-"Ändert den Laufzustand eines Containers in %s.\n"
-"\n"
-"lxd %s <Name>\n"
-
-#: lxc/config_device.go:526
-#, fuzzy
-msgid "set [<remote>:]<profile> <device> <key>=<value>..."
-msgstr ""
-"Ändert den Laufzustand eines Containers in %s.\n"
-"\n"
-"lxd %s <Name>\n"
-
-#: lxc/profile.go:760
-#, fuzzy
-msgid "set [<remote>:]<profile> <key><value>..."
-msgstr ""
-"Ändert den Laufzustand eines Containers in %s.\n"
-"\n"
-"lxd %s <Name>\n"
-
-#: lxc/project.go:529
-#, fuzzy
-msgid "set [<remote>:]<project> <key>=<value>..."
-msgstr ""
-"Ändert den Laufzustand eines Containers in %s.\n"
-"\n"
-"lxd %s <Name>\n"
-
-#: lxc/config.go:450
-#, fuzzy
-msgid "set [<remote>:][<instance>] <key>=<value>..."
-msgstr ""
-"Ändert den Laufzustand eines Containers in %s.\n"
-"\n"
-"lxd %s <Name>\n"
-
-#: lxc/remote.go:687
-msgid "set-url <remote> <URL>"
-msgstr ""
-
-#: lxc/image.go:1343
-msgid "show [<remote>:]<image>"
-msgstr ""
-
-#: lxc/config_device.go:626 lxc/config_metadata.go:172
-#, fuzzy
-msgid "show [<remote>:]<instance>"
-msgstr ""
-"Löscht einen Container oder Container Sicherungspunkt.\n"
-"\n"
-"Entfernt einen Container (oder Sicherungspunkt) und alle dazugehörigen\n"
-"Daten (Konfiguration, Sicherungspunkte, ...).\n"
-
-#: lxc/config_template.go:293
-#, fuzzy
-msgid "show [<remote>:]<instance> <template>"
-msgstr ""
-"Löscht einen Container oder Container Sicherungspunkt.\n"
-"\n"
-"Entfernt einen Container (oder Sicherungspunkt) und alle dazugehörigen\n"
-"Daten (Konfiguration, Sicherungspunkte, ...).\n"
-
-#: lxc/cluster.go:151
-msgid "show [<remote>:]<member>"
-msgstr ""
-
-#: lxc/network.go:1079
-msgid "show [<remote>:]<network>"
-msgstr ""
-
-#: lxc/operation.go:179
-msgid "show [<remote>:]<operation>"
-msgstr ""
-
-#: lxc/storage.go:649
-msgid "show [<remote>:]<pool>"
-msgstr ""
-
-#: lxc/storage_volume.go:1361
-#, fuzzy
-msgid "show [<remote>:]<pool> <volume>[/<snapshot>]"
-msgstr ""
-"Löscht einen Container oder Container Sicherungspunkt.\n"
-"\n"
-"Entfernt einen Container (oder Sicherungspunkt) und alle dazugehörigen\n"
-"Daten (Konfiguration, Sicherungspunkte, ...).\n"
-
-#: lxc/config_device.go:628 lxc/profile.go:819
-msgid "show [<remote>:]<profile>"
-msgstr ""
-
-#: lxc/project.go:618
-msgid "show [<remote>:]<project>"
-msgstr ""
-
-#: lxc/config.go:608
-#, fuzzy
-msgid "show [<remote>:][<instance>[/<snapshot>]]"
-msgstr ""
-"Löscht einen Container oder Container Sicherungspunkt.\n"
-"\n"
-"Entfernt einen Container (oder Sicherungspunkt) und alle dazugehörigen\n"
-"Daten (Konfiguration, Sicherungspunkte, ...).\n"
-
-#: lxc/snapshot.go:25
-#, fuzzy
-msgid "snapshot [<remote>:]<instance> [<snapshot name>]"
-msgstr ""
-"Löscht einen Container oder Container Sicherungspunkt.\n"
-"\n"
-"Entfernt einen Container (oder Sicherungspunkt) und alle dazugehörigen\n"
-"Daten (Konfiguration, Sicherungspunkte, ...).\n"
-
-#: lxc/storage_volume.go:1493
-#, fuzzy
-msgid "snapshot [<remote>:]<pool> <volume> [<snapshot>]"
-msgstr ""
-"Löscht einen Container oder Container Sicherungspunkt.\n"
-"\n"
-"Entfernt einen Container (oder Sicherungspunkt) und alle dazugehörigen\n"
-"Daten (Konfiguration, Sicherungspunkte, ...).\n"
-
 #: lxc/storage.go:448
 msgid "space used"
 msgstr ""
-
-#: lxc/action.go:29
-#, fuzzy
-msgid "start [<remote>:]<instance> [[<remote>:]<instance>...]"
-msgstr ""
-"Ändert den Laufzustand eines Containers in %s.\n"
-"\n"
-"lxd %s <Name>\n"
 
 #: lxc/info.go:582
 msgid "stateful"
@@ -4875,109 +4803,21 @@ msgstr ""
 msgid "stateless"
 msgstr ""
 
-#: lxc/action.go:89
-#, fuzzy
-msgid "stop [<remote>:]<instance> [[<remote>:]<instance>...]"
-msgstr ""
-"Ändert den Laufzustand eines Containers in %s.\n"
-"\n"
-"lxd %s <Name>\n"
-
-#: lxc/storage.go:31
-msgid "storage"
-msgstr ""
-
-#: lxc/remote.go:649
-msgid "switch <remote>"
-msgstr ""
-
-#: lxc/project.go:671
-#, fuzzy
-msgid "switch [<remote>:]<project>"
-msgstr ""
-"Ändert den Laufzustand eines Containers in %s.\n"
-"\n"
-"lxd %s <Name>\n"
-
 #: lxc/info.go:574
 #, c-format
 msgid "taken at %s"
-msgstr ""
-
-#: lxc/config_template.go:26
-msgid "template"
 msgstr ""
 
 #: lxc/storage.go:447
 msgid "total space"
 msgstr ""
 
-#: lxc/config_trust.go:26
-msgid "trust"
-msgstr ""
-
 #: lxc/version.go:48
 msgid "unreachable"
 msgstr ""
 
-#: lxc/config_device.go:698
-#, fuzzy
-msgid "unset [<remote>:]<instance> <device> <key>"
-msgstr ""
-"Ändert den Laufzustand eines Containers in %s.\n"
-"\n"
-"lxd %s <Name>\n"
-
-#: lxc/network.go:1141
-msgid "unset [<remote>:]<network> <key>"
-msgstr ""
-
-#: lxc/storage.go:733
-msgid "unset [<remote>:]<pool> <key>"
-msgstr ""
-
-#: lxc/storage_volume.go:1460
-msgid "unset [<remote>:]<pool> <volume> <key>"
-msgstr ""
-
-#: lxc/config_device.go:700
-#, fuzzy
-msgid "unset [<remote>:]<profile> <device> <key>"
-msgstr ""
-"Ändert den Laufzustand eines Containers in %s.\n"
-"\n"
-"lxd %s <Name>\n"
-
-#: lxc/profile.go:873
-msgid "unset [<remote>:]<profile> <key>"
-msgstr ""
-
-#: lxc/project.go:589
-#, fuzzy
-msgid "unset [<remote>:]<project> <key>"
-msgstr ""
-"Ändert den Laufzustand eines Containers in %s.\n"
-"\n"
-"lxd %s <Name>\n"
-
-#: lxc/config.go:732
-#, fuzzy
-msgid "unset [<remote>:][<instance>] <key>"
-msgstr ""
-"Ändert den Laufzustand eines Containers in %s.\n"
-"\n"
-"lxd %s <Name>\n"
-
 #: lxc/storage.go:442
 msgid "used by"
-msgstr ""
-
-#: lxc/version.go:20
-msgid "version [<remote>:]"
-msgstr ""
-
-#: lxc/storage_volume.go:31
-msgid "volume"
 msgstr ""
 
 #: lxc/remote.go:270
@@ -4990,16 +4830,161 @@ msgid "yes"
 msgstr ""
 
 #, fuzzy
-#~ msgid "Add devices to instances or profiles"
-#~ msgstr "Geräte zu Containern oder Profilen hinzufügen"
+#~ msgid "console [<remote>:]<instance>"
+#~ msgstr ""
+#~ "Ändert den Laufzustand eines Containers in %s.\n"
+#~ "\n"
+#~ "lxd %s <Name>\n"
 
 #, fuzzy
-#~ msgid "show [<remote>:]<instance|profile>"
+#~ msgid "create [<remote>:]<instance> <template>"
+#~ msgstr ""
+#~ "Ändert den Laufzustand eines Containers in %s.\n"
+#~ "\n"
+#~ "lxd %s <Name>\n"
+
+#, fuzzy
+#~ msgid "delete [<remote>:]<instance> <template>"
+#~ msgstr ""
+#~ "Ändert den Laufzustand eines Containers in %s.\n"
+#~ "\n"
+#~ "lxd %s <Name>\n"
+
+#, fuzzy
+#~ msgid "delete [<remote>:]<pool> <volume>[/<snapshot>]"
+#~ msgstr ""
+#~ "Ändert den Laufzustand eines Containers in %s.\n"
+#~ "\n"
+#~ "lxd %s <Name>\n"
+
+#, fuzzy
+#~ msgid "list [<remote>:]<instance>"
+#~ msgstr ""
+#~ "Ändert den Laufzustand eines Containers in %s.\n"
+#~ "\n"
+#~ "lxd %s <Name>\n"
+
+#, fuzzy
+#~ msgid "operation"
+#~ msgstr "Eigenschaften:\n"
+
+#, fuzzy
+#~ msgid "pause [<remote>:]<instance> [[<remote>:]<instance>...]"
+#~ msgstr ""
+#~ "Ändert den Laufzustand eines Containers in %s.\n"
+#~ "\n"
+#~ "lxd %s <Name>\n"
+
+#, fuzzy
+#~ msgid "profile"
+#~ msgstr "Profil %s erstellt\n"
+
+#, fuzzy
+#~ msgid "refresh [<remote>:]<image> [[<remote>:]<image>...]"
+#~ msgstr ""
+#~ "Ändert den Laufzustand eines Containers in %s.\n"
+#~ "\n"
+#~ "lxd %s <Name>\n"
+
+#, fuzzy
+#~ msgid "remove [<remote>:]<instance> <profile>"
+#~ msgstr ""
+#~ "Ändert den Laufzustand eines Containers in %s.\n"
+#~ "\n"
+#~ "lxd %s <Name>\n"
+
+#, fuzzy
+#~ msgid "restart [<remote>:]<instance> [[<remote>:]<instance>...]"
+#~ msgstr ""
+#~ "Ändert den Laufzustand eines Containers in %s.\n"
+#~ "\n"
+#~ "lxd %s <Name>\n"
+
+#, fuzzy
+#~ msgid "show [<remote>:]<instance>"
 #~ msgstr ""
 #~ "Löscht einen Container oder Container Sicherungspunkt.\n"
 #~ "\n"
 #~ "Entfernt einen Container (oder Sicherungspunkt) und alle dazugehörigen\n"
 #~ "Daten (Konfiguration, Sicherungspunkte, ...).\n"
+
+#, fuzzy
+#~ msgid "show [<remote>:]<instance> <template>"
+#~ msgstr ""
+#~ "Löscht einen Container oder Container Sicherungspunkt.\n"
+#~ "\n"
+#~ "Entfernt einen Container (oder Sicherungspunkt) und alle dazugehörigen\n"
+#~ "Daten (Konfiguration, Sicherungspunkte, ...).\n"
+
+#, fuzzy
+#~ msgid "show [<remote>:]<pool> <volume>[/<snapshot>]"
+#~ msgstr ""
+#~ "Löscht einen Container oder Container Sicherungspunkt.\n"
+#~ "\n"
+#~ "Entfernt einen Container (oder Sicherungspunkt) und alle dazugehörigen\n"
+#~ "Daten (Konfiguration, Sicherungspunkte, ...).\n"
+
+#, fuzzy
+#~ msgid "show [<remote>:][<instance>[/<snapshot>]]"
+#~ msgstr ""
+#~ "Löscht einen Container oder Container Sicherungspunkt.\n"
+#~ "\n"
+#~ "Entfernt einen Container (oder Sicherungspunkt) und alle dazugehörigen\n"
+#~ "Daten (Konfiguration, Sicherungspunkte, ...).\n"
+
+#, fuzzy
+#~ msgid "snapshot [<remote>:]<pool> <volume> [<snapshot>]"
+#~ msgstr ""
+#~ "Löscht einen Container oder Container Sicherungspunkt.\n"
+#~ "\n"
+#~ "Entfernt einen Container (oder Sicherungspunkt) und alle dazugehörigen\n"
+#~ "Daten (Konfiguration, Sicherungspunkte, ...).\n"
+
+#, fuzzy
+#~ msgid "start [<remote>:]<instance> [[<remote>:]<instance>...]"
+#~ msgstr ""
+#~ "Ändert den Laufzustand eines Containers in %s.\n"
+#~ "\n"
+#~ "lxd %s <Name>\n"
+
+#, fuzzy
+#~ msgid "switch [<remote>:]<project>"
+#~ msgstr ""
+#~ "Ändert den Laufzustand eines Containers in %s.\n"
+#~ "\n"
+#~ "lxd %s <Name>\n"
+
+#, fuzzy
+#~ msgid "unset [<remote>:]<instance> <device> <key>"
+#~ msgstr ""
+#~ "Ändert den Laufzustand eines Containers in %s.\n"
+#~ "\n"
+#~ "lxd %s <Name>\n"
+
+#, fuzzy
+#~ msgid "unset [<remote>:]<profile> <device> <key>"
+#~ msgstr ""
+#~ "Ändert den Laufzustand eines Containers in %s.\n"
+#~ "\n"
+#~ "lxd %s <Name>\n"
+
+#, fuzzy
+#~ msgid "unset [<remote>:]<project> <key>"
+#~ msgstr ""
+#~ "Ändert den Laufzustand eines Containers in %s.\n"
+#~ "\n"
+#~ "lxd %s <Name>\n"
+
+#, fuzzy
+#~ msgid "unset [<remote>:][<instance>] <key>"
+#~ msgstr ""
+#~ "Ändert den Laufzustand eines Containers in %s.\n"
+#~ "\n"
+#~ "lxd %s <Name>\n"
+
+#, fuzzy
+#~ msgid "Add devices to instances or profiles"
+#~ msgstr "Geräte zu Containern oder Profilen hinzufügen"
 
 #, fuzzy
 #~ msgid "Show storage volum configurations"

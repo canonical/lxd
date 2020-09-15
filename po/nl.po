@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: lxd\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2020-09-11 11:17-0400\n"
+"POT-Creation-Date: 2020-09-15 13:39-0400\n"
 "PO-Revision-Date: 2019-09-06 07:09+0000\n"
 "Last-Translator: Stéphane Graber <stgraber@stgraber.org>\n"
 "Language-Team: Dutch <https://hosted.weblate.org/projects/linux-containers/"
@@ -354,6 +354,52 @@ msgstr ""
 #: lxc/config.go:149 lxc/config.go:394 lxc/config.go:529 lxc/config.go:672
 #: lxc/info.go:423
 msgid "--target cannot be used with instances"
+msgstr ""
+
+#: lxc/alias.go:192
+msgid "<alias>"
+msgstr ""
+
+#: lxc/alias.go:52
+msgid "<alias> <target>"
+msgstr ""
+
+#: lxc/alias.go:141
+msgid "<old alias> <new alias>"
+msgstr ""
+
+#: lxc/storage_volume.go:1140
+msgid "<pool>/<volume> <pool>/<volume>"
+msgstr ""
+
+#: lxc/storage_volume.go:299
+msgid "<pool>/<volume>[/<snapshot>] <pool>/<volume>"
+msgstr ""
+
+#: lxc/remote.go:598 lxc/remote.go:649
+msgid "<remote>"
+msgstr ""
+
+#: lxc/remote.go:687
+msgid "<remote> <URL>"
+msgstr ""
+
+#: lxc/remote.go:536
+msgid "<remote> <new-name>"
+msgstr ""
+
+#: lxc/file.go:405
+msgid ""
+"<source path> [<remote>:]<instance>/<path> [[<remote>:]<instance>/<path>...]"
+msgstr ""
+
+#: lxc/image.go:603
+msgid ""
+"<tarball>|<directory>|<URL> [<rootfs tarball>] [<remote>:] [key=value...]"
+msgstr ""
+
+#: lxc/manpage.go:18
+msgid "<target>"
 msgstr ""
 
 #: lxc/alias.go:126 lxc/image.go:1002 lxc/image_alias.go:231
@@ -3483,112 +3529,361 @@ msgstr ""
 msgid "You must specify a source instance name"
 msgstr ""
 
-#: lxc/alias.go:52
-msgid "add <alias> <target>"
-msgstr ""
-
-#: lxc/config_trust.go:55
-msgid "add [<remote>:] <cert>"
-msgstr ""
-
-#: lxc/config_device.go:78
-msgid "add [<remote>:]<instance> <device> <type> [key=value...]"
-msgstr ""
-
-#: lxc/profile.go:99
-msgid "add [<remote>:]<instance> <profile>"
-msgstr ""
-
-#: lxc/config_device.go:83
-msgid "add [<remote>:]<profile> <device> <type> [key=value...]"
-msgstr ""
-
-#: lxc/remote.go:82
-msgid "add [<remote>] <IP|FQDN|URL>"
-msgstr ""
-
-#: lxc/alias.go:20 lxc/image_alias.go:23
-msgid "alias"
-msgstr ""
-
-#: lxc/profile.go:161
-msgid "assign [<remote>:]<instance> <profiles>"
-msgstr ""
-
-#: lxc/network.go:106
-msgid ""
-"attach [<remote>:]<network> <instance> [<device name>] [<interface name>]"
-msgstr ""
-
-#: lxc/storage_volume.go:138
-msgid "attach [<remote>:]<pool> <volume> <instance> [<device name>] <path>"
+#: lxc/storage_volume.go:696
+msgid "[<remote:>]<pool> <volume> <profile> [<device name>]"
 msgstr ""
 
 #: lxc/storage_volume.go:217
-msgid ""
-"attach-profile [<remote:>]<pool> <volume> <profile> [<device name>] <path>"
+msgid "[<remote:>]<pool> <volume> <profile> [<device name>] <path>"
 msgstr ""
 
-#: lxc/network.go:179
-msgid ""
-"attach-profile [<remote>:]<network> <profile> [<device name>] [<interface "
-"name>]"
+#: lxc/cluster.go:71 lxc/config_trust.go:112 lxc/monitor.go:28
+#: lxc/network.go:804 lxc/operation.go:99 lxc/profile.go:574 lxc/project.go:381
+#: lxc/storage.go:505 lxc/version.go:20
+msgid "[<remote>:]"
 msgstr ""
 
-#: lxc/cluster.go:29
-msgid "cluster"
+#: lxc/import.go:26
+msgid "[<remote>:] <backup file>"
 msgstr ""
 
-#: lxc/config.go:28
-msgid "config"
+#: lxc/config_trust.go:55
+msgid "[<remote>:] <cert>"
 msgstr ""
 
-#: lxc/console.go:34
-msgid "console [<remote>:]<instance>"
+#: lxc/config_trust.go:190
+msgid "[<remote>:] <hostname|fingerprint>"
 msgstr ""
 
-#: lxc/storage_volume.go:299
-msgid "copy <pool>/<volume>[/<snapshot>] <pool>/<volume>"
+#: lxc/cluster.go:334
+msgid "[<remote>:] <name>"
 msgstr ""
 
-#: lxc/image.go:125
-msgid "copy [<remote>:]<image> <remote>:"
+#: lxc/image.go:965 lxc/list.go:42
+msgid "[<remote>:] [<filter>...]"
 msgstr ""
 
-#: lxc/profile.go:241
-msgid "copy [<remote>:]<profile> [<remote>:]<profile>"
+#: lxc/image_alias.go:147
+msgid "[<remote>:] [<filters>...]"
 msgstr ""
 
-#: lxc/copy.go:37
-msgid "copy [<remote>:]<source>[/<snapshot>] [[<remote>:]<destination>]"
+#: lxc/query.go:30
+msgid "[<remote>:]<API path>"
+msgstr ""
+
+#: lxc/image_alias.go:102
+msgid "[<remote>:]<alias>"
 msgstr ""
 
 #: lxc/image_alias.go:56
-msgid "create [<remote>:]<alias> <fingerprint>"
+msgid "[<remote>:]<alias> <fingerprint>"
 msgstr ""
 
-#: lxc/config_template.go:63
-msgid "create [<remote>:]<instance> <template>"
+#: lxc/image_alias.go:249
+msgid "[<remote>:]<alias> <new-name>"
+msgstr ""
+
+#: lxc/cluster.go:419
+msgid "[<remote>:]<cluster member>"
+msgstr ""
+
+#: lxc/image.go:319 lxc/image.go:831 lxc/image.go:1343
+msgid "[<remote>:]<image>"
+msgstr ""
+
+#: lxc/image.go:125
+msgid "[<remote>:]<image> <remote>:"
+msgstr ""
+
+#: lxc/launch.go:23
+msgid "[<remote>:]<image> [<remote>:][<name>]"
+msgstr ""
+
+#: lxc/image.go:444
+msgid "[<remote>:]<image> [<target>]"
+msgstr ""
+
+#: lxc/image.go:267 lxc/image.go:1264
+msgid "[<remote>:]<image> [[<remote>:]<image>...]"
+msgstr ""
+
+#: lxc/config_device.go:268 lxc/config_device.go:626 lxc/config_metadata.go:50
+#: lxc/config_metadata.go:172 lxc/config_template.go:234 lxc/console.go:34
+msgid "[<remote>:]<instance>"
+msgstr ""
+
+#: lxc/config_device.go:188 lxc/config_device.go:698
+msgid "[<remote>:]<instance> <device> <key>"
+msgstr ""
+
+#: lxc/config_device.go:519
+msgid "[<remote>:]<instance> <device> <key>=<value>..."
+msgstr ""
+
+#: lxc/config_device.go:78
+msgid "[<remote>:]<instance> <device> <type> [key=value...]"
+msgstr ""
+
+#: lxc/config_device.go:334
+msgid "[<remote>:]<instance> <device> [key=value...]"
+msgstr ""
+
+#: lxc/config_device.go:423
+msgid "[<remote>:]<instance> <name>..."
+msgstr ""
+
+#: lxc/profile.go:99 lxc/profile.go:634
+msgid "[<remote>:]<instance> <profile>"
+msgstr ""
+
+#: lxc/profile.go:161
+msgid "[<remote>:]<instance> <profiles>"
+msgstr ""
+
+#: lxc/restore.go:22
+msgid "[<remote>:]<instance> <snapshot>"
+msgstr ""
+
+#: lxc/config_template.go:63 lxc/config_template.go:105
+#: lxc/config_template.go:148 lxc/config_template.go:293
+msgid "[<remote>:]<instance> <template>"
+msgstr ""
+
+#: lxc/snapshot.go:25
+msgid "[<remote>:]<instance> [<snapshot name>]"
+msgstr ""
+
+#: lxc/action.go:29 lxc/action.go:48 lxc/action.go:68 lxc/action.go:89
+msgid "[<remote>:]<instance> [[<remote>:]<instance>...]"
+msgstr ""
+
+#: lxc/exec.go:38
+msgid "[<remote>:]<instance> [flags] [--] <command line>"
+msgstr ""
+
+#: lxc/export.go:30
+msgid "[<remote>:]<instance> [target] [--instance-only] [--optimized-storage]"
+msgstr ""
+
+#: lxc/file.go:152
+msgid "[<remote>:]<instance>/<path>"
+msgstr ""
+
+#: lxc/file.go:102
+msgid "[<remote>:]<instance>/<path> [[<remote>:]<instance>/<path>...]"
+msgstr ""
+
+#: lxc/file.go:215
+msgid ""
+"[<remote>:]<instance>/<path> [[<remote>:]<instance>/<path>...] <target path>"
+msgstr ""
+
+#: lxc/rename.go:19
+msgid "[<remote>:]<instance>[/<snapshot>] <instance>[/<snapshot>]"
+msgstr ""
+
+#: lxc/publish.go:29
+msgid "[<remote>:]<instance>[/<snapshot>] [<remote>:] [flags] [key=value...]"
+msgstr ""
+
+#: lxc/move.go:33
+msgid "[<remote>:]<instance>[/<snapshot>] [<remote>:][<instance>[/<snapshot>]]"
+msgstr ""
+
+#: lxc/delete.go:27
+msgid ""
+"[<remote>:]<instance>[/<snapshot>] [[<remote>:]<instance>[/<snapshot>]...]"
+msgstr ""
+
+#: lxc/cluster.go:151 lxc/cluster.go:250
+msgid "[<remote>:]<member>"
+msgstr ""
+
+#: lxc/cluster.go:200
+msgid "[<remote>:]<member> <new-name>"
+msgstr ""
+
+#: lxc/network.go:323 lxc/network.go:544 lxc/network.go:725 lxc/network.go:890
+#: lxc/network.go:1079
+msgid "[<remote>:]<network>"
+msgstr ""
+
+#: lxc/network.go:374
+msgid "[<remote>:]<network> <instance> [<device name>]"
+msgstr ""
+
+#: lxc/network.go:106
+msgid "[<remote>:]<network> <instance> [<device name>] [<interface name>]"
+msgstr ""
+
+#: lxc/network.go:667 lxc/network.go:1141
+msgid "[<remote>:]<network> <key>"
+msgstr ""
+
+#: lxc/network.go:1009
+msgid "[<remote>:]<network> <key>=<value>..."
+msgstr ""
+
+#: lxc/network.go:958
+msgid "[<remote>:]<network> <new-name>"
+msgstr ""
+
+#: lxc/network.go:459
+msgid "[<remote>:]<network> <profile> [<device name>]"
+msgstr ""
+
+#: lxc/network.go:179
+msgid "[<remote>:]<network> <profile> [<device name>] [<interface name>]"
 msgstr ""
 
 #: lxc/network.go:252
-msgid "create [<remote>:]<network> [key=value...]"
+msgid "[<remote>:]<network> [key=value...]"
+msgstr ""
+
+#: lxc/operation.go:50 lxc/operation.go:179
+msgid "[<remote>:]<operation>"
+msgstr ""
+
+#: lxc/storage.go:160 lxc/storage.go:211 lxc/storage.go:386 lxc/storage.go:649
+#: lxc/storage_volume.go:1067
+msgid "[<remote>:]<pool>"
 msgstr ""
 
 #: lxc/storage.go:87
-msgid "create [<remote>:]<pool> <driver> [key=value...]"
+msgid "[<remote>:]<pool> <driver> [key=value...]"
+msgstr ""
+
+#: lxc/storage.go:331 lxc/storage.go:733
+msgid "[<remote>:]<pool> <key>"
+msgstr ""
+
+#: lxc/storage.go:580
+msgid "[<remote>:]<pool> <key> <value>"
+msgstr ""
+
+#: lxc/storage_volume.go:1172
+msgid ""
+"[<remote>:]<pool> <old name>[/<old snapshot name>] <new name>[/<new snapshot "
+"name>]"
+msgstr ""
+
+#: lxc/storage_volume.go:614
+msgid "[<remote>:]<pool> <volume> <instance> [<device name>]"
+msgstr ""
+
+#: lxc/storage_volume.go:138
+msgid "[<remote>:]<pool> <volume> <instance> [<device name>] <path>"
+msgstr ""
+
+#: lxc/storage_volume.go:1460
+msgid "[<remote>:]<pool> <volume> <key>"
+msgstr ""
+
+#: lxc/storage_volume.go:1285
+msgid "[<remote>:]<pool> <volume> <key>=<value>..."
+msgstr ""
+
+#: lxc/storage_volume.go:1569
+msgid "[<remote>:]<pool> <volume> <snapshot>"
+msgstr ""
+
+#: lxc/storage_volume.go:1493
+msgid "[<remote>:]<pool> <volume> [<snapshot>]"
 msgstr ""
 
 #: lxc/storage_volume.go:461
-msgid "create [<remote>:]<pool> <volume> [key=value...]"
+msgid "[<remote>:]<pool> <volume> [key=value...]"
 msgstr ""
 
-#: lxc/profile.go:298
-msgid "create [<remote>:]<profile>"
+#: lxc/storage_volume.go:537 lxc/storage_volume.go:777
+#: lxc/storage_volume.go:1361
+msgid "[<remote>:]<pool> <volume>[/<snapshot>]"
 msgstr ""
 
-#: lxc/project.go:84
-msgid "create [<remote>:]<project>"
+#: lxc/storage_volume.go:977
+msgid "[<remote>:]<pool> <volume>[/<snapshot>] <key>"
+msgstr ""
+
+#: lxc/config_device.go:270 lxc/config_device.go:628 lxc/profile.go:298
+#: lxc/profile.go:351 lxc/profile.go:402 lxc/profile.go:819
+msgid "[<remote>:]<profile>"
+msgstr ""
+
+#: lxc/config_device.go:190 lxc/config_device.go:700
+msgid "[<remote>:]<profile> <device> <key>"
+msgstr ""
+
+#: lxc/config_device.go:526
+msgid "[<remote>:]<profile> <device> <key>=<value>..."
+msgstr ""
+
+#: lxc/config_device.go:83
+msgid "[<remote>:]<profile> <device> <type> [key=value...]"
+msgstr ""
+
+#: lxc/profile.go:526 lxc/profile.go:873
+msgid "[<remote>:]<profile> <key>"
+msgstr ""
+
+#: lxc/profile.go:760
+msgid "[<remote>:]<profile> <key><value>..."
+msgstr ""
+
+#: lxc/config_device.go:425
+msgid "[<remote>:]<profile> <name>..."
+msgstr ""
+
+#: lxc/profile.go:709
+msgid "[<remote>:]<profile> <new-name>"
+msgstr ""
+
+#: lxc/profile.go:241
+msgid "[<remote>:]<profile> [<remote>:]<profile>"
+msgstr ""
+
+#: lxc/project.go:84 lxc/project.go:148 lxc/project.go:212 lxc/project.go:618
+#: lxc/project.go:671
+msgid "[<remote>:]<project>"
+msgstr ""
+
+#: lxc/project.go:332 lxc/project.go:589
+msgid "[<remote>:]<project> <key>"
+msgstr ""
+
+#: lxc/project.go:529
+msgid "[<remote>:]<project> <key>=<value>..."
+msgstr ""
+
+#: lxc/project.go:473
+msgid "[<remote>:]<project> <new-name>"
+msgstr ""
+
+#: lxc/copy.go:37
+msgid "[<remote>:]<source>[/<snapshot>] [[<remote>:]<destination>]"
+msgstr ""
+
+#: lxc/config.go:87 lxc/config.go:608
+msgid "[<remote>:][<instance>[/<snapshot>]]"
+msgstr ""
+
+#: lxc/info.go:31
+msgid "[<remote>:][<instance>]"
+msgstr ""
+
+#: lxc/config.go:358 lxc/config.go:732
+msgid "[<remote>:][<instance>] <key>"
+msgstr ""
+
+#: lxc/config.go:450
+msgid "[<remote>:][<instance>] <key>=<value>..."
+msgstr ""
+
+#: lxc/remote.go:82
+msgid "[<remote>] <IP|FQDN|URL>"
+msgstr ""
+
+#: lxc/init.go:38
+msgid "[[<remote>:]<image>] [<remote>:][<name>] [< config"
 msgstr ""
 
 #: lxc/project.go:446
@@ -3599,74 +3894,8 @@ msgstr ""
 msgid "default"
 msgstr ""
 
-#: lxc/image_alias.go:102
-msgid "delete [<remote>:]<alias>"
-msgstr ""
-
-#: lxc/image.go:267
-msgid "delete [<remote>:]<image> [[<remote>:]<image>...]"
-msgstr ""
-
-#: lxc/config_template.go:105
-msgid "delete [<remote>:]<instance> <template>"
-msgstr ""
-
-#: lxc/file.go:102
-msgid "delete [<remote>:]<instance>/<path> [[<remote>:]<instance>/<path>...]"
-msgstr ""
-
-#: lxc/delete.go:27
-msgid ""
-"delete [<remote>:]<instance>[/<snapshot>] [[<remote>:]<instance>[/"
-"<snapshot>]...]"
-msgstr ""
-
-#: lxc/network.go:323
-msgid "delete [<remote>:]<network>"
-msgstr ""
-
-#: lxc/operation.go:50
-msgid "delete [<remote>:]<operation>"
-msgstr ""
-
-#: lxc/storage.go:160
-msgid "delete [<remote>:]<pool>"
-msgstr ""
-
-#: lxc/storage_volume.go:537
-msgid "delete [<remote>:]<pool> <volume>[/<snapshot>]"
-msgstr ""
-
-#: lxc/profile.go:351
-msgid "delete [<remote>:]<profile>"
-msgstr ""
-
-#: lxc/project.go:148
-msgid "delete [<remote>:]<project>"
-msgstr ""
-
 #: lxc/storage.go:446
 msgid "description"
-msgstr ""
-
-#: lxc/network.go:374
-msgid "detach [<remote>:]<network> <instance> [<device name>]"
-msgstr ""
-
-#: lxc/storage_volume.go:614
-msgid "detach [<remote>:]<pool> <volume> <instance> [<device name>]"
-msgstr ""
-
-#: lxc/storage_volume.go:696
-msgid "detach-profile [<remote:>]<pool> <volume> <profile> [<device name>]"
-msgstr ""
-
-#: lxc/network.go:459
-msgid "detach-profile [<remote>:]<network> <profile> [<device name>]"
-msgstr ""
-
-#: lxc/config_device.go:22
-msgid "device"
 msgstr ""
 
 #: lxc/image.go:882
@@ -3675,54 +3904,6 @@ msgstr ""
 
 #: lxc/storage.go:445
 msgid "driver"
-msgstr ""
-
-#: lxc/cluster.go:419
-msgid "edit [<remote>:]<cluster member>"
-msgstr ""
-
-#: lxc/image.go:319
-msgid "edit [<remote>:]<image>"
-msgstr ""
-
-#: lxc/config_metadata.go:50
-msgid "edit [<remote>:]<instance>"
-msgstr ""
-
-#: lxc/config_template.go:148
-msgid "edit [<remote>:]<instance> <template>"
-msgstr ""
-
-#: lxc/file.go:152
-msgid "edit [<remote>:]<instance>/<path>"
-msgstr ""
-
-#: lxc/network.go:544
-msgid "edit [<remote>:]<network>"
-msgstr ""
-
-#: lxc/storage.go:211
-msgid "edit [<remote>:]<pool>"
-msgstr ""
-
-#: lxc/storage_volume.go:777
-msgid "edit [<remote>:]<pool> <volume>[/<snapshot>]"
-msgstr ""
-
-#: lxc/profile.go:402
-msgid "edit [<remote>:]<profile>"
-msgstr ""
-
-#: lxc/project.go:212
-msgid "edit [<remote>:]<project>"
-msgstr ""
-
-#: lxc/config.go:87
-msgid "edit [<remote>:][<instance>[/<snapshot>]]"
-msgstr ""
-
-#: lxc/cluster.go:334
-msgid "enable [<remote>:] <name>"
 msgstr ""
 
 #: lxc/image.go:884
@@ -3734,137 +3915,13 @@ msgstr ""
 msgid "error: %v"
 msgstr ""
 
-#: lxc/exec.go:38
-msgid "exec [<remote>:]<instance> [flags] [--] <command line>"
-msgstr ""
-
 #: lxc/info.go:578
 #, c-format
 msgid "expires at %s"
 msgstr ""
 
-#: lxc/image.go:444
-msgid "export [<remote>:]<image> [<target>]"
-msgstr ""
-
-#: lxc/export.go:30
-msgid ""
-"export [<remote>:]<instance> [target] [--instance-only] [--optimized-storage]"
-msgstr ""
-
-#: lxc/file.go:70
-msgid "file"
-msgstr ""
-
-#: lxc/config_device.go:188
-msgid "get [<remote>:]<instance> <device> <key>"
-msgstr ""
-
-#: lxc/network.go:667
-msgid "get [<remote>:]<network> <key>"
-msgstr ""
-
-#: lxc/storage.go:331
-msgid "get [<remote>:]<pool> <key>"
-msgstr ""
-
-#: lxc/storage_volume.go:977
-msgid "get [<remote>:]<pool> <volume>[/<snapshot>] <key>"
-msgstr ""
-
-#: lxc/config_device.go:190
-msgid "get [<remote>:]<profile> <device> <key>"
-msgstr ""
-
-#: lxc/profile.go:526
-msgid "get [<remote>:]<profile> <key>"
-msgstr ""
-
-#: lxc/project.go:332
-msgid "get [<remote>:]<project> <key>"
-msgstr ""
-
-#: lxc/config.go:358
-msgid "get [<remote>:][<instance>] <key>"
-msgstr ""
-
-#: lxc/remote.go:421
-msgid "get-default"
-msgstr ""
-
-#: lxc/image.go:36
-msgid "image"
-msgstr ""
-
-#: lxc/image.go:603
-msgid ""
-"import <tarball>|<directory>|<URL> [<rootfs tarball>] [<remote>:] "
-"[key=value...]"
-msgstr ""
-
-#: lxc/import.go:26
-msgid "import [<remote>:] <backup file>"
-msgstr ""
-
 #: lxc/storage.go:443
 msgid "info"
-msgstr ""
-
-#: lxc/image.go:831
-msgid "info [<remote>:]<image>"
-msgstr ""
-
-#: lxc/network.go:725
-msgid "info [<remote>:]<network>"
-msgstr ""
-
-#: lxc/storage.go:386
-msgid "info [<remote>:]<pool>"
-msgstr ""
-
-#: lxc/info.go:31
-msgid "info [<remote>:][<instance>]"
-msgstr ""
-
-#: lxc/init.go:38
-msgid "init [[<remote>:]<image>] [<remote>:][<name>] [< config"
-msgstr ""
-
-#: lxc/launch.go:23
-msgid "launch [<remote>:]<image> [<remote>:][<name>]"
-msgstr ""
-
-#: lxc/alias.go:97 lxc/remote.go:456
-msgid "list"
-msgstr ""
-
-#: lxc/cluster.go:71 lxc/config_trust.go:112 lxc/network.go:804
-#: lxc/operation.go:99 lxc/profile.go:574 lxc/project.go:381 lxc/storage.go:505
-msgid "list [<remote>:]"
-msgstr ""
-
-#: lxc/image.go:965 lxc/list.go:42
-msgid "list [<remote>:] [<filter>...]"
-msgstr ""
-
-#: lxc/image_alias.go:147
-msgid "list [<remote>:] [<filters>...]"
-msgstr ""
-
-#: lxc/config_device.go:268 lxc/config_template.go:234
-msgid "list [<remote>:]<instance>"
-msgstr ""
-
-#: lxc/storage_volume.go:1067
-msgid "list [<remote>:]<pool>"
-msgstr ""
-
-#: lxc/config_device.go:270
-msgid "list [<remote>:]<profile>"
-msgstr ""
-
-#: lxc/network.go:890
-msgid "list-leases [<remote>:]<network>"
 msgstr ""
 
 #: lxc/alias.go:56
@@ -4096,33 +4153,8 @@ msgid ""
 "\" in the \"default\" pool."
 msgstr ""
 
-#: lxc/manpage.go:18
-msgid "manpage <target>"
-msgstr ""
-
-#: lxc/config_metadata.go:25
-msgid "metadata"
-msgstr ""
-
-#: lxc/monitor.go:28
-msgid "monitor [<remote>:]"
-msgstr ""
-
-#: lxc/storage_volume.go:1140
-msgid "move <pool>/<volume> <pool>/<volume>"
-msgstr ""
-
-#: lxc/move.go:33
-msgid ""
-"move [<remote>:]<instance>[/<snapshot>] [<remote>:][<instance>[/<snapshot>]]"
-msgstr ""
-
 #: lxc/storage.go:444
 msgid "name"
-msgstr ""
-
-#: lxc/network.go:30
-msgid "network"
 msgstr ""
 
 #: lxc/image.go:872 lxc/image.go:877 lxc/image.go:1064
@@ -4133,231 +4165,12 @@ msgstr ""
 msgid "ok (y/n)?"
 msgstr ""
 
-#: lxc/operation.go:22
-msgid "operation"
-msgstr ""
-
-#: lxc/config_device.go:334
-msgid "override [<remote>:]<instance> <device> [key=value...]"
-msgstr ""
-
-#: lxc/action.go:48
-msgid "pause [<remote>:]<instance> [[<remote>:]<instance>...]"
-msgstr ""
-
 #: lxc/config.go:53
 msgid "please use `lxc profile`"
 msgstr ""
 
-#: lxc/profile.go:27
-msgid "profile"
-msgstr ""
-
-#: lxc/project.go:27
-msgid "project"
-msgstr ""
-
-#: lxc/publish.go:29
-msgid ""
-"publish [<remote>:]<instance>[/<snapshot>] [<remote>:] [flags] [key=value...]"
-msgstr ""
-
-#: lxc/file.go:215
-msgid ""
-"pull [<remote>:]<instance>/<path> [[<remote>:]<instance>/<path>...] <target "
-"path>"
-msgstr ""
-
-#: lxc/file.go:405
-msgid ""
-"push <source path> [<remote>:]<instance>/<path> [[<remote>:]<instance>/"
-"<path>...]"
-msgstr ""
-
-#: lxc/query.go:30
-msgid "query [<remote>:]<API path>"
-msgstr ""
-
-#: lxc/image.go:1264
-msgid "refresh [<remote>:]<image> [[<remote>:]<image>...]"
-msgstr ""
-
-#: lxc/remote.go:31
-msgid "remote"
-msgstr ""
-
-#: lxc/alias.go:192
-msgid "remove <alias>"
-msgstr ""
-
-#: lxc/remote.go:598
-msgid "remove <remote>"
-msgstr ""
-
-#: lxc/config_trust.go:190
-msgid "remove [<remote>:] <hostname|fingerprint>"
-msgstr ""
-
-#: lxc/config_device.go:423
-msgid "remove [<remote>:]<instance> <name>..."
-msgstr ""
-
-#: lxc/profile.go:634
-msgid "remove [<remote>:]<instance> <profile>"
-msgstr ""
-
-#: lxc/cluster.go:250
-msgid "remove [<remote>:]<member>"
-msgstr ""
-
-#: lxc/config_device.go:425
-msgid "remove [<remote>:]<profile> <name>..."
-msgstr ""
-
-#: lxc/alias.go:141
-msgid "rename <old alias> <new alias>"
-msgstr ""
-
-#: lxc/remote.go:536
-msgid "rename <remote> <new-name>"
-msgstr ""
-
-#: lxc/image_alias.go:249
-msgid "rename [<remote>:]<alias> <new-name>"
-msgstr ""
-
-#: lxc/rename.go:19
-msgid "rename [<remote>:]<instance>[/<snapshot>] <instance>[/<snapshot>]"
-msgstr ""
-
-#: lxc/cluster.go:200
-msgid "rename [<remote>:]<member> <new-name>"
-msgstr ""
-
-#: lxc/network.go:958
-msgid "rename [<remote>:]<network> <new-name>"
-msgstr ""
-
-#: lxc/storage_volume.go:1172
-msgid ""
-"rename [<remote>:]<pool> <old name>[/<old snapshot name>] <new name>[/<new "
-"snapshot name>]"
-msgstr ""
-
-#: lxc/profile.go:709
-msgid "rename [<remote>:]<profile> <new-name>"
-msgstr ""
-
-#: lxc/project.go:473
-msgid "rename [<remote>:]<project> <new-name>"
-msgstr ""
-
-#: lxc/action.go:68
-msgid "restart [<remote>:]<instance> [[<remote>:]<instance>...]"
-msgstr ""
-
-#: lxc/restore.go:22
-msgid "restore [<remote>:]<instance> <snapshot>"
-msgstr ""
-
-#: lxc/storage_volume.go:1569
-msgid "restore [<remote>:]<pool> <volume> <snapshot>"
-msgstr ""
-
-#: lxc/config_device.go:519
-msgid "set [<remote>:]<instance> <device> <key>=<value>..."
-msgstr ""
-
-#: lxc/network.go:1009
-msgid "set [<remote>:]<network> <key>=<value>..."
-msgstr ""
-
-#: lxc/storage.go:580
-msgid "set [<remote>:]<pool> <key> <value>"
-msgstr ""
-
-#: lxc/storage_volume.go:1285
-msgid "set [<remote>:]<pool> <volume> <key>=<value>..."
-msgstr ""
-
-#: lxc/config_device.go:526
-msgid "set [<remote>:]<profile> <device> <key>=<value>..."
-msgstr ""
-
-#: lxc/profile.go:760
-msgid "set [<remote>:]<profile> <key><value>..."
-msgstr ""
-
-#: lxc/project.go:529
-msgid "set [<remote>:]<project> <key>=<value>..."
-msgstr ""
-
-#: lxc/config.go:450
-msgid "set [<remote>:][<instance>] <key>=<value>..."
-msgstr ""
-
-#: lxc/remote.go:687
-msgid "set-url <remote> <URL>"
-msgstr ""
-
-#: lxc/image.go:1343
-msgid "show [<remote>:]<image>"
-msgstr ""
-
-#: lxc/config_device.go:626 lxc/config_metadata.go:172
-msgid "show [<remote>:]<instance>"
-msgstr ""
-
-#: lxc/config_template.go:293
-msgid "show [<remote>:]<instance> <template>"
-msgstr ""
-
-#: lxc/cluster.go:151
-msgid "show [<remote>:]<member>"
-msgstr ""
-
-#: lxc/network.go:1079
-msgid "show [<remote>:]<network>"
-msgstr ""
-
-#: lxc/operation.go:179
-msgid "show [<remote>:]<operation>"
-msgstr ""
-
-#: lxc/storage.go:649
-msgid "show [<remote>:]<pool>"
-msgstr ""
-
-#: lxc/storage_volume.go:1361
-msgid "show [<remote>:]<pool> <volume>[/<snapshot>]"
-msgstr ""
-
-#: lxc/config_device.go:628 lxc/profile.go:819
-msgid "show [<remote>:]<profile>"
-msgstr ""
-
-#: lxc/project.go:618
-msgid "show [<remote>:]<project>"
-msgstr ""
-
-#: lxc/config.go:608
-msgid "show [<remote>:][<instance>[/<snapshot>]]"
-msgstr ""
-
-#: lxc/snapshot.go:25
-msgid "snapshot [<remote>:]<instance> [<snapshot name>]"
-msgstr ""
-
-#: lxc/storage_volume.go:1493
-msgid "snapshot [<remote>:]<pool> <volume> [<snapshot>]"
-msgstr ""
-
 #: lxc/storage.go:448
 msgid "space used"
-msgstr ""
-
-#: lxc/action.go:29
-msgid "start [<remote>:]<instance> [[<remote>:]<instance>...]"
 msgstr ""
 
 #: lxc/info.go:582
@@ -4368,85 +4181,21 @@ msgstr ""
 msgid "stateless"
 msgstr ""
 
-#: lxc/action.go:89
-msgid "stop [<remote>:]<instance> [[<remote>:]<instance>...]"
-msgstr ""
-
-#: lxc/storage.go:31
-msgid "storage"
-msgstr ""
-
-#: lxc/remote.go:649
-msgid "switch <remote>"
-msgstr ""
-
-#: lxc/project.go:671
-msgid "switch [<remote>:]<project>"
-msgstr ""
-
 #: lxc/info.go:574
 #, c-format
 msgid "taken at %s"
-msgstr ""
-
-#: lxc/config_template.go:26
-msgid "template"
 msgstr ""
 
 #: lxc/storage.go:447
 msgid "total space"
 msgstr ""
 
-#: lxc/config_trust.go:26
-msgid "trust"
-msgstr ""
-
 #: lxc/version.go:48
 msgid "unreachable"
 msgstr ""
 
-#: lxc/config_device.go:698
-msgid "unset [<remote>:]<instance> <device> <key>"
-msgstr ""
-
-#: lxc/network.go:1141
-msgid "unset [<remote>:]<network> <key>"
-msgstr ""
-
-#: lxc/storage.go:733
-msgid "unset [<remote>:]<pool> <key>"
-msgstr ""
-
-#: lxc/storage_volume.go:1460
-msgid "unset [<remote>:]<pool> <volume> <key>"
-msgstr ""
-
-#: lxc/config_device.go:700
-msgid "unset [<remote>:]<profile> <device> <key>"
-msgstr ""
-
-#: lxc/profile.go:873
-msgid "unset [<remote>:]<profile> <key>"
-msgstr ""
-
-#: lxc/project.go:589
-msgid "unset [<remote>:]<project> <key>"
-msgstr ""
-
-#: lxc/config.go:732
-msgid "unset [<remote>:][<instance>] <key>"
-msgstr ""
-
 #: lxc/storage.go:442
 msgid "used by"
-msgstr ""
-
-#: lxc/version.go:20
-msgid "version [<remote>:]"
-msgstr ""
-
-#: lxc/storage_volume.go:31
-msgid "volume"
 msgstr ""
 
 #: lxc/remote.go:270
