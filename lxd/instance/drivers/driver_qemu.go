@@ -640,6 +640,9 @@ func (vm *qemu) Start(stateful bool) error {
 	revert := revert.New()
 	defer revert.Fail()
 
+	// Start accumulating device paths.
+	vm.devPaths = []string{}
+
 	// Mount the instance's config volume.
 	_, err = vm.mount()
 	if err != nil {
@@ -2057,6 +2060,10 @@ func (vm *qemu) addDriveConfig(sb *strings.Builder, bootIndexes map[string]int, 
 			aioMode = "threads"
 			cacheMode = "writeback" // Use host cache, with neither O_DSYNC nor O_DIRECT semantics.
 		}
+	}
+
+	if !strings.HasPrefix(driveConf.DevPath, "rbd:") {
+		vm.devPaths = append(vm.devPaths, driveConf.DevPath)
 	}
 
 	return qemuDrive.Execute(sb, map[string]interface{}{
