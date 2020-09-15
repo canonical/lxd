@@ -256,3 +256,11 @@ func getConfig(args ...string) (map[string]string, error) {
 
 	return values, nil
 }
+
+func usage(name string, args ...string) string {
+	if len(args) == 0 {
+		return name
+	}
+
+	return name + " " + args[0]
+}
