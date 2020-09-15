@@ -110,6 +110,27 @@ static int set_vfs_ns_caps(char *path, char *caps, ssize_t len, uint32_t uid)
 	return setxattr(path, "security.capability", &ns_xattr, sizeof(ns_xattr), 0);
 }
 
+static uid_t get_vfs_ns_caps_uid(void *caps, ssize_t len, struct vfs_ns_cap_data *ns_xattr)
+{
+	// Works because vfs_ns_cap_data is a superset of vfs_cap_data (rootid
+	// field added to the end)
+
+	memset(ns_xattr, 0, sizeof(*ns_xattr));
+	memcpy(ns_xattr, caps, len);
+	if (ns_xattr->magic_etc & VFS_CAP_REVISION_3)
+		return le32_to_cpu(ns_xattr->rootid);
+
+	return (uid_t)-1;
+}
+
+static void update_vfs_ns_caps_uid(void *caps, ssize_t len, struct vfs_ns_cap_data *ns_xattr, uint32_t uid)
+{
+	if (ns_xattr->magic_etc & VFS_CAP_REVISION_3)
+		ns_xattr->rootid = cpu_to_le32(uid);
+
+	memcpy(caps, ns_xattr, len);
+}
+
 int set_dummy_fs_ns_caps(const char *path)
 {
 	#define __raise_cap_permitted(x, ns_cap_data)   ns_cap_data.data[(x)>>5].permitted   |= (1<<((x)&31))
@@ -477,5 +498,27 @@ func UnshiftACL(value string, set *IdmapSet) (string, error) {
 
 	buf = C.GoBytes(cBuf, C.int(size))
 
+	return string(buf), nil
+}
+
+func UnshiftCaps(value string, set *IdmapSet) (string, error) {
+	buf := []byte(value)
+	cBuf := C.CBytes(buf)
+	defer C.free(cBuf)
+	var nsXattr C.struct_vfs_ns_cap_data
+
+	size := C.ssize_t(len(buf))
+	ouid := C.get_vfs_ns_caps_uid(cBuf, size, &nsXattr)
+	if ouid == C.LXC_INVALID_UID {
+		return value, nil
+	}
+
+	uid, _ := set.ShiftFromNs(int64(ouid), -1)
+	if int(uid) != -1 {
+		C.update_vfs_ns_caps_uid(cBuf, size, &nsXattr, C.uid_t(uid))
+		logger.Debugf("Unshifting vfs capabilities from uid %d to uid %d", ouid, uid)
+	}
+
+	buf = C.GoBytes(cBuf, C.int(size))
 	return string(buf), nil
 }
