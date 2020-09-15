@@ -25,7 +25,7 @@ type cmdMonitor struct {
 
 func (c *cmdMonitor) Command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = i18n.G("monitor [<remote>:]")
+	cmd.Use = usage("monitor", i18n.G("[<remote>:]"))
 	cmd.Short = i18n.G("Monitor a local or remote LXD server")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
 		`Monitor a local or remote LXD server

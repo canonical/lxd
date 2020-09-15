@@ -20,7 +20,7 @@ type cmdLaunch struct {
 
 func (c *cmdLaunch) Command() *cobra.Command {
 	cmd := c.init.Command()
-	cmd.Use = i18n.G("launch [<remote>:]<image> [<remote>:][<name>]")
+	cmd.Use = usage("launch", i18n.G("[<remote>:]<image> [<remote>:][<name>]"))
 	cmd.Short = i18n.G("Create and start instances from images")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
 		`Create and start instances from images`))

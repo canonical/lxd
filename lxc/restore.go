@@ -19,7 +19,7 @@ type cmdRestore struct {
 
 func (c *cmdRestore) Command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = i18n.G("restore [<remote>:]<instance> <snapshot>")
+	cmd.Use = usage("restore", i18n.G("[<remote>:]<instance> <snapshot>"))
 	cmd.Short = i18n.G("Restore instances from snapshots")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
 		`Restore instaces from snapshots

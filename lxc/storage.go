@@ -28,7 +28,7 @@ type cmdStorage struct {
 
 func (c *cmdStorage) Command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = i18n.G("storage")
+	cmd.Use = usage("storage")
 	cmd.Short = i18n.G("Manage storage pools and volumes")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
 		`Manage storage pools and volumes`))
@@ -84,7 +84,7 @@ type cmdStorageCreate struct {
 
 func (c *cmdStorageCreate) Command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = i18n.G("create [<remote>:]<pool> <driver> [key=value...]")
+	cmd.Use = usage("create", i18n.G("[<remote>:]<pool> <driver> [key=value...]"))
 	cmd.Short = i18n.G("Create storage pools")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
 		`Create storage pools`))
@@ -157,7 +157,7 @@ type cmdStorageDelete struct {
 
 func (c *cmdStorageDelete) Command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = i18n.G("delete [<remote>:]<pool>")
+	cmd.Use = usage("delete", i18n.G("[<remote>:]<pool>"))
 	cmd.Aliases = []string{"rm"}
 	cmd.Short = i18n.G("Delete storage pools")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
@@ -208,7 +208,7 @@ type cmdStorageEdit struct {
 
 func (c *cmdStorageEdit) Command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = i18n.G("edit [<remote>:]<pool>")
+	cmd.Use = usage("edit", i18n.G("[<remote>:]<pool>"))
 	cmd.Short = i18n.G("Edit storage pool configurations as YAML")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
 		`Edit storage pool configurations as YAML`))
@@ -328,7 +328,7 @@ type cmdStorageGet struct {
 
 func (c *cmdStorageGet) Command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = i18n.G("get [<remote>:]<pool> <key>")
+	cmd.Use = usage("get", i18n.G("[<remote>:]<pool> <key>"))
 	cmd.Short = i18n.G("Get values for storage pool configuration keys")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
 		`Get values for storage pool configuration keys`))
@@ -383,7 +383,7 @@ type cmdStorageInfo struct {
 
 func (c *cmdStorageInfo) Command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = i18n.G("info [<remote>:]<pool>")
+	cmd.Use = usage("info", i18n.G("[<remote>:]<pool>"))
 	cmd.Short = i18n.G("Show useful information about storage pools")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
 		`Show useful information about storage pools`))
@@ -502,7 +502,7 @@ type cmdStorageList struct {
 
 func (c *cmdStorageList) Command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = i18n.G("list [<remote>:]")
+	cmd.Use = usage("list", i18n.G("[<remote>:]"))
 	cmd.Aliases = []string{"ls"}
 	cmd.Short = i18n.G("List available storage pools")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
@@ -577,7 +577,7 @@ type cmdStorageSet struct {
 
 func (c *cmdStorageSet) Command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = i18n.G("set [<remote>:]<pool> <key> <value>")
+	cmd.Use = usage("set", i18n.G("[<remote>:]<pool> <key> <value>"))
 	cmd.Short = i18n.G("Set storage pool configuration keys")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
 		`Set storage pool configuration keys
@@ -646,7 +646,7 @@ type cmdStorageShow struct {
 
 func (c *cmdStorageShow) Command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = i18n.G("show [<remote>:]<pool>")
+	cmd.Use = usage("show", i18n.G("[<remote>:]<pool>"))
 	cmd.Short = i18n.G("Show storage pool configurations and resources")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
 		`Show storage pool configurations and resources`))
@@ -730,7 +730,7 @@ type cmdStorageUnset struct {
 
 func (c *cmdStorageUnset) Command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = i18n.G("unset [<remote>:]<pool> <key>")
+	cmd.Use = usage("unset", i18n.G("[<remote>:]<pool> <key>"))
 	cmd.Short = i18n.G("Unset storage pool configuration keys")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
 		`Unset storage pool configuration keys`))

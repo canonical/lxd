@@ -25,7 +25,7 @@ type cmdConfig struct {
 
 func (c *cmdConfig) Command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = i18n.G("config")
+	cmd.Use = usage("config")
 	cmd.Short = i18n.G("Manage instance and server configuration options")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
 		`Manage instance and server configuration options`))
@@ -84,7 +84,7 @@ type cmdConfigEdit struct {
 
 func (c *cmdConfigEdit) Command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = i18n.G("edit [<remote>:][<instance>[/<snapshot>]]")
+	cmd.Use = usage("edit", i18n.G("[<remote>:][<instance>[/<snapshot>]]"))
 	cmd.Short = i18n.G("Edit instance or server configurations as YAML")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
 		`Edit instance or server configurations as YAML`))
@@ -355,7 +355,7 @@ type cmdConfigGet struct {
 
 func (c *cmdConfigGet) Command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = i18n.G("get [<remote>:][<instance>] <key>")
+	cmd.Use = usage("get", i18n.G("[<remote>:][<instance>] <key>"))
 	cmd.Short = i18n.G("Get values for instance or server configuration keys")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
 		`Get values for instance or server configuration keys`))
@@ -447,7 +447,7 @@ type cmdConfigSet struct {
 
 func (c *cmdConfigSet) Command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = i18n.G("set [<remote>:][<instance>] <key>=<value>...")
+	cmd.Use = usage("set", i18n.G("[<remote>:][<instance>] <key>=<value>..."))
 	cmd.Short = i18n.G("Set instance or server configuration keys")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
 		`Set instance or server configuration keys
@@ -605,7 +605,7 @@ type cmdConfigShow struct {
 
 func (c *cmdConfigShow) Command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = i18n.G("show [<remote>:][<instance>[/<snapshot>]]")
+	cmd.Use = usage("show", i18n.G("[<remote>:][<instance>[/<snapshot>]]"))
 	cmd.Short = i18n.G("Show instance or server configurations")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
 		`Show instance or server configurations`))
@@ -729,7 +729,7 @@ type cmdConfigUnset struct {
 
 func (c *cmdConfigUnset) Command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = i18n.G("unset [<remote>:][<instance>] <key>")
+	cmd.Use = usage("unset", i18n.G("[<remote>:][<instance>] <key>"))
 	cmd.Short = i18n.G("Unset instance or server configuration keys")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
 		`Unset instance or server configuration keys`))

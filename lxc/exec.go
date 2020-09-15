@@ -35,7 +35,7 @@ type cmdExec struct {
 
 func (c *cmdExec) Command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = i18n.G("exec [<remote>:]<instance> [flags] [--] <command line>")
+	cmd.Use = usage("exec", i18n.G("[<remote>:]<instance> [flags] [--] <command line>"))
 	cmd.Short = i18n.G("Execute commands in instances")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
 		`Execute commands in instances
