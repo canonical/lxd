@@ -24,7 +24,7 @@ type cmdProject struct {
 
 func (c *cmdProject) Command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = i18n.G("project")
+	cmd.Use = usage("project")
 	cmd.Short = i18n.G("Manage projects")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
 		`Manage projects`))
@@ -81,7 +81,7 @@ type cmdProjectCreate struct {
 
 func (c *cmdProjectCreate) Command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = i18n.G("create [<remote>:]<project>")
+	cmd.Use = usage("create", i18n.G("[<remote>:]<project>"))
 	cmd.Short = i18n.G("Create projects")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
 		`Create projects`))
@@ -145,7 +145,7 @@ type cmdProjectDelete struct {
 
 func (c *cmdProjectDelete) Command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = i18n.G("delete [<remote>:]<project>")
+	cmd.Use = usage("delete", i18n.G("[<remote>:]<project>"))
 	cmd.Aliases = []string{"rm"}
 	cmd.Short = i18n.G("Delete projects")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
@@ -209,7 +209,7 @@ type cmdProjectEdit struct {
 
 func (c *cmdProjectEdit) Command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = i18n.G("edit [<remote>:]<project>")
+	cmd.Use = usage("edit", i18n.G("[<remote>:]<project>"))
 	cmd.Short = i18n.G("Edit project configurations as YAML")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
 		`Edit project configurations as YAML`))
@@ -329,7 +329,7 @@ type cmdProjectGet struct {
 
 func (c *cmdProjectGet) Command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = i18n.G("get [<remote>:]<project> <key>")
+	cmd.Use = usage("get", i18n.G("[<remote>:]<project> <key>"))
 	cmd.Short = i18n.G("Get values for project configuration keys")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
 		`Get values for project configuration keys`))
@@ -378,7 +378,7 @@ type cmdProjectList struct {
 
 func (c *cmdProjectList) Command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = i18n.G("list [<remote>:]")
+	cmd.Use = usage("list", i18n.G("[<remote>:]"))
 	cmd.Aliases = []string{"ls"}
 	cmd.Short = i18n.G("List projects")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
@@ -476,7 +476,7 @@ type cmdProjectRename struct {
 
 func (c *cmdProjectRename) Command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = i18n.G("rename [<remote>:]<project> <new-name>")
+	cmd.Use = usage("rename", i18n.G("[<remote>:]<project> <new-name>"))
 	cmd.Aliases = []string{"mv"}
 	cmd.Short = i18n.G("Rename projects")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
@@ -532,7 +532,7 @@ type cmdProjectSet struct {
 
 func (c *cmdProjectSet) Command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = i18n.G("set [<remote>:]<project> <key>=<value>...")
+	cmd.Use = usage("set", i18n.G("[<remote>:]<project> <key>=<value>..."))
 	cmd.Short = i18n.G("Set project configuration keys")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
 		`Set project configuration keys
@@ -592,7 +592,7 @@ type cmdProjectUnset struct {
 
 func (c *cmdProjectUnset) Command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = i18n.G("unset [<remote>:]<project> <key>")
+	cmd.Use = usage("unset", i18n.G("[<remote>:]<project> <key>"))
 	cmd.Short = i18n.G("Unset project configuration keys")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
 		`Unset project configuration keys`))
@@ -621,7 +621,7 @@ type cmdProjectShow struct {
 
 func (c *cmdProjectShow) Command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = i18n.G("show [<remote>:]<project>")
+	cmd.Use = usage("show", i18n.G("[<remote>:]<project>"))
 	cmd.Short = i18n.G("Show project options")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
 		`Show project options`))
@@ -674,7 +674,7 @@ type cmdProjectSwitch struct {
 
 func (c *cmdProjectSwitch) Command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = i18n.G("switch [<remote>:]<project>")
+	cmd.Use = usage("switch", i18n.G("[<remote>:]<project>"))
 	cmd.Short = i18n.G("Switch the current project")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
 		`Switch the current project`))

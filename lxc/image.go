@@ -33,7 +33,7 @@ type cmdImage struct {
 
 func (c *cmdImage) Command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = i18n.G("image")
+	cmd.Use = usage("image")
 	cmd.Short = i18n.G("Manage images")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
 		`Manage images
@@ -123,7 +123,7 @@ type cmdImageCopy struct {
 
 func (c *cmdImageCopy) Command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = i18n.G("copy [<remote>:]<image> <remote>:")
+	cmd.Use = usage("copy", i18n.G("[<remote>:]<image> <remote>:"))
 	cmd.Aliases = []string{"cp"}
 	cmd.Short = i18n.G("Copy images between servers")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
@@ -271,7 +271,7 @@ type cmdImageDelete struct {
 
 func (c *cmdImageDelete) Command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = i18n.G("delete [<remote>:]<image> [[<remote>:]<image>...]")
+	cmd.Use = usage("delete", i18n.G("[<remote>:]<image> [[<remote>:]<image>...]"))
 	cmd.Aliases = []string{"rm"}
 	cmd.Short = i18n.G("Delete images")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
@@ -323,7 +323,7 @@ type cmdImageEdit struct {
 
 func (c *cmdImageEdit) Command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = i18n.G("edit [<remote>:]<image>")
+	cmd.Use = usage("edit", i18n.G("[<remote>:]<image>"))
 	cmd.Short = i18n.G("Edit image properties")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
 		`Edit image properties`))
@@ -448,7 +448,7 @@ type cmdImageExport struct {
 
 func (c *cmdImageExport) Command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = i18n.G("export [<remote>:]<image> [<target>]")
+	cmd.Use = usage("export", i18n.G("[<remote>:]<image> [<target>]"))
 	cmd.Short = i18n.G("Export and download images")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
 		`Export and download images
@@ -607,7 +607,7 @@ type cmdImageImport struct {
 
 func (c *cmdImageImport) Command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = i18n.G("import <tarball>|<directory>|<URL> [<rootfs tarball>] [<remote>:] [key=value...]")
+	cmd.Use = usage("import", i18n.G("<tarball>|<directory>|<URL> [<rootfs tarball>] [<remote>:] [key=value...]"))
 	cmd.Short = i18n.G("Import images into the image store")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
 		`Import image into the image store
@@ -835,7 +835,7 @@ type cmdImageInfo struct {
 
 func (c *cmdImageInfo) Command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = i18n.G("info [<remote>:]<image>")
+	cmd.Use = usage("info", i18n.G("[<remote>:]<image>"))
 	cmd.Short = i18n.G("Show useful information about images")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
 		`Show useful information about images`))
@@ -969,7 +969,7 @@ type cmdImageList struct {
 
 func (c *cmdImageList) Command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = i18n.G("list [<remote>:] [<filter>...]")
+	cmd.Use = usage("list", i18n.G("[<remote>:] [<filter>...]"))
 	cmd.Aliases = []string{"ls"}
 	cmd.Short = i18n.G("List images")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
@@ -1268,7 +1268,7 @@ type cmdImageRefresh struct {
 
 func (c *cmdImageRefresh) Command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = i18n.G("refresh [<remote>:]<image> [[<remote>:]<image>...]")
+	cmd.Use = usage("refresh", i18n.G("[<remote>:]<image> [[<remote>:]<image>...]"))
 	cmd.Short = i18n.G("Refresh images")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
 		`Refresh images`))
@@ -1347,7 +1347,7 @@ type cmdImageShow struct {
 
 func (c *cmdImageShow) Command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = i18n.G("show [<remote>:]<image>")
+	cmd.Use = usage("show", i18n.G("[<remote>:]<image>"))
 	cmd.Short = i18n.G("Show image properties")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
 		`Show image properties`))

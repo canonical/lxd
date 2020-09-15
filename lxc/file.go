@@ -67,7 +67,7 @@ func fileGetWrapper(server lxd.InstanceServer, inst string, path string) (buf io
 
 func (c *cmdFile) Command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = i18n.G("file")
+	cmd.Use = usage("file")
 	cmd.Short = i18n.G("Manage files in instances")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
 		`Manage files in instances`))
@@ -99,7 +99,7 @@ type cmdFileDelete struct {
 
 func (c *cmdFileDelete) Command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = i18n.G("delete [<remote>:]<instance>/<path> [[<remote>:]<instance>/<path>...]")
+	cmd.Use = usage("delete", i18n.G("[<remote>:]<instance>/<path> [[<remote>:]<instance>/<path>...]"))
 	cmd.Aliases = []string{"rm"}
 	cmd.Short = i18n.G("Delete files in instances")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
@@ -149,7 +149,7 @@ type cmdFileEdit struct {
 
 func (c *cmdFileEdit) Command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = i18n.G("edit [<remote>:]<instance>/<path>")
+	cmd.Use = usage("edit", i18n.G("[<remote>:]<instance>/<path>"))
 	cmd.Short = i18n.G("Edit files in instances")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
 		`Edit files in instances`))
@@ -212,7 +212,7 @@ type cmdFilePull struct {
 
 func (c *cmdFilePull) Command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = i18n.G("pull [<remote>:]<instance>/<path> [[<remote>:]<instance>/<path>...] <target path>")
+	cmd.Use = usage("pull", i18n.G("[<remote>:]<instance>/<path> [[<remote>:]<instance>/<path>...] <target path>"))
 	cmd.Short = i18n.G("Pull files from instances")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
 		`Pull files from instances`))
@@ -402,7 +402,7 @@ type cmdFilePush struct {
 
 func (c *cmdFilePush) Command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = i18n.G("push <source path> [<remote>:]<instance>/<path> [[<remote>:]<instance>/<path>...]")
+	cmd.Use = usage("push", i18n.G("<source path> [<remote>:]<instance>/<path> [[<remote>:]<instance>/<path>...]"))
 	cmd.Short = i18n.G("Push files into instances")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
 		`Push files into instances`))

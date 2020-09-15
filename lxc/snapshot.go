@@ -22,7 +22,7 @@ type cmdSnapshot struct {
 
 func (c *cmdSnapshot) Command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = i18n.G("snapshot [<remote>:]<instance> [<snapshot name>]")
+	cmd.Use = usage("snapshot", i18n.G("[<remote>:]<instance> [<snapshot name>]"))
 	cmd.Short = i18n.G("Create instance snapshots")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
 		`Create instance snapshots
