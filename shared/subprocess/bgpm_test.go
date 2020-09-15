@@ -36,8 +36,8 @@ func TestSignalHandling(t *testing.T) {
 	}
 
 	ecode, err := p.Wait()
-	if err != nil {
-		t.Error("Failed to get exit code ", err)
+	if err == nil {
+		t.Error("Did not exit with an error")
 	} else if ecode != 1 {
 		t.Error("Exit code is not 1: ", ecode)
 	}
@@ -146,8 +146,8 @@ func TestProcessStartWaitExit(t *testing.T) {
 	}
 
 	ecode, err := p.Wait()
-	if err != nil {
-		t.Error("Failed to get exit code: ", err)
+	if err == nil {
+		t.Error("Did not exit with an error")
 	} else if ecode != 1 {
 		t.Error("Exit code is not 1: ", ecode)
 	}
