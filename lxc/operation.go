@@ -19,7 +19,7 @@ type cmdOperation struct {
 
 func (c *cmdOperation) Command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = i18n.G("operation")
+	cmd.Use = usage("operation")
 	cmd.Short = i18n.G("List, show and delete background operations")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
 		`List, show and delete background operations`))
@@ -47,7 +47,7 @@ type cmdOperationDelete struct {
 
 func (c *cmdOperationDelete) Command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = i18n.G("delete [<remote>:]<operation>")
+	cmd.Use = usage("delete", i18n.G("[<remote>:]<operation>"))
 	cmd.Aliases = []string{"cancel", "rm"}
 	cmd.Short = i18n.G("Delete a background operation (will attempt to cancel)")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
@@ -96,7 +96,7 @@ type cmdOperationList struct {
 
 func (c *cmdOperationList) Command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = i18n.G("list [<remote>:]")
+	cmd.Use = usage("list", i18n.G("[<remote>:]"))
 	cmd.Aliases = []string{"ls"}
 	cmd.Short = i18n.G("List background operations")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
@@ -176,7 +176,7 @@ type cmdOperationShow struct {
 
 func (c *cmdOperationShow) Command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = i18n.G("show [<remote>:]<operation>")
+	cmd.Use = usage("show", i18n.G("[<remote>:]<operation>"))
 	cmd.Short = i18n.G("Show details on a background operation")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
 		`Show details on a background operation`))

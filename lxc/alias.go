@@ -17,7 +17,7 @@ type cmdAlias struct {
 
 func (c *cmdAlias) Command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = i18n.G("alias")
+	cmd.Use = usage("alias")
 	cmd.Short = i18n.G("Manage command aliases")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
 		`Manage command aliases`))
@@ -49,7 +49,7 @@ type cmdAliasAdd struct {
 
 func (c *cmdAliasAdd) Command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = i18n.G("add <alias> <target>")
+	cmd.Use = usage("add", i18n.G("<alias> <target>"))
 	cmd.Short = i18n.G("Add new aliases")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
 		`Add new aliases`))
@@ -94,7 +94,7 @@ type cmdAliasList struct {
 
 func (c *cmdAliasList) Command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = i18n.G("list")
+	cmd.Use = usage("list")
 	cmd.Aliases = []string{"ls"}
 	cmd.Short = i18n.G("List aliases")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
@@ -138,7 +138,7 @@ type cmdAliasRename struct {
 
 func (c *cmdAliasRename) Command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = i18n.G("rename <old alias> <new alias>")
+	cmd.Use = usage("rename", i18n.G("<old alias> <new alias>"))
 	cmd.Aliases = []string{"mv"}
 	cmd.Short = i18n.G("Rename aliases")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
@@ -189,7 +189,7 @@ type cmdAliasRemove struct {
 
 func (c *cmdAliasRemove) Command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = i18n.G("remove <alias>")
+	cmd.Use = usage("remove", i18n.G("<alias>"))
 	cmd.Aliases = []string{"rm"}
 	cmd.Short = i18n.G("Remove aliases")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(

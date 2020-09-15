@@ -15,7 +15,7 @@ type cmdManpage struct {
 
 func (c *cmdManpage) Command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = i18n.G("manpage <target>")
+	cmd.Use = usage("manpage", i18n.G("<target>"))
 	cmd.Short = i18n.G("Generate manpages for all commands")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
 		`Generate manpages for all commands`))

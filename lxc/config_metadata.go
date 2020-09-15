@@ -22,7 +22,7 @@ type cmdConfigMetadata struct {
 
 func (c *cmdConfigMetadata) Command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = i18n.G("metadata")
+	cmd.Use = usage("metadata")
 	cmd.Short = i18n.G("Manage instance metadata files")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
 		`Manage instance metadata files`))
@@ -47,7 +47,7 @@ type cmdConfigMetadataEdit struct {
 
 func (c *cmdConfigMetadataEdit) Command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = i18n.G("edit [<remote>:]<instance>")
+	cmd.Use = usage("edit", i18n.G("[<remote>:]<instance>"))
 	cmd.Short = i18n.G("Edit instance metadata files")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
 		`Edit instance metadata files`))
@@ -169,7 +169,7 @@ type cmdConfigMetadataShow struct {
 
 func (c *cmdConfigMetadataShow) Command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = i18n.G("show [<remote>:]<instance>")
+	cmd.Use = usage("show", i18n.G("[<remote>:]<instance>"))
 	cmd.Short = i18n.G("Show instance metadata files")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
 		`Show instance metadata files`))
