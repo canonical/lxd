@@ -21,7 +21,7 @@ func NICType(s *state.State, deviceProjectName string, d deviceConfig.Device) (s
 	if d["type"] == "nic" {
 		if d["network"] != "" {
 			// Translate device's project name into a network project name.
-			networkProjectName, err := project.NetworkProject(s.Cluster, deviceProjectName)
+			networkProjectName, _, err := project.NetworkProject(s.Cluster, deviceProjectName)
 			if err != nil {
 				return "", errors.Wrapf(err, "Failed to translate device project %q into network project", deviceProjectName)
 			}

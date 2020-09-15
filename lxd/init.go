@@ -6,6 +6,7 @@ import (
 	"github.com/pkg/errors"
 
 	lxd "github.com/lxc/lxd/client"
+	"github.com/lxc/lxd/lxd/project"
 	"github.com/lxc/lxd/lxd/revert"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
@@ -13,9 +14,9 @@ import (
 
 type initDataNode struct {
 	api.ServerPut `yaml:",inline"`
-	Networks      []api.NetworksPost     `json:"networks" yaml:"networks"`
-	StoragePools  []api.StoragePoolsPost `json:"storage_pools" yaml:"storage_pools"`
-	Profiles      []api.ProfilesPost     `json:"profiles" yaml:"profiles"`
+	Networks      []internalClusterPostNetwork `json:"networks" yaml:"networks"`
+	StoragePools  []api.StoragePoolsPost       `json:"storage_pools" yaml:"storage_pools"`
+	Profiles      []api.ProfilesPost           `json:"profiles" yaml:"profiles"`
 }
 
 type initDataCluster struct {
@@ -28,171 +29,172 @@ type initDataCluster struct {
 // It's used both by the 'lxd init' command and by the PUT /1.0/cluster API.
 //
 // In case of error, the returned function can be used to revert the changes.
-func initDataNodeApply(d lxd.InstanceServer, config initDataNode) error {
+func initDataNodeApply(d lxd.InstanceServer, config initDataNode) (func(), error) {
 	revert := revert.New()
 	defer revert.Fail()
 
-	// Apply server configuration
+	// Apply server configuration.
 	if config.Config != nil && len(config.Config) > 0 {
-		// Get current config
+		// Get current config.
 		currentServer, etag, err := d.GetServer()
 		if err != nil {
-			return errors.Wrap(err, "Failed to retrieve current server configuration")
+			return nil, errors.Wrap(err, "Failed to retrieve current server configuration")
 		}
 
-		// Setup reverter
+		// Setup reverter.
 		revert.Add(func() { d.UpdateServer(currentServer.Writable(), "") })
 
-		// Prepare the update
+		// Prepare the update.
 		newServer := api.ServerPut{}
 		err = shared.DeepCopy(currentServer.Writable(), &newServer)
 		if err != nil {
-			return errors.Wrap(err, "Failed to copy server configuration")
+			return nil, errors.Wrap(err, "Failed to copy server configuration")
 		}
 
 		for k, v := range config.Config {
 			newServer.Config[k] = fmt.Sprintf("%v", v)
 		}
 
-		// Apply it
+		// Apply it.
 		err = d.UpdateServer(newServer, etag)
 		if err != nil {
-			return errors.Wrap(err, "Failed to update server configuration")
+			return nil, errors.Wrap(err, "Failed to update server configuration")
 		}
 	}
 
-	// Apply network configuration
+	// Apply network configuration.
 	if config.Networks != nil && len(config.Networks) > 0 {
-		// Get the list of networks
-		networkNames, err := d.GetNetworkNames()
-		if err != nil {
-			return errors.Wrap(err, "Failed to retrieve list of networks")
-		}
-
-		// Network creator
-		createNetwork := func(network api.NetworksPost) error {
-			// Create the network if doesn't exist
-			err := d.CreateNetwork(network)
+		// Network creator.
+		createNetwork := func(network internalClusterPostNetwork) error {
+			// Create the network if doesn't exist.
+			err := d.UseProject(network.Project).CreateNetwork(network.NetworksPost)
 			if err != nil {
-				return errors.Wrapf(err, "Failed to create network '%s'", network.Name)
+				return errors.Wrapf(err, "Failed to create network %q in project %q", network.Name, network.Project)
 			}
 
-			// Setup reverter
-			revert.Add(func() { d.DeleteNetwork(network.Name) })
+			// Setup reverter.
+			revert.Add(func() { d.UseProject(network.Project).DeleteNetwork(network.Name) })
 			return nil
 		}
 
-		// Network updater
-		updateNetwork := func(network api.NetworksPost) error {
-			// Get the current network
-			currentNetwork, etag, err := d.GetNetwork(network.Name)
+		// Network updater.
+		updateNetwork := func(network internalClusterPostNetwork) error {
+			// Get the current network.
+			currentNetwork, etag, err := d.UseProject(network.Project).GetNetwork(network.Name)
 			if err != nil {
-				return errors.Wrapf(err, "Failed to retrieve current network '%s'", network.Name)
+				return errors.Wrapf(err, "Failed to retrieve current network %q in project %q", network.Name, network.Project)
 			}
 
-			// Setup reverter
-			revert.Add(func() { d.UpdateNetwork(currentNetwork.Name, currentNetwork.Writable(), "") })
-
-			// Prepare the update
+			// Prepare the update.
 			newNetwork := api.NetworkPut{}
 			err = shared.DeepCopy(currentNetwork.Writable(), &newNetwork)
 			if err != nil {
-				return errors.Wrapf(err, "Failed to copy configuration of network '%s'", network.Name)
+				return errors.Wrapf(err, "Failed to copy configuration of network %q in project %q", network.Name, network.Project)
 			}
 
-			// Description override
+			// Description override.
 			if network.Description != "" {
 				newNetwork.Description = network.Description
 			}
 
-			// Config overrides
+			// Config overrides.
 			for k, v := range network.Config {
 				newNetwork.Config[k] = fmt.Sprintf("%v", v)
 			}
 
-			// Apply it
-			err = d.UpdateNetwork(currentNetwork.Name, newNetwork, etag)
+			// Apply it.
+			err = d.UseProject(network.Project).UpdateNetwork(currentNetwork.Name, newNetwork, etag)
 			if err != nil {
-				return errors.Wrapf(err, "Failed to update network '%s'", network.Name)
+				return errors.Wrapf(err, "Failed to update network %q in project %q", network.Name, network.Project)
 			}
+
+			// Setup reverter.
+			revert.Add(func() {
+				d.UseProject(network.Project).UpdateNetwork(currentNetwork.Name, currentNetwork.Writable(), "")
+			})
 
 			return nil
 		}
 
 		for _, network := range config.Networks {
-			// New network
-			if !shared.StringInSlice(network.Name, networkNames) {
-				err := createNetwork(network)
-				if err != nil {
-					return err
-				}
-
-				continue
+			// Populate default project if not specified for backwards compatbility with earlier
+			// preseed dump files.
+			if network.Project == "" {
+				network.Project = project.Default
 			}
 
-			// Existing network
-			err := updateNetwork(network)
+			_, _, err := d.UseProject(network.Project).GetNetwork(network.Name)
 			if err != nil {
-				return err
+				// New network.
+				err = createNetwork(network)
+				if err != nil {
+					return nil, err
+				}
+			} else {
+				// Existing network.
+				err = updateNetwork(network)
+				if err != nil {
+					return nil, err
+				}
 			}
 		}
 	}
 
-	// Apply storage configuration
+	// Apply storage configuration.
 	if config.StoragePools != nil && len(config.StoragePools) > 0 {
-		// Get the list of storagePools
+		// Get the list of storagePools.
 		storagePoolNames, err := d.GetStoragePoolNames()
 		if err != nil {
-			return errors.Wrap(err, "Failed to retrieve list of storage pools")
+			return nil, errors.Wrap(err, "Failed to retrieve list of storage pools")
 		}
 
 		// StoragePool creator
 		createStoragePool := func(storagePool api.StoragePoolsPost) error {
-			// Create the storagePool if doesn't exist
+			// Create the storagePool if doesn't exist.
 			err := d.CreateStoragePool(storagePool)
 			if err != nil {
 				return errors.Wrapf(err, "Failed to create storage pool '%s'", storagePool.Name)
 			}
 
-			// Setup reverter
+			// Setup reverter.
 			revert.Add(func() { d.DeleteStoragePool(storagePool.Name) })
 			return nil
 		}
 
-		// StoragePool updater
+		// StoragePool updater.
 		updateStoragePool := func(storagePool api.StoragePoolsPost) error {
-			// Get the current storagePool
+			// Get the current storagePool.
 			currentStoragePool, etag, err := d.GetStoragePool(storagePool.Name)
 			if err != nil {
 				return errors.Wrapf(err, "Failed to retrieve current storage pool '%s'", storagePool.Name)
 			}
 
-			// Sanity check
+			// Sanity check.
 			if currentStoragePool.Driver != storagePool.Driver {
 				return fmt.Errorf("Storage pool '%s' is of type '%s' instead of '%s'", currentStoragePool.Name, currentStoragePool.Driver, storagePool.Driver)
 			}
 
-			// Setup reverter
+			// Setup reverter.
 			revert.Add(func() { d.UpdateStoragePool(currentStoragePool.Name, currentStoragePool.Writable(), "") })
 
-			// Prepare the update
+			// Prepare the update.
 			newStoragePool := api.StoragePoolPut{}
 			err = shared.DeepCopy(currentStoragePool.Writable(), &newStoragePool)
 			if err != nil {
 				return errors.Wrapf(err, "Failed to copy configuration of storage pool '%s'", storagePool.Name)
 			}
 
-			// Description override
+			// Description override.
 			if storagePool.Description != "" {
 				newStoragePool.Description = storagePool.Description
 			}
 
-			// Config overrides
+			// Config overrides.
 			for k, v := range storagePool.Config {
 				newStoragePool.Config[k] = fmt.Sprintf("%v", v)
 			}
 
-			// Apply it
+			// Apply it.
 			err = d.UpdateStoragePool(currentStoragePool.Name, newStoragePool, etag)
 			if err != nil {
 				return errors.Wrapf(err, "Failed to update storage pool '%s'", storagePool.Name)
@@ -202,89 +204,89 @@ func initDataNodeApply(d lxd.InstanceServer, config initDataNode) error {
 		}
 
 		for _, storagePool := range config.StoragePools {
-			// New storagePool
+			// New storagePool.
 			if !shared.StringInSlice(storagePool.Name, storagePoolNames) {
 				err := createStoragePool(storagePool)
 				if err != nil {
-					return err
+					return nil, err
 				}
 
 				continue
 			}
 
-			// Existing storagePool
+			// Existing storagePool.
 			err := updateStoragePool(storagePool)
 			if err != nil {
-				return err
+				return nil, err
 			}
 		}
 	}
 
-	// Apply profile configuration
+	// Apply profile configuration.
 	if config.Profiles != nil && len(config.Profiles) > 0 {
-		// Get the list of profiles
+		// Get the list of profiles.
 		profileNames, err := d.GetProfileNames()
 		if err != nil {
-			return errors.Wrap(err, "Failed to retrieve list of profiles")
+			return nil, errors.Wrap(err, "Failed to retrieve list of profiles")
 		}
 
-		// Profile creator
+		// Profile creator.
 		createProfile := func(profile api.ProfilesPost) error {
-			// Create the profile if doesn't exist
+			// Create the profile if doesn't exist.
 			err := d.CreateProfile(profile)
 			if err != nil {
 				return errors.Wrapf(err, "Failed to create profile '%s'", profile.Name)
 			}
 
-			// Setup reverter
+			// Setup reverter.
 			revert.Add(func() { d.DeleteProfile(profile.Name) })
 			return nil
 		}
 
-		// Profile updater
+		// Profile updater.
 		updateProfile := func(profile api.ProfilesPost) error {
-			// Get the current profile
+			// Get the current profile.
 			currentProfile, etag, err := d.GetProfile(profile.Name)
 			if err != nil {
 				return errors.Wrapf(err, "Failed to retrieve current profile '%s'", profile.Name)
 			}
 
-			// Setup reverter
+			// Setup reverter.
 			revert.Add(func() { d.UpdateProfile(currentProfile.Name, currentProfile.Writable(), "") })
 
-			// Prepare the update
+			// Prepare the update.
 			newProfile := api.ProfilePut{}
 			err = shared.DeepCopy(currentProfile.Writable(), &newProfile)
 			if err != nil {
 				return errors.Wrapf(err, "Failed to copy configuration of profile '%s'", profile.Name)
 			}
 
-			// Description override
+			// Description override.
 			if profile.Description != "" {
 				newProfile.Description = profile.Description
 			}
 
-			// Config overrides
+			// Config overrides.
 			for k, v := range profile.Config {
 				newProfile.Config[k] = fmt.Sprintf("%v", v)
 			}
 
-			// Device overrides
+			// Device overrides.
 			for k, v := range profile.Devices {
-				// New device
+				// New device.
 				_, ok := newProfile.Devices[k]
 				if !ok {
 					newProfile.Devices[k] = v
 					continue
 				}
 
-				// Existing device
+				// Existing device.
 				for configKey, configValue := range v {
 					newProfile.Devices[k][configKey] = fmt.Sprintf("%v", configValue)
 				}
 			}
 
-			// Apply it
+			// Apply it.
 			err = d.UpdateProfile(currentProfile.Name, newProfile, etag)
 			if err != nil {
 				return errors.Wrapf(err, "Failed to update profile '%s'", profile.Name)
@@ -294,26 +296,27 @@ func initDataNodeApply(d lxd.InstanceServer, config initDataNode) error {
 		}
 
 		for _, profile := range config.Profiles {
-			// New profile
+			// New profile.
 			if !shared.StringInSlice(profile.Name, profileNames) {
 				err := createProfile(profile)
 				if err != nil {
-					return err
+					return nil, err
 				}
 
 				continue
 			}
 
-			// Existing profile
+			// Existing profile.
 			err := updateProfile(profile)
 			if err != nil {
-				return err
+				return nil, err
 			}
 		}
 	}
 
+	revertExternal := revert.Clone() // Clone before calling revert.Success() so we can return the Fail func.
 	revert.Success()
-	return nil
+	return revertExternal.Fail, nil
 }
 
 // Helper to initialize LXD clustering.

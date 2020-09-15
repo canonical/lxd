@@ -1,6 +1,8 @@
 package network
 
 import (
+	"fmt"
+
 	"github.com/pkg/errors"
 
 	"github.com/lxc/lxd/lxd/project"
@@ -33,19 +35,23 @@ func LoadByName(s *state.State, project string, name string) (Network, error) {
 	return n, nil
 }
 
-// ValidateName validates the supplied network name for the specified network type.
-func ValidateName(name string, netType string) error {
+// ValidateNameAndProject validates the supplied network name and project support for the specified network type.
+func ValidateNameAndProject(name string, networkProjectName string, netType string) error {
 	driverFunc, ok := drivers[netType]
 	if !ok {
 		return ErrUnknownDriver
 	}
 
 	n := driverFunc()
-	n.init(nil, 0, project.Default, name, netType, "", nil, "Unknown")
+	n.init(nil, 0, networkProjectName, name, netType, "", nil, "Unknown")
 
 	err := n.ValidateName(name)
 	if err != nil {
 		return errors.Wrapf(err, "Network name invalid")
+	}
+
+	if networkProjectName != project.Default && !n.Info().Projects {
+		return fmt.Errorf("Network type does not support non-default projects")
 	}
 
 	return nil
