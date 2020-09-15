@@ -93,7 +93,7 @@ func InstanceUnload(state *state.State, inst instance) error {
 		return err
 	}
 
-	err = unloadProfile(state, instanceProfileFilename(inst))
+	err := unloadProfile(state, InstanceProfileName(inst), instanceProfileFilename(inst))
 	if err != nil {
 		return err
 	}
@@ -108,7 +108,7 @@ func InstanceParse(state *state.State, inst instance) error {
 
 // InstanceDelete removes the policy from cache/disk.
 func InstanceDelete(state *state.State, inst instance) error {
-	return deleteProfile(state, instanceProfileFilename(inst))
+	return deleteProfile(state, InstanceProfileName(inst), instanceProfileFilename(inst))
 }
 
 // instanceProfile generates the AppArmor profile template from the given instance.

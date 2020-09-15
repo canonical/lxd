@@ -85,14 +85,14 @@ func NetworkLoad(state *state.State, n network) error {
 // This does not delete the policy from disk or cache.
 func NetworkUnload(state *state.State, n network) error {
 	// dnsmasq
-	err := unloadProfile(state, dnsmasqProfileFilename(n))
+	err := unloadProfile(state, DnsmasqProfileName(n), dnsmasqProfileFilename(n))
 	if err != nil {
 		return err
 	}
 
 	// forkdns
 	if n.Config()["bridge.mode"] == "fan" {
-		err := unloadProfile(state, forkdnsProfileFilename(n))
+		err := unloadProfile(state, ForkdnsProfileName(n), forkdnsProfileFilename(n))
 		if err != nil {
 			return err
 		}
@@ -103,13 +103,13 @@ func NetworkUnload(state *state.State, n network) error {
 
 // NetworkDelete removes the profiles from cache/disk.
 func NetworkDelete(state *state.State, n network) error {
-	err := deleteProfile(state, dnsmasqProfileFilename(n))
+	err := deleteProfile(state, DnsmasqProfileName(n), dnsmasqProfileFilename(n))
 	if err != nil {
 		return err
 	}
 
 	if n.Config()["bridge.mode"] == "fan" {
-		err := deleteProfile(state, forkdnsProfileFilename(n))
+		err := deleteProfile(state, ForkdnsProfileName(n), forkdnsProfileFilename(n))
 		if err != nil {
 			return err
 		}
