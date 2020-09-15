@@ -11,6 +11,7 @@ import (
 // common provides structure common to all instance types.
 type common struct {
 	dbType          instancetype.Type
+	devPaths        []string
 	expandedConfig  map[string]string
 	expandedDevices deviceConfig.Devices
 	localConfig     map[string]string
@@ -76,4 +77,12 @@ func (c *common) expandDevices(profiles []api.Profile) error {
 	c.expandedDevices = db.ExpandInstanceDevices(c.localDevices, profiles)
 
 	return nil
+}
+
+// DevPaths() returns a list of /dev devices which the instance requires access to.
+// This is function is only safe to call from within the security
+// packages as called during instance startup, the rest of the time this
+// will likely return nil.
+func (c *common) DevPaths() []string {
+	return c.devPaths
 }
