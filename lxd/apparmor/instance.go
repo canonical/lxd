@@ -131,15 +131,15 @@ func instanceProfile(state *state.State, inst instance) (string, error) {
 	// Render the profile.
 	var sb *strings.Builder = &strings.Builder{}
 	err = lxcProfileTpl.Execute(sb, map[string]interface{}{
-		"feature_unix":     unixSupported,
 		"feature_cgns":     state.OS.CGInfo.Namespacing,
 		"feature_cgroup2":  state.OS.CGInfo.Layout == cgroup.CgroupsUnified || state.OS.CGInfo.Layout == cgroup.CgroupsHybrid,
 		"feature_stacking": state.OS.AppArmorStacking && !state.OS.AppArmorStacked,
+		"feature_unix":     unixSupported,
+		"name":             InstanceProfileName(inst),
 		"namespace":        InstanceNamespaceName(inst),
 		"nesting":          shared.IsTrue(inst.ExpandedConfig()["security.nesting"]),
-		"name":             InstanceProfileName(inst),
-		"unprivileged":     !shared.IsTrue(inst.ExpandedConfig()["security.privileged"]) || state.OS.RunningInUserNS,
 		"raw":              rawContent,
+		"unprivileged":     !shared.IsTrue(inst.ExpandedConfig()["security.privileged"]) || state.OS.RunningInUserNS,
 	})
 	if err != nil {
 		return "", err
