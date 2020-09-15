@@ -10,6 +10,7 @@ import (
 
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/idmap"
+	"github.com/lxc/lxd/shared/logger"
 )
 
 // InstanceTarWriter provides a TarWriter implementation that handles ID shifting and hardlink tracking.
@@ -108,9 +109,19 @@ func (ctw *InstanceTarWriter) WriteFile(name string, srcPath string, fi os.FileI
 		hdr.PAXRecords = make(map[string]string, len(xattrs))
 		for key, val := range xattrs {
 			if key == "system.posix_acl_access" {
-				hdr.PAXRecords["SCHILY.acl.access"] = val
+				aclAccess, err := idmap.UnshiftACL(val, ctw.idmapSet)
+				if err != nil {
+					logger.Debugf("%s - Failed to unshift ACL access permissions", err)
+					continue
+				}
+				hdr.PAXRecords["SCHILY.acl.access"] = aclAccess
 			} else if key == "system.posix_acl_default" {
-				hdr.PAXRecords["SCHILY.acl.default"] = val
+				aclDefault, err := idmap.UnshiftACL(val, ctw.idmapSet)
+				if err != nil {
+					logger.Debugf("%s - Failed to unshift ACL default permissions", err)
+					continue
+				}
+				hdr.PAXRecords["SCHILY.acl.default"] = aclDefault
 			} else {
 				hdr.PAXRecords["SCHILY.xattr."+key] = val
 			}
