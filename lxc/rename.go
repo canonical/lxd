@@ -16,7 +16,7 @@ type cmdRename struct {
 
 func (c *cmdRename) Command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = i18n.G("rename [<remote>:]<instance>[/<snapshot>] <instance>[/<snapshot>]")
+	cmd.Use = usage("rename", i18n.G("[<remote>:]<instance>[/<snapshot>] <instance>[/<snapshot>]"))
 	cmd.Short = i18n.G("Rename instances and snapshots")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
 		`Rename instances and snapshots`))

@@ -23,7 +23,7 @@ type cmdImport struct {
 
 func (c *cmdImport) Command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = i18n.G("import [<remote>:] <backup file>")
+	cmd.Use = usage("import", i18n.G("[<remote>:] <backup file>"))
 	cmd.Short = i18n.G("Import instance backups")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
 		`Import backups of instances including their snapshots.`))

@@ -30,7 +30,7 @@ type cmdMove struct {
 
 func (c *cmdMove) Command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = i18n.G("move [<remote>:]<instance>[/<snapshot>] [<remote>:][<instance>[/<snapshot>]]")
+	cmd.Use = usage("move", i18n.G("[<remote>:]<instance>[/<snapshot>] [<remote>:][<instance>[/<snapshot>]]"))
 	cmd.Aliases = []string{"mv"}
 	cmd.Short = i18n.G("Move instances within or in between LXD servers")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(

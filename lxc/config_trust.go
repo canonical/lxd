@@ -23,7 +23,7 @@ type cmdConfigTrust struct {
 
 func (c *cmdConfigTrust) Command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = i18n.G("trust")
+	cmd.Use = usage("trust")
 	cmd.Short = i18n.G("Manage trusted clients")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
 		`Manage trusted clients`))
@@ -52,7 +52,7 @@ type cmdConfigTrustAdd struct {
 
 func (c *cmdConfigTrustAdd) Command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = i18n.G("add [<remote>:] <cert>")
+	cmd.Use = usage("add", i18n.G("[<remote>:] <cert>"))
 	cmd.Short = i18n.G("Add new trusted clients")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
 		`Add new trusted clients`))
@@ -109,7 +109,7 @@ type cmdConfigTrustList struct {
 
 func (c *cmdConfigTrustList) Command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = i18n.G("list [<remote>:]")
+	cmd.Use = usage("list", i18n.G("[<remote>:]"))
 	cmd.Aliases = []string{"ls"}
 	cmd.Short = i18n.G("List trusted clients")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
@@ -187,7 +187,7 @@ type cmdConfigTrustRemove struct {
 
 func (c *cmdConfigTrustRemove) Command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = i18n.G("remove [<remote>:] <hostname|fingerprint>")
+	cmd.Use = usage("remove", i18n.G("[<remote>:] <hostname|fingerprint>"))
 	cmd.Aliases = []string{"rm"}
 	cmd.Short = i18n.G("Remove trusted clients")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(

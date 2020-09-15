@@ -31,7 +31,7 @@ type cmdConsole struct {
 
 func (c *cmdConsole) Command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = i18n.G("console [<remote>:]<instance>")
+	cmd.Use = usage("console", i18n.G("[<remote>:]<instance>"))
 	cmd.Short = i18n.G("Attach to instance consoles")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
 		`Attach to instance consoles

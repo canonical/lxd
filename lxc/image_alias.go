@@ -20,7 +20,7 @@ type cmdImageAlias struct {
 
 func (c *cmdImageAlias) Command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = i18n.G("alias")
+	cmd.Use = usage("alias")
 	cmd.Short = i18n.G("Manage image aliases")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
 		`Manage image aliases`))
@@ -53,7 +53,7 @@ type cmdImageAliasCreate struct {
 
 func (c *cmdImageAliasCreate) Command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = i18n.G("create [<remote>:]<alias> <fingerprint>")
+	cmd.Use = usage("create", i18n.G("[<remote>:]<alias> <fingerprint>"))
 	cmd.Short = i18n.G("Create aliases for existing images")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
 		`Create aliases for existing images`))
@@ -99,7 +99,7 @@ type cmdImageAliasDelete struct {
 
 func (c *cmdImageAliasDelete) Command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = i18n.G("delete [<remote>:]<alias>")
+	cmd.Use = usage("delete", i18n.G("[<remote>:]<alias>"))
 	cmd.Aliases = []string{"rm"}
 	cmd.Short = i18n.G("Delete image aliases")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
@@ -144,7 +144,7 @@ type cmdImageAliasList struct {
 
 func (c *cmdImageAliasList) Command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = i18n.G("list [<remote>:] [<filters>...]")
+	cmd.Use = usage("list", i18n.G("[<remote>:] [<filters>...]"))
 	cmd.Aliases = []string{"ls"}
 	cmd.Short = i18n.G("List image aliases")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
@@ -246,7 +246,7 @@ type cmdImageAliasRename struct {
 
 func (c *cmdImageAliasRename) Command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = i18n.G("rename [<remote>:]<alias> <new-name>")
+	cmd.Use = usage("rename", i18n.G("[<remote>:]<alias> <new-name>"))
 	cmd.Aliases = []string{"mv"}
 	cmd.Short = i18n.G("Rename aliases")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
