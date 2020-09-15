@@ -95,7 +95,7 @@ static int le32_to_native(__le32 n)
 	return le32_to_cpu(n);
 }
 
-static int set_vfs_ns_caps(char *path, char *caps, ssize_t len, uint32_t uid)
+static int set_vfs_ns_caps(char *path, void *caps, ssize_t len, uint32_t uid)
 {
 	// Works because vfs_ns_cap_data is a superset of vfs_cap_data (rootid
 	// field added to the end)
@@ -307,7 +307,7 @@ func SetCaps(path string, caps []byte, uid int64) error {
 	cpath := C.CString(path)
 	defer C.free(unsafe.Pointer(cpath))
 
-	ccaps := C.CString(string(caps))
+	ccaps := C.CBytes(caps)
 	defer C.free(unsafe.Pointer(ccaps))
 
 	r := C.set_vfs_ns_caps(cpath, ccaps, C.ssize_t(len(caps)), C.uint32_t(uid))
