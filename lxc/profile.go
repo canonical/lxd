@@ -24,7 +24,7 @@ type cmdProfile struct {
 
 func (c *cmdProfile) Command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = i18n.G("profile")
+	cmd.Use = usage("profile")
 	cmd.Short = i18n.G("Manage profiles")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
 		`Manage profiles`))
@@ -96,7 +96,7 @@ type cmdProfileAdd struct {
 
 func (c *cmdProfileAdd) Command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = i18n.G("add [<remote>:]<instance> <profile>")
+	cmd.Use = usage("add", i18n.G("[<remote>:]<instance> <profile>"))
 	cmd.Short = i18n.G("Add profiles to instances")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
 		`Add profiles to instances`))
@@ -158,7 +158,7 @@ type cmdProfileAssign struct {
 
 func (c *cmdProfileAssign) Command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = i18n.G("assign [<remote>:]<instance> <profiles>")
+	cmd.Use = usage("assign", i18n.G("[<remote>:]<instance> <profiles>"))
 	cmd.Aliases = []string{"apply"}
 	cmd.Short = i18n.G("Assign sets of profiles to instances")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
@@ -238,7 +238,7 @@ type cmdProfileCopy struct {
 
 func (c *cmdProfileCopy) Command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = i18n.G("copy [<remote>:]<profile> [<remote>:]<profile>")
+	cmd.Use = usage("copy", i18n.G("[<remote>:]<profile> [<remote>:]<profile>"))
 	cmd.Aliases = []string{"cp"}
 	cmd.Short = i18n.G("Copy profiles")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
@@ -295,7 +295,7 @@ type cmdProfileCreate struct {
 
 func (c *cmdProfileCreate) Command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = i18n.G("create [<remote>:]<profile>")
+	cmd.Use = usage("create", i18n.G("[<remote>:]<profile>"))
 	cmd.Short = i18n.G("Create profiles")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
 		`Create profiles`))
@@ -348,7 +348,7 @@ type cmdProfileDelete struct {
 
 func (c *cmdProfileDelete) Command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = i18n.G("delete [<remote>:]<profile>")
+	cmd.Use = usage("delete", i18n.G("[<remote>:]<profile>"))
 	cmd.Aliases = []string{"rm"}
 	cmd.Short = i18n.G("Delete profiles")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
@@ -399,7 +399,7 @@ type cmdProfileEdit struct {
 
 func (c *cmdProfileEdit) Command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = i18n.G("edit [<remote>:]<profile>")
+	cmd.Use = usage("edit", i18n.G("[<remote>:]<profile>"))
 	cmd.Short = i18n.G("Edit profile configurations as YAML")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
 		`Edit profile configurations as YAML`))
@@ -523,7 +523,7 @@ type cmdProfileGet struct {
 
 func (c *cmdProfileGet) Command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = i18n.G("get [<remote>:]<profile> <key>")
+	cmd.Use = usage("get", i18n.G("[<remote>:]<profile> <key>"))
 	cmd.Short = i18n.G("Get values for profile configuration keys")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
 		`Get values for profile configuration keys`))
@@ -571,7 +571,7 @@ type cmdProfileList struct {
 
 func (c *cmdProfileList) Command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = i18n.G("list [<remote>:]")
+	cmd.Use = usage("list", i18n.G("[<remote>:]"))
 	cmd.Aliases = []string{"ls"}
 	cmd.Short = i18n.G("List profiles")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
@@ -631,7 +631,7 @@ type cmdProfileRemove struct {
 
 func (c *cmdProfileRemove) Command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = i18n.G("remove [<remote>:]<instance> <profile>")
+	cmd.Use = usage("remove", i18n.G("[<remote>:]<instance> <profile>"))
 	cmd.Short = i18n.G("Remove profiles from instances")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
 		`Remove profiles from instances`))
@@ -706,7 +706,7 @@ type cmdProfileRename struct {
 
 func (c *cmdProfileRename) Command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = i18n.G("rename [<remote>:]<profile> <new-name>")
+	cmd.Use = usage("rename", i18n.G("[<remote>:]<profile> <new-name>"))
 	cmd.Aliases = []string{"mv"}
 	cmd.Short = i18n.G("Rename profiles")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
@@ -757,7 +757,7 @@ type cmdProfileSet struct {
 
 func (c *cmdProfileSet) Command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = i18n.G("set [<remote>:]<profile> <key><value>...")
+	cmd.Use = usage("set", i18n.G("[<remote>:]<profile> <key><value>..."))
 	cmd.Short = i18n.G("Set profile configuration keys")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
 		`Set profile configuration keys
@@ -816,7 +816,7 @@ type cmdProfileShow struct {
 
 func (c *cmdProfileShow) Command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = i18n.G("show [<remote>:]<profile>")
+	cmd.Use = usage("show", i18n.G("[<remote>:]<profile>"))
 	cmd.Short = i18n.G("Show profile configurations")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
 		`Show profile configurations`))
@@ -870,7 +870,7 @@ type cmdProfileUnset struct {
 
 func (c *cmdProfileUnset) Command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = i18n.G("unset [<remote>:]<profile> <key>")
+	cmd.Use = usage("unset", i18n.G("[<remote>:]<profile> <key>"))
 	cmd.Short = i18n.G("Unset profile configuration keys")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
 		`Unset profile configuration keys`))

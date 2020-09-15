@@ -27,7 +27,7 @@ type cmdNetwork struct {
 
 func (c *cmdNetwork) Command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = i18n.G("network")
+	cmd.Use = usage("network")
 	cmd.Short = i18n.G("Manage and attach instances to networks")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
 		`Manage and attach instances to networks`))
@@ -103,7 +103,7 @@ type cmdNetworkAttach struct {
 
 func (c *cmdNetworkAttach) Command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = i18n.G("attach [<remote>:]<network> <instance> [<device name>] [<interface name>]")
+	cmd.Use = usage("attach", i18n.G("[<remote>:]<network> <instance> [<device name>] [<interface name>]"))
 	cmd.Short = i18n.G("Attach network interfaces to instances")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
 		`Attach new network interfaces to instances`))
@@ -176,7 +176,7 @@ type cmdNetworkAttachProfile struct {
 
 func (c *cmdNetworkAttachProfile) Command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = i18n.G("attach-profile [<remote>:]<network> <profile> [<device name>] [<interface name>]")
+	cmd.Use = usage("attach-profile", i18n.G("[<remote>:]<network> <profile> [<device name>] [<interface name>]"))
 	cmd.Short = i18n.G("Attach network interfaces to profiles")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
 		`Attach network interfaces to profiles`))
@@ -249,7 +249,7 @@ type cmdNetworkCreate struct {
 
 func (c *cmdNetworkCreate) Command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = i18n.G("create [<remote>:]<network> [key=value...]")
+	cmd.Use = usage("create", i18n.G("[<remote>:]<network> [key=value...]"))
 	cmd.Short = i18n.G("Create new networks")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
 		`Create new networks`))
@@ -320,7 +320,7 @@ type cmdNetworkDelete struct {
 
 func (c *cmdNetworkDelete) Command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = i18n.G("delete [<remote>:]<network>")
+	cmd.Use = usage("delete", i18n.G("[<remote>:]<network>"))
 	cmd.Aliases = []string{"rm"}
 	cmd.Short = i18n.G("Delete networks")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
@@ -371,7 +371,7 @@ type cmdNetworkDetach struct {
 
 func (c *cmdNetworkDetach) Command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = i18n.G("detach [<remote>:]<network> <instance> [<device name>]")
+	cmd.Use = usage("detach", i18n.G("[<remote>:]<network> <instance> [<device name>]"))
 	cmd.Short = i18n.G("Detach network interfaces from instances")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
 		`Detach network interfaces from instances`))
@@ -456,7 +456,7 @@ type cmdNetworkDetachProfile struct {
 
 func (c *cmdNetworkDetachProfile) Command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = i18n.G("detach-profile [<remote>:]<network> <profile> [<device name>]")
+	cmd.Use = usage("detach-profile", i18n.G("[<remote>:]<network> <profile> [<device name>]"))
 	cmd.Short = i18n.G("Detach network interfaces from profiles")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
 		`Detach network interfaces from profiles`))
@@ -541,7 +541,7 @@ type cmdNetworkEdit struct {
 
 func (c *cmdNetworkEdit) Command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = i18n.G("edit [<remote>:]<network>")
+	cmd.Use = usage("edit", i18n.G("[<remote>:]<network>"))
 	cmd.Short = i18n.G("Edit network configurations as YAML")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
 		`Edit network configurations as YAML`))
@@ -664,7 +664,7 @@ type cmdNetworkGet struct {
 
 func (c *cmdNetworkGet) Command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = i18n.G("get [<remote>:]<network> <key>")
+	cmd.Use = usage("get", i18n.G("[<remote>:]<network> <key>"))
 	cmd.Short = i18n.G("Get values for network configuration keys")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
 		`Get values for network configuration keys`))
@@ -722,7 +722,7 @@ type cmdNetworkInfo struct {
 
 func (c *cmdNetworkInfo) Command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = i18n.G("info [<remote>:]<network>")
+	cmd.Use = usage("info", i18n.G("[<remote>:]<network>"))
 	cmd.Short = i18n.G("Get runtime information on networks")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
 		`Get runtime information on networks`))
@@ -801,7 +801,7 @@ type cmdNetworkList struct {
 
 func (c *cmdNetworkList) Command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = i18n.G("list [<remote>:]")
+	cmd.Use = usage("list", i18n.G("[<remote>:]"))
 	cmd.Aliases = []string{"ls"}
 	cmd.Short = i18n.G("List available networks")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
@@ -887,7 +887,7 @@ type cmdNetworkListLeases struct {
 
 func (c *cmdNetworkListLeases) Command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = i18n.G("list-leases [<remote>:]<network>")
+	cmd.Use = usage("list-leases", i18n.G("[<remote>:]<network>"))
 	cmd.Short = i18n.G("List DHCP leases")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
 		`List DHCP leases`))
@@ -955,7 +955,7 @@ type cmdNetworkRename struct {
 
 func (c *cmdNetworkRename) Command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = i18n.G("rename [<remote>:]<network> <new-name>")
+	cmd.Use = usage("rename", i18n.G("[<remote>:]<network> <new-name>"))
 	cmd.Aliases = []string{"mv"}
 	cmd.Short = i18n.G("Rename networks")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
@@ -1006,7 +1006,7 @@ type cmdNetworkSet struct {
 
 func (c *cmdNetworkSet) Command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = i18n.G("set [<remote>:]<network> <key>=<value>...")
+	cmd.Use = usage("set", i18n.G("[<remote>:]<network> <key>=<value>..."))
 	cmd.Short = i18n.G("Set network configuration keys")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
 		`Set network configuration keys
@@ -1076,7 +1076,7 @@ type cmdNetworkShow struct {
 
 func (c *cmdNetworkShow) Command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = i18n.G("show [<remote>:]<network>")
+	cmd.Use = usage("show", i18n.G("[<remote>:]<network>"))
 	cmd.Short = i18n.G("Show network configurations")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
 		`Show network configurations`))
@@ -1138,7 +1138,7 @@ type cmdNetworkUnset struct {
 
 func (c *cmdNetworkUnset) Command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = i18n.G("unset [<remote>:]<network> <key>")
+	cmd.Use = usage("unset", i18n.G("[<remote>:]<network> <key>"))
 	cmd.Short = i18n.G("Unset network configuration keys")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
 		`Unset network configuration keys`))

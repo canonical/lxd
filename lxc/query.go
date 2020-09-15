@@ -27,7 +27,7 @@ type cmdQuery struct {
 
 func (c *cmdQuery) Command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = i18n.G("query [<remote>:]<API path>")
+	cmd.Use = usage("query", i18n.G("[<remote>:]<API path>"))
 	cmd.Short = i18n.G("Send a raw query to LXD")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
 		`Send a raw query to LXD`))

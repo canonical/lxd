@@ -35,7 +35,7 @@ type cmdInit struct {
 
 func (c *cmdInit) Command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = i18n.G("init [[<remote>:]<image>] [<remote>:][<name>] [< config")
+	cmd.Use = usage("init", i18n.G("[[<remote>:]<image>] [<remote>:][<name>] [< config"))
 	cmd.Short = i18n.G("Create instances from images")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(`Create instances from images`))
 	cmd.Example = cli.FormatSection("", i18n.G(`lxc init ubuntu:18.04 u1

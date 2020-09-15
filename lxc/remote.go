@@ -28,7 +28,7 @@ type cmdRemote struct {
 
 func (c *cmdRemote) Command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = i18n.G("remote")
+	cmd.Use = usage("remote")
 	cmd.Short = i18n.G("Manage the list of remote servers")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
 		`Manage the list of remote servers`))
@@ -79,7 +79,7 @@ type cmdRemoteAdd struct {
 
 func (c *cmdRemoteAdd) Command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = i18n.G("add [<remote>] <IP|FQDN|URL>")
+	cmd.Use = usage("add", i18n.G("[<remote>] <IP|FQDN|URL>"))
 	cmd.Short = i18n.G("Add new remote servers")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
 		`Add new remote servers
@@ -418,7 +418,7 @@ type cmdRemoteGetDefault struct {
 
 func (c *cmdRemoteGetDefault) Command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = i18n.G("get-default")
+	cmd.Use = usage("get-default")
 	cmd.Short = i18n.G("Show the default remote")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
 		`Show the default remote`))
@@ -453,7 +453,7 @@ type cmdRemoteList struct {
 
 func (c *cmdRemoteList) Command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = i18n.G("list")
+	cmd.Use = usage("list")
 	cmd.Aliases = []string{"ls"}
 	cmd.Short = i18n.G("List the available remotes")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
@@ -533,7 +533,7 @@ type cmdRemoteRename struct {
 
 func (c *cmdRemoteRename) Command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = i18n.G("rename <remote> <new-name>")
+	cmd.Use = usage("rename", i18n.G("<remote> <new-name>"))
 	cmd.Aliases = []string{"mv"}
 	cmd.Short = i18n.G("Rename remotes")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
@@ -595,7 +595,7 @@ type cmdRemoteRemove struct {
 
 func (c *cmdRemoteRemove) Command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = i18n.G("remove <remote>")
+	cmd.Use = usage("remove", i18n.G("<remote>"))
 	cmd.Aliases = []string{"rm"}
 	cmd.Short = i18n.G("Remove remotes")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
@@ -646,7 +646,7 @@ type cmdRemoteSwitch struct {
 func (c *cmdRemoteSwitch) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Aliases = []string{"set-default"}
-	cmd.Use = i18n.G("switch <remote>")
+	cmd.Use = usage("switch", i18n.G("<remote>"))
 	cmd.Short = i18n.G("Switch the default remote")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
 		`Switch the default remote`))
@@ -684,7 +684,7 @@ type cmdRemoteSetURL struct {
 
 func (c *cmdRemoteSetURL) Command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = i18n.G("set-url <remote> <URL>")
+	cmd.Use = usage("set-url", i18n.G("<remote> <URL>"))
 	cmd.Short = i18n.G("Set the URL for the remote")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
 		`Set the URL for the remote`))

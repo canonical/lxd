@@ -28,7 +28,7 @@ type cmdStorageVolume struct {
 
 func (c *cmdStorageVolume) Command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = i18n.G("volume")
+	cmd.Use = usage("volume")
 	cmd.Short = i18n.G("Manage storage volumes")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
 		`Manage storage volumes
@@ -135,7 +135,7 @@ type cmdStorageVolumeAttach struct {
 
 func (c *cmdStorageVolumeAttach) Command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = i18n.G("attach [<remote>:]<pool> <volume> <instance> [<device name>] <path>")
+	cmd.Use = usage("attach", i18n.G("[<remote>:]<pool> <volume> <instance> [<device name>] <path>"))
 	cmd.Short = i18n.G("Attach new storage volumes to instances")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
 		`Attach new storage volumes to instances`))
@@ -214,7 +214,7 @@ type cmdStorageVolumeAttachProfile struct {
 
 func (c *cmdStorageVolumeAttachProfile) Command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = i18n.G("attach-profile [<remote:>]<pool> <volume> <profile> [<device name>] <path>")
+	cmd.Use = usage("attach-profile", i18n.G("[<remote:>]<pool> <volume> <profile> [<device name>] <path>"))
 	cmd.Short = i18n.G("Attach new storage volumes to profiles")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
 		`Attach new storage volumes to profiles`))
@@ -296,7 +296,7 @@ type cmdStorageVolumeCopy struct {
 
 func (c *cmdStorageVolumeCopy) Command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = i18n.G("copy <pool>/<volume>[/<snapshot>] <pool>/<volume>")
+	cmd.Use = usage("copy", i18n.G("<pool>/<volume>[/<snapshot>] <pool>/<volume>"))
 	cmd.Aliases = []string{"cp"}
 	cmd.Short = i18n.G("Copy storage volumes")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
@@ -458,7 +458,7 @@ type cmdStorageVolumeCreate struct {
 
 func (c *cmdStorageVolumeCreate) Command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = i18n.G("create [<remote>:]<pool> <volume> [key=value...]")
+	cmd.Use = usage("create", i18n.G("[<remote>:]<pool> <volume> [key=value...]"))
 	cmd.Short = i18n.G("Create new custom storage volumes")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
 		`Create new custom storage volumes`))
@@ -534,7 +534,7 @@ type cmdStorageVolumeDelete struct {
 
 func (c *cmdStorageVolumeDelete) Command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = i18n.G("delete [<remote>:]<pool> <volume>[/<snapshot>]")
+	cmd.Use = usage("delete", i18n.G("[<remote>:]<pool> <volume>[/<snapshot>]"))
 	cmd.Aliases = []string{"rm"}
 	cmd.Short = i18n.G("Delete storage volumes")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
@@ -611,7 +611,7 @@ type cmdStorageVolumeDetach struct {
 
 func (c *cmdStorageVolumeDetach) Command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = i18n.G("detach [<remote>:]<pool> <volume> <instance> [<device name>]")
+	cmd.Use = usage("detach", i18n.G("[<remote>:]<pool> <volume> <instance> [<device name>]"))
 	cmd.Short = i18n.G("Detach storage volumes from instances")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
 		`Detach storage volumes from instances`))
@@ -693,7 +693,7 @@ type cmdStorageVolumeDetachProfile struct {
 
 func (c *cmdStorageVolumeDetachProfile) Command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = i18n.G("detach-profile [<remote:>]<pool> <volume> <profile> [<device name>]")
+	cmd.Use = usage("detach-profile", i18n.G("[<remote:>]<pool> <volume> <profile> [<device name>]"))
 	cmd.Short = i18n.G("Detach storage volumes from profiles")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
 		`Detach storage volumes from profiles`))
@@ -774,7 +774,7 @@ type cmdStorageVolumeEdit struct {
 
 func (c *cmdStorageVolumeEdit) Command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = i18n.G("edit [<remote>:]<pool> <volume>[/<snapshot>]")
+	cmd.Use = usage("edit", i18n.G("[<remote>:]<pool> <volume>[/<snapshot>]"))
 	cmd.Short = i18n.G("Edit storage volume configurations as YAML")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
 		`Edit storage volume configurations as YAML`))
@@ -974,7 +974,7 @@ type cmdStorageVolumeGet struct {
 
 func (c *cmdStorageVolumeGet) Command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = i18n.G("get [<remote>:]<pool> <volume>[/<snapshot>] <key>")
+	cmd.Use = usage("get", i18n.G("[<remote>:]<pool> <volume>[/<snapshot>] <key>"))
 	cmd.Short = i18n.G("Get values for storage volume configuration keys")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
 		`Get values for storage volume configuration keys`))
@@ -1064,7 +1064,7 @@ type cmdStorageVolumeList struct {
 
 func (c *cmdStorageVolumeList) Command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = i18n.G("list [<remote>:]<pool>")
+	cmd.Use = usage("list", i18n.G("[<remote>:]<pool>"))
 	cmd.Aliases = []string{"ls"}
 	cmd.Short = i18n.G("List storage volumes")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
@@ -1137,7 +1137,7 @@ type cmdStorageVolumeMove struct {
 
 func (c *cmdStorageVolumeMove) Command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = i18n.G("move <pool>/<volume> <pool>/<volume>")
+	cmd.Use = usage("move", i18n.G("<pool>/<volume> <pool>/<volume>"))
 	cmd.Aliases = []string{"mv"}
 	cmd.Short = i18n.G("Move storage volumes between pools")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
@@ -1169,7 +1169,7 @@ type cmdStorageVolumeRename struct {
 
 func (c *cmdStorageVolumeRename) Command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = i18n.G("rename [<remote>:]<pool> <old name>[/<old snapshot name>] <new name>[/<new snapshot name>]")
+	cmd.Use = usage("rename", i18n.G("[<remote>:]<pool> <old name>[/<old snapshot name>] <new name>[/<new snapshot name>]"))
 	cmd.Short = i18n.G("Rename storage volumes and storage volume snapshots")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
 		`Rename storage volumes`))
@@ -1282,7 +1282,7 @@ type cmdStorageVolumeSet struct {
 
 func (c *cmdStorageVolumeSet) Command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = i18n.G("set [<remote>:]<pool> <volume> <key>=<value>...")
+	cmd.Use = usage("set", i18n.G("[<remote>:]<pool> <volume> <key>=<value>..."))
 	cmd.Short = i18n.G("Set storage volume configuration keys")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
 		`Set storage volume configuration keys
@@ -1358,7 +1358,7 @@ type cmdStorageVolumeShow struct {
 
 func (c *cmdStorageVolumeShow) Command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = i18n.G("show [<remote>:]<pool> <volume>[/<snapshot>]")
+	cmd.Use = usage("show", i18n.G("[<remote>:]<pool> <volume>[/<snapshot>]"))
 	cmd.Short = i18n.G("Show storage volume configurations")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
 		`Show storage volume configurations`))
@@ -1457,7 +1457,7 @@ type cmdStorageVolumeUnset struct {
 
 func (c *cmdStorageVolumeUnset) Command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = i18n.G("unset [<remote>:]<pool> <volume> <key>")
+	cmd.Use = usage("unset", i18n.G("[<remote>:]<pool> <volume> <key>"))
 	cmd.Short = i18n.G("Unset storage volume configuration keys")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
 		`Unset storage volume configuration keys`))
@@ -1490,7 +1490,7 @@ type cmdStorageVolumeSnapshot struct {
 
 func (c *cmdStorageVolumeSnapshot) Command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = i18n.G("snapshot [<remote>:]<pool> <volume> [<snapshot>]")
+	cmd.Use = usage("snapshot", i18n.G("[<remote>:]<pool> <volume> [<snapshot>]"))
 	cmd.Short = i18n.G("Snapshot storage volumes")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
 		`Snapshot storage volumes`))
@@ -1566,7 +1566,7 @@ type cmdStorageVolumeRestore struct {
 
 func (c *cmdStorageVolumeRestore) Command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = i18n.G("restore [<remote>:]<pool> <volume> <snapshot>")
+	cmd.Use = usage("restore", i18n.G("[<remote>:]<pool> <volume> <snapshot>"))
 	cmd.Short = i18n.G("Restore storage volume snapshots")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
 		`Restore storage volume snapshots`))
