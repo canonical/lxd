@@ -57,6 +57,7 @@ import (
 	"github.com/lxc/lxd/shared/logger"
 	"github.com/lxc/lxd/shared/logging"
 	"github.com/lxc/lxd/shared/osarch"
+	"github.com/lxc/lxd/shared/subprocess"
 	"github.com/lxc/lxd/shared/termios"
 	"github.com/lxc/lxd/shared/units"
 )
@@ -827,13 +828,14 @@ func (vm *qemu) Start(stateful bool) error {
 		forkLimitsCmd = append(forkLimitsCmd, fmt.Sprintf("fd=%d", 3+i))
 	}
 
-	cmd := exec.Command(vm.state.OS.ExecPath, append(forkLimitsCmd, qemuCmd...)...)
-	var stdout bytes.Buffer
-	var stderr bytes.Buffer
-	cmd.Stdout = &stdout
-	cmd.Stderr = &stderr
+	// Setup background process.
+	p, err := subprocess.NewProcess(vm.state.OS.ExecPath, append(forkLimitsCmd, qemuCmd...), vm.EarlyLogFilePath(), vm.EarlyLogFilePath())
+	if err != nil {
+		return err
+	}
 
 	// Open any extra files and pass their file handles to qemu command.
+	files := []*os.File{}
 	for _, file := range fdFiles {
 		info, err := os.Stat(file)
 		if err != nil {
@@ -870,12 +872,18 @@ func (vm *qemu) Start(stateful bool) error {
 			defer f.Close() // Close file after qemu has started.
 		}
 
-		cmd.ExtraFiles = append(cmd.ExtraFiles, f)
+		files = append(files, f)
 	}
 
-	err = cmd.Run()
+	err = p.StartWithFiles(files)
 	if err != nil {
-		err = errors.Wrapf(err, "Failed to run: %s: %s", strings.Join(cmd.Args, " "), strings.TrimSpace(string(stderr.Bytes())))
+		return err
+	}
+
+	_, err = p.Wait()
+	if err != nil {
+		stderr, _ := ioutil.ReadFile(vm.EarlyLogFilePath())
+		err = errors.Wrapf(err, "Failed to run: %s: %s", strings.Join(p.Args, " "), string(stderr))
 		op.Done(err)
 		return err
 	}
@@ -4387,6 +4395,11 @@ func (vm *qemu) ShmountsPath() string {
 func (vm *qemu) LogPath() string {
 	name := project.Instance(vm.Project(), vm.Name())
 	return shared.LogPath(name)
+}
+
+// EarlyLogFilePath returns the instance's early log path.
+func (vm *qemu) EarlyLogFilePath() string {
+	return filepath.Join(vm.LogPath(), "qemu.early.log")
 }
 
 // LogFilePath returns the instance's log path.
