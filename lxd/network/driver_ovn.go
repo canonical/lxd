@@ -63,6 +63,13 @@ type ovn struct {
 	common
 }
 
+// Config returns the network driver info.
+func (n *ovn) Info() Info {
+	return Info{
+		Projects: true,
+	}
+}
+
 // Validate network config.
 func (n *ovn) Validate(config map[string]string) error {
 	rules := map[string]func(value string) error{
@@ -613,17 +620,21 @@ func (n *ovn) startParentPortBridge(parentNet Network) error {
 // deleteParentPort deletes the parent uplink connection.
 func (n *ovn) deleteParentPort() error {
 	// Parent network must be in default project.
-	parentNet, err := LoadByName(n.state, project.Default, n.config["network"])
-	if err != nil {
-		return errors.Wrapf(err, "Failed loading parent network")
+	if n.config["network"] != "" {
+		parentNet, err := LoadByName(n.state, project.Default, n.config["network"])
+		if err != nil {
+			return errors.Wrapf(err, "Failed loading parent network")
+		}
+
+		switch parentNet.Type() {
+		case "bridge":
+			return n.deleteParentPortBridge(parentNet)
+		}
+
+		return fmt.Errorf("Network type %q unsupported as OVN parent", parentNet.Type())
 	}
 
-	switch parentNet.Type() {
-	case "bridge":
-		return n.deleteParentPortBridge(parentNet)
-	}
-
-	return fmt.Errorf("Network type %q unsupported as OVN parent", parentNet.Type())
+	return nil
 }
 
 // deleteParentPortBridge deletes the dnsmasq static lease and removes parent uplink OVS bridge if not in use.

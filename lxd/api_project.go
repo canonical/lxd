@@ -22,7 +22,13 @@ import (
 	"github.com/lxc/lxd/shared/version"
 )
 
-var projectFeatures = []string{"features.images", "features.profiles", "features.storage.volumes"}
+// projectFeatures are the features available to projects.
+var projectFeatures = []string{"features.images", "features.profiles", "features.storage.volumes", "features.networks"}
+
+// projectFeaturesDefaults are the features enabled by default on new projects.
+// The features.networks won't be enabled by default until it becomes clear whether it is practical to run OVN on
+// every system.
+var projectFeaturesDefaults = []string{"features.images", "features.profiles", "features.storage.volumes"}
 
 var projectsCmd = APIEndpoint{
 	Path: "projects",
@@ -100,7 +106,7 @@ func projectsPost(d *Daemon, r *http.Request) response.Response {
 	if project.Config == nil {
 		project.Config = map[string]string{}
 	}
-	for _, feature := range projectFeatures {
+	for _, feature := range projectFeaturesDefaults {
 		_, ok := project.Config[feature]
 		if !ok {
 			project.Config[feature] = "true"
@@ -526,12 +532,14 @@ var projectConfigKeys = map[string]func(value string) error{
 	"features.profiles":              validate.Optional(validate.IsBool),
 	"features.images":                validate.Optional(validate.IsBool),
 	"features.storage.volumes":       validate.Optional(validate.IsBool),
+	"features.networks":              validate.Optional(validate.IsBool),
 	"limits.containers":              validate.Optional(validate.IsUint32),
 	"limits.virtual-machines":        validate.Optional(validate.IsUint32),
 	"limits.memory":                  validate.Optional(validate.IsSize),
 	"limits.processes":               validate.Optional(validate.IsUint32),
 	"limits.cpu":                     validate.Optional(validate.IsUint32),
 	"limits.disk":                    validate.Optional(validate.IsSize),
+	"limits.networks":                validate.Optional(validate.IsUint32),
 	"restricted":                     validate.Optional(validate.IsBool),
 	"restricted.containers.nesting":  isEitherAllowOrBlock,
 	"restricted.containers.lowlevel": isEitherAllowOrBlock,

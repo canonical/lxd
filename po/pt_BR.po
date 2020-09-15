@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: lxd\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2020-09-09 14:18-0400\n"
+"POT-Creation-Date: 2020-09-14 14:06+0100\n"
 "PO-Revision-Date: 2019-09-06 07:09+0000\n"
 "Last-Translator: Stéphane Graber <stgraber@stgraber.org>\n"
 "Language-Team: Portuguese (Brazil) <https://hosted.weblate.org/projects/"
@@ -550,7 +550,7 @@ msgstr "IMAGEM BASE"
 msgid "Backing up instance: %s"
 msgstr "Editar arquivos no container"
 
-#: lxc/export.go:152
+#: lxc/export.go:158
 msgid "Backup exported successfully!"
 msgstr "Backup exportado com sucesso!"
 
@@ -1069,8 +1069,8 @@ msgstr ""
 #: lxc/profile.go:577 lxc/profile.go:636 lxc/profile.go:712 lxc/profile.go:762
 #: lxc/profile.go:821 lxc/profile.go:875 lxc/project.go:29 lxc/project.go:86
 #: lxc/project.go:151 lxc/project.go:214 lxc/project.go:334 lxc/project.go:384
-#: lxc/project.go:476 lxc/project.go:531 lxc/project.go:591 lxc/project.go:620
-#: lxc/project.go:673 lxc/publish.go:31 lxc/query.go:32 lxc/remote.go:33
+#: lxc/project.go:482 lxc/project.go:537 lxc/project.go:597 lxc/project.go:626
+#: lxc/project.go:679 lxc/publish.go:31 lxc/query.go:32 lxc/remote.go:33
 #: lxc/remote.go:84 lxc/remote.go:423 lxc/remote.go:459 lxc/remote.go:539
 #: lxc/remote.go:601 lxc/remote.go:651 lxc/remote.go:689 lxc/rename.go:21
 #: lxc/restore.go:24 lxc/snapshot.go:27 lxc/storage.go:33 lxc/storage.go:89
@@ -1335,7 +1335,7 @@ msgstr ""
 msgid "Export instances as backup tarballs."
 msgstr ""
 
-#: lxc/export.go:136
+#: lxc/export.go:142
 #, c-format
 msgid "Exporting the backup: %s"
 msgstr ""
@@ -1538,7 +1538,7 @@ msgstr ""
 msgid "ID: %s"
 msgstr ""
 
-#: lxc/project.go:456
+#: lxc/project.go:461
 msgid "IMAGES"
 msgstr ""
 
@@ -2187,7 +2187,7 @@ msgid "Missing profile name"
 msgstr ""
 
 #: lxc/project.go:111 lxc/project.go:180 lxc/project.go:258 lxc/project.go:358
-#: lxc/project.go:500 lxc/project.go:558 lxc/project.go:644
+#: lxc/project.go:506 lxc/project.go:564 lxc/project.go:650
 msgid "Missing project name"
 msgstr ""
 
@@ -2259,9 +2259,13 @@ msgid "Must supply instance name for: "
 msgstr ""
 
 #: lxc/cluster.go:132 lxc/list.go:435 lxc/network.go:878 lxc/profile.go:620
-#: lxc/project.go:455 lxc/remote.go:517 lxc/storage.go:558
+#: lxc/project.go:460 lxc/remote.go:517 lxc/storage.go:558
 #: lxc/storage_volume.go:1136
 msgid "NAME"
+msgstr ""
+
+#: lxc/project.go:464
+msgid "NETWORKS"
 msgstr ""
 
 #: lxc/info.go:380
@@ -2273,7 +2277,8 @@ msgid "NICs:"
 msgstr ""
 
 #: lxc/network.go:855 lxc/operation.go:143 lxc/project.go:429
-#: lxc/project.go:434 lxc/project.go:439 lxc/remote.go:480 lxc/remote.go:485
+#: lxc/project.go:434 lxc/project.go:439 lxc/project.go:444 lxc/remote.go:480
+#: lxc/remote.go:485
 msgid "NO"
 msgstr ""
 
@@ -2421,7 +2426,7 @@ msgstr ""
 msgid "PROCESSES"
 msgstr ""
 
-#: lxc/list.go:438 lxc/project.go:457
+#: lxc/list.go:438 lxc/project.go:462
 msgid "PROFILES"
 msgstr ""
 
@@ -2583,7 +2588,7 @@ msgstr ""
 msgid "Project %s deleted"
 msgstr ""
 
-#: lxc/project.go:515
+#: lxc/project.go:521
 #, c-format
 msgid "Project %s renamed to %s"
 msgstr ""
@@ -2665,7 +2670,7 @@ msgstr ""
 msgid "Remote %s already exists"
 msgstr ""
 
-#: lxc/project.go:699 lxc/remote.go:559 lxc/remote.go:621 lxc/remote.go:671
+#: lxc/project.go:705 lxc/remote.go:559 lxc/remote.go:621 lxc/remote.go:671
 #: lxc/remote.go:709
 #, c-format
 msgid "Remote %s doesn't exist"
@@ -2754,7 +2759,7 @@ msgstr ""
 msgid "Rename profiles"
 msgstr ""
 
-#: lxc/project.go:475 lxc/project.go:476
+#: lxc/project.go:481 lxc/project.go:482
 msgid "Rename projects"
 msgstr ""
 
@@ -2860,7 +2865,7 @@ msgstr ""
 msgid "STORAGE POOL"
 msgstr ""
 
-#: lxc/project.go:458
+#: lxc/project.go:463
 msgid "STORAGE VOLUMES"
 msgstr ""
 
@@ -2952,12 +2957,12 @@ msgid ""
 "    lxc profile set [<remote>:]<profile> <key> <value>"
 msgstr ""
 
-#: lxc/project.go:530
+#: lxc/project.go:536
 #, fuzzy
 msgid "Set project configuration keys"
 msgstr "Editar configurações de perfil como YAML"
 
-#: lxc/project.go:531
+#: lxc/project.go:537
 msgid ""
 "Set project configuration keys\n"
 "\n"
@@ -3069,7 +3074,7 @@ msgstr ""
 msgid "Show profile configurations"
 msgstr ""
 
-#: lxc/project.go:619 lxc/project.go:620
+#: lxc/project.go:625 lxc/project.go:626
 msgid "Show project options"
 msgstr ""
 
@@ -3241,7 +3246,7 @@ msgstr ""
 msgid "Swap (peak)"
 msgstr ""
 
-#: lxc/project.go:672 lxc/project.go:673
+#: lxc/project.go:678 lxc/project.go:679
 msgid "Switch the current project"
 msgstr ""
 
@@ -3434,7 +3439,7 @@ msgstr ""
 msgid "URL"
 msgstr ""
 
-#: lxc/network.go:884 lxc/profile.go:621 lxc/project.go:459 lxc/storage.go:567
+#: lxc/network.go:884 lxc/profile.go:621 lxc/project.go:465 lxc/storage.go:567
 #: lxc/storage_volume.go:1139
 msgid "USED BY"
 msgstr ""
@@ -3482,7 +3487,7 @@ msgstr ""
 msgid "Unset profile configuration keys"
 msgstr ""
 
-#: lxc/project.go:590 lxc/project.go:591
+#: lxc/project.go:596 lxc/project.go:597
 #, fuzzy
 msgid "Unset project configuration keys"
 msgstr "Editar configurações de perfil como YAML"
@@ -3572,7 +3577,8 @@ msgid "Whether or not to snapshot the instance's running state"
 msgstr ""
 
 #: lxc/network.go:857 lxc/operation.go:145 lxc/project.go:431
-#: lxc/project.go:436 lxc/project.go:441 lxc/remote.go:482 lxc/remote.go:487
+#: lxc/project.go:436 lxc/project.go:441 lxc/project.go:446 lxc/remote.go:482
+#: lxc/remote.go:487
 msgid "YES"
 msgstr ""
 
@@ -3700,7 +3706,7 @@ msgstr ""
 msgid "create [<remote>:]<project>"
 msgstr ""
 
-#: lxc/project.go:446
+#: lxc/project.go:451
 msgid "current"
 msgstr ""
 
@@ -4357,7 +4363,7 @@ msgstr ""
 msgid "rename [<remote>:]<profile> <new-name>"
 msgstr ""
 
-#: lxc/project.go:473
+#: lxc/project.go:479
 msgid "rename [<remote>:]<project> <new-name>"
 msgstr ""
 
@@ -4397,7 +4403,7 @@ msgstr ""
 msgid "set [<remote>:]<profile> <key><value>..."
 msgstr ""
 
-#: lxc/project.go:529
+#: lxc/project.go:535
 msgid "set [<remote>:]<project> <key>=<value>..."
 msgstr ""
 
@@ -4445,7 +4451,7 @@ msgstr ""
 msgid "show [<remote>:]<profile>"
 msgstr ""
 
-#: lxc/project.go:618
+#: lxc/project.go:624
 msgid "show [<remote>:]<project>"
 msgstr ""
 
@@ -4489,7 +4495,7 @@ msgstr ""
 msgid "switch <remote>"
 msgstr ""
 
-#: lxc/project.go:671
+#: lxc/project.go:677
 msgid "switch [<remote>:]<project>"
 msgstr ""
 
@@ -4538,7 +4544,7 @@ msgstr ""
 msgid "unset [<remote>:]<profile> <key>"
 msgstr ""
 
-#: lxc/project.go:589
+#: lxc/project.go:595
 msgid "unset [<remote>:]<project> <key>"
 msgstr ""
 

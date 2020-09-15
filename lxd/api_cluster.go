@@ -21,6 +21,7 @@ import (
 	"github.com/lxc/lxd/lxd/operations"
 	"github.com/lxc/lxd/lxd/project"
 	"github.com/lxc/lxd/lxd/response"
+	"github.com/lxc/lxd/lxd/revert"
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
@@ -392,13 +393,16 @@ func clusterPutJoin(d *Daemon, req api.ClusterPut) response.Response {
 			return errors.Wrap(err, "Failed to connect to local LXD")
 		}
 
-		err = clusterInitMember(localClient, client, req.MemberConfig)
+		revert := revert.New()
+		defer revert.Fail()
+
+		localRevert, err := clusterInitMember(localClient, client, req.MemberConfig)
 		if err != nil {
 			return errors.Wrap(err, "Failed to initialize member")
 		}
+		revert.Add(localRevert)
 
-		// Get all defined storage pools and networks, so they can be compared
-		// to the ones in the cluster.
+		// Get all defined storage pools and networks, so they can be compared to the ones in the cluster.
 		pools := []api.StoragePool{}
 		poolNames, err := d.cluster.GetStoragePoolNames()
 		if err != nil && err != db.ErrNoSuchObject {
@@ -413,24 +417,45 @@ func clusterPutJoin(d *Daemon, req api.ClusterPut) response.Response {
 			pools = append(pools, *pool)
 		}
 
-		networks := []api.Network{}
-		networkNames, err := d.cluster.GetNetworks(project.Default)
-		if err != nil && err != db.ErrNoSuchObject {
+		// Get a list of projects for networks.
+		var projects []api.Project
+
+		err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
+			projects, err = tx.GetProjects(db.ProjectFilter{})
 			return err
+		})
+		if err != nil {
+			return errors.Wrapf(err, "Failed to load projects for networks")
 		}
 
-		for _, name := range networkNames {
-			_, network, err := d.cluster.GetNetworkInAnyState(project.Default, name)
-			if err != nil {
+		networks := []internalClusterPostNetwork{}
+		for _, p := range projects {
+			networkNames, err := d.cluster.GetNetworks(p.Name)
+			if err != nil && err != db.ErrNoSuchObject {
 				return err
 			}
-			networks = append(networks, *network)
+
+			for _, name := range networkNames {
+				_, network, err := d.cluster.GetNetworkInAnyState(p.Name, name)
+				if err != nil {
+					return err
+				}
+
+				internalNetwork := internalClusterPostNetwork{
+					NetworksPost: api.NetworksPost{
+						NetworkPut: network.NetworkPut,
+						Name:       network.Name,
+						Type:       network.Type,
+					},
+					Project: p.Name,
+				}
+
+				networks = append(networks, internalNetwork)
+			}
 		}
 
 		// Now request for this node to be added to the list of cluster nodes.
-		info, err := clusterAcceptMember(
-			client, req.ServerName, address, cluster.SchemaVersion,
-			version.APIExtensionsCount(), pools, networks)
+		info, err := clusterAcceptMember(client, req.ServerName, address, cluster.SchemaVersion, version.APIExtensionsCount(), pools, networks)
 		if err != nil {
 			return errors.Wrap(err, "Failed request to add member")
 		}
@@ -457,10 +482,10 @@ func clusterPutJoin(d *Daemon, req api.ClusterPut) response.Response {
 
 		// Start clustering tasks
 		d.startClusterTasks()
+		revert.Add(func() { d.stopClusterTasks() })
 
 		err = cluster.Join(d.State(), d.gateway, cert, req.ServerName, nodes)
 		if err != nil {
-			d.stopClusterTasks()
 			return err
 		}
 
@@ -623,6 +648,7 @@ func clusterPutJoin(d *Daemon, req api.ClusterPut) response.Response {
 			logger.Warnf("Failed to trigger cluster rebalance: %v", err)
 		}
 
+		revert.Success()
 		return nil
 	}
 
@@ -696,13 +722,14 @@ func clusterPutDisable(d *Daemon) response.Response {
 
 // clusterInitMember initialises storage pools and networks on this node. We pass two LXD client instances, one
 // connected to ourselves (the joining node) and one connected to the target cluster node to join.
-func clusterInitMember(d lxd.InstanceServer, client lxd.InstanceServer, memberConfig []api.ClusterMemberConfigKey) error {
+// Returns a revert function that can be used to undo the setup if a subsequent step fails.
+func clusterInitMember(d lxd.InstanceServer, client lxd.InstanceServer, memberConfig []api.ClusterMemberConfigKey) (func(), error) {
 	data := initDataNode{}
 
 	// Fetch all pools currently defined in the cluster.
 	pools, err := client.GetStoragePools()
 	if err != nil {
-		return errors.Wrap(err, "Failed to fetch information about cluster storage pools")
+		return nil, errors.Wrap(err, "Failed to fetch information about cluster storage pools")
 	}
 
 	// Merge the returned storage pools configs with the node-specific
@@ -719,7 +746,7 @@ func clusterInitMember(d lxd.InstanceServer, client lxd.InstanceServer, memberCo
 			continue
 		}
 
-		logger.Debugf("Populating init data for storage pool %s", pool.Name)
+		logger.Debugf("Populating init data for storage pool %q", pool.Name)
 
 		post := api.StoragePoolsPost{
 			StoragePoolPut: pool.StoragePoolPut,
@@ -742,7 +769,7 @@ func clusterInitMember(d lxd.InstanceServer, client lxd.InstanceServer, memberCo
 			}
 
 			if !shared.StringInSlice(config.Key, db.StoragePoolNodeConfigKeys) {
-				logger.Warnf("Ignoring config key %s for storage pool %s", config.Key, config.Name)
+				logger.Warnf("Ignoring config key %q for storage pool %q", config.Key, config.Name)
 				continue
 			}
 
@@ -752,53 +779,97 @@ func clusterInitMember(d lxd.InstanceServer, client lxd.InstanceServer, memberCo
 		data.StoragePools = append(data.StoragePools, post)
 	}
 
-	// Fetch all networks currently defined in the cluster.
-	networks, err := client.GetNetworks()
+	projects, err := client.GetProjects()
 	if err != nil {
-		return errors.Wrap(err, "Failed to fetch information about cluster networks")
+		return nil, errors.Wrap(err, "Failed to fetch project information about cluster networks")
 	}
 
-	// Merge the returned storage networks configs with the node-specific
-	// configs provided by the user.
-	for _, network := range networks {
-		// Skip not-managed or pending networks
-		if !network.Managed || network.Status == api.NetworkStatusPending {
+	for _, p := range projects {
+		if !shared.IsTrue(p.Config["features.networks"]) && p.Name != project.Default {
+			// Skip non-default projects that can't have their own networks so we don't try
+			// and add the same default project networks twice.
 			continue
 		}
 
-		post := api.NetworksPost{
-			NetworkPut: network.NetworkPut,
-			Name:       network.Name,
-			Type:       network.Type,
+		// Fetch all networks currently defined in the cluster for the project.
+		networks, err := client.UseProject(p.Name).GetNetworks()
+		if err != nil {
+			return nil, errors.Wrapf(err, "Failed to fetch network information about cluster networks in project %q", p.Name)
 		}
 
-		// Apply the node-specific config supplied by the user.
-		for _, config := range memberConfig {
-			if config.Entity != "network" {
-				continue
+		if len(networks) > 0 {
+			// Ensure project exists locally and has same config as cluster project.
+			_, localProjectEtag, err := d.GetProject(p.Name)
+			if err != nil {
+				err = d.CreateProject(api.ProjectsPost{
+					Name: p.Name,
+					ProjectPut: api.ProjectPut{
+						Description: p.Description,
+						Config:      p.Config,
+					},
+				})
+				if err != nil {
+					return nil, errors.Wrapf(err, "Failed to create local node project %q", p.Name)
+				}
+			} else if p.Name != project.Default {
+				// Update project features if not default project.
+				err = d.UpdateProject(p.Name, api.ProjectPut{
+					Description: p.Description,
+					Config:      p.Config,
+				}, localProjectEtag)
+				if err != nil {
+					return nil, errors.Wrapf(err, "Failed to update local node project %q", p.Name)
+				}
 			}
-
-			if config.Name != network.Name {
-				continue
-			}
-
-			if !shared.StringInSlice(config.Key, db.NodeSpecificNetworkConfig) {
-				logger.Warnf("Ignoring config key %s for network %s", config.Key, config.Name)
-				continue
-			}
-
-			post.Config[config.Key] = config.Value
 		}
 
-		data.Networks = append(data.Networks, post)
+		// Merge the returned networks configs with the node-specific configs provided by the user.
+		for _, network := range networks {
+			// Skip unmanaged or pending networks.
+			if !network.Managed || network.Status == api.NetworkStatusPending {
+				continue
+			}
+
+			post := internalClusterPostNetwork{
+				NetworksPost: api.NetworksPost{
+					NetworkPut: network.NetworkPut,
+					Name:       network.Name,
+					Type:       network.Type,
+				},
+				Project: p.Name,
+			}
+
+			// Apply the node-specific config supplied by the user for networks in the default project.
+			// At this time project specific networks don't have node specific config options.
+			if p.Name == project.Default {
+				for _, config := range memberConfig {
+					if config.Entity != "network" {
+						continue
+					}
+
+					if config.Name != network.Name {
+						continue
+					}
+
+					if !shared.StringInSlice(config.Key, db.NodeSpecificNetworkConfig) {
+						logger.Warnf("Ignoring config key %q for network %q in project %q", config.Key, config.Name, p.Name)
+						continue
+					}
+
+					post.Config[config.Key] = config.Value
+				}
+			}
+
+			data.Networks = append(data.Networks, post)
+		}
 	}
 
-	err = initDataNodeApply(d, data)
+	revert, err := initDataNodeApply(d, data)
 	if err != nil {
-		return errors.Wrap(err, "Failed to initialize storage pools and networks")
+		return nil, errors.Wrap(err, "Failed to initialize storage pools and networks")
 	}
 
-	return nil
+	return revert, nil
 }
 
 // Perform a request to the /internal/cluster/accept endpoint to check if a new
@@ -807,7 +878,7 @@ func clusterInitMember(d lxd.InstanceServer, client lxd.InstanceServer, memberCo
 func clusterAcceptMember(
 	client lxd.InstanceServer,
 	name, address string, schema, apiExt int,
-	pools []api.StoragePool, networks []api.Network) (*internalClusterPostAcceptResponse, error) {
+	pools []api.StoragePool, networks []internalClusterPostNetwork) (*internalClusterPostAcceptResponse, error) {
 
 	architecture, err := osarch.ArchitectureGetLocalID()
 	if err != nil {
@@ -1031,15 +1102,28 @@ func clusterNodeDelete(d *Daemon, r *http.Request) response.Response {
 			return response.SmartError(err)
 		}
 
-		networks, err := d.cluster.GetNetworks(project.Default)
+		// Get a list of projects for networks.
+		var networkProjectNames []string
+
+		err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
+			networkProjectNames, err = tx.GetProjectNames()
+			return err
+		})
 		if err != nil {
-			return response.SmartError(err)
+			return response.SmartError(errors.Wrapf(err, "Failed to load projects for networks"))
 		}
 
-		for _, name := range networks {
-			err := client.DeleteNetwork(name)
+		for _, networkProjectName := range networkProjectNames {
+			networks, err := d.cluster.GetNetworks(networkProjectName)
 			if err != nil {
 				return response.SmartError(err)
+			}
+
+			for _, name := range networks {
+				err := client.UseProject(networkProjectName).DeleteNetwork(name)
+				if err != nil {
+					return response.SmartError(err)
+				}
 			}
 		}
 
@@ -1153,13 +1237,19 @@ func internalClusterPostAccept(d *Daemon, r *http.Request) response.Response {
 
 // A request for the /internal/cluster/accept endpoint.
 type internalClusterPostAcceptRequest struct {
-	Name         string            `json:"name" yaml:"name"`
-	Address      string            `json:"address" yaml:"address"`
-	Schema       int               `json:"schema" yaml:"schema"`
-	API          int               `json:"api" yaml:"api"`
-	StoragePools []api.StoragePool `json:"storage_pools" yaml:"storage_pools"`
-	Networks     []api.Network     `json:"networks" yaml:"networks"`
-	Architecture int               `json:"architecture" yaml:"architecture"`
+	Name         string                       `json:"name" yaml:"name"`
+	Address      string                       `json:"address" yaml:"address"`
+	Schema       int                          `json:"schema" yaml:"schema"`
+	API          int                          `json:"api" yaml:"api"`
+	StoragePools []api.StoragePool            `json:"storage_pools" yaml:"storage_pools"`
+	Networks     []internalClusterPostNetwork `json:"networks" yaml:"networks"`
+	Architecture int                          `json:"architecture" yaml:"architecture"`
+}
+
+type internalClusterPostNetwork struct {
+	api.NetworksPost `yaml:",inline"`
+
+	Project string
 }
 
 // A Response for the /internal/cluster/accept endpoint.
@@ -1508,34 +1598,61 @@ func clusterCheckStoragePoolsMatch(cluster *db.Cluster, reqPools []api.StoragePo
 	return nil
 }
 
-func clusterCheckNetworksMatch(cluster *db.Cluster, reqNetworks []api.Network) error {
-	networkNames, err := cluster.GetNonPendingNetworks(project.Default)
-	if err != nil && err != db.ErrNoSuchObject {
+func clusterCheckNetworksMatch(cluster *db.Cluster, reqNetworks []internalClusterPostNetwork) error {
+	var err error
+
+	// Get a list of projects for networks.
+	var networkProjectNames []string
+
+	err = cluster.Transaction(func(tx *db.ClusterTx) error {
+		networkProjectNames, err = tx.GetProjectNames()
 		return err
+	})
+	if err != nil {
+		return errors.Wrapf(err, "Failed to load projects for networks")
 	}
-	for _, name := range networkNames {
-		found := false
-		for _, reqNetwork := range reqNetworks {
-			if reqNetwork.Name != name {
-				continue
-			}
-			found = true
-			_, network, err := cluster.GetNetworkInAnyState(project.Default, name)
-			if err != nil {
-				return err
-			}
-			// Exclude the keys which are node-specific.
-			exclude := db.NodeSpecificNetworkConfig
-			err = util.CompareConfigs(network.Config, reqNetwork.Config, exclude)
-			if err != nil {
-				return fmt.Errorf("Mismatching config for network %s: %v", name, err)
-			}
-			break
+
+	for _, networkProjectName := range networkProjectNames {
+		networkNames, err := cluster.GetNonPendingNetworks(networkProjectName)
+		if err != nil && err != db.ErrNoSuchObject {
+			return err
 		}
-		if !found {
-			return fmt.Errorf("Missing network %s", name)
+
+		for _, networkName := range networkNames {
+			found := false
+
+			for _, reqNetwork := range reqNetworks {
+				if reqNetwork.Name != networkName || reqNetwork.Project != networkProjectName {
+					continue
+				}
+
+				found = true
+
+				_, network, err := cluster.GetNetworkInAnyState(networkProjectName, networkName)
+				if err != nil {
+					return err
+				}
+
+				if reqNetwork.Type != network.Type {
+					return fmt.Errorf("Mismatching type for network %q in project %q", networkName, networkProjectName)
+				}
+
+				// Exclude the keys which are node-specific.
+				exclude := db.NodeSpecificNetworkConfig
+				err = util.CompareConfigs(network.Config, reqNetwork.Config, exclude)
+				if err != nil {
+					return errors.Wrapf(err, "Mismatching config for network %q in project %q", networkName, networkProjectName)
+				}
+
+				break
+			}
+
+			if !found {
+				return fmt.Errorf("Missing network %q in project %q", networkName, networkProjectName)
+			}
 		}
 	}
+
 	return nil
 }
 

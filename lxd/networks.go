@@ -7,6 +7,7 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"strconv"
 	"strings"
 	"sync"
 
@@ -66,7 +67,7 @@ var networkStateCmd = APIEndpoint{
 
 // API endpoints
 func networksGet(d *Daemon, r *http.Request) response.Response {
-	projectName, err := project.NetworkProject(d.State().Cluster, projectParam(r))
+	projectName, _, err := project.NetworkProject(d.State().Cluster, projectParam(r))
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -121,7 +122,7 @@ func networksGet(d *Daemon, r *http.Request) response.Response {
 }
 
 func networksPost(d *Daemon, r *http.Request) response.Response {
-	projectName, err := project.NetworkProject(d.State().Cluster, projectParam(r))
+	projectName, projectConfig, err := project.NetworkProject(d.State().Cluster, projectParam(r))
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -150,9 +151,29 @@ func networksPost(d *Daemon, r *http.Request) response.Response {
 		req.Config = map[string]string{}
 	}
 
-	err = network.ValidateName(req.Name, req.Type)
+	err = network.ValidateNameAndProject(req.Name, projectName, req.Type)
 	if err != nil {
 		return response.BadRequest(err)
+	}
+
+	// Check if project has limits.network and if so check we are allowed to create another network.
+	if projectName != project.Default && projectConfig != nil && projectConfig["limits.networks"] != "" {
+		networksLimit, err := strconv.Atoi(projectConfig["limits.networks"])
+		if err != nil {
+			return response.InternalError(errors.Wrapf(err, "Invalid project limits.network value"))
+		}
+
+		networks, err := d.cluster.GetNetworks(projectName)
+		if err != nil {
+			return response.InternalError(errors.Wrapf(err, "Failed loading project's networks for limits check"))
+		}
+
+		// Only check network limits if the new network name doesn't exist already in networks list.
+		// If it does then this create request will either be for adding a target node to an existing
+		// pending network or it will fail anyway as it is a duplicate.
+		if !shared.StringInSlice(req.Name, networks) && len(networks) >= networksLimit {
+			return response.BadRequest(fmt.Errorf("Networks limit has been reached for project"))
+		}
 	}
 
 	// Convert requested network type to DB type code.
@@ -204,6 +225,7 @@ func networksPost(d *Daemon, r *http.Request) response.Response {
 			}
 			return response.SmartError(err)
 		}
+
 		return resp
 	}
 
@@ -415,7 +437,7 @@ func networkGet(d *Daemon, r *http.Request) response.Response {
 		return resp
 	}
 
-	projectName, err := project.NetworkProject(d.State().Cluster, projectParam(r))
+	projectName, _, err := project.NetworkProject(d.State().Cluster, projectParam(r))
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -453,8 +475,14 @@ func doNetworkGet(d *Daemon, projectName string, name string) (api.Network, erro
 	}
 
 	// Get some information.
-	osInfo, _ := net.InterfaceByName(name)
 	_, dbInfo, _ := d.cluster.GetNetworkInAnyState(projectName, name)
+
+	// Don't allow retrieving info about the local node interfaces when not using default project.
+	if projectName != project.Default && dbInfo == nil {
+		return api.Network{}, os.ErrNotExist
+	}
+
+	osInfo, _ := net.InterfaceByName(name)
 
 	// Sanity check.
 	if osInfo == nil && dbInfo == nil {
@@ -468,13 +496,13 @@ func doNetworkGet(d *Daemon, projectName string, name string) (api.Network, erro
 	n.Config = map[string]string{}
 
 	// Set the device type as needed.
-	if osInfo != nil && shared.IsLoopback(osInfo) {
-		n.Type = "loopback"
-	} else if dbInfo != nil {
+	if dbInfo != nil {
 		n.Managed = true
 		n.Description = dbInfo.Description
 		n.Config = dbInfo.Config
 		n.Type = dbInfo.Type
+	} else if osInfo != nil && shared.IsLoopback(osInfo) {
+		n.Type = "loopback"
 	} else if shared.PathExists(fmt.Sprintf("/sys/class/net/%s/bridge", n.Name)) {
 		n.Type = "bridge"
 	} else if shared.PathExists(fmt.Sprintf("/proc/net/vlan/%s", n.Name)) {
@@ -511,7 +539,7 @@ func doNetworkGet(d *Daemon, projectName string, name string) (api.Network, erro
 }
 
 func networkDelete(d *Daemon, r *http.Request) response.Response {
-	projectName, err := project.NetworkProject(d.State().Cluster, projectParam(r))
+	projectName, _, err := project.NetworkProject(d.State().Cluster, projectParam(r))
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -588,7 +616,7 @@ func networkPost(d *Daemon, r *http.Request) response.Response {
 		return response.BadRequest(err)
 	}
 
-	projectName, err := project.NetworkProject(d.State().Cluster, projectParam(r))
+	projectName, _, err := project.NetworkProject(d.State().Cluster, projectParam(r))
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -608,7 +636,7 @@ func networkPost(d *Daemon, r *http.Request) response.Response {
 		return response.BadRequest(fmt.Errorf("New network name not provided"))
 	}
 
-	err = network.ValidateName(req.Name, n.Type())
+	err = network.ValidateNameAndProject(req.Name, projectName, n.Type())
 	if err != nil {
 		return response.BadRequest(err)
 	}
@@ -649,7 +677,7 @@ func networkPut(d *Daemon, r *http.Request) response.Response {
 		return resp
 	}
 
-	projectName, err := project.NetworkProject(d.State().Cluster, projectParam(r))
+	projectName, _, err := project.NetworkProject(d.State().Cluster, projectParam(r))
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -774,7 +802,7 @@ func networkLeasesGet(d *Daemon, r *http.Request) response.Response {
 	instProjectName := projectParam(r)
 
 	// The project we should use the load the network.
-	networkProjectName, err := project.NetworkProject(d.State().Cluster, instProjectName)
+	networkProjectName, _, err := project.NetworkProject(d.State().Cluster, instProjectName)
 	if err != nil {
 		return response.SmartError(err)
 	}
