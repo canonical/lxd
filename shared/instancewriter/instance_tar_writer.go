@@ -10,6 +10,7 @@ import (
 
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/idmap"
+	"github.com/lxc/lxd/shared/logger"
 )
 
 // InstanceTarWriter provides a TarWriter implementation that handles ID shifting and hardlink tracking.
@@ -100,9 +101,37 @@ func (ctw *InstanceTarWriter) WriteFile(name string, srcPath string, fi os.FileI
 
 	// Handle xattrs (for real files only).
 	if link == "" {
-		hdr.Xattrs, err = shared.GetAllXattr(srcPath)
+		xattrs, err := shared.GetAllXattr(srcPath)
 		if err != nil {
 			return errors.Wrapf(err, "Failed to read xattr for %q", srcPath)
+		}
+
+		hdr.PAXRecords = make(map[string]string, len(xattrs))
+		for key, val := range xattrs {
+			if key == "system.posix_acl_access" {
+				aclAccess, err := idmap.UnshiftACL(val, ctw.idmapSet)
+				if err != nil {
+					logger.Debugf("%s - Failed to unshift ACL access permissions", err)
+					continue
+				}
+				hdr.PAXRecords["SCHILY.acl.access"] = aclAccess
+			} else if key == "system.posix_acl_default" {
+				aclDefault, err := idmap.UnshiftACL(val, ctw.idmapSet)
+				if err != nil {
+					logger.Debugf("%s - Failed to unshift ACL default permissions", err)
+					continue
+				}
+				hdr.PAXRecords["SCHILY.acl.default"] = aclDefault
+			} else if key == "security.capability" {
+				vfsCaps, err := idmap.UnshiftCaps(val, ctw.idmapSet)
+				if err != nil {
+					logger.Debugf("%s - Failed to unshift vfs capabilities", err)
+					continue
+				}
+				hdr.PAXRecords["SCHILY.xattr."+key] = vfsCaps
+			} else {
+				hdr.PAXRecords["SCHILY.xattr."+key] = val
+			}
 		}
 	}
 
