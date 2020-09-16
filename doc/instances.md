@@ -66,7 +66,7 @@ nvidia.driver.capabilities                  | string    | compute,utility   | no
 nvidia.runtime                              | boolean   | false             | no            | container                 | Pass the host NVIDIA and CUDA runtime libraries into the instance
 nvidia.require.cuda                         | string    | -                 | no            | container                 | Version expression for the required CUDA version (sets libnvidia-container NVIDIA\_REQUIRE\_CUDA)
 nvidia.require.driver                       | string    | -                 | no            | container                 | Version expression for the required driver version (sets libnvidia-container NVIDIA\_REQUIRE\_DRIVER)
-raw.apparmor                                | blob      | -                 | yes           | container                 | Apparmor profile entries to be appended to the generated profile
+raw.apparmor                                | blob      | -                 | yes           | -                         | Apparmor profile entries to be appended to the generated profile
 raw.idmap                                   | blob      | -                 | no            | unprivileged container    | Raw idmap configuration (e.g. "both 1000 1000")
 raw.lxc                                     | blob      | -                 | no            | container                 | Raw LXC configuration to be appended to the generated one
 raw.qemu                                    | blob      | -                 | no            | virtual-machine           | Raw Qemu configuration to be appended to the generated command line
