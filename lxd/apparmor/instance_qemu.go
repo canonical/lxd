@@ -12,27 +12,34 @@ profile "{{ .name }}" flags=(attach_disconnected,mediate_deleted) {
 
   capability dac_override,
   capability dac_read_search,
+  capability ipc_lock,
   capability setgid,
   capability setuid,
   capability sys_chroot,
   capability sys_resource,
 
   # Needed by qemu
-  /{,usr/}bin/qemu*                         mrix,
-  /dev/hugepages/**                         w,
-  /dev/kvm                                  w,
-  /dev/net/tun                              w,
-  /dev/ptmx                                 w,
-  /dev/vfio/**                              w,
-  /dev/vhost-net                            w,
-  /dev/vhost-vsock                          w,
+  /dev/hugepages/**                         rw,
+  /dev/kvm                                  rw,
+  /dev/net/tun                              rw,
+  /dev/ptmx                                 rw,
+  /dev/vfio/**                              rw,
+  /dev/vhost-net                            rw,
+  /dev/vhost-vsock                          rw,
   /etc/ceph/**                              r,
+  /sys/bus/nd/devices/                      r,
+  /sys/devices/system/node/                 r,
+  /sys/devices/system/node/**               r,
+  /sys/module/vhost/**                      r,
+  /{,usr/}bin/qemu*                         mrix,
   /usr/share/OVMF/OVMF_CODE.fd              kr,
+  /usr/share/qemu/**                        kr,
+  /usr/share/seabios/**                     kr,
   owner @{PROC}/@{pid}/task/@{tid}/comm     rw,
 
   # Instance specific paths
   {{ .logPath }}/** rwk,
-  {{ .path }}/qemu.nvram rwk,
+  {{ .path }}/** rwk,
 {{range $index, $element := .devPaths}}
   {{$element}} rwk,
 {{- end }}
@@ -52,7 +59,7 @@ profile "{{ .name }}" flags=(attach_disconnected,mediate_deleted) {
   /var/snap/lxd/common/lxd.debug            mr,
   /snap/lxd/*/bin/lxd                       mr,
   /snap/lxd/*/bin/qemu*                     mrix,
-  /snap/lxd/*/share/qemu/OVMF_CODE.fd       kr,
+  /snap/lxd/*/share/qemu/**                 kr,
 
   # Snap-specific libraries
   /snap/lxd/*/lib/**.so*            mr,
