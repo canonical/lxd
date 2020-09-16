@@ -27,6 +27,7 @@ import (
 	"gopkg.in/yaml.v2"
 
 	lxdClient "github.com/lxc/lxd/client"
+	"github.com/lxc/lxd/lxd/apparmor"
 	"github.com/lxc/lxd/lxd/backup"
 	"github.com/lxc/lxd/lxd/cluster"
 	"github.com/lxc/lxd/lxd/db"
@@ -57,6 +58,7 @@ import (
 	"github.com/lxc/lxd/shared/logger"
 	"github.com/lxc/lxd/shared/logging"
 	"github.com/lxc/lxd/shared/osarch"
+	"github.com/lxc/lxd/shared/subprocess"
 	"github.com/lxc/lxd/shared/termios"
 	"github.com/lxc/lxd/shared/units"
 )
@@ -504,6 +506,12 @@ func (vm *qemu) Freeze() error {
 
 // onStop is run when the instance stops.
 func (vm *qemu) onStop(target string) error {
+	ctxMap := log.Ctx{
+		"project":   vm.project,
+		"name":      vm.name,
+		"ephemeral": vm.ephemeral,
+	}
+
 	// Pick up the existing stop operation lock created in Stop() function.
 	op := operationlock.Get(vm.id)
 	if op != nil && op.Action() != "stop" {
@@ -523,6 +531,13 @@ func (vm *qemu) onStop(target string) error {
 			op.Done(err)
 		}
 		return err
+	}
+
+	// Unload the apparmor profile
+	err = apparmor.InstanceUnload(vm.state, vm)
+	if err != nil {
+		ctxMap["err"] = err
+		logger.Error("Failed to unload AppArmor profile", ctxMap)
 	}
 
 	if target == "reboot" {
@@ -638,6 +653,9 @@ func (vm *qemu) Start(stateful bool) error {
 
 	revert := revert.New()
 	defer revert.Fail()
+
+	// Start accumulating device paths.
+	vm.devPaths = []string{}
 
 	// Mount the instance's config volume.
 	_, err = vm.mount()
@@ -827,13 +845,23 @@ func (vm *qemu) Start(stateful bool) error {
 		forkLimitsCmd = append(forkLimitsCmd, fmt.Sprintf("fd=%d", 3+i))
 	}
 
-	cmd := exec.Command(vm.state.OS.ExecPath, append(forkLimitsCmd, qemuCmd...)...)
-	var stdout bytes.Buffer
-	var stderr bytes.Buffer
-	cmd.Stdout = &stdout
-	cmd.Stderr = &stderr
+	// Setup background process.
+	p, err := subprocess.NewProcess(vm.state.OS.ExecPath, append(forkLimitsCmd, qemuCmd...), vm.EarlyLogFilePath(), vm.EarlyLogFilePath())
+	if err != nil {
+		return err
+	}
+
+	// Load the AppArmor profile
+	err = apparmor.InstanceLoad(vm.state, vm)
+	if err != nil {
+		op.Done(err)
+		return err
+	}
+
+	p.SetApparmor(apparmor.InstanceProfileName(vm))
 
 	// Open any extra files and pass their file handles to qemu command.
+	files := []*os.File{}
 	for _, file := range fdFiles {
 		info, err := os.Stat(file)
 		if err != nil {
@@ -870,12 +898,18 @@ func (vm *qemu) Start(stateful bool) error {
 			defer f.Close() // Close file after qemu has started.
 		}
 
-		cmd.ExtraFiles = append(cmd.ExtraFiles, f)
+		files = append(files, f)
 	}
 
-	err = cmd.Run()
+	err = p.StartWithFiles(files)
 	if err != nil {
-		err = errors.Wrapf(err, "Failed to run: %s: %s", strings.Join(cmd.Args, " "), strings.TrimSpace(string(stderr.Bytes())))
+		return err
+	}
+
+	_, err = p.Wait()
+	if err != nil {
+		stderr, _ := ioutil.ReadFile(vm.EarlyLogFilePath())
+		err = errors.Wrapf(err, "Failed to run: %s: %s", strings.Join(p.Args, " "), string(stderr))
 		op.Done(err)
 		return err
 	}
@@ -2051,6 +2085,10 @@ func (vm *qemu) addDriveConfig(sb *strings.Builder, bootIndexes map[string]int, 
 		}
 	}
 
+	if !strings.HasPrefix(driveConf.DevPath, "rbd:") {
+		vm.devPaths = append(vm.devPaths, driveConf.DevPath)
+	}
+
 	return qemuDrive.Execute(sb, map[string]interface{}{
 		"devName":   driveConf.DevName,
 		"devPath":   driveConf.DevPath,
@@ -3214,6 +3252,9 @@ func (vm *qemu) cleanup() {
 	// Unmount any leftovers
 	vm.removeUnixDevices()
 	vm.removeDiskDevices()
+
+	// Remove the security profiles
+	apparmor.InstanceDelete(vm.state, vm)
 
 	// Remove the devices path
 	os.Remove(vm.DevicesPath())
@@ -4387,6 +4428,11 @@ func (vm *qemu) ShmountsPath() string {
 func (vm *qemu) LogPath() string {
 	name := project.Instance(vm.Project(), vm.Name())
 	return shared.LogPath(name)
+}
+
+// EarlyLogFilePath returns the instance's early log path.
+func (vm *qemu) EarlyLogFilePath() string {
+	return filepath.Join(vm.LogPath(), "qemu.early.log")
 }
 
 // LogFilePath returns the instance's log path.

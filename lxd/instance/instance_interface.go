@@ -69,6 +69,9 @@ type Instance interface {
 	Delete() error
 	Export(w io.Writer, properties map[string]string) (api.ImageMetadata, error)
 
+	// Used for security.
+	DevPaths() []string
+
 	// Live configuration.
 	CGroupSet(key string, value string) error
 	VolatileSet(changes map[string]string) error
