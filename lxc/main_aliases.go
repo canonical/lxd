@@ -48,7 +48,7 @@ func expandAlias(conf *config.Config, args []string) ([]string, bool) {
 	var newArgs []string
 	var origArgs []string
 
-	for _, arg := range args {
+	for _, arg := range args[1:] {
 		if arg[0] != '-' {
 			break
 		}
@@ -56,7 +56,7 @@ func expandAlias(conf *config.Config, args []string) ([]string, bool) {
 		newArgs = append(newArgs, arg)
 	}
 
-	origArgs = args[len(newArgs):]
+	origArgs = append([]string{args[0]}, args[len(newArgs)+1:]...)
 
 	aliasKey, aliasValue, foundAlias := findAlias(conf.Aliases, origArgs)
 	if !foundAlias {
@@ -67,7 +67,7 @@ func expandAlias(conf *config.Config, args []string) ([]string, bool) {
 	}
 
 	if !strings.HasPrefix(aliasValue[0], "/") {
-		newArgs = append(newArgs, origArgs[0])
+		newArgs = append([]string{origArgs[0]}, newArgs...)
 	}
 	hasReplacedArgsVar := false
 
