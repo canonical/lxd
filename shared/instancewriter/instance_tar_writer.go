@@ -108,24 +108,24 @@ func (ctw *InstanceTarWriter) WriteFile(name string, srcPath string, fi os.FileI
 
 		hdr.PAXRecords = make(map[string]string, len(xattrs))
 		for key, val := range xattrs {
-			if key == "system.posix_acl_access" {
+			if key == "system.posix_acl_access" && ctw.idmapSet != nil {
 				aclAccess, err := idmap.UnshiftACL(val, ctw.idmapSet)
 				if err != nil {
-					logger.Debugf("%s - Failed to unshift ACL access permissions", err)
+					logger.Debugf("Failed to unshift ACL access permissions of %q: %v", srcPath, err)
 					continue
 				}
 				hdr.PAXRecords["SCHILY.acl.access"] = aclAccess
-			} else if key == "system.posix_acl_default" {
+			} else if key == "system.posix_acl_default" && ctw.idmapSet != nil {
 				aclDefault, err := idmap.UnshiftACL(val, ctw.idmapSet)
 				if err != nil {
-					logger.Debugf("%s - Failed to unshift ACL default permissions", err)
+					logger.Debugf("Failed to unshift ACL default permissions of %q: %v", srcPath, err)
 					continue
 				}
 				hdr.PAXRecords["SCHILY.acl.default"] = aclDefault
-			} else if key == "security.capability" {
+			} else if key == "security.capability" && ctw.idmapSet != nil {
 				vfsCaps, err := idmap.UnshiftCaps(val, ctw.idmapSet)
 				if err != nil {
-					logger.Debugf("%s - Failed to unshift vfs capabilities", err)
+					logger.Debugf("Failed to unshift VFS capabilities of %q: %v", srcPath, err)
 					continue
 				}
 				hdr.PAXRecords["SCHILY.xattr."+key] = vfsCaps

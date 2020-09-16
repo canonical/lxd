@@ -440,6 +440,10 @@ func SupportsVFS3Fscaps(prefix string) bool {
 }
 
 func UnshiftACL(value string, set *IdmapSet) (string, error) {
+	if set == nil {
+		return "", fmt.Errorf("Invalid IdmapSet supplied")
+	}
+
 	buf := []byte(value)
 	cBuf := C.CBytes(buf)
 	defer C.free(cBuf)
@@ -502,6 +506,10 @@ func UnshiftACL(value string, set *IdmapSet) (string, error) {
 }
 
 func UnshiftCaps(value string, set *IdmapSet) (string, error) {
+	if set == nil {
+		return "", fmt.Errorf("Invalid IdmapSet supplied")
+	}
+
 	buf := []byte(value)
 	cBuf := C.CBytes(buf)
 	defer C.free(cBuf)
