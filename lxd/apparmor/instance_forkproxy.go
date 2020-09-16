@@ -185,10 +185,10 @@ func ForkproxyLoad(state *state.State, inst instance, dev device) error {
 // ForkproxyUnload ensures that the instances's policy namespace is unloaded to free kernel memory.
 // This does not delete the policy from disk or cache.
 func ForkproxyUnload(state *state.State, inst instance, dev device) error {
-	return unloadProfile(state, forkproxyProfileFilename(inst, dev))
+	return unloadProfile(state, ForkproxyProfileName(inst, dev), forkproxyProfileFilename(inst, dev))
 }
 
 // ForkproxyDelete removes the policy from cache/disk.
 func ForkproxyDelete(state *state.State, inst instance, dev device) error {
-	return deleteProfile(state, forkproxyProfileFilename(inst, dev))
+	return deleteProfile(state, ForkproxyProfileName(inst, dev), forkproxyProfileFilename(inst, dev))
 }

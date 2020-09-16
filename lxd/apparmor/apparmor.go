@@ -83,9 +83,9 @@ func deleteNamespace(state *state.State, name string) error {
 
 // hasProfile checks if the profile is already loaded.
 func hasProfile(state *state.State, name string) (bool, error) {
-	mangled := strings.Replace(name, "/", ".", -1)
+	mangled := strings.Replace(strings.Replace(strings.Replace(name, "/", ".", -1), "<", "", -1), ">", "", -1)
 
-	profilesPath := "/sys/kernel/security/apaprmor/policy/profiles"
+	profilesPath := "/sys/kernel/security/apparmor/policy/profiles"
 	if shared.PathExists(profilesPath) {
 		entries, err := ioutil.ReadDir(profilesPath)
 		if err != nil {
@@ -94,7 +94,7 @@ func hasProfile(state *state.State, name string) (bool, error) {
 
 		for _, entry := range entries {
 			fields := strings.Split(entry.Name(), ".")
-			if mangled == strings.Join(fields[0:len(fields)-2], ".") {
+			if mangled == strings.Join(fields[0:len(fields)-1], ".") {
 				return true, nil
 			}
 		}
@@ -122,12 +122,12 @@ func loadProfile(state *state.State, name string) error {
 }
 
 // unloadProfile removes the profile from the kernel.
-func unloadProfile(state *state.State, name string) error {
+func unloadProfile(state *state.State, fullName string, name string) error {
 	if !state.OS.AppArmorAvailable {
 		return nil
 	}
 
-	ok, err := hasProfile(state, name)
+	ok, err := hasProfile(state, fullName)
 	if err != nil {
 		return err
 	}
@@ -140,7 +140,7 @@ func unloadProfile(state *state.State, name string) error {
 }
 
 // deleteProfile unloads and delete profile and cache for a profile.
-func deleteProfile(state *state.State, name string) error {
+func deleteProfile(state *state.State, fullName string, name string) error {
 	if !state.OS.AppArmorAdmin {
 		return nil
 	}
@@ -150,7 +150,7 @@ func deleteProfile(state *state.State, name string) error {
 		return err
 	}
 
-	err = unloadProfile(state, name)
+	err = unloadProfile(state, fullName, name)
 	if err != nil {
 		return err
 	}
