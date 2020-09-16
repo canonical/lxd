@@ -2041,11 +2041,14 @@ func (vm *qemu) addDriveConfig(sb *strings.Builder, bootIndexes map[string]int, 
 			return errors.Wrapf(err, "Failed detecting filesystem type of %q", driveConf.DevPath)
 		}
 
-		// If FS is ZFS, avoid using direct I/O and use host page cache only.
-		if fsType == "zfs" {
+		// If backing FS is ZFS or BTRFS, avoid using direct I/O and use host page cache only.
+		// We've seen ZFS hangs and BTRFS checksum issues when using direct I/O on image files.
+		if fsType == "zfs" || fsType == "btrfs" {
 			if driveConf.FSType != "iso9660" {
-				logger.Warnf("Using writeback cache I/O with %s", driveConf.DevPath)
+				// Only warn about using writeback cache if the drive image is writable.
+				logger.Warnf("Using writeback cache I/O with %q as backing filesystem is %q", driveConf.DevPath, fsType)
 			}
+
 			aioMode = "threads"
 			cacheMode = "writeback" // Use host cache, with neither O_DSYNC nor O_DIRECT semantics.
 		}
