@@ -10,6 +10,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/pkg/errors"
+
 	"github.com/lxc/lxd/client"
 	"github.com/lxc/lxd/lxd/cluster"
 	"github.com/lxc/lxd/lxd/db"
@@ -106,13 +108,40 @@ func (d *Daemon) ImageDownload(op *operations.Operation, server string, protocol
 		}
 	}
 
-	// Check if the image already exists in this project (partial hash match)
+	// Check if the image already exists in this project (partial hash match).
 	_, imgInfo, err := d.cluster.GetImage(project, fp, false)
-	if err == db.ErrNoSuchObject {
+	if err == nil {
+		// Check if the image is available locally or it's on another node.
+		nodeAddress, err := d.State().Cluster.LocateImage(imgInfo.Fingerprint)
+		if err != nil {
+			return nil, errors.Wrapf(err, "Locate image %q in the cluster", imgInfo.Fingerprint)
+		}
+
+		if nodeAddress != "" {
+			// The image is available from another node, let's try to import it.
+			err = instanceImageTransfer(d, project, info.Fingerprint, nodeAddress)
+			if err != nil {
+				return nil, errors.Wrapf(err, "Failed transferring image")
+			}
+
+			// As the image record already exists in the project, just add the node ID to the image.
+			err = d.cluster.AddImageToLocalNode(project, info.Fingerprint)
+			if err != nil {
+				return nil, errors.Wrapf(err, "Failed adding image to local node")
+			}
+		}
+	} else if err == db.ErrNoSuchObject {
 		// Check if the image already exists in some other project.
 		_, imgInfo, err = d.cluster.GetImageFromAnyProject(fp)
 		if err == nil {
-			// We just need to insert the database data, no actual download necessary.
+			// Check if the image is available locally or it's on another node. Do this before creating
+			// the missing DB record so we don't include ourself in the search results.
+			nodeAddress, err := d.State().Cluster.LocateImage(imgInfo.Fingerprint)
+			if err != nil {
+				return nil, errors.Wrapf(err, "Locate image %q in the cluster", imgInfo.Fingerprint)
+			}
+
+			// We need to insert the database entry for this project, including the node ID entry.
 			err = d.cluster.CreateImage(
 				project, imgInfo.Fingerprint, imgInfo.Filename, imgInfo.Size, false,
 				imgInfo.AutoUpdate, imgInfo.Architecture, imgInfo.CreatedAt, imgInfo.ExpiresAt,
@@ -126,15 +155,25 @@ func (d *Daemon) ImageDownload(op *operations.Operation, server string, protocol
 			if err != nil {
 				return nil, err
 			}
+
 			err = d.cluster.CreateImageSource(id, server, protocol, certificate, alias)
 			if err != nil {
 				return nil, err
 			}
+
+			// Transfer image if needed (after database record has been created above).
+			if nodeAddress != "" {
+				// The image is available from another node, let's try to import it.
+				err = instanceImageTransfer(d, project, info.Fingerprint, nodeAddress)
+				if err != nil {
+					return nil, errors.Wrapf(err, "Failed transferring image")
+				}
+			}
 		}
 	}
 
-	if err == nil {
-		logger.Debug("Image already exists in the db", log.Ctx{"image": fp})
+	if imgInfo != nil {
+		logger.Debugf("Image %q already exists in the DB", fp)
 		info = imgInfo
 
 		// If not requested in a particular pool, we're done.
@@ -155,20 +194,20 @@ func (d *Daemon) ImageDownload(op *operations.Operation, server string, protocol
 		}
 
 		if shared.Int64InSlice(poolID, poolIDs) {
-			logger.Debugf("Image already exists on storage pool \"%s\"", storagePool)
+			logger.Debugf("Image already exists on storage pool %q", storagePool)
 			return info, nil
 		}
 
 		// Import the image in the pool
-		logger.Debugf("Image does not exist on storage pool \"%s\"", storagePool)
+		logger.Debugf("Image does not exist on storage pool %q", storagePool)
 
 		err = imageCreateInPool(d, info, storagePool)
 		if err != nil {
-			logger.Debugf("Failed to create image on storage pool \"%s\": %s", storagePool, err)
+			logger.Debugf("Failed to create image on storage pool %q: %v", storagePool, err)
 			return nil, err
 		}
 
-		logger.Debugf("Created image on storage pool \"%s\"", storagePool)
+		logger.Debugf("Created image on storage pool %q", storagePool)
 		return info, nil
 	}
 
@@ -368,7 +407,7 @@ func (d *Daemon) ImageDownload(op *operations.Operation, server string, protocol
 		}
 
 		if raw.StatusCode != http.StatusOK {
-			return nil, fmt.Errorf("Unable to fetch %s: %s", server, raw.Status)
+			return nil, fmt.Errorf("Unable to fetch %q: %s", server, raw.Status)
 		}
 
 		// Progress handler
@@ -402,7 +441,7 @@ func (d *Daemon) ImageDownload(op *operations.Operation, server string, protocol
 		// Validate hash
 		result := fmt.Sprintf("%x", sha256.Sum(nil))
 		if result != fp {
-			return nil, fmt.Errorf("Hash mismatch for %s: %s != %s", server, result, fp)
+			return nil, fmt.Errorf("Hash mismatch for %q: %s != %s", server, result, fp)
 		}
 
 		// Parse the image
