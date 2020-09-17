@@ -10,6 +10,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/pkg/errors"
+
 	"github.com/lxc/lxd/client"
 	"github.com/lxc/lxd/lxd/cluster"
 	"github.com/lxc/lxd/lxd/db"
@@ -106,13 +108,40 @@ func (d *Daemon) ImageDownload(op *operations.Operation, server string, protocol
 		}
 	}
 
-	// Check if the image already exists in this project (partial hash match)
+	// Check if the image already exists in this project (partial hash match).
 	_, imgInfo, err := d.cluster.GetImage(project, fp, false)
-	if err == db.ErrNoSuchObject {
+	if err == nil {
+		// Check if the image is available locally or it's on another node.
+		nodeAddress, err := d.State().Cluster.LocateImage(imgInfo.Fingerprint)
+		if err != nil {
+			return nil, errors.Wrapf(err, "Locate image %q in the cluster", imgInfo.Fingerprint)
+		}
+
+		if nodeAddress != "" {
+			// The image is available from another node, let's try to import it.
+			err = instanceImageTransfer(d, project, info.Fingerprint, nodeAddress)
+			if err != nil {
+				return nil, errors.Wrapf(err, "Failed transferring image")
+			}
+
+			// As the image record already exists in the project, just add the node ID to the image.
+			err = d.cluster.AddImageToLocalNode(project, info.Fingerprint)
+			if err != nil {
+				return nil, errors.Wrapf(err, "Failed adding image to local node")
+			}
+		}
+	} else if err == db.ErrNoSuchObject {
 		// Check if the image already exists in some other project.
 		_, imgInfo, err = d.cluster.GetImageFromAnyProject(fp)
 		if err == nil {
-			// We just need to insert the database data, no actual download necessary.
+			// Check if the image is available locally or it's on another node. Do this before creating
+			// the missing DB record so we don't include ourself in the search results.
+			nodeAddress, err := d.State().Cluster.LocateImage(imgInfo.Fingerprint)
+			if err != nil {
+				return nil, errors.Wrapf(err, "Locate image %q in the cluster", imgInfo.Fingerprint)
+			}
+
+			// We need to insert the database entry for this project, including the node ID entry.
 			err = d.cluster.CreateImage(
 				project, imgInfo.Fingerprint, imgInfo.Filename, imgInfo.Size, false,
 				imgInfo.AutoUpdate, imgInfo.Architecture, imgInfo.CreatedAt, imgInfo.ExpiresAt,
@@ -126,15 +155,25 @@ func (d *Daemon) ImageDownload(op *operations.Operation, server string, protocol
 			if err != nil {
 				return nil, err
 			}
+
 			err = d.cluster.CreateImageSource(id, server, protocol, certificate, alias)
 			if err != nil {
 				return nil, err
 			}
+
+			// Transfer image if needed (after database record has been created above).
+			if nodeAddress != "" {
+				// The image is available from another node, let's try to import it.
+				err = instanceImageTransfer(d, project, info.Fingerprint, nodeAddress)
+				if err != nil {
+					return nil, errors.Wrapf(err, "Failed transferring image")
+				}
+			}
 		}
 	}
 
-	if err == nil {
-		logger.Debug("Image already exists in the db", log.Ctx{"image": fp})
+	if imgInfo != nil {
+		logger.Debugf("Image %q already exists in the DB", fp)
 		info = imgInfo
 
 		// If not requested in a particular pool, we're done.
