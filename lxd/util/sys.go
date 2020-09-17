@@ -167,5 +167,8 @@ func GetExecPath() string {
 	if err != nil {
 		execPath = "bad-exec-path"
 	}
-	return execPath
+
+	// The execPath from /proc/self/exe can end with " (deleted)" if the lxd binary has been removed/changed
+	// since the lxd process was started, strip this so that we only return a valid path.
+	return strings.TrimSuffix(execPath, " (deleted)")
 }
