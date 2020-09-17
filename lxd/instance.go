@@ -71,6 +71,24 @@ func instanceCreateAsEmpty(d *Daemon, args db.InstanceArgs) (instance.Instance, 
 	return inst, nil
 }
 
+// instanceImageTransfer transfers an image from another cluster node.
+func instanceImageTransfer(d *Daemon, projectName string, hash string, nodeAddress string) error {
+	logger.Debugf("Transferring image %q from node %q", hash, nodeAddress)
+	client, err := cluster.Connect(nodeAddress, d.endpoints.NetworkCert(), false)
+	if err != nil {
+		return err
+	}
+
+	client = client.UseProject(projectName)
+
+	err = imageImportFromNode(filepath.Join(d.os.VarDir, "images"), client, hash)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
 // instanceCreateFromImage creates an instance from a rootfs image.
 func instanceCreateFromImage(d *Daemon, args db.InstanceArgs, hash string, op *operations.Operation) (instance.Instance, error) {
 	s := d.State()
@@ -99,26 +117,19 @@ func instanceCreateFromImage(d *Daemon, args db.InstanceArgs, hash string, op *o
 	// Check if the image is available locally or it's on another node.
 	nodeAddress, err := s.Cluster.LocateImage(hash)
 	if err != nil {
-		return nil, errors.Wrapf(err, "Locate image %s in the cluster", hash)
+		return nil, errors.Wrapf(err, "Locate image %q in the cluster", hash)
 	}
 	if nodeAddress != "" {
 		// The image is available from another node, let's try to import it.
-		logger.Debugf("Transferring image %s from node %s", hash, nodeAddress)
-		client, err := cluster.Connect(nodeAddress, d.endpoints.NetworkCert(), false)
+		err = instanceImageTransfer(d, args.Project, img.Fingerprint, nodeAddress)
 		if err != nil {
-			return nil, err
+			return nil, errors.Wrapf(err, "Failed transferring image")
 		}
 
-		client = client.UseProject(args.Project)
-
-		err = imageImportFromNode(filepath.Join(d.os.VarDir, "images"), client, hash)
+		// As the image record already exists in the project, just add the node ID to the image.
+		err = d.cluster.AddImageToLocalNode(args.Project, img.Fingerprint)
 		if err != nil {
-			return nil, err
-		}
-
-		err = d.cluster.AddImageToLocalNode(args.Project, hash)
-		if err != nil {
-			return nil, err
+			return nil, errors.Wrapf(err, "Failed adding image to local node")
 		}
 	}
 
