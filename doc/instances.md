@@ -709,15 +709,15 @@ addresses to an address inside the instance or to do the reverse and
 have an address in the instance connect through the host.
 
 The supported connection types are:
-* `TCP <-> TCP`
-* `UDP <-> UDP`
-* `UNIX <-> UNIX`
-* `TCP <-> UNIX`
-* `UNIX <-> TCP`
-* `UDP <-> TCP`
-* `TCP <-> UDP`
-* `UDP <-> UNIX`
-* `UNIX <-> UDP`
+* `tcp <-> tcp`
+* `udp <-> udp`
+* `unix <-> unix`
+* `tcp <-> unix`
+* `unix <-> tcp`
+* `udp <-> tcp`
+* `tcp <-> udp`
+* `udp <-> unix`
+* `unix <-> udp`
 
 The proxy device also supports a `nat` mode where packets are forwarded using NAT rather than being proxied through
 a separate connection. This has benefit that the client address is maintained without the need for the target
@@ -735,8 +735,8 @@ In order to define a static IPv6 address, the parent managed network needs to ha
 
 In NAT mode the supported connection types are:
 
-* `TCP <-> TCP`
-* `UDP <-> UDP`
+* `tcp <-> tcp`
+* `udp <-> udp`
 
 When defining IPv6 addresses use square bracket notation, e.g.
 
