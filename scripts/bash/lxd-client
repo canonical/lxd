@@ -16,47 +16,37 @@ _have lxc && {
 
     _lxd_images()
     {
-      COMPREPLY=( $( compgen -W \
-        "$( lxc image list | tail -n +4 | awk '{print $2}' | egrep -v '^(\||^$)' )" "$cur" )
-      )
+      COMPREPLY=( $( compgen -W "$( lxc image list --format=csv | cut -d, -f1 )" "$cur" ) )
     }
 
     _lxd_remotes()
     {
-      COMPREPLY=( $( compgen -W \
-        "$( lxc remote list | tail -n +4 | awk '{print $2}' | egrep -v '^(\||^$)' )" "$cur" )
-      )
+      COMPREPLY=( $( compgen -W "$( lxc remote list --format=csv | cut -d, -f1 )" "$cur" ) )
     }
 
     _lxd_profiles()
     {
-      COMPREPLY=( $( compgen -W "$( lxc profile list | tail -n +4 | awk '{print $2}' | egrep -v '^(\||^$)' )" "$cur" ) )
+      COMPREPLY=( $( compgen -W "$( lxc profile list --format=csv | cut -d, -f1 )" "$cur" ) )
     }
 
     _lxd_projects()
     {
-      COMPREPLY=( $( compgen -W "$( lxc project list | tail -n +4 | awk '{print $2}' | egrep -v '^(\||^$)' )" "$cur" ) )
+      COMPREPLY=( $( compgen -W "$( lxc project list --format=csv | cut -d, -f1 )" "$cur" ) )
     }
 
     _lxd_networks()
     {
-      COMPREPLY=( $( compgen -W \
-        "$( lxc network list | tail -n +4 | awk '{print $2}' | egrep -v '^(\||^$)' )" "$cur" )
-      )
+      COMPREPLY=( $( compgen -W "$( lxc network list --format=csv | cut -d, -f1 )" "$cur" ) )
     }
 
     _lxd_storage_pools()
     {
-      COMPREPLY=( $( compgen -W \
-        "$( lxc storage list | tail -n +4 | awk '{print $2}' | egrep -v '^(\||^$)' )" "$cur" )
-      )
+      COMPREPLY=( $( compgen -W "$( lxc storage list --format=csv | cut -d, -f1 )" "$cur" ) )
     }
 
     _lxd_storage_volumes()
     {
-      COMPREPLY=( $( compgen -W \
-        "$( lxc storage volume list | tail -n +4 | awk '{print $2}' | egrep -v '^(\||^$)' )" "$cur" )
-      )
+      COMPREPLY=( $( compgen -W "$( lxc storage volume list --format=csv | cut -d, -f1 )" "$cur" ) )
     }
 
     COMPREPLY=()
@@ -369,7 +359,7 @@ _have lxc && {
         _lxd_names
         ;;
       "start")
-        _lxd_names "STOPPED|FROZEN"
+        _lxd_names "(STOPPED|FROZEN)"
         ;;
       "stop")
         _lxd_names "RUNNING"
