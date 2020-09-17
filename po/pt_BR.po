@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: lxd\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2020-09-15 12:13-0400\n"
+"POT-Creation-Date: 2020-09-17 12:43-0400\n"
 "PO-Revision-Date: 2019-09-06 07:09+0000\n"
 "Last-Translator: Stéphane Graber <stgraber@stgraber.org>\n"
 "Language-Team: Portuguese (Brazil) <https://hosted.weblate.org/projects/"
@@ -703,7 +703,7 @@ msgstr "Não pode fornecer um nome para a imagem de destino"
 msgid "Can't pull a directory without --recursive"
 msgstr "Não pode pegar um diretório sem --recursive"
 
-#: lxc/utils.go:228 lxc/utils.go:248
+#: lxc/utils.go:229 lxc/utils.go:249
 #, c-format
 msgid "Can't read from stdin: %s"
 msgstr "Não é possível ler stdin: %s"
@@ -1167,7 +1167,7 @@ msgstr "Dispositivo %s sobreposto em %s"
 msgid "Device %s removed from %s"
 msgstr "Dispositivo %s removido de %s"
 
-#: lxc/utils.go:135 lxc/utils.go:159
+#: lxc/utils.go:136 lxc/utils.go:160
 #, c-format
 msgid "Device already exists: %s"
 msgstr "O dispositivo já existe: %s"
@@ -1408,7 +1408,7 @@ msgstr ""
 msgid "Failed to connect to cluster member"
 msgstr ""
 
-#: lxc/utils.go:204
+#: lxc/utils.go:205
 #, c-format
 msgid "Failed to create alias %s"
 msgstr ""
@@ -1417,7 +1417,7 @@ msgstr ""
 msgid "Failed to get the new instance name"
 msgstr ""
 
-#: lxc/utils.go:194
+#: lxc/utils.go:195
 #, c-format
 msgid "Failed to remove alias %s"
 msgstr ""
