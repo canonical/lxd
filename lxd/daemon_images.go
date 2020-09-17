@@ -155,20 +155,20 @@ func (d *Daemon) ImageDownload(op *operations.Operation, server string, protocol
 		}
 
 		if shared.Int64InSlice(poolID, poolIDs) {
-			logger.Debugf("Image already exists on storage pool \"%s\"", storagePool)
+			logger.Debugf("Image already exists on storage pool %q", storagePool)
 			return info, nil
 		}
 
 		// Import the image in the pool
-		logger.Debugf("Image does not exist on storage pool \"%s\"", storagePool)
+		logger.Debugf("Image does not exist on storage pool %q", storagePool)
 
 		err = imageCreateInPool(d, info, storagePool)
 		if err != nil {
-			logger.Debugf("Failed to create image on storage pool \"%s\": %s", storagePool, err)
+			logger.Debugf("Failed to create image on storage pool %q: %v", storagePool, err)
 			return nil, err
 		}
 
-		logger.Debugf("Created image on storage pool \"%s\"", storagePool)
+		logger.Debugf("Created image on storage pool %q", storagePool)
 		return info, nil
 	}
 
@@ -368,7 +368,7 @@ func (d *Daemon) ImageDownload(op *operations.Operation, server string, protocol
 		}
 
 		if raw.StatusCode != http.StatusOK {
-			return nil, fmt.Errorf("Unable to fetch %s: %s", server, raw.Status)
+			return nil, fmt.Errorf("Unable to fetch %q: %s", server, raw.Status)
 		}
 
 		// Progress handler
@@ -402,7 +402,7 @@ func (d *Daemon) ImageDownload(op *operations.Operation, server string, protocol
 		// Validate hash
 		result := fmt.Sprintf("%x", sha256.Sum(nil))
 		if result != fp {
-			return nil, fmt.Errorf("Hash mismatch for %s: %s != %s", server, result, fp)
+			return nil, fmt.Errorf("Hash mismatch for %q: %s != %s", server, result, fp)
 		}
 
 		// Parse the image
