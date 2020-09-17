@@ -768,7 +768,7 @@ Key             | Type      | Default       | Required  | Description
 :--             | :--       | :--           | :--       | :--
 listen          | string    | -             | yes       | The address and port to bind and listen (`<type>:<addr>:<port>[-<port>][,<port>]`)
 connect         | string    | -             | yes       | The address and port to connect to (`<type>:<addr>:<port>[-<port>][,<port>]`)
-bind            | string    | host          | no        | Which side to bind on (host/guest)
+bind            | string    | host          | no        | Which side to bind on (host/instance)
 uid             | int       | 0             | no        | UID of the owner of the listening Unix socket
 gid             | int       | 0             | no        | GID of the owner of the listening Unix socket
 mode            | int       | 0644          | no        | Mode for the listening Unix socket
