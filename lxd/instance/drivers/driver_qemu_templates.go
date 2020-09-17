@@ -268,8 +268,8 @@ policy = "bind"
 
 [numa]
 type = "node"
-nodeid = "{{$element}}"
-memdev = "mem{{$element}}"
+nodeid = "{{$index}}"
+memdev = "mem{{$index}}"
 {{end}}
 {{else}}
 [object "mem0"]
