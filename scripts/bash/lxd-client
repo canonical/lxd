@@ -357,7 +357,7 @@ _have lxc && {
         _lxd_names
         ;;
       "start")
-        _lxd_names "STOPPED|FROZEN"
+        _lxd_names "(STOPPED|FROZEN)"
         ;;
       "stop")
         _lxd_names "RUNNING"
