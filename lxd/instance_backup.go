@@ -351,7 +351,7 @@ func containerBackupExportGet(d *Daemon, r *http.Request) response.Response {
 	}
 
 	ent := response.FileResponseEntry{
-		Path: shared.VarPath("backups", project.Instance(proj, backup.Name())),
+		Path: shared.VarPath("backups", "instances", project.Instance(proj, backup.Name())),
 	}
 
 	return response.FileResponse(r, []response.FileResponseEntry{ent}, nil, false)
