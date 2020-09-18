@@ -1824,15 +1824,8 @@ func (n *bridge) addressForSubnet(subnet *net.IPNet) (net.IP, string, error) {
 		}
 
 		for _, addr := range addrs {
-			ip, network, err := net.ParseCIDR(addr.String())
+			ip, _, err := net.ParseCIDR(addr.String())
 			if err != nil {
-				continue
-			}
-
-			// Skip /32 addresses on interfaces in case VIPs are being used on a different interface
-			// than the intended underlay subnet interface.
-			maskOnes, maskSize := network.Mask.Size()
-			if maskOnes == 32 && maskSize == 32 {
 				continue
 			}
 
