@@ -550,7 +550,7 @@ func createFromBackup(d *Daemon, project string, data io.Reader, pool string) re
 	defer revert.Fail()
 
 	// Create temporary file to store uploaded backup data.
-	backupFile, err := ioutil.TempFile(shared.VarPath("backups"), "lxd_backup_")
+	backupFile, err := ioutil.TempFile(shared.VarPath("backups"), fmt.Sprintf("%s_", backup.WorkingDirPrefix))
 	if err != nil {
 		return response.InternalError(err)
 	}
@@ -575,7 +575,7 @@ func createFromBackup(d *Daemon, project string, data io.Reader, pool string) re
 		decomArgs := append(decomArgs, backupFile.Name())
 
 		// Create temporary file to store the decompressed tarball in.
-		tarFile, err := ioutil.TempFile(shared.VarPath("backups"), "lxd_backup_decompress_")
+		tarFile, err := ioutil.TempFile(shared.VarPath("backups"), fmt.Sprintf("%s_decompress_", backup.WorkingDirPrefix))
 		if err != nil {
 			return response.InternalError(err)
 		}
