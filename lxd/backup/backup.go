@@ -235,10 +235,10 @@ func (b *Backup) Render() *api.InstanceBackup {
 }
 
 // DoBackupDelete deletes a backup.
-func DoBackupDelete(s *state.State, projectName, backupName, containerName string) error {
-	backupPath := shared.VarPath("backups", project.Instance(projectName, backupName))
+func DoBackupDelete(s *state.State, projectName, backupName, instanceName string) error {
+	backupPath := shared.VarPath("backups", "instances", project.Instance(projectName, backupName))
 
-	// Delete the on-disk data
+	// Delete the on-disk data.
 	if shared.PathExists(backupPath) {
 		err := os.RemoveAll(backupPath)
 		if err != nil {
@@ -246,8 +246,8 @@ func DoBackupDelete(s *state.State, projectName, backupName, containerName strin
 		}
 	}
 
-	// Check if we can remove the container directory
-	backupsPath := shared.VarPath("backups", project.Instance(projectName, containerName))
+	// Check if we can remove the instance directory.
+	backupsPath := shared.VarPath("backups", "instances", project.Instance(projectName, instanceName))
 	empty, _ := shared.PathIsEmpty(backupsPath)
 	if empty {
 		err := os.Remove(backupsPath)
