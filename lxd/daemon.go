@@ -641,9 +641,9 @@ func (d *Daemon) init() error {
 	logger.Infof("Kernel features:")
 	d.os.CloseRange = canUseCloseRange()
 	if d.os.CloseRange {
-		logger.Infof(" - closing multiple file descriptros efficiently: yes")
+		logger.Infof(" - closing multiple file descriptors efficiently: yes")
 	} else {
-		logger.Infof(" - closing multiple file descriptros efficiently: no")
+		logger.Infof(" - closing multiple file descriptors efficiently: no")
 	}
 
 	d.os.NetnsGetifaddrs = canUseNetnsGetifaddrs()
