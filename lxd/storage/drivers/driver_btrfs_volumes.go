@@ -1033,7 +1033,7 @@ func (d *btrfs) BackupVolume(vol Volume, tarWriter *instancewriter.InstanceTarWr
 
 		// Create temporary file to store output of btrfs send.
 		backupsPath := shared.VarPath("backups")
-		tmpFile, err := ioutil.TempFile(backupsPath, "lxd_backup_btrfs")
+		tmpFile, err := ioutil.TempFile(backupsPath, fmt.Sprintf("%s_btrfs", backup.WorkingDirPrefix))
 		if err != nil {
 			return errors.Wrapf(err, "Failed to open temporary file for BTRFS backup")
 		}
