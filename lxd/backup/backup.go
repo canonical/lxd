@@ -193,13 +193,13 @@ func (b *Backup) Rename(newName string) error {
 		}
 	}
 
-	// Rename the backup directory
+	// Rename the backup directory.
 	err := os.Rename(oldBackupPath, newBackupPath)
 	if err != nil {
 		return err
 	}
 
-	// Check if we can remove the container directory
+	// Check if we can remove the instance directory.
 	empty, _ := shared.PathIsEmpty(backupsPath)
 	if empty {
 		err := os.Remove(backupsPath)
@@ -208,7 +208,7 @@ func (b *Backup) Rename(newName string) error {
 		}
 	}
 
-	// Rename the database record
+	// Rename the database record.
 	err = b.state.Cluster.RenameInstanceBackup(b.name, newName)
 	if err != nil {
 		return err
