@@ -44,6 +44,7 @@ profile "{{ .name }}" flags=(attach_disconnected,mediate_deleted) {
   network inet6 dgram,
   network inet stream,
   network inet6 stream,
+  network unix stream,
 
   # Forkproxy operation
   @{PROC}/** rw,
