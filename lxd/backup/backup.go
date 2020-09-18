@@ -179,13 +179,13 @@ func (b *Backup) OptimizedStorage() bool {
 	return b.optimizedStorage
 }
 
-// Rename renames a container backup
+// Rename renames an instance backup.
 func (b *Backup) Rename(newName string) error {
-	oldBackupPath := shared.VarPath("backups", project.Instance(b.instance.Project(), b.name))
-	newBackupPath := shared.VarPath("backups", project.Instance(b.instance.Project(), newName))
+	oldBackupPath := shared.VarPath("backups", "instances", project.Instance(b.instance.Project(), b.name))
+	newBackupPath := shared.VarPath("backups", "instances", project.Instance(b.instance.Project(), newName))
 
-	// Create the new backup path
-	backupsPath := shared.VarPath("backups", project.Instance(b.instance.Project(), b.instance.Name()))
+	// Create the new backup path.
+	backupsPath := shared.VarPath("backups", "instances", project.Instance(b.instance.Project(), b.instance.Name()))
 	if !shared.PathExists(backupsPath) {
 		err := os.MkdirAll(backupsPath, 0700)
 		if err != nil {
