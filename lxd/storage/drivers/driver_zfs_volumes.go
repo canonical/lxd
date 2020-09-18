@@ -1390,7 +1390,7 @@ func (d *zfs) BackupVolume(vol Volume, tarWriter *instancewriter.InstanceTarWrit
 
 		// Create temporary file to store output of ZFS send.
 		backupsPath := shared.VarPath("backups")
-		tmpFile, err := ioutil.TempFile(backupsPath, "lxd_backup_zfs")
+		tmpFile, err := ioutil.TempFile(backupsPath, fmt.Sprintf("%s_zfs", backup.WorkingDirPrefix))
 		if err != nil {
 			return errors.Wrapf(err, "Failed to open temporary file for ZFS backup")
 		}
