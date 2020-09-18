@@ -57,11 +57,11 @@ func (d *proxy) validateConfig(instConf instance.ConfigReader) error {
 		return err
 	}
 
-	// Supported bind types are: "host" or "guest" (and "container", a legacy option equivalent to "guest").
+	// Supported bind types are: "host" or "instance" (or "guest" or "container", legacy options equivalent to "instance").
 	// If an empty value is supplied the default behavior is to assume "host" bind mode.
 	validateBind := func(input string) error {
-		if !shared.StringInSlice(d.config["bind"], []string{"", "host", "guest", "container"}) {
-			return fmt.Errorf("Invalid binding side given. Must be \"host\" or \"guest\"")
+		if !shared.StringInSlice(d.config["bind"], []string{"", "host", "instance", "guest", "container"}) {
+			return fmt.Errorf("Invalid binding side given. Must be \"host\" or \"instance\"")
 		}
 
 		return nil
@@ -505,7 +505,7 @@ func (d *proxy) setupProxyProcInfo() (*proxyProcInfo, error) {
 		connectPidFd = fmt.Sprintf("%d", containerPidFd)
 
 		listenAddr = d.rewriteHostAddr(listenAddr)
-	case "guest", "container":
+	case "instance", "guest", "container":
 		listenPid = containerPid
 		listenPidFd = fmt.Sprintf("%d", containerPidFd)
 
@@ -514,7 +514,7 @@ func (d *proxy) setupProxyProcInfo() (*proxyProcInfo, error) {
 
 		connectAddr = d.rewriteHostAddr(connectAddr)
 	default:
-		return nil, fmt.Errorf("Invalid binding side given. Must be \"host\" or \"guest\"")
+		return nil, fmt.Errorf("Invalid binding side given. Must be \"host\" or \"instance\"")
 	}
 
 	listenAddrMode := "0644"
