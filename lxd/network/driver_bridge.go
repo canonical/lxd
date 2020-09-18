@@ -1758,6 +1758,12 @@ func (n *bridge) addressForSubnet(subnet *net.IPNet) (net.IP, string, error) {
 	}
 
 	for _, iface := range ifaces {
+		// Skip addresses on lo interface in case VIPs are being used on that interface that are part of
+		// the underlay subnet as is unlikely to be the actual intended underlay subnet interface.
+		if iface.Name == "lo" {
+			continue
+		}
+
 		addrs, err := iface.Addrs()
 		if err != nil {
 			continue
