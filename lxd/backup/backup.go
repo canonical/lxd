@@ -238,7 +238,7 @@ func (b *Backup) Render() *api.InstanceBackup {
 func DoBackupDelete(s *state.State, projectName, backupName, containerName string) error {
 	backupPath := shared.VarPath("backups", project.Instance(projectName, backupName))
 
-	// Delete the on-disk data
+	// Delete the on-disk data.
 	if shared.PathExists(backupPath) {
 		err := os.RemoveAll(backupPath)
 		if err != nil {
@@ -246,7 +246,7 @@ func DoBackupDelete(s *state.State, projectName, backupName, containerName strin
 		}
 	}
 
-	// Check if we can remove the container directory
+	// Check if we can remove the container directory.
 	backupsPath := shared.VarPath("backups", project.Instance(projectName, containerName))
 	empty, _ := shared.PathIsEmpty(backupsPath)
 	if empty {
@@ -256,7 +256,7 @@ func DoBackupDelete(s *state.State, projectName, backupName, containerName strin
 		}
 	}
 
-	// Remove the database record
+	// Remove the database record.
 	err := s.Cluster.DeleteInstanceBackup(backupName)
 	if err != nil {
 		return err
