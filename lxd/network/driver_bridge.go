@@ -1818,21 +1818,20 @@ func (n *bridge) addressForSubnet(subnet *net.IPNet) (net.IP, string, error) {
 	}
 
 	for _, iface := range ifaces {
+		// Skip addresses on lo interface in case VIPs are being used on that interface that are part of
+		// the underlay subnet as is unlikely to be the actual intended underlay subnet interface.
+		if iface.Name == "lo" {
+			continue
+		}
+
 		addrs, err := iface.Addrs()
 		if err != nil {
 			continue
 		}
 
 		for _, addr := range addrs {
-			ip, network, err := net.ParseCIDR(addr.String())
+			ip, _, err := net.ParseCIDR(addr.String())
 			if err != nil {
-				continue
-			}
-
-			// Skip /32 addresses on interfaces in case VIPs are being used on a different interface
-			// than the intended underlay subnet interface.
-			maskOnes, maskSize := network.Mask.Size()
-			if maskOnes == 32 && maskSize == 32 {
 				continue
 			}
 
