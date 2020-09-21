@@ -483,8 +483,7 @@ func networkGet(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	// If no target node is specified and the daemon is clustered, we omit
-	// the node-specific fields.
+	// If no target node is specified and the daemon is clustered, we omit the node-specific fields.
 	if targetNode == "" && clustered {
 		for _, key := range db.NodeSpecificNetworkConfig {
 			delete(n.Config, key)
