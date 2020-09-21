@@ -73,13 +73,7 @@ func (n *ovn) Info() Info {
 // Validate network config.
 func (n *ovn) Validate(config map[string]string) error {
 	rules := map[string]func(value string) error{
-		"network": func(value string) error {
-			if err := validInterfaceName(value); err != nil {
-				return errors.Wrapf(err, "Invalid network name %q", value)
-			}
-
-			return nil
-		},
+		"network":       validate.IsNotEmpty,
 		"bridge.hwaddr": validate.Optional(validate.IsNetworkMAC),
 		"bridge.mtu":    validate.Optional(validate.IsNetworkMTU),
 		"ipv4.address": func(value string) error {
@@ -272,7 +266,7 @@ func (n *ovn) setupParentPort(routerMAC net.HardwareAddr) (*ovnParentVars, error
 	// Parent network must be in default project.
 	parentNet, err := LoadByName(n.state, project.Default, n.config["network"])
 	if err != nil {
-		return nil, errors.Wrapf(err, "Failed loading parent network")
+		return nil, errors.Wrapf(err, "Failed loading parent network %q", n.config["network"])
 	}
 
 	switch parentNet.Type() {
