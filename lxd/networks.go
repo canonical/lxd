@@ -1020,7 +1020,12 @@ func networkStartup(s *state.State) error {
 		return errors.Wrapf(err, "Failed to load projects")
 	}
 
+	// Record of networks that need to be started later keyed on project name.
+	deferredNetworks := make(map[string][]network.Network)
+
 	for _, projectName := range projectNames {
+		deferredNetworks[projectName] = make([]network.Network, 0)
+
 		// Get a list of managed networks.
 		networks, err := s.Cluster.GetNonPendingNetworks(projectName)
 		if err != nil {
@@ -1034,10 +1039,17 @@ func networkStartup(s *state.State) error {
 				return errors.Wrapf(err, "Failed to load network %q in project %q", name, projectName)
 			}
 
-			err = n.Validate(n.Config())
+			netConfig := n.Config()
+			err = n.Validate(netConfig)
 			if err != nil {
 				// Don't cause LXD to fail to start entirely on network start up failure.
 				logger.Error("Failed to validate network", log.Ctx{"err": err, "project": projectName, "name": name})
+				continue
+			}
+
+			// Defer network start until after non-dependent networks.
+			if netConfig["network"] != "" {
+				deferredNetworks[projectName] = append(deferredNetworks[projectName], n)
 				continue
 			}
 
@@ -1045,6 +1057,18 @@ func networkStartup(s *state.State) error {
 			if err != nil {
 				// Don't cause LXD to fail to start entirely on network start up failure.
 				logger.Error("Failed to bring up network", log.Ctx{"err": err, "project": projectName, "name": name})
+				continue
+			}
+		}
+	}
+
+	// Bring up deferred networks after non-dependent networks have been started.
+	for projectName, networks := range deferredNetworks {
+		for _, n := range networks {
+			err = n.Start()
+			if err != nil {
+				// Don't cause LXD to fail to start entirely on network start up failure.
+				logger.Error("Failed to bring up network", log.Ctx{"err": err, "project": projectName, "name": n.Name()})
 				continue
 			}
 		}
