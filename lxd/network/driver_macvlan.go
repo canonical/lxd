@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/lxc/lxd/lxd/cluster"
+	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/revert"
 	"github.com/lxc/lxd/shared/api"
 	log "github.com/lxc/lxd/shared/log15"
@@ -18,6 +19,11 @@ type macvlan struct {
 // Type returns the network type.
 func (n *macvlan) Type() string {
 	return "macvlan"
+}
+
+// DBType returns the network type DB ID.
+func (n *macvlan) DBType() db.NetworkType {
+	return db.NetworkTypeMacvlan
 }
 
 // Validate network config.
