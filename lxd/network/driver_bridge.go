@@ -48,6 +48,11 @@ type bridge struct {
 	common
 }
 
+// Type returns the network type.
+func (n *bridge) Type() string {
+	return "bridge"
+}
+
 // checkClusterWideMACSafe returns whether it is safe to use the same MAC address for the bridge interface on all
 // cluster nodes. It is not suitable to use a static MAC address when "bridge.external_interfaces" is non-empty an
 // the bridge interface has no IPv4 or IPv6 address set. This is because in a clustered environment the same bridge
