@@ -11,7 +11,19 @@ var drivers = map[string]func() Network{
 	"bridge": func() Network { return &bridge{} },
 }
 
-// LoadByName loads the network info from the database by name.
+// LoadByType loads a network by driver type.
+func LoadByType(driverType string) (Type, error) {
+	driverFunc, ok := drivers[driverType]
+	if !ok {
+		return nil, ErrUnknownDriver
+	}
+
+	n := driverFunc()
+
+	return n, nil
+}
+
+// LoadByName loads an instantiated network from the database by name.
 func LoadByName(s *state.State, name string) (Network, error) {
 	id, netInfo, err := s.Cluster.GetNetworkInAnyState(name)
 	if err != nil {
@@ -27,24 +39,6 @@ func LoadByName(s *state.State, name string) (Network, error) {
 	n.init(s, id, name, netInfo.Type, netInfo.Description, netInfo.Config, netInfo.Status)
 
 	return n, nil
-}
-
-// ValidateName validates the supplied network name for the specified network type.
-func ValidateName(name string, netType string) error {
-	driverFunc, ok := drivers[netType]
-	if !ok {
-		return ErrUnknownDriver
-	}
-
-	n := driverFunc()
-	n.init(nil, 0, name, netType, "", nil, "Unknown")
-
-	err := n.ValidateName(name)
-	if err != nil {
-		return errors.Wrapf(err, "Network name invalid")
-	}
-
-	return nil
 }
 
 // Validate validates the supplied network name and configuration for the specified network type.
