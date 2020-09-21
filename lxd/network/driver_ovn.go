@@ -63,10 +63,21 @@ type ovn struct {
 	common
 }
 
+// Type returns the network type.
+func (n *ovn) Type() string {
+	return "ovn"
+}
+
+// DBType returns the network type DB ID.
+func (n *ovn) DBType() db.NetworkType {
+	return db.NetworkTypeOVN
+}
+
 // Config returns the network driver info.
 func (n *ovn) Info() Info {
 	return Info{
-		Projects: true,
+		Projects:           true,
+		NodeSpecificConfig: false,
 	}
 }
 
@@ -685,8 +696,8 @@ func (n *ovn) deleteParentPortBridge(parentNet Network) error {
 	return nil
 }
 
-// fillConfig fills requested config with any default values.
-func (n *ovn) fillConfig(config map[string]string) error {
+// FillConfig fills requested config with any default values.
+func (n *ovn) FillConfig(config map[string]string) error {
 	if config["ipv4.address"] == "" {
 		config["ipv4.address"] = "auto"
 	}
@@ -1209,7 +1220,7 @@ func (n *ovn) Update(newNetwork api.NetworkPut, targetNode string, clientType cl
 	n.logger.Debug("Update", log.Ctx{"clientType": clientType, "newNetwork": newNetwork})
 
 	// Populate default values if they are missing.
-	err := n.fillConfig(newNetwork.Config)
+	err := n.FillConfig(newNetwork.Config)
 	if err != nil {
 		return err
 	}

@@ -365,7 +365,14 @@ func (c *cmdInit) askNetworking(config *cmdInitData, d lxd.InstanceServer) error
 		net.Project = project.Default
 
 		// Network name
-		net.Name = cli.AskString("What should the new bridge be called? [default=lxdbr0]: ", "lxdbr0", func(netName string) error { return network.ValidateNameAndProject(netName, project.Default, "bridge") })
+		net.Name = cli.AskString("What should the new bridge be called? [default=lxdbr0]: ", "lxdbr0", func(netName string) error {
+			netType, err := network.LoadByType("bridge")
+			if err != nil {
+				return err
+			}
+
+			return netType.ValidateName(netName)
+		})
 		_, _, err := d.GetNetwork(net.Name)
 		if err == nil {
 			fmt.Printf("The requested network bridge \"%s\" already exists. Please choose another name.\n", net.Name)

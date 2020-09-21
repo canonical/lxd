@@ -22,7 +22,8 @@ import (
 
 // Info represents information about a network driver.
 type Info struct {
-	Projects bool // Indicates if driver can be used in network enabled projects.
+	Projects           bool // Indicates if driver can be used in network enabled projects.
+	NodeSpecificConfig bool // Whether driver has cluster node specific config as a prerequisite for creation.
 }
 
 // common represents a generic LXD network.
@@ -32,7 +33,6 @@ type common struct {
 	id          int64
 	project     string
 	name        string
-	netType     string
 	description string
 	config      map[string]string
 	status      string
@@ -44,15 +44,14 @@ func (n *common) init(state *state.State, id int64, projectName string, name str
 	n.id = id
 	n.project = projectName
 	n.name = name
-	n.netType = netType
 	n.config = config
 	n.state = state
 	n.description = description
 	n.status = status
 }
 
-// fillConfig fills requested config with any default values, by default this is a no-op.
-func (n *common) fillConfig(config map[string]string) error {
+// FillConfig fills requested config with any default values, by default this is a no-op.
+func (n *common) FillConfig(config map[string]string) error {
 	return nil
 }
 
@@ -125,11 +124,6 @@ func (n *common) Status() string {
 	return n.status
 }
 
-// Type returns the network type.
-func (n *common) Type() string {
-	return n.netType
-}
-
 // Config returns the network config.
 func (n *common) Config() map[string]string {
 	return n.config
@@ -138,7 +132,8 @@ func (n *common) Config() map[string]string {
 // Config returns the common network driver info.
 func (n *common) Info() Info {
 	return Info{
-		Projects: false,
+		Projects:           false,
+		NodeSpecificConfig: true,
 	}
 }
 
@@ -206,7 +201,8 @@ func (n *common) DHCPv6Ranges() []shared.IPRange {
 func (n *common) update(applyNetwork api.NetworkPut, targetNode string, clientType cluster.ClientType) error {
 	// Update internal config before database has been updated (so that if update is a notification we apply
 	// the config being supplied and not that in the database).
-	n.init(n.state, n.id, n.project, n.name, n.netType, applyNetwork.Description, applyNetwork.Config, n.status)
+	n.description = applyNetwork.Description
+	n.config = applyNetwork.Config
 
 	// If this update isn't coming via a cluster notification itself, then notify all nodes of change and then
 	// update the database.
@@ -317,7 +313,7 @@ func (n *common) rename(newName string) error {
 	}
 
 	// Reinitialise internal name variable and logger context with new name.
-	n.init(n.state, n.id, n.project, newName, n.netType, n.description, n.config, n.status)
+	n.name = newName
 
 	return nil
 }

@@ -151,9 +151,19 @@ func networksPost(d *Daemon, r *http.Request) response.Response {
 		req.Config = map[string]string{}
 	}
 
-	err = network.ValidateNameAndProject(req.Name, projectName, req.Type)
+	netType, err := network.LoadByType(req.Type)
 	if err != nil {
 		return response.BadRequest(err)
+	}
+
+	err = netType.ValidateName(req.Name)
+	if err != nil {
+		return response.BadRequest(err)
+	}
+
+	netTypeInfo := netType.Info()
+	if projectName != project.Default && !netTypeInfo.Projects {
+		return response.BadRequest(fmt.Errorf("Network type does not support non-default projects"))
 	}
 
 	// Check if project has limits.network and if so check we are allowed to create another network.
@@ -176,21 +186,6 @@ func networksPost(d *Daemon, r *http.Request) response.Response {
 		}
 	}
 
-	// Convert requested network type to DB type code.
-	var dbNetType db.NetworkType
-	switch req.Type {
-	case "bridge":
-		dbNetType = db.NetworkTypeBridge
-	case "macvlan":
-		dbNetType = db.NetworkTypeMacvlan
-	case "sriov":
-		dbNetType = db.NetworkTypeSriov
-	case "ovn":
-		dbNetType = db.NetworkTypeOVN
-	default:
-		return response.BadRequest(fmt.Errorf("Unrecognised network type"))
-	}
-
 	url := fmt.Sprintf("/%s/networks/%s", version.APIVersion, req.Name)
 	resp := response.SyncResponseLocation(true, nil, url)
 
@@ -206,8 +201,15 @@ func networksPost(d *Daemon, r *http.Request) response.Response {
 		return resp
 	}
 
+	revert := revert.New()
+	defer revert.Fail()
+
 	targetNode := queryParam(r, "target")
 	if targetNode != "" {
+		if !netTypeInfo.NodeSpecificConfig {
+			return response.BadRequest(fmt.Errorf("Network type %q does not support node specific config", netType.Type()))
+		}
+
 		// A targetNode was specified, let's just define the node's network without actually creating it.
 		// Check that only NodeSpecificNetworkConfig keys are specified.
 		for key := range req.Config {
@@ -217,7 +219,7 @@ func networksPost(d *Daemon, r *http.Request) response.Response {
 		}
 
 		err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
-			return tx.CreatePendingNetwork(targetNode, projectName, req.Name, dbNetType, req.Config)
+			return tx.CreatePendingNetwork(targetNode, projectName, req.Name, netType.DBType(), req.Config)
 		})
 		if err != nil {
 			if err == db.ErrAlreadyDefined {
@@ -227,6 +229,31 @@ func networksPost(d *Daemon, r *http.Request) response.Response {
 		}
 
 		return resp
+	} else if !netTypeInfo.NodeSpecificConfig && clientType != cluster.ClientTypeJoiner {
+		// Simulate adding pending node network config when the driver doesn't support per-node config.
+		revert.Add(func() {
+			d.cluster.DeleteNetwork(projectName, req.Name)
+		})
+
+		// Create pending entry for each node.
+		err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
+			nodes, err := tx.GetNodes()
+			if err != nil {
+				return err
+			}
+
+			for _, node := range nodes {
+				err = tx.CreatePendingNetwork(node.Name, projectName, req.Name, netType.DBType(), req.Config)
+				if err != nil {
+					return errors.Wrapf(err, "Failed creating pending network for node %q", node.Name)
+				}
+			}
+
+			return nil
+		})
+		if err != nil {
+			return response.SmartError(err)
+		}
 	}
 
 	// Check if we're clustered.
@@ -236,19 +263,16 @@ func networksPost(d *Daemon, r *http.Request) response.Response {
 	}
 
 	if count > 1 {
-		err = networksPostCluster(d, projectName, req, clientType)
+		err = networksPostCluster(d, projectName, req, clientType, netType)
 		if err != nil {
 			return response.SmartError(err)
 		}
 
+		revert.Success()
 		return resp
 	}
 
 	// Non-clustered network creation.
-	err = network.FillConfig(&req)
-	if err != nil {
-		return response.SmartError(err)
-	}
 
 	networks, err := d.cluster.GetNetworks(projectName)
 	if err != nil {
@@ -259,15 +283,17 @@ func networksPost(d *Daemon, r *http.Request) response.Response {
 		return response.BadRequest(fmt.Errorf("The network already exists"))
 	}
 
-	revert := revert.New()
-	defer revert.Fail()
+	// Populate default config.
+	err = netType.FillConfig(req.Config)
+	if err != nil {
+		return response.SmartError(err)
+	}
 
 	// Create the database entry.
-	_, err = d.cluster.CreateNetwork(projectName, req.Name, req.Description, dbNetType, req.Config)
+	_, err = d.cluster.CreateNetwork(projectName, req.Name, req.Description, netType.DBType(), req.Config)
 	if err != nil {
 		return response.SmartError(errors.Wrapf(err, "Error inserting %q into database", req.Name))
 	}
-
 	revert.Add(func() {
 		d.cluster.DeleteNetwork(projectName, req.Name)
 	})
@@ -281,8 +307,8 @@ func networksPost(d *Daemon, r *http.Request) response.Response {
 	return resp
 }
 
-func networksPostCluster(d *Daemon, projectName string, req api.NetworksPost, clientType cluster.ClientType) error {
-	// Check that no node-specific config key has been defined.
+func networksPostCluster(d *Daemon, projectName string, req api.NetworksPost, clientType cluster.ClientType, netType network.Type) error {
+	// Check that no node-specific config key has been supplied in request.
 	for key := range req.Config {
 		if shared.StringInSlice(key, db.NodeSpecificNetworkConfig) {
 			return fmt.Errorf("Config key %q is node-specific", key)
@@ -301,7 +327,7 @@ func networksPostCluster(d *Daemon, projectName string, req api.NetworksPost, cl
 	}
 
 	// Add default values.
-	err = network.FillConfig(&req)
+	err = netType.FillConfig(req.Config)
 	if err != nil {
 		return err
 	}
@@ -342,6 +368,8 @@ func networksPostCluster(d *Daemon, projectName string, req api.NetworksPost, cl
 
 	// Create the network on this node.
 	nodeReq := req
+
+	// Merge node specific config items into global config.
 	for key, value := range configs[nodeName] {
 		nodeReq.Config[key] = value
 	}
@@ -455,8 +483,7 @@ func networkGet(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	// If no target node is specified and the daemon is clustered, we omit
-	// the node-specific fields.
+	// If no target node is specified and the daemon is clustered, we omit the node-specific fields.
 	if targetNode == "" && clustered {
 		for _, key := range db.NodeSpecificNetworkConfig {
 			delete(n.Config, key)
@@ -636,7 +663,7 @@ func networkPost(d *Daemon, r *http.Request) response.Response {
 		return response.BadRequest(fmt.Errorf("New network name not provided"))
 	}
 
-	err = network.ValidateNameAndProject(req.Name, projectName, n.Type())
+	err = n.ValidateName(req.Name)
 	if err != nil {
 		return response.BadRequest(err)
 	}
@@ -993,7 +1020,12 @@ func networkStartup(s *state.State) error {
 		return errors.Wrapf(err, "Failed to load projects")
 	}
 
+	// Record of networks that need to be started later keyed on project name.
+	deferredNetworks := make(map[string][]network.Network)
+
 	for _, projectName := range projectNames {
+		deferredNetworks[projectName] = make([]network.Network, 0)
+
 		// Get a list of managed networks.
 		networks, err := s.Cluster.GetNonPendingNetworks(projectName)
 		if err != nil {
@@ -1007,10 +1039,17 @@ func networkStartup(s *state.State) error {
 				return errors.Wrapf(err, "Failed to load network %q in project %q", name, projectName)
 			}
 
-			err = n.Validate(n.Config())
+			netConfig := n.Config()
+			err = n.Validate(netConfig)
 			if err != nil {
 				// Don't cause LXD to fail to start entirely on network start up failure.
 				logger.Error("Failed to validate network", log.Ctx{"err": err, "project": projectName, "name": name})
+				continue
+			}
+
+			// Defer network start until after non-dependent networks.
+			if netConfig["network"] != "" {
+				deferredNetworks[projectName] = append(deferredNetworks[projectName], n)
 				continue
 			}
 
@@ -1018,6 +1057,18 @@ func networkStartup(s *state.State) error {
 			if err != nil {
 				// Don't cause LXD to fail to start entirely on network start up failure.
 				logger.Error("Failed to bring up network", log.Ctx{"err": err, "project": projectName, "name": name})
+				continue
+			}
+		}
+	}
+
+	// Bring up deferred networks after non-dependent networks have been started.
+	for projectName, networks := range deferredNetworks {
+		for _, n := range networks {
+			err = n.Start()
+			if err != nil {
+				// Don't cause LXD to fail to start entirely on network start up failure.
+				logger.Error("Failed to bring up network", log.Ctx{"err": err, "project": projectName, "name": n.Name()})
 				continue
 			}
 		}

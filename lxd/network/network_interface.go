@@ -4,24 +4,32 @@ import (
 	"net"
 
 	"github.com/lxc/lxd/lxd/cluster"
+	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/state"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 )
 
-// Network represents a LXD network.
+// Type represents an LXD network driver type.
+type Type interface {
+	FillConfig(config map[string]string) error
+	Info() Info
+	ValidateName(name string) error
+	Type() string
+	DBType() db.NetworkType
+}
+
+// Network represents an instantiated LXD network.
 type Network interface {
+	Type
+
 	// Load.
 	init(state *state.State, id int64, projectName string, name string, netType string, description string, config map[string]string, status string)
-	fillConfig(config map[string]string) error
-	Info() Info
 
 	// Config.
-	ValidateName(name string) error
 	Validate(config map[string]string) error
 	ID() int64
 	Name() string
-	Type() string
 	Description() string
 	Status() string
 	Config() map[string]string
