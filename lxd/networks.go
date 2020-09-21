@@ -201,6 +201,9 @@ func networksPost(d *Daemon, r *http.Request) response.Response {
 		return resp
 	}
 
+	revert := revert.New()
+	defer revert.Fail()
+
 	targetNode := queryParam(r, "target")
 	if targetNode != "" {
 		if !netTypeInfo.NodeSpecificConfig {
@@ -226,6 +229,31 @@ func networksPost(d *Daemon, r *http.Request) response.Response {
 		}
 
 		return resp
+	} else if !netTypeInfo.NodeSpecificConfig && clientType != cluster.ClientTypeJoiner {
+		// Simulate adding pending node network config when the driver doesn't support per-node config.
+		revert.Add(func() {
+			d.cluster.DeleteNetwork(projectName, req.Name)
+		})
+
+		// Create pending entry for each node.
+		err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
+			nodes, err := tx.GetNodes()
+			if err != nil {
+				return err
+			}
+
+			for _, node := range nodes {
+				err = tx.CreatePendingNetwork(node.Name, projectName, req.Name, netType.DBType(), req.Config)
+				if err != nil {
+					return errors.Wrapf(err, "Failed creating pending network for node %q", node.Name)
+				}
+			}
+
+			return nil
+		})
+		if err != nil {
+			return response.SmartError(err)
+		}
 	}
 
 	// Check if we're clustered.
@@ -240,14 +268,11 @@ func networksPost(d *Daemon, r *http.Request) response.Response {
 			return response.SmartError(err)
 		}
 
+		revert.Success()
 		return resp
 	}
 
 	// Non-clustered network creation.
-	err = netType.FillConfig(req.Config)
-	if err != nil {
-		return response.SmartError(err)
-	}
 
 	networks, err := d.cluster.GetNetworks(projectName)
 	if err != nil {
@@ -263,9 +288,6 @@ func networksPost(d *Daemon, r *http.Request) response.Response {
 	if err != nil {
 		return response.SmartError(err)
 	}
-
-	revert := revert.New()
-	defer revert.Fail()
 
 	// Create the database entry.
 	_, err = d.cluster.CreateNetwork(projectName, req.Name, req.Description, netType.DBType(), req.Config)
