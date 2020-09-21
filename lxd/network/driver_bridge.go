@@ -21,6 +21,7 @@ import (
 	"github.com/lxc/lxd/lxd/apparmor"
 	"github.com/lxc/lxd/lxd/cluster"
 	"github.com/lxc/lxd/lxd/daemon"
+	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/dnsmasq"
 	"github.com/lxc/lxd/lxd/dnsmasq/dhcpalloc"
 	"github.com/lxc/lxd/lxd/network/openvswitch"
@@ -51,6 +52,11 @@ type bridge struct {
 // Type returns the network type.
 func (n *bridge) Type() string {
 	return "bridge"
+}
+
+// DBType returns the network type DB ID.
+func (n *bridge) DBType() db.NetworkType {
+	return db.NetworkTypeBridge
 }
 
 // checkClusterWideMACSafe returns whether it is safe to use the same MAC address for the bridge interface on all
