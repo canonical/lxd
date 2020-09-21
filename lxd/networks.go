@@ -151,9 +151,19 @@ func networksPost(d *Daemon, r *http.Request) response.Response {
 		req.Config = map[string]string{}
 	}
 
-	err = network.ValidateNameAndProject(req.Name, projectName, req.Type)
+	netType, err := network.LoadByType(req.Type)
 	if err != nil {
 		return response.BadRequest(err)
+	}
+
+	err = netType.ValidateName(req.Name)
+	if err != nil {
+		return response.BadRequest(err)
+	}
+
+	netTypeInfo := netType.Info()
+	if projectName != project.Default && !netTypeInfo.Projects {
+		return response.BadRequest(fmt.Errorf("Network type does not support non-default projects"))
 	}
 
 	// Check if project has limits.network and if so check we are allowed to create another network.
