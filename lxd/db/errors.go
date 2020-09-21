@@ -7,7 +7,7 @@ import (
 var (
 	// ErrAlreadyDefined hapens when the given entry already exists,
 	// for example a container.
-	ErrAlreadyDefined = fmt.Errorf("The instance/snapshot already exists")
+	ErrAlreadyDefined = fmt.Errorf("The record already exists")
 
 	// ErrNoSuchObject is in the case of joins (and probably other) queries,
 	// we don't get back sql.ErrNoRows when no rows are returned, even though we do
