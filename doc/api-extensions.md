@@ -1151,3 +1151,6 @@ Also introduces two new global config keys that apply to all `ovn` networks and 
 
  - network.ovn.integration\_bridge - the OVS integration bridge to use.
  - network.ovn.northbound\_connection - the OVN northbound database connection string.
+
+## projects\_networks
+Adds the `features.networks` config key to projects and the ability for a project to hold networks.
