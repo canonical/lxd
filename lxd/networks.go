@@ -147,15 +147,6 @@ func networksPost(d *Daemon, r *http.Request) response.Response {
 		return response.BadRequest(err)
 	}
 
-	// Convert requested network type to DB type code.
-	var dbNetType db.NetworkType
-	switch req.Type {
-	case "bridge":
-		dbNetType = db.NetworkTypeBridge
-	default:
-		return response.BadRequest(fmt.Errorf("Unrecognised network type"))
-	}
-
 	url := fmt.Sprintf("/%s/networks/%s", version.APIVersion, req.Name)
 	resp := response.SyncResponseLocation(true, nil, url)
 
@@ -173,6 +164,10 @@ func networksPost(d *Daemon, r *http.Request) response.Response {
 
 	targetNode := queryParam(r, "target")
 	if targetNode != "" {
+		if !netTypeInfo.NodeSpecificConfig {
+			return response.BadRequest(fmt.Errorf("Network type %q does not support node specific config", netType.Type()))
+		}
+
 		// A targetNode was specified, let's just define the node's network without actually creating it.
 		// Check that only NodeSpecificNetworkConfig keys are specified.
 		for key := range req.Config {
@@ -182,7 +177,7 @@ func networksPost(d *Daemon, r *http.Request) response.Response {
 		}
 
 		err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
-			return tx.CreatePendingNetwork(targetNode, req.Name, dbNetType, req.Config)
+			return tx.CreatePendingNetwork(targetNode, req.Name, dbNetType, netType.DBType(), req.Config)
 		})
 		if err != nil {
 			if err == db.ErrAlreadyDefined {
@@ -223,15 +218,20 @@ func networksPost(d *Daemon, r *http.Request) response.Response {
 		return response.BadRequest(fmt.Errorf("The network already exists"))
 	}
 
+	// Populate default config.
+	err = netType.FillConfig(req.Config)
+	if err != nil {
+		return response.SmartError(err)
+	}
+
 	revert := revert.New()
 	defer revert.Fail()
 
 	// Create the database entry.
-	_, err = d.cluster.CreateNetwork(req.Name, req.Description, dbNetType, req.Config)
+	_, err = d.cluster.CreateNetwork(req.Name, req.Description, netType.DBType(), req.Config)
 	if err != nil {
 		return response.SmartError(errors.Wrapf(err, "Error inserting %q into database", req.Name))
 	}
-
 	revert.Add(func() {
 		d.cluster.DeleteNetwork(req.Name)
 	})
