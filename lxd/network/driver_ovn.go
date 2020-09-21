@@ -76,7 +76,8 @@ func (n *ovn) DBType() db.NetworkType {
 // Config returns the network driver info.
 func (n *ovn) Info() Info {
 	return Info{
-		Projects: true,
+		Projects:           true,
+		NodeSpecificConfig: false,
 	}
 }
 
