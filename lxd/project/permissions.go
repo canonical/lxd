@@ -34,14 +34,21 @@ func AllowInstanceCreation(tx *db.ClusterTx, projectName string, req api.Instanc
 	case api.InstanceTypeVM:
 		instanceType = instancetype.VM
 	default:
-		return fmt.Errorf("Unexpected instance type '%s'", instanceType)
+		return fmt.Errorf("Unexpected instance type %q", instanceType)
 	}
 
 	if req.Profiles == nil {
 		req.Profiles = []string{"default"}
 	}
 
-	err = checkInstanceCountLimit(info.Project, len(info.Instances), instanceType)
+	instanceTypeCount := 0
+	for _, inst := range info.Instances {
+		if inst.Type == instanceType {
+			instanceTypeCount++
+		}
+	}
+
+	err = checkInstanceCountLimit(info.Project, instanceTypeCount, instanceType)
 	if err != nil {
 		return err
 	}
@@ -79,19 +86,19 @@ func checkInstanceCountLimit(project *api.Project, instanceCount int, instanceTy
 	case instancetype.VM:
 		key = "limits.virtual-machines"
 	default:
-		return fmt.Errorf("Unexpected instance type '%s'", instanceType)
+		return fmt.Errorf("Unexpected instance type %q", instanceType)
 	}
 
 	value, ok := project.Config[key]
 	if ok {
 		limit, err := strconv.Atoi(value)
 		if err != nil || limit < 0 {
-			return fmt.Errorf("Unexpected '%s' value: '%s'", key, value)
+			return fmt.Errorf("Unexpected %q value: %q", key, value)
 		}
 
 		if instanceCount >= limit {
 			return fmt.Errorf(
-				"Reached maximum number of instances of type %s in project %s",
+				"Reached maximum number of instances of type %q in project %q",
 				instanceType, project.Name)
 		}
 	}
@@ -854,7 +861,10 @@ func fetchProject(tx *db.ClusterTx, projectName string, skipIfNoLimits bool) (*p
 		return nil, errors.Wrap(err, "Fetch profiles from database")
 	}
 
-	instances, err := tx.GetInstances(db.InstanceFilter{Project: projectName})
+	instances, err := tx.GetInstances(db.InstanceFilter{
+		Type:    instancetype.Any,
+		Project: projectName,
+	})
 	if err != nil {
 		return nil, errors.Wrap(err, "Fetch project instances from database")
 	}
