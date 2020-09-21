@@ -685,8 +685,8 @@ func (n *ovn) deleteParentPortBridge(parentNet Network) error {
 	return nil
 }
 
-// fillConfig fills requested config with any default values.
-func (n *ovn) fillConfig(config map[string]string) error {
+// FillConfig fills requested config with any default values.
+func (n *ovn) FillConfig(config map[string]string) error {
 	if config["ipv4.address"] == "" {
 		config["ipv4.address"] = "auto"
 	}
@@ -1209,7 +1209,7 @@ func (n *ovn) Update(newNetwork api.NetworkPut, targetNode string, clientType cl
 	n.logger.Debug("Update", log.Ctx{"clientType": clientType, "newNetwork": newNetwork})
 
 	// Populate default values if they are missing.
-	err := n.fillConfig(newNetwork.Config)
+	err := n.FillConfig(newNetwork.Config)
 	if err != nil {
 		return err
 	}
