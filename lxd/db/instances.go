@@ -324,7 +324,9 @@ SELECT instances.name, nodes.id, nodes.address, nodes.heartbeat
 // Load all instances across all projects and expands their config and devices
 // using the profiles they are associated to.
 func (c *ClusterTx) instanceListExpanded() ([]Instance, error) {
-	instances, err := c.GetInstances(InstanceFilter{})
+	instances, err := c.GetInstances(InstanceFilter{
+		Type: instancetype.Any,
+	})
 	if err != nil {
 		return nil, errors.Wrap(err, "Load instances")
 	}
