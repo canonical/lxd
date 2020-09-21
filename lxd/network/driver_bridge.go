@@ -71,8 +71,8 @@ func (n *bridge) checkClusterWideMACSafe(config map[string]string) error {
 	return nil
 }
 
-// fillConfig fills requested config with any default values.
-func (n *bridge) fillConfig(config map[string]string) error {
+// FillConfig fills requested config with any default values.
+func (n *bridge) FillConfig(config map[string]string) error {
 	// Set some default values where needed.
 	if config["bridge.mode"] == "fan" {
 		if config["fan.underlay_subnet"] == "" {
@@ -1444,7 +1444,7 @@ func (n *bridge) Update(newNetwork api.NetworkPut, targetNode string, clientType
 	n.logger.Debug("Update", log.Ctx{"clientType": clientType, "newNetwork": newNetwork})
 
 	// Populate default values if they are missing.
-	err := n.fillConfig(newNetwork.Config)
+	err := n.FillConfig(newNetwork.Config)
 	if err != nil {
 		return err
 	}
