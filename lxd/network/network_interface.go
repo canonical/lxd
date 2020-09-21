@@ -9,19 +9,25 @@ import (
 	"github.com/lxc/lxd/shared/api"
 )
 
-// Network represents a LXD network.
-type Network interface {
-	// Load.
-	init(state *state.State, id int64, name string, netType string, description string, config map[string]string, status string)
+// Type represents an LXD network driver type.
+type Type interface {
 	fillConfig(config map[string]string) error
 	Info() Info
+	ValidateName(name string) error
+	Type() string
+}
+
+// Network represents an instantiated LXD network.
+type Network interface {
+	Type
+
+	// Load.
+	init(state *state.State, id int64, name string, netType string, description string, config map[string]string, status string)
 
 	// Config.
-	ValidateName(name string) error
 	Validate(config map[string]string) error
 	ID() int64
 	Name() string
-	Type() string
 	Description() string
 	Status() string
 	Config() map[string]string
