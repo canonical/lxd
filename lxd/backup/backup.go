@@ -17,6 +17,9 @@ import (
 	"github.com/lxc/lxd/shared/api"
 )
 
+// WorkingDirPrefix is used when temporary working directories are needed.
+const WorkingDirPrefix = "lxd_backup"
+
 // Instance represents the backup relevant subset of a LXD instance.
 // This is used rather than instance.Instance to avoid import loops.
 type Instance interface {
@@ -176,13 +179,13 @@ func (b *Backup) OptimizedStorage() bool {
 	return b.optimizedStorage
 }
 
-// Rename renames a container backup
+// Rename renames an instance backup.
 func (b *Backup) Rename(newName string) error {
-	oldBackupPath := shared.VarPath("backups", project.Instance(b.instance.Project(), b.name))
-	newBackupPath := shared.VarPath("backups", project.Instance(b.instance.Project(), newName))
+	oldBackupPath := shared.VarPath("backups", "instances", project.Instance(b.instance.Project(), b.name))
+	newBackupPath := shared.VarPath("backups", "instances", project.Instance(b.instance.Project(), newName))
 
-	// Create the new backup path
-	backupsPath := shared.VarPath("backups", project.Instance(b.instance.Project(), b.instance.Name()))
+	// Create the new backup path.
+	backupsPath := shared.VarPath("backups", "instances", project.Instance(b.instance.Project(), b.instance.Name()))
 	if !shared.PathExists(backupsPath) {
 		err := os.MkdirAll(backupsPath, 0700)
 		if err != nil {
@@ -190,13 +193,13 @@ func (b *Backup) Rename(newName string) error {
 		}
 	}
 
-	// Rename the backup directory
+	// Rename the backup directory.
 	err := os.Rename(oldBackupPath, newBackupPath)
 	if err != nil {
 		return err
 	}
 
-	// Check if we can remove the container directory
+	// Check if we can remove the instance directory.
 	empty, _ := shared.PathIsEmpty(backupsPath)
 	if empty {
 		err := os.Remove(backupsPath)
@@ -205,7 +208,7 @@ func (b *Backup) Rename(newName string) error {
 		}
 	}
 
-	// Rename the database record
+	// Rename the database record.
 	err = b.state.Cluster.RenameInstanceBackup(b.name, newName)
 	if err != nil {
 		return err
@@ -232,10 +235,10 @@ func (b *Backup) Render() *api.InstanceBackup {
 }
 
 // DoBackupDelete deletes a backup.
-func DoBackupDelete(s *state.State, projectName, backupName, containerName string) error {
-	backupPath := shared.VarPath("backups", project.Instance(projectName, backupName))
+func DoBackupDelete(s *state.State, projectName, backupName, instanceName string) error {
+	backupPath := shared.VarPath("backups", "instances", project.Instance(projectName, backupName))
 
-	// Delete the on-disk data
+	// Delete the on-disk data.
 	if shared.PathExists(backupPath) {
 		err := os.RemoveAll(backupPath)
 		if err != nil {
@@ -243,8 +246,8 @@ func DoBackupDelete(s *state.State, projectName, backupName, containerName strin
 		}
 	}
 
-	// Check if we can remove the container directory
-	backupsPath := shared.VarPath("backups", project.Instance(projectName, containerName))
+	// Check if we can remove the instance directory.
+	backupsPath := shared.VarPath("backups", "instances", project.Instance(projectName, instanceName))
 	empty, _ := shared.PathIsEmpty(backupsPath)
 	if empty {
 		err := os.Remove(backupsPath)
@@ -253,7 +256,7 @@ func DoBackupDelete(s *state.State, projectName, backupName, containerName strin
 		}
 	}
 
-	// Remove the database record
+	// Remove the database record.
 	err := s.Cluster.DeleteInstanceBackup(backupName)
 	if err != nil {
 		return err

@@ -83,7 +83,7 @@ func backupCreate(s *state.State, args db.InstanceBackup, sourceInst instance.In
 	}
 
 	// Create the target path if needed.
-	backupsPath := shared.VarPath("backups", project.Instance(sourceInst.Project(), sourceInst.Name()))
+	backupsPath := shared.VarPath("backups", "instances", project.Instance(sourceInst.Project(), sourceInst.Name()))
 	if !shared.PathExists(backupsPath) {
 		err := os.MkdirAll(backupsPath, 0700)
 		if err != nil {
@@ -93,7 +93,7 @@ func backupCreate(s *state.State, args db.InstanceBackup, sourceInst instance.In
 		revert.Add(func() { os.Remove(backupsPath) })
 	}
 
-	target := shared.VarPath("backups", project.Instance(sourceInst.Project(), b.Name()))
+	target := shared.VarPath("backups", "instances", project.Instance(sourceInst.Project(), b.Name()))
 
 	// Setup the tarball writer.
 	logger.Debug("Opening backup tarball for writing", log.Ctx{"path": target})
