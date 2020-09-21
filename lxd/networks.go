@@ -200,7 +200,7 @@ func networksPost(d *Daemon, r *http.Request) response.Response {
 	}
 
 	if count > 1 {
-		err = networksPostCluster(d, req, clientType)
+		err = networksPostCluster(d, req, clientType, netType)
 		if err != nil {
 			return response.SmartError(err)
 		}
@@ -209,7 +209,7 @@ func networksPost(d *Daemon, r *http.Request) response.Response {
 	}
 
 	// Non-clustered network creation.
-	err = network.FillConfig(&req)
+	err = netType.FillConfig(req.Config)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -245,7 +245,7 @@ func networksPost(d *Daemon, r *http.Request) response.Response {
 	return resp
 }
 
-func networksPostCluster(d *Daemon, req api.NetworksPost, clientType cluster.ClientType) error {
+func networksPostCluster(d *Daemon, req api.NetworksPost, clientType cluster.ClientType, netType network.Type) error {
 	// Check that no node-specific config key has been defined.
 	for key := range req.Config {
 		if shared.StringInSlice(key, db.NodeSpecificNetworkConfig) {
@@ -265,7 +265,7 @@ func networksPostCluster(d *Daemon, req api.NetworksPost, clientType cluster.Cli
 	}
 
 	// Add default values.
-	err = network.FillConfig(&req)
+	err = netType.FillConfig(req.Config)
 	if err != nil {
 		return err
 	}
