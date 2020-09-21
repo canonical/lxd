@@ -646,7 +646,7 @@ func networkPost(d *Daemon, r *http.Request) response.Response {
 		return response.BadRequest(fmt.Errorf("New network name not provided"))
 	}
 
-	err = network.ValidateNameAndProject(req.Name, projectName, n.Type())
+	err = n.ValidateName(req.Name)
 	if err != nil {
 		return response.BadRequest(err)
 	}
