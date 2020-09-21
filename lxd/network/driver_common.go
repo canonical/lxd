@@ -31,7 +31,6 @@ type common struct {
 	state       *state.State
 	id          int64
 	name        string
-	netType     string
 	description string
 	config      map[string]string
 	status      string
@@ -122,11 +121,6 @@ func (n *common) Status() string {
 	return n.status
 }
 
-// Type returns the network type.
-func (n *common) Type() string {
-	return n.netType
-}
-
 // Config returns the network config.
 func (n *common) Config() map[string]string {
 	return n.config
@@ -203,7 +197,8 @@ func (n *common) DHCPv6Ranges() []shared.IPRange {
 func (n *common) update(applyNetwork api.NetworkPut, targetNode string, clientType cluster.ClientType) error {
 	// Update internal config before database has been updated (so that if update is a notification we apply
 	// the config being supplied and not that in the database).
-	n.init(n.state, n.id, n.name, n.netType, applyNetwork.Description, applyNetwork.Config, n.status)
+	n.description = applyNetwork.Description
+	n.config = applyNetwork.Config
 
 	// If this update isn't coming via a cluster notification itself, then notify all nodes of change and then
 	// update the database.
@@ -314,7 +309,7 @@ func (n *common) rename(newName string) error {
 	}
 
 	// Reinitialise internal name variable and logger context with new name.
-	n.init(n.state, n.id, newName, n.netType, n.description, n.config, n.status)
+	n.name = newName
 
 	return nil
 }
