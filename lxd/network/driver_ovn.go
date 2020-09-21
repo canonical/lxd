@@ -63,6 +63,11 @@ type ovn struct {
 	common
 }
 
+// Type returns the network type.
+func (n *ovn) Type() string {
+	return "ovn"
+}
+
 // Config returns the network driver info.
 func (n *ovn) Info() Info {
 	return Info{

@@ -15,6 +15,11 @@ type macvlan struct {
 	common
 }
 
+// Type returns the network type.
+func (n *macvlan) Type() string {
+	return "macvlan"
+}
+
 // Validate network config.
 func (n *macvlan) Validate(config map[string]string) error {
 	rules := map[string]func(value string) error{

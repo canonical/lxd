@@ -15,6 +15,11 @@ type sriov struct {
 	common
 }
 
+// Type returns the network type.
+func (n *sriov) Type() string {
+	return "sriov"
+}
+
 // Validate network config.
 func (n *sriov) Validate(config map[string]string) error {
 	rules := map[string]func(value string) error{
