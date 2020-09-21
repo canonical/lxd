@@ -137,7 +137,12 @@ func networksPost(d *Daemon, r *http.Request) response.Response {
 		req.Config = map[string]string{}
 	}
 
-	err = network.ValidateName(req.Name, req.Type)
+	netType, err := network.LoadByType(req.Type)
+	if err != nil {
+		return response.BadRequest(err)
+	}
+
+	err = netType.ValidateName(req.Name)
 	if err != nil {
 		return response.BadRequest(err)
 	}
