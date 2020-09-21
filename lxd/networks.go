@@ -268,7 +268,7 @@ func networksPost(d *Daemon, r *http.Request) response.Response {
 }
 
 func networksPostCluster(d *Daemon, req api.NetworksPost, clientType cluster.ClientType, netType network.Type) error {
-	// Check that no node-specific config key has been defined.
+	// Check that no node-specific config key has been supplied in request.
 	for key := range req.Config {
 		if shared.StringInSlice(key, db.NodeSpecificNetworkConfig) {
 			return fmt.Errorf("Config key %q is node-specific", key)
@@ -328,6 +328,8 @@ func networksPostCluster(d *Daemon, req api.NetworksPost, clientType cluster.Cli
 
 	// Create the network on this node.
 	nodeReq := req
+
+	// Merge node specific config items into global config.
 	for key, value := range configs[nodeName] {
 		nodeReq.Config[key] = value
 	}
