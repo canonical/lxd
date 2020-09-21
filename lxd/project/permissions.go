@@ -41,7 +41,14 @@ func AllowInstanceCreation(tx *db.ClusterTx, projectName string, req api.Instanc
 		req.Profiles = []string{"default"}
 	}
 
-	err = checkInstanceCountLimit(info.Project, len(info.Instances), instanceType)
+	instanceTypeCount := 0
+	for _, inst := range info.Instances {
+		if inst.Type == instanceType {
+			instanceTypeCount++
+		}
+	}
+
+	err = checkInstanceCountLimit(info.Project, instanceTypeCount, instanceType)
 	if err != nil {
 		return err
 	}
