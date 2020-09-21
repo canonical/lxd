@@ -21,6 +21,7 @@ import (
 	"github.com/lxc/lxd/lxd/apparmor"
 	"github.com/lxc/lxd/lxd/cluster"
 	"github.com/lxc/lxd/lxd/daemon"
+	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/dnsmasq"
 	"github.com/lxc/lxd/lxd/dnsmasq/dhcpalloc"
 	"github.com/lxc/lxd/lxd/network/openvswitch"
@@ -48,6 +49,16 @@ type bridge struct {
 	common
 }
 
+// Type returns the network type.
+func (n *bridge) Type() string {
+	return "bridge"
+}
+
+// DBType returns the network type DB ID.
+func (n *bridge) DBType() db.NetworkType {
+	return db.NetworkTypeBridge
+}
+
 // checkClusterWideMACSafe returns whether it is safe to use the same MAC address for the bridge interface on all
 // cluster nodes. It is not suitable to use a static MAC address when "bridge.external_interfaces" is non-empty an
 // the bridge interface has no IPv4 or IPv6 address set. This is because in a clustered environment the same bridge
@@ -71,8 +82,8 @@ func (n *bridge) checkClusterWideMACSafe(config map[string]string) error {
 	return nil
 }
 
-// fillConfig fills requested config with any default values.
-func (n *bridge) fillConfig(config map[string]string) error {
+// FillConfig fills requested config with any default values.
+func (n *bridge) FillConfig(config map[string]string) error {
 	// Set some default values where needed.
 	if config["bridge.mode"] == "fan" {
 		if config["fan.underlay_subnet"] == "" {
@@ -1504,7 +1515,7 @@ func (n *bridge) Update(newNetwork api.NetworkPut, targetNode string, clientType
 	n.logger.Debug("Update", log.Ctx{"clientType": clientType, "newNetwork": newNetwork})
 
 	// Populate default values if they are missing.
-	err := n.fillConfig(newNetwork.Config)
+	err := n.FillConfig(newNetwork.Config)
 	if err != nil {
 		return err
 	}

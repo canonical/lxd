@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/lxc/lxd/lxd/cluster"
+	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/revert"
 	"github.com/lxc/lxd/shared/api"
 	log "github.com/lxc/lxd/shared/log15"
@@ -13,6 +14,16 @@ import (
 // sriov represents a LXD sriov network.
 type sriov struct {
 	common
+}
+
+// Type returns the network type.
+func (n *sriov) Type() string {
+	return "sriov"
+}
+
+// DBType returns the network type DB ID.
+func (n *sriov) DBType() db.NetworkType {
+	return db.NetworkTypeSriov
 }
 
 // Validate network config.
