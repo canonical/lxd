@@ -42,15 +42,14 @@ func (n *common) init(state *state.State, id int64, name string, netType string,
 	n.logger = logging.AddContext(logger.Log, log.Ctx{"driver": netType, "network": name})
 	n.id = id
 	n.name = name
-	n.netType = netType
 	n.config = config
 	n.state = state
 	n.description = description
 	n.status = status
 }
 
-// fillConfig fills requested config with any default values, by default this is a no-op.
-func (n *common) fillConfig(config map[string]string) error {
+// FillConfig fills requested config with any default values, by default this is a no-op.
+func (n *common) FillConfig(config map[string]string) error {
 	return nil
 }
 
