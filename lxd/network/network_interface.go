@@ -11,7 +11,7 @@ import (
 
 // Type represents an LXD network driver type.
 type Type interface {
-	fillConfig(config map[string]string) error
+	FillConfig(config map[string]string) error
 	Info() Info
 	ValidateName(name string) error
 	Type() string
