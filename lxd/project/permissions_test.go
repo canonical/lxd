@@ -88,7 +88,7 @@ func TestAllowInstanceCreation_Above(t *testing.T) {
 	}
 
 	err = project.AllowInstanceCreation(tx, "p1", req)
-	assert.EqualError(t, err, "Reached maximum number of instances of type container in project p1")
+	assert.EqualError(t, err, `Reached maximum number of instances of type "container" in project "p1"`)
 }
 
 // If a limit is configured, but for a different instance type, the check
