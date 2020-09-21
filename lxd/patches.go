@@ -15,6 +15,7 @@ import (
 	"github.com/pkg/errors"
 	"golang.org/x/sys/unix"
 
+	"github.com/lxc/lxd/lxd/backup"
 	"github.com/lxc/lxd/lxd/cluster"
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/db/query"
@@ -99,6 +100,7 @@ var patches = []patch{
 	{name: "storage_lvm_skipactivation", stage: patchPostDaemonStorage, run: patchGenericStorage},
 	{name: "clustering_drop_database_role", stage: patchPostDaemonStorage, run: patchClusteringDropDatabaseRole},
 	{name: "network_clear_bridge_volatile_hwaddr", stage: patchPostDaemonStorage, run: patchNetworkCearBridgeVolatileHwaddr},
+	{name: "move_backups_instances", stage: patchPostDaemonStorage, run: patchMoveBackupsInstances},
 }
 
 type patch struct {
@@ -162,6 +164,42 @@ func patchesApply(d *Daemon, stage patchStage) error {
 }
 
 // Patches begin here
+
+// Moves backups from shared.VarPath("backups") to shared.VarPath("backups", "instances").
+func patchMoveBackupsInstances(name string, d *Daemon) error {
+	if !shared.PathExists(shared.VarPath("backups")) {
+		return nil // Nothing to do, no backups directory.
+	}
+
+	backupsPath := shared.VarPath("backups", "instances")
+
+	err := os.MkdirAll(backupsPath, 0700)
+	if err != nil {
+		return errors.Wrapf(err, "Failed creating instances backup directory %q", backupsPath)
+	}
+
+	backups, err := ioutil.ReadDir(shared.VarPath("backups"))
+	if err != nil {
+		return errors.Wrapf(err, "Failed listing existing backup directory %q", shared.VarPath("backups"))
+	}
+
+	for _, backupDir := range backups {
+		if backupDir.Name() == "instances" || strings.HasPrefix(backupDir.Name(), backup.WorkingDirPrefix) {
+			continue // Don't try and move our new instances directory or temporary directories.
+		}
+
+		oldPath := shared.VarPath("backups", backupDir.Name())
+		newPath := filepath.Join(backupsPath, backupDir.Name())
+		logger.Debugf("Moving backup from %q to %q", oldPath, newPath)
+		err = os.Rename(oldPath, newPath)
+		if err != nil {
+			return errors.Wrapf(err, "Failed moving backup from %q to %q", oldPath, newPath)
+		}
+	}
+
+	return nil
+}
+
 func patchNetworkPIDFiles(name string, d *Daemon) error {
 	networks, err := ioutil.ReadDir(shared.VarPath("networks"))
 	if err != nil {
