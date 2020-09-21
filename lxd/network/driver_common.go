@@ -22,7 +22,8 @@ import (
 
 // Info represents information about a network driver.
 type Info struct {
-	Projects bool // Indicates if driver can be used in network enabled projects.
+	Projects           bool // Indicates if driver can be used in network enabled projects.
+	NodeSpecificConfig bool // Whether driver has cluster node specific config as a prerequisite for creation.
 }
 
 // common represents a generic LXD network.
@@ -131,7 +132,8 @@ func (n *common) Config() map[string]string {
 // Config returns the common network driver info.
 func (n *common) Info() Info {
 	return Info{
-		Projects: false,
+		Projects:           false,
+		NodeSpecificConfig: true,
 	}
 }
 
