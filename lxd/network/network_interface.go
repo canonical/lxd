@@ -4,6 +4,7 @@ import (
 	"net"
 
 	"github.com/lxc/lxd/lxd/cluster"
+	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/state"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
@@ -15,6 +16,7 @@ type Type interface {
 	Info() Info
 	ValidateName(name string) error
 	Type() string
+	DBType() db.NetworkType
 }
 
 // Network represents an instantiated LXD network.
