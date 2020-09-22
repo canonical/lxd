@@ -844,6 +844,30 @@ func (n *ovn) setup(update bool) error {
 	var routerExtPortIPv4, routerIntPortIPv4, routerExtPortIPv6, routerIntPortIPv6 net.IP
 	var routerExtPortIPv4Net, routerIntPortIPv4Net, routerExtPortIPv6Net, routerIntPortIPv6Net *net.IPNet
 
+	// Get bridge MTU to use.
+	bridgeMTU := n.getBridgeMTU()
+	if bridgeMTU == 0 {
+		// If no manual bridge MTU specified, derive it from the underlay network.
+		bridgeMTU, err = n.getOptimalBridgeMTU()
+		if err != nil {
+			return errors.Wrapf(err, "Failed getting optimal bridge MTU")
+		}
+
+		// Save to config so the value can be read by instances connecting to network.
+		n.config["bridge.mtu"] = fmt.Sprintf("%d", bridgeMTU)
+		err := n.state.Cluster.Transaction(func(tx *db.ClusterTx) error {
+			err = tx.UpdateNetwork(n.id, n.description, n.config)
+			if err != nil {
+				return errors.Wrapf(err, "Failed saving optimal bridge MTU")
+			}
+
+			return nil
+		})
+		if err != nil {
+			return err
+		}
+	}
+
 	// Get router MAC address.
 	routerMAC, err := n.getRouterMAC()
 	if err != nil {
@@ -1049,7 +1073,7 @@ func (n *ovn) setup(update bool) error {
 		RecursiveDNSServer: parent.dnsIPv4,
 		DomainName:         n.getDomainName(),
 		LeaseTime:          time.Duration(time.Hour * 1),
-		MTU:                n.getBridgeMTU(),
+		MTU:                bridgeMTU,
 	})
 	if err != nil {
 		return errors.Wrapf(err, "Failed adding DHCPv4 settings for internal switch")
@@ -1095,7 +1119,7 @@ func (n *ovn) setup(update bool) error {
 			SendPeriodic:       true,
 			DNSSearchList:      n.getDNSSearchList(),
 			RecursiveDNSServer: parent.dnsIPv6,
-			MTU:                n.getBridgeMTU(),
+			MTU:                bridgeMTU,
 
 			// Keep these low until we support DNS search domains via DHCPv4, as otherwise RA DNSSL
 			// won't take effect until advert after DHCPv4 has run on instance.
