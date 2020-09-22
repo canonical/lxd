@@ -40,6 +40,7 @@ restricted.devices.unix-block        | string    | -                     | block
 restricted.devices.unix-char         | string    | -                     | block                     | Prevents use of devices of type "unix-char"
 restricted.devices.unix-hotplug      | string    | -                     | block                     | Prevents use of devices of type "unix-hotplug"
 restricted.devices.usb               | string    | -                     | block                     | Prevents use of devices of type "usb"
+restricted.networks.uplinks          | string    | -                     | block                     | Comma delimited list of network names that can be used as uplinks for networks in this project.
 restricted.virtual-machines.lowlevel | string    | -                     | block                     | Prevents use of low-level virtual-machine options like raw.qemu, volatile, etc.
 
 Those keys can be set using the lxc tool with:
