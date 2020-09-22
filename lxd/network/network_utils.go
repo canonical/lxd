@@ -239,7 +239,7 @@ func DetachInterface(bridgeName string, devName string) error {
 }
 
 // GetDevMTU retrieves the current MTU setting for a named network device.
-func GetDevMTU(devName string) (uint64, error) {
+func GetDevMTU(devName string) (uint32, error) {
 	content, err := ioutil.ReadFile(fmt.Sprintf("/sys/class/net/%s/mtu", devName))
 	if err != nil {
 		return 0, err
@@ -251,7 +251,7 @@ func GetDevMTU(devName string) (uint64, error) {
 		return 0, err
 	}
 
-	return mtu, nil
+	return uint32(mtu), nil
 }
 
 // DefaultGatewaySubnetV4 returns subnet of default gateway interface.
