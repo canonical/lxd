@@ -185,6 +185,7 @@ INSERT INTO projects (name, description) VALUES ('default', 'Default LXD project
 INSERT INTO projects_config (project_id, key, value) VALUES (1, 'features.images', 'true');
 INSERT INTO projects_config (project_id, key, value) VALUES (1, 'features.profiles', 'true');
 INSERT INTO projects_config (project_id, key, value) VALUES (1, 'features.storage.volumes', 'true');
+INSERT INTO projects_config (project_id, key, value) VALUES (1, 'features.networks', 'true');
 `
 			_, err = tx.Exec(stmt)
 			if err != nil {
