@@ -27,7 +27,7 @@ import (
 var networkCreateSharedDeviceLock sync.Mutex
 
 // NetworkSetDevMTU sets the MTU setting for a named network device if different from current.
-func NetworkSetDevMTU(devName string, mtu uint64) error {
+func NetworkSetDevMTU(devName string, mtu uint32) error {
 	curMTU, err := network.GetDevMTU(devName)
 	if err != nil {
 		return err
