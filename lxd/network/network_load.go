@@ -1,9 +1,6 @@
 package network
 
 import (
-	"github.com/pkg/errors"
-
-	"github.com/lxc/lxd/lxd/project"
 	"github.com/lxc/lxd/lxd/state"
 )
 
@@ -42,22 +39,4 @@ func LoadByName(s *state.State, project string, name string) (Network, error) {
 	n.init(s, id, project, name, netInfo.Type, netInfo.Description, netInfo.Config, netInfo.Status)
 
 	return n, nil
-}
-
-// Validate validates the supplied network name and configuration for the specified network type.
-func Validate(name string, netType string, config map[string]string) error {
-	driverFunc, ok := drivers[netType]
-	if !ok {
-		return ErrUnknownDriver
-	}
-
-	n := driverFunc()
-	n.init(nil, 0, project.Default, name, netType, "", config, "Unknown")
-
-	err := n.ValidateName(name)
-	if err != nil {
-		return errors.Wrapf(err, "Network name invalid")
-	}
-
-	return n.Validate(config)
 }
