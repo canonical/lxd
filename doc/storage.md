@@ -252,13 +252,13 @@ lxc storage create pool1 ceph
 - Create a osd storage pool named "pool1" in the CEPH cluster "my-cluster".
 
 ```bash
-lxc storage create pool1 ceph ceph.cluster\_name=my-cluster
+lxc storage create pool1 ceph ceph.cluster_name=my-cluster
 ```
 
 - Create a osd storage pool named "pool1" with the on-disk name "my-osd".
 
 ```bash
-lxc storage create pool1 ceph ceph.osd.pool\_name=my-osd
+lxc storage create pool1 ceph ceph.osd.pool_name=my-osd
 ```
 
 - Use the existing osd storage pool "my-already-existing-osd".
@@ -414,7 +414,7 @@ lxc storage create pool1 zfs
  - Create a loop-backed pool named "pool1" with the ZFS Zpool called "my-tank".
 
 ```bash
-lxc storage create pool1 zfs zfs.pool\_name=my-tank
+lxc storage create pool1 zfs zfs.pool_name=my-tank
 ```
 
  - Use the existing ZFS Zpool "my-tank".
