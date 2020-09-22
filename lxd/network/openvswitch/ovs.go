@@ -2,6 +2,7 @@ package openvswitch
 
 import (
 	"fmt"
+	"net"
 	"os/exec"
 	"strconv"
 	"strings"
@@ -167,6 +168,31 @@ func (o *OVS) ChassisID() (string, error) {
 	}
 
 	return chassisID, nil
+}
+
+// OVNEncapIP returns the enscapsulation IP used for OVN underlay tunnels.
+func (o *OVS) OVNEncapIP() (net.IP, error) {
+	// ovs-vsctl's get command doesn't support its --format flag, so we always get the output quoted.
+	// However ovs-vsctl's find and list commands don't support retrieving a single column's map field.
+	// And ovs-vsctl's JSON output is unfriendly towards statically typed languages as it mixes data types
+	// in a slice. So stick with "get" command and use Go's strconv.Unquote to return the actual values.
+	encapIPStr, err := shared.RunCommand("ovs-vsctl", "get", "open_vswitch", ".", "external_ids:ovn-encap-ip")
+	if err != nil {
+		return nil, err
+	}
+
+	encapIPStr = strings.TrimSpace(encapIPStr)
+	encapIPStr, err = strconv.Unquote(encapIPStr)
+	if err != nil {
+		return nil, err
+	}
+
+	encapIP := net.ParseIP(encapIPStr)
+	if encapIP == nil {
+		return nil, fmt.Errorf("Invalid ovn-encap-ip address")
+	}
+
+	return encapIP, nil
 }
 
 // OVNBridgeMappings gets the current OVN bridge mappings.
