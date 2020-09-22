@@ -1154,3 +1154,7 @@ Also introduces two new global config keys that apply to all `ovn` networks and 
 
 ## projects\_networks
 Adds the `features.networks` config key to projects and the ability for a project to hold networks.
+
+## projects\_networks\_restricted\_uplinks
+Adds the `restricted.networks.uplinks` project config key to indicate (as a comma delimited list) which networks
+the networks created inside the project can use as their uplink parent network.
