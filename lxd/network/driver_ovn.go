@@ -127,19 +127,19 @@ func (n *ovn) getClient() (*openvswitch.OVN, error) {
 	return client, nil
 }
 
-// getBridgeMTU returns MTU that should be used for the bridge and instance devices. Will also be used to configure
-// the OVN DHCP and IPv6 RA options.
+// getBridgeMTU returns MTU that should be used for the bridge and instance devices.
+// Will also be used to configure the OVN DHCP and IPv6 RA options. Returns 0 if the bridge.mtu is not set/invalid.
 func (n *ovn) getBridgeMTU() uint32 {
 	if n.config["bridge.mtu"] != "" {
 		mtu, err := strconv.ParseUint(n.config["bridge.mtu"], 10, 32)
 		if err != nil {
-			return ovnGeneveTunnelMTU
+			return 0
 		}
 
 		return uint32(mtu)
 	}
 
-	return ovnGeneveTunnelMTU
+	return 0
 }
 
 // getNetworkPrefix returns OVN network prefix to use for object names.
