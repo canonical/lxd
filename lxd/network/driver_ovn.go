@@ -28,9 +28,6 @@ import (
 	"github.com/lxc/lxd/shared/validate"
 )
 
-// ovnGeneveTunnelMTU is the MTU that is safe to use when tunneling using geneve.
-const ovnGeneveTunnelMTU = 1442
-
 const ovnChassisPriorityMax = 32767
 const ovnVolatileParentIPv4 = "volatile.network.ipv4.address"
 const ovnVolatileParentIPv6 = "volatile.network.ipv6.address"
