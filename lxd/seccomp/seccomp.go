@@ -265,7 +265,7 @@ static void prepare_seccomp_iovec(struct iovec *iov,
 // bpf.h similar to what we do for seccomp itself. But that's annoying since bpf.h is quite
 // large. So users that want bpf interception support should make sure to have the relevant
 // header available at build time.
-#ifndef BPF_DEVCG_DEV_CHAR
+#ifdef BPF_DEVCG_DEV_CHAR
 static inline int pidfd_getfd(int pidfd, int fd, int flags)
 {
 	return syscall(__NR_pidfd_getfd, pidfd, fd, flags);
