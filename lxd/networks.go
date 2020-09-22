@@ -39,30 +39,30 @@ var networkCreateLock sync.Mutex
 var networksCmd = APIEndpoint{
 	Path: "networks",
 
-	Get:  APIEndpointAction{Handler: networksGet, AccessHandler: allowAuthenticated},
-	Post: APIEndpointAction{Handler: networksPost},
+	Get:  APIEndpointAction{Handler: networksGet, AccessHandler: allowProjectPermission("networks", "view")},
+	Post: APIEndpointAction{Handler: networksPost, AccessHandler: allowProjectPermission("networks", "manage-networks")},
 }
 
 var networkCmd = APIEndpoint{
 	Path: "networks/{name}",
 
 	Delete: APIEndpointAction{Handler: networkDelete},
-	Get:    APIEndpointAction{Handler: networkGet, AccessHandler: allowAuthenticated},
-	Patch:  APIEndpointAction{Handler: networkPatch},
-	Post:   APIEndpointAction{Handler: networkPost},
-	Put:    APIEndpointAction{Handler: networkPut},
+	Get:    APIEndpointAction{Handler: networkGet, AccessHandler: allowProjectPermission("networks", "view")},
+	Patch:  APIEndpointAction{Handler: networkPatch, AccessHandler: allowProjectPermission("networks", "manage-networks")},
+	Post:   APIEndpointAction{Handler: networkPost, AccessHandler: allowProjectPermission("networks", "manage-networks")},
+	Put:    APIEndpointAction{Handler: networkPut, AccessHandler: allowProjectPermission("networks", "manage-networks")},
 }
 
 var networkLeasesCmd = APIEndpoint{
 	Path: "networks/{name}/leases",
 
-	Get: APIEndpointAction{Handler: networkLeasesGet, AccessHandler: allowAuthenticated},
+	Get: APIEndpointAction{Handler: networkLeasesGet, AccessHandler: allowProjectPermission("networks", "view")},
 }
 
 var networkStateCmd = APIEndpoint{
 	Path: "networks/{name}/state",
 
-	Get: APIEndpointAction{Handler: networkStateGet, AccessHandler: allowAuthenticated},
+	Get: APIEndpointAction{Handler: networkStateGet, AccessHandler: allowProjectPermission("networks", "view")},
 }
 
 // API endpoints
