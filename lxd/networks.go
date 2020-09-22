@@ -816,7 +816,7 @@ func doNetworkUpdate(d *Daemon, projectName string, name string, req api.Network
 	}
 
 	// Validate the merged configuration.
-	err = network.Validate(name, n.Type(), req.Config)
+	err = n.Validate(req.Config)
 	if err != nil {
 		return response.BadRequest(err)
 	}
