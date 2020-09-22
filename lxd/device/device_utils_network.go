@@ -29,7 +29,7 @@ import (
 var networkCreateSharedDeviceLock sync.Mutex
 
 // NetworkSetDevMTU sets the MTU setting for a named network device if different from current.
-func NetworkSetDevMTU(devName string, mtu uint64) error {
+func NetworkSetDevMTU(devName string, mtu uint32) error {
 	curMTU, err := network.GetDevMTU(devName)
 	if err != nil {
 		return err
@@ -192,7 +192,7 @@ func networkRestorePhysicalNic(hostName string, volatile map[string]string) erro
 			return fmt.Errorf("Failed to convert mtu for \"%s\" mtu \"%s\": %v", hostName, volatile["last_state.mtu"], err)
 		}
 
-		err = NetworkSetDevMTU(hostName, mtuInt)
+		err = NetworkSetDevMTU(hostName, uint32(mtuInt))
 		if err != nil {
 			return fmt.Errorf("Failed to restore physical dev \"%s\" mtu to \"%d\": %v", hostName, mtuInt, err)
 		}
@@ -238,18 +238,18 @@ func networkCreateVethPair(hostName string, m deviceConfig.Device) (string, erro
 
 	// Set the MTU on peer. If not specified and has parent, will inherit MTU from parent.
 	if m["mtu"] != "" {
-		MTU, err := strconv.ParseUint(m["mtu"], 10, 32)
+		mtu, err := strconv.ParseUint(m["mtu"], 10, 32)
 		if err != nil {
 			return "", fmt.Errorf("Invalid MTU specified: %v", err)
 		}
 
-		err = NetworkSetDevMTU(peerName, MTU)
+		err = NetworkSetDevMTU(peerName, uint32(mtu))
 		if err != nil {
 			NetworkRemoveInterface(peerName)
 			return "", fmt.Errorf("Failed to set the MTU: %v", err)
 		}
 
-		err = NetworkSetDevMTU(hostName, MTU)
+		err = NetworkSetDevMTU(hostName, uint32(mtu))
 		if err != nil {
 			NetworkRemoveInterface(peerName)
 			return "", fmt.Errorf("Failed to set the MTU: %v", err)
@@ -294,12 +294,12 @@ func networkCreateTap(hostName string, m deviceConfig.Device) error {
 
 	// Set the MTU on peer. If not specified and has parent, will inherit MTU from parent.
 	if m["mtu"] != "" {
-		MTU, err := strconv.ParseUint(m["mtu"], 10, 32)
+		mtu, err := strconv.ParseUint(m["mtu"], 10, 32)
 		if err != nil {
 			return errors.Wrap(err, "Invalid MTU specified")
 		}
 
-		err = NetworkSetDevMTU(hostName, MTU)
+		err = NetworkSetDevMTU(hostName, uint32(mtu))
 		if err != nil {
 			return errors.Wrap(err, "Failed to set the MTU")
 		}
