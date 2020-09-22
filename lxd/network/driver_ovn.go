@@ -142,6 +142,88 @@ func (n *ovn) getBridgeMTU() uint32 {
 	return 0
 }
 
+// getUnderlayInfo returns the MTU for the underlay network interface and the enscapsulation IP for OVN tunnels.
+func (n *ovn) getUnderlayInfo() (uint32, net.IP, error) {
+	// findMTUFromIP searches all interfaces on the host looking for one that has specified IP.
+	findMTUFromIP := func(findIP net.IP) (uint32, error) {
+		// Look for interface that has the OVN enscapsulation IP assigned.
+		ifaces, err := net.Interfaces()
+		if err != nil {
+			return 0, errors.Wrapf(err, "Failed getting local network interfaces")
+		}
+
+		for _, iface := range ifaces {
+			addrs, err := iface.Addrs()
+			if err != nil {
+				continue
+			}
+
+			for _, addr := range addrs {
+				ip, _, err := net.ParseCIDR(addr.String())
+				if err != nil {
+					continue
+				}
+
+				if ip.Equal(findIP) {
+					underlayMTU, err := GetDevMTU(iface.Name)
+					if err != nil {
+						return 0, errors.Wrapf(err, "Failed getting MTU for %q", iface.Name)
+					}
+
+					return underlayMTU, nil // Found what we were looking for.
+				}
+			}
+		}
+
+		return 0, fmt.Errorf("No matching interface found for OVN enscapsulation IP %q", findIP.String())
+	}
+
+	ovs := openvswitch.NewOVS()
+	encapIP, err := ovs.OVNEncapIP()
+	if err != nil {
+		return 0, nil, errors.Wrapf(err, "Failed getting OVN enscapsulation IP from OVS")
+	}
+
+	underlayMTU, err := findMTUFromIP(encapIP)
+	if err != nil {
+		return 0, nil, err
+	}
+
+	return underlayMTU, encapIP, nil
+}
+
+// getOptimalBridgeMTU returns the MTU that can be used for the bridge and instance devices based on the MTU value
+// of the OVN underlay network interface. This assumes that the OVN tunnel mechanism used is geneve and that the
+// same underlying network settings (MTU and encapsulation IP family) are used on all OVN nodes.
+func (n *ovn) getOptimalBridgeMTU() (uint32, error) {
+	// Get underlay MTU and encapsulation IP.
+	underlayMTU, encapIP, err := n.getUnderlayInfo()
+	if err != nil {
+		return 0, errors.Wrapf(err, "Failed getting OVN underlay info")
+	}
+
+	// Encapsulation family is IPv6.
+	if encapIP.To4() == nil {
+		// If the underlay's MTU is large enough to accommodate a 1500 overlay MTU and the geneve tunnel
+		// overhead of 78 bytes (when used with IPv6 encapsulation) then indicate 1500 MTU can be used.
+		if underlayMTU >= 1578 {
+			return 1500, nil
+		}
+
+		// Default to 1422 which can work with an underlay MTU of 1500.
+		return 1422, nil
+	}
+
+	// If the underlay's MTU is large enough to accommodate a 1500 overlay MTU and the geneve tunnel
+	// overhead of 58 bytes (when used with IPv4 encapsulation) then indicate 1500 MTU can be used.
+	if underlayMTU >= 1558 {
+		return 1500, nil
+	}
+
+	// Default to 1442 which can work with underlay MTU of 1500.
+	return 1442, nil
+}
+
 // getNetworkPrefix returns OVN network prefix to use for object names.
 func (n *ovn) getNetworkPrefix() string {
 	return fmt.Sprintf("lxd-net%d", n.id)
