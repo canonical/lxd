@@ -389,7 +389,7 @@ func IsNetworkVLAN(value string) error {
 // Anything below 68 and the kernel doesn't allow IPv4, anything below 1280 and the kernel doesn't allow IPv6.
 // So require an IPv6-compatible MTU as the low value and cap at the max ethernet jumbo frame size.
 func IsNetworkMTU(value string) error {
-	mtu, err := strconv.ParseInt(value, 10, 32)
+	mtu, err := strconv.ParseUint(value, 10, 32)
 	if err != nil {
 		return fmt.Errorf("Invalid MTU %q", value)
 	}
