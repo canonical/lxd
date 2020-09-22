@@ -29,14 +29,3 @@ func OVNInstanceDevicePortDelete(network Network, instanceID int, deviceName str
 
 	return n.instanceDevicePortDelete(instanceID, deviceName)
 }
-
-// OVNInstanceDeviceMTU returns the MTU that should be used for an OVN instance device.
-func OVNInstanceDeviceMTU(network Network) (uint32, error) {
-	// Check network is of type OVN.
-	n, ok := network.(*ovn)
-	if !ok {
-		return 0, fmt.Errorf("Network is not OVN type")
-	}
-
-	return n.getBridgeMTU(), nil
-}
