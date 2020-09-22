@@ -44,6 +44,12 @@ func (d *cephfs) CreateVolume(vol Volume, filler *VolumeFiller, op *operations.O
 		}
 	}()
 
+	// Apply the volume quota if specified.
+	err = d.SetVolumeQuota(vol, vol.ExpandedConfig("size"), op)
+	if err != nil {
+		return err
+	}
+
 	// Fill the volume.
 	err = d.runFiller(vol, "", filler)
 	if err != nil {
