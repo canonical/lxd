@@ -297,7 +297,7 @@ func checkRestrictions(project *api.Project, instances []db.Instance, profiles [
 	allowVMLowLevel := false
 
 	for _, key := range AllRestrictions {
-		// Check if this particularl restriction is defined explicitly
+		// Check if this particular restriction is defined explicitly
 		// in the project config. If not, use the default value.
 		restrictionValue, ok := project.Config[key]
 		if !ok {
