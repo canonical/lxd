@@ -28,9 +28,6 @@ import (
 	"github.com/lxc/lxd/shared/validate"
 )
 
-// ovnGeneveTunnelMTU is the MTU that is safe to use when tunneling using geneve.
-const ovnGeneveTunnelMTU = 1442
-
 const ovnChassisPriorityMax = 32767
 const ovnVolatileParentIPv4 = "volatile.network.ipv4.address"
 const ovnVolatileParentIPv6 = "volatile.network.ipv6.address"
@@ -130,19 +127,101 @@ func (n *ovn) getClient() (*openvswitch.OVN, error) {
 	return client, nil
 }
 
-// getBridgeMTU returns MTU that should be used for the bridge and instance devices. Will also be used to configure
-// the OVN DHCP and IPv6 RA options.
+// getBridgeMTU returns MTU that should be used for the bridge and instance devices.
+// Will also be used to configure the OVN DHCP and IPv6 RA options. Returns 0 if the bridge.mtu is not set/invalid.
 func (n *ovn) getBridgeMTU() uint32 {
 	if n.config["bridge.mtu"] != "" {
 		mtu, err := strconv.ParseUint(n.config["bridge.mtu"], 10, 32)
 		if err != nil {
-			return ovnGeneveTunnelMTU
+			return 0
 		}
 
 		return uint32(mtu)
 	}
 
-	return ovnGeneveTunnelMTU
+	return 0
+}
+
+// getUnderlayInfo returns the MTU for the underlay network interface and the enscapsulation IP for OVN tunnels.
+func (n *ovn) getUnderlayInfo() (uint32, net.IP, error) {
+	// findMTUFromIP searches all interfaces on the host looking for one that has specified IP.
+	findMTUFromIP := func(findIP net.IP) (uint32, error) {
+		// Look for interface that has the OVN enscapsulation IP assigned.
+		ifaces, err := net.Interfaces()
+		if err != nil {
+			return 0, errors.Wrapf(err, "Failed getting local network interfaces")
+		}
+
+		for _, iface := range ifaces {
+			addrs, err := iface.Addrs()
+			if err != nil {
+				continue
+			}
+
+			for _, addr := range addrs {
+				ip, _, err := net.ParseCIDR(addr.String())
+				if err != nil {
+					continue
+				}
+
+				if ip.Equal(findIP) {
+					underlayMTU, err := GetDevMTU(iface.Name)
+					if err != nil {
+						return 0, errors.Wrapf(err, "Failed getting MTU for %q", iface.Name)
+					}
+
+					return underlayMTU, nil // Found what we were looking for.
+				}
+			}
+		}
+
+		return 0, fmt.Errorf("No matching interface found for OVN enscapsulation IP %q", findIP.String())
+	}
+
+	ovs := openvswitch.NewOVS()
+	encapIP, err := ovs.OVNEncapIP()
+	if err != nil {
+		return 0, nil, errors.Wrapf(err, "Failed getting OVN enscapsulation IP from OVS")
+	}
+
+	underlayMTU, err := findMTUFromIP(encapIP)
+	if err != nil {
+		return 0, nil, err
+	}
+
+	return underlayMTU, encapIP, nil
+}
+
+// getOptimalBridgeMTU returns the MTU that can be used for the bridge and instance devices based on the MTU value
+// of the OVN underlay network interface. This assumes that the OVN tunnel mechanism used is geneve and that the
+// same underlying network settings (MTU and encapsulation IP family) are used on all OVN nodes.
+func (n *ovn) getOptimalBridgeMTU() (uint32, error) {
+	// Get underlay MTU and encapsulation IP.
+	underlayMTU, encapIP, err := n.getUnderlayInfo()
+	if err != nil {
+		return 0, errors.Wrapf(err, "Failed getting OVN underlay info")
+	}
+
+	// Encapsulation family is IPv6.
+	if encapIP.To4() == nil {
+		// If the underlay's MTU is large enough to accommodate a 1500 overlay MTU and the geneve tunnel
+		// overhead of 78 bytes (when used with IPv6 encapsulation) then indicate 1500 MTU can be used.
+		if underlayMTU >= 1578 {
+			return 1500, nil
+		}
+
+		// Default to 1422 which can work with an underlay MTU of 1500.
+		return 1422, nil
+	}
+
+	// If the underlay's MTU is large enough to accommodate a 1500 overlay MTU and the geneve tunnel
+	// overhead of 58 bytes (when used with IPv4 encapsulation) then indicate 1500 MTU can be used.
+	if underlayMTU >= 1558 {
+		return 1500, nil
+	}
+
+	// Default to 1442 which can work with underlay MTU of 1500.
+	return 1442, nil
 }
 
 // getNetworkPrefix returns OVN network prefix to use for object names.
@@ -765,6 +844,30 @@ func (n *ovn) setup(update bool) error {
 	var routerExtPortIPv4, routerIntPortIPv4, routerExtPortIPv6, routerIntPortIPv6 net.IP
 	var routerExtPortIPv4Net, routerIntPortIPv4Net, routerExtPortIPv6Net, routerIntPortIPv6Net *net.IPNet
 
+	// Get bridge MTU to use.
+	bridgeMTU := n.getBridgeMTU()
+	if bridgeMTU == 0 {
+		// If no manual bridge MTU specified, derive it from the underlay network.
+		bridgeMTU, err = n.getOptimalBridgeMTU()
+		if err != nil {
+			return errors.Wrapf(err, "Failed getting optimal bridge MTU")
+		}
+
+		// Save to config so the value can be read by instances connecting to network.
+		n.config["bridge.mtu"] = fmt.Sprintf("%d", bridgeMTU)
+		err := n.state.Cluster.Transaction(func(tx *db.ClusterTx) error {
+			err = tx.UpdateNetwork(n.id, n.description, n.config)
+			if err != nil {
+				return errors.Wrapf(err, "Failed saving optimal bridge MTU")
+			}
+
+			return nil
+		})
+		if err != nil {
+			return err
+		}
+	}
+
 	// Get router MAC address.
 	routerMAC, err := n.getRouterMAC()
 	if err != nil {
@@ -970,7 +1073,7 @@ func (n *ovn) setup(update bool) error {
 		RecursiveDNSServer: parent.dnsIPv4,
 		DomainName:         n.getDomainName(),
 		LeaseTime:          time.Duration(time.Hour * 1),
-		MTU:                n.getBridgeMTU(),
+		MTU:                bridgeMTU,
 	})
 	if err != nil {
 		return errors.Wrapf(err, "Failed adding DHCPv4 settings for internal switch")
@@ -1016,7 +1119,7 @@ func (n *ovn) setup(update bool) error {
 			SendPeriodic:       true,
 			DNSSearchList:      n.getDNSSearchList(),
 			RecursiveDNSServer: parent.dnsIPv6,
-			MTU:                n.getBridgeMTU(),
+			MTU:                bridgeMTU,
 
 			// Keep these low until we support DNS search domains via DHCPv4, as otherwise RA DNSSL
 			// won't take effect until advert after DHCPv4 has run on instance.
