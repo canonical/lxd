@@ -75,6 +75,7 @@ type cmdRemoteAdd struct {
 	flagProtocol   string
 	flagAuthType   string
 	flagDomain     string
+	flagProject    string
 }
 
 func (c *cmdRemoteAdd) Command() *cobra.Command {
@@ -97,8 +98,52 @@ Basic authentication can be used when combined with the "simplestreams" protocol
 	cmd.Flags().StringVar(&c.flagAuthType, "auth-type", "", i18n.G("Server authentication type (tls or candid)")+"``")
 	cmd.Flags().BoolVar(&c.flagPublic, "public", false, i18n.G("Public image server"))
 	cmd.Flags().StringVar(&c.flagDomain, "domain", "", i18n.G("Candid domain to use")+"``")
+	cmd.Flags().StringVar(&c.flagProject, "project", "", i18n.G("Project to use for the remote")+"``")
 
 	return cmd
+}
+
+func (c *cmdRemoteAdd) findProject(d lxd.InstanceServer, project string) (string, error) {
+	if project == "" {
+		// Check if we can pull a list of projects.
+		if d.HasExtension("projects") {
+			// Retrieve the allowed projects.
+			names, err := d.GetProjectNames()
+			if err != nil {
+				return "", err
+			}
+
+			if len(names) == 0 {
+				// If no allowed projects, just keep it to the default.
+				return "", nil
+			} else if len(names) == 1 {
+				// If only a single project, use that.
+				return names[0], nil
+			}
+
+			// Deal with multiple projects.
+			if shared.StringInSlice("default", names) {
+				// If we have access to the default project, use it.
+				return "", nil
+			}
+
+			// Let's ask the user.
+			fmt.Println(i18n.G("Available projects:"))
+			for _, name := range names {
+				fmt.Println(" - " + name)
+			}
+			return cli.AskChoice(i18n.G("Name of the project to use for this remote:")+" ", names, ""), nil
+		}
+
+		return "", nil
+	}
+
+	_, _, err := d.GetProject(project)
+	if err != nil {
+		return "", err
+	}
+
+	return project, nil
 }
 
 func (c *cmdRemoteAdd) Run(cmd *cobra.Command, args []string) error {
@@ -241,6 +286,14 @@ func (c *cmdRemoteAdd) Run(cmd *cobra.Command, args []string) error {
 
 		remote := conf.Remotes[server]
 		remote.AuthType = "tls"
+
+		// Handle project.
+		project, err := c.findProject(d.(lxd.InstanceServer), c.flagProject)
+		if err != nil {
+			return err
+		}
+		remote.Project = project
+
 		conf.Remotes[server] = remote
 		return conf.SaveConfig(c.global.confPath)
 	}
@@ -357,55 +410,62 @@ func (c *cmdRemoteAdd) Run(cmd *cobra.Command, args []string) error {
 		return conf.SaveConfig(c.global.confPath)
 	}
 
-	// Check if our cert is already trusted
-	if srv.Auth == "trusted" {
-		return conf.SaveConfig(c.global.confPath)
-	}
-
-	if c.flagAuthType == "tls" {
-		// Prompt for trust password
-		if c.flagPassword == "" {
-			fmt.Printf(i18n.G("Admin password for %s:")+" ", server)
-			pwd, err := terminal.ReadPassword(0)
-			if err != nil {
-				/* We got an error, maybe this isn't a terminal, let's try to
-				 * read it as a file */
-				pwd, err = shared.ReadStdin()
+	// Check if additional authentication is required.
+	if srv.Auth != "trusted" {
+		if c.flagAuthType == "tls" {
+			// Prompt for trust password
+			if c.flagPassword == "" {
+				fmt.Printf(i18n.G("Admin password for %s:")+" ", server)
+				pwd, err := terminal.ReadPassword(0)
 				if err != nil {
-					return err
+					/* We got an error, maybe this isn't a terminal, let's try to
+					 * read it as a file */
+					pwd, err = shared.ReadStdin()
+					if err != nil {
+						return err
+					}
 				}
+				fmt.Println("")
+				c.flagPassword = string(pwd)
 			}
-			fmt.Println("")
-			c.flagPassword = string(pwd)
+
+			// Add client certificate to trust store
+			req := api.CertificatesPost{
+				Password: c.flagPassword,
+			}
+			req.Type = "client"
+
+			err = d.(lxd.InstanceServer).CreateCertificate(req)
+			if err != nil {
+				return err
+			}
+		} else {
+			d.(lxd.InstanceServer).RequireAuthenticated(true)
 		}
 
-		// Add client certificate to trust store
-		req := api.CertificatesPost{
-			Password: c.flagPassword,
-		}
-		req.Type = "client"
-
-		err = d.(lxd.InstanceServer).CreateCertificate(req)
+		// And check if trusted now
+		srv, _, err = d.(lxd.InstanceServer).GetServer()
 		if err != nil {
 			return err
 		}
-	} else {
-		d.(lxd.InstanceServer).RequireAuthenticated(true)
+
+		if srv.Auth != "trusted" {
+			return fmt.Errorf(i18n.G("Server doesn't trust us after authentication"))
+		}
+
+		if c.flagAuthType == "tls" {
+			fmt.Println(i18n.G("Client certificate stored at server:")+" ", server)
+		}
 	}
 
-	// And check if trusted now
-	srv, _, err = d.(lxd.InstanceServer).GetServer()
+	// Handle project.
+	remote = conf.Remotes[server]
+	project, err := c.findProject(d.(lxd.InstanceServer), c.flagProject)
 	if err != nil {
 		return err
 	}
-
-	if srv.Auth != "trusted" {
-		return fmt.Errorf(i18n.G("Server doesn't trust us after authentication"))
-	}
-
-	if c.flagAuthType == "tls" {
-		fmt.Println(i18n.G("Client certificate stored at server:")+" ", server)
-	}
+	remote.Project = project
+	conf.Remotes[server] = remote
 
 	return conf.SaveConfig(c.global.confPath)
 }
