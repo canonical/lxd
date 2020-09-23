@@ -825,6 +825,67 @@ func (n *ovn) Create(clientType cluster.ClientType) error {
 	return nil
 }
 
+// allowedUplinkNetworks returns a list of allowed networks to use as uplinks based on project restrictions.
+func (n *ovn) allowedUplinkNetworks() ([]string, error) {
+	// Uplink networks are always from the default project.
+	networks, err := n.state.Cluster.GetNetworks(project.Default)
+	if err != nil {
+		return nil, errors.Wrapf(err, "Failed getting uplink networks")
+	}
+
+	// Remove ourselves from the networks list if we are in the default project.
+	if n.project == project.Default {
+		allNets := networks
+		networks = make([]string, 0, len(allNets)-1)
+		for _, network := range allNets {
+			if network == n.name {
+				continue
+			}
+
+			networks = append(networks, network)
+		}
+	}
+
+	// Load the project to get uplink network restrictions.
+	var project *api.Project
+	err = n.state.Cluster.Transaction(func(tx *db.ClusterTx) error {
+		project, err = tx.GetProject(n.project)
+		if err != nil {
+			return err
+		}
+
+		return nil
+	})
+	if err != nil {
+		return nil, errors.Wrapf(err, "Failed to load restrictions for project %q", n.project)
+	}
+
+	// If project is not restricted, return full network list.
+	if !shared.IsTrue(project.Config["restricted"]) {
+		return networks, nil
+	}
+
+	allowedNetworks := []string{}
+
+	// There are no allowed networks if restricted.networks.uplinks is not set.
+	if project.Config["restricted.networks.uplinks"] == "" {
+		return allowedNetworks, nil
+	}
+
+	// Parse the allowed uplinks and return any that are present in the actual defined networks.
+	allowedRestrictedUplinks := strings.Split(project.Config["restricted.networks.uplinks"], ",")
+
+	for _, allowedRestrictedUplink := range allowedRestrictedUplinks {
+		allowedRestrictedUplink = strings.TrimSpace(allowedRestrictedUplink)
+
+		if shared.StringInSlice(allowedRestrictedUplink, networks) {
+			allowedNetworks = append(allowedNetworks, allowedRestrictedUplink)
+		}
+	}
+
+	return allowedNetworks, nil
+}
+
 func (n *ovn) setup(update bool) error {
 	// If we are in mock mode, just no-op.
 	if n.state.OS.MockMode {
