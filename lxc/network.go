@@ -255,7 +255,7 @@ func (c *cmdNetworkCreate) Command() *cobra.Command {
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(`Create new networks`))
 
 	cmd.Flags().StringVar(&c.network.flagTarget, "target", "", i18n.G("Cluster member name")+"``")
-	cmd.Flags().StringVarP(&c.network.flagType, "type", "t", "bridge", i18n.G("Network type"))
+	cmd.Flags().StringVarP(&c.network.flagType, "type", "t", "", i18n.G("Network type"))
 
 	cmd.RunE = c.Run
 
