@@ -225,6 +225,7 @@ var APIExtensions = []string{
 	"container_syscall_intercept_bpf_devices",
 	"network_type_ovn",
 	"projects_networks",
+	"projects_networks_restricted_uplinks",
 }
 
 // APIExtensionsCount returns the number of available API extensions.

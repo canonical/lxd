@@ -81,7 +81,7 @@ func (n *ovn) Info() Info {
 // Validate network config.
 func (n *ovn) Validate(config map[string]string) error {
 	rules := map[string]func(value string) error{
-		"network":       validate.IsNotEmpty,
+		"network":       validate.IsAny, // Is validated during setup.
 		"bridge.hwaddr": validate.Optional(validate.IsNetworkMAC),
 		"bridge.mtu":    validate.Optional(validate.IsNetworkMTU),
 		"ipv4.address": func(value string) error {
@@ -825,6 +825,67 @@ func (n *ovn) Create(clientType cluster.ClientType) error {
 	return nil
 }
 
+// allowedUplinkNetworks returns a list of allowed networks to use as uplinks based on project restrictions.
+func (n *ovn) allowedUplinkNetworks() ([]string, error) {
+	// Uplink networks are always from the default project.
+	networks, err := n.state.Cluster.GetNetworks(project.Default)
+	if err != nil {
+		return nil, errors.Wrapf(err, "Failed getting uplink networks")
+	}
+
+	// Remove ourselves from the networks list if we are in the default project.
+	if n.project == project.Default {
+		allNets := networks
+		networks = make([]string, 0, len(allNets)-1)
+		for _, network := range allNets {
+			if network == n.name {
+				continue
+			}
+
+			networks = append(networks, network)
+		}
+	}
+
+	// Load the project to get uplink network restrictions.
+	var project *api.Project
+	err = n.state.Cluster.Transaction(func(tx *db.ClusterTx) error {
+		project, err = tx.GetProject(n.project)
+		if err != nil {
+			return err
+		}
+
+		return nil
+	})
+	if err != nil {
+		return nil, errors.Wrapf(err, "Failed to load restrictions for project %q", n.project)
+	}
+
+	// If project is not restricted, return full network list.
+	if !shared.IsTrue(project.Config["restricted"]) {
+		return networks, nil
+	}
+
+	allowedNetworks := []string{}
+
+	// There are no allowed networks if restricted.networks.uplinks is not set.
+	if project.Config["restricted.networks.uplinks"] == "" {
+		return allowedNetworks, nil
+	}
+
+	// Parse the allowed uplinks and return any that are present in the actual defined networks.
+	allowedRestrictedUplinks := strings.Split(project.Config["restricted.networks.uplinks"], ",")
+
+	for _, allowedRestrictedUplink := range allowedRestrictedUplinks {
+		allowedRestrictedUplink = strings.TrimSpace(allowedRestrictedUplink)
+
+		if shared.StringInSlice(allowedRestrictedUplink, networks) {
+			allowedNetworks = append(allowedNetworks, allowedRestrictedUplink)
+		}
+	}
+
+	return allowedNetworks, nil
+}
+
 func (n *ovn) setup(update bool) error {
 	// If we are in mock mode, just no-op.
 	if n.state.OS.MockMode {
@@ -844,6 +905,31 @@ func (n *ovn) setup(update bool) error {
 	var routerExtPortIPv4, routerIntPortIPv4, routerExtPortIPv6, routerIntPortIPv6 net.IP
 	var routerExtPortIPv4Net, routerIntPortIPv4Net, routerExtPortIPv6Net, routerIntPortIPv6Net *net.IPNet
 
+	// Record updated config so we can store back into DB and n.config variable.
+	updatedConfig := make(map[string]string)
+
+	// Check project restrictions.
+	allowedUplinkNetworks, err := n.allowedUplinkNetworks()
+	if err != nil {
+		return err
+	}
+
+	if n.config["network"] != "" {
+		if !shared.StringInSlice(n.config["network"], allowedUplinkNetworks) {
+			return fmt.Errorf(`Option "network" value %q is not one of the allowed uplink networks in project`, n.config["network"])
+		}
+	} else {
+		allowedNetworkCount := len(allowedUplinkNetworks)
+		if allowedNetworkCount == 0 {
+			return fmt.Errorf(`No allowed uplink networks in project`)
+		} else if allowedNetworkCount == 1 {
+			// If there is only one allowed uplink network then use it if not specified by user.
+			updatedConfig["network"] = allowedUplinkNetworks[0]
+		} else {
+			return fmt.Errorf(`Option "network" is required`)
+		}
+	}
+
 	// Get bridge MTU to use.
 	bridgeMTU := n.getBridgeMTU()
 	if bridgeMTU == 0 {
@@ -854,7 +940,15 @@ func (n *ovn) setup(update bool) error {
 		}
 
 		// Save to config so the value can be read by instances connecting to network.
-		n.config["bridge.mtu"] = fmt.Sprintf("%d", bridgeMTU)
+		updatedConfig["bridge.mtu"] = fmt.Sprintf("%d", bridgeMTU)
+	}
+
+	// Apply any config dynamically generated to the current config and store back to DB in single transaction.
+	if len(updatedConfig) > 0 {
+		for k, v := range updatedConfig {
+			n.config[k] = v
+		}
+
 		err := n.state.Cluster.Transaction(func(tx *db.ClusterTx) error {
 			err = tx.UpdateNetwork(n.id, n.description, n.config)
 			if err != nil {
