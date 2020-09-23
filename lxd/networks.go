@@ -46,7 +46,7 @@ var networksCmd = APIEndpoint{
 var networkCmd = APIEndpoint{
 	Path: "networks/{name}",
 
-	Delete: APIEndpointAction{Handler: networkDelete},
+	Delete: APIEndpointAction{Handler: networkDelete, AccessHandler: allowProjectPermission("networks", "manage-networks")},
 	Get:    APIEndpointAction{Handler: networkGet, AccessHandler: allowProjectPermission("networks", "view")},
 	Patch:  APIEndpointAction{Handler: networkPatch, AccessHandler: allowProjectPermission("networks", "manage-networks")},
 	Post:   APIEndpointAction{Handler: networkPost, AccessHandler: allowProjectPermission("networks", "manage-networks")},
