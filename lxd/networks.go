@@ -144,7 +144,11 @@ func networksPost(d *Daemon, r *http.Request) response.Response {
 	}
 
 	if req.Type == "" {
-		req.Type = "bridge"
+		if projectName != project.Default {
+			req.Type = "ovn" // Only OVN networks are allowed inside network enabled projects.
+		} else {
+			req.Type = "bridge" // Default to bridge for non-network enabled projects.
+		}
 	}
 
 	if req.Config == nil {
