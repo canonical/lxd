@@ -81,7 +81,7 @@ func (n *ovn) Info() Info {
 // Validate network config.
 func (n *ovn) Validate(config map[string]string) error {
 	rules := map[string]func(value string) error{
-		"network":       validate.IsNotEmpty,
+		"network":       validate.IsAny, // Is validated during setup.
 		"bridge.hwaddr": validate.Optional(validate.IsNetworkMAC),
 		"bridge.mtu":    validate.Optional(validate.IsNetworkMTU),
 		"ipv4.address": func(value string) error {
@@ -905,6 +905,31 @@ func (n *ovn) setup(update bool) error {
 	var routerExtPortIPv4, routerIntPortIPv4, routerExtPortIPv6, routerIntPortIPv6 net.IP
 	var routerExtPortIPv4Net, routerIntPortIPv4Net, routerExtPortIPv6Net, routerIntPortIPv6Net *net.IPNet
 
+	// Record updated config so we can store back into DB and n.config variable.
+	updatedConfig := make(map[string]string)
+
+	// Check project restrictions.
+	allowedUplinkNetworks, err := n.allowedUplinkNetworks()
+	if err != nil {
+		return err
+	}
+
+	if n.config["network"] != "" {
+		if !shared.StringInSlice(n.config["network"], allowedUplinkNetworks) {
+			return fmt.Errorf(`Option "network" value %q is not one of the allowed uplink networks in project`, n.config["network"])
+		}
+	} else {
+		allowedNetworkCount := len(allowedUplinkNetworks)
+		if allowedNetworkCount == 0 {
+			return fmt.Errorf(`No allowed uplink networks in project`)
+		} else if allowedNetworkCount == 1 {
+			// If there is only one allowed uplink network then use it if not specified by user.
+			updatedConfig["network"] = allowedUplinkNetworks[0]
+		} else {
+			return fmt.Errorf(`Option "network" is required`)
+		}
+	}
+
 	// Get bridge MTU to use.
 	bridgeMTU := n.getBridgeMTU()
 	if bridgeMTU == 0 {
@@ -915,7 +940,15 @@ func (n *ovn) setup(update bool) error {
 		}
 
 		// Save to config so the value can be read by instances connecting to network.
-		n.config["bridge.mtu"] = fmt.Sprintf("%d", bridgeMTU)
+		updatedConfig["bridge.mtu"] = fmt.Sprintf("%d", bridgeMTU)
+	}
+
+	// Apply any config dynamically generated to the current config and store back to DB in single transaction.
+	if len(updatedConfig) > 0 {
+		for k, v := range updatedConfig {
+			n.config[k] = v
+		}
+
 		err := n.state.Cluster.Transaction(func(tx *db.ClusterTx) error {
 			err = tx.UpdateNetwork(n.id, n.description, n.config)
 			if err != nil {
