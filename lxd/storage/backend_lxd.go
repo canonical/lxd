@@ -3107,7 +3107,7 @@ func (b *lxdBackend) UpdateInstanceBackupFile(inst instance.Instance, op *operat
 		return err
 	}
 
-	data, err := yaml.Marshal(&backup.InstanceConfig{
+	data, err := yaml.Marshal(&backup.Config{
 		Container: ci.(*api.Instance),
 		Snapshots: sis,
 		Pool:      &b.db,
@@ -3155,7 +3155,7 @@ func (b *lxdBackend) UpdateInstanceBackupFile(inst instance.Instance, op *operat
 // config are removed from the storage device, and any snapshots that exist in the backup config but do not exist
 // on the storage device are ignored. The remaining set of snapshots that exist on both the storage device and the
 // backup config are returned. They set can be used to re-create the snapshot database entries when importing.
-func (b *lxdBackend) CheckInstanceBackupFileSnapshots(backupConf *backup.InstanceConfig, projectName string, deleteMissing bool, op *operations.Operation) ([]*api.InstanceSnapshot, error) {
+func (b *lxdBackend) CheckInstanceBackupFileSnapshots(backupConf *backup.Config, projectName string, deleteMissing bool, op *operations.Operation) ([]*api.InstanceSnapshot, error) {
 	logger := logging.AddContext(b.logger, log.Ctx{"project": projectName, "instance": backupConf.Container.Name, "deleteMissing": deleteMissing})
 	logger.Debug("CheckInstanceBackupFileSnapshots started")
 	defer logger.Debug("CheckInstanceBackupFileSnapshots finished")

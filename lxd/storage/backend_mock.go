@@ -103,7 +103,7 @@ func (b *mockBackend) UpdateInstanceBackupFile(inst instance.Instance, op *opera
 	return nil
 }
 
-func (b *mockBackend) CheckInstanceBackupFileSnapshots(backupConf *backup.InstanceConfig, projectName string, deleteMissing bool, op *operations.Operation) ([]*api.InstanceSnapshot, error) {
+func (b *mockBackend) CheckInstanceBackupFileSnapshots(backupConf *backup.Config, projectName string, deleteMissing bool, op *operations.Operation) ([]*api.InstanceSnapshot, error) {
 	return nil, nil
 }
 
