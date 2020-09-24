@@ -24,6 +24,18 @@ type InstanceBackup struct {
 	CompressionAlgorithm string
 }
 
+// StoragePoolVolumeBackup is a value object holding all db-related details about a storage volume backup.
+type StoragePoolVolumeBackup struct {
+	ID                   int
+	VolumeID             int64
+	Name                 string
+	CreationDate         time.Time
+	ExpiryDate           time.Time
+	VolumeOnly           bool
+	OptimizedStorage     bool
+	CompressionAlgorithm string
+}
+
 // Returns the ID of the instance backup with the given name.
 func (c *Cluster) getInstanceBackupID(name string) (int, error) {
 	q := "SELECT id FROM instances_backups WHERE name=?"
