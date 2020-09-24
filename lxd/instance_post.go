@@ -474,7 +474,7 @@ func containerPostClusteringMigrateWithCeph(d *Daemon, c instance.Instance, proj
 				return errors.Wrap(err, "Failed to create mount point on target node")
 			}
 		} else {
-			path := fmt.Sprintf("/internal/cluster/container-moved/%s", newName)
+			path := fmt.Sprintf("/internal/cluster/container-moved/%s?project=%s", newName, projectName)
 			resp, _, err := client.RawQuery("POST", path, nil, "")
 			if err != nil {
 				return errors.Wrap(err, "Failed to create mount point on target node")
