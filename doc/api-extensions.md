@@ -1158,3 +1158,21 @@ Adds the `features.networks` config key to projects and the ability for a projec
 ## projects\_networks\_restricted\_uplinks
 Adds the `restricted.networks.uplinks` project config key to indicate (as a comma delimited list) which networks
 the networks created inside the project can use as their uplink parent network.
+
+## custom\_volume\_backup
+Add custom volume backup support.
+
+This includes the following new endpoints (see [RESTful API](rest-api.md) for details):
+
+* `GET /1.0/storage-pools/<pool>/<type>/<volume>/backups`
+* `POST /1.0/storage-pools/<pool>/<type>/<volume>/backups`
+
+* `GET /1.0/storage-pools/<pool>/<type>/<volume>/backups/<name>`
+* `POST /1.0/storage-pools/<pool>/<type>/<volume>/backups/<name>`
+* `DELETE /1.0/storage-pools/<pool>/<type>/<volume>/backups/<name>`
+
+* `GET /1.0/storage-pools/<pool>/<type>/<volume>/backups/<name>/export`
+
+The following existing endpoint has been modified:
+
+ * `POST /1.0/storage-pools/<pool>/<type>/<volume>` accepts the new source type `backup`

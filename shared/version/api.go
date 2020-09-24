@@ -226,6 +226,7 @@ var APIExtensions = []string{
 	"network_type_ovn",
 	"projects_networks",
 	"projects_networks_restricted_uplinks",
+	"custom_volume_backup",
 }
 
 // APIExtensionsCount returns the number of available API extensions.
