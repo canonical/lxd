@@ -39,7 +39,7 @@ func (c *Cluster) getInstanceBackupID(name string) (int, error) {
 }
 
 // GetInstanceBackup returns the backup with the given name.
-func (c *Cluster) GetInstanceBackup(project, name string) (InstanceBackup, error) {
+func (c *Cluster) GetInstanceBackup(projectName string, name string) (InstanceBackup, error) {
 	args := InstanceBackup{}
 	args.Name = name
 
@@ -54,7 +54,7 @@ SELECT instances_backups.id, instances_backups.instance_id,
     JOIN projects ON projects.id=instances.project_id
     WHERE projects.name=? AND instances_backups.name=?
 `
-	arg1 := []interface{}{project, name}
+	arg1 := []interface{}{projectName, name}
 	arg2 := []interface{}{&args.ID, &args.InstanceID, &args.CreationDate,
 		&args.ExpiryDate, &instanceOnlyInt, &optimizedStorageInt}
 	err := dbQueryRowScan(c, q, arg1, arg2)
@@ -79,14 +79,14 @@ SELECT instances_backups.id, instances_backups.instance_id,
 
 // GetInstanceBackups returns the names of all backups of the instance with the
 // given name.
-func (c *Cluster) GetInstanceBackups(project, name string) ([]string, error) {
+func (c *Cluster) GetInstanceBackups(projectName string, name string) ([]string, error) {
 	var result []string
 
 	q := `SELECT instances_backups.name FROM instances_backups
 JOIN instances ON instances_backups.instance_id=instances.id
 JOIN projects ON projects.id=instances.project_id
 WHERE projects.name=? AND instances.name=?`
-	inargs := []interface{}{project, name}
+	inargs := []interface{}{projectName, name}
 	outfmt := []interface{}{name}
 	dbResults, err := queryScan(c, q, inargs, outfmt)
 	if err != nil {
