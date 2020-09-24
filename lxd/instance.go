@@ -119,6 +119,7 @@ func instanceCreateFromImage(d *Daemon, args db.InstanceArgs, hash string, op *o
 	if err != nil {
 		return nil, errors.Wrapf(err, "Locate image %q in the cluster", hash)
 	}
+
 	if nodeAddress != "" {
 		// The image is available from another node, let's try to import it.
 		err = instanceImageTransfer(d, args.Project, img.Fingerprint, nodeAddress)
