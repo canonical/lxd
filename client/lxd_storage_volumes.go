@@ -2,10 +2,15 @@ package lxd
 
 import (
 	"fmt"
+	"io"
+	"net/http"
 	"net/url"
 	"strings"
 
 	"github.com/lxc/lxd/shared/api"
+	"github.com/lxc/lxd/shared/cancel"
+	"github.com/lxc/lxd/shared/ioprogress"
+	"github.com/lxc/lxd/shared/units"
 )
 
 // Storage volumes handling function
@@ -606,4 +611,184 @@ func (r *ProtocolLXD) RenameStoragePoolVolume(pool string, volType string, name 
 	}
 
 	return nil
+}
+
+// GetStoragePoolVolumeBackupNames returns a list of volume backup names.
+func (r *ProtocolLXD) GetStoragePoolVolumeBackupNames(pool string, volName string) ([]string, error) {
+	if !r.HasExtension("custom_volume_backup") {
+		return nil, fmt.Errorf("The server is missing the required \"custom_volume_backup\" API extension")
+	}
+
+	// Fetch the raw value
+	urls := []string{}
+	_, err := r.queryStruct("GET", fmt.Sprintf("/storage-pools/%s/volumes/custom/%s/backups", url.PathEscape(pool), url.PathEscape(volName)), nil, "", &urls)
+	if err != nil {
+		return nil, err
+	}
+
+	// Parse it
+	names := []string{}
+	for _, uri := range urls {
+		fields := strings.Split(uri, fmt.Sprintf("/storage-pools/%s/volumes/custom/%s/backups", url.PathEscape(pool), url.PathEscape(volName)))
+		names = append(names, fields[len(fields)-1])
+	}
+
+	return names, nil
+}
+
+// GetStoragePoolVolumeBackups returns a list of custom volume backups.
+func (r *ProtocolLXD) GetStoragePoolVolumeBackups(pool string, volName string) ([]api.StoragePoolVolumeBackup, error) {
+	if !r.HasExtension("custom_volume_backup") {
+		return nil, fmt.Errorf("The server is missing the required \"custom_volume_backup\" API extension")
+	}
+
+	// Fetch the raw value
+	backups := []api.StoragePoolVolumeBackup{}
+
+	_, err := r.queryStruct("GET", fmt.Sprintf("/storage-pools/%s/volumes/custom/%s/backups?recursion=1", url.PathEscape(pool), url.PathEscape(volName)), nil, "", &backups)
+	if err != nil {
+		return nil, err
+	}
+
+	return backups, nil
+}
+
+// GetStoragePoolVolumeBackup returns a custom volume backup.
+func (r *ProtocolLXD) GetStoragePoolVolumeBackup(pool string, volName string, name string) (*api.StoragePoolVolumeBackup, string, error) {
+	if !r.HasExtension("custom_volume_backup") {
+		return nil, "", fmt.Errorf("The server is missing the required \"custom_volume_backup\" API extension")
+	}
+
+	// Fetch the raw value
+	backup := api.StoragePoolVolumeBackup{}
+	etag, err := r.queryStruct("GET", fmt.Sprintf("/storage-pools/%s/volumes/custom/%s/backups/%s", url.PathEscape(pool), url.PathEscape(volName), url.PathEscape(name)), nil, "", &backup)
+	if err != nil {
+		return nil, "", err
+	}
+
+	return &backup, etag, nil
+}
+
+// CreateStoragePoolVolumeBackup creates new custom volume backup.
+func (r *ProtocolLXD) CreateStoragePoolVolumeBackup(pool string, volName string, backup api.StoragePoolVolumeBackupsPost) (Operation, error) {
+	if !r.HasExtension("custom_volume_backup") {
+		return nil, fmt.Errorf("The server is missing the required \"custom_volume_backup\" API extension")
+	}
+
+	// Send the request
+	op, _, err := r.queryOperation("POST", fmt.Sprintf("/storage-pools/%s/volumes/custom/%s/backups", url.PathEscape(pool), url.PathEscape(volName)), backup, "")
+	if err != nil {
+		return nil, err
+	}
+
+	return op, nil
+
+}
+
+// RenameStoragePoolVolumeBackup renames a custom volume backup.
+func (r *ProtocolLXD) RenameStoragePoolVolumeBackup(pool string, volName string, name string, backup api.StoragePoolVolumeBackupPost) (Operation, error) {
+	if !r.HasExtension("custom_volume_backup") {
+		return nil, fmt.Errorf("The server is missing the required \"custom_volume_backup\" API extension")
+	}
+
+	// Send the request
+	op, _, err := r.queryOperation("POST", fmt.Sprintf("/storage-pools/%s/volumes/custom/%s/backups/%s", url.PathEscape(pool), url.PathEscape(volName), url.PathEscape(name)), backup, "")
+	if err != nil {
+		return nil, err
+	}
+
+	return op, nil
+}
+
+// DeleteStoragePoolVolumeBackup deletes a custom volume backup.
+func (r *ProtocolLXD) DeleteStoragePoolVolumeBackup(pool string, volName string, name string) (Operation, error) {
+	if !r.HasExtension("custom_volume_backup") {
+		return nil, fmt.Errorf("The server is missing the required \"custom_volume_backup\" API extension")
+	}
+
+	// Send the request
+	op, _, err := r.queryOperation("DELETE", fmt.Sprintf("/storage-pools/%s/volumes/custom/%s/backups/%s", url.PathEscape(pool), url.PathEscape(volName), url.PathEscape(name)), nil, "")
+	if err != nil {
+		return nil, err
+	}
+
+	return op, nil
+}
+
+// GetStoragePoolVolumeBackupFile requests the custom volume backup content.
+func (r *ProtocolLXD) GetStoragePoolVolumeBackupFile(pool string, volName string, name string, req *BackupFileRequest) (*BackupFileResponse, error) {
+	if !r.HasExtension("custom_volume_backup") {
+		return nil, fmt.Errorf("The server is missing the required \"custom_volume_backup\" API extension")
+	}
+
+	// Build the URL
+	uri := fmt.Sprintf("%s/1.0/storage-pools/%s/volumes/custom/%s/backups/%s/export", r.httpHost, url.PathEscape(pool), url.PathEscape(volName), url.PathEscape(name))
+
+	if r.project != "" {
+		uri += fmt.Sprintf("?project=%s", url.QueryEscape(r.project))
+	}
+
+	// Prepare the download request
+	request, err := http.NewRequest("GET", uri, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	if r.httpUserAgent != "" {
+		request.Header.Set("User-Agent", r.httpUserAgent)
+	}
+
+	// Start the request
+	response, doneCh, err := cancel.CancelableDownload(req.Canceler, r.http, request)
+	if err != nil {
+		return nil, err
+	}
+	defer response.Body.Close()
+	defer close(doneCh)
+
+	if response.StatusCode != http.StatusOK {
+		_, _, err := lxdParseResponse(response)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	// Handle the data
+	body := response.Body
+	if req.ProgressHandler != nil {
+		body = &ioprogress.ProgressReader{
+			ReadCloser: response.Body,
+			Tracker: &ioprogress.ProgressTracker{
+				Length: response.ContentLength,
+				Handler: func(percent int64, speed int64) {
+					req.ProgressHandler(ioprogress.ProgressData{Text: fmt.Sprintf("%d%% (%s/s)", percent, units.GetByteSizeString(speed, 2))})
+				},
+			},
+		}
+	}
+
+	size, err := io.Copy(req.BackupFile, body)
+	if err != nil {
+		return nil, err
+	}
+
+	resp := BackupFileResponse{}
+	resp.Size = size
+
+	return &resp, nil
+}
+
+// CreateStoragePoolVolumeFromBackup creates a custom volume from a backup file.
+func (r *ProtocolLXD) CreateStoragePoolVolumeFromBackup(pool string, args StoragePoolVolumeBackupArgs) (Operation, error) {
+	if !r.HasExtension("custom_volume_backup") {
+		return nil, fmt.Errorf("The server is missing the required \"custom_volume_backup\" API extension")
+	}
+
+	// Send the request
+	op, _, err := r.queryOperation("POST", fmt.Sprintf("/storage-pools/%s/volumes/custom", url.PathEscape(pool)), args.BackupFile, "")
+	if err != nil {
+		return nil, err
+	}
+
+	return op, nil
 }
