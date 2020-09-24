@@ -55,18 +55,8 @@ func GetInfo(r io.ReadSeeker) (*Info, error) {
 	optimizedStorageFalse := false
 	optimizedHeaderFalse := false
 
-	// Extract
-	r.Seek(0, 0)
-	_, _, unpacker, err := shared.DetectCompressionFile(r)
-	if err != nil {
-		return nil, err
-	}
-
-	if unpacker == nil {
-		return nil, fmt.Errorf("Unsupported backup compression")
-	}
-
-	tr, cancelFunc, err := shared.CompressedTarReader(context.Background(), r, unpacker)
+	// Extract.
+	tr, cancelFunc, err := TarReader(r)
 	if err != nil {
 		return nil, err
 	}
@@ -102,7 +92,6 @@ func GetInfo(r io.ReadSeeker) (*Info, error) {
 			if result.OptimizedStorage != nil {
 				// No need to continue looking for optimized storage hint using the presence of the
 				// container.bin file below, as the index.yaml file tells us directly.
-				cancelFunc()
 				break
 			} else {
 				// Default to non-optimized if not specified and continue reading to see if
@@ -118,11 +107,12 @@ func GetInfo(r io.ReadSeeker) (*Info, error) {
 
 			// Stop read loop if index.yaml already parsed.
 			if hasIndexFile {
-				cancelFunc()
 				break
 			}
 		}
 	}
+
+	cancelFunc() // Done reading archive.
 
 	if !hasIndexFile {
 		return nil, fmt.Errorf("Backup is missing index.yaml")
