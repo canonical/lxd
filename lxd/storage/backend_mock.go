@@ -242,3 +242,11 @@ func (b *mockBackend) UpdateCustomVolumeSnapshot(projectName string, volName str
 func (b *mockBackend) RestoreCustomVolume(projectName string, volName string, snapshotName string, op *operations.Operation) error {
 	return nil
 }
+
+func (b *mockBackend) BackupCustomVolume(projectName string, volName string, tarWriter *instancewriter.InstanceTarWriter, optimized bool, snapshots bool, op *operations.Operation) error {
+	return nil
+}
+
+func (b *mockBackend) CreateCustomVolumeFromBackup(srcBackup backup.Info, srcData io.ReadSeeker, op *operations.Operation) error {
+	return nil
+}
