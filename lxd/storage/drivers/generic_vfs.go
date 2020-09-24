@@ -614,13 +614,16 @@ func genericVFSBackupVolume(d Driver, vol Volume, tarWriter *instancewriter.Inst
 // genericVFSBackupUnpack unpacks a non-optimized backup tarball through a storage driver.
 // Returns a post hook function that should be called once the database entries for the restored backup have been
 // created and a revert function that can be used to undo the actions this function performs should something
-// subsequently fail.
+// subsequently fail. For VolumeTypeCustom volumes, a nil post hook is returned as it is expected that the DB
+// record be created before the volume is unpacked due to differences in the archive format that allows this.
 func genericVFSBackupUnpack(d Driver, vol Volume, snapshots []string, srcData io.ReadSeeker, op *operations.Operation) (func(vol Volume) error, func(), error) {
 	// Define function to unpack a volume from a backup tarball file.
 	unpackVolume := func(r io.ReadSeeker, tarArgs []string, unpacker []string, srcPrefix string, mountPath string) error {
 		volTypeName := "container"
 		if vol.IsVMBlock() {
 			volTypeName = "virtual machine"
+		} else if vol.volType == VolumeTypeCustom {
+			volTypeName = "custom"
 		}
 
 		// Clear the volume ready for unpack.
@@ -738,6 +741,8 @@ func genericVFSBackupUnpack(d Driver, vol Volume, snapshots []string, srcData io
 	backupSnapshotsPrefix := "backup/snapshots"
 	if vol.IsVMBlock() {
 		backupSnapshotsPrefix = "backup/virtual-machine-snapshots"
+	} else if vol.volType == VolumeTypeCustom {
+		backupSnapshotsPrefix = "backup/volume-snapshots"
 	}
 
 	for _, snapName := range snapshots {
@@ -762,26 +767,16 @@ func genericVFSBackupUnpack(d Driver, vol Volume, snapshots []string, srcData io
 		revert.Add(func() { d.DeleteVolumeSnapshot(snapVol, op) })
 	}
 
-	// Mount main volume and leave mounted (as is needed during backup.yaml generation during latter parts of
-	// the backup restoration process).
 	ourMount, err := d.MountVolume(vol, op)
 	if err != nil {
 		return nil, nil, err
 	}
 
-	// Create a post hook function that will be called at the end of the backup restore process to unmount
-	// the volume if needed.
-	postHook := func(vol Volume) error {
-		if ourMount {
-			d.UnmountVolume(vol, op)
-		}
-
-		return nil
-	}
-
 	backupPrefix := "backup/container"
 	if vol.IsVMBlock() {
 		backupPrefix = "backup/virtual-machine"
+	} else if vol.volType == VolumeTypeCustom {
+		backupPrefix = "backup/volume"
 	}
 
 	mountPath := vol.MountPath()
@@ -799,6 +794,26 @@ func genericVFSBackupUnpack(d Driver, vol Volume, snapshots []string, srcData io
 
 	revertExternal := revert.Clone() // Clone before calling revert.Success() so we can return the Fail func.
 	revert.Success()
+
+	var postHook func(vol Volume) error
+	if vol.volType != VolumeTypeCustom {
+		// Leave volume mounted (as is needed during backup.yaml generation during latter parts of the
+		// backup restoration process). Create a post hook function that will be called at the end of the
+		// backup restore process to unmount the volume if needed.
+		postHook = func(vol Volume) error {
+			if ourMount {
+				d.UnmountVolume(vol, op)
+			}
+
+			return nil
+		}
+	} else {
+		// For custom volumes unmount now, there is no post hook as there is no backup.yaml to generate.
+		if ourMount {
+			d.UnmountVolume(vol, op)
+		}
+	}
+
 	return postHook, revertExternal.Fail, nil
 }
 
