@@ -406,15 +406,19 @@ func (d *zfs) CreateVolumeFromBackup(vol Volume, srcBackup backup.Info, srcData 
 		}
 	}
 
-	// The import requires a mounted volume, so mount it and have it unmounted as a post hook.
-	_, err = d.MountVolume(vol, op)
-	if err != nil {
-		return nil, nil, err
-	}
+	var postHook func(vol Volume) error
 
-	postHook := func(vol Volume) error {
-		_, err := d.UnmountVolume(vol, op)
-		return err
+	if vol.volType != VolumeTypeCustom {
+		// The import requires a mounted volume, so mount it and have it unmounted as a post hook.
+		_, err = d.MountVolume(vol, op)
+		if err != nil {
+			return nil, nil, err
+		}
+
+		postHook = func(vol Volume) error {
+			_, err := d.UnmountVolume(vol, op)
+			return err
+		}
 	}
 
 	revert.Success()
