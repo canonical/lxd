@@ -65,7 +65,7 @@ func GetInfo(r io.ReadSeeker) (*Info, error) {
 	for {
 		hdr, err := tr.Next()
 		if err == io.EOF {
-			break // End of archive
+			break // End of archive.
 		}
 		if err != nil {
 			return nil, errors.Wrapf(err, "Error reading backup file info")
