@@ -20,13 +20,6 @@ import (
 // WorkingDirPrefix is used when temporary working directories are needed.
 const WorkingDirPrefix = "lxd_backup"
 
-// Instance represents the backup relevant subset of a LXD instance.
-// This is used rather than instance.Instance to avoid import loops.
-type Instance interface {
-	Name() string
-	Project() string
-}
-
 // Info represents exported backup information.
 type Info struct {
 	Project          string           `json:"-" yaml:"-"` // Project is set during import based on current project.
