@@ -195,7 +195,7 @@ func (d *btrfs) CreateVolumeFromBackup(vol Volume, srcBackup backup.Info, srcDat
 		for {
 			hdr, err := tr.Next()
 			if err == io.EOF {
-				break // End of archive
+				break // End of archive.
 			}
 			if err != nil {
 				return "", err
