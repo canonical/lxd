@@ -257,6 +257,7 @@ SELECT storage_volumes_snapshots.name, storage_volumes_snapshots.description FRO
 		row := StorageVolumeArgs{
 			Name:        volumeName + shared.SnapshotDelimiter + r[0].(string),
 			Description: r[1].(string),
+			Snapshot:    true,
 		}
 		result = append(result, row)
 	}
