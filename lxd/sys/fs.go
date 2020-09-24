@@ -82,3 +82,27 @@ func (s *OS) initDirs() error {
 
 	return nil
 }
+
+// initStorageDirs make sure all our directories are on the storage layer (after storage is mounted).
+func (s *OS) initStorageDirs() error {
+	dirs := []struct {
+		path string
+		mode os.FileMode
+	}{}
+
+	for _, dir := range dirs {
+		err := os.Mkdir(dir.path, dir.mode)
+		if err != nil {
+			if !os.IsExist(err) {
+				return errors.Wrapf(err, "Failed to init storage dir %q", dir.path)
+			}
+
+			err = os.Chmod(dir.path, dir.mode)
+			if err != nil && !os.IsNotExist(err) {
+				return errors.Wrapf(err, "Failed to chmod storage dir %q", dir.path)
+			}
+		}
+	}
+
+	return nil
+}
