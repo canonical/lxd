@@ -299,7 +299,7 @@ func (d *zfs) CreateVolumeFromBackup(vol Volume, srcBackup backup.Info, srcData 
 		for {
 			hdr, err := tr.Next()
 			if err == io.EOF {
-				break // End of archive
+				break // End of archive.
 			}
 			if err != nil {
 				return err
