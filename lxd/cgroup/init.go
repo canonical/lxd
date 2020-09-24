@@ -392,6 +392,10 @@ func init() {
 			cgControllers["memory.max_usage_in_bytes"] = V1
 		}
 
+		if shared.PathExists("/sys/fs/cgroup/memory/memory.swappiness") {
+			cgControllers["memory.swappiness"] = V1
+		}
+
 		if shared.PathExists("/sys/fs/cgroup/memory/memory.memsw.limit_in_bytes") {
 			cgControllers["memory.memsw.limit_in_bytes"] = V1
 		}
