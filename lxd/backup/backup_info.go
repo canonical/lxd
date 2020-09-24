@@ -1,27 +1,49 @@
 package backup
 
 import (
-	"context"
 	"fmt"
 	"io"
 
 	"github.com/pkg/errors"
 	"gopkg.in/yaml.v2"
 
-	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 )
 
+// Type indicates the type of backup.
+type Type string
+
+// TypeUnknown defines the backup type value for unknown backups.
+const TypeUnknown = Type("")
+
+// TypeContainer defines the backup type value for a container.
+const TypeContainer = Type("container")
+
+// TypeVM defines the backup type value for a virtual-machine.
+const TypeVM = Type("virtual-machine")
+
+// InstanceTypeToBackupType converts instance type to backup type.
+func InstanceTypeToBackupType(instanceType api.InstanceType) Type {
+	switch instanceType {
+	case api.InstanceTypeContainer:
+		return TypeContainer
+	case api.InstanceTypeVM:
+		return TypeVM
+	}
+
+	return TypeUnknown
+}
+
 // Info represents exported backup information.
 type Info struct {
-	Project          string           `json:"-" yaml:"-"` // Project is set during import based on current project.
-	Name             string           `json:"name" yaml:"name"`
-	Backend          string           `json:"backend" yaml:"backend"`
-	Pool             string           `json:"pool" yaml:"pool"`
-	Snapshots        []string         `json:"snapshots,omitempty" yaml:"snapshots,omitempty"`
-	OptimizedStorage *bool            `json:"optimized,omitempty" yaml:"optimized,omitempty"`               // Optional field to handle older optimized backups that don't have this field.
-	OptimizedHeader  *bool            `json:"optimized_header,omitempty" yaml:"optimized_header,omitempty"` // Optional field to handle older optimized backups that don't have this field.
-	Type             api.InstanceType `json:"type" yaml:"type"`
+	Project          string   `json:"-" yaml:"-"` // Project is set during import based on current project.
+	Name             string   `json:"name" yaml:"name"`
+	Backend          string   `json:"backend" yaml:"backend"`
+	Pool             string   `json:"pool" yaml:"pool"`
+	Snapshots        []string `json:"snapshots,omitempty" yaml:"snapshots,omitempty"`
+	OptimizedStorage *bool    `json:"optimized,omitempty" yaml:"optimized,omitempty"`               // Optional field to handle older optimized backups that don't have this field.
+	OptimizedHeader  *bool    `json:"optimized_header,omitempty" yaml:"optimized_header,omitempty"` // Optional field to handle older optimized backups that don't have this field.
+	Type             Type     `json:"type,omitempty" yaml:"type,omitempty"`                         // Type of backup.
 }
 
 // GetInfo extracts backup information from a given ReadSeeker.
