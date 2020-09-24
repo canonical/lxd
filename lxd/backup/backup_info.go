@@ -1,0 +1,110 @@
+package backup
+
+import (
+	"context"
+	"fmt"
+	"io"
+
+	"github.com/pkg/errors"
+	"gopkg.in/yaml.v2"
+
+	"github.com/lxc/lxd/shared"
+	"github.com/lxc/lxd/shared/api"
+)
+
+// Info represents exported backup information.
+type Info struct {
+	Project          string           `json:"-" yaml:"-"` // Project is set during import based on current project.
+	Name             string           `json:"name" yaml:"name"`
+	Backend          string           `json:"backend" yaml:"backend"`
+	Pool             string           `json:"pool" yaml:"pool"`
+	Snapshots        []string         `json:"snapshots,omitempty" yaml:"snapshots,omitempty"`
+	OptimizedStorage *bool            `json:"optimized,omitempty" yaml:"optimized,omitempty"`               // Optional field to handle older optimized backups that don't have this field.
+	OptimizedHeader  *bool            `json:"optimized_header,omitempty" yaml:"optimized_header,omitempty"` // Optional field to handle older optimized backups that don't have this field.
+	Type             api.InstanceType `json:"type" yaml:"type"`
+}
+
+// GetInfo extracts backup information from a given ReadSeeker.
+func GetInfo(r io.ReadSeeker) (*Info, error) {
+	result := Info{}
+	hasIndexFile := false
+
+	// Define some bools used to create points for OptimizedStorage field.
+	optimizedStorageFalse := false
+	optimizedHeaderFalse := false
+
+	// Extract
+	r.Seek(0, 0)
+	_, _, unpacker, err := shared.DetectCompressionFile(r)
+	if err != nil {
+		return nil, err
+	}
+
+	if unpacker == nil {
+		return nil, fmt.Errorf("Unsupported backup compression")
+	}
+
+	tr, cancelFunc, err := shared.CompressedTarReader(context.Background(), r, unpacker)
+	if err != nil {
+		return nil, err
+	}
+	defer cancelFunc()
+
+	for {
+		hdr, err := tr.Next()
+		if err == io.EOF {
+			break // End of archive
+		}
+		if err != nil {
+			return nil, errors.Wrapf(err, "Error reading backup file info")
+		}
+
+		if hdr.Name == "backup/index.yaml" {
+			err = yaml.NewDecoder(tr).Decode(&result)
+			if err != nil {
+				return nil, err
+			}
+
+			hasIndexFile = true
+
+			// Default to container if index doesn't specify instance type.
+			if result.Type == api.InstanceTypeAny {
+				result.Type = api.InstanceTypeContainer
+			}
+
+			// Default to no optimized header if not specified.
+			if result.OptimizedHeader == nil {
+				result.OptimizedHeader = &optimizedHeaderFalse
+			}
+
+			if result.OptimizedStorage != nil {
+				// No need to continue looking for optimized storage hint using the presence of the
+				// container.bin file below, as the index.yaml file tells us directly.
+				cancelFunc()
+				break
+			} else {
+				// Default to non-optimized if not specified and continue reading to see if
+				// optimized container.bin file present.
+				result.OptimizedStorage = &optimizedStorageFalse
+			}
+		}
+
+		// If the tarball contains a binary dump of the container, then this is an optimized backup.
+		if hdr.Name == "backup/container.bin" {
+			optimizedStorageTrue := true
+			result.OptimizedStorage = &optimizedStorageTrue
+
+			// Stop read loop if index.yaml already parsed.
+			if hasIndexFile {
+				cancelFunc()
+				break
+			}
+		}
+	}
+
+	if !hasIndexFile {
+		return nil, fmt.Errorf("Backup is missing index.yaml")
+	}
+
+	return &result, nil
+}
