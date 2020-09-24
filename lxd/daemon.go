@@ -938,6 +938,12 @@ func (d *Daemon) init() error {
 		return err
 	}
 
+	// Create directories on daemon storage mounts.
+	err = d.os.InitStorage()
+	if err != nil {
+		return err
+	}
+
 	// Apply all patches that need to be run after daemon storage is initialised.
 	err = patchesApply(d, patchPostDaemonStorage)
 	if err != nil {

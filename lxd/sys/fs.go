@@ -35,7 +35,7 @@ func (s *OS) LegacyGlobalDatabasePath() string {
 	return filepath.Join(s.VarDir, "raft", "db.bin")
 }
 
-// Make sure all our directories are available.
+// initDirs Make sure all our directories are available.
 func (s *OS) initDirs() error {
 	dirs := []struct {
 		path string
@@ -43,8 +43,6 @@ func (s *OS) initDirs() error {
 	}{
 		{s.VarDir, 0711},
 		{filepath.Join(s.VarDir, "backups"), 0700},
-		{filepath.Join(s.VarDir, "backups", "custom"), 0700},
-		{filepath.Join(s.VarDir, "backups", "instances"), 0700},
 		{s.CacheDir, 0700},
 		// containers is 0711 because liblxc needs to traverse dir to get to each container.
 		{filepath.Join(s.VarDir, "containers"), 0711},
@@ -72,12 +70,39 @@ func (s *OS) initDirs() error {
 		err := os.Mkdir(dir.path, dir.mode)
 		if err != nil {
 			if !os.IsExist(err) {
-				return errors.Wrapf(err, "Failed to init dir %s", dir.path)
+				return errors.Wrapf(err, "Failed to init dir %q", dir.path)
 			}
 
 			err = os.Chmod(dir.path, dir.mode)
 			if err != nil && !os.IsNotExist(err) {
-				return errors.Wrapf(err, "Failed to chmod dir %s", dir.path)
+				return errors.Wrapf(err, "Failed to chmod dir %q", dir.path)
+			}
+		}
+	}
+
+	return nil
+}
+
+// initStorageDirs make sure all our directories are on the storage layer (after storage is mounted).
+func (s *OS) initStorageDirs() error {
+	dirs := []struct {
+		path string
+		mode os.FileMode
+	}{
+		{filepath.Join(s.VarDir, "backups", "custom"), 0700},
+		{filepath.Join(s.VarDir, "backups", "instances"), 0700},
+	}
+
+	for _, dir := range dirs {
+		err := os.Mkdir(dir.path, dir.mode)
+		if err != nil {
+			if !os.IsExist(err) {
+				return errors.Wrapf(err, "Failed to init storage dir %q", dir.path)
+			}
+
+			err = os.Chmod(dir.path, dir.mode)
+			if err != nil && !os.IsNotExist(err) {
+				return errors.Wrapf(err, "Failed to chmod storage dir %q", dir.path)
 			}
 		}
 	}
