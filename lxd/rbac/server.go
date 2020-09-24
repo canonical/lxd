@@ -154,9 +154,17 @@ func (r *Server) StartStatusCheck() {
 				return
 			}
 
+			if resp.StatusCode == 504 {
+				// 504 indicates the server timed out the background connection, just re-connect.
+				resp.Body.Close()
+				continue
+			}
+
 			if resp.StatusCode != 200 {
+				// For other errors we assume a server restart and give it a few seconds.
 				resp.Body.Close()
 				logger.Debugf("RBAC server disconnected, re-connecting. (code=%v)", resp.StatusCode)
+				time.Sleep(10)
 				continue
 			}
 
@@ -164,6 +172,7 @@ func (r *Server) StartStatusCheck() {
 			resp.Body.Close()
 			if err != nil {
 				logger.Errorf("Failed to parse RBAC response, re-trying: %v", err)
+				time.Sleep(10)
 				continue
 			}
 
@@ -358,10 +367,6 @@ func (r *Server) hasStatusChanged() bool {
 func (r *Server) flushCache() {
 	r.permissionsLock.Lock()
 	defer r.permissionsLock.Unlock()
-
-	if len(r.permissions) == 0 {
-		return
-	}
 
 	logger.Info("Flushing RBAC permissions cache")
 
