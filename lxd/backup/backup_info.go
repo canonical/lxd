@@ -80,8 +80,8 @@ func GetInfo(r io.ReadSeeker) (*Info, error) {
 			hasIndexFile = true
 
 			// Default to container if index doesn't specify instance type.
-			if result.Type == api.InstanceTypeAny {
-				result.Type = api.InstanceTypeContainer
+			if result.Type == TypeUnknown {
+				result.Type = TypeContainer
 			}
 
 			// Default to no optimized header if not specified.
