@@ -35,7 +35,7 @@ func (s *OS) LegacyGlobalDatabasePath() string {
 	return filepath.Join(s.VarDir, "raft", "db.bin")
 }
 
-// Make sure all our directories are available.
+// initDirs Make sure all our directories are available.
 func (s *OS) initDirs() error {
 	dirs := []struct {
 		path string
