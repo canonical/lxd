@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"io"
 	"io/ioutil"
 	"os"
 	"sort"
@@ -9,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 	"gopkg.in/yaml.v2"
 
@@ -18,7 +20,9 @@ import (
 	"github.com/lxc/lxd/shared/api"
 	cli "github.com/lxc/lxd/shared/cmd"
 	"github.com/lxc/lxd/shared/i18n"
+	"github.com/lxc/lxd/shared/ioprogress"
 	"github.com/lxc/lxd/shared/termios"
+	"github.com/lxc/lxd/shared/units"
 )
 
 type cmdStorageVolume struct {
@@ -67,9 +71,17 @@ Unless specified through a prefix, all volume operations affect "custom" (user c
 	storageVolumeEditCmd := cmdStorageVolumeEdit{global: c.global, storage: c.storage, storageVolume: c}
 	cmd.AddCommand(storageVolumeEditCmd.Command())
 
+	// Export
+	storageVolumeExportCmd := cmdStorageVolumeExport{global: c.global, storage: c.storage, storageVolume: c}
+	cmd.AddCommand(storageVolumeExportCmd.Command())
+
 	// Get
 	storageVolumeGetCmd := cmdStorageVolumeGet{global: c.global, storage: c.storage, storageVolume: c}
 	cmd.AddCommand(storageVolumeGetCmd.Command())
+
+	// Import
+	storageVolumeImportCmd := cmdStorageVolumeImport{global: c.global, storage: c.storage, storageVolume: c}
+	cmd.AddCommand(storageVolumeImportCmd.Command())
 
 	// List
 	storageVolumeListCmd := cmdStorageVolumeList{global: c.global, storage: c.storage, storageVolume: c}
@@ -1630,4 +1642,229 @@ func (c *cmdStorageVolumeRestore) Run(cmd *cobra.Command, args []string) error {
 	}
 
 	return client.UpdateStoragePoolVolume(resource.name, "custom", args[1], req, etag)
+}
+
+// Export
+type cmdStorageVolumeExport struct {
+	global        *cmdGlobal
+	storage       *cmdStorage
+	storageVolume *cmdStorageVolume
+
+	flagVolumeOnly           bool
+	flagOptimizedStorage     bool
+	flagCompressionAlgorithm string
+}
+
+func (c *cmdStorageVolumeExport) Command() *cobra.Command {
+	cmd := &cobra.Command{}
+	cmd.Use = usage("export", i18n.G("[<remote>:]<pool> <volume> [<path>]"))
+	cmd.Short = i18n.G("Export custom storage volume")
+	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
+		`Export custom storage volume`))
+
+	cmd.Flags().BoolVar(&c.flagVolumeOnly, "volume-only", false, i18n.G("Export the volume without its snapshots"))
+	cmd.Flags().BoolVar(&c.flagOptimizedStorage, "optimized-storage", false,
+		i18n.G("Use storage driver optimized format (can only be restored on a similar pool)"))
+	cmd.Flags().StringVar(&c.flagCompressionAlgorithm, "compression", "", i18n.G("Define a compression algorithm: for backup or none")+"``")
+	cmd.RunE = c.Run
+
+	return cmd
+}
+
+func (c *cmdStorageVolumeExport) Run(cmd *cobra.Command, args []string) error {
+	conf := c.global.conf
+
+	// Sanity checks
+	exit, err := c.global.CheckArgs(cmd, args, 2, 3)
+	if exit {
+		return err
+	}
+
+	// Connect to LXD
+	remote, name, err := conf.ParseRemote(args[0])
+	if err != nil {
+		return err
+	}
+
+	d, err := conf.GetInstanceServer(remote)
+	if err != nil {
+		return err
+	}
+
+	volumeOnly := c.flagVolumeOnly
+
+	volName, volType := c.storageVolume.parseVolume("custom", args[1])
+	if volType != "custom" {
+		return fmt.Errorf(i18n.G("Only \"custom\" volumes can be exported"))
+	}
+
+	req := api.StoragePoolVolumeBackupsPost{
+		Name:                 "",
+		ExpiresAt:            time.Now().Add(24 * time.Hour),
+		VolumeOnly:           volumeOnly,
+		OptimizedStorage:     c.flagOptimizedStorage,
+		CompressionAlgorithm: c.flagCompressionAlgorithm,
+	}
+
+	op, err := d.CreateStoragePoolVolumeBackup(name, volName, req)
+	if err != nil {
+		return errors.Wrap(err, "Failed to create storage volume backup")
+	}
+
+	// Watch the background operation
+	progress := utils.ProgressRenderer{
+		Format: i18n.G("Backing up storage volume: %s"),
+		Quiet:  c.global.flagQuiet,
+	}
+
+	_, err = op.AddHandler(progress.UpdateOp)
+	if err != nil {
+		progress.Done("")
+		return err
+	}
+
+	// Wait until backup is done
+	err = utils.CancelableWait(op, &progress)
+	if err != nil {
+		progress.Done("")
+		return err
+	}
+	progress.Done("")
+
+	err = op.Wait()
+	if err != nil {
+		return err
+	}
+
+	// Get name of backup
+	backupName := strings.TrimPrefix(op.Get().Resources["backups"][0],
+		"/1.0/backups/")
+
+	defer func() {
+		// Delete backup after we're done
+		op, err = d.DeleteStoragePoolVolumeBackup(name, volName, backupName)
+		if err == nil {
+			op.Wait()
+		}
+	}()
+
+	var targetName string
+	if len(args) > 2 {
+		targetName = args[2]
+	} else {
+		targetName = "backup.tar.gz"
+	}
+
+	target, err := os.Create(shared.HostPath(targetName))
+	if err != nil {
+		return err
+	}
+	defer target.Close()
+
+	// Prepare the download request
+	progress = utils.ProgressRenderer{
+		Format: i18n.G("Exporting the backup: %s"),
+		Quiet:  c.global.flagQuiet,
+	}
+	backupFileRequest := lxd.BackupFileRequest{
+		BackupFile:      io.WriteSeeker(target),
+		ProgressHandler: progress.UpdateProgress,
+	}
+
+	// Export tarball
+	_, err = d.GetStoragePoolVolumeBackupFile(name, volName, backupName, &backupFileRequest)
+	if err != nil {
+		os.Remove(targetName)
+		progress.Done("")
+		return errors.Wrap(err, "Fetch storage volume backup file")
+	}
+
+	progress.Done(i18n.G("Backup exported successfully!"))
+	return nil
+}
+
+// Import
+type cmdStorageVolumeImport struct {
+	global        *cmdGlobal
+	storage       *cmdStorage
+	storageVolume *cmdStorageVolume
+}
+
+func (c *cmdStorageVolumeImport) Command() *cobra.Command {
+	cmd := &cobra.Command{}
+	cmd.Use = usage("import", i18n.G("[<remote>:]<pool> <backup file>"))
+	cmd.Short = i18n.G("Import custom storage volumes")
+	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
+		`Import backups of custom volumes including their snapshots.`))
+	cmd.Example = cli.FormatSection("", i18n.G(
+		`lxc storage volume import default backup0.tar.gz
+		Create a new custom volume using backup0.tar.gz as the source.`))
+	cmd.RunE = c.Run
+
+	return cmd
+}
+
+func (c *cmdStorageVolumeImport) Run(cmd *cobra.Command, args []string) error {
+	conf := c.global.conf
+
+	// Sanity checks
+	exit, err := c.global.CheckArgs(cmd, args, 1, 2)
+	if exit {
+		return err
+	}
+
+	// Connect to LXD
+	remote, name, err := conf.ParseRemote(args[0])
+	if err != nil {
+		return err
+	}
+
+	d, err := conf.GetInstanceServer(remote)
+	if err != nil {
+		return err
+	}
+
+	file, err := os.Open(shared.HostPath(args[len(args)-1]))
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+
+	fstat, err := file.Stat()
+	if err != nil {
+		return err
+	}
+
+	progress := utils.ProgressRenderer{
+		Format: i18n.G("Importing custom volume: %s"),
+		Quiet:  c.global.flagQuiet,
+	}
+
+	createArgs := lxd.StoragePoolVolumeBackupArgs{
+		BackupFile: &ioprogress.ProgressReader{
+			ReadCloser: file,
+			Tracker: &ioprogress.ProgressTracker{
+				Length: fstat.Size(),
+				Handler: func(percent int64, speed int64) {
+					progress.UpdateProgress(ioprogress.ProgressData{Text: fmt.Sprintf("%d%% (%s/s)", percent, units.GetByteSizeString(speed, 2))})
+				},
+			},
+		},
+	}
+
+	op, err := d.CreateStoragePoolVolumeFromBackup(name, createArgs)
+	if err != nil {
+		return err
+	}
+
+	// Wait for operation to finish
+	err = utils.CancelableWait(op, &progress)
+	if err != nil {
+		progress.Done("")
+		return err
+	}
+
+	progress.Done("")
+
+	return nil
 }
