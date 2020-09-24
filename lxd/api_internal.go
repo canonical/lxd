@@ -495,7 +495,7 @@ func internalImport(d *Daemon, r *http.Request) response.Response {
 
 	// Read in the backup.yaml file.
 	backupYamlPath := filepath.Join(instanceMountPoint, "backup.yaml")
-	backupConf, err := backup.ParseInstanceConfigYamlFile(backupYamlPath)
+	backupConf, err := backup.ParseConfigYamlFile(backupYamlPath)
 	if err != nil {
 		return response.SmartError(err)
 	}
