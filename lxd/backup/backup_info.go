@@ -44,6 +44,7 @@ type Info struct {
 	OptimizedStorage *bool    `json:"optimized,omitempty" yaml:"optimized,omitempty"`               // Optional field to handle older optimized backups that don't have this field.
 	OptimizedHeader  *bool    `json:"optimized_header,omitempty" yaml:"optimized_header,omitempty"` // Optional field to handle older optimized backups that don't have this field.
 	Type             Type     `json:"type,omitempty" yaml:"type,omitempty"`                         // Type of backup.
+	Config           *Config  `json:"config,omitempty" yaml:"config,omitempty"`                     // Equivalent of backup.yaml but embedded in index for quick retrieval.
 }
 
 // GetInfo extracts backup information from a given ReadSeeker.
