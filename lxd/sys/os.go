@@ -146,3 +146,8 @@ func (s *OS) Init() error {
 
 	return nil
 }
+
+// InitStorage initialises the storage layer after it has been mounted.
+func (s *OS) InitStorage() error {
+	return s.initStorageDirs()
+}
