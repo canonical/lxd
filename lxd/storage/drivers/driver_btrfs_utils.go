@@ -418,7 +418,7 @@ func (d *btrfs) loadOptimizedBackupHeader(r io.ReadSeeker) (*BTRFSMetaDataHeader
 	for {
 		hdr, err := tr.Next()
 		if err == io.EOF {
-			break // End of archive
+			break // End of archive.
 		}
 		if err != nil {
 			return nil, errors.Wrapf(err, "Error reading backup file for optimized backup header file")
