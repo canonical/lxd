@@ -59,7 +59,7 @@ type Instance interface {
 	// Snapshots & migration & backups.
 	Restore(source Instance, stateful bool) error
 	Snapshots() ([]Instance, error)
-	Backups() ([]backup.Backup, error)
+	Backups() ([]backup.InstanceBackup, error)
 	UpdateBackupFile() error
 
 	// Config handling.
