@@ -273,6 +273,8 @@ func (d *btrfs) CreateVolumeFromBackup(vol Volume, srcBackup backup.Info, srcDat
 				if vol.contentType == ContentTypeFS {
 					srcFilePrefix = fmt.Sprintf("%s-config", snapName)
 				}
+			} else if vol.volType == VolumeTypeCustom {
+				snapDir = "volume-snapshots"
 			}
 
 			srcFilePrefix = filepath.Join(snapDir, srcFilePrefix)
@@ -291,6 +293,8 @@ func (d *btrfs) CreateVolumeFromBackup(vol Volume, srcBackup backup.Info, srcDat
 		} else {
 			srcFilePrefix = "virtual-machine"
 		}
+	} else if vol.volType == VolumeTypeCustom {
+		srcFilePrefix = "volume"
 	}
 
 	err = unpackVolume(vol, srcFilePrefix)
@@ -1144,6 +1148,8 @@ func (d *btrfs) BackupVolume(vol Volume, tarWriter *instancewriter.InstanceTarWr
 			if vol.contentType == ContentTypeFS {
 				fileName = fmt.Sprintf("%s-config", snapName)
 			}
+		} else if vol.volType == VolumeTypeCustom {
+			snapDir = "volume-snapshots"
 		}
 
 		fileNamePrefix := filepath.Join(snapDir, fileName)
@@ -1191,6 +1197,8 @@ func (d *btrfs) BackupVolume(vol Volume, tarWriter *instancewriter.InstanceTarWr
 		} else {
 			fileNamePrefix = "virtual-machine"
 		}
+	} else if vol.volType == VolumeTypeCustom {
+		fileNamePrefix = "volume"
 	}
 
 	err = addVolume(vol, targetVolume, lastVolPath, fileNamePrefix)
