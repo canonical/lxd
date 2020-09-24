@@ -15,10 +15,10 @@ import (
 
 // Config represents the config of a backup that can be stored in a backup.yaml file (or embedded in index.yaml).
 type Config struct {
-	Container *api.Instance           `yaml:"container"`
-	Snapshots []*api.InstanceSnapshot `yaml:"snapshots"`
-	Pool      *api.StoragePool        `yaml:"pool"`
-	Volume    *api.StorageVolume      `yaml:"volume"`
+	Container *api.Instance           `yaml:"container,omitempty"`
+	Snapshots []*api.InstanceSnapshot `yaml:"snapshots,omitempty"`
+	Pool      *api.StoragePool        `yaml:"pool,omitempty"`
+	Volume    *api.StorageVolume      `yaml:"volume,omitempty"`
 }
 
 // ParseConfigYamlFile decodes the YAML file at path specified into a Config.
