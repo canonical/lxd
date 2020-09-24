@@ -12,7 +12,7 @@ import (
 	log "github.com/lxc/lxd/shared/log15"
 )
 
-// InstanceBackup is a value object holding all db-related details about a backup.
+// InstanceBackup is a value object holding all db-related details about an instance backup.
 type InstanceBackup struct {
 	ID                   int
 	InstanceID           int
