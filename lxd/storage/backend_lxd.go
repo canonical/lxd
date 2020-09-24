@@ -2620,6 +2620,27 @@ func (b *lxdBackend) RenameCustomVolume(projectName string, volName string, newV
 		})
 	}
 
+	// Rename each backup to have the new parent volume prefix.
+	backups, err := b.state.Cluster.GetStoragePoolVolumeBackups(projectName, volName, b.ID())
+	if err != nil {
+		return err
+	}
+
+	for _, br := range backups {
+		backupRow := br // Local var for revert.
+		_, backupName, _ := shared.InstanceGetParentAndSnapshotName(backupRow.Name)
+		newVolBackupName := drivers.GetSnapshotVolumeName(newVolName, backupName)
+		volBackup := backup.NewVolumeBackup(b.state, projectName, b.name, volName, backupRow.ID, backupRow.Name, backupRow.CreationDate, backupRow.ExpiryDate, backupRow.VolumeOnly, backupRow.OptimizedStorage)
+		err = volBackup.Rename(newVolBackupName)
+		if err != nil {
+			return errors.Wrapf(err, "Failed renaming backup %q to %q", backupRow.Name, newVolBackupName)
+		}
+
+		revert.Add(func() {
+			volBackup.Rename(backupRow.Name)
+		})
+	}
+
 	err = b.state.Cluster.RenameStoragePoolVolume(projectName, volName, newVolName, db.StoragePoolVolumeTypeCustom, b.ID())
 	if err != nil {
 		return err
