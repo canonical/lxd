@@ -147,6 +147,7 @@ func networksPost(d *Daemon, r *http.Request) response.Response {
 		return response.BadRequest(err)
 	}
 
+	netTypeInfo := netType.Info()
 	url := fmt.Sprintf("/%s/networks/%s", version.APIVersion, req.Name)
 	resp := response.SyncResponseLocation(true, nil, url)
 
@@ -180,7 +181,7 @@ func networksPost(d *Daemon, r *http.Request) response.Response {
 		}
 
 		err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
-			return tx.CreatePendingNetwork(targetNode, req.Name, dbNetType, netType.DBType(), req.Config)
+			return tx.CreatePendingNetwork(targetNode, req.Name, netType.DBType(), req.Config)
 		})
 		if err != nil {
 			if err == db.ErrAlreadyDefined {
