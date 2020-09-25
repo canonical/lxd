@@ -640,7 +640,7 @@ func genericVFSBackupUnpack(d Driver, vol Volume, snapshots []string, srcData io
 			for {
 				hdr, err := tr.Next()
 				if err == io.EOF {
-					break // End of archive
+					break // End of archive.
 				}
 				if err != nil {
 					return err

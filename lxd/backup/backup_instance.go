@@ -52,10 +52,17 @@ func (b *InstanceBackup) Rename(newName string) error {
 	oldBackupPath := shared.VarPath("backups", "instances", project.Instance(b.instance.Project(), b.name))
 	newBackupPath := shared.VarPath("backups", "instances", project.Instance(b.instance.Project(), newName))
 
-	// Create the new backup path.
-	backupsPath := shared.VarPath("backups", "instances", project.Instance(b.instance.Project(), b.instance.Name()))
-	if !shared.PathExists(backupsPath) {
-		err := os.MkdirAll(backupsPath, 0700)
+	// Extract the old and new parent backup paths from the old and new backup names rather than use
+	// instance.Name() as this may be in flux if the instance itself is being renamed, whereas the relevant
+	// instance name is encoded into the backup names.
+	oldParentName, _, _ := shared.InstanceGetParentAndSnapshotName(b.name)
+	oldParentBackupsPath := shared.VarPath("backups", "instances", project.Instance(b.instance.Project(), oldParentName))
+	newParentName, _, _ := shared.InstanceGetParentAndSnapshotName(newName)
+	newParentBackupsPath := shared.VarPath("backups", "instances", project.Instance(b.instance.Project(), newParentName))
+
+	// Create the new backup path if doesn't exist.
+	if !shared.PathExists(newParentBackupsPath) {
+		err := os.MkdirAll(newParentBackupsPath, 0700)
 		if err != nil {
 			return err
 		}
@@ -67,10 +74,10 @@ func (b *InstanceBackup) Rename(newName string) error {
 		return err
 	}
 
-	// Check if we can remove the instance directory.
-	empty, _ := shared.PathIsEmpty(backupsPath)
+	// Check if we can remove the old parent directory.
+	empty, _ := shared.PathIsEmpty(oldParentBackupsPath)
 	if empty {
-		err := os.Remove(backupsPath)
+		err := os.Remove(oldParentBackupsPath)
 		if err != nil {
 			return err
 		}

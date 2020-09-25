@@ -187,12 +187,17 @@ func backupWriteIndex(sourceInst instance.Instance, pool storagePools.Pool, opti
 		poolDriverOptimizedHeader = pool.Driver().Info().OptimizedBackupHeader
 	}
 
+	backupType := backup.InstanceTypeToBackupType(api.InstanceType(sourceInst.Type().String()))
+	if backupType == backup.TypeUnknown {
+		return fmt.Errorf("Unrecognised instance type for backup type conversion")
+	}
+
 	indexInfo := backup.Info{
 		Name:             sourceInst.Name(),
 		Pool:             pool.Name(),
 		Snapshots:        []string{},
 		Backend:          pool.Driver().Info().Name,
-		Type:             api.InstanceType(sourceInst.Type().String()),
+		Type:             backupType,
 		OptimizedStorage: &optimized,
 		OptimizedHeader:  &poolDriverOptimizedHeader,
 	}
