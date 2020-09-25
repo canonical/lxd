@@ -49,16 +49,16 @@ func (b *InstanceBackup) InstanceOnly() bool {
 
 // Rename renames an instance backup.
 func (b *InstanceBackup) Rename(newName string) error {
-	oldBackupPath := shared.VarPath("backups", "instances", project.Instance(b.instance.Project(), b.name))
-	newBackupPath := shared.VarPath("backups", "instances", project.Instance(b.instance.Project(), newName))
+	oldBackupPath := shared.VarPath("backups", project.Instance(b.instance.Project(), b.name))
+	newBackupPath := shared.VarPath("backups", project.Instance(b.instance.Project(), newName))
 
 	// Extract the old and new parent backup paths from the old and new backup names rather than use
 	// instance.Name() as this may be in flux if the instance itself is being renamed, whereas the relevant
 	// instance name is encoded into the backup names.
 	oldParentName, _, _ := shared.InstanceGetParentAndSnapshotName(b.name)
-	oldParentBackupsPath := shared.VarPath("backups", "instances", project.Instance(b.instance.Project(), oldParentName))
+	oldParentBackupsPath := shared.VarPath("backups", project.Instance(b.instance.Project(), oldParentName))
 	newParentName, _, _ := shared.InstanceGetParentAndSnapshotName(newName)
-	newParentBackupsPath := shared.VarPath("backups", "instances", project.Instance(b.instance.Project(), newParentName))
+	newParentBackupsPath := shared.VarPath("backups", project.Instance(b.instance.Project(), newParentName))
 
 	// Create the new backup path if doesn't exist.
 	if !shared.PathExists(newParentBackupsPath) {
@@ -94,7 +94,7 @@ func (b *InstanceBackup) Rename(newName string) error {
 
 // Delete removes an instance backup.
 func (b *InstanceBackup) Delete() error {
-	backupPath := shared.VarPath("backups", "instances", project.Instance(b.instance.Project(), b.name))
+	backupPath := shared.VarPath("backups", project.Instance(b.instance.Project(), b.name))
 
 	// Delete the on-disk data.
 	if shared.PathExists(backupPath) {
@@ -105,7 +105,7 @@ func (b *InstanceBackup) Delete() error {
 	}
 
 	// Check if we can remove the instance directory.
-	backupsPath := shared.VarPath("backups", "instances", project.Instance(b.instance.Project(), b.instance.Name()))
+	backupsPath := shared.VarPath("backups", project.Instance(b.instance.Project(), b.instance.Name()))
 	empty, _ := shared.PathIsEmpty(backupsPath)
 	if empty {
 		err := os.Remove(backupsPath)
