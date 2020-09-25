@@ -13,22 +13,22 @@ import (
 	"github.com/lxc/lxd/shared/api"
 )
 
-// InstanceConfig represents the config of an instance that can be stored in a backup.yaml file.
-type InstanceConfig struct {
-	Container *api.Instance           `yaml:"container"`
-	Snapshots []*api.InstanceSnapshot `yaml:"snapshots"`
-	Pool      *api.StoragePool        `yaml:"pool"`
-	Volume    *api.StorageVolume      `yaml:"volume"`
+// Config represents the config of a backup that can be stored in a backup.yaml file (or embedded in index.yaml).
+type Config struct {
+	Container *api.Instance           `yaml:"container,omitempty"` // Used by VM backups too.
+	Snapshots []*api.InstanceSnapshot `yaml:"snapshots,omitempty"`
+	Pool      *api.StoragePool        `yaml:"pool,omitempty"`
+	Volume    *api.StorageVolume      `yaml:"volume,omitempty"`
 }
 
-// ParseInstanceConfigYamlFile decodes the YAML file at path specified into an InstanceConfig.
-func ParseInstanceConfigYamlFile(path string) (*InstanceConfig, error) {
+// ParseConfigYamlFile decodes the YAML file at path specified into a Config.
+func ParseConfigYamlFile(path string) (*Config, error) {
 	data, err := ioutil.ReadFile(path)
 	if err != nil {
 		return nil, err
 	}
 
-	backup := InstanceConfig{}
+	backup := Config{}
 	if err := yaml.Unmarshal(data, &backup); err != nil {
 		return nil, err
 	}
@@ -50,8 +50,7 @@ func updateRootDevicePool(devices map[string]map[string]string, poolName string)
 	return false
 }
 
-// UpdateInstanceConfigStoragePool changes the pool information in the backup.yaml to the pool
-// specified in b.Pool.
+// UpdateInstanceConfigStoragePool changes the pool information in the backup.yaml to the pool specified in b.Pool.
 func UpdateInstanceConfigStoragePool(c *db.Cluster, b Info, mountPath string) error {
 	// Load the storage pool.
 	_, pool, err := c.GetStoragePool(b.Pool)
@@ -61,7 +60,7 @@ func UpdateInstanceConfigStoragePool(c *db.Cluster, b Info, mountPath string) er
 
 	f := func(path string) error {
 		// Read in the backup.yaml file.
-		backup, err := ParseInstanceConfigYamlFile(path)
+		backup, err := ParseConfigYamlFile(path)
 		if err != nil {
 			return err
 		}
