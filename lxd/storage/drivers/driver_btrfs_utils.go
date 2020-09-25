@@ -1,7 +1,6 @@
 package drivers
 
 import (
-	"context"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -16,6 +15,7 @@ import (
 	"golang.org/x/sys/unix"
 	"gopkg.in/yaml.v2"
 
+	"github.com/lxc/lxd/lxd/backup"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/ioprogress"
 	"github.com/lxc/lxd/shared/logger"
@@ -408,18 +408,8 @@ func (d *btrfs) restorationHeader(vol Volume, snapshots []string) (*BTRFSMetaDat
 func (d *btrfs) loadOptimizedBackupHeader(r io.ReadSeeker) (*BTRFSMetaDataHeader, error) {
 	header := BTRFSMetaDataHeader{}
 
-	// Extract
-	r.Seek(0, 0)
-	_, _, unpacker, err := shared.DetectCompressionFile(r)
-	if err != nil {
-		return nil, err
-	}
-
-	if unpacker == nil {
-		return nil, fmt.Errorf("Unsupported backup compression")
-	}
-
-	tr, cancelFunc, err := shared.CompressedTarReader(context.Background(), r, unpacker)
+	// Extract.
+	tr, cancelFunc, err := backup.TarReader(r)
 	if err != nil {
 		return nil, err
 	}
@@ -428,7 +418,7 @@ func (d *btrfs) loadOptimizedBackupHeader(r io.ReadSeeker) (*BTRFSMetaDataHeader
 	for {
 		hdr, err := tr.Next()
 		if err == io.EOF {
-			break // End of archive
+			break // End of archive.
 		}
 		if err != nil {
 			return nil, errors.Wrapf(err, "Error reading backup file for optimized backup header file")

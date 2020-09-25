@@ -1,27 +1,49 @@
 package backup
 
 import (
-	"context"
 	"fmt"
 	"io"
 
 	"github.com/pkg/errors"
 	"gopkg.in/yaml.v2"
 
-	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 )
 
+// Type indicates the type of backup.
+type Type string
+
+// TypeUnknown defines the backup type value for unknown backups.
+const TypeUnknown = Type("")
+
+// TypeContainer defines the backup type value for a container.
+const TypeContainer = Type("container")
+
+// TypeVM defines the backup type value for a virtual-machine.
+const TypeVM = Type("virtual-machine")
+
+// InstanceTypeToBackupType converts instance type to backup type.
+func InstanceTypeToBackupType(instanceType api.InstanceType) Type {
+	switch instanceType {
+	case api.InstanceTypeContainer:
+		return TypeContainer
+	case api.InstanceTypeVM:
+		return TypeVM
+	}
+
+	return TypeUnknown
+}
+
 // Info represents exported backup information.
 type Info struct {
-	Project          string           `json:"-" yaml:"-"` // Project is set during import based on current project.
-	Name             string           `json:"name" yaml:"name"`
-	Backend          string           `json:"backend" yaml:"backend"`
-	Pool             string           `json:"pool" yaml:"pool"`
-	Snapshots        []string         `json:"snapshots,omitempty" yaml:"snapshots,omitempty"`
-	OptimizedStorage *bool            `json:"optimized,omitempty" yaml:"optimized,omitempty"`               // Optional field to handle older optimized backups that don't have this field.
-	OptimizedHeader  *bool            `json:"optimized_header,omitempty" yaml:"optimized_header,omitempty"` // Optional field to handle older optimized backups that don't have this field.
-	Type             api.InstanceType `json:"type" yaml:"type"`
+	Project          string   `json:"-" yaml:"-"` // Project is set during import based on current project.
+	Name             string   `json:"name" yaml:"name"`
+	Backend          string   `json:"backend" yaml:"backend"`
+	Pool             string   `json:"pool" yaml:"pool"`
+	Snapshots        []string `json:"snapshots,omitempty" yaml:"snapshots,omitempty"`
+	OptimizedStorage *bool    `json:"optimized,omitempty" yaml:"optimized,omitempty"`               // Optional field to handle older optimized backups that don't have this field.
+	OptimizedHeader  *bool    `json:"optimized_header,omitempty" yaml:"optimized_header,omitempty"` // Optional field to handle older optimized backups that don't have this field.
+	Type             Type     `json:"type,omitempty" yaml:"type,omitempty"`                         // Type of backup.
 }
 
 // GetInfo extracts backup information from a given ReadSeeker.
@@ -33,18 +55,8 @@ func GetInfo(r io.ReadSeeker) (*Info, error) {
 	optimizedStorageFalse := false
 	optimizedHeaderFalse := false
 
-	// Extract
-	r.Seek(0, 0)
-	_, _, unpacker, err := shared.DetectCompressionFile(r)
-	if err != nil {
-		return nil, err
-	}
-
-	if unpacker == nil {
-		return nil, fmt.Errorf("Unsupported backup compression")
-	}
-
-	tr, cancelFunc, err := shared.CompressedTarReader(context.Background(), r, unpacker)
+	// Extract.
+	tr, cancelFunc, err := TarReader(r)
 	if err != nil {
 		return nil, err
 	}
@@ -53,7 +65,7 @@ func GetInfo(r io.ReadSeeker) (*Info, error) {
 	for {
 		hdr, err := tr.Next()
 		if err == io.EOF {
-			break // End of archive
+			break // End of archive.
 		}
 		if err != nil {
 			return nil, errors.Wrapf(err, "Error reading backup file info")
@@ -68,8 +80,8 @@ func GetInfo(r io.ReadSeeker) (*Info, error) {
 			hasIndexFile = true
 
 			// Default to container if index doesn't specify instance type.
-			if result.Type == api.InstanceTypeAny {
-				result.Type = api.InstanceTypeContainer
+			if result.Type == TypeUnknown {
+				result.Type = TypeContainer
 			}
 
 			// Default to no optimized header if not specified.
@@ -80,7 +92,6 @@ func GetInfo(r io.ReadSeeker) (*Info, error) {
 			if result.OptimizedStorage != nil {
 				// No need to continue looking for optimized storage hint using the presence of the
 				// container.bin file below, as the index.yaml file tells us directly.
-				cancelFunc()
 				break
 			} else {
 				// Default to non-optimized if not specified and continue reading to see if
@@ -90,17 +101,21 @@ func GetInfo(r io.ReadSeeker) (*Info, error) {
 		}
 
 		// If the tarball contains a binary dump of the container, then this is an optimized backup.
+		// This check is only for legacy backups before we introduced the Type and OptimizedStorage fields
+		// in index.yaml, so there is no need to perform this type of check for other types of backups that
+		// have always had these fields populated.
 		if hdr.Name == "backup/container.bin" {
 			optimizedStorageTrue := true
 			result.OptimizedStorage = &optimizedStorageTrue
 
 			// Stop read loop if index.yaml already parsed.
 			if hasIndexFile {
-				cancelFunc()
 				break
 			}
 		}
 	}
+
+	cancelFunc() // Done reading archive.
 
 	if !hasIndexFile {
 		return nil, fmt.Errorf("Backup is missing index.yaml")
