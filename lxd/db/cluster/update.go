@@ -75,6 +75,30 @@ var updates = map[int]schema.Update{
 	36: updateFromV35,
 	37: updateFromV36,
 	38: updateFromV37,
+	39: updateFromV38,
+}
+
+// Add storage_volumes_backups table.
+func updateFromV38(tx *sql.Tx) error {
+	stmt := `
+CREATE TABLE storage_volumes_backups (
+    id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+    storage_volume_id INTEGER NOT NULL,
+    name VARCHAR(255) NOT NULL,
+    creation_date DATETIME,
+    expiry_date DATETIME,
+    volume_only INTEGER NOT NULL default 0,
+    optimized_storage INTEGER NOT NULL default 0,
+    FOREIGN KEY (storage_volume_id) REFERENCES "storage_volumes" (id) ON DELETE CASCADE,
+    UNIQUE (storage_volume_id, name)
+);
+`
+	_, err := tx.Exec(stmt)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 // Attempt to add missing project features.networks feature to default project.

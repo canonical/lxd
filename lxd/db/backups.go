@@ -7,9 +7,10 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/lxc/lxd/shared/logger"
+	"github.com/pkg/errors"
 
 	log "github.com/lxc/lxd/shared/log15"
+	"github.com/lxc/lxd/shared/logger"
 )
 
 // InstanceBackup is a value object holding all db-related details about an instance backup.
@@ -20,6 +21,18 @@ type InstanceBackup struct {
 	CreationDate         time.Time
 	ExpiryDate           time.Time
 	InstanceOnly         bool
+	OptimizedStorage     bool
+	CompressionAlgorithm string
+}
+
+// StoragePoolVolumeBackup is a value object holding all db-related details about a storage volume backup.
+type StoragePoolVolumeBackup struct {
+	ID                   int
+	VolumeID             int64
+	Name                 string
+	CreationDate         time.Time
+	ExpiryDate           time.Time
+	VolumeOnly           bool
 	OptimizedStorage     bool
 	CompressionAlgorithm string
 }
@@ -224,4 +237,215 @@ func (c *Cluster) GetExpiredInstanceBackups() ([]InstanceBackup, error) {
 	}
 
 	return result, nil
+}
+
+// GetStoragePoolVolumeBackups returns a list of volume backups.
+func (c *Cluster) GetStoragePoolVolumeBackups(projectName string, volumeName string, poolID int64) ([]StoragePoolVolumeBackup, error) {
+	var backupID int
+	var volumeID int64
+	var volName string
+	var creationDate string
+	var expiryDate string
+	var volumeOnly bool
+	var optimizedStorage bool
+	var result []StoragePoolVolumeBackup
+
+	q := `
+SELECT
+	backups.id,
+	backups.storage_volume_id,
+	backups.name,
+	backups.creation_date,
+	backups.expiry_date,
+	backups.volume_only,
+	backups.optimized_storage
+FROM storage_volumes_backups AS backups
+JOIN storage_volumes ON storage_volumes.id=backups.storage_volume_id
+JOIN projects ON projects.id=storage_volumes.project_id
+WHERE projects.name=? AND storage_volumes.name=? AND storage_volumes.storage_pool_id=?
+ORDER BY backups.id
+`
+
+	inargs := []interface{}{projectName, volumeName, poolID}
+	outfmt := []interface{}{backupID, volumeID, volName, creationDate, expiryDate, volumeOnly, optimizedStorage}
+
+	dbResults, err := queryScan(c, q, inargs, outfmt)
+	if err != nil {
+		return nil, errors.Wrapf(err, "Failed loading backups")
+	}
+
+	for _, r := range dbResults {
+		backup := StoragePoolVolumeBackup{
+			ID:               r[0].(int),
+			VolumeID:         r[1].(int64),
+			Name:             r[2].(string),
+			VolumeOnly:       r[5].(bool),
+			OptimizedStorage: r[6].(bool),
+		}
+
+		err = backup.CreationDate.UnmarshalText([]byte(r[3].(string)))
+		if err != nil {
+			return nil, err
+		}
+
+		err = backup.ExpiryDate.UnmarshalText([]byte(r[4].(string)))
+		if err != nil {
+			return nil, err
+		}
+
+		result = append(result, backup)
+	}
+
+	return result, nil
+}
+
+// GetStoragePoolVolumeBackupsNames returns the names of all backups of the storage volume with the given name.
+func (c *Cluster) GetStoragePoolVolumeBackupsNames(projectName string, volumeName string, poolID int64) ([]string, error) {
+	var result []string
+
+	q := `SELECT storage_volumes_backups.name FROM storage_volumes_backups
+JOIN storage_volumes ON storage_volumes_backups.storage_volume_id=storage_volumes.id
+JOIN projects ON projects.id=storage_volumes.project_id
+WHERE projects.name=? AND storage_volumes.name=?
+ORDER BY storage_volumes_backups.id`
+	inargs := []interface{}{projectName, volumeName}
+	outfmt := []interface{}{volumeName}
+	dbResults, err := queryScan(c, q, inargs, outfmt)
+	if err != nil {
+		return nil, err
+	}
+
+	for _, r := range dbResults {
+		result = append(result, r[0].(string))
+	}
+
+	return result, nil
+}
+
+// CreateStoragePoolVolumeBackup creates a new storage volume backup.
+func (c *Cluster) CreateStoragePoolVolumeBackup(args StoragePoolVolumeBackup) error {
+	_, err := c.getStoragePoolVolumeBackupID(args.Name)
+	if err == nil {
+		return ErrAlreadyDefined
+	}
+
+	err = c.Transaction(func(tx *ClusterTx) error {
+		volumeOnlyInt := 0
+		if args.VolumeOnly {
+			volumeOnlyInt = 1
+		}
+
+		optimizedStorageInt := 0
+		if args.OptimizedStorage {
+			optimizedStorageInt = 1
+		}
+
+		str := fmt.Sprintf("INSERT INTO storage_volumes_backups (storage_volume_id, name, creation_date, expiry_date, volume_only, optimized_storage) VALUES (?, ?, ?, ?, ?, ?)")
+		stmt, err := tx.tx.Prepare(str)
+		if err != nil {
+			return err
+		}
+		defer stmt.Close()
+		result, err := stmt.Exec(args.VolumeID, args.Name,
+			args.CreationDate.Unix(), args.ExpiryDate.Unix(), volumeOnlyInt,
+			optimizedStorageInt)
+		if err != nil {
+			return err
+		}
+
+		_, err = result.LastInsertId()
+		if err != nil {
+			return fmt.Errorf("Error inserting %q into database", args.Name)
+		}
+
+		return nil
+	})
+
+	return err
+}
+
+// Returns the ID of the storage volume backup with the given name.
+func (c *Cluster) getStoragePoolVolumeBackupID(name string) (int, error) {
+	q := "SELECT id FROM storage_volumes_backups WHERE name=?"
+	id := -1
+	arg1 := []interface{}{name}
+	arg2 := []interface{}{&id}
+	err := dbQueryRowScan(c, q, arg1, arg2)
+	if err == sql.ErrNoRows {
+		return -1, ErrNoSuchObject
+	}
+
+	return id, err
+}
+
+// DeleteStoragePoolVolumeBackup removes the storage volume backup with the given name from the database.
+func (c *Cluster) DeleteStoragePoolVolumeBackup(name string) error {
+	id, err := c.getStoragePoolVolumeBackupID(name)
+	if err != nil {
+		return err
+	}
+
+	err = exec(c, "DELETE FROM storage_volumes_backups WHERE id=?", id)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// GetStoragePoolVolumeBackup returns the volume backup with the given name.
+func (c *Cluster) GetStoragePoolVolumeBackup(projectName string, poolName string, backupName string) (StoragePoolVolumeBackup, error) {
+	args := StoragePoolVolumeBackup{}
+	q := `
+SELECT
+	backups.id,
+	backups.storage_volume_id,
+	backups.name,
+	backups.creation_date,
+	backups.expiry_date,
+	backups.volume_only,
+	backups.optimized_storage
+FROM storage_volumes_backups AS backups
+JOIN storage_volumes ON storage_volumes.id=backups.storage_volume_id
+JOIN projects ON projects.id=storage_volumes.project_id
+WHERE projects.name=? AND backups.name=?
+`
+	arg1 := []interface{}{projectName, backupName}
+	outfmt := []interface{}{&args.ID, &args.VolumeID, &args.Name, &args.CreationDate, &args.ExpiryDate, &args.VolumeOnly, &args.OptimizedStorage}
+	err := dbQueryRowScan(c, q, arg1, outfmt)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return args, ErrNoSuchObject
+		}
+
+		return args, err
+	}
+
+	return args, nil
+}
+
+// RenameVolumeBackup renames a volume backup from the given current name
+// to the new one.
+func (c *Cluster) RenameVolumeBackup(oldName, newName string) error {
+	err := c.Transaction(func(tx *ClusterTx) error {
+		str := fmt.Sprintf("UPDATE storage_volumes_backups SET name = ? WHERE name = ?")
+		stmt, err := tx.tx.Prepare(str)
+		if err != nil {
+			return err
+		}
+		defer stmt.Close()
+
+		logger.Debug(
+			"Calling SQL Query",
+			log.Ctx{
+				"query":   "UPDATE storage_volumes_backups SET name = ? WHERE name = ?",
+				"oldName": oldName,
+				"newName": newName})
+		if _, err := stmt.Exec(newName, oldName); err != nil {
+			return err
+		}
+
+		return nil
+	})
+	return err
 }

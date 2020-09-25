@@ -2620,6 +2620,27 @@ func (b *lxdBackend) RenameCustomVolume(projectName string, volName string, newV
 		})
 	}
 
+	// Rename each backup to have the new parent volume prefix.
+	backups, err := b.state.Cluster.GetStoragePoolVolumeBackups(projectName, volName, b.ID())
+	if err != nil {
+		return err
+	}
+
+	for _, br := range backups {
+		backupRow := br // Local var for revert.
+		_, backupName, _ := shared.InstanceGetParentAndSnapshotName(backupRow.Name)
+		newVolBackupName := drivers.GetSnapshotVolumeName(newVolName, backupName)
+		volBackup := backup.NewVolumeBackup(b.state, projectName, b.name, volName, backupRow.ID, backupRow.Name, backupRow.CreationDate, backupRow.ExpiryDate, backupRow.VolumeOnly, backupRow.OptimizedStorage)
+		err = volBackup.Rename(newVolBackupName)
+		if err != nil {
+			return errors.Wrapf(err, "Failed renaming backup %q to %q", backupRow.Name, newVolBackupName)
+		}
+
+		revert.Add(func() {
+			volBackup.Rename(backupRow.Name)
+		})
+	}
+
 	err = b.state.Cluster.RenameStoragePoolVolume(projectName, volName, newVolName, db.StoragePoolVolumeTypeCustom, b.ID())
 	if err != nil {
 		return err
@@ -2862,6 +2883,15 @@ func (b *lxdBackend) DeleteCustomVolume(projectName string, volName string, op *
 	// Delete the volume from the storage device. Must come after snapshots are removed.
 	if b.driver.HasVolume(vol) {
 		err = b.driver.DeleteVolume(vol, op)
+		if err != nil {
+			return err
+		}
+	}
+
+	// Remove backups directory for volume.
+	backupsPath := shared.VarPath("backups", "custom", b.name, project.StorageVolume(projectName, volName))
+	if shared.PathExists(backupsPath) {
+		err := os.RemoveAll(backupsPath)
 		if err != nil {
 			return err
 		}
@@ -3396,4 +3426,122 @@ func (b *lxdBackend) CheckInstanceBackupFileSnapshots(backupConf *backup.Config,
 	}
 
 	return existingSnapshots, nil
+}
+
+func (b *lxdBackend) BackupCustomVolume(projectName string, volName string, tarWriter *instancewriter.InstanceTarWriter, optimized bool, snapshots bool, op *operations.Operation) error {
+	logger := logging.AddContext(b.logger, log.Ctx{"project": projectName, "volume": volName, "optimized": optimized, "snapshots": snapshots})
+	logger.Debug("BackupCustomVolume started")
+	defer logger.Debug("BackupCustomVolume finished")
+
+	// Get the volume name on storage.
+	volStorageName := project.StorageVolume(projectName, volName)
+
+	_, volume, err := b.state.Cluster.GetLocalStoragePoolVolume(projectName, volName, db.StoragePoolVolumeTypeCustom, b.id)
+	if err != nil {
+		return err
+	}
+
+	vol := b.newVolume(drivers.VolumeTypeCustom, drivers.ContentType(volume.ContentType), volStorageName, volume.Config)
+
+	err = b.driver.BackupVolume(vol, tarWriter, optimized, snapshots, op)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (b *lxdBackend) CreateCustomVolumeFromBackup(srcBackup backup.Info, srcData io.ReadSeeker, op *operations.Operation) error {
+	logger := logging.AddContext(b.logger, log.Ctx{"project": srcBackup.Project, "volume": srcBackup.Name, "snapshots": srcBackup.Snapshots, "optimizedStorage": *srcBackup.OptimizedStorage})
+	logger.Debug("CreateCustomVolumeFromBackup started")
+	defer logger.Debug("CreateCustomVolumeFromBackup finished")
+
+	if srcBackup.Config == nil || srcBackup.Config.Volume == nil {
+		return fmt.Errorf("Valid volume config not found in index")
+	}
+
+	if len(srcBackup.Snapshots) != len(srcBackup.Config.VolumeSnapshots) {
+		return fmt.Errorf("Valid volume snapshot config not found in index")
+	}
+
+	// Check whether we are allowed to create volumes.
+	req := api.StorageVolumesPost{
+		StorageVolumePut: api.StorageVolumePut{
+			Config: srcBackup.Config.Volume.Config,
+		},
+		Name: srcBackup.Config.Volume.Name,
+	}
+	err := b.state.Cluster.Transaction(func(tx *db.ClusterTx) error {
+		return project.AllowVolumeCreation(tx, srcBackup.Project, req)
+	})
+	if err != nil {
+		return errors.Wrapf(err, "Failed checking volume creation allowed")
+	}
+
+	revert := revert.New()
+	defer revert.Fail()
+
+	// Get the volume name on storage.
+	volStorageName := project.StorageVolume(srcBackup.Project, srcBackup.Name)
+
+	// Validate config.
+	vol := b.newVolume(drivers.VolumeTypeCustom, drivers.ContentType(srcBackup.Config.Volume.ContentType), volStorageName, srcBackup.Config.Volume.Config)
+
+	// Strip any unsupported config keys (in case the export was made from a different type of storage pool).
+	err = b.driver.ValidateVolume(vol, true)
+	if err != nil {
+		return err
+	}
+
+	// Create database entry for new storage volume using the validated config.
+	err = VolumeDBCreate(b.state, srcBackup.Project, b.name, srcBackup.Config.Volume.Name, srcBackup.Config.Volume.Description, db.StoragePoolVolumeTypeNameCustom, false, vol.Config(), time.Time{}, string(vol.ContentType()))
+	if err != nil {
+		return err
+	}
+
+	revert.Add(func() {
+		b.state.Cluster.RemoveStoragePoolVolume(srcBackup.Project, srcBackup.Name, db.StoragePoolVolumeTypeCustom, b.ID())
+	})
+
+	// Create database entries fro new storage volume snapshots.
+	for _, s := range srcBackup.Config.VolumeSnapshots {
+		snapshot := s // Local var for revert.
+		snapVolStorageName := project.StorageVolume(srcBackup.Project, snapshot.Name)
+		snapVol := b.newVolume(drivers.VolumeTypeCustom, drivers.ContentType(srcBackup.Config.Volume.ContentType), snapVolStorageName, srcBackup.Config.Volume.Config)
+
+		// Strip any unsupported config keys (in case the export was made from a different type of storage pool).
+		err := b.driver.ValidateVolume(snapVol, true)
+		if err != nil {
+			return err
+		}
+
+		err = VolumeDBCreate(b.state, srcBackup.Project, b.name, snapshot.Name, snapshot.Description, db.StoragePoolVolumeTypeNameCustom, true, snapVol.Config(), *snapshot.ExpiresAt, string(snapVol.ContentType()))
+		if err != nil {
+			return err
+		}
+
+		revert.Add(func() {
+			b.state.Cluster.RemoveStoragePoolVolume(srcBackup.Project, snapshot.Name, db.StoragePoolVolumeTypeCustom, b.ID())
+		})
+	}
+
+	// Unpack the backup into the new storage volume(s).
+	volPostHook, revertHook, err := b.driver.CreateVolumeFromBackup(vol, srcBackup, srcData, op)
+	if err != nil {
+		return err
+	}
+
+	if revertHook != nil {
+		revert.Add(revertHook)
+	}
+
+	// If the driver returned a post hook, return error as custom volumes don't need post hooks and we expect
+	// the storage driver to understand this distinction and ensure that all activities done in the postHook
+	// normally are done in CreateVolumeFromBackup as the DB record is created ahead of time.
+	if volPostHook != nil {
+		return fmt.Errorf("Custom volume restore doesn't support post hooks")
+	}
+
+	revert.Success()
+	return nil
 }

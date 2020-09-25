@@ -278,6 +278,9 @@ much like `/1.0/containers` will only show you instances of that type.
          * [`/1.0/storage-pools/<pool>/volumes/<type>/<name>`](#10storage-poolspoolvolumestypename)
            * [`/1.0/storage-pools/<pool>/volumes/<type>/<name>/snapshots`](#10storage-poolspoolvolumestypenamesnapshots)
              * [`/1.0/storage-pools/<pool>/volumes/<type>/<volume>/snapshots/<name>`](#10storage-poolspoolvolumestypevolumesnapshotsname)
+            * [`/1.0/storage-pools/<pool>/volumes/<type>/<name>/backups`](#10storage-poolspoolvolumestypenamebackups)
+             * [`/1.0/storage-pools/<pool>/volumes/<type>/<volume>/backups/<name>`](#10storage-poolspoolvolumestypevolumebackupsname)
+               * [`/1.0/storage-pools/<pool>/volumes/<type>/<volume>/backups/<name>/export`](#10storage-poolspoolvolumestypevolumebackupsnameexport)
  * [`/1.0/resources`](#10resources)
  * [`/1.0/cluster`](#10cluster)
    * [`/1.0/cluster/members`](#10clustermembers)
@@ -3199,6 +3202,99 @@ Input:
  * Return: background operation or standard error
 
 HTTP code for this should be 202 (Accepted).
+
+### `/1.0/storage-pools/<pool>/volumes/<type>/<name>/backups`
+#### GET
+ * Description: List of backups for the volume
+ * Introduced: with API extension `custom_volume_backup`
+ * Authentication: trusted
+ * Operation: sync
+ * Return: a list of backups for the volume
+
+Return value:
+
+```json
+[
+    "/1.0/storage-pools/pool1/custom/vol1/backups/backup0",
+    "/1.0/storage-pools/pool1/custom/vol1/backups/backup1",
+]
+```
+
+#### POST
+ * Description: Create a new backup
+ * Introduced: with API extension `custom_volume_backup`
+ * Authentication: trusted
+ * Operation: async
+ * Returns: background operation or standard error
+
+Input:
+
+```js
+{
+    "name": "backupName",      // unique identifier for the backup
+    "expiry": 3600,            // when to delete the backup automatically
+    "volume_only": true,     // if True, snapshots aren't included
+    "optimized_storage": true  // if True, btrfs send or zfs send is used for volume and snapshots
+}
+```
+
+### `/1.0/storage-pools/<pool>/volumes/<type>/<volume>/backups/<name>`
+#### GET
+ * Description: Backup information
+ * Introduced: with API extension `custom_volume_backup`
+ * Authentication: trusted
+ * Operation: sync
+ * Returns: dict of the backup
+
+Output:
+
+```json
+{
+    "name": "backupName",
+    "creation_date": "2018-04-23T12:16:09+02:00",
+    "expiry_date": "2018-04-23T12:16:09+02:00",
+    "instance_only": false,
+    "optimized_storage": false
+}
+```
+
+#### DELETE
+ * Description: remove the backup
+ * Introduced: with API extension `custom_volume_backup`
+ * Authentication: trusted
+ * Operation: async
+ * Return: background operation or standard error
+
+#### POST
+ * Description: used to rename the backup
+ * Introduced: with API extension `custom_volume_backup`
+ * Authentication: trusted
+ * Operation: async
+ * Return: background operation or standard error
+
+Input:
+
+```json
+{
+    "name": "new-name"
+}
+```
+
+### `storage-pools/<pool>/volumes/<type>/<volume>/backups/<name>/export`
+#### GET
+ * Description: fetch the backup tarball
+ * Introduced: with API extension `custom_volume_backup`
+ * Authentication: trusted
+ * Operation: sync
+ * Return: dict containing the backup tarball
+
+Output:
+
+```json
+{
+    "data": "<byte-stream>"
+}
+```
 
 ### `/1.0/resources`
 #### GET

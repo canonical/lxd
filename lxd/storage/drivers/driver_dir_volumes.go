@@ -96,30 +96,36 @@ func (d *dir) CreateVolumeFromBackup(vol Volume, srcBackup backup.Info, srcData 
 		return nil, nil, err
 	}
 
-	// Define a post hook function that can be run once the backup config has been restored.
-	// This will setup the quota using the restored config.
-	postHookWrapper := func(vol Volume) error {
-		if postHook != nil {
-			err := postHook(vol)
+	// genericVFSBackupUnpack returns a nil postHook when volume's type is VolumeTypeCustom and doesn't need
+	// any post hook processing after DB record creation.
+	if postHook != nil {
+		// Define a post hook function that can be run once the backup config has been restored.
+		// This will setup the quota using the restored config.
+		postHookWrapper := func(vol Volume) error {
+			if postHook != nil {
+				err := postHook(vol)
+				if err != nil {
+					return err
+				}
+			}
+
+			revert := revert.New()
+			defer revert.Fail()
+
+			revertQuota, err := d.setupInitialQuota(vol)
 			if err != nil {
 				return err
 			}
+			revert.Add(revertQuota)
+
+			revert.Success()
+			return nil
 		}
 
-		revert := revert.New()
-		defer revert.Fail()
-
-		revertQuota, err := d.setupInitialQuota(vol)
-		if err != nil {
-			return err
-		}
-		revert.Add(revertQuota)
-
-		revert.Success()
-		return nil
+		return postHookWrapper, revertHook, nil
 	}
 
-	return postHookWrapper, revertHook, nil
+	return nil, revertHook, nil
 }
 
 // CreateVolumeFromCopy provides same-pool volume copying functionality.

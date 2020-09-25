@@ -349,6 +349,8 @@ func (d *zfs) CreateVolumeFromBackup(vol Volume, srcBackup backup.Info, srcData 
 			if vol.contentType == ContentTypeFS {
 				fileName = fmt.Sprintf("%s-config.bin", snapName)
 			}
+		} else if vol.volType == VolumeTypeCustom {
+			prefix = "volume-snapshots"
 		}
 
 		srcFile := fmt.Sprintf("backup/%s/%s", prefix, fileName)
@@ -367,6 +369,8 @@ func (d *zfs) CreateVolumeFromBackup(vol Volume, srcBackup backup.Info, srcData 
 		} else {
 			fileName = "virtual-machine.bin"
 		}
+	} else if vol.volType == VolumeTypeCustom {
+		fileName = "volume.bin"
 	}
 
 	err = unpackVolume(srcData, unpacker, fmt.Sprintf("backup/%s", fileName), d.dataset(vol, false))
@@ -402,15 +406,19 @@ func (d *zfs) CreateVolumeFromBackup(vol Volume, srcBackup backup.Info, srcData 
 		}
 	}
 
-	// The import requires a mounted volume, so mount it and have it unmounted as a post hook.
-	_, err = d.MountVolume(vol, op)
-	if err != nil {
-		return nil, nil, err
-	}
+	var postHook func(vol Volume) error
 
-	postHook := func(vol Volume) error {
-		_, err := d.UnmountVolume(vol, op)
-		return err
+	if vol.volType != VolumeTypeCustom {
+		// The import requires a mounted volume, so mount it and have it unmounted as a post hook.
+		_, err = d.MountVolume(vol, op)
+		if err != nil {
+			return nil, nil, err
+		}
+
+		postHook = func(vol Volume) error {
+			_, err := d.UnmountVolume(vol, op)
+			return err
+		}
 	}
 
 	revert.Success()
@@ -1447,6 +1455,8 @@ func (d *zfs) BackupVolume(vol Volume, tarWriter *instancewriter.InstanceTarWrit
 				if vol.contentType == ContentTypeFS {
 					fileName = fmt.Sprintf("%s-config.bin", snapName)
 				}
+			} else if vol.volType == VolumeTypeCustom {
+				prefix = "volume-snapshots"
 			}
 
 			target := fmt.Sprintf("backup/%s/%s", prefix, fileName)
@@ -1475,6 +1485,8 @@ func (d *zfs) BackupVolume(vol Volume, tarWriter *instancewriter.InstanceTarWrit
 		} else {
 			fileName = "virtual-machine.bin"
 		}
+	} else if vol.volType == VolumeTypeCustom {
+		fileName = "volume.bin"
 	}
 
 	err = sendToFile(srcSnapshot, finalParent, fmt.Sprintf("backup/%s", fileName))
