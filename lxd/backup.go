@@ -279,12 +279,13 @@ func pruneExpiredContainerBackups(ctx context.Context, d *Daemon) error {
 	for _, b := range backups {
 		inst, err := instance.LoadByID(d.State(), b.InstanceID)
 		if err != nil {
-			return errors.Wrapf(err, "Error deleting instance backup %s", b.Name)
+			return errors.Wrapf(err, "Error loading instance for deleting backup %q", b.Name)
 		}
 
-		err = backup.DoBackupDelete(d.State(), inst.Project(), b.Name, inst.Name())
+		instBackup := backup.NewInstanceBackup(d.State(), inst, b.ID, b.Name, b.CreationDate, b.ExpiryDate, b.InstanceOnly, b.OptimizedStorage)
+		err = instBackup.Delete()
 		if err != nil {
-			return errors.Wrapf(err, "Error deleting instance backup %s", b.Name)
+			return errors.Wrapf(err, "Error deleting instance backup %q", b.Name)
 		}
 	}
 
