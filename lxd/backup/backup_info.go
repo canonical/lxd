@@ -101,6 +101,9 @@ func GetInfo(r io.ReadSeeker) (*Info, error) {
 		}
 
 		// If the tarball contains a binary dump of the container, then this is an optimized backup.
+		// This check is only for legacy backups before we introduced the Type and OptimizedStorage fields
+		// in index.yaml, so there is no need to perform this type of check for other types of backups that
+		// have always had these fields populated.
 		if hdr.Name == "backup/container.bin" {
 			optimizedStorageTrue := true
 			result.OptimizedStorage = &optimizedStorageTrue
