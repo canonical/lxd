@@ -22,6 +22,9 @@ const TypeContainer = Type("container")
 // TypeVM defines the backup type value for a virtual-machine.
 const TypeVM = Type("virtual-machine")
 
+// TypeCustom defines the backup type value for a custom volume.
+const TypeCustom = Type("custom")
+
 // InstanceTypeToBackupType converts instance type to backup type.
 func InstanceTypeToBackupType(instanceType api.InstanceType) Type {
 	switch instanceType {
