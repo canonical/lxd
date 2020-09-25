@@ -2888,6 +2888,15 @@ func (b *lxdBackend) DeleteCustomVolume(projectName string, volName string, op *
 		}
 	}
 
+	// Remove backups directory for volume.
+	backupsPath := shared.VarPath("backups", "custom", b.name, project.StorageVolume(projectName, volName))
+	if shared.PathExists(backupsPath) {
+		err := os.RemoveAll(backupsPath)
+		if err != nil {
+			return err
+		}
+	}
+
 	// Finally, remove the volume record from the database.
 	err = b.state.Cluster.RemoveStoragePoolVolume(projectName, volName, db.StoragePoolVolumeTypeCustom, b.ID())
 	if err != nil {
