@@ -7,8 +7,8 @@ msgid ""
 msgstr ""
 "Project-Id-Version: LXD\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2020-09-25 14:16-0400\n"
-"PO-Revision-Date: 2020-07-31 19:11+0000\n"
+"POT-Creation-Date: 2020-09-25 23:34-0400\n"
+"PO-Revision-Date: 2020-09-25 15:37+0000\n"
 "Last-Translator: KATOH Yasufumi <karma@jazz.email.ne.jp>\n"
 "Language-Team: Japanese <https://hosted.weblate.org/projects/linux-"
 "containers/lxd/ja/>\n"
@@ -17,7 +17,7 @@ msgstr ""
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=1; plural=0;\n"
-"X-Generator: Weblate 4.2-dev\n"
+"X-Generator: Weblate 4.3-dev\n"
 
 #: lxc/storage.go:225
 msgid ""
@@ -358,65 +358,52 @@ msgid "--target cannot be used with instances"
 msgstr "--target はインスタンスでは使えません"
 
 #: lxc/alias.go:192
-#, fuzzy
 msgid "<alias>"
-msgstr "alias"
+msgstr "<alias>"
 
 #: lxc/alias.go:52
-#, fuzzy
 msgid "<alias> <target>"
-msgstr "add <alias> <target>"
+msgstr "<alias> <target>"
 
 #: lxc/alias.go:141
-#, fuzzy
 msgid "<old alias> <new alias>"
-msgstr "rename <old alias> <new alias>"
+msgstr "<old alias> <new alias>"
 
 #: lxc/storage_volume.go:1170
-#, fuzzy
 msgid "<pool>/<volume> <pool>/<volume>"
-msgstr "move [<pool>/]<volume> [<pool>/]<volume>"
+msgstr "<pool>/<volume> <pool>/<volume>"
 
 #: lxc/storage_volume.go:319
-#, fuzzy
 msgid "<pool>/<volume>[/<snapshot>] <pool>/<volume>"
-msgstr "copy <pool>/<volume>[/<snapshot>] <pool>/<volume>"
+msgstr "<pool>/<volume>[/<snapshot>] <pool>/<volume>"
 
 #: lxc/remote.go:658 lxc/remote.go:709
-#, fuzzy
 msgid "<remote>"
-msgstr "remote"
+msgstr "<remote>"
 
 #: lxc/remote.go:747
-#, fuzzy
 msgid "<remote> <URL>"
-msgstr "set-url <remote> <URL>"
+msgstr "<remote> <URL>"
 
 #: lxc/remote.go:596
-#, fuzzy
 msgid "<remote> <new-name>"
-msgstr "rename <remote> <new-name>"
+msgstr "<remote> <new-name>"
 
 #: lxc/file.go:405
-#, fuzzy
 msgid ""
 "<source path> [<remote>:]<instance>/<path> [[<remote>:]<instance>/<path>...]"
 msgstr ""
-"push <source path> [<remote>:]<instance>/<path> [[<remote>:]<instance>/"
-"<path>...]"
+"<source path> [<remote>:]<instance>/<path> [[<remote>:]<instance>/<path>...]"
 
 #: lxc/image.go:610
-#, fuzzy
 msgid ""
 "<tarball>|<directory>|<URL> [<rootfs tarball>] [<remote>:] [key=value...]"
 msgstr ""
-"import <tarball>|<directory>|<URL> [<rootfs tarball>] [<remote>:] "
-"[key=value...]"
+"<tarball>|<directory>|<URL> [<rootfs tarball>] [<remote>:] [key=value...]"
 
 #: lxc/manpage.go:18
-#, fuzzy
 msgid "<target>"
-msgstr "manpage <target>"
+msgstr "<target>"
 
 #: lxc/alias.go:126 lxc/image.go:1009 lxc/image_alias.go:231
 msgid "ALIAS"
@@ -447,9 +434,8 @@ msgid "Action (defaults to GET)"
 msgstr "使用するHTTPのメソッド (デフォルト: GET)"
 
 #: lxc/config_device.go:74 lxc/config_device.go:75
-#, fuzzy
 msgid "Add instance devices"
-msgstr "インスタンスのデバイスを一覧表示します"
+msgstr "インスタンスにデバイスを追加します"
 
 #: lxc/alias.go:53 lxc/alias.go:54
 msgid "Add new aliases"
@@ -592,9 +578,8 @@ msgid "Auto update: %s"
 msgstr "自動更新: %s"
 
 #: lxc/remote.go:131
-#, fuzzy
 msgid "Available projects:"
-msgstr "プロジェクトを管理します"
+msgstr "利用可能なプロジェクト:"
 
 #: lxc/list.go:431 lxc/list.go:432
 msgid "BASE IMAGE"
@@ -1578,9 +1563,8 @@ msgid "Get runtime information on networks"
 msgstr "ネットワークのランタイム情報を取得します"
 
 #: lxc/config_device.go:192 lxc/config_device.go:193
-#, fuzzy
 msgid "Get values for device configuration keys"
-msgstr "インスタンスのデバイスの設定値を取得します"
+msgstr "デバイスの設定値を取得します"
 
 #: lxc/config.go:359 lxc/config.go:360
 msgid "Get values for instance or server configuration keys"
@@ -2226,9 +2210,8 @@ msgid "Manage command aliases"
 msgstr "コマンドのエイリアスを管理します"
 
 #: lxc/config_device.go:23 lxc/config_device.go:24
-#, fuzzy
 msgid "Manage devices"
-msgstr "インスタンスのデバイスを管理します"
+msgstr "デバイスを管理します"
 
 #: lxc/file.go:71 lxc/file.go:72
 msgid "Manage files in instances"
@@ -2492,7 +2475,7 @@ msgstr "NAME"
 
 #: lxc/project.go:464
 msgid "NETWORKS"
-msgstr ""
+msgstr "NETWORKS"
 
 #: lxc/info.go:380
 msgid "NIC:"
@@ -2528,7 +2511,7 @@ msgstr "NVRM バージョン: %v"
 
 #: lxc/remote.go:135
 msgid "Name of the project to use for this remote:"
-msgstr ""
+msgstr "このリモートで使うプロジェクト名:"
 
 #: lxc/info.go:438 lxc/network.go:774
 #, c-format
@@ -2825,9 +2808,8 @@ msgid "Project %s renamed to %s"
 msgstr "プロジェクト名 %s を %s に変更しました"
 
 #: lxc/remote.go:101
-#, fuzzy
 msgid "Project to use for the remote"
-msgstr "リモートの URL を設定します"
+msgstr "リモートで使用するプロジェクト"
 
 #: lxc/image.go:925
 msgid "Properties:"
@@ -3135,12 +3117,10 @@ msgid "Server version: %s\n"
 msgstr "サーバのバージョン: %s\n"
 
 #: lxc/config_device.go:517
-#, fuzzy
 msgid "Set device configuration keys"
-msgstr "インスタンスデバイスの設定項目を設定します"
+msgstr "デバイスの設定項目を設定します"
 
 #: lxc/config_device.go:520
-#, fuzzy
 msgid ""
 "Set device configuration keys\n"
 "\n"
@@ -3148,13 +3128,12 @@ msgid ""
 "with:\n"
 "    lxc config device set [<remote>:]<instance> <device> <key> <value>"
 msgstr ""
-"インスタンスのデバイス設定を行います\n"
+"デバイスの設定を行います\n"
 "\n"
 "後方互換性のため、単一の設定を行う場合は次の形式でも設定できます:\n"
 "    lxc config device set [<remote>:]<instance> <device> <key> <value>"
 
 #: lxc/config_device.go:527
-#, fuzzy
 msgid ""
 "Set device configuration keys\n"
 "\n"
@@ -3162,7 +3141,7 @@ msgid ""
 "with:\n"
 "    lxc profile device set [<remote>:]<profile> <device> <key> <value>"
 msgstr ""
-"インスタンスのデバイス設定を行います\n"
+"デバイスの設定を行います\n"
 "\n"
 "後方互換性のため、単一の設定を行う場合は次の形式でも設定できます:\n"
 "    lxc profile device set [<remote>:]<profile> <device> <key> <value>"
@@ -3306,9 +3285,8 @@ msgid "Show details on a background operation"
 msgstr "バックグラウンド操作の詳細を表示します"
 
 #: lxc/config_device.go:630 lxc/config_device.go:631
-#, fuzzy
 msgid "Show full device configuration"
-msgstr "プロファイルの設定を表示します"
+msgstr "デバイスの設定をすべて表示します"
 
 #: lxc/image.go:1351 lxc/image.go:1352
 msgid "Show image properties"
@@ -3761,9 +3739,8 @@ msgid "Unset all profiles on the target instance"
 msgstr "移動先のインスタンスのすべてのプロファイルを削除します"
 
 #: lxc/config_device.go:702 lxc/config_device.go:703
-#, fuzzy
 msgid "Unset device configuration keys"
-msgstr "インスタンスデバイスの設定を削除します"
+msgstr "デバイスの設定を削除します"
 
 #: lxc/config.go:733 lxc/config.go:734
 msgid "Unset instance or server configuration keys"
@@ -3895,470 +3872,376 @@ msgid "You must specify a source instance name"
 msgstr "コピー元のインスタンス名を指定してください"
 
 #: lxc/storage_volume.go:719
-#, fuzzy
 msgid "[<remote:>]<pool> <volume> <profile> [<device name>]"
-msgstr "detach-profile [<remote:>]<pool> <volume> <profile> [<device name>]"
+msgstr "[<remote:>]<pool> <volume> <profile> [<device name>]"
 
 #: lxc/storage_volume.go:233
-#, fuzzy
 msgid "[<remote:>]<pool> <volume> <profile> [<device name>] <path>"
-msgstr ""
-"attach-profile [<remote:>]<pool> <volume> <profile> [<device name>] <path>"
+msgstr "[<remote:>]<pool> <volume> <profile> [<device name>] <path>"
 
 #: lxc/cluster.go:71 lxc/config_trust.go:112 lxc/monitor.go:28
 #: lxc/network.go:807 lxc/operation.go:99 lxc/profile.go:574 lxc/project.go:381
 #: lxc/storage.go:505 lxc/version.go:20
-#, fuzzy
 msgid "[<remote>:]"
-msgstr "list [<remote>:]"
+msgstr "[<remote>:]"
 
 #: lxc/import.go:26
-#, fuzzy
 msgid "[<remote>:] <backup file>"
-msgstr "import [<remote>:] <backup file>"
+msgstr "[<remote>:] <backup file>"
 
 #: lxc/config_trust.go:55
-#, fuzzy
 msgid "[<remote>:] <cert>"
-msgstr "add [<remote>:] <cert>"
+msgstr "[<remote>:] <cert>"
 
 #: lxc/config_trust.go:190
-#, fuzzy
 msgid "[<remote>:] <hostname|fingerprint>"
-msgstr "remove [<remote>:] <hostname|fingerprint>"
+msgstr "[<remote>:] <hostname|fingerprint>"
 
 #: lxc/cluster.go:335
-#, fuzzy
 msgid "[<remote>:] <name>"
-msgstr "enable [<remote>:] <name>"
+msgstr "[<remote>:] <name>"
 
 #: lxc/image.go:972 lxc/list.go:42
-#, fuzzy
 msgid "[<remote>:] [<filter>...]"
-msgstr "list [<remote>:] [<filter>...]"
+msgstr "[<remote>:] [<filter>...]"
 
 #: lxc/image_alias.go:147
-#, fuzzy
 msgid "[<remote>:] [<filters>...]"
-msgstr "list [<remote>:] [<filters>...]"
+msgstr "[<remote>:] [<filters>...]"
 
 #: lxc/query.go:30
-#, fuzzy
 msgid "[<remote>:]<API path>"
-msgstr "query [<remote>:]<API path>"
+msgstr "[<remote>:]<API path>"
 
 #: lxc/image_alias.go:102
-#, fuzzy
 msgid "[<remote>:]<alias>"
-msgstr "delete [<remote>:]<alias>"
+msgstr "[<remote>:]<alias>"
 
 #: lxc/image_alias.go:56
-#, fuzzy
 msgid "[<remote>:]<alias> <fingerprint>"
-msgstr "create [<remote>:]<alias> <fingerprint>"
+msgstr "[<remote>:]<alias> <fingerprint>"
 
 #: lxc/image_alias.go:249
-#, fuzzy
 msgid "[<remote>:]<alias> <new-name>"
-msgstr "rename [<remote>:]<alias> <new-name>"
+msgstr "[<remote>:]<alias> <new-name>"
 
 #: lxc/cluster.go:420
-#, fuzzy
 msgid "[<remote>:]<cluster member>"
-msgstr "edit [<remote>:]<cluster member>"
+msgstr "[<remote>:]<cluster member>"
 
 #: lxc/image.go:326 lxc/image.go:838 lxc/image.go:1350
-#, fuzzy
 msgid "[<remote>:]<image>"
-msgstr "edit [<remote>:]<image>"
+msgstr "[<remote>:]<image>"
 
 #: lxc/image.go:126
-#, fuzzy
 msgid "[<remote>:]<image> <remote>:"
-msgstr "copy [<remote>:]<image> <remote>:"
+msgstr "[<remote>:]<image> <remote>:"
 
 #: lxc/launch.go:23
-#, fuzzy
 msgid "[<remote>:]<image> [<remote>:][<name>]"
-msgstr "launch [<remote>:]<image> [<remote>:][<name>]"
+msgstr "[<remote>:]<image> [<remote>:][<name>]"
 
 #: lxc/image.go:451
-#, fuzzy
 msgid "[<remote>:]<image> [<target>]"
-msgstr "export [<remote>:]<image> [<target>]"
+msgstr "[<remote>:]<image> [<target>]"
 
 #: lxc/image.go:274 lxc/image.go:1271
-#, fuzzy
 msgid "[<remote>:]<image> [[<remote>:]<image>...]"
-msgstr "delete [<remote>:]<image> [[<remote>:]<image>...]"
+msgstr "[<remote>:]<image> [[<remote>:]<image>...]"
 
 #: lxc/config_device.go:268 lxc/config_device.go:626 lxc/config_metadata.go:50
 #: lxc/config_metadata.go:172 lxc/config_template.go:234 lxc/console.go:34
-#, fuzzy
 msgid "[<remote>:]<instance>"
-msgstr "edit [<remote>:]<instance>"
+msgstr "[<remote>:]<instance>"
 
 #: lxc/config_device.go:188 lxc/config_device.go:698
-#, fuzzy
 msgid "[<remote>:]<instance> <device> <key>"
-msgstr "get [<remote>:]<instance|profile> <device> <key>"
+msgstr "[<remote>:]<instance> <device> <key>"
 
 #: lxc/config_device.go:519
-#, fuzzy
 msgid "[<remote>:]<instance> <device> <key>=<value>..."
-msgstr "set [<remote>:]<instance|profile> <device> <key>=<value>..."
+msgstr "[<remote>:]<instance> <device> <key>=<value>..."
 
 #: lxc/config_device.go:78
-#, fuzzy
 msgid "[<remote>:]<instance> <device> <type> [key=value...]"
-msgstr "add [<remote>:]<instance|profile> <device> <type> [key=value...]"
+msgstr "[<remote>:]<instance> <device> <type> [key=value...]"
 
 #: lxc/config_device.go:334
-#, fuzzy
 msgid "[<remote>:]<instance> <device> [key=value...]"
-msgstr "override [<remote>:]<instance> <device> [key=value...]"
+msgstr "[<remote>:]<instance> <device> [key=value...]"
 
 #: lxc/config_device.go:423
-#, fuzzy
 msgid "[<remote>:]<instance> <name>..."
-msgstr "remove [<remote>:]<instance|profile> <name>..."
+msgstr "[<remote>:]<instance> <name>..."
 
 #: lxc/profile.go:99 lxc/profile.go:634
-#, fuzzy
 msgid "[<remote>:]<instance> <profile>"
-msgstr "add [<remote>:]<instance> <profile>"
+msgstr "[<remote>:]<instance> <profile>"
 
 #: lxc/profile.go:161
-#, fuzzy
 msgid "[<remote>:]<instance> <profiles>"
-msgstr "add [<remote>:]<instance> <profile>"
+msgstr "[<remote>:]<instance> <profiles>"
 
 #: lxc/restore.go:22
-#, fuzzy
 msgid "[<remote>:]<instance> <snapshot>"
-msgstr "restore [<remote>:]<instance> <snapshot>"
+msgstr "[<remote>:]<instance> <snapshot>"
 
 #: lxc/config_template.go:63 lxc/config_template.go:105
 #: lxc/config_template.go:148 lxc/config_template.go:293
-#, fuzzy
 msgid "[<remote>:]<instance> <template>"
-msgstr "edit [<remote>:]<instance> <template>"
+msgstr "[<remote>:]<instance> <template>"
 
 #: lxc/snapshot.go:25
-#, fuzzy
 msgid "[<remote>:]<instance> [<snapshot name>]"
-msgstr "snapshot [<remote>:]<instance> [<snapshot name>]"
+msgstr "[<remote>:]<instance> [<snapshot name>]"
 
 #: lxc/action.go:29 lxc/action.go:48 lxc/action.go:68 lxc/action.go:89
-#, fuzzy
 msgid "[<remote>:]<instance> [[<remote>:]<instance>...]"
-msgstr "stop [<remote>:]<instance> [[<remote>:]<instance>...]"
+msgstr "[<remote>:]<instance> [[<remote>:]<instance>...]"
 
 #: lxc/exec.go:38
-#, fuzzy
 msgid "[<remote>:]<instance> [flags] [--] <command line>"
-msgstr "exec [<remote>:]<instance> [flags] [--] <command line>"
+msgstr "[<remote>:]<instance> [flags] [--] <command line>"
 
 #: lxc/export.go:30
-#, fuzzy
 msgid "[<remote>:]<instance> [target] [--instance-only] [--optimized-storage]"
-msgstr ""
-"export [<remote>:]<instance> [target] [--instance-only] [--optimized-storage]"
+msgstr "[<remote>:]<instance> [target] [--instance-only] [--optimized-storage]"
 
 #: lxc/file.go:152
-#, fuzzy
 msgid "[<remote>:]<instance>/<path>"
-msgstr "edit [<remote>:]<instance>/<path>"
+msgstr "[<remote>:]<instance>/<path>"
 
 #: lxc/file.go:102
-#, fuzzy
 msgid "[<remote>:]<instance>/<path> [[<remote>:]<instance>/<path>...]"
-msgstr "delete [<remote>:]<instance>/<path> [[<remote>:]<instance>/<path>...]"
+msgstr "[<remote>:]<instance>/<path> [[<remote>:]<instance>/<path>...]"
 
 #: lxc/file.go:215
-#, fuzzy
 msgid ""
 "[<remote>:]<instance>/<path> [[<remote>:]<instance>/<path>...] <target path>"
 msgstr ""
-"pull [<remote>:]<instance>/<path> [[<remote>:]<instance>/<path>...] <target "
-"path>"
+"[<remote>:]<instance>/<path> [[<remote>:]<instance>/<path>...] <target path>"
 
 #: lxc/rename.go:19
-#, fuzzy
 msgid "[<remote>:]<instance>[/<snapshot>] <instance>[/<snapshot>]"
-msgstr "rename [<remote>:]<instance>[/<snapshot>] <instance>[/<snapshot>]"
+msgstr "[<remote>:]<instance>[/<snapshot>] <instance>[/<snapshot>]"
 
 #: lxc/publish.go:29
-#, fuzzy
 msgid "[<remote>:]<instance>[/<snapshot>] [<remote>:] [flags] [key=value...]"
-msgstr ""
-"publish [<remote>:]<instance>[/<snapshot>] [<remote>:] [flags] [key=value...]"
+msgstr "[<remote>:]<instance>[/<snapshot>] [<remote>:] [flags] [key=value...]"
 
 #: lxc/move.go:33
-#, fuzzy
 msgid "[<remote>:]<instance>[/<snapshot>] [<remote>:][<instance>[/<snapshot>]]"
 msgstr ""
-"move [<remote>:]<instance>[/<snapshot>] [<remote>:][<instance>[/<snapshot>]]"
+"[<remote>:]<instance>[/<snapshot>] [<remote>:][<instance>[/<snapshot>]]"
 
 #: lxc/delete.go:27
-#, fuzzy
 msgid ""
 "[<remote>:]<instance>[/<snapshot>] [[<remote>:]<instance>[/<snapshot>]...]"
 msgstr ""
-"delete [<remote>:]<instance>[/<snapshot>] [[<remote>:]<instance>[/"
-"<snapshot>]...]"
+"[<remote>:]<instance>[/<snapshot>] [[<remote>:]<instance>[/<snapshot>]...]"
 
 #: lxc/cluster.go:152 lxc/cluster.go:251
-#, fuzzy
 msgid "[<remote>:]<member>"
-msgstr "show [<remote>:]<member>"
+msgstr "[<remote>:]<member>"
 
 #: lxc/cluster.go:201
-#, fuzzy
 msgid "[<remote>:]<member> <new-name>"
-msgstr "rename [<remote>:]<member> <new-name>"
+msgstr "[<remote>:]<member> <new-name>"
 
 #: lxc/network.go:326 lxc/network.go:547 lxc/network.go:728 lxc/network.go:903
 #: lxc/network.go:1092
-#, fuzzy
 msgid "[<remote>:]<network>"
-msgstr "edit [<remote>:]<network>"
+msgstr "[<remote>:]<network>"
 
 #: lxc/network.go:377
-#, fuzzy
 msgid "[<remote>:]<network> <instance> [<device name>]"
-msgstr "detach [<remote>:]<network> <instance> [<device name>]"
+msgstr "[<remote>:]<network> <instance> [<device name>]"
 
 #: lxc/network.go:107
-#, fuzzy
 msgid "[<remote>:]<network> <instance> [<device name>] [<interface name>]"
-msgstr ""
-"attach [<remote>:]<network> <instance> [<device name>] [<interface name>]"
+msgstr "[<remote>:]<network> <instance> [<device name>] [<interface name>]"
 
 #: lxc/network.go:670 lxc/network.go:1154
-#, fuzzy
 msgid "[<remote>:]<network> <key>"
-msgstr "get [<remote>:]<network> <key>"
+msgstr "[<remote>:]<network> <key>"
 
 #: lxc/network.go:1022
-#, fuzzy
 msgid "[<remote>:]<network> <key>=<value>..."
-msgstr "set [<remote>:]<network> <key>=<value>..."
+msgstr "[<remote>:]<network> <key>=<value>..."
 
 #: lxc/network.go:971
-#, fuzzy
 msgid "[<remote>:]<network> <new-name>"
-msgstr "rename [<remote>:]<network> <new-name>"
+msgstr "[<remote>:]<network> <new-name>"
 
 #: lxc/network.go:462
-#, fuzzy
 msgid "[<remote>:]<network> <profile> [<device name>]"
-msgstr "detach-profile [<remote>:]<network> <instance> [<device name>]"
+msgstr "[<remote>:]<network> <profile> [<device name>]"
 
 #: lxc/network.go:180
-#, fuzzy
 msgid "[<remote>:]<network> <profile> [<device name>] [<interface name>]"
-msgstr ""
-"attach-profile [<remote>:]<network> <profile> [<device name>] [<interface "
-"name>]"
+msgstr "[<remote>:]<network> <profile> [<device name>] [<interface name>]"
 
 #: lxc/network.go:253
-#, fuzzy
 msgid "[<remote>:]<network> [key=value...]"
-msgstr "create [<remote>:]<network> [key=value...]"
+msgstr "[<remote>:]<network> [key=value...]"
 
 #: lxc/operation.go:50 lxc/operation.go:179
-#, fuzzy
 msgid "[<remote>:]<operation>"
-msgstr "show [<remote>:]<operation>"
+msgstr "[<remote>:]<operation>"
 
 #: lxc/storage.go:160 lxc/storage.go:211 lxc/storage.go:386 lxc/storage.go:649
 #: lxc/storage_volume.go:1090
-#, fuzzy
 msgid "[<remote>:]<pool>"
-msgstr "edit [<remote>:]<pool>"
+msgstr "[<remote>:]<pool>"
 
 #: lxc/storage_volume.go:1795
 #, fuzzy
 msgid "[<remote>:]<pool> <backup file>"
-msgstr "import [<remote>:] <backup file>"
+msgstr "[<remote>:] <backup file>"
 
 #: lxc/storage.go:87
-#, fuzzy
 msgid "[<remote>:]<pool> <driver> [key=value...]"
-msgstr "create [<remote>:]<pool> <driver> [key=value...]"
+msgstr "[<remote>:]<pool> <driver> [key=value...]"
 
 #: lxc/storage.go:331 lxc/storage.go:733
-#, fuzzy
 msgid "[<remote>:]<pool> <key>"
-msgstr "get [<remote>:]<pool> <key>"
+msgstr "[<remote>:]<pool> <key>"
 
 #: lxc/storage.go:580
-#, fuzzy
 msgid "[<remote>:]<pool> <key> <value>"
-msgstr "set [<remote>:]<pool> <key> <value>"
+msgstr "[<remote>:]<pool> <key> <value>"
 
 #: lxc/storage_volume.go:1202
-#, fuzzy
 msgid ""
 "[<remote>:]<pool> <old name>[/<old snapshot name>] <new name>[/<new snapshot "
 "name>]"
 msgstr ""
-"rename [<remote>:]<pool> <old name>[/<old snapshot name>] <new name>[/<new "
-"snapshot name>]"
+"[<remote>:]<pool> <old name>[/<old snapshot name>] <new name>[/<new snapshot "
+"name>]"
 
 #: lxc/storage_volume.go:637
-#, fuzzy
 msgid "[<remote>:]<pool> <volume> <instance> [<device name>]"
-msgstr "detach [<remote>:]<pool> <volume> <instance> [<device name>]"
+msgstr "[<remote>:]<pool> <volume> <instance> [<device name>]"
 
 #: lxc/storage_volume.go:150
-#, fuzzy
 msgid "[<remote>:]<pool> <volume> <instance> [<device name>] <path>"
-msgstr "attach [<remote>:]<pool> <volume> <instance> [<device name>] <path>"
+msgstr "[<remote>:]<pool> <volume> <instance> [<device name>] <path>"
 
 #: lxc/storage_volume.go:1490
-#, fuzzy
 msgid "[<remote>:]<pool> <volume> <key>"
-msgstr "unset [<remote>:]<pool> <volume> <key>"
+msgstr "[<remote>:]<pool> <volume> <key>"
 
 #: lxc/storage_volume.go:1315
-#, fuzzy
 msgid "[<remote>:]<pool> <volume> <key>=<value>..."
-msgstr "set [<remote>:]<pool> <volume> <key>=<value>..."
+msgstr "[<remote>:]<pool> <volume> <key>=<value>..."
 
 #: lxc/storage_volume.go:1599
-#, fuzzy
 msgid "[<remote>:]<pool> <volume> <snapshot>"
-msgstr "restore [<remote>:]<pool> <volume> <snapshot>"
+msgstr "[<remote>:]<pool> <volume> <snapshot>"
 
 #: lxc/storage_volume.go:1660
 #, fuzzy
 msgid "[<remote>:]<pool> <volume> [<path>]"
-msgstr "snapshot [<remote>:]<pool> <volume> [<snapshot>]"
+msgstr "[<remote>:]<pool> <volume> [<snapshot>]"
 
 #: lxc/storage_volume.go:1523
-#, fuzzy
 msgid "[<remote>:]<pool> <volume> [<snapshot>]"
-msgstr "edit [<remote>:]<pool> <volume>[/<snapshot>]"
+msgstr "[<remote>:]<pool> <volume> [<snapshot>]"
 
 #: lxc/storage_volume.go:482
-#, fuzzy
 msgid "[<remote>:]<pool> <volume> [key=value...]"
-msgstr "create [<remote>:]<pool> <volume> [key=value...]"
+msgstr "[<remote>:]<pool> <volume> [key=value...]"
 
 #: lxc/storage_volume.go:560 lxc/storage_volume.go:800
 #: lxc/storage_volume.go:1391
-#, fuzzy
 msgid "[<remote>:]<pool> <volume>[/<snapshot>]"
-msgstr "edit [<remote>:]<pool> <volume>[/<snapshot>]"
+msgstr "[<remote>:]<pool> <volume>[/<snapshot>]"
 
 #: lxc/storage_volume.go:1000
-#, fuzzy
 msgid "[<remote>:]<pool> <volume>[/<snapshot>] <key>"
-msgstr "get [<remote>:]<pool> <volume>[/<snapshot>] <key>"
+msgstr "[<remote>:]<pool> <volume>[/<snapshot>] <key>"
 
 #: lxc/config_device.go:270 lxc/config_device.go:628 lxc/profile.go:298
 #: lxc/profile.go:351 lxc/profile.go:402 lxc/profile.go:819
-#, fuzzy
 msgid "[<remote>:]<profile>"
-msgstr "edit [<remote>:]<profile>"
+msgstr "[<remote>:]<profile>"
 
 #: lxc/config_device.go:190 lxc/config_device.go:700
-#, fuzzy
 msgid "[<remote>:]<profile> <device> <key>"
-msgstr "get [<remote>:]<instance|profile> <device> <key>"
+msgstr "[<remote>:]<profile> <device> <key>"
 
 #: lxc/config_device.go:526
-#, fuzzy
 msgid "[<remote>:]<profile> <device> <key>=<value>..."
-msgstr "set [<remote>:]<instance|profile> <device> <key>=<value>..."
+msgstr "[<remote>:]<profile> <device> <key>=<value>..."
 
 #: lxc/config_device.go:83
-#, fuzzy
 msgid "[<remote>:]<profile> <device> <type> [key=value...]"
-msgstr "add [<remote>:]<instance|profile> <device> <type> [key=value...]"
+msgstr "[<remote>:]<profile> <device> <type> [key=value...]"
 
 #: lxc/profile.go:526 lxc/profile.go:873
-#, fuzzy
 msgid "[<remote>:]<profile> <key>"
-msgstr "get [<remote>:]<profile> <key>"
+msgstr "[<remote>:]<profile> <key>"
 
 #: lxc/profile.go:760
-#, fuzzy
 msgid "[<remote>:]<profile> <key><value>..."
-msgstr "set [<remote>:]<profile> <key><value>..."
+msgstr "[<remote>:]<profile> <key><value>..."
 
 #: lxc/config_device.go:425
-#, fuzzy
 msgid "[<remote>:]<profile> <name>..."
-msgstr "remove [<remote>:]<instance|profile> <name>..."
+msgstr "[<remote>:]<profile> <name>..."
 
 #: lxc/profile.go:709
-#, fuzzy
 msgid "[<remote>:]<profile> <new-name>"
-msgstr "rename [<remote>:]<profile> <new-name>"
+msgstr "[<remote>:]<profile> <new-name>"
 
 #: lxc/profile.go:241
-#, fuzzy
 msgid "[<remote>:]<profile> [<remote>:]<profile>"
-msgstr "copy [<remote>:]<profile> [<remote>:]<profile>"
+msgstr "[<remote>:]<profile> [<remote>:]<profile>"
 
 #: lxc/project.go:84 lxc/project.go:148 lxc/project.go:212 lxc/project.go:624
 #: lxc/project.go:677
-#, fuzzy
 msgid "[<remote>:]<project>"
-msgstr "edit [<remote>:]<project>"
+msgstr "[<remote>:]<project>"
 
 #: lxc/project.go:332 lxc/project.go:595
-#, fuzzy
 msgid "[<remote>:]<project> <key>"
-msgstr "get [<remote>:]<project> <key>"
+msgstr "[<remote>:]<project> <key>"
 
 #: lxc/project.go:535
-#, fuzzy
 msgid "[<remote>:]<project> <key>=<value>..."
-msgstr "set [<remote>:]<project> <key>=<value>..."
+msgstr "[<remote>:]<project> <key>=<value>..."
 
 #: lxc/project.go:479
-#, fuzzy
 msgid "[<remote>:]<project> <new-name>"
-msgstr "rename [<remote>:]<project> <new-name>"
+msgstr "[<remote>:]<project> <new-name>"
 
 #: lxc/copy.go:37
-#, fuzzy
 msgid "[<remote>:]<source>[/<snapshot>] [[<remote>:]<destination>]"
-msgstr "copy [<remote>:]<source>[/<snapshot>] [[<remote>:]<destination>]"
+msgstr "[<remote>:]<source>[/<snapshot>] [[<remote>:]<destination>]"
 
 #: lxc/config.go:87 lxc/config.go:608
-#, fuzzy
 msgid "[<remote>:][<instance>[/<snapshot>]]"
-msgstr "edit [<remote>:][<instance>[/<snapshot>]]"
+msgstr "[<remote>:][<instance>[/<snapshot>]]"
 
 #: lxc/info.go:31
-#, fuzzy
 msgid "[<remote>:][<instance>]"
-msgstr "info [<remote>:][<instance>]"
+msgstr "[<remote>:][<instance>]"
 
 #: lxc/config.go:358 lxc/config.go:732
-#, fuzzy
 msgid "[<remote>:][<instance>] <key>"
-msgstr "get [<remote>:][<instance>] <key>"
+msgstr "[<remote>:][<instance>] <key>"
 
 #: lxc/config.go:450
-#, fuzzy
 msgid "[<remote>:][<instance>] <key>=<value>..."
-msgstr "set [<remote>:][<instance>] <key>=<value>..."
+msgstr "[<remote>:][<instance>] <key>=<value>..."
 
 #: lxc/remote.go:83
-#, fuzzy
 msgid "[<remote>] <IP|FQDN|URL>"
-msgstr "add [<remote>] <IP|FQDN|URL>"
+msgstr "[<remote>] <IP|FQDN|URL>"
 
 #: lxc/init.go:38
-#, fuzzy
 msgid "[[<remote>:]<image>] [<remote>:][<name>] [< config"
-msgstr "init [[<remote>:]<image>] [<remote>:][<name>] [< config"
+msgstr "[[<remote>:]<image>] [<remote>:][<name>] [< config"
 
 #: lxc/project.go:451
 msgid "current"
@@ -4950,6 +4833,9 @@ msgstr "yes"
 
 #~ msgid "show [<remote>:][<instance>[/<snapshot>]]"
 #~ msgstr "show [<remote>:][<instance>[/<snapshot>]]"
+
+#~ msgid "snapshot [<remote>:]<pool> <volume> [<snapshot>]"
+#~ msgstr "snapshot [<remote>:]<pool> <volume> [<snapshot>]"
 
 #~ msgid "start [<remote>:]<instance> [[<remote>:]<instance>...]"
 #~ msgstr "start [<remote>:]<instance> [[<remote>:]<instance>...]"
