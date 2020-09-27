@@ -41,7 +41,7 @@ func (c *cmdManpage) Run(cmd *cobra.Command, args []string) error {
 
 	opts := doc.GenManTreeOptions{
 		Header:           header,
-		Path:             shared.HostPath(args[0]),
+		Path:             shared.HostPathFollow(args[0]),
 		CommandSeparator: ".",
 	}
 

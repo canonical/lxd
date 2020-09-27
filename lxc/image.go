@@ -485,13 +485,13 @@ func (c *cmdImageExport) Run(cmd *cobra.Command, args []string) error {
 	targetMeta := fingerprint
 	if len(args) > 1 {
 		target = args[1]
-		if shared.IsDir(shared.HostPath(args[1])) {
+		if shared.IsDir(shared.HostPathFollow(args[1])) {
 			targetMeta = filepath.Join(args[1], targetMeta)
 		} else {
 			targetMeta = args[1]
 		}
 	}
-	targetMeta = shared.HostPath(targetMeta)
+	targetMeta = shared.HostPathFollow(targetMeta)
 	targetRootfs := targetMeta + ".root"
 
 	// Prepare the files
@@ -553,9 +553,9 @@ func (c *cmdImageExport) Run(cmd *cobra.Command, args []string) error {
 	}
 
 	// Rename files
-	if shared.IsDir(shared.HostPath(target)) {
+	if shared.IsDir(shared.HostPathFollow(target)) {
 		if resp.MetaName != "" {
-			err := os.Rename(targetMeta, shared.HostPath(filepath.Join(target, resp.MetaName)))
+			err := os.Rename(targetMeta, shared.HostPathFollow(filepath.Join(target, resp.MetaName)))
 			if err != nil {
 				os.Remove(targetMeta)
 				os.Remove(targetRootfs)
@@ -565,7 +565,7 @@ func (c *cmdImageExport) Run(cmd *cobra.Command, args []string) error {
 		}
 
 		if resp.RootfsSize > 0 && resp.RootfsName != "" {
-			err := os.Rename(targetRootfs, shared.HostPath(filepath.Join(target, resp.RootfsName)))
+			err := os.Rename(targetRootfs, shared.HostPathFollow(filepath.Join(target, resp.RootfsName)))
 			if err != nil {
 				os.Remove(targetMeta)
 				os.Remove(targetRootfs)
@@ -651,7 +651,7 @@ func (c *cmdImageImport) Run(cmd *cobra.Command, args []string) error {
 
 	for _, arg := range args {
 		split := strings.Split(arg, "=")
-		if len(split) == 1 || shared.PathExists(shared.HostPath(arg)) {
+		if len(split) == 1 || shared.PathExists(shared.HostPathFollow(arg)) {
 			if strings.HasSuffix(arg, ":") {
 				var err error
 				remote, _, err = conf.ParseRemote(arg)
@@ -678,12 +678,12 @@ func (c *cmdImageImport) Run(cmd *cobra.Command, args []string) error {
 		imageFile = args[0]
 	}
 
-	if shared.PathExists(shared.HostPath(filepath.Clean(imageFile))) {
-		imageFile = shared.HostPath(filepath.Clean(imageFile))
+	if shared.PathExists(shared.HostPathFollow(filepath.Clean(imageFile))) {
+		imageFile = shared.HostPathFollow(filepath.Clean(imageFile))
 	}
 
-	if rootfsFile != "" && shared.PathExists(shared.HostPath(filepath.Clean(rootfsFile))) {
-		rootfsFile = shared.HostPath(filepath.Clean(rootfsFile))
+	if rootfsFile != "" && shared.PathExists(shared.HostPathFollow(filepath.Clean(rootfsFile))) {
+		rootfsFile = shared.HostPathFollow(filepath.Clean(rootfsFile))
 	}
 
 	d, err := conf.GetInstanceServer(remote)
