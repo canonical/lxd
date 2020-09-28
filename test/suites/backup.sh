@@ -426,14 +426,16 @@ test_backup_volume_export() {
 }
 
 test_backup_volume_export_with_project() {
+  project="default"
   pool="lxdtest-$(basename "${LXD_DIR}")"
 
   if [ "$#" -ne 0 ]; then
-  # Create a project.
-    lxc project create foo
-    lxc project switch foo
+    # Create a project.
+    project="$1"
+    lxc project create "$project"
+    lxc project switch "$project"
 
-    deps/import-busybox --project foo --alias testimage
+    deps/import-busybox --project "$project" --alias testimage
 
     # Add a root device to the default profile of the project.
     lxc profile device add default root disk path="/" pool="${pool}"
@@ -536,7 +538,9 @@ test_backup_volume_export_with_project() {
   rmdir "${LXD_DIR}/non-optimized"
 
   if [ "$#" -ne 0 ]; then
-   lxc project switch default
+    lxc image rm testimage
+    lxc project switch default
+    lxc project delete "$project"
   fi
 }
 
