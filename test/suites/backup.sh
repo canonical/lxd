@@ -167,13 +167,16 @@ test_backup_import_with_project() {
     # Create a projects
     project="$1"
     lxc project create "$project"
+    lxc project create "$project-b"
     lxc project switch "$project"
 
     deps/import-busybox --project "$project" --alias testimage
+    deps/import-busybox --project "$project-b" --alias testimage
 
     # Add a root device to the default profile of the project
     pool="lxdtest-$(basename "${LXD_DIR}")"
     lxc profile device add default root disk path="/" pool="${pool}"
+    lxc profile device add default root disk path="/" pool="${pool}" --project "$project-b"
   fi
 
   ensure_import_testimage
@@ -221,6 +224,16 @@ test_backup_import_with_project() {
   lxc info c2 | grep snap0
   lxc start c2
   lxc stop c2 --force
+
+  if [ "$#" -ne 0 ]; then
+    # Import into different project (before deleting earlier import).
+    lxc import "${LXD_DIR}/c2.tar.gz" --project "$project-b"
+    lxc info c2 --project "$project-b" | grep snap0
+    lxc start c2 --project "$project-b"
+    lxc stop c2 --project "$project-b" --force
+    lxc restore c2 snap0 --project "$project-b"
+    lxc delete --force c2 --project "$project-b"
+  fi
 
   lxc restore c2 snap0
   lxc start c2
@@ -287,8 +300,10 @@ test_backup_import_with_project() {
 
   if [ "$#" -ne 0 ]; then
     lxc image rm testimage
+    lxc image rm testimage --project "$project-b"
     lxc project switch default
     lxc project delete "$project"
+    lxc project delete "$project-b"
   fi
 }
 
