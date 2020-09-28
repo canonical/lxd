@@ -84,7 +84,7 @@ func (c *cmdConfigTrustAdd) Run(cmd *cobra.Command, args []string) error {
 
 	// Add trust relationship
 	fname := args[len(args)-1]
-	x509Cert, err := shared.ReadCert(shared.HostPath(fname))
+	x509Cert, err := shared.ReadCert(shared.HostPathFollow(fname))
 	if err != nil {
 		return err
 	}
