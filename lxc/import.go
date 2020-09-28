@@ -57,7 +57,7 @@ func (c *cmdImport) Run(cmd *cobra.Command, args []string) error {
 
 	resource := resources[0]
 
-	file, err := os.Open(shared.HostPath(args[len(args)-1]))
+	file, err := os.Open(shared.HostPathFollow(args[len(args)-1]))
 	if err != nil {
 		return err
 	}
