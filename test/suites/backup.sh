@@ -294,16 +294,19 @@ test_backup_import_with_project() {
 
 test_backup_export() {
   test_backup_export_with_project
-  test_backup_export_with_project foo
+  test_backup_export_with_project fooproject
 }
 
 test_backup_export_with_project() {
-  if [ "$#" -ne 0 ]; then
-  # Create a project
-    lxc project create foo
-    lxc project switch foo
+  project="default"
 
-    deps/import-busybox --project foo --alias testimage
+  if [ "$#" -ne 0 ]; then
+    # Create a project
+    project="$1"
+    lxc project create "$project"
+    lxc project switch "$project"
+
+    deps/import-busybox --project "$project" --alias testimage
 
     # Add a root device to the default profile of the project
     pool="lxdtest-$(basename "${LXD_DIR}")"
@@ -373,7 +376,7 @@ test_backup_export_with_project() {
   if [ "$#" -ne 0 ]; then
     lxc image rm testimage
     lxc project switch default
-    lxc project delete foo
+    lxc project delete "$project"
   fi
 }
 
