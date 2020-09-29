@@ -544,6 +544,27 @@ test_backup_volume_export_with_project() {
 
   rm -rf "${LXD_DIR}/non-optimized/"*
 
+  # Test non-optimized import.
+  lxc stop -f c1
+  lxc storage volume detach "${pool}" testvol c1
+  lxc storage volume delete "${pool}" testvol
+  lxc storage volume import "${pool}" "${LXD_DIR}/testvol.tar.gz"
+  lxc storage volume attach "${pool}" testvol c1 /mnt
+  lxc start c1
+  lxc exec c1 --project "$project" -- stat /mnt/test
+  lxc stop -f c1
+
+  # Test optimized import.
+  if [ "$lxd_backend" = "btrfs" ] || [ "$lxd_backend" = "zfs" ]; then
+    lxc storage volume detach "${pool}" testvol c1
+    lxc storage volume delete "${pool}" testvol
+    lxc storage volume import "${pool}" "${LXD_DIR}/testvol-optimized.tar.gz"
+    lxc storage volume attach "${pool}" testvol c1 /mnt
+    lxc start c1
+    lxc exec c1 --project "$project" -- stat /mnt/test
+    lxc stop -f c1
+  fi
+
   # Clean up.
   rm -rf "${LXD_DIR}/non-optimized/"* "${LXD_DIR}/optimized/"*
   lxc storage volume detach "${pool}" testvol c1
