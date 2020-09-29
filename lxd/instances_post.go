@@ -742,7 +742,7 @@ func containersPost(d *Daemon, r *http.Request) response.Response {
 
 	// If we're getting binary content, process separately
 	if r.Header.Get("Content-Type") == "application/octet-stream" {
-		return createFromBackup(d, project, r.Body, r.Header.Get("X-LXD-pool"))
+		return createFromBackup(d, project, r.Body, r.Header.Get("X-LXD-pool"), "")
 	}
 
 	// Parse the request
