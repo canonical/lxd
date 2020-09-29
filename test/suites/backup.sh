@@ -532,10 +532,10 @@ test_backup_volume_export_with_project() {
 
   [ -f "${LXD_DIR}/testvol.tar.gz" ]
 
-  # Extract backup tarball
+  # Extract backup tarball.
   tar -xzf "${LXD_DIR}/testvol.tar.gz" -C "${LXD_DIR}/non-optimized"
 
-  # check tarball content
+  # Check tarball content.
   [ -f "${LXD_DIR}/non-optimized/backup/index.yaml" ]
   [ -d "${LXD_DIR}/non-optimized/backup/volume" ]
   [ -d "${LXD_DIR}/non-optimized/backup/volume-snapshots/snap0" ]
