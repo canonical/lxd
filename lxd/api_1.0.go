@@ -251,9 +251,12 @@ func api10Get(d *Daemon, r *http.Request) response.Response {
 
 	fullSrv := api.Server{ServerUntrusted: srv}
 	fullSrv.Environment = env
-	fullSrv.Config, err = daemonConfigRender(d.State())
-	if err != nil {
-		return response.InternalError(err)
+
+	if d.userIsAdmin(r) {
+		fullSrv.Config, err = daemonConfigRender(d.State())
+		if err != nil {
+			return response.InternalError(err)
+		}
 	}
 
 	return response.SyncResponseETag(true, fullSrv, fullSrv.Config)
