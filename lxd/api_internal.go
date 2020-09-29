@@ -415,8 +415,9 @@ func internalSQLExec(tx *sql.Tx, query string, result *internalSQLResult) error 
 }
 
 type internalImportPost struct {
-	Name  string `json:"name" yaml:"name"`
-	Force bool   `json:"force" yaml:"force"`
+	Name              string `json:"name" yaml:"name"`
+	Force             bool   `json:"force" yaml:"force"`
+	AllowNameOverride bool   `json:"allow_name_override" yaml:"allow_name_override"`
 }
 
 func internalImport(d *Daemon, r *http.Request) response.Response {
