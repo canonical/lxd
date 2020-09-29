@@ -551,38 +551,52 @@ test_backup_volume_export_with_project() {
   lxc storage volume detach "${pool}" testvol c1
   lxc storage volume delete "${pool}" testvol
   lxc storage volume import "${pool}" "${LXD_DIR}/testvol.tar.gz"
+  lxc storage volume import "${pool}" "${LXD_DIR}/testvol.tar.gz" testvol2
   lxc storage volume attach "${pool}" testvol c1 /mnt
+  lxc storage volume attach "${pool}" testvol2 c1 /mnt2
   lxc start c1
   lxc exec c1 --project "$project" -- stat /mnt/test
+  lxc exec c1 --project "$project" -- stat /mnt2/test
   lxc stop -f c1
 
   if [ "$#" -ne 0 ]; then
     # Import into different project (before deleting earlier import).
     lxc storage volume import "${pool}" "${LXD_DIR}/testvol.tar.gz" --project "$project-b"
+    lxc storage volume import "${pool}" "${LXD_DIR}/testvol.tar.gz" --project "$project-b" testvol2
     lxc storage volume delete "${pool}" testvol --project "$project-b"
+    lxc storage volume delete "${pool}" testvol2 --project "$project-b"
   fi
 
   # Test optimized import.
   if [ "$lxd_backend" = "btrfs" ] || [ "$lxd_backend" = "zfs" ]; then
     lxc storage volume detach "${pool}" testvol c1
+    lxc storage volume detach "${pool}" testvol2 c1
     lxc storage volume delete "${pool}" testvol
+    lxc storage volume delete "${pool}" testvol2
     lxc storage volume import "${pool}" "${LXD_DIR}/testvol-optimized.tar.gz"
+    lxc storage volume import "${pool}" "${LXD_DIR}/testvol-optimized.tar.gz" testvol2
     lxc storage volume attach "${pool}" testvol c1 /mnt
+    lxc storage volume attach "${pool}" testvol2 c1 /mnt2
     lxc start c1
     lxc exec c1 --project "$project" -- stat /mnt/test
+    lxc exec c1 --project "$project" -- stat /mnt2/test
     lxc stop -f c1
 
     if [ "$#" -ne 0 ]; then
       # Import into different project (before deleting earlier import).
       lxc storage volume import "${pool}" "${LXD_DIR}/testvol-optimized.tar.gz" --project "$project-b"
+      lxc storage volume import "${pool}" "${LXD_DIR}/testvol-optimized.tar.gz" --project "$project-b" testvol2
       lxc storage volume delete "${pool}" testvol --project "$project-b"
+      lxc storage volume delete "${pool}" testvol2 --project "$project-b"
     fi
   fi
 
   # Clean up.
   rm -rf "${LXD_DIR}/non-optimized/"* "${LXD_DIR}/optimized/"*
   lxc storage volume detach "${pool}" testvol c1
+  lxc storage volume detach "${pool}" testvol2 c1
   lxc storage volume rm "${pool}" testvol
+  lxc storage volume rm "${pool}" testvol2
   lxc rm -f c1
   rmdir "${LXD_DIR}/optimized"
   rmdir "${LXD_DIR}/non-optimized"
