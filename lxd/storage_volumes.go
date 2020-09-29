@@ -1232,7 +1232,7 @@ func storagePoolVolumeTypeImageDelete(d *Daemon, r *http.Request) response.Respo
 	return storagePoolVolumeTypeDelete(d, r, "image")
 }
 
-func createStoragePoolVolumeFromBackup(d *Daemon, project string, pool string, data io.Reader) response.Response {
+func createStoragePoolVolumeFromBackup(d *Daemon, project string, data io.Reader, pool string, volName string) response.Response {
 	revert := revert.New()
 	defer revert.Fail()
 
@@ -1294,6 +1294,11 @@ func createStoragePoolVolumeFromBackup(d *Daemon, project string, pool string, d
 	// Override pool.
 	if pool != "" {
 		bInfo.Pool = pool
+	}
+
+	// Override volume name.
+	if volName != "" {
+		bInfo.Name = volName
 	}
 
 	logger.Debug("Backup file info loaded", log.Ctx{
