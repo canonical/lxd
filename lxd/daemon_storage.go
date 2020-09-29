@@ -93,14 +93,9 @@ func daemonStorageValidate(s *state.State, target string) error {
 	volumeName := fields[1]
 
 	// Validate pool exists.
-	poolID, dbPool, err := s.Cluster.GetStoragePool(poolName)
+	poolID, _, err := s.Cluster.GetStoragePool(poolName)
 	if err != nil {
 		return errors.Wrapf(err, "Unable to load storage pool %q", poolName)
-	}
-
-	// Validate pool driver (can't be CEPH or CEPHFS).
-	if dbPool.Driver == "ceph" || dbPool.Driver == "cephfs" {
-		return fmt.Errorf("Server storage volumes cannot be stored on Ceph")
 	}
 
 	// Confirm volume exists.
