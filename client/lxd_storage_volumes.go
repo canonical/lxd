@@ -781,14 +781,62 @@ func (r *ProtocolLXD) GetStoragePoolVolumeBackupFile(pool string, volName string
 // CreateStoragePoolVolumeFromBackup creates a custom volume from a backup file.
 func (r *ProtocolLXD) CreateStoragePoolVolumeFromBackup(pool string, args StoragePoolVolumeBackupArgs) (Operation, error) {
 	if !r.HasExtension("custom_volume_backup") {
-		return nil, fmt.Errorf("The server is missing the required \"custom_volume_backup\" API extension")
+		return nil, fmt.Errorf(`The server is missing the required "custom_volume_backup" API extension`)
 	}
 
-	// Send the request
-	op, _, err := r.queryOperation("POST", fmt.Sprintf("/storage-pools/%s/volumes/custom", url.PathEscape(pool)), args.BackupFile, "")
+	if args.Name != "" && !r.HasExtension("backup_override_name") {
+		return nil, fmt.Errorf(`The server is missing the required "backup_override_name" API extension`)
+	}
+
+	path := fmt.Sprintf("/storage-pools/%s/volumes/custom", url.PathEscape(pool))
+
+	// Prepare the HTTP request.
+	reqURL, err := r.setQueryAttributes(fmt.Sprintf("%s/1.0%s", r.httpHost, path))
 	if err != nil {
 		return nil, err
 	}
 
-	return op, nil
+	req, err := http.NewRequest("POST", reqURL, args.BackupFile)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Set("Content-Type", "application/octet-stream")
+
+	if args.Name != "" {
+		req.Header.Set("X-LXD-name", args.Name)
+	}
+
+	// Set the user agent.
+	if r.httpUserAgent != "" {
+		req.Header.Set("User-Agent", r.httpUserAgent)
+	}
+
+	// Send the request.
+	resp, err := r.do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	// Handle errors.
+	response, _, err := lxdParseResponse(resp)
+	if err != nil {
+		return nil, err
+	}
+
+	// Get to the operation.
+	respOperation, err := response.MetadataAsOperation()
+	if err != nil {
+		return nil, err
+	}
+
+	// Setup an Operation wrapper.
+	op := operation{
+		Operation: *respOperation,
+		r:         r,
+		chActive:  make(chan bool),
+	}
+
+	return &op, nil
 }
