@@ -1792,7 +1792,7 @@ type cmdStorageVolumeImport struct {
 
 func (c *cmdStorageVolumeImport) Command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = usage("import", i18n.G("[<remote>:]<pool> <backup file>"))
+	cmd.Use = usage("import", i18n.G("[<remote>:]<pool> <backup file> [<volume name>]"))
 	cmd.Short = i18n.G("Import custom storage volumes")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
 		`Import backups of custom volumes including their snapshots.`))
@@ -1807,14 +1807,14 @@ func (c *cmdStorageVolumeImport) Command() *cobra.Command {
 func (c *cmdStorageVolumeImport) Run(cmd *cobra.Command, args []string) error {
 	conf := c.global.conf
 
-	// Sanity checks
-	exit, err := c.global.CheckArgs(cmd, args, 1, 2)
+	// Sanity checks.
+	exit, err := c.global.CheckArgs(cmd, args, 2, 3)
 	if exit {
 		return err
 	}
 
-	// Connect to LXD
-	remote, name, err := conf.ParseRemote(args[0])
+	// Connect to LXD.
+	remote, pool, err := conf.ParseRemote(args[0])
 	if err != nil {
 		return err
 	}
@@ -1824,7 +1824,7 @@ func (c *cmdStorageVolumeImport) Run(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	file, err := os.Open(shared.HostPathFollow(args[len(args)-1]))
+	file, err := os.Open(shared.HostPathFollow(args[1]))
 	if err != nil {
 		return err
 	}
@@ -1833,6 +1833,11 @@ func (c *cmdStorageVolumeImport) Run(cmd *cobra.Command, args []string) error {
 	fstat, err := file.Stat()
 	if err != nil {
 		return err
+	}
+
+	volName := ""
+	if len(args) >= 3 {
+		volName = args[2]
 	}
 
 	progress := utils.ProgressRenderer{
@@ -1850,14 +1855,15 @@ func (c *cmdStorageVolumeImport) Run(cmd *cobra.Command, args []string) error {
 				},
 			},
 		},
+		Name: volName,
 	}
 
-	op, err := d.CreateStoragePoolVolumeFromBackup(name, createArgs)
+	op, err := d.CreateStoragePoolVolumeFromBackup(pool, createArgs)
 	if err != nil {
 		return err
 	}
 
-	// Wait for operation to finish
+	// Wait for operation to finish.
 	err = utils.CancelableWait(op, &progress)
 	if err != nil {
 		progress.Done("")
