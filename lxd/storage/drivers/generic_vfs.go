@@ -637,12 +637,26 @@ func genericVFSBackupUnpack(d Driver, vol Volume, snapshots []string, srcData io
 		args := append(tarArgs, []string{
 			"-",
 			"--xattrs-include=*",
-			fmt.Sprintf("--strip-components=%d", len(srcParts)),
-			"-C", mountPath, srcPrefix,
+			"-C", mountPath,
 		}...)
 
+		if vol.Type() == VolumeTypeCustom {
+			// If the volume type is custom, then we need to ensure that we restore the top level
+			// directory's ownership from the backup. We cannot use --strip-components flag because it
+			// removes the top level directory from the unpack list. Instead we use the --transform
+			// flag to remove the prefix path and transform it into the "." current unpack directory.
+			args = append(args, fmt.Sprintf("--transform=s/^%s/./", strings.ReplaceAll(srcPrefix, "/", `\/`)))
+		} else {
+			// For instance volumes, the user created files are stored in the rootfs sub-directory
+			// and so strip-components flag works fine.
+			args = append(args, fmt.Sprintf("--strip-components=%d", len(srcParts)))
+		}
+
+		// Directory to unpack comes after other options.
+		args = append(args, srcPrefix)
+
 		// Extract filesystem volume.
-		d.Logger().Debug(fmt.Sprintf("Unpacking %s filesystem volume", volTypeName), log.Ctx{"source": srcPrefix, "target": mountPath})
+		d.Logger().Debug(fmt.Sprintf("Unpacking %s filesystem volume", volTypeName), log.Ctx{"source": srcPrefix, "target": mountPath, "args": args})
 		srcData.Seek(0, 0)
 		err = shared.RunCommandWithFds(r, nil, "tar", args...)
 		if err != nil {
