@@ -294,7 +294,7 @@ func storagePoolVolumesTypePost(d *Daemon, r *http.Request) response.Response {
 
 	// If we're getting binary content, process separately.
 	if r.Header.Get("Content-Type") == "application/octet-stream" {
-		return createStoragePoolVolumeFromBackup(d, projectName, poolName, r.Body)
+		return createStoragePoolVolumeFromBackup(d, projectName, r.Body, poolName, r.Header.Get("X-LXD-name"))
 	}
 
 	req := api.StorageVolumesPost{}
