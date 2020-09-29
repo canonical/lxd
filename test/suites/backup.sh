@@ -448,9 +448,11 @@ test_backup_volume_export_with_project() {
     # Create a project.
     project="$1"
     lxc project create "$project"
+    lxc project create "$project-b"
     lxc project switch "$project"
 
     deps/import-busybox --project "$project" --alias testimage
+    deps/import-busybox --project "$project-b" --alias testimage
 
     # Add a root device to the default profile of the project.
     lxc profile device add default root disk path="/" pool="${pool}"
@@ -554,6 +556,12 @@ test_backup_volume_export_with_project() {
   lxc exec c1 --project "$project" -- stat /mnt/test
   lxc stop -f c1
 
+  if [ "$#" -ne 0 ]; then
+    # Import into different project (before deleting earlier import).
+    lxc storage volume import "${pool}" "${LXD_DIR}/testvol.tar.gz" --project "$project-b"
+    lxc storage volume delete "${pool}" testvol --project "$project-b"
+  fi
+
   # Test optimized import.
   if [ "$lxd_backend" = "btrfs" ] || [ "$lxd_backend" = "zfs" ]; then
     lxc storage volume detach "${pool}" testvol c1
@@ -563,6 +571,12 @@ test_backup_volume_export_with_project() {
     lxc start c1
     lxc exec c1 --project "$project" -- stat /mnt/test
     lxc stop -f c1
+
+    if [ "$#" -ne 0 ]; then
+      # Import into different project (before deleting earlier import).
+      lxc storage volume import "${pool}" "${LXD_DIR}/testvol-optimized.tar.gz" --project "$project-b"
+      lxc storage volume delete "${pool}" testvol --project "$project-b"
+    fi
   fi
 
   # Clean up.
