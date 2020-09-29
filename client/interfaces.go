@@ -446,6 +446,9 @@ type InstanceBackupArgs struct {
 
 	// Storage pool to use
 	PoolName string
+
+	// Name to import backup as
+	Name string
 }
 
 // The InstanceCopyArgs struct is used to pass additional options during instance copy.
