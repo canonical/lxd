@@ -157,20 +157,26 @@ test_container_import() {
 
 test_backup_import() {
   test_backup_import_with_project
-  test_backup_import_with_project foo
+  test_backup_import_with_project fooproject
 }
 
 test_backup_import_with_project() {
-  if [ "$#" -ne 0 ]; then
-  # Create a project
-    lxc project create foo
-    lxc project switch foo
+  project="default"
 
-    deps/import-busybox --project foo --alias testimage
+  if [ "$#" -ne 0 ]; then
+    # Create a projects
+    project="$1"
+    lxc project create "$project"
+    lxc project create "$project-b"
+    lxc project switch "$project"
+
+    deps/import-busybox --project "$project" --alias testimage
+    deps/import-busybox --project "$project-b" --alias testimage
 
     # Add a root device to the default profile of the project
     pool="lxdtest-$(basename "${LXD_DIR}")"
     lxc profile device add default root disk path="/" pool="${pool}"
+    lxc profile device add default root disk path="/" pool="${pool}" --project "$project-b"
   fi
 
   ensure_import_testimage
@@ -218,6 +224,16 @@ test_backup_import_with_project() {
   lxc info c2 | grep snap0
   lxc start c2
   lxc stop c2 --force
+
+  if [ "$#" -ne 0 ]; then
+    # Import into different project (before deleting earlier import).
+    lxc import "${LXD_DIR}/c2.tar.gz" --project "$project-b"
+    lxc info c2 --project "$project-b" | grep snap0
+    lxc start c2 --project "$project-b"
+    lxc stop c2 --project "$project-b" --force
+    lxc restore c2 snap0 --project "$project-b"
+    lxc delete --force c2 --project "$project-b"
+  fi
 
   lxc restore c2 snap0
   lxc start c2
@@ -284,23 +300,28 @@ test_backup_import_with_project() {
 
   if [ "$#" -ne 0 ]; then
     lxc image rm testimage
+    lxc image rm testimage --project "$project-b"
     lxc project switch default
-    lxc project delete foo
+    lxc project delete "$project"
+    lxc project delete "$project-b"
   fi
 }
 
 test_backup_export() {
   test_backup_export_with_project
-  test_backup_export_with_project foo
+  test_backup_export_with_project fooproject
 }
 
 test_backup_export_with_project() {
-  if [ "$#" -ne 0 ]; then
-  # Create a project
-    lxc project create foo
-    lxc project switch foo
+  project="default"
 
-    deps/import-busybox --project foo --alias testimage
+  if [ "$#" -ne 0 ]; then
+    # Create a project
+    project="$1"
+    lxc project create "$project"
+    lxc project switch "$project"
+
+    deps/import-busybox --project "$project" --alias testimage
 
     # Add a root device to the default profile of the project
     pool="lxdtest-$(basename "${LXD_DIR}")"
@@ -370,7 +391,7 @@ test_backup_export_with_project() {
   if [ "$#" -ne 0 ]; then
     lxc image rm testimage
     lxc project switch default
-    lxc project delete foo
+    lxc project delete "$project"
   fi
 }
 
@@ -420,14 +441,18 @@ test_backup_volume_export() {
 }
 
 test_backup_volume_export_with_project() {
+  project="default"
   pool="lxdtest-$(basename "${LXD_DIR}")"
 
   if [ "$#" -ne 0 ]; then
-  # Create a project.
-    lxc project create foo
-    lxc project switch foo
+    # Create a project.
+    project="$1"
+    lxc project create "$project"
+    lxc project create "$project-b"
+    lxc project switch "$project"
 
-    deps/import-busybox --project foo --alias testimage
+    deps/import-busybox --project "$project" --alias testimage
+    deps/import-busybox --project "$project-b" --alias testimage
 
     # Add a root device to the default profile of the project.
     lxc profile device add default root disk path="/" pool="${pool}"
@@ -509,10 +534,10 @@ test_backup_volume_export_with_project() {
 
   [ -f "${LXD_DIR}/testvol.tar.gz" ]
 
-  # Extract backup tarball
+  # Extract backup tarball.
   tar -xzf "${LXD_DIR}/testvol.tar.gz" -C "${LXD_DIR}/non-optimized"
 
-  # check tarball content
+  # Check tarball content.
   [ -f "${LXD_DIR}/non-optimized/backup/index.yaml" ]
   [ -d "${LXD_DIR}/non-optimized/backup/volume" ]
   [ -d "${LXD_DIR}/non-optimized/backup/volume-snapshots/snap0" ]
@@ -520,6 +545,39 @@ test_backup_volume_export_with_project() {
   grep -q -- '- snap0' "${LXD_DIR}/non-optimized/backup/index.yaml"
 
   rm -rf "${LXD_DIR}/non-optimized/"*
+
+  # Test non-optimized import.
+  lxc stop -f c1
+  lxc storage volume detach "${pool}" testvol c1
+  lxc storage volume delete "${pool}" testvol
+  lxc storage volume import "${pool}" "${LXD_DIR}/testvol.tar.gz"
+  lxc storage volume attach "${pool}" testvol c1 /mnt
+  lxc start c1
+  lxc exec c1 --project "$project" -- stat /mnt/test
+  lxc stop -f c1
+
+  if [ "$#" -ne 0 ]; then
+    # Import into different project (before deleting earlier import).
+    lxc storage volume import "${pool}" "${LXD_DIR}/testvol.tar.gz" --project "$project-b"
+    lxc storage volume delete "${pool}" testvol --project "$project-b"
+  fi
+
+  # Test optimized import.
+  if [ "$lxd_backend" = "btrfs" ] || [ "$lxd_backend" = "zfs" ]; then
+    lxc storage volume detach "${pool}" testvol c1
+    lxc storage volume delete "${pool}" testvol
+    lxc storage volume import "${pool}" "${LXD_DIR}/testvol-optimized.tar.gz"
+    lxc storage volume attach "${pool}" testvol c1 /mnt
+    lxc start c1
+    lxc exec c1 --project "$project" -- stat /mnt/test
+    lxc stop -f c1
+
+    if [ "$#" -ne 0 ]; then
+      # Import into different project (before deleting earlier import).
+      lxc storage volume import "${pool}" "${LXD_DIR}/testvol-optimized.tar.gz" --project "$project-b"
+      lxc storage volume delete "${pool}" testvol --project "$project-b"
+    fi
+  fi
 
   # Clean up.
   rm -rf "${LXD_DIR}/non-optimized/"* "${LXD_DIR}/optimized/"*
@@ -530,7 +588,9 @@ test_backup_volume_export_with_project() {
   rmdir "${LXD_DIR}/non-optimized"
 
   if [ "$#" -ne 0 ]; then
-   lxc project switch default
+    lxc image rm testimage
+    lxc project switch default
+    lxc project delete "$project"
   fi
 }
 
