@@ -1177,6 +1177,12 @@ The following existing endpoint has been modified:
 
  * `POST /1.0/storage-pools/<pool>/<type>/<volume>` accepts the new source type `backup`
 
+## backup\_override\_name
+Adds `Name` field to `InstanceBackupArgs` to allow specifying a different instance name when restoring a backup.
+
+Adds `Name` and `PoolName` fields to `StoragePoolVolumeBackupArgs` to allow specifying a different volume name
+when restoring a custom volume backup.
+
 ## storage\_rsync\_compression
 Adds `rsync.compression` config key to storage pools. This key can be used
 to disable compression in rsync while migrating storage pools.

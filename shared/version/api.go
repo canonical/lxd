@@ -227,6 +227,7 @@ var APIExtensions = []string{
 	"projects_networks",
 	"projects_networks_restricted_uplinks",
 	"custom_volume_backup",
+	"backup_override_name",
 	"storage_rsync_compression",
 }
 
