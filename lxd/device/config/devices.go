@@ -117,9 +117,11 @@ func (list Devices) Update(newlist Devices, updateFields func(Device, Device) []
 		allChangedKeys = append(allChangedKeys, deviceEqualsDiffKeys(oldDevice, newDevice)...)
 
 		// Remove any fields that can be live-updated without adding/removing the device from instance.
-		for _, k := range updateFields(oldDevice, newDevice) {
-			delete(oldDevice, k)
-			delete(newDevice, k)
+		if updateFields != nil {
+			for _, k := range updateFields(oldDevice, newDevice) {
+				delete(oldDevice, k)
+				delete(newDevice, k)
+			}
 		}
 
 		// If after removing the live-updatable keys the devices are equal, then we know the device has
