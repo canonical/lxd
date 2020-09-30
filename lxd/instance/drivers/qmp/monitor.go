@@ -322,3 +322,41 @@ func (m *Monitor) GetCPUs() ([]int, error) {
 
 	return pids, nil
 }
+
+// GetBalloonSizeBytes returns the current size of the memory balloon in bytes.
+func (m *Monitor) GetBalloonSizeBytes() (int64, error) {
+	respRaw, err := m.qmp.Run([]byte("{'execute': 'query-balloon'}"))
+	if err != nil {
+		m.Disconnect()
+		return -1, ErrMonitorDisconnect
+	}
+
+	// Process the response.
+	var respDecoded struct {
+		Return struct {
+			Actual int64 `json:"actual"`
+		} `json:"return"`
+	}
+
+	err = json.Unmarshal(respRaw, &respDecoded)
+	if err != nil {
+		return -1, ErrMonitorBadReturn
+	}
+
+	return respDecoded.Return.Actual, nil
+}
+
+// SetBalloonSizeBytes sets the size of the memory balloon in bytes.
+func (m *Monitor) SetBalloonSizeBytes(sizeBytes int64) error {
+	respRaw, err := m.qmp.Run([]byte(fmt.Sprintf("{'execute': 'balloon', 'arguments': {'value': %d}}", sizeBytes)))
+	if err != nil {
+		m.Disconnect()
+		return ErrMonitorDisconnect
+	}
+
+	if string(respRaw) != `{"return": {}}` {
+		return ErrMonitorBadReturn
+	}
+
+	return nil
+}
