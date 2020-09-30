@@ -4,6 +4,7 @@ import (
 	deviceConfig "github.com/lxc/lxd/lxd/device/config"
 	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/state"
+	"github.com/lxc/lxd/shared/api"
 )
 
 // VolatileSetter is a function that accepts one or more key/value strings to save into the LXD
@@ -63,4 +64,9 @@ type device interface {
 
 	// validateConfig checks Config stored by init() is valid for the instance type.
 	validateConfig(instance.ConfigReader) error
+}
+
+// NICState provides the ability to access NIC state.
+type NICState interface {
+	State() (*api.InstanceStateNetwork, error)
 }
