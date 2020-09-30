@@ -5,7 +5,7 @@ import (
 	"sort"
 )
 
-// Device represents a LXD container device
+// Device represents a LXD container device.
 type Device map[string]string
 
 // Clone returns a copy of the Device.
@@ -53,7 +53,7 @@ func (device Device) Validate(rules map[string]func(value string) error) error {
 	return nil
 }
 
-// Devices represents a set of LXD container devices
+// Devices represents a set of LXD container devices.
 type Devices map[string]Device
 
 // NewDevices creates a new Devices set from a native map[string]map[string]string set.
@@ -71,8 +71,7 @@ func NewDevices(nativeSet map[string]map[string]string) Devices {
 	return newDevices
 }
 
-// Contains checks if a given device exists in the set and if it's
-// identical to that provided
+// Contains checks if a given device exists in the set and if it's identical to that provided.
 func (list Devices) Contains(k string, d Device) bool {
 	// If it didn't exist, it's different
 	if list[k] == nil {
