@@ -3469,7 +3469,7 @@ func (b *lxdBackend) CreateCustomVolumeFromBackup(srcBackup backup.Info, srcData
 		StorageVolumePut: api.StorageVolumePut{
 			Config: srcBackup.Config.Volume.Config,
 		},
-		Name: srcBackup.Config.Volume.Name,
+		Name: srcBackup.Name,
 	}
 	err := b.state.Cluster.Transaction(func(tx *db.ClusterTx) error {
 		return project.AllowVolumeCreation(tx, srcBackup.Project, req)
@@ -3494,7 +3494,7 @@ func (b *lxdBackend) CreateCustomVolumeFromBackup(srcBackup backup.Info, srcData
 	}
 
 	// Create database entry for new storage volume using the validated config.
-	err = VolumeDBCreate(b.state, srcBackup.Project, b.name, srcBackup.Config.Volume.Name, srcBackup.Config.Volume.Description, db.StoragePoolVolumeTypeNameCustom, false, vol.Config(), time.Time{}, string(vol.ContentType()))
+	err = VolumeDBCreate(b.state, srcBackup.Project, b.name, srcBackup.Name, srcBackup.Config.Volume.Description, db.StoragePoolVolumeTypeNameCustom, false, vol.Config(), time.Time{}, string(vol.ContentType()))
 	if err != nil {
 		return err
 	}
@@ -3506,7 +3506,9 @@ func (b *lxdBackend) CreateCustomVolumeFromBackup(srcBackup backup.Info, srcData
 	// Create database entries fro new storage volume snapshots.
 	for _, s := range srcBackup.Config.VolumeSnapshots {
 		snapshot := s // Local var for revert.
-		snapVolStorageName := project.StorageVolume(srcBackup.Project, snapshot.Name)
+		_, snapName, _ := shared.InstanceGetParentAndSnapshotName(snapshot.Name)
+		fullSnapName := drivers.GetSnapshotVolumeName(srcBackup.Name, snapName)
+		snapVolStorageName := project.StorageVolume(srcBackup.Project, fullSnapName)
 		snapVol := b.newVolume(drivers.VolumeTypeCustom, drivers.ContentType(srcBackup.Config.Volume.ContentType), snapVolStorageName, srcBackup.Config.Volume.Config)
 
 		// Strip any unsupported config keys (in case the export was made from a different type of storage pool).
@@ -3515,13 +3517,13 @@ func (b *lxdBackend) CreateCustomVolumeFromBackup(srcBackup backup.Info, srcData
 			return err
 		}
 
-		err = VolumeDBCreate(b.state, srcBackup.Project, b.name, snapshot.Name, snapshot.Description, db.StoragePoolVolumeTypeNameCustom, true, snapVol.Config(), *snapshot.ExpiresAt, string(snapVol.ContentType()))
+		err = VolumeDBCreate(b.state, srcBackup.Project, b.name, fullSnapName, snapshot.Description, db.StoragePoolVolumeTypeNameCustom, true, snapVol.Config(), *snapshot.ExpiresAt, string(snapVol.ContentType()))
 		if err != nil {
 			return err
 		}
 
 		revert.Add(func() {
-			b.state.Cluster.RemoveStoragePoolVolume(srcBackup.Project, snapshot.Name, db.StoragePoolVolumeTypeCustom, b.ID())
+			b.state.Cluster.RemoveStoragePoolVolume(srcBackup.Project, fullSnapName, db.StoragePoolVolumeTypeCustom, b.ID())
 		})
 	}
 

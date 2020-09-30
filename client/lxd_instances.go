@@ -145,7 +145,7 @@ func (r *ProtocolLXD) CreateInstanceFromBackup(args InstanceBackupArgs) (Operati
 		return nil, err
 	}
 
-	if args.PoolName == "" {
+	if args.PoolName == "" && args.Name == "" {
 		// Send the request
 		op, _, err := r.queryOperation("POST", path, args.BackupFile, "")
 		if err != nil {
@@ -155,8 +155,12 @@ func (r *ProtocolLXD) CreateInstanceFromBackup(args InstanceBackupArgs) (Operati
 		return op, nil
 	}
 
-	if !r.HasExtension("container_backup_override_pool") {
-		return nil, fmt.Errorf("The server is missing the required \"container_backup_override_pool\" API extension")
+	if args.PoolName != "" && !r.HasExtension("container_backup_override_pool") {
+		return nil, fmt.Errorf(`The server is missing the required "container_backup_override_pool" API extension`)
+	}
+
+	if args.Name != "" && !r.HasExtension("backup_override_name") {
+		return nil, fmt.Errorf(`The server is missing the required "backup_override_name" API extension`)
 	}
 
 	// Prepare the HTTP request
@@ -171,7 +175,14 @@ func (r *ProtocolLXD) CreateInstanceFromBackup(args InstanceBackupArgs) (Operati
 	}
 
 	req.Header.Set("Content-Type", "application/octet-stream")
-	req.Header.Set("X-LXD-pool", args.PoolName)
+
+	if args.PoolName != "" {
+		req.Header.Set("X-LXD-pool", args.PoolName)
+	}
+
+	if args.Name != "" {
+		req.Header.Set("X-LXD-name", args.Name)
+	}
 
 	// Set the user agent
 	if r.httpUserAgent != "" {

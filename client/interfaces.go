@@ -437,6 +437,9 @@ type StoragePoolVolumeMoveArgs struct {
 type StoragePoolVolumeBackupArgs struct {
 	// The backup file
 	BackupFile io.Reader
+
+	// Name to import backup as
+	Name string
 }
 
 // The InstanceBackupArgs struct is used when creating a instance from a backup.
@@ -446,6 +449,9 @@ type InstanceBackupArgs struct {
 
 	// Storage pool to use
 	PoolName string
+
+	// Name to import backup as
+	Name string
 }
 
 // The InstanceCopyArgs struct is used to pass additional options during instance copy.
