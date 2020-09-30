@@ -2659,131 +2659,8 @@ func (vm *qemu) Rename(newName string) error {
 
 // Update the instance config.
 func (vm *qemu) Update(args db.InstanceArgs, userRequested bool) error {
-	// Only user.* keys can be changed on a running VM
-	if vm.IsRunning() {
-		if args.Config == nil {
-			args.Config = map[string]string{}
-		}
-
-		if userRequested {
-			// Validate the new config.
-			err := instance.ValidConfig(vm.state.OS, args.Config, false, false)
-			if err != nil {
-				return errors.Wrap(err, "Invalid config")
-			}
-		}
-
-		oldExpandedConfig := map[string]string{}
-		err := shared.DeepCopy(&vm.expandedConfig, &oldExpandedConfig)
-		if err != nil {
-			return err
-		}
-
-		oldLocalConfig := map[string]string{}
-		err = shared.DeepCopy(&vm.localConfig, &oldLocalConfig)
-		if err != nil {
-			return err
-		}
-
-		undoChanges := true
-		defer func() {
-			if undoChanges {
-				vm.expandedConfig = oldExpandedConfig
-				vm.localConfig = oldLocalConfig
-			}
-		}()
-
-		vm.localConfig = args.Config
-
-		// Expand the config and refresh the LXC config.
-		err = vm.expandConfig(nil)
-		if err != nil {
-			return errors.Wrap(err, "Expand config")
-		}
-
-		// Diff the configurations.
-		changedConfig := []string{}
-		for key := range oldExpandedConfig {
-			if oldExpandedConfig[key] != vm.expandedConfig[key] {
-				if !shared.StringInSlice(key, changedConfig) {
-					changedConfig = append(changedConfig, key)
-				}
-			}
-		}
-
-		for key := range vm.expandedConfig {
-			if oldExpandedConfig[key] != vm.expandedConfig[key] {
-				if !shared.StringInSlice(key, changedConfig) {
-					changedConfig = append(changedConfig, key)
-				}
-			}
-		}
-
-		for _, key := range changedConfig {
-			if !strings.HasPrefix(key, "user.") {
-				return fmt.Errorf("Only user.* keys can be updated on running VMs")
-			}
-		}
-
-		if userRequested {
-			// Do some validation of the config diff.
-			err = instance.ValidConfig(vm.state.OS, vm.expandedConfig, false, true)
-			if err != nil {
-				return errors.Wrap(err, "Invalid expanded config")
-			}
-		}
-
-		err = vm.state.Cluster.Transaction(func(tx *db.ClusterTx) error {
-			object, err := tx.GetInstance(vm.project, vm.name)
-			if err != nil {
-				return err
-			}
-
-			object.Config = vm.localConfig
-
-			return tx.UpdateInstance(vm.project, vm.name, *object)
-		})
-		if err != nil {
-			return errors.Wrap(err, "Failed to update database")
-		}
-
-		err = vm.UpdateBackupFile()
-		if err != nil && !os.IsNotExist(err) {
-			return errors.Wrap(err, "Failed to write backup file")
-		}
-
-		// Success, update the closure to mark that the changes should be kept.
-		undoChanges = false
-
-		err = vm.writeInstanceData()
-		if err != nil {
-			return errors.Wrap(err, "Failed to write instance-data file")
-		}
-
-		// Send devlxd notifications only for user.* key changes
-		for _, key := range changedConfig {
-			if !strings.HasPrefix(key, "user.") {
-				continue
-			}
-
-			msg := map[string]string{
-				"key":       key,
-				"old_value": oldExpandedConfig[key],
-				"value":     vm.expandedConfig[key],
-			}
-
-			err = vm.devlxdEventSend("config", msg)
-			if err != nil {
-				return err
-			}
-		}
-
-		endpoint := fmt.Sprintf("/1.0/virtual-machines/%s", vm.name)
-
-		vm.state.Events.SendLifecycle(vm.project, "virtual-machine-updated", endpoint, nil)
-
-		return nil
-	}
+	revert := revert.New()
+	defer revert.Fail()
 
 	// Set sane defaults for unset keys.
 	if args.Project == "" {
@@ -2893,26 +2770,20 @@ func (vm *qemu) Update(args db.InstanceArgs, userRequested bool) error {
 
 	oldExpiryDate := vm.expiryDate
 
-	// Define a function which reverts everything.  Defer this function
-	// so that it doesn't need to be explicitly called in every failing
-	// return path.  Track whether or not we want to undo the changes
-	// using a closure.
-	undoChanges := true
-	defer func() {
-		if undoChanges {
-			vm.description = oldDescription
-			vm.architecture = oldArchitecture
-			vm.ephemeral = oldEphemeral
-			vm.expandedConfig = oldExpandedConfig
-			vm.expandedDevices = oldExpandedDevices
-			vm.localConfig = oldLocalConfig
-			vm.localDevices = oldLocalDevices
-			vm.profiles = oldProfiles
-			vm.expiryDate = oldExpiryDate
-		}
-	}()
+	// Revert local changes if update fails.
+	revert.Add(func() {
+		vm.description = oldDescription
+		vm.architecture = oldArchitecture
+		vm.ephemeral = oldEphemeral
+		vm.expandedConfig = oldExpandedConfig
+		vm.expandedDevices = oldExpandedDevices
+		vm.localConfig = oldLocalConfig
+		vm.localDevices = oldLocalDevices
+		vm.profiles = oldProfiles
+		vm.expiryDate = oldExpiryDate
+	})
 
-	// Apply the various changes.
+	// Apply the various changes to local vars.
 	vm.description = args.Description
 	vm.architecture = args.Architecture
 	vm.ephemeral = args.Ephemeral
@@ -2921,7 +2792,7 @@ func (vm *qemu) Update(args db.InstanceArgs, userRequested bool) error {
 	vm.profiles = args.Profiles
 	vm.expiryDate = args.ExpiryDate
 
-	// Expand the config and refresh the LXC config.
+	// Expand the config.
 	err = vm.expandConfig(nil)
 	if err != nil {
 		return errors.Wrap(err, "Expand config")
@@ -2951,33 +2822,7 @@ func (vm *qemu) Update(args db.InstanceArgs, userRequested bool) error {
 	}
 
 	// Diff the devices.
-	removeDevices, addDevices, updateDevices, updateDiff := oldExpandedDevices.Update(vm.expandedDevices, func(oldDevice deviceConfig.Device, newDevice deviceConfig.Device) []string {
-		// This function needs to return a list of fields that are excluded from differences
-		// between oldDevice and newDevice. The result of this is that as long as the
-		// devices are otherwise identical except for the fields returned here, then the
-		// device is considered to be being "updated" rather than "added & removed".
-		oldNICType, err := nictype.NICType(vm.state, vm.Project(), newDevice)
-		if err != nil {
-			return []string{} // Cannot hot-update due to config error.
-		}
-
-		newNICType, err := nictype.NICType(vm.state, vm.Project(), oldDevice)
-		if err != nil {
-			return []string{} // Cannot hot-update due to config error.
-		}
-
-		if oldDevice["type"] != newDevice["type"] || oldNICType != newNICType {
-			return []string{} // Device types aren't the same, so this cannot be an update.
-		}
-
-		d, err := device.New(vm, vm.state, "", newDevice, nil, nil)
-		if err != nil {
-			return []string{} // Couldn't create Device, so this cannot be an update.
-		}
-
-		_, updateFields := d.CanHotPlug()
-		return updateFields
-	})
+	removeDevices, addDevices, updateDevices, allUpdatedKeys := oldExpandedDevices.Update(vm.expandedDevices, nil)
 
 	if userRequested {
 		// Do some validation of the config diff.
@@ -2993,16 +2838,48 @@ func (vm *qemu) Update(args db.InstanceArgs, userRequested bool) error {
 		}
 	}
 
+	isRunning := vm.IsRunning()
+
+	if isRunning && len(allUpdatedKeys) > 0 {
+		return fmt.Errorf("Devices cannot be changed when VM is running")
+	}
+
 	// Use the device interface to apply update changes.
 	err = vm.updateDevices(removeDevices, addDevices, updateDevices, oldExpandedDevices)
 	if err != nil {
 		return err
 	}
 
+	if isRunning {
+		// Only certain keys can be changed on a running VM.
+		liveUpdateKeys := []string{"limits.memory"}
+
+		// Check only keys that support live update have changed.
+		for _, key := range changedConfig {
+			if !strings.HasPrefix(key, "user.") && !shared.StringInSlice(key, liveUpdateKeys) {
+				return fmt.Errorf("Key %q cannot be updated when VM is running", key)
+			}
+		}
+
+		// Apply live update for each key.
+		for _, key := range changedConfig {
+			value := vm.expandedConfig[key]
+
+			if key == "limits.memory" {
+				err = vm.updateMemoryLimit(value)
+				if err != nil {
+					if err != nil {
+						return errors.Wrapf(err, "Failed updating memory limit")
+					}
+				}
+			}
+		}
+	}
+
 	// Update MAAS (must run after the MAC addresses have been generated).
 	updateMAAS := false
 	for _, key := range []string{"maas.subnet.ipv4", "maas.subnet.ipv6", "ipv4.address", "ipv6.address"} {
-		if shared.StringInSlice(key, updateDiff) {
+		if shared.StringInSlice(key, allUpdatedKeys) {
 			updateMAAS = true
 			break
 		}
@@ -3054,8 +2931,33 @@ func (vm *qemu) Update(args db.InstanceArgs, userRequested bool) error {
 		return errors.Wrap(err, "Failed to write backup file")
 	}
 
-	// Success, update the closure to mark that the changes should be kept.
-	undoChanges = false
+	// Changes have been applied and recorded, do not revert if an error occurs from here.
+	revert.Success()
+
+	if isRunning {
+		err = vm.writeInstanceData()
+		if err != nil {
+			return errors.Wrap(err, "Failed to write instance-data file")
+		}
+
+		// Send devlxd notifications only for user.* key changes
+		for _, key := range changedConfig {
+			if !strings.HasPrefix(key, "user.") {
+				continue
+			}
+
+			msg := map[string]string{
+				"key":       key,
+				"old_value": oldExpandedConfig[key],
+				"value":     vm.expandedConfig[key],
+			}
+
+			err = vm.devlxdEventSend("config", msg)
+			if err != nil {
+				return err
+			}
+		}
+	}
 
 	var endpoint string
 
@@ -3068,6 +2970,67 @@ func (vm *qemu) Update(args db.InstanceArgs, userRequested bool) error {
 
 	vm.state.Events.SendLifecycle(vm.project, "virtual-machine-updated", endpoint, nil)
 	return nil
+}
+
+// updateMemoryLimit live updates the VM's memory limit by shrinking the balloon device.
+// Only memory shrinking is supported at this time.
+func (vm *qemu) updateMemoryLimit(newLimit string) error {
+	if shared.IsTrue(vm.expandedConfig["limits.memory.hugepages"]) {
+		return fmt.Errorf("Cannot live update memory limit when using huge pages")
+	}
+
+	// Check new size string is valid and convert to bytes.
+	newSizeBytes, err := units.ParseByteSizeString(newLimit)
+	if err != nil {
+		return errors.Wrapf(err, "Invalid memory size")
+	}
+
+	// Connect to the monitor.
+	monitor, err := qmp.Connect(vm.monitorPath(), qemuSerialChardevName, vm.getMonitorEventHandler())
+	if err != nil {
+		return err // The VM isn't running as no monitor socket available.
+	}
+
+	curSizeBytes, err := monitor.GetBalloonSizeBytes()
+	if err != nil {
+		return err
+	}
+
+	if curSizeBytes == newSizeBytes {
+		return nil
+	} else if curSizeBytes < newSizeBytes {
+		return fmt.Errorf("Cannot increase memory size when VM is running")
+	}
+
+	// Shrink balloon device.
+	err = monitor.SetBalloonSizeBytes(newSizeBytes)
+	if err != nil {
+		return err
+	}
+
+	// Shrinking the balloon can take time, so poll the actual balloon size to check it has shrunk within 1%
+	// of the target size, which we then take as success (it may still continue to shrink closer to target).
+	for i := 0; i < 5; i++ {
+		curSizeBytes, err = monitor.GetBalloonSizeBytes()
+		if err != nil {
+			return err
+		}
+
+		var diff int64
+		if curSizeBytes < newSizeBytes {
+			diff = newSizeBytes - curSizeBytes
+		} else {
+			diff = curSizeBytes - newSizeBytes
+		}
+
+		if diff <= (newSizeBytes / 100) {
+			return nil // We reached to within 1% of our target size.
+		}
+
+		time.Sleep(500 * time.Millisecond)
+	}
+
+	return fmt.Errorf("Failed setting memory to %d bytes (currently %d bytes) as it was taking too long", newSizeBytes, curSizeBytes)
 }
 
 func (vm *qemu) updateDevices(removeDevices deviceConfig.Devices, addDevices deviceConfig.Devices, updateDevices deviceConfig.Devices, oldExpandedDevices deviceConfig.Devices) error {
