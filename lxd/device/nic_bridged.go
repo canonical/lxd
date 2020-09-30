@@ -910,3 +910,51 @@ func (d *nicBridged) networkDHCPv6CreateIAAddress(IP net.IP) []byte {
 	binary.BigEndian.PutUint32(data[24:28], uint32(0))                    // Valid lifetime
 	return data
 }
+
+// State gets the state of a bridged NIC by parsing the local DHCP server leases file.
+func (d *nicBridged) State() (*api.InstanceStateNetwork, error) {
+	v := d.volatileGet()
+
+	// Populate device config with volatile fields if needed.
+	networkVethFillFromVolatile(d.config, v)
+
+	if d.config["hwaddr"] == "" {
+		return nil, nil
+	}
+
+	// Parse the leases file.
+	addresses, err := network.GetLeaseAddresses(d.state, d.config["parent"], d.config["hwaddr"])
+	if err != nil {
+		return nil, err
+	}
+
+	if len(addresses) == 0 {
+		return nil, nil
+	}
+
+	// Get MTU.
+	iface, err := net.InterfaceByName(d.config["parent"])
+	if err != nil {
+		return nil, err
+	}
+
+	// Retrieve the host counters, as we report the values from the instance's point of view,
+	// those counters need to be reversed below.
+	hostCounters := shared.NetworkGetCounters(d.config["host_name"])
+	network := api.InstanceStateNetwork{
+		Addresses: addresses,
+		Counters: api.InstanceStateNetworkCounters{
+			BytesReceived:   hostCounters.BytesSent,
+			BytesSent:       hostCounters.BytesReceived,
+			PacketsReceived: hostCounters.PacketsSent,
+			PacketsSent:     hostCounters.PacketsReceived,
+		},
+		Hwaddr:   d.config["hwaddr"],
+		HostName: d.config["host_name"],
+		Mtu:      iface.MTU,
+		State:    "up",
+		Type:     "broadcast",
+	}
+
+	return &network, nil
+}
