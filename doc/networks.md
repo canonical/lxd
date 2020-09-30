@@ -266,16 +266,17 @@ This will create a standalone OVN network that is connected to the parent networ
 Install the OVN tools and configure the OVN integration bridge on the local node:
 
 ```
-apt install ovn-host ovn-central
-ovs-vsctl set open_vswitch . \
+sudo apt install ovn-host ovn-central
+sudo ovs-vsctl set open_vswitch . \
   external_ids:ovn-remote=unix:/var/run/ovn/ovnsb_db.sock \
   external_ids:ovn-encap-type=geneve \
-  external_ids:ovn-encap-ip=n.n.n.n \ # The IP of your LXD host on the LAN
+  external_ids:ovn-encap-ip=127.0.0.1
 ```
 
 Create an OVN network and an instance using it:
 
 ```
+lxc network set lxdbr0 ipv4.dhcp.ranges=... ipv4.ovn.ranges=... # Allocate IP range for OVN gateways.
 lxc network create ovntest --type=ovn network=lxdbr0
 lxc init images:ubuntu/focal c1
 lxc config device override c1 eth0 network=ovntest
@@ -296,4 +297,5 @@ dns.domain                      | string    | -                     | lxd       
 dns.search                      | string    | -                     | -                         | Full comma separated domain search list, defaulting to `dns.domain` value
 ipv4.address                    | string    | standard mode         | random unused subnet      | IPv4 address for the bridge (CIDR notation). Use "none" to turn off IPv4 or "auto" to generate a new one
 ipv6.address                    | string    | standard mode         | random unused subnet      | IPv6 address for the bridge (CIDR notation). Use "none" to turn off IPv6 or "auto" to generate a new one
+ipv6.dhcp.stateful              | boolean   | ipv6 dhcp             | false                     | Whether to allocate addresses using DHCP
 network                         | string    | -                     | -                         | Parent network to use for outbound external network access
