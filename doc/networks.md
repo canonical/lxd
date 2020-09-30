@@ -297,4 +297,5 @@ dns.domain                      | string    | -                     | lxd       
 dns.search                      | string    | -                     | -                         | Full comma separated domain search list, defaulting to `dns.domain` value
 ipv4.address                    | string    | standard mode         | random unused subnet      | IPv4 address for the bridge (CIDR notation). Use "none" to turn off IPv4 or "auto" to generate a new one
 ipv6.address                    | string    | standard mode         | random unused subnet      | IPv6 address for the bridge (CIDR notation). Use "none" to turn off IPv6 or "auto" to generate a new one
+ipv6.dhcp.stateful              | boolean   | ipv6 dhcp             | false                     | Whether to allocate addresses using DHCP
 network                         | string    | -                     | -                         | Parent network to use for outbound external network access
