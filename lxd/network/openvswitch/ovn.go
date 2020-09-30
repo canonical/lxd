@@ -39,10 +39,10 @@ type OVNIPv6AddressMode string
 const OVNIPv6AddressModeSLAAC OVNIPv6AddressMode = "slaac"
 
 // OVNIPv6AddressModeDHCPStateful IPv6 DHCPv6 stateful mode.
-const OVNIPv6AddressModeDHCPStateful OVNIPv6AddressMode = "dhcp_stateful"
+const OVNIPv6AddressModeDHCPStateful OVNIPv6AddressMode = "dhcpv6_stateful"
 
 // OVNIPv6AddressModeDHCPStateless IPv6 DHCPv6 stateless mode.
-const OVNIPv6AddressModeDHCPStateless OVNIPv6AddressMode = "dhcp_stateless"
+const OVNIPv6AddressModeDHCPStateless OVNIPv6AddressMode = "dhcpv6_stateless"
 
 // OVNIPv6RAOpts IPv6 router advertisements options that can be applied to a router.
 type OVNIPv6RAOpts struct {

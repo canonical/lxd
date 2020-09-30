@@ -98,8 +98,9 @@ func (n *ovn) Validate(config map[string]string) error {
 
 			return validate.Optional(validate.IsNetworkAddressCIDRV6)(value)
 		},
-		"dns.domain": validate.IsAny,
-		"dns.search": validate.IsAny,
+		"ipv6.dhcp.stateful": validate.Optional(validate.IsBool),
+		"dns.domain":         validate.IsAny,
+		"dns.search":         validate.IsAny,
 
 		// Volatile keys populated automatically as needed.
 		ovnVolatileParentIPv4: validate.Optional(validate.IsNetworkAddressV4),
@@ -1208,8 +1209,13 @@ func (n *ovn) setup(update bool) error {
 
 	// Set IPv6 router advertisement settings.
 	if routerIntPortIPv6Net != nil {
+		adressMode := openvswitch.OVNIPv6AddressModeSLAAC
+		if shared.IsTrue(n.config["ipv6.dhcp.stateful"]) {
+			adressMode = openvswitch.OVNIPv6AddressModeDHCPStateful
+		}
+
 		err = client.LogicalRouterPortSetIPv6Advertisements(n.getRouterIntPortName(), &openvswitch.OVNIPv6RAOpts{
-			AddressMode:        openvswitch.OVNIPv6AddressModeSLAAC,
+			AddressMode:        adressMode,
 			SendPeriodic:       true,
 			DNSSearchList:      n.getDNSSearchList(),
 			RecursiveDNSServer: parent.dnsIPv6,
@@ -1557,4 +1563,34 @@ func (n *ovn) instanceDevicePortDelete(instanceID int, deviceName string) error 
 	}
 
 	return nil
+}
+
+// DHCPv4Subnet returns the DHCPv4 subnet (if DHCP is enabled on network).
+func (n *ovn) DHCPv4Subnet() *net.IPNet {
+	// DHCP is disabled on this network (an empty ipv4.dhcp setting indicates enabled by default).
+	if n.config["ipv4.dhcp"] != "" && !shared.IsTrue(n.config["ipv4.dhcp"]) {
+		return nil
+	}
+
+	_, subnet, err := net.ParseCIDR(n.config["ipv4.address"])
+	if err != nil {
+		return nil
+	}
+
+	return subnet
+}
+
+// DHCPv6Subnet returns the DHCPv6 subnet (if DHCP or SLAAC is enabled on network).
+func (n *ovn) DHCPv6Subnet() *net.IPNet {
+	// DHCP is disabled on this network (an empty ipv6.dhcp setting indicates enabled by default).
+	if n.config["ipv6.dhcp"] != "" && !shared.IsTrue(n.config["ipv6.dhcp"]) {
+		return nil
+	}
+
+	_, subnet, err := net.ParseCIDR(n.config["ipv6.address"])
+	if err != nil {
+		return nil
+	}
+
+	return subnet
 }
