@@ -4089,61 +4089,29 @@ func (vm *qemu) RenderState() (*api.InstanceState, error) {
 			status.Processes = -1
 			networks := map[string]api.InstanceStateNetwork{}
 			for k, m := range vm.ExpandedDevices() {
-				nicType, err := nictype.NICType(vm.state, vm.Project(), m)
-				if err != nil {
-					return nil, err
-				}
-
-				// We only care about bridged nics as these can use a local DHCP server that allows
-				// us to parse the leases file below.
-				if m["type"] != "nic" || nicType != "bridged" {
+				if m["type"] != "nic" {
 					continue
 				}
 
-				// Fill the MAC address.
-				m, err := vm.FillNetworkDevice(k, m)
+				d, _, err := vm.deviceLoad(k, m)
 				if err != nil {
-					return nil, err
-				}
-
-				// Temporarily populate parent from network setting if used.
-				if m["network"] != "" {
-					m["parent"] = m["network"]
-				}
-
-				// Parse the lease file.
-				addresses, err := network.GetLeaseAddresses(vm.state, m["parent"], m["hwaddr"])
-				if err != nil {
-					return nil, err
-				}
-
-				if len(addresses) == 0 {
+					logger.Warn("Could not load device", log.Ctx{"project": vm.Project(), "instance": vm.Name(), "device": k, "err": err})
 					continue
 				}
 
-				// Get MTU.
-				iface, err := net.InterfaceByName(m["parent"])
-				if err != nil {
-					return nil, err
+				// Only some NIC types support fallback state mechanisms when there is no agent.
+				nic, ok := d.(device.NICState)
+				if !ok {
+					continue
 				}
 
-				// Retrieve the host counters, as we report the values
-				// from the instance's point of view, those counters need to be reversed below.
-				hostCounters := shared.NetworkGetCounters(m["host_name"])
+				network, err := nic.State()
+				if err != nil {
+					return nil, errors.Wrapf(err, "Failed getting NIC state for %q", k)
+				}
 
-				networks[k] = api.InstanceStateNetwork{
-					Addresses: addresses,
-					Counters: api.InstanceStateNetworkCounters{
-						BytesReceived:   hostCounters.BytesSent,
-						BytesSent:       hostCounters.BytesReceived,
-						PacketsReceived: hostCounters.PacketsSent,
-						PacketsSent:     hostCounters.PacketsReceived,
-					},
-					Hwaddr:   m["hwaddr"],
-					HostName: m["host_name"],
-					Mtu:      iface.MTU,
-					State:    "up",
-					Type:     "broadcast",
+				if network != nil {
+					networks[k] = *network
 				}
 			}
 
