@@ -415,8 +415,9 @@ func internalSQLExec(tx *sql.Tx, query string, result *internalSQLResult) error 
 }
 
 type internalImportPost struct {
-	Name  string `json:"name" yaml:"name"`
-	Force bool   `json:"force" yaml:"force"`
+	Name              string `json:"name" yaml:"name"`
+	Force             bool   `json:"force" yaml:"force"`
+	AllowNameOverride bool   `json:"allow_name_override" yaml:"allow_name_override"`
 }
 
 func internalImport(d *Daemon, r *http.Request) response.Response {
@@ -498,6 +499,10 @@ func internalImport(d *Daemon, r *http.Request) response.Response {
 	backupConf, err := backup.ParseConfigYamlFile(backupYamlPath)
 	if err != nil {
 		return response.SmartError(err)
+	}
+
+	if req.AllowNameOverride && req.Name != "" {
+		backupConf.Container.Name = req.Name
 	}
 
 	if req.Name != backupConf.Container.Name {

@@ -545,7 +545,7 @@ func createFromCopy(d *Daemon, project string, req *api.InstancesPost) response.
 	return operations.OperationResponse(op)
 }
 
-func createFromBackup(d *Daemon, project string, data io.Reader, pool string) response.Response {
+func createFromBackup(d *Daemon, project string, data io.Reader, pool string, instanceName string) response.Response {
 	revert := revert.New()
 	defer revert.Fail()
 
@@ -607,6 +607,11 @@ func createFromBackup(d *Daemon, project string, data io.Reader, pool string) re
 	// Override pool.
 	if pool != "" {
 		bInfo.Pool = pool
+	}
+
+	// Override instance name.
+	if instanceName != "" {
+		bInfo.Name = instanceName
 	}
 
 	logger.Debug("Backup file info loaded", log.Ctx{
@@ -675,8 +680,9 @@ func createFromBackup(d *Daemon, project string, data io.Reader, pool string) re
 		runRevert.Add(revertHook)
 
 		body, err := json.Marshal(&internalImportPost{
-			Name:  bInfo.Name,
-			Force: true,
+			Name:              bInfo.Name,
+			Force:             true,
+			AllowNameOverride: instanceName != "",
 		})
 		if err != nil {
 			return errors.Wrap(err, "Marshal internal import request")
@@ -736,7 +742,7 @@ func containersPost(d *Daemon, r *http.Request) response.Response {
 
 	// If we're getting binary content, process separately
 	if r.Header.Get("Content-Type") == "application/octet-stream" {
-		return createFromBackup(d, project, r.Body, r.Header.Get("X-LXD-pool"))
+		return createFromBackup(d, project, r.Body, r.Header.Get("X-LXD-pool"), r.Header.Get("X-LXD-name"))
 	}
 
 	// Parse the request
