@@ -114,7 +114,7 @@ func (list Devices) Update(newlist Devices, updateFields func(Device, Device) []
 		newDevice := srcNewDevice.Clone()
 
 		// Detect keys different between old and new device and append to the all changed keys list.
-		allChangedKeys = deviceEqualsDiffKeys(oldDevice, newDevice)
+		allChangedKeys = append(allChangedKeys, deviceEqualsDiffKeys(oldDevice, newDevice)...)
 
 		// Remove any fields that can be live-updated without adding/removing the device from instance.
 		for _, k := range updateFields(oldDevice, newDevice) {
