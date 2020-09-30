@@ -190,6 +190,11 @@ func GetStorage() (*api.ResourcesStorage, error) {
 				}
 
 				disk.Type = filepath.Base(diskSubsystem)
+
+				if disk.Type == "rbd" {
+					// Ignore rbd devices as they aren't local block devices.
+					continue
+				}
 			}
 
 			// Read-only
