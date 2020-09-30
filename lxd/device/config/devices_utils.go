@@ -1,7 +1,7 @@
 package config
 
+// deviceEquals checks for any difference and addition/removal of properties.
 func deviceEquals(old Device, d Device) bool {
-	// Check for any difference and addition/removal of properties
 	for k := range d {
 		if d[k] != old[k] {
 			return false
@@ -17,10 +17,10 @@ func deviceEquals(old Device, d Device) bool {
 	return true
 }
 
+// deviceEqualsDiffKeys checks for any difference and addition/removal of properties and returns a list of changes.
 func deviceEqualsDiffKeys(old Device, d Device) []string {
 	keys := []string{}
 
-	// Check for any difference and addition/removal of properties
 	for k := range d {
 		if d[k] != old[k] {
 			keys = append(keys, k)
