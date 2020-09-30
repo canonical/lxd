@@ -2659,7 +2659,9 @@ func (vm *qemu) Rename(newName string) error {
 
 // Update the instance config.
 func (vm *qemu) Update(args db.InstanceArgs, userRequested bool) error {
-	// Only user.* keys can be changed on a running VM
+	// Only certain keys can be changed on a running VM.
+	liveUpdateKeys := []string{"limits.memory"}
+
 	if vm.IsRunning() {
 		if args.Config == nil {
 			args.Config = map[string]string{}
@@ -2720,8 +2722,8 @@ func (vm *qemu) Update(args db.InstanceArgs, userRequested bool) error {
 		}
 
 		for _, key := range changedConfig {
-			if !strings.HasPrefix(key, "user.") {
-				return fmt.Errorf("Only user.* keys can be updated on running VMs")
+			if !strings.HasPrefix(key, "user.") && !shared.StringInSlice(key, liveUpdateKeys) {
+				return fmt.Errorf("Key %q cannot be updated when VM is running", key)
 			}
 		}
 
@@ -2730,6 +2732,19 @@ func (vm *qemu) Update(args db.InstanceArgs, userRequested bool) error {
 			err = instance.ValidConfig(vm.state.OS, vm.expandedConfig, false, true)
 			if err != nil {
 				return errors.Wrap(err, "Invalid expanded config")
+			}
+		}
+
+		for _, key := range changedConfig {
+			value := vm.expandedConfig[key]
+
+			if key == "limits.memory" {
+				err = vm.updateMemoryLimit(value)
+				if err != nil {
+					if err != nil {
+						return errors.Wrapf(err, "Failed updating memory limit")
+					}
+				}
 			}
 		}
 
@@ -3068,6 +3083,67 @@ func (vm *qemu) Update(args db.InstanceArgs, userRequested bool) error {
 
 	vm.state.Events.SendLifecycle(vm.project, "virtual-machine-updated", endpoint, nil)
 	return nil
+}
+
+// updateMemoryLimit live updates the VM's memory limit by shrinking the balloon device.
+// Only memory shrinking is supported at this time.
+func (vm *qemu) updateMemoryLimit(newLimit string) error {
+	if shared.IsTrue(vm.expandedConfig["limits.memory.hugepages"]) {
+		return fmt.Errorf("Cannot live update memory limit when using huge pages")
+	}
+
+	// Check new size string is valid and convert to bytes.
+	newSizeBytes, err := units.ParseByteSizeString(newLimit)
+	if err != nil {
+		return errors.Wrapf(err, "Invalid memory size")
+	}
+
+	// Connect to the monitor.
+	monitor, err := qmp.Connect(vm.monitorPath(), qemuSerialChardevName, vm.getMonitorEventHandler())
+	if err != nil {
+		return err // The VM isn't running as no monitor socket available.
+	}
+
+	curSizeBytes, err := monitor.GetBalloonSizeBytes()
+	if err != nil {
+		return err
+	}
+
+	if curSizeBytes == newSizeBytes {
+		return nil
+	} else if curSizeBytes < newSizeBytes {
+		return fmt.Errorf("Cannot increase memory size when VM is running")
+	}
+
+	// Shrink balloon device.
+	err = monitor.SetBalloonSizeBytes(newSizeBytes)
+	if err != nil {
+		return err
+	}
+
+	// Shrinking the balloon can take time, so poll the actual balloon size to check it has shrunk within 1%
+	// of the target size, which we then take as success (it may still continue to shrink closer to target).
+	for i := 0; i < 5; i++ {
+		curSizeBytes, err = monitor.GetBalloonSizeBytes()
+		if err != nil {
+			return err
+		}
+
+		var diff int64
+		if curSizeBytes < newSizeBytes {
+			diff = newSizeBytes - curSizeBytes
+		} else {
+			diff = curSizeBytes - newSizeBytes
+		}
+
+		if diff <= (newSizeBytes / 100) {
+			return nil // We reached to within 1% of our target size.
+		}
+
+		time.Sleep(500 * time.Millisecond)
+	}
+
+	return fmt.Errorf("Failed setting memory to %d bytes (currently %d bytes) as it was taking too long", newSizeBytes, curSizeBytes)
 }
 
 func (vm *qemu) updateDevices(removeDevices deviceConfig.Devices, addDevices deviceConfig.Devices, updateDevices deviceConfig.Devices, oldExpandedDevices deviceConfig.Devices) error {
