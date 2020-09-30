@@ -253,7 +253,7 @@ type ResourcesStorageDisk struct {
 	NUMANode  uint64 `json:"numa_node" yaml:"numa_node"`
 
 	// API extension: resources_disk_sata
-	DevicePath      string `json:"device_path" yaml:"device_path"`
+	DevicePath      string `json:"device_path,omitempty" yaml:"device_path,omitempty"`
 	BlockSize       uint64 `json:"block_size" yaml:"block_size"`
 	FirmwareVersion string `json:"firmware_version,omitempty" yaml:"firmware_version,omitempty"`
 	RPM             uint64 `json:"rpm" yaml:"rpm"`
