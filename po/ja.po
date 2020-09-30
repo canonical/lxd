@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: LXD\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2020-09-25 23:34-0400\n"
+"POT-Creation-Date: 2020-09-30 10:55+0100\n"
 "PO-Revision-Date: 2020-09-25 15:37+0000\n"
 "Last-Translator: KATOH Yasufumi <karma@jazz.email.ne.jp>\n"
 "Language-Team: Japanese <https://hosted.weblate.org/projects/linux-"
@@ -1092,7 +1092,7 @@ msgstr "ストレージボリュームを削除します"
 #: lxc/image.go:328 lxc/image.go:453 lxc/image.go:612 lxc/image.go:840
 #: lxc/image.go:975 lxc/image.go:1273 lxc/image.go:1352 lxc/image_alias.go:25
 #: lxc/image_alias.go:58 lxc/image_alias.go:105 lxc/image_alias.go:150
-#: lxc/image_alias.go:252 lxc/import.go:28 lxc/info.go:33 lxc/init.go:40
+#: lxc/image_alias.go:252 lxc/import.go:29 lxc/info.go:33 lxc/init.go:40
 #: lxc/launch.go:25 lxc/list.go:45 lxc/main.go:50 lxc/manpage.go:20
 #: lxc/monitor.go:30 lxc/move.go:36 lxc/network.go:33 lxc/network.go:109
 #: lxc/network.go:182 lxc/network.go:255 lxc/network.go:329 lxc/network.go:379
@@ -1694,7 +1694,7 @@ msgid "Import backups of custom volumes including their snapshots."
 msgstr ""
 "インスタンスのバックアップをスナップショットを含んだ状態でインポートします。"
 
-#: lxc/import.go:28
+#: lxc/import.go:29
 msgid "Import backups of instances including their snapshots."
 msgstr ""
 "インスタンスのバックアップをスナップショットを含んだ状態でインポートします。"
@@ -1719,16 +1719,16 @@ msgstr ""
 msgid "Import images into the image store"
 msgstr "イメージをイメージストアにインポートします"
 
-#: lxc/import.go:27
+#: lxc/import.go:28
 msgid "Import instance backups"
 msgstr "インスタンスのバックアップをインポートします"
 
-#: lxc/storage_volume.go:1839
+#: lxc/storage_volume.go:1844
 #, fuzzy, c-format
 msgid "Importing custom volume: %s"
 msgstr "インスタンスのインポート中: %s"
 
-#: lxc/import.go:72
+#: lxc/import.go:89
 #, c-format
 msgid "Importing instance: %s"
 msgstr "インスタンスのインポート中: %s"
@@ -3447,7 +3447,7 @@ msgstr "ストレージプール %s を削除しました"
 msgid "Storage pool %s pending on member %s"
 msgstr "ストレージプール %s はメンバ %s 上でペンディング状態です"
 
-#: lxc/copy.go:51 lxc/import.go:35 lxc/init.go:52 lxc/move.go:56
+#: lxc/copy.go:51 lxc/import.go:36 lxc/init.go:52 lxc/move.go:56
 msgid "Storage pool name"
 msgstr "ストレージプール名"
 
@@ -3885,8 +3885,9 @@ msgstr "[<remote:>]<pool> <volume> <profile> [<device name>] <path>"
 msgid "[<remote>:]"
 msgstr "[<remote>:]"
 
-#: lxc/import.go:26
-msgid "[<remote>:] <backup file>"
+#: lxc/import.go:27
+#, fuzzy
+msgid "[<remote>:] <backup file> [<instance name>]"
 msgstr "[<remote>:] <backup file>"
 
 #: lxc/config_trust.go:55
@@ -4096,7 +4097,7 @@ msgstr "[<remote>:]<pool>"
 
 #: lxc/storage_volume.go:1795
 #, fuzzy
-msgid "[<remote>:]<pool> <backup file>"
+msgid "[<remote>:]<pool> <backup file> [<volume name>]"
 msgstr "[<remote>:] <backup file>"
 
 #: lxc/storage.go:87
@@ -4392,7 +4393,7 @@ msgstr ""
 "lxc image edit <image> < image.yaml\n"
 "    YAML ファイルからイメージプロパティをロードします"
 
-#: lxc/import.go:30
+#: lxc/import.go:31
 msgid ""
 "lxc import backup0.tar.gz\n"
 "    Create a new instance using backup0.tar.gz as the source."
