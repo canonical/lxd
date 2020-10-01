@@ -83,6 +83,19 @@ On the client side, this is used with:
 
 `lxc image import URL --alias some-name`
 
+### Publishing an instance or snapshot as a new image
+An instance or one of its snapshots can be turned into a new image.
+This is done on the CLI with `lxc publish`.
+
+When doing this, you will most likely first want to cleanup metadata and
+templates on the instance you're publishing using the `lxc config metadata`
+and `lxc config template` commands. You will also want to remove any
+instance-specific state like host SSH keys, dbus/systemd machine-id, ...
+
+The publishing process can take quite a while as a tarball must be
+generated from the instance and then be compressed. As this can be
+particularly I/O and CPU intensive, publish operations are serialized by LXD.
+
 ## Caching
 When spawning an instance from a remote image, the remote image is
 downloaded into the local image store with the cached bit set. The image
