@@ -612,10 +612,9 @@ func (o *OVN) LogicalSwitchPortDynamicIPs(portName OVNSwitchPort) ([]net.IP, err
 func (o *OVN) LogicalSwitchPortSetDNS(switchName OVNSwitch, portName OVNSwitchPort, dnsName string) error {
 	var dnsIPv4, dnsIPv6 net.IP
 
-	// parseAndStoreIP checks if the supplied IP string is valid and can be used for a missing DNS IP variable.
+	// checkAndStoreIP checks if the supplied IP is valid and can be used for a missing DNS IP variable.
 	// If the found IP is needed, stores into the relevant dnsIPvP{X} variable and returns true.
-	parseAndStoreIP := func(ipRaw string) bool {
-		ip := net.ParseIP(ipRaw)
+	checkAndStoreIP := func(ip net.IP) bool {
 		if ip != nil {
 			isV4 := ip.To4() != nil
 			if dnsIPv4 == nil && isV4 {
@@ -646,7 +645,7 @@ func (o *OVN) LogicalSwitchPortSetDNS(switchName OVNSwitch, portName OVNSwitchPo
 		}
 
 		// Try and find the first IPv4 and IPv6 addresses from the static address list.
-		if parseAndStoreIP(staticAddress) {
+		if checkAndStoreIP(net.ParseIP(staticAddress)) {
 			if dnsIPv4 != nil && dnsIPv6 != nil {
 				break // We've found all we wanted.
 			}
@@ -655,20 +654,14 @@ func (o *OVN) LogicalSwitchPortSetDNS(switchName OVNSwitch, portName OVNSwitchPo
 
 	// Get dynamic IPs for switch port if indicated and needed.
 	if hasDynamic && (dnsIPv4 == nil || dnsIPv6 == nil) {
-		dynamicAddressesRaw, err := o.nbctl("get", "logical_switch_port", string(portName), "dynamic_addresses")
+		dynamicIPs, err := o.LogicalSwitchPortDynamicIPs(portName)
 		if err != nil {
 			return err
 		}
 
-		dynamicAddressesRaw, err = strconv.Unquote(strings.TrimSpace(dynamicAddressesRaw))
-		if err != nil {
-			return err
-		}
-
-		dynamicAddresses := strings.Split(strings.TrimSpace(dynamicAddressesRaw), " ")
-		for _, dynamicAddress := range dynamicAddresses {
+		for _, dynamicIP := range dynamicIPs {
 			// Try and find the first IPv4 and IPv6 addresses from the dynamic address list.
-			if parseAndStoreIP(dynamicAddress) {
+			if checkAndStoreIP(dynamicIP) {
 				if dnsIPv4 != nil && dnsIPv6 != nil {
 					break // We've found all we wanted.
 				}
