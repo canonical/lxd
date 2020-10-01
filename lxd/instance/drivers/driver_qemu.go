@@ -4232,7 +4232,7 @@ func (vm *qemu) agentGetState() (*api.InstanceState, error) {
 // IsRunning returns whether or not the instance is running.
 func (vm *qemu) IsRunning() bool {
 	state := vm.State()
-	return state != "BROKEN" && state != "STOPPED"
+	return state != "STOPPED"
 }
 
 // IsFrozen returns whether the instance frozen or not.
@@ -4315,6 +4315,13 @@ func (vm *qemu) statusCode() api.StatusCode {
 	// Connect to the monitor.
 	monitor, err := qmp.Connect(vm.monitorPath(), qemuSerialChardevName, vm.getMonitorEventHandler())
 	if err != nil {
+		// If cannot connect to monitor, but qemu process in pid file still exists, then likely qemu
+		// has crashed/hung and this instance is in an error state.
+		pid, _ := vm.pid()
+		if pid > 0 && shared.PathExists(fmt.Sprintf("/proc/%d", pid)) {
+			return api.Error
+		}
+
 		// If we fail to connect, chances are the VM isn't running.
 		return api.Stopped
 	}
