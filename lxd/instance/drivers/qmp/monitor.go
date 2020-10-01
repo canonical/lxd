@@ -346,8 +346,8 @@ func (m *Monitor) GetMemoryBalloonSizeBytes() (int64, error) {
 	return respDecoded.Return.Actual, nil
 }
 
-// SetBalloonSizeBytes sets the size of the memory balloon in bytes.
-func (m *Monitor) SetBalloonSizeBytes(sizeBytes int64) error {
+// SetMemoryBalloonSizeBytes sets the size of the memory in bytes (which will resize the balloon as needed).
+func (m *Monitor) SetMemoryBalloonSizeBytes(sizeBytes int64) error {
 	respRaw, err := m.qmp.Run([]byte(fmt.Sprintf("{'execute': 'balloon', 'arguments': {'value': %d}}", sizeBytes)))
 	if err != nil {
 		m.Disconnect()
