@@ -2975,9 +2975,12 @@ func (vm *qemu) Update(args db.InstanceArgs, userRequested bool) error {
 	return nil
 }
 
-// updateMemoryLimit live updates the VM's memory limit by shrinking the balloon device.
-// Only memory shrinking is supported at this time.
+// updateMemoryLimit live updates the VM's memory limit by reszing the balloon device.
 func (vm *qemu) updateMemoryLimit(newLimit string) error {
+	if newLimit == "" {
+		return nil
+	}
+
 	if shared.IsTrue(vm.expandedConfig["limits.memory.hugepages"]) {
 		return fmt.Errorf("Cannot live update memory limit when using huge pages")
 	}
@@ -2994,27 +2997,32 @@ func (vm *qemu) updateMemoryLimit(newLimit string) error {
 		return err // The VM isn't running as no monitor socket available.
 	}
 
-	curSizeBytes, err := monitor.GetBalloonSizeBytes()
+	baseSizeBytes, err := monitor.GetMemorySizeBytes()
+	if err != nil {
+		return err
+	}
+
+	curSizeBytes, err := monitor.GetMemoryBalloonSizeBytes()
 	if err != nil {
 		return err
 	}
 
 	if curSizeBytes == newSizeBytes {
 		return nil
-	} else if curSizeBytes < newSizeBytes {
-		return fmt.Errorf("Cannot increase memory size when VM is running")
+	} else if baseSizeBytes < newSizeBytes {
+		return fmt.Errorf("Cannot increase memory size beyond boot time size when VM is running")
 	}
 
-	// Shrink balloon device.
-	err = monitor.SetBalloonSizeBytes(newSizeBytes)
+	// Set effective memory size.
+	err = monitor.SetMemoryBalloonSizeBytes(newSizeBytes)
 	if err != nil {
 		return err
 	}
 
-	// Shrinking the balloon can take time, so poll the actual balloon size to check it has shrunk within 1%
+	// Changing the memory balloon can take time, so poll the effectice size to check it has shrunk within 1%
 	// of the target size, which we then take as success (it may still continue to shrink closer to target).
 	for i := 0; i < 5; i++ {
-		curSizeBytes, err = monitor.GetBalloonSizeBytes()
+		curSizeBytes, err = monitor.GetMemoryBalloonSizeBytes()
 		if err != nil {
 			return err
 		}
