@@ -323,8 +323,8 @@ func (m *Monitor) GetCPUs() ([]int, error) {
 	return pids, nil
 }
 
-// GetBalloonSizeBytes returns the current size of the memory balloon in bytes.
-func (m *Monitor) GetBalloonSizeBytes() (int64, error) {
+// GetMemoryBalloonSizeBytes returns effective size of the memory in bytes (considering the current balloon size).
+func (m *Monitor) GetMemoryBalloonSizeBytes() (int64, error) {
 	respRaw, err := m.qmp.Run([]byte("{'execute': 'query-balloon'}"))
 	if err != nil {
 		m.Disconnect()
