@@ -5,6 +5,7 @@ import (
 	"net"
 	"os"
 
+	"github.com/mdlayher/netx/eui64"
 	"github.com/pkg/errors"
 
 	"github.com/lxc/lxd/lxd/cluster"
@@ -392,4 +393,117 @@ func (d *nicOVN) postStop() error {
 // Remove is run when the device is removed from the instance or the instance is deleted.
 func (d *nicOVN) Remove() error {
 	return nil
+}
+
+// State gets the state of an OVN NIC by querying the OVN Northbound logical switch port record.
+func (d *nicOVN) State() (*api.InstanceStateNetwork, error) {
+	v := d.volatileGet()
+
+	// Populate device config with volatile fields (hwaddr and host_name) if needed.
+	networkVethFillFromVolatile(d.config, v)
+
+	addresses := []api.InstanceStateNetworkAddress{}
+	netConfig := d.network.Config()
+
+	// Extract subnet sizes from bridge addresses.
+	_, v4subnet, _ := net.ParseCIDR(netConfig["ipv4.address"])
+	_, v6subnet, _ := net.ParseCIDR(netConfig["ipv6.address"])
+
+	var v4mask string
+	if v4subnet != nil {
+		mask, _ := v4subnet.Mask.Size()
+		v4mask = fmt.Sprintf("%d", mask)
+	}
+
+	var v6mask string
+	if v6subnet != nil {
+		mask, _ := v6subnet.Mask.Size()
+		v6mask = fmt.Sprintf("%d", mask)
+	}
+
+	// OVN only supports dynamic IP allocation if neither IPv4 or IPv6 are statically set.
+	if d.config["ipv4.address"] == "" && d.config["ipv6.address"] == "" {
+		dynamicIPs, err := network.OVNInstanceDevicePortDynamicIPs(d.network, d.inst.ID(), d.name)
+		if err == nil {
+			for _, dynamicIP := range dynamicIPs {
+				family := "inet"
+				netmask := v4mask
+
+				if dynamicIP.To4() == nil {
+					family = "inet6"
+					netmask = v6mask
+				}
+
+				addresses = append(addresses, api.InstanceStateNetworkAddress{
+					Family:  family,
+					Address: dynamicIP.String(),
+					Netmask: netmask,
+					Scope:   "global",
+				})
+			}
+		} else {
+			d.logger.Warn("Failed getting OVN port dynamic IPs", log.Ctx{"err": err})
+		}
+	} else {
+		if d.config["ipv4.address"] != "" {
+			// Static DHCPv4 allocation present, that is likely to be the NIC's IPv4. So assume that.
+			addresses = append(addresses, api.InstanceStateNetworkAddress{
+				Family:  "inet",
+				Address: d.config["ipv4.address"],
+				Netmask: v4mask,
+				Scope:   "global",
+			})
+		}
+
+		if d.config["ipv6.address"] != "" {
+			// Static DHCPv6 allocation present, that is likely to be the NIC's IPv6. So assume that.
+			addresses = append(addresses, api.InstanceStateNetworkAddress{
+				Family:  "inet6",
+				Address: d.config["ipv6.address"],
+				Netmask: v6mask,
+				Scope:   "global",
+			})
+		} else if !shared.IsTrue(netConfig["ipv6.dhcp.stateful"]) && d.config["hwaddr"] != "" && v6subnet != nil {
+			// If no static DHCPv6 allocation and stateful DHCPv6 is disabled, and IPv6 is enabled on
+			// the bridge, the the NIC is likely to use its MAC and SLAAC to configure its address.
+			hwAddr, err := net.ParseMAC(d.config["hwaddr"])
+			if err == nil {
+				ip, err := eui64.ParseMAC(v6subnet.IP, hwAddr)
+				if err == nil {
+					addresses = append(addresses, api.InstanceStateNetworkAddress{
+						Family:  "inet6",
+						Address: ip.String(),
+						Netmask: v6mask,
+						Scope:   "global",
+					})
+				}
+			}
+		}
+	}
+
+	// Get MTU of host interface that connects to OVN integration bridge.
+	iface, err := net.InterfaceByName(d.config["host_name"])
+	if err != nil {
+		return nil, errors.Wrapf(err, "Failed getting host interface state")
+	}
+
+	// Retrieve the host counters, as we report the values from the instance's point of view,
+	// those counters need to be reversed below.
+	hostCounters := shared.NetworkGetCounters(d.config["host_name"])
+	network := api.InstanceStateNetwork{
+		Addresses: addresses,
+		Counters: api.InstanceStateNetworkCounters{
+			BytesReceived:   hostCounters.BytesSent,
+			BytesSent:       hostCounters.BytesReceived,
+			PacketsReceived: hostCounters.PacketsSent,
+			PacketsSent:     hostCounters.PacketsReceived,
+		},
+		Hwaddr:   d.config["hwaddr"],
+		HostName: d.config["host_name"],
+		Mtu:      iface.MTU,
+		State:    "up",
+		Type:     "broadcast",
+	}
+
+	return &network, nil
 }
