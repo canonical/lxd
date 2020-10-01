@@ -19,6 +19,17 @@ func OVNInstanceDevicePortAdd(network Network, instanceID int, instanceName stri
 	return n.instanceDevicePortAdd(instanceID, instanceName, deviceName, mac, ips)
 }
 
+// OVNInstanceDevicePortDynamicIPs gets a logical port's dynamic IPs stored in the OVN network's internal switch.
+func OVNInstanceDevicePortDynamicIPs(network Network, instanceID int, deviceName string) ([]net.IP, error) {
+	// Check network is of type OVN.
+	n, ok := network.(*ovn)
+	if !ok {
+		return nil, fmt.Errorf("Network is not OVN type")
+	}
+
+	return n.instanceDevicePortDynamicIPs(instanceID, deviceName)
+}
+
 // OVNInstanceDevicePortDelete deletes a logical port from the OVN network's internal switch.
 func OVNInstanceDevicePortDelete(network Network, instanceID int, deviceName string) error {
 	// Check network is of type OVN.
