@@ -403,6 +403,11 @@ func checkRestrictions(project *api.Project, instances []db.Instance, profiles [
 					return nil
 				}
 
+				// Always allow the cloud-init config drive.
+				if device["path"] == "" && device["source"] == "cloud-init:config" {
+					return nil
+				}
+
 				switch restrictionValue {
 				case "block":
 					return fmt.Errorf("Disk devices are forbidden")
