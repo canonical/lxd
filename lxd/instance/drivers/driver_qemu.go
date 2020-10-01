@@ -69,6 +69,9 @@ const qemuUnsafeIO = "unsafeio"
 // qemuSerialChardevName is used to communicate state via qmp between Qemu and LXD.
 const qemuSerialChardevName = "qemu_serial-chardev"
 
+// qemuDefaultMemSize is the default memory size for VMs if not limit specified.
+const qemuDefaultMemSize = "1GiB"
+
 var errQemuAgentOffline = fmt.Errorf("LXD VM agent isn't currently running")
 
 var vmConsole = map[int]bool{}
@@ -1924,7 +1927,7 @@ func (vm *qemu) addCPUMemoryConfig(sb *strings.Builder) error {
 	// Configure memory limit.
 	memSize := vm.expandedConfig["limits.memory"]
 	if memSize == "" {
-		memSize = "1GiB" // Default to 1GiB if no memory limit specified.
+		memSize = qemuDefaultMemSize // Default if no memory limit specified.
 	}
 
 	memSizeBytes, err := units.ParseByteSizeString(memSize)
