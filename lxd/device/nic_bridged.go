@@ -13,6 +13,7 @@ import (
 
 	"github.com/google/gopacket"
 	"github.com/google/gopacket/layers"
+	"github.com/mdlayher/netx/eui64"
 	"github.com/pkg/errors"
 
 	"github.com/lxc/lxd/lxd/db"
@@ -1091,24 +1092,103 @@ func (d *nicBridged) State() (*api.InstanceStateNetwork, error) {
 	// Populate device config with volatile fields if needed.
 	networkVethFillFromVolatile(d.config, v)
 
-	if d.config["hwaddr"] == "" {
-		return nil, nil
+	ips := []net.IP{}
+	var v4mask string
+	var v6mask string
+
+	// ipStore appends an IP to ips if not already stored.
+	ipStore := func(newIP net.IP) {
+		for _, ip := range ips {
+			if ip.Equal(newIP) {
+				return
+			}
+		}
+
+		ips = append(ips, newIP)
 	}
 
-	// Parse the leases file.
-	addresses, err := network.GetLeaseAddresses(d.state, d.config["parent"], d.config["hwaddr"])
-	if err != nil {
-		return nil, err
+	// Check if parent is managed network and load config.
+	// Pass project.Default here, as currently dnsmasq (bridged) networks do not support projects.
+	n, err := network.LoadByName(d.state, project.Default, d.config["parent"])
+	if err == nil {
+		// Extract subnet sizes from bridge addresses if available.
+		netConfig := n.Config()
+		_, v4subnet, _ := net.ParseCIDR(netConfig["ipv4.address"])
+		_, v6subnet, _ := net.ParseCIDR(netConfig["ipv6.address"])
+
+		if v4subnet != nil {
+			mask, _ := v4subnet.Mask.Size()
+			v4mask = fmt.Sprintf("%d", mask)
+		}
+
+		if v6subnet != nil {
+			mask, _ := v6subnet.Mask.Size()
+			v6mask = fmt.Sprintf("%d", mask)
+		}
+
+		if d.config["hwaddr"] != "" {
+			// Parse the leases file if parent network is managed.
+			leaseIPs, err := network.GetLeaseAddresses(n.Name(), d.config["hwaddr"])
+			if err == nil {
+				for _, leaseIP := range leaseIPs {
+					ipStore(leaseIP)
+				}
+			}
+
+			if !shared.IsTrue(n.Config()["ipv6.dhcp.stateful"]) && v6subnet != nil {
+				// If stateful DHCPv6 is disabled, and IPv6 is enabled on the bridge, the the NIC
+				// is likely to use its MAC and SLAAC to configure its address.
+				hwAddr, err := net.ParseMAC(d.config["hwaddr"])
+				if err == nil {
+					ip, err := eui64.ParseMAC(v6subnet.IP, hwAddr)
+					if err == nil {
+						ipStore(ip)
+					}
+				}
+			}
+		}
 	}
 
-	if len(addresses) == 0 {
-		return nil, nil
+	// Get IP addresses from IP neighbour cache if present.
+	neighIPs, err := network.GetNeighbourIPs(d.config["parent"], d.config["hwaddr"])
+	if err == nil {
+		for _, neighIP := range neighIPs {
+			ipStore(neighIP)
+		}
+	}
+
+	// Convert IPs to InstanceStateNetworkAddresses.
+	addresses := []api.InstanceStateNetworkAddress{}
+	for _, ip := range ips {
+		addr := api.InstanceStateNetworkAddress{}
+		addr.Address = ip.String()
+		addr.Family = "inet"
+		addr.Netmask = v4mask
+
+		if ip.To4() == nil {
+			addr.Family = "inet6"
+			addr.Netmask = v6mask
+		}
+
+		if ip.IsLinkLocalUnicast() {
+			addr.Scope = "link"
+
+			if addr.Family == "inet6" {
+				addr.Netmask = "64" // Link-local IPv6 addresses are /64.
+			} else {
+				addr.Netmask = "16" // Link-local IPv4 addresses are /16.
+			}
+		} else {
+			addr.Scope = "global"
+		}
+
+		addresses = append(addresses, addr)
 	}
 
 	// Get MTU.
-	iface, err := net.InterfaceByName(d.config["parent"])
+	iface, err := net.InterfaceByName(d.config["host_name"])
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrapf(err, "Failed getting host interface state")
 	}
 
 	// Retrieve the host counters, as we report the values from the instance's point of view,
