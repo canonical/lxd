@@ -1543,6 +1543,18 @@ func (n *ovn) instanceDevicePortAdd(instanceID int, instanceName string, deviceN
 	return instancePortName, nil
 }
 
+// instanceDevicePortIPs returns the dynamically allocated IPs for a device port.
+func (n *ovn) instanceDevicePortDynamicIPs(instanceID int, deviceName string) ([]net.IP, error) {
+	instancePortName := n.getInstanceDevicePortName(instanceID, deviceName)
+
+	client, err := n.getClient()
+	if err != nil {
+		return nil, err
+	}
+
+	return client.LogicalSwitchPortDynamicIPs(instancePortName)
+}
+
 // instanceDevicePortDelete deletes an instance device port from the internal logical switch.
 func (n *ovn) instanceDevicePortDelete(instanceID int, deviceName string) error {
 	instancePortName := n.getInstanceDevicePortName(instanceID, deviceName)
