@@ -575,6 +575,38 @@ func (o *OVN) LogicalSwitchPortSet(portName OVNSwitchPort, opts *OVNSwitchPortOp
 	return nil
 }
 
+// LogicalSwitchPortDynamicIPs returns a list of dynamc IPs for a switch port.
+func (o *OVN) LogicalSwitchPortDynamicIPs(portName OVNSwitchPort) ([]net.IP, error) {
+	dynamicAddressesRaw, err := o.nbctl("get", "logical_switch_port", string(portName), "dynamic_addresses")
+	if err != nil {
+		return nil, err
+	}
+
+	dynamicAddressesRaw = strings.TrimSpace(dynamicAddressesRaw)
+
+	// Check if no dynamic IPs set.
+	if dynamicAddressesRaw == "[]" {
+		return []net.IP{}, nil
+	}
+
+	dynamicAddressesRaw, err = strconv.Unquote(dynamicAddressesRaw)
+	if err != nil {
+		return nil, err
+	}
+
+	dynamicAddresses := strings.Split(strings.TrimSpace(dynamicAddressesRaw), " ")
+	dynamicIPs := make([]net.IP, 0, len(dynamicAddresses))
+
+	for _, dynamicAddress := range dynamicAddresses {
+		ip := net.ParseIP(dynamicAddress)
+		if ip != nil {
+			dynamicIPs = append(dynamicIPs, ip)
+		}
+	}
+
+	return dynamicIPs, nil
+}
+
 // LogicalSwitchPortSetDNS sets up the switch DNS records for the DNS name resolving to the IPs of the switch port.
 // Attempts to find at most one IP for each IP protocol, preferring static addresses over dynamic.
 func (o *OVN) LogicalSwitchPortSetDNS(switchName OVNSwitch, portName OVNSwitchPort, dnsName string) error {
