@@ -37,6 +37,7 @@ profile "{{ .name }}" flags=(attach_disconnected,mediate_deleted) {
   # Additional system files
   @{PROC}/sys/net/ipv6/conf/*/mtu r,
   @{PROC}/@{pid}/fd/ r,
+  {{ .rootPath }}/usr/share/zoneinfo/**  r,
 
   # System configuration access
   {{ .rootPath }}/etc/gai.conf           r,
