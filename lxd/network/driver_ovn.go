@@ -1052,14 +1052,14 @@ func (n *ovn) setup(update bool) error {
 	}
 
 	// Add SNAT rules.
-	if routerIntPortIPv4Net != nil {
+	if routerIntPortIPv4Net != nil && routerExtPortIPv4 != nil {
 		err = client.LogicalRouterSNATAdd(n.getRouterName(), routerIntPortIPv4Net, routerExtPortIPv4)
 		if err != nil {
 			return err
 		}
 	}
 
-	if routerIntPortIPv6Net != nil {
+	if routerIntPortIPv6Net != nil && routerExtPortIPv6 != nil {
 		err = client.LogicalRouterSNATAdd(n.getRouterName(), routerIntPortIPv6Net, routerExtPortIPv6)
 		if err != nil {
 			return err
