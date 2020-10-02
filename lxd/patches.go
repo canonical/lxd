@@ -101,6 +101,7 @@ var patches = []patch{
 	{name: "clustering_drop_database_role", stage: patchPostDaemonStorage, run: patchClusteringDropDatabaseRole},
 	{name: "network_clear_bridge_volatile_hwaddr", stage: patchPostDaemonStorage, run: patchNetworkCearBridgeVolatileHwaddr},
 	{name: "move_backups_instances", stage: patchPostDaemonStorage, run: patchMoveBackupsInstances},
+	{name: "TEMPNAME", stage: TEMP, run: patchTEMPNAME},
 }
 
 type patch struct {
@@ -164,6 +165,68 @@ func patchesApply(d *Daemon, stage patchStage) error {
 }
 
 // Patches begin here
+
+//
+func patchTEMPNAME(name string, d *Daemon) error {
+	tx, err := d.cluster.Begin()
+	if err != nil {
+		return errors.Wrap(err, "failed to begin transaction")
+	}
+
+	// Fetch the IDs of all existing nodes.
+	nodeIDs, err := query.SelectIntegers(tx, "SELECT id FROM nodes")
+	if err != nil {
+		return errors.Wrap(err, "failed to get IDs of current nodes")
+	}
+
+	// Fetch the IDs of all existing lvm pools.
+	poolIDs, err := query.SelectIntegers(tx, "SELECT id FROM storage_pools WHERE driver='lvm'")
+	if err != nil {
+		return errors.Wrap(err, "failed to get IDs of current lvm pools")
+	}
+
+	for _, poolID := range poolIDs {
+		// Fetch the config for this lvm pool and check if it has the
+		// lvn.thinpool_name key.
+		config, err := query.SelectConfig(
+			tx, "storage_pools_config", "storage_pool_id=?", poolID)
+		if err != nil {
+			return errors.Wrap(err, "failed a fetch of lvm pool config")
+		}
+
+		value, ok := "lvm.thinpool"
+		if !ok {
+			continue
+		}
+
+		// Delete the current key
+		_, err = tx.Exec(`
+			DELETE FROM storage_pools_config WHERE key='lvm.thinpool' AND storage_pool_id=?`, poolID)
+		if err != nil {
+			return errors.Wrapf(err, "failed to delete %s config", key)
+		}
+		
+		// Add the config entry for each node
+		for _, nodeID := range nodeIDs {
+			_, err := tx.Exec(`
+			INSERT INTO storage_pools_config(storage_pool_id, node_id, key, value)
+		  	VALUES(?, ?, 'lvm.thinpool_name', ?)
+			`, poolID, curNodeID, value)
+			if err != nil {
+				return errors.Wrapf(err, "failed to create %s node config", key)
+			}
+		}
+	}
+	}
+		
+	err = tx.Commit()
+	if err != nil {
+		return errors.Wrap(err, "failed to commit transaction")
+	}
+		
+	return err
+
+}
 
 // Moves backups from shared.VarPath("backups") to shared.VarPath("backups", "instances").
 func patchMoveBackupsInstances(name string, d *Daemon) error {
