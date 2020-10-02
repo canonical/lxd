@@ -737,7 +737,7 @@ func (n *ovn) deleteParentPort() error {
 	return nil
 }
 
-// deleteParentPortBridge deletes the dnsmasq static lease and removes parent uplink OVS bridge if not in use.
+// deleteParentPortBridge deletes parent uplink OVS bridge, OVN bridge mappings and veth interfaces if not in use.
 func (n *ovn) deleteParentPortBridge(parentNet Network) error {
 	// Check OVS uplink bridge exists, if it does, check how many ports it has.
 	removeVeths := false
