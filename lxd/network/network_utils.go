@@ -805,12 +805,12 @@ func GetHostDevice(parent string, vlan string) string {
 	return defaultVlan
 }
 
-// GetLeaseAddresses returns the lease addresses for a network and hwaddr.
-func GetLeaseAddresses(s *state.State, networkName string, hwaddr string) ([]api.InstanceStateNetworkAddress, error) {
-	addresses := []api.InstanceStateNetworkAddress{}
+// GetNeighbourIPs returns the IP addresses in the neighbour cache for a particular interface and MAC.
+func GetNeighbourIPs(interfaceName string, hwaddr string) ([]net.IP, error) {
+	addresses := []net.IP{}
 
-	// Look for neighborhood entries for IPv6.
-	out, err := shared.RunCommand("ip", "-6", "neigh", "show", "dev", networkName)
+	// Look for neighbour entries for IPv.
+	out, err := shared.RunCommand("ip", "neigh", "show", "dev", interfaceName)
 	if err == nil {
 		for _, line := range strings.Split(out, "\n") {
 			// Split fields and early validation.
@@ -823,31 +823,21 @@ func GetLeaseAddresses(s *state.State, networkName string, hwaddr string) ([]api
 				continue
 			}
 
-			// Prepare the entry.
-			addr := api.InstanceStateNetworkAddress{}
-			addr.Address = fields[0]
-			addr.Family = "inet6"
-
-			if strings.HasPrefix(fields[0], "fe80::") {
-				addr.Scope = "link"
-			} else {
-				addr.Scope = "global"
+			ip := net.ParseIP(fields[0])
+			if ip != nil {
+				addresses = append(addresses, ip)
 			}
-
-			addresses = append(addresses, addr)
 		}
 	}
 
-	// Look for DHCP leases.
+	return addresses, nil
+}
+
+// GetLeaseAddresses returns the lease addresses for a network and hwaddr.
+func GetLeaseAddresses(networkName string, hwaddr string) ([]net.IP, error) {
 	leaseFile := shared.VarPath("networks", networkName, "dnsmasq.leases")
 	if !shared.PathExists(leaseFile) {
-		return addresses, nil
-	}
-
-	// Pass project.Default here, as currently dnsmasq (bridged) networks do not support projects.
-	dbInfo, err := LoadByName(s, project.Default, networkName)
-	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("Leases file not found for network %q", networkName)
 	}
 
 	content, err := ioutil.ReadFile(leaseFile)
@@ -855,13 +845,15 @@ func GetLeaseAddresses(s *state.State, networkName string, hwaddr string) ([]api
 		return nil, err
 	}
 
+	addresses := []net.IP{}
+
 	for _, lease := range strings.Split(string(content), "\n") {
 		fields := strings.Fields(lease)
 		if len(fields) < 5 {
 			continue
 		}
 
-		// Parse the MAC
+		// Parse the MAC.
 		mac := GetMACSlice(fields[1])
 		macStr := strings.Join(mac, ":")
 
@@ -873,36 +865,11 @@ func GetLeaseAddresses(s *state.State, networkName string, hwaddr string) ([]api
 			continue
 		}
 
-		// Parse the IP
-		addr := api.InstanceStateNetworkAddress{
-			Address: fields[2],
-			Scope:   "global",
+		// Parse the IP.
+		ip := net.ParseIP(fields[2])
+		if ip != nil {
+			addresses = append(addresses, ip)
 		}
-
-		ip := net.ParseIP(addr.Address)
-		if ip == nil {
-			continue
-		}
-
-		if ip.To4() != nil {
-			addr.Family = "inet"
-
-			_, subnet, _ := net.ParseCIDR(dbInfo.Config()["ipv4.address"])
-			if subnet != nil {
-				mask, _ := subnet.Mask.Size()
-				addr.Netmask = fmt.Sprintf("%d", mask)
-			}
-		} else {
-			addr.Family = "inet6"
-
-			_, subnet, _ := net.ParseCIDR(dbInfo.Config()["ipv6.address"])
-			if subnet != nil {
-				mask, _ := subnet.Mask.Size()
-				addr.Netmask = fmt.Sprintf("%d", mask)
-			}
-		}
-
-		addresses = append(addresses, addr)
 	}
 
 	return addresses, nil
