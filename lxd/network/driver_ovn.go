@@ -722,6 +722,10 @@ func (n *ovn) deleteParentPort() error {
 			return errors.Wrapf(err, "Failed loading parent network")
 		}
 
+		// Lock parent network so we don't race each other networks using the OVS uplink bridge.
+		unlock := locking.Lock(n.parentOperationLockName(parentNet))
+		defer unlock()
+
 		switch parentNet.Type() {
 		case "bridge":
 			return n.deleteParentPortBridge(parentNet)
@@ -735,10 +739,6 @@ func (n *ovn) deleteParentPort() error {
 
 // deleteParentPortBridge deletes the dnsmasq static lease and removes parent uplink OVS bridge if not in use.
 func (n *ovn) deleteParentPortBridge(parentNet Network) error {
-	// Lock parent network so we don't race each other networks using the OVS uplink bridge.
-	unlock := locking.Lock(n.parentOperationLockName(parentNet))
-	defer unlock()
-
 	// Check OVS uplink bridge exists, if it does, check how many ports it has.
 	removeVeths := false
 	vars := n.parentPortBridgeVars(parentNet)
