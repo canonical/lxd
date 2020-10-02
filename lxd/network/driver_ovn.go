@@ -371,8 +371,6 @@ func (n *ovn) setupParentPort(routerMAC net.HardwareAddr) (*ovnParentVars, error
 // setupParentPortBridge allocates external IPs on the parent bridge.
 // Returns the derived ovnParentVars settings.
 func (n *ovn) setupParentPortBridge(parentNet Network, routerMAC net.HardwareAddr) (*ovnParentVars, error) {
-	v := &ovnParentVars{}
-
 	bridgeNet, ok := parentNet.(*bridge)
 	if !ok {
 		return nil, fmt.Errorf("Network is not bridge type")
@@ -383,19 +381,32 @@ func (n *ovn) setupParentPortBridge(parentNet Network, routerMAC net.HardwareAdd
 		return nil, errors.Wrapf(err, "Network %q is not suitable for use as OVN parent", bridgeNet.name)
 	}
 
+	v, err := n.allocateParentPortIPs(parentNet, "ipv4.address", "ipv6.address", routerMAC)
+	if err != nil {
+		return nil, errors.Wrapf(err, "Failed allocating parent port IPs on network", parentNet.Name())
+	}
+
+	return v, nil
+}
+
+// allocateParentPortIPs attempts to find a free IP in the parent network's OVN ranges and then stores it in
+// ovnVolatileParentIPv4 and ovnVolatileParentIPv6 config keys on this network. Returns ovnParentVars settings.
+func (n *ovn) allocateParentPortIPs(parentNet Network, v4CIDRKey string, v6CIDRKey string, routerMAC net.HardwareAddr) (*ovnParentVars, error) {
+	v := &ovnParentVars{}
+
 	parentNetConf := parentNet.Config()
 
 	// Parent derived settings.
 	v.extSwitchProviderName = parentNet.Name()
 
 	// Optional parent values.
-	parentIPv4, parentIPv4Net, err := net.ParseCIDR(parentNetConf["ipv4.address"])
+	parentIPv4, parentIPv4Net, err := net.ParseCIDR(parentNetConf[v4CIDRKey])
 	if err == nil {
 		v.dnsIPv4 = parentIPv4
 		v.routerExtGwIPv4 = parentIPv4
 	}
 
-	parentIPv6, parentIPv6Net, err := net.ParseCIDR(parentNetConf["ipv6.address"])
+	parentIPv6, parentIPv6Net, err := net.ParseCIDR(parentNetConf[v6CIDRKey])
 	if err == nil {
 		v.dnsIPv6 = parentIPv6
 		v.routerExtGwIPv6 = parentIPv6
