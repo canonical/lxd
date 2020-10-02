@@ -592,6 +592,11 @@ func (n *ovn) startParentPort() error {
 		return errors.Wrapf(err, "Failed loading parent network")
 	}
 
+	// Lock parent network so that if multiple OVN networks are trying to connect to the same parent we don't
+	// race each other setting up the connection.
+	unlock := locking.Lock(n.parentOperationLockName(parentNet))
+	defer unlock()
+
 	switch parentNet.Type() {
 	case "bridge":
 		return n.startParentPortBridge(parentNet)
@@ -620,11 +625,6 @@ func (n *ovn) parentPortBridgeVars(parentNet Network) *ovnParentPortBridgeVars {
 // connects veth pair to parent bridge and OVS bridge.
 func (n *ovn) startParentPortBridge(parentNet Network) error {
 	vars := n.parentPortBridgeVars(parentNet)
-
-	// Lock parent network so that if multiple OVN networks are trying to connect to the same parent we don't
-	// race each other setting up the connection.
-	unlock := locking.Lock(n.parentOperationLockName(parentNet))
-	defer unlock()
 
 	// Do this after gaining lock so that on failure we revert before release locking.
 	revert := revert.New()
