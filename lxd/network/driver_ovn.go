@@ -1149,8 +1149,6 @@ func (n *ovn) setup(update bool) error {
 		return errors.Wrapf(err, "Failed setting IP allocation settings on internal switch")
 	}
 
-	// Find MAC address for internal router port.
-
 	var dhcpv4UUID, dhcpv6UUID string
 
 	if update {
