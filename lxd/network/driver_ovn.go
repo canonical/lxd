@@ -365,7 +365,7 @@ func (n *ovn) setupParentPort(routerMAC net.HardwareAddr) (*ovnParentVars, error
 		return n.setupParentPortBridge(parentNet, routerMAC)
 	}
 
-	return nil, fmt.Errorf("Network type %q unsupported as OVN parent", parentNet.Type())
+	return nil, fmt.Errorf("Failed setting up parent port, network type %q unsupported as OVN parent", parentNet.Type())
 }
 
 // setupParentPortBridge allocates external IPs on the parent bridge.
@@ -597,7 +597,7 @@ func (n *ovn) startParentPort() error {
 		return n.startParentPortBridge(parentNet)
 	}
 
-	return fmt.Errorf("Network type %q unsupported as OVN parent", parentNet.Type())
+	return fmt.Errorf("Failed starting parent port, network type %q unsupported as OVN parent", parentNet.Type())
 }
 
 // parentOperationLockName returns the lock name to use for operations on the parent network.
@@ -727,7 +727,7 @@ func (n *ovn) deleteParentPort() error {
 			return n.deleteParentPortBridge(parentNet)
 		}
 
-		return fmt.Errorf("Network type %q unsupported as OVN parent", parentNet.Type())
+		return fmt.Errorf("Failed deleting parent port, network type %q unsupported as OVN parent", parentNet.Type())
 	}
 
 	return nil
