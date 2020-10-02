@@ -1066,17 +1066,6 @@ func (n *ovn) setup(update bool) error {
 		}
 	}
 
-	// Create external logical switch.
-	if update {
-		client.LogicalSwitchDelete(n.getExtSwitchName())
-	}
-
-	err = client.LogicalSwitchAdd(n.getExtSwitchName(), false)
-	if err != nil {
-		return errors.Wrapf(err, "Failed adding external switch")
-	}
-	revert.Add(func() { client.LogicalSwitchDelete(n.getExtSwitchName()) })
-
 	// Generate external router port IPs (in CIDR format).
 	extRouterIPs := []*net.IPNet{}
 	if routerExtPortIPv4Net != nil {
@@ -1093,41 +1082,54 @@ func (n *ovn) setup(update bool) error {
 		})
 	}
 
-	// Create external router port.
-	err = client.LogicalRouterPortAdd(n.getRouterName(), n.getRouterExtPortName(), routerMAC, extRouterIPs...)
-	if err != nil {
-		return errors.Wrapf(err, "Failed adding external router port")
-	}
-	revert.Add(func() { client.LogicalRouterPortDelete(n.getRouterExtPortName()) })
+	if len(extRouterIPs) > 0 {
+		// Create external logical switch.
+		if update {
+			client.LogicalSwitchDelete(n.getExtSwitchName())
+		}
 
-	// Associate external router port to chassis group.
-	err = client.LogicalRouterPortLinkChassisGroup(n.getRouterExtPortName(), n.getChassisGroupName())
-	if err != nil {
-		return errors.Wrapf(err, "Failed linking external router port to chassis group")
-	}
+		err = client.LogicalSwitchAdd(n.getExtSwitchName(), false)
+		if err != nil {
+			return errors.Wrapf(err, "Failed adding external switch")
+		}
+		revert.Add(func() { client.LogicalSwitchDelete(n.getExtSwitchName()) })
 
-	// Create external switch port and link to router port.
-	err = client.LogicalSwitchPortAdd(n.getExtSwitchName(), n.getExtSwitchRouterPortName(), false)
-	if err != nil {
-		return errors.Wrapf(err, "Failed adding external switch router port")
-	}
-	revert.Add(func() { client.LogicalSwitchPortDelete(n.getExtSwitchRouterPortName()) })
+		// Create external router port.
+		err = client.LogicalRouterPortAdd(n.getRouterName(), n.getRouterExtPortName(), routerMAC, extRouterIPs...)
+		if err != nil {
+			return errors.Wrapf(err, "Failed adding external router port")
+		}
+		revert.Add(func() { client.LogicalRouterPortDelete(n.getRouterExtPortName()) })
 
-	err = client.LogicalSwitchPortLinkRouter(n.getExtSwitchRouterPortName(), n.getRouterExtPortName())
-	if err != nil {
-		return errors.Wrapf(err, "Failed linking external router port to external switch port")
-	}
+		// Associate external router port to chassis group.
+		err = client.LogicalRouterPortLinkChassisGroup(n.getRouterExtPortName(), n.getChassisGroupName())
+		if err != nil {
+			return errors.Wrapf(err, "Failed linking external router port to chassis group")
+		}
 
-	// Create external switch port and link to external provider network.
-	err = client.LogicalSwitchPortAdd(n.getExtSwitchName(), n.getExtSwitchProviderPortName(), false)
-	if err != nil {
-		return errors.Wrapf(err, "Failed adding external switch provider port")
-	}
-	revert.Add(func() { client.LogicalSwitchPortDelete(n.getExtSwitchProviderPortName()) })
+		// Create external switch port and link to router port.
+		err = client.LogicalSwitchPortAdd(n.getExtSwitchName(), n.getExtSwitchRouterPortName(), false)
+		if err != nil {
+			return errors.Wrapf(err, "Failed adding external switch router port")
+		}
+		revert.Add(func() { client.LogicalSwitchPortDelete(n.getExtSwitchRouterPortName()) })
 
-	err = client.LogicalSwitchPortLinkProviderNetwork(n.getExtSwitchProviderPortName(), parent.extSwitchProviderName)
-	if err != nil {
-		return errors.Wrapf(err, "Failed linking external switch provider port to external provider network")
+		err = client.LogicalSwitchPortLinkRouter(n.getExtSwitchRouterPortName(), n.getRouterExtPortName())
+		if err != nil {
+			return errors.Wrapf(err, "Failed linking external router port to external switch port")
+		}
+
+		// Create external switch port and link to external provider network.
+		err = client.LogicalSwitchPortAdd(n.getExtSwitchName(), n.getExtSwitchProviderPortName(), false)
+		if err != nil {
+			return errors.Wrapf(err, "Failed adding external switch provider port")
+		}
+		revert.Add(func() { client.LogicalSwitchPortDelete(n.getExtSwitchProviderPortName()) })
+
+		err = client.LogicalSwitchPortLinkProviderNetwork(n.getExtSwitchProviderPortName(), parent.extSwitchProviderName)
+		if err != nil {
+			return errors.Wrapf(err, "Failed linking external switch provider port to external provider network")
+		}
 	}
 
 	// Create internal logical switch if not updating.
