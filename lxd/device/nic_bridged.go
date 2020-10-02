@@ -936,7 +936,7 @@ func (d *nicBridged) State() (*api.InstanceStateNetwork, error) {
 
 	// Check if parent is managed network and load config.
 	// Pass project.Default here, as currently dnsmasq (bridged) networks do not support projects.
-	n, err := network.LoadByName(d.state, project.Default, d.config["parent"])
+	n, err := network.LoadByName(d.state, d.config["parent"])
 	if err == nil {
 		// Extract subnet sizes from bridge addresses if available.
 		netConfig := n.Config()
