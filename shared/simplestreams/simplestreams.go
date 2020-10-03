@@ -148,7 +148,7 @@ func (s *SimpleStreams) parseStream() (*Stream, error) {
 		return s.cachedStream, nil
 	}
 
-	body, err := s.cachedDownload("/streams/v1/index.json")
+	body, err := s.cachedDownload("streams/v1/index.json")
 	if err != nil {
 		return nil, err
 	}
