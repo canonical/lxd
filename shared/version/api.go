@@ -227,6 +227,7 @@ var APIExtensions = []string{
 	"projects_networks",
 	"projects_networks_restricted_uplinks",
 	"custom_volume_backup",
+	"storage_rsync_compression",
 }
 
 // APIExtensionsCount returns the number of available API extensions.

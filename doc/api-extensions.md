@@ -1176,3 +1176,7 @@ This includes the following new endpoints (see [RESTful API](rest-api.md) for de
 The following existing endpoint has been modified:
 
  * `POST /1.0/storage-pools/<pool>/<type>/<volume>` accepts the new source type `backup`
+
+## storage\_rsync\_compression
+Adds `rsync.compression` config key to storage pools. This key can be used
+to disable compression in rsync while migrating storage pools.
