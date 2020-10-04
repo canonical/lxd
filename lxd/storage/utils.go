@@ -424,6 +424,7 @@ func validatePoolCommonRules() map[string]func(string) error {
 		"volume.size":             validate.Optional(validate.IsSize),
 		"size":                    validate.Optional(validate.IsSize),
 		"rsync.bwlimit":           validate.IsAny,
+		"rsync.compression":       validate.Optional(validate.IsBool),
 	}
 }
 
