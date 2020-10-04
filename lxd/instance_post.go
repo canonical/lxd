@@ -173,6 +173,16 @@ func containerPost(d *Daemon, r *http.Request) response.Response {
 
 	if req.Migration {
 		if targetNode != "" {
+			// Check if instance has backups.
+			backups, err := d.cluster.GetInstanceBackups(project, name)
+			if err != nil {
+				err = errors.Wrap(err, "Failed to fetch instance's backups")
+				return response.SmartError(err)
+			}
+			if len(backups) > 0 {
+				return response.BadRequest(fmt.Errorf("Instance has backups"))
+			}
+
 			// Check whether the container is running.
 			if !sourceNodeOffline && inst.IsRunning() {
 				return response.BadRequest(fmt.Errorf("Container is running"))
