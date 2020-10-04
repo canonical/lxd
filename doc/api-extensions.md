@@ -1182,3 +1182,7 @@ Adds `Name` field to `InstanceBackupArgs` to allow specifying a different instan
 
 Adds `Name` and `PoolName` fields to `StoragePoolVolumeBackupArgs` to allow specifying a different volume name
 when restoring a custom volume backup.
+
+## storage\_rsync\_compression
+Adds `rsync.compression` config key to storage pools. This key can be used
+to disable compression in rsync while migrating storage pools.
