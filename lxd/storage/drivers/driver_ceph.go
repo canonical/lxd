@@ -340,7 +340,15 @@ func (d *ceph) GetResources() (*api.ResourcesStoragePool, error) {
 
 // MigrationType returns the type of transfer methods to be used when doing migrations between pools in preference order.
 func (d *ceph) MigrationTypes(contentType ContentType, refresh bool) []migration.Type {
-	rsyncFeatures := []string{"delete", "compress", "bidirectional"}
+	var rsyncFeatures []string
+
+	// Do not pass compression argument to rsync if the associated
+	// config key, that is rsync.compression, is set to false.
+	if d.Config()["rsync.compression"] != "" && !shared.IsTrue(d.Config()["rsync.compression"]) {
+		rsyncFeatures = []string{"delete", "bidirectional"}
+	} else {
+		rsyncFeatures = []string{"delete", "compress", "bidirectional"}
+	}
 
 	if refresh {
 		var transportType migration.MigrationFSType

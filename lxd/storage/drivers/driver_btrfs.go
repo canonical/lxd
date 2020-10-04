@@ -372,8 +372,16 @@ func (d *btrfs) GetResources() (*api.ResourcesStoragePool, error) {
 
 // MigrationType returns the type of transfer methods to be used when doing migrations between pools in preference order.
 func (d *btrfs) MigrationTypes(contentType ContentType, refresh bool) []migration.Type {
-	rsyncFeatures := []string{"xattrs", "delete", "compress", "bidirectional"}
+	var rsyncFeatures []string
 	btrfsFeatures := []string{migration.BTRFSFeatureMigrationHeader, migration.BTRFSFeatureSubvolumes}
+
+	// Do not pass compression argument to rsync if the associated
+	// config key, that is rsync.compression, is set to false.
+	if d.Config()["rsync.compression"] != "" && !shared.IsTrue(d.Config()["rsync.compression"]) {
+		rsyncFeatures = []string{"xattrs", "delete", "bidirectional"}
+	} else {
+		rsyncFeatures = []string{"xattrs", "delete", "compress", "bidirectional"}
+	}
 
 	// Only offer rsync for refreshes or if running in an unprivileged container.
 	if refresh || d.state.OS.RunningInUserNS {
