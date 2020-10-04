@@ -1056,3 +1056,7 @@ attached to a SPICE unix socket of the target virtual machine.
 Add `limits.disk` to the available project configuration keys. If set, it limits
 the total amount of disk space that instances volumes, custom volumes and images
 volumes can use in the project.
+
+## storage\_rsync\_compression
+Adds `rsync.compression` config key to storage pools. This key can be used
+to disable compression in rsync while migrating storage pools.
