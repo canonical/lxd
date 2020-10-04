@@ -81,6 +81,9 @@ var storagePoolConfigKeys = map[string]func(value string) error{
 	"zfs.clone_copy": validate.Optional(validate.IsBool),
 	"zfs.pool_name":  validate.IsAny,
 	"rsync.bwlimit":  validate.IsAny,
+
+	// valid drivers: btrfs, ceph, cephfs, zfs
+	"rsync.compression": validate.Optional(validate.IsBool),
 }
 
 func storagePoolValidateConfig(name string, driver string, config map[string]string, oldConfig map[string]string) error {
