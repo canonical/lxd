@@ -648,7 +648,7 @@ func (n *ovn) startParentPortBridge(parentNet Network) error {
 		fmt.Sprintf("net.ipv6.conf.%s.forwarding=0", vars.ovsEnd),
 	)
 	if err != nil {
-		return errors.Wrapf(err, "Failed to set configure uplink veth interfaces %q and %q", vars.parentEnd, vars.ovsEnd)
+		return errors.Wrapf(err, "Failed to configure uplink veth interfaces %q and %q", vars.parentEnd, vars.ovsEnd)
 	}
 
 	// Connect parent end of veth pair to parent bridge and bring up.
