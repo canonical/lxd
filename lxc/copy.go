@@ -403,7 +403,7 @@ func (c *cmdCopy) copyInstance(conf *config.Config, sourceResource string, destR
 	}
 
 	// If choosing a random name, show it to the user
-	if destResource == "" {
+	if destResource == "" && c.flagTargetProject == "" {
 		// Get the successful operation data
 		opInfo, err := op.GetTarget()
 		if err != nil {

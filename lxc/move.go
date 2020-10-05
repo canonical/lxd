@@ -64,7 +64,7 @@ func (c *cmdMove) Run(cmd *cobra.Command, args []string) error {
 	conf := c.global.conf
 
 	// Sanity checks
-	if c.flagTarget == "" {
+	if c.flagTarget == "" && c.flagTargetProject == "" {
 		exit, err := c.global.CheckArgs(cmd, args, 2, 2)
 		if exit {
 			return err
