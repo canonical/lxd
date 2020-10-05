@@ -47,6 +47,7 @@ profile "{{ .name }}" flags=(attach_disconnected,mediate_deleted) {
   network unix stream,
 
   # Forkproxy operation
+  {{ .logPath }}/** rw,
   @{PROC}/** rw,
   / rw,
   ptrace (read),
@@ -121,6 +122,7 @@ func forkproxyProfile(state *state.State, inst instance, dev device) (string, er
 		"rootPath":    rootPath,
 		"snap":        shared.InSnap(),
 		"exePath":     util.GetExecPath(),
+		"logPath":     inst.LogPath(),
 		"libraryPath": strings.Split(os.Getenv("LD_LIBRARY_PATH"), ":"),
 		"sockets":     sockets,
 	})
