@@ -29,7 +29,6 @@ import (
 #include <errno.h>
 #include <fcntl.h>
 #include <limits.h>
-#include <linux/posix_acl_xattr.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -37,12 +36,13 @@ import (
 #include <unistd.h>
 #include <sys/stat.h>
 #include <sys/types.h>
-#include <sys/acl.h>
+
+#include "../../lxd/include/lxd_posix_acl_xattr.h"
+#include "../../lxd/include/memory_utils.h"
 
 // Needs to be included at the end
+#include <sys/acl.h>
 #include <sys/xattr.h>
-
-#include "../../lxd/include/memory_utils.h"
 
 #ifndef VFS_CAP_REVISION_1
 #define VFS_CAP_REVISION_1 0x01000000
