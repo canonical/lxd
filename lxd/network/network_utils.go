@@ -24,7 +24,6 @@ import (
 	"github.com/lxc/lxd/lxd/dnsmasq/dhcpalloc"
 	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/instance/instancetype"
-	"github.com/lxc/lxd/lxd/network/openvswitch"
 	"github.com/lxc/lxd/lxd/project"
 	"github.com/lxc/lxd/lxd/state"
 	"github.com/lxc/lxd/shared"
@@ -194,47 +193,6 @@ func isInUseByDevices(s *state.State, devices deviceConfig.Devices, networkName 
 	}
 
 	return false, nil
-}
-
-// IsNativeBridge returns whether the bridge name specified is a Linux native bridge.
-func IsNativeBridge(bridgeName string) bool {
-	return shared.PathExists(fmt.Sprintf("/sys/class/net/%s/bridge", bridgeName))
-}
-
-// AttachInterface attaches an interface to a bridge.
-func AttachInterface(bridgeName string, devName string) error {
-	if IsNativeBridge(bridgeName) {
-		_, err := shared.RunCommand("ip", "link", "set", "dev", devName, "master", bridgeName)
-		if err != nil {
-			return err
-		}
-	} else {
-		ovs := openvswitch.NewOVS()
-		err := ovs.BridgePortAdd(bridgeName, devName, true)
-		if err != nil {
-			return err
-		}
-	}
-
-	return nil
-}
-
-// DetachInterface detaches an interface from a bridge.
-func DetachInterface(bridgeName string, devName string) error {
-	if IsNativeBridge(bridgeName) {
-		_, err := shared.RunCommand("ip", "link", "set", "dev", devName, "nomaster")
-		if err != nil {
-			return err
-		}
-	} else {
-		ovs := openvswitch.NewOVS()
-		err := ovs.BridgePortDelete(bridgeName, devName)
-		if err != nil {
-			return err
-		}
-	}
-
-	return nil
 }
 
 // GetDevMTU retrieves the current MTU setting for a named network device.
