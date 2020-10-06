@@ -171,6 +171,19 @@ func IsNetworkAddress(value string) error {
 	return nil
 }
 
+// IsNetworkAddressList validates a comma delimited list of IPv4 or IPv6 addresses.
+func IsNetworkAddressList(value string) error {
+	for _, v := range strings.Split(value, ",") {
+		v = strings.TrimSpace(v)
+		err := IsNetworkAddress(v)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
 // IsNetworkV4 validates an IPv4 CIDR string. If string is empty, returns valid.
 func IsNetworkV4(value string) error {
 	ip, subnet, err := net.ParseCIDR(value)
