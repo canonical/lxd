@@ -226,6 +226,7 @@ func IsNetworkAddressV4List(value string) error {
 			return err
 		}
 	}
+
 	return nil
 }
 
