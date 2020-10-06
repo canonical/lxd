@@ -26,6 +26,7 @@ import (
 	"github.com/lxc/lxd/lxd/instance/instancetype"
 	"github.com/lxc/lxd/lxd/project"
 	"github.com/lxc/lxd/lxd/state"
+	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/logger"
@@ -1013,4 +1014,34 @@ func parseIPRanges(ipRangesList string, allowedNets ...*net.IPNet) ([]*shared.IP
 	}
 
 	return netIPRanges, nil
+}
+
+// VLANInterfaceCreate creates a VLAN interface on parent interface (if needed).
+// Returns boolean indicating if VLAN interface was created.
+func VLANInterfaceCreate(parent string, vlanDevice string, vlanID string) (bool, error) {
+	if vlanID == "" {
+		return false, nil
+	}
+
+	if shared.PathExists(fmt.Sprintf("/sys/class/net/%s", vlanDevice)) {
+		return false, nil
+	}
+
+	// Bring the parent interface up so we can add a vlan to it.
+	_, err := shared.RunCommand("ip", "link", "set", "dev", parent, "up")
+	if err != nil {
+		return false, errors.Wrapf(err, "Failed to bring up parent %q", parent)
+	}
+
+	// Add VLAN interface on top of parent.
+	_, err = shared.RunCommand("ip", "link", "add", "link", parent, "name", vlanDevice, "up", "type", "vlan", "id", vlanID)
+	if err != nil {
+		return false, errors.Wrapf(err, "Failed to create VLAN interface %q on %q", vlanDevice, parent)
+	}
+
+	// Attempt to disable IPv6 router advertisement acceptance.
+	util.SysctlSet(fmt.Sprintf("net/ipv6/conf/%s/accept_ra", vlanDevice), "0")
+
+	// We created a new vlan interface, return true.
+	return true, nil
 }
