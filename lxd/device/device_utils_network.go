@@ -18,7 +18,6 @@ import (
 	"github.com/lxc/lxd/lxd/project"
 	"github.com/lxc/lxd/lxd/revert"
 	"github.com/lxc/lxd/lxd/state"
-	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/logger"
 	"github.com/lxc/lxd/shared/units"
@@ -111,23 +110,12 @@ func networkRemoveInterfaceIfNeeded(state *state.State, nic string, current inst
 // networkCreateVlanDeviceIfNeeded creates a VLAN device if doesn't already exist.
 func networkCreateVlanDeviceIfNeeded(state *state.State, parent string, vlanDevice string, vlanID string) (string, error) {
 	if vlanID != "" {
-		if !shared.PathExists(fmt.Sprintf("/sys/class/net/%s", vlanDevice)) {
-			// Bring the parent interface up so we can add a vlan to it.
-			_, err := shared.RunCommand("ip", "link", "set", "dev", parent, "up")
-			if err != nil {
-				return "", fmt.Errorf("Failed to bring up parent %s: %v", parent, err)
-			}
+		created, err := network.VLANInterfaceCreate(parent, vlanDevice, vlanID)
+		if err != nil {
+			return "", err
+		}
 
-			// Add VLAN interface on top of parent.
-			_, err = shared.RunCommand("ip", "link", "add", "link", parent, "name", vlanDevice, "up", "type", "vlan", "id", vlanID)
-			if err != nil {
-				return "", err
-			}
-
-			// Attempt to disable IPv6 router advertisement acceptance.
-			util.SysctlSet(fmt.Sprintf("net/ipv6/conf/%s/accept_ra", vlanDevice), "0")
-
-			// We created a new vlan interface, return true.
+		if created {
 			return "created", nil
 		}
 
