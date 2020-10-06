@@ -44,8 +44,8 @@ type ovnParentVars struct {
 	extSwitchProviderName string
 
 	// DNS.
-	dnsIPv6 net.IP
-	dnsIPv4 net.IP
+	dnsIPv6 []net.IP
+	dnsIPv4 []net.IP
 }
 
 // ovnParentPortBridgeVars parent bridge port variables used for start/stop.
@@ -381,7 +381,7 @@ func (n *ovn) setupParentPortBridge(parentNet Network, routerMAC net.HardwareAdd
 		return nil, errors.Wrapf(err, "Network %q is not suitable for use as OVN parent", bridgeNet.name)
 	}
 
-	v, err := n.allocateParentPortIPs(parentNet, "ipv4.address", "ipv6.address", routerMAC)
+	v, err := n.allocateParentPortIPs(parentNet, routerMAC)
 	if err != nil {
 		return nil, errors.Wrapf(err, "Failed allocating parent port IPs on network %q", parentNet.Name())
 	}
@@ -391,7 +391,7 @@ func (n *ovn) setupParentPortBridge(parentNet Network, routerMAC net.HardwareAdd
 
 // allocateParentPortIPs attempts to find a free IP in the parent network's OVN ranges and then stores it in
 // ovnVolatileParentIPv4 and ovnVolatileParentIPv6 config keys on this network. Returns ovnParentVars settings.
-func (n *ovn) allocateParentPortIPs(parentNet Network, v4CIDRKey string, v6CIDRKey string, routerMAC net.HardwareAddr) (*ovnParentVars, error) {
+func (n *ovn) allocateParentPortIPs(parentNet Network, routerMAC net.HardwareAddr) (*ovnParentVars, error) {
 	v := &ovnParentVars{}
 
 	parentNetConf := parentNet.Config()
@@ -399,17 +399,49 @@ func (n *ovn) allocateParentPortIPs(parentNet Network, v4CIDRKey string, v6CIDRK
 	// Parent derived settings.
 	v.extSwitchProviderName = parentNet.Name()
 
+	// Detect parent gateway setting.
+	parentIPv4CIDR := parentNetConf["ipv4.address"]
+	if parentIPv4CIDR == "" {
+		parentIPv4CIDR = parentNetConf["ipv4.gateway"]
+	}
+
+	parentIPv6CIDR := parentNetConf["ipv6.address"]
+	if parentIPv6CIDR == "" {
+		parentIPv6CIDR = parentNetConf["ipv6.gateway"]
+	}
+
 	// Optional parent values.
-	parentIPv4, parentIPv4Net, err := net.ParseCIDR(parentNetConf[v4CIDRKey])
+	parentIPv4, parentIPv4Net, err := net.ParseCIDR(parentIPv4CIDR)
 	if err == nil {
-		v.dnsIPv4 = parentIPv4
+		v.dnsIPv4 = []net.IP{parentIPv4}
 		v.routerExtGwIPv4 = parentIPv4
 	}
 
-	parentIPv6, parentIPv6Net, err := net.ParseCIDR(parentNetConf[v6CIDRKey])
+	parentIPv6, parentIPv6Net, err := net.ParseCIDR(parentIPv6CIDR)
 	if err == nil {
-		v.dnsIPv6 = parentIPv6
+		v.dnsIPv6 = []net.IP{parentIPv6}
 		v.routerExtGwIPv6 = parentIPv6
+	}
+
+	// Detect optional DNS server list.
+	if parentNetConf["dns.nameservers"] != "" {
+		// Reset nameservers.
+		v.dnsIPv4 = nil
+		v.dnsIPv6 = nil
+
+		nsList := strings.Split(parentNetConf["dns.nameservers"], ",")
+		for _, ns := range nsList {
+			nsIP := net.ParseIP(strings.TrimSpace(ns))
+			if nsIP == nil {
+				return nil, fmt.Errorf("Invalid parent nameserver")
+			}
+
+			if nsIP.To4() == nil {
+				v.dnsIPv6 = append(v.dnsIPv6, nsIP)
+			} else {
+				v.dnsIPv4 = append(v.dnsIPv4, nsIP)
+			}
+		}
 	}
 
 	// Parse existing allocated IPs for this network on the parent network (if not set yet, will be nil).
@@ -1225,11 +1257,16 @@ func (n *ovn) setup(update bool) error {
 			adressMode = openvswitch.OVNIPv6AddressModeDHCPStateful
 		}
 
+		var recursiveDNSServer net.IP
+		if len(parent.dnsIPv6) > 0 {
+			recursiveDNSServer = parent.dnsIPv6[0] // OVN only supports 1 RA DNS server.
+		}
+
 		err = client.LogicalRouterPortSetIPv6Advertisements(n.getRouterIntPortName(), &openvswitch.OVNIPv6RAOpts{
 			AddressMode:        adressMode,
 			SendPeriodic:       true,
 			DNSSearchList:      n.getDNSSearchList(),
-			RecursiveDNSServer: parent.dnsIPv6,
+			RecursiveDNSServer: recursiveDNSServer,
 			MTU:                bridgeMTU,
 
 			// Keep these low until we support DNS search domains via DHCPv4, as otherwise RA DNSSL

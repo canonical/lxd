@@ -66,7 +66,7 @@ type OVNDHCPv4Opts struct {
 	ServerID           net.IP
 	ServerMAC          net.HardwareAddr
 	Router             net.IP
-	RecursiveDNSServer net.IP
+	RecursiveDNSServer []net.IP
 	DomainName         string
 	LeaseTime          time.Duration
 	MTU                uint32
@@ -75,7 +75,7 @@ type OVNDHCPv4Opts struct {
 // OVNDHCPv6Opts IPv6 DHCP option set that can be created (and then applied to a switch port by resulting ID).
 type OVNDHCPv6Opts struct {
 	ServerID           net.HardwareAddr
-	RecursiveDNSServer net.IP
+	RecursiveDNSServer []net.IP
 	DNSSearchList      []string
 }
 
@@ -358,7 +358,16 @@ func (o *OVN) LogicalSwitchDHCPv4OptionsSet(switchName OVNSwitch, uuid string, s
 	}
 
 	if opts.RecursiveDNSServer != nil {
-		args = append(args, fmt.Sprintf("dns_server=%s", opts.RecursiveDNSServer.String()))
+		nsIPs := make([]string, 0, len(opts.RecursiveDNSServer))
+		for _, nsIP := range opts.RecursiveDNSServer {
+			if nsIP.To4() == nil {
+				continue // Only include IPv4 addresses.
+			}
+
+			nsIPs = append(nsIPs, nsIP.String())
+		}
+
+		args = append(args, fmt.Sprintf("dns_server={%s}", strings.Join(nsIPs, ",")))
 	}
 
 	if opts.DomainName != "" {
@@ -416,7 +425,16 @@ func (o *OVN) LogicalSwitchDHCPv6OptionsSet(switchName OVNSwitch, uuid string, s
 	}
 
 	if opts.RecursiveDNSServer != nil {
-		args = append(args, fmt.Sprintf("dns_server=%s", opts.RecursiveDNSServer.String()))
+		nsIPs := make([]string, 0, len(opts.RecursiveDNSServer))
+		for _, nsIP := range opts.RecursiveDNSServer {
+			if nsIP.To4() != nil {
+				continue // Only include IPv6 addresses.
+			}
+
+			nsIPs = append(nsIPs, nsIP.String())
+		}
+
+		args = append(args, fmt.Sprintf("dns_server={%s}", strings.Join(nsIPs, ",")))
 	}
 
 	_, err = o.nbctl(args...)
