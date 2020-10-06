@@ -2,15 +2,12 @@ package device
 
 import (
 	"bufio"
-	"bytes"
 	"encoding/json"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os/exec"
 	"regexp"
 	"strconv"
-	"strings"
 
 	"github.com/pkg/errors"
 
@@ -135,12 +132,7 @@ func (d *nicSRIOV) Start() (*deviceConfig.RunConfig, error) {
 		}
 	}
 
-	reservedDevices, err := instanceGetReservedDevices(d.state, d.config)
-	if err != nil {
-		return nil, err
-	}
-
-	vfDev, vfID, err := d.findFreeVirtualFunction(reservedDevices)
+	vfDev, vfID, err := network.SRIOVFindFreeVirtualFunction(d.state, d.config["parent"])
 	if err != nil {
 		return nil, err
 	}
@@ -235,159 +227,6 @@ func (d *nicSRIOV) postStop() error {
 	return nil
 }
 
-// findFreeVirtualFunction looks on the specified parent device for an unused virtual function.
-// Returns the name of the interface and virtual function index ID if found, error if not.
-func (d *nicSRIOV) findFreeVirtualFunction(reservedDevices map[string]struct{}) (string, int, error) {
-	sriovNumVFs := fmt.Sprintf("/sys/class/net/%s/device/sriov_numvfs", d.config["parent"])
-	sriovTotalVFs := fmt.Sprintf("/sys/class/net/%s/device/sriov_totalvfs", d.config["parent"])
-
-	// Verify that this is indeed a SR-IOV enabled device.
-	if !shared.PathExists(sriovTotalVFs) {
-		return "", 0, fmt.Errorf("Parent device '%s' doesn't support SR-IOV", d.config["parent"])
-	}
-
-	// Get parent dev_port and dev_id values.
-	pfDevPort, err := ioutil.ReadFile(fmt.Sprintf("/sys/class/net/%s/dev_port", d.config["parent"]))
-	if err != nil {
-		return "", 0, err
-	}
-
-	pfDevID, err := ioutil.ReadFile(fmt.Sprintf("/sys/class/net/%s/dev_id", d.config["parent"]))
-	if err != nil {
-		return "", 0, err
-	}
-
-	// Get number of currently enabled VFs.
-	sriovNumVfsBuf, err := ioutil.ReadFile(sriovNumVFs)
-	if err != nil {
-		return "", 0, err
-	}
-	sriovNumVfsStr := strings.TrimSpace(string(sriovNumVfsBuf))
-	sriovNum, err := strconv.Atoi(sriovNumVfsStr)
-	if err != nil {
-		return "", 0, err
-	}
-
-	// Get number of possible VFs.
-	sriovTotalVfsBuf, err := ioutil.ReadFile(sriovTotalVFs)
-	if err != nil {
-		return "", 0, err
-	}
-	sriovTotalVfsStr := strings.TrimSpace(string(sriovTotalVfsBuf))
-	sriovTotal, err := strconv.Atoi(sriovTotalVfsStr)
-	if err != nil {
-		return "", 0, err
-	}
-
-	// Ensure parent is up (needed for Intel at least).
-	_, err = shared.RunCommand("ip", "link", "set", "dev", d.config["parent"], "up")
-	if err != nil {
-		return "", 0, err
-	}
-
-	// Check if any VFs are already enabled.
-	nicName := ""
-	vfID := 0
-	for i := 0; i < sriovNum; i++ {
-		if !shared.PathExists(fmt.Sprintf("/sys/class/net/%s/device/virtfn%d/net", d.config["parent"], i)) {
-			continue
-		}
-
-		// Check if VF is already in use.
-		empty, err := shared.PathIsEmpty(fmt.Sprintf("/sys/class/net/%s/device/virtfn%d/net", d.config["parent"], i))
-		if err != nil {
-			return "", 0, err
-		}
-		if empty {
-			continue
-		}
-
-		vfListPath := fmt.Sprintf("/sys/class/net/%s/device/virtfn%d/net", d.config["parent"], i)
-		nicName, err = d.getFreeVFInterface(reservedDevices, vfListPath, pfDevID, pfDevPort)
-		if err != nil {
-			return "", 0, err
-		}
-
-		// Found a free VF.
-		if nicName != "" {
-			vfID = i
-			break
-		}
-	}
-
-	if nicName == "" {
-		if sriovNum == sriovTotal {
-			return "", 0, fmt.Errorf("All virtual functions of sriov device '%s' seem to be in use", d.config["parent"])
-		}
-
-		// Bump the number of VFs to the maximum.
-		err := ioutil.WriteFile(sriovNumVFs, []byte(sriovTotalVfsStr), 0644)
-		if err != nil {
-			return "", 0, err
-		}
-
-		// Use next free VF index.
-		for i := sriovNum + 1; i < sriovTotal; i++ {
-			vfListPath := fmt.Sprintf("/sys/class/net/%s/device/virtfn%d/net", d.config["parent"], i)
-			nicName, err = d.getFreeVFInterface(reservedDevices, vfListPath, pfDevID, pfDevPort)
-			if err != nil {
-				return "", 0, err
-			}
-
-			// Found a free VF.
-			if nicName != "" {
-				vfID = i
-				break
-			}
-		}
-	}
-
-	if nicName == "" {
-		return "", 0, fmt.Errorf("All virtual functions on parent device are already in use")
-	}
-
-	return nicName, vfID, nil
-}
-
-// getFreeVFInterface checks the contents of the VF directory to find a free VF interface name that
-// belongs to the same device and port as the parent. Returns VF interface name or empty string if
-// no free interface found.
-func (d *nicSRIOV) getFreeVFInterface(reservedDevices map[string]struct{}, vfListPath string, pfDevID []byte, pfDevPort []byte) (string, error) {
-	ents, err := ioutil.ReadDir(vfListPath)
-	if err != nil {
-		return "", err
-	}
-
-	for _, ent := range ents {
-		// We can't use this VF interface as it is reserved by another device.
-		_, exists := reservedDevices[ent.Name()]
-		if exists {
-			continue
-		}
-
-		// Get VF dev_port and dev_id values.
-		vfDevPort, err := ioutil.ReadFile(fmt.Sprintf("%s/%s/dev_port", vfListPath, ent.Name()))
-		if err != nil {
-			return "", err
-		}
-
-		vfDevID, err := ioutil.ReadFile(fmt.Sprintf("%s/%s/dev_id", vfListPath, ent.Name()))
-		if err != nil {
-			return "", err
-		}
-
-		// Skip VFs if they do not relate to the same device and port as the parent PF.
-		// Some card vendors change the device ID for each port.
-		if bytes.Compare(pfDevPort, vfDevPort) != 0 || bytes.Compare(pfDevID, vfDevID) != 0 {
-			continue
-		}
-
-		return ent.Name(), nil
-	}
-
-	return "", nil
-}
-
 // setupSriovParent configures a SR-IOV virtual function (VF) device on parent and stores original properties of
 // the physical device into voltatile for restoration on detach. Returns VF PCI device info.
 func (d *nicSRIOV) setupSriovParent(vfDevice string, vfID int, volatile map[string]string) (pci.Device, error) {
@@ -419,7 +258,7 @@ func (d *nicSRIOV) setupSriovParent(vfDevice string, vfID int, volatile map[stri
 	}
 
 	// Get VF device's PCI Slot Name so we can unbind and rebind it from the host.
-	vfPCIDev, err = d.networkGetVFDevicePCISlot(volatile["last_state.vf.id"])
+	vfPCIDev, err = network.SRIOVGetVFDevicePCISlot(d.config["parent"], volatile["last_state.vf.id"])
 	if err != nil {
 		return vfPCIDev, err
 	}
@@ -686,7 +525,7 @@ func (d *nicSRIOV) restoreSriovParent(volatile map[string]string) error {
 	defer revert.Fail()
 
 	// Get VF device's PCI info so we can unbind and rebind it from the host.
-	vfPCIDev, err := d.networkGetVFDevicePCISlot(volatile["last_state.vf.id"])
+	vfPCIDev, err := network.SRIOVGetVFDevicePCISlot(d.config["parent"], volatile["last_state.vf.id"])
 	if err != nil {
 		return err
 	}
