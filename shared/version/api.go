@@ -229,6 +229,7 @@ var APIExtensions = []string{
 	"custom_volume_backup",
 	"backup_override_name",
 	"storage_rsync_compression",
+	"network_type_physical",
 }
 
 // APIExtensionsCount returns the number of available API extensions.

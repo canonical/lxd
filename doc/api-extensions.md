@@ -1186,3 +1186,8 @@ when restoring a custom volume backup.
 ## storage\_rsync\_compression
 Adds `rsync.compression` config key to storage pools. This key can be used
 to disable compression in rsync while migrating storage pools.
+
+## network\_type\_physical
+Adds support for additional network type `physical` that can be used as an uplink for `ovn` networks.
+
+The interface specified by `parent` on the `physical` network will be connected to the `ovn` network's gateway.
