@@ -383,7 +383,7 @@ func (n *ovn) setupParentPortBridge(parentNet Network, routerMAC net.HardwareAdd
 
 	v, err := n.allocateParentPortIPs(parentNet, "ipv4.address", "ipv6.address", routerMAC)
 	if err != nil {
-		return nil, errors.Wrapf(err, "Failed allocating parent port IPs on network", parentNet.Name())
+		return nil, errors.Wrapf(err, "Failed allocating parent port IPs on network %q", parentNet.Name())
 	}
 
 	return v, nil
