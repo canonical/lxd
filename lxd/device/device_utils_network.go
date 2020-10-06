@@ -6,7 +6,6 @@ import (
 	"strconv"
 	"strings"
 	"sync"
-	"time"
 
 	"github.com/pkg/errors"
 
@@ -531,17 +530,4 @@ func networkParsePortRange(r string) (int64, int64, error) {
 	}
 
 	return base, size, nil
-}
-
-// networkInterfaceBindWait waits for network interface to appear after being binded to a driver.
-func networkInterfaceBindWait(ifName string) error {
-	for i := 0; i < 10; i++ {
-		if shared.PathExists(fmt.Sprintf("/sys/class/net/%s", ifName)) {
-			return nil
-		}
-
-		time.Sleep(50 * time.Millisecond)
-	}
-
-	return fmt.Errorf("Bind of interface %q took too long", ifName)
 }
