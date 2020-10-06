@@ -49,12 +49,12 @@ func NewDottedVersion(versionString string) (*DottedVersion, error) {
 
 // Parse parses a string starting with a dotted version and returns it.
 func Parse(s string) (*DottedVersion, error) {
-	r, _ := regexp.Compile(`^([0-9]+.[0-9]+(.[0-9]+))?.*`)
-	matches := r.FindAllStringSubmatch(s, -1)
-	if len(matches[0]) < 2 {
+	r, _ := regexp.Compile(`^([0-9]+.[0-9]+(.[0-9]+)?).*`)
+	matches := r.FindStringSubmatch(s)
+	if len(matches) == 0 {
 		return nil, fmt.Errorf("Can't parse a version")
 	}
-	return NewDottedVersion(matches[0][1])
+	return NewDottedVersion(matches[1])
 }
 
 // String returns version as a string
