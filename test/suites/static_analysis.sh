@@ -151,7 +151,7 @@ test_static_analysis() {
 
     ## misspell
     if which misspell >/dev/null 2>&1; then
-      OUT=$(misspell ./ | grep -v po/ | grep -v lxd/include/ | grep -Ev "test/includes/lxd.sh.*monitord" | grep -Ev "test/suites/static_analysis.sh.*monitord" | grep -v shared/usbid/load_data.go || true)
+      OUT=$(misspell ./ | grep -v po/ | grep -v lxd/include/ | grep -v .git/ | grep -Ev "test/includes/lxd.sh.*monitord" | grep -Ev "test/suites/static_analysis.sh.*monitord" | grep -v shared/usbid/load_data.go || true)
       if [ -n "${OUT}" ]; then
         echo "Found some typos"
         echo "${OUT}"
