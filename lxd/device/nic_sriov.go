@@ -702,7 +702,7 @@ func (d *nicSRIOV) restoreSriovParent(volatile map[string]string) error {
 	// and it will re-appear on the host. Unfortunately the time between sending the bind event
 	// to the nic and it actually appearing on the host is non-zero, so we need to watch and wait,
 	// otherwise next step of restoring MAC and MTU settings in restorePhysicalNic will fail.
-	err = networkInterfaceBindWait(volatile["host_name"])
+	err = network.InterfaceBindWait(volatile["host_name"])
 	if err != nil {
 		return err
 	}
