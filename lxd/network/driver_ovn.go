@@ -1257,11 +1257,16 @@ func (n *ovn) setup(update bool) error {
 			adressMode = openvswitch.OVNIPv6AddressModeDHCPStateful
 		}
 
+		var recursiveDNSServer net.IP
+		if len(parent.dnsIPv6) > 0 {
+			recursiveDNSServer = parent.dnsIPv6[0] // OVN only supports 1 RA DNS server.
+		}
+
 		err = client.LogicalRouterPortSetIPv6Advertisements(n.getRouterIntPortName(), &openvswitch.OVNIPv6RAOpts{
 			AddressMode:        adressMode,
 			SendPeriodic:       true,
 			DNSSearchList:      n.getDNSSearchList(),
-			RecursiveDNSServer: parent.dnsIPv6,
+			RecursiveDNSServer: recursiveDNSServer,
 			MTU:                bridgeMTU,
 
 			// Keep these low until we support DNS search domains via DHCPv4, as otherwise RA DNSSL
