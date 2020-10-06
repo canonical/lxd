@@ -365,14 +365,12 @@ func (n *ovn) setupParentPort(routerMAC net.HardwareAddr) (*ovnParentVars, error
 		return n.setupParentPortBridge(parentNet, routerMAC)
 	}
 
-	return nil, fmt.Errorf("Network type %q unsupported as OVN parent", parentNet.Type())
+	return nil, fmt.Errorf("Failed setting up parent port, network type %q unsupported as OVN parent", parentNet.Type())
 }
 
 // setupParentPortBridge allocates external IPs on the parent bridge.
 // Returns the derived ovnParentVars settings.
 func (n *ovn) setupParentPortBridge(parentNet Network, routerMAC net.HardwareAddr) (*ovnParentVars, error) {
-	v := &ovnParentVars{}
-
 	bridgeNet, ok := parentNet.(*bridge)
 	if !ok {
 		return nil, fmt.Errorf("Network is not bridge type")
@@ -383,19 +381,32 @@ func (n *ovn) setupParentPortBridge(parentNet Network, routerMAC net.HardwareAdd
 		return nil, errors.Wrapf(err, "Network %q is not suitable for use as OVN parent", bridgeNet.name)
 	}
 
+	v, err := n.allocateParentPortIPs(parentNet, "ipv4.address", "ipv6.address", routerMAC)
+	if err != nil {
+		return nil, errors.Wrapf(err, "Failed allocating parent port IPs on network %q", parentNet.Name())
+	}
+
+	return v, nil
+}
+
+// allocateParentPortIPs attempts to find a free IP in the parent network's OVN ranges and then stores it in
+// ovnVolatileParentIPv4 and ovnVolatileParentIPv6 config keys on this network. Returns ovnParentVars settings.
+func (n *ovn) allocateParentPortIPs(parentNet Network, v4CIDRKey string, v6CIDRKey string, routerMAC net.HardwareAddr) (*ovnParentVars, error) {
+	v := &ovnParentVars{}
+
 	parentNetConf := parentNet.Config()
 
 	// Parent derived settings.
 	v.extSwitchProviderName = parentNet.Name()
 
 	// Optional parent values.
-	parentIPv4, parentIPv4Net, err := net.ParseCIDR(parentNetConf["ipv4.address"])
+	parentIPv4, parentIPv4Net, err := net.ParseCIDR(parentNetConf[v4CIDRKey])
 	if err == nil {
 		v.dnsIPv4 = parentIPv4
 		v.routerExtGwIPv4 = parentIPv4
 	}
 
-	parentIPv6, parentIPv6Net, err := net.ParseCIDR(parentNetConf["ipv6.address"])
+	parentIPv6, parentIPv6Net, err := net.ParseCIDR(parentNetConf[v6CIDRKey])
 	if err == nil {
 		v.dnsIPv6 = parentIPv6
 		v.routerExtGwIPv6 = parentIPv6
@@ -581,12 +592,17 @@ func (n *ovn) startParentPort() error {
 		return errors.Wrapf(err, "Failed loading parent network")
 	}
 
+	// Lock parent network so that if multiple OVN networks are trying to connect to the same parent we don't
+	// race each other setting up the connection.
+	unlock := locking.Lock(n.parentOperationLockName(parentNet))
+	defer unlock()
+
 	switch parentNet.Type() {
 	case "bridge":
 		return n.startParentPortBridge(parentNet)
 	}
 
-	return fmt.Errorf("Network type %q unsupported as OVN parent", parentNet.Type())
+	return fmt.Errorf("Failed starting parent port, network type %q unsupported as OVN parent", parentNet.Type())
 }
 
 // parentOperationLockName returns the lock name to use for operations on the parent network.
@@ -610,11 +626,6 @@ func (n *ovn) parentPortBridgeVars(parentNet Network) *ovnParentPortBridgeVars {
 func (n *ovn) startParentPortBridge(parentNet Network) error {
 	vars := n.parentPortBridgeVars(parentNet)
 
-	// Lock parent network so that if multiple OVN networks are trying to connect to the same parent we don't
-	// race each other setting up the connection.
-	unlock := locking.Lock(n.parentOperationLockName(parentNet))
-	defer unlock()
-
 	// Do this after gaining lock so that on failure we revert before release locking.
 	revert := revert.New()
 	defer revert.Fail()
@@ -637,7 +648,7 @@ func (n *ovn) startParentPortBridge(parentNet Network) error {
 		fmt.Sprintf("net.ipv6.conf.%s.forwarding=0", vars.ovsEnd),
 	)
 	if err != nil {
-		return errors.Wrapf(err, "Failed to set configure uplink veth interfaces %q and %q", vars.parentEnd, vars.ovsEnd)
+		return errors.Wrapf(err, "Failed to configure uplink veth interfaces %q and %q", vars.parentEnd, vars.ovsEnd)
 	}
 
 	// Connect parent end of veth pair to parent bridge and bring up.
@@ -711,23 +722,23 @@ func (n *ovn) deleteParentPort() error {
 			return errors.Wrapf(err, "Failed loading parent network")
 		}
 
+		// Lock parent network so we don't race each other networks using the OVS uplink bridge.
+		unlock := locking.Lock(n.parentOperationLockName(parentNet))
+		defer unlock()
+
 		switch parentNet.Type() {
 		case "bridge":
 			return n.deleteParentPortBridge(parentNet)
 		}
 
-		return fmt.Errorf("Network type %q unsupported as OVN parent", parentNet.Type())
+		return fmt.Errorf("Failed deleting parent port, network type %q unsupported as OVN parent", parentNet.Type())
 	}
 
 	return nil
 }
 
-// deleteParentPortBridge deletes the dnsmasq static lease and removes parent uplink OVS bridge if not in use.
+// deleteParentPortBridge deletes parent uplink OVS bridge, OVN bridge mappings and veth interfaces if not in use.
 func (n *ovn) deleteParentPortBridge(parentNet Network) error {
-	// Lock parent network so we don't race each other networks using the OVS uplink bridge.
-	unlock := locking.Lock(n.parentOperationLockName(parentNet))
-	defer unlock()
-
 	// Check OVS uplink bridge exists, if it does, check how many ports it has.
 	removeVeths := false
 	vars := n.parentPortBridgeVars(parentNet)
@@ -1041,30 +1052,19 @@ func (n *ovn) setup(update bool) error {
 	}
 
 	// Add SNAT rules.
-	if routerIntPortIPv4Net != nil {
+	if routerIntPortIPv4Net != nil && routerExtPortIPv4 != nil {
 		err = client.LogicalRouterSNATAdd(n.getRouterName(), routerIntPortIPv4Net, routerExtPortIPv4)
 		if err != nil {
 			return err
 		}
 	}
 
-	if routerIntPortIPv6Net != nil {
+	if routerIntPortIPv6Net != nil && routerExtPortIPv6 != nil {
 		err = client.LogicalRouterSNATAdd(n.getRouterName(), routerIntPortIPv6Net, routerExtPortIPv6)
 		if err != nil {
 			return err
 		}
 	}
-
-	// Create external logical switch.
-	if update {
-		client.LogicalSwitchDelete(n.getExtSwitchName())
-	}
-
-	err = client.LogicalSwitchAdd(n.getExtSwitchName(), false)
-	if err != nil {
-		return errors.Wrapf(err, "Failed adding external switch")
-	}
-	revert.Add(func() { client.LogicalSwitchDelete(n.getExtSwitchName()) })
 
 	// Generate external router port IPs (in CIDR format).
 	extRouterIPs := []*net.IPNet{}
@@ -1082,41 +1082,54 @@ func (n *ovn) setup(update bool) error {
 		})
 	}
 
-	// Create external router port.
-	err = client.LogicalRouterPortAdd(n.getRouterName(), n.getRouterExtPortName(), routerMAC, extRouterIPs...)
-	if err != nil {
-		return errors.Wrapf(err, "Failed adding external router port")
-	}
-	revert.Add(func() { client.LogicalRouterPortDelete(n.getRouterExtPortName()) })
+	if len(extRouterIPs) > 0 {
+		// Create external logical switch.
+		if update {
+			client.LogicalSwitchDelete(n.getExtSwitchName())
+		}
 
-	// Associate external router port to chassis group.
-	err = client.LogicalRouterPortLinkChassisGroup(n.getRouterExtPortName(), n.getChassisGroupName())
-	if err != nil {
-		return errors.Wrapf(err, "Failed linking external router port to chassis group")
-	}
+		err = client.LogicalSwitchAdd(n.getExtSwitchName(), false)
+		if err != nil {
+			return errors.Wrapf(err, "Failed adding external switch")
+		}
+		revert.Add(func() { client.LogicalSwitchDelete(n.getExtSwitchName()) })
 
-	// Create external switch port and link to router port.
-	err = client.LogicalSwitchPortAdd(n.getExtSwitchName(), n.getExtSwitchRouterPortName(), false)
-	if err != nil {
-		return errors.Wrapf(err, "Failed adding external switch router port")
-	}
-	revert.Add(func() { client.LogicalSwitchPortDelete(n.getExtSwitchRouterPortName()) })
+		// Create external router port.
+		err = client.LogicalRouterPortAdd(n.getRouterName(), n.getRouterExtPortName(), routerMAC, extRouterIPs...)
+		if err != nil {
+			return errors.Wrapf(err, "Failed adding external router port")
+		}
+		revert.Add(func() { client.LogicalRouterPortDelete(n.getRouterExtPortName()) })
 
-	err = client.LogicalSwitchPortLinkRouter(n.getExtSwitchRouterPortName(), n.getRouterExtPortName())
-	if err != nil {
-		return errors.Wrapf(err, "Failed linking external router port to external switch port")
-	}
+		// Associate external router port to chassis group.
+		err = client.LogicalRouterPortLinkChassisGroup(n.getRouterExtPortName(), n.getChassisGroupName())
+		if err != nil {
+			return errors.Wrapf(err, "Failed linking external router port to chassis group")
+		}
 
-	// Create external switch port and link to external provider network.
-	err = client.LogicalSwitchPortAdd(n.getExtSwitchName(), n.getExtSwitchProviderPortName(), false)
-	if err != nil {
-		return errors.Wrapf(err, "Failed adding external switch provider port")
-	}
-	revert.Add(func() { client.LogicalSwitchPortDelete(n.getExtSwitchProviderPortName()) })
+		// Create external switch port and link to router port.
+		err = client.LogicalSwitchPortAdd(n.getExtSwitchName(), n.getExtSwitchRouterPortName(), false)
+		if err != nil {
+			return errors.Wrapf(err, "Failed adding external switch router port")
+		}
+		revert.Add(func() { client.LogicalSwitchPortDelete(n.getExtSwitchRouterPortName()) })
 
-	err = client.LogicalSwitchPortLinkProviderNetwork(n.getExtSwitchProviderPortName(), parent.extSwitchProviderName)
-	if err != nil {
-		return errors.Wrapf(err, "Failed linking external switch provider port to external provider network")
+		err = client.LogicalSwitchPortLinkRouter(n.getExtSwitchRouterPortName(), n.getRouterExtPortName())
+		if err != nil {
+			return errors.Wrapf(err, "Failed linking external router port to external switch port")
+		}
+
+		// Create external switch port and link to external provider network.
+		err = client.LogicalSwitchPortAdd(n.getExtSwitchName(), n.getExtSwitchProviderPortName(), false)
+		if err != nil {
+			return errors.Wrapf(err, "Failed adding external switch provider port")
+		}
+		revert.Add(func() { client.LogicalSwitchPortDelete(n.getExtSwitchProviderPortName()) })
+
+		err = client.LogicalSwitchPortLinkProviderNetwork(n.getExtSwitchProviderPortName(), parent.extSwitchProviderName)
+		if err != nil {
+			return errors.Wrapf(err, "Failed linking external switch provider port to external provider network")
+		}
 	}
 
 	// Create internal logical switch if not updating.
@@ -1135,8 +1148,6 @@ func (n *ovn) setup(update bool) error {
 	if err != nil {
 		return errors.Wrapf(err, "Failed setting IP allocation settings on internal switch")
 	}
-
-	// Find MAC address for internal router port.
 
 	var dhcpv4UUID, dhcpv6UUID string
 
