@@ -99,7 +99,13 @@ func forkproxyProfile(state *state.State, inst instance, dev device) (string, er
 	fields := strings.SplitN(dev.Config()["listen"], ":", 2)
 	if fields[0] == "unix" && !strings.HasPrefix(fields[1], "@") {
 		if dev.Config()["bind"] == "host" || dev.Config()["bind"] == "" {
-			sockets = append(sockets, shared.HostPath(fields[1]))
+			hostPath := shared.HostPath(fields[1])
+			sockets = append(sockets, hostPath)
+
+			if hostPath != fields[1] {
+				// AppArmor can get confused on Ubuntu Core so allow both paths.
+				sockets = append(sockets, fields[1])
+			}
 		} else {
 			sockets = append(sockets, fields[1])
 		}
@@ -110,8 +116,29 @@ func forkproxyProfile(state *state.State, inst instance, dev device) (string, er
 		if dev.Config()["bind"] == "host" || dev.Config()["bind"] == "" {
 			sockets = append(sockets, fields[1])
 		} else {
-			sockets = append(sockets, shared.HostPath(fields[1]))
+			hostPath := shared.HostPath(fields[1])
+			sockets = append(sockets, hostPath)
+
+			if hostPath != fields[1] {
+				// AppArmor can get confused on Ubuntu Core so allow both paths.
+				sockets = append(sockets, fields[1])
+			}
 		}
+	}
+
+	// AppArmor requires deref of all paths.
+	for k := range sockets {
+		// Skip non-existing because of the additional entry for the host side.
+		if !shared.PathExists(sockets[k]) {
+			continue
+		}
+
+		v, err := filepath.EvalSymlinks(sockets[k])
+		if err != nil {
+			return "", err
+		}
+
+		sockets[k] = v
 	}
 
 	// Render the profile.
