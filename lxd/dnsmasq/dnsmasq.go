@@ -107,7 +107,7 @@ func GetVersion() (*version.DottedVersion, error) {
 	}
 
 	lines := strings.Split(string(output), " ")
-	return version.NewDottedVersion(lines[2])
+	return version.Parse(lines[2])
 }
 
 // DHCPStaticAllocation retrieves the dnsmasq statically allocated MAC and IPs for an instance.
