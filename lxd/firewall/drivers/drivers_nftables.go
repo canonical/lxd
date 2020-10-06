@@ -167,7 +167,7 @@ func (d Nftables) hostVersion() (*version.DottedVersion, error) {
 	}
 
 	lines := strings.Split(string(output), " ")
-	return version.NewDottedVersion(strings.TrimPrefix(lines[1], "v"))
+	return version.Parse(strings.TrimPrefix(lines[1], "v"))
 }
 
 // NetworkSetupForwardingPolicy allows forwarding dependent on boolean argument
