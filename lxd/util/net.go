@@ -237,13 +237,29 @@ func SysctlGet(path string) (string, error) {
 }
 
 // SysctlSet writes a value to a sysctl file in /proc/sys.
-func SysctlSet(path string, value string) error {
-	// Get current value
-	current, err := SysctlGet(path)
-	if err == nil && current == value {
-		// Nothing to update
-		return nil
+// Requires an even number of arguments as key/value pairs. E.g. SysctlSet("path1", "value1", "path2", "value2")
+func SysctlSet(parts ...string) error {
+	partsLen := len(parts)
+	if partsLen%2 != 0 {
+		return fmt.Errorf("Requires even number of arguments")
 	}
 
-	return ioutil.WriteFile(fmt.Sprintf("/proc/sys/%s", path), []byte(value), 0)
+	for i := 0; i < partsLen; i = i + 2 {
+		path := parts[i]
+		newValue := parts[i+1]
+
+		// Get current value.
+		currentValue, err := SysctlGet(path)
+		if err == nil && currentValue == newValue {
+			// Nothing to update.
+			return nil
+		}
+
+		err = ioutil.WriteFile(fmt.Sprintf("/proc/sys/%s", path), []byte(newValue), 0)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
