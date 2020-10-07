@@ -363,6 +363,8 @@ func (n *ovn) setupParentPort(routerMAC net.HardwareAddr) (*ovnParentVars, error
 	switch parentNet.Type() {
 	case "bridge":
 		return n.setupParentPortBridge(parentNet, routerMAC)
+	case "physical":
+		return n.setupParentPortPhysical(parentNet, routerMAC)
 	}
 
 	return nil, fmt.Errorf("Failed setting up parent port, network type %q unsupported as OVN parent", parentNet.Type())
@@ -381,6 +383,17 @@ func (n *ovn) setupParentPortBridge(parentNet Network, routerMAC net.HardwareAdd
 		return nil, errors.Wrapf(err, "Network %q is not suitable for use as OVN parent", bridgeNet.name)
 	}
 
+	v, err := n.allocateParentPortIPs(parentNet, routerMAC)
+	if err != nil {
+		return nil, errors.Wrapf(err, "Failed allocating parent port IPs on network %q", parentNet.Name())
+	}
+
+	return v, nil
+}
+
+// setupParentPortPhysical allocates external IPs on the parent network.
+// Returns the derived ovnParentVars settings.
+func (n *ovn) setupParentPortPhysical(parentNet Network, routerMAC net.HardwareAddr) (*ovnParentVars, error) {
 	v, err := n.allocateParentPortIPs(parentNet, routerMAC)
 	if err != nil {
 		return nil, errors.Wrapf(err, "Failed allocating parent port IPs on network %q", parentNet.Name())
@@ -632,6 +645,8 @@ func (n *ovn) startParentPort() error {
 	switch parentNet.Type() {
 	case "bridge":
 		return n.startParentPortBridge(parentNet)
+	case "physical":
+		return n.startParentPortPhysical(parentNet)
 	}
 
 	return fmt.Errorf("Failed starting parent port, network type %q unsupported as OVN parent", parentNet.Type())
@@ -663,7 +678,7 @@ func (n *ovn) startParentPortBridge(parentNet Network) error {
 	defer revert.Fail()
 
 	// Create veth pair if needed.
-	if !shared.PathExists(fmt.Sprintf("/sys/class/net/%s", vars.parentEnd)) && !shared.PathExists(fmt.Sprintf("/sys/class/net/%s", vars.ovsEnd)) {
+	if !InterfaceExists(vars.parentEnd) && !InterfaceExists(vars.ovsEnd) {
 		_, err := shared.RunCommand("ip", "link", "add", "dev", vars.parentEnd, "type", "veth", "peer", "name", vars.ovsEnd)
 		if err != nil {
 			return errors.Wrapf(err, "Failed to create the uplink veth interfaces %q and %q", vars.parentEnd, vars.ovsEnd)
@@ -672,12 +687,26 @@ func (n *ovn) startParentPortBridge(parentNet Network) error {
 		revert.Add(func() { shared.RunCommand("ip", "link", "delete", vars.parentEnd) })
 	}
 
+	// Ensure that the veth interfaces inherit the uplink bridge's MTU (which the OVS bridge also inherits).
+	parentNetConfig := parentNet.Config()
+	if parentNetConfig["bridge.mtu"] != "" {
+		err := InterfaceSetMTU(vars.parentEnd, parentNetConfig["bridge.mtu"])
+		if err != nil {
+			return err
+		}
+
+		err = InterfaceSetMTU(vars.ovsEnd, parentNetConfig["bridge.mtu"])
+		if err != nil {
+			return err
+		}
+	}
+
 	// Ensure correct sysctls are set on uplink veth interfaces to avoid getting IPv6 link-local addresses.
-	_, err := shared.RunCommand("sysctl",
-		fmt.Sprintf("net.ipv6.conf.%s.disable_ipv6=1", vars.parentEnd),
-		fmt.Sprintf("net.ipv6.conf.%s.disable_ipv6=1", vars.ovsEnd),
-		fmt.Sprintf("net.ipv6.conf.%s.forwarding=0", vars.parentEnd),
-		fmt.Sprintf("net.ipv6.conf.%s.forwarding=0", vars.ovsEnd),
+	err := util.SysctlSet(
+		fmt.Sprintf("net/ipv6/conf/%s/disable_ipv6", vars.parentEnd), "1",
+		fmt.Sprintf("net/ipv6/conf/%s/disable_ipv6", vars.ovsEnd), "1",
+		fmt.Sprintf("net/ipv6/conf/%s/forwarding", vars.parentEnd), "0",
+		fmt.Sprintf("net/ipv6/conf/%s/forwarding", vars.ovsEnd), "0",
 	)
 	if err != nil {
 		return errors.Wrapf(err, "Failed to configure uplink veth interfaces %q and %q", vars.parentEnd, vars.ovsEnd)
@@ -745,6 +774,59 @@ func (n *ovn) startParentPortBridge(parentNet Network) error {
 	return nil
 }
 
+// startParentPortPhysical creates OVS bridge (if doesn't exist) and connects parent interface to the OVS bridge.
+func (n *ovn) startParentPortPhysical(parentNet Network) error {
+	vars := n.parentPortBridgeVars(parentNet)
+
+	// Do this after gaining lock so that on failure we revert before release locking.
+	revert := revert.New()
+	defer revert.Fail()
+
+	parentConfig := parentNet.Config()
+	uplinkHostName := GetHostDevice(parentConfig["parent"], parentConfig["vlan"])
+
+	if !InterfaceExists(uplinkHostName) {
+		return fmt.Errorf("Uplink network %q is not started", parentNet.Name())
+	}
+
+	// Ensure correct sysctls are set on uplink interface to avoid getting IPv6 link-local addresses.
+	err := util.SysctlSet(
+		fmt.Sprintf("net/ipv6/conf/%s/disable_ipv6", uplinkHostName), "1",
+		fmt.Sprintf("net/ipv6/conf/%s/forwarding", uplinkHostName), "0",
+	)
+	if err != nil {
+		return errors.Wrapf(err, "Failed to configure uplink interface %q", uplinkHostName)
+	}
+
+	// Create parent OVS bridge if needed.
+	ovs := openvswitch.NewOVS()
+	err = ovs.BridgeAdd(vars.ovsBridge, true)
+	if err != nil {
+		return errors.Wrapf(err, "Failed to create parent uplink OVS bridge %q", vars.ovsBridge)
+	}
+
+	// Connect OVS end veth interface to OVS bridge.
+	err = ovs.BridgePortAdd(vars.ovsBridge, uplinkHostName, true)
+	if err != nil {
+		return errors.Wrapf(err, "Failed to connect uplink interface %q to parent OVS bridge %q", uplinkHostName, vars.ovsBridge)
+	}
+
+	// Associate OVS bridge to logical OVN provider.
+	err = ovs.OVNBridgeMappingAdd(vars.ovsBridge, parentNet.Name())
+	if err != nil {
+		return errors.Wrapf(err, "Failed to associate parent OVS bridge %q to OVN provider %q", vars.ovsBridge, parentNet.Name())
+	}
+
+	// Bring uplink interface up.
+	_, err = shared.RunCommand("ip", "link", "set", uplinkHostName, "up")
+	if err != nil {
+		return errors.Wrapf(err, "Failed to bring up parent interface %q", uplinkHostName)
+	}
+
+	revert.Success()
+	return nil
+}
+
 // deleteParentPort deletes the parent uplink connection.
 func (n *ovn) deleteParentPort() error {
 	// Parent network must be in default project.
@@ -761,6 +843,8 @@ func (n *ovn) deleteParentPort() error {
 		switch parentNet.Type() {
 		case "bridge":
 			return n.deleteParentPortBridge(parentNet)
+		case "physical":
+			return n.deleteParentPortPhysical(parentNet)
 		}
 
 		return fmt.Errorf("Failed deleting parent port, network type %q unsupported as OVN parent", parentNet.Type())
@@ -774,7 +858,7 @@ func (n *ovn) deleteParentPortBridge(parentNet Network) error {
 	// Check OVS uplink bridge exists, if it does, check how many ports it has.
 	removeVeths := false
 	vars := n.parentPortBridgeVars(parentNet)
-	if shared.PathExists(fmt.Sprintf("/sys/class/net/%s", vars.ovsBridge)) {
+	if InterfaceExists(vars.ovsBridge) {
 		ovs := openvswitch.NewOVS()
 		ports, err := ovs.BridgePortList(vars.ovsBridge)
 		if err != nil {
@@ -801,17 +885,62 @@ func (n *ovn) deleteParentPortBridge(parentNet Network) error {
 
 	// Remove the veth interfaces if they exist.
 	if removeVeths {
-		if shared.PathExists(fmt.Sprintf("/sys/class/net/%s", vars.parentEnd)) {
+		if InterfaceExists(vars.parentEnd) {
 			_, err := shared.RunCommand("ip", "link", "delete", "dev", vars.parentEnd)
 			if err != nil {
 				return errors.Wrapf(err, "Failed to delete the uplink veth interface %q", vars.parentEnd)
 			}
 		}
 
-		if shared.PathExists(fmt.Sprintf("/sys/class/net/%s", vars.ovsEnd)) {
+		if InterfaceExists(vars.ovsEnd) {
 			_, err := shared.RunCommand("ip", "link", "delete", "dev", vars.ovsEnd)
 			if err != nil {
 				return errors.Wrapf(err, "Failed to delete the uplink veth interface %q", vars.ovsEnd)
+			}
+		}
+	}
+
+	return nil
+}
+
+// deleteParentPortPhysical deletes parent uplink OVS bridge, OVN bridge mappings if not in use.
+func (n *ovn) deleteParentPortPhysical(parentNet Network) error {
+	// Check OVS uplink bridge exists, if it does, check how many ports it has.
+	releaseIF := false
+	vars := n.parentPortBridgeVars(parentNet)
+	if InterfaceExists(vars.ovsBridge) {
+		ovs := openvswitch.NewOVS()
+		ports, err := ovs.BridgePortList(vars.ovsBridge)
+		if err != nil {
+			return err
+		}
+
+		// If the OVS bridge has only 1 port (the parent interface) or fewer connected then delete it.
+		if len(ports) <= 1 {
+			releaseIF = true
+
+			err = ovs.OVNBridgeMappingDelete(vars.ovsBridge, parentNet.Name())
+			if err != nil {
+				return err
+			}
+
+			err = ovs.BridgeDelete(vars.ovsBridge)
+			if err != nil {
+				return err
+			}
+		}
+	} else {
+		releaseIF = true // Remove the veths if OVS bridge already gone.
+	}
+
+	// Bring down uplink interface if exists.
+	if releaseIF {
+		parentConfig := parentNet.Config()
+		parentDev := GetHostDevice(parentConfig["parent"], parentConfig["vlan"])
+		if InterfaceExists(parentDev) {
+			_, err := shared.RunCommand("ip", "link", "set", parentDev, "down")
+			if err != nil {
+				return errors.Wrapf(err, "Failed to bring down uplink interface %q", parentDev)
 			}
 		}
 	}
@@ -1499,7 +1628,7 @@ func (n *ovn) Update(newNetwork api.NetworkPut, targetNode string, clientType cl
 		}
 	})
 
-	// Apply changes to database.
+	// Apply changes to all nodes and databse.
 	err = n.common.update(newNetwork, targetNode, clientType)
 	if err != nil {
 		return err

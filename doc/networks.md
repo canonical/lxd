@@ -6,6 +6,7 @@ LXD supports the following network types:
  - [macvlan](#network-macvlan): Provides preset configuration to use when connecting instances to a parent macvlan interface.
  - [sriov](#network-sriov): Provides preset configuration to use when connecting instances to a parent SR-IOV interface.
  - [ovn](#network-ovn): Creates a logical network using the OVN software defined networking system.
+ - [physical](#network-physical): Provides preset configuration to use when connecting OVN networks to a parent interface.
 
 The desired type can be specified using the `--type` argument, e.g.
 
@@ -83,7 +84,7 @@ ipv4.firewall                   | boolean   | ipv4 address          | true      
 ipv4.nat.address                | string    | ipv4 address          | -                         | The source address used for outbound traffic from the bridge
 ipv4.nat                        | boolean   | ipv4 address          | false                     | Whether to NAT (will default to true if unset and a random ipv4.address is generated)
 ipv4.nat.order                  | string    | ipv4 address          | before                    | Whether to add the required NAT rules before or after any pre-existing rules
-ipv4.ovn.ranges                 | string    | -                     | none                      | Comma separate list of IPv4 ranges to use for child OVN networks (FIRST-LAST format)
+ipv4.ovn.ranges                 | string    | -                     | none                      | Comma separate list of IPv4 ranges to use for child OVN network routers (FIRST-LAST format)
 ipv4.routes                     | string    | ipv4 address          | -                         | Comma separated list of additional IPv4 CIDR subnets to route to the bridge
 ipv4.routing                    | boolean   | ipv4 address          | true                      | Whether to route traffic in and out of the bridge
 ipv6.address                    | string    | standard mode         | random unused subnet      | IPv6 address for the bridge (CIDR notation). Use "none" to turn off IPv6 or "auto" to generate a new one
@@ -95,7 +96,7 @@ ipv6.firewall                   | boolean   | ipv6 address          | true      
 ipv6.nat.address                | string    | ipv6 address          | -                         | The source address used for outbound traffic from the bridge
 ipv6.nat                        | boolean   | ipv6 address          | false                     | Whether to NAT (will default to true if unset and a random ipv6.address is generated)
 ipv6.nat.order                  | string    | ipv6 address          | before                    | Whether to add the required NAT rules before or after any pre-existing rules
-ipv6.ovn.ranges                 | string    | -                     | none                      | Comma separate list of IPv6 ranges to use for child OVN networks (FIRST-LAST format)
+ipv6.ovn.ranges                 | string    | -                     | none                      | Comma separate list of IPv6 ranges to use for child OVN network routers (FIRST-LAST format)
 ipv6.routes                     | string    | ipv6 address          | -                         | Comma separated list of additional IPv6 CIDR subnets to route to the bridge
 ipv6.routing                    | boolean   | ipv6 address          | true                      | Whether to route traffic in and out of the bridge
 maas.subnet.ipv4                | string    | ipv4 address          | -                         | MAAS IPv4 subnet to register instances in (when using `network` property on nic)
@@ -299,3 +300,22 @@ ipv4.address                    | string    | standard mode         | random unu
 ipv6.address                    | string    | standard mode         | random unused subnet      | IPv6 address for the bridge (CIDR notation). Use "none" to turn off IPv6 or "auto" to generate a new one
 ipv6.dhcp.stateful              | boolean   | ipv6 dhcp             | false                     | Whether to allocate addresses using DHCP
 network                         | string    | -                     | -                         | Parent network to use for outbound external network access
+
+## network: physical
+
+The physical network type allows one to specify presets to use when connecting OVN networks to a parent interface.
+
+Network configuration properties:
+
+Key                             | Type      | Condition             | Default                   | Description
+:--                             | :--       | :--                   | :--                       | :--
+maas.subnet.ipv4                | string    | ipv4 address          | -                         | MAAS IPv4 subnet to register instances in (when using `network` property on nic)
+maas.subnet.ipv6                | string    | ipv6 address          | -                         | MAAS IPv6 subnet to register instances in (when using `network` property on nic)
+mtu                             | integer   | -                     | -                         | The MTU of the new interface
+parent                          | string    | -                     | -                         | Parent interface to create sriov NICs on
+vlan                            | integer   | -                     | -                         | The VLAN ID to attach to
+ipv4.gateway                    | string    | standard mode         | -                         | IPv4 address for the gateway and network (CIDR notation)
+ipv4.ovn.ranges                 | string    | -                     | none                      | Comma separate list of IPv4 ranges to use for child OVN network routers (FIRST-LAST format)
+ipv6.gateway                    | string    | standard mode         | -                         | IPv6 address for the gateway and network  (CIDR notation)
+ipv6.ovn.ranges                 | string    | -                     | none                      | Comma separate list of IPv6 ranges to use for child OVN network routers (FIRST-LAST format)
+dns.nameservers                 | string    | standard mode         | -                         | List of DNS server IPs on physical network
