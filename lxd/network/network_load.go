@@ -5,10 +5,11 @@ import (
 )
 
 var drivers = map[string]func() Network{
-	"bridge":  func() Network { return &bridge{} },
-	"macvlan": func() Network { return &macvlan{} },
-	"sriov":   func() Network { return &sriov{} },
-	"ovn":     func() Network { return &ovn{} },
+	"bridge":   func() Network { return &bridge{} },
+	"macvlan":  func() Network { return &macvlan{} },
+	"sriov":    func() Network { return &sriov{} },
+	"ovn":      func() Network { return &ovn{} },
+	"physical": func() Network { return &physical{} },
 }
 
 // LoadByType loads a network by driver type.

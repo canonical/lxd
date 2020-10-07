@@ -89,7 +89,7 @@ func (d *nicP2P) Start() (*deviceConfig.RunConfig, error) {
 		return nil, err
 	}
 
-	revert.Add(func() { NetworkRemoveInterface(saveData["host_name"]) })
+	revert.Add(func() { network.InterfaceRemove(saveData["host_name"]) })
 
 	// Populate device config with volatile fields if needed.
 	networkVethFillFromVolatile(d.config, saveData)
@@ -185,7 +185,7 @@ func (d *nicP2P) postStop() error {
 
 	if d.config["host_name"] != "" && shared.PathExists(fmt.Sprintf("/sys/class/net/%s", d.config["host_name"])) {
 		// Removing host-side end of veth pair will delete the peer end too.
-		err := NetworkRemoveInterface(d.config["host_name"])
+		err := network.InterfaceRemove(d.config["host_name"])
 		if err != nil {
 			return fmt.Errorf("Failed to remove interface %s: %s", d.config["host_name"], err)
 		}

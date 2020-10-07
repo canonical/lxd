@@ -425,10 +425,11 @@ type NetworkType int
 
 // Network types.
 const (
-	NetworkTypeBridge  NetworkType = iota // Network type bridge.
-	NetworkTypeMacvlan                    // Network type macvlan.
-	NetworkTypeSriov                      // Network type sriov.
-	NetworkTypeOVN                        // Network type ovn.
+	NetworkTypeBridge   NetworkType = iota // Network type bridge.
+	NetworkTypeMacvlan                     // Network type macvlan.
+	NetworkTypeSriov                       // Network type sriov.
+	NetworkTypeOVN                         // Network type ovn.
+	NetworkTypePhysical                    // Network type physical.
 )
 
 // GetNetworkInAnyState returns the network with the given name.
@@ -510,6 +511,8 @@ func networkFillType(network *api.Network, netType NetworkType) {
 		network.Type = "sriov"
 	case NetworkTypeOVN:
 		network.Type = "ovn"
+	case NetworkTypePhysical:
+		network.Type = "physical"
 	default:
 		network.Type = "" // Unknown
 	}

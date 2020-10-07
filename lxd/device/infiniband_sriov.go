@@ -6,6 +6,7 @@ import (
 	deviceConfig "github.com/lxc/lxd/lxd/device/config"
 	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/instance/instancetype"
+	"github.com/lxc/lxd/lxd/network"
 	"github.com/lxc/lxd/lxd/resources"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
@@ -119,9 +120,9 @@ func (d *infinibandSRIOV) Start() (*deviceConfig.RunConfig, error) {
 
 	// Set the MTU.
 	if d.config["mtu"] != "" {
-		_, err := shared.RunCommand("ip", "link", "set", "dev", saveData["host_name"], "mtu", d.config["mtu"])
+		err = network.InterfaceSetMTU(saveData["host_name"], d.config["mtu"])
 		if err != nil {
-			return nil, fmt.Errorf("Failed to set the MTU: %s", err)
+			return nil, err
 		}
 	}
 
