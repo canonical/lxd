@@ -1513,7 +1513,7 @@ func (n *ovn) Update(newNetwork api.NetworkPut, targetNode string, clientType cl
 		}
 	})
 
-	// Apply changes to database.
+	// Apply changes to all nodes and databse.
 	err = n.common.update(newNetwork, targetNode, clientType)
 	if err != nil {
 		return err
