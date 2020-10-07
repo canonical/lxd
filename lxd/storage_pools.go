@@ -148,7 +148,7 @@ func storagePoolsPost(d *Daemon, r *http.Request) response.Response {
 			// create the storage pool immediately, unless there's
 			// a pending storage pool (in that case we follow the
 			// regular two-stage process).
-			_, err := d.cluster.GetStoragePoolID(req.Name)
+			_, pool, err := d.cluster.GetStoragePoolInAnyState(req.Name)
 			if err != nil {
 				if err != db.ErrNoSuchObject {
 					return response.InternalError(err)
@@ -158,6 +158,12 @@ func storagePoolsPost(d *Daemon, r *http.Request) response.Response {
 					return response.InternalError(err)
 				}
 				return resp
+			}
+
+			// If the existing storage pool is pending then we continue onto storagePoolsPostCluster.
+			// Otherwise error as there is already a storage pool by that name.
+			if pool.Status != "Pending" {
+				return response.BadRequest(fmt.Errorf("The storage pool already exists"))
 			}
 		}
 
