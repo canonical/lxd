@@ -56,7 +56,7 @@ func (n *physical) Validate(config map[string]string) error {
 }
 
 // checkParentUse checks if parent is already in use by another network or instance device.
-func (n *physical) checkParentUse(ourConfig map[string]string) error {
+func (n *physical) checkParentUse(ourConfig map[string]string) (bool, error) {
 	// Get all managed networks across all projects.
 	var err error
 	var projectNetworks map[string]map[int64]api.Network
@@ -66,12 +66,12 @@ func (n *physical) checkParentUse(ourConfig map[string]string) error {
 		return err
 	})
 	if err != nil {
-		return errors.Wrapf(err, "Failed to load all networks")
+		return false, errors.Wrapf(err, "Failed to load all networks")
 	}
 
 	for projectName, networks := range projectNetworks {
 		if projectName != project.Default {
-			continue // Only default project networks can possible reference a physical interface.
+			continue // Only default project networks can possibly reference a physical interface.
 		}
 
 		for _, network := range networks {
@@ -84,13 +84,13 @@ func (n *physical) checkParentUse(ourConfig map[string]string) error {
 				// If either network doesn't specify a vlan, or both specify same vlan,
 				// then we can't use this parent.
 				if (network.Config["vlan"] == "" || ourConfig["vlan"] == "") || network.Config["vlan"] == ourConfig["vlan"] {
-					return fmt.Errorf("Parent interface %q in use by another network", ourConfig["parent"])
+					return true, nil
 				}
 			}
 		}
 	}
 
-	return nil
+	return false, nil
 }
 
 // Create checks whether the referenced parent interface is used by other networks or instance devices, as we
@@ -100,9 +100,12 @@ func (n *physical) Create(clientType cluster.ClientType) error {
 
 	// We only need to check in the database once, not on every clustered node.
 	if clientType == cluster.ClientTypeNormal {
-		err := n.checkParentUse(n.config)
+		inUse, err := n.checkParentUse(n.config)
 		if err != nil {
 			return err
+		}
+		if inUse {
+			return fmt.Errorf("Parent interface %q in use by another network", n.config["parent"])
 		}
 	}
 
@@ -239,9 +242,12 @@ func (n *physical) Update(newNetwork api.NetworkPut, targetNode string, clientTy
 				return fmt.Errorf("Cannot update network host name when in use")
 			}
 
-			err = n.checkParentUse(newNetwork.Config)
+			inUse, err := n.checkParentUse(newNetwork.Config)
 			if err != nil {
 				return err
+			}
+			if inUse {
+				return fmt.Errorf("Parent interface %q in use by another network", newNetwork.Config["parent"])
 			}
 		}
 	}
