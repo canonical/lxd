@@ -687,11 +687,11 @@ func (n *ovn) startParentPortBridge(parentNet Network) error {
 	}
 
 	// Ensure correct sysctls are set on uplink veth interfaces to avoid getting IPv6 link-local addresses.
-	_, err := shared.RunCommand("sysctl",
-		fmt.Sprintf("net.ipv6.conf.%s.disable_ipv6=1", vars.parentEnd),
-		fmt.Sprintf("net.ipv6.conf.%s.disable_ipv6=1", vars.ovsEnd),
-		fmt.Sprintf("net.ipv6.conf.%s.forwarding=0", vars.parentEnd),
-		fmt.Sprintf("net.ipv6.conf.%s.forwarding=0", vars.ovsEnd),
+	err := util.SysctlSet(
+		fmt.Sprintf("net/ipv6/conf/%s/disable_ipv6", vars.parentEnd), "1",
+		fmt.Sprintf("net/ipv6/conf/%s/disable_ipv6", vars.ovsEnd), "1",
+		fmt.Sprintf("net/ipv6/conf/%s/forwarding", vars.parentEnd), "0",
+		fmt.Sprintf("net/ipv6/conf/%s/forwarding", vars.ovsEnd), "0",
 	)
 	if err != nil {
 		return errors.Wrapf(err, "Failed to configure uplink veth interfaces %q and %q", vars.parentEnd, vars.ovsEnd)
