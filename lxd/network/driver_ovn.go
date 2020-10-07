@@ -663,7 +663,7 @@ func (n *ovn) startParentPortBridge(parentNet Network) error {
 	defer revert.Fail()
 
 	// Create veth pair if needed.
-	if !shared.PathExists(fmt.Sprintf("/sys/class/net/%s", vars.parentEnd)) && !shared.PathExists(fmt.Sprintf("/sys/class/net/%s", vars.ovsEnd)) {
+	if !InterfaceExists(vars.parentEnd) && !InterfaceExists(vars.ovsEnd) {
 		_, err := shared.RunCommand("ip", "link", "add", "dev", vars.parentEnd, "type", "veth", "peer", "name", vars.ovsEnd)
 		if err != nil {
 			return errors.Wrapf(err, "Failed to create the uplink veth interfaces %q and %q", vars.parentEnd, vars.ovsEnd)
@@ -774,7 +774,7 @@ func (n *ovn) deleteParentPortBridge(parentNet Network) error {
 	// Check OVS uplink bridge exists, if it does, check how many ports it has.
 	removeVeths := false
 	vars := n.parentPortBridgeVars(parentNet)
-	if shared.PathExists(fmt.Sprintf("/sys/class/net/%s", vars.ovsBridge)) {
+	if InterfaceExists(vars.ovsBridge) {
 		ovs := openvswitch.NewOVS()
 		ports, err := ovs.BridgePortList(vars.ovsBridge)
 		if err != nil {
@@ -801,14 +801,14 @@ func (n *ovn) deleteParentPortBridge(parentNet Network) error {
 
 	// Remove the veth interfaces if they exist.
 	if removeVeths {
-		if shared.PathExists(fmt.Sprintf("/sys/class/net/%s", vars.parentEnd)) {
+		if InterfaceExists(vars.parentEnd) {
 			_, err := shared.RunCommand("ip", "link", "delete", "dev", vars.parentEnd)
 			if err != nil {
 				return errors.Wrapf(err, "Failed to delete the uplink veth interface %q", vars.parentEnd)
 			}
 		}
 
-		if shared.PathExists(fmt.Sprintf("/sys/class/net/%s", vars.ovsEnd)) {
+		if InterfaceExists(vars.ovsEnd) {
 			_, err := shared.RunCommand("ip", "link", "delete", "dev", vars.ovsEnd)
 			if err != nil {
 				return errors.Wrapf(err, "Failed to delete the uplink veth interface %q", vars.ovsEnd)
