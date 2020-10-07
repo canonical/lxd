@@ -856,7 +856,7 @@ func VLANInterfaceCreate(parent string, vlanDevice string, vlanID string) (bool,
 		return false, nil
 	}
 
-	if shared.PathExists(fmt.Sprintf("/sys/class/net/%s", vlanDevice)) {
+	if InterfaceExists(vlanDevice) {
 		return false, nil
 	}
 
