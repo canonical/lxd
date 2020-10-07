@@ -1060,3 +1060,15 @@ func InterfaceExists(nic string) bool {
 
 	return false
 }
+
+// InterfaceSetMTU sets the MTU of a network interface.
+func InterfaceSetMTU(nic string, mtu string) error {
+	if mtu != "" {
+		_, err := shared.RunCommand("ip", "link", "set", "dev", nic, "mtu", mtu)
+		if err != nil {
+			return errors.Wrapf(err, "Failed setting MTU %q on %q", mtu, nic)
+		}
+	}
+
+	return nil
+}
