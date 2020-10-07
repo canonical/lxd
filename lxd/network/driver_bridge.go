@@ -352,7 +352,7 @@ func (n *bridge) Validate(config map[string]string) error {
 func (n *bridge) Create(clientType cluster.ClientType) error {
 	n.logger.Debug("Create", log.Ctx{"clientType": clientType, "config": n.config})
 
-	if shared.PathExists(fmt.Sprintf("/sys/class/net/%s", n.name)) {
+	if InterfaceExists(n.name) {
 		return fmt.Errorf("Network interface %q already exists", n.name)
 	}
 
@@ -361,7 +361,7 @@ func (n *bridge) Create(clientType cluster.ClientType) error {
 
 // isRunning returns whether the network is up.
 func (n *bridge) isRunning() bool {
-	return shared.PathExists(fmt.Sprintf("/sys/class/net/%s", n.name))
+	return InterfaceExists(n.name)
 }
 
 // Delete deletes a network.
@@ -389,7 +389,7 @@ func (n *bridge) Delete(clientType cluster.ClientType) error {
 func (n *bridge) Rename(newName string) error {
 	n.logger.Debug("Rename", log.Ctx{"newName": newName})
 
-	if shared.PathExists(fmt.Sprintf("/sys/class/net/%s", newName)) {
+	if InterfaceExists(newName) {
 		return fmt.Errorf("Network interface %q already exists", newName)
 	}
 
@@ -1503,7 +1503,7 @@ func (n *bridge) Update(newNetwork api.NetworkPut, targetNode string, clientType
 				continue
 			}
 
-			if !shared.StringInSlice(dev, devices) && shared.PathExists(fmt.Sprintf("/sys/class/net/%s", dev)) {
+			if !shared.StringInSlice(dev, devices) && InterfaceExists(dev) {
 				err = DetachInterface(n.name, dev)
 				if err != nil {
 					return err
