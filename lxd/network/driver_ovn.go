@@ -1651,7 +1651,21 @@ func (n *ovn) Update(newNetwork api.NetworkPut, targetNode string, clientType cl
 		if clientType == cluster.ClientTypeNormal {
 			n.setup(true)
 		}
+
+		n.Start()
 	})
+
+	// Stop network before new config applied if uplink network is changing.
+	if shared.StringInSlice("network", changedKeys) {
+		err = n.Stop()
+		if err != nil {
+			return err
+		}
+
+		// Remove volatile keys associated with old network in new config.
+		delete(newNetwork.Config, ovnVolatileParentIPv4)
+		delete(newNetwork.Config, ovnVolatileParentIPv6)
+	}
 
 	// Apply changes to all nodes and databse.
 	err = n.common.update(newNetwork, targetNode, clientType)
@@ -1662,6 +1676,14 @@ func (n *ovn) Update(newNetwork api.NetworkPut, targetNode string, clientType cl
 	// Re-setup the logical network if needed.
 	if len(changedKeys) > 0 && clientType == cluster.ClientTypeNormal {
 		err = n.setup(true)
+		if err != nil {
+			return err
+		}
+	}
+
+	// Start network before after config applied if uplink network is changing.
+	if shared.StringInSlice("network", changedKeys) {
+		err = n.Start()
 		if err != nil {
 			return err
 		}
