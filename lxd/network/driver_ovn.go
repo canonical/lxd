@@ -1673,7 +1673,7 @@ func (n *ovn) Update(newNetwork api.NetworkPut, targetNode string, clientType cl
 		return err
 	}
 
-	// Re-setup the logical network if needed.
+	// Re-setup the logical network after config applied if needed.
 	if len(changedKeys) > 0 && clientType == cluster.ClientTypeNormal {
 		err = n.setup(true)
 		if err != nil {
