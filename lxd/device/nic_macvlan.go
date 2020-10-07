@@ -115,9 +115,9 @@ func (d *nicMACVLAN) Start() (*deviceConfig.RunConfig, error) {
 
 	// Set the MTU.
 	if d.config["mtu"] != "" {
-		_, err := shared.RunCommand("ip", "link", "set", "dev", saveData["host_name"], "mtu", d.config["mtu"])
+		err = network.InterfaceSetMTU(saveData["host_name"], d.config["mtu"])
 		if err != nil {
-			return nil, fmt.Errorf("Failed to set the MTU: %s", err)
+			return nil, err
 		}
 	}
 
