@@ -672,6 +672,20 @@ func (n *ovn) startParentPortBridge(parentNet Network) error {
 		revert.Add(func() { shared.RunCommand("ip", "link", "delete", vars.parentEnd) })
 	}
 
+	// Ensure that the veth interfaces inherit the uplink bridge's MTU (which the OVS bridge also inherits).
+	parentNetConfig := parentNet.Config()
+	if parentNetConfig["bridge.mtu"] != "" {
+		err := InterfaceSetMTU(vars.parentEnd, parentNetConfig["bridge.mtu"])
+		if err != nil {
+			return err
+		}
+
+		err = InterfaceSetMTU(vars.ovsEnd, parentNetConfig["bridge.mtu"])
+		if err != nil {
+			return err
+		}
+	}
+
 	// Ensure correct sysctls are set on uplink veth interfaces to avoid getting IPv6 link-local addresses.
 	_, err := shared.RunCommand("sysctl",
 		fmt.Sprintf("net.ipv6.conf.%s.disable_ipv6=1", vars.parentEnd),
