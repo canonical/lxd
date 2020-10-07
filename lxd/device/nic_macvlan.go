@@ -103,7 +103,7 @@ func (d *nicMACVLAN) Start() (*deviceConfig.RunConfig, error) {
 		}
 	}
 
-	revert.Add(func() { NetworkRemoveInterface(saveData["host_name"]) })
+	revert.Add(func() { network.InterfaceRemove(saveData["host_name"]) })
 
 	// Set the MAC address.
 	if d.config["hwaddr"] != "" {
@@ -181,7 +181,7 @@ func (d *nicMACVLAN) postStop() error {
 
 	// Delete the detached device.
 	if v["host_name"] != "" && shared.PathExists(fmt.Sprintf("/sys/class/net/%s", v["host_name"])) {
-		err := NetworkRemoveInterface(v["host_name"])
+		err := network.InterfaceRemove(v["host_name"])
 		if err != nil {
 			errs = append(errs, err)
 		}

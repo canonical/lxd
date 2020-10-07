@@ -220,7 +220,7 @@ func (d *nicBridged) Start() (*deviceConfig.RunConfig, error) {
 		return nil, err
 	}
 
-	revert.Add(func() { NetworkRemoveInterface(saveData["host_name"]) })
+	revert.Add(func() { network.InterfaceRemove(saveData["host_name"]) })
 
 	// Populate device config with volatile fields if needed.
 	networkVethFillFromVolatile(d.config, saveData)
@@ -385,7 +385,7 @@ func (d *nicBridged) postStop() error {
 		}
 
 		// Removing host-side end of veth pair will delete the peer end too.
-		err = NetworkRemoveInterface(d.config["host_name"])
+		err = network.InterfaceRemove(d.config["host_name"])
 		if err != nil {
 			return errors.Wrapf(err, "Failed to remove interface %q", d.config["host_name"])
 		}
