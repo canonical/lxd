@@ -827,6 +827,36 @@ func (n *ovn) startParentPortPhysical(parentNet Network) error {
 	return nil
 }
 
+// checkUplinkUse checks if uplink network is used by another OVN network.
+func (n *ovn) checkUplinkUse() (bool, error) {
+	// Get all managed networks across all projects.
+	var err error
+	var projectNetworks map[string]map[int64]api.Network
+
+	err = n.state.Cluster.Transaction(func(tx *db.ClusterTx) error {
+		projectNetworks, err = tx.GetNonPendingNetworks()
+		return err
+	})
+	if err != nil {
+		return false, errors.Wrapf(err, "Failed to load all networks")
+	}
+
+	for projectName, networks := range projectNetworks {
+		for _, network := range networks {
+			if (projectName == n.project && network.Name == n.name) || network.Type != "ovn" {
+				continue // Ignore our own DB record or non OVN networks.
+			}
+
+			// Check if another network is using our parent.
+			if network.Config["network"] == n.config["network"] {
+				return true, nil
+			}
+		}
+	}
+
+	return false, nil
+}
+
 // deleteParentPort deletes the parent uplink connection.
 func (n *ovn) deleteParentPort() error {
 	// Parent network must be in default project.
@@ -855,20 +885,20 @@ func (n *ovn) deleteParentPort() error {
 
 // deleteParentPortBridge deletes parent uplink OVS bridge, OVN bridge mappings and veth interfaces if not in use.
 func (n *ovn) deleteParentPortBridge(parentNet Network) error {
-	// Check OVS uplink bridge exists, if it does, check how many ports it has.
+	// Check OVS uplink bridge exists, if it does, check whether the uplink network is in use.
 	removeVeths := false
 	vars := n.parentPortBridgeVars(parentNet)
 	if InterfaceExists(vars.ovsBridge) {
-		ovs := openvswitch.NewOVS()
-		ports, err := ovs.BridgePortList(vars.ovsBridge)
+		uplinkUsed, err := n.checkUplinkUse()
 		if err != nil {
 			return err
 		}
 
-		// If the OVS bridge has only 1 port (the OVS veth end) or fewer connected then we can delete it.
-		if len(ports) <= 1 {
+		// Remove OVS bridge if the uplink network isn't used by any other OVN networks.
+		if !uplinkUsed {
 			removeVeths = true
 
+			ovs := openvswitch.NewOVS()
 			err = ovs.OVNBridgeMappingDelete(vars.ovsBridge, parentNet.Name())
 			if err != nil {
 				return err
@@ -903,22 +933,22 @@ func (n *ovn) deleteParentPortBridge(parentNet Network) error {
 	return nil
 }
 
-// deleteParentPortPhysical deletes parent uplink OVS bridge, OVN bridge mappings if not in use.
+// deleteParentPortPhysical deletes parent uplink OVS bridge and OVN bridge mappings if not in use.
 func (n *ovn) deleteParentPortPhysical(parentNet Network) error {
-	// Check OVS uplink bridge exists, if it does, check how many ports it has.
+	// Check OVS uplink bridge exists, if it does, check whether the uplink network is in use.
 	releaseIF := false
 	vars := n.parentPortBridgeVars(parentNet)
 	if InterfaceExists(vars.ovsBridge) {
-		ovs := openvswitch.NewOVS()
-		ports, err := ovs.BridgePortList(vars.ovsBridge)
+		uplinkUsed, err := n.checkUplinkUse()
 		if err != nil {
 			return err
 		}
 
-		// If the OVS bridge has only 1 port (the parent interface) or fewer connected then delete it.
-		if len(ports) <= 1 {
+		// Remove OVS bridge if the uplink network isn't used by any other OVN networks.
+		if !uplinkUsed {
 			releaseIF = true
 
+			ovs := openvswitch.NewOVS()
 			err = ovs.OVNBridgeMappingDelete(vars.ovsBridge, parentNet.Name())
 			if err != nil {
 				return err
@@ -1580,12 +1610,7 @@ func (n *ovn) Stop() error {
 		return err
 	}
 
-	time.Sleep(2 * time.Second) // Give some time for the chassis deletion to tear down patch ports.
-
-	// Delete local parent uplink port.
-	// This must occur after the local OVS chassis ID is removed from the OVN HA chassis group so that the
-	// OVN patch port connection is removed for this network and we can correctly detect whether there are
-	// any other OVN networks using this uplink bridge before removing it.
+	// Delete local parent uplink port if not used by other OVN networks.
 	err = n.deleteParentPort()
 	if err != nil {
 		return err
