@@ -98,7 +98,7 @@ func networkRemoveInterfaceIfNeeded(state *state.State, nic string, current inst
 		}
 	}
 
-	return NetworkRemoveInterface(nic)
+	return network.InterfaceRemove(nic)
 }
 
 // networkCreateVlanDeviceIfNeeded creates a VLAN device if doesn't already exist.
@@ -158,7 +158,7 @@ func networkSnapshotPhysicalNic(hostName string, volatile map[string]string) err
 func networkRestorePhysicalNic(hostName string, volatile map[string]string) error {
 	// If we created the "physical" device and then it should be removed.
 	if shared.IsTrue(volatile["last_state.created"]) {
-		return NetworkRemoveInterface(hostName)
+		return network.InterfaceRemove(hostName)
 	}
 
 	// Bring the interface down, as this is sometimes needed to change settings on the nic.
@@ -205,7 +205,7 @@ func networkCreateVethPair(hostName string, m deviceConfig.Device) (string, erro
 
 	_, err = shared.RunCommand("ip", "link", "set", "dev", hostName, "up")
 	if err != nil {
-		NetworkRemoveInterface(hostName)
+		network.InterfaceRemove(hostName)
 		return "", fmt.Errorf("Failed to bring up the veth interface %s: %v", hostName, err)
 	}
 
@@ -213,7 +213,7 @@ func networkCreateVethPair(hostName string, m deviceConfig.Device) (string, erro
 	if m["hwaddr"] != "" {
 		_, err := shared.RunCommand("ip", "link", "set", "dev", peerName, "address", m["hwaddr"])
 		if err != nil {
-			NetworkRemoveInterface(peerName)
+			network.InterfaceRemove(peerName)
 			return "", fmt.Errorf("Failed to set the MAC address: %v", err)
 		}
 	}
@@ -227,13 +227,13 @@ func networkCreateVethPair(hostName string, m deviceConfig.Device) (string, erro
 
 		err = NetworkSetDevMTU(peerName, uint32(mtu))
 		if err != nil {
-			NetworkRemoveInterface(peerName)
+			network.InterfaceRemove(peerName)
 			return "", fmt.Errorf("Failed to set the MTU: %v", err)
 		}
 
 		err = NetworkSetDevMTU(hostName, uint32(mtu))
 		if err != nil {
-			NetworkRemoveInterface(peerName)
+			network.InterfaceRemove(peerName)
 			return "", fmt.Errorf("Failed to set the MTU: %v", err)
 		}
 	} else if m["parent"] != "" {
@@ -244,13 +244,13 @@ func networkCreateVethPair(hostName string, m deviceConfig.Device) (string, erro
 
 		err = NetworkSetDevMTU(peerName, parentMTU)
 		if err != nil {
-			NetworkRemoveInterface(peerName)
+			network.InterfaceRemove(peerName)
 			return "", fmt.Errorf("Failed to set the MTU: %v", err)
 		}
 
 		err = NetworkSetDevMTU(hostName, parentMTU)
 		if err != nil {
-			NetworkRemoveInterface(peerName)
+			network.InterfaceRemove(peerName)
 			return "", fmt.Errorf("Failed to set the MTU: %v", err)
 		}
 	}
@@ -272,7 +272,7 @@ func networkCreateTap(hostName string, m deviceConfig.Device) error {
 	if err != nil {
 		return errors.Wrapf(err, "Failed to bring up the tap interface %s", hostName)
 	}
-	revert.Add(func() { NetworkRemoveInterface(hostName) })
+	revert.Add(func() { network.InterfaceRemove(hostName) })
 
 	// Set the MTU on peer. If not specified and has parent, will inherit MTU from parent.
 	if m["mtu"] != "" {
