@@ -1045,3 +1045,18 @@ func VLANInterfaceCreate(parent string, vlanDevice string, vlanID string) (bool,
 	// We created a new vlan interface, return true.
 	return true, nil
 }
+
+// InterfaceRemove removes a network interface by name.
+func InterfaceRemove(nic string) error {
+	_, err := shared.RunCommand("ip", "link", "del", "dev", nic)
+	return err
+}
+
+// InterfaceExists returns true if network interface exists.
+func InterfaceExists(nic string) bool {
+	if shared.PathExists(fmt.Sprintf("/sys/class/net/%s", nic)) {
+		return true
+	}
+
+	return false
+}
