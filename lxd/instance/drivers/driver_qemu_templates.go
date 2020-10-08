@@ -23,7 +23,7 @@ type = "pseries"
 type = "s390-ccw-virtio"
 {{end -}}
 accel = "kvm"
-usb = "off"
+usb = "on"
 graphics = "off"
 
 {{if eq .architecture "x86_64" -}}
@@ -493,6 +493,17 @@ host = "{{.pciSlotName}}"
 {{if .vga -}}
 x-vga = "on"
 {{- end }}
+{{if .multifunction -}}
+multifunction = "on"
+{{- end }}
+`))
+
+var qemuUSB = template.Must(template.New("qemuUSB").Parse(`
+# USB controller
+[device "qemu_usb"]
+driver = "qemu-xhci"
+bus = "{{.devBus}}"
+addr = "{{.devAddr}}"
 {{if .multifunction -}}
 multifunction = "on"
 {{- end }}
