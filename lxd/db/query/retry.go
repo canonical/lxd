@@ -5,11 +5,15 @@ import (
 	"strings"
 	"time"
 
+	"github.com/Rican7/retry/jitter"
+	"github.com/canonical/go-dqlite/driver"
 	"github.com/mattn/go-sqlite3"
 	"github.com/pkg/errors"
 
 	"github.com/lxc/lxd/shared/logger"
 )
+
+const maxRetries = 250
 
 // Retry wraps a function that interacts with the database, and retries it in
 // case a transient error is hit.
@@ -18,7 +22,7 @@ import (
 func Retry(f func() error) error {
 	// TODO: the retry loop should be configurable.
 	var err error
-	for i := 0; i < 5; i++ {
+	for i := 0; i < maxRetries; i++ {
 		err = f()
 		if err != nil {
 			// No point in re-trying or logging a no-row error.
@@ -29,8 +33,12 @@ func Retry(f func() error) error {
 			// Process actual errors.
 			logger.Debugf("Database error: %#v", err)
 			if IsRetriableError(err) {
+				if i == maxRetries {
+					logger.Warnf("Give up retrying database error: %v", err)
+					break
+				}
 				logger.Debugf("Retry failed db interaction (%v)", err)
-				time.Sleep(250 * time.Millisecond)
+				time.Sleep(jitter.Deviation(nil, 0.8)(100 * time.Millisecond))
 				continue
 			}
 		}
