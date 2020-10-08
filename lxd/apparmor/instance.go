@@ -176,7 +176,7 @@ func instanceProfile(state *state.State, inst instance) (string, error) {
 		}
 
 		err = qemuProfileTpl.Execute(sb, map[string]interface{}{
-			"devPaths":    inst.DevPaths(),
+			"devPaths":    devPaths,
 			"exePath":     util.GetExecPath(),
 			"libraryPath": strings.Split(os.Getenv("LD_LIBRARY_PATH"), ":"),
 			"logPath":     inst.LogPath(),
