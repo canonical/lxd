@@ -68,6 +68,10 @@ func IsRetriableError(err error) bool {
 		return true
 	}
 
+	if strings.Contains(err.Error(), "cannot start a transaction within a transaction") {
+		return true
+	}
+
 	if strings.Contains(err.Error(), "bad connection") {
 		return true
 	}
