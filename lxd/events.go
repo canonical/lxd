@@ -48,6 +48,11 @@ func eventsSocket(d *Daemon, r *http.Request, w http.ResponseWriter) error {
 		}
 	}
 
+	if shared.StringInSlice("logging", types) && !d.userIsAdmin(r) {
+		response.Forbidden(nil).Render(w)
+		return nil
+	}
+
 	// Upgrade the connection to websocket
 	c, err := shared.WebsocketUpgrader.Upgrade(w, r, nil)
 	if err != nil {
