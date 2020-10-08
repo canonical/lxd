@@ -278,4 +278,8 @@ enum {
 #define CLONE_NEWTIME 0x00000080
 #endif
 
+#ifndef CLONE_NEWCGROUP
+#define CLONE_NEWCGROUP	0x02000000
+#endif
+
 #endif /* __LXC_MACRO_H */
