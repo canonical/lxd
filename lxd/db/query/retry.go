@@ -56,6 +56,10 @@ func IsRetriableError(err error) bool {
 		return false
 	}
 
+	if err, ok := err.(driver.Error); ok && err.Code == driver.ErrBusy {
+		return true
+	}
+
 	if err == sqlite3.ErrLocked || err == sqlite3.ErrBusy {
 		return true
 	}
