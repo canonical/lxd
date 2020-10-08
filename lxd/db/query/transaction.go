@@ -30,7 +30,7 @@ func Transaction(db *sql.DB, f func(*sql.Tx) error) error {
 // succeeds the given error is returned, otherwise a new error that wraps it
 // gets generated and returned.
 func rollback(tx *sql.Tx, reason error) error {
-	err := tx.Rollback()
+	err := Retry(tx.Rollback)
 	if err != nil {
 		logger.Warnf("Failed to rollback transaction after error (%v): %v", reason, err)
 	}
