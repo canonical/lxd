@@ -199,10 +199,6 @@ static void mknod_emulate(void)
 	}
 }
 
-#ifndef CLONE_NEWCGROUP
-#define CLONE_NEWCGROUP	0x02000000
-#endif
-
 const static int ns_flags[] = { CLONE_NEWUSER, CLONE_NEWPID, CLONE_NEWUTS, CLONE_NEWIPC, CLONE_NEWNET, CLONE_NEWCGROUP };
 
 static bool change_creds(int pidfd, int ns_fd, cap_t caps, uid_t nsuid, gid_t nsgid, uid_t nsfsuid, gid_t nsfsgid)
