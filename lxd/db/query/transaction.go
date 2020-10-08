@@ -2,6 +2,7 @@ package query
 
 import (
 	"database/sql"
+	"strings"
 
 	"github.com/lxc/lxd/shared/logger"
 	"github.com/pkg/errors"
@@ -11,6 +12,11 @@ import (
 func Transaction(db *sql.DB, f func(*sql.Tx) error) error {
 	tx, err := db.Begin()
 	if err != nil {
+		// If there is a leftover transaction let's try to rollback,
+		// we'll then retry again.
+		if strings.Contains(err.Error(), "cannot start a transaction within a transaction") {
+			db.Exec("ROLLBACK")
+		}
 		return errors.Wrap(err, "failed to begin transaction")
 	}
 
