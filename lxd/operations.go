@@ -97,7 +97,7 @@ func waitForOperations(s *state.State, chCancel chan struct{}) {
 			if execConsoleOps > 0 {
 				logger.Info("Timeout reached, continuing with shutdown")
 			}
-
+			return
 		case <-logTick:
 			// Print log message every minute.
 			logger.Infof("Waiting for %d operation(s) to finish", runningOps)
