@@ -95,8 +95,7 @@ func waitForOperations(s *state.State, chCancel chan struct{}) {
 			// If there are still running operations, we shut down the instances
 			// which will terminate the operations.
 			if execConsoleOps > 0 {
-				logger.Info("Shutdown timeout reached, shutting down instances")
-				instancesShutdown(s)
+				logger.Info("Timeout reached, continuing with shutdown")
 			}
 
 		case <-logTick:
