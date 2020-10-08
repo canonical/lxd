@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"strings"
 
@@ -10,6 +11,8 @@ import (
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/logger"
 )
+
+var eventTypes = []string{"logging", "operation", "lifecycle"}
 
 var eventsCmd = APIEndpoint{
 	Path: "events",
@@ -32,9 +35,17 @@ func (r *eventsServe) String() string {
 
 func eventsSocket(d *Daemon, r *http.Request, w http.ResponseWriter) error {
 	project := projectParam(r)
-	typeStr := r.FormValue("type")
-	if typeStr == "" {
-		typeStr = "logging,operation,lifecycle"
+	types := strings.Split(r.FormValue("type"), ",")
+	if len(types) == 1 && types[0] == "" {
+		types = eventTypes
+	}
+
+	// Validate event types.
+	for _, entry := range types {
+		if !shared.StringInSlice(entry, eventTypes) {
+			response.BadRequest(fmt.Errorf("'%s' isn't a supported event type", entry)).Render(w)
+			return nil
+		}
 	}
 
 	// Upgrade the connection to websocket
@@ -59,7 +70,7 @@ func eventsSocket(d *Daemon, r *http.Request, w http.ResponseWriter) error {
 	// If this request is an internal one initiated by another node wanting
 	// to watch the events on this node, set the listener to broadcast only
 	// local events.
-	listener, err := d.events.AddListener(project, c, strings.Split(typeStr, ","), serverName, isClusterNotification(r))
+	listener, err := d.events.AddListener(project, c, types, serverName, isClusterNotification(r))
 	if err != nil {
 		return err
 	}
