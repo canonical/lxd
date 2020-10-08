@@ -77,13 +77,30 @@ func (c *cmdDaemon) Run(cmd *cobra.Command, args []string) error {
 	signal.Notify(chIgnore, unix.SIGHUP)
 
 	s := d.State()
+
+	cleanStop := func() {
+		// Cancelling the context will make everyone aware that we're shutting down.
+		d.cancel()
+
+		// waitForOperations will block until all operations are done, or it's forced to shut down.
+		// For the latter case, we re-use the shutdown channel which is filled when a shutdown is
+		// initiated using `lxd shutdown`.
+		waitForOperations(s, d.shutdownChan)
+
+		d.Kill()
+	}
+
 	select {
 	case sig := <-ch:
 		if sig == unix.SIGPWR {
-			logger.Infof("Received '%s signal', shutting down instances", sig)
-			d.Kill()
+			logger.Infof("Received '%s signal', waiting for all operations to finish", sig)
+			cleanStop()
+
 			instancesShutdown(s)
 			networkShutdown(s)
+		} else if sig == unix.SIGTERM {
+			logger.Infof("Received '%s signal', waiting for all operations to finish", sig)
+			cleanStop()
 		} else {
 			logger.Infof("Received '%s signal', exiting", sig)
 			d.Kill()
@@ -91,14 +108,8 @@ func (c *cmdDaemon) Run(cmd *cobra.Command, args []string) error {
 
 	case <-d.shutdownChan:
 		logger.Infof("Asked to shutdown by API, waiting for all operations to finish")
-		// Cancelling the context will make everyone aware that we're shutting down.
-		d.cancel()
-		// waitForOperations will block until all operations are done, or it's forced to shut down.
-		// For the latter case, we re-use the shutdown channel which is filled when a shutdown is
-		// initiated using `lxd shutdown`.
-		waitForOperations(s, d.shutdownChan)
+		cleanStop()
 
-		d.Kill()
 		instancesShutdown(s)
 		networkShutdown(s)
 	}
