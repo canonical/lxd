@@ -461,7 +461,25 @@ func (d *Daemon) createCmd(restAPI *mux.Router, version string, c APIEndpoint) {
 		// - internal calls, e.g. lxd shutdown
 		// - events endpoint as this is accessed when running `lxd shutdown`
 		// - /1.0 endpoint
-		if version != "internal" && c.Path != "events" && c.Path != "" && d.ctx.Err() == context.Canceled {
+		// - /1.0/operations endpoints
+		// - GET queries
+		allowedDuringShutdown := func() bool {
+			if version == "internal" {
+				return true
+			}
+
+			if c.Path == "" || c.Path == "events" || c.Path == "operations" || strings.HasPrefix(c.Path, "operations/") {
+				return true
+			}
+
+			if r.Method == "GET" {
+				return true
+			}
+
+			return false
+		}
+
+		if d.ctx.Err() == context.Canceled && !allowedDuringShutdown() {
 			response.Unavailable(fmt.Errorf("LXD is shutting down")).Render(w)
 			return
 		}
