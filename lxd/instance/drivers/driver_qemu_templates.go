@@ -497,3 +497,14 @@ x-vga = "on"
 multifunction = "on"
 {{- end }}
 `))
+
+var qemuUSB = template.Must(template.New("qemuUSB").Parse(`
+# USB controller
+[device "qemu_usb"]
+driver = "qemu-xhci"
+bus = "{{.devBus}}"
+addr = "{{.devAddr}}"
+{{if .multifunction -}}
+multifunction = "on"
+{{- end }}
+`))
