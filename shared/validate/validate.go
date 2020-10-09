@@ -228,29 +228,24 @@ func IsNetworkV4(value string) error {
 	return nil
 }
 
-// IsNetworkAddressV4 validates an IPv4 addresss string.
-func IsNetworkAddressV4(value string) error {
-	ip := net.ParseIP(value)
-	if ip == nil || ip.To4() == nil {
-		return fmt.Errorf("Not an IPv4 address %q", value)
+// IsNetworkV4List validates a comma delimited list of IPv4 CIDR strings.
+func IsNetworkV4List(value string) error {
+	for _, network := range strings.Split(value, ",") {
+		network = strings.TrimSpace(network)
+		err := IsNetworkV4(network)
+		if err != nil {
+			return err
+		}
 	}
 
 	return nil
 }
 
-// IsNetworkAddressCIDRV4 validates an IPv4 addresss string in CIDR format.
-func IsNetworkAddressCIDRV4(value string) error {
-	ip, subnet, err := net.ParseCIDR(value)
-	if err != nil {
-		return err
-	}
-
-	if ip.To4() == nil {
+// IsNetworkAddressV4 validates an IPv4 addresss string.
+func IsNetworkAddressV4(value string) error {
+	ip := net.ParseIP(value)
+	if ip == nil || ip.To4() == nil {
 		return fmt.Errorf("Not an IPv4 address %q", value)
-	}
-
-	if ip.String() == subnet.IP.String() {
-		return fmt.Errorf("Not a usable IPv4 address %q", value)
 	}
 
 	return nil
@@ -269,85 +264,19 @@ func IsNetworkAddressV4List(value string) error {
 	return nil
 }
 
-// IsNetworkV4List validates a comma delimited list of IPv4 CIDR strings.
-func IsNetworkV4List(value string) error {
-	for _, network := range strings.Split(value, ",") {
-		network = strings.TrimSpace(network)
-		err := IsNetworkV4(network)
-		if err != nil {
-			return err
-		}
-	}
-
-	return nil
-}
-
-// IsNetworkV6 validates an IPv6 CIDR string.
-func IsNetworkV6(value string) error {
+// IsNetworkAddressCIDRV4 validates an IPv4 addresss string in CIDR format.
+func IsNetworkAddressCIDRV4(value string) error {
 	ip, subnet, err := net.ParseCIDR(value)
 	if err != nil {
 		return err
 	}
 
-	if ip == nil || ip.To4() != nil {
-		return fmt.Errorf("Not an IPv6 network %q", value)
-	}
-
-	if ip.String() != subnet.IP.String() {
-		return fmt.Errorf("Not an IPv6 network address %q", value)
-	}
-
-	return nil
-}
-
-// IsNetworkAddressV6 validates an IPv6 addresss string.
-func IsNetworkAddressV6(value string) error {
-	ip := net.ParseIP(value)
-	if ip == nil || ip.To4() != nil {
-		return fmt.Errorf("Not an IPv6 address %q", value)
-	}
-
-	return nil
-}
-
-// IsNetworkAddressCIDRV6 validates an IPv6 addresss string in CIDR format.
-func IsNetworkAddressCIDRV6(value string) error {
-	ip, subnet, err := net.ParseCIDR(value)
-	if err != nil {
-		return err
-	}
-
-	if ip.To4() != nil {
-		return fmt.Errorf("Not an IPv6 address %q", value)
+	if ip.To4() == nil {
+		return fmt.Errorf("Not an IPv4 address %q", value)
 	}
 
 	if ip.String() == subnet.IP.String() {
-		return fmt.Errorf("Not a usable IPv6 address %q", value)
-	}
-
-	return nil
-}
-
-// IsNetworkAddressV6List validates a comma delimited list of IPv6 addresses.
-func IsNetworkAddressV6List(value string) error {
-	for _, v := range strings.Split(value, ",") {
-		v = strings.TrimSpace(v)
-		err := IsNetworkAddressV6(v)
-		if err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-// IsNetworkV6List validates a comma delimited list of IPv6 CIDR strings.
-func IsNetworkV6List(value string) error {
-	for _, network := range strings.Split(value, ",") {
-		network = strings.TrimSpace(network)
-		err := IsNetworkV6(network)
-		if err != nil {
-			return err
-		}
+		return fmt.Errorf("Not a usable IPv4 address %q", value)
 	}
 
 	return nil
@@ -377,6 +306,77 @@ func IsNetworkRangeV4List(value string) error {
 		if err != nil {
 			return err
 		}
+	}
+
+	return nil
+}
+
+// IsNetworkV6 validates an IPv6 CIDR string.
+func IsNetworkV6(value string) error {
+	ip, subnet, err := net.ParseCIDR(value)
+	if err != nil {
+		return err
+	}
+
+	if ip == nil || ip.To4() != nil {
+		return fmt.Errorf("Not an IPv6 network %q", value)
+	}
+
+	if ip.String() != subnet.IP.String() {
+		return fmt.Errorf("Not an IPv6 network address %q", value)
+	}
+
+	return nil
+}
+
+// IsNetworkV6List validates a comma delimited list of IPv6 CIDR strings.
+func IsNetworkV6List(value string) error {
+	for _, network := range strings.Split(value, ",") {
+		network = strings.TrimSpace(network)
+		err := IsNetworkV6(network)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// IsNetworkAddressV6 validates an IPv6 addresss string.
+func IsNetworkAddressV6(value string) error {
+	ip := net.ParseIP(value)
+	if ip == nil || ip.To4() != nil {
+		return fmt.Errorf("Not an IPv6 address %q", value)
+	}
+
+	return nil
+}
+
+// IsNetworkAddressV6List validates a comma delimited list of IPv6 addresses.
+func IsNetworkAddressV6List(value string) error {
+	for _, v := range strings.Split(value, ",") {
+		v = strings.TrimSpace(v)
+		err := IsNetworkAddressV6(v)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// IsNetworkAddressCIDRV6 validates an IPv6 addresss string in CIDR format.
+func IsNetworkAddressCIDRV6(value string) error {
+	ip, subnet, err := net.ParseCIDR(value)
+	if err != nil {
+		return err
+	}
+
+	if ip.To4() != nil {
+		return fmt.Errorf("Not an IPv6 address %q", value)
+	}
+
+	if ip.String() == subnet.IP.String() {
+		return fmt.Errorf("Not a usable IPv6 address %q", value)
 	}
 
 	return nil
