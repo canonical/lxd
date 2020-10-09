@@ -184,6 +184,32 @@ func IsNetworkAddressList(value string) error {
 	return nil
 }
 
+// IsNetwork validates an IP network CIDR string.
+func IsNetwork(value string) error {
+	ip, subnet, err := net.ParseCIDR(value)
+	if err != nil {
+		return err
+	}
+
+	if ip.String() != subnet.IP.String() {
+		return fmt.Errorf("Not an IP network address %q", value)
+	}
+
+	return nil
+}
+
+// IsNetworkList validates a comma delimited list of IP network CIDR strings.
+func IsNetworkList(value string) error {
+	for _, network := range strings.Split(value, ",") {
+		err := IsNetwork(strings.TrimSpace(network))
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
 // IsNetworkV4 validates an IPv4 CIDR string.
 func IsNetworkV4(value string) error {
 	ip, subnet, err := net.ParseCIDR(value)
