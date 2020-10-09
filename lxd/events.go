@@ -13,6 +13,7 @@ import (
 )
 
 var eventTypes = []string{"logging", "operation", "lifecycle"}
+var privilegedEventTypes = []string{"logging"}
 
 var eventsCmd = APIEndpoint{
 	Path: "events",
@@ -37,7 +38,14 @@ func eventsSocket(d *Daemon, r *http.Request, w http.ResponseWriter) error {
 	project := projectParam(r)
 	types := strings.Split(r.FormValue("type"), ",")
 	if len(types) == 1 && types[0] == "" {
-		types = eventTypes
+		types = []string{}
+		for _, entry := range eventTypes {
+			if !d.userIsAdmin(r) && shared.StringInSlice(entry, privilegedEventTypes) {
+				continue
+			}
+
+			types = append(types, entry)
+		}
 	}
 
 	// Validate event types.
