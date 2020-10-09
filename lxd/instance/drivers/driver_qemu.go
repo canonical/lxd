@@ -2836,7 +2836,37 @@ func (vm *qemu) Update(args db.InstanceArgs, userRequested bool) error {
 	}
 
 	// Diff the devices.
-	removeDevices, addDevices, updateDevices, allUpdatedKeys := oldExpandedDevices.Update(vm.expandedDevices, nil)
+	removeDevices, addDevices, updateDevices, allUpdatedKeys := oldExpandedDevices.Update(vm.expandedDevices, func(oldDevice deviceConfig.Device, newDevice deviceConfig.Device) []string {
+		// This function needs to return a list of fields that are excluded from differences
+		// between oldDevice and newDevice. The result of this is that as long as the
+		// devices are otherwise identical except for the fields returned here, then the
+		// device is considered to be being "updated" rather than "added & removed".
+		oldNICType, err := nictype.NICType(vm.state, vm.Project(), newDevice)
+		if err != nil {
+			return []string{} // Cannot hot-update due to config error.
+		}
+
+		newNICType, err := nictype.NICType(vm.state, vm.Project(), oldDevice)
+		if err != nil {
+			return []string{} // Cannot hot-update due to config error.
+		}
+
+		if oldDevice["type"] != newDevice["type"] || oldNICType != newNICType {
+			return []string{} // Device types aren't the same, so this cannot be an update.
+		}
+
+		d, err := device.New(vm, vm.state, "", newDevice, nil, nil)
+		if err != nil {
+			return []string{} // Couldn't create Device, so this cannot be an update.
+		}
+
+		// TODO modify device framework to differentiate between devices that can only be updated when VM
+		// is stopped, but don't need to be removed then re-added. For now we rely upon the disk device
+		// indicating that it supports hot plugging, even for VMs, which it cannot. However this is
+		// needed so that the disk device's Update() function is called to allow disk resizing.
+		_, updateFields := d.CanHotPlug()
+		return updateFields
+	})
 
 	if userRequested {
 		// Do some validation of the config diff.
@@ -2854,12 +2884,8 @@ func (vm *qemu) Update(args db.InstanceArgs, userRequested bool) error {
 
 	isRunning := vm.IsRunning()
 
-	if isRunning && len(allUpdatedKeys) > 0 {
-		return fmt.Errorf("Devices cannot be changed when VM is running")
-	}
-
 	// Use the device interface to apply update changes.
-	err = vm.updateDevices(removeDevices, addDevices, updateDevices, oldExpandedDevices)
+	err = vm.updateDevices(removeDevices, addDevices, updateDevices, oldExpandedDevices, isRunning)
 	if err != nil {
 		return err
 	}
@@ -3055,8 +3081,10 @@ func (vm *qemu) updateMemoryLimit(newLimit string) error {
 	return fmt.Errorf("Failed setting memory to %d bytes (currently %d bytes) as it was taking too long", newSizeBytes, curSizeBytes)
 }
 
-func (vm *qemu) updateDevices(removeDevices deviceConfig.Devices, addDevices deviceConfig.Devices, updateDevices deviceConfig.Devices, oldExpandedDevices deviceConfig.Devices) error {
-	isRunning := vm.IsRunning()
+func (vm *qemu) updateDevices(removeDevices deviceConfig.Devices, addDevices deviceConfig.Devices, updateDevices deviceConfig.Devices, oldExpandedDevices deviceConfig.Devices, isRunning bool) error {
+	if isRunning && (len(removeDevices) > 0 || len(addDevices) > 0 || len(updateDevices) > 0) {
+		return fmt.Errorf("Devices cannot be changed when VM is running")
+	}
 
 	// Remove devices in reverse order to how they were added.
 	for _, dev := range removeDevices.Reversed() {
