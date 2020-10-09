@@ -623,7 +623,7 @@ func (vm *qemu) Shutdown(timeout time.Duration) error {
 	}
 
 	op.Done(nil)
-	vm.state.Events.SendLifecycle(vm.project, "instance-shutdown", fmt.Sprintf("/1.0/virtual-machines/%s", vm.name), nil)
+	vm.state.Events.SendLifecycle(vm.project, "virtual-machine-shutdown", fmt.Sprintf("/1.0/virtual-machines/%s", vm.name), nil)
 	return nil
 }
 
