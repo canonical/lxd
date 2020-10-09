@@ -42,4 +42,5 @@ type RunConfig struct {
 	Uevents          [][]string       // Uevents to inject.
 	PostHooks        []func() error   // Functions to be run after device attach/detach.
 	GPUDevice        []RunConfigItem  // GPU device configuration settings.
+	USBDevice        []RunConfigItem  // USB device configuration settings.
 }
