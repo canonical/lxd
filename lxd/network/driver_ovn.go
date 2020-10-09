@@ -81,7 +81,7 @@ func (n *ovn) Info() Info {
 // Validate network config.
 func (n *ovn) Validate(config map[string]string) error {
 	rules := map[string]func(value string) error{
-		"network":       validate.IsAny, // Is validated during setup.
+		"network":       validate.IsAny,
 		"bridge.hwaddr": validate.Optional(validate.IsNetworkMAC),
 		"bridge.mtu":    validate.Optional(validate.IsNetworkMTU),
 		"ipv4.address": func(value string) error {
@@ -98,9 +98,11 @@ func (n *ovn) Validate(config map[string]string) error {
 
 			return validate.Optional(validate.IsNetworkAddressCIDRV6)(value)
 		},
-		"ipv6.dhcp.stateful": validate.Optional(validate.IsBool),
-		"dns.domain":         validate.IsAny,
-		"dns.search":         validate.IsAny,
+		"ipv6.dhcp.stateful":   validate.Optional(validate.IsBool),
+		"ipv4.routes.external": validate.Optional(validate.IsNetworkV4List),
+		"ipv6.routes.external": validate.Optional(validate.IsNetworkV6List),
+		"dns.domain":           validate.IsAny,
+		"dns.search":           validate.IsAny,
 
 		// Volatile keys populated automatically as needed.
 		ovnVolatileUplinkIPv4: validate.Optional(validate.IsNetworkAddressV4),
@@ -110,6 +112,117 @@ func (n *ovn) Validate(config map[string]string) error {
 	err := n.validate(config, rules)
 	if err != nil {
 		return err
+	}
+
+	// Check uplink network is valid and allowed in project.
+	uplinkNetworkName, err := n.validateUplinkNetwork(config["network"])
+	if err != nil {
+		return err
+	}
+
+	// Check IP external routes are within the uplink network's routes and project's subnet restrictions.
+	if config["ipv4.routes.external"] != "" || config["ipv6.routes.external"] != "" {
+		// Load the uplink network to get uplink routes.
+		_, uplink, err := n.state.Cluster.GetNetworkInAnyState(project.Default, uplinkNetworkName)
+		if err != nil {
+			return err
+		}
+
+		// Load the project to get uplink network restrictions.
+		var project *api.Project
+		err = n.state.Cluster.Transaction(func(tx *db.ClusterTx) error {
+			project, err = tx.GetProject(n.project)
+			if err != nil {
+				return err
+			}
+
+			return nil
+		})
+		if err != nil {
+			return errors.Wrapf(err, "Failed to load IP route restrictions for project %q", n.project)
+		}
+
+		// Parse uplink route subnets.
+		var uplinkRoutes []*net.IPNet
+		for _, k := range []string{"ipv4.routes", "ipv6.routes"} {
+			if uplink.Config[k] == "" {
+				continue
+			}
+
+			uplinkRoutes, err = SubnetParseAppend(uplinkRoutes, strings.Split(uplink.Config[k], ",")...)
+			if err != nil {
+				return err
+			}
+		}
+
+		// Parse project's restricted subnets.
+		var projectRestrictedSubnets []*net.IPNet // Nil value indicates not restricted.
+		if shared.IsTrue(project.Config["restricted"]) && project.Config["restricted.networks.subnets"] != "" {
+			projectRestrictedSubnets = []*net.IPNet{} // Empty slice indicates no allowed subnets.
+
+			for _, subnetRaw := range strings.Split(project.Config["restricted.networks.subnets"], ",") {
+				subnetParts := strings.SplitN(strings.TrimSpace(subnetRaw), ":", 2)
+				if len(subnetParts) != 2 {
+					return fmt.Errorf(`Project subnet %q invalid, must be in the format of "<uplink network>:<subnet>"`, subnetRaw)
+				}
+
+				uplinkName := subnetParts[0]
+				subnetStr := subnetParts[1]
+
+				if uplinkName != uplink.Name {
+					continue // Only include subnets for our uplink.
+				}
+
+				_, restrictedSubnet, err := net.ParseCIDR(subnetStr)
+				if err != nil {
+					return err
+				}
+
+				projectRestrictedSubnets = append(projectRestrictedSubnets, restrictedSubnet)
+			}
+		}
+
+		// Parse and validate our external routes.
+		for _, k := range []string{"ipv4.routes.external", "ipv6.routes.external"} {
+			if config[k] == "" {
+				continue
+			}
+
+			routeSubnetList, err := SubnetParseAppend([]*net.IPNet{}, strings.Split(config[k], ",")...)
+			if err != nil {
+				return err
+			}
+
+			for _, routeSubnet := range routeSubnetList {
+				// Check that the route is within the project's restricted subnets if restricted.
+				if projectRestrictedSubnets != nil {
+					foundMatch := false
+					for _, projectRestrictedSubnet := range projectRestrictedSubnets {
+						if SubnetContains(projectRestrictedSubnet, routeSubnet) {
+							foundMatch = true
+							break
+						}
+					}
+
+					if !foundMatch {
+						return fmt.Errorf("Project %q doesn't contain %q in its restricted uplink subnets", project.Name, routeSubnet.String())
+					}
+				}
+
+				// Check that the external route is within the uplink network's routes.
+				foundMatch := false
+				for _, uplinkRoute := range uplinkRoutes {
+					if SubnetContains(uplinkRoute, routeSubnet) {
+						foundMatch = true
+						break
+					}
+				}
+
+				if !foundMatch {
+					return fmt.Errorf("Uplink network %q doesn't contain %q in its routes", uplink.Name, routeSubnet.String())
+				}
+			}
+		}
 	}
 
 	return nil
