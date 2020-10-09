@@ -8,6 +8,7 @@ import (
 	"os"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/lxc/lxd/lxd/project"
 	"github.com/lxc/lxd/shared"
@@ -95,7 +96,8 @@ func Kill(name string, reload bool) error {
 		return fmt.Errorf("Unable to kill dnsmasq: %s", err)
 	}
 
-	// Cleanup
+	time.Sleep(100 * time.Millisecond) // Give OS time to release sockets.
+
 	return nil
 }
 
