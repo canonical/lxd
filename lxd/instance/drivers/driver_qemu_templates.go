@@ -508,3 +508,11 @@ addr = "{{.devAddr}}"
 multifunction = "on"
 {{- end }}
 `))
+
+var qemuUSBDev = template.Must(template.New("qemuUSBDev").Parse(`
+# USB host device ("{{.devName}}" device)
+[device "dev-lxd_{{.devName}}"]
+driver = "usb-host"
+bus = "qemu_usb.0"
+hostdevice = "{{.hostDevice}}"
+`))
