@@ -71,7 +71,7 @@ func (c *cmdMigrate) RunE(cmd *cobra.Command, args []string) error {
 	}
 
 	// Retrieve LXC containers
-	for _, container := range liblxc.Containers(c.flagLXCPath) {
+	for _, container := range liblxc.Containers(shared.HostPathFollow(c.flagLXCPath)) {
 		if !c.flagAll && !shared.StringInSlice(container.Name(), c.flagContainers) {
 			continue
 		}
