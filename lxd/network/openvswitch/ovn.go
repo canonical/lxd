@@ -151,6 +151,26 @@ func (o *OVN) LogicalRouterSNATAdd(routerName OVNRouter, intNet *net.IPNet, extI
 	return nil
 }
 
+// LogicalRouterDNATSNATAdd adds a DNAT and SNAT rule to a logical router to translate packets from extIP to intIP.
+func (o *OVN) LogicalRouterDNATSNATAdd(routerName OVNRouter, extIP net.IP, intIP net.IP, stateless bool, mayExist bool) error {
+	args := []string{}
+
+	if mayExist {
+		args = append(args, "--may-exist")
+	}
+
+	if stateless {
+		args = append(args, "--stateless")
+	}
+
+	_, err := o.nbctl(append(args, "lr-nat-add", string(routerName), "dnat_and_snat", extIP.String(), intIP.String())...)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
 // LogicalRouterRouteAdd adds a static route to the logical router.
 func (o *OVN) LogicalRouterRouteAdd(routerName OVNRouter, destination *net.IPNet, nextHop net.IP) error {
 	_, err := o.nbctl("lr-route-add", string(routerName), destination.String(), nextHop.String())
