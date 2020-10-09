@@ -161,7 +161,7 @@ func IsNetworkMAC(value string) error {
 	return nil
 }
 
-// IsNetworkAddress validates an IP (v4 or v6) address string. If string is empty, returns valid.
+// IsNetworkAddress validates an IP (v4 or v6) address string.
 func IsNetworkAddress(value string) error {
 	ip := net.ParseIP(value)
 	if ip == nil {
@@ -184,7 +184,7 @@ func IsNetworkAddressList(value string) error {
 	return nil
 }
 
-// IsNetworkV4 validates an IPv4 CIDR string. If string is empty, returns valid.
+// IsNetworkV4 validates an IPv4 CIDR string.
 func IsNetworkV4(value string) error {
 	ip, subnet, err := net.ParseCIDR(value)
 	if err != nil {
@@ -202,7 +202,7 @@ func IsNetworkV4(value string) error {
 	return nil
 }
 
-// IsNetworkAddressV4 validates an IPv4 addresss string. If string is empty, returns valid.
+// IsNetworkAddressV4 validates an IPv4 addresss string.
 func IsNetworkAddressV4(value string) error {
 	ip := net.ParseIP(value)
 	if ip == nil || ip.To4() == nil {
@@ -212,7 +212,7 @@ func IsNetworkAddressV4(value string) error {
 	return nil
 }
 
-// IsNetworkAddressCIDRV4 validates an IPv4 addresss string in CIDR format. If string is empty, returns valid.
+// IsNetworkAddressCIDRV4 validates an IPv4 addresss string in CIDR format.
 func IsNetworkAddressCIDRV4(value string) error {
 	ip, subnet, err := net.ParseCIDR(value)
 	if err != nil {
@@ -256,7 +256,7 @@ func IsNetworkV4List(value string) error {
 	return nil
 }
 
-// IsNetworkV6 validates an IPv6 CIDR string. If string is empty, returns valid.
+// IsNetworkV6 validates an IPv6 CIDR string.
 func IsNetworkV6(value string) error {
 	ip, subnet, err := net.ParseCIDR(value)
 	if err != nil {
@@ -274,7 +274,7 @@ func IsNetworkV6(value string) error {
 	return nil
 }
 
-// IsNetworkAddressV6 validates an IPv6 addresss string. If string is empty, returns valid.
+// IsNetworkAddressV6 validates an IPv6 addresss string.
 func IsNetworkAddressV6(value string) error {
 	ip := net.ParseIP(value)
 	if ip == nil || ip.To4() != nil {
@@ -284,7 +284,7 @@ func IsNetworkAddressV6(value string) error {
 	return nil
 }
 
-// IsNetworkAddressCIDRV6 validates an IPv6 addresss string in CIDR format. If string is empty, returns valid.
+// IsNetworkAddressCIDRV6 validates an IPv6 addresss string in CIDR format.
 func IsNetworkAddressCIDRV6(value string) error {
 	ip, subnet, err := net.ParseCIDR(value)
 	if err != nil {
