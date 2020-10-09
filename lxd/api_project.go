@@ -556,6 +556,7 @@ var projectConfigKeys = map[string]func(value string) error{
 	"restricted.devices.nic":               isEitherAllowOrBlockOrManaged,
 	"restricted.devices.disk":              isEitherAllowOrBlockOrManaged,
 	"restricted.networks.uplinks":          validate.IsAny,
+	"restricted.networks.subnets":          validate.Optional(validate.IsNetworkList),
 }
 
 func projectValidateConfig(config map[string]string) error {
