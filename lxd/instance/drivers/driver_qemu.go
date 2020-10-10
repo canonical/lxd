@@ -2841,12 +2841,12 @@ func (vm *qemu) Update(args db.InstanceArgs, userRequested bool) error {
 		// between oldDevice and newDevice. The result of this is that as long as the
 		// devices are otherwise identical except for the fields returned here, then the
 		// device is considered to be being "updated" rather than "added & removed".
-		oldNICType, err := nictype.NICType(vm.state, vm.Project(), newDevice)
+		oldNICType, err := nictype.NICType(vm.state, newDevice)
 		if err != nil {
 			return []string{} // Cannot hot-update due to config error.
 		}
 
-		newNICType, err := nictype.NICType(vm.state, vm.Project(), oldDevice)
+		newNICType, err := nictype.NICType(vm.state, oldDevice)
 		if err != nil {
 			return []string{} // Cannot hot-update due to config error.
 		}
