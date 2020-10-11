@@ -3714,7 +3714,7 @@ func patchUpdateFromV30(_ *sql.Tx) error {
 	return nil
 }
 
-//renames any config incorrectly set config file entries due to the lvm.thinpool_name typo
+//  renames any config incorrectly set config file entries due to the lvm.thinpool_name typo
 func patchThinpoolTypoFix(name string, d *Daemon) error {
 	tx, err := d.cluster.Begin()
 	if err != nil {
