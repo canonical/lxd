@@ -333,7 +333,7 @@ func (d *lvm) Delete(op *operations.Operation) error {
 	}
 
 	removeVg := false
-	if vgExists {
+	if vgExists && !shared.IsTrue(d.config["lvm.vg.force_reuse"]) {
 		// Count normal and thin volumes.
 		lvCount, err := d.countLogicalVolumes(d.config["lvm.vg_name"])
 		if err != nil && err != errLVMNotFound {
