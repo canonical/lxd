@@ -561,6 +561,9 @@ func projectValidateConfig(s *state.State, config map[string]string) error {
 		"restricted.devices.nic":               isEitherAllowOrBlockOrManaged,
 		"restricted.devices.disk":              isEitherAllowOrBlockOrManaged,
 		"restricted.networks.uplinks":          validate.IsAny,
+		"restricted.networks.subnets": validate.Optional(func(value string) error {
+			return projectValidateRestrictedSubnets(s, value)
+		}),
 	}
 
 	for k, v := range config {
