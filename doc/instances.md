@@ -258,6 +258,7 @@ LXD supports different kind of network devices:
  - [bridged](#nictype-bridged): Uses an existing bridge on the host and creates a virtual device pair to connect the host bridge to the instance.
  - [macvlan](#nictype-macvlan): Sets up a new network device based on an existing one but using a different MAC address.
  - [ipvlan](#nictype-ipvlan): Sets up a new network device based on an existing one using the same MAC address but a different IP.
+ - [ovn](#nictype-ovn): Uses an existing OVN network and creates a virtual device pair to connect the instance to it.
  - [p2p](#nictype-p2p): Creates a virtual device pair, putting one side in the instance and leaving the other side on the host.
  - [sriov](#nictype-sriov): Passes a virtual function of an SR-IOV enabled physical network device into the instance.
  - [routed](#nictype-routed): Creates a virtual device pair to connect the host to the instance and sets up static routes and proxy ARP/NDP entries to allow the instance to join the network of a designated parent interface.
@@ -400,6 +401,26 @@ limits.egress           | string    | -                 | no        | I/O limit 
 limits.max              | string    | -                 | no        | Same as modifying both limits.ingress and limits.egress
 ipv4.routes             | string    | -                 | no        | Comma delimited list of IPv4 static routes to add on host to nic
 ipv6.routes             | string    | -                 | no        | Comma delimited list of IPv6 static routes to add on host to nic
+boot.priority           | integer   | -                 | no        | Boot priority for VMs (higher boots first)
+
+#### nictype: ovn
+
+Supported instance types: container, VM
+
+Uses an existing OVN network and creates a virtual device pair to connect the instance to it.
+
+Device configuration properties:
+
+Key                     | Type      | Default           | Required  | Description
+:--                     | :--       | :--               | :--       | :--
+network                 | string    | -                 | yes       | The LXD network to link device to
+name                    | string    | kernel assigned   | no        | The name of the interface inside the instance
+host\_name              | string    | randomly assigned | no        | The name of the interface inside the host
+hwaddr                  | string    | randomly assigned | no        | The MAC address of the new interface
+ipv4.address            | string    | -                 | no        | An IPv4 address to assign to the instance through DHCP
+ipv6.address            | string    | -                 | no        | An IPv6 address to assign to the instance through DHCP
+ipv4.routes.external    | string    | -                 | no        | Comma delimited list of IPv4 static routes to route to the NIC and publish on uplink network
+ipv6.routes.external    | string    | -                 | no        | Comma delimited list of IPv6 static routes to route to the NIC and publish on uplink network
 boot.priority           | integer   | -                 | no        | Boot priority for VMs (higher boots first)
 
 #### nictype: sriov
