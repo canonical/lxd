@@ -15,6 +15,7 @@ import (
 	"github.com/lxc/lxd/lxd/operations"
 	projecthelpers "github.com/lxc/lxd/lxd/project"
 	"github.com/lxc/lxd/lxd/response"
+	"github.com/lxc/lxd/lxd/state"
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
@@ -521,52 +522,52 @@ func isEitherAllowOrBlockOrManaged(value string) error {
 	return validate.IsOneOf(value, []string{"block", "allow", "managed"})
 }
 
-// Validate the project configuration
-var projectConfigKeys = map[string]func(value string) error{
-	"features.profiles":              validate.Optional(validate.IsBool),
-	"features.images":                validate.Optional(validate.IsBool),
-	"features.storage.volumes":       validate.Optional(validate.IsBool),
-	"limits.containers":              validate.Optional(validate.IsUint32),
-	"limits.virtual-machines":        validate.Optional(validate.IsUint32),
-	"limits.memory":                  validate.Optional(validate.IsSize),
-	"limits.processes":               validate.Optional(validate.IsUint32),
-	"limits.cpu":                     validate.Optional(validate.IsUint32),
-	"limits.disk":                    validate.Optional(validate.IsSize),
-	"restricted":                     validate.Optional(validate.IsBool),
-	"restricted.containers.nesting":  isEitherAllowOrBlock,
-	"restricted.containers.lowlevel": isEitherAllowOrBlock,
-	"restricted.containers.privilege": func(value string) error {
-		return validate.IsOneOf(value, []string{"allow", "unprivileged", "isolated"})
-	},
-	"restricted.virtual-machines.lowlevel": isEitherAllowOrBlock,
-	"restricted.devices.unix-char":         isEitherAllowOrBlock,
-	"restricted.devices.unix-block":        isEitherAllowOrBlock,
-	"restricted.devices.unix-hotplug":      isEitherAllowOrBlock,
-	"restricted.devices.infiniband":        isEitherAllowOrBlock,
-	"restricted.devices.gpu":               isEitherAllowOrBlock,
-	"restricted.devices.usb":               isEitherAllowOrBlock,
-	"restricted.devices.nic":               isEitherAllowOrBlockOrManaged,
-	"restricted.devices.disk":              isEitherAllowOrBlockOrManaged,
-}
+func projectValidateConfig(s *state.State, config map[string]string) error {
+	// Validate the project configuration.
+	projectConfigKeys := map[string]func(value string) error{
+		"features.profiles":              validate.Optional(validate.IsBool),
+		"features.images":                validate.Optional(validate.IsBool),
+		"features.storage.volumes":       validate.Optional(validate.IsBool),
+		"limits.containers":              validate.Optional(validate.IsUint32),
+		"limits.virtual-machines":        validate.Optional(validate.IsUint32),
+		"limits.memory":                  validate.Optional(validate.IsSize),
+		"limits.processes":               validate.Optional(validate.IsUint32),
+		"limits.cpu":                     validate.Optional(validate.IsUint32),
+		"limits.disk":                    validate.Optional(validate.IsSize),
+		"restricted":                     validate.Optional(validate.IsBool),
+		"restricted.containers.nesting":  isEitherAllowOrBlock,
+		"restricted.containers.lowlevel": isEitherAllowOrBlock,
+		"restricted.containers.privilege": func(value string) error {
+			return validate.IsOneOf(value, []string{"allow", "unprivileged", "isolated"})
+		},
+		"restricted.virtual-machines.lowlevel": isEitherAllowOrBlock,
+		"restricted.devices.unix-char":         isEitherAllowOrBlock,
+		"restricted.devices.unix-block":        isEitherAllowOrBlock,
+		"restricted.devices.unix-hotplug":      isEitherAllowOrBlock,
+		"restricted.devices.infiniband":        isEitherAllowOrBlock,
+		"restricted.devices.gpu":               isEitherAllowOrBlock,
+		"restricted.devices.usb":               isEitherAllowOrBlock,
+		"restricted.devices.nic":               isEitherAllowOrBlockOrManaged,
+		"restricted.devices.disk":              isEitherAllowOrBlockOrManaged,
+	}
 
-func projectValidateConfig(config map[string]string) error {
 	for k, v := range config {
 		key := k
 
-		// User keys are free for all
+		// User keys are free for all.
 		if strings.HasPrefix(key, "user.") {
 			continue
 		}
 
-		// Then validate
+		// Then validate.
 		validator, ok := projectConfigKeys[key]
 		if !ok {
-			return fmt.Errorf("Invalid project configuration key: %s", k)
+			return fmt.Errorf("Invalid project configuration key %q", k)
 		}
 
 		err := validator(v)
 		if err != nil {
-			return err
+			return errors.Wrapf(err, "Invalid project configuration key %q value", k)
 		}
 	}
 
