@@ -1157,7 +1157,7 @@ Adds the `features.networks` config key to projects and the ability for a projec
 
 ## projects\_networks\_restricted\_uplinks
 Adds the `restricted.networks.uplinks` project config key to indicate (as a comma delimited list) which networks
-the networks created inside the project can use as their uplink parent network.
+the networks created inside the project can use as their uplink network.
 
 ## custom\_volume\_backup
 Add custom volume backup support.
