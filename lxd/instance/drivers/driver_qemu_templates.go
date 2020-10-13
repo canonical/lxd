@@ -23,7 +23,7 @@ type = "pseries"
 type = "s390-ccw-virtio"
 {{end -}}
 accel = "kvm"
-usb = "on"
+usb = "off"
 graphics = "off"
 
 {{if eq .architecture "x86_64" -}}
