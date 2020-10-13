@@ -905,3 +905,29 @@ func InterfaceSetMTU(nic string, mtu string) error {
 
 	return nil
 }
+
+// SubnetContains returns true if outerSubnet contains innerSubnet.
+func SubnetContains(outerSubnet *net.IPNet, innerSubnet *net.IPNet) bool {
+	if outerSubnet == nil || innerSubnet == nil {
+		return false
+	}
+
+	if !outerSubnet.Contains(innerSubnet.IP) {
+		return false
+	}
+
+	outerOnes, outerBits := outerSubnet.Mask.Size()
+	innerOnes, innerBits := innerSubnet.Mask.Size()
+
+	// Check number of bits in mask match.
+	if innerBits != outerBits {
+		return false
+	}
+
+	// Check that the inner subnet isn't outside of the outer subnet.
+	if innerOnes < outerOnes {
+		return false
+	}
+
+	return true
+}
