@@ -101,7 +101,16 @@ func (n *common) validate(config map[string]string, driverRules map[string]func(
 
 // ValidateName validates network name.
 func (n *common) ValidateName(name string) error {
-	return validate.IsURLSegmentSafe(name)
+	err := validate.IsURLSegmentSafe(name)
+	if err != nil {
+		return err
+	}
+
+	if strings.Contains(name, ":") {
+		return fmt.Errorf("Cannot contain %q", ":")
+	}
+
+	return nil
 }
 
 // ID returns the network ID.
