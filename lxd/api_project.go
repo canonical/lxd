@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
+	"net"
 	"net/http"
 	"strings"
 
@@ -12,7 +13,9 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/lxc/lxd/lxd/db"
+	"github.com/lxc/lxd/lxd/network"
 	"github.com/lxc/lxd/lxd/operations"
+	"github.com/lxc/lxd/lxd/project"
 	projecthelpers "github.com/lxc/lxd/lxd/project"
 	"github.com/lxc/lxd/lxd/response"
 	"github.com/lxc/lxd/lxd/state"
@@ -602,6 +605,63 @@ func projectValidateName(name string) error {
 
 	if shared.StringInSlice(name, []string{".", ".."}) {
 		return fmt.Errorf("Invalid project name '%s'", name)
+	}
+
+	return nil
+}
+
+// projectValidateRestrictedSubnets checks that the project's restricted.networks.subnets are properly formatted
+// and are within the specified uplink network's routes.
+func projectValidateRestrictedSubnets(s *state.State, value string) error {
+	for _, subnetRaw := range strings.Split(value, ",") {
+		subnetParts := strings.SplitN(strings.TrimSpace(subnetRaw), ":", 2)
+		if len(subnetParts) != 2 {
+			return fmt.Errorf(`Subnet %q invalid, must be in the format of "<uplink network>:<subnet>"`, subnetRaw)
+		}
+
+		uplinkName := subnetParts[0]
+		subnetStr := subnetParts[1]
+
+		restrictedSubnetIP, restrictedSubnet, err := net.ParseCIDR(subnetStr)
+		if err != nil {
+			return err
+		}
+
+		if restrictedSubnetIP.String() != restrictedSubnet.IP.String() {
+			return fmt.Errorf("Not an IP network address %q", subnetStr)
+		}
+
+		// Check uplink exists and load config to compare subnets.
+		_, uplink, err := s.Cluster.GetNetworkInAnyState(project.Default, uplinkName)
+		if err != nil {
+			return errors.Wrapf(err, "Invalid uplink network %q", uplinkName)
+		}
+
+		// Parse uplink route subnets.
+		var uplinkRoutes []*net.IPNet
+		for _, k := range []string{"ipv4.routes", "ipv6.routes"} {
+			if uplink.Config[k] == "" {
+				continue
+			}
+
+			uplinkRoutes, err = network.SubnetParseAppend(uplinkRoutes, strings.Split(uplink.Config[k], ",")...)
+			if err != nil {
+				return err
+			}
+		}
+
+		foundMatch := false
+		// Check that the restricted subnet is within one of the uplink's routes.
+		for _, uplinkRoute := range uplinkRoutes {
+			if network.SubnetContains(uplinkRoute, restrictedSubnet) {
+				foundMatch = true
+				break
+			}
+		}
+
+		if !foundMatch {
+			return fmt.Errorf("Uplink network %q doesn't contain %q in its routes", uplinkName, restrictedSubnet.String())
+		}
 	}
 
 	return nil
