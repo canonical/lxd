@@ -35,51 +35,59 @@ func templatesApply(path string) ([]string, error) {
 	// Go through the files and copy them into place.
 	files := []string{}
 	for tplPath, tpl := range metadata.Templates {
-		filePath := filepath.Join(path, fmt.Sprintf("%s.out", tpl.Template))
+		err = func(tplPath string, tpl *api.ImageMetadataTemplate) error {
+			filePath := filepath.Join(path, fmt.Sprintf("%s.out", tpl.Template))
 
-		if !shared.PathExists(filePath) {
-			continue
-		}
-
-		var w *os.File
-		if shared.PathExists(tplPath) {
-			if tpl.CreateOnly {
-				continue
+			if !shared.PathExists(filePath) {
+				return nil
 			}
 
-			// Open the existing file.
-			w, err = os.Create(tplPath)
+			var w *os.File
+			if shared.PathExists(tplPath) {
+				if tpl.CreateOnly {
+					return nil
+				}
+
+				// Open the existing file.
+				w, err = os.Create(tplPath)
+				if err != nil {
+					return errors.Wrap(err, "Failed to create template file")
+				}
+			} else {
+				// Create the directories leading to the file.
+				os.MkdirAll(filepath.Dir(tplPath), 0755)
+
+				// Create the file itself.
+				w, err = os.Create(tplPath)
+				if err != nil {
+					return err
+				}
+
+				// Fix mode.
+				w.Chmod(0644)
+			}
+			defer w.Close()
+
+			// Do the copy.
+			src, err := os.Open(filePath)
 			if err != nil {
-				return nil, errors.Wrap(err, "Failed to create template file")
+				return err
 			}
-		} else {
-			// Create the directories leading to the file.
-			os.MkdirAll(filepath.Dir(tplPath), 0755)
+			defer src.Close()
 
-			// Create the file itself.
-			w, err = os.Create(tplPath)
+			_, err = io.Copy(w, src)
 			if err != nil {
-				return nil, err
+				return err
 			}
 
-			// Fix mode.
-			w.Chmod(0644)
-		}
-		defer w.Close()
+			files = append(files, tplPath)
 
-		// Do the copy.
-		src, err := os.Open(filePath)
+			return nil
+		}(tplPath, tpl)
+
 		if err != nil {
 			return nil, err
 		}
-		defer src.Close()
-
-		_, err = io.Copy(w, src)
-		if err != nil {
-			return nil, err
-		}
-
-		files = append(files, tplPath)
 	}
 
 	return files, nil
