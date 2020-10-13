@@ -1842,6 +1842,14 @@ func (vm *qemu) generateQemuConfigFile(busName string, devConfs []*deviceConfig.
 				return "", err
 			}
 		}
+
+		// Add USB device.
+		if len(runConf.USBDevice) > 0 {
+			err = vm.addUSBDeviceConfig(sb, bus, runConf.USBDevice)
+			if err != nil {
+				return "", err
+			}
+		}
 	}
 
 	// Write the agent mount config.
@@ -2252,6 +2260,33 @@ func (vm *qemu) addGPUDevConfig(sb *strings.Builder, bus *qemuBus, gpuConfig []d
 			return err
 		}
 	}
+
+	return nil
+}
+
+func (vm *qemu) addUSBDeviceConfig(sb *strings.Builder, bus *qemuBus, usbConfig []deviceConfig.RunConfigItem) error {
+	var devName, hostDevice string
+
+	for _, usbItem := range usbConfig {
+		if usbItem.Key == "devName" {
+			devName = usbItem.Value
+		} else if usbItem.Key == "hostDevice" {
+			hostDevice = usbItem.Value
+		}
+	}
+
+	tplFields := map[string]interface{}{
+		"hostDevice": hostDevice,
+		"devName":    devName,
+	}
+
+	err := qemuUSBDev.Execute(sb, tplFields)
+	if err != nil {
+		return err
+	}
+
+	// Add path to devPaths. This way, the path will be included in the apparmor profile.
+	vm.devPaths = append(vm.devPaths, hostDevice)
 
 	return nil
 }

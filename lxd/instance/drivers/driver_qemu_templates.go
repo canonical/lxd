@@ -23,7 +23,7 @@ type = "pseries"
 type = "s390-ccw-virtio"
 {{end -}}
 accel = "kvm"
-usb = "on"
+usb = "off"
 graphics = "off"
 
 {{if eq .architecture "x86_64" -}}
@@ -507,4 +507,12 @@ addr = "{{.devAddr}}"
 {{if .multifunction -}}
 multifunction = "on"
 {{- end }}
+`))
+
+var qemuUSBDev = template.Must(template.New("qemuUSBDev").Parse(`
+# USB host device ("{{.devName}}" device)
+[device "dev-lxd_{{.devName}}"]
+driver = "usb-host"
+bus = "qemu_usb.0"
+hostdevice = "{{.hostDevice}}"
 `))
