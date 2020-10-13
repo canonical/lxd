@@ -1191,3 +1191,12 @@ to disable compression in rsync while migrating storage pools.
 Adds support for additional network type `physical` that can be used as an uplink for `ovn` networks.
 
 The interface specified by `parent` on the `physical` network will be connected to the `ovn` network's gateway.
+
+## network\_ovn\_external\_subnets
+Adds support for `ovn` networks to use external subnets from uplink networks.
+
+Introduces the `ipv4.routes` and `ipv6.routes` setting on `physical` networks that defines the external routes
+allowed to be used in child OVN networks in their `ipv4.routes.external` and `ipv6.routes.external` settings.
+
+Introduces the `restricted.networks.subnets` project setting that specifies which external subnets are allowed to
+be used by OVN networks inside the project (if not set then all routes defined on the uplink network are allowed).
