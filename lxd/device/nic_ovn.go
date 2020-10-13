@@ -26,7 +26,7 @@ import (
 type nicOVN struct {
 	deviceCommon
 
-	network network.Network
+	network network.Network // Populated in validateConfig().
 }
 
 // getIntegrationBridgeName returns the OVS integration bridge to use.
