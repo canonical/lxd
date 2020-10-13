@@ -126,7 +126,7 @@ func projectsPost(d *Daemon, r *http.Request) response.Response {
 	}
 
 	// Validate the configuration
-	err = projectValidateConfig(project.Config)
+	err = projectValidateConfig(d.State(), project.Config)
 	if err != nil {
 		return response.BadRequest(err)
 	}
@@ -354,7 +354,7 @@ func projectChange(d *Daemon, project *api.Project, req api.ProjectPut) response
 	}
 
 	// Validate the configuration.
-	err := projectValidateConfig(req.Config)
+	err := projectValidateConfig(d.State(), req.Config)
 	if err != nil {
 		return response.BadRequest(err)
 	}
