@@ -1949,7 +1949,7 @@ func (n *ovn) instanceDevicePortDynamicIPs(instanceID int, deviceName string) ([
 }
 
 // instanceDevicePortDelete deletes an instance device port from the internal logical switch.
-func (n *ovn) instanceDevicePortDelete(instanceID int, deviceName string) error {
+func (n *ovn) instanceDevicePortDelete(instanceID int, deviceName string, externalRoutes []*net.IPNet) error {
 	instancePortName := n.getInstanceDevicePortName(instanceID, deviceName)
 
 	client, err := n.getClient()
@@ -1965,6 +1965,27 @@ func (n *ovn) instanceDevicePortDelete(instanceID int, deviceName string) error 
 	err = client.LogicalSwitchPortDeleteDNS(n.getIntSwitchName(), instancePortName)
 	if err != nil {
 		return err
+	}
+
+	// Delete each external route.
+	for _, externalRoute := range externalRoutes {
+		err = client.LogicalRouterRouteDelete(n.getRouterName(), externalRoute, nil)
+		if err != nil {
+			return err
+		}
+
+		// Remove the DNAT rules.
+		err = SubnetIterate(externalRoute, func(ip net.IP) error {
+			err = client.LogicalRouterDNATSNATDelete(n.getRouterName(), ip)
+			if err != nil {
+				return err
+			}
+
+			return nil
+		})
+		if err != nil {
+			return err
+		}
 	}
 
 	return nil
