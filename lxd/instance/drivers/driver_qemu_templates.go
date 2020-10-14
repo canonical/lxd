@@ -507,6 +507,30 @@ addr = "{{.devAddr}}"
 {{if .multifunction -}}
 multifunction = "on"
 {{- end }}
+
+[chardev "qemu_spice-usb-chardev1"]
+  backend = "spicevmc"
+  name = "usbredir"
+
+[chardev "qemu_spice-usb-chardev2"]
+  backend = "spicevmc"
+  name = "usbredir"
+
+[chardev "qemu_spice-usb-chardev3"]
+  backend = "spicevmc"
+  name = "usbredir"
+
+[device "qemu_spice-usb1"]
+  driver = "usb-redir"
+  chardev = "qemu_spice-usb-chardev1"
+
+[device "qemu_spice-usb2"]
+  driver = "usb-redir"
+  chardev = "qemu_spice-usb-chardev2"
+
+[device "qemu_spice-usb3"]
+  driver = "usb-redir"
+  chardev = "qemu_spice-usb-chardev3"
 `))
 
 var qemuUSBDev = template.Must(template.New("qemuUSBDev").Parse(`
