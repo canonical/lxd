@@ -649,11 +649,7 @@ func Uint64InSlice(key uint64, list []uint64) bool {
 }
 
 func IsTrue(value string) bool {
-	if StringInSlice(strings.ToLower(value), []string{"true", "1", "yes", "on"}) {
-		return true
-	}
-
-	return false
+	return StringInSlice(strings.ToLower(value), []string{"true", "1", "yes", "on"})
 }
 
 // StringMapHasStringKey returns true if any of the supplied keys are present in the map.
@@ -898,15 +894,15 @@ func RunCommandSplit(env []string, filesInherit []*os.File, name string, arg ...
 	err := cmd.Run()
 	if err != nil {
 		err := RunError{
-			msg:    fmt.Sprintf("Failed to run: %s %s: %s", name, strings.Join(arg, " "), strings.TrimSpace(string(stderr.Bytes()))),
-			Stdout: string(stdout.Bytes()),
-			Stderr: string(stderr.Bytes()),
+			msg:    fmt.Sprintf("Failed to run: %s %s: %s", name, strings.Join(arg, " "), strings.TrimSpace(stderr.String())),
+			Stdout: stdout.String(),
+			Stderr: stderr.String(),
 			Err:    err,
 		}
-		return string(stdout.Bytes()), string(stderr.Bytes()), err
+		return stdout.String(), stderr.String(), err
 	}
 
-	return string(stdout.Bytes()), string(stderr.Bytes()), nil
+	return stdout.String(), stderr.String(), nil
 }
 
 // RunCommand runs a command with optional arguments and returns stdout. If the command fails to
