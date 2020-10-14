@@ -1893,6 +1893,8 @@ func (n *ovn) instanceDevicePortAdd(instanceID int, instanceName string, deviceN
 		return "", err
 	}
 
+	revert.Add(func() { client.LogicalSwitchPortDeleteDNS(n.getIntSwitchName(), instancePortName) })
+
 	revert.Success()
 	return instancePortName, nil
 }
