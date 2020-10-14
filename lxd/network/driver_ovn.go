@@ -1359,14 +1359,14 @@ func (n *ovn) setup(update bool) error {
 
 	// Add default routes.
 	if uplinkNet.routerExtGwIPv4 != nil {
-		err = client.LogicalRouterRouteAdd(n.getRouterName(), &net.IPNet{IP: net.IPv4zero, Mask: net.CIDRMask(0, 32)}, uplinkNet.routerExtGwIPv4)
+		err = client.LogicalRouterRouteAdd(n.getRouterName(), &net.IPNet{IP: net.IPv4zero, Mask: net.CIDRMask(0, 32)}, uplinkNet.routerExtGwIPv4, false)
 		if err != nil {
 			return errors.Wrapf(err, "Failed adding IPv4 default route")
 		}
 	}
 
 	if uplinkNet.routerExtGwIPv6 != nil {
-		err = client.LogicalRouterRouteAdd(n.getRouterName(), &net.IPNet{IP: net.IPv6zero, Mask: net.CIDRMask(0, 128)}, uplinkNet.routerExtGwIPv6)
+		err = client.LogicalRouterRouteAdd(n.getRouterName(), &net.IPNet{IP: net.IPv6zero, Mask: net.CIDRMask(0, 128)}, uplinkNet.routerExtGwIPv6, false)
 		if err != nil {
 			return errors.Wrapf(err, "Failed adding IPv6 default route")
 		}
