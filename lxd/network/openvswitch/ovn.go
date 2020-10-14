@@ -182,8 +182,15 @@ func (o *OVN) LogicalRouterDNATSNATDelete(routerName OVNRouter, extIP net.IP) er
 }
 
 // LogicalRouterRouteAdd adds a static route to the logical router.
-func (o *OVN) LogicalRouterRouteAdd(routerName OVNRouter, destination *net.IPNet, nextHop net.IP) error {
-	_, err := o.nbctl("lr-route-add", string(routerName), destination.String(), nextHop.String())
+func (o *OVN) LogicalRouterRouteAdd(routerName OVNRouter, destination *net.IPNet, nextHop net.IP, mayExist bool) error {
+	args := []string{}
+
+	if mayExist {
+		args = append(args, "--may-exist")
+	}
+
+	args = append(args, "lr-route-add", string(routerName), destination.String(), nextHop.String())
+	_, err := o.nbctl(args...)
 	if err != nil {
 		return err
 	}
