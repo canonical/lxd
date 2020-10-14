@@ -31,12 +31,12 @@ func OVNInstanceDevicePortDynamicIPs(network Network, instanceID int, deviceName
 }
 
 // OVNInstanceDevicePortDelete deletes a logical port from the OVN network's internal switch.
-func OVNInstanceDevicePortDelete(network Network, instanceID int, deviceName string) error {
+func OVNInstanceDevicePortDelete(network Network, instanceID int, deviceName string, externalRoutes []*net.IPNet) error {
 	// Check network is of type OVN.
 	n, ok := network.(*ovn)
 	if !ok {
 		return fmt.Errorf("Network is not OVN type")
 	}
 
-	return n.instanceDevicePortDelete(instanceID, deviceName)
+	return n.instanceDevicePortDelete(instanceID, deviceName, externalRoutes)
 }
