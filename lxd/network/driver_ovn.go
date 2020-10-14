@@ -1829,7 +1829,7 @@ func (n *ovn) getInstanceDevicePortName(instanceID int, deviceName string) openv
 }
 
 // instanceDevicePortAdd adds an instance device port to the internal logical switch and returns the port name.
-func (n *ovn) instanceDevicePortAdd(instanceID int, instanceName string, deviceName string, mac net.HardwareAddr, ips []net.IP) (openvswitch.OVNSwitchPort, error) {
+func (n *ovn) instanceDevicePortAdd(instanceID int, instanceName string, deviceName string, mac net.HardwareAddr, ips []net.IP, externalRoutes []*net.IPNet) (openvswitch.OVNSwitchPort, error) {
 	var dhcpV4ID, dhcpv6ID string
 
 	revert := revert.New()
@@ -1888,12 +1888,49 @@ func (n *ovn) instanceDevicePortAdd(instanceID int, instanceName string, deviceN
 		return "", err
 	}
 
-	err = client.LogicalSwitchPortSetDNS(n.getIntSwitchName(), instancePortName, fmt.Sprintf("%s.%s", instanceName, n.getDomainName()))
+	dnsIPv4, dnsIPv6, err := client.LogicalSwitchPortSetDNS(n.getIntSwitchName(), instancePortName, fmt.Sprintf("%s.%s", instanceName, n.getDomainName()))
 	if err != nil {
 		return "", err
 	}
 
 	revert.Add(func() { client.LogicalSwitchPortDeleteDNS(n.getIntSwitchName(), instancePortName) })
+
+	// Add each external route (using the IPs set for DNS as target).
+	for _, externalRoute := range externalRoutes {
+		targetIP := dnsIPv4
+		if externalRoute.IP.To4() == nil {
+			targetIP = dnsIPv6
+		}
+
+		if targetIP == nil {
+			return "", fmt.Errorf("Cannot add static route for %q as target IP is not set", externalRoute.String())
+		}
+
+		err = client.LogicalRouterRouteAdd(n.getRouterName(), externalRoute, targetIP, true)
+		if err != nil {
+			return "", err
+		}
+
+		revert.Add(func() { client.LogicalRouterRouteDelete(n.getRouterName(), externalRoute, targetIP) })
+
+		// In order to advertise the external route to the uplink network using proxy ARP/NDP we need to
+		// add a stateless dnat_and_snat rule (as to my knowledge this is the only way to get the OVN
+		// router to respond to ARP/NDP requests for IPs that it doesn't actually have). However we have
+		// to add each IP in the external route individually as DNAT doesn't support whole subnets.
+		err = SubnetIterate(externalRoute, func(ip net.IP) error {
+			err = client.LogicalRouterDNATSNATAdd(n.getRouterName(), ip, ip, true, true)
+			if err != nil {
+				return err
+			}
+
+			revert.Add(func() { client.LogicalRouterDNATSNATDelete(n.getRouterName(), ip) })
+
+			return nil
+		})
+		if err != nil {
+			return "", err
+		}
+	}
 
 	revert.Success()
 	return instancePortName, nil
