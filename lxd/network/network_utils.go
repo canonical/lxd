@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"io/ioutil"
+	"math/big"
 	"math/rand"
 	"net"
 	"os"
@@ -1097,4 +1098,36 @@ func SubnetContains(outerSubnet *net.IPNet, innerSubnet *net.IPNet) bool {
 	}
 
 	return true
+}
+
+// SubnetIterate iterates through each IP in a subnet calling a function for each IP.
+// If the ipFunc returns a non-nil error then the iteration stops and the error is returned.
+func SubnetIterate(subnet *net.IPNet, ipFunc func(ip net.IP) error) error {
+	inc := big.NewInt(1)
+
+	// Convert route start IP to native representations to allow incrementing.
+	startIP := subnet.IP.To4()
+	if startIP == nil {
+		startIP = subnet.IP.To16()
+	}
+
+	startBig := big.NewInt(0)
+	startBig.SetBytes(startIP)
+
+	// Iterate through IPs in subnet, calling ipFunc for each one.
+	for {
+		ip := net.IP(startBig.Bytes())
+		if !subnet.Contains(ip) {
+			break
+		}
+
+		err := ipFunc(ip)
+		if err != nil {
+			return err
+		}
+
+		startBig.Add(startBig, inc)
+	}
+
+	return nil
 }
