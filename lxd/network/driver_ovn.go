@@ -1089,6 +1089,34 @@ func (n *ovn) allowedUplinkNetworks() ([]string, error) {
 	return allowedNetworks, nil
 }
 
+// validateUplinkNetwork checks if uplink network is allowed, and if empty string is supplied then tries to select
+// an uplink network from the allowedUplinkNetworks() list if there is only one allowed network.
+// Returns chosen uplink network name to use.
+func (n *ovn) validateUplinkNetwork(uplinkNetworkName string) (string, error) {
+	allowedUplinkNetworks, err := n.allowedUplinkNetworks()
+	if err != nil {
+		return "", err
+	}
+
+	if uplinkNetworkName != "" {
+		if !shared.StringInSlice(uplinkNetworkName, allowedUplinkNetworks) {
+			return "", fmt.Errorf(`Option "network" value %q is not one of the allowed uplink networks in project`, uplinkNetworkName)
+		}
+
+		return uplinkNetworkName, nil
+	}
+
+	allowedNetworkCount := len(allowedUplinkNetworks)
+	if allowedNetworkCount == 0 {
+		return "", fmt.Errorf(`No allowed uplink networks in project`)
+	} else if allowedNetworkCount == 1 {
+		// If there is only one allowed uplink network then use it if not specified by user.
+		return allowedUplinkNetworks[0], nil
+	}
+
+	return "", fmt.Errorf(`Option "network" is required`)
+}
+
 func (n *ovn) setup(update bool) error {
 	// If we are in mock mode, just no-op.
 	if n.state.OS.MockMode {
@@ -1111,26 +1139,15 @@ func (n *ovn) setup(update bool) error {
 	// Record updated config so we can store back into DB and n.config variable.
 	updatedConfig := make(map[string]string)
 
-	// Check project restrictions.
-	allowedUplinkNetworks, err := n.allowedUplinkNetworks()
+	// Check project restrictions and get uplink network to use.
+	uplinkNetwork, err := n.validateUplinkNetwork(n.config["network"])
 	if err != nil {
 		return err
 	}
 
-	if n.config["network"] != "" {
-		if !shared.StringInSlice(n.config["network"], allowedUplinkNetworks) {
-			return fmt.Errorf(`Option "network" value %q is not one of the allowed uplink networks in project`, n.config["network"])
-		}
-	} else {
-		allowedNetworkCount := len(allowedUplinkNetworks)
-		if allowedNetworkCount == 0 {
-			return fmt.Errorf(`No allowed uplink networks in project`)
-		} else if allowedNetworkCount == 1 {
-			// If there is only one allowed uplink network then use it if not specified by user.
-			updatedConfig["network"] = allowedUplinkNetworks[0]
-		} else {
-			return fmt.Errorf(`Option "network" is required`)
-		}
+	// Ensure automatically selected uplink network is saved into "network" key.
+	if uplinkNetwork != n.config["network"] {
+		updatedConfig["network"] = uplinkNetwork
 	}
 
 	// Get bridge MTU to use.
