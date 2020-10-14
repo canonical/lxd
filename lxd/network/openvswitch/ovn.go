@@ -161,6 +161,23 @@ func (o *OVN) LogicalRouterRouteAdd(routerName OVNRouter, destination *net.IPNet
 	return nil
 }
 
+// LogicalRouterRouteDelete deletes a static route from the logical router.
+// If nextHop is specified as nil, then any route matching the destination is removed.
+func (o *OVN) LogicalRouterRouteDelete(routerName OVNRouter, destination *net.IPNet, nextHop net.IP) error {
+	args := []string{"--if-exists", "lr-route-del", string(routerName), destination.String()}
+
+	if nextHop != nil {
+		args = append(args, nextHop.String())
+	}
+
+	_, err := o.nbctl(args...)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
 // LogicalRouterPortAdd adds a named logical router port to a logical router.
 func (o *OVN) LogicalRouterPortAdd(routerName OVNRouter, portName OVNRouterPort, mac net.HardwareAddr, ipAddr ...*net.IPNet) error {
 	args := []string{"lrp-add", string(routerName), string(portName), mac.String()}
