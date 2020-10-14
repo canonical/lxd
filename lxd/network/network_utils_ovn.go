@@ -9,14 +9,14 @@ import (
 
 // OVNInstanceDevicePortAdd adds a logical port to the OVN network's internal switch and returns the logical
 // port name for use linking an OVS port on the integration bridge to the logical switch port.
-func OVNInstanceDevicePortAdd(network Network, instanceID int, instanceName string, deviceName string, mac net.HardwareAddr, ips []net.IP) (openvswitch.OVNSwitchPort, error) {
+func OVNInstanceDevicePortAdd(network Network, instanceID int, instanceName string, deviceName string, mac net.HardwareAddr, ips []net.IP, externalRoutes []*net.IPNet) (openvswitch.OVNSwitchPort, error) {
 	// Check network is of type OVN.
 	n, ok := network.(*ovn)
 	if !ok {
 		return "", fmt.Errorf("Network is not OVN type")
 	}
 
-	return n.instanceDevicePortAdd(instanceID, instanceName, deviceName, mac, ips)
+	return n.instanceDevicePortAdd(instanceID, instanceName, deviceName, mac, ips, externalRoutes)
 }
 
 // OVNInstanceDevicePortDynamicIPs gets a logical port's dynamic IPs stored in the OVN network's internal switch.
