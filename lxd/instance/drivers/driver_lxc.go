@@ -6074,7 +6074,12 @@ func (c *lxc) unmount() (bool, error) {
 	return unmounted, nil
 }
 
-// Mount handling
+// insertMountLXD inserts a mount into a LXD container.
+// This function is used for the seccomp notifier and so cannot call any
+// functions that would cause LXC to talk to the container's monitor. Otherwise
+// we'll have a deadlock (with a timeout but still). The InitPID() call here is
+// the exception since the seccomp notifier will make sure to always pass a
+// valid PID.
 func (c *lxc) insertMountLXD(source, target, fstype string, flags int, mntnsPID int, shiftfs bool) error {
 	pid := mntnsPID
 	if pid <= 0 {
@@ -6125,7 +6130,7 @@ func (c *lxc) insertMountLXD(source, target, fstype string, flags int, mntnsPID 
 	mntsrc := filepath.Join("/dev/.lxd-mounts", filepath.Base(tmpMount))
 	pidStr := fmt.Sprintf("%d", pid)
 
-	pidFdNr, pidFd := c.inheritInitPidFd()
+	pidFdNr, pidFd := seccomp.MakePidFd(pid, c.state)
 	if pidFdNr >= 0 {
 		defer pidFd.Close()
 	}
