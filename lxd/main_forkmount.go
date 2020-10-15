@@ -329,17 +329,14 @@ static void do_lxc_forkumount(void)
 
 void forkmount(void)
 {
-	char *cur = NULL;
-
-	char *command = NULL;
+	char *command = NULL, *cur = NULL;
+	int ns_fd = -EBADF, pidfd = -EBADF;
 	pid_t pid = 0;
-	int ns_fd = -EBADF, pidfd;
 
 	// Get the subcommand
 	command = advance_arg(false);
-	if (command == NULL || (strcmp(command, "--help") == 0 || strcmp(command, "--version") == 0 || strcmp(command, "-h") == 0)) {
+	if (command == NULL || (strcmp(command, "--help") == 0 || strcmp(command, "--version") == 0 || strcmp(command, "-h") == 0))
 		return;
-	}
 
 	// Check that we're root
 	if (geteuid() != 0) {
@@ -354,9 +351,9 @@ void forkmount(void)
 	if (strcmp(command, "lxd-mount") == 0) {
 		// Get the pid
 		cur = advance_arg(false);
-		if (cur == NULL || (strcmp(cur, "--help") == 0 || strcmp(cur, "--version") == 0 || strcmp(cur, "-h") == 0)) {
+		if (cur == NULL || (strcmp(cur, "--help") == 0 || strcmp(cur, "--version") == 0 || strcmp(cur, "-h") == 0))
 			return;
-		}
+
 		pid = atoi(cur);
 		if (pid <= 0)
 			_exit(EXIT_FAILURE);
@@ -372,9 +369,9 @@ void forkmount(void)
 	} else if (strcmp(command, "lxd-umount") == 0) {
 		// Get the pid
 		cur = advance_arg(false);
-		if (cur == NULL || (strcmp(cur, "--help") == 0 || strcmp(cur, "--version") == 0 || strcmp(cur, "-h") == 0)) {
+		if (cur == NULL || (strcmp(cur, "--help") == 0 || strcmp(cur, "--version") == 0 || strcmp(cur, "-h") == 0))
 			return;
-		}
+
 		pid = atoi(cur);
 		if (pid <= 0)
 			_exit(EXIT_FAILURE);
