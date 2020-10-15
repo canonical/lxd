@@ -7,9 +7,9 @@ msgid ""
 msgstr ""
 "Project-Id-Version: lxd\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2020-09-30 10:55+0100\n"
-"PO-Revision-Date: 2020-08-02 01:42+0000\n"
-"Last-Translator: Anthony <aemeltsev@gmail.com>\n"
+"POT-Creation-Date: 2020-10-15 17:11-0400\n"
+"PO-Revision-Date: 2020-10-08 08:16+0000\n"
+"Last-Translator: Artem <KovalevArtem.ru@gmail.com>\n"
 "Language-Team: Russian <https://hosted.weblate.org/projects/linux-containers/"
 "lxd/ru/>\n"
 "Language: ru\n"
@@ -18,7 +18,7 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=3; plural=n%10==1 && n%100!=11 ? 0 : n%10>=2 && n"
 "%10<=4 && (n%100<10 || n%100>=20) ? 1 : 2;\n"
-"X-Generator: Weblate 4.2-dev\n"
+"X-Generator: Weblate 4.3-dev\n"
 
 #: lxc/storage.go:225
 #, fuzzy
@@ -523,9 +523,9 @@ msgid "Architecture: %s"
 msgstr "Архитектура: %s"
 
 #: lxc/info.go:125
-#, fuzzy, c-format
+#, c-format
 msgid "Architecture: %v"
-msgstr "Архитектура: %s"
+msgstr "Архитектура: %v"
 
 #: lxc/console.go:351
 msgid "As neither could be found, the raw SPICE socket can be found at:"
@@ -1708,7 +1708,7 @@ msgstr "Невозможно добавить имя контейнера в с�
 msgid "Importing custom volume: %s"
 msgstr "Невозможно добавить имя контейнера в список"
 
-#: lxc/import.go:89
+#: lxc/import.go:88
 #, fuzzy, c-format
 msgid "Importing instance: %s"
 msgstr "Невозможно добавить имя контейнера в список"

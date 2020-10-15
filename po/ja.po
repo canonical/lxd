@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: LXD\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2020-09-30 10:55+0100\n"
+"POT-Creation-Date: 2020-10-15 17:11-0400\n"
 "PO-Revision-Date: 2020-09-25 15:37+0000\n"
 "Last-Translator: KATOH Yasufumi <karma@jazz.email.ne.jp>\n"
 "Language-Team: Japanese <https://hosted.weblate.org/projects/linux-"
@@ -1728,7 +1728,7 @@ msgstr "インスタンスのバックアップをインポートします"
 msgid "Importing custom volume: %s"
 msgstr "インスタンスのインポート中: %s"
 
-#: lxc/import.go:89
+#: lxc/import.go:88
 #, c-format
 msgid "Importing instance: %s"
 msgstr "インスタンスのインポート中: %s"
