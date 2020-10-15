@@ -1200,3 +1200,11 @@ allowed to be used in child OVN networks in their `ipv4.routes.external` and `ip
 
 Introduces the `restricted.networks.subnets` project setting that specifies which external subnets are allowed to
 be used by OVN networks inside the project (if not set then all routes defined on the uplink network are allowed).
+
+## network\_ovn\_nat
+Adds support for `ipv4.nat` and `ipv6.nat` settings on `ovn` networks.
+
+When creating the network if these settings are unspecified, and an equivalent IP address is being generated for
+the subnet, then the appropriate NAT setting will added set to `true`.
+
+If the setting is missing then the value is taken as `false`.

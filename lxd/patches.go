@@ -101,6 +101,7 @@ var patches = []patch{
 	{name: "clustering_drop_database_role", stage: patchPostDaemonStorage, run: patchClusteringDropDatabaseRole},
 	{name: "network_clear_bridge_volatile_hwaddr", stage: patchPostDaemonStorage, run: patchNetworkCearBridgeVolatileHwaddr},
 	{name: "move_backups_instances", stage: patchPostDaemonStorage, run: patchMoveBackupsInstances},
+	{name: "network_ovn_enable_nat", stage: patchPostDaemonStorage, run: patchNetworkOVNEnableNAT},
 }
 
 type patch struct {
@@ -164,6 +165,56 @@ func patchesApply(d *Daemon, stage patchStage) error {
 }
 
 // Patches begin here
+
+// patchNetworkOVNEnableNAT adds "ipv4.nat" and "ipv6.nat" keys set to "true" to OVN networks if not present.
+// This is to ensure existing networks retain the old behaviour of always having NAT enabled as we introduce
+// the new NAT settings which default to disabled if not specified.
+// patchNetworkCearBridgeVolatileHwaddr removes the unsupported `volatile.bridge.hwaddr` config key from networks.
+func patchNetworkOVNEnableNAT(name string, d *Daemon) error {
+	err := d.cluster.Transaction(func(tx *db.ClusterTx) error {
+		projectNetworks, err := tx.GetNonPendingNetworks()
+		if err != nil {
+			return err
+		}
+
+		for _, networks := range projectNetworks {
+			for networkID, network := range networks {
+				if network.Type != "ovn" {
+					continue
+				}
+
+				modified := false
+
+				// Ensure existing behaviour of having NAT enabled if IP address was set.
+				if network.Config["ipv4.address"] != "" && network.Config["ipv4.nat"] == "" {
+					modified = true
+					network.Config["ipv4.nat"] = "true"
+				}
+
+				if network.Config["ipv6.address"] != "" && network.Config["ipv6.nat"] == "" {
+					modified = true
+					network.Config["ipv6.nat"] = "true"
+				}
+
+				if modified {
+					err = tx.UpdateNetwork(networkID, network.Description, network.Config)
+					if err != nil {
+						return errors.Wrapf(err, "Failed saving OVN NAT settings for %q (%d)", network.Name, networkID)
+					}
+
+					logger.Debugf("Enabling NAT for OVN network %q (%d)", network.Name, networkID)
+				}
+			}
+		}
+
+		return nil
+	})
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
 
 // Moves backups from shared.VarPath("backups") to shared.VarPath("backups", "instances").
 func patchMoveBackupsInstances(name string, d *Daemon) error {
