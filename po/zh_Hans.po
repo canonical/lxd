@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: lxd\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2020-09-30 10:55+0100\n"
+"POT-Creation-Date: 2020-10-15 17:11-0400\n"
 "PO-Revision-Date: 2018-09-11 19:15+0000\n"
 "Last-Translator: 0x0916 <w@laoqinren.net>\n"
 "Language-Team: Chinese (Simplified) <https://hosted.weblate.org/projects/"
@@ -1532,7 +1532,7 @@ msgstr ""
 msgid "Importing custom volume: %s"
 msgstr ""
 
-#: lxc/import.go:89
+#: lxc/import.go:88
 #, c-format
 msgid "Importing instance: %s"
 msgstr ""
