@@ -34,6 +34,8 @@ func nicValidationRules(requiredFields []string, optionalFields []string) map[st
 		"ipv6.host_address":       validate.Optional(validate.IsNetworkAddressV6),
 		"ipv4.host_table":         validate.Optional(validate.IsUint32),
 		"ipv6.host_table":         validate.Optional(validate.IsUint32),
+		"ipv4.routes.external":    validate.Optional(validate.IsNetworkV4List),
+		"ipv6.routes.external":    validate.Optional(validate.IsNetworkV6List),
 	}
 
 	validators := map[string]func(value string) error{}

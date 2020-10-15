@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"io/ioutil"
+	"math/big"
 	"math/rand"
 	"net"
 	"os"
@@ -1071,4 +1072,78 @@ func InterfaceSetMTU(nic string, mtu string) error {
 	}
 
 	return nil
+}
+
+// SubnetContains returns true if outerSubnet contains innerSubnet.
+func SubnetContains(outerSubnet *net.IPNet, innerSubnet *net.IPNet) bool {
+	if outerSubnet == nil || innerSubnet == nil {
+		return false
+	}
+
+	if !outerSubnet.Contains(innerSubnet.IP) {
+		return false
+	}
+
+	outerOnes, outerBits := outerSubnet.Mask.Size()
+	innerOnes, innerBits := innerSubnet.Mask.Size()
+
+	// Check number of bits in mask match.
+	if innerBits != outerBits {
+		return false
+	}
+
+	// Check that the inner subnet isn't outside of the outer subnet.
+	if innerOnes < outerOnes {
+		return false
+	}
+
+	return true
+}
+
+// SubnetIterate iterates through each IP in a subnet calling a function for each IP.
+// If the ipFunc returns a non-nil error then the iteration stops and the error is returned.
+func SubnetIterate(subnet *net.IPNet, ipFunc func(ip net.IP) error) error {
+	inc := big.NewInt(1)
+
+	// Convert route start IP to native representations to allow incrementing.
+	startIP := subnet.IP.To4()
+	if startIP == nil {
+		startIP = subnet.IP.To16()
+	}
+
+	startBig := big.NewInt(0)
+	startBig.SetBytes(startIP)
+
+	// Iterate through IPs in subnet, calling ipFunc for each one.
+	for {
+		ip := net.IP(startBig.Bytes())
+		if !subnet.Contains(ip) {
+			break
+		}
+
+		err := ipFunc(ip)
+		if err != nil {
+			return err
+		}
+
+		startBig.Add(startBig, inc)
+	}
+
+	return nil
+}
+
+// SubnetParseAppend parses one or more string CIDR subnets. Trims any white space before parsing and appends to
+// the supplied slice. Returns subnets slice.
+func SubnetParseAppend(subnets []*net.IPNet, parseSubnet ...string) ([]*net.IPNet, error) {
+	for _, subnetStr := range parseSubnet {
+		subnetStr = strings.TrimSpace(subnetStr)
+		_, subnet, err := net.ParseCIDR(subnetStr)
+		if err != nil {
+			return nil, errors.Wrapf(err, "Invalid subnet %q", subnetStr)
+		}
+
+		subnets = append(subnets, subnet)
+	}
+
+	return subnets, nil
 }

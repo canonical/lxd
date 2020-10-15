@@ -81,7 +81,7 @@ func (n *ovn) Info() Info {
 // Validate network config.
 func (n *ovn) Validate(config map[string]string) error {
 	rules := map[string]func(value string) error{
-		"network":       validate.IsAny, // Is validated during setup.
+		"network":       validate.IsAny,
 		"bridge.hwaddr": validate.Optional(validate.IsNetworkMAC),
 		"bridge.mtu":    validate.Optional(validate.IsNetworkMTU),
 		"ipv4.address": func(value string) error {
@@ -98,9 +98,11 @@ func (n *ovn) Validate(config map[string]string) error {
 
 			return validate.Optional(validate.IsNetworkAddressCIDRV6)(value)
 		},
-		"ipv6.dhcp.stateful": validate.Optional(validate.IsBool),
-		"dns.domain":         validate.IsAny,
-		"dns.search":         validate.IsAny,
+		"ipv6.dhcp.stateful":   validate.Optional(validate.IsBool),
+		"ipv4.routes.external": validate.Optional(validate.IsNetworkV4List),
+		"ipv6.routes.external": validate.Optional(validate.IsNetworkV6List),
+		"dns.domain":           validate.IsAny,
+		"dns.search":           validate.IsAny,
 
 		// Volatile keys populated automatically as needed.
 		ovnVolatileUplinkIPv4: validate.Optional(validate.IsNetworkAddressV4),
@@ -110,6 +112,117 @@ func (n *ovn) Validate(config map[string]string) error {
 	err := n.validate(config, rules)
 	if err != nil {
 		return err
+	}
+
+	// Check uplink network is valid and allowed in project.
+	uplinkNetworkName, err := n.validateUplinkNetwork(config["network"])
+	if err != nil {
+		return err
+	}
+
+	// Check IP external routes are within the uplink network's routes and project's subnet restrictions.
+	if config["ipv4.routes.external"] != "" || config["ipv6.routes.external"] != "" {
+		// Load the uplink network to get uplink routes.
+		_, uplink, err := n.state.Cluster.GetNetworkInAnyState(project.Default, uplinkNetworkName)
+		if err != nil {
+			return err
+		}
+
+		// Load the project to get uplink network restrictions.
+		var project *api.Project
+		err = n.state.Cluster.Transaction(func(tx *db.ClusterTx) error {
+			project, err = tx.GetProject(n.project)
+			if err != nil {
+				return err
+			}
+
+			return nil
+		})
+		if err != nil {
+			return errors.Wrapf(err, "Failed to load IP route restrictions for project %q", n.project)
+		}
+
+		// Parse uplink route subnets.
+		var uplinkRoutes []*net.IPNet
+		for _, k := range []string{"ipv4.routes", "ipv6.routes"} {
+			if uplink.Config[k] == "" {
+				continue
+			}
+
+			uplinkRoutes, err = SubnetParseAppend(uplinkRoutes, strings.Split(uplink.Config[k], ",")...)
+			if err != nil {
+				return err
+			}
+		}
+
+		// Parse project's restricted subnets.
+		var projectRestrictedSubnets []*net.IPNet // Nil value indicates not restricted.
+		if shared.IsTrue(project.Config["restricted"]) && project.Config["restricted.networks.subnets"] != "" {
+			projectRestrictedSubnets = []*net.IPNet{} // Empty slice indicates no allowed subnets.
+
+			for _, subnetRaw := range strings.Split(project.Config["restricted.networks.subnets"], ",") {
+				subnetParts := strings.SplitN(strings.TrimSpace(subnetRaw), ":", 2)
+				if len(subnetParts) != 2 {
+					return fmt.Errorf(`Project subnet %q invalid, must be in the format of "<uplink network>:<subnet>"`, subnetRaw)
+				}
+
+				uplinkName := subnetParts[0]
+				subnetStr := subnetParts[1]
+
+				if uplinkName != uplink.Name {
+					continue // Only include subnets for our uplink.
+				}
+
+				_, restrictedSubnet, err := net.ParseCIDR(subnetStr)
+				if err != nil {
+					return err
+				}
+
+				projectRestrictedSubnets = append(projectRestrictedSubnets, restrictedSubnet)
+			}
+		}
+
+		// Parse and validate our external routes.
+		for _, k := range []string{"ipv4.routes.external", "ipv6.routes.external"} {
+			if config[k] == "" {
+				continue
+			}
+
+			routeSubnetList, err := SubnetParseAppend([]*net.IPNet{}, strings.Split(config[k], ",")...)
+			if err != nil {
+				return err
+			}
+
+			for _, routeSubnet := range routeSubnetList {
+				// Check that the route is within the project's restricted subnets if restricted.
+				if projectRestrictedSubnets != nil {
+					foundMatch := false
+					for _, projectRestrictedSubnet := range projectRestrictedSubnets {
+						if SubnetContains(projectRestrictedSubnet, routeSubnet) {
+							foundMatch = true
+							break
+						}
+					}
+
+					if !foundMatch {
+						return fmt.Errorf("Project %q doesn't contain %q in its restricted uplink subnets", project.Name, routeSubnet.String())
+					}
+				}
+
+				// Check that the external route is within the uplink network's routes.
+				foundMatch := false
+				for _, uplinkRoute := range uplinkRoutes {
+					if SubnetContains(uplinkRoute, routeSubnet) {
+						foundMatch = true
+						break
+					}
+				}
+
+				if !foundMatch {
+					return fmt.Errorf("Uplink network %q doesn't contain %q in its routes", uplink.Name, routeSubnet.String())
+				}
+			}
+		}
 	}
 
 	return nil
@@ -1089,6 +1202,34 @@ func (n *ovn) allowedUplinkNetworks() ([]string, error) {
 	return allowedNetworks, nil
 }
 
+// validateUplinkNetwork checks if uplink network is allowed, and if empty string is supplied then tries to select
+// an uplink network from the allowedUplinkNetworks() list if there is only one allowed network.
+// Returns chosen uplink network name to use.
+func (n *ovn) validateUplinkNetwork(uplinkNetworkName string) (string, error) {
+	allowedUplinkNetworks, err := n.allowedUplinkNetworks()
+	if err != nil {
+		return "", err
+	}
+
+	if uplinkNetworkName != "" {
+		if !shared.StringInSlice(uplinkNetworkName, allowedUplinkNetworks) {
+			return "", fmt.Errorf(`Option "network" value %q is not one of the allowed uplink networks in project`, uplinkNetworkName)
+		}
+
+		return uplinkNetworkName, nil
+	}
+
+	allowedNetworkCount := len(allowedUplinkNetworks)
+	if allowedNetworkCount == 0 {
+		return "", fmt.Errorf(`No allowed uplink networks in project`)
+	} else if allowedNetworkCount == 1 {
+		// If there is only one allowed uplink network then use it if not specified by user.
+		return allowedUplinkNetworks[0], nil
+	}
+
+	return "", fmt.Errorf(`Option "network" is required`)
+}
+
 func (n *ovn) setup(update bool) error {
 	// If we are in mock mode, just no-op.
 	if n.state.OS.MockMode {
@@ -1111,26 +1252,15 @@ func (n *ovn) setup(update bool) error {
 	// Record updated config so we can store back into DB and n.config variable.
 	updatedConfig := make(map[string]string)
 
-	// Check project restrictions.
-	allowedUplinkNetworks, err := n.allowedUplinkNetworks()
+	// Check project restrictions and get uplink network to use.
+	uplinkNetwork, err := n.validateUplinkNetwork(n.config["network"])
 	if err != nil {
 		return err
 	}
 
-	if n.config["network"] != "" {
-		if !shared.StringInSlice(n.config["network"], allowedUplinkNetworks) {
-			return fmt.Errorf(`Option "network" value %q is not one of the allowed uplink networks in project`, n.config["network"])
-		}
-	} else {
-		allowedNetworkCount := len(allowedUplinkNetworks)
-		if allowedNetworkCount == 0 {
-			return fmt.Errorf(`No allowed uplink networks in project`)
-		} else if allowedNetworkCount == 1 {
-			// If there is only one allowed uplink network then use it if not specified by user.
-			updatedConfig["network"] = allowedUplinkNetworks[0]
-		} else {
-			return fmt.Errorf(`Option "network" is required`)
-		}
+	// Ensure automatically selected uplink network is saved into "network" key.
+	if uplinkNetwork != n.config["network"] {
+		updatedConfig["network"] = uplinkNetwork
 	}
 
 	// Get bridge MTU to use.
@@ -1229,14 +1359,14 @@ func (n *ovn) setup(update bool) error {
 
 	// Add default routes.
 	if uplinkNet.routerExtGwIPv4 != nil {
-		err = client.LogicalRouterRouteAdd(n.getRouterName(), &net.IPNet{IP: net.IPv4zero, Mask: net.CIDRMask(0, 32)}, uplinkNet.routerExtGwIPv4)
+		err = client.LogicalRouterRouteAdd(n.getRouterName(), &net.IPNet{IP: net.IPv4zero, Mask: net.CIDRMask(0, 32)}, uplinkNet.routerExtGwIPv4, false)
 		if err != nil {
 			return errors.Wrapf(err, "Failed adding IPv4 default route")
 		}
 	}
 
 	if uplinkNet.routerExtGwIPv6 != nil {
-		err = client.LogicalRouterRouteAdd(n.getRouterName(), &net.IPNet{IP: net.IPv6zero, Mask: net.CIDRMask(0, 128)}, uplinkNet.routerExtGwIPv6)
+		err = client.LogicalRouterRouteAdd(n.getRouterName(), &net.IPNet{IP: net.IPv6zero, Mask: net.CIDRMask(0, 128)}, uplinkNet.routerExtGwIPv6, false)
 		if err != nil {
 			return errors.Wrapf(err, "Failed adding IPv6 default route")
 		}
@@ -1699,7 +1829,7 @@ func (n *ovn) getInstanceDevicePortName(instanceID int, deviceName string) openv
 }
 
 // instanceDevicePortAdd adds an instance device port to the internal logical switch and returns the port name.
-func (n *ovn) instanceDevicePortAdd(instanceID int, instanceName string, deviceName string, mac net.HardwareAddr, ips []net.IP) (openvswitch.OVNSwitchPort, error) {
+func (n *ovn) instanceDevicePortAdd(instanceID int, instanceName string, deviceName string, mac net.HardwareAddr, ips []net.IP, internalRoutes []*net.IPNet, externalRoutes []*net.IPNet) (openvswitch.OVNSwitchPort, error) {
 	var dhcpV4ID, dhcpv6ID string
 
 	revert := revert.New()
@@ -1758,9 +1888,67 @@ func (n *ovn) instanceDevicePortAdd(instanceID int, instanceName string, deviceN
 		return "", err
 	}
 
-	err = client.LogicalSwitchPortSetDNS(n.getIntSwitchName(), instancePortName, fmt.Sprintf("%s.%s", instanceName, n.getDomainName()))
+	dnsIPv4, dnsIPv6, err := client.LogicalSwitchPortSetDNS(n.getIntSwitchName(), instancePortName, fmt.Sprintf("%s.%s", instanceName, n.getDomainName()))
 	if err != nil {
 		return "", err
+	}
+
+	revert.Add(func() { client.LogicalSwitchPortDeleteDNS(n.getIntSwitchName(), instancePortName) })
+
+	// Add each internal route (using the IPs set for DNS as target).
+	for _, internalRoute := range internalRoutes {
+		targetIP := dnsIPv4
+		if internalRoute.IP.To4() == nil {
+			targetIP = dnsIPv6
+		}
+
+		if targetIP == nil {
+			return "", fmt.Errorf("Cannot add static route for %q as target IP is not set", internalRoute.String())
+		}
+
+		err = client.LogicalRouterRouteAdd(n.getRouterName(), internalRoute, targetIP, true)
+		if err != nil {
+			return "", err
+		}
+
+		revert.Add(func() { client.LogicalRouterRouteDelete(n.getRouterName(), internalRoute, targetIP) })
+	}
+
+	// Add each external route (using the IPs set for DNS as target).
+	for _, externalRoute := range externalRoutes {
+		targetIP := dnsIPv4
+		if externalRoute.IP.To4() == nil {
+			targetIP = dnsIPv6
+		}
+
+		if targetIP == nil {
+			return "", fmt.Errorf("Cannot add static route for %q as target IP is not set", externalRoute.String())
+		}
+
+		err = client.LogicalRouterRouteAdd(n.getRouterName(), externalRoute, targetIP, true)
+		if err != nil {
+			return "", err
+		}
+
+		revert.Add(func() { client.LogicalRouterRouteDelete(n.getRouterName(), externalRoute, targetIP) })
+
+		// In order to advertise the external route to the uplink network using proxy ARP/NDP we need to
+		// add a stateless dnat_and_snat rule (as to my knowledge this is the only way to get the OVN
+		// router to respond to ARP/NDP requests for IPs that it doesn't actually have). However we have
+		// to add each IP in the external route individually as DNAT doesn't support whole subnets.
+		err = SubnetIterate(externalRoute, func(ip net.IP) error {
+			err = client.LogicalRouterDNATSNATAdd(n.getRouterName(), ip, ip, true, true)
+			if err != nil {
+				return err
+			}
+
+			revert.Add(func() { client.LogicalRouterDNATSNATDelete(n.getRouterName(), ip) })
+
+			return nil
+		})
+		if err != nil {
+			return "", err
+		}
 	}
 
 	revert.Success()
@@ -1780,7 +1968,7 @@ func (n *ovn) instanceDevicePortDynamicIPs(instanceID int, deviceName string) ([
 }
 
 // instanceDevicePortDelete deletes an instance device port from the internal logical switch.
-func (n *ovn) instanceDevicePortDelete(instanceID int, deviceName string) error {
+func (n *ovn) instanceDevicePortDelete(instanceID int, deviceName string, internalRoutes []*net.IPNet, externalRoutes []*net.IPNet) error {
 	instancePortName := n.getInstanceDevicePortName(instanceID, deviceName)
 
 	client, err := n.getClient()
@@ -1796,6 +1984,35 @@ func (n *ovn) instanceDevicePortDelete(instanceID int, deviceName string) error 
 	err = client.LogicalSwitchPortDeleteDNS(n.getIntSwitchName(), instancePortName)
 	if err != nil {
 		return err
+	}
+
+	// Delete each internal route.
+	for _, internalRoute := range internalRoutes {
+		err = client.LogicalRouterRouteDelete(n.getRouterName(), internalRoute, nil)
+		if err != nil {
+			return err
+		}
+	}
+
+	// Delete each external route.
+	for _, externalRoute := range externalRoutes {
+		err = client.LogicalRouterRouteDelete(n.getRouterName(), externalRoute, nil)
+		if err != nil {
+			return err
+		}
+
+		// Remove the DNAT rules.
+		err = SubnetIterate(externalRoute, func(ip net.IP) error {
+			err = client.LogicalRouterDNATSNATDelete(n.getRouterName(), ip)
+			if err != nil {
+				return err
+			}
+
+			return nil
+		})
+		if err != nil {
+			return err
+		}
 	}
 
 	return nil

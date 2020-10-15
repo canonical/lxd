@@ -43,6 +43,8 @@ func (n *physical) Validate(config map[string]string) error {
 		"ipv6.gateway":                validate.Optional(validate.IsNetworkAddressCIDRV6),
 		"ipv4.ovn.ranges":             validate.Optional(validate.IsNetworkRangeV4List),
 		"ipv6.ovn.ranges":             validate.Optional(validate.IsNetworkRangeV6List),
+		"ipv4.routes":                 validate.Optional(validate.IsNetworkV4List),
+		"ipv6.routes":                 validate.Optional(validate.IsNetworkV6List),
 		"dns.nameservers":             validate.Optional(validate.IsNetworkAddressList),
 		"volatile.last_state.created": validate.Optional(validate.IsBool),
 	}
