@@ -230,6 +230,7 @@ var APIExtensions = []string{
 	"backup_override_name",
 	"storage_rsync_compression",
 	"network_type_physical",
+	"network_ovn_external_subnets",
 }
 
 // APIExtensionsCount returns the number of available API extensions.

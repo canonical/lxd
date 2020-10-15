@@ -151,9 +151,63 @@ func (o *OVN) LogicalRouterSNATAdd(routerName OVNRouter, intNet *net.IPNet, extI
 	return nil
 }
 
+// LogicalRouterDNATSNATAdd adds a DNAT and SNAT rule to a logical router to translate packets from extIP to intIP.
+func (o *OVN) LogicalRouterDNATSNATAdd(routerName OVNRouter, extIP net.IP, intIP net.IP, stateless bool, mayExist bool) error {
+	args := []string{}
+
+	if mayExist {
+		args = append(args, "--may-exist")
+	}
+
+	if stateless {
+		args = append(args, "--stateless")
+	}
+
+	_, err := o.nbctl(append(args, "lr-nat-add", string(routerName), "dnat_and_snat", extIP.String(), intIP.String())...)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// LogicalRouterDNATSNATDelete deletes a DNAT and SNAT rule from a logical router.
+func (o *OVN) LogicalRouterDNATSNATDelete(routerName OVNRouter, extIP net.IP) error {
+	_, err := o.nbctl("--if-exists", "lr-nat-del", string(routerName), "dnat_and_snat", extIP.String())
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
 // LogicalRouterRouteAdd adds a static route to the logical router.
-func (o *OVN) LogicalRouterRouteAdd(routerName OVNRouter, destination *net.IPNet, nextHop net.IP) error {
-	_, err := o.nbctl("lr-route-add", string(routerName), destination.String(), nextHop.String())
+func (o *OVN) LogicalRouterRouteAdd(routerName OVNRouter, destination *net.IPNet, nextHop net.IP, mayExist bool) error {
+	args := []string{}
+
+	if mayExist {
+		args = append(args, "--may-exist")
+	}
+
+	args = append(args, "lr-route-add", string(routerName), destination.String(), nextHop.String())
+	_, err := o.nbctl(args...)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// LogicalRouterRouteDelete deletes a static route from the logical router.
+// If nextHop is specified as nil, then any route matching the destination is removed.
+func (o *OVN) LogicalRouterRouteDelete(routerName OVNRouter, destination *net.IPNet, nextHop net.IP) error {
+	args := []string{"--if-exists", "lr-route-del", string(routerName), destination.String()}
+
+	if nextHop != nil {
+		args = append(args, nextHop.String())
+	}
+
+	_, err := o.nbctl(args...)
 	if err != nil {
 		return err
 	}
@@ -627,7 +681,8 @@ func (o *OVN) LogicalSwitchPortDynamicIPs(portName OVNSwitchPort) ([]net.IP, err
 
 // LogicalSwitchPortSetDNS sets up the switch DNS records for the DNS name resolving to the IPs of the switch port.
 // Attempts to find at most one IP for each IP protocol, preferring static addresses over dynamic.
-func (o *OVN) LogicalSwitchPortSetDNS(switchName OVNSwitch, portName OVNSwitchPort, dnsName string) error {
+// Returns the IPv4 and IPv6 addresses used for DNS records.
+func (o *OVN) LogicalSwitchPortSetDNS(switchName OVNSwitch, portName OVNSwitchPort, dnsName string) (net.IP, net.IP, error) {
 	var dnsIPv4, dnsIPv6 net.IP
 
 	// checkAndStoreIP checks if the supplied IP is valid and can be used for a missing DNS IP variable.
@@ -650,7 +705,7 @@ func (o *OVN) LogicalSwitchPortSetDNS(switchName OVNSwitch, portName OVNSwitchPo
 	// Get static and dynamic IPs for switch port.
 	staticAddressesRaw, err := o.nbctl("lsp-get-addresses", string(portName))
 	if err != nil {
-		return err
+		return nil, nil, err
 	}
 
 	staticAddresses := strings.Split(strings.TrimSpace(staticAddressesRaw), " ")
@@ -674,7 +729,7 @@ func (o *OVN) LogicalSwitchPortSetDNS(switchName OVNSwitch, portName OVNSwitchPo
 	if hasDynamic && (dnsIPv4 == nil || dnsIPv6 == nil) {
 		dynamicIPs, err := o.LogicalSwitchPortDynamicIPs(portName)
 		if err != nil {
-			return err
+			return nil, nil, err
 		}
 
 		for _, dynamicIP := range dynamicIPs {
@@ -702,7 +757,7 @@ func (o *OVN) LogicalSwitchPortSetDNS(switchName OVNSwitch, portName OVNSwitchPo
 		fmt.Sprintf("external_ids:lxd_switch_port=%s", string(portName)),
 	)
 	if err != nil {
-		return err
+		return nil, nil, err
 	}
 
 	cmdArgs := []string{
@@ -716,13 +771,13 @@ func (o *OVN) LogicalSwitchPortSetDNS(switchName OVNSwitch, portName OVNSwitchPo
 		// Update existing record if exists.
 		_, err = o.nbctl(append([]string{"set", "dns", dnsUUID}, cmdArgs...)...)
 		if err != nil {
-			return err
+			return nil, nil, err
 		}
 	} else {
 		// Create new record if needed.
 		dnsUUID, err = o.nbctl(append([]string{"create", "dns"}, cmdArgs...)...)
 		if err != nil {
-			return err
+			return nil, nil, err
 		}
 		dnsUUID = strings.TrimSpace(dnsUUID)
 	}
@@ -730,10 +785,10 @@ func (o *OVN) LogicalSwitchPortSetDNS(switchName OVNSwitch, portName OVNSwitchPo
 	// Add DNS record to switch DNS records.
 	_, err = o.nbctl("add", "logical_switch", string(switchName), "dns_records", dnsUUID)
 	if err != nil {
-		return err
+		return nil, nil, err
 	}
 
-	return nil
+	return dnsIPv4, dnsIPv6, nil
 }
 
 // LogicalSwitchPortDeleteDNS removes DNS records for a switch port.
