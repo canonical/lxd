@@ -1829,7 +1829,7 @@ func (n *ovn) getInstanceDevicePortName(instanceID int, deviceName string) openv
 }
 
 // instanceDevicePortAdd adds an instance device port to the internal logical switch and returns the port name.
-func (n *ovn) instanceDevicePortAdd(instanceID int, instanceName string, deviceName string, mac net.HardwareAddr, ips []net.IP, externalRoutes []*net.IPNet) (openvswitch.OVNSwitchPort, error) {
+func (n *ovn) instanceDevicePortAdd(instanceID int, instanceName string, deviceName string, mac net.HardwareAddr, ips []net.IP, internalRoutes []*net.IPNet, externalRoutes []*net.IPNet) (openvswitch.OVNSwitchPort, error) {
 	var dhcpV4ID, dhcpv6ID string
 
 	revert := revert.New()
@@ -1895,6 +1895,25 @@ func (n *ovn) instanceDevicePortAdd(instanceID int, instanceName string, deviceN
 
 	revert.Add(func() { client.LogicalSwitchPortDeleteDNS(n.getIntSwitchName(), instancePortName) })
 
+	// Add each internal route (using the IPs set for DNS as target).
+	for _, internalRoute := range internalRoutes {
+		targetIP := dnsIPv4
+		if internalRoute.IP.To4() == nil {
+			targetIP = dnsIPv6
+		}
+
+		if targetIP == nil {
+			return "", fmt.Errorf("Cannot add static route for %q as target IP is not set", internalRoute.String())
+		}
+
+		err = client.LogicalRouterRouteAdd(n.getRouterName(), internalRoute, targetIP, true)
+		if err != nil {
+			return "", err
+		}
+
+		revert.Add(func() { client.LogicalRouterRouteDelete(n.getRouterName(), internalRoute, targetIP) })
+	}
+
 	// Add each external route (using the IPs set for DNS as target).
 	for _, externalRoute := range externalRoutes {
 		targetIP := dnsIPv4
@@ -1949,7 +1968,7 @@ func (n *ovn) instanceDevicePortDynamicIPs(instanceID int, deviceName string) ([
 }
 
 // instanceDevicePortDelete deletes an instance device port from the internal logical switch.
-func (n *ovn) instanceDevicePortDelete(instanceID int, deviceName string, externalRoutes []*net.IPNet) error {
+func (n *ovn) instanceDevicePortDelete(instanceID int, deviceName string, internalRoutes []*net.IPNet, externalRoutes []*net.IPNet) error {
 	instancePortName := n.getInstanceDevicePortName(instanceID, deviceName)
 
 	client, err := n.getClient()
@@ -1965,6 +1984,14 @@ func (n *ovn) instanceDevicePortDelete(instanceID int, deviceName string, extern
 	err = client.LogicalSwitchPortDeleteDNS(n.getIntSwitchName(), instancePortName)
 	if err != nil {
 		return err
+	}
+
+	// Delete each internal route.
+	for _, internalRoute := range internalRoutes {
+		err = client.LogicalRouterRouteDelete(n.getRouterName(), internalRoute, nil)
+		if err != nil {
+			return err
+		}
 	}
 
 	// Delete each external route.
