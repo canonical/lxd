@@ -5119,81 +5119,89 @@ func (c *lxc) templateApplyNow(trigger string) error {
 
 	// Go through the templates
 	for tplPath, tpl := range metadata.Templates {
-		var w *os.File
+		err = func(tplPath string, tpl *api.ImageMetadataTemplate) error {
+			var w *os.File
 
-		// Check if the template should be applied now
-		found := false
-		for _, tplTrigger := range tpl.When {
-			if tplTrigger == trigger {
-				found = true
-				break
-			}
-		}
-
-		if !found {
-			continue
-		}
-
-		// Open the file to template, create if needed
-		fullpath := filepath.Join(c.RootfsPath(), strings.TrimLeft(tplPath, "/"))
-		if shared.PathExists(fullpath) {
-			if tpl.CreateOnly {
-				continue
+			// Check if the template should be applied now
+			found := false
+			for _, tplTrigger := range tpl.When {
+				if tplTrigger == trigger {
+					found = true
+					break
+				}
 			}
 
-			// Open the existing file
-			w, err = os.Create(fullpath)
+			if !found {
+				return nil
+			}
+
+			// Open the file to template, create if needed
+			fullpath := filepath.Join(c.RootfsPath(), strings.TrimLeft(tplPath, "/"))
+			if shared.PathExists(fullpath) {
+				if tpl.CreateOnly {
+					return nil
+				}
+
+				// Open the existing file
+				w, err = os.Create(fullpath)
+				if err != nil {
+					return errors.Wrap(err, "Failed to create template file")
+				}
+			} else {
+				// Create the directories leading to the file
+				shared.MkdirAllOwner(path.Dir(fullpath), 0755, int(rootUID), int(rootGID))
+
+				// Create the file itself
+				w, err = os.Create(fullpath)
+				if err != nil {
+					return err
+				}
+
+				// Fix ownership and mode
+				w.Chown(int(rootUID), int(rootGID))
+				w.Chmod(0644)
+			}
+			defer w.Close()
+
+			// Read the template
+			tplString, err := ioutil.ReadFile(filepath.Join(c.TemplatesPath(), tpl.Template))
 			if err != nil {
-				return errors.Wrap(err, "Failed to create template file")
+				return errors.Wrap(err, "Failed to read template file")
 			}
-		} else {
-			// Create the directories leading to the file
-			shared.MkdirAllOwner(path.Dir(fullpath), 0755, int(rootUID), int(rootGID))
 
-			// Create the file itself
-			w, err = os.Create(fullpath)
+			// Restrict filesystem access to within the container's rootfs
+			tplSet := pongo2.NewSet(fmt.Sprintf("%s-%s", c.name, tpl.Template), template.ChrootLoader{Path: c.RootfsPath()})
+
+			tplRender, err := tplSet.FromString("{% autoescape off %}" + string(tplString) + "{% endautoescape %}")
 			if err != nil {
-				return err
+				return errors.Wrap(err, "Failed to render template")
 			}
 
-			// Fix ownership and mode
-			w.Chown(int(rootUID), int(rootGID))
-			w.Chmod(0644)
-		}
-		defer w.Close()
+			configGet := func(confKey, confDefault *pongo2.Value) *pongo2.Value {
+				val, ok := c.expandedConfig[confKey.String()]
+				if !ok {
+					return confDefault
+				}
 
-		// Read the template
-		tplString, err := ioutil.ReadFile(filepath.Join(c.TemplatesPath(), tpl.Template))
-		if err != nil {
-			return errors.Wrap(err, "Failed to read template file")
-		}
-
-		// Restrict filesystem access to within the container's rootfs
-		tplSet := pongo2.NewSet(fmt.Sprintf("%s-%s", c.name, tpl.Template), template.ChrootLoader{Path: c.RootfsPath()})
-
-		tplRender, err := tplSet.FromString("{% autoescape off %}" + string(tplString) + "{% endautoescape %}")
-		if err != nil {
-			return errors.Wrap(err, "Failed to render template")
-		}
-
-		configGet := func(confKey, confDefault *pongo2.Value) *pongo2.Value {
-			val, ok := c.expandedConfig[confKey.String()]
-			if !ok {
-				return confDefault
+				return pongo2.AsValue(strings.TrimRight(val, "\r\n"))
 			}
 
-			return pongo2.AsValue(strings.TrimRight(val, "\r\n"))
-		}
+			// Render the template
+			tplRender.ExecuteWriter(pongo2.Context{"trigger": trigger,
+				"path":       tplPath,
+				"container":  containerMeta,
+				"instance":   containerMeta,
+				"config":     c.expandedConfig,
+				"devices":    c.expandedDevices,
+				"properties": tpl.Properties,
+				"config_get": configGet}, w)
 
-		// Render the template
-		tplRender.ExecuteWriter(pongo2.Context{"trigger": trigger,
-			"path":       tplPath,
-			"container":  containerMeta,
-			"instance":   containerMeta,
-			"config":     c.expandedConfig,
-			"devices":    c.expandedDevices,
-			"properties": tpl.Properties,
-			"config_get": configGet}, w)
+			return nil
+
+		}(tplPath, tpl)
+		if err != nil {
+			return err
+		}
 	}
 
 	return nil
