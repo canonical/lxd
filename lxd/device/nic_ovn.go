@@ -57,6 +57,8 @@ func (d *nicOVN) validateConfig(instConf instance.ConfigReader) error {
 		"mtu",
 		"ipv4.address",
 		"ipv6.address",
+		"ipv4.routes",
+		"ipv6.routes",
 		"ipv4.routes.external",
 		"ipv6.routes.external",
 		"boot.priority",
@@ -290,6 +292,18 @@ func (d *nicOVN) Start() (*deviceConfig.RunConfig, error) {
 		ips = append(ips, ip)
 	}
 
+	internalRoutes := []*net.IPNet{}
+	for _, key := range []string{"ipv4.routes", "ipv6.routes"} {
+		if d.config[key] == "" {
+			continue
+		}
+
+		internalRoutes, err = network.SubnetParseAppend(internalRoutes, strings.Split(d.config[key], ",")...)
+		if err != nil {
+			return nil, errors.Wrapf(err, "Invalid %s", key)
+		}
+	}
+
 	externalRoutes := []*net.IPNet{}
 	for _, key := range []string{"ipv4.routes.external", "ipv6.routes.external"} {
 		if d.config[key] == "" {
@@ -303,12 +317,14 @@ func (d *nicOVN) Start() (*deviceConfig.RunConfig, error) {
 	}
 
 	// Add new OVN logical switch port for instance.
-	logicalPortName, err := network.OVNInstanceDevicePortAdd(d.network, d.inst.ID(), d.inst.Name(), d.name, mac, ips, externalRoutes)
+	logicalPortName, err := network.OVNInstanceDevicePortAdd(d.network, d.inst.ID(), d.inst.Name(), d.name, mac, ips, internalRoutes, externalRoutes)
 	if err != nil {
 		return nil, errors.Wrapf(err, "Failed adding OVN port")
 	}
 
-	revert.Add(func() { network.OVNInstanceDevicePortDelete(d.network, d.inst.ID(), d.name, externalRoutes) })
+	revert.Add(func() {
+		network.OVNInstanceDevicePortDelete(d.network, d.inst.ID(), d.name, internalRoutes, externalRoutes)
+	})
 
 	// Attach host side veth interface to bridge.
 	integrationBridge, err := d.getIntegrationBridgeName()
@@ -415,6 +431,18 @@ func (d *nicOVN) Stop() (*deviceConfig.RunConfig, error) {
 	}
 
 	var err error
+	internalRoutes := []*net.IPNet{}
+	for _, key := range []string{"ipv4.routes", "ipv6.routes"} {
+		if d.config[key] == "" {
+			continue
+		}
+
+		internalRoutes, err = network.SubnetParseAppend(internalRoutes, strings.Split(d.config[key], ",")...)
+		if err != nil {
+			return nil, errors.Wrapf(err, "Invalid %s", key)
+		}
+	}
+
 	externalRoutes := []*net.IPNet{}
 	for _, key := range []string{"ipv4.routes.external", "ipv6.routes.external"} {
 		if d.config[key] == "" {
@@ -427,7 +455,7 @@ func (d *nicOVN) Stop() (*deviceConfig.RunConfig, error) {
 		}
 	}
 
-	err = network.OVNInstanceDevicePortDelete(d.network, d.inst.ID(), d.name, externalRoutes)
+	err = network.OVNInstanceDevicePortDelete(d.network, d.inst.ID(), d.name, internalRoutes, externalRoutes)
 	if err != nil {
 		// Don't fail here as we still want the postStop hook to run to clean up the local veth pair.
 		d.logger.Error("Failed to remove OVN device port", log.Ctx{"err": err})
