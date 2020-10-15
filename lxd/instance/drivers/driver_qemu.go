@@ -1534,62 +1534,69 @@ func (vm *qemu) templateApplyNow(trigger string, path string) error {
 
 	// Go through the templates.
 	for tplPath, tpl := range metadata.Templates {
-		var w *os.File
+		err = func(tplPath string, tpl *api.ImageMetadataTemplate) error {
+			var w *os.File
 
-		// Check if the template should be applied now.
-		found := false
-		for _, tplTrigger := range tpl.When {
-			if tplTrigger == trigger {
-				found = true
-				break
+			// Check if the template should be applied now.
+			found := false
+			for _, tplTrigger := range tpl.When {
+				if tplTrigger == trigger {
+					found = true
+					break
+				}
 			}
-		}
 
-		if !found {
-			continue
-		}
+			if !found {
+				return nil
+			}
 
-		// Create the file itself.
-		w, err = os.Create(filepath.Join(path, fmt.Sprintf("%s.out", tpl.Template)))
+			// Create the file itself.
+			w, err = os.Create(filepath.Join(path, fmt.Sprintf("%s.out", tpl.Template)))
+			if err != nil {
+				return err
+			}
+
+			// Fix ownership and mode.
+			w.Chmod(0644)
+			defer w.Close()
+
+			// Read the template.
+			tplString, err := ioutil.ReadFile(filepath.Join(vm.TemplatesPath(), tpl.Template))
+			if err != nil {
+				return errors.Wrap(err, "Failed to read template file")
+			}
+
+			// Restrict filesystem access to within the container's rootfs.
+			tplSet := pongo2.NewSet(fmt.Sprintf("%s-%s", vm.name, tpl.Template), pongoTemplate.ChrootLoader{Path: vm.TemplatesPath()})
+			tplRender, err := tplSet.FromString("{% autoescape off %}" + string(tplString) + "{% endautoescape %}")
+			if err != nil {
+				return errors.Wrap(err, "Failed to render template")
+			}
+
+			configGet := func(confKey, confDefault *pongo2.Value) *pongo2.Value {
+				val, ok := vm.expandedConfig[confKey.String()]
+				if !ok {
+					return confDefault
+				}
+
+				return pongo2.AsValue(strings.TrimRight(val, "\r\n"))
+			}
+
+			// Render the template.
+			tplRender.ExecuteWriter(pongo2.Context{"trigger": trigger,
+				"path":       tplPath,
+				"instance":   instanceMeta,
+				"container":  instanceMeta, // FIXME: remove once most images have moved away.
+				"config":     vm.expandedConfig,
+				"devices":    vm.expandedDevices,
+				"properties": tpl.Properties,
+				"config_get": configGet}, w)
+
+			return nil
+		}(tplPath, tpl)
 		if err != nil {
 			return err
 		}
-
-		// Fix ownership and mode.
-		w.Chmod(0644)
-		defer w.Close()
-
-		// Read the template.
-		tplString, err := ioutil.ReadFile(filepath.Join(vm.TemplatesPath(), tpl.Template))
-		if err != nil {
-			return errors.Wrap(err, "Failed to read template file")
-		}
-
-		// Restrict filesystem access to within the container's rootfs.
-		tplSet := pongo2.NewSet(fmt.Sprintf("%s-%s", vm.name, tpl.Template), pongoTemplate.ChrootLoader{Path: vm.TemplatesPath()})
-		tplRender, err := tplSet.FromString("{% autoescape off %}" + string(tplString) + "{% endautoescape %}")
-		if err != nil {
-			return errors.Wrap(err, "Failed to render template")
-		}
-
-		configGet := func(confKey, confDefault *pongo2.Value) *pongo2.Value {
-			val, ok := vm.expandedConfig[confKey.String()]
-			if !ok {
-				return confDefault
-			}
-
-			return pongo2.AsValue(strings.TrimRight(val, "\r\n"))
-		}
-
-		// Render the template.
-		tplRender.ExecuteWriter(pongo2.Context{"trigger": trigger,
-			"path":       tplPath,
-			"instance":   instanceMeta,
-			"container":  instanceMeta, // FIXME: remove once most images have moved away.
-			"config":     vm.expandedConfig,
-			"devices":    vm.expandedDevices,
-			"properties": tpl.Properties,
-			"config_get": configGet}, w)
 	}
 
 	return nil
