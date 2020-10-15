@@ -317,9 +317,11 @@ mtu                             | integer   | -                     | -         
 parent                          | string    | -                     | -                         | Parent interface to create sriov NICs on
 vlan                            | integer   | -                     | -                         | The VLAN ID to attach to
 ipv4.gateway                    | string    | standard mode         | -                         | IPv4 address for the gateway and network (CIDR notation)
+ipv4.nat                        | boolean   | ipv4 address          | false                     | Whether to NAT (will default to true if unset and a random ipv4.address is generated)
 ipv4.ovn.ranges                 | string    | -                     | none                      | Comma separate list of IPv4 ranges to use for child OVN network routers (FIRST-LAST format)
 ipv4.routes                     | string    | ipv4 address          | -                         | Comma separated list of additional IPv4 CIDR subnets that can be used with child OVN networks ipv4.routes.external setting
 ipv6.gateway                    | string    | standard mode         | -                         | IPv6 address for the gateway and network  (CIDR notation)
+ipv6.nat                        | boolean   | ipv6 address          | false                     | Whether to NAT (will default to true if unset and a random ipv6.address is generated)
 ipv6.ovn.ranges                 | string    | -                     | none                      | Comma separate list of IPv6 ranges to use for child OVN network routers (FIRST-LAST format)
 ipv6.routes                     | string    | ipv6 address          | -                         | Comma separated list of additional IPv6 CIDR subnets that can be used with child OVN networks ipv6.routes.external setting
 dns.nameservers                 | string    | standard mode         | -                         | List of DNS server IPs on physical network
