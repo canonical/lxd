@@ -252,95 +252,168 @@ To do so, just add a none type device with the same name of the one you wish to 
 It can be added in a profile being applied after the profile it originated from or directly on the instance.
 
 ### Type: nic
-LXD supports different kind of network devices:
+LXD supports several different kinds of network devices (referred to as Network Interface Controller or NIC).
 
- - [physical](#nictype-physical): Straight physical device passthrough from the host. The targeted device will vanish from the host and appear in the instance.
- - [bridged](#nictype-bridged): Uses an existing bridge on the host and creates a virtual device pair to connect the host bridge to the instance.
- - [macvlan](#nictype-macvlan): Sets up a new network device based on an existing one but using a different MAC address.
- - [ipvlan](#nictype-ipvlan): Sets up a new network device based on an existing one using the same MAC address but a different IP.
- - [ovn](#nictype-ovn): Uses an existing OVN network and creates a virtual device pair to connect the instance to it.
- - [p2p](#nictype-p2p): Creates a virtual device pair, putting one side in the instance and leaving the other side on the host.
- - [sriov](#nictype-sriov): Passes a virtual function of an SR-IOV enabled physical network device into the instance.
- - [routed](#nictype-routed): Creates a virtual device pair to connect the host to the instance and sets up static routes and proxy ARP/NDP entries to allow the instance to join the network of a designated parent interface.
+When adding a network device to an instance, there are two ways to specify the type of device you want to add;
+either by specifying the `nictype` property or using the `network` property.
 
-Different network interface types have different additional properties.
+#### Specifying a NIC using the `network` property
 
-Each possible `nictype` value is documented below along with the relevant properties for nics of that type.
+When specifying the `network` property, the NIC is linked to an existing managed network and the `nictype` is
+automatically detected based on the network's type.
 
-#### nictype: physical
+Some of the NICs properties are inherited from the network rather than being customisable for each NIC.
+
+These are detailed in the "Managed" column in the NIC specific sections below.
+
+#### NICs Available:
+
+See the NIC's settings below for details about which properties are available.
+
+The following NICs can be specified using the `nictype` or `network` properties:
+
+ - [bridged](#nic-bridged): Uses an existing bridge on the host and creates a virtual device pair to connect the host bridge to the instance.
+ - [macvlan](#nic-macvlan): Sets up a new network device based on an existing one but using a different MAC address.
+ - [sriov](#nic-sriov): Passes a virtual function of an SR-IOV enabled physical network device into the instance.
+
+The following NICs can be specified using only the `network` property:
+
+ - [ovn](#nic-ovn): Uses an existing OVN network and creates a virtual device pair to connect the instance to it.
+
+The following NICs can be specified using only the `nictype` property:
+
+ - [physical](#nic-physical): Straight physical device passthrough from the host. The targeted device will vanish from the host and appear in the instance.
+ - [ipvlan](#nic-ipvlan): Sets up a new network device based on an existing one using the same MAC address but a different IP.
+ - [p2p](#nic-p2p): Creates a virtual device pair, putting one side in the instance and leaving the other side on the host.
+ - [routed](#nic-routed): Creates a virtual device pair to connect the host to the instance and sets up static routes and proxy ARP/NDP entries to allow the instance to join the network of a designated parent interface.
+
+#### nic: bridged
 
 Supported instance types: container, VM
 
-Straight physical device passthrough from the host. The targeted device will vanish from the host and appear in the instance.
-
-Device configuration properties:
-
-Key                     | Type      | Default           | Required  | Description
-:--                     | :--       | :--               | :--       | :--
-parent                  | string    | -                 | yes       | The name of the host device
-name                    | string    | kernel assigned   | no        | The name of the interface inside the instance
-mtu                     | integer   | parent MTU        | no        | The MTU of the new interface
-hwaddr                  | string    | randomly assigned | no        | The MAC address of the new interface
-vlan                    | integer   | -                 | no        | The VLAN ID to attach to
-maas.subnet.ipv4        | string    | -                 | no        | MAAS IPv4 subnet to register the instance in
-maas.subnet.ipv6        | string    | -                 | no        | MAAS IPv6 subnet to register the instance in
-boot.priority           | integer   | -                 | no        | Boot priority for VMs (higher boots first)
-
-#### nictype: bridged
-
-Supported instance types: container, VM
+Selected using: `nictype`, `network`
 
 Uses an existing bridge on the host and creates a virtual device pair to connect the host bridge to the instance.
 
 Device configuration properties:
 
-Key                      | Type      | Default           | Required  | Description
-:--                      | :--       | :--               | :--       | :--
-parent                   | string    | -                 | yes       | The name of the host device
-network                  | string    | -                 | yes       | The LXD network to link device to (instead of parent)
-name                     | string    | kernel assigned   | no        | The name of the interface inside the instance
-mtu                      | integer   | parent MTU        | no        | The MTU of the new interface
-hwaddr                   | string    | randomly assigned | no        | The MAC address of the new interface
-host\_name               | string    | randomly assigned | no        | The name of the interface inside the host
-limits.ingress           | string    | -                 | no        | I/O limit in bit/s for incoming traffic (various suffixes supported, see below)
-limits.egress            | string    | -                 | no        | I/O limit in bit/s for outgoing traffic (various suffixes supported, see below)
-limits.max               | string    | -                 | no        | Same as modifying both limits.ingress and limits.egress
-ipv4.address             | string    | -                 | no        | An IPv4 address to assign to the instance through DHCP
-ipv6.address             | string    | -                 | no        | An IPv6 address to assign to the instance through DHCP
-ipv4.routes              | string    | -                 | no        | Comma delimited list of IPv4 static routes to add on host to nic
-ipv6.routes              | string    | -                 | no        | Comma delimited list of IPv6 static routes to add on host to nic
-security.mac\_filtering  | boolean   | false             | no        | Prevent the instance from spoofing another's MAC address
-security.ipv4\_filtering | boolean   | false             | no        | Prevent the instance from spoofing another's IPv4 address (enables mac\_filtering)
-security.ipv6\_filtering | boolean   | false             | no        | Prevent the instance from spoofing another's IPv6 address (enables mac\_filtering)
-maas.subnet.ipv4         | string    | -                 | no        | MAAS IPv4 subnet to register the instance in
-maas.subnet.ipv6         | string    | -                 | no        | MAAS IPv6 subnet to register the instance in
-boot.priority            | integer   | -                 | no        | Boot priority for VMs (higher boots first)
-vlan                     | integer   | -                 | no        | The VLAN ID to use for untagged traffic (Can be `none` to remove port from default VLAN)
-vlan.tagged              | integer   | -                 | no        | Comma delimited list of VLAN IDs to join for tagged traffic
+Key                      | Type    | Default           | Required | Managed | Description
+:--                      | :--     | :--               | :--      | :--     | :--
+parent                   | string  | -                 | yes      | yes     | The name of the host device
+network                  | string  | -                 | yes      | no      | The LXD network to link device to (instead of parent)
+name                     | string  | kernel assigned   | no       | no      | The name of the interface inside the instance
+mtu                      | integer | parent MTU        | no       | yes     | The MTU of the new interface
+hwaddr                   | string  | randomly assigned | no       | no      | The MAC address of the new interface
+host\_name               | string  | randomly assigned | no       | no      | The name of the interface inside the host
+limits.ingress           | string  | -                 | no       | no      | I/O limit in bit/s for incoming traffic (various suffixes supported, see below)
+limits.egress            | string  | -                 | no       | no      | I/O limit in bit/s for outgoing traffic (various suffixes supported, see below)
+limits.max               | string  | -                 | no       | no      | Same as modifying both limits.ingress and limits.egress
+ipv4.address             | string  | -                 | no       | no      | An IPv4 address to assign to the instance through DHCP
+ipv6.address             | string  | -                 | no       | no      | An IPv6 address to assign to the instance through DHCP
+ipv4.routes              | string  | -                 | no       | no      | Comma delimited list of IPv4 static routes to add on host to nic
+ipv6.routes              | string  | -                 | no       | no      | Comma delimited list of IPv6 static routes to add on host to nic
+security.mac\_filtering  | boolean | false             | no       | no      | Prevent the instance from spoofing another's MAC address
+security.ipv4\_filtering | boolean | false             | no       | no      | Prevent the instance from spoofing another's IPv4 address (enables mac\_filtering)
+security.ipv6\_filtering | boolean | false             | no       | no      | Prevent the instance from spoofing another's IPv6 address (enables mac\_filtering)
+maas.subnet.ipv4         | string  | -                 | no       | yes     | MAAS IPv4 subnet to register the instance in
+maas.subnet.ipv6         | string  | -                 | no       | yes     | MAAS IPv6 subnet to register the instance in
+boot.priority            | integer | -                 | no       | no      | Boot priority for VMs (higher boots first)
+vlan                     | integer | -                 | no       | no      | The VLAN ID to use for untagged traffic (Can be `none` to remove port from default VLAN)
+vlan.tagged              | integer | -                 | no       | no      | Comma delimited list of VLAN IDs to join for tagged traffic
 
-#### nictype: macvlan
+#### nic: macvlan
 
 Supported instance types: container, VM
+
+Selected using: `nictype`, `network`
 
 Sets up a new network device based on an existing one but using a different MAC address.
 
 Device configuration properties:
 
-Key                     | Type      | Default           | Required  | Description
-:--                     | :--       | :--               | :--       | :--
-parent                  | string    | -                 | yes       | The name of the host device
-network                 | string    | -                 | yes       | The LXD network to link device to (instead of parent)
-name                    | string    | kernel assigned   | no        | The name of the interface inside the instance
-mtu                     | integer   | parent MTU        | no        | The MTU of the new interface
-hwaddr                  | string    | randomly assigned | no        | The MAC address of the new interface
-vlan                    | integer   | -                 | no        | The VLAN ID to attach to
-maas.subnet.ipv4        | string    | -                 | no        | MAAS IPv4 subnet to register the instance in
-maas.subnet.ipv6        | string    | -                 | no        | MAAS IPv6 subnet to register the instance in
-boot.priority           | integer   | -                 | no        | Boot priority for VMs (higher boots first)
+Key                     | Type    | Default           | Required | Managed | Description
+:--                     | :--     | :--               | :--      | :--     | :--
+parent                  | string  | -                 | yes      | yes     | The name of the host device
+network                 | string  | -                 | yes      | no      | The LXD network to link device to (instead of parent)
+name                    | string  | kernel assigned   | no       | no      | The name of the interface inside the instance
+mtu                     | integer | parent MTU        | no       | yes     | The MTU of the new interface
+hwaddr                  | string  | randomly assigned | no       | no      | TThe MAC address of the new interface
+vlan                    | integer | -                 | no       | no      | TThe VLAN ID to attach to
+maas.subnet.ipv4        | string  | -                 | no       | yes     | MAAS IPv4 subnet to register the instance in
+maas.subnet.ipv6        | string  | -                 | no       | yes     | MAAS IPv6 subnet to register the instance in
+boot.priority           | integer | -                 | no       | no      | TBoot priority for VMs (higher boots first)
 
-#### nictype: ipvlan
+#### nic: sriov
+
+Supported instance types: container, VM
+
+Selected using: `nictype`, `network`
+
+Passes a virtual function of an SR-IOV enabled physical network device into the instance.
+
+Device configuration properties:
+
+Key                     | Type    | Default           | Required | Managed | Description
+:--                     | :--     | :--               | :--      | :--     | :--
+parent                  | string  | -                 | yes      | yes     | The name of the host device
+network                 | string  | -                 | yes      | no      | The LXD network to link device to (instead of parent)
+name                    | string  | kernel assigned   | no       | no      | The name of the interface inside the instance
+mtu                     | integer | kernel assigned   | no       | yes     | The MTU of the new interface
+hwaddr                  | string  | randomly assigned | no       | no      | The MAC address of the new interface
+security.mac\_filtering | boolean | false             | no       | no      | Prevent the instance from spoofing another's MAC address
+vlan                    | integer | -                 | no       | no      | The VLAN ID to attach to
+maas.subnet.ipv4        | string  | -                 | no       | yes     | MAAS IPv4 subnet to register the instance in
+maas.subnet.ipv6        | string  | -                 | no       | yes     | MAAS IPv6 subnet to register the instance in
+boot.priority           | integer | -                 | no       | no      | Boot priority for VMs (higher boots first)
+
+#### nic: ovn
+
+Supported instance types: container, VM
+
+Selected using: `network`
+
+Uses an existing OVN network and creates a virtual device pair to connect the instance to it.
+
+Device configuration properties:
+
+Key                     | Type    | Default           | Required | Managed | Description
+:--                     | :--     | :--               | :--      | :--     | :--
+network                 | string  | -                 | yes      | yes     | The LXD network to link device to
+name                    | string  | kernel assigned   | no       | no      | The name of the interface inside the instance
+host\_name              | string  | randomly assigned | no       | no      | The name of the interface inside the host
+hwaddr                  | string  | randomly assigned | no       | no      | The MAC address of the new interface
+ipv4.address            | string  | -                 | no       | no      | An IPv4 address to assign to the instance through DHCP
+ipv6.address            | string  | -                 | no       | no      | An IPv6 address to assign to the instance through DHCP
+ipv4.routes.external    | string  | -                 | no       | no      | Comma delimited list of IPv4 static routes to route to the NIC and publish on uplink network
+ipv6.routes.external    | string  | -                 | no       | no      | Comma delimited list of IPv6 static routes to route to the NIC and publish on uplink network
+boot.priority           | integer | -                 | no       | no      | Boot priority for VMs (higher boots first)
+
+#### nic: physical
+
+Supported instance types: container, VM
+
+Selected using: `nictype`
+
+Straight physical device passthrough from the host. The targeted device will vanish from the host and appear in the instance.
+
+Device configuration properties:
+
+Key                     | Type    | Default           | Required | Description
+:--                     | :--     | :--               | :--      | :--
+parent                  | string  | -                 | yes      | The name of the host device
+name                    | string  | kernel assigned   | no       | The name of the interface inside the instance
+mtu                     | integer | parent MTU        | no       | The MTU of the new interface
+hwaddr                  | string  | randomly assigned | no       | The MAC address of the new interface
+vlan                    | integer | -                 | no       | The VLAN ID to attach to
+maas.subnet.ipv4        | string  | -                 | no       | MAAS IPv4 subnet to register the instance in
+maas.subnet.ipv6        | string  | -                 | no       | MAAS IPv6 subnet to register the instance in
+boot.priority           | integer | -                 | no       | Boot priority for VMs (higher boots first)
+
+#### nic: ipvlan
 
 Supported instance types: container
+
+Selected using: `nictype`
 
 Sets up a new network device based on an existing one using the same MAC address but a different IP.
 
@@ -367,86 +440,49 @@ net.ipv6.conf.<parent>.proxy_ndp=1
 
 Device configuration properties:
 
-Key                     | Type      | Default            | Required  | Description
-:--                     | :--       | :--                | :--       | :--
-parent                  | string    | -                  | yes       | The name of the host device
-name                    | string    | kernel assigned    | no        | The name of the interface inside the instance
-mtu                     | integer   | parent MTU         | no        | The MTU of the new interface
-mode                    | string    | l3s                | no        | The IPVLAN mode (either `l2` or `l3s`)
-hwaddr                  | string    | randomly assigned  | no        | The MAC address of the new interface
-ipv4.address            | string    | -                  | no        | Comma delimited list of IPv4 static addresses to add to the instance. In `l2` mode these can be specified as CIDR values or singular addresses (if singular a subnet of /24 is used).
-ipv4.gateway            | string    | auto               | no        | In `l3s` mode, whether to add an automatic default IPv4 gateway, can be `auto` or `none`. In `l2` mode specifies the IPv4 address of the gateway.
-ipv4.host\_table        | integer   | -                  | no        | The custom policy routing table ID to add IPv4 static routes to (in addition to main routing table).
-ipv6.address            | string    | -                  | no        | Comma delimited list of IPv6 static addresses to add to the instance. In `l2` mode these can be specified as CIDR values or singular addresses (if singular a subnet of /64 is used).
-ipv6.gateway            | string    | auto (l3s), - (l2) | no        | In `l3s` mode, whether to add an automatic default IPv6 gateway, can be `auto` or `none`. In `l2` mode specifies the IPv6 address of the gateway.
-ipv6.host\_table        | integer   | -                  | no        | The custom policy routing table ID to add IPv6 static routes to (in addition to main routing table).
-vlan                    | integer   | -                  | no        | The VLAN ID to attach to
+Key                     | Type    | Default            | Required | Description
+:--                     | :--     | :--                | :--      | :--
+parent                  | string  | -                  | yes      | The name of the host device
+name                    | string  | kernel assigned    | no       | The name of the interface inside the instance
+mtu                     | integer | parent MTU         | no       | The MTU of the new interface
+mode                    | string  | l3s                | no       | The IPVLAN mode (either `l2` or `l3s`)
+hwaddr                  | string  | randomly assigned  | no       | The MAC address of the new interface
+ipv4.address            | string  | -                  | no       | Comma delimited list of IPv4 static addresses to add to the instance. In `l2` mode these can be specified as CIDR values or singular addresses (if singular a subnet of /24 is used).
+ipv4.gateway            | string  | auto               | no       | In `l3s` mode, whether to add an automatic default IPv4 gateway, can be `auto` or `none`. In `l2` mode specifies the IPv4 address of the gateway.
+ipv4.host\_table        | integer | -                  | no       | The custom policy routing table ID to add IPv4 static routes to (in addition to main routing table).
+ipv6.address            | string  | -                  | no       | Comma delimited list of IPv6 static addresses to add to the instance. In `l2` mode these can be specified as CIDR values or singular addresses (if singular a subnet of /64 is used).
+ipv6.gateway            | string  | auto (l3s), - (l2) | no       | In `l3s` mode, whether to add an automatic default IPv6 gateway, can be `auto` or `none`. In `l2` mode specifies the IPv6 address of the gateway.
+ipv6.host\_table        | integer | -                  | no       | The custom policy routing table ID to add IPv6 static routes to (in addition to main routing table).
+vlan                    | integer | -                  | no       | The VLAN ID to attach to
 
-#### nictype: p2p
+#### nic: p2p
 
 Supported instance types: container, VM
+
+Selected using: `nictype`
 
 Creates a virtual device pair, putting one side in the instance and leaving the other side on the host.
 
 Device configuration properties:
 
-Key                     | Type      | Default           | Required  | Description
-:--                     | :--       | :--               | :--       | :--
-name                    | string    | kernel assigned   | no        | The name of the interface inside the instance
-mtu                     | integer   | kernel assigned   | no        | The MTU of the new interface
-hwaddr                  | string    | randomly assigned | no        | The MAC address of the new interface
-host\_name              | string    | randomly assigned | no        | The name of the interface inside the host
-limits.ingress          | string    | -                 | no        | I/O limit in bit/s for incoming traffic (various suffixes supported, see below)
-limits.egress           | string    | -                 | no        | I/O limit in bit/s for outgoing traffic (various suffixes supported, see below)
-limits.max              | string    | -                 | no        | Same as modifying both limits.ingress and limits.egress
-ipv4.routes             | string    | -                 | no        | Comma delimited list of IPv4 static routes to add on host to nic
-ipv6.routes             | string    | -                 | no        | Comma delimited list of IPv6 static routes to add on host to nic
-boot.priority           | integer   | -                 | no        | Boot priority for VMs (higher boots first)
+Key                     | Type    | Default           | Required | Description
+:--                     | :--     | :--               | :--      | :--
+name                    | string  | kernel assigned   | no       | The name of the interface inside the instance
+mtu                     | integer | kernel assigned   | no       | The MTU of the new interface
+hwaddr                  | string  | randomly assigned | no       | The MAC address of the new interface
+host\_name              | string  | randomly assigned | no       | The name of the interface inside the host
+limits.ingress          | string  | -                 | no       | I/O limit in bit/s for incoming traffic (various suffixes supported, see below)
+limits.egress           | string  | -                 | no       | I/O limit in bit/s for outgoing traffic (various suffixes supported, see below)
+limits.max              | string  | -                 | no       | Same as modifying both limits.ingress and limits.egress
+ipv4.routes             | string  | -                 | no       | Comma delimited list of IPv4 static routes to add on host to nic
+ipv6.routes             | string  | -                 | no       | Comma delimited list of IPv6 static routes to add on host to nic
+boot.priority           | integer | -                 | no       | Boot priority for VMs (higher boots first)
 
-#### nictype: ovn
-
-Supported instance types: container, VM
-
-Uses an existing OVN network and creates a virtual device pair to connect the instance to it.
-
-Device configuration properties:
-
-Key                     | Type      | Default           | Required  | Description
-:--                     | :--       | :--               | :--       | :--
-network                 | string    | -                 | yes       | The LXD network to link device to
-name                    | string    | kernel assigned   | no        | The name of the interface inside the instance
-host\_name              | string    | randomly assigned | no        | The name of the interface inside the host
-hwaddr                  | string    | randomly assigned | no        | The MAC address of the new interface
-ipv4.address            | string    | -                 | no        | An IPv4 address to assign to the instance through DHCP
-ipv6.address            | string    | -                 | no        | An IPv6 address to assign to the instance through DHCP
-ipv4.routes.external    | string    | -                 | no        | Comma delimited list of IPv4 static routes to route to the NIC and publish on uplink network
-ipv6.routes.external    | string    | -                 | no        | Comma delimited list of IPv6 static routes to route to the NIC and publish on uplink network
-boot.priority           | integer   | -                 | no        | Boot priority for VMs (higher boots first)
-
-#### nictype: sriov
-
-Supported instance types: container, VM
-
-Passes a virtual function of an SR-IOV enabled physical network device into the instance.
-
-Device configuration properties:
-
-Key                     | Type      | Default           | Required  | Description
-:--                     | :--       | :--               | :--       | :--
-parent                  | string    | -                 | yes       | The name of the host device
-network                 | string    | -                 | yes       | The LXD network to link device to (instead of parent)
-name                    | string    | kernel assigned   | no        | The name of the interface inside the instance
-mtu                     | integer   | kernel assigned   | no        | The MTU of the new interface
-hwaddr                  | string    | randomly assigned | no        | The MAC address of the new interface
-security.mac\_filtering | boolean   | false             | no        | Prevent the instance from spoofing another's MAC address
-vlan                    | integer   | -                 | no        | The VLAN ID to attach to
-maas.subnet.ipv4        | string    | -                 | no        | MAAS IPv4 subnet to register the instance in
-maas.subnet.ipv6        | string    | -                 | no        | MAAS IPv6 subnet to register the instance in
-boot.priority           | integer   | -                 | no        | Boot priority for VMs (higher boots first)
-
-#### nictype: routed
+#### nic: routed
 
 Supported instance types: container
+
+Selected using: `nictype`
 
 This NIC type is similar in operation to IPVLAN, in that it allows an instance to join an external network without needing to configure a bridge and shares the host's MAC address.
 
@@ -492,62 +528,52 @@ It may also be useful to specify a different host-side address for these subsequ
 
 Device configuration properties:
 
-Key                     | Type      | Default           | Required  | Description
-:--                     | :--       | :--               | :--       | :--
-parent                  | string    | -                 | no        | The name of the host device to join the instance to
-name                    | string    | kernel assigned   | no        | The name of the interface inside the instance
-host\_name              | string    | randomly assigned | no        | The name of the interface inside the host
-mtu                     | integer   | parent MTU        | no        | The MTU of the new interface
-hwaddr                  | string    | randomly assigned | no        | The MAC address of the new interface
-limits.ingress          | string    | -                 | no        | I/O limit in bit/s for incoming traffic (various suffixes supported, see below)
-limits.egress           | string    | -                 | no        | I/O limit in bit/s for outgoing traffic (various suffixes supported, see below)
-limits.max              | string    | -                 | no        | Same as modifying both limits.ingress and limits.egress
-ipv4.address            | string    | -                 | no        | Comma delimited list of IPv4 static addresses to add to the instance
-ipv4.gateway            | string    | auto              | no        | Whether to add an automatic default IPv4 gateway, can be "auto" or "none"
-ipv4.host\_address      | string    | 169.254.0.1       | no        | The IPv4 address to add to the host-side veth interface.
-ipv4.host\_table        | integer   | -                 | no        | The custom policy routing table ID to add IPv4 static routes to (in addition to main routing table).
-ipv6.address            | string    | -                 | no        | Comma delimited list of IPv6 static addresses to add to the instance
-ipv6.gateway            | string    | auto              | no        | Whether to add an automatic default IPv6 gateway, can be "auto" or "none"
-ipv6.host\_address      | string    | fe80::1           | no        | The IPv6 address to add to the host-side veth interface.
-ipv6.host\_table        | integer   | -                 | no        | The custom policy routing table ID to add IPv6 static routes to (in addition to main routing table).
-vlan                    | integer   | -                 | no        | The VLAN ID to attach to
+Key                     | Type    | Default           | Required | Description
+:--                     | :--     | :--               | :--      | :--
+parent                  | string  | -                 | no       | The name of the host device to join the instance to
+name                    | string  | kernel assigned   | no       | The name of the interface inside the instance
+host\_name              | string  | randomly assigned | no       | The name of the interface inside the host
+mtu                     | integer | parent MTU        | no       | The MTU of the new interface
+hwaddr                  | string  | randomly assigned | no       | The MAC address of the new interface
+limits.ingress          | string  | -                 | no       | I/O limit in bit/s for incoming traffic (various suffixes supported, see below)
+limits.egress           | string  | -                 | no       | I/O limit in bit/s for outgoing traffic (various suffixes supported, see below)
+limits.max              | string  | -                 | no       | Same as modifying both limits.ingress and limits.egress
+ipv4.address            | string  | -                 | no       | Comma delimited list of IPv4 static addresses to add to the instance
+ipv4.gateway            | string  | auto              | no       | Whether to add an automatic default IPv4 gateway, can be "auto" or "none"
+ipv4.host\_address      | string  | 169.254.0.1       | no       | The IPv4 address to add to the host-side veth interface.
+ipv4.host\_table        | integer | -                 | no       | The custom policy routing table ID to add IPv4 static routes to (in addition to main routing table).
+ipv6.address            | string  | -                 | no       | Comma delimited list of IPv6 static addresses to add to the instance
+ipv6.gateway            | string  | auto              | no       | Whether to add an automatic default IPv6 gateway, can be "auto" or "none"
+ipv6.host\_address      | string  | fe80::1           | no       | The IPv6 address to add to the host-side veth interface.
+ipv6.host\_table        | integer | -                 | no       | The custom policy routing table ID to add IPv6 static routes to (in addition to main routing table).
+vlan                    | integer | -                 | no       | The VLAN ID to attach to
 
 #### bridged, macvlan or ipvlan for connection to physical network
-The `bridged`, `macvlan` and `ipvlan` interface types can both be used to connect
-to an existing physical network.
 
-`macvlan` effectively lets you fork your physical NIC, getting a second
-interface that's then used by the instance. This saves you from
-creating a bridge device and veth pairs and usually offers better
-performance than a bridge.
+The `bridged`, `macvlan` and `ipvlan` interface types can be used to connect to an existing physical network.
 
-The downside to this is that macvlan devices while able to communicate
-between themselves and to the outside, aren't able to talk to their
-parent device. This means that you can't use macvlan if you ever need
-your instances to talk to the host itself.
+`macvlan` effectively lets you fork your physical NIC, getting a second interface that's then used by the instance.
+This saves you from creating a bridge device and veth pairs and usually offers better performance than a bridge.
 
-In such case, a bridge is preferable. A bridge will also let you use mac
-filtering and I/O limits which cannot be applied to a macvlan device.
+The downside to this is that macvlan devices while able to communicate between themselves and to the outside, aren't able to talk to their parent device.
+This means that you can't use macvlan if you ever need your instances to talk to the host itself.
 
-`ipvlan` is similar to `macvlan`, with the difference being that the forked device has IPs
-statically assigned to it and inherits the parent's MAC address on the network.
+In such case, a bridge is preferable. A bridge will also let you use mac filtering and I/O limits which cannot be applied to a macvlan device.
+
+`ipvlan` is similar to `macvlan`, with the difference being that the forked device has IPs statically assigned to it and inherits the parent's MAC address on the network.
 
 #### SR-IOV
-The `sriov` interface type supports SR-IOV enabled network devices. These
-devices associate a set of virtual functions (VFs) with the single physical
-function (PF) of the network device. PFs are standard PCIe functions. VFs on
-the other hand are very lightweight PCIe functions that are optimized for data
-movement. They come with a limited set of configuration capabilities to prevent
-changing properties of the PF. Given that VFs appear as regular PCIe devices to
-the system they can be passed to instances just like a regular physical
-device. The `sriov` interface type expects to be passed the name of an SR-IOV
-enabled network device on the system via the `parent` property. LXD will then
-check for any available VFs on the system. By default LXD will allocate the
-first free VF it finds. If it detects that either none are enabled or all
-currently enabled VFs are in use it will bump the number of supported VFs to
-the maximum value and use the first free VF. If all possible VFs are in use or
-the kernel or card doesn't support incrementing the number of VFs LXD will
-return an error. To create a `sriov` network device use:
+The `sriov` interface type supports SR-IOV enabled network devices.
+These devices associate a set of virtual functions (VFs) with the single physical function (PF) of the network device.
+PFs are standard PCIe functions. VFs on the other hand are very lightweight PCIe functions that are optimized for data movement.
+They come with a limited set of configuration capabilities to prevent changing properties of the PF.
+Given that VFs appear as regular PCIe devices to the system they can be passed to instances just like a regular physical device.
+The `sriov` interface type expects to be passed the name of an SR-IOV enabled network device on the system via the `parent` property.
+LXD will then check for any available VFs on the system. By default LXD will allocate the first free VF it finds.
+If it detects that either none are enabled or all currently enabled VFs are in use it will bump the number of supported VFs to the maximum value and use the first free VF.
+If all possible VFs are in use or the kernel or card doesn't support incrementing the number of VFs LXD will return an error.
+
+To create a `sriov` network device use:
 
 ```
 lxc config device add <instance> <device-name> nic nictype=sriov parent=<sriov-enabled-device>
