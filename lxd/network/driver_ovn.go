@@ -101,6 +101,8 @@ func (n *ovn) Validate(config map[string]string) error {
 		"ipv6.dhcp.stateful":   validate.Optional(validate.IsBool),
 		"ipv4.routes.external": validate.Optional(validate.IsNetworkV4List),
 		"ipv6.routes.external": validate.Optional(validate.IsNetworkV6List),
+		"ipv4.nat":             validate.Optional(validate.IsBool),
+		"ipv6.nat":             validate.Optional(validate.IsBool),
 		"dns.domain":           validate.IsAny,
 		"dns.search":           validate.IsAny,
 
@@ -1112,6 +1114,10 @@ func (n *ovn) FillConfig(config map[string]string) error {
 		}
 
 		config["ipv4.address"] = subnet
+
+		if config["ipv4.nat"] == "" {
+			config["ipv4.nat"] = "true"
+		}
 	}
 
 	if config["ipv6.address"] == "auto" {
@@ -1121,6 +1127,10 @@ func (n *ovn) FillConfig(config map[string]string) error {
 		}
 
 		config["ipv6.address"] = subnet
+
+		if config["ipv6.nat"] == "" {
+			config["ipv6.nat"] = "true"
+		}
 	}
 
 	return nil
@@ -1373,14 +1383,14 @@ func (n *ovn) setup(update bool) error {
 	}
 
 	// Add SNAT rules.
-	if routerIntPortIPv4Net != nil && routerExtPortIPv4 != nil {
+	if shared.IsTrue(n.config["ipv4.nat"]) && routerIntPortIPv4Net != nil && routerExtPortIPv4 != nil {
 		err = client.LogicalRouterSNATAdd(n.getRouterName(), routerIntPortIPv4Net, routerExtPortIPv4)
 		if err != nil {
 			return err
 		}
 	}
 
-	if routerIntPortIPv6Net != nil && routerExtPortIPv6 != nil {
+	if shared.IsTrue(n.config["ipv6.nat"]) && routerIntPortIPv6Net != nil && routerExtPortIPv6 != nil {
 		err = client.LogicalRouterSNATAdd(n.getRouterName(), routerIntPortIPv6Net, routerExtPortIPv6)
 		if err != nil {
 			return err
