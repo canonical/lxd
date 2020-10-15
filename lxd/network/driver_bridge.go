@@ -1109,7 +1109,7 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 		}
 
 		// Configure NAT.
-		if n.config["ipv4.nat"] == "" || shared.IsTrue(n.config["ipv4.nat"]) {
+		if shared.IsTrue(n.config["ipv4.nat"]) {
 			if n.config["ipv4.nat.order"] == "after" {
 				err = n.state.Firewall.NetworkSetupOutboundNAT(n.name, overlaySubnet, nil, true)
 				if err != nil {
