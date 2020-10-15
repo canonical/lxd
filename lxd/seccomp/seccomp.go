@@ -656,8 +656,8 @@ func InstanceNeedsIntercept(s *state.State, c Instance) (bool, error) {
 	return needed, nil
 }
 
-// InheritInitPidFd prepares a pidfd to inherit for the init process of the container.
-func inheritPidFd(pid int, s *state.State) (int, *os.File) {
+// MakePidFd prepares a pidfd to inherit for the init process of the container.
+func MakePidFd(pid int, s *state.State) (int, *os.File) {
 	if s.OS.PidFds {
 		pidFdFile, err := shared.PidFdOpen(pid, 0)
 		if err != nil {
@@ -1112,7 +1112,7 @@ func CallForkmknod(c Instance, dev deviceConfig.Device, requestPID int, s *state
 		return int(-C.EPERM)
 	}
 
-	pidFdNr, pidFd := inheritPidFd(requestPID, s)
+	pidFdNr, pidFd := MakePidFd(requestPID, s)
 	if pidFdNr >= 0 {
 		defer pidFd.Close()
 	}
@@ -1332,7 +1332,7 @@ func (s *Server) HandleSetxattrSyscall(c Instance, siov *Iovec) int {
 
 	args.pid = int(siov.req.pid)
 
-	pidFdNr, pidFd := inheritPidFd(args.pid, s.s)
+	pidFdNr, pidFd := MakePidFd(args.pid, s.s)
 	if pidFdNr >= 0 {
 		defer pidFd.Close()
 	}
@@ -1615,7 +1615,7 @@ func (s *Server) HandleMountSyscall(c Instance, siov *Iovec) int {
 		shift: s.MountSyscallShift(c),
 	}
 
-	pidFdNr, pidFd := inheritPidFd(args.pid, s.s)
+	pidFdNr, pidFd := MakePidFd(args.pid, s.s)
 	if pidFdNr >= 0 {
 		defer pidFd.Close()
 	}
