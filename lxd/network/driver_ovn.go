@@ -1873,6 +1873,30 @@ func (n *ovn) instanceDevicePortAdd(instanceID int, instanceName string, deviceN
 		if err != nil {
 			return "", err
 		}
+
+		// If port isn't going to have fully dynamic IPs allocated by OVN, and instead only static IPv4
+		// addresses have been added, then add an EUI64 static IPv6 address so that the switch port has an
+		// IPv6 address that will be used to generate a DNS record. This works around a limitation in OVN
+		// that prevents us requesting dynamic IPv6 address allocation when static IPv4 allocation is used.
+		if len(ips) > 0 {
+			hasIPv6 := false
+			for _, ip := range ips {
+				if ip.To4() == nil {
+					hasIPv6 = true
+					break
+				}
+			}
+
+			if !hasIPv6 {
+				eui64IP, err := eui64.ParseMAC(routerIntPortIPv6Net.IP, mac)
+				if err != nil {
+					return "", errors.Wrapf(err, "Failed generating EUI64 for instance port %q", mac.String())
+				}
+
+				// Add EUI64 to list of static IPs for instance port.
+				ips = append(ips, eui64IP)
+			}
+		}
 	}
 
 	instancePortName := n.getInstanceDevicePortName(instanceID, deviceName)
