@@ -66,6 +66,8 @@ func load(inst instance.Instance, state *state.State, projectName string, name s
 		dev = &disk{}
 	case "none":
 		dev = &none{}
+	case "tpm":
+		dev = &tpm{}
 	}
 
 	// Check a valid device type has been found.
