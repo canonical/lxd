@@ -1949,12 +1949,39 @@ func (n *ovn) instanceDevicePortAdd(instanceID int, instanceName string, deviceN
 		return "", err
 	}
 
-	dnsIPv4, dnsIPv6, err := client.LogicalSwitchPortSetDNS(n.getIntSwitchName(), instancePortName, fmt.Sprintf("%s.%s", instanceName, n.getDomainName()))
+	// Add DNS records for port's IPs, and retrieve the IP addresses used.
+	dnsUUID, dnsIPv4, dnsIPv6, err := client.LogicalSwitchPortSetDNS(n.getIntSwitchName(), instancePortName, fmt.Sprintf("%s.%s", instanceName, n.getDomainName()))
 	if err != nil {
 		return "", err
 	}
 
-	revert.Add(func() { client.LogicalSwitchPortDeleteDNS(n.getIntSwitchName(), instancePortName) })
+	revert.Add(func() { client.LogicalSwitchPortDeleteDNS(n.getIntSwitchName(), dnsUUID) })
+
+	// Publish NIC's IPs on uplink network if NAT is disabled.
+	for _, k := range []string{"ipv4.nat", "ipv6.nat"} {
+		if shared.IsTrue(n.config[k]) {
+			continue
+		}
+
+		// Select the correct destination IP from the DNS records.
+		var ip net.IP
+		if k == "ipv4.nat" {
+			ip = dnsIPv4
+		} else if k == "ipv6.nat" {
+			ip = dnsIPv6
+		}
+
+		if ip == nil {
+			continue //No qualifying target IP from DNS records.
+		}
+
+		err = client.LogicalRouterDNATSNATAdd(n.getRouterName(), ip, ip, true, true)
+		if err != nil {
+			return "", err
+		}
+
+		revert.Add(func() { client.LogicalRouterDNATSNATDelete(n.getRouterName(), ip) })
+	}
 
 	// Add each internal route (using the IPs set for DNS as target).
 	for _, internalRoute := range internalRoutes {
@@ -2042,9 +2069,28 @@ func (n *ovn) instanceDevicePortDelete(instanceID int, deviceName string, intern
 		return err
 	}
 
-	err = client.LogicalSwitchPortDeleteDNS(n.getIntSwitchName(), instancePortName)
+	// Delete DNS records.
+	dnsUUID, _, dnsIPs, err := client.LogicalSwitchPortGetDNS(instancePortName)
 	if err != nil {
 		return err
+	}
+
+	err = client.LogicalSwitchPortDeleteDNS(n.getIntSwitchName(), dnsUUID)
+	if err != nil {
+		return err
+	}
+
+	// Delete any associated external IP DNAT rules for the DNS IPs (if NAT disabled).
+	for _, dnsIP := range dnsIPs {
+		isV6 := dnsIP.To4() == nil
+
+		// Atempt to remove any externally published IP rules if the associated IP NAT setting is disabled.
+		if (!isV6 && !shared.IsTrue(n.config["ipv4.nat"])) || (isV6 && !shared.IsTrue(n.config["ipv6.nat"])) {
+			err = client.LogicalRouterDNATSNATDelete(n.getRouterName(), dnsIP)
+			if err != nil {
+				return err
+			}
+		}
 	}
 
 	// Delete each internal route.
