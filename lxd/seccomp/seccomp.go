@@ -43,7 +43,6 @@ import (
 #include <elf.h>
 #include <errno.h>
 #include <fcntl.h>
-#include <linux/bpf.h>
 #include <linux/seccomp.h>
 #include <linux/types.h>
 #include <linux/kdev_t.h>
@@ -60,6 +59,7 @@ import (
 #include <sys/types.h>
 #include <unistd.h>
 
+#include "../include/lxd_bpf.h"
 #include "../include/lxd_seccomp.h"
 #include "../include/memory_utils.h"
 #include "../include/process_utils.h"
@@ -265,7 +265,6 @@ static void prepare_seccomp_iovec(struct iovec *iov,
 // bpf.h similar to what we do for seccomp itself. But that's annoying since bpf.h is quite
 // large. So users that want bpf interception support should make sure to have the relevant
 // header available at build time.
-#ifdef BPF_F_ALLOW_MULTI
 static inline int pidfd_getfd(int pidfd, int fd, int flags)
 {
 	return syscall(__NR_pidfd_getfd, pidfd, fd, flags);
@@ -425,17 +424,6 @@ static int handle_bpf_syscall(int notify_fd, int mem_fd, struct seccomp_notify_p
 
 	return ret;
 }
-
-#else // !BPF_DEVCG_DEV_CHAR
-
-static int handle_bpf_syscall(int notify_fd, int mem_fd, struct seccomp_notify_proxy_msg *msg,
-			      struct seccomp_notif *req, struct seccomp_notif_resp *resp,
-			      int *bpf_cmd, int *bpf_prog_type, int *bpf_attach_type)
-{
-	errno = ENOSYS;
-	return -errno;
-}
-#endif // BPF_DEVCG_DEV_CHAR
 
 #ifndef MS_LAZYTIME
 #define MS_LAZYTIME (1<<25)
@@ -668,8 +656,8 @@ func InstanceNeedsIntercept(s *state.State, c Instance) (bool, error) {
 	return needed, nil
 }
 
-// InheritInitPidFd prepares a pidfd to inherit for the init process of the container.
-func inheritPidFd(pid int, s *state.State) (int, *os.File) {
+// MakePidFd prepares a pidfd to inherit for the init process of the container.
+func MakePidFd(pid int, s *state.State) (int, *os.File) {
 	if s.OS.PidFds {
 		pidFdFile, err := shared.PidFdOpen(pid, 0)
 		if err != nil {
@@ -959,6 +947,7 @@ retry:
 		return fmt.Errorf("Failed to send full response to seccomp client %v", siov.ucred.Pid)
 	}
 
+	logger.Debugf("Send seccomp notification for id(%d)", siov.resp.id)
 	return nil
 }
 
@@ -1123,7 +1112,7 @@ func CallForkmknod(c Instance, dev deviceConfig.Device, requestPID int, s *state
 		return int(-C.EPERM)
 	}
 
-	pidFdNr, pidFd := inheritPidFd(requestPID, s)
+	pidFdNr, pidFd := MakePidFd(requestPID, s)
 	if pidFdNr >= 0 {
 		defer pidFd.Close()
 	}
@@ -1198,11 +1187,14 @@ func (s *Server) doDeviceSyscall(c Instance, args *MknodArgs, siov *Iovec) int {
 // HandleMknodSyscall handles a mknod syscall.
 func (s *Server) HandleMknodSyscall(c Instance, siov *Iovec) int {
 	ctx := log.Ctx{"container": c.Name(),
-		"project":              c.Project(),
-		"syscall_number":       siov.req.data.nr,
-		"audit_architecture":   siov.req.data.arch,
-		"seccomp_notify_id":    siov.req.id,
-		"seccomp_notify_flags": siov.req.flags,
+		"project":               c.Project(),
+		"syscall_number":        siov.req.data.nr,
+		"audit_architecture":    siov.req.data.arch,
+		"seccomp_notify_id":     siov.req.id,
+		"seccomp_notify_flags":  siov.req.flags,
+		"seccomp_notify_pid":    siov.req.pid,
+		"seccomp_notify_fd":     siov.notifyFd,
+		"seccomp_notify_mem_fd": siov.memFd,
 	}
 
 	defer logger.Debug("Handling mknod syscall", ctx)
@@ -1245,11 +1237,14 @@ func (s *Server) HandleMknodSyscall(c Instance, siov *Iovec) int {
 // HandleMknodatSyscall handles a mknodat syscall.
 func (s *Server) HandleMknodatSyscall(c Instance, siov *Iovec) int {
 	ctx := log.Ctx{"container": c.Name(),
-		"project":              c.Project(),
-		"syscall_number":       siov.req.data.nr,
-		"audit_architecture":   siov.req.data.arch,
-		"seccomp_notify_id":    siov.req.id,
-		"seccomp_notify_flags": siov.req.flags,
+		"project":               c.Project(),
+		"syscall_number":        siov.req.data.nr,
+		"audit_architecture":    siov.req.data.arch,
+		"seccomp_notify_id":     siov.req.id,
+		"seccomp_notify_flags":  siov.req.flags,
+		"seccomp_notify_pid":    siov.req.pid,
+		"seccomp_notify_fd":     siov.notifyFd,
+		"seccomp_notify_mem_fd": siov.memFd,
 	}
 
 	defer logger.Debug("Handling mknodat syscall", ctx)
@@ -1321,11 +1316,14 @@ type SetxattrArgs struct {
 // HandleSetxattrSyscall handles setxattr syscalls.
 func (s *Server) HandleSetxattrSyscall(c Instance, siov *Iovec) int {
 	ctx := log.Ctx{"container": c.Name(),
-		"project":              c.Project(),
-		"syscall_number":       siov.req.data.nr,
-		"audit_architecture":   siov.req.data.arch,
-		"seccomp_notify_id":    siov.req.id,
-		"seccomp_notify_flags": siov.req.flags,
+		"project":               c.Project(),
+		"syscall_number":        siov.req.data.nr,
+		"audit_architecture":    siov.req.data.arch,
+		"seccomp_notify_id":     siov.req.id,
+		"seccomp_notify_flags":  siov.req.flags,
+		"seccomp_notify_pid":    siov.req.pid,
+		"seccomp_notify_fd":     siov.notifyFd,
+		"seccomp_notify_mem_fd": siov.memFd,
 	}
 
 	defer logger.Debug("Handling setxattr syscall", ctx)
@@ -1334,7 +1332,7 @@ func (s *Server) HandleSetxattrSyscall(c Instance, siov *Iovec) int {
 
 	args.pid = int(siov.req.pid)
 
-	pidFdNr, pidFd := inheritPidFd(args.pid, s.s)
+	pidFdNr, pidFd := MakePidFd(args.pid, s.s)
 	if pidFdNr >= 0 {
 		defer pidFd.Close()
 	}
@@ -1600,11 +1598,14 @@ func (s *Server) mountHandleHugetlbfsArgs(c Instance, args *MountArgs, nsuid int
 // HandleMountSyscall handles mount syscalls.
 func (s *Server) HandleMountSyscall(c Instance, siov *Iovec) int {
 	ctx := log.Ctx{"container": c.Name(),
-		"project":              c.Project(),
-		"syscall_number":       siov.req.data.nr,
-		"audit_architecture":   siov.req.data.arch,
-		"seccomp_notify_id":    siov.req.id,
-		"seccomp_notify_flags": siov.req.flags,
+		"project":               c.Project(),
+		"syscall_number":        siov.req.data.nr,
+		"audit_architecture":    siov.req.data.arch,
+		"seccomp_notify_id":     siov.req.id,
+		"seccomp_notify_flags":  siov.req.flags,
+		"seccomp_notify_pid":    siov.req.pid,
+		"seccomp_notify_fd":     siov.notifyFd,
+		"seccomp_notify_mem_fd": siov.memFd,
 	}
 
 	defer logger.Debug("Handling mount syscall", ctx)
@@ -1614,7 +1615,7 @@ func (s *Server) HandleMountSyscall(c Instance, siov *Iovec) int {
 		shift: s.MountSyscallShift(c),
 	}
 
-	pidFdNr, pidFd := inheritPidFd(args.pid, s.s)
+	pidFdNr, pidFd := MakePidFd(args.pid, s.s)
 	if pidFdNr >= 0 {
 		defer pidFd.Close()
 	}

@@ -35,7 +35,7 @@ import (
 extern char* advance_arg(bool required);
 extern void attach_userns_fd(int ns_fd);
 extern int pidfd_nsfd(int pidfd, pid_t pid);
-extern int preserve_ns(const int pid, const char *ns);
+extern int preserve_ns(pid_t pid, int ns_fd, const char *ns);
 extern bool change_namespaces(int pidfd, int nsfd, unsigned int flags);
 
 static bool chdirchroot_in_mntns(int cwd_fd, int root_fd)
@@ -198,10 +198,6 @@ static void mknod_emulate(void)
 		_exit(EXIT_FAILURE);
 	}
 }
-
-#ifndef CLONE_NEWCGROUP
-#define CLONE_NEWCGROUP	0x02000000
-#endif
 
 const static int ns_flags[] = { CLONE_NEWUSER, CLONE_NEWPID, CLONE_NEWUTS, CLONE_NEWIPC, CLONE_NEWNET, CLONE_NEWCGROUP };
 
@@ -375,7 +371,7 @@ static void mount_emulate(void)
 		data = advance_arg(false);
 	}
 
-	mnt_fd = preserve_ns(getpid(), "mnt");
+	mnt_fd = preserve_ns(getpid(), ns_fd, "mnt");
 	if (mnt_fd < 0)
 		_exit(EXIT_FAILURE);
 

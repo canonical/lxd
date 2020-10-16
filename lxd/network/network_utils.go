@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"io/ioutil"
+	"math/big"
 	"math/rand"
 	"net"
 	"os"
@@ -24,9 +25,9 @@ import (
 	"github.com/lxc/lxd/lxd/dnsmasq/dhcpalloc"
 	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/instance/instancetype"
-	"github.com/lxc/lxd/lxd/network/openvswitch"
 	"github.com/lxc/lxd/lxd/project"
 	"github.com/lxc/lxd/lxd/state"
+	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/logger"
@@ -248,47 +249,6 @@ func isInUseByDevices(s *state.State, networkProjectName string, networkName str
 	}
 
 	return false, nil
-}
-
-// IsNativeBridge returns whether the bridge name specified is a Linux native bridge.
-func IsNativeBridge(bridgeName string) bool {
-	return shared.PathExists(fmt.Sprintf("/sys/class/net/%s/bridge", bridgeName))
-}
-
-// AttachInterface attaches an interface to a bridge.
-func AttachInterface(bridgeName string, devName string) error {
-	if IsNativeBridge(bridgeName) {
-		_, err := shared.RunCommand("ip", "link", "set", "dev", devName, "master", bridgeName)
-		if err != nil {
-			return err
-		}
-	} else {
-		ovs := openvswitch.NewOVS()
-		err := ovs.BridgePortAdd(bridgeName, devName, true)
-		if err != nil {
-			return err
-		}
-	}
-
-	return nil
-}
-
-// DetachInterface detaches an interface from a bridge.
-func DetachInterface(bridgeName string, devName string) error {
-	if IsNativeBridge(bridgeName) {
-		_, err := shared.RunCommand("ip", "link", "set", "dev", devName, "nomaster")
-		if err != nil {
-			return err
-		}
-	} else {
-		ovs := openvswitch.NewOVS()
-		err := ovs.BridgePortDelete(bridgeName, devName)
-		if err != nil {
-			return err
-		}
-	}
-
-	return nil
 }
 
 // GetDevMTU retrieves the current MTU setting for a named network device.
@@ -932,46 +892,6 @@ func usesIPv6Firewall(netConfig map[string]string) bool {
 	return false
 }
 
-// BridgeVLANFilteringStatus returns whether VLAN filtering is enabled on a bridge interface.
-func BridgeVLANFilteringStatus(interfaceName string) (string, error) {
-	content, err := ioutil.ReadFile(fmt.Sprintf("/sys/class/net/%s/bridge/vlan_filtering", interfaceName))
-	if err != nil {
-		return "", errors.Wrapf(err, "Failed getting bridge VLAN status for %q", interfaceName)
-	}
-
-	return strings.TrimSpace(fmt.Sprintf("%s", content)), nil
-}
-
-// BridgeVLANFilterSetStatus sets the status of VLAN filtering on a bridge interface.
-func BridgeVLANFilterSetStatus(interfaceName string, status string) error {
-	err := ioutil.WriteFile(fmt.Sprintf("/sys/class/net/%s/bridge/vlan_filtering", interfaceName), []byte(status), 0)
-	if err != nil {
-		return errors.Wrapf(err, "Failed enabling VLAN filtering on bridge %q", interfaceName)
-	}
-
-	return nil
-}
-
-// BridgeVLANDefaultPVID returns the VLAN default port VLAN ID (PVID).
-func BridgeVLANDefaultPVID(interfaceName string) (string, error) {
-	content, err := ioutil.ReadFile(fmt.Sprintf("/sys/class/net/%s/bridge/default_pvid", interfaceName))
-	if err != nil {
-		return "", errors.Wrapf(err, "Failed getting bridge VLAN default PVID for %q", interfaceName)
-	}
-
-	return strings.TrimSpace(fmt.Sprintf("%s", content)), nil
-}
-
-// BridgeVLANSetDefaultPVID sets the VLAN default port VLAN ID (PVID).
-func BridgeVLANSetDefaultPVID(interfaceName string, vlanID string) error {
-	err := ioutil.WriteFile(fmt.Sprintf("/sys/class/net/%s/bridge/default_pvid", interfaceName), []byte(vlanID), 0)
-	if err != nil {
-		return errors.Wrapf(err, "Failed setting bridge VLAN default PVID for %q", interfaceName)
-	}
-
-	return nil
-}
-
 // RandomHwaddr generates a random MAC address from the provided random source.
 func randomHwaddr(r *rand.Rand) string {
 	// Generate a new random MAC address using the usual prefix.
@@ -1095,4 +1015,135 @@ func parseIPRanges(ipRangesList string, allowedNets ...*net.IPNet) ([]*shared.IP
 	}
 
 	return netIPRanges, nil
+}
+
+// VLANInterfaceCreate creates a VLAN interface on parent interface (if needed).
+// Returns boolean indicating if VLAN interface was created.
+func VLANInterfaceCreate(parent string, vlanDevice string, vlanID string) (bool, error) {
+	if vlanID == "" {
+		return false, nil
+	}
+
+	if InterfaceExists(vlanDevice) {
+		return false, nil
+	}
+
+	// Bring the parent interface up so we can add a vlan to it.
+	_, err := shared.RunCommand("ip", "link", "set", "dev", parent, "up")
+	if err != nil {
+		return false, errors.Wrapf(err, "Failed to bring up parent %q", parent)
+	}
+
+	// Add VLAN interface on top of parent.
+	_, err = shared.RunCommand("ip", "link", "add", "link", parent, "name", vlanDevice, "up", "type", "vlan", "id", vlanID)
+	if err != nil {
+		return false, errors.Wrapf(err, "Failed to create VLAN interface %q on %q", vlanDevice, parent)
+	}
+
+	// Attempt to disable IPv6 router advertisement acceptance.
+	util.SysctlSet(fmt.Sprintf("net/ipv6/conf/%s/accept_ra", vlanDevice), "0")
+
+	// We created a new vlan interface, return true.
+	return true, nil
+}
+
+// InterfaceRemove removes a network interface by name.
+func InterfaceRemove(nic string) error {
+	_, err := shared.RunCommand("ip", "link", "del", "dev", nic)
+	return err
+}
+
+// InterfaceExists returns true if network interface exists.
+func InterfaceExists(nic string) bool {
+	if shared.PathExists(fmt.Sprintf("/sys/class/net/%s", nic)) {
+		return true
+	}
+
+	return false
+}
+
+// InterfaceSetMTU sets the MTU of a network interface.
+func InterfaceSetMTU(nic string, mtu string) error {
+	if mtu != "" {
+		_, err := shared.RunCommand("ip", "link", "set", "dev", nic, "mtu", mtu)
+		if err != nil {
+			return errors.Wrapf(err, "Failed setting MTU %q on %q", mtu, nic)
+		}
+	}
+
+	return nil
+}
+
+// SubnetContains returns true if outerSubnet contains innerSubnet.
+func SubnetContains(outerSubnet *net.IPNet, innerSubnet *net.IPNet) bool {
+	if outerSubnet == nil || innerSubnet == nil {
+		return false
+	}
+
+	if !outerSubnet.Contains(innerSubnet.IP) {
+		return false
+	}
+
+	outerOnes, outerBits := outerSubnet.Mask.Size()
+	innerOnes, innerBits := innerSubnet.Mask.Size()
+
+	// Check number of bits in mask match.
+	if innerBits != outerBits {
+		return false
+	}
+
+	// Check that the inner subnet isn't outside of the outer subnet.
+	if innerOnes < outerOnes {
+		return false
+	}
+
+	return true
+}
+
+// SubnetIterate iterates through each IP in a subnet calling a function for each IP.
+// If the ipFunc returns a non-nil error then the iteration stops and the error is returned.
+func SubnetIterate(subnet *net.IPNet, ipFunc func(ip net.IP) error) error {
+	inc := big.NewInt(1)
+
+	// Convert route start IP to native representations to allow incrementing.
+	startIP := subnet.IP.To4()
+	if startIP == nil {
+		startIP = subnet.IP.To16()
+	}
+
+	startBig := big.NewInt(0)
+	startBig.SetBytes(startIP)
+
+	// Iterate through IPs in subnet, calling ipFunc for each one.
+	for {
+		ip := net.IP(startBig.Bytes())
+		if !subnet.Contains(ip) {
+			break
+		}
+
+		err := ipFunc(ip)
+		if err != nil {
+			return err
+		}
+
+		startBig.Add(startBig, inc)
+	}
+
+	return nil
+}
+
+// SubnetParseAppend parses one or more string CIDR subnets. Trims any white space before parsing and appends to
+// the supplied slice. Returns subnets slice.
+func SubnetParseAppend(subnets []*net.IPNet, parseSubnet ...string) ([]*net.IPNet, error) {
+	for _, subnetStr := range parseSubnet {
+		subnetStr = strings.TrimSpace(subnetStr)
+		_, subnet, err := net.ParseCIDR(subnetStr)
+		if err != nil {
+			return nil, errors.Wrapf(err, "Invalid subnet %q", subnetStr)
+		}
+
+		subnets = append(subnets, subnet)
+	}
+
+	return subnets, nil
 }

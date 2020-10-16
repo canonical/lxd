@@ -110,7 +110,8 @@ func AskPassword(question string) string {
 		inSecond := string(pwd)
 		inSecond = strings.TrimSuffix(inSecond, "\n")
 
-		if inFirst == inSecond {
+		// refuse empty password or if password inputs do not match
+		if len(inFirst) > 0 && inFirst == inSecond {
 			return inFirst
 		}
 
@@ -122,11 +123,19 @@ func AskPassword(question string) string {
 //
 // It's the same as AskPassword, but it won't ask to enter it again.
 func AskPasswordOnce(question string) string {
-	fmt.Printf(question)
-	pwd, _ := terminal.ReadPassword(0)
-	fmt.Println("")
+	for {
+		fmt.Printf(question)
+		pwd, _ := terminal.ReadPassword(0)
+		fmt.Println("")
 
-	return string(pwd)
+		// refuse empty password
+		spwd := string(pwd)
+		if len(spwd) > 0 {
+			return spwd
+		}
+
+		invalidInput()
+	}
 }
 
 // Ask a question on the output stream and read the answer from the input stream

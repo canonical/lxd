@@ -45,7 +45,7 @@ func (d *usb) isRequired() bool {
 
 // validateConfig checks the supplied config for correctness.
 func (d *usb) validateConfig(instConf instance.ConfigReader) error {
-	if !instanceSupported(instConf.Type(), instancetype.Container) {
+	if !instanceSupported(instConf.Type(), instancetype.Container, instancetype.VM) {
 		return ErrUnsupportedDevType
 	}
 
@@ -118,6 +118,14 @@ func (d *usb) Register() error {
 
 // Start is run when the device is added to the instance.
 func (d *usb) Start() (*deviceConfig.RunConfig, error) {
+	if d.inst.Type() == instancetype.VM {
+		return d.startVM()
+	}
+
+	return d.startContainer()
+}
+
+func (d *usb) startContainer() (*deviceConfig.RunConfig, error) {
 	usbs, err := d.loadUsb()
 	if err != nil {
 		return nil, err
@@ -144,18 +152,47 @@ func (d *usb) Start() (*deviceConfig.RunConfig, error) {
 	return &runConf, nil
 }
 
+func (d *usb) startVM() (*deviceConfig.RunConfig, error) {
+	usbs, err := d.loadUsb()
+	if err != nil {
+		return nil, err
+	}
+
+	runConf := deviceConfig.RunConfig{}
+	runConf.PostHooks = []func() error{d.Register}
+
+	for _, usb := range usbs {
+		if !usbIsOurDevice(d.config, &usb) {
+			continue
+		}
+
+		runConf.USBDevice = append(runConf.USBDevice, []deviceConfig.RunConfigItem{
+			{Key: "devName", Value: d.name},
+			{Key: "hostDevice", Value: fmt.Sprintf("/dev/bus/usb/%03d/%03d", usb.BusNum, usb.DevNum)},
+		}...)
+	}
+
+	if d.isRequired() && len(runConf.Mounts) <= 0 {
+		return nil, fmt.Errorf("Required USB device not found")
+	}
+
+	return &runConf, nil
+}
+
 // Stop is run when the device is removed from the instance.
 func (d *usb) Stop() (*deviceConfig.RunConfig, error) {
-	// Unregister any USB event handlers for this device.
-	usbUnregisterHandler(d.inst, d.name)
-
 	runConf := deviceConfig.RunConfig{
 		PostHooks: []func() error{d.postStop},
 	}
 
-	err := unixDeviceRemove(d.inst.DevicesPath(), "unix", d.name, "", &runConf)
-	if err != nil {
-		return nil, err
+	if d.inst.Type() == instancetype.Container {
+		// Unregister any USB event handlers for this device.
+		usbUnregisterHandler(d.inst, d.name)
+
+		err := unixDeviceRemove(d.inst.DevicesPath(), "unix", d.name, "", &runConf)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	return &runConf, nil

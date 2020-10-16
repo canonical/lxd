@@ -456,7 +456,11 @@ func doNetworksCreate(d *Daemon, projectName string, req api.NetworksPost, clien
 	if clientType != cluster.ClientTypeJoiner {
 		err = n.Start()
 		if err != nil {
-			n.Delete(clientType)
+			delErr := n.Delete(clientType)
+			if delErr != nil {
+				logger.Errorf("Failed clearing up network %q after failed create: %v", n.Name(), delErr)
+			}
+
 			return err
 		}
 	}

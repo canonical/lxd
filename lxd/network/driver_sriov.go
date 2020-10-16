@@ -29,7 +29,7 @@ func (n *sriov) DBType() db.NetworkType {
 // Validate network config.
 func (n *sriov) Validate(config map[string]string) error {
 	rules := map[string]func(value string) error{
-		"parent":           validInterfaceName,
+		"parent":           validate.Required(validate.IsNotEmpty, validInterfaceName),
 		"mtu":              validate.Optional(validate.IsNetworkMTU),
 		"vlan":             validate.Optional(validate.IsNetworkVLAN),
 		"maas.subnet.ipv4": validate.IsAny,
@@ -104,7 +104,7 @@ func (n *sriov) Update(newNetwork api.NetworkPut, targetNode string, clientType 
 		n.common.update(oldNetwork, targetNode, clientType)
 	})
 
-	// Apply changes to database.
+	// Apply changes to all nodes and databse.
 	err = n.common.update(newNetwork, targetNode, clientType)
 	if err != nil {
 		return err

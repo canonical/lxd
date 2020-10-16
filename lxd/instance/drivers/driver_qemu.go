@@ -623,7 +623,7 @@ func (vm *qemu) Shutdown(timeout time.Duration) error {
 	}
 
 	op.Done(nil)
-	vm.state.Events.SendLifecycle(vm.project, "instance-shutdown", fmt.Sprintf("/1.0/virtual-machines/%s", vm.name), nil)
+	vm.state.Events.SendLifecycle(vm.project, "virtual-machine-shutdown", fmt.Sprintf("/1.0/virtual-machines/%s", vm.name), nil)
 	return nil
 }
 
@@ -1534,62 +1534,69 @@ func (vm *qemu) templateApplyNow(trigger string, path string) error {
 
 	// Go through the templates.
 	for tplPath, tpl := range metadata.Templates {
-		var w *os.File
+		err = func(tplPath string, tpl *api.ImageMetadataTemplate) error {
+			var w *os.File
 
-		// Check if the template should be applied now.
-		found := false
-		for _, tplTrigger := range tpl.When {
-			if tplTrigger == trigger {
-				found = true
-				break
+			// Check if the template should be applied now.
+			found := false
+			for _, tplTrigger := range tpl.When {
+				if tplTrigger == trigger {
+					found = true
+					break
+				}
 			}
-		}
 
-		if !found {
-			continue
-		}
+			if !found {
+				return nil
+			}
 
-		// Create the file itself.
-		w, err = os.Create(filepath.Join(path, fmt.Sprintf("%s.out", tpl.Template)))
+			// Create the file itself.
+			w, err = os.Create(filepath.Join(path, fmt.Sprintf("%s.out", tpl.Template)))
+			if err != nil {
+				return err
+			}
+
+			// Fix ownership and mode.
+			w.Chmod(0644)
+			defer w.Close()
+
+			// Read the template.
+			tplString, err := ioutil.ReadFile(filepath.Join(vm.TemplatesPath(), tpl.Template))
+			if err != nil {
+				return errors.Wrap(err, "Failed to read template file")
+			}
+
+			// Restrict filesystem access to within the container's rootfs.
+			tplSet := pongo2.NewSet(fmt.Sprintf("%s-%s", vm.name, tpl.Template), pongoTemplate.ChrootLoader{Path: vm.TemplatesPath()})
+			tplRender, err := tplSet.FromString("{% autoescape off %}" + string(tplString) + "{% endautoescape %}")
+			if err != nil {
+				return errors.Wrap(err, "Failed to render template")
+			}
+
+			configGet := func(confKey, confDefault *pongo2.Value) *pongo2.Value {
+				val, ok := vm.expandedConfig[confKey.String()]
+				if !ok {
+					return confDefault
+				}
+
+				return pongo2.AsValue(strings.TrimRight(val, "\r\n"))
+			}
+
+			// Render the template.
+			tplRender.ExecuteWriter(pongo2.Context{"trigger": trigger,
+				"path":       tplPath,
+				"instance":   instanceMeta,
+				"container":  instanceMeta, // FIXME: remove once most images have moved away.
+				"config":     vm.expandedConfig,
+				"devices":    vm.expandedDevices,
+				"properties": tpl.Properties,
+				"config_get": configGet}, w)
+
+			return nil
+		}(tplPath, tpl)
 		if err != nil {
 			return err
 		}
-
-		// Fix ownership and mode.
-		w.Chmod(0644)
-		defer w.Close()
-
-		// Read the template.
-		tplString, err := ioutil.ReadFile(filepath.Join(vm.TemplatesPath(), tpl.Template))
-		if err != nil {
-			return errors.Wrap(err, "Failed to read template file")
-		}
-
-		// Restrict filesystem access to within the container's rootfs.
-		tplSet := pongo2.NewSet(fmt.Sprintf("%s-%s", vm.name, tpl.Template), pongoTemplate.ChrootLoader{Path: vm.TemplatesPath()})
-		tplRender, err := tplSet.FromString("{% autoescape off %}" + string(tplString) + "{% endautoescape %}")
-		if err != nil {
-			return errors.Wrap(err, "Failed to render template")
-		}
-
-		configGet := func(confKey, confDefault *pongo2.Value) *pongo2.Value {
-			val, ok := vm.expandedConfig[confKey.String()]
-			if !ok {
-				return confDefault
-			}
-
-			return pongo2.AsValue(strings.TrimRight(val, "\r\n"))
-		}
-
-		// Render the template.
-		tplRender.ExecuteWriter(pongo2.Context{"trigger": trigger,
-			"path":       tplPath,
-			"instance":   instanceMeta,
-			"container":  instanceMeta, // FIXME: remove once most images have moved away.
-			"config":     vm.expandedConfig,
-			"devices":    vm.expandedDevices,
-			"properties": tpl.Properties,
-			"config_get": configGet}, w)
 	}
 
 	return nil
@@ -1749,6 +1756,17 @@ func (vm *qemu) generateQemuConfigFile(busName string, devConfs []*deviceConfig.
 		return "", err
 	}
 
+	devBus, devAddr, multi = bus.allocate(busFunctionGroupGeneric)
+	err = qemuUSB.Execute(sb, map[string]interface{}{
+		"bus":           bus.name,
+		"devBus":        devBus,
+		"devAddr":       devAddr,
+		"multifunction": multi,
+	})
+	if err != nil {
+		return "", err
+	}
+
 	devBus, devAddr, multi = bus.allocate(busFunctionGroupNone)
 	err = qemuSCSI.Execute(sb, map[string]interface{}{
 		"bus":           bus.name,
@@ -1827,6 +1845,14 @@ func (vm *qemu) generateQemuConfigFile(busName string, devConfs []*deviceConfig.
 		// Add GPU device.
 		if len(runConf.GPUDevice) > 0 {
 			err = vm.addGPUDevConfig(sb, bus, runConf.GPUDevice)
+			if err != nil {
+				return "", err
+			}
+		}
+
+		// Add USB device.
+		if len(runConf.USBDevice) > 0 {
+			err = vm.addUSBDeviceConfig(sb, bus, runConf.USBDevice)
 			if err != nil {
 				return "", err
 			}
@@ -2241,6 +2267,33 @@ func (vm *qemu) addGPUDevConfig(sb *strings.Builder, bus *qemuBus, gpuConfig []d
 			return err
 		}
 	}
+
+	return nil
+}
+
+func (vm *qemu) addUSBDeviceConfig(sb *strings.Builder, bus *qemuBus, usbConfig []deviceConfig.RunConfigItem) error {
+	var devName, hostDevice string
+
+	for _, usbItem := range usbConfig {
+		if usbItem.Key == "devName" {
+			devName = usbItem.Value
+		} else if usbItem.Key == "hostDevice" {
+			hostDevice = usbItem.Value
+		}
+	}
+
+	tplFields := map[string]interface{}{
+		"hostDevice": hostDevice,
+		"devName":    devName,
+	}
+
+	err := qemuUSBDev.Execute(sb, tplFields)
+	if err != nil {
+		return err
+	}
+
+	// Add path to devPaths. This way, the path will be included in the apparmor profile.
+	vm.devPaths = append(vm.devPaths, hostDevice)
 
 	return nil
 }
@@ -2825,7 +2878,37 @@ func (vm *qemu) Update(args db.InstanceArgs, userRequested bool) error {
 	}
 
 	// Diff the devices.
-	removeDevices, addDevices, updateDevices, allUpdatedKeys := oldExpandedDevices.Update(vm.expandedDevices, nil)
+	removeDevices, addDevices, updateDevices, allUpdatedKeys := oldExpandedDevices.Update(vm.expandedDevices, func(oldDevice deviceConfig.Device, newDevice deviceConfig.Device) []string {
+		// This function needs to return a list of fields that are excluded from differences
+		// between oldDevice and newDevice. The result of this is that as long as the
+		// devices are otherwise identical except for the fields returned here, then the
+		// device is considered to be being "updated" rather than "added & removed".
+		oldNICType, err := nictype.NICType(vm.state, vm.Project(), newDevice)
+		if err != nil {
+			return []string{} // Cannot hot-update due to config error.
+		}
+
+		newNICType, err := nictype.NICType(vm.state, vm.Project(), oldDevice)
+		if err != nil {
+			return []string{} // Cannot hot-update due to config error.
+		}
+
+		if oldDevice["type"] != newDevice["type"] || oldNICType != newNICType {
+			return []string{} // Device types aren't the same, so this cannot be an update.
+		}
+
+		d, err := device.New(vm, vm.state, "", newDevice, nil, nil)
+		if err != nil {
+			return []string{} // Couldn't create Device, so this cannot be an update.
+		}
+
+		// TODO modify device framework to differentiate between devices that can only be updated when VM
+		// is stopped, but don't need to be removed then re-added. For now we rely upon the disk device
+		// indicating that it supports hot plugging, even for VMs, which it cannot. However this is
+		// needed so that the disk device's Update() function is called to allow disk resizing.
+		_, updateFields := d.CanHotPlug()
+		return updateFields
+	})
 
 	if userRequested {
 		// Do some validation of the config diff.
@@ -2843,12 +2926,8 @@ func (vm *qemu) Update(args db.InstanceArgs, userRequested bool) error {
 
 	isRunning := vm.IsRunning()
 
-	if isRunning && len(allUpdatedKeys) > 0 {
-		return fmt.Errorf("Devices cannot be changed when VM is running")
-	}
-
 	// Use the device interface to apply update changes.
-	err = vm.updateDevices(removeDevices, addDevices, updateDevices, oldExpandedDevices)
+	err = vm.updateDevices(removeDevices, addDevices, updateDevices, oldExpandedDevices, isRunning)
 	if err != nil {
 		return err
 	}
@@ -3044,8 +3123,10 @@ func (vm *qemu) updateMemoryLimit(newLimit string) error {
 	return fmt.Errorf("Failed setting memory to %d bytes (currently %d bytes) as it was taking too long", newSizeBytes, curSizeBytes)
 }
 
-func (vm *qemu) updateDevices(removeDevices deviceConfig.Devices, addDevices deviceConfig.Devices, updateDevices deviceConfig.Devices, oldExpandedDevices deviceConfig.Devices) error {
-	isRunning := vm.IsRunning()
+func (vm *qemu) updateDevices(removeDevices deviceConfig.Devices, addDevices deviceConfig.Devices, updateDevices deviceConfig.Devices, oldExpandedDevices deviceConfig.Devices, isRunning bool) error {
+	if isRunning && (len(removeDevices) > 0 || len(addDevices) > 0 || len(updateDevices) > 0) {
+		return fmt.Errorf("Devices cannot be changed when VM is running")
+	}
 
 	// Remove devices in reverse order to how they were added.
 	for _, dev := range removeDevices.Reversed() {

@@ -101,6 +101,7 @@ var patches = []patch{
 	{name: "clustering_drop_database_role", stage: patchPostDaemonStorage, run: patchClusteringDropDatabaseRole},
 	{name: "network_clear_bridge_volatile_hwaddr", stage: patchPostDaemonStorage, run: patchNetworkCearBridgeVolatileHwaddr},
 	{name: "move_backups_instances", stage: patchPostDaemonStorage, run: patchMoveBackupsInstances},
+	{name: "network_ovn_enable_nat", stage: patchPostDaemonStorage, run: patchNetworkOVNEnableNAT},
 	{name: "thinpool_typo_fix", stage: patchPostDaemonStorage, run: patchThinpoolTypoFix},
 }
 
@@ -165,24 +166,30 @@ func patchesApply(d *Daemon, stage patchStage) error {
 }
 
 // Patches begin here
+
 // renames any config incorrectly set entries due to the lvm.thinpool_name typo
 func patchThinpoolTypoFix(name string, d *Daemon) error {
-
 	tx, err := d.cluster.Transaction(func(tx *db.ClusterTx) error {
 
 		// Fetch the IDs of all existing nodes.
 		nodeIDs, err := query.SelectIntegers(tx, "SELECT id FROM nodes")
-
+		if err != nil {
+			return errors.Wrap(err, "failed to get IDs of current nodes")
+		}
 		// Fetch the IDs of all existing lvm pools.
 		poolIDs, err := query.SelectIntegers(tx, "SELECT id FROM storage_pools WHERE driver='lvm'")
-
+		if err != nil {
+			return errors.Wrap(err, "failed to get IDs of current lvm pools")
+		}
 		for _, poolID := range poolIDs {
 			// Fetch the config for this lvm pool and check if it has the
 			// lvn.thinpool_name key.
 			config, err := query.SelectConfig(
 				tx, "storage_pools_config", "storage_pool_id=?", poolID)
-
-			value, ok := "lvm.thinpool"
+			if err != nil {
+				return errors.Wrap(err, "failed a fetch of lvm pool config")
+			}
+			value, ok := config["lvm.thinpool"]
 			if !ok {
 				continue
 			}
@@ -190,13 +197,18 @@ func patchThinpoolTypoFix(name string, d *Daemon) error {
 			// Delete the current key
 			_, err = tx.Exec(`
 				DELETE FROM storage_pools_config WHERE key='lvm.thinpool' AND storage_pool_id=?`, poolID)
-
+			if err != nil {
+				return errors.Wrapf(err, "failed to delete %s config", key)
+			}
 			// Add the config entry for each node
 			for _, nodeID := range nodeIDs {
 				_, err := tx.Exec(`
 				INSERT INTO storage_pools_config(storage_pool_id, node_id, key, value)
 				VALUES(?, ?, 'lvm.thinpool_name', ?)
 				`, poolID, curNodeID, value)
+				if err != nil {
+					return errors.Wrapf(err, "failed to create %s node config", key)
+				}
 			}
 		}
 	})
@@ -205,6 +217,56 @@ func patchThinpoolTypoFix(name string, d *Daemon) error {
 	}
 
 	return err
+}
+
+// patchNetworkOVNEnableNAT adds "ipv4.nat" and "ipv6.nat" keys set to "true" to OVN networks if not present.
+// This is to ensure existing networks retain the old behaviour of always having NAT enabled as we introduce
+// the new NAT settings which default to disabled if not specified.
+// patchNetworkCearBridgeVolatileHwaddr removes the unsupported `volatile.bridge.hwaddr` config key from networks.
+func patchNetworkOVNEnableNAT(name string, d *Daemon) error {
+	err := d.cluster.Transaction(func(tx *db.ClusterTx) error {
+		projectNetworks, err := tx.GetNonPendingNetworks()
+		if err != nil {
+			return err
+		}
+
+		for _, networks := range projectNetworks {
+			for networkID, network := range networks {
+				if network.Type != "ovn" {
+					continue
+				}
+
+				modified := false
+
+				// Ensure existing behaviour of having NAT enabled if IP address was set.
+				if network.Config["ipv4.address"] != "" && network.Config["ipv4.nat"] == "" {
+					modified = true
+					network.Config["ipv4.nat"] = "true"
+				}
+
+				if network.Config["ipv6.address"] != "" && network.Config["ipv6.nat"] == "" {
+					modified = true
+					network.Config["ipv6.nat"] = "true"
+				}
+
+				if modified {
+					err = tx.UpdateNetwork(networkID, network.Description, network.Config)
+					if err != nil {
+						return errors.Wrapf(err, "Failed saving OVN NAT settings for %q (%d)", network.Name, networkID)
+					}
+
+					logger.Debugf("Enabling NAT for OVN network %q (%d)", network.Name, networkID)
+				}
+			}
+		}
+
+		return nil
+	})
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 // Moves backups from shared.VarPath("backups") to shared.VarPath("backups", "instances").
