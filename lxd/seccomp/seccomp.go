@@ -1620,87 +1620,73 @@ func (s *Server) HandleMountSyscall(c Instance, siov *Iovec) int {
 		defer pidFd.Close()
 	}
 
-	buf1 := [4096]C.char{}
-	buf2 := [4096]C.char{}
-	buf3 := [4096]C.char{}
-	buf4 := [4096]C.char{}
+	mntSource := [unix.PathMax]C.char{}
+	mntTarget := [unix.PathMax]C.char{}
+	mntFs := [unix.PathMax]C.char{}
+	mntData := [unix.PathMax]C.char{}
 
-	// process_vm_readv() doesn't like crossing page boundaries when
-	// reading individual syscall args.
-	bufSize := 4096
-	if bufSize > pageSize {
-		bufSize = pageSize
-	}
-
-	mntSource := buf1[:bufSize]
-	mntTarget := buf2[:bufSize]
-	mntFs := buf3[:bufSize]
-	mntData := buf4[:bufSize]
-
-	localIov := []unix.Iovec{
-		{Base: (*byte)(unsafe.Pointer(&mntSource[0]))},
-		{Base: (*byte)(unsafe.Pointer(&mntTarget[0]))},
-		{Base: (*byte)(unsafe.Pointer(&mntFs[0]))},
-		{Base: (*byte)(unsafe.Pointer(&mntData[0]))},
-	}
-
-	remoteIov := []unix.RemoteIovec{
-		{Base: uintptr(siov.req.data.args[0])},
-		{Base: uintptr(siov.req.data.args[1])},
-		{Base: uintptr(siov.req.data.args[2])},
-		{Base: uintptr(siov.req.data.args[4])},
-	}
-
+	// const char *source
 	if siov.req.data.args[0] != 0 {
-		localIov[0].SetLen(bufSize)
-		remoteIov[0].Len = bufSize
+		_, err := C.pread(C.int(siov.memFd), unsafe.Pointer(&mntSource[0]), C.size_t(unix.PathMax), C.off_t(siov.req.data.args[0]))
+		if err != nil {
+			ctx["err"] = fmt.Sprintf("Failed to read source path for of mount syscall: %s", err)
+			ctx["syscall_continue"] = "true"
+			C.seccomp_notify_update_response(siov.resp, 0, C.uint32_t(seccompUserNotifFlagContinue))
+			return 0
+		}
 	}
+	args.source = C.GoString(&mntSource[0])
+	ctx["source"] = args.source
 
+	// const char *target
 	if siov.req.data.args[1] != 0 {
-		localIov[1].SetLen(bufSize)
-		remoteIov[1].Len = bufSize
+		_, err := C.pread(C.int(siov.memFd), unsafe.Pointer(&mntTarget[0]), C.size_t(unix.PathMax), C.off_t(siov.req.data.args[1]))
+		if err != nil {
+			ctx["err"] = fmt.Sprintf("Failed to read target path for of mount syscall: %s", err)
+			ctx["syscall_continue"] = "true"
+			C.seccomp_notify_update_response(siov.resp, 0, C.uint32_t(seccompUserNotifFlagContinue))
+			return 0
+		}
 	}
+	args.target = C.GoString(&mntTarget[0])
+	ctx["target"] = args.target
 
-	if siov.req.data.args[2] != 0 {
-		localIov[2].SetLen(bufSize)
-		remoteIov[2].Len = bufSize
+	// const char *filesystemtype
+	if siov.req.data.args[1] != 0 {
+		_, err := C.pread(C.int(siov.memFd), unsafe.Pointer(&mntFs[0]), C.size_t(unix.PathMax), C.off_t(siov.req.data.args[2]))
+		if err != nil {
+			ctx["err"] = fmt.Sprintf("Failed to read fstype for of mount syscall: %s", err)
+			ctx["syscall_continue"] = "true"
+			C.seccomp_notify_update_response(siov.resp, 0, C.uint32_t(seccompUserNotifFlagContinue))
+			return 0
+		}
 	}
+	args.fstype = C.GoString(&mntFs[0])
+	ctx["fstype"] = args.fstype
 
+	// unsigned long mountflags
+	args.flags = int(siov.req.data.args[3])
+
+	// const void *data
 	if siov.req.data.args[4] != 0 {
-		localIov[3].SetLen(bufSize)
-		remoteIov[3].Len = bufSize
+		_, err := C.pread(C.int(siov.memFd), unsafe.Pointer(&mntData[0]), C.size_t(unix.PathMax), C.off_t(siov.req.data.args[4]))
+		if err != nil {
+			ctx["err"] = fmt.Sprintf("Failed to read mount data for of mount syscall: %s", err)
+			ctx["syscall_continue"] = "true"
+			C.seccomp_notify_update_response(siov.resp, 0, C.uint32_t(seccompUserNotifFlagContinue))
+			return 0
+		}
 	}
+	args.data = C.GoString(&mntData[0])
+	ctx["data"] = args.data
 
-	_, err := unix.ProcessVMReadv(args.pid, localIov, remoteIov, 0)
-	if err != nil {
-		ctx["err"] = fmt.Sprintf("Failed to read process memory of mount syscall: %s", err)
-		ctx["syscall_continue"] = "true"
-		C.seccomp_notify_update_response(siov.resp, 0, C.uint32_t(seccompUserNotifFlagContinue))
-		return 0
-	}
-
-	err = shared.PidfdSendSignal(int(pidFd.Fd()), 0, 0)
+	err := shared.PidfdSendSignal(int(pidFd.Fd()), 0, 0)
 	if err != nil {
 		ctx["err"] = fmt.Sprintf("Failed to send signal to target process for of mount syscall: %s", err)
 		ctx["syscall_continue"] = "true"
 		C.seccomp_notify_update_response(siov.resp, 0, C.uint32_t(seccompUserNotifFlagContinue))
 		return 0
 	}
-
-	// const char *source
-	args.source = C.GoString(&mntSource[0])
-	ctx["source"] = args.source
-	// const char *target
-	args.target = C.GoString(&mntTarget[0])
-	ctx["target"] = args.target
-	// const char *filesystemtype
-	args.fstype = C.GoString(&mntFs[0])
-	ctx["fstype"] = args.fstype
-	// unsigned long mountflags
-	args.flags = int(siov.req.data.args[3])
-	// const void *data
-	args.data = C.GoString(&mntData[0])
-	ctx["data"] = args.data
 
 	ok, fuseBinary := s.MountSyscallValid(c, &args)
 	if !ok {
