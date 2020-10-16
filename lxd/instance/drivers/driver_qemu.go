@@ -1875,6 +1875,15 @@ func (vm *qemu) generateQemuConfigFile(busName string, devConfs []*deviceConfig.
 				return "", err
 			}
 		}
+
+		// Add TPM device.
+		if len(runConf.TPMDevice) > 0 {
+			err = vm.addTPMDeviceConfig(sb, runConf.TPMDevice)
+			if err != nil {
+				return "", err
+			}
+		}
+
 	}
 
 	// Write the agent mount config.
@@ -2312,6 +2321,30 @@ func (vm *qemu) addUSBDeviceConfig(sb *strings.Builder, bus *qemuBus, usbConfig 
 
 	// Add path to devPaths. This way, the path will be included in the apparmor profile.
 	vm.devPaths = append(vm.devPaths, hostDevice)
+
+	return nil
+}
+
+func (vm *qemu) addTPMDeviceConfig(sb *strings.Builder, tpmConfig []deviceConfig.RunConfigItem) error {
+	var devName, socketPath string
+
+	for _, tpmItem := range tpmConfig {
+		if tpmItem.Key == "path" {
+			socketPath = tpmItem.Value
+		} else if tpmItem.Key == "devName" {
+			devName = tpmItem.Value
+		}
+	}
+
+	tplFields := map[string]interface{}{
+		"devName": devName,
+		"path":    socketPath,
+	}
+
+	err := qemuTPM.Execute(sb, tplFields)
+	if err != nil {
+		return err
+	}
 
 	return nil
 }
