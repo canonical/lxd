@@ -172,7 +172,7 @@ func (d *usb) startVM() (*deviceConfig.RunConfig, error) {
 		}...)
 	}
 
-	if d.isRequired() && len(runConf.Mounts) <= 0 {
+	if d.isRequired() && len(runConf.USBDevice) <= 0 {
 		return nil, fmt.Errorf("Required USB device not found")
 	}
 
