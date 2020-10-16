@@ -37,11 +37,7 @@ func (r *Reverter) Success() {
 // execute the previously deferred reverter.Fail() function.
 func (r *Reverter) Clone() *Reverter {
 	rNew := New()
-	rNew.revertFuncs = make([]func(), 0, len(r.revertFuncs))
-
-	for _, f := range r.revertFuncs {
-		rNew.revertFuncs = append(rNew.revertFuncs, f)
-	}
+	rNew.revertFuncs = append(make([]func(), 0, len(r.revertFuncs)), r.revertFuncs...)
 
 	return rNew
 }
