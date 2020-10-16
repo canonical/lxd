@@ -142,7 +142,7 @@ int preserve_ns(pid_t pid, int ns_fd, const char *ns)
 // If the two processes are not in the same namespace returns an fd to the
 // namespace of the second process identified by @pid2. If the two processes are
 // in the same namespace returns -EINVAL, -1 if an error occurred.
-static int in_same_namespace(pid_t pid1, pid_t pid2, int ns_fd_pid2, const char *ns)
+static int in_same_namespace(pid_t pid1, int ns_fd_pid2, const char *ns)
 {
 	__do_close int ns_fd1 = -EBADF, ns_fd2 = -EBADF;
 	int ret = -1;
@@ -158,7 +158,7 @@ static int in_same_namespace(pid_t pid1, pid_t pid2, int ns_fd_pid2, const char 
 		return -1;
 	}
 
-	ns_fd2 = preserve_ns(pid2, ns_fd_pid2, ns);
+	ns_fd2 = preserve_ns(-ESRCH, ns_fd_pid2, ns);
 	if (ns_fd2 < 0)
 		return -1;
 
@@ -178,12 +178,12 @@ static int in_same_namespace(pid_t pid1, pid_t pid2, int ns_fd_pid2, const char 
 	return move_fd(ns_fd2);
 }
 
-static void __attach_userns(int pid, int ns_fd)
+void attach_userns_fd(int ns_fd)
 {
 	__do_close int userns_fd = -EBADF;
 	int ret;
 
-	userns_fd = in_same_namespace(getpid(), pid, ns_fd, "user");
+	userns_fd = in_same_namespace(getpid(), ns_fd, "user");
 	if (userns_fd < 0) {
 		if (userns_fd == -EINVAL)
 			return;
@@ -214,16 +214,6 @@ static void __attach_userns(int pid, int ns_fd)
 		fprintf(stderr, "Failed setgroups to container root groups: %s\n", strerror(errno));
 		_exit(1);
 	}
-}
-
-void attach_userns(int pid)
-{
-	return __attach_userns(pid, -EBADF);
-}
-
-void attach_userns_fd(int ns_fd)
-{
-	return __attach_userns(-1, ns_fd);
 }
 
 int pidfd_nsfd(int pidfd, pid_t pid)
