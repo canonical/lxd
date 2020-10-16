@@ -78,6 +78,41 @@ func (n *ovn) Info() Info {
 	}
 }
 
+// validateExternalSubnet checks the supplied ipNet is allowed within the uplink routes and project
+// restricted subnets. If projectRestrictedSubnets is nil, then it is not checked as this indicates project has
+// no restrictions. Whereas if uplinkRoutes is nil/empty then this will always return an error.
+func (n *ovn) validateExternalSubnet(uplinkRoutes []*net.IPNet, projectRestrictedSubnets []*net.IPNet, ipNet *net.IPNet) error {
+	// Check that the IP network is within the project's restricted subnets if restricted.
+	if projectRestrictedSubnets != nil {
+		foundMatch := false
+		for _, projectRestrictedSubnet := range projectRestrictedSubnets {
+			if !SubnetContains(projectRestrictedSubnet, ipNet) {
+				foundMatch = true
+				break
+			}
+		}
+
+		if !foundMatch {
+			return fmt.Errorf("Project doesn't contain %q in its restricted uplink subnets", ipNet.String())
+		}
+	}
+
+	// Check that the IP network is within the uplink network's routes.
+	foundMatch := false
+	for _, uplinkRoute := range uplinkRoutes {
+		if SubnetContains(uplinkRoute, ipNet) {
+			foundMatch = true
+			break
+		}
+	}
+
+	if !foundMatch {
+		return fmt.Errorf("Uplink network doesn't contain %q in its routes", ipNet.String())
+	}
+
+	return nil
+}
+
 // Validate network config.
 func (n *ovn) Validate(config map[string]string) error {
 	rules := map[string]func(value string) error{
