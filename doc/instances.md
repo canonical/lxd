@@ -239,6 +239,7 @@ ID (database)   | Name                               | Condition     | Descripti
 7               | [infiniband](#type-infiniband)     | container     | Infiniband device
 8               | [proxy](#type-proxy)               | container     | Proxy device
 9               | [unix-hotplug](#type-unix-hotplug) | container     | Unix hotplug device
+10              | [tpm](#tpm)                        | -             | TPM device
 
 ### Type: none
 
@@ -846,6 +847,19 @@ uid         | int       | 0                 | no        | UID of the device owne
 gid         | int       | 0                 | no        | GID of the device owner in the instance
 mode        | int       | 0660              | no        | Mode of the device in the instance
 required    | boolean   | false             | no        | Whether or not this device is required to start the instance. (The default is false, and all devices are hot-pluggable)
+
+
+### Type: tpm
+
+Supported instance types: container, VM
+
+TPM device entries enable access to a TPM emulator.
+
+The following properties exist:
+
+Key                 | Type      | Default   | Required  | Description
+:--                 | :--       | :--       | :--       | :--
+path                | string    | -         | yes       | Path inside the instance (only for containers).
 
 ## Units for storage and network limits
 Any value representing bytes or bits can make use of a number of useful
