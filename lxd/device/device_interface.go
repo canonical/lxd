@@ -47,7 +47,7 @@ type Device interface {
 	// Returns run-time configuration needed for detaching the device from the instance.
 	Stop() (*deviceConfig.RunConfig, error)
 
-	// Remove performs any host-side cleanup when an instance is removed from an instance.
+	// Remove performs any host-side cleanup when a device is removed from an instance.
 	Remove() error
 }
 
