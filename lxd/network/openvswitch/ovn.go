@@ -681,8 +681,8 @@ func (o *OVN) LogicalSwitchPortDynamicIPs(portName OVNSwitchPort) ([]net.IP, err
 
 // LogicalSwitchPortSetDNS sets up the switch DNS records for the DNS name resolving to the IPs of the switch port.
 // Attempts to find at most one IP for each IP protocol, preferring static addresses over dynamic.
-// Returns the IPv4 and IPv6 addresses used for DNS records.
-func (o *OVN) LogicalSwitchPortSetDNS(switchName OVNSwitch, portName OVNSwitchPort, dnsName string) (net.IP, net.IP, error) {
+// Returns the DNS record UUID, IPv4 and IPv6 addresses used for DNS records.
+func (o *OVN) LogicalSwitchPortSetDNS(switchName OVNSwitch, portName OVNSwitchPort, dnsName string) (string, net.IP, net.IP, error) {
 	var dnsIPv4, dnsIPv6 net.IP
 
 	// checkAndStoreIP checks if the supplied IP is valid and can be used for a missing DNS IP variable.
@@ -705,7 +705,7 @@ func (o *OVN) LogicalSwitchPortSetDNS(switchName OVNSwitch, portName OVNSwitchPo
 	// Get static and dynamic IPs for switch port.
 	staticAddressesRaw, err := o.nbctl("lsp-get-addresses", string(portName))
 	if err != nil {
-		return nil, nil, err
+		return "", nil, nil, err
 	}
 
 	staticAddresses := strings.Split(strings.TrimSpace(staticAddressesRaw), " ")
@@ -729,7 +729,7 @@ func (o *OVN) LogicalSwitchPortSetDNS(switchName OVNSwitch, portName OVNSwitchPo
 	if hasDynamic && (dnsIPv4 == nil || dnsIPv6 == nil) {
 		dynamicIPs, err := o.LogicalSwitchPortDynamicIPs(portName)
 		if err != nil {
-			return nil, nil, err
+			return "", nil, nil, err
 		}
 
 		for _, dynamicIP := range dynamicIPs {
@@ -757,7 +757,7 @@ func (o *OVN) LogicalSwitchPortSetDNS(switchName OVNSwitch, portName OVNSwitchPo
 		fmt.Sprintf("external_ids:lxd_switch_port=%s", string(portName)),
 	)
 	if err != nil {
-		return nil, nil, err
+		return "", nil, nil, err
 	}
 
 	cmdArgs := []string{
@@ -771,13 +771,13 @@ func (o *OVN) LogicalSwitchPortSetDNS(switchName OVNSwitch, portName OVNSwitchPo
 		// Update existing record if exists.
 		_, err = o.nbctl(append([]string{"set", "dns", dnsUUID}, cmdArgs...)...)
 		if err != nil {
-			return nil, nil, err
+			return "", nil, nil, err
 		}
 	} else {
 		// Create new record if needed.
 		dnsUUID, err = o.nbctl(append([]string{"create", "dns"}, cmdArgs...)...)
 		if err != nil {
-			return nil, nil, err
+			return "", nil, nil, err
 		}
 		dnsUUID = strings.TrimSpace(dnsUUID)
 	}
@@ -785,35 +785,59 @@ func (o *OVN) LogicalSwitchPortSetDNS(switchName OVNSwitch, portName OVNSwitchPo
 	// Add DNS record to switch DNS records.
 	_, err = o.nbctl("add", "logical_switch", string(switchName), "dns_records", dnsUUID)
 	if err != nil {
-		return nil, nil, err
+		return "", nil, nil, err
 	}
 
-	return dnsIPv4, dnsIPv6, nil
+	return dnsUUID, dnsIPv4, dnsIPv6, nil
+}
+
+// LogicalSwitchPortGetDNS returns the logical switch port DNS info (UUID, name and IPs).
+func (o *OVN) LogicalSwitchPortGetDNS(portName OVNSwitchPort) (string, string, []net.IP, error) {
+	// Get UUID and DNS IPs for a switch port in the format: "<DNS UUID>,<DNS NAME>=<IP> <IP>"
+	output, err := o.nbctl("--format=csv", "--no-headings", "--data=bare", "--colum=_uuid,records", "find", "dns",
+		fmt.Sprintf("external_ids:lxd_switch_port=%s", string(portName)),
+	)
+	if err != nil {
+		return "", "", nil, err
+	}
+
+	parts := strings.Split(strings.TrimSpace(output), ",")
+	dnsUUID := strings.TrimSpace(parts[0])
+
+	var dnsName string
+	var ips []net.IP
+
+	// Try and parse the DNS name and IPs.
+	if len(parts) > 1 {
+		dnsParts := strings.SplitN(strings.TrimSpace(parts[1]), "=", 2)
+		if len(dnsParts) == 2 {
+			dnsName = strings.TrimSpace(dnsParts[0])
+			ipParts := strings.Split(dnsParts[1], " ")
+			for _, ipPart := range ipParts {
+				ip := net.ParseIP(strings.TrimSpace(ipPart))
+				if ip != nil {
+					ips = append(ips, ip)
+				}
+			}
+		}
+
+	}
+
+	return dnsUUID, dnsName, ips, nil
 }
 
 // LogicalSwitchPortDeleteDNS removes DNS records for a switch port.
-func (o *OVN) LogicalSwitchPortDeleteDNS(switchName OVNSwitch, portName OVNSwitchPort) error {
-	// Check if existing DNS record exists for switch port.
-	dnsUUID, err := o.nbctl("--format=csv", "--no-headings", "--data=bare", "--colum=_uuid", "find", "dns",
-		fmt.Sprintf("external_ids:lxd_switch_port=%s", string(portName)),
-	)
+func (o *OVN) LogicalSwitchPortDeleteDNS(switchName OVNSwitch, dnsUUID string) error {
+	// Remove DNS record association from switch.
+	_, err := o.nbctl("remove", "logical_switch", string(switchName), "dns_records", dnsUUID)
 	if err != nil {
 		return err
 	}
 
-	dnsUUID = strings.TrimSpace(dnsUUID)
-	if dnsUUID != "" {
-		// Remove DNS record association from switch.
-		_, err = o.nbctl("remove", "logical_switch", string(switchName), "dns_records", dnsUUID)
-		if err != nil {
-			return err
-		}
-
-		// Remove DNS record entry itself.
-		_, err = o.nbctl("destroy", "dns", dnsUUID)
-		if err != nil {
-			return err
-		}
+	// Remove DNS record entry itself.
+	_, err = o.nbctl("destroy", "dns", dnsUUID)
+	if err != nil {
+		return err
 	}
 
 	return nil
