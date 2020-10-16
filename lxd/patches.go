@@ -22,6 +22,7 @@ import (
 	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/instance/instancetype"
 	"github.com/lxc/lxd/lxd/project"
+	"github.com/lxc/lxd/lxd/revert"
 	"github.com/lxc/lxd/lxd/rsync"
 	driver "github.com/lxc/lxd/lxd/storage"
 	storagePools "github.com/lxc/lxd/lxd/storage"
@@ -104,6 +105,7 @@ var patches = []patch{
 	{name: "network_ovn_enable_nat", stage: patchPostDaemonStorage, run: patchNetworkOVNEnableNAT},
 	{name: "network_ovn_remove_routes", stage: patchPostDaemonStorage, run: patchNetworkOVNRemoveRoutes},
 	{name: "network_fan_enable_nat", stage: patchPostDaemonStorage, run: patchNetworkFANEnableNAT},
+	{name: "thinpool_typo_fix", stage: patchPostDaemonStorage, run: patchThinpoolTypoFix},
 }
 
 type patch struct {
@@ -167,6 +169,73 @@ func patchesApply(d *Daemon, stage patchStage) error {
 }
 
 // Patches begin here
+
+// patchThinpoolTypoFix renames any config incorrectly set config file entries due to the lvm.thinpool_name typo.
+func patchThinpoolTypoFix(name string, d *Daemon) error {
+	revert := revert.New()
+	defer revert.Fail()
+
+	// Setup a transaction.
+	tx, err := d.cluster.Begin()
+	if err != nil {
+		return errors.Wrap(err, "Failed to begin transaction")
+	}
+
+	revert.Add(func() { tx.Rollback() })
+
+	// Fetch the IDs of all existing nodes.
+	nodeIDs, err := query.SelectIntegers(tx, "SELECT id FROM nodes")
+	if err != nil {
+		return errors.Wrap(err, "Failed to get IDs of current nodes")
+	}
+
+	// Fetch the IDs of all existing lvm pools.
+	poolIDs, err := query.SelectIntegers(tx, "SELECT id FROM storage_pools WHERE driver='lvm'")
+	if err != nil {
+		return errors.Wrap(err, "Failed to get IDs of current lvm pools")
+	}
+
+	for _, poolID := range poolIDs {
+		// Fetch the config for this lvm pool and check if it has the lvm.thinpool_name.
+		config, err := query.SelectConfig(
+			tx, "storage_pools_config", "storage_pool_id=? AND node_id IS NULL", poolID)
+		if err != nil {
+			return errors.Wrap(err, "Failed to fetch of lvm pool config")
+		}
+
+		value, ok := config["lvm.thinpool_name"]
+		if !ok {
+			continue
+		}
+
+		// Delete the current key
+		_, err = tx.Exec(`
+DELETE FROM storage_pools_config WHERE key='lvm.thinpool_name' AND storage_pool_id=? AND node_id IS NULL
+`, poolID)
+		if err != nil {
+			return errors.Wrapf(err, "Failed to delete lvm.thinpool_name config")
+		}
+
+		// Add the config entry for each node
+		for _, nodeID := range nodeIDs {
+			_, err := tx.Exec(`
+INSERT INTO storage_pools_config(storage_pool_id, node_id, key, value)
+  VALUES(?, ?, 'lvm.thinpool_name', ?)
+`, poolID, nodeID, value)
+			if err != nil {
+				return errors.Wrapf(err, "Failed to create lvm.thinpool_name node config")
+			}
+		}
+	}
+
+	err = tx.Commit()
+	if err != nil {
+		return errors.Wrap(err, "Failed to commit transaction")
+	}
+
+	revert.Success()
+	return nil
+}
 
 // patchNetworkFANEnableNAT sets "ipv4.nat=true" on fan bridges that are missing the "ipv4.nat" setting.
 // This prevents outbound connectivity breaking on existing fan networks now that the default behaviour of not

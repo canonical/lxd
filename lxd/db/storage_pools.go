@@ -885,7 +885,7 @@ var StoragePoolNodeConfigKeys = []string{
 	"source",
 	"volatile.initial_source",
 	"zfs.pool_name",
-	"lvm.thinpool",
+	"lvm.thinpool_name",
 	"lvm.vg_name",
 }
 
