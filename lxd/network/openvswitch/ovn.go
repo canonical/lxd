@@ -791,6 +791,41 @@ func (o *OVN) LogicalSwitchPortSetDNS(switchName OVNSwitch, portName OVNSwitchPo
 	return dnsIPv4, dnsIPv6, nil
 }
 
+// LogicalSwitchPortGetDNS returns the logical switch port DNS info (UUID, name and IPs).
+func (o *OVN) LogicalSwitchPortGetDNS(portName OVNSwitchPort) (string, string, []net.IP, error) {
+	// Get UUID and DNS IPs for a switch port in the format: "<DNS UUID>,<DNS NAME>=<IP> <IP>"
+	output, err := o.nbctl("--format=csv", "--no-headings", "--data=bare", "--colum=_uuid,records", "find", "dns",
+		fmt.Sprintf("external_ids:lxd_switch_port=%s", string(portName)),
+	)
+	if err != nil {
+		return "", "", nil, err
+	}
+
+	parts := strings.Split(strings.TrimSpace(output), ",")
+	dnsUUID := strings.TrimSpace(parts[0])
+
+	var dnsName string
+	var ips []net.IP
+
+	// Try and parse the DNS name and IPs.
+	if len(parts) > 1 {
+		dnsParts := strings.SplitN(strings.TrimSpace(parts[1]), "=", 2)
+		if len(dnsParts) == 2 {
+			dnsName = strings.TrimSpace(dnsParts[0])
+			ipParts := strings.Split(dnsParts[1], " ")
+			for _, ipPart := range ipParts {
+				ip := net.ParseIP(strings.TrimSpace(ipPart))
+				if ip != nil {
+					ips = append(ips, ip)
+				}
+			}
+		}
+
+	}
+
+	return dnsUUID, dnsName, ips, nil
+}
+
 // LogicalSwitchPortDeleteDNS removes DNS records for a switch port.
 func (o *OVN) LogicalSwitchPortDeleteDNS(switchName OVNSwitch, portName OVNSwitchPort) error {
 	// Check if existing DNS record exists for switch port.
