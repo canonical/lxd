@@ -827,28 +827,17 @@ func (o *OVN) LogicalSwitchPortGetDNS(portName OVNSwitchPort) (string, string, [
 }
 
 // LogicalSwitchPortDeleteDNS removes DNS records for a switch port.
-func (o *OVN) LogicalSwitchPortDeleteDNS(switchName OVNSwitch, portName OVNSwitchPort) error {
-	// Check if existing DNS record exists for switch port.
-	dnsUUID, err := o.nbctl("--format=csv", "--no-headings", "--data=bare", "--colum=_uuid", "find", "dns",
-		fmt.Sprintf("external_ids:lxd_switch_port=%s", string(portName)),
-	)
+func (o *OVN) LogicalSwitchPortDeleteDNS(switchName OVNSwitch, dnsUUID string) error {
+	// Remove DNS record association from switch.
+	_, err := o.nbctl("remove", "logical_switch", string(switchName), "dns_records", dnsUUID)
 	if err != nil {
 		return err
 	}
 
-	dnsUUID = strings.TrimSpace(dnsUUID)
-	if dnsUUID != "" {
-		// Remove DNS record association from switch.
-		_, err = o.nbctl("remove", "logical_switch", string(switchName), "dns_records", dnsUUID)
-		if err != nil {
-			return err
-		}
-
-		// Remove DNS record entry itself.
-		_, err = o.nbctl("destroy", "dns", dnsUUID)
-		if err != nil {
-			return err
-		}
+	// Remove DNS record entry itself.
+	_, err = o.nbctl("destroy", "dns", dnsUUID)
+	if err != nil {
+		return err
 	}
 
 	return nil
