@@ -233,6 +233,7 @@ var APIExtensions = []string{
 	"network_ovn_external_subnets",
 	"network_ovn_nat",
 	"network_ovn_external_routes_remove",
+	"tpm_device_type",
 }
 
 // APIExtensionsCount returns the number of available API extensions.
