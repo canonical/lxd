@@ -300,7 +300,7 @@ func (d *nicOVN) Start() (*deviceConfig.RunConfig, error) {
 
 		internalRoutes, err = network.SubnetParseAppend(internalRoutes, strings.Split(d.config[key], ",")...)
 		if err != nil {
-			return nil, errors.Wrapf(err, "Invalid %s", key)
+			return nil, errors.Wrapf(err, "Invalid %q value", key)
 		}
 	}
 
@@ -312,7 +312,7 @@ func (d *nicOVN) Start() (*deviceConfig.RunConfig, error) {
 
 		externalRoutes, err = network.SubnetParseAppend(externalRoutes, strings.Split(d.config[key], ",")...)
 		if err != nil {
-			return nil, errors.Wrapf(err, "Invalid %s", key)
+			return nil, errors.Wrapf(err, "Invalid %q value", key)
 		}
 	}
 
@@ -439,7 +439,7 @@ func (d *nicOVN) Stop() (*deviceConfig.RunConfig, error) {
 
 		internalRoutes, err = network.SubnetParseAppend(internalRoutes, strings.Split(d.config[key], ",")...)
 		if err != nil {
-			return nil, errors.Wrapf(err, "Invalid %s", key)
+			return nil, errors.Wrapf(err, "Invalid %q value", key)
 		}
 	}
 
@@ -451,7 +451,7 @@ func (d *nicOVN) Stop() (*deviceConfig.RunConfig, error) {
 
 		externalRoutes, err = network.SubnetParseAppend(externalRoutes, strings.Split(d.config[key], ",")...)
 		if err != nil {
-			return nil, errors.Wrapf(err, "Invalid %s", key)
+			return nil, errors.Wrapf(err, "Invalid %q value", key)
 		}
 	}
 
