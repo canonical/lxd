@@ -247,9 +247,7 @@ func (c *cmdImageCopy) Run(cmd *cobra.Command, args []string) error {
 
 	if c.flagCopyAliases {
 		// Also add the original aliases
-		for _, alias := range imgInfo.Aliases {
-			aliases = append(aliases, alias)
-		}
+		aliases = append(aliases, imgInfo.Aliases...)
 	}
 
 	err = ensureImageAliases(destinationServer, aliases, fp)
