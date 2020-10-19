@@ -1900,7 +1900,7 @@ func (n *ovn) instanceDevicePortAdd(instanceID int, instanceName string, deviceN
 	}
 
 	// Get DHCP options IDs.
-	if n.getRouterIntPortIPv4Net() != "" {
+	if validate.IsOneOf(n.getRouterIntPortIPv4Net(), []string{"none", ""}) != nil {
 		_, routerIntPortIPv4Net, err := net.ParseCIDR(n.getRouterIntPortIPv4Net())
 		if err != nil {
 			return "", err
@@ -1912,7 +1912,7 @@ func (n *ovn) instanceDevicePortAdd(instanceID int, instanceName string, deviceN
 		}
 	}
 
-	if n.getRouterIntPortIPv6Net() != "" {
+	if validate.IsOneOf(n.getRouterIntPortIPv6Net(), []string{"none", ""}) != nil {
 		_, routerIntPortIPv6Net, err := net.ParseCIDR(n.getRouterIntPortIPv6Net())
 		if err != nil {
 			return "", err
