@@ -133,13 +133,11 @@ func (n *ovn) Validate(config map[string]string) error {
 
 			return validate.Optional(validate.IsNetworkAddressCIDRV6)(value)
 		},
-		"ipv6.dhcp.stateful":   validate.Optional(validate.IsBool),
-		"ipv4.routes.external": validate.Optional(validate.IsNetworkV4List),
-		"ipv6.routes.external": validate.Optional(validate.IsNetworkV6List),
-		"ipv4.nat":             validate.Optional(validate.IsBool),
-		"ipv6.nat":             validate.Optional(validate.IsBool),
-		"dns.domain":           validate.IsAny,
-		"dns.search":           validate.IsAny,
+		"ipv6.dhcp.stateful": validate.Optional(validate.IsBool),
+		"ipv4.nat":           validate.Optional(validate.IsBool),
+		"ipv6.nat":           validate.Optional(validate.IsBool),
+		"dns.domain":         validate.IsAny,
+		"dns.search":         validate.IsAny,
 
 		// Volatile keys populated automatically as needed.
 		ovnVolatileUplinkIPv4: validate.Optional(validate.IsNetworkAddressV4),
@@ -228,28 +226,6 @@ func (n *ovn) Validate(config map[string]string) error {
 			err = n.validateExternalSubnet(uplinkRoutes, projectRestrictedSubnets, ipNet)
 			if err != nil {
 				return err
-			}
-		}
-	}
-
-	// Check IP external routes are within the uplink network's routes and project's subnet restrictions.
-	if config["ipv4.routes.external"] != "" || config["ipv6.routes.external"] != "" {
-		// Parse and validate our external routes.
-		for _, k := range []string{"ipv4.routes.external", "ipv6.routes.external"} {
-			if config[k] == "" {
-				continue
-			}
-
-			routeSubnetList, err := SubnetParseAppend([]*net.IPNet{}, strings.Split(config[k], ",")...)
-			if err != nil {
-				return err
-			}
-
-			for _, routeSubnet := range routeSubnetList {
-				err = n.validateExternalSubnet(uplinkRoutes, projectRestrictedSubnets, routeSubnet)
-				if err != nil {
-					return err
-				}
 			}
 		}
 	}
