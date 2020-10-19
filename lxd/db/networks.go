@@ -70,7 +70,7 @@ func (c *ClusterTx) GetNonPendingNetworkIDs() (map[string]int64, error) {
 //
 // Pending networks are skipped.
 func (c *ClusterTx) GetNonPendingNetworks() (map[int64]api.Network, error) {
-	stmt, err := c.tx.Prepare("SELECT id, name, description, state FROM networks WHERE state != ?")
+	stmt, err := c.tx.Prepare("SELECT id, name, coalesce(description, ''), state FROM networks WHERE state != ?")
 	if err != nil {
 		return nil, err
 	}
