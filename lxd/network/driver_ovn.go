@@ -1868,6 +1868,36 @@ func (n *ovn) getInstanceDevicePortName(instanceID int, deviceName string) openv
 	return openvswitch.OVNSwitchPort(fmt.Sprintf("%s-%d-%s", n.getIntSwitchInstancePortPrefix(), instanceID, deviceName))
 }
 
+// InstanceDevicePortValidateExternalRoutes validates the external routes for an OVN instance port.
+func (n *ovn) InstanceDevicePortValidateExternalRoutes(externalRoutes []*net.IPNet) error {
+	// Load the project to get uplink network restrictions.
+	p, err := n.state.Cluster.GetProject(n.project)
+	if err != nil {
+		return errors.Wrapf(err, "Failed to load network restrictions from project %q", n.project)
+	}
+
+	// Get uplink routes.
+	uplinkRoutes, err := n.uplinkRoutes(n.config["network"])
+	if err != nil {
+		return err
+	}
+
+	// Get project restricted routes.
+	projectRestrictedSubnets, err := n.projectRestrictedSubnets(p, n.config["network"])
+	if err != nil {
+		return err
+	}
+
+	for _, externalRoute := range externalRoutes {
+		err = n.validateExternalSubnet(uplinkRoutes, projectRestrictedSubnets, externalRoute)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
 // InstanceDevicePortAdd adds an instance device port to the internal logical switch and returns the port name.
 func (n *ovn) InstanceDevicePortAdd(instanceID int, instanceName string, deviceName string, mac net.HardwareAddr, ips []net.IP, internalRoutes []*net.IPNet, externalRoutes []*net.IPNet) (openvswitch.OVNSwitchPort, error) {
 	var dhcpV4ID, dhcpv6ID string
