@@ -145,56 +145,6 @@ func (d *nicOVN) validateConfig(instConf instance.ConfigReader) error {
 		}
 	}
 
-	// Check IP external routes are within the network's external routes.
-	if d.config["ipv4.routes.external"] != "" || d.config["ipv6.routes.external"] != "" {
-		// Parse network external route subnets.
-		var networkRoutes []*net.IPNet
-		for _, k := range []string{"ipv4.routes.external", "ipv6.routes.external"} {
-			if netConfig[k] == "" {
-				continue
-			}
-
-			networkRoutes, err = network.SubnetParseAppend(networkRoutes, strings.Split(netConfig[k], ",")...)
-			if err != nil {
-				return err
-			}
-		}
-
-		// Parse and validate our external routes.
-		for _, k := range []string{"ipv4.routes.external", "ipv6.routes.external"} {
-			if d.config[k] == "" {
-				continue
-			}
-
-			externalRoutes, err := network.SubnetParseAppend([]*net.IPNet{}, strings.Split(d.config[k], ",")...)
-			if err != nil {
-				return err
-			}
-
-			for _, externalRoute := range externalRoutes {
-				rOnes, rBits := externalRoute.Mask.Size()
-				if rBits > 32 && rOnes < 122 {
-					return fmt.Errorf("External route %q is too large. Maximum size for IPv6 external route is /122", externalRoute.String())
-				} else if rOnes < 26 {
-					return fmt.Errorf("External route %q is too large. Maximum size for IPv4 external route is /26", externalRoute.String())
-				}
-
-				// Check that the external route is within the network's routes.
-				foundMatch := false
-				for _, networkRoute := range networkRoutes {
-					if network.SubnetContains(networkRoute, externalRoute) {
-						foundMatch = true
-						break
-					}
-				}
-
-				if !foundMatch {
-					return fmt.Errorf("Network %q doesn't contain %q in its external routes", n.Name(), externalRoute.String())
-				}
-			}
-		}
-	}
-
 	// Apply network level config options to device config before validation.
 	d.config["mtu"] = fmt.Sprintf("%s", netConfig["bridge.mtu"])
 
