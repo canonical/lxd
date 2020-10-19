@@ -1208,3 +1208,9 @@ When creating the network if these settings are unspecified, and an equivalent I
 the subnet, then the appropriate NAT setting will added set to `true`.
 
 If the setting is missing then the value is taken as `false`.
+
+## network\_ovn\_external\_routes\_remove
+Removes the settings `ipv4.routes.external` and `ipv6.routes.external` from `ovn` networks.
+
+The equivalent settings on the `ovn` NIC type can be used instead for this, rather than having to specify them
+both at the network and NIC level.
