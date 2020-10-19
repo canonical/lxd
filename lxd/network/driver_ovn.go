@@ -1229,8 +1229,8 @@ func (n *ovn) allowedUplinkNetworks(p *api.Project) ([]string, error) {
 // validateUplinkNetwork checks if uplink network is allowed, and if empty string is supplied then tries to select
 // an uplink network from the allowedUplinkNetworks() list if there is only one allowed network.
 // Returns chosen uplink network name to use.
-func (n *ovn) validateUplinkNetwork(uplinkNetworkName string) (string, error) {
-	allowedUplinkNetworks, err := n.allowedUplinkNetworks()
+func (n *ovn) validateUplinkNetwork(p *api.Project, uplinkNetworkName string) (string, error) {
+	allowedUplinkNetworks, err := n.allowedUplinkNetworks(p)
 	if err != nil {
 		return "", err
 	}
