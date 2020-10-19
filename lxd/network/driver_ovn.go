@@ -1887,8 +1887,8 @@ func (n *ovn) getInstanceDevicePortName(instanceID int, deviceName string) openv
 	return openvswitch.OVNSwitchPort(fmt.Sprintf("%s-%d-%s", n.getIntSwitchInstancePortPrefix(), instanceID, deviceName))
 }
 
-// instanceDevicePortAdd adds an instance device port to the internal logical switch and returns the port name.
-func (n *ovn) instanceDevicePortAdd(instanceID int, instanceName string, deviceName string, mac net.HardwareAddr, ips []net.IP, internalRoutes []*net.IPNet, externalRoutes []*net.IPNet) (openvswitch.OVNSwitchPort, error) {
+// InstanceDevicePortAdd adds an instance device port to the internal logical switch and returns the port name.
+func (n *ovn) InstanceDevicePortAdd(instanceID int, instanceName string, deviceName string, mac net.HardwareAddr, ips []net.IP, internalRoutes []*net.IPNet, externalRoutes []*net.IPNet) (openvswitch.OVNSwitchPort, error) {
 	var dhcpV4ID, dhcpv6ID string
 
 	revert := revert.New()
@@ -2065,8 +2065,8 @@ func (n *ovn) instanceDevicePortAdd(instanceID int, instanceName string, deviceN
 	return instancePortName, nil
 }
 
-// instanceDevicePortIPs returns the dynamically allocated IPs for a device port.
-func (n *ovn) instanceDevicePortDynamicIPs(instanceID int, deviceName string) ([]net.IP, error) {
+// InstanceDevicePortDynamicIPs returns the dynamically allocated IPs for a device port.
+func (n *ovn) InstanceDevicePortDynamicIPs(instanceID int, deviceName string) ([]net.IP, error) {
 	instancePortName := n.getInstanceDevicePortName(instanceID, deviceName)
 
 	client, err := n.getClient()
@@ -2077,8 +2077,8 @@ func (n *ovn) instanceDevicePortDynamicIPs(instanceID int, deviceName string) ([
 	return client.LogicalSwitchPortDynamicIPs(instancePortName)
 }
 
-// instanceDevicePortDelete deletes an instance device port from the internal logical switch.
-func (n *ovn) instanceDevicePortDelete(instanceID int, deviceName string, internalRoutes []*net.IPNet, externalRoutes []*net.IPNet) error {
+// InstanceDevicePortDelete deletes an instance device port from the internal logical switch.
+func (n *ovn) InstanceDevicePortDelete(instanceID int, deviceName string, internalRoutes []*net.IPNet, externalRoutes []*net.IPNet) error {
 	instancePortName := n.getInstanceDevicePortName(instanceID, deviceName)
 
 	client, err := n.getClient()
