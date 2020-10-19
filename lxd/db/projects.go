@@ -189,3 +189,22 @@ func (c *ClusterTx) InitProjectWithoutImages(project string) error {
 	_, err = c.tx.Exec(stmt, defaultProfileID)
 	return err
 }
+
+// GetProject returns the project with the given key.
+func (c *Cluster) GetProject(projectName string) (*api.Project, error) {
+	var err error
+	var p *api.Project
+	err = c.Transaction(func(tx *ClusterTx) error {
+		p, err = tx.GetProject(projectName)
+		if err != nil {
+			return err
+		}
+
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	return p, nil
+}
