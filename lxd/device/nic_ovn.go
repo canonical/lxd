@@ -156,6 +156,35 @@ func (d *nicOVN) validateConfig(instConf instance.ConfigReader) error {
 		return err
 	}
 
+	// Check IP external routes are within the network's external routes.
+	var externalRoutes []*net.IPNet
+	for _, k := range []string{"ipv4.routes.external", "ipv6.routes.external"} {
+		if d.config[k] == "" {
+			continue
+		}
+
+		externalRoutes, err = network.SubnetParseAppend(externalRoutes, strings.Split(d.config[k], ",")...)
+		if err != nil {
+			return err
+		}
+	}
+
+	if len(externalRoutes) > 0 {
+		for _, externalRoute := range externalRoutes {
+			rOnes, rBits := externalRoute.Mask.Size()
+			if rBits > 32 && rOnes < 122 {
+				return fmt.Errorf("External route %q is too large. Maximum size for IPv6 external route is /122", externalRoute.String())
+			} else if rOnes < 26 {
+				return fmt.Errorf("External route %q is too large. Maximum size for IPv4 external route is /26", externalRoute.String())
+			}
+		}
+
+		err = d.network.InstanceDevicePortValidateExternalRoutes(externalRoutes)
+		if err != nil {
+			return err
+		}
+	}
+
 	return nil
 }
 
