@@ -1122,14 +1122,18 @@ func (n *ovn) deleteUplinkPortPhysical(uplinkNet Network) error {
 
 // FillConfig fills requested config with any default values.
 func (n *ovn) FillConfig(config map[string]string) error {
+	changedConfig := false
+
 	if config["ipv4.address"] == "" {
 		config["ipv4.address"] = "auto"
+		changedConfig = true
 	}
 
 	if config["ipv6.address"] == "" {
 		content, err := ioutil.ReadFile("/proc/sys/net/ipv6/conf/default/disable_ipv6")
 		if err == nil && string(content) == "0\n" {
 			config["ipv6.address"] = "auto"
+			changedConfig = true
 		}
 	}
 
@@ -1145,6 +1149,8 @@ func (n *ovn) FillConfig(config map[string]string) error {
 		if config["ipv4.nat"] == "" {
 			config["ipv4.nat"] = "true"
 		}
+
+		changedConfig = true
 	}
 
 	if config["ipv6.address"] == "auto" {
@@ -1158,6 +1164,12 @@ func (n *ovn) FillConfig(config map[string]string) error {
 		if config["ipv6.nat"] == "" {
 			config["ipv6.nat"] = "true"
 		}
+
+		changedConfig = true
+	}
+
+	if changedConfig {
+		return n.Validate(config)
 	}
 
 	return nil
