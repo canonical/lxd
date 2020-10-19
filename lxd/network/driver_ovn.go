@@ -1276,8 +1276,14 @@ func (n *ovn) setup(update bool) error {
 	// Record updated config so we can store back into DB and n.config variable.
 	updatedConfig := make(map[string]string)
 
+	// Load the project to get uplink network restrictions.
+	p, err := n.state.Cluster.GetProject(n.project)
+	if err != nil {
+		return errors.Wrapf(err, "Failed to load network restrictions from project %q", n.project)
+	}
+
 	// Check project restrictions and get uplink network to use.
-	uplinkNetwork, err := n.validateUplinkNetwork(n.config["network"])
+	uplinkNetwork, err := n.validateUplinkNetwork(p, n.config["network"])
 	if err != nil {
 		return err
 	}
