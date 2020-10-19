@@ -78,6 +78,61 @@ func (n *ovn) Info() Info {
 	}
 }
 
+// uplinkRoutes parses ipv4.routes and ipv6.routes settings for a named uplink network into a slice of *net.IPNet.
+func (n *ovn) uplinkRoutes(uplinkNetworkName string) ([]*net.IPNet, error) {
+	_, uplink, err := n.state.Cluster.GetNetworkInAnyState(project.Default, uplinkNetworkName)
+	if err != nil {
+		return nil, err
+	}
+
+	var uplinkRoutes []*net.IPNet
+	for _, k := range []string{"ipv4.routes", "ipv6.routes"} {
+		if uplink.Config[k] == "" {
+			continue
+		}
+
+		uplinkRoutes, err = SubnetParseAppend(uplinkRoutes, strings.Split(uplink.Config[k], ",")...)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	return uplinkRoutes, nil
+}
+
+// projectRestrictedSubnets parses the restrict.networks.subnets project setting and returns slice of *net.IPNet.
+// Returns nil slice if no project restrictions, or empty slice if no allowed subnets.
+func (n *ovn) projectRestrictedSubnets(p *api.Project, uplinkNetworkName string) ([]*net.IPNet, error) {
+	// Parse project's restricted subnets.
+	var projectRestrictedSubnets []*net.IPNet // Nil value indicates not restricted.
+	if shared.IsTrue(p.Config["restricted"]) && p.Config["restricted.networks.subnets"] != "" {
+		projectRestrictedSubnets = []*net.IPNet{} // Empty slice indicates no allowed subnets.
+
+		for _, subnetRaw := range strings.Split(p.Config["restricted.networks.subnets"], ",") {
+			subnetParts := strings.SplitN(strings.TrimSpace(subnetRaw), ":", 2)
+			if len(subnetParts) != 2 {
+				return nil, fmt.Errorf(`Project subnet %q invalid, must be in the format of "<uplink network>:<subnet>"`, subnetRaw)
+			}
+
+			subnetUplinkName := subnetParts[0]
+			subnetStr := subnetParts[1]
+
+			if subnetUplinkName != uplinkNetworkName {
+				continue // Only include subnets for our uplink.
+			}
+
+			_, restrictedSubnet, err := net.ParseCIDR(subnetStr)
+			if err != nil {
+				return nil, err
+			}
+
+			projectRestrictedSubnets = append(projectRestrictedSubnets, restrictedSubnet)
+		}
+	}
+
+	return projectRestrictedSubnets, nil
+}
+
 // validateExternalSubnet checks the supplied ipNet is allowed within the uplink routes and project
 // restricted subnets. If projectRestrictedSubnets is nil, then it is not checked as this indicates project has
 // no restrictions. Whereas if uplinkRoutes is nil/empty then this will always return an error.
