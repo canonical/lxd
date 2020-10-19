@@ -24,10 +24,20 @@ import (
 	log "github.com/lxc/lxd/shared/log15"
 )
 
+// ovnNet defines an interface for accessing instance specific functions on OVN network.
+type ovnNet interface {
+	network.Network
+
+	InstanceDevicePortValidateExternalRoutes(externalRoutes []*net.IPNet) error
+	InstanceDevicePortAdd(instanceID int, instanceName string, deviceName string, mac net.HardwareAddr, ips []net.IP, internalRoutes []*net.IPNet, externalRoutes []*net.IPNet) (openvswitch.OVNSwitchPort, error)
+	InstanceDevicePortDelete(instanceID int, deviceName string, internalRoutes []*net.IPNet, externalRoutes []*net.IPNet) error
+	InstanceDevicePortDynamicIPs(instanceID int, deviceName string) ([]net.IP, error)
+}
+
 type nicOVN struct {
 	deviceCommon
 
-	network network.Network // Populated in validateConfig().
+	network ovnNet // Populated in validateConfig().
 }
 
 // getIntegrationBridgeName returns the OVS integration bridge to use.
@@ -91,7 +101,12 @@ func (d *nicOVN) validateConfig(instConf instance.ConfigReader) error {
 		}
 	}
 
-	d.network = n // Stored loaded instance for use by other functions.
+	ovnNet, ok := n.(ovnNet)
+	if !ok {
+		return fmt.Errorf("Network is not OVN type")
+	}
+
+	d.network = ovnNet // Stored loaded instance for use by other functions.
 	netConfig := d.network.Config()
 
 	if d.config["ipv4.address"] != "" {
@@ -317,14 +332,12 @@ func (d *nicOVN) Start() (*deviceConfig.RunConfig, error) {
 	}
 
 	// Add new OVN logical switch port for instance.
-	logicalPortName, err := network.OVNInstanceDevicePortAdd(d.network, d.inst.ID(), d.inst.Name(), d.name, mac, ips, internalRoutes, externalRoutes)
+	logicalPortName, err := d.network.InstanceDevicePortAdd(d.inst.ID(), d.inst.Name(), d.name, mac, ips, internalRoutes, externalRoutes)
 	if err != nil {
 		return nil, errors.Wrapf(err, "Failed adding OVN port")
 	}
 
-	revert.Add(func() {
-		network.OVNInstanceDevicePortDelete(d.network, d.inst.ID(), d.name, internalRoutes, externalRoutes)
-	})
+	revert.Add(func() { d.network.InstanceDevicePortDelete(d.inst.ID(), d.name, internalRoutes, externalRoutes) })
 
 	// Attach host side veth interface to bridge.
 	integrationBridge, err := d.getIntegrationBridgeName()
@@ -455,7 +468,7 @@ func (d *nicOVN) Stop() (*deviceConfig.RunConfig, error) {
 		}
 	}
 
-	err = network.OVNInstanceDevicePortDelete(d.network, d.inst.ID(), d.name, internalRoutes, externalRoutes)
+	err = d.network.InstanceDevicePortDelete(d.inst.ID(), d.name, internalRoutes, externalRoutes)
 	if err != nil {
 		// Don't fail here as we still want the postStop hook to run to clean up the local veth pair.
 		d.logger.Error("Failed to remove OVN device port", log.Ctx{"err": err})
@@ -531,7 +544,7 @@ func (d *nicOVN) State() (*api.InstanceStateNetwork, error) {
 
 	// OVN only supports dynamic IP allocation if neither IPv4 or IPv6 are statically set.
 	if d.config["ipv4.address"] == "" && d.config["ipv6.address"] == "" {
-		dynamicIPs, err := network.OVNInstanceDevicePortDynamicIPs(d.network, d.inst.ID(), d.name)
+		dynamicIPs, err := d.network.InstanceDevicePortDynamicIPs(d.inst.ID(), d.name)
 		if err == nil {
 			for _, dynamicIP := range dynamicIPs {
 				family := "inet"
