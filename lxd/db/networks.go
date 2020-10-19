@@ -72,7 +72,7 @@ func (c *ClusterTx) GetNonPendingNetworkIDs() (map[string]int64, error) {
 //
 // Pending networks are skipped.
 func (c *ClusterTx) GetNonPendingNetworks() (map[string]map[int64]api.Network, error) {
-	stmt, err := c.tx.Prepare(`SELECT projects.name, networks.id, networks.name, networks.description, networks.type, networks.state
+	stmt, err := c.tx.Prepare(`SELECT projects.name, networks.id, networks.name, coalesce(networks.description, ''), networks.type, networks.state
 		FROM networks
 		JOIN projects on projects.id = networks.project_id
 		WHERE networks.state != ?
