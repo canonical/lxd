@@ -205,69 +205,27 @@ func (n *ovn) Validate(config map[string]string) error {
 	}
 
 	// Load the project to get uplink network restrictions.
-	var projectRow *api.Project
-	err = n.state.Cluster.Transaction(func(tx *db.ClusterTx) error {
-		projectRow, err = tx.GetProject(n.project)
-		if err != nil {
-			return err
-		}
-
-		return nil
-	})
+	p, err := n.state.Cluster.GetProject(n.project)
 	if err != nil {
-		return errors.Wrapf(err, "Failed to load IP route restrictions for project %q", n.project)
+		return errors.Wrapf(err, "Failed to load network restrictions from project %q", n.project)
 	}
 
 	// Check uplink network is valid and allowed in project.
-	uplinkNetworkName, err := n.validateUplinkNetwork(config["network"])
+	uplinkNetworkName, err := n.validateUplinkNetwork(p, config["network"])
 	if err != nil {
 		return err
 	}
 
-	// Load the uplink network to get uplink routes.
-	_, uplink, err := n.state.Cluster.GetNetworkInAnyState(project.Default, uplinkNetworkName)
+	// Get uplink routes.
+	uplinkRoutes, err := n.uplinkRoutes(uplinkNetworkName)
 	if err != nil {
 		return err
 	}
 
-	// Parse uplink route subnets.
-	var uplinkRoutes []*net.IPNet
-	for _, k := range []string{"ipv4.routes", "ipv6.routes"} {
-		if uplink.Config[k] == "" {
-			continue
-		}
-
-		uplinkRoutes, err = SubnetParseAppend(uplinkRoutes, strings.Split(uplink.Config[k], ",")...)
-		if err != nil {
-			return err
-		}
-	}
-
-	// Parse project's restricted subnets.
-	var projectRestrictedSubnets []*net.IPNet // Nil value indicates not restricted.
-	if shared.IsTrue(projectRow.Config["restricted"]) && projectRow.Config["restricted.networks.subnets"] != "" {
-		projectRestrictedSubnets = []*net.IPNet{} // Empty slice indicates no allowed subnets.
-
-		for _, subnetRaw := range strings.Split(projectRow.Config["restricted.networks.subnets"], ",") {
-			subnetParts := strings.SplitN(strings.TrimSpace(subnetRaw), ":", 2)
-			if len(subnetParts) != 2 {
-				return fmt.Errorf(`Project subnet %q invalid, must be in the format of "<uplink network>:<subnet>"`, subnetRaw)
-			}
-
-			uplinkName := subnetParts[0]
-			subnetStr := subnetParts[1]
-
-			if uplinkName != uplink.Name {
-				continue // Only include subnets for our uplink.
-			}
-
-			_, restrictedSubnet, err := net.ParseCIDR(subnetStr)
-			if err != nil {
-				return err
-			}
-
-			projectRestrictedSubnets = append(projectRestrictedSubnets, restrictedSubnet)
-		}
+	// Get project restricted routes.
+	projectRestrictedSubnets, err := n.projectRestrictedSubnets(p, uplinkNetworkName)
+	if err != nil {
+		return err
 	}
 
 	// If NAT disabled, check subnets are within the uplink network's routes and project's subnet restrictions.
