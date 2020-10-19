@@ -86,7 +86,7 @@ func (n *ovn) validateExternalSubnet(uplinkRoutes []*net.IPNet, projectRestricte
 	if projectRestrictedSubnets != nil {
 		foundMatch := false
 		for _, projectRestrictedSubnet := range projectRestrictedSubnets {
-			if !SubnetContains(projectRestrictedSubnet, ipNet) {
+			if SubnetContains(projectRestrictedSubnet, ipNet) {
 				foundMatch = true
 				break
 			}
