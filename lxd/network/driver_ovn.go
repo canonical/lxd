@@ -120,14 +120,14 @@ func (n *ovn) Validate(config map[string]string) error {
 		"bridge.hwaddr": validate.Optional(validate.IsNetworkMAC),
 		"bridge.mtu":    validate.Optional(validate.IsNetworkMTU),
 		"ipv4.address": func(value string) error {
-			if validate.IsOneOf(value, []string{"auto"}) == nil {
+			if validate.IsOneOf(value, []string{"none", "auto"}) == nil {
 				return nil
 			}
 
 			return validate.Optional(validate.IsNetworkAddressCIDRV4)(value)
 		},
 		"ipv6.address": func(value string) error {
-			if validate.IsOneOf(value, []string{"auto"}) == nil {
+			if validate.IsOneOf(value, []string{"none", "auto"}) == nil {
 				return nil
 			}
 
@@ -219,7 +219,7 @@ func (n *ovn) Validate(config map[string]string) error {
 
 	// If NAT disabled, check subnets are within the uplink network's routes and project's subnet restrictions.
 	for _, keyPrefix := range []string{"ipv4", "ipv6"} {
-		if !shared.IsTrue(config[fmt.Sprintf("%s.nat", keyPrefix)]) && config[fmt.Sprintf("%s.address", keyPrefix)] != "" {
+		if !shared.IsTrue(config[fmt.Sprintf("%s.nat", keyPrefix)]) && validate.IsOneOf(config[fmt.Sprintf("%s.address", keyPrefix)], []string{"", "none", "auto"}) != nil {
 			_, ipNet, err := net.ParseCIDR(config[fmt.Sprintf("%s.address", keyPrefix)])
 			if err != nil {
 				return err
