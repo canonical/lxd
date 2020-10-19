@@ -78,6 +78,61 @@ func (n *ovn) Info() Info {
 	}
 }
 
+// uplinkRoutes parses ipv4.routes and ipv6.routes settings for a named uplink network into a slice of *net.IPNet.
+func (n *ovn) uplinkRoutes(uplinkNetworkName string) ([]*net.IPNet, error) {
+	_, uplink, err := n.state.Cluster.GetNetworkInAnyState(project.Default, uplinkNetworkName)
+	if err != nil {
+		return nil, err
+	}
+
+	var uplinkRoutes []*net.IPNet
+	for _, k := range []string{"ipv4.routes", "ipv6.routes"} {
+		if uplink.Config[k] == "" {
+			continue
+		}
+
+		uplinkRoutes, err = SubnetParseAppend(uplinkRoutes, strings.Split(uplink.Config[k], ",")...)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	return uplinkRoutes, nil
+}
+
+// projectRestrictedSubnets parses the restrict.networks.subnets project setting and returns slice of *net.IPNet.
+// Returns nil slice if no project restrictions, or empty slice if no allowed subnets.
+func (n *ovn) projectRestrictedSubnets(p *api.Project, uplinkNetworkName string) ([]*net.IPNet, error) {
+	// Parse project's restricted subnets.
+	var projectRestrictedSubnets []*net.IPNet // Nil value indicates not restricted.
+	if shared.IsTrue(p.Config["restricted"]) && p.Config["restricted.networks.subnets"] != "" {
+		projectRestrictedSubnets = []*net.IPNet{} // Empty slice indicates no allowed subnets.
+
+		for _, subnetRaw := range strings.Split(p.Config["restricted.networks.subnets"], ",") {
+			subnetParts := strings.SplitN(strings.TrimSpace(subnetRaw), ":", 2)
+			if len(subnetParts) != 2 {
+				return nil, fmt.Errorf(`Project subnet %q invalid, must be in the format of "<uplink network>:<subnet>"`, subnetRaw)
+			}
+
+			subnetUplinkName := subnetParts[0]
+			subnetStr := subnetParts[1]
+
+			if subnetUplinkName != uplinkNetworkName {
+				continue // Only include subnets for our uplink.
+			}
+
+			_, restrictedSubnet, err := net.ParseCIDR(subnetStr)
+			if err != nil {
+				return nil, err
+			}
+
+			projectRestrictedSubnets = append(projectRestrictedSubnets, restrictedSubnet)
+		}
+	}
+
+	return projectRestrictedSubnets, nil
+}
+
 // validateExternalSubnet checks the supplied ipNet is allowed within the uplink routes and project
 // restricted subnets. If projectRestrictedSubnets is nil, then it is not checked as this indicates project has
 // no restrictions. Whereas if uplinkRoutes is nil/empty then this will always return an error.
@@ -86,7 +141,7 @@ func (n *ovn) validateExternalSubnet(uplinkRoutes []*net.IPNet, projectRestricte
 	if projectRestrictedSubnets != nil {
 		foundMatch := false
 		for _, projectRestrictedSubnet := range projectRestrictedSubnets {
-			if !SubnetContains(projectRestrictedSubnet, ipNet) {
+			if SubnetContains(projectRestrictedSubnet, ipNet) {
 				foundMatch = true
 				break
 			}
@@ -133,13 +188,11 @@ func (n *ovn) Validate(config map[string]string) error {
 
 			return validate.Optional(validate.IsNetworkAddressCIDRV6)(value)
 		},
-		"ipv6.dhcp.stateful":   validate.Optional(validate.IsBool),
-		"ipv4.routes.external": validate.Optional(validate.IsNetworkV4List),
-		"ipv6.routes.external": validate.Optional(validate.IsNetworkV6List),
-		"ipv4.nat":             validate.Optional(validate.IsBool),
-		"ipv6.nat":             validate.Optional(validate.IsBool),
-		"dns.domain":           validate.IsAny,
-		"dns.search":           validate.IsAny,
+		"ipv6.dhcp.stateful": validate.Optional(validate.IsBool),
+		"ipv4.nat":           validate.Optional(validate.IsBool),
+		"ipv6.nat":           validate.Optional(validate.IsBool),
+		"dns.domain":         validate.IsAny,
+		"dns.search":         validate.IsAny,
 
 		// Volatile keys populated automatically as needed.
 		ovnVolatileUplinkIPv4: validate.Optional(validate.IsNetworkAddressV4),
@@ -152,69 +205,27 @@ func (n *ovn) Validate(config map[string]string) error {
 	}
 
 	// Load the project to get uplink network restrictions.
-	var projectRow *api.Project
-	err = n.state.Cluster.Transaction(func(tx *db.ClusterTx) error {
-		projectRow, err = tx.GetProject(n.project)
-		if err != nil {
-			return err
-		}
-
-		return nil
-	})
+	p, err := n.state.Cluster.GetProject(n.project)
 	if err != nil {
-		return errors.Wrapf(err, "Failed to load IP route restrictions for project %q", n.project)
+		return errors.Wrapf(err, "Failed to load network restrictions from project %q", n.project)
 	}
 
 	// Check uplink network is valid and allowed in project.
-	uplinkNetworkName, err := n.validateUplinkNetwork(config["network"])
+	uplinkNetworkName, err := n.validateUplinkNetwork(p, config["network"])
 	if err != nil {
 		return err
 	}
 
-	// Load the uplink network to get uplink routes.
-	_, uplink, err := n.state.Cluster.GetNetworkInAnyState(project.Default, uplinkNetworkName)
+	// Get uplink routes.
+	uplinkRoutes, err := n.uplinkRoutes(uplinkNetworkName)
 	if err != nil {
 		return err
 	}
 
-	// Parse uplink route subnets.
-	var uplinkRoutes []*net.IPNet
-	for _, k := range []string{"ipv4.routes", "ipv6.routes"} {
-		if uplink.Config[k] == "" {
-			continue
-		}
-
-		uplinkRoutes, err = SubnetParseAppend(uplinkRoutes, strings.Split(uplink.Config[k], ",")...)
-		if err != nil {
-			return err
-		}
-	}
-
-	// Parse project's restricted subnets.
-	var projectRestrictedSubnets []*net.IPNet // Nil value indicates not restricted.
-	if shared.IsTrue(projectRow.Config["restricted"]) && projectRow.Config["restricted.networks.subnets"] != "" {
-		projectRestrictedSubnets = []*net.IPNet{} // Empty slice indicates no allowed subnets.
-
-		for _, subnetRaw := range strings.Split(projectRow.Config["restricted.networks.subnets"], ",") {
-			subnetParts := strings.SplitN(strings.TrimSpace(subnetRaw), ":", 2)
-			if len(subnetParts) != 2 {
-				return fmt.Errorf(`Project subnet %q invalid, must be in the format of "<uplink network>:<subnet>"`, subnetRaw)
-			}
-
-			uplinkName := subnetParts[0]
-			subnetStr := subnetParts[1]
-
-			if uplinkName != uplink.Name {
-				continue // Only include subnets for our uplink.
-			}
-
-			_, restrictedSubnet, err := net.ParseCIDR(subnetStr)
-			if err != nil {
-				return err
-			}
-
-			projectRestrictedSubnets = append(projectRestrictedSubnets, restrictedSubnet)
-		}
+	// Get project restricted routes.
+	projectRestrictedSubnets, err := n.projectRestrictedSubnets(p, uplinkNetworkName)
+	if err != nil {
+		return err
 	}
 
 	// If NAT disabled, check subnets are within the uplink network's routes and project's subnet restrictions.
@@ -228,28 +239,6 @@ func (n *ovn) Validate(config map[string]string) error {
 			err = n.validateExternalSubnet(uplinkRoutes, projectRestrictedSubnets, ipNet)
 			if err != nil {
 				return err
-			}
-		}
-	}
-
-	// Check IP external routes are within the uplink network's routes and project's subnet restrictions.
-	if config["ipv4.routes.external"] != "" || config["ipv6.routes.external"] != "" {
-		// Parse and validate our external routes.
-		for _, k := range []string{"ipv4.routes.external", "ipv6.routes.external"} {
-			if config[k] == "" {
-				continue
-			}
-
-			routeSubnetList, err := SubnetParseAppend([]*net.IPNet{}, strings.Split(config[k], ",")...)
-			if err != nil {
-				return err
-			}
-
-			for _, routeSubnet := range routeSubnetList {
-				err = n.validateExternalSubnet(uplinkRoutes, projectRestrictedSubnets, routeSubnet)
-				if err != nil {
-					return err
-				}
 			}
 		}
 	}
@@ -1191,7 +1180,7 @@ func (n *ovn) Create(clientType cluster.ClientType) error {
 }
 
 // allowedUplinkNetworks returns a list of allowed networks to use as uplinks based on project restrictions.
-func (n *ovn) allowedUplinkNetworks() ([]string, error) {
+func (n *ovn) allowedUplinkNetworks(p *api.Project) ([]string, error) {
 	// Uplink networks are always from the default project.
 	networks, err := n.state.Cluster.GetNetworks(project.Default)
 	if err != nil {
@@ -1211,34 +1200,20 @@ func (n *ovn) allowedUplinkNetworks() ([]string, error) {
 		}
 	}
 
-	// Load the project to get uplink network restrictions.
-	var project *api.Project
-	err = n.state.Cluster.Transaction(func(tx *db.ClusterTx) error {
-		project, err = tx.GetProject(n.project)
-		if err != nil {
-			return err
-		}
-
-		return nil
-	})
-	if err != nil {
-		return nil, errors.Wrapf(err, "Failed to load restrictions for project %q", n.project)
-	}
-
 	// If project is not restricted, return full network list.
-	if !shared.IsTrue(project.Config["restricted"]) {
+	if !shared.IsTrue(p.Config["restricted"]) {
 		return networks, nil
 	}
 
 	allowedNetworks := []string{}
 
 	// There are no allowed networks if restricted.networks.uplinks is not set.
-	if project.Config["restricted.networks.uplinks"] == "" {
+	if p.Config["restricted.networks.uplinks"] == "" {
 		return allowedNetworks, nil
 	}
 
 	// Parse the allowed uplinks and return any that are present in the actual defined networks.
-	allowedRestrictedUplinks := strings.Split(project.Config["restricted.networks.uplinks"], ",")
+	allowedRestrictedUplinks := strings.Split(p.Config["restricted.networks.uplinks"], ",")
 
 	for _, allowedRestrictedUplink := range allowedRestrictedUplinks {
 		allowedRestrictedUplink = strings.TrimSpace(allowedRestrictedUplink)
@@ -1254,8 +1229,8 @@ func (n *ovn) allowedUplinkNetworks() ([]string, error) {
 // validateUplinkNetwork checks if uplink network is allowed, and if empty string is supplied then tries to select
 // an uplink network from the allowedUplinkNetworks() list if there is only one allowed network.
 // Returns chosen uplink network name to use.
-func (n *ovn) validateUplinkNetwork(uplinkNetworkName string) (string, error) {
-	allowedUplinkNetworks, err := n.allowedUplinkNetworks()
+func (n *ovn) validateUplinkNetwork(p *api.Project, uplinkNetworkName string) (string, error) {
+	allowedUplinkNetworks, err := n.allowedUplinkNetworks(p)
 	if err != nil {
 		return "", err
 	}
@@ -1301,8 +1276,14 @@ func (n *ovn) setup(update bool) error {
 	// Record updated config so we can store back into DB and n.config variable.
 	updatedConfig := make(map[string]string)
 
+	// Load the project to get uplink network restrictions.
+	p, err := n.state.Cluster.GetProject(n.project)
+	if err != nil {
+		return errors.Wrapf(err, "Failed to load network restrictions from project %q", n.project)
+	}
+
 	// Check project restrictions and get uplink network to use.
-	uplinkNetwork, err := n.validateUplinkNetwork(n.config["network"])
+	uplinkNetwork, err := n.validateUplinkNetwork(p, n.config["network"])
 	if err != nil {
 		return err
 	}
@@ -1887,8 +1868,38 @@ func (n *ovn) getInstanceDevicePortName(instanceID int, deviceName string) openv
 	return openvswitch.OVNSwitchPort(fmt.Sprintf("%s-%d-%s", n.getIntSwitchInstancePortPrefix(), instanceID, deviceName))
 }
 
-// instanceDevicePortAdd adds an instance device port to the internal logical switch and returns the port name.
-func (n *ovn) instanceDevicePortAdd(instanceID int, instanceName string, deviceName string, mac net.HardwareAddr, ips []net.IP, internalRoutes []*net.IPNet, externalRoutes []*net.IPNet) (openvswitch.OVNSwitchPort, error) {
+// InstanceDevicePortValidateExternalRoutes validates the external routes for an OVN instance port.
+func (n *ovn) InstanceDevicePortValidateExternalRoutes(externalRoutes []*net.IPNet) error {
+	// Load the project to get uplink network restrictions.
+	p, err := n.state.Cluster.GetProject(n.project)
+	if err != nil {
+		return errors.Wrapf(err, "Failed to load network restrictions from project %q", n.project)
+	}
+
+	// Get uplink routes.
+	uplinkRoutes, err := n.uplinkRoutes(n.config["network"])
+	if err != nil {
+		return err
+	}
+
+	// Get project restricted routes.
+	projectRestrictedSubnets, err := n.projectRestrictedSubnets(p, n.config["network"])
+	if err != nil {
+		return err
+	}
+
+	for _, externalRoute := range externalRoutes {
+		err = n.validateExternalSubnet(uplinkRoutes, projectRestrictedSubnets, externalRoute)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// InstanceDevicePortAdd adds an instance device port to the internal logical switch and returns the port name.
+func (n *ovn) InstanceDevicePortAdd(instanceID int, instanceName string, deviceName string, mac net.HardwareAddr, ips []net.IP, internalRoutes []*net.IPNet, externalRoutes []*net.IPNet) (openvswitch.OVNSwitchPort, error) {
 	var dhcpV4ID, dhcpv6ID string
 
 	revert := revert.New()
@@ -2065,8 +2076,8 @@ func (n *ovn) instanceDevicePortAdd(instanceID int, instanceName string, deviceN
 	return instancePortName, nil
 }
 
-// instanceDevicePortIPs returns the dynamically allocated IPs for a device port.
-func (n *ovn) instanceDevicePortDynamicIPs(instanceID int, deviceName string) ([]net.IP, error) {
+// InstanceDevicePortDynamicIPs returns the dynamically allocated IPs for a device port.
+func (n *ovn) InstanceDevicePortDynamicIPs(instanceID int, deviceName string) ([]net.IP, error) {
 	instancePortName := n.getInstanceDevicePortName(instanceID, deviceName)
 
 	client, err := n.getClient()
@@ -2077,8 +2088,8 @@ func (n *ovn) instanceDevicePortDynamicIPs(instanceID int, deviceName string) ([
 	return client.LogicalSwitchPortDynamicIPs(instancePortName)
 }
 
-// instanceDevicePortDelete deletes an instance device port from the internal logical switch.
-func (n *ovn) instanceDevicePortDelete(instanceID int, deviceName string, internalRoutes []*net.IPNet, externalRoutes []*net.IPNet) error {
+// InstanceDevicePortDelete deletes an instance device port from the internal logical switch.
+func (n *ovn) InstanceDevicePortDelete(instanceID int, deviceName string, internalRoutes []*net.IPNet, externalRoutes []*net.IPNet) error {
 	instancePortName := n.getInstanceDevicePortName(instanceID, deviceName)
 
 	client, err := n.getClient()

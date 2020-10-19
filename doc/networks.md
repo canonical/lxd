@@ -298,11 +298,9 @@ dns.domain                      | string    | -                     | lxd       
 dns.search                      | string    | -                     | -                         | Full comma separated domain search list, defaulting to `dns.domain` value
 ipv4.address                    | string    | standard mode         | random unused subnet      | IPv4 address for the bridge (CIDR notation). Use "none" to turn off IPv4 or "auto" to generate a new one
 ipv4.nat                        | boolean   | ipv4 address          | false                     | Whether to NAT (will default to true if unset and a random ipv4.address is generated)
-ipv4.routes.external            | string    | ipv4 address          | -                         | Comma separated list of additional external IPv4 CIDR subnets that are allowed for OVN NICs ipv4.routes.external setting
 ipv6.address                    | string    | standard mode         | random unused subnet      | IPv6 address for the bridge (CIDR notation). Use "none" to turn off IPv6 or "auto" to generate a new one
 ipv6.dhcp.stateful              | boolean   | ipv6 dhcp             | false                     | Whether to allocate addresses using DHCP
 ipv6.nat                        | boolean   | ipv6 address          | false                     | Whether to NAT (will default to true if unset and a random ipv6.address is generated)
-ipv6.routes.external            | string    | ipv6 address          | -                         | Comma separated list of additional external IPv6 CIDR subnets that are allowed for OVN NICs ipv6.routes.external setting
 network                         | string    | -                     | -                         | Uplink network to use for external network access
 
 ## network: physical
