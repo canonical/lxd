@@ -1180,7 +1180,7 @@ func (n *ovn) Create(clientType cluster.ClientType) error {
 }
 
 // allowedUplinkNetworks returns a list of allowed networks to use as uplinks based on project restrictions.
-func (n *ovn) allowedUplinkNetworks() ([]string, error) {
+func (n *ovn) allowedUplinkNetworks(p *api.Project) ([]string, error) {
 	// Uplink networks are always from the default project.
 	networks, err := n.state.Cluster.GetNetworks(project.Default)
 	if err != nil {
@@ -1200,34 +1200,20 @@ func (n *ovn) allowedUplinkNetworks() ([]string, error) {
 		}
 	}
 
-	// Load the project to get uplink network restrictions.
-	var project *api.Project
-	err = n.state.Cluster.Transaction(func(tx *db.ClusterTx) error {
-		project, err = tx.GetProject(n.project)
-		if err != nil {
-			return err
-		}
-
-		return nil
-	})
-	if err != nil {
-		return nil, errors.Wrapf(err, "Failed to load restrictions for project %q", n.project)
-	}
-
 	// If project is not restricted, return full network list.
-	if !shared.IsTrue(project.Config["restricted"]) {
+	if !shared.IsTrue(p.Config["restricted"]) {
 		return networks, nil
 	}
 
 	allowedNetworks := []string{}
 
 	// There are no allowed networks if restricted.networks.uplinks is not set.
-	if project.Config["restricted.networks.uplinks"] == "" {
+	if p.Config["restricted.networks.uplinks"] == "" {
 		return allowedNetworks, nil
 	}
 
 	// Parse the allowed uplinks and return any that are present in the actual defined networks.
-	allowedRestrictedUplinks := strings.Split(project.Config["restricted.networks.uplinks"], ",")
+	allowedRestrictedUplinks := strings.Split(p.Config["restricted.networks.uplinks"], ",")
 
 	for _, allowedRestrictedUplink := range allowedRestrictedUplinks {
 		allowedRestrictedUplink = strings.TrimSpace(allowedRestrictedUplink)
