@@ -1168,7 +1168,7 @@ func (n *ovn) FillConfig(config map[string]string) error {
 		changedConfig = true
 	}
 
-	if changedConfig {
+	if changedConfig && n.state != nil {
 		return n.Validate(config)
 	}
 
