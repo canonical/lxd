@@ -1371,14 +1371,14 @@ func (n *ovn) setup(update bool) error {
 		}
 	}
 
-	if n.getRouterIntPortIPv4Net() != "" {
+	if validate.IsOneOf(n.getRouterIntPortIPv4Net(), []string{"none", ""}) != nil {
 		routerIntPortIPv4, routerIntPortIPv4Net, err = net.ParseCIDR(n.getRouterIntPortIPv4Net())
 		if err != nil {
 			return errors.Wrapf(err, "Failed parsing router's internal port IPv4 Net")
 		}
 	}
 
-	if n.getRouterIntPortIPv6Net() != "" {
+	if validate.IsOneOf(n.getRouterIntPortIPv6Net(), []string{"none", ""}) != nil {
 		routerIntPortIPv6, routerIntPortIPv6Net, err = net.ParseCIDR(n.getRouterIntPortIPv6Net())
 		if err != nil {
 			return errors.Wrapf(err, "Failed parsing router's internal port IPv6 Net")
@@ -1509,11 +1509,16 @@ func (n *ovn) setup(update bool) error {
 	}
 	revert.Add(func() { client.LogicalSwitchDelete(n.getIntSwitchName()) })
 
+	var excludeIPV4 []shared.IPRange
+	if routerIntPortIPv4 != nil {
+		excludeIPV4 = []shared.IPRange{{Start: routerIntPortIPv4}}
+	}
+
 	// Setup IP allocation config on logical switch.
 	err = client.LogicalSwitchSetIPAllocation(n.getIntSwitchName(), &openvswitch.OVNIPAllocationOpts{
 		PrefixIPv4:  routerIntPortIPv4Net,
 		PrefixIPv6:  routerIntPortIPv6Net,
-		ExcludeIPv4: []shared.IPRange{{Start: routerIntPortIPv4}},
+		ExcludeIPv4: excludeIPV4,
 	})
 	if err != nil {
 		return errors.Wrapf(err, "Failed setting IP allocation settings on internal switch")
@@ -1541,40 +1546,41 @@ func (n *ovn) setup(update bool) error {
 		}
 	}
 
-	// Create DHCPv4 options for internal switch.
-	err = client.LogicalSwitchDHCPv4OptionsSet(n.getIntSwitchName(), dhcpv4UUID, routerIntPortIPv4Net, &openvswitch.OVNDHCPv4Opts{
-		ServerID:           routerIntPortIPv4,
-		ServerMAC:          routerMAC,
-		Router:             routerIntPortIPv4,
-		RecursiveDNSServer: uplinkNet.dnsIPv4,
-		DomainName:         n.getDomainName(),
-		LeaseTime:          time.Duration(time.Hour * 1),
-		MTU:                bridgeMTU,
-	})
-	if err != nil {
-		return errors.Wrapf(err, "Failed adding DHCPv4 settings for internal switch")
-	}
-
-	// Create DHCPv6 options for internal switch.
-	err = client.LogicalSwitchDHCPv6OptionsSet(n.getIntSwitchName(), dhcpv6UUID, routerIntPortIPv6Net, &openvswitch.OVNDHCPv6Opts{
-		ServerID:           routerMAC,
-		RecursiveDNSServer: uplinkNet.dnsIPv6,
-		DNSSearchList:      n.getDNSSearchList(),
-	})
-	if err != nil {
-		return errors.Wrapf(err, "Failed adding DHCPv6 settings for internal switch")
-	}
-
-	// Generate internal router port IPs (in CIDR format).
+	// Internal router port IPs (in CIDR format).
 	intRouterIPs := []*net.IPNet{}
+
+	// Create DHCPv4 options for internal switch.
 	if routerIntPortIPv4Net != nil {
+		err = client.LogicalSwitchDHCPv4OptionsSet(n.getIntSwitchName(), dhcpv4UUID, routerIntPortIPv4Net, &openvswitch.OVNDHCPv4Opts{
+			ServerID:           routerIntPortIPv4,
+			ServerMAC:          routerMAC,
+			Router:             routerIntPortIPv4,
+			RecursiveDNSServer: uplinkNet.dnsIPv4,
+			DomainName:         n.getDomainName(),
+			LeaseTime:          time.Duration(time.Hour * 1),
+			MTU:                bridgeMTU,
+		})
+		if err != nil {
+			return errors.Wrapf(err, "Failed adding DHCPv4 settings for internal switch")
+		}
+
 		intRouterIPs = append(intRouterIPs, &net.IPNet{
 			IP:   routerIntPortIPv4,
 			Mask: routerIntPortIPv4Net.Mask,
 		})
 	}
 
+	// Create DHCPv6 options for internal switch.
 	if routerIntPortIPv6Net != nil {
+		err = client.LogicalSwitchDHCPv6OptionsSet(n.getIntSwitchName(), dhcpv6UUID, routerIntPortIPv6Net, &openvswitch.OVNDHCPv6Opts{
+			ServerID:           routerMAC,
+			RecursiveDNSServer: uplinkNet.dnsIPv6,
+			DNSSearchList:      n.getDNSSearchList(),
+		})
+		if err != nil {
+			return errors.Wrapf(err, "Failed adding DHCPv6 settings for internal switch")
+		}
+
 		intRouterIPs = append(intRouterIPs, &net.IPNet{
 			IP:   routerIntPortIPv6,
 			Mask: routerIntPortIPv6Net.Mask,
@@ -1582,6 +1588,10 @@ func (n *ovn) setup(update bool) error {
 	}
 
 	// Create internal router port.
+	if len(intRouterIPs) <= 0 {
+		return fmt.Errorf("No IPs defined for network router")
+	}
+
 	err = client.LogicalRouterPortAdd(n.getRouterName(), n.getRouterIntPortName(), routerMAC, intRouterIPs...)
 	if err != nil {
 		return errors.Wrapf(err, "Failed adding internal router port")
