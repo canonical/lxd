@@ -103,6 +103,7 @@ func qemuInstantiate(s *state.State, args db.InstanceArgs, expandedDevices devic
 	vm := &qemu{
 		common: common{
 			dbType:       args.Type,
+			architecture: args.Architecture,
 			localConfig:  args.Config,
 			localDevices: args.Devices,
 			project:      args.Project,
@@ -113,7 +114,6 @@ func qemuInstantiate(s *state.State, args db.InstanceArgs, expandedDevices devic
 		name:         args.Name,
 		description:  args.Description,
 		ephemeral:    args.Ephemeral,
-		architecture: args.Architecture,
 		snapshot:     args.Snapshot,
 		creationDate: args.CreationDate,
 		lastUsedDate: args.LastUsedDate,
@@ -155,6 +155,7 @@ func qemuCreate(s *state.State, args db.InstanceArgs) (instance.Instance, error)
 	vm := &qemu{
 		common: common{
 			dbType:       args.Type,
+			architecture: args.Architecture,
 			localConfig:  args.Config,
 			localDevices: args.Devices,
 			state:        s,
@@ -166,7 +167,6 @@ func qemuCreate(s *state.State, args db.InstanceArgs) (instance.Instance, error)
 		node:         args.Node,
 		description:  args.Description,
 		ephemeral:    args.Ephemeral,
-		architecture: args.Architecture,
 		snapshot:     args.Snapshot,
 		stateful:     args.Stateful,
 		creationDate: args.CreationDate,
@@ -312,7 +312,6 @@ type qemu struct {
 	common
 
 	// Properties.
-	architecture int
 	snapshot     bool
 	creationDate time.Time
 	lastUsedDate time.Time
@@ -4365,11 +4364,6 @@ func (vm *qemu) Name() string {
 // Description returns the instance's description.
 func (vm *qemu) Description() string {
 	return vm.description
-}
-
-// Architecture returns the instance's architecture.
-func (vm *qemu) Architecture() int {
-	return vm.architecture
 }
 
 // CreationDate returns the instance's creation date.

@@ -11,6 +11,7 @@ import (
 // common provides structure common to all instance types.
 type common struct {
 	dbType          instancetype.Type
+	architecture    int
 	devPaths        []string
 	expandedConfig  map[string]string
 	expandedDevices deviceConfig.Devices
@@ -29,6 +30,11 @@ func (c *common) Project() string {
 // Type returns the instance's type.
 func (c *common) Type() instancetype.Type {
 	return c.dbType
+}
+
+// Architecture returns the instance's architecture.
+func (c *common) Architecture() int {
+	return c.architecture
 }
 
 // ExpandedConfig returns instance's expanded config.
