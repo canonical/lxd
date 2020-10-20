@@ -554,7 +554,7 @@ func (c *cmdInit) askStoragePool(config *cmdInitData, d lxd.InstanceServer, pool
 
 				// Ask for the name of the cluster
 				pool.Config["source"] = cli.AskString("Name of the CEPHfs volume: ", "", nil)
-			} else if cli.AskBool("Would you like to use an existing empty disk or partition? (yes/no) [default=no]: ", "no") {
+			} else if cli.AskBool("Would you like to use an existing empty block device (e.g. a disk or partition)? (yes/no) [default=no]: ", "no") {
 				deviceExists := func(path string) error {
 					if !shared.IsBlockdevPath(path) {
 						return fmt.Errorf("'%s' is not a block device", path)
