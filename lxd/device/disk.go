@@ -541,6 +541,58 @@ func (d *disk) startVM() (*deviceConfig.RunConfig, error) {
 						time.Sleep(50 * time.Millisecond)
 					}
 				}
+
+				// Start virtiofsd as LXD prefers virtio-fs over 9p. The latter will only be used
+				// as a fallback.
+
+				// Create the socket in this directory instead of the devices directory. QEMU will otherwise
+				// fail with "Permission Denied" which is probably caused by qemu being called with --chroot.
+				sockPath := filepath.Join(d.inst.Path(), fmt.Sprintf("%s.sock", d.name))
+				logPath := filepath.Join(d.inst.LogPath(), fmt.Sprintf("disk.%s.log", d.name))
+
+				// Remove old socket if needed.
+				os.Remove(sockPath)
+
+				// Locate virtiofsd.
+				cmd, err := exec.LookPath("virtiofsd")
+				if err != nil {
+					if shared.PathExists("/usr/lib/qemu/virtiofsd") {
+						cmd = "/usr/lib/qemu/virtiofsd"
+					}
+				}
+
+				if cmd == "" {
+					return nil, fmt.Errorf("Required binary 'virtiofsd' couldn't be found")
+				}
+
+				// Start the virtiofsd process in non-daemon mode.
+				proc, err := subprocess.NewProcess(cmd, []string{fmt.Sprintf("--socket-path=%s", sockPath), "-o", fmt.Sprintf("source=%s", srcPath)}, logPath, logPath)
+				if err != nil {
+					return nil, err
+				}
+
+				err = proc.Start()
+				if err != nil {
+					return nil, errors.Wrapf(err, "Failed to start virtiofsd for device %q", d.name)
+				}
+
+				revert.Add(func() { proc.Stop() })
+
+				pidPath := filepath.Join(d.inst.DevicesPath(), fmt.Sprintf("virtio-fs.%s.pid", d.name))
+
+				err = proc.Save(pidPath)
+				if err != nil {
+					return nil, errors.Wrapf(err, "Failed to save virtiofsd state for device %q", d.name)
+				}
+
+				// Wait for socket file to exist
+				for i := 0; i < 10; i++ {
+					if shared.PathExists(sockPath) {
+						break
+					}
+
+					time.Sleep(50 * time.Millisecond)
+				}
 			}
 
 			runConf.Mounts = []deviceConfig.MountEntryItem{mount}
@@ -1147,9 +1199,8 @@ func (d *disk) Stop() (*deviceConfig.RunConfig, error) {
 }
 
 func (d *disk) stopVM() (*deviceConfig.RunConfig, error) {
-	pidPath := filepath.Join(d.inst.DevicesPath(), fmt.Sprintf("%s.pid", d.name))
-
 	// VM disk dir shares uses virtfs-proxy-helper, so we should stop that if it is running.
+	pidPath := filepath.Join(d.inst.DevicesPath(), fmt.Sprintf("%s.pid", d.name))
 	if shared.PathExists(pidPath) {
 		proc, err := subprocess.ImportProcess(pidPath)
 		if err != nil {
@@ -1164,6 +1215,26 @@ func (d *disk) stopVM() (*deviceConfig.RunConfig, error) {
 		// Remove PID file and socket file.
 		os.Remove(pidPath)
 		os.Remove(filepath.Join(d.inst.DevicesPath(), fmt.Sprintf("%s.sock", d.name)))
+	}
+
+	// And do the same for the virtiofsd export.
+	pidPath = filepath.Join(d.inst.DevicesPath(), fmt.Sprintf("virtio-fs.%s.pid", d.name))
+	if shared.PathExists(pidPath) {
+		proc, err := subprocess.ImportProcess(pidPath)
+		if err != nil {
+			return &deviceConfig.RunConfig{}, err
+		}
+
+		err = proc.Stop()
+		// virtiofsd will terminate automatically once the VM has stopped. We therefore should only
+		// return an error if it's a running process.
+		if err != nil && err != subprocess.ErrNotRunning {
+			return &deviceConfig.RunConfig{}, err
+		}
+
+		// Remove PID file and socket file.
+		os.Remove(pidPath)
+		os.Remove(filepath.Join(d.inst.Path(), fmt.Sprintf("%s.sock", d.name)))
 	}
 
 	runConf := deviceConfig.RunConfig{
