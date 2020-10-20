@@ -103,6 +103,7 @@ var patches = []patch{
 	{name: "move_backups_instances", stage: patchPostDaemonStorage, run: patchMoveBackupsInstances},
 	{name: "network_ovn_enable_nat", stage: patchPostDaemonStorage, run: patchNetworkOVNEnableNAT},
 	{name: "network_ovn_remove_routes", stage: patchPostDaemonStorage, run: patchNetworkOVNRemoveRoutes},
+	{name: "network_fan_enable_nat", stage: patchPostDaemonStorage, run: patchNetworkFANEnableNAT},
 }
 
 type patch struct {
@@ -166,6 +167,54 @@ func patchesApply(d *Daemon, stage patchStage) error {
 }
 
 // Patches begin here
+
+// patchNetworkFANEnableNAT sets "ipv4.nat=true" on fan bridges that are missing the "ipv4.nat" setting.
+// This prevents outbound connectivity breaking on existing fan networks now that the default behaviour of not
+// having "ipv4.nat" set is to disable NAT (bringing in line with the non-fan bridge behavior and docs).
+func patchNetworkFANEnableNAT(name string, d *Daemon) error {
+	err := d.cluster.Transaction(func(tx *db.ClusterTx) error {
+		projectNetworks, err := tx.GetNonPendingNetworks()
+		if err != nil {
+			return err
+		}
+
+		for _, networks := range projectNetworks {
+			for networkID, network := range networks {
+				if network.Type != "bridge" {
+					continue
+				}
+
+				if network.Config["bridge.mode"] != "fan" {
+					continue
+				}
+
+				modified := false
+
+				// Enable ipv4.nat if setting not specified.
+				if _, found := network.Config["ipv4.nat"]; !found {
+					modified = true
+					network.Config["ipv4.nat"] = "true"
+				}
+
+				if modified {
+					err = tx.UpdateNetwork(networkID, network.Description, network.Config)
+					if err != nil {
+						return errors.Wrapf(err, "Failed setting ipv4.nat=true for fan network %q (%d)", network.Name, networkID)
+					}
+
+					logger.Debugf("Set ipv4.nat=true for fan network %q (%d)", network.Name, networkID)
+				}
+			}
+		}
+
+		return nil
+	})
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
 
 // patchNetworkOVNRemoveRoutes removes the "ipv4.routes.external" and "ipv6.routes.external" settings from OVN
 // networks. It was decided that the OVN NIC level equivalent settings were sufficient.
