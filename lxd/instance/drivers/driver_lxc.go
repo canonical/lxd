@@ -3682,9 +3682,10 @@ func (c *lxc) Rename(newName string) error {
 	}
 
 	// Rename the logging path.
-	os.RemoveAll(shared.LogPath(newName))
+	newFullName := project.Instance(c.Project(), c.Name())
+	os.RemoveAll(shared.LogPath(newFullName))
 	if shared.PathExists(c.LogPath()) {
-		err := os.Rename(c.LogPath(), shared.LogPath(newName))
+		err := os.Rename(c.LogPath(), shared.LogPath(newFullName))
 		if err != nil {
 			logger.Error("Failed renaming container", ctxMap)
 			return err
@@ -4814,7 +4815,7 @@ func (c *lxc) Export(w io.Writer, properties map[string]string) (api.ImageMetada
 
 func collectCRIULogFile(c instance.Instance, imagesDir string, function string, method string) error {
 	t := time.Now().Format(time.RFC3339)
-	newPath := shared.LogPath(c.Name(), fmt.Sprintf("%s_%s_%s.log", function, method, t))
+	newPath := filepath.Join(c.LogPath(), fmt.Sprintf("%s_%s_%s.log", function, method, t))
 	return shared.FileCopy(filepath.Join(imagesDir, fmt.Sprintf("%s.log", method)), newPath)
 }
 
