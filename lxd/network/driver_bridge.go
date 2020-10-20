@@ -89,6 +89,11 @@ func (n *bridge) FillConfig(config map[string]string) error {
 		if config["fan.underlay_subnet"] == "" {
 			config["fan.underlay_subnet"] = "auto"
 		}
+
+		// We enable NAT by default even if address is manually specified.
+		if config["ipv4.nat"] == "" {
+			config["ipv4.nat"] = "true"
+		}
 	} else {
 		if config["ipv4.address"] == "" {
 			config["ipv4.address"] = "auto"
