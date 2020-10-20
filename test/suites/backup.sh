@@ -622,9 +622,11 @@ test_backup_volume_export_with_project() {
   rmdir "${LXD_DIR}/non-optimized"
 
   if [ "$#" -ne 0 ]; then
-    lxc image rm testimage
     lxc project switch default
+    lxc image rm testimage --project "$project"
+    lxc image rm testimage --project "$project-b"
     lxc project delete "$project"
+    lxc project delete "$project-b"
   fi
 }
 
