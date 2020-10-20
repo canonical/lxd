@@ -11,6 +11,7 @@ import (
 	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/instance/instancetype"
 	"github.com/lxc/lxd/shared"
+	"github.com/lxc/lxd/shared/osarch"
 	"github.com/lxc/lxd/shared/validate"
 )
 
@@ -47,6 +48,10 @@ func (d *usb) isRequired() bool {
 func (d *usb) validateConfig(instConf instance.ConfigReader) error {
 	if !instanceSupported(instConf.Type(), instancetype.Container, instancetype.VM) {
 		return ErrUnsupportedDevType
+	}
+
+	if instConf.Architecture() == osarch.ARCH_64BIT_S390_BIG_ENDIAN {
+		return fmt.Errorf("USB devices aren't supported on s390x")
 	}
 
 	rules := map[string]func(string) error{
