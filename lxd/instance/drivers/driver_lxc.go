@@ -2913,6 +2913,8 @@ func (c *lxc) onStop(args map[string]string) error {
 		if target == "reboot" {
 			// Start the container again
 			err = c.Start(false)
+			c.state.Events.SendLifecycle(c.project, "container-restarted",
+				fmt.Sprintf("/1.0/containers/%s", c.name), nil)
 			return
 		}
 
