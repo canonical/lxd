@@ -1755,15 +1755,18 @@ func (vm *qemu) generateQemuConfigFile(busName string, devConfs []*deviceConfig.
 		return "", err
 	}
 
-	devBus, devAddr, multi = bus.allocate(busFunctionGroupGeneric)
-	err = qemuUSB.Execute(sb, map[string]interface{}{
-		"bus":           bus.name,
-		"devBus":        devBus,
-		"devAddr":       devAddr,
-		"multifunction": multi,
-	})
-	if err != nil {
-		return "", err
+	// s390x doesn't really have USB.
+	if vm.architecture != osarch.ARCH_64BIT_S390_BIG_ENDIAN {
+		devBus, devAddr, multi = bus.allocate(busFunctionGroupGeneric)
+		err = qemuUSB.Execute(sb, map[string]interface{}{
+			"bus":           bus.name,
+			"devBus":        devBus,
+			"devAddr":       devAddr,
+			"multifunction": multi,
+		})
+		if err != nil {
+			return "", err
+		}
 	}
 
 	devBus, devAddr, multi = bus.allocate(busFunctionGroupNone)
