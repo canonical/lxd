@@ -640,14 +640,14 @@ func instanceCreateInternal(s *state.State, args db.InstanceArgs) (instance.Inst
 		s.Cluster.DeleteInstance(dbInst.Project, dbInst.Name)
 	}()
 
-	// Wipe any existing log for this instance name.
-	os.RemoveAll(shared.LogPath(args.Name))
-
 	args = db.InstanceToArgs(&dbInst)
 	inst, err := instance.Create(s, args)
 	if err != nil {
 		return nil, errors.Wrap(err, "Create instance")
 	}
+
+	// Wipe any existing log for this instance name.
+	os.RemoveAll(inst.LogPath())
 
 	revert = false
 	return inst, nil

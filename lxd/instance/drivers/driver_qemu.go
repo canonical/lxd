@@ -2647,9 +2647,10 @@ func (vm *qemu) Rename(newName string) error {
 	}
 
 	// Rename the logging path.
-	os.RemoveAll(shared.LogPath(newName))
+	newFullName := project.Instance(vm.Project(), vm.Name())
+	os.RemoveAll(shared.LogPath(newFullName))
 	if shared.PathExists(vm.LogPath()) {
-		err := os.Rename(vm.LogPath(), shared.LogPath(newName))
+		err := os.Rename(vm.LogPath(), shared.LogPath(newFullName))
 		if err != nil {
 			logger.Error("Failed renaming instance", ctxMap)
 			return err
