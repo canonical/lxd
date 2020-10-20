@@ -3682,9 +3682,10 @@ func (c *lxc) Rename(newName string) error {
 	}
 
 	// Rename the logging path.
-	os.RemoveAll(shared.LogPath(newName))
+	newFullName := project.Instance(c.Project(), c.Name())
+	os.RemoveAll(shared.LogPath(newFullName))
 	if shared.PathExists(c.LogPath()) {
-		err := os.Rename(c.LogPath(), shared.LogPath(newName))
+		err := os.Rename(c.LogPath(), shared.LogPath(newFullName))
 		if err != nil {
 			logger.Error("Failed renaming container", ctxMap)
 			return err
