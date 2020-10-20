@@ -81,6 +81,51 @@ func (d *zfs) checkDataset(dataset string) bool {
 	return strings.TrimSpace(out) == dataset
 }
 
+func (d *zfs) deleteDatasetRecursive(dataset string) error {
+	// Locate the origin snapshot (if any).
+	origin, err := d.getDatasetProperty(dataset, "origin")
+	if err != nil {
+		return err
+	}
+
+	// Delete the dataset (and any snapshots left).
+	_, err = shared.RunCommand("zfs", "destroy", "-r", dataset)
+	if err != nil {
+		return err
+	}
+
+	// Check if the origin can now be deleted.
+	if origin != "" && origin != "-" {
+		if strings.HasPrefix(origin, filepath.Join(d.config["zfs.pool_name"], "deleted")) {
+			// Strip the snapshot name when dealing with a deleted volume.
+			dataset = strings.SplitN(origin, "@", 2)[0]
+		} else if strings.Contains(origin, "@deleted-") || strings.Contains(origin, "@copy-") {
+			// Handle deleted snapshots.
+			dataset = origin
+		} else {
+			// Origin is still active.
+			dataset = ""
+		}
+
+		if dataset != "" {
+			// Get all clones.
+			clones, err := d.getClones(dataset)
+			if err != nil {
+				return err
+			}
+
+			if len(clones) == 0 {
+				// Delete the origin.
+				err = d.deleteDatasetRecursive(dataset)
+				if err != nil {
+					return err
+				}
+			}
+		}
+	}
+	return nil
+}
+
 func (d *zfs) getClones(dataset string) ([]string, error) {
 	out, err := shared.RunCommand("zfs", "get", "-H", "-p", "-r", "-o", "value", "clones", dataset)
 	if err != nil {
