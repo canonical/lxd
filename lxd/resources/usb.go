@@ -186,7 +186,7 @@ func GetUSB() (*api.ResourcesUSB, error) {
 					return nil, errors.Wrapf(err, "Failed to parse class ID %q", content)
 				}
 
-				ok := false
+				var ok bool
 
 				class, ok = usbid.Classes[usbid.ClassCode(iface.ClassID)]
 				if ok {
