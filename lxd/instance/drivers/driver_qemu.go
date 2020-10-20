@@ -544,6 +544,8 @@ func (vm *qemu) onStop(target string) error {
 
 	if target == "reboot" {
 		err = vm.Start(false)
+		vm.state.Events.SendLifecycle(vm.project, "virtual-machine-restarted",
+			fmt.Sprintf("/1.0/virtual-machines/%s", vm.name), nil)
 	} else if vm.ephemeral {
 		// Destroy ephemeral virtual machines
 		err = vm.Delete()
