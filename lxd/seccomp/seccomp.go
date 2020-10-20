@@ -2026,7 +2026,7 @@ func (s *Server) MountSyscallShift(c Instance) bool {
 	return false
 }
 
-var pageSize int = 4096
+var pageSize = 4096
 
 func init() {
 	tmp := unix.Getpagesize()
