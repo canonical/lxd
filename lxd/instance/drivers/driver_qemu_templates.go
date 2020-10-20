@@ -279,9 +279,10 @@ mem-path = "{{$hugepages}}"
 prealloc = "on"
 discard-data = "on"
 {{- else}}
-qom-type = "memory-backend-ram"
+qom-type = "memory-backend-memfd"
 {{- end }}
 size = "{{$memory}}M"
+share = "on"
 
 [numa]
 type = "node"
