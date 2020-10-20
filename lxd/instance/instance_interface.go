@@ -35,6 +35,7 @@ const (
 type ConfigReader interface {
 	Project() string
 	Type() instancetype.Type
+	Architecture() int
 	ExpandedConfig() map[string]string
 	ExpandedDevices() deviceConfig.Devices
 	LocalConfig() map[string]string
@@ -105,7 +106,6 @@ type Instance interface {
 	Location() string
 	Name() string
 	Description() string
-	Architecture() int
 	CreationDate() time.Time
 	LastUsedDate() time.Time
 
