@@ -433,12 +433,9 @@ func (d *lvm) GetVolumeDiskPath(vol Volume) (string, error) {
 
 // MountVolume mounts a volume. Returns true if this volume was our mount.
 func (d *lvm) MountVolume(vol Volume, op *operations.Operation) (bool, error) {
-	var err error
-	activated := false
-
 	// Activate LVM volume if needed.
 	volDevPath := d.lvmDevPath(d.config["lvm.vg_name"], vol.volType, vol.contentType, vol.name)
-	activated, err = d.activateVolume(volDevPath)
+	activated, err := d.activateVolume(volDevPath)
 	if err != nil {
 		return false, err
 	}
