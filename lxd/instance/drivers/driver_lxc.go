@@ -145,6 +145,7 @@ func lxcCreate(s *state.State, args db.InstanceArgs) (instance.Instance, error) 
 	c := &lxc{
 		common: common{
 			dbType:       args.Type,
+			architecture: args.Architecture,
 			localConfig:  args.Config,
 			localDevices: args.Devices,
 			project:      args.Project,
@@ -156,7 +157,6 @@ func lxcCreate(s *state.State, args db.InstanceArgs) (instance.Instance, error) 
 		node:         args.Node,
 		description:  args.Description,
 		ephemeral:    args.Ephemeral,
-		architecture: args.Architecture,
 		snapshot:     args.Snapshot,
 		stateful:     args.Stateful,
 		creationDate: args.CreationDate,
@@ -403,6 +403,7 @@ func lxcInstantiate(s *state.State, args db.InstanceArgs, expandedDevices device
 	c := &lxc{
 		common: common{
 			dbType:       args.Type,
+			architecture: args.Architecture,
 			localConfig:  args.Config,
 			localDevices: args.Devices,
 			project:      args.Project,
@@ -413,7 +414,6 @@ func lxcInstantiate(s *state.State, args db.InstanceArgs, expandedDevices device
 		name:         args.Name,
 		description:  args.Description,
 		ephemeral:    args.Ephemeral,
-		architecture: args.Architecture,
 		snapshot:     args.Snapshot,
 		creationDate: args.CreationDate,
 		lastUsedDate: args.LastUsedDate,
@@ -448,7 +448,6 @@ type lxc struct {
 	common
 
 	// Properties
-	architecture int
 	snapshot     bool
 	creationDate time.Time
 	lastUsedDate time.Time
@@ -6636,11 +6635,6 @@ func (c *lxc) IsRunning() bool {
 // IsSnapshot returns if instance is a snapshot.
 func (c *lxc) IsSnapshot() bool {
 	return c.snapshot
-}
-
-// Architecture returns architecture of instance.
-func (c *lxc) Architecture() int {
-	return c.architecture
 }
 
 // CreationDate returns creation date of instance.
