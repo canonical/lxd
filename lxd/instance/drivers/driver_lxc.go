@@ -2077,6 +2077,22 @@ func (c *lxc) startCommon() (string, []func() error, error) {
 		return "", postStartHooks, err
 	}
 
+	// Rotate the log file.
+	logfile := c.LogFilePath()
+	if shared.PathExists(logfile) {
+		os.Remove(logfile + ".old")
+		err := os.Rename(logfile, logfile+".old")
+		if err != nil {
+			return "", postStartHooks, err
+		}
+	}
+
+	// Mount instance root volume.
+	ourStart, err = c.mount()
+	if err != nil {
+		return "", postStartHooks, err
+	}
+
 	// Create the devices
 	nicID := -1
 
@@ -2222,22 +2238,6 @@ func (c *lxc) startCommon() (string, []func() error, error) {
 		if len(runConf.PostHooks) > 0 {
 			postStartHooks = append(postStartHooks, runConf.PostHooks...)
 		}
-	}
-
-	// Rotate the log file
-	logfile := c.LogFilePath()
-	if shared.PathExists(logfile) {
-		os.Remove(logfile + ".old")
-		err := os.Rename(logfile, logfile+".old")
-		if err != nil {
-			return "", postStartHooks, err
-		}
-	}
-
-	// Storage is guaranteed to be mountable now (must be called after devices setup).
-	ourStart, err = c.mount()
-	if err != nil {
-		return "", postStartHooks, err
 	}
 
 	// Generate the LXC config
