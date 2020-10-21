@@ -565,16 +565,14 @@ func (d *zfs) CreateVolumeFromCopy(vol Volume, srcVol Volume, copySnapshots bool
 		}
 	} else {
 		// Perform volume clone.
-		args := []string{
-			"clone",
-			srcSnapshot,
-			d.dataset(vol, false),
-		}
+		args := []string{"clone"}
 
 		if vol.contentType == ContentTypeBlock {
 			// Use volmode=none so volume is invisible until mounted.
 			args = append(args, "-o", "volmode=none")
 		}
+
+		args = append(args, srcSnapshot, d.dataset(vol, false))
 
 		// Clone the snapshot.
 		_, err := shared.RunCommand("zfs", args...)
