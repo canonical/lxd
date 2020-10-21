@@ -149,7 +149,7 @@ func (d *mock) MountVolume(vol Volume, op *operations.Operation) (bool, error) {
 
 // UnmountVolume simulates unmounting a volume. As dir driver doesn't have volumes to unmount it
 // returns false indicating the volume was already unmounted.
-func (d *mock) UnmountVolume(vol Volume, op *operations.Operation) (bool, error) {
+func (d *mock) UnmountVolume(vol Volume, keepBlockDev bool, op *operations.Operation) (bool, error) {
 	return false, nil
 }
 
