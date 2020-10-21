@@ -416,7 +416,7 @@ func (d *zfs) CreateVolumeFromBackup(vol Volume, srcBackup backup.Info, srcData 
 		}
 
 		postHook = func(vol Volume) error {
-			_, err := d.UnmountVolume(vol, op)
+			_, err := d.UnmountVolume(vol, false, op)
 			return err
 		}
 	}
@@ -1184,7 +1184,7 @@ func (d *zfs) MigrateVolume(vol Volume, conn io.ReadWriteCloser, volSrcArgs *mig
 			return err
 		}
 		if ourMount {
-			defer d.UnmountVolume(parentVol, op)
+			defer d.UnmountVolume(parentVol, false, op)
 		}
 
 		return genericVFSMigrateVolume(d, d.state, vol, conn, volSrcArgs, op)
@@ -1288,7 +1288,7 @@ func (d *zfs) BackupVolume(vol Volume, tarWriter *instancewriter.InstanceTarWrit
 			}
 
 			if ourMount {
-				defer d.UnmountVolume(parentVol, op)
+				defer d.UnmountVolume(parentVol, false, op)
 			}
 		}
 
