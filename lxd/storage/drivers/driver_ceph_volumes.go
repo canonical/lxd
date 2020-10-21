@@ -610,7 +610,7 @@ func (d *ceph) DeleteVolume(vol Volume, op *operations.Operation) error {
 
 	if vol.volType == VolumeTypeImage {
 		// Try to umount but don't fail.
-		d.UnmountVolume(vol, op)
+		d.UnmountVolume(vol, false, op)
 
 		// Check if image has dependant snapshots.
 		_, err := d.rbdListSnapshotClones(vol, "readonly")
@@ -658,7 +658,7 @@ func (d *ceph) DeleteVolume(vol Volume, op *operations.Operation) error {
 			return err
 		}
 	} else {
-		_, err := d.UnmountVolume(vol, op)
+		_, err := d.UnmountVolume(vol, false, op)
 		if err != nil {
 			return err
 		}
@@ -980,7 +980,7 @@ func (d *ceph) UnmountVolume(vol Volume, op *operations.Operation) (bool, error)
 	// For VMs, unmount the filesystem volume.
 	if vol.IsVMBlock() {
 		fsVol := vol.NewVMBlockFilesystemVolume()
-		return d.UnmountVolume(fsVol, op)
+		return d.UnmountVolume(fsVol, false, op)
 	}
 
 	return false, nil
@@ -991,7 +991,7 @@ func (d *ceph) RenameVolume(vol Volume, newName string, op *operations.Operation
 	revert := revert.New()
 	defer revert.Fail()
 
-	_, err := d.UnmountVolume(vol, op)
+	_, err := d.UnmountVolume(vol, false, op)
 	if err != nil {
 		return err
 	}
@@ -1419,7 +1419,7 @@ func (d *ceph) VolumeSnapshots(vol Volume, op *operations.Operation) ([]string, 
 
 // RestoreVolume restores a volume from a snapshot.
 func (d *ceph) RestoreVolume(vol Volume, snapshotName string, op *operations.Operation) error {
-	ourUmount, err := d.UnmountVolume(vol, op)
+	ourUmount, err := d.UnmountVolume(vol, false, op)
 	if err != nil {
 		return err
 	}
