@@ -67,7 +67,7 @@ type Driver interface {
 
 	// UnmountVolume unmounts a storage volume, returns true if unmounted, false if was not
 	// mounted.
-	UnmountVolume(vol Volume, op *operations.Operation) (bool, error)
+	UnmountVolume(vol Volume, keepBlockDev bool, op *operations.Operation) (bool, error)
 
 	// UnmountVolume unmounts a storage volume snapshot, returns true if unmounted, false if was
 	// not mounted.

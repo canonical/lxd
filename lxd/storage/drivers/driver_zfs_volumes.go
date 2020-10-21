@@ -416,7 +416,7 @@ func (d *zfs) CreateVolumeFromBackup(vol Volume, srcBackup backup.Info, srcData 
 		}
 
 		postHook = func(vol Volume) error {
-			_, err := d.UnmountVolume(vol, op)
+			_, err := d.UnmountVolume(vol, false, op)
 			return err
 		}
 	}
@@ -1073,21 +1073,22 @@ func (d *zfs) MountVolume(vol Volume, op *operations.Operation) (bool, error) {
 }
 
 // UnmountVolume simulates unmounting a volume.
-func (d *zfs) UnmountVolume(vol Volume, op *operations.Operation) (bool, error) {
+// keepBlockDev indicates if backing block device should be not be deactivated if volume is unmounted.
+func (d *zfs) UnmountVolume(vol Volume, keepBlockDev bool, op *operations.Operation) (bool, error) {
 	mountPath := vol.MountPath()
 	dataset := d.dataset(vol, false)
 
 	// For VMs, also mount the filesystem dataset.
 	if vol.IsVMBlock() {
 		fsVol := vol.NewVMBlockFilesystemVolume()
-		_, err := d.UnmountVolume(fsVol, op)
+		_, err := d.UnmountVolume(fsVol, false, op)
 		if err != nil {
 			return false, err
 		}
 	}
 
 	// For block devices, we make them disappear.
-	if vol.contentType == ContentTypeBlock {
+	if vol.contentType == ContentTypeBlock && !keepBlockDev {
 		err := d.setDatasetProperties(dataset, "volmode=none")
 		if err != nil {
 			return false, err
@@ -1183,7 +1184,7 @@ func (d *zfs) MigrateVolume(vol Volume, conn io.ReadWriteCloser, volSrcArgs *mig
 			return err
 		}
 		if ourMount {
-			defer d.UnmountVolume(parentVol, op)
+			defer d.UnmountVolume(parentVol, false, op)
 		}
 
 		return genericVFSMigrateVolume(d, d.state, vol, conn, volSrcArgs, op)
@@ -1287,7 +1288,7 @@ func (d *zfs) BackupVolume(vol Volume, tarWriter *instancewriter.InstanceTarWrit
 			}
 
 			if ourMount {
-				defer d.UnmountVolume(parentVol, op)
+				defer d.UnmountVolume(parentVol, false, op)
 			}
 		}
 

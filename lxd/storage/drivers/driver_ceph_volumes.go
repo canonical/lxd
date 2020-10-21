@@ -610,7 +610,7 @@ func (d *ceph) DeleteVolume(vol Volume, op *operations.Operation) error {
 
 	if vol.volType == VolumeTypeImage {
 		// Try to umount but don't fail.
-		d.UnmountVolume(vol, op)
+		d.UnmountVolume(vol, false, op)
 
 		// Check if image has dependant snapshots.
 		_, err := d.rbdListSnapshotClones(vol, "readonly")
@@ -658,7 +658,7 @@ func (d *ceph) DeleteVolume(vol Volume, op *operations.Operation) error {
 			return err
 		}
 	} else {
-		_, err := d.UnmountVolume(vol, op)
+		_, err := d.UnmountVolume(vol, false, op)
 		if err != nil {
 			return err
 		}
@@ -950,7 +950,8 @@ func (d *ceph) MountVolume(vol Volume, op *operations.Operation) (bool, error) {
 }
 
 // UnmountVolume simulates unmounting a volume.
-func (d *ceph) UnmountVolume(vol Volume, op *operations.Operation) (bool, error) {
+// keepBlockDev indicates if backing block device should be not be unmapped if volume is unmounted.
+func (d *ceph) UnmountVolume(vol Volume, keepBlockDev bool, op *operations.Operation) (bool, error) {
 	// Attempt to unmount the volume.
 	mountPath := vol.MountPath()
 	if vol.contentType == ContentTypeFS && shared.IsMountPoint(mountPath) {
@@ -958,18 +959,20 @@ func (d *ceph) UnmountVolume(vol Volume, op *operations.Operation) (bool, error)
 		if err != nil {
 			return false, err
 		}
-		d.logger.Debug("Unmounted RBD volume", log.Ctx{"path": mountPath})
+		d.logger.Debug("Unmounted RBD volume", log.Ctx{"path": mountPath, "keepBlockDev": keepBlockDev})
 
 		// Attempt to unmap.
-		err = d.rbdUnmapVolume(vol, true)
-		if err != nil {
-			return false, err
+		if !keepBlockDev {
+			err = d.rbdUnmapVolume(vol, true)
+			if err != nil {
+				return false, err
+			}
 		}
 
 		return true, nil
 	}
 
-	if vol.contentType == ContentTypeBlock {
+	if vol.contentType == ContentTypeBlock && !keepBlockDev {
 		// Attempt to unmap.
 		err := d.rbdUnmapVolume(vol, true)
 		if err != nil {
@@ -980,7 +983,7 @@ func (d *ceph) UnmountVolume(vol Volume, op *operations.Operation) (bool, error)
 	// For VMs, unmount the filesystem volume.
 	if vol.IsVMBlock() {
 		fsVol := vol.NewVMBlockFilesystemVolume()
-		return d.UnmountVolume(fsVol, op)
+		return d.UnmountVolume(fsVol, false, op)
 	}
 
 	return false, nil
@@ -991,7 +994,7 @@ func (d *ceph) RenameVolume(vol Volume, newName string, op *operations.Operation
 	revert := revert.New()
 	defer revert.Fail()
 
-	_, err := d.UnmountVolume(vol, op)
+	_, err := d.UnmountVolume(vol, false, op)
 	if err != nil {
 		return err
 	}
@@ -1419,7 +1422,7 @@ func (d *ceph) VolumeSnapshots(vol Volume, op *operations.Operation) ([]string, 
 
 // RestoreVolume restores a volume from a snapshot.
 func (d *ceph) RestoreVolume(vol Volume, snapshotName string, op *operations.Operation) error {
-	ourUmount, err := d.UnmountVolume(vol, op)
+	ourUmount, err := d.UnmountVolume(vol, false, op)
 	if err != nil {
 		return err
 	}
