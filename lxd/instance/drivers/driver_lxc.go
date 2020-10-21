@@ -1936,17 +1936,15 @@ func (c *lxc) startCommon() (string, []func() error, error) {
 	revert := revert.New()
 	defer revert.Fail()
 
-	postStartHooks := []func() error{}
-
 	// Load the go-lxc struct
 	err := c.initLXC(true)
 	if err != nil {
-		return "", postStartHooks, errors.Wrap(err, "Load go-lxc struct")
+		return "", nil, errors.Wrap(err, "Load go-lxc struct")
 	}
 
 	// Check that we're not already running
 	if c.IsRunning() {
-		return "", postStartHooks, fmt.Errorf("The container is already running")
+		return "", nil, fmt.Errorf("The container is already running")
 	}
 
 	// Load any required kernel modules
@@ -1956,7 +1954,7 @@ func (c *lxc) startCommon() (string, []func() error, error) {
 			module = strings.TrimPrefix(module, " ")
 			err := util.LoadModule(module)
 			if err != nil {
-				return "", postStartHooks, fmt.Errorf("Failed to load kernel module '%s': %s", module, err)
+				return "", nil, fmt.Errorf("Failed to load kernel module '%s': %s", module, err)
 			}
 		}
 	}
@@ -1964,17 +1962,17 @@ func (c *lxc) startCommon() (string, []func() error, error) {
 	/* Deal with idmap changes */
 	nextIdmap, err := c.NextIdmap()
 	if err != nil {
-		return "", postStartHooks, errors.Wrap(err, "Set ID map")
+		return "", nil, errors.Wrap(err, "Set ID map")
 	}
 
 	diskIdmap, err := c.DiskIdmap()
 	if err != nil {
-		return "", postStartHooks, errors.Wrap(err, "Set last ID map")
+		return "", nil, errors.Wrap(err, "Set last ID map")
 	}
 
 	if !nextIdmap.Equals(diskIdmap) && !(diskIdmap == nil && c.state.OS.Shiftfs) {
 		if shared.IsTrue(c.expandedConfig["security.protection.shift"]) {
-			return "", postStartHooks, fmt.Errorf("Container is protected against filesystem shifting")
+			return "", nil, fmt.Errorf("Container is protected against filesystem shifting")
 		}
 
 		logger.Debugf("Container idmap changed, remapping")
@@ -1982,12 +1980,12 @@ func (c *lxc) startCommon() (string, []func() error, error) {
 
 		ourStart, err = c.mount()
 		if err != nil {
-			return "", postStartHooks, errors.Wrap(err, "Storage start")
+			return "", nil, errors.Wrap(err, "Storage start")
 		}
 
 		storageType, err := c.getStorageType()
 		if err != nil {
-			return "", postStartHooks, errors.Wrap(err, "Storage type")
+			return "", nil, errors.Wrap(err, "Storage type")
 		}
 
 		if diskIdmap != nil {
@@ -2002,7 +2000,7 @@ func (c *lxc) startCommon() (string, []func() error, error) {
 				if ourStart {
 					c.unmount()
 				}
-				return "", postStartHooks, err
+				return "", nil, err
 			}
 		}
 
@@ -2018,7 +2016,7 @@ func (c *lxc) startCommon() (string, []func() error, error) {
 				if ourStart {
 					c.unmount()
 				}
-				return "", postStartHooks, err
+				return "", nil, err
 			}
 		}
 
@@ -2026,14 +2024,14 @@ func (c *lxc) startCommon() (string, []func() error, error) {
 		if nextIdmap != nil && !c.state.OS.Shiftfs {
 			idmapBytes, err := json.Marshal(nextIdmap.Idmap)
 			if err != nil {
-				return "", postStartHooks, err
+				return "", nil, err
 			}
 			jsonDiskIdmap = string(idmapBytes)
 		}
 
 		err = c.VolatileSet(map[string]string{"volatile.last_state.idmap": jsonDiskIdmap})
 		if err != nil {
-			return "", postStartHooks, errors.Wrapf(err, "Set volatile.last_state.idmap config key on container %q (id %d)", c.name, c.id)
+			return "", nil, errors.Wrapf(err, "Set volatile.last_state.idmap config key on container %q (id %d)", c.name, c.id)
 		}
 
 		c.updateProgress("")
@@ -2045,20 +2043,20 @@ func (c *lxc) startCommon() (string, []func() error, error) {
 	} else {
 		idmapBytes, err = json.Marshal(nextIdmap.Idmap)
 		if err != nil {
-			return "", postStartHooks, err
+			return "", nil, err
 		}
 	}
 
 	if c.localConfig["volatile.idmap.current"] != string(idmapBytes) {
 		err = c.VolatileSet(map[string]string{"volatile.idmap.current": string(idmapBytes)})
 		if err != nil {
-			return "", postStartHooks, errors.Wrapf(err, "Set volatile.idmap.current config key on container %q (id %d)", c.name, c.id)
+			return "", nil, errors.Wrapf(err, "Set volatile.idmap.current config key on container %q (id %d)", c.name, c.id)
 		}
 	}
 
 	// Generate the Seccomp profile
 	if err := seccomp.CreateProfile(c.state, c); err != nil {
-		return "", postStartHooks, err
+		return "", nil, err
 	}
 
 	// Cleanup any existing leftover devices
@@ -2068,17 +2066,17 @@ func (c *lxc) startCommon() (string, []func() error, error) {
 	// Create any missing directories.
 	err = os.MkdirAll(c.LogPath(), 0700)
 	if err != nil {
-		return "", postStartHooks, err
+		return "", nil, err
 	}
 
 	err = os.MkdirAll(c.DevicesPath(), 0711)
 	if err != nil {
-		return "", postStartHooks, err
+		return "", nil, err
 	}
 
 	err = os.MkdirAll(c.ShmountsPath(), 0711)
 	if err != nil {
-		return "", postStartHooks, err
+		return "", nil, err
 	}
 
 	// Rotate the log file.
@@ -2087,17 +2085,18 @@ func (c *lxc) startCommon() (string, []func() error, error) {
 		os.Remove(logfile + ".old")
 		err := os.Rename(logfile, logfile+".old")
 		if err != nil {
-			return "", postStartHooks, err
+			return "", nil, err
 		}
 	}
 
 	// Mount instance root volume.
 	ourStart, err = c.mount()
 	if err != nil {
-		return "", postStartHooks, err
+		return "", nil, err
 	}
 
 	// Create the devices
+	postStartHooks := []func() error{}
 	nicID := -1
 
 	// Setup devices in sorted order, this ensures that device mounts are added in path order.
@@ -2107,7 +2106,7 @@ func (c *lxc) startCommon() (string, []func() error, error) {
 		// Start the device.
 		runConf, err := c.deviceStart(dev.Name, dev.Config, false)
 		if err != nil {
-			return "", postStartHooks, errors.Wrapf(err, "Failed to start device %q", dev.Name)
+			return "", nil, errors.Wrapf(err, "Failed to start device %q", dev.Name)
 		}
 
 		// Stop device on failure to setup container, pass non-empty stopHookNetnsPath so that stop code
@@ -2143,13 +2142,13 @@ func (c *lxc) startCommon() (string, []func() error, error) {
 			}
 
 			if err != nil {
-				return "", postStartHooks, errors.Wrapf(err, "Failed to setup device rootfs '%s'", dev.Name)
+				return "", nil, errors.Wrapf(err, "Failed to setup device rootfs '%s'", dev.Name)
 			}
 
 			if len(runConf.RootFS.Opts) > 0 {
 				err = lxcSetConfigItem(c.c, "lxc.rootfs.options", strings.Join(runConf.RootFS.Opts, ","))
 				if err != nil {
-					return "", postStartHooks, errors.Wrapf(err, "Failed to setup device rootfs '%s'", dev.Name)
+					return "", nil, errors.Wrapf(err, "Failed to setup device rootfs '%s'", dev.Name)
 				}
 			}
 
@@ -2157,19 +2156,19 @@ func (c *lxc) startCommon() (string, []func() error, error) {
 				// Host side mark mount.
 				err = lxcSetConfigItem(c.c, "lxc.hook.pre-start", fmt.Sprintf("/bin/mount -t shiftfs -o mark,passthrough=3 %s %s", c.RootfsPath(), c.RootfsPath()))
 				if err != nil {
-					return "", postStartHooks, errors.Wrapf(err, "Failed to setup device mount shiftfs '%s'", dev.Name)
+					return "", nil, errors.Wrapf(err, "Failed to setup device mount shiftfs '%s'", dev.Name)
 				}
 
 				// Container side shift mount.
 				err = lxcSetConfigItem(c.c, "lxc.hook.pre-mount", fmt.Sprintf("/bin/mount -t shiftfs -o passthrough=3 %s %s", c.RootfsPath(), c.RootfsPath()))
 				if err != nil {
-					return "", postStartHooks, errors.Wrapf(err, "Failed to setup device mount shiftfs '%s'", dev.Name)
+					return "", nil, errors.Wrapf(err, "Failed to setup device mount shiftfs '%s'", dev.Name)
 				}
 
 				// Host side umount of mark mount.
 				err = lxcSetConfigItem(c.c, "lxc.hook.start-host", fmt.Sprintf("/bin/umount -l %s", c.RootfsPath()))
 				if err != nil {
-					return "", postStartHooks, errors.Wrapf(err, "Failed to setup device mount shiftfs '%s'", dev.Name)
+					return "", nil, errors.Wrapf(err, "Failed to setup device mount shiftfs '%s'", dev.Name)
 				}
 			}
 		}
@@ -2179,7 +2178,7 @@ func (c *lxc) startCommon() (string, []func() error, error) {
 			for _, rule := range runConf.CGroups {
 				err = lxcSetConfigItem(c.c, fmt.Sprintf("lxc.cgroup.%s", rule.Key), rule.Value)
 				if err != nil {
-					return "", postStartHooks, errors.Wrapf(err, "Failed to setup device cgroup '%s'", dev.Name)
+					return "", nil, errors.Wrapf(err, "Failed to setup device cgroup '%s'", dev.Name)
 				}
 			}
 		}
@@ -2188,34 +2187,34 @@ func (c *lxc) startCommon() (string, []func() error, error) {
 		if len(runConf.Mounts) > 0 {
 			for _, mount := range runConf.Mounts {
 				if shared.StringInSlice("propagation", mount.Opts) && !util.RuntimeLiblxcVersionAtLeast(3, 0, 0) {
-					return "", postStartHooks, errors.Wrapf(fmt.Errorf("liblxc 3.0 is required for mount propagation configuration"), "Failed to setup device mount '%s'", dev.Name)
+					return "", nil, errors.Wrapf(fmt.Errorf("liblxc 3.0 is required for mount propagation configuration"), "Failed to setup device mount '%s'", dev.Name)
 				}
 
 				if mount.OwnerShift == deviceConfig.MountOwnerShiftDynamic && !c.IsPrivileged() {
 					if !c.state.OS.Shiftfs {
-						return "", postStartHooks, errors.Wrapf(fmt.Errorf("shiftfs is required but isn't supported on system"), "Failed to setup device mount '%s'", dev.Name)
+						return "", nil, errors.Wrapf(fmt.Errorf("shiftfs is required but isn't supported on system"), "Failed to setup device mount '%s'", dev.Name)
 					}
 
 					err = lxcSetConfigItem(c.c, "lxc.hook.pre-start", fmt.Sprintf("/bin/mount -t shiftfs -o mark,passthrough=3 %s %s", mount.DevPath, mount.DevPath))
 					if err != nil {
-						return "", postStartHooks, errors.Wrapf(err, "Failed to setup device mount shiftfs '%s'", dev.Name)
+						return "", nil, errors.Wrapf(err, "Failed to setup device mount shiftfs '%s'", dev.Name)
 					}
 
 					err = lxcSetConfigItem(c.c, "lxc.hook.pre-mount", fmt.Sprintf("/bin/mount -t shiftfs -o passthrough=3 %s %s", mount.DevPath, mount.DevPath))
 					if err != nil {
-						return "", postStartHooks, errors.Wrapf(err, "Failed to setup device mount shiftfs '%s'", dev.Name)
+						return "", nil, errors.Wrapf(err, "Failed to setup device mount shiftfs '%s'", dev.Name)
 					}
 
 					err = lxcSetConfigItem(c.c, "lxc.hook.start-host", fmt.Sprintf("/bin/umount -l %s", mount.DevPath))
 					if err != nil {
-						return "", postStartHooks, errors.Wrapf(err, "Failed to setup device mount shiftfs '%s'", dev.Name)
+						return "", nil, errors.Wrapf(err, "Failed to setup device mount shiftfs '%s'", dev.Name)
 					}
 				}
 
 				mntVal := fmt.Sprintf("%s %s %s %s %d %d", shared.EscapePathFstab(mount.DevPath), shared.EscapePathFstab(mount.TargetPath), mount.FSType, strings.Join(mount.Opts, ","), mount.Freq, mount.PassNo)
 				err = lxcSetConfigItem(c.c, "lxc.mount.entry", mntVal)
 				if err != nil {
-					return "", postStartHooks, errors.Wrapf(err, "Failed to setup device mount '%s'", dev.Name)
+					return "", nil, errors.Wrapf(err, "Failed to setup device mount '%s'", dev.Name)
 				}
 			}
 		}
@@ -2233,7 +2232,7 @@ func (c *lxc) startCommon() (string, []func() error, error) {
 			for _, nicItem := range runConf.NetworkInterface {
 				err = lxcSetConfigItem(c.c, fmt.Sprintf("%s.%d.%s", networkKeyPrefix, nicID, nicItem.Key), nicItem.Value)
 				if err != nil {
-					return "", postStartHooks, errors.Wrapf(err, "Failed to setup device network interface '%s'", dev.Name)
+					return "", nil, errors.Wrapf(err, "Failed to setup device network interface '%s'", dev.Name)
 				}
 			}
 		}
@@ -2249,7 +2248,7 @@ func (c *lxc) startCommon() (string, []func() error, error) {
 	err = c.c.SaveConfigFile(configPath)
 	if err != nil {
 		os.Remove(configPath)
-		return "", postStartHooks, err
+		return "", nil, err
 	}
 
 	// Set ownership to match container root
@@ -2258,7 +2257,7 @@ func (c *lxc) startCommon() (string, []func() error, error) {
 		if ourStart {
 			c.unmount()
 		}
-		return "", postStartHooks, err
+		return "", nil, err
 	}
 
 	uid := int64(0)
@@ -2271,7 +2270,7 @@ func (c *lxc) startCommon() (string, []func() error, error) {
 		if ourStart {
 			c.unmount()
 		}
-		return "", postStartHooks, err
+		return "", nil, err
 	}
 
 	// We only need traversal by root in the container
@@ -2280,7 +2279,7 @@ func (c *lxc) startCommon() (string, []func() error, error) {
 		if ourStart {
 			c.unmount()
 		}
-		return "", postStartHooks, err
+		return "", nil, err
 	}
 
 	// Update the backup.yaml file
@@ -2289,7 +2288,7 @@ func (c *lxc) startCommon() (string, []func() error, error) {
 		if ourStart {
 			c.unmount()
 		}
-		return "", postStartHooks, err
+		return "", nil, err
 	}
 
 	// If starting stateless, wipe state
