@@ -188,7 +188,7 @@ func (d *lvm) DeleteVolume(vol Volume, op *operations.Operation) error {
 
 	if lvExists {
 		if vol.contentType == ContentTypeFS {
-			_, err = d.UnmountVolume(vol, op)
+			_, err = d.UnmountVolume(vol, false, op)
 			if err != nil {
 				return errors.Wrapf(err, "Error unmounting LVM logical volume")
 			}
@@ -502,7 +502,7 @@ func (d *lvm) UnmountVolume(vol Volume, op *operations.Operation) (bool, error) 
 	// For VMs, unmount the filesystem volume.
 	if vol.IsVMBlock() {
 		fsVol := vol.NewVMBlockFilesystemVolume()
-		return d.UnmountVolume(fsVol, op)
+		return d.UnmountVolume(fsVol, false, op)
 	}
 
 	return deactivated, nil
@@ -661,7 +661,7 @@ func (d *lvm) DeleteVolumeSnapshot(snapVol Volume, op *operations.Operation) err
 	}
 
 	if lvExists {
-		_, err = d.UnmountVolume(snapVol, op)
+		_, err = d.UnmountVolume(snapVol, false, op)
 		if err != nil {
 			return errors.Wrapf(err, "Error unmounting LVM logical volume")
 		}
@@ -923,7 +923,7 @@ func (d *lvm) RestoreVolume(vol Volume, snapshotName string, op *operations.Oper
 	// 2. Create a writable snapshot with the original name from the snapshot being restored.
 	// 3. Delete the renamed original volume.
 	if d.usesThinpool() {
-		_, err = d.UnmountVolume(vol, op)
+		_, err = d.UnmountVolume(vol, false, op)
 		if err != nil {
 			return errors.Wrapf(err, "Error unmounting LVM logical volume")
 		}
