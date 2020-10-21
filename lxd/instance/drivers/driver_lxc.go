@@ -2936,7 +2936,7 @@ func (c *lxc) onStop(args map[string]string) error {
 
 // cleanupDevices performs any needed device cleanup steps when container is stopped.
 func (c *lxc) cleanupDevices(netns string) {
-	for _, dev := range c.expandedDevices.Sorted() {
+	for _, dev := range c.expandedDevices.Reversed() {
 		// Use the device interface if device supports it.
 		err := c.deviceStop(dev.Name, dev.Config, netns)
 		if err == device.ErrUnsupportedDevType {
