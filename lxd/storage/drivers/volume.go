@@ -218,7 +218,7 @@ func (v Volume) MountTask(task func(mountPath string, op *operations.Operation) 
 		if ourMount {
 			defer func() {
 				unlock := locking.Lock(OperationLockName(v.pool, string(v.volType), v.name))
-				v.driver.UnmountVolume(v, op)
+				v.driver.UnmountVolume(v, false, op)
 				unlock()
 			}()
 		}
