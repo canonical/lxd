@@ -816,7 +816,7 @@ func genericVFSBackupUnpack(d Driver, vol Volume, snapshots []string, srcData io
 		// backup restore process to unmount the volume if needed.
 		postHook = func(vol Volume) error {
 			if ourMount {
-				d.UnmountVolume(vol, op)
+				d.UnmountVolume(vol, false, op)
 			}
 
 			return nil
@@ -824,7 +824,7 @@ func genericVFSBackupUnpack(d Driver, vol Volume, snapshots []string, srcData io
 	} else {
 		// For custom volumes unmount now, there is no post hook as there is no backup.yaml to generate.
 		if ourMount {
-			d.UnmountVolume(vol, op)
+			d.UnmountVolume(vol, false, op)
 		}
 	}
 
