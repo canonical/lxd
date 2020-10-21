@@ -322,9 +322,9 @@ func (d *dir) MountVolume(vol Volume, op *operations.Operation) (bool, error) {
 	return false, nil
 }
 
-// UnmountVolume simulates unmounting a volume. As dir driver doesn't have volumes to unmount it
-// returns false indicating the volume was already unmounted.
-func (d *dir) UnmountVolume(vol Volume, op *operations.Operation) (bool, error) {
+// UnmountVolume simulates unmounting a volume.
+// As driver doesn't have volumes to unmount it returns false indicating the volume was already unmounted.
+func (d *dir) UnmountVolume(vol Volume, keepBlockDev bool, op *operations.Operation) (bool, error) {
 	return false, nil
 }
 

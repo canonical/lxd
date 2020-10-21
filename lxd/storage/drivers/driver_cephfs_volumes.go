@@ -343,7 +343,8 @@ func (d *cephfs) MountVolume(vol Volume, op *operations.Operation) (bool, error)
 }
 
 // UnmountVolume clears any runtime state for the volume.
-func (d *cephfs) UnmountVolume(vol Volume, op *operations.Operation) (bool, error) {
+// As driver doesn't have volumes to unmount it returns false indicating the volume was already unmounted.
+func (d *cephfs) UnmountVolume(vol Volume, keepBlockDev bool, op *operations.Operation) (bool, error) {
 	return false, nil
 }
 

@@ -218,7 +218,7 @@ func (v Volume) MountTask(task func(mountPath string, op *operations.Operation) 
 		if ourMount {
 			defer func() {
 				unlock := locking.Lock(OperationLockName(v.pool, string(v.volType), v.name))
-				v.driver.UnmountVolume(v, op)
+				v.driver.UnmountVolume(v, false, op)
 				unlock()
 			}()
 		}
@@ -227,9 +227,10 @@ func (v Volume) MountTask(task func(mountPath string, op *operations.Operation) 
 	return task(v.MountPath(), op)
 }
 
-// UnmountTask runs the supplied task after unmounting the volume if needed. If the volume was unmounted
-// for this then it is mounted when the task finishes.
-func (v Volume) UnmountTask(task func(op *operations.Operation) error, op *operations.Operation) error {
+// UnmountTask runs the supplied task after unmounting the volume if needed.
+// If the volume was unmounted for this then it is mounted when the task finishes.
+// keepBlockDev indicates if backing block device should be not be deactivated if volume is unmounted.
+func (v Volume) UnmountTask(task func(op *operations.Operation) error, keepBlockDev bool, op *operations.Operation) error {
 	// If the volume is a snapshot then call the snapshot specific mount/unmount functions as
 	// these will mount the snapshot read only.
 	if v.IsSnapshot() {
@@ -253,7 +254,7 @@ func (v Volume) UnmountTask(task func(op *operations.Operation) error, op *opera
 	} else {
 		unlock := locking.Lock(OperationLockName(v.pool, string(v.volType), v.name))
 
-		ourUnmount, err := v.driver.UnmountVolume(v, op)
+		ourUnmount, err := v.driver.UnmountVolume(v, keepBlockDev, op)
 		if err != nil {
 			unlock()
 			return err

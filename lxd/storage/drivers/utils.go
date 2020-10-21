@@ -505,7 +505,7 @@ func shrinkFileSystem(fsType string, devPath string, vol Volume, byteSize int64)
 			}
 
 			return nil
-		}, nil)
+		}, true, nil)
 	case "btrfs":
 		return vol.MountTask(func(mountPath string, op *operations.Operation) error {
 			_, err := shared.RunCommand("btrfs", "filesystem", "resize", strSize, mountPath)
