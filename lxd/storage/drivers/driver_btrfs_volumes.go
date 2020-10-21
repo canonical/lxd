@@ -771,7 +771,8 @@ func (d *btrfs) MountVolume(vol Volume, op *operations.Operation) (bool, error) 
 }
 
 // UnmountVolume simulates unmounting a volume.
-func (d *btrfs) UnmountVolume(vol Volume, op *operations.Operation) (bool, error) {
+// As driver doesn't have volumes to unmount it returns false indicating the volume was already unmounted.
+func (d *btrfs) UnmountVolume(vol Volume, keepBlockDev bool, op *operations.Operation) (bool, error) {
 	return false, nil
 }
 
