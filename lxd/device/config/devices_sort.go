@@ -31,7 +31,18 @@ func (devices DevicesSortable) Less(i, j int) bool {
 			return false
 		}
 
-		return a.Config["type"] < b.Config["type"]
+		// Start disks before other non-nic devices so that any unmounts triggered by pre-start resize
+		// occur first and the rest of the devices can rely on the instance's root disk being mounted.
+		if a.Config["type"] == "disk" {
+			return true
+		}
+
+		if b.Config["type"] == "disk" {
+			return false
+		}
+
+		// Otherwise start devices of same type together.
+		return a.Config["type"] > b.Config["type"]
 	}
 
 	// Special case disk paths.
