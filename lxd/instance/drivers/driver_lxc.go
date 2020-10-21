@@ -1389,6 +1389,9 @@ func (c *lxc) deviceAdd(deviceName string, rawConfig deviceConfig.Device) error 
 // config returned from Start(), it also runs the device's Register() function irrespective of
 // whether the container is running or not.
 func (c *lxc) deviceStart(deviceName string, rawConfig deviceConfig.Device, isRunning bool) (*deviceConfig.RunConfig, error) {
+	logger := logging.AddContext(logger.Log, log.Ctx{"device": deviceName, "type": rawConfig["type"], "project": c.Project(), "instance": c.Name()})
+	logger.Debug("Starting device")
+
 	d, configCopy, err := c.deviceLoad(deviceName, rawConfig)
 	if err != nil {
 		return nil, err
@@ -1549,8 +1552,9 @@ func (c *lxc) deviceUpdate(deviceName string, rawConfig deviceConfig.Device, old
 
 // deviceStop loads a new device and calls its Stop() function.
 func (c *lxc) deviceStop(deviceName string, rawConfig deviceConfig.Device, stopHookNetnsPath string) error {
-	logger := logging.AddContext(logger.Log, log.Ctx{"device": deviceName, "project": c.Project(), "instance": c.Name()})
+	logger := logging.AddContext(logger.Log, log.Ctx{"device": deviceName, "type": rawConfig["type"], "project": c.Project(), "instance": c.Name()})
 	logger.Debug("Stopping device")
+
 	d, configCopy, err := c.deviceLoad(deviceName, rawConfig)
 
 	// If deviceLoad fails with unsupported device type then return.
@@ -1727,7 +1731,7 @@ func (c *lxc) deviceHandleMounts(mounts []deviceConfig.MountEntryItem) error {
 
 // deviceRemove loads a new device and calls its Remove() function.
 func (c *lxc) deviceRemove(deviceName string, rawConfig deviceConfig.Device) error {
-	logger := logging.AddContext(logger.Log, log.Ctx{"device": deviceName, "project": c.Project(), "instance": c.Name()})
+	logger := logging.AddContext(logger.Log, log.Ctx{"device": deviceName, "type": rawConfig["type"], "project": c.Project(), "instance": c.Name()})
 
 	d, _, err := c.deviceLoad(deviceName, rawConfig)
 

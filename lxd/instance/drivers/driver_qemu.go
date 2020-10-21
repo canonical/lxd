@@ -1151,6 +1151,9 @@ func (vm *qemu) deviceLoad(deviceName string, rawConfig deviceConfig.Device) (de
 // config returned from Start(), it also runs the device's Register() function irrespective of
 // whether the instance is running or not.
 func (vm *qemu) deviceStart(deviceName string, rawConfig deviceConfig.Device, isRunning bool) (*deviceConfig.RunConfig, error) {
+	logger := logging.AddContext(logger.Log, log.Ctx{"device": deviceName, "type": rawConfig["type"], "project": vm.Project(), "instance": vm.Name()})
+	logger.Debug("Starting device")
+
 	d, _, err := vm.deviceLoad(deviceName, rawConfig)
 	if err != nil {
 		return nil, err
@@ -1170,8 +1173,9 @@ func (vm *qemu) deviceStart(deviceName string, rawConfig deviceConfig.Device, is
 
 // deviceStop loads a new device and calls its Stop() function.
 func (vm *qemu) deviceStop(deviceName string, rawConfig deviceConfig.Device) error {
-	logger := logging.AddContext(logger.Log, log.Ctx{"device": deviceName, "project": vm.Project(), "instance": vm.Name()})
+	logger := logging.AddContext(logger.Log, log.Ctx{"device": deviceName, "type": rawConfig["type"], "project": vm.Project(), "instance": vm.Name()})
 	logger.Debug("Stopping device")
+
 	d, _, err := vm.deviceLoad(deviceName, rawConfig)
 
 	// If deviceLoad fails with unsupported device type then return.
@@ -3470,7 +3474,7 @@ func (vm *qemu) deviceAdd(deviceName string, rawConfig deviceConfig.Device) erro
 }
 
 func (vm *qemu) deviceRemove(deviceName string, rawConfig deviceConfig.Device) error {
-	logger := logging.AddContext(logger.Log, log.Ctx{"device": deviceName, "project": vm.Project(), "instance": vm.Name()})
+	logger := logging.AddContext(logger.Log, log.Ctx{"device": deviceName, "type": rawConfig["type"], "project": vm.Project(), "instance": vm.Name()})
 
 	d, _, err := vm.deviceLoad(deviceName, rawConfig)
 
