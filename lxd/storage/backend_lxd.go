@@ -1652,7 +1652,7 @@ func (b *lxdBackend) UnmountInstance(inst instance.Instance, op *operations.Oper
 	// Get the volume.
 	vol := b.newVolume(volType, contentType, volStorageName, rootDiskConf)
 
-	return b.driver.UnmountVolume(vol, op)
+	return b.driver.UnmountVolume(vol, false, op)
 }
 
 // GetInstanceDisk returns the location of the disk.
@@ -2836,7 +2836,7 @@ func (b *lxdBackend) UnmountCustomVolume(projectName, volName string, op *operat
 	volStorageName := project.StorageVolume(projectName, volName)
 	vol := b.newVolume(drivers.VolumeTypeCustom, drivers.ContentTypeFS, volStorageName, volume.Config)
 
-	return b.driver.UnmountVolume(vol, op)
+	return b.driver.UnmountVolume(vol, false, op)
 }
 
 // CreateCustomVolumeSnapshot creates a snapshot of a custom volume.
