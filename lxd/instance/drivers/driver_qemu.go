@@ -661,6 +661,16 @@ func (vm *qemu) Start(stateful bool) error {
 	// Start accumulating device paths.
 	vm.devPaths = []string{}
 
+	// Rotate the log file.
+	logfile := vm.LogFilePath()
+	if shared.PathExists(logfile) {
+		os.Remove(logfile + ".old")
+		err := os.Rename(logfile, logfile+".old")
+		if err != nil {
+			return err
+		}
+	}
+
 	// Mount the instance's config volume.
 	_, err = vm.mount()
 	if err != nil {
