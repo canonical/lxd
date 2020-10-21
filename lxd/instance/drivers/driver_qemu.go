@@ -3332,7 +3332,7 @@ func (vm *qemu) cleanup() {
 
 // cleanupDevices performs any needed device cleanup steps when instance is stopped.
 func (vm *qemu) cleanupDevices() {
-	for _, dev := range vm.expandedDevices.Sorted() {
+	for _, dev := range vm.expandedDevices.Reversed() {
 		// Use the device interface if device supports it.
 		err := vm.deviceStop(dev.Name, dev.Config)
 		if err == device.ErrUnsupportedDevType {
