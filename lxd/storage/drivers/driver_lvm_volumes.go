@@ -580,7 +580,7 @@ func (d *lvm) RenameVolume(vol Volume, newVolName string, op *operations.Operati
 
 		revert.Success()
 		return nil
-	}, op)
+	}, false, op)
 }
 
 // MigrateVolume sends a volume for migration.
