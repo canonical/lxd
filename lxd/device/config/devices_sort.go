@@ -45,7 +45,7 @@ func (devices DevicesSortable) Less(i, j int) bool {
 		return a.Config["type"] > b.Config["type"]
 	}
 
-	// Special case disk paths.
+	// Start disk devices in path order.
 	if a.Config["type"] == "disk" && b.Config["type"] == "disk" {
 		if a.Config["path"] != b.Config["path"] {
 			return a.Config["path"] < b.Config["path"]
