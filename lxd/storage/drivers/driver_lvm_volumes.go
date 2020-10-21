@@ -468,7 +468,8 @@ func (d *lvm) MountVolume(vol Volume, op *operations.Operation) (bool, error) {
 }
 
 // UnmountVolume unmounts a volume. Returns true if we unmounted.
-func (d *lvm) UnmountVolume(vol Volume, op *operations.Operation) (bool, error) {
+// keepBlockDev indicates if backing block device should be not be deactivated if volume is unmounted.
+func (d *lvm) UnmountVolume(vol Volume, keepBlockDev bool, op *operations.Operation) (bool, error) {
 	var err error
 	volDevPath := d.lvmDevPath(d.config["lvm.vg_name"], vol.volType, vol.contentType, vol.name)
 	mountPath := vol.MountPath()
@@ -479,20 +480,22 @@ func (d *lvm) UnmountVolume(vol Volume, op *operations.Operation) (bool, error) 
 		if err != nil {
 			return false, errors.Wrapf(err, "Failed to unmount LVM logical volume")
 		}
-		d.logger.Debug("Unmounted logical volume", log.Ctx{"path": mountPath})
+		d.logger.Debug("Unmounted logical volume", log.Ctx{"path": mountPath, "keepBlockDev": keepBlockDev})
 
 		// We only deactivate filesystem volumes if an unmount was needed to better align with our
 		// unmount return value indicator.
-		_, err = d.deactivateVolume(volDevPath)
-		if err != nil {
-			return false, err
+		if !keepBlockDev {
+			_, err = d.deactivateVolume(volDevPath)
+			if err != nil {
+				return false, err
+			}
 		}
 
 		return true, nil
 	}
 
 	deactivated := false
-	if vol.contentType == ContentTypeBlock {
+	if vol.contentType == ContentTypeBlock && !keepBlockDev {
 		deactivated, err = d.deactivateVolume(volDevPath)
 		if err != nil {
 			return false, err
