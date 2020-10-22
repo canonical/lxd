@@ -544,7 +544,7 @@ type StorageVolumeArgs struct {
 // The volume name can be either a regular name or a volume snapshot name.
 //
 // The empty string is used in place of the address of the current node.
-func (c *ClusterTx) GetStorageVolumeNodeAddresses(poolID int64, project, name string, volumeType int) ([]string, error) {
+func (c *ClusterTx) GetStorageVolumeNodeAddresses(poolID int64, projectName string, volumeName string, volumeType int) ([]string, error) {
 	nodes := []struct {
 		id      int64
 		address string
@@ -558,27 +558,32 @@ func (c *ClusterTx) GetStorageVolumeNodeAddresses(poolID int64, project, name st
 
 	}
 	sql := `
-SELECT nodes.id, nodes.address
-  FROM nodes
-  JOIN storage_volumes_all ON storage_volumes_all.node_id=nodes.id
-  JOIN projects ON projects.id = storage_volumes_all.project_id
- WHERE storage_volumes_all.storage_pool_id=?
-   AND projects.name=?
-   AND storage_volumes_all.name=?
-   AND storage_volumes_all.type=?
+	SELECT coalesce(nodes.id,0) AS nodeID, coalesce(nodes.address,"") AS nodeAddress
+	FROM storage_volumes_all
+	JOIN projects ON projects.id = storage_volumes_all.project_id
+	LEFT JOIN nodes ON storage_volumes_all.node_id=nodes.id
+	WHERE storage_volumes_all.storage_pool_id=?
+		AND projects.name=?
+		AND storage_volumes_all.name=?
+		AND storage_volumes_all.type=?
 `
 	stmt, err := c.tx.Prepare(sql)
 	if err != nil {
 		return nil, err
 	}
 	defer stmt.Close()
-	err = query.SelectObjects(stmt, dest, poolID, project, name, volumeType)
+	err = query.SelectObjects(stmt, dest, poolID, projectName, volumeName, volumeType)
 	if err != nil {
 		return nil, err
 	}
 
 	addresses := []string{}
 	for _, node := range nodes {
+		// Volume is defined without a cluster member.
+		if node.id == 0 && node.address == "" {
+			return nil, ErrNoClusterMember
+		}
+
 		address := node.address
 		if node.id == c.nodeID {
 			address = ""
