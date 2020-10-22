@@ -114,7 +114,7 @@ func storagePoolVolumeSnapshotsTypePost(d *Daemon, r *http.Request) response.Res
 		return resp
 	}
 
-	resp = forwardedResponseIfVolumeIsRemote(d, r, poolID, projectName, volumeName, volumeType)
+	resp = forwardedResponseIfVolumeIsRemote(d, r, poolName, projectName, volumeName, volumeType)
 	if resp != nil {
 		return resp
 	}
@@ -296,13 +296,8 @@ func storagePoolVolumeSnapshotTypePost(d *Daemon, r *http.Request) response.Resp
 		return resp
 	}
 
-	poolID, _, err := d.cluster.GetStoragePool(poolName)
-	if err != nil {
-		return response.SmartError(err)
-	}
-
 	fullSnapshotName := fmt.Sprintf("%s/%s", volumeName, snapshotName)
-	resp = forwardedResponseIfVolumeIsRemote(d, r, poolID, projectName, fullSnapshotName, volumeType)
+	resp = forwardedResponseIfVolumeIsRemote(d, r, poolName, projectName, fullSnapshotName, volumeType)
 	if resp != nil {
 		return resp
 	}
@@ -368,7 +363,7 @@ func storagePoolVolumeSnapshotTypeGet(d *Daemon, r *http.Request) response.Respo
 	}
 
 	fullSnapshotName := fmt.Sprintf("%s/%s", volumeName, snapshotName)
-	resp = forwardedResponseIfVolumeIsRemote(d, r, poolID, projectName, fullSnapshotName, volumeType)
+	resp = forwardedResponseIfVolumeIsRemote(d, r, poolName, projectName, fullSnapshotName, volumeType)
 	if resp != nil {
 		return resp
 	}
@@ -437,7 +432,7 @@ func storagePoolVolumeSnapshotTypePut(d *Daemon, r *http.Request) response.Respo
 	}
 
 	fullSnapshotName := fmt.Sprintf("%s/%s", volumeName, snapshotName)
-	resp = forwardedResponseIfVolumeIsRemote(d, r, poolID, projectName, fullSnapshotName, volumeType)
+	resp = forwardedResponseIfVolumeIsRemote(d, r, poolName, projectName, fullSnapshotName, volumeType)
 	if resp != nil {
 		return resp
 	}
@@ -527,13 +522,8 @@ func storagePoolVolumeSnapshotTypeDelete(d *Daemon, r *http.Request) response.Re
 		return resp
 	}
 
-	poolID, _, err := d.cluster.GetStoragePool(poolName)
-	if err != nil {
-		return response.SmartError(err)
-	}
-
 	fullSnapshotName := fmt.Sprintf("%s/%s", volumeName, snapshotName)
-	resp = forwardedResponseIfVolumeIsRemote(d, r, poolID, projectName, fullSnapshotName, volumeType)
+	resp = forwardedResponseIfVolumeIsRemote(d, r, poolName, projectName, fullSnapshotName, volumeType)
 	if resp != nil {
 		return resp
 	}
