@@ -1214,3 +1214,6 @@ Removes the settings `ipv4.routes.external` and `ipv6.routes.external` from `ovn
 
 The equivalent settings on the `ovn` NIC type can be used instead for this, rather than having to specify them
 both at the network and NIC level.
+
+## tpm\_device\_type
+This introduces the `tpm` device type.
