@@ -43,4 +43,5 @@ type RunConfig struct {
 	PostHooks        []func() error   // Functions to be run after device attach/detach.
 	GPUDevice        []RunConfigItem  // GPU device configuration settings.
 	USBDevice        []RunConfigItem  // USB device configuration settings.
+	TPMDevice        []RunConfigItem  // TPM device configuration settings.
 }
