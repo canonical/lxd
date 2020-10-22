@@ -169,37 +169,35 @@ func patchesApply(d *Daemon, stage patchStage) error {
 // having "ipv4.nat" set is to disable NAT (bringing in line with the non-fan bridge behavior and docs).
 func patchNetworkFANEnableNAT(name string, d *Daemon) error {
 	err := d.cluster.Transaction(func(tx *db.ClusterTx) error {
-		projectNetworks, err := tx.GetNonPendingNetworks()
+		networks, err := tx.GetNonPendingNetworks()
 		if err != nil {
 			return err
 		}
 
-		for _, networks := range projectNetworks {
-			for networkID, network := range networks {
-				if network.Type != "bridge" {
-					continue
+		for networkID, network := range networks {
+			if network.Type != "bridge" {
+				continue
+			}
+
+			if network.Config["bridge.mode"] != "fan" {
+				continue
+			}
+
+			modified := false
+
+			// Enable ipv4.nat if setting not specified.
+			if _, found := network.Config["ipv4.nat"]; !found {
+				modified = true
+				network.Config["ipv4.nat"] = "true"
+			}
+
+			if modified {
+				err = tx.UpdateNetwork(networkID, network.Description, network.Config)
+				if err != nil {
+					return errors.Wrapf(err, "Failed setting ipv4.nat=true for fan network %q (%d)", network.Name, networkID)
 				}
 
-				if network.Config["bridge.mode"] != "fan" {
-					continue
-				}
-
-				modified := false
-
-				// Enable ipv4.nat if setting not specified.
-				if _, found := network.Config["ipv4.nat"]; !found {
-					modified = true
-					network.Config["ipv4.nat"] = "true"
-				}
-
-				if modified {
-					err = tx.UpdateNetwork(networkID, network.Description, network.Config)
-					if err != nil {
-						return errors.Wrapf(err, "Failed setting ipv4.nat=true for fan network %q (%d)", network.Name, networkID)
-					}
-
-					logger.Debugf("Set ipv4.nat=true for fan network %q (%d)", network.Name, networkID)
-				}
+				logger.Debugf("Set ipv4.nat=true for fan network %q (%d)", network.Name, networkID)
 			}
 		}
 
