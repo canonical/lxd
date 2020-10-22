@@ -198,6 +198,7 @@ func (c *cmdMove) Run(cmd *cobra.Command, args []string) error {
 
 	del := cmdDelete{global: c.global}
 	del.flagForce = true
+	del.flagForceProtected = true
 	err = del.Run(cmd, args[:1])
 	if err != nil {
 		return errors.Wrap(err, "Failed to delete original instance after copying it")

@@ -18,8 +18,9 @@ import (
 type cmdDelete struct {
 	global *cmdGlobal
 
-	flagForce       bool
-	flagInteractive bool
+	flagForce          bool
+	flagForceProtected bool
+	flagInteractive    bool
 }
 
 func (c *cmdDelete) Command() *cobra.Command {
@@ -122,6 +123,25 @@ func (c *cmdDelete) Run(cmd *cobra.Command, args []string) error {
 
 			if ct.Ephemeral == true {
 				return nil
+			}
+		}
+
+		if c.flagForceProtected && shared.IsTrue(ct.ExpandedConfig["security.protection.delete"]) {
+			// Refresh in case we had to stop it above.
+			ct, etag, err := resource.server.GetInstance(resource.name)
+			if err != nil {
+				return err
+			}
+
+			ct.Config["security.protection.delete"] = "false"
+			op, err := resource.server.UpdateInstance(resource.name, ct.Writable(), etag)
+			if err != nil {
+				return err
+			}
+
+			err = op.Wait()
+			if err != nil {
+				return err
 			}
 		}
 
