@@ -59,13 +59,13 @@ func forwardedResponseIfInstanceIsRemote(d *Daemon, r *http.Request, project, na
 //
 // This is used when no targetNode is specified, and saves users some typing
 // when the volume name/type is unique to a node.
-func forwardedResponseIfVolumeIsRemote(d *Daemon, r *http.Request, poolID int64, volumeName string, volumeType int) response.Response {
+func forwardedResponseIfVolumeIsRemote(d *Daemon, r *http.Request, poolID int64, projectName string, volumeName string, volumeType int) response.Response {
 	if queryParam(r, "target") != "" {
 		return nil
 	}
 
 	cert := d.endpoints.NetworkCert()
-	client, err := cluster.ConnectIfVolumeIsRemote(d.cluster, poolID, volumeName, volumeType, cert)
+	client, err := cluster.ConnectIfVolumeIsRemote(d.cluster, poolID, projectName, volumeName, volumeType, cert)
 	if err != nil && err != db.ErrNoSuchObject {
 		return response.SmartError(err)
 	}
