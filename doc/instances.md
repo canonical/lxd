@@ -727,6 +727,9 @@ mode        | int       | 0660              | no        | Mode of the device in 
 required    | boolean   | true              | no        | Whether or not this device is required to start the instance
 
 ### Type: usb
+
+Supported instance types: container, VM
+
 USB device entries simply make the requested USB device appear in the
 instance.
 
