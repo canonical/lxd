@@ -55,6 +55,10 @@ _have lxc && {
       return 0
     fi
 
+    if [ -n "${SNAP_COMMON:-""}" ]; then
+      export LXD_DIR=${LXD_DIR:-"${SNAP_COMMON}/lxd/"}
+    fi
+
     lxc_cmds="alias cluster config console copy delete exec export file \
       help image import info init launch list manpage monitor move network \
       operation pause profile project publish query remote rename \
