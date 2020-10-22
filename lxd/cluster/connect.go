@@ -121,11 +121,11 @@ func ConnectIfInstanceIsRemote(cluster *db.Cluster, projectName string, name str
 //
 // If there is more than one node with a matching volume name, an error is
 // returned.
-func ConnectIfVolumeIsRemote(cluster *db.Cluster, poolID int64, volumeName string, volumeType int, cert *shared.CertInfo) (lxd.InstanceServer, error) {
+func ConnectIfVolumeIsRemote(cluster *db.Cluster, poolID int64, projectName string, volumeName string, volumeType int, cert *shared.CertInfo) (lxd.InstanceServer, error) {
 	var addresses []string // Node addresses
 	err := cluster.Transaction(func(tx *db.ClusterTx) error {
 		var err error
-		addresses, err = tx.GetStorageVolumeNodeAddresses(poolID, "default", volumeName, volumeType)
+		addresses, err = tx.GetStorageVolumeNodeAddresses(poolID, projectName, volumeName, volumeType)
 		return err
 	})
 	if err != nil {
