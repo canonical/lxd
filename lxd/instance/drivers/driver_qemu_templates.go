@@ -335,24 +335,43 @@ unit = "1"
 
 // Devices use "qemu_" prefix indicating that this is a internally named device.
 var qemuDriveConfig = template.Must(template.New("qemuDriveConfig").Parse(`
-# Config drive
+# Config drive ({{.protocol}})
+{{- if eq .protocol "9p" }}
 [fsdev "qemu_config"]
 fsdriver = "local"
 security_model = "none"
 readonly = "on"
 path = "{{.path}}"
+{{- else if eq .protocol "virtio-fs" }}
+[chardev "qemu_config"]
+backend = "socket"
+path = "{{.path}}"
+{{- end }}
 
-[device "dev-qemu_config"]
+[device "dev-qemu_config-drive-{{.protocol}}"]
 {{- if eq .bus "pci" "pcie"}}
+{{- if eq .protocol "9p" }}
 driver = "virtio-9p-pci"
+{{- else if eq .protocol "virtio-fs" }}
+driver = "vhost-user-fs-pci"
+{{- end }}
 bus = "{{.devBus}}"
 addr = "{{.devAddr}}"
 {{- end}}
-{{if eq .bus "ccw" -}}
+{{- if eq .bus "ccw" }}
+{{- if eq .protocol "9p" }}
 driver = "virtio-9p-ccw"
+{{- else if eq .protocol "virtio-fs" }}
+driver = "vhost-user-fs-ccw"
+{{- end }}
 {{- end}}
+{{- if eq .protocol "9p" }}
 mount_tag = "config"
 fsdev = "qemu_config"
+{{- else if eq .protocol "virtio-fs" }}
+chardev = "qemu_config"
+tag = "config"
+{{- end }}
 {{if .multifunction -}}
 multifunction = "on"
 {{- end }}
@@ -360,7 +379,8 @@ multifunction = "on"
 
 // Devices use "lxd_" prefix indicating that this is a user named device.
 var qemuDriveDir = template.Must(template.New("qemuDriveDir").Parse(`
-# {{.devName}} drive
+# {{.devName}} drive ({{.protocol}})
+{{- if eq .protocol "9p" }}
 [fsdev "lxd_{{.devName}}"]
 {{- if .readonly}}
 readonly = "on"
@@ -372,18 +392,36 @@ readonly = "off"
 fsdriver = "proxy"
 sock_fd = "{{.proxyFD}}"
 {{- end}}
+{{- else if eq .protocol "virtio-fs" }}
+[chardev "lxd_{{.devName}}"]
+backend = "socket"
+path = "{{.path}}"
+{{- end }}
 
-[device "dev-lxd_{{.devName}}"]
+[device "dev-lxd_{{.devName}}-{{.protocol}}"]
 {{- if eq .bus "pci" "pcie"}}
+{{- if eq .protocol "9p" }}
 driver = "virtio-9p-pci"
+{{- else if eq .protocol "virtio-fs" }}
+driver = "vhost-user-fs-pci"
+{{- end }}
 bus = "{{.devBus}}"
 addr = "{{.devAddr}}"
-{{- end}}
+{{- end -}}
 {{if eq .bus "ccw" -}}
+{{- if eq .protocol "9p" }}
 driver = "virtio-9p-ccw"
+{{- else if eq .protocol "virtio-fs" }}
+driver = "vhost-user-fs-ccw"
+{{- end }}
 {{- end}}
+{{- if eq .protocol "9p" }}
 fsdev = "lxd_{{.devName}}"
 mount_tag = "{{.mountTag}}"
+{{- else if eq .protocol "virtio-fs" }}
+chardev = "lxd_{{.devName}}"
+tag = "{{.mountTag}}"
+{{- end }}
 {{if .multifunction -}}
 multifunction = "on"
 {{- end }}
