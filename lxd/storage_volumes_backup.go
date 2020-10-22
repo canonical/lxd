@@ -72,7 +72,7 @@ func storagePoolVolumeTypeCustomBackupsGet(d *Daemon, r *http.Request) response.
 	}
 
 	// Handle requests targeted to a volume on a different node
-	resp := forwardedResponseIfVolumeIsRemote(d, r, poolID, projectName, volumeName, db.StoragePoolVolumeTypeCustom)
+	resp := forwardedResponseIfVolumeIsRemote(d, r, poolName, projectName, volumeName, db.StoragePoolVolumeTypeCustom)
 	if resp != nil {
 		return resp
 	}
@@ -145,7 +145,7 @@ func storagePoolVolumeTypeCustomBackupsPost(d *Daemon, r *http.Request) response
 		return response.SmartError(err)
 	}
 
-	resp = forwardedResponseIfVolumeIsRemote(d, r, poolID, projectName, volumeName, db.StoragePoolVolumeTypeCustom)
+	resp = forwardedResponseIfVolumeIsRemote(d, r, poolName, projectName, volumeName, db.StoragePoolVolumeTypeCustom)
 	if resp != nil {
 		return resp
 	}
@@ -282,12 +282,7 @@ func storagePoolVolumeTypeCustomBackupGet(d *Daemon, r *http.Request) response.R
 		return resp
 	}
 
-	poolID, _, err := d.cluster.GetStoragePool(poolName)
-	if err != nil {
-		return response.SmartError(err)
-	}
-
-	resp = forwardedResponseIfVolumeIsRemote(d, r, poolID, projectName, volumeName, db.StoragePoolVolumeTypeCustom)
+	resp = forwardedResponseIfVolumeIsRemote(d, r, poolName, projectName, volumeName, db.StoragePoolVolumeTypeCustom)
 	if resp != nil {
 		return resp
 	}
@@ -333,12 +328,7 @@ func storagePoolVolumeTypeCustomBackupPost(d *Daemon, r *http.Request) response.
 		return resp
 	}
 
-	poolID, _, err := d.cluster.GetStoragePool(poolName)
-	if err != nil {
-		return response.SmartError(err)
-	}
-
-	resp = forwardedResponseIfVolumeIsRemote(d, r, poolID, projectName, volumeName, db.StoragePoolVolumeTypeCustom)
+	resp = forwardedResponseIfVolumeIsRemote(d, r, poolName, projectName, volumeName, db.StoragePoolVolumeTypeCustom)
 	if resp != nil {
 		return resp
 	}
@@ -415,12 +405,7 @@ func storagePoolVolumeTypeCustomBackupDelete(d *Daemon, r *http.Request) respons
 		return resp
 	}
 
-	poolID, _, err := d.cluster.GetStoragePool(poolName)
-	if err != nil {
-		return response.SmartError(err)
-	}
-
-	resp = forwardedResponseIfVolumeIsRemote(d, r, poolID, projectName, volumeName, db.StoragePoolVolumeTypeCustom)
+	resp = forwardedResponseIfVolumeIsRemote(d, r, poolName, projectName, volumeName, db.StoragePoolVolumeTypeCustom)
 	if resp != nil {
 		return resp
 	}
@@ -484,12 +469,7 @@ func storagePoolVolumeTypeCustomBackupExportGet(d *Daemon, r *http.Request) resp
 		return resp
 	}
 
-	poolID, _, err := d.cluster.GetStoragePool(poolName)
-	if err != nil {
-		return response.SmartError(err)
-	}
-
-	resp = forwardedResponseIfVolumeIsRemote(d, r, poolID, projectName, volumeName, db.StoragePoolVolumeTypeCustom)
+	resp = forwardedResponseIfVolumeIsRemote(d, r, poolName, projectName, volumeName, db.StoragePoolVolumeTypeCustom)
 	if resp != nil {
 		return resp
 	}
