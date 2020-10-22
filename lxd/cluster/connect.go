@@ -97,11 +97,11 @@ func Connect(address string, cert *shared.CertInfo, notify bool) (lxd.InstanceSe
 // running the container with the given name. If it's not the local node will
 // connect to it and return the connected client, otherwise it will just return
 // nil.
-func ConnectIfInstanceIsRemote(cluster *db.Cluster, project, name string, cert *shared.CertInfo, instanceType instancetype.Type) (lxd.InstanceServer, error) {
+func ConnectIfInstanceIsRemote(cluster *db.Cluster, projectName string, name string, cert *shared.CertInfo, instanceType instancetype.Type) (lxd.InstanceServer, error) {
 	var address string // Node address
 	err := cluster.Transaction(func(tx *db.ClusterTx) error {
 		var err error
-		address, err = tx.GetNodeAddressOfInstance(project, name, instanceType)
+		address, err = tx.GetNodeAddressOfInstance(projectName, name, instanceType)
 		return err
 	})
 	if err != nil {
