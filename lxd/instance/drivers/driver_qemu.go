@@ -526,8 +526,16 @@ func (vm *qemu) onStop(target string) error {
 	os.Remove(vm.monitorPath())
 	vm.unmount()
 
+	pidPath := filepath.Join(vm.LogPath(), "virtiofsd.pid")
+
+	proc, err := subprocess.ImportProcess(pidPath)
+	if err == nil {
+		proc.Stop()
+		os.Remove(pidPath)
+	}
+
 	// Record power state.
-	err := vm.state.Cluster.UpdateInstancePowerState(vm.id, "STOPPED")
+	err = vm.state.Cluster.UpdateInstancePowerState(vm.id, "STOPPED")
 	if err != nil {
 		if op != nil {
 			op.Done(err)
@@ -862,6 +870,49 @@ func (vm *qemu) Start(stateful bool) error {
 	for i := range fdFiles {
 		// Pass through any file descriptors as 3+i (as first 3 file descriptors are taken as standard).
 		forkLimitsCmd = append(forkLimitsCmd, fmt.Sprintf("fd=%d", 3+i))
+	}
+
+	sockPath := filepath.Join(vm.LogPath(), "virtio-fs.config.sock")
+
+	// Remove old socket if needed.
+	os.Remove(sockPath)
+
+	cmd, err := exec.LookPath("virtiofsd")
+	if err != nil {
+		if shared.PathExists("/usr/lib/qemu/virtiofsd") {
+			cmd = "/usr/lib/qemu/virtiofsd"
+		}
+	}
+
+	// Start the virtiofsd process in non-daemon mode.
+	if cmd != "" {
+		proc, err := subprocess.NewProcess("/usr/lib/qemu/virtiofsd", []string{fmt.Sprintf("--socket-path=%s", sockPath), "-o", fmt.Sprintf("source=%s", filepath.Join(vm.Path(), "config"))}, "", "")
+		if err != nil {
+			return err
+		}
+
+		err = proc.Start()
+		if err != nil {
+			return err
+		}
+
+		revert.Add(func() { proc.Stop() })
+
+		pidPath := filepath.Join(vm.LogPath(), "virtiofsd.pid")
+
+		err = proc.Save(pidPath)
+		if err != nil {
+			return err
+		}
+
+		// Wait for socket file to exist
+		for i := 0; i < 10; i++ {
+			if shared.PathExists(sockPath) {
+				break
+			}
+
+			time.Sleep(50 * time.Millisecond)
+		}
 	}
 
 	// Setup background process.
@@ -1807,8 +1858,23 @@ func (vm *qemu) generateQemuConfigFile(busName string, devConfs []*deviceConfig.
 		"devBus":        devBus,
 		"devAddr":       devAddr,
 		"multifunction": multi,
+		"protocol":      "9p",
 
 		"path": filepath.Join(vm.Path(), "config"),
+	})
+	if err != nil {
+		return "", err
+	}
+
+	devBus, devAddr, multi = bus.allocate(busFunctionGroup9p)
+	err = qemuDriveConfig.Execute(sb, map[string]interface{}{
+		"bus":           bus.name,
+		"devBus":        devBus,
+		"devAddr":       devAddr,
+		"multifunction": multi,
+		"protocol":      "virtio-fs",
+
+		"path": filepath.Join(vm.LogPath(), "virtio-fs.config.sock"),
 	})
 	if err != nil {
 		return "", err
@@ -2077,6 +2143,28 @@ func (vm *qemu) addDriveDirConfig(sb *strings.Builder, bus *qemuBus, fdFiles *[]
 	// Record the 9p mount for the agent.
 	*agentMounts = append(*agentMounts, agentMount)
 
+	sockPath := filepath.Join(vm.Path(), fmt.Sprintf("%s.sock", driveConf.DevName))
+
+	if shared.PathExists(sockPath) {
+		devBus, devAddr, multi := bus.allocate(busFunctionGroup9p)
+
+		// Add virtio-fs device as this will be preferred over 9p.
+		err := qemuDriveDir.Execute(sb, map[string]interface{}{
+			"bus":           bus.name,
+			"devBus":        devBus,
+			"devAddr":       devAddr,
+			"multifunction": multi,
+
+			"devName":  driveConf.DevName,
+			"mountTag": mountTag,
+			"path":     sockPath,
+			"protocol": "virtio-fs",
+		})
+		if err != nil {
+			return err
+		}
+	}
+
 	devBus, devAddr, multi := bus.allocate(busFunctionGroup9p)
 
 	// For read only shares, do not use proxy.
@@ -2091,6 +2179,7 @@ func (vm *qemu) addDriveDirConfig(sb *strings.Builder, bus *qemuBus, fdFiles *[]
 			"mountTag": mountTag,
 			"path":     driveConf.DevPath,
 			"readonly": true,
+			"protocol": "9p",
 		})
 	}
 
@@ -2106,6 +2195,7 @@ func (vm *qemu) addDriveDirConfig(sb *strings.Builder, bus *qemuBus, fdFiles *[]
 		"mountTag": mountTag,
 		"proxyFD":  proxyFD,
 		"readonly": false,
+		"protocol": "9p",
 	})
 }
 
