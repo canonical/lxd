@@ -97,11 +97,11 @@ func Connect(address string, cert *shared.CertInfo, notify bool) (lxd.InstanceSe
 // running the container with the given name. If it's not the local node will
 // connect to it and return the connected client, otherwise it will just return
 // nil.
-func ConnectIfInstanceIsRemote(cluster *db.Cluster, project, name string, cert *shared.CertInfo, instanceType instancetype.Type) (lxd.InstanceServer, error) {
+func ConnectIfInstanceIsRemote(cluster *db.Cluster, projectName string, name string, cert *shared.CertInfo, instanceType instancetype.Type) (lxd.InstanceServer, error) {
 	var address string // Node address
 	err := cluster.Transaction(func(tx *db.ClusterTx) error {
 		var err error
-		address, err = tx.GetNodeAddressOfInstance(project, name, instanceType)
+		address, err = tx.GetNodeAddressOfInstance(projectName, name, instanceType)
 		return err
 	})
 	if err != nil {
@@ -121,11 +121,11 @@ func ConnectIfInstanceIsRemote(cluster *db.Cluster, project, name string, cert *
 //
 // If there is more than one node with a matching volume name, an error is
 // returned.
-func ConnectIfVolumeIsRemote(cluster *db.Cluster, poolID int64, volumeName string, volumeType int, cert *shared.CertInfo) (lxd.InstanceServer, error) {
+func ConnectIfVolumeIsRemote(cluster *db.Cluster, poolID int64, projectName string, volumeName string, volumeType int, cert *shared.CertInfo) (lxd.InstanceServer, error) {
 	var addresses []string // Node addresses
 	err := cluster.Transaction(func(tx *db.ClusterTx) error {
 		var err error
-		addresses, err = tx.GetStorageVolumeNodeAddresses(poolID, "default", volumeName, volumeType)
+		addresses, err = tx.GetStorageVolumeNodeAddresses(poolID, projectName, volumeName, volumeType)
 		return err
 	})
 	if err != nil {
