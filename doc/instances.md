@@ -234,8 +234,8 @@ ID (database)   | Name                               | Condition     | Descripti
 2               | [disk](#type-disk)                 | -             | Mountpoint inside the instance
 3               | [unix-char](#type-unix-char)       | container     | Unix character device
 4               | [unix-block](#type-unix-block)     | container     | Unix block device
-5               | [usb](#type-usb)                   | container     | USB device
-6               | [gpu](#type-gpu)                   | container     | GPU device
+5               | [usb](#type-usb)                   | -             | USB device
+6               | [gpu](#type-gpu)                   | -             | GPU device
 7               | [infiniband](#type-infiniband)     | container     | Infiniband device
 8               | [proxy](#type-proxy)               | container     | Proxy device
 9               | [unix-hotplug](#type-unix-hotplug) | container     | Unix hotplug device
