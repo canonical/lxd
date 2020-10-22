@@ -629,6 +629,25 @@ func (vm *qemu) Shutdown(timeout time.Duration) error {
 	return nil
 }
 
+// Restart restart the instance.
+func (vm *qemu) Restart(timeout time.Duration) error {
+	if timeout == 0 {
+		if err := vm.Stop(false); err != nil {
+			return err
+		}
+	} else {
+		if vm.IsFrozen() {
+			return errors.New("Instance is not running")
+		}
+
+		if err := vm.Shutdown(timeout * time.Second); err != nil {
+			return err
+		}
+	}
+
+	return vm.Start(false)
+}
+
 func (vm *qemu) ovmfPath() string {
 	if os.Getenv("LXD_OVMF_PATH") != "" {
 		return os.Getenv("LXD_OVMF_PATH")
