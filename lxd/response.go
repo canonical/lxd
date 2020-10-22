@@ -4,7 +4,6 @@ import (
 	"net/http"
 
 	"github.com/lxc/lxd/lxd/cluster"
-	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/instance/instancetype"
 	"github.com/lxc/lxd/lxd/response"
 )
@@ -59,18 +58,20 @@ func forwardedResponseIfInstanceIsRemote(d *Daemon, r *http.Request, project, na
 //
 // This is used when no targetNode is specified, and saves users some typing
 // when the volume name/type is unique to a node.
-func forwardedResponseIfVolumeIsRemote(d *Daemon, r *http.Request, poolID int64, projectName string, volumeName string, volumeType int) response.Response {
+func forwardedResponseIfVolumeIsRemote(d *Daemon, r *http.Request, poolName string, projectName string, volumeName string, volumeType int) response.Response {
 	if queryParam(r, "target") != "" {
 		return nil
 	}
 
 	cert := d.endpoints.NetworkCert()
-	client, err := cluster.ConnectIfVolumeIsRemote(d.cluster, poolID, projectName, volumeName, volumeType, cert)
-	if err != nil && err != db.ErrNoSuchObject {
+	client, err := cluster.ConnectIfVolumeIsRemote(d.cluster, poolName, projectName, volumeName, volumeType, cert)
+	if err != nil {
 		return response.SmartError(err)
 	}
+
 	if client == nil {
 		return nil
 	}
+
 	return response.ForwardedResponse(client, r)
 }
