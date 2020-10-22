@@ -171,17 +171,29 @@ func (d *disk) validateConfig(instConf instance.ConfigReader) error {
 			return fmt.Errorf("The %q storage pool doesn't exist", d.config["pool"])
 		}
 
+		// If instance is supplied, use it's project to derive the effective storage project name.
+		var storageProjectName string
+		if d.inst != nil {
+			storageProjectName, err = project.StorageVolumeProject(d.state.Cluster, d.inst.Project(), db.StoragePoolVolumeTypeCustom)
+			if err != nil {
+				return err
+			}
+		}
+
 		// Only check storate volume is available if we are validating an instance device and not a profile
 		// device (check for instancetype.Any), and we have least one expanded device (this is so we only
 		// do this expensive check after devices have been expanded).
 		if instConf.Type() != instancetype.Any && len(instConf.ExpandedDevices()) > 0 && d.config["source"] != "" && d.config["path"] != "/" {
-			isAvailable, err := d.state.Cluster.StorageVolumeIsAvailable(d.config["pool"], d.config["source"])
+			remoteInstance, err := storagePools.VolumeUsedByExclusiveRemoteInstancesWithProfiles(d.state, d.config["pool"], storageProjectName, d.config["source"], db.StoragePoolVolumeTypeNameCustom)
 			if err != nil {
-				return fmt.Errorf("Check if volume is available: %v", err)
+				return errors.Wrapf(err, "Failed checking if volume is exclusively attached")
 			}
-			if !isAvailable {
+
+			if remoteInstance != nil {
 				return fmt.Errorf("Storage volume %q is already attached to an instance on a different node", d.config["source"])
 			}
+
+			return nil
 		}
 	}
 
