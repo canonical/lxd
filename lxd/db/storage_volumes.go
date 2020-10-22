@@ -544,7 +544,7 @@ type StorageVolumeArgs struct {
 // The volume name can be either a regular name or a volume snapshot name.
 //
 // The empty string is used in place of the address of the current node.
-func (c *ClusterTx) GetStorageVolumeNodeAddresses(poolID int64, project, name string, typ int) ([]string, error) {
+func (c *ClusterTx) GetStorageVolumeNodeAddresses(poolID int64, project, name string, volumeType int) ([]string, error) {
 	nodes := []struct {
 		id      int64
 		address string
@@ -572,7 +572,7 @@ SELECT nodes.id, nodes.address
 		return nil, err
 	}
 	defer stmt.Close()
-	err = query.SelectObjects(stmt, dest, poolID, project, name, typ)
+	err = query.SelectObjects(stmt, dest, poolID, project, name, volumeType)
 	if err != nil {
 		return nil, err
 	}
