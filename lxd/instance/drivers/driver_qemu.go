@@ -1431,15 +1431,18 @@ func (vm *qemu) generateConfigShare() error {
 Description=LXD - agent
 Documentation=https://linuxcontainers.org/lxd
 ConditionPathExists=/dev/virtio-ports/org.linuxcontainers.lxd
-Requires=lxd-agent-9p.service
+Wants=lxd-agent-virtiofs.service
+After=lxd-agent-virtiofs.service
+Wants=lxd-agent-9p.service
 After=lxd-agent-9p.service
+
 Before=cloud-init.target cloud-init.service cloud-init-local.service
 DefaultDependencies=no
 
 [Service]
 Type=notify
-WorkingDirectory=/run/lxd_config/9p
-ExecStart=/run/lxd_config/9p/lxd-agent
+WorkingDirectory=/run/lxd_config/drive
+ExecStart=/run/lxd_config/drive/lxd-agent
 Restart=on-failure
 RestartSec=5s
 StartLimitInterval=60
@@ -1458,22 +1461,48 @@ WantedBy=multi-user.target
 Description=LXD - agent - 9p mount
 Documentation=https://linuxcontainers.org/lxd
 ConditionPathExists=/dev/virtio-ports/org.linuxcontainers.lxd
-After=local-fs.target
+After=local-fs.target lxd-agent-virtiofs.service
 DefaultDependencies=no
+ConditionPathExists=!/run/lxd_config/drive
 
 [Service]
 Type=oneshot
 RemainAfterExit=yes
 ExecStartPre=-/sbin/modprobe 9pnet_virtio
-ExecStartPre=/bin/mkdir -p /run/lxd_config/9p
+ExecStartPre=/bin/mkdir -p /run/lxd_config/drive
 ExecStartPre=/bin/chmod 0700 /run/lxd_config/
-ExecStart=/bin/mount -t 9p config /run/lxd_config/9p -o access=0,trans=virtio
+ExecStart=/bin/mount -t 9p config /run/lxd_config/drive -o access=0,trans=virtio
 
 [Install]
 WantedBy=multi-user.target
 `
 
 	err = ioutil.WriteFile(filepath.Join(configDrivePath, "systemd", "lxd-agent-9p.service"), []byte(lxdConfigShareMountUnit), 0400)
+	if err != nil {
+		return err
+	}
+
+	lxdConfigShareMountVirtioFSUnit := `[Unit]
+Description=LXD - agent - virtio-fs mount
+Documentation=https://linuxcontainers.org/lxd
+ConditionPathExists=/dev/virtio-ports/org.linuxcontainers.lxd
+After=local-fs.target
+Before=lxd-agent-9p.service
+DefaultDependencies=no
+ConditionPathExists=!/run/lxd_config/drive
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStartPre=/bin/mkdir -p /run/lxd_config/drive
+ExecStartPre=/bin/chmod 0700 /run/lxd_config/
+ExecStart=/bin/mount -t virtiofs config /run/lxd_config/drive
+
+[Install]
+WantedBy=multi-user.target
+	`
+
+	err = ioutil.WriteFile(filepath.Join(configDrivePath, "systemd", "lxd-agent-virtiofs.service"), []byte(lxdConfigShareMountVirtioFSUnit), 0400)
 	if err != nil {
 		return err
 	}
@@ -1505,12 +1534,13 @@ fi
 cp udev/99-lxd-agent.rules /lib/udev/rules.d/
 cp systemd/lxd-agent.service /lib/systemd/system/
 cp systemd/lxd-agent-9p.service /lib/systemd/system/
+cp systemd/lxd-agent-virtiofs.service /lib/systemd/system/
 systemctl daemon-reload
-systemctl enable lxd-agent.service lxd-agent-9p.service
+systemctl enable lxd-agent.service lxd-agent-9p.service lxd-agent-virtiofs.service
 
 echo ""
 echo "LXD agent has been installed, reboot to confirm setup."
-echo "To start it now, unmount this filesystem and run: systemctl start lxd-agent-9p lxd-agent"
+echo "To start it now, unmount this filesystem and run: systemctl start lxd-agent"
 `
 
 	err = ioutil.WriteFile(filepath.Join(configDrivePath, "install.sh"), []byte(lxdConfigShareInstall), 0700)
