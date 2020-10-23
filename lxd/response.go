@@ -64,7 +64,7 @@ func forwardedResponseIfVolumeIsRemote(d *Daemon, r *http.Request, poolName stri
 	}
 
 	cert := d.endpoints.NetworkCert()
-	client, err := cluster.ConnectIfVolumeIsRemote(d.cluster, poolName, projectName, volumeName, volumeType, cert)
+	client, err := cluster.ConnectIfVolumeIsRemote(d.State(), poolName, projectName, volumeName, volumeType, cert)
 	if err != nil {
 		return response.SmartError(err)
 	}
