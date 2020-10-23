@@ -77,8 +77,8 @@ func ConfigDiff(oldConfig map[string]string, newConfig map[string]string) ([]str
 	return changedConfig, userOnly
 }
 
-// VolumeTypeNameToType converts a volume type string to internal code.
-func VolumeTypeNameToType(volumeTypeName string) (int, error) {
+// VolumeTypeNameToDBType converts a volume type string to internal volume type DB code.
+func VolumeTypeNameToDBType(volumeTypeName string) (int, error) {
 	switch volumeTypeName {
 	case db.StoragePoolVolumeTypeNameContainer:
 		return db.StoragePoolVolumeTypeContainer, nil
