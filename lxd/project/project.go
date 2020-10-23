@@ -74,18 +74,7 @@ func StorageVolumeProject(c *db.Cluster, projectName string, volumeType int) (st
 		return projectName, nil
 	}
 
-	var project *api.Project
-	var err error
-
-	err = c.Transaction(func(tx *db.ClusterTx) error {
-		project, err = tx.GetProject(projectName)
-		if err != nil {
-			return err
-		}
-
-		return nil
-	})
-
+	project, err := c.GetProject(projectName)
 	if err != nil {
 		return "", errors.Wrapf(err, "Failed to load project %q", projectName)
 	}
