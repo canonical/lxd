@@ -632,14 +632,21 @@ func storagePoolVolumeTypePost(d *Daemon, r *http.Request, volumeTypeName string
 		return response.SmartError(fmt.Errorf("Volume is used by LXD itself and cannot be renamed"))
 	}
 
-	// Check if a running container is using it.
-	ctsUsingVolume, err := storagePools.VolumeUsedByRunningInstancesWithProfilesGet(d.State(), projectName, poolName, volumeName, volumeTypeName, true)
+	// Check if a running instance is using it.
+	err = storagePools.VolumeUsedByInstances(d.State(), poolName, projectName, volumeName, volumeTypeName, true, func(dbInst db.Instance, project api.Project, profiles []api.Profile) error {
+		inst, err := instance.Load(d.State(), db.InstanceToArgs(&dbInst), profiles)
+		if err != nil {
+			return err
+		}
+
+		if inst.IsRunning() {
+			return fmt.Errorf("Volume is still in use by running instances")
+		}
+
+		return nil
+	})
 	if err != nil {
 		return response.SmartError(err)
-	}
-
-	if len(ctsUsingVolume) > 0 {
-		return response.SmartError(fmt.Errorf("Volume is still in use by running instances"))
 	}
 
 	// Detect a rename request.
