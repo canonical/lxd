@@ -195,12 +195,7 @@ func projectGet(d *Daemon, r *http.Request) response.Response {
 	}
 
 	// Get the database entry
-	var project *api.Project
-	err := d.cluster.Transaction(func(tx *db.ClusterTx) error {
-		var err error
-		project, err = tx.GetProject(name)
-		return err
-	})
+	project, err := d.cluster.GetProject(name)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -222,12 +217,7 @@ func projectPut(d *Daemon, r *http.Request) response.Response {
 	}
 
 	// Get the current data
-	var project *api.Project
-	err := d.cluster.Transaction(func(tx *db.ClusterTx) error {
-		var err error
-		project, err = tx.GetProject(name)
-		return err
-	})
+	project, err := d.cluster.GetProject(name)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -262,12 +252,7 @@ func projectPatch(d *Daemon, r *http.Request) response.Response {
 	}
 
 	// Get the current data
-	var project *api.Project
-	err := d.cluster.Transaction(func(tx *db.ClusterTx) error {
-		var err error
-		project, err = tx.GetProject(name)
-		return err
-	})
+	project, err := d.cluster.GetProject(name)
 	if err != nil {
 		return response.SmartError(err)
 	}
