@@ -2672,29 +2672,46 @@ func (b *lxdBackend) UpdateCustomVolume(projectName string, volName string, newD
 			return fmt.Errorf("Custom volume 'block.filesystem' property cannot be changed")
 		}
 
+		// Check that security.unmapped and security.shifted aren't set together.
+		if shared.IsTrue(newConfig["security.unmapped"]) && shared.IsTrue(newConfig["security.shifted"]) {
+			return fmt.Errorf("security.unmapped and security.shifted are mutually exclusive")
+		}
+
+		runningQuotaResize := b.Driver().Info().RunningQuotaResize
+
+		// Check for config changing that is not allowed when running instances are using it.
+		if (changedConfig["size"] != "" && !runningQuotaResize) || newConfig["security.shifted"] != curVol.Config["security.shifted"] {
+			err = VolumeUsedByInstances(b.state, b.name, projectName, volName, db.StoragePoolVolumeTypeNameCustom, true, func(dbInst db.Instance, project api.Project, profiles []api.Profile) error {
+				inst, err := instance.Load(b.state, db.InstanceToArgs(&dbInst), profiles)
+				if err != nil {
+					return err
+				}
+
+				if inst.IsRunning() {
+					if changedConfig["size"] != "" && !runningQuotaResize {
+						// Confirm that no running instances are using it when changing
+						// size if driver doesn't support online resize.
+						return ErrRunningQuotaResizeNotSupported
+					} else if changedConfig["security.shifted"] != "" {
+						// Confirm that no running instances are using it when changing
+						// shifted state.
+						return fmt.Errorf("Cannot modify shifting with running instances using the volume")
+					}
+				}
+
+				return nil
+			})
+			if err != nil {
+				return err
+			}
+		}
+
 		curVol := b.newVolume(drivers.VolumeTypeCustom, drivers.ContentTypeFS, volStorageName, curVol.Config)
 		if !userOnly {
 			err = b.driver.UpdateVolume(curVol, changedConfig)
 			if err != nil {
 				return err
 			}
-		}
-	}
-
-	// Check that security.unmapped and security.shifted aren't set together.
-	if shared.IsTrue(newConfig["security.unmapped"]) && shared.IsTrue(newConfig["security.shifted"]) {
-		return fmt.Errorf("security.unmapped and security.shifted are mutually exclusive")
-	}
-
-	// Confirm that no instances are running when changing shifted state.
-	if newConfig["security.shifted"] != curVol.Config["security.shifted"] {
-		usingVolume, err := VolumeUsedByRunningInstancesWithProfilesGet(b.state, projectName, b.Name(), volName, db.StoragePoolVolumeTypeNameCustom, true)
-		if err != nil {
-			return err
-		}
-
-		if len(usingVolume) != 0 {
-			return fmt.Errorf("Cannot modify shifting with running instances using the volume")
 		}
 	}
 
