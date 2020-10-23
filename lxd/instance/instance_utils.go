@@ -661,7 +661,7 @@ func DeviceNextInterfaceHWAddr() (string, error) {
 }
 
 // BackupLoadByName load an instance backup from the database.
-func BackupLoadByName(s *state.State, project, name string) (*backup.Backup, error) {
+func BackupLoadByName(s *state.State, project, name string) (*backup.InstanceBackup, error) {
 	// Get the backup database record
 	args, err := s.Cluster.GetInstanceBackup(project, name)
 	if err != nil {
@@ -674,7 +674,7 @@ func BackupLoadByName(s *state.State, project, name string) (*backup.Backup, err
 		return nil, errors.Wrap(err, "Load instance from database")
 	}
 
-	return backup.New(s, instance, args.ID, name, args.CreationDate, args.ExpiryDate, args.InstanceOnly, args.OptimizedStorage), nil
+	return backup.NewInstanceBackup(s, instance, args.ID, name, args.CreationDate, args.ExpiryDate, args.InstanceOnly, args.OptimizedStorage), nil
 }
 
 // ResolveImage takes an instance source and returns a hash suitable for instance creation or download.

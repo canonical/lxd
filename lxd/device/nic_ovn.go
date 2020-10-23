@@ -4,7 +4,9 @@ import (
 	"fmt"
 	"net"
 	"os"
+	"strings"
 
+	"github.com/mdlayher/netx/eui64"
 	"github.com/pkg/errors"
 
 	"github.com/lxc/lxd/lxd/cluster"
@@ -22,10 +24,20 @@ import (
 	log "github.com/lxc/lxd/shared/log15"
 )
 
+// ovnNet defines an interface for accessing instance specific functions on OVN network.
+type ovnNet interface {
+	network.Network
+
+	InstanceDevicePortValidateExternalRoutes(externalRoutes []*net.IPNet) error
+	InstanceDevicePortAdd(instanceID int, instanceName string, deviceName string, mac net.HardwareAddr, ips []net.IP, internalRoutes []*net.IPNet, externalRoutes []*net.IPNet) (openvswitch.OVNSwitchPort, error)
+	InstanceDevicePortDelete(instanceID int, deviceName string, internalRoutes []*net.IPNet, externalRoutes []*net.IPNet) error
+	InstanceDevicePortDynamicIPs(instanceID int, deviceName string) ([]net.IP, error)
+}
+
 type nicOVN struct {
 	deviceCommon
 
-	network network.Network
+	network ovnNet // Populated in validateConfig().
 }
 
 // getIntegrationBridgeName returns the OVS integration bridge to use.
@@ -55,6 +67,10 @@ func (d *nicOVN) validateConfig(instConf instance.ConfigReader) error {
 		"mtu",
 		"ipv4.address",
 		"ipv6.address",
+		"ipv4.routes",
+		"ipv6.routes",
+		"ipv4.routes.external",
+		"ipv6.routes.external",
 		"boot.priority",
 	}
 
@@ -85,7 +101,12 @@ func (d *nicOVN) validateConfig(instConf instance.ConfigReader) error {
 		}
 	}
 
-	d.network = n // Stored loaded instance for use by other functions.
+	ovnNet, ok := n.(ovnNet)
+	if !ok {
+		return fmt.Errorf("Network is not OVN type")
+	}
+
+	d.network = ovnNet // Stored loaded instance for use by other functions.
 	netConfig := d.network.Config()
 
 	if d.config["ipv4.address"] != "" {
@@ -133,6 +154,35 @@ func (d *nicOVN) validateConfig(instConf instance.ConfigReader) error {
 	err = d.config.Validate(rules)
 	if err != nil {
 		return err
+	}
+
+	// Check IP external routes are within the network's external routes.
+	var externalRoutes []*net.IPNet
+	for _, k := range []string{"ipv4.routes.external", "ipv6.routes.external"} {
+		if d.config[k] == "" {
+			continue
+		}
+
+		externalRoutes, err = network.SubnetParseAppend(externalRoutes, strings.Split(d.config[k], ",")...)
+		if err != nil {
+			return err
+		}
+	}
+
+	if len(externalRoutes) > 0 {
+		for _, externalRoute := range externalRoutes {
+			rOnes, rBits := externalRoute.Mask.Size()
+			if rBits > 32 && rOnes < 122 {
+				return fmt.Errorf("External route %q is too large. Maximum size for IPv6 external route is /122", externalRoute.String())
+			} else if rOnes < 26 {
+				return fmt.Errorf("External route %q is too large. Maximum size for IPv4 external route is /26", externalRoute.String())
+			}
+		}
+
+		err = d.network.InstanceDevicePortValidateExternalRoutes(externalRoutes)
+		if err != nil {
+			return err
+		}
 	}
 
 	return nil
@@ -200,7 +250,7 @@ func (d *nicOVN) Start() (*deviceConfig.RunConfig, error) {
 		return nil, err
 	}
 
-	revert.Add(func() { NetworkRemoveInterface(saveData["host_name"]) })
+	revert.Add(func() { network.InterfaceRemove(saveData["host_name"]) })
 
 	// Populate device config with volatile fields if needed.
 	networkVethFillFromVolatile(d.config, saveData)
@@ -225,22 +275,48 @@ func (d *nicOVN) Start() (*deviceConfig.RunConfig, error) {
 
 	ips := []net.IP{}
 	for _, key := range []string{"ipv4.address", "ipv6.address"} {
-		if d.config[key] != "" {
-			ip := net.ParseIP(d.config[key])
-			if ip == nil {
-				return nil, fmt.Errorf("Invalid %s value %q", key, d.config[key])
-			}
-			ips = append(ips, ip)
+		if d.config[key] == "" {
+			continue
+		}
+
+		ip := net.ParseIP(d.config[key])
+		if ip == nil {
+			return nil, fmt.Errorf("Invalid %s value %q", key, d.config[key])
+		}
+		ips = append(ips, ip)
+	}
+
+	internalRoutes := []*net.IPNet{}
+	for _, key := range []string{"ipv4.routes", "ipv6.routes"} {
+		if d.config[key] == "" {
+			continue
+		}
+
+		internalRoutes, err = network.SubnetParseAppend(internalRoutes, strings.Split(d.config[key], ",")...)
+		if err != nil {
+			return nil, errors.Wrapf(err, "Invalid %q value", key)
+		}
+	}
+
+	externalRoutes := []*net.IPNet{}
+	for _, key := range []string{"ipv4.routes.external", "ipv6.routes.external"} {
+		if d.config[key] == "" {
+			continue
+		}
+
+		externalRoutes, err = network.SubnetParseAppend(externalRoutes, strings.Split(d.config[key], ",")...)
+		if err != nil {
+			return nil, errors.Wrapf(err, "Invalid %q value", key)
 		}
 	}
 
 	// Add new OVN logical switch port for instance.
-	logicalPortName, err := network.OVNInstanceDevicePortAdd(d.network, d.inst.ID(), d.inst.Name(), d.name, mac, ips)
+	logicalPortName, err := d.network.InstanceDevicePortAdd(d.inst.ID(), d.inst.Name(), d.name, mac, ips, internalRoutes, externalRoutes)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrapf(err, "Failed adding OVN port")
 	}
 
-	revert.Add(func() { network.OVNInstanceDevicePortDelete(d.network, d.inst.ID(), d.name) })
+	revert.Add(func() { d.network.InstanceDevicePortDelete(d.inst.ID(), d.name, internalRoutes, externalRoutes) })
 
 	// Attach host side veth interface to bridge.
 	integrationBridge, err := d.getIntegrationBridgeName()
@@ -346,7 +422,32 @@ func (d *nicOVN) Stop() (*deviceConfig.RunConfig, error) {
 		PostHooks: []func() error{d.postStop},
 	}
 
-	err := network.OVNInstanceDevicePortDelete(d.network, d.inst.ID(), d.name)
+	var err error
+	internalRoutes := []*net.IPNet{}
+	for _, key := range []string{"ipv4.routes", "ipv6.routes"} {
+		if d.config[key] == "" {
+			continue
+		}
+
+		internalRoutes, err = network.SubnetParseAppend(internalRoutes, strings.Split(d.config[key], ",")...)
+		if err != nil {
+			return nil, errors.Wrapf(err, "Invalid %q value", key)
+		}
+	}
+
+	externalRoutes := []*net.IPNet{}
+	for _, key := range []string{"ipv4.routes.external", "ipv6.routes.external"} {
+		if d.config[key] == "" {
+			continue
+		}
+
+		externalRoutes, err = network.SubnetParseAppend(externalRoutes, strings.Split(d.config[key], ",")...)
+		if err != nil {
+			return nil, errors.Wrapf(err, "Invalid %q value", key)
+		}
+	}
+
+	err = d.network.InstanceDevicePortDelete(d.inst.ID(), d.name, internalRoutes, externalRoutes)
 	if err != nil {
 		// Don't fail here as we still want the postStop hook to run to clean up the local veth pair.
 		d.logger.Error("Failed to remove OVN device port", log.Ctx{"err": err})
@@ -380,7 +481,7 @@ func (d *nicOVN) postStop() error {
 		}
 
 		// Removing host-side end of veth pair will delete the peer end too.
-		err = NetworkRemoveInterface(d.config["host_name"])
+		err = network.InterfaceRemove(d.config["host_name"])
 		if err != nil {
 			return errors.Wrapf(err, "Failed to remove interface %q", d.config["host_name"])
 		}
@@ -392,4 +493,117 @@ func (d *nicOVN) postStop() error {
 // Remove is run when the device is removed from the instance or the instance is deleted.
 func (d *nicOVN) Remove() error {
 	return nil
+}
+
+// State gets the state of an OVN NIC by querying the OVN Northbound logical switch port record.
+func (d *nicOVN) State() (*api.InstanceStateNetwork, error) {
+	v := d.volatileGet()
+
+	// Populate device config with volatile fields (hwaddr and host_name) if needed.
+	networkVethFillFromVolatile(d.config, v)
+
+	addresses := []api.InstanceStateNetworkAddress{}
+	netConfig := d.network.Config()
+
+	// Extract subnet sizes from bridge addresses.
+	_, v4subnet, _ := net.ParseCIDR(netConfig["ipv4.address"])
+	_, v6subnet, _ := net.ParseCIDR(netConfig["ipv6.address"])
+
+	var v4mask string
+	if v4subnet != nil {
+		mask, _ := v4subnet.Mask.Size()
+		v4mask = fmt.Sprintf("%d", mask)
+	}
+
+	var v6mask string
+	if v6subnet != nil {
+		mask, _ := v6subnet.Mask.Size()
+		v6mask = fmt.Sprintf("%d", mask)
+	}
+
+	// OVN only supports dynamic IP allocation if neither IPv4 or IPv6 are statically set.
+	if d.config["ipv4.address"] == "" && d.config["ipv6.address"] == "" {
+		dynamicIPs, err := d.network.InstanceDevicePortDynamicIPs(d.inst.ID(), d.name)
+		if err == nil {
+			for _, dynamicIP := range dynamicIPs {
+				family := "inet"
+				netmask := v4mask
+
+				if dynamicIP.To4() == nil {
+					family = "inet6"
+					netmask = v6mask
+				}
+
+				addresses = append(addresses, api.InstanceStateNetworkAddress{
+					Family:  family,
+					Address: dynamicIP.String(),
+					Netmask: netmask,
+					Scope:   "global",
+				})
+			}
+		} else {
+			d.logger.Warn("Failed getting OVN port dynamic IPs", log.Ctx{"err": err})
+		}
+	} else {
+		if d.config["ipv4.address"] != "" {
+			// Static DHCPv4 allocation present, that is likely to be the NIC's IPv4. So assume that.
+			addresses = append(addresses, api.InstanceStateNetworkAddress{
+				Family:  "inet",
+				Address: d.config["ipv4.address"],
+				Netmask: v4mask,
+				Scope:   "global",
+			})
+		}
+
+		if d.config["ipv6.address"] != "" {
+			// Static DHCPv6 allocation present, that is likely to be the NIC's IPv6. So assume that.
+			addresses = append(addresses, api.InstanceStateNetworkAddress{
+				Family:  "inet6",
+				Address: d.config["ipv6.address"],
+				Netmask: v6mask,
+				Scope:   "global",
+			})
+		} else if !shared.IsTrue(netConfig["ipv6.dhcp.stateful"]) && d.config["hwaddr"] != "" && v6subnet != nil {
+			// If no static DHCPv6 allocation and stateful DHCPv6 is disabled, and IPv6 is enabled on
+			// the bridge, the the NIC is likely to use its MAC and SLAAC to configure its address.
+			hwAddr, err := net.ParseMAC(d.config["hwaddr"])
+			if err == nil {
+				ip, err := eui64.ParseMAC(v6subnet.IP, hwAddr)
+				if err == nil {
+					addresses = append(addresses, api.InstanceStateNetworkAddress{
+						Family:  "inet6",
+						Address: ip.String(),
+						Netmask: v6mask,
+						Scope:   "global",
+					})
+				}
+			}
+		}
+	}
+
+	// Get MTU of host interface that connects to OVN integration bridge.
+	iface, err := net.InterfaceByName(d.config["host_name"])
+	if err != nil {
+		return nil, errors.Wrapf(err, "Failed getting host interface state")
+	}
+
+	// Retrieve the host counters, as we report the values from the instance's point of view,
+	// those counters need to be reversed below.
+	hostCounters := shared.NetworkGetCounters(d.config["host_name"])
+	network := api.InstanceStateNetwork{
+		Addresses: addresses,
+		Counters: api.InstanceStateNetworkCounters{
+			BytesReceived:   hostCounters.BytesSent,
+			BytesSent:       hostCounters.BytesReceived,
+			PacketsReceived: hostCounters.PacketsSent,
+			PacketsSent:     hostCounters.PacketsReceived,
+		},
+		Hwaddr:   d.config["hwaddr"],
+		HostName: d.config["host_name"],
+		Mtu:      iface.MTU,
+		State:    "up",
+		Type:     "broadcast",
+	}
+
+	return &network, nil
 }

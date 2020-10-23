@@ -280,6 +280,11 @@ test_clustering_containers() {
   apply_template2=$(LXD_DIR="${LXD_TWO_DIR}" lxc config get egg volatile.apply_template)
   [ "${apply_template1}" =  "${apply_template2}" ] || false
 
+  # Create backup and attempt to move container. Move should fail and container should remain on node3.
+  LXD_DIR="${LXD_THREE_DIR}" lxc query -X POST --wait -d '{\"name\":\"foo\"}' /1.0/instances/egg/backups
+  ! LXD_DIR="${LXD_THREE_DIR}" lxc move egg --target node1 || false
+  LXD_DIR="${LXD_THREE_DIR}" lxc info egg | grep -q "Location: node3"
+
   LXD_DIR="${LXD_THREE_DIR}" lxc delete egg
 
   # Delete the network now, since we're going to shutdown node2 and it
@@ -684,6 +689,8 @@ test_clustering_storage_single_node() {
   # Delete the storage pool
   LXD_DIR="${LXD_ONE_DIR}" lxc storage delete pool1
 
+  printf 'config: {}\ndevices: {}' | LXD_DIR="${LXD_ONE_DIR}" lxc profile edit default
+  LXD_DIR="${LXD_ONE_DIR}" lxc storage delete data
   LXD_DIR="${LXD_ONE_DIR}" lxd shutdown
   sleep 0.5
   rm -f "${LXD_ONE_DIR}/unix.socket"

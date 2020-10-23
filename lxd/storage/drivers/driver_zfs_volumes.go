@@ -299,7 +299,7 @@ func (d *zfs) CreateVolumeFromBackup(vol Volume, srcBackup backup.Info, srcData 
 		for {
 			hdr, err := tr.Next()
 			if err == io.EOF {
-				break // End of archive
+				break // End of archive.
 			}
 			if err != nil {
 				return err
@@ -349,6 +349,8 @@ func (d *zfs) CreateVolumeFromBackup(vol Volume, srcBackup backup.Info, srcData 
 			if vol.contentType == ContentTypeFS {
 				fileName = fmt.Sprintf("%s-config.bin", snapName)
 			}
+		} else if vol.volType == VolumeTypeCustom {
+			prefix = "volume-snapshots"
 		}
 
 		srcFile := fmt.Sprintf("backup/%s/%s", prefix, fileName)
@@ -367,6 +369,8 @@ func (d *zfs) CreateVolumeFromBackup(vol Volume, srcBackup backup.Info, srcData 
 		} else {
 			fileName = "virtual-machine.bin"
 		}
+	} else if vol.volType == VolumeTypeCustom {
+		fileName = "volume.bin"
 	}
 
 	err = unpackVolume(srcData, unpacker, fmt.Sprintf("backup/%s", fileName), d.dataset(vol, false))
@@ -402,15 +406,19 @@ func (d *zfs) CreateVolumeFromBackup(vol Volume, srcBackup backup.Info, srcData 
 		}
 	}
 
-	// The import requires a mounted volume, so mount it and have it unmounted as a post hook.
-	_, err = d.MountVolume(vol, op)
-	if err != nil {
-		return nil, nil, err
-	}
+	var postHook func(vol Volume) error
 
-	postHook := func(vol Volume) error {
-		_, err := d.UnmountVolume(vol, op)
-		return err
+	if vol.volType != VolumeTypeCustom {
+		// The import requires a mounted volume, so mount it and have it unmounted as a post hook.
+		_, err = d.MountVolume(vol, op)
+		if err != nil {
+			return nil, nil, err
+		}
+
+		postHook = func(vol Volume) error {
+			_, err := d.UnmountVolume(vol, false, op)
+			return err
+		}
 	}
 
 	revert.Success()
@@ -557,16 +565,14 @@ func (d *zfs) CreateVolumeFromCopy(vol Volume, srcVol Volume, copySnapshots bool
 		}
 	} else {
 		// Perform volume clone.
-		args := []string{
-			"clone",
-			srcSnapshot,
-			d.dataset(vol, false),
-		}
+		args := []string{"clone"}
 
 		if vol.contentType == ContentTypeBlock {
 			// Use volmode=none so volume is invisible until mounted.
 			args = append(args, "-o", "volmode=none")
 		}
+
+		args = append(args, srcSnapshot, d.dataset(vol, false))
 
 		// Clone the snapshot.
 		_, err := shared.RunCommand("zfs", args...)
@@ -728,44 +734,9 @@ func (d *zfs) DeleteVolume(vol Volume, op *operations.Operation) error {
 				return err
 			}
 		} else {
-			// Locate the origin snapshot (if any).
-			origin, err := d.getDatasetProperty(d.dataset(vol, false), "origin")
+			err := d.deleteDatasetRecursive(d.dataset(vol, false))
 			if err != nil {
 				return err
-			}
-
-			// Delete the dataset (and any snapshots left).
-			_, err = shared.RunCommand("zfs", "destroy", "-r", d.dataset(vol, false))
-			if err != nil {
-				return err
-			}
-
-			// Check if the origin can now be deleted.
-			if origin != "" && origin != "-" {
-				dataset := ""
-				if strings.HasPrefix(origin, filepath.Join(d.config["zfs.pool_name"], "deleted")) {
-					// Strip the snapshot name when dealing with a deleted volume.
-					dataset = strings.SplitN(origin, "@", 2)[0]
-				} else if strings.Contains(origin, "@deleted-") || strings.Contains(origin, "@copy-") {
-					// Handle deleted snapshots.
-					dataset = origin
-				}
-
-				if dataset != "" {
-					// Get all clones.
-					clones, err := d.getClones(dataset)
-					if err != nil {
-						return err
-					}
-
-					if len(clones) == 0 {
-						// Delete the origin.
-						_, err := shared.RunCommand("zfs", "destroy", "-r", dataset)
-						if err != nil {
-							return err
-						}
-					}
-				}
 			}
 		}
 	}
@@ -1100,21 +1071,22 @@ func (d *zfs) MountVolume(vol Volume, op *operations.Operation) (bool, error) {
 }
 
 // UnmountVolume simulates unmounting a volume.
-func (d *zfs) UnmountVolume(vol Volume, op *operations.Operation) (bool, error) {
+// keepBlockDev indicates if backing block device should be not be deactivated if volume is unmounted.
+func (d *zfs) UnmountVolume(vol Volume, keepBlockDev bool, op *operations.Operation) (bool, error) {
 	mountPath := vol.MountPath()
 	dataset := d.dataset(vol, false)
 
 	// For VMs, also mount the filesystem dataset.
 	if vol.IsVMBlock() {
 		fsVol := vol.NewVMBlockFilesystemVolume()
-		_, err := d.UnmountVolume(fsVol, op)
+		_, err := d.UnmountVolume(fsVol, false, op)
 		if err != nil {
 			return false, err
 		}
 	}
 
 	// For block devices, we make them disappear.
-	if vol.contentType == ContentTypeBlock {
+	if vol.contentType == ContentTypeBlock && !keepBlockDev {
 		err := d.setDatasetProperties(dataset, "volmode=none")
 		if err != nil {
 			return false, err
@@ -1210,7 +1182,7 @@ func (d *zfs) MigrateVolume(vol Volume, conn io.ReadWriteCloser, volSrcArgs *mig
 			return err
 		}
 		if ourMount {
-			defer d.UnmountVolume(parentVol, op)
+			defer d.UnmountVolume(parentVol, false, op)
 		}
 
 		return genericVFSMigrateVolume(d, d.state, vol, conn, volSrcArgs, op)
@@ -1314,7 +1286,7 @@ func (d *zfs) BackupVolume(vol Volume, tarWriter *instancewriter.InstanceTarWrit
 			}
 
 			if ourMount {
-				defer d.UnmountVolume(parentVol, op)
+				defer d.UnmountVolume(parentVol, false, op)
 			}
 		}
 
@@ -1447,6 +1419,8 @@ func (d *zfs) BackupVolume(vol Volume, tarWriter *instancewriter.InstanceTarWrit
 				if vol.contentType == ContentTypeFS {
 					fileName = fmt.Sprintf("%s-config.bin", snapName)
 				}
+			} else if vol.volType == VolumeTypeCustom {
+				prefix = "volume-snapshots"
 			}
 
 			target := fmt.Sprintf("backup/%s/%s", prefix, fileName)
@@ -1475,6 +1449,8 @@ func (d *zfs) BackupVolume(vol Volume, tarWriter *instancewriter.InstanceTarWrit
 		} else {
 			fileName = "virtual-machine.bin"
 		}
+	} else if vol.volType == VolumeTypeCustom {
+		fileName = "volume.bin"
 	}
 
 	err = sendToFile(srcSnapshot, finalParent, fmt.Sprintf("backup/%s", fileName))

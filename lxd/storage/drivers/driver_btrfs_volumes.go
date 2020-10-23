@@ -195,7 +195,7 @@ func (d *btrfs) CreateVolumeFromBackup(vol Volume, srcBackup backup.Info, srcDat
 		for {
 			hdr, err := tr.Next()
 			if err == io.EOF {
-				break // End of archive
+				break // End of archive.
 			}
 			if err != nil {
 				return "", err
@@ -273,6 +273,8 @@ func (d *btrfs) CreateVolumeFromBackup(vol Volume, srcBackup backup.Info, srcDat
 				if vol.contentType == ContentTypeFS {
 					srcFilePrefix = fmt.Sprintf("%s-config", snapName)
 				}
+			} else if vol.volType == VolumeTypeCustom {
+				snapDir = "volume-snapshots"
 			}
 
 			srcFilePrefix = filepath.Join(snapDir, srcFilePrefix)
@@ -291,6 +293,8 @@ func (d *btrfs) CreateVolumeFromBackup(vol Volume, srcBackup backup.Info, srcDat
 		} else {
 			srcFilePrefix = "virtual-machine"
 		}
+	} else if vol.volType == VolumeTypeCustom {
+		srcFilePrefix = "volume"
 	}
 
 	err = unpackVolume(vol, srcFilePrefix)
@@ -767,7 +771,8 @@ func (d *btrfs) MountVolume(vol Volume, op *operations.Operation) (bool, error) 
 }
 
 // UnmountVolume simulates unmounting a volume.
-func (d *btrfs) UnmountVolume(vol Volume, op *operations.Operation) (bool, error) {
+// As driver doesn't have volumes to unmount it returns false indicating the volume was already unmounted.
+func (d *btrfs) UnmountVolume(vol Volume, keepBlockDev bool, op *operations.Operation) (bool, error) {
 	return false, nil
 }
 
@@ -1140,6 +1145,8 @@ func (d *btrfs) BackupVolume(vol Volume, tarWriter *instancewriter.InstanceTarWr
 			if vol.contentType == ContentTypeFS {
 				fileName = fmt.Sprintf("%s-config", snapName)
 			}
+		} else if vol.volType == VolumeTypeCustom {
+			snapDir = "volume-snapshots"
 		}
 
 		fileNamePrefix := filepath.Join(snapDir, fileName)
@@ -1187,6 +1194,8 @@ func (d *btrfs) BackupVolume(vol Volume, tarWriter *instancewriter.InstanceTarWr
 		} else {
 			fileNamePrefix = "virtual-machine"
 		}
+	} else if vol.volType == VolumeTypeCustom {
+		fileNamePrefix = "volume"
 	}
 
 	err = addVolume(vol, targetVolume, lastVolPath, fileNamePrefix)

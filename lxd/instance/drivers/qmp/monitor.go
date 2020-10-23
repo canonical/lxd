@@ -322,3 +322,64 @@ func (m *Monitor) GetCPUs() ([]int, error) {
 
 	return pids, nil
 }
+
+// GetMemorySizeBytes returns the current size of the base memory in bytes.
+func (m *Monitor) GetMemorySizeBytes() (int64, error) {
+	respRaw, err := m.qmp.Run([]byte("{'execute': 'query-memory-size-summary'}"))
+	if err != nil {
+		m.Disconnect()
+		return -1, ErrMonitorDisconnect
+	}
+
+	// Process the response.
+	var respDecoded struct {
+		Return struct {
+			BaseMemory int64 `json:"base-memory"`
+		} `json:"return"`
+	}
+
+	err = json.Unmarshal(respRaw, &respDecoded)
+	if err != nil {
+		return -1, ErrMonitorBadReturn
+	}
+
+	return respDecoded.Return.BaseMemory, nil
+}
+
+// GetMemoryBalloonSizeBytes returns effective size of the memory in bytes (considering the current balloon size).
+func (m *Monitor) GetMemoryBalloonSizeBytes() (int64, error) {
+	respRaw, err := m.qmp.Run([]byte("{'execute': 'query-balloon'}"))
+	if err != nil {
+		m.Disconnect()
+		return -1, ErrMonitorDisconnect
+	}
+
+	// Process the response.
+	var respDecoded struct {
+		Return struct {
+			Actual int64 `json:"actual"`
+		} `json:"return"`
+	}
+
+	err = json.Unmarshal(respRaw, &respDecoded)
+	if err != nil {
+		return -1, ErrMonitorBadReturn
+	}
+
+	return respDecoded.Return.Actual, nil
+}
+
+// SetMemoryBalloonSizeBytes sets the size of the memory in bytes (which will resize the balloon as needed).
+func (m *Monitor) SetMemoryBalloonSizeBytes(sizeBytes int64) error {
+	respRaw, err := m.qmp.Run([]byte(fmt.Sprintf("{'execute': 'balloon', 'arguments': {'value': %d}}", sizeBytes)))
+	if err != nil {
+		m.Disconnect()
+		return ErrMonitorDisconnect
+	}
+
+	if string(respRaw) != `{"return": {}}` {
+		return ErrMonitorBadReturn
+	}
+
+	return nil
+}

@@ -56,6 +56,10 @@ const (
 	OperationBackupsExpire
 	OperationSnapshotsExpire
 	OperationCustomVolumeSnapshotsExpire
+	OperationCustomVolumeBackupCreate
+	OperationCustomVolumeBackupRemove
+	OperationCustomVolumeBackupRename
+	OperationCustomVolumeBackupRestore
 )
 
 // Description return a human-readable description of the operation type.
@@ -153,6 +157,14 @@ func (t OperationType) Description() string {
 		return "Cleaning up expired instance snapshots"
 	case OperationCustomVolumeSnapshotsExpire:
 		return "Cleaning up expired volume snapshots"
+	case OperationCustomVolumeBackupCreate:
+		return "Creating custom volume backup"
+	case OperationCustomVolumeBackupRemove:
+		return "Deleting custom volume backup"
+	case OperationCustomVolumeBackupRename:
+		return "Renaming custom volume backup"
+	case OperationCustomVolumeBackupRestore:
+		return "Restoring custom volume backup"
 	default:
 		return "Executing operation"
 	}
@@ -224,6 +236,14 @@ func (t OperationType) Permission() string {
 
 	case OperationCustomVolumeSnapshotsExpire:
 		return "operate-volumes"
+	case OperationCustomVolumeBackupCreate:
+		return "manage-storage-volumes"
+	case OperationCustomVolumeBackupRemove:
+		return "manage-storage-volumes"
+	case OperationCustomVolumeBackupRename:
+		return "manage-storage-volumes"
+	case OperationCustomVolumeBackupRestore:
+		return "manage-storage-volumes"
 	}
 
 	return ""

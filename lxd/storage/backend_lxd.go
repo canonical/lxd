@@ -1125,12 +1125,17 @@ func (b *lxdBackend) CreateInstanceFromMigration(inst instance.Instance, conn io
 		// transfer the base image files too.
 		if args.MigrationType.FSType == migration.MigrationFSType_RSYNC {
 			fingerprint := inst.ExpandedConfig()["volatile.base_image"]
+
+			// Confirm that the image is present in the project.
 			_, _, err = b.state.Cluster.GetImage(inst.Project(), fingerprint, false)
 			if err != db.ErrNoSuchObject && err != nil {
 				return err
 			}
 
-			if err == nil {
+			// Then make sure that the image is available locally too (not guaranteed in clusters).
+			local := shared.PathExists(shared.VarPath("images", fingerprint))
+
+			if err == nil && local {
 				logger.Debug("Using optimised migration from existing image", log.Ctx{"fingerprint": fingerprint})
 
 				// Populate the volume filler with the fingerprint and image filler
@@ -1647,7 +1652,7 @@ func (b *lxdBackend) UnmountInstance(inst instance.Instance, op *operations.Oper
 	// Get the volume.
 	vol := b.newVolume(volType, contentType, volStorageName, rootDiskConf)
 
-	return b.driver.UnmountVolume(vol, op)
+	return b.driver.UnmountVolume(vol, false, op)
 }
 
 // GetInstanceDisk returns the location of the disk.
@@ -2620,6 +2625,27 @@ func (b *lxdBackend) RenameCustomVolume(projectName string, volName string, newV
 		})
 	}
 
+	// Rename each backup to have the new parent volume prefix.
+	backups, err := b.state.Cluster.GetStoragePoolVolumeBackups(projectName, volName, b.ID())
+	if err != nil {
+		return err
+	}
+
+	for _, br := range backups {
+		backupRow := br // Local var for revert.
+		_, backupName, _ := shared.InstanceGetParentAndSnapshotName(backupRow.Name)
+		newVolBackupName := drivers.GetSnapshotVolumeName(newVolName, backupName)
+		volBackup := backup.NewVolumeBackup(b.state, projectName, b.name, volName, backupRow.ID, backupRow.Name, backupRow.CreationDate, backupRow.ExpiryDate, backupRow.VolumeOnly, backupRow.OptimizedStorage)
+		err = volBackup.Rename(newVolBackupName)
+		if err != nil {
+			return errors.Wrapf(err, "Failed renaming backup %q to %q", backupRow.Name, newVolBackupName)
+		}
+
+		revert.Add(func() {
+			volBackup.Rename(backupRow.Name)
+		})
+	}
+
 	err = b.state.Cluster.RenameStoragePoolVolume(projectName, volName, newVolName, db.StoragePoolVolumeTypeCustom, b.ID())
 	if err != nil {
 		return err
@@ -2867,6 +2893,15 @@ func (b *lxdBackend) DeleteCustomVolume(projectName string, volName string, op *
 		}
 	}
 
+	// Remove backups directory for volume.
+	backupsPath := shared.VarPath("backups", "custom", b.name, project.StorageVolume(projectName, volName))
+	if shared.PathExists(backupsPath) {
+		err := os.RemoveAll(backupsPath)
+		if err != nil {
+			return err
+		}
+	}
+
 	// Finally, remove the volume record from the database.
 	err = b.state.Cluster.RemoveStoragePoolVolume(projectName, volName, db.StoragePoolVolumeTypeCustom, b.ID())
 	if err != nil {
@@ -2941,7 +2976,7 @@ func (b *lxdBackend) UnmountCustomVolume(projectName, volName string, op *operat
 	volStorageName := project.StorageVolume(projectName, volName)
 	vol := b.newVolume(drivers.VolumeTypeCustom, drivers.ContentTypeFS, volStorageName, volume.Config)
 
-	return b.driver.UnmountVolume(vol, op)
+	return b.driver.UnmountVolume(vol, false, op)
 }
 
 // CreateCustomVolumeSnapshot creates a snapshot of a custom volume.
@@ -3254,7 +3289,7 @@ func (b *lxdBackend) UpdateInstanceBackupFile(inst instance.Instance, op *operat
 		return err
 	}
 
-	data, err := yaml.Marshal(&backup.InstanceConfig{
+	data, err := yaml.Marshal(&backup.Config{
 		Container: ci.(*api.Instance),
 		Snapshots: sis,
 		Pool:      &b.db,
@@ -3302,7 +3337,7 @@ func (b *lxdBackend) UpdateInstanceBackupFile(inst instance.Instance, op *operat
 // config are removed from the storage device, and any snapshots that exist in the backup config but do not exist
 // on the storage device are ignored. The remaining set of snapshots that exist on both the storage device and the
 // backup config are returned. They set can be used to re-create the snapshot database entries when importing.
-func (b *lxdBackend) CheckInstanceBackupFileSnapshots(backupConf *backup.InstanceConfig, projectName string, deleteMissing bool, op *operations.Operation) ([]*api.InstanceSnapshot, error) {
+func (b *lxdBackend) CheckInstanceBackupFileSnapshots(backupConf *backup.Config, projectName string, deleteMissing bool, op *operations.Operation) ([]*api.InstanceSnapshot, error) {
 	logger := logging.AddContext(b.logger, log.Ctx{"project": projectName, "instance": backupConf.Container.Name, "deleteMissing": deleteMissing})
 	logger.Debug("CheckInstanceBackupFileSnapshots started")
 	defer logger.Debug("CheckInstanceBackupFileSnapshots finished")
@@ -3396,4 +3431,124 @@ func (b *lxdBackend) CheckInstanceBackupFileSnapshots(backupConf *backup.Instanc
 	}
 
 	return existingSnapshots, nil
+}
+
+func (b *lxdBackend) BackupCustomVolume(projectName string, volName string, tarWriter *instancewriter.InstanceTarWriter, optimized bool, snapshots bool, op *operations.Operation) error {
+	logger := logging.AddContext(b.logger, log.Ctx{"project": projectName, "volume": volName, "optimized": optimized, "snapshots": snapshots})
+	logger.Debug("BackupCustomVolume started")
+	defer logger.Debug("BackupCustomVolume finished")
+
+	// Get the volume name on storage.
+	volStorageName := project.StorageVolume(projectName, volName)
+
+	_, volume, err := b.state.Cluster.GetLocalStoragePoolVolume(projectName, volName, db.StoragePoolVolumeTypeCustom, b.id)
+	if err != nil {
+		return err
+	}
+
+	vol := b.newVolume(drivers.VolumeTypeCustom, drivers.ContentType(volume.ContentType), volStorageName, volume.Config)
+
+	err = b.driver.BackupVolume(vol, tarWriter, optimized, snapshots, op)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (b *lxdBackend) CreateCustomVolumeFromBackup(srcBackup backup.Info, srcData io.ReadSeeker, op *operations.Operation) error {
+	logger := logging.AddContext(b.logger, log.Ctx{"project": srcBackup.Project, "volume": srcBackup.Name, "snapshots": srcBackup.Snapshots, "optimizedStorage": *srcBackup.OptimizedStorage})
+	logger.Debug("CreateCustomVolumeFromBackup started")
+	defer logger.Debug("CreateCustomVolumeFromBackup finished")
+
+	if srcBackup.Config == nil || srcBackup.Config.Volume == nil {
+		return fmt.Errorf("Valid volume config not found in index")
+	}
+
+	if len(srcBackup.Snapshots) != len(srcBackup.Config.VolumeSnapshots) {
+		return fmt.Errorf("Valid volume snapshot config not found in index")
+	}
+
+	// Check whether we are allowed to create volumes.
+	req := api.StorageVolumesPost{
+		StorageVolumePut: api.StorageVolumePut{
+			Config: srcBackup.Config.Volume.Config,
+		},
+		Name: srcBackup.Name,
+	}
+	err := b.state.Cluster.Transaction(func(tx *db.ClusterTx) error {
+		return project.AllowVolumeCreation(tx, srcBackup.Project, req)
+	})
+	if err != nil {
+		return errors.Wrapf(err, "Failed checking volume creation allowed")
+	}
+
+	revert := revert.New()
+	defer revert.Fail()
+
+	// Get the volume name on storage.
+	volStorageName := project.StorageVolume(srcBackup.Project, srcBackup.Name)
+
+	// Validate config.
+	vol := b.newVolume(drivers.VolumeTypeCustom, drivers.ContentType(srcBackup.Config.Volume.ContentType), volStorageName, srcBackup.Config.Volume.Config)
+
+	// Strip any unsupported config keys (in case the export was made from a different type of storage pool).
+	err = b.driver.ValidateVolume(vol, true)
+	if err != nil {
+		return err
+	}
+
+	// Create database entry for new storage volume using the validated config.
+	err = VolumeDBCreate(b.state, srcBackup.Project, b.name, srcBackup.Name, srcBackup.Config.Volume.Description, db.StoragePoolVolumeTypeNameCustom, false, vol.Config(), time.Time{}, string(vol.ContentType()))
+	if err != nil {
+		return err
+	}
+
+	revert.Add(func() {
+		b.state.Cluster.RemoveStoragePoolVolume(srcBackup.Project, srcBackup.Name, db.StoragePoolVolumeTypeCustom, b.ID())
+	})
+
+	// Create database entries fro new storage volume snapshots.
+	for _, s := range srcBackup.Config.VolumeSnapshots {
+		snapshot := s // Local var for revert.
+		_, snapName, _ := shared.InstanceGetParentAndSnapshotName(snapshot.Name)
+		fullSnapName := drivers.GetSnapshotVolumeName(srcBackup.Name, snapName)
+		snapVolStorageName := project.StorageVolume(srcBackup.Project, fullSnapName)
+		snapVol := b.newVolume(drivers.VolumeTypeCustom, drivers.ContentType(srcBackup.Config.Volume.ContentType), snapVolStorageName, srcBackup.Config.Volume.Config)
+
+		// Strip any unsupported config keys (in case the export was made from a different type of storage pool).
+		err := b.driver.ValidateVolume(snapVol, true)
+		if err != nil {
+			return err
+		}
+
+		err = VolumeDBCreate(b.state, srcBackup.Project, b.name, fullSnapName, snapshot.Description, db.StoragePoolVolumeTypeNameCustom, true, snapVol.Config(), *snapshot.ExpiresAt, string(snapVol.ContentType()))
+		if err != nil {
+			return err
+		}
+
+		revert.Add(func() {
+			b.state.Cluster.RemoveStoragePoolVolume(srcBackup.Project, fullSnapName, db.StoragePoolVolumeTypeCustom, b.ID())
+		})
+	}
+
+	// Unpack the backup into the new storage volume(s).
+	volPostHook, revertHook, err := b.driver.CreateVolumeFromBackup(vol, srcBackup, srcData, op)
+	if err != nil {
+		return err
+	}
+
+	if revertHook != nil {
+		revert.Add(revertHook)
+	}
+
+	// If the driver returned a post hook, return error as custom volumes don't need post hooks and we expect
+	// the storage driver to understand this distinction and ensure that all activities done in the postHook
+	// normally are done in CreateVolumeFromBackup as the DB record is created ahead of time.
+	if volPostHook != nil {
+		return fmt.Errorf("Custom volume restore doesn't support post hooks")
+	}
+
+	revert.Success()
+	return nil
 }

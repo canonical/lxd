@@ -69,6 +69,9 @@ const qemuUnsafeIO = "unsafeio"
 // qemuSerialChardevName is used to communicate state via qmp between Qemu and LXD.
 const qemuSerialChardevName = "qemu_serial-chardev"
 
+// qemuDefaultMemSize is the default memory size for VMs if not limit specified.
+const qemuDefaultMemSize = "1GiB"
+
 var errQemuAgentOffline = fmt.Errorf("LXD VM agent isn't currently running")
 
 var vmConsole = map[int]bool{}
@@ -100,6 +103,7 @@ func qemuInstantiate(s *state.State, args db.InstanceArgs, expandedDevices devic
 	vm := &qemu{
 		common: common{
 			dbType:       args.Type,
+			architecture: args.Architecture,
 			localConfig:  args.Config,
 			localDevices: args.Devices,
 			project:      args.Project,
@@ -110,7 +114,6 @@ func qemuInstantiate(s *state.State, args db.InstanceArgs, expandedDevices devic
 		name:         args.Name,
 		description:  args.Description,
 		ephemeral:    args.Ephemeral,
-		architecture: args.Architecture,
 		snapshot:     args.Snapshot,
 		creationDate: args.CreationDate,
 		lastUsedDate: args.LastUsedDate,
@@ -152,6 +155,7 @@ func qemuCreate(s *state.State, args db.InstanceArgs) (instance.Instance, error)
 	vm := &qemu{
 		common: common{
 			dbType:       args.Type,
+			architecture: args.Architecture,
 			localConfig:  args.Config,
 			localDevices: args.Devices,
 			state:        s,
@@ -163,7 +167,6 @@ func qemuCreate(s *state.State, args db.InstanceArgs) (instance.Instance, error)
 		node:         args.Node,
 		description:  args.Description,
 		ephemeral:    args.Ephemeral,
-		architecture: args.Architecture,
 		snapshot:     args.Snapshot,
 		stateful:     args.Stateful,
 		creationDate: args.CreationDate,
@@ -309,7 +312,6 @@ type qemu struct {
 	common
 
 	// Properties.
-	architecture int
 	snapshot     bool
 	creationDate time.Time
 	lastUsedDate time.Time
@@ -542,6 +544,8 @@ func (vm *qemu) onStop(target string) error {
 
 	if target == "reboot" {
 		err = vm.Start(false)
+		vm.state.Events.SendLifecycle(vm.project, "virtual-machine-restarted",
+			fmt.Sprintf("/1.0/virtual-machines/%s", vm.name), nil)
 	} else if vm.ephemeral {
 		// Destroy ephemeral virtual machines
 		err = vm.Delete()
@@ -620,7 +624,7 @@ func (vm *qemu) Shutdown(timeout time.Duration) error {
 	}
 
 	op.Done(nil)
-	vm.state.Events.SendLifecycle(vm.project, "instance-shutdown", fmt.Sprintf("/1.0/virtual-machines/%s", vm.name), nil)
+	vm.state.Events.SendLifecycle(vm.project, "virtual-machine-shutdown", fmt.Sprintf("/1.0/virtual-machines/%s", vm.name), nil)
 	return nil
 }
 
@@ -656,6 +660,16 @@ func (vm *qemu) Start(stateful bool) error {
 
 	// Start accumulating device paths.
 	vm.devPaths = []string{}
+
+	// Rotate the log file.
+	logfile := vm.LogFilePath()
+	if shared.PathExists(logfile) {
+		os.Remove(logfile + ".old")
+		err := os.Rename(logfile, logfile+".old")
+		if err != nil {
+			return err
+		}
+	}
 
 	// Mount the instance's config volume.
 	_, err = vm.mount()
@@ -1147,6 +1161,9 @@ func (vm *qemu) deviceLoad(deviceName string, rawConfig deviceConfig.Device) (de
 // config returned from Start(), it also runs the device's Register() function irrespective of
 // whether the instance is running or not.
 func (vm *qemu) deviceStart(deviceName string, rawConfig deviceConfig.Device, isRunning bool) (*deviceConfig.RunConfig, error) {
+	logger := logging.AddContext(logger.Log, log.Ctx{"device": deviceName, "type": rawConfig["type"], "project": vm.Project(), "instance": vm.Name()})
+	logger.Debug("Starting device")
+
 	d, _, err := vm.deviceLoad(deviceName, rawConfig)
 	if err != nil {
 		return nil, err
@@ -1166,8 +1183,9 @@ func (vm *qemu) deviceStart(deviceName string, rawConfig deviceConfig.Device, is
 
 // deviceStop loads a new device and calls its Stop() function.
 func (vm *qemu) deviceStop(deviceName string, rawConfig deviceConfig.Device) error {
-	logger := logging.AddContext(logger.Log, log.Ctx{"device": deviceName, "project": vm.Project(), "instance": vm.Name()})
+	logger := logging.AddContext(logger.Log, log.Ctx{"device": deviceName, "type": rawConfig["type"], "project": vm.Project(), "instance": vm.Name()})
 	logger.Debug("Stopping device")
+
 	d, _, err := vm.deviceLoad(deviceName, rawConfig)
 
 	// If deviceLoad fails with unsupported device type then return.
@@ -1531,62 +1549,69 @@ func (vm *qemu) templateApplyNow(trigger string, path string) error {
 
 	// Go through the templates.
 	for tplPath, tpl := range metadata.Templates {
-		var w *os.File
+		err = func(tplPath string, tpl *api.ImageMetadataTemplate) error {
+			var w *os.File
 
-		// Check if the template should be applied now.
-		found := false
-		for _, tplTrigger := range tpl.When {
-			if tplTrigger == trigger {
-				found = true
-				break
+			// Check if the template should be applied now.
+			found := false
+			for _, tplTrigger := range tpl.When {
+				if tplTrigger == trigger {
+					found = true
+					break
+				}
 			}
-		}
 
-		if !found {
-			continue
-		}
+			if !found {
+				return nil
+			}
 
-		// Create the file itself.
-		w, err = os.Create(filepath.Join(path, fmt.Sprintf("%s.out", tpl.Template)))
+			// Create the file itself.
+			w, err = os.Create(filepath.Join(path, fmt.Sprintf("%s.out", tpl.Template)))
+			if err != nil {
+				return err
+			}
+
+			// Fix ownership and mode.
+			w.Chmod(0644)
+			defer w.Close()
+
+			// Read the template.
+			tplString, err := ioutil.ReadFile(filepath.Join(vm.TemplatesPath(), tpl.Template))
+			if err != nil {
+				return errors.Wrap(err, "Failed to read template file")
+			}
+
+			// Restrict filesystem access to within the container's rootfs.
+			tplSet := pongo2.NewSet(fmt.Sprintf("%s-%s", vm.name, tpl.Template), pongoTemplate.ChrootLoader{Path: vm.TemplatesPath()})
+			tplRender, err := tplSet.FromString("{% autoescape off %}" + string(tplString) + "{% endautoescape %}")
+			if err != nil {
+				return errors.Wrap(err, "Failed to render template")
+			}
+
+			configGet := func(confKey, confDefault *pongo2.Value) *pongo2.Value {
+				val, ok := vm.expandedConfig[confKey.String()]
+				if !ok {
+					return confDefault
+				}
+
+				return pongo2.AsValue(strings.TrimRight(val, "\r\n"))
+			}
+
+			// Render the template.
+			tplRender.ExecuteWriter(pongo2.Context{"trigger": trigger,
+				"path":       tplPath,
+				"instance":   instanceMeta,
+				"container":  instanceMeta, // FIXME: remove once most images have moved away.
+				"config":     vm.expandedConfig,
+				"devices":    vm.expandedDevices,
+				"properties": tpl.Properties,
+				"config_get": configGet}, w)
+
+			return nil
+		}(tplPath, tpl)
 		if err != nil {
 			return err
 		}
-
-		// Fix ownership and mode.
-		w.Chmod(0644)
-		defer w.Close()
-
-		// Read the template.
-		tplString, err := ioutil.ReadFile(filepath.Join(vm.TemplatesPath(), tpl.Template))
-		if err != nil {
-			return errors.Wrap(err, "Failed to read template file")
-		}
-
-		// Restrict filesystem access to within the container's rootfs.
-		tplSet := pongo2.NewSet(fmt.Sprintf("%s-%s", vm.name, tpl.Template), pongoTemplate.ChrootLoader{Path: vm.TemplatesPath()})
-		tplRender, err := tplSet.FromString("{% autoescape off %}" + string(tplString) + "{% endautoescape %}")
-		if err != nil {
-			return errors.Wrap(err, "Failed to render template")
-		}
-
-		configGet := func(confKey, confDefault *pongo2.Value) *pongo2.Value {
-			val, ok := vm.expandedConfig[confKey.String()]
-			if !ok {
-				return confDefault
-			}
-
-			return pongo2.AsValue(strings.TrimRight(val, "\r\n"))
-		}
-
-		// Render the template.
-		tplRender.ExecuteWriter(pongo2.Context{"trigger": trigger,
-			"path":       tplPath,
-			"instance":   instanceMeta,
-			"container":  instanceMeta, // FIXME: remove once most images have moved away.
-			"config":     vm.expandedConfig,
-			"devices":    vm.expandedDevices,
-			"properties": tpl.Properties,
-			"config_get": configGet}, w)
 	}
 
 	return nil
@@ -1746,6 +1771,20 @@ func (vm *qemu) generateQemuConfigFile(busName string, devConfs []*deviceConfig.
 		return "", err
 	}
 
+	// s390x doesn't really have USB.
+	if vm.architecture != osarch.ARCH_64BIT_S390_BIG_ENDIAN {
+		devBus, devAddr, multi = bus.allocate(busFunctionGroupGeneric)
+		err = qemuUSB.Execute(sb, map[string]interface{}{
+			"bus":           bus.name,
+			"devBus":        devBus,
+			"devAddr":       devAddr,
+			"multifunction": multi,
+		})
+		if err != nil {
+			return "", err
+		}
+	}
+
 	devBus, devAddr, multi = bus.allocate(busFunctionGroupNone)
 	err = qemuSCSI.Execute(sb, map[string]interface{}{
 		"bus":           bus.name,
@@ -1828,6 +1867,23 @@ func (vm *qemu) generateQemuConfigFile(busName string, devConfs []*deviceConfig.
 				return "", err
 			}
 		}
+
+		// Add USB device.
+		if len(runConf.USBDevice) > 0 {
+			err = vm.addUSBDeviceConfig(sb, bus, runConf.USBDevice)
+			if err != nil {
+				return "", err
+			}
+		}
+
+		// Add TPM device.
+		if len(runConf.TPMDevice) > 0 {
+			err = vm.addTPMDeviceConfig(sb, runConf.TPMDevice)
+			if err != nil {
+				return "", err
+			}
+		}
+
 	}
 
 	// Write the agent mount config.
@@ -1924,7 +1980,7 @@ func (vm *qemu) addCPUMemoryConfig(sb *strings.Builder) error {
 	// Configure memory limit.
 	memSize := vm.expandedConfig["limits.memory"]
 	if memSize == "" {
-		memSize = "1GiB" // Default to 1GiB if no memory limit specified.
+		memSize = qemuDefaultMemSize // Default if no memory limit specified.
 	}
 
 	memSizeBytes, err := units.ParseByteSizeString(memSize)
@@ -2242,6 +2298,57 @@ func (vm *qemu) addGPUDevConfig(sb *strings.Builder, bus *qemuBus, gpuConfig []d
 	return nil
 }
 
+func (vm *qemu) addUSBDeviceConfig(sb *strings.Builder, bus *qemuBus, usbConfig []deviceConfig.RunConfigItem) error {
+	var devName, hostDevice string
+
+	for _, usbItem := range usbConfig {
+		if usbItem.Key == "devName" {
+			devName = usbItem.Value
+		} else if usbItem.Key == "hostDevice" {
+			hostDevice = usbItem.Value
+		}
+	}
+
+	tplFields := map[string]interface{}{
+		"hostDevice": hostDevice,
+		"devName":    devName,
+	}
+
+	err := qemuUSBDev.Execute(sb, tplFields)
+	if err != nil {
+		return err
+	}
+
+	// Add path to devPaths. This way, the path will be included in the apparmor profile.
+	vm.devPaths = append(vm.devPaths, hostDevice)
+
+	return nil
+}
+
+func (vm *qemu) addTPMDeviceConfig(sb *strings.Builder, tpmConfig []deviceConfig.RunConfigItem) error {
+	var devName, socketPath string
+
+	for _, tpmItem := range tpmConfig {
+		if tpmItem.Key == "path" {
+			socketPath = tpmItem.Value
+		} else if tpmItem.Key == "devName" {
+			devName = tpmItem.Value
+		}
+	}
+
+	tplFields := map[string]interface{}{
+		"devName": devName,
+		"path":    socketPath,
+	}
+
+	err := qemuTPM.Execute(sb, tplFields)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
 // pidFilePath returns the path where the qemu process should write its PID.
 func (vm *qemu) pidFilePath() string {
 	return filepath.Join(vm.LogPath(), "qemu.pid")
@@ -2505,8 +2612,8 @@ func (vm *qemu) Snapshots() ([]instance.Instance, error) {
 }
 
 // Backups returns a list of backups.
-func (vm *qemu) Backups() ([]backup.Backup, error) {
-	return []backup.Backup{}, nil
+func (vm *qemu) Backups() ([]backup.InstanceBackup, error) {
+	return []backup.InstanceBackup{}, nil
 }
 
 // Rename the instance.
@@ -2591,9 +2698,10 @@ func (vm *qemu) Rename(newName string) error {
 	}
 
 	// Rename the logging path.
-	os.RemoveAll(shared.LogPath(newName))
+	newFullName := project.Instance(vm.Project(), vm.Name())
+	os.RemoveAll(shared.LogPath(newFullName))
 	if shared.PathExists(vm.LogPath()) {
-		err := os.Rename(vm.LogPath(), shared.LogPath(newName))
+		err := os.Rename(vm.LogPath(), shared.LogPath(newFullName))
 		if err != nil {
 			logger.Error("Failed renaming instance", ctxMap)
 			return err
@@ -2659,131 +2767,8 @@ func (vm *qemu) Rename(newName string) error {
 
 // Update the instance config.
 func (vm *qemu) Update(args db.InstanceArgs, userRequested bool) error {
-	// Only user.* keys can be changed on a running VM
-	if vm.IsRunning() {
-		if args.Config == nil {
-			args.Config = map[string]string{}
-		}
-
-		if userRequested {
-			// Validate the new config.
-			err := instance.ValidConfig(vm.state.OS, args.Config, false, false)
-			if err != nil {
-				return errors.Wrap(err, "Invalid config")
-			}
-		}
-
-		oldExpandedConfig := map[string]string{}
-		err := shared.DeepCopy(&vm.expandedConfig, &oldExpandedConfig)
-		if err != nil {
-			return err
-		}
-
-		oldLocalConfig := map[string]string{}
-		err = shared.DeepCopy(&vm.localConfig, &oldLocalConfig)
-		if err != nil {
-			return err
-		}
-
-		undoChanges := true
-		defer func() {
-			if undoChanges {
-				vm.expandedConfig = oldExpandedConfig
-				vm.localConfig = oldLocalConfig
-			}
-		}()
-
-		vm.localConfig = args.Config
-
-		// Expand the config and refresh the LXC config.
-		err = vm.expandConfig(nil)
-		if err != nil {
-			return errors.Wrap(err, "Expand config")
-		}
-
-		// Diff the configurations.
-		changedConfig := []string{}
-		for key := range oldExpandedConfig {
-			if oldExpandedConfig[key] != vm.expandedConfig[key] {
-				if !shared.StringInSlice(key, changedConfig) {
-					changedConfig = append(changedConfig, key)
-				}
-			}
-		}
-
-		for key := range vm.expandedConfig {
-			if oldExpandedConfig[key] != vm.expandedConfig[key] {
-				if !shared.StringInSlice(key, changedConfig) {
-					changedConfig = append(changedConfig, key)
-				}
-			}
-		}
-
-		for _, key := range changedConfig {
-			if !strings.HasPrefix(key, "user.") {
-				return fmt.Errorf("Only user.* keys can be updated on running VMs")
-			}
-		}
-
-		if userRequested {
-			// Do some validation of the config diff.
-			err = instance.ValidConfig(vm.state.OS, vm.expandedConfig, false, true)
-			if err != nil {
-				return errors.Wrap(err, "Invalid expanded config")
-			}
-		}
-
-		err = vm.state.Cluster.Transaction(func(tx *db.ClusterTx) error {
-			object, err := tx.GetInstance(vm.project, vm.name)
-			if err != nil {
-				return err
-			}
-
-			object.Config = vm.localConfig
-
-			return tx.UpdateInstance(vm.project, vm.name, *object)
-		})
-		if err != nil {
-			return errors.Wrap(err, "Failed to update database")
-		}
-
-		err = vm.UpdateBackupFile()
-		if err != nil && !os.IsNotExist(err) {
-			return errors.Wrap(err, "Failed to write backup file")
-		}
-
-		// Success, update the closure to mark that the changes should be kept.
-		undoChanges = false
-
-		err = vm.writeInstanceData()
-		if err != nil {
-			return errors.Wrap(err, "Failed to write instance-data file")
-		}
-
-		// Send devlxd notifications only for user.* key changes
-		for _, key := range changedConfig {
-			if !strings.HasPrefix(key, "user.") {
-				continue
-			}
-
-			msg := map[string]string{
-				"key":       key,
-				"old_value": oldExpandedConfig[key],
-				"value":     vm.expandedConfig[key],
-			}
-
-			err = vm.devlxdEventSend("config", msg)
-			if err != nil {
-				return err
-			}
-		}
-
-		endpoint := fmt.Sprintf("/1.0/virtual-machines/%s", vm.name)
-
-		vm.state.Events.SendLifecycle(vm.project, "virtual-machine-updated", endpoint, nil)
-
-		return nil
-	}
+	revert := revert.New()
+	defer revert.Fail()
 
 	// Set sane defaults for unset keys.
 	if args.Project == "" {
@@ -2893,26 +2878,20 @@ func (vm *qemu) Update(args db.InstanceArgs, userRequested bool) error {
 
 	oldExpiryDate := vm.expiryDate
 
-	// Define a function which reverts everything.  Defer this function
-	// so that it doesn't need to be explicitly called in every failing
-	// return path.  Track whether or not we want to undo the changes
-	// using a closure.
-	undoChanges := true
-	defer func() {
-		if undoChanges {
-			vm.description = oldDescription
-			vm.architecture = oldArchitecture
-			vm.ephemeral = oldEphemeral
-			vm.expandedConfig = oldExpandedConfig
-			vm.expandedDevices = oldExpandedDevices
-			vm.localConfig = oldLocalConfig
-			vm.localDevices = oldLocalDevices
-			vm.profiles = oldProfiles
-			vm.expiryDate = oldExpiryDate
-		}
-	}()
+	// Revert local changes if update fails.
+	revert.Add(func() {
+		vm.description = oldDescription
+		vm.architecture = oldArchitecture
+		vm.ephemeral = oldEphemeral
+		vm.expandedConfig = oldExpandedConfig
+		vm.expandedDevices = oldExpandedDevices
+		vm.localConfig = oldLocalConfig
+		vm.localDevices = oldLocalDevices
+		vm.profiles = oldProfiles
+		vm.expiryDate = oldExpiryDate
+	})
 
-	// Apply the various changes.
+	// Apply the various changes to local vars.
 	vm.description = args.Description
 	vm.architecture = args.Architecture
 	vm.ephemeral = args.Ephemeral
@@ -2921,7 +2900,7 @@ func (vm *qemu) Update(args db.InstanceArgs, userRequested bool) error {
 	vm.profiles = args.Profiles
 	vm.expiryDate = args.ExpiryDate
 
-	// Expand the config and refresh the LXC config.
+	// Expand the config.
 	err = vm.expandConfig(nil)
 	if err != nil {
 		return errors.Wrap(err, "Expand config")
@@ -2951,7 +2930,7 @@ func (vm *qemu) Update(args db.InstanceArgs, userRequested bool) error {
 	}
 
 	// Diff the devices.
-	removeDevices, addDevices, updateDevices, updateDiff := oldExpandedDevices.Update(vm.expandedDevices, func(oldDevice deviceConfig.Device, newDevice deviceConfig.Device) []string {
+	removeDevices, addDevices, updateDevices, allUpdatedKeys := oldExpandedDevices.Update(vm.expandedDevices, func(oldDevice deviceConfig.Device, newDevice deviceConfig.Device) []string {
 		// This function needs to return a list of fields that are excluded from differences
 		// between oldDevice and newDevice. The result of this is that as long as the
 		// devices are otherwise identical except for the fields returned here, then the
@@ -2975,6 +2954,10 @@ func (vm *qemu) Update(args db.InstanceArgs, userRequested bool) error {
 			return []string{} // Couldn't create Device, so this cannot be an update.
 		}
 
+		// TODO modify device framework to differentiate between devices that can only be updated when VM
+		// is stopped, but don't need to be removed then re-added. For now we rely upon the disk device
+		// indicating that it supports hot plugging, even for VMs, which it cannot. However this is
+		// needed so that the disk device's Update() function is called to allow disk resizing.
 		_, updateFields := d.CanHotPlug()
 		return updateFields
 	})
@@ -2993,16 +2976,44 @@ func (vm *qemu) Update(args db.InstanceArgs, userRequested bool) error {
 		}
 	}
 
+	isRunning := vm.IsRunning()
+
 	// Use the device interface to apply update changes.
-	err = vm.updateDevices(removeDevices, addDevices, updateDevices, oldExpandedDevices)
+	err = vm.updateDevices(removeDevices, addDevices, updateDevices, oldExpandedDevices, isRunning)
 	if err != nil {
 		return err
+	}
+
+	if isRunning {
+		// Only certain keys can be changed on a running VM.
+		liveUpdateKeys := []string{"limits.memory"}
+
+		// Check only keys that support live update have changed.
+		for _, key := range changedConfig {
+			if !strings.HasPrefix(key, "user.") && !shared.StringInSlice(key, liveUpdateKeys) {
+				return fmt.Errorf("Key %q cannot be updated when VM is running", key)
+			}
+		}
+
+		// Apply live update for each key.
+		for _, key := range changedConfig {
+			value := vm.expandedConfig[key]
+
+			if key == "limits.memory" {
+				err = vm.updateMemoryLimit(value)
+				if err != nil {
+					if err != nil {
+						return errors.Wrapf(err, "Failed updating memory limit")
+					}
+				}
+			}
+		}
 	}
 
 	// Update MAAS (must run after the MAC addresses have been generated).
 	updateMAAS := false
 	for _, key := range []string{"maas.subnet.ipv4", "maas.subnet.ipv6", "ipv4.address", "ipv6.address"} {
-		if shared.StringInSlice(key, updateDiff) {
+		if shared.StringInSlice(key, allUpdatedKeys) {
 			updateMAAS = true
 			break
 		}
@@ -3054,8 +3065,33 @@ func (vm *qemu) Update(args db.InstanceArgs, userRequested bool) error {
 		return errors.Wrap(err, "Failed to write backup file")
 	}
 
-	// Success, update the closure to mark that the changes should be kept.
-	undoChanges = false
+	// Changes have been applied and recorded, do not revert if an error occurs from here.
+	revert.Success()
+
+	if isRunning {
+		err = vm.writeInstanceData()
+		if err != nil {
+			return errors.Wrap(err, "Failed to write instance-data file")
+		}
+
+		// Send devlxd notifications only for user.* key changes
+		for _, key := range changedConfig {
+			if !strings.HasPrefix(key, "user.") {
+				continue
+			}
+
+			msg := map[string]string{
+				"key":       key,
+				"old_value": oldExpandedConfig[key],
+				"value":     vm.expandedConfig[key],
+			}
+
+			err = vm.devlxdEventSend("config", msg)
+			if err != nil {
+				return err
+			}
+		}
+	}
 
 	var endpoint string
 
@@ -3070,8 +3106,79 @@ func (vm *qemu) Update(args db.InstanceArgs, userRequested bool) error {
 	return nil
 }
 
-func (vm *qemu) updateDevices(removeDevices deviceConfig.Devices, addDevices deviceConfig.Devices, updateDevices deviceConfig.Devices, oldExpandedDevices deviceConfig.Devices) error {
-	isRunning := vm.IsRunning()
+// updateMemoryLimit live updates the VM's memory limit by reszing the balloon device.
+func (vm *qemu) updateMemoryLimit(newLimit string) error {
+	if newLimit == "" {
+		return nil
+	}
+
+	if shared.IsTrue(vm.expandedConfig["limits.memory.hugepages"]) {
+		return fmt.Errorf("Cannot live update memory limit when using huge pages")
+	}
+
+	// Check new size string is valid and convert to bytes.
+	newSizeBytes, err := units.ParseByteSizeString(newLimit)
+	if err != nil {
+		return errors.Wrapf(err, "Invalid memory size")
+	}
+
+	// Connect to the monitor.
+	monitor, err := qmp.Connect(vm.monitorPath(), qemuSerialChardevName, vm.getMonitorEventHandler())
+	if err != nil {
+		return err // The VM isn't running as no monitor socket available.
+	}
+
+	baseSizeBytes, err := monitor.GetMemorySizeBytes()
+	if err != nil {
+		return err
+	}
+
+	curSizeBytes, err := monitor.GetMemoryBalloonSizeBytes()
+	if err != nil {
+		return err
+	}
+
+	if curSizeBytes == newSizeBytes {
+		return nil
+	} else if baseSizeBytes < newSizeBytes {
+		return fmt.Errorf("Cannot increase memory size beyond boot time size when VM is running")
+	}
+
+	// Set effective memory size.
+	err = monitor.SetMemoryBalloonSizeBytes(newSizeBytes)
+	if err != nil {
+		return err
+	}
+
+	// Changing the memory balloon can take time, so poll the effectice size to check it has shrunk within 1%
+	// of the target size, which we then take as success (it may still continue to shrink closer to target).
+	for i := 0; i < 5; i++ {
+		curSizeBytes, err = monitor.GetMemoryBalloonSizeBytes()
+		if err != nil {
+			return err
+		}
+
+		var diff int64
+		if curSizeBytes < newSizeBytes {
+			diff = newSizeBytes - curSizeBytes
+		} else {
+			diff = curSizeBytes - newSizeBytes
+		}
+
+		if diff <= (newSizeBytes / 100) {
+			return nil // We reached to within 1% of our target size.
+		}
+
+		time.Sleep(500 * time.Millisecond)
+	}
+
+	return fmt.Errorf("Failed setting memory to %d bytes (currently %d bytes) as it was taking too long", newSizeBytes, curSizeBytes)
+}
+
+func (vm *qemu) updateDevices(removeDevices deviceConfig.Devices, addDevices deviceConfig.Devices, updateDevices deviceConfig.Devices, oldExpandedDevices deviceConfig.Devices, isRunning bool) error {
+	if isRunning && (len(removeDevices) > 0 || len(addDevices) > 0 || len(updateDevices) > 0) {
+		return fmt.Errorf("Devices cannot be changed when VM is running")
+	}
 
 	// Remove devices in reverse order to how they were added.
 	for _, dev := range removeDevices.Reversed() {
@@ -3268,7 +3375,7 @@ func (vm *qemu) cleanup() {
 
 // cleanupDevices performs any needed device cleanup steps when instance is stopped.
 func (vm *qemu) cleanupDevices() {
-	for _, dev := range vm.expandedDevices.Sorted() {
+	for _, dev := range vm.expandedDevices.Reversed() {
 		// Use the device interface if device supports it.
 		err := vm.deviceStop(dev.Name, dev.Config)
 		if err == device.ErrUnsupportedDevType {
@@ -3410,7 +3517,7 @@ func (vm *qemu) deviceAdd(deviceName string, rawConfig deviceConfig.Device) erro
 }
 
 func (vm *qemu) deviceRemove(deviceName string, rawConfig deviceConfig.Device) error {
-	logger := logging.AddContext(logger.Log, log.Ctx{"device": deviceName, "project": vm.Project(), "instance": vm.Name()})
+	logger := logging.AddContext(logger.Log, log.Ctx{"device": deviceName, "type": rawConfig["type"], "project": vm.Project(), "instance": vm.Name()})
 
 	d, _, err := vm.deviceLoad(deviceName, rawConfig)
 
@@ -4126,61 +4233,29 @@ func (vm *qemu) RenderState() (*api.InstanceState, error) {
 			status.Processes = -1
 			networks := map[string]api.InstanceStateNetwork{}
 			for k, m := range vm.ExpandedDevices() {
-				nicType, err := nictype.NICType(vm.state, vm.Project(), m)
-				if err != nil {
-					return nil, err
-				}
-
-				// We only care about bridged nics as these can use a local DHCP server that allows
-				// us to parse the leases file below.
-				if m["type"] != "nic" || nicType != "bridged" {
+				if m["type"] != "nic" {
 					continue
 				}
 
-				// Fill the MAC address.
-				m, err := vm.FillNetworkDevice(k, m)
+				d, _, err := vm.deviceLoad(k, m)
 				if err != nil {
-					return nil, err
-				}
-
-				// Temporarily populate parent from network setting if used.
-				if m["network"] != "" {
-					m["parent"] = m["network"]
-				}
-
-				// Parse the lease file.
-				addresses, err := network.GetLeaseAddresses(vm.state, m["parent"], m["hwaddr"])
-				if err != nil {
-					return nil, err
-				}
-
-				if len(addresses) == 0 {
+					logger.Warn("Could not load device", log.Ctx{"project": vm.Project(), "instance": vm.Name(), "device": k, "err": err})
 					continue
 				}
 
-				// Get MTU.
-				iface, err := net.InterfaceByName(m["parent"])
-				if err != nil {
-					return nil, err
+				// Only some NIC types support fallback state mechanisms when there is no agent.
+				nic, ok := d.(device.NICState)
+				if !ok {
+					continue
 				}
 
-				// Retrieve the host counters, as we report the values
-				// from the instance's point of view, those counters need to be reversed below.
-				hostCounters := shared.NetworkGetCounters(m["host_name"])
+				network, err := nic.State()
+				if err != nil {
+					return nil, errors.Wrapf(err, "Failed getting NIC state for %q", k)
+				}
 
-				networks[k] = api.InstanceStateNetwork{
-					Addresses: addresses,
-					Counters: api.InstanceStateNetworkCounters{
-						BytesReceived:   hostCounters.BytesSent,
-						BytesSent:       hostCounters.BytesReceived,
-						PacketsReceived: hostCounters.PacketsSent,
-						PacketsSent:     hostCounters.PacketsReceived,
-					},
-					Hwaddr:   m["hwaddr"],
-					HostName: m["host_name"],
-					Mtu:      iface.MTU,
-					State:    "up",
-					Type:     "broadcast",
+				if network != nil {
+					networks[k] = *network
 				}
 			}
 
@@ -4290,7 +4365,7 @@ func (vm *qemu) agentGetState() (*api.InstanceState, error) {
 // IsRunning returns whether or not the instance is running.
 func (vm *qemu) IsRunning() bool {
 	state := vm.State()
-	return state != "BROKEN" && state != "STOPPED"
+	return state != "STOPPED"
 }
 
 // IsFrozen returns whether the instance frozen or not.
@@ -4343,11 +4418,6 @@ func (vm *qemu) Description() string {
 	return vm.description
 }
 
-// Architecture returns the instance's architecture.
-func (vm *qemu) Architecture() int {
-	return vm.architecture
-}
-
 // CreationDate returns the instance's creation date.
 func (vm *qemu) CreationDate() time.Time {
 	return vm.creationDate
@@ -4373,6 +4443,13 @@ func (vm *qemu) statusCode() api.StatusCode {
 	// Connect to the monitor.
 	monitor, err := qmp.Connect(vm.monitorPath(), qemuSerialChardevName, vm.getMonitorEventHandler())
 	if err != nil {
+		// If cannot connect to monitor, but qemu process in pid file still exists, then likely qemu
+		// has crashed/hung and this instance is in an error state.
+		pid, _ := vm.pid()
+		if pid > 0 && shared.PathExists(fmt.Sprintf("/proc/%d", pid)) {
+			return api.Error
+		}
+
 		// If we fail to connect, chances are the VM isn't running.
 		return api.Stopped
 	}

@@ -181,7 +181,7 @@ func (c *cmdFileEdit) Run(cmd *cobra.Command, args []string) error {
 	fname := f.Name()
 	f.Close()
 	os.Remove(fname)
-	defer os.Remove(shared.HostPath(fname))
+	defer os.Remove(shared.HostPathFollow(fname))
 
 	// Extract current value
 	err = c.filePull.Run(cmd, append([]string{args[0]}, fname))
@@ -190,7 +190,7 @@ func (c *cmdFileEdit) Run(cmd *cobra.Command, args []string) error {
 	}
 
 	// Spawn the editor
-	_, err = shared.TextEditor(shared.HostPath(fname), []byte{})
+	_, err = shared.TextEditor(shared.HostPathFollow(fname), []byte{})
 	if err != nil {
 		return err
 	}

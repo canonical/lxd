@@ -390,7 +390,7 @@ func AtLeast(min string) bool {
 
 	versionStr := strings.TrimPrefix(fields[1], "version ")
 
-	ver, err := version.NewDottedVersion(versionStr)
+	ver, err := version.Parse(versionStr)
 	if err != nil {
 		return false
 	}

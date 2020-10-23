@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
+	"net"
 	"net/http"
 	"strings"
 
@@ -12,9 +13,12 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/lxc/lxd/lxd/db"
+	"github.com/lxc/lxd/lxd/network"
 	"github.com/lxc/lxd/lxd/operations"
+	"github.com/lxc/lxd/lxd/project"
 	projecthelpers "github.com/lxc/lxd/lxd/project"
 	"github.com/lxc/lxd/lxd/response"
+	"github.com/lxc/lxd/lxd/state"
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
@@ -125,7 +129,7 @@ func projectsPost(d *Daemon, r *http.Request) response.Response {
 	}
 
 	// Validate the configuration
-	err = projectValidateConfig(project.Config)
+	err = projectValidateConfig(d.State(), project.Config)
 	if err != nil {
 		return response.BadRequest(err)
 	}
@@ -353,7 +357,7 @@ func projectChange(d *Daemon, project *api.Project, req api.ProjectPut) response
 	}
 
 	// Validate the configuration.
-	err := projectValidateConfig(req.Config)
+	err := projectValidateConfig(d.State(), req.Config)
 	if err != nil {
 		return response.BadRequest(err)
 	}
@@ -527,55 +531,58 @@ func isEitherAllowOrBlockOrManaged(value string) error {
 	return validate.IsOneOf(value, []string{"block", "allow", "managed"})
 }
 
-// Validate the project configuration
-var projectConfigKeys = map[string]func(value string) error{
-	"features.profiles":              validate.Optional(validate.IsBool),
-	"features.images":                validate.Optional(validate.IsBool),
-	"features.storage.volumes":       validate.Optional(validate.IsBool),
-	"features.networks":              validate.Optional(validate.IsBool),
-	"limits.containers":              validate.Optional(validate.IsUint32),
-	"limits.virtual-machines":        validate.Optional(validate.IsUint32),
-	"limits.memory":                  validate.Optional(validate.IsSize),
-	"limits.processes":               validate.Optional(validate.IsUint32),
-	"limits.cpu":                     validate.Optional(validate.IsUint32),
-	"limits.disk":                    validate.Optional(validate.IsSize),
-	"limits.networks":                validate.Optional(validate.IsUint32),
-	"restricted":                     validate.Optional(validate.IsBool),
-	"restricted.containers.nesting":  isEitherAllowOrBlock,
-	"restricted.containers.lowlevel": isEitherAllowOrBlock,
-	"restricted.containers.privilege": func(value string) error {
-		return validate.IsOneOf(value, []string{"allow", "unprivileged", "isolated"})
-	},
-	"restricted.virtual-machines.lowlevel": isEitherAllowOrBlock,
-	"restricted.devices.unix-char":         isEitherAllowOrBlock,
-	"restricted.devices.unix-block":        isEitherAllowOrBlock,
-	"restricted.devices.unix-hotplug":      isEitherAllowOrBlock,
-	"restricted.devices.infiniband":        isEitherAllowOrBlock,
-	"restricted.devices.gpu":               isEitherAllowOrBlock,
-	"restricted.devices.usb":               isEitherAllowOrBlock,
-	"restricted.devices.nic":               isEitherAllowOrBlockOrManaged,
-	"restricted.devices.disk":              isEitherAllowOrBlockOrManaged,
-	"restricted.networks.uplinks":          validate.IsAny,
-}
+func projectValidateConfig(s *state.State, config map[string]string) error {
+	// Validate the project configuration.
+	projectConfigKeys := map[string]func(value string) error{
+		"features.profiles":              validate.Optional(validate.IsBool),
+		"features.images":                validate.Optional(validate.IsBool),
+		"features.storage.volumes":       validate.Optional(validate.IsBool),
+		"features.networks":              validate.Optional(validate.IsBool),
+		"limits.containers":              validate.Optional(validate.IsUint32),
+		"limits.virtual-machines":        validate.Optional(validate.IsUint32),
+		"limits.memory":                  validate.Optional(validate.IsSize),
+		"limits.processes":               validate.Optional(validate.IsUint32),
+		"limits.cpu":                     validate.Optional(validate.IsUint32),
+		"limits.disk":                    validate.Optional(validate.IsSize),
+		"limits.networks":                validate.Optional(validate.IsUint32),
+		"restricted":                     validate.Optional(validate.IsBool),
+		"restricted.containers.nesting":  isEitherAllowOrBlock,
+		"restricted.containers.lowlevel": isEitherAllowOrBlock,
+		"restricted.containers.privilege": func(value string) error {
+			return validate.IsOneOf(value, []string{"allow", "unprivileged", "isolated"})
+		},
+		"restricted.virtual-machines.lowlevel": isEitherAllowOrBlock,
+		"restricted.devices.unix-char":         isEitherAllowOrBlock,
+		"restricted.devices.unix-block":        isEitherAllowOrBlock,
+		"restricted.devices.unix-hotplug":      isEitherAllowOrBlock,
+		"restricted.devices.infiniband":        isEitherAllowOrBlock,
+		"restricted.devices.gpu":               isEitherAllowOrBlock,
+		"restricted.devices.usb":               isEitherAllowOrBlock,
+		"restricted.devices.nic":               isEitherAllowOrBlockOrManaged,
+		"restricted.devices.disk":              isEitherAllowOrBlockOrManaged,
+		"restricted.networks.uplinks":          validate.IsAny,
+		"restricted.networks.subnets": validate.Optional(func(value string) error {
+			return projectValidateRestrictedSubnets(s, value)
+		}),
+	}
 
-func projectValidateConfig(config map[string]string) error {
 	for k, v := range config {
 		key := k
 
-		// User keys are free for all
+		// User keys are free for all.
 		if strings.HasPrefix(key, "user.") {
 			continue
 		}
 
-		// Then validate
+		// Then validate.
 		validator, ok := projectConfigKeys[key]
 		if !ok {
-			return fmt.Errorf("Invalid project configuration key: %s", k)
+			return fmt.Errorf("Invalid project configuration key %q", k)
 		}
 
 		err := validator(v)
 		if err != nil {
-			return err
+			return errors.Wrapf(err, "Invalid project configuration key %q value", k)
 		}
 	}
 
@@ -601,6 +608,63 @@ func projectValidateName(name string) error {
 
 	if shared.StringInSlice(name, []string{".", ".."}) {
 		return fmt.Errorf("Invalid project name '%s'", name)
+	}
+
+	return nil
+}
+
+// projectValidateRestrictedSubnets checks that the project's restricted.networks.subnets are properly formatted
+// and are within the specified uplink network's routes.
+func projectValidateRestrictedSubnets(s *state.State, value string) error {
+	for _, subnetRaw := range strings.Split(value, ",") {
+		subnetParts := strings.SplitN(strings.TrimSpace(subnetRaw), ":", 2)
+		if len(subnetParts) != 2 {
+			return fmt.Errorf(`Subnet %q invalid, must be in the format of "<uplink network>:<subnet>"`, subnetRaw)
+		}
+
+		uplinkName := subnetParts[0]
+		subnetStr := subnetParts[1]
+
+		restrictedSubnetIP, restrictedSubnet, err := net.ParseCIDR(subnetStr)
+		if err != nil {
+			return err
+		}
+
+		if restrictedSubnetIP.String() != restrictedSubnet.IP.String() {
+			return fmt.Errorf("Not an IP network address %q", subnetStr)
+		}
+
+		// Check uplink exists and load config to compare subnets.
+		_, uplink, err := s.Cluster.GetNetworkInAnyState(project.Default, uplinkName)
+		if err != nil {
+			return errors.Wrapf(err, "Invalid uplink network %q", uplinkName)
+		}
+
+		// Parse uplink route subnets.
+		var uplinkRoutes []*net.IPNet
+		for _, k := range []string{"ipv4.routes", "ipv6.routes"} {
+			if uplink.Config[k] == "" {
+				continue
+			}
+
+			uplinkRoutes, err = network.SubnetParseAppend(uplinkRoutes, strings.Split(uplink.Config[k], ",")...)
+			if err != nil {
+				return err
+			}
+		}
+
+		foundMatch := false
+		// Check that the restricted subnet is within one of the uplink's routes.
+		for _, uplinkRoute := range uplinkRoutes {
+			if network.SubnetContains(uplinkRoute, restrictedSubnet) {
+				foundMatch = true
+				break
+			}
+		}
+
+		if !foundMatch {
+			return fmt.Errorf("Uplink network %q doesn't contain %q in its routes", uplinkName, restrictedSubnet.String())
+		}
 	}
 
 	return nil

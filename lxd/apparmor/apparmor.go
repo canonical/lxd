@@ -203,7 +203,7 @@ func getVersion(state *state.State) (*version.DottedVersion, error) {
 	}
 
 	fields := strings.Fields(strings.Split(out, "\n")[0])
-	return version.NewDottedVersion(fields[len(fields)-1])
+	return version.Parse(fields[len(fields)-1])
 }
 
 // getCacheDir returns the applicable AppArmor cache directory.

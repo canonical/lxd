@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"os"
+	"strings"
 
 	"github.com/spf13/cobra"
 
@@ -23,7 +24,7 @@ type cmdImport struct {
 
 func (c *cmdImport) Command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = usage("import", i18n.G("[<remote>:] <backup file>"))
+	cmd.Use = usage("import", i18n.G("[<remote>:] <backup file> [<instance name>]"))
 	cmd.Short = i18n.G("Import instance backups")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
 		`Import backups of instances including their snapshots.`))
@@ -38,16 +39,31 @@ func (c *cmdImport) Command() *cobra.Command {
 }
 
 func (c *cmdImport) Run(cmd *cobra.Command, args []string) error {
-	// Sanity checks
-	exit, err := c.global.CheckArgs(cmd, args, 1, 2)
+	// Sanity checks.
+	exit, err := c.global.CheckArgs(cmd, args, 1, 3)
 	if exit {
 		return err
 	}
 
-	// Parse remote
+	srcFilePosition := 0
+
+	// Parse remote (identify 1st argument is remote by looking for a colon at the end).
 	remote := ""
-	if len(args) > 1 {
+	if len(args) > 1 && strings.HasSuffix(args[0], ":") {
 		remote = args[0]
+		srcFilePosition = 1
+	}
+
+	// Parse source file (this could be 1st or 2nd argument depending on whether a remote is specified first).
+	srcFile := ""
+	if len(args) >= srcFilePosition+1 {
+		srcFile = args[srcFilePosition]
+	}
+
+	// Parse instance name.
+	instanceName := ""
+	if len(args) >= srcFilePosition+2 {
+		instanceName = args[srcFilePosition+1]
 	}
 
 	resources, err := c.global.ParseServers(remote)
@@ -57,7 +73,7 @@ func (c *cmdImport) Run(cmd *cobra.Command, args []string) error {
 
 	resource := resources[0]
 
-	file, err := os.Open(shared.HostPath(args[len(args)-1]))
+	file, err := os.Open(shared.HostPathFollow(srcFile))
 	if err != nil {
 		return err
 	}
@@ -84,6 +100,7 @@ func (c *cmdImport) Run(cmd *cobra.Command, args []string) error {
 			},
 		},
 		PoolName: c.flagStorage,
+		Name:     instanceName,
 	}
 
 	op, err := resource.server.CreateInstanceFromBackup(createArgs)
@@ -91,7 +108,7 @@ func (c *cmdImport) Run(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	// Wait for operation to finish
+	// Wait for operation to finish.
 	err = utils.CancelableWait(op, &progress)
 	if err != nil {
 		progress.Done("")

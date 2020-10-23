@@ -231,6 +231,8 @@ func (d *disk) validateEnvironment() error {
 
 // CanHotPlug returns whether the device can be managed whilst the instance is running, it also
 // returns a list of fields that can be updated without triggering a device remove & add.
+// Note: At current time VM instances rely on this function indicating live update of "size" field is possible
+// to allow disk resize when VM is stopped.
 func (d *disk) CanHotPlug() (bool, []string) {
 	return true, []string{"limits.max", "limits.read", "limits.write", "size"}
 }

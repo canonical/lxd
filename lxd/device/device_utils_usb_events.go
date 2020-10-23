@@ -26,6 +26,9 @@ type USBEvent struct {
 	Minor       uint32
 	UeventParts []string
 	UeventLen   int
+
+	BusNum int
+	DevNum int
 }
 
 // usbHandlers stores the event handler callbacks for USB events.
@@ -106,14 +109,16 @@ func USBNewEvent(action string, vendor string, product string, major string, min
 		return USBEvent{}, err
 	}
 
+	busnumInt := 0
+	devnumInt := 0
 	path := devname
 	if devname == "" {
-		busnumInt, err := strconv.Atoi(busnum)
+		busnumInt, err = strconv.Atoi(busnum)
 		if err != nil {
 			return USBEvent{}, err
 		}
 
-		devnumInt, err := strconv.Atoi(devnum)
+		devnumInt, err = strconv.Atoi(devnum)
 		if err != nil {
 			return USBEvent{}, err
 		}
@@ -133,5 +138,7 @@ func USBNewEvent(action string, vendor string, product string, major string, min
 		uint32(minorInt),
 		ueventParts,
 		ueventLen,
+		busnumInt,
+		devnumInt,
 	}, nil
 }

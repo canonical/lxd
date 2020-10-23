@@ -6,16 +6,21 @@ import (
 	"encoding/json"
 	"encoding/pem"
 	"fmt"
+	"io"
+	"io/ioutil"
 	"net/http"
+	"os"
 	"strings"
 
 	"github.com/gorilla/mux"
 	"github.com/gorilla/websocket"
+	"github.com/lxc/lxd/lxd/backup"
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/operations"
 	"github.com/lxc/lxd/lxd/project"
 	"github.com/lxc/lxd/lxd/response"
+	"github.com/lxc/lxd/lxd/revert"
 	"github.com/lxc/lxd/lxd/state"
 	storagePools "github.com/lxc/lxd/lxd/storage"
 	"github.com/lxc/lxd/lxd/util"
@@ -24,6 +29,7 @@ import (
 	log "github.com/lxc/lxd/shared/log15"
 	"github.com/lxc/lxd/shared/logger"
 	"github.com/lxc/lxd/shared/version"
+	"github.com/pkg/errors"
 )
 
 var storagePoolVolumesCmd = APIEndpoint{
@@ -274,15 +280,27 @@ func storagePoolVolumesTypeGet(d *Daemon, r *http.Request) response.Response {
 // /1.0/storage-pools/{name}/volumes/{type}
 // Create a storage volume in a given storage pool.
 func storagePoolVolumesTypePost(d *Daemon, r *http.Request) response.Response {
+	poolName := mux.Vars(r)["name"]
+
+	projectName, err := project.StorageVolumeProject(d.State().Cluster, projectParam(r), db.StoragePoolVolumeTypeCustom)
+	if err != nil {
+		return response.SmartError(err)
+	}
+
 	resp := forwardedResponseIfTargetIsRemote(d, r)
 	if resp != nil {
 		return resp
 	}
 
+	// If we're getting binary content, process separately.
+	if r.Header.Get("Content-Type") == "application/octet-stream" {
+		return createStoragePoolVolumeFromBackup(d, projectName, r.Body, poolName, r.Header.Get("X-LXD-name"))
+	}
+
 	req := api.StorageVolumesPost{}
 
 	// Parse the request.
-	err := json.NewDecoder(r.Body).Decode(&req)
+	err = json.NewDecoder(r.Body).Decode(&req)
 	if err != nil {
 		return response.BadRequest(err)
 	}
@@ -314,12 +332,6 @@ func storagePoolVolumesTypePost(d *Daemon, r *http.Request) response.Response {
 		return response.BadRequest(fmt.Errorf(`Currently not allowed to create storage volumes of type %q`, req.Type))
 	}
 
-	projectName, err := project.StorageVolumeProject(d.State().Cluster, projectParam(r), db.StoragePoolVolumeTypeCustom)
-	if err != nil {
-		return response.SmartError(err)
-	}
-
-	poolName := mux.Vars(r)["name"]
 	poolID, err := d.cluster.GetStoragePoolID(poolName)
 	if err != nil {
 		return response.SmartError(err)
@@ -622,7 +634,7 @@ func storagePoolVolumeTypePost(d *Daemon, r *http.Request, volumeTypeName string
 		return response.BadRequest(err)
 	}
 
-	resp = forwardedResponseIfVolumeIsRemote(d, r, poolID, volumeName, volumeType)
+	resp = forwardedResponseIfVolumeIsRemote(d, r, poolID, projectName, volumeName, volumeType)
 	if resp != nil {
 		return resp
 	}
@@ -845,7 +857,7 @@ func storagePoolVolumeTypeGet(d *Daemon, r *http.Request, volumeTypeName string)
 		return resp
 	}
 
-	resp = forwardedResponseIfVolumeIsRemote(d, r, poolID, volumeName, volumeType)
+	resp = forwardedResponseIfVolumeIsRemote(d, r, poolID, projectName, volumeName, volumeType)
 	if resp != nil {
 		return resp
 	}
@@ -924,7 +936,7 @@ func storagePoolVolumeTypePut(d *Daemon, r *http.Request, volumeTypeName string)
 		return resp
 	}
 
-	resp = forwardedResponseIfVolumeIsRemote(d, r, pool.ID(), volumeName, volumeType)
+	resp = forwardedResponseIfVolumeIsRemote(d, r, pool.ID(), projectName, volumeName, volumeType)
 	if resp != nil {
 		return resp
 	}
@@ -1066,7 +1078,7 @@ func storagePoolVolumeTypePatch(d *Daemon, r *http.Request, volumeTypeName strin
 		return resp
 	}
 
-	resp = forwardedResponseIfVolumeIsRemote(d, r, pool.ID(), volumeName, volumeType)
+	resp = forwardedResponseIfVolumeIsRemote(d, r, pool.ID(), projectName, volumeName, volumeType)
 	if resp != nil {
 		return resp
 	}
@@ -1164,7 +1176,7 @@ func storagePoolVolumeTypeDelete(d *Daemon, r *http.Request, volumeTypeName stri
 		return response.SmartError(err)
 	}
 
-	resp = forwardedResponseIfVolumeIsRemote(d, r, poolID, volumeName, volumeType)
+	resp = forwardedResponseIfVolumeIsRemote(d, r, poolID, projectName, volumeName, volumeType)
 	if resp != nil {
 		return resp
 	}
@@ -1218,4 +1230,149 @@ func storagePoolVolumeTypeCustomDelete(d *Daemon, r *http.Request) response.Resp
 
 func storagePoolVolumeTypeImageDelete(d *Daemon, r *http.Request) response.Response {
 	return storagePoolVolumeTypeDelete(d, r, "image")
+}
+
+func createStoragePoolVolumeFromBackup(d *Daemon, project string, data io.Reader, pool string, volName string) response.Response {
+	revert := revert.New()
+	defer revert.Fail()
+
+	// Create temporary file to store uploaded backup data.
+	backupFile, err := ioutil.TempFile(shared.VarPath("backups"), fmt.Sprintf("%s_", backup.WorkingDirPrefix))
+	if err != nil {
+		return response.InternalError(err)
+	}
+	defer os.Remove(backupFile.Name())
+	revert.Add(func() { backupFile.Close() })
+
+	// Stream uploaded backup data into temporary file.
+	_, err = io.Copy(backupFile, data)
+	if err != nil {
+		return response.InternalError(err)
+	}
+
+	// Detect squashfs compression and convert to tarball.
+	backupFile.Seek(0, 0)
+	_, algo, decomArgs, err := shared.DetectCompressionFile(backupFile)
+	if err != nil {
+		return response.InternalError(err)
+	}
+
+	if algo == ".squashfs" {
+		// Pass the temporary file as program argument to the decompression command.
+		decomArgs := append(decomArgs, backupFile.Name())
+
+		// Create temporary file to store the decompressed tarball in.
+		tarFile, err := ioutil.TempFile(shared.VarPath("backups"), fmt.Sprintf("%s_decompress_", backup.WorkingDirPrefix))
+		if err != nil {
+			return response.InternalError(err)
+		}
+		defer os.Remove(tarFile.Name())
+
+		// Decompress to tarData temporary file.
+		err = shared.RunCommandWithFds(nil, tarFile, decomArgs[0], decomArgs[1:]...)
+		if err != nil {
+			return response.InternalError(err)
+		}
+
+		// We don't need the original squashfs file anymore.
+		backupFile.Close()
+		os.Remove(backupFile.Name())
+
+		// Replace the backup file handle with the handle to the tar file.
+		backupFile = tarFile
+	}
+
+	// Parse the backup information.
+	backupFile.Seek(0, 0)
+	logger.Debug("Reading backup file info")
+	bInfo, err := backup.GetInfo(backupFile)
+	if err != nil {
+		return response.BadRequest(err)
+	}
+	bInfo.Project = project
+
+	// Override pool.
+	if pool != "" {
+		bInfo.Pool = pool
+	}
+
+	// Override volume name.
+	if volName != "" {
+		bInfo.Name = volName
+	}
+
+	logger.Debug("Backup file info loaded", log.Ctx{
+		"type":      bInfo.Type,
+		"name":      bInfo.Name,
+		"project":   bInfo.Project,
+		"backend":   bInfo.Backend,
+		"pool":      bInfo.Pool,
+		"optimized": *bInfo.OptimizedStorage,
+		"snapshots": bInfo.Snapshots,
+	})
+
+	// Check storage pool exists.
+	_, _, err = d.State().Cluster.GetStoragePoolInAnyState(bInfo.Pool)
+	if errors.Cause(err) == db.ErrNoSuchObject {
+		// The storage pool doesn't exist. If backup is in binary format (so we cannot alter
+		// the backup.yaml) or the pool has been specified directly from the user restoring
+		// the backup then we cannot proceed so return an error.
+		if *bInfo.OptimizedStorage || pool != "" {
+			return response.InternalError(errors.Wrap(err, "Storage pool not found"))
+		}
+
+		// Otherwise try and restore to the project's default profile pool.
+		_, profile, err := d.State().Cluster.GetProfile(bInfo.Project, "default")
+		if err != nil {
+			return response.InternalError(errors.Wrap(err, "Failed to get default profile"))
+		}
+
+		_, v, err := shared.GetRootDiskDevice(profile.Devices)
+		if err != nil {
+			return response.InternalError(errors.Wrap(err, "Failed to get root disk device"))
+		}
+
+		// Use the default-profile's root pool.
+		bInfo.Pool = v["pool"]
+	} else if err != nil {
+		return response.InternalError(err)
+	}
+
+	// Copy reverter so far so we can use it inside run after this function has finished.
+	runRevert := revert.Clone()
+
+	run := func(op *operations.Operation) error {
+		defer backupFile.Close()
+		defer runRevert.Fail()
+
+		pool, err := storagePools.GetPoolByName(d.State(), bInfo.Pool)
+		if err != nil {
+			return err
+		}
+
+		// Check if the backup is optimized that the source pool driver matches the target pool driver.
+		if *bInfo.OptimizedStorage && pool.Driver().Info().Name != bInfo.Backend {
+			return fmt.Errorf("Optimized backup storage driver %q differs from the target storage pool driver %q", bInfo.Backend, pool.Driver().Info().Name)
+		}
+
+		// Dump tarball to storage.
+		err = pool.CreateCustomVolumeFromBackup(*bInfo, backupFile, nil)
+		if err != nil {
+			return errors.Wrap(err, "Create custom volume from backup")
+		}
+
+		runRevert.Success()
+		return nil
+	}
+
+	resources := map[string][]string{}
+	resources["storage_volumes"] = []string{bInfo.Name}
+
+	op, err := operations.OperationCreate(d.State(), project, operations.OperationClassTask, db.OperationCustomVolumeBackupRestore, resources, nil, run, nil, nil)
+	if err != nil {
+		return response.InternalError(err)
+	}
+
+	revert.Success()
+	return operations.OperationResponse(op)
 }

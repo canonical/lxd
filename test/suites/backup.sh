@@ -157,20 +157,26 @@ test_container_import() {
 
 test_backup_import() {
   test_backup_import_with_project
-  test_backup_import_with_project foo
+  test_backup_import_with_project fooproject
 }
 
 test_backup_import_with_project() {
-  if [ "$#" -ne 0 ]; then
-  # Create a project
-    lxc project create foo
-    lxc project switch foo
+  project="default"
 
-    deps/import-busybox --project foo --alias testimage
+  if [ "$#" -ne 0 ]; then
+    # Create a projects
+    project="$1"
+    lxc project create "$project"
+    lxc project create "$project-b"
+    lxc project switch "$project"
+
+    deps/import-busybox --project "$project" --alias testimage
+    deps/import-busybox --project "$project-b" --alias testimage
 
     # Add a root device to the default profile of the project
     pool="lxdtest-$(basename "${LXD_DIR}")"
     lxc profile device add default root disk path="/" pool="${pool}"
+    lxc profile device add default root disk path="/" pool="${pool}" --project "$project-b"
   fi
 
   ensure_import_testimage
@@ -215,23 +221,53 @@ test_backup_import_with_project() {
   lxc delete --force c2
 
   lxc import "${LXD_DIR}/c2.tar.gz"
+  lxc import "${LXD_DIR}/c2.tar.gz" c3
   lxc info c2 | grep snap0
+  lxc info c3 | grep snap0
   lxc start c2
+  lxc start c3
   lxc stop c2 --force
+  lxc stop c3 --force
+
+  if [ "$#" -ne 0 ]; then
+    # Import into different project (before deleting earlier import).
+    lxc import "${LXD_DIR}/c2.tar.gz" --project "$project-b"
+    lxc import "${LXD_DIR}/c2.tar.gz" --project "$project-b" c3
+    lxc info c2 --project "$project-b" | grep snap0
+    lxc info c3 --project "$project-b" | grep snap0
+    lxc start c2 --project "$project-b"
+    lxc start c3 --project "$project-b"
+    lxc stop c2 --project "$project-b" --force
+    lxc stop c3 --project "$project-b" --force
+    lxc restore c2 snap0 --project "$project-b"
+    lxc restore c3 snap0 --project "$project-b"
+    lxc delete --force c2 --project "$project-b"
+    lxc delete --force c3 --project "$project-b"
+  fi
 
   lxc restore c2 snap0
+  lxc restore c3 snap0
   lxc start c2
+  lxc start c3
   lxc delete --force c2
+  lxc delete --force c3
+
 
   if [ "$lxd_backend" = "btrfs" ] || [ "$lxd_backend" = "zfs" ]; then
     lxc import "${LXD_DIR}/c2-optimized.tar.gz"
+    lxc import "${LXD_DIR}/c2-optimized.tar.gz" c3
     lxc info c2 | grep snap0
+    lxc info c3 | grep snap0
     lxc start c2
+    lxc start c3
     lxc stop c2 --force
-
+    lxc stop c3 --force
     lxc restore c2 snap0
+    lxc restore c3 snap0
     lxc start c2
+    lxc start c3
     lxc delete --force c2
+    lxc delete --force c3
   fi
 
   # Test hyphenated container and snapshot names
@@ -284,23 +320,28 @@ test_backup_import_with_project() {
 
   if [ "$#" -ne 0 ]; then
     lxc image rm testimage
+    lxc image rm testimage --project "$project-b"
     lxc project switch default
-    lxc project delete foo
+    lxc project delete "$project"
+    lxc project delete "$project-b"
   fi
 }
 
 test_backup_export() {
   test_backup_export_with_project
-  test_backup_export_with_project foo
+  test_backup_export_with_project fooproject
 }
 
 test_backup_export_with_project() {
-  if [ "$#" -ne 0 ]; then
-  # Create a project
-    lxc project create foo
-    lxc project switch foo
+  project="default"
 
-    deps/import-busybox --project foo --alias testimage
+  if [ "$#" -ne 0 ]; then
+    # Create a project
+    project="$1"
+    lxc project create "$project"
+    lxc project switch "$project"
+
+    deps/import-busybox --project "$project" --alias testimage
 
     # Add a root device to the default profile of the project
     pool="lxdtest-$(basename "${LXD_DIR}")"
@@ -370,7 +411,7 @@ test_backup_export_with_project() {
   if [ "$#" -ne 0 ]; then
     lxc image rm testimage
     lxc project switch default
-    lxc project delete foo
+    lxc project delete "$project"
   fi
 }
 
@@ -412,4 +453,238 @@ test_backup_rename() {
   ! lxc query /1.0/instances/c1/backups/foo || false
 
   lxc delete --force c2
+}
+
+test_backup_volume_export() {
+  test_backup_volume_export_with_project
+  test_backup_volume_export_with_project fooproject
+}
+
+test_backup_volume_export_with_project() {
+  project="default"
+  pool="lxdtest-$(basename "${LXD_DIR}")"
+
+  if [ "$#" -ne 0 ]; then
+    # Create a project.
+    project="$1"
+    lxc project create "$project"
+    lxc project create "$project-b"
+    lxc project switch "$project"
+
+    deps/import-busybox --project "$project" --alias testimage
+    deps/import-busybox --project "$project-b" --alias testimage
+
+    # Add a root device to the default profile of the project.
+    lxc profile device add default root disk path="/" pool="${pool}"
+  fi
+
+  ensure_import_testimage
+  ensure_has_localhost_remote "${LXD_ADDR}"
+
+  mkdir "${LXD_DIR}/optimized" "${LXD_DIR}/non-optimized"
+  lxd_backend=$(storage_backend "$LXD_DIR")
+
+  # Create test container.
+  lxc init testimage c1
+
+  # Create custom storage volume.
+  lxc storage volume create "${pool}" testvol
+
+  # Attach storage volume to the test container and start.
+  lxc storage volume attach "${pool}" testvol c1 /mnt
+  lxc start c1
+
+  # Create file on the custom volume.
+  echo foo | lxc file push - c1/mnt/test
+
+  # Snapshot the custom volume.
+  lxc storage volume snapshot "${pool}" testvol
+
+  # Change the content (the snapshot will contain the old value).
+  echo bar | lxc file push - c1/mnt/test
+
+  if [ "$lxd_backend" = "btrfs" ] || [ "$lxd_backend" = "zfs" ]; then
+    # Create optimized backup without snapshots.
+    lxc storage volume export "${pool}" testvol "${LXD_DIR}/testvol-optimized.tar.gz" --volume-only --optimized-storage
+
+    [ -f "${LXD_DIR}/testvol-optimized.tar.gz" ]
+
+    # Extract backup tarball.
+    tar -xzf "${LXD_DIR}/testvol-optimized.tar.gz" -C "${LXD_DIR}/optimized"
+
+    [ -f "${LXD_DIR}/optimized/backup/index.yaml" ]
+    [ -f "${LXD_DIR}/optimized/backup/volume.bin" ]
+    [ ! -d "${LXD_DIR}/optimized/backup/volume-snapshots" ]
+  fi
+
+  # Create non-optimized backup without snapshots.
+  lxc storage volume export "${pool}" testvol "${LXD_DIR}/testvol.tar.gz" --volume-only
+
+  [ -f "${LXD_DIR}/testvol.tar.gz" ]
+
+  # Extract non-optimized backup tarball.
+  tar -xzf "${LXD_DIR}/testvol.tar.gz" -C "${LXD_DIR}/non-optimized"
+
+  # Check tarball content.
+  [ -f "${LXD_DIR}/non-optimized/backup/index.yaml" ]
+  [ -d "${LXD_DIR}/non-optimized/backup/volume" ]
+  [ ! -d "${LXD_DIR}/non-optimized/backup/volume-snapshots" ]
+
+  ! grep -q -- '- snap0' "${LXD_DIR}/non-optimized/backup/index.yaml" || false
+
+  rm -rf "${LXD_DIR}/non-optimized/"*
+  rm "${LXD_DIR}/testvol.tar.gz"
+
+  if [ "$lxd_backend" = "btrfs" ] || [ "$lxd_backend" = "zfs" ]; then
+    # Create optimized backup with snapshots.
+    lxc storage volume export "${pool}" testvol "${LXD_DIR}/testvol-optimized.tar.gz" --optimized-storage
+
+    [ -f "${LXD_DIR}/testvol-optimized.tar.gz" ]
+
+    # Extract backup tarball.
+    tar -xzf "${LXD_DIR}/testvol-optimized.tar.gz" -C "${LXD_DIR}/optimized"
+
+    [ -f "${LXD_DIR}/optimized/backup/index.yaml" ]
+    [ -f "${LXD_DIR}/optimized/backup/volume.bin" ]
+    [ -f "${LXD_DIR}/optimized/backup/volume-snapshots/snap0.bin" ]
+  fi
+
+  # Create non-optimized backup with snapshots.
+  lxc storage volume export "${pool}" testvol "${LXD_DIR}/testvol.tar.gz"
+
+  [ -f "${LXD_DIR}/testvol.tar.gz" ]
+
+  # Extract backup tarball.
+  tar -xzf "${LXD_DIR}/testvol.tar.gz" -C "${LXD_DIR}/non-optimized"
+
+  # Check tarball content.
+  [ -f "${LXD_DIR}/non-optimized/backup/index.yaml" ]
+  [ -d "${LXD_DIR}/non-optimized/backup/volume" ]
+  [ -d "${LXD_DIR}/non-optimized/backup/volume-snapshots/snap0" ]
+
+  grep -q -- '- snap0' "${LXD_DIR}/non-optimized/backup/index.yaml"
+
+  rm -rf "${LXD_DIR}/non-optimized/"*
+
+  # Test non-optimized import.
+  lxc stop -f c1
+  lxc storage volume detach "${pool}" testvol c1
+  lxc storage volume delete "${pool}" testvol
+  lxc storage volume import "${pool}" "${LXD_DIR}/testvol.tar.gz"
+  lxc storage volume import "${pool}" "${LXD_DIR}/testvol.tar.gz" testvol2
+  lxc storage volume attach "${pool}" testvol c1 /mnt
+  lxc storage volume attach "${pool}" testvol2 c1 /mnt2
+  lxc start c1
+  lxc exec c1 --project "$project" -- stat /mnt/test
+  lxc exec c1 --project "$project" -- stat /mnt2/test
+  lxc stop -f c1
+
+  if [ "$#" -ne 0 ]; then
+    # Import into different project (before deleting earlier import).
+    lxc storage volume import "${pool}" "${LXD_DIR}/testvol.tar.gz" --project "$project-b"
+    lxc storage volume import "${pool}" "${LXD_DIR}/testvol.tar.gz" --project "$project-b" testvol2
+    lxc storage volume delete "${pool}" testvol --project "$project-b"
+    lxc storage volume delete "${pool}" testvol2 --project "$project-b"
+  fi
+
+  # Test optimized import.
+  if [ "$lxd_backend" = "btrfs" ] || [ "$lxd_backend" = "zfs" ]; then
+    lxc storage volume detach "${pool}" testvol c1
+    lxc storage volume detach "${pool}" testvol2 c1
+    lxc storage volume delete "${pool}" testvol
+    lxc storage volume delete "${pool}" testvol2
+    lxc storage volume import "${pool}" "${LXD_DIR}/testvol-optimized.tar.gz"
+    lxc storage volume import "${pool}" "${LXD_DIR}/testvol-optimized.tar.gz" testvol2
+    lxc storage volume attach "${pool}" testvol c1 /mnt
+    lxc storage volume attach "${pool}" testvol2 c1 /mnt2
+    lxc start c1
+    lxc exec c1 --project "$project" -- stat /mnt/test
+    lxc exec c1 --project "$project" -- stat /mnt2/test
+    lxc stop -f c1
+
+    if [ "$#" -ne 0 ]; then
+      # Import into different project (before deleting earlier import).
+      lxc storage volume import "${pool}" "${LXD_DIR}/testvol-optimized.tar.gz" --project "$project-b"
+      lxc storage volume import "${pool}" "${LXD_DIR}/testvol-optimized.tar.gz" --project "$project-b" testvol2
+      lxc storage volume delete "${pool}" testvol --project "$project-b"
+      lxc storage volume delete "${pool}" testvol2 --project "$project-b"
+    fi
+  fi
+
+  # Clean up.
+  rm -rf "${LXD_DIR}/non-optimized/"* "${LXD_DIR}/optimized/"*
+  lxc storage volume detach "${pool}" testvol c1
+  lxc storage volume detach "${pool}" testvol2 c1
+  lxc storage volume rm "${pool}" testvol
+  lxc storage volume rm "${pool}" testvol2
+  lxc rm -f c1
+  rmdir "${LXD_DIR}/optimized"
+  rmdir "${LXD_DIR}/non-optimized"
+
+  if [ "$#" -ne 0 ]; then
+    lxc project switch default
+    lxc image rm testimage --project "$project"
+    lxc image rm testimage --project "$project-b"
+    lxc project delete "$project"
+    lxc project delete "$project-b"
+  fi
+}
+
+test_backup_volume_rename_delete() {
+  ensure_has_localhost_remote "${LXD_ADDR}"
+
+  pool="lxdtest-$(basename "${LXD_DIR}")"
+
+  # Create test volume.
+  lxc storage volume create "${pool}" vol1
+
+  if ! lxc query -X POST /1.0/storage-pools/"${pool}"/volumes/custom/vol1/backups/backupmissing -d '{\"name\": \"backupnewname\"}' --wait 2>&1 | grep -q "not found" ; then
+    echo "invalid rename response for missing storage volume"
+    false
+  fi
+
+  # Create backup.
+  lxc query -X POST --wait -d '{\"name\":\"foo\"}' /1.0/storage-pools/"${pool}"/volumes/custom/vol1/backups
+
+  # All backups should be listed.
+  lxc query /1.0/storage-pools/"${pool}"/volumes/custom/vol1/backups
+  lxc query /1.0/storage-pools/"${pool}"/volumes/custom/vol1/backups | jq .'[0]' | grep storage-pools/"${pool}"/volumes/custom/vol1/backups/foo
+
+  # The specific backup should exist.
+  lxc query /1.0/storage-pools/"${pool}"/volumes/custom/vol1/backups/foo
+  stat "${LXD_DIR}"/backups/custom/"${pool}"/default_vol1/foo
+
+  # Delete backup and check it is removed from DB and disk.
+  lxc query -X DELETE --wait /1.0/storage-pools/"${pool}"/volumes/custom/vol1/backups/foo
+  ! lxc query /1.0/storage-pools/"${pool}"/volumes/custom/vol1/backups/foo || false
+  ! stat "${LXD_DIR}"/backups/custom/"${pool}"/default_vol1/foo || false
+  ! stat "${LXD_DIR}"/backups/custom/"${pool}"/default_vol1 || false
+
+  # Create backup again to test rename.
+  lxc query -X POST --wait -d '{\"name\":\"foo\"}' /1.0/storage-pools/"${pool}"/volumes/custom/vol1/backups
+
+  # Rename the container which should rename the backup(s) as well.
+  lxc storage volume rename "${pool}" vol1 vol2
+
+  # All backups should be listed.
+  lxc query /1.0/storage-pools/"${pool}"/volumes/custom/vol2/backups | jq .'[0]' | grep storage-pools/"${pool}"/volumes/custom/vol2/backups/foo
+
+  # The specific backup should exist.
+  lxc query /1.0/storage-pools/"${pool}"/volumes/custom/vol2/backups/foo
+  stat "${LXD_DIR}"/backups/custom/"${pool}"/default_vol2/foo
+
+  # The old backup should not exist.
+  ! lxc query /1.0/storage-pools/"${pool}"/volumes/custom/vol1/backups/foo || false
+  ! stat "${LXD_DIR}"/backups/custom/"${pool}"/default_vol1/foo || false
+  ! stat "${LXD_DIR}"/backups/custom/"${pool}"/default_vol1 || false
+
+  # Rename backup itself and check its renamed in DB and on disk.
+  lxc query -X POST --wait -d '{\"name\":\"foo2\"}' /1.0/storage-pools/"${pool}"/volumes/custom/vol2/backups/foo
+  lxc query /1.0/storage-pools/"${pool}"/volumes/custom/vol2/backups | jq .'[0]' | grep storage-pools/"${pool}"/volumes/custom/vol2/backups/foo2
+  stat "${LXD_DIR}"/backups/custom/"${pool}"/default_vol2/foo2
+  ! stat "${LXD_DIR}"/backups/custom/"${pool}"/default_vol2/foo || false
+
+  # Remove volume and check the backups are removed too.
+  lxc storage volume rm "${pool}" vol2
+  ! stat "${LXD_DIR}"/backups/custom/"${pool}"/default_vol2 || false
 }

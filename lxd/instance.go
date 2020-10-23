@@ -119,6 +119,7 @@ func instanceCreateFromImage(d *Daemon, args db.InstanceArgs, hash string, op *o
 	if err != nil {
 		return nil, errors.Wrapf(err, "Locate image %q in the cluster", hash)
 	}
+
 	if nodeAddress != "" {
 		// The image is available from another node, let's try to import it.
 		err = instanceImageTransfer(d, args.Project, img.Fingerprint, nodeAddress)
@@ -639,14 +640,14 @@ func instanceCreateInternal(s *state.State, args db.InstanceArgs) (instance.Inst
 		s.Cluster.DeleteInstance(dbInst.Project, dbInst.Name)
 	}()
 
-	// Wipe any existing log for this instance name.
-	os.RemoveAll(shared.LogPath(args.Name))
-
 	args = db.InstanceToArgs(&dbInst)
 	inst, err := instance.Create(s, args)
 	if err != nil {
 		return nil, errors.Wrap(err, "Create instance")
 	}
+
+	// Wipe any existing log for this instance name.
+	os.RemoveAll(inst.LogPath())
 
 	revert = false
 	return inst, nil

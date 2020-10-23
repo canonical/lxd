@@ -96,7 +96,7 @@ func (d Nftables) Compat() (bool, error) {
 	}
 
 	for _, item := range ruleset {
-		if item.Type == "rule" {
+		if item.ItemType == "rule" {
 			return true, nil // At least one rule found indicates in use.
 		}
 	}
@@ -106,11 +106,11 @@ func (d Nftables) Compat() (bool, error) {
 
 // nftGenericItem represents some common fields amongst the different nftables types.
 type nftGenericItem struct {
-	Type   string // Type of item (table, chain or rule).
-	Family string `json:"family"` // Family of item (ip, ip6, bridge etc).
-	Table  string `json:"table"`  // Table the item belongs to (for chains and rules).
-	Chain  string `json:"chain"`  // Chain the item belongs to (for rules).
-	Name   string `json:"name"`   // Name of item (for tables and chains).
+	ItemType string `json:"-"`      // Type of item (table, chain or rule). Populated by LXD.
+	Family   string `json:"family"` // Family of item (ip, ip6, bridge etc).
+	Table    string `json:"table"`  // Table the item belongs to (for chains and rules).
+	Chain    string `json:"chain"`  // Chain the item belongs to (for rules).
+	Name     string `json:"name"`   // Name of item (for tables and chains).
 }
 
 // nftParseRuleset parses the ruleset and returns the generic parts as a slice of items.
@@ -140,13 +140,13 @@ func (d Nftables) nftParseRuleset() ([]nftGenericItem, error) {
 	items := []nftGenericItem{}
 	for _, item := range v.Nftables {
 		if rule, found := item["rule"]; found {
-			rule.Type = "rule"
+			rule.ItemType = "rule"
 			items = append(items, rule)
 		} else if chain, found := item["chain"]; found {
-			chain.Type = "chain"
+			chain.ItemType = "chain"
 			items = append(items, chain)
 		} else if table, found := item["table"]; found {
-			table.Type = "table"
+			table.ItemType = "table"
 			items = append(items, table)
 		}
 	}
@@ -167,7 +167,7 @@ func (d Nftables) hostVersion() (*version.DottedVersion, error) {
 	}
 
 	lines := strings.Split(string(output), " ")
-	return version.NewDottedVersion(strings.TrimPrefix(lines[1], "v"))
+	return version.Parse(strings.TrimPrefix(lines[1], "v"))
 }
 
 // NetworkSetupForwardingPolicy allows forwarding dependent on boolean argument
@@ -477,7 +477,7 @@ func (d Nftables) removeChains(families []string, chainSuffix string, chains ...
 
 	for _, family := range families {
 		for _, item := range ruleset {
-			if item.Type == "chain" && item.Family == family && item.Table == nftablesNamespace && shared.StringInSlice(item.Name, fullChains) {
+			if item.ItemType == "chain" && item.Family == family && item.Table == nftablesNamespace && shared.StringInSlice(item.Name, fullChains) {
 				_, err = shared.RunCommand("nft", "flush", "chain", family, nftablesNamespace, item.Name, ";", "delete", "chain", family, nftablesNamespace, item.Name)
 				if err != nil {
 					return errors.Wrapf(err, "Failed deleting nftables chain %q (%s)", item.Name, family)

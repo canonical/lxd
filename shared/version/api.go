@@ -226,6 +226,14 @@ var APIExtensions = []string{
 	"network_type_ovn",
 	"projects_networks",
 	"projects_networks_restricted_uplinks",
+	"custom_volume_backup",
+	"backup_override_name",
+	"storage_rsync_compression",
+	"network_type_physical",
+	"network_ovn_external_subnets",
+	"network_ovn_nat",
+	"network_ovn_external_routes_remove",
+	"tpm_device_type",
 }
 
 // APIExtensionsCount returns the number of available API extensions.

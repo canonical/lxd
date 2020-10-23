@@ -39,7 +39,7 @@ type Pool interface {
 	DeleteInstance(inst instance.Instance, op *operations.Operation) error
 	UpdateInstance(inst instance.Instance, newDesc string, newConfig map[string]string, op *operations.Operation) error
 	UpdateInstanceBackupFile(inst instance.Instance, op *operations.Operation) error
-	CheckInstanceBackupFileSnapshots(backupConf *backup.InstanceConfig, projectName string, deleteMissing bool, op *operations.Operation) ([]*api.InstanceSnapshot, error)
+	CheckInstanceBackupFileSnapshots(backupConf *backup.Config, projectName string, deleteMissing bool, op *operations.Operation) ([]*api.InstanceSnapshot, error)
 
 	MigrateInstance(inst instance.Instance, conn io.ReadWriteCloser, args *migration.VolumeSourceArgs, op *operations.Operation) error
 	RefreshInstance(inst instance.Instance, src instance.Instance, srcSnapshots []instance.Instance, op *operations.Operation) error
@@ -88,4 +88,8 @@ type Pool interface {
 	MigrationTypes(contentType drivers.ContentType, refresh bool) []migration.Type
 	CreateCustomVolumeFromMigration(projectName string, conn io.ReadWriteCloser, args migration.VolumeTargetArgs, op *operations.Operation) error
 	MigrateCustomVolume(projectName string, conn io.ReadWriteCloser, args *migration.VolumeSourceArgs, op *operations.Operation) error
+
+	// Custom volume backups.
+	BackupCustomVolume(projectName string, volName string, tarWriter *instancewriter.InstanceTarWriter, optimized bool, snapshots bool, op *operations.Operation) error
+	CreateCustomVolumeFromBackup(srcBackup backup.Info, srcData io.ReadSeeker, op *operations.Operation) error
 }

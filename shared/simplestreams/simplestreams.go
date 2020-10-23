@@ -82,7 +82,7 @@ func (s *SimpleStreams) readCache(path string) ([]byte, bool) {
 		return nil, false
 	}
 
-	expired := time.Now().Sub(fi.ModTime()) > s.cacheExpiry
+	expired := time.Since(fi.ModTime()) > s.cacheExpiry
 
 	return body, expired
 }
@@ -148,7 +148,7 @@ func (s *SimpleStreams) parseStream() (*Stream, error) {
 		return s.cachedStream, nil
 	}
 
-	body, err := s.cachedDownload("/streams/v1/index.json")
+	body, err := s.cachedDownload("streams/v1/index.json")
 	if err != nil {
 		return nil, err
 	}
@@ -248,7 +248,7 @@ func (s *SimpleStreams) applyAliases(images []api.Image) ([]api.Image, []extende
 
 			for _, entry := range aliases {
 				// Short
-				alias := addAlias(image.Type, image.Architecture, fmt.Sprintf("%s", entry.Name), image.Fingerprint)
+				alias := addAlias(image.Type, image.Architecture, entry.Name, image.Fingerprint)
 				if alias != nil && architectureName == image.Architecture {
 					image.Aliases = append(image.Aliases, *alias)
 				}
@@ -298,10 +298,7 @@ func (s *SimpleStreams) getImages() ([]api.Image, []extendedAlias, error) {
 		}
 
 		streamImages, _ := products.ToLXD()
-
-		for _, image := range streamImages {
-			images = append(images, image)
-		}
+		images = append(images, streamImages...)
 	}
 
 	// Setup the aliases

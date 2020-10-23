@@ -497,3 +497,60 @@ x-vga = "on"
 multifunction = "on"
 {{- end }}
 `))
+
+var qemuUSB = template.Must(template.New("qemuUSB").Parse(`
+# USB controller
+[device "qemu_usb"]
+driver = "qemu-xhci"
+bus = "{{.devBus}}"
+addr = "{{.devAddr}}"
+{{if .multifunction -}}
+multifunction = "on"
+{{- end }}
+
+[chardev "qemu_spice-usb-chardev1"]
+  backend = "spicevmc"
+  name = "usbredir"
+
+[chardev "qemu_spice-usb-chardev2"]
+  backend = "spicevmc"
+  name = "usbredir"
+
+[chardev "qemu_spice-usb-chardev3"]
+  backend = "spicevmc"
+  name = "usbredir"
+
+[device "qemu_spice-usb1"]
+  driver = "usb-redir"
+  chardev = "qemu_spice-usb-chardev1"
+
+[device "qemu_spice-usb2"]
+  driver = "usb-redir"
+  chardev = "qemu_spice-usb-chardev2"
+
+[device "qemu_spice-usb3"]
+  driver = "usb-redir"
+  chardev = "qemu_spice-usb-chardev3"
+`))
+
+var qemuUSBDev = template.Must(template.New("qemuUSBDev").Parse(`
+# USB host device ("{{.devName}}" device)
+[device "dev-lxd_{{.devName}}"]
+driver = "usb-host"
+bus = "qemu_usb.0"
+hostdevice = "{{.hostDevice}}"
+`))
+
+var qemuTPM = template.Must(template.New("qemuTPM").Parse(`
+[chardev "qemu_tpm-chardev_{{.devName}}"]
+backend = "socket"
+path = "{{.path}}"
+
+[tpmdev "qemu_tpm-tpmdev_{{.devName}}"]
+type = "emulator"
+chardev = "qemu_tpm-chardev_{{.devName}}"
+
+[device "dev-lxd_{{.devName}}"]
+driver = "tpm-tis"
+tpmdev = "qemu_tpm-tpmdev_{{.devName}}"
+`))

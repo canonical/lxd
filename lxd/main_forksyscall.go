@@ -35,7 +35,7 @@ import (
 extern char* advance_arg(bool required);
 extern void attach_userns_fd(int ns_fd);
 extern int pidfd_nsfd(int pidfd, pid_t pid);
-extern int preserve_ns(const int pid, const char *ns);
+extern int preserve_ns(pid_t pid, int ns_fd, const char *ns);
 extern bool change_namespaces(int pidfd, int nsfd, unsigned int flags);
 
 static bool chdirchroot_in_mntns(int cwd_fd, int root_fd)
@@ -57,7 +57,8 @@ static bool chdirchroot_in_mntns(int cwd_fd, int root_fd)
 	return true;
 }
 
-static bool acquire_basic_creds(pid_t pid, int pidfd, int ns_fd)
+static bool acquire_basic_creds(pid_t pid, int pidfd, int ns_fd,
+				int *rootfd, int *cwdfd)
 {
 	__do_close int cwd_fd = -EBADF, root_fd = -EBADF;
 	char buf[256];
@@ -75,7 +76,27 @@ static bool acquire_basic_creds(pid_t pid, int pidfd, int ns_fd)
 	if (!change_namespaces(pidfd, ns_fd, CLONE_NEWNS))
 		return false;
 
-	return chdirchroot_in_mntns(cwd_fd, root_fd);
+	if (!chdirchroot_in_mntns(cwd_fd, root_fd))
+		return false;
+
+	if (rootfd)
+		*rootfd = move_fd(root_fd);
+
+	if (cwdfd)
+		*cwdfd = move_fd(cwd_fd);
+	return true;
+}
+
+static bool reacquire_basic_creds(int pidfd, int ns_fd,
+				  int root_fd, int cwd_fd)
+{
+	if (!change_namespaces(pidfd, ns_fd, CLONE_NEWNS))
+		return false;
+
+	if (!chdirchroot_in_mntns(cwd_fd, root_fd))
+		return false;
+
+	return true;
 }
 
 static bool acquire_final_creds(pid_t pid, uid_t uid, gid_t gid, uid_t fsuid, gid_t fsgid)
@@ -157,7 +178,7 @@ static void mknod_emulate(void)
 	fsuid = atoi(advance_arg(true));
 	fsgid = atoi(advance_arg(true));
 
-	if (!acquire_basic_creds(pid, pidfd, ns_fd)) {
+	if (!acquire_basic_creds(pid, pidfd, ns_fd, NULL, NULL)) {
 		fprintf(stderr, "%d", ENOANO);
 		_exit(EXIT_FAILURE);
 	}
@@ -198,10 +219,6 @@ static void mknod_emulate(void)
 		_exit(EXIT_FAILURE);
 	}
 }
-
-#ifndef CLONE_NEWCGROUP
-#define CLONE_NEWCGROUP	0x02000000
-#endif
 
 const static int ns_flags[] = { CLONE_NEWUSER, CLONE_NEWPID, CLONE_NEWUTS, CLONE_NEWIPC, CLONE_NEWNET, CLONE_NEWCGROUP };
 
@@ -261,7 +278,7 @@ static void setxattr_emulate(void)
 	size = atoi(advance_arg(true));
 	data = advance_arg(true);
 
-	if (!acquire_basic_creds(pid, pidfd, ns_fd)) {
+	if (!acquire_basic_creds(pid, pidfd, ns_fd, NULL, NULL)) {
 		fprintf(stderr, "%d", ENOANO);
 		_exit(EXIT_FAILURE);
 	}
@@ -340,7 +357,8 @@ static int make_tmpfile(char *template, bool dir)
 
 static void mount_emulate(void)
 {
-	__do_close int mnt_fd = -EBADF, pidfd = -EBADF, ns_fd = -EBADF;
+	__do_close int mnt_fd = -EBADF, pidfd = -EBADF, ns_fd = -EBADF,
+		   root_fd = -EBADF, cwd_fd = -EBADF;
 	char *source = NULL, *shiftfs = NULL, *target = NULL, *fstype = NULL;
 	bool use_fuse;
 	uid_t nsuid = -1, uid = -1, nsfsuid = -1, fsuid = -1;
@@ -375,7 +393,7 @@ static void mount_emulate(void)
 		data = advance_arg(false);
 	}
 
-	mnt_fd = preserve_ns(getpid(), "mnt");
+	mnt_fd = preserve_ns(getpid(), ns_fd, "mnt");
 	if (mnt_fd < 0)
 		_exit(EXIT_FAILURE);
 
@@ -388,7 +406,7 @@ static void mount_emulate(void)
 		change_namespaces(pidfd, ns_fd, CLONE_NEWPID);
 	}
 
-	if (!acquire_basic_creds(pid, pidfd, ns_fd))
+	if (!acquire_basic_creds(pid, pidfd, ns_fd, &root_fd, &cwd_fd))
 		_exit(EXIT_FAILURE);
 
 	if (!acquire_final_creds(pid, uid, gid, fsuid, fsgid))
@@ -445,8 +463,13 @@ static void mount_emulate(void)
 			_exit(EXIT_FAILURE);
 		}
 
-		attach_userns_fd(ns_fd);
-		if (!acquire_basic_creds(pid, pidfd, ns_fd)) {
+		if (!change_namespaces(pidfd, ns_fd, CLONE_NEWUSER)) {
+			umount2(target, MNT_DETACH);
+			umount2(target, MNT_DETACH);
+			_exit(EXIT_FAILURE);
+		}
+
+		if (!reacquire_basic_creds(pidfd, ns_fd, root_fd, cwd_fd)) {
 			umount2(target, MNT_DETACH);
 			umount2(target, MNT_DETACH);
 			_exit(EXIT_FAILURE);

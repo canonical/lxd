@@ -101,6 +101,9 @@ var patches = []patch{
 	{name: "clustering_drop_database_role", stage: patchPostDaemonStorage, run: patchClusteringDropDatabaseRole},
 	{name: "network_clear_bridge_volatile_hwaddr", stage: patchPostDaemonStorage, run: patchNetworkCearBridgeVolatileHwaddr},
 	{name: "move_backups_instances", stage: patchPostDaemonStorage, run: patchMoveBackupsInstances},
+	{name: "network_ovn_enable_nat", stage: patchPostDaemonStorage, run: patchNetworkOVNEnableNAT},
+	{name: "network_ovn_remove_routes", stage: patchPostDaemonStorage, run: patchNetworkOVNRemoveRoutes},
+	{name: "network_fan_enable_nat", stage: patchPostDaemonStorage, run: patchNetworkFANEnableNAT},
 }
 
 type patch struct {
@@ -164,6 +167,152 @@ func patchesApply(d *Daemon, stage patchStage) error {
 }
 
 // Patches begin here
+
+// patchNetworkFANEnableNAT sets "ipv4.nat=true" on fan bridges that are missing the "ipv4.nat" setting.
+// This prevents outbound connectivity breaking on existing fan networks now that the default behaviour of not
+// having "ipv4.nat" set is to disable NAT (bringing in line with the non-fan bridge behavior and docs).
+func patchNetworkFANEnableNAT(name string, d *Daemon) error {
+	err := d.cluster.Transaction(func(tx *db.ClusterTx) error {
+		projectNetworks, err := tx.GetNonPendingNetworks()
+		if err != nil {
+			return err
+		}
+
+		for _, networks := range projectNetworks {
+			for networkID, network := range networks {
+				if network.Type != "bridge" {
+					continue
+				}
+
+				if network.Config["bridge.mode"] != "fan" {
+					continue
+				}
+
+				modified := false
+
+				// Enable ipv4.nat if setting not specified.
+				if _, found := network.Config["ipv4.nat"]; !found {
+					modified = true
+					network.Config["ipv4.nat"] = "true"
+				}
+
+				if modified {
+					err = tx.UpdateNetwork(networkID, network.Description, network.Config)
+					if err != nil {
+						return errors.Wrapf(err, "Failed setting ipv4.nat=true for fan network %q (%d)", network.Name, networkID)
+					}
+
+					logger.Debugf("Set ipv4.nat=true for fan network %q (%d)", network.Name, networkID)
+				}
+			}
+		}
+
+		return nil
+	})
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// patchNetworkOVNRemoveRoutes removes the "ipv4.routes.external" and "ipv6.routes.external" settings from OVN
+// networks. It was decided that the OVN NIC level equivalent settings were sufficient.
+func patchNetworkOVNRemoveRoutes(name string, d *Daemon) error {
+	err := d.cluster.Transaction(func(tx *db.ClusterTx) error {
+		projectNetworks, err := tx.GetNonPendingNetworks()
+		if err != nil {
+			return err
+		}
+
+		for _, networks := range projectNetworks {
+			for networkID, network := range networks {
+				if network.Type != "ovn" {
+					continue
+				}
+
+				modified := false
+
+				// Ensure existing behaviour of having NAT enabled if IP address was set.
+				if _, found := network.Config["ipv4.routes.external"]; found {
+					modified = true
+					delete(network.Config, "ipv4.routes.external")
+				}
+
+				if _, found := network.Config["ipv6.routes.external"]; found {
+					modified = true
+					delete(network.Config, "ipv6.routes.external")
+				}
+
+				if modified {
+					err = tx.UpdateNetwork(networkID, network.Description, network.Config)
+					if err != nil {
+						return errors.Wrapf(err, "Failed removing OVN external route settings for %q (%d)", network.Name, networkID)
+					}
+
+					logger.Debugf("Removing external route settings for OVN network %q (%d)", network.Name, networkID)
+				}
+			}
+		}
+
+		return nil
+	})
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// patchNetworkOVNEnableNAT adds "ipv4.nat" and "ipv6.nat" keys set to "true" to OVN networks if not present.
+// This is to ensure existing networks retain the old behaviour of always having NAT enabled as we introduce
+// the new NAT settings which default to disabled if not specified.
+// patchNetworkCearBridgeVolatileHwaddr removes the unsupported `volatile.bridge.hwaddr` config key from networks.
+func patchNetworkOVNEnableNAT(name string, d *Daemon) error {
+	err := d.cluster.Transaction(func(tx *db.ClusterTx) error {
+		projectNetworks, err := tx.GetNonPendingNetworks()
+		if err != nil {
+			return err
+		}
+
+		for _, networks := range projectNetworks {
+			for networkID, network := range networks {
+				if network.Type != "ovn" {
+					continue
+				}
+
+				modified := false
+
+				// Ensure existing behaviour of having NAT enabled if IP address was set.
+				if network.Config["ipv4.address"] != "" && network.Config["ipv4.nat"] == "" {
+					modified = true
+					network.Config["ipv4.nat"] = "true"
+				}
+
+				if network.Config["ipv6.address"] != "" && network.Config["ipv6.nat"] == "" {
+					modified = true
+					network.Config["ipv6.nat"] = "true"
+				}
+
+				if modified {
+					err = tx.UpdateNetwork(networkID, network.Description, network.Config)
+					if err != nil {
+						return errors.Wrapf(err, "Failed saving OVN NAT settings for %q (%d)", network.Name, networkID)
+					}
+
+					logger.Debugf("Enabling NAT for OVN network %q (%d)", network.Name, networkID)
+				}
+			}
+		}
+
+		return nil
+	})
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
 
 // Moves backups from shared.VarPath("backups") to shared.VarPath("backups", "instances").
 func patchMoveBackupsInstances(name string, d *Daemon) error {

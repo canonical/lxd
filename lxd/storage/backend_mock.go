@@ -103,7 +103,7 @@ func (b *mockBackend) UpdateInstanceBackupFile(inst instance.Instance, op *opera
 	return nil
 }
 
-func (b *mockBackend) CheckInstanceBackupFileSnapshots(backupConf *backup.InstanceConfig, projectName string, deleteMissing bool, op *operations.Operation) ([]*api.InstanceSnapshot, error) {
+func (b *mockBackend) CheckInstanceBackupFileSnapshots(backupConf *backup.Config, projectName string, deleteMissing bool, op *operations.Operation) ([]*api.InstanceSnapshot, error) {
 	return nil, nil
 }
 
@@ -240,5 +240,13 @@ func (b *mockBackend) UpdateCustomVolumeSnapshot(projectName string, volName str
 }
 
 func (b *mockBackend) RestoreCustomVolume(projectName string, volName string, snapshotName string, op *operations.Operation) error {
+	return nil
+}
+
+func (b *mockBackend) BackupCustomVolume(projectName string, volName string, tarWriter *instancewriter.InstanceTarWriter, optimized bool, snapshots bool, op *operations.Operation) error {
+	return nil
+}
+
+func (b *mockBackend) CreateCustomVolumeFromBackup(srcBackup backup.Info, srcData io.ReadSeeker, op *operations.Operation) error {
 	return nil
 }

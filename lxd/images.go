@@ -241,7 +241,7 @@ func imgPostInstanceInfo(d *Daemon, r *http.Request, req api.ImagesPost, op *ope
 		Tracker: &ioprogress.ProgressTracker{
 			Handler: func(value, speed int64) {
 				percent := int64(0)
-				processed := int64(0)
+				var processed int64
 
 				if totalSize > 0 {
 					percent = value

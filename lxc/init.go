@@ -84,6 +84,7 @@ func (c *cmdInit) create(conf *config.Config, args []string) (lxd.InstanceServer
 	var stdinData api.InstancePut
 	var devicesMap map[string]map[string]string
 	var configMap map[string]string
+	var profiles []string
 
 	// If stdin isn't a terminal, read text from it
 	if !termios.IsTerminal(getStdinFd()) {
@@ -145,10 +146,7 @@ func (c *cmdInit) create(conf *config.Config, args []string) (lxd.InstanceServer
 		d = d.UseTarget(c.flagTarget)
 	}
 
-	profiles := []string{}
-	for _, p := range c.flagProfile {
-		profiles = append(profiles, p)
-	}
+	profiles = append(profiles, c.flagProfile...)
 
 	if !c.global.flagQuiet {
 		if name == "" {

@@ -119,13 +119,13 @@ func (d *Daemon) ImageDownload(op *operations.Operation, server string, protocol
 
 		if nodeAddress != "" {
 			// The image is available from another node, let's try to import it.
-			err = instanceImageTransfer(d, project, info.Fingerprint, nodeAddress)
+			err = instanceImageTransfer(d, project, imgInfo.Fingerprint, nodeAddress)
 			if err != nil {
 				return nil, errors.Wrapf(err, "Failed transferring image")
 			}
 
 			// As the image record already exists in the project, just add the node ID to the image.
-			err = d.cluster.AddImageToLocalNode(project, info.Fingerprint)
+			err = d.cluster.AddImageToLocalNode(project, imgInfo.Fingerprint)
 			if err != nil {
 				return nil, errors.Wrapf(err, "Failed adding image to local node")
 			}

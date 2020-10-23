@@ -283,6 +283,16 @@ type InstanceServer interface {
 	RenameStoragePoolVolumeSnapshot(pool string, volumeType string, volumeName string, snapshotName string, snapshot api.StorageVolumeSnapshotPost) (op Operation, err error)
 	UpdateStoragePoolVolumeSnapshot(pool string, volumeType string, volumeName string, snapshotName string, volume api.StorageVolumeSnapshotPut, ETag string) (err error)
 
+	// Storage volume backup functions ("custom_volume_backup" API extension)
+	GetStoragePoolVolumeBackupNames(pool string, volName string) (names []string, err error)
+	GetStoragePoolVolumeBackups(pool string, volName string) (backups []api.StoragePoolVolumeBackup, err error)
+	GetStoragePoolVolumeBackup(pool string, volName string, name string) (backup *api.StoragePoolVolumeBackup, ETag string, err error)
+	CreateStoragePoolVolumeBackup(pool string, volName string, backup api.StoragePoolVolumeBackupsPost) (op Operation, err error)
+	RenameStoragePoolVolumeBackup(pool string, volName string, name string, backup api.StoragePoolVolumeBackupPost) (op Operation, err error)
+	DeleteStoragePoolVolumeBackup(pool string, volName string, name string) (op Operation, err error)
+	GetStoragePoolVolumeBackupFile(pool string, volName string, name string, req *BackupFileRequest) (resp *BackupFileResponse, err error)
+	CreateStoragePoolVolumeFromBackup(pool string, args StoragePoolVolumeBackupArgs) (op Operation, err error)
+
 	// Cluster functions ("cluster" API extensions)
 	GetCluster() (cluster *api.Cluster, ETag string, err error)
 	UpdateCluster(cluster api.ClusterPut, ETag string) (op Operation, err error)
@@ -422,6 +432,16 @@ type StoragePoolVolumeMoveArgs struct {
 	StoragePoolVolumeCopyArgs
 }
 
+// The StoragePoolVolumeBackupArgs struct is used when creating a storage volume from a backup.
+// API extension: custom_volume_backup
+type StoragePoolVolumeBackupArgs struct {
+	// The backup file
+	BackupFile io.Reader
+
+	// Name to import backup as
+	Name string
+}
+
 // The InstanceBackupArgs struct is used when creating a instance from a backup.
 type InstanceBackupArgs struct {
 	// The backup file
@@ -429,6 +449,9 @@ type InstanceBackupArgs struct {
 
 	// Storage pool to use
 	PoolName string
+
+	// Name to import backup as
+	Name string
 }
 
 // The InstanceCopyArgs struct is used to pass additional options during instance copy.
