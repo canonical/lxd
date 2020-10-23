@@ -6,6 +6,7 @@ type Info struct {
 	Version               string
 	VolumeTypes           []VolumeType // Supported volume types.
 	Remote                bool         // Whether the driver uses a remote backing store.
+	VolumeMultiNode       bool         // Whether volumes can be used on multiple nodes concurrently.
 	OptimizedImages       bool         // Whether driver stores images as separate volume.
 	OptimizedBackups      bool         // Whether driver supports optimized volume backups.
 	OptimizedBackupHeader bool         // Whether driver generates an optimised backup header file in backup.
