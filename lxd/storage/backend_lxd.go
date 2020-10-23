@@ -3009,14 +3009,21 @@ func (b *lxdBackend) RestoreCustomVolume(projectName, volName string, snapshotNa
 		return fmt.Errorf("Invalid snapshot name")
 	}
 
-	// Check that the volume isn't in use.
-	usingVolume, err := VolumeUsedByRunningInstancesWithProfilesGet(b.state, projectName, b.Name(), volName, db.StoragePoolVolumeTypeNameCustom, true)
+	// Check that the volume isn't in use by running instances.
+	err := VolumeUsedByInstances(b.state, b.Name(), projectName, volName, db.StoragePoolVolumeTypeNameCustom, true, func(dbInst db.Instance, project api.Project, profiles []api.Profile) error {
+		inst, err := instance.Load(b.state, db.InstanceToArgs(&dbInst), profiles)
+		if err != nil {
+			return err
+		}
+
+		if inst.IsRunning() {
+			return fmt.Errorf("Cannot restore custom volume used by running instances")
+		}
+
+		return nil
+	})
 	if err != nil {
 		return err
-	}
-
-	if len(usingVolume) != 0 {
-		return fmt.Errorf("Cannot restore custom volume used by running instances")
 	}
 
 	// Get the volume config.
