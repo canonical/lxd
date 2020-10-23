@@ -62,7 +62,7 @@ func storagePoolVolumeSnapshotsTypePost(d *Daemon, r *http.Request) response.Res
 	}
 
 	// Convert the volume type name to our internal integer representation.
-	volumeType, err := storagePools.VolumeTypeNameToType(volumeTypeName)
+	volumeType, err := storagePools.VolumeTypeNameToDBType(volumeTypeName)
 	if err != nil {
 		return response.BadRequest(err)
 	}
@@ -175,7 +175,7 @@ func storagePoolVolumeSnapshotsTypeGet(d *Daemon, r *http.Request) response.Resp
 	volumeName := mux.Vars(r)["name"]
 
 	// Convert the volume type name to our internal integer representation.
-	volumeType, err := storagePools.VolumeTypeNameToType(volumeTypeName)
+	volumeType, err := storagePools.VolumeTypeNameToDBType(volumeTypeName)
 	if err != nil {
 		return response.BadRequest(err)
 	}
@@ -272,7 +272,7 @@ func storagePoolVolumeSnapshotTypePost(d *Daemon, r *http.Request) response.Resp
 	}
 
 	// Convert the volume type name to our internal integer representation.
-	volumeType, err := storagePools.VolumeTypeNameToType(volumeTypeName)
+	volumeType, err := storagePools.VolumeTypeNameToDBType(volumeTypeName)
 	if err != nil {
 		return response.BadRequest(err)
 	}
@@ -333,7 +333,7 @@ func storagePoolVolumeSnapshotTypeGet(d *Daemon, r *http.Request) response.Respo
 	snapshotName := mux.Vars(r)["snapshotName"]
 
 	// Convert the volume type name to our internal integer representation.
-	volumeType, err := storagePools.VolumeTypeNameToType(volumeTypeName)
+	volumeType, err := storagePools.VolumeTypeNameToDBType(volumeTypeName)
 	if err != nil {
 		return response.BadRequest(err)
 	}
@@ -401,7 +401,7 @@ func storagePoolVolumeSnapshotTypePut(d *Daemon, r *http.Request) response.Respo
 	snapshotName := mux.Vars(r)["snapshotName"]
 
 	// Convert the volume type name to our internal integer representation.
-	volumeType, err := storagePools.VolumeTypeNameToType(volumeTypeName)
+	volumeType, err := storagePools.VolumeTypeNameToDBType(volumeTypeName)
 	if err != nil {
 		return response.BadRequest(err)
 	}
@@ -497,7 +497,7 @@ func storagePoolVolumeSnapshotTypeDelete(d *Daemon, r *http.Request) response.Re
 	snapshotName := mux.Vars(r)["snapshotName"]
 
 	// Convert the volume type name to our internal integer representation.
-	volumeType, err := storagePools.VolumeTypeNameToType(volumeTypeName)
+	volumeType, err := storagePools.VolumeTypeNameToDBType(volumeTypeName)
 	if err != nil {
 		return response.BadRequest(err)
 	}

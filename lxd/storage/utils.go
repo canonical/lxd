@@ -158,7 +158,7 @@ func InstanceTypeToVolumeType(instType instancetype.Type) (drivers.VolumeType, e
 // VolumeDBCreate creates a volume in the database.
 func VolumeDBCreate(s *state.State, project, poolName, volumeName, volumeDescription, volumeTypeName string, snapshot bool, volumeConfig map[string]string, expiryDate time.Time) error {
 	// Convert the volume type name to our internal integer representation.
-	volDBType, err := VolumeTypeNameToType(volumeTypeName)
+	volDBType, err := VolumeTypeNameToDBType(volumeTypeName)
 	if err != nil {
 		return err
 	}
