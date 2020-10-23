@@ -321,52 +321,64 @@ SELECT instances.name, nodes.id, nodes.address, nodes.heartbeat
 	return result, nil
 }
 
-// Load all instances across all projects and expands their config and devices
-// using the profiles they are associated to.
-func (c *ClusterTx) instanceListExpanded() ([]Instance, error) {
-	instances, err := c.GetInstances(InstanceFilter{
-		Type: instancetype.Any,
+// InstanceList loads all instances across all projects and for each instance runs the instanceFunc passing in the
+// instance and it's project and profiles.
+func (c *Cluster) InstanceList(instanceFunc func(inst Instance, project api.Project, profiles []api.Profile) error) error {
+	var instances []Instance
+	projectMap := map[string]api.Project{}
+	projectHasProfiles := map[string]bool{}
+	profilesByProjectAndName := map[string]map[string]Profile{}
+
+	// Retrieve required info from the database in single transaction for performance.
+	err := c.Transaction(func(tx *ClusterTx) error {
+		var err error
+		instances, err = tx.GetInstances(InstanceFilter{Type: instancetype.Any})
+		if err != nil {
+			return errors.Wrap(err, "Load instances")
+		}
+
+		projects, err := tx.GetProjects(ProjectFilter{})
+		if err != nil {
+			return errors.Wrap(err, "Load projects")
+		}
+
+		// Index of all projects by name and record which projects have the profiles feature.
+		for i, project := range projects {
+			projectMap[project.Name] = projects[i]
+			projectHasProfiles[project.Name] = shared.IsTrue(project.Config["features.profiles"])
+		}
+
+		profiles, err := tx.GetProfiles(ProfileFilter{})
+		if err != nil {
+			return errors.Wrap(err, "Load profiles")
+		}
+
+		// Index of all profiles by project and name.
+		for _, profile := range profiles {
+			profilesByName, ok := profilesByProjectAndName[profile.Project]
+			if !ok {
+				profilesByName = map[string]Profile{}
+				profilesByProjectAndName[profile.Project] = profilesByName
+			}
+			profilesByName[profile.Name] = profile
+		}
+
+		return nil
 	})
 	if err != nil {
-		return nil, errors.Wrap(err, "Load instances")
+		return err
 	}
 
-	projects, err := c.GetProjects(ProjectFilter{})
-	if err != nil {
-		return nil, errors.Wrap(err, "Load projects")
-	}
-
-	// Map to check which projects have the profiles features on.
-	projectHasProfiles := map[string]bool{}
-	for _, project := range projects {
-		projectHasProfiles[project.Name] = shared.IsTrue(project.Config["features.profiles"])
-	}
-
-	profiles, err := c.GetProfiles(ProfileFilter{})
-	if err != nil {
-		return nil, errors.Wrap(err, "Load profiles")
-	}
-
-	// Index of all profiles by project and name.
-	profilesByProjectAndName := map[string]map[string]Profile{}
-	for _, profile := range profiles {
-		profilesByName, ok := profilesByProjectAndName[profile.Project]
-		if !ok {
-			profilesByName = map[string]Profile{}
-			profilesByProjectAndName[profile.Project] = profilesByName
-		}
-		profilesByName[profile.Name] = profile
-	}
-
-	for i, instance := range instances {
+	// Call the instanceFunc provided for each instance after the transaction has ended, as we don't know if
+	// the instanceFunc will be slow or may need to make additional DB queries.
+	for _, instance := range instances {
 		profiles := make([]api.Profile, len(instance.Profiles))
 
+		// If the instance's project does not have the profiles feature enabled,
+		// we fall back to the default project.
 		profilesProject := instance.Project
-
-		// If the instance's project does not have the profiles feature
-		// enable, we fall back to the default project.
 		if !projectHasProfiles[profilesProject] {
-			profilesProject = "default"
+			profilesProject = "default" // Equivalent to project.Default constant.
 		}
 
 		for j, name := range instance.Profiles {
@@ -374,11 +386,13 @@ func (c *ClusterTx) instanceListExpanded() ([]Instance, error) {
 			profiles[j] = *ProfileToAPI(&profile)
 		}
 
-		instances[i].Config = ExpandInstanceConfig(instance.Config, profiles)
-		instances[i].Devices = ExpandInstanceDevices(deviceConfig.NewDevices(instance.Devices), profiles).CloneNative()
+		err = instanceFunc(instance, projectMap[instance.Project], profiles)
+		if err != nil {
+			return err
+		}
 	}
 
-	return instances, nil
+	return nil
 }
 
 // GetInstanceToNodeMap returns a map associating the name of each
