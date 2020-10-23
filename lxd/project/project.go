@@ -8,7 +8,6 @@ import (
 
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/shared"
-	"github.com/lxc/lxd/shared/api"
 )
 
 // Default is the string used for a default project.
@@ -74,18 +73,7 @@ func StorageVolumeProject(c *db.Cluster, projectName string, volumeType int) (st
 		return projectName, nil
 	}
 
-	var project *api.Project
-	var err error
-
-	err = c.Transaction(func(tx *db.ClusterTx) error {
-		project, err = tx.GetProject(projectName)
-		if err != nil {
-			return err
-		}
-
-		return nil
-	})
-
+	project, err := c.GetProject(projectName)
 	if err != nil {
 		return "", errors.Wrapf(err, "Failed to load project %q", projectName)
 	}
@@ -104,18 +92,7 @@ func StorageVolumeProject(c *db.Cluster, projectName string, volumeType int) (st
 // otherwise the default project name is returned. The second return value is the project's config if non-default
 // project is being returned, nil if not.
 func NetworkProject(c *db.Cluster, projectName string) (string, map[string]string, error) {
-	var project *api.Project
-	var err error
-
-	err = c.Transaction(func(tx *db.ClusterTx) error {
-		project, err = tx.GetProject(projectName)
-		if err != nil {
-			return err
-		}
-
-		return nil
-	})
-
+	project, err := c.GetProject(projectName)
 	if err != nil {
 		return "", nil, errors.Wrapf(err, "Failed to load project %q", projectName)
 	}
