@@ -8,6 +8,7 @@ import (
 
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/shared"
+	"github.com/lxc/lxd/shared/api"
 )
 
 // Default is the string used for a default project.
@@ -68,7 +69,7 @@ func StorageVolumeParts(projectStorageVolumeName string) (string, string) {
 // project name is returned, otherwise the default project name is returned. For all other volume types the
 // supplied project name is returned.
 func StorageVolumeProject(c *db.Cluster, projectName string, volumeType int) (string, error) {
-	// Non-custom volumes always use the project specified.
+	// Non-custom volumes always use the project specified. Optimisation to avoid loading project record.
 	if volumeType != db.StoragePoolVolumeTypeCustom {
 		return projectName, nil
 	}
@@ -78,10 +79,23 @@ func StorageVolumeProject(c *db.Cluster, projectName string, volumeType int) (st
 		return "", errors.Wrapf(err, "Failed to load project %q", projectName)
 	}
 
+	return StorageVolumeProjectFromRecord(project, volumeType)
+}
+
+// StorageVolumeProjectFromRecord returns the project name to use to for the volume based on the requested project.
+// For custom volume type, if the project specified has the "features.storage.volumes" flag enabled then the
+// project name is returned, otherwise the default project name is returned. For all other volume types the
+// supplied project's name is returned.
+func StorageVolumeProjectFromRecord(p *api.Project, volumeType int) (string, error) {
+	// Non-custom volumes always use the project specified.
+	if volumeType != db.StoragePoolVolumeTypeCustom {
+		return p.Name, nil
+	}
+
 	// Custom volumes only use the project specified if the project has the features.storage.volumes feature
 	// enabled, otherwise the legacy behaviour of using the default project for custom volumes is used.
-	if shared.IsTrue(project.Config["features.storage.volumes"]) {
-		return projectName, nil
+	if shared.IsTrue(p.Config["features.storage.volumes"]) {
+		return p.Name, nil
 	}
 
 	return Default, nil
