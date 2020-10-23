@@ -771,6 +771,49 @@ func VolumeUsedByInstances(s *state.State, poolName string, projectName string, 
 	})
 }
 
+// VolumeUsedByExclusiveRemoteInstancesWithProfiles checks if custom volume is exclusively attached to a remote
+// instance. Returns the remote instance that has the volume exclusively attached. Returns nil if volume available.
+func VolumeUsedByExclusiveRemoteInstancesWithProfiles(s *state.State, poolName string, projectName string, volumeName string, volumeTypeName string) (*db.Instance, error) {
+	pool, err := GetPoolByName(s, poolName)
+	if err != nil {
+		return nil, errors.Wrapf(err, "Failed loading storage pool %q", poolName)
+	}
+
+	info := pool.Driver().Info()
+
+	// Always return nil if the storage driver supports mounting volumes on multiple nodes at once.
+	if info.VolumeMultiNode {
+		return nil, nil
+	}
+
+	// Get local node name so we can check if the volume is attached to a remote node.
+	var localNode string
+	err = s.Cluster.Transaction(func(tx *db.ClusterTx) error {
+		localNode, err = tx.GetLocalNodeName()
+		return err
+	})
+	if err != nil {
+		return nil, errors.Wrapf(err, "Fetch node name")
+	}
+
+	// Find if volume is attached to a remote instance.
+	var errAttached = fmt.Errorf("Volume is remotely attached")
+	var remoteInstance *db.Instance
+	VolumeUsedByInstances(s, poolName, projectName, volumeName, volumeTypeName, true, func(dbInst db.Instance, project api.Project, profiles []api.Profile) error {
+		if dbInst.Node != localNode {
+			remoteInstance = &dbInst
+			return errAttached // Stop the search, this volume is attached to a remote instance.
+		}
+
+		return nil
+	})
+	if err != nil && err != errAttached {
+		return nil, err
+	}
+
+	return remoteInstance, nil
+}
+
 // VolumeUsedByDaemon indicates whether the volume is used by daemon storage.
 func VolumeUsedByDaemon(s *state.State, poolName string, volumeName string) (bool, error) {
 	var storageBackups string
