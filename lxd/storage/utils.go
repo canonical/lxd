@@ -13,11 +13,13 @@ import (
 	"gopkg.in/robfig/cron.v2"
 
 	"github.com/lxc/lxd/lxd/db"
+	deviceConfig "github.com/lxc/lxd/lxd/device/config"
 	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/instance/instancetype"
 	"github.com/lxc/lxd/lxd/migration"
 	"github.com/lxc/lxd/lxd/node"
 	"github.com/lxc/lxd/lxd/operations"
+	"github.com/lxc/lxd/lxd/project"
 	"github.com/lxc/lxd/lxd/rsync"
 	"github.com/lxc/lxd/lxd/state"
 	"github.com/lxc/lxd/lxd/storage/drivers"
@@ -710,21 +712,42 @@ func VolumeUsedByInstancesGet(s *state.State, projectName string, poolName strin
 	return instUsingVolume, nil
 }
 
-// VolumeUsedByRunningInstancesWithProfilesGet gets list of running instances using a volume.
-func VolumeUsedByRunningInstancesWithProfilesGet(s *state.State, projectName string, poolName string, volumeName string, volumeTypeName string, runningOnly bool) ([]string, error) {
-	insts, err := instance.LoadByProject(s, projectName)
+// VolumeUsedByInstances finds instances using a volume (either directly or via their expanded profiles if
+// expandDevices is true) and passes them to instanceFunc for evaluation. If instanceFunc returns an error then it
+// is returned immediately. The instanceFunc is executed during a DB transaction, so DB queries are not permitted.
+func VolumeUsedByInstances(s *state.State, poolName string, projectName string, volumeName string, volumeTypeName string, expandDevices bool, instanceFunc func(inst db.Instance, project api.Project, profiles []api.Profile) error) error {
+	// Convert the volume type name to our internal integer representation.
+	volumeType, err := VolumeTypeNameToDBType(volumeTypeName)
 	if err != nil {
-		return []string{}, err
+		return err
 	}
 
-	instUsingVolume := []string{}
 	volumeNameWithType := fmt.Sprintf("%s/%s", volumeTypeName, volumeName)
-	for _, inst := range insts {
-		if runningOnly && !inst.IsRunning() {
-			continue
+
+	return s.Cluster.InstanceList(func(inst db.Instance, p api.Project, profiles []api.Profile) error {
+		instStorageProject, err := project.StorageVolumeProjectFromRecord(&p, volumeType)
+		if err != nil {
+			return err
 		}
 
-		for _, dev := range inst.ExpandedDevices() {
+		// Check instance's storage project is the same as the volume's project.
+		// If not then the volume names mentioned in the instance's config cannot be referring to volumes
+		// in the volume's project we are trying to match, and this instance cannot possibly be using it.
+		if projectName != instStorageProject {
+			return nil
+		}
+
+		// Use local devices for usage check by if expandDevices is false (but don't modify instance).
+		devices := inst.Devices
+
+		// Expand devices for usage check if expandDevices is true.
+		if expandDevices {
+			devices = db.ExpandInstanceDevices(deviceConfig.NewDevices(inst.Devices), profiles).CloneNative()
+		}
+
+		// Iterate through each of the instance's devices, looking for disks in the same pool as volume.
+		// Then try and match the volume name against the instance device's "source" property.
+		for _, dev := range devices {
 			if dev["type"] != "disk" {
 				continue
 			}
@@ -737,12 +760,15 @@ func VolumeUsedByRunningInstancesWithProfilesGet(s *state.State, projectName str
 			// "container////bla" but only against "container/bla".
 			cleanSource := filepath.Clean(dev["source"])
 			if cleanSource == volumeName || cleanSource == volumeNameWithType {
-				instUsingVolume = append(instUsingVolume, inst.Name())
+				err = instanceFunc(inst, p, profiles)
+				if err != nil {
+					return err
+				}
 			}
 		}
-	}
 
-	return instUsingVolume, nil
+		return nil
+	})
 }
 
 // VolumeUsedByDaemon indicates whether the volume is used by daemon storage.
