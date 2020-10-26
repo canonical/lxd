@@ -2790,21 +2790,7 @@ func (c *lxc) Shutdown(timeout time.Duration) error {
 
 // Restart restart the instance.
 func (c *lxc) Restart(timeout time.Duration) error {
-	if timeout == 0 {
-		if err := c.Stop(false); err != nil {
-			return err
-		}
-	} else {
-		if c.IsFrozen() {
-			return errors.New("Instance is not running")
-		}
-
-		if err := c.Shutdown(timeout * time.Second); err != nil {
-			return err
-		}
-	}
-
-	return c.Start(false)
+	return c.common.Restart(c, timeout)
 }
 
 // onStopNS is triggered by LXC's stop hook once a container is shutdown but before the container's
