@@ -628,6 +628,11 @@ func (vm *qemu) Shutdown(timeout time.Duration) error {
 	return nil
 }
 
+// Restart restart the instance.
+func (vm *qemu) Restart(timeout time.Duration) error {
+	return vm.common.Restart(vm, timeout)
+}
+
 func (vm *qemu) ovmfPath() string {
 	if os.Getenv("LXD_OVMF_PATH") != "" {
 		return os.Getenv("LXD_OVMF_PATH")
