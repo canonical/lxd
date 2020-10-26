@@ -2788,6 +2788,11 @@ func (c *lxc) Shutdown(timeout time.Duration) error {
 	return nil
 }
 
+// Restart restart the instance.
+func (c *lxc) Restart(timeout time.Duration) error {
+	return c.common.Restart(c, timeout)
+}
+
 // onStopNS is triggered by LXC's stop hook once a container is shutdown but before the container's
 // namespaces have been closed. The netns path of the stopped container is provided.
 func (c *lxc) onStopNS(args map[string]string) error {

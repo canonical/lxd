@@ -51,6 +51,7 @@ type Instance interface {
 	Shutdown(timeout time.Duration) error
 	Start(stateful bool) error
 	Stop(stateful bool) error
+	Restart(timeout time.Duration) error
 	Unfreeze() error
 	RegisterDevices()
 	SaveConfigFile() error

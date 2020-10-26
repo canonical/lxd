@@ -167,28 +167,11 @@ func containerStatePut(d *Daemon, r *http.Request) response.Response {
 				}()
 			}
 
-			if raw.Timeout == 0 || raw.Force {
-				err = c.Stop(false)
-				if err != nil {
-					return err
-				}
-			} else {
-				if c.IsFrozen() {
-					return fmt.Errorf("Instance is not running")
-				}
-
-				err = c.Shutdown(time.Duration(raw.Timeout) * time.Second)
-				if err != nil {
-					return err
-				}
+			timeout := raw.Timeout
+			if raw.Force {
+				timeout = 0
 			}
-
-			err = c.Start(false)
-			if err != nil {
-				return err
-			}
-
-			return nil
+			return c.Restart(time.Duration(timeout))
 		}
 	case shared.Freeze:
 		if !d.os.CGInfo.Supports(cgroup.Freezer, nil) {

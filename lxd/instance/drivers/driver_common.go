@@ -1,11 +1,14 @@
 package drivers
 
 import (
+	"errors"
 	"github.com/lxc/lxd/lxd/db"
 	deviceConfig "github.com/lxc/lxd/lxd/device/config"
+	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/instance/instancetype"
 	"github.com/lxc/lxd/lxd/state"
 	"github.com/lxc/lxd/shared/api"
+	"time"
 )
 
 // common provides structure common to all instance types.
@@ -91,4 +94,25 @@ func (c *common) expandDevices(profiles []api.Profile) error {
 // will likely return nil.
 func (c *common) DevPaths() []string {
 	return c.devPaths
+}
+
+// Restart handles instance restarts.
+func (c *common) Restart(inst instance.Instance, timeout time.Duration) error {
+	if timeout == 0 {
+		err := inst.Stop(false)
+		if err != nil {
+			return err
+		}
+	} else {
+		if inst.IsFrozen() {
+			return errors.New("Instance is not running")
+		}
+
+		err := inst.Shutdown(timeout * time.Second)
+		if err != nil {
+			return err
+		}
+	}
+
+	return inst.Start(false)
 }
