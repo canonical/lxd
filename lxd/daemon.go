@@ -241,7 +241,7 @@ func allowProjectPermission(feature string, permission string) func(d *Daemon, r
 
 // Convenience function around Authenticate
 func (d *Daemon) checkTrustedClient(r *http.Request) error {
-	trusted, _, _, err := d.Authenticate(r)
+	trusted, _, _, err := d.Authenticate(nil, r)
 	if !trusted || err != nil {
 		if err != nil {
 			return err
@@ -258,7 +258,7 @@ func (d *Daemon) checkTrustedClient(r *http.Request) error {
 // will validate the TLS certificate or Macaroon.
 //
 // This does not perform authorization, only validates authentication
-func (d *Daemon) Authenticate(r *http.Request) (bool, string, string, error) {
+func (d *Daemon) Authenticate(w http.ResponseWriter, r *http.Request) (bool, string, string, error) {
 	// Allow internal cluster traffic
 	if r.TLS != nil {
 		cert, _ := x509.ParseCertificate(d.endpoints.NetworkCert().KeyPair().Certificate[0])
@@ -403,7 +403,7 @@ func (d *Daemon) createCmd(restAPI *mux.Router, version string, c APIEndpoint) {
 		}
 
 		// Authentication
-		trusted, username, protocol, err := d.Authenticate(r)
+		trusted, username, protocol, err := d.Authenticate(w, r)
 		if err != nil {
 			// If not a macaroon discharge request, return the error
 			_, ok := err.(*bakery.DischargeRequiredError)

@@ -696,7 +696,7 @@ func imageCreateInPool(d *Daemon, info *api.Image, storagePool string) error {
 }
 
 func imagesPost(d *Daemon, r *http.Request) response.Response {
-	trusted, _, _, _ := d.Authenticate(r)
+	trusted, _, _, _ := d.Authenticate(nil, r)
 
 	secret := r.Header.Get("X-LXD-secret")
 	fingerprint := r.Header.Get("X-LXD-fingerprint")

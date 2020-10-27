@@ -372,7 +372,7 @@ func operationWaitGet(d *Daemon, r *http.Request) response.Response {
 	id := mux.Vars(r)["id"]
 	secret := r.FormValue("secret")
 
-	trusted, _, _, _ := d.Authenticate(r)
+	trusted, _, _, _ := d.Authenticate(nil, r)
 	if !trusted && secret == "" {
 		return response.Forbidden(nil)
 	}

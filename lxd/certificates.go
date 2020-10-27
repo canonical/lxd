@@ -125,7 +125,7 @@ func certificatesPost(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	trusted, _, protocol, err := d.Authenticate(r)
+	trusted, _, protocol, err := d.Authenticate(nil, r)
 	if err != nil {
 		return response.SmartError(err)
 	}
