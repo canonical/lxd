@@ -688,30 +688,6 @@ func InstanceContentType(inst instance.Instance) drivers.ContentType {
 	return contentType
 }
 
-// VolumeUsedByInstancesGet gets a list of instance names using a volume.
-func VolumeUsedByInstancesGet(s *state.State, projectName string, poolName string, volumeName string) ([]string, error) {
-	insts, err := instance.LoadByProject(s, projectName)
-	if err != nil {
-		return []string{}, err
-	}
-
-	instUsingVolume := []string{}
-	for _, inst := range insts {
-		for _, dev := range inst.LocalDevices() {
-			if dev["type"] != "disk" {
-				continue
-			}
-
-			if dev["pool"] == poolName && dev["source"] == volumeName {
-				instUsingVolume = append(instUsingVolume, inst.Name())
-				break
-			}
-		}
-	}
-
-	return instUsingVolume, nil
-}
-
 // VolumeUsedByInstances finds instances using a volume (either directly or via their expanded profiles if
 // expandDevices is true) and passes them to instanceFunc for evaluation. If instanceFunc returns an error then it
 // is returned immediately. The instanceFunc is executed during a DB transaction, so DB queries are not permitted.
