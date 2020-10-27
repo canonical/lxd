@@ -16,7 +16,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/CanonicalLtd/candidclient"
+	"github.com/canonical/candid/candidclient"
 	dqliteclient "github.com/canonical/go-dqlite/client"
 	"github.com/canonical/go-dqlite/driver"
 	"github.com/gorilla/mux"
