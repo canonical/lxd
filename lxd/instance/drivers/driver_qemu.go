@@ -2751,6 +2751,11 @@ func (vm *qemu) Rename(newName string) error {
 	// Update lease files.
 	network.UpdateDNSMasqStatic(vm.state, "")
 
+	err = vm.UpdateBackupFile()
+	if err != nil {
+		return err
+	}
+
 	logger.Info("Renamed instance", ctxMap)
 
 	if vm.IsSnapshot() {

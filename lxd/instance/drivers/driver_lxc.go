@@ -3747,6 +3747,11 @@ func (c *lxc) Rename(newName string) error {
 	// Update lease files.
 	network.UpdateDNSMasqStatic(c.state, "")
 
+	err = c.UpdateBackupFile()
+	if err != nil {
+		return err
+	}
+
 	logger.Info("Renamed container", ctxMap)
 
 	if c.IsSnapshot() {
