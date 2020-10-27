@@ -673,6 +673,16 @@ func (b *lxdBackend) CreateInstanceFromCopy(inst instance.Instance, src instance
 		return err
 	}
 
+	// Some driver backing stores require that running instances be frozen during copy.
+	if !src.IsSnapshot() && b.driver.Info().RunningCopyFreeze && src.IsRunning() {
+		err = src.Freeze()
+		if err != nil {
+			return err
+		}
+
+		defer src.Unfreeze()
+	}
+
 	if b.Name() == srcPool.Name() {
 		logger.Debug("CreateInstanceFromCopy same-pool mode detected")
 		err = b.driver.CreateVolumeFromCopy(vol, srcVol, snapshots, op)
@@ -1709,11 +1719,12 @@ func (b *lxdBackend) CreateInstanceSnapshot(inst instance.Instance, src instance
 	}
 
 	// Some driver backing stores require that running instances be frozen during snapshot.
-	if b.driver.Info().RunningSnapshotFreeze && src.IsRunning() {
+	if b.driver.Info().RunningCopyFreeze && src.IsRunning() {
 		err = src.Freeze()
 		if err != nil {
 			return err
 		}
+
 		defer src.Unfreeze()
 	}
 
