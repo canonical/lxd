@@ -1039,6 +1039,11 @@ func (b *lxdBackend) CreateInstanceFromImage(inst instance.Instance, fingerprint
 		// by creating a new cached image volume using the pool's current settings (including volume.size).
 		if errors.Cause(err) == drivers.ErrCannotBeShrunk {
 			logger.Debug("Cached image volume is larger than new volume and cannot be shrunk, regenerating image volume")
+
+			// Lock during the entire process to avoid attempts at creating while the image is gone.
+			unlock := locking.Lock(drivers.OperationLockName(b.name, string(drivers.VolumeTypeImage), fmt.Sprintf("ReplaceImage_%v", fingerprint)))
+			defer unlock()
+
 			err = b.DeleteImage(fingerprint, op)
 			if err != nil {
 				return err
@@ -1055,7 +1060,6 @@ func (b *lxdBackend) CreateInstanceFromImage(inst instance.Instance, fingerprint
 			}
 		} else if err != nil {
 			return err
-
 		}
 	}
 
