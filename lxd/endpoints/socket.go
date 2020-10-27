@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net"
 	"os"
+	"os/user"
 	"strconv"
 
 	"github.com/lxc/lxd/client"
@@ -86,14 +87,19 @@ func socketUnixSetPermissions(path string, mode os.FileMode) error {
 }
 
 // Change the ownership of the given unix socket file,
-func socketUnixSetOwnership(path string, group string) error {
+func socketUnixSetOwnership(path string, groupName string) error {
 	var gid int
 	var err error
 
-	if group != "" {
-		gid, err = shared.GroupId(group)
+	if groupName != "" {
+		g, err := user.LookupGroup(groupName)
 		if err != nil {
-			return fmt.Errorf("cannot get group ID of '%s': %v", group, err)
+			return fmt.Errorf("cannot get group ID of '%s': %v", groupName, err)
+		}
+
+		gid, err = strconv.Atoi(g.Gid)
+		if err != nil {
+			return err
 		}
 	} else {
 		gid = os.Getgid()
