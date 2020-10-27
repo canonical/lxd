@@ -80,7 +80,7 @@ func (d *zfs) CreateVolume(vol Volume, filler *VolumeFiller, op *operations.Oper
 			// be restored in the future and a new cached image volume will be created instead.
 			if volSizeBytes > poolVolSizeBytes {
 				d.logger.Debug("Renaming deleted cached image volume so that regeneration is used")
-				randomVol := NewVolume(d, d.name, vol.volType, vol.contentType, strings.Replace(uuid.NewRandom().String(), "-", "", -1), vol.config, vol.poolConfig)
+				randomVol := NewVolume(d, d.name, vol.volType, vol.contentType, uuid.NewRandom().String(), vol.config, vol.poolConfig)
 
 				_, err := shared.RunCommand("/proc/self/exe", "forkzfs", "--", "rename", d.dataset(vol, true), d.dataset(randomVol, true))
 				if err != nil {
