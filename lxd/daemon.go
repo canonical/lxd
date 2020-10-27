@@ -11,6 +11,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"os/user"
 	"path/filepath"
 	"strings"
 	"sync"
@@ -37,6 +38,7 @@ import (
 	"github.com/lxc/lxd/lxd/events"
 	"github.com/lxc/lxd/lxd/firewall"
 	"github.com/lxc/lxd/lxd/instance"
+	"github.com/lxc/lxd/lxd/ucred"
 
 	// Import instance/drivers without name so init() runs.
 	_ "github.com/lxc/lxd/lxd/instance/drivers"
@@ -272,6 +274,21 @@ func (d *Daemon) Authenticate(w http.ResponseWriter, r *http.Request) (bool, str
 
 	// Local unix socket queries
 	if r.RemoteAddr == "@" {
+		if w != nil {
+			conn := extractUnderlyingConn(w)
+			cred, err := ucred.GetCred(conn)
+			if err != nil {
+				return false, "", "", err
+			}
+
+			u, err := user.LookupId(fmt.Sprintf("%d", cred.Uid))
+			if err != nil {
+				return true, fmt.Sprintf("uid=%d", cred.Uid), "unix", nil
+			}
+
+			return true, u.Username, "unix", nil
+		}
+
 		return true, "", "unix", nil
 	}
 
