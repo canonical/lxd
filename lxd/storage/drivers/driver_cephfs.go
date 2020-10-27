@@ -71,17 +71,17 @@ func (d *cephfs) isRemote() bool {
 // Info returns the pool driver information.
 func (d *cephfs) Info() Info {
 	return Info{
-		Name:                  "cephfs",
-		Version:               cephfsVersion,
-		OptimizedImages:       false,
-		PreservesInodes:       false,
-		Remote:                d.isRemote(),
-		VolumeTypes:           []VolumeType{VolumeTypeCustom},
-		BlockBacking:          false,
-		RunningQuotaResize:    true,
-		RunningSnapshotFreeze: false,
-		DirectIO:              true,
-		MountedRoot:           true,
+		Name:               "cephfs",
+		Version:            cephfsVersion,
+		OptimizedImages:    false,
+		PreservesInodes:    false,
+		Remote:             d.isRemote(),
+		VolumeTypes:        []VolumeType{VolumeTypeCustom},
+		BlockBacking:       false,
+		RunningQuotaResize: true,
+		RunningCopyFreeze:  false,
+		DirectIO:           true,
+		MountedRoot:        true,
 	}
 }
 
