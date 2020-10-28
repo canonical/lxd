@@ -32,6 +32,9 @@ type Product struct {
 	SupportedEOL    string                    `json:"support_eol,omitempty"`
 	Version         string                    `json:"version,omitempty"`
 	Versions        map[string]ProductVersion `json:"versions"`
+
+	// Non-standard fields (only used on some image servers).
+	Variant string `json:"variant,omitempty"`
 }
 
 // ProductVersion represents a particular version of a product
@@ -164,6 +167,11 @@ func (s *Products) ToLXD() ([]api.Image, map[string][][]string) {
 					"serial":       name,
 					"description":  description,
 				}
+
+				if product.Variant != "" {
+					image.Properties["variant"] = product.Variant
+				}
+
 				image.Type = "container"
 
 				if root != nil {
