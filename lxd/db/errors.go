@@ -16,4 +16,7 @@ var (
 	// isn't found so we don't abuse sql.ErrNoRows any more than we
 	// already do.
 	ErrNoSuchObject = fmt.Errorf("No such object")
+
+	// ErrNoClusterMember is used to indicate no cluster member has been found for a resource.
+	ErrNoClusterMember = fmt.Errorf("No cluster member found")
 )

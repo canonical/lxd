@@ -2553,7 +2553,7 @@ func patchStorageApiUpdateStorageConfigs(name string, d *Daemon) error {
 
 			// It shouldn't be possible that false volume types
 			// exist in the db, so it's safe to ignore the error.
-			volumeType, _ := driver.VolumeTypeNameToType(volume.Type)
+			volumeType, _ := driver.VolumeTypeNameToDBType(volume.Type)
 			// Update the volume config.
 			err = d.cluster.UpdateStoragePoolVolume("default", volume.Name, volumeType, poolID, volume.Description, volume.Config)
 			if err != nil {
@@ -2701,7 +2701,7 @@ func patchStorageApiDetectLVSize(name string, d *Daemon) error {
 
 			// It shouldn't be possible that false volume types
 			// exist in the db, so it's safe to ignore the error.
-			volumeType, _ := driver.VolumeTypeNameToType(volume.Type)
+			volumeType, _ := driver.VolumeTypeNameToDBType(volume.Type)
 			// Update the volume config.
 			err = d.cluster.UpdateStoragePoolVolume("default", volume.Name, volumeType, poolID, volume.Description, volume.Config)
 			if err != nil {
@@ -2831,7 +2831,7 @@ func patchStorageZFSVolumeSize(name string, d *Daemon) error {
 
 			// It shouldn't be possible that false volume types
 			// exist in the db, so it's safe to ignore the error.
-			volumeType, _ := driver.VolumeTypeNameToType(volume.Type)
+			volumeType, _ := driver.VolumeTypeNameToDBType(volume.Type)
 			// Update the volume config.
 			err = d.cluster.UpdateStoragePoolVolume("default", volume.Name,
 				volumeType, poolID, volume.Description,

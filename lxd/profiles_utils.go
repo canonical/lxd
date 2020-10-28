@@ -190,7 +190,7 @@ func doProfileUpdateContainer(d *Daemon, name string, old api.ProfilePut, nodeNa
 		Description:  inst.Description(),
 		Devices:      inst.LocalDevices(),
 		Ephemeral:    inst.IsEphemeral(),
-		Profiles:     inst.Profiles(),
+		Profiles:     inst.Profiles(), // List of profile names to load from DB.
 		Project:      inst.Project(),
 		Type:         inst.Type(),
 		Snapshot:     inst.IsSnapshot(),
