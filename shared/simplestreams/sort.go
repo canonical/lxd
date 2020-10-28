@@ -1,7 +1,6 @@
 package simplestreams
 
 import (
-	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/osarch"
 )
@@ -19,53 +18,51 @@ func (a sortedImages) Swap(i, j int) {
 }
 
 func (a sortedImages) Less(i, j int) bool {
-	if a[i].Properties["type"] != a[j].Properties["type"] {
-		if a[i].Properties["type"] == "squashfs" {
-			return true
+	// When sorting images, group by:
+	// - Operating system (os)
+	// - Release (release)
+	// - Variant (variant)
+	// - Serial number / date (serial)
+	// - Architecture (architecture)
+	for _, prop := range []string{"os", "release", "variant", "serial", "architecture"} {
+		if a[i].Properties[prop] == a[j].Properties[prop] {
+			continue
 		}
 
-		if a[i].Properties["type"] == "disk-kvm.img" {
-			return true
-		}
-	}
-
-	if a[i].Properties["os"] == a[j].Properties["os"] {
-		if a[i].Properties["release"] == a[j].Properties["release"] {
-			if !shared.TimeIsSet(a[i].CreatedAt) {
-				return true
-			}
-
-			if !shared.TimeIsSet(a[j].CreatedAt) {
-				return false
-			}
-
-			if a[i].CreatedAt == a[j].CreatedAt {
-				return a[i].Properties["serial"] > a[j].Properties["serial"]
-			}
-
-			return a[i].CreatedAt.UTC().Unix() > a[j].CreatedAt.UTC().Unix()
-		}
-
-		if a[i].Properties["release"] == "" {
+		if a[i].Properties[prop] == "" {
 			return false
 		}
 
-		if a[j].Properties["release"] == "" {
+		if a[i].Properties[prop] == "" {
 			return true
 		}
 
-		return a[i].Properties["release"] < a[j].Properties["release"]
+		if prop == "serial" {
+			return a[i].Properties[prop] > a[j].Properties[prop]
+		}
+
+		return a[i].Properties[prop] < a[j].Properties[prop]
 	}
 
-	if a[i].Properties["os"] == "" {
-		return false
+	if a[i].Properties["type"] != a[j].Properties["type"] {
+		iScore := 0
+		jScore := 0
+
+		// Image types in order of preference for LXD hosts.
+		for score, pref := range []string{"squashfs", "root.tar.xz", "disk-kvm.img", "uefi1.img", "disk1.img"} {
+			if a[i].Properties["type"] == pref {
+				iScore = score
+			}
+
+			if a[j].Properties["type"] == pref {
+				jScore = score
+			}
+		}
+
+		return iScore < jScore
 	}
 
-	if a[j].Properties["os"] == "" {
-		return true
-	}
-
-	return a[i].Properties["os"] < a[j].Properties["os"]
+	return false
 }
 
 type sortedAliases []extendedAlias
