@@ -17,6 +17,8 @@ import (
 
 	"github.com/lxc/lxd/lxd/cluster"
 	"github.com/lxc/lxd/lxd/db"
+	deviceConfig "github.com/lxc/lxd/lxd/device/config"
+	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/locking"
 	"github.com/lxc/lxd/lxd/network/openvswitch"
 	"github.com/lxc/lxd/lxd/project"
@@ -1869,15 +1871,56 @@ func (n *ovn) getInstanceDevicePortName(instanceID int, deviceName string) openv
 }
 
 // InstanceDevicePortValidateExternalRoutes validates the external routes for an OVN instance port.
-func (n *ovn) InstanceDevicePortValidateExternalRoutes(externalRoutes []*net.IPNet) error {
-	// Load the project to get uplink network restrictions.
-	p, err := n.state.Cluster.GetProject(n.project)
-	if err != nil {
-		return errors.Wrapf(err, "Failed to load network restrictions from project %q", n.project)
-	}
+func (n *ovn) InstanceDevicePortValidateExternalRoutes(deviceInstance instance.Instance, deviceName string, portExternalRoutes []*net.IPNet) error {
+	var err error
+	var p *api.Project
+	var projectNetworks map[string]map[int64]api.Network
 
 	// Get uplink routes.
 	uplinkRoutes, err := n.uplinkRoutes(n.config["network"])
+	if err != nil {
+		return err
+	}
+
+	err = n.state.Cluster.Transaction(func(tx *db.ClusterTx) error {
+		// Load the project to get uplink network restrictions.
+		p, err = tx.GetProject(n.project)
+		if err != nil {
+			return errors.Wrapf(err, "Failed to load network restrictions from project %q", n.project)
+		}
+
+		// Get all managed networks across all projects.
+		projectNetworks, err = tx.GetNonPendingNetworks()
+		if err != nil {
+			return errors.Wrapf(err, "Failed to load all networks")
+		}
+
+		return nil
+	})
+	if err != nil {
+		return err
+	}
+
+	// Work out which OVN networks (in all projects and including our own) use the same uplink as us.
+	ovnProjectNetworksWithOurUplink := make(map[string][]*api.Network)
+	for netProject, networks := range projectNetworks {
+		for _, network := range networks {
+			netInfo := network // Local var for adding pointer to ovnProjectNetworksWithOurUplink.
+			// Skip non-OVN networks or those networks that don't use the same uplink as us.
+			if netInfo.Type != "ovn" || netInfo.Config["network"] != n.config["network"] {
+				continue
+			}
+
+			if ovnProjectNetworksWithOurUplink[netProject] == nil {
+				ovnProjectNetworksWithOurUplink[netProject] = []*api.Network{&netInfo}
+			} else {
+				ovnProjectNetworksWithOurUplink[netProject] = append(ovnProjectNetworksWithOurUplink[netProject], &netInfo)
+			}
+		}
+	}
+
+	// Get external subnets used by other OVN networks using our uplink.
+	ovnNetworkExternalSubnets, err := n.ovnNetworkExternalSubnets(ovnProjectNetworksWithOurUplink, uplinkRoutes)
 	if err != nil {
 		return err
 	}
@@ -1888,10 +1931,39 @@ func (n *ovn) InstanceDevicePortValidateExternalRoutes(externalRoutes []*net.IPN
 		return err
 	}
 
-	for _, externalRoute := range externalRoutes {
-		err = n.validateExternalSubnet(uplinkRoutes, projectRestrictedSubnets, externalRoute)
+	// If validating with an instance, get external routes configured on OVN NICs (excluding ours) using
+	// networks that use our uplink.
+	var ovnNICExternalRoutes []*net.IPNet
+	if deviceInstance != nil {
+		ovnNICExternalRoutes, err = n.ovnNICExternalRoutes(deviceInstance, deviceName, ovnProjectNetworksWithOurUplink)
 		if err != nil {
 			return err
+		}
+	}
+
+	for _, portExternalRoute := range portExternalRoutes {
+		// Check the external port route is allowed within both the uplink's external routes and any
+		// project restricted subnets.
+		err = n.validateExternalSubnet(uplinkRoutes, projectRestrictedSubnets, portExternalRoute)
+		if err != nil {
+			return err
+		}
+
+		// Check the external port route doesn't fall within any existing OVN network external subnets.
+		for _, ovnNetworkExternalSubnet := range ovnNetworkExternalSubnets {
+			if SubnetContains(ovnNetworkExternalSubnet, portExternalRoute) || SubnetContains(portExternalRoute, ovnNetworkExternalSubnet) {
+				// This error is purposefully vague so that it doesn't reveal any names of
+				// resources potentially outside of the NIC's project.
+				return fmt.Errorf("External route %q overlaps with another OVN network's external subnet", portExternalRoute.String())
+			}
+		}
+
+		for _, ovnNICExternalRoute := range ovnNICExternalRoutes {
+			if SubnetContains(ovnNICExternalRoute, portExternalRoute) || SubnetContains(portExternalRoute, ovnNICExternalRoute) {
+				// This error is purposefully vague so that it doesn't reveal any names of
+				// resources potentially outside of the NIC's project.
+				return fmt.Errorf("External route %q overlaps with another OVN NIC's external route", portExternalRoute.String())
+			}
 		}
 	}
 
@@ -2186,4 +2258,98 @@ func (n *ovn) DHCPv6Subnet() *net.IPNet {
 	}
 
 	return subnet
+}
+
+// ovnNetworkExternalSubnets returns a list of external subnets used by OVN networks (including our own) using the
+// same uplink as this OVN network. OVN networks are considered to be using external subnets if their ipv4.address
+// and/or ipv6.address are in the uplink's external routes and the associated NAT is disabled for the IP family.
+func (n *ovn) ovnNetworkExternalSubnets(ovnProjectNetworksWithOurUplink map[string][]*api.Network, uplinkRoutes []*net.IPNet) ([]*net.IPNet, error) {
+	externalSubnets := make([]*net.IPNet, 0)
+	for _, networks := range ovnProjectNetworksWithOurUplink {
+		for _, netInfo := range networks {
+			for _, keyPrefix := range []string{"ipv4", "ipv6"} {
+				if !shared.IsTrue(netInfo.Config[fmt.Sprintf("%s.nat", keyPrefix)]) {
+					_, ipNet, _ := net.ParseCIDR(netInfo.Config[fmt.Sprintf("%s.address", keyPrefix)])
+					if ipNet == nil {
+						// If the network doesn't have a valid IP, skip it.
+						continue
+					}
+
+					// Check the network's subnet is a valid external route on uplink.
+					err := n.validateExternalSubnet(uplinkRoutes, nil, ipNet)
+					if err != nil {
+						return nil, errors.Wrapf(err, "Failed checking if OVN network external subnet %q is valid external route on uplink %q", ipNet.String(), n.config["network"])
+					}
+
+					externalSubnets = append(externalSubnets, ipNet)
+				}
+			}
+		}
+	}
+
+	return externalSubnets, nil
+}
+
+// ovnNICExternalRoutes returns a list of external routes currently used by OVN NICs (excluding our own) that are
+// connected to OVN networks that share the same uplink as this network uses.
+func (n *ovn) ovnNICExternalRoutes(ourDeviceInstance instance.Instance, ourDeviceName string, ovnProjectNetworksWithOurUplink map[string][]*api.Network) ([]*net.IPNet, error) {
+	externalRoutes := make([]*net.IPNet, 0)
+
+	// nicUsesNetwork returns true if the nicDev's "network" property matches one of the projectNetworks names
+	// and the instNetworkProject matches the projectNetworks's project. As we only use network name and
+	// project to match we rely on projectNetworks only including OVN networks that use our uplink.
+	nicUsesNetwork := func(instNetworkProject string, nicDev map[string]string, projectNetworks map[string][]*api.Network) bool {
+		for netProject, networks := range projectNetworks {
+			for _, network := range networks {
+				if netProject == instNetworkProject && network.Name == nicDev["network"] {
+					return true
+				}
+			}
+		}
+
+		return false
+	}
+
+	err := n.state.Cluster.InstanceList(func(inst db.Instance, p api.Project, profiles []api.Profile) error {
+		// Get the instance's effective network project name.
+		instNetworkProject := project.NetworkProjectFromRecord(&p)
+		devices := db.ExpandInstanceDevices(deviceConfig.NewDevices(inst.Devices), profiles).CloneNative()
+
+		// Iterate through each of the instance's devices, looking for OVN NICs that are linked to networks
+		// that use our uplink.
+		for devName, devConfig := range devices {
+			if devConfig["type"] != "nic" {
+				continue
+			}
+
+			// Skip our own device.
+			if inst.Name == ourDeviceInstance.Name() && inst.Project == ourDeviceInstance.Project() && ourDeviceName == devName {
+				continue
+			}
+
+			// Check whether the NIC device references one of the OVN networks supplied.
+			if !nicUsesNetwork(instNetworkProject, devConfig, ovnProjectNetworksWithOurUplink) {
+				continue
+			}
+
+			// For OVN NICs that are connected to networks that use the same uplink as we do, check
+			// if they have any external routes configured, and if so add them to the list to return.
+			for _, keyPrefix := range []string{"ipv4", "ipv6"} {
+				_, ipNet, _ := net.ParseCIDR(devConfig[fmt.Sprintf("%s.routes.external", keyPrefix)])
+				if ipNet == nil {
+					// If the NIC device doesn't have a valid external route setting, skip.
+					continue
+				}
+
+				externalRoutes = append(externalRoutes, ipNet)
+			}
+		}
+
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	return externalRoutes, nil
 }
