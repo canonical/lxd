@@ -179,7 +179,7 @@ func (d *nicOVN) validateConfig(instConf instance.ConfigReader) error {
 			}
 		}
 
-		err = d.network.InstanceDevicePortValidateExternalRoutes(externalRoutes)
+		err = d.network.InstanceDevicePortValidateExternalRoutes(d.inst, d.name, externalRoutes)
 		if err != nil {
 			return err
 		}
