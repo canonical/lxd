@@ -701,7 +701,7 @@ func VolumeUsedByInstances(s *state.State, poolName string, projectName string, 
 	volumeNameWithType := fmt.Sprintf("%s/%s", volumeTypeName, volumeName)
 
 	return s.Cluster.InstanceList(func(inst db.Instance, p api.Project, profiles []api.Profile) error {
-		instStorageProject, err := project.StorageVolumeProjectFromRecord(&p, volumeType)
+		instStorageProject := project.StorageVolumeProjectFromRecord(&p, volumeType)
 		if err != nil {
 			return err
 		}
