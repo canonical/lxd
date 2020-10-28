@@ -74,6 +74,23 @@ func Get(instanceID int) *InstanceOperation {
 	return instanceOperations[instanceID]
 }
 
+// GetOrCreate retrieves an existing lock and verify its action or create new one.
+func GetOrCreate(instanceID int, existingAction string, newAction string, reusable bool, reuse bool) (*InstanceOperation, error) {
+	var err error
+	op := Get(instanceID)
+	if op == nil {
+		op, err = Create(instanceID, newAction, reusable, reuse)
+		if err != nil {
+			return nil, err
+		}
+
+	} else if op.Action() != existingAction {
+		return nil, fmt.Errorf("Existing action %s is different from requested action %s", op.Action(), existingAction)
+	}
+
+	return op, nil
+}
+
 // Reset resets an operation.
 func (op *InstanceOperation) Reset() error {
 	if !op.reusable {

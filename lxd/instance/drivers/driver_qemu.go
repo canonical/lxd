@@ -504,6 +504,8 @@ func (vm *qemu) Freeze() error {
 
 // onStop is run when the instance stops.
 func (vm *qemu) onStop(target string) error {
+	var err error
+
 	ctxMap := log.Ctx{
 		"project":   vm.project,
 		"name":      vm.name,
@@ -512,8 +514,19 @@ func (vm *qemu) onStop(target string) error {
 
 	// Pick up the existing stop operation lock created in Stop() function.
 	op := operationlock.Get(vm.id)
-	if op != nil && op.Action() != "stop" {
+	if op != nil && !shared.StringInSlice(op.Action(), []string{"stop", "restart"}) {
 		return fmt.Errorf("Instance is already running a %s operation", op.Action())
+	}
+
+	if op == nil {
+		logger.Info(fmt.Sprintf("VM initiated %s", target), ctxMap)
+		if target == "reboot" {
+			// Create a restart operation to probably handle lifecycle events.
+			op, err = operationlock.Create(vm.id, "restart", false, false)
+			if err != nil {
+				return err
+			}
+		}
 	}
 
 	// Cleanup.
@@ -536,6 +549,7 @@ func (vm *qemu) onStop(target string) error {
 		if op != nil {
 			op.Done(err)
 		}
+
 		return err
 	}
 
@@ -548,14 +562,20 @@ func (vm *qemu) onStop(target string) error {
 
 	if target == "reboot" {
 		err = vm.Start(false)
+		if err != nil {
+			op.Done(err)
+			return err
+		}
+
 		vm.state.Events.SendLifecycle(vm.project, "virtual-machine-restarted",
 			fmt.Sprintf("/1.0/virtual-machines/%s", vm.name), nil)
 	} else if vm.ephemeral {
 		// Destroy ephemeral virtual machines
 		err = vm.Delete()
-	}
-	if err != nil {
-		return err
+		if err != nil {
+			op.Done(err)
+			return err
+		}
 	}
 
 	if op != nil {
@@ -571,8 +591,8 @@ func (vm *qemu) Shutdown(timeout time.Duration) error {
 		return fmt.Errorf("The instance is already stopped")
 	}
 
-	// Setup a new operation
-	op, err := operationlock.Create(vm.id, "stop", true, true)
+	// Get current or set a new operation
+	op, err := operationlock.GetOrCreate(vm.id, "restart", "stop", true, true)
 	if err != nil {
 		return err
 	}
@@ -588,7 +608,9 @@ func (vm *qemu) Shutdown(timeout time.Duration) error {
 	chDisconnect, err := monitor.Wait()
 	if err != nil {
 		if err == qmp.ErrMonitorDisconnect {
-			op.Done(nil)
+			if op.Action() == "stop" {
+				op.Done(nil)
+			}
 			return nil
 		}
 
@@ -600,7 +622,9 @@ func (vm *qemu) Shutdown(timeout time.Duration) error {
 	err = monitor.Powerdown()
 	if err != nil {
 		if err == qmp.ErrMonitorDisconnect {
-			op.Done(nil)
+			if op.Action() == "stop" {
+				op.Done(nil)
+			}
 			return nil
 		}
 
@@ -621,20 +645,43 @@ func (vm *qemu) Shutdown(timeout time.Duration) error {
 		<-chDisconnect // Block until VM is not running if no timeout provided.
 	}
 
-	// Wait for onStop.
-	err = op.Wait()
-	if err != nil && vm.IsRunning() {
-		return err
+	if op.Action() == "stop" {
+		// Wait for onStop.
+		err = op.Wait()
+		if err != nil && vm.IsRunning() {
+			return err
+		}
+
+		op.Done(nil)
+		vm.state.Events.SendLifecycle(vm.project, "virtual-machine-shutdown", fmt.Sprintf("/1.0/virtual-machines/%s", vm.name), nil)
 	}
 
-	op.Done(nil)
-	vm.state.Events.SendLifecycle(vm.project, "virtual-machine-shutdown", fmt.Sprintf("/1.0/virtual-machines/%s", vm.name), nil)
 	return nil
 }
 
 // Restart restart the instance.
 func (vm *qemu) Restart(timeout time.Duration) error {
-	return vm.common.restart(vm, timeout)
+	ctxMap := log.Ctx{
+		"project":   vm.project,
+		"name":      vm.name,
+		"action":    "restart",
+		"created":   vm.creationDate,
+		"ephemeral": vm.ephemeral,
+		"used":      vm.lastUsedDate,
+		"timeout":   timeout}
+
+	logger.Info("Restarting virtual machine", ctxMap)
+
+	err := vm.common.restart(vm, timeout)
+	if err != nil {
+		return err
+	}
+
+	vm.state.Events.SendLifecycle(vm.project, "virtual-machine-restarted",
+		fmt.Sprintf("/1.0/virtual-machines/%s", vm.name), nil)
+
+	logger.Info("Restarted virtual machine", ctxMap)
+	return nil
 }
 
 func (vm *qemu) ovmfPath() string {
@@ -657,12 +704,13 @@ func (vm *qemu) Start(stateful bool) error {
 		return fmt.Errorf("The instance is already running")
 	}
 
-	// Setup a new operation
-	op, err := operationlock.Create(vm.id, "start", false, false)
+	// Get current or set a new operation
+	op, err := operationlock.GetOrCreate(vm.id, "restart", "start", false, false)
 	if err != nil {
-		return errors.Wrap(err, "Create instance start operation")
+		return err
+	} else if op.Action() == "start" {
+		defer op.Done(nil)
 	}
-	defer op.Done(nil)
 
 	revert := revert.New()
 	defer revert.Fail()
@@ -1085,7 +1133,9 @@ func (vm *qemu) Start(stateful bool) error {
 	}
 
 	revert.Success()
-	vm.state.Events.SendLifecycle(vm.project, "virtual-machine-started", fmt.Sprintf("/1.0/virtual-machines/%s", vm.name), nil)
+	if op.Action() == "start" {
+		vm.state.Events.SendLifecycle(vm.project, "virtual-machine-started", fmt.Sprintf("/1.0/virtual-machines/%s", vm.name), nil)
+	}
 	return nil
 }
 
@@ -2527,8 +2577,8 @@ func (vm *qemu) Stop(stateful bool) error {
 		return fmt.Errorf("Stateful stop isn't supported for VMs at this time")
 	}
 
-	// Setup a new operation.
-	op, err := operationlock.Create(vm.id, "stop", false, true)
+	// Get current or set a new operation
+	op, err := operationlock.GetOrCreate(vm.id, "restart", "stop", false, true)
 	if err != nil {
 		return err
 	}
@@ -2537,7 +2587,9 @@ func (vm *qemu) Stop(stateful bool) error {
 	monitor, err := qmp.Connect(vm.monitorPath(), qemuSerialChardevName, vm.getMonitorEventHandler())
 	if err != nil {
 		// If we fail to connect, it's most likely because the VM is already off.
-		op.Done(nil)
+		if op.Action() == "stop" {
+			op.Done(nil)
+		}
 		return nil
 	}
 
@@ -2545,7 +2597,9 @@ func (vm *qemu) Stop(stateful bool) error {
 	chDisconnect, err := monitor.Wait()
 	if err != nil {
 		if err == qmp.ErrMonitorDisconnect {
-			op.Done(nil)
+			if op.Action() == "stop" {
+				op.Done(nil)
+			}
 			return nil
 		}
 
@@ -2557,7 +2611,9 @@ func (vm *qemu) Stop(stateful bool) error {
 	err = monitor.Quit()
 	if err != nil {
 		if err == qmp.ErrMonitorDisconnect {
-			op.Done(nil)
+			if op.Action() == "stop" {
+				op.Done(nil)
+			}
 			return nil
 		}
 
@@ -2568,13 +2624,15 @@ func (vm *qemu) Stop(stateful bool) error {
 	// Wait for QEMU to exit (can take a while if pending I/O).
 	<-chDisconnect
 
-	// Wait for onStop.
-	err = op.Wait()
-	if err != nil && vm.IsRunning() {
-		return err
-	}
+	if op.Action() == "stop" {
+		// Wait for onStop.
+		err = op.Wait()
+		if err != nil && vm.IsRunning() {
+			return err
+		}
 
-	vm.state.Events.SendLifecycle(vm.project, "virtual-machine-stopped", fmt.Sprintf("/1.0/virtual-machines/%s", vm.name), nil)
+		vm.state.Events.SendLifecycle(vm.project, "virtual-machine-stopped", fmt.Sprintf("/1.0/virtual-machines/%s", vm.name), nil)
+	}
 	return nil
 }
 

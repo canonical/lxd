@@ -8,6 +8,7 @@ import (
 	deviceConfig "github.com/lxc/lxd/lxd/device/config"
 	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/instance/instancetype"
+	"github.com/lxc/lxd/lxd/instance/operationlock"
 	"github.com/lxc/lxd/lxd/state"
 	"github.com/lxc/lxd/shared/api"
 )
@@ -100,21 +101,37 @@ func (c *common) DevPaths() []string {
 
 // restart handles instance restarts.
 func (c *common) restart(inst instance.Instance, timeout time.Duration) error {
+	op, err := operationlock.Create(c.id, "restart", false, false)
+	if err != nil {
+		return err
+	}
+
 	if timeout == 0 {
 		err := inst.Stop(false)
 		if err != nil {
+			op.Done(err)
 			return err
 		}
 	} else {
 		if inst.IsFrozen() {
-			return errors.New("Instance is not running")
+			err = errors.New("Instance is not running")
+			op.Done(err)
+			return err
 		}
 
 		err := inst.Shutdown(timeout * time.Second)
 		if err != nil {
+			op.Done(err)
 			return err
 		}
 	}
 
-	return inst.Start(false)
+	err = inst.Start(false)
+	if err != nil {
+		op.Done(err)
+		return err
+	}
+
+	op.Done(nil)
+	return nil
 }
