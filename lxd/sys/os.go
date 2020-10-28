@@ -3,7 +3,9 @@
 package sys
 
 import (
+	"os/user"
 	"path/filepath"
+	"strconv"
 	"sync"
 
 	log "github.com/lxc/lxd/shared/log15"
@@ -115,24 +117,34 @@ func (s *OS) Init() error {
 	}
 
 	// Detect if it is possible to run daemons as an unprivileged user and group.
-	for _, user := range []string{"lxd", "nobody"} {
-		uid, err := shared.UserId(user)
+	for _, userName := range []string{"lxd", "nobody"} {
+		u, err := user.Lookup(userName)
 		if err != nil {
 			continue
 		}
 
-		s.UnprivUser = user
+		uid, err := strconv.ParseUint(u.Uid, 10, 32)
+		if err != nil {
+			return err
+		}
+
+		s.UnprivUser = userName
 		s.UnprivUID = uint32(uid)
 		break
 	}
 
-	for _, group := range []string{"lxd", "nogroup"} {
-		gid, err := shared.GroupId(group)
+	for _, groupName := range []string{"lxd", "nogroup"} {
+		g, err := user.LookupGroup(groupName)
 		if err != nil {
 			continue
 		}
 
-		s.UnprivGroup = group
+		gid, err := strconv.ParseUint(g.Gid, 10, 32)
+		if err != nil {
+			return err
+		}
+
+		s.UnprivGroup = groupName
 		s.UnprivGID = uint32(gid)
 		break
 	}
