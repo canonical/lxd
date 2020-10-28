@@ -13,11 +13,13 @@ import (
 	"gopkg.in/robfig/cron.v2"
 
 	"github.com/lxc/lxd/lxd/db"
+	deviceConfig "github.com/lxc/lxd/lxd/device/config"
 	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/instance/instancetype"
 	"github.com/lxc/lxd/lxd/migration"
 	"github.com/lxc/lxd/lxd/node"
 	"github.com/lxc/lxd/lxd/operations"
+	"github.com/lxc/lxd/lxd/project"
 	"github.com/lxc/lxd/lxd/rsync"
 	"github.com/lxc/lxd/lxd/state"
 	"github.com/lxc/lxd/lxd/storage/drivers"
@@ -77,8 +79,8 @@ func ConfigDiff(oldConfig map[string]string, newConfig map[string]string) ([]str
 	return changedConfig, userOnly
 }
 
-// VolumeTypeNameToType converts a volume type string to internal code.
-func VolumeTypeNameToType(volumeTypeName string) (int, error) {
+// VolumeTypeNameToDBType converts a volume type string to internal volume type DB code.
+func VolumeTypeNameToDBType(volumeTypeName string) (int, error) {
 	switch volumeTypeName {
 	case db.StoragePoolVolumeTypeNameContainer:
 		return db.StoragePoolVolumeTypeContainer, nil
@@ -93,7 +95,23 @@ func VolumeTypeNameToType(volumeTypeName string) (int, error) {
 	return -1, fmt.Errorf("Invalid storage volume type name")
 }
 
-// VolumeTypeToDBType converts volume type to internal code.
+// VolumeDBTypeToTypeName converts an internal volume DB type code string to a volume type string.
+func VolumeDBTypeToTypeName(volumeDBType int) (string, error) {
+	switch volumeDBType {
+	case db.StoragePoolVolumeTypeContainer:
+		return db.StoragePoolVolumeTypeNameContainer, nil
+	case db.StoragePoolVolumeTypeVM:
+		return db.StoragePoolVolumeTypeNameVM, nil
+	case db.StoragePoolVolumeTypeImage:
+		return db.StoragePoolVolumeTypeNameImage, nil
+	case db.StoragePoolVolumeTypeCustom:
+		return db.StoragePoolVolumeTypeNameCustom, nil
+	}
+
+	return "", fmt.Errorf("Invalid storage volume type code")
+}
+
+// VolumeTypeToDBType converts volume type to internal volume type DB code.
 func VolumeTypeToDBType(volType drivers.VolumeType) (int, error) {
 	switch volType {
 	case drivers.VolumeTypeContainer:
@@ -109,7 +127,7 @@ func VolumeTypeToDBType(volType drivers.VolumeType) (int, error) {
 	return -1, fmt.Errorf("Invalid storage volume type")
 }
 
-// VolumeDBTypeToType converts internal volume type DB code to driver representation.
+// VolumeDBTypeToType converts internal volume type DB code to storage driver volume type.
 func VolumeDBTypeToType(volDBType int) (drivers.VolumeType, error) {
 	switch volDBType {
 	case db.StoragePoolVolumeTypeContainer:
@@ -125,7 +143,7 @@ func VolumeDBTypeToType(volDBType int) (drivers.VolumeType, error) {
 	return "", fmt.Errorf("Invalid storage volume type")
 }
 
-// InstanceTypeToVolumeType converts instance type to volume type.
+// InstanceTypeToVolumeType converts instance type to storage driver volume type.
 func InstanceTypeToVolumeType(instType instancetype.Type) (drivers.VolumeType, error) {
 	switch instType {
 	case instancetype.Container:
@@ -176,7 +194,7 @@ func VolumeContentTypeNameToContentType(contentTypeName string) (int, error) {
 // VolumeDBCreate creates a volume in the database.
 func VolumeDBCreate(s *state.State, project, poolName, volumeName, volumeDescription, volumeTypeName string, snapshot bool, volumeConfig map[string]string, expiryDate time.Time, contentTypeName string) error {
 	// Convert the volume type name to our internal integer representation.
-	volDBType, err := VolumeTypeNameToType(volumeTypeName)
+	volDBType, err := VolumeTypeNameToDBType(volumeTypeName)
 	if err != nil {
 		return err
 	}
@@ -670,45 +688,42 @@ func InstanceContentType(inst instance.Instance) drivers.ContentType {
 	return contentType
 }
 
-// VolumeUsedByInstancesGet gets a list of instance names using a volume.
-func VolumeUsedByInstancesGet(s *state.State, projectName string, poolName string, volumeName string) ([]string, error) {
-	insts, err := instance.LoadByProject(s, projectName)
+// VolumeUsedByInstances finds instances using a volume (either directly or via their expanded profiles if
+// expandDevices is true) and passes them to instanceFunc for evaluation. If instanceFunc returns an error then it
+// is returned immediately. The instanceFunc is executed during a DB transaction, so DB queries are not permitted.
+func VolumeUsedByInstances(s *state.State, poolName string, projectName string, volumeName string, volumeTypeName string, expandDevices bool, instanceFunc func(inst db.Instance, project api.Project, profiles []api.Profile) error) error {
+	// Convert the volume type name to our internal integer representation.
+	volumeType, err := VolumeTypeNameToDBType(volumeTypeName)
 	if err != nil {
-		return []string{}, err
+		return err
 	}
 
-	instUsingVolume := []string{}
-	for _, inst := range insts {
-		for _, dev := range inst.LocalDevices() {
-			if dev["type"] != "disk" {
-				continue
-			}
-
-			if dev["pool"] == poolName && dev["source"] == volumeName {
-				instUsingVolume = append(instUsingVolume, inst.Name())
-				break
-			}
-		}
-	}
-
-	return instUsingVolume, nil
-}
-
-// VolumeUsedByRunningInstancesWithProfilesGet gets list of running instances using a volume.
-func VolumeUsedByRunningInstancesWithProfilesGet(s *state.State, projectName string, poolName string, volumeName string, volumeTypeName string, runningOnly bool) ([]string, error) {
-	insts, err := instance.LoadByProject(s, projectName)
-	if err != nil {
-		return []string{}, err
-	}
-
-	instUsingVolume := []string{}
 	volumeNameWithType := fmt.Sprintf("%s/%s", volumeTypeName, volumeName)
-	for _, inst := range insts {
-		if runningOnly && !inst.IsRunning() {
-			continue
+
+	return s.Cluster.InstanceList(func(inst db.Instance, p api.Project, profiles []api.Profile) error {
+		instStorageProject, err := project.StorageVolumeProjectFromRecord(&p, volumeType)
+		if err != nil {
+			return err
 		}
 
-		for _, dev := range inst.ExpandedDevices() {
+		// Check instance's storage project is the same as the volume's project.
+		// If not then the volume names mentioned in the instance's config cannot be referring to volumes
+		// in the volume's project we are trying to match, and this instance cannot possibly be using it.
+		if projectName != instStorageProject {
+			return nil
+		}
+
+		// Use local devices for usage check by if expandDevices is false (but don't modify instance).
+		devices := inst.Devices
+
+		// Expand devices for usage check if expandDevices is true.
+		if expandDevices {
+			devices = db.ExpandInstanceDevices(deviceConfig.NewDevices(inst.Devices), profiles).CloneNative()
+		}
+
+		// Iterate through each of the instance's devices, looking for disks in the same pool as volume.
+		// Then try and match the volume name against the instance device's "source" property.
+		for _, dev := range devices {
 			if dev["type"] != "disk" {
 				continue
 			}
@@ -721,12 +736,58 @@ func VolumeUsedByRunningInstancesWithProfilesGet(s *state.State, projectName str
 			// "container////bla" but only against "container/bla".
 			cleanSource := filepath.Clean(dev["source"])
 			if cleanSource == volumeName || cleanSource == volumeNameWithType {
-				instUsingVolume = append(instUsingVolume, inst.Name())
+				err = instanceFunc(inst, p, profiles)
+				if err != nil {
+					return err
+				}
 			}
 		}
+
+		return nil
+	})
+}
+
+// VolumeUsedByExclusiveRemoteInstancesWithProfiles checks if custom volume is exclusively attached to a remote
+// instance. Returns the remote instance that has the volume exclusively attached. Returns nil if volume available.
+func VolumeUsedByExclusiveRemoteInstancesWithProfiles(s *state.State, poolName string, projectName string, volumeName string, volumeTypeName string) (*db.Instance, error) {
+	pool, err := GetPoolByName(s, poolName)
+	if err != nil {
+		return nil, errors.Wrapf(err, "Failed loading storage pool %q", poolName)
 	}
 
-	return instUsingVolume, nil
+	info := pool.Driver().Info()
+
+	// Always return nil if the storage driver supports mounting volumes on multiple nodes at once.
+	if info.VolumeMultiNode {
+		return nil, nil
+	}
+
+	// Get local node name so we can check if the volume is attached to a remote node.
+	var localNode string
+	err = s.Cluster.Transaction(func(tx *db.ClusterTx) error {
+		localNode, err = tx.GetLocalNodeName()
+		return err
+	})
+	if err != nil {
+		return nil, errors.Wrapf(err, "Fetch node name")
+	}
+
+	// Find if volume is attached to a remote instance.
+	var errAttached = fmt.Errorf("Volume is remotely attached")
+	var remoteInstance *db.Instance
+	VolumeUsedByInstances(s, poolName, projectName, volumeName, volumeTypeName, true, func(dbInst db.Instance, project api.Project, profiles []api.Profile) error {
+		if dbInst.Node != localNode {
+			remoteInstance = &dbInst
+			return errAttached // Stop the search, this volume is attached to a remote instance.
+		}
+
+		return nil
+	})
+	if err != nil && err != errAttached {
+		return nil, err
+	}
+
+	return remoteInstance, nil
 }
 
 // VolumeUsedByDaemon indicates whether the volume is used by daemon storage.

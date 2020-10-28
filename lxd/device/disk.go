@@ -25,6 +25,7 @@ import (
 	storageDrivers "github.com/lxc/lxd/lxd/storage/drivers"
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
+	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/idmap"
 	"github.com/lxc/lxd/shared/logger"
 	"github.com/lxc/lxd/shared/subprocess"
@@ -170,26 +171,33 @@ func (d *disk) validateConfig(instConf instance.ConfigReader) error {
 			return fmt.Errorf("The %q storage pool doesn't exist", d.config["pool"])
 		}
 
+		// If instance is supplied, use it's project to derive the effective storage project name.
+		var storageProjectName string
+		if d.inst != nil {
+			storageProjectName, err = project.StorageVolumeProject(d.state.Cluster, d.inst.Project(), db.StoragePoolVolumeTypeCustom)
+			if err != nil {
+				return err
+			}
+		}
+
 		// Only check storate volume is available if we are validating an instance device and not a profile
 		// device (check for instancetype.Any), and we have least one expanded device (this is so we only
 		// do this expensive check after devices have been expanded).
 		if instConf.Type() != instancetype.Any && len(instConf.ExpandedDevices()) > 0 && d.config["source"] != "" && d.config["path"] != "/" {
-			isAvailable, err := d.state.Cluster.StorageVolumeIsAvailable(d.config["pool"], d.config["source"])
+			remoteInstance, err := storagePools.VolumeUsedByExclusiveRemoteInstancesWithProfiles(d.state, d.config["pool"], storageProjectName, d.config["source"], db.StoragePoolVolumeTypeNameCustom)
 			if err != nil {
-				return fmt.Errorf("Check if volume is available: %v", err)
+				return errors.Wrapf(err, "Failed checking if volume is exclusively attached")
 			}
-			if !isAvailable {
+
+			if remoteInstance != nil {
 				return fmt.Errorf("Storage volume %q is already attached to an instance on a different node", d.config["source"])
 			}
+
+			return nil
 		}
 
 		// Block volumes may only be attached to VMs.
 		if d.inst != nil && d.config["path"] != "/" {
-			storageProjectName, err := project.StorageVolumeProject(d.state.Cluster, d.inst.Project(), db.StoragePoolVolumeTypeCustom)
-			if err != nil {
-				return err
-			}
-
 			_, volume, err := d.state.Cluster.GetLocalStoragePoolVolume(storageProjectName, d.config["source"], db.StoragePoolVolumeTypeCustom, poolID)
 			if err != nil {
 				return err
@@ -1000,25 +1008,35 @@ func (d *disk) storagePoolVolumeAttachShift(projectName, poolName, volumeName st
 		logger.Debugf("Shifting storage volume")
 
 		if !shared.IsTrue(poolVolumePut.Config["security.shifted"]) {
-			volumeUsedBy, err := storagePools.VolumeUsedByInstancesGet(d.state, projectName, poolName, volumeName)
+			volumeTypeName, err := storagePools.VolumeDBTypeToTypeName(volumeType)
+			if err != nil {
+				return err
+			}
+
+			volumeUsedBy := []instance.Instance{}
+			err = storagePools.VolumeUsedByInstances(d.state, poolName, projectName, volumeName, volumeTypeName, true, func(dbInst db.Instance, project api.Project, profiles []api.Profile) error {
+				inst, err := instance.Load(d.state, db.InstanceToArgs(&dbInst), profiles)
+				if err != nil {
+					return err
+				}
+
+				volumeUsedBy = append(volumeUsedBy, inst)
+				return nil
+			})
 			if err != nil {
 				return err
 			}
 
 			if len(volumeUsedBy) > 1 {
-				for _, ctName := range volumeUsedBy {
-					instt, err := instance.LoadByProjectAndName(d.state, d.inst.Project(), ctName)
-					if err != nil {
+				for _, inst := range volumeUsedBy {
+					if inst.Type() != instancetype.Container {
 						continue
 					}
 
-					if instt.Type() != instancetype.Container {
-						continue
-					}
-
-					ct := instt.(instance.Container)
+					ct := inst.(instance.Container)
 
 					var ctNextIdmap *idmap.IdmapSet
+
 					if ct.IsRunning() {
 						ctNextIdmap, err = ct.CurrentIdmap()
 					} else {
@@ -1029,14 +1047,14 @@ func (d *disk) storagePoolVolumeAttachShift(projectName, poolName, volumeName st
 					}
 
 					if !nextIdmap.Equals(ctNextIdmap) {
-						return fmt.Errorf("Idmaps of container %q and storage volume %q are not identical", ctName, volumeName)
+						return fmt.Errorf("Idmaps of container %q and storage volume %q are not identical", ct.Name(), volumeName)
 					}
 				}
 			} else if len(volumeUsedBy) == 1 {
 				// If we're the only one who's attached that container
 				// we can shift the storage volume.
 				// I'm not sure if we want some locking here.
-				if volumeUsedBy[0] != d.inst.Name() {
+				if volumeUsedBy[0].Name() != d.inst.Name() {
 					return fmt.Errorf("Idmaps of container and storage volume are not identical")
 				}
 			}
