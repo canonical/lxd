@@ -90,24 +90,24 @@ func StorageVolumeProject(c *db.Cluster, projectName string, volumeType int) (st
 		return "", errors.Wrapf(err, "Failed to load project %q", projectName)
 	}
 
-	return StorageVolumeProjectFromRecord(project, volumeType)
+	return StorageVolumeProjectFromRecord(project, volumeType), nil
 }
 
-// StorageVolumeProjectFromRecord returns the project name to use to for the volume based on the requested project.
-// For custom volume type, if the project specified has the "features.storage.volumes" flag enabled then the
+// StorageVolumeProjectFromRecord returns the project name to use to for the volume based on the supplied project.
+// For custom volume type, if the project supplied has the "features.storage.volumes" flag enabled then the
 // project name is returned, otherwise the default project name is returned. For all other volume types the
 // supplied project's name is returned.
-func StorageVolumeProjectFromRecord(p *api.Project, volumeType int) (string, error) {
+func StorageVolumeProjectFromRecord(p *api.Project, volumeType int) string {
 	// Non-custom volumes always use the project specified.
 	if volumeType != db.StoragePoolVolumeTypeCustom {
-		return p.Name, nil
+		return p.Name
 	}
 
 	// Custom volumes only use the project specified if the project has the features.storage.volumes feature
 	// enabled, otherwise the legacy behaviour of using the default project for custom volumes is used.
 	if shared.IsTrue(p.Config["features.storage.volumes"]) {
-		return p.Name, nil
+		return p.Name
 	}
 
-	return Default, nil
+	return Default
 }
