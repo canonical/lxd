@@ -401,10 +401,10 @@ func (d *Daemon) ImageDownload(op *operations.Operation, server string, protocol
 
 		// Make the request
 		raw, doneCh, err := cancel.CancelableDownload(canceler, httpClient, req)
-		defer close(doneCh)
 		if err != nil {
 			return nil, err
 		}
+		defer close(doneCh)
 
 		if raw.StatusCode != http.StatusOK {
 			return nil, fmt.Errorf("Unable to fetch %q: %s", server, raw.Status)
