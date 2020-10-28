@@ -28,7 +28,7 @@ import (
 type ovnNet interface {
 	network.Network
 
-	InstanceDevicePortValidateExternalRoutes(externalRoutes []*net.IPNet) error
+	InstanceDevicePortValidateExternalRoutes(deviceInstance instance.Instance, deviceName string, externalRoutes []*net.IPNet) error
 	InstanceDevicePortAdd(instanceID int, instanceName string, deviceName string, mac net.HardwareAddr, ips []net.IP, internalRoutes []*net.IPNet, externalRoutes []*net.IPNet) (openvswitch.OVNSwitchPort, error)
 	InstanceDevicePortDelete(instanceID int, deviceName string, internalRoutes []*net.IPNet, externalRoutes []*net.IPNet) error
 	InstanceDevicePortDynamicIPs(instanceID int, deviceName string) ([]net.IP, error)
