@@ -11,6 +11,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"os/user"
 	"path/filepath"
 	"strings"
 	"sync"
@@ -37,6 +38,7 @@ import (
 	"github.com/lxc/lxd/lxd/events"
 	"github.com/lxc/lxd/lxd/firewall"
 	"github.com/lxc/lxd/lxd/instance"
+	"github.com/lxc/lxd/lxd/ucred"
 
 	// Import instance/drivers without name so init() runs.
 	_ "github.com/lxc/lxd/lxd/instance/drivers"
@@ -241,7 +243,7 @@ func allowProjectPermission(feature string, permission string) func(d *Daemon, r
 
 // Convenience function around Authenticate
 func (d *Daemon) checkTrustedClient(r *http.Request) error {
-	trusted, _, _, err := d.Authenticate(r)
+	trusted, _, _, err := d.Authenticate(nil, r)
 	if !trusted || err != nil {
 		if err != nil {
 			return err
@@ -258,7 +260,7 @@ func (d *Daemon) checkTrustedClient(r *http.Request) error {
 // will validate the TLS certificate or Macaroon.
 //
 // This does not perform authorization, only validates authentication
-func (d *Daemon) Authenticate(r *http.Request) (bool, string, string, error) {
+func (d *Daemon) Authenticate(w http.ResponseWriter, r *http.Request) (bool, string, string, error) {
 	// Allow internal cluster traffic
 	if r.TLS != nil {
 		cert, _ := x509.ParseCertificate(d.endpoints.NetworkCert().KeyPair().Certificate[0])
@@ -273,6 +275,21 @@ func (d *Daemon) Authenticate(r *http.Request) (bool, string, string, error) {
 
 	// Local unix socket queries
 	if r.RemoteAddr == "@" {
+		if w != nil {
+			conn := extractUnderlyingConn(w)
+			cred, err := ucred.GetCred(conn)
+			if err != nil {
+				return false, "", "", err
+			}
+
+			u, err := user.LookupId(fmt.Sprintf("%d", cred.Uid))
+			if err != nil {
+				return true, fmt.Sprintf("uid=%d", cred.Uid), "unix", nil
+			}
+
+			return true, u.Username, "unix", nil
+		}
+
 		return true, "", "unix", nil
 	}
 
@@ -403,7 +420,7 @@ func (d *Daemon) createCmd(restAPI *mux.Router, version string, c APIEndpoint) {
 		}
 
 		// Authentication
-		trusted, username, protocol, err := d.Authenticate(r)
+		trusted, username, protocol, err := d.Authenticate(w, r)
 		if err != nil {
 			// If not a macaroon discharge request, return the error
 			_, ok := err.(*bakery.DischargeRequiredError)
@@ -425,7 +442,7 @@ func (d *Daemon) createCmd(restAPI *mux.Router, version string, c APIEndpoint) {
 
 		untrustedOk := (r.Method == "GET" && c.Get.AllowUntrusted) || (r.Method == "POST" && c.Post.AllowUntrusted)
 		if trusted {
-			logger.Debug("Handling", log.Ctx{"method": r.Method, "url": r.URL.RequestURI(), "ip": r.RemoteAddr, "user": username})
+			logger.Debug("Handling", log.Ctx{"method": r.Method, "url": r.URL.RequestURI(), "ip": r.RemoteAddr, "username": username, "protocol": protocol})
 			r = r.WithContext(context.WithValue(context.WithValue(r.Context(), "username", username), "protocol", protocol))
 		} else if untrustedOk && r.Header.Get("X-LXD-authenticated") == "" {
 			logger.Debug(fmt.Sprintf("Allowing untrusted %s", r.Method), log.Ctx{"url": r.URL.RequestURI(), "ip": r.RemoteAddr})
