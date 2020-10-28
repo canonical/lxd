@@ -106,16 +106,29 @@ func StorageVolumeProjectFromRecord(p *api.Project, volumeType int) string {
 // otherwise the default project name is returned. The second return value is the project's config if non-default
 // project is being returned, nil if not.
 func NetworkProject(c *db.Cluster, projectName string) (string, map[string]string, error) {
-	project, err := c.GetProject(projectName)
+	p, err := c.GetProject(projectName)
 	if err != nil {
 		return "", nil, errors.Wrapf(err, "Failed to load project %q", projectName)
 	}
 
-	// Networks only use the project specified if the project has the features.networks feature enabled,
-	// otherwise the legacy behaviour of using the default project for networks is used.
-	if shared.IsTrue(project.Config["features.networks"]) {
-		return projectName, project.Config, nil
+	projectName = NetworkProjectFromRecord(p)
+
+	if projectName != Default {
+		return projectName, p.Config, nil
 	}
 
 	return Default, nil, nil
+}
+
+// NetworkProjectFromRecord returns the project name to use for the network based on the supplied project.
+// If the project supplied has the "features.networks" flag enabled then the project name is returned,
+// otherwise the default project name is returned.
+func NetworkProjectFromRecord(p *api.Project) string {
+	// Networks only use the project specified if the project has the features.networks feature enabled,
+	// otherwise the legacy behaviour of using the default project for networks is used.
+	if shared.IsTrue(p.Config["features.networks"]) {
+		return p.Name
+	}
+
+	return Default
 }
