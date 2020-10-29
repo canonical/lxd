@@ -2353,3 +2353,27 @@ func (n *ovn) ovnNICExternalRoutes(ourDeviceInstance instance.Instance, ourDevic
 
 	return externalRoutes, nil
 }
+
+// ovnProjectNetworksWithUplink accepts a map of all networks in all projects and returns a filtered map of OVN
+// networks that use the uplink specified.
+func (n *ovn) ovnProjectNetworksWithUplink(uplink string, projectNetworks map[string]map[int64]api.Network) map[string][]*api.Network {
+	ovnProjectNetworksWithOurUplink := make(map[string][]*api.Network)
+	for netProject, networks := range projectNetworks {
+		for _, ni := range networks {
+			network := ni // Local var creating pointer to rather than iterator.
+
+			// Skip non-OVN networks or those networks that don't use the uplink specified.
+			if network.Type != "ovn" || network.Config["network"] != uplink {
+				continue
+			}
+
+			if ovnProjectNetworksWithOurUplink[netProject] == nil {
+				ovnProjectNetworksWithOurUplink[netProject] = []*api.Network{&network}
+			} else {
+				ovnProjectNetworksWithOurUplink[netProject] = append(ovnProjectNetworksWithOurUplink[netProject], &network)
+			}
+		}
+	}
+
+	return ovnProjectNetworksWithOurUplink
+}
