@@ -2260,13 +2260,18 @@ func (n *ovn) DHCPv6Subnet() *net.IPNet {
 	return subnet
 }
 
-// ovnNetworkExternalSubnets returns a list of external subnets used by OVN networks (including our own) using the
-// same uplink as this OVN network. OVN networks are considered to be using external subnets if their ipv4.address
-// and/or ipv6.address are in the uplink's external routes and the associated NAT is disabled for the IP family.
-func (n *ovn) ovnNetworkExternalSubnets(ovnProjectNetworksWithOurUplink map[string][]*api.Network, uplinkRoutes []*net.IPNet) ([]*net.IPNet, error) {
+// ovnNetworkExternalSubnets returns a list of external subnets used by OVN networks (optionally exluding our own
+// if both ourProject and ourNetwork are non-empty) using the same uplink as this OVN network. OVN networks are
+// considered to be using external subnets if their ipv4.address and/or ipv6.address are in the uplink's external
+// routes and the associated NAT is disabled for the IP family.
+func (n *ovn) ovnNetworkExternalSubnets(ourProject string, ourNetwork string, ovnProjectNetworksWithOurUplink map[string][]*api.Network, uplinkRoutes []*net.IPNet) ([]*net.IPNet, error) {
 	externalSubnets := make([]*net.IPNet, 0)
-	for _, networks := range ovnProjectNetworksWithOurUplink {
+	for netProject, networks := range ovnProjectNetworksWithOurUplink {
 		for _, netInfo := range networks {
+			if netProject == ourProject && netInfo.Name == ourNetwork {
+				continue
+			}
+
 			for _, keyPrefix := range []string{"ipv4", "ipv6"} {
 				if !shared.IsTrue(netInfo.Config[fmt.Sprintf("%s.nat", keyPrefix)]) {
 					_, ipNet, _ := net.ParseCIDR(netInfo.Config[fmt.Sprintf("%s.address", keyPrefix)])
