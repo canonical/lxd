@@ -2098,9 +2098,22 @@ func (n *ovn) InstanceDevicePortAdd(instanceID int, instanceName string, deviceN
 	}
 
 	// Add DNS records for port's IPs, and retrieve the IP addresses used.
-	dnsUUID, dnsIPv4, dnsIPv6, err := client.LogicalSwitchPortSetDNS(n.getIntSwitchName(), instancePortName, fmt.Sprintf("%s.%s", instanceName, n.getDomainName()))
+	dnsName := fmt.Sprintf("%s.%s", instanceName, n.getDomainName())
+	var dnsUUID string
+	var dnsIPv4, dnsIPv6 net.IP
+
+	// Retry a few times in case port has not yet allocated dynamic IPs.
+	for i := 0; i < 5; i++ {
+		dnsUUID, dnsIPv4, dnsIPv6, err = client.LogicalSwitchPortSetDNS(n.getIntSwitchName(), instancePortName, dnsName)
+		if err == openvswitch.ErrOVNNoPortIPs {
+			time.Sleep(100 * time.Millisecond)
+			continue
+		}
+
+		break
+	}
 	if err != nil {
-		return "", err
+		return "", errors.Wrapf(err, "Failed setting DNS for %q", dnsName)
 	}
 
 	revert.Add(func() { client.LogicalSwitchPortDeleteDNS(n.getIntSwitchName(), dnsUUID) })
