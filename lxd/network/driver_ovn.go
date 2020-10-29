@@ -2295,8 +2295,9 @@ func (n *ovn) ovnNetworkExternalSubnets(ourProject string, ourNetwork string, ov
 	return externalSubnets, nil
 }
 
-// ovnNICExternalRoutes returns a list of external routes currently used by OVN NICs (excluding our own) that are
-// connected to OVN networks that share the same uplink as this network uses.
+// ovnNICExternalRoutes returns a list of external routes currently used by OVN NICs (optionally excluding our
+// own if both ourDeviceInstance and ourDeviceName are non-empty) that are connected to OVN networks that share
+// the same uplink as this network uses.
 func (n *ovn) ovnNICExternalRoutes(ourDeviceInstance instance.Instance, ourDeviceName string, ovnProjectNetworksWithOurUplink map[string][]*api.Network) ([]*net.IPNet, error) {
 	externalRoutes := make([]*net.IPNet, 0)
 
@@ -2327,8 +2328,8 @@ func (n *ovn) ovnNICExternalRoutes(ourDeviceInstance instance.Instance, ourDevic
 				continue
 			}
 
-			// Skip our own device.
-			if inst.Name == ourDeviceInstance.Name() && inst.Project == ourDeviceInstance.Project() && ourDeviceName == devName {
+			// Skip our own device (if instance and device name were supplied).
+			if ourDeviceInstance != nil && ourDeviceName != "" && inst.Name == ourDeviceInstance.Name() && inst.Project == ourDeviceInstance.Project() && ourDeviceName == devName {
 				continue
 			}
 
