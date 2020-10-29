@@ -526,8 +526,16 @@ func (vm *qemu) onStop(target string) error {
 	os.Remove(vm.monitorPath())
 	vm.unmount()
 
+	pidPath := filepath.Join(vm.LogPath(), "virtiofsd.pid")
+
+	proc, err := subprocess.ImportProcess(pidPath)
+	if err == nil {
+		proc.Stop()
+		os.Remove(pidPath)
+	}
+
 	// Record power state.
-	err := vm.state.Cluster.UpdateInstancePowerState(vm.id, "STOPPED")
+	err = vm.state.Cluster.UpdateInstancePowerState(vm.id, "STOPPED")
 	if err != nil {
 		if op != nil {
 			op.Done(err)
@@ -862,6 +870,49 @@ func (vm *qemu) Start(stateful bool) error {
 	for i := range fdFiles {
 		// Pass through any file descriptors as 3+i (as first 3 file descriptors are taken as standard).
 		forkLimitsCmd = append(forkLimitsCmd, fmt.Sprintf("fd=%d", 3+i))
+	}
+
+	sockPath := filepath.Join(vm.LogPath(), "virtio-fs.config.sock")
+
+	// Remove old socket if needed.
+	os.Remove(sockPath)
+
+	cmd, err := exec.LookPath("virtiofsd")
+	if err != nil {
+		if shared.PathExists("/usr/lib/qemu/virtiofsd") {
+			cmd = "/usr/lib/qemu/virtiofsd"
+		}
+	}
+
+	// Start the virtiofsd process in non-daemon mode.
+	if cmd != "" {
+		proc, err := subprocess.NewProcess("/usr/lib/qemu/virtiofsd", []string{fmt.Sprintf("--socket-path=%s", sockPath), "-o", fmt.Sprintf("source=%s", filepath.Join(vm.Path(), "config"))}, "", "")
+		if err != nil {
+			return err
+		}
+
+		err = proc.Start()
+		if err != nil {
+			return err
+		}
+
+		revert.Add(func() { proc.Stop() })
+
+		pidPath := filepath.Join(vm.LogPath(), "virtiofsd.pid")
+
+		err = proc.Save(pidPath)
+		if err != nil {
+			return err
+		}
+
+		// Wait for socket file to exist
+		for i := 0; i < 10; i++ {
+			if shared.PathExists(sockPath) {
+				break
+			}
+
+			time.Sleep(50 * time.Millisecond)
+		}
 	}
 
 	// Setup background process.
@@ -1380,15 +1431,18 @@ func (vm *qemu) generateConfigShare() error {
 Description=LXD - agent
 Documentation=https://linuxcontainers.org/lxd
 ConditionPathExists=/dev/virtio-ports/org.linuxcontainers.lxd
-Requires=lxd-agent-9p.service
+Wants=lxd-agent-virtiofs.service
+After=lxd-agent-virtiofs.service
+Wants=lxd-agent-9p.service
 After=lxd-agent-9p.service
+
 Before=cloud-init.target cloud-init.service cloud-init-local.service
 DefaultDependencies=no
 
 [Service]
 Type=notify
-WorkingDirectory=/run/lxd_config/9p
-ExecStart=/run/lxd_config/9p/lxd-agent
+WorkingDirectory=/run/lxd_config/drive
+ExecStart=/run/lxd_config/drive/lxd-agent
 Restart=on-failure
 RestartSec=5s
 StartLimitInterval=60
@@ -1407,22 +1461,48 @@ WantedBy=multi-user.target
 Description=LXD - agent - 9p mount
 Documentation=https://linuxcontainers.org/lxd
 ConditionPathExists=/dev/virtio-ports/org.linuxcontainers.lxd
-After=local-fs.target
+After=local-fs.target lxd-agent-virtiofs.service
 DefaultDependencies=no
+ConditionPathExists=!/run/lxd_config/drive
 
 [Service]
 Type=oneshot
 RemainAfterExit=yes
 ExecStartPre=-/sbin/modprobe 9pnet_virtio
-ExecStartPre=/bin/mkdir -p /run/lxd_config/9p
+ExecStartPre=/bin/mkdir -p /run/lxd_config/drive
 ExecStartPre=/bin/chmod 0700 /run/lxd_config/
-ExecStart=/bin/mount -t 9p config /run/lxd_config/9p -o access=0,trans=virtio
+ExecStart=/bin/mount -t 9p config /run/lxd_config/drive -o access=0,trans=virtio
 
 [Install]
 WantedBy=multi-user.target
 `
 
 	err = ioutil.WriteFile(filepath.Join(configDrivePath, "systemd", "lxd-agent-9p.service"), []byte(lxdConfigShareMountUnit), 0400)
+	if err != nil {
+		return err
+	}
+
+	lxdConfigShareMountVirtioFSUnit := `[Unit]
+Description=LXD - agent - virtio-fs mount
+Documentation=https://linuxcontainers.org/lxd
+ConditionPathExists=/dev/virtio-ports/org.linuxcontainers.lxd
+After=local-fs.target
+Before=lxd-agent-9p.service
+DefaultDependencies=no
+ConditionPathExists=!/run/lxd_config/drive
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStartPre=/bin/mkdir -p /run/lxd_config/drive
+ExecStartPre=/bin/chmod 0700 /run/lxd_config/
+ExecStart=/bin/mount -t virtiofs config /run/lxd_config/drive
+
+[Install]
+WantedBy=multi-user.target
+	`
+
+	err = ioutil.WriteFile(filepath.Join(configDrivePath, "systemd", "lxd-agent-virtiofs.service"), []byte(lxdConfigShareMountVirtioFSUnit), 0400)
 	if err != nil {
 		return err
 	}
@@ -1454,12 +1534,13 @@ fi
 cp udev/99-lxd-agent.rules /lib/udev/rules.d/
 cp systemd/lxd-agent.service /lib/systemd/system/
 cp systemd/lxd-agent-9p.service /lib/systemd/system/
+cp systemd/lxd-agent-virtiofs.service /lib/systemd/system/
 systemctl daemon-reload
-systemctl enable lxd-agent.service lxd-agent-9p.service
+systemctl enable lxd-agent.service lxd-agent-9p.service lxd-agent-virtiofs.service
 
 echo ""
 echo "LXD agent has been installed, reboot to confirm setup."
-echo "To start it now, unmount this filesystem and run: systemctl start lxd-agent-9p lxd-agent"
+echo "To start it now, unmount this filesystem and run: systemctl start lxd-agent"
 `
 
 	err = ioutil.WriteFile(filepath.Join(configDrivePath, "install.sh"), []byte(lxdConfigShareInstall), 0700)
@@ -1807,8 +1888,23 @@ func (vm *qemu) generateQemuConfigFile(busName string, devConfs []*deviceConfig.
 		"devBus":        devBus,
 		"devAddr":       devAddr,
 		"multifunction": multi,
+		"protocol":      "9p",
 
 		"path": filepath.Join(vm.Path(), "config"),
+	})
+	if err != nil {
+		return "", err
+	}
+
+	devBus, devAddr, multi = bus.allocate(busFunctionGroup9p)
+	err = qemuDriveConfig.Execute(sb, map[string]interface{}{
+		"bus":           bus.name,
+		"devBus":        devBus,
+		"devAddr":       devAddr,
+		"multifunction": multi,
+		"protocol":      "virtio-fs",
+
+		"path": filepath.Join(vm.LogPath(), "virtio-fs.config.sock"),
 	})
 	if err != nil {
 		return "", err
@@ -2086,6 +2182,28 @@ func (vm *qemu) addDriveDirConfig(sb *strings.Builder, bus *qemuBus, fdFiles *[]
 	// Record the 9p mount for the agent.
 	*agentMounts = append(*agentMounts, agentMount)
 
+	sockPath := filepath.Join(vm.Path(), fmt.Sprintf("%s.sock", driveConf.DevName))
+
+	if shared.PathExists(sockPath) {
+		devBus, devAddr, multi := bus.allocate(busFunctionGroup9p)
+
+		// Add virtio-fs device as this will be preferred over 9p.
+		err := qemuDriveDir.Execute(sb, map[string]interface{}{
+			"bus":           bus.name,
+			"devBus":        devBus,
+			"devAddr":       devAddr,
+			"multifunction": multi,
+
+			"devName":  driveConf.DevName,
+			"mountTag": mountTag,
+			"path":     sockPath,
+			"protocol": "virtio-fs",
+		})
+		if err != nil {
+			return err
+		}
+	}
+
 	devBus, devAddr, multi := bus.allocate(busFunctionGroup9p)
 
 	// For read only shares, do not use proxy.
@@ -2100,6 +2218,7 @@ func (vm *qemu) addDriveDirConfig(sb *strings.Builder, bus *qemuBus, fdFiles *[]
 			"mountTag": mountTag,
 			"path":     driveConf.DevPath,
 			"readonly": true,
+			"protocol": "9p",
 		})
 	}
 
@@ -2115,6 +2234,7 @@ func (vm *qemu) addDriveDirConfig(sb *strings.Builder, bus *qemuBus, fdFiles *[]
 		"mountTag": mountTag,
 		"proxyFD":  proxyFD,
 		"readonly": false,
+		"protocol": "9p",
 	})
 }
 
