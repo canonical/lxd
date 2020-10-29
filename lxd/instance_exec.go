@@ -21,6 +21,7 @@ import (
 	"github.com/lxc/lxd/lxd/instance/instancetype"
 	"github.com/lxc/lxd/lxd/operations"
 	"github.com/lxc/lxd/lxd/response"
+	"github.com/lxc/lxd/lxd/state"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 	log "github.com/lxc/lxd/shared/log15"
@@ -44,6 +45,7 @@ type execWs struct {
 	controlConnectedDone bool
 	fds                  map[int]string
 	devptsFd             *os.File
+	s                    *state.State
 }
 
 func (s *execWs) Metadata() interface{} {
@@ -133,7 +135,7 @@ func (s *execWs) Do(op *operations.Operation) error {
 		ttys = make([]*os.File, 1)
 		ptys = make([]*os.File, 1)
 
-		if s.devptsFd != nil {
+		if s.devptsFd != nil && s.s.OS.NativeTerminals {
 			ptys[0], ttys[0], err = shared.OpenPtyInDevpts(int(s.devptsFd.Fd()), s.rootUid, s.rootGid)
 			s.devptsFd.Close()
 			s.devptsFd = nil
@@ -504,6 +506,7 @@ func containerExecPost(d *Daemon, r *http.Request) response.Response {
 
 	if post.WaitForWS {
 		ws := &execWs{}
+		ws.s = d.State()
 		ws.fds = map[int]string{}
 
 		if inst.Type() == instancetype.Container {
