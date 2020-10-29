@@ -1901,26 +1901,11 @@ func (n *ovn) InstanceDevicePortValidateExternalRoutes(deviceInstance instance.I
 		return err
 	}
 
-	// Work out which OVN networks (in all projects and including our own) use the same uplink as us.
-	ovnProjectNetworksWithOurUplink := make(map[string][]*api.Network)
-	for netProject, networks := range projectNetworks {
-		for _, network := range networks {
-			netInfo := network // Local var for adding pointer to ovnProjectNetworksWithOurUplink.
-			// Skip non-OVN networks or those networks that don't use the same uplink as us.
-			if netInfo.Type != "ovn" || netInfo.Config["network"] != n.config["network"] {
-				continue
-			}
-
-			if ovnProjectNetworksWithOurUplink[netProject] == nil {
-				ovnProjectNetworksWithOurUplink[netProject] = []*api.Network{&netInfo}
-			} else {
-				ovnProjectNetworksWithOurUplink[netProject] = append(ovnProjectNetworksWithOurUplink[netProject], &netInfo)
-			}
-		}
-	}
+	// Get OVN networks that use the same uplink as us.
+	ovnProjectNetworksWithOurUplink := n.ovnProjectNetworksWithUplink(n.config["network"], projectNetworks)
 
 	// Get external subnets used by other OVN networks using our uplink.
-	ovnNetworkExternalSubnets, err := n.ovnNetworkExternalSubnets(ovnProjectNetworksWithOurUplink, uplinkRoutes)
+	ovnNetworkExternalSubnets, err := n.ovnNetworkExternalSubnets("", "", ovnProjectNetworksWithOurUplink, uplinkRoutes)
 	if err != nil {
 		return err
 	}
@@ -1932,7 +1917,8 @@ func (n *ovn) InstanceDevicePortValidateExternalRoutes(deviceInstance instance.I
 	}
 
 	// If validating with an instance, get external routes configured on OVN NICs (excluding ours) using
-	// networks that use our uplink.
+	// networks that use our uplink. If we are validating a profile and no instance is provided, skip
+	// validating OVN NIC overlaps at this stage.
 	var ovnNICExternalRoutes []*net.IPNet
 	if deviceInstance != nil {
 		ovnNICExternalRoutes, err = n.ovnNICExternalRoutes(deviceInstance, deviceName, ovnProjectNetworksWithOurUplink)
@@ -1958,6 +1944,7 @@ func (n *ovn) InstanceDevicePortValidateExternalRoutes(deviceInstance instance.I
 			}
 		}
 
+		// Check the external port route doesn't fall within any existing OVN NIC external routes.
 		for _, ovnNICExternalRoute := range ovnNICExternalRoutes {
 			if SubnetContains(ovnNICExternalRoute, portExternalRoute) || SubnetContains(portExternalRoute, ovnNICExternalRoute) {
 				// This error is purposefully vague so that it doesn't reveal any names of
