@@ -511,10 +511,22 @@ func (d *disk) startVM() (*deviceConfig.RunConfig, error) {
 					// Remove old socket if needed.
 					os.Remove(sockPath)
 
+					// Locate virtfs-proxy-helper.
+					cmd, err := exec.LookPath("virtfs-proxy-helper")
+					if err != nil {
+						if shared.PathExists("/usr/lib/qemu/virtfs-proxy-helper") {
+							cmd = "/usr/lib/qemu/virtfs-proxy-helper"
+						}
+					}
+
+					if cmd == "" {
+						return nil, fmt.Errorf("Required binary 'virtfs-proxy-helper' couldn't be found")
+					}
+
 					// Start the virtfs-proxy-helper process in non-daemon mode and as root so that
 					// when the VM process is started as an unprivileged user, we can still share
 					// directories that process cannot access.
-					proc, err := subprocess.NewProcess("virtfs-proxy-helper", []string{"-n", "-u", "0", "-g", "0", "-s", sockPath, "-p", srcPath}, "", "")
+					proc, err := subprocess.NewProcess(cmd, []string{"-n", "-u", "0", "-g", "0", "-s", sockPath, "-p", srcPath}, "", "")
 					if err != nil {
 						return nil, err
 					}
