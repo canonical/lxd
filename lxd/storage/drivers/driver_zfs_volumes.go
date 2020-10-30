@@ -510,7 +510,36 @@ func (d *zfs) CreateVolumeFromCopy(vol Volume, srcVol Volume, copySnapshots bool
 		if len(snapshots) > 0 {
 			sender = exec.Command("zfs", "send", "-R", srcSnapshot)
 		} else {
-			sender = exec.Command("zfs", "send", srcSnapshot)
+			if d.config["zfs.clone_copy"] == "rebase" {
+				var err error
+				origin := d.dataset(srcVol, false)
+				for {
+					fields := strings.SplitN(origin, "@", 2)
+
+					// If the origin is a @readonly snapshot under a /images/ path (/images or deleted/images), we're done.
+					if len(fields) > 1 && strings.Contains(fields[0], "/images/") && fields[1] == "readonly" {
+						break
+					}
+
+					origin, err = d.getDatasetProperty(origin, "origin")
+					if err != nil {
+						return err
+					}
+
+					if origin == "" || origin == "-" {
+						origin = ""
+						break
+					}
+				}
+
+				if origin != "" && origin != srcSnapshot {
+					sender = exec.Command("zfs", "send", "-i", origin, srcSnapshot)
+				} else {
+					sender = exec.Command("zfs", "send", srcSnapshot)
+				}
+			} else {
+				sender = exec.Command("zfs", "send", srcSnapshot)
+			}
 		}
 
 		// Configure the pipes.
