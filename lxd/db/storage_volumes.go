@@ -593,8 +593,23 @@ func (c *ClusterTx) GetStorageVolumeNodeAddresses(poolID int64, projectName stri
 
 	sort.Strings(addresses)
 
-	if len(addresses) == 0 {
+	addressCount := len(addresses)
+	if addressCount == 0 {
 		return nil, ErrNoSuchObject
+	} else if addressCount > 1 {
+		driver, err := c.GetStoragePoolDriver(poolID)
+		if err != nil {
+			return nil, err
+		}
+
+		// Earlier schema versions created a volume DB record for each cluster member for remote storage
+		// pools, so if the storage driver is one of those remote pools and the addressCount is >1 then we
+		// take this to mean that the volume doesn't have an explicit cluster member and is therefore
+		// equivalent to db.ErrNoClusterMember that is used in newer schemas where a single remote volume
+		// DB record is created that is not associated to any single member.
+		if driver == "ceph" || driver == "cephfs" {
+			return nil, ErrNoClusterMember
+		}
 	}
 
 	return addresses, nil
