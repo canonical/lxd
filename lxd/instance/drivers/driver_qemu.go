@@ -1465,7 +1465,7 @@ Documentation=https://linuxcontainers.org/lxd
 ConditionPathExists=/dev/virtio-ports/org.linuxcontainers.lxd
 After=local-fs.target lxd-agent-virtiofs.service
 DefaultDependencies=no
-ConditionPathExists=!/run/lxd_config/drive
+ConditionPathIsMountPoint=!/run/lxd_config/drive
 
 [Service]
 Type=oneshot
@@ -1491,7 +1491,7 @@ ConditionPathExists=/dev/virtio-ports/org.linuxcontainers.lxd
 After=local-fs.target
 Before=lxd-agent-9p.service
 DefaultDependencies=no
-ConditionPathExists=!/run/lxd_config/drive
+ConditionPathIsMountPoint=!/run/lxd_config/drive
 
 [Service]
 Type=oneshot
