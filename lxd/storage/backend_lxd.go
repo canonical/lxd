@@ -674,7 +674,7 @@ func (b *lxdBackend) CreateInstanceFromCopy(inst instance.Instance, src instance
 	}
 
 	// Some driver backing stores require that running instances be frozen during copy.
-	if !src.IsSnapshot() && b.driver.Info().RunningCopyFreeze && src.IsRunning() {
+	if !src.IsSnapshot() && b.driver.Info().RunningCopyFreeze && src.IsRunning() && !src.IsFrozen() {
 		err = src.Freeze()
 		if err != nil {
 			return err
@@ -1723,7 +1723,7 @@ func (b *lxdBackend) CreateInstanceSnapshot(inst instance.Instance, src instance
 	}
 
 	// Some driver backing stores require that running instances be frozen during snapshot.
-	if b.driver.Info().RunningCopyFreeze && src.IsRunning() {
+	if b.driver.Info().RunningCopyFreeze && src.IsRunning() && !src.IsFrozen() {
 		err = src.Freeze()
 		if err != nil {
 			return err
