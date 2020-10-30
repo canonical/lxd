@@ -85,8 +85,8 @@ var storagePoolConfigKeys = map[string]func(value string) error{
 
 		return validate.IsBool(value)
 	}),
-	"zfs.pool_name":  validate.IsAny,
-	"rsync.bwlimit":  validate.IsAny,
+	"zfs.pool_name": validate.IsAny,
+	"rsync.bwlimit": validate.IsAny,
 
 	// valid drivers: btrfs, ceph, cephfs, zfs
 	"rsync.compression": validate.Optional(validate.IsBool),
