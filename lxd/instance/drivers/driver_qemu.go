@@ -884,37 +884,37 @@ func (vm *qemu) Start(stateful bool) error {
 		}
 	}
 
-	if cmd == "" {
-		return fmt.Errorf("Required binary 'virtiofsd' couldn't be found")
-	}
-
-	// Start the virtiofsd process in non-daemon mode.
-	proc, err := subprocess.NewProcess(cmd, []string{fmt.Sprintf("--socket-path=%s", sockPath), "-o", fmt.Sprintf("source=%s", filepath.Join(vm.Path(), "config"))}, "", "")
-	if err != nil {
-		return err
-	}
-
-	err = proc.Start()
-	if err != nil {
-		return err
-	}
-
-	revert.Add(func() { proc.Stop() })
-
-	pidPath := filepath.Join(vm.LogPath(), "virtiofsd.pid")
-
-	err = proc.Save(pidPath)
-	if err != nil {
-		return err
-	}
-
-	// Wait for socket file to exist
-	for i := 0; i < 10; i++ {
-		if shared.PathExists(sockPath) {
-			break
+	if cmd != "" {
+		// Start the virtiofsd process in non-daemon mode.
+		proc, err := subprocess.NewProcess(cmd, []string{fmt.Sprintf("--socket-path=%s", sockPath), "-o", fmt.Sprintf("source=%s", filepath.Join(vm.Path(), "config"))}, "", "")
+		if err != nil {
+			return err
 		}
 
-		time.Sleep(50 * time.Millisecond)
+		err = proc.Start()
+		if err != nil {
+			return err
+		}
+
+		revert.Add(func() { proc.Stop() })
+
+		pidPath := filepath.Join(vm.LogPath(), "virtiofsd.pid")
+
+		err = proc.Save(pidPath)
+		if err != nil {
+			return err
+		}
+
+		// Wait for socket file to exist
+		for i := 0; i < 10; i++ {
+			if shared.PathExists(sockPath) {
+				break
+			}
+
+			time.Sleep(50 * time.Millisecond)
+		}
+	} else {
+		logger.Warn("Unable to use virtio-fs for config drive, using 9p as a fallback: virtiofsd missing")
 	}
 
 	// Setup background process.
@@ -1465,7 +1465,7 @@ Documentation=https://linuxcontainers.org/lxd
 ConditionPathExists=/dev/virtio-ports/org.linuxcontainers.lxd
 After=local-fs.target lxd-agent-virtiofs.service
 DefaultDependencies=no
-ConditionPathExists=!/run/lxd_config/drive
+ConditionPathIsMountPoint=!/run/lxd_config/drive
 
 [Service]
 Type=oneshot
@@ -1491,7 +1491,7 @@ ConditionPathExists=/dev/virtio-ports/org.linuxcontainers.lxd
 After=local-fs.target
 Before=lxd-agent-9p.service
 DefaultDependencies=no
-ConditionPathExists=!/run/lxd_config/drive
+ConditionPathIsMountPoint=!/run/lxd_config/drive
 
 [Service]
 Type=oneshot
@@ -1898,18 +1898,22 @@ func (vm *qemu) generateQemuConfigFile(busName string, devConfs []*deviceConfig.
 		return "", err
 	}
 
-	devBus, devAddr, multi = bus.allocate(busFunctionGroup9p)
-	err = qemuDriveConfig.Execute(sb, map[string]interface{}{
-		"bus":           bus.name,
-		"devBus":        devBus,
-		"devAddr":       devAddr,
-		"multifunction": multi,
-		"protocol":      "virtio-fs",
+	sockPath := filepath.Join(vm.LogPath(), "virtio-fs.config.sock")
 
-		"path": filepath.Join(vm.LogPath(), "virtio-fs.config.sock"),
-	})
-	if err != nil {
-		return "", err
+	if shared.PathExists(sockPath) {
+		devBus, devAddr, multi = bus.allocate(busFunctionGroup9p)
+		err = qemuDriveConfig.Execute(sb, map[string]interface{}{
+			"bus":           bus.name,
+			"devBus":        devBus,
+			"devAddr":       devAddr,
+			"multifunction": multi,
+			"protocol":      "virtio-fs",
+
+			"path": sockPath,
+		})
+		if err != nil {
+			return "", err
+		}
 	}
 
 	devBus, devAddr, multi = bus.allocate(busFunctionGroupNone)
