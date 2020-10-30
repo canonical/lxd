@@ -884,35 +884,37 @@ func (vm *qemu) Start(stateful bool) error {
 		}
 	}
 
+	if cmd == "" {
+		return fmt.Errorf("Required binary 'virtiofsd' couldn't be found")
+	}
+
 	// Start the virtiofsd process in non-daemon mode.
-	if cmd != "" {
-		proc, err := subprocess.NewProcess("/usr/lib/qemu/virtiofsd", []string{fmt.Sprintf("--socket-path=%s", sockPath), "-o", fmt.Sprintf("source=%s", filepath.Join(vm.Path(), "config"))}, "", "")
-		if err != nil {
-			return err
+	proc, err := subprocess.NewProcess(cmd, []string{fmt.Sprintf("--socket-path=%s", sockPath), "-o", fmt.Sprintf("source=%s", filepath.Join(vm.Path(), "config"))}, "", "")
+	if err != nil {
+		return err
+	}
+
+	err = proc.Start()
+	if err != nil {
+		return err
+	}
+
+	revert.Add(func() { proc.Stop() })
+
+	pidPath := filepath.Join(vm.LogPath(), "virtiofsd.pid")
+
+	err = proc.Save(pidPath)
+	if err != nil {
+		return err
+	}
+
+	// Wait for socket file to exist
+	for i := 0; i < 10; i++ {
+		if shared.PathExists(sockPath) {
+			break
 		}
 
-		err = proc.Start()
-		if err != nil {
-			return err
-		}
-
-		revert.Add(func() { proc.Stop() })
-
-		pidPath := filepath.Join(vm.LogPath(), "virtiofsd.pid")
-
-		err = proc.Save(pidPath)
-		if err != nil {
-			return err
-		}
-
-		// Wait for socket file to exist
-		for i := 0; i < 10; i++ {
-			if shared.PathExists(sockPath) {
-				break
-			}
-
-			time.Sleep(50 * time.Millisecond)
-		}
+		time.Sleep(50 * time.Millisecond)
 	}
 
 	// Setup background process.
