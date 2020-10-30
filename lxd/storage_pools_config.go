@@ -78,7 +78,13 @@ var storagePoolConfigKeys = map[string]func(value string) error{
 	"volume.zfs.use_refquota":     validate.Optional(validate.IsBool),
 
 	// valid drivers: zfs
-	"zfs.clone_copy": validate.Optional(validate.IsBool),
+	"zfs.clone_copy": validate.Optional(func(value string) error {
+		if value == "rebase" {
+			return nil
+		}
+
+		return validate.IsBool(value)
+	}),
 	"zfs.pool_name":  validate.IsAny,
 	"rsync.bwlimit":  validate.IsAny,
 
