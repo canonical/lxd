@@ -386,7 +386,7 @@ func (d *nicSRIOV) setupSriovParent(vfDevice string, vfID int, volatile map[stri
 
 	// Setup VF VLAN if specified.
 	if d.config["vlan"] != "" {
-		_, err := shared.RunCommand("ip", "link", "set", "dev", d.config["parent"], "vf", volatile["last_state.vf.id"], "vlan", d.config["vlan"])
+		_, err := shared.TryRunCommand("ip", "link", "set", "dev", d.config["parent"], "vf", volatile["last_state.vf.id"], "vlan", d.config["vlan"])
 		if err != nil {
 			return vfPCIDev, err
 		}
@@ -403,25 +403,25 @@ func (d *nicSRIOV) setupSriovParent(vfDevice string, vfID int, volatile map[stri
 		}
 
 		// Set MAC on VF (this combined with spoof checking prevents any other MAC being used).
-		_, err = shared.RunCommand("ip", "link", "set", "dev", d.config["parent"], "vf", volatile["last_state.vf.id"], "mac", mac)
+		_, err = shared.TryRunCommand("ip", "link", "set", "dev", d.config["parent"], "vf", volatile["last_state.vf.id"], "mac", mac)
 		if err != nil {
 			return vfPCIDev, err
 		}
 
 		// Now that MAC is set on VF, we can enable spoof checking.
-		_, err = shared.RunCommand("ip", "link", "set", "dev", d.config["parent"], "vf", volatile["last_state.vf.id"], "spoofchk", "on")
+		_, err = shared.TryRunCommand("ip", "link", "set", "dev", d.config["parent"], "vf", volatile["last_state.vf.id"], "spoofchk", "on")
 		if err != nil {
 			return vfPCIDev, err
 		}
 	} else {
 		// Reset VF to ensure no previous MAC restriction exists.
-		_, err := shared.RunCommand("ip", "link", "set", "dev", d.config["parent"], "vf", volatile["last_state.vf.id"], "mac", "00:00:00:00:00:00")
+		_, err := shared.TryRunCommand("ip", "link", "set", "dev", d.config["parent"], "vf", volatile["last_state.vf.id"], "mac", "00:00:00:00:00:00")
 		if err != nil {
 			return vfPCIDev, err
 		}
 
 		// Ensure spoof checking is disabled if not enabled in instance.
-		_, err = shared.RunCommand("ip", "link", "set", "dev", d.config["parent"], "vf", volatile["last_state.vf.id"], "spoofchk", "off")
+		_, err = shared.TryRunCommand("ip", "link", "set", "dev", d.config["parent"], "vf", volatile["last_state.vf.id"], "spoofchk", "off")
 		if err != nil {
 			return vfPCIDev, err
 		}
@@ -434,7 +434,7 @@ func (d *nicSRIOV) setupSriovParent(vfDevice string, vfID int, volatile map[stri
 				mac = volatile["last_state.hwaddr"]
 			}
 
-			_, err = shared.RunCommand("ip", "link", "set", "dev", d.config["parent"], "vf", volatile["last_state.vf.id"], "mac", mac)
+			_, err = shared.TryRunCommand("ip", "link", "set", "dev", d.config["parent"], "vf", volatile["last_state.vf.id"], "mac", mac)
 			if err != nil {
 				return vfPCIDev, err
 			}
@@ -665,7 +665,7 @@ func (d *nicSRIOV) restoreSriovParent(volatile map[string]string) error {
 
 	// Reset VF VLAN if specified
 	if volatile["last_state.vf.vlan"] != "" {
-		_, err := shared.RunCommand("ip", "link", "set", "dev", d.config["parent"], "vf", volatile["last_state.vf.id"], "vlan", volatile["last_state.vf.vlan"])
+		_, err := shared.TryRunCommand("ip", "link", "set", "dev", d.config["parent"], "vf", volatile["last_state.vf.id"], "vlan", volatile["last_state.vf.vlan"])
 		if err != nil {
 			return err
 		}
@@ -679,7 +679,7 @@ func (d *nicSRIOV) restoreSriovParent(volatile map[string]string) error {
 			mode = "on"
 		}
 
-		_, err := shared.RunCommand("ip", "link", "set", "dev", d.config["parent"], "vf", volatile["last_state.vf.id"], "spoofchk", mode)
+		_, err := shared.TryRunCommand("ip", "link", "set", "dev", d.config["parent"], "vf", volatile["last_state.vf.id"], "spoofchk", mode)
 		if err != nil {
 			return err
 		}
@@ -687,7 +687,7 @@ func (d *nicSRIOV) restoreSriovParent(volatile map[string]string) error {
 
 	// Reset VF MAC specified if specified.
 	if volatile["last_state.vf.hwaddr"] != "" {
-		_, err := shared.RunCommand("ip", "link", "set", "dev", d.config["parent"], "vf", volatile["last_state.vf.id"], "mac", volatile["last_state.vf.hwaddr"])
+		_, err := shared.TryRunCommand("ip", "link", "set", "dev", d.config["parent"], "vf", volatile["last_state.vf.id"], "mac", volatile["last_state.vf.hwaddr"])
 		if err != nil {
 			return err
 		}
