@@ -573,37 +573,37 @@ func (d *disk) startVM() (*deviceConfig.RunConfig, error) {
 					}
 				}
 
-				if cmd == "" {
-					return nil, fmt.Errorf("Required binary 'virtiofsd' couldn't be found")
-				}
-
-				// Start the virtiofsd process in non-daemon mode.
-				proc, err := subprocess.NewProcess(cmd, []string{fmt.Sprintf("--socket-path=%s", sockPath), "-o", fmt.Sprintf("source=%s", srcPath)}, logPath, logPath)
-				if err != nil {
-					return nil, err
-				}
-
-				err = proc.Start()
-				if err != nil {
-					return nil, errors.Wrapf(err, "Failed to start virtiofsd for device %q", d.name)
-				}
-
-				revert.Add(func() { proc.Stop() })
-
-				pidPath := filepath.Join(d.inst.DevicesPath(), fmt.Sprintf("virtio-fs.%s.pid", d.name))
-
-				err = proc.Save(pidPath)
-				if err != nil {
-					return nil, errors.Wrapf(err, "Failed to save virtiofsd state for device %q", d.name)
-				}
-
-				// Wait for socket file to exist
-				for i := 0; i < 10; i++ {
-					if shared.PathExists(sockPath) {
-						break
+				if cmd != "" {
+					// Start the virtiofsd process in non-daemon mode.
+					proc, err := subprocess.NewProcess(cmd, []string{fmt.Sprintf("--socket-path=%s", sockPath), "-o", fmt.Sprintf("source=%s", srcPath)}, logPath, logPath)
+					if err != nil {
+						return nil, err
 					}
 
-					time.Sleep(50 * time.Millisecond)
+					err = proc.Start()
+					if err != nil {
+						return nil, errors.Wrapf(err, "Failed to start virtiofsd for device %q", d.name)
+					}
+
+					revert.Add(func() { proc.Stop() })
+
+					pidPath := filepath.Join(d.inst.DevicesPath(), fmt.Sprintf("virtio-fs.%s.pid", d.name))
+
+					err = proc.Save(pidPath)
+					if err != nil {
+						return nil, errors.Wrapf(err, "Failed to save virtiofsd state for device %q", d.name)
+					}
+
+					// Wait for socket file to exist
+					for i := 0; i < 10; i++ {
+						if shared.PathExists(sockPath) {
+							break
+						}
+
+						time.Sleep(50 * time.Millisecond)
+					}
+				} else {
+					logger.Warnf("Unable to use virtio-fs for device %q, using 9p as a fallback: virtiofsd missing", d.name)
 				}
 			}
 
