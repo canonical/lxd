@@ -1217,3 +1217,8 @@ both at the network and NIC level.
 
 ## tpm\_device\_type
 This introduces the `tpm` device type.
+
+## storage\_zfs\_clone\_copy\_rebase
+This introduces `rebase` as a value for zfs.clone\_copy causing LXD to
+track down any "image" dataset in the ancestry line and then perform
+send/receive on top of that.
