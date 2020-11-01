@@ -130,6 +130,9 @@ func (m *Monitor) run() error {
 					continue
 				}
 
+				// Check if the ringbuffer was updated (non-blocking).
+				go checkBuffer()
+
 				if m.eventHandler != nil {
 					m.eventHandler(e.Event, e.Data)
 				}
