@@ -10,11 +10,12 @@ import (
 
 	"github.com/pkg/errors"
 
+	"github.com/lxc/lxd/lxd/db"
 	deviceConfig "github.com/lxc/lxd/lxd/device/config"
-	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/instance/instancetype"
 	"github.com/lxc/lxd/lxd/state"
 	"github.com/lxc/lxd/shared"
+	"github.com/lxc/lxd/shared/api"
 )
 
 // sriovReservedDevicesMutex used to coordinate access for checking reserved devices.
@@ -26,33 +27,47 @@ func SRIOVGetHostDevicesInUse(s *state.State, m deviceConfig.Device) (map[string
 	sriovReservedDevicesMutex.Lock()
 	defer sriovReservedDevicesMutex.Unlock()
 
-	instances, err := instance.LoadNodeAll(s, instancetype.Any)
+	var err error
+	var localNode string
+	err = s.Cluster.Transaction(func(tx *db.ClusterTx) error {
+		localNode, err = tx.GetLocalNodeName()
+		return err
+	})
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrapf(err, "Fetch node name")
 	}
 
-	// Build a unique set of reserved host network devices we cannot use.
+	filter := db.InstanceFilter{
+		Project: "", // All projects.
+		Node:    localNode,
+		Type:    instancetype.Any,
+	}
+
 	reservedDevices := map[string]struct{}{}
-	for _, instance := range instances {
-		devices := instance.ExpandedDevices()
-		config := instance.ExpandedConfig()
-		for devName, devConfig := range devices {
-			// Record all parent devices, these are not eligible for use as physical or
-			// SR-IOV parents for selecting VF devices.
+	err = s.Cluster.InstanceList(&filter, func(dbInst db.Instance, p api.Project, profiles []api.Profile) error {
+		// Expand configs so we take into account profile devices.
+		dbInst.Config = db.ExpandInstanceConfig(dbInst.Config, profiles)
+		dbInst.Devices = db.ExpandInstanceDevices(deviceConfig.NewDevices(dbInst.Devices), profiles).CloneNative()
+
+		for devName, devConfig := range dbInst.Devices {
+			// Record all parent devices, these are not eligible for use as physical or SR-IOV parents
+			// for selecting VF devices.
 			parent := devConfig["parent"]
 			reservedDevices[parent] = struct{}{}
 
-			// If the device on another instance has the same device type as us, and has
-			// the same parent as us, and a non-empty host_name, then mark that
-			// host_name as reserved, as that device is using it as a SR-IOV VF.
+			// If the device on another instance has the same device type as us, and has the same
+			// parent as us, and a non-empty host_name, then mark that host_name as reserved, as that
+			// device is using it as a SR-IOV VF.
 			if devConfig["type"] == m["type"] && parent == m["parent"] {
-				hostName := config[fmt.Sprintf("volatile.%s.host_name", devName)]
+				hostName := dbInst.Config[fmt.Sprintf("volatile.%s.host_name", devName)]
 				if hostName != "" {
 					reservedDevices[hostName] = struct{}{}
 				}
 			}
 		}
-	}
+
+		return nil
+	})
 
 	return reservedDevices, nil
 }
