@@ -322,17 +322,22 @@ SELECT instances.name, nodes.id, nodes.address, nodes.heartbeat
 }
 
 // InstanceList loads all instances across all projects and for each instance runs the instanceFunc passing in the
-// instance and it's project and profiles.
-func (c *Cluster) InstanceList(instanceFunc func(inst Instance, project api.Project, profiles []api.Profile) error) error {
+// instance and it's project and profiles. Accepts optional filter argument to specify a subset of instances.
+func (c *Cluster) InstanceList(filter *InstanceFilter, instanceFunc func(inst Instance, project api.Project, profiles []api.Profile) error) error {
 	var instances []Instance
 	projectMap := map[string]api.Project{}
 	projectHasProfiles := map[string]bool{}
 	profilesByProjectAndName := map[string]map[string]Profile{}
 
+	// Default to listing all instances if no filter provided.
+	if filter == nil {
+		filter = &InstanceFilter{Type: instancetype.Any}
+	}
+
 	// Retrieve required info from the database in single transaction for performance.
 	err := c.Transaction(func(tx *ClusterTx) error {
 		var err error
-		instances, err = tx.GetInstances(InstanceFilter{Type: instancetype.Any})
+		instances, err = tx.GetInstances(*filter)
 		if err != nil {
 			return errors.Wrap(err, "Failed loading instances")
 		}
