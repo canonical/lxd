@@ -100,7 +100,7 @@ func SRIOVGetHostDevicesInUse(s *state.State) (map[string]struct{}, error) {
 // SRIOVFindFreeVirtualFunction looks on the specified parent device for an unused virtual function.
 // Returns the name of the interface and virtual function index ID if found, error if not.
 func SRIOVFindFreeVirtualFunction(s *state.State, m deviceConfig.Device) (string, int, error) {
-	reservedDevices, err := SRIOVGetHostDevicesInUse(s, m)
+	reservedDevices, err := SRIOVGetHostDevicesInUse(s)
 	if err != nil {
 		return "", 0, errors.Wrapf(err, "Failed getting in use device list")
 	}
