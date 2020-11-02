@@ -22,19 +22,31 @@ import (
 var sriovReservedDevicesMutex sync.Mutex
 
 // SRIOVGetHostDevicesInUse returns a map of host device names that have been used by devices in other instances
-// on the local node. Used for selecting physical and SR-IOV VF devices.
-func SRIOVGetHostDevicesInUse(s *state.State, m deviceConfig.Device) (map[string]struct{}, error) {
+// and networks on the local node. Used when selecting physical and SR-IOV VF devices to avoid conflicts.
+func SRIOVGetHostDevicesInUse(s *state.State) (map[string]struct{}, error) {
 	sriovReservedDevicesMutex.Lock()
 	defer sriovReservedDevicesMutex.Unlock()
 
 	var err error
 	var localNode string
+	var projectNetworks map[string]map[int64]api.Network
+
 	err = s.Cluster.Transaction(func(tx *db.ClusterTx) error {
 		localNode, err = tx.GetLocalNodeName()
+		if err != nil {
+			return errors.Wrapf(err, "Failed to get local node name")
+		}
+
+		// Get all managed networks across all projects.
+		projectNetworks, err = tx.GetCreatedNetworks()
+		if err != nil {
+			return errors.Wrapf(err, "Failed to load all networks")
+		}
+
 		return err
 	})
 	if err != nil {
-		return nil, errors.Wrapf(err, "Fetch node name")
+		return nil, err
 	}
 
 	filter := db.InstanceFilter{
@@ -44,30 +56,43 @@ func SRIOVGetHostDevicesInUse(s *state.State, m deviceConfig.Device) (map[string
 	}
 
 	reservedDevices := map[string]struct{}{}
+
+	// Check if any instances are using the VF device.
 	err = s.Cluster.InstanceList(&filter, func(dbInst db.Instance, p api.Project, profiles []api.Profile) error {
 		// Expand configs so we take into account profile devices.
 		dbInst.Config = db.ExpandInstanceConfig(dbInst.Config, profiles)
 		dbInst.Devices = db.ExpandInstanceDevices(deviceConfig.NewDevices(dbInst.Devices), profiles).CloneNative()
 
 		for devName, devConfig := range dbInst.Devices {
-			// Record all parent devices, these are not eligible for use as physical or SR-IOV parents
-			// for selecting VF devices.
+			// If device references a parent host interface name, mark that as reserved.
 			parent := devConfig["parent"]
-			reservedDevices[parent] = struct{}{}
+			if parent != "" {
+				reservedDevices[parent] = struct{}{}
+			}
 
-			// If the device on another instance has the same device type as us, and has the same
-			// parent as us, and a non-empty host_name, then mark that host_name as reserved, as that
-			// device is using it as a SR-IOV VF.
-			if devConfig["type"] == m["type"] && parent == m["parent"] {
-				hostName := dbInst.Config[fmt.Sprintf("volatile.%s.host_name", devName)]
-				if hostName != "" {
-					reservedDevices[hostName] = struct{}{}
-				}
+			// If device references a volatile host interface name, mark that as reserved.
+			hostName := dbInst.Config[fmt.Sprintf("volatile.%s.host_name", devName)]
+			if hostName != "" {
+				reservedDevices[hostName] = struct{}{}
 			}
 		}
 
 		return nil
 	})
+	if err != nil {
+		return nil, err
+	}
+
+	// Check if any networks are using the VF device.
+	for _, networks := range projectNetworks {
+		for _, ni := range networks {
+			// If network references a parent host interface name, mark that as reserved.
+			parent := ni.Config["parent"]
+			if parent != "" {
+				reservedDevices[parent] = struct{}{}
+			}
+		}
+	}
 
 	return reservedDevices, nil
 }
