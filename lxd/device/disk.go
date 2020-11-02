@@ -595,12 +595,16 @@ func (d *disk) startVM() (*deviceConfig.RunConfig, error) {
 					}
 
 					// Wait for socket file to exist
-					for i := 0; i < 10; i++ {
+					for i := 0; i < 20; i++ {
 						if shared.PathExists(sockPath) {
 							break
 						}
 
 						time.Sleep(50 * time.Millisecond)
+					}
+
+					if !shared.PathExists(sockPath) {
+						return nil, fmt.Errorf("virtiofsd failed to bind socket within 2s")
 					}
 				} else {
 					logger.Warnf("Unable to use virtio-fs for device %q, using 9p as a fallback: virtiofsd missing", d.name)

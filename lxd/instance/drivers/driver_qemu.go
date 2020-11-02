@@ -699,6 +699,7 @@ func (vm *qemu) Start(stateful bool) error {
 		return err
 	}
 
+	// Create all needed paths.
 	err = os.MkdirAll(vm.LogPath(), 0700)
 	if err != nil {
 		op.Done(err)
@@ -715,6 +716,56 @@ func (vm *qemu) Start(stateful bool) error {
 	if err != nil {
 		op.Done(err)
 		return err
+	}
+
+	// Setup virtiofsd for config path.
+	sockPath := filepath.Join(vm.LogPath(), "virtio-fs.config.sock")
+
+	// Remove old socket if needed.
+	os.Remove(sockPath)
+
+	cmd, err := exec.LookPath("virtiofsd")
+	if err != nil {
+		if shared.PathExists("/usr/lib/qemu/virtiofsd") {
+			cmd = "/usr/lib/qemu/virtiofsd"
+		}
+	}
+
+	if cmd != "" {
+		// Start the virtiofsd process in non-daemon mode.
+		proc, err := subprocess.NewProcess(cmd, []string{fmt.Sprintf("--socket-path=%s", sockPath), "-o", fmt.Sprintf("source=%s", filepath.Join(vm.Path(), "config"))}, "", "")
+		if err != nil {
+			return err
+		}
+
+		err = proc.Start()
+		if err != nil {
+			return err
+		}
+
+		revert.Add(func() { proc.Stop() })
+
+		pidPath := filepath.Join(vm.LogPath(), "virtiofsd.pid")
+
+		err = proc.Save(pidPath)
+		if err != nil {
+			return err
+		}
+
+		// Wait for socket file to exist
+		for i := 0; i < 20; i++ {
+			if shared.PathExists(sockPath) {
+				break
+			}
+
+			time.Sleep(50 * time.Millisecond)
+		}
+
+		if !shared.PathExists(sockPath) {
+			return fmt.Errorf("virtiofsd failed to bind socket within 1s")
+		}
+	} else {
+		logger.Warn("Unable to use virtio-fs for config drive, using 9p as a fallback: virtiofsd missing")
 	}
 
 	// Get a UUID for Qemu.
@@ -870,51 +921,6 @@ func (vm *qemu) Start(stateful bool) error {
 	for i := range fdFiles {
 		// Pass through any file descriptors as 3+i (as first 3 file descriptors are taken as standard).
 		forkLimitsCmd = append(forkLimitsCmd, fmt.Sprintf("fd=%d", 3+i))
-	}
-
-	sockPath := filepath.Join(vm.LogPath(), "virtio-fs.config.sock")
-
-	// Remove old socket if needed.
-	os.Remove(sockPath)
-
-	cmd, err := exec.LookPath("virtiofsd")
-	if err != nil {
-		if shared.PathExists("/usr/lib/qemu/virtiofsd") {
-			cmd = "/usr/lib/qemu/virtiofsd"
-		}
-	}
-
-	if cmd != "" {
-		// Start the virtiofsd process in non-daemon mode.
-		proc, err := subprocess.NewProcess(cmd, []string{fmt.Sprintf("--socket-path=%s", sockPath), "-o", fmt.Sprintf("source=%s", filepath.Join(vm.Path(), "config"))}, "", "")
-		if err != nil {
-			return err
-		}
-
-		err = proc.Start()
-		if err != nil {
-			return err
-		}
-
-		revert.Add(func() { proc.Stop() })
-
-		pidPath := filepath.Join(vm.LogPath(), "virtiofsd.pid")
-
-		err = proc.Save(pidPath)
-		if err != nil {
-			return err
-		}
-
-		// Wait for socket file to exist
-		for i := 0; i < 10; i++ {
-			if shared.PathExists(sockPath) {
-				break
-			}
-
-			time.Sleep(50 * time.Millisecond)
-		}
-	} else {
-		logger.Warn("Unable to use virtio-fs for config drive, using 9p as a fallback: virtiofsd missing")
 	}
 
 	// Setup background process.
@@ -1899,7 +1905,6 @@ func (vm *qemu) generateQemuConfigFile(busName string, devConfs []*deviceConfig.
 	}
 
 	sockPath := filepath.Join(vm.LogPath(), "virtio-fs.config.sock")
-
 	if shared.PathExists(sockPath) {
 		devBus, devAddr, multi = bus.allocate(busFunctionGroup9p)
 		err = qemuDriveConfig.Execute(sb, map[string]interface{}{
