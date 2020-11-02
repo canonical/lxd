@@ -745,10 +745,14 @@ func VolumeUsedByExclusiveRemoteInstancesWithProfiles(s *state.State, poolName s
 	var localNode string
 	err = s.Cluster.Transaction(func(tx *db.ClusterTx) error {
 		localNode, err = tx.GetLocalNodeName()
-		return err
+		if err != nil {
+			return errors.Wrapf(err, "Failed to get local node name")
+		}
+
+		return nil
 	})
 	if err != nil {
-		return nil, errors.Wrapf(err, "Fetch node name")
+		return nil, err
 	}
 
 	// Find if volume is attached to a remote instance.
