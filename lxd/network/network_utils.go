@@ -980,3 +980,16 @@ func SubnetParseAppend(subnets []*net.IPNet, parseSubnet ...string) ([]*net.IPNe
 
 	return subnets, nil
 }
+
+// InterfaceBindWait waits for network interface to appear after being bound to a driver.
+func InterfaceBindWait(ifName string) error {
+	for i := 0; i < 10; i++ {
+		if shared.PathExists(fmt.Sprintf("/sys/class/net/%s", ifName)) {
+			return nil
+		}
+
+		time.Sleep(50 * time.Millisecond)
+	}
+
+	return fmt.Errorf("Bind of interface %q took too long", ifName)
+}
