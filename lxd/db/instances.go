@@ -525,16 +525,16 @@ func (c *ClusterTx) UpdateInstanceNode(project, oldName, newName, newNode string
 	return nil
 }
 
-// GetLocalInstancesInProject retuurns all instances of the given type on the
-// local node within the given project.
-func (c *ClusterTx) GetLocalInstancesInProject(project string, instanceType instancetype.Type) ([]Instance, error) {
+// GetLocalInstancesInProject retuurns all instances of the given type on the local node within the given project.
+// If projectName is empty then all instances in all projects are returned.
+func (c *ClusterTx) GetLocalInstancesInProject(projectName string, instanceType instancetype.Type) ([]Instance, error) {
 	node, err := c.GetLocalNodeName()
 	if err != nil {
 		return nil, errors.Wrap(err, "Local node name")
 	}
 
 	filter := InstanceFilter{
-		Project: project,
+		Project: projectName,
 		Node:    node,
 		Type:    instanceType,
 	}
