@@ -105,6 +105,7 @@ func (d *zfs) CreateVolume(vol Volume, filler *VolumeFiller, op *operations.Oper
 
 		// Restore the image.
 		if canRestore {
+			d.logger.Debug("Restoring previously deleted cached image volume", "fingerprint", vol.Name())
 			_, err := shared.RunCommand("/proc/self/exe", "forkzfs", "--", "rename", d.dataset(vol, true), d.dataset(vol, false))
 			if err != nil {
 				return err
