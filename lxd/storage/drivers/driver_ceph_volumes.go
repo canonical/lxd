@@ -78,11 +78,11 @@ func (d *ceph) CreateVolume(vol Volume, filler *VolumeFiller, op *operations.Ope
 			return err
 		}
 
-		// If the cached volume is larger than the pool volume size, then we can't use the
+		// If the cached volume size is different than the pool volume size, then we can't use the
 		// deleted cached image volume and instead we will rename it to a random UUID so it can't
 		// be restored in the future and a new cached image volume will be created instead.
-		if volSizeBytes > poolVolSizeBytes {
-			d.logger.Debug("Renaming deleted cached image volume so that regeneration is used")
+		if volSizeBytes != poolVolSizeBytes {
+			d.logger.Debug("Renaming deleted cached image volume so that regeneration is used", "fingerprint", vol.Name())
 			randomVol := NewVolume(d, d.name, deletedVol.volType, deletedVol.contentType, strings.Replace(uuid.NewRandom().String(), "-", "", -1), deletedVol.config, deletedVol.poolConfig)
 			err = renameVolume(d.getRBDVolumeName(deletedVol, "", false, true), d.getRBDVolumeName(randomVol, "", false, true))
 			if err != nil {
