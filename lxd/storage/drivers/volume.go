@@ -428,7 +428,7 @@ func (v Volume) ConfigSizeFromSource(srcVol Volume) (string, error) {
 		return volSize, nil
 	}
 
-	// If volume/pool size is not specified, then fallback to default volume size if relevant and compare.
+	// If volume/pool size not specified above, then fallback to default volume size (if relevant) and compare.
 	volSize = v.ConfigSize()
 	if volSize != "" && volSize != "0" {
 		volSizeBytes, err := units.ParseByteSizeString(volSize)
