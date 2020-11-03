@@ -909,14 +909,13 @@ func (d *ceph) parseClone(clone string) (string, string, string, error) {
 	return poolName, volumeType, volumeName, nil
 }
 
-// getRBDMappedDevPath looks at sysfs to retrieve the device path.
-// "/dev/rbd<idx>" for an RBD image. If it doesn't find it it will map it if
-// told to do so.
-func (d *ceph) getRBDMappedDevPath(vol Volume) (string, error) {
+// getRBDMappedDevPath looks at sysfs to retrieve the device path. If it doesn't find it it will map it if told to
+// do so. Returns bool indicating if map was needed and device path e.g. "/dev/rbd<idx>" for an RBD image.
+func (d *ceph) getRBDMappedDevPath(vol Volume, mapIfMissing bool) (bool, string, error) {
 	// List all RBD devices.
 	files, err := ioutil.ReadDir("/sys/devices/rbd")
 	if err != nil && !os.IsNotExist(err) {
-		return "", err
+		return false, "", err
 	}
 
 	// Go through the existing RBD devices.
@@ -942,7 +941,7 @@ func (d *ceph) getRBDMappedDevPath(vol Volume) (string, error) {
 				continue
 			}
 
-			return "", err
+			return false, "", err
 		}
 
 		// Skip if the pools don't match.
@@ -958,7 +957,7 @@ func (d *ceph) getRBDMappedDevPath(vol Volume) (string, error) {
 				continue
 			}
 
-			return "", err
+			return false, "", err
 		}
 
 		// Skip if the names don't match.
@@ -971,10 +970,10 @@ func (d *ceph) getRBDMappedDevPath(vol Volume) (string, error) {
 		if err != nil {
 			if os.IsNotExist(err) {
 				// We found a match.
-				return fmt.Sprintf("/dev/rbd%d", idx), nil
+				return false, fmt.Sprintf("/dev/rbd%d", idx), nil
 			}
 
-			return "", err
+			return false, "", err
 		}
 
 		// Skip if we're dealing with a snapshot.
@@ -983,16 +982,20 @@ func (d *ceph) getRBDMappedDevPath(vol Volume) (string, error) {
 		}
 
 		// We found a match.
-		return fmt.Sprintf("/dev/rbd%d", idx), nil
+		return false, fmt.Sprintf("/dev/rbd%d", idx), nil
 	}
 
 	// No device could be found, map it ourselves.
-	devPath, err := d.rbdMapVolume(vol)
-	if err != nil {
-		return "", err
+	if mapIfMissing {
+		devPath, err := d.rbdMapVolume(vol)
+		if err != nil {
+			return false, "", err
+		}
+
+		return true, devPath, nil
 	}
 
-	return strings.TrimSpace(devPath), nil
+	return false, "", fmt.Errorf("Volume not mapped")
 }
 
 // generateUUID regenerates the XFS/btrfs UUID as needed.
