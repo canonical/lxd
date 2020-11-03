@@ -3308,29 +3308,6 @@ func (c *lxc) Backups() ([]backup.InstanceBackup, error) {
 func (c *lxc) Restore(sourceContainer instance.Instance, stateful bool) error {
 	var ctxMap log.Ctx
 
-	// Initialize storage interface for the container and mount the rootfs for criu state check.
-	pool, err := storagePools.GetPoolByInstance(c.state, c)
-	if err != nil {
-		return err
-	}
-
-	// Ensure that storage is mounted for state path checks and for backup.yaml updates.
-	ourStart, err := pool.MountInstance(c, nil)
-	if err != nil {
-		return err
-	}
-	if ourStart {
-		defer pool.UnmountInstance(c, nil)
-	}
-
-	// Check for CRIU if necessary, before doing a bunch of filesystem manipulations.
-	if shared.PathExists(c.StatePath()) {
-		_, err := exec.LookPath("criu")
-		if err != nil {
-			return fmt.Errorf("Failed to restore container state. CRIU isn't installed")
-		}
-	}
-
 	// Stop the container.
 	wasRunning := false
 	if c.IsRunning() {
@@ -3368,15 +3345,6 @@ func (c *lxc) Restore(sourceContainer instance.Instance, stateful bool) error {
 		if err != nil {
 			return err
 		}
-
-		// Ensure that storage is mounted for state path checks and for backup.yaml updates.
-		ourStart, err := pool.MountInstance(c, nil)
-		if err != nil {
-			return err
-		}
-		if ourStart {
-			defer pool.UnmountInstance(c, nil)
-		}
 	}
 
 	ctxMap = log.Ctx{
@@ -3388,6 +3356,30 @@ func (c *lxc) Restore(sourceContainer instance.Instance, stateful bool) error {
 		"source":    sourceContainer.Name()}
 
 	logger.Info("Restoring container", ctxMap)
+
+	// Initialize storage interface for the container and mount the rootfs for criu state check.
+	pool, err := storagePools.GetPoolByInstance(c.state, c)
+	if err != nil {
+		return err
+	}
+
+	// Ensure that storage is mounted for state path checks and for backup.yaml updates.
+	ourMount, err := pool.MountInstance(c, nil)
+	if err != nil {
+		return err
+	}
+	if ourMount && !wasRunning {
+		defer pool.UnmountInstance(c, nil)
+	}
+
+	// Check for CRIU if necessary, before doing a bunch of filesystem manipulations.
+	// Requires container be mounted to check StatePath exists.
+	if shared.PathExists(c.StatePath()) {
+		_, err := exec.LookPath("criu")
+		if err != nil {
+			return fmt.Errorf("Failed to restore container state. CRIU isn't installed")
+		}
+	}
 
 	// Restore the rootfs.
 	err = pool.RestoreInstanceSnapshot(c, sourceContainer, nil)
