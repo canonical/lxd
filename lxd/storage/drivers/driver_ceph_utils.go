@@ -767,8 +767,7 @@ func (d *ceph) deleteVolumeSnapshot(vol Volume, snapshotName string) (int, error
 		}
 
 		// Unmap.
-		err = d.rbdUnmapVolumeSnapshot(vol, snapshotName,
-			true)
+		err = d.rbdUnmapVolumeSnapshot(vol, snapshotName, true)
 		if err != nil {
 			return -1, err
 		}
