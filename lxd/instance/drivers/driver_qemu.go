@@ -2611,21 +2611,6 @@ func (vm *qemu) Restore(source instance.Instance, stateful bool) error {
 
 	var ctxMap log.Ctx
 
-	// Load the storage driver.
-	pool, err := storagePools.GetPoolByInstance(vm.state, vm)
-	if err != nil {
-		return err
-	}
-
-	// Ensure that storage is mounted for backup.yaml updates.
-	ourStart, err := pool.MountInstance(vm, nil)
-	if err != nil {
-		return err
-	}
-	if ourStart {
-		defer pool.UnmountInstance(vm, nil)
-	}
-
 	// Stop the instance.
 	wasRunning := false
 	if vm.IsRunning() {
@@ -2674,6 +2659,21 @@ func (vm *qemu) Restore(source instance.Instance, stateful bool) error {
 		"source":    source.Name()}
 
 	logger.Info("Restoring instance", ctxMap)
+
+	// Load the storage driver.
+	pool, err := storagePools.GetPoolByInstance(vm.state, vm)
+	if err != nil {
+		return err
+	}
+
+	// Ensure that storage is mounted for backup.yaml updates.
+	ourMount, err := pool.MountInstance(vm, nil)
+	if err != nil {
+		return err
+	}
+	if ourMount && !wasRunning {
+		defer pool.UnmountInstance(vm, nil)
+	}
 
 	// Restore the rootfs.
 	err = pool.RestoreInstanceSnapshot(vm, source, nil)
