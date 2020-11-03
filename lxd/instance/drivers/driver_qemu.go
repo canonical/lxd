@@ -413,6 +413,15 @@ func (vm *qemu) mount() (bool, error) {
 		return false, err
 	}
 
+	if vm.IsSnapshot() {
+		ourMount, err := pool.MountInstanceSnapshot(vm, nil)
+		if err != nil {
+			return false, err
+		}
+
+		return ourMount, nil
+	}
+
 	ourMount, err := pool.MountInstance(vm, nil)
 	if err != nil {
 		return false, err
