@@ -2109,13 +2109,28 @@ func (b *lxdBackend) EnsureImage(fingerprint string, op *operations.Operation) e
 	// Check if we already have a suitable volume on storage device.
 	if b.driver.HasVolume(imgVol) {
 		if imgDBVol != nil {
-			// We already have a valid volume, just return.
-			return nil
+			// If there is an existing volume, then make sure it has the same size as the pool's
+			// current volume.size option (with using ConfigSize()) and if not then resize/recreate
+			// depending on what the store driver supports.
+			logger.Debug("Setting image volume size", "size", imgVol.ConfigSize())
+			err = b.driver.SetVolumeQuota(imgVol, imgVol.ConfigSize(), op)
+			if errors.Cause(err) == drivers.ErrCannotBeShrunk || errors.Cause(err) == drivers.ErrNotSupported {
+				logger.Debug("Volume size of pool has changed since cached image volume created and cached volume cannot be resized, regenerating image volume")
+				err = b.DeleteImage(fingerprint, op)
+				if err != nil {
+					return err
+				}
+			} else if err != nil {
+				return err
+			} else {
+				// We already have a valid volume at the correct size, just return.
+				return nil
+			}
+		} else {
+			// We somehow have an unrecorded on-disk volume, assume it's a partial unpack and delete it.
+			logger.Warn("Deleting leftover/partially unpacked image volume")
+			b.driver.DeleteVolume(imgVol, op)
 		}
-
-		// We somehow have an unrecorded on-disk volume, assume it's a partial unpack and delete it.
-		logger.Warn("Deleting leftover/partially unpacked image volume")
-		b.driver.DeleteVolume(imgVol, op)
 	}
 
 	volFiller := drivers.VolumeFiller{
