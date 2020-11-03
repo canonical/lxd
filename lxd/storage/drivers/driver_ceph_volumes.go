@@ -104,6 +104,7 @@ func (d *ceph) CreateVolume(vol Volume, filler *VolumeFiller, op *operations.Ope
 
 		// Restore the image.
 		if canRestore {
+			d.logger.Debug("Restoring previously deleted cached image volume", "fingerprint", vol.Name())
 			err = renameVolume(d.getRBDVolumeName(deletedVol, "", false, true), d.getRBDVolumeName(vol, "", false, true))
 			if err != nil {
 				return err
