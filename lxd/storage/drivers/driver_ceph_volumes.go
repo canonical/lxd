@@ -843,6 +843,12 @@ func (d *ceph) SetVolumeQuota(vol Volume, size string, op *operations.Operation)
 		return nil
 	}
 
+	// Block image volumes cannot be resized because they have a readonly snapshot that doesn't get
+	// updated when the volume's size is changed, and this is what instances are created from.
+	if vol.volType == VolumeTypeImage {
+		return ErrNotSupported
+	}
+
 	// Resize filesystem if needed.
 	if sizeBytes < oldSizeBytes {
 		if vol.contentType == ContentTypeBlock && !vol.allowUnsafeResize {
