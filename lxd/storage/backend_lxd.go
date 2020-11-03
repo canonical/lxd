@@ -1030,31 +1030,20 @@ func (b *lxdBackend) CreateInstanceFromImage(inst instance.Instance, fingerprint
 		}
 
 		vol.SetConfigSize(volSize)
-
 		err = b.driver.CreateVolumeFromCopy(vol, imgVol, false, op)
 
 		// If the driver returns ErrCannotBeShrunk, this means that the cached volume is larger than the
 		// requested new volume size and the cached image volume, once snapshotted, cannot be shrunk.
-		// We then need to delete the cached image volume and re-create, as this should solve the issue
-		// by creating a new cached image volume using the pool's current settings (including volume.size).
+		// So we unpack the image directly into a new volume rather than use the optimized snapsot.
 		if errors.Cause(err) == drivers.ErrCannotBeShrunk {
-			logger.Debug("Cached image volume is larger than new volume and cannot be shrunk, regenerating image volume")
+			logger.Debug("Cached image volume is larger than new volume and cannot be shrunk, creating non-optimized volume")
 
-			// Lock during the entire process to avoid attempts at creating while the image is gone.
-			unlock := locking.Lock(drivers.OperationLockName(b.name, string(drivers.VolumeTypeImage), fmt.Sprintf("ReplaceImage_%v", fingerprint)))
-			defer unlock()
-
-			err = b.DeleteImage(fingerprint, op)
-			if err != nil {
-				return err
+			volFiller := drivers.VolumeFiller{
+				Fingerprint: fingerprint,
+				Fill:        b.imageFiller(fingerprint, op),
 			}
 
-			err = b.EnsureImage(fingerprint, op)
-			if err != nil {
-				return err
-			}
-
-			err = b.driver.CreateVolumeFromCopy(vol, imgVol, false, op)
+			err = b.driver.CreateVolume(vol, &volFiller, op)
 			if err != nil {
 				return err
 			}
