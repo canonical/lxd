@@ -1591,7 +1591,7 @@ func (b *lxdBackend) GetInstanceUsage(inst instance.Instance) (int64, error) {
 // Returns ErrRunningQuotaResizeNotSupported if the instance is running and the storage driver
 // doesn't support resizing whilst the instance is running.
 func (b *lxdBackend) SetInstanceQuota(inst instance.Instance, size string, op *operations.Operation) error {
-	logger := logging.AddContext(b.logger, log.Ctx{"project": inst.Project(), "instance": inst.Name()})
+	logger := logging.AddContext(b.logger, log.Ctx{"project": inst.Project(), "instance": inst.Name(), "size": size})
 	logger.Debug("SetInstanceQuota started")
 	defer logger.Debug("SetInstanceQuota finished")
 
