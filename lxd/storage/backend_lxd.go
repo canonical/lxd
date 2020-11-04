@@ -1978,19 +1978,19 @@ func (b *lxdBackend) RestoreInstanceSnapshot(inst instance.Instance, src instanc
 
 // MountInstanceSnapshot mounts an instance snapshot. It is mounted as read only so that the
 // snapshot cannot be modified.
-func (b *lxdBackend) MountInstanceSnapshot(inst instance.Instance, op *operations.Operation) (bool, error) {
+func (b *lxdBackend) MountInstanceSnapshot(inst instance.Instance, op *operations.Operation) (*MountInfo, error) {
 	logger := logging.AddContext(b.logger, log.Ctx{"project": inst.Project(), "instance": inst.Name()})
 	logger.Debug("MountInstanceSnapshot started")
 	defer logger.Debug("MountInstanceSnapshot finished")
 
 	if !inst.IsSnapshot() {
-		return false, fmt.Errorf("Instance must be a snapshot")
+		return nil, fmt.Errorf("Instance must be a snapshot")
 	}
 
 	// Check we can convert the instance to the volume type needed.
 	volType, err := InstanceTypeToVolumeType(inst.Type())
 	if err != nil {
-		return false, err
+		return nil, err
 	}
 
 	contentType := InstanceContentType(inst)
@@ -1998,7 +1998,7 @@ func (b *lxdBackend) MountInstanceSnapshot(inst instance.Instance, op *operation
 	// Get the root disk device config.
 	rootDiskConf, err := b.instanceRootVolumeConfig(inst)
 	if err != nil {
-		return false, err
+		return nil, err
 	}
 
 	// Get the parent and snapshot name.
@@ -2007,7 +2007,22 @@ func (b *lxdBackend) MountInstanceSnapshot(inst instance.Instance, op *operation
 	// Get the volume.
 	vol := b.newVolume(volType, contentType, volStorageName, rootDiskConf)
 
-	return b.driver.MountVolumeSnapshot(vol, op)
+	ourMount, err := b.driver.MountVolumeSnapshot(vol, op)
+	if err != nil {
+		return nil, err
+	}
+
+	diskPath, err := b.getInstanceDisk(inst)
+	if err != nil && err != drivers.ErrNotSupported {
+		return nil, errors.Wrapf(err, "Failed getting disk path")
+	}
+
+	mountInfo := &MountInfo{
+		OurMount: ourMount,
+		DiskPath: diskPath,
+	}
+
+	return mountInfo, nil
 }
 
 // UnmountInstanceSnapshot unmounts an instance snapshot.
