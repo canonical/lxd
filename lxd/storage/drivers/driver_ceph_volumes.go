@@ -133,7 +133,7 @@ func (d *ceph) CreateVolume(vol Volume, filler *VolumeFiller, op *operations.Ope
 
 	revert.Add(func() { d.DeleteVolume(vol, op) })
 
-	RBDDevPath, err := d.rbdMapVolume(vol)
+	devPath, err := d.rbdMapVolume(vol)
 	if err != nil {
 		return err
 	}
@@ -144,7 +144,7 @@ func (d *ceph) CreateVolume(vol Volume, filler *VolumeFiller, op *operations.Ope
 	RBDFilesystem := vol.ConfigBlockFilesystem()
 
 	if vol.contentType == ContentTypeFS {
-		_, err = makeFSType(RBDDevPath, RBDFilesystem, nil)
+		_, err = makeFSType(devPath, RBDFilesystem, nil)
 		if err != nil {
 			return err
 		}
@@ -302,7 +302,7 @@ func (d *ceph) CreateVolumeFromCopy(vol Volume, srcVol Volume, copySnapshots boo
 	// ensure permissions on mount path inside the volume are correct, and resize the volume to specified size.
 	postCreateTasks := func(v Volume) error {
 		// Map the RBD volume.
-		RBDDevPath, err := d.rbdMapVolume(v)
+		devPath, err := d.rbdMapVolume(v)
 		if err != nil {
 			return err
 		}
@@ -311,7 +311,7 @@ func (d *ceph) CreateVolumeFromCopy(vol Volume, srcVol Volume, copySnapshots boo
 		if vol.contentType == ContentTypeFS {
 			// Re-generate the UUID. Do this first as ensuring permissions and setting quota can
 			// rely on being able to mount the volume.
-			err = d.generateUUID(v.ConfigBlockFilesystem(), RBDDevPath)
+			err = d.generateUUID(v.ConfigBlockFilesystem(), devPath)
 			if err != nil {
 				return err
 			}
@@ -580,14 +580,14 @@ func (d *ceph) CreateVolumeFromMigration(vol Volume, conn io.ReadWriteCloser, vo
 	}
 
 	// Map the RBD volume.
-	RBDDevPath, err := d.rbdMapVolume(vol)
+	devPath, err := d.rbdMapVolume(vol)
 	if err != nil {
 		return err
 	}
 	defer d.rbdUnmapVolume(vol, true)
 
 	// Re-generate the UUID.
-	err = d.generateUUID(vol.ConfigBlockFilesystem(), RBDDevPath)
+	err = d.generateUUID(vol.ConfigBlockFilesystem(), devPath)
 	if err != nil {
 		return err
 	}
@@ -826,7 +826,7 @@ func (d *ceph) SetVolumeQuota(vol Volume, size string, op *operations.Operation)
 
 	fsType := vol.ConfigBlockFilesystem()
 
-	ourMap, RBDDevPath, err := d.getRBDMappedDevPath(vol, true)
+	ourMap, devPath, err := d.getRBDMappedDevPath(vol, true)
 	if err != nil {
 		return err
 	}
@@ -835,7 +835,7 @@ func (d *ceph) SetVolumeQuota(vol Volume, size string, op *operations.Operation)
 		defer d.rbdUnmapVolume(vol, true)
 	}
 
-	oldSizeBytes, err := BlockDiskSizeBytes(RBDDevPath)
+	oldSizeBytes, err := BlockDiskSizeBytes(devPath)
 	if err != nil {
 		return errors.Wrapf(err, "Error getting current size")
 	}
@@ -859,7 +859,7 @@ func (d *ceph) SetVolumeQuota(vol Volume, size string, op *operations.Operation)
 
 		// Shrink the filesystem.
 		if vol.contentType == ContentTypeFS {
-			err = shrinkFileSystem(fsType, RBDDevPath, vol, sizeBytes)
+			err = shrinkFileSystem(fsType, devPath, vol, sizeBytes)
 			if err != nil {
 				return err
 			}
@@ -894,7 +894,7 @@ func (d *ceph) SetVolumeQuota(vol Volume, size string, op *operations.Operation)
 
 		// Grow the filesystem.
 		if vol.contentType == ContentTypeFS {
-			err = growFileSystem(fsType, RBDDevPath, vol)
+			err = growFileSystem(fsType, devPath, vol)
 			if err != nil {
 				return err
 			}
@@ -904,7 +904,7 @@ func (d *ceph) SetVolumeQuota(vol Volume, size string, op *operations.Operation)
 	// Move the VM GPT alt header to end of disk if needed (not needed in unsafe resize mode as it is
 	// expected the caller will do all necessary post resize actions themselves).
 	if vol.IsVMBlock() && !vol.allowUnsafeResize {
-		err = d.moveGPTAltHeader(RBDDevPath)
+		err = d.moveGPTAltHeader(devPath)
 		if err != nil {
 			return err
 		}
@@ -928,7 +928,7 @@ func (d *ceph) MountVolume(vol Volume, op *operations.Operation) (bool, error) {
 	mountPath := vol.MountPath()
 
 	// Activate RBD volume if needed.
-	ourMount, RBDDevPath, err := d.getRBDMappedDevPath(vol, true)
+	ourMount, devPath, err := d.getRBDMappedDevPath(vol, true)
 	if err != nil {
 		return false, err
 	}
@@ -941,11 +941,11 @@ func (d *ceph) MountVolume(vol Volume, op *operations.Operation) (bool, error) {
 
 		RBDFilesystem := vol.ConfigBlockFilesystem()
 		mountFlags, mountOptions := resolveMountOptions(vol.ConfigBlockMountOptions())
-		err = TryMount(RBDDevPath, mountPath, RBDFilesystem, mountFlags, mountOptions)
+		err = TryMount(devPath, mountPath, RBDFilesystem, mountFlags, mountOptions)
 		if err != nil {
 			return false, err
 		}
-		d.logger.Debug("Mounted RBD volume", log.Ctx{"dev": RBDDevPath, "path": mountPath, "options": mountOptions})
+		d.logger.Debug("Mounted RBD volume", log.Ctx{"dev": devPath, "path": mountPath, "options": mountOptions})
 
 		return true, nil
 	}
@@ -1486,14 +1486,14 @@ func (d *ceph) RestoreVolume(vol Volume, snapshotName string, op *operations.Ope
 	}
 
 	// Map the RBD volume.
-	RBDDevPath, err := d.rbdMapVolume(snapVol)
+	devPath, err := d.rbdMapVolume(snapVol)
 	if err != nil {
 		return err
 	}
 	defer d.rbdUnmapVolume(snapVol, true)
 
 	// Re-generate the UUID.
-	err = d.generateUUID(snapVol.ConfigBlockFilesystem(), RBDDevPath)
+	err = d.generateUUID(snapVol.ConfigBlockFilesystem(), devPath)
 	if err != nil {
 		return err
 	}
