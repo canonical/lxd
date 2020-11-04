@@ -972,29 +972,35 @@ func (d *ceph) getRBDMappedDevPath(vol Volume, mapIfMissing bool) (bool, string,
 			return false, "", err
 		}
 
-		// Skip if the names don't match.
-		if strings.TrimSpace(string(devName)) != d.getRBDVolumeName(vol, "", false, false) {
+		rbdName := d.getRBDVolumeName(vol, "", false, false)
+
+		// Split RBD name into volume name and snapshot name parts.
+		rbdNameParts := strings.SplitN(rbdName, "@", 2)
+
+		// Skip if the names don't match (excluding snapshot part of RBD volume name).
+		if strings.TrimSpace(string(devName)) != rbdNameParts[0] {
 			continue
 		}
 
-		// Get the snapshot name for the RBD device.
-		devSnap, err := ioutil.ReadFile(fmt.Sprintf("/sys/devices/rbd/%s/snap", fName))
-		if err != nil {
-			if os.IsNotExist(err) {
-				// We found a match.
-				return false, fmt.Sprintf("/dev/rbd%d", idx), nil
-			}
-
+		// Get the snapshot name for the RBD device (if exists).
+		devSnap, err := ioutil.ReadFile(fmt.Sprintf("/sys/devices/rbd/%s/current_snap", fName))
+		if err != nil && !os.IsNotExist(err) {
 			return false, "", err
 		}
 
-		// Skip if we're dealing with a snapshot.
-		if !shared.StringInSlice(strings.TrimSpace(string(devSnap)), []string{"-", ""}) {
-			continue
+		devSnapName := strings.TrimSpace(string(devSnap))
+
+		if vol.IsSnapshot() {
+			// Volume is a snapshot, check device's snapshot name matches the volume's snapshot name.
+			if len(rbdNameParts) == 2 && rbdNameParts[1] == devSnapName {
+				return false, fmt.Sprintf("/dev/rbd%d", idx), nil // We found a match.
+			}
+		} else if shared.StringInSlice(devSnapName, []string{"-", ""}) {
+			// Volume is not a snapshot and neither is this device.
+			return false, fmt.Sprintf("/dev/rbd%d", idx), nil // We found a match.
 		}
 
-		// We found a match.
-		return false, fmt.Sprintf("/dev/rbd%d", idx), nil
+		continue
 	}
 
 	// No device could be found, map it ourselves.
@@ -1007,7 +1013,7 @@ func (d *ceph) getRBDMappedDevPath(vol Volume, mapIfMissing bool) (bool, string,
 		return true, devPath, nil
 	}
 
-	return false, "", fmt.Errorf("Volume not mapped")
+	return false, "", fmt.Errorf("Volume %q not mapped to an RBD device", vol.Name())
 }
 
 // generateUUID regenerates the XFS/btrfs UUID as needed.
