@@ -1673,10 +1673,10 @@ func (b *lxdBackend) UnmountInstance(inst instance.Instance, op *operations.Oper
 	return b.driver.UnmountVolume(vol, false, op)
 }
 
-// GetInstanceDisk returns the location of the disk.
-func (b *lxdBackend) GetInstanceDisk(inst instance.Instance) (string, error) {
+// getInstanceDisk returns the location of the disk.
+func (b *lxdBackend) getInstanceDisk(inst instance.Instance) (string, error) {
 	if inst.Type() != instancetype.VM {
-		return "", ErrNotImplemented
+		return "", drivers.ErrNotSupported
 	}
 
 	// Check we can convert the instance to the volume type needed.
