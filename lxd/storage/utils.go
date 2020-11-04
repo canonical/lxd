@@ -809,13 +809,24 @@ func RenderSnapshotUsage(s *state.State, snapInst instance.Instance) func(respon
 // InstanceDiskBlockSize returns the block device size for the instance's disk.
 // This will mount the instance if not already mounted and will unmount at the end if needed.
 func InstanceDiskBlockSize(pool Pool, inst instance.Instance, op *operations.Operation) (int64, error) {
-	ourMount, err := pool.MountInstance(inst, op)
-	if err != nil {
-		return -1, err
-	}
+	if inst.IsSnapshot() {
+		ourMount, err := pool.MountInstanceSnapshot(inst, op)
+		if err != nil {
+			return -1, err
+		}
 
-	if ourMount {
-		defer pool.UnmountInstance(inst, op)
+		if ourMount {
+			defer pool.UnmountInstanceSnapshot(inst, op)
+		}
+	} else {
+		ourMount, err := pool.MountInstance(inst, op)
+		if err != nil {
+			return -1, err
+		}
+
+		if ourMount {
+			defer pool.UnmountInstance(inst, op)
+		}
 	}
 
 	rootDrivePath, err := pool.GetInstanceDisk(inst)
