@@ -162,8 +162,6 @@ func (d *ceph) CreateVolume(vol Volume, filler *VolumeFiller, op *operations.Ope
 		revert.Add(func() { d.DeleteVolume(fsVol, op) })
 	}
 
-	// Run the volume filler function if supplied.
-
 	err = vol.MountTask(func(mountPath string, op *operations.Operation) error {
 		// Run the volume filler function if supplied.
 		if filler != nil && filler.Fill != nil {
