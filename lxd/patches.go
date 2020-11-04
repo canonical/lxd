@@ -1373,13 +1373,13 @@ func upgradeFromStorageTypeLvm(name string, d *Daemon, defaultPoolName string, d
 				err = func() error {
 					// In case the new LVM logical volume for the container is not mounted mount it.
 					if !shared.IsMountPoint(newContainerMntPoint) {
-						ourMount, err := pool.MountInstance(ctStruct, nil)
+						mountInfo, err := pool.MountInstance(ctStruct, nil)
 						if err != nil {
 							logger.Errorf("Failed to mount new empty LVM logical volume for container %s: %s", ct, err)
 							return err
 						}
 
-						if ourMount {
+						if mountInfo.OurMount {
 							defer pool.UnmountInstance(ctStruct, nil)
 						}
 					}
@@ -1539,13 +1539,13 @@ func upgradeFromStorageTypeLvm(name string, d *Daemon, defaultPoolName string, d
 					err = func() error {
 						// In case the new LVM logical volume for the snapshot is not mounted mount it.
 						if !shared.IsMountPoint(newSnapshotMntPoint) {
-							ourMount, err := pool.MountInstanceSnapshot(csStruct, nil)
+							mountInfo, err := pool.MountInstanceSnapshot(csStruct, nil)
 							if err != nil {
 								logger.Errorf("Failed to mount new empty LVM logical volume for container %s: %s", cs, err)
 								return err
 							}
 
-							if ourMount {
+							if mountInfo.OurMount {
 								defer pool.UnmountInstanceSnapshot(csStruct, nil)
 							}
 						}
