@@ -1605,7 +1605,7 @@ func (b *lxdBackend) SetInstanceQuota(inst instance.Instance, size string, op *o
 }
 
 // MountInstance mounts the instance's root volume.
-func (b *lxdBackend) MountInstance(inst instance.Instance, op *operations.Operation) (bool, error) {
+func (b *lxdBackend) MountInstance(inst instance.Instance, op *operations.Operation) (*MountInfo, error) {
 	logger := logging.AddContext(b.logger, log.Ctx{"project": inst.Project(), "instance": inst.Name()})
 	logger.Debug("MountInstance started")
 	defer logger.Debug("MountInstance finished")
@@ -1613,13 +1613,13 @@ func (b *lxdBackend) MountInstance(inst instance.Instance, op *operations.Operat
 	// Check we can convert the instance to the volume type needed.
 	volType, err := InstanceTypeToVolumeType(inst.Type())
 	if err != nil {
-		return false, err
+		return nil, err
 	}
 
 	// Get the root disk device config.
 	rootDiskConf, err := b.instanceRootVolumeConfig(inst)
 	if err != nil {
-		return false, err
+		return nil, err
 	}
 
 	contentType := InstanceContentType(inst)
@@ -1628,7 +1628,22 @@ func (b *lxdBackend) MountInstance(inst instance.Instance, op *operations.Operat
 	// Get the volume.
 	vol := b.newVolume(volType, contentType, volStorageName, rootDiskConf)
 
-	return b.driver.MountVolume(vol, op)
+	ourMount, err := b.driver.MountVolume(vol, op)
+	if err != nil {
+		return nil, err
+	}
+
+	diskPath, err := b.getInstanceDisk(inst)
+	if err != nil && err != drivers.ErrNotSupported {
+		return nil, errors.Wrapf(err, "Failed getting disk path")
+	}
+
+	mountInfo := &MountInfo{
+		OurMount: ourMount,
+		DiskPath: diskPath,
+	}
+
+	return mountInfo, nil
 }
 
 // UnmountInstance unmounts the instance's root volume.
