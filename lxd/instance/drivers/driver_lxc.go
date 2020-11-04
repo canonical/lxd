@@ -1978,10 +1978,11 @@ func (c *lxc) startCommon() (string, []func() error, error) {
 		logger.Debugf("Container idmap changed, remapping")
 		c.updateProgress("Remapping container filesystem")
 
-		ourStart, err = c.mount()
+		moutInfo, err := c.mount()
 		if err != nil {
 			return "", nil, errors.Wrap(err, "Storage start")
 		}
+		ourStart = moutInfo.OurMount
 
 		storageType, err := c.getStorageType()
 		if err != nil {
@@ -2090,10 +2091,11 @@ func (c *lxc) startCommon() (string, []func() error, error) {
 	}
 
 	// Mount instance root volume.
-	ourStart, err = c.mount()
+	mountInfo, err := c.mount()
 	if err != nil {
 		return "", nil, err
 	}
+	ourStart = mountInfo.OurMount
 
 	// Create the devices
 	postStartHooks := []func() error{}
@@ -2500,7 +2502,7 @@ func (c *lxc) onStart(_ map[string]string) error {
 	c.fromHook = true
 
 	// Start the storage for this container
-	ourStart, err := c.mount()
+	mountInfo, err := c.mount()
 	if err != nil {
 		return err
 	}
@@ -2508,7 +2510,7 @@ func (c *lxc) onStart(_ map[string]string) error {
 	// Load the container AppArmor profile
 	err = apparmor.InstanceLoad(c.state, c)
 	if err != nil {
-		if ourStart {
+		if mountInfo.OurMount {
 			c.unmount()
 		}
 		return err
@@ -2521,7 +2523,7 @@ func (c *lxc) onStart(_ map[string]string) error {
 		err = c.templateApplyNow(c.localConfig[key])
 		if err != nil {
 			apparmor.InstanceUnload(c.state, c)
-			if ourStart {
+			if mountInfo.OurMount {
 				c.unmount()
 			}
 			return err
@@ -2531,7 +2533,7 @@ func (c *lxc) onStart(_ map[string]string) error {
 		err := c.state.Cluster.DeleteInstanceConfigKey(c.id, key)
 		if err != nil {
 			apparmor.InstanceUnload(c.state, c)
-			if ourStart {
+			if mountInfo.OurMount {
 				c.unmount()
 			}
 			return err
@@ -2541,7 +2543,7 @@ func (c *lxc) onStart(_ map[string]string) error {
 	err = c.templateApplyNow("start")
 	if err != nil {
 		apparmor.InstanceUnload(c.state, c)
-		if ourStart {
+		if mountInfo.OurMount {
 			c.unmount()
 		}
 		return err
@@ -3364,11 +3366,11 @@ func (c *lxc) Restore(sourceContainer instance.Instance, stateful bool) error {
 	}
 
 	// Ensure that storage is mounted for state path checks and for backup.yaml updates.
-	ourMount, err := pool.MountInstance(c, nil)
+	mountInfo, err := pool.MountInstance(c, nil)
 	if err != nil {
 		return err
 	}
-	if ourMount && !wasRunning {
+	if mountInfo.OurMount && !wasRunning {
 		defer pool.UnmountInstance(c, nil)
 	}
 
@@ -4614,12 +4616,12 @@ func (c *lxc) Export(w io.Writer, properties map[string]string) (api.ImageMetada
 	logger.Info("Exporting instance", ctxMap)
 
 	// Start the storage.
-	ourStart, err := c.mount()
+	mountInfo, err := c.mount()
 	if err != nil {
 		logger.Error("Failed exporting instance", ctxMap)
 		return meta, err
 	}
-	if ourStart {
+	if mountInfo.OurMount {
 		defer c.unmount()
 	}
 
@@ -4921,7 +4923,7 @@ func (c *lxc) Migrate(args *instance.CriuMigrationArgs) error {
 		}
 
 		if idmapset != nil {
-			ourStart, err := c.mount()
+			mountInfo, err := c.mount()
 			if err != nil {
 				return err
 			}
@@ -4938,7 +4940,7 @@ func (c *lxc) Migrate(args *instance.CriuMigrationArgs) error {
 			} else {
 				err = idmapset.ShiftRootfs(args.StateDir, nil)
 			}
-			if ourStart {
+			if mountInfo.OurMount {
 				_, err2 := c.unmount()
 				if err != nil {
 					return err
@@ -5233,10 +5235,11 @@ func (c *lxc) FileExists(path string) error {
 	var ourStart bool
 	var err error
 	if !c.IsRunning() {
-		ourStart, err = c.mount()
+		mountInfo, err := c.mount()
 		if err != nil {
 			return err
 		}
+		ourStart = mountInfo.OurMount
 	}
 
 	pidFdNr, pidFd := c.inheritInitPidFd()
@@ -5295,10 +5298,11 @@ func (c *lxc) FilePull(srcpath string, dstpath string) (int64, int64, os.FileMod
 	var err error
 	// Setup container storage if needed
 	if !c.IsRunning() {
-		ourStart, err = c.mount()
+		mountInfo, err := c.mount()
 		if err != nil {
 			return -1, -1, 0, "", nil, err
 		}
+		ourStart = mountInfo.OurMount
 	}
 
 	pidFdNr, pidFd := c.inheritInitPidFd()
@@ -5449,10 +5453,11 @@ func (c *lxc) FilePush(fileType string, srcpath string, dstpath string, uid int6
 	var err error
 	// Setup container storage if needed
 	if !c.IsRunning() {
-		ourStart, err = c.mount()
+		mountInfo, err := c.mount()
 		if err != nil {
 			return err
 		}
+		ourStart = mountInfo.OurMount
 	}
 
 	defaultMode := 0640
@@ -5532,10 +5537,11 @@ func (c *lxc) FileRemove(path string) error {
 
 	// Setup container storage if needed
 	if !c.IsRunning() {
-		ourStart, err = c.mount()
+		mountInfo, err := c.mount()
 		if err != nil {
 			return err
 		}
+		ourStart = mountInfo.OurMount
 	}
 
 	pidFdNr, pidFd := c.inheritInitPidFd()
@@ -6025,31 +6031,36 @@ func (c *lxc) getStorageType() (string, error) {
 
 // StorageStart mounts the instance's rootfs volume. Deprecated.
 func (c *lxc) StorageStart() (bool, error) {
-	return c.mount()
+	mountInfo, err := c.mount()
+	if err != nil {
+		return false, err
+	}
+
+	return mountInfo.OurMount, nil
 }
 
 // mount the instance's rootfs volume if needed.
-func (c *lxc) mount() (bool, error) {
+func (c *lxc) mount() (*storagePools.MountInfo, error) {
 	pool, err := c.getStoragePool()
 	if err != nil {
-		return false, err
+		return nil, err
 	}
 
 	if c.IsSnapshot() {
-		ourMount, err := pool.MountInstanceSnapshot(c, nil)
+		mountInfo, err := pool.MountInstanceSnapshot(c, nil)
 		if err != nil {
-			return false, err
+			return nil, err
 		}
 
-		return ourMount, nil
+		return mountInfo, nil
 	}
 
-	ourMount, err := pool.MountInstance(c, nil)
+	mountInfo, err := pool.MountInstance(c, nil)
 	if err != nil {
-		return false, err
+		return nil, err
 	}
 
-	return ourMount, nil
+	return mountInfo, nil
 }
 
 // StorageStop unmounts the instance's rootfs volume. Deprecated.
