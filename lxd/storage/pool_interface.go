@@ -54,16 +54,15 @@ type Pool interface {
 	GetInstanceUsage(inst instance.Instance) (int64, error)
 	SetInstanceQuota(inst instance.Instance, size string, op *operations.Operation) error
 
-	MountInstance(inst instance.Instance, op *operations.Operation) (bool, error)
+	MountInstance(inst instance.Instance, op *operations.Operation) (*MountInfo, error)
 	UnmountInstance(inst instance.Instance, op *operations.Operation) (bool, error)
-	GetInstanceDisk(inst instance.Instance) (string, error)
 
 	// Instance snapshots.
 	CreateInstanceSnapshot(inst instance.Instance, src instance.Instance, op *operations.Operation) error
 	RenameInstanceSnapshot(inst instance.Instance, newName string, op *operations.Operation) error
 	DeleteInstanceSnapshot(inst instance.Instance, op *operations.Operation) error
 	RestoreInstanceSnapshot(inst instance.Instance, src instance.Instance, op *operations.Operation) error
-	MountInstanceSnapshot(inst instance.Instance, op *operations.Operation) (bool, error)
+	MountInstanceSnapshot(inst instance.Instance, op *operations.Operation) (*MountInfo, error)
 	UnmountInstanceSnapshot(inst instance.Instance, op *operations.Operation) (bool, error)
 	UpdateInstanceSnapshot(inst instance.Instance, newDesc string, newConfig map[string]string, op *operations.Operation) error
 
