@@ -928,7 +928,7 @@ func (d *ceph) MountVolume(vol Volume, op *operations.Operation) (bool, error) {
 	mountPath := vol.MountPath()
 
 	// Activate RBD volume if needed.
-	_, RBDDevPath, err := d.getRBDMappedDevPath(vol, true)
+	ourMount, RBDDevPath, err := d.getRBDMappedDevPath(vol, true)
 	if err != nil {
 		return false, err
 	}
@@ -956,7 +956,7 @@ func (d *ceph) MountVolume(vol Volume, op *operations.Operation) (bool, error) {
 		return d.MountVolume(fsVol, op)
 	}
 
-	return false, nil
+	return ourMount, nil
 }
 
 // UnmountVolume simulates unmounting a volume.
