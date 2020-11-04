@@ -118,13 +118,14 @@ func (d *ceph) rbdDeleteVolume(vol Volume) error {
 // This will ensure that the RBD storage volume is accessible as a block device
 // in the /dev directory and is therefore necessary in order to mount it.
 func (d *ceph) rbdMapVolume(vol Volume) (string, error) {
+	rbdName := d.getRBDVolumeName(vol, "", false, false)
 	devPath, err := shared.RunCommand(
 		"rbd",
 		"--id", d.config["ceph.user.name"],
 		"--cluster", d.config["ceph.cluster_name"],
 		"--pool", d.config["ceph.osd.pool_name"],
 		"map",
-		d.getRBDVolumeName(vol, "", false, false))
+		rbdName)
 	if err != nil {
 		return "", err
 	}
@@ -134,14 +135,19 @@ func (d *ceph) rbdMapVolume(vol Volume) (string, error) {
 		return "", fmt.Errorf("Failed to detect mapped device path")
 	}
 
-	devPath = devPath[idx:]
-	return strings.TrimSpace(devPath), nil
+	devPath = strings.TrimSpace(devPath[idx:])
+
+	d.logger.Debug("Activated RBD volume", log.Ctx{"vol": rbdName, "dev": devPath})
+	return devPath, nil
 }
 
 // rbdUnmapVolume unmaps a given RBD storage volume.
 // This is a precondition in order to delete an RBD storage volume can.
 func (d *ceph) rbdUnmapVolume(vol Volume, unmapUntilEINVAL bool) error {
 	busyCount := 0
+	rbdVol := d.getRBDVolumeName(vol, "", false, false)
+
+	ourDeactivate := false
 
 again:
 	_, err := shared.RunCommand(
@@ -150,7 +156,7 @@ again:
 		"--cluster", d.config["ceph.cluster_name"],
 		"--pool", d.config["ceph.osd.pool_name"],
 		"unmap",
-		d.getRBDVolumeName(vol, "", false, false))
+		rbdVol)
 	if err != nil {
 		runError, ok := err.(shared.RunError)
 		if ok {
@@ -158,6 +164,10 @@ again:
 			if ok {
 				if exitError.ExitCode() == 22 {
 					// EINVAL (already unmapped).
+					if ourDeactivate {
+						d.logger.Debug("Deactivated RBD volume", log.Ctx{"vol": rbdVol})
+					}
+
 					return nil
 				}
 
@@ -179,8 +189,11 @@ again:
 	}
 
 	if unmapUntilEINVAL {
+		ourDeactivate = true
 		goto again
 	}
+
+	d.logger.Debug("Deactivated RBD volume", log.Ctx{"vol": rbdVol})
 
 	return nil
 }
