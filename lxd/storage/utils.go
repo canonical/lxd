@@ -809,34 +809,36 @@ func RenderSnapshotUsage(s *state.State, snapInst instance.Instance) func(respon
 // InstanceDiskBlockSize returns the block device size for the instance's disk.
 // This will mount the instance if not already mounted and will unmount at the end if needed.
 func InstanceDiskBlockSize(pool Pool, inst instance.Instance, op *operations.Operation) (int64, error) {
+	var err error
+	var mountInfo *MountInfo
+
 	if inst.IsSnapshot() {
-		ourMount, err := pool.MountInstanceSnapshot(inst, op)
+		mountInfo, err = pool.MountInstanceSnapshot(inst, op)
 		if err != nil {
 			return -1, err
 		}
 
-		if ourMount {
+		if mountInfo.OurMount {
 			defer pool.UnmountInstanceSnapshot(inst, op)
 		}
 	} else {
-		ourMount, err := pool.MountInstance(inst, op)
+		mountInfo, err = pool.MountInstance(inst, op)
 		if err != nil {
 			return -1, err
 		}
 
-		if ourMount {
+		if mountInfo.OurMount {
 			defer pool.UnmountInstance(inst, op)
 		}
 	}
 
-	rootDrivePath, err := pool.GetInstanceDisk(inst)
-	if err != nil {
-		return -1, err
+	if mountInfo.DiskPath == "" {
+		return -1, fmt.Errorf("No disk path available from mount")
 	}
 
-	blockDiskSize, err := drivers.BlockDiskSizeBytes(rootDrivePath)
+	blockDiskSize, err := drivers.BlockDiskSizeBytes(mountInfo.DiskPath)
 	if err != nil {
-		return -1, errors.Wrapf(err, "Error getting block disk size %q", rootDrivePath)
+		return -1, errors.Wrapf(err, "Error getting block disk size %q", mountInfo.DiskPath)
 	}
 
 	return blockDiskSize, nil
