@@ -439,7 +439,7 @@ func genericVFSGetVolumeDiskPath(vol Volume) (string, error) {
 		return "", ErrNotSupported
 	}
 
-	return filepath.Join(vol.MountPath(), "root.img"), nil
+	return filepath.Join(vol.MountPath(), genericVolumeDiskFile), nil
 }
 
 // genericVFSBackupVolume is a generic BackupVolume implementation for VFS-only drivers.
