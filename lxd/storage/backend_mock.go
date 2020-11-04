@@ -127,16 +127,12 @@ func (b *mockBackend) SetInstanceQuota(inst instance.Instance, size string, op *
 	return nil
 }
 
-func (b *mockBackend) MountInstance(inst instance.Instance, op *operations.Operation) (bool, error) {
-	return true, nil
+func (b *mockBackend) MountInstance(inst instance.Instance, op *operations.Operation) (*MountInfo, error) {
+	return &MountInfo{OurMount: true}, nil
 }
 
 func (b *mockBackend) UnmountInstance(inst instance.Instance, op *operations.Operation) (bool, error) {
 	return true, nil
-}
-
-func (b *mockBackend) GetInstanceDisk(inst instance.Instance) (string, error) {
-	return "", nil
 }
 
 func (b *mockBackend) CreateInstanceSnapshot(i instance.Instance, src instance.Instance, op *operations.Operation) error {
@@ -155,8 +151,8 @@ func (b *mockBackend) RestoreInstanceSnapshot(inst instance.Instance, src instan
 	return nil
 }
 
-func (b *mockBackend) MountInstanceSnapshot(inst instance.Instance, op *operations.Operation) (bool, error) {
-	return true, nil
+func (b *mockBackend) MountInstanceSnapshot(inst instance.Instance, op *operations.Operation) (*MountInfo, error) {
+	return &MountInfo{OurMount: true}, nil
 }
 
 func (b *mockBackend) UnmountInstanceSnapshot(inst instance.Instance, op *operations.Operation) (bool, error) {
