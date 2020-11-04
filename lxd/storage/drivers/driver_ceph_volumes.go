@@ -1365,47 +1365,61 @@ func (d *ceph) MountVolumeSnapshot(snapVol Volume, op *operations.Operation) (bo
 		return true, nil
 	}
 
+	var err error
+	ourMount := false
+	if snapVol.contentType == ContentTypeBlock {
+		// Activate RBD volume if needed.
+		ourMount, _, err = d.getRBDMappedDevPath(snapVol, true)
+		if err != nil {
+			return false, err
+		}
+	}
+
 	// For VMs, mount the filesystem volume.
 	if snapVol.IsVMBlock() {
 		fsVol := snapVol.NewVMBlockFilesystemVolume()
 		return d.MountVolumeSnapshot(fsVol, op)
 	}
 
-	return false, nil
+	return ourMount, nil
 }
 
 // UnmountVolume simulates unmounting a volume snapshot.
 func (d *ceph) UnmountVolumeSnapshot(snapVol Volume, op *operations.Operation) (bool, error) {
 	mountPath := snapVol.MountPath()
 
-	if !shared.IsMountPoint(mountPath) {
-		return false, nil
+	if snapVol.contentType == ContentTypeFS && shared.IsMountPoint(mountPath) {
+		err := TryUnmount(mountPath, unix.MNT_DETACH)
+		if err != nil {
+			return false, err
+		}
+		d.logger.Debug("Unmounted RBD volume snapshot", log.Ctx{"path": mountPath})
+
+		parentName, snapshotOnlyName, _ := shared.InstanceGetParentAndSnapshotName(snapVol.name)
+		cloneName := fmt.Sprintf("%s_%s_start_clone", parentName, snapshotOnlyName)
+		cloneVol := NewVolume(d, d.name, VolumeType("snapshots"), ContentTypeFS, cloneName, nil, nil)
+
+		err = d.rbdUnmapVolume(cloneVol, true)
+		if err != nil {
+			return false, err
+		}
+
+		if !d.HasVolume(cloneVol) {
+			return true, nil
+		}
+
+		// Delete the temporary RBD volume.
+		err = d.rbdDeleteVolume(cloneVol)
+		if err != nil {
+			return false, err
+		}
 	}
 
-	err := TryUnmount(mountPath, unix.MNT_DETACH)
-	if err != nil {
-		return false, err
-	}
-	d.logger.Debug("Unmounted RBD volume snapshot", log.Ctx{"path": mountPath})
-
-	parentName, snapshotOnlyName, _ := shared.InstanceGetParentAndSnapshotName(snapVol.name)
-	cloneName := fmt.Sprintf("%s_%s_start_clone", parentName, snapshotOnlyName)
-
-	cloneVol := NewVolume(d, d.name, VolumeType("snapshots"), ContentTypeFS, cloneName, nil, nil)
-
-	err = d.rbdUnmapVolume(cloneVol, true)
-	if err != nil {
-		return false, err
-	}
-
-	if !d.HasVolume(cloneVol) {
-		return true, nil
-	}
-
-	// Delete the temporary RBD volume.
-	err = d.rbdDeleteVolume(cloneVol)
-	if err != nil {
-		return false, err
+	if snapVol.contentType == ContentTypeBlock {
+		err := d.rbdUnmapVolume(snapVol, true)
+		if err != nil {
+			return false, err
+		}
 	}
 
 	if snapVol.IsVMBlock() {
