@@ -1007,9 +1007,9 @@ func (b *lxdBackend) CreateInstanceFromImage(inst instance.Instance, fingerprint
 			return err
 		}
 	} else {
-		// If the driver does support optimized images then ensure the optimized image
-		// volume has been created for the archive's fingerprint and then proceed to create
-		// a new volume by copying the optimized image volume.
+		// If the driver supports optimized images then ensure the optimized image volume has been created
+		// for the images's fingerprint and that it matches the pool's current volume settings, and if not
+		// recreating using the pool's current volume settings.
 		err = b.EnsureImage(fingerprint, op)
 		if err != nil {
 			return err
@@ -1023,18 +1023,26 @@ func (b *lxdBackend) CreateInstanceFromImage(inst instance.Instance, fingerprint
 
 		imgVol := b.newVolume(drivers.VolumeTypeImage, contentType, fingerprint, imgDBVol.Config)
 
-		// Derive size to use for new volume from source (and check it doesn't exceed volume size limits).
-		volSize, err := vol.ConfigSizeFromSource(imgVol)
+		// Derive the volume size to use for a new volume when copying from a source volume.
+		// Where possible (if the source volume has a volatile.rootfs.size property), it checks that the
+		// source volume isn't larger than the volume's "size" and the pool's "volume.size" setting.
+		logger.Debug("Checking volume size")
+		newVolSize, err := vol.ConfigSizeFromSource(imgVol)
 		if err != nil {
 			return err
 		}
 
-		vol.SetConfigSize(volSize)
+		// Set the derived size directly as the "size" property on the new volume so that it is applied.
+		vol.SetConfigSize(newVolSize)
+
+		// Proceed to create a new volume by copying the optimized image volume.
 		err = b.driver.CreateVolumeFromCopy(vol, imgVol, false, op)
 
-		// If the driver returns ErrCannotBeShrunk, this means that the cached volume is larger than the
-		// requested new volume size and the cached image volume, once snapshotted, cannot be shrunk.
+		// If the driver returns ErrCannotBeShrunk, this means that the cached volume that the new volume
+		// is to be created from is larger than the requested new volume size, and cannot be shrunk.
 		// So we unpack the image directly into a new volume rather than use the optimized snapsot.
+		// This is slower but allows for individual volumes to be created from an image that are smaller
+		// than the pool's volume settings.
 		if errors.Cause(err) == drivers.ErrCannotBeShrunk {
 			logger.Debug("Cached image volume is larger than new volume and cannot be shrunk, creating non-optimized volume")
 
