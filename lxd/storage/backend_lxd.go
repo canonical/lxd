@@ -2075,8 +2075,10 @@ func (b *lxdBackend) poolBlockFilesystem() string {
 	return drivers.DefaultFilesystem
 }
 
-// EnsureImage creates an optimized volume of the image if supported by the storage pool driver and
-// the volume doesn't already exist.
+// EnsureImage creates an optimized volume of the image if supported by the storage pool driver and the volume
+// doesn't already exist. If the volume already exists then it is checked to ensure it matches the pools current
+// volume settings ("volume.size" and "block.filesystem" if applicable). If not the optimized volume is removed
+// and regenerated to apply the pool's current volume settings.
 func (b *lxdBackend) EnsureImage(fingerprint string, op *operations.Operation) error {
 	logger := logging.AddContext(b.logger, log.Ctx{"fingerprint": fingerprint})
 	logger.Debug("EnsureImage started")
@@ -2116,37 +2118,61 @@ func (b *lxdBackend) EnsureImage(fingerprint string, op *operations.Operation) e
 		}
 	}
 
+	// Create the new image volume. No config for an image volume so set to nil.
+	// Pool config values will be read by the underlying driver if needed.
+	imgVol := b.newVolume(drivers.VolumeTypeImage, contentType, fingerprint, nil)
+
 	// If an existing DB row was found, check if filesystem is the same as the current pool's filesystem.
 	// If not we need to delete the existing cached image volume and re-create using new filesystem.
 	// We need to do this for VM block images too, as they create a filesystem based config volume too.
 	if imgDBVol != nil {
-		if b.Driver().Info().BlockBacking && imgDBVol.Config["block.filesystem"] != b.poolBlockFilesystem() {
+		// Add existing image volume's config to imgVol.
+		imgVol = b.newVolume(drivers.VolumeTypeImage, contentType, fingerprint, imgDBVol.Config)
+
+		if b.Driver().Info().BlockBacking && imgVol.Config()["block.filesystem"] != b.poolBlockFilesystem() {
 			logger.Debug("Filesystem of pool has changed since cached image volume created, regenerating image volume")
 			err = b.DeleteImage(fingerprint, op)
 			if err != nil {
 				return err
 			}
+
+			// Reset img volume variables as we just deleted the old one.
+			imgDBVol = nil
+			imgVol = b.newVolume(drivers.VolumeTypeImage, contentType, fingerprint, nil)
 		}
 	}
-
-	// Create the new image volume. No config for an image volume so set to nil.
-	// Pool config values will be read by the underlying driver if needed.
-	imgVol := b.newVolume(drivers.VolumeTypeImage, contentType, fingerprint, nil)
 
 	// Check if we already have a suitable volume on storage device.
 	if b.driver.HasVolume(imgVol) {
 		if imgDBVol != nil {
-			// If there is an existing volume, then make sure it has the same size as the pool's
-			// current volume.size option (with using ConfigSize()) and if not then resize/recreate
-			// depending on what the store driver supports.
+			// Work out what size the image volume should be as if we were creating from scratch.
+			// This takes into account the existing volume's "volatile.rootfs.size" setting if set so
+			// as to avoid trying to shrink a larger image volume back to the default size when it is
+			// allowed to be larger than the default as the pool doesn't specify a volume.size.
+			logger.Debug("Checking image volume size")
+			newVolSize, err := imgVol.ConfigSizeFromSource(imgVol)
+			if err != nil {
+				return err
+			}
+
+			imgVol.SetConfigSize(newVolSize)
+
+			// Try applying the current size policy to the existin volume. If it is the same the driver
+			// should make no changes, and if not then attempt to resize it to the new policy.
 			logger.Debug("Setting image volume size", "size", imgVol.ConfigSize())
 			err = b.driver.SetVolumeQuota(imgVol, imgVol.ConfigSize(), op)
 			if errors.Cause(err) == drivers.ErrCannotBeShrunk || errors.Cause(err) == drivers.ErrNotSupported {
+				// If the driver cannot resize the existing image volume to the new policy size
+				// then delete the image volume and try to recreate using the new policy settings.
 				logger.Debug("Volume size of pool has changed since cached image volume created and cached volume cannot be resized, regenerating image volume")
 				err = b.DeleteImage(fingerprint, op)
 				if err != nil {
 					return err
 				}
+
+				// Reset img volume variables as we just deleted the old one.
+				imgDBVol = nil
+				imgVol = b.newVolume(drivers.VolumeTypeImage, contentType, fingerprint, nil)
 			} else if err != nil {
 				return err
 			} else {
