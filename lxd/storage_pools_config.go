@@ -169,15 +169,16 @@ func storagePoolFillDefault(name string, driver string, config map[string]string
 				return fmt.Errorf("Couldn't statfs %s: %s", shared.VarPath(), err)
 			}
 
-			/* choose 15 GB < x < 100GB, where x is 20% of the disk size */
-			size := uint64(st.Frsize) * st.Blocks / (1024 * 1024 * 1024) / 5
-			if size > 100 {
-				size = 100
+			/* choose 5 GB < x < 30GB, where x is 20% of the disk size */
+			defaultSize := uint64(st.Frsize) * st.Blocks / (1024 * 1024 * 1024) / 5
+			if defaultSize > 30 {
+				defaultSize = 30
 			}
-			if size < 15 {
-				size = 15
+			if defaultSize < 5 {
+				defaultSize = 5
 			}
-			config["size"] = strconv.FormatUint(uint64(size), 10) + "GB"
+
+			config["size"] = strconv.FormatUint(uint64(defaultSize), 10) + "GB"
 		} else {
 			_, err := units.ParseByteSizeString(config["size"])
 			if err != nil {
