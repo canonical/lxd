@@ -3237,6 +3237,7 @@ func (vm *qemu) updateMemoryLimit(newLimit string) error {
 	if err != nil {
 		return errors.Wrapf(err, "Invalid memory size")
 	}
+	newSizeMB := newSizeBytes / 1024 / 1024
 
 	// Connect to the monitor.
 	monitor, err := qmp.Connect(vm.monitorPath(), qemuSerialChardevName, vm.getMonitorEventHandler())
@@ -3248,16 +3249,18 @@ func (vm *qemu) updateMemoryLimit(newLimit string) error {
 	if err != nil {
 		return err
 	}
+	baseSizeMB := baseSizeBytes / 1024 / 1024
 
 	curSizeBytes, err := monitor.GetMemoryBalloonSizeBytes()
 	if err != nil {
 		return err
 	}
+	curSizeMB := curSizeBytes / 1024 / 1024
 
-	if curSizeBytes == newSizeBytes {
+	if curSizeMB == newSizeMB {
 		return nil
-	} else if baseSizeBytes < newSizeBytes {
-		return fmt.Errorf("Cannot increase memory size beyond boot time size when VM is running")
+	} else if baseSizeMB < newSizeMB {
+		return fmt.Errorf("Cannot increase memory size beyond boot time size when VM is running (Boot time size %dMiB, new size %dMiB)", baseSizeMB, newSizeMB)
 	}
 
 	// Set effective memory size.
@@ -3268,27 +3271,28 @@ func (vm *qemu) updateMemoryLimit(newLimit string) error {
 
 	// Changing the memory balloon can take time, so poll the effectice size to check it has shrunk within 1%
 	// of the target size, which we then take as success (it may still continue to shrink closer to target).
-	for i := 0; i < 5; i++ {
+	for i := 0; i < 10; i++ {
 		curSizeBytes, err = monitor.GetMemoryBalloonSizeBytes()
 		if err != nil {
 			return err
 		}
+		curSizeMB = curSizeBytes / 1024 / 1024
 
 		var diff int64
-		if curSizeBytes < newSizeBytes {
-			diff = newSizeBytes - curSizeBytes
+		if curSizeMB < newSizeMB {
+			diff = newSizeMB - curSizeMB
 		} else {
-			diff = curSizeBytes - newSizeBytes
+			diff = curSizeMB - newSizeMB
 		}
 
-		if diff <= (newSizeBytes / 100) {
+		if diff <= (newSizeMB / 100) {
 			return nil // We reached to within 1% of our target size.
 		}
 
 		time.Sleep(500 * time.Millisecond)
 	}
 
-	return fmt.Errorf("Failed setting memory to %d bytes (currently %d bytes) as it was taking too long", newSizeBytes, curSizeBytes)
+	return fmt.Errorf("Failed setting memory to %dMiB (currently %dMiB) as it was taking too long", newSizeMB, curSizeMB)
 }
 
 func (vm *qemu) updateDevices(removeDevices deviceConfig.Devices, addDevices deviceConfig.Devices, updateDevices deviceConfig.Devices, oldExpandedDevices deviceConfig.Devices, isRunning bool) error {
