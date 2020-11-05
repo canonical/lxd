@@ -406,28 +406,28 @@ func (vm *qemu) getMonitorEventHandler() func(event string, data map[string]inte
 }
 
 // mount the instance's config volume if needed.
-func (vm *qemu) mount() (bool, error) {
+func (vm *qemu) mount() (*storagePools.MountInfo, error) {
 	var pool storagePools.Pool
 	pool, err := vm.getStoragePool()
 	if err != nil {
-		return false, err
+		return nil, err
 	}
 
 	if vm.IsSnapshot() {
-		ourMount, err := pool.MountInstanceSnapshot(vm, nil)
+		mountInfo, err := pool.MountInstanceSnapshot(vm, nil)
 		if err != nil {
-			return false, err
+			return nil, err
 		}
 
-		return ourMount, nil
+		return mountInfo, nil
 	}
 
-	ourMount, err := pool.MountInstance(vm, nil)
+	mountInfo, err := pool.MountInstance(vm, nil)
 	if err != nil {
-		return false, err
+		return nil, err
 	}
 
-	return ourMount, nil
+	return mountInfo, nil
 }
 
 // unmount the instance's config volume if needed.
@@ -448,12 +448,12 @@ func (vm *qemu) unmount() (bool, error) {
 // generateAgentCert creates the necessary server key and certificate if needed.
 func (vm *qemu) generateAgentCert() (string, string, string, string, error) {
 	// Mount the instance's config volume if needed.
-	ourMount, err := vm.mount()
+	mountInfo, err := vm.mount()
 	if err != nil {
 		return "", "", "", "", err
 	}
 
-	if ourMount {
+	if mountInfo.OurMount {
 		defer vm.unmount()
 	}
 
@@ -694,7 +694,7 @@ func (vm *qemu) Start(stateful bool) error {
 	}
 
 	// Mount the instance's config volume.
-	_, err = vm.mount()
+	mountInfo, err := vm.mount()
 	if err != nil {
 		op.Done(err)
 		return err
@@ -831,7 +831,7 @@ func (vm *qemu) Start(stateful bool) error {
 	// Define a set of files to open and pass their file descriptors to qemu command.
 	fdFiles := make([]string, 0)
 
-	confFile, err := vm.generateQemuConfigFile(qemuBus, devConfs, &fdFiles)
+	confFile, err := vm.generateQemuConfigFile(mountInfo, qemuBus, devConfs, &fdFiles)
 	if err != nil {
 		op.Done(err)
 		return err
@@ -1124,12 +1124,12 @@ func (vm *qemu) setupNvram() error {
 	}
 
 	// Mount the instance's config volume.
-	ourMount, err := vm.mount()
+	mountInfo, err := vm.mount()
 	if err != nil {
 		return err
 	}
 
-	if ourMount {
+	if mountInfo.OurMount {
 		defer vm.unmount()
 	}
 
@@ -1333,12 +1333,12 @@ func (vm *qemu) spicePath() string {
 // inside the VM's config volume so that it can be restricted by quota.
 func (vm *qemu) generateConfigShare() error {
 	// Mount the instance's config volume if needed.
-	ourMount, err := vm.mount()
+	mountInfo, err := vm.mount()
 	if err != nil {
 		return err
 	}
 
-	if ourMount {
+	if mountInfo.OurMount {
 		defer vm.unmount()
 	}
 
@@ -1761,7 +1761,7 @@ func (vm *qemu) deviceBootPriorities() (map[string]int, error) {
 
 // generateQemuConfigFile writes the qemu config file and returns its location.
 // It writes the config file inside the VM's log path.
-func (vm *qemu) generateQemuConfigFile(busName string, devConfs []*deviceConfig.RunConfig, fdFiles *[]string) (string, error) {
+func (vm *qemu) generateQemuConfigFile(mountInfo *storagePools.MountInfo, busName string, devConfs []*deviceConfig.RunConfig, fdFiles *[]string) (string, error) {
 	var sb *strings.Builder = &strings.Builder{}
 
 	err := qemuBase.Execute(sb, map[string]interface{}{
@@ -1961,7 +1961,7 @@ func (vm *qemu) generateQemuConfigFile(busName string, devConfs []*deviceConfig.
 		if len(runConf.Mounts) > 0 {
 			for _, drive := range runConf.Mounts {
 				if drive.TargetPath == "/" {
-					err = vm.addRootDriveConfig(sb, bootIndexes, drive)
+					err = vm.addRootDriveConfig(sb, mountInfo, bootIndexes, drive)
 				} else if drive.FSType == "9p" {
 					err = vm.addDriveDirConfig(sb, bus, fdFiles, &agentMounts, drive)
 				} else {
@@ -2146,7 +2146,7 @@ func (vm *qemu) addFileDescriptor(fdFiles *[]string, filePath string) int {
 }
 
 // addRootDriveConfig adds the qemu config required for adding the root drive.
-func (vm *qemu) addRootDriveConfig(sb *strings.Builder, bootIndexes map[string]int, rootDriveConf deviceConfig.MountEntryItem) error {
+func (vm *qemu) addRootDriveConfig(sb *strings.Builder, mountInfo *storagePools.MountInfo, bootIndexes map[string]int, rootDriveConf deviceConfig.MountEntryItem) error {
 	if rootDriveConf.TargetPath != "/" {
 		return fmt.Errorf("Non-root drive config supplied")
 	}
@@ -2156,15 +2156,14 @@ func (vm *qemu) addRootDriveConfig(sb *strings.Builder, bootIndexes map[string]i
 		return err
 	}
 
-	rootDrivePath, err := pool.GetInstanceDisk(vm)
-	if err != nil {
-		return err
+	if mountInfo.DiskPath == "" {
+		return fmt.Errorf("No disk path available from mount")
 	}
 
 	// Generate a new device config with the root device path expanded.
 	driveConf := deviceConfig.MountEntryItem{
 		DevName: rootDriveConf.DevName,
-		DevPath: rootDrivePath,
+		DevPath: mountInfo.DiskPath,
 	}
 
 	// If the storage pool is on ZFS and backed by a loop file and we can't use DirectIO, then resort to
@@ -2667,11 +2666,11 @@ func (vm *qemu) Restore(source instance.Instance, stateful bool) error {
 	}
 
 	// Ensure that storage is mounted for backup.yaml updates.
-	ourMount, err := pool.MountInstance(vm, nil)
+	mountInfo, err := pool.MountInstance(vm, nil)
 	if err != nil {
 		return err
 	}
-	if ourMount && !wasRunning {
+	if mountInfo.OurMount && !wasRunning {
 		defer pool.UnmountInstance(vm, nil)
 	}
 
@@ -3709,12 +3708,12 @@ func (vm *qemu) Export(w io.Writer, properties map[string]string) (api.ImageMeta
 	logger.Info("Exporting instance", ctxMap)
 
 	// Start the storage.
-	ourStart, err := vm.mount()
+	mountInfo, err := vm.mount()
 	if err != nil {
 		logger.Error("Failed exporting instance", ctxMap)
 		return meta, err
 	}
-	if ourStart {
+	if mountInfo.OurMount {
 		defer vm.unmount()
 	}
 
@@ -3877,17 +3876,6 @@ func (vm *qemu) Export(w io.Writer, properties map[string]string) (api.ImageMeta
 		}
 	}
 
-	// Convert and include the root image.
-	pool, err := vm.getStoragePool()
-	if err != nil {
-		return meta, err
-	}
-
-	rootDrivePath, err := pool.GetInstanceDisk(vm)
-	if err != nil {
-		return meta, err
-	}
-
 	// Convert from raw to qcow2 and add to tarball.
 	tmpPath, err := ioutil.TempDir(shared.VarPath("images"), "lxd_export_")
 	if err != nil {
@@ -3895,8 +3883,12 @@ func (vm *qemu) Export(w io.Writer, properties map[string]string) (api.ImageMeta
 	}
 	defer os.RemoveAll(tmpPath)
 
+	if mountInfo.DiskPath == "" {
+		return meta, fmt.Errorf("No disk path available from mount")
+	}
+
 	fPath := fmt.Sprintf("%s/rootfs.img", tmpPath)
-	_, err = shared.RunCommand("qemu-img", "convert", "-c", "-O", "qcow2", rootDrivePath, fPath)
+	_, err = shared.RunCommand("qemu-img", "convert", "-c", "-O", "qcow2", mountInfo.DiskPath, fPath)
 	if err != nil {
 		return meta, fmt.Errorf("Failed converting image to qcow2: %v", err)
 	}

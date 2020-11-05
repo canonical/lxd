@@ -75,11 +75,11 @@ func (d *zfs) CreateVolume(vol Volume, filler *VolumeFiller, op *operations.Oper
 			// Round to block boundary.
 			poolVolSizeBytes = (poolVolSizeBytes / MinBlockBoundary) * MinBlockBoundary
 
-			// If the cached volume is larger than the pool volume size, then we can't use the
+			// If the cached volume size is different than the pool volume size, then we can't use the
 			// deleted cached image volume and instead we will rename it to a random UUID so it can't
 			// be restored in the future and a new cached image volume will be created instead.
-			if volSizeBytes > poolVolSizeBytes {
-				d.logger.Debug("Renaming deleted cached image volume so that regeneration is used")
+			if volSizeBytes != poolVolSizeBytes {
+				d.logger.Debug("Renaming deleted cached image volume so that regeneration is used", "fingerprint", vol.Name())
 				randomVol := NewVolume(d, d.name, vol.volType, vol.contentType, uuid.NewRandom().String(), vol.config, vol.poolConfig)
 
 				_, err := shared.RunCommand("/proc/self/exe", "forkzfs", "--", "rename", d.dataset(vol, true), d.dataset(randomVol, true))
@@ -105,6 +105,7 @@ func (d *zfs) CreateVolume(vol Volume, filler *VolumeFiller, op *operations.Oper
 
 		// Restore the image.
 		if canRestore {
+			d.logger.Debug("Restoring previously deleted cached image volume", "fingerprint", vol.Name())
 			_, err := shared.RunCommand("/proc/self/exe", "forkzfs", "--", "rename", d.dataset(vol, true), d.dataset(vol, false))
 			if err != nil {
 				return err
@@ -929,6 +930,12 @@ func (d *zfs) SetVolumeQuota(vol Volume, size string, op *operations.Operation) 
 
 		if oldVolSizeBytes == sizeBytes {
 			return nil
+		}
+
+		// Block image volumes cannot be resized because they have a readonly snapshot that doesn't get
+		// updated when the volume's size is changed, and this is what instances are created from.
+		if vol.volType == VolumeTypeImage {
+			return ErrNotSupported
 		}
 
 		if sizeBytes < oldVolSizeBytes && !vol.allowUnsafeResize {

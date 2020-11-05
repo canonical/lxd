@@ -25,6 +25,9 @@ import (
 	"github.com/lxc/lxd/shared/logger"
 )
 
+// genericVolumeDiskFile used to indicate the file name used for block volume disk files.
+const genericVolumeDiskFile = "root.img"
+
 // genericVFSGetResources is a generic GetResources implementation for VFS-only drivers.
 func genericVFSGetResources(d Driver) (*api.ResourcesStoragePool, error) {
 	// Get the VFS information
@@ -141,25 +144,16 @@ func genericVFSRenameVolumeSnapshot(d Driver, snapVol Volume, newSnapshotName st
 // genericVFSMigrateVolume is a generic MigrateVolume implementation for VFS-only drivers.
 func genericVFSMigrateVolume(d Driver, s *state.State, vol Volume, conn io.ReadWriteCloser, volSrcArgs *migration.VolumeSourceArgs, op *operations.Operation) error {
 	bwlimit := d.Config()["rsync.bwlimit"]
-
 	var rsyncArgs []string
 
-	// For VM volumes, if the root volume disk path is a file image in the volume's mount path then exclude it
-	// from being transferred via rsync during the filesystem volume transfer, as it will be transferred later
-	// using a different method.
+	// For VM volumes, exclude the generic root disk image file from being transferred via rsync, as it will
+	// be transferred later using a different method.
 	if vol.IsVMBlock() {
 		if volSrcArgs.MigrationType.FSType != migration.MigrationFSType_BLOCK_AND_RSYNC {
 			return ErrNotSupported
 		}
 
-		diskPath, err := d.GetVolumeDiskPath(vol)
-		if err != nil {
-			return errors.Wrapf(err, "Error getting VM block volume disk path")
-		}
-
-		if strings.HasPrefix(diskPath, vol.MountPath()) {
-			rsyncArgs = []string{"--exclude", filepath.Base(diskPath)}
-		}
+		rsyncArgs = []string{"--exclude", genericVolumeDiskFile}
 	} else if vol.contentType == ContentTypeBlock && volSrcArgs.MigrationType.FSType != migration.MigrationFSType_BLOCK_AND_RSYNC || vol.contentType == ContentTypeFS && volSrcArgs.MigrationType.FSType != migration.MigrationFSType_RSYNC {
 		return ErrNotSupported
 	}
@@ -173,7 +167,7 @@ func genericVFSMigrateVolume(d Driver, s *state.State, vol Volume, conn io.ReadW
 
 		path := shared.AddSlash(mountPath)
 
-		d.Logger().Debug("Sending filesystem volume", log.Ctx{"volName": vol.name, "path": path})
+		d.Logger().Debug("Sending filesystem volume", log.Ctx{"volName": vol.name, "path": path, "bwlimit": bwlimit, "rsyncArgs": rsyncArgs})
 		return rsync.Send(vol.name, path, conn, wrapper, volSrcArgs.MigrationType.Features, bwlimit, s.OS.ExecPath, rsyncArgs...)
 	}
 
@@ -445,7 +439,7 @@ func genericVFSGetVolumeDiskPath(vol Volume) (string, error) {
 		return "", ErrNotSupported
 	}
 
-	return filepath.Join(vol.MountPath(), "root.img"), nil
+	return filepath.Join(vol.MountPath(), genericVolumeDiskFile), nil
 }
 
 // genericVFSBackupVolume is a generic BackupVolume implementation for VFS-only drivers.
