@@ -16,48 +16,8 @@ import (
 	"github.com/lxc/lxd/shared/version"
 )
 
-// Leave the string type in here! This guarantees that go treats this is as a
-// typed string constant. Removing it causes go to treat these as untyped string
-// constants which is not what we want.
-const (
-	storagePoolVolumeAPIEndpointContainers string = "containers"
-	storagePoolVolumeAPIEndpointVMs        string = "virtual-machines"
-	storagePoolVolumeAPIEndpointImages     string = "images"
-	storagePoolVolumeAPIEndpointCustom     string = "custom"
-)
-
 var supportedVolumeTypes = []int{db.StoragePoolVolumeTypeContainer, db.StoragePoolVolumeTypeVM, db.StoragePoolVolumeTypeCustom, db.StoragePoolVolumeTypeImage}
 var supportedVolumeTypesInstances = []int{db.StoragePoolVolumeTypeContainer, db.StoragePoolVolumeTypeVM}
-
-func storagePoolVolumeTypeNameToAPIEndpoint(volumeTypeName string) (string, error) {
-	switch volumeTypeName {
-	case db.StoragePoolVolumeTypeNameContainer:
-		return storagePoolVolumeAPIEndpointContainers, nil
-	case db.StoragePoolVolumeTypeNameVM:
-		return storagePoolVolumeAPIEndpointVMs, nil
-	case db.StoragePoolVolumeTypeNameImage:
-		return storagePoolVolumeAPIEndpointImages, nil
-	case db.StoragePoolVolumeTypeNameCustom:
-		return storagePoolVolumeAPIEndpointCustom, nil
-	}
-
-	return "", fmt.Errorf("Invalid storage volume type name")
-}
-
-func storagePoolVolumeTypeToAPIEndpoint(volumeType int) (string, error) {
-	switch volumeType {
-	case db.StoragePoolVolumeTypeContainer:
-		return storagePoolVolumeAPIEndpointContainers, nil
-	case db.StoragePoolVolumeTypeVM:
-		return storagePoolVolumeAPIEndpointVMs, nil
-	case db.StoragePoolVolumeTypeImage:
-		return storagePoolVolumeAPIEndpointImages, nil
-	case db.StoragePoolVolumeTypeCustom:
-		return storagePoolVolumeAPIEndpointCustom, nil
-	}
-
-	return "", fmt.Errorf("Invalid storage volume type")
-}
 
 func storagePoolVolumeUpdateUsers(d *Daemon, projectName string, oldPoolName string, oldVolumeName string, newPoolName string, newVolumeName string) error {
 	s := d.State()
