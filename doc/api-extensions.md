@@ -1060,3 +1060,7 @@ volumes can use in the project.
 ## storage\_rsync\_compression
 Adds `rsync.compression` config key to storage pools. This key can be used
 to disable compression in rsync while migrating storage pools.
+
+## gpu\_mdev
+This adds support for virtual GPUs. It introduces the `mdev` config key for GPU devices which takes
+a supported mdev type, e.g. i915-GVTg_V5_4.
