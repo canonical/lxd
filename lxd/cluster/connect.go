@@ -125,20 +125,22 @@ func ConnectIfVolumeIsRemote(s *state.State, poolName string, projectName string
 		return nil, err
 	}
 
-	var addresses []string
+	localNodeID := s.Cluster.GetNodeID()
+	var nodes []db.NodeInfo
 	err = s.Cluster.Transaction(func(tx *db.ClusterTx) error {
 		poolID, err := tx.GetStoragePoolID(poolName)
 		if err != nil {
 			return err
 		}
 
-		addresses, err = tx.GetStorageVolumeNodeAddresses(poolID, projectName, volumeName, volumeType)
+		nodes, err = tx.GetStorageVolumeNodes(poolID, projectName, volumeName, volumeType)
 		if err != nil {
 			return err
 		}
 
 		return nil
 	})
+
 	if err != nil && err != db.ErrNoClusterMember {
 		return nil, err
 	}
@@ -162,29 +164,30 @@ func ConnectIfVolumeIsRemote(s *state.State, poolName string, projectName string
 				return nil, errors.Wrapf(err, "Failed getting cluster member info for %q", remoteInstance.Node)
 			}
 
-			// Replace address list with instance's cluster member.
-			addresses = []string{instNode.Address}
+			// Replace node list with instance's cluster member node (which might be local member).
+			nodes = []db.NodeInfo{instNode}
 		} else {
-			// Volume isn't exclusively attached to an instance and has no fixed node.
-			addresses = []string{""} // Use local cluster member.
+			// Volume isn't exclusively attached to an instance. Use local cluster member.
+			return nil, nil
 		}
 	}
 
-	addressCount := len(addresses)
-	if addressCount > 1 {
-		return nil, fmt.Errorf("More than one cluster member has a volume named %q", volumeName)
-	} else if addressCount < 1 {
+	nodeCount := len(nodes)
+	if nodeCount > 1 {
+		return nil, fmt.Errorf("More than one cluster member has a volume named %q. Use --target flag to specify member", volumeName)
+	} else if nodeCount < 1 {
+		// Should never get here.
 		return nil, fmt.Errorf("Volume %q has empty cluster member list", volumeName)
 	}
 
-	address := addresses[0]
-	// Use local cluster member.
-	if address == "" {
+	node := nodes[0]
+	if node.ID == localNodeID {
+		// Use local cluster member if volume belongs to this local node.
 		return nil, nil
 	}
 
 	// Connect to remote cluster member.
-	return Connect(address, cert, false)
+	return Connect(node.Address, cert, false)
 }
 
 // SetupTrust is a convenience around InstanceServer.CreateCertificate that
