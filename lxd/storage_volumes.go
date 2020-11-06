@@ -139,40 +139,27 @@ func storagePoolVolumesGet(d *Daemon, r *http.Request) response.Response {
 
 	resultString := []string{}
 	for _, volume := range volumes {
-		apiEndpoint, err := storagePoolVolumeTypeNameToAPIEndpoint(volume.Type)
-		if err != nil {
-			return response.InternalError(err)
-		}
-
-		if apiEndpoint == storagePoolVolumeAPIEndpointContainers {
-			apiEndpoint = "container"
-		} else if apiEndpoint == storagePoolVolumeAPIEndpointVMs {
-			apiEndpoint = "virtual-machine"
-		} else if apiEndpoint == storagePoolVolumeAPIEndpointImages {
-			apiEndpoint = "image"
-		}
-
 		if !recursion {
 			volName, snapName, ok := shared.InstanceGetParentAndSnapshotName(volume.Name)
 			if ok {
 				if projectName == project.Default {
 					resultString = append(resultString,
 						fmt.Sprintf("/%s/storage-pools/%s/volumes/%s/%s/snapshots/%s",
-							version.APIVersion, poolName, apiEndpoint, volName, snapName))
+							version.APIVersion, poolName, volume.Type, volName, snapName))
 				} else {
 					resultString = append(resultString,
 						fmt.Sprintf("/%s/storage-pools/%s/volumes/%s/%s/snapshots/%s?project=%s",
-							version.APIVersion, poolName, apiEndpoint, volName, snapName, projectName))
+							version.APIVersion, poolName, volume.Type, volName, snapName, projectName))
 				}
 			} else {
 				if projectName == project.Default {
 					resultString = append(resultString,
 						fmt.Sprintf("/%s/storage-pools/%s/volumes/%s/%s",
-							version.APIVersion, poolName, apiEndpoint, volume.Name))
+							version.APIVersion, poolName, volume.Type, volume.Name))
 				} else {
 					resultString = append(resultString,
 						fmt.Sprintf("/%s/storage-pools/%s/volumes/%s/%s?project=%s",
-							version.APIVersion, poolName, apiEndpoint, volume.Name, projectName))
+							version.APIVersion, poolName, volume.Type, volume.Name, projectName))
 				}
 			}
 		} else {
@@ -234,20 +221,7 @@ func storagePoolVolumesTypeGet(d *Daemon, r *http.Request) response.Response {
 	resultMap := []*api.StorageVolume{}
 	for _, volume := range volumes {
 		if !recursion {
-			apiEndpoint, err := storagePoolVolumeTypeToAPIEndpoint(volumeType)
-			if err != nil {
-				return response.InternalError(err)
-			}
-
-			if apiEndpoint == storagePoolVolumeAPIEndpointContainers {
-				apiEndpoint = "container"
-			} else if apiEndpoint == storagePoolVolumeAPIEndpointVMs {
-				apiEndpoint = "virtual-machine"
-			} else if apiEndpoint == storagePoolVolumeAPIEndpointImages {
-				apiEndpoint = "image"
-			}
-
-			resultString = append(resultString, fmt.Sprintf("/%s/storage-pools/%s/volumes/%s/%s", version.APIVersion, poolName, apiEndpoint, volume))
+			resultString = append(resultString, fmt.Sprintf("/%s/storage-pools/%s/volumes/%s/%s", version.APIVersion, poolName, volumeTypeName, volume))
 		} else {
 			_, vol, err := d.cluster.GetLocalStoragePoolVolume(projectName, volume, volumeType, poolID)
 			if err != nil {
@@ -727,7 +701,7 @@ func storagePoolVolumeTypePostRename(d *Daemon, projectName, poolName, volumeNam
 		return response.SmartError(err)
 	}
 
-	return response.SyncResponseLocation(true, nil, fmt.Sprintf("/%s/storage-pools/%s/volumes/%s", version.APIVersion, poolName, storagePoolVolumeAPIEndpointCustom))
+	return response.SyncResponseLocation(true, nil, fmt.Sprintf("/%s/storage-pools/%s/volumes/%s", version.APIVersion, poolName, db.StoragePoolVolumeTypeNameCustom))
 }
 
 // storagePoolVolumeTypePostMove handles volume move type POST requests.
