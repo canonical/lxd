@@ -203,10 +203,10 @@ func storagePoolVolumeUpdateUsers(d *Daemon, projectName string, oldPoolName str
 }
 
 // volumeUsedBy = append(volumeUsedBy, fmt.Sprintf("/%s/containers/%s", version.APIVersion, ct))
-func storagePoolVolumeUsedByGet(s *state.State, projectName string, poolName string, volumeName string, volumeTypeName string) ([]string, error) {
+func storagePoolVolumeUsedByGet(s *state.State, projectName string, poolName string, vol *api.StorageVolume) ([]string, error) {
 	// Handle instance volumes.
-	if volumeTypeName == "container" || volumeTypeName == "virtual-machine" {
-		cName, sName, snap := shared.InstanceGetParentAndSnapshotName(volumeName)
+	if vol.Type == db.StoragePoolVolumeTypeNameContainer || vol.Type == db.StoragePoolVolumeTypeNameVM {
+		cName, sName, snap := shared.InstanceGetParentAndSnapshotName(vol.Name)
 		if snap {
 			if projectName == project.Default {
 				return []string{fmt.Sprintf("/%s/instances/%s/snapshots/%s", version.APIVersion, cName, sName)}, nil
@@ -223,16 +223,16 @@ func storagePoolVolumeUsedByGet(s *state.State, projectName string, poolName str
 	}
 
 	// Handle image volumes.
-	if volumeTypeName == "image" {
+	if vol.Type == db.StoragePoolVolumeTypeNameImage {
 		if projectName == project.Default {
-			return []string{fmt.Sprintf("/%s/images/%s", version.APIVersion, volumeName)}, nil
+			return []string{fmt.Sprintf("/%s/images/%s", version.APIVersion, vol.Name)}, nil
 		} else {
-			return []string{fmt.Sprintf("/%s/images/%s?project=%s", version.APIVersion, volumeName, projectName)}, nil
+			return []string{fmt.Sprintf("/%s/images/%s?project=%s", version.APIVersion, vol.Name, projectName)}, nil
 		}
 	}
 
 	// Check if the daemon itself is using it.
-	used, err := storagePools.VolumeUsedByDaemon(s, poolName, volumeName)
+	used, err := storagePools.VolumeUsedByDaemon(s, poolName, vol.Name)
 	if err != nil {
 		return []string{}, err
 	}
@@ -248,7 +248,7 @@ func storagePoolVolumeUsedByGet(s *state.State, projectName string, poolName str
 
 	// Pass false to expandDevices, as we only want to see instances directly using a volume, rather than their
 	// profiles using a volume.
-	err = storagePools.VolumeUsedByInstances(s, poolName, projectName, volumeName, volumeTypeName, false, func(inst db.Instance, project api.Project, profiles []api.Profile) error {
+	err = storagePools.VolumeUsedByInstances(s, poolName, projectName, vol, false, func(inst db.Instance, project api.Project, profiles []api.Profile) error {
 		instancesUsingVolume = append(instancesUsingVolume, &inst)
 		return nil
 	})
@@ -265,7 +265,7 @@ func storagePoolVolumeUsedByGet(s *state.State, projectName string, poolName str
 	}
 
 	// Look for profiles using this volume.
-	profiles, err := profilesUsingPoolVolumeGetNames(s.Cluster, volumeName, volumeTypeName)
+	profiles, err := profilesUsingPoolVolumeGetNames(s.Cluster, vol.Name, vol.Type)
 	if err != nil {
 		return []string{}, err
 	}
