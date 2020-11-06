@@ -166,34 +166,35 @@ func (d *disk) validateConfig(instConf instance.ConfigReader) error {
 			return fmt.Errorf("Storage volumes cannot be specified as absolute paths")
 		}
 
-		_, err := d.state.Cluster.GetStoragePoolID(d.config["pool"])
-		if err != nil {
-			return fmt.Errorf("The %q storage pool doesn't exist", d.config["pool"])
-		}
+		// Only perform expensive instance custom volume checks when not validating a profile and after
+		// device expansion has occurred (to avoid doing it twice).
+		if instConf.Type() != instancetype.Any && len(instConf.ExpandedDevices()) > 0 && d.config["source"] != "" && d.config["path"] != "/" {
+			poolID, err := d.state.Cluster.GetStoragePoolID(d.config["pool"])
+			if err != nil {
+				return fmt.Errorf("The %q storage pool doesn't exist", d.config["pool"])
+			}
 
-		// If instance is supplied, use it's project to derive the effective storage project name.
-		var storageProjectName string
-		if d.inst != nil {
-			storageProjectName, err = project.StorageVolumeProject(d.state.Cluster, d.inst.Project(), db.StoragePoolVolumeTypeCustom)
+			// Derive the effective storage project name from the instance config's project.
+			storageProjectName, err := project.StorageVolumeProject(d.state.Cluster, instConf.Project(), db.StoragePoolVolumeTypeCustom)
 			if err != nil {
 				return err
 			}
-		}
 
-		// Only check storate volume is available if we are validating an instance device and not a profile
-		// device (check for instancetype.Any), and we have least one expanded device (this is so we only
-		// do this expensive check after devices have been expanded).
-		if instConf.Type() != instancetype.Any && len(instConf.ExpandedDevices()) > 0 && d.config["source"] != "" && d.config["path"] != "/" {
-			remoteInstance, err := storagePools.VolumeUsedByExclusiveRemoteInstancesWithProfiles(d.state, d.config["pool"], storageProjectName, d.config["source"], db.StoragePoolVolumeTypeNameCustom)
+			// GetLocalStoragePoolVolume returns a volume with an empty Location field for remote drivers.
+			_, vol, err := d.state.Cluster.GetLocalStoragePoolVolume(storageProjectName, d.config["source"], db.StoragePoolVolumeTypeCustom, poolID)
 			if err != nil {
-				return errors.Wrapf(err, "Failed checking if volume is exclusively attached")
+				return errors.Wrapf(err, "Failed loading custom volume")
+			}
+
+			// Check storage volume is available to mount on this cluster member.
+			remoteInstance, err := storagePools.VolumeUsedByExclusiveRemoteInstancesWithProfiles(d.state, d.config["pool"], storageProjectName, vol)
+			if err != nil {
+				return errors.Wrapf(err, "Failed checking if custom volume is exclusively attached to another instance")
 			}
 
 			if remoteInstance != nil {
-				return fmt.Errorf("Storage volume %q is already attached to an instance on a different node", d.config["source"])
+				return fmt.Errorf("Custom volume is already attached to an instance on a different node")
 			}
-
-			return nil
 		}
 	}
 
