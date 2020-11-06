@@ -804,19 +804,19 @@ func storagePoolVolumeTypePostMove(d *Daemon, projectName, poolName, volumeName 
 }
 
 func storagePoolVolumeTypeContainerPost(d *Daemon, r *http.Request) response.Response {
-	return storagePoolVolumeTypePost(d, r, "container")
+	return storagePoolVolumeTypePost(d, r, db.StoragePoolVolumeTypeNameContainer)
 }
 
 func storagePoolVolumeTypeVMPost(d *Daemon, r *http.Request) response.Response {
-	return storagePoolVolumeTypePost(d, r, "virtual-machine")
+	return storagePoolVolumeTypePost(d, r, db.StoragePoolVolumeTypeNameVM)
 }
 
 func storagePoolVolumeTypeCustomPost(d *Daemon, r *http.Request) response.Response {
-	return storagePoolVolumeTypePost(d, r, "custom")
+	return storagePoolVolumeTypePost(d, r, db.StoragePoolVolumeTypeNameCustom)
 }
 
 func storagePoolVolumeTypeImagePost(d *Daemon, r *http.Request) response.Response {
-	return storagePoolVolumeTypePost(d, r, "image")
+	return storagePoolVolumeTypePost(d, r, db.StoragePoolVolumeTypeNameImage)
 }
 
 // storageGetVolumeNameFromURL retrieves the volume name from the URL name segment.
