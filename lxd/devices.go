@@ -330,10 +330,16 @@ func deviceTaskBalance(s *state.State) {
 	}
 
 	// Get effective cpus list - those are all guaranteed to be online
-	effectiveCpus, err := cGroupGet("cpuset", "/", "cpuset.effective_cpus")
+	cg, err := cgroup.NewFileReadWriter(1, true)
+	if err != nil {
+		logger.Errorf("Unable to load cgroup writer: %v", err)
+		return
+	}
+
+	effectiveCpus, err := cg.GetEffectiveCpuset()
 	if err != nil {
 		// Older kernel - use cpuset.cpus
-		effectiveCpus, err = cGroupGet("cpuset", "/", "cpuset.cpus")
+		effectiveCpus, err = cg.GetCpuset()
 		if err != nil {
 			logger.Errorf("Error reading host's cpuset.cpus")
 			return
