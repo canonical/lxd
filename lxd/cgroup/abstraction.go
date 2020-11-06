@@ -243,7 +243,6 @@ func (cg *CGroup) SetBlkioWeight(value string) error {
 		return ErrControllerMissing
 	}
 	return ErrUnknownVersion
-
 }
 
 // SetCPUShare sets the weight of each group in the same hierarchy
@@ -320,6 +319,50 @@ func (cg *CGroup) SetMaxHugepages(pageType string, value string) error {
 			return cg.rw.Set(version, "hugetlb", fmt.Sprintf("hugetlb.%s.max", pageType), "max")
 		}
 		return cg.rw.Set(version, "hugetlb", fmt.Sprintf("hugetlb.%s.max", pageType), value)
+	}
+	return ErrUnknownVersion
+}
+
+// GetEffectiveCpuset returns the current set of CPUs for the cgroup
+func (cg *CGroup) GetEffectiveCpuset() (string, error) {
+	// Confirm we have the controller
+	version := cgControllers["cpuset"]
+	switch version {
+	case Unavailable:
+		return "", ErrControllerMissing
+	case V1:
+		return cg.rw.Get(version, "cpuset", "cpuset.effective_cpus")
+	case V2:
+		return cg.rw.Get(version, "cpuset", "cpuset.cpus.effective")
+	}
+	return "", ErrUnknownVersion
+}
+
+// GetCpuset returns the current set of CPUs for the cgroup
+func (cg *CGroup) GetCpuset() (string, error) {
+	// Confirm we have the controller
+	version := cgControllers["cpuset"]
+	switch version {
+	case Unavailable:
+		return "", ErrControllerMissing
+	case V1:
+		return cg.rw.Get(version, "cpuset", "cpuset.cpus")
+	case V2:
+		return cg.rw.Get(version, "cpuset", "cpuset.cpus")
+	}
+	return "", ErrUnknownVersion
+}
+
+// SetCpuset set the currently allowed set of CPUs for the cgroups
+func (cg *CGroup) SetCpuset(value string) error {
+	version := cgControllers["cpuset"]
+	switch version {
+	case Unavailable:
+		return ErrControllerMissing
+	case V1:
+		return cg.rw.Set(version, "cpuset", "cpuset.cpus", value)
+	case V2:
+		return cg.rw.Set(version, "cpuset", "cpuset.cpus", value)
 	}
 	return ErrUnknownVersion
 }
