@@ -864,12 +864,6 @@ func storagePoolVolumeTypeGet(d *Daemon, r *http.Request, volumeTypeName string)
 		return response.SmartError(err)
 	}
 
-	// Get the ID of the storage pool the storage volume is supposed to be attached to.
-	poolID, err := d.cluster.GetStoragePoolID(poolName)
-	if err != nil {
-		return response.SmartError(err)
-	}
-
 	resp := forwardedResponseIfTargetIsRemote(d, r)
 	if resp != nil {
 		return resp
@@ -880,13 +874,19 @@ func storagePoolVolumeTypeGet(d *Daemon, r *http.Request, volumeTypeName string)
 		return resp
 	}
 
+	// Get the ID of the storage pool the storage volume is supposed to be attached to.
+	poolID, err := d.cluster.GetStoragePoolID(poolName)
+	if err != nil {
+		return response.SmartError(err)
+	}
+
 	// Get the storage volume.
 	_, volume, err := d.cluster.GetLocalStoragePoolVolume(projectName, volumeName, volumeType, poolID)
 	if err != nil {
 		return response.SmartError(err)
 	}
 
-	volumeUsedBy, err := storagePoolVolumeUsedByGet(d.State(), projectName, poolName, volume.Name, volume.Type)
+	volumeUsedBy, err := storagePoolVolumeUsedByGet(d.State(), projectName, poolName, volume)
 	if err != nil {
 		return response.SmartError(err)
 	}
