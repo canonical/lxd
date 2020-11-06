@@ -2358,12 +2358,14 @@ func (vm *qemu) addNetDevConfig(sb *strings.Builder, bus *qemuBus, bootIndexes m
 
 // addGPUDevConfig adds the qemu config required for adding a GPU device.
 func (vm *qemu) addGPUDevConfig(sb *strings.Builder, bus *qemuBus, gpuConfig []deviceConfig.RunConfigItem) error {
-	var devName, pciSlotName string
+	var devName, pciSlotName, vgpu string
 	for _, gpuItem := range gpuConfig {
 		if gpuItem.Key == "devName" {
 			devName = gpuItem.Value
 		} else if gpuItem.Key == "pciSlotName" {
 			pciSlotName = gpuItem.Value
+		} else if gpuItem.Key == "vgpu" {
+			vgpu = gpuItem.Value
 		}
 	}
 
@@ -2380,6 +2382,7 @@ func (vm *qemu) addGPUDevConfig(sb *strings.Builder, bus *qemuBus, gpuConfig []d
 		"devName":     devName,
 		"pciSlotName": pciSlotName,
 		"vga":         vgaMode,
+		"vgpu":        vgpu,
 	}
 
 	// Add main GPU device in VGA mode to qemu config.
@@ -2388,8 +2391,14 @@ func (vm *qemu) addGPUDevConfig(sb *strings.Builder, bus *qemuBus, gpuConfig []d
 		return err
 	}
 
-	// Add any other related IOMMU VFs as generic PCI devices.
-	iommuGroupPath := filepath.Join("/sys/bus/pci/devices", pciSlotName, "iommu_group", "devices")
+	var iommuGroupPath string
+
+	if vgpu != "" {
+		iommuGroupPath = filepath.Join("/sys/bus/mdev/devices", vgpu, "iommu_group", "devices")
+	} else {
+		// Add any other related IOMMU VFs as generic PCI devices.
+		iommuGroupPath = filepath.Join("/sys/bus/pci/devices", pciSlotName, "iommu_group", "devices")
+	}
 
 	if shared.PathExists(iommuGroupPath) {
 		// Extract parent slot name by removing any virtual function ID.
