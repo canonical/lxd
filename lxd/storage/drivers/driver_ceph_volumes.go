@@ -1001,42 +1001,26 @@ func (d *ceph) UnmountVolume(vol Volume, keepBlockDev bool, op *operations.Opera
 
 // RenameVolume renames a volume and its snapshots.
 func (d *ceph) RenameVolume(vol Volume, newName string, op *operations.Operation) error {
-	revert := revert.New()
-	defer revert.Fail()
+	return vol.UnmountTask(func(op *operations.Operation) error {
+		revert := revert.New()
+		defer revert.Fail()
 
-	_, err := d.UnmountVolume(vol, false, op)
-	if err != nil {
-		return err
-	}
+		err := d.rbdRenameVolume(vol, newName)
+		if err != nil {
+			return err
+		}
 
-	err = d.rbdUnmapVolume(vol, true)
-	if err != nil {
+		newVol := NewVolume(d, d.name, vol.volType, vol.contentType, newName, nil, nil)
+		revert.Add(func() { d.rbdRenameVolume(newVol, vol.name) })
+
+		err = genericVFSRenameVolume(d, vol, newName, op)
+		if err != nil {
+			return err
+		}
+
+		revert.Success()
 		return nil
-	}
-
-	revert.Add(func() { d.rbdMapVolume(vol) })
-
-	err = d.rbdRenameVolume(vol, newName)
-	if err != nil {
-		return err
-	}
-
-	newVol := NewVolume(d, d.name, vol.volType, vol.contentType, newName, nil, nil)
-
-	revert.Add(func() { d.rbdRenameVolume(newVol, vol.name) })
-
-	_, err = d.rbdMapVolume(newVol)
-	if err != nil {
-		return err
-	}
-
-	err = genericVFSRenameVolume(d, vol, newName, op)
-	if err != nil {
-		return nil
-	}
-
-	revert.Success()
-	return nil
+	}, false, op)
 }
 
 // MigrateVolume sends a volume for migration.
