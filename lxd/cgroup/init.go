@@ -358,8 +358,10 @@ func init() {
 
 			scanControllers := bufio.NewScanner(controllers)
 			for scanControllers.Scan() {
-				line := strings.TrimSpace(scanSelfCg.Text())
-				unifiedControllers[line] = V2
+				line := strings.TrimSpace(scanControllers.Text())
+				for _, entry := range strings.Split(line, " ") {
+					unifiedControllers[entry] = V2
+				}
 			}
 			hasV2 = true
 
@@ -411,11 +413,11 @@ func init() {
 
 	val, ok = cgControllers["memory"]
 	if ok && val == V2 {
-		if shared.PathExists("/sys/fs/cgroup/memory/memory.swap.max") {
+		if shared.PathExists("/sys/fs/cgroup/memory.swap.max") {
 			cgControllers["memory.swap.max"] = V2
 		}
 
-		if shared.PathExists("/sys/fs/cgroup/memory/memory.swap.current") {
+		if shared.PathExists("/sys/fs/cgroup/memory.swap.current") {
 			cgControllers["memory.swap.current"] = V2
 		}
 	}
