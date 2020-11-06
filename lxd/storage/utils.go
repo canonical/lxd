@@ -696,14 +696,14 @@ func InstanceContentType(inst instance.Instance) drivers.ContentType {
 // VolumeUsedByInstances finds instances using a volume (either directly or via their expanded profiles if
 // expandDevices is true) and passes them to instanceFunc for evaluation. If instanceFunc returns an error then it
 // is returned immediately. The instanceFunc is executed during a DB transaction, so DB queries are not permitted.
-func VolumeUsedByInstances(s *state.State, poolName string, projectName string, volumeName string, volumeTypeName string, expandDevices bool, instanceFunc func(inst db.Instance, project api.Project, profiles []api.Profile) error) error {
+func VolumeUsedByInstances(s *state.State, poolName string, projectName string, vol *api.StorageVolume, expandDevices bool, instanceFunc func(inst db.Instance, project api.Project, profiles []api.Profile) error) error {
 	// Convert the volume type name to our internal integer representation.
-	volumeType, err := VolumeTypeNameToDBType(volumeTypeName)
+	volumeType, err := VolumeTypeNameToDBType(vol.Type)
 	if err != nil {
 		return err
 	}
 
-	volumeNameWithType := fmt.Sprintf("%s/%s", volumeTypeName, volumeName)
+	volumeNameWithType := fmt.Sprintf("%s/%s", vol.Type, vol.Name)
 
 	return s.Cluster.InstanceList(func(inst db.Instance, p api.Project, profiles []api.Profile) error {
 		instStorageProject := project.StorageVolumeProjectFromRecord(&p, volumeType)
@@ -740,7 +740,7 @@ func VolumeUsedByInstances(s *state.State, poolName string, projectName string, 
 			// Make sure that we don't compare against stuff like
 			// "container////bla" but only against "container/bla".
 			cleanSource := filepath.Clean(dev["source"])
-			if cleanSource == volumeName || cleanSource == volumeNameWithType {
+			if cleanSource == vol.Name || cleanSource == volumeNameWithType {
 				err = instanceFunc(inst, p, profiles)
 				if err != nil {
 					return err
