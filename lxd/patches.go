@@ -41,6 +41,16 @@ const (
 	patchPostDaemonStorage
 )
 
+// Leave the string type in here! This guarantees that go treats this is as a
+// typed string constant. Removing it causes go to treat these as untyped string
+// constants which is not what we want.
+const (
+	patchStoragePoolVolumeAPIEndpointContainers string = "containers"
+	patchStoragePoolVolumeAPIEndpointVMs        string = "virtual-machines"
+	patchStoragePoolVolumeAPIEndpointImages     string = "images"
+	patchStoragePoolVolumeAPIEndpointCustom     string = "custom"
+)
+
 /* Patches are one-time actions that are sometimes needed to update
    existing container configuration or move things around on the
    filesystem.
@@ -1313,8 +1323,8 @@ func upgradeFromStorageTypeLvm(name string, d *Daemon, defaultPoolName string, d
 		// permissions and ownership.
 		newContainerMntPoint := driver.GetContainerMountPoint("default", defaultPoolName, ct)
 		ctLvName := lvmNameToLVName(ct)
-		newContainerLvName := fmt.Sprintf("%s_%s", storagePoolVolumeAPIEndpointContainers, ctLvName)
-		containerLvDevPath := lvmDevPath("default", defaultPoolName, storagePoolVolumeAPIEndpointContainers, ctLvName)
+		newContainerLvName := fmt.Sprintf("%s_%s", patchStoragePoolVolumeAPIEndpointContainers, ctLvName)
+		containerLvDevPath := lvmDevPath("default", defaultPoolName, patchStoragePoolVolumeAPIEndpointContainers, ctLvName)
 		if !shared.PathExists(containerLvDevPath) {
 			oldLvDevPath := fmt.Sprintf("/dev/%s/%s", defaultPoolName, ctLvName)
 			// If the old LVM device path for the logical volume
@@ -1475,8 +1485,8 @@ func upgradeFromStorageTypeLvm(name string, d *Daemon, defaultPoolName string, d
 
 			// Make sure we use a valid lv name.
 			csLvName := lvmNameToLVName(cs)
-			newSnapshotLvName := fmt.Sprintf("%s_%s", storagePoolVolumeAPIEndpointContainers, csLvName)
-			snapshotLvDevPath := lvmDevPath("default", defaultPoolName, storagePoolVolumeAPIEndpointContainers, csLvName)
+			newSnapshotLvName := fmt.Sprintf("%s_%s", patchStoragePoolVolumeAPIEndpointContainers, csLvName)
+			snapshotLvDevPath := lvmDevPath("default", defaultPoolName, patchStoragePoolVolumeAPIEndpointContainers, csLvName)
 			if !shared.PathExists(snapshotLvDevPath) {
 				oldLvDevPath := fmt.Sprintf("/dev/%s/%s", defaultPoolName, csLvName)
 				if shared.PathExists(oldLvDevPath) {
@@ -1667,8 +1677,8 @@ func upgradeFromStorageTypeLvm(name string, d *Daemon, defaultPoolName string, d
 		}
 
 		// Rename the logical volume device.
-		newImageLvName := fmt.Sprintf("%s_%s", storagePoolVolumeAPIEndpointImages, img)
-		imageLvDevPath := lvmDevPath("default", defaultPoolName, storagePoolVolumeAPIEndpointImages, img)
+		newImageLvName := fmt.Sprintf("%s_%s", patchStoragePoolVolumeAPIEndpointImages, img)
+		imageLvDevPath := lvmDevPath("default", defaultPoolName, patchStoragePoolVolumeAPIEndpointImages, img)
 		oldLvDevPath := fmt.Sprintf("/dev/%s/%s", defaultPoolName, img)
 		// Only create logical volumes for images that have a logical
 		// volume on the pre-storage-api LXD instance. If not, we don't
@@ -2597,6 +2607,21 @@ func patchStorageApiDetectLVSize(name string, d *Daemon) error {
 		if poolName == "" {
 			logger.Errorf("The \"lvm.vg_name\" key should not be empty")
 			return fmt.Errorf("The \"lvm.vg_name\" key should not be empty")
+		}
+
+		storagePoolVolumeTypeNameToAPIEndpoint := func(volumeTypeName string) (string, error) {
+			switch volumeTypeName {
+			case db.StoragePoolVolumeTypeNameContainer:
+				return patchStoragePoolVolumeAPIEndpointContainers, nil
+			case db.StoragePoolVolumeTypeNameVM:
+				return patchStoragePoolVolumeAPIEndpointVMs, nil
+			case db.StoragePoolVolumeTypeNameImage:
+				return patchStoragePoolVolumeAPIEndpointImages, nil
+			case db.StoragePoolVolumeTypeNameCustom:
+				return patchStoragePoolVolumeAPIEndpointCustom, nil
+			}
+
+			return "", fmt.Errorf("Invalid storage volume type name")
 		}
 
 		for _, volume := range volumes {
