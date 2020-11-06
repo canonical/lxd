@@ -706,6 +706,12 @@ func VolumeUsedByInstances(s *state.State, poolName string, projectName string, 
 	volumeNameWithType := fmt.Sprintf("%s/%s", vol.Type, vol.Name)
 
 	return s.Cluster.InstanceList(func(inst db.Instance, p api.Project, profiles []api.Profile) error {
+		//If the volume has a specific cluster member which is different than the instance then skip as
+		// instance cannot be using this volume.
+		if vol.Location != "" && inst.Node != vol.Location {
+			return nil
+		}
+
 		instStorageProject := project.StorageVolumeProjectFromRecord(&p, volumeType)
 		if err != nil {
 			return err
