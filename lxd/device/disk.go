@@ -1045,13 +1045,8 @@ func (d *disk) storagePoolVolumeAttachShift(projectName, poolName, volumeName st
 		logger.Debugf("Shifting storage volume")
 
 		if !shared.IsTrue(poolVolumePut.Config["security.shifted"]) {
-			volumeTypeName, err := storagePools.VolumeDBTypeToTypeName(volumeType)
-			if err != nil {
-				return err
-			}
-
 			volumeUsedBy := []instance.Instance{}
-			err = storagePools.VolumeUsedByInstances(d.state, poolName, projectName, volumeName, volumeTypeName, true, func(dbInst db.Instance, project api.Project, profiles []api.Profile) error {
+			err = storagePools.VolumeUsedByInstances(d.state, poolName, projectName, volume, true, func(dbInst db.Instance, project api.Project, profiles []api.Profile) error {
 				inst, err := instance.Load(d.state, db.InstanceToArgs(&dbInst), profiles)
 				if err != nil {
 					return err
