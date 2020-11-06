@@ -572,7 +572,7 @@ func storagePoolVolumeTypePost(d *Daemon, r *http.Request, volumeTypeName string
 	}
 
 	// Get the name of the storage pool the volume is supposed to be attached to.
-	poolName := mux.Vars(r)["pool"]
+	srcPoolName := mux.Vars(r)["pool"]
 
 	req := api.StorageVolumePost{}
 
@@ -603,17 +603,6 @@ func storagePoolVolumeTypePost(d *Daemon, r *http.Request, volumeTypeName string
 		return response.SmartError(err)
 	}
 
-	// Retrieve ID of the storage pool (and check if the storage pool exists).
-	var poolID int64
-	if req.Pool != "" {
-		poolID, err = d.cluster.GetStoragePoolID(req.Pool)
-	} else {
-		poolID, err = d.cluster.GetStoragePoolID(poolName)
-	}
-	if err != nil {
-		return response.SmartError(err)
-	}
-
 	// We need to restore the body of the request since it has already been read, and if we
 	// forwarded it now no body would be written out.
 	buf := bytes.Buffer{}
@@ -634,18 +623,29 @@ func storagePoolVolumeTypePost(d *Daemon, r *http.Request, volumeTypeName string
 		return response.BadRequest(err)
 	}
 
-	resp = forwardedResponseIfVolumeIsRemote(d, r, poolName, projectName, volumeName, volumeType)
+	resp = forwardedResponseIfVolumeIsRemote(d, r, srcPoolName, projectName, volumeName, volumeType)
 	if resp != nil {
 		return resp
 	}
 
 	// This is a migration request so send back requested secrets.
 	if req.Migration {
-		return storagePoolVolumeTypePostMigration(d.State(), projectName, poolName, volumeName, req)
+		return storagePoolVolumeTypePostMigration(d.State(), projectName, srcPoolName, volumeName, req)
+	}
+
+	// Retrieve ID of the storage pool (and check if the storage pool exists).
+	var targetPoolID int64
+	if req.Pool != "" {
+		targetPoolID, err = d.cluster.GetStoragePoolID(req.Pool)
+	} else {
+		targetPoolID, err = d.cluster.GetStoragePoolID(srcPoolName)
+	}
+	if err != nil {
+		return response.SmartError(err)
 	}
 
 	// Check that the name isn't already in use.
-	_, err = d.cluster.GetStoragePoolNodeVolumeID(projectName, req.Name, volumeType, poolID)
+	_, err = d.cluster.GetStoragePoolNodeVolumeID(projectName, req.Name, volumeType, targetPoolID)
 	if err != db.ErrNoSuchObject {
 		if err != nil {
 			return response.InternalError(err)
@@ -655,7 +655,7 @@ func storagePoolVolumeTypePost(d *Daemon, r *http.Request, volumeTypeName string
 	}
 
 	// Check if the daemon itself is using it.
-	used, err := storagePools.VolumeUsedByDaemon(d.State(), poolName, volumeName)
+	used, err := storagePools.VolumeUsedByDaemon(d.State(), srcPoolName, volumeName)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -664,8 +664,19 @@ func storagePoolVolumeTypePost(d *Daemon, r *http.Request, volumeTypeName string
 		return response.SmartError(fmt.Errorf("Volume is used by LXD itself and cannot be renamed"))
 	}
 
+	// Load source volume.
+	srcPoolID, err := d.cluster.GetStoragePoolID(srcPoolName)
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	_, vol, err := d.cluster.GetLocalStoragePoolVolume(projectName, volumeName, volumeType, srcPoolID)
+	if err != nil {
+		return response.SmartError(err)
+	}
+
 	// Check if a running instance is using it.
-	err = storagePools.VolumeUsedByInstances(d.State(), poolName, projectName, volumeName, volumeTypeName, true, func(dbInst db.Instance, project api.Project, profiles []api.Profile) error {
+	err = storagePools.VolumeUsedByInstances(d.State(), srcPoolName, projectName, vol, true, func(dbInst db.Instance, project api.Project, profiles []api.Profile) error {
 		inst, err := instance.Load(d.State(), db.InstanceToArgs(&dbInst), profiles)
 		if err != nil {
 			return err
@@ -682,12 +693,12 @@ func storagePoolVolumeTypePost(d *Daemon, r *http.Request, volumeTypeName string
 	}
 
 	// Detect a rename request.
-	if req.Pool == "" || req.Pool == poolName {
-		return storagePoolVolumeTypePostRename(d, projectName, poolName, volumeName, volumeType, req)
+	if req.Pool == "" || req.Pool == srcPoolName {
+		return storagePoolVolumeTypePostRename(d, projectName, srcPoolName, volumeName, volumeType, req)
 	}
 
 	// Otherwise this is a move request.
-	return storagePoolVolumeTypePostMove(d, projectName, poolName, volumeName, volumeType, req)
+	return storagePoolVolumeTypePostMove(d, projectName, srcPoolName, volumeName, volumeType, req)
 }
 
 // storagePoolVolumeTypePostMigration handles volume migration type POST requests.
