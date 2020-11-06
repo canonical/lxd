@@ -140,7 +140,6 @@ func ConnectIfVolumeIsRemote(s *state.State, poolName string, projectName string
 
 		return nil
 	})
-
 	if err != nil && err != db.ErrNoClusterMember {
 		return nil, err
 	}
