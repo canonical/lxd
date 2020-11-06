@@ -706,8 +706,6 @@ func storagePoolVolumeTypePostRename(d *Daemon, projectName string, poolName str
 
 // storagePoolVolumeTypePostMove handles volume move type POST requests.
 func storagePoolVolumeTypePostMove(d *Daemon, projectName, poolName, volumeName string, volumeType int, req api.StorageVolumePost) response.Response {
-	var run func(op *operations.Operation) error
-
 	srcPool, err := storagePools.GetPoolByName(d.State(), poolName)
 	if err != nil {
 		return response.SmartError(err)
@@ -718,7 +716,7 @@ func storagePoolVolumeTypePostMove(d *Daemon, projectName, poolName, volumeName 
 		return response.SmartError(err)
 	}
 
-	run = func(op *operations.Operation) error {
+	run := func(op *operations.Operation) error {
 		// Notify users of the volume that it's name is changing.
 		err := storagePoolVolumeUpdateUsers(d, projectName, poolName, volumeName, req.Pool, req.Name)
 		if err != nil {
