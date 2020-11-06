@@ -713,7 +713,7 @@ func VolumeUsedByInstances(s *state.State, poolName string, projectName string, 
 
 // VolumeUsedByExclusiveRemoteInstancesWithProfiles checks if custom volume is exclusively attached to a remote
 // instance. Returns the remote instance that has the volume exclusively attached. Returns nil if volume available.
-func VolumeUsedByExclusiveRemoteInstancesWithProfiles(s *state.State, poolName string, projectName string, volumeName string, volumeTypeName string) (*db.Instance, error) {
+func VolumeUsedByExclusiveRemoteInstancesWithProfiles(s *state.State, poolName string, projectName string, vol *api.StorageVolume) (*db.Instance, error) {
 	pool, err := GetPoolByName(s, poolName)
 	if err != nil {
 		return nil, errors.Wrapf(err, "Failed loading storage pool %q", poolName)
@@ -739,7 +739,7 @@ func VolumeUsedByExclusiveRemoteInstancesWithProfiles(s *state.State, poolName s
 	// Find if volume is attached to a remote instance.
 	var errAttached = fmt.Errorf("Volume is remotely attached")
 	var remoteInstance *db.Instance
-	VolumeUsedByInstances(s, poolName, projectName, volumeName, volumeTypeName, true, func(dbInst db.Instance, project api.Project, profiles []api.Profile) error {
+	VolumeUsedByInstances(s, poolName, projectName, vol, true, func(dbInst db.Instance, project api.Project, profiles []api.Profile) error {
 		if dbInst.Node != localNode {
 			remoteInstance = &dbInst
 			return errAttached // Stop the search, this volume is attached to a remote instance.
