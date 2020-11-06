@@ -182,18 +182,12 @@ func (c *cmdStorageVolumeAttach) Run(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf(i18n.G("Only \"custom\" volumes can be attached to instances"))
 	}
 
-	// Check if the requested storage volume actually exists
-	vol, _, err := resource.server.GetStoragePoolVolume(resource.name, volType, volName)
-	if err != nil {
-		return err
-	}
-
 	// Prepare the instance's device entry
 	device := map[string]string{
 		"type":   "disk",
 		"pool":   resource.name,
+		"source": volName,
 		"path":   devPath,
-		"source": vol.Name,
 	}
 
 	// Add the device to the instance
