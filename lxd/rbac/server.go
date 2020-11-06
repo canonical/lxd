@@ -387,7 +387,10 @@ func (r *Server) syncAdmin(username string) bool {
 		return false
 	}
 
-	u.Path = path.Join(u.Path, fmt.Sprintf("api/service/v1/resources/lxd/permissions-for-user?u=%s", username))
+	values := url.Values{}
+	values.Set("u", username)
+	u.RawQuery = values.Encode()
+	u.Path = path.Join(u.Path, "/api/service/v1/resources/lxd/permissions-for-user")
 
 	req, err := http.NewRequest("GET", u.String(), nil)
 	if err != nil {
@@ -416,7 +419,10 @@ func (r *Server) syncPermissions(username string) error {
 		return err
 	}
 
-	u.Path = path.Join(u.Path, fmt.Sprintf("/api/service/v1/resources/project/permissions-for-user?u=%s", username))
+	values := url.Values{}
+	values.Set("u", username)
+	u.RawQuery = values.Encode()
+	u.Path = path.Join(u.Path, "/api/service/v1/resources/project/permissions-for-user")
 
 	req, err := http.NewRequest("GET", u.String(), nil)
 	if err != nil {
