@@ -1166,7 +1166,19 @@ func storagePoolVolumeTypeDelete(d *Daemon, r *http.Request, volumeTypeName stri
 		return response.BadRequest(fmt.Errorf("Storage volumes of type %q cannot be deleted with the storage API", volumeTypeName))
 	}
 
-	volumeUsedBy, err := storagePoolVolumeUsedByGet(d.State(), projectName, poolName, volumeName, volumeTypeName)
+	// Get the storage pool the storage volume is supposed to be attached to.
+	pool, err := storagePools.GetPoolByName(d.State(), poolName)
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	// Get the storage volume.
+	_, volume, err := d.cluster.GetLocalStoragePoolVolume(projectName, volumeName, volumeType, pool.ID())
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	volumeUsedBy, err := storagePoolVolumeUsedByGet(d.State(), projectName, poolName, volume)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -1175,11 +1187,6 @@ func storagePoolVolumeTypeDelete(d *Daemon, r *http.Request, volumeTypeName stri
 		if len(volumeUsedBy) != 1 || volumeType != db.StoragePoolVolumeTypeImage || volumeUsedBy[0] != fmt.Sprintf("/%s/images/%s", version.APIVersion, volumeName) {
 			return response.BadRequest(fmt.Errorf("The storage volume is still in use"))
 		}
-	}
-
-	pool, err := storagePools.GetPoolByName(d.State(), poolName)
-	if err != nil {
-		return response.SmartError(err)
 	}
 
 	switch volumeType {
