@@ -202,8 +202,14 @@ func (d *disk) validateConfig(instConf instance.ConfigReader) error {
 				return err
 			}
 
-			if contentType == db.StoragePoolVolumeContentTypeBlock && instConf.Type() != instancetype.VM {
-				return fmt.Errorf("Custom block volumes cannot be used on containers")
+			if contentType == db.StoragePoolVolumeContentTypeBlock {
+				if instConf.Type() != instancetype.VM {
+					return fmt.Errorf("Custom block volumes cannot be used on containers")
+				}
+
+				if d.config["path"] != "" {
+					return fmt.Errorf("Custom block volumes cannot have a path defined")
+				}
 			}
 		}
 	}
