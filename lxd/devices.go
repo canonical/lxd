@@ -357,11 +357,6 @@ func deviceTaskBalance(s *state.State) {
 	}
 
 	effectiveCpus = strings.Join(effectiveCpusSlice, ",")
-
-	err = cGroupSet("cpuset", "/lxc", "cpuset.cpus", effectiveCpus)
-	if err != nil && shared.PathExists("/sys/fs/cgroup/cpuset/lxc") {
-		logger.Warn("Error setting lxd's cpuset.cpus", log.Ctx{"err": err})
-	}
 	cpus, err := resources.ParseCpuset(effectiveCpus)
 	if err != nil {
 		logger.Error("Error parsing host's cpu set", log.Ctx{"cpuset": effectiveCpus, "err": err})
