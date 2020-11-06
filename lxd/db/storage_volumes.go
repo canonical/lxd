@@ -5,7 +5,6 @@ package db
 import (
 	"database/sql"
 	"fmt"
-	"sort"
 	"strings"
 	"time"
 
@@ -538,27 +537,20 @@ type StorageVolumeArgs struct {
 	ProjectName string
 }
 
-// GetStorageVolumeNodeAddresses returns the addresses of all nodes on which the
-// volume with the given name if defined.
-//
+// GetStorageVolumeNodes returns the node info of all nodes on which the volume with the given name is defined.
 // The volume name can be either a regular name or a volume snapshot name.
-//
-// The empty string is used in place of the address of the current node.
-func (c *ClusterTx) GetStorageVolumeNodeAddresses(poolID int64, projectName string, volumeName string, volumeType int) ([]string, error) {
-	nodes := []struct {
-		id      int64
-		address string
-	}{}
-	dest := func(i int) []interface{} {
-		nodes = append(nodes, struct {
-			id      int64
-			address string
-		}{})
-		return []interface{}{&nodes[i].id, &nodes[i].address}
+// If the volume is defined, but without a specific node, then the ErrNoClusterMember error is returned.
+// If the volume is not found then the ErrNoSuchObject error is returned.
+func (c *ClusterTx) GetStorageVolumeNodes(poolID int64, projectName string, volumeName string, volumeType int) ([]NodeInfo, error) {
+	nodes := []NodeInfo{}
 
+	dest := func(i int) []interface{} {
+		nodes = append(nodes, NodeInfo{})
+		return []interface{}{&nodes[i].ID, &nodes[i].Address, &nodes[i].Name}
 	}
+
 	sql := `
-	SELECT coalesce(nodes.id,0) AS nodeID, coalesce(nodes.address,"") AS nodeAddress
+	SELECT coalesce(nodes.id,0) AS nodeID, coalesce(nodes.address,"") AS nodeAddress, coalesce(nodes.name,"") AS nodeName
 	FROM storage_volumes_all
 	JOIN projects ON projects.id = storage_volumes_all.project_id
 	LEFT JOIN nodes ON storage_volumes_all.node_id=nodes.id
@@ -577,26 +569,21 @@ func (c *ClusterTx) GetStorageVolumeNodeAddresses(poolID int64, projectName stri
 		return nil, err
 	}
 
-	addresses := []string{}
-	for _, node := range nodes {
-		// Volume is defined without a cluster member.
-		if node.id == 0 && node.address == "" {
-			return nil, ErrNoClusterMember
-		}
-
-		address := node.address
-		if node.id == c.nodeID {
-			address = ""
-		}
-		addresses = append(addresses, address)
+	if len(nodes) == 0 {
+		return nil, ErrNoSuchObject
 	}
 
-	sort.Strings(addresses)
+	for _, node := range nodes {
+		// Volume is defined without a cluster member.
+		if node.ID == 0 {
+			return nil, ErrNoClusterMember
+		}
+	}
 
-	addressCount := len(addresses)
-	if addressCount == 0 {
+	nodeCount := len(nodes)
+	if nodeCount == 0 {
 		return nil, ErrNoSuchObject
-	} else if addressCount > 1 {
+	} else if nodeCount > 1 {
 		driver, err := c.GetStoragePoolDriver(poolID)
 		if err != nil {
 			return nil, err
@@ -607,12 +594,17 @@ func (c *ClusterTx) GetStorageVolumeNodeAddresses(poolID int64, projectName stri
 		// take this to mean that the volume doesn't have an explicit cluster member and is therefore
 		// equivalent to db.ErrNoClusterMember that is used in newer schemas where a single remote volume
 		// DB record is created that is not associated to any single member.
-		if driver == "ceph" || driver == "cephfs" {
+		if StorageRemoteDriverNames == nil {
+			return nil, fmt.Errorf("No remote storage drivers function defined")
+		}
+
+		remoteDrivers := StorageRemoteDriverNames()
+		if shared.StringInSlice(driver, remoteDrivers) {
 			return nil, ErrNoClusterMember
 		}
 	}
 
-	return addresses, nil
+	return nodes, nil
 }
 
 // Return the name of the node a storage volume is on.
