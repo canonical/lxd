@@ -120,15 +120,12 @@ func ConnectIfInstanceIsRemote(cluster *db.Cluster, projectName string, name str
 // defined. If it's not the local cluster member it will connect to it and return the connected client, otherwise
 // it just returns nil. If there is more than one cluster member with a matching volume name, an error is returned.
 func ConnectIfVolumeIsRemote(s *state.State, poolName string, projectName string, volumeName string, volumeType int, cert *shared.CertInfo) (lxd.InstanceServer, error) {
-	volumeTypeName, err := storagePools.VolumeDBTypeToTypeName(volumeType)
-	if err != nil {
-		return nil, err
-	}
-
 	localNodeID := s.Cluster.GetNodeID()
+	var err error
 	var nodes []db.NodeInfo
+	var poolID int64
 	err = s.Cluster.Transaction(func(tx *db.ClusterTx) error {
-		poolID, err := tx.GetStoragePoolID(poolName)
+		poolID, err = tx.GetStoragePoolID(poolName)
 		if err != nil {
 			return err
 		}
@@ -148,7 +145,13 @@ func ConnectIfVolumeIsRemote(s *state.State, poolName string, projectName string
 	// whether it is exclusively attached to remote instance, and if so then we need to forward the request to
 	// the node whereit is currently used. This avoids conflicting with another member when using it locally.
 	if err == db.ErrNoClusterMember {
-		remoteInstance, err := storagePools.VolumeUsedByExclusiveRemoteInstancesWithProfiles(s, poolName, projectName, volumeName, volumeTypeName)
+		// GetLocalStoragePoolVolume returns a volume with an empty Location field for remote drivers.
+		_, vol, err := s.Cluster.GetLocalStoragePoolVolume(projectName, volumeName, volumeType, poolID)
+		if err != nil {
+			return nil, err
+		}
+
+		remoteInstance, err := storagePools.VolumeUsedByExclusiveRemoteInstancesWithProfiles(s, poolName, projectName, vol)
 		if err != nil {
 			return nil, errors.Wrapf(err, "Failed checking if volume %q is available", volumeName)
 		}
