@@ -714,14 +714,14 @@ func storagePoolVolumeTypePostMigration(state *state.State, projectName, poolNam
 }
 
 // storagePoolVolumeTypePostRename handles volume rename type POST requests.
-func storagePoolVolumeTypePostRename(d *Daemon, projectName, poolName, volumeName string, volumeType int, req api.StorageVolumePost) response.Response {
-	// Notify users of the volume that it's name is changing.
-	err := storagePoolVolumeUpdateUsers(d, projectName, poolName, volumeName, req.Pool, req.Name)
+func storagePoolVolumeTypePostRename(d *Daemon, projectName string, poolName string, volumeName string, volumeType int, req api.StorageVolumePost) response.Response {
+	pool, err := storagePools.GetPoolByName(d.State(), poolName)
 	if err != nil {
 		return response.SmartError(err)
 	}
 
-	pool, err := storagePools.GetPoolByName(d.State(), poolName)
+	// Notify users of the volume that it's name is changing.
+	err = storagePoolVolumeUpdateUsers(d, projectName, pool.Name(), volumeName, req.Pool, req.Name)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -729,11 +729,11 @@ func storagePoolVolumeTypePostRename(d *Daemon, projectName, poolName, volumeNam
 	err = pool.RenameCustomVolume(projectName, volumeName, req.Name, nil)
 	if err != nil {
 		// Notify users of the volume that it's name is changing back.
-		storagePoolVolumeUpdateUsers(d, projectName, req.Pool, req.Name, poolName, volumeName)
+		storagePoolVolumeUpdateUsers(d, projectName, req.Pool, req.Name, pool.Name(), volumeName)
 		return response.SmartError(err)
 	}
 
-	return response.SyncResponseLocation(true, nil, fmt.Sprintf("/%s/storage-pools/%s/volumes/%s", version.APIVersion, poolName, db.StoragePoolVolumeTypeNameCustom))
+	return response.SyncResponseLocation(true, nil, fmt.Sprintf("/%s/storage-pools/%s/volumes/%s", version.APIVersion, pool.Name(), db.StoragePoolVolumeTypeNameCustom))
 }
 
 // storagePoolVolumeTypePostMove handles volume move type POST requests.
