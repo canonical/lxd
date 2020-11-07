@@ -7050,6 +7050,10 @@ func (c *lxc) maasDelete() error {
 	return c.state.MAAS.DeleteContainer(c)
 }
 
+func (c *lxc) CGroup() (*cgroup.CGroup, error) {
+	return c.cgroup(nil)
+}
+
 func (c *lxc) cgroup(cc *liblxc.Container) (*cgroup.CGroup, error) {
 	rw := lxcCgroupReadWriter{}
 	if cc != nil {
