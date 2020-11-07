@@ -29,6 +29,7 @@ import (
 	lxdClient "github.com/lxc/lxd/client"
 	"github.com/lxc/lxd/lxd/apparmor"
 	"github.com/lxc/lxd/lxd/backup"
+	"github.com/lxc/lxd/lxd/cgroup"
 	"github.com/lxc/lxd/lxd/cluster"
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/db/query"
@@ -3901,8 +3902,8 @@ func (vm *qemu) Migrate(args *instance.CriuMigrationArgs) error {
 }
 
 // CGroupSet is not implemented for VMs.
-func (vm *qemu) CGroupSet(key string, value string) error {
-	return instance.ErrNotImplemented
+func (vm *qemu) CGroup() (*cgroup.CGroup, error) {
+	return nil, instance.ErrNotImplemented
 }
 
 // VolatileSet sets one or more volatile config keys.
