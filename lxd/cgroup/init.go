@@ -246,11 +246,11 @@ func (info *Info) Log() {
 	logger.Infof(" - cgroup layout: %s", info.Mode())
 
 	if !info.Supports(Blkio, nil) {
-		logger.Warnf(" - Couldn't find the CGroup blkio, I/O limits will be ignored")
+		logger.Warnf(" - Couldn't find the CGroup blkio, disk I/O limits will be ignored")
 	}
 
 	if !info.Supports(BlkioWeight, nil) {
-		logger.Warnf(" - Couldn't find the CGroup blkio.weight, I/O weight limits will be ignored")
+		logger.Warnf(" - Couldn't find the CGroup blkio.weight, disk priority will be ignored")
 	}
 
 	if !info.Supports(CPU, nil) {
@@ -282,7 +282,7 @@ func (info *Info) Log() {
 	}
 
 	if !info.Supports(NetPrio, nil) {
-		logger.Warnf(" - Couldn't find the CGroup network class controller, network limits will be ignored")
+		logger.Warnf(" - Couldn't find the CGroup network priority controller, network priority will be ignored")
 	}
 
 	if !info.Supports(Pids, nil) {
