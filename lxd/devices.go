@@ -479,7 +479,13 @@ func deviceTaskBalance(s *state.State) {
 		}
 
 		sort.Strings(set)
-		err := ctn.CGroupSet("cpuset.cpus", strings.Join(set, ","))
+		cg, err := ctn.CGroup()
+		if err != nil {
+			logger.Error("balance: Unable to get cgroup struct", log.Ctx{"name": ctn.Name(), "err": err, "value": strings.Join(set, ",")})
+			continue
+		}
+
+		err = cg.SetCpuset(strings.Join(set, ","))
 		if err != nil {
 			logger.Error("balance: Unable to set cpuset", log.Ctx{"name": ctn.Name(), "err": err, "value": strings.Join(set, ",")})
 		}
@@ -510,7 +516,12 @@ func deviceNetworkPriority(s *state.State, netif string) {
 		}
 
 		// Set the value for the new interface
-		c.CGroupSet("net_prio.ifpriomap", fmt.Sprintf("%s %d", netif, networkInt))
+		cg, err := c.CGroup()
+		if err != nil {
+			continue
+		}
+
+		cg.SetNetIfPrio(fmt.Sprintf("%s %d", netif, networkInt))
 	}
 
 	return
