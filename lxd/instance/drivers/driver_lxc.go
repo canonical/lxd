@@ -1147,17 +1147,17 @@ func (c *lxc) initLXC(config bool) error {
 				}
 			} else {
 				if c.state.OS.CGInfo.Supports(cgroup.MemorySwap, cg) && (memorySwap == "" || shared.IsTrue(memorySwap)) {
-					err = cg.SetMemoryMax(valueInt)
+					err = cg.SetMemoryLimit(valueInt)
 					if err != nil {
 						return err
 					}
 
-					err = cg.SetMemorySwapMax(0)
+					err = cg.SetMemorySwapLimit(0)
 					if err != nil {
 						return err
 					}
 				} else {
-					err = cg.SetMemoryMax(valueInt)
+					err = cg.SetMemoryLimit(valueInt)
 					if err != nil {
 						return err
 					}
@@ -1250,7 +1250,7 @@ func (c *lxc) initLXC(config bool) error {
 					return err
 				}
 
-				err = cg.SetMaxHugepages(shared.HugePageSizeSuffix[i], value)
+				err = cg.SetHugepagesLimit(shared.HugePageSizeSuffix[i], value)
 				if err != nil {
 					return err
 				}
@@ -4232,7 +4232,7 @@ func (c *lxc) Update(args db.InstanceArgs, userRequested bool) error {
 						oldMemswLimit = -1
 					}
 				}
-				oldLimit, err := cg.GetMaxMemory()
+				oldLimit, err := cg.GetMemoryLimit()
 				if err != nil {
 					oldLimit = -1
 				}
@@ -4248,24 +4248,24 @@ func (c *lxc) Update(args db.InstanceArgs, userRequested bool) error {
 					}
 
 					if oldLimit != -1 {
-						cg.SetMemoryMax(oldLimit)
+						cg.SetMemoryLimit(oldLimit)
 					}
 
 					if oldMemswLimit != -1 {
-						cg.SetMemorySwapMax(oldMemswLimit)
+						cg.SetMemorySwapLimit(oldMemswLimit)
 					}
 				}
 
 				// Reset everything
 				if c.state.OS.CGInfo.Supports(cgroup.MemorySwap, cg) {
-					err = cg.SetMemorySwapMax(-1)
+					err = cg.SetMemorySwapLimit(-1)
 					if err != nil {
 						revertMemory()
 						return err
 					}
 				}
 
-				err = cg.SetMemoryMax(-1)
+				err = cg.SetMemoryLimit(-1)
 				if err != nil {
 					revertMemory()
 					return err
@@ -4287,19 +4287,19 @@ func (c *lxc) Update(args db.InstanceArgs, userRequested bool) error {
 					}
 				} else {
 					if c.state.OS.CGInfo.Supports(cgroup.MemorySwap, cg) && (memorySwap == "" || shared.IsTrue(memorySwap)) {
-						err = cg.SetMemoryMax(memoryInt)
+						err = cg.SetMemoryLimit(memoryInt)
 						if err != nil {
 							revertMemory()
 							return err
 						}
 
-						err = cg.SetMemorySwapMax(0)
+						err = cg.SetMemorySwapLimit(0)
 						if err != nil {
 							revertMemory()
 							return err
 						}
 					} else {
-						err = cg.SetMemoryMax(memoryInt)
+						err = cg.SetMemoryLimit(memoryInt)
 						if err != nil {
 							revertMemory()
 							return err
@@ -4421,7 +4421,7 @@ func (c *lxc) Update(args db.InstanceArgs, userRequested bool) error {
 					}
 				}
 
-				err = cg.SetMaxHugepages(pageType, valueInt)
+				err = cg.SetHugepagesLimit(pageType, valueInt)
 				if err != nil {
 					return err
 				}
