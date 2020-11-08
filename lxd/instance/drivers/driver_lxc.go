@@ -1141,28 +1141,30 @@ func (c *lxc) initLXC(config bool) error {
 			}
 
 			if memoryEnforce == "soft" {
-				err = cg.SetMemorySoftLimit(fmt.Sprintf("%d", valueInt))
+				err = cg.SetMemorySoftLimit(valueInt)
 				if err != nil {
 					return err
 				}
 			} else {
 				if c.state.OS.CGInfo.Supports(cgroup.MemorySwap, cg) && (memorySwap == "" || shared.IsTrue(memorySwap)) {
-					err = cg.SetMemoryMaxUsage(fmt.Sprintf("%d", valueInt))
+					err = cg.SetMemoryLimit(valueInt)
 					if err != nil {
 						return err
 					}
-					err = cg.SetMemorySwapMax(fmt.Sprintf("%d", valueInt))
+
+					err = cg.SetMemorySwapLimit(0)
 					if err != nil {
 						return err
 					}
 				} else {
-					err = cg.SetMemoryMaxUsage(fmt.Sprintf("%d", valueInt))
+					err = cg.SetMemoryLimit(valueInt)
 					if err != nil {
 						return err
 					}
 				}
+
 				// Set soft limit to value 10% less than hard limit
-				err = cg.SetMemorySoftLimit(fmt.Sprintf("%.0f", float64(valueInt)*0.9))
+				err = cg.SetMemorySoftLimit(int64(float64(valueInt) * 0.9))
 				if err != nil {
 					return err
 				}
@@ -1172,7 +1174,7 @@ func (c *lxc) initLXC(config bool) error {
 		if c.state.OS.CGInfo.Supports(cgroup.MemorySwappiness, cg) {
 			// Configure the swappiness
 			if memorySwap != "" && !shared.IsTrue(memorySwap) {
-				err = cg.SetMemorySwappiness("0")
+				err = cg.SetMemorySwappiness(0)
 				if err != nil {
 					return err
 				}
@@ -1181,7 +1183,8 @@ func (c *lxc) initLXC(config bool) error {
 				if err != nil {
 					return err
 				}
-				err = cg.SetMemorySwappiness(fmt.Sprintf("%d", 60-10+priority))
+
+				err = cg.SetMemorySwappiness(int64(60 - 10 + priority))
 				if err != nil {
 					return err
 				}
@@ -1199,21 +1202,21 @@ func (c *lxc) initLXC(config bool) error {
 			return err
 		}
 
-		if cpuShares != "1024" {
+		if cpuShares != 1024 {
 			err = cg.SetCPUShare(cpuShares)
 			if err != nil {
 				return err
 			}
 		}
 
-		if cpuCfsPeriod != "-1" {
+		if cpuCfsPeriod != -1 {
 			err = cg.SetCPUCfsPeriod(cpuCfsPeriod)
 			if err != nil {
 				return err
 			}
 		}
 
-		if cpuCfsQuota != "-1" {
+		if cpuCfsQuota != -1 {
 			err = cg.SetCPUCfsQuota(cpuCfsQuota)
 			if err != nil {
 				return err
@@ -1242,13 +1245,12 @@ func (c *lxc) initLXC(config bool) error {
 		for i, key := range shared.HugePageSizeKeys {
 			value := c.expandedConfig[key]
 			if value != "" {
-				valueInt, err := units.ParseByteSizeString(value)
+				value, err := units.ParseByteSizeString(value)
 				if err != nil {
 					return err
 				}
-				value = fmt.Sprintf("%d", valueInt)
 
-				err = cg.SetMaxHugepages(shared.HugePageSizeSuffix[i], value)
+				err = cg.SetHugepagesLimit(shared.HugePageSizeSuffix[i], value)
 				if err != nil {
 					return err
 				}
@@ -4179,12 +4181,12 @@ func (c *lxc) Update(args db.InstanceArgs, userRequested bool) error {
 				}
 
 				// Minimum valid value is 10
-				priority := priorityInt * 100
+				priority := int64(priorityInt * 100)
 				if priority == 0 {
 					priority = 10
 				}
 
-				cg.SetBlkioWeight(fmt.Sprintf("%d", priority))
+				cg.SetBlkioWeight(priority)
 				if err != nil {
 					return err
 				}
@@ -4198,10 +4200,11 @@ func (c *lxc) Update(args db.InstanceArgs, userRequested bool) error {
 				memory := c.expandedConfig["limits.memory"]
 				memoryEnforce := c.expandedConfig["limits.memory.enforce"]
 				memorySwap := c.expandedConfig["limits.memory.swap"]
+				var memoryInt int64
 
 				// Parse memory
 				if memory == "" {
-					memory = "-1"
+					memoryInt = -1
 				} else if strings.HasSuffix(memory, "%") {
 					percent, err := strconv.ParseInt(strings.TrimSuffix(memory, "%"), 10, 64)
 					if err != nil {
@@ -4213,62 +4216,62 @@ func (c *lxc) Update(args db.InstanceArgs, userRequested bool) error {
 						return err
 					}
 
-					memory = fmt.Sprintf("%d", int64((memoryTotal/100)*percent))
+					memoryInt = int64((memoryTotal / 100) * percent)
 				} else {
-					valueInt, err := units.ParseByteSizeString(memory)
+					memoryInt, err = units.ParseByteSizeString(memory)
 					if err != nil {
 						return err
 					}
-					memory = fmt.Sprintf("%d", valueInt)
 				}
 
 				// Store the old values for revert
-				oldMemswLimit := ""
+				oldMemswLimit := int64(-1)
 				if c.state.OS.CGInfo.Supports(cgroup.MemorySwap, cg) {
 					oldMemswLimit, err = cg.GetMemorySwapLimit()
 					if err != nil {
-						oldMemswLimit = ""
+						oldMemswLimit = -1
 					}
 				}
-				oldLimit, err := cg.GetMaxMemory()
+				oldLimit, err := cg.GetMemoryLimit()
 				if err != nil {
-					oldLimit = ""
+					oldLimit = -1
 				}
+
 				oldSoftLimit, err := cg.GetMemorySoftLimit()
 				if err != nil {
-					oldSoftLimit = ""
+					oldSoftLimit = -1
 				}
 
 				revertMemory := func() {
-					if oldSoftLimit != "" {
+					if oldSoftLimit != -1 {
 						cg.SetMemorySoftLimit(oldSoftLimit)
 					}
 
-					if oldLimit != "" {
-						cg.SetMemoryMaxUsage(oldLimit)
+					if oldLimit != -1 {
+						cg.SetMemoryLimit(oldLimit)
 					}
 
-					if oldMemswLimit != "" {
-						cg.SetMemorySwapMax(oldMemswLimit)
+					if oldMemswLimit != -1 {
+						cg.SetMemorySwapLimit(oldMemswLimit)
 					}
 				}
 
 				// Reset everything
 				if c.state.OS.CGInfo.Supports(cgroup.MemorySwap, cg) {
-					err = cg.SetMemorySwapMax("-1")
+					err = cg.SetMemorySwapLimit(-1)
 					if err != nil {
 						revertMemory()
 						return err
 					}
 				}
 
-				err = cg.SetMemoryMaxUsage("-1")
+				err = cg.SetMemoryLimit(-1)
 				if err != nil {
 					revertMemory()
 					return err
 				}
 
-				err = cg.SetMemorySoftLimit("-1")
+				err = cg.SetMemorySoftLimit(-1)
 				if err != nil {
 					revertMemory()
 					return err
@@ -4277,26 +4280,26 @@ func (c *lxc) Update(args db.InstanceArgs, userRequested bool) error {
 				// Set the new values
 				if memoryEnforce == "soft" {
 					// Set new limit
-					err = cg.SetMemorySoftLimit(memory)
+					err = cg.SetMemorySoftLimit(memoryInt)
 					if err != nil {
 						revertMemory()
 						return err
 					}
 				} else {
 					if c.state.OS.CGInfo.Supports(cgroup.MemorySwap, cg) && (memorySwap == "" || shared.IsTrue(memorySwap)) {
-						err = cg.SetMemoryMaxUsage(memory)
+						err = cg.SetMemoryLimit(memoryInt)
 						if err != nil {
 							revertMemory()
 							return err
 						}
 
-						err = cg.SetMemorySwapMax(memory)
+						err = cg.SetMemorySwapLimit(0)
 						if err != nil {
 							revertMemory()
 							return err
 						}
 					} else {
-						err = cg.SetMemoryMaxUsage(memory)
+						err = cg.SetMemoryLimit(memoryInt)
 						if err != nil {
 							revertMemory()
 							return err
@@ -4304,13 +4307,7 @@ func (c *lxc) Update(args db.InstanceArgs, userRequested bool) error {
 					}
 
 					// Set soft limit to value 10% less than hard limit
-					valueInt, err := strconv.ParseInt(memory, 10, 64)
-					if err != nil {
-						revertMemory()
-						return err
-					}
-
-					err = cg.SetMemorySoftLimit(fmt.Sprintf("%.0f", float64(valueInt)*0.9))
+					err = cg.SetMemorySoftLimit(int64(float64(memoryInt) * 0.9))
 					if err != nil {
 						revertMemory()
 						return err
@@ -4326,7 +4323,7 @@ func (c *lxc) Update(args db.InstanceArgs, userRequested bool) error {
 					memorySwap := c.expandedConfig["limits.memory.swap"]
 					memorySwapPriority := c.expandedConfig["limits.memory.swap.priority"]
 					if memorySwap != "" && !shared.IsTrue(memorySwap) {
-						err = cg.SetMemorySwappiness("0")
+						err = cg.SetMemorySwappiness(0)
 						if err != nil {
 							return err
 						}
@@ -4338,7 +4335,8 @@ func (c *lxc) Update(args db.InstanceArgs, userRequested bool) error {
 								return err
 							}
 						}
-						err = cg.SetMemorySwappiness(fmt.Sprintf("%d", 60-10+priority))
+
+						err = cg.SetMemorySwappiness(int64(60 - 10 + priority))
 						if err != nil {
 							return err
 						}
@@ -4415,15 +4413,15 @@ func (c *lxc) Update(args db.InstanceArgs, userRequested bool) error {
 					pageType = "1GB"
 				}
 
+				valueInt := int64(-1)
 				if value != "" {
-					valueInt, err := units.ParseByteSizeString(value)
+					valueInt, err = units.ParseByteSizeString(value)
 					if err != nil {
 						return err
 					}
-					value = fmt.Sprintf("%d", valueInt)
 				}
 
-				err = cg.SetMaxHugepages(pageType, value)
+				err = cg.SetHugepagesLimit(pageType, valueInt)
 				if err != nil {
 					return err
 				}
@@ -5778,13 +5776,7 @@ func (c *lxc) cpuState() api.InstanceStateCPU {
 		return cpu
 	}
 
-	valueInt, err := strconv.ParseInt(value, 10, 64)
-	if err != nil {
-		cpu.Usage = -1
-		return cpu
-	}
-
-	cpu.Usage = valueInt
+	cpu.Usage = value
 
 	return cpu
 }
@@ -5850,17 +5842,15 @@ func (c *lxc) memoryState() api.InstanceStateMemory {
 
 	// Memory in bytes
 	value, err := cg.GetMemoryUsage()
-	valueInt, err1 := strconv.ParseInt(value, 10, 64)
-	if err == nil && err1 == nil {
-		memory.Usage = valueInt
+	if err == nil {
+		memory.Usage = value
 	}
 
 	// Memory peak in bytes
 	if c.state.OS.CGInfo.Supports(cgroup.MemoryMaxUsage, cg) {
 		value, err = cg.GetMemoryMaxUsage()
-		valueInt, err1 = strconv.ParseInt(value, 10, 64)
-		if err == nil && err1 == nil {
-			memory.UsagePeak = valueInt
+		if err == nil {
+			memory.UsagePeak = value
 		}
 	}
 
@@ -5868,18 +5858,16 @@ func (c *lxc) memoryState() api.InstanceStateMemory {
 		// Swap in bytes
 		if memory.Usage > 0 {
 			value, err := cg.GetMemorySwapUsage()
-			valueInt, err1 := strconv.ParseInt(value, 10, 64)
-			if err == nil && err1 == nil {
-				memory.SwapUsage = valueInt - memory.Usage
+			if err == nil {
+				memory.SwapUsage = value
 			}
 		}
 
 		// Swap peak in bytes
 		if memory.UsagePeak > 0 {
-			value, err = cg.GetMemorySwMaxUsage()
-			valueInt, err1 = strconv.ParseInt(value, 10, 64)
-			if err == nil && err1 == nil {
-				memory.SwapUsagePeak = valueInt - memory.UsagePeak
+			value, err = cg.GetMemorySwapMaxUsage()
+			if err == nil {
+				memory.SwapUsagePeak = value
 			}
 		}
 	}
@@ -5972,12 +5960,7 @@ func (c *lxc) processesState() int64 {
 			return -1
 		}
 
-		valueInt, err := strconv.ParseInt(value, 10, 64)
-		if err != nil {
-			return -1
-		}
-
-		return valueInt
+		return value
 	}
 
 	pids := []int64{int64(pid)}
@@ -7048,6 +7031,10 @@ func (c *lxc) maasDelete() error {
 	}
 
 	return c.state.MAAS.DeleteContainer(c)
+}
+
+func (c *lxc) CGroup() (*cgroup.CGroup, error) {
+	return c.cgroup(nil)
 }
 
 func (c *lxc) cgroup(cc *liblxc.Container) (*cgroup.CGroup, error) {
