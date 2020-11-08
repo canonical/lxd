@@ -123,39 +123,46 @@ func (info *Info) SupportsVersion(resource Resource) (Backend, bool) {
 	switch resource {
 	case Blkio:
 		val, ok := cgControllers["blkio"]
-		if ok && val == V1 {
-			return V1, ok
+		if ok {
+			return val, ok
+		}
+
+		val, ok = cgControllers["io"]
+		if ok {
+			return val, ok
 		}
 
 		return Unavailable, false
 	case BlkioWeight:
 		val, ok := cgControllers["blkio.weight"]
-		if ok && val == V1 {
-			return V1, ok
+		if ok {
+			return val, ok
+		}
+
+		val, ok = cgControllers["io"]
+		if ok {
+			return val, ok
 		}
 
 		return Unavailable, false
 	case CPU:
 		val, ok := cgControllers["cpu"]
-		if ok && val == V1 {
-			return V1, ok
-		}
-
-		return Unavailable, false
+		return val, ok
 	case CPUAcct:
 		val, ok := cgControllers["cpuacct"]
-		if ok && val == V1 {
-			return V1, ok
+		if ok {
+			return val, ok
+		}
+
+		val, ok = cgControllers["cpu"]
+		if ok {
+			return val, ok
 		}
 
 		return Unavailable, false
 	case CPUSet:
-		val, ok := cgControllers["cpuset"]
-		if ok && val == V1 {
-			return V1, ok
-		}
-
-		return Unavailable, false
+		val, ok := cgControllers["memory"]
+		return val, ok
 	case Devices:
 		val, ok := cgControllers["devices"]
 		return val, ok
@@ -185,8 +192,8 @@ func (info *Info) SupportsVersion(resource Resource) (Backend, bool) {
 		return Unavailable, false
 	case MemorySwapMaxUsage:
 		val, ok := cgControllers["memory.memsw.max_usage_in_bytes"]
-		if ok && val == V1 {
-			return V1, ok
+		if ok {
+			return val, ok
 		}
 
 		return Unavailable, false
@@ -204,22 +211,18 @@ func (info *Info) SupportsVersion(resource Resource) (Backend, bool) {
 		return Unavailable, false
 	case MemorySwappiness:
 		val, ok := cgControllers["memory.swappiness"]
-		if ok && val == V1 {
-			return V1, ok
+		if ok {
+			return val, ok
 		}
 
 		return Unavailable, false
 	case NetPrio:
 		val, ok := cgControllers["net_prio"]
-		if ok && val == V1 {
-			return V1, ok
-		}
-
-		return Unavailable, false
+		return val, ok
 	case Pids:
 		val, ok := cgControllers["pids"]
-		if ok && val == V1 {
-			return V1, ok
+		if ok {
+			return val, ok
 		}
 
 		return Unavailable, false
@@ -243,11 +246,11 @@ func (info *Info) Log() {
 	logger.Infof(" - cgroup layout: %s", info.Mode())
 
 	if !info.Supports(Blkio, nil) {
-		logger.Warnf(" - Couldn't find the CGroup blkio, I/O limits will be ignored")
+		logger.Warnf(" - Couldn't find the CGroup blkio, disk I/O limits will be ignored")
 	}
 
 	if !info.Supports(BlkioWeight, nil) {
-		logger.Warnf(" - Couldn't find the CGroup blkio.weight, I/O weight limits will be ignored")
+		logger.Warnf(" - Couldn't find the CGroup blkio.weight, disk priority will be ignored")
 	}
 
 	if !info.Supports(CPU, nil) {
@@ -279,7 +282,7 @@ func (info *Info) Log() {
 	}
 
 	if !info.Supports(NetPrio, nil) {
-		logger.Warnf(" - Couldn't find the CGroup network class controller, network limits will be ignored")
+		logger.Warnf(" - Couldn't find the CGroup network priority controller, network priority will be ignored")
 	}
 
 	if !info.Supports(Pids, nil) {
@@ -413,11 +416,11 @@ func init() {
 
 	val, ok = cgControllers["memory"]
 	if ok && val == V2 {
-		if shared.PathExists("/sys/fs/cgroup/memory.swap.max") {
+		if shared.PathExists("/sys/fs/cgroup/init.scope/memory.swap.max") {
 			cgControllers["memory.swap.max"] = V2
 		}
 
-		if shared.PathExists("/sys/fs/cgroup/memory.swap.current") {
+		if shared.PathExists("/sys/fs/cgroup/init.scope/memory.swap.current") {
 			cgControllers["memory.swap.current"] = V2
 		}
 	}
@@ -428,5 +431,13 @@ func init() {
 		cgLayout = CgroupsLegacy
 	} else if hasV2 {
 		cgLayout = CgroupsUnified
+	}
+
+	if cgLayout == CgroupsUnified {
+		// With Cgroup2 devices is built-in (through eBPF).
+		cgControllers["devices"] = V2
+
+		// With Cgroup2 freezer is built-in.
+		cgControllers["freezer"] = V2
 	}
 }

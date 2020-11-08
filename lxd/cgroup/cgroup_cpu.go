@@ -20,53 +20,53 @@ func TaskSchedulerTrigger(srcType string, srcName string, srcStatus string) {
 }
 
 // ParseCPU parses CPU allowances.
-func ParseCPU(cpuAllowance string, cpuPriority string) (string, string, string, error) {
+func ParseCPU(cpuAllowance string, cpuPriority string) (int64, int64, int64, error) {
 	var err error
 
 	// Parse priority
-	cpuShares := 0
+	cpuShares := int64(0)
 	cpuPriorityInt := 10
 	if cpuPriority != "" {
 		cpuPriorityInt, err = strconv.Atoi(cpuPriority)
 		if err != nil {
-			return "", "", "", err
+			return -1, -1, -1, err
 		}
 	}
-	cpuShares -= 10 - cpuPriorityInt
+	cpuShares -= int64(10 - cpuPriorityInt)
 
 	// Parse allowance
-	cpuCfsQuota := "-1"
-	cpuCfsPeriod := "100000"
+	cpuCfsQuota := int64(-1)
+	cpuCfsPeriod := int64(100000)
 
 	if cpuAllowance != "" {
 		if strings.HasSuffix(cpuAllowance, "%") {
 			// Percentage based allocation
 			percent, err := strconv.Atoi(strings.TrimSuffix(cpuAllowance, "%"))
 			if err != nil {
-				return "", "", "", err
+				return -1, -1, -1, err
 			}
 
-			cpuShares += (10 * percent) + 24
+			cpuShares += int64((10 * percent) + 24)
 		} else {
 			// Time based allocation
 			fields := strings.SplitN(cpuAllowance, "/", 2)
 			if len(fields) != 2 {
-				return "", "", "", fmt.Errorf("Invalid allowance: %s", cpuAllowance)
+				return -1, -1, -1, fmt.Errorf("Invalid allowance: %s", cpuAllowance)
 			}
 
 			quota, err := strconv.Atoi(strings.TrimSuffix(fields[0], "ms"))
 			if err != nil {
-				return "", "", "", err
+				return -1, -1, -1, err
 			}
 
 			period, err := strconv.Atoi(strings.TrimSuffix(fields[1], "ms"))
 			if err != nil {
-				return "", "", "", err
+				return -1, -1, -1, err
 			}
 
 			// Set limit in ms
-			cpuCfsQuota = fmt.Sprintf("%d", quota*1000)
-			cpuCfsPeriod = fmt.Sprintf("%d", period*1000)
+			cpuCfsQuota = int64(quota * 1000)
+			cpuCfsPeriod = int64(period * 1000)
 			cpuShares += 1024
 		}
 	} else {
@@ -79,5 +79,5 @@ func ParseCPU(cpuAllowance string, cpuPriority string) (string, string, string, 
 		cpuShares = 0
 	}
 
-	return fmt.Sprintf("%d", cpuShares), cpuCfsQuota, cpuCfsPeriod, nil
+	return cpuShares, cpuCfsQuota, cpuCfsPeriod, nil
 }
