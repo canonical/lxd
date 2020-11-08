@@ -74,8 +74,8 @@ func (cg *CGroup) SetMemorySoftLimit(limit int64) error {
 	return ErrUnknownVersion
 }
 
-// GetMaxMemory return the hard limit for memory
-func (cg *CGroup) GetMaxMemory() (int64, error) {
+// GetMemoryLimit return the hard limit for memory
+func (cg *CGroup) GetMemoryLimit() (int64, error) {
 	version := cgControllers["memory"]
 	switch version {
 	case Unavailable:
@@ -99,8 +99,8 @@ func (cg *CGroup) GetMaxMemory() (int64, error) {
 	return -1, ErrUnknownVersion
 }
 
-// SetMemoryMax sets the hard limit for memory
-func (cg *CGroup) SetMemoryMax(limit int64) error {
+// SetMemoryLimit sets the hard limit for memory
+func (cg *CGroup) SetMemoryLimit(limit int64) error {
 	version := cgControllers["memory"]
 	switch version {
 	case Unavailable:
@@ -163,8 +163,8 @@ func (cg *CGroup) GetProcessesUsage() (int64, error) {
 	return -1, ErrUnknownVersion
 }
 
-// SetMemorySwapMax sets the hard limit for swap
-func (cg *CGroup) SetMemorySwapMax(limit int64) error {
+// SetMemorySwapLimit sets the hard limit for swap
+func (cg *CGroup) SetMemorySwapLimit(limit int64) error {
 	version := cgControllers["memory"]
 	switch version {
 	case Unavailable:
@@ -458,8 +458,8 @@ func (cg *CGroup) SetNetIfPrio(limit string) error {
 	return ErrUnknownVersion
 }
 
-// SetMaxHugepages applies a limit to the number of processes
-func (cg *CGroup) SetMaxHugepages(pageType string, limit int64) error {
+// SetHugepagesLimit applies a limit to the number of processes
+func (cg *CGroup) SetHugepagesLimit(pageType string, limit int64) error {
 	version := cgControllers["hugetlb"]
 	switch version {
 	case Unavailable:
