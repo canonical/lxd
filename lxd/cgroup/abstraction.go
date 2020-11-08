@@ -376,7 +376,12 @@ func (cg *CGroup) GetBlkioWeight() (int64, error) {
 
 		return strconv.ParseInt(val, 10, 64)
 	case V2:
-		return -1, ErrControllerMissing
+		val, err := cg.rw.Get(version, "io", "io.weight")
+		if err != nil {
+			return -1, err
+		}
+
+		return strconv.ParseInt(val, 10, 64)
 	}
 
 	return -1, ErrUnknownVersion
@@ -391,7 +396,7 @@ func (cg *CGroup) SetBlkioWeight(limit int64) error {
 	case V1:
 		return cg.rw.Set(version, "blkio", "blkio.weight", fmt.Sprintf("%d", limit))
 	case V2:
-		return ErrControllerMissing
+		return cg.rw.Set(version, "blkio", "io.weight", fmt.Sprintf("%d", limit))
 	}
 
 	return ErrUnknownVersion
