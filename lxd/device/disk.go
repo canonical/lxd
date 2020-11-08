@@ -716,31 +716,6 @@ func (d *disk) applyQuota(newSize string) error {
 
 // generateLimits adds a set of cgroup rules to apply specified limits to the supplied RunConfig.
 func (d *disk) generateLimits(runConf *deviceConfig.RunConfig) error {
-	// Disk priority limits.
-	diskPriority := d.inst.ExpandedConfig()["limits.disk.priority"]
-	if diskPriority != "" {
-		if d.state.OS.CGInfo.Supports(cgroup.BlkioWeight, nil) {
-			priorityInt, err := strconv.Atoi(diskPriority)
-			if err != nil {
-				return err
-			}
-
-			priority := priorityInt * 100
-
-			// Minimum valid value is 10
-			if priority == 0 {
-				priority = 10
-			}
-
-			runConf.CGroups = append(runConf.CGroups, deviceConfig.RunConfigItem{
-				Key:   "blkio.weight",
-				Value: fmt.Sprintf("%d", priority),
-			})
-		} else {
-			return fmt.Errorf("Cannot apply limits.disk.priority as blkio.weight cgroup controller is missing")
-		}
-	}
-
 	// Disk throttle limits.
 	hasDiskLimits := false
 	for _, dev := range d.inst.ExpandedDevices() {
