@@ -1224,6 +1224,31 @@ func (c *lxc) initLXC(config bool) error {
 		}
 	}
 
+	// Disk priority limits.
+	diskPriority := c.ExpandedConfig()["limits.disk.priority"]
+	if diskPriority != "" {
+		if c.state.OS.CGInfo.Supports(cgroup.BlkioWeight, nil) {
+			priorityInt, err := strconv.Atoi(diskPriority)
+			if err != nil {
+				return err
+			}
+
+			priority := priorityInt * 100
+
+			// Minimum valid value is 10
+			if priority == 0 {
+				priority = 10
+			}
+
+			err = cg.SetBlkioWeight(int64(priority))
+			if err != nil {
+				return err
+			}
+		} else {
+			return fmt.Errorf("Cannot apply limits.disk.priority as blkio.weight cgroup controller is missing")
+		}
+	}
+
 	// Processes
 	if c.state.OS.CGInfo.Supports(cgroup.Pids, cg) {
 		processes := c.expandedConfig["limits.processes"]
