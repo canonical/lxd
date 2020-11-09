@@ -812,6 +812,6 @@ func PathNameDecode(text string) string {
 }
 
 // OperationLockName returns the storage specific lock name to use with locking package.
-func OperationLockName(poolName string, volType string, volName string) string {
-	return fmt.Sprintf("%s/%s/%s", poolName, volType, volName)
+func OperationLockName(operationName string, poolName string, volType VolumeType, contentType ContentType, volName string) string {
+	return fmt.Sprintf("%s/%s/%s/%s/%s", operationName, poolName, volType, contentType, volName)
 }
