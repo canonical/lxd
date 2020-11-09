@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"path/filepath"
 	"strings"
 
 	"github.com/lxc/lxd/lxd/backup"
@@ -19,67 +18,29 @@ import (
 var supportedVolumeTypes = []int{db.StoragePoolVolumeTypeContainer, db.StoragePoolVolumeTypeVM, db.StoragePoolVolumeTypeCustom, db.StoragePoolVolumeTypeImage}
 var supportedVolumeTypesInstances = []int{db.StoragePoolVolumeTypeContainer, db.StoragePoolVolumeTypeVM}
 
-func storagePoolVolumeUpdateUsers(d *Daemon, projectName string, oldPoolName string, oldVolumeName string, newPoolName string, newVolumeName string) error {
+func storagePoolVolumeUpdateUsers(d *Daemon, projectName string, oldPoolName string, oldVol *api.StorageVolume, newPoolName string, newVol *api.StorageVolume) error {
 	s := d.State()
-	// update all instances
-	insts, err := instance.LoadByProject(s, projectName)
-	if err != nil {
-		return err
-	}
 
-	for _, inst := range insts {
-		devices := inst.LocalDevices()
-		found := false
-		for k := range devices {
-			if devices[k]["type"] != "disk" {
-				continue
-			}
-
-			// Can't be a storage volume.
-			if filepath.IsAbs(devices[k]["source"]) {
-				continue
-			}
-
-			if filepath.Clean(devices[k]["pool"]) != oldPoolName {
-				continue
-			}
-
-			dir, file := filepath.Split(devices[k]["source"])
-			dir = filepath.Clean(dir)
-			if dir != db.StoragePoolVolumeTypeNameCustom {
-				continue
-			}
-
-			file = filepath.Clean(file)
-			if file != oldVolumeName {
-				continue
-			}
-
-			// found entry
-			found = true
-
-			if oldPoolName != newPoolName {
-				devices[k]["pool"] = newPoolName
-			}
-
-			if oldVolumeName != newVolumeName {
-				newSource := newVolumeName
-				if dir != "" {
-					newSource = fmt.Sprintf("%s/%s", db.StoragePoolVolumeTypeNameCustom, newVolumeName)
-				}
-				devices[k]["source"] = newSource
-			}
+	// Update all instances that are using the volume with a local (non-expanded) device.
+	err := storagePools.VolumeUsedByInstanceDevices(s, oldPoolName, projectName, oldVol, false, func(dbInst db.Instance, project api.Project, profiles []api.Profile, usedByDevices []string) error {
+		inst, err := instance.Load(s, db.InstanceToArgs(&dbInst), profiles)
+		if err != nil {
+			return err
 		}
 
-		if !found {
-			continue
+		localDevices := inst.LocalDevices()
+		for _, devName := range usedByDevices {
+			if _, exists := localDevices[devName]; exists {
+				localDevices[devName]["pool"] = newPoolName
+				localDevices[devName]["source"] = newVol.Name
+			}
 		}
 
 		args := db.InstanceArgs{
 			Architecture: inst.Architecture(),
 			Description:  inst.Description(),
 			Config:       inst.LocalConfig(),
-			Devices:      devices,
+			Devices:      localDevices,
 			Ephemeral:    inst.IsEphemeral(),
 			Profiles:     inst.Profiles(),
 			Project:      inst.Project(),
@@ -91,74 +52,36 @@ func storagePoolVolumeUpdateUsers(d *Daemon, projectName string, oldPoolName str
 		if err != nil {
 			return err
 		}
-	}
 
-	// update all profiles
-	profiles, err := s.Cluster.GetProfileNames(project.Default)
+		return nil
+	})
 	if err != nil {
 		return err
 	}
 
-	for _, pName := range profiles {
-		id, profile, err := s.Cluster.GetProfile(project.Default, pName)
-		if err != nil {
-			return err
-		}
-
-		found := false
-		for k := range profile.Devices {
-			if profile.Devices[k]["type"] != "disk" {
-				continue
+	// Update all profiles that are using the volume with a device.
+	err = storagePools.VolumeUsedByProfileDevices(s, oldPoolName, projectName, oldVol, func(profile db.Profile, p api.Project, usedByDevices []string) error {
+		for _, devName := range usedByDevices {
+			if _, exists := profile.Devices[devName]; exists {
+				profile.Devices[devName]["pool"] = newPoolName
+				profile.Devices[devName]["source"] = newVol.Name
 			}
-
-			// Can't be a storage volume.
-			if filepath.IsAbs(profile.Devices[k]["source"]) {
-				continue
-			}
-
-			if filepath.Clean(profile.Devices[k]["pool"]) != oldPoolName {
-				continue
-			}
-
-			dir, file := filepath.Split(profile.Devices[k]["source"])
-			dir = filepath.Clean(dir)
-			if dir != db.StoragePoolVolumeTypeNameCustom {
-				continue
-			}
-
-			file = filepath.Clean(file)
-			if file != oldVolumeName {
-				continue
-			}
-
-			// found entry
-			found = true
-
-			if oldPoolName != newPoolName {
-				profile.Devices[k]["pool"] = newPoolName
-			}
-
-			if oldVolumeName != newVolumeName {
-				newSource := newVolumeName
-				if dir != "" {
-					newSource = fmt.Sprintf("%s/%s", db.StoragePoolVolumeTypeNameCustom, newVolumeName)
-				}
-				profile.Devices[k]["source"] = newSource
-			}
-		}
-
-		if !found {
-			continue
 		}
 
 		pUpdate := api.ProfilePut{}
 		pUpdate.Config = profile.Config
 		pUpdate.Description = profile.Description
 		pUpdate.Devices = profile.Devices
-		err = doProfileUpdate(d, project.Default, pName, id, profile, pUpdate)
+		apiProfile := db.ProfileToAPI(&profile)
+		err = doProfileUpdate(d, profile.Project, profile.Name, int64(profile.ID), apiProfile, pUpdate)
 		if err != nil {
 			return err
 		}
+
+		return nil
+	})
+	if err != nil {
+		return err
 	}
 
 	return nil
