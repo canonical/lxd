@@ -433,6 +433,12 @@ func init() {
 		cgLayout = CgroupsUnified
 	}
 
+	// "io" and "blkio" controllers are the same thing.
+	val, ok = cgControllers["io"]
+	if ok {
+		cgControllers["blkio"] = val
+	}
+
 	if cgLayout == CgroupsUnified {
 		// With Cgroup2 devices is built-in (through eBPF).
 		cgControllers["devices"] = V2
