@@ -49,6 +49,7 @@ import (
 	"github.com/lxc/lxd/lxd/response"
 	"github.com/lxc/lxd/lxd/seccomp"
 	"github.com/lxc/lxd/lxd/state"
+	storageDrivers "github.com/lxc/lxd/lxd/storage/drivers"
 	"github.com/lxc/lxd/lxd/sys"
 	"github.com/lxc/lxd/lxd/task"
 	"github.com/lxc/lxd/lxd/util"
@@ -860,6 +861,9 @@ func (d *Daemon) init() error {
 	if err != nil {
 		return err
 	}
+
+	// Have the db package determine remote storage drivers
+	db.StorageRemoteDriverNames = storageDrivers.RemoteDriverNames
 
 	/* Open the cluster database */
 	for {

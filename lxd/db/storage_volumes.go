@@ -14,6 +14,9 @@ import (
 	"github.com/pkg/errors"
 )
 
+// StorageRemoteDriverNames returns a list of remote storage driver names.
+var StorageRemoteDriverNames func() []string
+
 // GetStoragePoolVolumesNames gets the names of all storage volumes attached to
 // a given storage pool.
 func (c *Cluster) GetStoragePoolVolumesNames(poolID int64) ([]string, error) {
