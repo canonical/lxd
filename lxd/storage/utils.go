@@ -794,7 +794,7 @@ func VolumeUsedByExclusiveRemoteInstancesWithProfiles(s *state.State, poolName s
 	// Find if volume is attached to a remote instance.
 	var errAttached = fmt.Errorf("Volume is remotely attached")
 	var remoteInstance *db.Instance
-	VolumeUsedByInstances(s, poolName, projectName, vol, true, func(dbInst db.Instance, project api.Project, profiles []api.Profile) error {
+	err = VolumeUsedByInstanceDevices(s, poolName, projectName, vol, true, func(dbInst db.Instance, project api.Project, profiles []api.Profile, usedByDevices []string) error {
 		if dbInst.Node != localNode {
 			remoteInstance = &dbInst
 			return errAttached // Stop the search, this volume is attached to a remote instance.
