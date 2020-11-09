@@ -212,18 +212,14 @@ func storagePoolVolumeSnapshotsTypeGet(d *Daemon, r *http.Request) response.Resp
 		_, snapshotName, _ := shared.InstanceGetParentAndSnapshotName(volume.Name)
 
 		if !recursion {
-			apiEndpoint, err := storagePoolVolumeTypeToAPIEndpoint(volumeType)
-			if err != nil {
-				return response.InternalError(err)
-			}
-			resultString = append(resultString, fmt.Sprintf("/%s/storage-pools/%s/volumes/%s/%s/snapshots/%s", version.APIVersion, poolName, apiEndpoint, volumeName, snapshotName))
+			resultString = append(resultString, fmt.Sprintf("/%s/storage-pools/%s/volumes/%s/%s/snapshots/%s", version.APIVersion, poolName, volumeTypeName, volumeName, snapshotName))
 		} else {
 			_, vol, err := d.cluster.GetLocalStoragePoolVolume(projectName, volume.Name, volumeType, poolID)
 			if err != nil {
 				continue
 			}
 
-			volumeUsedBy, err := storagePoolVolumeUsedByGet(d.State(), projectName, poolName, vol.Name, vol.Type)
+			volumeUsedBy, err := storagePoolVolumeUsedByGet(d.State(), projectName, poolName, vol)
 			if err != nil {
 				return response.SmartError(err)
 			}
@@ -340,11 +336,6 @@ func storagePoolVolumeSnapshotTypeGet(d *Daemon, r *http.Request) response.Respo
 	volumeType, err := storagePools.VolumeTypeNameToDBType(volumeTypeName)
 	if err != nil {
 		return response.BadRequest(err)
-	}
-
-	// Check that the storage volume type is valid.
-	if volumeType != db.StoragePoolVolumeTypeCustom {
-		return response.BadRequest(fmt.Errorf("Invalid storage volume type %q", volumeTypeName))
 	}
 
 	projectName, err := project.StorageVolumeProject(d.State().Cluster, projectParam(r), volumeType)
