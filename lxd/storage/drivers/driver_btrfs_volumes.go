@@ -758,6 +758,9 @@ func (d *btrfs) GetVolumeDiskPath(vol Volume) (string, error) {
 // MountVolume simulates mounting a volume. As the driver doesn't have volumes to mount it returns
 // false indicating that there is no need to issue an unmount.
 func (d *btrfs) MountVolume(vol Volume, op *operations.Operation) (bool, error) {
+	unlock := vol.MountLock()
+	defer unlock()
+
 	// Don't attempt to modify the permission of an existing custom volume root.
 	// A user inside the instance may have modified this and we don't want to reset it on restart.
 	if !shared.PathExists(vol.MountPath()) || vol.volType != VolumeTypeCustom {
@@ -773,6 +776,9 @@ func (d *btrfs) MountVolume(vol Volume, op *operations.Operation) (bool, error) 
 // UnmountVolume simulates unmounting a volume.
 // As driver doesn't have volumes to unmount it returns false indicating the volume was already unmounted.
 func (d *btrfs) UnmountVolume(vol Volume, keepBlockDev bool, op *operations.Operation) (bool, error) {
+	unlock := vol.MountLock()
+	defer unlock()
+
 	return false, nil
 }
 
@@ -1276,6 +1282,9 @@ func (d *btrfs) DeleteVolumeSnapshot(snapVol Volume, op *operations.Operation) e
 
 // MountVolumeSnapshot sets up a read-only mount on top of the snapshot to avoid accidental modifications.
 func (d *btrfs) MountVolumeSnapshot(snapVol Volume, op *operations.Operation) (bool, error) {
+	unlock := snapVol.MountLock()
+	defer unlock()
+
 	snapPath := snapVol.MountPath()
 
 	// Don't attempt to modify the permission of an existing custom volume root.
@@ -1292,6 +1301,9 @@ func (d *btrfs) MountVolumeSnapshot(snapVol Volume, op *operations.Operation) (b
 
 // UnmountVolumeSnapshot removes the read-only mount placed on top of a snapshot.
 func (d *btrfs) UnmountVolumeSnapshot(snapVol Volume, op *operations.Operation) (bool, error) {
+	unlock := snapVol.MountLock()
+	defer unlock()
+
 	snapPath := snapVol.MountPath()
 	return forceUnmount(snapPath)
 }

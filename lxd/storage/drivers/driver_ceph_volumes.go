@@ -925,6 +925,9 @@ func (d *ceph) GetVolumeDiskPath(vol Volume) (string, error) {
 
 // MountVolume simulates mounting a volume.
 func (d *ceph) MountVolume(vol Volume, op *operations.Operation) (bool, error) {
+	unlock := vol.MountLock()
+	defer unlock()
+
 	mountPath := vol.MountPath()
 
 	// Activate RBD volume if needed.
@@ -962,6 +965,9 @@ func (d *ceph) MountVolume(vol Volume, op *operations.Operation) (bool, error) {
 // UnmountVolume simulates unmounting a volume.
 // keepBlockDev indicates if backing block device should be not be unmapped if volume is unmounted.
 func (d *ceph) UnmountVolume(vol Volume, keepBlockDev bool, op *operations.Operation) (bool, error) {
+	unlock := vol.MountLock()
+	defer unlock()
+
 	// Attempt to unmount the volume.
 	mountPath := vol.MountPath()
 	if vol.contentType == ContentTypeFS && shared.IsMountPoint(mountPath) {
@@ -1274,6 +1280,9 @@ func (d *ceph) DeleteVolumeSnapshot(snapVol Volume, op *operations.Operation) er
 
 // MountVolumeSnapshot simulates mounting a volume snapshot.
 func (d *ceph) MountVolumeSnapshot(snapVol Volume, op *operations.Operation) (bool, error) {
+	unlock := snapVol.MountLock()
+	defer unlock()
+
 	mountPath := snapVol.MountPath()
 
 	if snapVol.contentType == ContentTypeFS && !shared.IsMountPoint(mountPath) {
@@ -1370,6 +1379,9 @@ func (d *ceph) MountVolumeSnapshot(snapVol Volume, op *operations.Operation) (bo
 
 // UnmountVolume simulates unmounting a volume snapshot.
 func (d *ceph) UnmountVolumeSnapshot(snapVol Volume, op *operations.Operation) (bool, error) {
+	unlock := snapVol.MountLock()
+	defer unlock()
+
 	mountPath := snapVol.MountPath()
 
 	if snapVol.contentType == ContentTypeFS && shared.IsMountPoint(mountPath) {
