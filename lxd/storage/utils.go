@@ -693,6 +693,89 @@ func InstanceContentType(inst instance.Instance) drivers.ContentType {
 	return contentType
 }
 
+// VolumeUsedByProfileDevices finds profiles using a volume and passes them to profileFunc for evaluation.
+// The profileFunc is provided with a profile config, project config and a list of device names that are using
+// the volume.
+func VolumeUsedByProfileDevices(s *state.State, poolName string, projectName string, vol *api.StorageVolume, profileFunc func(profile db.Profile, project api.Project, usedByDevices []string) error) error {
+	// Convert the volume type name to our internal integer representation.
+	volumeType, err := VolumeTypeNameToDBType(vol.Type)
+	if err != nil {
+		return err
+	}
+
+	projectMap := map[string]api.Project{}
+	var profiles []db.Profile
+
+	// Retrieve required info from the database in single transaction for performance.
+	err = s.Cluster.Transaction(func(tx *db.ClusterTx) error {
+		var err error
+
+		projects, err := tx.GetProjects(db.ProjectFilter{})
+		if err != nil {
+			return errors.Wrap(err, "Failed loading projects")
+		}
+
+		// Index of all projects by name.
+		for i, project := range projects {
+			projectMap[project.Name] = projects[i]
+		}
+
+		profiles, err = tx.GetProfiles(db.ProfileFilter{})
+		if err != nil {
+			return errors.Wrap(err, "Failed loading profiles")
+		}
+
+		return nil
+	})
+	if err != nil {
+		return err
+	}
+
+	// Iterate all profiles, consider only those which belong to a project that has the same effective
+	// storage project as volume.
+	for _, profile := range profiles {
+		p := projectMap[profile.Project]
+		profileStorageProject := project.StorageVolumeProjectFromRecord(&p, volumeType)
+		if err != nil {
+			return err
+		}
+
+		// Check profile's storage project is the same as the volume's project.
+		// If not then the volume names mentioned in the profile's config cannot be referring to volumes
+		// in the volume's project we are trying to match, and this profile cannot possibly be using it.
+		if projectName != profileStorageProject {
+			continue
+		}
+
+		var usedByDevices []string
+
+		// Iterate through each of the profiles's devices, looking for disks in the same pool as volume.
+		// Then try and match the volume name against the profile device's "source" property.
+		for devName, dev := range profile.Devices {
+			if dev["type"] != "disk" {
+				continue
+			}
+
+			if dev["pool"] != poolName {
+				continue
+			}
+
+			if dev["source"] == vol.Name {
+				usedByDevices = append(usedByDevices, devName)
+			}
+		}
+
+		if len(usedByDevices) > 0 {
+			err = profileFunc(profile, p, usedByDevices)
+			if err != nil {
+				return err
+			}
+		}
+	}
+
+	return nil
+}
+
 // VolumeUsedByInstanceDevices finds instances using a volume (either directly or via their expanded profiles if
 // expandDevices is true) and passes them to instanceFunc for evaluation. If instanceFunc returns an error then it
 // is returned immediately. The instanceFunc is executed during a DB transaction, so DB queries are not permitted.
