@@ -94,25 +94,25 @@ func storagePoolVolumeUsedByGet(s *state.State, projectName string, poolName str
 		if snap {
 			if projectName == project.Default {
 				return []string{fmt.Sprintf("/%s/instances/%s/snapshots/%s", version.APIVersion, cName, sName)}, nil
-			} else {
-				return []string{fmt.Sprintf("/%s/instances/%s/snapshots/%s?project=%s", version.APIVersion, cName, sName, projectName)}, nil
 			}
+
+			return []string{fmt.Sprintf("/%s/instances/%s/snapshots/%s?project=%s", version.APIVersion, cName, sName, projectName)}, nil
 		}
 
 		if projectName == project.Default {
 			return []string{fmt.Sprintf("/%s/instances/%s", version.APIVersion, cName)}, nil
-		} else {
-			return []string{fmt.Sprintf("/%s/instances/%s?project=%s", version.APIVersion, cName, projectName)}, nil
 		}
+
+		return []string{fmt.Sprintf("/%s/instances/%s?project=%s", version.APIVersion, cName, projectName)}, nil
 	}
 
 	// Handle image volumes.
 	if vol.Type == db.StoragePoolVolumeTypeNameImage {
 		if projectName == project.Default {
 			return []string{fmt.Sprintf("/%s/images/%s", version.APIVersion, vol.Name)}, nil
-		} else {
-			return []string{fmt.Sprintf("/%s/images/%s?project=%s", version.APIVersion, vol.Name, projectName)}, nil
 		}
+
+		return []string{fmt.Sprintf("/%s/images/%s?project=%s", version.APIVersion, vol.Name, projectName)}, nil
 	}
 
 	// Check if the daemon itself is using it.
