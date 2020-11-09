@@ -134,6 +134,11 @@ func (v Volume) MountPath() string {
 	return GetVolumeMountPath(v.pool, v.volType, v.name)
 }
 
+// MountLock attempts to lock the mount lock for the volume and returns the UnlockFunc.
+func (v Volume) MountLock() locking.UnlockFunc {
+	return locking.Lock(OperationLockName("MountLock", v.pool, v.volType, v.contentType, v.name))
+}
+
 // EnsureMountPath creates the volume's mount path if missing, then sets the correct permission for the type.
 // If permission setting fails and the volume is a snapshot then the error is ignored as snapshots are read only.
 func (v Volume) EnsureMountPath() error {
