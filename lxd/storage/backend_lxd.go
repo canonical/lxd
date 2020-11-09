@@ -2842,7 +2842,7 @@ func (b *lxdBackend) UpdateCustomVolume(projectName string, volName string, newD
 
 		// Check for config changing that is not allowed when running instances are using it.
 		if (changedConfig["size"] != "" && !runningQuotaResize) || newConfig["security.shifted"] != curVol.Config["security.shifted"] {
-			err = VolumeUsedByInstances(b.state, b.name, projectName, volName, db.StoragePoolVolumeTypeNameCustom, true, func(dbInst db.Instance, project api.Project, profiles []api.Profile) error {
+			err = VolumeUsedByInstances(b.state, b.name, projectName, curVol, true, func(dbInst db.Instance, project api.Project, profiles []api.Profile) error {
 				inst, err := instance.Load(b.state, db.InstanceToArgs(&dbInst), profiles)
 				if err != nil {
 					return err
@@ -3261,8 +3261,18 @@ func (b *lxdBackend) RestoreCustomVolume(projectName, volName string, snapshotNa
 		return fmt.Errorf("Invalid snapshot name")
 	}
 
+	// Get current volume.
+	_, curVol, err := b.state.Cluster.GetLocalStoragePoolVolume(projectName, volName, db.StoragePoolVolumeTypeCustom, b.ID())
+	if err != nil {
+		if err == db.ErrNoSuchObject {
+			return fmt.Errorf("Volume doesn't exist")
+		}
+
+		return err
+	}
+
 	// Check that the volume isn't in use by running instances.
-	err := VolumeUsedByInstances(b.state, b.Name(), projectName, volName, db.StoragePoolVolumeTypeNameCustom, true, func(dbInst db.Instance, project api.Project, profiles []api.Profile) error {
+	err = VolumeUsedByInstances(b.state, b.Name(), projectName, curVol, true, func(dbInst db.Instance, project api.Project, profiles []api.Profile) error {
 		inst, err := instance.Load(b.state, db.InstanceToArgs(&dbInst), profiles)
 		if err != nil {
 			return err
