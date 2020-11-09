@@ -652,10 +652,12 @@ func InstanceContentType(inst instance.Instance) drivers.ContentType {
 	return contentType
 }
 
-// VolumeUsedByInstances finds instances using a volume (either directly or via their expanded profiles if
+// VolumeUsedByInstanceDevices finds instances using a volume (either directly or via their expanded profiles if
 // expandDevices is true) and passes them to instanceFunc for evaluation. If instanceFunc returns an error then it
 // is returned immediately. The instanceFunc is executed during a DB transaction, so DB queries are not permitted.
-func VolumeUsedByInstances(s *state.State, poolName string, projectName string, vol *api.StorageVolume, expandDevices bool, instanceFunc func(inst db.Instance, project api.Project, profiles []api.Profile) error) error {
+// The instanceFunc is provided with a instance config, project config, instance's profiles and a list of device
+// names that are using the volume.
+func VolumeUsedByInstanceDevices(s *state.State, poolName string, projectName string, vol *api.StorageVolume, expandDevices bool, instanceFunc func(inst db.Instance, project api.Project, profiles []api.Profile, usedByDevices []string) error) error {
 	// Convert the volume type name to our internal integer representation.
 	volumeType, err := VolumeTypeNameToDBType(vol.Type)
 	if err != nil {
@@ -665,7 +667,7 @@ func VolumeUsedByInstances(s *state.State, poolName string, projectName string, 
 	volumeNameWithType := fmt.Sprintf("%s/%s", vol.Type, vol.Name)
 
 	return s.Cluster.InstanceList(func(inst db.Instance, p api.Project, profiles []api.Profile) error {
-		//If the volume has a specific cluster member which is different than the instance then skip as
+		// If the volume has a specific cluster member which is different than the instance then skip as
 		// instance cannot be using this volume.
 		if vol.Location != "" && inst.Node != vol.Location {
 			return nil
@@ -691,9 +693,11 @@ func VolumeUsedByInstances(s *state.State, poolName string, projectName string, 
 			devices = db.ExpandInstanceDevices(deviceConfig.NewDevices(inst.Devices), profiles).CloneNative()
 		}
 
+		var usedByDevices []string
+
 		// Iterate through each of the instance's devices, looking for disks in the same pool as volume.
 		// Then try and match the volume name against the instance device's "source" property.
-		for _, dev := range devices {
+		for devName, dev := range devices {
 			if dev["type"] != "disk" {
 				continue
 			}
@@ -706,10 +710,14 @@ func VolumeUsedByInstances(s *state.State, poolName string, projectName string, 
 			// "container////bla" but only against "container/bla".
 			cleanSource := filepath.Clean(dev["source"])
 			if cleanSource == vol.Name || cleanSource == volumeNameWithType {
-				err = instanceFunc(inst, p, profiles)
-				if err != nil {
-					return err
-				}
+				usedByDevices = append(usedByDevices, devName)
+			}
+		}
+
+		if len(usedByDevices) > 0 {
+			err = instanceFunc(inst, p, profiles, usedByDevices)
+			if err != nil {
+				return err
 			}
 		}
 
