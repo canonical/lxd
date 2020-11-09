@@ -3,6 +3,8 @@ package cgroup
 import (
 	"fmt"
 	"strconv"
+
+	"github.com/lxc/lxd/shared"
 )
 
 // CGroup represents the main cgroup abstraction.
@@ -376,13 +378,18 @@ func (cg *CGroup) GetBlkioWeight() (int64, error) {
 
 		return strconv.ParseInt(val, 10, 64)
 	case V2:
-		return -1, ErrControllerMissing
+		val, err := cg.rw.Get(version, "io", "io.weight")
+		if err != nil {
+			return -1, err
+		}
+
+		return strconv.ParseInt(val, 10, 64)
 	}
 
 	return -1, ErrUnknownVersion
 }
 
-// SetBlkioWeight set the currently allowed range of weights
+// SetBlkioWeight sets the currently allowed range of weights
 func (cg *CGroup) SetBlkioWeight(limit int64) error {
 	version := cgControllers["blkio"]
 	switch version {
@@ -391,7 +398,37 @@ func (cg *CGroup) SetBlkioWeight(limit int64) error {
 	case V1:
 		return cg.rw.Set(version, "blkio", "blkio.weight", fmt.Sprintf("%d", limit))
 	case V2:
+		return cg.rw.Set(version, "io", "io.weight", fmt.Sprintf("%d", limit))
+	}
+
+	return ErrUnknownVersion
+}
+
+// SetBlkioLimit sets the specified read or write limit for a device
+func (cg *CGroup) SetBlkioLimit(dev string, oType string, uType string, limit int64) error {
+	if !shared.StringInSlice(oType, []string{"read", "write"}) {
+		return fmt.Errorf("Invalid I/O operation type: %s", oType)
+	}
+
+	if !shared.StringInSlice(uType, []string{"iops", "bps"}) {
+		return fmt.Errorf("Invalid I/O limit type: %s", uType)
+	}
+
+	version := cgControllers["blkio"]
+	switch version {
+	case Unavailable:
 		return ErrControllerMissing
+	case V1:
+		return cg.rw.Set(version, "blkio", fmt.Sprintf("blkio.throttle.%s_%s_device", oType, uType), fmt.Sprintf("%s %d", dev, limit))
+	case V2:
+		var op string
+		if oType == "read" {
+			op = fmt.Sprintf("r%s", uType)
+		} else if oType == "write" {
+			op = fmt.Sprintf("w%s", uType)
+		}
+
+		return cg.rw.Set(version, "io", "io.max", fmt.Sprintf("%s %s=%d", dev, op, limit))
 	}
 
 	return ErrUnknownVersion
