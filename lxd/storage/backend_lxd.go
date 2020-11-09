@@ -2749,7 +2749,7 @@ func (b *lxdBackend) UpdateCustomVolume(projectName string, volName string, newD
 
 		// Check for config changing that is not allowed when running instances are using it.
 		if (changedConfig["size"] != "" && !runningQuotaResize) || newConfig["security.shifted"] != curVol.Config["security.shifted"] {
-			err = VolumeUsedByInstances(b.state, b.name, projectName, curVol, true, func(dbInst db.Instance, project api.Project, profiles []api.Profile) error {
+			err = VolumeUsedByInstanceDevices(b.state, b.name, projectName, curVol, true, func(dbInst db.Instance, project api.Project, profiles []api.Profile, usedByDevices []string) error {
 				inst, err := instance.Load(b.state, db.InstanceToArgs(&dbInst), profiles)
 				if err != nil {
 					return err
@@ -3105,7 +3105,7 @@ func (b *lxdBackend) RestoreCustomVolume(projectName, volName string, snapshotNa
 	}
 
 	// Check that the volume isn't in use by running instances.
-	err = VolumeUsedByInstances(b.state, b.Name(), projectName, curVol, true, func(dbInst db.Instance, project api.Project, profiles []api.Profile) error {
+	err = VolumeUsedByInstanceDevices(b.state, b.Name(), projectName, curVol, true, func(dbInst db.Instance, project api.Project, profiles []api.Profile, usedByDevices []string) error {
 		inst, err := instance.Load(b.state, db.InstanceToArgs(&dbInst), profiles)
 		if err != nil {
 			return err
