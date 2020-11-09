@@ -334,12 +334,12 @@ func (c *Cluster) InstanceList(instanceFunc func(inst Instance, project api.Proj
 		var err error
 		instances, err = tx.GetInstances(InstanceFilter{Type: instancetype.Any})
 		if err != nil {
-			return errors.Wrap(err, "Load instances")
+			return errors.Wrap(err, "Failed loading instances")
 		}
 
 		projects, err := tx.GetProjects(ProjectFilter{})
 		if err != nil {
-			return errors.Wrap(err, "Load projects")
+			return errors.Wrap(err, "Failed loading projects")
 		}
 
 		// Index of all projects by name and record which projects have the profiles feature.
@@ -350,7 +350,7 @@ func (c *Cluster) InstanceList(instanceFunc func(inst Instance, project api.Proj
 
 		profiles, err := tx.GetProfiles(ProfileFilter{})
 		if err != nil {
-			return errors.Wrap(err, "Load profiles")
+			return errors.Wrap(err, "Failed loading profiles")
 		}
 
 		// Index of all profiles by project and name.

@@ -6726,11 +6726,6 @@ func (c *lxc) LocalConfig() map[string]string {
 	return c.localConfig
 }
 
-// LocalDevices returns local device config.
-func (c *lxc) LocalDevices() deviceConfig.Devices {
-	return c.localDevices
-}
-
 // CurrentIdmap returns current IDMAP.
 func (c *lxc) CurrentIdmap() (*idmap.IdmapSet, error) {
 	jsonIdmap, ok := c.LocalConfig()["volatile.idmap.current"]
