@@ -204,24 +204,19 @@ func storagePoolVolumeUsedByGet(s *state.State, projectName string, poolName str
 	// Look for instances using this volume.
 	volumeUsedBy := []string{}
 
-	instancesUsingVolume := []*db.Instance{}
-
 	// Pass false to expandDevices, as we only want to see instances directly using a volume, rather than their
 	// profiles using a volume.
-	err = storagePools.VolumeUsedByInstances(s, poolName, projectName, vol, false, func(inst db.Instance, project api.Project, profiles []api.Profile) error {
-		instancesUsingVolume = append(instancesUsingVolume, &inst)
-		return nil
-	})
-	if err != nil {
-		return []string{}, err
-	}
-
-	for _, inst := range instancesUsingVolume {
+	err = storagePools.VolumeUsedByInstanceDevices(s, poolName, projectName, vol, false, func(inst db.Instance, p api.Project, profiles []api.Profile, usedByDevices []string) error {
 		if inst.Project == project.Default {
 			volumeUsedBy = append(volumeUsedBy, fmt.Sprintf("/%s/instances/%s", version.APIVersion, inst.Name))
 		} else {
 			volumeUsedBy = append(volumeUsedBy, fmt.Sprintf("/%s/instances/%s?project=%s", version.APIVersion, inst.Name, inst.Project))
 		}
+
+		return nil
+	})
+	if err != nil {
+		return []string{}, err
 	}
 
 	// Look for profiles using this volume.
