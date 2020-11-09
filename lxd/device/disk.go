@@ -716,31 +716,6 @@ func (d *disk) applyQuota(newSize string) error {
 
 // generateLimits adds a set of cgroup rules to apply specified limits to the supplied RunConfig.
 func (d *disk) generateLimits(runConf *deviceConfig.RunConfig) error {
-	// Disk priority limits.
-	diskPriority := d.inst.ExpandedConfig()["limits.disk.priority"]
-	if diskPriority != "" {
-		if d.state.OS.CGInfo.Supports(cgroup.BlkioWeight, nil) {
-			priorityInt, err := strconv.Atoi(diskPriority)
-			if err != nil {
-				return err
-			}
-
-			priority := priorityInt * 100
-
-			// Minimum valid value is 10
-			if priority == 0 {
-				priority = 10
-			}
-
-			runConf.CGroups = append(runConf.CGroups, deviceConfig.RunConfigItem{
-				Key:   "blkio.weight",
-				Value: fmt.Sprintf("%d", priority),
-			})
-		} else {
-			return fmt.Errorf("Cannot apply limits.disk.priority as blkio.weight cgroup controller is missing")
-		}
-	}
-
 	// Disk throttle limits.
 	hasDiskLimits := false
 	for _, dev := range d.inst.ExpandedDevices() {
@@ -763,36 +738,58 @@ func (d *disk) generateLimits(runConf *deviceConfig.RunConfig) error {
 			return err
 		}
 
+		cg, err := cgroup.New(&cgroupWriter{runConf})
+		if err != nil {
+			return err
+		}
+
 		for block, limit := range diskLimits {
 			if limit.readBps > 0 {
-				runConf.CGroups = append(runConf.CGroups, deviceConfig.RunConfigItem{
-					Key:   "blkio.throttle.read_bps_device",
-					Value: fmt.Sprintf("%s %d", block, limit.readBps),
-				})
+				err = cg.SetBlkioLimit(block, "read", "bps", limit.readBps)
+				if err != nil {
+					return err
+				}
 			}
 
 			if limit.readIops > 0 {
-				runConf.CGroups = append(runConf.CGroups, deviceConfig.RunConfigItem{
-					Key:   "blkio.throttle.read_iops_device",
-					Value: fmt.Sprintf("%s %d", block, limit.readIops),
-				})
+				err = cg.SetBlkioLimit(block, "read", "iops", limit.readIops)
+				if err != nil {
+					return err
+				}
 			}
 
 			if limit.writeBps > 0 {
-				runConf.CGroups = append(runConf.CGroups, deviceConfig.RunConfigItem{
-					Key:   "blkio.throttle.write_bps_device",
-					Value: fmt.Sprintf("%s %d", block, limit.writeBps),
-				})
+				err = cg.SetBlkioLimit(block, "write", "bps", limit.writeBps)
+				if err != nil {
+					return err
+				}
 			}
 
 			if limit.writeIops > 0 {
-				runConf.CGroups = append(runConf.CGroups, deviceConfig.RunConfigItem{
-					Key:   "blkio.throttle.write_iops_device",
-					Value: fmt.Sprintf("%s %d", block, limit.writeIops),
-				})
+				err = cg.SetBlkioLimit(block, "write", "iops", limit.writeIops)
+				if err != nil {
+					return err
+				}
 			}
 		}
 	}
+
+	return nil
+}
+
+type cgroupWriter struct {
+	runConf *deviceConfig.RunConfig
+}
+
+func (w *cgroupWriter) Get(version cgroup.Backend, controller string, key string) (string, error) {
+	return "", fmt.Errorf("This cgroup handler does not support reading")
+}
+
+func (w *cgroupWriter) Set(version cgroup.Backend, controller string, key string, value string) error {
+	w.runConf.CGroups = append(w.runConf.CGroups, deviceConfig.RunConfigItem{
+		Key:   key,
+		Value: value,
+	})
 
 	return nil
 }
