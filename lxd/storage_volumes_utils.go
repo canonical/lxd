@@ -143,57 +143,18 @@ func storagePoolVolumeUsedByGet(s *state.State, projectName string, poolName str
 		return []string{}, err
 	}
 
-	// Look for profiles using this volume.
-	profiles, err := profilesUsingPoolVolumeGetNames(s.Cluster, vol.Name, vol.Type)
+	err = storagePools.VolumeUsedByProfileDevices(s, poolName, projectName, vol, func(profile db.Profile, p api.Project, usedByDevices []string) error {
+		if profile.Project == project.Default {
+			volumeUsedBy = append(volumeUsedBy, fmt.Sprintf("/%s/profiles/%s", version.APIVersion, profile.Name))
+		} else {
+			volumeUsedBy = append(volumeUsedBy, fmt.Sprintf("/%s/profiles/%s?project=%s", version.APIVersion, profile.Name, profile.Project))
+		}
+
+		return nil
+	})
 	if err != nil {
 		return []string{}, err
 	}
 
-	for _, pName := range profiles {
-		if projectName == project.Default {
-			volumeUsedBy = append(volumeUsedBy, fmt.Sprintf("/%s/profiles/%s", version.APIVersion, pName))
-		} else {
-			volumeUsedBy = append(volumeUsedBy, fmt.Sprintf("/%s/profiles/%s?project=%s", version.APIVersion, pName, projectName))
-		}
-	}
-
 	return volumeUsedBy, nil
-}
-
-func profilesUsingPoolVolumeGetNames(db *db.Cluster, volumeName string, volumeType string) ([]string, error) {
-	usedBy := []string{}
-
-	profiles, err := db.GetProfileNames(project.Default)
-	if err != nil {
-		return usedBy, err
-	}
-
-	for _, pName := range profiles {
-		_, profile, err := db.GetProfile(project.Default, pName)
-		if err != nil {
-			return usedBy, err
-		}
-
-		volumeNameWithType := fmt.Sprintf("%s/%s", volumeType, volumeName)
-		for _, v := range profile.Devices {
-			if v["type"] != "disk" {
-				continue
-			}
-
-			// Can't be a storage volume.
-			if filepath.IsAbs(v["source"]) {
-				continue
-			}
-
-			// Make sure that we don't compare against stuff
-			// like "container////bla" but only against
-			// "container/bla".
-			cleanSource := filepath.Clean(v["source"])
-			if cleanSource == volumeName || cleanSource == volumeNameWithType {
-				usedBy = append(usedBy, pName)
-			}
-		}
-	}
-
-	return usedBy, nil
 }
