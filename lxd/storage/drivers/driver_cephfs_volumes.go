@@ -339,12 +339,18 @@ func (d *cephfs) GetVolumeDiskPath(vol Volume) (string, error) {
 
 // MountVolume sets up the volume for use.
 func (d *cephfs) MountVolume(vol Volume, op *operations.Operation) (bool, error) {
+	unlock := vol.MountLock()
+	defer unlock()
+
 	return false, nil
 }
 
 // UnmountVolume clears any runtime state for the volume.
 // As driver doesn't have volumes to unmount it returns false indicating the volume was already unmounted.
 func (d *cephfs) UnmountVolume(vol Volume, keepBlockDev bool, op *operations.Operation) (bool, error) {
+	unlock := vol.MountLock()
+	defer unlock()
+
 	return false, nil
 }
 
@@ -508,11 +514,17 @@ func (d *cephfs) DeleteVolumeSnapshot(snapVol Volume, op *operations.Operation) 
 
 // MountVolumeSnapshot makes the snapshot available for use.
 func (d *cephfs) MountVolumeSnapshot(snapVol Volume, op *operations.Operation) (bool, error) {
+	unlock := snapVol.MountLock()
+	defer unlock()
+
 	return false, nil
 }
 
 // UnmountVolumeSnapshot clears any runtime state for the snapshot.
 func (d *cephfs) UnmountVolumeSnapshot(snapVol Volume, op *operations.Operation) (bool, error) {
+	unlock := snapVol.MountLock()
+	defer unlock()
+
 	return false, nil
 }
 
