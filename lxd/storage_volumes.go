@@ -650,7 +650,7 @@ func storagePoolVolumeTypePost(d *Daemon, r *http.Request, volumeTypeName string
 	}
 
 	// Check if a running instance is using it.
-	err = storagePools.VolumeUsedByInstances(d.State(), srcPoolName, projectName, vol, true, func(dbInst db.Instance, project api.Project, profiles []api.Profile) error {
+	err = storagePools.VolumeUsedByInstanceDevices(d.State(), srcPoolName, projectName, vol, true, func(dbInst db.Instance, project api.Project, profiles []api.Profile, usedByDevices []string) error {
 		inst, err := instance.Load(d.State(), db.InstanceToArgs(&dbInst), profiles)
 		if err != nil {
 			return err
@@ -668,11 +668,11 @@ func storagePoolVolumeTypePost(d *Daemon, r *http.Request, volumeTypeName string
 
 	// Detect a rename request.
 	if req.Pool == "" || req.Pool == srcPoolName {
-		return storagePoolVolumeTypePostRename(d, projectName, srcPoolName, volumeName, volumeType, req)
+		return storagePoolVolumeTypePostRename(d, srcPoolName, projectName, vol, req)
 	}
 
 	// Otherwise this is a move request.
-	return storagePoolVolumeTypePostMove(d, projectName, srcPoolName, volumeName, volumeType, req)
+	return storagePoolVolumeTypePostMove(d, srcPoolName, projectName, vol, req)
 }
 
 // storagePoolVolumeTypePostMigration handles volume migration type POST requests.
@@ -714,57 +714,73 @@ func storagePoolVolumeTypePostMigration(state *state.State, projectName, poolNam
 }
 
 // storagePoolVolumeTypePostRename handles volume rename type POST requests.
-func storagePoolVolumeTypePostRename(d *Daemon, projectName string, poolName string, volumeName string, volumeType int, req api.StorageVolumePost) response.Response {
+func storagePoolVolumeTypePostRename(d *Daemon, poolName string, projectName string, vol *api.StorageVolume, req api.StorageVolumePost) response.Response {
+	newVol := *vol
+	newVol.Name = req.Name
+
 	pool, err := storagePools.GetPoolByName(d.State(), poolName)
 	if err != nil {
 		return response.SmartError(err)
 	}
 
-	// Notify users of the volume that it's name is changing.
-	err = storagePoolVolumeUpdateUsers(d, projectName, pool.Name(), volumeName, req.Pool, req.Name)
+	revert := revert.New()
+	defer revert.Fail()
+
+	// Update devices using the volume in instances and profiles.
+	err = storagePoolVolumeUpdateUsers(d, projectName, pool.Name(), vol, pool.Name(), &newVol)
 	if err != nil {
 		return response.SmartError(err)
 	}
 
-	err = pool.RenameCustomVolume(projectName, volumeName, req.Name, nil)
+	err = pool.RenameCustomVolume(projectName, vol.Name, req.Name, nil)
 	if err != nil {
-		// Notify users of the volume that it's name is changing back.
-		storagePoolVolumeUpdateUsers(d, projectName, req.Pool, req.Name, pool.Name(), volumeName)
 		return response.SmartError(err)
 	}
 
+	revert.Success()
 	return response.SyncResponseLocation(true, nil, fmt.Sprintf("/%s/storage-pools/%s/volumes/%s", version.APIVersion, pool.Name(), db.StoragePoolVolumeTypeNameCustom))
 }
 
 // storagePoolVolumeTypePostMove handles volume move type POST requests.
-func storagePoolVolumeTypePostMove(d *Daemon, projectName, poolName, volumeName string, volumeType int, req api.StorageVolumePost) response.Response {
-	srcPool, err := storagePools.GetPoolByName(d.State(), poolName)
+func storagePoolVolumeTypePostMove(d *Daemon, poolName string, projectName string, vol *api.StorageVolume, req api.StorageVolumePost) response.Response {
+	newVol := *vol
+	newVol.Name = req.Name
+
+	pool, err := storagePools.GetPoolByName(d.State(), poolName)
 	if err != nil {
 		return response.SmartError(err)
 	}
 
-	pool, err := storagePools.GetPoolByName(d.State(), req.Pool)
+	newPool, err := storagePools.GetPoolByName(d.State(), req.Pool)
 	if err != nil {
 		return response.SmartError(err)
 	}
 
 	run := func(op *operations.Operation) error {
-		// Notify users of the volume that it's name is changing.
-		err := storagePoolVolumeUpdateUsers(d, projectName, poolName, volumeName, req.Pool, req.Name)
+		revert := revert.New()
+		defer revert.Fail()
+
+		// Update devices using the volume in instances and profiles.
+		err = storagePoolVolumeUpdateUsers(d, projectName, pool.Name(), vol, newPool.Name(), &newVol)
+		if err != nil {
+			return err
+		}
+		revert.Add(func() { storagePoolVolumeUpdateUsers(d, projectName, newPool.Name(), &newVol, pool.Name(), vol) })
+
+		// Provide empty description and nil config to instruct CreateCustomVolumeFromCopy to copy it
+		// from source volume.
+		err = newPool.CreateCustomVolumeFromCopy(projectName, newVol.Name, "", nil, pool.Name(), vol.Name, false, op)
 		if err != nil {
 			return err
 		}
 
-		// Provide empty description and nil config to instruct
-		// CreateCustomVolumeFromCopy to copy it from source volume.
-		err = pool.CreateCustomVolumeFromCopy(projectName, req.Name, "", nil, poolName, volumeName, false, op)
+		err = pool.DeleteCustomVolume(projectName, vol.Name, op)
 		if err != nil {
-			// Notify users of the volume that it's name is changing back.
-			storagePoolVolumeUpdateUsers(d, projectName, req.Pool, req.Name, poolName, volumeName)
 			return err
 		}
 
-		return srcPool.DeleteCustomVolume(projectName, volumeName, op)
+		revert.Success()
+		return nil
 	}
 
 	op, err := operations.OperationCreate(d.State(), "", operations.OperationClassTask, db.OperationVolumeMove, nil, nil, run, nil, nil)

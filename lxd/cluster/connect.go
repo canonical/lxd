@@ -176,7 +176,7 @@ func ConnectIfVolumeIsRemote(s *state.State, poolName string, projectName string
 
 	nodeCount := len(nodes)
 	if nodeCount > 1 {
-		return nil, fmt.Errorf("More than one cluster member has a volume named %q. Use --target flag to specify member", volumeName)
+		return nil, fmt.Errorf("More than one cluster member has a volume named %q. Please target a specific member", volumeName)
 	} else if nodeCount < 1 {
 		// Should never get here.
 		return nil, fmt.Errorf("Volume %q has empty cluster member list", volumeName)
