@@ -788,8 +788,6 @@ func VolumeUsedByInstanceDevices(s *state.State, poolName string, projectName st
 		return err
 	}
 
-	volumeNameWithType := fmt.Sprintf("%s/%s", vol.Type, vol.Name)
-
 	return s.Cluster.InstanceList(func(inst db.Instance, p api.Project, profiles []api.Profile) error {
 		// If the volume has a specific cluster member which is different than the instance then skip as
 		// instance cannot be using this volume.
@@ -830,10 +828,7 @@ func VolumeUsedByInstanceDevices(s *state.State, poolName string, projectName st
 				continue
 			}
 
-			// Make sure that we don't compare against stuff like
-			// "container////bla" but only against "container/bla".
-			cleanSource := filepath.Clean(dev["source"])
-			if cleanSource == vol.Name || cleanSource == volumeNameWithType {
+			if dev["source"] == vol.Name {
 				usedByDevices = append(usedByDevices, devName)
 			}
 		}
