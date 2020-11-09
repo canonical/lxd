@@ -636,11 +636,11 @@ func storagePoolVolumeTypePost(d *Daemon, r *http.Request, volumeTypeName string
 
 	// Detect a rename request.
 	if req.Pool == "" || req.Pool == srcPoolName {
-		return storagePoolVolumeTypePostRename(d, projectName, srcPoolName, volumeName, volumeType, req)
+		return storagePoolVolumeTypePostRename(d, srcPoolName, projectName, vol, req)
 	}
 
 	// Otherwise this is a move request.
-	return storagePoolVolumeTypePostMove(d, projectName, srcPoolName, volumeName, volumeType, req)
+	return storagePoolVolumeTypePostMove(d, srcPoolName, projectName, vol, req)
 }
 
 // storagePoolVolumeTypePostMigration handles volume migration type POST requests.
