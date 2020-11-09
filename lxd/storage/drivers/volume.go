@@ -192,40 +192,22 @@ func (v Volume) MountTask(task func(mountPath string, op *operations.Operation) 
 	// If the volume is a snapshot then call the snapshot specific mount/unmount functions as
 	// these will mount the snapshot read only.
 	if v.IsSnapshot() {
-		unlock := locking.Lock(OperationLockName(v.pool, string(v.volType), v.name))
-
 		ourMount, err := v.driver.MountVolumeSnapshot(v, op)
 		if err != nil {
-			unlock()
 			return err
 		}
 
-		unlock()
-
 		if ourMount {
-			defer func() {
-				unlock := locking.Lock(OperationLockName(v.pool, string(v.volType), v.name))
-				v.driver.UnmountVolumeSnapshot(v, op)
-				unlock()
-			}()
+			defer v.driver.UnmountVolumeSnapshot(v, op)
 		}
 	} else {
-		unlock := locking.Lock(OperationLockName(v.pool, string(v.volType), v.name))
-
 		ourMount, err := v.driver.MountVolume(v, op)
 		if err != nil {
-			unlock()
 			return err
 		}
 
-		unlock()
-
 		if ourMount {
-			defer func() {
-				unlock := locking.Lock(OperationLockName(v.pool, string(v.volType), v.name))
-				v.driver.UnmountVolume(v, false, op)
-				unlock()
-			}()
+			defer v.driver.UnmountVolume(v, false, op)
 		}
 	}
 
@@ -239,40 +221,22 @@ func (v Volume) UnmountTask(task func(op *operations.Operation) error, keepBlock
 	// If the volume is a snapshot then call the snapshot specific mount/unmount functions as
 	// these will mount the snapshot read only.
 	if v.IsSnapshot() {
-		unlock := locking.Lock(OperationLockName(v.pool, string(v.volType), v.name))
-
 		ourUnmount, err := v.driver.UnmountVolumeSnapshot(v, op)
 		if err != nil {
-			unlock()
 			return err
 		}
 
-		unlock()
-
 		if ourUnmount {
-			defer func() {
-				unlock := locking.Lock(OperationLockName(v.pool, string(v.volType), v.name))
-				v.driver.MountVolumeSnapshot(v, op)
-				unlock()
-			}()
+			defer v.driver.MountVolumeSnapshot(v, op)
 		}
 	} else {
-		unlock := locking.Lock(OperationLockName(v.pool, string(v.volType), v.name))
-
 		ourUnmount, err := v.driver.UnmountVolume(v, keepBlockDev, op)
 		if err != nil {
-			unlock()
 			return err
 		}
 
-		unlock()
-
 		if ourUnmount {
-			defer func() {
-				unlock := locking.Lock(OperationLockName(v.pool, string(v.volType), v.name))
-				v.driver.MountVolume(v, op)
-				unlock()
-			}()
+			defer v.driver.MountVolume(v, op)
 		}
 	}
 
