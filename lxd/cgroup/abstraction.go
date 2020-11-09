@@ -387,7 +387,7 @@ func (cg *CGroup) GetBlkioWeight() (int64, error) {
 	return -1, ErrUnknownVersion
 }
 
-// SetBlkioWeight set the currently allowed range of weights
+// SetBlkioWeight sets the currently allowed range of weights
 func (cg *CGroup) SetBlkioWeight(limit int64) error {
 	version := cgControllers["blkio"]
 	switch version {
@@ -396,7 +396,7 @@ func (cg *CGroup) SetBlkioWeight(limit int64) error {
 	case V1:
 		return cg.rw.Set(version, "blkio", "blkio.weight", fmt.Sprintf("%d", limit))
 	case V2:
-		return cg.rw.Set(version, "blkio", "io.weight", fmt.Sprintf("%d", limit))
+		return cg.rw.Set(version, "io", "io.weight", fmt.Sprintf("%d", limit))
 	}
 
 	return ErrUnknownVersion
