@@ -11,6 +11,12 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func init() {
+	db.StorageRemoteDriverNames = func() []string {
+		return []string{"ceph", "cephfs"}
+	}
+}
+
 // The GetStoragePoolsLocalConfigs method returns only node-specific config values.
 func TestGetStoragePoolsLocalConfigs(t *testing.T) {
 	cluster, cleanup := db.NewTestCluster(t)
