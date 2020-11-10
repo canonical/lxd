@@ -1215,18 +1215,6 @@ func (d *zfs) RenameVolume(vol Volume, newVolName string, op *operations.Operati
 func (d *zfs) MigrateVolume(vol Volume, conn io.ReadWriteCloser, volSrcArgs *migration.VolumeSourceArgs, op *operations.Operation) error {
 	// Handle simple rsync and block_and_rsync through generic.
 	if volSrcArgs.MigrationType.FSType == migration.MigrationFSType_RSYNC || volSrcArgs.MigrationType.FSType == migration.MigrationFSType_BLOCK_AND_RSYNC {
-		// Before doing a generic volume migration, we need to ensure volume (or snap volume parent) is
-		// activated to avoid issues activating the snapshot volume device.
-		parent, _, _ := shared.InstanceGetParentAndSnapshotName(vol.Name())
-		parentVol := NewVolume(d, d.Name(), vol.volType, vol.contentType, parent, vol.config, vol.poolConfig)
-		ourMount, err := d.MountVolume(parentVol, op)
-		if err != nil {
-			return err
-		}
-		if ourMount {
-			defer d.UnmountVolume(parentVol, false, op)
-		}
-
 		return genericVFSMigrateVolume(d, d.state, vol, conn, volSrcArgs, op)
 	} else if volSrcArgs.MigrationType.FSType != migration.MigrationFSType_ZFS {
 		return ErrNotSupported
@@ -1317,21 +1305,6 @@ func (d *zfs) MigrateVolume(vol Volume, conn io.ReadWriteCloser, volSrcArgs *mig
 func (d *zfs) BackupVolume(vol Volume, tarWriter *instancewriter.InstanceTarWriter, optimized bool, snapshots bool, op *operations.Operation) error {
 	// Handle the non-optimized tarballs through the generic packer.
 	if !optimized {
-		// For block volumes that are exporting snapshots, we need to activate parent volume first so that
-		// the snapshot volumes can have their devices accessible.
-		if vol.contentType == ContentTypeBlock && snapshots {
-			parent, _, _ := shared.InstanceGetParentAndSnapshotName(vol.Name())
-			parentVol := NewVolume(d, d.Name(), vol.volType, vol.contentType, parent, vol.config, vol.poolConfig)
-			ourMount, err := d.MountVolume(parentVol, op)
-			if err != nil {
-				return err
-			}
-
-			if ourMount {
-				defer d.UnmountVolume(parentVol, false, op)
-			}
-		}
-
 		// Because the generic backup method will not take a consistent backup if files are being modified
 		// as they are copied to the tarball, as ZFS allows us to take a quick snapshot without impacting
 		// the parent volume we do so here to ensure the backup taken is consistent.
@@ -1624,14 +1597,16 @@ func (d *zfs) MountVolumeSnapshot(snapVol Volume, op *operations.Operation) (boo
 
 	var ourMountBlock, ourMountFs bool
 
-	// For block devices, we make them appear by enabling volmode=dev and snapdev=visible on the
-	// parent volume. If we have to enable this volmode=dev on the parent, then we will return ourMount true
-	// so that the caller knows to call UnmountVolumeSnapshot to undo this action, but if it is already set
-	// then we will return ourMount false, because we don't want to deactivate the parent volume's device if it
-	// is already in use.
+	// For block devices, we make them appear by enabling volmode=dev and snapdev=visible on the parent volume.
 	if snapVol.contentType == ContentTypeBlock {
+		// Ensure snap volume parent is activated to avoid issues activating the snapshot volume device.
 		parent, _, _ := shared.InstanceGetParentAndSnapshotName(snapVol.Name())
 		parentVol := NewVolume(d, d.Name(), snapVol.volType, snapVol.contentType, parent, snapVol.config, snapVol.poolConfig)
+		_, err = d.MountVolume(parentVol, op)
+		if err != nil {
+			return false, err
+		}
+
 		parentDataset := d.dataset(parentVol, false)
 
 		// Check if parent already active.
@@ -1640,7 +1615,7 @@ func (d *zfs) MountVolumeSnapshot(snapVol Volume, op *operations.Operation) (boo
 			return false, err
 		}
 
-		// Order is important here, the volmode=dev must be set before snapdev=visible otherwise
+		// Order is important here, the parent volmode=dev must be set before snapdev=visible otherwise
 		// it won't take effect.
 		if parentVolMode != "dev" {
 			return false, fmt.Errorf("Parent block volume needs to be mounted first")
@@ -1712,6 +1687,13 @@ func (d *zfs) UnmountVolumeSnapshot(snapVol Volume, op *operations.Operation) (b
 		}
 
 		d.logger.Debug("Deactivated ZFS snapshot volume", log.Ctx{"dev": snapshotDataset})
+
+		// Ensure snap volume parent is deactivated in case we activated it when mounting snapshot.
+		_, err = d.UnmountVolume(parentVol, false, op)
+		if err != nil {
+			return false, err
+		}
+
 		return true, nil
 	}
 
