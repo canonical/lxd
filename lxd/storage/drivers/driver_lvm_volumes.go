@@ -433,6 +433,9 @@ func (d *lvm) GetVolumeDiskPath(vol Volume) (string, error) {
 
 // MountVolume mounts a volume. Returns true if this volume was our mount.
 func (d *lvm) MountVolume(vol Volume, op *operations.Operation) (bool, error) {
+	unlock := vol.MountLock()
+	defer unlock()
+
 	// Activate LVM volume if needed.
 	volDevPath := d.lvmDevPath(d.config["lvm.vg_name"], vol.volType, vol.contentType, vol.name)
 	activated, err := d.activateVolume(volDevPath)
@@ -470,6 +473,9 @@ func (d *lvm) MountVolume(vol Volume, op *operations.Operation) (bool, error) {
 // UnmountVolume unmounts a volume. Returns true if we unmounted.
 // keepBlockDev indicates if backing block device should be not be deactivated if volume is unmounted.
 func (d *lvm) UnmountVolume(vol Volume, keepBlockDev bool, op *operations.Operation) (bool, error) {
+	unlock := vol.MountLock()
+	defer unlock()
+
 	var err error
 	volDevPath := d.lvmDevPath(d.config["lvm.vg_name"], vol.volType, vol.contentType, vol.name)
 	mountPath := vol.MountPath()
@@ -703,6 +709,9 @@ func (d *lvm) DeleteVolumeSnapshot(snapVol Volume, op *operations.Operation) err
 
 // MountVolumeSnapshot sets up a read-only mount on top of the snapshot to avoid accidental modifications.
 func (d *lvm) MountVolumeSnapshot(snapVol Volume, op *operations.Operation) (bool, error) {
+	unlock := snapVol.MountLock()
+	defer unlock()
+
 	var err error
 	mountPath := snapVol.MountPath()
 
@@ -810,6 +819,9 @@ func (d *lvm) MountVolumeSnapshot(snapVol Volume, op *operations.Operation) (boo
 // UnmountVolumeSnapshot removes the read-only mount placed on top of a snapshot.
 // If a temporary snapshot volume exists then it will attempt to remove it.
 func (d *lvm) UnmountVolumeSnapshot(snapVol Volume, op *operations.Operation) (bool, error) {
+	unlock := snapVol.MountLock()
+	defer unlock()
+
 	var err error
 	volDevPath := d.lvmDevPath(d.config["lvm.vg_name"], snapVol.volType, snapVol.contentType, snapVol.name)
 	mountPath := snapVol.MountPath()

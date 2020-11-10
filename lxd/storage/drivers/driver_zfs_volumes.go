@@ -1043,6 +1043,9 @@ func (d *zfs) GetVolumeDiskPath(vol Volume) (string, error) {
 
 // MountVolume simulates mounting a volume.
 func (d *zfs) MountVolume(vol Volume, op *operations.Operation) (bool, error) {
+	unlock := vol.MountLock()
+	defer unlock()
+
 	var err error
 	mountPath := vol.MountPath()
 	dataset := d.dataset(vol, false)
@@ -1109,6 +1112,9 @@ func (d *zfs) MountVolume(vol Volume, op *operations.Operation) (bool, error) {
 // UnmountVolume simulates unmounting a volume.
 // keepBlockDev indicates if backing block device should be not be deactivated if volume is unmounted.
 func (d *zfs) UnmountVolume(vol Volume, keepBlockDev bool, op *operations.Operation) (bool, error) {
+	unlock := vol.MountLock()
+	defer unlock()
+
 	mountPath := vol.MountPath()
 	dataset := d.dataset(vol, false)
 
@@ -1592,6 +1598,9 @@ func (d *zfs) DeleteVolumeSnapshot(vol Volume, op *operations.Operation) error {
 
 // MountVolumeSnapshot simulates mounting a volume snapshot.
 func (d *zfs) MountVolumeSnapshot(snapVol Volume, op *operations.Operation) (bool, error) {
+	unlock := snapVol.MountLock()
+	defer unlock()
+
 	var err error
 	mountPath := snapVol.MountPath()
 	snapshotDataset := d.dataset(snapVol, false)
@@ -1675,23 +1684,26 @@ func (d *zfs) MountVolumeSnapshot(snapVol Volume, op *operations.Operation) (boo
 }
 
 // UnmountVolume simulates unmounting a volume snapshot.
-func (d *zfs) UnmountVolumeSnapshot(vol Volume, op *operations.Operation) (bool, error) {
-	mountPath := vol.MountPath()
-	snapshotDataset := d.dataset(vol, false)
+func (d *zfs) UnmountVolumeSnapshot(snapVol Volume, op *operations.Operation) (bool, error) {
+	unlock := snapVol.MountLock()
+	defer unlock()
+
+	mountPath := snapVol.MountPath()
+	snapshotDataset := d.dataset(snapVol, false)
 
 	// For VMs, also mount the filesystem dataset.
-	if vol.IsVMBlock() {
-		fsVol := vol.NewVMBlockFilesystemVolume()
-		_, err := d.UnmountVolumeSnapshot(fsVol, op)
+	if snapVol.IsVMBlock() {
+		fsSnapVol := snapVol.NewVMBlockFilesystemVolume()
+		_, err := d.UnmountVolumeSnapshot(fsSnapVol, op)
 		if err != nil {
 			return false, err
 		}
 	}
 
 	// For block devices, we make them disappear.
-	if vol.contentType == ContentTypeBlock {
-		parent, _, _ := shared.InstanceGetParentAndSnapshotName(vol.Name())
-		parentVol := NewVolume(d, d.Name(), vol.volType, vol.contentType, parent, vol.config, vol.poolConfig)
+	if snapVol.contentType == ContentTypeBlock {
+		parent, _, _ := shared.InstanceGetParentAndSnapshotName(snapVol.Name())
+		parentVol := NewVolume(d, d.Name(), snapVol.volType, snapVol.contentType, parent, snapVol.config, snapVol.poolConfig)
 		parentDataset := d.dataset(parentVol, false)
 
 		err := d.setDatasetProperties(parentDataset, "snapdev=hidden")

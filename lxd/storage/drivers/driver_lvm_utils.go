@@ -56,7 +56,7 @@ func (d *lvm) openLoopFile(source string) (*os.File, error) {
 	}
 
 	if filepath.IsAbs(source) && !shared.IsBlockdevPath(source) {
-		unlock := locking.Lock(OperationLockName(d.name, "", ""))
+		unlock := locking.Lock(OperationLockName("openLoopFile", d.name, "", "", ""))
 		defer unlock()
 
 		// Try to prepare new loop device.
