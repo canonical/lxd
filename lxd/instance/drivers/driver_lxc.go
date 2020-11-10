@@ -1578,7 +1578,9 @@ func (c *lxc) deviceUpdate(deviceName string, rawConfig deviceConfig.Device, old
 }
 
 // deviceStop loads a new device and calls its Stop() function.
-func (c *lxc) deviceStop(deviceName string, rawConfig deviceConfig.Device, stopHookNetnsPath string) error {
+// Accepts a stopHookNetnsPath argument which is required when run from the onStopNS hook before the
+// container's network namespace is unmounted (which is required for NIC device cleanup).
+func (c *lxc) deviceStop(deviceName string, rawConfig deviceConfig.Device, instanceRunning bool, stopHookNetnsPath string) error {
 	logger := logging.AddContext(logger.Log, log.Ctx{"device": deviceName, "type": rawConfig["type"], "project": c.Project(), "instance": c.Name()})
 	logger.Debug("Stopping device")
 
@@ -1604,7 +1606,7 @@ func (c *lxc) deviceStop(deviceName string, rawConfig deviceConfig.Device, stopH
 	canHotPlug, _ := d.CanHotPlug()
 
 	// An empty netns path means we haven't been called from the LXC stop hook, so are running.
-	if stopHookNetnsPath == "" && !canHotPlug {
+	if instanceRunning && !canHotPlug {
 		return fmt.Errorf("Device cannot be stopped when container is running")
 	}
 
@@ -1616,14 +1618,14 @@ func (c *lxc) deviceStop(deviceName string, rawConfig deviceConfig.Device, stopH
 	if runConf != nil {
 		// If network interface settings returned, then detach NIC from container.
 		if len(runConf.NetworkInterface) > 0 {
-			err = c.deviceDetachNIC(configCopy, runConf.NetworkInterface, stopHookNetnsPath)
+			err = c.deviceDetachNIC(configCopy, runConf.NetworkInterface, instanceRunning, stopHookNetnsPath)
 			if err != nil {
 				return err
 			}
 		}
 
 		// Add cgroup rules if requested and container is running.
-		if len(runConf.CGroups) > 0 && stopHookNetnsPath == "" {
+		if len(runConf.CGroups) > 0 && instanceRunning {
 			err = c.deviceAddCgroupRules(runConf.CGroups)
 			if err != nil {
 				return err
@@ -1631,7 +1633,7 @@ func (c *lxc) deviceStop(deviceName string, rawConfig deviceConfig.Device, stopH
 		}
 
 		// Detach mounts if requested and container is running.
-		if len(runConf.Mounts) > 0 && stopHookNetnsPath == "" {
+		if len(runConf.Mounts) > 0 && instanceRunning {
 			err = c.deviceHandleMounts(runConf.Mounts)
 			if err != nil {
 				return err
@@ -1649,7 +1651,9 @@ func (c *lxc) deviceStop(deviceName string, rawConfig deviceConfig.Device, stopH
 }
 
 // deviceDetachNIC detaches a NIC device from a container.
-func (c *lxc) deviceDetachNIC(configCopy map[string]string, netIF []deviceConfig.RunConfigItem, stopHookNetnsPath string) error {
+// Accepts a stopHookNetnsPath argument which is required when run from the onStopNS hook before the
+// container's network namespace is unmounted (which is required for NIC device cleanup).
+func (c *lxc) deviceDetachNIC(configCopy map[string]string, netIF []deviceConfig.RunConfigItem, instanceRunning bool, stopHookNetnsPath string) error {
 	// Get requested device name to detach interface back to on the host.
 	devName := ""
 	for _, dev := range netIF {
@@ -1664,7 +1668,7 @@ func (c *lxc) deviceDetachNIC(configCopy map[string]string, netIF []deviceConfig
 	}
 
 	// If container is running, perform live detach of interface back to host.
-	if stopHookNetnsPath == "" {
+	if instanceRunning {
 		// For some reason, having network config confuses detach, so get our own go-lxc struct.
 		cname := project.Instance(c.Project(), c.Name())
 		cc, err := liblxc.NewContainer(cname, c.state.OS.LxcPath)
@@ -1686,7 +1690,7 @@ func (c *lxc) deviceDetachNIC(configCopy map[string]string, netIF []deviceConfig
 
 		err = cc.DetachInterfaceRename(configCopy["name"], devName)
 		if err != nil {
-			return errors.Wrapf(err, "Failed to detach interface: %s to %s", configCopy["name"], devName)
+			return errors.Wrapf(err, "Failed to detach interface: %q to %q", configCopy["name"], devName)
 		}
 	} else {
 		// Currently liblxc does not move devices back to the host on stop that were added
@@ -1698,10 +1702,15 @@ func (c *lxc) deviceDetachNIC(configCopy map[string]string, netIF []deviceConfig
 		// we can't know whether that is because liblxc has moved it back already or whether
 		// it is a conflicting device.
 		if !shared.PathExists(fmt.Sprintf("/sys/class/net/%s", devName)) {
+			if stopHookNetnsPath == "" {
+				return fmt.Errorf("Cannot detach NIC device %q without stopHookNetnsPath being provided", devName)
+			}
+
 			err := c.detachInterfaceRename(stopHookNetnsPath, configCopy["name"], devName)
 			if err != nil {
-				return errors.Wrapf(err, "Failed to detach interface: %s to %s", configCopy["name"], devName)
+				return errors.Wrapf(err, "Failed to detach interface: %q to %q", configCopy["name"], devName)
 			}
+			logger.Debugf("Detached NIC device interface: %q to %q", configCopy["name"], devName)
 		}
 	}
 
@@ -2138,10 +2147,9 @@ func (c *lxc) startCommon() (string, []func() error, error) {
 			return "", nil, errors.Wrapf(err, "Failed to start device %q", dev.Name)
 		}
 
-		// Stop device on failure to setup container, pass non-empty stopHookNetnsPath so that stop code
-		// doesn't think container is running.
+		// Stop device on failure to setup container.
 		revert.Add(func() {
-			err := c.deviceStop(dev.Name, dev.Config, "startfailed")
+			err := c.deviceStop(dev.Name, dev.Config, false, "")
 			if err != nil {
 				logger.Errorf("Failed to cleanup device %q: %v", dev.Name, err)
 			}
@@ -2828,14 +2836,14 @@ func (c *lxc) onStopNS(args map[string]string) error {
 	target := args["target"]
 	netns := args["netns"]
 
-	// Validate target
+	// Validate target.
 	if !shared.StringInSlice(target, []string{"stop", "reboot"}) {
 		logger.Error("Container sent invalid target to OnStopNS", log.Ctx{"container": c.Name(), "target": target})
-		return fmt.Errorf("Invalid stop target: %s", target)
+		return fmt.Errorf("Invalid stop target %q", target)
 	}
 
 	// Clean up devices.
-	c.cleanupDevices(netns)
+	c.cleanupDevices(false, netns)
 
 	return nil
 }
@@ -2860,35 +2868,6 @@ func (c *lxc) onStop(args map[string]string) error {
 	// Make sure we can't call go-lxc functions by mistake
 	c.fromHook = true
 
-	// Remove directory ownership (to avoid issue if uidmap is re-used)
-	err := os.Chown(c.Path(), 0, 0)
-	if err != nil {
-		if op != nil {
-			op.Done(err)
-		}
-
-		return err
-	}
-
-	err = os.Chmod(c.Path(), 0100)
-	if err != nil {
-		if op != nil {
-			op.Done(err)
-		}
-
-		return err
-	}
-
-	// Stop the storage for this container
-	_, err = c.unmount()
-	if err != nil {
-		if op != nil {
-			op.Done(err)
-		}
-
-		return err
-	}
-
 	// Log user actions
 	ctxMap := log.Ctx{
 		"project":   c.project,
@@ -2904,7 +2883,7 @@ func (c *lxc) onStop(args map[string]string) error {
 	}
 
 	// Record power state
-	err = c.state.Cluster.UpdateInstancePowerState(c.id, "STOPPED")
+	err := c.state.Cluster.UpdateInstancePowerState(c.id, "STOPPED")
 	if err != nil {
 		logger.Error("Failed to set container state", log.Ctx{"container": c.Name(), "err": err})
 	}
@@ -2918,8 +2897,41 @@ func (c *lxc) onStop(args map[string]string) error {
 			defer op.Done(err)
 		}
 
-		// Wait for other post-stop actions to be done
+		// Wait for other post-stop actions to be done and the container actually stopping.
 		c.IsRunning()
+		logger.Debug("Container stopped, starting storage cleanup", log.Ctx{"container": c.Name()})
+
+		// Clean up devices.
+		c.cleanupDevices(false, "")
+
+		// Remove directory ownership (to avoid issue if uidmap is re-used)
+		err := os.Chown(c.Path(), 0, 0)
+		if err != nil {
+			if op != nil {
+				op.Done(err)
+			}
+
+			logger.Error("Failed clearing ownernship", log.Ctx{"container": c.Name(), "err": err, "path": c.Path()})
+		}
+
+		err = os.Chmod(c.Path(), 0100)
+		if err != nil {
+			if op != nil {
+				op.Done(err)
+			}
+
+			logger.Error("Failed clearing permissions", log.Ctx{"container": c.Name(), "err": err, "path": c.Path()})
+		}
+
+		// Stop the storage for this container
+		_, err = c.unmount()
+		if err != nil {
+			if op != nil {
+				op.Done(err)
+			}
+
+			logger.Error("Failed unnounting container", log.Ctx{"container": c.Name(), "err": err})
+		}
 
 		// Unload the apparmor profile
 		err = apparmor.InstanceUnload(c.state, c)
@@ -2930,28 +2942,43 @@ func (c *lxc) onStop(args map[string]string) error {
 		// Clean all the unix devices
 		err = c.removeUnixDevices()
 		if err != nil {
+			if op != nil {
+				op.Done(err)
+			}
+
 			logger.Error("Unable to remove unix devices", log.Ctx{"container": c.Name(), "err": err})
 		}
 
 		// Clean all the disk devices
 		err = c.removeDiskDevices()
 		if err != nil {
+			if op != nil {
+				op.Done(err)
+			}
+
 			logger.Error("Unable to remove disk devices", log.Ctx{"container": c.Name(), "err": err})
 		}
 
 		// Log and emit lifecycle if not user triggered
 		if op == nil {
 			logger.Info("Shut down container", ctxMap)
-			c.state.Events.SendLifecycle(c.project, "container-shutdown",
-				fmt.Sprintf("/1.0/containers/%s", c.name), nil)
+			c.state.Events.SendLifecycle(c.project, "container-shutdown", fmt.Sprintf("/1.0/containers/%s", c.name), nil)
 		}
 
 		// Reboot the container
 		if target == "reboot" {
 			// Start the container again
 			err = c.Start(false)
-			c.state.Events.SendLifecycle(c.project, "container-restarted",
-				fmt.Sprintf("/1.0/containers/%s", c.name), nil)
+			if err != nil {
+				if op != nil {
+					op.Done(err)
+				}
+
+				logger.Error("Failed restarting container", log.Ctx{"container": c.Name(), "err": err})
+				return
+			}
+
+			c.state.Events.SendLifecycle(c.project, "container-restarted", fmt.Sprintf("/1.0/containers/%s", c.name), nil)
 			return
 		}
 
@@ -2961,6 +2988,13 @@ func (c *lxc) onStop(args map[string]string) error {
 		// Destroy ephemeral containers
 		if c.ephemeral {
 			err = c.Delete()
+			if err != nil {
+				if op != nil {
+					op.Done(err)
+				}
+
+				logger.Error("Failed deleting ephemeral", log.Ctx{"container": c.Name(), "err": err})
+			}
 		}
 	}(c, target, op)
 
@@ -2968,14 +3002,22 @@ func (c *lxc) onStop(args map[string]string) error {
 }
 
 // cleanupDevices performs any needed device cleanup steps when container is stopped.
-func (c *lxc) cleanupDevices(netns string) {
+// Accepts a stopHookNetnsPath argument which is required when run from the onStopNS hook before the
+// container's network namespace is unmounted (which is required for NIC device cleanup).
+func (c *lxc) cleanupDevices(instanceRunning bool, stopHookNetnsPath string) {
 	for _, dev := range c.expandedDevices.Reversed() {
+		// Only stop NIC devices when run from the onStopNS hook, and stop all other devices when run from
+		// the onStop hook. This way disk devices are stopped after the instance has been fully stopped.
+		if (stopHookNetnsPath != "" && dev.Config["type"] != "nic") || (stopHookNetnsPath == "" && dev.Config["type"] == "nic") {
+			continue
+		}
+
 		// Use the device interface if device supports it.
-		err := c.deviceStop(dev.Name, dev.Config, netns)
+		err := c.deviceStop(dev.Name, dev.Config, instanceRunning, stopHookNetnsPath)
 		if err == device.ErrUnsupportedDevType {
 			continue
 		} else if err != nil {
-			logger.Errorf("Failed to stop device '%s': %v", dev.Name, err)
+			logger.Errorf("Failed to stop device %q: %v", dev.Name, err)
 		}
 	}
 }
@@ -4572,7 +4614,7 @@ func (c *lxc) updateDevices(removeDevices deviceConfig.Devices, addDevices devic
 	// Remove devices in reverse order to how they were added.
 	for _, dev := range removeDevices.Reversed() {
 		if isRunning {
-			err := c.deviceStop(dev.Name, dev.Config, "")
+			err := c.deviceStop(dev.Name, dev.Config, isRunning, "")
 			if err == device.ErrUnsupportedDevType {
 				continue // No point in trying to remove device below.
 			} else if err != nil {
