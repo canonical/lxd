@@ -869,3 +869,20 @@ var StoragePoolNodeConfigKeys = []string{
 	"lvm.thinpool_name",
 	"lvm.vg_name",
 }
+
+func (c *Cluster) isRemoteStorage(poolID int64) (bool, error) {
+	isRemoteStorage := false
+
+	err := c.Transaction(func(tx *ClusterTx) error {
+		driver, err := tx.GetStoragePoolDriver(poolID)
+		if err != nil {
+			return err
+		}
+
+		isRemoteStorage = shared.StringInSlice(driver, StorageRemoteDriverNames())
+
+		return nil
+	})
+
+	return isRemoteStorage, err
+}
