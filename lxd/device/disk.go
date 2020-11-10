@@ -1293,16 +1293,10 @@ func (d *disk) postStop() error {
 
 	if strings.HasPrefix(d.config["source"], "ceph:") {
 		v := d.volatileGet()
-
-		// Run unmap async. This is needed as postStop is called from
-		// within a monitor hook, meaning that as we process this, the monitor
-		// process is still running, holding some references.
-		go func() {
-			err := diskCephRbdUnmap(v["ceph_rbd"])
-			if err != nil {
-				logger.Errorf("Failed to unmap RBD volume %q for %q: %v", v["ceph_rbd"], project.Instance(d.inst.Project(), d.inst.Name()), err)
-			}
-		}()
+		err := diskCephRbdUnmap(v["ceph_rbd"])
+		if err != nil {
+			logger.Errorf("Failed to unmap RBD volume %q for %q: %v", v["ceph_rbd"], project.Instance(d.inst.Project(), d.inst.Name()), err)
+		}
 	}
 
 	return nil
