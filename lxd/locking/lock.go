@@ -13,10 +13,13 @@ var locks = map[string]chan struct{}{}
 // locksMutex is used to access locks safely.
 var locksMutex sync.Mutex
 
+// UnlockFunc unlocks the lock.
+type UnlockFunc func()
+
 // Lock creates a lock for a specific storage volume to allow activities that require exclusive access to occur.
 // Will block until the lock is established. On success, it returns an unlock function which needs to be called to
 // unlock the lock.
-func Lock(lockName string) func() {
+func Lock(lockName string) UnlockFunc {
 	for {
 		// Get exclusive access to the map and see if there is already an operation ongoing.
 		locksMutex.Lock()
