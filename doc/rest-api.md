@@ -316,7 +316,7 @@ Return value (if trusted):
     "api_extensions": [],                           // List of API extensions added after the API was marked stable
     "api_status": "stable",                         // API implementation status (one of, development, stable or deprecated)
     "api_version": "1.0",                           // The API version as a string
-    "auth": "trusted",                              // Authentication state, one of "guest", "untrusted" or "trusted"
+    "auth": "trusted",                              // Authentication state, one of "untrusted" or "trusted"
     "config": {                                     // Host configuration
         "core.trust_password": true,
         "core.https_address": "[::]:8443"
@@ -353,7 +353,7 @@ Return value (if guest or untrusted):
     "api_extensions": [],                   // List of API extensions added after the API was marked stable
     "api_status": "stable",                 // API implementation status (one of, development, stable or deprecated)
     "api_version": "1.0",                   // The API version as a string
-    "auth": "guest",                        // Authentication state, one of "guest", "untrusted" or "trusted"
+    "auth": "untrusted",                    // Authentication state, one of "untrusted" or "trusted"
     "public": false,                        // Whether the server should be treated as a public (read-only) remote by the client
 }
 ```
