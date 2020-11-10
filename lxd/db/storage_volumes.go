@@ -241,9 +241,18 @@ func (c *Cluster) storagePoolVolumeGetType(project string, volumeName string, vo
 		return -1, nil, err
 	}
 
-	volumeNode, err := c.storageVolumeNodeGet(volumeID)
+	isRemoteStorage, err := c.isRemoteStorage(poolID)
 	if err != nil {
 		return -1, nil, err
+	}
+
+	volumeNode := ""
+
+	if !isRemoteStorage {
+		volumeNode, err = c.storageVolumeNodeGet(volumeID)
+		if err != nil {
+			return -1, nil, err
+		}
 	}
 
 	volumeConfig, err := c.storageVolumeConfigGet(volumeID, isSnapshot)
