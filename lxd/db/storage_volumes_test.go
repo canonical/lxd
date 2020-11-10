@@ -12,10 +12,6 @@ import (
 
 // Addresses of all nodes with matching volume name are returned.
 func TestGetStorageVolumeNodes(t *testing.T) {
-	db.StorageRemoteDriverNames = func() []string {
-		return []string{"ceph", "cephfs"}
-	}
-
 	tx, cleanup := db.NewTestClusterTx(t)
 	defer cleanup()
 
