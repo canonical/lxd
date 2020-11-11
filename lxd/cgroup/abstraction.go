@@ -453,32 +453,30 @@ func (cg *CGroup) SetCPUShare(limit int64) error {
 	return ErrUnknownVersion
 }
 
-// SetCPUCfsPeriod sets the duration in ms for each scheduling period
-func (cg *CGroup) SetCPUCfsPeriod(limit int64) error {
+// SetCPUCfsLimit sets the quota and duration in ms for each scheduling period
+func (cg *CGroup) SetCPUCfsLimit(limitPeriod int64, limitQuota int64) error {
 	version := cgControllers["cpu"]
 	switch version {
 	case Unavailable:
 		return ErrControllerMissing
 	case V1:
-		return cg.rw.Set(version, "cpu", "cpu.cfs_period_us", fmt.Sprintf("%d", limit))
-	case V2:
-		return ErrControllerMissing
-	}
+		err := cg.rw.Set(version, "cpu", "cpu.cfs_quota_us", fmt.Sprintf("%d", limitQuota))
+		if err != nil {
+			return err
+		}
 
-	return ErrUnknownVersion
-}
+		err = cg.rw.Set(version, "cpu", "cpu.cfs_period_us", fmt.Sprintf("%d", limitPeriod))
+		if err != nil {
+			return err
+		}
 
-// SetCPUCfsQuota sets the max time in ms during each cfs_period_us that
-// the current group can run for
-func (cg *CGroup) SetCPUCfsQuota(limit int64) error {
-	version := cgControllers["cpu"]
-	switch version {
-	case Unavailable:
-		return ErrControllerMissing
-	case V1:
-		return cg.rw.Set(version, "cpu", "cpu.cfs_quota_us", fmt.Sprintf("%d", limit))
+		return nil
 	case V2:
-		return ErrControllerMissing
+		if limitPeriod == -1 && limitQuota == -1 {
+			return cg.rw.Set(version, "cpu", "cpu.max", "max")
+		}
+
+		return cg.rw.Set(version, "cpu", "cpu.max", fmt.Sprintf("%d %d", limitQuota, limitPeriod))
 	}
 
 	return ErrUnknownVersion
