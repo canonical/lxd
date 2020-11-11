@@ -447,7 +447,7 @@ func (cg *CGroup) SetCPUShare(limit int64) error {
 	case V1:
 		return cg.rw.Set(version, "cpu", "cpu.shares", fmt.Sprintf("%d", limit))
 	case V2:
-		return ErrControllerMissing
+		return cg.rw.Set(version, "cpu", "cpu.weight", fmt.Sprintf("%d", limit))
 	}
 
 	return ErrUnknownVersion
