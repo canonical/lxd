@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: LXD\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2020-09-23 23:38-0400\n"
+"POT-Creation-Date: 2020-11-13 18:24-0500\n"
 "PO-Revision-Date: 2020-03-27 12:50+0000\n"
 "Last-Translator: KATOH Yasufumi <karma@jazz.email.ne.jp>\n"
 "Language-Team: Japanese <https://hosted.weblate.org/projects/linux-"
@@ -49,7 +49,7 @@ msgstr ""
 "###   source: /home/chb/mnt/lxd_test/default.img\n"
 "###   zfs.pool_name: default"
 
-#: lxc/storage_volume.go:792
+#: lxc/storage_volume.go:786
 msgid ""
 "### This is a YAML representation of a storage volume.\n"
 "### Any line starting with a '# will be ignored.\n"
@@ -111,7 +111,7 @@ msgstr ""
 "###\n"
 "### Note that the name is shown but cannot be changed"
 
-#: lxc/image.go:336
+#: lxc/image.go:334
 msgid ""
 "### This is a YAML representation of the image properties.\n"
 "### Any line starting with a '# will be ignored.\n"
@@ -288,7 +288,7 @@ msgstr ""
 msgid "%d (id: %d, online: %v, NUMA node: %v)"
 msgstr "%d (id: %d, オンライン: %v)"
 
-#: lxc/image.go:1037
+#: lxc/image.go:1035
 #, c-format
 msgid "%s (%d more)"
 msgstr "%s (他%d個)"
@@ -338,7 +338,7 @@ msgstr "--mode と --target は同時に指定できません"
 msgid "--console only works with a single instance"
 msgstr "移動先のインスタンスに適用するプロファイル"
 
-#: lxc/init.go:122
+#: lxc/init.go:123
 msgid "--empty cannot be combined with an image name"
 msgstr "--empty はイメージ名と同時に指定できません"
 
@@ -375,12 +375,12 @@ msgstr "add <alias> <target>"
 msgid "<old alias> <new alias>"
 msgstr "rename <old alias> <new alias>"
 
-#: lxc/storage_volume.go:1140
+#: lxc/storage_volume.go:1134
 #, fuzzy
 msgid "<pool>/<volume> <pool>/<volume>"
 msgstr "move [<pool>/]<volume> [<pool>/]<volume>"
 
-#: lxc/storage_volume.go:299
+#: lxc/storage_volume.go:293
 #, fuzzy
 msgid "<pool>/<volume>[/<snapshot>] <pool>/<volume>"
 msgstr "copy <pool>/<volume>[/<snapshot>] <pool>/<volume>"
@@ -408,7 +408,7 @@ msgstr ""
 "push <source path> [<remote>:]<instance>/<path> [[<remote>:]<instance>/"
 "<path>...]"
 
-#: lxc/image.go:603
+#: lxc/image.go:601
 #, fuzzy
 msgid ""
 "<tarball>|<directory>|<URL> [<rootfs tarball>] [<remote>:] [key=value...]"
@@ -421,15 +421,15 @@ msgstr ""
 msgid "<target>"
 msgstr "manpage <target>"
 
-#: lxc/alias.go:126 lxc/image.go:1002 lxc/image_alias.go:231
+#: lxc/alias.go:126 lxc/image.go:1000 lxc/image_alias.go:231
 msgid "ALIAS"
 msgstr "ALIAS"
 
-#: lxc/image.go:1003
+#: lxc/image.go:1001
 msgid "ALIASES"
 msgstr "ALIASES"
 
-#: lxc/cluster.go:137 lxc/image.go:1008 lxc/list.go:426
+#: lxc/cluster.go:137 lxc/image.go:1006 lxc/list.go:426
 msgid "ARCHITECTURE"
 msgstr "ARCHITECTURE"
 
@@ -514,11 +514,11 @@ msgstr "エイリアス %s は存在しません"
 msgid "Alias name missing"
 msgstr "エイリアスを指定してください"
 
-#: lxc/image.go:923
+#: lxc/image.go:921
 msgid "Aliases:"
 msgstr "エイリアス:"
 
-#: lxc/image.go:894 lxc/info.go:446
+#: lxc/image.go:892 lxc/info.go:446
 #, c-format
 msgid "Architecture: %s"
 msgstr "アーキテクチャ: %s"
@@ -532,7 +532,7 @@ msgstr "アーキテクチャ: %v"
 msgid "As neither could be found, the raw SPICE socket can be found at:"
 msgstr ""
 
-#: lxc/init.go:277
+#: lxc/init.go:275
 msgid "Asked for a VM but image is of type container"
 msgstr "VMを要求しましたが、イメージタイプがコンテナです"
 
@@ -556,7 +556,7 @@ msgstr "新たなネットワークインターフェースをインスタンス
 msgid "Attach new storage volumes to instances"
 msgstr "新たにストレージボリュームをインスタンスに追加します"
 
-#: lxc/storage_volume.go:218 lxc/storage_volume.go:219
+#: lxc/storage_volume.go:212 lxc/storage_volume.go:213
 msgid "Attach new storage volumes to profiles"
 msgstr "新しいストレージボリュームをプロファイルに追加します"
 
@@ -586,7 +586,7 @@ msgstr "認証タイプ '%s' はサーバではサポートされていません
 msgid "Auto negotiation: %v"
 msgstr "オートネゴシエーション: %v"
 
-#: lxc/image.go:933
+#: lxc/image.go:931
 #, c-format
 msgid "Auto update: %s"
 msgstr "自動更新: %s"
@@ -614,13 +614,13 @@ msgstr "バックアップのエクスポートが成功しました!"
 msgid "Bad key/value pair: %s"
 msgstr "不適切なキー/値のペア: %s"
 
-#: lxc/copy.go:121 lxc/init.go:187 lxc/project.go:121 lxc/publish.go:172
-#: lxc/storage.go:123 lxc/storage_volume.go:505
+#: lxc/copy.go:121 lxc/init.go:185 lxc/project.go:121 lxc/publish.go:172
+#: lxc/storage.go:123 lxc/storage_volume.go:499
 #, c-format
 msgid "Bad key=value pair: %s"
 msgstr "不適切な キー=値 のペア: %s"
 
-#: lxc/image.go:714
+#: lxc/image.go:712
 #, c-format
 msgid "Bad property: %s"
 msgstr "不正なイメージプロパティ形式: %s"
@@ -687,7 +687,7 @@ msgstr "CREATED AT"
 msgid "CUDA Version: %v"
 msgstr "CUDA バージョン: %v"
 
-#: lxc/image.go:932
+#: lxc/image.go:930
 #, c-format
 msgid "Cached: %s"
 msgstr "キャッシュ済: %s"
@@ -772,12 +772,12 @@ msgstr "クライアントバージョン: %s\n"
 #: lxc/move.go:57 lxc/network.go:257 lxc/network.go:672 lxc/network.go:730
 #: lxc/network.go:1017 lxc/network.go:1084 lxc/network.go:1146
 #: lxc/storage.go:92 lxc/storage.go:336 lxc/storage.go:392 lxc/storage.go:588
-#: lxc/storage.go:655 lxc/storage.go:738 lxc/storage_volume.go:306
-#: lxc/storage_volume.go:466 lxc/storage_volume.go:543
-#: lxc/storage_volume.go:785 lxc/storage_volume.go:982
-#: lxc/storage_volume.go:1147 lxc/storage_volume.go:1177
-#: lxc/storage_volume.go:1293 lxc/storage_volume.go:1372
-#: lxc/storage_volume.go:1465
+#: lxc/storage.go:655 lxc/storage.go:738 lxc/storage_volume.go:300
+#: lxc/storage_volume.go:460 lxc/storage_volume.go:537
+#: lxc/storage_volume.go:779 lxc/storage_volume.go:976
+#: lxc/storage_volume.go:1141 lxc/storage_volume.go:1171
+#: lxc/storage_volume.go:1287 lxc/storage_volume.go:1366
+#: lxc/storage_volume.go:1459
 msgid "Cluster member name"
 msgstr "クラスタメンバ名"
 
@@ -785,7 +785,7 @@ msgstr "クラスタメンバ名"
 msgid "Clustering enabled"
 msgstr "クラスタリングが有効になりました"
 
-#: lxc/image.go:993 lxc/list.go:117
+#: lxc/image.go:991 lxc/list.go:117
 msgid "Columns"
 msgstr "カラムレイアウト"
 
@@ -818,9 +818,9 @@ msgid "Config key/value to apply to the target instance"
 msgstr "移動先のインスタンスに適用するキー/値の設定"
 
 #: lxc/cluster.go:502 lxc/config.go:255 lxc/config.go:328
-#: lxc/config_metadata.go:142 lxc/image.go:414 lxc/network.go:640
+#: lxc/config_metadata.go:142 lxc/image.go:412 lxc/network.go:640
 #: lxc/profile.go:498 lxc/project.go:304 lxc/storage.go:303
-#: lxc/storage_volume.go:918 lxc/storage_volume.go:948
+#: lxc/storage_volume.go:912 lxc/storage_volume.go:942
 #, c-format
 msgid "Config parsing error: %s"
 msgstr "設定の構文エラー: %s"
@@ -870,7 +870,7 @@ msgstr "プロファイルに継承されたデバイスをコピーし、設定
 msgid "Copy profiles"
 msgstr "プロファイルをコピーします"
 
-#: lxc/storage_volume.go:301 lxc/storage_volume.go:302
+#: lxc/storage_volume.go:295 lxc/storage_volume.go:296
 msgid "Copy storage volumes"
 msgstr "ストレージボリュームをコピーします"
 
@@ -878,7 +878,7 @@ msgstr "ストレージボリュームをコピーします"
 msgid "Copy the instance without its snapshots"
 msgstr "インスタンスをコピーします。スナップショットはコピーしません"
 
-#: lxc/storage_volume.go:307
+#: lxc/storage_volume.go:301
 msgid "Copy the volume without its snapshots"
 msgstr "ボリュームをコピーします (スナップショットはコピーしません)"
 
@@ -895,7 +895,7 @@ msgstr "仮想マシンイメージをコピーします"
 msgid "Copying the image: %s"
 msgstr "イメージのコピー中: %s"
 
-#: lxc/storage_volume.go:362
+#: lxc/storage_volume.go:356
 #, c-format
 msgid "Copying the storage volume: %s"
 msgstr "ストレージボリュームのコピー中: %s"
@@ -933,11 +933,11 @@ msgstr "イメージからインスタンスを作成し、起動します"
 msgid "Create any directories necessary"
 msgstr "必要なディレクトリをすべて作成します"
 
-#: lxc/snapshot.go:26
+#: lxc/snapshot.go:27
 msgid "Create instance snapshots"
 msgstr "インスタンスのスナップショットを作成します"
 
-#: lxc/snapshot.go:27
+#: lxc/snapshot.go:28
 msgid ""
 "Create instance snapshots\n"
 "\n"
@@ -953,7 +953,7 @@ msgstr ""
 msgid "Create instances from images"
 msgstr "イメージからインスタンスを作成します"
 
-#: lxc/storage_volume.go:462 lxc/storage_volume.go:463
+#: lxc/storage_volume.go:456 lxc/storage_volume.go:457
 msgid "Create new custom storage volumes"
 msgstr "新たにカスタムストレージボリュームを作成します"
 
@@ -981,17 +981,17 @@ msgstr "ストレージプールを作成します"
 msgid "Create the instance with no profiles applied"
 msgstr "プロファイルを適用しないインスタンスを作成します"
 
-#: lxc/image.go:901 lxc/info.go:448
+#: lxc/image.go:899 lxc/info.go:448
 #, c-format
 msgid "Created: %s"
 msgstr "作成日時: %s"
 
-#: lxc/init.go:157
+#: lxc/init.go:155
 #, c-format
 msgid "Creating %s"
 msgstr "%s を作成中"
 
-#: lxc/init.go:155
+#: lxc/init.go:153
 msgid "Creating the instance"
 msgstr "インスタンスを作成中"
 
@@ -1004,8 +1004,8 @@ msgstr "現在の VF 数: %d"
 msgid "DATABASE"
 msgstr "DATABASE"
 
-#: lxc/image.go:1007 lxc/image_alias.go:234 lxc/list.go:429 lxc/network.go:870
-#: lxc/operation.go:160 lxc/storage.go:559 lxc/storage_volume.go:1120
+#: lxc/image.go:1005 lxc/image_alias.go:234 lxc/list.go:429 lxc/network.go:870
+#: lxc/operation.go:160 lxc/storage.go:559 lxc/storage_volume.go:1114
 msgid "DESCRIPTION"
 msgstr "DESCRIPTION"
 
@@ -1041,7 +1041,7 @@ msgstr "インスタンス内のファイルを削除します"
 msgid "Delete image aliases"
 msgstr "イメージのエイリアスを削除します"
 
-#: lxc/image.go:269 lxc/image.go:270
+#: lxc/image.go:267 lxc/image.go:268
 msgid "Delete images"
 msgstr "イメージを削除します"
 
@@ -1049,7 +1049,7 @@ msgstr "イメージを削除します"
 msgid "Delete instance file templates"
 msgstr "インスタンスのファイルテンプレートを削除します"
 
-#: lxc/delete.go:29 lxc/delete.go:30
+#: lxc/delete.go:30 lxc/delete.go:31
 msgid "Delete instances and snapshots"
 msgstr "インスタンスとスナップショットを削除します"
 
@@ -1069,7 +1069,7 @@ msgstr "プロジェクトを削除します"
 msgid "Delete storage pools"
 msgstr "ストレージプールを削除します"
 
-#: lxc/storage_volume.go:539 lxc/storage_volume.go:540
+#: lxc/storage_volume.go:533 lxc/storage_volume.go:534
 msgid "Delete storage volumes"
 msgstr "ストレージボリュームを削除します"
 
@@ -1088,11 +1088,11 @@ msgstr "ストレージボリュームを削除します"
 #: lxc/config_template.go:150 lxc/config_template.go:236
 #: lxc/config_template.go:295 lxc/config_trust.go:28 lxc/config_trust.go:57
 #: lxc/config_trust.go:115 lxc/config_trust.go:193 lxc/console.go:36
-#: lxc/copy.go:40 lxc/delete.go:30 lxc/exec.go:40 lxc/export.go:32
+#: lxc/copy.go:40 lxc/delete.go:31 lxc/exec.go:40 lxc/export.go:32
 #: lxc/file.go:72 lxc/file.go:105 lxc/file.go:154 lxc/file.go:217
-#: lxc/file.go:407 lxc/image.go:38 lxc/image.go:128 lxc/image.go:270
-#: lxc/image.go:321 lxc/image.go:446 lxc/image.go:605 lxc/image.go:833
-#: lxc/image.go:968 lxc/image.go:1266 lxc/image.go:1345 lxc/image_alias.go:25
+#: lxc/file.go:407 lxc/image.go:38 lxc/image.go:128 lxc/image.go:268
+#: lxc/image.go:319 lxc/image.go:444 lxc/image.go:603 lxc/image.go:831
+#: lxc/image.go:966 lxc/image.go:1264 lxc/image.go:1343 lxc/image_alias.go:25
 #: lxc/image_alias.go:58 lxc/image_alias.go:105 lxc/image_alias.go:150
 #: lxc/image_alias.go:252 lxc/import.go:28 lxc/info.go:33 lxc/init.go:40
 #: lxc/launch.go:25 lxc/list.go:45 lxc/main.go:50 lxc/manpage.go:20
@@ -1111,18 +1111,18 @@ msgstr "ストレージボリュームを削除します"
 #: lxc/project.go:673 lxc/publish.go:31 lxc/query.go:32 lxc/remote.go:33
 #: lxc/remote.go:85 lxc/remote.go:483 lxc/remote.go:519 lxc/remote.go:599
 #: lxc/remote.go:661 lxc/remote.go:711 lxc/remote.go:749 lxc/rename.go:21
-#: lxc/restore.go:24 lxc/snapshot.go:27 lxc/storage.go:33 lxc/storage.go:89
+#: lxc/restore.go:24 lxc/snapshot.go:28 lxc/storage.go:33 lxc/storage.go:89
 #: lxc/storage.go:163 lxc/storage.go:213 lxc/storage.go:333 lxc/storage.go:388
 #: lxc/storage.go:508 lxc/storage.go:582 lxc/storage.go:651 lxc/storage.go:735
-#: lxc/storage_volume.go:33 lxc/storage_volume.go:140 lxc/storage_volume.go:219
-#: lxc/storage_volume.go:302 lxc/storage_volume.go:463
-#: lxc/storage_volume.go:540 lxc/storage_volume.go:616
-#: lxc/storage_volume.go:698 lxc/storage_volume.go:779
-#: lxc/storage_volume.go:979 lxc/storage_volume.go:1070
-#: lxc/storage_volume.go:1143 lxc/storage_volume.go:1174
-#: lxc/storage_volume.go:1287 lxc/storage_volume.go:1363
-#: lxc/storage_volume.go:1462 lxc/storage_volume.go:1495
-#: lxc/storage_volume.go:1571 lxc/version.go:22
+#: lxc/storage_volume.go:33 lxc/storage_volume.go:140 lxc/storage_volume.go:213
+#: lxc/storage_volume.go:296 lxc/storage_volume.go:457
+#: lxc/storage_volume.go:534 lxc/storage_volume.go:610
+#: lxc/storage_volume.go:692 lxc/storage_volume.go:773
+#: lxc/storage_volume.go:973 lxc/storage_volume.go:1064
+#: lxc/storage_volume.go:1137 lxc/storage_volume.go:1168
+#: lxc/storage_volume.go:1281 lxc/storage_volume.go:1357
+#: lxc/storage_volume.go:1456 lxc/storage_volume.go:1490
+#: lxc/storage_volume.go:1582 lxc/version.go:22
 msgid "Description"
 msgstr "説明"
 
@@ -1134,11 +1134,11 @@ msgstr "インスタンスからネットワークインターフェースを取
 msgid "Detach network interfaces from profiles"
 msgstr "プロファイルからネットワークインターフェースを取り外します"
 
-#: lxc/storage_volume.go:615 lxc/storage_volume.go:616
+#: lxc/storage_volume.go:609 lxc/storage_volume.go:610
 msgid "Detach storage volumes from instances"
 msgstr "インスタンスからストレージボリュームを取り外します"
 
-#: lxc/storage_volume.go:697 lxc/storage_volume.go:698
+#: lxc/storage_volume.go:691 lxc/storage_volume.go:692
 msgid "Detach storage volumes from profiles"
 msgstr "プロファイルからストレージボリュームを取り外します"
 
@@ -1167,13 +1167,13 @@ msgstr "デバイスは既に存在します: %s"
 msgid "Device: %s"
 msgstr "デバイス: %s"
 
-#: lxc/init.go:336
+#: lxc/init.go:334
 msgid "Didn't get any affected image, instance or snapshot from server"
 msgstr ""
 "サーバから変更されたイメージ、インスタンス、スナップショットを取得できません"
 "でした"
 
-#: lxc/image.go:620
+#: lxc/image.go:618
 msgid "Directory import is not available on this platform"
 msgstr "このプラットフォーム上ではディレクトリのインポートは利用できません"
 
@@ -1243,7 +1243,7 @@ msgstr "クラスターメンバーの設定をYAMLファイルで編集しま�
 msgid "Edit files in instances"
 msgstr "インスタンス内のファイルを編集します"
 
-#: lxc/image.go:320 lxc/image.go:321
+#: lxc/image.go:318 lxc/image.go:319
 msgid "Edit image properties"
 msgstr "イメージのプロパティを編集します"
 
@@ -1275,11 +1275,11 @@ msgstr "プロジェクト設定をYAMLで編集します"
 msgid "Edit storage pool configurations as YAML"
 msgstr "ストレージプールの設定をYAMLで編集します"
 
-#: lxc/storage_volume.go:778 lxc/storage_volume.go:779
+#: lxc/storage_volume.go:772 lxc/storage_volume.go:773
 msgid "Edit storage volume configurations as YAML"
 msgstr "ストレージボリュームの設定をYAMLで編集します"
 
-#: lxc/image.go:1019 lxc/list.go:471
+#: lxc/image.go:1017 lxc/list.go:471
 #, c-format
 msgid "Empty column entry (redundant, leading or trailing command) in '%s'"
 msgstr ""
@@ -1361,20 +1361,20 @@ msgstr ""
 "デフォルトのモードは non-interactive です。もし標準入出力が両方ともターミナル"
 "の場合は interactive モードが選択されます (標準エラー出力は無視されます)。"
 
-#: lxc/image.go:907
+#: lxc/image.go:905
 #, c-format
 msgid "Expires: %s"
 msgstr "失効日時: %s"
 
-#: lxc/image.go:909
+#: lxc/image.go:907
 msgid "Expires: never"
 msgstr "失効日時: 失効しない"
 
-#: lxc/image.go:445
+#: lxc/image.go:443
 msgid "Export and download images"
 msgstr "イメージをエクスポートしてダウンロードします"
 
-#: lxc/image.go:446
+#: lxc/image.go:444
 msgid ""
 "Export and download images\n"
 "\n"
@@ -1397,7 +1397,7 @@ msgstr "インスタンスを tarball 形式のバックアップとしてエク
 msgid "Exporting the backup: %s"
 msgstr "バックアップのエクスポート中: %s"
 
-#: lxc/image.go:512
+#: lxc/image.go:510
 #, c-format
 msgid "Exporting the image: %s"
 msgstr "イメージのエクスポート中: %s"
@@ -1406,12 +1406,12 @@ msgstr "イメージのエクスポート中: %s"
 msgid "FILENAME"
 msgstr "FILENAME"
 
-#: lxc/config_trust.go:172 lxc/image.go:1004 lxc/image.go:1005
+#: lxc/config_trust.go:172 lxc/image.go:1002 lxc/image.go:1003
 #: lxc/image_alias.go:232
 msgid "FINGERPRINT"
 msgstr "FINGERPRINT"
 
-#: lxc/move.go:236
+#: lxc/move.go:237
 msgid "Failed to connect to cluster member"
 msgstr "クラスタメンバへの接続に失敗しました"
 
@@ -1442,7 +1442,7 @@ msgstr "Fast モード (--columns=nsacPt と同じ)"
 msgid "Filtering isn't supported yet"
 msgstr "情報表示のフィルタリングはまだサポートされていません"
 
-#: lxc/image.go:892
+#: lxc/image.go:890
 #, c-format
 msgid "Fingerprint: %s"
 msgstr "証明書のフィンガープリント: %s"
@@ -1459,7 +1459,7 @@ msgstr "degraded 状態であっても強制的にメンバを削除します"
 msgid "Force the instance to shutdown"
 msgstr "インスタンスを強制シャットダウンします"
 
-#: lxc/delete.go:34
+#: lxc/delete.go:35
 msgid "Force the removal of running instances"
 msgstr "稼働中のインスタンスを強制的に削除します"
 
@@ -1507,10 +1507,10 @@ msgstr ""
 "本当に強制的に %s を削除してもよろしいですか? (yes/no): "
 
 #: lxc/alias.go:102 lxc/cluster.go:76 lxc/config_template.go:238
-#: lxc/config_trust.go:117 lxc/image.go:994 lxc/image_alias.go:155
+#: lxc/config_trust.go:117 lxc/image.go:992 lxc/image_alias.go:155
 #: lxc/list.go:118 lxc/network.go:811 lxc/network.go:894 lxc/operation.go:104
 #: lxc/profile.go:581 lxc/project.go:386 lxc/remote.go:523 lxc/storage.go:510
-#: lxc/storage_volume.go:1072
+#: lxc/storage_volume.go:1066
 msgid "Format (csv|json|table|yaml)"
 msgstr "フォーマット (csv|json|table|yaml)"
 
@@ -1574,7 +1574,7 @@ msgstr "プロジェクトの設定値を取得します"
 msgid "Get values for storage pool configuration keys"
 msgstr "ストレージプールの設定値を取得します"
 
-#: lxc/storage_volume.go:978 lxc/storage_volume.go:979
+#: lxc/storage_volume.go:972 lxc/storage_volume.go:973
 msgid "Get values for storage volume configuration keys"
 msgstr "ストレージボリュームの設定値を取得します"
 
@@ -1624,17 +1624,21 @@ msgstr "IPV6"
 msgid "ISSUE DATE"
 msgstr "ISSUE DATE"
 
+#: lxc/snapshot.go:40 lxc/storage_volume.go:1495
+msgid "If the snapshot name already exists, delete and create a new one"
+msgstr ""
+
 #: lxc/main.go:336
 msgid ""
 "If this is your first time running LXD on this machine, you should also run: "
 "lxd init"
 msgstr "初めてこのマシンで LXD を使う場合、lxd init と実行する必要があります"
 
-#: lxc/snapshot.go:38
+#: lxc/snapshot.go:39
 msgid "Ignore any configured auto-expiry for the instance"
 msgstr "設定されている自動でのインスタンスの有効期限設定を無視します"
 
-#: lxc/storage_volume.go:1499
+#: lxc/storage_volume.go:1494
 msgid "Ignore any configured auto-expiry for the storage volume"
 msgstr "設定されている自動でのストレージボリュームの有効期限設定を無視します"
 
@@ -1642,7 +1646,7 @@ msgstr "設定されている自動でのストレージボリュームの有効
 msgid "Ignore the instance state"
 msgstr "インスタンスの状態を無視します"
 
-#: lxc/image.go:1326
+#: lxc/image.go:1324
 msgid "Image already up to date."
 msgstr "イメージは更新済みです。"
 
@@ -1650,25 +1654,25 @@ msgstr "イメージは更新済みです。"
 msgid "Image copied successfully!"
 msgstr "イメージのコピーが成功しました!"
 
-#: lxc/image.go:588
+#: lxc/image.go:586
 msgid "Image exported successfully!"
 msgstr "イメージのエクスポートが成功しました!"
 
-#: lxc/image.go:293 lxc/image.go:1289
+#: lxc/image.go:291 lxc/image.go:1287
 msgid "Image identifier missing"
 msgstr "イメージ名を指定してください"
 
-#: lxc/image.go:361
+#: lxc/image.go:359
 #, c-format
 msgid "Image identifier missing: %s"
 msgstr "イメージ名を指定してください: %s"
 
-#: lxc/image.go:804
+#: lxc/image.go:802
 #, c-format
 msgid "Image imported with fingerprint: %s"
 msgstr "イメージは以下のフィンガープリントでインポートされました: %s"
 
-#: lxc/image.go:1324
+#: lxc/image.go:1322
 msgid "Image refreshed successfully!"
 msgstr "イメージの更新が成功しました!"
 
@@ -1682,7 +1686,7 @@ msgid "Import backups of instances including their snapshots."
 msgstr ""
 "インスタンスのバックアップをスナップショットを含んだ状態でインポートします。"
 
-#: lxc/image.go:605
+#: lxc/image.go:603
 msgid ""
 "Import image into the image store\n"
 "\n"
@@ -1693,7 +1697,7 @@ msgstr ""
 "ディレクトリのインポートは Linux 上でのみ可能で、root で実行する必要がありま"
 "す。"
 
-#: lxc/image.go:604
+#: lxc/image.go:602
 msgid "Import images into the image store"
 msgstr "イメージをイメージストアにインポートします"
 
@@ -1718,7 +1722,7 @@ msgstr "入力するデータ"
 msgid "Instance name is mandatory"
 msgstr "インスタンス名を指定する必要があります"
 
-#: lxc/copy.go:425 lxc/init.go:343
+#: lxc/copy.go:425 lxc/init.go:341
 #, c-format
 msgid "Instance name is: %s"
 msgstr "インスタンス名: %s"
@@ -1757,7 +1761,7 @@ msgstr ""
 msgid "Invalid format %q"
 msgstr "不正なフォーマット %q"
 
-#: lxc/snapshot.go:70
+#: lxc/snapshot.go:72
 #, fuzzy, c-format
 msgid "Invalid instance name: %s"
 msgstr "インスタンス名: %s"
@@ -1823,7 +1827,7 @@ msgid "LAST USED AT"
 msgstr "LAST USED AT"
 
 #: lxc/list.go:455 lxc/network.go:944 lxc/operation.go:165
-#: lxc/storage_volume.go:1124
+#: lxc/storage_volume.go:1118
 msgid "LOCATION"
 msgstr "LOCATION"
 
@@ -1839,12 +1843,12 @@ msgstr ""
 msgid "LXD server isn't part of a cluster"
 msgstr "LXD サーバはクラスタの一部ではありません"
 
-#: lxc/image.go:913
+#: lxc/image.go:911
 #, c-format
 msgid "Last used: %s"
 msgstr "最終使用: %s"
 
-#: lxc/image.go:915
+#: lxc/image.go:913
 msgid "Last used: never"
 msgstr "最終使用: 未使用"
 
@@ -1897,11 +1901,11 @@ msgstr ""
 "指定するフィルタはイメージのハッシュ値の一部でもイメージのエイリアスの一部で"
 "も構いません。\n"
 
-#: lxc/image.go:967
+#: lxc/image.go:965
 msgid "List images"
 msgstr "イメージを一覧表示します"
 
-#: lxc/image.go:968
+#: lxc/image.go:966
 msgid ""
 "List images\n"
 "\n"
@@ -2103,7 +2107,7 @@ msgstr "プロファイルを一覧表示します"
 msgid "List projects"
 msgstr "プロジェクトを一覧表示します"
 
-#: lxc/storage_volume.go:1069 lxc/storage_volume.go:1070
+#: lxc/storage_volume.go:1063 lxc/storage_volume.go:1064
 msgid "List storage volumes"
 msgstr "ストレージボリュームを一覧表示します"
 
@@ -2160,7 +2164,7 @@ msgstr "MESSAGE"
 msgid "MTU: %d"
 msgstr "MTU: %d"
 
-#: lxc/image.go:134 lxc/image.go:610
+#: lxc/image.go:134 lxc/image.go:608
 msgid "Make image public"
 msgstr "イメージを public にする"
 
@@ -2308,11 +2312,11 @@ msgstr "メモリ消費量:"
 msgid "Memory:"
 msgstr "メモリ:"
 
-#: lxc/move.go:249
+#: lxc/move.go:250
 msgid "Migration API failure"
 msgstr "マイグレーション API が失敗しました"
 
-#: lxc/move.go:254
+#: lxc/move.go:255
 msgid "Migration operation failure"
 msgstr "マイグレーションが失敗しました"
 
@@ -2347,13 +2351,13 @@ msgstr "ネットワーク名を指定する必要があります"
 
 #: lxc/storage.go:187 lxc/storage.go:257 lxc/storage.go:358 lxc/storage.go:414
 #: lxc/storage.go:611 lxc/storage.go:683 lxc/storage_volume.go:164
-#: lxc/storage_volume.go:243 lxc/storage_volume.go:488
-#: lxc/storage_volume.go:564 lxc/storage_volume.go:640
-#: lxc/storage_volume.go:722 lxc/storage_volume.go:821
-#: lxc/storage_volume.go:1004 lxc/storage_volume.go:1095
-#: lxc/storage_volume.go:1199 lxc/storage_volume.go:1314
-#: lxc/storage_volume.go:1394 lxc/storage_volume.go:1519
-#: lxc/storage_volume.go:1594
+#: lxc/storage_volume.go:237 lxc/storage_volume.go:482
+#: lxc/storage_volume.go:558 lxc/storage_volume.go:634
+#: lxc/storage_volume.go:716 lxc/storage_volume.go:815
+#: lxc/storage_volume.go:998 lxc/storage_volume.go:1089
+#: lxc/storage_volume.go:1193 lxc/storage_volume.go:1308
+#: lxc/storage_volume.go:1388 lxc/storage_volume.go:1515
+#: lxc/storage_volume.go:1605
 msgid "Missing pool name"
 msgstr "ストレージプール名を指定する必要があります"
 
@@ -2371,7 +2375,7 @@ msgstr "プロジェクト名を指定する必要があります"
 msgid "Missing source profile name"
 msgstr "コピー元のプロファイル名を指定する必要があります"
 
-#: lxc/storage_volume.go:329
+#: lxc/storage_volume.go:323
 msgid "Missing source volume name"
 msgstr "コピー元のボリューム名を指定する必要があります"
 
@@ -2403,8 +2407,8 @@ msgstr ""
 "\n"
 "デフォルトではすべてのタイプのメッセージをモニタリングします。"
 
-#: lxc/network.go:420 lxc/network.go:505 lxc/storage_volume.go:660
-#: lxc/storage_volume.go:741
+#: lxc/network.go:420 lxc/network.go:505 lxc/storage_volume.go:654
+#: lxc/storage_volume.go:735
 msgid "More than one device matches, specify the device name"
 msgstr "複数のデバイスとマッチします。デバイス名を指定してください"
 
@@ -2418,7 +2422,7 @@ msgstr ""
 msgid "Move instances within or in between LXD servers"
 msgstr "LXD サーバ内もしくはサーバ間でインスタンスを移動します"
 
-#: lxc/storage_volume.go:1142 lxc/storage_volume.go:1143
+#: lxc/storage_volume.go:1136 lxc/storage_volume.go:1137
 msgid "Move storage volumes between pools"
 msgstr "プール間でストレージボリュームを移動します"
 
@@ -2426,12 +2430,12 @@ msgstr "プール間でストレージボリュームを移動します"
 msgid "Move the instance without its snapshots"
 msgstr "インスタンスを移動します。スナップショットは移動しません"
 
-#: lxc/storage_volume.go:366
+#: lxc/storage_volume.go:360
 #, c-format
 msgid "Moving the storage volume: %s"
 msgstr "ストレージボリュームの移動中: %s"
 
-#: lxc/image.go:622
+#: lxc/image.go:620
 msgid "Must run as root to import from directory"
 msgstr "ディレクトリからのインポートは root で実行する必要があります"
 
@@ -2441,7 +2445,7 @@ msgstr "インスタンス名を指定する必要があります: "
 
 #: lxc/cluster.go:132 lxc/list.go:435 lxc/network.go:867 lxc/profile.go:620
 #: lxc/project.go:455 lxc/remote.go:577 lxc/storage.go:558
-#: lxc/storage_volume.go:1119
+#: lxc/storage_volume.go:1113
 msgid "NAME"
 msgstr "NAME"
 
@@ -2522,7 +2526,7 @@ msgstr "ネットワーク使用状況:"
 msgid "New alias to define at target"
 msgstr "新しいエイリアスを定義する"
 
-#: lxc/image.go:137 lxc/image.go:611
+#: lxc/image.go:137 lxc/image.go:609
 msgid "New aliases to add to the image"
 msgstr "イメージに新しいエイリアスを追加します"
 
@@ -2534,15 +2538,15 @@ msgstr "指定するデバイスに適用する新しいキー/値"
 msgid "No device found for this network"
 msgstr "このネットワークに対するデバイスがありません"
 
-#: lxc/storage_volume.go:669 lxc/storage_volume.go:750
+#: lxc/storage_volume.go:663 lxc/storage_volume.go:744
 msgid "No device found for this storage volume"
 msgstr "このストレージボリュームに対するデバイスがありません"
 
-#: lxc/storage_volume.go:343
+#: lxc/storage_volume.go:337
 msgid "No storage pool for source volume specified"
 msgstr "コピー元のボリュームに対するストレージプールが指定されていません"
 
-#: lxc/storage_volume.go:350
+#: lxc/storage_volume.go:344
 msgid "No storage pool for target volume specified"
 msgstr "コピー先のボリュームに対するストレージプールが指定されていません"
 
@@ -2556,11 +2560,11 @@ msgstr "%q に設定する値が指定されていません"
 msgid "Node %d:\n"
 msgstr "ノード %d:\n"
 
-#: lxc/storage_volume.go:182 lxc/storage_volume.go:261
+#: lxc/storage_volume.go:182 lxc/storage_volume.go:255
 msgid "Only \"custom\" volumes can be attached to instances"
 msgstr "\"カスタム\" のボリュームのみがインスタンスにアタッチできます"
 
-#: lxc/storage_volume.go:1527
+#: lxc/storage_volume.go:1523
 msgid "Only \"custom\" volumes can be snapshotted"
 msgstr "\"カスタム\" のボリュームのみがスナップショットを取得できます"
 
@@ -2568,7 +2572,7 @@ msgstr "\"カスタム\" のボリュームのみがスナップショットを�
 msgid "Only https URLs are supported for simplestreams"
 msgstr "simplestreams は https の URL のみサポートします"
 
-#: lxc/image.go:695
+#: lxc/image.go:693
 msgid "Only https:// is supported for remote image import"
 msgstr "リモートイメージのインポートは https:// のみをサポートします"
 
@@ -2610,7 +2614,7 @@ msgstr "PROFILES"
 msgid "PROTOCOL"
 msgstr "PROTOCOL"
 
-#: lxc/image.go:1006 lxc/remote.go:581
+#: lxc/image.go:1004 lxc/remote.go:581
 msgid "PUBLIC"
 msgstr "PUBLIC"
 
@@ -2654,12 +2658,12 @@ msgid "Ports:"
 msgstr "ポート:"
 
 #: lxc/cluster.go:503 lxc/network.go:641 lxc/profile.go:499 lxc/project.go:305
-#: lxc/storage.go:304 lxc/storage_volume.go:919 lxc/storage_volume.go:949
+#: lxc/storage.go:304 lxc/storage_volume.go:913 lxc/storage_volume.go:943
 msgid "Press enter to open the editor again"
 msgstr "再度エディタを開くためには Enter キーを押します"
 
 #: lxc/config.go:256 lxc/config.go:329 lxc/config_metadata.go:143
-#: lxc/config_template.go:203 lxc/image.go:415
+#: lxc/config_template.go:203 lxc/image.go:413
 msgid "Press enter to start the editor again"
 msgstr "再度エディタを起動するには Enter キーを押します"
 
@@ -2737,11 +2741,11 @@ msgstr "移動先のインスタンスに適用するプロファイル"
 msgid "Profiles %s applied to %s"
 msgstr "プロファイル %s が %s に追加されました"
 
-#: lxc/image.go:945
+#: lxc/image.go:943
 msgid "Profiles:"
 msgstr "プロファイル:"
 
-#: lxc/image.go:943
+#: lxc/image.go:941
 msgid "Profiles: "
 msgstr "プロファイル: "
 
@@ -2770,7 +2774,7 @@ msgstr "プロジェクト名 %s を %s に変更しました"
 msgid "Project to use for the remote"
 msgstr "リモートの URL を設定します"
 
-#: lxc/image.go:918
+#: lxc/image.go:916
 msgid "Properties:"
 msgstr "プロパティ:"
 
@@ -2778,7 +2782,7 @@ msgstr "プロパティ:"
 msgid "Public image server"
 msgstr "Public なイメージサーバとして設定します"
 
-#: lxc/image.go:896
+#: lxc/image.go:894
 #, c-format
 msgid "Public: %s"
 msgstr "パブリック: %s"
@@ -2814,7 +2818,7 @@ msgstr "ファイル %s をコンテナ %s 内にコピーします: %%s"
 msgid "Query path must start with /"
 msgstr ""
 
-#: lxc/image.go:451 lxc/image.go:836 lxc/image.go:1348
+#: lxc/image.go:449 lxc/image.go:834 lxc/image.go:1346
 msgid "Query virtual machine images"
 msgstr "仮想マシンイメージを対象にします"
 
@@ -2827,7 +2831,7 @@ msgstr "読み取り専用: %v"
 msgid "Recursively transfer files"
 msgstr "再帰的にファイルを転送します"
 
-#: lxc/image.go:1265 lxc/image.go:1266
+#: lxc/image.go:1263 lxc/image.go:1264
 msgid "Refresh images"
 msgstr "イメージを更新します"
 
@@ -2836,7 +2840,7 @@ msgstr "イメージを更新します"
 msgid "Refreshing instance: %s"
 msgstr "インスタンスの更新中: %s"
 
-#: lxc/image.go:1294
+#: lxc/image.go:1292
 #, c-format
 msgid "Refreshing the image: %s"
 msgstr "イメージの更新中: %s"
@@ -2884,7 +2888,7 @@ msgstr "リモート名: %s"
 msgid "Removable: %v"
 msgstr "リムーバブルディスク: %v"
 
-#: lxc/delete.go:42
+#: lxc/delete.go:43
 #, c-format
 msgid "Remove %s (yes/no): "
 msgstr "%s を消去しますか (yes/no): "
@@ -2942,16 +2946,16 @@ msgstr "プロジェクト名を変更します"
 msgid "Rename remotes"
 msgstr "リモートサーバ名を変更します"
 
-#: lxc/storage_volume.go:1174
+#: lxc/storage_volume.go:1168
 msgid "Rename storage volumes"
 msgstr "ストレージボリューム名を変更します"
 
-#: lxc/storage_volume.go:1173
+#: lxc/storage_volume.go:1167
 msgid "Rename storage volumes and storage volume snapshots"
 msgstr ""
 "ストレージボリューム名とストレージボリュームのスナップショット名を変更します"
 
-#: lxc/storage_volume.go:1250 lxc/storage_volume.go:1270
+#: lxc/storage_volume.go:1244 lxc/storage_volume.go:1264
 #, c-format
 msgid "Renamed storage volume from \"%s\" to \"%s\""
 msgstr "ストレージボリューム名 \"%s\" を \"%s\" に変更しました"
@@ -2961,7 +2965,7 @@ msgstr "ストレージボリューム名 \"%s\" を \"%s\" に変更しまし�
 msgid "Render: %s (%s)"
 msgstr "レンダー: %s (%s)"
 
-#: lxc/delete.go:35
+#: lxc/delete.go:36
 msgid "Require user confirmation"
 msgstr "ユーザの確認を要求する"
 
@@ -2998,7 +3002,7 @@ msgstr ""
 msgid "Restore instances from snapshots"
 msgstr "スナップショットからインスタンスをリストアします"
 
-#: lxc/storage_volume.go:1570 lxc/storage_volume.go:1571
+#: lxc/storage_volume.go:1581 lxc/storage_volume.go:1582
 msgid "Restore storage volume snapshots"
 msgstr "スナップショットからストレージボリュームをリストアします"
 
@@ -3006,7 +3010,7 @@ msgstr "スナップショットからストレージボリュームをリスト
 msgid "Retrieve the instance's console log"
 msgstr "インスタンスのコンソールログを取得します"
 
-#: lxc/init.go:291
+#: lxc/init.go:289
 #, c-format
 msgid "Retrieving image: %s"
 msgstr "イメージの取得中: %s"
@@ -3015,7 +3019,7 @@ msgstr "イメージの取得中: %s"
 msgid "Run against all instances"
 msgstr "すべてのインスタンスに対してコマンドを実行します"
 
-#: lxc/image.go:1009
+#: lxc/image.go:1007
 msgid "SIZE"
 msgstr "SIZE"
 
@@ -3194,11 +3198,11 @@ msgstr ""
 "後方互換性のため、単一の設定を行うには次の形式でも設定できます:\n"
 "    lxc storage set [<remote>:]<pool> <key> <value>"
 
-#: lxc/storage_volume.go:1286
+#: lxc/storage_volume.go:1280
 msgid "Set storage volume configuration keys"
 msgstr "ストレージボリュームの設定項目を設定します"
 
-#: lxc/storage_volume.go:1287
+#: lxc/storage_volume.go:1281
 msgid ""
 "Set storage volume configuration keys\n"
 "\n"
@@ -3252,7 +3256,7 @@ msgstr "バックグラウンド操作の詳細を表示します"
 msgid "Show full device configuration"
 msgstr "プロファイルの設定を表示します"
 
-#: lxc/image.go:1344 lxc/image.go:1345
+#: lxc/image.go:1342 lxc/image.go:1343
 msgid "Show image properties"
 msgstr "イメージのプロパティを表示します"
 
@@ -3292,7 +3296,7 @@ msgstr "プロジェクトの設定を表示します"
 msgid "Show storage pool configurations and resources"
 msgstr "ストレージプールの設定とリソースを表示します"
 
-#: lxc/storage_volume.go:1362 lxc/storage_volume.go:1363
+#: lxc/storage_volume.go:1356 lxc/storage_volume.go:1357
 msgid "Show storage volume configurations"
 msgstr "ストレージボリュームの設定を表示する"
 
@@ -3320,7 +3324,7 @@ msgstr "ストレージプールで利用可能なリソースを表示します
 msgid "Show the used and free space in bytes"
 msgstr "使用量と空き容量を byte で表示します"
 
-#: lxc/image.go:832 lxc/image.go:833
+#: lxc/image.go:830 lxc/image.go:831
 msgid "Show useful information about images"
 msgstr "イメージについての情報を表示します"
 
@@ -3328,7 +3332,7 @@ msgstr "イメージについての情報を表示します"
 msgid "Show useful information about storage pools"
 msgstr "ストレージプールの情報を表示します"
 
-#: lxc/image.go:893
+#: lxc/image.go:891
 #, c-format
 msgid "Size: %.2fMB"
 msgstr "サイズ: %.2fMB"
@@ -3338,7 +3342,7 @@ msgstr "サイズ: %.2fMB"
 msgid "Size: %s"
 msgstr "サイズ: %s"
 
-#: lxc/storage_volume.go:1494 lxc/storage_volume.go:1495
+#: lxc/storage_volume.go:1489 lxc/storage_volume.go:1490
 msgid "Snapshot storage volumes"
 msgstr "ストレージボリュームのスナップショットを取得します"
 
@@ -3356,7 +3360,7 @@ msgstr "ソケット %d:"
 msgid "Some instances failed to %s"
 msgstr "一部のインスタンスで %s が失敗しました"
 
-#: lxc/image.go:936
+#: lxc/image.go:934
 msgid "Source:"
 msgstr "取得元:"
 
@@ -3391,7 +3395,7 @@ msgstr "実行中の場合、インスタンスを停止します"
 msgid "Stopping instance failed!"
 msgstr "インスタンスの停止に失敗しました！"
 
-#: lxc/delete.go:120
+#: lxc/delete.go:121
 #, c-format
 msgid "Stopping the instance failed: %s"
 msgstr "インスタンスの停止に失敗しました: %s"
@@ -3415,21 +3419,21 @@ msgstr "ストレージプール %s はメンバ %s 上でペンディング状�
 msgid "Storage pool name"
 msgstr "ストレージプール名"
 
-#: lxc/storage_volume.go:522
+#: lxc/storage_volume.go:516
 #, c-format
 msgid "Storage volume %s created"
 msgstr "ストレージボリューム %s を作成しました"
 
-#: lxc/storage_volume.go:599
+#: lxc/storage_volume.go:593
 #, c-format
 msgid "Storage volume %s deleted"
 msgstr "ストレージボリューム %s を削除しました"
 
-#: lxc/storage_volume.go:363
+#: lxc/storage_volume.go:357
 msgid "Storage volume copied successfully!"
 msgstr "ストレージボリュームのコピーが成功しました!"
 
-#: lxc/storage_volume.go:367
+#: lxc/storage_volume.go:361
 msgid "Storage volume moved successfully!"
 msgstr "ストレージボリュームの移動が成功しました!"
 
@@ -3467,8 +3471,8 @@ msgstr "デフォルトのリモートを切り替えます"
 msgid "TARGET"
 msgstr "TARGET"
 
-#: lxc/image.go:1011 lxc/image_alias.go:233 lxc/list.go:441 lxc/network.go:868
-#: lxc/network.go:941 lxc/operation.go:159 lxc/storage_volume.go:1118
+#: lxc/image.go:1009 lxc/image_alias.go:233 lxc/list.go:441 lxc/network.go:868
+#: lxc/network.go:941 lxc/operation.go:159 lxc/storage_volume.go:1112
 msgid "TYPE"
 msgstr "TYPE"
 
@@ -3498,7 +3502,7 @@ msgstr "デバイスはすでに存在します"
 msgid "The device doesn't exist"
 msgstr "デバイスが存在しません"
 
-#: lxc/delete.go:104
+#: lxc/delete.go:105
 msgid "The instance is currently running, stop it first or pass --force"
 msgstr "インスタンスは実行中です。先に停止させるか、--force を指定してください"
 
@@ -3510,18 +3514,18 @@ msgstr ""
 "インスタンスは現在実行中です。停止して、再起動するために --force を使用してく"
 "ださい"
 
-#: lxc/init.go:394
+#: lxc/init.go:392
 msgid "The instance you are starting doesn't have any network attached to it."
 msgstr "起動しようとしたインスタンスに接続されているネットワークがありません。"
 
-#: lxc/init.go:378
+#: lxc/init.go:376
 #, c-format
 msgid "The local image '%s' couldn't be found, trying '%s:%s' instead."
 msgstr ""
 "ローカルイメージ '%s' が見つかりません。代わりに '%s:%s' を試してみてくださ"
 "い。"
 
-#: lxc/init.go:374
+#: lxc/init.go:372
 #, c-format
 msgid "The local image '%s' couldn't be found, trying '%s:' instead."
 msgstr ""
@@ -3531,12 +3535,12 @@ msgstr ""
 msgid "The profile device doesn't exist"
 msgstr "プロファイルのデバイスが存在しません"
 
-#: lxc/move.go:241
+#: lxc/move.go:242
 msgid "The source LXD server is not clustered"
 msgstr "移動元の LXD サーバはクラスタに属していません"
 
-#: lxc/network.go:434 lxc/network.go:519 lxc/storage_volume.go:674
-#: lxc/storage_volume.go:755
+#: lxc/network.go:434 lxc/network.go:519 lxc/storage_volume.go:668
+#: lxc/storage_volume.go:749
 msgid "The specified device doesn't exist"
 msgstr "指定したデバイスが存在しません"
 
@@ -3579,17 +3583,17 @@ msgstr "スレッド:"
 msgid "Time to wait for the instance before killing it"
 msgstr "インスタンスを強制停止するまで待つ時間"
 
-#: lxc/image.go:897
+#: lxc/image.go:895
 msgid "Timestamps:"
 msgstr "タイムスタンプ:"
 
-#: lxc/init.go:396
+#: lxc/init.go:394
 msgid "To attach a network to an instance, use: lxc network attach"
 msgstr ""
 "インスタンスにネットワークを接続するには、lxc network attach を使用してくださ"
 "い"
 
-#: lxc/init.go:395
+#: lxc/init.go:393
 msgid "To create a new network, use: lxc network create"
 msgstr ""
 "新しいネットワークを作成するには、lxc network create を使用してください"
@@ -3621,7 +3625,7 @@ msgstr "合計: %v"
 msgid "Transceiver type: %s"
 msgstr "トランシーバータイプ: %s"
 
-#: lxc/storage_volume.go:1146
+#: lxc/storage_volume.go:1140
 msgid "Transfer mode, one of pull (default), push or relay"
 msgstr "転送モード。pull, push, relay のいずれか(デフォルトはpull)"
 
@@ -3629,11 +3633,11 @@ msgstr "転送モード。pull, push, relay のいずれか(デフォルトはpu
 msgid "Transfer mode. One of pull (default), push or relay"
 msgstr "転送モード。pull, push, relay のいずれか(デフォルトはpull)"
 
-#: lxc/move.go:54 lxc/storage_volume.go:305
+#: lxc/move.go:54 lxc/storage_volume.go:299
 msgid "Transfer mode. One of pull (default), push or relay."
 msgstr "転送モード。pull, push, relay のいずれか(デフォルトはpull)。"
 
-#: lxc/image.go:725
+#: lxc/image.go:723
 #, c-format
 msgid "Transferring image: %s"
 msgstr "イメージを転送中: %s"
@@ -3654,7 +3658,7 @@ msgid ""
 "SPICE graphical output"
 msgstr ""
 
-#: lxc/image.go:895 lxc/info.go:246 lxc/info.go:460
+#: lxc/image.go:893 lxc/info.go:246 lxc/info.go:460
 #, c-format
 msgid "Type: %s"
 msgstr "タイプ: %s"
@@ -3664,7 +3668,7 @@ msgstr "タイプ: %s"
 msgid "Type: %s (ephemeral)"
 msgstr "タイプ: %s (ephemeral)"
 
-#: lxc/image.go:1010
+#: lxc/image.go:1008
 msgid "UPLOAD DATE"
 msgstr "UPLOAD DATE"
 
@@ -3673,7 +3677,7 @@ msgid "URL"
 msgstr "URL"
 
 #: lxc/network.go:871 lxc/profile.go:621 lxc/project.go:459 lxc/storage.go:567
-#: lxc/storage_volume.go:1121
+#: lxc/storage_volume.go:1115
 msgid "USED BY"
 msgstr "USED BY"
 
@@ -3687,7 +3691,7 @@ msgstr "UUID: %v"
 msgid "Unable to create a temporary file: %v"
 msgstr "テンポラリファイルを作成できません: %v"
 
-#: lxc/image.go:1026 lxc/list.go:485
+#: lxc/image.go:1024 lxc/list.go:485
 #, c-format
 msgid "Unknown column shorthand char '%c' in '%s'"
 msgstr "未知のカラム名の短縮形です '%c' ('%s' 中)"
@@ -3726,7 +3730,7 @@ msgstr "プロジェクトの設定を削除します"
 msgid "Unset storage pool configuration keys"
 msgstr "ストレージプールの設定を削除します"
 
-#: lxc/storage_volume.go:1461 lxc/storage_volume.go:1462
+#: lxc/storage_volume.go:1455 lxc/storage_volume.go:1456
 msgid "Unset storage volume configuration keys"
 msgstr "ストレージボリュームの設定を削除します"
 
@@ -3735,7 +3739,7 @@ msgstr "ストレージボリュームの設定を削除します"
 msgid "Unsupported instance type: %s"
 msgstr "サポートされていないインスタンスタイプです: %s"
 
-#: lxc/image.go:904
+#: lxc/image.go:902
 #, c-format
 msgid "Uploaded: %s"
 msgstr "アップロード日時: %s"
@@ -3756,7 +3760,7 @@ msgstr "使用済: %v"
 msgid "User ID to run the command as (default 0)"
 msgstr "コマンドを実行する際のユーザ ID (UID) (デフォルト 0)"
 
-#: lxc/cluster.go:284 lxc/delete.go:47
+#: lxc/cluster.go:284 lxc/delete.go:48
 msgid "User aborted delete operation"
 msgstr "ユーザが削除操作を中断しました"
 
@@ -3808,7 +3812,7 @@ msgstr ""
 "スナップショットからインスタンスの稼動状態をリストアするかどうか (取得可能な"
 "場合)"
 
-#: lxc/snapshot.go:37
+#: lxc/snapshot.go:38
 msgid "Whether or not to snapshot the instance's running state"
 msgstr "インスタンスの稼動状態のスナップショットを取得するかどうか"
 
@@ -3830,16 +3834,16 @@ msgid "You must specify a destination instance name when using --target"
 msgstr ""
 "--target オプションを使うときはコピー先のインスタンス名を指定してください"
 
-#: lxc/copy.go:75 lxc/move.go:225
+#: lxc/copy.go:75 lxc/move.go:226
 msgid "You must specify a source instance name"
 msgstr "コピー元のインスタンス名を指定してください"
 
-#: lxc/storage_volume.go:696
+#: lxc/storage_volume.go:690
 #, fuzzy
 msgid "[<remote:>]<pool> <volume> <profile> [<device name>]"
 msgstr "detach-profile [<remote:>]<pool> <volume> <profile> [<device name>]"
 
-#: lxc/storage_volume.go:217
+#: lxc/storage_volume.go:211
 #, fuzzy
 msgid "[<remote:>]<pool> <volume> <profile> [<device name>] <path>"
 msgstr ""
@@ -3872,7 +3876,7 @@ msgstr "remove [<remote>:] <hostname|fingerprint>"
 msgid "[<remote>:] <name>"
 msgstr "enable [<remote>:] <name>"
 
-#: lxc/image.go:965 lxc/list.go:42
+#: lxc/image.go:963 lxc/list.go:42
 #, fuzzy
 msgid "[<remote>:] [<filter>...]"
 msgstr "list [<remote>:] [<filter>...]"
@@ -3907,7 +3911,7 @@ msgstr "rename [<remote>:]<alias> <new-name>"
 msgid "[<remote>:]<cluster member>"
 msgstr "edit [<remote>:]<cluster member>"
 
-#: lxc/image.go:319 lxc/image.go:831 lxc/image.go:1343
+#: lxc/image.go:317 lxc/image.go:829 lxc/image.go:1341
 #, fuzzy
 msgid "[<remote>:]<image>"
 msgstr "edit [<remote>:]<image>"
@@ -3922,12 +3926,12 @@ msgstr "copy [<remote>:]<image> <remote>:"
 msgid "[<remote>:]<image> [<remote>:][<name>]"
 msgstr "launch [<remote>:]<image> [<remote>:][<name>]"
 
-#: lxc/image.go:444
+#: lxc/image.go:442
 #, fuzzy
 msgid "[<remote>:]<image> [<target>]"
 msgstr "export [<remote>:]<image> [<target>]"
 
-#: lxc/image.go:267 lxc/image.go:1264
+#: lxc/image.go:265 lxc/image.go:1262
 #, fuzzy
 msgid "[<remote>:]<image> [[<remote>:]<image>...]"
 msgstr "delete [<remote>:]<image> [[<remote>:]<image>...]"
@@ -3984,7 +3988,7 @@ msgstr "restore [<remote>:]<instance> <snapshot>"
 msgid "[<remote>:]<instance> <template>"
 msgstr "edit [<remote>:]<instance> <template>"
 
-#: lxc/snapshot.go:25
+#: lxc/snapshot.go:26
 #, fuzzy
 msgid "[<remote>:]<instance> [<snapshot name>]"
 msgstr "snapshot [<remote>:]<instance> [<snapshot name>]"
@@ -4040,7 +4044,7 @@ msgid "[<remote>:]<instance>[/<snapshot>] [<remote>:][<instance>[/<snapshot>]]"
 msgstr ""
 "move [<remote>:]<instance>[/<snapshot>] [<remote>:][<instance>[/<snapshot>]]"
 
-#: lxc/delete.go:27
+#: lxc/delete.go:28
 #, fuzzy
 msgid ""
 "[<remote>:]<instance>[/<snapshot>] [[<remote>:]<instance>[/<snapshot>]...]"
@@ -4113,7 +4117,7 @@ msgid "[<remote>:]<operation>"
 msgstr "show [<remote>:]<operation>"
 
 #: lxc/storage.go:160 lxc/storage.go:211 lxc/storage.go:386 lxc/storage.go:649
-#: lxc/storage_volume.go:1067
+#: lxc/storage_volume.go:1061
 #, fuzzy
 msgid "[<remote>:]<pool>"
 msgstr "edit [<remote>:]<pool>"
@@ -4133,7 +4137,7 @@ msgstr "get [<remote>:]<pool> <key>"
 msgid "[<remote>:]<pool> <key> <value>"
 msgstr "set [<remote>:]<pool> <key> <value>"
 
-#: lxc/storage_volume.go:1172
+#: lxc/storage_volume.go:1166
 #, fuzzy
 msgid ""
 "[<remote>:]<pool> <old name>[/<old snapshot name>] <new name>[/<new snapshot "
@@ -4142,7 +4146,7 @@ msgstr ""
 "rename [<remote>:]<pool> <old name>[/<old snapshot name>] <new name>[/<new "
 "snapshot name>]"
 
-#: lxc/storage_volume.go:614
+#: lxc/storage_volume.go:608
 #, fuzzy
 msgid "[<remote>:]<pool> <volume> <instance> [<device name>]"
 msgstr "detach [<remote>:]<pool> <volume> <instance> [<device name>]"
@@ -4152,38 +4156,38 @@ msgstr "detach [<remote>:]<pool> <volume> <instance> [<device name>]"
 msgid "[<remote>:]<pool> <volume> <instance> [<device name>] <path>"
 msgstr "attach [<remote>:]<pool> <volume> <instance> [<device name>] <path>"
 
-#: lxc/storage_volume.go:1460
+#: lxc/storage_volume.go:1454
 #, fuzzy
 msgid "[<remote>:]<pool> <volume> <key>"
 msgstr "unset [<remote>:]<pool> <volume> <key>"
 
-#: lxc/storage_volume.go:1285
+#: lxc/storage_volume.go:1279
 #, fuzzy
 msgid "[<remote>:]<pool> <volume> <key>=<value>..."
 msgstr "set [<remote>:]<pool> <volume> <key>=<value>..."
 
-#: lxc/storage_volume.go:1569
+#: lxc/storage_volume.go:1580
 #, fuzzy
 msgid "[<remote>:]<pool> <volume> <snapshot>"
 msgstr "restore [<remote>:]<pool> <volume> <snapshot>"
 
-#: lxc/storage_volume.go:1493
+#: lxc/storage_volume.go:1488
 #, fuzzy
 msgid "[<remote>:]<pool> <volume> [<snapshot>]"
 msgstr "edit [<remote>:]<pool> <volume>[/<snapshot>]"
 
-#: lxc/storage_volume.go:461
+#: lxc/storage_volume.go:455
 #, fuzzy
 msgid "[<remote>:]<pool> <volume> [key=value...]"
 msgstr "create [<remote>:]<pool> <volume> [key=value...]"
 
-#: lxc/storage_volume.go:537 lxc/storage_volume.go:777
-#: lxc/storage_volume.go:1361
+#: lxc/storage_volume.go:531 lxc/storage_volume.go:771
+#: lxc/storage_volume.go:1355
 #, fuzzy
 msgid "[<remote>:]<pool> <volume>[/<snapshot>]"
 msgstr "edit [<remote>:]<pool> <volume>[/<snapshot>]"
 
-#: lxc/storage_volume.go:977
+#: lxc/storage_volume.go:971
 #, fuzzy
 msgid "[<remote>:]<pool> <volume>[/<snapshot>] <key>"
 msgstr "get [<remote>:]<pool> <volume>[/<snapshot>] <key>"
@@ -4302,7 +4306,7 @@ msgstr "default"
 msgid "description"
 msgstr "説明"
 
-#: lxc/image.go:882
+#: lxc/image.go:880
 msgid "disabled"
 msgstr "無効"
 
@@ -4310,7 +4314,7 @@ msgstr "無効"
 msgid "driver"
 msgstr "ドライバ"
 
-#: lxc/image.go:884
+#: lxc/image.go:882
 msgid "enabled"
 msgstr "有効"
 
@@ -4425,7 +4429,7 @@ msgstr ""
 "   /etc/hosts ファイルを、インスタンス \"foo\" 内 (の /etc/hosts) にコピーし"
 "ます。"
 
-#: lxc/image.go:323
+#: lxc/image.go:321
 msgid ""
 "lxc image edit <image>\n"
 "    Launch a text editor to edit the properties\n"
@@ -4617,7 +4621,7 @@ msgstr ""
 "lxc query -X DELETE --wait /1.0/instances/c1\n"
 "    ローカルのインスタンス \"c1\" を削除します。"
 
-#: lxc/snapshot.go:32
+#: lxc/snapshot.go:33
 msgid ""
 "lxc snapshot u1 snap0\n"
 "    Create a snapshot of \"u1\" called \"snap0\"."
@@ -4647,7 +4651,7 @@ msgstr ""
 "lxc storage edit [<remote>:]<pool> < pool.yaml\n"
 "    pool.yaml の内容でストレージプールを更新します。"
 
-#: lxc/storage_volume.go:781
+#: lxc/storage_volume.go:775
 msgid ""
 "lxc storage volume edit [<remote>:]<pool> <volume> < volume.yaml\n"
 "    Update a storage volume using the content of pool.yaml."
@@ -4655,7 +4659,7 @@ msgstr ""
 "lxc storage volume edit [<remote>:]<pool> <volume> < volume.yaml\n"
 "    pool.yaml の内容でストレージボリュームを更新します。"
 
-#: lxc/storage_volume.go:1365
+#: lxc/storage_volume.go:1359
 msgid ""
 "lxc storage volume show default data\n"
 "    Will show the properties of a custom volume called \"data\" in the "
@@ -4677,7 +4681,7 @@ msgstr ""
 msgid "name"
 msgstr "名前"
 
-#: lxc/image.go:872 lxc/image.go:877 lxc/image.go:1064
+#: lxc/image.go:870 lxc/image.go:875 lxc/image.go:1062
 msgid "no"
 msgstr "no"
 
@@ -4722,8 +4726,8 @@ msgstr "ストレージを使用中の"
 msgid "y"
 msgstr "y"
 
-#: lxc/cluster.go:283 lxc/delete.go:46 lxc/image.go:874 lxc/image.go:879
-#: lxc/image.go:1062
+#: lxc/cluster.go:283 lxc/delete.go:47 lxc/image.go:872 lxc/image.go:877
+#: lxc/image.go:1060
 msgid "yes"
 msgstr "yes"
 
