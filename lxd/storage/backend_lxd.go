@@ -1104,6 +1104,8 @@ func (b *lxdBackend) CreateInstanceFromMigration(inst instance.Instance, conn io
 	if args.VolumeSize > 0 && contentType == drivers.ContentTypeBlock {
 		b.logger.Debug("Setting volume size from offer header", log.Ctx{"size": args.VolumeSize})
 		args.Config["size"] = fmt.Sprintf("%d", args.VolumeSize)
+	} else if args.Config["size"] != "" {
+		b.logger.Debug("Using volume size from root disk config", log.Ctx{"size": args.Config["size"]})
 	}
 
 	// Get the volume name on storage.
