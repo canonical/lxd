@@ -1506,6 +1506,7 @@ type cmdStorageVolumeSnapshot struct {
 	storageVolume *cmdStorageVolume
 
 	flagNoExpiry bool
+	flagReuse    bool
 }
 
 func (c *cmdStorageVolumeSnapshot) Command() *cobra.Command {
@@ -1517,6 +1518,7 @@ func (c *cmdStorageVolumeSnapshot) Command() *cobra.Command {
 
 	cmd.RunE = c.Run
 	cmd.Flags().BoolVar(&c.flagNoExpiry, "no-expiry", false, i18n.G("Ignore any configured auto-expiry for the storage volume"))
+	cmd.Flags().BoolVar(&c.flagReuse, "reuse", false, i18n.G("If the snapshot name already exists, delete and create a new one"))
 
 	return cmd
 }
@@ -1566,6 +1568,21 @@ func (c *cmdStorageVolumeSnapshot) Run(cmd *cobra.Command, args []string) error 
 
 	if c.flagNoExpiry {
 		req.ExpiresAt = &time.Time{}
+	}
+
+	if c.flagReuse && snapname != "" {
+		snap, _, _ := client.GetStoragePoolVolumeSnapshot(resource.name, volType, volName, snapname)
+		if snap != nil {
+			op, err := client.DeleteStoragePoolVolumeSnapshot(resource.name, volType, volName, snapname)
+			if err != nil {
+				return err
+			}
+
+			err = op.Wait()
+			if err != nil {
+				return err
+			}
+		}
 	}
 
 	op, err := client.CreateStoragePoolVolumeSnapshot(resource.name, volType, volName, req)
