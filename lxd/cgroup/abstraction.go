@@ -172,6 +172,10 @@ func (cg *CGroup) SetMemorySwapLimit(limit int64) error {
 	case Unavailable:
 		return ErrControllerMissing
 	case V1:
+		if limit == -1 {
+			return cg.rw.Set(version, "memory", "memory.memsw.limit_in_bytes", "-1")
+		}
+
 		val, err := cg.rw.Get(version, "memory", "memory.limit_in_bytes")
 		if err != nil {
 			return err
