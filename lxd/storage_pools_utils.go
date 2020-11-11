@@ -104,6 +104,13 @@ func storagePoolCreateLocal(state *state.State, id int64, req api.StoragePoolsPo
 	var updatedReq api.StoragePoolsPost
 	shared.DeepCopy(&req, &updatedReq)
 
+	// Fill in the defaults.
+	err := storagePoolFillDefault(updatedReq.Name, updatedReq.Driver, updatedReq.Config)
+	if err != nil {
+		return nil, err
+	}
+
+	// Create the pool.
 	pool, err := storagePools.CreatePool(state, id, &updatedReq, isNotification, nil)
 	if err != nil {
 		return nil, err
