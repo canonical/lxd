@@ -653,41 +653,6 @@ func instanceCreateInternal(s *state.State, args db.InstanceArgs) (instance.Inst
 	return inst, nil
 }
 
-// instanceConfigureInternal applies quota set in volatile "apply_quota" and writes a backup file.
-func instanceConfigureInternal(state *state.State, c instance.Instance) error {
-	// Find the root device.
-	rootDiskDeviceKey, rootDiskDevice, err := shared.GetRootDiskDevice(c.ExpandedDevices().CloneNative())
-	if err != nil {
-		return err
-	}
-
-	pool, err := storagePools.GetPoolByInstance(state, c)
-	if err != nil {
-		return errors.Wrap(err, "Load instance storage pool")
-	}
-
-	if rootDiskDevice["size"] != "" {
-		err = pool.SetInstanceQuota(c, rootDiskDevice["size"], nil)
-
-		// If the storage driver can't set the quota now, store in volatile.
-		if err == storagePools.ErrRunningQuotaResizeNotSupported {
-			err = c.VolatileSet(map[string]string{fmt.Sprintf("volatile.%s.apply_quota", rootDiskDeviceKey): rootDiskDevice["size"]})
-			if err != nil {
-				return err
-			}
-		} else if err != nil {
-			return err
-		}
-	}
-
-	err = c.UpdateBackupFile()
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
 // Load all instances of this nodes under the given project.
 func instanceLoadNodeProjectAll(s *state.State, project string, instanceType instancetype.Type) ([]instance.Instance, error) {
 	// Get all the container arguments
