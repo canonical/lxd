@@ -8,6 +8,7 @@ import (
 
 	"github.com/lxc/lxd/lxd/locking"
 	"github.com/lxc/lxd/lxd/operations"
+	"github.com/lxc/lxd/lxd/refcount"
 	"github.com/lxc/lxd/lxd/revert"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/units"
@@ -134,9 +135,24 @@ func (v Volume) MountPath() string {
 	return GetVolumeMountPath(v.pool, v.volType, v.name)
 }
 
+// mountLockName returns the lock name to use for mount/unmount operations on a volume.
+func (v Volume) mountLockName() string {
+	return OperationLockName("Mount", v.pool, v.volType, v.contentType, v.name)
+}
+
 // MountLock attempts to lock the mount lock for the volume and returns the UnlockFunc.
 func (v Volume) MountLock() locking.UnlockFunc {
-	return locking.Lock(OperationLockName("MountLock", v.pool, v.volType, v.contentType, v.name))
+	return locking.Lock(v.mountLockName())
+}
+
+// MountRefCountIncrement increments the mount ref counter for the volume and returns the new value.
+func (v Volume) MountRefCountIncrement() uint {
+	return refcount.Increment(v.mountLockName(), 1)
+}
+
+// MountRefCountDecrement decrements the mount ref counter for the volume and returns the new value.
+func (v Volume) MountRefCountDecrement() uint {
+	return refcount.Decrement(v.mountLockName(), 1)
 }
 
 // EnsureMountPath creates the volume's mount path if missing, then sets the correct permission for the type.
