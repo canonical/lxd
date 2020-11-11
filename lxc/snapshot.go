@@ -18,6 +18,7 @@ type cmdSnapshot struct {
 
 	flagStateful bool
 	flagNoExpiry bool
+	flagReuse    bool
 }
 
 func (c *cmdSnapshot) Command() *cobra.Command {
@@ -36,6 +37,7 @@ running state, including process memory state, TCP connections, ...`))
 	cmd.RunE = c.Run
 	cmd.Flags().BoolVar(&c.flagStateful, "stateful", false, i18n.G("Whether or not to snapshot the instance's running state"))
 	cmd.Flags().BoolVar(&c.flagNoExpiry, "no-expiry", false, i18n.G("Ignore any configured auto-expiry for the instance"))
+	cmd.Flags().BoolVar(&c.flagReuse, "reuse", false, i18n.G("If the snapshot name already exists, delete and create a new one"))
 
 	return cmd
 }
@@ -74,6 +76,21 @@ func (c *cmdSnapshot) Run(cmd *cobra.Command, args []string) error {
 	d, err := conf.GetInstanceServer(remote)
 	if err != nil {
 		return err
+	}
+
+	if c.flagReuse && snapname != "" {
+		snap, _, _ := d.GetInstanceSnapshot(name, snapname)
+		if snap != nil {
+			op, err := d.DeleteInstanceSnapshot(name, snapname)
+			if err != nil {
+				return err
+			}
+
+			err = op.Wait()
+			if err != nil {
+				return err
+			}
+		}
 	}
 
 	req := api.InstanceSnapshotsPost{
