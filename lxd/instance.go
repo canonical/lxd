@@ -61,8 +61,7 @@ func instanceCreateAsEmpty(d *Daemon, args db.InstanceArgs) (instance.Instance, 
 		return nil, errors.Wrap(err, "Create instance")
 	}
 
-	// Apply any post-storage configuration.
-	err = instanceConfigureInternal(d.State(), inst)
+	err = inst.UpdateBackupFile()
 	if err != nil {
 		return nil, err
 	}
@@ -174,10 +173,9 @@ func instanceCreateFromImage(d *Daemon, args db.InstanceArgs, hash string, op *o
 		return nil, errors.Wrap(err, "Create instance from image")
 	}
 
-	// Apply any post-storage configuration.
-	err = instanceConfigureInternal(d.State(), inst)
+	err = inst.UpdateBackupFile()
 	if err != nil {
-		return nil, errors.Wrap(err, "Configure instance")
+		return nil, err
 	}
 
 	revert = false
@@ -325,20 +323,9 @@ func instanceCreateAsCopy(s *state.State, args db.InstanceArgs, sourceInst insta
 		}
 	}
 
-	// Apply any post-storage configuration.
-	err = instanceConfigureInternal(s, inst)
+	err = inst.UpdateBackupFile()
 	if err != nil {
 		return nil, err
-	}
-
-	if !instanceOnly {
-		for _, snap := range snapList {
-			// Apply any post-storage configuration.
-			err = instanceConfigureInternal(s, *snap)
-			if err != nil {
-				return nil, err
-			}
-		}
 	}
 
 	revertInst = nil
