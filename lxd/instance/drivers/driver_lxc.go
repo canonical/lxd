@@ -7096,6 +7096,12 @@ func (c *lxc) maasDelete() error {
 }
 
 func (c *lxc) CGroup() (*cgroup.CGroup, error) {
+	// Load the go-lxc struct
+	err := c.initLXC(false)
+	if err != nil {
+		return nil, err
+	}
+
 	return c.cgroup(nil)
 }
 
