@@ -1209,15 +1209,8 @@ func (c *lxc) initLXC(config bool) error {
 			}
 		}
 
-		if cpuCfsPeriod != -1 {
-			err = cg.SetCPUCfsPeriod(cpuCfsPeriod)
-			if err != nil {
-				return err
-			}
-		}
-
-		if cpuCfsQuota != -1 {
-			err = cg.SetCPUCfsQuota(cpuCfsQuota)
+		if cpuCfsPeriod != -1 && cpuCfsQuota != -1 {
+			err = cg.SetCPUCfsLimit(cpuCfsPeriod, cpuCfsQuota)
 			if err != nil {
 				return err
 			}
@@ -4428,16 +4421,13 @@ func (c *lxc) Update(args db.InstanceArgs, userRequested bool) error {
 				if err != nil {
 					return err
 				}
+
 				err = cg.SetCPUShare(cpuShares)
 				if err != nil {
 					return err
 				}
-				err = cg.SetCPUCfsPeriod(cpuCfsPeriod)
-				if err != nil {
-					return err
-				}
 
-				err = cg.SetCPUCfsQuota(cpuCfsQuota)
+				err = cg.SetCPUCfsLimit(cpuCfsPeriod, cpuCfsQuota)
 				if err != nil {
 					return err
 				}
