@@ -402,13 +402,11 @@ func instanceCreateAsSnapshot(s *state.State, args db.InstanceArgs, sourceInstan
 	}
 
 	// Mount volume for backup.yaml writing.
-	mountInfo, err := pool.MountInstance(sourceInstance, op)
+	_, err = pool.MountInstance(sourceInstance, op)
 	if err != nil {
 		return nil, errors.Wrap(err, "Create instance snapshot (mount source)")
 	}
-	if mountInfo.OurMount {
-		defer pool.UnmountInstance(sourceInstance, op)
-	}
+	defer pool.UnmountInstance(sourceInstance, op)
 
 	// Attempt to update backup.yaml for instance.
 	err = sourceInstance.UpdateBackupFile()
