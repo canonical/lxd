@@ -1342,19 +1342,13 @@ func (vm *qemu) spicePath() string {
 // generateConfigShare generates the config share directory that will be exported to the VM via
 // a 9P share. Due to the unknown size of templates inside the images this directory is created
 // inside the VM's config volume so that it can be restricted by quota.
+// Requires the instance be mounted before calling this function.
 func (vm *qemu) generateConfigShare() error {
-	// Mount the instance's config volume if needed.
-	_, err := vm.mount()
-	if err != nil {
-		return err
-	}
-	defer vm.unmount()
-
 	configDrivePath := filepath.Join(vm.Path(), "config")
 
 	// Create config drive dir.
 	os.RemoveAll(configDrivePath)
-	err = os.MkdirAll(configDrivePath, 0500)
+	err := os.MkdirAll(configDrivePath, 0500)
 	if err != nil {
 		return err
 	}
