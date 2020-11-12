@@ -23,6 +23,12 @@ func TaskSchedulerTrigger(srcType string, srcName string, srcStatus string) {
 func ParseCPU(cpuAllowance string, cpuPriority string) (int64, int64, int64, error) {
 	var err error
 
+	// Max shares depending on backend.
+	maxShares := int64(1024)
+	if cgControllers["cpu"] == V2 {
+		maxShares = 100
+	}
+
 	// Parse priority
 	cpuShares := int64(0)
 	cpuPriorityInt := 10
@@ -37,6 +43,9 @@ func ParseCPU(cpuAllowance string, cpuPriority string) (int64, int64, int64, err
 	// Parse allowance
 	cpuCfsQuota := int64(-1)
 	cpuCfsPeriod := int64(100000)
+	if cgControllers["cpu"] == V2 {
+		cpuCfsPeriod = -1
+	}
 
 	if cpuAllowance != "" {
 		if strings.HasSuffix(cpuAllowance, "%") {
@@ -46,7 +55,7 @@ func ParseCPU(cpuAllowance string, cpuPriority string) (int64, int64, int64, err
 				return -1, -1, -1, err
 			}
 
-			cpuShares += int64((10 * percent) + 24)
+			cpuShares += int64(float64(maxShares) / float64(100) * float64(percent))
 		} else {
 			// Time based allocation
 			fields := strings.SplitN(cpuAllowance, "/", 2)
@@ -67,11 +76,11 @@ func ParseCPU(cpuAllowance string, cpuPriority string) (int64, int64, int64, err
 			// Set limit in ms
 			cpuCfsQuota = int64(quota * 1000)
 			cpuCfsPeriod = int64(period * 1000)
-			cpuShares += 1024
+			cpuShares += maxShares
 		}
 	} else {
 		// Default is 100%
-		cpuShares += 1024
+		cpuShares += maxShares
 	}
 
 	// Deal with a potential negative score
