@@ -145,7 +145,9 @@ func (suite *containerTestSuite) TestContainer_LoadFromDB() {
 	c2, err := instance.LoadByProjectAndName(state, "default", "testFoo")
 	c2.IsRunning()
 	suite.Req.Nil(err)
-	_, err = c2.StorageStart()
+
+	// This causes the mock storage pool to be loaded internally, allowing it to match the created container.
+	err = c2.UpdateBackupFile()
 	suite.Req.Nil(err)
 
 	instanceDrivers.PrepareEqualTest(c, c2)
