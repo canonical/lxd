@@ -1591,30 +1591,32 @@ func (d *zfs) MountVolumeSnapshot(snapVol Volume, op *operations.Operation) (boo
 	defer unlock()
 
 	var err error
+	ourMounts := 0
 	mountPath := snapVol.MountPath()
 	snapshotDataset := d.dataset(snapVol, false)
 
+	revert := revert.New()
+	defer revert.Fail()
+
 	// Check if filesystem volume already mounted.
-	if snapVol.contentType == ContentTypeFS && !shared.IsMountPoint(mountPath) {
-		err := snapVol.EnsureMountPath()
-		if err != nil {
-			return false, err
+	if snapVol.contentType == ContentTypeFS {
+		if !shared.IsMountPoint(mountPath) {
+			err := snapVol.EnsureMountPath()
+			if err != nil {
+				return false, err
+			}
+
+			// Mount the snapshot directly (not possible through tools).
+			err = TryMount(snapshotDataset, mountPath, "zfs", 0, "")
+			if err != nil {
+				return false, err
+			}
+
+			d.logger.Debug("Mounted ZFS snapshot dataset", log.Ctx{"dev": snapshotDataset, "path": mountPath})
+			ourMounts++
 		}
-
-		// Mount the snapshot directly (not possible through tools).
-		err = TryMount(snapshotDataset, mountPath, "zfs", 0, "")
-		if err != nil {
-			return false, err
-		}
-
-		d.logger.Debug("Mounted ZFS snapshot dataset", log.Ctx{"dev": snapshotDataset, "path": mountPath})
-		return true, nil
-	}
-
-	var ourMountBlock, ourMountFs bool
-
-	// For block devices, we make them appear by enabling volmode=dev and snapdev=visible on the parent volume.
-	if snapVol.contentType == ContentTypeBlock {
+	} else if snapVol.contentType == ContentTypeBlock {
+		// For block devices, we make them appear by enabling volmode=dev and snapdev=visible on the parent volume.
 		// Ensure snap volume parent is activated to avoid issues activating the snapshot volume device.
 		parent, _, _ := shared.InstanceGetParentAndSnapshotName(snapVol.Name())
 		parentVol := NewVolume(d, d.Name(), snapVol.volType, snapVol.contentType, parent, snapVol.config, snapVol.poolConfig)
@@ -1622,6 +1624,7 @@ func (d *zfs) MountVolumeSnapshot(snapVol Volume, op *operations.Operation) (boo
 		if err != nil {
 			return false, err
 		}
+		revert.Add(func() { d.UnmountVolume(parentVol, false, op) })
 
 		parentDataset := d.dataset(parentVol, false)
 
@@ -1653,25 +1656,24 @@ func (d *zfs) MountVolumeSnapshot(snapVol Volume, op *operations.Operation) (boo
 			time.Sleep(500 * time.Millisecond)
 
 			d.logger.Debug("Activated ZFS snapshot volume", log.Ctx{"dev": snapshotDataset})
-			ourMountBlock = true
+			ourMounts++
+		}
+
+		if snapVol.IsVMBlock() {
+			// For VMs, also mount the filesystem dataset.
+			fsVol := snapVol.NewVMBlockFilesystemVolume()
+			ourMount, err := d.MountVolumeSnapshot(fsVol, op)
+			if err != nil {
+				return false, err
+			}
+			if ourMount {
+				ourMounts++
+			}
 		}
 	}
 
-	if snapVol.IsVMBlock() {
-		// For VMs, also mount the filesystem dataset.
-		fsVol := snapVol.NewVMBlockFilesystemVolume()
-		ourMountFs, err = d.MountVolumeSnapshot(fsVol, op)
-		if err != nil {
-			return false, err
-		}
-	}
-
-	// If we 'mounted' either block or filesystem volumes, this was our mount.
-	if ourMountFs || ourMountBlock {
-		return true, nil
-	}
-
-	return true, nil
+	revert.Success()
+	return ourMounts > 0, nil
 }
 
 // UnmountVolume simulates unmounting a volume snapshot.
