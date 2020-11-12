@@ -217,14 +217,11 @@ func (v Volume) MountTask(task func(mountPath string, op *operations.Operation) 
 			defer v.driver.UnmountVolumeSnapshot(v, op)
 		}
 	} else {
-		ourMount, err := v.driver.MountVolume(v, op)
+		err := v.driver.MountVolume(v, op)
 		if err != nil {
 			return err
 		}
-
-		if ourMount {
-			defer v.driver.UnmountVolume(v, false, op)
-		}
+		defer v.driver.UnmountVolume(v, false, op)
 	}
 
 	return task(v.MountPath(), op)
