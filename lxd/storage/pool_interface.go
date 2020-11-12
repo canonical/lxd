@@ -77,7 +77,7 @@ type Pool interface {
 	RenameCustomVolume(projectName string, volName string, newVolName string, op *operations.Operation) error
 	DeleteCustomVolume(projectName string, volName string, op *operations.Operation) error
 	GetCustomVolumeUsage(projectName string, volName string) (int64, error)
-	MountCustomVolume(projectName string, volName string, op *operations.Operation) (bool, error)
+	MountCustomVolume(projectName string, volName string, op *operations.Operation) error
 	UnmountCustomVolume(projectName string, volName string, op *operations.Operation) (bool, error)
 
 	// Custom volume snapshots.
