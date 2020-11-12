@@ -1435,15 +1435,12 @@ func upgradeFromStorageTypeLvm(name string, d *Daemon, defaultPoolName string, d
 				err = func() error {
 					// In case the new LVM logical volume for the container is not mounted mount it.
 					if !shared.IsMountPoint(newContainerMntPoint) {
-						mountInfo, err := pool.MountInstance(ctStruct, nil)
+						_, err = pool.MountInstance(ctStruct, nil)
 						if err != nil {
 							logger.Errorf("Failed to mount new empty LVM logical volume for container %s: %s", ct, err)
 							return err
 						}
-
-						if mountInfo.OurMount {
-							defer pool.UnmountInstance(ctStruct, nil)
-						}
+						defer pool.UnmountInstance(ctStruct, nil)
 					}
 
 					// Use rsync to fill the empty volume.
@@ -1601,15 +1598,12 @@ func upgradeFromStorageTypeLvm(name string, d *Daemon, defaultPoolName string, d
 					err = func() error {
 						// In case the new LVM logical volume for the snapshot is not mounted mount it.
 						if !shared.IsMountPoint(newSnapshotMntPoint) {
-							mountInfo, err := pool.MountInstanceSnapshot(csStruct, nil)
+							_, err = pool.MountInstanceSnapshot(csStruct, nil)
 							if err != nil {
 								logger.Errorf("Failed to mount new empty LVM logical volume for container %s: %s", cs, err)
 								return err
 							}
-
-							if mountInfo.OurMount {
-								defer pool.UnmountInstanceSnapshot(csStruct, nil)
-							}
+							defer pool.UnmountInstanceSnapshot(csStruct, nil)
 						}
 
 						// Use rsync to fill the snapshot volume.
@@ -3236,14 +3230,11 @@ func patchStorageApiPermissions(name string, d *Daemon) error {
 
 			// Run task in anonymous function so as not to stack up defers.
 			err = func() error {
-				ourMount, err := pool.MountCustomVolume(project.Default, vol, nil)
+				err = pool.MountCustomVolume(project.Default, vol, nil)
 				if err != nil {
 					return err
 				}
-
-				if ourMount {
-					defer pool.UnmountCustomVolume(project.Default, vol, nil)
-				}
+				defer pool.UnmountCustomVolume(project.Default, vol, nil)
 
 				cuMntPoint := storageDrivers.GetVolumeMountPath(poolName, storageDrivers.VolumeTypeCustom, vol)
 				err = os.Chmod(cuMntPoint, 0711)
@@ -3266,25 +3257,29 @@ func patchStorageApiPermissions(name string, d *Daemon) error {
 
 	for _, ct := range cRegular {
 		// load the container from the database
-		ctStruct, err := instance.LoadByProjectAndName(d.State(), "default", ct)
+		inst, err := instance.LoadByProjectAndName(d.State(), project.Default, ct)
 		if err != nil {
 			return err
 		}
 
-		ourMount, err := ctStruct.StorageStart()
+		// Start the storage if needed
+		pool, err := storagePools.GetPoolByInstance(d.State(), inst)
 		if err != nil {
 			return err
 		}
 
-		if ctStruct.IsPrivileged() {
-			err = os.Chmod(ctStruct.Path(), 0700)
+		_, err = storagePools.InstanceMount(pool, inst, nil)
+		if err != nil {
+			return err
+		}
+
+		if inst.IsPrivileged() {
+			err = os.Chmod(inst.Path(), 0700)
 		} else {
-			err = os.Chmod(ctStruct.Path(), 0711)
+			err = os.Chmod(inst.Path(), 0711)
 		}
 
-		if ourMount {
-			ctStruct.StorageStop()
-		}
+		storagePools.InstanceUnmount(pool, inst, nil)
 
 		if err != nil && !os.IsNotExist(err) {
 			return err
