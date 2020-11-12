@@ -867,14 +867,11 @@ func (d *disk) mountPoolVolume(reverter *revert.Reverter) (string, error) {
 		return "", err
 	}
 
-	ourMount, err := pool.MountCustomVolume(storageProjectName, volumeName, nil)
+	err = pool.MountCustomVolume(storageProjectName, volumeName, nil)
 	if err != nil {
 		return "", errors.Wrapf(err, "Failed mounting storage volume %q of type %q on storage pool %q", volumeName, volumeTypeName, pool.Name())
 	}
-
-	if ourMount {
-		reverter.Add(func() { pool.UnmountCustomVolume(storageProjectName, volumeName, nil) })
-	}
+	reverter.Add(func() { pool.UnmountCustomVolume(storageProjectName, volumeName, nil) })
 
 	if d.inst.Type() == instancetype.Container {
 		err = d.storagePoolVolumeAttachShift(storageProjectName, pool.Name(), volumeName, db.StoragePoolVolumeTypeCustom, srcPath)
