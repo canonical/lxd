@@ -648,7 +648,7 @@ func (vm *qemu) Shutdown(timeout time.Duration) error {
 
 // Restart restart the instance.
 func (vm *qemu) Restart(timeout time.Duration) error {
-	return vm.common.Restart(vm, timeout)
+	return vm.common.restart(vm, timeout)
 }
 
 func (vm *qemu) ovmfPath() string {
