@@ -1625,6 +1625,9 @@ func (b *lxdBackend) MountInstance(inst instance.Instance, op *operations.Operat
 	logger.Debug("MountInstance started")
 	defer logger.Debug("MountInstance finished")
 
+	revert := revert.New()
+	defer revert.Fail()
+
 	// Check we can convert the instance to the volume type needed.
 	volType, err := InstanceTypeToVolumeType(inst.Type())
 	if err != nil {
@@ -1647,6 +1650,7 @@ func (b *lxdBackend) MountInstance(inst instance.Instance, op *operations.Operat
 	if err != nil {
 		return nil, err
 	}
+	revert.Add(func() { b.driver.UnmountVolume(vol, false, op) })
 
 	diskPath, err := b.getInstanceDisk(inst)
 	if err != nil && err != drivers.ErrNotSupported {
@@ -1657,6 +1661,7 @@ func (b *lxdBackend) MountInstance(inst instance.Instance, op *operations.Operat
 		DiskPath: diskPath,
 	}
 
+	revert.Success() // From here on it is up to caller to call UnmountInstance() when done.
 	return mountInfo, nil
 }
 
