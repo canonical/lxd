@@ -138,8 +138,6 @@ type Instance interface {
 
 	// FIXME: Those should be internal functions.
 	// Needed for migration for now.
-	StorageStart() (bool, error)
-	StorageStop() (bool, error)
 	DeferTemplateApply(trigger string) error
 }
 
