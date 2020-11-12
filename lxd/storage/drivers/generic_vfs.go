@@ -775,6 +775,7 @@ func genericVFSBackupUnpack(d Driver, vol Volume, snapshots []string, srcData io
 	if err != nil {
 		return nil, nil, err
 	}
+	revert.Add(func() { d.UnmountVolume(vol, false, op) })
 
 	backupPrefix := "backup/container"
 	if vol.IsVMBlock() {
