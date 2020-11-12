@@ -436,11 +436,17 @@ func (d *lvm) MountVolume(vol Volume, op *operations.Operation) error {
 	unlock := vol.MountLock()
 	defer unlock()
 
+	revert := revert.New()
+	defer revert.Fail()
+
 	// Activate LVM volume if needed.
 	volDevPath := d.lvmDevPath(d.config["lvm.vg_name"], vol.volType, vol.contentType, vol.name)
-	_, err := d.activateVolume(volDevPath)
+	activated, err := d.activateVolume(volDevPath)
 	if err != nil {
 		return err
+	}
+	if activated {
+		revert.Add(func() { d.deactivateVolume(volDevPath) })
 	}
 
 	if vol.contentType == ContentTypeFS {
@@ -471,6 +477,7 @@ func (d *lvm) MountVolume(vol Volume, op *operations.Operation) error {
 	}
 
 	vol.MountRefCountIncrement() // From here on it is up to caller to call UnmountVolume() when done.
+	revert.Success()
 	return nil
 }
 
