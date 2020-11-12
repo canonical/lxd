@@ -229,6 +229,39 @@ func (d *disk) CanHotPlug() (bool, []string) {
 	return true, []string{"limits.max", "limits.read", "limits.write", "size"}
 }
 
+func (d *disk) Register() error {
+	d.logger.Debug("Initialising mounted disk ref counter")
+
+	if d.config["path"] == "/" {
+		pool, err := storagePools.GetPoolByInstance(d.state, d.inst)
+		if err != nil {
+			return err
+		}
+
+		_, err = pool.MountInstance(d.inst, nil)
+		if err != nil {
+			return err
+		}
+	} else if d.config["path"] != "/" && d.config["source"] != "" && d.config["pool"] != "" {
+		pool, err := storagePools.GetPoolByName(d.state, d.config["pool"])
+		if err != nil {
+			return err
+		}
+
+		storageProjectName, err := project.StorageVolumeProject(d.state.Cluster, d.inst.Project(), db.StoragePoolVolumeTypeCustom)
+		if err != nil {
+			return err
+		}
+
+		err = pool.MountCustomVolume(storageProjectName, d.config["source"], nil)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
 // Start is run when the device is added to the instance.
 func (d *disk) Start() (*deviceConfig.RunConfig, error) {
 	err := d.validateEnvironment()
