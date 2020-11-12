@@ -415,6 +415,7 @@ func (d *zfs) CreateVolumeFromBackup(vol Volume, srcBackup backup.Info, srcData 
 		if err != nil {
 			return nil, nil, err
 		}
+		revert.Add(func() { d.UnmountVolume(vol, false, op) })
 
 		postHook = func(vol Volume) error {
 			_, err := d.UnmountVolume(vol, false, op)
