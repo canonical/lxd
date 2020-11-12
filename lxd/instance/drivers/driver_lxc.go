@@ -1409,9 +1409,7 @@ func (c *lxc) deviceAdd(deviceName string, rawConfig deviceConfig.Device) error 
 	return d.Add()
 }
 
-// deviceStart loads a new device and calls its Start() function. After processing the runtime
-// config returned from Start(), it also runs the device's Register() function irrespective of
-// whether the container is running or not.
+// deviceStart loads a new device and calls its Start() function.
 func (c *lxc) deviceStart(deviceName string, rawConfig deviceConfig.Device, isRunning bool) (*deviceConfig.RunConfig, error) {
 	logger := logging.AddContext(logger.Log, log.Ctx{"device": deviceName, "type": rawConfig["type"], "project": c.Project(), "instance": c.Name()})
 	logger.Debug("Starting device")
@@ -1964,8 +1962,6 @@ func (c *lxc) expandDevices(profiles []api.Profile) error {
 
 // Start functions
 func (c *lxc) startCommon() (string, []func() error, error) {
-	var ourStart bool
-
 	revert := revert.New()
 	defer revert.Fail()
 
@@ -2003,6 +1999,14 @@ func (c *lxc) startCommon() (string, []func() error, error) {
 		return "", nil, errors.Wrap(err, "Set last ID map")
 	}
 
+	// Mount instance root volume.
+	_, err = c.mount()
+	if err != nil {
+		return "", nil, err
+	}
+	revert.Add(func() { c.unmount() })
+
+	// Once mounted, check if filesystem needs shifting.
 	if !nextIdmap.Equals(diskIdmap) && !(diskIdmap == nil && c.state.OS.Shiftfs) {
 		if shared.IsTrue(c.expandedConfig["security.protection.shift"]) {
 			return "", nil, fmt.Errorf("Container is protected against filesystem shifting")
@@ -2010,12 +2014,6 @@ func (c *lxc) startCommon() (string, []func() error, error) {
 
 		logger.Debugf("Container idmap changed, remapping")
 		c.updateProgress("Remapping container filesystem")
-
-		moutInfo, err := c.mount()
-		if err != nil {
-			return "", nil, errors.Wrap(err, "Storage start")
-		}
-		ourStart = moutInfo.OurMount
 
 		storageType, err := c.getStorageType()
 		if err != nil {
@@ -2031,9 +2029,6 @@ func (c *lxc) startCommon() (string, []func() error, error) {
 				err = diskIdmap.UnshiftRootfs(c.RootfsPath(), nil)
 			}
 			if err != nil {
-				if ourStart {
-					c.unmount()
-				}
 				return "", nil, err
 			}
 		}
@@ -2047,9 +2042,6 @@ func (c *lxc) startCommon() (string, []func() error, error) {
 				err = nextIdmap.ShiftRootfs(c.RootfsPath(), nil)
 			}
 			if err != nil {
-				if ourStart {
-					c.unmount()
-				}
 				return "", nil, err
 			}
 		}
@@ -2122,13 +2114,6 @@ func (c *lxc) startCommon() (string, []func() error, error) {
 			return "", nil, err
 		}
 	}
-
-	// Mount instance root volume.
-	mountInfo, err := c.mount()
-	if err != nil {
-		return "", nil, err
-	}
-	ourStart = mountInfo.OurMount
 
 	// Generate UUID if not present.
 	instUUID := c.localConfig["volatile.uuid"]
@@ -2295,9 +2280,6 @@ func (c *lxc) startCommon() (string, []func() error, error) {
 	// Set ownership to match container root
 	currentIdmapset, err := c.CurrentIdmap()
 	if err != nil {
-		if ourStart {
-			c.unmount()
-		}
 		return "", nil, err
 	}
 
@@ -2308,27 +2290,18 @@ func (c *lxc) startCommon() (string, []func() error, error) {
 
 	err = os.Chown(c.Path(), int(uid), 0)
 	if err != nil {
-		if ourStart {
-			c.unmount()
-		}
 		return "", nil, err
 	}
 
 	// We only need traversal by root in the container
 	err = os.Chmod(c.Path(), 0100)
 	if err != nil {
-		if ourStart {
-			c.unmount()
-		}
 		return "", nil, err
 	}
 
 	// Update the backup.yaml file
 	err = c.UpdateBackupFile()
 	if err != nil {
-		if ourStart {
-			c.unmount()
-		}
 		return "", nil, err
 	}
 
@@ -2388,12 +2361,6 @@ func (c *lxc) Start(stateful bool) error {
 	configPath, postStartHooks, err := c.startCommon()
 	if err != nil {
 		return errors.Wrap(err, "Common start logic")
-	}
-
-	// Ensure that the container storage volume is mounted.
-	_, err = c.mount()
-	if err != nil {
-		return errors.Wrap(err, "Storage start")
 	}
 
 	ctxMap = log.Ctx{
@@ -2540,18 +2507,9 @@ func (c *lxc) onStart(_ map[string]string) error {
 	// Make sure we can't call go-lxc functions by mistake
 	c.fromHook = true
 
-	// Start the storage for this container
-	mountInfo, err := c.mount()
-	if err != nil {
-		return err
-	}
-
 	// Load the container AppArmor profile
-	err = apparmor.InstanceLoad(c.state, c)
+	err := apparmor.InstanceLoad(c.state, c)
 	if err != nil {
-		if mountInfo.OurMount {
-			c.unmount()
-		}
 		return err
 	}
 
@@ -2562,9 +2520,6 @@ func (c *lxc) onStart(_ map[string]string) error {
 		err = c.templateApplyNow(c.localConfig[key])
 		if err != nil {
 			apparmor.InstanceUnload(c.state, c)
-			if mountInfo.OurMount {
-				c.unmount()
-			}
 			return err
 		}
 
@@ -2572,9 +2527,6 @@ func (c *lxc) onStart(_ map[string]string) error {
 		err := c.state.Cluster.DeleteInstanceConfigKey(c.id, key)
 		if err != nil {
 			apparmor.InstanceUnload(c.state, c)
-			if mountInfo.OurMount {
-				c.unmount()
-			}
 			return err
 		}
 	}
@@ -2582,9 +2534,6 @@ func (c *lxc) onStart(_ map[string]string) error {
 	err = c.templateApplyNow("start")
 	if err != nil {
 		apparmor.InstanceUnload(c.state, c)
-		if mountInfo.OurMount {
-			c.unmount()
-		}
 		return err
 	}
 
@@ -3439,13 +3388,11 @@ func (c *lxc) Restore(sourceContainer instance.Instance, stateful bool) error {
 	}
 
 	// Ensure that storage is mounted for state path checks and for backup.yaml updates.
-	mountInfo, err := pool.MountInstance(c, nil)
+	_, err = pool.MountInstance(c, nil)
 	if err != nil {
 		return err
 	}
-	if mountInfo.OurMount && !wasRunning {
-		defer pool.UnmountInstance(c, nil)
-	}
+	defer pool.UnmountInstance(c, nil)
 
 	// Check for CRIU if necessary, before doing a bunch of filesystem manipulations.
 	// Requires container be mounted to check StatePath exists.
@@ -4682,14 +4629,12 @@ func (c *lxc) Export(w io.Writer, properties map[string]string) (api.ImageMetada
 	logger.Info("Exporting instance", ctxMap)
 
 	// Start the storage.
-	mountInfo, err := c.mount()
+	_, err := c.mount()
 	if err != nil {
 		logger.Error("Failed exporting instance", ctxMap)
 		return meta, err
 	}
-	if mountInfo.OurMount {
-		defer c.unmount()
-	}
+	defer c.unmount()
 
 	// Get IDMap to unshift container as the tarball is created.
 	idmap, err := c.DiskIdmap()
@@ -4989,11 +4934,6 @@ func (c *lxc) Migrate(args *instance.CriuMigrationArgs) error {
 		}
 
 		if idmapset != nil {
-			mountInfo, err := c.mount()
-			if err != nil {
-				return err
-			}
-
 			storageType, err := c.getStorageType()
 			if err != nil {
 				return errors.Wrap(err, "Storage type")
@@ -5006,15 +4946,8 @@ func (c *lxc) Migrate(args *instance.CriuMigrationArgs) error {
 			} else {
 				err = idmapset.ShiftRootfs(args.StateDir, nil)
 			}
-			if mountInfo.OurMount {
-				_, err2 := c.unmount()
-				if err != nil {
-					return err
-				}
-
-				if err2 != nil {
-					return err2
-				}
+			if err != nil {
+				return err
 			}
 		}
 
@@ -5298,15 +5231,11 @@ func (c *lxc) inheritInitPidFd() (int, *os.File) {
 // FileExists returns whether file exists inside instance.
 func (c *lxc) FileExists(path string) error {
 	// Setup container storage if needed
-	var ourStart bool
-	var err error
-	if !c.IsRunning() {
-		mountInfo, err := c.mount()
-		if err != nil {
-			return err
-		}
-		ourStart = mountInfo.OurMount
+	_, err := c.mount()
+	if err != nil {
+		return err
 	}
+	defer c.unmount()
 
 	pidFdNr, pidFd := c.inheritInitPidFd()
 	if pidFdNr >= 0 {
@@ -5325,14 +5254,6 @@ func (c *lxc) FileExists(path string) error {
 		fmt.Sprintf("%d", pidFdNr),
 		path,
 	)
-
-	// Tear down container storage if needed
-	if !c.IsRunning() && ourStart {
-		_, err := c.unmount()
-		if err != nil {
-			return err
-		}
-	}
 
 	// Process forkcheckfile response
 	if stderr != "" {
@@ -5360,16 +5281,12 @@ func (c *lxc) FilePull(srcpath string, dstpath string) (int64, int64, os.FileMod
 		op.Wait()
 	}
 
-	var ourStart bool
-	var err error
 	// Setup container storage if needed
-	if !c.IsRunning() {
-		mountInfo, err := c.mount()
-		if err != nil {
-			return -1, -1, 0, "", nil, err
-		}
-		ourStart = mountInfo.OurMount
+	_, err := c.mount()
+	if err != nil {
+		return -1, -1, 0, "", nil, err
 	}
+	defer c.unmount()
 
 	pidFdNr, pidFd := c.inheritInitPidFd()
 	if pidFdNr >= 0 {
@@ -5389,14 +5306,6 @@ func (c *lxc) FilePull(srcpath string, dstpath string) (int64, int64, os.FileMod
 		srcpath,
 		dstpath,
 	)
-
-	// Tear down container storage if needed
-	if !c.IsRunning() && ourStart {
-		_, err := c.unmount()
-		if err != nil {
-			return -1, -1, 0, "", nil, err
-		}
-	}
 
 	uid := int64(-1)
 	gid := int64(-1)
@@ -5515,16 +5424,12 @@ func (c *lxc) FilePush(fileType string, srcpath string, dstpath string, uid int6
 		}
 	}
 
-	var ourStart bool
-	var err error
 	// Setup container storage if needed
-	if !c.IsRunning() {
-		mountInfo, err := c.mount()
-		if err != nil {
-			return err
-		}
-		ourStart = mountInfo.OurMount
+	_, err := c.mount()
+	if err != nil {
+		return err
 	}
+	defer c.unmount()
 
 	defaultMode := 0640
 	if fileType == "directory" {
@@ -5558,14 +5463,6 @@ func (c *lxc) FilePush(fileType string, srcpath string, dstpath string, uid int6
 		write,
 	)
 
-	// Tear down container storage if needed
-	if !c.IsRunning() && ourStart {
-		_, err := c.unmount()
-		if err != nil {
-			return err
-		}
-	}
-
 	// Process forkgetfile response
 	for _, line := range strings.Split(strings.TrimRight(stderr, "\n"), "\n") {
 		if line == "" {
@@ -5598,17 +5495,13 @@ func (c *lxc) FilePush(fileType string, srcpath string, dstpath string, uid int6
 // FileRemove removes a file inside the instance.
 func (c *lxc) FileRemove(path string) error {
 	var errStr string
-	var ourStart bool
-	var err error
 
 	// Setup container storage if needed
-	if !c.IsRunning() {
-		mountInfo, err := c.mount()
-		if err != nil {
-			return err
-		}
-		ourStart = mountInfo.OurMount
+	_, err := c.mount()
+	if err != nil {
+		return err
 	}
+	defer c.unmount()
 
 	pidFdNr, pidFd := c.inheritInitPidFd()
 	if pidFdNr >= 0 {
@@ -5627,14 +5520,6 @@ func (c *lxc) FileRemove(path string) error {
 		fmt.Sprintf("%d", pidFdNr),
 		path,
 	)
-
-	// Tear down container storage if needed
-	if !c.IsRunning() && ourStart {
-		_, err := c.unmount()
-		if err != nil {
-			return err
-		}
-	}
 
 	// Process forkremovefile response
 	for _, line := range strings.Split(strings.TrimRight(stderr, "\n"), "\n") {
