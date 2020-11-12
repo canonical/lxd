@@ -2,13 +2,14 @@ package drivers
 
 import (
 	"errors"
+	"time"
+
 	"github.com/lxc/lxd/lxd/db"
 	deviceConfig "github.com/lxc/lxd/lxd/device/config"
 	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/instance/instancetype"
 	"github.com/lxc/lxd/lxd/state"
 	"github.com/lxc/lxd/shared/api"
-	"time"
 )
 
 // common provides structure common to all instance types.
