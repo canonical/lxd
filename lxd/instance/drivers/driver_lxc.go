@@ -2831,7 +2831,7 @@ func (c *lxc) Shutdown(timeout time.Duration) error {
 
 // Restart restart the instance.
 func (c *lxc) Restart(timeout time.Duration) error {
-	return c.common.Restart(c, timeout)
+	return c.common.restart(c, timeout)
 }
 
 // onStopNS is triggered by LXC's stop hook once a container is shutdown but before the container's
