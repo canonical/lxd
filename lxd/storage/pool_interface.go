@@ -15,7 +15,6 @@ import (
 
 // MountInfo represents info about the result of a mount operation.
 type MountInfo struct {
-	OurMount bool   // Whether a mount was needed.
 	DiskPath string // The location of the block disk (if supported).
 }
 
