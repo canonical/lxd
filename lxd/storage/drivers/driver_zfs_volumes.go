@@ -1047,6 +1047,9 @@ func (d *zfs) MountVolume(vol Volume, op *operations.Operation) error {
 	unlock := vol.MountLock()
 	defer unlock()
 
+	revert := revert.New()
+	defer revert.Fail()
+
 	dataset := d.dataset(vol, false)
 
 	// Check if filesystem volume already mounted.
@@ -1069,17 +1072,18 @@ func (d *zfs) MountVolume(vol Volume, op *operations.Operation) error {
 	} else if vol.contentType == ContentTypeBlock {
 		// For block devices, we make them appear.
 		// Check if already active.
-		current, err := d.getDatasetProperty(d.dataset(vol, false), "volmode")
+		current, err := d.getDatasetProperty(dataset, "volmode")
 		if err != nil {
 			return err
 		}
 
 		if current != "dev" {
 			// Activate.
-			err = d.setDatasetProperties(d.dataset(vol, false), "volmode=dev")
+			err = d.setDatasetProperties(dataset, "volmode=dev")
 			if err != nil {
 				return err
 			}
+			revert.Add(func() { d.setDatasetProperties(dataset, "volmode=none") })
 
 			// Wait half a second to give udev a chance to kick in.
 			time.Sleep(500 * time.Millisecond)
@@ -1098,6 +1102,7 @@ func (d *zfs) MountVolume(vol Volume, op *operations.Operation) error {
 	}
 
 	vol.MountRefCountIncrement() // From here on it is up to caller to call UnmountVolume() when done.
+	revert.Success()
 	return nil
 }
 
