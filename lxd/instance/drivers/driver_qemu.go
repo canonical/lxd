@@ -4705,16 +4705,6 @@ func (vm *qemu) SetOperation(op *operations.Operation) {
 	vm.op = op
 }
 
-// StorageStart deprecated.
-func (vm *qemu) StorageStart() (bool, error) {
-	return false, storagePools.ErrNotImplemented
-}
-
-// StorageStop deprecated.
-func (vm *qemu) StorageStop() (bool, error) {
-	return false, storagePools.ErrNotImplemented
-}
-
 // DeferTemplateApply not used currently.
 func (vm *qemu) DeferTemplateApply(trigger string) error {
 	err := vm.VolatileSet(map[string]string{"volatile.apply_template": trigger})
