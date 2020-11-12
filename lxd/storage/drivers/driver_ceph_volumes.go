@@ -928,10 +928,16 @@ func (d *ceph) MountVolume(vol Volume, op *operations.Operation) error {
 	unlock := vol.MountLock()
 	defer unlock()
 
+	revert := revert.New()
+	defer revert.Fail()
+
 	// Activate RBD volume if needed.
-	_, devPath, err := d.getRBDMappedDevPath(vol, true)
+	activated, devPath, err := d.getRBDMappedDevPath(vol, true)
 	if err != nil {
 		return err
+	}
+	if activated {
+		revert.Add(func() { d.rbdUnmapVolume(vol, true) })
 	}
 
 	if vol.contentType == ContentTypeFS {
@@ -963,6 +969,7 @@ func (d *ceph) MountVolume(vol Volume, op *operations.Operation) error {
 	}
 
 	vol.MountRefCountIncrement() // From here on it is up to caller to call UnmountVolume() when done.
+	revert.Success()
 	return nil
 }
 
