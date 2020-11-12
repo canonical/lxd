@@ -5965,16 +5965,6 @@ func (c *lxc) getStorageType() (string, error) {
 	return pool.Driver().Info().Name, nil
 }
 
-// StorageStart mounts the instance's rootfs volume. Deprecated.
-func (c *lxc) StorageStart() (bool, error) {
-	mountInfo, err := c.mount()
-	if err != nil {
-		return false, err
-	}
-
-	return mountInfo.OurMount, nil
-}
-
 // mount the instance's rootfs volume if needed.
 func (c *lxc) mount() (*storagePools.MountInfo, error) {
 	pool, err := c.getStoragePool()
@@ -5997,11 +5987,6 @@ func (c *lxc) mount() (*storagePools.MountInfo, error) {
 	}
 
 	return mountInfo, nil
-}
-
-// StorageStop unmounts the instance's rootfs volume. Deprecated.
-func (c *lxc) StorageStop() (bool, error) {
-	return c.unmount()
 }
 
 // unmount the instance's rootfs volume if needed.
