@@ -211,8 +211,8 @@ func (b *mockBackend) GetCustomVolumeUsage(projectName string, volName string) (
 	return 0, nil
 }
 
-func (b *mockBackend) MountCustomVolume(projectName string, volName string, op *operations.Operation) (bool, error) {
-	return true, nil
+func (b *mockBackend) MountCustomVolume(projectName string, volName string, op *operations.Operation) error {
+	return nil
 }
 
 func (b *mockBackend) UnmountCustomVolume(projectName string, volName string, op *operations.Operation) (bool, error) {
