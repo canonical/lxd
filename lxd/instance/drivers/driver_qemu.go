@@ -1188,9 +1188,27 @@ func (vm *qemu) deviceVolatileSetFunc(devName string) func(save map[string]strin
 	}
 }
 
-// RegisterDevices is not used by VMs.
+// RegisterDevices calls the Register() function on all of the instance's devices.
 func (vm *qemu) RegisterDevices() {
-	return
+	devices := vm.ExpandedDevices()
+	for _, dev := range devices.Sorted() {
+		d, _, err := vm.deviceLoad(dev.Name, dev.Config)
+		if err == device.ErrUnsupportedDevType {
+			continue
+		}
+
+		if err != nil {
+			logger.Error("Failed to load device to register", log.Ctx{"err": err, "instance": vm.Name(), "device": dev.Name})
+			continue
+		}
+
+		// Check whether device wants to register for any events.
+		err = d.Register()
+		if err != nil {
+			logger.Error("Failed to register device", log.Ctx{"err": err, "instance": vm.Name(), "device": dev.Name})
+			continue
+		}
+	}
 }
 
 // SaveConfigFile is not used by VMs.
