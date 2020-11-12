@@ -96,8 +96,8 @@ func (c *common) DevPaths() []string {
 	return c.devPaths
 }
 
-// Restart handles instance restarts.
-func (c *common) Restart(inst instance.Instance, timeout time.Duration) error {
+// restart handles instance restarts.
+func (c *common) restart(inst instance.Instance, timeout time.Duration) error {
 	if timeout == 0 {
 		err := inst.Stop(false)
 		if err != nil {
