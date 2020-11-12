@@ -99,6 +99,9 @@ func (c *cmdAgent) Run(cmd *cobra.Command, args []string) error {
 		}
 
 		shared.RunCommand("systemctl", "reboot")
+
+		// Wait up to 5min for the reboot to actually happen, if it doesn't, then move on to allowing connections.
+		time.Sleep(300 * time.Second)
 	}
 
 	// Mount shares from host.
