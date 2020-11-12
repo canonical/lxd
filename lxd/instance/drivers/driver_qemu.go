@@ -449,14 +449,11 @@ func (vm *qemu) unmount() (bool, error) {
 // generateAgentCert creates the necessary server key and certificate if needed.
 func (vm *qemu) generateAgentCert() (string, string, string, string, error) {
 	// Mount the instance's config volume if needed.
-	mountInfo, err := vm.mount()
+	_, err := vm.mount()
 	if err != nil {
 		return "", "", "", "", err
 	}
-
-	if mountInfo.OurMount {
-		defer vm.unmount()
-	}
+	defer vm.unmount()
 
 	agentCertFile := filepath.Join(vm.Path(), "agent.crt")
 	agentKeyFile := filepath.Join(vm.Path(), "agent.key")
@@ -1125,14 +1122,11 @@ func (vm *qemu) setupNvram() error {
 	}
 
 	// Mount the instance's config volume.
-	mountInfo, err := vm.mount()
+	_, err := vm.mount()
 	if err != nil {
 		return err
 	}
-
-	if mountInfo.OurMount {
-		defer vm.unmount()
-	}
+	defer vm.unmount()
 
 	srcOvmfFile := filepath.Join(vm.ovmfPath(), "OVMF_VARS.fd")
 	if vm.expandedConfig["security.secureboot"] == "" || shared.IsTrue(vm.expandedConfig["security.secureboot"]) {
@@ -1231,9 +1225,7 @@ func (vm *qemu) deviceLoad(deviceName string, rawConfig deviceConfig.Device) (de
 	return d, configCopy, err
 }
 
-// deviceStart loads a new device and calls its Start() function. After processing the runtime
-// config returned from Start(), it also runs the device's Register() function irrespective of
-// whether the instance is running or not.
+// deviceStart loads a new device and calls its Start() function.
 func (vm *qemu) deviceStart(deviceName string, rawConfig deviceConfig.Device, isRunning bool) (*deviceConfig.RunConfig, error) {
 	logger := logging.AddContext(logger.Log, log.Ctx{"device": deviceName, "type": rawConfig["type"], "project": vm.Project(), "instance": vm.Name()})
 	logger.Debug("Starting device")
@@ -1334,14 +1326,11 @@ func (vm *qemu) spicePath() string {
 // inside the VM's config volume so that it can be restricted by quota.
 func (vm *qemu) generateConfigShare() error {
 	// Mount the instance's config volume if needed.
-	mountInfo, err := vm.mount()
+	_, err := vm.mount()
 	if err != nil {
 		return err
 	}
-
-	if mountInfo.OurMount {
-		defer vm.unmount()
-	}
+	defer vm.unmount()
 
 	configDrivePath := filepath.Join(vm.Path(), "config")
 
@@ -2667,13 +2656,11 @@ func (vm *qemu) Restore(source instance.Instance, stateful bool) error {
 	}
 
 	// Ensure that storage is mounted for backup.yaml updates.
-	mountInfo, err := pool.MountInstance(vm, nil)
+	_, err = pool.MountInstance(vm, nil)
 	if err != nil {
 		return err
 	}
-	if mountInfo.OurMount && !wasRunning {
-		defer pool.UnmountInstance(vm, nil)
-	}
+	defer pool.UnmountInstance(vm, nil)
 
 	// Restore the rootfs.
 	err = pool.RestoreInstanceSnapshot(vm, source, nil)
@@ -3718,9 +3705,7 @@ func (vm *qemu) Export(w io.Writer, properties map[string]string) (api.ImageMeta
 		logger.Error("Failed exporting instance", ctxMap)
 		return meta, err
 	}
-	if mountInfo.OurMount {
-		defer vm.unmount()
-	}
+	defer vm.unmount()
 
 	// Create the tarball.
 	tarWriter := instancewriter.NewInstanceTarWriter(w, nil)
