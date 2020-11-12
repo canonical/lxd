@@ -903,31 +903,49 @@ func RenderSnapshotUsage(s *state.State, snapInst instance.Instance) func(respon
 	}
 }
 
-// InstanceDiskBlockSize returns the block device size for the instance's disk.
-// This will mount the instance if not already mounted and will unmount at the end if needed.
-func InstanceDiskBlockSize(pool Pool, inst instance.Instance, op *operations.Operation) (int64, error) {
+// InstanceMount mounts an instance's storage volume (if not already mounted).
+// Please call InstanceUnmount when finished.
+func InstanceMount(pool Pool, inst instance.Instance, op *operations.Operation) (*MountInfo, error) {
 	var err error
 	var mountInfo *MountInfo
 
 	if inst.IsSnapshot() {
 		mountInfo, err = pool.MountInstanceSnapshot(inst, op)
 		if err != nil {
-			return -1, err
-		}
-
-		if mountInfo.OurMount {
-			defer pool.UnmountInstanceSnapshot(inst, op)
+			return nil, err
 		}
 	} else {
 		mountInfo, err = pool.MountInstance(inst, op)
 		if err != nil {
-			return -1, err
-		}
-
-		if mountInfo.OurMount {
-			defer pool.UnmountInstance(inst, op)
+			return nil, err
 		}
 	}
+
+	return mountInfo, nil
+}
+
+// InstanceUnmount unmounts an instance's storage volume (if not in use). Returns if we unmounted the volume.
+func InstanceUnmount(pool Pool, inst instance.Instance, op *operations.Operation) (bool, error) {
+	var err error
+	var ourUnmount bool
+
+	if inst.IsSnapshot() {
+		ourUnmount, err = pool.UnmountInstanceSnapshot(inst, op)
+	} else {
+		ourUnmount, err = pool.UnmountInstance(inst, op)
+	}
+
+	return ourUnmount, err
+}
+
+// InstanceDiskBlockSize returns the block device size for the instance's disk.
+// This will mount the instance if not already mounted and will unmount at the end if needed.
+func InstanceDiskBlockSize(pool Pool, inst instance.Instance, op *operations.Operation) (int64, error) {
+	mountInfo, err := InstanceMount(pool, inst, op)
+	if err != nil {
+		return -1, err
+	}
+	defer InstanceUnmount(pool, inst, op)
 
 	if mountInfo.DiskPath == "" {
 		return -1, fmt.Errorf("No disk path available from mount")
