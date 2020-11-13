@@ -19,6 +19,7 @@ import (
 	"time"
 
 	"github.com/flosch/pongo2"
+	"github.com/pborman/uuid"
 	"github.com/pkg/errors"
 	"golang.org/x/sys/unix"
 	liblxc "gopkg.in/lxc/go-lxc.v2"
@@ -2128,6 +2129,13 @@ func (c *lxc) startCommon() (string, []func() error, error) {
 		return "", nil, err
 	}
 	ourStart = mountInfo.OurMount
+
+	// Generate UUID if not present.
+	instUUID := c.localConfig["volatile.uuid"]
+	if instUUID == "" {
+		instUUID = uuid.New()
+		c.VolatileSet(map[string]string{"volatile.uuid": instUUID})
+	}
 
 	// Create the devices
 	postStartHooks := []func() error{}
