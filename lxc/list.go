@@ -85,6 +85,7 @@ Pre-defined column shorthand chars:
   D - disk usage
   l - Last used date
   m - Memory usage
+  M - Memory usage (%)
   n - Name
   N - Number of Processes
   p - PID of the instance's init process
@@ -92,6 +93,7 @@ Pre-defined column shorthand chars:
   s - State
   S - Number of snapshots
   t - Type (persistent or ephemeral)
+  u - CPU usage (in seconds)
   L - Location of the instance (e.g. its cluster member)
   f - Base Image Fingerprint (short)
   F - Base Image Fingerprint (long)
@@ -432,6 +434,7 @@ func (c *cmdList) parseColumns(clustered bool) ([]column, bool, error) {
 		'F': {i18n.G("BASE IMAGE"), c.baseImageFullColumnData, false, false},
 		'l': {i18n.G("LAST USED AT"), c.LastUsedColumnData, false, false},
 		'm': {i18n.G("MEMORY USAGE"), c.memoryUsageColumnData, true, false},
+		'M': {i18n.G("MEMORY USAGE%"), c.memoryUsagePercentColumnData, true, false},
 		'n': {i18n.G("NAME"), c.nameColumnData, false, false},
 		'N': {i18n.G("PROCESSES"), c.NumberOfProcessesColumnData, true, false},
 		'p': {i18n.G("PID"), c.PIDColumnData, true, false},
@@ -439,6 +442,7 @@ func (c *cmdList) parseColumns(clustered bool) ([]column, bool, error) {
 		'S': {i18n.G("SNAPSHOTS"), c.numberSnapshotsColumnData, false, true},
 		's': {i18n.G("STATE"), c.statusColumnData, false, false},
 		't': {i18n.G("TYPE"), c.typeColumnData, false, false},
+		'u': {i18n.G("CPU USAGE"), c.cpuUsageSecondsColumnData, true, false},
 	}
 
 	if c.flagFast {
@@ -658,6 +662,33 @@ func (c *cmdList) IP6ColumnData(cInfo api.InstanceFull) string {
 func (c *cmdList) memoryUsageColumnData(cInfo api.InstanceFull) string {
 	if cInfo.IsActive() && cInfo.State != nil && cInfo.State.Memory.Usage > 0 {
 		return units.GetByteSizeString(cInfo.State.Memory.Usage, 2)
+	}
+
+	return ""
+}
+
+func (c *cmdList) memoryUsagePercentColumnData(cInfo api.InstanceFull) string {
+	if cInfo.IsActive() && cInfo.State != nil && cInfo.State.Memory.Usage > 0 {
+		if cInfo.ExpandedConfig["limits.memory"] != "" {
+			memorylimit := cInfo.ExpandedConfig["limits.memory"]
+
+			if strings.Contains(memorylimit, "%") {
+				return ""
+			}
+
+			val, err := units.ParseByteSizeString(cInfo.ExpandedConfig["limits.memory"])
+			if err == nil && val > 0 {
+				return fmt.Sprintf("%.1f%%", (float64(cInfo.State.Memory.Usage)/float64(val))*float64(100))
+			}
+		}
+	}
+
+	return ""
+}
+
+func (c *cmdList) cpuUsageSecondsColumnData(cInfo api.InstanceFull) string {
+	if cInfo.IsActive() && cInfo.State != nil && cInfo.State.CPU.Usage > 0 {
+		return fmt.Sprintf("%ds", cInfo.State.CPU.Usage/1000000000)
 	}
 
 	return ""
