@@ -304,10 +304,6 @@ func ConfigKeyChecker(key string) (func(value string) error, error) {
 			return validate.IsAny, nil
 		}
 
-		if strings.HasSuffix(key, "vm.uuid") {
-			return validate.IsAny, nil
-		}
-
 		if strings.HasSuffix(key, ".ceph_rbd") {
 			return validate.IsAny, nil
 		}
