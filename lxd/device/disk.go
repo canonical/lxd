@@ -229,6 +229,8 @@ func (d *disk) CanHotPlug() (bool, []string) {
 	return true, []string{"limits.max", "limits.read", "limits.write", "size"}
 }
 
+// Register calls mount for the disk volume (which should already be mounted) to reinitialise the reference counter
+// for volumes attached to running instances on LXD restart.
 func (d *disk) Register() error {
 	d.logger.Debug("Initialising mounted disk ref counter")
 
@@ -238,6 +240,7 @@ func (d *disk) Register() error {
 			return err
 		}
 
+		// Try to mount the volume that should already be mounted to reinitialise the ref counter.
 		_, err = pool.MountInstance(d.inst, nil)
 		if err != nil {
 			return err
@@ -253,6 +256,7 @@ func (d *disk) Register() error {
 			return err
 		}
 
+		// Try to mount the volume that should already be mounted to reinitialise the ref counter.
 		err = pool.MountCustomVolume(storageProjectName, d.config["source"], nil)
 		if err != nil {
 			return err
