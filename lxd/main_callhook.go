@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"net/url"
 	"os"
 	"path/filepath"
 	"time"
@@ -17,7 +18,7 @@ type cmdCallhook struct {
 
 func (c *cmdCallhook) Command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = "callhook <path> <id> <hook>"
+	cmd.Use = "callhook <path> [<instance id>|<instance project> <instance name>] <hook>"
 	cmd.Short = "Call container lifecycle hook in LXD"
 	cmd.Long = `Description:
   Call container lifecycle hook in LXD
@@ -32,7 +33,7 @@ func (c *cmdCallhook) Command() *cobra.Command {
 }
 
 func (c *cmdCallhook) Run(cmd *cobra.Command, args []string) error {
-	// Sanity checks
+	// Sanity checks.
 	if len(args) < 2 {
 		cmd.Help()
 
@@ -44,16 +45,28 @@ func (c *cmdCallhook) Run(cmd *cobra.Command, args []string) error {
 	}
 
 	path := args[0]
-	id := args[1]
-	state := args[2]
+
+	var projectName string
+	var instanceRef string
+	var hook string
+
+	if len(args) == 3 {
+		instanceRef = args[1]
+		hook = args[2]
+	} else if len(args) == 4 {
+		projectName = args[1]
+		instanceRef = args[2]
+		hook = args[3]
+	}
+
 	target := ""
 
-	// Only root should run this
+	// Only root should run this.
 	if os.Geteuid() != 0 {
 		return fmt.Errorf("This must be run as root")
 	}
 
-	// Connect to LXD
+	// Connect to LXD.
 	socket := os.Getenv("LXD_SOCKET")
 	if socket == "" {
 		socket = filepath.Join(path, "unix.socket")
@@ -67,40 +80,35 @@ func (c *cmdCallhook) Run(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	// Prepare the request URL
-	url := fmt.Sprintf("/internal/containers/%s/on%s", id, state)
-	if state == "stopns" {
-		target = os.Getenv("LXC_TARGET")
-		netns := os.Getenv("LXC_NET_NS")
-		if target == "" {
-			target = "unknown"
-		}
-		url = fmt.Sprintf("%s?target=%s&netns=%s", url, target, netns)
-	} else if state == "stop" {
-		target = os.Getenv("LXC_TARGET")
-		if target == "" {
-			target = "unknown"
-		}
-		url = fmt.Sprintf("%s?target=%s", url, target)
-	} else if state == "network-up" {
-		url = fmt.Sprintf("%s?device=%s&host_name=%s", url, args[3], os.Getenv("LXC_NET_PEER"))
+	// Prepare the request URL query parameters.
+	v := url.Values{}
+	if projectName != "" {
+		v.Set("project", projectName)
 	}
 
-	// Setup the request
-	hook := make(chan error, 1)
-	go func() {
-		_, _, err := d.RawQuery("GET", url, nil, "")
-		if err != nil {
-			hook <- err
-			return
+	if hook == "stop" || hook == "stopns" {
+		target = os.Getenv("LXC_TARGET")
+		if target == "" {
+			target = "unknown"
 		}
+		v.Set("target", target)
+	}
 
-		hook <- nil
+	if hook == "stopns" {
+		v.Set("netns", os.Getenv("LXC_NET_NS"))
+	}
+
+	// Setup the request.
+	response := make(chan error, 1)
+	go func() {
+		url := fmt.Sprintf("/internal/containers/%s/%s?%s", url.PathEscape(instanceRef), url.PathEscape(fmt.Sprintf("on%s", hook)), v.Encode())
+		_, _, err := d.RawQuery("GET", url, nil, "")
+		response <- err
 	}()
 
-	// Handle the timeout
+	// Handle the timeout.
 	select {
-	case err := <-hook:
+	case err := <-response:
 		if err != nil {
 			return err
 		}
@@ -112,7 +120,7 @@ func (c *cmdCallhook) Run(cmd *cobra.Command, args []string) error {
 	// If the container is rebooting, we purposefully tell LXC that this hook failed so that
 	// it won't reboot the container, which lets LXD start it again in the OnStop function.
 	// Other hook types can return without error safely.
-	if state == "stop" && target == "reboot" {
+	if hook == "stop" && target == "reboot" {
 		return fmt.Errorf("Reboot must be handled by LXD")
 	}
 
