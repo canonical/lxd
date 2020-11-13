@@ -572,6 +572,10 @@ func projectValidateName(name string) error {
 		return fmt.Errorf("Project names may not contain spaces")
 	}
 
+	if strings.Contains(name, "'") || strings.Contains(name, `"`) {
+		return fmt.Errorf("Project names may not contain quotes")
+	}
+
 	if name == "*" {
 		return fmt.Errorf("Reserved project name")
 	}
