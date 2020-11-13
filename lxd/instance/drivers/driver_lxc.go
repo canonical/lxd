@@ -1988,6 +1988,16 @@ func (c *lxc) startCommon() (string, []func() error, error) {
 		}
 	}
 
+	// Rotate the log file.
+	logfile := c.LogFilePath()
+	if shared.PathExists(logfile) {
+		os.Remove(logfile + ".old")
+		err := os.Rename(logfile, logfile+".old")
+		if err != nil {
+			return "", nil, err
+		}
+	}
+
 	// Mount instance root volume.
 	_, err = c.mount()
 	if err != nil {
@@ -2103,16 +2113,6 @@ func (c *lxc) startCommon() (string, []func() error, error) {
 	err = os.MkdirAll(c.ShmountsPath(), 0711)
 	if err != nil {
 		return "", nil, err
-	}
-
-	// Rotate the log file.
-	logfile := c.LogFilePath()
-	if shared.PathExists(logfile) {
-		os.Remove(logfile + ".old")
-		err := os.Rename(logfile, logfile+".old")
-		if err != nil {
-			return "", nil, err
-		}
 	}
 
 	// Generate UUID if not present.
