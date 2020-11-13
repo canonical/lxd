@@ -112,6 +112,7 @@ var patches = []patch{
 	{name: "network_clear_bridge_volatile_hwaddr", stage: patchPostDaemonStorage, run: patchNetworkCearBridgeVolatileHwaddr},
 	{name: "network_fan_enable_nat", stage: patchPostDaemonStorage, run: patchNetworkFANEnableNAT},
 	{name: "thinpool_typo_fix", stage: patchPostDaemonStorage, run: patchThinpoolTypoFix},
+	{name: "vm_rename_uuid_key", stage: patchPostDaemonStorage, run: patchVMRenameUUIDKey},
 }
 
 type patch struct {
@@ -175,6 +176,57 @@ func patchesApply(d *Daemon, stage patchStage) error {
 }
 
 // Patches begin here
+
+// patchVMRenameUUIDKey renames the volatile.vm.uuid key to volatile.uuid in instance and snapshot configs.
+func patchVMRenameUUIDKey(name string, d *Daemon) error {
+	oldUUIDKey := "volatile.vm.uuid"
+	newUUIDKey := "volatile.uuid"
+
+	return d.State().Cluster.InstanceList(func(inst db.Instance, p api.Project, profiles []api.Profile) error {
+		if inst.Type != instancetype.VM {
+			return nil
+		}
+
+		return d.State().Cluster.Transaction(func(tx *db.ClusterTx) error {
+			uuid := inst.Config[oldUUIDKey]
+			if uuid != "" {
+				changes := map[string]string{
+					oldUUIDKey: "",
+					newUUIDKey: uuid,
+				}
+
+				logger.Debugf("Renaming config key %q to %q for VM %q (Project %q)", oldUUIDKey, newUUIDKey, inst.Name, inst.Project)
+				err := tx.UpdateInstanceConfig(inst.ID, changes)
+				if err != nil {
+					return errors.Wrapf(err, "Failed renaming config key %q to %q for VM %q (Project %q)", oldUUIDKey, newUUIDKey, inst.Name, inst.Project)
+				}
+			}
+
+			snaps, err := tx.GetInstanceSnapshotsWithName(inst.Project, inst.Name)
+			if err != nil {
+				return err
+			}
+
+			for _, snap := range snaps {
+				uuid := snap.Config[oldUUIDKey]
+				if uuid != "" {
+					changes := map[string]string{
+						oldUUIDKey: "",
+						newUUIDKey: uuid,
+					}
+
+					logger.Debugf("Renaming config key %q to %q for VM %q (Project %q)", oldUUIDKey, newUUIDKey, snap.Name, snap.Project)
+					err = tx.UpdateInstanceSnapshotConfig(snap.ID, changes)
+					if err != nil {
+						return errors.Wrapf(err, "Failed renaming config key %q to %q for VM %q (Project %q)", oldUUIDKey, newUUIDKey, snap.Name, snap.Project)
+					}
+				}
+			}
+
+			return nil
+		})
+	})
+}
 
 // patchThinpoolTypoFix renames any config incorrectly set config file entries due to the lvm.thinpool_name typo.
 func patchThinpoolTypoFix(name string, d *Daemon) error {
