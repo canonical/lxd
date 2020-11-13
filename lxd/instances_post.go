@@ -1,7 +1,6 @@
 package main
 
 import (
-	"bytes"
 	"crypto/x509"
 	"encoding/json"
 	"encoding/pem"
@@ -9,7 +8,6 @@ import (
 	"io"
 	"io/ioutil"
 	"net/http"
-	"net/url"
 	"os"
 	"strings"
 
@@ -545,7 +543,7 @@ func createFromCopy(d *Daemon, project string, req *api.InstancesPost) response.
 	return operations.OperationResponse(op)
 }
 
-func createFromBackup(d *Daemon, project string, data io.Reader, pool string, instanceName string) response.Response {
+func createFromBackup(d *Daemon, projectName string, data io.Reader, pool string, instanceName string) response.Response {
 	revert := revert.New()
 	defer revert.Fail()
 
@@ -602,7 +600,7 @@ func createFromBackup(d *Daemon, project string, data io.Reader, pool string, in
 	if err != nil {
 		return response.BadRequest(err)
 	}
-	bInfo.Project = project
+	bInfo.Project = projectName
 
 	// Override pool.
 	if pool != "" {
@@ -679,30 +677,18 @@ func createFromBackup(d *Daemon, project string, data io.Reader, pool string, in
 		}
 		runRevert.Add(revertHook)
 
-		body, err := json.Marshal(&internalImportPost{
+		req := &internalImportPost{
 			Name:              bInfo.Name,
 			Force:             true,
 			AllowNameOverride: instanceName != "",
-		})
-		if err != nil {
-			return errors.Wrap(err, "Marshal internal import request")
 		}
 
-		// Generate internal request to import instance from storage.
-		req := &http.Request{
-			Body: ioutil.NopCloser(bytes.NewReader(body)),
-		}
-
-		req.URL = &url.URL{
-			RawQuery: fmt.Sprintf("project=%s", project),
-		}
-
-		resp := internalImport(d, req)
+		resp := internalImport(d, bInfo.Project, req)
 		if resp.String() != "success" {
 			return fmt.Errorf("Internal import request: %v", resp.String())
 		}
 
-		inst, err := instance.LoadByProjectAndName(d.State(), project, bInfo.Name)
+		inst, err := instance.LoadByProjectAndName(d.State(), bInfo.Project, bInfo.Name)
 		if err != nil {
 			return errors.Wrap(err, "Load instance")
 		}
@@ -727,7 +713,7 @@ func createFromBackup(d *Daemon, project string, data io.Reader, pool string, in
 	resources["instances"] = []string{bInfo.Name}
 	resources["containers"] = resources["instances"]
 
-	op, err := operations.OperationCreate(d.State(), project, operations.OperationClassTask, db.OperationBackupRestore, resources, nil, run, nil, nil)
+	op, err := operations.OperationCreate(d.State(), bInfo.Project, operations.OperationClassTask, db.OperationBackupRestore, resources, nil, run, nil, nil)
 	if err != nil {
 		return response.InternalError(err)
 	}
