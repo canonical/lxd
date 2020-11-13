@@ -40,9 +40,7 @@ test_container_import() {
     pid=$(lxc info ctImport | grep ^Pid | awk '{print $2}')
     ! lxd import ctImport || false
     lxd import ctImport --force
-    kill_lxc "${pid}"
     lxc info ctImport | grep snap0
-    lxc start ctImport
     lxc delete --force ctImport
 
     lxc init testimage ctImport
