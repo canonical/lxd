@@ -778,11 +778,11 @@ func (vm *qemu) Start(stateful bool) error {
 		logger.Warn("Unable to use virtio-fs for config drive, using 9p as a fallback: virtiofsd missing")
 	}
 
-	// Get a UUID for Qemu.
-	vmUUID := vm.localConfig["volatile.vm.uuid"]
-	if vmUUID == "" {
-		vmUUID = uuid.New()
-		vm.VolatileSet(map[string]string{"volatile.vm.uuid": vmUUID})
+	// Generate UUID if not present.
+	instUUID := vm.localConfig["volatile.uuid"]
+	if instUUID == "" {
+		instUUID = uuid.New()
+		vm.VolatileSet(map[string]string{"volatile.uuid": instUUID})
 	}
 
 	// Copy OVMF settings firmware to nvram file.
@@ -850,7 +850,7 @@ func (vm *qemu) Start(stateful bool) error {
 		qemuPath,
 		"-S",
 		"-name", vm.Name(),
-		"-uuid", vmUUID,
+		"-uuid", instUUID,
 		"-daemonize",
 		"-cpu", "host",
 		"-nographic",
