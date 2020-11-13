@@ -93,7 +93,7 @@ var internalSQLCmd = APIEndpoint{
 var internalContainersCmd = APIEndpoint{
 	Path: "containers",
 
-	Post: APIEndpointAction{Handler: internalImport},
+	Post: APIEndpointAction{Handler: internalImportFromRecovery},
 }
 
 var internalGarbageCollectorCmd = APIEndpoint{
@@ -424,18 +424,50 @@ type internalImportPost struct {
 	AllowNameOverride bool   `json:"allow_name_override" yaml:"allow_name_override"`
 }
 
-func internalImport(d *Daemon, r *http.Request) response.Response {
+// internalImportFromRecovery allows recovery of an instance that is already on disk and mounted.
+// If recovery is successful the instance is unmounted at the end.
+func internalImportFromRecovery(d *Daemon, r *http.Request) response.Response {
 	projectName := projectParam(r)
 
-	req := &internalImportPost{}
 	// Parse the request.
+	req := &internalImportPost{}
 	err := json.NewDecoder(r.Body).Decode(&req)
 	if err != nil {
 		return response.BadRequest(err)
 	}
 
+	resp := internalImport(d, projectName, req)
+	if resp.String() != "success" {
+		return resp
+	}
+
+	inst, err := instance.LoadByProjectAndName(d.State(), projectName, req.Name)
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	// If instance isn't running, then unmount instance volume to reset the mount and any left over ref
+	// counters back its non-running state.
+	if !inst.IsRunning() {
+		pool, err := storagePools.GetPoolByInstance(d.State(), inst)
+		if err != nil {
+			return response.SmartError(err)
+		}
+
+		_, err = pool.UnmountInstance(inst, nil)
+		if err != nil {
+			return response.SmartError(err)
+		}
+	}
+
+	return resp
+}
+
+// internalImport creates the instance and storage volume DB records.
+// It expects the instance volume to be mounted so that the backup.yaml file is readable.
+func internalImport(d *Daemon, projectName string, req *internalImportPost) response.Response {
 	if req.Name == "" {
-		return response.BadRequest(fmt.Errorf(`The name of the instance is required`))
+		return response.BadRequest(fmt.Errorf("The name of the instance is required"))
 	}
 
 	storagePoolsPath := shared.VarPath("storage-pools")
