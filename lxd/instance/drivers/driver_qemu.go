@@ -779,10 +779,10 @@ func (vm *qemu) Start(stateful bool) error {
 	}
 
 	// Get a UUID for Qemu.
-	vmUUID := vm.localConfig["volatile.vm.uuid"]
+	vmUUID := vm.localConfig["volatile.uuid"]
 	if vmUUID == "" {
 		vmUUID = uuid.New()
-		vm.VolatileSet(map[string]string{"volatile.vm.uuid": vmUUID})
+		vm.VolatileSet(map[string]string{"volatile.uuid": vmUUID})
 	}
 
 	// Copy OVMF settings firmware to nvram file.
