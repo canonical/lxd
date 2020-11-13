@@ -1988,6 +1988,13 @@ func (c *lxc) startCommon() (string, []func() error, error) {
 		}
 	}
 
+	// Mount instance root volume.
+	_, err = c.mount()
+	if err != nil {
+		return "", nil, err
+	}
+	revert.Add(func() { c.unmount() })
+
 	/* Deal with idmap changes */
 	nextIdmap, err := c.NextIdmap()
 	if err != nil {
@@ -1998,13 +2005,6 @@ func (c *lxc) startCommon() (string, []func() error, error) {
 	if err != nil {
 		return "", nil, errors.Wrap(err, "Set last ID map")
 	}
-
-	// Mount instance root volume.
-	_, err = c.mount()
-	if err != nil {
-		return "", nil, err
-	}
-	revert.Add(func() { c.unmount() })
 
 	// Once mounted, check if filesystem needs shifting.
 	if !nextIdmap.Equals(diskIdmap) && !(diskIdmap == nil && c.state.OS.Shiftfs) {
