@@ -7,6 +7,8 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/pborman/uuid"
+
 	"github.com/lxc/lxd/shared/units"
 )
 
@@ -447,6 +449,15 @@ func IsURLSegmentSafe(value string) error {
 		if strings.Contains(value, char) {
 			return fmt.Errorf("Cannot contain %q", char)
 		}
+	}
+
+	return nil
+}
+
+// IsUUID validates whether a value is a UUID.
+func IsUUID(value string) error {
+	if uuid.Parse(value) == nil {
+		return fmt.Errorf("Invalid UUID")
 	}
 
 	return nil
