@@ -376,7 +376,8 @@ func (vm *qemu) getStoragePool() (storagePools.Pool, error) {
 }
 
 func (vm *qemu) getMonitorEventHandler() func(event string, data map[string]interface{}) {
-	id := vm.id
+	projectName := vm.Project()
+	instanceName := vm.Name()
 	state := vm.state
 
 	return func(event string, data map[string]interface{}) {
@@ -384,9 +385,9 @@ func (vm *qemu) getMonitorEventHandler() func(event string, data map[string]inte
 			return
 		}
 
-		inst, err := instance.LoadByID(state, id)
+		inst, err := instance.LoadByProjectAndName(state, projectName, instanceName)
 		if err != nil {
-			logger.Errorf("Failed to load instance with id=%d", id)
+			logger.Error("Failed to load instance", "project", projectName, "instance", instanceName, "err", err)
 			return
 		}
 
@@ -399,7 +400,7 @@ func (vm *qemu) getMonitorEventHandler() func(event string, data map[string]inte
 
 			err = inst.(*qemu).onStop(target)
 			if err != nil {
-				logger.Errorf("Failed to cleanly stop instance '%s': %v", project.Instance(inst.Project(), inst.Name()), err)
+				logger.Error("Failed to cleanly stop instance", "project", projectName, "instance", instanceName, "err", err)
 				return
 			}
 		}
