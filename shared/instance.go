@@ -253,6 +253,7 @@ var KnownInstanceConfigKeys = map[string]func(value string) error{
 	"volatile.idmap.current":    validate.IsAny,
 	"volatile.idmap.next":       validate.IsAny,
 	"volatile.apply_quota":      validate.IsAny,
+	"volatile.uuid":             validate.Optional(validate.IsUUID),
 }
 
 // ConfigKeyChecker returns a function that will check whether or not
