@@ -255,6 +255,7 @@ var KnownInstanceConfigKeys = map[string]func(value string) error{
 	"volatile.idmap.current":    validate.IsAny,
 	"volatile.idmap.next":       validate.IsAny,
 	"volatile.apply_quota":      validate.IsAny,
+	"volatile.uuid":             validate.Optional(validate.IsUUID),
 }
 
 // ConfigKeyChecker returns a function that will check whether or not
@@ -302,10 +303,6 @@ func ConfigKeyChecker(key string) (func(value string) error, error) {
 		}
 
 		if strings.HasSuffix(key, ".apply_quota") {
-			return validate.IsAny, nil
-		}
-
-		if strings.HasSuffix(key, "vm.uuid") {
 			return validate.IsAny, nil
 		}
 
