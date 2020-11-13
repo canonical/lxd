@@ -1307,6 +1307,11 @@ func (b *lxdBackend) RenameInstance(inst instance.Instance, newName string, op *
 		}
 	}
 
+	err = inst.DeferTemplateApply("rename")
+	if err != nil {
+		return err
+	}
+
 	revert.Success()
 	return nil
 }
