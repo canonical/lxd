@@ -111,7 +111,7 @@ Custom columns are defined with "[config:|devices:]key[:name][:maxWidth]":
   "ETHP" is a custom column generated from a device key.
 
 lxc list -c ns,user.comment:comment
-  List images with their running state and user comment.`))
+  List instances with their running state and user comment.`))
 
 	cmd.RunE = c.Run
 	cmd.Flags().StringVarP(&c.flagColumns, "columns", "c", defaultColumns, i18n.G("Columns")+"``")
