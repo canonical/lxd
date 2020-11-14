@@ -245,6 +245,43 @@ func (d *disk) CanHotPlug() (bool, []string) {
 	return true, []string{"limits.max", "limits.read", "limits.write", "size"}
 }
 
+// Register calls mount for the disk volume (which should already be mounted) to reinitialise the reference counter
+// for volumes attached to running instances on LXD restart.
+func (d *disk) Register() error {
+	d.logger.Debug("Initialising mounted disk ref counter")
+
+	if d.config["path"] == "/" {
+		pool, err := storagePools.GetPoolByInstance(d.state, d.inst)
+		if err != nil {
+			return err
+		}
+
+		// Try to mount the volume that should already be mounted to reinitialise the ref counter.
+		_, err = pool.MountInstance(d.inst, nil)
+		if err != nil {
+			return err
+		}
+	} else if d.config["path"] != "/" && d.config["source"] != "" && d.config["pool"] != "" {
+		pool, err := storagePools.GetPoolByName(d.state, d.config["pool"])
+		if err != nil {
+			return err
+		}
+
+		storageProjectName, err := project.StorageVolumeProject(d.state.Cluster, d.inst.Project(), db.StoragePoolVolumeTypeCustom)
+		if err != nil {
+			return err
+		}
+
+		// Try to mount the volume that should already be mounted to reinitialise the ref counter.
+		err = pool.MountCustomVolume(storageProjectName, d.config["source"], nil)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
 // Start is run when the device is added to the instance.
 func (d *disk) Start() (*deviceConfig.RunConfig, error) {
 	err := d.validateEnvironment()
@@ -850,14 +887,11 @@ func (d *disk) mountPoolVolume(reverter *revert.Reverter) (string, error) {
 		return "", err
 	}
 
-	ourMount, err := pool.MountCustomVolume(storageProjectName, volumeName, nil)
+	err = pool.MountCustomVolume(storageProjectName, volumeName, nil)
 	if err != nil {
 		return "", errors.Wrapf(err, "Failed mounting storage volume %q of type %q on storage pool %q", volumeName, volumeTypeName, pool.Name())
 	}
-
-	if ourMount {
-		reverter.Add(func() { pool.UnmountCustomVolume(storageProjectName, volumeName, nil) })
-	}
+	reverter.Add(func() { pool.UnmountCustomVolume(storageProjectName, volumeName, nil) })
 
 	_, vol, err := d.state.Cluster.GetLocalStoragePoolVolume(storageProjectName, volumeName, db.StoragePoolVolumeTypeCustom, pool.ID())
 	if err != nil {

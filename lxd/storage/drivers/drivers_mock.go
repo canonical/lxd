@@ -141,10 +141,9 @@ func (d *mock) GetVolumeDiskPath(vol Volume) (string, error) {
 	return "", nil
 }
 
-// MountVolume simulates mounting a volume. As dir driver doesn't have volumes to mount it returns
-// false indicating that there is no need to issue an unmount.
-func (d *mock) MountVolume(vol Volume, op *operations.Operation) (bool, error) {
-	return false, nil
+// MountVolume simulates mounting a volume.
+func (d *mock) MountVolume(vol Volume, op *operations.Operation) error {
+	return nil
 }
 
 // UnmountVolume simulates unmounting a volume. As dir driver doesn't have volumes to unmount it

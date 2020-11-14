@@ -338,11 +338,11 @@ func (d *cephfs) GetVolumeDiskPath(vol Volume) (string, error) {
 }
 
 // MountVolume sets up the volume for use.
-func (d *cephfs) MountVolume(vol Volume, op *operations.Operation) (bool, error) {
+func (d *cephfs) MountVolume(vol Volume, op *operations.Operation) error {
 	unlock := vol.MountLock()
 	defer unlock()
 
-	return false, nil
+	return nil
 }
 
 // UnmountVolume clears any runtime state for the volume.

@@ -923,43 +923,54 @@ func (d *ceph) GetVolumeDiskPath(vol Volume) (string, error) {
 	return "", ErrNotSupported
 }
 
-// MountVolume simulates mounting a volume.
-func (d *ceph) MountVolume(vol Volume, op *operations.Operation) (bool, error) {
+// MountVolume mounts a volume and increments ref counter. Please call UnmountVolume() when done with the volume.
+func (d *ceph) MountVolume(vol Volume, op *operations.Operation) error {
 	unlock := vol.MountLock()
 	defer unlock()
 
-	mountPath := vol.MountPath()
+	revert := revert.New()
+	defer revert.Fail()
 
 	// Activate RBD volume if needed.
-	ourMount, devPath, err := d.getRBDMappedDevPath(vol, true)
+	activated, devPath, err := d.getRBDMappedDevPath(vol, true)
 	if err != nil {
-		return false, err
+		return err
+	}
+	if activated {
+		revert.Add(func() { d.rbdUnmapVolume(vol, true) })
 	}
 
-	if vol.contentType == ContentTypeFS && !shared.IsMountPoint(mountPath) {
-		err := vol.EnsureMountPath()
-		if err != nil {
-			return false, err
+	if vol.contentType == ContentTypeFS {
+		mountPath := vol.MountPath()
+		if !shared.IsMountPoint(mountPath) {
+			err := vol.EnsureMountPath()
+			if err != nil {
+				return err
+			}
+
+			RBDFilesystem := vol.ConfigBlockFilesystem()
+			mountFlags, mountOptions := resolveMountOptions(vol.ConfigBlockMountOptions())
+			err = TryMount(devPath, mountPath, RBDFilesystem, mountFlags, mountOptions)
+			if err != nil {
+				return err
+			}
+
+			d.logger.Debug("Mounted RBD volume", log.Ctx{"dev": devPath, "path": mountPath, "options": mountOptions})
 		}
-
-		RBDFilesystem := vol.ConfigBlockFilesystem()
-		mountFlags, mountOptions := resolveMountOptions(vol.ConfigBlockMountOptions())
-		err = TryMount(devPath, mountPath, RBDFilesystem, mountFlags, mountOptions)
-		if err != nil {
-			return false, err
+	} else if vol.contentType == ContentTypeBlock {
+		// For VMs, mount the filesystem volume.
+		if vol.IsVMBlock() {
+			fsVol := vol.NewVMBlockFilesystemVolume()
+			err = d.MountVolume(fsVol, op)
+			if err != nil {
+				return err
+			}
 		}
-		d.logger.Debug("Mounted RBD volume", log.Ctx{"dev": devPath, "path": mountPath, "options": mountOptions})
-
-		return true, nil
 	}
 
-	// For VMs, mount the filesystem volume.
-	if vol.IsVMBlock() {
-		fsVol := vol.NewVMBlockFilesystemVolume()
-		return d.MountVolume(fsVol, op)
-	}
-
-	return ourMount, nil
+	vol.MountRefCountIncrement() // From here on it is up to caller to call UnmountVolume() when done.
+	revert.Success()
+	return nil
 }
 
 // UnmountVolume simulates unmounting a volume.
@@ -968,41 +979,62 @@ func (d *ceph) UnmountVolume(vol Volume, keepBlockDev bool, op *operations.Opera
 	unlock := vol.MountLock()
 	defer unlock()
 
-	// Attempt to unmount the volume.
-	mountPath := vol.MountPath()
-	if vol.contentType == ContentTypeFS && shared.IsMountPoint(mountPath) {
-		err := TryUnmount(mountPath, unix.MNT_DETACH)
-		if err != nil {
-			return false, err
-		}
-		d.logger.Debug("Unmounted RBD volume", log.Ctx{"path": mountPath, "keepBlockDev": keepBlockDev})
+	ourUnmount := false
+	refCount := vol.MountRefCountDecrement()
 
-		// Attempt to unmap.
-		if !keepBlockDev {
-			err = d.rbdUnmapVolume(vol, true)
+	// Attempt to unmount the volume.
+	if vol.contentType == ContentTypeFS {
+		mountPath := vol.MountPath()
+		if shared.IsMountPoint(mountPath) {
+			if refCount > 0 {
+				d.logger.Debug("Skipping unmount as in use", "refCount", refCount)
+				return false, ErrInUse
+			}
+
+			err := TryUnmount(mountPath, unix.MNT_DETACH)
 			if err != nil {
 				return false, err
 			}
+			d.logger.Debug("Unmounted RBD volume", log.Ctx{"path": mountPath, "keepBlockDev": keepBlockDev})
+
+			// Attempt to unmap.
+			if !keepBlockDev {
+				err = d.rbdUnmapVolume(vol, true)
+				if err != nil {
+					return false, err
+				}
+			}
+
+			ourUnmount = true
+		}
+	} else if vol.contentType == ContentTypeBlock {
+		// For VMs, unmount the filesystem volume.
+		if vol.IsVMBlock() {
+			fsVol := vol.NewVMBlockFilesystemVolume()
+			return d.UnmountVolume(fsVol, false, op)
 		}
 
-		return true, nil
-	}
+		if !keepBlockDev {
+			// Check if device is currently mapped (but don't map if not).
+			_, devPath, _ := d.getRBDMappedDevPath(vol, false)
+			if devPath != "" && shared.PathExists(devPath) {
+				if refCount > 0 {
+					d.logger.Debug("Skipping unmount as in use", "refCount", refCount)
+					return false, ErrInUse
+				}
 
-	if vol.contentType == ContentTypeBlock && !keepBlockDev {
-		// Attempt to unmap.
-		err := d.rbdUnmapVolume(vol, true)
-		if err != nil {
-			return false, err
+				// Attempt to unmap.
+				err := d.rbdUnmapVolume(vol, true)
+				if err != nil {
+					return false, err
+				}
+
+				ourUnmount = true
+			}
 		}
 	}
 
-	// For VMs, unmount the filesystem volume.
-	if vol.IsVMBlock() {
-		fsVol := vol.NewVMBlockFilesystemVolume()
-		return d.UnmountVolume(fsVol, false, op)
-	}
-
-	return false, nil
+	return ourUnmount, nil
 }
 
 // RenameVolume renames a volume and its snapshots.
@@ -1059,13 +1091,11 @@ func (d *ceph) MigrateVolume(vol Volume, conn io.ReadWriteCloser, volSrcArgs *mi
 		// activated to avoid issues activating the snapshot volume device.
 		parent, _, _ := shared.InstanceGetParentAndSnapshotName(vol.Name())
 		parentVol := NewVolume(d, d.Name(), vol.volType, vol.contentType, parent, vol.config, vol.poolConfig)
-		ourMount, err := d.MountVolume(parentVol, op)
+		err := d.MountVolume(parentVol, op)
 		if err != nil {
 			return err
 		}
-		if ourMount {
-			defer d.UnmountVolume(parentVol, false, op)
-		}
+		defer d.UnmountVolume(parentVol, false, op)
 
 		return genericVFSMigrateVolume(d, d.state, vol, conn, volSrcArgs, op)
 	} else if volSrcArgs.MigrationType.FSType != migration.MigrationFSType_RBD {

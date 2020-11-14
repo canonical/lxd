@@ -307,9 +307,8 @@ func (d *dir) GetVolumeDiskPath(vol Volume) (string, error) {
 	return genericVFSGetVolumeDiskPath(vol)
 }
 
-// MountVolume simulates mounting a volume. As the driver doesn't have volumes to mount it returns
-// false indicating that there is no need to issue an unmount.
-func (d *dir) MountVolume(vol Volume, op *operations.Operation) (bool, error) {
+// MountVolume simulates mounting a volume.
+func (d *dir) MountVolume(vol Volume, op *operations.Operation) error {
 	unlock := vol.MountLock()
 	defer unlock()
 
@@ -318,11 +317,11 @@ func (d *dir) MountVolume(vol Volume, op *operations.Operation) (bool, error) {
 	if !shared.PathExists(vol.MountPath()) || vol.volType != VolumeTypeCustom {
 		err := vol.EnsureMountPath()
 		if err != nil {
-			return false, err
+			return err
 		}
 	}
 
-	return false, nil
+	return nil
 }
 
 // UnmountVolume simulates unmounting a volume.
