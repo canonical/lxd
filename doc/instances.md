@@ -342,7 +342,7 @@ hwaddr                  | string  | randomly assigned | no       | no      | TTh
 vlan                    | integer | -                 | no       | no      | TThe VLAN ID to attach to
 maas.subnet.ipv4        | string  | -                 | no       | yes     | MAAS IPv4 subnet to register the instance in
 maas.subnet.ipv6        | string  | -                 | no       | yes     | MAAS IPv6 subnet to register the instance in
-boot.priority           | integer | -                 | no       | no      | TBoot priority for VMs (higher boots first)
+boot.priority           | integer | -                 | no       | no      | Boot priority for VMs (higher boots first)
 
 #### nic: sriov
 
@@ -996,5 +996,5 @@ in your template string to avoid forbidden characters in your snapshot name.
 Another way to avoid name collisions is to use the placeholder `%d`. If a snapshot
 with the same name (excluding the placeholder) already exists, all existing snapshot
 names will be taken into account to find the highest number at the placeholders
-position. This numnber will be incremented by one for the new name. The starting
+position. This number will be incremented by one for the new name. The starting
 number if no snapshot exists will be `0`.
