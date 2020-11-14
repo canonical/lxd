@@ -15,7 +15,6 @@ import (
 
 // MountInfo represents info about the result of a mount operation.
 type MountInfo struct {
-	OurMount bool   // Whether a mount was needed.
 	DiskPath string // The location of the block disk (if supported).
 }
 
@@ -79,7 +78,7 @@ type Pool interface {
 	DeleteCustomVolume(projectName string, volName string, op *operations.Operation) error
 	GetCustomVolumeDisk(projectName string, volName string) (string, error)
 	GetCustomVolumeUsage(projectName string, volName string) (int64, error)
-	MountCustomVolume(projectName string, volName string, op *operations.Operation) (bool, error)
+	MountCustomVolume(projectName string, volName string, op *operations.Operation) error
 	UnmountCustomVolume(projectName string, volName string, op *operations.Operation) (bool, error)
 
 	// Custom volume snapshots.

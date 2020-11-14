@@ -626,6 +626,10 @@ func (b *lxdBackend) CreateInstanceFromCopy(inst instance.Instance, src instance
 		return fmt.Errorf("Instance types must match")
 	}
 
+	if src.Type() == instancetype.VM && src.IsRunning() {
+		return errors.Wrap(ErrNotImplemented, "Unable to perform VM live migration")
+	}
+
 	volType, err := InstanceTypeToVolumeType(inst.Type())
 	if err != nil {
 		return err
@@ -1625,6 +1629,9 @@ func (b *lxdBackend) MountInstance(inst instance.Instance, op *operations.Operat
 	logger.Debug("MountInstance started")
 	defer logger.Debug("MountInstance finished")
 
+	revert := revert.New()
+	defer revert.Fail()
+
 	// Check we can convert the instance to the volume type needed.
 	volType, err := InstanceTypeToVolumeType(inst.Type())
 	if err != nil {
@@ -1643,10 +1650,11 @@ func (b *lxdBackend) MountInstance(inst instance.Instance, op *operations.Operat
 	// Get the volume.
 	vol := b.newVolume(volType, contentType, volStorageName, rootDiskConf)
 
-	ourMount, err := b.driver.MountVolume(vol, op)
+	err = b.driver.MountVolume(vol, op)
 	if err != nil {
 		return nil, err
 	}
+	revert.Add(func() { b.driver.UnmountVolume(vol, false, op) })
 
 	diskPath, err := b.getInstanceDisk(inst)
 	if err != nil && err != drivers.ErrNotSupported {
@@ -1654,10 +1662,10 @@ func (b *lxdBackend) MountInstance(inst instance.Instance, op *operations.Operat
 	}
 
 	mountInfo := &MountInfo{
-		OurMount: ourMount,
 		DiskPath: diskPath,
 	}
 
+	revert.Success() // From here on it is up to caller to call UnmountInstance() when done.
 	return mountInfo, nil
 }
 
@@ -2022,7 +2030,7 @@ func (b *lxdBackend) MountInstanceSnapshot(inst instance.Instance, op *operation
 	// Get the volume.
 	vol := b.newVolume(volType, contentType, volStorageName, rootDiskConf)
 
-	ourMount, err := b.driver.MountVolumeSnapshot(vol, op)
+	_, err = b.driver.MountVolumeSnapshot(vol, op)
 	if err != nil {
 		return nil, err
 	}
@@ -2033,7 +2041,6 @@ func (b *lxdBackend) MountInstanceSnapshot(inst instance.Instance, op *operation
 	}
 
 	mountInfo := &MountInfo{
-		OurMount: ourMount,
 		DiskPath: diskPath,
 	}
 
@@ -3050,14 +3057,14 @@ func (b *lxdBackend) GetCustomVolumeUsage(projectName, volName string) (int64, e
 }
 
 // MountCustomVolume mounts a custom volume.
-func (b *lxdBackend) MountCustomVolume(projectName, volName string, op *operations.Operation) (bool, error) {
+func (b *lxdBackend) MountCustomVolume(projectName, volName string, op *operations.Operation) error {
 	logger := logging.AddContext(b.logger, log.Ctx{"project": projectName, "volName": volName})
 	logger.Debug("MountCustomVolume started")
 	defer logger.Debug("MountCustomVolume finished")
 
 	_, volume, err := b.state.Cluster.GetLocalStoragePoolVolume(projectName, volName, db.StoragePoolVolumeTypeCustom, b.id)
 	if err != nil {
-		return false, err
+		return err
 	}
 
 	// Get the volume name on storage.

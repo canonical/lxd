@@ -583,7 +583,7 @@ func deviceEventListener(s *state.State) {
 
 // devicesRegister calls the Register() function on all supported devices so they receive events.
 func devicesRegister(s *state.State) {
-	instances, err := instance.LoadNodeAll(s, instancetype.Container)
+	instances, err := instance.LoadNodeAll(s, instancetype.Any)
 	if err != nil {
 		logger.Error("Problem loading instances list", log.Ctx{"err": err})
 		return

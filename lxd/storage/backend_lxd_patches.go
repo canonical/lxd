@@ -129,7 +129,7 @@ func lxdPatchStorageRenameCustomVolumeAddProject(b *lxdBackend) error {
 
 			if ourUnmount {
 				logger.Infof("Mount custom volume %q in pool %q", newVolStorageName, b.Name())
-				_, err = b.driver.MountVolume(newVol, nil)
+				err = b.driver.MountVolume(newVol, nil)
 				if err != nil {
 					return err
 				}

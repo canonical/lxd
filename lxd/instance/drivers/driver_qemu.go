@@ -376,7 +376,8 @@ func (vm *qemu) getStoragePool() (storagePools.Pool, error) {
 }
 
 func (vm *qemu) getMonitorEventHandler() func(event string, data map[string]interface{}) {
-	id := vm.id
+	projectName := vm.Project()
+	instanceName := vm.Name()
 	state := vm.state
 
 	return func(event string, data map[string]interface{}) {
@@ -384,9 +385,9 @@ func (vm *qemu) getMonitorEventHandler() func(event string, data map[string]inte
 			return
 		}
 
-		inst, err := instance.LoadByID(state, id)
+		inst, err := instance.LoadByProjectAndName(state, projectName, instanceName)
 		if err != nil {
-			logger.Errorf("Failed to load instance with id=%d", id)
+			logger.Error("Failed to load instance", "project", projectName, "instance", instanceName, "err", err)
 			return
 		}
 
@@ -399,7 +400,7 @@ func (vm *qemu) getMonitorEventHandler() func(event string, data map[string]inte
 
 			err = inst.(*qemu).onStop(target)
 			if err != nil {
-				logger.Errorf("Failed to cleanly stop instance '%s': %v", project.Instance(inst.Project(), inst.Name()), err)
+				logger.Error("Failed to cleanly stop instance", "project", projectName, "instance", instanceName, "err", err)
 				return
 			}
 		}
@@ -449,14 +450,11 @@ func (vm *qemu) unmount() (bool, error) {
 // generateAgentCert creates the necessary server key and certificate if needed.
 func (vm *qemu) generateAgentCert() (string, string, string, string, error) {
 	// Mount the instance's config volume if needed.
-	mountInfo, err := vm.mount()
+	_, err := vm.mount()
 	if err != nil {
 		return "", "", "", "", err
 	}
-
-	if mountInfo.OurMount {
-		defer vm.unmount()
-	}
+	defer vm.unmount()
 
 	agentCertFile := filepath.Join(vm.Path(), "agent.crt")
 	agentKeyFile := filepath.Join(vm.Path(), "agent.key")
@@ -648,7 +646,7 @@ func (vm *qemu) Shutdown(timeout time.Duration) error {
 
 // Restart restart the instance.
 func (vm *qemu) Restart(timeout time.Duration) error {
-	return vm.common.Restart(vm, timeout)
+	return vm.common.restart(vm, timeout)
 }
 
 func (vm *qemu) ovmfPath() string {
@@ -1125,14 +1123,11 @@ func (vm *qemu) setupNvram() error {
 	}
 
 	// Mount the instance's config volume.
-	mountInfo, err := vm.mount()
+	_, err := vm.mount()
 	if err != nil {
 		return err
 	}
-
-	if mountInfo.OurMount {
-		defer vm.unmount()
-	}
+	defer vm.unmount()
 
 	srcOvmfFile := filepath.Join(vm.ovmfPath(), "OVMF_VARS.fd")
 	if vm.expandedConfig["security.secureboot"] == "" || shared.IsTrue(vm.expandedConfig["security.secureboot"]) {
@@ -1194,9 +1189,27 @@ func (vm *qemu) deviceVolatileSetFunc(devName string) func(save map[string]strin
 	}
 }
 
-// RegisterDevices is not used by VMs.
+// RegisterDevices calls the Register() function on all of the instance's devices.
 func (vm *qemu) RegisterDevices() {
-	return
+	devices := vm.ExpandedDevices()
+	for _, dev := range devices.Sorted() {
+		d, _, err := vm.deviceLoad(dev.Name, dev.Config)
+		if err == device.ErrUnsupportedDevType {
+			continue
+		}
+
+		if err != nil {
+			logger.Error("Failed to load device to register", log.Ctx{"err": err, "instance": vm.Name(), "device": dev.Name})
+			continue
+		}
+
+		// Check whether device wants to register for any events.
+		err = d.Register()
+		if err != nil {
+			logger.Error("Failed to register device", log.Ctx{"err": err, "instance": vm.Name(), "device": dev.Name})
+			continue
+		}
+	}
 }
 
 // SaveConfigFile is not used by VMs.
@@ -1231,9 +1244,7 @@ func (vm *qemu) deviceLoad(deviceName string, rawConfig deviceConfig.Device) (de
 	return d, configCopy, err
 }
 
-// deviceStart loads a new device and calls its Start() function. After processing the runtime
-// config returned from Start(), it also runs the device's Register() function irrespective of
-// whether the instance is running or not.
+// deviceStart loads a new device and calls its Start() function.
 func (vm *qemu) deviceStart(deviceName string, rawConfig deviceConfig.Device, isRunning bool) (*deviceConfig.RunConfig, error) {
 	logger := logging.AddContext(logger.Log, log.Ctx{"device": deviceName, "type": rawConfig["type"], "project": vm.Project(), "instance": vm.Name()})
 	logger.Debug("Starting device")
@@ -1332,22 +1343,13 @@ func (vm *qemu) spicePath() string {
 // generateConfigShare generates the config share directory that will be exported to the VM via
 // a 9P share. Due to the unknown size of templates inside the images this directory is created
 // inside the VM's config volume so that it can be restricted by quota.
+// Requires the instance be mounted before calling this function.
 func (vm *qemu) generateConfigShare() error {
-	// Mount the instance's config volume if needed.
-	mountInfo, err := vm.mount()
-	if err != nil {
-		return err
-	}
-
-	if mountInfo.OurMount {
-		defer vm.unmount()
-	}
-
 	configDrivePath := filepath.Join(vm.Path(), "config")
 
 	// Create config drive dir.
 	os.RemoveAll(configDrivePath)
-	err = os.MkdirAll(configDrivePath, 0500)
+	err := os.MkdirAll(configDrivePath, 0500)
 	if err != nil {
 		return err
 	}
@@ -2667,13 +2669,11 @@ func (vm *qemu) Restore(source instance.Instance, stateful bool) error {
 	}
 
 	// Ensure that storage is mounted for backup.yaml updates.
-	mountInfo, err := pool.MountInstance(vm, nil)
+	_, err = pool.MountInstance(vm, nil)
 	if err != nil {
 		return err
 	}
-	if mountInfo.OurMount && !wasRunning {
-		defer pool.UnmountInstance(vm, nil)
-	}
+	defer pool.UnmountInstance(vm, nil)
 
 	// Restore the rootfs.
 	err = pool.RestoreInstanceSnapshot(vm, source, nil)
@@ -3718,9 +3718,7 @@ func (vm *qemu) Export(w io.Writer, properties map[string]string) (api.ImageMeta
 		logger.Error("Failed exporting instance", ctxMap)
 		return meta, err
 	}
-	if mountInfo.OurMount {
-		defer vm.unmount()
-	}
+	defer vm.unmount()
 
 	// Create the tarball.
 	tarWriter := instancewriter.NewInstanceTarWriter(w, nil)
@@ -4700,16 +4698,6 @@ func (vm *qemu) StoragePool() (string, error) {
 // SetOperation sets the current operation.
 func (vm *qemu) SetOperation(op *operations.Operation) {
 	vm.op = op
-}
-
-// StorageStart deprecated.
-func (vm *qemu) StorageStart() (bool, error) {
-	return false, storagePools.ErrNotImplemented
-}
-
-// StorageStop deprecated.
-func (vm *qemu) StorageStop() (bool, error) {
-	return false, storagePools.ErrNotImplemented
 }
 
 // DeferTemplateApply not used currently.

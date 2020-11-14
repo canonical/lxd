@@ -128,7 +128,7 @@ func (b *mockBackend) SetInstanceQuota(inst instance.Instance, size string, op *
 }
 
 func (b *mockBackend) MountInstance(inst instance.Instance, op *operations.Operation) (*MountInfo, error) {
-	return &MountInfo{OurMount: true}, nil
+	return &MountInfo{}, nil
 }
 
 func (b *mockBackend) UnmountInstance(inst instance.Instance, op *operations.Operation) (bool, error) {
@@ -152,7 +152,7 @@ func (b *mockBackend) RestoreInstanceSnapshot(inst instance.Instance, src instan
 }
 
 func (b *mockBackend) MountInstanceSnapshot(inst instance.Instance, op *operations.Operation) (*MountInfo, error) {
-	return &MountInfo{OurMount: true}, nil
+	return &MountInfo{}, nil
 }
 
 func (b *mockBackend) UnmountInstanceSnapshot(inst instance.Instance, op *operations.Operation) (bool, error) {
@@ -211,8 +211,8 @@ func (b *mockBackend) GetCustomVolumeUsage(projectName string, volName string) (
 	return 0, nil
 }
 
-func (b *mockBackend) MountCustomVolume(projectName string, volName string, op *operations.Operation) (bool, error) {
-	return true, nil
+func (b *mockBackend) MountCustomVolume(projectName string, volName string, op *operations.Operation) error {
+	return nil
 }
 
 func (b *mockBackend) UnmountCustomVolume(projectName string, volName string, op *operations.Operation) (bool, error) {
