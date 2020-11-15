@@ -6631,6 +6631,10 @@ func (c *lxc) DevptsFd() (*os.File, error) {
 		return nil, err
 	}
 
+	if !liblxc.HasApiExtension("devpts_fd") {
+		return nil, fmt.Errorf("Missing devpts_fd extension")
+	}
+
 	return c.c.DevptsFd()
 }
 
