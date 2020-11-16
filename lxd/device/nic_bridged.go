@@ -176,7 +176,7 @@ func (d *nicBridged) CanHotPlug() (bool, []string) {
 	return true, []string{"limits.ingress", "limits.egress", "limits.max", "ipv4.routes", "ipv6.routes", "ipv4.address", "ipv6.address", "security.mac_filtering", "security.ipv4_filtering", "security.ipv6_filtering"}
 }
 
-// Add is run when a device is added to an instance whether or not the instance is running.
+// Add is run when a device is added to a non-snapshot instance whether or not the instance is running.
 func (d *nicBridged) Add() error {
 	// Rebuild dnsmasq entry if needed and reload.
 	err := d.rebuildDnsmasqEntry()
