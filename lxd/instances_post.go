@@ -281,7 +281,7 @@ func createFromMigration(d *Daemon, project string, req *api.InstancesPost) resp
 		// as part of the operation below.
 		inst, err = instanceCreateInternal(d.State(), args)
 		if err != nil {
-			return response.InternalError(err)
+			return response.InternalError(errors.Wrap(err, "Failed creating instance record"))
 		}
 	}
 
