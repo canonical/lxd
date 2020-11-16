@@ -39,7 +39,7 @@ func instanceCreateAsEmpty(d *Daemon, args db.InstanceArgs) (instance.Instance, 
 	// Create the instance record.
 	inst, err := instanceCreateInternal(d.State(), args)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "Failed creating instance record")
 	}
 
 	revert := true
@@ -146,7 +146,7 @@ func instanceCreateFromImage(d *Daemon, args db.InstanceArgs, hash string, op *o
 	// Create the instance.
 	inst, err := instanceCreateInternal(s, args)
 	if err != nil {
-		return nil, errors.Wrap(err, "Create instance")
+		return nil, errors.Wrap(err, "Failed creating instance record")
 	}
 
 	revert := true
@@ -211,7 +211,7 @@ func instanceCreateAsCopy(s *state.State, args db.InstanceArgs, sourceInst insta
 		// Create the instance.
 		inst, err = instanceCreateInternal(s, args)
 		if err != nil {
-			return nil, err
+			return nil, errors.Wrap(err, "Failed creating instance record")
 		}
 		revertInst = inst
 	}
@@ -293,7 +293,7 @@ func instanceCreateAsCopy(s *state.State, args db.InstanceArgs, sourceInst insta
 			// Create the snapshots.
 			snapInst, err := instanceCreateInternal(s, snapInstArgs)
 			if err != nil {
-				return nil, err
+				return nil, errors.Wrapf(err, "Failed creating instance snapshot record %q", newSnapName)
 			}
 
 			// Set snapshot creation date to that of the source snapshot.
@@ -387,7 +387,7 @@ func instanceCreateAsSnapshot(s *state.State, args db.InstanceArgs, sourceInstan
 	// Create the snapshot.
 	inst, err := instanceCreateInternal(s, args)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrapf(err, "Failed creating instance snapshot record %q", args.Name)
 	}
 	revert.Add(func() { inst.Delete() })
 

@@ -444,19 +444,18 @@ func (d *zfs) CreateVolumeFromCopy(vol Volume, srcVol Volume, copySnapshots bool
 	}
 
 	// For VMs, also copy the filesystem dataset.
-	if vol.volType == VolumeTypeVM && vol.contentType == ContentTypeBlock {
-		fsVol := NewVolume(d, d.name, vol.volType, ContentTypeFS, vol.name, vol.config, vol.poolConfig)
-		fsSrcVol := NewVolume(d, d.name, srcVol.volType, ContentTypeFS, srcVol.name, srcVol.config, srcVol.poolConfig)
+	if vol.IsVMBlock() {
+		// For VMs, also copy the filesystem volume.
+		srcFSVol := srcVol.NewVMBlockFilesystemVolume()
+		fsVol := vol.NewVMBlockFilesystemVolume()
 
-		err := d.CreateVolumeFromCopy(fsVol, fsSrcVol, copySnapshots, op)
+		err := d.CreateVolumeFromCopy(fsVol, srcFSVol, copySnapshots, op)
 		if err != nil {
 			return err
 		}
 
 		// Delete on revert.
-		revert.Add(func() {
-			d.DeleteVolume(fsVol, op)
-		})
+		revert.Add(func() { d.DeleteVolume(fsVol, op) })
 	}
 
 	// Retrieve snapshots on the source.
@@ -734,6 +733,12 @@ func (d *zfs) CreateVolumeFromMigration(vol Volume, conn io.ReadWriteCloser, vol
 
 		// Re-apply the base mount options.
 		err = d.setDatasetProperties(d.dataset(vol, false), fmt.Sprintf("mountpoint=%s", vol.MountPath()), "canmount=noauto")
+		if err != nil {
+			return err
+		}
+
+		// Apply the size limit.
+		err = d.SetVolumeQuota(vol, vol.ConfigSize(), op)
 		if err != nil {
 			return err
 		}

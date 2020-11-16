@@ -757,8 +757,8 @@ func (b *lxdBackend) CreateInstanceFromCopy(inst instance.Instance, src instance
 				Name:          inst.Name(),
 				Snapshots:     snapshotNames,
 				MigrationType: migrationTypes[0],
-				VolumeSize:    srcVolumeSize,
-				TrackProgress: false, // Do not use a progress tracker on receiver.
+				VolumeSize:    srcVolumeSize, // Block size setting override.
+				TrackProgress: false,         // Do not use a progress tracker on receiver.
 			}, op)
 
 			if err != nil {
@@ -1084,6 +1084,10 @@ func (b *lxdBackend) CreateInstanceFromMigration(inst instance.Instance, conn io
 	logger := logging.AddContext(b.logger, log.Ctx{"project": inst.Project(), "instance": inst.Name(), "args": args})
 	logger.Debug("CreateInstanceFromMigration started")
 	defer logger.Debug("CreateInstanceFromMigration finished")
+
+	if args.Config != nil {
+		return fmt.Errorf("Migration VolumeTargetArgs.Config cannot be set")
+	}
 
 	volType, err := InstanceTypeToVolumeType(inst.Type())
 	if err != nil {
@@ -2559,7 +2563,7 @@ func (b *lxdBackend) CreateCustomVolumeFromCopy(projectName string, volName stri
 			MigrationType: migrationTypes[0],
 			TrackProgress: false, // Do not use a progress tracker on receiver.
 			ContentType:   string(contentType),
-			VolumeSize:    volSize,
+			VolumeSize:    volSize, // Block size setting override.
 		}, op)
 
 		if err != nil {

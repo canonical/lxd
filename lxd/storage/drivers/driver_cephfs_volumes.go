@@ -45,7 +45,7 @@ func (d *cephfs) CreateVolume(vol Volume, filler *VolumeFiller, op *operations.O
 	}()
 
 	// Apply the volume quota if specified.
-	err = d.SetVolumeQuota(vol, vol.ExpandedConfig("size"), op)
+	err = d.SetVolumeQuota(vol, vol.ConfigSize(), op)
 	if err != nil {
 		return err
 	}
@@ -126,7 +126,7 @@ func (d *cephfs) CreateVolumeFromCopy(vol Volume, srcVol Volume, copySnapshots b
 		}
 
 		// Apply the volume quota if specified.
-		err = d.SetVolumeQuota(vol, vol.ExpandedConfig("size"), op)
+		err = d.SetVolumeQuota(vol, vol.ConfigSize(), op)
 		if err != nil {
 			return err
 		}
@@ -213,10 +213,12 @@ func (d *cephfs) CreateVolumeFromMigration(vol Volume, conn io.ReadWriteCloser, 
 			revertSnaps = append(revertSnaps, snapName)
 		}
 
-		// Apply the volume quota if specified.
-		err = d.SetVolumeQuota(vol, vol.ExpandedConfig("size"), op)
-		if err != nil {
-			return err
+		if vol.contentType == ContentTypeFS {
+			// Apply the size limit.
+			err = d.SetVolumeQuota(vol, vol.ConfigSize(), op)
+			if err != nil {
+				return err
+			}
 		}
 
 		// Receive the main volume from sender.
@@ -288,12 +290,15 @@ func (d *cephfs) ValidateVolume(vol Volume, removeUnknownKeys bool) error {
 
 // UpdateVolume applies the driver specific changes of a volume configuration change.
 func (d *cephfs) UpdateVolume(vol Volume, changedConfig map[string]string) error {
-	value, ok := changedConfig["size"]
-	if !ok {
-		return nil
+	newSize, sizeChanged := changedConfig["size"]
+	if sizeChanged {
+		err := d.SetVolumeQuota(vol, newSize, nil)
+		if err != nil {
+			return err
+		}
 	}
 
-	return d.SetVolumeQuota(vol, value, nil)
+	return nil
 }
 
 // GetVolumeUsage returns the disk space usage of a volume.

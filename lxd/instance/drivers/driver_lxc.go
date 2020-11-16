@@ -2360,7 +2360,7 @@ func (c *lxc) Start(stateful bool) error {
 	// Run the shared start code
 	configPath, postStartHooks, err := c.startCommon()
 	if err != nil {
-		return errors.Wrap(err, "Common start logic")
+		return errors.Wrap(err, "Failed preparing container for start")
 	}
 
 	ctxMap = log.Ctx{
@@ -4124,8 +4124,10 @@ func (c *lxc) Update(args db.InstanceArgs, userRequested bool) error {
 		c.idmapset = nil
 	}
 
+	isRunning := c.IsRunning()
+
 	// Use the device interface to apply update changes.
-	err = c.updateDevices(removeDevices, addDevices, updateDevices, oldExpandedDevices)
+	err = c.updateDevices(removeDevices, addDevices, updateDevices, oldExpandedDevices, isRunning, userRequested)
 	if err != nil {
 		return err
 	}
@@ -4147,7 +4149,6 @@ func (c *lxc) Update(args db.InstanceArgs, userRequested bool) error {
 	}
 
 	// Apply the live changes
-	isRunning := c.IsRunning()
 	if isRunning {
 		// Live update the container config
 		for _, key := range changedConfig {
@@ -4556,9 +4557,7 @@ func (c *lxc) Update(args db.InstanceArgs, userRequested bool) error {
 	return nil
 }
 
-func (c *lxc) updateDevices(removeDevices deviceConfig.Devices, addDevices deviceConfig.Devices, updateDevices deviceConfig.Devices, oldExpandedDevices deviceConfig.Devices) error {
-	isRunning := c.IsRunning()
-
+func (c *lxc) updateDevices(removeDevices deviceConfig.Devices, addDevices deviceConfig.Devices, updateDevices deviceConfig.Devices, oldExpandedDevices deviceConfig.Devices, isRunning bool, userRequested bool) error {
 	// Remove devices in reverse order to how they were added.
 	for _, dev := range removeDevices.Reversed() {
 		if isRunning {
@@ -4590,7 +4589,14 @@ func (c *lxc) updateDevices(removeDevices deviceConfig.Devices, addDevices devic
 		if err == device.ErrUnsupportedDevType {
 			continue // No point in trying to start device below.
 		} else if err != nil {
-			return errors.Wrapf(err, "Failed to add device %q", dev.Name)
+			if userRequested {
+				return errors.Wrapf(err, "Failed to add device %q", dev.Name)
+			}
+
+			// If update is non-user requested (i.e from a snapshot restore), there's nothing we can
+			// do to fix the config and we don't want to prevent the snapshot restore so log and allow.
+			logger.Error("Failed to add device, skipping as non-user requested", log.Ctx{"project": c.Project(), "instance": c.Name(), "device": dev.Name, "err": err})
+			continue
 		}
 
 		if isRunning {
@@ -4919,7 +4925,7 @@ func (c *lxc) Migrate(args *instance.CriuMigrationArgs) error {
 		// Run the shared start
 		_, postStartHooks, err := c.startCommon()
 		if err != nil {
-			return err
+			return errors.Wrap(err, "Failed preparing container for start")
 		}
 
 		/*
