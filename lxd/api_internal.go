@@ -702,8 +702,7 @@ func internalImport(d *Daemon, projectName string, req *internalImportPost) resp
 		Stateful:     backupConf.Container.Stateful,
 	})
 	if err != nil {
-		err = errors.Wrap(err, "Create instance")
-		return response.SmartError(err)
+		return response.SmartError(errors.Wrap(err, "Failed creating instance record"))
 	}
 
 	instancePath := storagePools.InstancePath(instanceType, projectName, req.Name, false)
@@ -801,7 +800,7 @@ func internalImport(d *Daemon, projectName string, req *internalImportPost) resp
 			Stateful:     snap.Stateful,
 		})
 		if err != nil {
-			return response.SmartError(err)
+			return response.SmartError(errors.Wrapf(err, "Failed creating instance snapshot record %q", snap.Name))
 		}
 
 		// Recreate missing mountpoints and symlinks.
