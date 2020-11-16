@@ -149,11 +149,12 @@ func (d *disk) validateConfig(instConf instance.ConfigReader) error {
 		}
 	}
 
-	// When we want to attach a storage volume created via the storage api the "source" only
-	// contains the name of the storage volume, not the path where it is mounted. So only check
-	// for the existence of "source" when "pool" is empty and ceph type source not being used.
-	if d.config["pool"] == "" && d.config["source"] != "" && d.config["source"] != diskSourceCloudInit && d.isRequired(d.config) && !shared.PathExists(shared.HostPath(d.config["source"])) &&
-		!strings.HasPrefix(d.config["source"], "ceph:") && !strings.HasPrefix(d.config["source"], "cephfs:") {
+	// Check that external disk source path exists. External disk sources have a non-empty "source" property
+	// that contains the path of the external source, and do not have a "pool" property. We only check the
+	// source path exists when the disk device is required, is not an external ceph/cephfs source and is not a
+	// VM cloud-init drive. We only check this when an instance is loaded to avoid validating snapshot configs
+	// that may contain older config that no longer exists which can prevent migrations.
+	if d.inst != nil && d.config["pool"] == "" && d.config["source"] != "" && d.config["source"] != diskSourceCloudInit && d.isRequired(d.config) && !shared.PathExists(shared.HostPath(d.config["source"])) && !strings.HasPrefix(d.config["source"], "ceph:") && !strings.HasPrefix(d.config["source"], "cephfs:") {
 		return fmt.Errorf("Missing source %q for disk %q", d.config["source"], d.name)
 	}
 
@@ -167,7 +168,7 @@ func (d *disk) validateConfig(instConf instance.ConfigReader) error {
 		}
 
 		// Only perform expensive instance custom volume checks when not validating a profile and after
-		// device expansion has occurred (to avoid doing it twice).
+		// device expansion has occurred (to avoid doing it twice during instance load).
 		if instConf.Type() != instancetype.Any && len(instConf.ExpandedDevices()) > 0 && d.config["source"] != "" && d.config["path"] != "/" {
 			poolID, err := d.state.Cluster.GetStoragePoolID(d.config["pool"])
 			if err != nil {
