@@ -3129,7 +3129,7 @@ func (vm *qemu) Update(args db.InstanceArgs, userRequested bool) error {
 	isRunning := vm.IsRunning()
 
 	// Use the device interface to apply update changes.
-	err = vm.updateDevices(removeDevices, addDevices, updateDevices, oldExpandedDevices, isRunning)
+	err = vm.updateDevices(removeDevices, addDevices, updateDevices, oldExpandedDevices, isRunning, userRequested)
 	if err != nil {
 		return err
 	}
@@ -3329,7 +3329,7 @@ func (vm *qemu) updateMemoryLimit(newLimit string) error {
 	return fmt.Errorf("Failed setting memory to %dMiB (currently %dMiB) as it was taking too long", newSizeMB, curSizeMB)
 }
 
-func (vm *qemu) updateDevices(removeDevices deviceConfig.Devices, addDevices deviceConfig.Devices, updateDevices deviceConfig.Devices, oldExpandedDevices deviceConfig.Devices, isRunning bool) error {
+func (vm *qemu) updateDevices(removeDevices deviceConfig.Devices, addDevices deviceConfig.Devices, updateDevices deviceConfig.Devices, oldExpandedDevices deviceConfig.Devices, isRunning bool, userRequested bool) error {
 	if isRunning && (len(removeDevices) > 0 || len(addDevices) > 0 || len(updateDevices) > 0) {
 		return fmt.Errorf("Devices cannot be changed when VM is running")
 	}
@@ -3365,7 +3365,14 @@ func (vm *qemu) updateDevices(removeDevices deviceConfig.Devices, addDevices dev
 		if err == device.ErrUnsupportedDevType {
 			continue // No point in trying to start device below.
 		} else if err != nil {
-			return errors.Wrapf(err, "Failed to add device %q", dev.Name)
+			if userRequested {
+				return errors.Wrapf(err, "Failed to add device %q", dev.Name)
+			}
+
+			// If update is non-user requested (i.e from a snapshot restore), there's nothing we can
+			// do to fix the config and we don't want to prevent the snapshot restore so log and allow.
+			logger.Error("Failed to add device, skipping as non-user requested", log.Ctx{"project": vm.Project(), "instance": vm.Name(), "device": dev.Name, "err": err})
+			continue
 		}
 
 		if isRunning {
