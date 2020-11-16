@@ -611,12 +611,9 @@ func (d *btrfs) ValidateVolume(vol Volume, removeUnknownKeys bool) error {
 
 // UpdateVolume applies config changes to the volume.
 func (d *btrfs) UpdateVolume(vol Volume, changedConfig map[string]string) error {
-	if vol.volType != VolumeTypeCustom {
-		return ErrNotSupported
-	}
-
-	if _, changed := changedConfig["size"]; changed {
-		err := d.SetVolumeQuota(vol, changedConfig["size"], nil)
+	newSize, sizeChanged := changedConfig["size"]
+	if sizeChanged {
+		err := d.SetVolumeQuota(vol, newSize, nil)
 		if err != nil {
 			return err
 		}
