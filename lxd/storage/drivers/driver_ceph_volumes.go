@@ -720,13 +720,9 @@ func (d *ceph) ValidateVolume(vol Volume, removeUnknownKeys bool) error {
 
 // UpdateVolume applies config changes to the volume.
 func (d *ceph) UpdateVolume(vol Volume, changedConfig map[string]string) error {
-	if vol.volType != VolumeTypeCustom {
-		return ErrNotSupported
-	}
-
-	val, ok := changedConfig["size"]
-	if ok {
-		err := d.SetVolumeQuota(vol, val, nil)
+	newSize, sizeChanged := changedConfig["size"]
+	if sizeChanged {
+		err := d.SetVolumeQuota(vol, newSize, nil)
 		if err != nil {
 			return err
 		}
