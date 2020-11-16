@@ -736,6 +736,12 @@ func (d *zfs) CreateVolumeFromMigration(vol Volume, conn io.ReadWriteCloser, vol
 		if err != nil {
 			return err
 		}
+
+		// Apply the size limit.
+		err = d.SetVolumeQuota(vol, vol.ConfigSize(), op)
+		if err != nil {
+			return err
+		}
 	}
 
 	return nil
