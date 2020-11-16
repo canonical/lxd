@@ -213,10 +213,12 @@ func (d *cephfs) CreateVolumeFromMigration(vol Volume, conn io.ReadWriteCloser, 
 			revertSnaps = append(revertSnaps, snapName)
 		}
 
-		// Apply the volume quota if specified.
-		err = d.SetVolumeQuota(vol, vol.ExpandedConfig("size"), op)
-		if err != nil {
-			return err
+		if vol.contentType == ContentTypeFS {
+			// Apply the size limit.
+			err = d.SetVolumeQuota(vol, vol.ConfigSize(), op)
+			if err != nil {
+				return err
+			}
 		}
 
 		// Receive the main volume from sender.
