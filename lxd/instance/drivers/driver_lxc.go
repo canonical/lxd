@@ -4124,8 +4124,10 @@ func (c *lxc) Update(args db.InstanceArgs, userRequested bool) error {
 		c.idmapset = nil
 	}
 
+	isRunning := c.IsRunning()
+
 	// Use the device interface to apply update changes.
-	err = c.updateDevices(removeDevices, addDevices, updateDevices, oldExpandedDevices, userRequested)
+	err = c.updateDevices(removeDevices, addDevices, updateDevices, oldExpandedDevices, isRunning, userRequested)
 	if err != nil {
 		return err
 	}
@@ -4147,7 +4149,6 @@ func (c *lxc) Update(args db.InstanceArgs, userRequested bool) error {
 	}
 
 	// Apply the live changes
-	isRunning := c.IsRunning()
 	if isRunning {
 		// Live update the container config
 		for _, key := range changedConfig {
@@ -4556,9 +4557,7 @@ func (c *lxc) Update(args db.InstanceArgs, userRequested bool) error {
 	return nil
 }
 
-func (c *lxc) updateDevices(removeDevices deviceConfig.Devices, addDevices deviceConfig.Devices, updateDevices deviceConfig.Devices, oldExpandedDevices deviceConfig.Devices, userRequested bool) error {
-	isRunning := c.IsRunning()
-
+func (c *lxc) updateDevices(removeDevices deviceConfig.Devices, addDevices deviceConfig.Devices, updateDevices deviceConfig.Devices, oldExpandedDevices deviceConfig.Devices, isRunning bool, userRequested bool) error {
 	// Remove devices in reverse order to how they were added.
 	for _, dev := range removeDevices.Reversed() {
 		if isRunning {
