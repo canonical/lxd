@@ -212,11 +212,6 @@ func (d *nicOVN) CanHotPlug() (bool, []string) {
 	return true, []string{}
 }
 
-// Add is run when a device is added to an instance whether or not the instance is running.
-func (d *nicOVN) Add() error {
-	return nil
-}
-
 // Start is run when the device is added to a running instance or instance is starting up.
 func (d *nicOVN) Start() (*deviceConfig.RunConfig, error) {
 	err := d.validateEnvironment()
