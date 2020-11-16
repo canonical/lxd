@@ -2360,7 +2360,7 @@ func (c *lxc) Start(stateful bool) error {
 	// Run the shared start code
 	configPath, postStartHooks, err := c.startCommon()
 	if err != nil {
-		return errors.Wrap(err, "Common start logic")
+		return errors.Wrap(err, "Failed preparing container for start")
 	}
 
 	ctxMap = log.Ctx{
@@ -4919,7 +4919,7 @@ func (c *lxc) Migrate(args *instance.CriuMigrationArgs) error {
 		// Run the shared start
 		_, postStartHooks, err := c.startCommon()
 		if err != nil {
-			return err
+			return errors.Wrap(err, "Failed preparing container for start")
 		}
 
 		/*
