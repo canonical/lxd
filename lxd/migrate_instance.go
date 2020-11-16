@@ -872,10 +872,10 @@ func (c *migrationSink) Do(state *state.State, migrateOp *operations.Operation) 
 		volTargetArgs := migration.VolumeTargetArgs{
 			Name:          args.Instance.Name(),
 			MigrationType: respTypes[0],
-			Refresh:       args.Refresh, // Indicate to receiver volume should exist.
-			TrackProgress: false,        // Do not use a progress tracker on receiver.
-			Live:          args.Live,    // Indicates we will get a final rootfs sync.
-			VolumeSize:    args.VolumeSize,
+			Refresh:       args.Refresh,    // Indicate to receiver volume should exist.
+			TrackProgress: false,           // Do not use a progress tracker on receiver.
+			Live:          args.Live,       // Indicates we will get a final rootfs sync.
+			VolumeSize:    args.VolumeSize, // Block size setting override.
 		}
 
 		// At this point we have already figured out the parent container's root
@@ -1045,7 +1045,7 @@ func (c *migrationSink) Do(state *state.State, migrateOp *operations.Operation) 
 				Refresh:       c.refresh,
 				RsyncFeatures: rsyncFeatures,
 				Snapshots:     snapshots,
-				VolumeSize:    offerHeader.GetVolumeSize(),
+				VolumeSize:    offerHeader.GetVolumeSize(), // Block size setting override.
 			}
 
 			err = myTarget(fsConn, migrateOp, args)
