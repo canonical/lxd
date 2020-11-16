@@ -547,6 +547,14 @@ func (d *btrfs) CreateVolumeFromMigration(vol Volume, conn io.ReadWriteCloser, v
 		}
 	}
 
+	if vol.contentType == ContentTypeFS {
+		// Apply the size limit.
+		err = d.SetVolumeQuota(vol, vol.ConfigSize(), op)
+		if err != nil {
+			return err
+		}
+	}
+
 	revert.Success()
 	return nil
 }
