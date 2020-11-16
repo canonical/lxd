@@ -288,12 +288,15 @@ func (d *cephfs) ValidateVolume(vol Volume, removeUnknownKeys bool) error {
 
 // UpdateVolume applies the driver specific changes of a volume configuration change.
 func (d *cephfs) UpdateVolume(vol Volume, changedConfig map[string]string) error {
-	value, ok := changedConfig["size"]
-	if !ok {
-		return nil
+	newSize, sizeChanged := changedConfig["size"]
+	if sizeChanged {
+		err := d.SetVolumeQuota(vol, newSize, nil)
+		if err != nil {
+			return err
+		}
 	}
 
-	return d.SetVolumeQuota(vol, value, nil)
+	return nil
 }
 
 // GetVolumeUsage returns the disk space usage of a volume.
