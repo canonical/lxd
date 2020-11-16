@@ -45,7 +45,7 @@ func (d *cephfs) CreateVolume(vol Volume, filler *VolumeFiller, op *operations.O
 	}()
 
 	// Apply the volume quota if specified.
-	err = d.SetVolumeQuota(vol, vol.ExpandedConfig("size"), op)
+	err = d.SetVolumeQuota(vol, vol.ConfigSize(), op)
 	if err != nil {
 		return err
 	}
@@ -126,7 +126,7 @@ func (d *cephfs) CreateVolumeFromCopy(vol Volume, srcVol Volume, copySnapshots b
 		}
 
 		// Apply the volume quota if specified.
-		err = d.SetVolumeQuota(vol, vol.ExpandedConfig("size"), op)
+		err = d.SetVolumeQuota(vol, vol.ConfigSize(), op)
 		if err != nil {
 			return err
 		}
