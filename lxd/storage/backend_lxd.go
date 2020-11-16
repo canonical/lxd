@@ -757,8 +757,8 @@ func (b *lxdBackend) CreateInstanceFromCopy(inst instance.Instance, src instance
 				Name:          inst.Name(),
 				Snapshots:     snapshotNames,
 				MigrationType: migrationTypes[0],
-				VolumeSize:    srcVolumeSize,
-				TrackProgress: false, // Do not use a progress tracker on receiver.
+				VolumeSize:    srcVolumeSize, // Block size setting override.
+				TrackProgress: false,         // Do not use a progress tracker on receiver.
 			}, op)
 
 			if err != nil {
@@ -2517,7 +2517,7 @@ func (b *lxdBackend) CreateCustomVolumeFromCopy(projectName string, volName stri
 			Snapshots:     snapshotNames,
 			MigrationType: migrationTypes[0],
 			TrackProgress: false, // Do not use a progress tracker on receiver.
-
+			VolumeSize:    volSize, // Block size setting override.
 		}, op)
 
 		if err != nil {
