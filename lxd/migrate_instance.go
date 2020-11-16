@@ -918,7 +918,7 @@ func (c *migrationSink) Do(state *state.State, migrateOp *operations.Operation) 
 					// Create the snapshot as it doesn't seem to exist.
 					_, err := instanceCreateInternal(state, snapArgs)
 					if err != nil {
-						return err
+						return errors.Wrapf(err, "Failed creating instance snapshot record %q", snapArgs.Name)
 					}
 				}
 			}
