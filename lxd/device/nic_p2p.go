@@ -50,10 +50,9 @@ func (d *nicP2P) validateEnvironment() error {
 	return nil
 }
 
-// CanHotPlug returns whether the device can be managed whilst the instance is running, it also
-// returns a list of fields that can be updated without triggering a device remove & add.
-func (d *nicP2P) CanHotPlug() (bool, []string) {
-	return true, []string{"limits.ingress", "limits.egress", "limits.max", "ipv4.routes", "ipv6.routes"}
+// UpdatableFields returns a list of fields that can be updated without triggering a device remove & add.
+func (d *nicP2P) UpdatableFields() []string {
+	return []string{"limits.ingress", "limits.egress", "limits.max", "ipv4.routes", "ipv6.routes"}
 }
 
 // Start is run when the device is added to a running instance or instance is starting up.
