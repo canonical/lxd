@@ -173,41 +173,45 @@ func (d *Daemon) ImageDownload(op *operations.Operation, server string, protocol
 	}
 
 	if imgInfo != nil {
-		logger.Debugf("Image %q already exists in the DB", fp)
 		info = imgInfo
+		ctxMap = log.Ctx{"fingerprint": info.Fingerprint}
+		logger.Debug("Image already exists in the DB", ctxMap)
 
 		// If not requested in a particular pool, we're done.
 		if storagePool == "" {
 			return info, nil
 		}
 
-		// Get the ID of the target storage pool
+		ctxMap["pool"] = storagePool
+
+		// Get the ID of the target storage pool.
 		poolID, err := d.cluster.GetStoragePoolID(storagePool)
 		if err != nil {
 			return nil, err
 		}
 
-		// Check if the image is already in the pool
+		// Check if the image is already in the pool.
 		poolIDs, err := d.cluster.GetPoolsWithImage(info.Fingerprint)
 		if err != nil {
 			return nil, err
 		}
 
 		if shared.Int64InSlice(poolID, poolIDs) {
-			logger.Debugf("Image already exists on storage pool %q", storagePool)
+			logger.Debug("Image already exists on storage pool", ctxMap)
 			return info, nil
 		}
 
-		// Import the image in the pool
-		logger.Debugf("Image does not exist on storage pool %q", storagePool)
+		// Import the image in the pool.
+		logger.Debug("Image does not exist on storage pool", ctxMap)
 
 		err = imageCreateInPool(d, info, storagePool)
 		if err != nil {
-			logger.Debugf("Failed to create image on storage pool %q: %v", storagePool, err)
-			return nil, err
+			ctxMap["err"] = err
+			logger.Debug("Failed to create image on storage pool", ctxMap)
+			return nil, errors.Wrapf(err, "Failed to create image %q on storage pool %q", info.Fingerprint, storagePool)
 		}
 
-		logger.Debugf("Created image on storage pool %q", storagePool)
+		logger.Debug("Created image on storage pool", ctxMap)
 		return info, nil
 	}
 
@@ -217,9 +221,7 @@ func (d *Daemon) ImageDownload(op *operations.Operation, server string, protocol
 		// We are already downloading the image
 		imagesDownloadingLock.Unlock()
 
-		logger.Debug(
-			"Already downloading the image, waiting for it to succeed",
-			log.Ctx{"image": fp})
+		logger.Debug("Already downloading the image, waiting for it to succeed", log.Ctx{"fingerprint": fp})
 
 		// Wait until the download finishes (channel closes)
 		<-waitChannel
@@ -228,7 +230,7 @@ func (d *Daemon) ImageDownload(op *operations.Operation, server string, protocol
 		_, imgInfo, err := d.cluster.GetImage(project, fp, false)
 		if err != nil {
 			// Other download failed, lets try again
-			logger.Error("Other image download didn't succeed", log.Ctx{"image": fp})
+			logger.Error("Other image download didn't succeed", log.Ctx{"fingerprint": fp})
 		} else {
 			// Other download succeeded, we're done
 			return imgInfo, nil
@@ -256,7 +258,7 @@ func (d *Daemon) ImageDownload(op *operations.Operation, server string, protocol
 	if op == nil {
 		ctxMap = log.Ctx{"alias": alias, "server": server}
 	} else {
-		ctxMap = log.Ctx{"trigger": op.URL(), "image": fp, "operation": op.ID(), "alias": alias, "server": server}
+		ctxMap = log.Ctx{"trigger": op.URL(), "fingerprint": fp, "operation": op.ID(), "alias": alias, "server": server}
 	}
 	logger.Info("Downloading image", ctxMap)
 
