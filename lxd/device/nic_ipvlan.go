@@ -21,8 +21,9 @@ type nicIPVLAN struct {
 	deviceCommon
 }
 
-func (d *nicIPVLAN) CanHotPlug() (bool, []string) {
-	return false, []string{}
+// CanHotPlug returns whether the device can be managed whilst the instance is running,
+func (d *nicIPVLAN) CanHotPlug() bool {
+	return false
 }
 
 // validateConfig checks the supplied config for correctness.
