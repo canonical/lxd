@@ -30,7 +30,8 @@ test_container_devices_disk_shift() {
   [ "$(lxc exec foo -- stat /mnt/a -c '%u:%g')" = "123:456" ] || false
 
   lxc stop foo -f
-  lxc start foo
+  lxc start foo || true
+  lxc info --show-log foo
   [ "$(lxc exec foo -- stat /mnt/a -c '%u:%g')" = "123:456" ] || false
   lxc config device remove foo shiftfs
   lxc stop foo -f
