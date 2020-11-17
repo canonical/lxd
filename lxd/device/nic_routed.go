@@ -23,8 +23,14 @@ type nicRouted struct {
 	deviceCommon
 }
 
-func (d *nicRouted) CanHotPlug() (bool, []string) {
-	return false, []string{"limits.ingress", "limits.egress", "limits.max"}
+// CanHotPlug returns whether the device can be managed whilst the instance is running.
+func (d *nicRouted) CanHotPlug() bool {
+	return false
+}
+
+// UpdatableFields returns a list of fields that can be updated without triggering a device remove & add.
+func (d *nicRouted) UpdatableFields() []string {
+	return []string{"limits.ingress", "limits.egress", "limits.max"}
 }
 
 // validateConfig checks the supplied config for correctness.
