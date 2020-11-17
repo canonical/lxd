@@ -702,8 +702,8 @@ func (d *disk) Update(oldDevices deviceConfig.Devices, isRunning bool) error {
 		}
 	}
 
-	// Only apply IO limits if instance is running.
-	if isRunning {
+	// Only apply IO limits if instance is container and is running.
+	if isRunning && d.inst.Type() == instancetype.Container {
 		runConf := deviceConfig.RunConfig{}
 		err := d.generateLimits(&runConf)
 		if err != nil {
