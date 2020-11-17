@@ -293,9 +293,9 @@ func qemuCreate(s *state.State, args db.InstanceArgs) (instance.Instance, error)
 
 		// Add devices to instance.
 		for k, m := range vm.expandedDevices {
-			err = vm.deviceAdd(k, m)
+			err = vm.deviceAdd(k, m, false)
 			if err != nil && err != device.ErrUnsupportedDevType {
-				return nil, errors.Wrapf(err, "Failed to add device '%s'", k)
+				return nil, errors.Wrapf(err, "Failed to add device %q", k)
 			}
 		}
 	}
@@ -811,7 +811,7 @@ func (vm *qemu) Start(stateful bool) error {
 		}
 
 		revert.Add(func() {
-			err := vm.deviceStop(dev.Name, dev.Config)
+			err := vm.deviceStop(dev.Name, dev.Config, false)
 			if err != nil {
 				logger.Errorf("Failed to cleanup device %q: %v", dev.Name, err)
 			}
@@ -1245,7 +1245,7 @@ func (vm *qemu) deviceLoad(deviceName string, rawConfig deviceConfig.Device) (de
 }
 
 // deviceStart loads a new device and calls its Start() function.
-func (vm *qemu) deviceStart(deviceName string, rawConfig deviceConfig.Device, isRunning bool) (*deviceConfig.RunConfig, error) {
+func (vm *qemu) deviceStart(deviceName string, rawConfig deviceConfig.Device, instanceRunning bool) (*deviceConfig.RunConfig, error) {
 	logger := logging.AddContext(logger.Log, log.Ctx{"device": deviceName, "type": rawConfig["type"], "project": vm.Project(), "instance": vm.Name()})
 	logger.Debug("Starting device")
 
@@ -1254,7 +1254,7 @@ func (vm *qemu) deviceStart(deviceName string, rawConfig deviceConfig.Device, is
 		return nil, err
 	}
 
-	if canHotPlug, _ := d.CanHotPlug(); isRunning && !canHotPlug {
+	if instanceRunning && !d.CanHotPlug() {
 		return nil, fmt.Errorf("Device cannot be started when instance is running")
 	}
 
@@ -1267,7 +1267,7 @@ func (vm *qemu) deviceStart(deviceName string, rawConfig deviceConfig.Device, is
 }
 
 // deviceStop loads a new device and calls its Stop() function.
-func (vm *qemu) deviceStop(deviceName string, rawConfig deviceConfig.Device) error {
+func (vm *qemu) deviceStop(deviceName string, rawConfig deviceConfig.Device, instanceRunning bool) error {
 	logger := logging.AddContext(logger.Log, log.Ctx{"device": deviceName, "type": rawConfig["type"], "project": vm.Project(), "instance": vm.Name()})
 	logger.Debug("Stopping device")
 
@@ -1291,9 +1291,7 @@ func (vm *qemu) deviceStop(deviceName string, rawConfig deviceConfig.Device) err
 		logger.Error("Device stop validation failed", log.Ctx{"err": err})
 	}
 
-	canHotPlug, _ := d.CanHotPlug()
-
-	if vm.IsRunning() && !canHotPlug {
+	if instanceRunning && !d.CanHotPlug() {
 		return fmt.Errorf("Device cannot be stopped when instance is running")
 	}
 
@@ -3080,12 +3078,7 @@ func (vm *qemu) Update(args db.InstanceArgs, userRequested bool) error {
 			return []string{} // Couldn't create Device, so this cannot be an update.
 		}
 
-		// TODO modify device framework to differentiate between devices that can only be updated when VM
-		// is stopped, but don't need to be removed then re-added. For now we rely upon the disk device
-		// indicating that it supports hot plugging, even for VMs, which it cannot. However this is
-		// needed so that the disk device's Update() function is called to allow disk resizing.
-		_, updateFields := d.CanHotPlug()
-		return updateFields
+		return d.UpdatableFields()
 	})
 
 	if userRequested {
@@ -3305,15 +3298,11 @@ func (vm *qemu) updateMemoryLimit(newLimit string) error {
 	return fmt.Errorf("Failed setting memory to %dMiB (currently %dMiB) as it was taking too long", newSizeMB, curSizeMB)
 }
 
-func (vm *qemu) updateDevices(removeDevices deviceConfig.Devices, addDevices deviceConfig.Devices, updateDevices deviceConfig.Devices, oldExpandedDevices deviceConfig.Devices, isRunning bool, userRequested bool) error {
-	if isRunning && (len(removeDevices) > 0 || len(addDevices) > 0 || len(updateDevices) > 0) {
-		return fmt.Errorf("Devices cannot be changed when VM is running")
-	}
-
+func (vm *qemu) updateDevices(removeDevices deviceConfig.Devices, addDevices deviceConfig.Devices, updateDevices deviceConfig.Devices, oldExpandedDevices deviceConfig.Devices, instanceRunning bool, userRequested bool) error {
 	// Remove devices in reverse order to how they were added.
 	for _, dev := range removeDevices.Reversed() {
-		if isRunning {
-			err := vm.deviceStop(dev.Name, dev.Config)
+		if instanceRunning {
+			err := vm.deviceStop(dev.Name, dev.Config, instanceRunning)
 			if err == device.ErrUnsupportedDevType {
 				continue // No point in trying to remove device below.
 			} else if err != nil {
@@ -3321,7 +3310,7 @@ func (vm *qemu) updateDevices(removeDevices deviceConfig.Devices, addDevices dev
 			}
 		}
 
-		err := vm.deviceRemove(dev.Name, dev.Config)
+		err := vm.deviceRemove(dev.Name, dev.Config, instanceRunning)
 		if err != nil && err != device.ErrUnsupportedDevType {
 			return errors.Wrapf(err, "Failed to remove device %q", dev.Name)
 		}
@@ -3337,7 +3326,7 @@ func (vm *qemu) updateDevices(removeDevices deviceConfig.Devices, addDevices dev
 
 	// Add devices in sorted order, this ensures that device mounts are added in path order.
 	for _, dev := range addDevices.Sorted() {
-		err := vm.deviceAdd(dev.Name, dev.Config)
+		err := vm.deviceAdd(dev.Name, dev.Config, instanceRunning)
 		if err == device.ErrUnsupportedDevType {
 			continue // No point in trying to start device below.
 		} else if err != nil {
@@ -3351,8 +3340,8 @@ func (vm *qemu) updateDevices(removeDevices deviceConfig.Devices, addDevices dev
 			continue
 		}
 
-		if isRunning {
-			_, err := vm.deviceStart(dev.Name, dev.Config, isRunning)
+		if instanceRunning {
+			_, err := vm.deviceStart(dev.Name, dev.Config, instanceRunning)
 			if err != nil && err != device.ErrUnsupportedDevType {
 				return errors.Wrapf(err, "Failed to start device %q", dev.Name)
 			}
@@ -3360,7 +3349,7 @@ func (vm *qemu) updateDevices(removeDevices deviceConfig.Devices, addDevices dev
 	}
 
 	for _, dev := range updateDevices.Sorted() {
-		err := vm.deviceUpdate(dev.Name, dev.Config, oldExpandedDevices, isRunning)
+		err := vm.deviceUpdate(dev.Name, dev.Config, oldExpandedDevices, instanceRunning)
 		if err != nil && err != device.ErrUnsupportedDevType {
 			return errors.Wrapf(err, "Failed to update device %q", dev.Name)
 		}
@@ -3370,13 +3359,13 @@ func (vm *qemu) updateDevices(removeDevices deviceConfig.Devices, addDevices dev
 }
 
 // deviceUpdate loads a new device and calls its Update() function.
-func (vm *qemu) deviceUpdate(deviceName string, rawConfig deviceConfig.Device, oldDevices deviceConfig.Devices, isRunning bool) error {
+func (vm *qemu) deviceUpdate(deviceName string, rawConfig deviceConfig.Device, oldDevices deviceConfig.Devices, instanceRunning bool) error {
 	d, _, err := vm.deviceLoad(deviceName, rawConfig)
 	if err != nil {
 		return err
 	}
 
-	err = d.Update(oldDevices, isRunning)
+	err = d.Update(oldDevices, instanceRunning)
 	if err != nil {
 		return err
 	}
@@ -3514,7 +3503,7 @@ func (vm *qemu) cleanup() {
 func (vm *qemu) cleanupDevices() {
 	for _, dev := range vm.expandedDevices.Reversed() {
 		// Use the device interface if device supports it.
-		err := vm.deviceStop(dev.Name, dev.Config)
+		err := vm.deviceStop(dev.Name, dev.Config, false)
 		if err == device.ErrUnsupportedDevType {
 			continue
 		} else if err != nil {
@@ -3613,9 +3602,9 @@ func (vm *qemu) Delete() error {
 
 		// Run device removal function for each device.
 		for k, m := range vm.expandedDevices {
-			err = vm.deviceRemove(k, m)
+			err = vm.deviceRemove(k, m, false)
 			if err != nil && err != device.ErrUnsupportedDevType {
-				return errors.Wrapf(err, "Failed to remove device '%s'", k)
+				return errors.Wrapf(err, "Failed to remove device %q", k)
 			}
 		}
 
@@ -3644,16 +3633,20 @@ func (vm *qemu) Delete() error {
 	return nil
 }
 
-func (vm *qemu) deviceAdd(deviceName string, rawConfig deviceConfig.Device) error {
+func (vm *qemu) deviceAdd(deviceName string, rawConfig deviceConfig.Device, instanceRunning bool) error {
 	d, _, err := vm.deviceLoad(deviceName, rawConfig)
 	if err != nil {
 		return err
 	}
 
+	if instanceRunning && !d.CanHotPlug() {
+		return fmt.Errorf("Device cannot be added when instance is running")
+	}
+
 	return d.Add()
 }
 
-func (vm *qemu) deviceRemove(deviceName string, rawConfig deviceConfig.Device) error {
+func (vm *qemu) deviceRemove(deviceName string, rawConfig deviceConfig.Device, instanceRunning bool) error {
 	logger := logging.AddContext(logger.Log, log.Ctx{"device": deviceName, "type": rawConfig["type"], "project": vm.Project(), "instance": vm.Name()})
 
 	d, _, err := vm.deviceLoad(deviceName, rawConfig)
@@ -3673,6 +3666,10 @@ func (vm *qemu) deviceRemove(deviceName string, rawConfig deviceConfig.Device) e
 		}
 
 		logger.Error("Device remove validation failed", log.Ctx{"err": err})
+	}
+
+	if instanceRunning && !d.CanHotPlug() {
+		return fmt.Errorf("Device cannot be removed when instance is running")
 	}
 
 	return d.Remove()
