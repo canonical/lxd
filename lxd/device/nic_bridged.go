@@ -170,10 +170,9 @@ func (d *nicBridged) validateEnvironment() error {
 	return nil
 }
 
-// CanHotPlug returns whether the device can be managed whilst the instance is running, it also
-// returns a list of fields that can be updated without triggering a device remove & add.
-func (d *nicBridged) CanHotPlug() (bool, []string) {
-	return true, []string{"limits.ingress", "limits.egress", "limits.max", "ipv4.routes", "ipv6.routes", "ipv4.address", "ipv6.address", "security.mac_filtering", "security.ipv4_filtering", "security.ipv6_filtering"}
+// UpdatableFields returns a list of fields that can be updated without triggering a device remove & add.
+func (d *nicBridged) UpdatableFields() []string {
+	return []string{"limits.ingress", "limits.egress", "limits.max", "ipv4.routes", "ipv6.routes", "ipv4.address", "ipv6.address", "security.mac_filtering", "security.ipv4_filtering", "security.ipv6_filtering"}
 }
 
 // Add is run when a device is added to a non-snapshot instance whether or not the instance is running.
