@@ -346,7 +346,7 @@ func lxcCreate(s *state.State, args db.InstanceArgs) (instance.Instance, error) 
 	if !c.IsSnapshot() {
 		// Add devices to container.
 		for k, m := range c.expandedDevices {
-			err = c.deviceAdd(k, m)
+			err = c.deviceAdd(k, m, false)
 			if err != nil && err != device.ErrUnsupportedDevType {
 				c.Delete()
 				return nil, errors.Wrapf(err, "Failed to add device %q", k)
@@ -1400,17 +1400,21 @@ func (c *lxc) deviceLoad(deviceName string, rawConfig deviceConfig.Device) (devi
 }
 
 // deviceAdd loads a new device and calls its Add() function.
-func (c *lxc) deviceAdd(deviceName string, rawConfig deviceConfig.Device) error {
+func (c *lxc) deviceAdd(deviceName string, rawConfig deviceConfig.Device, instanceRunning bool) error {
 	d, _, err := c.deviceLoad(deviceName, rawConfig)
 	if err != nil {
 		return err
+	}
+
+	if instanceRunning && !d.CanHotPlug() {
+		return fmt.Errorf("Device cannot be added when instance is running")
 	}
 
 	return d.Add()
 }
 
 // deviceStart loads a new device and calls its Start() function.
-func (c *lxc) deviceStart(deviceName string, rawConfig deviceConfig.Device, isRunning bool) (*deviceConfig.RunConfig, error) {
+func (c *lxc) deviceStart(deviceName string, rawConfig deviceConfig.Device, instanceRunning bool) (*deviceConfig.RunConfig, error) {
 	logger := logging.AddContext(logger.Log, log.Ctx{"device": deviceName, "type": rawConfig["type"], "project": c.Project(), "instance": c.Name()})
 	logger.Debug("Starting device")
 
@@ -1419,8 +1423,8 @@ func (c *lxc) deviceStart(deviceName string, rawConfig deviceConfig.Device, isRu
 		return nil, err
 	}
 
-	if canHotPlug, _ := d.CanHotPlug(); isRunning && !canHotPlug {
-		return nil, fmt.Errorf("Device cannot be started when container is running")
+	if instanceRunning && !d.CanHotPlug() {
+		return nil, fmt.Errorf("Device cannot be started when instance is running")
 	}
 
 	runConf, err := d.Start()
@@ -1440,7 +1444,7 @@ func (c *lxc) deviceStart(deviceName string, rawConfig deviceConfig.Device, isRu
 		}
 
 		// If container is running and then live attach device.
-		if isRunning {
+		if instanceRunning {
 			// Attach mounts if requested.
 			if len(runConf.Mounts) > 0 {
 				err = c.deviceHandleMounts(runConf.Mounts)
@@ -1558,13 +1562,13 @@ func (c *lxc) deviceAttachNIC(configCopy map[string]string, netIF []deviceConfig
 }
 
 // deviceUpdate loads a new device and calls its Update() function.
-func (c *lxc) deviceUpdate(deviceName string, rawConfig deviceConfig.Device, oldDevices deviceConfig.Devices, isRunning bool) error {
+func (c *lxc) deviceUpdate(deviceName string, rawConfig deviceConfig.Device, oldDevices deviceConfig.Devices, instanceRunning bool) error {
 	d, _, err := c.deviceLoad(deviceName, rawConfig)
 	if err != nil {
 		return err
 	}
 
-	err = d.Update(oldDevices, isRunning)
+	err = d.Update(oldDevices, instanceRunning)
 	if err != nil {
 		return err
 	}
@@ -1598,11 +1602,8 @@ func (c *lxc) deviceStop(deviceName string, rawConfig deviceConfig.Device, insta
 		logger.Error("Device stop validation failed for", log.Ctx{"err": err})
 	}
 
-	canHotPlug, _ := d.CanHotPlug()
-
-	// An empty netns path means we haven't been called from the LXC stop hook, so are running.
-	if instanceRunning && !canHotPlug {
-		return fmt.Errorf("Device cannot be stopped when container is running")
+	if instanceRunning && !d.CanHotPlug() {
+		return fmt.Errorf("Device cannot be stopped when instance is running")
 	}
 
 	runConf, err := d.Stop()
@@ -1761,7 +1762,7 @@ func (c *lxc) deviceHandleMounts(mounts []deviceConfig.MountEntryItem) error {
 }
 
 // deviceRemove loads a new device and calls its Remove() function.
-func (c *lxc) deviceRemove(deviceName string, rawConfig deviceConfig.Device) error {
+func (c *lxc) deviceRemove(deviceName string, rawConfig deviceConfig.Device, instanceRunning bool) error {
 	logger := logging.AddContext(logger.Log, log.Ctx{"device": deviceName, "type": rawConfig["type"], "project": c.Project(), "instance": c.Name()})
 
 	d, _, err := c.deviceLoad(deviceName, rawConfig)
@@ -1781,6 +1782,10 @@ func (c *lxc) deviceRemove(deviceName string, rawConfig deviceConfig.Device) err
 		}
 
 		logger.Error("Device remove validation failed for", log.Ctx{"err": err})
+	}
+
+	if instanceRunning && !d.CanHotPlug() {
+		return fmt.Errorf("Device cannot be removed when instance is running")
 	}
 
 	return d.Remove()
@@ -3592,9 +3597,9 @@ func (c *lxc) Delete() error {
 
 		// Remove devices from container.
 		for k, m := range c.expandedDevices {
-			err = c.deviceRemove(k, m)
+			err = c.deviceRemove(k, m, false)
 			if err != nil && err != device.ErrUnsupportedDevType {
-				return errors.Wrapf(err, "Failed to remove device '%s'", k)
+				return errors.Wrapf(err, "Failed to remove device %q", k)
 			}
 		}
 
@@ -4044,8 +4049,7 @@ func (c *lxc) Update(args db.InstanceArgs, userRequested bool) error {
 			return []string{} // Couldn't create Device, so this cannot be an update.
 		}
 
-		_, updateFields := d.CanHotPlug()
-		return updateFields
+		return d.UpdatableFields()
 	})
 
 	if userRequested {
@@ -4557,11 +4561,11 @@ func (c *lxc) Update(args db.InstanceArgs, userRequested bool) error {
 	return nil
 }
 
-func (c *lxc) updateDevices(removeDevices deviceConfig.Devices, addDevices deviceConfig.Devices, updateDevices deviceConfig.Devices, oldExpandedDevices deviceConfig.Devices, isRunning bool, userRequested bool) error {
+func (c *lxc) updateDevices(removeDevices deviceConfig.Devices, addDevices deviceConfig.Devices, updateDevices deviceConfig.Devices, oldExpandedDevices deviceConfig.Devices, instanceRunning bool, userRequested bool) error {
 	// Remove devices in reverse order to how they were added.
 	for _, dev := range removeDevices.Reversed() {
-		if isRunning {
-			err := c.deviceStop(dev.Name, dev.Config, isRunning, "")
+		if instanceRunning {
+			err := c.deviceStop(dev.Name, dev.Config, instanceRunning, "")
 			if err == device.ErrUnsupportedDevType {
 				continue // No point in trying to remove device below.
 			} else if err != nil {
@@ -4569,7 +4573,7 @@ func (c *lxc) updateDevices(removeDevices deviceConfig.Devices, addDevices devic
 			}
 		}
 
-		err := c.deviceRemove(dev.Name, dev.Config)
+		err := c.deviceRemove(dev.Name, dev.Config, instanceRunning)
 		if err != nil && err != device.ErrUnsupportedDevType {
 			return errors.Wrapf(err, "Failed to remove device %q", dev.Name)
 		}
@@ -4585,7 +4589,7 @@ func (c *lxc) updateDevices(removeDevices deviceConfig.Devices, addDevices devic
 
 	// Add devices in sorted order, this ensures that device mounts are added in path order.
 	for _, dev := range addDevices.Sorted() {
-		err := c.deviceAdd(dev.Name, dev.Config)
+		err := c.deviceAdd(dev.Name, dev.Config, instanceRunning)
 		if err == device.ErrUnsupportedDevType {
 			continue // No point in trying to start device below.
 		} else if err != nil {
@@ -4599,8 +4603,8 @@ func (c *lxc) updateDevices(removeDevices deviceConfig.Devices, addDevices devic
 			continue
 		}
 
-		if isRunning {
-			_, err := c.deviceStart(dev.Name, dev.Config, isRunning)
+		if instanceRunning {
+			_, err := c.deviceStart(dev.Name, dev.Config, instanceRunning)
 			if err != nil && err != device.ErrUnsupportedDevType {
 				return errors.Wrapf(err, "Failed to start device %q", dev.Name)
 			}
@@ -4608,7 +4612,7 @@ func (c *lxc) updateDevices(removeDevices deviceConfig.Devices, addDevices devic
 	}
 
 	for _, dev := range updateDevices.Sorted() {
-		err := c.deviceUpdate(dev.Name, dev.Config, oldExpandedDevices, isRunning)
+		err := c.deviceUpdate(dev.Name, dev.Config, oldExpandedDevices, instanceRunning)
 		if err != nil && err != device.ErrUnsupportedDevType {
 			return errors.Wrapf(err, "Failed to update device %q", dev.Name)
 		}
