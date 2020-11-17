@@ -101,19 +101,22 @@ func doProfileUpdate(d *Daemon, projectName string, name string, id int64, profi
 	if err != nil {
 		return errors.Wrap(err, "failed to query local node name")
 	}
-	failures := map[string]error{}
-	for _, args := range insts {
-		err := doProfileUpdateInstance(d, name, profile.ProfilePut, nodeName, args)
+
+	failures := map[*db.InstanceArgs]error{}
+	for _, it := range insts {
+		inst := it // Local var for instance pointer.
+		err := doProfileUpdateInstance(d, name, profile.ProfilePut, nodeName, inst)
 		if err != nil {
-			failures[args.Name] = err
+			failures[&inst] = err
 		}
 	}
 
 	if len(failures) != 0 {
 		msg := "The following instances failed to update (profile change still saved):\n"
-		for cname, err := range failures {
-			msg += fmt.Sprintf(" - %s: %s\n", cname, err)
+		for inst, err := range failures {
+			msg += fmt.Sprintf(" - Project: %s, Instance: %s: %v\n", inst.Project, inst.Name, err)
 		}
+
 		return fmt.Errorf("%s", msg)
 	}
 
@@ -138,19 +141,21 @@ func doProfileUpdateCluster(d *Daemon, projectName string, name string, old api.
 		return errors.Wrapf(err, "Failed to query instances associated with profile %q", name)
 	}
 
-	failures := map[string]error{}
-	for _, args := range insts {
-		err := doProfileUpdateInstance(d, name, old, nodeName, args)
+	failures := map[*db.InstanceArgs]error{}
+	for _, it := range insts {
+		inst := it // Local var for instance pointer.
+		err := doProfileUpdateInstance(d, name, old, nodeName, inst)
 		if err != nil {
-			failures[args.Name] = err
+			failures[&inst] = err
 		}
 	}
 
 	if len(failures) != 0 {
 		msg := "The following instances failed to update (profile change still saved):\n"
-		for cname, err := range failures {
-			msg += fmt.Sprintf(" - %s: %s\n", cname, err)
+		for inst, err := range failures {
+			msg += fmt.Sprintf(" - Project: %s, Instance: %s: %v\n", inst.Project, inst.Name, err)
 		}
+
 		return fmt.Errorf("%s", msg)
 	}
 
