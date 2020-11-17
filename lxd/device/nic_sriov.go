@@ -461,11 +461,10 @@ func (d *nicSRIOV) setupSriovParent(vfDevice string, vfID int, volatile map[stri
 			return vfPCIDev, err
 		}
 	} else {
-		// Reset VF to ensure no previous MAC restriction exists.
-		_, err := shared.TryRunCommand("ip", "link", "set", "dev", d.config["parent"], "vf", volatile["last_state.vf.id"], "mac", "00:00:00:00:00:00")
-		if err != nil {
-			return vfPCIDev, err
-		}
+		// Try to reset VF to ensure no previous MAC restriction exists, as some devices require this
+		// before being able to set a new VF MAC or disable spoofchecking. However some devices don't
+		// allow it so ignore failures.
+		shared.TryRunCommand("ip", "link", "set", "dev", d.config["parent"], "vf", volatile["last_state.vf.id"], "mac", "00:00:00:00:00:00")
 
 		// Ensure spoof checking is disabled if not enabled in instance.
 		_, err = shared.TryRunCommand("ip", "link", "set", "dev", d.config["parent"], "vf", volatile["last_state.vf.id"], "spoofchk", "off")
