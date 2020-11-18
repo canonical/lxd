@@ -47,6 +47,10 @@ func (device Device) Validate(rules map[string]func(value string) error) error {
 			continue
 		}
 
+		if k == "gputype" && device["type"] == "gpu" {
+			continue
+		}
+
 		return fmt.Errorf("Invalid device option %q", k)
 	}
 

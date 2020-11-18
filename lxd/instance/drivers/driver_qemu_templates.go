@@ -528,9 +528,13 @@ addr = "{{.devAddr}}"
 {{if eq .bus "ccw" -}}
 driver = "vfio-ccw"
 {{- end}}
+{{- if ne .vgpu "" -}}
+sysfsdev = "/sys/bus/mdev/devices/{{.vgpu}}"
+{{- else}}
 host = "{{.pciSlotName}}"
 {{if .vga -}}
 x-vga = "on"
+{{- end }}
 {{- end }}
 {{if .multifunction -}}
 multifunction = "on"
