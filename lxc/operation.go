@@ -8,9 +8,9 @@ import (
 	"github.com/spf13/cobra"
 	"gopkg.in/yaml.v2"
 
-	"github.com/lxc/lxd/lxc/utils"
-	cli "github.com/lxc/lxd/shared/cmd"
-	"github.com/lxc/lxd/shared/i18n"
+	"github.com/grant-he/lxd/lxc/utils"
+	cli "github.com/grant-he/lxd/shared/cmd"
+	"github.com/grant-he/lxd/shared/i18n"
 )
 
 type cmdOperation struct {

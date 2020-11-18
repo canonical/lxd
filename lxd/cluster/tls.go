@@ -6,8 +6,8 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/lxc/lxd/lxd/util"
-	"github.com/lxc/lxd/shared"
+	"github.com/grant-he/lxd/lxd/util"
+	"github.com/grant-he/lxd/shared"
 )
 
 // Return a TLS configuration suitable for establishing inter-node network

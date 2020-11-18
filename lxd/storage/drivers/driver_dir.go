@@ -7,9 +7,9 @@ import (
 
 	"golang.org/x/sys/unix"
 
-	"github.com/lxc/lxd/lxd/operations"
-	"github.com/lxc/lxd/shared"
-	"github.com/lxc/lxd/shared/api"
+	"github.com/grant-he/lxd/lxd/operations"
+	"github.com/grant-he/lxd/shared"
+	"github.com/grant-he/lxd/shared/api"
 )
 
 type dir struct {

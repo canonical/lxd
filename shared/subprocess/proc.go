@@ -11,7 +11,7 @@ import (
 	"github.com/pkg/errors"
 	"gopkg.in/yaml.v2"
 
-	"github.com/lxc/lxd/shared"
+	"github.com/grant-he/lxd/shared"
 )
 
 // Process struct. Has ability to set runtime arguments

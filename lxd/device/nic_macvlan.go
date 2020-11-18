@@ -5,14 +5,14 @@ import (
 
 	"github.com/pkg/errors"
 
-	deviceConfig "github.com/lxc/lxd/lxd/device/config"
-	"github.com/lxc/lxd/lxd/instance"
-	"github.com/lxc/lxd/lxd/instance/instancetype"
-	"github.com/lxc/lxd/lxd/network"
-	"github.com/lxc/lxd/lxd/project"
-	"github.com/lxc/lxd/lxd/revert"
-	"github.com/lxc/lxd/shared"
-	"github.com/lxc/lxd/shared/api"
+	deviceConfig "github.com/grant-he/lxd/lxd/device/config"
+	"github.com/grant-he/lxd/lxd/instance"
+	"github.com/grant-he/lxd/lxd/instance/instancetype"
+	"github.com/grant-he/lxd/lxd/network"
+	"github.com/grant-he/lxd/lxd/project"
+	"github.com/grant-he/lxd/lxd/revert"
+	"github.com/grant-he/lxd/shared"
+	"github.com/grant-he/lxd/shared/api"
 )
 
 type nicMACVLAN struct {

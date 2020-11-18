@@ -8,7 +8,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/lxc/lxd/shared/generate/lex"
+	"github.com/grant-he/lxd/shared/generate/lex"
 	"github.com/pkg/errors"
 )
 
@@ -31,8 +31,8 @@ func Packages() (map[string]*ast.Package, error) {
 }
 
 var defaultPackages = []string{
-	"github.com/lxc/lxd/shared/api",
-	"github.com/lxc/lxd/lxd/db",
+	"github.com/grant-he/lxd/shared/api",
+	"github.com/grant-he/lxd/lxd/db",
 }
 
 // Filters parses all filtering statement defined for the given entity. It

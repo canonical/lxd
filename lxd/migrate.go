@@ -18,12 +18,12 @@ import (
 	"github.com/golang/protobuf/proto"
 	"github.com/gorilla/websocket"
 
-	"github.com/lxc/lxd/lxd/instance"
-	"github.com/lxc/lxd/lxd/migration"
-	"github.com/lxc/lxd/lxd/operations"
-	"github.com/lxc/lxd/shared"
-	"github.com/lxc/lxd/shared/idmap"
-	"github.com/lxc/lxd/shared/logger"
+	"github.com/grant-he/lxd/lxd/instance"
+	"github.com/grant-he/lxd/lxd/migration"
+	"github.com/grant-he/lxd/lxd/operations"
+	"github.com/grant-he/lxd/shared"
+	"github.com/grant-he/lxd/shared/idmap"
+	"github.com/grant-he/lxd/shared/logger"
 )
 
 type migrationFields struct {

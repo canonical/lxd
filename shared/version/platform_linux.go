@@ -6,8 +6,8 @@ import (
 	"io/ioutil"
 	"strings"
 
-	"github.com/lxc/lxd/shared"
-	"github.com/lxc/lxd/shared/osarch"
+	"github.com/grant-he/lxd/shared"
+	"github.com/grant-he/lxd/shared/osarch"
 )
 
 func getPlatformVersionStrings() []string {

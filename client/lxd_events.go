@@ -4,8 +4,8 @@ import (
 	"encoding/json"
 	"time"
 
-	"github.com/lxc/lxd/shared"
-	"github.com/lxc/lxd/shared/api"
+	"github.com/grant-he/lxd/shared"
+	"github.com/grant-he/lxd/shared/api"
 )
 
 // Event handling functions

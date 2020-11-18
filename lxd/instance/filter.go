@@ -1,8 +1,8 @@
 package instance
 
 import (
-	"github.com/lxc/lxd/lxd/filter"
-	"github.com/lxc/lxd/shared/api"
+	"github.com/grant-he/lxd/lxd/filter"
+	"github.com/grant-he/lxd/shared/api"
 )
 
 // Filter returns a filtered list of instances that match the given clauses.

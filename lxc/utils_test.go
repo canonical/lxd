@@ -6,7 +6,7 @@ import (
 
 	"github.com/stretchr/testify/suite"
 
-	"github.com/lxc/lxd/shared/api"
+	"github.com/grant-he/lxd/shared/api"
 )
 
 type utilsTestSuite struct {

@@ -9,7 +9,7 @@ import (
 
 	"golang.org/x/crypto/ssh/terminal"
 
-	"github.com/lxc/lxd/shared"
+	"github.com/grant-he/lxd/shared"
 )
 
 var stdin = bufio.NewReader(os.Stdin)

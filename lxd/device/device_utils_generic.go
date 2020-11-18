@@ -11,8 +11,8 @@ import (
 
 	"github.com/pkg/errors"
 
-	"github.com/lxc/lxd/lxd/revert"
-	"github.com/lxc/lxd/shared"
+	"github.com/grant-he/lxd/lxd/revert"
+	"github.com/grant-he/lxd/shared"
 )
 
 // deviceJoinPath joins together prefix and text delimited by a "." for device path generation.

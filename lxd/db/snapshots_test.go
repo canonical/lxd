@@ -9,9 +9,9 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/lxc/lxd/lxd/db"
-	"github.com/lxc/lxd/lxd/instance/instancetype"
-	"github.com/lxc/lxd/shared/api"
+	"github.com/grant-he/lxd/lxd/db"
+	"github.com/grant-he/lxd/lxd/instance/instancetype"
+	"github.com/grant-he/lxd/shared/api"
 )
 
 func TestGetInstanceSnapshots(t *testing.T) {

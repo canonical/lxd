@@ -16,7 +16,7 @@ import (
 	"github.com/pkg/errors"
 	"golang.org/x/sys/unix"
 
-	"github.com/lxc/lxd/shared/api"
+	"github.com/grant-he/lxd/shared/api"
 )
 
 var sysClassDrm = "/sys/class/drm"

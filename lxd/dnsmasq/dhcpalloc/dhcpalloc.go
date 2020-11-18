@@ -12,11 +12,11 @@ import (
 
 	"github.com/mdlayher/netx/eui64"
 
-	"github.com/lxc/lxd/lxd/dnsmasq"
-	"github.com/lxc/lxd/shared"
-	log "github.com/lxc/lxd/shared/log15"
-	"github.com/lxc/lxd/shared/logger"
-	"github.com/lxc/lxd/shared/logging"
+	"github.com/grant-he/lxd/lxd/dnsmasq"
+	"github.com/grant-he/lxd/shared"
+	log "github.com/grant-he/lxd/shared/log15"
+	"github.com/grant-he/lxd/shared/logger"
+	"github.com/grant-he/lxd/shared/logging"
 )
 
 // ErrDHCPNotSupported indicates network doesn't support DHCP for this IP protocol.

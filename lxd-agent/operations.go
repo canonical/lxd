@@ -8,11 +8,11 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/pkg/errors"
 
-	"github.com/lxc/lxd/lxd/operations"
-	"github.com/lxc/lxd/lxd/response"
-	"github.com/lxc/lxd/lxd/util"
-	"github.com/lxc/lxd/shared"
-	"github.com/lxc/lxd/shared/api"
+	"github.com/grant-he/lxd/lxd/operations"
+	"github.com/grant-he/lxd/lxd/response"
+	"github.com/grant-he/lxd/lxd/util"
+	"github.com/grant-he/lxd/shared"
+	"github.com/grant-he/lxd/shared/api"
 )
 
 var operationCmd = APIEndpoint{

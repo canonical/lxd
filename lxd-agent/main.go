@@ -5,7 +5,7 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/lxc/lxd/shared/version"
+	"github.com/grant-he/lxd/shared/version"
 )
 
 type cmdGlobal struct {

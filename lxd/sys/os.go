@@ -8,13 +8,13 @@ import (
 	"strconv"
 	"sync"
 
-	log "github.com/lxc/lxd/shared/log15"
+	log "github.com/grant-he/lxd/shared/log15"
 
-	"github.com/lxc/lxd/lxd/cgroup"
-	"github.com/lxc/lxd/lxd/util"
-	"github.com/lxc/lxd/shared"
-	"github.com/lxc/lxd/shared/idmap"
-	"github.com/lxc/lxd/shared/logger"
+	"github.com/grant-he/lxd/lxd/cgroup"
+	"github.com/grant-he/lxd/lxd/util"
+	"github.com/grant-he/lxd/shared"
+	"github.com/grant-he/lxd/shared/idmap"
+	"github.com/grant-he/lxd/shared/logger"
 )
 
 // InotifyTargetInfo records the inotify information associated with a given

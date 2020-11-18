@@ -5,10 +5,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/lxc/lxd/lxd/project"
-	"github.com/lxc/lxd/lxd/state"
-	"github.com/lxc/lxd/shared"
-	"github.com/lxc/lxd/shared/api"
+	"github.com/grant-he/lxd/lxd/project"
+	"github.com/grant-he/lxd/lxd/state"
+	"github.com/grant-he/lxd/shared"
+	"github.com/grant-he/lxd/shared/api"
 )
 
 // Instance represents the backup relevant subset of a LXD instance.

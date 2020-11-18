@@ -5,14 +5,14 @@ import (
 	"io/ioutil"
 	"os"
 
-	"github.com/lxc/lxd/lxd/db"
-	"github.com/lxc/lxd/lxd/sys"
+	"github.com/grant-he/lxd/lxd/db"
+	"github.com/grant-he/lxd/lxd/sys"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
-	deviceConfig "github.com/lxc/lxd/lxd/device/config"
-	"github.com/lxc/lxd/shared"
-	"github.com/lxc/lxd/shared/idmap"
+	deviceConfig "github.com/grant-he/lxd/lxd/device/config"
+	"github.com/grant-he/lxd/shared"
+	"github.com/grant-he/lxd/shared/idmap"
 )
 
 func mockStartDaemon() (*Daemon, error) {

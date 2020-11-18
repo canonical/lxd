@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/lxc/lxd/shared/generate/lex"
+	"github.com/grant-he/lxd/shared/generate/lex"
 )
 
 // Return the table name for the given database entity.

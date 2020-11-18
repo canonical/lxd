@@ -12,9 +12,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/lxc/lxd/shared"
-	"github.com/lxc/lxd/shared/api"
-	"github.com/lxc/lxd/shared/osarch"
+	"github.com/grant-he/lxd/shared"
+	"github.com/grant-he/lxd/shared/api"
+	"github.com/grant-he/lxd/shared/osarch"
 )
 
 var urlDefaultOS = map[string]string{

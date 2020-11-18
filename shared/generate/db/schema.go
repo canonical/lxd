@@ -3,8 +3,8 @@ package db
 import (
 	"github.com/pkg/errors"
 
-	"github.com/lxc/lxd/lxd/db/cluster"
-	"github.com/lxc/lxd/lxd/db/node"
+	"github.com/grant-he/lxd/lxd/db/cluster"
+	"github.com/grant-he/lxd/lxd/db/node"
 )
 
 // UpdateSchema updates the schema.go file of the cluster and node databases.

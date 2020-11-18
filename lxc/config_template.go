@@ -9,11 +9,11 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/lxc/lxd/lxc/utils"
-	"github.com/lxc/lxd/shared"
-	cli "github.com/lxc/lxd/shared/cmd"
-	"github.com/lxc/lxd/shared/i18n"
-	"github.com/lxc/lxd/shared/termios"
+	"github.com/grant-he/lxd/lxc/utils"
+	"github.com/grant-he/lxd/shared"
+	cli "github.com/grant-he/lxd/shared/cmd"
+	"github.com/grant-he/lxd/shared/i18n"
+	"github.com/grant-he/lxd/shared/termios"
 )
 
 type cmdConfigTemplate struct {

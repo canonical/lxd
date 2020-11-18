@@ -10,11 +10,11 @@ import (
 	"strconv"
 	"strings"
 
-	deviceConfig "github.com/lxc/lxd/lxd/device/config"
-	"github.com/lxc/lxd/lxd/project"
-	"github.com/lxc/lxd/lxd/revert"
-	"github.com/lxc/lxd/shared"
-	"github.com/lxc/lxd/shared/logger"
+	deviceConfig "github.com/grant-he/lxd/lxd/device/config"
+	"github.com/grant-he/lxd/lxd/project"
+	"github.com/grant-he/lxd/lxd/revert"
+	"github.com/grant-he/lxd/shared"
+	"github.com/grant-he/lxd/shared/logger"
 )
 
 // Xtables is an implmentation of LXD firewall using {ip, ip6, eb}tables

@@ -27,9 +27,9 @@ import (
 	"github.com/flosch/pongo2"
 	"github.com/pkg/errors"
 
-	"github.com/lxc/lxd/shared/cancel"
-	"github.com/lxc/lxd/shared/ioprogress"
-	"github.com/lxc/lxd/shared/units"
+	"github.com/grant-he/lxd/shared/cancel"
+	"github.com/grant-he/lxd/shared/ioprogress"
+	"github.com/grant-he/lxd/shared/units"
 )
 
 const SnapshotDelimiter = "/"

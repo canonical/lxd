@@ -8,7 +8,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/lxc/lxd/shared"
+	"github.com/grant-he/lxd/shared"
 )
 
 // A new key pair is generated if none exists and saved to the appropriate

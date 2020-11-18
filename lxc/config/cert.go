@@ -1,7 +1,7 @@
 package config
 
 import (
-	"github.com/lxc/lxd/shared"
+	"github.com/grant-he/lxd/shared"
 )
 
 // HasClientCertificate will return true if a client certificate has already been generated

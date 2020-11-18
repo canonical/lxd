@@ -10,10 +10,10 @@ import (
 
 	"github.com/pkg/errors"
 
-	"github.com/lxc/lxd/lxd/db/query"
-	"github.com/lxc/lxd/lxd/instance/instancetype"
-	"github.com/lxc/lxd/shared/api"
-	"github.com/lxc/lxd/shared/osarch"
+	"github.com/grant-he/lxd/lxd/db/query"
+	"github.com/grant-he/lxd/lxd/instance/instancetype"
+	"github.com/grant-he/lxd/shared/api"
+	"github.com/grant-he/lxd/shared/osarch"
 )
 
 // Code generation directives.

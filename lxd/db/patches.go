@@ -5,7 +5,7 @@ package db
 import (
 	"database/sql"
 
-	"github.com/lxc/lxd/lxd/db/query"
+	"github.com/grant-he/lxd/lxd/db/query"
 )
 
 // GetAppliedPatches returns the names of all patches currently applied on this node.

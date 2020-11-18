@@ -7,7 +7,7 @@ import (
 	"os"
 
 	"github.com/canonical/go-dqlite/driver"
-	"github.com/lxc/lxd/lxd/db"
+	"github.com/grant-he/lxd/lxd/db"
 	"github.com/mattn/go-sqlite3"
 	"github.com/pkg/errors"
 )

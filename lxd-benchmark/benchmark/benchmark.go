@@ -6,10 +6,10 @@ import (
 	"sync"
 	"time"
 
-	"github.com/lxc/lxd/client"
-	"github.com/lxc/lxd/lxc/config"
-	"github.com/lxc/lxd/shared/api"
-	"github.com/lxc/lxd/shared/version"
+	"github.com/grant-he/lxd/client"
+	"github.com/grant-he/lxd/lxc/config"
+	"github.com/grant-he/lxd/shared/api"
+	"github.com/grant-he/lxd/shared/version"
 )
 
 const userConfigKey = "user.lxd-benchmark"

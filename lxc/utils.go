@@ -10,10 +10,10 @@ import (
 	"github.com/fvbommel/sortorder"
 	"github.com/pkg/errors"
 
-	lxd "github.com/lxc/lxd/client"
-	"github.com/lxc/lxd/shared/api"
-	"github.com/lxc/lxd/shared/i18n"
-	"github.com/lxc/lxd/shared/termios"
+	lxd "github.com/grant-he/lxd/client"
+	"github.com/grant-he/lxd/shared/api"
+	"github.com/grant-he/lxd/shared/i18n"
+	"github.com/grant-he/lxd/shared/termios"
 )
 
 type stringList [][]string

@@ -3,9 +3,9 @@ package main
 import (
 	"net/http"
 
-	"github.com/lxc/lxd/lxd/cluster"
-	"github.com/lxc/lxd/lxd/instance/instancetype"
-	"github.com/lxc/lxd/lxd/response"
+	"github.com/grant-he/lxd/lxd/cluster"
+	"github.com/grant-he/lxd/lxd/instance/instancetype"
+	"github.com/grant-he/lxd/lxd/response"
 )
 
 // forwardedResponseIfTargetIsRemote redirects a request to the request has a

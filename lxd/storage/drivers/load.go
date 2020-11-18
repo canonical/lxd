@@ -1,8 +1,8 @@
 package drivers
 
 import (
-	"github.com/lxc/lxd/lxd/state"
-	"github.com/lxc/lxd/shared/logger"
+	"github.com/grant-he/lxd/lxd/state"
+	"github.com/grant-he/lxd/shared/logger"
 )
 
 var drivers = map[string]func() driver{

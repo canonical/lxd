@@ -9,8 +9,8 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/lxc/lxd/shared"
-	"github.com/lxc/lxd/shared/eagain"
+	"github.com/grant-he/lxd/shared"
+	"github.com/grant-he/lxd/shared/eagain"
 )
 
 type cmdNetcat struct {

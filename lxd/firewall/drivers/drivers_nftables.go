@@ -13,10 +13,10 @@ import (
 	"github.com/pborman/uuid"
 	"github.com/pkg/errors"
 
-	deviceConfig "github.com/lxc/lxd/lxd/device/config"
-	"github.com/lxc/lxd/lxd/project"
-	"github.com/lxc/lxd/shared"
-	"github.com/lxc/lxd/shared/version"
+	deviceConfig "github.com/grant-he/lxd/lxd/device/config"
+	"github.com/grant-he/lxd/lxd/project"
+	"github.com/grant-he/lxd/shared"
+	"github.com/grant-he/lxd/shared/version"
 )
 
 const nftablesNamespace = "lxd"

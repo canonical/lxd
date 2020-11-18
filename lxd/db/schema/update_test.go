@@ -6,8 +6,8 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/lxc/lxd/lxd/db/schema"
-	"github.com/lxc/lxd/shared"
+	"github.com/grant-he/lxd/lxd/db/schema"
+	"github.com/grant-he/lxd/shared"
 )
 
 // A Go source file matching the given prefix is created in the calling

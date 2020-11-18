@@ -6,8 +6,8 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/lxc/lxd/lxd/util"
-	"github.com/lxc/lxd/shared/logger"
+	"github.com/grant-he/lxd/lxd/util"
+	"github.com/grant-he/lxd/shared/logger"
 
 	_ "net/http/pprof" // pprof magic
 )

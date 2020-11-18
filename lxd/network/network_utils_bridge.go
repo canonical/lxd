@@ -7,8 +7,8 @@ import (
 
 	"github.com/pkg/errors"
 
-	"github.com/lxc/lxd/lxd/network/openvswitch"
-	"github.com/lxc/lxd/shared"
+	"github.com/grant-he/lxd/lxd/network/openvswitch"
+	"github.com/grant-he/lxd/shared"
 )
 
 // BridgeVLANFilteringStatus returns whether VLAN filtering is enabled on a bridge interface.

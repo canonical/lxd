@@ -7,12 +7,12 @@ import (
 
 	"github.com/pkg/errors"
 
-	"github.com/lxc/lxd/lxd/db"
-	deviceconfig "github.com/lxc/lxd/lxd/device/config"
-	"github.com/lxc/lxd/lxd/instance/instancetype"
-	"github.com/lxc/lxd/shared"
-	"github.com/lxc/lxd/shared/api"
-	"github.com/lxc/lxd/shared/units"
+	"github.com/grant-he/lxd/lxd/db"
+	deviceconfig "github.com/grant-he/lxd/lxd/device/config"
+	"github.com/grant-he/lxd/lxd/instance/instancetype"
+	"github.com/grant-he/lxd/shared"
+	"github.com/grant-he/lxd/shared/api"
+	"github.com/grant-he/lxd/shared/units"
 )
 
 // AllowInstanceCreation returns an error if any project-specific limit or

@@ -7,8 +7,8 @@ import (
 	"io/ioutil"
 	"net"
 
-	"github.com/lxc/lxd/shared"
-	"github.com/lxc/lxd/shared/logger"
+	"github.com/grant-he/lxd/shared"
+	"github.com/grant-he/lxd/shared/logger"
 )
 
 // InMemoryNetwork creates a fully in-memory listener and dial function.

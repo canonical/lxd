@@ -13,11 +13,11 @@ import (
 	"github.com/canonical/go-dqlite/driver"
 	"github.com/pkg/errors"
 
-	"github.com/lxc/lxd/lxd/db/cluster"
-	"github.com/lxc/lxd/lxd/db/node"
-	"github.com/lxc/lxd/lxd/db/query"
-	"github.com/lxc/lxd/shared"
-	"github.com/lxc/lxd/shared/logger"
+	"github.com/grant-he/lxd/lxd/db/cluster"
+	"github.com/grant-he/lxd/lxd/db/node"
+	"github.com/grant-he/lxd/lxd/db/query"
+	"github.com/grant-he/lxd/shared"
+	"github.com/grant-he/lxd/shared/logger"
 )
 
 // Node mediates access to LXD's data stored in the node-local SQLite database.

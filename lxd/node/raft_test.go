@@ -3,8 +3,8 @@ package node_test
 import (
 	"testing"
 
-	"github.com/lxc/lxd/lxd/db"
-	"github.com/lxc/lxd/lxd/node"
+	"github.com/grant-he/lxd/lxd/db"
+	"github.com/grant-he/lxd/lxd/node"
 	"github.com/mpvl/subtest"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"

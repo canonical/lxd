@@ -1,11 +1,11 @@
 package main
 
 import (
-	"github.com/lxc/lxd/lxd/cluster"
-	"github.com/lxc/lxd/lxd/db"
-	"github.com/lxc/lxd/lxd/node"
-	"github.com/lxc/lxd/lxd/state"
-	"github.com/lxc/lxd/shared"
+	"github.com/grant-he/lxd/lxd/cluster"
+	"github.com/grant-he/lxd/lxd/db"
+	"github.com/grant-he/lxd/lxd/node"
+	"github.com/grant-he/lxd/lxd/state"
+	"github.com/grant-he/lxd/shared"
 )
 
 func daemonConfigRender(state *state.State) (map[string]interface{}, error) {

@@ -11,9 +11,9 @@ import (
 
 	"github.com/pkg/errors"
 
-	"github.com/lxc/lxd/lxd/state"
-	"github.com/lxc/lxd/shared"
-	"github.com/lxc/lxd/shared/version"
+	"github.com/grant-he/lxd/lxd/state"
+	"github.com/grant-he/lxd/shared"
+	"github.com/grant-he/lxd/shared/version"
 )
 
 const (

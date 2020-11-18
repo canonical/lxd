@@ -6,10 +6,10 @@ import (
 	"path/filepath"
 	"time"
 
-	log "github.com/lxc/lxd/shared/log15"
-	"github.com/lxc/lxd/shared/log15/term"
+	log "github.com/grant-he/lxd/shared/log15"
+	"github.com/grant-he/lxd/shared/log15/term"
 
-	"github.com/lxc/lxd/shared/logger"
+	"github.com/grant-he/lxd/shared/logger"
 )
 
 // GetLogger returns a logger suitable for using as logger.Log.

@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/lxc/lxd/shared"
+	"github.com/grant-he/lxd/shared"
 )
 
 // Code generation directives.

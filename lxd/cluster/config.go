@@ -13,8 +13,8 @@ import (
 	"github.com/pkg/errors"
 	"golang.org/x/crypto/scrypt"
 
-	"github.com/lxc/lxd/lxd/config"
-	"github.com/lxc/lxd/lxd/db"
+	"github.com/grant-he/lxd/lxd/config"
+	"github.com/grant-he/lxd/lxd/db"
 )
 
 // Config holds cluster-wide configuration values.

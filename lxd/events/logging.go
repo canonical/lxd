@@ -3,9 +3,9 @@ package events
 import (
 	"fmt"
 
-	log "github.com/lxc/lxd/shared/log15"
+	log "github.com/grant-he/lxd/shared/log15"
 
-	"github.com/lxc/lxd/shared/api"
+	"github.com/grant-he/lxd/shared/api"
 )
 
 // LoggingServer controls what server to use for messages coming from the logger.

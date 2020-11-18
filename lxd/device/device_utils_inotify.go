@@ -8,11 +8,11 @@ import (
 
 	"golang.org/x/sys/unix"
 
-	"github.com/lxc/lxd/lxd/state"
-	"github.com/lxc/lxd/lxd/sys"
-	"github.com/lxc/lxd/shared"
-	log "github.com/lxc/lxd/shared/log15"
-	"github.com/lxc/lxd/shared/logger"
+	"github.com/grant-he/lxd/lxd/state"
+	"github.com/grant-he/lxd/lxd/sys"
+	"github.com/grant-he/lxd/shared"
+	log "github.com/grant-he/lxd/shared/log15"
+	"github.com/grant-he/lxd/shared/logger"
 )
 
 const inotifyBatchInEvents uint = 100

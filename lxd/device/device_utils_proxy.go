@@ -6,9 +6,9 @@ import (
 	"strconv"
 	"strings"
 
-	deviceConfig "github.com/lxc/lxd/lxd/device/config"
-	"github.com/lxc/lxd/shared"
-	"github.com/lxc/lxd/shared/validate"
+	deviceConfig "github.com/grant-he/lxd/lxd/device/config"
+	"github.com/grant-he/lxd/shared"
+	"github.com/grant-he/lxd/shared/validate"
 )
 
 // ProxyParseAddr validates a proxy address and parses it into its constituent parts.

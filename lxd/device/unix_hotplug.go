@@ -8,11 +8,11 @@ import (
 
 	udev "github.com/farjump/go-libudev"
 
-	deviceConfig "github.com/lxc/lxd/lxd/device/config"
-	"github.com/lxc/lxd/lxd/instance"
-	"github.com/lxc/lxd/lxd/instance/instancetype"
-	"github.com/lxc/lxd/shared"
-	"github.com/lxc/lxd/shared/validate"
+	deviceConfig "github.com/grant-he/lxd/lxd/device/config"
+	"github.com/grant-he/lxd/lxd/instance"
+	"github.com/grant-he/lxd/lxd/instance/instancetype"
+	"github.com/grant-he/lxd/shared"
+	"github.com/grant-he/lxd/shared/validate"
 )
 
 // unixHotplugIsOurDevice indicates whether the unixHotplug device event qualifies as part of our device.

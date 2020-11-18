@@ -9,7 +9,7 @@ import (
 	"reflect"
 	"sync"
 
-	"github.com/lxc/lxd/shared/log15/stack"
+	"github.com/grant-he/lxd/shared/log15/stack"
 )
 
 // A Logger prints its log records by writing to a Handler.

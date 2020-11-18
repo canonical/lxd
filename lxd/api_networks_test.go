@@ -3,7 +3,7 @@ package main
 import (
 	"testing"
 
-	"github.com/lxc/lxd/shared/api"
+	"github.com/grant-he/lxd/shared/api"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

@@ -6,9 +6,9 @@ import (
 	"strings"
 	"text/template"
 
-	"github.com/lxc/lxd/lxd/state"
-	"github.com/lxc/lxd/lxd/util"
-	"github.com/lxc/lxd/shared"
+	"github.com/grant-he/lxd/lxd/state"
+	"github.com/grant-he/lxd/lxd/util"
+	"github.com/grant-he/lxd/shared"
 )
 
 var forkdnsProfileTpl = template.Must(template.New("forkdnsProfile").Parse(`#include <tunables/global>

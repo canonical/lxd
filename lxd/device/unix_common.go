@@ -5,12 +5,12 @@ import (
 	"path/filepath"
 	"strings"
 
-	deviceConfig "github.com/lxc/lxd/lxd/device/config"
-	"github.com/lxc/lxd/lxd/instance"
-	"github.com/lxc/lxd/lxd/instance/instancetype"
-	storageDrivers "github.com/lxc/lxd/lxd/storage/drivers"
-	"github.com/lxc/lxd/shared"
-	"github.com/lxc/lxd/shared/validate"
+	deviceConfig "github.com/grant-he/lxd/lxd/device/config"
+	"github.com/grant-he/lxd/lxd/instance"
+	"github.com/grant-he/lxd/lxd/instance/instancetype"
+	storageDrivers "github.com/grant-he/lxd/lxd/storage/drivers"
+	"github.com/grant-he/lxd/shared"
+	"github.com/grant-he/lxd/shared/validate"
 )
 
 // unixIsOurDeviceType checks that device file type matches what we are expecting in the config.

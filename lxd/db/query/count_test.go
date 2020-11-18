@@ -5,7 +5,7 @@ import (
 	"strconv"
 	"testing"
 
-	"github.com/lxc/lxd/lxd/db/query"
+	"github.com/grant-he/lxd/lxd/db/query"
 	"github.com/mpvl/subtest"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"

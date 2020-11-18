@@ -6,10 +6,10 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/lxc/lxd/client"
-	"github.com/lxc/lxd/lxd-benchmark/benchmark"
-	"github.com/lxc/lxd/shared"
-	"github.com/lxc/lxd/shared/version"
+	"github.com/grant-he/lxd/client"
+	"github.com/grant-he/lxd/lxd-benchmark/benchmark"
+	"github.com/grant-he/lxd/shared"
+	"github.com/grant-he/lxd/shared/version"
 )
 
 type cmdGlobal struct {

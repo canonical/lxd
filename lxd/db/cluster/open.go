@@ -7,13 +7,13 @@ import (
 	"sync/atomic"
 
 	driver "github.com/canonical/go-dqlite/driver"
-	"github.com/lxc/lxd/lxd/db/query"
-	"github.com/lxc/lxd/lxd/db/schema"
-	"github.com/lxc/lxd/lxd/util"
-	"github.com/lxc/lxd/shared"
-	"github.com/lxc/lxd/shared/logger"
-	"github.com/lxc/lxd/shared/osarch"
-	"github.com/lxc/lxd/shared/version"
+	"github.com/grant-he/lxd/lxd/db/query"
+	"github.com/grant-he/lxd/lxd/db/schema"
+	"github.com/grant-he/lxd/lxd/util"
+	"github.com/grant-he/lxd/shared"
+	"github.com/grant-he/lxd/shared/logger"
+	"github.com/grant-he/lxd/shared/osarch"
+	"github.com/grant-he/lxd/shared/version"
 	"github.com/pkg/errors"
 )
 

@@ -15,8 +15,8 @@ import (
 	"gopkg.in/macaroon-bakery.v2/httpbakery"
 	"gopkg.in/macaroon-bakery.v2/httpbakery/form"
 
-	"github.com/lxc/lxd/client"
-	"github.com/lxc/lxd/shared"
+	"github.com/grant-he/lxd/client"
+	"github.com/grant-he/lxd/shared"
 )
 
 // Remote holds details for communication with a remote daemon

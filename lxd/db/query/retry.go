@@ -10,7 +10,7 @@ import (
 	"github.com/mattn/go-sqlite3"
 	"github.com/pkg/errors"
 
-	"github.com/lxc/lxd/shared/logger"
+	"github.com/grant-he/lxd/shared/logger"
 )
 
 const maxRetries = 250

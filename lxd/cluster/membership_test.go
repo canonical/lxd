@@ -13,13 +13,13 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/lxc/lxd/lxd/cluster"
-	"github.com/lxc/lxd/lxd/db"
-	"github.com/lxc/lxd/lxd/project"
-	"github.com/lxc/lxd/lxd/state"
-	"github.com/lxc/lxd/shared"
-	"github.com/lxc/lxd/shared/osarch"
-	"github.com/lxc/lxd/shared/version"
+	"github.com/grant-he/lxd/lxd/cluster"
+	"github.com/grant-he/lxd/lxd/db"
+	"github.com/grant-he/lxd/lxd/project"
+	"github.com/grant-he/lxd/lxd/state"
+	"github.com/grant-he/lxd/shared"
+	"github.com/grant-he/lxd/shared/osarch"
+	"github.com/grant-he/lxd/shared/version"
 )
 
 func TestBootstrap_UnmetPreconditions(t *testing.T) {

@@ -9,7 +9,7 @@ import (
 	"strings"
 	"time"
 
-	log "github.com/lxc/lxd/shared/log15"
+	log "github.com/grant-he/lxd/shared/log15"
 )
 
 const (

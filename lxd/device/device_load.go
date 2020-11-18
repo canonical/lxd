@@ -3,10 +3,10 @@ package device
 import (
 	"fmt"
 
-	deviceConfig "github.com/lxc/lxd/lxd/device/config"
-	"github.com/lxc/lxd/lxd/device/nictype"
-	"github.com/lxc/lxd/lxd/instance"
-	"github.com/lxc/lxd/lxd/state"
+	deviceConfig "github.com/grant-he/lxd/lxd/device/config"
+	"github.com/grant-he/lxd/lxd/device/nictype"
+	"github.com/grant-he/lxd/lxd/instance"
+	"github.com/grant-he/lxd/lxd/state"
 )
 
 // load instantiates a device and initialises its internal state. It does not validate the config supplied.

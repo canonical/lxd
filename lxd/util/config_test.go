@@ -3,7 +3,7 @@ package util_test
 import (
 	"testing"
 
-	"github.com/lxc/lxd/lxd/util"
+	"github.com/grant-he/lxd/lxd/util"
 	"github.com/mpvl/subtest"
 	"github.com/stretchr/testify/assert"
 )

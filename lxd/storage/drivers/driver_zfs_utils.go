@@ -10,9 +10,9 @@ import (
 
 	"github.com/pborman/uuid"
 
-	"github.com/lxc/lxd/lxd/migration"
-	"github.com/lxc/lxd/shared"
-	"github.com/lxc/lxd/shared/ioprogress"
+	"github.com/grant-he/lxd/lxd/migration"
+	"github.com/grant-he/lxd/shared"
+	"github.com/grant-he/lxd/shared/ioprogress"
 )
 
 func (d *zfs) dataset(vol Volume, deleted bool) string {

@@ -7,10 +7,10 @@ import (
 	"net/url"
 	"strings"
 
-	"github.com/lxc/lxd/shared/api"
-	"github.com/lxc/lxd/shared/cancel"
-	"github.com/lxc/lxd/shared/ioprogress"
-	"github.com/lxc/lxd/shared/units"
+	"github.com/grant-he/lxd/shared/api"
+	"github.com/grant-he/lxd/shared/cancel"
+	"github.com/grant-he/lxd/shared/ioprogress"
+	"github.com/grant-he/lxd/shared/units"
 )
 
 // Storage volumes handling function

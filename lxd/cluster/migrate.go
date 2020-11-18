@@ -9,8 +9,8 @@ import (
 	"strconv"
 
 	"github.com/hashicorp/go-msgpack/codec"
-	"github.com/lxc/lxd/lxd/cluster/raft"
-	"github.com/lxc/lxd/shared"
+	"github.com/grant-he/lxd/lxd/cluster/raft"
+	"github.com/grant-he/lxd/shared"
 	"github.com/pkg/errors"
 	bolt "go.etcd.io/bbolt"
 )

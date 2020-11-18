@@ -5,7 +5,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/lxc/lxd/shared"
+	"github.com/grant-he/lxd/shared"
 )
 
 // CompareConfigs compares two config maps and returns an error if they differ.

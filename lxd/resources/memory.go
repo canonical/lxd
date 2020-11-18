@@ -10,8 +10,8 @@ import (
 
 	"github.com/pkg/errors"
 
-	"github.com/lxc/lxd/shared/api"
-	"github.com/lxc/lxd/shared/units"
+	"github.com/grant-he/lxd/shared/api"
+	"github.com/grant-he/lxd/shared/units"
 )
 
 var sysDevicesNode = "/sys/devices/system/node"

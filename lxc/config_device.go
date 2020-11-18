@@ -7,8 +7,8 @@ import (
 	"github.com/spf13/cobra"
 	"gopkg.in/yaml.v2"
 
-	cli "github.com/lxc/lxd/shared/cmd"
-	"github.com/lxc/lxd/shared/i18n"
+	cli "github.com/grant-he/lxd/shared/cmd"
+	"github.com/grant-he/lxd/shared/i18n"
 )
 
 type cmdConfigDevice struct {

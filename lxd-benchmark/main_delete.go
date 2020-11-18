@@ -3,7 +3,7 @@ package main
 import (
 	"github.com/spf13/cobra"
 
-	"github.com/lxc/lxd/lxd-benchmark/benchmark"
+	"github.com/grant-he/lxd/lxd-benchmark/benchmark"
 )
 
 type cmdDelete struct {

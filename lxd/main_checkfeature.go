@@ -5,10 +5,10 @@ import (
 	"os"
 	"runtime"
 	// Used by cgo
-	_ "github.com/lxc/lxd/lxd/include"
+	_ "github.com/grant-he/lxd/lxd/include"
 
-	"github.com/lxc/lxd/shared"
-	"github.com/lxc/lxd/shared/logger"
+	"github.com/grant-he/lxd/shared"
+	"github.com/grant-he/lxd/shared/logger"
 )
 
 /*

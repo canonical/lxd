@@ -6,9 +6,9 @@ import (
 	"testing"
 
 	"github.com/canonical/go-dqlite/client"
-	"github.com/lxc/lxd/lxd/db"
-	"github.com/lxc/lxd/lxd/util"
-	"github.com/lxc/lxd/shared"
+	"github.com/grant-he/lxd/lxd/db"
+	"github.com/grant-he/lxd/lxd/util"
+	"github.com/grant-he/lxd/shared"
 	"github.com/stretchr/testify/require"
 )
 

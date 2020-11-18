@@ -1,7 +1,7 @@
 package node
 
 import (
-	"github.com/lxc/lxd/lxd/db"
+	"github.com/grant-he/lxd/lxd/db"
 )
 
 // DetermineRaftNode figures out what raft node ID and address we have, if any.

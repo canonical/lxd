@@ -1,8 +1,8 @@
 package cluster
 
 import (
-	"github.com/lxc/lxd/lxd/db"
-	"github.com/lxc/lxd/shared"
+	"github.com/grant-he/lxd/lxd/db"
+	"github.com/grant-he/lxd/shared"
 )
 
 // IsLeader returns true if this node is the leader.

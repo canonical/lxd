@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"net"
 
-	"github.com/lxc/lxd/lxd/config"
-	"github.com/lxc/lxd/lxd/db"
-	"github.com/lxc/lxd/shared"
+	"github.com/grant-he/lxd/lxd/config"
+	"github.com/grant-he/lxd/lxd/db"
+	"github.com/grant-he/lxd/shared"
 	"github.com/pkg/errors"
 )
 

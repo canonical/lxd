@@ -7,11 +7,11 @@ import (
 
 	"github.com/pkg/errors"
 
-	"github.com/lxc/lxd/lxd/migration"
-	"github.com/lxc/lxd/lxd/state"
-	"github.com/lxc/lxd/shared"
-	log "github.com/lxc/lxd/shared/log15"
-	"github.com/lxc/lxd/shared/logger"
+	"github.com/grant-he/lxd/lxd/migration"
+	"github.com/grant-he/lxd/lxd/state"
+	"github.com/grant-he/lxd/shared"
+	log "github.com/grant-he/lxd/shared/log15"
+	"github.com/grant-he/lxd/shared/logger"
 )
 
 type common struct {

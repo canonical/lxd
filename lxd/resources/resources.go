@@ -3,7 +3,7 @@ package resources
 import (
 	"github.com/pkg/errors"
 
-	"github.com/lxc/lxd/shared/api"
+	"github.com/grant-he/lxd/shared/api"
 )
 
 // GetResources returns a filled api.Resources struct ready for use by LXD

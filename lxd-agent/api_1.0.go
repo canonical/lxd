@@ -4,10 +4,10 @@ import (
 	"net/http"
 	"os"
 
-	"github.com/lxc/lxd/lxd/response"
-	lxdshared "github.com/lxc/lxd/shared"
-	"github.com/lxc/lxd/shared/api"
-	"github.com/lxc/lxd/shared/version"
+	"github.com/grant-he/lxd/lxd/response"
+	lxdshared "github.com/grant-he/lxd/shared"
+	"github.com/grant-he/lxd/shared/api"
+	"github.com/grant-he/lxd/shared/version"
 )
 
 var api10Cmd = APIEndpoint{

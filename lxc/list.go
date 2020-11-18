@@ -10,14 +10,14 @@ import (
 
 	"github.com/spf13/cobra"
 
-	lxd "github.com/lxc/lxd/client"
-	"github.com/lxc/lxd/lxc/config"
-	"github.com/lxc/lxd/lxc/utils"
-	"github.com/lxc/lxd/shared"
-	"github.com/lxc/lxd/shared/api"
-	cli "github.com/lxc/lxd/shared/cmd"
-	"github.com/lxc/lxd/shared/i18n"
-	"github.com/lxc/lxd/shared/units"
+	lxd "github.com/grant-he/lxd/client"
+	"github.com/grant-he/lxd/lxc/config"
+	"github.com/grant-he/lxd/lxc/utils"
+	"github.com/grant-he/lxd/shared"
+	"github.com/grant-he/lxd/shared/api"
+	cli "github.com/grant-he/lxd/shared/cmd"
+	"github.com/grant-he/lxd/shared/i18n"
+	"github.com/grant-he/lxd/shared/units"
 )
 
 type column struct {

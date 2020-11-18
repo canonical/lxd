@@ -13,9 +13,9 @@ import (
 	"github.com/spf13/cobra"
 	"golang.org/x/sys/unix"
 
-	"github.com/lxc/lxd/lxc/utils"
-	"github.com/lxc/lxd/shared/api"
-	"github.com/lxc/lxd/shared/osarch"
+	"github.com/grant-he/lxd/lxc/utils"
+	"github.com/grant-he/lxd/shared/api"
+	"github.com/grant-he/lxd/shared/osarch"
 )
 
 type cmdMigrate struct {

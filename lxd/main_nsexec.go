@@ -20,7 +20,7 @@ package main
 
 import (
 	// Used by cgo
-	_ "github.com/lxc/lxd/lxd/include"
+	_ "github.com/grant-he/lxd/lxd/include"
 )
 
 /*

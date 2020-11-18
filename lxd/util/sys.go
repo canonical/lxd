@@ -8,12 +8,12 @@ import (
 	"strconv"
 	"strings"
 
-	log "github.com/lxc/lxd/shared/log15"
+	log "github.com/grant-he/lxd/shared/log15"
 	liblxc "gopkg.in/lxc/go-lxc.v2"
 
-	"github.com/lxc/lxd/shared/idmap"
-	"github.com/lxc/lxd/shared/logger"
-	"github.com/lxc/lxd/shared/osarch"
+	"github.com/grant-he/lxd/shared/idmap"
+	"github.com/grant-he/lxd/shared/logger"
+	"github.com/grant-he/lxd/shared/osarch"
 )
 
 // GetArchitectures returns the list of supported architectures.
