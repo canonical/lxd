@@ -1227,3 +1227,27 @@ func (d *ceph) receiveVolume(volumeName string, conn io.ReadWriteCloser, writeWr
 
 	return nil
 }
+
+// resizeVolume resizes an RBD volume. This function does not resize any filesystem inside the RBD volume.
+func (d *ceph) resizeVolume(vol Volume, sizeBytes int64, allowShrink bool) error {
+	args := []string{
+		"resize",
+	}
+
+	if allowShrink {
+		args = append(args, "--allow-shrink")
+	}
+
+	args = append(args,
+		"--id", d.config["ceph.user.name"],
+		"--cluster", d.config["ceph.cluster_name"],
+		"--pool", d.config["ceph.osd.pool_name"],
+		"--size", fmt.Sprintf("%dB", sizeBytes),
+		d.getRBDVolumeName(vol, "", false, false),
+	)
+
+	// Resize the block device.
+	_, err := shared.TryRunCommand("rbd", args...)
+
+	return err
+}
