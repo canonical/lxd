@@ -165,6 +165,13 @@ func lxcCreate(s *state.State, args db.InstanceArgs) (instance.Instance, error) 
 		expiryDate:   args.ExpiryDate,
 	}
 
+	revert := revert.New()
+	defer revert.Fail()
+
+	// Use c.Delete() in revert on error as this function doesn't just create DB records, it can also cause
+	// other modifications to the host when devices are added.
+	revert.Add(func() { c.Delete() })
+
 	// Cleanup the zero values
 	if c.expiryDate.IsZero() {
 		c.expiryDate = time.Time{}
@@ -186,39 +193,31 @@ func lxcCreate(s *state.State, args db.InstanceArgs) (instance.Instance, error) 
 
 	logger.Info("Creating container", ctxMap)
 
-	// Load the config
+	// Load the config.
 	err := c.init()
 	if err != nil {
-		c.Delete()
-		logger.Error("Failed creating container", ctxMap)
 		return nil, err
 	}
 
-	// Validate expanded config
+	// Validate expanded config.
 	err = instance.ValidConfig(s.OS, c.expandedConfig, false, true)
 	if err != nil {
-		c.Delete()
-		logger.Error("Failed creating container", ctxMap)
 		return nil, err
 	}
 
 	err = instance.ValidDevices(s, s.Cluster, c.Project(), c.Type(), c.expandedDevices, true)
 	if err != nil {
-		c.Delete()
-		logger.Error("Failed creating container", ctxMap)
 		return nil, errors.Wrap(err, "Invalid devices")
 	}
 
-	// Retrieve the container's storage pool
+	// Retrieve the container's storage pool.
 	var storageInstance instance.Instance
 	if c.IsSnapshot() {
 		parentName, _, _ := shared.InstanceGetParentAndSnapshotName(c.name)
 
-		// Load the parent
+		// Load the parent.
 		storageInstance, err = instance.LoadByProjectAndName(c.state, c.project, parentName)
 		if err != nil {
-			c.Delete()
-			logger.Error("Failed creating container", ctxMap)
 			return nil, errors.Wrap(err, "Invalid parent")
 		}
 	} else {
@@ -227,49 +226,41 @@ func lxcCreate(s *state.State, args db.InstanceArgs) (instance.Instance, error) 
 
 	_, rootDiskDevice, err := shared.GetRootDiskDevice(storageInstance.ExpandedDevices().CloneNative())
 	if err != nil {
-		c.Delete()
 		return nil, err
 	}
 
 	if rootDiskDevice["pool"] == "" {
-		c.Delete()
 		return nil, fmt.Errorf("The container's root device is missing the pool property")
 	}
 
 	storagePool := rootDiskDevice["pool"]
 
-	// Get the storage pool ID for the container
+	// Get the storage pool ID for the container.
 	poolID, dbPool, err := s.Cluster.GetStoragePool(storagePool)
 	if err != nil {
-		c.Delete()
 		return nil, err
 	}
 
-	// Fill in any default volume config
+	// Initialize the storage pool.
+	pool, err := storagePools.GetPoolByName(c.state, storagePool)
+	if err != nil {
+		return nil, err
+	}
+
+	// Fill in any default volume config.
 	volumeConfig := map[string]string{}
 	err = storagePools.VolumeFillDefault(volumeConfig, dbPool)
 	if err != nil {
-		c.Delete()
 		return nil, err
 	}
 
-	// Create a new database entry for the container's storage volume
+	// Create a new storage volume database entry for the container's storage volume.
 	if c.IsSnapshot() {
 		_, err = s.Cluster.CreateStorageVolumeSnapshot(args.Project, args.Name, "", db.StoragePoolVolumeTypeContainer, poolID, volumeConfig, time.Time{})
 	} else {
 		_, err = s.Cluster.CreateStoragePoolVolume(args.Project, args.Name, "", db.StoragePoolVolumeTypeContainer, poolID, volumeConfig, db.StoragePoolVolumeContentTypeFS)
 	}
 	if err != nil {
-		c.Delete()
-		return nil, err
-	}
-
-	// Initialize the container storage.
-	pool, err := storagePools.GetPoolByInstance(c.state, c)
-	if err != nil {
-		c.Delete()
-		s.Cluster.RemoveStoragePoolVolume(args.Project, args.Name, db.StoragePoolVolumeTypeContainer, poolID)
-		logger.Error("Failed to initialize container storage", ctxMap)
 		return nil, err
 	}
 
@@ -289,8 +280,6 @@ func lxcCreate(s *state.State, args db.InstanceArgs) (instance.Instance, error) 
 		)
 
 		if err != nil {
-			c.Delete()
-			logger.Error("Failed creating container", ctxMap)
 			return nil, err
 		}
 	}
@@ -299,8 +288,6 @@ func lxcCreate(s *state.State, args db.InstanceArgs) (instance.Instance, error) 
 	if idmap != nil {
 		idmapBytes, err := json.Marshal(idmap.Idmap)
 		if err != nil {
-			c.Delete()
-			logger.Error("Failed creating container", ctxMap)
 			return nil, err
 		}
 		jsonIdmap = string(idmapBytes)
@@ -310,36 +297,28 @@ func lxcCreate(s *state.State, args db.InstanceArgs) (instance.Instance, error) 
 
 	err = c.VolatileSet(map[string]string{"volatile.idmap.next": jsonIdmap})
 	if err != nil {
-		c.Delete()
-		logger.Error("Failed creating container", ctxMap)
 		return nil, err
 	}
 
 	err = c.VolatileSet(map[string]string{"volatile.idmap.base": fmt.Sprintf("%v", base)})
 	if err != nil {
-		c.Delete()
-		logger.Error("Failed creating container", ctxMap)
 		return nil, err
 	}
 
-	// Invalid idmap cache
+	// Invalid idmap cache.
 	c.idmapset = nil
 
-	// Set last_state if not currently set
+	// Set last_state if not currently set.
 	if c.localConfig["volatile.last_state.idmap"] == "" {
 		err = c.VolatileSet(map[string]string{"volatile.last_state.idmap": "[]"})
 		if err != nil {
-			c.Delete()
-			logger.Error("Failed creating container", ctxMap)
 			return nil, err
 		}
 	}
 
-	// Re-run init to update the idmap
+	// Re-run init to update the idmap.
 	err = c.init()
 	if err != nil {
-		c.Delete()
-		logger.Error("Failed creating container", ctxMap)
 		return nil, err
 	}
 
@@ -348,7 +327,6 @@ func lxcCreate(s *state.State, args db.InstanceArgs) (instance.Instance, error) 
 		for k, m := range c.expandedDevices {
 			err = c.deviceAdd(k, m, false)
 			if err != nil && err != device.ErrUnsupportedDevType {
-				c.Delete()
 				return nil, errors.Wrapf(err, "Failed to add device %q", k)
 			}
 		}
@@ -356,16 +334,14 @@ func lxcCreate(s *state.State, args db.InstanceArgs) (instance.Instance, error) 
 		// Update MAAS (must run after the MAC addresses have been generated).
 		err = c.maasUpdate(nil)
 		if err != nil {
-			c.Delete()
-			logger.Error("Failed creating container", ctxMap)
 			return nil, err
 		}
 	}
 
 	logger.Info("Created container", ctxMap)
-	c.state.Events.SendLifecycle(c.project, "container-created",
-		fmt.Sprintf("/1.0/containers/%s", c.name), nil)
+	c.state.Events.SendLifecycle(c.project, "container-created", fmt.Sprintf("/1.0/containers/%s", c.name), nil)
 
+	revert.Success()
 	return c, nil
 }
 
