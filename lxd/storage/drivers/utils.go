@@ -549,12 +549,14 @@ func shrinkFileSystem(fsType string, devPath string, vol Volume, byteSize int64)
 
 // growFileSystem grows a filesystem if it is supported. The volume will be mounted temporarily if needed.
 func growFileSystem(fsType string, devPath string, vol Volume) error {
+	if fsType == "" {
+		fsType = DefaultFilesystem
+	}
+
 	return vol.MountTask(func(mountPath string, op *operations.Operation) error {
 		var msg string
 		var err error
 		switch fsType {
-		case "": // if not specified, default to ext4
-			fallthrough
 		case "ext4":
 			msg, err = shared.TryRunCommand("resize2fs", devPath)
 		case "xfs":
@@ -562,11 +564,11 @@ func growFileSystem(fsType string, devPath string, vol Volume) error {
 		case "btrfs":
 			msg, err = shared.TryRunCommand("btrfs", "filesystem", "resize", "max", mountPath)
 		default:
-			return fmt.Errorf(`Growing not supported for filesystem type "%s"`, fsType)
+			return fmt.Errorf("Unrecognised filesystem type %q", fsType)
 		}
 
 		if err != nil {
-			return fmt.Errorf(`Could not extend underlying %s filesystem for "%s": %s`, fsType, devPath, msg)
+			return fmt.Errorf("Could not grow underlying %q filesystem for %q: %s", fsType, devPath, msg)
 		}
 
 		return nil
