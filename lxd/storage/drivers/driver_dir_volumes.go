@@ -68,7 +68,7 @@ func (d *dir) CreateVolume(vol Volume, filler *VolumeFiller, op *operations.Oper
 			return err
 		}
 
-		_, err = ensureVolumeBlockFile(rootBlockPath, sizeBytes)
+		_, err = ensureVolumeBlockFile(vol, rootBlockPath, sizeBytes)
 
 		// Ignore ErrCannotBeShrunk as this just means the filler has needed to increase the volume size.
 		if err != nil && errors.Cause(err) != ErrCannotBeShrunk {
@@ -276,7 +276,7 @@ func (d *dir) SetVolumeQuota(vol Volume, size string, op *operations.Operation) 
 			return err
 		}
 
-		resized, err := ensureVolumeBlockFile(rootBlockPath, sizeBytes)
+		resized, err := ensureVolumeBlockFile(vol, rootBlockPath, sizeBytes)
 		if err != nil {
 			return err
 		}
@@ -322,6 +322,7 @@ func (d *dir) MountVolume(vol Volume, op *operations.Operation) error {
 		}
 	}
 
+	vol.MountRefCountIncrement() // From here on it is up to caller to call UnmountVolume() when done.
 	return nil
 }
 
@@ -331,6 +332,7 @@ func (d *dir) UnmountVolume(vol Volume, keepBlockDev bool, op *operations.Operat
 	unlock := vol.MountLock()
 	defer unlock()
 
+	vol.MountRefCountDecrement()
 	return false, nil
 }
 

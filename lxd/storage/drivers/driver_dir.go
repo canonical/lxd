@@ -34,17 +34,16 @@ func (d *dir) load() error {
 // Info returns info about the driver and its environment.
 func (d *dir) Info() Info {
 	return Info{
-		Name:               "dir",
-		Version:            "1",
-		OptimizedImages:    false,
-		PreservesInodes:    false,
-		Remote:             d.isRemote(),
-		VolumeTypes:        []VolumeType{VolumeTypeCustom, VolumeTypeImage, VolumeTypeContainer, VolumeTypeVM},
-		BlockBacking:       false,
-		RunningQuotaResize: true,
-		RunningCopyFreeze:  true,
-		DirectIO:           true,
-		MountedRoot:        true,
+		Name:              "dir",
+		Version:           "1",
+		OptimizedImages:   false,
+		PreservesInodes:   false,
+		Remote:            d.isRemote(),
+		VolumeTypes:       []VolumeType{VolumeTypeCustom, VolumeTypeImage, VolumeTypeContainer, VolumeTypeVM},
+		BlockBacking:      false,
+		RunningCopyFreeze: true,
+		DirectIO:          true,
+		MountedRoot:       true,
 	}
 }
 
