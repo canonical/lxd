@@ -2521,7 +2521,6 @@ func (b *lxdBackend) CreateCustomVolumeFromCopy(projectName string, volName stri
 			Snapshots:     snapshotNames,
 			MigrationType: migrationTypes[0],
 			TrackProgress: false, // Do not use a progress tracker on receiver.
-			VolumeSize:    volSize, // Block size setting override.
 		}, op)
 
 		if err != nil {
