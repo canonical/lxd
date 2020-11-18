@@ -1600,16 +1600,11 @@ func (b *lxdBackend) GetInstanceUsage(inst instance.Instance) (int64, error) {
 }
 
 // SetInstanceQuota sets the quota on the instance's root volume.
-// Returns ErrRunningQuotaResizeNotSupported if the instance is running and the storage driver
-// doesn't support resizing whilst the instance is running.
+// Returns ErrInUse if the instance is running and the storage driver doesn't support online resizing.
 func (b *lxdBackend) SetInstanceQuota(inst instance.Instance, size string, op *operations.Operation) error {
 	logger := logging.AddContext(b.logger, log.Ctx{"project": inst.Project(), "instance": inst.Name(), "size": size})
 	logger.Debug("SetInstanceQuota started")
 	defer logger.Debug("SetInstanceQuota finished")
-
-	if inst.IsRunning() && !b.driver.Info().RunningQuotaResize {
-		return ErrRunningQuotaResizeNotSupported
-	}
 
 	// Check we can convert the instance to the volume type needed.
 	volType, err := InstanceTypeToVolumeType(inst.Type())
