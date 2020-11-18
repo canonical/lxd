@@ -449,13 +449,9 @@ func validatePoolCommonRules() map[string]func(string) error {
 // validateVolumeCommonRules returns a map of volume config rules common to all drivers.
 func validateVolumeCommonRules(vol drivers.Volume) map[string]func(string) error {
 	rules := map[string]func(string) error{
-		"volatile.idmap.last": validate.IsAny,
-		"volatile.idmap.next": validate.IsAny,
-
 		// Note: size should not be modifiable for non-custom volumes and should be checked
 		// in the relevant volume update functions.
 		"size": validate.Optional(validate.IsSize),
-
 		"snapshots.expiry": func(value string) error {
 			// Validate expression
 			_, err := shared.GetSnapshotExpiry(time.Time{}, value)
@@ -480,18 +476,25 @@ func validateVolumeCommonRules(vol drivers.Volume) map[string]func(string) error
 		"snapshots.pattern": validate.IsAny,
 	}
 
-	// block.mount_options is only relevant for drivers that are block backed and when there
-	// is a filesystem to actually mount.
-	if vol.IsBlockBacked() && vol.ContentType() == drivers.ContentTypeFS {
+	// volatile.idmap settings only make sense for filesystem volumes.
+	if vol.ContentType() == drivers.ContentTypeFS {
+		rules["volatile.idmap.last"] = validate.IsAny
+		rules["volatile.idmap.next"] = validate.IsAny
+	}
+
+	// block.mount_options and block.filesystem settings are only relevant for drivers that are block backed
+	// and when there is a filesystem to actually mount. This includes filesystem volumes and VM Block volumes,
+	// as they have an associated config filesystem volume that shares the config.
+	if vol.IsBlockBacked() && (vol.ContentType() == drivers.ContentTypeFS || vol.IsVMBlock()) {
 		rules["block.mount_options"] = validate.IsAny
 
-		// Note: block.filesystem should not be modifiable after volume created. This should
-		// be checked in the relevant volume update functions.
+		// Note: block.filesystem should not be modifiable after volume created.
+		// This should be checked in the relevant volume update functions.
 		rules["block.filesystem"] = validate.IsAny
 	}
 
-	// security.shifted and security.unmapped are only relevant for custom volumes.
-	if vol.Type() == drivers.VolumeTypeCustom {
+	// security.shifted and security.unmapped are only relevant for custom filesystem volumes.
+	if vol.Type() == drivers.VolumeTypeCustom && vol.ContentType() == drivers.ContentTypeFS {
 		rules["security.shifted"] = validate.Optional(validate.IsBool)
 		rules["security.unmapped"] = validate.Optional(validate.IsBool)
 	}
