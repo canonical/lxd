@@ -2639,6 +2639,11 @@ func (b *lxdBackend) RenameCustomVolume(projectName string, volName string, newV
 	revert := revert.New()
 	defer revert.Fail()
 
+	_, volume, err := b.state.Cluster.GetLocalStoragePoolVolume(projectName, volName, db.StoragePoolVolumeTypeCustom, b.id)
+	if err != nil {
+		return err
+	}
+
 	// Rename each snapshot to have the new parent volume prefix.
 	snapshots, err := VolumeSnapshotsGet(b.state, projectName, b.name, volName, db.StoragePoolVolumeTypeCustom)
 	if err != nil {
@@ -2672,7 +2677,7 @@ func (b *lxdBackend) RenameCustomVolume(projectName string, volName string, newV
 	newVolStorageName := project.StorageVolume(projectName, newVolName)
 
 	// There's no need to pass the config as it's not needed when renaming a volume.
-	vol := b.newVolume(drivers.VolumeTypeCustom, drivers.ContentTypeFS, volStorageName, nil)
+	vol := b.newVolume(drivers.VolumeTypeCustom, drivers.ContentType(volume.ContentType), volStorageName, nil)
 
 	err = b.driver.RenameVolume(vol, newVolStorageName, op)
 	if err != nil {
@@ -2936,7 +2941,7 @@ func (b *lxdBackend) UnmountCustomVolume(projectName, volName string, op *operat
 
 	// Get the volume name on storage.
 	volStorageName := project.StorageVolume(projectName, volName)
-	vol := b.newVolume(drivers.VolumeTypeCustom, drivers.ContentTypeFS, volStorageName, volume.Config)
+	vol := b.newVolume(drivers.VolumeTypeCustom, drivers.ContentType(volume.ContentType), volStorageName, volume.Config)
 
 	return b.driver.UnmountVolume(vol, false, op)
 }
@@ -3019,13 +3024,18 @@ func (b *lxdBackend) RenameCustomVolumeSnapshot(projectName, volName string, new
 		return fmt.Errorf("Invalid new snapshot name")
 	}
 
+	_, volume, err := b.state.Cluster.GetLocalStoragePoolVolume(projectName, volName, db.StoragePoolVolumeTypeCustom, b.ID())
+	if err != nil {
+		return err
+	}
+
 	// Get the volume name on storage.
 	volStorageName := project.StorageVolume(projectName, volName)
 
 	// There's no need to pass config as it's not needed when renaming a volume.
-	vol := b.newVolume(drivers.VolumeTypeCustom, drivers.ContentTypeFS, volStorageName, nil)
+	vol := b.newVolume(drivers.VolumeTypeCustom, drivers.ContentType(volume.ContentType), volStorageName, nil)
 
-	err := b.driver.RenameVolumeSnapshot(vol, newSnapshotName, op)
+	err = b.driver.RenameVolumeSnapshot(vol, newSnapshotName, op)
 	if err != nil {
 		return err
 	}
@@ -3037,7 +3047,7 @@ func (b *lxdBackend) RenameCustomVolumeSnapshot(projectName, volName string, new
 		newVolStorageName := project.StorageVolume(projectName, newVolName)
 
 		// Revert rename.
-		newVol := b.newVolume(drivers.VolumeTypeCustom, drivers.ContentTypeFS, newVolStorageName, nil)
+		newVol := b.newVolume(drivers.VolumeTypeCustom, drivers.ContentType(volume.ContentType), newVolStorageName, nil)
 		b.driver.RenameVolumeSnapshot(newVol, oldSnapshotName, op)
 		return err
 	}
