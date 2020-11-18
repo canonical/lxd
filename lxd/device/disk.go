@@ -329,20 +329,10 @@ func (d *disk) startContainer() (*deviceConfig.RunConfig, error) {
 			rootfs.Opts = append(rootfs.Opts, "ro")
 		}
 
-		v := d.volatileGet()
-
 		// Handle previous requests for setting new quotas.
-		if v["apply_quota"] != "" {
-			err := d.applyQuota(v["apply_quota"])
-			if err != nil {
-				return nil, err
-			}
-
-			// Remove volatile apply_quota key if successful.
-			err = d.volatileSet(map[string]string{"apply_quota": ""})
-			if err != nil {
-				return nil, err
-			}
+		err := d.applyDeferredQuota()
+		if err != nil {
+			return nil, err
 		}
 
 		runConf.RootFS = rootfs
@@ -444,6 +434,12 @@ func (d *disk) startVM() (*deviceConfig.RunConfig, error) {
 	isRequired := d.isRequired(d.config)
 
 	if shared.IsRootDiskDevice(d.config) {
+		// Handle previous requests for setting new quotas.
+		err := d.applyDeferredQuota()
+		if err != nil {
+			return nil, err
+		}
+
 		runConf.Mounts = []deviceConfig.MountEntryItem{
 			{
 				TargetPath: d.config["path"], // Indicator used that this is the root device.
@@ -706,13 +702,24 @@ func (d *disk) Update(oldDevices deviceConfig.Devices, isRunning bool) error {
 
 		// Apply disk quota changes.
 		if newRootDiskDeviceSize != oldRootDiskDeviceSize {
-			err := d.applyQuota(newRootDiskDeviceSize)
-			if err == storagePools.ErrRunningQuotaResizeNotSupported {
+			// Remove any outstanding volatile apply_quota key if applying a new quota.
+			v := d.volatileGet()
+			if v["apply_quota"] != "" {
+				err = d.volatileSet(map[string]string{"apply_quota": ""})
+				if err != nil {
+					return err
+				}
+			}
+
+			err := d.applyQuota(newRootDiskDeviceSize, false)
+			if err == storageDrivers.ErrInUse {
 				// Save volatile apply_quota key for next boot if cannot apply now.
 				err = d.volatileSet(map[string]string{"apply_quota": newRootDiskDeviceSize})
 				if err != nil {
 					return err
 				}
+
+				d.logger.Warn("Could not apply quota because disk is in use, deferring until next start", log.Ctx{"quota": newRootDiskDeviceSize})
 			} else if err != nil {
 				return err
 			}
@@ -736,10 +743,47 @@ func (d *disk) Update(oldDevices deviceConfig.Devices, isRunning bool) error {
 	return nil
 }
 
-func (d *disk) applyQuota(newSize string) error {
+// applyDeferredQuota attempts to apply the deferred quota specified in the volatile "apply_quota" key if set.
+// If successfully applies new quota then removes the volatile "apply_quota" key.
+func (d *disk) applyDeferredQuota() error {
+	v := d.volatileGet()
+	if v["apply_quota"] != "" {
+		d.logger.Info("Applying deferred quota change", log.Ctx{"quota": v["apply_quota"]})
+
+		// Indicate that we want applyQuota to unmount the volume first, this is so we can perform resizes
+		// that cannot be done when the volume is in use.
+		err := d.applyQuota(v["apply_quota"], true)
+		if err != nil {
+			return errors.Wrapf(err, "Failed to apply deferred quota from %q", fmt.Sprintf("volatile.%s.apply_quota", d.name))
+		}
+
+		// Remove volatile apply_quota key if successful.
+		err = d.volatileSet(map[string]string{"apply_quota": ""})
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// applyQuota attempts to resize the instance root disk to the specified size.
+// If unmount is true, attempts to unmount first before resizing.
+func (d *disk) applyQuota(newSize string, unmount bool) error {
 	pool, err := storagePools.GetPoolByInstance(d.state, d.inst)
 	if err != nil {
 		return err
+	}
+
+	if unmount {
+		ourUnmount, err := pool.UnmountInstance(d.inst, nil)
+		if err != nil {
+			return err
+		}
+
+		if ourUnmount {
+			defer pool.MountInstance(d.inst, nil)
+		}
 	}
 
 	err = pool.SetInstanceQuota(d.inst, newSize, nil)
