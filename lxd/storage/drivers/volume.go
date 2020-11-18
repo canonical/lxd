@@ -155,6 +155,11 @@ func (v Volume) MountRefCountDecrement() uint {
 	return refcount.Decrement(v.mountLockName(), 1)
 }
 
+// MountInUse returns whether the volume has a mount ref counter >0.
+func (v Volume) MountInUse() bool {
+	return refcount.Get(v.mountLockName()) > 0
+}
+
 // EnsureMountPath creates the volume's mount path if missing, then sets the correct permission for the type.
 // If permission setting fails and the volume is a snapshot then the error is ignored as snapshots are read only.
 func (v Volume) EnsureMountPath() error {
