@@ -325,7 +325,7 @@ func roundVolumeBlockFileSizeBytes(sizeBytes int64) (int64, error) {
 // ensureVolumeBlockFile creates new block file or enlarges the raw block file for a volume to the specified size.
 // Returns true if resize took place, false if not. Requested size is rounded to nearest block size using
 // roundVolumeBlockFileSizeBytes() before decision whether to resize is taken.
-func ensureVolumeBlockFile(path string, sizeBytes int64) (bool, error) {
+func ensureVolumeBlockFile(vol Volume, path string, sizeBytes int64) (bool, error) {
 	if sizeBytes <= 0 {
 		return false, fmt.Errorf("Size cannot be zero")
 	}
@@ -343,12 +343,20 @@ func ensureVolumeBlockFile(path string, sizeBytes int64) (bool, error) {
 		}
 
 		oldSizeBytes := fi.Size()
-		if sizeBytes < oldSizeBytes {
-			return false, errors.Wrap(ErrCannotBeShrunk, "You cannot shrink block volumes")
-		}
-
 		if sizeBytes == oldSizeBytes {
 			return false, nil
+		}
+
+		// Only perform pre-resize sanity checks if we are not in "unsafe" mode.
+		// In unsafe mode we expect the caller to know what they are doing and understand the risks.
+		if !vol.allowUnsafeResize {
+			if sizeBytes < oldSizeBytes {
+				return false, errors.Wrap(ErrCannotBeShrunk, "Block volumes cannot be shrunk")
+			}
+
+			if vol.MountInUse() {
+				return false, ErrInUse // We don't allow online resizing of block volumes.
+			}
 		}
 
 		err = ensureSparseFile(path, sizeBytes)
