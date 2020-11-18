@@ -142,6 +142,14 @@ func (c *cmdInfo) renderGPU(gpu api.ResourcesGPUCard, prefix string, initial boo
 			}
 		}
 	}
+
+	if gpu.Mdev != nil {
+		fmt.Printf(prefix + i18n.G("Mdev profiles:") + "\n")
+
+		for k := range gpu.Mdev {
+			fmt.Printf(prefix+"  - %s\n", k)
+		}
+	}
 }
 
 func (c *cmdInfo) renderNIC(nic api.ResourcesNetworkCard, prefix string, initial bool) {

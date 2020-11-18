@@ -747,10 +747,19 @@ required    | boolean   | false             | no        | Whether or not this de
 
 ### Type: gpu
 
-Supported instance types: container, VM
-
 GPU device entries simply make the requested gpu device appear in the
 instance.
+
+#### GPUs Available:
+
+The following GPUs can be specified using the `gputype` property:
+
+ - [physical](#gpu-physical) Passes through an entire GPU. This is the default if `gputype` is unspecified.
+ - [mdev](#gpu-mdev) Creates and passes through a virtual GPU.
+
+#### gpu: physical
+
+Supported instance types: container, VM
 
 The following properties exist:
 
@@ -763,6 +772,22 @@ pci         | string    | -                 | no        | The pci address of the
 uid         | int       | 0                 | no        | UID of the device owner in the instance (container only)
 gid         | int       | 0                 | no        | GID of the device owner in the instance (container only)
 mode        | int       | 0660              | no        | Mode of the device in the instance (container only)
+
+#### gpu: mdev
+
+Supported instance types: VM
+
+Create a virtual GPU and pass it. A list of available mdev profiles can be found by running `lxc info --resources`.
+
+The following properties exist:
+
+Key         | Type      | Default           | Required  | Description
+:--         | :--       | :--               | :--       | :--
+vendorid    | string    | -                 | no        | The vendor id of the GPU device
+productid   | string    | -                 | no        | The product id of the GPU device
+id          | string    | -                 | no        | The card id of the GPU device
+pci         | string    | -                 | no        | The pci address of the GPU device
+mdev        | string    | -                 | no        | The mdev profile to use (e.g. i915-GVTg_V5_4)
 
 ### Type: proxy
 

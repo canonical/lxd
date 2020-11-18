@@ -1222,3 +1222,7 @@ This introduces the `tpm` device type.
 This introduces `rebase` as a value for zfs.clone\_copy causing LXD to
 track down any "image" dataset in the ancestry line and then perform
 send/receive on top of that.
+
+## gpu\_mdev
+This adds support for virtual GPUs. It introduces the `mdev` config key for GPU devices which takes
+a supported mdev type, e.g. i915-GVTg_V5_4.
