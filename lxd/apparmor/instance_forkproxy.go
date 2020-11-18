@@ -77,7 +77,7 @@ profile "{{ .name }}" flags=(attach_disconnected,mediate_deleted) {
   /snap/lxd/*/lib/**.so*              mr,
 {{- end }}
 
-{{if .libraryPath -}}
+{{if .libraryPath }}
   # Entries from LD_LIBRARY_PATH
 {{range $index, $element := .libraryPath}}
   {{$element}}/** mr,
@@ -138,7 +138,9 @@ func forkproxyProfile(state *state.State, inst instance, dev device) (string, er
 			return "", err
 		}
 
-		sockets[k] = v
+		if !shared.StringInSlice(v, sockets) {
+			sockets = append(sockets, v)
+		}
 	}
 
 	// Render the profile.

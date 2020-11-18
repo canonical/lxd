@@ -75,47 +75,40 @@ func Connect(path string, serialCharDev string, eventHandler func(name string, d
 }
 
 func (m *Monitor) run() error {
-	// Start ringbuffer monitoring go routine.
-	go func() {
-		for {
-			// Read the ringbuffer.
-			resp, err := m.qmp.Run([]byte(fmt.Sprintf(`{"execute": "ringbuf-read", "arguments": {"device": "%s", "size": %d, "format": "utf8"}}`, m.serialCharDev, RingbufSize)))
-			if err != nil {
-				m.Disconnect()
-				return
-			}
+	// Ringbuffer monitoring function.
+	checkBuffer := func() {
+		// Read the ringbuffer.
+		resp, err := m.qmp.Run([]byte(fmt.Sprintf(`{"execute": "ringbuf-read", "arguments": {"device": "%s", "size": %d, "format": "utf8"}}`, m.serialCharDev, RingbufSize)))
+		if err != nil {
+			// Failure to send a command, assume disconnected/crashed.
+			m.Disconnect()
+			return
+		}
 
-			// Decode the response.
-			var respDecoded struct {
-				Return string `json:"return"`
-			}
+		// Decode the response.
+		var respDecoded struct {
+			Return string `json:"return"`
+		}
 
-			err = json.Unmarshal(resp, &respDecoded)
-			if err != nil {
-				continue
-			}
+		err = json.Unmarshal(resp, &respDecoded)
+		if err != nil {
+			// Received bad data, assume disconnected/crashed.
+			m.Disconnect()
+			return
+		}
 
-			// Extract the last entry.
-			entries := strings.Split(respDecoded.Return, "\n")
-			if len(entries) > 1 {
-				status := entries[len(entries)-2]
+		// Extract the last entry.
+		entries := strings.Split(respDecoded.Return, "\n")
+		if len(entries) > 1 {
+			status := entries[len(entries)-2]
 
-				if status == "STARTED" {
-					m.agentReady = true
-				} else if status == "STOPPED" {
-					m.agentReady = false
-				}
-			}
-
-			// Wait until next read or cancel.
-			select {
-			case <-m.chDisconnect:
-				return
-			case <-time.After(10 * time.Second):
-				continue
+			if status == "STARTED" {
+				m.agentReady = true
+			} else if status == "STOPPED" {
+				m.agentReady = false
 			}
 		}
-	}()
+	}
 
 	// Start event monitoring go routine.
 	chEvents, err := m.qmp.Events()
@@ -124,7 +117,11 @@ func (m *Monitor) run() error {
 	}
 
 	go func() {
+		// Initial read from the ringbuffer.
+		go checkBuffer()
+
 		for {
+			// Wait for an event, disconnection or timeout.
 			select {
 			case <-m.chDisconnect:
 				return
@@ -133,9 +130,17 @@ func (m *Monitor) run() error {
 					continue
 				}
 
+				// Check if the ringbuffer was updated (non-blocking).
+				go checkBuffer()
+
 				if m.eventHandler != nil {
 					m.eventHandler(e.Event, e.Data)
 				}
+			case <-time.After(10 * time.Second):
+				// Check if the ringbuffer was updated (non-blocking).
+				go checkBuffer()
+
+				continue
 			}
 		}
 	}()

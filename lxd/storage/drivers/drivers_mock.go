@@ -22,17 +22,17 @@ func (d *mock) load() error {
 // Info returns info about the driver and its environment.
 func (d *mock) Info() Info {
 	return Info{
-		Name:                  "mock",
-		Version:               "1",
-		OptimizedImages:       false,
-		PreservesInodes:       false,
-		Remote:                d.isRemote(),
-		VolumeTypes:           []VolumeType{VolumeTypeCustom, VolumeTypeImage, VolumeTypeContainer, VolumeTypeVM},
-		BlockBacking:          false,
-		RunningQuotaResize:    true,
-		RunningSnapshotFreeze: true,
-		DirectIO:              true,
-		MountedRoot:           true,
+		Name:               "mock",
+		Version:            "1",
+		OptimizedImages:    false,
+		PreservesInodes:    false,
+		Remote:             d.isRemote(),
+		VolumeTypes:        []VolumeType{VolumeTypeCustom, VolumeTypeImage, VolumeTypeContainer, VolumeTypeVM},
+		BlockBacking:       false,
+		RunningQuotaResize: true,
+		RunningCopyFreeze:  true,
+		DirectIO:           true,
+		MountedRoot:        true,
 	}
 }
 
@@ -141,10 +141,9 @@ func (d *mock) GetVolumeDiskPath(vol Volume) (string, error) {
 	return "", nil
 }
 
-// MountVolume simulates mounting a volume. As dir driver doesn't have volumes to mount it returns
-// false indicating that there is no need to issue an unmount.
-func (d *mock) MountVolume(vol Volume, op *operations.Operation) (bool, error) {
-	return false, nil
+// MountVolume simulates mounting a volume.
+func (d *mock) MountVolume(vol Volume, op *operations.Operation) error {
+	return nil
 }
 
 // UnmountVolume simulates unmounting a volume. As dir driver doesn't have volumes to unmount it

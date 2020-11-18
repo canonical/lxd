@@ -194,22 +194,12 @@ func (c *cmdStorageVolumeAttach) Run(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf(i18n.G("Only \"custom\" volumes can be attached to instances"))
 	}
 
-	// Check if the requested storage volume actually exists
-	vol, _, err := resource.server.GetStoragePoolVolume(resource.name, volType, volName)
-	if err != nil {
-		return err
-	}
-
 	// Prepare the instance's device entry
 	device := map[string]string{
 		"type":   "disk",
 		"pool":   resource.name,
-		"source": vol.Name,
-	}
-
-	// Ignore path for block volumes
-	if vol.ContentType != "block" {
-		device["path"] = devPath
+		"source": volName,
+		"path":   devPath,
 	}
 
 	// Add the device to the instance
@@ -1516,6 +1506,7 @@ type cmdStorageVolumeSnapshot struct {
 	storageVolume *cmdStorageVolume
 
 	flagNoExpiry bool
+	flagReuse    bool
 }
 
 func (c *cmdStorageVolumeSnapshot) Command() *cobra.Command {
@@ -1527,6 +1518,7 @@ func (c *cmdStorageVolumeSnapshot) Command() *cobra.Command {
 
 	cmd.RunE = c.Run
 	cmd.Flags().BoolVar(&c.flagNoExpiry, "no-expiry", false, i18n.G("Ignore any configured auto-expiry for the storage volume"))
+	cmd.Flags().BoolVar(&c.flagReuse, "reuse", false, i18n.G("If the snapshot name already exists, delete and create a new one"))
 
 	return cmd
 }
@@ -1576,6 +1568,21 @@ func (c *cmdStorageVolumeSnapshot) Run(cmd *cobra.Command, args []string) error 
 
 	if c.flagNoExpiry {
 		req.ExpiresAt = &time.Time{}
+	}
+
+	if c.flagReuse && snapname != "" {
+		snap, _, _ := client.GetStoragePoolVolumeSnapshot(resource.name, volType, volName, snapname)
+		if snap != nil {
+			op, err := client.DeleteStoragePoolVolumeSnapshot(resource.name, volType, volName, snapname)
+			if err != nil {
+				return err
+			}
+
+			err = op.Wait()
+			if err != nil {
+				return err
+			}
+		}
 	}
 
 	op, err := client.CreateStoragePoolVolumeSnapshot(resource.name, volType, volName, req)

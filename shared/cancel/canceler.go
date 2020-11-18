@@ -69,5 +69,10 @@ func CancelableDownload(c *Canceler, client *http.Client, req *http.Request) (*h
 	}()
 
 	resp, err := client.Do(req)
-	return resp, chDone, err
+	if err != nil {
+		close(chDone)
+		return nil, nil, err
+	}
+
+	return resp, chDone, nil
 }

@@ -475,7 +475,7 @@ func shrinkFileSystem(fsType string, devPath string, vol Volume, byteSize int64)
 	case "": // if not specified, default to ext4.
 		fallthrough
 	case "xfs":
-		return errors.Wrapf(ErrCannotBeShrunk, `Shrinking not supported for filesystem type "%s". A dump, mkfs, and restore are required`, fsType)
+		return errors.Wrapf(ErrCannotBeShrunk, "Shrinking not supported for filesystem type %q. A dump, mkfs, and restore are required", fsType)
 	case "ext4":
 		return vol.UnmountTask(func(op *operations.Operation) error {
 			output, err := shared.RunCommand("e2fsck", "-f", "-y", devPath)
@@ -516,7 +516,7 @@ func shrinkFileSystem(fsType string, devPath string, vol Volume, byteSize int64)
 			return nil
 		}, nil)
 	default:
-		return errors.Wrapf(ErrCannotBeShrunk, `Shrinking not supported for filesystem type "%s"`, fsType)
+		return errors.Wrapf(ErrCannotBeShrunk, "Shrinking not supported for filesystem type %q", fsType)
 	}
 }
 
@@ -812,6 +812,6 @@ func PathNameDecode(text string) string {
 }
 
 // OperationLockName returns the storage specific lock name to use with locking package.
-func OperationLockName(poolName string, volType string, volName string) string {
-	return fmt.Sprintf("%s/%s/%s", poolName, volType, volName)
+func OperationLockName(operationName string, poolName string, volType VolumeType, contentType ContentType, volName string) string {
+	return fmt.Sprintf("%s/%s/%s/%s/%s", operationName, poolName, volType, contentType, volName)
 }

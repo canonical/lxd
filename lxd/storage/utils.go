@@ -13,11 +13,13 @@ import (
 	"gopkg.in/robfig/cron.v2"
 
 	"github.com/lxc/lxd/lxd/db"
+	deviceConfig "github.com/lxc/lxd/lxd/device/config"
 	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/instance/instancetype"
 	"github.com/lxc/lxd/lxd/migration"
 	"github.com/lxc/lxd/lxd/node"
 	"github.com/lxc/lxd/lxd/operations"
+	"github.com/lxc/lxd/lxd/project"
 	"github.com/lxc/lxd/lxd/rsync"
 	"github.com/lxc/lxd/lxd/state"
 	"github.com/lxc/lxd/lxd/storage/drivers"
@@ -77,8 +79,8 @@ func ConfigDiff(oldConfig map[string]string, newConfig map[string]string) ([]str
 	return changedConfig, userOnly
 }
 
-// VolumeTypeNameToType converts a volume type string to internal code.
-func VolumeTypeNameToType(volumeTypeName string) (int, error) {
+// VolumeTypeNameToDBType converts a volume type string to internal volume type DB code.
+func VolumeTypeNameToDBType(volumeTypeName string) (int, error) {
 	switch volumeTypeName {
 	case db.StoragePoolVolumeTypeNameContainer:
 		return db.StoragePoolVolumeTypeContainer, nil
@@ -93,7 +95,23 @@ func VolumeTypeNameToType(volumeTypeName string) (int, error) {
 	return -1, fmt.Errorf("Invalid storage volume type name")
 }
 
-// VolumeTypeToDBType converts volume type to internal code.
+// VolumeDBTypeToTypeName converts an internal volume DB type code string to a volume type string.
+func VolumeDBTypeToTypeName(volumeDBType int) (string, error) {
+	switch volumeDBType {
+	case db.StoragePoolVolumeTypeContainer:
+		return db.StoragePoolVolumeTypeNameContainer, nil
+	case db.StoragePoolVolumeTypeVM:
+		return db.StoragePoolVolumeTypeNameVM, nil
+	case db.StoragePoolVolumeTypeImage:
+		return db.StoragePoolVolumeTypeNameImage, nil
+	case db.StoragePoolVolumeTypeCustom:
+		return db.StoragePoolVolumeTypeNameCustom, nil
+	}
+
+	return "", fmt.Errorf("Invalid storage volume type code")
+}
+
+// VolumeTypeToDBType converts volume type to internal volume type DB code.
 func VolumeTypeToDBType(volType drivers.VolumeType) (int, error) {
 	switch volType {
 	case drivers.VolumeTypeContainer:
@@ -109,7 +127,7 @@ func VolumeTypeToDBType(volType drivers.VolumeType) (int, error) {
 	return -1, fmt.Errorf("Invalid storage volume type")
 }
 
-// VolumeDBTypeToType converts internal volume type DB code to driver representation.
+// VolumeDBTypeToType converts internal volume type DB code to storage driver volume type.
 func VolumeDBTypeToType(volDBType int) (drivers.VolumeType, error) {
 	switch volDBType {
 	case db.StoragePoolVolumeTypeContainer:
@@ -125,7 +143,7 @@ func VolumeDBTypeToType(volDBType int) (drivers.VolumeType, error) {
 	return "", fmt.Errorf("Invalid storage volume type")
 }
 
-// InstanceTypeToVolumeType converts instance type to volume type.
+// InstanceTypeToVolumeType converts instance type to storage driver volume type.
 func InstanceTypeToVolumeType(instType instancetype.Type) (drivers.VolumeType, error) {
 	switch instType {
 	case instancetype.Container:
@@ -176,7 +194,7 @@ func VolumeContentTypeNameToContentType(contentTypeName string) (int, error) {
 // VolumeDBCreate creates a volume in the database.
 func VolumeDBCreate(s *state.State, project, poolName, volumeName, volumeDescription, volumeTypeName string, snapshot bool, volumeConfig map[string]string, expiryDate time.Time, contentTypeName string) error {
 	// Convert the volume type name to our internal integer representation.
-	volDBType, err := VolumeTypeNameToType(volumeTypeName)
+	volDBType, err := VolumeTypeNameToDBType(volumeTypeName)
 	if err != nil {
 		return err
 	}
@@ -497,6 +515,8 @@ func validateVolumeCommonRules(vol drivers.Volume) map[string]func(string) error
 // 	- Unpack metadata tarball into mountPath.
 //	- Check rootBlockPath is a file and convert qcow2 file into raw format in rootBlockPath.
 func ImageUnpack(imageFile string, vol drivers.Volume, destBlockFile string, blockBackend, runningInUserns bool, tracker *ioprogress.ProgressTracker) (int64, error) {
+	logger := logging.AddContext(logger.Log, log.Ctx{"imageFile": imageFile, "vol": vol.Name()})
+
 	// For all formats, first unpack the metadata (or combined) tarball into destPath.
 	imageRootfsFile := imageFile + ".rootfs"
 	destPath := vol.MountPath()
@@ -576,20 +596,23 @@ func ImageUnpack(imageFile string, vol drivers.Volume, destBlockFile string, blo
 			}
 
 			if volSizeBytes < imgInfo.VirtualSize {
-				// Create a partial image volume struct and then use it to check that target
-				// volume size can be increased as needed.
+				// If the target volume's size is smaller than the image unpack size, then we need
+				// to check whether it is inline with the pool's settings to allow us to increase
+				// the target volume's size. Create a partial image volume struct and then use it
+				// to check that target volume size can be set as needed.
 				imgVolConfig := map[string]string{
 					"volatile.rootfs.size": fmt.Sprintf("%d", imgInfo.VirtualSize),
 				}
 				imgVol := drivers.NewVolume(nil, "", drivers.VolumeTypeImage, drivers.ContentTypeBlock, "", imgVolConfig, nil)
 
-				_, err = vol.ConfigSizeFromSource(imgVol)
+				logger.Debug("Checking image unpack size")
+				newVolSize, err := vol.ConfigSizeFromSource(imgVol)
 				if err != nil {
 					return -1, err
 				}
 
-				logger.Debugf("Increasing %q volume size from %d to %d to accomomdate image %q unpack", dstPath, volSizeBytes, imgInfo.VirtualSize, imgPath)
-				err = vol.SetQuota(fmt.Sprintf("%d", imgInfo.VirtualSize), nil)
+				logger.Debug("Increasing volume size", log.Ctx{"imgPath": imgPath, "dstPath": dstPath, "oldSize": volSizeBytes, "newSize": newVolSize})
+				err = vol.SetQuota(newVolSize, nil)
 				if err != nil {
 					return -1, errors.Wrapf(err, "Error increasing volume size")
 				}
@@ -598,7 +621,7 @@ func ImageUnpack(imageFile string, vol drivers.Volume, destBlockFile string, blo
 
 		// Convert the qcow2 format to a raw block device using qemu's dd mode to avoid issues with
 		// loop backed storage pools. Use the MinBlockBoundary block size to speed up conversion.
-		logger.Debugf("Converting qcow2 image %q to raw disk %q", imgPath, dstPath)
+		logger.Debug("Converting qcow2 image to raw disk", log.Ctx{"imgPath": imgPath, "dstPath": dstPath})
 		_, err = shared.RunCommand("qemu-img", "dd", "-f", "qcow2", "-O", "raw", fmt.Sprintf("bs=%d", drivers.MinBlockBoundary), fmt.Sprintf("if=%s", imgPath), fmt.Sprintf("of=%s", dstPath))
 		if err != nil {
 			return -1, errors.Wrapf(err, "Failed converting image to raw at %q", dstPath)
@@ -670,45 +693,65 @@ func InstanceContentType(inst instance.Instance) drivers.ContentType {
 	return contentType
 }
 
-// VolumeUsedByInstancesGet gets a list of instance names using a volume.
-func VolumeUsedByInstancesGet(s *state.State, projectName string, poolName string, volumeName string) ([]string, error) {
-	insts, err := instance.LoadByProject(s, projectName)
+// VolumeUsedByProfileDevices finds profiles using a volume and passes them to profileFunc for evaluation.
+// The profileFunc is provided with a profile config, project config and a list of device names that are using
+// the volume.
+func VolumeUsedByProfileDevices(s *state.State, poolName string, projectName string, vol *api.StorageVolume, profileFunc func(profile db.Profile, project api.Project, usedByDevices []string) error) error {
+	// Convert the volume type name to our internal integer representation.
+	volumeType, err := VolumeTypeNameToDBType(vol.Type)
 	if err != nil {
-		return []string{}, err
+		return err
 	}
 
-	instUsingVolume := []string{}
-	for _, inst := range insts {
-		for _, dev := range inst.LocalDevices() {
-			if dev["type"] != "disk" {
-				continue
-			}
+	projectMap := map[string]api.Project{}
+	var profiles []db.Profile
 
-			if dev["pool"] == poolName && dev["source"] == volumeName {
-				instUsingVolume = append(instUsingVolume, inst.Name())
-				break
-			}
+	// Retrieve required info from the database in single transaction for performance.
+	err = s.Cluster.Transaction(func(tx *db.ClusterTx) error {
+		var err error
+
+		projects, err := tx.GetProjects(db.ProjectFilter{})
+		if err != nil {
+			return errors.Wrap(err, "Failed loading projects")
 		}
-	}
 
-	return instUsingVolume, nil
-}
+		// Index of all projects by name.
+		for i, project := range projects {
+			projectMap[project.Name] = projects[i]
+		}
 
-// VolumeUsedByRunningInstancesWithProfilesGet gets list of running instances using a volume.
-func VolumeUsedByRunningInstancesWithProfilesGet(s *state.State, projectName string, poolName string, volumeName string, volumeTypeName string, runningOnly bool) ([]string, error) {
-	insts, err := instance.LoadByProject(s, projectName)
+		profiles, err = tx.GetProfiles(db.ProfileFilter{})
+		if err != nil {
+			return errors.Wrap(err, "Failed loading profiles")
+		}
+
+		return nil
+	})
 	if err != nil {
-		return []string{}, err
+		return err
 	}
 
-	instUsingVolume := []string{}
-	volumeNameWithType := fmt.Sprintf("%s/%s", volumeTypeName, volumeName)
-	for _, inst := range insts {
-		if runningOnly && !inst.IsRunning() {
+	// Iterate all profiles, consider only those which belong to a project that has the same effective
+	// storage project as volume.
+	for _, profile := range profiles {
+		p := projectMap[profile.Project]
+		profileStorageProject := project.StorageVolumeProjectFromRecord(&p, volumeType)
+		if err != nil {
+			return err
+		}
+
+		// Check profile's storage project is the same as the volume's project.
+		// If not then the volume names mentioned in the profile's config cannot be referring to volumes
+		// in the volume's project we are trying to match, and this profile cannot possibly be using it.
+		if projectName != profileStorageProject {
 			continue
 		}
 
-		for _, dev := range inst.ExpandedDevices() {
+		var usedByDevices []string
+
+		// Iterate through each of the profiles's devices, looking for disks in the same pool as volume.
+		// Then try and match the volume name against the profile device's "source" property.
+		for devName, dev := range profile.Devices {
 			if dev["type"] != "disk" {
 				continue
 			}
@@ -717,16 +760,131 @@ func VolumeUsedByRunningInstancesWithProfilesGet(s *state.State, projectName str
 				continue
 			}
 
-			// Make sure that we don't compare against stuff like
-			// "container////bla" but only against "container/bla".
-			cleanSource := filepath.Clean(dev["source"])
-			if cleanSource == volumeName || cleanSource == volumeNameWithType {
-				instUsingVolume = append(instUsingVolume, inst.Name())
+			if dev["source"] == vol.Name {
+				usedByDevices = append(usedByDevices, devName)
+			}
+		}
+
+		if len(usedByDevices) > 0 {
+			err = profileFunc(profile, p, usedByDevices)
+			if err != nil {
+				return err
 			}
 		}
 	}
 
-	return instUsingVolume, nil
+	return nil
+}
+
+// VolumeUsedByInstanceDevices finds instances using a volume (either directly or via their expanded profiles if
+// expandDevices is true) and passes them to instanceFunc for evaluation. If instanceFunc returns an error then it
+// is returned immediately. The instanceFunc is executed during a DB transaction, so DB queries are not permitted.
+// The instanceFunc is provided with a instance config, project config, instance's profiles and a list of device
+// names that are using the volume.
+func VolumeUsedByInstanceDevices(s *state.State, poolName string, projectName string, vol *api.StorageVolume, expandDevices bool, instanceFunc func(inst db.Instance, project api.Project, profiles []api.Profile, usedByDevices []string) error) error {
+	// Convert the volume type name to our internal integer representation.
+	volumeType, err := VolumeTypeNameToDBType(vol.Type)
+	if err != nil {
+		return err
+	}
+
+	return s.Cluster.InstanceList(func(inst db.Instance, p api.Project, profiles []api.Profile) error {
+		// If the volume has a specific cluster member which is different than the instance then skip as
+		// instance cannot be using this volume.
+		if vol.Location != "" && inst.Node != vol.Location {
+			return nil
+		}
+
+		instStorageProject := project.StorageVolumeProjectFromRecord(&p, volumeType)
+		if err != nil {
+			return err
+		}
+
+		// Check instance's storage project is the same as the volume's project.
+		// If not then the volume names mentioned in the instance's config cannot be referring to volumes
+		// in the volume's project we are trying to match, and this instance cannot possibly be using it.
+		if projectName != instStorageProject {
+			return nil
+		}
+
+		// Use local devices for usage check by if expandDevices is false (but don't modify instance).
+		devices := inst.Devices
+
+		// Expand devices for usage check if expandDevices is true.
+		if expandDevices {
+			devices = db.ExpandInstanceDevices(deviceConfig.NewDevices(inst.Devices), profiles).CloneNative()
+		}
+
+		var usedByDevices []string
+
+		// Iterate through each of the instance's devices, looking for disks in the same pool as volume.
+		// Then try and match the volume name against the instance device's "source" property.
+		for devName, dev := range devices {
+			if dev["type"] != "disk" {
+				continue
+			}
+
+			if dev["pool"] != poolName {
+				continue
+			}
+
+			if dev["source"] == vol.Name {
+				usedByDevices = append(usedByDevices, devName)
+			}
+		}
+
+		if len(usedByDevices) > 0 {
+			err = instanceFunc(inst, p, profiles, usedByDevices)
+			if err != nil {
+				return err
+			}
+		}
+
+		return nil
+	})
+}
+
+// VolumeUsedByExclusiveRemoteInstancesWithProfiles checks if custom volume is exclusively attached to a remote
+// instance. Returns the remote instance that has the volume exclusively attached. Returns nil if volume available.
+func VolumeUsedByExclusiveRemoteInstancesWithProfiles(s *state.State, poolName string, projectName string, vol *api.StorageVolume) (*db.Instance, error) {
+	pool, err := GetPoolByName(s, poolName)
+	if err != nil {
+		return nil, errors.Wrapf(err, "Failed loading storage pool %q", poolName)
+	}
+
+	info := pool.Driver().Info()
+
+	// Always return nil if the storage driver supports mounting volumes on multiple nodes at once.
+	if info.VolumeMultiNode {
+		return nil, nil
+	}
+
+	// Get local node name so we can check if the volume is attached to a remote node.
+	var localNode string
+	err = s.Cluster.Transaction(func(tx *db.ClusterTx) error {
+		localNode, err = tx.GetLocalNodeName()
+		return err
+	})
+	if err != nil {
+		return nil, errors.Wrapf(err, "Fetch node name")
+	}
+
+	// Find if volume is attached to a remote instance.
+	var errAttached = fmt.Errorf("Volume is remotely attached")
+	var remoteInstance *db.Instance
+	err = VolumeUsedByInstanceDevices(s, poolName, projectName, vol, true, func(dbInst db.Instance, project api.Project, profiles []api.Profile, usedByDevices []string) error {
+		if dbInst.Node != localNode {
+			remoteInstance = &dbInst
+			return errAttached // Stop the search, this volume is attached to a remote instance.
+		}
+
+		return nil
+	})
+	if err != nil && err != errAttached {
+		return nil, err
+	}
+
+	return remoteInstance, nil
 }
 
 // VolumeUsedByDaemon indicates whether the volume is used by daemon storage.
@@ -786,26 +944,57 @@ func RenderSnapshotUsage(s *state.State, snapInst instance.Instance) func(respon
 	}
 }
 
+// InstanceMount mounts an instance's storage volume (if not already mounted).
+// Please call InstanceUnmount when finished.
+func InstanceMount(pool Pool, inst instance.Instance, op *operations.Operation) (*MountInfo, error) {
+	var err error
+	var mountInfo *MountInfo
+
+	if inst.IsSnapshot() {
+		mountInfo, err = pool.MountInstanceSnapshot(inst, op)
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		mountInfo, err = pool.MountInstance(inst, op)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	return mountInfo, nil
+}
+
+// InstanceUnmount unmounts an instance's storage volume (if not in use). Returns if we unmounted the volume.
+func InstanceUnmount(pool Pool, inst instance.Instance, op *operations.Operation) (bool, error) {
+	var err error
+	var ourUnmount bool
+
+	if inst.IsSnapshot() {
+		ourUnmount, err = pool.UnmountInstanceSnapshot(inst, op)
+	} else {
+		ourUnmount, err = pool.UnmountInstance(inst, op)
+	}
+
+	return ourUnmount, err
+}
+
 // InstanceDiskBlockSize returns the block device size for the instance's disk.
 // This will mount the instance if not already mounted and will unmount at the end if needed.
 func InstanceDiskBlockSize(pool Pool, inst instance.Instance, op *operations.Operation) (int64, error) {
-	ourMount, err := pool.MountInstance(inst, op)
+	mountInfo, err := InstanceMount(pool, inst, op)
 	if err != nil {
 		return -1, err
 	}
+	defer InstanceUnmount(pool, inst, op)
 
-	if ourMount {
-		defer pool.UnmountInstance(inst, op)
+	if mountInfo.DiskPath == "" {
+		return -1, fmt.Errorf("No disk path available from mount")
 	}
 
-	rootDrivePath, err := pool.GetInstanceDisk(inst)
+	blockDiskSize, err := drivers.BlockDiskSizeBytes(mountInfo.DiskPath)
 	if err != nil {
-		return -1, err
-	}
-
-	blockDiskSize, err := drivers.BlockDiskSizeBytes(rootDrivePath)
-	if err != nil {
-		return -1, errors.Wrapf(err, "Error getting block disk size %q", rootDrivePath)
+		return -1, errors.Wrapf(err, "Error getting block disk size %q", mountInfo.DiskPath)
 	}
 
 	return blockDiskSize, nil

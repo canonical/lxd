@@ -8,6 +8,7 @@ import (
 
 	"github.com/lxc/lxd/lxd/locking"
 	"github.com/lxc/lxd/lxd/operations"
+	"github.com/lxc/lxd/lxd/refcount"
 	"github.com/lxc/lxd/lxd/revert"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/units"
@@ -134,6 +135,26 @@ func (v Volume) MountPath() string {
 	return GetVolumeMountPath(v.pool, v.volType, v.name)
 }
 
+// mountLockName returns the lock name to use for mount/unmount operations on a volume.
+func (v Volume) mountLockName() string {
+	return OperationLockName("Mount", v.pool, v.volType, v.contentType, v.name)
+}
+
+// MountLock attempts to lock the mount lock for the volume and returns the UnlockFunc.
+func (v Volume) MountLock() locking.UnlockFunc {
+	return locking.Lock(v.mountLockName())
+}
+
+// MountRefCountIncrement increments the mount ref counter for the volume and returns the new value.
+func (v Volume) MountRefCountIncrement() uint {
+	return refcount.Increment(v.mountLockName(), 1)
+}
+
+// MountRefCountDecrement decrements the mount ref counter for the volume and returns the new value.
+func (v Volume) MountRefCountDecrement() uint {
+	return refcount.Decrement(v.mountLockName(), 1)
+}
+
 // EnsureMountPath creates the volume's mount path if missing, then sets the correct permission for the type.
 // If permission setting fails and the volume is a snapshot then the error is ignored as snapshots are read only.
 func (v Volume) EnsureMountPath() error {
@@ -187,41 +208,20 @@ func (v Volume) MountTask(task func(mountPath string, op *operations.Operation) 
 	// If the volume is a snapshot then call the snapshot specific mount/unmount functions as
 	// these will mount the snapshot read only.
 	if v.IsSnapshot() {
-		unlock := locking.Lock(OperationLockName(v.pool, string(v.volType), v.name))
-
 		ourMount, err := v.driver.MountVolumeSnapshot(v, op)
 		if err != nil {
-			unlock()
 			return err
 		}
 
-		unlock()
-
 		if ourMount {
-			defer func() {
-				unlock := locking.Lock(OperationLockName(v.pool, string(v.volType), v.name))
-				v.driver.UnmountVolumeSnapshot(v, op)
-				unlock()
-			}()
+			defer v.driver.UnmountVolumeSnapshot(v, op)
 		}
 	} else {
-		unlock := locking.Lock(OperationLockName(v.pool, string(v.volType), v.name))
-
-		ourMount, err := v.driver.MountVolume(v, op)
+		err := v.driver.MountVolume(v, op)
 		if err != nil {
-			unlock()
 			return err
 		}
-
-		unlock()
-
-		if ourMount {
-			defer func() {
-				unlock := locking.Lock(OperationLockName(v.pool, string(v.volType), v.name))
-				v.driver.UnmountVolume(v, false, op)
-				unlock()
-			}()
-		}
+		defer v.driver.UnmountVolume(v, false, op)
 	}
 
 	return task(v.MountPath(), op)
@@ -234,40 +234,22 @@ func (v Volume) UnmountTask(task func(op *operations.Operation) error, keepBlock
 	// If the volume is a snapshot then call the snapshot specific mount/unmount functions as
 	// these will mount the snapshot read only.
 	if v.IsSnapshot() {
-		unlock := locking.Lock(OperationLockName(v.pool, string(v.volType), v.name))
-
 		ourUnmount, err := v.driver.UnmountVolumeSnapshot(v, op)
 		if err != nil {
-			unlock()
 			return err
 		}
 
-		unlock()
-
 		if ourUnmount {
-			defer func() {
-				unlock := locking.Lock(OperationLockName(v.pool, string(v.volType), v.name))
-				v.driver.MountVolumeSnapshot(v, op)
-				unlock()
-			}()
+			defer v.driver.MountVolumeSnapshot(v, op)
 		}
 	} else {
-		unlock := locking.Lock(OperationLockName(v.pool, string(v.volType), v.name))
-
 		ourUnmount, err := v.driver.UnmountVolume(v, keepBlockDev, op)
 		if err != nil {
-			unlock()
 			return err
 		}
 
-		unlock()
-
 		if ourUnmount {
-			defer func() {
-				unlock := locking.Lock(OperationLockName(v.pool, string(v.volType), v.name))
-				v.driver.MountVolume(v, op)
-				unlock()
-			}()
+			defer v.driver.MountVolume(v, op)
 		}
 	}
 
@@ -428,7 +410,7 @@ func (v Volume) ConfigSizeFromSource(srcVol Volume) (string, error) {
 		return volSize, nil
 	}
 
-	// If volume/pool size is not specified, then fallback to default volume size if relevant and compare.
+	// If volume/pool size not specified above, then fallback to default volume size (if relevant) and compare.
 	volSize = v.ConfigSize()
 	if volSize != "" && volSize != "0" {
 		volSizeBytes, err := units.ParseByteSizeString(volSize)

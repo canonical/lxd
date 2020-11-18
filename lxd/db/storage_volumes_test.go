@@ -11,7 +11,7 @@ import (
 )
 
 // Addresses of all nodes with matching volume name are returned.
-func TestStorageVolumeNodeAddresses(t *testing.T) {
+func TestGetStorageVolumeNodes(t *testing.T) {
 	tx, cleanup := db.NewTestClusterTx(t)
 	defer cleanup()
 
@@ -29,10 +29,21 @@ func TestStorageVolumeNodeAddresses(t *testing.T) {
 	addVolume(t, tx, poolID, nodeID3, "volume2")
 	addVolume(t, tx, poolID, nodeID2, "volume2")
 
-	addresses, err := tx.GetStorageVolumeNodeAddresses(poolID, "default", "volume1", 1)
+	nodes, err := tx.GetStorageVolumeNodes(poolID, "default", "volume1", 1)
 	require.NoError(t, err)
 
-	assert.Equal(t, []string{"", "1.2.3.4:666"}, addresses)
+	assert.Equal(t, []db.NodeInfo{
+		{
+			ID:      nodeID1,
+			Name:    "none",
+			Address: "0.0.0.0",
+		},
+		{
+			ID:      nodeID2,
+			Name:    "node2",
+			Address: "1.2.3.4:666",
+		},
+	}, nodes)
 }
 
 func addPool(t *testing.T, tx *db.ClusterTx, name string) int64 {

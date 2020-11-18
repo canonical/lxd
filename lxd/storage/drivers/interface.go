@@ -57,9 +57,8 @@ type Driver interface {
 	SetVolumeQuota(vol Volume, size string, op *operations.Operation) error
 	GetVolumeDiskPath(vol Volume) (string, error)
 
-	// MountVolume mounts a storage volume, returns true if we caused a new mount, false if
-	// already mounted.
-	MountVolume(vol Volume, op *operations.Operation) (bool, error)
+	// MountVolume mounts a storage volume (if not mounted) and increments reference counter.
+	MountVolume(vol Volume, op *operations.Operation) error
 
 	// MountVolumeSnapshot mounts a storage volume snapshot as readonly, returns true if we
 	// caused a new mount, false if already mounted.

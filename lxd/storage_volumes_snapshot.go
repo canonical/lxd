@@ -66,7 +66,7 @@ func storagePoolVolumeSnapshotsTypePost(d *Daemon, r *http.Request) response.Res
 	}
 
 	// Convert the volume type name to our internal integer representation.
-	volumeType, err := storagePools.VolumeTypeNameToType(volumeTypeName)
+	volumeType, err := storagePools.VolumeTypeNameToDBType(volumeTypeName)
 	if err != nil {
 		return response.BadRequest(err)
 	}
@@ -114,7 +114,7 @@ func storagePoolVolumeSnapshotsTypePost(d *Daemon, r *http.Request) response.Res
 		return resp
 	}
 
-	resp = forwardedResponseIfVolumeIsRemote(d, r, poolID, projectName, volumeName, volumeType)
+	resp = forwardedResponseIfVolumeIsRemote(d, r, poolName, projectName, volumeName, volumeType)
 	if resp != nil {
 		return resp
 	}
@@ -179,7 +179,7 @@ func storagePoolVolumeSnapshotsTypeGet(d *Daemon, r *http.Request) response.Resp
 	volumeName := mux.Vars(r)["name"]
 
 	// Convert the volume type name to our internal integer representation.
-	volumeType, err := storagePools.VolumeTypeNameToType(volumeTypeName)
+	volumeType, err := storagePools.VolumeTypeNameToDBType(volumeTypeName)
 	if err != nil {
 		return response.BadRequest(err)
 	}
@@ -212,18 +212,14 @@ func storagePoolVolumeSnapshotsTypeGet(d *Daemon, r *http.Request) response.Resp
 		_, snapshotName, _ := shared.InstanceGetParentAndSnapshotName(volume.Name)
 
 		if !recursion {
-			apiEndpoint, err := storagePoolVolumeTypeToAPIEndpoint(volumeType)
-			if err != nil {
-				return response.InternalError(err)
-			}
-			resultString = append(resultString, fmt.Sprintf("/%s/storage-pools/%s/volumes/%s/%s/snapshots/%s", version.APIVersion, poolName, apiEndpoint, volumeName, snapshotName))
+			resultString = append(resultString, fmt.Sprintf("/%s/storage-pools/%s/volumes/%s/%s/snapshots/%s", version.APIVersion, poolName, volumeTypeName, volumeName, snapshotName))
 		} else {
 			_, vol, err := d.cluster.GetLocalStoragePoolVolume(projectName, volume.Name, volumeType, poolID)
 			if err != nil {
 				continue
 			}
 
-			volumeUsedBy, err := storagePoolVolumeUsedByGet(d.State(), projectName, poolName, vol.Name, vol.Type)
+			volumeUsedBy, err := storagePoolVolumeUsedByGet(d.State(), projectName, poolName, vol)
 			if err != nil {
 				return response.SmartError(err)
 			}
@@ -276,7 +272,7 @@ func storagePoolVolumeSnapshotTypePost(d *Daemon, r *http.Request) response.Resp
 	}
 
 	// Convert the volume type name to our internal integer representation.
-	volumeType, err := storagePools.VolumeTypeNameToType(volumeTypeName)
+	volumeType, err := storagePools.VolumeTypeNameToDBType(volumeTypeName)
 	if err != nil {
 		return response.BadRequest(err)
 	}
@@ -296,13 +292,8 @@ func storagePoolVolumeSnapshotTypePost(d *Daemon, r *http.Request) response.Resp
 		return resp
 	}
 
-	poolID, _, err := d.cluster.GetStoragePool(poolName)
-	if err != nil {
-		return response.SmartError(err)
-	}
-
 	fullSnapshotName := fmt.Sprintf("%s/%s", volumeName, snapshotName)
-	resp = forwardedResponseIfVolumeIsRemote(d, r, poolID, projectName, fullSnapshotName, volumeType)
+	resp = forwardedResponseIfVolumeIsRemote(d, r, poolName, projectName, fullSnapshotName, volumeType)
 	if resp != nil {
 		return resp
 	}
@@ -342,14 +333,9 @@ func storagePoolVolumeSnapshotTypeGet(d *Daemon, r *http.Request) response.Respo
 	snapshotName := mux.Vars(r)["snapshotName"]
 
 	// Convert the volume type name to our internal integer representation.
-	volumeType, err := storagePools.VolumeTypeNameToType(volumeTypeName)
+	volumeType, err := storagePools.VolumeTypeNameToDBType(volumeTypeName)
 	if err != nil {
 		return response.BadRequest(err)
-	}
-
-	// Check that the storage volume type is valid.
-	if volumeType != db.StoragePoolVolumeTypeCustom {
-		return response.BadRequest(fmt.Errorf("Invalid storage volume type %q", volumeTypeName))
 	}
 
 	projectName, err := project.StorageVolumeProject(d.State().Cluster, projectParam(r), volumeType)
@@ -368,7 +354,7 @@ func storagePoolVolumeSnapshotTypeGet(d *Daemon, r *http.Request) response.Respo
 	}
 
 	fullSnapshotName := fmt.Sprintf("%s/%s", volumeName, snapshotName)
-	resp = forwardedResponseIfVolumeIsRemote(d, r, poolID, projectName, fullSnapshotName, volumeType)
+	resp = forwardedResponseIfVolumeIsRemote(d, r, poolName, projectName, fullSnapshotName, volumeType)
 	if resp != nil {
 		return resp
 	}
@@ -411,7 +397,7 @@ func storagePoolVolumeSnapshotTypePut(d *Daemon, r *http.Request) response.Respo
 	snapshotName := mux.Vars(r)["snapshotName"]
 
 	// Convert the volume type name to our internal integer representation.
-	volumeType, err := storagePools.VolumeTypeNameToType(volumeTypeName)
+	volumeType, err := storagePools.VolumeTypeNameToDBType(volumeTypeName)
 	if err != nil {
 		return response.BadRequest(err)
 	}
@@ -437,7 +423,7 @@ func storagePoolVolumeSnapshotTypePut(d *Daemon, r *http.Request) response.Respo
 	}
 
 	fullSnapshotName := fmt.Sprintf("%s/%s", volumeName, snapshotName)
-	resp = forwardedResponseIfVolumeIsRemote(d, r, poolID, projectName, fullSnapshotName, volumeType)
+	resp = forwardedResponseIfVolumeIsRemote(d, r, poolName, projectName, fullSnapshotName, volumeType)
 	if resp != nil {
 		return resp
 	}
@@ -507,7 +493,7 @@ func storagePoolVolumeSnapshotTypeDelete(d *Daemon, r *http.Request) response.Re
 	snapshotName := mux.Vars(r)["snapshotName"]
 
 	// Convert the volume type name to our internal integer representation.
-	volumeType, err := storagePools.VolumeTypeNameToType(volumeTypeName)
+	volumeType, err := storagePools.VolumeTypeNameToDBType(volumeTypeName)
 	if err != nil {
 		return response.BadRequest(err)
 	}
@@ -527,13 +513,8 @@ func storagePoolVolumeSnapshotTypeDelete(d *Daemon, r *http.Request) response.Re
 		return resp
 	}
 
-	poolID, _, err := d.cluster.GetStoragePool(poolName)
-	if err != nil {
-		return response.SmartError(err)
-	}
-
 	fullSnapshotName := fmt.Sprintf("%s/%s", volumeName, snapshotName)
-	resp = forwardedResponseIfVolumeIsRemote(d, r, poolID, projectName, fullSnapshotName, volumeType)
+	resp = forwardedResponseIfVolumeIsRemote(d, r, poolName, projectName, fullSnapshotName, volumeType)
 	if resp != nil {
 		return resp
 	}

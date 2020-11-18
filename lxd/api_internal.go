@@ -25,6 +25,7 @@ import (
 	"github.com/lxc/lxd/lxd/instance/instancetype"
 	"github.com/lxc/lxd/lxd/project"
 	"github.com/lxc/lxd/lxd/response"
+	"github.com/lxc/lxd/lxd/state"
 	storagePools "github.com/lxc/lxd/lxd/storage"
 	storageDrivers "github.com/lxc/lxd/lxd/storage/drivers"
 	"github.com/lxc/lxd/shared"
@@ -65,19 +66,19 @@ var internalReadyCmd = APIEndpoint{
 }
 
 var internalContainerOnStartCmd = APIEndpoint{
-	Path: "containers/{id}/onstart",
+	Path: "containers/{instanceRef}/onstart",
 
 	Get: APIEndpointAction{Handler: internalContainerOnStart},
 }
 
 var internalContainerOnStopNSCmd = APIEndpoint{
-	Path: "containers/{id}/onstopns",
+	Path: "containers/{instanceRef}/onstopns",
 
 	Get: APIEndpointAction{Handler: internalContainerOnStopNS},
 }
 
 var internalContainerOnStopCmd = APIEndpoint{
-	Path: "containers/{id}/onstop",
+	Path: "containers/{instanceRef}/onstop",
 
 	Get: APIEndpointAction{Handler: internalContainerOnStop},
 }
@@ -92,7 +93,7 @@ var internalSQLCmd = APIEndpoint{
 var internalContainersCmd = APIEndpoint{
 	Path: "containers",
 
-	Post: APIEndpointAction{Handler: internalImport},
+	Post: APIEndpointAction{Handler: internalImportFromRecovery},
 }
 
 var internalGarbageCollectorCmd = APIEndpoint{
@@ -138,24 +139,43 @@ func internalShutdown(d *Daemon, r *http.Request) response.Response {
 	return response.EmptySyncResponse
 }
 
-func internalContainerOnStart(d *Daemon, r *http.Request) response.Response {
-	id, err := strconv.Atoi(mux.Vars(r)["id"])
-	if err != nil {
-		return response.SmartError(err)
-	}
+// internalContainerHookLoadFromRequestReference loads the container from the instance reference in the request.
+// It detects whether the instance reference is an instance ID or instance name and loads instance accordingly.
+func internalContainerHookLoadFromReference(s *state.State, r *http.Request) (instance.Instance, error) {
+	var inst instance.Instance
+	instanceRef := mux.Vars(r)["instanceRef"]
+	projectName := projectParam(r)
 
-	inst, err := instance.LoadByID(d.State(), id)
-	if err != nil {
-		return response.SmartError(err)
+	instanceID, err := strconv.Atoi(instanceRef)
+	if err == nil {
+		inst, err = instance.LoadByID(s, instanceID)
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		inst, err = instance.LoadByProjectAndName(s, projectName, instanceRef)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	if inst.Type() != instancetype.Container {
-		return response.SmartError(fmt.Errorf("Instance is not container type"))
+		return nil, fmt.Errorf("Instance is not container type")
+	}
+
+	return inst, nil
+}
+
+func internalContainerOnStart(d *Daemon, r *http.Request) response.Response {
+	inst, err := internalContainerHookLoadFromReference(d.State(), r)
+	if err != nil {
+		logger.Error("The start hook failed to load", log.Ctx{"instance": inst.Name(), "err": err})
+		return response.SmartError(err)
 	}
 
 	err = inst.OnHook(instance.HookStart, nil)
 	if err != nil {
-		logger.Error("The start hook failed", log.Ctx{"container": inst.Name(), "err": err})
+		logger.Error("The start hook failed", log.Ctx{"instance": inst.Name(), "err": err})
 		return response.SmartError(err)
 	}
 
@@ -163,8 +183,9 @@ func internalContainerOnStart(d *Daemon, r *http.Request) response.Response {
 }
 
 func internalContainerOnStopNS(d *Daemon, r *http.Request) response.Response {
-	id, err := strconv.Atoi(mux.Vars(r)["id"])
+	inst, err := internalContainerHookLoadFromReference(d.State(), r)
 	if err != nil {
+		logger.Error("The stopns hook failed to load", log.Ctx{"instance": inst.Name(), "err": err})
 		return response.SmartError(err)
 	}
 
@@ -174,15 +195,6 @@ func internalContainerOnStopNS(d *Daemon, r *http.Request) response.Response {
 	}
 	netns := queryParam(r, "netns")
 
-	inst, err := instance.LoadByID(d.State(), id)
-	if err != nil {
-		return response.SmartError(err)
-	}
-
-	if inst.Type() != instancetype.Container {
-		return response.SmartError(fmt.Errorf("Instance is not container type"))
-	}
-
 	args := map[string]string{
 		"target": target,
 		"netns":  netns,
@@ -190,7 +202,7 @@ func internalContainerOnStopNS(d *Daemon, r *http.Request) response.Response {
 
 	err = inst.OnHook(instance.HookStopNS, args)
 	if err != nil {
-		logger.Error("The stopns hook failed", log.Ctx{"container": inst.Name(), "err": err})
+		logger.Error("The stopns hook failed", log.Ctx{"instance": inst.Name(), "err": err})
 		return response.SmartError(err)
 	}
 
@@ -198,8 +210,9 @@ func internalContainerOnStopNS(d *Daemon, r *http.Request) response.Response {
 }
 
 func internalContainerOnStop(d *Daemon, r *http.Request) response.Response {
-	id, err := strconv.Atoi(mux.Vars(r)["id"])
+	inst, err := internalContainerHookLoadFromReference(d.State(), r)
 	if err != nil {
+		logger.Error("The stop hook failed to load", log.Ctx{"instance": inst.Name(), "err": err})
 		return response.SmartError(err)
 	}
 
@@ -208,22 +221,13 @@ func internalContainerOnStop(d *Daemon, r *http.Request) response.Response {
 		target = "unknown"
 	}
 
-	inst, err := instance.LoadByID(d.State(), id)
-	if err != nil {
-		return response.SmartError(err)
-	}
-
-	if inst.Type() != instancetype.Container {
-		return response.SmartError(fmt.Errorf("Instance is not container type"))
-	}
-
 	args := map[string]string{
 		"target": target,
 	}
 
 	err = inst.OnHook(instance.HookStop, args)
 	if err != nil {
-		logger.Error("The stop hook failed", log.Ctx{"container": inst.Name(), "err": err})
+		logger.Error("The stop hook failed", log.Ctx{"instance": inst.Name(), "err": err})
 		return response.SmartError(err)
 	}
 
@@ -420,18 +424,50 @@ type internalImportPost struct {
 	AllowNameOverride bool   `json:"allow_name_override" yaml:"allow_name_override"`
 }
 
-func internalImport(d *Daemon, r *http.Request) response.Response {
+// internalImportFromRecovery allows recovery of an instance that is already on disk and mounted.
+// If recovery is successful the instance is unmounted at the end.
+func internalImportFromRecovery(d *Daemon, r *http.Request) response.Response {
 	projectName := projectParam(r)
 
-	req := &internalImportPost{}
 	// Parse the request.
+	req := &internalImportPost{}
 	err := json.NewDecoder(r.Body).Decode(&req)
 	if err != nil {
 		return response.BadRequest(err)
 	}
 
+	resp := internalImport(d, projectName, req)
+	if resp.String() != "success" {
+		return resp
+	}
+
+	inst, err := instance.LoadByProjectAndName(d.State(), projectName, req.Name)
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	// If instance isn't running, then unmount instance volume to reset the mount and any left over ref
+	// counters back its non-running state.
+	if !inst.IsRunning() {
+		pool, err := storagePools.GetPoolByInstance(d.State(), inst)
+		if err != nil {
+			return response.SmartError(err)
+		}
+
+		_, err = pool.UnmountInstance(inst, nil)
+		if err != nil {
+			return response.SmartError(err)
+		}
+	}
+
+	return resp
+}
+
+// internalImport creates the instance and storage volume DB records.
+// It expects the instance volume to be mounted so that the backup.yaml file is readable.
+func internalImport(d *Daemon, projectName string, req *internalImportPost) response.Response {
 	if req.Name == "" {
-		return response.BadRequest(fmt.Errorf(`The name of the instance is required`))
+		return response.BadRequest(fmt.Errorf("The name of the instance is required"))
 	}
 
 	storagePoolsPath := shared.VarPath("storage-pools")
@@ -666,8 +702,7 @@ func internalImport(d *Daemon, r *http.Request) response.Response {
 		Stateful:     backupConf.Container.Stateful,
 	})
 	if err != nil {
-		err = errors.Wrap(err, "Create instance")
-		return response.SmartError(err)
+		return response.SmartError(errors.Wrap(err, "Failed creating instance record"))
 	}
 
 	instancePath := storagePools.InstancePath(instanceType, projectName, req.Name, false)
@@ -765,7 +800,7 @@ func internalImport(d *Daemon, r *http.Request) response.Response {
 			Stateful:     snap.Stateful,
 		})
 		if err != nil {
-			return response.SmartError(err)
+			return response.SmartError(errors.Wrapf(err, "Failed creating instance snapshot record %q", snap.Name))
 		}
 
 		// Recreate missing mountpoints and symlinks.

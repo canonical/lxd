@@ -8,6 +8,7 @@ import (
 	liblxc "gopkg.in/lxc/go-lxc.v2"
 
 	"github.com/lxc/lxd/lxd/backup"
+	"github.com/lxc/lxd/lxd/cgroup"
 	"github.com/lxc/lxd/lxd/db"
 	deviceConfig "github.com/lxc/lxd/lxd/device/config"
 	"github.com/lxc/lxd/lxd/instance/instancetype"
@@ -51,6 +52,7 @@ type Instance interface {
 	Shutdown(timeout time.Duration) error
 	Start(stateful bool) error
 	Stop(stateful bool) error
+	Restart(timeout time.Duration) error
 	Unfreeze() error
 	RegisterDevices()
 	SaveConfigFile() error
@@ -74,7 +76,7 @@ type Instance interface {
 	DevPaths() []string
 
 	// Live configuration.
-	CGroupSet(key string, value string) error
+	CGroup() (*cgroup.CGroup, error)
 	VolatileSet(changes map[string]string) error
 
 	// File handling.
@@ -136,8 +138,6 @@ type Instance interface {
 
 	// FIXME: Those should be internal functions.
 	// Needed for migration for now.
-	StorageStart() (bool, error)
-	StorageStop() (bool, error)
 	DeferTemplateApply(trigger string) error
 }
 

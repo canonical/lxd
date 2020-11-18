@@ -103,18 +103,18 @@ func (d *zfs) load() error {
 // Info returns info about the driver and its environment.
 func (d *zfs) Info() Info {
 	info := Info{
-		Name:                  "zfs",
-		Version:               zfsVersion,
-		OptimizedImages:       true,
-		OptimizedBackups:      true,
-		PreservesInodes:       true,
-		Remote:                d.isRemote(),
-		VolumeTypes:           []VolumeType{VolumeTypeCustom, VolumeTypeImage, VolumeTypeContainer, VolumeTypeVM},
-		BlockBacking:          false,
-		RunningQuotaResize:    true,
-		RunningSnapshotFreeze: false,
-		DirectIO:              zfsDirectIO,
-		MountedRoot:           false,
+		Name:               "zfs",
+		Version:            zfsVersion,
+		OptimizedImages:    true,
+		OptimizedBackups:   true,
+		PreservesInodes:    true,
+		Remote:             d.isRemote(),
+		VolumeTypes:        []VolumeType{VolumeTypeCustom, VolumeTypeImage, VolumeTypeContainer, VolumeTypeVM},
+		BlockBacking:       false,
+		RunningQuotaResize: true,
+		RunningCopyFreeze:  false,
+		DirectIO:           zfsDirectIO,
+		MountedRoot:        false,
 	}
 
 	return info
@@ -342,8 +342,14 @@ func (d *zfs) Delete(op *operations.Operation) error {
 // Validate checks that all provide keys are supported and that no conflicting or missing configuration is present.
 func (d *zfs) Validate(config map[string]string) error {
 	rules := map[string]func(value string) error{
-		"zfs.pool_name":               validate.IsAny,
-		"zfs.clone_copy":              validate.Optional(validate.IsBool),
+		"zfs.pool_name": validate.IsAny,
+		"zfs.clone_copy": validate.Optional(func(value string) error {
+			if value == "rebase" {
+				return nil
+			}
+
+			return validate.IsBool(value)
+		}),
 		"volume.zfs.remove_snapshots": validate.Optional(validate.IsBool),
 		"volume.zfs.use_refquota":     validate.Optional(validate.IsBool),
 	}

@@ -44,6 +44,9 @@ const OVNIPv6AddressModeDHCPStateful OVNIPv6AddressMode = "dhcpv6_stateful"
 // OVNIPv6AddressModeDHCPStateless IPv6 DHCPv6 stateless mode.
 const OVNIPv6AddressModeDHCPStateless OVNIPv6AddressMode = "dhcpv6_stateless"
 
+// ErrOVNNoPortIPs used when no IPs are found for a logical port.
+var ErrOVNNoPortIPs = fmt.Errorf("No port IPs")
+
 // OVNIPv6RAOpts IPv6 router advertisements options that can be applied to a router.
 type OVNIPv6RAOpts struct {
 	SendPeriodic       bool
@@ -750,6 +753,10 @@ func (o *OVN) LogicalSwitchPortSetDNS(switchName OVNSwitch, portName OVNSwitchPo
 
 	if dnsIPv6 != nil {
 		dnsIPs = append(dnsIPs, dnsIPv6.String())
+	}
+
+	if len(dnsIPs) <= 0 {
+		return "", nil, nil, ErrOVNNoPortIPs
 	}
 
 	// Check if existing DNS record exists for switch port.

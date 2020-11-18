@@ -29,6 +29,7 @@ import (
 	lxdClient "github.com/lxc/lxd/client"
 	"github.com/lxc/lxd/lxd/apparmor"
 	"github.com/lxc/lxd/lxd/backup"
+	"github.com/lxc/lxd/lxd/cgroup"
 	"github.com/lxc/lxd/lxd/cluster"
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/db/query"
@@ -375,7 +376,8 @@ func (vm *qemu) getStoragePool() (storagePools.Pool, error) {
 }
 
 func (vm *qemu) getMonitorEventHandler() func(event string, data map[string]interface{}) {
-	id := vm.id
+	projectName := vm.Project()
+	instanceName := vm.Name()
 	state := vm.state
 
 	return func(event string, data map[string]interface{}) {
@@ -383,9 +385,9 @@ func (vm *qemu) getMonitorEventHandler() func(event string, data map[string]inte
 			return
 		}
 
-		inst, err := instance.LoadByID(state, id)
+		inst, err := instance.LoadByProjectAndName(state, projectName, instanceName)
 		if err != nil {
-			logger.Errorf("Failed to load instance with id=%d", id)
+			logger.Error("Failed to load instance", "project", projectName, "instance", instanceName, "err", err)
 			return
 		}
 
@@ -398,7 +400,7 @@ func (vm *qemu) getMonitorEventHandler() func(event string, data map[string]inte
 
 			err = inst.(*qemu).onStop(target)
 			if err != nil {
-				logger.Errorf("Failed to cleanly stop instance '%s': %v", project.Instance(inst.Project(), inst.Name()), err)
+				logger.Error("Failed to cleanly stop instance", "project", projectName, "instance", instanceName, "err", err)
 				return
 			}
 		}
@@ -406,19 +408,28 @@ func (vm *qemu) getMonitorEventHandler() func(event string, data map[string]inte
 }
 
 // mount the instance's config volume if needed.
-func (vm *qemu) mount() (bool, error) {
+func (vm *qemu) mount() (*storagePools.MountInfo, error) {
 	var pool storagePools.Pool
 	pool, err := vm.getStoragePool()
 	if err != nil {
-		return false, err
+		return nil, err
 	}
 
-	ourMount, err := pool.MountInstance(vm, nil)
+	if vm.IsSnapshot() {
+		mountInfo, err := pool.MountInstanceSnapshot(vm, nil)
+		if err != nil {
+			return nil, err
+		}
+
+		return mountInfo, nil
+	}
+
+	mountInfo, err := pool.MountInstance(vm, nil)
 	if err != nil {
-		return false, err
+		return nil, err
 	}
 
-	return ourMount, nil
+	return mountInfo, nil
 }
 
 // unmount the instance's config volume if needed.
@@ -439,14 +450,11 @@ func (vm *qemu) unmount() (bool, error) {
 // generateAgentCert creates the necessary server key and certificate if needed.
 func (vm *qemu) generateAgentCert() (string, string, string, string, error) {
 	// Mount the instance's config volume if needed.
-	ourMount, err := vm.mount()
+	_, err := vm.mount()
 	if err != nil {
 		return "", "", "", "", err
 	}
-
-	if ourMount {
-		defer vm.unmount()
-	}
+	defer vm.unmount()
 
 	agentCertFile := filepath.Join(vm.Path(), "agent.crt")
 	agentKeyFile := filepath.Join(vm.Path(), "agent.key")
@@ -526,8 +534,16 @@ func (vm *qemu) onStop(target string) error {
 	os.Remove(vm.monitorPath())
 	vm.unmount()
 
+	pidPath := filepath.Join(vm.LogPath(), "virtiofsd.pid")
+
+	proc, err := subprocess.ImportProcess(pidPath)
+	if err == nil {
+		proc.Stop()
+		os.Remove(pidPath)
+	}
+
 	// Record power state.
-	err := vm.state.Cluster.UpdateInstancePowerState(vm.id, "STOPPED")
+	err = vm.state.Cluster.UpdateInstancePowerState(vm.id, "STOPPED")
 	if err != nil {
 		if op != nil {
 			op.Done(err)
@@ -628,6 +644,11 @@ func (vm *qemu) Shutdown(timeout time.Duration) error {
 	return nil
 }
 
+// Restart restart the instance.
+func (vm *qemu) Restart(timeout time.Duration) error {
+	return vm.common.restart(vm, timeout)
+}
+
 func (vm *qemu) ovmfPath() string {
 	if os.Getenv("LXD_OVMF_PATH") != "" {
 		return os.Getenv("LXD_OVMF_PATH")
@@ -672,7 +693,7 @@ func (vm *qemu) Start(stateful bool) error {
 	}
 
 	// Mount the instance's config volume.
-	_, err = vm.mount()
+	mountInfo, err := vm.mount()
 	if err != nil {
 		op.Done(err)
 		return err
@@ -686,6 +707,7 @@ func (vm *qemu) Start(stateful bool) error {
 		return err
 	}
 
+	// Create all needed paths.
 	err = os.MkdirAll(vm.LogPath(), 0700)
 	if err != nil {
 		op.Done(err)
@@ -704,11 +726,61 @@ func (vm *qemu) Start(stateful bool) error {
 		return err
 	}
 
-	// Get a UUID for Qemu.
-	vmUUID := vm.localConfig["volatile.vm.uuid"]
-	if vmUUID == "" {
-		vmUUID = uuid.New()
-		vm.VolatileSet(map[string]string{"volatile.vm.uuid": vmUUID})
+	// Setup virtiofsd for config path.
+	sockPath := filepath.Join(vm.LogPath(), "virtio-fs.config.sock")
+
+	// Remove old socket if needed.
+	os.Remove(sockPath)
+
+	cmd, err := exec.LookPath("virtiofsd")
+	if err != nil {
+		if shared.PathExists("/usr/lib/qemu/virtiofsd") {
+			cmd = "/usr/lib/qemu/virtiofsd"
+		}
+	}
+
+	if cmd != "" {
+		// Start the virtiofsd process in non-daemon mode.
+		proc, err := subprocess.NewProcess(cmd, []string{fmt.Sprintf("--socket-path=%s", sockPath), "-o", fmt.Sprintf("source=%s", filepath.Join(vm.Path(), "config"))}, "", "")
+		if err != nil {
+			return err
+		}
+
+		err = proc.Start()
+		if err != nil {
+			return err
+		}
+
+		revert.Add(func() { proc.Stop() })
+
+		pidPath := filepath.Join(vm.LogPath(), "virtiofsd.pid")
+
+		err = proc.Save(pidPath)
+		if err != nil {
+			return err
+		}
+
+		// Wait for socket file to exist
+		for i := 0; i < 20; i++ {
+			if shared.PathExists(sockPath) {
+				break
+			}
+
+			time.Sleep(50 * time.Millisecond)
+		}
+
+		if !shared.PathExists(sockPath) {
+			return fmt.Errorf("virtiofsd failed to bind socket within 1s")
+		}
+	} else {
+		logger.Warn("Unable to use virtio-fs for config drive, using 9p as a fallback: virtiofsd missing")
+	}
+
+	// Generate UUID if not present.
+	instUUID := vm.localConfig["volatile.uuid"]
+	if instUUID == "" {
+		instUUID = uuid.New()
+		vm.VolatileSet(map[string]string{"volatile.uuid": instUUID})
 	}
 
 	// Copy OVMF settings firmware to nvram file.
@@ -758,7 +830,7 @@ func (vm *qemu) Start(stateful bool) error {
 	// Define a set of files to open and pass their file descriptors to qemu command.
 	fdFiles := make([]string, 0)
 
-	confFile, err := vm.generateQemuConfigFile(qemuBus, devConfs, &fdFiles)
+	confFile, err := vm.generateQemuConfigFile(mountInfo, qemuBus, devConfs, &fdFiles)
 	if err != nil {
 		op.Done(err)
 		return err
@@ -776,7 +848,7 @@ func (vm *qemu) Start(stateful bool) error {
 		qemuPath,
 		"-S",
 		"-name", vm.Name(),
-		"-uuid", vmUUID,
+		"-uuid", instUUID,
 		"-daemonize",
 		"-cpu", "host",
 		"-nographic",
@@ -1051,14 +1123,11 @@ func (vm *qemu) setupNvram() error {
 	}
 
 	// Mount the instance's config volume.
-	ourMount, err := vm.mount()
+	_, err := vm.mount()
 	if err != nil {
 		return err
 	}
-
-	if ourMount {
-		defer vm.unmount()
-	}
+	defer vm.unmount()
 
 	srcOvmfFile := filepath.Join(vm.ovmfPath(), "OVMF_VARS.fd")
 	if vm.expandedConfig["security.secureboot"] == "" || shared.IsTrue(vm.expandedConfig["security.secureboot"]) {
@@ -1120,9 +1189,27 @@ func (vm *qemu) deviceVolatileSetFunc(devName string) func(save map[string]strin
 	}
 }
 
-// RegisterDevices is not used by VMs.
+// RegisterDevices calls the Register() function on all of the instance's devices.
 func (vm *qemu) RegisterDevices() {
-	return
+	devices := vm.ExpandedDevices()
+	for _, dev := range devices.Sorted() {
+		d, _, err := vm.deviceLoad(dev.Name, dev.Config)
+		if err == device.ErrUnsupportedDevType {
+			continue
+		}
+
+		if err != nil {
+			logger.Error("Failed to load device to register", log.Ctx{"err": err, "instance": vm.Name(), "device": dev.Name})
+			continue
+		}
+
+		// Check whether device wants to register for any events.
+		err = d.Register()
+		if err != nil {
+			logger.Error("Failed to register device", log.Ctx{"err": err, "instance": vm.Name(), "device": dev.Name})
+			continue
+		}
+	}
 }
 
 // SaveConfigFile is not used by VMs.
@@ -1157,9 +1244,7 @@ func (vm *qemu) deviceLoad(deviceName string, rawConfig deviceConfig.Device) (de
 	return d, configCopy, err
 }
 
-// deviceStart loads a new device and calls its Start() function. After processing the runtime
-// config returned from Start(), it also runs the device's Register() function irrespective of
-// whether the instance is running or not.
+// deviceStart loads a new device and calls its Start() function.
 func (vm *qemu) deviceStart(deviceName string, rawConfig deviceConfig.Device, isRunning bool) (*deviceConfig.RunConfig, error) {
 	logger := logging.AddContext(logger.Log, log.Ctx{"device": deviceName, "type": rawConfig["type"], "project": vm.Project(), "instance": vm.Name()})
 	logger.Debug("Starting device")
@@ -1258,22 +1343,13 @@ func (vm *qemu) spicePath() string {
 // generateConfigShare generates the config share directory that will be exported to the VM via
 // a 9P share. Due to the unknown size of templates inside the images this directory is created
 // inside the VM's config volume so that it can be restricted by quota.
+// Requires the instance be mounted before calling this function.
 func (vm *qemu) generateConfigShare() error {
-	// Mount the instance's config volume if needed.
-	ourMount, err := vm.mount()
-	if err != nil {
-		return err
-	}
-
-	if ourMount {
-		defer vm.unmount()
-	}
-
 	configDrivePath := filepath.Join(vm.Path(), "config")
 
 	// Create config drive dir.
 	os.RemoveAll(configDrivePath)
-	err = os.MkdirAll(configDrivePath, 0500)
+	err := os.MkdirAll(configDrivePath, 0500)
 	if err != nil {
 		return err
 	}
@@ -1375,15 +1451,18 @@ func (vm *qemu) generateConfigShare() error {
 Description=LXD - agent
 Documentation=https://linuxcontainers.org/lxd
 ConditionPathExists=/dev/virtio-ports/org.linuxcontainers.lxd
-Requires=lxd-agent-9p.service
+Wants=lxd-agent-virtiofs.service
+After=lxd-agent-virtiofs.service
+Wants=lxd-agent-9p.service
 After=lxd-agent-9p.service
+
 Before=cloud-init.target cloud-init.service cloud-init-local.service
 DefaultDependencies=no
 
 [Service]
 Type=notify
-WorkingDirectory=/run/lxd_config/9p
-ExecStart=/run/lxd_config/9p/lxd-agent
+WorkingDirectory=/run/lxd_config/drive
+ExecStart=/run/lxd_config/drive/lxd-agent
 Restart=on-failure
 RestartSec=5s
 StartLimitInterval=60
@@ -1402,22 +1481,48 @@ WantedBy=multi-user.target
 Description=LXD - agent - 9p mount
 Documentation=https://linuxcontainers.org/lxd
 ConditionPathExists=/dev/virtio-ports/org.linuxcontainers.lxd
-After=local-fs.target
+After=local-fs.target lxd-agent-virtiofs.service
 DefaultDependencies=no
+ConditionPathIsMountPoint=!/run/lxd_config/drive
 
 [Service]
 Type=oneshot
 RemainAfterExit=yes
 ExecStartPre=-/sbin/modprobe 9pnet_virtio
-ExecStartPre=/bin/mkdir -p /run/lxd_config/9p
+ExecStartPre=/bin/mkdir -p /run/lxd_config/drive
 ExecStartPre=/bin/chmod 0700 /run/lxd_config/
-ExecStart=/bin/mount -t 9p config /run/lxd_config/9p -o access=0,trans=virtio
+ExecStart=/bin/mount -t 9p config /run/lxd_config/drive -o access=0,trans=virtio
 
 [Install]
 WantedBy=multi-user.target
 `
 
 	err = ioutil.WriteFile(filepath.Join(configDrivePath, "systemd", "lxd-agent-9p.service"), []byte(lxdConfigShareMountUnit), 0400)
+	if err != nil {
+		return err
+	}
+
+	lxdConfigShareMountVirtioFSUnit := `[Unit]
+Description=LXD - agent - virtio-fs mount
+Documentation=https://linuxcontainers.org/lxd
+ConditionPathExists=/dev/virtio-ports/org.linuxcontainers.lxd
+After=local-fs.target
+Before=lxd-agent-9p.service
+DefaultDependencies=no
+ConditionPathIsMountPoint=!/run/lxd_config/drive
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStartPre=/bin/mkdir -p /run/lxd_config/drive
+ExecStartPre=/bin/chmod 0700 /run/lxd_config/
+ExecStart=/bin/mount -t virtiofs config /run/lxd_config/drive
+
+[Install]
+WantedBy=multi-user.target
+	`
+
+	err = ioutil.WriteFile(filepath.Join(configDrivePath, "systemd", "lxd-agent-virtiofs.service"), []byte(lxdConfigShareMountVirtioFSUnit), 0400)
 	if err != nil {
 		return err
 	}
@@ -1449,12 +1554,13 @@ fi
 cp udev/99-lxd-agent.rules /lib/udev/rules.d/
 cp systemd/lxd-agent.service /lib/systemd/system/
 cp systemd/lxd-agent-9p.service /lib/systemd/system/
+cp systemd/lxd-agent-virtiofs.service /lib/systemd/system/
 systemctl daemon-reload
-systemctl enable lxd-agent.service lxd-agent-9p.service
+systemctl enable lxd-agent.service lxd-agent-9p.service lxd-agent-virtiofs.service
 
 echo ""
 echo "LXD agent has been installed, reboot to confirm setup."
-echo "To start it now, unmount this filesystem and run: systemctl start lxd-agent-9p lxd-agent"
+echo "To start it now, unmount this filesystem and run: systemctl start lxd-agent"
 `
 
 	err = ioutil.WriteFile(filepath.Join(configDrivePath, "install.sh"), []byte(lxdConfigShareInstall), 0700)
@@ -1658,7 +1764,7 @@ func (vm *qemu) deviceBootPriorities() (map[string]int, error) {
 
 // generateQemuConfigFile writes the qemu config file and returns its location.
 // It writes the config file inside the VM's log path.
-func (vm *qemu) generateQemuConfigFile(busName string, devConfs []*deviceConfig.RunConfig, fdFiles *[]string) (string, error) {
+func (vm *qemu) generateQemuConfigFile(mountInfo *storagePools.MountInfo, busName string, devConfs []*deviceConfig.RunConfig, fdFiles *[]string) (string, error) {
 	var sb *strings.Builder = &strings.Builder{}
 
 	err := qemuBase.Execute(sb, map[string]interface{}{
@@ -1802,11 +1908,29 @@ func (vm *qemu) generateQemuConfigFile(busName string, devConfs []*deviceConfig.
 		"devBus":        devBus,
 		"devAddr":       devAddr,
 		"multifunction": multi,
+		"protocol":      "9p",
 
 		"path": filepath.Join(vm.Path(), "config"),
 	})
 	if err != nil {
 		return "", err
+	}
+
+	sockPath := filepath.Join(vm.LogPath(), "virtio-fs.config.sock")
+	if shared.PathExists(sockPath) {
+		devBus, devAddr, multi = bus.allocate(busFunctionGroup9p)
+		err = qemuDriveConfig.Execute(sb, map[string]interface{}{
+			"bus":           bus.name,
+			"devBus":        devBus,
+			"devAddr":       devAddr,
+			"multifunction": multi,
+			"protocol":      "virtio-fs",
+
+			"path": sockPath,
+		})
+		if err != nil {
+			return "", err
+		}
 	}
 
 	devBus, devAddr, multi = bus.allocate(busFunctionGroupNone)
@@ -1840,7 +1964,7 @@ func (vm *qemu) generateQemuConfigFile(busName string, devConfs []*deviceConfig.
 		if len(runConf.Mounts) > 0 {
 			for _, drive := range runConf.Mounts {
 				if drive.TargetPath == "/" {
-					err = vm.addRootDriveConfig(sb, bootIndexes, drive)
+					err = vm.addRootDriveConfig(sb, mountInfo, bootIndexes, drive)
 				} else if drive.FSType == "9p" {
 					err = vm.addDriveDirConfig(sb, bus, fdFiles, &agentMounts, drive)
 				} else {
@@ -2025,7 +2149,7 @@ func (vm *qemu) addFileDescriptor(fdFiles *[]string, filePath string) int {
 }
 
 // addRootDriveConfig adds the qemu config required for adding the root drive.
-func (vm *qemu) addRootDriveConfig(sb *strings.Builder, bootIndexes map[string]int, rootDriveConf deviceConfig.MountEntryItem) error {
+func (vm *qemu) addRootDriveConfig(sb *strings.Builder, mountInfo *storagePools.MountInfo, bootIndexes map[string]int, rootDriveConf deviceConfig.MountEntryItem) error {
 	if rootDriveConf.TargetPath != "/" {
 		return fmt.Errorf("Non-root drive config supplied")
 	}
@@ -2035,15 +2159,14 @@ func (vm *qemu) addRootDriveConfig(sb *strings.Builder, bootIndexes map[string]i
 		return err
 	}
 
-	rootDrivePath, err := pool.GetInstanceDisk(vm)
-	if err != nil {
-		return err
+	if mountInfo.DiskPath == "" {
+		return fmt.Errorf("No disk path available from mount")
 	}
 
 	// Generate a new device config with the root device path expanded.
 	driveConf := deviceConfig.MountEntryItem{
 		DevName: rootDriveConf.DevName,
-		DevPath: rootDrivePath,
+		DevPath: mountInfo.DiskPath,
 	}
 
 	// If the storage pool is on ZFS and backed by a loop file and we can't use DirectIO, then resort to
@@ -2081,6 +2204,28 @@ func (vm *qemu) addDriveDirConfig(sb *strings.Builder, bus *qemuBus, fdFiles *[]
 	// Record the 9p mount for the agent.
 	*agentMounts = append(*agentMounts, agentMount)
 
+	sockPath := filepath.Join(vm.Path(), fmt.Sprintf("%s.sock", driveConf.DevName))
+
+	if shared.PathExists(sockPath) {
+		devBus, devAddr, multi := bus.allocate(busFunctionGroup9p)
+
+		// Add virtio-fs device as this will be preferred over 9p.
+		err := qemuDriveDir.Execute(sb, map[string]interface{}{
+			"bus":           bus.name,
+			"devBus":        devBus,
+			"devAddr":       devAddr,
+			"multifunction": multi,
+
+			"devName":  driveConf.DevName,
+			"mountTag": mountTag,
+			"path":     sockPath,
+			"protocol": "virtio-fs",
+		})
+		if err != nil {
+			return err
+		}
+	}
+
 	devBus, devAddr, multi := bus.allocate(busFunctionGroup9p)
 
 	// For read only shares, do not use proxy.
@@ -2095,6 +2240,7 @@ func (vm *qemu) addDriveDirConfig(sb *strings.Builder, bus *qemuBus, fdFiles *[]
 			"mountTag": mountTag,
 			"path":     driveConf.DevPath,
 			"readonly": true,
+			"protocol": "9p",
 		})
 	}
 
@@ -2110,6 +2256,7 @@ func (vm *qemu) addDriveDirConfig(sb *strings.Builder, bus *qemuBus, fdFiles *[]
 		"mountTag": mountTag,
 		"proxyFD":  proxyFD,
 		"readonly": false,
+		"protocol": "9p",
 	})
 }
 
@@ -2466,21 +2613,6 @@ func (vm *qemu) Restore(source instance.Instance, stateful bool) error {
 
 	var ctxMap log.Ctx
 
-	// Load the storage driver.
-	pool, err := storagePools.GetPoolByInstance(vm.state, vm)
-	if err != nil {
-		return err
-	}
-
-	// Ensure that storage is mounted for backup.yaml updates.
-	ourStart, err := pool.MountInstance(vm, nil)
-	if err != nil {
-		return err
-	}
-	if ourStart {
-		defer pool.UnmountInstance(vm, nil)
-	}
-
 	// Stop the instance.
 	wasRunning := false
 	if vm.IsRunning() {
@@ -2529,6 +2661,19 @@ func (vm *qemu) Restore(source instance.Instance, stateful bool) error {
 		"source":    source.Name()}
 
 	logger.Info("Restoring instance", ctxMap)
+
+	// Load the storage driver.
+	pool, err := storagePools.GetPoolByInstance(vm.state, vm)
+	if err != nil {
+		return err
+	}
+
+	// Ensure that storage is mounted for backup.yaml updates.
+	_, err = pool.MountInstance(vm, nil)
+	if err != nil {
+		return err
+	}
+	defer pool.UnmountInstance(vm, nil)
 
 	// Restore the rootfs.
 	err = pool.RestoreInstanceSnapshot(vm, source, nil)
@@ -2745,6 +2890,11 @@ func (vm *qemu) Rename(newName string) error {
 
 	// Update lease files.
 	network.UpdateDNSMasqStatic(vm.state, "")
+
+	err = vm.UpdateBackupFile()
+	if err != nil {
+		return err
+	}
 
 	logger.Info("Renamed instance", ctxMap)
 
@@ -2979,7 +3129,7 @@ func (vm *qemu) Update(args db.InstanceArgs, userRequested bool) error {
 	isRunning := vm.IsRunning()
 
 	// Use the device interface to apply update changes.
-	err = vm.updateDevices(removeDevices, addDevices, updateDevices, oldExpandedDevices, isRunning)
+	err = vm.updateDevices(removeDevices, addDevices, updateDevices, oldExpandedDevices, isRunning, userRequested)
 	if err != nil {
 		return err
 	}
@@ -3121,6 +3271,7 @@ func (vm *qemu) updateMemoryLimit(newLimit string) error {
 	if err != nil {
 		return errors.Wrapf(err, "Invalid memory size")
 	}
+	newSizeMB := newSizeBytes / 1024 / 1024
 
 	// Connect to the monitor.
 	monitor, err := qmp.Connect(vm.monitorPath(), qemuSerialChardevName, vm.getMonitorEventHandler())
@@ -3132,16 +3283,18 @@ func (vm *qemu) updateMemoryLimit(newLimit string) error {
 	if err != nil {
 		return err
 	}
+	baseSizeMB := baseSizeBytes / 1024 / 1024
 
 	curSizeBytes, err := monitor.GetMemoryBalloonSizeBytes()
 	if err != nil {
 		return err
 	}
+	curSizeMB := curSizeBytes / 1024 / 1024
 
-	if curSizeBytes == newSizeBytes {
+	if curSizeMB == newSizeMB {
 		return nil
-	} else if baseSizeBytes < newSizeBytes {
-		return fmt.Errorf("Cannot increase memory size beyond boot time size when VM is running")
+	} else if baseSizeMB < newSizeMB {
+		return fmt.Errorf("Cannot increase memory size beyond boot time size when VM is running (Boot time size %dMiB, new size %dMiB)", baseSizeMB, newSizeMB)
 	}
 
 	// Set effective memory size.
@@ -3152,30 +3305,31 @@ func (vm *qemu) updateMemoryLimit(newLimit string) error {
 
 	// Changing the memory balloon can take time, so poll the effectice size to check it has shrunk within 1%
 	// of the target size, which we then take as success (it may still continue to shrink closer to target).
-	for i := 0; i < 5; i++ {
+	for i := 0; i < 10; i++ {
 		curSizeBytes, err = monitor.GetMemoryBalloonSizeBytes()
 		if err != nil {
 			return err
 		}
+		curSizeMB = curSizeBytes / 1024 / 1024
 
 		var diff int64
-		if curSizeBytes < newSizeBytes {
-			diff = newSizeBytes - curSizeBytes
+		if curSizeMB < newSizeMB {
+			diff = newSizeMB - curSizeMB
 		} else {
-			diff = curSizeBytes - newSizeBytes
+			diff = curSizeMB - newSizeMB
 		}
 
-		if diff <= (newSizeBytes / 100) {
+		if diff <= (newSizeMB / 100) {
 			return nil // We reached to within 1% of our target size.
 		}
 
 		time.Sleep(500 * time.Millisecond)
 	}
 
-	return fmt.Errorf("Failed setting memory to %d bytes (currently %d bytes) as it was taking too long", newSizeBytes, curSizeBytes)
+	return fmt.Errorf("Failed setting memory to %dMiB (currently %dMiB) as it was taking too long", newSizeMB, curSizeMB)
 }
 
-func (vm *qemu) updateDevices(removeDevices deviceConfig.Devices, addDevices deviceConfig.Devices, updateDevices deviceConfig.Devices, oldExpandedDevices deviceConfig.Devices, isRunning bool) error {
+func (vm *qemu) updateDevices(removeDevices deviceConfig.Devices, addDevices deviceConfig.Devices, updateDevices deviceConfig.Devices, oldExpandedDevices deviceConfig.Devices, isRunning bool, userRequested bool) error {
 	if isRunning && (len(removeDevices) > 0 || len(addDevices) > 0 || len(updateDevices) > 0) {
 		return fmt.Errorf("Devices cannot be changed when VM is running")
 	}
@@ -3211,7 +3365,14 @@ func (vm *qemu) updateDevices(removeDevices deviceConfig.Devices, addDevices dev
 		if err == device.ErrUnsupportedDevType {
 			continue // No point in trying to start device below.
 		} else if err != nil {
-			return errors.Wrapf(err, "Failed to add device %q", dev.Name)
+			if userRequested {
+				return errors.Wrapf(err, "Failed to add device %q", dev.Name)
+			}
+
+			// If update is non-user requested (i.e from a snapshot restore), there's nothing we can
+			// do to fix the config and we don't want to prevent the snapshot restore so log and allow.
+			logger.Error("Failed to add device, skipping as non-user requested", log.Ctx{"project": vm.Project(), "instance": vm.Name(), "device": dev.Name, "err": err})
+			continue
 		}
 
 		if isRunning {
@@ -3559,14 +3720,12 @@ func (vm *qemu) Export(w io.Writer, properties map[string]string) (api.ImageMeta
 	logger.Info("Exporting instance", ctxMap)
 
 	// Start the storage.
-	ourStart, err := vm.mount()
+	mountInfo, err := vm.mount()
 	if err != nil {
 		logger.Error("Failed exporting instance", ctxMap)
 		return meta, err
 	}
-	if ourStart {
-		defer vm.unmount()
-	}
+	defer vm.unmount()
 
 	// Create the tarball.
 	tarWriter := instancewriter.NewInstanceTarWriter(w, nil)
@@ -3727,17 +3886,6 @@ func (vm *qemu) Export(w io.Writer, properties map[string]string) (api.ImageMeta
 		}
 	}
 
-	// Convert and include the root image.
-	pool, err := vm.getStoragePool()
-	if err != nil {
-		return meta, err
-	}
-
-	rootDrivePath, err := pool.GetInstanceDisk(vm)
-	if err != nil {
-		return meta, err
-	}
-
 	// Convert from raw to qcow2 and add to tarball.
 	tmpPath, err := ioutil.TempDir(shared.VarPath("images"), "lxd_export_")
 	if err != nil {
@@ -3745,8 +3893,12 @@ func (vm *qemu) Export(w io.Writer, properties map[string]string) (api.ImageMeta
 	}
 	defer os.RemoveAll(tmpPath)
 
+	if mountInfo.DiskPath == "" {
+		return meta, fmt.Errorf("No disk path available from mount")
+	}
+
 	fPath := fmt.Sprintf("%s/rootfs.img", tmpPath)
-	_, err = shared.RunCommand("qemu-img", "convert", "-c", "-O", "qcow2", rootDrivePath, fPath)
+	_, err = shared.RunCommand("qemu-img", "convert", "-c", "-O", "qcow2", mountInfo.DiskPath, fPath)
 	if err != nil {
 		return meta, fmt.Errorf("Failed converting image to qcow2: %v", err)
 	}
@@ -3788,8 +3940,8 @@ func (vm *qemu) Migrate(args *instance.CriuMigrationArgs) error {
 }
 
 // CGroupSet is not implemented for VMs.
-func (vm *qemu) CGroupSet(key string, value string) error {
-	return instance.ErrNotImplemented
+func (vm *qemu) CGroup() (*cgroup.CGroup, error) {
+	return nil, instance.ErrNotImplemented
 }
 
 // VolatileSet sets one or more volatile config keys.
@@ -4553,16 +4705,6 @@ func (vm *qemu) StoragePool() (string, error) {
 // SetOperation sets the current operation.
 func (vm *qemu) SetOperation(op *operations.Operation) {
 	vm.op = op
-}
-
-// StorageStart deprecated.
-func (vm *qemu) StorageStart() (bool, error) {
-	return false, storagePools.ErrNotImplemented
-}
-
-// StorageStop deprecated.
-func (vm *qemu) StorageStop() (bool, error) {
-	return false, storagePools.ErrNotImplemented
 }
 
 // DeferTemplateApply not used currently.

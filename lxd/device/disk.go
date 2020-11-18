@@ -25,6 +25,7 @@ import (
 	storageDrivers "github.com/lxc/lxd/lxd/storage/drivers"
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
+	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/idmap"
 	"github.com/lxc/lxd/shared/logger"
 	"github.com/lxc/lxd/shared/subprocess"
@@ -148,11 +149,12 @@ func (d *disk) validateConfig(instConf instance.ConfigReader) error {
 		}
 	}
 
-	// When we want to attach a storage volume created via the storage api the "source" only
-	// contains the name of the storage volume, not the path where it is mounted. So only check
-	// for the existence of "source" when "pool" is empty and ceph type source not being used.
-	if d.config["pool"] == "" && d.config["source"] != "" && d.config["source"] != diskSourceCloudInit && d.isRequired(d.config) && !shared.PathExists(shared.HostPath(d.config["source"])) &&
-		!strings.HasPrefix(d.config["source"], "ceph:") && !strings.HasPrefix(d.config["source"], "cephfs:") {
+	// Check that external disk source path exists. External disk sources have a non-empty "source" property
+	// that contains the path of the external source, and do not have a "pool" property. We only check the
+	// source path exists when the disk device is required, is not an external ceph/cephfs source and is not a
+	// VM cloud-init drive. We only check this when an instance is loaded to avoid validating snapshot configs
+	// that may contain older config that no longer exists which can prevent migrations.
+	if d.inst != nil && d.config["pool"] == "" && d.config["source"] != "" && d.config["source"] != diskSourceCloudInit && d.isRequired(d.config) && !shared.PathExists(shared.HostPath(d.config["source"])) && !strings.HasPrefix(d.config["source"], "ceph:") && !strings.HasPrefix(d.config["source"], "cephfs:") {
 		return fmt.Errorf("Missing source %q for disk %q", d.config["source"], d.name)
 	}
 
@@ -165,43 +167,50 @@ func (d *disk) validateConfig(instConf instance.ConfigReader) error {
 			return fmt.Errorf("Storage volumes cannot be specified as absolute paths")
 		}
 
-		poolID, err := d.state.Cluster.GetStoragePoolID(d.config["pool"])
-		if err != nil {
-			return fmt.Errorf("The %q storage pool doesn't exist", d.config["pool"])
-		}
-
-		// Only check storate volume is available if we are validating an instance device and not a profile
-		// device (check for instancetype.Any), and we have least one expanded device (this is so we only
-		// do this expensive check after devices have been expanded).
+		// Only perform expensive instance custom volume checks when not validating a profile and after
+		// device expansion has occurred (to avoid doing it twice during instance load).
 		if instConf.Type() != instancetype.Any && len(instConf.ExpandedDevices()) > 0 && d.config["source"] != "" && d.config["path"] != "/" {
-			isAvailable, err := d.state.Cluster.StorageVolumeIsAvailable(d.config["pool"], d.config["source"])
+			poolID, err := d.state.Cluster.GetStoragePoolID(d.config["pool"])
 			if err != nil {
-				return fmt.Errorf("Check if volume is available: %v", err)
+				return fmt.Errorf("The %q storage pool doesn't exist", d.config["pool"])
 			}
-			if !isAvailable {
-				return fmt.Errorf("Storage volume %q is already attached to an instance on a different node", d.config["source"])
-			}
-		}
 
-		// Block volumes may only be attached to VMs.
-		if d.inst != nil && d.config["path"] != "/" {
-			storageProjectName, err := project.StorageVolumeProject(d.state.Cluster, d.inst.Project(), db.StoragePoolVolumeTypeCustom)
+			// Derive the effective storage project name from the instance config's project.
+			storageProjectName, err := project.StorageVolumeProject(d.state.Cluster, instConf.Project(), db.StoragePoolVolumeTypeCustom)
 			if err != nil {
 				return err
 			}
 
-			_, volume, err := d.state.Cluster.GetLocalStoragePoolVolume(storageProjectName, d.config["source"], db.StoragePoolVolumeTypeCustom, poolID)
+			// GetLocalStoragePoolVolume returns a volume with an empty Location field for remote drivers.
+			_, vol, err := d.state.Cluster.GetLocalStoragePoolVolume(storageProjectName, d.config["source"], db.StoragePoolVolumeTypeCustom, poolID)
+			if err != nil {
+				return errors.Wrapf(err, "Failed loading custom volume")
+			}
+
+			// Check storage volume is available to mount on this cluster member.
+			remoteInstance, err := storagePools.VolumeUsedByExclusiveRemoteInstancesWithProfiles(d.state, d.config["pool"], storageProjectName, vol)
+			if err != nil {
+				return errors.Wrapf(err, "Failed checking if custom volume is exclusively attached to another instance")
+			}
+
+			if remoteInstance != nil {
+				return fmt.Errorf("Custom volume is already attached to an instance on a different node")
+			}
+
+			// Check only block type volumes are attached to VM instances.
+			contentType, err := storagePools.VolumeContentTypeNameToContentType(vol.ContentType)
 			if err != nil {
 				return err
 			}
 
-			contentType, err := storagePools.VolumeContentTypeNameToContentType(volume.ContentType)
-			if err != nil {
-				return err
-			}
+			if contentType == db.StoragePoolVolumeContentTypeBlock {
+				if instConf.Type() != instancetype.VM {
+					return fmt.Errorf("Custom block volumes cannot be used on containers")
+				}
 
-			if contentType == db.StoragePoolVolumeContentTypeBlock && d.inst.Type() != instancetype.VM {
-				return fmt.Errorf("Block volumes cannot be used on containers")
+				if d.config["path"] != "" {
+					return fmt.Errorf("Custom block volumes cannot have a path defined")
+				}
 			}
 		}
 	}
@@ -235,6 +244,43 @@ func (d *disk) validateEnvironment() error {
 // to allow disk resize when VM is stopped.
 func (d *disk) CanHotPlug() (bool, []string) {
 	return true, []string{"limits.max", "limits.read", "limits.write", "size"}
+}
+
+// Register calls mount for the disk volume (which should already be mounted) to reinitialise the reference counter
+// for volumes attached to running instances on LXD restart.
+func (d *disk) Register() error {
+	d.logger.Debug("Initialising mounted disk ref counter")
+
+	if d.config["path"] == "/" {
+		pool, err := storagePools.GetPoolByInstance(d.state, d.inst)
+		if err != nil {
+			return err
+		}
+
+		// Try to mount the volume that should already be mounted to reinitialise the ref counter.
+		_, err = pool.MountInstance(d.inst, nil)
+		if err != nil {
+			return err
+		}
+	} else if d.config["path"] != "/" && d.config["source"] != "" && d.config["pool"] != "" {
+		pool, err := storagePools.GetPoolByName(d.state, d.config["pool"])
+		if err != nil {
+			return err
+		}
+
+		storageProjectName, err := project.StorageVolumeProject(d.state.Cluster, d.inst.Project(), db.StoragePoolVolumeTypeCustom)
+		if err != nil {
+			return err
+		}
+
+		// Try to mount the volume that should already be mounted to reinitialise the ref counter.
+		err = pool.MountCustomVolume(storageProjectName, d.config["source"], nil)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 // Start is run when the device is added to the instance.
@@ -503,10 +549,22 @@ func (d *disk) startVM() (*deviceConfig.RunConfig, error) {
 					// Remove old socket if needed.
 					os.Remove(sockPath)
 
+					// Locate virtfs-proxy-helper.
+					cmd, err := exec.LookPath("virtfs-proxy-helper")
+					if err != nil {
+						if shared.PathExists("/usr/lib/qemu/virtfs-proxy-helper") {
+							cmd = "/usr/lib/qemu/virtfs-proxy-helper"
+						}
+					}
+
+					if cmd == "" {
+						return nil, fmt.Errorf("Required binary 'virtfs-proxy-helper' couldn't be found")
+					}
+
 					// Start the virtfs-proxy-helper process in non-daemon mode and as root so that
 					// when the VM process is started as an unprivileged user, we can still share
 					// directories that process cannot access.
-					proc, err := subprocess.NewProcess("virtfs-proxy-helper", []string{"-n", "-u", "0", "-g", "0", "-s", sockPath, "-p", srcPath}, "", "")
+					proc, err := subprocess.NewProcess(cmd, []string{"-n", "-u", "0", "-g", "0", "-s", sockPath, "-p", srcPath}, "", "")
 					if err != nil {
 						return nil, err
 					}
@@ -532,6 +590,62 @@ func (d *disk) startVM() (*deviceConfig.RunConfig, error) {
 
 						time.Sleep(50 * time.Millisecond)
 					}
+				}
+
+				// Start virtiofsd as LXD prefers virtio-fs over 9p. The latter will only be used
+				// as a fallback.
+
+				// Create the socket in this directory instead of the devices directory. QEMU will otherwise
+				// fail with "Permission Denied" which is probably caused by qemu being called with --chroot.
+				sockPath := filepath.Join(d.inst.Path(), fmt.Sprintf("%s.sock", d.name))
+				logPath := filepath.Join(d.inst.LogPath(), fmt.Sprintf("disk.%s.log", d.name))
+
+				// Remove old socket if needed.
+				os.Remove(sockPath)
+
+				// Locate virtiofsd.
+				cmd, err := exec.LookPath("virtiofsd")
+				if err != nil {
+					if shared.PathExists("/usr/lib/qemu/virtiofsd") {
+						cmd = "/usr/lib/qemu/virtiofsd"
+					}
+				}
+
+				if cmd != "" {
+					// Start the virtiofsd process in non-daemon mode.
+					proc, err := subprocess.NewProcess(cmd, []string{fmt.Sprintf("--socket-path=%s", sockPath), "-o", fmt.Sprintf("source=%s", srcPath)}, logPath, logPath)
+					if err != nil {
+						return nil, err
+					}
+
+					err = proc.Start()
+					if err != nil {
+						return nil, errors.Wrapf(err, "Failed to start virtiofsd for device %q", d.name)
+					}
+
+					revert.Add(func() { proc.Stop() })
+
+					pidPath := filepath.Join(d.inst.DevicesPath(), fmt.Sprintf("virtio-fs.%s.pid", d.name))
+
+					err = proc.Save(pidPath)
+					if err != nil {
+						return nil, errors.Wrapf(err, "Failed to save virtiofsd state for device %q", d.name)
+					}
+
+					// Wait for socket file to exist
+					for i := 0; i < 20; i++ {
+						if shared.PathExists(sockPath) {
+							break
+						}
+
+						time.Sleep(50 * time.Millisecond)
+					}
+
+					if !shared.PathExists(sockPath) {
+						return nil, fmt.Errorf("virtiofsd failed to bind socket within 2s")
+					}
+				} else {
+					logger.Warnf("Unable to use virtio-fs for device %q, using 9p as a fallback: virtiofsd missing", d.name)
 				}
 			}
 
@@ -640,31 +754,6 @@ func (d *disk) applyQuota(newSize string) error {
 
 // generateLimits adds a set of cgroup rules to apply specified limits to the supplied RunConfig.
 func (d *disk) generateLimits(runConf *deviceConfig.RunConfig) error {
-	// Disk priority limits.
-	diskPriority := d.inst.ExpandedConfig()["limits.disk.priority"]
-	if diskPriority != "" {
-		if d.state.OS.CGInfo.Supports(cgroup.BlkioWeight, nil) {
-			priorityInt, err := strconv.Atoi(diskPriority)
-			if err != nil {
-				return err
-			}
-
-			priority := priorityInt * 100
-
-			// Minimum valid value is 10
-			if priority == 0 {
-				priority = 10
-			}
-
-			runConf.CGroups = append(runConf.CGroups, deviceConfig.RunConfigItem{
-				Key:   "blkio.weight",
-				Value: fmt.Sprintf("%d", priority),
-			})
-		} else {
-			return fmt.Errorf("Cannot apply limits.disk.priority as blkio.weight cgroup controller is missing")
-		}
-	}
-
 	// Disk throttle limits.
 	hasDiskLimits := false
 	for _, dev := range d.inst.ExpandedDevices() {
@@ -687,36 +776,58 @@ func (d *disk) generateLimits(runConf *deviceConfig.RunConfig) error {
 			return err
 		}
 
+		cg, err := cgroup.New(&cgroupWriter{runConf})
+		if err != nil {
+			return err
+		}
+
 		for block, limit := range diskLimits {
 			if limit.readBps > 0 {
-				runConf.CGroups = append(runConf.CGroups, deviceConfig.RunConfigItem{
-					Key:   "blkio.throttle.read_bps_device",
-					Value: fmt.Sprintf("%s %d", block, limit.readBps),
-				})
+				err = cg.SetBlkioLimit(block, "read", "bps", limit.readBps)
+				if err != nil {
+					return err
+				}
 			}
 
 			if limit.readIops > 0 {
-				runConf.CGroups = append(runConf.CGroups, deviceConfig.RunConfigItem{
-					Key:   "blkio.throttle.read_iops_device",
-					Value: fmt.Sprintf("%s %d", block, limit.readIops),
-				})
+				err = cg.SetBlkioLimit(block, "read", "iops", limit.readIops)
+				if err != nil {
+					return err
+				}
 			}
 
 			if limit.writeBps > 0 {
-				runConf.CGroups = append(runConf.CGroups, deviceConfig.RunConfigItem{
-					Key:   "blkio.throttle.write_bps_device",
-					Value: fmt.Sprintf("%s %d", block, limit.writeBps),
-				})
+				err = cg.SetBlkioLimit(block, "write", "bps", limit.writeBps)
+				if err != nil {
+					return err
+				}
 			}
 
 			if limit.writeIops > 0 {
-				runConf.CGroups = append(runConf.CGroups, deviceConfig.RunConfigItem{
-					Key:   "blkio.throttle.write_iops_device",
-					Value: fmt.Sprintf("%s %d", block, limit.writeIops),
-				})
+				err = cg.SetBlkioLimit(block, "write", "iops", limit.writeIops)
+				if err != nil {
+					return err
+				}
 			}
 		}
 	}
+
+	return nil
+}
+
+type cgroupWriter struct {
+	runConf *deviceConfig.RunConfig
+}
+
+func (w *cgroupWriter) Get(version cgroup.Backend, controller string, key string) (string, error) {
+	return "", fmt.Errorf("This cgroup handler does not support reading")
+}
+
+func (w *cgroupWriter) Set(version cgroup.Backend, controller string, key string, value string) error {
+	w.runConf.CGroups = append(w.runConf.CGroups, deviceConfig.RunConfigItem{
+		Key:   key,
+		Value: value,
+	})
 
 	return nil
 }
@@ -777,14 +888,11 @@ func (d *disk) mountPoolVolume(reverter *revert.Reverter) (string, error) {
 		return "", err
 	}
 
-	ourMount, err := pool.MountCustomVolume(storageProjectName, volumeName, nil)
+	err = pool.MountCustomVolume(storageProjectName, volumeName, nil)
 	if err != nil {
 		return "", errors.Wrapf(err, "Failed mounting storage volume %q of type %q on storage pool %q", volumeName, volumeTypeName, pool.Name())
 	}
-
-	if ourMount {
-		reverter.Add(func() { pool.UnmountCustomVolume(storageProjectName, volumeName, nil) })
-	}
+	reverter.Add(func() { pool.UnmountCustomVolume(storageProjectName, volumeName, nil) })
 
 	_, vol, err := d.state.Cluster.GetLocalStoragePoolVolume(storageProjectName, volumeName, db.StoragePoolVolumeTypeCustom, pool.ID())
 	if err != nil {
@@ -1000,25 +1108,30 @@ func (d *disk) storagePoolVolumeAttachShift(projectName, poolName, volumeName st
 		logger.Debugf("Shifting storage volume")
 
 		if !shared.IsTrue(poolVolumePut.Config["security.shifted"]) {
-			volumeUsedBy, err := storagePools.VolumeUsedByInstancesGet(d.state, projectName, poolName, volumeName)
+			volumeUsedBy := []instance.Instance{}
+			err = storagePools.VolumeUsedByInstanceDevices(d.state, poolName, projectName, volume, true, func(dbInst db.Instance, project api.Project, profiles []api.Profile, usedByDevices []string) error {
+				inst, err := instance.Load(d.state, db.InstanceToArgs(&dbInst), profiles)
+				if err != nil {
+					return err
+				}
+
+				volumeUsedBy = append(volumeUsedBy, inst)
+				return nil
+			})
 			if err != nil {
 				return err
 			}
 
 			if len(volumeUsedBy) > 1 {
-				for _, ctName := range volumeUsedBy {
-					instt, err := instance.LoadByProjectAndName(d.state, d.inst.Project(), ctName)
-					if err != nil {
+				for _, inst := range volumeUsedBy {
+					if inst.Type() != instancetype.Container {
 						continue
 					}
 
-					if instt.Type() != instancetype.Container {
-						continue
-					}
-
-					ct := instt.(instance.Container)
+					ct := inst.(instance.Container)
 
 					var ctNextIdmap *idmap.IdmapSet
+
 					if ct.IsRunning() {
 						ctNextIdmap, err = ct.CurrentIdmap()
 					} else {
@@ -1029,14 +1142,14 @@ func (d *disk) storagePoolVolumeAttachShift(projectName, poolName, volumeName st
 					}
 
 					if !nextIdmap.Equals(ctNextIdmap) {
-						return fmt.Errorf("Idmaps of container %q and storage volume %q are not identical", ctName, volumeName)
+						return fmt.Errorf("Idmaps of container %q and storage volume %q are not identical", ct.Name(), volumeName)
 					}
 				}
 			} else if len(volumeUsedBy) == 1 {
 				// If we're the only one who's attached that container
 				// we can shift the storage volume.
 				// I'm not sure if we want some locking here.
-				if volumeUsedBy[0] != d.inst.Name() {
+				if volumeUsedBy[0].Name() != d.inst.Name() {
 					return fmt.Errorf("Idmaps of container and storage volume are not identical")
 				}
 			}
@@ -1129,9 +1242,8 @@ func (d *disk) Stop() (*deviceConfig.RunConfig, error) {
 }
 
 func (d *disk) stopVM() (*deviceConfig.RunConfig, error) {
-	pidPath := filepath.Join(d.inst.DevicesPath(), fmt.Sprintf("%s.pid", d.name))
-
 	// VM disk dir shares uses virtfs-proxy-helper, so we should stop that if it is running.
+	pidPath := filepath.Join(d.inst.DevicesPath(), fmt.Sprintf("%s.pid", d.name))
 	if shared.PathExists(pidPath) {
 		proc, err := subprocess.ImportProcess(pidPath)
 		if err != nil {
@@ -1146,6 +1258,26 @@ func (d *disk) stopVM() (*deviceConfig.RunConfig, error) {
 		// Remove PID file and socket file.
 		os.Remove(pidPath)
 		os.Remove(filepath.Join(d.inst.DevicesPath(), fmt.Sprintf("%s.sock", d.name)))
+	}
+
+	// And do the same for the virtiofsd export.
+	pidPath = filepath.Join(d.inst.DevicesPath(), fmt.Sprintf("virtio-fs.%s.pid", d.name))
+	if shared.PathExists(pidPath) {
+		proc, err := subprocess.ImportProcess(pidPath)
+		if err != nil {
+			return &deviceConfig.RunConfig{}, err
+		}
+
+		err = proc.Stop()
+		// virtiofsd will terminate automatically once the VM has stopped. We therefore should only
+		// return an error if it's a running process.
+		if err != nil && err != subprocess.ErrNotRunning {
+			return &deviceConfig.RunConfig{}, err
+		}
+
+		// Remove PID file and socket file.
+		os.Remove(pidPath)
+		os.Remove(filepath.Join(d.inst.Path(), fmt.Sprintf("%s.sock", d.name)))
 	}
 
 	runConf := deviceConfig.RunConfig{
@@ -1196,16 +1328,10 @@ func (d *disk) postStop() error {
 
 	if strings.HasPrefix(d.config["source"], "ceph:") {
 		v := d.volatileGet()
-
-		// Run unmap async. This is needed as postStop is called from
-		// within a monitor hook, meaning that as we process this, the monitor
-		// process is still running, holding some references.
-		go func() {
-			err := diskCephRbdUnmap(v["ceph_rbd"])
-			if err != nil {
-				logger.Errorf("Failed to unmap RBD volume %q for %q: %v", v["ceph_rbd"], project.Instance(d.inst.Project(), d.inst.Name()), err)
-			}
-		}()
+		err := diskCephRbdUnmap(v["ceph_rbd"])
+		if err != nil {
+			logger.Errorf("Failed to unmap RBD volume %q for %q: %v", v["ceph_rbd"], project.Instance(d.inst.Project(), d.inst.Name()), err)
+		}
 	}
 
 	return nil

@@ -28,7 +28,7 @@ import (
 type ovnNet interface {
 	network.Network
 
-	InstanceDevicePortValidateExternalRoutes(externalRoutes []*net.IPNet) error
+	InstanceDevicePortValidateExternalRoutes(deviceInstance instance.Instance, deviceName string, externalRoutes []*net.IPNet) error
 	InstanceDevicePortAdd(instanceID int, instanceName string, deviceName string, mac net.HardwareAddr, ips []net.IP, internalRoutes []*net.IPNet, externalRoutes []*net.IPNet) (openvswitch.OVNSwitchPort, error)
 	InstanceDevicePortDelete(instanceID int, deviceName string, internalRoutes []*net.IPNet, externalRoutes []*net.IPNet) error
 	InstanceDevicePortDynamicIPs(instanceID int, deviceName string) ([]net.IP, error)
@@ -179,7 +179,7 @@ func (d *nicOVN) validateConfig(instConf instance.ConfigReader) error {
 			}
 		}
 
-		err = d.network.InstanceDevicePortValidateExternalRoutes(externalRoutes)
+		err = d.network.InstanceDevicePortValidateExternalRoutes(d.inst, d.name, externalRoutes)
 		if err != nil {
 			return err
 		}
@@ -210,11 +210,6 @@ func (d *nicOVN) validateEnvironment() error {
 // returns a list of fields that can be updated without triggering a device remove & add.
 func (d *nicOVN) CanHotPlug() (bool, []string) {
 	return true, []string{}
-}
-
-// Add is run when a device is added to an instance whether or not the instance is running.
-func (d *nicOVN) Add() error {
-	return nil
 }
 
 // Start is run when the device is added to a running instance or instance is starting up.

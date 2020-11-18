@@ -17,6 +17,8 @@ import (
 
 	"github.com/lxc/lxd/lxd/cluster"
 	"github.com/lxc/lxd/lxd/db"
+	deviceConfig "github.com/lxc/lxd/lxd/device/config"
+	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/locking"
 	"github.com/lxc/lxd/lxd/network/openvswitch"
 	"github.com/lxc/lxd/lxd/project"
@@ -228,7 +230,8 @@ func (n *ovn) Validate(config map[string]string) error {
 		return err
 	}
 
-	// If NAT disabled, check subnets are within the uplink network's routes and project's subnet restrictions.
+	// If NAT disabled, parse the external subnets that are being requested.
+	var externalSubnets []*net.IPNet
 	for _, keyPrefix := range []string{"ipv4", "ipv6"} {
 		if !shared.IsTrue(config[fmt.Sprintf("%s.nat", keyPrefix)]) && validate.IsOneOf(config[fmt.Sprintf("%s.address", keyPrefix)], []string{"", "none", "auto"}) != nil {
 			_, ipNet, err := net.ParseCIDR(config[fmt.Sprintf("%s.address", keyPrefix)])
@@ -236,9 +239,64 @@ func (n *ovn) Validate(config map[string]string) error {
 				return err
 			}
 
-			err = n.validateExternalSubnet(uplinkRoutes, projectRestrictedSubnets, ipNet)
+			externalSubnets = append(externalSubnets, ipNet)
+		}
+	}
+
+	if len(externalSubnets) > 0 {
+		var projectNetworks map[string]map[int64]api.Network
+		err = n.state.Cluster.Transaction(func(tx *db.ClusterTx) error {
+			// Get all managed networks across all projects.
+			projectNetworks, err = tx.GetNonPendingNetworks()
+			if err != nil {
+				return errors.Wrapf(err, "Failed to load all networks")
+			}
+
+			return nil
+		})
+		if err != nil {
+			return err
+		}
+
+		// Get OVN networks that use the same uplink as us.
+		ovnProjectNetworksWithOurUplink := n.ovnProjectNetworksWithUplink(config["network"], projectNetworks)
+
+		// Get external subnets used by other OVN networks using our uplink.
+		ovnNetworkExternalSubnets, err := n.ovnNetworkExternalSubnets(n.project, n.name, ovnProjectNetworksWithOurUplink, uplinkRoutes)
+		if err != nil {
+			return err
+		}
+
+		// Get external routes configured on OVN NICs using networks that use our uplink.
+		ovnNICExternalRoutes, err := n.ovnNICExternalRoutes(nil, "", ovnProjectNetworksWithOurUplink)
+		if err != nil {
+			return err
+		}
+
+		for _, externalSubnet := range externalSubnets {
+			// Check the external subnet is allowed within both the uplink's external routes and any
+			// project restricted subnets.
+			err = n.validateExternalSubnet(uplinkRoutes, projectRestrictedSubnets, externalSubnet)
 			if err != nil {
 				return err
+			}
+
+			// Check the external subnet doesn't fall within any existing OVN network external subnets.
+			for _, ovnNetworkExternalSubnet := range ovnNetworkExternalSubnets {
+				if SubnetContains(ovnNetworkExternalSubnet, externalSubnet) || SubnetContains(externalSubnet, ovnNetworkExternalSubnet) {
+					// This error is purposefully vague so that it doesn't reveal any names of
+					// resources potentially outside of the network's project.
+					return fmt.Errorf("External subnet %q overlaps with another OVN network's external subnet", externalSubnet.String())
+				}
+			}
+
+			// Check the external subnet doesn't fall within any existing OVN NIC external routes.
+			for _, ovnNICExternalRoute := range ovnNICExternalRoutes {
+				if SubnetContains(ovnNICExternalRoute, externalSubnet) || SubnetContains(externalSubnet, ovnNICExternalRoute) {
+					// This error is purposefully vague so that it doesn't reveal any names of
+					// resources potentially outside of the networks's project.
+					return fmt.Errorf("External subnet %q overlaps with another OVN NIC's external route", externalSubnet.String())
+				}
 			}
 		}
 	}
@@ -802,76 +860,86 @@ func (n *ovn) uplinkPortBridgeVars(uplinkNet Network) *ovnUplinkPortBridgeVars {
 // startUplinkPortBridge creates veth pair (if doesn't exist), creates OVS bridge (if doesn't exist) and
 // connects veth pair to uplink bridge and OVS bridge.
 func (n *ovn) startUplinkPortBridge(uplinkNet Network) error {
-	vars := n.uplinkPortBridgeVars(uplinkNet)
-
 	// Do this after gaining lock so that on failure we revert before release locking.
 	revert := revert.New()
 	defer revert.Fail()
 
-	// Create veth pair if needed.
-	if !InterfaceExists(vars.uplinkEnd) && !InterfaceExists(vars.ovsEnd) {
-		_, err := shared.RunCommand("ip", "link", "add", "dev", vars.uplinkEnd, "type", "veth", "peer", "name", vars.ovsEnd)
-		if err != nil {
-			return errors.Wrapf(err, "Failed to create the uplink veth interfaces %q and %q", vars.uplinkEnd, vars.ovsEnd)
-		}
-
-		revert.Add(func() { shared.RunCommand("ip", "link", "delete", vars.uplinkEnd) })
-	}
-
-	// Ensure that the veth interfaces inherit the uplink bridge's MTU (which the OVS bridge also inherits).
-	uplinkNetConfig := uplinkNet.Config()
-	if uplinkNetConfig["bridge.mtu"] != "" {
-		err := InterfaceSetMTU(vars.uplinkEnd, uplinkNetConfig["bridge.mtu"])
-		if err != nil {
-			return err
-		}
-
-		err = InterfaceSetMTU(vars.ovsEnd, uplinkNetConfig["bridge.mtu"])
-		if err != nil {
-			return err
-		}
-	}
-
-	// Ensure correct sysctls are set on uplink veth interfaces to avoid getting IPv6 link-local addresses.
-	err := util.SysctlSet(
-		fmt.Sprintf("net/ipv6/conf/%s/disable_ipv6", vars.uplinkEnd), "1",
-		fmt.Sprintf("net/ipv6/conf/%s/disable_ipv6", vars.ovsEnd), "1",
-		fmt.Sprintf("net/ipv6/conf/%s/forwarding", vars.uplinkEnd), "0",
-		fmt.Sprintf("net/ipv6/conf/%s/forwarding", vars.ovsEnd), "0",
-	)
-	if err != nil {
-		return errors.Wrapf(err, "Failed to configure uplink veth interfaces %q and %q", vars.uplinkEnd, vars.ovsEnd)
-	}
-
-	// Connect uplink end of veth pair to uplink bridge and bring up.
-	_, err = shared.RunCommand("ip", "link", "set", "master", uplinkNet.Name(), "dev", vars.uplinkEnd, "up")
-	if err != nil {
-		return errors.Wrapf(err, "Failed to connect uplink veth interface %q to uplink bridge %q", vars.uplinkEnd, uplinkNet.Name())
-	}
-
-	// Ensure uplink OVS end veth interface is up.
-	_, err = shared.RunCommand("ip", "link", "set", "dev", vars.ovsEnd, "up")
-	if err != nil {
-		return errors.Wrapf(err, "Failed to bring up uplink veth interface %q", vars.ovsEnd)
-	}
-
-	// Create uplink OVS bridge if needed.
 	ovs := openvswitch.NewOVS()
-	err = ovs.BridgeAdd(vars.ovsBridge, true)
-	if err != nil {
-		return errors.Wrapf(err, "Failed to create uplink OVS bridge %q", vars.ovsBridge)
-	}
 
-	// Connect OVS end veth interface to OVS bridge.
-	err = ovs.BridgePortAdd(vars.ovsBridge, vars.ovsEnd, true)
-	if err != nil {
-		return errors.Wrapf(err, "Failed to connect uplink veth interface %q to uplink OVS bridge %q", vars.ovsEnd, vars.ovsBridge)
-	}
+	// If uplink is a native bridge, then use a separate OVS bridge with veth pair connection to native bridge.
+	if uplinkNet.Config()["bridge.driver"] != "openvswitch" {
+		vars := n.uplinkPortBridgeVars(uplinkNet)
 
-	// Associate OVS bridge to logical OVN provider.
-	err = ovs.OVNBridgeMappingAdd(vars.ovsBridge, uplinkNet.Name())
-	if err != nil {
-		return errors.Wrapf(err, "Failed to associate uplink OVS bridge %q to OVN provider %q", vars.ovsBridge, uplinkNet.Name())
+		// Create veth pair if needed.
+		if !InterfaceExists(vars.uplinkEnd) && !InterfaceExists(vars.ovsEnd) {
+			_, err := shared.RunCommand("ip", "link", "add", "dev", vars.uplinkEnd, "type", "veth", "peer", "name", vars.ovsEnd)
+			if err != nil {
+				return errors.Wrapf(err, "Failed to create the uplink veth interfaces %q and %q", vars.uplinkEnd, vars.ovsEnd)
+			}
+
+			revert.Add(func() { shared.RunCommand("ip", "link", "delete", vars.uplinkEnd) })
+		}
+
+		// Ensure that the veth interfaces inherit the uplink bridge's MTU (which the OVS bridge also inherits).
+		uplinkNetConfig := uplinkNet.Config()
+		if uplinkNetConfig["bridge.mtu"] != "" {
+			err := InterfaceSetMTU(vars.uplinkEnd, uplinkNetConfig["bridge.mtu"])
+			if err != nil {
+				return err
+			}
+
+			err = InterfaceSetMTU(vars.ovsEnd, uplinkNetConfig["bridge.mtu"])
+			if err != nil {
+				return err
+			}
+		}
+
+		// Ensure correct sysctls are set on uplink veth interfaces to avoid getting IPv6 link-local addresses.
+		err := util.SysctlSet(
+			fmt.Sprintf("net/ipv6/conf/%s/disable_ipv6", vars.uplinkEnd), "1",
+			fmt.Sprintf("net/ipv6/conf/%s/disable_ipv6", vars.ovsEnd), "1",
+			fmt.Sprintf("net/ipv6/conf/%s/forwarding", vars.uplinkEnd), "0",
+			fmt.Sprintf("net/ipv6/conf/%s/forwarding", vars.ovsEnd), "0",
+		)
+		if err != nil {
+			return errors.Wrapf(err, "Failed to configure uplink veth interfaces %q and %q", vars.uplinkEnd, vars.ovsEnd)
+		}
+
+		// Connect uplink end of veth pair to uplink bridge and bring up.
+		_, err = shared.RunCommand("ip", "link", "set", "master", uplinkNet.Name(), "dev", vars.uplinkEnd, "up")
+		if err != nil {
+			return errors.Wrapf(err, "Failed to connect uplink veth interface %q to uplink bridge %q", vars.uplinkEnd, uplinkNet.Name())
+		}
+
+		// Ensure uplink OVS end veth interface is up.
+		_, err = shared.RunCommand("ip", "link", "set", "dev", vars.ovsEnd, "up")
+		if err != nil {
+			return errors.Wrapf(err, "Failed to bring up uplink veth interface %q", vars.ovsEnd)
+		}
+
+		// Create uplink OVS bridge if needed.
+		err = ovs.BridgeAdd(vars.ovsBridge, true)
+		if err != nil {
+			return errors.Wrapf(err, "Failed to create uplink OVS bridge %q", vars.ovsBridge)
+		}
+
+		// Connect OVS end veth interface to OVS bridge.
+		err = ovs.BridgePortAdd(vars.ovsBridge, vars.ovsEnd, true)
+		if err != nil {
+			return errors.Wrapf(err, "Failed to connect uplink veth interface %q to uplink OVS bridge %q", vars.ovsEnd, vars.ovsBridge)
+		}
+
+		// Associate OVS bridge to logical OVN provider.
+		err = ovs.OVNBridgeMappingAdd(vars.ovsBridge, uplinkNet.Name())
+		if err != nil {
+			return errors.Wrapf(err, "Failed to associate uplink OVS bridge %q to OVN provider %q", vars.ovsBridge, uplinkNet.Name())
+		}
+	} else {
+		// If uplink is an openvswitch bridge, have OVN logical provider connect directly to it.
+		err := ovs.OVNBridgeMappingAdd(uplinkNet.Name(), uplinkNet.Name())
+		if err != nil {
+			return errors.Wrapf(err, "Failed to associate uplink OVS bridge %q to OVN provider %q", uplinkNet.Name(), uplinkNet.Name())
+		}
 	}
 
 	routerExtPortIPv6 := net.ParseIP(n.config[ovnVolatileUplinkIPv6])
@@ -1016,47 +1084,64 @@ func (n *ovn) deleteUplinkPort() error {
 
 // deleteUplinkPortBridge deletes uplink OVS bridge, OVN bridge mappings and veth interfaces if not in use.
 func (n *ovn) deleteUplinkPortBridge(uplinkNet Network) error {
-	// Check OVS uplink bridge exists, if it does, check whether the uplink network is in use.
-	removeVeths := false
-	vars := n.uplinkPortBridgeVars(uplinkNet)
-	if InterfaceExists(vars.ovsBridge) {
+	// If uplink is a native bridge, then clean up separate OVS bridge and veth pair connection if not in use.
+	if uplinkNet.Config()["bridge.driver"] != "openvswitch" {
+		// Check OVS uplink bridge exists, if it does, check whether the uplink network is in use.
+		removeVeths := false
+		vars := n.uplinkPortBridgeVars(uplinkNet)
+		if InterfaceExists(vars.ovsBridge) {
+			uplinkUsed, err := n.checkUplinkUse()
+			if err != nil {
+				return err
+			}
+
+			// Remove OVS bridge if the uplink network isn't used by any other OVN networks.
+			if !uplinkUsed {
+				removeVeths = true
+
+				ovs := openvswitch.NewOVS()
+				err = ovs.OVNBridgeMappingDelete(vars.ovsBridge, uplinkNet.Name())
+				if err != nil {
+					return err
+				}
+
+				err = ovs.BridgeDelete(vars.ovsBridge)
+				if err != nil {
+					return err
+				}
+			}
+		} else {
+			removeVeths = true // Remove the veths if OVS bridge already gone.
+		}
+
+		// Remove the veth interfaces if they exist.
+		if removeVeths {
+			if InterfaceExists(vars.uplinkEnd) {
+				_, err := shared.RunCommand("ip", "link", "delete", "dev", vars.uplinkEnd)
+				if err != nil {
+					return errors.Wrapf(err, "Failed to delete the uplink veth interface %q", vars.uplinkEnd)
+				}
+			}
+
+			if InterfaceExists(vars.ovsEnd) {
+				_, err := shared.RunCommand("ip", "link", "delete", "dev", vars.ovsEnd)
+				if err != nil {
+					return errors.Wrapf(err, "Failed to delete the uplink veth interface %q", vars.ovsEnd)
+				}
+			}
+		}
+	} else {
 		uplinkUsed, err := n.checkUplinkUse()
 		if err != nil {
 			return err
 		}
 
-		// Remove OVS bridge if the uplink network isn't used by any other OVN networks.
+		// Remove uplink OVS bridge mapping if not in use by other OVN networks.
 		if !uplinkUsed {
-			removeVeths = true
-
 			ovs := openvswitch.NewOVS()
-			err = ovs.OVNBridgeMappingDelete(vars.ovsBridge, uplinkNet.Name())
+			err = ovs.OVNBridgeMappingDelete(uplinkNet.Name(), uplinkNet.Name())
 			if err != nil {
 				return err
-			}
-
-			err = ovs.BridgeDelete(vars.ovsBridge)
-			if err != nil {
-				return err
-			}
-		}
-	} else {
-		removeVeths = true // Remove the veths if OVS bridge already gone.
-	}
-
-	// Remove the veth interfaces if they exist.
-	if removeVeths {
-		if InterfaceExists(vars.uplinkEnd) {
-			_, err := shared.RunCommand("ip", "link", "delete", "dev", vars.uplinkEnd)
-			if err != nil {
-				return errors.Wrapf(err, "Failed to delete the uplink veth interface %q", vars.uplinkEnd)
-			}
-		}
-
-		if InterfaceExists(vars.ovsEnd) {
-			_, err := shared.RunCommand("ip", "link", "delete", "dev", vars.ovsEnd)
-			if err != nil {
-				return errors.Wrapf(err, "Failed to delete the uplink veth interface %q", vars.ovsEnd)
 			}
 		}
 	}
@@ -1869,15 +1954,41 @@ func (n *ovn) getInstanceDevicePortName(instanceID int, deviceName string) openv
 }
 
 // InstanceDevicePortValidateExternalRoutes validates the external routes for an OVN instance port.
-func (n *ovn) InstanceDevicePortValidateExternalRoutes(externalRoutes []*net.IPNet) error {
-	// Load the project to get uplink network restrictions.
-	p, err := n.state.Cluster.GetProject(n.project)
-	if err != nil {
-		return errors.Wrapf(err, "Failed to load network restrictions from project %q", n.project)
-	}
+func (n *ovn) InstanceDevicePortValidateExternalRoutes(deviceInstance instance.Instance, deviceName string, portExternalRoutes []*net.IPNet) error {
+	var err error
+	var p *api.Project
+	var projectNetworks map[string]map[int64]api.Network
 
 	// Get uplink routes.
 	uplinkRoutes, err := n.uplinkRoutes(n.config["network"])
+	if err != nil {
+		return err
+	}
+
+	err = n.state.Cluster.Transaction(func(tx *db.ClusterTx) error {
+		// Load the project to get uplink network restrictions.
+		p, err = tx.GetProject(n.project)
+		if err != nil {
+			return errors.Wrapf(err, "Failed to load network restrictions from project %q", n.project)
+		}
+
+		// Get all managed networks across all projects.
+		projectNetworks, err = tx.GetNonPendingNetworks()
+		if err != nil {
+			return errors.Wrapf(err, "Failed to load all networks")
+		}
+
+		return nil
+	})
+	if err != nil {
+		return err
+	}
+
+	// Get OVN networks that use the same uplink as us.
+	ovnProjectNetworksWithOurUplink := n.ovnProjectNetworksWithUplink(n.config["network"], projectNetworks)
+
+	// Get external subnets used by other OVN networks using our uplink.
+	ovnNetworkExternalSubnets, err := n.ovnNetworkExternalSubnets("", "", ovnProjectNetworksWithOurUplink, uplinkRoutes)
 	if err != nil {
 		return err
 	}
@@ -1888,10 +1999,41 @@ func (n *ovn) InstanceDevicePortValidateExternalRoutes(externalRoutes []*net.IPN
 		return err
 	}
 
-	for _, externalRoute := range externalRoutes {
-		err = n.validateExternalSubnet(uplinkRoutes, projectRestrictedSubnets, externalRoute)
+	// If validating with an instance, get external routes configured on OVN NICs (excluding ours) using
+	// networks that use our uplink. If we are validating a profile and no instance is provided, skip
+	// validating OVN NIC overlaps at this stage.
+	var ovnNICExternalRoutes []*net.IPNet
+	if deviceInstance != nil {
+		ovnNICExternalRoutes, err = n.ovnNICExternalRoutes(deviceInstance, deviceName, ovnProjectNetworksWithOurUplink)
 		if err != nil {
 			return err
+		}
+	}
+
+	for _, portExternalRoute := range portExternalRoutes {
+		// Check the external port route is allowed within both the uplink's external routes and any
+		// project restricted subnets.
+		err = n.validateExternalSubnet(uplinkRoutes, projectRestrictedSubnets, portExternalRoute)
+		if err != nil {
+			return err
+		}
+
+		// Check the external port route doesn't fall within any existing OVN network external subnets.
+		for _, ovnNetworkExternalSubnet := range ovnNetworkExternalSubnets {
+			if SubnetContains(ovnNetworkExternalSubnet, portExternalRoute) || SubnetContains(portExternalRoute, ovnNetworkExternalSubnet) {
+				// This error is purposefully vague so that it doesn't reveal any names of
+				// resources potentially outside of the NIC's project.
+				return fmt.Errorf("External route %q overlaps with another OVN network's external subnet", portExternalRoute.String())
+			}
+		}
+
+		// Check the external port route doesn't fall within any existing OVN NIC external routes.
+		for _, ovnNICExternalRoute := range ovnNICExternalRoutes {
+			if SubnetContains(ovnNICExternalRoute, portExternalRoute) || SubnetContains(portExternalRoute, ovnNICExternalRoute) {
+				// This error is purposefully vague so that it doesn't reveal any names of
+				// resources potentially outside of the NIC's project.
+				return fmt.Errorf("External route %q overlaps with another OVN NIC's external route", portExternalRoute.String())
+			}
 		}
 	}
 
@@ -1983,9 +2125,22 @@ func (n *ovn) InstanceDevicePortAdd(instanceID int, instanceName string, deviceN
 	}
 
 	// Add DNS records for port's IPs, and retrieve the IP addresses used.
-	dnsUUID, dnsIPv4, dnsIPv6, err := client.LogicalSwitchPortSetDNS(n.getIntSwitchName(), instancePortName, fmt.Sprintf("%s.%s", instanceName, n.getDomainName()))
+	dnsName := fmt.Sprintf("%s.%s", instanceName, n.getDomainName())
+	var dnsUUID string
+	var dnsIPv4, dnsIPv6 net.IP
+
+	// Retry a few times in case port has not yet allocated dynamic IPs.
+	for i := 0; i < 5; i++ {
+		dnsUUID, dnsIPv4, dnsIPv6, err = client.LogicalSwitchPortSetDNS(n.getIntSwitchName(), instancePortName, dnsName)
+		if err == openvswitch.ErrOVNNoPortIPs {
+			time.Sleep(100 * time.Millisecond)
+			continue
+		}
+
+		break
+	}
 	if err != nil {
-		return "", err
+		return "", errors.Wrapf(err, "Failed setting DNS for %q", dnsName)
 	}
 
 	revert.Add(func() { client.LogicalSwitchPortDeleteDNS(n.getIntSwitchName(), dnsUUID) })
@@ -2186,4 +2341,128 @@ func (n *ovn) DHCPv6Subnet() *net.IPNet {
 	}
 
 	return subnet
+}
+
+// ovnNetworkExternalSubnets returns a list of external subnets used by OVN networks (optionally exluding our own
+// if both ourProject and ourNetwork are non-empty) using the same uplink as this OVN network. OVN networks are
+// considered to be using external subnets if their ipv4.address and/or ipv6.address are in the uplink's external
+// routes and the associated NAT is disabled for the IP family.
+func (n *ovn) ovnNetworkExternalSubnets(ourProject string, ourNetwork string, ovnProjectNetworksWithOurUplink map[string][]*api.Network, uplinkRoutes []*net.IPNet) ([]*net.IPNet, error) {
+	externalSubnets := make([]*net.IPNet, 0)
+	for netProject, networks := range ovnProjectNetworksWithOurUplink {
+		for _, netInfo := range networks {
+			if netProject == ourProject && netInfo.Name == ourNetwork {
+				continue
+			}
+
+			for _, keyPrefix := range []string{"ipv4", "ipv6"} {
+				if !shared.IsTrue(netInfo.Config[fmt.Sprintf("%s.nat", keyPrefix)]) {
+					_, ipNet, _ := net.ParseCIDR(netInfo.Config[fmt.Sprintf("%s.address", keyPrefix)])
+					if ipNet == nil {
+						// If the network doesn't have a valid IP, skip it.
+						continue
+					}
+
+					// Check the network's subnet is a valid external route on uplink.
+					err := n.validateExternalSubnet(uplinkRoutes, nil, ipNet)
+					if err != nil {
+						return nil, errors.Wrapf(err, "Failed checking if OVN network external subnet %q is valid external route on uplink %q", ipNet.String(), n.config["network"])
+					}
+
+					externalSubnets = append(externalSubnets, ipNet)
+				}
+			}
+		}
+	}
+
+	return externalSubnets, nil
+}
+
+// ovnNICExternalRoutes returns a list of external routes currently used by OVN NICs (optionally excluding our
+// own if both ourDeviceInstance and ourDeviceName are non-empty) that are connected to OVN networks that share
+// the same uplink as this network uses.
+func (n *ovn) ovnNICExternalRoutes(ourDeviceInstance instance.Instance, ourDeviceName string, ovnProjectNetworksWithOurUplink map[string][]*api.Network) ([]*net.IPNet, error) {
+	externalRoutes := make([]*net.IPNet, 0)
+
+	// nicUsesNetwork returns true if the nicDev's "network" property matches one of the projectNetworks names
+	// and the instNetworkProject matches the projectNetworks's project. As we only use network name and
+	// project to match we rely on projectNetworks only including OVN networks that use our uplink.
+	nicUsesNetwork := func(instNetworkProject string, nicDev map[string]string, projectNetworks map[string][]*api.Network) bool {
+		for netProject, networks := range projectNetworks {
+			for _, network := range networks {
+				if netProject == instNetworkProject && network.Name == nicDev["network"] {
+					return true
+				}
+			}
+		}
+
+		return false
+	}
+
+	err := n.state.Cluster.InstanceList(func(inst db.Instance, p api.Project, profiles []api.Profile) error {
+		// Get the instance's effective network project name.
+		instNetworkProject := project.NetworkProjectFromRecord(&p)
+		devices := db.ExpandInstanceDevices(deviceConfig.NewDevices(inst.Devices), profiles).CloneNative()
+
+		// Iterate through each of the instance's devices, looking for OVN NICs that are linked to networks
+		// that use our uplink.
+		for devName, devConfig := range devices {
+			if devConfig["type"] != "nic" {
+				continue
+			}
+
+			// Skip our own device (if instance and device name were supplied).
+			if ourDeviceInstance != nil && ourDeviceName != "" && inst.Name == ourDeviceInstance.Name() && inst.Project == ourDeviceInstance.Project() && ourDeviceName == devName {
+				continue
+			}
+
+			// Check whether the NIC device references one of the OVN networks supplied.
+			if !nicUsesNetwork(instNetworkProject, devConfig, ovnProjectNetworksWithOurUplink) {
+				continue
+			}
+
+			// For OVN NICs that are connected to networks that use the same uplink as we do, check
+			// if they have any external routes configured, and if so add them to the list to return.
+			for _, keyPrefix := range []string{"ipv4", "ipv6"} {
+				_, ipNet, _ := net.ParseCIDR(devConfig[fmt.Sprintf("%s.routes.external", keyPrefix)])
+				if ipNet == nil {
+					// If the NIC device doesn't have a valid external route setting, skip.
+					continue
+				}
+
+				externalRoutes = append(externalRoutes, ipNet)
+			}
+		}
+
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	return externalRoutes, nil
+}
+
+// ovnProjectNetworksWithUplink accepts a map of all networks in all projects and returns a filtered map of OVN
+// networks that use the uplink specified.
+func (n *ovn) ovnProjectNetworksWithUplink(uplink string, projectNetworks map[string]map[int64]api.Network) map[string][]*api.Network {
+	ovnProjectNetworksWithOurUplink := make(map[string][]*api.Network)
+	for netProject, networks := range projectNetworks {
+		for _, ni := range networks {
+			network := ni // Local var creating pointer to rather than iterator.
+
+			// Skip non-OVN networks or those networks that don't use the uplink specified.
+			if network.Type != "ovn" || network.Config["network"] != uplink {
+				continue
+			}
+
+			if ovnProjectNetworksWithOurUplink[netProject] == nil {
+				ovnProjectNetworksWithOurUplink[netProject] = []*api.Network{&network}
+			} else {
+				ovnProjectNetworksWithOurUplink[netProject] = append(ovnProjectNetworksWithOurUplink[netProject], &network)
+			}
+		}
+	}
+
+	return ovnProjectNetworksWithOurUplink
 }

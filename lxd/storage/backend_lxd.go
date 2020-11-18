@@ -626,6 +626,10 @@ func (b *lxdBackend) CreateInstanceFromCopy(inst instance.Instance, src instance
 		return fmt.Errorf("Instance types must match")
 	}
 
+	if src.Type() == instancetype.VM && src.IsRunning() {
+		return errors.Wrap(ErrNotImplemented, "Unable to perform VM live migration")
+	}
+
 	volType, err := InstanceTypeToVolumeType(inst.Type())
 	if err != nil {
 		return err
@@ -671,6 +675,16 @@ func (b *lxdBackend) CreateInstanceFromCopy(inst instance.Instance, src instance
 	srcPool, err := GetPoolByInstance(b.state, src)
 	if err != nil {
 		return err
+	}
+
+	// Some driver backing stores require that running instances be frozen during copy.
+	if !src.IsSnapshot() && b.driver.Info().RunningCopyFreeze && src.IsRunning() && !src.IsFrozen() {
+		err = src.Freeze()
+		if err != nil {
+			return err
+		}
+
+		defer src.Unfreeze()
 	}
 
 	if b.Name() == srcPool.Name() {
@@ -743,8 +757,8 @@ func (b *lxdBackend) CreateInstanceFromCopy(inst instance.Instance, src instance
 				Name:          inst.Name(),
 				Snapshots:     snapshotNames,
 				MigrationType: migrationTypes[0],
-				VolumeSize:    srcVolumeSize,
-				TrackProgress: false, // Do not use a progress tracker on receiver.
+				VolumeSize:    srcVolumeSize, // Block size setting override.
+				TrackProgress: false,         // Do not use a progress tracker on receiver.
 			}, op)
 
 			if err != nil {
@@ -997,9 +1011,9 @@ func (b *lxdBackend) CreateInstanceFromImage(inst instance.Instance, fingerprint
 			return err
 		}
 	} else {
-		// If the driver does support optimized images then ensure the optimized image
-		// volume has been created for the archive's fingerprint and then proceed to create
-		// a new volume by copying the optimized image volume.
+		// If the driver supports optimized images then ensure the optimized image volume has been created
+		// for the images's fingerprint and that it matches the pool's current volume settings, and if not
+		// recreating using the pool's current volume settings.
 		err = b.EnsureImage(fingerprint, op)
 		if err != nil {
 			return err
@@ -1013,39 +1027,40 @@ func (b *lxdBackend) CreateInstanceFromImage(inst instance.Instance, fingerprint
 
 		imgVol := b.newVolume(drivers.VolumeTypeImage, contentType, fingerprint, imgDBVol.Config)
 
-		// Derive size to use for new volume from source (and check it doesn't exceed volume size limits).
-		volSize, err := vol.ConfigSizeFromSource(imgVol)
+		// Derive the volume size to use for a new volume when copying from a source volume.
+		// Where possible (if the source volume has a volatile.rootfs.size property), it checks that the
+		// source volume isn't larger than the volume's "size" and the pool's "volume.size" setting.
+		logger.Debug("Checking volume size")
+		newVolSize, err := vol.ConfigSizeFromSource(imgVol)
 		if err != nil {
 			return err
 		}
 
-		vol.SetConfigSize(volSize)
+		// Set the derived size directly as the "size" property on the new volume so that it is applied.
+		vol.SetConfigSize(newVolSize)
 
+		// Proceed to create a new volume by copying the optimized image volume.
 		err = b.driver.CreateVolumeFromCopy(vol, imgVol, false, op)
 
-		// If the driver returns ErrCannotBeShrunk, this means that the cached volume is larger than the
-		// requested new volume size and the cached image volume, once snapshotted, cannot be shrunk.
-		// We then need to delete the cached image volume and re-create, as this should solve the issue
-		// by creating a new cached image volume using the pool's current settings (including volume.size).
+		// If the driver returns ErrCannotBeShrunk, this means that the cached volume that the new volume
+		// is to be created from is larger than the requested new volume size, and cannot be shrunk.
+		// So we unpack the image directly into a new volume rather than use the optimized snapsot.
+		// This is slower but allows for individual volumes to be created from an image that are smaller
+		// than the pool's volume settings.
 		if errors.Cause(err) == drivers.ErrCannotBeShrunk {
-			logger.Debug("Cached image volume is larger than new volume and cannot be shrunk, regenerating image volume")
-			err = b.DeleteImage(fingerprint, op)
-			if err != nil {
-				return err
+			logger.Debug("Cached image volume is larger than new volume and cannot be shrunk, creating non-optimized volume")
+
+			volFiller := drivers.VolumeFiller{
+				Fingerprint: fingerprint,
+				Fill:        b.imageFiller(fingerprint, op),
 			}
 
-			err = b.EnsureImage(fingerprint, op)
-			if err != nil {
-				return err
-			}
-
-			err = b.driver.CreateVolumeFromCopy(vol, imgVol, false, op)
+			err = b.driver.CreateVolume(vol, &volFiller, op)
 			if err != nil {
 				return err
 			}
 		} else if err != nil {
 			return err
-
 		}
 	}
 
@@ -1070,6 +1085,10 @@ func (b *lxdBackend) CreateInstanceFromMigration(inst instance.Instance, conn io
 	logger.Debug("CreateInstanceFromMigration started")
 	defer logger.Debug("CreateInstanceFromMigration finished")
 
+	if args.Config != nil {
+		return fmt.Errorf("Migration VolumeTargetArgs.Config cannot be set")
+	}
+
 	volType, err := InstanceTypeToVolumeType(inst.Type())
 	if err != nil {
 		return err
@@ -1093,6 +1112,8 @@ func (b *lxdBackend) CreateInstanceFromMigration(inst instance.Instance, conn io
 	if args.VolumeSize > 0 && contentType == drivers.ContentTypeBlock {
 		b.logger.Debug("Setting volume size from offer header", log.Ctx{"size": args.VolumeSize})
 		args.Config["size"] = fmt.Sprintf("%d", args.VolumeSize)
+	} else if args.Config["size"] != "" {
+		b.logger.Debug("Using volume size from root disk config", log.Ctx{"size": args.Config["size"]})
 	}
 
 	// Get the volume name on storage.
@@ -1292,6 +1313,11 @@ func (b *lxdBackend) RenameInstance(inst instance.Instance, newName string, op *
 		if err != nil {
 			return err
 		}
+	}
+
+	err = inst.DeferTemplateApply("rename")
+	if err != nil {
+		return err
 	}
 
 	revert.Success()
@@ -1577,7 +1603,7 @@ func (b *lxdBackend) GetInstanceUsage(inst instance.Instance) (int64, error) {
 // Returns ErrRunningQuotaResizeNotSupported if the instance is running and the storage driver
 // doesn't support resizing whilst the instance is running.
 func (b *lxdBackend) SetInstanceQuota(inst instance.Instance, size string, op *operations.Operation) error {
-	logger := logging.AddContext(b.logger, log.Ctx{"project": inst.Project(), "instance": inst.Name()})
+	logger := logging.AddContext(b.logger, log.Ctx{"project": inst.Project(), "instance": inst.Name(), "size": size})
 	logger.Debug("SetInstanceQuota started")
 	defer logger.Debug("SetInstanceQuota finished")
 
@@ -1602,21 +1628,24 @@ func (b *lxdBackend) SetInstanceQuota(inst instance.Instance, size string, op *o
 }
 
 // MountInstance mounts the instance's root volume.
-func (b *lxdBackend) MountInstance(inst instance.Instance, op *operations.Operation) (bool, error) {
+func (b *lxdBackend) MountInstance(inst instance.Instance, op *operations.Operation) (*MountInfo, error) {
 	logger := logging.AddContext(b.logger, log.Ctx{"project": inst.Project(), "instance": inst.Name()})
 	logger.Debug("MountInstance started")
 	defer logger.Debug("MountInstance finished")
 
+	revert := revert.New()
+	defer revert.Fail()
+
 	// Check we can convert the instance to the volume type needed.
 	volType, err := InstanceTypeToVolumeType(inst.Type())
 	if err != nil {
-		return false, err
+		return nil, err
 	}
 
 	// Get the root disk device config.
 	rootDiskConf, err := b.instanceRootVolumeConfig(inst)
 	if err != nil {
-		return false, err
+		return nil, err
 	}
 
 	contentType := InstanceContentType(inst)
@@ -1625,7 +1654,23 @@ func (b *lxdBackend) MountInstance(inst instance.Instance, op *operations.Operat
 	// Get the volume.
 	vol := b.newVolume(volType, contentType, volStorageName, rootDiskConf)
 
-	return b.driver.MountVolume(vol, op)
+	err = b.driver.MountVolume(vol, op)
+	if err != nil {
+		return nil, err
+	}
+	revert.Add(func() { b.driver.UnmountVolume(vol, false, op) })
+
+	diskPath, err := b.getInstanceDisk(inst)
+	if err != nil && err != drivers.ErrNotSupported {
+		return nil, errors.Wrapf(err, "Failed getting disk path")
+	}
+
+	mountInfo := &MountInfo{
+		DiskPath: diskPath,
+	}
+
+	revert.Success() // From here on it is up to caller to call UnmountInstance() when done.
+	return mountInfo, nil
 }
 
 // UnmountInstance unmounts the instance's root volume.
@@ -1655,10 +1700,10 @@ func (b *lxdBackend) UnmountInstance(inst instance.Instance, op *operations.Oper
 	return b.driver.UnmountVolume(vol, false, op)
 }
 
-// GetInstanceDisk returns the location of the disk.
-func (b *lxdBackend) GetInstanceDisk(inst instance.Instance) (string, error) {
+// getInstanceDisk returns the location of the disk.
+func (b *lxdBackend) getInstanceDisk(inst instance.Instance) (string, error) {
 	if inst.Type() != instancetype.VM {
-		return "", ErrNotImplemented
+		return "", drivers.ErrNotSupported
 	}
 
 	// Check we can convert the instance to the volume type needed.
@@ -1709,11 +1754,12 @@ func (b *lxdBackend) CreateInstanceSnapshot(inst instance.Instance, src instance
 	}
 
 	// Some driver backing stores require that running instances be frozen during snapshot.
-	if b.driver.Info().RunningSnapshotFreeze && src.IsRunning() {
+	if b.driver.Info().RunningCopyFreeze && src.IsRunning() && !src.IsFrozen() {
 		err = src.Freeze()
 		if err != nil {
 			return err
 		}
+
 		defer src.Unfreeze()
 	}
 
@@ -1959,19 +2005,19 @@ func (b *lxdBackend) RestoreInstanceSnapshot(inst instance.Instance, src instanc
 
 // MountInstanceSnapshot mounts an instance snapshot. It is mounted as read only so that the
 // snapshot cannot be modified.
-func (b *lxdBackend) MountInstanceSnapshot(inst instance.Instance, op *operations.Operation) (bool, error) {
+func (b *lxdBackend) MountInstanceSnapshot(inst instance.Instance, op *operations.Operation) (*MountInfo, error) {
 	logger := logging.AddContext(b.logger, log.Ctx{"project": inst.Project(), "instance": inst.Name()})
 	logger.Debug("MountInstanceSnapshot started")
 	defer logger.Debug("MountInstanceSnapshot finished")
 
 	if !inst.IsSnapshot() {
-		return false, fmt.Errorf("Instance must be a snapshot")
+		return nil, fmt.Errorf("Instance must be a snapshot")
 	}
 
 	// Check we can convert the instance to the volume type needed.
 	volType, err := InstanceTypeToVolumeType(inst.Type())
 	if err != nil {
-		return false, err
+		return nil, err
 	}
 
 	contentType := InstanceContentType(inst)
@@ -1979,7 +2025,7 @@ func (b *lxdBackend) MountInstanceSnapshot(inst instance.Instance, op *operation
 	// Get the root disk device config.
 	rootDiskConf, err := b.instanceRootVolumeConfig(inst)
 	if err != nil {
-		return false, err
+		return nil, err
 	}
 
 	// Get the parent and snapshot name.
@@ -1988,7 +2034,21 @@ func (b *lxdBackend) MountInstanceSnapshot(inst instance.Instance, op *operation
 	// Get the volume.
 	vol := b.newVolume(volType, contentType, volStorageName, rootDiskConf)
 
-	return b.driver.MountVolumeSnapshot(vol, op)
+	_, err = b.driver.MountVolumeSnapshot(vol, op)
+	if err != nil {
+		return nil, err
+	}
+
+	diskPath, err := b.getInstanceDisk(inst)
+	if err != nil && err != drivers.ErrNotSupported {
+		return nil, errors.Wrapf(err, "Failed getting disk path")
+	}
+
+	mountInfo := &MountInfo{
+		DiskPath: diskPath,
+	}
+
+	return mountInfo, nil
 }
 
 // UnmountInstanceSnapshot unmounts an instance snapshot.
@@ -2033,8 +2093,10 @@ func (b *lxdBackend) poolBlockFilesystem() string {
 	return drivers.DefaultFilesystem
 }
 
-// EnsureImage creates an optimized volume of the image if supported by the storage pool driver and
-// the volume doesn't already exist.
+// EnsureImage creates an optimized volume of the image if supported by the storage pool driver and the volume
+// doesn't already exist. If the volume already exists then it is checked to ensure it matches the pools current
+// volume settings ("volume.size" and "block.filesystem" if applicable). If not the optimized volume is removed
+// and regenerated to apply the pool's current volume settings.
 func (b *lxdBackend) EnsureImage(fingerprint string, op *operations.Operation) error {
 	logger := logging.AddContext(b.logger, log.Ctx{"fingerprint": fingerprint})
 	logger.Debug("EnsureImage started")
@@ -2047,7 +2109,7 @@ func (b *lxdBackend) EnsureImage(fingerprint string, op *operations.Operation) e
 	// We need to lock this operation to ensure that the image is not being created multiple times.
 	// Uses a lock name of "EnsureImage_<fingerprint>" to avoid deadlocking with CreateVolume below that also
 	// establishes a lock on the volume type & name if it needs to mount the volume before filling.
-	unlock := locking.Lock(drivers.OperationLockName(b.name, string(drivers.VolumeTypeImage), fmt.Sprintf("EnsureImage_%v", fingerprint)))
+	unlock := locking.Lock(drivers.OperationLockName("EnsureImage", b.name, drivers.VolumeTypeImage, "", fingerprint))
 	defer unlock()
 
 	// Load image info from database.
@@ -2074,33 +2136,72 @@ func (b *lxdBackend) EnsureImage(fingerprint string, op *operations.Operation) e
 		}
 	}
 
+	// Create the new image volume. No config for an image volume so set to nil.
+	// Pool config values will be read by the underlying driver if needed.
+	imgVol := b.newVolume(drivers.VolumeTypeImage, contentType, fingerprint, nil)
+
 	// If an existing DB row was found, check if filesystem is the same as the current pool's filesystem.
 	// If not we need to delete the existing cached image volume and re-create using new filesystem.
 	// We need to do this for VM block images too, as they create a filesystem based config volume too.
 	if imgDBVol != nil {
-		if b.Driver().Info().BlockBacking && imgDBVol.Config["block.filesystem"] != b.poolBlockFilesystem() {
+		// Add existing image volume's config to imgVol.
+		imgVol = b.newVolume(drivers.VolumeTypeImage, contentType, fingerprint, imgDBVol.Config)
+
+		if b.Driver().Info().BlockBacking && imgVol.Config()["block.filesystem"] != b.poolBlockFilesystem() {
 			logger.Debug("Filesystem of pool has changed since cached image volume created, regenerating image volume")
 			err = b.DeleteImage(fingerprint, op)
 			if err != nil {
 				return err
 			}
+
+			// Reset img volume variables as we just deleted the old one.
+			imgDBVol = nil
+			imgVol = b.newVolume(drivers.VolumeTypeImage, contentType, fingerprint, nil)
 		}
 	}
-
-	// Create the new image volume. No config for an image volume so set to nil.
-	// Pool config values will be read by the underlying driver if needed.
-	imgVol := b.newVolume(drivers.VolumeTypeImage, contentType, fingerprint, nil)
 
 	// Check if we already have a suitable volume on storage device.
 	if b.driver.HasVolume(imgVol) {
 		if imgDBVol != nil {
-			// We already have a valid volume, just return.
-			return nil
-		}
+			// Work out what size the image volume should be as if we were creating from scratch.
+			// This takes into account the existing volume's "volatile.rootfs.size" setting if set so
+			// as to avoid trying to shrink a larger image volume back to the default size when it is
+			// allowed to be larger than the default as the pool doesn't specify a volume.size.
+			logger.Debug("Checking image volume size")
+			newVolSize, err := imgVol.ConfigSizeFromSource(imgVol)
+			if err != nil {
+				return err
+			}
 
-		// We somehow have an unrecorded on-disk volume, assume it's a partial unpack and delete it.
-		logger.Warn("Deleting leftover/partially unpacked image volume")
-		b.driver.DeleteVolume(imgVol, op)
+			imgVol.SetConfigSize(newVolSize)
+
+			// Try applying the current size policy to the existin volume. If it is the same the driver
+			// should make no changes, and if not then attempt to resize it to the new policy.
+			logger.Debug("Setting image volume size", "size", imgVol.ConfigSize())
+			err = b.driver.SetVolumeQuota(imgVol, imgVol.ConfigSize(), op)
+			if errors.Cause(err) == drivers.ErrCannotBeShrunk || errors.Cause(err) == drivers.ErrNotSupported {
+				// If the driver cannot resize the existing image volume to the new policy size
+				// then delete the image volume and try to recreate using the new policy settings.
+				logger.Debug("Volume size of pool has changed since cached image volume created and cached volume cannot be resized, regenerating image volume")
+				err = b.DeleteImage(fingerprint, op)
+				if err != nil {
+					return err
+				}
+
+				// Reset img volume variables as we just deleted the old one.
+				imgDBVol = nil
+				imgVol = b.newVolume(drivers.VolumeTypeImage, contentType, fingerprint, nil)
+			} else if err != nil {
+				return err
+			} else {
+				// We already have a valid volume at the correct size, just return.
+				return nil
+			}
+		} else {
+			// We somehow have an unrecorded on-disk volume, assume it's a partial unpack and delete it.
+			logger.Warn("Deleting leftover/partially unpacked image volume")
+			b.driver.DeleteVolume(imgVol, op)
+		}
 	}
 
 	volFiller := drivers.VolumeFiller{
@@ -2141,9 +2242,8 @@ func (b *lxdBackend) DeleteImage(fingerprint string, op *operations.Operation) e
 	logger.Debug("DeleteImage started")
 	defer logger.Debug("DeleteImage finished")
 
-	// We need to lock this operation to ensure that the image is not being
-	// deleted multiple times.
-	unlock := locking.Lock(drivers.OperationLockName(b.name, string(drivers.VolumeTypeImage), fingerprint))
+	// We need to lock this operation to ensure that the image is not being deleted multiple times.
+	unlock := locking.Lock(drivers.OperationLockName("DeleteImage", b.name, drivers.VolumeTypeImage, "", fingerprint))
 	defer unlock()
 
 	// Load image info from database.
@@ -2463,7 +2563,7 @@ func (b *lxdBackend) CreateCustomVolumeFromCopy(projectName string, volName stri
 			MigrationType: migrationTypes[0],
 			TrackProgress: false, // Do not use a progress tracker on receiver.
 			ContentType:   string(contentType),
-			VolumeSize:    volSize,
+			VolumeSize:    volSize, // Block size setting override.
 		}, op)
 
 		if err != nil {
@@ -2750,29 +2850,46 @@ func (b *lxdBackend) UpdateCustomVolume(projectName string, volName string, newD
 			return fmt.Errorf("Custom volume 'block.filesystem' property cannot be changed")
 		}
 
+		// Check that security.unmapped and security.shifted aren't set together.
+		if shared.IsTrue(newConfig["security.unmapped"]) && shared.IsTrue(newConfig["security.shifted"]) {
+			return fmt.Errorf("security.unmapped and security.shifted are mutually exclusive")
+		}
+
+		runningQuotaResize := b.Driver().Info().RunningQuotaResize
+
+		// Check for config changing that is not allowed when running instances are using it.
+		if (changedConfig["size"] != "" && !runningQuotaResize) || newConfig["security.shifted"] != curVol.Config["security.shifted"] {
+			err = VolumeUsedByInstanceDevices(b.state, b.name, projectName, curVol, true, func(dbInst db.Instance, project api.Project, profiles []api.Profile, usedByDevices []string) error {
+				inst, err := instance.Load(b.state, db.InstanceToArgs(&dbInst), profiles)
+				if err != nil {
+					return err
+				}
+
+				if inst.IsRunning() {
+					if changedConfig["size"] != "" && !runningQuotaResize {
+						// Confirm that no running instances are using it when changing
+						// size if driver doesn't support online resize.
+						return ErrRunningQuotaResizeNotSupported
+					} else if changedConfig["security.shifted"] != "" {
+						// Confirm that no running instances are using it when changing
+						// shifted state.
+						return fmt.Errorf("Cannot modify shifting with running instances using the volume")
+					}
+				}
+
+				return nil
+			})
+			if err != nil {
+				return err
+			}
+		}
+
 		curVol := b.newVolume(drivers.VolumeTypeCustom, contentType, volStorageName, curVol.Config)
 		if !userOnly {
 			err = b.driver.UpdateVolume(curVol, changedConfig)
 			if err != nil {
 				return err
 			}
-		}
-	}
-
-	// Check that security.unmapped and security.shifted aren't set together.
-	if shared.IsTrue(newConfig["security.unmapped"]) && shared.IsTrue(newConfig["security.shifted"]) {
-		return fmt.Errorf("security.unmapped and security.shifted are mutually exclusive")
-	}
-
-	// Confirm that no instances are running when changing shifted state.
-	if newConfig["security.shifted"] != curVol.Config["security.shifted"] {
-		usingVolume, err := VolumeUsedByRunningInstancesWithProfilesGet(b.state, projectName, b.Name(), volName, db.StoragePoolVolumeTypeNameCustom, true)
-		if err != nil {
-			return err
-		}
-
-		if len(usingVolume) != 0 {
-			return fmt.Errorf("Cannot modify shifting with running instances using the volume")
 		}
 	}
 
@@ -2944,14 +3061,14 @@ func (b *lxdBackend) GetCustomVolumeUsage(projectName, volName string) (int64, e
 }
 
 // MountCustomVolume mounts a custom volume.
-func (b *lxdBackend) MountCustomVolume(projectName, volName string, op *operations.Operation) (bool, error) {
+func (b *lxdBackend) MountCustomVolume(projectName, volName string, op *operations.Operation) error {
 	logger := logging.AddContext(b.logger, log.Ctx{"project": projectName, "volName": volName})
 	logger.Debug("MountCustomVolume started")
 	defer logger.Debug("MountCustomVolume finished")
 
 	_, volume, err := b.state.Cluster.GetLocalStoragePoolVolume(projectName, volName, db.StoragePoolVolumeTypeCustom, b.id)
 	if err != nil {
-		return false, err
+		return err
 	}
 
 	// Get the volume name on storage.
@@ -3161,14 +3278,31 @@ func (b *lxdBackend) RestoreCustomVolume(projectName, volName string, snapshotNa
 		return fmt.Errorf("Invalid snapshot name")
 	}
 
-	// Check that the volume isn't in use.
-	usingVolume, err := VolumeUsedByRunningInstancesWithProfilesGet(b.state, projectName, b.Name(), volName, db.StoragePoolVolumeTypeNameCustom, true)
+	// Get current volume.
+	_, curVol, err := b.state.Cluster.GetLocalStoragePoolVolume(projectName, volName, db.StoragePoolVolumeTypeCustom, b.ID())
 	if err != nil {
+		if err == db.ErrNoSuchObject {
+			return fmt.Errorf("Volume doesn't exist")
+		}
+
 		return err
 	}
 
-	if len(usingVolume) != 0 {
-		return fmt.Errorf("Cannot restore custom volume used by running instances")
+	// Check that the volume isn't in use by running instances.
+	err = VolumeUsedByInstanceDevices(b.state, b.Name(), projectName, curVol, true, func(dbInst db.Instance, project api.Project, profiles []api.Profile, usedByDevices []string) error {
+		inst, err := instance.Load(b.state, db.InstanceToArgs(&dbInst), profiles)
+		if err != nil {
+			return err
+		}
+
+		if inst.IsRunning() {
+			return fmt.Errorf("Cannot restore custom volume used by running instances")
+		}
+
+		return nil
+	})
+	if err != nil {
+		return err
 	}
 
 	// Get the volume config.

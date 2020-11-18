@@ -5,7 +5,6 @@ package db
 import (
 	"database/sql"
 	"fmt"
-	"sort"
 	"strings"
 	"time"
 
@@ -622,61 +621,74 @@ type StorageVolumeArgs struct {
 	ContentType string
 }
 
-// GetStorageVolumeNodeAddresses returns the addresses of all nodes on which the
-// volume with the given name if defined.
-//
+// GetStorageVolumeNodes returns the node info of all nodes on which the volume with the given name is defined.
 // The volume name can be either a regular name or a volume snapshot name.
-//
-// The empty string is used in place of the address of the current node.
-func (c *ClusterTx) GetStorageVolumeNodeAddresses(poolID int64, project, name string, volumeType int) ([]string, error) {
-	nodes := []struct {
-		id      int64
-		address string
-	}{}
-	dest := func(i int) []interface{} {
-		nodes = append(nodes, struct {
-			id      int64
-			address string
-		}{})
-		return []interface{}{&nodes[i].id, &nodes[i].address}
+// If the volume is defined, but without a specific node, then the ErrNoClusterMember error is returned.
+// If the volume is not found then the ErrNoSuchObject error is returned.
+func (c *ClusterTx) GetStorageVolumeNodes(poolID int64, projectName string, volumeName string, volumeType int) ([]NodeInfo, error) {
+	nodes := []NodeInfo{}
 
+	dest := func(i int) []interface{} {
+		nodes = append(nodes, NodeInfo{})
+		return []interface{}{&nodes[i].ID, &nodes[i].Address, &nodes[i].Name}
 	}
+
 	sql := `
-SELECT nodes.id, nodes.address
-  FROM nodes
-  JOIN storage_volumes_all ON storage_volumes_all.node_id=nodes.id
-  JOIN projects ON projects.id = storage_volumes_all.project_id
- WHERE storage_volumes_all.storage_pool_id=?
-   AND projects.name=?
-   AND storage_volumes_all.name=?
-   AND storage_volumes_all.type=?
+	SELECT coalesce(nodes.id,0) AS nodeID, coalesce(nodes.address,"") AS nodeAddress, coalesce(nodes.name,"") AS nodeName
+	FROM storage_volumes_all
+	JOIN projects ON projects.id = storage_volumes_all.project_id
+	LEFT JOIN nodes ON storage_volumes_all.node_id=nodes.id
+	WHERE storage_volumes_all.storage_pool_id=?
+		AND projects.name=?
+		AND storage_volumes_all.name=?
+		AND storage_volumes_all.type=?
 `
 	stmt, err := c.tx.Prepare(sql)
 	if err != nil {
 		return nil, err
 	}
 	defer stmt.Close()
-	err = query.SelectObjects(stmt, dest, poolID, project, name, volumeType)
+	err = query.SelectObjects(stmt, dest, poolID, projectName, volumeName, volumeType)
 	if err != nil {
 		return nil, err
 	}
 
-	addresses := []string{}
-	for _, node := range nodes {
-		address := node.address
-		if node.id == c.nodeID {
-			address = ""
-		}
-		addresses = append(addresses, address)
-	}
-
-	sort.Strings(addresses)
-
-	if len(addresses) == 0 {
+	if len(nodes) == 0 {
 		return nil, ErrNoSuchObject
 	}
 
-	return addresses, nil
+	for _, node := range nodes {
+		// Volume is defined without a cluster member.
+		if node.ID == 0 {
+			return nil, ErrNoClusterMember
+		}
+	}
+
+	nodeCount := len(nodes)
+	if nodeCount == 0 {
+		return nil, ErrNoSuchObject
+	} else if nodeCount > 1 {
+		driver, err := c.GetStoragePoolDriver(poolID)
+		if err != nil {
+			return nil, err
+		}
+
+		// Earlier schema versions created a volume DB record for each cluster member for remote storage
+		// pools, so if the storage driver is one of those remote pools and the addressCount is >1 then we
+		// take this to mean that the volume doesn't have an explicit cluster member and is therefore
+		// equivalent to db.ErrNoClusterMember that is used in newer schemas where a single remote volume
+		// DB record is created that is not associated to any single member.
+		if StorageRemoteDriverNames == nil {
+			return nil, fmt.Errorf("No remote storage drivers function defined")
+		}
+
+		remoteDrivers := StorageRemoteDriverNames()
+		if shared.StringInSlice(driver, remoteDrivers) {
+			return nil, ErrNoClusterMember
+		}
+	}
+
+	return nodes, nil
 }
 
 // Return the name of the node a storage volume is on.
@@ -805,70 +817,6 @@ SELECT storage_volumes_snapshots.name FROM storage_volumes_snapshots
 	}
 
 	return max
-}
-
-// StorageVolumeIsAvailable checks that if a custom volume available for being attached.
-//
-// Always return true for non-Ceph volumes.
-//
-// For Ceph volumes, return true if the volume is either not attached to any
-// other container, or attached to containers on this node.
-func (c *Cluster) StorageVolumeIsAvailable(pool, volume string) (bool, error) {
-	isAvailable := false
-
-	err := c.Transaction(func(tx *ClusterTx) error {
-		id, err := tx.GetStoragePoolID(pool)
-		if err != nil {
-			return errors.Wrapf(err, "Fetch storage pool ID for %q", pool)
-		}
-
-		driver, err := tx.GetStoragePoolDriver(id)
-		if err != nil {
-			return errors.Wrapf(err, "Fetch storage pool driver for %q", pool)
-		}
-
-		if driver != "ceph" {
-			isAvailable = true
-			return nil
-		}
-
-		node, err := tx.GetLocalNodeName()
-		if err != nil {
-			return errors.Wrapf(err, "Fetch node name")
-		}
-
-		containers, err := tx.instanceListExpanded()
-		if err != nil {
-			return errors.Wrapf(err, "Fetch instances")
-		}
-
-		for _, container := range containers {
-			for _, device := range container.Devices {
-				if device["type"] != "disk" {
-					continue
-				}
-				if device["pool"] != pool {
-					continue
-				}
-				if device["source"] != volume {
-					continue
-				}
-				if container.Node != node {
-					// This ceph volume is already attached
-					// to a container on a different node.
-					return nil
-				}
-			}
-		}
-		isAvailable = true
-
-		return nil
-	})
-	if err != nil {
-		return false, err
-	}
-
-	return isAvailable, nil
 }
 
 // Updates the description of a storage volume.

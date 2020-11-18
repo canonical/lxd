@@ -54,7 +54,7 @@ limits.kernel.\*                            | string    | -                 | no
 limits.memory                               | string    | - (all)           | yes           | -                         | Percentage of the host's memory or fixed value in bytes (various suffixes supported, see below)
 limits.memory.enforce                       | string    | hard              | yes           | container                 | If hard, instance can't exceed its memory limit. If soft, the instance can exceed its memory limit when extra host memory is available
 limits.memory.hugepages                     | boolean   | false             | no            | virtual-machine           | Controls whether to back the instance using hugepages rather than regular system memory
-limits.memory.swap                          | boolean   | true              | yes           | container                 | Whether to allow some of the instance's memory to be swapped out to disk
+limits.memory.swap                          | boolean   | true              | yes           | container                 | Controls whether to encourage/discourage swapping less used pages for this instance
 limits.memory.swap.priority                 | integer   | 10 (maximum)      | yes           | container                 | The higher this is set, the least likely the instance is to be swapped to disk (integer between 0 and 10)
 limits.network.priority                     | integer   | 0 (minimum)       | yes           | -                         | When under load, how much priority to give to the instance's network requests (integer between 0 and 10)
 limits.processes                            | integer   | - (max)           | yes           | container                 | Maximum number of processes that can run in the instance
@@ -110,7 +110,7 @@ volatile.idmap.current                      | string    | -             | The id
 volatile.idmap.next                         | string    | -             | The idmap to use next time the instance starts
 volatile.last\_state.idmap                  | string    | -             | Serialized instance uid/gid map
 volatile.last\_state.power                  | string    | -             | Instance state as of last host shutdown
-volatile.vm.uuid                            | string    | -             | Virtual machine UUID
+volatile.uuid                               | string    | -             | Instance UUID
 volatile.\<name\>.apply\_quota              | string    | -             | Disk quota to be applied on next instance start
 volatile.\<name\>.ceph\_rbd                 | string    | -             | RBD device path for Ceph disk devices
 volatile.\<name\>.host\_name                | string    | -             | Network device name on the host
@@ -342,7 +342,7 @@ hwaddr                  | string  | randomly assigned | no       | no      | TTh
 vlan                    | integer | -                 | no       | no      | TThe VLAN ID to attach to
 maas.subnet.ipv4        | string  | -                 | no       | yes     | MAAS IPv4 subnet to register the instance in
 maas.subnet.ipv6        | string  | -                 | no       | yes     | MAAS IPv6 subnet to register the instance in
-boot.priority           | integer | -                 | no       | no      | TBoot priority for VMs (higher boots first)
+boot.priority           | integer | -                 | no       | no      | Boot priority for VMs (higher boots first)
 
 #### nic: sriov
 
@@ -996,5 +996,5 @@ in your template string to avoid forbidden characters in your snapshot name.
 Another way to avoid name collisions is to use the placeholder `%d`. If a snapshot
 with the same name (excluding the placeholder) already exists, all existing snapshot
 names will be taken into account to find the highest number at the placeholders
-position. This numnber will be incremented by one for the new name. The starting
+position. This number will be incremented by one for the new name. The starting
 number if no snapshot exists will be `0`.

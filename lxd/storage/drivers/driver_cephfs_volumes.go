@@ -45,7 +45,7 @@ func (d *cephfs) CreateVolume(vol Volume, filler *VolumeFiller, op *operations.O
 	}()
 
 	// Apply the volume quota if specified.
-	err = d.SetVolumeQuota(vol, vol.ExpandedConfig("size"), op)
+	err = d.SetVolumeQuota(vol, vol.ConfigSize(), op)
 	if err != nil {
 		return err
 	}
@@ -126,7 +126,7 @@ func (d *cephfs) CreateVolumeFromCopy(vol Volume, srcVol Volume, copySnapshots b
 		}
 
 		// Apply the volume quota if specified.
-		err = d.SetVolumeQuota(vol, vol.ExpandedConfig("size"), op)
+		err = d.SetVolumeQuota(vol, vol.ConfigSize(), op)
 		if err != nil {
 			return err
 		}
@@ -213,10 +213,12 @@ func (d *cephfs) CreateVolumeFromMigration(vol Volume, conn io.ReadWriteCloser, 
 			revertSnaps = append(revertSnaps, snapName)
 		}
 
-		// Apply the volume quota if specified.
-		err = d.SetVolumeQuota(vol, vol.ExpandedConfig("size"), op)
-		if err != nil {
-			return err
+		if vol.contentType == ContentTypeFS {
+			// Apply the size limit.
+			err = d.SetVolumeQuota(vol, vol.ConfigSize(), op)
+			if err != nil {
+				return err
+			}
 		}
 
 		// Receive the main volume from sender.
@@ -288,12 +290,15 @@ func (d *cephfs) ValidateVolume(vol Volume, removeUnknownKeys bool) error {
 
 // UpdateVolume applies the driver specific changes of a volume configuration change.
 func (d *cephfs) UpdateVolume(vol Volume, changedConfig map[string]string) error {
-	value, ok := changedConfig["size"]
-	if !ok {
-		return nil
+	newSize, sizeChanged := changedConfig["size"]
+	if sizeChanged {
+		err := d.SetVolumeQuota(vol, newSize, nil)
+		if err != nil {
+			return err
+		}
 	}
 
-	return d.SetVolumeQuota(vol, value, nil)
+	return nil
 }
 
 // GetVolumeUsage returns the disk space usage of a volume.
@@ -338,13 +343,19 @@ func (d *cephfs) GetVolumeDiskPath(vol Volume) (string, error) {
 }
 
 // MountVolume sets up the volume for use.
-func (d *cephfs) MountVolume(vol Volume, op *operations.Operation) (bool, error) {
-	return false, nil
+func (d *cephfs) MountVolume(vol Volume, op *operations.Operation) error {
+	unlock := vol.MountLock()
+	defer unlock()
+
+	return nil
 }
 
 // UnmountVolume clears any runtime state for the volume.
 // As driver doesn't have volumes to unmount it returns false indicating the volume was already unmounted.
 func (d *cephfs) UnmountVolume(vol Volume, keepBlockDev bool, op *operations.Operation) (bool, error) {
+	unlock := vol.MountLock()
+	defer unlock()
+
 	return false, nil
 }
 
@@ -508,11 +519,17 @@ func (d *cephfs) DeleteVolumeSnapshot(snapVol Volume, op *operations.Operation) 
 
 // MountVolumeSnapshot makes the snapshot available for use.
 func (d *cephfs) MountVolumeSnapshot(snapVol Volume, op *operations.Operation) (bool, error) {
+	unlock := snapVol.MountLock()
+	defer unlock()
+
 	return false, nil
 }
 
 // UnmountVolumeSnapshot clears any runtime state for the snapshot.
 func (d *cephfs) UnmountVolumeSnapshot(snapVol Volume, op *operations.Operation) (bool, error) {
+	unlock := snapVol.MountLock()
+	defer unlock()
+
 	return false, nil
 }
 

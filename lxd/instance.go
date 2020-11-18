@@ -39,7 +39,7 @@ func instanceCreateAsEmpty(d *Daemon, args db.InstanceArgs) (instance.Instance, 
 	// Create the instance record.
 	inst, err := instanceCreateInternal(d.State(), args)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "Failed creating instance record")
 	}
 
 	revert := true
@@ -61,8 +61,7 @@ func instanceCreateAsEmpty(d *Daemon, args db.InstanceArgs) (instance.Instance, 
 		return nil, errors.Wrap(err, "Create instance")
 	}
 
-	// Apply any post-storage configuration.
-	err = instanceConfigureInternal(d.State(), inst)
+	err = inst.UpdateBackupFile()
 	if err != nil {
 		return nil, err
 	}
@@ -147,7 +146,7 @@ func instanceCreateFromImage(d *Daemon, args db.InstanceArgs, hash string, op *o
 	// Create the instance.
 	inst, err := instanceCreateInternal(s, args)
 	if err != nil {
-		return nil, errors.Wrap(err, "Create instance")
+		return nil, errors.Wrap(err, "Failed creating instance record")
 	}
 
 	revert := true
@@ -174,10 +173,9 @@ func instanceCreateFromImage(d *Daemon, args db.InstanceArgs, hash string, op *o
 		return nil, errors.Wrap(err, "Create instance from image")
 	}
 
-	// Apply any post-storage configuration.
-	err = instanceConfigureInternal(d.State(), inst)
+	err = inst.UpdateBackupFile()
 	if err != nil {
-		return nil, errors.Wrap(err, "Configure instance")
+		return nil, err
 	}
 
 	revert = false
@@ -213,7 +211,7 @@ func instanceCreateAsCopy(s *state.State, args db.InstanceArgs, sourceInst insta
 		// Create the instance.
 		inst, err = instanceCreateInternal(s, args)
 		if err != nil {
-			return nil, err
+			return nil, errors.Wrap(err, "Failed creating instance record")
 		}
 		revertInst = inst
 	}
@@ -295,7 +293,7 @@ func instanceCreateAsCopy(s *state.State, args db.InstanceArgs, sourceInst insta
 			// Create the snapshots.
 			snapInst, err := instanceCreateInternal(s, snapInstArgs)
 			if err != nil {
-				return nil, err
+				return nil, errors.Wrapf(err, "Failed creating instance snapshot record %q", newSnapName)
 			}
 
 			// Set snapshot creation date to that of the source snapshot.
@@ -325,20 +323,9 @@ func instanceCreateAsCopy(s *state.State, args db.InstanceArgs, sourceInst insta
 		}
 	}
 
-	// Apply any post-storage configuration.
-	err = instanceConfigureInternal(s, inst)
+	err = inst.UpdateBackupFile()
 	if err != nil {
 		return nil, err
-	}
-
-	if !instanceOnly {
-		for _, snap := range snapList {
-			// Apply any post-storage configuration.
-			err = instanceConfigureInternal(s, *snap)
-			if err != nil {
-				return nil, err
-			}
-		}
 	}
 
 	revertInst = nil
@@ -400,7 +387,7 @@ func instanceCreateAsSnapshot(s *state.State, args db.InstanceArgs, sourceInstan
 	// Create the snapshot.
 	inst, err := instanceCreateInternal(s, args)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrapf(err, "Failed creating instance snapshot record %q", args.Name)
 	}
 	revert.Add(func() { inst.Delete() })
 
@@ -415,13 +402,11 @@ func instanceCreateAsSnapshot(s *state.State, args db.InstanceArgs, sourceInstan
 	}
 
 	// Mount volume for backup.yaml writing.
-	ourStart, err := pool.MountInstance(sourceInstance, op)
+	_, err = pool.MountInstance(sourceInstance, op)
 	if err != nil {
 		return nil, errors.Wrap(err, "Create instance snapshot (mount source)")
 	}
-	if ourStart {
-		defer pool.UnmountInstance(sourceInstance, op)
-	}
+	defer pool.UnmountInstance(sourceInstance, op)
 
 	// Attempt to update backup.yaml for instance.
 	err = sourceInstance.UpdateBackupFile()
@@ -651,41 +636,6 @@ func instanceCreateInternal(s *state.State, args db.InstanceArgs) (instance.Inst
 
 	revert = false
 	return inst, nil
-}
-
-// instanceConfigureInternal applies quota set in volatile "apply_quota" and writes a backup file.
-func instanceConfigureInternal(state *state.State, c instance.Instance) error {
-	// Find the root device.
-	rootDiskDeviceKey, rootDiskDevice, err := shared.GetRootDiskDevice(c.ExpandedDevices().CloneNative())
-	if err != nil {
-		return err
-	}
-
-	pool, err := storagePools.GetPoolByInstance(state, c)
-	if err != nil {
-		return errors.Wrap(err, "Load instance storage pool")
-	}
-
-	if rootDiskDevice["size"] != "" {
-		err = pool.SetInstanceQuota(c, rootDiskDevice["size"], nil)
-
-		// If the storage driver can't set the quota now, store in volatile.
-		if err == storagePools.ErrRunningQuotaResizeNotSupported {
-			err = c.VolatileSet(map[string]string{fmt.Sprintf("volatile.%s.apply_quota", rootDiskDeviceKey): rootDiskDevice["size"]})
-			if err != nil {
-				return err
-			}
-		} else if err != nil {
-			return err
-		}
-	}
-
-	err = c.UpdateBackupFile()
-	if err != nil {
-		return err
-	}
-
-	return nil
 }
 
 // Load all instances of this nodes under the given project.

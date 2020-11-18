@@ -15,6 +15,7 @@ import (
 
 	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/response"
+	storagePools "github.com/lxc/lxd/lxd/storage"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 )
@@ -42,18 +43,21 @@ func containerMetadataGet(d *Daemon, r *http.Request) response.Response {
 	if err != nil {
 		return response.SmartError(err)
 	}
-	metadataPath := filepath.Join(c.Path(), "metadata.yaml")
 
 	// Start the storage if needed
-	ourStart, err := c.StorageStart()
+	pool, err := storagePools.GetPoolByInstance(d.State(), c)
 	if err != nil {
 		return response.SmartError(err)
 	}
-	if ourStart {
-		defer c.StorageStop()
+
+	_, err = storagePools.InstanceMount(pool, c, nil)
+	if err != nil {
+		return response.SmartError(err)
 	}
+	defer storagePools.InstanceUnmount(pool, c, nil)
 
 	// If missing, just return empty result
+	metadataPath := filepath.Join(c.Path(), "metadata.yaml")
 	if !shared.PathExists(metadataPath) {
 		return response.SyncResponse(true, api.ImageMetadata{})
 	}
@@ -103,16 +107,18 @@ func containerMetadataPut(d *Daemon, r *http.Request) response.Response {
 	if err != nil {
 		return response.SmartError(err)
 	}
-	metadataPath := filepath.Join(c.Path(), "metadata.yaml")
 
 	// Start the storage if needed
-	ourStart, err := c.StorageStart()
+	pool, err := storagePools.GetPoolByInstance(d.State(), c)
 	if err != nil {
 		return response.SmartError(err)
 	}
-	if ourStart {
-		defer c.StorageStop()
+
+	_, err = storagePools.InstanceMount(pool, c, nil)
+	if err != nil {
+		return response.SmartError(err)
 	}
+	defer storagePools.InstanceUnmount(pool, c, nil)
 
 	// Read the new metadata
 	metadata := api.ImageMetadata{}
@@ -126,6 +132,7 @@ func containerMetadataPut(d *Daemon, r *http.Request) response.Response {
 		return response.BadRequest(err)
 	}
 
+	metadataPath := filepath.Join(c.Path(), "metadata.yaml")
 	if err := ioutil.WriteFile(metadataPath, data, 0644); err != nil {
 		return response.InternalError(err)
 	}
@@ -159,13 +166,16 @@ func containerMetadataTemplatesGet(d *Daemon, r *http.Request) response.Response
 	}
 
 	// Start the storage if needed
-	ourStart, err := c.StorageStart()
+	pool, err := storagePools.GetPoolByInstance(d.State(), c)
 	if err != nil {
 		return response.SmartError(err)
 	}
-	if ourStart {
-		defer c.StorageStop()
+
+	_, err = storagePools.InstanceMount(pool, c, nil)
+	if err != nil {
+		return response.SmartError(err)
 	}
+	defer storagePools.InstanceUnmount(pool, c, nil)
 
 	// Look at the request
 	templateName := r.FormValue("path")
@@ -253,13 +263,16 @@ func containerMetadataTemplatesPostPut(d *Daemon, r *http.Request) response.Resp
 	}
 
 	// Start the storage if needed
-	ourStart, err := c.StorageStart()
+	pool, err := storagePools.GetPoolByInstance(d.State(), c)
 	if err != nil {
 		return response.SmartError(err)
 	}
-	if ourStart {
-		defer c.StorageStop()
+
+	_, err = storagePools.InstanceMount(pool, c, nil)
+	if err != nil {
+		return response.SmartError(err)
 	}
+	defer storagePools.InstanceUnmount(pool, c, nil)
 
 	// Look at the request
 	templateName := r.FormValue("path")
@@ -326,13 +339,16 @@ func containerMetadataTemplatesDelete(d *Daemon, r *http.Request) response.Respo
 	}
 
 	// Start the storage if needed
-	ourStart, err := c.StorageStart()
+	pool, err := storagePools.GetPoolByInstance(d.State(), c)
 	if err != nil {
 		return response.SmartError(err)
 	}
-	if ourStart {
-		defer c.StorageStop()
+
+	_, err = storagePools.InstanceMount(pool, c, nil)
+	if err != nil {
+		return response.SmartError(err)
 	}
+	defer storagePools.InstanceUnmount(pool, c, nil)
 
 	// Look at the request
 	templateName := r.FormValue("path")

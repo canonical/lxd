@@ -10,6 +10,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/lxc/lxd/lxd/db"
+	deviceConfig "github.com/lxc/lxd/lxd/device/config"
 	"github.com/lxc/lxd/lxd/instance/instancetype"
 	"github.com/lxc/lxd/shared/api"
 )
@@ -157,53 +158,64 @@ func TestInstanceList_ContainerWithSameNameInDifferentProjects(t *testing.T) {
 	assert.Equal(t, []string{"intranet"}, containers[1].Profiles)
 }
 
-func TestInstanceListExpanded(t *testing.T) {
-	tx, cleanup := db.NewTestClusterTx(t)
-	defer cleanup()
+func TestInstanceList(t *testing.T) {
+	cluster, clusterCleanup := db.NewTestCluster(t)
+	defer clusterCleanup()
 
-	profile := db.Profile{
-		Project: "default",
-		Name:    "profile1",
-		Config:  map[string]string{"a": "1"},
-		Devices: map[string]map[string]string{"root": {"type": "disk", "b": "2"}},
-	}
+	err := cluster.Transaction(func(tx *db.ClusterTx) error {
+		profile := db.Profile{
+			Project: "default",
+			Name:    "profile1",
+			Config:  map[string]string{"a": "1"},
+			Devices: map[string]map[string]string{"root": {"type": "disk", "b": "2"}},
+		}
 
-	_, err := tx.CreateProfile(profile)
+		_, err := tx.CreateProfile(profile)
+		if err != nil {
+			return err
+		}
+
+		container := db.Instance{
+			Project:      "default",
+			Name:         "c1",
+			Node:         "none",
+			Type:         instancetype.Container,
+			Architecture: 1,
+			Ephemeral:    false,
+			Stateful:     true,
+			Config:       map[string]string{"c": "3"},
+			Devices:      map[string]map[string]string{"eth0": {"type": "nic", "d": "4"}},
+			Profiles:     []string{"default", "profile1"},
+		}
+
+		_, err = tx.CreateInstance(container)
+		if err != nil {
+			return err
+		}
+
+		return nil
+	})
 	require.NoError(t, err)
 
-	container := db.Instance{
-		Project:      "default",
-		Name:         "c1",
-		Node:         "none",
-		Type:         instancetype.Container,
-		Architecture: 1,
-		Ephemeral:    false,
-		Stateful:     true,
-		Config:       map[string]string{"c": "3"},
-		Devices:      map[string]map[string]string{"eth0": {"type": "nic", "d": "4"}},
-		Profiles:     []string{"default", "profile1"},
-	}
-
-	_, err = tx.CreateInstance(container)
+	var instances []db.Instance
+	err = cluster.InstanceList(func(dbInst db.Instance, p api.Project, profiles []api.Profile) error {
+		dbInst.Config = db.ExpandInstanceConfig(dbInst.Config, profiles)
+		dbInst.Devices = db.ExpandInstanceDevices(deviceConfig.NewDevices(dbInst.Devices), profiles).CloneNative()
+		instances = append(instances, dbInst)
+		return nil
+	})
 	require.NoError(t, err)
 
-	containers, err := tx.InstanceListExpanded()
-	require.NoError(t, err)
+	assert.Len(t, instances, 1)
 
-	assert.Len(t, containers, 1)
-
-	assert.Equal(t, containers[0].Config, map[string]string{"a": "1", "c": "3"})
-	assert.Equal(t, containers[0].Devices, map[string]map[string]string{
+	assert.Equal(t, instances[0].Config, map[string]string{"a": "1", "c": "3"})
+	assert.Equal(t, instances[0].Devices, map[string]map[string]string{
 		"root": {"type": "disk", "b": "2"},
 		"eth0": {"type": "nic", "d": "4"},
 	})
 }
 
 func TestCreateInstance(t *testing.T) {
-	db.StorageRemoteDriverNames = func() []string {
-		return []string{"ceph", "cephfs"}
-	}
-
 	tx, cleanup := db.NewTestClusterTx(t)
 	defer cleanup()
 
