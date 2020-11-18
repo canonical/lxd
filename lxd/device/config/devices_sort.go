@@ -31,8 +31,9 @@ func (devices DevicesSortable) Less(i, j int) bool {
 			return false
 		}
 
-		// Start disks before other non-nic devices so that any unmounts triggered by pre-start resize
-		// occur first and the rest of the devices can rely on the instance's root disk being mounted.
+		// Start disks before other non-nic devices so that any unmounts triggered by deferred resizes
+		// specified in volatile "apply_quota" key can occur first and the rest of the devices can rely on
+		// the instance's root disk being mounted.
 		if a.Config["type"] == "disk" {
 			return true
 		}
