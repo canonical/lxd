@@ -2756,26 +2756,17 @@ func (b *lxdBackend) UpdateCustomVolume(projectName string, volName string, newD
 			return fmt.Errorf("security.unmapped and security.shifted are mutually exclusive")
 		}
 
-		runningQuotaResize := b.Driver().Info().RunningQuotaResize
-
 		// Check for config changing that is not allowed when running instances are using it.
-		if (changedConfig["size"] != "" && !runningQuotaResize) || newConfig["security.shifted"] != curVol.Config["security.shifted"] {
+		if changedConfig["security.shifted"] != "" {
 			err = VolumeUsedByInstanceDevices(b.state, b.name, projectName, curVol, true, func(dbInst db.Instance, project api.Project, profiles []api.Profile, usedByDevices []string) error {
 				inst, err := instance.Load(b.state, db.InstanceToArgs(&dbInst), profiles)
 				if err != nil {
 					return err
 				}
 
-				if inst.IsRunning() {
-					if changedConfig["size"] != "" && !runningQuotaResize {
-						// Confirm that no running instances are using it when changing
-						// size if driver doesn't support online resize.
-						return ErrRunningQuotaResizeNotSupported
-					} else if changedConfig["security.shifted"] != "" {
-						// Confirm that no running instances are using it when changing
-						// shifted state.
-						return fmt.Errorf("Cannot modify shifting with running instances using the volume")
-					}
+				// Confirm that no running instances are using it when changing shifted state.
+				if inst.IsRunning() && changedConfig["security.shifted"] != "" {
+					return fmt.Errorf("Cannot modify shifting with running instances using the volume")
 				}
 
 				return nil
