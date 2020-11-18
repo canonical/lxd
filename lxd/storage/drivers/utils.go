@@ -474,16 +474,35 @@ func resolveMountOptions(options string) (uintptr, string) {
 	return mountFlags, strings.Join(tmp, ",")
 }
 
-// shrinkFileSystem shrinks a filesystem if it is supported. Ext4 volumes will be unmounted temporarily if needed.
+// filesystemTypeCanBeShrunk indicates if filesystems of fsType can be shrunk.
+func filesystemTypeCanBeShrunk(fsType string) bool {
+	if fsType == "" {
+		fsType = DefaultFilesystem
+	}
+
+	if shared.StringInSlice(fsType, []string{"ext4", "btrfs"}) {
+		return true
+	}
+
+	return false
+}
+
+// shrinkFileSystem shrinks a filesystem if it is supported.
+// EXT4 volumes will be unmounted temporarily if needed.
+// BTRFS volumes will be mounted temporarily if needed.
 func shrinkFileSystem(fsType string, devPath string, vol Volume, byteSize int64) error {
+	if fsType == "" {
+		fsType = DefaultFilesystem
+	}
+
+	if !filesystemTypeCanBeShrunk(fsType) {
+		return ErrCannotBeShrunk
+	}
+
 	// The smallest unit that resize2fs accepts in byte size (rather than blocks) is kilobytes.
 	strSize := fmt.Sprintf("%dK", byteSize/1024)
 
 	switch fsType {
-	case "": // if not specified, default to ext4.
-		fallthrough
-	case "xfs":
-		return errors.Wrapf(ErrCannotBeShrunk, "Shrinking not supported for filesystem type %q. A dump, mkfs, and restore are required", fsType)
 	case "ext4":
 		return vol.UnmountTask(func(op *operations.Operation) error {
 			output, err := shared.RunCommand("e2fsck", "-f", "-y", devPath)
@@ -523,9 +542,9 @@ func shrinkFileSystem(fsType string, devPath string, vol Volume, byteSize int64)
 
 			return nil
 		}, nil)
-	default:
-		return errors.Wrapf(ErrCannotBeShrunk, "Shrinking not supported for filesystem type %q", fsType)
 	}
+
+	return fmt.Errorf("Unrecognised filesystem type %q", fsType)
 }
 
 // growFileSystem grows a filesystem if it is supported. The volume will be mounted temporarily if needed.
