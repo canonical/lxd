@@ -820,8 +820,6 @@ func (d *ceph) SetVolumeQuota(vol Volume, size string, op *operations.Operation)
 		return nil
 	}
 
-	fsType := vol.ConfigBlockFilesystem()
-
 	ourMap, devPath, err := d.getRBDMappedDevPath(vol, true)
 	if err != nil {
 		return err
@@ -847,62 +845,71 @@ func (d *ceph) SetVolumeQuota(vol Volume, size string, op *operations.Operation)
 		return ErrNotSupported
 	}
 
-	// Resize filesystem if needed.
-	if sizeBytes < oldSizeBytes {
-		if vol.contentType == ContentTypeBlock && !vol.allowUnsafeResize {
-			return errors.Wrap(ErrCannotBeShrunk, "You cannot shrink block volumes")
-		}
+	inUse := vol.MountInUse()
 
-		// Shrink the filesystem.
-		if vol.contentType == ContentTypeFS {
+	// Resize filesystem if needed.
+	if vol.contentType == ContentTypeFS {
+		fsType := vol.ConfigBlockFilesystem()
+
+		if sizeBytes < oldSizeBytes {
+			if !filesystemTypeCanBeShrunk(fsType) {
+				return errors.Wrapf(ErrCannotBeShrunk, "Filesystem %q cannot be shrunk", fsType)
+			}
+
+			if inUse {
+				return ErrInUse // We don't allow online shrinking of filesytem volumes.
+			}
+
+			// Shrink filesystem first.
 			err = shrinkFileSystem(fsType, devPath, vol, sizeBytes)
 			if err != nil {
 				return err
 			}
-		}
 
-		// Shrink the block device.
-		_, err = shared.TryRunCommand(
-			"rbd",
-			"resize",
-			"--allow-shrink",
-			"--id", d.config["ceph.user.name"],
-			"--cluster", d.config["ceph.cluster_name"],
-			"--pool", d.config["ceph.osd.pool_name"],
-			"--size", fmt.Sprintf("%dB", sizeBytes),
-			d.getRBDVolumeName(vol, "", false, false))
-		if err != nil {
-			return err
-		}
-	} else {
-		// Grow the block device.
-		_, err = shared.TryRunCommand(
-			"rbd",
-			"resize",
-			"--id", d.config["ceph.user.name"],
-			"--cluster", d.config["ceph.cluster_name"],
-			"--pool", d.config["ceph.osd.pool_name"],
-			"--size", fmt.Sprintf("%dB", sizeBytes),
-			d.getRBDVolumeName(vol, "", false, false))
-		if err != nil {
-			return err
-		}
+			// Shrink the block device.
+			err = d.resizeVolume(vol, sizeBytes, true)
+			if err != nil {
+				return err
+			}
+		} else if sizeBytes > oldSizeBytes {
+			// Grow block device first.
+			err = d.resizeVolume(vol, sizeBytes, false)
+			if err != nil {
+				return err
+			}
 
-		// Grow the filesystem.
-		if vol.contentType == ContentTypeFS {
+			// Grow the filesystem to fill block device.
 			err = growFileSystem(fsType, devPath, vol)
 			if err != nil {
 				return err
 			}
 		}
-	}
+	} else {
+		// Only perform pre-resize sanity checks if we are not in "unsafe" mode.
+		// In unsafe mode we expect the caller to know what they are doing and understand the risks.
+		if !vol.allowUnsafeResize {
+			if sizeBytes < oldSizeBytes {
+				return errors.Wrap(ErrCannotBeShrunk, "Block volumes cannot be shrunk")
+			}
 
-	// Move the VM GPT alt header to end of disk if needed (not needed in unsafe resize mode as it is
-	// expected the caller will do all necessary post resize actions themselves).
-	if vol.IsVMBlock() && !vol.allowUnsafeResize {
-		err = d.moveGPTAltHeader(devPath)
+			if inUse {
+				return ErrInUse // We don't allow online resizing of block volumes.
+			}
+		}
+
+		// Resize block device.
+		err = d.resizeVolume(vol, sizeBytes, vol.allowUnsafeResize)
 		if err != nil {
 			return err
+		}
+
+		// Move the VM GPT alt header to end of disk if needed (not needed in unsafe resize mode as it is
+		// expected the caller will do all necessary post resize actions themselves).
+		if vol.IsVMBlock() && !vol.allowUnsafeResize {
+			err = d.moveGPTAltHeader(devPath)
+			if err != nil {
+				return err
+			}
 		}
 	}
 
