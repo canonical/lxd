@@ -175,6 +175,13 @@ func qemuCreate(s *state.State, args db.InstanceArgs) (instance.Instance, error)
 		expiryDate:   args.ExpiryDate,
 	}
 
+	revert := revert.New()
+	defer revert.Fail()
+
+	// Use vm.Delete() in revert on error as this function doesn't just create DB records, it can also cause
+	// other modifications to the host when devices are added.
+	revert.Add(func() { vm.Delete() })
+
 	// Get the architecture name.
 	archName, err := osarch.ArchitectureName(vm.architecture)
 	if err == nil {
@@ -202,45 +209,31 @@ func qemuCreate(s *state.State, args db.InstanceArgs) (instance.Instance, error)
 
 	logger.Info("Creating instance", ctxMap)
 
-	revert := true
-	defer func() {
-		if !revert {
-			return
-		}
-
-		vm.Delete()
-	}()
-
 	// Load the config.
 	err = vm.init()
 	if err != nil {
-		logger.Error("Failed creating instance", ctxMap)
 		return nil, err
 	}
 
 	// Validate expanded config.
 	err = instance.ValidConfig(s.OS, vm.expandedConfig, false, true)
 	if err != nil {
-		logger.Error("Failed creating instance", ctxMap)
 		return nil, err
 	}
 
 	err = instance.ValidDevices(s, s.Cluster, vm.Project(), vm.Type(), vm.expandedDevices, true)
 	if err != nil {
-		logger.Error("Failed creating instance", ctxMap)
 		return nil, errors.Wrap(err, "Invalid devices")
 	}
 
-	// Retrieve the container's storage pool
+	// Retrieve the container's storage pool.
 	var storageInstance instance.Instance
 	if vm.IsSnapshot() {
 		parentName, _, _ := shared.InstanceGetParentAndSnapshotName(vm.name)
 
-		// Load the parent
+		// Load the parent.
 		storageInstance, err = instance.LoadByProjectAndName(vm.state, vm.project, parentName)
 		if err != nil {
-			vm.Delete()
-			logger.Error("Failed creating instance", ctxMap)
 			return nil, errors.Wrap(err, "Invalid parent")
 		}
 	} else {
@@ -287,7 +280,6 @@ func qemuCreate(s *state.State, args db.InstanceArgs) (instance.Instance, error)
 		// Update MAAS.
 		err = vm.maasUpdate(nil)
 		if err != nil {
-			logger.Error("Failed creating instance", ctxMap)
 			return nil, err
 		}
 
@@ -301,10 +293,9 @@ func qemuCreate(s *state.State, args db.InstanceArgs) (instance.Instance, error)
 	}
 
 	logger.Info("Created instance", ctxMap)
-	vm.state.Events.SendLifecycle(vm.project, "virtual-machine-created",
-		fmt.Sprintf("/1.0/virtual-machines/%s", vm.name), nil)
+	vm.state.Events.SendLifecycle(vm.project, "virtual-machine-created", fmt.Sprintf("/1.0/virtual-machines/%s", vm.name), nil)
 
-	revert = false
+	revert.Success()
 	return vm, nil
 }
 
