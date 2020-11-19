@@ -369,10 +369,8 @@ func (d *nicOVN) Start() (*deviceConfig.RunConfig, error) {
 func (d *nicOVN) Update(oldDevices deviceConfig.Devices, isRunning bool) error {
 	oldConfig := oldDevices[d.name]
 
-	v := d.volatileGet()
-
 	// Populate device config with volatile fields if needed.
-	networkVethFillFromVolatile(d.config, v)
+	networkVethFillFromVolatile(d.config, d.volatileGet())
 
 	// If instance is running, apply host side limits and filters first before rebuilding
 	// dnsmasq config below so that existing config can be used as part of the filter removal.
@@ -452,9 +450,7 @@ func (d *nicOVN) postStop() error {
 		"host_name": "",
 	})
 
-	v := d.volatileGet()
-
-	networkVethFillFromVolatile(d.config, v)
+	networkVethFillFromVolatile(d.config, d.volatileGet())
 
 	if d.config["host_name"] != "" && shared.PathExists(fmt.Sprintf("/sys/class/net/%s", d.config["host_name"])) {
 		integrationBridge, err := d.getIntegrationBridgeName()
@@ -487,10 +483,8 @@ func (d *nicOVN) Remove() error {
 
 // State gets the state of an OVN NIC by querying the OVN Northbound logical switch port record.
 func (d *nicOVN) State() (*api.InstanceStateNetwork, error) {
-	v := d.volatileGet()
-
 	// Populate device config with volatile fields (hwaddr and host_name) if needed.
-	networkVethFillFromVolatile(d.config, v)
+	networkVethFillFromVolatile(d.config, d.volatileGet())
 
 	addresses := []api.InstanceStateNetworkAddress{}
 	netConfig := d.network.Config()
