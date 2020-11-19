@@ -35,6 +35,7 @@ type Pool interface {
 	ApplyPatch(name string) error
 
 	// Instances.
+	FillInstanceConfig(inst instance.Instance, config map[string]string) error
 	CreateInstance(inst instance.Instance, op *operations.Operation) error
 	CreateInstanceFromBackup(srcBackup backup.Info, srcData io.ReadSeeker, op *operations.Operation) (func(instance.Instance) error, func(), error)
 	CreateInstanceFromCopy(inst instance.Instance, src instance.Instance, snapshots bool, op *operations.Operation) error
