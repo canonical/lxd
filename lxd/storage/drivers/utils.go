@@ -325,7 +325,7 @@ func roundVolumeBlockFileSizeBytes(sizeBytes int64) (int64, error) {
 // ensureVolumeBlockFile creates new block file or enlarges the raw block file for a volume to the specified size.
 // Returns true if resize took place, false if not. Requested size is rounded to nearest block size using
 // roundVolumeBlockFileSizeBytes() before decision whether to resize is taken.
-func ensureVolumeBlockFile(path string, sizeBytes int64) (bool, error) {
+func ensureVolumeBlockFile(vol Volume, path string, sizeBytes int64) (bool, error) {
 	if sizeBytes <= 0 {
 		return false, fmt.Errorf("Size cannot be zero")
 	}
@@ -343,12 +343,20 @@ func ensureVolumeBlockFile(path string, sizeBytes int64) (bool, error) {
 		}
 
 		oldSizeBytes := fi.Size()
-		if sizeBytes < oldSizeBytes {
-			return false, errors.Wrap(ErrCannotBeShrunk, "You cannot shrink block volumes")
-		}
-
 		if sizeBytes == oldSizeBytes {
 			return false, nil
+		}
+
+		// Only perform pre-resize sanity checks if we are not in "unsafe" mode.
+		// In unsafe mode we expect the caller to know what they are doing and understand the risks.
+		if !vol.allowUnsafeResize {
+			if sizeBytes < oldSizeBytes {
+				return false, errors.Wrap(ErrCannotBeShrunk, "Block volumes cannot be shrunk")
+			}
+
+			if vol.MountInUse() {
+				return false, ErrInUse // We don't allow online resizing of block volumes.
+			}
 		}
 
 		err = ensureSparseFile(path, sizeBytes)
@@ -466,16 +474,35 @@ func resolveMountOptions(options string) (uintptr, string) {
 	return mountFlags, strings.Join(tmp, ",")
 }
 
-// shrinkFileSystem shrinks a filesystem if it is supported. Ext4 volumes will be unmounted temporarily if needed.
+// filesystemTypeCanBeShrunk indicates if filesystems of fsType can be shrunk.
+func filesystemTypeCanBeShrunk(fsType string) bool {
+	if fsType == "" {
+		fsType = DefaultFilesystem
+	}
+
+	if shared.StringInSlice(fsType, []string{"ext4", "btrfs"}) {
+		return true
+	}
+
+	return false
+}
+
+// shrinkFileSystem shrinks a filesystem if it is supported.
+// EXT4 volumes will be unmounted temporarily if needed.
+// BTRFS volumes will be mounted temporarily if needed.
 func shrinkFileSystem(fsType string, devPath string, vol Volume, byteSize int64) error {
+	if fsType == "" {
+		fsType = DefaultFilesystem
+	}
+
+	if !filesystemTypeCanBeShrunk(fsType) {
+		return ErrCannotBeShrunk
+	}
+
 	// The smallest unit that resize2fs accepts in byte size (rather than blocks) is kilobytes.
 	strSize := fmt.Sprintf("%dK", byteSize/1024)
 
 	switch fsType {
-	case "": // if not specified, default to ext4.
-		fallthrough
-	case "xfs":
-		return errors.Wrapf(ErrCannotBeShrunk, "Shrinking not supported for filesystem type %q. A dump, mkfs, and restore are required", fsType)
 	case "ext4":
 		return vol.UnmountTask(func(op *operations.Operation) error {
 			output, err := shared.RunCommand("e2fsck", "-f", "-y", devPath)
@@ -515,19 +542,21 @@ func shrinkFileSystem(fsType string, devPath string, vol Volume, byteSize int64)
 
 			return nil
 		}, nil)
-	default:
-		return errors.Wrapf(ErrCannotBeShrunk, "Shrinking not supported for filesystem type %q", fsType)
 	}
+
+	return fmt.Errorf("Unrecognised filesystem type %q", fsType)
 }
 
 // growFileSystem grows a filesystem if it is supported. The volume will be mounted temporarily if needed.
 func growFileSystem(fsType string, devPath string, vol Volume) error {
+	if fsType == "" {
+		fsType = DefaultFilesystem
+	}
+
 	return vol.MountTask(func(mountPath string, op *operations.Operation) error {
 		var msg string
 		var err error
 		switch fsType {
-		case "": // if not specified, default to ext4
-			fallthrough
 		case "ext4":
 			msg, err = shared.TryRunCommand("resize2fs", devPath)
 		case "xfs":
@@ -535,11 +564,11 @@ func growFileSystem(fsType string, devPath string, vol Volume) error {
 		case "btrfs":
 			msg, err = shared.TryRunCommand("btrfs", "filesystem", "resize", "max", mountPath)
 		default:
-			return fmt.Errorf(`Growing not supported for filesystem type "%s"`, fsType)
+			return fmt.Errorf("Unrecognised filesystem type %q", fsType)
 		}
 
 		if err != nil {
-			return fmt.Errorf(`Could not extend underlying %s filesystem for "%s": %s`, fsType, devPath, msg)
+			return fmt.Errorf("Could not grow underlying %q filesystem for %q: %s", fsType, devPath, msg)
 		}
 
 		return nil

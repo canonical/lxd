@@ -19,9 +19,11 @@ type VolatileGetter func() map[string]string
 // Device represents a device that can be added to an instance.
 type Device interface {
 	// CanHotPlug returns true if device can be managed whilst instance is running.
-	// It also returns a slice of config fields that can be live updated. If only fields in this
-	// list have changed then Update() is called rather than triggering a device remove & add.
-	CanHotPlug() (bool, []string)
+	CanHotPlug() bool
+
+	// UpdatableFields returns a slice of config fields that can be updated. If only fields in this list have
+	// changed then Update() is called rather triggering a device remove & add.
+	UpdatableFields() []string
 
 	// Add performs any host-side setup when a device is added to an instance.
 	// It is called irrespective of whether the instance is running or not.
@@ -38,7 +40,7 @@ type Device interface {
 
 	// Update performs host-side modifications for a device based on the difference between the
 	// current config and previous devices config supplied as an argument. This called if the
-	// only config fields that have changed are supplied in the list returned from CanHotPlug().
+	// only config fields that have changed are supplied in the list returned from UpdatableFields().
 	// The function also accepts a boolean indicating whether the instance is running or not.
 	Update(oldDevices deviceConfig.Devices, running bool) error
 

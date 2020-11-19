@@ -10,6 +10,14 @@ var refCounters = map[string]uint{}
 // refCounterMutex is used to access refCounters safely.
 var refCounterMutex sync.Mutex
 
+// Get returns the current value of the refCounter.
+func Get(refCounter string) uint {
+	refCounterMutex.Lock()
+	defer refCounterMutex.Unlock()
+
+	return refCounters[refCounter]
+}
+
 // Increment increases a refCounter by the value. If the ref counter doesn't exist, a new one is created.
 // The counter's new value is returned.
 func Increment(refCounter string, value uint) uint {

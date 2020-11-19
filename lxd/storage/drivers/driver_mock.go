@@ -22,17 +22,16 @@ func (d *mock) load() error {
 // Info returns info about the driver and its environment.
 func (d *mock) Info() Info {
 	return Info{
-		Name:               "mock",
-		Version:            "1",
-		OptimizedImages:    false,
-		PreservesInodes:    false,
-		Remote:             d.isRemote(),
-		VolumeTypes:        []VolumeType{VolumeTypeCustom, VolumeTypeImage, VolumeTypeContainer, VolumeTypeVM},
-		BlockBacking:       false,
-		RunningQuotaResize: true,
-		RunningCopyFreeze:  true,
-		DirectIO:           true,
-		MountedRoot:        true,
+		Name:              "mock",
+		Version:           "1",
+		OptimizedImages:   false,
+		PreservesInodes:   false,
+		Remote:            d.isRemote(),
+		VolumeTypes:       []VolumeType{VolumeTypeCustom, VolumeTypeImage, VolumeTypeContainer, VolumeTypeVM},
+		BlockBacking:      false,
+		RunningCopyFreeze: true,
+		DirectIO:          true,
+		MountedRoot:       true,
 	}
 }
 

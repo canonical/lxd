@@ -103,18 +103,17 @@ func (d *zfs) load() error {
 // Info returns info about the driver and its environment.
 func (d *zfs) Info() Info {
 	info := Info{
-		Name:               "zfs",
-		Version:            zfsVersion,
-		OptimizedImages:    true,
-		OptimizedBackups:   true,
-		PreservesInodes:    true,
-		Remote:             d.isRemote(),
-		VolumeTypes:        []VolumeType{VolumeTypeCustom, VolumeTypeImage, VolumeTypeContainer, VolumeTypeVM},
-		BlockBacking:       false,
-		RunningQuotaResize: true,
-		RunningCopyFreeze:  false,
-		DirectIO:           zfsDirectIO,
-		MountedRoot:        false,
+		Name:              "zfs",
+		Version:           zfsVersion,
+		OptimizedImages:   true,
+		OptimizedBackups:  true,
+		PreservesInodes:   true,
+		Remote:            d.isRemote(),
+		VolumeTypes:       []VolumeType{VolumeTypeCustom, VolumeTypeImage, VolumeTypeContainer, VolumeTypeVM},
+		BlockBacking:      false,
+		RunningCopyFreeze: false,
+		DirectIO:          zfsDirectIO,
+		MountedRoot:       false,
 	}
 
 	return info

@@ -690,7 +690,12 @@ test_projects_limits() {
     local LXD_REMOTE_DIR
     LXD_REMOTE_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
     chmod +x "${LXD_REMOTE_DIR}"
+
+    # Switch to default project to spawn new LXD server, and then switch back to p1.
+    lxc project switch default
     spawn_lxd "${LXD_REMOTE_DIR}" true
+    lxc project switch p1
+
     LXD_REMOTE_ADDR=$(cat "${LXD_REMOTE_DIR}/lxd.addr")
     (LXD_DIR=${LXD_REMOTE_DIR} deps/import-busybox --alias remoteimage --template start --public)
 

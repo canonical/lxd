@@ -3,79 +3,81 @@ package main
 import (
 	"fmt"
 
+	"github.com/pkg/errors"
+
 	"github.com/lxc/lxd/lxd/db"
 	deviceConfig "github.com/lxc/lxd/lxd/device/config"
 	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/instance/instancetype"
-	projecthelpers "github.com/lxc/lxd/lxd/project"
+	"github.com/lxc/lxd/lxd/project"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
-	"github.com/pkg/errors"
 )
 
 func doProfileUpdate(d *Daemon, projectName string, name string, id int64, profile *api.Profile, req api.ProfilePut) error {
 	// Check project limits.
 	err := d.cluster.Transaction(func(tx *db.ClusterTx) error {
-		return projecthelpers.AllowProfileUpdate(tx, projectName, name, req)
+		return project.AllowProfileUpdate(tx, projectName, name, req)
 	})
 	if err != nil {
 		return err
 	}
 
-	// Sanity checks
+	// Sanity checks.
 	err = instance.ValidConfig(d.os, req.Config, true, false)
 	if err != nil {
 		return err
 	}
 
-	// At this point we don't know the instance type, so just use instancetype.Any type for validation.
+	// Profiles can be applied to any instance type, so just use instancetype.Any type for validation so that
+	// instance type specific validation checks are not performed.
 	err = instance.ValidDevices(d.State(), d.cluster, projectName, instancetype.Any, deviceConfig.NewDevices(req.Devices), false)
 	if err != nil {
 		return err
 	}
 
-	containers, err := getProfileContainersInfo(d.cluster, projectName, name)
+	insts, err := getProfileInstancesInfo(d.cluster, projectName, name)
 	if err != nil {
-		return errors.Wrapf(err, "failed to query instances associated with profile '%s'", name)
+		return errors.Wrapf(err, "Failed to query instances associated with profile %q", name)
 	}
 
-	// Check if the root device is supposed to be changed or removed.
+	// Check if the root disk device's pool is supposed to be changed or removed and prevent that if there are
+	// instances using that root disk device.
 	oldProfileRootDiskDeviceKey, oldProfileRootDiskDevice, _ := shared.GetRootDiskDevice(profile.Devices)
 	_, newProfileRootDiskDevice, _ := shared.GetRootDiskDevice(req.Devices)
-	if len(containers) > 0 && oldProfileRootDiskDevice["pool"] != "" && newProfileRootDiskDevice["pool"] == "" || (oldProfileRootDiskDevice["pool"] != newProfileRootDiskDevice["pool"]) {
-		// Check for containers using the device
-		for _, container := range containers {
-			// Check if the device is locally overridden
-			k, v, _ := shared.GetRootDiskDevice(container.Devices.CloneNative())
+	if len(insts) > 0 && oldProfileRootDiskDevice["pool"] != "" && newProfileRootDiskDevice["pool"] == "" || (oldProfileRootDiskDevice["pool"] != newProfileRootDiskDevice["pool"]) {
+		// Check for instances using the device.
+		for _, inst := range insts {
+			// Check if the device is locally overridden.
+			k, v, _ := shared.GetRootDiskDevice(inst.Devices.CloneNative())
 			if k != "" && v["pool"] != "" {
 				continue
 			}
 
-			// Check what profile the device comes from
-			profiles := container.Profiles
-			for i := len(profiles) - 1; i >= 0; i-- {
-				_, profile, err := d.cluster.GetProfile(projecthelpers.Default, profiles[i])
+			// Check what profile the device comes from by working backwards along the profiles list.
+			for i := len(inst.Profiles) - 1; i >= 0; i-- {
+				_, profile, err := d.cluster.GetProfile(projectName, inst.Profiles[i])
 				if err != nil {
 					return err
 				}
 
-				// Check if we find a match for the device
+				// Check if we find a match for the device.
 				_, ok := profile.Devices[oldProfileRootDiskDeviceKey]
 				if ok {
-					// Found the profile
-					if profiles[i] == name {
-						// If it's the current profile, then we can't modify that root device
+					// Found the profile.
+					if inst.Profiles[i] == name {
+						// If it's the current profile, then we can't modify that root device.
 						return fmt.Errorf("At least one instance relies on this profile's root disk device")
-					} else {
-						// If it's not, then move on to the next container
-						break
 					}
+
+					// If it's not, then move on to the next instance.
+					break
 				}
 			}
 		}
 	}
 
-	// Update the database
+	// Update the database.
 	err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
 		return tx.UpdateProfile(projectName, name, db.Profile{
 			Project:     projectName,
@@ -89,8 +91,7 @@ func doProfileUpdate(d *Daemon, projectName string, name string, id int64, profi
 		return err
 	}
 
-	// Update all the containers on this node using the profile. Must be
-	// done after db.TxCommit due to DB lock.
+	// Update all the instances on this node using the profile. Must be done after db.TxCommit due to DB lock.
 	nodeName := ""
 	err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
 		var err error
@@ -100,19 +101,22 @@ func doProfileUpdate(d *Daemon, projectName string, name string, id int64, profi
 	if err != nil {
 		return errors.Wrap(err, "failed to query local node name")
 	}
-	failures := map[string]error{}
-	for _, args := range containers {
-		err := doProfileUpdateContainer(d, name, profile.ProfilePut, nodeName, args)
+
+	failures := map[*db.InstanceArgs]error{}
+	for _, it := range insts {
+		inst := it // Local var for instance pointer.
+		err := doProfileUpdateInstance(d, name, profile.ProfilePut, nodeName, inst)
 		if err != nil {
-			failures[args.Name] = err
+			failures[&inst] = err
 		}
 	}
 
 	if len(failures) != 0 {
-		msg := "The following containers failed to update (profile change still saved):\n"
-		for cname, err := range failures {
-			msg += fmt.Sprintf(" - %s: %s\n", cname, err)
+		msg := "The following instances failed to update (profile change still saved):\n"
+		for inst, err := range failures {
+			msg += fmt.Sprintf(" - Project: %s, Instance: %s: %v\n", inst.Project, inst.Name, err)
 		}
+
 		return fmt.Errorf("%s", msg)
 	}
 
@@ -121,7 +125,7 @@ func doProfileUpdate(d *Daemon, projectName string, name string, id int64, profi
 
 // Like doProfileUpdate but does not update the database, since it was already
 // updated by doProfileUpdate itself, called on the notifying node.
-func doProfileUpdateCluster(d *Daemon, project, name string, old api.ProfilePut) error {
+func doProfileUpdateCluster(d *Daemon, projectName string, name string, old api.ProfilePut) error {
 	nodeName := ""
 	err := d.cluster.Transaction(func(tx *db.ClusterTx) error {
 		var err error
@@ -132,34 +136,36 @@ func doProfileUpdateCluster(d *Daemon, project, name string, old api.ProfilePut)
 		return errors.Wrap(err, "Failed to query local node name")
 	}
 
-	containers, err := getProfileContainersInfo(d.cluster, project, name)
+	insts, err := getProfileInstancesInfo(d.cluster, projectName, name)
 	if err != nil {
-		return errors.Wrapf(err, "Failed to query instances associated with profile '%s'", name)
+		return errors.Wrapf(err, "Failed to query instances associated with profile %q", name)
 	}
 
-	failures := map[string]error{}
-	for _, args := range containers {
-		err := doProfileUpdateContainer(d, name, old, nodeName, args)
+	failures := map[*db.InstanceArgs]error{}
+	for _, it := range insts {
+		inst := it // Local var for instance pointer.
+		err := doProfileUpdateInstance(d, name, old, nodeName, inst)
 		if err != nil {
-			failures[args.Name] = err
+			failures[&inst] = err
 		}
 	}
 
 	if len(failures) != 0 {
-		msg := "The following containers failed to update (profile change still saved):\n"
-		for cname, err := range failures {
-			msg += fmt.Sprintf(" - %s: %s\n", cname, err)
+		msg := "The following instances failed to update (profile change still saved):\n"
+		for inst, err := range failures {
+			msg += fmt.Sprintf(" - Project: %s, Instance: %s: %v\n", inst.Project, inst.Name, err)
 		}
+
 		return fmt.Errorf("%s", msg)
 	}
 
 	return nil
 }
 
-// Profile update of a single container.
-func doProfileUpdateContainer(d *Daemon, name string, old api.ProfilePut, nodeName string, args db.InstanceArgs) error {
+// Profile update of a single instance.
+func doProfileUpdateInstance(d *Daemon, name string, old api.ProfilePut, nodeName string, args db.InstanceArgs) error {
 	if args.Node != "" && args.Node != nodeName {
-		// No-op, this container does not belong to this node.
+		// No-op, this instance does not belong to this node.
 		return nil
 	}
 
@@ -197,26 +203,24 @@ func doProfileUpdateContainer(d *Daemon, name string, old api.ProfilePut, nodeNa
 	}, true)
 }
 
-// Query the db for information about containers associated with the given
-// profile.
-func getProfileContainersInfo(cluster *db.Cluster, project, profile string) ([]db.InstanceArgs, error) {
-	// Query the db for information about containers associated with the
-	// given profile.
-	names, err := cluster.GetInstancesWithProfile(project, profile)
+// Query the db for information about instances associated with the given profile.
+func getProfileInstancesInfo(cluster *db.Cluster, projectName string, profileName string) ([]db.InstanceArgs, error) {
+	// Query the db for information about instances associated with the given profile.
+	projectInstNames, err := cluster.GetInstancesWithProfile(projectName, profileName)
 	if err != nil {
-		return nil, errors.Wrapf(err, "Failed to query instances with profile '%s'", profile)
+		return nil, errors.Wrapf(err, "Failed to query instances with profile %q", profileName)
 	}
 
-	containers := []db.InstanceArgs{}
+	instances := []db.InstanceArgs{}
 	err = cluster.Transaction(func(tx *db.ClusterTx) error {
-		for ctProject, ctNames := range names {
-			for _, ctName := range ctNames {
-				container, err := tx.GetInstance(ctProject, ctName)
+		for instProject, instNames := range projectInstNames {
+			for _, instName := range instNames {
+				inst, err := tx.GetInstance(instProject, instName)
 				if err != nil {
 					return err
 				}
 
-				containers = append(containers, db.InstanceToArgs(container))
+				instances = append(instances, db.InstanceToArgs(inst))
 			}
 		}
 
@@ -226,5 +230,5 @@ func getProfileContainersInfo(cluster *db.Cluster, project, profile string) ([]d
 		return nil, errors.Wrapf(err, "Failed to fetch instances")
 	}
 
-	return containers, nil
+	return instances, nil
 }
