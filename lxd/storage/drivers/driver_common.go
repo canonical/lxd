@@ -77,6 +77,11 @@ func (d *common) validatePool(config map[string]string, driverRules map[string]f
 	return nil
 }
 
+// FillVolumeConfig populate volume with default config.
+func (d *common) FillVolumeConfig(vol Volume) error {
+	return nil
+}
+
 // validateVolume validates a volume config against common rules and optional driver specific rules.
 // This functions has a removeUnknownKeys option that if set to true will remove any unknown fields
 // (excluding those starting with "user.") which can be used when translating a volume config to a
