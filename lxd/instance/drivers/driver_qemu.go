@@ -212,13 +212,13 @@ func qemuCreate(s *state.State, args db.InstanceArgs) (instance.Instance, error)
 	// Load the config.
 	err = vm.init()
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "Failed to expand config")
 	}
 
 	// Validate expanded config.
 	err = instance.ValidConfig(s.OS, vm.expandedConfig, false, true)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "Invalid config")
 	}
 
 	err = instance.ValidDevices(s, s.Cluster, vm.Project(), vm.Type(), vm.expandedDevices, true)
@@ -253,14 +253,14 @@ func qemuCreate(s *state.State, args db.InstanceArgs) (instance.Instance, error)
 	// Initialize the storage pool.
 	vm.storagePool, err = storagePools.GetPoolByName(vm.state, rootDiskDevice["pool"])
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrapf(err, "Failed loading storage pool")
 	}
 
 	// Fill default config.
 	volumeConfig := map[string]string{}
 	err = vm.storagePool.FillInstanceConfig(vm, volumeConfig)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrapf(err, "Failed filling default config")
 	}
 
 	// Create a new database entry for the instance's storage volume.
@@ -271,7 +271,7 @@ func qemuCreate(s *state.State, args db.InstanceArgs) (instance.Instance, error)
 		_, err = s.Cluster.CreateStoragePoolVolume(args.Project, args.Name, "", db.StoragePoolVolumeTypeVM, vm.storagePool.ID(), volumeConfig, db.StoragePoolVolumeContentTypeBlock)
 	}
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrapf(err, "Failed creating storage record")
 	}
 
 	if !vm.IsSnapshot() {

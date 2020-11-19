@@ -196,13 +196,13 @@ func lxcCreate(s *state.State, args db.InstanceArgs) (instance.Instance, error) 
 	// Load the config.
 	err := c.init()
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "Failed to expand config")
 	}
 
 	// Validate expanded config.
 	err = instance.ValidConfig(s.OS, c.expandedConfig, false, true)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "Invalid config")
 	}
 
 	err = instance.ValidDevices(s, s.Cluster, c.Project(), c.Type(), c.expandedDevices, true)
@@ -236,14 +236,14 @@ func lxcCreate(s *state.State, args db.InstanceArgs) (instance.Instance, error) 
 	// Initialize the storage pool.
 	c.storagePool, err = storagePools.GetPoolByName(c.state, rootDiskDevice["pool"])
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrapf(err, "Failed loading storage pool")
 	}
 
 	// Fill default config.
 	volumeConfig := map[string]string{}
 	err = c.storagePool.FillInstanceConfig(c, volumeConfig)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrapf(err, "Failed filling default config")
 	}
 
 	// Create a new storage volume database entry for the container's storage volume.
@@ -253,7 +253,7 @@ func lxcCreate(s *state.State, args db.InstanceArgs) (instance.Instance, error) 
 		_, err = s.Cluster.CreateStoragePoolVolume(args.Project, args.Name, "", db.StoragePoolVolumeTypeContainer, c.storagePool.ID(), volumeConfig, db.StoragePoolVolumeContentTypeFS)
 	}
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrapf(err, "Failed creating storage record")
 	}
 
 	// Setup initial idmap config
