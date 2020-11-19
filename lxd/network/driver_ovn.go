@@ -1949,8 +1949,8 @@ func (n *ovn) Update(newNetwork api.NetworkPut, targetNode string, clientType cl
 }
 
 // getInstanceDevicePortName returns the switch port name to use for an instance device.
-func (n *ovn) getInstanceDevicePortName(instanceID int, deviceName string) openvswitch.OVNSwitchPort {
-	return openvswitch.OVNSwitchPort(fmt.Sprintf("%s-%d-%s", n.getIntSwitchInstancePortPrefix(), instanceID, deviceName))
+func (n *ovn) getInstanceDevicePortName(instanceUUID string, deviceName string) openvswitch.OVNSwitchPort {
+	return openvswitch.OVNSwitchPort(fmt.Sprintf("%s-%s-%s", n.getIntSwitchInstancePortPrefix(), instanceUUID, deviceName))
 }
 
 // InstanceDevicePortValidateExternalRoutes validates the external routes for an OVN instance port.
@@ -2041,7 +2041,11 @@ func (n *ovn) InstanceDevicePortValidateExternalRoutes(deviceInstance instance.I
 }
 
 // InstanceDevicePortAdd adds an instance device port to the internal logical switch and returns the port name.
-func (n *ovn) InstanceDevicePortAdd(instanceID int, instanceName string, deviceName string, mac net.HardwareAddr, ips []net.IP, internalRoutes []*net.IPNet, externalRoutes []*net.IPNet) (openvswitch.OVNSwitchPort, error) {
+func (n *ovn) InstanceDevicePortAdd(instanceUUID string, instanceName string, deviceName string, mac net.HardwareAddr, ips []net.IP, internalRoutes []*net.IPNet, externalRoutes []*net.IPNet) (openvswitch.OVNSwitchPort, error) {
+	if instanceUUID == "" {
+		return "", fmt.Errorf("Instance UUID is required")
+	}
+
 	var dhcpV4ID, dhcpv6ID string
 
 	revert := revert.New()
@@ -2101,7 +2105,7 @@ func (n *ovn) InstanceDevicePortAdd(instanceID int, instanceName string, deviceN
 		}
 	}
 
-	instancePortName := n.getInstanceDevicePortName(instanceID, deviceName)
+	instancePortName := n.getInstanceDevicePortName(instanceUUID, deviceName)
 
 	// Add port with mayExist set to true, so that if instance port exists, we don't fail and continue below
 	// to configure the port as needed. This is required in case the OVN northbound database was unavailable
@@ -2232,8 +2236,12 @@ func (n *ovn) InstanceDevicePortAdd(instanceID int, instanceName string, deviceN
 }
 
 // InstanceDevicePortDynamicIPs returns the dynamically allocated IPs for a device port.
-func (n *ovn) InstanceDevicePortDynamicIPs(instanceID int, deviceName string) ([]net.IP, error) {
-	instancePortName := n.getInstanceDevicePortName(instanceID, deviceName)
+func (n *ovn) InstanceDevicePortDynamicIPs(instanceUUID string, deviceName string) ([]net.IP, error) {
+	if instanceUUID == "" {
+		return nil, fmt.Errorf("Instance UUID is required")
+	}
+
+	instancePortName := n.getInstanceDevicePortName(instanceUUID, deviceName)
 
 	client, err := n.getClient()
 	if err != nil {
