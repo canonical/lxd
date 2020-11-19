@@ -435,7 +435,19 @@ func (d *nicOVN) Stop() (*deviceConfig.RunConfig, error) {
 		}
 	}
 
-	err = d.network.InstanceDevicePortDelete(d.inst.ID(), d.name, internalRoutes, externalRoutes)
+	// Try and retrieve the last associated OVN switch port for the instance interface in the local OVS DB.
+	// If we cannot get this, don't fail, as InstanceDevicePortDelete will then try and generate the likely
+	// port name using the same regime it does for new ports. This part is only here in order to allow
+	// instance ports generated under an older regime to be cleaned up properly.
+	networkVethFillFromVolatile(d.config, d.volatileGet())
+	ovs := openvswitch.NewOVS()
+	ovsExternalOVNPort, err := ovs.InterfaceAssociatedOVNSwitchPort(d.config["host_name"])
+	if err != nil {
+		d.logger.Warn("Could not find OVN Switch port associated to OVS interface", log.Ctx{"interface": d.config["host_name"]})
+	}
+
+	instanceUUID := d.inst.LocalConfig()["volatile.uuid"]
+	err = d.network.InstanceDevicePortDelete(instanceUUID, d.name, ovsExternalOVNPort, internalRoutes, externalRoutes)
 	if err != nil {
 		// Don't fail here as we still want the postStop hook to run to clean up the local veth pair.
 		d.logger.Error("Failed to remove OVN device port", log.Ctx{"err": err})
