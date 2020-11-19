@@ -944,8 +944,16 @@ func (d *zfs) SetVolumeQuota(vol Volume, size string, op *operations.Operation) 
 			return ErrNotSupported
 		}
 
-		if sizeBytes < oldVolSizeBytes && !vol.allowUnsafeResize {
-			return errors.Wrap(ErrCannotBeShrunk, "You cannot shrink block volumes")
+		// Only perform pre-resize sanity checks if we are not in "unsafe" mode.
+		// In unsafe mode we expect the caller to know what they are doing and understand the risks.
+		if !vol.allowUnsafeResize {
+			if sizeBytes < oldVolSizeBytes {
+				return errors.Wrap(ErrCannotBeShrunk, "Block volumes cannot be shrunk")
+			}
+
+			if vol.MountInUse() {
+				return ErrInUse // We don't allow online resizing of block volumes.
+			}
 		}
 
 		err = d.setDatasetProperties(d.dataset(vol, false), fmt.Sprintf("volsize=%d", sizeBytes))
@@ -953,25 +961,20 @@ func (d *zfs) SetVolumeQuota(vol Volume, size string, op *operations.Operation) 
 			return err
 		}
 
-		err = vol.MountTask(func(mountPath string, op *operations.Operation) error {
-			devPath, err := d.GetVolumeDiskPath(vol)
-			if err != nil {
-				return err
-			}
-
-			// Move the VM GPT alt header to end of disk if needed (not needed in unsafe resize mode as
-			// it is expected the caller will do all necessary post resize actions themselves).
-			if vol.IsVMBlock() && !vol.allowUnsafeResize {
-				err = d.moveGPTAltHeader(devPath)
+		// Move the VM GPT alt header to end of disk if needed (not needed in unsafe resize mode as
+		// it is expected the caller will do all necessary post resize actions themselves).
+		if vol.IsVMBlock() && !vol.allowUnsafeResize {
+			err = vol.MountTask(func(mountPath string, op *operations.Operation) error {
+				devPath, err := d.GetVolumeDiskPath(vol)
 				if err != nil {
 					return err
 				}
-			}
 
-			return nil
-		}, op)
-		if err != nil {
-			return err
+				return d.moveGPTAltHeader(devPath)
+			}, op)
+			if err != nil {
+				return err
+			}
 		}
 
 		return nil

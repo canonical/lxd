@@ -12,7 +12,6 @@ type Info struct {
 	OptimizedBackupHeader bool         // Whether driver generates an optimised backup header file in backup.
 	PreservesInodes       bool         // Whether driver preserves inodes when volumes are moved hosts.
 	BlockBacking          bool         // Whether driver uses block devices as backing store.
-	RunningQuotaResize    bool         // Whether quota resize is supported whilst instance running.
 	RunningCopyFreeze     bool         // Whether instance should be frozen during snapshot if running.
 	DirectIO              bool         // Whether the driver supports direct I/O.
 	MountedRoot           bool         // Whether the pool directory itself is a mount.

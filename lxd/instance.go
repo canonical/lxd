@@ -497,7 +497,7 @@ func instanceCreateInternal(s *state.State, args db.InstanceArgs) (instance.Inst
 	checkedProfiles := []string{}
 	for _, profile := range args.Profiles {
 		if !shared.StringInSlice(profile, profiles) {
-			return nil, fmt.Errorf("Requested profile '%s' doesn't exist", profile)
+			return nil, fmt.Errorf("Requested profile %q doesn't exist", profile)
 		}
 
 		if shared.StringInSlice(profile, checkedProfiles) {
@@ -611,7 +611,7 @@ func instanceCreateInternal(s *state.State, args db.InstanceArgs) (instance.Inst
 			if shared.IsSnapshot(args.Name) {
 				thing = "Snapshot"
 			}
-			return nil, fmt.Errorf("%s '%s' already exists", thing, args.Name)
+			return nil, fmt.Errorf("%s %q already exists", thing, args.Name)
 		}
 		return nil, err
 	}
@@ -628,7 +628,8 @@ func instanceCreateInternal(s *state.State, args db.InstanceArgs) (instance.Inst
 	args = db.InstanceToArgs(&dbInst)
 	inst, err := instance.Create(s, args)
 	if err != nil {
-		return nil, errors.Wrap(err, "Create instance")
+		logger.Error("Failed initialising instance", log.Ctx{"project": args.Project, "instance": args.Name, "type": args.Type, "err": err})
+		return nil, errors.Wrap(err, "Failed initialising instance")
 	}
 
 	// Wipe any existing log for this instance name.

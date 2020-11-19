@@ -1156,7 +1156,7 @@ func autoUpdateImagesInProject(ctx context.Context, d *Daemon, project string) e
 	for _, fingerprint := range images {
 		id, info, err := d.cluster.GetImage(project, fingerprint, false)
 		if err != nil {
-			logger.Error("Error loading image", log.Ctx{"err": err, "fp": fingerprint, "project": project})
+			logger.Error("Error loading image", log.Ctx{"err": err, "fingerprint": fingerprint, "project": project})
 			continue
 		}
 
@@ -1193,7 +1193,7 @@ func autoUpdateImage(d *Daemon, op *operations.Operation, id int, info *api.Imag
 		return err
 	})
 	if err != nil {
-		logger.Error("Error getting source image", log.Ctx{"err": err, "fp": fingerprint})
+		logger.Error("Error getting source image", log.Ctx{"err": err, "fingerprint": fingerprint})
 		return err
 	}
 
@@ -1201,14 +1201,14 @@ func autoUpdateImage(d *Daemon, op *operations.Operation, id int, info *api.Imag
 	// for the requested image currently exists.
 	poolIDs, err := d.cluster.GetPoolsWithImage(fingerprint)
 	if err != nil {
-		logger.Error("Error getting image pools", log.Ctx{"err": err, "fp": fingerprint})
+		logger.Error("Error getting image pools", log.Ctx{"err": err, "fingerprint": fingerprint})
 		return err
 	}
 
 	// Translate the IDs to poolNames.
 	poolNames, err := d.cluster.GetPoolNamesFromIDs(poolIDs)
 	if err != nil {
-		logger.Error("Error getting image pools", log.Ctx{"err": err, "fp": fingerprint})
+		logger.Error("Error getting image pools", log.Ctx{"err": err, "fingerprint": fingerprint})
 		return err
 	}
 
@@ -1217,7 +1217,7 @@ func autoUpdateImage(d *Daemon, op *operations.Operation, id int, info *api.Imag
 		poolNames = append(poolNames, "")
 	}
 
-	logger.Debug("Processing image", log.Ctx{"fp": fingerprint, "server": source.Server, "protocol": source.Protocol, "alias": source.Alias})
+	logger.Debug("Processing image", log.Ctx{"fingerprint": fingerprint, "server": source.Server, "protocol": source.Protocol, "alias": source.Alias})
 
 	// Set operation metadata to indicate whether a refresh happened
 	setRefreshResult := func(result bool) {
@@ -1235,52 +1235,52 @@ func autoUpdateImage(d *Daemon, op *operations.Operation, id int, info *api.Imag
 	for _, poolName := range poolNames {
 		newInfo, err := d.ImageDownload(op, source.Server, source.Protocol, source.Certificate, "", source.Alias, info.Type, false, true, poolName, false, project, -1)
 		if err != nil {
-			logger.Error("Failed to update the image", log.Ctx{"err": err, "fp": fingerprint})
+			logger.Error("Failed to update the image", log.Ctx{"err": err, "fingerprint": fingerprint})
 			continue
 		}
 
 		hash = newInfo.Fingerprint
 		if hash == fingerprint {
-			logger.Debug("Already up to date", log.Ctx{"fp": fingerprint})
+			logger.Debug("Image already up to date", log.Ctx{"fingerprint": fingerprint})
 			continue
 		}
 
 		newID, _, err := d.cluster.GetImage(project, hash, false)
 		if err != nil {
-			logger.Error("Error loading image", log.Ctx{"err": err, "fp": hash})
+			logger.Error("Error loading image", log.Ctx{"err": err, "fingerprint": hash})
 			continue
 		}
 
 		if info.Cached {
 			err = d.cluster.InitImageLastUseDate(hash)
 			if err != nil {
-				logger.Error("Error setting cached flag", log.Ctx{"err": err, "fp": hash})
+				logger.Error("Error setting cached flag", log.Ctx{"err": err, "fingerprint": hash})
 				continue
 			}
 		}
 
 		err = d.cluster.UpdateImageLastUseDate(hash, info.LastUsedAt)
 		if err != nil {
-			logger.Error("Error setting last use date", log.Ctx{"err": err, "fp": hash})
+			logger.Error("Error setting last use date", log.Ctx{"err": err, "fingerprint": hash})
 			continue
 		}
 
 		err = d.cluster.MoveImageAlias(id, newID)
 		if err != nil {
-			logger.Error("Error moving aliases", log.Ctx{"err": err, "fp": hash})
+			logger.Error("Error moving aliases", log.Ctx{"err": err, "fingerprint": hash})
 			continue
 		}
 
 		err = d.cluster.CopyDefaultImageProfiles(id, newID)
 		if err != nil {
-			logger.Error("Copying default profiles", log.Ctx{"err": err, "fp": hash})
+			logger.Error("Copying default profiles", log.Ctx{"err": err, "fingerprint": hash})
 		}
 
 		// If we do have optimized pools, make sure we remove the volumes associated with the image.
 		if poolName != "" {
 			err = doDeleteImageFromPool(d.State(), fingerprint, poolName)
 			if err != nil {
-				logger.Error("Error deleting image from pool", log.Ctx{"err": err, "fp": fingerprint})
+				logger.Error("Error deleting image from pool", log.Ctx{"err": err, "fingerprint": fingerprint})
 			}
 		}
 	}

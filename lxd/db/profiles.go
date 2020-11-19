@@ -216,8 +216,7 @@ func (c *Cluster) GetInstancesWithProfile(project, profile string) (map[string][
 		WHERE instances_profiles.profile_id ==
 		  (SELECT profiles.id FROM profiles
 		   JOIN projects ON projects.id == profiles.project_id
-		   WHERE profiles.name=? AND projects.name=?)
-		AND instances.type == 0`
+		   WHERE profiles.name=? AND projects.name=?)`
 
 	results := map[string][]string{}
 	inargs := []interface{}{profile, project}

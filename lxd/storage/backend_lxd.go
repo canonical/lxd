@@ -1600,16 +1600,11 @@ func (b *lxdBackend) GetInstanceUsage(inst instance.Instance) (int64, error) {
 }
 
 // SetInstanceQuota sets the quota on the instance's root volume.
-// Returns ErrRunningQuotaResizeNotSupported if the instance is running and the storage driver
-// doesn't support resizing whilst the instance is running.
+// Returns ErrInUse if the instance is running and the storage driver doesn't support online resizing.
 func (b *lxdBackend) SetInstanceQuota(inst instance.Instance, size string, op *operations.Operation) error {
 	logger := logging.AddContext(b.logger, log.Ctx{"project": inst.Project(), "instance": inst.Name(), "size": size})
 	logger.Debug("SetInstanceQuota started")
 	defer logger.Debug("SetInstanceQuota finished")
-
-	if inst.IsRunning() && !b.driver.Info().RunningQuotaResize {
-		return ErrRunningQuotaResizeNotSupported
-	}
 
 	// Check we can convert the instance to the volume type needed.
 	volType, err := InstanceTypeToVolumeType(inst.Type())
@@ -2706,6 +2701,11 @@ func (b *lxdBackend) RenameCustomVolume(projectName string, volName string, newV
 	revert := revert.New()
 	defer revert.Fail()
 
+	_, volume, err := b.state.Cluster.GetLocalStoragePoolVolume(projectName, volName, db.StoragePoolVolumeTypeCustom, b.id)
+	if err != nil {
+		return err
+	}
+
 	// Rename each snapshot to have the new parent volume prefix.
 	snapshots, err := VolumeSnapshotsGet(b.state, projectName, b.name, volName, db.StoragePoolVolumeTypeCustom)
 	if err != nil {
@@ -2760,7 +2760,7 @@ func (b *lxdBackend) RenameCustomVolume(projectName string, volName string, newV
 	newVolStorageName := project.StorageVolume(projectName, newVolName)
 
 	// There's no need to pass the config as it's not needed when renaming a volume.
-	vol := b.newVolume(drivers.VolumeTypeCustom, drivers.ContentTypeFS, volStorageName, nil)
+	vol := b.newVolume(drivers.VolumeTypeCustom, drivers.ContentType(volume.ContentType), volStorageName, nil)
 
 	err = b.driver.RenameVolume(vol, newVolStorageName, op)
 	if err != nil {
@@ -2855,26 +2855,17 @@ func (b *lxdBackend) UpdateCustomVolume(projectName string, volName string, newD
 			return fmt.Errorf("security.unmapped and security.shifted are mutually exclusive")
 		}
 
-		runningQuotaResize := b.Driver().Info().RunningQuotaResize
-
 		// Check for config changing that is not allowed when running instances are using it.
-		if (changedConfig["size"] != "" && !runningQuotaResize) || newConfig["security.shifted"] != curVol.Config["security.shifted"] {
+		if changedConfig["security.shifted"] != "" {
 			err = VolumeUsedByInstanceDevices(b.state, b.name, projectName, curVol, true, func(dbInst db.Instance, project api.Project, profiles []api.Profile, usedByDevices []string) error {
 				inst, err := instance.Load(b.state, db.InstanceToArgs(&dbInst), profiles)
 				if err != nil {
 					return err
 				}
 
-				if inst.IsRunning() {
-					if changedConfig["size"] != "" && !runningQuotaResize {
-						// Confirm that no running instances are using it when changing
-						// size if driver doesn't support online resize.
-						return ErrRunningQuotaResizeNotSupported
-					} else if changedConfig["security.shifted"] != "" {
-						// Confirm that no running instances are using it when changing
-						// shifted state.
-						return fmt.Errorf("Cannot modify shifting with running instances using the volume")
-					}
+				// Confirm that no running instances are using it when changing shifted state.
+				if inst.IsRunning() && changedConfig["security.shifted"] != "" {
+					return fmt.Errorf("Cannot modify shifting with running instances using the volume")
 				}
 
 				return nil
@@ -3091,7 +3082,7 @@ func (b *lxdBackend) UnmountCustomVolume(projectName, volName string, op *operat
 
 	// Get the volume name on storage.
 	volStorageName := project.StorageVolume(projectName, volName)
-	vol := b.newVolume(drivers.VolumeTypeCustom, drivers.ContentTypeFS, volStorageName, volume.Config)
+	vol := b.newVolume(drivers.VolumeTypeCustom, drivers.ContentType(volume.ContentType), volStorageName, volume.Config)
 
 	return b.driver.UnmountVolume(vol, false, op)
 }
@@ -3184,13 +3175,18 @@ func (b *lxdBackend) RenameCustomVolumeSnapshot(projectName, volName string, new
 		return fmt.Errorf("Invalid new snapshot name")
 	}
 
+	_, volume, err := b.state.Cluster.GetLocalStoragePoolVolume(projectName, volName, db.StoragePoolVolumeTypeCustom, b.ID())
+	if err != nil {
+		return err
+	}
+
 	// Get the volume name on storage.
 	volStorageName := project.StorageVolume(projectName, volName)
 
 	// There's no need to pass config as it's not needed when renaming a volume.
-	vol := b.newVolume(drivers.VolumeTypeCustom, drivers.ContentTypeFS, volStorageName, nil)
+	vol := b.newVolume(drivers.VolumeTypeCustom, drivers.ContentType(volume.ContentType), volStorageName, nil)
 
-	err := b.driver.RenameVolumeSnapshot(vol, newSnapshotName, op)
+	err = b.driver.RenameVolumeSnapshot(vol, newSnapshotName, op)
 	if err != nil {
 		return err
 	}
@@ -3202,7 +3198,7 @@ func (b *lxdBackend) RenameCustomVolumeSnapshot(projectName, volName string, new
 		newVolStorageName := project.StorageVolume(projectName, newVolName)
 
 		// Revert rename.
-		newVol := b.newVolume(drivers.VolumeTypeCustom, drivers.ContentTypeFS, newVolStorageName, nil)
+		newVol := b.newVolume(drivers.VolumeTypeCustom, drivers.ContentType(volume.ContentType), newVolStorageName, nil)
 		b.driver.RenameVolumeSnapshot(newVol, oldSnapshotName, op)
 		return err
 	}

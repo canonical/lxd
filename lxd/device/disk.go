@@ -27,6 +27,7 @@ import (
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/idmap"
+	log "github.com/lxc/lxd/shared/log15"
 	"github.com/lxc/lxd/shared/logger"
 	"github.com/lxc/lxd/shared/subprocess"
 	"github.com/lxc/lxd/shared/units"
@@ -238,12 +239,9 @@ func (d *disk) validateEnvironment() error {
 	return nil
 }
 
-// CanHotPlug returns whether the device can be managed whilst the instance is running, it also
-// returns a list of fields that can be updated without triggering a device remove & add.
-// Note: At current time VM instances rely on this function indicating live update of "size" field is possible
-// to allow disk resize when VM is stopped.
-func (d *disk) CanHotPlug() (bool, []string) {
-	return true, []string{"limits.max", "limits.read", "limits.write", "size"}
+// UpdatableFields returns a list of fields that can be updated without triggering a device remove & add.
+func (d *disk) UpdatableFields() []string {
+	return []string{"limits.max", "limits.read", "limits.write", "size"}
 }
 
 // Register calls mount for the disk volume (which should already be mounted) to reinitialise the reference counter
@@ -331,20 +329,10 @@ func (d *disk) startContainer() (*deviceConfig.RunConfig, error) {
 			rootfs.Opts = append(rootfs.Opts, "ro")
 		}
 
-		v := d.volatileGet()
-
 		// Handle previous requests for setting new quotas.
-		if v["apply_quota"] != "" {
-			err := d.applyQuota(v["apply_quota"])
-			if err != nil {
-				return nil, err
-			}
-
-			// Remove volatile apply_quota key if successful.
-			err = d.volatileSet(map[string]string{"apply_quota": ""})
-			if err != nil {
-				return nil, err
-			}
+		err := d.applyDeferredQuota()
+		if err != nil {
+			return nil, err
 		}
 
 		runConf.RootFS = rootfs
@@ -446,6 +434,12 @@ func (d *disk) startVM() (*deviceConfig.RunConfig, error) {
 	isRequired := d.isRequired(d.config)
 
 	if shared.IsRootDiskDevice(d.config) {
+		// Handle previous requests for setting new quotas.
+		err := d.applyDeferredQuota()
+		if err != nil {
+			return nil, err
+		}
+
 		runConf.Mounts = []deviceConfig.MountEntryItem{
 			{
 				TargetPath: d.config["path"], // Indicator used that this is the root device.
@@ -645,7 +639,7 @@ func (d *disk) startVM() (*deviceConfig.RunConfig, error) {
 						return nil, fmt.Errorf("virtiofsd failed to bind socket within 2s")
 					}
 				} else {
-					logger.Warnf("Unable to use virtio-fs for device %q, using 9p as a fallback: virtiofsd missing", d.name)
+					d.logger.Warn("Unable to use virtio-fs for device, using 9p as a fallback: virtiofsd missing", log.Ctx{"device": d.name})
 				}
 			}
 
@@ -708,21 +702,32 @@ func (d *disk) Update(oldDevices deviceConfig.Devices, isRunning bool) error {
 
 		// Apply disk quota changes.
 		if newRootDiskDeviceSize != oldRootDiskDeviceSize {
-			err := d.applyQuota(newRootDiskDeviceSize)
-			if err == storagePools.ErrRunningQuotaResizeNotSupported {
+			// Remove any outstanding volatile apply_quota key if applying a new quota.
+			v := d.volatileGet()
+			if v["apply_quota"] != "" {
+				err = d.volatileSet(map[string]string{"apply_quota": ""})
+				if err != nil {
+					return err
+				}
+			}
+
+			err := d.applyQuota(newRootDiskDeviceSize, false)
+			if err == storageDrivers.ErrInUse {
 				// Save volatile apply_quota key for next boot if cannot apply now.
 				err = d.volatileSet(map[string]string{"apply_quota": newRootDiskDeviceSize})
 				if err != nil {
 					return err
 				}
+
+				d.logger.Warn("Could not apply quota because disk is in use, deferring until next start", log.Ctx{"quota": newRootDiskDeviceSize})
 			} else if err != nil {
 				return err
 			}
 		}
 	}
 
-	// Only apply IO limits if instance is running.
-	if isRunning {
+	// Only apply IO limits if instance is container and is running.
+	if isRunning && d.inst.Type() == instancetype.Container {
 		runConf := deviceConfig.RunConfig{}
 		err := d.generateLimits(&runConf)
 		if err != nil {
@@ -738,10 +743,47 @@ func (d *disk) Update(oldDevices deviceConfig.Devices, isRunning bool) error {
 	return nil
 }
 
-func (d *disk) applyQuota(newSize string) error {
+// applyDeferredQuota attempts to apply the deferred quota specified in the volatile "apply_quota" key if set.
+// If successfully applies new quota then removes the volatile "apply_quota" key.
+func (d *disk) applyDeferredQuota() error {
+	v := d.volatileGet()
+	if v["apply_quota"] != "" {
+		d.logger.Info("Applying deferred quota change", log.Ctx{"quota": v["apply_quota"]})
+
+		// Indicate that we want applyQuota to unmount the volume first, this is so we can perform resizes
+		// that cannot be done when the volume is in use.
+		err := d.applyQuota(v["apply_quota"], true)
+		if err != nil {
+			return errors.Wrapf(err, "Failed to apply deferred quota from %q", fmt.Sprintf("volatile.%s.apply_quota", d.name))
+		}
+
+		// Remove volatile apply_quota key if successful.
+		err = d.volatileSet(map[string]string{"apply_quota": ""})
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// applyQuota attempts to resize the instance root disk to the specified size.
+// If unmount is true, attempts to unmount first before resizing.
+func (d *disk) applyQuota(newSize string, unmount bool) error {
 	pool, err := storagePools.GetPoolByInstance(d.state, d.inst)
 	if err != nil {
 		return err
+	}
+
+	if unmount {
+		ourUnmount, err := pool.UnmountInstance(d.inst, nil)
+		if err != nil {
+			return err
+		}
+
+		if ourUnmount {
+			defer pool.MountInstance(d.inst, nil)
+		}
 	}
 
 	err = pool.SetInstanceQuota(d.inst, newSize, nil)
@@ -973,7 +1015,7 @@ func (d *disk) createDevice() (string, error) {
 				msg := fmt.Sprintf("Could not mount map Ceph RBD: %v", err)
 				if !isRequired {
 					// Will fail the PathExists test below.
-					logger.Warn(msg)
+					d.logger.Warn(msg)
 				} else {
 					return "", fmt.Errorf(msg)
 				}
@@ -995,7 +1037,7 @@ func (d *disk) createDevice() (string, error) {
 		if err != nil {
 			if !isRequired {
 				// Leave to the pathExists check below.
-				logger.Warn(err.Error())
+				d.logger.Warn(err.Error())
 			} else {
 				return "", err
 			}
@@ -1076,7 +1118,7 @@ func (d *disk) storagePoolVolumeAttachShift(projectName, poolName, volumeName st
 	if poolVolumePut.Config["volatile.idmap.last"] != "" {
 		lastIdmap, err = idmap.JSONUnmarshal(poolVolumePut.Config["volatile.idmap.last"])
 		if err != nil {
-			logger.Errorf("Failed to unmarshal last idmapping: %q", poolVolumePut.Config["volatile.idmap.last"])
+			d.logger.Error("Failed to unmarshal last idmapping", log.Ctx{"idmap": poolVolumePut.Config["volatile.idmap.last"], "err": err})
 			return err
 		}
 	}
@@ -1105,7 +1147,7 @@ func (d *disk) storagePoolVolumeAttachShift(projectName, poolName, volumeName st
 	poolVolumePut.Config["volatile.idmap.next"] = nextJSONMap
 
 	if !nextIdmap.Equals(lastIdmap) {
-		logger.Debugf("Shifting storage volume")
+		d.logger.Debug("Shifting storage volume")
 
 		if !shared.IsTrue(poolVolumePut.Config["security.shifted"]) {
 			volumeUsedBy := []instance.Instance{}
@@ -1166,11 +1208,11 @@ func (d *disk) storagePoolVolumeAttachShift(projectName, poolName, volumeName st
 			}
 
 			if err != nil {
-				logger.Errorf("Failed to unshift %q", remapPath)
+				d.logger.Error("Failed to unshift", log.Ctx{"path": remapPath, "err": err})
 				return err
 			}
 
-			logger.Debugf("Unshifted %q", remapPath)
+			d.logger.Debug("Unshifted", log.Ctx{"path": remapPath})
 		}
 
 		// Shift rootfs.
@@ -1184,13 +1226,13 @@ func (d *disk) storagePoolVolumeAttachShift(projectName, poolName, volumeName st
 			}
 
 			if err != nil {
-				logger.Errorf("Failed to shift %q", remapPath)
+				d.logger.Error("Failed to shift", log.Ctx{"path": remapPath, "err": err})
 				return err
 			}
 
-			logger.Debugf("Shifted %q", remapPath)
+			d.logger.Debug("Shifted", log.Ctx{"path": remapPath})
 		}
-		logger.Debugf("Shifted storage volume")
+		d.logger.Debug("Shifted storage volume")
 	}
 
 	jsonIdmap := "[]"
@@ -1198,7 +1240,7 @@ func (d *disk) storagePoolVolumeAttachShift(projectName, poolName, volumeName st
 		var err error
 		jsonIdmap, err = idmap.JSONMarshal(nextIdmap)
 		if err != nil {
-			logger.Errorf("Failed to marshal idmap")
+			d.logger.Error("Failed to marshal idmap", log.Ctx{"idmap": nextIdmap, "err": err})
 			return err
 		}
 	}
@@ -1330,7 +1372,7 @@ func (d *disk) postStop() error {
 		v := d.volatileGet()
 		err := diskCephRbdUnmap(v["ceph_rbd"])
 		if err != nil {
-			logger.Errorf("Failed to unmap RBD volume %q for %q: %v", v["ceph_rbd"], project.Instance(d.inst.Project(), d.inst.Name()), err)
+			d.logger.Error("Failed to unmap RBD volume", log.Ctx{"rbd": v["ceph_rbd"], "err": err})
 		}
 	}
 

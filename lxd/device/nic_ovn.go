@@ -206,12 +206,6 @@ func (d *nicOVN) validateEnvironment() error {
 	return nil
 }
 
-// CanHotPlug returns whether the device can be managed whilst the instance is running, it also
-// returns a list of fields that can be updated without triggering a device remove & add.
-func (d *nicOVN) CanHotPlug() (bool, []string) {
-	return true, []string{}
-}
-
 // Start is run when the device is added to a running instance or instance is starting up.
 func (d *nicOVN) Start() (*deviceConfig.RunConfig, error) {
 	err := d.validateEnvironment()

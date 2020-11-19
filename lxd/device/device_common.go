@@ -1,10 +1,9 @@
 package device
 
 import (
-	"fmt"
-
 	deviceConfig "github.com/lxc/lxd/lxd/device/config"
 	"github.com/lxc/lxd/lxd/instance"
+	"github.com/lxc/lxd/lxd/instance/instancetype"
 	"github.com/lxc/lxd/lxd/state"
 	log "github.com/lxc/lxd/shared/log15"
 	"github.com/lxc/lxd/shared/logger"
@@ -62,15 +61,25 @@ func (d *deviceCommon) Register() error {
 	return nil
 }
 
-// CanHotPlug returns true as majority of devices can be started/stopped when instance is running.
-// Also returns an empty list of update fields as most devices do not support live updates.
-func (d *deviceCommon) CanHotPlug() (bool, []string) {
-	return true, []string{}
+// CanHotPlug returns whether the device can be managed whilst the instance is running,
+// Returns true if instance type is container, as majority of devices can be started/stopped when
+// instance is running. If instance type is VM then returns false as this is not currently supported.
+func (d *deviceCommon) CanHotPlug() bool {
+	if d.inst.Type() == instancetype.Container {
+		return true
+	}
+
+	return false
 }
 
-// Update returns an error as most devices do not support live updates without being restarted.
+// UpdatableFields returns an empty list of updatable fields as most devices do not support updates.
+func (d *deviceCommon) UpdatableFields() []string {
+	return []string{}
+}
+
+// Update returns an ErrCannotUpdate error as most devices do not support updates.
 func (d *deviceCommon) Update(oldDevices deviceConfig.Devices, isRunning bool) error {
-	return fmt.Errorf("Device does not support updates whilst started")
+	return ErrCannotUpdate
 }
 
 // Remove returns nil error as majority of devices don't need to do any host-side cleanup on delete.
