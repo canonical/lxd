@@ -67,6 +67,10 @@ func (b *mockBackend) ApplyPatch(name string) error {
 	return nil
 }
 
+func (b *mockBackend) FillInstanceConfig(inst instance.Instance, config map[string]string) error {
+	return nil
+}
+
 func (b *mockBackend) CreateInstance(inst instance.Instance, op *operations.Operation) error {
 	return nil
 }
