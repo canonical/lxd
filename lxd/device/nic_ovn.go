@@ -300,12 +300,13 @@ func (d *nicOVN) Start() (*deviceConfig.RunConfig, error) {
 	}
 
 	// Add new OVN logical switch port for instance.
-	logicalPortName, err := d.network.InstanceDevicePortAdd(d.inst.ID(), d.inst.Name(), d.name, mac, ips, internalRoutes, externalRoutes)
+	instanceUUID := d.inst.LocalConfig()["volatile.uuid"]
+	logicalPortName, err := d.network.InstanceDevicePortAdd(instanceUUID, d.inst.Name(), d.name, mac, ips, internalRoutes, externalRoutes)
 	if err != nil {
 		return nil, errors.Wrapf(err, "Failed adding OVN port")
 	}
 
-	revert.Add(func() { d.network.InstanceDevicePortDelete(d.inst.ID(), d.name, internalRoutes, externalRoutes) })
+	revert.Add(func() { d.network.InstanceDevicePortDelete(instanceUUID, d.name, "", internalRoutes, externalRoutes) })
 
 	// Attach host side veth interface to bridge.
 	integrationBridge, err := d.getIntegrationBridgeName()
@@ -512,7 +513,8 @@ func (d *nicOVN) State() (*api.InstanceStateNetwork, error) {
 
 	// OVN only supports dynamic IP allocation if neither IPv4 or IPv6 are statically set.
 	if d.config["ipv4.address"] == "" && d.config["ipv6.address"] == "" {
-		dynamicIPs, err := d.network.InstanceDevicePortDynamicIPs(d.inst.ID(), d.name)
+		instanceUUID := d.inst.LocalConfig()["volatile.uuid"]
+		dynamicIPs, err := d.network.InstanceDevicePortDynamicIPs(instanceUUID, d.name)
 		if err == nil {
 			for _, dynamicIP := range dynamicIPs {
 				family := "inet"
