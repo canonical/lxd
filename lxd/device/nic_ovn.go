@@ -29,9 +29,9 @@ type ovnNet interface {
 	network.Network
 
 	InstanceDevicePortValidateExternalRoutes(deviceInstance instance.Instance, deviceName string, externalRoutes []*net.IPNet) error
-	InstanceDevicePortAdd(instanceID int, instanceName string, deviceName string, mac net.HardwareAddr, ips []net.IP, internalRoutes []*net.IPNet, externalRoutes []*net.IPNet) (openvswitch.OVNSwitchPort, error)
-	InstanceDevicePortDelete(instanceID int, deviceName string, internalRoutes []*net.IPNet, externalRoutes []*net.IPNet) error
-	InstanceDevicePortDynamicIPs(instanceID int, deviceName string) ([]net.IP, error)
+	InstanceDevicePortAdd(instanceUUID string, instanceName string, deviceName string, mac net.HardwareAddr, ips []net.IP, internalRoutes []*net.IPNet, externalRoutes []*net.IPNet) (openvswitch.OVNSwitchPort, error)
+	InstanceDevicePortDelete(instanceUUID string, deviceName string, ovsExternalOVNPort openvswitch.OVNSwitchPort, internalRoutes []*net.IPNet, externalRoutes []*net.IPNet) error
+	InstanceDevicePortDynamicIPs(instanceUUID string, deviceName string) ([]net.IP, error)
 }
 
 type nicOVN struct {
