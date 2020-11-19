@@ -239,6 +239,37 @@ func (d *lvm) HasVolume(vol Volume) bool {
 	return volExists
 }
 
+// FillVolumeConfig populate volume with default config.
+func (d *lvm) FillVolumeConfig(vol Volume) error {
+	// Only validate filesystem config keys for filesystem volumes or VM block volumes (which have an
+	// associated filesystem volume).
+	if vol.ContentType() == ContentTypeFS || vol.IsVMBlock() {
+		// Inherit filesystem from pool if not set.
+		if vol.config["block.filesystem"] == "" {
+			vol.config["block.filesystem"] = d.config["volume.block.filesystem"]
+		}
+
+		// Default filesystem if neither volume nor pool specify an override.
+		if vol.config["block.filesystem"] == "" {
+			// Unchangeable volume property: Set unconditionally.
+			vol.config["block.filesystem"] = DefaultFilesystem
+		}
+
+		// Inherit filesystem mount options from pool if not set.
+		if vol.config["block.mount_options"] == "" {
+			vol.config["block.mount_options"] = d.config["volume.block.mount_options"]
+		}
+
+		// Default filesystem mount options if neither volume nor pool specify an override.
+		if vol.config["block.mount_options"] == "" {
+			// Unchangeable volume property: Set unconditionally.
+			vol.config["block.mount_options"] = "discard"
+		}
+	}
+
+	return nil
+}
+
 // ValidateVolume validates the supplied volume config.
 func (d *lvm) ValidateVolume(vol Volume, removeUnknownKeys bool) error {
 	rules := map[string]func(value string) error{
