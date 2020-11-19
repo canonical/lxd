@@ -1265,7 +1265,7 @@ func (d *disk) stopVM() (*deviceConfig.RunConfig, error) {
 		}
 
 		err = proc.Stop()
-		if err != nil {
+		if err != nil && err != subprocess.ErrNotRunning {
 			return &deviceConfig.RunConfig{}, err
 		}
 
