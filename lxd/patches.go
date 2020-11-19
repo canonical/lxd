@@ -877,7 +877,7 @@ func upgradeFromStorageTypeBtrfs(name string, d *Daemon, defaultPoolName string,
 		// Initialize empty storage volume configuration for the
 		// container.
 		containerPoolVolumeConfig := map[string]string{}
-		err = driver.VolumeFillDefault(containerPoolVolumeConfig, defaultPool)
+		err = volumeFillDefault(containerPoolVolumeConfig, defaultPool)
 		if err != nil {
 			return err
 		}
@@ -965,7 +965,7 @@ func upgradeFromStorageTypeBtrfs(name string, d *Daemon, defaultPoolName string,
 			// Initialize empty storage volume configuration for the
 			// container.
 			snapshotPoolVolumeConfig := map[string]string{}
-			err = driver.VolumeFillDefault(snapshotPoolVolumeConfig, defaultPool)
+			err = volumeFillDefault(snapshotPoolVolumeConfig, defaultPool)
 			if err != nil {
 				return err
 			}
@@ -1046,7 +1046,7 @@ func upgradeFromStorageTypeBtrfs(name string, d *Daemon, defaultPoolName string,
 	images := append(imgPublic, imgPrivate...)
 	for _, img := range images {
 		imagePoolVolumeConfig := map[string]string{}
-		err = driver.VolumeFillDefault(imagePoolVolumeConfig, defaultPool)
+		err = volumeFillDefault(imagePoolVolumeConfig, defaultPool)
 		if err != nil {
 			return err
 		}
@@ -1167,7 +1167,7 @@ func upgradeFromStorageTypeDir(name string, d *Daemon, defaultPoolName string, d
 		// Initialize empty storage volume configuration for the
 		// container.
 		containerPoolVolumeConfig := map[string]string{}
-		err = driver.VolumeFillDefault(containerPoolVolumeConfig, defaultPool)
+		err = volumeFillDefault(containerPoolVolumeConfig, defaultPool)
 		if err != nil {
 			return err
 		}
@@ -1284,7 +1284,7 @@ func upgradeFromStorageTypeDir(name string, d *Daemon, defaultPoolName string, d
 		// Initialize empty storage volume configuration for the
 		// container.
 		snapshotPoolVolumeConfig := map[string]string{}
-		err = driver.VolumeFillDefault(snapshotPoolVolumeConfig, defaultPool)
+		err = volumeFillDefault(snapshotPoolVolumeConfig, defaultPool)
 		if err != nil {
 			return err
 		}
@@ -1314,7 +1314,7 @@ func upgradeFromStorageTypeDir(name string, d *Daemon, defaultPoolName string, d
 	images := append(imgPublic, imgPrivate...)
 	for _, img := range images {
 		imagePoolVolumeConfig := map[string]string{}
-		err = driver.VolumeFillDefault(imagePoolVolumeConfig, defaultPool)
+		err = volumeFillDefault(imagePoolVolumeConfig, defaultPool)
 		if err != nil {
 			return err
 		}
@@ -1476,7 +1476,7 @@ func upgradeFromStorageTypeLvm(name string, d *Daemon, defaultPoolName string, d
 		// Initialize empty storage volume configuration for the
 		// container.
 		containerPoolVolumeConfig := map[string]string{}
-		err = driver.VolumeFillDefault(containerPoolVolumeConfig, defaultPool)
+		err = volumeFillDefault(containerPoolVolumeConfig, defaultPool)
 		if err != nil {
 			return err
 		}
@@ -1634,7 +1634,7 @@ func upgradeFromStorageTypeLvm(name string, d *Daemon, defaultPoolName string, d
 			// Initialize empty storage volume configuration for the
 			// container.
 			snapshotPoolVolumeConfig := map[string]string{}
-			err = driver.VolumeFillDefault(snapshotPoolVolumeConfig, defaultPool)
+			err = volumeFillDefault(snapshotPoolVolumeConfig, defaultPool)
 			if err != nil {
 				return err
 			}
@@ -1814,7 +1814,7 @@ func upgradeFromStorageTypeLvm(name string, d *Daemon, defaultPoolName string, d
 
 	for _, img := range images {
 		imagePoolVolumeConfig := map[string]string{}
-		err = driver.VolumeFillDefault(imagePoolVolumeConfig, defaultPool)
+		err = volumeFillDefault(imagePoolVolumeConfig, defaultPool)
 		if err != nil {
 			return err
 		}
@@ -2006,7 +2006,7 @@ func upgradeFromStorageTypeZfs(name string, d *Daemon, defaultPoolName string, d
 		// Initialize empty storage volume configuration for the
 		// container.
 		containerPoolVolumeConfig := map[string]string{}
-		err = driver.VolumeFillDefault(containerPoolVolumeConfig, defaultPool)
+		err = volumeFillDefault(containerPoolVolumeConfig, defaultPool)
 		if err != nil {
 			return err
 		}
@@ -2092,7 +2092,7 @@ func upgradeFromStorageTypeZfs(name string, d *Daemon, defaultPoolName string, d
 			// Initialize empty storage volume configuration for the
 			// container.
 			snapshotPoolVolumeConfig := map[string]string{}
-			err = driver.VolumeFillDefault(snapshotPoolVolumeConfig, defaultPool)
+			err = volumeFillDefault(snapshotPoolVolumeConfig, defaultPool)
 			if err != nil {
 				return err
 			}
@@ -2148,7 +2148,7 @@ func upgradeFromStorageTypeZfs(name string, d *Daemon, defaultPoolName string, d
 	images := append(imgPublic, imgPrivate...)
 	for _, img := range images {
 		imagePoolVolumeConfig := map[string]string{}
-		err = driver.VolumeFillDefault(imagePoolVolumeConfig, defaultPool)
+		err = volumeFillDefault(imagePoolVolumeConfig, defaultPool)
 		if err != nil {
 			return err
 		}
@@ -2640,7 +2640,7 @@ func patchStorageApiUpdateStorageConfigs(name string, d *Daemon) error {
 			}
 
 			// Insert default values.
-			err := driver.VolumeFillDefault(volume.Config, pool)
+			err := volumeFillDefault(volume.Config, pool)
 			if err != nil {
 				return err
 			}
@@ -2816,7 +2816,7 @@ func patchStorageApiDetectLVSize(name string, d *Daemon) error {
 				volume.Config = map[string]string{}
 
 				// Insert default values.
-				err := driver.VolumeFillDefault(volume.Config, pool)
+				err := volumeFillDefault(volume.Config, pool)
 				if err != nil {
 					return err
 				}
