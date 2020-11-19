@@ -23,7 +23,7 @@ type mockBackend struct {
 }
 
 func (b *mockBackend) ID() int64 {
-	return -1
+	return 1 //  The tests expect the storage pool ID to be 1.
 }
 
 func (b *mockBackend) Name() string {
