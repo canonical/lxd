@@ -23,7 +23,7 @@ type mockBackend struct {
 }
 
 func (b *mockBackend) ID() int64 {
-	return -1
+	return 1 //  The tests expect the storage pool ID to be 1.
 }
 
 func (b *mockBackend) Name() string {
@@ -64,6 +64,10 @@ func (b *mockBackend) Unmount() (bool, error) {
 }
 
 func (b *mockBackend) ApplyPatch(name string) error {
+	return nil
+}
+
+func (b *mockBackend) FillInstanceConfig(inst instance.Instance, config map[string]string) error {
 	return nil
 }
 

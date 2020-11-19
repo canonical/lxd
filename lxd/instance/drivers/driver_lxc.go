@@ -196,13 +196,13 @@ func lxcCreate(s *state.State, args db.InstanceArgs) (instance.Instance, error) 
 	// Load the config.
 	err := c.init()
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "Failed to expand config")
 	}
 
 	// Validate expanded config.
 	err = instance.ValidConfig(s.OS, c.expandedConfig, false, true)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "Invalid config")
 	}
 
 	err = instance.ValidDevices(s, s.Cluster, c.Project(), c.Type(), c.expandedDevices, true)
@@ -233,38 +233,28 @@ func lxcCreate(s *state.State, args db.InstanceArgs) (instance.Instance, error) 
 		return nil, fmt.Errorf("The container's root device is missing the pool property")
 	}
 
-	storagePool := rootDiskDevice["pool"]
-
-	// Get the storage pool ID for the container.
-	poolID, dbPool, err := s.Cluster.GetStoragePool(storagePool)
-	if err != nil {
-		return nil, err
-	}
-
 	// Initialize the storage pool.
-	pool, err := storagePools.GetPoolByName(c.state, storagePool)
+	c.storagePool, err = storagePools.GetPoolByName(c.state, rootDiskDevice["pool"])
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrapf(err, "Failed loading storage pool")
 	}
 
-	// Fill in any default volume config.
+	// Fill default config.
 	volumeConfig := map[string]string{}
-	err = storagePools.VolumeFillDefault(volumeConfig, dbPool)
+	err = c.storagePool.FillInstanceConfig(c, volumeConfig)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrapf(err, "Failed filling default config")
 	}
 
 	// Create a new storage volume database entry for the container's storage volume.
 	if c.IsSnapshot() {
-		_, err = s.Cluster.CreateStorageVolumeSnapshot(args.Project, args.Name, "", db.StoragePoolVolumeTypeContainer, poolID, volumeConfig, time.Time{})
+		_, err = s.Cluster.CreateStorageVolumeSnapshot(args.Project, args.Name, "", db.StoragePoolVolumeTypeContainer, c.storagePool.ID(), volumeConfig, time.Time{})
 	} else {
-		_, err = s.Cluster.CreateStoragePoolVolume(args.Project, args.Name, "", db.StoragePoolVolumeTypeContainer, poolID, volumeConfig, db.StoragePoolVolumeContentTypeFS)
+		_, err = s.Cluster.CreateStoragePoolVolume(args.Project, args.Name, "", db.StoragePoolVolumeTypeContainer, c.storagePool.ID(), volumeConfig, db.StoragePoolVolumeContentTypeFS)
 	}
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrapf(err, "Failed creating storage record")
 	}
-
-	c.storagePool = pool
 
 	// Setup initial idmap config
 	var idmap *idmap.IdmapSet

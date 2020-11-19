@@ -14,6 +14,7 @@ import (
 	"github.com/lxc/lxd/lxd/state"
 	storageDrivers "github.com/lxc/lxd/lxd/storage/drivers"
 	"github.com/lxc/lxd/shared"
+	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/units"
 )
 
@@ -222,4 +223,28 @@ func lvmGetLVSize(lvPath string) (string, error) {
 	detectedSize := units.GetByteSizeString(size, 0)
 
 	return detectedSize, nil
+}
+
+// volumeFillDefault fills default settings into a volume config.
+// Deprecated. Please use FillInstanceConfig() on the storage pool.
+func volumeFillDefault(config map[string]string, parentPool *api.StoragePool) error {
+	if parentPool.Driver == "lvm" || parentPool.Driver == "ceph" {
+		if config["block.filesystem"] == "" {
+			config["block.filesystem"] = parentPool.Config["volume.block.filesystem"]
+		}
+		if config["block.filesystem"] == "" {
+			// Unchangeable volume property: Set unconditionally.
+			config["block.filesystem"] = storageDrivers.DefaultFilesystem
+		}
+
+		if config["block.mount_options"] == "" {
+			config["block.mount_options"] = parentPool.Config["volume.block.mount_options"]
+		}
+		if config["block.mount_options"] == "" {
+			// Unchangeable volume property: Set unconditionally.
+			config["block.mount_options"] = "discard"
+		}
+	}
+
+	return nil
 }
