@@ -150,6 +150,16 @@ func (o *OVS) InterfaceAssociateOVNSwitchPort(interfaceName string, ovnSwitchPor
 	return nil
 }
 
+// InterfaceAssociatedOVNSwitchPort returns the OVN switch port associated to the OVS interface.
+func (o *OVS) InterfaceAssociatedOVNSwitchPort(interfaceName string) (OVNSwitchPort, error) {
+	ovnSwitchPort, err := shared.RunCommand("ovs-vsctl", "get", "interface", interfaceName, "external_ids:iface-id")
+	if err != nil {
+		return "", err
+	}
+
+	return OVNSwitchPort(strings.TrimSpace(ovnSwitchPort)), nil
+}
+
 // ChassisID returns the local chassis ID.
 func (o *OVS) ChassisID() (string, error) {
 	// ovs-vsctl's get command doesn't support its --format flag, so we always get the output quoted.
