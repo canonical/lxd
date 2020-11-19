@@ -46,6 +46,7 @@ type Driver interface {
 	ApplyPatch(name string) error
 
 	// Volumes.
+	FillVolumeConfig(vol Volume) error
 	ValidateVolume(vol Volume, removeUnknownKeys bool) error
 	CreateVolume(vol Volume, filler *VolumeFiller, op *operations.Operation) error
 	CreateVolumeFromCopy(vol Volume, srcVol Volume, copySnapshots bool, op *operations.Operation) error
