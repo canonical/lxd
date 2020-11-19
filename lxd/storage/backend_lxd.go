@@ -430,6 +430,38 @@ func (b *lxdBackend) instanceRootVolumeConfig(inst instance.Instance) (map[strin
 	return vol.Config, nil
 }
 
+// FillInstanceConfig populates the supplied instance volume config map with any defaults based on the storage
+// pool and instance type being used.
+func (b *lxdBackend) FillInstanceConfig(inst instance.Instance, config map[string]string) error {
+	logger := logging.AddContext(b.logger, log.Ctx{"project": inst.Project(), "instance": inst.Name()})
+	logger.Debug("FillInstanceConfig started")
+	defer logger.Debug("FillInstanceConfig finished")
+
+	volType, err := InstanceTypeToVolumeType(inst.Type())
+	if err != nil {
+		return err
+	}
+
+	contentType := InstanceContentType(inst)
+
+	// Get the volume name on storage.
+	volStorageName := project.Instance(inst.Project(), inst.Name())
+
+	// Fill default config in volume (creates internal copy of supplied config and modifies that).
+	vol := b.newVolume(volType, contentType, volStorageName, config)
+	err = b.driver.FillVolumeConfig(vol)
+	if err != nil {
+		return err
+	}
+
+	// Copy filled volume config back into supplied config map.
+	for k, v := range vol.Config() {
+		config[k] = v
+	}
+
+	return nil
+}
+
 // CreateInstance creates an empty instance.
 func (b *lxdBackend) CreateInstance(inst instance.Instance, op *operations.Operation) error {
 	logger := logging.AddContext(b.logger, log.Ctx{"project": inst.Project(), "instance": inst.Name()})
@@ -2222,7 +2254,7 @@ func (b *lxdBackend) EnsureImage(fingerprint string, op *operations.Operation) e
 		}
 	}
 
-	err = VolumeDBCreate(b.state, project.Default, b.name, fingerprint, "", db.StoragePoolVolumeTypeNameImage, false, volConfig, time.Time{}, dbContentType)
+	err = VolumeDBCreate(b.state, b, project.Default, fingerprint, "", db.StoragePoolVolumeTypeNameImage, false, volConfig, time.Time{}, dbContentType)
 	if err != nil {
 		return err
 	}
@@ -2335,7 +2367,7 @@ func (b *lxdBackend) CreateCustomVolume(projectName string, volName string, desc
 	}
 
 	// Create database entry for new storage volume.
-	err = VolumeDBCreate(b.state, projectName, b.name, volName, desc, db.StoragePoolVolumeTypeNameCustom, false, vol.Config(), time.Time{}, string(contentType))
+	err = VolumeDBCreate(b.state, b, projectName, volName, desc, db.StoragePoolVolumeTypeNameCustom, false, vol.Config(), time.Time{}, string(contentType))
 	if err != nil {
 		return err
 	}
@@ -2459,7 +2491,7 @@ func (b *lxdBackend) CreateCustomVolumeFromCopy(projectName string, volName stri
 		}
 
 		// Create database entry for new storage volume.
-		err = VolumeDBCreate(b.state, projectName, b.name, volName, desc, db.StoragePoolVolumeTypeNameCustom, false, vol.Config(), time.Time{}, string(contentType))
+		err = VolumeDBCreate(b.state, b, projectName, volName, desc, db.StoragePoolVolumeTypeNameCustom, false, vol.Config(), time.Time{}, string(contentType))
 		if err != nil {
 			return err
 		}
@@ -2471,7 +2503,7 @@ func (b *lxdBackend) CreateCustomVolumeFromCopy(projectName string, volName stri
 				newSnapshotName := drivers.GetSnapshotVolumeName(volName, snapName)
 
 				// Create database entry for new storage volume snapshot.
-				err = VolumeDBCreate(b.state, projectName, b.name, newSnapshotName, desc, db.StoragePoolVolumeTypeNameCustom, true, vol.Config(), time.Time{}, string(contentType))
+				err = VolumeDBCreate(b.state, b, projectName, newSnapshotName, desc, db.StoragePoolVolumeTypeNameCustom, true, vol.Config(), time.Time{}, string(contentType))
 				if err != nil {
 					return err
 				}
@@ -2653,7 +2685,7 @@ func (b *lxdBackend) CreateCustomVolumeFromMigration(projectName string, conn io
 	}
 
 	// Create database entry for new storage volume.
-	err = VolumeDBCreate(b.state, projectName, b.name, args.Name, args.Description, db.StoragePoolVolumeTypeNameCustom, false, vol.Config(), time.Time{}, args.ContentType)
+	err = VolumeDBCreate(b.state, b, projectName, args.Name, args.Description, db.StoragePoolVolumeTypeNameCustom, false, vol.Config(), time.Time{}, args.ContentType)
 	if err != nil {
 		return err
 	}
@@ -2665,7 +2697,7 @@ func (b *lxdBackend) CreateCustomVolumeFromMigration(projectName string, conn io
 			newSnapshotName := drivers.GetSnapshotVolumeName(args.Name, snapName)
 
 			// Create database entry for new storage volume snapshot.
-			err = VolumeDBCreate(b.state, projectName, b.name, newSnapshotName, args.Description, db.StoragePoolVolumeTypeNameCustom, true, vol.Config(), time.Time{}, args.ContentType)
+			err = VolumeDBCreate(b.state, b, projectName, newSnapshotName, args.Description, db.StoragePoolVolumeTypeNameCustom, true, vol.Config(), time.Time{}, args.ContentType)
 			if err != nil {
 				return err
 			}
@@ -3124,7 +3156,7 @@ func (b *lxdBackend) CreateCustomVolumeSnapshot(projectName, volName string, new
 	}
 
 	// Create database entry for new storage volume snapshot.
-	err = VolumeDBCreate(b.state, projectName, b.name, fullSnapshotName, parentVol.Description, db.StoragePoolVolumeTypeNameCustom, true, parentVol.Config, newExpiryDate, parentVol.ContentType)
+	err = VolumeDBCreate(b.state, b, projectName, fullSnapshotName, parentVol.Description, db.StoragePoolVolumeTypeNameCustom, true, parentVol.Config, newExpiryDate, parentVol.ContentType)
 	if err != nil {
 		return err
 	}
@@ -3629,7 +3661,7 @@ func (b *lxdBackend) CreateCustomVolumeFromBackup(srcBackup backup.Info, srcData
 	}
 
 	// Create database entry for new storage volume using the validated config.
-	err = VolumeDBCreate(b.state, srcBackup.Project, b.name, srcBackup.Name, srcBackup.Config.Volume.Description, db.StoragePoolVolumeTypeNameCustom, false, vol.Config(), time.Time{}, string(vol.ContentType()))
+	err = VolumeDBCreate(b.state, b, srcBackup.Project, srcBackup.Name, srcBackup.Config.Volume.Description, db.StoragePoolVolumeTypeNameCustom, false, vol.Config(), time.Time{}, string(vol.ContentType()))
 	if err != nil {
 		return err
 	}
@@ -3652,7 +3684,7 @@ func (b *lxdBackend) CreateCustomVolumeFromBackup(srcBackup backup.Info, srcData
 			return err
 		}
 
-		err = VolumeDBCreate(b.state, srcBackup.Project, b.name, fullSnapName, snapshot.Description, db.StoragePoolVolumeTypeNameCustom, true, snapVol.Config(), *snapshot.ExpiresAt, string(snapVol.ContentType()))
+		err = VolumeDBCreate(b.state, b, srcBackup.Project, fullSnapName, snapshot.Description, db.StoragePoolVolumeTypeNameCustom, true, snapVol.Config(), *snapshot.ExpiresAt, string(snapVol.ContentType()))
 		if err != nil {
 			return err
 		}
