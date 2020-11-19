@@ -2252,8 +2252,20 @@ func (n *ovn) InstanceDevicePortDynamicIPs(instanceUUID string, deviceName strin
 }
 
 // InstanceDevicePortDelete deletes an instance device port from the internal logical switch.
-func (n *ovn) InstanceDevicePortDelete(instanceID int, deviceName string, internalRoutes []*net.IPNet, externalRoutes []*net.IPNet) error {
-	instancePortName := n.getInstanceDevicePortName(instanceID, deviceName)
+func (n *ovn) InstanceDevicePortDelete(instanceUUID string, deviceName string, ovsExternalOVNPort openvswitch.OVNSwitchPort, internalRoutes []*net.IPNet, externalRoutes []*net.IPNet) error {
+	// Decide whether to use OVS provided OVN port name or internally derived OVN port name.
+	instancePortName := ovsExternalOVNPort
+	source := "OVS"
+	if ovsExternalOVNPort == "" {
+		if instanceUUID == "" {
+			return fmt.Errorf("Instance UUID is required")
+		}
+
+		instancePortName = n.getInstanceDevicePortName(instanceUUID, deviceName)
+		source = "internal"
+	}
+
+	n.logger.Debug("Deleting instance port", log.Ctx{"port": instancePortName, "source": source})
 
 	client, err := n.getClient()
 	if err != nil {
