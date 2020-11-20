@@ -2923,7 +2923,7 @@ func (b *lxdBackend) MountCustomVolume(projectName, volName string, op *operatio
 
 	// Get the volume name on storage.
 	volStorageName := project.StorageVolume(projectName, volName)
-	vol := b.newVolume(drivers.VolumeTypeCustom, drivers.ContentTypeFS, volStorageName, volume.Config)
+	vol := b.newVolume(drivers.VolumeTypeCustom, drivers.ContentType(volume.ContentType), volStorageName, volume.Config)
 
 	return b.driver.MountVolume(vol, op)
 }
