@@ -278,6 +278,13 @@ func (c *Cluster) storagePoolVolumeGetType(project string, volumeName string, vo
 	storageVolume.Config = volumeConfig
 	storageVolume.Location = volumeNode
 
+	// Populate volume's ContentType based on volume type (this is before custom block volumes were supported).
+	// The ContentType field is used for volume mount ref counting so important it is consistently populated.
+	storageVolume.ContentType = StoragePoolVolumeContentTypeNameFS
+	if volumeType == StoragePoolVolumeTypeVM {
+		storageVolume.ContentType = StoragePoolVolumeContentTypeNameBlock
+	}
+
 	return volumeID, &storageVolume, nil
 }
 
@@ -521,6 +528,18 @@ const (
 	StoragePoolVolumeTypeNameVM        string = "virtual-machine"
 	StoragePoolVolumeTypeNameImage     string = "image"
 	StoragePoolVolumeTypeNameCustom    string = "custom"
+)
+
+// Content types.
+const (
+	StoragePoolVolumeContentTypeFS = iota
+	StoragePoolVolumeContentTypeBlock
+)
+
+// Content type names.
+const (
+	StoragePoolVolumeContentTypeNameFS    string = "filesystem"
+	StoragePoolVolumeContentTypeNameBlock string = "block"
 )
 
 // StorageVolumeArgs is a value object holding all db-related details about a
