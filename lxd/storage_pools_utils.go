@@ -3,6 +3,8 @@ package main
 import (
 	"fmt"
 
+	"github.com/pkg/errors"
+
 	"github.com/lxc/lxd/lxd/state"
 	storagePools "github.com/lxc/lxd/lxd/storage"
 	"github.com/lxc/lxd/shared"
@@ -95,7 +97,7 @@ func storagePoolCreateGlobal(state *state.State, req api.StoragePoolsPost) error
 	return nil
 }
 
-// This performs all non-db related work needed to create the pool.
+// This performs local pool setup and updates DB record if config was changed during pool setup.
 func storagePoolCreateLocal(state *state.State, id int64, req api.StoragePoolsPost, isNotification bool) (map[string]string, error) {
 	tryUndo := true
 
@@ -145,7 +147,7 @@ func storagePoolCreateLocal(state *state.State, id int64, req api.StoragePoolsPo
 		// Create the database entry for the storage pool.
 		err = state.Cluster.UpdateStoragePool(req.Name, req.Description, updatedConfig)
 		if err != nil {
-			return nil, fmt.Errorf("Error inserting %s into database: %s", req.Name, err)
+			return nil, errors.Wrapf(err, "Error updating storage pool config after local create for %q", req.Name)
 		}
 	}
 
