@@ -182,7 +182,7 @@ func storagePoolsPost(d *Daemon, r *http.Request) response.Response {
 	// storage config are the ones in StoragePoolNodeConfigKeys.
 	for key := range req.Config {
 		if !shared.StringInSlice(key, db.StoragePoolNodeConfigKeys) {
-			return response.SmartError(fmt.Errorf("Config key '%s' may not be used as node-specific key", key))
+			return response.SmartError(fmt.Errorf("Config key %q may not be used as node-specific key", key))
 		}
 	}
 
@@ -196,7 +196,7 @@ func storagePoolsPost(d *Daemon, r *http.Request) response.Response {
 	})
 	if err != nil {
 		if err == db.ErrAlreadyDefined {
-			return response.BadRequest(fmt.Errorf("The storage pool already defined on node %s", targetNode))
+			return response.BadRequest(fmt.Errorf("The storage pool already defined on node %q", targetNode))
 		}
 
 		return response.SmartError(err)
@@ -209,7 +209,7 @@ func storagePoolsPostCluster(d *Daemon, req api.StoragePoolsPost) error {
 	// Check that no node-specific config key has been defined.
 	for key := range req.Config {
 		if shared.StringInSlice(key, db.StoragePoolNodeConfigKeys) {
-			return fmt.Errorf("Config key '%s' is node-specific", key)
+			return fmt.Errorf("Config key %q is node-specific", key)
 		}
 	}
 
@@ -525,7 +525,7 @@ func storagePoolPatch(d *Daemon, r *http.Request) response.Response {
 func storagePoolValidateClusterConfig(reqConfig map[string]string) error {
 	for key := range reqConfig {
 		if shared.StringInSlice(key, db.StoragePoolNodeConfigKeys) {
-			return fmt.Errorf("node-specific config key %s can't be changed", key)
+			return fmt.Errorf("Node-specific config key %q can't be changed", key)
 		}
 	}
 	return nil
