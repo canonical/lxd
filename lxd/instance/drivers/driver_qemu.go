@@ -4364,12 +4364,15 @@ func (vm *qemu) RenderFull() (*api.InstanceFull, interface{}, error) {
 
 // RenderState returns just state info about the instance.
 func (vm *qemu) RenderState() (*api.InstanceState, error) {
+	var err error
+
+	status := &api.InstanceState{}
 	statusCode := vm.statusCode()
 	pid, _ := vm.pid()
 
 	if statusCode == api.Running {
 		// Try and get state info from agent.
-		status, err := vm.agentGetState()
+		status, err = vm.agentGetState()
 		if err != nil {
 			if err != errQemuAgentOffline {
 				logger.Warn("Could not get VM state from agent", log.Ctx{"project": vm.Project(), "instance": vm.Name(), "err": err})
@@ -4433,25 +4436,17 @@ func (vm *qemu) RenderState() (*api.InstanceState, error) {
 				}
 			}
 		}
-
-		status.Pid = int64(pid)
-		status.Status = statusCode.String()
-		status.StatusCode = statusCode
-		status.Disk, err = vm.diskState()
-		if err != nil && err != storageDrivers.ErrNotSupported {
-			logger.Warn("Error getting disk usage", log.Ctx{"project": vm.Project(), "instance": vm.Name(), "err": err})
-		}
-
-		return status, nil
 	}
 
-	// At least return the Status and StatusCode if we couldn't get any
-	// information for the VM agent.
-	return &api.InstanceState{
-		Pid:        int64(pid),
-		Status:     statusCode.String(),
-		StatusCode: statusCode,
-	}, nil
+	status.Pid = int64(pid)
+	status.Status = statusCode.String()
+	status.StatusCode = statusCode
+	status.Disk, err = vm.diskState()
+	if err != nil && err != storageDrivers.ErrNotSupported {
+		logger.Warn("Error getting disk usage", log.Ctx{"project": vm.Project(), "instance": vm.Name(), "err": err})
+	}
+
+	return status, nil
 }
 
 // diskState gets disk usage info.
