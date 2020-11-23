@@ -8,12 +8,16 @@ import (
 	deviceConfig "github.com/lxc/lxd/lxd/device/config"
 	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/instance/instancetype"
+	"github.com/lxc/lxd/lxd/operations"
 	"github.com/lxc/lxd/lxd/state"
 	"github.com/lxc/lxd/shared/api"
 )
 
 // common provides structure common to all instance types.
 type common struct {
+	op    *operations.Operation
+	state *state.State
+
 	id              int
 	dbType          instancetype.Type
 	architecture    int
@@ -24,7 +28,15 @@ type common struct {
 	localDevices    deviceConfig.Devices
 	profiles        []string
 	project         string
-	state           *state.State
+	snapshot        bool
+	creationDate    time.Time
+	lastUsedDate    time.Time
+	ephemeral       bool
+	name            string
+	description     string
+	stateful        bool
+	expiryDate      time.Time
+	node            string
 }
 
 // Project returns instance's project.
