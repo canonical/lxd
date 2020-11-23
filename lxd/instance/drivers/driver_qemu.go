@@ -28,7 +28,6 @@ import (
 
 	lxdClient "github.com/lxc/lxd/client"
 	"github.com/lxc/lxd/lxd/apparmor"
-	"github.com/lxc/lxd/lxd/backup"
 	"github.com/lxc/lxd/lxd/cgroup"
 	"github.com/lxc/lxd/lxd/cluster"
 	"github.com/lxc/lxd/lxd/db"
@@ -42,7 +41,6 @@ import (
 	"github.com/lxc/lxd/lxd/instance/operationlock"
 	"github.com/lxc/lxd/lxd/maas"
 	"github.com/lxc/lxd/lxd/network"
-	"github.com/lxc/lxd/lxd/operations"
 	"github.com/lxc/lxd/lxd/project"
 	"github.com/lxc/lxd/lxd/resources"
 	"github.com/lxc/lxd/lxd/revert"
@@ -307,8 +305,8 @@ type qemu struct {
 	// Do not use these variables directly, instead use their associated get functions so they
 	// will be initialised on demand.
 	agentClient      *http.Client
-	storagePool      storagePools.Pool
 	architectureName string
+	storagePool      storagePools.Pool
 }
 
 // getAgentClient returns the current agent client handle. To avoid TLS setup each time this
@@ -1134,34 +1132,6 @@ func (d *qemu) qemuArchConfig() (string, string, error) {
 	return "", "", fmt.Errorf("Architecture isn't supported for virtual machines")
 }
 
-// deviceVolatileGetFunc returns a function that retrieves a named device's volatile config and
-// removes its device prefix from the keys.
-func (d *qemu) deviceVolatileGetFunc(devName string) func() map[string]string {
-	return func() map[string]string {
-		volatile := make(map[string]string)
-		prefix := fmt.Sprintf("volatile.%s.", devName)
-		for k, v := range d.localConfig {
-			if strings.HasPrefix(k, prefix) {
-				volatile[strings.TrimPrefix(k, prefix)] = v
-			}
-		}
-		return volatile
-	}
-}
-
-// deviceVolatileSetFunc returns a function that can be called to save a named device's volatile
-// config using keys that do not have the device's name prefixed.
-func (d *qemu) deviceVolatileSetFunc(devName string) func(save map[string]string) error {
-	return func(save map[string]string) error {
-		volatileSave := make(map[string]string)
-		for k, v := range save {
-			volatileSave[fmt.Sprintf("volatile.%s.%s", devName, k)] = v
-		}
-
-		return d.VolatileSet(volatileSave)
-	}
-}
-
 // RegisterDevices calls the Register() function on all of the instance's devices.
 func (d *qemu) RegisterDevices() {
 	devices := d.ExpandedDevices()
@@ -1277,21 +1247,6 @@ func (d *qemu) deviceStop(deviceName string, rawConfig deviceConfig.Device, inst
 		err = d.runHooks(runConf.PostHooks)
 		if err != nil {
 			return err
-		}
-	}
-
-	return nil
-}
-
-// runHooks executes the callback functions returned from a function.
-func (d *qemu) runHooks(hooks []func() error) error {
-	// Run any post start hooks.
-	if len(hooks) > 0 {
-		for _, hook := range hooks {
-			err := hook()
-			if err != nil {
-				return err
-			}
 		}
 	}
 
@@ -2699,47 +2654,6 @@ func (d *qemu) Restore(source instance.Instance, stateful bool) error {
 	return nil
 }
 
-// Snapshots returns a list of snapshots.
-func (d *qemu) Snapshots() ([]instance.Instance, error) {
-	var snaps []db.Instance
-
-	if d.IsSnapshot() {
-		return []instance.Instance{}, nil
-	}
-
-	// Get all the snapshots
-	err := d.state.Cluster.Transaction(func(tx *db.ClusterTx) error {
-		var err error
-		snaps, err = tx.GetInstanceSnapshotsWithName(d.Project(), d.name)
-		if err != nil {
-			return err
-		}
-
-		return nil
-	})
-	if err != nil {
-		return nil, err
-	}
-
-	// Build the snapshot list
-	snapshots, err := instance.LoadAllInternal(d.state, snaps)
-	if err != nil {
-		return nil, err
-	}
-
-	instances := make([]instance.Instance, len(snapshots))
-	for k, v := range snapshots {
-		instances[k] = instance.Instance(v)
-	}
-
-	return instances, nil
-}
-
-// Backups returns a list of backups.
-func (d *qemu) Backups() ([]backup.InstanceBackup, error) {
-	return []backup.InstanceBackup{}, nil
-}
-
 // Rename the instance.
 func (d *qemu) Rename(newName string) error {
 	oldName := d.Name()
@@ -3922,45 +3836,6 @@ func (d *qemu) CGroup() (*cgroup.CGroup, error) {
 	return nil, instance.ErrNotImplemented
 }
 
-// VolatileSet sets one or more volatile config keys.
-func (d *qemu) VolatileSet(changes map[string]string) error {
-	// Sanity check.
-	for key := range changes {
-		if !strings.HasPrefix(key, "volatile.") {
-			return fmt.Errorf("Only volatile keys can be modified with VolatileSet")
-		}
-	}
-
-	// Update the database.
-	var err error
-	if d.IsSnapshot() {
-		err = d.state.Cluster.Transaction(func(tx *db.ClusterTx) error {
-			return tx.UpdateInstanceSnapshotConfig(d.id, changes)
-		})
-	} else {
-		err = d.state.Cluster.Transaction(func(tx *db.ClusterTx) error {
-			return tx.UpdateInstanceConfig(d.id, changes)
-		})
-	}
-	if err != nil {
-		return errors.Wrap(err, "Failed to volatile config")
-	}
-
-	// Apply the change locally.
-	for key, value := range changes {
-		if value == "" {
-			delete(d.expandedConfig, key)
-			delete(d.localConfig, key)
-			continue
-		}
-
-		d.expandedConfig[key] = value
-		d.localConfig[key] = value
-	}
-
-	return nil
-}
-
 // FileExists is not implemented for VMs.
 func (d *qemu) FileExists(path string) error {
 	return instance.ErrNotImplemented
@@ -4498,64 +4373,14 @@ func (d *qemu) IsFrozen() bool {
 	return d.State() == "FROZEN"
 }
 
-// IsEphemeral returns whether the instanc is ephemeral or not.
-func (d *qemu) IsEphemeral() bool {
-	return d.ephemeral
-}
-
-// IsSnapshot returns whether instance is snapshot or not.
-func (d *qemu) IsSnapshot() bool {
-	return d.snapshot
-}
-
-// IsStateful retuens whether instance is stateful or not.
-func (d *qemu) IsStateful() bool {
-	return d.stateful
-}
-
 // DeviceEventHandler handles events occurring on the instance's devices.
 func (d *qemu) DeviceEventHandler(runConf *deviceConfig.RunConfig) error {
 	return fmt.Errorf("DeviceEventHandler Not implemented")
 }
 
-// ID returns the instance's ID.
-func (d *qemu) ID() int {
-	return d.id
-}
-
 // vsockID returns the vsock context ID, 3 being the first ID that can be used.
 func (d *qemu) vsockID() int {
 	return d.id + 3
-}
-
-// Location returns instance's location.
-func (d *qemu) Location() string {
-	return d.node
-}
-
-// Name returns the instance's name.
-func (d *qemu) Name() string {
-	return d.name
-}
-
-// Description returns the instance's description.
-func (d *qemu) Description() string {
-	return d.description
-}
-
-// CreationDate returns the instance's creation date.
-func (d *qemu) CreationDate() time.Time {
-	return d.creationDate
-}
-
-// LastUsedDate returns the instance's last used date.
-func (d *qemu) LastUsedDate() time.Time {
-	return d.lastUsedDate
-}
-
-// Profiles returns the instance's profiles.
-func (d *qemu) Profiles() []string {
-	return d.profiles
 }
 
 // InitPID returns the instance's current process ID.
@@ -4602,39 +4427,6 @@ func (d *qemu) State() string {
 	return strings.ToUpper(d.statusCode().String())
 }
 
-// ExpiryDate returns when this snapshot expires.
-func (d *qemu) ExpiryDate() time.Time {
-	if d.IsSnapshot() {
-		return d.expiryDate
-	}
-
-	// Return zero time if the instance is not a snapshot.
-	return time.Time{}
-}
-
-// Path returns the instance's path.
-func (d *qemu) Path() string {
-	return storagePools.InstancePath(d.Type(), d.Project(), d.Name(), d.IsSnapshot())
-}
-
-// DevicesPath returns the instance's devices path.
-func (d *qemu) DevicesPath() string {
-	name := project.Instance(d.Project(), d.Name())
-	return shared.VarPath("devices", name)
-}
-
-// ShmountsPath returns the instance's shared mounts path.
-func (d *qemu) ShmountsPath() string {
-	name := project.Instance(d.Project(), d.Name())
-	return shared.VarPath("shmounts", name)
-}
-
-// LogPath returns the instance's log path.
-func (d *qemu) LogPath() string {
-	name := project.Instance(d.Project(), d.Name())
-	return shared.LogPath(name)
-}
-
 // EarlyLogFilePath returns the instance's early log path.
 func (d *qemu) EarlyLogFilePath() string {
 	return filepath.Join(d.LogPath(), "qemu.early.log")
@@ -4645,26 +4437,6 @@ func (d *qemu) LogFilePath() string {
 	return filepath.Join(d.LogPath(), "qemu.log")
 }
 
-// ConsoleBufferLogPath returns the instance's console buffer log path.
-func (d *qemu) ConsoleBufferLogPath() string {
-	return filepath.Join(d.LogPath(), "console.log")
-}
-
-// RootfsPath returns the instance's rootfs path.
-func (d *qemu) RootfsPath() string {
-	return filepath.Join(d.Path(), "rootfs")
-}
-
-// TemplatesPath returns the instance's templates path.
-func (d *qemu) TemplatesPath() string {
-	return filepath.Join(d.Path(), "templates")
-}
-
-// StatePath returns the instance's state path.
-func (d *qemu) StatePath() string {
-	return filepath.Join(d.Path(), "state")
-}
-
 // StoragePool returns the name of the instance's storage pool.
 func (d *qemu) StoragePool() (string, error) {
 	poolName, err := d.state.Cluster.GetInstancePool(d.Project(), d.Name())
@@ -4673,21 +4445,6 @@ func (d *qemu) StoragePool() (string, error) {
 	}
 
 	return poolName, nil
-}
-
-// SetOperation sets the current operation.
-func (d *qemu) SetOperation(op *operations.Operation) {
-	d.op = op
-}
-
-// DeferTemplateApply not used currently.
-func (d *qemu) DeferTemplateApply(trigger string) error {
-	err := d.VolatileSet(map[string]string{"volatile.apply_template": trigger})
-	if err != nil {
-		return errors.Wrap(err, "Failed to set apply_template volatile key")
-	}
-
-	return nil
 }
 
 // FillNetworkDevice takes a nic or infiniband device type and enriches it with automatically
@@ -5058,20 +4815,6 @@ func (d *qemu) cpuTopology(limit string) (int, int, int, map[uint64]uint64, map[
 	}
 
 	return nrSockets, nrCores, nrThreads, vcpus, numaNodes, nil
-}
-
-func (d *qemu) expandConfig(profiles []api.Profile) error {
-	if profiles == nil && len(d.profiles) > 0 {
-		var err error
-		profiles, err = d.state.Cluster.GetProfiles(d.project, d.profiles)
-		if err != nil {
-			return err
-		}
-	}
-
-	d.expandedConfig = db.ExpandInstanceConfig(d.localConfig, profiles)
-
-	return nil
 }
 
 func (d *qemu) devlxdEventSend(eventType string, eventMessage interface{}) error {

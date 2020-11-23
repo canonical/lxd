@@ -26,7 +26,6 @@ import (
 	yaml "gopkg.in/yaml.v2"
 
 	"github.com/lxc/lxd/lxd/apparmor"
-	"github.com/lxc/lxd/lxd/backup"
 	"github.com/lxc/lxd/lxd/cgroup"
 	"github.com/lxc/lxd/lxd/cluster"
 	"github.com/lxc/lxd/lxd/daemon"
@@ -40,7 +39,6 @@ import (
 	"github.com/lxc/lxd/lxd/instance/operationlock"
 	"github.com/lxc/lxd/lxd/maas"
 	"github.com/lxc/lxd/lxd/network"
-	"github.com/lxc/lxd/lxd/operations"
 	"github.com/lxc/lxd/lxd/project"
 	"github.com/lxc/lxd/lxd/revert"
 	"github.com/lxc/lxd/lxd/seccomp"
@@ -426,11 +424,6 @@ type lxc struct {
 	cConfig     bool
 	idmapset    *idmap.IdmapSet
 	storagePool storagePools.Pool
-}
-
-// Type returns the instance type.
-func (d *lxc) Type() instancetype.Type {
-	return d.dbType
 }
 
 func idmapSize(state *state.State, isolatedStr string, size string) (int64, error) {
@@ -1286,21 +1279,6 @@ func (d *lxc) devlxdEventSend(eventType string, eventMessage interface{}) error 
 	return d.state.DevlxdEvents.Send(strconv.Itoa(d.ID()), eventType, eventMessage)
 }
 
-// runHooks executes the callback functions returned from a function.
-func (d *lxc) runHooks(hooks []func() error) error {
-	// Run any post start hooks.
-	if len(hooks) > 0 {
-		for _, hook := range hooks {
-			err := hook()
-			if err != nil {
-				return err
-			}
-		}
-	}
-
-	return nil
-}
-
 // RegisterDevices calls the Register() function on all of the instance's devices.
 func (d *lxc) RegisterDevices() {
 	devices := d.ExpandedDevices()
@@ -1738,34 +1716,6 @@ func (d *lxc) deviceRemove(deviceName string, rawConfig deviceConfig.Device, ins
 	return dev.Remove()
 }
 
-// deviceVolatileGetFunc returns a function that retrieves a named device's volatile config and
-// removes its device prefix from the keys.
-func (d *lxc) deviceVolatileGetFunc(devName string) func() map[string]string {
-	return func() map[string]string {
-		volatile := make(map[string]string)
-		prefix := fmt.Sprintf("volatile.%s.", devName)
-		for k, v := range d.localConfig {
-			if strings.HasPrefix(k, prefix) {
-				volatile[strings.TrimPrefix(k, prefix)] = v
-			}
-		}
-		return volatile
-	}
-}
-
-// deviceVolatileSetFunc returns a function that can be called to save a named device's volatile
-// config using keys that do not have the device's name prefixed.
-func (d *lxc) deviceVolatileSetFunc(devName string) func(save map[string]string) error {
-	return func(save map[string]string) error {
-		volatileSave := make(map[string]string)
-		for k, v := range save {
-			volatileSave[fmt.Sprintf("volatile.%s.%s", devName, k)] = v
-		}
-
-		return d.VolatileSet(volatileSave)
-	}
-}
-
 // deviceResetVolatile resets a device's volatile data when its removed or updated in such a way
 // that it is removed then added immediately afterwards.
 func (d *lxc) deviceResetVolatile(devName string, oldConfig, newConfig deviceConfig.Device) error {
@@ -1879,35 +1829,6 @@ func (d *lxc) DeviceEventHandler(runConf *deviceConfig.RunConfig) error {
 			}
 		}
 	}
-
-	return nil
-}
-
-// Config handling
-func (d *lxc) expandConfig(profiles []api.Profile) error {
-	if profiles == nil && len(d.profiles) > 0 {
-		var err error
-		profiles, err = d.state.Cluster.GetProfiles(d.project, d.profiles)
-		if err != nil {
-			return err
-		}
-	}
-
-	d.expandedConfig = db.ExpandInstanceConfig(d.localConfig, profiles)
-
-	return nil
-}
-
-func (d *lxc) expandDevices(profiles []api.Profile) error {
-	if profiles == nil && len(d.profiles) > 0 {
-		var err error
-		profiles, err = d.state.Cluster.GetProfiles(d.project, d.profiles)
-		if err != nil {
-			return err
-		}
-	}
-
-	d.expandedDevices = db.ExpandInstanceDevices(d.localDevices, profiles)
 
 	return nil
 }
@@ -3222,64 +3143,6 @@ func (d *lxc) RenderState() (*api.InstanceState, error) {
 	return &status, nil
 }
 
-// Snapshots returns the snapshots of the instance.
-func (d *lxc) Snapshots() ([]instance.Instance, error) {
-	var snaps []db.Instance
-
-	if d.IsSnapshot() {
-		return []instance.Instance{}, nil
-	}
-
-	// Get all the snapshots
-	err := d.state.Cluster.Transaction(func(tx *db.ClusterTx) error {
-		var err error
-		snaps, err = tx.GetInstanceSnapshotsWithName(d.Project(), d.name)
-		if err != nil {
-			return err
-		}
-
-		return nil
-	})
-	if err != nil {
-		return nil, err
-	}
-
-	// Build the snapshot list
-	containers, err := instance.LoadAllInternal(d.state, snaps)
-	if err != nil {
-		return nil, err
-	}
-
-	instances := make([]instance.Instance, len(containers))
-	for k, v := range containers {
-		instances[k] = instance.Instance(v)
-	}
-
-	return instances, nil
-}
-
-// Backups returns the backups of the instance.
-func (d *lxc) Backups() ([]backup.InstanceBackup, error) {
-	// Get all the backups
-	backupNames, err := d.state.Cluster.GetInstanceBackups(d.project, d.name)
-	if err != nil {
-		return nil, err
-	}
-
-	// Build the backup list
-	backups := []backup.InstanceBackup{}
-	for _, backupName := range backupNames {
-		backup, err := instance.BackupLoadByName(d.state, d.project, backupName)
-		if err != nil {
-			return nil, err
-		}
-
-		backups = append(backups, *backup)
-	}
-
-	return backups, nil
-}
-
 // Restore restores a snapshot.
 func (d *lxc) Restore(sourceContainer instance.Instance, stateful bool) error {
 	var ctxMap log.Ctx
@@ -3753,45 +3616,6 @@ func (d *lxc) CGroupSet(key string, value string) error {
 	err = d.c.SetCgroupItem(key, value)
 	if err != nil {
 		return fmt.Errorf("Failed to set cgroup %s=\"%s\": %s", key, value, err)
-	}
-
-	return nil
-}
-
-// VolatileSet sets volatile config.
-func (d *lxc) VolatileSet(changes map[string]string) error {
-	// Sanity check
-	for key := range changes {
-		if !strings.HasPrefix(key, "volatile.") {
-			return fmt.Errorf("Only volatile keys can be modified with VolatileSet")
-		}
-	}
-
-	// Update the database
-	var err error
-	if d.IsSnapshot() {
-		err = d.state.Cluster.Transaction(func(tx *db.ClusterTx) error {
-			return tx.UpdateInstanceSnapshotConfig(d.id, changes)
-		})
-	} else {
-		err = d.state.Cluster.Transaction(func(tx *db.ClusterTx) error {
-			return tx.UpdateInstanceConfig(d.id, changes)
-		})
-	}
-	if err != nil {
-		return errors.Wrap(err, "Failed to volatile config")
-	}
-
-	// Apply the change locally
-	for key, value := range changes {
-		if value == "" {
-			delete(d.expandedConfig, key)
-			delete(d.localConfig, key)
-			continue
-		}
-
-		d.expandedConfig[key] = value
-		d.localConfig[key] = value
 	}
 
 	return nil
@@ -5006,17 +4830,6 @@ func (d *lxc) Migrate(args *instance.CriuMigrationArgs) error {
 	}
 
 	logger.Info("Migrated container", ctxMap)
-
-	return nil
-}
-
-// DeferTemplateApply sets volatile key to apply template on next start. Used when instance's
-// volume isn't mounted.
-func (d *lxc) DeferTemplateApply(trigger string) error {
-	err := d.VolatileSet(map[string]string{"volatile.apply_template": trigger})
-	if err != nil {
-		return errors.Wrap(err, "Failed to set apply_template volatile key")
-	}
 
 	return nil
 }
@@ -6485,16 +6298,6 @@ func (d *lxc) setNetworkPriority() error {
 	return nil
 }
 
-// IsStateful returns is instance is stateful.
-func (d *lxc) IsStateful() bool {
-	return d.stateful
-}
-
-// IsEphemeral returns if instance is ephemeral.
-func (d *lxc) IsEphemeral() bool {
-	return d.ephemeral
-}
-
 // IsFrozen returns if instance is frozen.
 func (d *lxc) IsFrozen() bool {
 	return d.State() == "FROZEN"
@@ -6527,36 +6330,6 @@ func (d *lxc) IsPrivileged() bool {
 func (d *lxc) IsRunning() bool {
 	state := d.State()
 	return state != "BROKEN" && state != "STOPPED"
-}
-
-// IsSnapshot returns if instance is a snapshot.
-func (d *lxc) IsSnapshot() bool {
-	return d.snapshot
-}
-
-// CreationDate returns creation date of instance.
-func (d *lxc) CreationDate() time.Time {
-	return d.creationDate
-}
-
-// LastUsedDate returns last used date time of instance.
-func (d *lxc) LastUsedDate() time.Time {
-	return d.lastUsedDate
-}
-
-// ExpandedConfig returns expanded config.
-func (d *lxc) ExpandedConfig() map[string]string {
-	return d.expandedConfig
-}
-
-// ExpandedDevices returns expanded devices config.
-func (d *lxc) ExpandedDevices() deviceConfig.Devices {
-	return d.expandedDevices
-}
-
-// ID gets instances's ID.
-func (d *lxc) ID() int {
-	return d.id
 }
 
 // InitPID returns PID of init process.
@@ -6596,11 +6369,6 @@ func (d *lxc) DevptsFd() (*os.File, error) {
 	return d.c.DevptsFd()
 }
 
-// LocalConfig returns local config.
-func (d *lxc) LocalConfig() map[string]string {
-	return d.localConfig
-}
-
 // CurrentIdmap returns current IDMAP.
 func (d *lxc) CurrentIdmap() (*idmap.IdmapSet, error) {
 	jsonIdmap, ok := d.LocalConfig()["volatile.idmap.current"]
@@ -6631,26 +6399,6 @@ func (d *lxc) NextIdmap() (*idmap.IdmapSet, error) {
 	return idmap.JSONUnmarshal(jsonIdmap)
 }
 
-// Location returns instance location.
-func (d *lxc) Location() string {
-	return d.node
-}
-
-// Name returns instance name.
-func (d *lxc) Name() string {
-	return d.name
-}
-
-// Description returns instance description.
-func (d *lxc) Description() string {
-	return d.description
-}
-
-// Profiles returns instance profiles.
-func (d *lxc) Profiles() []string {
-	return d.profiles
-}
-
 // State returns instance state.
 func (d *lxc) State() string {
 	state, err := d.getLxcState()
@@ -6660,60 +6408,9 @@ func (d *lxc) State() string {
 	return state.String()
 }
 
-// Path instance path.
-func (d *lxc) Path() string {
-	return storagePools.InstancePath(d.Type(), d.Project(), d.Name(), d.IsSnapshot())
-}
-
-// DevicesPath devices path.
-func (d *lxc) DevicesPath() string {
-	name := project.Instance(d.Project(), d.Name())
-	return shared.VarPath("devices", name)
-}
-
-// ShmountsPath shared mounts path.
-func (d *lxc) ShmountsPath() string {
-	name := project.Instance(d.Project(), d.Name())
-	return shared.VarPath("shmounts", name)
-}
-
-// LogPath log path.
-func (d *lxc) LogPath() string {
-	name := project.Instance(d.Project(), d.Name())
-	return shared.LogPath(name)
-}
-
 // LogFilePath log file path.
 func (d *lxc) LogFilePath() string {
 	return filepath.Join(d.LogPath(), "lxc.log")
-}
-
-// ConsoleBufferLogPath console buffer log path.
-func (d *lxc) ConsoleBufferLogPath() string {
-	return filepath.Join(d.LogPath(), "console.log")
-}
-
-// RootfsPath root filesystem path.
-func (d *lxc) RootfsPath() string {
-	return filepath.Join(d.Path(), "rootfs")
-}
-
-// TemplatesPath templates path.
-func (d *lxc) TemplatesPath() string {
-	return filepath.Join(d.Path(), "templates")
-}
-
-// StatePath state path.
-func (d *lxc) StatePath() string {
-	/* FIXME: backwards compatibility: we used to use Join(RootfsPath(),
-	 * "state"), which was bad. Let's just check to see if that directory
-	 * exists.
-	 */
-	oldStatePath := filepath.Join(d.RootfsPath(), "state")
-	if shared.IsDir(oldStatePath) {
-		return oldStatePath
-	}
-	return filepath.Join(d.Path(), "state")
 }
 
 // StoragePool storage pool name.
@@ -6724,37 +6421,6 @@ func (d *lxc) StoragePool() (string, error) {
 	}
 
 	return poolName, nil
-}
-
-// SetOperation handles progress tracking.
-func (d *lxc) SetOperation(op *operations.Operation) {
-	d.op = op
-}
-
-// ExpiryDate sets expiry date.
-func (d *lxc) ExpiryDate() time.Time {
-	if d.IsSnapshot() {
-		return d.expiryDate
-	}
-
-	// Return zero time if the container is not a snapshot
-	return time.Time{}
-}
-
-func (d *lxc) updateProgress(progress string) {
-	if d.op == nil {
-		return
-	}
-
-	meta := d.op.Metadata()
-	if meta == nil {
-		meta = make(map[string]interface{})
-	}
-
-	if meta["container_progress"] != progress {
-		meta["container_progress"] = progress
-		d.op.UpdateMetadata(meta)
-	}
 }
 
 // Internal MAAS handling.
