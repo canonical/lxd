@@ -19,7 +19,7 @@ func NICType(s *state.State, d deviceConfig.Device) (string, error) {
 	// NIC devices support resolving their "nictype" from their "network" property.
 	if d["type"] == "nic" {
 		if d["network"] != "" {
-			_, netInfo, err := s.Cluster.GetNetworkInAnyState(d["network"])
+			_, netInfo, _, err := s.Cluster.GetNetworkInAnyState(d["network"])
 			if err != nil {
 				return "", errors.Wrapf(err, "Failed to load network %q", d["network"])
 			}
