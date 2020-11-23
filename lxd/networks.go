@@ -402,6 +402,11 @@ func doNetworksCreate(d *Daemon, req api.NetworksPost, clientType cluster.Client
 		return err
 	}
 
+	if n.LocalStatus() == api.NetworkStatusCreated {
+		logger.Debug("Skipping network create as already created locally", log.Ctx{"network": n.Name()})
+		return nil
+	}
+
 	// Run initial creation setup for the network driver.
 	err = n.Create(clientType)
 	if err != nil {
@@ -415,7 +420,7 @@ func doNetworksCreate(d *Daemon, req api.NetworksPost, clientType cluster.Client
 		if err != nil {
 			delErr := n.Delete(clientType)
 			if delErr != nil {
-				logger.Errorf("Failed clearing up network %q after failed create: %v", n.Name(), delErr)
+				logger.Error("Failed clearing up network after failed create", log.Ctx{"network": n.Name(), "err": delErr})
 			}
 
 			return err
