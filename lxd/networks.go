@@ -313,6 +313,8 @@ func networksPost(d *Daemon, r *http.Request) response.Response {
 	return resp
 }
 
+// networksPostCluster checks that there is a pending network in the database and then attempts to setup the
+// network on each node. If all nodes are successfully setup then the network's state is set to created.
 func networksPostCluster(d *Daemon, projectName string, req api.NetworksPost, clientType cluster.ClientType, netType network.Type) error {
 	// Check that no node-specific config key has been supplied in request.
 	for key := range req.Config {
@@ -372,6 +374,12 @@ func networksPostCluster(d *Daemon, projectName string, req api.NetworksPost, cl
 		return err
 	}
 
+	// Create notifier for other nodes to create the network.
+	notifier, err := cluster.NewNotifier(d.State(), d.endpoints.NetworkCert(), cluster.NotifyAll)
+	if err != nil {
+		return err
+	}
+
 	// Create the network on this node.
 	nodeReq := req
 
@@ -380,35 +388,13 @@ func networksPostCluster(d *Daemon, projectName string, req api.NetworksPost, cl
 		nodeReq.Config[key] = value
 	}
 
-	// Notify all other nodes to create the network.
-	notifier, err := cluster.NewNotifier(d.State(), d.endpoints.NetworkCert(), cluster.NotifyAll)
-	if err != nil {
-		return err
-	}
-
-	revert := revert.New()
-	defer revert.Fail()
-
-	revert.Add(func() {
-		d.cluster.Transaction(func(tx *db.ClusterTx) error {
-			return tx.NetworkErrored(projectName, req.Name)
-		})
-	})
-
-	// We need to mark the network as created now, because the network.LoadByName call invoked by
-	// doNetworksCreate would fail with not-found otherwise.
-	err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
-		return tx.NetworkCreated(projectName, req.Name)
-	})
-	if err != nil {
-		return err
-	}
-
 	err = doNetworksCreate(d, projectName, nodeReq, clientType)
 	if err != nil {
 		return err
 	}
+	logger.Error("Created network on local cluster member", log.Ctx{"project": projectName, "network": req.Name})
 
+	// Notify other nodes to create the network.
 	err = notifier(func(client lxd.InstanceServer) error {
 		server, _, err := client.GetServer()
 		if err != nil {
@@ -420,13 +406,27 @@ func networksPostCluster(d *Daemon, projectName string, req api.NetworksPost, cl
 			nodeReq.Config[key] = value
 		}
 
-		return client.UseProject(projectName).CreateNetwork(nodeReq)
+		err = client.UseProject(projectName).CreateNetwork(nodeReq)
+		if err != nil {
+			return err
+		}
+		logger.Error("Created network on cluster member", log.Ctx{"project": projectName, "network": req.Name, "member": server.Environment.ServerName})
+
+		return nil
 	})
 	if err != nil {
 		return err
 	}
 
-	revert.Success()
+	// Mark network global status as networkCreated now that all nodes have succeeded.
+	err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
+		return tx.NetworkCreated(projectName, req.Name)
+	})
+	if err != nil {
+		return err
+	}
+	logger.Debug("Marked network global status as created", log.Ctx{"project": projectName, "network": req.Name})
+
 	return nil
 }
 
