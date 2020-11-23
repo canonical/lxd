@@ -28,64 +28,64 @@ type common struct {
 }
 
 // Project returns instance's project.
-func (c *common) Project() string {
-	return c.project
+func (d *common) Project() string {
+	return d.project
 }
 
 // Type returns the instance's type.
-func (c *common) Type() instancetype.Type {
-	return c.dbType
+func (d *common) Type() instancetype.Type {
+	return d.dbType
 }
 
 // Architecture returns the instance's architecture.
-func (c *common) Architecture() int {
-	return c.architecture
+func (d *common) Architecture() int {
+	return d.architecture
 }
 
 // ExpandedConfig returns instance's expanded config.
-func (c *common) ExpandedConfig() map[string]string {
-	return c.expandedConfig
+func (d *common) ExpandedConfig() map[string]string {
+	return d.expandedConfig
 }
 
 // ExpandedDevices returns instance's expanded device config.
-func (c *common) ExpandedDevices() deviceConfig.Devices {
-	return c.expandedDevices
+func (d *common) ExpandedDevices() deviceConfig.Devices {
+	return d.expandedDevices
 }
 
 // LocalConfig returns the instance's local config.
-func (c *common) LocalConfig() map[string]string {
-	return c.localConfig
+func (d *common) LocalConfig() map[string]string {
+	return d.localConfig
 }
 
 // LocalDevices returns the instance's local device config.
-func (c *common) LocalDevices() deviceConfig.Devices {
-	return c.localDevices
+func (d *common) LocalDevices() deviceConfig.Devices {
+	return d.localDevices
 }
 
-func (c *common) expandConfig(profiles []api.Profile) error {
-	if profiles == nil && len(c.profiles) > 0 {
+func (d *common) expandConfig(profiles []api.Profile) error {
+	if profiles == nil && len(d.profiles) > 0 {
 		var err error
-		profiles, err = c.state.Cluster.GetProfiles(c.project, c.profiles)
+		profiles, err = d.state.Cluster.GetProfiles(d.project, d.profiles)
 		if err != nil {
 			return err
 		}
 	}
 
-	c.expandedConfig = db.ExpandInstanceConfig(c.localConfig, profiles)
+	d.expandedConfig = db.ExpandInstanceConfig(d.localConfig, profiles)
 
 	return nil
 }
 
-func (c *common) expandDevices(profiles []api.Profile) error {
-	if profiles == nil && len(c.profiles) > 0 {
+func (d *common) expandDevices(profiles []api.Profile) error {
+	if profiles == nil && len(d.profiles) > 0 {
 		var err error
-		profiles, err = c.state.Cluster.GetProfiles(c.project, c.profiles)
+		profiles, err = d.state.Cluster.GetProfiles(d.project, d.profiles)
 		if err != nil {
 			return err
 		}
 	}
 
-	c.expandedDevices = db.ExpandInstanceDevices(c.localDevices, profiles)
+	d.expandedDevices = db.ExpandInstanceDevices(d.localDevices, profiles)
 
 	return nil
 }
@@ -94,12 +94,12 @@ func (c *common) expandDevices(profiles []api.Profile) error {
 // This is function is only safe to call from within the security
 // packages as called during instance startup, the rest of the time this
 // will likely return nil.
-func (c *common) DevPaths() []string {
-	return c.devPaths
+func (d *common) DevPaths() []string {
+	return d.devPaths
 }
 
 // restart handles instance restarts.
-func (c *common) restart(inst instance.Instance, timeout time.Duration) error {
+func (d *common) restart(inst instance.Instance, timeout time.Duration) error {
 	if timeout == 0 {
 		err := inst.Stop(false)
 		if err != nil {
