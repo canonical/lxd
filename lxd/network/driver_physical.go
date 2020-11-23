@@ -143,10 +143,6 @@ func (n *physical) Rename(newName string) error {
 func (n *physical) Start() error {
 	n.logger.Debug("Start")
 
-	if n.status == api.NetworkStatusPending {
-		return fmt.Errorf("Cannot start pending network")
-	}
-
 	revert := revert.New()
 	defer revert.Fail()
 
