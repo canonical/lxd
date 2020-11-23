@@ -24,7 +24,7 @@ type Network interface {
 	Type
 
 	// Load.
-	init(state *state.State, id int64, name string, netType string, description string, config map[string]string, status string)
+	init(state *state.State, id int64, netInfo *api.Network, netNodes map[int64]db.NetworkNode)
 
 	// Config.
 	Validate(config map[string]string) error
