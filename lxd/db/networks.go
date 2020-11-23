@@ -384,20 +384,35 @@ func (c *ClusterTx) UpdateNetwork(id int64, description string, config map[strin
 	return nil
 }
 
-// Return the names of the nodes the given network is defined on.
-func (c *ClusterTx) networkNodes(networkID int64) ([]string, error) {
-	var err error
-	stmt := `
-	SELECT nodes.name FROM nodes
-	  JOIN networks_nodes ON networks_nodes.node_id = nodes.id
-	  WHERE networks_nodes.network_id = ?
-	`
-	nodes, err := query.SelectStrings(c.tx, stmt, networkID)
+// NetworkNodes returns the nodes keyed by node ID that the given network is defined on.
+func (c *ClusterTx) NetworkNodes(networkID int64) (map[int64]NetworkNode, error) {
+	nodes := []NetworkNode{}
+	dest := func(i int) []interface{} {
+		nodes = append(nodes, NetworkNode{})
+		return []interface{}{&nodes[i].ID, &nodes[i].Name, &nodes[i].State}
+	}
+
+	stmt, err := c.tx.Prepare(`
+		SELECT nodes.id, nodes.name, networks_nodes.state FROM nodes
+		JOIN networks_nodes ON networks_nodes.node_id = nodes.id
+		WHERE networks_nodes.network_id = ?
+	`)
+	if err != nil {
+		return nil, err
+	}
+	defer stmt.Close()
+
+	err = query.SelectObjects(stmt, dest, networkID)
 	if err != nil {
 		return nil, err
 	}
 
-	return nodes, nil
+	netNodes := map[int64]NetworkNode{}
+	for _, node := range nodes {
+		netNodes[node.ID] = node
+	}
+
+	return netNodes, nil
 }
 
 // GetNetworks returns the names of existing networks.
