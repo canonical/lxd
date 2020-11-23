@@ -280,7 +280,6 @@ func networksPost(d *Daemon, r *http.Request) response.Response {
 	}
 
 	// Non-clustered network creation.
-
 	networks, err := d.cluster.GetNetworks(projectName)
 	if err != nil {
 		return response.InternalError(err)
