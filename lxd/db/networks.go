@@ -407,6 +407,13 @@ const (
 	NetworkTypeBridge NetworkType = iota // Network type bridge.
 )
 
+// NetworkNode represents a network node.
+type NetworkNode struct {
+	ID    int64
+	Name  string
+	State NetworkState
+}
+
 // GetNetworkInAnyState returns the network with the given name. The network can be in any state.
 func (c *Cluster) GetNetworkInAnyState(name string) (int64, *api.Network, error) {
 	return c.getNetwork(name, false)
