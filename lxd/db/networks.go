@@ -114,11 +114,14 @@ func (c *ClusterTx) GetNonPendingNetworks() (map[int64]api.Network, error) {
 
 		network.Config = networkConfig
 
-		nodes, err := c.networkNodes(networkID)
+		nodes, err := c.NetworkNodes(networkID)
 		if err != nil {
 			return nil, err
 		}
-		network.Locations = nodes
+
+		for _, node := range nodes {
+			network.Locations = append(network.Locations, node.Name)
+		}
 
 		networks[networkID] = network
 	}
