@@ -564,7 +564,7 @@ func networkDelete(d *Daemon, r *http.Request) response.Response {
 		}
 	}
 
-	// Delete the network.
+	// Delete the network from each member.
 	err = n.Delete(clientType)
 	if err != nil {
 		return response.SmartError(err)
