@@ -145,6 +145,7 @@ func lxcCreate(s *state.State, args db.InstanceArgs) (instance.Instance, error) 
 	// Create the container struct
 	c := &lxc{
 		common: common{
+			id:           args.ID,
 			dbType:       args.Type,
 			architecture: args.Architecture,
 			localConfig:  args.Config,
@@ -153,7 +154,6 @@ func lxcCreate(s *state.State, args db.InstanceArgs) (instance.Instance, error) 
 			state:        s,
 			profiles:     args.Profiles,
 		},
-		id:           args.ID,
 		name:         args.Name,
 		node:         args.Node,
 		description:  args.Description,
@@ -369,6 +369,7 @@ func lxcUnload(c *lxc) {
 func lxcInstantiate(s *state.State, args db.InstanceArgs, expandedDevices deviceConfig.Devices) instance.Instance {
 	c := &lxc{
 		common: common{
+			id:           args.ID,
 			dbType:       args.Type,
 			architecture: args.Architecture,
 			localConfig:  args.Config,
@@ -377,7 +378,6 @@ func lxcInstantiate(s *state.State, args db.InstanceArgs, expandedDevices device
 			state:        s,
 			profiles:     args.Profiles,
 		},
-		id:           args.ID,
 		name:         args.Name,
 		description:  args.Description,
 		ephemeral:    args.Ephemeral,
@@ -419,7 +419,6 @@ type lxc struct {
 	creationDate time.Time
 	lastUsedDate time.Time
 	ephemeral    bool
-	id           int
 	name         string
 	description  string
 	stateful     bool

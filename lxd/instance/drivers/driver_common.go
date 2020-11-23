@@ -14,6 +14,7 @@ import (
 
 // common provides structure common to all instance types.
 type common struct {
+	id              int
 	dbType          instancetype.Type
 	architecture    int
 	devPaths        []string
