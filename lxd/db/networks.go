@@ -720,7 +720,7 @@ func (c *Cluster) CreateNetwork(projectName string, name string, description str
 
 // UpdateNetwork updates the network with the given name.
 func (c *Cluster) UpdateNetwork(project string, name, description string, config map[string]string) error {
-	id, netInfo, err := c.GetNetworkInAnyState(project, name)
+	id, netInfo, _, err := c.GetNetworkInAnyState(project, name)
 	if err != nil {
 		return err
 	}
@@ -794,7 +794,7 @@ func clearNetworkConfig(tx *sql.Tx, networkID, nodeID int64) error {
 
 // DeleteNetwork deletes the network with the given name.
 func (c *Cluster) DeleteNetwork(project string, name string) error {
-	id, _, err := c.GetNetworkInAnyState(project, name)
+	id, _, _, err := c.GetNetworkInAnyState(project, name)
 	if err != nil {
 		return err
 	}
@@ -809,7 +809,7 @@ func (c *Cluster) DeleteNetwork(project string, name string) error {
 
 // RenameNetwork renames a network.
 func (c *Cluster) RenameNetwork(project string, oldName string, newName string) error {
-	id, _, err := c.GetNetworkInAnyState(project, oldName)
+	id, _, _, err := c.GetNetworkInAnyState(project, oldName)
 	if err != nil {
 		return err
 	}
