@@ -256,7 +256,7 @@ func (c *ClusterTx) CreatePendingNetwork(node, name string, netType NetworkType,
 			return err
 		}
 	} else {
-		// Check that the existing network is in the pending state.
+		// Check that the existing network is in the networkPending or networkErrored state.
 		if network.state != networkPending && network.state != networkErrored {
 			return fmt.Errorf("Network is not in pending or errored state")
 		}
@@ -293,12 +293,12 @@ func (c *ClusterTx) CreatePendingNetwork(node, name string, netType NetworkType,
 	return nil
 }
 
-// NetworkCreated sets the state of the given network to "Created".
+// NetworkCreated sets the state of the given network to networkCreated.
 func (c *ClusterTx) NetworkCreated(name string) error {
 	return c.networkState(name, networkCreated)
 }
 
-// NetworkErrored sets the state of the given network to "Errored".
+// NetworkErrored sets the state of the given network to networkErrored.
 func (c *ClusterTx) NetworkErrored(name string) error {
 	return c.networkState(name, networkErrored)
 }
@@ -376,7 +376,7 @@ func (c *Cluster) GetNetworks() ([]string, error) {
 	return c.networks("")
 }
 
-// GetNonPendingNetworks returns the names of all networks that are not pending.
+// GetNonPendingNetworks returns the names of all networks that are not in state networkPending.
 func (c *Cluster) GetNonPendingNetworks() ([]string, error) {
 	return c.networks("NOT state=?", networkPending)
 }
@@ -630,7 +630,7 @@ func (c *Cluster) CreateNetwork(name, description string, netType NetworkType, c
 
 	var id int64
 	err := c.Transaction(func(tx *ClusterTx) error {
-		// Insert a new network record with state "created".
+		// Insert a new network record with state networkCreated.
 		result, err := tx.tx.Exec("INSERT INTO networks (name, description, state) VALUES (?, ?, ?)", name, description, networkCreated)
 		if err != nil {
 			return err
