@@ -341,6 +341,29 @@ func (c *ClusterTx) networkState(project string, name string, state int) error {
 	return nil
 }
 
+// NetworkNodeCreated sets the state of the given network for the local member to "Created".
+func (c *ClusterTx) NetworkNodeCreated(networkID int64) error {
+	return c.networkNodeState(networkID, networkCreated)
+}
+
+// networkNodeState updates the network member state for the local member and specified network ID.
+func (c *ClusterTx) networkNodeState(networkID int64, state int) error {
+	stmt := "UPDATE networks_nodes SET state=? WHERE network_id = ? and node_id = ?"
+	result, err := c.tx.Exec(stmt, state, networkID, c.nodeID)
+	if err != nil {
+		return err
+	}
+	n, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if n != 1 {
+		return ErrNoSuchObject
+	}
+
+	return nil
+}
+
 // UpdateNetwork updates the network with the given ID.
 func (c *ClusterTx) UpdateNetwork(id int64, description string, config map[string]string) error {
 	err := updateNetworkDescription(c.tx, id, description)
