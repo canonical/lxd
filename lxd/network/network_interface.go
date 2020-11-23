@@ -32,6 +32,7 @@ type Network interface {
 	Name() string
 	Description() string
 	Status() string
+	LocalStatus() string
 	Config() map[string]string
 	IsUsed() (bool, error)
 	DHCPv4Subnet() *net.IPNet
