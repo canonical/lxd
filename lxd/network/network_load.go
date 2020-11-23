@@ -22,7 +22,7 @@ func LoadByType(driverType string) (Type, error) {
 
 // LoadByName loads an instantiated network from the database by name.
 func LoadByName(s *state.State, name string) (Network, error) {
-	id, netInfo, err := s.Cluster.GetNetworkInAnyState(name)
+	id, netInfo, netNodes, err := s.Cluster.GetNetworkInAnyState(name)
 	if err != nil {
 		return nil, err
 	}
@@ -33,7 +33,7 @@ func LoadByName(s *state.State, name string) (Network, error) {
 	}
 
 	n := driverFunc()
-	n.init(s, id, name, netInfo.Type, netInfo.Description, netInfo.Config, netInfo.Status)
+	n.init(s, id, netInfo, netNodes)
 
 	return n, nil
 }
