@@ -103,6 +103,7 @@ func qemuLoad(s *state.State, args db.InstanceArgs, profiles []api.Profile) (ins
 func qemuInstantiate(s *state.State, args db.InstanceArgs, expandedDevices deviceConfig.Devices) *qemu {
 	vm := &qemu{
 		common: common{
+			id:           args.ID,
 			dbType:       args.Type,
 			architecture: args.Architecture,
 			localConfig:  args.Config,
@@ -111,7 +112,6 @@ func qemuInstantiate(s *state.State, args db.InstanceArgs, expandedDevices devic
 			state:        s,
 			profiles:     args.Profiles,
 		},
-		id:           args.ID,
 		name:         args.Name,
 		description:  args.Description,
 		ephemeral:    args.Ephemeral,
@@ -155,6 +155,7 @@ func qemuCreate(s *state.State, args db.InstanceArgs) (instance.Instance, error)
 	// Create the instance struct.
 	vm := &qemu{
 		common: common{
+			id:           args.ID,
 			dbType:       args.Type,
 			architecture: args.Architecture,
 			localConfig:  args.Config,
@@ -163,7 +164,6 @@ func qemuCreate(s *state.State, args db.InstanceArgs) (instance.Instance, error)
 			profiles:     args.Profiles,
 			project:      args.Project,
 		},
-		id:           args.ID,
 		name:         args.Name,
 		node:         args.Node,
 		description:  args.Description,
@@ -306,7 +306,6 @@ type qemu struct {
 	creationDate time.Time
 	lastUsedDate time.Time
 	ephemeral    bool
-	id           int
 	name         string
 	description  string
 	stateful     bool
