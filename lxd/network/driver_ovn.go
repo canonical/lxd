@@ -1758,61 +1758,63 @@ func (n *ovn) deleteChassisGroupEntry() error {
 func (n *ovn) Delete(clientType cluster.ClientType) error {
 	n.logger.Debug("Delete", log.Ctx{"clientType": clientType})
 
-	err := n.Stop()
-	if err != nil {
-		return err
-	}
-
-	if clientType == cluster.ClientTypeNormal {
-		client, err := n.getClient()
+	if n.LocalStatus() == api.NetworkStatusCreated {
+		err := n.Stop()
 		if err != nil {
 			return err
 		}
 
-		err = client.LogicalRouterDelete(n.getRouterName())
-		if err != nil {
-			return err
-		}
+		if clientType == cluster.ClientTypeNormal {
+			client, err := n.getClient()
+			if err != nil {
+				return err
+			}
 
-		err = client.LogicalSwitchDelete(n.getExtSwitchName())
-		if err != nil {
-			return err
-		}
+			err = client.LogicalRouterDelete(n.getRouterName())
+			if err != nil {
+				return err
+			}
 
-		err = client.LogicalSwitchDelete(n.getIntSwitchName())
-		if err != nil {
-			return err
-		}
+			err = client.LogicalSwitchDelete(n.getExtSwitchName())
+			if err != nil {
+				return err
+			}
 
-		err = client.LogicalRouterPortDelete(n.getRouterExtPortName())
-		if err != nil {
-			return err
-		}
+			err = client.LogicalSwitchDelete(n.getIntSwitchName())
+			if err != nil {
+				return err
+			}
 
-		err = client.LogicalRouterPortDelete(n.getRouterIntPortName())
-		if err != nil {
-			return err
-		}
+			err = client.LogicalRouterPortDelete(n.getRouterExtPortName())
+			if err != nil {
+				return err
+			}
 
-		err = client.LogicalSwitchPortDelete(n.getExtSwitchRouterPortName())
-		if err != nil {
-			return err
-		}
+			err = client.LogicalRouterPortDelete(n.getRouterIntPortName())
+			if err != nil {
+				return err
+			}
 
-		err = client.LogicalSwitchPortDelete(n.getExtSwitchProviderPortName())
-		if err != nil {
-			return err
-		}
+			err = client.LogicalSwitchPortDelete(n.getExtSwitchRouterPortName())
+			if err != nil {
+				return err
+			}
 
-		err = client.LogicalSwitchPortDelete(n.getIntSwitchRouterPortName())
-		if err != nil {
-			return err
-		}
+			err = client.LogicalSwitchPortDelete(n.getExtSwitchProviderPortName())
+			if err != nil {
+				return err
+			}
 
-		// Must be done after logical router removal.
-		err = client.ChassisGroupDelete(n.getChassisGroupName())
-		if err != nil {
-			return err
+			err = client.LogicalSwitchPortDelete(n.getIntSwitchRouterPortName())
+			if err != nil {
+				return err
+			}
+
+			// Must be done after logical router removal.
+			err = client.ChassisGroupDelete(n.getChassisGroupName())
+			if err != nil {
+				return err
+			}
 		}
 	}
 
