@@ -36,18 +36,20 @@ type common struct {
 	description string
 	config      map[string]string
 	status      string
+	nodes       map[int64]db.NetworkNode
 }
 
 // init initialise internal variables.
-func (n *common) init(state *state.State, id int64, projectName string, name string, netType string, description string, config map[string]string, status string) {
-	n.logger = logging.AddContext(logger.Log, log.Ctx{"project": projectName, "driver": netType, "network": name})
+func (n *common) init(state *state.State, id int64, projectName string, netInfo *api.Network, netNodes map[int64]db.NetworkNode) {
+	n.logger = logging.AddContext(logger.Log, log.Ctx{"project": projectName, "driver": netInfo.Type, "network": netInfo.Name})
 	n.id = id
 	n.project = projectName
-	n.name = name
-	n.config = config
+	n.name = netInfo.Name
+	n.config = netInfo.Config
 	n.state = state
-	n.description = description
-	n.status = status
+	n.description = netInfo.Description
+	n.status = netInfo.Status
+	n.nodes = netNodes
 }
 
 // FillConfig fills requested config with any default values, by default this is a no-op.
@@ -131,6 +133,16 @@ func (n *common) Description() string {
 // Status returns the network status.
 func (n *common) Status() string {
 	return n.status
+}
+
+// LocalStatus returns network status of the local cluster member.
+func (n *common) LocalStatus() string {
+	node, exists := n.nodes[n.state.Cluster.GetNodeID()]
+	if !exists {
+		return api.NetworkStatusUnknown
+	}
+
+	return db.NetworkStateToAPIStatus(node.State)
 }
 
 // Config returns the network config.
