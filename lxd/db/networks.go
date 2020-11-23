@@ -664,9 +664,9 @@ func (c *Cluster) CreateNetwork(projectName string, name string, description str
 			return err
 		}
 
-		// Insert a node-specific entry pointing to ourselves.
-		columns := []string{"network_id", "node_id"}
-		values := []interface{}{id, c.nodeID}
+		// Insert a node-specific entry pointing to ourselves with state "pending".
+		columns := []string{"network_id", "node_id", "state"}
+		values := []interface{}{id, c.nodeID, networkPending}
 		_, err = query.UpsertObject(tx.tx, "networks_nodes", columns, values)
 		if err != nil {
 			return err
