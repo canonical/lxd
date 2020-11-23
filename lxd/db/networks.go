@@ -299,9 +299,9 @@ func (c *ClusterTx) CreatePendingNetwork(node string, projectName string, name s
 		return ErrAlreadyDefined
 	}
 
-	// Insert the node-specific configuration.
-	columns := []string{"network_id", "node_id"}
-	values := []interface{}{networkID, nodeInfo.ID}
+	// Insert the node-specific configuration with state "pending".
+	columns := []string{"network_id", "node_id", "state"}
+	values := []interface{}{networkID, nodeInfo.ID, networkPending}
 	_, err = query.UpsertObject(c.tx, "networks_nodes", columns, values)
 	if err != nil {
 		return err
