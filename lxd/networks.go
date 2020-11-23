@@ -445,6 +445,11 @@ func doNetworksCreate(d *Daemon, projectName string, req api.NetworksPost, clien
 		return err
 	}
 
+	if n.LocalStatus() == api.NetworkStatusCreated {
+		logger.Debug("Skipping network create as already created locally", log.Ctx{"project": projectName, "network": n.Name()})
+		return nil
+	}
+
 	// Run initial creation setup for the network driver.
 	err = n.Create(clientType)
 	if err != nil {
@@ -458,12 +463,25 @@ func doNetworksCreate(d *Daemon, projectName string, req api.NetworksPost, clien
 		if err != nil {
 			delErr := n.Delete(clientType)
 			if delErr != nil {
-				logger.Errorf("Failed clearing up network %q after failed create: %v", n.Name(), delErr)
+				logger.Error("Failed clearing up network after failed create", log.Ctx{"project": projectName, "network": n.Name(), "err": delErr})
 			}
 
 			return err
 		}
 	}
+
+	// Mark local as status as networkCreated.
+	err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
+		return tx.NetworkNodeCreated(n.ID())
+	})
+	if err != nil {
+		delErr := n.Delete(clientType)
+		if delErr != nil {
+			logger.Error("Failed clearing up network after failed local status update", log.Ctx{"project": projectName, "network": n.Name(), "err": delErr})
+		}
+		return err
+	}
+	logger.Debug("Marked network local status as created", log.Ctx{"project": projectName, "network": req.Name})
 
 	return nil
 }
