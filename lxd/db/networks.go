@@ -572,13 +572,13 @@ func networkFillType(network *api.Network, netType NetworkType) {
 	}
 }
 
-// Return the names of the nodes the given network is defined on.
-func (c *Cluster) networkNodes(networkID int64) ([]string, error) {
-	var nodes []string
+// NetworkNodes returns the nodes keyed by node ID that the given network is defined on.
+func (c *Cluster) NetworkNodes(networkID int64) (map[int64]NetworkNode, error) {
+	var nodes map[int64]NetworkNode
 	var err error
 
 	err = c.Transaction(func(tx *ClusterTx) error {
-		nodes, err = tx.networkNodes(networkID)
+		nodes, err = tx.NetworkNodes(networkID)
 		if err != nil {
 			return err
 		}
