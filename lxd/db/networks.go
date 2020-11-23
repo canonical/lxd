@@ -171,8 +171,9 @@ func (c *ClusterTx) CreateNetworkConfig(networkID, nodeID int64, config map[stri
 // assume that the relevant network has already been created on the joining node,
 // and we just need to track it.
 func (c *ClusterTx) NetworkNodeJoin(networkID, nodeID int64) error {
-	columns := []string{"network_id", "node_id"}
-	values := []interface{}{networkID, nodeID}
+	columns := []string{"network_id", "node_id", "state"}
+	// Create network node with "created" state as we expect the network to already be setup.
+	values := []interface{}{networkID, nodeID, networkCreated}
 	_, err := query.UpsertObject(c.tx, "networks_nodes", columns, values)
 	return err
 }
