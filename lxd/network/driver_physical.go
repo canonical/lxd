@@ -118,9 +118,11 @@ func (n *physical) Create(clientType cluster.ClientType) error {
 func (n *physical) Delete(clientType cluster.ClientType) error {
 	n.logger.Debug("Delete", log.Ctx{"clientType": clientType})
 
-	err := n.Stop()
-	if err != nil {
-		return err
+	if n.LocalStatus() == api.NetworkStatusCreated {
+		err := n.Stop()
+		if err != nil {
+			return err
+		}
 	}
 
 	return n.common.delete(clientType)
