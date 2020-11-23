@@ -86,7 +86,7 @@ func (c *ClusterTx) GetNonPendingNetworks() (map[int64]api.Network, error) {
 
 	for i := 0; rows.Next(); i++ {
 		var networkID int64
-		var networkState int
+		var networkState NetworkState
 		var network api.Network
 
 		err := rows.Scan(&networkID, &network.Name, &network.Description, &networkState)
@@ -216,7 +216,7 @@ func (c *ClusterTx) CreatePendingNetwork(node, name string, netType NetworkType,
 	// First check if a network with the given name exists, and, if so, that it's in the pending state.
 	network := struct {
 		id    int64
-		state int
+		state NetworkState
 	}{}
 
 	var errConsistency error
@@ -300,7 +300,7 @@ func (c *ClusterTx) NetworkErrored(name string) error {
 	return c.networkState(name, networkErrored)
 }
 
-func (c *ClusterTx) networkState(name string, state int) error {
+func (c *ClusterTx) networkState(name string, state NetworkState) error {
 	stmt := "UPDATE networks SET state=? WHERE name=?"
 	result, err := c.tx.Exec(stmt, state, name)
 	if err != nil {
@@ -389,11 +389,14 @@ func (c *Cluster) networks(where string, args ...interface{}) ([]string, error) 
 	return response, nil
 }
 
+// NetworkState indicates the state of the network or network node.
+type NetworkState int
+
 // Network state.
 const (
-	networkPending int = iota // Network defined but not yet created.
-	networkCreated            // Network created on all nodes.
-	networkErrored            // Network creation failed on some nodes
+	networkPending NetworkState = iota // Network defined but not yet created.
+	networkCreated                     // Network created on all nodes.
+	networkErrored                     // Network creation failed on some nodes
 )
 
 // NetworkType indicates type of network.
@@ -413,7 +416,7 @@ func (c *Cluster) GetNetworkInAnyState(name string) (int64, *api.Network, error)
 func (c *Cluster) getNetwork(name string, onlyCreated bool) (int64, *api.Network, error) {
 	description := sql.NullString{}
 	id := int64(-1)
-	state := 0
+	var state NetworkState
 
 	q := "SELECT id, description, state FROM networks WHERE name=?"
 	arg1 := []interface{}{name}
