@@ -436,7 +436,7 @@ func clusterPutJoin(d *Daemon, req api.ClusterPut) response.Response {
 			}
 
 			for _, name := range networkNames {
-				_, network, err := d.cluster.GetNetworkInAnyState(p.Name, name)
+				_, network, _, err := d.cluster.GetNetworkInAnyState(p.Name, name)
 				if err != nil {
 					return err
 				}
@@ -1628,7 +1628,7 @@ func clusterCheckNetworksMatch(cluster *db.Cluster, reqNetworks []internalCluste
 
 				found = true
 
-				_, network, err := cluster.GetNetworkInAnyState(networkProjectName, networkName)
+				_, network, _, err := cluster.GetNetworkInAnyState(networkProjectName, networkName)
 				if err != nil {
 					return err
 				}
