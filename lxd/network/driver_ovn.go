@@ -82,7 +82,7 @@ func (n *ovn) Info() Info {
 
 // uplinkRoutes parses ipv4.routes and ipv6.routes settings for a named uplink network into a slice of *net.IPNet.
 func (n *ovn) uplinkRoutes(uplinkNetworkName string) ([]*net.IPNet, error) {
-	_, uplink, err := n.state.Cluster.GetNetworkInAnyState(project.Default, uplinkNetworkName)
+	_, uplink, _, err := n.state.Cluster.GetNetworkInAnyState(project.Default, uplinkNetworkName)
 	if err != nil {
 		return nil, err
 	}
