@@ -145,24 +145,25 @@ func lxcCreate(s *state.State, args db.InstanceArgs) (instance.Instance, error) 
 	// Create the container struct
 	d := &lxc{
 		common: common{
-			id:           args.ID,
-			dbType:       args.Type,
+			state: s,
+
 			architecture: args.Architecture,
+			creationDate: args.CreationDate,
+			dbType:       args.Type,
+			description:  args.Description,
+			ephemeral:    args.Ephemeral,
+			expiryDate:   args.ExpiryDate,
+			id:           args.ID,
+			lastUsedDate: args.LastUsedDate,
 			localConfig:  args.Config,
 			localDevices: args.Devices,
-			project:      args.Project,
-			state:        s,
+			name:         args.Name,
+			node:         args.Node,
 			profiles:     args.Profiles,
+			project:      args.Project,
+			snapshot:     args.Snapshot,
+			stateful:     args.Stateful,
 		},
-		name:         args.Name,
-		node:         args.Node,
-		description:  args.Description,
-		ephemeral:    args.Ephemeral,
-		snapshot:     args.Snapshot,
-		stateful:     args.Stateful,
-		creationDate: args.CreationDate,
-		lastUsedDate: args.LastUsedDate,
-		expiryDate:   args.ExpiryDate,
 	}
 
 	revert := revert.New()
@@ -369,24 +370,25 @@ func lxcUnload(d *lxc) {
 func lxcInstantiate(s *state.State, args db.InstanceArgs, expandedDevices deviceConfig.Devices) instance.Instance {
 	d := &lxc{
 		common: common{
-			id:           args.ID,
-			dbType:       args.Type,
+			state: s,
+
 			architecture: args.Architecture,
+			creationDate: args.CreationDate,
+			dbType:       args.Type,
+			description:  args.Description,
+			ephemeral:    args.Ephemeral,
+			expiryDate:   args.ExpiryDate,
+			id:           args.ID,
+			lastUsedDate: args.LastUsedDate,
 			localConfig:  args.Config,
 			localDevices: args.Devices,
-			project:      args.Project,
-			state:        s,
+			name:         args.Name,
+			node:         args.Node,
 			profiles:     args.Profiles,
+			project:      args.Project,
+			snapshot:     args.Snapshot,
+			stateful:     args.Stateful,
 		},
-		name:         args.Name,
-		description:  args.Description,
-		ephemeral:    args.Ephemeral,
-		snapshot:     args.Snapshot,
-		creationDate: args.CreationDate,
-		lastUsedDate: args.LastUsedDate,
-		stateful:     args.Stateful,
-		node:         args.Node,
-		expiryDate:   args.ExpiryDate,
 	}
 
 	// Cleanup the zero values
@@ -414,36 +416,16 @@ func lxcInstantiate(s *state.State, args db.InstanceArgs, expandedDevices device
 type lxc struct {
 	common
 
-	// Properties
-	snapshot     bool
-	creationDate time.Time
-	lastUsedDate time.Time
-	ephemeral    bool
-	name         string
-	description  string
-	stateful     bool
-
-	// Config
+	// Config handling.
 	fromHook bool
 
-	// Cache
-	c       *liblxc.Container
-	cConfig bool
-
-	idmapset *idmap.IdmapSet
-
-	// Storage
-	// Do not use this variable directly, instead use their associated get functions so they
+	// Cached handles.
+	// Do not use these variables directly, instead use their associated get functions so they
 	// will be initialised on demand.
+	c           *liblxc.Container
+	cConfig     bool
+	idmapset    *idmap.IdmapSet
 	storagePool storagePools.Pool
-
-	// Clustering
-	node string
-
-	// Progress tracking
-	op *operations.Operation
-
-	expiryDate time.Time
 }
 
 // Type returns the instance type.

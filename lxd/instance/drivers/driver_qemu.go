@@ -103,24 +103,25 @@ func qemuLoad(s *state.State, args db.InstanceArgs, profiles []api.Profile) (ins
 func qemuInstantiate(s *state.State, args db.InstanceArgs, expandedDevices deviceConfig.Devices) *qemu {
 	d := &qemu{
 		common: common{
-			id:           args.ID,
-			dbType:       args.Type,
+			state: s,
+
 			architecture: args.Architecture,
+			creationDate: args.CreationDate,
+			dbType:       args.Type,
+			description:  args.Description,
+			ephemeral:    args.Ephemeral,
+			expiryDate:   args.ExpiryDate,
+			id:           args.ID,
+			lastUsedDate: args.LastUsedDate,
 			localConfig:  args.Config,
 			localDevices: args.Devices,
-			project:      args.Project,
-			state:        s,
+			name:         args.Name,
+			node:         args.Node,
 			profiles:     args.Profiles,
+			project:      args.Project,
+			snapshot:     args.Snapshot,
+			stateful:     args.Stateful,
 		},
-		name:         args.Name,
-		description:  args.Description,
-		ephemeral:    args.Ephemeral,
-		snapshot:     args.Snapshot,
-		creationDate: args.CreationDate,
-		lastUsedDate: args.LastUsedDate,
-		stateful:     args.Stateful,
-		node:         args.Node,
-		expiryDate:   args.ExpiryDate,
 	}
 
 	// Get the architecture name.
@@ -155,24 +156,25 @@ func qemuCreate(s *state.State, args db.InstanceArgs) (instance.Instance, error)
 	// Create the instance struct.
 	d := &qemu{
 		common: common{
-			id:           args.ID,
-			dbType:       args.Type,
+			state: s,
+
 			architecture: args.Architecture,
+			creationDate: args.CreationDate,
+			dbType:       args.Type,
+			description:  args.Description,
+			ephemeral:    args.Ephemeral,
+			expiryDate:   args.ExpiryDate,
+			id:           args.ID,
+			lastUsedDate: args.LastUsedDate,
 			localConfig:  args.Config,
 			localDevices: args.Devices,
-			state:        s,
+			name:         args.Name,
+			node:         args.Node,
 			profiles:     args.Profiles,
 			project:      args.Project,
+			snapshot:     args.Snapshot,
+			stateful:     args.Stateful,
 		},
-		name:         args.Name,
-		node:         args.Node,
-		description:  args.Description,
-		ephemeral:    args.Ephemeral,
-		snapshot:     args.Snapshot,
-		stateful:     args.Stateful,
-		creationDate: args.CreationDate,
-		lastUsedDate: args.LastUsedDate,
-		expiryDate:   args.ExpiryDate,
 	}
 
 	revert := revert.New()
@@ -300,23 +302,6 @@ func qemuCreate(s *state.State, args db.InstanceArgs) (instance.Instance, error)
 // qemu is the QEMU virtual machine driver.
 type qemu struct {
 	common
-
-	// Properties.
-	snapshot     bool
-	creationDate time.Time
-	lastUsedDate time.Time
-	ephemeral    bool
-	name         string
-	description  string
-	stateful     bool
-
-	// Clustering.
-	node string
-
-	// Progress tracking.
-	op *operations.Operation
-
-	expiryDate time.Time
 
 	// Cached handles.
 	// Do not use these variables directly, instead use their associated get functions so they
