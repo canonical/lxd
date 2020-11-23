@@ -270,6 +270,8 @@ func networksPost(d *Daemon, r *http.Request) response.Response {
 	return resp
 }
 
+// networksPostCluster checks that there is a pending network in the database and then attempts to setup the
+// network on each node. If all nodes are successfully setup then the network's state is set to created.
 func networksPostCluster(d *Daemon, req api.NetworksPost, clientType cluster.ClientType, netType network.Type) error {
 	// Check that no node-specific config key has been supplied in request.
 	for key := range req.Config {
@@ -329,15 +331,7 @@ func networksPostCluster(d *Daemon, req api.NetworksPost, clientType cluster.Cli
 		return err
 	}
 
-	// Create the network on this node.
-	nodeReq := req
-
-	// Merge node specific config items into global config.
-	for key, value := range configs[nodeName] {
-		nodeReq.Config[key] = value
-	}
-
-	// Notify all other nodes to create the network.
+	// Create notifier for other nodes to create the network.
 	notifier, err := cluster.NewNotifier(d.State(), d.endpoints.NetworkCert(), cluster.NotifyAll)
 	if err != nil {
 		return err
@@ -360,12 +354,23 @@ func networksPostCluster(d *Daemon, req api.NetworksPost, clientType cluster.Cli
 	if err != nil {
 		return err
 	}
+	logger.Debug("Marked network global status as created", log.Ctx{"network": req.Name})
+
+	// Create the network on this node.
+	nodeReq := req
+
+	// Merge node specific config items into global config.
+	for key, value := range configs[nodeName] {
+		nodeReq.Config[key] = value
+	}
 
 	err = doNetworksCreate(d, nodeReq, clientType)
 	if err != nil {
 		return err
 	}
+	logger.Error("Created network on local cluster member", log.Ctx{"network": req.Name})
 
+	// Notify other nodes to create the network.
 	err = notifier(func(client lxd.InstanceServer) error {
 		server, _, err := client.GetServer()
 		if err != nil {
@@ -377,7 +382,13 @@ func networksPostCluster(d *Daemon, req api.NetworksPost, clientType cluster.Cli
 			nodeReq.Config[key] = value
 		}
 
-		return client.CreateNetwork(nodeReq)
+		err = client.CreateNetwork(nodeReq)
+		if err != nil {
+			return err
+		}
+		logger.Error("Created network on cluster member", log.Ctx{"network": req.Name, "member": server.Environment.ServerName})
+
+		return nil
 	})
 	if err != nil {
 		return err
