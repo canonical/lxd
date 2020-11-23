@@ -485,12 +485,13 @@ type NetworkNode struct {
 }
 
 // GetNetworkInAnyState returns the network with the given name. The network can be in any state.
-func (c *Cluster) GetNetworkInAnyState(project string, name string) (int64, *api.Network, error) {
+func (c *Cluster) GetNetworkInAnyState(project string, name string) (int64, *api.Network, map[int64]NetworkNode, error) {
 	return c.getNetwork(project, name, false)
 }
 
-// Get the network with the given name. If onlyCreated is true, only return networks in the created state.
-func (c *Cluster) getNetwork(project string, name string, onlyCreated bool) (int64, *api.Network, error) {
+// Get the network with the given name. If onlyCreated is true, only return networks in the networkCreated state.
+// Also returns a map of the network's nodes keyed by node ID.
+func (c *Cluster) getNetwork(project string, name string, onlyCreated bool) (int64, *api.Network, map[int64]NetworkNode, error) {
 	description := sql.NullString{}
 	id := int64(-1)
 	var state NetworkState
@@ -506,15 +507,15 @@ func (c *Cluster) getNetwork(project string, name string, onlyCreated bool) (int
 	err := dbQueryRowScan(c, q, arg1, arg2)
 	if err != nil {
 		if err == sql.ErrNoRows {
-			return -1, nil, ErrNoSuchObject
+			return -1, nil, nil, ErrNoSuchObject
 		}
 
-		return -1, nil, err
+		return -1, nil, nil, err
 	}
 
 	config, err := c.getNetworkConfig(id)
 	if err != nil {
-		return -1, nil, err
+		return -1, nil, nil, err
 	}
 
 	network := api.Network{
@@ -528,13 +529,16 @@ func (c *Cluster) getNetwork(project string, name string, onlyCreated bool) (int
 	network.Status = NetworkStateToAPIStatus(state)
 	networkFillType(&network, netType)
 
-	nodes, err := c.networkNodes(id)
+	nodes, err := c.NetworkNodes(id)
 	if err != nil {
-		return -1, nil, err
+		return -1, nil, nil, err
 	}
-	network.Locations = nodes
 
-	return id, &network, nil
+	for _, node := range nodes {
+		network.Locations = append(network.Locations, node.Name)
+	}
+
+	return id, &network, nodes, nil
 }
 
 // NetworkStateToAPIStatus converts DB NetworkState to API status string.
