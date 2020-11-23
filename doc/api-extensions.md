@@ -1226,3 +1226,6 @@ send/receive on top of that.
 ## gpu\_mdev
 This adds support for virtual GPUs. It introduces the `mdev` config key for GPU devices which takes
 a supported mdev type, e.g. i915-GVTg_V5_4.
+
+## resources\_pci\_iommu
+This adds the IOMMUGroup field for PCI entries in the resources API.
