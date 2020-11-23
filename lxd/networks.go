@@ -280,7 +280,7 @@ func networksPostCluster(d *Daemon, req api.NetworksPost, clientType cluster.Cli
 
 	// Check that the requested network type matches the type created when adding the local node config.
 	// If network doesn't exist yet, ignore not found error, as this will be checked by NetworkNodeConfigs().
-	_, netInfo, err := d.cluster.GetNetworkInAnyState(req.Name)
+	_, netInfo, _, err := d.cluster.GetNetworkInAnyState(req.Name)
 	if err != nil && err != db.ErrNoSuchObject {
 		return err
 	}
@@ -470,7 +470,7 @@ func doNetworkGet(d *Daemon, name string) (api.Network, error) {
 
 	// Get some information.
 	osInfo, _ := net.InterfaceByName(name)
-	_, dbInfo, _ := d.cluster.GetNetworkInAnyState(name)
+	_, dbInfo, _, _ := d.cluster.GetNetworkInAnyState(name)
 
 	// Sanity check.
 	if osInfo == nil && dbInfo == nil {
@@ -531,7 +531,7 @@ func networkDelete(d *Daemon, r *http.Request) response.Response {
 	state := d.State()
 
 	// Check if the network is pending, if so we just need to delete it from the database.
-	_, dbNetwork, err := d.cluster.GetNetworkInAnyState(name)
+	_, dbNetwork, _, err := d.cluster.GetNetworkInAnyState(name)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -658,7 +658,7 @@ func networkPut(d *Daemon, r *http.Request) response.Response {
 	name := mux.Vars(r)["name"]
 
 	// Get the existing network.
-	_, dbInfo, err := d.cluster.GetNetworkInAnyState(name)
+	_, dbInfo, _, err := d.cluster.GetNetworkInAnyState(name)
 	if err != nil {
 		return response.SmartError(err)
 	}
