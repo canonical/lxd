@@ -404,15 +404,12 @@ const (
 	NetworkTypeBridge NetworkType = iota // Network type bridge.
 )
 
-// GetNetworkInAnyState returns the network with the given name.
-//
-// The network can be in any state.
+// GetNetworkInAnyState returns the network with the given name. The network can be in any state.
 func (c *Cluster) GetNetworkInAnyState(name string) (int64, *api.Network, error) {
 	return c.getNetwork(name, false)
 }
 
-// Get the network with the given name. If onlyCreated is true, only return
-// networks in the created state.
+// Get the network with the given name. If onlyCreated is true, only return networks in the created state.
 func (c *Cluster) getNetwork(name string, onlyCreated bool) (int64, *api.Network, error) {
 	description := sql.NullString{}
 	id := int64(-1)
@@ -502,8 +499,7 @@ func (c *Cluster) networkNodes(networkID int64) ([]string, error) {
 	return nodes, nil
 }
 
-// GetNetworkWithInterface returns the network associated with the interface with
-// the given name.
+// GetNetworkWithInterface returns the network associated with the interface with the given name.
 func (c *Cluster) GetNetworkWithInterface(devName string) (int64, *api.Network, error) {
 	id := int64(-1)
 	name := ""
@@ -600,6 +596,7 @@ func (c *Cluster) CreateNetwork(name, description string, netType NetworkType, c
 
 	var id int64
 	err := c.Transaction(func(tx *ClusterTx) error {
+		// Insert a new network record with state "created".
 		result, err := tx.tx.Exec("INSERT INTO networks (name, description, state) VALUES (?, ?, ?)", name, description, networkCreated)
 		if err != nil {
 			return err
