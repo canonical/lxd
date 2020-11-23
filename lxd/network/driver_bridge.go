@@ -487,10 +487,6 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 
 	n.logger.Debug("Setting up network")
 
-	if n.status == api.NetworkStatusPending {
-		return fmt.Errorf("Cannot start pending network")
-	}
-
 	// Create directory.
 	if !shared.PathExists(shared.VarPath("networks", n.name)) {
 		err := os.MkdirAll(shared.VarPath("networks", n.name), 0711)

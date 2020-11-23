@@ -1,8 +1,6 @@
 package network
 
 import (
-	"fmt"
-
 	"github.com/lxc/lxd/lxd/cluster"
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/revert"
@@ -66,10 +64,6 @@ func (n *macvlan) Rename(newName string) error {
 // Start starts is a no-op.
 func (n *macvlan) Start() error {
 	n.logger.Debug("Start")
-
-	if n.status == api.NetworkStatusPending {
-		return fmt.Errorf("Cannot start pending network")
-	}
 
 	return nil
 }

@@ -1836,10 +1836,6 @@ func (n *ovn) Rename(newName string) error {
 func (n *ovn) Start() error {
 	n.logger.Debug("Start")
 
-	if n.status == api.NetworkStatusPending {
-		return fmt.Errorf("Cannot start pending network")
-	}
-
 	// Add local node's OVS chassis ID to logical chassis group.
 	err := n.addChassisGroupEntry()
 	if err != nil {
