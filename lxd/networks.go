@@ -322,7 +322,7 @@ func networksPostCluster(d *Daemon, projectName string, req api.NetworksPost, cl
 
 	// Check that the requested network type matches the type created when adding the local node config.
 	// If network doesn't exist yet, ignore not found error, as this will be checked by NetworkNodeConfigs().
-	_, netInfo, err := d.cluster.GetNetworkInAnyState(projectName, req.Name)
+	_, netInfo, _, err := d.cluster.GetNetworkInAnyState(projectName, req.Name)
 	if err != nil && err != db.ErrNoSuchObject {
 		return err
 	}
@@ -726,7 +726,7 @@ func networkPut(d *Daemon, r *http.Request) response.Response {
 	name := mux.Vars(r)["name"]
 
 	// Get the existing network.
-	_, dbInfo, err := d.cluster.GetNetworkInAnyState(projectName, name)
+	_, dbInfo, _, err := d.cluster.GetNetworkInAnyState(projectName, name)
 	if err != nil {
 		return response.SmartError(err)
 	}
