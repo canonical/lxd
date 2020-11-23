@@ -784,8 +784,8 @@ func (vm *qemu) Start(stateful bool) error {
 	devConfs := make([]*deviceConfig.RunConfig, 0, len(vm.expandedDevices))
 
 	// Setup devices in sorted order, this ensures that device mounts are added in path order.
-	for _, d := range vm.expandedDevices.Sorted() {
-		dev := d // Ensure device variable has local scope for revert.
+	for _, entry := range vm.expandedDevices.Sorted() {
+		dev := entry // Ensure device variable has local scope for revert.
 
 		// Start the device.
 		runConf, err := vm.deviceStart(dev.Name, dev.Config, false)
@@ -1180,21 +1180,21 @@ func (vm *qemu) deviceVolatileSetFunc(devName string) func(save map[string]strin
 // RegisterDevices calls the Register() function on all of the instance's devices.
 func (vm *qemu) RegisterDevices() {
 	devices := vm.ExpandedDevices()
-	for _, dev := range devices.Sorted() {
-		d, _, err := vm.deviceLoad(dev.Name, dev.Config)
+	for _, entry := range devices.Sorted() {
+		dev, _, err := vm.deviceLoad(entry.Name, entry.Config)
 		if err == device.ErrUnsupportedDevType {
 			continue
 		}
 
 		if err != nil {
-			logger.Error("Failed to load device to register", log.Ctx{"err": err, "instance": vm.Name(), "device": dev.Name})
+			logger.Error("Failed to load device to register", log.Ctx{"err": err, "instance": vm.Name(), "device": entry.Name})
 			continue
 		}
 
 		// Check whether device wants to register for any events.
-		err = d.Register()
+		err = dev.Register()
 		if err != nil {
-			logger.Error("Failed to register device", log.Ctx{"err": err, "instance": vm.Name(), "device": dev.Name})
+			logger.Error("Failed to register device", log.Ctx{"err": err, "instance": vm.Name(), "device": entry.Name})
 			continue
 		}
 	}
@@ -1226,10 +1226,10 @@ func (vm *qemu) deviceLoad(deviceName string, rawConfig deviceConfig.Device) (de
 		configCopy = rawConfig.Clone()
 	}
 
-	d, err := device.New(vm, vm.state, deviceName, configCopy, vm.deviceVolatileGetFunc(deviceName), vm.deviceVolatileSetFunc(deviceName))
+	dev, err := device.New(vm, vm.state, deviceName, configCopy, vm.deviceVolatileGetFunc(deviceName), vm.deviceVolatileSetFunc(deviceName))
 
 	// Return device and config copy even if error occurs as caller may still use device.
-	return d, configCopy, err
+	return dev, configCopy, err
 }
 
 // deviceStart loads a new device and calls its Start() function.
@@ -1237,16 +1237,16 @@ func (vm *qemu) deviceStart(deviceName string, rawConfig deviceConfig.Device, in
 	logger := logging.AddContext(logger.Log, log.Ctx{"device": deviceName, "type": rawConfig["type"], "project": vm.Project(), "instance": vm.Name()})
 	logger.Debug("Starting device")
 
-	d, _, err := vm.deviceLoad(deviceName, rawConfig)
+	dev, _, err := vm.deviceLoad(deviceName, rawConfig)
 	if err != nil {
 		return nil, err
 	}
 
-	if instanceRunning && !d.CanHotPlug() {
+	if instanceRunning && !dev.CanHotPlug() {
 		return nil, fmt.Errorf("Device cannot be started when instance is running")
 	}
 
-	runConf, err := d.Start()
+	runConf, err := dev.Start()
 	if err != nil {
 		return nil, err
 	}
@@ -1259,7 +1259,7 @@ func (vm *qemu) deviceStop(deviceName string, rawConfig deviceConfig.Device, ins
 	logger := logging.AddContext(logger.Log, log.Ctx{"device": deviceName, "type": rawConfig["type"], "project": vm.Project(), "instance": vm.Name()})
 	logger.Debug("Stopping device")
 
-	d, _, err := vm.deviceLoad(deviceName, rawConfig)
+	dev, _, err := vm.deviceLoad(deviceName, rawConfig)
 
 	// If deviceLoad fails with unsupported device type then return.
 	if err == device.ErrUnsupportedDevType {
@@ -1271,19 +1271,18 @@ func (vm *qemu) deviceStop(deviceName string, rawConfig deviceConfig.Device, ins
 	// versions we still need to allow previously valid devices to be stopped.
 	if err != nil {
 		// If there is no device returned, then we cannot proceed, so return as error.
-		if d == nil {
+		if dev == nil {
 			return fmt.Errorf("Device stop validation failed for %q: %v", deviceName, err)
-
 		}
 
 		logger.Error("Device stop validation failed", log.Ctx{"err": err})
 	}
 
-	if instanceRunning && !d.CanHotPlug() {
+	if instanceRunning && !dev.CanHotPlug() {
 		return fmt.Errorf("Device cannot be stopped when instance is running")
 	}
 
-	runConf, err := d.Stop()
+	runConf, err := dev.Stop()
 	if err != nil {
 		return err
 	}
@@ -3061,12 +3060,12 @@ func (vm *qemu) Update(args db.InstanceArgs, userRequested bool) error {
 			return []string{} // Device types aren't the same, so this cannot be an update.
 		}
 
-		d, err := device.New(vm, vm.state, "", newDevice, nil, nil)
+		dev, err := device.New(vm, vm.state, "", newDevice, nil, nil)
 		if err != nil {
 			return []string{} // Couldn't create Device, so this cannot be an update.
 		}
 
-		return d.UpdatableFields()
+		return dev.UpdatableFields()
 	})
 
 	if userRequested {
@@ -3348,12 +3347,12 @@ func (vm *qemu) updateDevices(removeDevices deviceConfig.Devices, addDevices dev
 
 // deviceUpdate loads a new device and calls its Update() function.
 func (vm *qemu) deviceUpdate(deviceName string, rawConfig deviceConfig.Device, oldDevices deviceConfig.Devices, instanceRunning bool) error {
-	d, _, err := vm.deviceLoad(deviceName, rawConfig)
+	dev, _, err := vm.deviceLoad(deviceName, rawConfig)
 	if err != nil {
 		return err
 	}
 
-	err = d.Update(oldDevices, instanceRunning)
+	err = dev.Update(oldDevices, instanceRunning)
 	if err != nil {
 		return err
 	}
@@ -3622,22 +3621,22 @@ func (vm *qemu) Delete() error {
 }
 
 func (vm *qemu) deviceAdd(deviceName string, rawConfig deviceConfig.Device, instanceRunning bool) error {
-	d, _, err := vm.deviceLoad(deviceName, rawConfig)
+	dev, _, err := vm.deviceLoad(deviceName, rawConfig)
 	if err != nil {
 		return err
 	}
 
-	if instanceRunning && !d.CanHotPlug() {
+	if instanceRunning && !dev.CanHotPlug() {
 		return fmt.Errorf("Device cannot be added when instance is running")
 	}
 
-	return d.Add()
+	return dev.Add()
 }
 
 func (vm *qemu) deviceRemove(deviceName string, rawConfig deviceConfig.Device, instanceRunning bool) error {
 	logger := logging.AddContext(logger.Log, log.Ctx{"device": deviceName, "type": rawConfig["type"], "project": vm.Project(), "instance": vm.Name()})
 
-	d, _, err := vm.deviceLoad(deviceName, rawConfig)
+	dev, _, err := vm.deviceLoad(deviceName, rawConfig)
 
 	// If deviceLoad fails with unsupported device type then return.
 	if err == device.ErrUnsupportedDevType {
@@ -3649,18 +3648,18 @@ func (vm *qemu) deviceRemove(deviceName string, rawConfig deviceConfig.Device, i
 	// versions we still need to allow previously valid devices to be stopped.
 	if err != nil {
 		// If there is no device returned, then we cannot proceed, so return as error.
-		if d == nil {
+		if dev == nil {
 			return fmt.Errorf("Device remove validation failed for %q: %v", deviceName, err)
 		}
 
 		logger.Error("Device remove validation failed", log.Ctx{"err": err})
 	}
 
-	if instanceRunning && !d.CanHotPlug() {
+	if instanceRunning && !dev.CanHotPlug() {
 		return fmt.Errorf("Device cannot be removed when instance is running")
 	}
 
-	return d.Remove()
+	return dev.Remove()
 }
 
 // Export publishes the instance.
@@ -4353,14 +4352,14 @@ func (vm *qemu) RenderState() (*api.InstanceState, error) {
 					continue
 				}
 
-				d, _, err := vm.deviceLoad(k, m)
+				dev, _, err := vm.deviceLoad(k, m)
 				if err != nil {
 					logger.Warn("Could not load device", log.Ctx{"project": vm.Project(), "instance": vm.Name(), "device": k, "err": err})
 					continue
 				}
 
 				// Only some NIC types support fallback state mechanisms when there is no agent.
-				nic, ok := d.(device.NICState)
+				nic, ok := dev.(device.NICState)
 				if !ok {
 					continue
 				}
