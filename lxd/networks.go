@@ -530,7 +530,7 @@ func doNetworkGet(d *Daemon, projectName string, name string) (api.Network, erro
 	}
 
 	// Get some information.
-	_, dbInfo, _ := d.cluster.GetNetworkInAnyState(projectName, name)
+	_, dbInfo, _, _ := d.cluster.GetNetworkInAnyState(projectName, name)
 
 	// Don't allow retrieving info about the local node interfaces when not using default project.
 	if projectName != project.Default && dbInfo == nil {
