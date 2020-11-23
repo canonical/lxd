@@ -1322,21 +1322,21 @@ func (c *lxc) runHooks(hooks []func() error) error {
 // RegisterDevices calls the Register() function on all of the instance's devices.
 func (c *lxc) RegisterDevices() {
 	devices := c.ExpandedDevices()
-	for _, dev := range devices.Sorted() {
-		d, _, err := c.deviceLoad(dev.Name, dev.Config)
+	for _, entry := range devices.Sorted() {
+		dev, _, err := c.deviceLoad(entry.Name, entry.Config)
 		if err == device.ErrUnsupportedDevType {
 			continue
 		}
 
 		if err != nil {
-			logger.Error("Failed to load device to register", log.Ctx{"err": err, "instance": c.Name(), "device": dev.Name})
+			logger.Error("Failed to load device to register", log.Ctx{"err": err, "instance": c.Name(), "device": entry.Name})
 			continue
 		}
 
 		// Check whether device wants to register for any events.
-		err = d.Register()
+		err = dev.Register()
 		if err != nil {
-			logger.Error("Failed to register device", log.Ctx{"err": err, "instance": c.Name(), "device": dev.Name})
+			logger.Error("Failed to register device", log.Ctx{"err": err, "instance": c.Name(), "device": entry.Name})
 			continue
 		}
 	}
@@ -1366,16 +1366,16 @@ func (c *lxc) deviceLoad(deviceName string, rawConfig deviceConfig.Device) (devi
 
 // deviceAdd loads a new device and calls its Add() function.
 func (c *lxc) deviceAdd(deviceName string, rawConfig deviceConfig.Device, instanceRunning bool) error {
-	d, _, err := c.deviceLoad(deviceName, rawConfig)
+	dev, _, err := c.deviceLoad(deviceName, rawConfig)
 	if err != nil {
 		return err
 	}
 
-	if instanceRunning && !d.CanHotPlug() {
+	if instanceRunning && !dev.CanHotPlug() {
 		return fmt.Errorf("Device cannot be added when instance is running")
 	}
 
-	return d.Add()
+	return dev.Add()
 }
 
 // deviceStart loads a new device and calls its Start() function.
@@ -1383,16 +1383,16 @@ func (c *lxc) deviceStart(deviceName string, rawConfig deviceConfig.Device, inst
 	logger := logging.AddContext(logger.Log, log.Ctx{"device": deviceName, "type": rawConfig["type"], "project": c.Project(), "instance": c.Name()})
 	logger.Debug("Starting device")
 
-	d, configCopy, err := c.deviceLoad(deviceName, rawConfig)
+	dev, configCopy, err := c.deviceLoad(deviceName, rawConfig)
 	if err != nil {
 		return nil, err
 	}
 
-	if instanceRunning && !d.CanHotPlug() {
+	if instanceRunning && !dev.CanHotPlug() {
 		return nil, fmt.Errorf("Device cannot be started when instance is running")
 	}
 
-	runConf, err := d.Start()
+	runConf, err := dev.Start()
 	if err != nil {
 		return nil, err
 	}
@@ -1528,12 +1528,12 @@ func (c *lxc) deviceAttachNIC(configCopy map[string]string, netIF []deviceConfig
 
 // deviceUpdate loads a new device and calls its Update() function.
 func (c *lxc) deviceUpdate(deviceName string, rawConfig deviceConfig.Device, oldDevices deviceConfig.Devices, instanceRunning bool) error {
-	d, _, err := c.deviceLoad(deviceName, rawConfig)
+	dev, _, err := c.deviceLoad(deviceName, rawConfig)
 	if err != nil {
 		return err
 	}
 
-	err = d.Update(oldDevices, instanceRunning)
+	err = dev.Update(oldDevices, instanceRunning)
 	if err != nil {
 		return err
 	}
@@ -1548,7 +1548,7 @@ func (c *lxc) deviceStop(deviceName string, rawConfig deviceConfig.Device, insta
 	logger := logging.AddContext(logger.Log, log.Ctx{"device": deviceName, "type": rawConfig["type"], "project": c.Project(), "instance": c.Name()})
 	logger.Debug("Stopping device")
 
-	d, configCopy, err := c.deviceLoad(deviceName, rawConfig)
+	dev, configCopy, err := c.deviceLoad(deviceName, rawConfig)
 
 	// If deviceLoad fails with unsupported device type then return.
 	if err == device.ErrUnsupportedDevType {
@@ -1560,18 +1560,18 @@ func (c *lxc) deviceStop(deviceName string, rawConfig deviceConfig.Device, insta
 	// versions we still need to allow previously valid devices to be stopped.
 	if err != nil {
 		// If there is no device returned, then we cannot proceed, so return as error.
-		if d == nil {
+		if dev == nil {
 			return fmt.Errorf("Device stop validation failed for %q: %v", deviceName, err)
 		}
 
 		logger.Error("Device stop validation failed for", log.Ctx{"err": err})
 	}
 
-	if instanceRunning && !d.CanHotPlug() {
+	if instanceRunning && !dev.CanHotPlug() {
 		return fmt.Errorf("Device cannot be stopped when instance is running")
 	}
 
-	runConf, err := d.Stop()
+	runConf, err := dev.Stop()
 	if err != nil {
 		return err
 	}
@@ -1730,7 +1730,7 @@ func (c *lxc) deviceHandleMounts(mounts []deviceConfig.MountEntryItem) error {
 func (c *lxc) deviceRemove(deviceName string, rawConfig deviceConfig.Device, instanceRunning bool) error {
 	logger := logging.AddContext(logger.Log, log.Ctx{"device": deviceName, "type": rawConfig["type"], "project": c.Project(), "instance": c.Name()})
 
-	d, _, err := c.deviceLoad(deviceName, rawConfig)
+	dev, _, err := c.deviceLoad(deviceName, rawConfig)
 
 	// If deviceLoad fails with unsupported device type then return.
 	if err == device.ErrUnsupportedDevType {
@@ -1742,18 +1742,18 @@ func (c *lxc) deviceRemove(deviceName string, rawConfig deviceConfig.Device, ins
 	// versions we still need to allow previously valid devices to be stopped.
 	if err != nil {
 		// If there is no device returned, then we cannot proceed, so return as error.
-		if d == nil {
+		if dev == nil {
 			return fmt.Errorf("Device remove validation failed for %q: %v", deviceName, err)
 		}
 
 		logger.Error("Device remove validation failed for", log.Ctx{"err": err})
 	}
 
-	if instanceRunning && !d.CanHotPlug() {
+	if instanceRunning && !dev.CanHotPlug() {
 		return fmt.Errorf("Device cannot be removed when instance is running")
 	}
 
-	return d.Remove()
+	return dev.Remove()
 }
 
 // deviceVolatileGetFunc returns a function that retrieves a named device's volatile config and
@@ -2097,8 +2097,8 @@ func (c *lxc) startCommon() (string, []func() error, error) {
 	nicID := -1
 
 	// Setup devices in sorted order, this ensures that device mounts are added in path order.
-	for _, d := range c.expandedDevices.Sorted() {
-		dev := d // Ensure device variable has local scope for revert.
+	for _, entry := range c.expandedDevices.Sorted() {
+		dev := entry // Ensure device variable has local scope for revert.
 
 		// Start the device.
 		runConf, err := c.deviceStart(dev.Name, dev.Config, false)
@@ -4009,12 +4009,12 @@ func (c *lxc) Update(args db.InstanceArgs, userRequested bool) error {
 			return []string{} // Device types aren't the same, so this cannot be an update.
 		}
 
-		d, err := device.New(c, c.state, "", newDevice, nil, nil)
+		dev, err := device.New(c, c.state, "", newDevice, nil, nil)
 		if err != nil {
 			return []string{} // Couldn't create Device, so this cannot be an update.
 		}
 
-		return d.UpdatableFields()
+		return dev.UpdatableFields()
 	})
 
 	if userRequested {
@@ -6201,12 +6201,13 @@ func (c *lxc) InsertSeccompUnixDevice(prefix string, m deviceConfig.Device, pid 
 		return err
 	}
 
-	d, err := device.UnixDeviceCreate(c.state, idmapSet, c.DevicesPath(), prefix, m, true)
+	dev, err := device.UnixDeviceCreate(c.state, idmapSet, c.DevicesPath(), prefix, m, true)
 	if err != nil {
 		return fmt.Errorf("Failed to setup device: %s", err)
 	}
-	devPath := d.HostPath
-	tgtPath := d.RelativePath
+
+	devPath := dev.HostPath
+	tgtPath := dev.RelativePath
 
 	// Bind-mount it into the container
 	defer os.Remove(devPath)
