@@ -26,7 +26,7 @@ func NICType(s *state.State, deviceProjectName string, d deviceConfig.Device) (s
 				return "", errors.Wrapf(err, "Failed to translate device project %q into network project", deviceProjectName)
 			}
 
-			_, netInfo, err := s.Cluster.GetNetworkInAnyState(networkProjectName, d["network"])
+			_, netInfo, _, err := s.Cluster.GetNetworkInAnyState(networkProjectName, d["network"])
 			if err != nil {
 				return "", errors.Wrapf(err, "Failed to load network %q for project %q", d["network"], networkProjectName)
 			}

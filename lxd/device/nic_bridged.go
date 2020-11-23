@@ -492,7 +492,7 @@ func (d *nicBridged) rebuildDnsmasqEntry() error {
 	defer dnsmasq.ConfigMutex.Unlock()
 
 	// Use project.Default here as bridge networks don't support projects.
-	_, dbInfo, err := d.state.Cluster.GetNetworkInAnyState(project.Default, d.config["parent"])
+	_, dbInfo, _, err := d.state.Cluster.GetNetworkInAnyState(project.Default, d.config["parent"])
 	if err != nil {
 		return err
 	}
