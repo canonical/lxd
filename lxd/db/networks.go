@@ -95,7 +95,7 @@ func (c *ClusterTx) GetNonPendingNetworks() (map[int64]api.Network, error) {
 		}
 
 		// Populate Status and Type fields by converting from DB values.
-		networkFillStatus(&network, networkState)
+		network.Status = NetworkStateToAPIStatus(networkState)
 		networkFillType(&network, NetworkTypeBridge)
 
 		networks[networkID] = network
@@ -448,7 +448,7 @@ func (c *Cluster) getNetwork(name string, onlyCreated bool) (int64, *api.Network
 	network.Config = config
 
 	// Populate Status and Type fields by converting from DB values.
-	networkFillStatus(&network, state)
+	network.Status = NetworkStateToAPIStatus(state)
 	networkFillType(&network, NetworkTypeBridge)
 
 	nodes, err := c.networkNodes(id)
@@ -460,16 +460,17 @@ func (c *Cluster) getNetwork(name string, onlyCreated bool) (int64, *api.Network
 	return id, &network, nil
 }
 
-func networkFillStatus(network *api.Network, state int) {
+// NetworkStateToAPIStatus converts DB NetworkState to API status string.
+func NetworkStateToAPIStatus(state NetworkState) string {
 	switch state {
 	case networkPending:
-		network.Status = api.NetworkStatusPending
+		return api.NetworkStatusPending
 	case networkCreated:
-		network.Status = api.NetworkStatusCreated
+		return api.NetworkStatusCreated
 	case networkErrored:
-		network.Status = api.NetworkStatusErrored
+		return api.NetworkStatusErrored
 	default:
-		network.Status = api.NetworkStatusUnknown
+		return api.NetworkStatusUnknown
 	}
 }
 
