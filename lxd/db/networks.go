@@ -94,7 +94,7 @@ func (c *ClusterTx) GetNonPendingNetworks() (map[string]map[int64]api.Network, e
 		var projectName string
 		var networkID int64
 		var networkType NetworkType
-		var networkState int
+		var networkState NetworkState
 		var network api.Network
 
 		err := rows.Scan(&projectName, &networkID, &network.Name, &network.Description, &networkType, &networkState)
@@ -230,7 +230,7 @@ func (c *ClusterTx) CreatePendingNetwork(node string, projectName string, name s
 	// First check if a network with the given name exists, and, if so, that it's in the pending state.
 	network := struct {
 		id      int64
-		state   int
+		state   NetworkState
 		netType NetworkType
 	}{}
 
@@ -325,7 +325,7 @@ func (c *ClusterTx) NetworkErrored(project string, name string) error {
 	return c.networkState(project, name, networkErrored)
 }
 
-func (c *ClusterTx) networkState(project string, name string, state int) error {
+func (c *ClusterTx) networkState(project string, name string, state NetworkState) error {
 	stmt := "UPDATE networks SET state=? WHERE project_id = (SELECT id FROM projects WHERE name = ?) AND name=?"
 	result, err := c.tx.Exec(stmt, state, project, name)
 	if err != nil {
@@ -347,7 +347,7 @@ func (c *ClusterTx) NetworkNodeCreated(networkID int64) error {
 }
 
 // networkNodeState updates the network member state for the local member and specified network ID.
-func (c *ClusterTx) networkNodeState(networkID int64, state int) error {
+func (c *ClusterTx) networkNodeState(networkID int64, state NetworkState) error {
 	stmt := "UPDATE networks_nodes SET state=? WHERE network_id = ? and node_id = ?"
 	result, err := c.tx.Exec(stmt, state, networkID, c.nodeID)
 	if err != nil {
@@ -437,11 +437,14 @@ func (c *Cluster) networks(project string, where string, args ...interface{}) ([
 	return response, nil
 }
 
+// NetworkState indicates the state of the network or network node.
+type NetworkState int
+
 // Network state.
 const (
-	networkPending int = iota // Network defined but not yet created.
-	networkCreated            // Network created on all nodes.
-	networkErrored            // Network creation failed on some nodes
+	networkPending NetworkState = iota // Network defined but not yet created.
+	networkCreated                     // Network created on all nodes.
+	networkErrored                     // Network creation failed on some nodes
 )
 
 // NetworkType indicates type of network.
@@ -465,7 +468,7 @@ func (c *Cluster) GetNetworkInAnyState(project string, name string) (int64, *api
 func (c *Cluster) getNetwork(project string, name string, onlyCreated bool) (int64, *api.Network, error) {
 	description := sql.NullString{}
 	id := int64(-1)
-	state := 0
+	var state NetworkState
 	var netType NetworkType
 
 	q := "SELECT id, description, state, type FROM networks WHERE project_id = (SELECT id FROM projects WHERE name = ?) AND name=?"
