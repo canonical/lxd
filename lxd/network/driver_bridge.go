@@ -373,18 +373,20 @@ func (n *bridge) isRunning() bool {
 func (n *bridge) Delete(clientType cluster.ClientType) error {
 	n.logger.Debug("Delete", log.Ctx{"clientType": clientType})
 
-	// Bring the network down.
-	if n.isRunning() {
-		err := n.Stop()
+	// Bring the local network down if created on this node.
+	if n.LocalStatus() == api.NetworkStatusCreated {
+		if n.isRunning() {
+			err := n.Stop()
+			if err != nil {
+				return err
+			}
+		}
+
+		// Delete apparmor profiles.
+		err := apparmor.NetworkDelete(n.state, n)
 		if err != nil {
 			return err
 		}
-	}
-
-	// Delete apparmor profiles.
-	err := apparmor.NetworkDelete(n.state, n)
-	if err != nil {
-		return err
 	}
 
 	return n.common.delete(clientType)
