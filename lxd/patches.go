@@ -3787,7 +3787,7 @@ func patchNetworkCearBridgeVolatileHwaddr(name string, d *Daemon) error {
 	}
 
 	for _, networkName := range networks {
-		_, net, err := d.cluster.GetNetworkInAnyState(projectName, networkName)
+		_, net, _, err := d.cluster.GetNetworkInAnyState(projectName, networkName)
 		if err != nil {
 			return errors.Wrapf(err, "Failed loading network %q for network_clear_bridge_volatile_hwaddr patch", networkName)
 		}
