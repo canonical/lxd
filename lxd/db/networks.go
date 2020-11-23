@@ -175,7 +175,7 @@ func (c *ClusterTx) CreateNetworkConfig(networkID, nodeID int64, config map[stri
 // and we just need to track it.
 func (c *ClusterTx) NetworkNodeJoin(networkID, nodeID int64) error {
 	columns := []string{"network_id", "node_id", "state"}
-	// Create network node with "created" state as we expect the network to already be setup.
+	// Create network node with networkCreated state as we expect the network to already be setup.
 	values := []interface{}{networkID, nodeID, networkCreated}
 	_, err := query.UpsertObject(c.tx, "networks_nodes", columns, values)
 	return err
@@ -276,7 +276,7 @@ func (c *ClusterTx) CreatePendingNetwork(node string, projectName string, name s
 			return err
 		}
 	} else {
-		// Check that the existing network is in the pending state.
+		// Check that the existing network is in the networkPending or networkErrored state.
 		if network.state != networkPending && network.state != networkErrored {
 			return fmt.Errorf("Network is not in pending or errored state")
 		}
@@ -302,7 +302,7 @@ func (c *ClusterTx) CreatePendingNetwork(node string, projectName string, name s
 		return ErrAlreadyDefined
 	}
 
-	// Insert the node-specific configuration with state "pending".
+	// Insert the node-specific configuration with state networkPending.
 	columns := []string{"network_id", "node_id", "state"}
 	values := []interface{}{networkID, nodeInfo.ID, networkPending}
 	_, err = query.UpsertObject(c.tx, "networks_nodes", columns, values)
@@ -318,12 +318,12 @@ func (c *ClusterTx) CreatePendingNetwork(node string, projectName string, name s
 	return nil
 }
 
-// NetworkCreated sets the state of the given network to "Created".
+// NetworkCreated sets the state of the given network to networkCreated.
 func (c *ClusterTx) NetworkCreated(project string, name string) error {
 	return c.networkState(project, name, networkCreated)
 }
 
-// NetworkErrored sets the state of the given network to "Errored".
+// NetworkErrored sets the state of the given network to networkErrored.
 func (c *ClusterTx) NetworkErrored(project string, name string) error {
 	return c.networkState(project, name, networkErrored)
 }
@@ -344,7 +344,7 @@ func (c *ClusterTx) networkState(project string, name string, state NetworkState
 	return nil
 }
 
-// NetworkNodeCreated sets the state of the given network for the local member to "Created".
+// NetworkNodeCreated sets the state of the given network for the local member to networkCreated.
 func (c *ClusterTx) NetworkNodeCreated(networkID int64) error {
 	return c.networkNodeState(networkID, networkCreated)
 }
@@ -423,7 +423,7 @@ func (c *Cluster) GetNetworks(project string) ([]string, error) {
 	return c.networks(project, "")
 }
 
-// GetNonPendingNetworks returns the names of all networks that are not pending.
+// GetNonPendingNetworks returns the names of all networks that are not in state networkPending.
 func (c *Cluster) GetNonPendingNetworks(project string) ([]string, error) {
 	return c.networks(project, "NOT state=?", networkPending)
 }
@@ -685,7 +685,7 @@ func (c *Cluster) getNetworkConfig(id int64) (map[string]string, error) {
 func (c *Cluster) CreateNetwork(projectName string, name string, description string, netType NetworkType, config map[string]string) (int64, error) {
 	var id int64
 	err := c.Transaction(func(tx *ClusterTx) error {
-		// Insert a new network record with state "created".
+		// Insert a new network record with state networkCreated.
 		result, err := tx.tx.Exec("INSERT INTO networks (project_id, name, description, state, type) VALUES ((SELECT id FROM projects WHERE name = ?), ?, ?, ?, ?)",
 			projectName, name, description, networkCreated, netType)
 		if err != nil {
@@ -697,7 +697,7 @@ func (c *Cluster) CreateNetwork(projectName string, name string, description str
 			return err
 		}
 
-		// Insert a node-specific entry pointing to ourselves with state "pending".
+		// Insert a node-specific entry pointing to ourselves with state networkPending.
 		columns := []string{"network_id", "node_id", "state"}
 		values := []interface{}{id, c.nodeID, networkPending}
 		_, err = query.UpsertObject(tx.tx, "networks_nodes", columns, values)
