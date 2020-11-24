@@ -684,6 +684,10 @@ func networkPut(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
+	if targetNode == "" && n.Status() != api.NetworkStatusCreated {
+		return response.BadRequest(fmt.Errorf("Cannot update network global config when not in created state"))
+	}
+
 	// Duplicate config for etag modification and generation.
 	curConfig := map[string]string{}
 	for k, v := range n.Config() {
