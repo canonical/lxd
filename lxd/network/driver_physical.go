@@ -229,6 +229,11 @@ func (n *physical) Update(newNetwork api.NetworkPut, targetNode string, clientTy
 		return nil // Nothing changed.
 	}
 
+	if n.LocalStatus() == api.NetworkStatusPending {
+		// Apply DB change to local node only.
+		return n.common.update(newNetwork, targetNode, clientType)
+	}
+
 	revert := revert.New()
 	defer revert.Fail()
 
