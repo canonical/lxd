@@ -438,9 +438,8 @@ func createFromCopy(d *Daemon, project string, req *api.InstancesPost) response.
 	}
 
 	for key, value := range sourceConfig {
-		if len(key) > 8 && key[0:8] == "volatile" && !shared.StringInSlice(key[9:], []string{"base_image", "last_state.idmap"}) {
-			logger.Debug("Skipping volatile key from copy source",
-				log.Ctx{"key": key})
+		if !shared.InstanceIncludeWhenCopying(key, false) {
+			logger.Debug("Skipping key from copy source", log.Ctx{"key": key, "sourceProject": source.Project(), "sourceInstance": source.Name(), "project": targetProject, "instance": req.Name})
 			continue
 		}
 
