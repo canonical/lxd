@@ -24,7 +24,7 @@ type Network interface {
 	Type
 
 	// Load.
-	init(state *state.State, id int64, projectName string, name string, netType string, description string, config map[string]string, status string)
+	init(state *state.State, id int64, projectName string, netInfo *api.Network, netNodes map[int64]db.NetworkNode)
 
 	// Config.
 	Validate(config map[string]string) error
@@ -32,8 +32,10 @@ type Network interface {
 	Name() string
 	Description() string
 	Status() string
+	LocalStatus() string
 	Config() map[string]string
 	IsUsed() (bool, error)
+	IsManaged() bool
 	DHCPv4Subnet() *net.IPNet
 	DHCPv6Subnet() *net.IPNet
 	DHCPv4Ranges() []shared.IPRange

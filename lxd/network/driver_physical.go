@@ -118,9 +118,11 @@ func (n *physical) Create(clientType cluster.ClientType) error {
 func (n *physical) Delete(clientType cluster.ClientType) error {
 	n.logger.Debug("Delete", log.Ctx{"clientType": clientType})
 
-	err := n.Stop()
-	if err != nil {
-		return err
+	if n.LocalStatus() == api.NetworkStatusCreated {
+		err := n.Stop()
+		if err != nil {
+			return err
+		}
 	}
 
 	return n.common.delete(clientType)
@@ -142,10 +144,6 @@ func (n *physical) Rename(newName string) error {
 // Start starts is a no-op.
 func (n *physical) Start() error {
 	n.logger.Debug("Start")
-
-	if n.status == api.NetworkStatusPending {
-		return fmt.Errorf("Cannot start pending network")
-	}
 
 	revert := revert.New()
 	defer revert.Fail()
@@ -229,6 +227,11 @@ func (n *physical) Update(newNetwork api.NetworkPut, targetNode string, clientTy
 
 	if !dbUpdateNeeeded {
 		return nil // Nothing changed.
+	}
+
+	if n.LocalStatus() == api.NetworkStatusPending {
+		// Apply DB change to local node only.
+		return n.common.update(newNetwork, targetNode, clientType)
 	}
 
 	revert := revert.New()
