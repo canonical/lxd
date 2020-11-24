@@ -24,6 +24,7 @@ import (
 	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/instance/instancetype"
 	"github.com/lxc/lxd/lxd/network"
+	"github.com/lxc/lxd/lxd/resources"
 	"github.com/lxc/lxd/lxd/revert"
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
@@ -1019,7 +1020,11 @@ func (d *nicBridged) State() (*api.InstanceStateNetwork, error) {
 
 	// Retrieve the host counters, as we report the values from the instance's point of view,
 	// those counters need to be reversed below.
-	hostCounters := shared.NetworkGetCounters(d.config["host_name"])
+	hostCounters, err := resources.GetNetworkCounters(d.config["host_name"])
+	if err != nil {
+		return nil, errors.Wrapf(err, "Failed getting network interface counters")
+	}
+
 	network := api.InstanceStateNetwork{
 		Addresses: addresses,
 		Counters: api.InstanceStateNetworkCounters{

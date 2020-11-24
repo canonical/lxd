@@ -21,6 +21,7 @@ import (
 	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/network"
 	"github.com/lxc/lxd/lxd/network/openvswitch"
+	"github.com/lxc/lxd/lxd/resources"
 	"github.com/lxc/lxd/lxd/response"
 	"github.com/lxc/lxd/lxd/revert"
 	"github.com/lxc/lxd/lxd/state"
@@ -1003,13 +1004,10 @@ func networkStateGet(d *Daemon, r *http.Request) response.Response {
 
 	name := mux.Vars(r)["name"]
 
-	// Get some information
-	osInfo, _ := net.InterfaceByName(name)
-
-	// Sanity check
-	if osInfo == nil {
-		return response.NotFound(fmt.Errorf("Interface '%s' not found", name))
+	state, err := resources.GetNetworkState(name)
+	if err != nil {
+		return response.SmartError(err)
 	}
 
-	return response.SyncResponse(true, networkGetState(*osInfo))
+	return response.SyncResponse(true, state)
 }
