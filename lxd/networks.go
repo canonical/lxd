@@ -609,6 +609,10 @@ func networkPost(d *Daemon, r *http.Request) response.Response {
 		return response.InternalError(errors.Wrapf(err, "Failed loading network"))
 	}
 
+	if n.Status() != api.NetworkStatusCreated {
+		return response.BadRequest(fmt.Errorf("Cannot rename network when not in created state"))
+	}
+
 	// Sanity check new name.
 	if req.Name == "" {
 		return response.BadRequest(fmt.Errorf("New network name not provided"))
