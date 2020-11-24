@@ -224,13 +224,8 @@ func (c *cmdCopy) copyInstance(conf *config.Config, sourceResource string, destR
 			delete(entry.Config, "volatile.last_state.power")
 
 			if !keepVolatile {
-				// Strip all volatile keys
 				for k := range entry.Config {
-					if k == "volatile.base_image" {
-						continue
-					}
-
-					if strings.HasPrefix(k, "volatile") {
+					if !shared.InstanceIncludeWhenCopying(k, true) {
 						delete(entry.Config, k)
 					}
 				}
@@ -319,11 +314,7 @@ func (c *cmdCopy) copyInstance(conf *config.Config, sourceResource string, destR
 		// Strip the volatile keys if requested
 		if !keepVolatile {
 			for k := range entry.Config {
-				if k == "volatile.base_image" {
-					continue
-				}
-
-				if strings.HasPrefix(k, "volatile") {
+				if !shared.InstanceIncludeWhenCopying(k, true) {
 					delete(entry.Config, k)
 				}
 			}
