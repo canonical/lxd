@@ -1069,6 +1069,7 @@ func (b *lxdBackend) CreateInstanceFromImage(inst instance.Instance, fingerprint
 
 		// Set the derived size directly as the "size" property on the new volume so that it is applied.
 		vol.SetConfigSize(newVolSize)
+		logger.Debug("Set new volume size", log.Ctx{"size": newVolSize})
 
 		// Proceed to create a new volume by copying the optimized image volume.
 		err = b.driver.CreateVolumeFromCopy(vol, imgVol, false, op)
