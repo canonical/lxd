@@ -236,7 +236,7 @@ func (d *common) Snapshots() ([]instance.Instance, error) {
 func (d *common) VolatileSet(changes map[string]string) error {
 	// Sanity check.
 	for key := range changes {
-		if !strings.HasPrefix(key, "volatile.") {
+		if !strings.HasPrefix(key, shared.ConfigVolatilePrefix) {
 			return fmt.Errorf("Only volatile keys can be modified with VolatileSet")
 		}
 	}

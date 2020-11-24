@@ -125,7 +125,7 @@ func checkRestrictionsOnVolatileConfig(project *api.Project, instanceType instan
 	}
 
 	for key, value := range config {
-		if !strings.HasPrefix(key, "volatile.") {
+		if !strings.HasPrefix(key, shared.ConfigVolatilePrefix) {
 			continue
 		}
 
