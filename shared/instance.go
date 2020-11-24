@@ -275,7 +275,7 @@ func ConfigKeyChecker(key string) (func(value string) error, error) {
 		return f, nil
 	}
 
-	if strings.HasPrefix(key, "volatile.") {
+	if strings.HasPrefix(key, ConfigVolatilePrefix) {
 		if strings.HasSuffix(key, ".hwaddr") {
 			return validate.IsAny, nil
 		}
