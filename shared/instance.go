@@ -26,6 +26,9 @@ const (
 	Unfreeze InstanceAction = "unfreeze"
 )
 
+// ConfigVolatilePrefix indicates the prefix used for volatile config keys.
+const ConfigVolatilePrefix = "volatile."
+
 // IsRootDiskDevice returns true if the given device representation is configured as root disk for
 // an instance. It typically get passed a specific entry of api.Instance.Devices.
 func IsRootDiskDevice(device map[string]string) bool {
