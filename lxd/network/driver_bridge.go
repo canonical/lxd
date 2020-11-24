@@ -1056,7 +1056,7 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 		underlay := n.config["fan.underlay_subnet"]
 		_, underlaySubnet, err := net.ParseCIDR(underlay)
 		if err != nil {
-			return nil
+			return err
 		}
 
 		// Parse the overlay.
