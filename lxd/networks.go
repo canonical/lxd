@@ -731,9 +731,9 @@ func networkPut(d *Daemon, r *http.Request) response.Response {
 	name := mux.Vars(r)["name"]
 
 	// Get the existing network.
-	_, dbInfo, _, err := d.cluster.GetNetworkInAnyState(projectName, name)
+	n, err := network.LoadByName(d.State(), projectName, name)
 	if err != nil {
-		return response.SmartError(err)
+		return response.NotFound(err)
 	}
 
 	targetNode := queryParam(r, "target")
@@ -742,17 +742,23 @@ func networkPut(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
+	// Duplicate config for etag modification and generation.
+	curConfig := map[string]string{}
+	for k, v := range n.Config() {
+		curConfig[k] = v
+	}
+
 	// If no target node is specified and the daemon is clustered, we omit the node-specific fields so that
 	// the e-tag can be generated correctly. This is because the GET request used to populate the request
 	// will also remove node-specific keys when no target is specified.
 	if targetNode == "" && clustered {
 		for _, key := range db.NodeSpecificNetworkConfig {
-			delete(dbInfo.Config, key)
+			delete(curConfig, key)
 		}
 	}
 
 	// Validate the ETag.
-	etag := []interface{}{dbInfo.Name, dbInfo.Managed, dbInfo.Type, dbInfo.Description, dbInfo.Config}
+	etag := []interface{}{n.Name(), n.IsManaged(), n.Type(), n.Description(), curConfig}
 	err = util.EtagCheck(r, etag)
 	if err != nil {
 		return response.PreconditionFailed(err)
@@ -777,7 +783,7 @@ func networkPut(d *Daemon, r *http.Request) response.Response {
 		} else {
 			// If a target is specified, then ensure only node-specific config keys are changed.
 			for k, v := range req.Config {
-				if !shared.StringInSlice(k, db.NodeSpecificNetworkConfig) && dbInfo.Config[k] != v {
+				if !shared.StringInSlice(k, db.NodeSpecificNetworkConfig) && curConfig[k] != v {
 					return response.BadRequest(fmt.Errorf("Config key %q may not be used as node-specific key", k))
 				}
 			}
@@ -786,7 +792,7 @@ func networkPut(d *Daemon, r *http.Request) response.Response {
 
 	clientType := cluster.UserAgentClientType(r.Header.Get("User-Agent"))
 
-	return doNetworkUpdate(d, projectName, name, req, targetNode, clientType, r.Method, clustered)
+	return doNetworkUpdate(d, projectName, n, req, targetNode, clientType, r.Method, clustered)
 }
 
 func networkPatch(d *Daemon, r *http.Request) response.Response {
@@ -795,13 +801,7 @@ func networkPatch(d *Daemon, r *http.Request) response.Response {
 
 // doNetworkUpdate loads the current local network config, merges with the requested network config, validates
 // and applies the changes. Will also notify other cluster nodes of non-node specific config if needed.
-func doNetworkUpdate(d *Daemon, projectName string, name string, req api.NetworkPut, targetNode string, clientType cluster.ClientType, httpMethod string, clustered bool) response.Response {
-	// Load the local node-specific network.
-	n, err := network.LoadByName(d.State(), projectName, name)
-	if err != nil {
-		return response.NotFound(err)
-	}
-
+func doNetworkUpdate(d *Daemon, projectName string, n network.Network, req api.NetworkPut, targetNode string, clientType cluster.ClientType, httpMethod string, clustered bool) response.Response {
 	if req.Config == nil {
 		req.Config = map[string]string{}
 	}
@@ -829,7 +829,7 @@ func doNetworkUpdate(d *Daemon, projectName string, name string, req api.Network
 	}
 
 	// Validate the merged configuration.
-	err = n.Validate(req.Config)
+	err := n.Validate(req.Config)
 	if err != nil {
 		return response.BadRequest(err)
 	}
