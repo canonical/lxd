@@ -328,12 +328,12 @@ func (d *common) deviceVolatileReset(devName string, oldConfig, newConfig device
 	volatileClear := make(map[string]string)
 	devicePrefix := fmt.Sprintf("volatile.%s.", devName)
 
-	newNICType, err := nictype.NICType(d.state, d.project, newConfig)
+	newNICType, err := nictype.NICType(d.state, newConfig)
 	if err != nil {
 		return err
 	}
 
-	oldNICType, err := nictype.NICType(d.state, d.project, oldConfig)
+	oldNICType, err := nictype.NICType(d.state, oldConfig)
 	if err != nil {
 		return err
 	}
