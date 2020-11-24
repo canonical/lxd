@@ -89,6 +89,11 @@ func (n *macvlan) Update(newNetwork api.NetworkPut, targetNode string, clientTyp
 		return nil // Nothing changed.
 	}
 
+	if n.LocalStatus() == api.NetworkStatusPending {
+		// Apply DB change to local node only.
+		return n.common.update(newNetwork, targetNode, clientType)
+	}
+
 	revert := revert.New()
 	defer revert.Fail()
 
