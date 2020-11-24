@@ -489,6 +489,9 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 
 	n.logger.Debug("Setting up network")
 
+	revert := revert.New()
+	defer revert.Fail()
+
 	// Create directory.
 	if !shared.PathExists(shared.VarPath("networks", n.name)) {
 		err := os.MkdirAll(shared.VarPath("networks", n.name), 0711)
@@ -509,11 +512,13 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 			if err != nil {
 				return err
 			}
+			revert.Add(func() { ovs.BridgeDelete(n.name) })
 		} else {
 			_, err := shared.RunCommand("ip", "link", "add", "dev", n.name, "type", "bridge")
 			if err != nil {
 				return err
 			}
+			revert.Add(func() { shared.RunCommand("ip", "link", "delete", "dev", n.name) })
 		}
 	}
 
@@ -571,6 +576,7 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 	if mtu != "" && n.config["bridge.driver"] != "openvswitch" {
 		_, err = shared.RunCommand("ip", "link", "add", "dev", fmt.Sprintf("%s-mtu", n.name), "mtu", mtu, "type", "dummy")
 		if err == nil {
+			revert.Add(func() { shared.RunCommand("ip", "link", "delete", "dev", fmt.Sprintf("%s-mtu", n.name)) })
 			_, err = shared.RunCommand("ip", "link", "set", "dev", fmt.Sprintf("%s-mtu", n.name), "up")
 			if err == nil {
 				AttachInterface(n.name, fmt.Sprintf("%s-mtu", n.name))
@@ -1436,6 +1442,7 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 		}
 	}
 
+	revert.Success()
 	return nil
 }
 
