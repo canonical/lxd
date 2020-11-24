@@ -97,11 +97,11 @@ func TestColumns(t *testing.T) {
 			randString(buffer)
 		case 3:
 			if rand.Intn(2) == 0 {
-				buffer.WriteString("volatile.")
+				buffer.WriteString(shared.ConfigVolatilePrefix)
 				randString(buffer)
 				buffer.WriteString(".hwaddr")
 			} else {
-				buffer.WriteString("volatile.")
+				buffer.WriteString(shared.ConfigVolatilePrefix)
 				randString(buffer)
 				buffer.WriteString(".name")
 			}
