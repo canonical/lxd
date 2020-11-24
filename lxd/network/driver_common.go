@@ -35,6 +35,7 @@ type common struct {
 	description string
 	config      map[string]string
 	status      string
+	managed     bool
 	nodes       map[int64]db.NetworkNode
 }
 
@@ -47,6 +48,7 @@ func (n *common) init(state *state.State, id int64, netInfo *api.Network, netNod
 	n.state = state
 	n.description = netInfo.Description
 	n.status = netInfo.Status
+	n.managed = netInfo.Managed
 	n.nodes = netNodes
 }
 
@@ -146,6 +148,10 @@ func (n *common) LocalStatus() string {
 // Config returns the network config.
 func (n *common) Config() map[string]string {
 	return n.config
+}
+
+func (n *common) IsManaged() bool {
+	return n.managed
 }
 
 // Config returns the common network driver info.
