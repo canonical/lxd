@@ -143,7 +143,7 @@ func clusterGetMemberConfig(cluster *db.Cluster) ([]api.ClusterMemberConfigKey, 
 
 	for pool, config := range pools {
 		for key := range config {
-			if strings.HasPrefix(key, "volatile.") {
+			if strings.HasPrefix(key, shared.ConfigVolatilePrefix) {
 				continue
 			}
 
@@ -159,7 +159,7 @@ func clusterGetMemberConfig(cluster *db.Cluster) ([]api.ClusterMemberConfigKey, 
 
 	for network, config := range networks {
 		for key := range config {
-			if strings.HasPrefix(key, "volatile.") {
+			if strings.HasPrefix(key, shared.ConfigVolatilePrefix) {
 				continue
 			}
 

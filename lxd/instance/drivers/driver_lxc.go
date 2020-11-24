@@ -6058,7 +6058,7 @@ func (d *lxc) FillNetworkDevice(name string, m deviceConfig.Device) (deviceConfi
 
 		// Include all currently allocated interface names
 		for k, v := range d.expandedConfig {
-			if !strings.HasPrefix(k, "volatile.") {
+			if !strings.HasPrefix(k, shared.ConfigVolatilePrefix) {
 				continue
 			}
 
