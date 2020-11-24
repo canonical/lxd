@@ -1729,6 +1729,15 @@ func (d *disk) generateVMConfigDrive() (string, error) {
 		return "", err
 	}
 
+	// Include a network-config file if the user configured it.
+	networkConfig := instanceConfig["user.network-config"]
+	if networkConfig != "" {
+		err = ioutil.WriteFile(filepath.Join(scratchDir, "network-config"), []byte(networkConfig), 0400)
+		if err != nil {
+			return "", err
+		}
+	}
+
 	// Append any custom meta-data to our predefined meta-data config.
 	metaData := fmt.Sprintf(`instance-id: %s
 local-hostname: %s
