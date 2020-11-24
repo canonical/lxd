@@ -624,7 +624,7 @@ func projectValidateRestrictedSubnets(s *state.State, value string) error {
 		}
 
 		// Check uplink exists and load config to compare subnets.
-		_, uplink, err := s.Cluster.GetNetworkInAnyState(project.Default, uplinkName)
+		_, uplink, _, err := s.Cluster.GetNetworkInAnyState(project.Default, uplinkName)
 		if err != nil {
 			return errors.Wrapf(err, "Invalid uplink network %q", uplinkName)
 		}

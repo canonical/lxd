@@ -414,18 +414,20 @@ func (n *bridge) isRunning() bool {
 func (n *bridge) Delete(clientType cluster.ClientType) error {
 	n.logger.Debug("Delete", log.Ctx{"clientType": clientType})
 
-	// Bring the network down.
-	if n.isRunning() {
-		err := n.Stop()
+	// Bring the local network down if created on this node.
+	if n.LocalStatus() == api.NetworkStatusCreated {
+		if n.isRunning() {
+			err := n.Stop()
+			if err != nil {
+				return err
+			}
+		}
+
+		// Delete apparmor profiles.
+		err := apparmor.NetworkDelete(n.state, n)
 		if err != nil {
 			return err
 		}
-	}
-
-	// Delete apparmor profiles.
-	err := apparmor.NetworkDelete(n.state, n)
-	if err != nil {
-		return err
 	}
 
 	return n.common.delete(clientType)
@@ -487,9 +489,8 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 
 	n.logger.Debug("Setting up network")
 
-	if n.status == api.NetworkStatusPending {
-		return fmt.Errorf("Cannot start pending network")
-	}
+	revert := revert.New()
+	defer revert.Fail()
 
 	// Create directory.
 	if !shared.PathExists(shared.VarPath("networks", n.name)) {
@@ -511,11 +512,13 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 			if err != nil {
 				return err
 			}
+			revert.Add(func() { ovs.BridgeDelete(n.name) })
 		} else {
 			_, err := shared.RunCommand("ip", "link", "add", "dev", n.name, "type", "bridge")
 			if err != nil {
 				return err
 			}
+			revert.Add(func() { shared.RunCommand("ip", "link", "delete", "dev", n.name) })
 		}
 	}
 
@@ -573,6 +576,7 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 	if mtu != "" && n.config["bridge.driver"] != "openvswitch" {
 		_, err = shared.RunCommand("ip", "link", "add", "dev", fmt.Sprintf("%s-mtu", n.name), "mtu", mtu, "type", "dummy")
 		if err == nil {
+			revert.Add(func() { shared.RunCommand("ip", "link", "delete", "dev", fmt.Sprintf("%s-mtu", n.name)) })
 			_, err = shared.RunCommand("ip", "link", "set", "dev", fmt.Sprintf("%s-mtu", n.name), "up")
 			if err == nil {
 				AttachInterface(n.name, fmt.Sprintf("%s-mtu", n.name))
@@ -1052,7 +1056,7 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 		underlay := n.config["fan.underlay_subnet"]
 		_, underlaySubnet, err := net.ParseCIDR(underlay)
 		if err != nil {
-			return nil
+			return err
 		}
 
 		// Parse the overlay.
@@ -1438,6 +1442,7 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 		}
 	}
 
+	revert.Success()
 	return nil
 }
 
@@ -1534,50 +1539,58 @@ func (n *bridge) Update(newNetwork api.NetworkPut, targetNode string, clientType
 		return nil // Nothing changed.
 	}
 
+	if n.LocalStatus() == api.NetworkStatusPending {
+		// Apply DB change to local node only.
+		return n.common.update(newNetwork, targetNode, clientType)
+	}
+
 	revert := revert.New()
 	defer revert.Fail()
 
-	// Define a function which reverts everything.
-	revert.Add(func() {
-		// Reset changes to all nodes and database.
-		n.common.update(oldNetwork, targetNode, clientType)
+	// Perform any pre-update cleanup needed if local node network was already created.
+	if len(changedKeys) > 0 {
+		// Define a function which reverts everything.
+		revert.Add(func() {
+			// Reset changes to all nodes and database.
+			n.common.update(oldNetwork, targetNode, clientType)
 
-		// Reset any change that was made to local bridge.
-		n.setup(newNetwork.Config)
-	})
+			// Reset any change that was made to local bridge.
+			n.setup(newNetwork.Config)
+		})
 
-	// Bring the bridge down entirely if the driver has changed.
-	if shared.StringInSlice("bridge.driver", changedKeys) && n.isRunning() {
-		err = n.Stop()
-		if err != nil {
-			return err
-		}
-	}
-
-	// Detach any external interfaces should no longer be attached.
-	if shared.StringInSlice("bridge.external_interfaces", changedKeys) && n.isRunning() {
-		devices := []string{}
-		for _, dev := range strings.Split(newNetwork.Config["bridge.external_interfaces"], ",") {
-			dev = strings.TrimSpace(dev)
-			devices = append(devices, dev)
+		// Bring the bridge down entirely if the driver has changed.
+		if shared.StringInSlice("bridge.driver", changedKeys) && n.isRunning() {
+			err = n.Stop()
+			if err != nil {
+				return err
+			}
 		}
 
-		for _, dev := range strings.Split(oldNetwork.Config["bridge.external_interfaces"], ",") {
-			dev = strings.TrimSpace(dev)
-			if dev == "" {
-				continue
+		// Detach any external interfaces should no longer be attached.
+		if shared.StringInSlice("bridge.external_interfaces", changedKeys) && n.isRunning() {
+			devices := []string{}
+			for _, dev := range strings.Split(newNetwork.Config["bridge.external_interfaces"], ",") {
+				dev = strings.TrimSpace(dev)
+				devices = append(devices, dev)
 			}
 
-			if !shared.StringInSlice(dev, devices) && InterfaceExists(dev) {
-				err = DetachInterface(n.name, dev)
-				if err != nil {
-					return err
+			for _, dev := range strings.Split(oldNetwork.Config["bridge.external_interfaces"], ",") {
+				dev = strings.TrimSpace(dev)
+				if dev == "" {
+					continue
+				}
+
+				if !shared.StringInSlice(dev, devices) && InterfaceExists(dev) {
+					err = DetachInterface(n.name, dev)
+					if err != nil {
+						return err
+					}
 				}
 			}
 		}
 	}
 
-	// Apply changes to all nodes and databse.
+	// Apply changes to all nodes and database.
 	err = n.common.update(newNetwork, targetNode, clientType)
 	if err != nil {
 		return err

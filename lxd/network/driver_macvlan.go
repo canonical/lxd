@@ -1,8 +1,6 @@
 package network
 
 import (
-	"fmt"
-
 	"github.com/lxc/lxd/lxd/cluster"
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/revert"
@@ -67,10 +65,6 @@ func (n *macvlan) Rename(newName string) error {
 func (n *macvlan) Start() error {
 	n.logger.Debug("Start")
 
-	if n.status == api.NetworkStatusPending {
-		return fmt.Errorf("Cannot start pending network")
-	}
-
 	return nil
 }
 
@@ -93,6 +87,11 @@ func (n *macvlan) Update(newNetwork api.NetworkPut, targetNode string, clientTyp
 
 	if !dbUpdateNeeeded {
 		return nil // Nothing changed.
+	}
+
+	if n.LocalStatus() == api.NetworkStatusPending {
+		// Apply DB change to local node only.
+		return n.common.update(newNetwork, targetNode, clientType)
 	}
 
 	revert := revert.New()
