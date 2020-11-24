@@ -127,7 +127,7 @@ func ValidConfig(sysOS *sys.OS, config map[string]string, profile bool, expanded
 	}
 
 	for k, v := range config {
-		if profile && strings.HasPrefix(k, "volatile.") {
+		if profile && strings.HasPrefix(k, shared.ConfigVolatilePrefix) {
 			return fmt.Errorf("Volatile keys can only be set on instances")
 		}
 
