@@ -149,14 +149,9 @@ func instanceCreateFromImage(d *Daemon, args db.InstanceArgs, hash string, op *o
 		return nil, errors.Wrap(err, "Failed creating instance record")
 	}
 
-	revert := true
-	defer func() {
-		if !revert {
-			return
-		}
-
-		inst.Delete()
-	}()
+	revert := revert.New()
+	defer revert.Fail()
+	revert.Add(func() { inst.Delete() })
 
 	err = s.Cluster.UpdateImageLastUseDate(hash, time.Now().UTC())
 	if err != nil {
@@ -178,7 +173,7 @@ func instanceCreateFromImage(d *Daemon, args db.InstanceArgs, hash string, op *o
 		return nil, err
 	}
 
-	revert = false
+	revert.Success()
 	return inst, nil
 }
 
