@@ -1480,47 +1480,50 @@ func (n *bridge) Update(newNetwork api.NetworkPut, targetNode string, clientType
 	revert := revert.New()
 	defer revert.Fail()
 
-	// Define a function which reverts everything.
-	revert.Add(func() {
-		// Reset changes to all nodes and database.
-		n.common.update(oldNetwork, targetNode, clientType)
+	// Perform any pre-update cleanup needed if local node network was already created.
+	if len(changedKeys) > 0 {
+		// Define a function which reverts everything.
+		revert.Add(func() {
+			// Reset changes to all nodes and database.
+			n.common.update(oldNetwork, targetNode, clientType)
 
-		// Reset any change that was made to local bridge.
-		n.setup(newNetwork.Config)
-	})
+			// Reset any change that was made to local bridge.
+			n.setup(newNetwork.Config)
+		})
 
-	// Bring the bridge down entirely if the driver has changed.
-	if shared.StringInSlice("bridge.driver", changedKeys) && n.isRunning() {
-		err = n.Stop()
-		if err != nil {
-			return err
-		}
-	}
-
-	// Detach any external interfaces should no longer be attached.
-	if shared.StringInSlice("bridge.external_interfaces", changedKeys) && n.isRunning() {
-		devices := []string{}
-		for _, dev := range strings.Split(newNetwork.Config["bridge.external_interfaces"], ",") {
-			dev = strings.TrimSpace(dev)
-			devices = append(devices, dev)
+		// Bring the bridge down entirely if the driver has changed.
+		if shared.StringInSlice("bridge.driver", changedKeys) && n.isRunning() {
+			err = n.Stop()
+			if err != nil {
+				return err
+			}
 		}
 
-		for _, dev := range strings.Split(oldNetwork.Config["bridge.external_interfaces"], ",") {
-			dev = strings.TrimSpace(dev)
-			if dev == "" {
-				continue
+		// Detach any external interfaces should no longer be attached.
+		if shared.StringInSlice("bridge.external_interfaces", changedKeys) && n.isRunning() {
+			devices := []string{}
+			for _, dev := range strings.Split(newNetwork.Config["bridge.external_interfaces"], ",") {
+				dev = strings.TrimSpace(dev)
+				devices = append(devices, dev)
 			}
 
-			if !shared.StringInSlice(dev, devices) && InterfaceExists(dev) {
-				err = DetachInterface(n.name, dev)
-				if err != nil {
-					return err
+			for _, dev := range strings.Split(oldNetwork.Config["bridge.external_interfaces"], ",") {
+				dev = strings.TrimSpace(dev)
+				if dev == "" {
+					continue
+				}
+
+				if !shared.StringInSlice(dev, devices) && InterfaceExists(dev) {
+					err = DetachInterface(n.name, dev)
+					if err != nil {
+						return err
+					}
 				}
 			}
 		}
 	}
 
-	// Apply changes to all nodes and databse.
+	// Apply changes to all nodes and database.
 	err = n.common.update(newNetwork, targetNode, clientType)
 	if err != nil {
 		return err
