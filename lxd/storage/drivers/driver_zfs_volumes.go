@@ -940,7 +940,8 @@ func (d *zfs) SetVolumeQuota(vol Volume, size string, op *operations.Operation) 
 
 		// Block image volumes cannot be resized because they have a readonly snapshot that doesn't get
 		// updated when the volume's size is changed, and this is what instances are created from.
-		if vol.volType == VolumeTypeImage {
+		// During initial volume fill allowUnsafeResize is enabled because snapshot hasn't been taken yet.
+		if !vol.allowUnsafeResize && vol.volType == VolumeTypeImage {
 			return ErrNotSupported
 		}
 
