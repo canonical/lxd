@@ -1330,6 +1330,11 @@ func (d *qemu) generateConfigShare() error {
 		logger.Warnf("lxd-agent not found, skipping its inclusion in the VM config drive: %v", err)
 	} else {
 		// Install agent into config drive dir if found.
+		path, err = filepath.EvalSymlinks(path)
+		if err != nil {
+			return err
+		}
+
 		err = shared.FileCopy(path, filepath.Join(configDrivePath, "lxd-agent"))
 		if err != nil {
 			return err
