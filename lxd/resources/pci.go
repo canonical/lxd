@@ -2,7 +2,9 @@ package resources
 
 import (
 	"io/ioutil"
+	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 
 	"github.com/jaypipes/pcidb"
@@ -114,6 +116,23 @@ func GetPCI() (*api.ResourcesPCI, error) {
 					}
 				}
 			}
+		}
+
+		//Get IOMMU Group
+		iommuGroupSymPath := filepath.Join(sysBusPci, device.PCIAddress, "iommu_group")
+		if sysfsExists(iommuGroupSymPath) {
+			iommuGroupPath, err := os.Readlink(iommuGroupSymPath)
+			if err != nil {
+				return nil, errors.Wrapf(err, "Failed to readlink %q", iommuGroupSymPath)
+			}
+
+			iommuGroup := filepath.Base(iommuGroupPath)
+			device.IOMMUGroup, err = strconv.ParseUint(iommuGroup, 10, 64)
+			if err != nil {
+				return nil, errors.Wrapf(err, "Failed to parse %q", iommuGroup)
+			}
+		} else {
+			device.IOMMUGroup = 0
 		}
 
 		pci.Devices = append(pci.Devices, device)
