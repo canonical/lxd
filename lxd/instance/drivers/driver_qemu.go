@@ -2357,6 +2357,7 @@ func (d *qemu) addGPUDevConfig(sb *strings.Builder, bus *qemuBus, gpuConfig []de
 					"devName":     fmt.Sprintf("%s_%s", devName, devAddr),
 					"pciSlotName": iommuSlotName,
 					"vga":         false,
+					"vgpu":        "",
 				}
 
 				err := qemuGPUDevPhysical.Execute(sb, tplFields)
