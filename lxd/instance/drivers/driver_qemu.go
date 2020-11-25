@@ -487,16 +487,19 @@ func (d *qemu) Freeze() error {
 
 // onStop is run when the instance stops.
 func (d *qemu) onStop(target string) error {
-	ctxMap := log.Ctx{
-		"project":   d.project,
-		"name":      d.name,
-		"ephemeral": d.ephemeral,
-	}
+	var err error
 
 	// Pick up the existing stop operation lock created in Stop() function.
 	op := operationlock.Get(d.id)
-	if op != nil && op.Action() != "stop" {
+	if op != nil && !shared.StringInSlice(op.Action(), []string{"stop", "restart"}) {
 		return fmt.Errorf("Instance is already running a %s operation", op.Action())
+	}
+
+	if op == nil && target == "reboot" {
+		op, err = operationlock.Create(d.id, "restart", false, false)
+		if err != nil {
+			return errors.Wrap(err, "Create restart operation")
+		}
 	}
 
 	// Cleanup.
@@ -516,47 +519,59 @@ func (d *qemu) onStop(target string) error {
 	// Record power state.
 	err = d.state.Cluster.UpdateInstancePowerState(d.id, "STOPPED")
 	if err != nil {
-		if op != nil {
-			op.Done(err)
-		}
+		op.Done(err)
 		return err
 	}
 
 	// Unload the apparmor profile
 	err = apparmor.InstanceUnload(d.state, d)
 	if err != nil {
-		ctxMap["err"] = err
-		logger.Error("Failed to unload AppArmor profile", ctxMap)
+		op.Done(err)
+		return err
 	}
 
 	if target == "reboot" {
 		err = d.Start(false)
+		if err != nil {
+			op.Done(err)
+			return err
+		}
+
 		d.state.Events.SendLifecycle(d.project, "virtual-machine-restarted",
 			fmt.Sprintf("/1.0/virtual-machines/%s", d.name), nil)
 	} else if d.ephemeral {
 		// Destroy ephemeral virtual machines
 		err = d.Delete()
-	}
-	if err != nil {
-		return err
-	}
-
-	if op != nil {
-		op.Done(nil)
+		if err != nil {
+			op.Done(err)
+			return err
+		}
 	}
 
+	if target != "reboot" {
+		d.state.Events.SendLifecycle(d.project, "virtual-machine-shutdown",
+			fmt.Sprintf("/1.0/virtual-machines/%s", d.name), nil)
+	}
+
+	op.Done(nil)
 	return nil
 }
 
 // Shutdown shuts the instance down.
 func (d *qemu) Shutdown(timeout time.Duration) error {
-	if !d.IsRunning() {
-		return fmt.Errorf("The instance is already stopped")
+	// Setup a new operation
+	exists, op, err := operationlock.CreateWaitGet(d.id, "stop", []string{"restart"}, true, false)
+	if err != nil {
+		return err
+	}
+	if exists {
+		// An existing matching operation has now succeeded, return.
+		return nil
 	}
 
-	// Setup a new operation
-	op, err := operationlock.Create(d.id, "stop", true, true)
-	if err != nil {
+	if !d.IsRunning() {
+		err = fmt.Errorf("The instance is already stopped")
+		op.Done(err)
 		return err
 	}
 
@@ -597,8 +612,9 @@ func (d *qemu) Shutdown(timeout time.Duration) error {
 		case <-chDisconnect:
 			break
 		case <-time.After(timeout):
-			op.Done(fmt.Errorf("Instance was not shutdown after timeout"))
-			return fmt.Errorf("Instance was not shutdown after timeout")
+			err = fmt.Errorf("Instance was not shutdown after timeout")
+			op.Done(err)
+			return err
 		}
 	} else {
 		<-chDisconnect // Block until VM is not running if no timeout provided.
@@ -610,14 +626,24 @@ func (d *qemu) Shutdown(timeout time.Duration) error {
 		return err
 	}
 
-	op.Done(nil)
-	d.state.Events.SendLifecycle(d.project, "virtual-machine-shutdown", fmt.Sprintf("/1.0/virtual-machines/%s", d.name), nil)
+	if op.Action() == "stop" {
+		d.state.Events.SendLifecycle(d.project, "virtual-machine-shutdown", fmt.Sprintf("/1.0/virtual-machines/%s", d.name), nil)
+	}
+
 	return nil
 }
 
 // Restart restart the instance.
 func (d *qemu) Restart(timeout time.Duration) error {
-	return d.common.restart(d, timeout)
+	err := d.common.restart(d, timeout)
+	if err != nil {
+		return err
+	}
+
+	d.state.Events.SendLifecycle(d.project, "virtual-machine-restarted",
+		fmt.Sprintf("/1.0/virtual-machines/%s", d.name), nil)
+
+	return nil
 }
 
 func (d *qemu) ovmfPath() string {
@@ -630,22 +656,28 @@ func (d *qemu) ovmfPath() string {
 
 // Start starts the instance.
 func (d *qemu) Start(stateful bool) error {
-	// Ensure the correct vhost_vsock kernel module is loaded before establishing the vsock.
-	err := util.LoadModule("vhost_vsock")
+	// Setup a new operation
+	exists, op, err := operationlock.CreateWaitGet(d.id, "start", []string{"restart"}, false, false)
 	if err != nil {
+		return errors.Wrap(err, "Create instance start operation")
+	}
+	if exists {
+		// An existing matching operation has now succeeded, return.
+		return nil
+	}
+	defer op.Done(nil)
+
+	// Ensure the correct vhost_vsock kernel module is loaded before establishing the vsock.
+	err = util.LoadModule("vhost_vsock")
+	if err != nil {
+		op.Done(err)
 		return err
 	}
 
 	if d.IsRunning() {
+		op.Done(err)
 		return fmt.Errorf("The instance is already running")
 	}
-
-	// Setup a new operation
-	op, err := operationlock.Create(d.id, "start", false, false)
-	if err != nil {
-		return errors.Wrap(err, "Create instance start operation")
-	}
-	defer op.Done(nil)
 
 	revert := revert.New()
 	defer revert.Fail()
@@ -659,6 +691,7 @@ func (d *qemu) Start(stateful bool) error {
 		os.Remove(logfile + ".old")
 		err := os.Rename(logfile, logfile+".old")
 		if err != nil {
+			op.Done(err)
 			return err
 		}
 	}
@@ -714,11 +747,13 @@ func (d *qemu) Start(stateful bool) error {
 		// Start the virtiofsd process in non-daemon mode.
 		proc, err := subprocess.NewProcess(cmd, []string{fmt.Sprintf("--socket-path=%s", sockPath), "-o", fmt.Sprintf("source=%s", filepath.Join(d.Path(), "config"))}, "", "")
 		if err != nil {
+			op.Done(err)
 			return err
 		}
 
 		err = proc.Start()
 		if err != nil {
+			op.Done(err)
 			return err
 		}
 
@@ -728,6 +763,7 @@ func (d *qemu) Start(stateful bool) error {
 
 		err = proc.Save(pidPath)
 		if err != nil {
+			op.Done(err)
 			return err
 		}
 
@@ -741,7 +777,9 @@ func (d *qemu) Start(stateful bool) error {
 		}
 
 		if !shared.PathExists(sockPath) {
-			return fmt.Errorf("virtiofsd failed to bind socket within 1s")
+			err = fmt.Errorf("virtiofsd failed to bind socket within 1s")
+			op.Done(err)
+			return err
 		}
 	} else {
 		logger.Warn("Unable to use virtio-fs for config drive, using 9p as a fallback: virtiofsd missing")
@@ -905,6 +943,7 @@ func (d *qemu) Start(stateful bool) error {
 	// Setup background process.
 	p, err := subprocess.NewProcess(d.state.OS.ExecPath, append(forkLimitsCmd, qemuCmd...), d.EarlyLogFilePath(), d.EarlyLogFilePath())
 	if err != nil {
+		op.Done(err)
 		return err
 	}
 
@@ -960,6 +999,7 @@ func (d *qemu) Start(stateful bool) error {
 
 	err = p.StartWithFiles(files)
 	if err != nil {
+		op.Done(err)
 		return err
 	}
 
@@ -974,6 +1014,7 @@ func (d *qemu) Start(stateful bool) error {
 	pid, err := d.pid()
 	if err != nil {
 		logger.Errorf(`Failed to get VM process ID "%d"`, pid)
+		op.Done(err)
 		return err
 	}
 
@@ -1018,7 +1059,9 @@ func (d *qemu) Start(stateful bool) error {
 
 			// Confirm nothing weird is going on.
 			if len(pins) != len(pids) {
-				return fmt.Errorf("QEMU has less vCPUs than configured")
+				err = fmt.Errorf("QEMU has less vCPUs than configured")
+				op.Done(err)
+				return err
 			}
 
 			for i, pid := range pids {
@@ -1068,7 +1111,11 @@ func (d *qemu) Start(stateful bool) error {
 	}
 
 	revert.Success()
-	d.state.Events.SendLifecycle(d.project, "virtual-machine-started", fmt.Sprintf("/1.0/virtual-machines/%s", d.name), nil)
+
+	if op.Action() == "start" {
+		d.state.Events.SendLifecycle(d.project, "virtual-machine-started", fmt.Sprintf("/1.0/virtual-machines/%s", d.name), nil)
+	}
+
 	return nil
 }
 
@@ -2462,19 +2509,27 @@ func (d *qemu) pid() (int, error) {
 
 // Stop the VM.
 func (d *qemu) Stop(stateful bool) error {
+	// Setup a new operation.
+	exists, op, err := operationlock.CreateWaitGet(d.id, "stop", []string{"restart"}, false, true)
+	if err != nil {
+		return err
+	}
+	if exists {
+		// An existing matching operation has now succeeded, return.
+		return nil
+	}
+
 	// Check that we're not already stopped.
 	if !d.IsRunning() {
-		return fmt.Errorf("The instance is already stopped")
+		err = fmt.Errorf("The instance is already stopped")
+		op.Done(err)
+		return err
 	}
 
 	// Check that no stateful stop was requested.
 	if stateful {
-		return fmt.Errorf("Stateful stop isn't supported for VMs at this time")
-	}
-
-	// Setup a new operation.
-	op, err := operationlock.Create(d.id, "stop", false, true)
-	if err != nil {
+		err = fmt.Errorf("Stateful stop isn't supported for VMs at this time")
+		op.Done(err)
 		return err
 	}
 
@@ -2519,7 +2574,10 @@ func (d *qemu) Stop(stateful bool) error {
 		return err
 	}
 
-	d.state.Events.SendLifecycle(d.project, "virtual-machine-stopped", fmt.Sprintf("/1.0/virtual-machines/%s", d.name), nil)
+	if op.Action() == "stop" {
+		d.state.Events.SendLifecycle(d.project, "virtual-machine-stopped", fmt.Sprintf("/1.0/virtual-machines/%s", d.name), nil)
+	}
+
 	return nil
 }
 
