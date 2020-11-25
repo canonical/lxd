@@ -14,6 +14,7 @@ import (
 	"github.com/lxc/lxd/lxd/device/nictype"
 	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/instance/instancetype"
+	"github.com/lxc/lxd/lxd/instance/operationlock"
 	"github.com/lxc/lxd/lxd/operations"
 	"github.com/lxc/lxd/lxd/project"
 	"github.com/lxc/lxd/lxd/state"
@@ -430,23 +431,45 @@ func (d *common) expandDevices(profiles []api.Profile) error {
 
 // restart handles instance restarts.
 func (d *common) restart(inst instance.Instance, timeout time.Duration) error {
+	// Setup a new operation for the stop/shutdown phase.
+	op, err := operationlock.Create(d.id, "restart", true, true)
+	if err != nil {
+		return errors.Wrap(err, "Create restart operation")
+	}
+
 	if timeout == 0 {
 		err := inst.Stop(false)
 		if err != nil {
+			op.Done(err)
 			return err
 		}
 	} else {
 		if inst.IsFrozen() {
-			return errors.New("Instance is not running")
+			err = fmt.Errorf("Instance is not running")
+			op.Done(err)
+			return err
 		}
 
 		err := inst.Shutdown(timeout * time.Second)
 		if err != nil {
+			op.Done(err)
 			return err
 		}
 	}
 
-	return inst.Start(false)
+	// Setup a new operation for the start phase.
+	op, err = operationlock.Create(d.id, "restart", true, true)
+	if err != nil {
+		return errors.Wrap(err, "Create restart operation")
+	}
+
+	err = inst.Start(false)
+	if err != nil {
+		op.Done(err)
+		return err
+	}
+
+	return nil
 }
 
 // runHooks executes the callback functions returned from a function.

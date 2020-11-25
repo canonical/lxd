@@ -2220,9 +2220,13 @@ func (d *lxc) Start(stateful bool) error {
 	var ctxMap log.Ctx
 
 	// Setup a new operation
-	op, err := operationlock.Create(d.id, "start", false, false)
+	exists, op, err := operationlock.CreateWaitGet(d.id, "start", []string{"restart"}, false, false)
 	if err != nil {
 		return errors.Wrap(err, "Create container start operation")
+	}
+	if exists {
+		// An existing matching operation has now succeeded, return.
+		return nil
 	}
 	defer op.Done(nil)
 
@@ -2248,7 +2252,9 @@ func (d *lxc) Start(stateful bool) error {
 		"used":      d.lastUsedDate,
 		"stateful":  stateful}
 
-	logger.Info("Starting container", ctxMap)
+	if op.Action() == "start" {
+		logger.Info("Starting container", ctxMap)
+	}
 
 	// If stateful, restore now
 	if stateful {
@@ -2293,7 +2299,11 @@ func (d *lxc) Start(stateful bool) error {
 			return err
 		}
 
-		logger.Info("Started container", ctxMap)
+		if op.Action() == "start" {
+			logger.Info("Started container", ctxMap)
+			d.state.Events.SendLifecycle(d.project, "container-started",
+				fmt.Sprintf("/1.0/containers/%s", d.name), nil)
+		}
 		return nil
 	} else if d.stateful {
 		/* stateless start required when we have state, let's delete it */
@@ -2365,9 +2375,11 @@ func (d *lxc) Start(stateful bool) error {
 		return err
 	}
 
-	logger.Info("Started container", ctxMap)
-	d.state.Events.SendLifecycle(d.project, "container-started",
-		fmt.Sprintf("/1.0/containers/%s", d.name), nil)
+	if op.Action() == "start" {
+		logger.Info("Started container", ctxMap)
+		d.state.Events.SendLifecycle(d.project, "container-started",
+			fmt.Sprintf("/1.0/containers/%s", d.name), nil)
+	}
 
 	return nil
 }
@@ -2462,14 +2474,20 @@ func (d *lxc) onStart(_ map[string]string) error {
 func (d *lxc) Stop(stateful bool) error {
 	var ctxMap log.Ctx
 
-	// Check that we're not already stopped
-	if !d.IsRunning() {
-		return fmt.Errorf("The container is already stopped")
+	// Setup a new operation
+	exists, op, err := operationlock.CreateWaitGet(d.id, "stop", []string{"restart"}, false, true)
+	if err != nil {
+		return err
+	}
+	if exists {
+		// An existing matching operation has now succeeded, return.
+		return nil
 	}
 
-	// Setup a new operation
-	op, err := operationlock.Create(d.id, "stop", false, true)
-	if err != nil {
+	// Check that we're not already stopped
+	if !d.IsRunning() {
+		err = fmt.Errorf("The container is already stopped")
+		op.Done(err)
 		return err
 	}
 
@@ -2482,7 +2500,9 @@ func (d *lxc) Stop(stateful bool) error {
 		"used":      d.lastUsedDate,
 		"stateful":  stateful}
 
-	logger.Info("Stopping container", ctxMap)
+	if op.Action() == "stop" {
+		logger.Info("Stopping container", ctxMap)
+	}
 
 	// Handle stateful stop
 	if stateful {
@@ -2586,9 +2606,11 @@ func (d *lxc) Stop(stateful bool) error {
 		return err
 	}
 
-	logger.Info("Stopped container", ctxMap)
-	d.state.Events.SendLifecycle(d.project, "container-stopped",
-		fmt.Sprintf("/1.0/containers/%s", d.name), nil)
+	if op.Action() == "stop" {
+		logger.Info("Stopped container", ctxMap)
+		d.state.Events.SendLifecycle(d.project, "container-stopped",
+			fmt.Sprintf("/1.0/containers/%s", d.name), nil)
+	}
 
 	return nil
 }
@@ -2597,14 +2619,20 @@ func (d *lxc) Stop(stateful bool) error {
 func (d *lxc) Shutdown(timeout time.Duration) error {
 	var ctxMap log.Ctx
 
-	// Check that we're not already stopped
-	if !d.IsRunning() {
-		return fmt.Errorf("The container is already stopped")
+	// Setup a new operation
+	exists, op, err := operationlock.CreateWaitGet(d.id, "stop", []string{"restart"}, true, false)
+	if err != nil {
+		return err
+	}
+	if exists {
+		// An existing matching operation has now succeeded, return.
+		return nil
 	}
 
-	// Setup a new operation
-	op, err := operationlock.Create(d.id, "stop", true, true)
-	if err != nil {
+	// Check that we're not already stopped
+	if !d.IsRunning() {
+		err = fmt.Errorf("The container is already stopped")
+		op.Done(err)
 		return err
 	}
 
@@ -2617,7 +2645,9 @@ func (d *lxc) Shutdown(timeout time.Duration) error {
 		"used":      d.lastUsedDate,
 		"timeout":   timeout}
 
-	logger.Info("Shutting down container", ctxMap)
+	if op.Action() == "stop" {
+		logger.Info("Shutting down container", ctxMap)
+	}
 
 	// Load the go-lxc struct
 	if d.expandedConfig["raw.lxc"] != "" {
@@ -2645,16 +2675,38 @@ func (d *lxc) Shutdown(timeout time.Duration) error {
 		return err
 	}
 
-	logger.Info("Shut down container", ctxMap)
-	d.state.Events.SendLifecycle(d.project, "container-shutdown",
-		fmt.Sprintf("/1.0/containers/%s", d.name), nil)
+	if op.Action() == "stop" {
+		logger.Info("Shut down container", ctxMap)
+		d.state.Events.SendLifecycle(d.project, "container-shutdown",
+			fmt.Sprintf("/1.0/containers/%s", d.name), nil)
+	}
 
 	return nil
 }
 
 // Restart restart the instance.
 func (d *lxc) Restart(timeout time.Duration) error {
-	return d.common.restart(d, timeout)
+	ctxMap := log.Ctx{
+		"project":   d.project,
+		"name":      d.name,
+		"action":    "shutdown",
+		"created":   d.creationDate,
+		"ephemeral": d.ephemeral,
+		"used":      d.lastUsedDate,
+		"timeout":   timeout}
+
+	logger.Info("Restarting container", ctxMap)
+
+	err := d.common.restart(d, timeout)
+	if err != nil {
+		return err
+	}
+
+	logger.Info("Restarted container", ctxMap)
+	d.state.Events.SendLifecycle(d.project, "container-restarted",
+		fmt.Sprintf("/1.0/containers/%s", d.name), nil)
+
+	return nil
 }
 
 // onStopNS is triggered by LXC's stop hook once a container is shutdown but before the container's
@@ -2678,6 +2730,7 @@ func (d *lxc) onStopNS(args map[string]string) error {
 // onStop is triggered by LXC's post-stop hook once a container is shutdown and after the
 // container's namespaces have been closed.
 func (d *lxc) onStop(args map[string]string) error {
+	var err error
 	target := args["target"]
 
 	// Validate target
@@ -2688,8 +2741,15 @@ func (d *lxc) onStop(args map[string]string) error {
 
 	// Pick up the existing stop operation lock created in Stop() function.
 	op := operationlock.Get(d.id)
-	if op != nil && op.Action() != "stop" {
+	if op != nil && !shared.StringInSlice(op.Action(), []string{"stop", "restart"}) {
 		return fmt.Errorf("Container is already running a %s operation", op.Action())
+	}
+
+	if op == nil && target == "reboot" {
+		op, err = operationlock.Create(d.id, "restart", false, false)
+		if err != nil {
+			return errors.Wrap(err, "Create restart operation")
+		}
 	}
 
 	// Make sure we can't call go-lxc functions by mistake
@@ -2710,7 +2770,7 @@ func (d *lxc) onStop(args map[string]string) error {
 	}
 
 	// Record power state
-	err := d.state.Cluster.UpdateInstancePowerState(d.id, "STOPPED")
+	err = d.state.Cluster.UpdateInstancePowerState(d.id, "STOPPED")
 	if err != nil {
 		err = errors.Wrap(err, "Failed to set container state")
 		op.Done(err)
