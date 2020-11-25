@@ -86,6 +86,10 @@ func (op *InstanceOperation) Reset() error {
 
 // Wait waits for an operation to finish.
 func (op *InstanceOperation) Wait() error {
+	if op == nil {
+		return nil
+	}
+
 	<-op.chanDone
 
 	return op.err
@@ -95,6 +99,11 @@ func (op *InstanceOperation) Wait() error {
 func (op *InstanceOperation) Done(err error) {
 	instanceOperationsLock.Lock()
 	defer instanceOperationsLock.Unlock()
+
+	// This function can be called on a nil struct.
+	if op == nil {
+		return
+	}
 
 	// Check if already done
 	runningOp, ok := instanceOperations[op.id]
