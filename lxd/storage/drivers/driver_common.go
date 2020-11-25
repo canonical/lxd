@@ -242,6 +242,15 @@ func (d *common) runFiller(vol Volume, devPath string, filler *VolumeFiller) err
 		return nil
 	}
 
+	// Allow filler to resize initial image volume as needed. Some storage drivers don't normally allow
+	// image volumes to be resized due to them having read-only snapshots that cannot be resized. However
+	// when creating the initial image volume and filling it before the snapshot is taken resizing can be
+	// allowed and is required in order to support unpacking images larger than the default volume size.
+	// The filler function is still expected to obey any volume size restrictions configured on the pool.
+	if vol.Type() == VolumeTypeImage {
+		vol.allowUnsafeResize = true
+	}
+
 	vol.driver.Logger().Debug("Running filler function", log.Ctx{"dev": devPath, "path": vol.MountPath()})
 	volSize, err := filler.Fill(vol, devPath)
 	if err != nil {

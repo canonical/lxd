@@ -1003,6 +1003,7 @@ func (b *lxdBackend) imageFiller(fingerprint string, op *operations.Operation) f
 }
 
 // CreateInstanceFromImage creates a new volume for an instance populated with the image requested.
+// On failure caller is expected to call DeleteInstance() to clean up.
 func (b *lxdBackend) CreateInstanceFromImage(inst instance.Instance, fingerprint string, op *operations.Operation) error {
 	logger := logging.AddContext(b.logger, log.Ctx{"project": inst.Project(), "instance": inst.Name()})
 	logger.Debug("CreateInstanceFromImage started")
@@ -1026,9 +1027,7 @@ func (b *lxdBackend) CreateInstanceFromImage(inst instance.Instance, fingerprint
 
 	vol := b.newVolume(volType, contentType, volStorageName, rootDiskConf)
 
-	revert := revert.New()
-	defer revert.Fail()
-	revert.Add(func() { b.DeleteInstance(inst, op) })
+	// Leave reverting on failure to caller, they are expected to call DeleteInstance().
 
 	// If the driver doesn't support optimized image volumes then create a new empty volume and
 	// populate it with the contents of the image archive.
@@ -1070,6 +1069,7 @@ func (b *lxdBackend) CreateInstanceFromImage(inst instance.Instance, fingerprint
 
 		// Set the derived size directly as the "size" property on the new volume so that it is applied.
 		vol.SetConfigSize(newVolSize)
+		logger.Debug("Set new volume size", log.Ctx{"size": newVolSize})
 
 		// Proceed to create a new volume by copying the optimized image volume.
 		err = b.driver.CreateVolumeFromCopy(vol, imgVol, false, op)
@@ -1106,7 +1106,6 @@ func (b *lxdBackend) CreateInstanceFromImage(inst instance.Instance, fingerprint
 		return err
 	}
 
-	revert.Success()
 	return nil
 }
 
