@@ -371,6 +371,9 @@ type ResourcesPCIDevice struct {
 	ProductID     string `json:"product_id" yaml:"product_id"`
 	Vendor        string `json:"vendor" yaml:"vendor"`
 	VendorID      string `json:"vendor_id" yaml:"vendor_id"`
+
+	// API extension: resources_pci_iommu
+	IOMMUGroup uint64 `json:"iommu_group" yaml:"iommu_group"`
 }
 
 // ResourcesSystem represents the system
