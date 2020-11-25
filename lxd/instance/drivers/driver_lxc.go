@@ -4980,6 +4980,9 @@ func (d *lxc) inheritInitPidFd() (int, *os.File) {
 
 // FileExists returns whether file exists inside instance.
 func (d *lxc) FileExists(path string) error {
+	// Check for ongoing operations (that may involve shifting).
+	operationlock.Get(d.id).Wait()
+
 	// Setup container storage if needed
 	_, err := d.mount()
 	if err != nil {
@@ -5026,10 +5029,7 @@ func (d *lxc) FileExists(path string) error {
 // FilePull gets a file from the instance.
 func (d *lxc) FilePull(srcpath string, dstpath string) (int64, int64, os.FileMode, string, []string, error) {
 	// Check for ongoing operations (that may involve shifting).
-	op := operationlock.Get(d.id)
-	if op != nil {
-		op.Wait()
-	}
+	operationlock.Get(d.id).Wait()
 
 	// Setup container storage if needed
 	_, err := d.mount()
@@ -5152,10 +5152,7 @@ func (d *lxc) FilePull(srcpath string, dstpath string) (int64, int64, os.FileMod
 // FilePush sends a file into the instance.
 func (d *lxc) FilePush(fileType string, srcpath string, dstpath string, uid int64, gid int64, mode int, write string) error {
 	// Check for ongoing operations (that may involve shifting).
-	op := operationlock.Get(d.id)
-	if op != nil {
-		op.Wait()
-	}
+	operationlock.Get(d.id).Wait()
 
 	var rootUID int64
 	var rootGID int64
@@ -5244,6 +5241,9 @@ func (d *lxc) FilePush(fileType string, srcpath string, dstpath string, uid int6
 
 // FileRemove removes a file inside the instance.
 func (d *lxc) FileRemove(path string) error {
+	// Check for ongoing operations (that may involve shifting).
+	operationlock.Get(d.id).Wait()
+
 	var errStr string
 
 	// Setup container storage if needed
