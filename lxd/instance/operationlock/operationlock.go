@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"sync"
 	"time"
+
+	"github.com/lxc/lxd/shared"
 )
 
 var instanceOperationsLock sync.Mutex
@@ -64,6 +66,43 @@ func Create(instanceID int, action string, reusable bool, reuse bool) (*Instance
 	instanceOperations[instanceID] = op
 
 	return op, nil
+}
+
+// CreateWaitGet is a weird function which does what we happen to want most of the time.
+//
+// If the instance has an operation of the same type and it's not reusable
+// or the caller doesn't want to reuse it, the function will wait and
+// indicate that it did so.
+//
+// If the instance has an operation of one of the alternate types, then
+// the operation is returned to the user.
+//
+// If the instance doesn't have an operation, has an operation of a different
+// type that is not in the alternate list or has the right type and is
+// being reused, then this behaves as a Create call.
+func CreateWaitGet(instanceID int, action string, altActions []string, reusable bool, reuse bool) (bool, *InstanceOperation, error) {
+	op := Get(instanceID)
+
+	// No existing operation, call create.
+	if op == nil {
+		op, err := Create(instanceID, action, reusable, reuse)
+		return false, op, err
+	}
+
+	// Operation matches and not reusable or asked to reuse, wait.
+	if op.action == action && (!reuse || !op.reusable) {
+		err := op.Wait()
+		return true, nil, err
+	}
+
+	// Operation matches one the alternate actions, return the operation.
+	if shared.StringInSlice(op.action, altActions) {
+		return false, op, nil
+	}
+
+	// Send the rest to Create
+	op, err := Create(instanceID, action, reusable, reuse)
+	return false, op, err
 }
 
 // Get retrieves an existing lock or returns nil if no lock exists.
