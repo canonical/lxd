@@ -137,7 +137,7 @@ endif
 check: default
 	go get -v -x github.com/rogpeppe/godeps
 	go get -v -x github.com/tsenart/deadcode
-	go get -v -x github.com/golang/lint/golint
+	go get -v -x golang.org/x/lint/golint
 	go test -v -tags "$(TAG_SQLITE3)" $(DEBUG) ./...
 	cd test && ./main.sh
 
