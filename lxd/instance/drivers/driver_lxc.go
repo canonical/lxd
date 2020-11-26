@@ -169,7 +169,7 @@ func lxcCreate(s *state.State, args db.InstanceArgs) (instance.Instance, error) 
 
 	// Use d.Delete() in revert on error as this function doesn't just create DB records, it can also cause
 	// other modifications to the host when devices are added.
-	revert.Add(func() { d.Delete() })
+	revert.Add(func() { d.Delete(true) })
 
 	// Cleanup the zero values
 	if d.expiryDate.IsZero() {
@@ -2856,7 +2856,7 @@ func (d *lxc) onStop(args map[string]string) error {
 
 		// Destroy ephemeral containers
 		if d.ephemeral {
-			err = d.Delete()
+			err = d.Delete(true)
 			if err != nil {
 				op.Done(errors.Wrap(err, "Failed deleting ephemeral container"))
 				return
@@ -3364,7 +3364,7 @@ func (d *lxc) cleanup() {
 }
 
 // Delete deletes the instance.
-func (d *lxc) Delete() error {
+func (d *lxc) Delete(force bool) error {
 	ctxMap := log.Ctx{
 		"project":   d.project,
 		"name":      d.name,
@@ -3374,7 +3374,7 @@ func (d *lxc) Delete() error {
 
 	logger.Info("Deleting container", ctxMap)
 
-	if shared.IsTrue(d.expandedConfig["security.protection.delete"]) && !d.IsSnapshot() {
+	if !force && shared.IsTrue(d.expandedConfig["security.protection.delete"]) && !d.IsSnapshot() {
 		err := fmt.Errorf("Container is protected")
 		logger.Warn("Failed to delete container", log.Ctx{"name": d.Name(), "err": err})
 		return err

@@ -69,7 +69,7 @@ type Instance interface {
 	Rename(newName string) error
 	Update(newConfig db.InstanceArgs, userRequested bool) error
 
-	Delete() error
+	Delete(force bool) error
 	Export(w io.Writer, properties map[string]string) (api.ImageMetadata, error)
 
 	// Used for security.

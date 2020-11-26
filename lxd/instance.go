@@ -48,7 +48,7 @@ func instanceCreateAsEmpty(d *Daemon, args db.InstanceArgs) (instance.Instance, 
 			return
 		}
 
-		inst.Delete()
+		inst.Delete(true)
 	}()
 
 	pool, err := storagePools.GetPoolByInstance(d.State(), inst)
@@ -151,7 +151,7 @@ func instanceCreateFromImage(d *Daemon, args db.InstanceArgs, hash string, op *o
 
 	revert := revert.New()
 	defer revert.Fail()
-	revert.Add(func() { inst.Delete() })
+	revert.Add(func() { inst.Delete(true) })
 
 	err = s.Cluster.UpdateImageLastUseDate(hash, time.Now().UTC())
 	if err != nil {
@@ -186,7 +186,7 @@ func instanceCreateAsCopy(s *state.State, args db.InstanceArgs, sourceInst insta
 			return
 		}
 
-		revertInst.Delete()
+		revertInst.Delete(true)
 	}()
 
 	if refresh {
@@ -233,7 +233,7 @@ func instanceCreateAsCopy(s *state.State, args db.InstanceArgs, sourceInst insta
 
 			// Delete extra snapshots first.
 			for _, snap := range deleteSnapshots {
-				err := snap.Delete()
+				err := snap.Delete(true)
 				if err != nil {
 					return nil, err
 				}
@@ -384,7 +384,7 @@ func instanceCreateAsSnapshot(s *state.State, args db.InstanceArgs, sourceInstan
 	if err != nil {
 		return nil, errors.Wrapf(err, "Failed creating instance snapshot record %q", args.Name)
 	}
-	revert.Add(func() { inst.Delete() })
+	revert.Add(func() { inst.Delete(true) })
 
 	pool, err := storagePools.GetPoolByInstance(s, inst)
 	if err != nil {
@@ -871,7 +871,7 @@ func pruneExpiredContainerSnapshotsTask(d *Daemon) (task.Func, task.Schedule) {
 func pruneExpiredContainerSnapshots(ctx context.Context, d *Daemon, snapshots []instance.Instance) error {
 	// Find snapshots to delete
 	for _, snapshot := range snapshots {
-		err := snapshot.Delete()
+		err := snapshot.Delete(true)
 		if err != nil {
 			return errors.Wrapf(err, "Failed to delete expired instance snapshot '%s' in project '%s'", snapshot.Name(), snapshot.Project())
 		}
