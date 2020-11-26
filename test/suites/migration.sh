@@ -368,6 +368,25 @@ migration() {
   lxc_remote project switch l1:default
   lxc_remote project delete l1:proj
 
+
+  # Check migration with invalid snapshot config (disks attached with missing source pool and source path).
+  lxc_remote init testimage l1:c1
+  lxc_remote storage create l1:dir dir
+  lxc_remote storage volume create l1:dir vol1
+  lxc_remote storage volume attach l1:dir vol1 c1 /mnt
+  mkdir "$LXD_DIR/testvol2"
+  lxc_remote config device add l1:c1 vol2 disk source="$LXD_DIR/testvol2" path=/vol2
+  lxc_remote snapshot l1:c1 # Take snapshot with disk devices still attached.
+  lxc_remote config device remove c1 vol1
+  lxc_remote config device remove c1 vol2
+  rmdir "$LXD_DIR/testvol2"
+  lxc_remote copy l1:c1 l2:
+  lxc_remote info l2:c1 | grep snap0
+  lxc_remote delete l1:c1 -f
+  lxc_remote delete l2:c1 -f
+  lxc_remote storage volume delete l1:dir vol1
+  lxc_remote storage delete l1:dir
+
   if ! which criu >/dev/null 2>&1; then
     echo "==> SKIP: live migration with CRIU (missing binary)"
     return
