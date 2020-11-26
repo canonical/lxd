@@ -1464,12 +1464,6 @@ func (n *bridge) Stop() error {
 func (n *bridge) Update(newNetwork api.NetworkPut, targetNode string, clientType cluster.ClientType) error {
 	n.logger.Debug("Update", log.Ctx{"clientType": clientType, "newNetwork": newNetwork})
 
-	// Populate default values if they are missing.
-	err := n.FillConfig(newNetwork.Config)
-	if err != nil {
-		return err
-	}
-
 	dbUpdateNeeeded, changedKeys, oldNetwork, err := n.common.configChanged(newNetwork)
 	if err != nil {
 		return err
