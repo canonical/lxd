@@ -433,7 +433,7 @@ func snapshotPost(d *Daemon, r *http.Request, sc instance.Instance, containerNam
 
 func snapshotDelete(s *state.State, sc instance.Instance, name string) response.Response {
 	remove := func(op *operations.Operation) error {
-		return sc.Delete()
+		return sc.Delete(false)
 	}
 
 	resources := map[string][]string{}

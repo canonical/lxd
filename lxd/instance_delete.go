@@ -38,7 +38,7 @@ func containerDelete(d *Daemon, r *http.Request) response.Response {
 	}
 
 	rmct := func(op *operations.Operation) error {
-		return c.Delete()
+		return c.Delete(false)
 	}
 
 	resources := map[string][]string{}
