@@ -1197,22 +1197,30 @@ func (n *ovn) deleteUplinkPortPhysical(uplinkNet Network) error {
 
 // FillConfig fills requested config with any default values.
 func (n *ovn) FillConfig(config map[string]string) error {
-	changedConfig := false
-
 	if config["ipv4.address"] == "" {
 		config["ipv4.address"] = "auto"
-		changedConfig = true
 	}
 
 	if config["ipv6.address"] == "" {
 		content, err := ioutil.ReadFile("/proc/sys/net/ipv6/conf/default/disable_ipv6")
 		if err == nil && string(content) == "0\n" {
 			config["ipv6.address"] = "auto"
-			changedConfig = true
 		}
 	}
 
-	// Now populate "auto" values where needed.
+	// Now replace any "auto" keys with generated values.
+	err := n.populateAutoConfig(config)
+	if err != nil {
+		return errors.Wrapf(err, "Failed generating auto config")
+	}
+
+	return nil
+}
+
+// populateAutoConfig replaces "auto" in config with generated values.
+func (n *ovn) populateAutoConfig(config map[string]string) error {
+	changedConfig := false
+
 	if config["ipv4.address"] == "auto" {
 		subnet, err := randomSubnetV4()
 		if err != nil {
@@ -1243,6 +1251,7 @@ func (n *ovn) FillConfig(config map[string]string) error {
 		changedConfig = true
 	}
 
+	// Re-validate config if changed.
 	if changedConfig && n.state != nil {
 		return n.Validate(config)
 	}
@@ -1877,6 +1886,11 @@ func (n *ovn) Stop() error {
 // cluster notification, in which case do not update the database, just apply local changes needed.
 func (n *ovn) Update(newNetwork api.NetworkPut, targetNode string, clientType cluster.ClientType) error {
 	n.logger.Debug("Update", log.Ctx{"clientType": clientType, "newNetwork": newNetwork})
+
+	err := n.populateAutoConfig(newNetwork.Config)
+	if err != nil {
+		return errors.Wrapf(err, "Failed generating auto config")
+	}
 
 	dbUpdateNeeeded, changedKeys, oldNetwork, err := n.common.configChanged(newNetwork)
 	if err != nil {
