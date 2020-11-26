@@ -21,6 +21,18 @@ test_network() {
   lxc query -X PATCH -d "{\\\"config\\\": {\\\"ipv6.dhcp.stateful\\\": \\\"true\\\"}}" /1.0/networks/lxdt$$
   [ "$(lxc network get lxdt$$ ipv6.dhcp.stateful)" = "true" ]
 
+  # check ipv4.address and ipv6.address can be unset without triggering random subnet generation.
+  lxc network unset lxdt$$ ipv4.address
+  ! lxc network show lxdt$$ | grep ipv4.address || false
+  lxc network unset lxdt$$ ipv6.address
+  ! lxc network show lxdt$$ | grep ipv6.address || false
+
+  # check ipv4.address and ipv6.address can be regenerated on update using "auto" value.
+  lxc network set lxdt$$ ipv4.address auto
+  lxc network show lxdt$$ | grep ipv4.address
+  lxc network set lxdt$$ ipv6.address auto
+  lxc network show lxdt$$ | grep ipv6.address
+
   # delete the network
   lxc network delete lxdt$$
 
