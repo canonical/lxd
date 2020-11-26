@@ -170,7 +170,7 @@ func (d *disk) validateConfig(instConf instance.ConfigReader) error {
 
 		// Only perform expensive instance custom volume checks when not validating a profile and after
 		// device expansion has occurred (to avoid doing it twice during instance load).
-		if instConf.Type() != instancetype.Any && len(instConf.ExpandedDevices()) > 0 && d.config["source"] != "" && d.config["path"] != "/" {
+		if d.inst != nil && len(instConf.ExpandedDevices()) > 0 && d.config["source"] != "" && d.config["path"] != "/" {
 			poolID, err := d.state.Cluster.GetStoragePoolID(d.config["pool"])
 			if err != nil {
 				return fmt.Errorf("The %q storage pool doesn't exist", d.config["pool"])
