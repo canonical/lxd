@@ -61,8 +61,8 @@ dns.domain                      | string    | -                     | lxd       
 dns.mode                        | string    | -                     | managed                   | DNS registration mode ("none" for no DNS record, "managed" for LXD generated static records or "dynamic" for client generated records)
 fan.overlay\_subnet             | string    | fan mode              | 240.0.0.0/8               | Subnet to use as the overlay for the FAN (CIDR notation)
 fan.type                        | string    | fan mode              | vxlan                     | The tunneling type for the FAN ("vxlan" or "ipip")
-fan.underlay\_subnet            | string    | fan mode              | default gateway subnet    | Subnet to use as the underlay for the FAN (CIDR notation)
-ipv4.address                    | string    | standard mode         | random unused subnet      | IPv4 address for the bridge (CIDR notation). Use "none" to turn off IPv4 or "auto" to generate a new one
+fan.underlay\_subnet            | string    | fan mode              | auto (on create only)     | Subnet to use as the underlay for the FAN (CIDR notation). Use "auto" to use default gateway subnet
+ipv4.address                    | string    | standard mode         | auto (on create only)     | IPv4 address for the bridge (CIDR notation). Use "none" to turn off IPv4 or "auto" to generate a new random unused subnet
 ipv4.dhcp                       | boolean   | ipv4 address          | true                      | Whether to allocate addresses using DHCP
 ipv4.dhcp.expiry                | string    | ipv4 dhcp             | 1h                        | When to expire DHCP leases
 ipv4.dhcp.gateway               | string    | ipv4 dhcp             | ipv4.address              | Address of the gateway for the subnet
@@ -73,7 +73,7 @@ ipv4.nat.order                  | string    | ipv4 address          | before    
 ipv4.nat.address                | string    | ipv4 address          | -                         | The source address used for outbound traffic from the bridge
 ipv4.routes                     | string    | ipv4 address          | -                         | Comma separated list of additional IPv4 CIDR subnets to route to the bridge
 ipv4.routing                    | boolean   | ipv4 address          | true                      | Whether to route traffic in and out of the bridge
-ipv6.address                    | string    | standard mode         | random unused subnet      | IPv6 address for the bridge (CIDR notation). Use "none" to turn off IPv6 or "auto" to generate a new one
+ipv6.address                    | string    | standard mode         | auto (on create only)     | IPv6 address for the bridge (CIDR notation). Use "none" to turn off IPv6 or "auto" to generate a new random unused subnet
 ipv6.dhcp                       | boolean   | ipv6 address          | true                      | Whether to provide additional network configuration over DHCP
 ipv6.dhcp.expiry                | string    | ipv6 dhcp             | 1h                        | When to expire DHCP leases
 ipv6.dhcp.ranges                | string    | ipv6 stateful dhcp    | all addresses             | Comma separated list of IPv6 ranges to use for DHCP (FIRST-LAST format)
