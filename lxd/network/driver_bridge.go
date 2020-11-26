@@ -368,7 +368,7 @@ func (n *bridge) Validate(config map[string]string) error {
 
 		_, err := parseIPRanges(config["ipv4.ovn.ranges"], allowedNets...)
 		if err != nil {
-			return err
+			return errors.Wrapf(err, "Failed parsing ipv4.ovn.ranges")
 		}
 	}
 
@@ -387,7 +387,7 @@ func (n *bridge) Validate(config map[string]string) error {
 
 		_, err := parseIPRanges(config["ipv6.ovn.ranges"], allowedNets...)
 		if err != nil {
-			return err
+			return errors.Wrapf(err, "Failed parsing ipv6.ovn.ranges")
 		}
 	}
 
@@ -798,7 +798,7 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 		// Parse the subnet.
 		ip, subnet, err := net.ParseCIDR(n.config["ipv4.address"])
 		if err != nil {
-			return err
+			return errors.Wrapf(err, "Failed parsing ipv4.address")
 		}
 
 		// Update the dnsmasq config.
@@ -915,7 +915,7 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 		// Parse the subnet.
 		ip, subnet, err := net.ParseCIDR(n.config["ipv6.address"])
 		if err != nil {
-			return err
+			return errors.Wrapf(err, "Failed parsing ipv6.address")
 		}
 		subnetSize, _ := subnet.Mask.Size()
 
@@ -1056,7 +1056,7 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 		underlay := n.config["fan.underlay_subnet"]
 		_, underlaySubnet, err := net.ParseCIDR(underlay)
 		if err != nil {
-			return err
+			return errors.Wrapf(err, "Failed parsing fan.underlay_subnet")
 		}
 
 		// Parse the overlay.
@@ -1067,7 +1067,7 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 
 		_, overlaySubnet, err = net.ParseCIDR(overlay)
 		if err != nil {
-			return err
+			return errors.Wrapf(err, "Failed parsing fan.overlay_subnet")
 		}
 
 		// Get the address.
@@ -1112,7 +1112,7 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 		// Parse the host subnet.
 		_, hostSubnet, err := net.ParseCIDR(fmt.Sprintf("%s/24", addr[0]))
 		if err != nil {
-			return err
+			return errors.Wrapf(err, "Failed parsing fan address")
 		}
 
 		// Add the address.
