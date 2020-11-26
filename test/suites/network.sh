@@ -27,6 +27,12 @@ test_network() {
   lxc network unset lxdt$$ ipv6.address
   ! lxc network show lxdt$$ | grep ipv6.address || false
 
+  # check ipv4.address and ipv6.address can be regenerated on update using "auto" value.
+  lxc network set lxdt$$ ipv4.address auto
+  lxc network show lxdt$$ | grep ipv4.address
+  lxc network set lxdt$$ ipv6.address auto
+  lxc network show lxdt$$ | grep ipv6.address
+
   # delete the network
   lxc network delete lxdt$$
 
