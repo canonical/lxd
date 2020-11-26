@@ -180,7 +180,7 @@ func qemuCreate(s *state.State, args db.InstanceArgs) (instance.Instance, error)
 
 	// Use d.Delete() in revert on error as this function doesn't just create DB records, it can also cause
 	// other modifications to the host when devices are added.
-	revert.Add(func() { d.Delete() })
+	revert.Add(func() { d.Delete(true) })
 
 	// Get the architecture name.
 	archName, err := osarch.ArchitectureName(d.architecture)
@@ -541,7 +541,7 @@ func (d *qemu) onStop(target string) error {
 			fmt.Sprintf("/1.0/virtual-machines/%s", d.name), nil)
 	} else if d.ephemeral {
 		// Destroy ephemeral virtual machines
-		err = d.Delete()
+		err = d.Delete(true)
 		if err != nil {
 			op.Done(err)
 			return err
@@ -3478,7 +3478,7 @@ func (d *qemu) init() error {
 }
 
 // Delete the instance.
-func (d *qemu) Delete() error {
+func (d *qemu) Delete(force bool) error {
 	ctxMap := log.Ctx{
 		"project":   d.project,
 		"name":      d.name,
@@ -3489,7 +3489,7 @@ func (d *qemu) Delete() error {
 	logger.Info("Deleting instance", ctxMap)
 
 	// Check if instance is delete protected.
-	if shared.IsTrue(d.expandedConfig["security.protection.delete"]) && !d.IsSnapshot() {
+	if !force && shared.IsTrue(d.expandedConfig["security.protection.delete"]) && !d.IsSnapshot() {
 		return fmt.Errorf("Instance is protected")
 	}
 

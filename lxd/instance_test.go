@@ -30,7 +30,7 @@ func (suite *containerTestSuite) TestContainer_ProfilesDefault() {
 
 	c, err := instanceCreateInternal(suite.d.State(), args)
 	suite.Req.Nil(err)
-	defer c.Delete()
+	defer c.Delete(true)
 
 	profiles := c.Profiles()
 	suite.Len(
@@ -73,7 +73,7 @@ func (suite *containerTestSuite) TestContainer_ProfilesMulti() {
 
 	c, err := instanceCreateInternal(suite.d.State(), args)
 	suite.Req.Nil(err)
-	defer c.Delete()
+	defer c.Delete(true)
 
 	profiles := c.Profiles()
 	suite.Len(
@@ -111,7 +111,7 @@ func (suite *containerTestSuite) TestContainer_ProfilesOverwriteDefaultNic() {
 	suite.Req.Nil(err)
 
 	state := out.(*api.Instance)
-	defer c.Delete()
+	defer c.Delete(true)
 
 	suite.Equal(
 		"unknownbr0",
@@ -139,7 +139,7 @@ func (suite *containerTestSuite) TestContainer_LoadFromDB() {
 	// Create the container
 	c, err := instanceCreateInternal(state, args)
 	suite.Req.Nil(err)
-	defer c.Delete()
+	defer c.Delete(true)
 
 	// Load the container and trigger initLXC()
 	c2, err := instance.LoadByProjectAndName(state, "default", "testFoo")
@@ -167,7 +167,7 @@ func (suite *containerTestSuite) TestContainer_Path_Regular() {
 
 	c, err := instanceCreateInternal(suite.d.State(), args)
 	suite.Req.Nil(err)
-	defer c.Delete()
+	defer c.Delete(true)
 
 	suite.Req.False(c.IsSnapshot(), "Shouldn't be a snapshot.")
 	suite.Req.Equal(shared.VarPath("containers", "testFoo"), c.Path())
@@ -183,7 +183,7 @@ func (suite *containerTestSuite) TestContainer_LogPath() {
 
 	c, err := instanceCreateInternal(suite.d.State(), args)
 	suite.Req.Nil(err)
-	defer c.Delete()
+	defer c.Delete(true)
 
 	suite.Req.Equal(shared.VarPath("logs", "testFoo"), c.LogPath())
 }
@@ -200,7 +200,7 @@ func (suite *containerTestSuite) TestContainer_IsPrivileged_Privileged() {
 	suite.Req.Nil(err)
 
 	suite.Req.True(c.IsPrivileged(), "This container should be privileged.")
-	suite.Req.Nil(c.Delete(), "Failed to delete the container.")
+	suite.Req.Nil(c.Delete(true), "Failed to delete the container.")
 }
 
 func (suite *containerTestSuite) TestContainer_IsPrivileged_Unprivileged() {
@@ -215,7 +215,7 @@ func (suite *containerTestSuite) TestContainer_IsPrivileged_Unprivileged() {
 	suite.Req.Nil(err)
 
 	suite.Req.False(c.IsPrivileged(), "This container should be unprivileged.")
-	suite.Req.Nil(c.Delete(), "Failed to delete the container.")
+	suite.Req.Nil(c.Delete(true), "Failed to delete the container.")
 }
 
 func (suite *containerTestSuite) TestContainer_Rename() {
@@ -227,7 +227,7 @@ func (suite *containerTestSuite) TestContainer_Rename() {
 
 	c, err := instanceCreateInternal(suite.d.State(), args)
 	suite.Req.Nil(err)
-	defer c.Delete()
+	defer c.Delete(true)
 
 	suite.Req.Nil(c.Rename("testFoo2"), "Failed to rename the container.")
 	suite.Req.Equal(shared.VarPath("containers", "testFoo2"), c.Path())
@@ -242,7 +242,7 @@ func (suite *containerTestSuite) TestContainer_findIdmap_isolated() {
 		},
 	})
 	suite.Req.Nil(err)
-	defer c1.Delete()
+	defer c1.Delete(true)
 
 	c2, err := instanceCreateInternal(suite.d.State(), db.InstanceArgs{
 		Type: instancetype.Container,
@@ -252,7 +252,7 @@ func (suite *containerTestSuite) TestContainer_findIdmap_isolated() {
 		},
 	})
 	suite.Req.Nil(err)
-	defer c2.Delete()
+	defer c2.Delete(true)
 
 	map1, err := c1.(instance.Container).NextIdmap()
 	suite.Req.Nil(err)
@@ -283,7 +283,7 @@ func (suite *containerTestSuite) TestContainer_findIdmap_mixed() {
 		},
 	})
 	suite.Req.Nil(err)
-	defer c1.Delete()
+	defer c1.Delete(true)
 
 	c2, err := instanceCreateInternal(suite.d.State(), db.InstanceArgs{
 		Type: instancetype.Container,
@@ -293,7 +293,7 @@ func (suite *containerTestSuite) TestContainer_findIdmap_mixed() {
 		},
 	})
 	suite.Req.Nil(err)
-	defer c2.Delete()
+	defer c2.Delete(true)
 
 	map1, err := c1.(instance.Container).NextIdmap()
 	suite.Req.Nil(err)
@@ -325,7 +325,7 @@ func (suite *containerTestSuite) TestContainer_findIdmap_raw() {
 		},
 	})
 	suite.Req.Nil(err)
-	defer c1.Delete()
+	defer c1.Delete(true)
 
 	map1, err := c1.(instance.Container).NextIdmap()
 	suite.Req.Nil(err)
@@ -371,7 +371,7 @@ func (suite *containerTestSuite) TestContainer_findIdmap_maxed() {
 			return
 		}
 
-		defer c.Delete()
+		defer c.Delete(true)
 
 		m, err := c.(instance.Container).NextIdmap()
 		suite.Req.Nil(err)
