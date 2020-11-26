@@ -233,10 +233,11 @@ func (n *ovn) Validate(config map[string]string) error {
 	// If NAT disabled, parse the external subnets that are being requested.
 	var externalSubnets []*net.IPNet
 	for _, keyPrefix := range []string{"ipv4", "ipv6"} {
-		if !shared.IsTrue(config[fmt.Sprintf("%s.nat", keyPrefix)]) && validate.IsOneOf(config[fmt.Sprintf("%s.address", keyPrefix)], []string{"", "none", "auto"}) != nil {
-			_, ipNet, err := net.ParseCIDR(config[fmt.Sprintf("%s.address", keyPrefix)])
+		addressKey := fmt.Sprintf("%s.address", keyPrefix)
+		if !shared.IsTrue(config[fmt.Sprintf("%s.nat", keyPrefix)]) && validate.IsOneOf(config[addressKey], []string{"", "none", "auto"}) != nil {
+			_, ipNet, err := net.ParseCIDR(config[addressKey])
 			if err != nil {
-				return err
+				return errors.Wrapf(err, "Failed parsing %s", addressKey)
 			}
 
 			externalSubnets = append(externalSubnets, ipNet)
@@ -1196,22 +1197,30 @@ func (n *ovn) deleteUplinkPortPhysical(uplinkNet Network) error {
 
 // FillConfig fills requested config with any default values.
 func (n *ovn) FillConfig(config map[string]string) error {
-	changedConfig := false
-
 	if config["ipv4.address"] == "" {
 		config["ipv4.address"] = "auto"
-		changedConfig = true
 	}
 
 	if config["ipv6.address"] == "" {
 		content, err := ioutil.ReadFile("/proc/sys/net/ipv6/conf/default/disable_ipv6")
 		if err == nil && string(content) == "0\n" {
 			config["ipv6.address"] = "auto"
-			changedConfig = true
 		}
 	}
 
-	// Now populate "auto" values where needed.
+	// Now replace any "auto" keys with generated values.
+	err := n.populateAutoConfig(config)
+	if err != nil {
+		return errors.Wrapf(err, "Failed generating auto config")
+	}
+
+	return nil
+}
+
+// populateAutoConfig replaces "auto" in config with generated values.
+func (n *ovn) populateAutoConfig(config map[string]string) error {
+	changedConfig := false
+
 	if config["ipv4.address"] == "auto" {
 		subnet, err := randomSubnetV4()
 		if err != nil {
@@ -1242,6 +1251,7 @@ func (n *ovn) FillConfig(config map[string]string) error {
 		changedConfig = true
 	}
 
+	// Re-validate config if changed.
 	if changedConfig && n.state != nil {
 		return n.Validate(config)
 	}
@@ -1877,10 +1887,9 @@ func (n *ovn) Stop() error {
 func (n *ovn) Update(newNetwork api.NetworkPut, targetNode string, clientType cluster.ClientType) error {
 	n.logger.Debug("Update", log.Ctx{"clientType": clientType, "newNetwork": newNetwork})
 
-	// Populate default values if they are missing.
-	err := n.FillConfig(newNetwork.Config)
+	err := n.populateAutoConfig(newNetwork.Config)
 	if err != nil {
-		return err
+		return errors.Wrapf(err, "Failed generating auto config")
 	}
 
 	dbUpdateNeeeded, changedKeys, oldNetwork, err := n.common.configChanged(newNetwork)
