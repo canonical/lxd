@@ -233,10 +233,11 @@ func (n *ovn) Validate(config map[string]string) error {
 	// If NAT disabled, parse the external subnets that are being requested.
 	var externalSubnets []*net.IPNet
 	for _, keyPrefix := range []string{"ipv4", "ipv6"} {
-		if !shared.IsTrue(config[fmt.Sprintf("%s.nat", keyPrefix)]) && validate.IsOneOf(config[fmt.Sprintf("%s.address", keyPrefix)], []string{"", "none", "auto"}) != nil {
-			_, ipNet, err := net.ParseCIDR(config[fmt.Sprintf("%s.address", keyPrefix)])
+		addressKey := fmt.Sprintf("%s.address", keyPrefix)
+		if !shared.IsTrue(config[fmt.Sprintf("%s.nat", keyPrefix)]) && validate.IsOneOf(config[addressKey], []string{"", "none", "auto"}) != nil {
+			_, ipNet, err := net.ParseCIDR(config[addressKey])
 			if err != nil {
-				return err
+				return errors.Wrapf(err, "Failed parsing %s", addressKey)
 			}
 
 			externalSubnets = append(externalSubnets, ipNet)
