@@ -115,6 +115,19 @@ func (n *bridge) FillConfig(config map[string]string) error {
 		}
 	}
 
+	// Now replace any "auto" keys with generated values.
+	err := n.populateAutoConfig(config)
+	if err != nil {
+		return errors.Wrapf(err, "Failed generating auto config")
+	}
+
+	return nil
+}
+
+// populateAutoConfig replaces "auto" in config with generated values.
+func (n *bridge) populateAutoConfig(config map[string]string) error {
+	changedConfig := false
+
 	// Now populate "auto" values where needed.
 	if config["ipv4.address"] == "auto" {
 		subnet, err := randomSubnetV4()
@@ -123,6 +136,7 @@ func (n *bridge) FillConfig(config map[string]string) error {
 		}
 
 		config["ipv4.address"] = subnet
+		changedConfig = true
 	}
 
 	if config["ipv6.address"] == "auto" {
@@ -132,6 +146,7 @@ func (n *bridge) FillConfig(config map[string]string) error {
 		}
 
 		config["ipv6.address"] = subnet
+		changedConfig = true
 	}
 
 	if config["fan.underlay_subnet"] == "auto" {
@@ -141,6 +156,12 @@ func (n *bridge) FillConfig(config map[string]string) error {
 		}
 
 		config["fan.underlay_subnet"] = subnet.String()
+		changedConfig = true
+	}
+
+	// Re-validate config if changed.
+	if changedConfig && n.state != nil {
+		return n.Validate(config)
 	}
 
 	return nil
@@ -1463,6 +1484,11 @@ func (n *bridge) Stop() error {
 // cluster notification, in which case do not update the database, just apply local changes needed.
 func (n *bridge) Update(newNetwork api.NetworkPut, targetNode string, clientType cluster.ClientType) error {
 	n.logger.Debug("Update", log.Ctx{"clientType": clientType, "newNetwork": newNetwork})
+
+	err := n.populateAutoConfig(newNetwork.Config)
+	if err != nil {
+		return errors.Wrapf(err, "Failed generating auto config")
+	}
 
 	dbUpdateNeeeded, changedKeys, oldNetwork, err := n.common.configChanged(newNetwork)
 	if err != nil {
