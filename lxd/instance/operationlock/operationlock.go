@@ -113,10 +113,20 @@ func Get(instanceID int) *InstanceOperation {
 	return instanceOperations[instanceID]
 }
 
-// Reset resets an operation.
+// Reset resets the operation timeout.
 func (op *InstanceOperation) Reset() error {
-	if !op.reusable {
-		return fmt.Errorf("Can't reset a non-reusable operation")
+	instanceOperationsLock.Lock()
+	defer instanceOperationsLock.Unlock()
+
+	// This function can be called on a nil struct.
+	if op == nil {
+		return nil
+	}
+
+	// Check if already done
+	runningOp, ok := instanceOperations[op.id]
+	if !ok || runningOp != op {
+		return fmt.Errorf("Operation is already done or expired")
 	}
 
 	op.chanReset <- true
@@ -125,6 +135,7 @@ func (op *InstanceOperation) Reset() error {
 
 // Wait waits for an operation to finish.
 func (op *InstanceOperation) Wait() error {
+	// This function can be called on a nil struct.
 	if op == nil {
 		return nil
 	}
