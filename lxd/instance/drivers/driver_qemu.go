@@ -180,7 +180,7 @@ func qemuCreate(s *state.State, args db.InstanceArgs) (instance.Instance, error)
 
 	// Use d.Delete() in revert on error as this function doesn't just create DB records, it can also cause
 	// other modifications to the host when devices are added.
-	revert.Add(func() { d.Delete() })
+	revert.Add(func() { d.Delete(true) })
 
 	// Get the architecture name.
 	archName, err := osarch.ArchitectureName(d.architecture)
@@ -502,6 +502,9 @@ func (d *qemu) onStop(target string) error {
 		}
 	}
 
+	// Reset timeout to 30s.
+	op.Reset()
+
 	// Cleanup.
 	d.cleanupDevices()
 	os.Remove(d.pidFilePath())
@@ -531,6 +534,9 @@ func (d *qemu) onStop(target string) error {
 	}
 
 	if target == "reboot" {
+		// Reset timeout to 30s.
+		op.Reset()
+
 		err = d.Start(false)
 		if err != nil {
 			op.Done(err)
@@ -540,8 +546,11 @@ func (d *qemu) onStop(target string) error {
 		d.state.Events.SendLifecycle(d.project, "virtual-machine-restarted",
 			fmt.Sprintf("/1.0/virtual-machines/%s", d.name), nil)
 	} else if d.ephemeral {
+		// Reset timeout to 30s.
+		op.Reset()
+
 		// Destroy ephemeral virtual machines
-		err = d.Delete()
+		err = d.Delete(true)
 		if err != nil {
 			op.Done(err)
 			return err
@@ -559,6 +568,11 @@ func (d *qemu) onStop(target string) error {
 
 // Shutdown shuts the instance down.
 func (d *qemu) Shutdown(timeout time.Duration) error {
+	// Must be run prior to creating the operation lock.
+	if !d.IsRunning() {
+		return fmt.Errorf("The instance is already stopped")
+	}
+
 	// Setup a new operation
 	exists, op, err := operationlock.CreateWaitGet(d.id, "stop", []string{"restart"}, true, false)
 	if err != nil {
@@ -567,12 +581,6 @@ func (d *qemu) Shutdown(timeout time.Duration) error {
 	if exists {
 		// An existing matching operation has now succeeded, return.
 		return nil
-	}
-
-	if !d.IsRunning() {
-		err = fmt.Errorf("The instance is already stopped")
-		op.Done(err)
-		return err
 	}
 
 	// Connect to the monitor.
@@ -656,6 +664,11 @@ func (d *qemu) ovmfPath() string {
 
 // Start starts the instance.
 func (d *qemu) Start(stateful bool) error {
+	// Must be run prior to creating the operation lock.
+	if d.IsRunning() {
+		return fmt.Errorf("The instance is already running")
+	}
+
 	// Setup a new operation
 	exists, op, err := operationlock.CreateWaitGet(d.id, "start", []string{"restart"}, false, false)
 	if err != nil {
@@ -672,11 +685,6 @@ func (d *qemu) Start(stateful bool) error {
 	if err != nil {
 		op.Done(err)
 		return err
-	}
-
-	if d.IsRunning() {
-		op.Done(err)
-		return fmt.Errorf("The instance is already running")
 	}
 
 	revert := revert.New()
@@ -768,7 +776,7 @@ func (d *qemu) Start(stateful bool) error {
 		}
 
 		// Wait for socket file to exist
-		for i := 0; i < 20; i++ {
+		for i := 0; i < 200; i++ {
 			if shared.PathExists(sockPath) {
 				break
 			}
@@ -777,7 +785,7 @@ func (d *qemu) Start(stateful bool) error {
 		}
 
 		if !shared.PathExists(sockPath) {
-			err = fmt.Errorf("virtiofsd failed to bind socket within 1s")
+			err = fmt.Errorf("virtiofsd failed to bind socket within 10s")
 			op.Done(err)
 			return err
 		}
@@ -997,6 +1005,9 @@ func (d *qemu) Start(stateful bool) error {
 		files = append(files, f)
 	}
 
+	// Reset timeout to 30s.
+	op.Reset()
+
 	err = p.StartWithFiles(files)
 	if err != nil {
 		op.Done(err)
@@ -1077,6 +1088,9 @@ func (d *qemu) Start(stateful bool) error {
 			}
 		}
 	}
+
+	// Reset timeout to 30s.
+	op.Reset()
 
 	// Start the VM.
 	err = monitor.Start()
@@ -2509,6 +2523,11 @@ func (d *qemu) pid() (int, error) {
 
 // Stop the VM.
 func (d *qemu) Stop(stateful bool) error {
+	// Must be run prior to creating the operation lock.
+	if !d.IsRunning() {
+		return fmt.Errorf("The instance is already stopped")
+	}
+
 	// Setup a new operation.
 	exists, op, err := operationlock.CreateWaitGet(d.id, "stop", []string{"restart"}, false, true)
 	if err != nil {
@@ -2517,13 +2536,6 @@ func (d *qemu) Stop(stateful bool) error {
 	if exists {
 		// An existing matching operation has now succeeded, return.
 		return nil
-	}
-
-	// Check that we're not already stopped.
-	if !d.IsRunning() {
-		err = fmt.Errorf("The instance is already stopped")
-		op.Done(err)
-		return err
 	}
 
 	// Check that no stateful stop was requested.
@@ -3511,7 +3523,7 @@ func (d *qemu) init() error {
 }
 
 // Delete the instance.
-func (d *qemu) Delete() error {
+func (d *qemu) Delete(force bool) error {
 	ctxMap := log.Ctx{
 		"project":   d.project,
 		"name":      d.name,
@@ -3522,7 +3534,7 @@ func (d *qemu) Delete() error {
 	logger.Info("Deleting instance", ctxMap)
 
 	// Check if instance is delete protected.
-	if shared.IsTrue(d.expandedConfig["security.protection.delete"]) && !d.IsSnapshot() {
+	if !force && shared.IsTrue(d.expandedConfig["security.protection.delete"]) && !d.IsSnapshot() {
 		return fmt.Errorf("Instance is protected")
 	}
 
@@ -4454,6 +4466,18 @@ func (d *qemu) InitPID() int {
 }
 
 func (d *qemu) statusCode() api.StatusCode {
+	// Shortcut to avoid spamming QMP during ongoing operations.
+	op := operationlock.Get(d.id)
+	if op != nil {
+		if op.Action() == "start" {
+			return api.Stopped
+		}
+
+		if op.Action() == "stop" {
+			return api.Running
+		}
+	}
+
 	// Connect to the monitor.
 	monitor, err := qmp.Connect(d.monitorPath(), qemuSerialChardevName, d.getMonitorEventHandler())
 	if err != nil {

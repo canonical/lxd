@@ -633,7 +633,8 @@ func DeleteSnapshots(s *state.State, projectName, instanceName string) error {
 			continue
 		}
 
-		if err := snapInst.Delete(); err != nil {
+		err = snapInst.Delete(true)
+		if err != nil {
 			logger.Error("DeleteSnapshots: Failed to delete the snapshot", log.Ctx{"project": projectName, "instance": instanceName, "snapshot": snapName, "err": err})
 		}
 	}

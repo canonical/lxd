@@ -946,7 +946,7 @@ func (c *migrationSink) Do(state *state.State, migrateOp *operations.Operation) 
 
 		// Delete the extra local ones.
 		for _, snap := range deleteSnapshots {
-			err := snap.Delete()
+			err := snap.Delete(true)
 			if err != nil {
 				controller(err)
 				return err
