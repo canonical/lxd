@@ -263,7 +263,7 @@ func createFromMigration(d *Daemon, project string, req *api.InstancesPost) resp
 	revert := true
 	defer func() {
 		if revert && !req.Source.Refresh && inst != nil {
-			inst.Delete()
+			inst.Delete(true)
 		}
 	}()
 
@@ -330,7 +330,7 @@ func createFromMigration(d *Daemon, project string, req *api.InstancesPost) resp
 		opRevert := true
 		defer func() {
 			if opRevert && !req.Source.Refresh && inst != nil {
-				inst.Delete()
+				inst.Delete(true)
 			}
 		}()
 
@@ -693,7 +693,7 @@ func createFromBackup(d *Daemon, projectName string, data io.Reader, pool string
 		}
 
 		// Clean up created instance if the post hook fails below.
-		runRevert.Add(func() { inst.Delete() })
+		runRevert.Add(func() { inst.Delete(true) })
 
 		// Run the storage post hook to perform any final actions now that the instance has been created
 		// in the database (this normally includes unmounting volumes that were mounted).
