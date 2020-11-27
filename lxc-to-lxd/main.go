@@ -1,5 +1,47 @@
 package main
 
+/*
+#define _GNU_SOURCE
+#include <errno.h>
+#include <fcntl.h>
+#include <sched.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <sys/stat.h>
+#include <sys/types.h>
+#include <unistd.h>
+
+__attribute__((constructor)) void init(void) {
+	int ret;
+	int mntns_fd;
+
+	if (getenv("SNAP") == NULL)
+		return;
+
+	mntns_fd = open("/proc/1/ns/mnt", O_RDONLY | O_CLOEXEC);
+	if (ret < 0) {
+		fprintf(stderr, "Failed open mntns: %s\n", strerror(errno));
+		_exit(EXIT_FAILURE);
+	}
+
+	ret = setns(mntns_fd, CLONE_NEWNS);
+	close(mntns_fd);
+	if (ret < 0) {
+		fprintf(stderr, "Failed setns to outside mount namespace: %s\n", strerror(errno));
+		_exit(EXIT_FAILURE);
+	}
+
+	ret = chdir("/");
+	if (ret < 0) {
+		fprintf(stderr, "Failed chdir /: %s\n", strerror(errno));
+		_exit(EXIT_FAILURE);
+	}
+
+	// We're done, jump back to Go
+}
+*/
+import "C"
 import (
 	"os"
 
