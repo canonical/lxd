@@ -502,6 +502,9 @@ func (d *qemu) onStop(target string) error {
 		}
 	}
 
+	// Reset timeout to 30s.
+	op.Reset()
+
 	// Cleanup.
 	d.cleanupDevices()
 	os.Remove(d.pidFilePath())
@@ -531,6 +534,9 @@ func (d *qemu) onStop(target string) error {
 	}
 
 	if target == "reboot" {
+		// Reset timeout to 30s.
+		op.Reset()
+
 		err = d.Start(false)
 		if err != nil {
 			op.Done(err)
@@ -540,6 +546,9 @@ func (d *qemu) onStop(target string) error {
 		d.state.Events.SendLifecycle(d.project, "virtual-machine-restarted",
 			fmt.Sprintf("/1.0/virtual-machines/%s", d.name), nil)
 	} else if d.ephemeral {
+		// Reset timeout to 30s.
+		op.Reset()
+
 		// Destroy ephemeral virtual machines
 		err = d.Delete(true)
 		if err != nil {
@@ -996,6 +1005,9 @@ func (d *qemu) Start(stateful bool) error {
 		files = append(files, f)
 	}
 
+	// Reset timeout to 30s.
+	op.Reset()
+
 	err = p.StartWithFiles(files)
 	if err != nil {
 		op.Done(err)
@@ -1076,6 +1088,9 @@ func (d *qemu) Start(stateful bool) error {
 			}
 		}
 	}
+
+	// Reset timeout to 30s.
+	op.Reset()
 
 	// Start the VM.
 	err = monitor.Start()
