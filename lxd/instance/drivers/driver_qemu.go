@@ -776,7 +776,7 @@ func (d *qemu) Start(stateful bool) error {
 		}
 
 		// Wait for socket file to exist
-		for i := 0; i < 20; i++ {
+		for i := 0; i < 200; i++ {
 			if shared.PathExists(sockPath) {
 				break
 			}
@@ -785,7 +785,7 @@ func (d *qemu) Start(stateful bool) error {
 		}
 
 		if !shared.PathExists(sockPath) {
-			err = fmt.Errorf("virtiofsd failed to bind socket within 1s")
+			err = fmt.Errorf("virtiofsd failed to bind socket within 10s")
 			op.Done(err)
 			return err
 		}
