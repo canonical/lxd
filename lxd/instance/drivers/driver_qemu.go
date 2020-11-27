@@ -559,6 +559,11 @@ func (d *qemu) onStop(target string) error {
 
 // Shutdown shuts the instance down.
 func (d *qemu) Shutdown(timeout time.Duration) error {
+	// Must be run prior to creating the operation lock.
+	if !d.IsRunning() {
+		return fmt.Errorf("The instance is already stopped")
+	}
+
 	// Setup a new operation
 	exists, op, err := operationlock.CreateWaitGet(d.id, "stop", []string{"restart"}, true, false)
 	if err != nil {
@@ -567,12 +572,6 @@ func (d *qemu) Shutdown(timeout time.Duration) error {
 	if exists {
 		// An existing matching operation has now succeeded, return.
 		return nil
-	}
-
-	if !d.IsRunning() {
-		err = fmt.Errorf("The instance is already stopped")
-		op.Done(err)
-		return err
 	}
 
 	// Connect to the monitor.
@@ -656,6 +655,11 @@ func (d *qemu) ovmfPath() string {
 
 // Start starts the instance.
 func (d *qemu) Start(stateful bool) error {
+	// Must be run prior to creating the operation lock.
+	if d.IsRunning() {
+		return fmt.Errorf("The instance is already running")
+	}
+
 	// Setup a new operation
 	exists, op, err := operationlock.CreateWaitGet(d.id, "start", []string{"restart"}, false, false)
 	if err != nil {
@@ -672,11 +676,6 @@ func (d *qemu) Start(stateful bool) error {
 	if err != nil {
 		op.Done(err)
 		return err
-	}
-
-	if d.IsRunning() {
-		op.Done(err)
-		return fmt.Errorf("The instance is already running")
 	}
 
 	revert := revert.New()
@@ -2476,6 +2475,11 @@ func (d *qemu) pid() (int, error) {
 
 // Stop the VM.
 func (d *qemu) Stop(stateful bool) error {
+	// Must be run prior to creating the operation lock.
+	if !d.IsRunning() {
+		return fmt.Errorf("The instance is already stopped")
+	}
+
 	// Setup a new operation.
 	exists, op, err := operationlock.CreateWaitGet(d.id, "stop", []string{"restart"}, false, true)
 	if err != nil {
@@ -2484,13 +2488,6 @@ func (d *qemu) Stop(stateful bool) error {
 	if exists {
 		// An existing matching operation has now succeeded, return.
 		return nil
-	}
-
-	// Check that we're not already stopped.
-	if !d.IsRunning() {
-		err = fmt.Errorf("The instance is already stopped")
-		op.Done(err)
-		return err
 	}
 
 	// Check that no stateful stop was requested.
@@ -4421,6 +4418,18 @@ func (d *qemu) InitPID() int {
 }
 
 func (d *qemu) statusCode() api.StatusCode {
+	// Shortcut to avoid spamming QMP during ongoing operations.
+	op := operationlock.Get(d.id)
+	if op != nil {
+		if op.Action() == "start" {
+			return api.Stopped
+		}
+
+		if op.Action() == "stop" {
+			return api.Running
+		}
+	}
+
 	// Connect to the monitor.
 	monitor, err := qmp.Connect(d.monitorPath(), qemuSerialChardevName, d.getMonitorEventHandler())
 	if err != nil {
