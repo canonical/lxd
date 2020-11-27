@@ -604,14 +604,13 @@ func (d *disk) startVM() (*deviceConfig.RunConfig, error) {
 					revert.Add(func() { proc.Stop() })
 
 					pidPath := filepath.Join(d.inst.DevicesPath(), fmt.Sprintf("virtio-fs.%s.pid", d.name))
-
 					err = proc.Save(pidPath)
 					if err != nil {
 						return nil, errors.Wrapf(err, "Failed to save virtiofsd state for device %q", d.name)
 					}
 
 					// Wait for socket file to exist
-					for i := 0; i < 20; i++ {
+					for i := 0; i < 200; i++ {
 						if shared.PathExists(sockPath) {
 							break
 						}
@@ -620,7 +619,7 @@ func (d *disk) startVM() (*deviceConfig.RunConfig, error) {
 					}
 
 					if !shared.PathExists(sockPath) {
-						return nil, fmt.Errorf("virtiofsd failed to bind socket within 2s")
+						return nil, fmt.Errorf("virtiofsd failed to bind socket within 10s")
 					}
 				} else {
 					d.logger.Warn("Unable to use virtio-fs for device, using 9p as a fallback: virtiofsd missing", log.Ctx{"device": d.name})
