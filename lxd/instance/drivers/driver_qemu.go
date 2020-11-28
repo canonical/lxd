@@ -4977,3 +4977,35 @@ func (d *qemu) writeInstanceData() error {
 
 	return nil
 }
+
+// Info returns "qemu" and the currently loaded qemu version.
+func (d *qemu) Info() instance.Info {
+	data := instance.Info{
+		Name: "qemu",
+	}
+
+	hostArch, err := osarch.ArchitectureGetLocalID()
+	if err != nil {
+		return data
+	}
+
+	qemuPath, _, err := d.qemuArchConfig(hostArch)
+	if err != nil {
+		return data
+	}
+
+	out, err := exec.Command(qemuPath, "--version").Output()
+	if err != nil {
+		return data
+	}
+
+	qemuOutput := strings.Fields(string(out))
+	if len(qemuOutput) < 4 {
+		data.Version = "unknown"
+		return data
+	}
+
+	qemuVersion := strings.Fields(string(out))[3]
+	data.Version = qemuVersion
+	return data
+}
