@@ -8,6 +8,8 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/pkg/errors"
@@ -19,6 +21,7 @@ import (
 	"github.com/lxc/lxd/lxd/db"
 	deviceConfig "github.com/lxc/lxd/lxd/device/config"
 	"github.com/lxc/lxd/lxd/instance"
+	"github.com/lxc/lxd/lxd/instance/drivers"
 	"github.com/lxc/lxd/lxd/instance/instancetype"
 	"github.com/lxc/lxd/lxd/operations"
 	"github.com/lxc/lxd/lxd/project"
@@ -926,4 +929,39 @@ func containerDetermineNextSnapshotName(d *Daemon, c instance.Instance, defaultP
 	}
 
 	return pattern, nil
+}
+
+var instanceDriversCacheVal atomic.Value
+var instanceDriversCacheLock sync.Mutex
+
+func readInstanceDriversCache() map[string]string {
+	drivers := instanceDriversCacheVal.Load()
+	if drivers == nil {
+		createInstanceDriversCache()
+		drivers = instanceDriversCacheVal.Load()
+	}
+
+	return drivers.(map[string]string)
+}
+
+func createInstanceDriversCache() {
+	// Create the list of instance drivers in use on this LXD instance
+	// namely LXC and QEMU. Given that LXC and QEMU cannot update while
+	// the LXD instance is running, only one cache is ever needed.
+
+	data := map[string]string{}
+
+	info := drivers.SupportedInstanceDrivers()
+	for _, entry := range info {
+		if entry.Version != "" {
+			data[entry.Name] = entry.Version
+		}
+	}
+
+	// Store the value in the cache
+	instanceDriversCacheLock.Lock()
+	instanceDriversCacheVal.Store(data)
+	instanceDriversCacheLock.Unlock()
+
+	return
 }
