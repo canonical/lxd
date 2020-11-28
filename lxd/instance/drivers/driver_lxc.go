@@ -155,6 +155,7 @@ func lxcCreate(s *state.State, args db.InstanceArgs) (instance.Instance, error) 
 			lastUsedDate: args.LastUsedDate,
 			localConfig:  args.Config,
 			localDevices: args.Devices,
+			logger:       logging.AddContext(logger.Log, log.Ctx{"instanceType": args.Type.String, "instance": args.Name, "project": args.Project}),
 			name:         args.Name,
 			node:         args.Node,
 			profiles:     args.Profiles,
@@ -184,13 +185,7 @@ func lxcCreate(s *state.State, args db.InstanceArgs) (instance.Instance, error) 
 		d.lastUsedDate = time.Time{}
 	}
 
-	ctxMap := log.Ctx{
-		"project":   args.Project,
-		"name":      d.name,
-		"ephemeral": d.ephemeral,
-	}
-
-	logger.Info("Creating container", ctxMap)
+	d.logger.Info("Creating container", log.Ctx{"ephemeral": d.ephemeral})
 
 	// Load the config.
 	err := d.init()
@@ -327,7 +322,7 @@ func lxcCreate(s *state.State, args db.InstanceArgs) (instance.Instance, error) 
 		}
 	}
 
-	logger.Info("Created container", ctxMap)
+	d.logger.Info("Created container", log.Ctx{"ephemeral": d.ephemeral})
 	d.lifecycle("created", nil)
 
 	revert.Success()
@@ -380,6 +375,7 @@ func lxcInstantiate(s *state.State, args db.InstanceArgs, expandedDevices device
 			lastUsedDate: args.LastUsedDate,
 			localConfig:  args.Config,
 			localDevices: args.Devices,
+			logger:       logging.AddContext(logger.Log, log.Ctx{"instanceType": args.Type.String, "instance": args.Name, "project": args.Project}),
 			name:         args.Name,
 			node:         args.Node,
 			profiles:     args.Profiles,
@@ -1289,14 +1285,14 @@ func (d *lxc) RegisterDevices() {
 		}
 
 		if err != nil {
-			logger.Error("Failed to load device to register", log.Ctx{"err": err, "instance": d.Name(), "device": entry.Name})
+			d.logger.Error("Failed to load device to register", log.Ctx{"err": err, "device": entry.Name})
 			continue
 		}
 
 		// Check whether device wants to register for any events.
 		err = dev.Register()
 		if err != nil {
-			logger.Error("Failed to register device", log.Ctx{"err": err, "instance": d.Name(), "device": entry.Name})
+			d.logger.Error("Failed to register device", log.Ctx{"err": err, "device": entry.Name})
 			continue
 		}
 	}
@@ -1340,7 +1336,7 @@ func (d *lxc) deviceAdd(deviceName string, rawConfig deviceConfig.Device, instan
 
 // deviceStart loads a new device and calls its Start() function.
 func (d *lxc) deviceStart(deviceName string, rawConfig deviceConfig.Device, instanceRunning bool) (*deviceConfig.RunConfig, error) {
-	logger := logging.AddContext(logger.Log, log.Ctx{"device": deviceName, "type": rawConfig["type"], "project": d.Project(), "instance": d.Name()})
+	logger := logging.AddContext(d.logger, log.Ctx{"device": deviceName, "type": rawConfig["type"]})
 	logger.Debug("Starting device")
 
 	dev, configCopy, err := d.deviceLoad(deviceName, rawConfig)
@@ -1426,7 +1422,7 @@ func (d *lxc) deviceStaticShiftMounts(mounts []deviceConfig.MountEntryItem) erro
 			err := idmapSet.ShiftFile(mount.DevPath)
 			if err != nil {
 				// uidshift failing is weird, but not a big problem. Log and proceed.
-				logger.Debugf("Failed to uidshift device %s: %s\n", mount.DevPath, err)
+				d.logger.Debug("Failed to uidshift device", log.Ctx{"mountDevPath": mount.DevPath, "err": err})
 			}
 		}
 	}
@@ -1505,7 +1501,7 @@ func (d *lxc) deviceUpdate(deviceName string, rawConfig deviceConfig.Device, old
 // Accepts a stopHookNetnsPath argument which is required when run from the onStopNS hook before the
 // container's network namespace is unmounted (which is required for NIC device cleanup).
 func (d *lxc) deviceStop(deviceName string, rawConfig deviceConfig.Device, instanceRunning bool, stopHookNetnsPath string) error {
-	logger := logging.AddContext(logger.Log, log.Ctx{"device": deviceName, "type": rawConfig["type"], "project": d.Project(), "instance": d.Name()})
+	logger := logging.AddContext(d.logger, log.Ctx{"device": deviceName, "type": rawConfig["type"]})
 	logger.Debug("Stopping device")
 
 	dev, configCopy, err := d.deviceLoad(deviceName, rawConfig)
@@ -1631,7 +1627,7 @@ func (d *lxc) deviceDetachNIC(configCopy map[string]string, netIF []deviceConfig
 			if err != nil {
 				return errors.Wrapf(err, "Failed to detach interface: %q to %q", configCopy["name"], devName)
 			}
-			logger.Debugf("Detached NIC device interface: %q to %q", configCopy["name"], devName)
+			d.logger.Debug("Detached NIC device interface", log.Ctx{"name": configCopy["name"], "devName": devName})
 		}
 	}
 
@@ -1677,7 +1673,7 @@ func (d *lxc) deviceHandleMounts(mounts []deviceConfig.MountEntryItem) error {
 					// Only warn here and don't fail as removing a directory
 					// mount may fail if there was already files inside
 					// directory before it was mouted over preventing delete.
-					logger.Warnf("Could not remove the device path inside container: %s", err)
+					d.logger.Warn("Could not remove the device path inside container", log.Ctx{"err": err})
 				}
 			}
 		}
@@ -1688,7 +1684,7 @@ func (d *lxc) deviceHandleMounts(mounts []deviceConfig.MountEntryItem) error {
 
 // deviceRemove loads a new device and calls its Remove() function.
 func (d *lxc) deviceRemove(deviceName string, rawConfig deviceConfig.Device, instanceRunning bool) error {
-	logger := logging.AddContext(logger.Log, log.Ctx{"device": deviceName, "type": rawConfig["type"], "project": d.Project(), "instance": d.Name()})
+	logger := logging.AddContext(d.logger, log.Ctx{"device": deviceName, "type": rawConfig["type"]})
 
 	dev, _, err := d.deviceLoad(deviceName, rawConfig)
 
@@ -1706,7 +1702,7 @@ func (d *lxc) deviceRemove(deviceName string, rawConfig deviceConfig.Device, ins
 			return fmt.Errorf("Device remove validation failed for %q: %v", deviceName, err)
 		}
 
-		logger.Error("Device remove validation failed for", log.Ctx{"err": err})
+		logger.Error("Device remove validation failed", log.Ctx{"err": err})
 	}
 
 	if instanceRunning && !dev.CanHotPlug() {
@@ -1895,7 +1891,7 @@ func (d *lxc) startCommon() (string, []func() error, error) {
 			return "", nil, fmt.Errorf("Container is protected against filesystem shifting")
 		}
 
-		logger.Debugf("Container idmap changed, remapping")
+		d.logger.Debug("Container idmap changed, remapping")
 		d.updateProgress("Remapping container filesystem")
 
 		storageType, err := d.getStorageType()
@@ -2013,7 +2009,7 @@ func (d *lxc) startCommon() (string, []func() error, error) {
 		revert.Add(func() {
 			err := d.deviceStop(dev.Name, dev.Config, false, "")
 			if err != nil {
-				logger.Errorf("Failed to cleanup device %q: %v", dev.Name, err)
+				d.logger.Error("Failed to cleanup device", log.Ctx{"devName": dev.Name, "err": err})
 			}
 		})
 		if runConf == nil {
@@ -2244,8 +2240,6 @@ func (d *lxc) Start(stateful bool) error {
 	}
 
 	ctxMap = log.Ctx{
-		"project":   d.project,
-		"name":      d.name,
 		"action":    op.Action(),
 		"created":   d.creationDate,
 		"ephemeral": d.ephemeral,
@@ -2253,7 +2247,7 @@ func (d *lxc) Start(stateful bool) error {
 		"stateful":  stateful}
 
 	if op.Action() == "start" {
-		logger.Info("Starting container", ctxMap)
+		d.logger.Info("Starting container", ctxMap)
 	}
 
 	// If stateful, restore now
@@ -2300,7 +2294,7 @@ func (d *lxc) Start(stateful bool) error {
 		}
 
 		if op.Action() == "start" {
-			logger.Info("Started container", ctxMap)
+			d.logger.Info("Started container", ctxMap)
 			d.lifecycle("started", nil)
 		}
 		return nil
@@ -2357,7 +2351,7 @@ func (d *lxc) Start(stateful bool) error {
 			}
 		}
 
-		logger.Error("Failed starting container", ctxMap)
+		d.logger.Error("Failed starting container", ctxMap)
 
 		// Return the actual error
 		op.Done(err)
@@ -2375,7 +2369,7 @@ func (d *lxc) Start(stateful bool) error {
 	}
 
 	if op.Action() == "start" {
-		logger.Info("Started container", ctxMap)
+		d.logger.Info("Started container", ctxMap)
 		d.lifecycle("started", nil)
 	}
 
@@ -2440,7 +2434,7 @@ func (d *lxc) onStart(_ map[string]string) error {
 			d.fromHook = false
 			err := d.setNetworkPriority()
 			if err != nil {
-				logger.Error("Failed to apply network priority", log.Ctx{"container": d.name, "err": err})
+				d.logger.Error("Failed to apply network priority", log.Ctx{"err": err})
 			}
 		}(d)
 	}
@@ -2490,8 +2484,6 @@ func (d *lxc) Stop(stateful bool) error {
 	}
 
 	ctxMap = log.Ctx{
-		"project":   d.project,
-		"name":      d.name,
 		"action":    op.Action(),
 		"created":   d.creationDate,
 		"ephemeral": d.ephemeral,
@@ -2499,7 +2491,7 @@ func (d *lxc) Stop(stateful bool) error {
 		"stateful":  stateful}
 
 	if op.Action() == "stop" {
-		logger.Info("Stopping container", ctxMap)
+		d.logger.Info("Stopping container", ctxMap)
 	}
 
 	// Handle stateful stop
@@ -2539,11 +2531,11 @@ func (d *lxc) Stop(stateful bool) error {
 		d.stateful = true
 		err = d.state.Cluster.UpdateInstanceStatefulFlag(d.id, true)
 		if err != nil {
-			logger.Error("Failed stopping container", ctxMap)
+			d.logger.Error("Failed stopping container", ctxMap)
 			return err
 		}
 
-		logger.Info("Stopped container", ctxMap)
+		d.logger.Info("Stopped container", ctxMap)
 		d.lifecycle("stopped", nil)
 
 		return nil
@@ -2604,7 +2596,7 @@ func (d *lxc) Stop(stateful bool) error {
 	}
 
 	if op.Action() == "stop" {
-		logger.Info("Stopped container", ctxMap)
+		d.logger.Info("Stopped container", ctxMap)
 		d.lifecycle("stopped", nil)
 	}
 
@@ -2633,8 +2625,6 @@ func (d *lxc) Shutdown(timeout time.Duration) error {
 	}
 
 	ctxMap = log.Ctx{
-		"project":   d.project,
-		"name":      d.name,
 		"action":    "shutdown",
 		"created":   d.creationDate,
 		"ephemeral": d.ephemeral,
@@ -2642,7 +2632,7 @@ func (d *lxc) Shutdown(timeout time.Duration) error {
 		"timeout":   timeout}
 
 	if op.Action() == "stop" {
-		logger.Info("Shutting down container", ctxMap)
+		d.logger.Info("Shutting down container", ctxMap)
 	}
 
 	// Load the go-lxc struct
@@ -2672,7 +2662,7 @@ func (d *lxc) Shutdown(timeout time.Duration) error {
 	}
 
 	if op.Action() == "stop" {
-		logger.Info("Shut down container", ctxMap)
+		d.logger.Info("Shut down container", ctxMap)
 		d.lifecycle("shutdown", nil)
 	}
 
@@ -2682,22 +2672,20 @@ func (d *lxc) Shutdown(timeout time.Duration) error {
 // Restart restart the instance.
 func (d *lxc) Restart(timeout time.Duration) error {
 	ctxMap := log.Ctx{
-		"project":   d.project,
-		"name":      d.name,
 		"action":    "shutdown",
 		"created":   d.creationDate,
 		"ephemeral": d.ephemeral,
 		"used":      d.lastUsedDate,
 		"timeout":   timeout}
 
-	logger.Info("Restarting container", ctxMap)
+	d.logger.Info("Restarting container", ctxMap)
 
-	err := d.common.restart(d, timeout)
+	err := d.restart(d, timeout)
 	if err != nil {
 		return err
 	}
 
-	logger.Info("Restarted container", ctxMap)
+	d.logger.Info("Restarted container", ctxMap)
 	d.lifecycle("restarted", nil)
 
 	return nil
@@ -2711,7 +2699,7 @@ func (d *lxc) onStopNS(args map[string]string) error {
 
 	// Validate target.
 	if !shared.StringInSlice(target, []string{"stop", "reboot"}) {
-		logger.Error("Container sent invalid target to OnStopNS", log.Ctx{"container": d.Name(), "target": target})
+		d.logger.Error("Container sent invalid target to OnStopNS", log.Ctx{"target": target})
 		return fmt.Errorf("Invalid stop target %q", target)
 	}
 
@@ -2729,7 +2717,7 @@ func (d *lxc) onStop(args map[string]string) error {
 
 	// Validate target
 	if !shared.StringInSlice(target, []string{"stop", "reboot"}) {
-		logger.Error("Container sent invalid target to OnStop", log.Ctx{"container": d.Name(), "target": target})
+		d.logger.Error("Container sent invalid target to OnStop", log.Ctx{"target": target})
 		return fmt.Errorf("Invalid stop target: %s", target)
 	}
 
@@ -2751,8 +2739,6 @@ func (d *lxc) onStop(args map[string]string) error {
 
 	// Log user actions
 	ctxMap := log.Ctx{
-		"project":   d.project,
-		"name":      d.name,
 		"action":    target,
 		"created":   d.creationDate,
 		"ephemeral": d.ephemeral,
@@ -2760,7 +2746,7 @@ func (d *lxc) onStop(args map[string]string) error {
 		"stateful":  false}
 
 	if op == nil {
-		logger.Debug(fmt.Sprintf("Container initiated %s", target), ctxMap)
+		d.logger.Debug("Container initiated", ctxMap)
 	}
 
 	// Record power state
@@ -2780,7 +2766,7 @@ func (d *lxc) onStop(args map[string]string) error {
 
 		// Wait for other post-stop actions to be done and the container actually stopping.
 		d.IsRunning()
-		logger.Debug("Container stopped, cleaning up", log.Ctx{"container": d.Name()})
+		d.logger.Debug("Container stopped, cleaning up")
 
 		// Clean up devices.
 		d.cleanupDevices(false, "")
@@ -2828,7 +2814,7 @@ func (d *lxc) onStop(args map[string]string) error {
 
 		// Log and emit lifecycle if not user triggered
 		if op == nil {
-			logger.Info("Shut down container", ctxMap)
+			d.logger.Info("Shut down container", ctxMap)
 			d.lifecycle("shutdown", nil)
 		}
 
@@ -2877,7 +2863,7 @@ func (d *lxc) cleanupDevices(instanceRunning bool, stopHookNetnsPath string) {
 		if err == device.ErrUnsupportedDevType {
 			continue
 		} else if err != nil {
-			logger.Errorf("Failed to stop device %q: %v", dev.Name, err)
+			d.logger.Error("Failed to stop device", log.Ctx{"devName": dev.Name, "err": err})
 		}
 	}
 }
@@ -2885,8 +2871,6 @@ func (d *lxc) cleanupDevices(instanceRunning bool, stopHookNetnsPath string) {
 // Freeze functions.
 func (d *lxc) Freeze() error {
 	ctxMap := log.Ctx{
-		"project":   d.project,
-		"name":      d.name,
 		"created":   d.creationDate,
 		"ephemeral": d.ephemeral,
 		"used":      d.lastUsedDate}
@@ -2903,7 +2887,7 @@ func (d *lxc) Freeze() error {
 
 	// Check if the CGroup is available
 	if !d.state.OS.CGInfo.Supports(cgroup.Freezer, cg) {
-		logger.Info("Unable to freeze container (lack of kernel support)", ctxMap)
+		d.logger.Info("Unable to freeze container (lack of kernel support)", ctxMap)
 		return nil
 	}
 
@@ -2912,24 +2896,24 @@ func (d *lxc) Freeze() error {
 		return fmt.Errorf("The container is already frozen")
 	}
 
-	logger.Info("Freezing container", ctxMap)
+	d.logger.Info("Freezing container", ctxMap)
 
 	// Load the go-lxc struct
 	err = d.initLXC(false)
 	if err != nil {
 		ctxMap["err"] = err
-		logger.Error("Failed freezing container", ctxMap)
+		d.logger.Error("Failed freezing container", ctxMap)
 		return err
 	}
 
 	err = d.c.Freeze()
 	if err != nil {
 		ctxMap["err"] = err
-		logger.Error("Failed freezing container", ctxMap)
+		d.logger.Error("Failed freezing container", ctxMap)
 		return err
 	}
 
-	logger.Info("Froze container", ctxMap)
+	d.logger.Info("Froze container", ctxMap)
 	d.lifecycle("paused", nil)
 
 	return err
@@ -2938,8 +2922,6 @@ func (d *lxc) Freeze() error {
 // Unfreeze unfreezes the instance.
 func (d *lxc) Unfreeze() error {
 	ctxMap := log.Ctx{
-		"project":   d.project,
-		"name":      d.name,
 		"created":   d.creationDate,
 		"ephemeral": d.ephemeral,
 		"used":      d.lastUsedDate}
@@ -2956,7 +2938,7 @@ func (d *lxc) Unfreeze() error {
 
 	// Check if the CGroup is available
 	if !d.state.OS.CGInfo.Supports(cgroup.Freezer, cg) {
-		logger.Info("Unable to unfreeze container (lack of kernel support)", ctxMap)
+		d.logger.Info("Unable to unfreeze container (lack of kernel support)", ctxMap)
 		return nil
 	}
 
@@ -2965,21 +2947,21 @@ func (d *lxc) Unfreeze() error {
 		return fmt.Errorf("The container is already running")
 	}
 
-	logger.Info("Unfreezing container", ctxMap)
+	d.logger.Info("Unfreezing container", ctxMap)
 
 	// Load the go-lxc struct
 	err = d.initLXC(false)
 	if err != nil {
-		logger.Error("Failed unfreezing container", ctxMap)
+		d.logger.Error("Failed unfreezing container", ctxMap)
 		return err
 	}
 
 	err = d.c.Unfreeze()
 	if err != nil {
-		logger.Error("Failed unfreezing container", ctxMap)
+		d.logger.Error("Failed unfreezing container", ctxMap)
 	}
 
-	logger.Info("Unfroze container", ctxMap)
+	d.logger.Info("Unfroze container", ctxMap)
 	d.lifecycle("resumed", nil)
 
 	return err
@@ -3234,14 +3216,12 @@ func (d *lxc) Restore(sourceContainer instance.Instance, stateful bool) error {
 	}
 
 	ctxMap = log.Ctx{
-		"project":   d.project,
-		"name":      d.name,
 		"created":   d.creationDate,
 		"ephemeral": d.ephemeral,
 		"used":      d.lastUsedDate,
 		"source":    sourceContainer.Name()}
 
-	logger.Info("Restoring container", ctxMap)
+	d.logger.Info("Restoring container", ctxMap)
 
 	// Initialize storage interface for the container and mount the rootfs for criu state check.
 	pool, err := storagePools.GetPoolByInstance(d.state, d)
@@ -3312,7 +3292,7 @@ func (d *lxc) Restore(sourceContainer instance.Instance, stateful bool) error {
 			return err
 		}
 
-		logger.Debug("Performing stateful restore", ctxMap)
+		d.logger.Debug("Performing stateful restore", ctxMap)
 		d.stateful = true
 
 		criuMigrationArgs := instance.CriuMigrationArgs{
@@ -3344,8 +3324,8 @@ func (d *lxc) Restore(sourceContainer instance.Instance, stateful bool) error {
 			return err
 		}
 
-		logger.Debug("Performed stateful restore", ctxMap)
-		logger.Info("Restored container", ctxMap)
+		d.logger.Debug("Performed stateful restore", ctxMap)
+		d.logger.Info("Restored container", ctxMap)
 		return nil
 	}
 
@@ -3359,7 +3339,7 @@ func (d *lxc) Restore(sourceContainer instance.Instance, stateful bool) error {
 	}
 
 	d.lifecycle("restored", map[string]interface{}{"snapshot": sourceContainer.Name()})
-	logger.Info("Restored container", ctxMap)
+	d.logger.Info("Restored container", ctxMap)
 	return nil
 }
 
@@ -3382,17 +3362,15 @@ func (d *lxc) cleanup() {
 // Delete deletes the instance.
 func (d *lxc) Delete(force bool) error {
 	ctxMap := log.Ctx{
-		"project":   d.project,
-		"name":      d.name,
 		"created":   d.creationDate,
 		"ephemeral": d.ephemeral,
 		"used":      d.lastUsedDate}
 
-	logger.Info("Deleting container", ctxMap)
+	d.logger.Info("Deleting container", ctxMap)
 
 	if !force && shared.IsTrue(d.expandedConfig["security.protection.delete"]) && !d.IsSnapshot() {
 		err := fmt.Errorf("Container is protected")
-		logger.Warn("Failed to delete container", log.Ctx{"name": d.Name(), "err": err})
+		d.logger.Warn("Failed to delete container", log.Ctx{"err": err})
 		return err
 	}
 
@@ -3425,7 +3403,7 @@ func (d *lxc) Delete(force bool) error {
 			// calling its Delete function.
 			err := instance.DeleteSnapshots(d.state, d.Project(), d.Name())
 			if err != nil {
-				logger.Error("Failed to delete instance snapshots", log.Ctx{"project": d.Project(), "instance": d.Name(), "err": err})
+				d.logger.Error("Failed to delete instance snapshots", log.Ctx{"err": err})
 				return err
 			}
 
@@ -3457,7 +3435,7 @@ func (d *lxc) Delete(force bool) error {
 		// Delete the MAAS entry.
 		err = d.maasDelete()
 		if err != nil {
-			logger.Error("Failed deleting container MAAS record", log.Ctx{"name": d.Name(), "err": err})
+			d.logger.Error("Failed deleting container MAAS record", log.Ctx{"err": err})
 			return err
 		}
 
@@ -3475,11 +3453,11 @@ func (d *lxc) Delete(force bool) error {
 
 	// Remove the database record of the instance or snapshot instance.
 	if err := d.state.Cluster.DeleteInstance(d.project, d.Name()); err != nil {
-		logger.Error("Failed deleting container entry", log.Ctx{"name": d.Name(), "err": err})
+		d.logger.Error("Failed deleting container entry", log.Ctx{"err": err})
 		return err
 	}
 
-	logger.Info("Deleted container", ctxMap)
+	d.logger.Info("Deleted container", ctxMap)
 	d.lifecycle("deleted", nil)
 
 	return nil
@@ -3489,14 +3467,12 @@ func (d *lxc) Delete(force bool) error {
 func (d *lxc) Rename(newName string) error {
 	oldName := d.Name()
 	ctxMap := log.Ctx{
-		"project":   d.project,
-		"name":      d.name,
 		"created":   d.creationDate,
 		"ephemeral": d.ephemeral,
 		"used":      d.lastUsedDate,
 		"newname":   newName}
 
-	logger.Info("Renaming container", ctxMap)
+	d.logger.Info("Renaming container", ctxMap)
 
 	// Sanity checks.
 	err := instance.ValidName(newName, d.IsSnapshot())
@@ -3533,7 +3509,7 @@ func (d *lxc) Rename(newName string) error {
 		// Rename all the instance snapshot database entries.
 		results, err := d.state.Cluster.GetInstanceSnapshotsNames(d.project, oldName)
 		if err != nil {
-			logger.Error("Failed to get container snapshots", ctxMap)
+			d.logger.Error("Failed to get container snapshots", ctxMap)
 			return err
 		}
 
@@ -3545,7 +3521,7 @@ func (d *lxc) Rename(newName string) error {
 				return tx.RenameInstanceSnapshot(d.project, oldName, oldSnapName, baseSnapName)
 			})
 			if err != nil {
-				logger.Error("Failed renaming snapshot", ctxMap)
+				d.logger.Error("Failed renaming snapshot", ctxMap)
 				return err
 			}
 		}
@@ -3562,7 +3538,7 @@ func (d *lxc) Rename(newName string) error {
 		return tx.RenameInstance(d.project, oldName, newName)
 	})
 	if err != nil {
-		logger.Error("Failed renaming container", ctxMap)
+		d.logger.Error("Failed renaming container", ctxMap)
 		return err
 	}
 
@@ -3572,7 +3548,7 @@ func (d *lxc) Rename(newName string) error {
 	if shared.PathExists(d.LogPath()) {
 		err := os.Rename(d.LogPath(), shared.LogPath(newFullName))
 		if err != nil {
-			logger.Error("Failed renaming container", ctxMap)
+			d.logger.Error("Failed renaming container", ctxMap)
 			return err
 		}
 	}
@@ -3628,7 +3604,7 @@ func (d *lxc) Rename(newName string) error {
 		return err
 	}
 
-	logger.Info("Renamed container", ctxMap)
+	d.logger.Info("Renamed container", ctxMap)
 	d.lifecycle("renamed", map[string]interface{}{"old_name": oldName})
 
 	revert.Success()
@@ -4398,7 +4374,7 @@ func (d *lxc) updateDevices(removeDevices deviceConfig.Devices, addDevices devic
 
 			// If update is non-user requested (i.e from a snapshot restore), there's nothing we can
 			// do to fix the config and we don't want to prevent the snapshot restore so log and allow.
-			logger.Error("Failed to add device, skipping as non-user requested", log.Ctx{"project": d.Project(), "instance": d.Name(), "device": dev.Name, "err": err})
+			d.logger.Error("Failed to add device, skipping as non-user requested", log.Ctx{"device": dev.Name, "err": err})
 			continue
 		}
 
@@ -4423,8 +4399,6 @@ func (d *lxc) updateDevices(removeDevices deviceConfig.Devices, addDevices devic
 // Export backs up the instance.
 func (d *lxc) Export(w io.Writer, properties map[string]string) (api.ImageMetadata, error) {
 	ctxMap := log.Ctx{
-		"project":   d.project,
-		"name":      d.name,
 		"created":   d.creationDate,
 		"ephemeral": d.ephemeral,
 		"used":      d.lastUsedDate}
@@ -4435,12 +4409,12 @@ func (d *lxc) Export(w io.Writer, properties map[string]string) (api.ImageMetada
 		return meta, fmt.Errorf("Cannot export a running instance as an image")
 	}
 
-	logger.Info("Exporting instance", ctxMap)
+	d.logger.Info("Exporting instance", ctxMap)
 
 	// Start the storage.
 	_, err := d.mount()
 	if err != nil {
-		logger.Error("Failed exporting instance", ctxMap)
+		d.logger.Error("Failed exporting instance", ctxMap)
 		return meta, err
 	}
 	defer d.unmount()
@@ -4448,7 +4422,7 @@ func (d *lxc) Export(w io.Writer, properties map[string]string) (api.ImageMetada
 	// Get IDMap to unshift container as the tarball is created.
 	idmap, err := d.DiskIdmap()
 	if err != nil {
-		logger.Error("Failed exporting instance", ctxMap)
+		d.logger.Error("Failed exporting instance", ctxMap)
 		return meta, err
 	}
 
@@ -4468,7 +4442,7 @@ func (d *lxc) Export(w io.Writer, properties map[string]string) (api.ImageMetada
 
 		err = tarWriter.WriteFile(path[offset:], path, fi, false)
 		if err != nil {
-			logger.Debugf("Error tarring up %s: %s", path, err)
+			d.logger.Debug("Error tarring up", log.Ctx{"path": path, "err": err})
 			return err
 		}
 		return nil
@@ -4481,7 +4455,7 @@ func (d *lxc) Export(w io.Writer, properties map[string]string) (api.ImageMetada
 		tempDir, err := ioutil.TempDir("", "lxd_lxd_metadata_")
 		if err != nil {
 			tarWriter.Close()
-			logger.Error("Failed exporting instance", ctxMap)
+			d.logger.Error("Failed exporting instance", ctxMap)
 			return meta, err
 		}
 		defer os.RemoveAll(tempDir)
@@ -4493,7 +4467,7 @@ func (d *lxc) Export(w io.Writer, properties map[string]string) (api.ImageMetada
 			parent, err := instance.LoadByProjectAndName(d.state, d.project, parentName)
 			if err != nil {
 				tarWriter.Close()
-				logger.Error("Failed exporting instance", ctxMap)
+				d.logger.Error("Failed exporting instance", ctxMap)
 				return meta, err
 			}
 
@@ -4505,7 +4479,7 @@ func (d *lxc) Export(w io.Writer, properties map[string]string) (api.ImageMetada
 		if arch == "" {
 			arch, err = osarch.ArchitectureName(d.state.OS.Architectures[0])
 			if err != nil {
-				logger.Error("Failed exporting instance", ctxMap)
+				d.logger.Error("Failed exporting instance", ctxMap)
 				return meta, err
 			}
 		}
@@ -4518,7 +4492,7 @@ func (d *lxc) Export(w io.Writer, properties map[string]string) (api.ImageMetada
 		data, err := yaml.Marshal(&meta)
 		if err != nil {
 			tarWriter.Close()
-			logger.Error("Failed exporting instance", ctxMap)
+			d.logger.Error("Failed exporting instance", ctxMap)
 			return meta, err
 		}
 
@@ -4527,22 +4501,22 @@ func (d *lxc) Export(w io.Writer, properties map[string]string) (api.ImageMetada
 		err = ioutil.WriteFile(fnam, data, 0644)
 		if err != nil {
 			tarWriter.Close()
-			logger.Error("Failed exporting instance", ctxMap)
+			d.logger.Error("Failed exporting instance", ctxMap)
 			return meta, err
 		}
 
 		fi, err := os.Lstat(fnam)
 		if err != nil {
 			tarWriter.Close()
-			logger.Error("Failed exporting instance", ctxMap)
+			d.logger.Error("Failed exporting instance", ctxMap)
 			return meta, err
 		}
 
 		tmpOffset := len(path.Dir(fnam)) + 1
 		if err := tarWriter.WriteFile(fnam[tmpOffset:], fnam, fi, false); err != nil {
 			tarWriter.Close()
-			logger.Debugf("Error writing to tarfile: %s", err)
-			logger.Error("Failed exporting instance", ctxMap)
+			d.logger.Debug("Error writing to tarfile", log.Ctx{"err": err})
+			d.logger.Error("Failed exporting instance", ctxMap)
 			return meta, err
 		}
 	} else {
@@ -4550,14 +4524,14 @@ func (d *lxc) Export(w io.Writer, properties map[string]string) (api.ImageMetada
 		content, err := ioutil.ReadFile(fnam)
 		if err != nil {
 			tarWriter.Close()
-			logger.Error("Failed exporting instance", ctxMap)
+			d.logger.Error("Failed exporting instance", ctxMap)
 			return meta, err
 		}
 
 		err = yaml.Unmarshal(content, &meta)
 		if err != nil {
 			tarWriter.Close()
-			logger.Error("Failed exporting instance", ctxMap)
+			d.logger.Error("Failed exporting instance", ctxMap)
 			return meta, err
 		}
 
@@ -4568,7 +4542,7 @@ func (d *lxc) Export(w io.Writer, properties map[string]string) (api.ImageMetada
 			tempDir, err := ioutil.TempDir("", "lxd_lxd_metadata_")
 			if err != nil {
 				tarWriter.Close()
-				logger.Error("Failed exporting instance", ctxMap)
+				d.logger.Error("Failed exporting instance", ctxMap)
 				return meta, err
 			}
 			defer os.RemoveAll(tempDir)
@@ -4576,7 +4550,7 @@ func (d *lxc) Export(w io.Writer, properties map[string]string) (api.ImageMetada
 			data, err := yaml.Marshal(&meta)
 			if err != nil {
 				tarWriter.Close()
-				logger.Error("Failed exporting instance", ctxMap)
+				d.logger.Error("Failed exporting instance", ctxMap)
 				return meta, err
 			}
 
@@ -4585,7 +4559,7 @@ func (d *lxc) Export(w io.Writer, properties map[string]string) (api.ImageMetada
 			err = ioutil.WriteFile(fnam, data, 0644)
 			if err != nil {
 				tarWriter.Close()
-				logger.Error("Failed exporting instance", ctxMap)
+				d.logger.Error("Failed exporting instance", ctxMap)
 				return meta, err
 			}
 		}
@@ -4594,8 +4568,8 @@ func (d *lxc) Export(w io.Writer, properties map[string]string) (api.ImageMetada
 		fi, err := os.Lstat(fnam)
 		if err != nil {
 			tarWriter.Close()
-			logger.Debugf("Error statting %s during export", fnam)
-			logger.Error("Failed exporting instance", ctxMap)
+			d.logger.Debug("Error statting during export", log.Ctx{"fileName": fnam})
+			d.logger.Error("Failed exporting instance", ctxMap)
 			return meta, err
 		}
 
@@ -4607,8 +4581,8 @@ func (d *lxc) Export(w io.Writer, properties map[string]string) (api.ImageMetada
 		}
 		if err != nil {
 			tarWriter.Close()
-			logger.Debugf("Error writing to tarfile: %s", err)
-			logger.Error("Failed exporting instance", ctxMap)
+			d.logger.Debug("Error writing to tarfile", log.Ctx{"err": err})
+			d.logger.Error("Failed exporting instance", ctxMap)
 			return meta, err
 		}
 	}
@@ -4617,7 +4591,7 @@ func (d *lxc) Export(w io.Writer, properties map[string]string) (api.ImageMetada
 	fnam = d.RootfsPath()
 	err = filepath.Walk(fnam, writeToTar)
 	if err != nil {
-		logger.Error("Failed exporting instance", ctxMap)
+		d.logger.Error("Failed exporting instance", ctxMap)
 		return meta, err
 	}
 
@@ -4626,18 +4600,18 @@ func (d *lxc) Export(w io.Writer, properties map[string]string) (api.ImageMetada
 	if shared.PathExists(fnam) {
 		err = filepath.Walk(fnam, writeToTar)
 		if err != nil {
-			logger.Error("Failed exporting instance", ctxMap)
+			d.logger.Error("Failed exporting instance", ctxMap)
 			return meta, err
 		}
 	}
 
 	err = tarWriter.Close()
 	if err != nil {
-		logger.Error("Failed exporting instance", ctxMap)
+		d.logger.Error("Failed exporting instance", ctxMap)
 		return meta, err
 	}
 
-	logger.Info("Exported instance", ctxMap)
+	d.logger.Info("Exported instance", ctxMap)
 	return meta, nil
 }
 
@@ -4670,8 +4644,6 @@ func getCRIULogErrors(imagesDir string, method string) (string, error) {
 // Migrate migrates the instance to another node.
 func (d *lxc) Migrate(args *instance.CriuMigrationArgs) error {
 	ctxMap := log.Ctx{
-		"project":      d.project,
-		"name":         d.name,
 		"created":      d.creationDate,
 		"ephemeral":    d.ephemeral,
 		"used":         d.lastUsedDate,
@@ -4686,7 +4658,7 @@ func (d *lxc) Migrate(args *instance.CriuMigrationArgs) error {
 		return fmt.Errorf("Unable to perform container live migration. CRIU isn't installed")
 	}
 
-	logger.Info("Migrating container", ctxMap)
+	d.logger.Info("Migrating container", ctxMap)
 
 	prettyCmd := ""
 	switch args.Cmd {
@@ -4700,7 +4672,7 @@ func (d *lxc) Migrate(args *instance.CriuMigrationArgs) error {
 		prettyCmd = "feature-check"
 	default:
 		prettyCmd = "unknown"
-		logger.Warn("Unknown migrate call", log.Ctx{"cmd": args.Cmd})
+		d.logger.Warn("Unknown migrate call", log.Ctx{"cmd": args.Cmd})
 	}
 
 	pool, err := d.getStoragePool()
@@ -4795,7 +4767,7 @@ func (d *lxc) Migrate(args *instance.CriuMigrationArgs) error {
 		}
 		migrateErr = d.c.Migrate(args.Cmd, opts)
 		if migrateErr != nil {
-			logger.Info("CRIU feature check failed", ctxMap)
+			d.logger.Info("CRIU feature check failed", ctxMap)
 			return migrateErr
 		}
 		return nil
@@ -4844,20 +4816,20 @@ func (d *lxc) Migrate(args *instance.CriuMigrationArgs) error {
 
 	collectErr := collectCRIULogFile(d, finalStateDir, args.Function, prettyCmd)
 	if collectErr != nil {
-		logger.Error("Error collecting checkpoint log file", log.Ctx{"err": collectErr})
+		d.logger.Error("Error collecting checkpoint log file", log.Ctx{"err": collectErr})
 	}
 
 	if migrateErr != nil {
 		log, err2 := getCRIULogErrors(finalStateDir, prettyCmd)
 		if err2 == nil {
-			logger.Info("Failed migrating container", ctxMap)
+			d.logger.Info("Failed migrating container", ctxMap)
 			migrateErr = fmt.Errorf("%s %s failed\n%s", args.Function, prettyCmd, log)
 		}
 
 		return migrateErr
 	}
 
-	logger.Info("Migrated container", ctxMap)
+	d.logger.Info("Migrated container", ctxMap)
 
 	return nil
 }
@@ -5063,7 +5035,7 @@ func (d *lxc) FileExists(path string) error {
 		}
 
 		for _, line := range strings.Split(strings.TrimRight(stderr, "\n"), "\n") {
-			logger.Debugf("forkcheckfile: %s", line)
+			d.logger.Debug("forkcheckfile", log.Ctx{"line": line})
 		}
 	}
 
@@ -5175,7 +5147,7 @@ func (d *lxc) FilePull(srcpath string, dstpath string) (int64, int64, os.FileMod
 			continue
 		}
 
-		logger.Debugf("forkgetfile: %s", line)
+		d.logger.Debug("forkgetfile", log.Ctx{"line": line})
 	}
 
 	if err != nil {
@@ -5495,10 +5467,10 @@ func (d *lxc) Exec(req api.InstanceExecPost, stdin *os.File, stdout *os.File, st
 
 	attachedPid := shared.ReadPid(rStatus)
 	if attachedPid <= 0 {
-		logger.Errorf("Failed to retrieve PID of executing child process")
+		d.logger.Error("Failed to retrieve PID of executing child process")
 		return nil, fmt.Errorf("Failed to retrieve PID of executing child process")
 	}
-	logger.Debugf("Retrieved PID %d of executing child process", attachedPid)
+	d.logger.Debug("Retrieved PID of executing child process", log.Ctx{"attachedPid": attachedPid})
 
 	instCmd := &lxcCmd{
 		cmd:              &cmd,
@@ -5545,28 +5517,28 @@ func (d *lxc) diskState() map[string]api.InstanceStateDisk {
 		if dev.Config["path"] == "/" {
 			pool, err := storagePools.GetPoolByInstance(d.state, d)
 			if err != nil {
-				logger.Error("Error loading storage pool", log.Ctx{"project": d.Project(), "instance": d.Name(), "err": err})
+				d.logger.Error("Error loading storage pool", log.Ctx{"err": err})
 				continue
 			}
 
 			usage, err = pool.GetInstanceUsage(d)
 			if err != nil {
 				if err != storageDrivers.ErrNotSupported {
-					logger.Error("Error getting disk usage", log.Ctx{"project": d.Project(), "instance": d.Name(), "err": err})
+					d.logger.Error("Error getting disk usage", log.Ctx{"err": err})
 				}
 				continue
 			}
 		} else if dev.Config["pool"] != "" {
 			pool, err := storagePools.GetPoolByName(d.state, dev.Config["pool"])
 			if err != nil {
-				logger.Error("Error loading storage pool", log.Ctx{"project": d.Project(), "poolName": dev.Config["pool"], "err": err})
+				d.logger.Error("Error loading storage pool", log.Ctx{"poolName": dev.Config["pool"], "err": err})
 				continue
 			}
 
 			usage, err = pool.GetCustomVolumeUsage(d.Project(), dev.Config["source"])
 			if err != nil {
 				if err != storageDrivers.ErrNotSupported {
-					logger.Error("Error getting volume usage", log.Ctx{"project": d.Project(), "volume": dev.Config["source"], "err": err})
+					d.logger.Error("Error getting volume usage", log.Ctx{"volume": dev.Config["source"], "err": err})
 				}
 				continue
 			}
@@ -5639,7 +5611,7 @@ func (d *lxc) networkState() map[string]api.InstanceStateNetwork {
 		nw, err := netutils.NetnsGetifaddrs(int32(pid))
 		if err != nil {
 			couldUseNetnsGetifaddrs = false
-			logger.Error("Failed to retrieve network information via netlink", log.Ctx{"container": d.name, "pid": pid})
+			d.logger.Error("Failed to retrieve network information via netlink", log.Ctx{"pid": pid})
 		} else {
 			result = nw
 		}
@@ -5664,7 +5636,7 @@ func (d *lxc) networkState() map[string]api.InstanceStateNetwork {
 
 		// Process forkgetnet response
 		if err != nil {
-			logger.Error("Error calling 'lxd forknet", log.Ctx{"container": d.name, "err": err, "pid": pid})
+			d.logger.Error("Error calling 'lxd forknet", log.Ctx{"err": err, "pid": pid})
 			return result
 		}
 
@@ -5676,7 +5648,7 @@ func (d *lxc) networkState() map[string]api.InstanceStateNetwork {
 		nw := map[string]api.InstanceStateNetwork{}
 		err = json.Unmarshal([]byte(out), &nw)
 		if err != nil {
-			logger.Error("Failure to read forknet json", log.Ctx{"container": d.name, "err": err})
+			d.logger.Error("Failure to read forknet json", log.Ctx{"err": err})
 			return result
 		}
 		result = nw
@@ -6060,7 +6032,7 @@ func (d *lxc) removeUnixDevices() error {
 		devicePath := filepath.Join(d.DevicesPath(), f.Name())
 		err := os.Remove(devicePath)
 		if err != nil {
-			logger.Error("Failed removing unix device", log.Ctx{"err": err, "path": devicePath})
+			d.logger.Error("Failed removing unix device", log.Ctx{"err": err, "path": devicePath})
 		}
 	}
 
@@ -6259,7 +6231,7 @@ func (d *lxc) removeDiskDevices() error {
 		diskPath := filepath.Join(d.DevicesPath(), f.Name())
 		err := os.Remove(diskPath)
 		if err != nil {
-			logger.Error("Failed to remove disk device path", log.Ctx{"err": err, "path": diskPath})
+			d.logger.Error("Failed to remove disk device path", log.Ctx{"err": err, "path": diskPath})
 		}
 	}
 
