@@ -15,6 +15,11 @@ import (
 	"github.com/lxc/lxd/shared/api"
 )
 
+var instanceDrivers = map[string]func() instance.Instance{
+	"lxc":  func() instance.Instance { return &lxc{} },
+	"qemu": func() instance.Instance { return &qemu{} },
+}
+
 func init() {
 	// Expose load to the instance package, to avoid circular imports.
 	instance.Load = load
@@ -95,4 +100,16 @@ func create(s *state.State, args db.InstanceArgs) (instance.Instance, error) {
 	}
 
 	return nil, fmt.Errorf("Instance type invalid")
+}
+
+// SupportedInstanceDrivers returns a slice of Info structs for all supported drivers
+func SupportedInstanceDrivers() []instance.Info {
+	supportedDrivers := make([]instance.Info, 0, len(instanceDrivers))
+
+	for _, instanceDriver := range instanceDrivers {
+		driver := instanceDriver()
+		supportedDrivers = append(supportedDrivers, driver.Info())
+	}
+
+	return supportedDrivers
 }
