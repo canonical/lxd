@@ -6720,3 +6720,11 @@ func (d *lxc) SaveConfigFile() error {
 
 	return nil
 }
+
+// Info returns "lxc" and the currently loaded version of LXC
+func (d *lxc) Info() instance.Info {
+	return instance.Info{
+		Name:    "lxc",
+		Version: liblxc.Version(),
+	}
+}
