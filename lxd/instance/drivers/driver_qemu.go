@@ -113,6 +113,7 @@ func qemuInstantiate(s *state.State, args db.InstanceArgs, expandedDevices devic
 			lastUsedDate: args.LastUsedDate,
 			localConfig:  args.Config,
 			localDevices: args.Devices,
+			logger:       logging.AddContext(logger.Log, log.Ctx{"instanceType": args.Type.String, "instance": args.Name, "project": args.Project}),
 			name:         args.Name,
 			node:         args.Node,
 			profiles:     args.Profiles,
@@ -166,6 +167,7 @@ func qemuCreate(s *state.State, args db.InstanceArgs) (instance.Instance, error)
 			lastUsedDate: args.LastUsedDate,
 			localConfig:  args.Config,
 			localDevices: args.Devices,
+			logger:       logging.AddContext(logger.Log, log.Ctx{"instanceType": args.Type.String, "instance": args.Name, "project": args.Project}),
 			name:         args.Name,
 			node:         args.Node,
 			profiles:     args.Profiles,
@@ -201,13 +203,7 @@ func qemuCreate(s *state.State, args db.InstanceArgs) (instance.Instance, error)
 		d.lastUsedDate = time.Time{}
 	}
 
-	ctxMap := log.Ctx{
-		"project":   args.Project,
-		"name":      d.name,
-		"ephemeral": d.ephemeral,
-	}
-
-	logger.Info("Creating instance", ctxMap)
+	d.logger.Info("Creating instance", log.Ctx{"ephemeral": d.ephemeral})
 
 	// Load the config.
 	err = d.init()
@@ -290,7 +286,7 @@ func qemuCreate(s *state.State, args db.InstanceArgs) (instance.Instance, error)
 		}
 	}
 
-	logger.Info("Created instance", ctxMap)
+	d.logger.Info("Created instance", log.Ctx{"ephemeral": d.ephemeral})
 	d.lifecycle("created", nil)
 
 	revert.Success()
@@ -358,7 +354,7 @@ func (d *qemu) getMonitorEventHandler() func(event string, data map[string]inter
 
 		inst, err := instance.LoadByProjectAndName(state, projectName, instanceName)
 		if err != nil {
-			logger.Error("Failed to load instance", "project", projectName, "instance", instanceName, "err", err)
+			d.logger.Error("Failed to load instance", log.Ctx{"err": err})
 			return
 		}
 
@@ -371,7 +367,7 @@ func (d *qemu) getMonitorEventHandler() func(event string, data map[string]inter
 
 			err = inst.(*qemu).onStop(target)
 			if err != nil {
-				logger.Error("Failed to cleanly stop instance", "project", projectName, "instance", instanceName, "err", err)
+				d.logger.Error("Failed to cleanly stop instance", log.Ctx{"err": err})
 				return
 			}
 		}
@@ -642,7 +638,7 @@ func (d *qemu) Shutdown(timeout time.Duration) error {
 
 // Restart restart the instance.
 func (d *qemu) Restart(timeout time.Duration) error {
-	err := d.common.restart(d, timeout)
+	err := d.restart(d, timeout)
 	if err != nil {
 		return err
 	}
@@ -788,7 +784,7 @@ func (d *qemu) Start(stateful bool) error {
 			return err
 		}
 	} else {
-		logger.Warn("Unable to use virtio-fs for config drive, using 9p as a fallback: virtiofsd missing")
+		d.logger.Warn("Unable to use virtio-fs for config drive, using 9p as a fallback: virtiofsd missing")
 	}
 
 	// Generate UUID if not present.
@@ -828,7 +824,7 @@ func (d *qemu) Start(stateful bool) error {
 		revert.Add(func() {
 			err := d.deviceStop(dev.Name, dev.Config, false)
 			if err != nil {
-				logger.Errorf("Failed to cleanup device %q: %v", dev.Name, err)
+				d.logger.Error("Failed to cleanup device", log.Ctx{"devName": dev.Name, "err": err})
 			}
 		})
 
@@ -1015,7 +1011,7 @@ func (d *qemu) Start(stateful bool) error {
 
 	pid, err := d.pid()
 	if err != nil {
-		logger.Errorf(`Failed to get VM process ID "%d"`, pid)
+		d.logger.Error("Failed to get VM process ID", log.Ctx{"pid": pid})
 		op.Done(err)
 		return err
 	}
@@ -1023,13 +1019,13 @@ func (d *qemu) Start(stateful bool) error {
 	revert.Add(func() {
 		proc, err := os.FindProcess(pid)
 		if err != nil {
-			logger.Errorf(`Failed to find VM process "%d"`, pid)
+			d.logger.Error("Failed to find VM process", log.Ctx{"pid": pid})
 			return
 		}
 
 		proc.Kill()
 		if err != nil {
-			logger.Errorf(`Failed to kill VM process "%d"`, pid)
+			d.logger.Error("Failed to kill VM process", log.Ctx{"pid": pid})
 		}
 	})
 
@@ -1214,14 +1210,14 @@ func (d *qemu) RegisterDevices() {
 		}
 
 		if err != nil {
-			logger.Error("Failed to load device to register", log.Ctx{"err": err, "instance": d.Name(), "device": entry.Name})
+			d.logger.Error("Failed to load device to register", log.Ctx{"err": err, "instance": d.Name(), "device": entry.Name})
 			continue
 		}
 
 		// Check whether device wants to register for any events.
 		err = dev.Register()
 		if err != nil {
-			logger.Error("Failed to register device", log.Ctx{"err": err, "instance": d.Name(), "device": entry.Name})
+			d.logger.Error("Failed to register device", log.Ctx{"err": err, "instance": d.Name(), "device": entry.Name})
 			continue
 		}
 	}
@@ -1261,7 +1257,7 @@ func (d *qemu) deviceLoad(deviceName string, rawConfig deviceConfig.Device) (dev
 
 // deviceStart loads a new device and calls its Start() function.
 func (d *qemu) deviceStart(deviceName string, rawConfig deviceConfig.Device, instanceRunning bool) (*deviceConfig.RunConfig, error) {
-	logger := logging.AddContext(logger.Log, log.Ctx{"device": deviceName, "type": rawConfig["type"], "project": d.Project(), "instance": d.Name()})
+	logger := logging.AddContext(d.logger, log.Ctx{"device": deviceName, "type": rawConfig["type"]})
 	logger.Debug("Starting device")
 
 	dev, _, err := d.deviceLoad(deviceName, rawConfig)
@@ -1283,7 +1279,7 @@ func (d *qemu) deviceStart(deviceName string, rawConfig deviceConfig.Device, ins
 
 // deviceStop loads a new device and calls its Stop() function.
 func (d *qemu) deviceStop(deviceName string, rawConfig deviceConfig.Device, instanceRunning bool) error {
-	logger := logging.AddContext(logger.Log, log.Ctx{"device": deviceName, "type": rawConfig["type"], "project": d.Project(), "instance": d.Name()})
+	logger := logging.AddContext(d.logger, log.Ctx{"device": deviceName, "type": rawConfig["type"]})
 	logger.Debug("Stopping device")
 
 	dev, _, err := d.deviceLoad(deviceName, rawConfig)
@@ -1399,7 +1395,7 @@ func (d *qemu) generateConfigShare() error {
 	// Add the VM agent.
 	path, err := exec.LookPath("lxd-agent")
 	if err != nil {
-		logger.Warnf("lxd-agent not found, skipping its inclusion in the VM config drive: %v", err)
+		d.logger.Warn("lxd-agent not found, skipping its inclusion in the VM config drive", log.Ctx{"err": err})
 	} else {
 		// Install agent into config drive dir if found.
 		path, err = filepath.EvalSymlinks(path)
@@ -2261,7 +2257,7 @@ func (d *qemu) addDriveConfig(sb *strings.Builder, bootIndexes map[string]int, d
 
 	// If drive config indicates we need to use unsafe I/O then use it.
 	if shared.StringInSlice(qemuUnsafeIO, driveConf.Opts) {
-		logger.Warnf("Using unsafe cache I/O with %s", driveConf.DevPath)
+		d.logger.Warn("Using unsafe cache I/O", log.Ctx{"DevPath": driveConf.DevPath})
 		aioMode = "threads"
 		cacheMode = "unsafe" // Use host cache, but ignore all sync requests from guest.
 	} else if shared.PathExists(driveConf.DevPath) && !shared.IsBlockdevPath(driveConf.DevPath) {
@@ -2276,7 +2272,7 @@ func (d *qemu) addDriveConfig(sb *strings.Builder, bootIndexes map[string]int, d
 		if fsType == "zfs" || fsType == "btrfs" {
 			if driveConf.FSType != "iso9660" {
 				// Only warn about using writeback cache if the drive image is writable.
-				logger.Warnf("Using writeback cache I/O with %q as backing filesystem is %q", driveConf.DevPath, fsType)
+				d.logger.Warn("Using writeback cache I/O", log.Ctx{"DevPath": driveConf.DevPath, "fsType": fsType})
 			}
 
 			aioMode = "threads"
@@ -2658,14 +2654,12 @@ func (d *qemu) Restore(source instance.Instance, stateful bool) error {
 	}
 
 	ctxMap = log.Ctx{
-		"project":   d.project,
-		"name":      d.name,
 		"created":   d.creationDate,
 		"ephemeral": d.ephemeral,
 		"used":      d.lastUsedDate,
 		"source":    source.Name()}
 
-	logger.Info("Restoring instance", ctxMap)
+	d.logger.Info("Restoring instance", ctxMap)
 
 	// Load the storage driver.
 	pool, err := storagePools.GetPoolByInstance(d.state, d)
@@ -2727,7 +2721,7 @@ func (d *qemu) Restore(source instance.Instance, stateful bool) error {
 	}
 
 	d.lifecycle("restored", map[string]interface{}{"snapshot": source.Name()})
-	logger.Info("Restored instance", ctxMap)
+	d.logger.Info("Restored instance", ctxMap)
 	return nil
 }
 
@@ -2735,14 +2729,12 @@ func (d *qemu) Restore(source instance.Instance, stateful bool) error {
 func (d *qemu) Rename(newName string) error {
 	oldName := d.Name()
 	ctxMap := log.Ctx{
-		"project":   d.project,
-		"name":      d.name,
 		"created":   d.creationDate,
 		"ephemeral": d.ephemeral,
 		"used":      d.lastUsedDate,
 		"newname":   newName}
 
-	logger.Info("Renaming instance", ctxMap)
+	d.logger.Info("Renaming instance", ctxMap)
 
 	// Sanity checks.
 	err := instance.ValidName(newName, d.IsSnapshot())
@@ -2779,7 +2771,7 @@ func (d *qemu) Rename(newName string) error {
 		// Rename all the instance snapshot database entries.
 		results, err := d.state.Cluster.GetInstanceSnapshotsNames(d.project, oldName)
 		if err != nil {
-			logger.Error("Failed to get instance snapshots", ctxMap)
+			d.logger.Error("Failed to get instance snapshots", ctxMap)
 			return err
 		}
 
@@ -2791,7 +2783,7 @@ func (d *qemu) Rename(newName string) error {
 				return tx.RenameInstanceSnapshot(d.project, oldName, oldSnapName, baseSnapName)
 			})
 			if err != nil {
-				logger.Error("Failed renaming snapshot", ctxMap)
+				d.logger.Error("Failed renaming snapshot", ctxMap)
 				return err
 			}
 		}
@@ -2808,7 +2800,7 @@ func (d *qemu) Rename(newName string) error {
 		return tx.RenameInstance(d.project, oldName, newName)
 	})
 	if err != nil {
-		logger.Error("Failed renaming instance", ctxMap)
+		d.logger.Error("Failed renaming instance", ctxMap)
 		return err
 	}
 
@@ -2818,7 +2810,7 @@ func (d *qemu) Rename(newName string) error {
 	if shared.PathExists(d.LogPath()) {
 		err := os.Rename(d.LogPath(), shared.LogPath(newFullName))
 		if err != nil {
-			logger.Error("Failed renaming instance", ctxMap)
+			d.logger.Error("Failed renaming instance", ctxMap)
 			return err
 		}
 	}
@@ -2866,7 +2858,7 @@ func (d *qemu) Rename(newName string) error {
 		return err
 	}
 
-	logger.Info("Renamed instance", ctxMap)
+	d.logger.Info("Renamed instance", ctxMap)
 	d.lifecycle("renamed", map[string]interface{}{"old_name": oldName})
 
 	revert.Success()
@@ -3314,7 +3306,7 @@ func (d *qemu) updateDevices(removeDevices deviceConfig.Devices, addDevices devi
 
 			// If update is non-user requested (i.e from a snapshot restore), there's nothing we can
 			// do to fix the config and we don't want to prevent the snapshot restore so log and allow.
-			logger.Error("Failed to add device, skipping as non-user requested", log.Ctx{"project": d.Project(), "instance": d.Name(), "device": dev.Name, "err": err})
+			d.logger.Error("Failed to add device, skipping as non-user requested", log.Ctx{"device": dev.Name, "err": err})
 			continue
 		}
 
@@ -3422,7 +3414,7 @@ func (d *qemu) removeUnixDevices() error {
 		devicePath := filepath.Join(d.DevicesPath(), f.Name())
 		err := os.Remove(devicePath)
 		if err != nil {
-			logger.Error("Failed removing unix device", log.Ctx{"err": err, "path": devicePath})
+			d.logger.Error("Failed removing unix device", log.Ctx{"err": err, "path": devicePath})
 		}
 	}
 
@@ -3455,7 +3447,7 @@ func (d *qemu) removeDiskDevices() error {
 		diskPath := filepath.Join(d.DevicesPath(), f.Name())
 		err := os.Remove(diskPath)
 		if err != nil {
-			logger.Error("Failed to remove disk device path", log.Ctx{"err": err, "path": diskPath})
+			d.logger.Error("Failed to remove disk device path", log.Ctx{"err": err, "path": diskPath})
 		}
 	}
 
@@ -3485,7 +3477,7 @@ func (d *qemu) cleanupDevices() {
 		if err == device.ErrUnsupportedDevType {
 			continue
 		} else if err != nil {
-			logger.Errorf("Failed to stop device '%s': %v", dev.Name, err)
+			d.logger.Error("Failed to stop device", log.Ctx{"devName": dev.Name, "err": err})
 		}
 	}
 }
@@ -3508,13 +3500,11 @@ func (d *qemu) init() error {
 // Delete the instance.
 func (d *qemu) Delete(force bool) error {
 	ctxMap := log.Ctx{
-		"project":   d.project,
-		"name":      d.name,
 		"created":   d.creationDate,
 		"ephemeral": d.ephemeral,
 		"used":      d.lastUsedDate}
 
-	logger.Info("Deleting instance", ctxMap)
+	d.logger.Info("Deleting instance", ctxMap)
 
 	// Check if instance is delete protected.
 	if !force && shared.IsTrue(d.expandedConfig["security.protection.delete"]) && !d.IsSnapshot() {
@@ -3574,7 +3564,7 @@ func (d *qemu) Delete(force bool) error {
 		// Delete the MAAS entry.
 		err = d.maasDelete()
 		if err != nil {
-			logger.Error("Failed deleting instance MAAS record", log.Ctx{"project": d.Project(), "instance": d.Name(), "err": err})
+			d.logger.Error("Failed deleting instance MAAS record", log.Ctx{"err": err})
 			return err
 		}
 
@@ -3592,11 +3582,11 @@ func (d *qemu) Delete(force bool) error {
 
 	// Remove the database record of the instance or snapshot instance.
 	if err := d.state.Cluster.DeleteInstance(d.Project(), d.Name()); err != nil {
-		logger.Error("Failed deleting instance entry", log.Ctx{"project": d.Project(), "instance": d.Name(), "err": err})
+		d.logger.Error("Failed deleting instance entry", log.Ctx{"project": d.Project()})
 		return err
 	}
 
-	logger.Info("Deleted instance", ctxMap)
+	d.logger.Info("Deleted instance", ctxMap)
 	d.lifecycle("deleted", nil)
 
 	return nil
@@ -3616,7 +3606,7 @@ func (d *qemu) deviceAdd(deviceName string, rawConfig deviceConfig.Device, insta
 }
 
 func (d *qemu) deviceRemove(deviceName string, rawConfig deviceConfig.Device, instanceRunning bool) error {
-	logger := logging.AddContext(logger.Log, log.Ctx{"device": deviceName, "type": rawConfig["type"], "project": d.Project(), "instance": d.Name()})
+	logger := logging.AddContext(d.logger, log.Ctx{"device": deviceName, "type": rawConfig["type"]})
 
 	dev, _, err := d.deviceLoad(deviceName, rawConfig)
 
@@ -3647,8 +3637,6 @@ func (d *qemu) deviceRemove(deviceName string, rawConfig deviceConfig.Device, in
 // Export publishes the instance.
 func (d *qemu) Export(w io.Writer, properties map[string]string) (api.ImageMetadata, error) {
 	ctxMap := log.Ctx{
-		"project":   d.project,
-		"name":      d.name,
 		"created":   d.creationDate,
 		"ephemeral": d.ephemeral,
 		"used":      d.lastUsedDate}
@@ -3659,12 +3647,12 @@ func (d *qemu) Export(w io.Writer, properties map[string]string) (api.ImageMetad
 		return meta, fmt.Errorf("Cannot export a running instance as an image")
 	}
 
-	logger.Info("Exporting instance", ctxMap)
+	d.logger.Info("Exporting instance", ctxMap)
 
 	// Start the storage.
 	mountInfo, err := d.mount()
 	if err != nil {
-		logger.Error("Failed exporting instance", ctxMap)
+		d.logger.Error("Failed exporting instance", ctxMap)
 		return meta, err
 	}
 	defer d.unmount()
@@ -3683,7 +3671,7 @@ func (d *qemu) Export(w io.Writer, properties map[string]string) (api.ImageMetad
 
 		err = tarWriter.WriteFile(path[offset:], path, fi, false)
 		if err != nil {
-			logger.Debugf("Error tarring up %s: %s", path, err)
+			d.logger.Debug("Error tarring up", log.Ctx{"path": path, "err": err})
 			return err
 		}
 
@@ -3697,7 +3685,7 @@ func (d *qemu) Export(w io.Writer, properties map[string]string) (api.ImageMetad
 		tempDir, err := ioutil.TempDir("", "lxd_lxd_metadata_")
 		if err != nil {
 			tarWriter.Close()
-			logger.Error("Failed exporting instance", ctxMap)
+			d.logger.Error("Failed exporting instance", ctxMap)
 			return meta, err
 		}
 		defer os.RemoveAll(tempDir)
@@ -3709,7 +3697,7 @@ func (d *qemu) Export(w io.Writer, properties map[string]string) (api.ImageMetad
 			parent, err := instance.LoadByProjectAndName(d.state, d.project, parentName)
 			if err != nil {
 				tarWriter.Close()
-				logger.Error("Failed exporting instance", ctxMap)
+				d.logger.Error("Failed exporting instance", ctxMap)
 				return meta, err
 			}
 
@@ -3721,7 +3709,7 @@ func (d *qemu) Export(w io.Writer, properties map[string]string) (api.ImageMetad
 		if arch == "" {
 			arch, err = osarch.ArchitectureName(d.state.OS.Architectures[0])
 			if err != nil {
-				logger.Error("Failed exporting instance", ctxMap)
+				d.logger.Error("Failed exporting instance", ctxMap)
 				return meta, err
 			}
 		}
@@ -3734,7 +3722,7 @@ func (d *qemu) Export(w io.Writer, properties map[string]string) (api.ImageMetad
 		data, err := yaml.Marshal(&meta)
 		if err != nil {
 			tarWriter.Close()
-			logger.Error("Failed exporting instance", ctxMap)
+			d.logger.Error("Failed exporting instance", ctxMap)
 			return meta, err
 		}
 
@@ -3743,21 +3731,21 @@ func (d *qemu) Export(w io.Writer, properties map[string]string) (api.ImageMetad
 		err = ioutil.WriteFile(fnam, data, 0644)
 		if err != nil {
 			tarWriter.Close()
-			logger.Error("Failed exporting instance", ctxMap)
+			d.logger.Error("Failed exporting instance", ctxMap)
 			return meta, err
 		}
 
 		fi, err := os.Lstat(fnam)
 		if err != nil {
 			tarWriter.Close()
-			logger.Error("Failed exporting instance", ctxMap)
+			d.logger.Error("Failed exporting instance", ctxMap)
 			return meta, err
 		}
 
 		tmpOffset := len(filepath.Dir(fnam)) + 1
 		if err := tarWriter.WriteFile(fnam[tmpOffset:], fnam, fi, false); err != nil {
 			tarWriter.Close()
-			logger.Error("Failed exporting instance", ctxMap)
+			d.logger.Error("Failed exporting instance", ctxMap)
 			return meta, err
 		}
 	} else {
@@ -3765,14 +3753,14 @@ func (d *qemu) Export(w io.Writer, properties map[string]string) (api.ImageMetad
 		content, err := ioutil.ReadFile(fnam)
 		if err != nil {
 			tarWriter.Close()
-			logger.Error("Failed exporting instance", ctxMap)
+			d.logger.Error("Failed exporting instance", ctxMap)
 			return meta, err
 		}
 
 		err = yaml.Unmarshal(content, &meta)
 		if err != nil {
 			tarWriter.Close()
-			logger.Error("Failed exporting instance", ctxMap)
+			d.logger.Error("Failed exporting instance", ctxMap)
 			return meta, err
 		}
 
@@ -3783,7 +3771,7 @@ func (d *qemu) Export(w io.Writer, properties map[string]string) (api.ImageMetad
 			tempDir, err := ioutil.TempDir("", "lxd_lxd_metadata_")
 			if err != nil {
 				tarWriter.Close()
-				logger.Error("Failed exporting instance", ctxMap)
+				d.logger.Error("Failed exporting instance", ctxMap)
 				return meta, err
 			}
 			defer os.RemoveAll(tempDir)
@@ -3791,7 +3779,7 @@ func (d *qemu) Export(w io.Writer, properties map[string]string) (api.ImageMetad
 			data, err := yaml.Marshal(&meta)
 			if err != nil {
 				tarWriter.Close()
-				logger.Error("Failed exporting instance", ctxMap)
+				d.logger.Error("Failed exporting instance", ctxMap)
 				return meta, err
 			}
 
@@ -3800,7 +3788,7 @@ func (d *qemu) Export(w io.Writer, properties map[string]string) (api.ImageMetad
 			err = ioutil.WriteFile(fnam, data, 0644)
 			if err != nil {
 				tarWriter.Close()
-				logger.Error("Failed exporting instance", ctxMap)
+				d.logger.Error("Failed exporting instance", ctxMap)
 				return meta, err
 			}
 		}
@@ -3809,8 +3797,8 @@ func (d *qemu) Export(w io.Writer, properties map[string]string) (api.ImageMetad
 		fi, err := os.Lstat(fnam)
 		if err != nil {
 			tarWriter.Close()
-			logger.Debugf("Error statting %s during export", fnam)
-			logger.Error("Failed exporting instance", ctxMap)
+			d.logger.Debug("Error statting during export", log.Ctx{"fileName": fnam})
+			d.logger.Error("Failed exporting instance", ctxMap)
 			return meta, err
 		}
 
@@ -3822,8 +3810,8 @@ func (d *qemu) Export(w io.Writer, properties map[string]string) (api.ImageMetad
 		}
 		if err != nil {
 			tarWriter.Close()
-			logger.Debugf("Error writing to tarfile: %s", err)
-			logger.Error("Failed exporting instance", ctxMap)
+			d.logger.Debug("Error writing to tarfile", log.Ctx{"err": err})
+			d.logger.Error("Failed exporting instance", ctxMap)
 			return meta, err
 		}
 	}
@@ -3861,18 +3849,18 @@ func (d *qemu) Export(w io.Writer, properties map[string]string) (api.ImageMetad
 	if shared.PathExists(fnam) {
 		err = filepath.Walk(fnam, writeToTar)
 		if err != nil {
-			logger.Error("Failed exporting instance", ctxMap)
+			d.logger.Error("Failed exporting instance", ctxMap)
 			return meta, err
 		}
 	}
 
 	err = tarWriter.Close()
 	if err != nil {
-		logger.Error("Failed exporting instance", ctxMap)
+		d.logger.Error("Failed exporting instance", ctxMap)
 		return meta, err
 	}
 
-	logger.Info("Exported instance", ctxMap)
+	d.logger.Info("Exported instance", ctxMap)
 	return meta, nil
 }
 
@@ -3900,7 +3888,7 @@ func (d *qemu) FilePull(srcPath string, dstPath string) (int64, int64, os.FileMo
 
 	agent, err := lxdClient.ConnectLXDHTTP(nil, client)
 	if err != nil {
-		logger.Errorf("Failed to connect to lxd-agent on %s: %v", d.Name(), err)
+		d.logger.Error("Failed to connect to lxd-agent", log.Ctx{"devName": d.Name(), "err": err})
 		return 0, 0, 0, "", nil, fmt.Errorf("Failed to connect to lxd-agent")
 	}
 	defer agent.Disconnect()
@@ -3944,7 +3932,7 @@ func (d *qemu) FilePush(fileType string, srcPath string, dstPath string, uid int
 
 	agent, err := lxdClient.ConnectLXDHTTP(nil, client)
 	if err != nil {
-		logger.Errorf("Failed to connect to lxd-agent on %s: %v", d.Name(), err)
+		d.logger.Error("Failed to connect to lxd-agent", log.Ctx{"err": err})
 		return fmt.Errorf("Failed to connect to lxd-agent")
 	}
 	defer agent.Disconnect()
@@ -4085,7 +4073,7 @@ func (d *qemu) Exec(req api.InstanceExecPost, stdin *os.File, stdout *os.File, s
 
 	agent, err := lxdClient.ConnectLXDHTTP(nil, client)
 	if err != nil {
-		logger.Errorf("Failed to connect to lxd-agent on %s: %v", d.Name(), err)
+		d.logger.Error("Failed to connect to lxd-agent", log.Ctx{"err": err})
 		return nil, fmt.Errorf("Failed to connect to lxd-agent")
 	}
 	revert.Add(agent.Disconnect)
@@ -4283,7 +4271,7 @@ func (d *qemu) RenderState() (*api.InstanceState, error) {
 		status, err = d.agentGetState()
 		if err != nil {
 			if err != errQemuAgentOffline {
-				logger.Warn("Could not get VM state from agent", log.Ctx{"project": d.Project(), "instance": d.Name(), "err": err})
+				d.logger.Warn("Could not get VM state from agent", log.Ctx{"err": err})
 			}
 
 			// Fallback data if agent is not reachable.
@@ -4297,7 +4285,7 @@ func (d *qemu) RenderState() (*api.InstanceState, error) {
 
 				dev, _, err := d.deviceLoad(k, m)
 				if err != nil {
-					logger.Warn("Could not load device", log.Ctx{"project": d.Project(), "instance": d.Name(), "device": k, "err": err})
+					d.logger.Warn("Could not load device", log.Ctx{"device": k, "err": err})
 					continue
 				}
 
@@ -4351,7 +4339,7 @@ func (d *qemu) RenderState() (*api.InstanceState, error) {
 	status.StatusCode = statusCode
 	status.Disk, err = d.diskState()
 	if err != nil && err != storageDrivers.ErrNotSupported {
-		logger.Warn("Error getting disk usage", log.Ctx{"project": d.Project(), "instance": d.Name(), "err": err})
+		d.logger.Warn("Error getting disk usage", log.Ctx{"err": err})
 	}
 
 	return status, nil
@@ -4868,7 +4856,7 @@ func (d *qemu) cpuTopology(limit string) (int, int, int, map[uint64]uint64, map[
 		nrCores = countCores
 		nrThreads = countThreads
 	} else {
-		logger.Warnf("Instance '%s' uses a CPU pinning profile which doesn't match hardware layout", project.Instance(d.Project(), d.Name()))
+		d.logger.Warn("Instance uses a CPU pinning profile which doesn't match hardware layout")
 
 		// Fallback on pretending everything are cores.
 		nrSockets = 1
@@ -4892,7 +4880,7 @@ func (d *qemu) devlxdEventSend(eventType string, eventMessage interface{}) error
 
 	agent, err := lxdClient.ConnectLXDHTTP(nil, client)
 	if err != nil {
-		logger.Errorf("Failed to connect to lxd-agent on %s: %v", d.Name(), err)
+		d.logger.Error("Failed to connect to lxd-agent", log.Ctx{"err": err})
 		return fmt.Errorf("Failed to connect to lxd-agent")
 	}
 	defer agent.Disconnect()
