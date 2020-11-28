@@ -22,6 +22,7 @@ import (
 	storagePools "github.com/lxc/lxd/lxd/storage"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
+	"github.com/lxc/lxd/shared/logger"
 )
 
 // common provides structure common to all instance types.
@@ -42,6 +43,7 @@ type common struct {
 	lastUsedDate    time.Time
 	localConfig     map[string]string
 	localDevices    deviceConfig.Devices
+	logger          logger.Logger
 	name            string
 	node            string
 	profiles        []string
