@@ -837,8 +837,8 @@ func (d *qemu) Start(stateful bool) error {
 		devConfs = append(devConfs, runConf)
 	}
 
-	// Get qemu configuration.
-	qemuBinary, qemuBus, err := d.qemuArchConfig()
+	// Get qemu configuration and check qemu is installed.
+	qemuPath, qemuBus, err := d.qemuArchConfig(d.architecture)
 	if err != nil {
 		op.Done(err)
 		return err
@@ -848,13 +848,6 @@ func (d *qemu) Start(stateful bool) error {
 	fdFiles := make([]string, 0)
 
 	confFile, err := d.generateQemuConfigFile(mountInfo, qemuBus, devConfs, &fdFiles)
-	if err != nil {
-		op.Done(err)
-		return err
-	}
-
-	// Check qemu is installed.
-	qemuPath, err := exec.LookPath(qemuBinary)
 	if err != nil {
 		op.Done(err)
 		return err
@@ -1179,15 +1172,35 @@ func (d *qemu) setupNvram() error {
 	return nil
 }
 
-func (d *qemu) qemuArchConfig() (string, string, error) {
-	if d.architecture == osarch.ARCH_64BIT_INTEL_X86 {
-		return "qemu-system-x86_64", "pcie", nil
-	} else if d.architecture == osarch.ARCH_64BIT_ARMV8_LITTLE_ENDIAN {
-		return "qemu-system-aarch64", "pcie", nil
-	} else if d.architecture == osarch.ARCH_64BIT_POWERPC_LITTLE_ENDIAN {
-		return "qemu-system-ppc64", "pci", nil
-	} else if d.architecture == osarch.ARCH_64BIT_S390_BIG_ENDIAN {
-		return "qemu-system-s390x", "ccw", nil
+func (d *qemu) qemuArchConfig(arch int) (string, string, error) {
+	if arch == osarch.ARCH_64BIT_INTEL_X86 {
+		path, err := exec.LookPath("qemu-system-x86_64")
+		if err != nil {
+			return "", "", err
+		}
+
+		return path, "pcie", nil
+	} else if arch == osarch.ARCH_64BIT_ARMV8_LITTLE_ENDIAN {
+		path, err := exec.LookPath("qemu-system-aarch64")
+		if err != nil {
+			return "", "", err
+		}
+
+		return path, "pcie", nil
+	} else if arch == osarch.ARCH_64BIT_POWERPC_LITTLE_ENDIAN {
+		path, err := exec.LookPath("qemu-system-ppc64")
+		if err != nil {
+			return "", "", err
+		}
+
+		return path, "pci", nil
+	} else if arch == osarch.ARCH_64BIT_S390_BIG_ENDIAN {
+		path, err := exec.LookPath("qemu-system-s390x")
+		if err != nil {
+			return "", "", err
+		}
+
+		return path, "ccw", nil
 	}
 
 	return "", "", fmt.Errorf("Architecture isn't supported for virtual machines")
@@ -4963,4 +4976,36 @@ func (d *qemu) writeInstanceData() error {
 	}
 
 	return nil
+}
+
+// Info returns "qemu" and the currently loaded qemu version.
+func (d *qemu) Info() instance.Info {
+	data := instance.Info{
+		Name: "qemu",
+	}
+
+	hostArch, err := osarch.ArchitectureGetLocalID()
+	if err != nil {
+		return data
+	}
+
+	qemuPath, _, err := d.qemuArchConfig(hostArch)
+	if err != nil {
+		return data
+	}
+
+	out, err := exec.Command(qemuPath, "--version").Output()
+	if err != nil {
+		return data
+	}
+
+	qemuOutput := strings.Fields(string(out))
+	if len(qemuOutput) < 4 {
+		data.Version = "unknown"
+		return data
+	}
+
+	qemuVersion := strings.Fields(string(out))[3]
+	data.Version = qemuVersion
+	return data
 }
