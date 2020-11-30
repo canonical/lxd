@@ -41,6 +41,15 @@ type rbacStatus struct {
 	LastChange string `json:"last-change"`
 }
 
+// Errors
+var errUnknownUser = fmt.Errorf("Unknown RBAC user")
+
+// UserAccess struct for permission checks.
+type UserAccess struct {
+	Admin    bool
+	Projects map[string][]string
+}
+
 // Server represents an RBAC server.
 type Server struct {
 	apiURL string
@@ -293,38 +302,40 @@ func (r *Server) RenameProject(id int64, name string) error {
 	return r.AddProject(id, name)
 }
 
-// IsAdmin returns whether or not the provided user is an admin.
-func (r *Server) IsAdmin(username string) bool {
+// UserAccess returns a UserAccess struct for the user.
+func (r *Server) UserAccess(username string) (*UserAccess, error) {
 	r.permissionsLock.Lock()
 	defer r.permissionsLock.Unlock()
 
-	// Check whether the permissions are cached
+	// Check whether the permissions are cached.
 	_, cached := r.permissions[username]
 
 	if !cached {
 		r.syncPermissions(username)
 	}
 
-	return shared.StringInSlice("admin", r.permissions[username][""])
-}
-
-// HasPermission returns whether or not the user has the permission to perform a certain task.
-func (r *Server) HasPermission(username, project, permission string) bool {
-	r.permissionsLock.Lock()
-	defer r.permissionsLock.Unlock()
-
-	// Check whether the permissions are cached
-	_, cached := r.permissions[username]
-
-	if !cached {
-		r.syncPermissions(username)
+	// Checked if the user exists.
+	permissions, ok := r.permissions[username]
+	if !ok {
+		return nil, errUnknownUser
 	}
 
-	r.resourcesLock.Lock()
-	permissions := r.permissions[username][r.resources[project]]
-	r.resourcesLock.Unlock()
+	// Prepare the response.
+	access := UserAccess{
+		Admin:    shared.StringInSlice("admin", permissions[""]),
+		Projects: map[string][]string{},
+	}
 
-	return shared.StringInSlice(permission, permissions)
+	for k, v := range permissions {
+		// Skip the global permissions.
+		if k == "" {
+			continue
+		}
+
+		access.Projects[k] = v
+	}
+
+	return &access, nil
 }
 
 func (r *Server) hasStatusChanged() bool {
