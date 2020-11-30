@@ -442,8 +442,46 @@ func (d *Daemon) createCmd(restAPI *mux.Router, version string, c APIEndpoint) {
 
 		untrustedOk := (r.Method == "GET" && c.Get.AllowUntrusted) || (r.Method == "POST" && c.Post.AllowUntrusted)
 		if trusted {
-			logger.Debug("Handling", log.Ctx{"method": r.Method, "url": r.URL.RequestURI(), "ip": r.RemoteAddr, "username": username, "protocol": protocol})
-			r = r.WithContext(context.WithValue(context.WithValue(r.Context(), "username", username), "protocol", protocol))
+			logCtx := log.Ctx{"method": r.Method, "url": r.URL.RequestURI(), "ip": r.RemoteAddr, "username": username, "protocol": protocol}
+			logger.Debug("Handling", logCtx)
+
+			// Get user access data.
+			userAccess, err := func() (*rbac.UserAccess, error) {
+				ua := &rbac.UserAccess{}
+				ua.Admin = true
+
+				if d.externalAuth == nil || d.rbac == nil || r.RemoteAddr == "@" {
+					return ua, nil
+				}
+
+				if r.Context().Value("protocol") == "cluster" {
+					return ua, nil
+				}
+
+				if r.Context().Value("protocol") == "tls" {
+					return ua, nil
+				}
+
+				ua, err = d.rbac.UserAccess(username)
+				if err != nil {
+					return nil, err
+				}
+
+				return ua, nil
+			}()
+			if err != nil {
+				logCtx["err"] = err
+				logger.Warn("Rejecting remote API request", logCtx)
+				response.Forbidden(nil).Render(w)
+				return
+			}
+
+			// Add authentication/authorization context data.
+			ctx := context.WithValue(r.Context(), "username", username)
+			ctx = context.WithValue(ctx, "protocol", protocol)
+			ctx = context.WithValue(ctx, "access", userAccess)
+
+			r = r.WithContext(ctx)
 		} else if untrustedOk && r.Header.Get("X-LXD-authenticated") == "" {
 			logger.Debug(fmt.Sprintf("Allowing untrusted %s", r.Method), log.Ctx{"url": r.URL.RequestURI(), "ip": r.RemoteAddr})
 		} else if derr, ok := err.(*bakery.DischargeRequiredError); ok {
@@ -1460,35 +1498,18 @@ func (d *Daemon) setupRBACServer(rbacURL string, rbacKey string, rbacExpiry int6
 }
 
 func (d *Daemon) userIsAdmin(r *http.Request) bool {
-	if d.externalAuth == nil || d.rbac == nil || r.RemoteAddr == "@" {
-		return true
-	}
-
-	if r.Context().Value("protocol") == "cluster" {
-		return true
-	}
-
-	if r.Context().Value("protocol") == "tls" {
-		return true
-	}
-
-	return d.rbac.IsAdmin(r.Context().Value("username").(string))
+	ua := r.Context().Value("access").(*rbac.UserAccess)
+	return ua.Admin
 }
 
 func (d *Daemon) userHasPermission(r *http.Request, project string, permission string) bool {
-	if d.externalAuth == nil || d.rbac == nil || r.RemoteAddr == "@" {
+	ua := r.Context().Value("access").(*rbac.UserAccess)
+
+	if ua.Admin {
 		return true
 	}
 
-	if r.Context().Value("protocol") == "cluster" {
-		return true
-	}
-
-	if r.Context().Value("protocol") == "tls" {
-		return true
-	}
-
-	return d.rbac.HasPermission(r.Context().Value("username").(string), project, permission)
+	return shared.StringInSlice(permission, ua.Projects[project])
 }
 
 // Setup MAAS
