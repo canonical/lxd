@@ -5,9 +5,9 @@ import (
 	"fmt"
 	"path/filepath"
 
-	"github.com/grant-he/lxd/lxd/db/schema"
-	"github.com/grant-he/lxd/shared"
-	"github.com/grant-he/lxd/shared/logger"
+	"github.com/lxc/lxd/lxd/db/schema"
+	"github.com/lxc/lxd/shared"
+	"github.com/lxc/lxd/shared/logger"
 )
 
 // Open the node-local database object.

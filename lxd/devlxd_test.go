@@ -10,8 +10,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/grant-he/lxd/lxd/sys"
-	"github.com/grant-he/lxd/lxd/ucred"
+	"github.com/lxc/lxd/lxd/sys"
+	"github.com/lxc/lxd/lxd/ucred"
 )
 
 var testDir string

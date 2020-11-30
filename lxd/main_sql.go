@@ -10,8 +10,8 @@ import (
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 
-	"github.com/grant-he/lxd/client"
-	"github.com/grant-he/lxd/shared"
+	"github.com/lxc/lxd/client"
+	"github.com/lxc/lxd/shared"
 )
 
 type cmdSql struct {

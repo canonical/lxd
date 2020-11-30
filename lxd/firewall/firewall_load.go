@@ -1,8 +1,8 @@
 package firewall
 
 import (
-	"github.com/grant-he/lxd/lxd/firewall/drivers"
-	"github.com/grant-he/lxd/shared/logger"
+	"github.com/lxc/lxd/lxd/firewall/drivers"
+	"github.com/lxc/lxd/shared/logger"
 )
 
 // New returns an appropriate firewall implementation.

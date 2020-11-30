@@ -8,7 +8,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/grant-he/lxd/lxd/db"
+	"github.com/lxc/lxd/lxd/db"
 )
 
 func TestGetCertificate(t *testing.T) {

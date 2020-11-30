@@ -19,10 +19,10 @@ import (
 
 	"golang.org/x/sys/unix"
 
-	log "github.com/grant-he/lxd/shared/log15"
+	log "github.com/lxc/lxd/shared/log15"
 
-	"github.com/grant-he/lxd/shared"
-	"github.com/grant-he/lxd/shared/logger"
+	"github.com/lxc/lxd/shared"
+	"github.com/lxc/lxd/shared/logger"
 )
 
 // WriteJSON encodes the body as JSON and sends it back to the client

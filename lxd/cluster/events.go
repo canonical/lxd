@@ -5,13 +5,13 @@ import (
 	"sync"
 	"time"
 
-	lxd "github.com/grant-he/lxd/client"
-	"github.com/grant-he/lxd/lxd/db"
-	"github.com/grant-he/lxd/lxd/endpoints"
-	"github.com/grant-he/lxd/lxd/task"
-	"github.com/grant-he/lxd/shared"
-	"github.com/grant-he/lxd/shared/api"
-	"github.com/grant-he/lxd/shared/logger"
+	lxd "github.com/lxc/lxd/client"
+	"github.com/lxc/lxd/lxd/db"
+	"github.com/lxc/lxd/lxd/endpoints"
+	"github.com/lxc/lxd/lxd/task"
+	"github.com/lxc/lxd/shared"
+	"github.com/lxc/lxd/shared/api"
+	"github.com/lxc/lxd/shared/logger"
 )
 
 var listeners = map[string]*lxd.EventListener{}

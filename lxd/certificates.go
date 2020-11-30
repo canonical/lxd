@@ -12,17 +12,17 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/pkg/errors"
 
-	lxd "github.com/grant-he/lxd/client"
-	"github.com/grant-he/lxd/lxd/cluster"
-	"github.com/grant-he/lxd/lxd/db"
-	"github.com/grant-he/lxd/lxd/response"
-	"github.com/grant-he/lxd/lxd/util"
-	"github.com/grant-he/lxd/shared"
-	"github.com/grant-he/lxd/shared/api"
-	"github.com/grant-he/lxd/shared/logger"
-	"github.com/grant-he/lxd/shared/version"
+	lxd "github.com/lxc/lxd/client"
+	"github.com/lxc/lxd/lxd/cluster"
+	"github.com/lxc/lxd/lxd/db"
+	"github.com/lxc/lxd/lxd/response"
+	"github.com/lxc/lxd/lxd/util"
+	"github.com/lxc/lxd/shared"
+	"github.com/lxc/lxd/shared/api"
+	"github.com/lxc/lxd/shared/logger"
+	"github.com/lxc/lxd/shared/version"
 
-	log "github.com/grant-he/lxd/shared/log15"
+	log "github.com/lxc/lxd/shared/log15"
 )
 
 var certificatesCmd = APIEndpoint{

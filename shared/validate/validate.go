@@ -9,7 +9,7 @@ import (
 
 	"github.com/pborman/uuid"
 
-	"github.com/grant-he/lxd/shared/units"
+	"github.com/lxc/lxd/shared/units"
 )
 
 // stringInSlice checks whether the supplied string is present in the supplied slice.

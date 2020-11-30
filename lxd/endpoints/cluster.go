@@ -5,8 +5,8 @@ import (
 	"net"
 	"time"
 
-	"github.com/grant-he/lxd/lxd/util"
-	"github.com/grant-he/lxd/shared/logger"
+	"github.com/lxc/lxd/lxd/util"
+	"github.com/lxc/lxd/shared/logger"
 )
 
 // ClusterAddress returns the cluster addresss of the cluster endpoint, or an

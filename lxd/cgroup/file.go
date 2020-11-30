@@ -6,7 +6,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/grant-he/lxd/shared"
+	"github.com/lxc/lxd/shared"
 )
 
 // NewFileReadWriter returns a CGroup instance using the filesystem as its backend.

@@ -7,9 +7,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/grant-he/lxd/lxd/util"
-	"github.com/grant-he/lxd/shared"
-	"github.com/grant-he/lxd/shared/logger"
+	"github.com/lxc/lxd/lxd/util"
+	"github.com/lxc/lxd/shared"
+	"github.com/lxc/lxd/shared/logger"
 	"github.com/pkg/errors"
 )
 

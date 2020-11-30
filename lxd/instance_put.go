@@ -7,17 +7,17 @@ import (
 
 	"github.com/gorilla/mux"
 
-	"github.com/grant-he/lxd/lxd/db"
-	deviceConfig "github.com/grant-he/lxd/lxd/device/config"
-	"github.com/grant-he/lxd/lxd/instance"
-	"github.com/grant-he/lxd/lxd/operations"
-	projecthelpers "github.com/grant-he/lxd/lxd/project"
-	"github.com/grant-he/lxd/lxd/response"
-	"github.com/grant-he/lxd/lxd/state"
-	"github.com/grant-he/lxd/lxd/util"
-	"github.com/grant-he/lxd/shared"
-	"github.com/grant-he/lxd/shared/api"
-	"github.com/grant-he/lxd/shared/osarch"
+	"github.com/lxc/lxd/lxd/db"
+	deviceConfig "github.com/lxc/lxd/lxd/device/config"
+	"github.com/lxc/lxd/lxd/instance"
+	"github.com/lxc/lxd/lxd/operations"
+	projecthelpers "github.com/lxc/lxd/lxd/project"
+	"github.com/lxc/lxd/lxd/response"
+	"github.com/lxc/lxd/lxd/state"
+	"github.com/lxc/lxd/lxd/util"
+	"github.com/lxc/lxd/shared"
+	"github.com/lxc/lxd/shared/api"
+	"github.com/lxc/lxd/shared/osarch"
 )
 
 /*

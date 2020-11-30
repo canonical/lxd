@@ -5,8 +5,8 @@ import (
 	"go/ast"
 	"strings"
 
-	"github.com/grant-he/lxd/shared/generate/file"
-	"github.com/grant-he/lxd/shared/generate/lex"
+	"github.com/lxc/lxd/shared/generate/file"
+	"github.com/lxc/lxd/shared/generate/lex"
 	"github.com/pkg/errors"
 )
 

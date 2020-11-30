@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/grant-he/lxd/shared/logger"
+	"github.com/lxc/lxd/shared/logger"
 )
 
 type Jmap map[string]interface{}

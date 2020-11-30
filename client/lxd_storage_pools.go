@@ -5,7 +5,7 @@ import (
 	"net/url"
 	"strings"
 
-	"github.com/grant-he/lxd/shared/api"
+	"github.com/lxc/lxd/shared/api"
 )
 
 // Storage pool handling functions

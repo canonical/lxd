@@ -9,7 +9,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/grant-he/lxd/shared"
+	"github.com/lxc/lxd/shared"
 )
 
 func tlsHTTPClient(client *http.Client, tlsClientCert string, tlsClientKey string, tlsCA string, tlsServerCert string, insecureSkipVerify bool, proxy func(req *http.Request) (*url.URL, error)) (*http.Client, error) {

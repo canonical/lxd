@@ -5,9 +5,9 @@ import (
 	"net"
 	"strings"
 
-	deviceConfig "github.com/grant-he/lxd/lxd/device/config"
-	"github.com/grant-he/lxd/lxd/state"
-	"github.com/grant-he/lxd/shared/api"
+	deviceConfig "github.com/lxc/lxd/lxd/device/config"
+	"github.com/lxc/lxd/lxd/state"
+	"github.com/lxc/lxd/shared/api"
 )
 
 // IBDevPrefix Infiniband devices prefix.

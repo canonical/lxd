@@ -14,11 +14,11 @@ import (
 	"github.com/spf13/cobra"
 	"gopkg.in/fsnotify.v0"
 
-	"github.com/grant-he/lxd/lxd/network"
-	"github.com/grant-he/lxd/shared"
-	"github.com/grant-he/lxd/shared/dnsutil"
-	"github.com/grant-he/lxd/shared/logger"
-	"github.com/grant-he/lxd/shared/logging"
+	"github.com/lxc/lxd/lxd/network"
+	"github.com/lxc/lxd/shared"
+	"github.com/lxc/lxd/shared/dnsutil"
+	"github.com/lxc/lxd/shared/logger"
+	"github.com/lxc/lxd/shared/logging"
 )
 
 type cmdForkDNS struct {

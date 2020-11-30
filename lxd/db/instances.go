@@ -9,12 +9,12 @@ import (
 	"strings"
 	"time"
 
-	"github.com/grant-he/lxd/lxd/db/query"
-	deviceConfig "github.com/grant-he/lxd/lxd/device/config"
-	"github.com/grant-he/lxd/lxd/instance/instancetype"
-	"github.com/grant-he/lxd/shared"
-	"github.com/grant-he/lxd/shared/api"
-	"github.com/grant-he/lxd/shared/logger"
+	"github.com/lxc/lxd/lxd/db/query"
+	deviceConfig "github.com/lxc/lxd/lxd/device/config"
+	"github.com/lxc/lxd/lxd/instance/instancetype"
+	"github.com/lxc/lxd/shared"
+	"github.com/lxc/lxd/shared/api"
+	"github.com/lxc/lxd/shared/logger"
 	"github.com/pkg/errors"
 )
 

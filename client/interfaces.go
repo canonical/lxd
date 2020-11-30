@@ -6,9 +6,9 @@ import (
 
 	"github.com/gorilla/websocket"
 
-	"github.com/grant-he/lxd/shared/api"
-	"github.com/grant-he/lxd/shared/cancel"
-	"github.com/grant-he/lxd/shared/ioprogress"
+	"github.com/lxc/lxd/shared/api"
+	"github.com/lxc/lxd/shared/cancel"
+	"github.com/lxc/lxd/shared/ioprogress"
 )
 
 // The Operation type represents a currently running operation.

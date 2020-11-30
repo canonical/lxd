@@ -4,12 +4,12 @@ import (
 	"errors"
 	"time"
 
-	"github.com/grant-he/lxd/lxd/db"
-	deviceConfig "github.com/grant-he/lxd/lxd/device/config"
-	"github.com/grant-he/lxd/lxd/instance"
-	"github.com/grant-he/lxd/lxd/instance/instancetype"
-	"github.com/grant-he/lxd/lxd/state"
-	"github.com/grant-he/lxd/shared/api"
+	"github.com/lxc/lxd/lxd/db"
+	deviceConfig "github.com/lxc/lxd/lxd/device/config"
+	"github.com/lxc/lxd/lxd/instance"
+	"github.com/lxc/lxd/lxd/instance/instancetype"
+	"github.com/lxc/lxd/lxd/state"
+	"github.com/lxc/lxd/shared/api"
 )
 
 // common provides structure common to all instance types.

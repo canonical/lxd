@@ -5,14 +5,14 @@ import (
 
 	"github.com/pkg/errors"
 
-	"github.com/grant-he/lxd/lxd/db"
-	"github.com/grant-he/lxd/lxd/device"
-	deviceConfig "github.com/grant-he/lxd/lxd/device/config"
-	"github.com/grant-he/lxd/lxd/instance"
-	"github.com/grant-he/lxd/lxd/instance/instancetype"
-	"github.com/grant-he/lxd/lxd/state"
-	"github.com/grant-he/lxd/shared"
-	"github.com/grant-he/lxd/shared/api"
+	"github.com/lxc/lxd/lxd/db"
+	"github.com/lxc/lxd/lxd/device"
+	deviceConfig "github.com/lxc/lxd/lxd/device/config"
+	"github.com/lxc/lxd/lxd/instance"
+	"github.com/lxc/lxd/lxd/instance/instancetype"
+	"github.com/lxc/lxd/lxd/state"
+	"github.com/lxc/lxd/shared"
+	"github.com/lxc/lxd/shared/api"
 )
 
 func init() {

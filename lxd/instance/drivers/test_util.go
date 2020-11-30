@@ -1,8 +1,8 @@
 package drivers
 
 import (
-	"github.com/grant-he/lxd/lxd/instance"
-	"github.com/grant-he/lxd/lxd/instance/instancetype"
+	"github.com/lxc/lxd/lxd/instance"
+	"github.com/lxc/lxd/lxd/instance/instancetype"
 )
 
 // PrepareEqualTest modifies any unexported variables required for reflect.DeepEqual to complete safely.

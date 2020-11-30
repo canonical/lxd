@@ -5,7 +5,7 @@ import (
 
 	"golang.org/x/sys/unix"
 
-	"github.com/grant-he/lxd/shared/logger"
+	"github.com/lxc/lxd/shared/logger"
 )
 
 // Filesystem magic numbers

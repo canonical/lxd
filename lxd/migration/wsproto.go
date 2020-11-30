@@ -7,7 +7,7 @@ import (
 	"github.com/golang/protobuf/proto"
 	"github.com/gorilla/websocket"
 
-	"github.com/grant-he/lxd/shared"
+	"github.com/lxc/lxd/shared"
 )
 
 // ProtoRecv gets a protobuf message from a websocket

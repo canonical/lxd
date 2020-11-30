@@ -12,17 +12,17 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/pkg/errors"
 
-	"github.com/grant-he/lxd/lxd/cluster"
-	"github.com/grant-he/lxd/lxd/db"
-	"github.com/grant-he/lxd/lxd/db/query"
-	"github.com/grant-he/lxd/lxd/filter"
-	"github.com/grant-he/lxd/lxd/instance"
-	"github.com/grant-he/lxd/lxd/instance/instancetype"
-	"github.com/grant-he/lxd/lxd/response"
-	"github.com/grant-he/lxd/shared"
-	"github.com/grant-he/lxd/shared/api"
-	"github.com/grant-he/lxd/shared/logger"
-	"github.com/grant-he/lxd/shared/version"
+	"github.com/lxc/lxd/lxd/cluster"
+	"github.com/lxc/lxd/lxd/db"
+	"github.com/lxc/lxd/lxd/db/query"
+	"github.com/lxc/lxd/lxd/filter"
+	"github.com/lxc/lxd/lxd/instance"
+	"github.com/lxc/lxd/lxd/instance/instancetype"
+	"github.com/lxc/lxd/lxd/response"
+	"github.com/lxc/lxd/shared"
+	"github.com/lxc/lxd/shared/api"
+	"github.com/lxc/lxd/shared/logger"
+	"github.com/lxc/lxd/shared/version"
 )
 
 // urlInstanceTypeDetect detects what sort of instance type filter is being requested. Either

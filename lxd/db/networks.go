@@ -9,9 +9,9 @@ import (
 
 	"github.com/pkg/errors"
 
-	"github.com/grant-he/lxd/lxd/db/query"
-	"github.com/grant-he/lxd/shared"
-	"github.com/grant-he/lxd/shared/api"
+	"github.com/lxc/lxd/lxd/db/query"
+	"github.com/lxc/lxd/shared"
+	"github.com/lxc/lxd/shared/api"
 )
 
 // GetNetworksLocalConfig returns a map associating each network name to its

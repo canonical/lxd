@@ -8,8 +8,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/grant-he/lxd/lxd/db"
-	"github.com/grant-he/lxd/lxd/project"
+	"github.com/lxc/lxd/lxd/db"
+	"github.com/lxc/lxd/lxd/project"
 )
 
 // The GetNetworksLocalConfigs method returns only node-specific config values.

@@ -3,7 +3,7 @@ package firewall
 import (
 	"net"
 
-	deviceConfig "github.com/grant-he/lxd/lxd/device/config"
+	deviceConfig "github.com/lxc/lxd/lxd/device/config"
 )
 
 // Firewall represents an LXD firewall.

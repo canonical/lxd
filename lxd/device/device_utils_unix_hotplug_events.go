@@ -6,11 +6,11 @@ import (
 	"strings"
 	"sync"
 
-	deviceConfig "github.com/grant-he/lxd/lxd/device/config"
-	"github.com/grant-he/lxd/lxd/instance"
-	"github.com/grant-he/lxd/lxd/state"
-	log "github.com/grant-he/lxd/shared/log15"
-	"github.com/grant-he/lxd/shared/logger"
+	deviceConfig "github.com/lxc/lxd/lxd/device/config"
+	"github.com/lxc/lxd/lxd/instance"
+	"github.com/lxc/lxd/lxd/state"
+	log "github.com/lxc/lxd/shared/log15"
+	"github.com/lxc/lxd/shared/logger"
 )
 
 // UnixHotplugEvent represents the properties of a Unix hotplug device uevent.

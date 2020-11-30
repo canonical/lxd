@@ -5,10 +5,10 @@ import (
 	"net/http"
 
 	"github.com/gorilla/mux"
-	"github.com/grant-he/lxd/lxd/db"
-	"github.com/grant-he/lxd/lxd/instance"
-	"github.com/grant-he/lxd/lxd/operations"
-	"github.com/grant-he/lxd/lxd/response"
+	"github.com/lxc/lxd/lxd/db"
+	"github.com/lxc/lxd/lxd/instance"
+	"github.com/lxc/lxd/lxd/operations"
+	"github.com/lxc/lxd/lxd/response"
 )
 
 func containerDelete(d *Daemon, r *http.Request) response.Response {

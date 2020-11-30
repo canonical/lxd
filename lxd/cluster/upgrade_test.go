@@ -10,10 +10,10 @@ import (
 	"time"
 
 	"github.com/canonical/go-dqlite/driver"
-	"github.com/grant-he/lxd/lxd/cluster"
-	"github.com/grant-he/lxd/lxd/db"
-	"github.com/grant-he/lxd/lxd/state"
-	"github.com/grant-he/lxd/shared"
+	"github.com/lxc/lxd/lxd/cluster"
+	"github.com/lxc/lxd/lxd/db"
+	"github.com/lxc/lxd/lxd/state"
+	"github.com/lxc/lxd/shared"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

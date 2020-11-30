@@ -5,7 +5,7 @@ import (
 
 	"golang.org/x/sys/unix"
 
-	"github.com/grant-he/lxd/shared"
+	"github.com/lxc/lxd/shared"
 )
 
 // Reader represents an io.Reader that handles EAGAIN

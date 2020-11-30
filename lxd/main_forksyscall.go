@@ -6,7 +6,7 @@ import (
 	"github.com/spf13/cobra"
 
 	// Used by cgo
-	_ "github.com/grant-he/lxd/lxd/include"
+	_ "github.com/lxc/lxd/lxd/include"
 )
 
 /*

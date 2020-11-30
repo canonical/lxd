@@ -8,15 +8,15 @@ import (
 
 	"github.com/pkg/errors"
 
-	"github.com/grant-he/lxd/lxd/db"
-	"github.com/grant-he/lxd/lxd/instance"
-	"github.com/grant-he/lxd/lxd/state"
-	storagePools "github.com/grant-he/lxd/lxd/storage"
-	storageDrivers "github.com/grant-he/lxd/lxd/storage/drivers"
-	"github.com/grant-he/lxd/shared"
-	"github.com/grant-he/lxd/shared/idmap"
-	"github.com/grant-he/lxd/shared/logger"
-	"github.com/grant-he/lxd/shared/version"
+	"github.com/lxc/lxd/lxd/db"
+	"github.com/lxc/lxd/lxd/instance"
+	"github.com/lxc/lxd/lxd/state"
+	storagePools "github.com/lxc/lxd/lxd/storage"
+	storageDrivers "github.com/lxc/lxd/lxd/storage/drivers"
+	"github.com/lxc/lxd/shared"
+	"github.com/lxc/lxd/shared/idmap"
+	"github.com/lxc/lxd/shared/logger"
+	"github.com/lxc/lxd/shared/version"
 )
 
 // Simply cache used to storage the activated drivers on this LXD instance. This

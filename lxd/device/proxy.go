@@ -13,17 +13,17 @@ import (
 	"github.com/pkg/errors"
 	liblxc "gopkg.in/lxc/go-lxc.v2"
 
-	"github.com/grant-he/lxd/lxd/apparmor"
-	deviceConfig "github.com/grant-he/lxd/lxd/device/config"
-	"github.com/grant-he/lxd/lxd/device/nictype"
-	"github.com/grant-he/lxd/lxd/instance"
-	"github.com/grant-he/lxd/lxd/instance/instancetype"
-	"github.com/grant-he/lxd/lxd/project"
-	"github.com/grant-he/lxd/lxd/util"
-	"github.com/grant-he/lxd/shared"
-	"github.com/grant-he/lxd/shared/logger"
-	"github.com/grant-he/lxd/shared/subprocess"
-	"github.com/grant-he/lxd/shared/validate"
+	"github.com/lxc/lxd/lxd/apparmor"
+	deviceConfig "github.com/lxc/lxd/lxd/device/config"
+	"github.com/lxc/lxd/lxd/device/nictype"
+	"github.com/lxc/lxd/lxd/instance"
+	"github.com/lxc/lxd/lxd/instance/instancetype"
+	"github.com/lxc/lxd/lxd/project"
+	"github.com/lxc/lxd/lxd/util"
+	"github.com/lxc/lxd/shared"
+	"github.com/lxc/lxd/shared/logger"
+	"github.com/lxc/lxd/shared/subprocess"
+	"github.com/lxc/lxd/shared/validate"
 )
 
 type proxy struct {

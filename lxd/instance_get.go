@@ -4,8 +4,8 @@ import (
 	"net/http"
 
 	"github.com/gorilla/mux"
-	"github.com/grant-he/lxd/lxd/instance"
-	"github.com/grant-he/lxd/lxd/response"
+	"github.com/lxc/lxd/lxd/instance"
+	"github.com/lxc/lxd/lxd/response"
 )
 
 func containerGet(d *Daemon, r *http.Request) response.Response {

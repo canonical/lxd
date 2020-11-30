@@ -3,7 +3,7 @@ package cluster
 import (
 	"fmt"
 
-	"github.com/grant-he/lxd/lxd/db"
+	"github.com/lxc/lxd/lxd/db"
 )
 
 // ResolveTarget is a convenience for handling the value ?targetNode query

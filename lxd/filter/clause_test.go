@@ -3,7 +3,7 @@ package filter_test
 import (
 	"testing"
 
-	"github.com/grant-he/lxd/lxd/filter"
+	"github.com/lxc/lxd/lxd/filter"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

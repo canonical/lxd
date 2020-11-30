@@ -14,13 +14,13 @@ import (
 	"github.com/gorilla/websocket"
 	"golang.org/x/sys/unix"
 
-	"github.com/grant-he/lxd/lxd/db"
-	"github.com/grant-he/lxd/lxd/operations"
-	"github.com/grant-he/lxd/lxd/response"
-	"github.com/grant-he/lxd/shared"
-	"github.com/grant-he/lxd/shared/api"
-	"github.com/grant-he/lxd/shared/logger"
-	"github.com/grant-he/lxd/shared/netutils"
+	"github.com/lxc/lxd/lxd/db"
+	"github.com/lxc/lxd/lxd/operations"
+	"github.com/lxc/lxd/lxd/response"
+	"github.com/lxc/lxd/shared"
+	"github.com/lxc/lxd/shared/api"
+	"github.com/lxc/lxd/shared/logger"
+	"github.com/lxc/lxd/shared/netutils"
 )
 
 var execCmd = APIEndpoint{

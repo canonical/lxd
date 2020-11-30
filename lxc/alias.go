@@ -6,9 +6,9 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/grant-he/lxd/lxc/utils"
-	cli "github.com/grant-he/lxd/shared/cmd"
-	"github.com/grant-he/lxd/shared/i18n"
+	"github.com/lxc/lxd/lxc/utils"
+	cli "github.com/lxc/lxd/shared/cmd"
+	"github.com/lxc/lxd/shared/i18n"
 )
 
 type cmdAlias struct {

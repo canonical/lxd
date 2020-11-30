@@ -5,7 +5,7 @@ package state
 import (
 	"context"
 
-	"github.com/grant-he/lxd/lxd/events"
+	"github.com/lxc/lxd/lxd/events"
 )
 
 // State here is just an empty shim to statisfy dependencies.

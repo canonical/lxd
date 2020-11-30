@@ -5,7 +5,7 @@ import (
 
 	"github.com/stretchr/testify/suite"
 
-	"github.com/grant-he/lxd/shared"
+	"github.com/lxc/lxd/shared"
 )
 
 // WriteTempFile writes content to a temporary file.

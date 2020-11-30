@@ -3,16 +3,16 @@ package storage
 import (
 	"fmt"
 
-	"github.com/grant-he/lxd/lxd/db"
-	"github.com/grant-he/lxd/lxd/instance"
-	"github.com/grant-he/lxd/lxd/operations"
-	"github.com/grant-he/lxd/lxd/project"
-	"github.com/grant-he/lxd/lxd/state"
-	"github.com/grant-he/lxd/lxd/storage/drivers"
-	"github.com/grant-he/lxd/shared/api"
-	log "github.com/grant-he/lxd/shared/log15"
-	"github.com/grant-he/lxd/shared/logger"
-	"github.com/grant-he/lxd/shared/logging"
+	"github.com/lxc/lxd/lxd/db"
+	"github.com/lxc/lxd/lxd/instance"
+	"github.com/lxc/lxd/lxd/operations"
+	"github.com/lxc/lxd/lxd/project"
+	"github.com/lxc/lxd/lxd/state"
+	"github.com/lxc/lxd/lxd/storage/drivers"
+	"github.com/lxc/lxd/shared/api"
+	log "github.com/lxc/lxd/shared/log15"
+	"github.com/lxc/lxd/shared/logger"
+	"github.com/lxc/lxd/shared/logging"
 )
 
 // volIDFuncMake returns a function that can be supplied to the underlying storage drivers allowing

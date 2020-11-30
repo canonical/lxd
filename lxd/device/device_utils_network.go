@@ -10,18 +10,18 @@ import (
 
 	"github.com/pkg/errors"
 
-	deviceConfig "github.com/grant-he/lxd/lxd/device/config"
-	"github.com/grant-he/lxd/lxd/device/nictype"
-	"github.com/grant-he/lxd/lxd/instance"
-	"github.com/grant-he/lxd/lxd/instance/instancetype"
-	"github.com/grant-he/lxd/lxd/network"
-	"github.com/grant-he/lxd/lxd/project"
-	"github.com/grant-he/lxd/lxd/revert"
-	"github.com/grant-he/lxd/lxd/state"
-	"github.com/grant-he/lxd/shared"
-	"github.com/grant-he/lxd/shared/logger"
-	"github.com/grant-he/lxd/shared/units"
-	"github.com/grant-he/lxd/shared/validate"
+	deviceConfig "github.com/lxc/lxd/lxd/device/config"
+	"github.com/lxc/lxd/lxd/device/nictype"
+	"github.com/lxc/lxd/lxd/instance"
+	"github.com/lxc/lxd/lxd/instance/instancetype"
+	"github.com/lxc/lxd/lxd/network"
+	"github.com/lxc/lxd/lxd/project"
+	"github.com/lxc/lxd/lxd/revert"
+	"github.com/lxc/lxd/lxd/state"
+	"github.com/lxc/lxd/shared"
+	"github.com/lxc/lxd/shared/logger"
+	"github.com/lxc/lxd/shared/units"
+	"github.com/lxc/lxd/shared/validate"
 )
 
 // Instances can be started in parallel, so lock the creation of VLANs.

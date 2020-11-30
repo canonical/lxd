@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/grant-he/lxd/shared"
+	"github.com/lxc/lxd/shared"
 )
 
 // TarReader rewinds backup file handle r and returns new tar reader and process cleanup function.

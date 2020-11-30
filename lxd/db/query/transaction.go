@@ -4,7 +4,7 @@ import (
 	"database/sql"
 	"strings"
 
-	"github.com/grant-he/lxd/shared/logger"
+	"github.com/lxc/lxd/shared/logger"
 	"github.com/pkg/errors"
 )
 

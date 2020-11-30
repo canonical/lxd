@@ -11,7 +11,7 @@ import (
 	"strings"
 	"unsafe"
 
-	"github.com/grant-he/lxd/shared/api"
+	"github.com/lxc/lxd/shared/api"
 )
 
 /*

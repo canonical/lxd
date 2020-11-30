@@ -3,7 +3,7 @@ package instancetype
 import (
 	"fmt"
 
-	"github.com/grant-he/lxd/shared/api"
+	"github.com/lxc/lxd/shared/api"
 )
 
 // Type indicates the type of instance.

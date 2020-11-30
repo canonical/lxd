@@ -3,9 +3,9 @@ package config
 import (
 	"fmt"
 
-	log "github.com/grant-he/lxd/shared/log15"
+	log "github.com/lxc/lxd/shared/log15"
 
-	"github.com/grant-he/lxd/shared/logger"
+	"github.com/lxc/lxd/shared/logger"
 )
 
 // SafeLoad is a wrapper around Load() that does not error when invalid keys

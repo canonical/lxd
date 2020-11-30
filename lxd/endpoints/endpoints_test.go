@@ -12,11 +12,11 @@ import (
 	"strconv"
 	"testing"
 
-	"github.com/grant-he/lxd/lxd/endpoints"
-	"github.com/grant-he/lxd/lxd/util"
-	"github.com/grant-he/lxd/shared"
-	"github.com/grant-he/lxd/shared/api"
-	"github.com/grant-he/lxd/shared/logging"
+	"github.com/lxc/lxd/lxd/endpoints"
+	"github.com/lxc/lxd/lxd/util"
+	"github.com/lxc/lxd/shared"
+	"github.com/lxc/lxd/shared/api"
+	"github.com/lxc/lxd/shared/logging"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

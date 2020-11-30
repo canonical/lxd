@@ -21,19 +21,19 @@ import (
 	liblxc "gopkg.in/lxc/go-lxc.v2"
 
 	// Used by cgo
-	_ "github.com/grant-he/lxd/lxd/include"
+	_ "github.com/lxc/lxd/lxd/include"
 
-	deviceConfig "github.com/grant-he/lxd/lxd/device/config"
-	"github.com/grant-he/lxd/lxd/project"
-	"github.com/grant-he/lxd/lxd/state"
-	"github.com/grant-he/lxd/lxd/ucred"
-	"github.com/grant-he/lxd/lxd/util"
-	"github.com/grant-he/lxd/shared"
-	"github.com/grant-he/lxd/shared/idmap"
-	log "github.com/grant-he/lxd/shared/log15"
-	"github.com/grant-he/lxd/shared/logger"
-	"github.com/grant-he/lxd/shared/netutils"
-	"github.com/grant-he/lxd/shared/osarch"
+	deviceConfig "github.com/lxc/lxd/lxd/device/config"
+	"github.com/lxc/lxd/lxd/project"
+	"github.com/lxc/lxd/lxd/state"
+	"github.com/lxc/lxd/lxd/ucred"
+	"github.com/lxc/lxd/lxd/util"
+	"github.com/lxc/lxd/shared"
+	"github.com/lxc/lxd/shared/idmap"
+	log "github.com/lxc/lxd/shared/log15"
+	"github.com/lxc/lxd/shared/logger"
+	"github.com/lxc/lxd/shared/netutils"
+	"github.com/lxc/lxd/shared/osarch"
 )
 
 /*

@@ -12,12 +12,12 @@ import (
 	"github.com/pkg/errors"
 	"golang.org/x/sys/unix"
 
-	deviceConfig "github.com/grant-he/lxd/lxd/device/config"
-	"github.com/grant-he/lxd/lxd/instance"
-	"github.com/grant-he/lxd/lxd/instance/instancetype"
-	"github.com/grant-he/lxd/lxd/resources"
-	"github.com/grant-he/lxd/shared"
-	"github.com/grant-he/lxd/shared/validate"
+	deviceConfig "github.com/lxc/lxd/lxd/device/config"
+	"github.com/lxc/lxd/lxd/instance"
+	"github.com/lxc/lxd/lxd/instance/instancetype"
+	"github.com/lxc/lxd/lxd/resources"
+	"github.com/lxc/lxd/shared"
+	"github.com/lxc/lxd/shared/validate"
 )
 
 const gpuDRIDevPath = "/dev/dri"

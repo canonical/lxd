@@ -16,12 +16,12 @@ import (
 	"github.com/spf13/cobra"
 	"golang.org/x/sys/unix"
 
-	"github.com/grant-he/lxd/lxd/instance/instancetype"
-	"github.com/grant-he/lxd/lxd/util"
-	"github.com/grant-he/lxd/lxd/vsock"
-	"github.com/grant-he/lxd/shared"
-	"github.com/grant-he/lxd/shared/logger"
-	"github.com/grant-he/lxd/shared/logging"
+	"github.com/lxc/lxd/lxd/instance/instancetype"
+	"github.com/lxc/lxd/lxd/util"
+	"github.com/lxc/lxd/lxd/vsock"
+	"github.com/lxc/lxd/shared"
+	"github.com/lxc/lxd/shared/logger"
+	"github.com/lxc/lxd/shared/logging"
 )
 
 type cmdAgent struct {

@@ -11,11 +11,11 @@ import (
 	"strings"
 
 	"github.com/gorilla/mux"
-	"github.com/grant-he/lxd/lxd/daemon"
-	"github.com/grant-he/lxd/lxd/util"
-	"github.com/grant-he/lxd/shared"
-	"github.com/grant-he/lxd/shared/logger"
-	"github.com/grant-he/lxd/shared/version"
+	"github.com/lxc/lxd/lxd/daemon"
+	"github.com/lxc/lxd/lxd/util"
+	"github.com/lxc/lxd/shared"
+	"github.com/lxc/lxd/shared/logger"
+	"github.com/lxc/lxd/shared/version"
 )
 
 // DevLxdServer creates an http.Server capable of handling requests against the

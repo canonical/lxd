@@ -4,9 +4,9 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/cobra/doc"
 
-	"github.com/grant-he/lxd/shared"
-	cli "github.com/grant-he/lxd/shared/cmd"
-	"github.com/grant-he/lxd/shared/i18n"
+	"github.com/lxc/lxd/shared"
+	cli "github.com/lxc/lxd/shared/cmd"
+	"github.com/lxc/lxd/shared/i18n"
 )
 
 type cmdManpage struct {

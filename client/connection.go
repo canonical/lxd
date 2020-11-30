@@ -12,9 +12,9 @@ import (
 
 	"gopkg.in/macaroon-bakery.v2/httpbakery"
 
-	"github.com/grant-he/lxd/shared"
-	"github.com/grant-he/lxd/shared/logger"
-	"github.com/grant-he/lxd/shared/simplestreams"
+	"github.com/lxc/lxd/shared"
+	"github.com/lxc/lxd/shared/logger"
+	"github.com/lxc/lxd/shared/simplestreams"
 )
 
 // ConnectionArgs represents a set of common connection properties

@@ -10,10 +10,10 @@ import (
 	"sync"
 	"time"
 
-	"github.com/grant-he/lxd/lxd/project"
-	"github.com/grant-he/lxd/shared"
-	"github.com/grant-he/lxd/shared/subprocess"
-	"github.com/grant-he/lxd/shared/version"
+	"github.com/lxc/lxd/lxd/project"
+	"github.com/lxc/lxd/shared"
+	"github.com/lxc/lxd/shared/subprocess"
+	"github.com/lxc/lxd/shared/version"
 )
 
 // DHCPAllocation represents an IP allocation from dnsmasq.

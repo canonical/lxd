@@ -9,9 +9,9 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/grant-he/lxd/lxc/config"
-	"github.com/grant-he/lxd/shared"
-	"github.com/grant-he/lxd/shared/i18n"
+	"github.com/lxc/lxd/lxc/config"
+	"github.com/lxc/lxd/shared"
+	"github.com/lxc/lxd/shared/i18n"
 )
 
 // defaultAliases contains LXC's built-in command line aliases.  The built-in

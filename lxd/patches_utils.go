@@ -10,11 +10,11 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/grant-he/lxd/lxd/project"
-	"github.com/grant-he/lxd/lxd/state"
-	storageDrivers "github.com/grant-he/lxd/lxd/storage/drivers"
-	"github.com/grant-he/lxd/shared"
-	"github.com/grant-he/lxd/shared/units"
+	"github.com/lxc/lxd/lxd/project"
+	"github.com/lxc/lxd/lxd/state"
+	storageDrivers "github.com/lxc/lxd/lxd/storage/drivers"
+	"github.com/lxc/lxd/shared"
+	"github.com/lxc/lxd/shared/units"
 )
 
 // For 'btrfs' storage backend.

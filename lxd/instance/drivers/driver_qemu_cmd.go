@@ -5,9 +5,9 @@ import (
 
 	"golang.org/x/sys/unix"
 
-	lxdClient "github.com/grant-he/lxd/client"
-	"github.com/grant-he/lxd/shared/api"
-	"github.com/grant-he/lxd/shared/logger"
+	lxdClient "github.com/lxc/lxd/client"
+	"github.com/lxc/lxd/shared/api"
+	"github.com/lxc/lxd/shared/logger"
 )
 
 // Cmd represents a running command for an Qemu VM.

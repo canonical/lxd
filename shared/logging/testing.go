@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"testing"
 
-	log "github.com/grant-he/lxd/shared/log15"
+	log "github.com/lxc/lxd/shared/log15"
 )
 
 // Testing installs a global logger that emits messages using the t.Logf method

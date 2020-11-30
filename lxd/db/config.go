@@ -2,7 +2,7 @@
 
 package db
 
-import "github.com/grant-he/lxd/lxd/db/query"
+import "github.com/lxc/lxd/lxd/db/query"
 
 // Config fetches all LXD node-level config keys.
 func (n *NodeTx) Config() (map[string]string, error) {

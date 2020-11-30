@@ -4,10 +4,10 @@ import (
 	"testing"
 	"time"
 
-	lxd "github.com/grant-he/lxd/client"
-	"github.com/grant-he/lxd/lxd/sys"
-	"github.com/grant-he/lxd/shared"
-	"github.com/grant-he/lxd/shared/logging"
+	lxd "github.com/lxc/lxd/client"
+	"github.com/lxc/lxd/lxd/sys"
+	"github.com/lxc/lxd/shared"
+	"github.com/lxc/lxd/shared/logging"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

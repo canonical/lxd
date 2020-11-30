@@ -12,17 +12,17 @@ import (
 	"golang.org/x/sys/unix"
 
 	// Used by cgo
-	_ "github.com/grant-he/lxd/lxd/include"
+	_ "github.com/lxc/lxd/lxd/include"
 
-	"github.com/grant-he/lxd/lxd/cgroup"
-	"github.com/grant-he/lxd/lxd/device"
-	"github.com/grant-he/lxd/lxd/instance"
-	"github.com/grant-he/lxd/lxd/instance/instancetype"
-	"github.com/grant-he/lxd/lxd/resources"
-	"github.com/grant-he/lxd/lxd/state"
-	"github.com/grant-he/lxd/shared"
-	log "github.com/grant-he/lxd/shared/log15"
-	"github.com/grant-he/lxd/shared/logger"
+	"github.com/lxc/lxd/lxd/cgroup"
+	"github.com/lxc/lxd/lxd/device"
+	"github.com/lxc/lxd/lxd/instance"
+	"github.com/lxc/lxd/lxd/instance/instancetype"
+	"github.com/lxc/lxd/lxd/resources"
+	"github.com/lxc/lxd/lxd/state"
+	"github.com/lxc/lxd/shared"
+	log "github.com/lxc/lxd/shared/log15"
+	"github.com/lxc/lxd/shared/logger"
 )
 
 /*

@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"sync"
 
-	"github.com/grant-he/lxd/shared/api"
+	"github.com/lxc/lxd/shared/api"
 )
 
 // The EventListener struct is used to interact with a LXD event stream

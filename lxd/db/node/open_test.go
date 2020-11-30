@@ -6,7 +6,7 @@ import (
 	"os"
 	"testing"
 
-	"github.com/grant-he/lxd/lxd/db/node"
+	"github.com/lxc/lxd/lxd/db/node"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

@@ -5,11 +5,11 @@ import (
 
 	"github.com/pkg/errors"
 
-	lxd "github.com/grant-he/lxd/client"
-	"github.com/grant-he/lxd/lxd/project"
-	"github.com/grant-he/lxd/lxd/revert"
-	"github.com/grant-he/lxd/shared"
-	"github.com/grant-he/lxd/shared/api"
+	lxd "github.com/lxc/lxd/client"
+	"github.com/lxc/lxd/lxd/project"
+	"github.com/lxc/lxd/lxd/revert"
+	"github.com/lxc/lxd/shared"
+	"github.com/lxc/lxd/shared/api"
 )
 
 type initDataNode struct {

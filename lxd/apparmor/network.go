@@ -5,7 +5,7 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/grant-he/lxd/lxd/state"
+	"github.com/lxc/lxd/lxd/state"
 )
 
 // Internal copy of the network interface.

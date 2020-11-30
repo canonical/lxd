@@ -9,7 +9,7 @@ import (
 	"github.com/pkg/errors"
 	"golang.org/x/sys/unix"
 
-	"github.com/grant-he/lxd/shared/api"
+	"github.com/lxc/lxd/shared/api"
 )
 
 var sysClassNet = "/sys/class/net"

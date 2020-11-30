@@ -1,7 +1,7 @@
 package device
 
 import (
-	"github.com/grant-he/lxd/shared/validate"
+	"github.com/lxc/lxd/shared/validate"
 )
 
 // nicValidationRules returns config validation rules for nic devices.

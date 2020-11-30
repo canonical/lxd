@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/grant-he/lxd/shared/version"
+	"github.com/lxc/lxd/shared/version"
 )
 
 // Numeric type codes identifying different kind of entities.

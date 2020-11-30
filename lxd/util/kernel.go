@@ -6,7 +6,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/grant-he/lxd/shared"
+	"github.com/lxc/lxd/shared"
 )
 
 // LoadModule loads the kernel module with the given name, by invoking

@@ -8,8 +8,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/grant-he/lxd/lxd/db/query"
-	"github.com/grant-he/lxd/shared/subtest"
+	"github.com/lxc/lxd/lxd/db/query"
+	"github.com/lxc/lxd/shared/subtest"
 )
 
 func TestSelectURIs(t *testing.T) {

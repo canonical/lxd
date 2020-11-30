@@ -4,7 +4,7 @@ import (
 	"database/sql"
 	"fmt"
 
-	"github.com/grant-he/lxd/lxd/db/query"
+	"github.com/lxc/lxd/lxd/db/query"
 )
 
 // Update the schema and api_extensions columns of the row in the nodes table

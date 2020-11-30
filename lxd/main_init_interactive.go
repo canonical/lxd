@@ -15,17 +15,17 @@ import (
 	"golang.org/x/sys/unix"
 	"gopkg.in/yaml.v2"
 
-	lxd "github.com/grant-he/lxd/client"
-	"github.com/grant-he/lxd/lxd/cluster"
-	"github.com/grant-he/lxd/lxd/network"
-	"github.com/grant-he/lxd/lxd/project"
-	"github.com/grant-he/lxd/lxd/util"
-	"github.com/grant-he/lxd/shared"
-	"github.com/grant-he/lxd/shared/api"
-	cli "github.com/grant-he/lxd/shared/cmd"
-	"github.com/grant-he/lxd/shared/idmap"
-	"github.com/grant-he/lxd/shared/validate"
-	"github.com/grant-he/lxd/shared/version"
+	lxd "github.com/lxc/lxd/client"
+	"github.com/lxc/lxd/lxd/cluster"
+	"github.com/lxc/lxd/lxd/network"
+	"github.com/lxc/lxd/lxd/project"
+	"github.com/lxc/lxd/lxd/util"
+	"github.com/lxc/lxd/shared"
+	"github.com/lxc/lxd/shared/api"
+	cli "github.com/lxc/lxd/shared/cmd"
+	"github.com/lxc/lxd/shared/idmap"
+	"github.com/lxc/lxd/shared/validate"
+	"github.com/lxc/lxd/shared/version"
 )
 
 func (c *cmdInit) RunInteractive(cmd *cobra.Command, args []string, d lxd.InstanceServer) (*cmdInitData, error) {

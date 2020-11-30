@@ -7,9 +7,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/grant-he/lxd/shared/api"
-	"github.com/grant-he/lxd/shared/ioprogress"
-	"github.com/grant-he/lxd/shared/termios"
+	"github.com/lxc/lxd/shared/api"
+	"github.com/lxc/lxd/shared/ioprogress"
+	"github.com/lxc/lxd/shared/termios"
 )
 
 // ProgressRenderer tracks the progress information

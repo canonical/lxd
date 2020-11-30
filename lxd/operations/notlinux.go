@@ -5,7 +5,7 @@ package operations
 import (
 	"fmt"
 
-	"github.com/grant-he/lxd/lxd/db"
+	"github.com/lxc/lxd/lxd/db"
 )
 
 func registerDBOperation(op *Operation, opType db.OperationType) error {

@@ -4,8 +4,8 @@ package db
 var Imports = []string{
 	"database/sql",
 	"fmt",
-	"github.com/grant-he/lxd/lxd/db/cluster",
-	"github.com/grant-he/lxd/lxd/db/query",
-	"github.com/grant-he/lxd/shared/api",
+	"github.com/lxc/lxd/lxd/db/cluster",
+	"github.com/lxc/lxd/lxd/db/query",
+	"github.com/lxc/lxd/shared/api",
 	"github.com/pkg/errors",
 }

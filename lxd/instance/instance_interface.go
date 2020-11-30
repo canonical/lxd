@@ -7,14 +7,14 @@ import (
 
 	liblxc "gopkg.in/lxc/go-lxc.v2"
 
-	"github.com/grant-he/lxd/lxd/backup"
-	"github.com/grant-he/lxd/lxd/cgroup"
-	"github.com/grant-he/lxd/lxd/db"
-	deviceConfig "github.com/grant-he/lxd/lxd/device/config"
-	"github.com/grant-he/lxd/lxd/instance/instancetype"
-	"github.com/grant-he/lxd/lxd/operations"
-	"github.com/grant-he/lxd/shared/api"
-	"github.com/grant-he/lxd/shared/idmap"
+	"github.com/lxc/lxd/lxd/backup"
+	"github.com/lxc/lxd/lxd/cgroup"
+	"github.com/lxc/lxd/lxd/db"
+	deviceConfig "github.com/lxc/lxd/lxd/device/config"
+	"github.com/lxc/lxd/lxd/instance/instancetype"
+	"github.com/lxc/lxd/lxd/operations"
+	"github.com/lxc/lxd/shared/api"
+	"github.com/lxc/lxd/shared/idmap"
 )
 
 // HookStart hook used when instance has started.

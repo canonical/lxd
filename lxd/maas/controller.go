@@ -7,7 +7,7 @@ import (
 
 	"github.com/juju/gomaasapi"
 
-	"github.com/grant-he/lxd/lxd/project"
+	"github.com/lxc/lxd/lxd/project"
 )
 
 // Instance is a MAAS specific instance interface.

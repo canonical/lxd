@@ -10,13 +10,13 @@ import (
 
 	"github.com/pkg/errors"
 
-	"github.com/grant-he/lxd/lxd/locking"
-	"github.com/grant-he/lxd/lxd/operations"
-	"github.com/grant-he/lxd/lxd/revert"
-	"github.com/grant-he/lxd/shared"
-	log "github.com/grant-he/lxd/shared/log15"
-	"github.com/grant-he/lxd/shared/units"
-	"github.com/grant-he/lxd/shared/version"
+	"github.com/lxc/lxd/lxd/locking"
+	"github.com/lxc/lxd/lxd/operations"
+	"github.com/lxc/lxd/lxd/revert"
+	"github.com/lxc/lxd/shared"
+	log "github.com/lxc/lxd/shared/log15"
+	"github.com/lxc/lxd/shared/units"
+	"github.com/lxc/lxd/shared/version"
 )
 
 // lvmBlockVolSuffix suffix used for block content type svolumes.

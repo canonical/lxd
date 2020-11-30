@@ -3,7 +3,7 @@ package main
 import (
 	"testing"
 
-	"github.com/grant-he/lxd/lxc/config"
+	"github.com/lxc/lxd/lxc/config"
 )
 
 type aliasTestcase struct {

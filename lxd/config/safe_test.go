@@ -6,7 +6,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/grant-he/lxd/lxd/config"
+	"github.com/lxc/lxd/lxd/config"
 )
 
 // If the givne values contain invalid keys, they are ignored.

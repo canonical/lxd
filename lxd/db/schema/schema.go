@@ -6,8 +6,8 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/grant-he/lxd/lxd/db/query"
-	"github.com/grant-he/lxd/shared"
+	"github.com/lxc/lxd/lxd/db/query"
+	"github.com/lxc/lxd/shared"
 	"github.com/pkg/errors"
 )
 

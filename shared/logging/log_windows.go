@@ -3,7 +3,7 @@
 package logging
 
 import (
-	log "github.com/grant-he/lxd/shared/log15"
+	log "github.com/lxc/lxd/shared/log15"
 )
 
 // getSystemHandler on Windows does nothing.

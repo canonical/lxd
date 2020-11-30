@@ -7,7 +7,7 @@ import (
 
 	"github.com/mdlayher/vsock"
 
-	"github.com/grant-he/lxd/shared"
+	"github.com/lxc/lxd/shared"
 )
 
 // Dial connects to a remote vsock.

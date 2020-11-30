@@ -1,8 +1,8 @@
 package endpoints
 
 import (
-	"github.com/grant-he/lxd/lxd/util"
-	"github.com/grant-he/lxd/shared"
+	"github.com/lxc/lxd/lxd/util"
+	"github.com/lxc/lxd/shared"
 )
 
 // New creates a new Endpoints instance without bringing it up.

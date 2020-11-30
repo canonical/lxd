@@ -3,7 +3,7 @@ package main
 import (
 	"os"
 
-	"github.com/grant-he/lxd/shared/version"
+	"github.com/lxc/lxd/shared/version"
 )
 
 type cmdGlobal struct {

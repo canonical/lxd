@@ -3,8 +3,8 @@ package lxd
 import (
 	"fmt"
 
-	"github.com/grant-he/lxd/shared"
-	"github.com/grant-he/lxd/shared/api"
+	"github.com/lxc/lxd/shared"
+	"github.com/lxc/lxd/shared/api"
 )
 
 // Server handling functions

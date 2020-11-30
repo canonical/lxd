@@ -4,13 +4,13 @@ import (
 	"io"
 	"time"
 
-	"github.com/grant-he/lxd/lxd/backup"
-	"github.com/grant-he/lxd/lxd/instance"
-	"github.com/grant-he/lxd/lxd/migration"
-	"github.com/grant-he/lxd/lxd/operations"
-	"github.com/grant-he/lxd/lxd/storage/drivers"
-	"github.com/grant-he/lxd/shared/api"
-	"github.com/grant-he/lxd/shared/instancewriter"
+	"github.com/lxc/lxd/lxd/backup"
+	"github.com/lxc/lxd/lxd/instance"
+	"github.com/lxc/lxd/lxd/migration"
+	"github.com/lxc/lxd/lxd/operations"
+	"github.com/lxc/lxd/lxd/storage/drivers"
+	"github.com/lxc/lxd/shared/api"
+	"github.com/lxc/lxd/shared/instancewriter"
 )
 
 // MountInfo represents info about the result of a mount operation.

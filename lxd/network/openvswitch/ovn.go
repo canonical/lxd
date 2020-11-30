@@ -7,7 +7,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/grant-he/lxd/shared"
+	"github.com/lxc/lxd/shared"
 )
 
 // OVNRouter OVN router name.

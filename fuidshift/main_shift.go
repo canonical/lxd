@@ -6,7 +6,7 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/grant-he/lxd/shared/idmap"
+	"github.com/lxc/lxd/shared/idmap"
 )
 
 type cmdShift struct {

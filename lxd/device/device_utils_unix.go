@@ -10,12 +10,12 @@ import (
 
 	"golang.org/x/sys/unix"
 
-	deviceConfig "github.com/grant-he/lxd/lxd/device/config"
-	"github.com/grant-he/lxd/lxd/state"
-	storageDrivers "github.com/grant-he/lxd/lxd/storage/drivers"
-	"github.com/grant-he/lxd/shared"
-	"github.com/grant-he/lxd/shared/idmap"
-	"github.com/grant-he/lxd/shared/logger"
+	deviceConfig "github.com/lxc/lxd/lxd/device/config"
+	"github.com/lxc/lxd/lxd/state"
+	storageDrivers "github.com/lxc/lxd/lxd/storage/drivers"
+	"github.com/lxc/lxd/shared"
+	"github.com/lxc/lxd/shared/idmap"
+	"github.com/lxc/lxd/shared/logger"
 )
 
 // unixDefaultMode default mode to create unix devices with if not specified in device config.

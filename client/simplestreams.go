@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/grant-he/lxd/shared/simplestreams"
+	"github.com/lxc/lxd/shared/simplestreams"
 )
 
 // ProtocolSimpleStreams implements a SimpleStreams API client

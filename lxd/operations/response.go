@@ -4,10 +4,10 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/grant-he/lxd/lxd/response"
-	"github.com/grant-he/lxd/lxd/util"
-	"github.com/grant-he/lxd/shared/api"
-	"github.com/grant-he/lxd/shared/version"
+	"github.com/lxc/lxd/lxd/response"
+	"github.com/lxc/lxd/lxd/util"
+	"github.com/lxc/lxd/shared/api"
+	"github.com/lxc/lxd/shared/version"
 )
 
 // Operation response

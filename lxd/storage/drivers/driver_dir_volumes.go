@@ -7,15 +7,15 @@ import (
 
 	"github.com/pkg/errors"
 
-	"github.com/grant-he/lxd/lxd/backup"
-	"github.com/grant-he/lxd/lxd/migration"
-	"github.com/grant-he/lxd/lxd/operations"
-	"github.com/grant-he/lxd/lxd/revert"
-	"github.com/grant-he/lxd/lxd/rsync"
-	"github.com/grant-he/lxd/lxd/storage/quota"
-	"github.com/grant-he/lxd/shared"
-	"github.com/grant-he/lxd/shared/instancewriter"
-	"github.com/grant-he/lxd/shared/units"
+	"github.com/lxc/lxd/lxd/backup"
+	"github.com/lxc/lxd/lxd/migration"
+	"github.com/lxc/lxd/lxd/operations"
+	"github.com/lxc/lxd/lxd/revert"
+	"github.com/lxc/lxd/lxd/rsync"
+	"github.com/lxc/lxd/lxd/storage/quota"
+	"github.com/lxc/lxd/shared"
+	"github.com/lxc/lxd/shared/instancewriter"
+	"github.com/lxc/lxd/shared/units"
 )
 
 // CreateVolume creates an empty volume and can optionally fill it by executing the supplied

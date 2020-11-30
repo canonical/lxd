@@ -7,9 +7,9 @@ import (
 	"github.com/spf13/cobra"
 
 	// Used by cgo
-	_ "github.com/grant-he/lxd/lxd/include"
+	_ "github.com/lxc/lxd/lxd/include"
 
-	"github.com/grant-he/lxd/shared/netutils"
+	"github.com/lxc/lxd/shared/netutils"
 )
 
 /*
@@ -117,7 +117,7 @@ void forknet(void)
 }
 */
 import "C"
-import "github.com/grant-he/lxd/shared"
+import "github.com/lxc/lxd/shared"
 
 type cmdForknet struct {
 	global *cmdGlobal

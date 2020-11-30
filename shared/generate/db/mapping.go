@@ -5,8 +5,8 @@ import (
 	"net/url"
 	"strings"
 
-	"github.com/grant-he/lxd/shared"
-	"github.com/grant-he/lxd/shared/generate/lex"
+	"github.com/lxc/lxd/shared"
+	"github.com/lxc/lxd/shared/generate/lex"
 )
 
 // Mapping holds information for mapping database tables to a Go structure.

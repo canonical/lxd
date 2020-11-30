@@ -6,9 +6,9 @@ import (
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 
-	"github.com/grant-he/lxd/shared/generate/db"
-	"github.com/grant-he/lxd/shared/generate/file"
-	"github.com/grant-he/lxd/shared/generate/lex"
+	"github.com/lxc/lxd/shared/generate/db"
+	"github.com/lxc/lxd/shared/generate/file"
+	"github.com/lxc/lxd/shared/generate/lex"
 )
 
 // Return a new db command.

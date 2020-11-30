@@ -6,10 +6,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/grant-he/lxd/lxd/db"
-	"github.com/grant-he/lxd/lxd/db/cluster"
-	"github.com/grant-he/lxd/shared/osarch"
-	"github.com/grant-he/lxd/shared/version"
+	"github.com/lxc/lxd/lxd/db"
+	"github.com/lxc/lxd/lxd/db/cluster"
+	"github.com/lxc/lxd/shared/osarch"
+	"github.com/lxc/lxd/shared/version"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

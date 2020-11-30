@@ -3,7 +3,7 @@ package lxd
 import (
 	"fmt"
 
-	"github.com/grant-he/lxd/shared/api"
+	"github.com/lxc/lxd/shared/api"
 )
 
 // GetCluster returns information about a cluster

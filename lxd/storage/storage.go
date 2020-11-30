@@ -3,9 +3,9 @@ package storage
 import (
 	"os"
 
-	"github.com/grant-he/lxd/lxd/instance/instancetype"
-	"github.com/grant-he/lxd/lxd/project"
-	"github.com/grant-he/lxd/shared"
+	"github.com/lxc/lxd/lxd/instance/instancetype"
+	"github.com/lxc/lxd/lxd/project"
+	"github.com/lxc/lxd/shared"
 )
 
 // InstancePath returns the directory of an instance or snapshot.

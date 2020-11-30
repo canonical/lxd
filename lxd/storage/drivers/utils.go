@@ -14,9 +14,9 @@ import (
 	"github.com/pkg/errors"
 	"golang.org/x/sys/unix"
 
-	"github.com/grant-he/lxd/lxd/operations"
-	"github.com/grant-he/lxd/shared"
-	"github.com/grant-he/lxd/shared/idmap"
+	"github.com/lxc/lxd/lxd/operations"
+	"github.com/lxc/lxd/shared"
+	"github.com/lxc/lxd/shared/idmap"
 )
 
 // MinBlockBoundary minimum block boundary size to use.

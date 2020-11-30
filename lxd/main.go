@@ -8,14 +8,14 @@ import (
 	"github.com/canonical/go-dqlite"
 	"github.com/spf13/cobra"
 
-	"github.com/grant-he/lxd/lxd/daemon"
-	"github.com/grant-he/lxd/lxd/events"
-	"github.com/grant-he/lxd/lxd/operations"
-	"github.com/grant-he/lxd/lxd/response"
-	"github.com/grant-he/lxd/lxd/rsync"
-	"github.com/grant-he/lxd/shared/logger"
-	"github.com/grant-he/lxd/shared/logging"
-	"github.com/grant-he/lxd/shared/version"
+	"github.com/lxc/lxd/lxd/daemon"
+	"github.com/lxc/lxd/lxd/events"
+	"github.com/lxc/lxd/lxd/operations"
+	"github.com/lxc/lxd/lxd/response"
+	"github.com/lxc/lxd/lxd/rsync"
+	"github.com/lxc/lxd/shared/logger"
+	"github.com/lxc/lxd/shared/logging"
+	"github.com/lxc/lxd/shared/version"
 )
 
 // Initialize the random number generator

@@ -5,11 +5,11 @@ import (
 	"strings"
 	"time"
 
-	"github.com/grant-he/lxd/lxd/project"
-	"github.com/grant-he/lxd/lxd/revert"
-	"github.com/grant-he/lxd/lxd/state"
-	"github.com/grant-he/lxd/shared"
-	"github.com/grant-he/lxd/shared/api"
+	"github.com/lxc/lxd/lxd/project"
+	"github.com/lxc/lxd/lxd/revert"
+	"github.com/lxc/lxd/lxd/state"
+	"github.com/lxc/lxd/shared"
+	"github.com/lxc/lxd/shared/api"
 )
 
 // VolumeBackup represents a custom volume backup.

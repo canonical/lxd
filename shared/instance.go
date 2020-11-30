@@ -10,8 +10,8 @@ import (
 	"github.com/pkg/errors"
 	"gopkg.in/robfig/cron.v2"
 
-	"github.com/grant-he/lxd/shared/units"
-	"github.com/grant-he/lxd/shared/validate"
+	"github.com/lxc/lxd/shared/units"
+	"github.com/lxc/lxd/shared/validate"
 )
 
 type InstanceAction string

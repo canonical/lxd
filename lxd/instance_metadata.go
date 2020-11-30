@@ -13,11 +13,11 @@ import (
 	"github.com/gorilla/mux"
 	"gopkg.in/yaml.v2"
 
-	"github.com/grant-he/lxd/lxd/instance"
-	"github.com/grant-he/lxd/lxd/response"
-	storagePools "github.com/grant-he/lxd/lxd/storage"
-	"github.com/grant-he/lxd/shared"
-	"github.com/grant-he/lxd/shared/api"
+	"github.com/lxc/lxd/lxd/instance"
+	"github.com/lxc/lxd/lxd/response"
+	storagePools "github.com/lxc/lxd/lxd/storage"
+	"github.com/lxc/lxd/shared"
+	"github.com/lxc/lxd/shared/api"
 )
 
 func containerMetadataGet(d *Daemon, r *http.Request) response.Response {

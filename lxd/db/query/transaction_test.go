@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/grant-he/lxd/lxd/db/query"
+	"github.com/lxc/lxd/lxd/db/query"
 	"github.com/stretchr/testify/assert"
 )
 

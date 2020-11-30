@@ -6,8 +6,8 @@ import (
 
 	"github.com/spf13/cobra"
 
-	cli "github.com/grant-he/lxd/shared/cmd"
-	"github.com/grant-he/lxd/shared/i18n"
+	cli "github.com/lxc/lxd/shared/cmd"
+	"github.com/lxc/lxd/shared/i18n"
 )
 
 type cmdRename struct {

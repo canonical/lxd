@@ -9,14 +9,14 @@ import (
 
 	"github.com/pkg/errors"
 
-	"github.com/grant-he/lxd/lxd/backup"
-	"github.com/grant-he/lxd/lxd/migration"
-	"github.com/grant-he/lxd/lxd/operations"
-	"github.com/grant-he/lxd/lxd/rsync"
-	"github.com/grant-he/lxd/shared"
-	"github.com/grant-he/lxd/shared/instancewriter"
-	"github.com/grant-he/lxd/shared/ioprogress"
-	"github.com/grant-he/lxd/shared/units"
+	"github.com/lxc/lxd/lxd/backup"
+	"github.com/lxc/lxd/lxd/migration"
+	"github.com/lxc/lxd/lxd/operations"
+	"github.com/lxc/lxd/lxd/rsync"
+	"github.com/lxc/lxd/shared"
+	"github.com/lxc/lxd/shared/instancewriter"
+	"github.com/lxc/lxd/shared/ioprogress"
+	"github.com/lxc/lxd/shared/units"
 )
 
 // CreateVolume creates a new storage volume on disk.

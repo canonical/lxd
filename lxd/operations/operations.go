@@ -9,15 +9,15 @@ import (
 
 	"github.com/pborman/uuid"
 
-	"github.com/grant-he/lxd/lxd/db"
-	"github.com/grant-he/lxd/lxd/events"
-	"github.com/grant-he/lxd/lxd/response"
-	"github.com/grant-he/lxd/lxd/state"
-	"github.com/grant-he/lxd/shared"
-	"github.com/grant-he/lxd/shared/api"
-	"github.com/grant-he/lxd/shared/cancel"
-	"github.com/grant-he/lxd/shared/logger"
-	"github.com/grant-he/lxd/shared/version"
+	"github.com/lxc/lxd/lxd/db"
+	"github.com/lxc/lxd/lxd/events"
+	"github.com/lxc/lxd/lxd/response"
+	"github.com/lxc/lxd/lxd/state"
+	"github.com/lxc/lxd/shared"
+	"github.com/lxc/lxd/shared/api"
+	"github.com/lxc/lxd/shared/cancel"
+	"github.com/lxc/lxd/shared/logger"
+	"github.com/lxc/lxd/shared/version"
 )
 
 var debug bool

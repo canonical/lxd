@@ -5,10 +5,10 @@ import (
 
 	"github.com/gorilla/mux"
 
-	"github.com/grant-he/lxd/lxd/resources"
-	"github.com/grant-he/lxd/lxd/response"
-	storagePools "github.com/grant-he/lxd/lxd/storage"
-	"github.com/grant-he/lxd/shared/api"
+	"github.com/lxc/lxd/lxd/resources"
+	"github.com/lxc/lxd/lxd/response"
+	storagePools "github.com/lxc/lxd/lxd/storage"
+	"github.com/lxc/lxd/shared/api"
 )
 
 var api10ResourcesCmd = APIEndpoint{

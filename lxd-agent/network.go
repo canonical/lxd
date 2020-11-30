@@ -6,8 +6,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/grant-he/lxd/lxd/util"
-	"github.com/grant-he/lxd/shared"
+	"github.com/lxc/lxd/lxd/util"
+	"github.com/lxc/lxd/shared"
 )
 
 // A variation of the standard tls.Listener that supports atomically swapping

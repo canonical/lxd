@@ -10,8 +10,8 @@ import (
 
 	"golang.org/x/sys/unix"
 
-	"github.com/grant-he/lxd/lxd/response"
-	"github.com/grant-he/lxd/shared"
+	"github.com/lxc/lxd/lxd/response"
+	"github.com/lxc/lxd/shared"
 )
 
 var fileCmd = APIEndpoint{
