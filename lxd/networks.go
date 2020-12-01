@@ -557,7 +557,7 @@ func networkDelete(d *Daemon, r *http.Request) response.Response {
 	// Get the existing network.
 	n, err := network.LoadByName(state, name)
 	if err != nil {
-		return response.NotFound(err)
+		return response.SmartError(err)
 	}
 
 	clientType := cluster.UserAgentClientType(r.Header.Get("User-Agent"))
@@ -613,11 +613,7 @@ func networkPost(d *Daemon, r *http.Request) response.Response {
 	// Get the existing network.
 	n, err := network.LoadByName(state, name)
 	if err != nil {
-		if err == db.ErrNoSuchObject {
-			return response.NotFound(fmt.Errorf("Network not found"))
-		}
-
-		return response.InternalError(errors.Wrapf(err, "Failed loading network"))
+		return response.SmartError(err)
 	}
 
 	if n.Status() != api.NetworkStatusCreated {
@@ -675,7 +671,7 @@ func networkPut(d *Daemon, r *http.Request) response.Response {
 	// Get the existing network.
 	n, err := network.LoadByName(d.State(), name)
 	if err != nil {
-		return response.NotFound(err)
+		return response.SmartError(err)
 	}
 
 	targetNode := queryParam(r, "target")
