@@ -769,9 +769,9 @@ func (c *Cluster) CreateStoragePool(poolName string, poolDescription string, poo
 			return err
 		}
 
-		// Insert a node-specific entry pointing to ourselves.
-		columns := []string{"storage_pool_id", "node_id"}
-		values := []interface{}{id, c.nodeID}
+		// Insert a node-specific entry pointing to ourselves with state storagePoolPending.
+		columns := []string{"storage_pool_id", "node_id", "state"}
+		values := []interface{}{id, c.nodeID, storagePoolPending}
 		_, err = query.UpsertObject(tx.tx, "storage_pools_nodes", columns, values)
 		if err != nil {
 			return err
