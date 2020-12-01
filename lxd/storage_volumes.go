@@ -290,12 +290,12 @@ func storagePoolVolumesTypePost(d *Daemon, r *http.Request) response.Response {
 
 	// Backward compatibility.
 	if req.ContentType == "" {
-		req.ContentType = "filesystem"
+		req.ContentType = db.StoragePoolVolumeContentTypeNameFS
 	}
 
 	_, err = storagePools.VolumeContentTypeNameToContentType(req.ContentType)
 	if err != nil {
-		return response.BadRequest(fmt.Errorf("Invalid content type %q", req.ContentType))
+		return response.BadRequest(err)
 	}
 
 	req.Type = mux.Vars(r)["type"]
@@ -303,7 +303,7 @@ func storagePoolVolumesTypePost(d *Daemon, r *http.Request) response.Response {
 	// We currently only allow to create storage volumes of type storagePoolVolumeTypeCustom.
 	// So check, that nothing else was requested.
 	if req.Type != db.StoragePoolVolumeTypeNameCustom {
-		return response.BadRequest(fmt.Errorf(`Currently not allowed to create storage volumes of type %q`, req.Type))
+		return response.BadRequest(fmt.Errorf("Currently not allowed to create storage volumes of type %q", req.Type))
 	}
 
 	poolID, err := d.cluster.GetStoragePoolID(poolName)
@@ -385,7 +385,7 @@ func doVolumeCreateOrCopy(d *Daemon, projectName, poolName string, req *api.Stor
 	return operations.OperationResponse(op)
 }
 
-// /1.0/storage-pools/{name}/volumes/{type}
+// /1.0/storage-pools/{name}/volumes
 // Create a storage volume of a given volume type in a given storage pool.
 func storagePoolVolumesPost(d *Daemon, r *http.Request) response.Response {
 	resp := forwardedResponseIfTargetIsRemote(d, r)
@@ -419,7 +419,12 @@ func storagePoolVolumesPost(d *Daemon, r *http.Request) response.Response {
 	// We currently only allow to create storage volumes of type storagePoolVolumeTypeCustom.
 	// So check, that nothing else was requested.
 	if req.Type != db.StoragePoolVolumeTypeNameCustom {
-		return response.BadRequest(fmt.Errorf(`Currently not allowed to create storage volumes of type %q`, req.Type))
+		return response.BadRequest(fmt.Errorf("Currently not allowed to create storage volumes of type %q", req.Type))
+	}
+
+	// Backward compatibility.
+	if req.ContentType == "" {
+		req.ContentType = db.StoragePoolVolumeContentTypeNameFS
 	}
 
 	projectName, err := project.StorageVolumeProject(d.State().Cluster, projectParam(r), db.StoragePoolVolumeTypeCustom)
