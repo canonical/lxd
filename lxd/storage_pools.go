@@ -13,6 +13,7 @@ import (
 	lxd "github.com/lxc/lxd/client"
 	"github.com/lxc/lxd/lxd/cluster"
 	"github.com/lxc/lxd/lxd/db"
+	"github.com/lxc/lxd/lxd/project"
 	"github.com/lxc/lxd/lxd/response"
 	storagePools "github.com/lxc/lxd/lxd/storage"
 	"github.com/lxc/lxd/lxd/util"
@@ -70,7 +71,7 @@ func storagePoolsGet(d *Daemon, r *http.Request) response.Response {
 			if err != nil {
 				return response.SmartError(err)
 			}
-			pl.UsedBy = poolUsedBy
+			pl.UsedBy = project.FilterUsedBy(r, poolUsedBy)
 
 			resultMap = append(resultMap, *pl)
 		}
@@ -332,7 +333,7 @@ func storagePoolGet(d *Daemon, r *http.Request) response.Response {
 	if err != nil {
 		return response.SmartError(err)
 	}
-	pool.UsedBy = poolUsedBy
+	pool.UsedBy = project.FilterUsedBy(r, poolUsedBy)
 
 	targetNode := queryParam(r, "target")
 
