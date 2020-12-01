@@ -37,7 +37,7 @@ func storagePoolDBCreate(s *state.State, poolName, poolDescription string, drive
 		return -1, err
 	}
 
-	// Fill in the defaults
+	// Fill in the defaults.
 	err = storagePoolFillDefault(poolName, driver, config)
 	if err != nil {
 		return -1, err
