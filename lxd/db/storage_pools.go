@@ -447,9 +447,9 @@ func (c *ClusterTx) CreatePendingStoragePool(node, name, driver string, conf map
 		return ErrAlreadyDefined
 	}
 
-	// Insert the node-specific configuration.
-	columns := []string{"storage_pool_id", "node_id"}
-	values := []interface{}{poolID, nodeInfo.ID}
+	// Insert a node-specific entry pointing to ourselves with state storagePoolPending.
+	columns := []string{"storage_pool_id", "node_id", "state"}
+	values := []interface{}{poolID, nodeInfo.ID, storagePoolPending}
 	_, err = query.UpsertObject(c.tx, "storage_pools_nodes", columns, values)
 	if err != nil {
 		return err
