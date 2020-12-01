@@ -2,6 +2,8 @@ package project
 
 import (
 	"fmt"
+	"net/http"
+	"net/url"
 	"strconv"
 	"strings"
 
@@ -10,6 +12,7 @@ import (
 	"github.com/lxc/lxd/lxd/db"
 	deviceconfig "github.com/lxc/lxd/lxd/device/config"
 	"github.com/lxc/lxd/lxd/instance/instancetype"
+	"github.com/lxc/lxd/lxd/rbac"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/units"
@@ -1049,4 +1052,39 @@ var aggregateLimitConfigValuePrinters = map[string]func(int64) string{
 	"limits.disk": func(limit int64) string {
 		return units.GetByteSizeString(limit, 1)
 	},
+}
+
+// FilterUsedBy filters a UsedBy list based on project access
+func FilterUsedBy(r *http.Request, entries []string) []string {
+	// Shortcut for admins and non-RBAC environments.
+	if rbac.UserIsAdmin(r) {
+		return entries
+	}
+
+	// Filter the entries.
+	usedBy := []string{}
+	for _, entry := range entries {
+		projectName := Default
+
+		// Try to parse the query part of the URL.
+		u, err := url.Parse(entry)
+		if err != nil {
+			// Skip URLs we can't parse.
+			continue
+		}
+
+		// Check if project= is specified in the URL.
+		val := u.Query().Get("project")
+		if val != "" {
+			projectName = val
+		}
+
+		if !rbac.UserHasPermission(r, projectName, "view") {
+			continue
+		}
+
+		usedBy = append(usedBy, entry)
+	}
+
+	return usedBy
 }
