@@ -467,11 +467,6 @@ func (c *ClusterTx) StoragePoolCreated(name string) error {
 	return c.storagePoolState(name, storagePoolCreated)
 }
 
-// StoragePoolErrored sets the state of the given pool to "Errored".
-func (c *ClusterTx) StoragePoolErrored(name string) error {
-	return c.storagePoolState(name, storagePoolErrored)
-}
-
 func (c *ClusterTx) storagePoolState(name string, state int) error {
 	stmt := "UPDATE storage_pools SET state=? WHERE name=?"
 	result, err := c.tx.Exec(stmt, state, name)
