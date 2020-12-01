@@ -1497,21 +1497,6 @@ func (d *Daemon) setupRBACServer(rbacURL string, rbacKey string, rbacExpiry int6
 	return nil
 }
 
-func (d *Daemon) userIsAdmin(r *http.Request) bool {
-	ua := r.Context().Value("access").(*rbac.UserAccess)
-	return ua.Admin
-}
-
-func (d *Daemon) userHasPermission(r *http.Request, project string, permission string) bool {
-	ua := r.Context().Value("access").(*rbac.UserAccess)
-
-	if ua.Admin {
-		return true
-	}
-
-	return shared.StringInSlice(permission, ua.Projects[project])
-}
-
 // Setup MAAS
 func (d *Daemon) setupMAASController(server string, key string, machine string) error {
 	var err error
