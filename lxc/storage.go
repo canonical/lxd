@@ -611,8 +611,13 @@ func (c *cmdStorageSet) Run(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf(i18n.G("Missing pool name"))
 	}
 
+	client := resource.server
+	if c.storage.flagTarget != "" {
+		client = client.UseTarget(c.storage.flagTarget)
+	}
+
 	// Get the pool entry
-	pool, etag, err := resource.server.GetStoragePool(resource.name)
+	pool, etag, err := client.GetStoragePool(resource.name)
 	if err != nil {
 		return err
 	}
@@ -628,7 +633,7 @@ func (c *cmdStorageSet) Run(cmd *cobra.Command, args []string) error {
 		pool.Config[k] = v
 	}
 
-	err = resource.server.UpdateStoragePool(resource.name, pool.Writable(), etag)
+	err = client.UpdateStoragePool(resource.name, pool.Writable(), etag)
 	if err != nil {
 		return err
 	}
