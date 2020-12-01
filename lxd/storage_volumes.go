@@ -419,7 +419,7 @@ func storagePoolVolumesPost(d *Daemon, r *http.Request) response.Response {
 	// We currently only allow to create storage volumes of type storagePoolVolumeTypeCustom.
 	// So check, that nothing else was requested.
 	if req.Type != db.StoragePoolVolumeTypeNameCustom {
-		return response.BadRequest(fmt.Errorf(`Currently not allowed to create storage volumes of type %q`, req.Type))
+		return response.BadRequest(fmt.Errorf("Currently not allowed to create storage volumes of type %q", req.Type))
 	}
 
 	// Backward compatibility.
