@@ -372,9 +372,9 @@ func (c *ClusterTx) CreateStoragePoolConfig(poolID, nodeID int64, config map[str
 
 // Storage pools state.
 const (
-	storagePoolPending int = iota // Storage pool defined but not yet created.
-	storagePoolCreated            // Storage pool created on all nodes.
-	storagePoolErrored            // Storage pool creation failed on some nodes
+	storagePoolPending int = iota // Storage pool defined but not yet created globally or on specific node.
+	storagePoolCreated            // Storage pool created globally or on specific node.
+	storagePoolErrored            // Deprecated (should no longer occur).
 )
 
 // CreatePendingStoragePool creates a new pending storage pool on the node with
