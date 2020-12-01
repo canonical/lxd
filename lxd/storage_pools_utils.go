@@ -144,7 +144,7 @@ func storagePoolCreateLocal(state *state.State, id int64, req api.StoragePoolsPo
 	// happened.
 	configDiff, _ := storagePools.ConfigDiff(req.Config, updatedConfig)
 	if len(configDiff) > 0 {
-		// Create the database entry for the storage pool.
+		// Update the database entry for the storage pool.
 		err = state.Cluster.UpdateStoragePool(req.Name, req.Description, updatedConfig)
 		if err != nil {
 			return nil, errors.Wrapf(err, "Error updating storage pool config after local create for %q", req.Name)
