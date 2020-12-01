@@ -295,7 +295,7 @@ func storagePoolVolumesTypePost(d *Daemon, r *http.Request) response.Response {
 
 	_, err = storagePools.VolumeContentTypeNameToContentType(req.ContentType)
 	if err != nil {
-		return response.BadRequest(fmt.Errorf("Invalid content type %q", req.ContentType))
+		return response.BadRequest(err)
 	}
 
 	req.Type = mux.Vars(r)["type"]
