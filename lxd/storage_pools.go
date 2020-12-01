@@ -447,7 +447,7 @@ func storagePoolPut(d *Daemon, r *http.Request) response.Response {
 func storagePoolPatch(d *Daemon, r *http.Request) response.Response {
 	poolName := mux.Vars(r)["name"]
 
-	// Get the existing network
+	// Get the existing storage pool.
 	_, dbInfo, err := d.cluster.GetStoragePoolInAnyState(poolName)
 	if err != nil {
 		return response.SmartError(err)
