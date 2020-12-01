@@ -5,10 +5,13 @@ import (
 
 	"github.com/pkg/errors"
 
+	"github.com/lxc/lxd/lxd/revert"
 	"github.com/lxc/lxd/lxd/state"
 	storagePools "github.com/lxc/lxd/lxd/storage"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
+	log "github.com/lxc/lxd/shared/log15"
+	"github.com/lxc/lxd/shared/logger"
 )
 
 // storagePoolDBCreate creates a storage pool DB entry and returns the created Pool ID.
@@ -90,7 +93,9 @@ func storagePoolCreateGlobal(state *state.State, req api.StoragePoolsPost) error
 
 // This performs local pool setup and updates DB record if config was changed during pool setup.
 func storagePoolCreateLocal(state *state.State, id int64, req api.StoragePoolsPost, isNotification bool) (map[string]string, error) {
-	tryUndo := true
+	// Setup revert.
+	revert := revert.New()
+	defer revert.Fail()
 
 	// Make a copy of the req for later diff.
 	var updatedConfig map[string]string
@@ -108,6 +113,7 @@ func storagePoolCreateLocal(state *state.State, id int64, req api.StoragePoolsPo
 	if err != nil {
 		return nil, err
 	}
+	revert.Add(func() { pool.Delete(isNotification, nil) })
 
 	// Mount the pool.
 	_, err = pool.Mount()
@@ -117,15 +123,6 @@ func storagePoolCreateLocal(state *state.State, id int64, req api.StoragePoolsPo
 
 	// Record the updated config.
 	updatedConfig = updatedReq.Config
-
-	// Setup revert function.
-	defer func() {
-		if !tryUndo {
-			return
-		}
-
-		pool.Delete(isNotification, nil)
-	}()
 
 	// In case the storage pool config was changed during the pool creation,
 	// we need to update the database to reflect this change. This can e.g.
@@ -142,9 +139,7 @@ func storagePoolCreateLocal(state *state.State, id int64, req api.StoragePoolsPo
 		}
 	}
 
-	// Success, update the closure to mark that the changes should be kept.
-	tryUndo = false
-
+	revert.Success()
 	return updatedConfig, nil
 }
 
