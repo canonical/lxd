@@ -385,7 +385,7 @@ func doVolumeCreateOrCopy(d *Daemon, projectName, poolName string, req *api.Stor
 	return operations.OperationResponse(op)
 }
 
-// /1.0/storage-pools/{name}/volumes/{type}
+// /1.0/storage-pools/{name}/volumes
 // Create a storage volume of a given volume type in a given storage pool.
 func storagePoolVolumesPost(d *Daemon, r *http.Request) response.Response {
 	resp := forwardedResponseIfTargetIsRemote(d, r)
