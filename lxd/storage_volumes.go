@@ -168,7 +168,7 @@ func storagePoolVolumesGet(d *Daemon, r *http.Request) response.Response {
 			if err != nil {
 				return response.InternalError(err)
 			}
-			volume.UsedBy = volumeUsedBy
+			volume.UsedBy = project.FilterUsedBy(r, volumeUsedBy)
 		}
 	}
 
@@ -233,7 +233,7 @@ func storagePoolVolumesTypeGet(d *Daemon, r *http.Request) response.Response {
 			if err != nil {
 				return response.SmartError(err)
 			}
-			vol.UsedBy = volumeUsedBy
+			vol.UsedBy = project.FilterUsedBy(r, volumeUsedBy)
 
 			resultMap = append(resultMap, vol)
 		}
@@ -847,7 +847,7 @@ func storagePoolVolumeTypeGet(d *Daemon, r *http.Request, volumeTypeName string)
 	if err != nil {
 		return response.SmartError(err)
 	}
-	volume.UsedBy = volumeUsedBy
+	volume.UsedBy = project.FilterUsedBy(r, volumeUsedBy)
 
 	etag := []interface{}{volumeName, volume.Type, volume.Config}
 

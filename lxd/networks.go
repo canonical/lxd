@@ -21,6 +21,7 @@ import (
 	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/network"
 	"github.com/lxc/lxd/lxd/network/openvswitch"
+	"github.com/lxc/lxd/lxd/project"
 	"github.com/lxc/lxd/lxd/resources"
 	"github.com/lxc/lxd/lxd/response"
 	"github.com/lxc/lxd/lxd/revert"
@@ -98,7 +99,7 @@ func networksGet(d *Daemon, r *http.Request) response.Response {
 		if !recursion {
 			resultString = append(resultString, fmt.Sprintf("/%s/networks/%s", version.APIVersion, network))
 		} else {
-			net, err := doNetworkGet(d, network)
+			net, err := doNetworkGet(d, r, network)
 			if err != nil {
 				continue
 			}
@@ -450,7 +451,7 @@ func networkGet(d *Daemon, r *http.Request) response.Response {
 
 	name := mux.Vars(r)["name"]
 
-	n, err := doNetworkGet(d, name)
+	n, err := doNetworkGet(d, r, name)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -473,7 +474,7 @@ func networkGet(d *Daemon, r *http.Request) response.Response {
 	return response.SyncResponseETag(true, &n, etag)
 }
 
-func doNetworkGet(d *Daemon, name string) (api.Network, error) {
+func doNetworkGet(d *Daemon, r *http.Request, name string) (api.Network, error) {
 	// Ignore veth pairs (for performance reasons).
 	if strings.HasPrefix(name, "veth") {
 		return api.Network{}, os.ErrNotExist
@@ -526,7 +527,7 @@ func doNetworkGet(d *Daemon, name string) (api.Network, error) {
 			return api.Network{}, err
 		}
 
-		n.UsedBy = usedBy
+		n.UsedBy = project.FilterUsedBy(r, usedBy)
 	}
 
 	if dbInfo != nil {
@@ -789,8 +790,8 @@ func networkLeasesGet(d *Daemon, r *http.Request) response.Response {
 	name := mux.Vars(r)["name"]
 	project := projectParam(r)
 
-	// Try to get the network
-	n, err := doNetworkGet(d, name)
+	// Try to get the network.
+	n, err := doNetworkGet(d, r, name)
 	if err != nil {
 		return response.SmartError(err)
 	}
