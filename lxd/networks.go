@@ -687,22 +687,19 @@ func networkPut(d *Daemon, r *http.Request) response.Response {
 	}
 
 	// Duplicate config for etag modification and generation.
-	curConfig := map[string]string{}
-	for k, v := range n.Config() {
-		curConfig[k] = v
-	}
+	etagConfig := util.CopyConfig(n.Config())
 
 	// If no target node is specified and the daemon is clustered, we omit the node-specific fields so that
 	// the e-tag can be generated correctly. This is because the GET request used to populate the request
 	// will also remove node-specific keys when no target is specified.
 	if targetNode == "" && clustered {
 		for _, key := range db.NodeSpecificNetworkConfig {
-			delete(curConfig, key)
+			delete(etagConfig, key)
 		}
 	}
 
 	// Validate the ETag.
-	etag := []interface{}{n.Name(), n.IsManaged(), n.Type(), n.Description(), curConfig}
+	etag := []interface{}{n.Name(), n.IsManaged(), n.Type(), n.Description(), etagConfig}
 	err = util.EtagCheck(r, etag)
 	if err != nil {
 		return response.PreconditionFailed(err)
@@ -725,6 +722,8 @@ func networkPut(d *Daemon, r *http.Request) response.Response {
 				}
 			}
 		} else {
+			curConfig := n.Config()
+
 			// If a target is specified, then ensure only node-specific config keys are changed.
 			for k, v := range req.Config {
 				if !shared.StringInSlice(k, db.NodeSpecificNetworkConfig) && curConfig[k] != v {
