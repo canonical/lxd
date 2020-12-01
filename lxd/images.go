@@ -54,7 +54,7 @@ var imagesCmd = APIEndpoint{
 	Path: "images",
 
 	Get:  APIEndpointAction{Handler: imagesGet, AllowUntrusted: true},
-	Post: APIEndpointAction{Handler: imagesPost, AccessHandler: allowProjectPermission("images", "manage-images"), AllowUntrusted: true},
+	Post: APIEndpointAction{Handler: imagesPost, AllowUntrusted: true},
 }
 
 var imageCmd = APIEndpoint{
@@ -696,7 +696,7 @@ func imageCreateInPool(d *Daemon, info *api.Image, storagePool string) error {
 }
 
 func imagesPost(d *Daemon, r *http.Request) response.Response {
-	trusted, _, _, _ := d.Authenticate(nil, r)
+	trusted := d.checkTrustedClient(r) == nil && allowProjectPermission("images", "manage-images")(d, r) == response.EmptySyncResponse
 
 	secret := r.Header.Get("X-LXD-secret")
 	fingerprint := r.Header.Get("X-LXD-fingerprint")
