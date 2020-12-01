@@ -64,6 +64,7 @@ func profilesGet(d *Daemon, r *http.Request) response.Response {
 			apiProfiles := make([]*api.Profile, len(profiles))
 			for i, profile := range profiles {
 				apiProfiles[i] = db.ProfileToAPI(&profile)
+				apiProfiles[i].UsedBy = project.FilterUsedBy(r, apiProfiles[i].UsedBy)
 			}
 
 			result = apiProfiles
@@ -155,6 +156,7 @@ func profileGet(d *Daemon, r *http.Request) response.Response {
 		}
 
 		resp = db.ProfileToAPI(profile)
+		resp.UsedBy = project.FilterUsedBy(r, resp.UsedBy)
 
 		return nil
 	})
