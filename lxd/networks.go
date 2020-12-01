@@ -11,7 +11,6 @@ import (
 	"sync"
 
 	"github.com/gorilla/mux"
-	log "github.com/lxc/lxd/shared/log15"
 	"github.com/pkg/errors"
 
 	lxd "github.com/lxc/lxd/client"
@@ -30,6 +29,7 @@ import (
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
+	log "github.com/lxc/lxd/shared/log15"
 	"github.com/lxc/lxd/shared/logger"
 	"github.com/lxc/lxd/shared/version"
 )
