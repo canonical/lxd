@@ -422,6 +422,11 @@ func storagePoolVolumesPost(d *Daemon, r *http.Request) response.Response {
 		return response.BadRequest(fmt.Errorf(`Currently not allowed to create storage volumes of type %q`, req.Type))
 	}
 
+	// Backward compatibility.
+	if req.ContentType == "" {
+		req.ContentType = db.StoragePoolVolumeContentTypeNameFS
+	}
+
 	projectName, err := project.StorageVolumeProject(d.State().Cluster, projectParam(r), db.StoragePoolVolumeTypeCustom)
 	if err != nil {
 		return response.SmartError(err)
