@@ -12,6 +12,7 @@ import (
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/node"
 	"github.com/lxc/lxd/lxd/project"
+	"github.com/lxc/lxd/lxd/rbac"
 	"github.com/lxc/lxd/lxd/response"
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
@@ -264,7 +265,7 @@ func api10Get(d *Daemon, r *http.Request) response.Response {
 	fullSrv := api.Server{ServerUntrusted: srv}
 	fullSrv.Environment = env
 
-	if d.userIsAdmin(r) {
+	if rbac.UserIsAdmin(r) {
 		fullSrv.Config, err = daemonConfigRender(d.State())
 		if err != nil {
 			return response.InternalError(err)

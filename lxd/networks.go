@@ -107,7 +107,7 @@ func networksGet(d *Daemon, r *http.Request) response.Response {
 		if !recursion {
 			resultString = append(resultString, fmt.Sprintf("/%s/networks/%s", version.APIVersion, network))
 		} else {
-			net, err := doNetworkGet(d, projectName, network)
+			net, err := doNetworkGet(d, r, projectName, network)
 			if err != nil {
 				continue
 			}
@@ -500,7 +500,7 @@ func networkGet(d *Daemon, r *http.Request) response.Response {
 
 	name := mux.Vars(r)["name"]
 
-	n, err := doNetworkGet(d, projectName, name)
+	n, err := doNetworkGet(d, r, projectName, name)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -523,7 +523,7 @@ func networkGet(d *Daemon, r *http.Request) response.Response {
 	return response.SyncResponseETag(true, &n, etag)
 }
 
-func doNetworkGet(d *Daemon, projectName string, name string) (api.Network, error) {
+func doNetworkGet(d *Daemon, r *http.Request, projectName string, name string) (api.Network, error) {
 	// Ignore veth pairs (for performance reasons).
 	if strings.HasPrefix(name, "veth") {
 		return api.Network{}, os.ErrNotExist
@@ -582,7 +582,7 @@ func doNetworkGet(d *Daemon, projectName string, name string) (api.Network, erro
 			return api.Network{}, err
 		}
 
-		n.UsedBy = usedBy
+		n.UsedBy = project.FilterUsedBy(r, usedBy)
 	}
 
 	if dbInfo != nil {
@@ -860,7 +860,7 @@ func networkLeasesGet(d *Daemon, r *http.Request) response.Response {
 	name := mux.Vars(r)["name"]
 
 	// Try to get the network.
-	n, err := doNetworkGet(d, networkProjectName, name)
+	n, err := doNetworkGet(d, r, networkProjectName, name)
 	if err != nil {
 		return response.SmartError(err)
 	}

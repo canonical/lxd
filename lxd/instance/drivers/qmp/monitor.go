@@ -134,11 +134,6 @@ func (m *Monitor) run() error {
 					go m.eventHandler(e.Event, e.Data)
 				}
 
-				if e.Event == "SHUTDOWN" {
-					// Stop the goroutine on shutdown.
-					return
-				}
-
 				// Check if the ringbuffer was updated (non-blocking).
 				go checkBuffer()
 			case <-time.After(10 * time.Second):

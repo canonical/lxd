@@ -15,6 +15,7 @@ import (
 	lxd "github.com/lxc/lxd/client"
 	"github.com/lxc/lxd/lxd/cluster"
 	"github.com/lxc/lxd/lxd/db"
+	"github.com/lxc/lxd/lxd/rbac"
 	"github.com/lxc/lxd/lxd/response"
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
@@ -130,7 +131,7 @@ func certificatesPost(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	if (!trusted || (protocol == "candid" && !d.userIsAdmin(r))) && util.PasswordCheck(secret, req.Password) != nil {
+	if (!trusted || (protocol == "candid" && !rbac.UserIsAdmin(r))) && util.PasswordCheck(secret, req.Password) != nil {
 		if req.Password != "" {
 			logger.Warn("Bad trust password", log.Ctx{"url": r.URL.RequestURI(), "ip": r.RemoteAddr})
 		}
