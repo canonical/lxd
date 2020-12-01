@@ -488,6 +488,29 @@ func (c *ClusterTx) storagePoolState(name string, state int) error {
 	return nil
 }
 
+// StoragePoolNodeCreated sets the state of the given storage pool for the local member to storagePoolCreated.
+func (c *ClusterTx) StoragePoolNodeCreated(poolID int64) error {
+	return c.storagePoolNodeState(poolID, storagePoolCreated)
+}
+
+// storagePoolNodeState updates the storage pool member state for the local member and specified network ID.
+func (c *ClusterTx) storagePoolNodeState(poolID int64, state int) error {
+	stmt := "UPDATE storage_pools_nodes SET state=? WHERE storage_pool_id = ? and node_id = ?"
+	result, err := c.tx.Exec(stmt, state, poolID, c.nodeID)
+	if err != nil {
+		return err
+	}
+	n, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if n != 1 {
+		return ErrNoSuchObject
+	}
+
+	return nil
+}
+
 // GetStoragePoolNodeConfigs returns the node-specific configuration of all
 // nodes grouped by node name, for the given poolID.
 //
