@@ -14,6 +14,7 @@ import (
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/operations"
 	projecthelpers "github.com/lxc/lxd/lxd/project"
+	"github.com/lxc/lxd/lxd/rbac"
 	"github.com/lxc/lxd/lxd/response"
 	"github.com/lxc/lxd/lxd/state"
 	"github.com/lxc/lxd/lxd/util"
@@ -56,7 +57,7 @@ func projectsGet(d *Daemon, r *http.Request) response.Response {
 
 			filtered := []api.Project{}
 			for _, project := range projects {
-				if !d.userHasPermission(r, project.Name, "view") {
+				if !rbac.UserHasPermission(r, project.Name, "view") {
 					continue
 				}
 
@@ -74,7 +75,7 @@ func projectsGet(d *Daemon, r *http.Request) response.Response {
 			for _, uri := range uris {
 				name := strings.Split(uri, "/1.0/projects/")[1]
 
-				if !d.userHasPermission(r, name, "view") {
+				if !rbac.UserHasPermission(r, name, "view") {
 					continue
 				}
 
@@ -181,7 +182,7 @@ func projectGet(d *Daemon, r *http.Request) response.Response {
 	name := mux.Vars(r)["name"]
 
 	// Check user permissions
-	if !d.userHasPermission(r, name, "view") {
+	if !rbac.UserHasPermission(r, name, "view") {
 		return response.Forbidden(nil)
 	}
 
@@ -203,7 +204,7 @@ func projectPut(d *Daemon, r *http.Request) response.Response {
 	name := mux.Vars(r)["name"]
 
 	// Check user permissions
-	if !d.userHasPermission(r, name, "manage-projects") {
+	if !rbac.UserHasPermission(r, name, "manage-projects") {
 		return response.Forbidden(nil)
 	}
 
@@ -238,7 +239,7 @@ func projectPatch(d *Daemon, r *http.Request) response.Response {
 	name := mux.Vars(r)["name"]
 
 	// Check user permissions
-	if !d.userHasPermission(r, name, "manage-projects") {
+	if !rbac.UserHasPermission(r, name, "manage-projects") {
 		return response.Forbidden(nil)
 	}
 
