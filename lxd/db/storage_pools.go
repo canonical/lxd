@@ -645,7 +645,7 @@ func (c *Cluster) getStoragePool(poolName string, onlyCreated bool) (int64, *api
 	outargs := []interface{}{&poolID, &poolDriver, &description, &state}
 	if onlyCreated {
 		query += " AND state=?"
-		inargs = append(inargs, networkCreated)
+		inargs = append(inargs, storagePoolCreated)
 	}
 
 	err := dbQueryRowScan(c, query, inargs, outargs)
