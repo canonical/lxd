@@ -254,8 +254,9 @@ func (c *ClusterTx) GetNonPendingStoragePoolsNamesToIDs() (map[string]int64, err
 // assume that the relevant pool has already been created on the joining node,
 // and we just need to track it.
 func (c *ClusterTx) UpdateStoragePoolAfterNodeJoin(poolID, nodeID int64) error {
-	columns := []string{"storage_pool_id", "node_id"}
-	values := []interface{}{poolID, nodeID}
+	columns := []string{"storage_pool_id", "node_id", "state"}
+	// Create storage pool node with storagePoolCreated state as we expect the pool to already be setup.
+	values := []interface{}{poolID, nodeID, storagePoolCreated}
 	_, err := query.UpsertObject(c.tx, "storage_pools_nodes", columns, values)
 	if err != nil {
 		return errors.Wrap(err, "failed to add storage pools node entry")
