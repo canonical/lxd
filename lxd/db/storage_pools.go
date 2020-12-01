@@ -442,7 +442,7 @@ func (c *ClusterTx) CreatePendingStoragePool(node, name, driver string, conf map
 	return nil
 }
 
-// StoragePoolCreated sets the state of the given pool to "Created".
+// StoragePoolCreated sets the state of the given pool to storagePoolCreated.
 func (c *ClusterTx) StoragePoolCreated(name string) error {
 	return c.storagePoolState(name, storagePoolCreated)
 }
