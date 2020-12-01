@@ -19,6 +19,8 @@ import (
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
+	log "github.com/lxc/lxd/shared/log15"
+	"github.com/lxc/lxd/shared/logger"
 	"github.com/lxc/lxd/shared/version"
 )
 
@@ -250,13 +252,24 @@ func storagePoolsPostCluster(d *Daemon, req api.StoragePoolsPost) error {
 		return err
 	}
 
+	// Create notifier for other nodes to create the storage pool.
+	notifier, err := cluster.NewNotifier(d.State(), d.endpoints.NetworkCert(), cluster.NotifyAll)
+	if err != nil {
+		return err
+	}
+
 	// Create the pool on this node.
 	nodeReq := req
 	for key, value := range configs[nodeName] {
 		nodeReq.Config[key] = value
 	}
 
-	err = storagePoolValidate(req.Name, req.Driver, req.Config)
+	// Merge node specific config items into global config.
+	for key, value := range configs[nodeName] {
+		nodeReq.Config[key] = value
+	}
+
+	err = storagePoolValidate(req.Name, req.Driver, nodeReq.Config)
 	if err != nil {
 		return err
 	}
@@ -266,45 +279,44 @@ func storagePoolsPostCluster(d *Daemon, req api.StoragePoolsPost) error {
 		return err
 	}
 	req.Config = updatedConfig
-
-	// Strip local config keys from config.
-	for _, k := range db.StoragePoolNodeConfigKeys {
-		delete(req.Config, k)
-	}
+	logger.Debug("Created storage pool on local cluster member", log.Ctx{"pool": req.Name})
 
 	// Notify all other nodes to create the pool.
-	notifier, err := cluster.NewNotifier(d.State(), d.endpoints.NetworkCert(), cluster.NotifyAll)
-	if err != nil {
-		return err
-	}
-	notifyErr := notifier(func(client lxd.InstanceServer) error {
+	err = notifier(func(client lxd.InstanceServer) error {
 		server, _, err := client.GetServer()
 		if err != nil {
 			return err
 		}
 
 		nodeReq := req
+
+		// Merge node specific config items into global config.
 		for key, value := range configs[server.Environment.ServerName] {
 			nodeReq.Config[key] = value
 		}
 
-		return client.CreateStoragePool(nodeReq)
-	})
-
-	errored := notifyErr != nil
-
-	// Finally update the storage pool state.
-	err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
-		if errored {
-			return tx.StoragePoolErrored(req.Name)
+		err = client.CreateStoragePool(nodeReq)
+		if err != nil {
+			return err
 		}
-		return tx.StoragePoolCreated(req.Name)
+		logger.Debug("Created storage pool on cluster member", log.Ctx{"pool": req.Name, "member": server.Environment.ServerName})
+
+		return nil
 	})
 	if err != nil {
 		return err
 	}
 
-	return notifyErr
+	// Finally update the storage pool state.
+	err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
+		return tx.StoragePoolCreated(req.Name)
+	})
+	if err != nil {
+		return err
+	}
+	logger.Debug("Marked storage pool global status as created", log.Ctx{"pool": req.Name})
+
+	return nil
 }
 
 // /1.0/storage-pools/{name}
