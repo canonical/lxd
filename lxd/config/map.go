@@ -95,14 +95,21 @@ func (m *Map) Change(changes map[string]interface{}) (map[string]string, error) 
 func (m *Map) Dump() map[string]interface{} {
 	values := map[string]interface{}{}
 
-	for name, key := range m.schema {
-		value := m.GetRaw(name)
-		if value != key.Default {
-			if key.Hidden {
-				values[name] = true
-			} else {
-				values[name] = value
+	for name, value := range m.values {
+		key, ok := m.schema[name]
+		if ok {
+			// Schema key
+			value := m.GetRaw(name)
+			if value != key.Default {
+				if key.Hidden {
+					values[name] = true
+				} else {
+					values[name] = value
+				}
 			}
+		} else if shared.IsUserConfig(name) {
+			// User key, just include it as is
+			values[name] = value
 		}
 	}
 
@@ -111,8 +118,13 @@ func (m *Map) Dump() map[string]interface{} {
 
 // GetRaw returns the value of the given key, which must be of type String.
 func (m *Map) GetRaw(name string) string {
-	key := m.schema.mustGetKey(name)
 	value, ok := m.values[name]
+	// User key?
+	if shared.IsUserConfig(name) {
+		return value
+	}
+	// Schema key
+	key := m.schema.mustGetKey(name)
 	if !ok {
 		value = key.Default
 	}
@@ -121,7 +133,10 @@ func (m *Map) GetRaw(name string) string {
 
 // GetString returns the value of the given key, which must be of type String.
 func (m *Map) GetString(name string) string {
-	m.schema.assertKeyType(name, String)
+	if !shared.IsUserConfig(name) {
+		m.schema.assertKeyType(name, String)
+	}
+
 	return m.GetRaw(name)
 }
 
@@ -182,6 +197,23 @@ func (m *Map) update(values map[string]string) ([]string, error) {
 // effectively revert it to the default. Return a boolean indicating whether
 // the value has changed, and error if something went wrong.
 func (m *Map) set(name string, value string, initial bool) (bool, error) {
+	// Bypass schema for user.* keys
+	if shared.IsUserConfig(name) {
+		current, ok := m.values[name]
+		if ok && value == current {
+			// Value is unchanged
+			return false, nil
+		}
+
+		if value == "" {
+			delete(m.values, name)
+		} else {
+			m.values[name] = value
+		}
+
+		return true, nil
+	}
+
 	key, ok := m.schema[name]
 	if !ok {
 		return false, fmt.Errorf("unknown key")
