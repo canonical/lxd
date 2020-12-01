@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/lxc/lxd/lxd/db"
+	"github.com/lxc/lxd/lxd/rbac"
 	"github.com/lxc/lxd/lxd/response"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/logger"
@@ -40,7 +41,7 @@ func eventsSocket(d *Daemon, r *http.Request, w http.ResponseWriter) error {
 	if len(types) == 1 && types[0] == "" {
 		types = []string{}
 		for _, entry := range eventTypes {
-			if !d.userIsAdmin(r) && shared.StringInSlice(entry, privilegedEventTypes) {
+			if !rbac.UserIsAdmin(r) && shared.StringInSlice(entry, privilegedEventTypes) {
 				continue
 			}
 
@@ -56,7 +57,7 @@ func eventsSocket(d *Daemon, r *http.Request, w http.ResponseWriter) error {
 		}
 	}
 
-	if shared.StringInSlice("logging", types) && !d.userIsAdmin(r) {
+	if shared.StringInSlice("logging", types) && !rbac.UserIsAdmin(r) {
 		response.Forbidden(nil).Render(w)
 		return nil
 	}
