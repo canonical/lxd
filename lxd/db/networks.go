@@ -455,9 +455,9 @@ type NetworkState int
 
 // Network state.
 const (
-	networkPending NetworkState = iota // Network defined but not yet created.
-	networkCreated                     // Network created on all nodes.
-	networkErrored                     // Network creation failed on some nodes
+	networkPending NetworkState = iota // Network defined but not yet created globally or on specific node.
+	networkCreated                     // Network created globally or on specific node.
+	networkErrored                     // Deprecated (should no longer occur).
 )
 
 // NetworkType indicates type of network.
