@@ -529,6 +529,65 @@ func storagePoolPatch(d *Daemon, r *http.Request) response.Response {
 	return response.EmptySyncResponse
 }
 
+// doStoragePoolUpdate takes the current local storage pool config, merges with the requested storage pool config,
+// validates and applies the changes. Will also notify other cluster nodes of non-node specific config if needed.
+func doStoragePoolUpdate(d *Daemon, pool storagePools.Pool, req api.StoragePoolPut, targetNode string, clientType cluster.ClientType, httpMethod string, clustered bool) response.Response {
+	if req.Config == nil {
+		req.Config = map[string]string{}
+	}
+
+	// Normally a "put" request will replace all existing config, however when clustered, we need to account
+	// for the node specific config keys and not replace them when the request doesn't specify a specific node.
+	if targetNode == "" && httpMethod != http.MethodPatch && clustered {
+		// If non-node specific config being updated via "put" method in cluster, then merge the current
+		// node-specific network config with the submitted config to allow validation.
+		// This allows removal of non-node specific keys when they are absent from request config.
+		for k, v := range pool.Driver().Config() {
+			if shared.StringInSlice(k, db.StoragePoolNodeConfigKeys) {
+				req.Config[k] = v
+			}
+		}
+	} else if httpMethod == http.MethodPatch {
+		// If config being updated via "patch" method, then merge all existing config with the keys that
+		// are present in the request config.
+		for k, v := range pool.Driver().Config() {
+			_, ok := req.Config[k]
+			if !ok {
+				req.Config[k] = v
+			}
+		}
+	}
+
+	// Validate the configuration.
+	err := storagePoolValidateConfig(pool.Name(), pool.Driver().Info().Name, req.Config, pool.Driver().Config())
+	if err != nil {
+		return response.BadRequest(err)
+	}
+
+	// Notify the other nodes, unless this is itself a notification.
+	if clustered && clientType != cluster.ClientTypeNotifier && targetNode == "" {
+		cert := d.endpoints.NetworkCert()
+		notifier, err := cluster.NewNotifier(d.State(), cert, cluster.NotifyAll)
+		if err != nil {
+			return response.SmartError(err)
+		}
+		err = notifier(func(client lxd.InstanceServer) error {
+			return client.UpdateStoragePool(pool.Name(), req, "")
+		})
+		if err != nil {
+			return response.SmartError(err)
+		}
+	}
+
+	driverOnly := clientType == cluster.ClientTypeNotifier
+	err = pool.Update(driverOnly, req.Description, req.Config, nil)
+	if err != nil {
+		return response.InternalError(err)
+	}
+
+	return response.EmptySyncResponse
+}
+
 // This helper makes sure that, when clustered, we're not changing
 // node-specific values.
 //
