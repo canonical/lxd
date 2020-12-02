@@ -84,9 +84,9 @@ func (b *lxdBackend) MigrationTypes(contentType drivers.ContentType, refresh boo
 	return b.driver.MigrationTypes(contentType, refresh)
 }
 
-// create creates the storage pool layout on the storage device.
+// Create creates the storage pool layout on the storage device.
 // localOnly is used for clustering where only a single node should do remote storage setup.
-func (b *lxdBackend) create(localOnly bool, op *operations.Operation) error {
+func (b *lxdBackend) Create(localOnly bool, op *operations.Operation) error {
 	logger := logging.AddContext(b.logger, log.Ctx{"config": b.db.Config, "description": b.db.Description, "localOnly": localOnly})
 	logger.Debug("create started")
 	defer logger.Debug("create finished")
@@ -180,6 +180,31 @@ func (b *lxdBackend) GetResources() (*api.ResourcesStoragePool, error) {
 	defer logger.Debug("GetResources finished")
 
 	return b.driver.GetResources()
+}
+
+// IsUsed returns whether the storage pool is used by any volumes or profiles (excluding image volumes).
+func (b *lxdBackend) IsUsed() (bool, error) {
+	// Get all users of the storage pool.
+	var err error
+	poolUsedBy := []string{}
+	err = b.state.Cluster.Transaction(func(tx *db.ClusterTx) error {
+		poolUsedBy, err = tx.GetStoragePoolUsedBy(b.name)
+		return err
+	})
+	if err != nil {
+		return false, err
+	}
+
+	for _, entry := range poolUsedBy {
+		// Images are never considered a user of the pool.
+		if strings.HasPrefix(entry, "/1.0/images/") {
+			continue
+		}
+
+		return true, nil
+	}
+
+	return false, nil
 }
 
 // Update updates the pool config.
