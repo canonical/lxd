@@ -30,6 +30,18 @@ func (b *mockBackend) Name() string {
 	return b.name
 }
 
+func (b *mockBackend) Description() string {
+	return ""
+}
+
+func (b *mockBackend) Status() string {
+	return api.NetworkStatusUnknown
+}
+
+func (b *mockBackend) LocalStatus() string {
+	return api.NetworkStatusUnknown
+}
+
 func (b *mockBackend) Driver() drivers.Driver {
 	return b.driver
 }
