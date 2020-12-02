@@ -387,7 +387,7 @@ func networksPostCluster(d *Daemon, req api.NetworksPost, clientType cluster.Cli
 		if err != nil {
 			return err
 		}
-		logger.Error("Created network on cluster member", log.Ctx{"network": req.Name, "member": server.Environment.ServerName})
+		logger.Info("Created network on cluster member", log.Ctx{"network": req.Name, "member": server.Environment.ServerName})
 
 		return nil
 	})
