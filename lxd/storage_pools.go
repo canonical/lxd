@@ -529,43 +529,6 @@ func storagePoolPatch(d *Daemon, r *http.Request) response.Response {
 	return response.EmptySyncResponse
 }
 
-// This helper makes sure that, when clustered, we're not changing
-// node-specific values.
-//
-// POSSIBLY TODO: for now we don't have any node-specific values that can be
-// modified. If we ever get some, we'll need to extend the PUT/PATCH APIs to
-// accept a targetNode query parameter.
-func storagePoolValidateClusterConfig(reqConfig map[string]string) error {
-	for key := range reqConfig {
-		if shared.StringInSlice(key, db.StoragePoolNodeConfigKeys) {
-			return fmt.Errorf("Node-specific config key %q can't be changed", key)
-		}
-	}
-	return nil
-}
-
-// This helper deletes any node-specific values from the config object, since
-// they should not be part of the calculated etag.
-func storagePoolClusterConfigForEtag(dbConfig map[string]string) map[string]string {
-	config := util.CopyConfig(dbConfig)
-	for _, key := range db.StoragePoolNodeConfigKeys {
-		delete(config, key)
-	}
-	return config
-}
-
-// This helper complements a PUT/PATCH request config with node-specific value,
-// as taken from the db.
-func storagePoolClusterFillWithNodeConfig(dbConfig, reqConfig map[string]string) map[string]string {
-	config := util.CopyConfig(reqConfig)
-	for _, key := range db.StoragePoolNodeConfigKeys {
-		if _, found := dbConfig[key]; found {
-			config[key] = dbConfig[key]
-		}
-	}
-	return config
-}
-
 // /1.0/storage-pools/{name}
 // Delete storage pool.
 func storagePoolDelete(d *Daemon, r *http.Request) response.Response {
