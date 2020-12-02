@@ -878,7 +878,7 @@ func storagePoolDriverGet(tx *sql.Tx, id int64) (string, error) {
 
 // UpdateStoragePool updates a storage pool.
 func (c *Cluster) UpdateStoragePool(poolName, description string, poolConfig map[string]string) error {
-	poolID, _, err := c.GetStoragePoolInAnyState(poolName)
+	poolID, _, _, err := c.GetStoragePoolInAnyState(poolName)
 	if err != nil {
 		return err
 	}
@@ -922,7 +922,7 @@ func clearStoragePoolConfig(tx *sql.Tx, poolID, nodeID int64) error {
 
 // RemoveStoragePool deletes storage pool.
 func (c *Cluster) RemoveStoragePool(poolName string) (*api.StoragePool, error) {
-	poolID, pool, err := c.GetStoragePoolInAnyState(poolName)
+	poolID, pool, _, err := c.GetStoragePoolInAnyState(poolName)
 	if err != nil {
 		return nil, err
 	}
