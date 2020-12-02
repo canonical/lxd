@@ -140,7 +140,7 @@ func GetPoolByName(state *state.State, name string) (Pool, error) {
 	}
 
 	// Load the database record.
-	poolID, dbPool, err := state.Cluster.GetStoragePoolInAnyState(name)
+	poolID, dbPool, poolNodes, err := state.Cluster.GetStoragePoolInAnyState(name)
 	if err != nil {
 		return nil, err
 	}
@@ -166,6 +166,7 @@ func GetPoolByName(state *state.State, name string) (Pool, error) {
 	pool.name = dbPool.Name
 	pool.state = state
 	pool.logger = logger
+	pool.nodes = poolNodes
 
 	return &pool, nil
 }
