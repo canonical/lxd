@@ -372,163 +372,87 @@ func storagePoolGet(d *Daemon, r *http.Request) response.Response {
 // /1.0/storage-pools/{name}
 // Replace pool properties.
 func storagePoolPut(d *Daemon, r *http.Request) response.Response {
+	// If a target was specified, forward the request to the relevant node.
+	resp := forwardedResponseIfTargetIsRemote(d, r)
+	if resp != nil {
+		return resp
+	}
+
 	poolName := mux.Vars(r)["name"]
 
 	// Get the existing storage pool.
-	_, dbInfo, err := d.cluster.GetStoragePoolInAnyState(poolName)
+	pool, err := storagePools.GetPoolByName(d.State(), poolName)
 	if err != nil {
 		return response.SmartError(err)
 	}
 
-	req := api.StoragePoolPut{}
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		return response.BadRequest(err)
-	}
-
+	targetNode := queryParam(r, "target")
 	clustered, err := cluster.Enabled(d.db)
 	if err != nil {
 		return response.SmartError(err)
 	}
 
-	config := dbInfo.Config
-	if clustered {
-		err := storagePoolValidateClusterConfig(req.Config)
-		if err != nil {
-			return response.BadRequest(err)
-		}
-		config = storagePoolClusterConfigForEtag(config)
+	if targetNode == "" && pool.Status() != api.StoragePoolStatusCreated {
+		return response.BadRequest(fmt.Errorf("Cannot update storage pool global config when not in created state"))
 	}
 
-	// Validate the ETag
-	etag := []interface{}{dbInfo.Name, dbInfo.Driver, config}
+	// Duplicate config for etag modification and generation.
+	etagConfig := util.CopyConfig(pool.Driver().Config())
+
+	// If no target node is specified and the daemon is clustered, we omit the node-specific fields so that
+	// the e-tag can be generated correctly. This is because the GET request used to populate the request
+	// will also remove node-specific keys when no target is specified.
+	if targetNode == "" && clustered {
+		for _, key := range db.StoragePoolNodeConfigKeys {
+			delete(etagConfig, key)
+		}
+	}
+
+	// Validate the ETag.
+	etag := []interface{}{pool.Name(), pool.Driver().Info().Name, etagConfig}
 
 	err = util.EtagCheck(r, etag)
 	if err != nil {
 		return response.PreconditionFailed(err)
 	}
 
-	// Validate the configuration
-	err = storagePoolValidateConfig(poolName, dbInfo.Driver, req.Config, dbInfo.Config)
-	if err != nil {
+	// Decode the request.
+	req := api.StoragePoolPut{}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		return response.BadRequest(err)
 	}
 
-	config = req.Config
+	// In clustered mode, we differentiate between node specific and non-node specific config keys based on
+	// whether the user has specified a target to apply the config to.
 	if clustered {
-		// For clustered requests, we need to complement the request's config
-		// with our node-specific values.
-		config = storagePoolClusterFillWithNodeConfig(dbInfo.Config, config)
-	}
+		if targetNode == "" {
+			// If no target is specified, then ensure only non-node-specific config keys are changed.
+			for k := range req.Config {
+				if shared.StringInSlice(k, db.StoragePoolNodeConfigKeys) {
+					return response.BadRequest(fmt.Errorf("Config key %q is node-specific", k))
+				}
+			}
+		} else {
+			curConfig := pool.Driver().Config()
 
-	// Notify the other nodes, unless this is itself a notification.
-	if clustered && !isClusterNotification(r) {
-		cert := d.endpoints.NetworkCert()
-		notifier, err := cluster.NewNotifier(d.State(), cert, cluster.NotifyAll)
-		if err != nil {
-			return response.SmartError(err)
+			// If a target is specified, then ensure only node-specific config keys are changed.
+			for k, v := range req.Config {
+				if !shared.StringInSlice(k, db.StoragePoolNodeConfigKeys) && curConfig[k] != v {
+					return response.BadRequest(fmt.Errorf("Config key %q may not be used as node-specific key", k))
+				}
+			}
 		}
-		err = notifier(func(client lxd.InstanceServer) error {
-			return client.UpdateStoragePool(poolName, req, r.Header.Get("If-Match"))
-		})
-		if err != nil {
-			return response.SmartError(err)
-		}
 	}
 
-	withDB := !isClusterNotification(r)
-	err = storagePoolUpdate(d.State(), poolName, req.Description, config, withDB)
-	if err != nil {
-		return response.InternalError(err)
-	}
+	clientType := cluster.UserAgentClientType(r.Header.Get("User-Agent"))
 
-	return response.EmptySyncResponse
+	return doStoragePoolUpdate(d, pool, req, targetNode, clientType, r.Method, clustered)
 }
 
 // /1.0/storage-pools/{name}
 // Change pool properties.
 func storagePoolPatch(d *Daemon, r *http.Request) response.Response {
-	poolName := mux.Vars(r)["name"]
-
-	// Get the existing storage pool.
-	_, dbInfo, err := d.cluster.GetStoragePoolInAnyState(poolName)
-	if err != nil {
-		return response.SmartError(err)
-	}
-
-	req := api.StoragePoolPut{}
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		return response.BadRequest(err)
-	}
-
-	clustered, err := cluster.Enabled(d.db)
-	if err != nil {
-		return response.SmartError(err)
-	}
-
-	config := dbInfo.Config
-	if clustered {
-		err := storagePoolValidateClusterConfig(req.Config)
-		if err != nil {
-			return response.BadRequest(err)
-		}
-		config = storagePoolClusterConfigForEtag(config)
-	}
-
-	// Validate the ETag
-	etag := []interface{}{dbInfo.Name, dbInfo.Driver, config}
-
-	err = util.EtagCheck(r, etag)
-	if err != nil {
-		return response.PreconditionFailed(err)
-	}
-
-	// Config stacking
-	if req.Config == nil {
-		req.Config = map[string]string{}
-	}
-
-	for k, v := range dbInfo.Config {
-		_, ok := req.Config[k]
-		if !ok {
-			req.Config[k] = v
-		}
-	}
-
-	// Validate the configuration
-	err = storagePoolValidateConfig(poolName, dbInfo.Driver, req.Config, dbInfo.Config)
-	if err != nil {
-		return response.BadRequest(err)
-	}
-
-	config = req.Config
-	if clustered {
-		// For clustered requests, we need to complement the request's config
-		// with our node-specific values.
-		config = storagePoolClusterFillWithNodeConfig(dbInfo.Config, config)
-	}
-
-	// Notify the other nodes, unless this is itself a notification.
-	if clustered && !isClusterNotification(r) {
-		cert := d.endpoints.NetworkCert()
-		notifier, err := cluster.NewNotifier(d.State(), cert, cluster.NotifyAll)
-		if err != nil {
-			return response.SmartError(err)
-		}
-		err = notifier(func(client lxd.InstanceServer) error {
-			return client.UpdateStoragePool(poolName, req, r.Header.Get("If-Match"))
-		})
-		if err != nil {
-			return response.SmartError(err)
-		}
-	}
-
-	withDB := !isClusterNotification(r)
-	err = storagePoolUpdate(d.State(), poolName, req.Description, config, withDB)
-	if err != nil {
-		return response.InternalError(err)
-	}
-
-	return response.EmptySyncResponse
+	return storagePoolPut(d, r)
 }
 
 // doStoragePoolUpdate takes the current local storage pool config, merges with the requested storage pool config,
@@ -573,8 +497,20 @@ func doStoragePoolUpdate(d *Daemon, pool storagePools.Pool, req api.StoragePoolP
 		if err != nil {
 			return response.SmartError(err)
 		}
+
+		sendPool := req
+		sendPool.Config = make(map[string]string)
+		for k, v := range req.Config {
+			// Don't forward node specific keys (these will be merged in on recipient node).
+			if shared.StringInSlice(k, db.StoragePoolNodeConfigKeys) {
+				continue
+			}
+
+			sendPool.Config[k] = v
+		}
+
 		err = notifier(func(client lxd.InstanceServer) error {
-			return client.UpdateStoragePool(pool.Name(), req, "")
+			return client.UpdateStoragePool(pool.Name(), sendPool, "")
 		})
 		if err != nil {
 			return response.SmartError(err)
