@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: LXD\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2020-12-01 23:27+0800\n"
+"POT-Creation-Date: 2020-12-02 08:04+0800\n"
 "PO-Revision-Date: 2020-09-25 15:37+0000\n"
 "Last-Translator: KATOH Yasufumi <karma@jazz.email.ne.jp>\n"
 "Language-Team: Japanese <https://hosted.weblate.org/projects/linux-"
@@ -3052,19 +3052,20 @@ msgstr ""
 "\n"
 "\"lxc pause\" の反対のコマンドは \"lxc start\" です。"
 
+#: lxc/restore.go:23
+msgid "Restore instances from snapshots"
+msgstr "スナップショットからインスタンスをリストアします"
+
 #: lxc/restore.go:24
+#, fuzzy
 msgid ""
-"Restore instaces from snapshots\n"
+"Restore instances from snapshots\n"
 "\n"
 "If --stateful is passed, then the running state will be restored too."
 msgstr ""
 "スナップショットからインスタンスをリストアします\n"
 "\n"
 "--stateful オプションを指定すると、インスタンスの実行状態もリストアします。"
-
-#: lxc/restore.go:23
-msgid "Restore instances from snapshots"
-msgstr "スナップショットからインスタンスをリストアします"
 
 #: lxc/storage_volume.go:1607 lxc/storage_volume.go:1608
 msgid "Restore storage volume snapshots"
