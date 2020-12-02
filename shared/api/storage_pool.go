@@ -1,5 +1,17 @@
 package api
 
+// StoragePoolStatusPending storage pool is pending creation on other cluster nodes.
+const StoragePoolStatusPending = "Pending"
+
+// StoragePoolStatusCreated storage pool is fully created.
+const StoragePoolStatusCreated = "Created"
+
+// StoragePoolStatusErrored storage pool is in error status.
+const StoragePoolStatusErrored = "Errored"
+
+// StoragePoolStatusUnknown storage pool is in unknown status.
+const StoragePoolStatusUnknown = "Unknown"
+
 // StoragePoolsPost represents the fields of a new LXD storage pool
 //
 // API extension: storage
