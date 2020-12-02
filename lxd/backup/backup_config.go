@@ -54,7 +54,7 @@ func updateRootDevicePool(devices map[string]map[string]string, poolName string)
 // UpdateInstanceConfigStoragePool changes the pool information in the backup.yaml to the pool specified in b.Pool.
 func UpdateInstanceConfigStoragePool(c *db.Cluster, b Info, mountPath string) error {
 	// Load the storage pool.
-	_, pool, err := c.GetStoragePool(b.Pool)
+	_, pool, _, err := c.GetStoragePool(b.Pool)
 	if err != nil {
 		return err
 	}
