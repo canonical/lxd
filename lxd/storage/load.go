@@ -112,9 +112,10 @@ func CreatePool(state *state.State, poolID int64, dbPool *api.StoragePoolsPost, 
 	pool.name = dbPool.Name
 	pool.state = state
 	pool.logger = logger
+	pool.nodes = map[int64]db.StoragePoolNode{} // Nodes unknown at this point.
 
 	// Create the pool itself on the storage device..
-	err = pool.create(localOnly, op)
+	err = pool.Create(localOnly, op)
 	if err != nil {
 		return nil, err
 	}
