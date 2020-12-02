@@ -102,27 +102,49 @@ func storagePoolCreateGlobal(state *state.State, req api.StoragePoolsPost) error
 }
 
 // This performs local pool setup and updates DB record if config was changed during pool setup.
+// Returns resulting config.
 func storagePoolCreateLocal(state *state.State, id int64, req api.StoragePoolsPost, isNotification bool) (map[string]string, error) {
 	// Setup revert.
 	revert := revert.New()
 	defer revert.Fail()
 
 	// Make a copy of the req for later diff.
-	var updatedConfig map[string]string
 	var updatedReq api.StoragePoolsPost
 	shared.DeepCopy(&req, &updatedReq)
 
-	// Fill in the defaults.
+	// Fill in the node specific defaults.
 	err := storagePoolFillDefault(updatedReq.Name, updatedReq.Driver, updatedReq.Config)
 	if err != nil {
 		return nil, err
 	}
 
-	// Create the pool.
-	pool, err := storagePools.CreatePool(state, id, &updatedReq, isNotification, nil)
+	configDiff, _ := storagePools.ConfigDiff(req.Config, updatedReq.Config)
+	if len(configDiff) > 0 {
+		// Update the database entry for the storage pool.
+		err = state.Cluster.UpdateStoragePool(req.Name, req.Description, updatedReq.Config)
+		if err != nil {
+			return nil, errors.Wrapf(err, "Error updating storage pool config after local fill defaults for %q", req.Name)
+		}
+	}
+
+	// Load pool record.
+	pool, err := storagePools.GetPoolByName(state, updatedReq.Name)
 	if err != nil {
 		return nil, err
 	}
+
+	if pool.LocalStatus() == api.NetworkStatusCreated {
+		logger.Debug("Skipping storage pool create as already created locally", log.Ctx{"pool": pool.Name()})
+
+		return pool.Driver().Config(), nil
+	}
+
+	// Create the pool.
+	err = pool.Create(isNotification, nil)
+	if err != nil {
+		return nil, err
+	}
+
 	revert.Add(func() { pool.Delete(isNotification, nil) })
 
 	// Mount the pool.
@@ -131,19 +153,14 @@ func storagePoolCreateLocal(state *state.State, id int64, req api.StoragePoolsPo
 		return nil, err
 	}
 
-	// Record the updated config.
-	updatedConfig = updatedReq.Config
-
-	// In case the storage pool config was changed during the pool creation,
-	// we need to update the database to reflect this change. This can e.g.
-	// happen, when we create a loop file image. This means we append ".img"
-	// to the path the user gave us and update the config in the storage
-	// callback. So diff the config here to see if something like this has
-	// happened.
-	configDiff, _ := storagePools.ConfigDiff(req.Config, updatedConfig)
+	// In case the storage pool config was changed during the pool creation, we need to update the database to
+	// reflect this change. This can e.g. happen, when we create a loop file image. This means we append ".img"
+	// to the path the user gave us and update the config in the storage callback. So diff the config here to
+	// see if something like this has happened.
+	configDiff, _ = storagePools.ConfigDiff(updatedReq.Config, pool.Driver().Config())
 	if len(configDiff) > 0 {
 		// Update the database entry for the storage pool.
-		err = state.Cluster.UpdateStoragePool(req.Name, req.Description, updatedConfig)
+		err = state.Cluster.UpdateStoragePool(req.Name, req.Description, pool.Driver().Config())
 		if err != nil {
 			return nil, errors.Wrapf(err, "Error updating storage pool config after local create for %q", req.Name)
 		}
@@ -159,7 +176,7 @@ func storagePoolCreateLocal(state *state.State, id int64, req api.StoragePoolsPo
 	logger.Debug("Marked storage pool local status as created", log.Ctx{"pool": req.Name})
 
 	revert.Success()
-	return updatedConfig, nil
+	return pool.Driver().Config(), nil
 }
 
 // Helper around the low-level DB API, which also updates the driver names cache.
