@@ -59,11 +59,19 @@ func (b *mockBackend) GetResources() (*api.ResourcesStoragePool, error) {
 	return nil, nil
 }
 
+func (b *mockBackend) IsUsed() (bool, error) {
+	return false, nil
+}
+
 func (b *mockBackend) Delete(localOnly bool, op *operations.Operation) error {
 	return nil
 }
 
 func (b *mockBackend) Update(localOnly bool, newDescription string, newConfig map[string]string, op *operations.Operation) error {
+	return nil
+}
+
+func (b *mockBackend) Create(localOnly bool, op *operations.Operation) error {
 	return nil
 }
 
