@@ -93,7 +93,7 @@ func daemonStorageValidate(s *state.State, target string) error {
 	volumeName := fields[1]
 
 	// Validate pool exists.
-	poolID, _, err := s.Cluster.GetStoragePool(poolName)
+	poolID, _, _, err := s.Cluster.GetStoragePool(poolName)
 	if err != nil {
 		return errors.Wrapf(err, "Unable to load storage pool %q", poolName)
 	}
