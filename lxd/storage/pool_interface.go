@@ -24,6 +24,9 @@ type Pool interface {
 	ID() int64
 	Name() string
 	Driver() drivers.Driver
+	Description() string
+	Status() string
+	LocalStatus() string
 
 	GetResources() (*api.ResourcesStoragePool, error)
 	Delete(localOnly bool, op *operations.Operation) error
