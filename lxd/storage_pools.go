@@ -595,86 +595,56 @@ func doStoragePoolUpdate(d *Daemon, pool storagePools.Pool, req api.StoragePoolP
 func storagePoolDelete(d *Daemon, r *http.Request) response.Response {
 	poolName := mux.Vars(r)["name"]
 
-	poolID, err := d.cluster.GetStoragePoolID(poolName)
-	if err != nil {
-		return response.NotFound(err)
-	}
-
-	// If this is not an internal cluster request, check if the storage
-	// pool has any volumes associated with it, if so error out.
-	if !isClusterNotification(r) {
-		// Get all users of the storage pool.
-		poolUsedBy := []string{}
-		err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
-			poolUsedBy, err = tx.GetStoragePoolUsedBy(poolName)
-			return err
-		})
-		if err != nil {
-			return response.SmartError(err)
-		}
-
-		blocking := []string{}
-		for _, entry := range poolUsedBy {
-			// Image are never a deletion blocker.
-			if strings.HasPrefix(entry, "/1.0/images/") {
-				continue
-			}
-
-			blocking = append(blocking, entry)
-		}
-
-		if len(blocking) > 0 {
-			return response.BadRequest(fmt.Errorf("The pool is currently in use by:\n - %s", strings.Join(blocking, "\n - ")))
-		}
-	}
-
-	// Check if the pool is pending, if so we just need to delete it from the database.
-	_, dbPool, _, err := d.cluster.GetStoragePoolInAnyState(poolName)
+	pool, err := storagePools.GetPoolByName(d.State(), poolName)
 	if err != nil {
 		return response.SmartError(err)
 	}
 
-	if dbPool.Status == "Pending" {
-		_, err := d.cluster.RemoveStoragePool(poolName)
+	clusterNotification := isClusterNotification(r)
+
+	if !clusterNotification {
+		// Sanity checks.
+		inUse, err := pool.IsUsed()
 		if err != nil {
 			return response.SmartError(err)
 		}
-		return response.EmptySyncResponse
-	}
 
-	volumeNames, err := d.cluster.GetStoragePoolVolumesNames(poolID)
-	if err != nil {
-		return response.InternalError(err)
-	}
-
-	pool, err := storagePools.GetPoolByName(d.State(), poolName)
-	if err != nil {
-		return response.InternalError(errors.Wrapf(err, "Error loading pool %q", poolName))
+		if inUse {
+			return response.BadRequest(fmt.Errorf("The storage pool is currently in use"))
+		}
 	}
 
 	// Only delete images if locally stored or running on initial member.
-	if !isClusterNotification(r) || !pool.Driver().Info().Remote {
+	if !clusterNotification || !pool.Driver().Info().Remote {
+		// Only image volumes should remain now.
+		volumeNames, err := d.cluster.GetStoragePoolVolumesNames(pool.ID())
+		if err != nil {
+			return response.InternalError(err)
+		}
+
 		for _, volume := range volumeNames {
 			_, imgInfo, err := d.cluster.GetImage(projectParam(r), volume, false)
 			if err != nil {
 				return response.InternalError(errors.Wrapf(err, "Failed getting image info for %q", volume))
 			}
 
-			err = doDeleteImageFromPool(d.State(), imgInfo.Fingerprint, poolName)
+			err = doDeleteImageFromPool(d.State(), imgInfo.Fingerprint, pool.Name())
 			if err != nil {
 				return response.InternalError(errors.Wrapf(err, "Error deleting image %q from pool", volume))
 			}
 		}
 	}
 
-	err = pool.Delete(isClusterNotification(r), nil)
-	if err != nil {
-		return response.InternalError(err)
+	if pool.LocalStatus() != api.StoragePoolStatusPending {
+		err = pool.Delete(clusterNotification, nil)
+		if err != nil {
+			return response.InternalError(err)
+		}
 	}
 
-	// If this is a cluster notification, we're done, any database work
-	// will be done by the node that is originally serving the request.
-	if isClusterNotification(r) {
+	// If this is a cluster notification, we're done, any database work will be done by the node that is
+	// originally serving the request.
+	if clusterNotification {
 		return response.EmptySyncResponse
 	}
 
@@ -693,14 +663,14 @@ func storagePoolDelete(d *Daemon, r *http.Request) response.Response {
 			if err != nil {
 				return err
 			}
-			return client.DeleteStoragePool(poolName)
+			return client.DeleteStoragePool(pool.Name())
 		})
 		if err != nil {
 			return response.SmartError(err)
 		}
 	}
 
-	err = dbStoragePoolDeleteAndUpdateCache(d.State(), poolName)
+	err = dbStoragePoolDeleteAndUpdateCache(d.State(), pool.Name())
 	if err != nil {
 		return response.SmartError(err)
 	}
