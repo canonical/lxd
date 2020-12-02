@@ -222,23 +222,16 @@ func (b *lxdBackend) Update(driverOnly bool, newDesc string, newConfig map[strin
 	// Diff the configurations.
 	changedConfig, userOnly := b.detectChangedConfig(b.db.Config, newConfig)
 
-	// Apply config changes if there are any.
-	if len(changedConfig) != 0 {
-		if !userOnly {
-			err = b.driver.Update(changedConfig)
-			if err != nil {
-				return err
-			}
+	// Apply changes to local node if not pending and non-user config changed.
+	if len(changedConfig) != 0 && b.LocalStatus() != api.StoragePoolStatusPending && !userOnly {
+		err = b.driver.Update(changedConfig)
+		if err != nil {
+			return err
 		}
 	}
 
-	// If only dealing with driver changes, we're done now.
-	if driverOnly {
-		return nil
-	}
-
-	// Update the database if something changed.
-	if len(changedConfig) != 0 || newDesc != b.db.Description {
+	// Update the database if something changed and we're not in driverOnly mode.
+	if !driverOnly && (len(changedConfig) != 0 || newDesc != b.db.Description) {
 		err = b.state.Cluster.UpdateStoragePool(b.name, newDesc, newConfig)
 		if err != nil {
 			return err
