@@ -381,6 +381,13 @@ const (
 	storagePoolErrored                         // Deprecated (should no longer occur).
 )
 
+// StoragePoolNode represents a storage pool node.
+type StoragePoolNode struct {
+	ID    int64
+	Name  string
+	State StoragePoolState
+}
+
 // CreatePendingStoragePool creates a new pending storage pool on the node with
 // the given name.
 func (c *ClusterTx) CreatePendingStoragePool(node, name, driver string, conf map[string]string) error {
