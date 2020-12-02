@@ -396,7 +396,7 @@ func (c *ClusterTx) CreatePendingStoragePool(node, name, driver string, conf map
 	pool := struct {
 		id     int64
 		driver string
-		state  int
+		state  StoragePoolState
 	}{}
 
 	var errConsistency error
@@ -477,7 +477,7 @@ func (c *ClusterTx) StoragePoolCreated(name string) error {
 	return c.storagePoolState(name, storagePoolCreated)
 }
 
-func (c *ClusterTx) storagePoolState(name string, state int) error {
+func (c *ClusterTx) storagePoolState(name string, state StoragePoolState) error {
 	stmt := "UPDATE storage_pools SET state=? WHERE name=?"
 	result, err := c.tx.Exec(stmt, state, name)
 	if err != nil {
@@ -499,7 +499,7 @@ func (c *ClusterTx) StoragePoolNodeCreated(poolID int64) error {
 }
 
 // storagePoolNodeState updates the storage pool member state for the local member and specified network ID.
-func (c *ClusterTx) storagePoolNodeState(poolID int64, state int) error {
+func (c *ClusterTx) storagePoolNodeState(poolID int64, state StoragePoolState) error {
 	stmt := "UPDATE storage_pools_nodes SET state=? WHERE storage_pool_id = ? and node_id = ?"
 	result, err := c.tx.Exec(stmt, state, poolID, c.nodeID)
 	if err != nil {
@@ -667,7 +667,7 @@ func (c *Cluster) getStoragePool(poolName string, onlyCreated bool) (int64, *api
 	var poolDriver string
 	poolID := int64(-1)
 	description := sql.NullString{}
-	var state int
+	var state StoragePoolState
 
 	query := "SELECT id, driver, description, state FROM storage_pools WHERE name=?"
 	inargs := []interface{}{poolName}
