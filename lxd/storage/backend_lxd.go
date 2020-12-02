@@ -40,6 +40,7 @@ type lxdBackend struct {
 	name   string
 	state  *state.State
 	logger logger.Logger
+	nodes  map[int64]db.StoragePoolNode
 }
 
 // ID returns the storage pool ID.
@@ -50,6 +51,26 @@ func (b *lxdBackend) ID() int64 {
 // Name returns the storage pool name.
 func (b *lxdBackend) Name() string {
 	return b.name
+}
+
+// Description returns the storage pool description.
+func (b *lxdBackend) Description() string {
+	return b.db.Description
+}
+
+// Status returns the storage pool status.
+func (b *lxdBackend) Status() string {
+	return b.db.Status
+}
+
+// LocalStatus returns storage pool status of the local cluster member.
+func (b *lxdBackend) LocalStatus() string {
+	node, exists := b.nodes[b.state.Cluster.GetNodeID()]
+	if !exists {
+		return api.StoragePoolStatusUnknown
+	}
+
+	return db.StoragePoolStateToAPIStatus(node.State)
 }
 
 // Driver returns the storage pool driver.
