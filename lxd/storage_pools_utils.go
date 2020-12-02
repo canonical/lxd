@@ -11,15 +11,6 @@ import (
 	"github.com/lxc/lxd/shared/api"
 )
 
-func storagePoolUpdate(state *state.State, name, newDescription string, newConfig map[string]string, withDB bool) error {
-	pool, err := storagePools.GetPoolByName(state, name)
-	if err != nil {
-		return err
-	}
-
-	return pool.Update(!withDB, newDescription, newConfig, nil)
-}
-
 // storagePoolDBCreate creates a storage pool DB entry and returns the created Pool ID.
 func storagePoolDBCreate(s *state.State, poolName, poolDescription string, driver string, config map[string]string) (int64, error) {
 	// Check that the storage pool does not already exist.
