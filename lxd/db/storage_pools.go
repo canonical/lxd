@@ -478,6 +478,37 @@ func (c *ClusterTx) storagePoolState(name string, state StoragePoolState) error 
 	return nil
 }
 
+// storagePoolNodes returns the nodes keyed by node ID that the given storage pool is defined on.
+func (c *ClusterTx) storagePoolNodes(poolID int64) (map[int64]StoragePoolNode, error) {
+	nodes := []StoragePoolNode{}
+	dest := func(i int) []interface{} {
+		nodes = append(nodes, StoragePoolNode{})
+		return []interface{}{&nodes[i].ID, &nodes[i].Name}
+	}
+
+	stmt, err := c.tx.Prepare(`
+		SELECT nodes.id, nodes.name FROM nodes
+		JOIN storage_pools_nodes ON storage_pools_nodes.node_id = nodes.id
+		WHERE storage_pools_nodes.storage_pool_id = ?
+	`)
+	if err != nil {
+		return nil, err
+	}
+	defer stmt.Close()
+
+	err = query.SelectObjects(stmt, dest, poolID)
+	if err != nil {
+		return nil, err
+	}
+
+	poolNodes := map[int64]StoragePoolNode{}
+	for _, node := range nodes {
+		poolNodes[node.ID] = node
+	}
+
+	return poolNodes, nil
+}
+
 // GetStoragePoolNodeConfigs returns the node-specific configuration of all
 // nodes grouped by node name, for the given poolID.
 //
