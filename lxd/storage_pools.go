@@ -59,7 +59,7 @@ func storagePoolsGet(d *Daemon, r *http.Request) response.Response {
 		if !recursion {
 			resultString = append(resultString, fmt.Sprintf("/%s/storage-pools/%s", version.APIVersion, pool))
 		} else {
-			_, pl, err := d.cluster.GetStoragePoolInAnyState(pool)
+			_, pl, _, err := d.cluster.GetStoragePoolInAnyState(pool)
 			if err != nil {
 				continue
 			}
@@ -151,7 +151,7 @@ func storagePoolsPost(d *Daemon, r *http.Request) response.Response {
 			// create the storage pool immediately, unless there's
 			// a pending storage pool (in that case we follow the
 			// regular two-stage process).
-			_, pool, err := d.cluster.GetStoragePoolInAnyState(req.Name)
+			_, pool, _, err := d.cluster.GetStoragePoolInAnyState(req.Name)
 			if err != nil {
 				if err != db.ErrNoSuchObject {
 					return response.InternalError(err)
@@ -331,7 +331,7 @@ func storagePoolGet(d *Daemon, r *http.Request) response.Response {
 	poolName := mux.Vars(r)["name"]
 
 	// Get the existing storage pool.
-	_, pool, err := d.cluster.GetStoragePoolInAnyState(poolName)
+	_, pool, _, err := d.cluster.GetStoragePoolInAnyState(poolName)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -605,7 +605,7 @@ func storagePoolDelete(d *Daemon, r *http.Request) response.Response {
 	}
 
 	// Check if the pool is pending, if so we just need to delete it from the database.
-	_, dbPool, err := d.cluster.GetStoragePoolInAnyState(poolName)
+	_, dbPool, _, err := d.cluster.GetStoragePoolInAnyState(poolName)
 	if err != nil {
 		return response.SmartError(err)
 	}
