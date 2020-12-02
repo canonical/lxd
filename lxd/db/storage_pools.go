@@ -713,22 +713,23 @@ func (c *Cluster) getStoragePool(poolName string, onlyCreated bool) (int64, *api
 	return poolID, &storagePool, nodes, nil
 }
 
-// Return the names of the nodes the given pool is defined on.
-func (c *Cluster) storagePoolNodes(poolID int64) ([]string, error) {
-	stmt := `
-SELECT nodes.name FROM nodes
-  JOIN storage_pools_nodes ON storage_pools_nodes.node_id = nodes.id
-  WHERE storage_pools_nodes.storage_pool_id = ?
-`
-	var nodes []string
-	err := c.Transaction(func(tx *ClusterTx) error {
-		var err error
-		nodes, err = query.SelectStrings(tx.tx, stmt, poolID)
-		return err
+// storagePoolNodes returns the nodes keyed by node ID that the given storage pool is defined on.
+func (c *Cluster) storagePoolNodes(poolID int64) (map[int64]StoragePoolNode, error) {
+	var nodes map[int64]StoragePoolNode
+	var err error
+
+	err = c.Transaction(func(tx *ClusterTx) error {
+		nodes, err = tx.storagePoolNodes(poolID)
+		if err != nil {
+			return err
+		}
+
+		return nil
 	})
 	if err != nil {
 		return nil, err
 	}
+
 	return nodes, nil
 }
 
