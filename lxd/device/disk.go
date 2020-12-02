@@ -362,7 +362,7 @@ func (d *disk) startContainer() (*deviceConfig.RunConfig, error) {
 		// If ownerShift is none and pool is specified then check whether the pool itself
 		// has owner shifting enabled, and if so enable shifting on this device too.
 		if ownerShift == deviceConfig.MountOwnerShiftNone && d.config["pool"] != "" {
-			poolID, _, err := d.state.Cluster.GetStoragePool(d.config["pool"])
+			poolID, _, _, err := d.state.Cluster.GetStoragePool(d.config["pool"])
 			if err != nil {
 				return nil, err
 			}
@@ -1094,7 +1094,7 @@ func (d *disk) createDevice() (string, error) {
 
 func (d *disk) storagePoolVolumeAttachShift(projectName, poolName, volumeName string, volumeType int, remapPath string) error {
 	// Load the DB records.
-	poolID, pool, err := d.state.Cluster.GetStoragePool(poolName)
+	poolID, pool, _, err := d.state.Cluster.GetStoragePool(poolName)
 	if err != nil {
 		return err
 	}
