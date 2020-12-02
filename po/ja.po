@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: LXD\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2020-11-19 00:19-0500\n"
+"POT-Creation-Date: 2020-12-01 23:27+0800\n"
 "PO-Revision-Date: 2020-09-25 15:37+0000\n"
 "Last-Translator: KATOH Yasufumi <karma@jazz.email.ne.jp>\n"
 "Language-Team: Japanese <https://hosted.weblate.org/projects/linux-"
@@ -1237,8 +1237,9 @@ msgid "EXPIRY DATE"
 msgstr "EXPIRY DATE"
 
 #: lxc/file.go:63
+#, fuzzy
 msgid ""
-"Early server side processing of file tranfer requests cannot be canceled "
+"Early server side processing of file transfer requests cannot be canceled "
 "(interrupt two more times to force)"
 msgstr ""
 "ファイル転送のサーバ側の初期処理はキャンセルできません（強制的に中断するには"
@@ -1443,7 +1444,7 @@ msgstr "クラスタメンバへの接続に失敗しました"
 msgid "Failed to create alias %s"
 msgstr "エイリアス %s の作成に失敗しました"
 
-#: lxc/copy.go:419
+#: lxc/copy.go:410
 msgid "Failed to get the new instance name"
 msgstr "新しいインスタンス名が取得できません"
 
@@ -1759,7 +1760,7 @@ msgstr "入力するデータ"
 msgid "Instance name is mandatory"
 msgstr "インスタンス名を指定する必要があります"
 
-#: lxc/copy.go:425 lxc/init.go:341
+#: lxc/copy.go:416 lxc/init.go:341
 #, c-format
 msgid "Instance name is: %s"
 msgstr "インスタンス名: %s"
@@ -2899,7 +2900,7 @@ msgstr "再帰的にファイルを転送します"
 msgid "Refresh images"
 msgstr "イメージを更新します"
 
-#: lxc/copy.go:386
+#: lxc/copy.go:377
 #, c-format
 msgid "Refreshing instance: %s"
 msgstr "インスタンスの更新中: %s"
@@ -3700,7 +3701,7 @@ msgstr "転送モード。pull, push, relay のいずれか(デフォルトはpu
 msgid "Transferring image: %s"
 msgstr "イメージを転送中: %s"
 
-#: lxc/copy.go:352
+#: lxc/copy.go:343
 #, c-format
 msgid "Transferring instance: %s"
 msgstr "インスタンスを転送中: %s"
