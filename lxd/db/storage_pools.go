@@ -644,19 +644,19 @@ func (c *Cluster) GetStoragePoolID(poolName string) (int64, error) {
 // GetStoragePool returns a single storage pool.
 //
 // The pool must be in the created stated, not pending.
-func (c *Cluster) GetStoragePool(poolName string) (int64, *api.StoragePool, error) {
+func (c *Cluster) GetStoragePool(poolName string) (int64, *api.StoragePool, map[int64]StoragePoolNode, error) {
 	return c.getStoragePool(poolName, true)
 }
 
 // GetStoragePoolInAnyState returns the storage pool with the given name.
 //
 // The pool can be in any state.
-func (c *Cluster) GetStoragePoolInAnyState(name string) (int64, *api.StoragePool, error) {
+func (c *Cluster) GetStoragePoolInAnyState(name string) (int64, *api.StoragePool, map[int64]StoragePoolNode, error) {
 	return c.getStoragePool(name, false)
 }
 
 // GetStoragePool returns a single storage pool.
-func (c *Cluster) getStoragePool(poolName string, onlyCreated bool) (int64, *api.StoragePool, error) {
+func (c *Cluster) getStoragePool(poolName string, onlyCreated bool) (int64, *api.StoragePool, map[int64]StoragePoolNode, error) {
 	var poolDriver string
 	poolID := int64(-1)
 	description := sql.NullString{}
@@ -673,14 +673,14 @@ func (c *Cluster) getStoragePool(poolName string, onlyCreated bool) (int64, *api
 	err := dbQueryRowScan(c, query, inargs, outargs)
 	if err != nil {
 		if err == sql.ErrNoRows {
-			return -1, nil, ErrNoSuchObject
+			return -1, nil, nil, ErrNoSuchObject
 		}
-		return -1, nil, err
+		return -1, nil, nil, err
 	}
 
 	config, err := c.getStoragePoolConfig(poolID)
 	if err != nil {
-		return -1, nil, err
+		return -1, nil, nil, err
 	}
 
 	storagePool := api.StoragePool{
@@ -703,11 +703,14 @@ func (c *Cluster) getStoragePool(poolName string, onlyCreated bool) (int64, *api
 
 	nodes, err := c.storagePoolNodes(poolID)
 	if err != nil {
-		return -1, nil, err
+		return -1, nil, nil, err
 	}
-	storagePool.Locations = nodes
 
-	return poolID, &storagePool, nil
+	for _, node := range nodes {
+		storagePool.Locations = append(storagePool.Locations, node.Name)
+	}
+
+	return poolID, &storagePool, nodes, nil
 }
 
 // Return the names of the nodes the given pool is defined on.
