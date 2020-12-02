@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: lxd\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2020-12-01 23:27+0800\n"
+"POT-Creation-Date: 2020-12-02 08:04+0800\n"
 "PO-Revision-Date: 2019-09-06 07:09+0000\n"
 "Last-Translator: Stéphane Graber <stgraber@stgraber.org>\n"
 "Language-Team: Portuguese (Brazil) <https://hosted.weblate.org/projects/"
@@ -2921,16 +2921,21 @@ msgid ""
 "The opposite of \"lxc pause\" is \"lxc start\"."
 msgstr ""
 
-#: lxc/restore.go:24
-msgid ""
-"Restore instaces from snapshots\n"
-"\n"
-"If --stateful is passed, then the running state will be restored too."
-msgstr ""
-
 #: lxc/restore.go:23
 msgid "Restore instances from snapshots"
 msgstr ""
+
+#: lxc/restore.go:24
+#, fuzzy
+msgid ""
+"Restore instances from snapshots\n"
+"\n"
+"If --stateful is passed, then the running state will be restored too."
+msgstr ""
+"Criar image do container\n"
+"\n"
+"Quando --stateful é usado, o LXD tenta criar um checkpoint do estado atual \n"
+"do container, incluindo estado de memória dos processos, conexões TCP, ..."
 
 #: lxc/storage_volume.go:1607 lxc/storage_volume.go:1608
 msgid "Restore storage volume snapshots"
