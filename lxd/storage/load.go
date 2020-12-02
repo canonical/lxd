@@ -65,6 +65,7 @@ func commonRules() *drivers.Validators {
 
 // CreatePool creates a new storage pool on disk and returns a Pool interface.
 // If the pool's driver is not recognised then drivers.ErrUnknownDriver is returned.
+// Deprecated, used only by patches.
 func CreatePool(state *state.State, poolID int64, dbPool *api.StoragePoolsPost, localOnly bool, op *operations.Operation) (Pool, error) {
 	// Sanity checks.
 	if dbPool == nil {
