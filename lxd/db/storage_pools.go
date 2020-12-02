@@ -493,6 +493,37 @@ func (c *ClusterTx) storagePoolState(name string, state StoragePoolState) error 
 	return nil
 }
 
+// storagePoolNodes returns the nodes keyed by node ID that the given storage pool is defined on.
+func (c *ClusterTx) storagePoolNodes(poolID int64) (map[int64]StoragePoolNode, error) {
+	nodes := []StoragePoolNode{}
+	dest := func(i int) []interface{} {
+		nodes = append(nodes, StoragePoolNode{})
+		return []interface{}{&nodes[i].ID, &nodes[i].Name, &nodes[i].State}
+	}
+
+	stmt, err := c.tx.Prepare(`
+		SELECT nodes.id, nodes.name, storage_pools_nodes.state FROM nodes
+		JOIN storage_pools_nodes ON storage_pools_nodes.node_id = nodes.id
+		WHERE storage_pools_nodes.storage_pool_id = ?
+	`)
+	if err != nil {
+		return nil, err
+	}
+	defer stmt.Close()
+
+	err = query.SelectObjects(stmt, dest, poolID)
+	if err != nil {
+		return nil, err
+	}
+
+	poolNodes := map[int64]StoragePoolNode{}
+	for _, node := range nodes {
+		poolNodes[node.ID] = node
+	}
+
+	return poolNodes, nil
+}
+
 // StoragePoolNodeCreated sets the state of the given storage pool for the local member to storagePoolCreated.
 func (c *ClusterTx) StoragePoolNodeCreated(poolID int64) error {
 	return c.storagePoolNodeState(poolID, storagePoolCreated)
