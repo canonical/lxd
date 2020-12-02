@@ -689,17 +689,7 @@ func (c *Cluster) getStoragePool(poolName string, onlyCreated bool) (int64, *api
 	}
 	storagePool.Description = description.String
 	storagePool.Config = config
-
-	switch state {
-	case storagePoolPending:
-		storagePool.Status = "Pending"
-	case storagePoolCreated:
-		storagePool.Status = "Created"
-	case storagePoolErrored:
-		storagePool.Status = "Errored"
-	default:
-		storagePool.Status = "Unknown"
-	}
+	storagePool.Status = StoragePoolStateToAPIStatus(state)
 
 	nodes, err := c.storagePoolNodes(poolID)
 	if err != nil {
@@ -711,6 +701,20 @@ func (c *Cluster) getStoragePool(poolName string, onlyCreated bool) (int64, *api
 	}
 
 	return poolID, &storagePool, nodes, nil
+}
+
+// StoragePoolStateToAPIStatus converts DB StoragePoolState to API status string.
+func StoragePoolStateToAPIStatus(state StoragePoolState) string {
+	switch state {
+	case storagePoolPending:
+		return api.StoragePoolStatusPending
+	case storagePoolCreated:
+		return api.StoragePoolStatusCreated
+	case storagePoolErrored:
+		return api.StoragePoolStatusErrored
+	default:
+		return api.StoragePoolStatusUnknown
+	}
 }
 
 // storagePoolNodes returns the nodes keyed by node ID that the given storage pool is defined on.
