@@ -348,7 +348,7 @@ func storagePoolVolumeSnapshotTypeGet(d *Daemon, r *http.Request) response.Respo
 		return resp
 	}
 
-	poolID, _, err := d.cluster.GetStoragePool(poolName)
+	poolID, _, _, err := d.cluster.GetStoragePool(poolName)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -417,7 +417,7 @@ func storagePoolVolumeSnapshotTypePut(d *Daemon, r *http.Request) response.Respo
 		return resp
 	}
 
-	poolID, _, err := d.cluster.GetStoragePool(poolName)
+	poolID, _, _, err := d.cluster.GetStoragePool(poolName)
 	if err != nil {
 		return response.SmartError(err)
 	}
