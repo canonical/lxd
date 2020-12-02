@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: lxd\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2020-11-19 00:19-0500\n"
+"POT-Creation-Date: 2020-12-01 23:27+0800\n"
 "PO-Revision-Date: 2018-09-08 19:22+0000\n"
 "Last-Translator: m4sk1n <me@m4sk.in>\n"
 "Language-Team: Polish <https://hosted.weblate.org/projects/linux-containers/"
@@ -1217,7 +1217,7 @@ msgstr ""
 
 #: lxc/file.go:63
 msgid ""
-"Early server side processing of file tranfer requests cannot be canceled "
+"Early server side processing of file transfer requests cannot be canceled "
 "(interrupt two more times to force)"
 msgstr ""
 
@@ -1393,7 +1393,7 @@ msgstr ""
 msgid "Failed to create alias %s"
 msgstr ""
 
-#: lxc/copy.go:419
+#: lxc/copy.go:410
 msgid "Failed to get the new instance name"
 msgstr ""
 
@@ -1686,7 +1686,7 @@ msgstr ""
 msgid "Instance name is mandatory"
 msgstr ""
 
-#: lxc/copy.go:425 lxc/init.go:341
+#: lxc/copy.go:416 lxc/init.go:341
 #, c-format
 msgid "Instance name is: %s"
 msgstr ""
@@ -2705,7 +2705,7 @@ msgstr ""
 msgid "Refresh images"
 msgstr ""
 
-#: lxc/copy.go:386
+#: lxc/copy.go:377
 #, c-format
 msgid "Refreshing instance: %s"
 msgstr ""
@@ -3444,7 +3444,7 @@ msgstr ""
 msgid "Transferring image: %s"
 msgstr ""
 
-#: lxc/copy.go:352
+#: lxc/copy.go:343
 #, c-format
 msgid "Transferring instance: %s"
 msgstr ""

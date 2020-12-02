@@ -60,7 +60,7 @@ func fileGetWrapper(server lxd.InstanceServer, inst string, path string) (buf io
 				return nil, nil, fmt.Errorf(i18n.G("User signaled us three times, exiting. The remote operation will keep running"))
 			}
 
-			fmt.Println(i18n.G("Early server side processing of file tranfer requests cannot be canceled (interrupt two more times to force)"))
+			fmt.Println(i18n.G("Early server side processing of file transfer requests cannot be canceled (interrupt two more times to force)"))
 		}
 	}
 }
