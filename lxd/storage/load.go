@@ -3,9 +3,9 @@ package storage
 import (
 	"fmt"
 
+	"github.com/lxc/lxd/lxd/cluster/request"
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/instance"
-	"github.com/lxc/lxd/lxd/operations"
 	"github.com/lxc/lxd/lxd/project"
 	"github.com/lxc/lxd/lxd/state"
 	"github.com/lxc/lxd/lxd/storage/drivers"
@@ -66,7 +66,7 @@ func commonRules() *drivers.Validators {
 // CreatePool creates a new storage pool on disk and returns a Pool interface.
 // If the pool's driver is not recognised then drivers.ErrUnknownDriver is returned.
 // Deprecated, used only by patches.
-func CreatePool(state *state.State, poolID int64, dbPool *api.StoragePoolsPost, localOnly bool, op *operations.Operation) (Pool, error) {
+func CreatePool(state *state.State, poolID int64, dbPool *api.StoragePoolsPost) (Pool, error) {
 	// Sanity checks.
 	if dbPool == nil {
 		return nil, ErrNilValue
@@ -115,7 +115,7 @@ func CreatePool(state *state.State, poolID int64, dbPool *api.StoragePoolsPost, 
 	pool.nodes = map[int64]db.StoragePoolNode{} // Nodes unknown at this point.
 
 	// Create the pool itself on the storage device..
-	err = pool.Create(localOnly, op)
+	err = pool.Create(request.ClientTypeNormal, nil)
 	if err != nil {
 		return nil, err
 	}
