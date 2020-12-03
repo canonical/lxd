@@ -2,6 +2,7 @@ package drivers
 
 import (
 	"fmt"
+	"net/url"
 	"path/filepath"
 	"strings"
 	"time"
@@ -502,4 +503,22 @@ func (d *common) updateProgress(progress string) {
 		meta["container_progress"] = progress
 		d.op.UpdateMetadata(meta)
 	}
+}
+
+// lifecycle is used to send a lifecycle event with some instance context.
+func (d *common) lifecycle(action string, ctx map[string]interface{}) error {
+	prefix := "instance"
+	u := fmt.Sprintf("/1.0/instances/%s", url.PathEscape(d.name))
+
+	if d.snapshot {
+		name, snapName, _ := shared.InstanceGetParentAndSnapshotName(d.name)
+		u = fmt.Sprintf("/1.0/instances/%s/snapshots/%s", url.PathEscape(name), url.PathEscape(snapName))
+		prefix = "instance-snapshot"
+	}
+
+	if d.project != project.Default {
+		u = fmt.Sprintf("%s?project=%s", u, url.QueryEscape(d.project))
+	}
+
+	return d.state.Events.SendLifecycle(d.project, fmt.Sprintf("%s-%s", prefix, action), u, ctx)
 }
