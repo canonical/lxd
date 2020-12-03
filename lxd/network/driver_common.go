@@ -11,6 +11,7 @@ import (
 
 	lxd "github.com/lxc/lxd/client"
 	"github.com/lxc/lxd/lxd/cluster"
+	"github.com/lxc/lxd/lxd/cluster/request"
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/project"
 	"github.com/lxc/lxd/lxd/state"
@@ -227,7 +228,7 @@ func (n *common) DHCPv6Ranges() []shared.IPRange {
 }
 
 // update the internal config variables, and if not cluster notification, notifies all nodes and updates database.
-func (n *common) update(applyNetwork api.NetworkPut, targetNode string, clientType cluster.ClientType) error {
+func (n *common) update(applyNetwork api.NetworkPut, targetNode string, clientType request.ClientType) error {
 	// Update internal config before database has been updated (so that if update is a notification we apply
 	// the config being supplied and not that in the database).
 	n.description = applyNetwork.Description
@@ -235,7 +236,7 @@ func (n *common) update(applyNetwork api.NetworkPut, targetNode string, clientTy
 
 	// If this update isn't coming via a cluster notification itself, then notify all nodes of change and then
 	// update the database.
-	if clientType != cluster.ClientTypeNotifier {
+	if clientType != request.ClientTypeNotifier {
 		if targetNode == "" {
 			// Notify all other nodes to update the network if no target specified.
 			notifier, err := cluster.NewNotifier(n.state, n.state.Endpoints.NetworkCert(), cluster.NotifyAll)
@@ -323,8 +324,8 @@ func (n *common) configChanged(newNetwork api.NetworkPut) (bool, []string, api.N
 }
 
 // create just sends the needed lifecycle event.
-func (n *common) create(clientType cluster.ClientType) error {
-	if clientType == cluster.ClientTypeNormal {
+func (n *common) create(clientType request.ClientType) error {
+	if clientType == request.ClientTypeNormal {
 		n.lifecycle("created", nil)
 	}
 
@@ -361,9 +362,9 @@ func (n *common) rename(newName string) error {
 }
 
 // delete the network from the database if clusterNotification is false.
-func (n *common) delete(clientType cluster.ClientType) error {
+func (n *common) delete(clientType request.ClientType) error {
 	// Only delete database record if not cluster notification.
-	if clientType != cluster.ClientTypeNotifier {
+	if clientType != request.ClientTypeNotifier {
 		// Notify all other nodes. If any node is down, an error will be returned.
 		notifier, err := cluster.NewNotifier(n.state, n.state.Endpoints.NetworkCert(), cluster.NotifyAll)
 		if err != nil {
@@ -394,7 +395,7 @@ func (n *common) delete(clientType cluster.ClientType) error {
 }
 
 // Create is a no-op.
-func (n *common) Create(clientType cluster.ClientType) error {
+func (n *common) Create(clientType request.ClientType) error {
 	n.logger.Debug("Create", log.Ctx{"clientType": clientType, "config": n.config})
 
 	return n.create(clientType)

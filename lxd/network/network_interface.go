@@ -4,6 +4,7 @@ import (
 	"net"
 
 	"github.com/lxc/lxd/lxd/cluster"
+	"github.com/lxc/lxd/lxd/cluster/request"
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/state"
 	"github.com/lxc/lxd/shared"
@@ -42,11 +43,11 @@ type Network interface {
 	DHCPv6Ranges() []shared.IPRange
 
 	// Actions.
-	Create(clientType cluster.ClientType) error
+	Create(clientType request.ClientType) error
 	Start() error
 	Stop() error
 	Rename(name string) error
-	Update(newNetwork api.NetworkPut, targetNode string, clientType cluster.ClientType) error
+	Update(newNetwork api.NetworkPut, targetNode string, clientType request.ClientType) error
 	HandleHeartbeat(heartbeatData *cluster.APIHeartbeat) error
-	Delete(clientType cluster.ClientType) error
+	Delete(clientType request.ClientType) error
 }

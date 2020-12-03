@@ -9,6 +9,7 @@ import (
 
 	"github.com/gorilla/mux"
 	"github.com/lxc/lxd/lxd/cluster"
+	"github.com/lxc/lxd/lxd/cluster/request"
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/project"
 	"github.com/lxc/lxd/lxd/response"
@@ -118,7 +119,7 @@ func setCORSHeaders(rw http.ResponseWriter, req *http.Request, config *cluster.C
 // notifying us of some user-initiated API request that needs some action to be
 // taken on this node as well.
 func isClusterNotification(r *http.Request) bool {
-	return r.Header.Get("User-Agent") == cluster.UserAgentNotifier
+	return r.Header.Get("User-Agent") == request.UserAgentNotifier
 }
 
 // projectParam returns the project query parameter from the given request or "default" if parameter is not set.
