@@ -111,7 +111,7 @@ func (n *physical) Create(clientType cluster.ClientType) error {
 		}
 	}
 
-	return nil
+	return n.common.create(clientType)
 }
 
 // Delete deletes a network.
