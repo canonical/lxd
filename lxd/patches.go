@@ -847,7 +847,7 @@ func upgradeFromStorageTypeBtrfs(name string, d *Daemon, defaultPoolName string,
 			Driver: defaultStorageTypeName,
 		}
 
-		_, err = storagePools.CreatePool(d.State(), poolID, &poolInfo, false, nil)
+		_, err = storagePools.CreatePool(d.State(), poolID, &poolInfo)
 		if err != nil {
 			return err
 		}
@@ -1147,7 +1147,7 @@ func upgradeFromStorageTypeDir(name string, d *Daemon, defaultPoolName string, d
 			Driver: defaultStorageTypeName,
 		}
 
-		_, err = storagePools.CreatePool(d.State(), poolID, &poolInfo, false, nil)
+		_, err = storagePools.CreatePool(d.State(), poolID, &poolInfo)
 		if err != nil {
 			return err
 		}
