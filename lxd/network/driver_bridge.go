@@ -423,7 +423,7 @@ func (n *bridge) Create(clientType cluster.ClientType) error {
 		return fmt.Errorf("Network interface %q already exists", n.name)
 	}
 
-	return nil
+	return n.common.create(clientType)
 }
 
 // isRunning returns whether the network is up.

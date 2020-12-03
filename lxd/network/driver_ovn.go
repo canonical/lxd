@@ -1271,7 +1271,7 @@ func (n *ovn) Create(clientType cluster.ClientType) error {
 		}
 	}
 
-	return nil
+	return n.common.create(clientType)
 }
 
 // allowedUplinkNetworks returns a list of allowed networks to use as uplinks based on project restrictions.
