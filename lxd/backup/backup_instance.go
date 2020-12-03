@@ -89,6 +89,9 @@ func (b *InstanceBackup) Rename(newName string) error {
 		return err
 	}
 
+	oldName := b.name
+	b.name = newName
+	Lifecycle(b.state, b.instance, b.name, "renamed", map[string]interface{}{"old_name": oldName})
 	return nil
 }
 
@@ -120,6 +123,7 @@ func (b *InstanceBackup) Delete() error {
 		return err
 	}
 
+	Lifecycle(b.state, b.instance, b.name, "deleted", nil)
 	return nil
 }
 
