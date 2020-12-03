@@ -3,6 +3,7 @@ package network
 import (
 	"fmt"
 	"net"
+	"net/url"
 	"os"
 	"strings"
 
@@ -11,6 +12,7 @@ import (
 	lxd "github.com/lxc/lxd/client"
 	"github.com/lxc/lxd/lxd/cluster"
 	"github.com/lxc/lxd/lxd/db"
+	"github.com/lxc/lxd/lxd/project"
 	"github.com/lxc/lxd/lxd/state"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
@@ -384,4 +386,16 @@ func (n *common) Create(clientType cluster.ClientType) error {
 // HandleHeartbeat is a no-op.
 func (n *common) HandleHeartbeat(heartbeatData *cluster.APIHeartbeat) error {
 	return nil
+}
+
+// lifecycle sends a lifecycle event for the network.
+func (n *common) lifecycle(action string, ctx map[string]interface{}) error {
+	prefix := "network"
+	u := fmt.Sprintf("/1.0/networks/%s", url.PathEscape(n.name))
+
+	if n.project != project.Default {
+		u = fmt.Sprintf("%s?project=%s", u, url.QueryEscape(n.project))
+	}
+
+	return n.state.Events.SendLifecycle(n.project, fmt.Sprintf("%s-%s", prefix, action), u, ctx)
 }
