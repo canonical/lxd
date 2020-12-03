@@ -393,7 +393,7 @@ func networksPostCluster(d *Daemon, projectName string, req api.NetworksPost, cl
 	if err != nil {
 		return err
 	}
-	logger.Error("Created network on local cluster member", log.Ctx{"project": projectName, "network": req.Name})
+	logger.Debug("Created network on local cluster member", log.Ctx{"project": projectName, "network": req.Name})
 
 	// Notify other nodes to create the network.
 	err = notifier(func(client lxd.InstanceServer) error {
@@ -413,7 +413,7 @@ func networksPostCluster(d *Daemon, projectName string, req api.NetworksPost, cl
 		if err != nil {
 			return err
 		}
-		logger.Info("Created network on cluster member", log.Ctx{"project": projectName, "network": req.Name, "member": server.Environment.ServerName})
+		logger.Debug("Created network on cluster member", log.Ctx{"project": projectName, "network": req.Name, "member": server.Environment.ServerName})
 
 		return nil
 	})
