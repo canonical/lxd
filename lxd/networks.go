@@ -380,6 +380,8 @@ func networksPostCluster(d *Daemon, req api.NetworksPost, clientType request.Cli
 		}
 
 		nodeReq := req
+
+		// Merge node specific config items into global config.
 		for key, value := range configs[server.Environment.ServerName] {
 			nodeReq.Config[key] = value
 		}
