@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/lxc/lxd/lxd/backup"
+	"github.com/lxc/lxd/lxd/cluster/request"
 	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/migration"
 	"github.com/lxc/lxd/lxd/operations"
@@ -30,10 +31,10 @@ type Pool interface {
 
 	GetResources() (*api.ResourcesStoragePool, error)
 	IsUsed() (bool, error)
-	Delete(localOnly bool, op *operations.Operation) error
-	Update(driverOnly bool, newDesc string, newConfig map[string]string, op *operations.Operation) error
+	Delete(clientType request.ClientType, op *operations.Operation) error
+	Update(clientType request.ClientType, newDesc string, newConfig map[string]string, op *operations.Operation) error
 
-	Create(localOnly bool, op *operations.Operation) error
+	Create(clientType request.ClientType, op *operations.Operation) error
 	Mount() (bool, error)
 	Unmount() (bool, error)
 
