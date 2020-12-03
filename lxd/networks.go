@@ -403,6 +403,8 @@ func networksPostCluster(d *Daemon, projectName string, req api.NetworksPost, cl
 		}
 
 		nodeReq := req
+
+		// Merge node specific config items into global config.
 		for key, value := range configs[server.Environment.ServerName] {
 			nodeReq.Config[key] = value
 		}
