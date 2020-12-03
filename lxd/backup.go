@@ -177,6 +177,7 @@ func backupCreate(s *state.State, args db.InstanceBackup, sourceInst instance.In
 	}
 
 	revert.Success()
+	backup.Lifecycle(s, sourceInst, args.Name, "created", nil)
 	return nil
 }
 
