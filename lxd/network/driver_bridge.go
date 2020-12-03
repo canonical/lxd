@@ -20,6 +20,7 @@ import (
 
 	"github.com/lxc/lxd/lxd/apparmor"
 	"github.com/lxc/lxd/lxd/cluster"
+	"github.com/lxc/lxd/lxd/cluster/request"
 	"github.com/lxc/lxd/lxd/daemon"
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/dnsmasq"
@@ -416,7 +417,7 @@ func (n *bridge) Validate(config map[string]string) error {
 }
 
 // Create checks whether the bridge interface name is used already.
-func (n *bridge) Create(clientType cluster.ClientType) error {
+func (n *bridge) Create(clientType request.ClientType) error {
 	n.logger.Debug("Create", log.Ctx{"clientType": clientType, "config": n.config})
 
 	if InterfaceExists(n.name) {
@@ -432,7 +433,7 @@ func (n *bridge) isRunning() bool {
 }
 
 // Delete deletes a network.
-func (n *bridge) Delete(clientType cluster.ClientType) error {
+func (n *bridge) Delete(clientType request.ClientType) error {
 	n.logger.Debug("Delete", log.Ctx{"clientType": clientType})
 
 	// Bring the local network down if created on this node.
@@ -1542,7 +1543,7 @@ func (n *bridge) Stop() error {
 
 // Update updates the network. Accepts notification boolean indicating if this update request is coming from a
 // cluster notification, in which case do not update the database, just apply local changes needed.
-func (n *bridge) Update(newNetwork api.NetworkPut, targetNode string, clientType cluster.ClientType) error {
+func (n *bridge) Update(newNetwork api.NetworkPut, targetNode string, clientType request.ClientType) error {
 	n.logger.Debug("Update", log.Ctx{"clientType": clientType, "newNetwork": newNetwork})
 
 	err := n.populateAutoConfig(newNetwork.Config)
