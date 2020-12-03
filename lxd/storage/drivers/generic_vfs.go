@@ -129,9 +129,11 @@ func genericVFSRenameVolumeSnapshot(d Driver, snapVol Volume, newSnapshotName st
 	oldPath := snapVol.MountPath()
 	newPath := GetVolumeMountPath(d.Name(), snapVol.volType, GetSnapshotVolumeName(parentName, newSnapshotName))
 
-	err := os.Rename(oldPath, newPath)
-	if err != nil {
-		return errors.Wrapf(err, "Failed to rename '%s' to '%s'", oldPath, newPath)
+	if shared.PathExists(oldPath) {
+		err := os.Rename(oldPath, newPath)
+		if err != nil {
+			return errors.Wrapf(err, "Failed to rename '%s' to '%s'", oldPath, newPath)
+		}
 	}
 
 	return nil
