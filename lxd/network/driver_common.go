@@ -320,6 +320,11 @@ func (n *common) configChanged(newNetwork api.NetworkPut) (bool, []string, api.N
 	return dbUpdateNeeded, changedKeys, oldNetwork, nil
 }
 
+// create just sends the needed lifecycle event.
+func (n *common) create(clientType cluster.ClientType) error {
+	return nil
+}
+
 // rename the network directory, update database record and update internal variables.
 func (n *common) rename(newName string) error {
 	// Clear new directory if exists.
@@ -382,7 +387,7 @@ func (n *common) delete(clientType cluster.ClientType) error {
 func (n *common) Create(clientType cluster.ClientType) error {
 	n.logger.Debug("Create", log.Ctx{"clientType": clientType, "config": n.config})
 
-	return nil
+	return n.create(clientType)
 }
 
 // HandleHeartbeat is a no-op.
