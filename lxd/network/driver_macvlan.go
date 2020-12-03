@@ -1,7 +1,7 @@
 package network
 
 import (
-	"github.com/lxc/lxd/lxd/cluster"
+	"github.com/lxc/lxd/lxd/cluster/request"
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/revert"
 	"github.com/lxc/lxd/shared/api"
@@ -43,7 +43,7 @@ func (n *macvlan) Validate(config map[string]string) error {
 }
 
 // Delete deletes a network.
-func (n *macvlan) Delete(clientType cluster.ClientType) error {
+func (n *macvlan) Delete(clientType request.ClientType) error {
 	n.logger.Debug("Delete", log.Ctx{"clientType": clientType})
 	return n.common.delete(clientType)
 }
@@ -77,7 +77,7 @@ func (n *macvlan) Stop() error {
 
 // Update updates the network. Accepts notification boolean indicating if this update request is coming from a
 // cluster notification, in which case do not update the database, just apply local changes needed.
-func (n *macvlan) Update(newNetwork api.NetworkPut, targetNode string, clientType cluster.ClientType) error {
+func (n *macvlan) Update(newNetwork api.NetworkPut, targetNode string, clientType request.ClientType) error {
 	n.logger.Debug("Update", log.Ctx{"clientType": clientType, "newNetwork": newNetwork})
 
 	dbUpdateNeeeded, _, oldNetwork, err := n.common.configChanged(newNetwork)
