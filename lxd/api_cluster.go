@@ -525,7 +525,7 @@ func clusterPutJoin(d *Daemon, req api.ClusterPut) response.Response {
 			req.Name = pool.Name
 			req.Driver = pool.Driver
 
-			_, err = storagePoolCreateLocal(d.State(), id, req, true)
+			_, err = storagePoolCreateLocal(d.State(), id, req, request.ClientTypeJoiner)
 			if err != nil {
 				return errors.Wrap(err, "Failed to init ceph/cephfs pool for joining member")
 			}
