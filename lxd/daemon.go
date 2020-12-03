@@ -454,11 +454,11 @@ func (d *Daemon) createCmd(restAPI *mux.Router, version string, c APIEndpoint) {
 					return ua, nil
 				}
 
-				if r.Context().Value("protocol") == "cluster" {
+				if protocol == "cluster" {
 					return ua, nil
 				}
 
-				if r.Context().Value("protocol") == "tls" {
+				if protocol == "tls" {
 					return ua, nil
 				}
 
