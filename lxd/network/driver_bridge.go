@@ -437,7 +437,7 @@ func (n *bridge) Delete(clientType request.ClientType) error {
 	n.logger.Debug("Delete", log.Ctx{"clientType": clientType})
 
 	// Bring the local network down if created on this node.
-	if n.LocalStatus() == api.NetworkStatusCreated {
+	if n.LocalStatus() == api.NetworkStatusCreated || n.LocalStatus() == api.NetworkStatusUnknown {
 		if n.isRunning() {
 			err := n.Stop()
 			if err != nil {

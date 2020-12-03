@@ -12,7 +12,6 @@ import (
 	"sync"
 
 	"github.com/gorilla/mux"
-	log "github.com/lxc/lxd/shared/log15"
 	"github.com/pkg/errors"
 
 	lxd "github.com/lxc/lxd/client"
@@ -31,6 +30,7 @@ import (
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
+	log "github.com/lxc/lxd/shared/log15"
 	"github.com/lxc/lxd/shared/logger"
 	"github.com/lxc/lxd/shared/version"
 )
@@ -393,7 +393,7 @@ func networksPostCluster(d *Daemon, projectName string, req api.NetworksPost, cl
 	if err != nil {
 		return err
 	}
-	logger.Error("Created network on local cluster member", log.Ctx{"project": projectName, "network": req.Name})
+	logger.Debug("Created network on local cluster member", log.Ctx{"project": projectName, "network": req.Name})
 
 	// Notify other nodes to create the network.
 	err = notifier(func(client lxd.InstanceServer) error {
@@ -403,6 +403,8 @@ func networksPostCluster(d *Daemon, projectName string, req api.NetworksPost, cl
 		}
 
 		nodeReq := req
+
+		// Merge node specific config items into global config.
 		for key, value := range configs[server.Environment.ServerName] {
 			nodeReq.Config[key] = value
 		}
@@ -411,7 +413,7 @@ func networksPostCluster(d *Daemon, projectName string, req api.NetworksPost, cl
 		if err != nil {
 			return err
 		}
-		logger.Info("Created network on cluster member", log.Ctx{"project": projectName, "network": req.Name, "member": server.Environment.ServerName})
+		logger.Debug("Created network on cluster member", log.Ctx{"project": projectName, "network": req.Name, "member": server.Environment.ServerName})
 
 		return nil
 	})
@@ -744,22 +746,19 @@ func networkPut(d *Daemon, r *http.Request) response.Response {
 	}
 
 	// Duplicate config for etag modification and generation.
-	curConfig := map[string]string{}
-	for k, v := range n.Config() {
-		curConfig[k] = v
-	}
+	etagConfig := util.CopyConfig(n.Config())
 
 	// If no target node is specified and the daemon is clustered, we omit the node-specific fields so that
 	// the e-tag can be generated correctly. This is because the GET request used to populate the request
 	// will also remove node-specific keys when no target is specified.
 	if targetNode == "" && clustered {
 		for _, key := range db.NodeSpecificNetworkConfig {
-			delete(curConfig, key)
+			delete(etagConfig, key)
 		}
 	}
 
 	// Validate the ETag.
-	etag := []interface{}{n.Name(), n.IsManaged(), n.Type(), n.Description(), curConfig}
+	etag := []interface{}{n.Name(), n.IsManaged(), n.Type(), n.Description(), etagConfig}
 	err = util.EtagCheck(r, etag)
 	if err != nil {
 		return response.PreconditionFailed(err)
@@ -782,6 +781,8 @@ func networkPut(d *Daemon, r *http.Request) response.Response {
 				}
 			}
 		} else {
+			curConfig := n.Config()
+
 			// If a target is specified, then ensure only node-specific config keys are changed.
 			for k, v := range req.Config {
 				if !shared.StringInSlice(k, db.NodeSpecificNetworkConfig) && curConfig[k] != v {
