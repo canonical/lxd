@@ -291,7 +291,7 @@ func qemuCreate(s *state.State, args db.InstanceArgs) (instance.Instance, error)
 	}
 
 	logger.Info("Created instance", ctxMap)
-	d.state.Events.SendLifecycle(d.project, "virtual-machine-created", fmt.Sprintf("/1.0/virtual-machines/%s", d.name), nil)
+	d.lifecycle("created", nil)
 
 	revert.Success()
 	return d, nil
@@ -482,6 +482,7 @@ func (d *qemu) Freeze() error {
 		return err
 	}
 
+	d.lifecycle("paused", nil)
 	return nil
 }
 
@@ -491,7 +492,7 @@ func (d *qemu) onStop(target string) error {
 
 	// Pick up the existing stop operation lock created in Stop() function.
 	op := operationlock.Get(d.id)
-	if op != nil && !shared.StringInSlice(op.Action(), []string{"stop", "restart"}) {
+	if op != nil && !shared.StringInSlice(op.Action(), []string{"stop", "restart", "restore"}) {
 		return fmt.Errorf("Instance is already running a %s operation", op.Action())
 	}
 
@@ -543,8 +544,7 @@ func (d *qemu) onStop(target string) error {
 			return err
 		}
 
-		d.state.Events.SendLifecycle(d.project, "virtual-machine-restarted",
-			fmt.Sprintf("/1.0/virtual-machines/%s", d.name), nil)
+		d.lifecycle("restarted", nil)
 	} else if d.ephemeral {
 		// Reset timeout to 30s.
 		op.Reset()
@@ -557,9 +557,8 @@ func (d *qemu) onStop(target string) error {
 		}
 	}
 
-	if target != "reboot" {
-		d.state.Events.SendLifecycle(d.project, "virtual-machine-shutdown",
-			fmt.Sprintf("/1.0/virtual-machines/%s", d.name), nil)
+	if op == nil {
+		d.lifecycle("shutdown", nil)
 	}
 
 	op.Done(nil)
@@ -635,7 +634,7 @@ func (d *qemu) Shutdown(timeout time.Duration) error {
 	}
 
 	if op.Action() == "stop" {
-		d.state.Events.SendLifecycle(d.project, "virtual-machine-shutdown", fmt.Sprintf("/1.0/virtual-machines/%s", d.name), nil)
+		d.lifecycle("shutdown", nil)
 	}
 
 	return nil
@@ -648,8 +647,7 @@ func (d *qemu) Restart(timeout time.Duration) error {
 		return err
 	}
 
-	d.state.Events.SendLifecycle(d.project, "virtual-machine-restarted",
-		fmt.Sprintf("/1.0/virtual-machines/%s", d.name), nil)
+	d.lifecycle("restarted", nil)
 
 	return nil
 }
@@ -670,7 +668,7 @@ func (d *qemu) Start(stateful bool) error {
 	}
 
 	// Setup a new operation
-	exists, op, err := operationlock.CreateWaitGet(d.id, "start", []string{"restart"}, false, false)
+	exists, op, err := operationlock.CreateWaitGet(d.id, "start", []string{"restart", "restore"}, false, false)
 	if err != nil {
 		return errors.Wrap(err, "Create instance start operation")
 	}
@@ -1120,7 +1118,7 @@ func (d *qemu) Start(stateful bool) error {
 	revert.Success()
 
 	if op.Action() == "start" {
-		d.state.Events.SendLifecycle(d.project, "virtual-machine-started", fmt.Sprintf("/1.0/virtual-machines/%s", d.name), nil)
+		d.lifecycle("started", nil)
 	}
 
 	return nil
@@ -2542,7 +2540,7 @@ func (d *qemu) Stop(stateful bool) error {
 	}
 
 	// Setup a new operation.
-	exists, op, err := operationlock.CreateWaitGet(d.id, "stop", []string{"restart"}, false, true)
+	exists, op, err := operationlock.CreateWaitGet(d.id, "stop", []string{"restart", "restore"}, false, true)
 	if err != nil {
 		return err
 	}
@@ -2600,7 +2598,7 @@ func (d *qemu) Stop(stateful bool) error {
 	}
 
 	if op.Action() == "stop" {
-		d.state.Events.SendLifecycle(d.project, "virtual-machine-stopped", fmt.Sprintf("/1.0/virtual-machines/%s", d.name), nil)
+		d.lifecycle("stopped", nil)
 	}
 
 	return nil
@@ -2620,6 +2618,7 @@ func (d *qemu) Unfreeze() error {
 		return err
 	}
 
+	d.lifecycle("resumed", nil)
 	return nil
 }
 
@@ -2633,6 +2632,12 @@ func (d *qemu) Restore(source instance.Instance, stateful bool) error {
 	if stateful {
 		return fmt.Errorf("Stateful snapshots of VMs aren't supported yet")
 	}
+
+	op, err := operationlock.Create(d.id, "restore", false, false)
+	if err != nil {
+		return errors.Wrap(err, "Create restore operation")
+	}
+	defer op.Done(nil)
 
 	var ctxMap log.Ctx
 
@@ -2658,6 +2663,7 @@ func (d *qemu) Restore(source instance.Instance, stateful bool) error {
 
 			err := d.Update(args, false)
 			if err != nil {
+				op.Done(err)
 				return err
 			}
 
@@ -2671,8 +2677,17 @@ func (d *qemu) Restore(source instance.Instance, stateful bool) error {
 		// This will unmount the instance storage.
 		err := d.Stop(false)
 		if err != nil {
+			op.Done(err)
 			return err
 		}
+
+		// Refresh the operation as that one is now complete.
+		op, err = operationlock.Create(d.id, "restore", false, false)
+		if err != nil {
+			return errors.Wrap(err, "Create restore operation")
+		}
+		defer op.Done(nil)
+
 	}
 
 	ctxMap = log.Ctx{
@@ -2688,12 +2703,14 @@ func (d *qemu) Restore(source instance.Instance, stateful bool) error {
 	// Load the storage driver.
 	pool, err := storagePools.GetPoolByInstance(d.state, d)
 	if err != nil {
+		op.Done(err)
 		return err
 	}
 
 	// Ensure that storage is mounted for backup.yaml updates.
 	_, err = pool.MountInstance(d, nil)
 	if err != nil {
+		op.Done(err)
 		return err
 	}
 	defer pool.UnmountInstance(d, nil)
@@ -2701,6 +2718,7 @@ func (d *qemu) Restore(source instance.Instance, stateful bool) error {
 	// Restore the rootfs.
 	err = pool.RestoreInstanceSnapshot(d, source, nil)
 	if err != nil {
+		op.Done(err)
 		return err
 	}
 
@@ -2720,7 +2738,7 @@ func (d *qemu) Restore(source instance.Instance, stateful bool) error {
 	// Don't pass as user-requested as there's no way to fix a bad config.
 	err = d.Update(args, false)
 	if err != nil {
-		logger.Error("Failed restoring instance configuration", ctxMap)
+		op.Done(err)
 		return err
 	}
 
@@ -2728,17 +2746,20 @@ func (d *qemu) Restore(source instance.Instance, stateful bool) error {
 	// the instance listed); let's write a new one to be safe.
 	err = d.UpdateBackupFile()
 	if err != nil {
+		op.Done(err)
 		return err
 	}
 
-	d.state.Events.SendLifecycle(d.project, "virtual-machine-snapshot-restored", fmt.Sprintf("/1.0/virtual-machines/%s", d.name), map[string]interface{}{"snapshot_name": d.name})
-
 	// Restart the insance.
 	if wasRunning {
-		logger.Info("Restored instance", ctxMap)
-		return d.Start(false)
+		err := d.Start(false)
+		if err != nil {
+			op.Done(err)
+			return err
+		}
 	}
 
+	d.lifecycle("restored", map[string]interface{}{"snapshot": source.Name()})
 	logger.Info("Restored instance", ctxMap)
 	return nil
 }
@@ -2879,19 +2900,7 @@ func (d *qemu) Rename(newName string) error {
 	}
 
 	logger.Info("Renamed instance", ctxMap)
-
-	if d.IsSnapshot() {
-		d.state.Events.SendLifecycle(d.project, "virtual-machine-snapshot-renamed",
-			fmt.Sprintf("/1.0/virtual-machines/%s", oldName), map[string]interface{}{
-				"new_name":      newName,
-				"snapshot_name": oldName,
-			})
-	} else {
-		d.state.Events.SendLifecycle(d.project, "virtual-machine-renamed",
-			fmt.Sprintf("/1.0/virtual-machines/%s", oldName), map[string]interface{}{
-				"new_name": newName,
-			})
-	}
+	d.lifecycle("renamed", map[string]interface{}{"old_name": oldName})
 
 	revert.Success()
 	return nil
@@ -3220,16 +3229,10 @@ func (d *qemu) Update(args db.InstanceArgs, userRequested bool) error {
 		}
 	}
 
-	var endpoint string
-
-	if d.IsSnapshot() {
-		parentName, snapName, _ := shared.InstanceGetParentAndSnapshotName(d.name)
-		endpoint = fmt.Sprintf("/1.0/virtual-machines/%s/snapshots/%s", parentName, snapName)
-	} else {
-		endpoint = fmt.Sprintf("/1.0/virtual-machines/%s", d.name)
+	if userRequested {
+		d.lifecycle("updated", nil)
 	}
 
-	d.state.Events.SendLifecycle(d.project, "virtual-machine-updated", endpoint, nil)
 	return nil
 }
 
@@ -3627,16 +3630,7 @@ func (d *qemu) Delete(force bool) error {
 	}
 
 	logger.Info("Deleted instance", ctxMap)
-
-	if d.IsSnapshot() {
-		d.state.Events.SendLifecycle(d.project, "virtual-machine-snapshot-deleted",
-			fmt.Sprintf("/1.0/virtual-machines/%s", d.name), map[string]interface{}{
-				"snapshot_name": d.name,
-			})
-	} else {
-		d.state.Events.SendLifecycle(d.project, "virtual-machine-deleted",
-			fmt.Sprintf("/1.0/virtual-machines/%s", d.name), nil)
-	}
+	d.lifecycle("deleted", nil)
 
 	return nil
 }

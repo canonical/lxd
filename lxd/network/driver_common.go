@@ -3,6 +3,7 @@ package network
 import (
 	"fmt"
 	"net"
+	"net/url"
 	"os"
 	"strings"
 
@@ -11,6 +12,7 @@ import (
 	lxd "github.com/lxc/lxd/client"
 	"github.com/lxc/lxd/lxd/cluster"
 	"github.com/lxc/lxd/lxd/db"
+	"github.com/lxc/lxd/lxd/project"
 	"github.com/lxc/lxd/lxd/state"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
@@ -265,6 +267,8 @@ func (n *common) update(applyNetwork api.NetworkPut, targetNode string, clientTy
 		if err != nil {
 			return err
 		}
+
+		n.lifecycle("updated", nil)
 	}
 
 	return nil
@@ -318,6 +322,15 @@ func (n *common) configChanged(newNetwork api.NetworkPut) (bool, []string, api.N
 	return dbUpdateNeeded, changedKeys, oldNetwork, nil
 }
 
+// create just sends the needed lifecycle event.
+func (n *common) create(clientType cluster.ClientType) error {
+	if clientType == cluster.ClientTypeNormal {
+		n.lifecycle("created", nil)
+	}
+
+	return nil
+}
+
 // rename the network directory, update database record and update internal variables.
 func (n *common) rename(newName string) error {
 	// Clear new directory if exists.
@@ -340,8 +353,10 @@ func (n *common) rename(newName string) error {
 	}
 
 	// Reinitialise internal name variable and logger context with new name.
+	oldName := n.name
 	n.name = newName
 
+	n.lifecycle("renamed", map[string]interface{}{"old_name": oldName})
 	return nil
 }
 
@@ -366,6 +381,8 @@ func (n *common) delete(clientType cluster.ClientType) error {
 		if err != nil {
 			return err
 		}
+
+		n.lifecycle("deleted", nil)
 	}
 
 	// Cleanup storage.
@@ -380,10 +397,22 @@ func (n *common) delete(clientType cluster.ClientType) error {
 func (n *common) Create(clientType cluster.ClientType) error {
 	n.logger.Debug("Create", log.Ctx{"clientType": clientType, "config": n.config})
 
-	return nil
+	return n.create(clientType)
 }
 
 // HandleHeartbeat is a no-op.
 func (n *common) HandleHeartbeat(heartbeatData *cluster.APIHeartbeat) error {
 	return nil
+}
+
+// lifecycle sends a lifecycle event for the network.
+func (n *common) lifecycle(action string, ctx map[string]interface{}) error {
+	prefix := "network"
+	u := fmt.Sprintf("/1.0/networks/%s", url.PathEscape(n.name))
+
+	if n.project != project.Default {
+		u = fmt.Sprintf("%s?project=%s", u, url.QueryEscape(n.project))
+	}
+
+	return n.state.Events.SendLifecycle(n.project, fmt.Sprintf("%s-%s", prefix, action), u, ctx)
 }

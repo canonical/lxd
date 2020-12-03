@@ -328,7 +328,7 @@ func lxcCreate(s *state.State, args db.InstanceArgs) (instance.Instance, error) 
 	}
 
 	logger.Info("Created container", ctxMap)
-	d.state.Events.SendLifecycle(d.project, "container-created", fmt.Sprintf("/1.0/containers/%s", d.name), nil)
+	d.lifecycle("created", nil)
 
 	revert.Success()
 	return d, nil
@@ -2220,7 +2220,7 @@ func (d *lxc) Start(stateful bool) error {
 	var ctxMap log.Ctx
 
 	// Setup a new operation
-	exists, op, err := operationlock.CreateWaitGet(d.id, "start", []string{"restart"}, false, false)
+	exists, op, err := operationlock.CreateWaitGet(d.id, "start", []string{"restart", "restore"}, false, false)
 	if err != nil {
 		return errors.Wrap(err, "Create container start operation")
 	}
@@ -2301,8 +2301,7 @@ func (d *lxc) Start(stateful bool) error {
 
 		if op.Action() == "start" {
 			logger.Info("Started container", ctxMap)
-			d.state.Events.SendLifecycle(d.project, "container-started",
-				fmt.Sprintf("/1.0/containers/%s", d.name), nil)
+			d.lifecycle("started", nil)
 		}
 		return nil
 	} else if d.stateful {
@@ -2377,8 +2376,7 @@ func (d *lxc) Start(stateful bool) error {
 
 	if op.Action() == "start" {
 		logger.Info("Started container", ctxMap)
-		d.state.Events.SendLifecycle(d.project, "container-started",
-			fmt.Sprintf("/1.0/containers/%s", d.name), nil)
+		d.lifecycle("started", nil)
 	}
 
 	return nil
@@ -2475,7 +2473,7 @@ func (d *lxc) Stop(stateful bool) error {
 	var ctxMap log.Ctx
 
 	// Setup a new operation
-	exists, op, err := operationlock.CreateWaitGet(d.id, "stop", []string{"restart"}, false, true)
+	exists, op, err := operationlock.CreateWaitGet(d.id, "stop", []string{"restart", "restore"}, false, true)
 	if err != nil {
 		return err
 	}
@@ -2546,8 +2544,7 @@ func (d *lxc) Stop(stateful bool) error {
 		}
 
 		logger.Info("Stopped container", ctxMap)
-		d.state.Events.SendLifecycle(d.project, "container-stopped",
-			fmt.Sprintf("/1.0/containers/%s", d.name), nil)
+		d.lifecycle("stopped", nil)
 
 		return nil
 	} else if shared.PathExists(d.StatePath()) {
@@ -2608,8 +2605,7 @@ func (d *lxc) Stop(stateful bool) error {
 
 	if op.Action() == "stop" {
 		logger.Info("Stopped container", ctxMap)
-		d.state.Events.SendLifecycle(d.project, "container-stopped",
-			fmt.Sprintf("/1.0/containers/%s", d.name), nil)
+		d.lifecycle("stopped", nil)
 	}
 
 	return nil
@@ -2677,8 +2673,7 @@ func (d *lxc) Shutdown(timeout time.Duration) error {
 
 	if op.Action() == "stop" {
 		logger.Info("Shut down container", ctxMap)
-		d.state.Events.SendLifecycle(d.project, "container-shutdown",
-			fmt.Sprintf("/1.0/containers/%s", d.name), nil)
+		d.lifecycle("shutdown", nil)
 	}
 
 	return nil
@@ -2703,8 +2698,7 @@ func (d *lxc) Restart(timeout time.Duration) error {
 	}
 
 	logger.Info("Restarted container", ctxMap)
-	d.state.Events.SendLifecycle(d.project, "container-restarted",
-		fmt.Sprintf("/1.0/containers/%s", d.name), nil)
+	d.lifecycle("restarted", nil)
 
 	return nil
 }
@@ -2741,7 +2735,7 @@ func (d *lxc) onStop(args map[string]string) error {
 
 	// Pick up the existing stop operation lock created in Stop() function.
 	op := operationlock.Get(d.id)
-	if op != nil && !shared.StringInSlice(op.Action(), []string{"stop", "restart"}) {
+	if op != nil && !shared.StringInSlice(op.Action(), []string{"stop", "restart", "restore"}) {
 		return fmt.Errorf("Container is already running a %s operation", op.Action())
 	}
 
@@ -2835,7 +2829,7 @@ func (d *lxc) onStop(args map[string]string) error {
 		// Log and emit lifecycle if not user triggered
 		if op == nil {
 			logger.Info("Shut down container", ctxMap)
-			d.state.Events.SendLifecycle(d.project, "container-shutdown", fmt.Sprintf("/1.0/containers/%s", d.name), nil)
+			d.lifecycle("shutdown", nil)
 		}
 
 		// Reboot the container
@@ -2847,7 +2841,7 @@ func (d *lxc) onStop(args map[string]string) error {
 				return
 			}
 
-			d.state.Events.SendLifecycle(d.project, "container-restarted", fmt.Sprintf("/1.0/containers/%s", d.name), nil)
+			d.lifecycle("restarted", nil)
 			return
 		}
 
@@ -2936,8 +2930,7 @@ func (d *lxc) Freeze() error {
 	}
 
 	logger.Info("Froze container", ctxMap)
-	d.state.Events.SendLifecycle(d.project, "container-paused",
-		fmt.Sprintf("/1.0/containers/%s", d.name), nil)
+	d.lifecycle("paused", nil)
 
 	return err
 }
@@ -2987,8 +2980,7 @@ func (d *lxc) Unfreeze() error {
 	}
 
 	logger.Info("Unfroze container", ctxMap)
-	d.state.Events.SendLifecycle(d.project, "container-resumed",
-		fmt.Sprintf("/1.0/containers/%s", d.name), nil)
+	d.lifecycle("resumed", nil)
 
 	return err
 }
@@ -3187,6 +3179,12 @@ func (d *lxc) RenderState() (*api.InstanceState, error) {
 func (d *lxc) Restore(sourceContainer instance.Instance, stateful bool) error {
 	var ctxMap log.Ctx
 
+	op, err := operationlock.Create(d.id, "restore", false, false)
+	if err != nil {
+		return errors.Wrap(err, "Create restore operation")
+	}
+	defer op.Done(nil)
+
 	// Stop the container.
 	wasRunning := false
 	if d.IsRunning() {
@@ -3209,6 +3207,7 @@ func (d *lxc) Restore(sourceContainer instance.Instance, stateful bool) error {
 
 			err := d.Update(args, false)
 			if err != nil {
+				op.Done(err)
 				return err
 			}
 
@@ -3222,8 +3221,16 @@ func (d *lxc) Restore(sourceContainer instance.Instance, stateful bool) error {
 		// This will unmount the container storage.
 		err := d.Stop(false)
 		if err != nil {
+			op.Done(err)
 			return err
 		}
+
+		// Refresh the operation as that one is now complete.
+		op, err = operationlock.Create(d.id, "restore", false, false)
+		if err != nil {
+			return errors.Wrap(err, "Create restore operation")
+		}
+		defer op.Done(nil)
 	}
 
 	ctxMap = log.Ctx{
@@ -3239,12 +3246,14 @@ func (d *lxc) Restore(sourceContainer instance.Instance, stateful bool) error {
 	// Initialize storage interface for the container and mount the rootfs for criu state check.
 	pool, err := storagePools.GetPoolByInstance(d.state, d)
 	if err != nil {
+		op.Done(err)
 		return err
 	}
 
 	// Ensure that storage is mounted for state path checks and for backup.yaml updates.
 	_, err = pool.MountInstance(d, nil)
 	if err != nil {
+		op.Done(err)
 		return err
 	}
 	defer pool.UnmountInstance(d, nil)
@@ -3254,13 +3263,16 @@ func (d *lxc) Restore(sourceContainer instance.Instance, stateful bool) error {
 	if shared.PathExists(d.StatePath()) {
 		_, err := exec.LookPath("criu")
 		if err != nil {
-			return fmt.Errorf("Failed to restore container state. CRIU isn't installed")
+			err = fmt.Errorf("Failed to restore container state. CRIU isn't installed")
+			op.Done(err)
+			return err
 		}
 	}
 
 	// Restore the rootfs.
 	err = pool.RestoreInstanceSnapshot(d, sourceContainer, nil)
 	if err != nil {
+		op.Done(err)
 		return err
 	}
 
@@ -3280,7 +3292,7 @@ func (d *lxc) Restore(sourceContainer instance.Instance, stateful bool) error {
 	// Don't pass as user-requested as there's no way to fix a bad config.
 	err = d.Update(args, false)
 	if err != nil {
-		logger.Error("Failed restoring container configuration", ctxMap)
+		op.Done(err)
 		return err
 	}
 
@@ -3288,13 +3300,16 @@ func (d *lxc) Restore(sourceContainer instance.Instance, stateful bool) error {
 	// the container listed); let's write a new one to be safe.
 	err = d.UpdateBackupFile()
 	if err != nil {
+		op.Done(err)
 		return err
 	}
 
 	// If the container wasn't running but was stateful, should we restore it as running?
 	if stateful == true {
 		if !shared.PathExists(d.StatePath()) {
-			return fmt.Errorf("Stateful snapshot restore requested by snapshot is stateless")
+			err = fmt.Errorf("Stateful snapshot restore requested by snapshot is stateless")
+			op.Done(err)
+			return err
 		}
 
 		logger.Debug("Performing stateful restore", ctxMap)
@@ -3313,17 +3328,19 @@ func (d *lxc) Restore(sourceContainer instance.Instance, stateful bool) error {
 		// Checkpoint.
 		err := d.Migrate(&criuMigrationArgs)
 		if err != nil {
+			op.Done(err)
 			return err
 		}
 
 		// Remove the state from the parent container; we only keep this in snapshots.
 		err2 := os.RemoveAll(d.StatePath())
-		if err2 != nil {
-			logger.Error("Failed to delete snapshot state", log.Ctx{"path": d.StatePath(), "err": err2})
+		if err2 != nil && !os.IsNotExist(err) {
+			op.Done(err)
+			return err
 		}
 
 		if err != nil {
-			logger.Info("Failed restoring container", ctxMap)
+			op.Done(err)
 			return err
 		}
 
@@ -3332,17 +3349,16 @@ func (d *lxc) Restore(sourceContainer instance.Instance, stateful bool) error {
 		return nil
 	}
 
-	d.state.Events.SendLifecycle(d.project, "container-snapshot-restored",
-		fmt.Sprintf("/1.0/containers/%s", d.name), map[string]interface{}{
-			"snapshot_name": d.name,
-		})
-
 	// Restart the container.
 	if wasRunning {
-		logger.Info("Restored container", ctxMap)
-		return d.Start(false)
+		err = d.Start(false)
+		if err != nil {
+			op.Done(err)
+			return err
+		}
 	}
 
+	d.lifecycle("restored", map[string]interface{}{"snapshot": sourceContainer.Name()})
 	logger.Info("Restored container", ctxMap)
 	return nil
 }
@@ -3464,16 +3480,7 @@ func (d *lxc) Delete(force bool) error {
 	}
 
 	logger.Info("Deleted container", ctxMap)
-
-	if d.IsSnapshot() {
-		d.state.Events.SendLifecycle(d.project, "container-snapshot-deleted",
-			fmt.Sprintf("/1.0/containers/%s", d.name), map[string]interface{}{
-				"snapshot_name": d.name,
-			})
-	} else {
-		d.state.Events.SendLifecycle(d.project, "container-deleted",
-			fmt.Sprintf("/1.0/containers/%s", d.name), nil)
-	}
+	d.lifecycle("deleted", nil)
 
 	return nil
 }
@@ -3622,19 +3629,7 @@ func (d *lxc) Rename(newName string) error {
 	}
 
 	logger.Info("Renamed container", ctxMap)
-
-	if d.IsSnapshot() {
-		d.state.Events.SendLifecycle(d.project, "container-snapshot-renamed",
-			fmt.Sprintf("/1.0/containers/%s", oldName), map[string]interface{}{
-				"new_name":      newName,
-				"snapshot_name": oldName,
-			})
-	} else {
-		d.state.Events.SendLifecycle(d.project, "container-renamed",
-			fmt.Sprintf("/1.0/containers/%s", oldName), map[string]interface{}{
-				"new_name": newName,
-			})
-	}
+	d.lifecycle("renamed", map[string]interface{}{"old_name": oldName})
 
 	revert.Success()
 	return nil
@@ -4358,16 +4353,9 @@ func (d *lxc) Update(args db.InstanceArgs, userRequested bool) error {
 	// Success, update the closure to mark that the changes should be kept.
 	undoChanges = false
 
-	var endpoint string
-
-	if d.IsSnapshot() {
-		cName, sName, _ := shared.InstanceGetParentAndSnapshotName(d.name)
-		endpoint = fmt.Sprintf("/1.0/containers/%s/snapshots/%s", cName, sName)
-	} else {
-		endpoint = fmt.Sprintf("/1.0/containers/%s", d.name)
+	if userRequested {
+		d.lifecycle("updated", nil)
 	}
-
-	d.state.Events.SendLifecycle(d.project, "container-updated", endpoint, nil)
 
 	return nil
 }
