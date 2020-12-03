@@ -5,6 +5,7 @@ import (
 
 	"github.com/pkg/errors"
 
+	"github.com/lxc/lxd/lxd/cluster/request"
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/revert"
 	"github.com/lxc/lxd/lxd/state"
@@ -63,7 +64,7 @@ func storagePoolValidate(poolName string, driverName string, config map[string]s
 	return nil
 }
 
-func storagePoolCreateGlobal(state *state.State, req api.StoragePoolsPost) error {
+func storagePoolCreateGlobal(state *state.State, req api.StoragePoolsPost, clientType request.ClientType) error {
 	// Create the database entry.
 	id, err := storagePoolDBCreate(state, req.Name, req.Description, req.Driver, req.Config)
 	if err != nil {
@@ -83,7 +84,7 @@ func storagePoolCreateGlobal(state *state.State, req api.StoragePoolsPost) error
 		dbStoragePoolDeleteAndUpdateCache(state, req.Name)
 	}()
 
-	_, err = storagePoolCreateLocal(state, id, req, false)
+	_, err = storagePoolCreateLocal(state, id, req, clientType)
 	if err != nil {
 		return err
 	}
@@ -94,7 +95,7 @@ func storagePoolCreateGlobal(state *state.State, req api.StoragePoolsPost) error
 
 // This performs local pool setup and updates DB record if config was changed during pool setup.
 // Returns resulting config.
-func storagePoolCreateLocal(state *state.State, id int64, req api.StoragePoolsPost, isNotification bool) (map[string]string, error) {
+func storagePoolCreateLocal(state *state.State, id int64, req api.StoragePoolsPost, clientType request.ClientType) (map[string]string, error) {
 	// Setup revert.
 	revert := revert.New()
 	defer revert.Fail()
@@ -131,12 +132,12 @@ func storagePoolCreateLocal(state *state.State, id int64, req api.StoragePoolsPo
 	}
 
 	// Create the pool.
-	err = pool.Create(isNotification, nil)
+	err = pool.Create(clientType, nil)
 	if err != nil {
 		return nil, err
 	}
 
-	revert.Add(func() { pool.Delete(isNotification, nil) })
+	revert.Add(func() { pool.Delete(clientType, nil) })
 
 	// Mount the pool.
 	_, err = pool.Mount()
