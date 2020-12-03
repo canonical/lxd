@@ -2220,7 +2220,7 @@ func (d *lxc) Start(stateful bool) error {
 	var ctxMap log.Ctx
 
 	// Setup a new operation
-	exists, op, err := operationlock.CreateWaitGet(d.id, "start", []string{"restart"}, false, false)
+	exists, op, err := operationlock.CreateWaitGet(d.id, "start", []string{"restart", "restore"}, false, false)
 	if err != nil {
 		return errors.Wrap(err, "Create container start operation")
 	}
@@ -2473,7 +2473,7 @@ func (d *lxc) Stop(stateful bool) error {
 	var ctxMap log.Ctx
 
 	// Setup a new operation
-	exists, op, err := operationlock.CreateWaitGet(d.id, "stop", []string{"restart"}, false, true)
+	exists, op, err := operationlock.CreateWaitGet(d.id, "stop", []string{"restart", "restore"}, false, true)
 	if err != nil {
 		return err
 	}
@@ -2735,7 +2735,7 @@ func (d *lxc) onStop(args map[string]string) error {
 
 	// Pick up the existing stop operation lock created in Stop() function.
 	op := operationlock.Get(d.id)
-	if op != nil && !shared.StringInSlice(op.Action(), []string{"stop", "restart"}) {
+	if op != nil && !shared.StringInSlice(op.Action(), []string{"stop", "restart", "restore"}) {
 		return fmt.Errorf("Container is already running a %s operation", op.Action())
 	}
 
@@ -3179,6 +3179,12 @@ func (d *lxc) RenderState() (*api.InstanceState, error) {
 func (d *lxc) Restore(sourceContainer instance.Instance, stateful bool) error {
 	var ctxMap log.Ctx
 
+	op, err := operationlock.Create(d.id, "restore", false, false)
+	if err != nil {
+		return errors.Wrap(err, "Create restore operation")
+	}
+	defer op.Done(nil)
+
 	// Stop the container.
 	wasRunning := false
 	if d.IsRunning() {
@@ -3201,6 +3207,7 @@ func (d *lxc) Restore(sourceContainer instance.Instance, stateful bool) error {
 
 			err := d.Update(args, false)
 			if err != nil {
+				op.Done(err)
 				return err
 			}
 
@@ -3214,8 +3221,16 @@ func (d *lxc) Restore(sourceContainer instance.Instance, stateful bool) error {
 		// This will unmount the container storage.
 		err := d.Stop(false)
 		if err != nil {
+			op.Done(err)
 			return err
 		}
+
+		// Refresh the operation as that one is now complete.
+		op, err = operationlock.Create(d.id, "restore", false, false)
+		if err != nil {
+			return errors.Wrap(err, "Create restore operation")
+		}
+		defer op.Done(nil)
 	}
 
 	ctxMap = log.Ctx{
@@ -3231,12 +3246,14 @@ func (d *lxc) Restore(sourceContainer instance.Instance, stateful bool) error {
 	// Initialize storage interface for the container and mount the rootfs for criu state check.
 	pool, err := storagePools.GetPoolByInstance(d.state, d)
 	if err != nil {
+		op.Done(err)
 		return err
 	}
 
 	// Ensure that storage is mounted for state path checks and for backup.yaml updates.
 	_, err = pool.MountInstance(d, nil)
 	if err != nil {
+		op.Done(err)
 		return err
 	}
 	defer pool.UnmountInstance(d, nil)
@@ -3246,13 +3263,16 @@ func (d *lxc) Restore(sourceContainer instance.Instance, stateful bool) error {
 	if shared.PathExists(d.StatePath()) {
 		_, err := exec.LookPath("criu")
 		if err != nil {
-			return fmt.Errorf("Failed to restore container state. CRIU isn't installed")
+			err = fmt.Errorf("Failed to restore container state. CRIU isn't installed")
+			op.Done(err)
+			return err
 		}
 	}
 
 	// Restore the rootfs.
 	err = pool.RestoreInstanceSnapshot(d, sourceContainer, nil)
 	if err != nil {
+		op.Done(err)
 		return err
 	}
 
@@ -3272,7 +3292,7 @@ func (d *lxc) Restore(sourceContainer instance.Instance, stateful bool) error {
 	// Don't pass as user-requested as there's no way to fix a bad config.
 	err = d.Update(args, false)
 	if err != nil {
-		logger.Error("Failed restoring container configuration", ctxMap)
+		op.Done(err)
 		return err
 	}
 
@@ -3280,13 +3300,16 @@ func (d *lxc) Restore(sourceContainer instance.Instance, stateful bool) error {
 	// the container listed); let's write a new one to be safe.
 	err = d.UpdateBackupFile()
 	if err != nil {
+		op.Done(err)
 		return err
 	}
 
 	// If the container wasn't running but was stateful, should we restore it as running?
 	if stateful == true {
 		if !shared.PathExists(d.StatePath()) {
-			return fmt.Errorf("Stateful snapshot restore requested by snapshot is stateless")
+			err = fmt.Errorf("Stateful snapshot restore requested by snapshot is stateless")
+			op.Done(err)
+			return err
 		}
 
 		logger.Debug("Performing stateful restore", ctxMap)
@@ -3305,17 +3328,19 @@ func (d *lxc) Restore(sourceContainer instance.Instance, stateful bool) error {
 		// Checkpoint.
 		err := d.Migrate(&criuMigrationArgs)
 		if err != nil {
+			op.Done(err)
 			return err
 		}
 
 		// Remove the state from the parent container; we only keep this in snapshots.
 		err2 := os.RemoveAll(d.StatePath())
-		if err2 != nil {
-			logger.Error("Failed to delete snapshot state", log.Ctx{"path": d.StatePath(), "err": err2})
+		if err2 != nil && !os.IsNotExist(err) {
+			op.Done(err)
+			return err
 		}
 
 		if err != nil {
-			logger.Info("Failed restoring container", ctxMap)
+			op.Done(err)
 			return err
 		}
 
@@ -3326,8 +3351,11 @@ func (d *lxc) Restore(sourceContainer instance.Instance, stateful bool) error {
 
 	// Restart the container.
 	if wasRunning {
-		logger.Info("Restored container", ctxMap)
-		return d.Start(false)
+		err = d.Start(false)
+		if err != nil {
+			op.Done(err)
+			return err
+		}
 	}
 
 	d.lifecycle("restored", map[string]interface{}{"snapshot": sourceContainer.Name()})
