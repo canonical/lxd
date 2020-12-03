@@ -16,6 +16,7 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/lxc/lxd/lxd/cluster"
+	"github.com/lxc/lxd/lxd/cluster/request"
 	"github.com/lxc/lxd/lxd/db"
 	deviceConfig "github.com/lxc/lxd/lxd/device/config"
 	"github.com/lxc/lxd/lxd/instance"
@@ -1260,11 +1261,11 @@ func (n *ovn) populateAutoConfig(config map[string]string) error {
 }
 
 // Create sets up network in OVN Northbound database.
-func (n *ovn) Create(clientType cluster.ClientType) error {
+func (n *ovn) Create(clientType request.ClientType) error {
 	n.logger.Debug("Create", log.Ctx{"clientType": clientType, "config": n.config})
 
 	// We only need to setup the OVN Northbound database once, not on every clustered node.
-	if clientType == cluster.ClientTypeNormal {
+	if clientType == request.ClientTypeNormal {
 		err := n.setup(false)
 		if err != nil {
 			return err
@@ -1765,7 +1766,7 @@ func (n *ovn) deleteChassisGroupEntry() error {
 }
 
 // Delete deletes a network.
-func (n *ovn) Delete(clientType cluster.ClientType) error {
+func (n *ovn) Delete(clientType request.ClientType) error {
 	n.logger.Debug("Delete", log.Ctx{"clientType": clientType})
 
 	if n.LocalStatus() == api.NetworkStatusCreated {
@@ -1774,7 +1775,7 @@ func (n *ovn) Delete(clientType cluster.ClientType) error {
 			return err
 		}
 
-		if clientType == cluster.ClientTypeNormal {
+		if clientType == request.ClientTypeNormal {
 			client, err := n.getClient()
 			if err != nil {
 				return err
@@ -1884,7 +1885,7 @@ func (n *ovn) Stop() error {
 
 // Update updates the network. Accepts notification boolean indicating if this update request is coming from a
 // cluster notification, in which case do not update the database, just apply local changes needed.
-func (n *ovn) Update(newNetwork api.NetworkPut, targetNode string, clientType cluster.ClientType) error {
+func (n *ovn) Update(newNetwork api.NetworkPut, targetNode string, clientType request.ClientType) error {
 	n.logger.Debug("Update", log.Ctx{"clientType": clientType, "newNetwork": newNetwork})
 
 	err := n.populateAutoConfig(newNetwork.Config)
@@ -1915,7 +1916,7 @@ func (n *ovn) Update(newNetwork api.NetworkPut, targetNode string, clientType cl
 		n.common.update(oldNetwork, targetNode, clientType)
 
 		// Reset any change that was made to logical network.
-		if clientType == cluster.ClientTypeNormal {
+		if clientType == request.ClientTypeNormal {
 			n.setup(true)
 		}
 
@@ -1941,7 +1942,7 @@ func (n *ovn) Update(newNetwork api.NetworkPut, targetNode string, clientType cl
 	}
 
 	// Re-setup the logical network after config applied if needed.
-	if len(changedKeys) > 0 && clientType == cluster.ClientTypeNormal {
+	if len(changedKeys) > 0 && clientType == request.ClientTypeNormal {
 		err = n.setup(true)
 		if err != nil {
 			return err

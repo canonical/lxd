@@ -11,6 +11,7 @@ import (
 	"github.com/pkg/errors"
 
 	lxd "github.com/lxc/lxd/client"
+	"github.com/lxc/lxd/lxd/cluster/request"
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/instance/instancetype"
 	"github.com/lxc/lxd/lxd/state"
@@ -56,7 +57,7 @@ func Connect(address string, cert *shared.CertInfo, notify bool) (lxd.InstanceSe
 		UserAgent:     version.UserAgent,
 	}
 	if notify {
-		args.UserAgent = UserAgentNotifier
+		args.UserAgent = request.UserAgentNotifier
 	}
 
 	url := fmt.Sprintf("https://%s", address)
