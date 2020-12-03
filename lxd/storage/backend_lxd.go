@@ -13,6 +13,7 @@ import (
 	yaml "gopkg.in/yaml.v2"
 
 	"github.com/lxc/lxd/lxd/backup"
+	"github.com/lxc/lxd/lxd/cluster/request"
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/instance/instancetype"
@@ -86,8 +87,8 @@ func (b *lxdBackend) MigrationTypes(contentType drivers.ContentType, refresh boo
 
 // Create creates the storage pool layout on the storage device.
 // localOnly is used for clustering where only a single node should do remote storage setup.
-func (b *lxdBackend) Create(localOnly bool, op *operations.Operation) error {
-	logger := logging.AddContext(b.logger, log.Ctx{"config": b.db.Config, "description": b.db.Description, "localOnly": localOnly})
+func (b *lxdBackend) Create(clientType request.ClientType, op *operations.Operation) error {
+	logger := logging.AddContext(b.logger, log.Ctx{"config": b.db.Config, "description": b.db.Description, "clientType": clientType})
 	logger.Debug("create started")
 	defer logger.Debug("create finished")
 
@@ -108,8 +109,7 @@ func (b *lxdBackend) Create(localOnly bool, op *operations.Operation) error {
 
 	revert.Add(func() { os.RemoveAll(path) })
 
-	// If dealing with a remote storage pool, we're done now.
-	if b.driver.Info().Remote && localOnly {
+	if b.driver.Info().Remote && clientType != request.ClientTypeNormal {
 		if !b.driver.Info().MountedRoot {
 			// Create the directory structure.
 			err = b.createStorageStructure(path)
@@ -118,6 +118,7 @@ func (b *lxdBackend) Create(localOnly bool, op *operations.Operation) error {
 			}
 		}
 
+		// Dealing with a remote storage pool, we're done now.
 		revert.Success()
 		return nil
 	}
@@ -208,7 +209,7 @@ func (b *lxdBackend) IsUsed() (bool, error) {
 }
 
 // Update updates the pool config.
-func (b *lxdBackend) Update(driverOnly bool, newDesc string, newConfig map[string]string, op *operations.Operation) error {
+func (b *lxdBackend) Update(clientType request.ClientType, newDesc string, newConfig map[string]string, op *operations.Operation) error {
 	logger := logging.AddContext(b.logger, log.Ctx{"newDesc": newDesc, "newConfig": newConfig})
 	logger.Debug("Update started")
 	defer logger.Debug("Update finished")
@@ -230,8 +231,8 @@ func (b *lxdBackend) Update(driverOnly bool, newDesc string, newConfig map[strin
 		}
 	}
 
-	// Update the database if something changed and we're not in driverOnly mode.
-	if !driverOnly && (len(changedConfig) != 0 || newDesc != b.db.Description) {
+	// Update the database if something changed and we're in ClientTypeNormal mode.
+	if clientType == request.ClientTypeNormal && (len(changedConfig) != 0 || newDesc != b.db.Description) {
 		err = b.state.Cluster.UpdateStoragePool(b.name, newDesc, newConfig)
 		if err != nil {
 			return err
@@ -243,8 +244,8 @@ func (b *lxdBackend) Update(driverOnly bool, newDesc string, newConfig map[strin
 }
 
 // Delete removes the pool.
-func (b *lxdBackend) Delete(localOnly bool, op *operations.Operation) error {
-	logger := logging.AddContext(b.logger, nil)
+func (b *lxdBackend) Delete(clientType request.ClientType, op *operations.Operation) error {
+	logger := logging.AddContext(b.logger, log.Ctx{"clientType": clientType})
 	logger.Debug("Delete started")
 	defer logger.Debug("Delete finished")
 
@@ -254,7 +255,7 @@ func (b *lxdBackend) Delete(localOnly bool, op *operations.Operation) error {
 		return nil
 	}
 
-	if localOnly && b.driver.Info().Remote {
+	if clientType != request.ClientTypeNormal && b.driver.Info().Remote {
 		if b.driver.Info().MountedRoot {
 			_, err := b.driver.Unmount()
 			if err != nil {
