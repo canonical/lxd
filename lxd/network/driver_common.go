@@ -265,6 +265,8 @@ func (n *common) update(applyNetwork api.NetworkPut, targetNode string, clientTy
 		if err != nil {
 			return err
 		}
+
+		n.lifecycle("updated", nil)
 	}
 
 	return nil
@@ -320,6 +322,10 @@ func (n *common) configChanged(newNetwork api.NetworkPut) (bool, []string, api.N
 
 // create just sends the needed lifecycle event.
 func (n *common) create(clientType cluster.ClientType) error {
+	if clientType == cluster.ClientTypeNormal {
+		n.lifecycle("created", nil)
+	}
+
 	return nil
 }
 
@@ -345,8 +351,10 @@ func (n *common) rename(newName string) error {
 	}
 
 	// Reinitialise internal name variable and logger context with new name.
+	oldName := n.name
 	n.name = newName
 
+	n.lifecycle("renamed", map[string]interface{}{"old_name": oldName})
 	return nil
 }
 
@@ -371,6 +379,8 @@ func (n *common) delete(clientType cluster.ClientType) error {
 		if err != nil {
 			return err
 		}
+
+		n.lifecycle("deleted", nil)
 	}
 
 	// Cleanup storage.
@@ -398,9 +408,5 @@ func (n *common) lifecycle(action string, ctx map[string]interface{}) error {
 	prefix := "network"
 	u := fmt.Sprintf("/1.0/networks/%s", url.PathEscape(n.name))
 
-	if n.project != project.Default {
-		u = fmt.Sprintf("%s?project=%s", u, url.QueryEscape(n.project))
-	}
-
-	return n.state.Events.SendLifecycle(n.project, fmt.Sprintf("%s-%s", prefix, action), u, ctx)
+	return n.state.Events.SendLifecycle(project.Default, fmt.Sprintf("%s-%s", prefix, action), u, ctx)
 }
