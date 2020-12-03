@@ -492,7 +492,7 @@ func (d *qemu) onStop(target string) error {
 
 	// Pick up the existing stop operation lock created in Stop() function.
 	op := operationlock.Get(d.id)
-	if op != nil && !shared.StringInSlice(op.Action(), []string{"stop", "restart"}) {
+	if op != nil && !shared.StringInSlice(op.Action(), []string{"stop", "restart", "restore"}) {
 		return fmt.Errorf("Instance is already running a %s operation", op.Action())
 	}
 
@@ -668,7 +668,7 @@ func (d *qemu) Start(stateful bool) error {
 	}
 
 	// Setup a new operation
-	exists, op, err := operationlock.CreateWaitGet(d.id, "start", []string{"restart"}, false, false)
+	exists, op, err := operationlock.CreateWaitGet(d.id, "start", []string{"restart", "restore"}, false, false)
 	if err != nil {
 		return errors.Wrap(err, "Create instance start operation")
 	}
@@ -2507,7 +2507,7 @@ func (d *qemu) Stop(stateful bool) error {
 	}
 
 	// Setup a new operation.
-	exists, op, err := operationlock.CreateWaitGet(d.id, "stop", []string{"restart"}, false, true)
+	exists, op, err := operationlock.CreateWaitGet(d.id, "stop", []string{"restart", "restore"}, false, true)
 	if err != nil {
 		return err
 	}
@@ -2600,6 +2600,12 @@ func (d *qemu) Restore(source instance.Instance, stateful bool) error {
 		return fmt.Errorf("Stateful snapshots of VMs aren't supported yet")
 	}
 
+	op, err := operationlock.Create(d.id, "restore", false, false)
+	if err != nil {
+		return errors.Wrap(err, "Create restore operation")
+	}
+	defer op.Done(nil)
+
 	var ctxMap log.Ctx
 
 	// Stop the instance.
@@ -2624,6 +2630,7 @@ func (d *qemu) Restore(source instance.Instance, stateful bool) error {
 
 			err := d.Update(args, false)
 			if err != nil {
+				op.Done(err)
 				return err
 			}
 
@@ -2637,8 +2644,17 @@ func (d *qemu) Restore(source instance.Instance, stateful bool) error {
 		// This will unmount the instance storage.
 		err := d.Stop(false)
 		if err != nil {
+			op.Done(err)
 			return err
 		}
+
+		// Refresh the operation as that one is now complete.
+		op, err = operationlock.Create(d.id, "restore", false, false)
+		if err != nil {
+			return errors.Wrap(err, "Create restore operation")
+		}
+		defer op.Done(nil)
+
 	}
 
 	ctxMap = log.Ctx{
@@ -2654,12 +2670,14 @@ func (d *qemu) Restore(source instance.Instance, stateful bool) error {
 	// Load the storage driver.
 	pool, err := storagePools.GetPoolByInstance(d.state, d)
 	if err != nil {
+		op.Done(err)
 		return err
 	}
 
 	// Ensure that storage is mounted for backup.yaml updates.
 	_, err = pool.MountInstance(d, nil)
 	if err != nil {
+		op.Done(err)
 		return err
 	}
 	defer pool.UnmountInstance(d, nil)
@@ -2667,6 +2685,7 @@ func (d *qemu) Restore(source instance.Instance, stateful bool) error {
 	// Restore the rootfs.
 	err = pool.RestoreInstanceSnapshot(d, source, nil)
 	if err != nil {
+		op.Done(err)
 		return err
 	}
 
@@ -2686,7 +2705,7 @@ func (d *qemu) Restore(source instance.Instance, stateful bool) error {
 	// Don't pass as user-requested as there's no way to fix a bad config.
 	err = d.Update(args, false)
 	if err != nil {
-		logger.Error("Failed restoring instance configuration", ctxMap)
+		op.Done(err)
 		return err
 	}
 
@@ -2694,6 +2713,7 @@ func (d *qemu) Restore(source instance.Instance, stateful bool) error {
 	// the instance listed); let's write a new one to be safe.
 	err = d.UpdateBackupFile()
 	if err != nil {
+		op.Done(err)
 		return err
 	}
 
@@ -2701,6 +2721,7 @@ func (d *qemu) Restore(source instance.Instance, stateful bool) error {
 	if wasRunning {
 		err := d.Start(false)
 		if err != nil {
+			op.Done(err)
 			return err
 		}
 	}
