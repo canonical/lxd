@@ -358,6 +358,11 @@ func (c *cmdStorageGet) Run(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf(i18n.G("Missing pool name"))
 	}
 
+	// If a target member was specified, we return also member-specific config values.
+	if c.storage.flagTarget != "" {
+		resource.server = resource.server.UseTarget(c.storage.flagTarget)
+	}
+
 	// Get the property
 	resp, _, err := resource.server.GetStoragePool(resource.name)
 	if err != nil {
