@@ -262,9 +262,6 @@ func storagePoolsPostCluster(d *Daemon, req api.StoragePoolsPost, clientType req
 
 	// Create the pool on this node.
 	nodeReq := req
-	for key, value := range configs[nodeName] {
-		nodeReq.Config[key] = value
-	}
 
 	// Merge node specific config items into global config.
 	for key, value := range configs[nodeName] {
@@ -282,6 +279,11 @@ func storagePoolsPostCluster(d *Daemon, req api.StoragePoolsPost, clientType req
 	}
 	req.Config = updatedConfig
 	logger.Debug("Created storage pool on local cluster member", log.Ctx{"pool": req.Name})
+
+	// Strip node specific config keys from config. Very important so we don't forward node-specific config.
+	for _, k := range db.StoragePoolNodeConfigKeys {
+		delete(req.Config, k)
+	}
 
 	// Notify all other nodes to create the pool.
 	err = notifier(func(client lxd.InstanceServer) error {
