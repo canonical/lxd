@@ -508,6 +508,10 @@ func (b *lxdBackend) CreateInstance(inst instance.Instance, op *operations.Opera
 	logger.Debug("CreateInstance started")
 	defer logger.Debug("CreateInstance finished")
 
+	if b.Status() == api.StoragePoolStatusPending {
+		return fmt.Errorf("Specified pool is not fully created")
+	}
+
 	volType, err := InstanceTypeToVolumeType(inst.Type())
 	if err != nil {
 		return err
@@ -693,6 +697,10 @@ func (b *lxdBackend) CreateInstanceFromCopy(inst instance.Instance, src instance
 	logger := logging.AddContext(b.logger, log.Ctx{"project": inst.Project(), "instance": inst.Name(), "src": src.Name(), "snapshots": snapshots})
 	logger.Debug("CreateInstanceFromCopy started")
 	defer logger.Debug("CreateInstanceFromCopy finished")
+
+	if b.Status() == api.StoragePoolStatusPending {
+		return fmt.Errorf("Specified pool is not fully created")
+	}
 
 	if inst.Type() != src.Type() {
 		return fmt.Errorf("Instance types must match")
@@ -1049,6 +1057,10 @@ func (b *lxdBackend) CreateInstanceFromImage(inst instance.Instance, fingerprint
 	logger.Debug("CreateInstanceFromImage started")
 	defer logger.Debug("CreateInstanceFromImage finished")
 
+	if b.Status() == api.StoragePoolStatusPending {
+		return fmt.Errorf("Specified pool is not fully created")
+	}
+
 	volType, err := InstanceTypeToVolumeType(inst.Type())
 	if err != nil {
 		return err
@@ -1155,6 +1167,10 @@ func (b *lxdBackend) CreateInstanceFromMigration(inst instance.Instance, conn io
 	logger := logging.AddContext(b.logger, log.Ctx{"project": inst.Project(), "instance": inst.Name(), "args": args})
 	logger.Debug("CreateInstanceFromMigration started")
 	defer logger.Debug("CreateInstanceFromMigration finished")
+
+	if b.Status() == api.StoragePoolStatusPending {
+		return fmt.Errorf("Specified pool is not fully created")
+	}
 
 	if args.Config != nil {
 		return fmt.Errorf("Migration VolumeTargetArgs.Config cannot be set")
@@ -2168,6 +2184,10 @@ func (b *lxdBackend) EnsureImage(fingerprint string, op *operations.Operation) e
 	logger.Debug("EnsureImage started")
 	defer logger.Debug("EnsureImage finished")
 
+	if b.Status() == api.StoragePoolStatusPending {
+		return fmt.Errorf("Specified pool is not fully created")
+	}
+
 	if !b.driver.Info().OptimizedImages {
 		return nil // Nothing to do for drivers that don't support optimized images volumes.
 	}
@@ -2395,6 +2415,10 @@ func (b *lxdBackend) CreateCustomVolume(projectName string, volName string, desc
 	logger.Debug("CreateCustomVolume started")
 	defer logger.Debug("CreateCustomVolume finished")
 
+	if b.Status() == api.StoragePoolStatusPending {
+		return fmt.Errorf("Specified pool is not fully created")
+	}
+
 	// Get the volume name on storage.
 	volStorageName := project.StorageVolume(projectName, volName)
 
@@ -2434,6 +2458,10 @@ func (b *lxdBackend) CreateCustomVolumeFromCopy(projectName string, volName stri
 	logger := logging.AddContext(b.logger, log.Ctx{"project": projectName, "volName": volName, "desc": desc, "config": config, "srcPoolName": srcPoolName, "srcVolName": srcVolName, "srcVolOnly": srcVolOnly})
 	logger.Debug("CreateCustomVolumeFromCopy started")
 	defer logger.Debug("CreateCustomVolumeFromCopy finished")
+
+	if b.Status() == api.StoragePoolStatusPending {
+		return fmt.Errorf("Specified pool is not fully created")
+	}
 
 	// Setup the source pool backend instance.
 	var srcPool *lxdBackend
@@ -2695,6 +2723,10 @@ func (b *lxdBackend) CreateCustomVolumeFromMigration(projectName string, conn io
 	logger := logging.AddContext(b.logger, log.Ctx{"project": projectName, "volName": args.Name, "args": args})
 	logger.Debug("CreateCustomVolumeFromMigration started")
 	defer logger.Debug("CreateCustomVolumeFromMigration finished")
+
+	if b.Status() == api.StoragePoolStatusPending {
+		return fmt.Errorf("Specified pool is not fully created")
+	}
 
 	// Create slice to record DB volumes created if revert needed later.
 	revertDBVolumes := []string{}
