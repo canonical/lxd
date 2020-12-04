@@ -40,6 +40,10 @@ profile "{{ .name }}" flags=(attach_disconnected,mediate_deleted) {
   /usr/share/qemu/**                        kr,
   /usr/share/seabios/**                     kr,
   owner @{PROC}/@{pid}/task/@{tid}/comm     rw,
+  {{ .rootPath }}/etc/nsswitch.conf         r,
+  {{ .rootPath }}/etc/passwd                r,
+  {{ .rootPath }}/etc/group                 r,
+  @{PROC}/version                           r,
 
   # Instance specific paths
   {{ .logPath }}/** rwk,
