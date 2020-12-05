@@ -48,7 +48,7 @@ type proxyProcInfo struct {
 
 // validateConfig checks the supplied config for correctness.
 func (d *proxy) validateConfig(instConf instance.ConfigReader) error {
-	if !instanceSupported(instConf.Type(), instancetype.Container) {
+	if !instanceSupported(instConf.Type(), instancetype.Container, instancetype.VM) {
 		return ErrUnsupportedDevType
 	}
 
@@ -83,6 +83,10 @@ func (d *proxy) validateConfig(instConf instance.ConfigReader) error {
 	err := d.config.Validate(rules)
 	if err != nil {
 		return err
+	}
+
+	if instConf.Type() == instancetype.VM && !shared.IsTrue(d.config["nat"]) {
+		return fmt.Errorf("Only NAT mode is supported for proxies on VM instances")
 	}
 
 	listenAddr, err := ProxyParseAddr(d.config["listen"])
