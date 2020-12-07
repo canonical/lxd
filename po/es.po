@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: lxd\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2020-11-23 22:39-0500\n"
+"POT-Creation-Date: 2020-12-07 10:16-0500\n"
 "PO-Revision-Date: 2019-09-06 07:09+0000\n"
 "Last-Translator: Stéphane Graber <stgraber@stgraber.org>\n"
 "Language-Team: Spanish <https://hosted.weblate.org/projects/linux-containers/"
@@ -1216,7 +1216,7 @@ msgstr "FECHA DE EXPIRACIÓN"
 
 #: lxc/file.go:63
 msgid ""
-"Early server side processing of file tranfer requests cannot be canceled "
+"Early server side processing of file transfer requests cannot be canceled "
 "(interrupt two more times to force)"
 msgstr ""
 
@@ -1382,7 +1382,7 @@ msgstr ""
 msgid "Failed to create alias %s"
 msgstr ""
 
-#: lxc/copy.go:419
+#: lxc/copy.go:410
 #, fuzzy
 msgid "Failed to get the new instance name"
 msgstr "Perfil para aplicar al nuevo contenedor"
@@ -1665,7 +1665,7 @@ msgstr ""
 msgid "Instance name is mandatory"
 msgstr "Nombre del contenedor es obligatorio"
 
-#: lxc/copy.go:425 lxc/init.go:341
+#: lxc/copy.go:416 lxc/init.go:341
 #, fuzzy, c-format
 msgid "Instance name is: %s"
 msgstr "Nombre del contenedor es: %s"
@@ -2681,7 +2681,7 @@ msgstr ""
 msgid "Refresh images"
 msgstr ""
 
-#: lxc/copy.go:386
+#: lxc/copy.go:377
 #, fuzzy, c-format
 msgid "Refreshing instance: %s"
 msgstr "No se puede proveer el nombre del container a la lista"
@@ -2831,17 +2831,17 @@ msgid ""
 "The opposite of \"lxc pause\" is \"lxc start\"."
 msgstr ""
 
-#: lxc/restore.go:24
-msgid ""
-"Restore instaces from snapshots\n"
-"\n"
-"If --stateful is passed, then the running state will be restored too."
-msgstr ""
-
 #: lxc/restore.go:23
 #, fuzzy
 msgid "Restore instances from snapshots"
 msgstr "No se puede proveer el nombre del container a la lista"
+
+#: lxc/restore.go:24
+msgid ""
+"Restore instances from snapshots\n"
+"\n"
+"If --stateful is passed, then the running state will be restored too."
+msgstr ""
 
 #: lxc/storage_volume.go:1581 lxc/storage_volume.go:1582
 msgid "Restore storage volume snapshots"
@@ -3423,7 +3423,7 @@ msgstr ""
 msgid "Transferring image: %s"
 msgstr ""
 
-#: lxc/copy.go:352
+#: lxc/copy.go:343
 #, fuzzy, c-format
 msgid "Transferring instance: %s"
 msgstr "No se puede proveer el nombre del container a la lista"

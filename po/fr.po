@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: LXD\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2020-11-23 22:39-0500\n"
+"POT-Creation-Date: 2020-12-07 10:16-0500\n"
 "PO-Revision-Date: 2019-01-04 18:07+0000\n"
 "Last-Translator: Deleted User <noreply+12102@weblate.org>\n"
 "Language-Team: French <https://hosted.weblate.org/projects/linux-containers/"
@@ -1288,7 +1288,7 @@ msgstr "DATE D'EXPIRATION"
 
 #: lxc/file.go:63
 msgid ""
-"Early server side processing of file tranfer requests cannot be canceled "
+"Early server side processing of file transfer requests cannot be canceled "
 "(interrupt two more times to force)"
 msgstr ""
 
@@ -1473,7 +1473,7 @@ msgstr "Profil à appliquer au nouveau conteneur"
 msgid "Failed to create alias %s"
 msgstr "Échec lors de la génération de 'lxc.%s.1': %v"
 
-#: lxc/copy.go:419
+#: lxc/copy.go:410
 #, fuzzy
 msgid "Failed to get the new instance name"
 msgstr "Profil à appliquer au nouveau conteneur"
@@ -1774,7 +1774,7 @@ msgstr ""
 msgid "Instance name is mandatory"
 msgstr "Le nom du conteneur est obligatoire"
 
-#: lxc/copy.go:425 lxc/init.go:341
+#: lxc/copy.go:416 lxc/init.go:341
 #, fuzzy, c-format
 msgid "Instance name is: %s"
 msgstr "Le nom du conteneur est : %s"
@@ -2895,7 +2895,7 @@ msgstr "Pousser ou récupérer des fichiers récursivement"
 msgid "Refresh images"
 msgstr "Récupération de l'image : %s"
 
-#: lxc/copy.go:386
+#: lxc/copy.go:377
 #, fuzzy, c-format
 msgid "Refreshing instance: %s"
 msgstr "Ignorer l'état du conteneur (seulement pour start)"
@@ -3053,17 +3053,33 @@ msgid ""
 "The opposite of \"lxc pause\" is \"lxc start\"."
 msgstr "Le pendant de `lxc pause` est `lxc start`."
 
-#: lxc/restore.go:24
-msgid ""
-"Restore instaces from snapshots\n"
-"\n"
-"If --stateful is passed, then the running state will be restored too."
-msgstr ""
-
 #: lxc/restore.go:23
 #, fuzzy
 msgid "Restore instances from snapshots"
 msgstr "Forcer le conteneur à s'arrêter"
+
+#: lxc/restore.go:24
+#, fuzzy
+msgid ""
+"Restore instances from snapshots\n"
+"\n"
+"If --stateful is passed, then the running state will be restored too."
+msgstr ""
+"Créer un instantané en lecture seule d'un conteneur.\n"
+"\n"
+"lxc snapshot [<remote>:]<container> <snapshot name> [--stateful]\n"
+"\n"
+"Crée un instantanté du conteneur (y compris — de manière optionnelle —\n"
+"l'état de la mémoire du conteneur).  Si --stateful est utilisé, LXD\n"
+"tente de créer un point d'arrêt de l'état d'exécution du conteneur,\n"
+"incluant l'état de la mémoire, les connexions TCP, etc. afin qu'il\n"
+"puisse être restauré (via lxc restore) ultérieurement (bien que\n"
+"certaines choses, les connexions TCP ayant expirées après que la\n"
+"fenêtre de temps se soit écoulée par exemple, ne puissent être\n"
+"restaurées avec succès).\n"
+"\n"
+"Exemple :\n"
+"    lxc snapshot u1 snap0"
 
 #: lxc/storage_volume.go:1581 lxc/storage_volume.go:1582
 #, fuzzy
@@ -3694,7 +3710,7 @@ msgstr ""
 msgid "Transferring image: %s"
 msgstr "Transfert de l'image : %s"
 
-#: lxc/copy.go:352
+#: lxc/copy.go:343
 #, fuzzy, c-format
 msgid "Transferring instance: %s"
 msgstr "Transfert de l'image : %s"

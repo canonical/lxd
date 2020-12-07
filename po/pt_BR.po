@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: lxd\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2020-11-23 22:39-0500\n"
+"POT-Creation-Date: 2020-12-07 10:16-0500\n"
 "PO-Revision-Date: 2019-09-06 07:09+0000\n"
 "Last-Translator: Stéphane Graber <stgraber@stgraber.org>\n"
 "Language-Team: Portuguese (Brazil) <https://hosted.weblate.org/projects/"
@@ -1241,7 +1241,7 @@ msgstr "DATA DE VALIDADE"
 
 #: lxc/file.go:63
 msgid ""
-"Early server side processing of file tranfer requests cannot be canceled "
+"Early server side processing of file transfer requests cannot be canceled "
 "(interrupt two more times to force)"
 msgstr ""
 
@@ -1411,7 +1411,7 @@ msgstr ""
 msgid "Failed to create alias %s"
 msgstr ""
 
-#: lxc/copy.go:419
+#: lxc/copy.go:410
 msgid "Failed to get the new instance name"
 msgstr ""
 
@@ -1696,7 +1696,7 @@ msgstr ""
 msgid "Instance name is mandatory"
 msgstr ""
 
-#: lxc/copy.go:425 lxc/init.go:341
+#: lxc/copy.go:416 lxc/init.go:341
 #, c-format
 msgid "Instance name is: %s"
 msgstr ""
@@ -2715,7 +2715,7 @@ msgstr ""
 msgid "Refresh images"
 msgstr ""
 
-#: lxc/copy.go:386
+#: lxc/copy.go:377
 #, fuzzy, c-format
 msgid "Refreshing instance: %s"
 msgstr "Editar arquivos no container"
@@ -2865,16 +2865,21 @@ msgid ""
 "The opposite of \"lxc pause\" is \"lxc start\"."
 msgstr ""
 
-#: lxc/restore.go:24
-msgid ""
-"Restore instaces from snapshots\n"
-"\n"
-"If --stateful is passed, then the running state will be restored too."
-msgstr ""
-
 #: lxc/restore.go:23
 msgid "Restore instances from snapshots"
 msgstr ""
+
+#: lxc/restore.go:24
+#, fuzzy
+msgid ""
+"Restore instances from snapshots\n"
+"\n"
+"If --stateful is passed, then the running state will be restored too."
+msgstr ""
+"Criar image do container\n"
+"\n"
+"Quando --stateful é usado, o LXD tenta criar um checkpoint do estado atual \n"
+"do container, incluindo estado de memória dos processos, conexões TCP, ..."
 
 #: lxc/storage_volume.go:1581 lxc/storage_volume.go:1582
 msgid "Restore storage volume snapshots"
@@ -3465,7 +3470,7 @@ msgstr ""
 msgid "Transferring image: %s"
 msgstr ""
 
-#: lxc/copy.go:352
+#: lxc/copy.go:343
 #, fuzzy, c-format
 msgid "Transferring instance: %s"
 msgstr "Editar arquivos no container"
