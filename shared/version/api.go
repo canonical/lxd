@@ -213,6 +213,8 @@ var APIExtensions = []string{
 	"storage_rsync_compression",
 	"gpu_mdev",
 	"resources_pci_iommu",
+	"resources_network_usb",
+	"resources_disk_address",
 }
 
 // APIExtensionsCount returns the number of available API extensions.
