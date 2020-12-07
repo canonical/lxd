@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: lxd\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2020-12-07 10:16-0500\n"
+"POT-Creation-Date: 2020-12-09 16:52-0500\n"
 "PO-Revision-Date: 2019-09-06 07:09+0000\n"
 "Last-Translator: Stéphane Graber <stgraber@stgraber.org>\n"
 "Language-Team: Portuguese (Brazil) <https://hosted.weblate.org/projects/"
@@ -772,8 +772,8 @@ msgstr "Versão do cliente: %s\n"
 #: lxc/config.go:737 lxc/copy.go:52 lxc/info.go:45 lxc/init.go:54
 #: lxc/move.go:57 lxc/network.go:257 lxc/network.go:672 lxc/network.go:730
 #: lxc/network.go:1017 lxc/network.go:1084 lxc/network.go:1146
-#: lxc/storage.go:92 lxc/storage.go:336 lxc/storage.go:392 lxc/storage.go:588
-#: lxc/storage.go:655 lxc/storage.go:738 lxc/storage_volume.go:300
+#: lxc/storage.go:92 lxc/storage.go:336 lxc/storage.go:397 lxc/storage.go:593
+#: lxc/storage.go:665 lxc/storage.go:748 lxc/storage_volume.go:300
 #: lxc/storage_volume.go:460 lxc/storage_volume.go:537
 #: lxc/storage_volume.go:779 lxc/storage_volume.go:976
 #: lxc/storage_volume.go:1141 lxc/storage_volume.go:1171
@@ -806,6 +806,11 @@ msgstr ""
 "Todos os recursos do LXD podem ser acionados através de vários comandos "
 "abaixo.\n"
 "Para obter ajuda com qualquer um desses, simplesmente use-os com --help."
+
+#: lxc/export.go:43 lxc/publish.go:38
+#, fuzzy
+msgid "Compression algorithm to use (`none` for uncompressed)"
+msgstr "Definir um algoritmo de compressão: para imagem ou nenhum"
 
 #: lxc/copy.go:44 lxc/init.go:48
 #, fuzzy
@@ -1011,7 +1016,7 @@ msgid "DATABASE"
 msgstr ""
 
 #: lxc/image.go:1005 lxc/image_alias.go:234 lxc/list.go:431 lxc/network.go:870
-#: lxc/operation.go:160 lxc/storage.go:559 lxc/storage_volume.go:1114
+#: lxc/operation.go:160 lxc/storage.go:564 lxc/storage_volume.go:1114
 msgid "DESCRIPTION"
 msgstr ""
 
@@ -1019,22 +1024,13 @@ msgstr ""
 msgid "DISK USAGE"
 msgstr ""
 
-#: lxc/storage.go:560
+#: lxc/storage.go:565
 msgid "DRIVER"
 msgstr "DRIVER"
 
 #: lxc/info.go:107
 msgid "DRM:"
 msgstr ""
-
-#: lxc/export.go:43
-#, fuzzy
-msgid "Define a compression algorithm: for backup or none"
-msgstr "Definir um algoritmo de compressão: para imagem ou nenhum"
-
-#: lxc/publish.go:38
-msgid "Define a compression algorithm: for image or none"
-msgstr "Definir um algoritmo de compressão: para imagem ou nenhum"
 
 #: lxc/operation.go:52 lxc/operation.go:53
 msgid "Delete a background operation (will attempt to cancel)"
@@ -1122,8 +1118,8 @@ msgstr ""
 #: lxc/remote.go:85 lxc/remote.go:483 lxc/remote.go:519 lxc/remote.go:599
 #: lxc/remote.go:661 lxc/remote.go:711 lxc/remote.go:749 lxc/rename.go:21
 #: lxc/restore.go:24 lxc/snapshot.go:28 lxc/storage.go:33 lxc/storage.go:89
-#: lxc/storage.go:163 lxc/storage.go:213 lxc/storage.go:333 lxc/storage.go:388
-#: lxc/storage.go:508 lxc/storage.go:582 lxc/storage.go:651 lxc/storage.go:735
+#: lxc/storage.go:163 lxc/storage.go:213 lxc/storage.go:333 lxc/storage.go:393
+#: lxc/storage.go:513 lxc/storage.go:587 lxc/storage.go:661 lxc/storage.go:745
 #: lxc/storage_volume.go:33 lxc/storage_volume.go:140 lxc/storage_volume.go:213
 #: lxc/storage_volume.go:296 lxc/storage_volume.go:457
 #: lxc/storage_volume.go:534 lxc/storage_volume.go:610
@@ -1485,7 +1481,7 @@ msgstr ""
 #: lxc/alias.go:102 lxc/cluster.go:76 lxc/config_template.go:238
 #: lxc/config_trust.go:117 lxc/image.go:992 lxc/image_alias.go:155
 #: lxc/list.go:120 lxc/network.go:811 lxc/network.go:894 lxc/operation.go:104
-#: lxc/profile.go:581 lxc/project.go:386 lxc/remote.go:523 lxc/storage.go:510
+#: lxc/profile.go:581 lxc/project.go:386 lxc/remote.go:523 lxc/storage.go:515
 #: lxc/storage_volume.go:1066
 msgid "Format (csv|json|table|yaml)"
 msgstr ""
@@ -1848,7 +1844,7 @@ msgstr ""
 msgid "List available networks"
 msgstr ""
 
-#: lxc/storage.go:507 lxc/storage.go:508
+#: lxc/storage.go:512 lxc/storage.go:513
 msgid "List available storage pools"
 msgstr ""
 
@@ -2230,8 +2226,8 @@ msgstr ""
 msgid "Missing network name"
 msgstr ""
 
-#: lxc/storage.go:187 lxc/storage.go:257 lxc/storage.go:358 lxc/storage.go:414
-#: lxc/storage.go:611 lxc/storage.go:683 lxc/storage_volume.go:164
+#: lxc/storage.go:187 lxc/storage.go:257 lxc/storage.go:358 lxc/storage.go:419
+#: lxc/storage.go:616 lxc/storage.go:693 lxc/storage_volume.go:164
 #: lxc/storage_volume.go:237 lxc/storage_volume.go:482
 #: lxc/storage_volume.go:558 lxc/storage_volume.go:634
 #: lxc/storage_volume.go:716 lxc/storage_volume.go:815
@@ -2320,7 +2316,7 @@ msgid "Must supply instance name for: "
 msgstr ""
 
 #: lxc/cluster.go:132 lxc/list.go:438 lxc/network.go:867 lxc/profile.go:620
-#: lxc/project.go:455 lxc/remote.go:577 lxc/storage.go:558
+#: lxc/project.go:455 lxc/remote.go:577 lxc/storage.go:563
 #: lxc/storage_volume.go:1113
 msgid "NAME"
 msgstr ""
@@ -2906,7 +2902,7 @@ msgstr ""
 msgid "SNAPSHOTS"
 msgstr ""
 
-#: lxc/storage.go:565
+#: lxc/storage.go:570
 msgid "SOURCE"
 msgstr ""
 
@@ -2914,7 +2910,7 @@ msgstr ""
 msgid "SR-IOV information:"
 msgstr ""
 
-#: lxc/cluster.go:135 lxc/list.go:443 lxc/network.go:874 lxc/storage.go:563
+#: lxc/cluster.go:135 lxc/list.go:443 lxc/network.go:874 lxc/storage.go:568
 msgid "STATE"
 msgstr ""
 
@@ -3036,11 +3032,11 @@ msgid ""
 "    lxc project set [<remote>:]<project> <key> <value>"
 msgstr ""
 
-#: lxc/storage.go:581
+#: lxc/storage.go:586
 msgid "Set storage pool configuration keys"
 msgstr ""
 
-#: lxc/storage.go:582
+#: lxc/storage.go:587
 msgid ""
 "Set storage pool configuration keys\n"
 "\n"
@@ -3143,7 +3139,7 @@ msgstr ""
 msgid "Show project options"
 msgstr ""
 
-#: lxc/storage.go:650 lxc/storage.go:651
+#: lxc/storage.go:660 lxc/storage.go:661
 msgid "Show storage pool configurations and resources"
 msgstr ""
 
@@ -3167,11 +3163,11 @@ msgstr ""
 msgid "Show the resources available to the server"
 msgstr ""
 
-#: lxc/storage.go:654
+#: lxc/storage.go:664
 msgid "Show the resources available to the storage pool"
 msgstr ""
 
-#: lxc/storage.go:391
+#: lxc/storage.go:396
 msgid "Show the used and free space in bytes"
 msgstr ""
 
@@ -3179,7 +3175,7 @@ msgstr ""
 msgid "Show useful information about images"
 msgstr ""
 
-#: lxc/storage.go:387 lxc/storage.go:388
+#: lxc/storage.go:392 lxc/storage.go:393
 msgid "Show useful information about storage pools"
 msgstr ""
 
@@ -3439,7 +3435,7 @@ msgid "To start your first instance, try: lxc launch ubuntu:18.04"
 msgstr ""
 
 #: lxc/config.go:278 lxc/config.go:416 lxc/config.go:566 lxc/config.go:652
-#: lxc/copy.go:114 lxc/info.go:322 lxc/network.go:759 lxc/storage.go:420
+#: lxc/copy.go:114 lxc/info.go:322 lxc/network.go:759 lxc/storage.go:425
 msgid "To use --target, the destination remote must be a cluster"
 msgstr ""
 
@@ -3504,7 +3500,7 @@ msgstr ""
 msgid "URL"
 msgstr ""
 
-#: lxc/network.go:871 lxc/profile.go:621 lxc/project.go:459 lxc/storage.go:567
+#: lxc/network.go:871 lxc/profile.go:621 lxc/project.go:459 lxc/storage.go:572
 #: lxc/storage_volume.go:1115
 msgid "USED BY"
 msgstr ""
@@ -3557,7 +3553,7 @@ msgstr ""
 msgid "Unset project configuration keys"
 msgstr "Editar configurações de perfil como YAML"
 
-#: lxc/storage.go:734 lxc/storage.go:735
+#: lxc/storage.go:744 lxc/storage.go:745
 msgid "Unset storage pool configuration keys"
 msgstr ""
 
@@ -3672,7 +3668,7 @@ msgstr ""
 
 #: lxc/cluster.go:71 lxc/config_trust.go:112 lxc/monitor.go:28
 #: lxc/network.go:804 lxc/operation.go:99 lxc/profile.go:574 lxc/project.go:381
-#: lxc/storage.go:505 lxc/version.go:20
+#: lxc/storage.go:510 lxc/version.go:20
 msgid "[<remote>:]"
 msgstr ""
 
@@ -3879,7 +3875,7 @@ msgstr ""
 msgid "[<remote>:]<operation>"
 msgstr ""
 
-#: lxc/storage.go:160 lxc/storage.go:211 lxc/storage.go:386 lxc/storage.go:649
+#: lxc/storage.go:160 lxc/storage.go:211 lxc/storage.go:391 lxc/storage.go:659
 #: lxc/storage_volume.go:1061
 msgid "[<remote>:]<pool>"
 msgstr ""
@@ -3888,11 +3884,11 @@ msgstr ""
 msgid "[<remote>:]<pool> <driver> [key=value...]"
 msgstr ""
 
-#: lxc/storage.go:331 lxc/storage.go:733
+#: lxc/storage.go:331 lxc/storage.go:743
 msgid "[<remote>:]<pool> <key>"
 msgstr ""
 
-#: lxc/storage.go:580
+#: lxc/storage.go:585
 msgid "[<remote>:]<pool> <key> <value>"
 msgstr ""
 
@@ -4031,7 +4027,7 @@ msgstr ""
 msgid "default"
 msgstr ""
 
-#: lxc/storage.go:446
+#: lxc/storage.go:451
 msgid "description"
 msgstr ""
 
@@ -4039,7 +4035,7 @@ msgstr ""
 msgid "disabled"
 msgstr ""
 
-#: lxc/storage.go:445
+#: lxc/storage.go:450
 msgid "driver"
 msgstr ""
 
@@ -4057,7 +4053,7 @@ msgstr ""
 msgid "expires at %s"
 msgstr ""
 
-#: lxc/storage.go:443
+#: lxc/storage.go:448
 msgid "info"
 msgstr ""
 
@@ -4290,7 +4286,7 @@ msgid ""
 "\" in the \"default\" pool."
 msgstr ""
 
-#: lxc/storage.go:444
+#: lxc/storage.go:449
 msgid "name"
 msgstr ""
 
@@ -4306,7 +4302,7 @@ msgstr ""
 msgid "please use `lxc profile`"
 msgstr ""
 
-#: lxc/storage.go:448
+#: lxc/storage.go:453
 msgid "space used"
 msgstr ""
 
@@ -4323,7 +4319,7 @@ msgstr ""
 msgid "taken at %s"
 msgstr ""
 
-#: lxc/storage.go:447
+#: lxc/storage.go:452
 msgid "total space"
 msgstr ""
 
@@ -4331,7 +4327,7 @@ msgstr ""
 msgid "unreachable"
 msgstr ""
 
-#: lxc/storage.go:442
+#: lxc/storage.go:447
 msgid "used by"
 msgstr ""
 
@@ -4343,6 +4339,10 @@ msgstr ""
 #: lxc/image.go:1060
 msgid "yes"
 msgstr "sim"
+
+#, fuzzy
+#~ msgid "Define a compression algorithm: for backup or none"
+#~ msgstr "Definir um algoritmo de compressão: para imagem ou nenhum"
 
 #, fuzzy
 #~ msgid "Add devices to instances or profiles"
