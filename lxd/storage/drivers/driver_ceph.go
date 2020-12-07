@@ -213,9 +213,7 @@ func (d *ceph) Delete(op *operations.Operation) error {
 	}
 
 	// Check whether we own the pool and only remove in this case.
-	if d.config["volatile.pool.pristine"] != "" &&
-		shared.IsTrue(d.config["volatile.pool.pristine"]) {
-
+	if shared.IsTrue(d.config["volatile.pool.pristine"]) {
 		// Delete the osd pool.
 		if poolExists {
 			err := d.osdDeletePool()

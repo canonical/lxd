@@ -1325,7 +1325,7 @@ func createStoragePoolVolumeFromBackup(d *Daemon, project string, data io.Reader
 	})
 
 	// Check storage pool exists.
-	_, _, err = d.State().Cluster.GetStoragePoolInAnyState(bInfo.Pool)
+	_, _, _, err = d.State().Cluster.GetStoragePoolInAnyState(bInfo.Pool)
 	if errors.Cause(err) == db.ErrNoSuchObject {
 		// The storage pool doesn't exist. If backup is in binary format (so we cannot alter
 		// the backup.yaml) or the pool has been specified directly from the user restoring

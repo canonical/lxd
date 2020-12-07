@@ -254,8 +254,9 @@ func (c *ClusterTx) GetNonPendingStoragePoolsNamesToIDs() (map[string]int64, err
 // assume that the relevant pool has already been created on the joining node,
 // and we just need to track it.
 func (c *ClusterTx) UpdateStoragePoolAfterNodeJoin(poolID, nodeID int64) error {
-	columns := []string{"storage_pool_id", "node_id"}
-	values := []interface{}{poolID, nodeID}
+	columns := []string{"storage_pool_id", "node_id", "state"}
+	// Create storage pool node with storagePoolCreated state as we expect the pool to already be setup.
+	values := []interface{}{poolID, nodeID, storagePoolCreated}
 	_, err := query.UpsertObject(c.tx, "storage_pools_nodes", columns, values)
 	if err != nil {
 		return errors.Wrap(err, "failed to add storage pools node entry")
@@ -370,12 +371,22 @@ func (c *ClusterTx) CreateStoragePoolConfig(poolID, nodeID int64, config map[str
 	return storagePoolConfigAdd(c.tx, poolID, nodeID, config)
 }
 
+// StoragePoolState indicates the state of the storage pool or storage pool node.
+type StoragePoolState int
+
 // Storage pools state.
 const (
-	storagePoolPending int = iota // Storage pool defined but not yet created.
-	storagePoolCreated            // Storage pool created on all nodes.
-	storagePoolErrored            // Storage pool creation failed on some nodes
+	storagePoolPending StoragePoolState = iota // Storage pool defined but not yet created globally or on specific node.
+	storagePoolCreated                         // Storage pool created globally or on specific node.
+	storagePoolErrored                         // Deprecated (should no longer occur).
 )
+
+// StoragePoolNode represents a storage pool node.
+type StoragePoolNode struct {
+	ID    int64
+	Name  string
+	State StoragePoolState
+}
 
 // CreatePendingStoragePool creates a new pending storage pool on the node with
 // the given name.
@@ -385,7 +396,7 @@ func (c *ClusterTx) CreatePendingStoragePool(node, name, driver string, conf map
 	pool := struct {
 		id     int64
 		driver string
-		state  int
+		state  StoragePoolState
 	}{}
 
 	var errConsistency error
@@ -446,9 +457,9 @@ func (c *ClusterTx) CreatePendingStoragePool(node, name, driver string, conf map
 		return ErrAlreadyDefined
 	}
 
-	// Insert the node-specific configuration.
-	columns := []string{"storage_pool_id", "node_id"}
-	values := []interface{}{poolID, nodeInfo.ID}
+	// Insert a node-specific entry pointing to ourselves with state storagePoolPending.
+	columns := []string{"storage_pool_id", "node_id", "state"}
+	values := []interface{}{poolID, nodeInfo.ID, storagePoolPending}
 	_, err = query.UpsertObject(c.tx, "storage_pools_nodes", columns, values)
 	if err != nil {
 		return err
@@ -461,17 +472,12 @@ func (c *ClusterTx) CreatePendingStoragePool(node, name, driver string, conf map
 	return nil
 }
 
-// StoragePoolCreated sets the state of the given pool to "Created".
+// StoragePoolCreated sets the state of the given pool to storagePoolCreated.
 func (c *ClusterTx) StoragePoolCreated(name string) error {
 	return c.storagePoolState(name, storagePoolCreated)
 }
 
-// StoragePoolErrored sets the state of the given pool to "Errored".
-func (c *ClusterTx) StoragePoolErrored(name string) error {
-	return c.storagePoolState(name, storagePoolErrored)
-}
-
-func (c *ClusterTx) storagePoolState(name string, state int) error {
+func (c *ClusterTx) storagePoolState(name string, state StoragePoolState) error {
 	stmt := "UPDATE storage_pools SET state=? WHERE name=?"
 	result, err := c.tx.Exec(stmt, state, name)
 	if err != nil {
@@ -484,6 +490,60 @@ func (c *ClusterTx) storagePoolState(name string, state int) error {
 	if n != 1 {
 		return ErrNoSuchObject
 	}
+	return nil
+}
+
+// storagePoolNodes returns the nodes keyed by node ID that the given storage pool is defined on.
+func (c *ClusterTx) storagePoolNodes(poolID int64) (map[int64]StoragePoolNode, error) {
+	nodes := []StoragePoolNode{}
+	dest := func(i int) []interface{} {
+		nodes = append(nodes, StoragePoolNode{})
+		return []interface{}{&nodes[i].ID, &nodes[i].Name, &nodes[i].State}
+	}
+
+	stmt, err := c.tx.Prepare(`
+		SELECT nodes.id, nodes.name, storage_pools_nodes.state FROM nodes
+		JOIN storage_pools_nodes ON storage_pools_nodes.node_id = nodes.id
+		WHERE storage_pools_nodes.storage_pool_id = ?
+	`)
+	if err != nil {
+		return nil, err
+	}
+	defer stmt.Close()
+
+	err = query.SelectObjects(stmt, dest, poolID)
+	if err != nil {
+		return nil, err
+	}
+
+	poolNodes := map[int64]StoragePoolNode{}
+	for _, node := range nodes {
+		poolNodes[node.ID] = node
+	}
+
+	return poolNodes, nil
+}
+
+// StoragePoolNodeCreated sets the state of the given storage pool for the local member to storagePoolCreated.
+func (c *ClusterTx) StoragePoolNodeCreated(poolID int64) error {
+	return c.storagePoolNodeState(poolID, storagePoolCreated)
+}
+
+// storagePoolNodeState updates the storage pool member state for the local member and specified network ID.
+func (c *ClusterTx) storagePoolNodeState(poolID int64, state StoragePoolState) error {
+	stmt := "UPDATE storage_pools_nodes SET state=? WHERE storage_pool_id = ? and node_id = ?"
+	result, err := c.tx.Exec(stmt, state, poolID, c.nodeID)
+	if err != nil {
+		return err
+	}
+	n, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if n != 1 {
+		return ErrNoSuchObject
+	}
+
 	return nil
 }
 
@@ -622,43 +682,43 @@ func (c *Cluster) GetStoragePoolID(poolName string) (int64, error) {
 // GetStoragePool returns a single storage pool.
 //
 // The pool must be in the created stated, not pending.
-func (c *Cluster) GetStoragePool(poolName string) (int64, *api.StoragePool, error) {
+func (c *Cluster) GetStoragePool(poolName string) (int64, *api.StoragePool, map[int64]StoragePoolNode, error) {
 	return c.getStoragePool(poolName, true)
 }
 
 // GetStoragePoolInAnyState returns the storage pool with the given name.
 //
 // The pool can be in any state.
-func (c *Cluster) GetStoragePoolInAnyState(name string) (int64, *api.StoragePool, error) {
+func (c *Cluster) GetStoragePoolInAnyState(name string) (int64, *api.StoragePool, map[int64]StoragePoolNode, error) {
 	return c.getStoragePool(name, false)
 }
 
 // GetStoragePool returns a single storage pool.
-func (c *Cluster) getStoragePool(poolName string, onlyCreated bool) (int64, *api.StoragePool, error) {
+func (c *Cluster) getStoragePool(poolName string, onlyCreated bool) (int64, *api.StoragePool, map[int64]StoragePoolNode, error) {
 	var poolDriver string
 	poolID := int64(-1)
 	description := sql.NullString{}
-	var state int
+	var state StoragePoolState
 
 	query := "SELECT id, driver, description, state FROM storage_pools WHERE name=?"
 	inargs := []interface{}{poolName}
 	outargs := []interface{}{&poolID, &poolDriver, &description, &state}
 	if onlyCreated {
 		query += " AND state=?"
-		inargs = append(inargs, networkCreated)
+		inargs = append(inargs, storagePoolCreated)
 	}
 
 	err := dbQueryRowScan(c, query, inargs, outargs)
 	if err != nil {
 		if err == sql.ErrNoRows {
-			return -1, nil, ErrNoSuchObject
+			return -1, nil, nil, ErrNoSuchObject
 		}
-		return -1, nil, err
+		return -1, nil, nil, err
 	}
 
 	config, err := c.getStoragePoolConfig(poolID)
 	if err != nil {
-		return -1, nil, err
+		return -1, nil, nil, err
 	}
 
 	storagePool := api.StoragePool{
@@ -667,43 +727,51 @@ func (c *Cluster) getStoragePool(poolName string, onlyCreated bool) (int64, *api
 	}
 	storagePool.Description = description.String
 	storagePool.Config = config
-
-	switch state {
-	case storagePoolPending:
-		storagePool.Status = "Pending"
-	case storagePoolCreated:
-		storagePool.Status = "Created"
-	case storagePoolErrored:
-		storagePool.Status = "Errored"
-	default:
-		storagePool.Status = "Unknown"
-	}
+	storagePool.Status = StoragePoolStateToAPIStatus(state)
 
 	nodes, err := c.storagePoolNodes(poolID)
 	if err != nil {
-		return -1, nil, err
+		return -1, nil, nil, err
 	}
-	storagePool.Locations = nodes
 
-	return poolID, &storagePool, nil
+	for _, node := range nodes {
+		storagePool.Locations = append(storagePool.Locations, node.Name)
+	}
+
+	return poolID, &storagePool, nodes, nil
 }
 
-// Return the names of the nodes the given pool is defined on.
-func (c *Cluster) storagePoolNodes(poolID int64) ([]string, error) {
-	stmt := `
-SELECT nodes.name FROM nodes
-  JOIN storage_pools_nodes ON storage_pools_nodes.node_id = nodes.id
-  WHERE storage_pools_nodes.storage_pool_id = ?
-`
-	var nodes []string
-	err := c.Transaction(func(tx *ClusterTx) error {
-		var err error
-		nodes, err = query.SelectStrings(tx.tx, stmt, poolID)
-		return err
+// StoragePoolStateToAPIStatus converts DB StoragePoolState to API status string.
+func StoragePoolStateToAPIStatus(state StoragePoolState) string {
+	switch state {
+	case storagePoolPending:
+		return api.StoragePoolStatusPending
+	case storagePoolCreated:
+		return api.StoragePoolStatusCreated
+	case storagePoolErrored:
+		return api.StoragePoolStatusErrored
+	default:
+		return api.StoragePoolStatusUnknown
+	}
+}
+
+// storagePoolNodes returns the nodes keyed by node ID that the given storage pool is defined on.
+func (c *Cluster) storagePoolNodes(poolID int64) (map[int64]StoragePoolNode, error) {
+	var nodes map[int64]StoragePoolNode
+	var err error
+
+	err = c.Transaction(func(tx *ClusterTx) error {
+		nodes, err = tx.storagePoolNodes(poolID)
+		if err != nil {
+			return err
+		}
+
+		return nil
 	})
 	if err != nil {
 		return nil, err
 	}
+
 	return nodes, nil
 }
 
@@ -745,9 +813,9 @@ func (c *Cluster) CreateStoragePool(poolName string, poolDescription string, poo
 			return err
 		}
 
-		// Insert a node-specific entry pointing to ourselves.
-		columns := []string{"storage_pool_id", "node_id"}
-		values := []interface{}{id, c.nodeID}
+		// Insert a node-specific entry pointing to ourselves with state storagePoolPending.
+		columns := []string{"storage_pool_id", "node_id", "state"}
+		values := []interface{}{id, c.nodeID, storagePoolPending}
 		_, err = query.UpsertObject(tx.tx, "storage_pools_nodes", columns, values)
 		if err != nil {
 			return err
@@ -814,7 +882,7 @@ func storagePoolDriverGet(tx *sql.Tx, id int64) (string, error) {
 
 // UpdateStoragePool updates a storage pool.
 func (c *Cluster) UpdateStoragePool(poolName, description string, poolConfig map[string]string) error {
-	poolID, _, err := c.GetStoragePoolInAnyState(poolName)
+	poolID, _, _, err := c.GetStoragePoolInAnyState(poolName)
 	if err != nil {
 		return err
 	}
@@ -858,7 +926,7 @@ func clearStoragePoolConfig(tx *sql.Tx, poolID, nodeID int64) error {
 
 // RemoveStoragePool deletes storage pool.
 func (c *Cluster) RemoveStoragePool(poolName string) (*api.StoragePool, error) {
-	poolID, pool, err := c.GetStoragePoolInAnyState(poolName)
+	poolID, pool, _, err := c.GetStoragePoolInAnyState(poolName)
 	if err != nil {
 		return nil, err
 	}

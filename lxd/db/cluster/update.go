@@ -77,6 +77,17 @@ var updates = map[int]schema.Update{
 	38: updateFromV37,
 	39: updateFromV38,
 	40: updateFromV39,
+	41: updateFromV40,
+}
+
+// Add state column to storage_pools_nodes tables. Set existing row's state to 1 ("created").
+func updateFromV40(tx *sql.Tx) error {
+	stmt := `
+		ALTER TABLE storage_pools_nodes ADD COLUMN state INTEGER NOT NULL DEFAULT 0;
+		UPDATE storage_pools_nodes SET state = 1;
+	`
+	_, err := tx.Exec(stmt)
+	return err
 }
 
 // Add state column to networks_nodes tables. Set existing row's state to 1 ("created").

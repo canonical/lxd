@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/lxc/lxd/lxd/backup"
+	"github.com/lxc/lxd/lxd/cluster/request"
 	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/migration"
 	"github.com/lxc/lxd/lxd/operations"
@@ -30,6 +31,18 @@ func (b *mockBackend) Name() string {
 	return b.name
 }
 
+func (b *mockBackend) Description() string {
+	return ""
+}
+
+func (b *mockBackend) Status() string {
+	return api.NetworkStatusUnknown
+}
+
+func (b *mockBackend) LocalStatus() string {
+	return api.NetworkStatusUnknown
+}
+
 func (b *mockBackend) Driver() drivers.Driver {
 	return b.driver
 }
@@ -47,11 +60,19 @@ func (b *mockBackend) GetResources() (*api.ResourcesStoragePool, error) {
 	return nil, nil
 }
 
-func (b *mockBackend) Delete(localOnly bool, op *operations.Operation) error {
+func (b *mockBackend) IsUsed() (bool, error) {
+	return false, nil
+}
+
+func (b *mockBackend) Delete(clientType request.ClientType, op *operations.Operation) error {
 	return nil
 }
 
-func (b *mockBackend) Update(localOnly bool, newDescription string, newConfig map[string]string, op *operations.Operation) error {
+func (b *mockBackend) Update(clientType request.ClientType, newDescription string, newConfig map[string]string, op *operations.Operation) error {
+	return nil
+}
+
+func (b *mockBackend) Create(clientType request.ClientType, op *operations.Operation) error {
 	return nil
 }
 
