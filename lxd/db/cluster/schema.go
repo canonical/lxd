@@ -490,6 +490,7 @@ CREATE TABLE storage_pools_nodes (
     id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
     storage_pool_id INTEGER NOT NULL,
     node_id INTEGER NOT NULL,
+    state INTEGER NOT NULL DEFAULT 0,
     UNIQUE (storage_pool_id, node_id),
     FOREIGN KEY (storage_pool_id) REFERENCES storage_pools (id) ON DELETE CASCADE,
     FOREIGN KEY (node_id) REFERENCES nodes (id) ON DELETE CASCADE
@@ -590,5 +591,5 @@ CREATE TABLE storage_volumes_snapshots_config (
     UNIQUE (storage_volume_snapshot_id, key)
 );
 
-INSERT INTO schema (version, updated_at) VALUES (40, strftime("%s"))
+INSERT INTO schema (version, updated_at) VALUES (41, strftime("%s"))
 `

@@ -545,7 +545,7 @@ func patchRenameCustomVolumeLVs(name string, d *Daemon) error {
 	pools, _ := d.cluster.GetStoragePoolNames()
 
 	for _, poolName := range pools {
-		poolID, pool, err := d.cluster.GetStoragePoolInAnyState(poolName)
+		poolID, pool, _, err := d.cluster.GetStoragePoolInAnyState(poolName)
 		if err != nil {
 			return err
 		}
@@ -815,7 +815,7 @@ func upgradeFromStorageTypeBtrfs(name string, d *Daemon, defaultPoolName string,
 
 		// Get the pool ID as we need it for storage volume creation.
 		// (Use a tmp variable as Go's scoping is freaking me out.)
-		tmp, pool, err := d.cluster.GetStoragePoolInAnyState(defaultPoolName)
+		tmp, pool, _, err := d.cluster.GetStoragePoolInAnyState(defaultPoolName)
 		if err != nil {
 			logger.Errorf("Failed to query database: %s", err)
 			return err
@@ -847,7 +847,7 @@ func upgradeFromStorageTypeBtrfs(name string, d *Daemon, defaultPoolName string,
 			Driver: defaultStorageTypeName,
 		}
 
-		_, err = storagePools.CreatePool(d.State(), poolID, &poolInfo, false, nil)
+		_, err = storagePools.CreatePool(d.State(), poolID, &poolInfo)
 		if err != nil {
 			return err
 		}
@@ -868,7 +868,7 @@ func upgradeFromStorageTypeBtrfs(name string, d *Daemon, defaultPoolName string,
 	}
 
 	// Get storage pool from the db after having updated it above.
-	_, defaultPool, err := d.cluster.GetStoragePoolInAnyState(defaultPoolName)
+	_, defaultPool, _, err := d.cluster.GetStoragePoolInAnyState(defaultPoolName)
 	if err != nil {
 		return err
 	}
@@ -1115,7 +1115,7 @@ func upgradeFromStorageTypeDir(name string, d *Daemon, defaultPoolName string, d
 
 		// Get the pool ID as we need it for storage volume creation.
 		// (Use a tmp variable as Go's scoping is freaking me out.)
-		tmp, pool, err := d.cluster.GetStoragePoolInAnyState(defaultPoolName)
+		tmp, pool, _, err := d.cluster.GetStoragePoolInAnyState(defaultPoolName)
 		if err != nil {
 			logger.Errorf("Failed to query database: %s", err)
 			return err
@@ -1147,7 +1147,7 @@ func upgradeFromStorageTypeDir(name string, d *Daemon, defaultPoolName string, d
 			Driver: defaultStorageTypeName,
 		}
 
-		_, err = storagePools.CreatePool(d.State(), poolID, &poolInfo, false, nil)
+		_, err = storagePools.CreatePool(d.State(), poolID, &poolInfo)
 		if err != nil {
 			return err
 		}
@@ -1157,7 +1157,7 @@ func upgradeFromStorageTypeDir(name string, d *Daemon, defaultPoolName string, d
 	}
 
 	// Get storage pool from the db after having updated it above.
-	_, defaultPool, err := d.cluster.GetStoragePoolInAnyState(defaultPoolName)
+	_, defaultPool, _, err := d.cluster.GetStoragePoolInAnyState(defaultPoolName)
 	if err != nil {
 		return err
 	}
@@ -1417,7 +1417,7 @@ func upgradeFromStorageTypeLvm(name string, d *Daemon, defaultPoolName string, d
 
 		// Get the pool ID as we need it for storage volume creation.
 		// (Use a tmp variable as Go's scoping is freaking me out.)
-		tmp, pool, err := d.cluster.GetStoragePoolInAnyState(defaultPoolName)
+		tmp, pool, _, err := d.cluster.GetStoragePoolInAnyState(defaultPoolName)
 		if err != nil {
 			logger.Errorf("Failed to query database: %s", err)
 			return err
@@ -1466,7 +1466,7 @@ func upgradeFromStorageTypeLvm(name string, d *Daemon, defaultPoolName string, d
 	}
 
 	// Get storage pool from the db after having updated it above.
-	_, defaultPool, err := d.cluster.GetStoragePoolInAnyState(defaultPoolName)
+	_, defaultPool, _, err := d.cluster.GetStoragePoolInAnyState(defaultPoolName)
 	if err != nil {
 		return err
 	}
@@ -1929,7 +1929,7 @@ func upgradeFromStorageTypeZfs(name string, d *Daemon, defaultPoolName string, d
 
 		// Get the pool ID as we need it for storage volume creation.
 		// (Use a tmp variable as Go's scoping is freaking me out.)
-		tmp, pool, err := d.cluster.GetStoragePoolInAnyState(poolName)
+		tmp, pool, _, err := d.cluster.GetStoragePoolInAnyState(poolName)
 		if err != nil {
 			logger.Errorf("Failed to query database: %s", err)
 			return err
@@ -1986,7 +1986,7 @@ func upgradeFromStorageTypeZfs(name string, d *Daemon, defaultPoolName string, d
 	}
 
 	// Get storage pool from the db after having updated it above.
-	_, defaultPool, err := d.cluster.GetStoragePoolInAnyState(poolName)
+	_, defaultPool, _, err := d.cluster.GetStoragePoolInAnyState(poolName)
 	if err != nil {
 		return err
 	}
@@ -2498,7 +2498,7 @@ func patchStorageApiKeys(name string, d *Daemon) error {
 	}
 
 	for _, poolName := range pools {
-		_, pool, err := d.cluster.GetStoragePoolInAnyState(poolName)
+		_, pool, _, err := d.cluster.GetStoragePoolInAnyState(poolName)
 		if err != nil {
 			logger.Errorf("Failed to query database: %s", err)
 			return err
@@ -2553,7 +2553,7 @@ func patchStorageApiUpdateStorageConfigs(name string, d *Daemon) error {
 	}
 
 	for _, poolName := range pools {
-		poolID, pool, err := d.cluster.GetStoragePoolInAnyState(poolName)
+		poolID, pool, _, err := d.cluster.GetStoragePoolInAnyState(poolName)
 		if err != nil {
 			logger.Errorf("Failed to query database: %s", err)
 			return err
@@ -2701,7 +2701,7 @@ func patchStorageApiLxdOnBtrfs(name string, d *Daemon) error {
 	}
 
 	for _, poolName := range pools {
-		_, pool, err := d.cluster.GetStoragePoolInAnyState(poolName)
+		_, pool, _, err := d.cluster.GetStoragePoolInAnyState(poolName)
 		if err != nil {
 			logger.Errorf("Failed to query database: %s", err)
 			return err
@@ -2758,7 +2758,7 @@ func patchStorageApiDetectLVSize(name string, d *Daemon) error {
 	}
 
 	for _, poolName := range pools {
-		poolID, pool, err := d.cluster.GetStoragePoolInAnyState(poolName)
+		poolID, pool, _, err := d.cluster.GetStoragePoolInAnyState(poolName)
 		if err != nil {
 			logger.Errorf("Failed to query database: %s", err)
 			return err
@@ -2868,7 +2868,7 @@ func patchStorageZFSnoauto(name string, d *Daemon) error {
 	}
 
 	for _, poolName := range pools {
-		_, pool, err := d.cluster.GetStoragePoolInAnyState(poolName)
+		_, pool, _, err := d.cluster.GetStoragePoolInAnyState(poolName)
 		if err != nil {
 			logger.Errorf("Failed to query database: %s", err)
 			return err
@@ -2933,7 +2933,7 @@ func patchStorageZFSVolumeSize(name string, d *Daemon) error {
 	}
 
 	for _, poolName := range pools {
-		poolID, pool, err := d.cluster.GetStoragePoolInAnyState(poolName)
+		poolID, pool, _, err := d.cluster.GetStoragePoolInAnyState(poolName)
 		if err != nil {
 			logger.Errorf("Failed to query database: %s", err)
 			return err
@@ -3020,7 +3020,7 @@ func patchStorageApiDirBindMount(name string, d *Daemon) error {
 	}
 
 	for _, poolName := range pools {
-		_, pool, err := d.cluster.GetStoragePoolInAnyState(poolName)
+		_, pool, _, err := d.cluster.GetStoragePoolInAnyState(poolName)
 		if err != nil {
 			logger.Errorf("Failed to query database: %s", err)
 			return err
@@ -3105,7 +3105,7 @@ func patchStorageApiCephSizeRemove(name string, d *Daemon) error {
 	}
 
 	for _, poolName := range pools {
-		_, pool, err := d.cluster.GetStoragePoolInAnyState(poolName)
+		_, pool, _, err := d.cluster.GetStoragePoolInAnyState(poolName)
 		if err != nil {
 			logger.Errorf("Failed to query database: %s", err)
 			return err

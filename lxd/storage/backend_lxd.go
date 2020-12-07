@@ -13,6 +13,7 @@ import (
 	yaml "gopkg.in/yaml.v2"
 
 	"github.com/lxc/lxd/lxd/backup"
+	"github.com/lxc/lxd/lxd/cluster/request"
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/instance/instancetype"
@@ -40,6 +41,7 @@ type lxdBackend struct {
 	name   string
 	state  *state.State
 	logger logger.Logger
+	nodes  map[int64]db.StoragePoolNode
 }
 
 // ID returns the storage pool ID.
@@ -50,6 +52,26 @@ func (b *lxdBackend) ID() int64 {
 // Name returns the storage pool name.
 func (b *lxdBackend) Name() string {
 	return b.name
+}
+
+// Description returns the storage pool description.
+func (b *lxdBackend) Description() string {
+	return b.db.Description
+}
+
+// Status returns the storage pool status.
+func (b *lxdBackend) Status() string {
+	return b.db.Status
+}
+
+// LocalStatus returns storage pool status of the local cluster member.
+func (b *lxdBackend) LocalStatus() string {
+	node, exists := b.nodes[b.state.Cluster.GetNodeID()]
+	if !exists {
+		return api.StoragePoolStatusUnknown
+	}
+
+	return db.StoragePoolStateToAPIStatus(node.State)
 }
 
 // Driver returns the storage pool driver.
@@ -63,10 +85,10 @@ func (b *lxdBackend) MigrationTypes(contentType drivers.ContentType, refresh boo
 	return b.driver.MigrationTypes(contentType, refresh)
 }
 
-// create creates the storage pool layout on the storage device.
+// Create creates the storage pool layout on the storage device.
 // localOnly is used for clustering where only a single node should do remote storage setup.
-func (b *lxdBackend) create(localOnly bool, op *operations.Operation) error {
-	logger := logging.AddContext(b.logger, log.Ctx{"config": b.db.Config, "description": b.db.Description, "localOnly": localOnly})
+func (b *lxdBackend) Create(clientType request.ClientType, op *operations.Operation) error {
+	logger := logging.AddContext(b.logger, log.Ctx{"config": b.db.Config, "description": b.db.Description, "clientType": clientType})
 	logger.Debug("create started")
 	defer logger.Debug("create finished")
 
@@ -87,8 +109,7 @@ func (b *lxdBackend) create(localOnly bool, op *operations.Operation) error {
 
 	revert.Add(func() { os.RemoveAll(path) })
 
-	// If dealing with a remote storage pool, we're done now.
-	if b.driver.Info().Remote && localOnly {
+	if b.driver.Info().Remote && clientType != request.ClientTypeNormal {
 		if !b.driver.Info().MountedRoot {
 			// Create the directory structure.
 			err = b.createStorageStructure(path)
@@ -97,6 +118,7 @@ func (b *lxdBackend) create(localOnly bool, op *operations.Operation) error {
 			}
 		}
 
+		// Dealing with a remote storage pool, we're done now.
 		revert.Success()
 		return nil
 	}
@@ -161,8 +183,33 @@ func (b *lxdBackend) GetResources() (*api.ResourcesStoragePool, error) {
 	return b.driver.GetResources()
 }
 
+// IsUsed returns whether the storage pool is used by any volumes or profiles (excluding image volumes).
+func (b *lxdBackend) IsUsed() (bool, error) {
+	// Get all users of the storage pool.
+	var err error
+	poolUsedBy := []string{}
+	err = b.state.Cluster.Transaction(func(tx *db.ClusterTx) error {
+		poolUsedBy, err = tx.GetStoragePoolUsedBy(b.name)
+		return err
+	})
+	if err != nil {
+		return false, err
+	}
+
+	for _, entry := range poolUsedBy {
+		// Images are never considered a user of the pool.
+		if strings.HasPrefix(entry, "/1.0/images/") {
+			continue
+		}
+
+		return true, nil
+	}
+
+	return false, nil
+}
+
 // Update updates the pool config.
-func (b *lxdBackend) Update(driverOnly bool, newDesc string, newConfig map[string]string, op *operations.Operation) error {
+func (b *lxdBackend) Update(clientType request.ClientType, newDesc string, newConfig map[string]string, op *operations.Operation) error {
 	logger := logging.AddContext(b.logger, log.Ctx{"newDesc": newDesc, "newConfig": newConfig})
 	logger.Debug("Update started")
 	defer logger.Debug("Update finished")
@@ -176,23 +223,16 @@ func (b *lxdBackend) Update(driverOnly bool, newDesc string, newConfig map[strin
 	// Diff the configurations.
 	changedConfig, userOnly := b.detectChangedConfig(b.db.Config, newConfig)
 
-	// Apply config changes if there are any.
-	if len(changedConfig) != 0 {
-		if !userOnly {
-			err = b.driver.Update(changedConfig)
-			if err != nil {
-				return err
-			}
+	// Apply changes to local node if not pending and non-user config changed.
+	if len(changedConfig) != 0 && b.LocalStatus() != api.StoragePoolStatusPending && !userOnly {
+		err = b.driver.Update(changedConfig)
+		if err != nil {
+			return err
 		}
 	}
 
-	// If only dealing with driver changes, we're done now.
-	if driverOnly {
-		return nil
-	}
-
-	// Update the database if something changed.
-	if len(changedConfig) != 0 || newDesc != b.db.Description {
+	// Update the database if something changed and we're in ClientTypeNormal mode.
+	if clientType == request.ClientTypeNormal && (len(changedConfig) != 0 || newDesc != b.db.Description) {
 		err = b.state.Cluster.UpdateStoragePool(b.name, newDesc, newConfig)
 		if err != nil {
 			return err
@@ -204,8 +244,8 @@ func (b *lxdBackend) Update(driverOnly bool, newDesc string, newConfig map[strin
 }
 
 // Delete removes the pool.
-func (b *lxdBackend) Delete(localOnly bool, op *operations.Operation) error {
-	logger := logging.AddContext(b.logger, nil)
+func (b *lxdBackend) Delete(clientType request.ClientType, op *operations.Operation) error {
+	logger := logging.AddContext(b.logger, log.Ctx{"clientType": clientType})
 	logger.Debug("Delete started")
 	defer logger.Debug("Delete finished")
 
@@ -215,7 +255,7 @@ func (b *lxdBackend) Delete(localOnly bool, op *operations.Operation) error {
 		return nil
 	}
 
-	if localOnly && b.driver.Info().Remote {
+	if clientType != request.ClientTypeNormal && b.driver.Info().Remote {
 		if b.driver.Info().MountedRoot {
 			_, err := b.driver.Unmount()
 			if err != nil {
@@ -468,6 +508,10 @@ func (b *lxdBackend) CreateInstance(inst instance.Instance, op *operations.Opera
 	logger.Debug("CreateInstance started")
 	defer logger.Debug("CreateInstance finished")
 
+	if b.Status() == api.StoragePoolStatusPending {
+		return fmt.Errorf("Specified pool is not fully created")
+	}
+
 	volType, err := InstanceTypeToVolumeType(inst.Type())
 	if err != nil {
 		return err
@@ -653,6 +697,10 @@ func (b *lxdBackend) CreateInstanceFromCopy(inst instance.Instance, src instance
 	logger := logging.AddContext(b.logger, log.Ctx{"project": inst.Project(), "instance": inst.Name(), "src": src.Name(), "snapshots": snapshots})
 	logger.Debug("CreateInstanceFromCopy started")
 	defer logger.Debug("CreateInstanceFromCopy finished")
+
+	if b.Status() == api.StoragePoolStatusPending {
+		return fmt.Errorf("Specified pool is not fully created")
+	}
 
 	if inst.Type() != src.Type() {
 		return fmt.Errorf("Instance types must match")
@@ -1009,6 +1057,10 @@ func (b *lxdBackend) CreateInstanceFromImage(inst instance.Instance, fingerprint
 	logger.Debug("CreateInstanceFromImage started")
 	defer logger.Debug("CreateInstanceFromImage finished")
 
+	if b.Status() == api.StoragePoolStatusPending {
+		return fmt.Errorf("Specified pool is not fully created")
+	}
+
 	volType, err := InstanceTypeToVolumeType(inst.Type())
 	if err != nil {
 		return err
@@ -1115,6 +1167,10 @@ func (b *lxdBackend) CreateInstanceFromMigration(inst instance.Instance, conn io
 	logger := logging.AddContext(b.logger, log.Ctx{"project": inst.Project(), "instance": inst.Name(), "args": args})
 	logger.Debug("CreateInstanceFromMigration started")
 	defer logger.Debug("CreateInstanceFromMigration finished")
+
+	if b.Status() == api.StoragePoolStatusPending {
+		return fmt.Errorf("Specified pool is not fully created")
+	}
 
 	if args.Config != nil {
 		return fmt.Errorf("Migration VolumeTargetArgs.Config cannot be set")
@@ -2128,6 +2184,10 @@ func (b *lxdBackend) EnsureImage(fingerprint string, op *operations.Operation) e
 	logger.Debug("EnsureImage started")
 	defer logger.Debug("EnsureImage finished")
 
+	if b.Status() == api.StoragePoolStatusPending {
+		return fmt.Errorf("Specified pool is not fully created")
+	}
+
 	if !b.driver.Info().OptimizedImages {
 		return nil // Nothing to do for drivers that don't support optimized images volumes.
 	}
@@ -2355,6 +2415,10 @@ func (b *lxdBackend) CreateCustomVolume(projectName string, volName string, desc
 	logger.Debug("CreateCustomVolume started")
 	defer logger.Debug("CreateCustomVolume finished")
 
+	if b.Status() == api.StoragePoolStatusPending {
+		return fmt.Errorf("Specified pool is not fully created")
+	}
+
 	// Get the volume name on storage.
 	volStorageName := project.StorageVolume(projectName, volName)
 
@@ -2394,6 +2458,10 @@ func (b *lxdBackend) CreateCustomVolumeFromCopy(projectName string, volName stri
 	logger := logging.AddContext(b.logger, log.Ctx{"project": projectName, "volName": volName, "desc": desc, "config": config, "srcPoolName": srcPoolName, "srcVolName": srcVolName, "srcVolOnly": srcVolOnly})
 	logger.Debug("CreateCustomVolumeFromCopy started")
 	defer logger.Debug("CreateCustomVolumeFromCopy finished")
+
+	if b.Status() == api.StoragePoolStatusPending {
+		return fmt.Errorf("Specified pool is not fully created")
+	}
 
 	// Setup the source pool backend instance.
 	var srcPool *lxdBackend
@@ -2655,6 +2723,10 @@ func (b *lxdBackend) CreateCustomVolumeFromMigration(projectName string, conn io
 	logger := logging.AddContext(b.logger, log.Ctx{"project": projectName, "volName": args.Name, "args": args})
 	logger.Debug("CreateCustomVolumeFromMigration started")
 	defer logger.Debug("CreateCustomVolumeFromMigration finished")
+
+	if b.Status() == api.StoragePoolStatusPending {
+		return fmt.Errorf("Specified pool is not fully created")
+	}
 
 	// Create slice to record DB volumes created if revert needed later.
 	revertDBVolumes := []string{}

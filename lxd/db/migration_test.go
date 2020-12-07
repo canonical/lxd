@@ -101,7 +101,7 @@ func TestImportPreClusteringData(t *testing.T) {
 	pools, err := cluster.GetStoragePoolNames()
 	require.NoError(t, err)
 	assert.Equal(t, []string{"default"}, pools)
-	id, pool, err := cluster.GetStoragePool("default")
+	id, pool, _, err := cluster.GetStoragePool("default")
 	require.NoError(t, err)
 	assert.Equal(t, int64(1), id)
 	assert.Equal(t, "/foo/bar", pool.Config["source"])

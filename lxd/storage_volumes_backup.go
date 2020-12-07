@@ -66,7 +66,7 @@ func storagePoolVolumeTypeCustomBackupsGet(d *Daemon, r *http.Request) response.
 		return response.BadRequest(fmt.Errorf("Invalid storage volume type %q", volumeTypeName))
 	}
 
-	poolID, _, err := d.cluster.GetStoragePool(poolName)
+	poolID, _, _, err := d.cluster.GetStoragePool(poolName)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -140,7 +140,7 @@ func storagePoolVolumeTypeCustomBackupsPost(d *Daemon, r *http.Request) response
 		return resp
 	}
 
-	poolID, _, err := d.cluster.GetStoragePool(poolName)
+	poolID, _, _, err := d.cluster.GetStoragePool(poolName)
 	if err != nil {
 		return response.SmartError(err)
 	}
