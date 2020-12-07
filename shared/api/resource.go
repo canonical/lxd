@@ -184,6 +184,9 @@ type ResourcesNetworkCard struct {
 
 	// API extension: resources_network_firmware
 	FirmwareVersion string `json:"firmware_version,omitempty" yaml:"firmware_version,omitempty"`
+
+	// API extension: resources_network_usb
+	USBAddress string `json:"usb_address,omitempty" yaml:"usb_address,omitempty"`
 }
 
 // ResourcesNetworkCardPort represents a network port on the system
@@ -263,6 +266,10 @@ type ResourcesStorageDisk struct {
 	DeviceID string `json:"device_id" yaml:"device_id"`
 
 	Partitions []ResourcesStorageDiskPartition `json:"partitions" yaml:"partitions"`
+
+	// API extension: resources_disk_address
+	PCIAddress string `json:"pci_address,omitempty" yaml:"pci_address,omitempty"`
+	USBAddress string `json:"usb_address,omitempty" yaml:"usb_address,omitempty"`
 }
 
 // ResourcesStorageDiskPartition represents a partition on a disk
