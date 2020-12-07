@@ -347,6 +347,13 @@ func ensureVolumeBlockFile(vol Volume, path string, sizeBytes int64) (bool, erro
 			return false, nil
 		}
 
+		// Block image volumes cannot be resized because they can have a readonly snapshot that doesn't get
+		// updated when the volume's size is changed, and this is what instances are created from.
+		// During initial volume fill allowUnsafeResize is enabled because snapshot hasn't been taken yet.
+		if !vol.allowUnsafeResize && vol.volType == VolumeTypeImage {
+			return false, ErrNotSupported
+		}
+
 		// Only perform pre-resize sanity checks if we are not in "unsafe" mode.
 		// In unsafe mode we expect the caller to know what they are doing and understand the risks.
 		if !vol.allowUnsafeResize {
