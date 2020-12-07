@@ -59,6 +59,12 @@ func networkAddDeviceInfo(devicePath string, pciDB *pcidb.PCIDB, uname unix.Utsn
 		}
 	}
 
+	// USB address
+	usbAddr, err := findUSBAddress(devicePath)
+	if err == nil {
+		card.USBAddress = usbAddr
+	}
+
 	// Vendor and product
 	deviceVendorPath := filepath.Join(devicePath, "vendor")
 	if sysfsExists(deviceVendorPath) {
