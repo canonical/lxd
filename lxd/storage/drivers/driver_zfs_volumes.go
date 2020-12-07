@@ -1003,7 +1003,7 @@ func (d *zfs) SetVolumeQuota(vol Volume, size string, op *operations.Operation) 
 // GetVolumeDiskPath returns the location of a root disk block device.
 func (d *zfs) GetVolumeDiskPath(vol Volume) (string, error) {
 	// Shortcut for udev.
-	if tryExists(filepath.Join("/dev/zvol", d.dataset(vol, false))) {
+	if shared.PathExists(filepath.Join("/dev/zvol", d.dataset(vol, false))) {
 		return filepath.Join("/dev/zvol", d.dataset(vol, false)), nil
 	}
 
