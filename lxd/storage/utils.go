@@ -471,28 +471,28 @@ func ImageUnpack(imageFile string, vol drivers.Volume, destBlockFile string, blo
 			return -1, fmt.Errorf("Unexpected image format %q", imgInfo.Format)
 		}
 
+		// Check whether image is allowed to be unpacked into pool volume. Create a partial image volume
+		// struct and then use it to check that target volume size can be set as needed.
+		imgVolConfig := map[string]string{
+			"volatile.rootfs.size": fmt.Sprintf("%d", imgInfo.VirtualSize),
+		}
+		imgVol := drivers.NewVolume(nil, "", drivers.VolumeTypeImage, drivers.ContentTypeBlock, "", imgVolConfig, nil)
+
+		logger.Debug("Checking image unpack size")
+		newVolSize, err := vol.ConfigSizeFromSource(imgVol)
+		if err != nil {
+			return -1, err
+		}
+
 		if shared.PathExists(dstPath) {
 			volSizeBytes, err := drivers.BlockDiskSizeBytes(dstPath)
 			if err != nil {
 				return -1, errors.Wrapf(err, "Error getting current size of %q", dstPath)
 			}
 
+			// If the target volume's size is smaller than the image unpack size, then we need to
+			// increase the target volume's size.
 			if volSizeBytes < imgInfo.VirtualSize {
-				// If the target volume's size is smaller than the image unpack size, then we need
-				// to check whether it is inline with the pool's settings to allow us to increase
-				// the target volume's size. Create a partial image volume struct and then use it
-				// to check that target volume size can be set as needed.
-				imgVolConfig := map[string]string{
-					"volatile.rootfs.size": fmt.Sprintf("%d", imgInfo.VirtualSize),
-				}
-				imgVol := drivers.NewVolume(nil, "", drivers.VolumeTypeImage, drivers.ContentTypeBlock, "", imgVolConfig, nil)
-
-				logger.Debug("Checking image unpack size")
-				newVolSize, err := vol.ConfigSizeFromSource(imgVol)
-				if err != nil {
-					return -1, err
-				}
-
 				logger.Debug("Increasing volume size", log.Ctx{"imgPath": imgPath, "dstPath": dstPath, "oldSize": volSizeBytes, "newSize": newVolSize})
 				err = vol.SetQuota(newVolSize, nil)
 				if err != nil {
