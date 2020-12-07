@@ -181,8 +181,12 @@ In this mode the image identifier is the SHA-256 of the concatenation of
 the metadata and rootfs tarball (in that order).
 
 ### Supported compression
-The tarball(s) can be compressed using bz2, gz, xz, lzma, tar (uncompressed) or
-it can also be a squashfs image.
+LXD supports a wide variety of compression algorithms for tarballs
+though for compatibility purposes, gzip or xz should be preferred.
+
+For split images, the rootfs file can also be squashfs formatted in the
+container case. For virtual machines, the `root.img` file is always
+qcow2 and can optionally be compressed using qcow2's native compression.
 
 ### Content
 For containers, the rootfs directory (or tarball) contains a full file system tree of what will become the `/`.

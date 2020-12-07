@@ -40,7 +40,7 @@ func (c *cmdExport) Command() *cobra.Command {
 		i18n.G("Whether or not to only backup the instance (without snapshots)"))
 	cmd.Flags().BoolVar(&c.flagOptimizedStorage, "optimized-storage", false,
 		i18n.G("Use storage driver optimized format (can only be restored on a similar pool)"))
-	cmd.Flags().StringVar(&c.flagCompressionAlgorithm, "compression", "", i18n.G("Define a compression algorithm: for backup or none")+"``")
+	cmd.Flags().StringVar(&c.flagCompressionAlgorithm, "compression", "", i18n.G("Compression algorithm to use (`none` for uncompressed)")+"``")
 
 	return cmd
 }
