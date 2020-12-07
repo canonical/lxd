@@ -1225,7 +1225,13 @@ send/receive on top of that.
 
 ## gpu\_mdev
 This adds support for virtual GPUs. It introduces the `mdev` config key for GPU devices which takes
-a supported mdev type, e.g. i915-GVTg_V5_4.
+a supported mdev type, e.g. i915-GVTg\_V5\_4.
 
 ## resources\_pci\_iommu
 This adds the IOMMUGroup field for PCI entries in the resources API.
+
+## resources\_network\_usb
+Adds the usb\_address field to the network card entries in the resources API.
+
+## resources\_disk\_address
+Adds the usb\_address and pci\_address fields to the disk entries in the resources API.

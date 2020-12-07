@@ -237,6 +237,8 @@ var APIExtensions = []string{
 	"storage_zfs_clone_copy_rebase",
 	"gpu_mdev",
 	"resources_pci_iommu",
+	"resources_network_usb",
+	"resources_disk_address",
 }
 
 // APIExtensionsCount returns the number of available API extensions.
