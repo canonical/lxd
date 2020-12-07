@@ -68,6 +68,13 @@ func (d *btrfs) CreateVolume(vol Volume, filler *VolumeFiller, op *operations.Op
 			return err
 		}
 
+		// Allow unsafe resize of image volumes as filler won't have been able to resize the volume to the
+		// target size as volume file didn't exist then (and we can't create in advance because qemu-img
+		// truncates the file to image size).
+		if vol.volType == VolumeTypeImage {
+			vol.allowUnsafeResize = true
+		}
+
 		_, err = ensureVolumeBlockFile(vol, rootBlockPath, sizeBytes)
 
 		// Ignore ErrCannotBeShrunk as this just means the filler has needed to increase the volume size.
