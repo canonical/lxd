@@ -1153,6 +1153,11 @@ func (d *qemu) setupNvram() error {
 		srcOvmfFile = filepath.Join(d.ovmfPath(), "OVMF_VARS.ms.fd")
 	}
 
+	srcOvmfFile, err = filepath.EvalSymlinks(srcOvmfFile)
+	if err != nil {
+		return err
+	}
+
 	if !shared.PathExists(srcOvmfFile) {
 		return fmt.Errorf("Required EFI firmware settings file missing: %s", srcOvmfFile)
 	}
