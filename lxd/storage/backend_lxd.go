@@ -744,13 +744,8 @@ func (b *lxdBackend) CreateInstanceFromCopy(inst instance.Instance, src instance
 	// We don't need to use the source instance's root disk config, so set to nil.
 	srcVol := b.newVolume(volType, contentType, srcVolStorageName, nil)
 
-	revert := true
-	defer func() {
-		if !revert {
-			return
-		}
-		b.DeleteInstance(inst, op)
-	}()
+	revert := revert.New()
+	defer revert.Fail()
 
 	srcPool, err := GetPoolByInstance(b.state, src)
 	if err != nil {
@@ -766,6 +761,8 @@ func (b *lxdBackend) CreateInstanceFromCopy(inst instance.Instance, src instance
 
 		defer src.Unfreeze()
 	}
+
+	revert.Add(func() { b.DeleteInstance(inst, op) })
 
 	if b.Name() == srcPool.Name() {
 		logger.Debug("CreateInstanceFromCopy same-pool mode detected")
@@ -876,7 +873,7 @@ func (b *lxdBackend) CreateInstanceFromCopy(inst instance.Instance, src instance
 		return err
 	}
 
-	revert = false
+	revert.Success()
 	return nil
 }
 
@@ -1474,7 +1471,7 @@ func (b *lxdBackend) DeleteInstance(inst instance.Instance, op *operations.Opera
 
 	// Remove the volume record from the database.
 	err = b.state.Cluster.RemoveStoragePoolVolume(inst.Project(), inst.Name(), volDBType, b.ID())
-	if err != nil {
+	if err != nil && errors.Cause(err) != db.ErrNoSuchObject {
 		return errors.Wrapf(err, "Error deleting storage volume from database")
 	}
 
@@ -2286,7 +2283,10 @@ func (b *lxdBackend) EnsureImage(fingerprint string, op *operations.Operation) e
 		} else {
 			// We somehow have an unrecorded on-disk volume, assume it's a partial unpack and delete it.
 			logger.Warn("Deleting leftover/partially unpacked image volume")
-			b.driver.DeleteVolume(imgVol, op)
+			err = b.driver.DeleteVolume(imgVol, op)
+			if err != nil {
+				return errors.Wrapf(err, "Failed deleting leftover/partially unpacked image volume")
+			}
 		}
 	}
 

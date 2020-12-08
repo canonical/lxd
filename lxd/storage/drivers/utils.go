@@ -310,16 +310,24 @@ func ensureSparseFile(filePath string, sizeBytes int64) error {
 	return nil
 }
 
-// roundVolumeBlockFileSizeBytes parses the supplied size string and then rounds it to the nearest 8k bytes.
-func roundVolumeBlockFileSizeBytes(sizeBytes int64) (int64, error) {
+// roundVolumeBlockFileSizeBytes parses the supplied size string and then rounds it to the nearest multiple of
+// MinBlockBoundary bytes that is equal to or larger than sizeBytes.
+func roundVolumeBlockFileSizeBytes(sizeBytes int64) int64 {
 	// Qemu requires image files to be in traditional storage block boundaries.
 	// We use 8k here to ensure our images are compatible with all of our backend drivers.
 	if sizeBytes < MinBlockBoundary {
 		sizeBytes = MinBlockBoundary
 	}
 
+	roundedSizeBytes := int64(sizeBytes/MinBlockBoundary) * MinBlockBoundary
+
+	// Ensure the rounded size is at least the size specified in sizeBytes.
+	if roundedSizeBytes < sizeBytes {
+		roundedSizeBytes += MinBlockBoundary
+	}
+
 	// Round the size to closest MinBlockBoundary bytes to avoid qemu boundary issues.
-	return int64(sizeBytes/MinBlockBoundary) * MinBlockBoundary, nil
+	return roundedSizeBytes
 }
 
 // ensureVolumeBlockFile creates new block file or enlarges the raw block file for a volume to the specified size.
@@ -331,10 +339,7 @@ func ensureVolumeBlockFile(vol Volume, path string, sizeBytes int64) (bool, erro
 	}
 
 	// Get rounded block size to avoid qemu boundary issues.
-	sizeBytes, err := roundVolumeBlockFileSizeBytes(sizeBytes)
-	if err != nil {
-		return false, err
-	}
+	sizeBytes = roundVolumeBlockFileSizeBytes(sizeBytes)
 
 	if shared.PathExists(path) {
 		fi, err := os.Stat(path)
@@ -376,7 +381,7 @@ func ensureVolumeBlockFile(vol Volume, path string, sizeBytes int64) (bool, erro
 
 	// If path doesn't exist, then there has been no filler function supplied to create it from another source.
 	// So instead create an empty volume (use for PXE booting a VM).
-	err = ensureSparseFile(path, sizeBytes)
+	err := ensureSparseFile(path, sizeBytes)
 	if err != nil {
 		return false, errors.Wrapf(err, "Failed creating disk image %q as size %d", path, sizeBytes)
 	}
