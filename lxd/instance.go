@@ -181,16 +181,11 @@ func instanceCreateFromImage(d *Daemon, args db.InstanceArgs, hash string, op *o
 }
 
 func instanceCreateAsCopy(s *state.State, args db.InstanceArgs, sourceInst instance.Instance, instanceOnly bool, refresh bool, op *operations.Operation) (instance.Instance, error) {
-	var inst, revertInst instance.Instance
+	var inst instance.Instance
 	var err error
 
-	defer func() {
-		if revertInst == nil {
-			return
-		}
-
-		revertInst.Delete(true)
-	}()
+	revert := revert.New()
+	defer revert.Fail()
 
 	if refresh {
 		// Load the target instance.
@@ -211,7 +206,8 @@ func instanceCreateAsCopy(s *state.State, args db.InstanceArgs, sourceInst insta
 		if err != nil {
 			return nil, errors.Wrap(err, "Failed creating instance record")
 		}
-		revertInst = inst
+
+		revert.Add(func() { inst.Delete(true) })
 	}
 
 	// At this point we have already figured out the parent container's root disk device so we
@@ -326,7 +322,7 @@ func instanceCreateAsCopy(s *state.State, args db.InstanceArgs, sourceInst insta
 		return nil, err
 	}
 
-	revertInst = nil
+	revert.Success()
 	return inst, nil
 }
 
