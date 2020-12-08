@@ -921,7 +921,7 @@ func (d *zfs) SetVolumeQuota(vol Volume, size string, op *operations.Operation) 
 			return nil
 		}
 
-		sizeBytes = (sizeBytes / MinBlockBoundary) * MinBlockBoundary
+		sizeBytes = roundVolumeBlockFileSizeBytes(sizeBytes)
 
 		oldSizeBytesStr, err := d.getDatasetProperty(d.dataset(vol, false), "volsize")
 		if err != nil {
