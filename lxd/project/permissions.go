@@ -56,6 +56,12 @@ func AllowInstanceCreation(tx *db.ClusterTx, projectName string, req api.Instanc
 		return err
 	}
 
+	totalInstanceCount := len(info.Instances)
+	err = checkTotalInstanceCountLimit(info.Project, totalInstanceCount)
+	if err != nil {
+		return err
+	}
+
 	// Add the instance being created.
 	info.Instances = append(info.Instances, db.Instance{
 		Name:     req.Name,
@@ -74,6 +80,25 @@ func AllowInstanceCreation(tx *db.ClusterTx, projectName string, req api.Instanc
 	err = checkRestrictionsAndAggregateLimits(tx, info)
 	if err != nil {
 		return err
+	}
+
+	return nil
+}
+
+// Check that we have not exceeded the maximum total allotted number of instances
+// for both containers and vms
+func checkTotalInstanceCountLimit(project *api.Project, totalInstanceCount int) error {
+	overallValue, ok := project.Config["limits.instances"]
+	if ok {
+		limit, err := strconv.Atoi(overallValue)
+		if err != nil {
+			return err
+		}
+
+		if totalInstanceCount >= limit {
+			return fmt.Errorf(
+				"Reached maximum number of instances in project %q", project.Name)
+		}
 	}
 
 	return nil
@@ -716,6 +741,11 @@ func AllowProjectUpdate(tx *db.ClusterTx, projectName string, config map[string]
 		}
 
 		switch key {
+		case "limits.instances":
+			err := validateTotalInstanceCountLimit(info.Instances, config[key], projectName)
+			if err != nil {
+				return errors.Wrapf(err, "Can't change limits.instances in project %q", projectName)
+			}
 		case "limits.containers":
 			fallthrough
 		case "limits.virtual-machines":
@@ -749,6 +779,26 @@ func AllowProjectUpdate(tx *db.ClusterTx, projectName string, config map[string]
 
 	}
 
+	return nil
+}
+
+// Check that limits.instances, i.e. the total limit of containers/virtual machines allocated
+// to the user is equal to or above the current count
+func validateTotalInstanceCountLimit(instances []db.Instance, value, project string) error {
+	if value == "" {
+		return nil
+	}
+
+	limit, err := strconv.Atoi(value)
+	if err != nil {
+		return err
+	}
+
+	count := len(instances)
+
+	if limit < count {
+		return fmt.Errorf("'limits.instances' is too low: there currently are %d total instances in project %s", count, project)
+	}
 	return nil
 }
 
