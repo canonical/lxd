@@ -204,7 +204,6 @@ func (d *ceph) CreateVolume(vol Volume, filler *VolumeFiller, op *operations.Ope
 	}, op)
 	if err != nil {
 		return err
-
 	}
 
 	// Create a readonly snapshot of the image volume which will be used a the
@@ -611,21 +610,41 @@ func (d *ceph) DeleteVolume(vol Volume, op *operations.Operation) error {
 		// Try to umount but don't fail.
 		d.UnmountVolume(vol, false, op)
 
-		// Check if image has dependant snapshots.
-		_, err := d.rbdListSnapshotClones(vol, "readonly")
-		if err != nil {
-			if err != db.ErrNoSuchObject {
+		hasReadonlySnapshot := d.hasVolume(d.getRBDVolumeName(vol, "readonly", false, false))
+		hasDependendantSnapshots := false
+
+		if hasReadonlySnapshot {
+			dependantSnapshots, err := d.rbdListSnapshotClones(vol, "readonly")
+			if err != nil && err != db.ErrNoSuchObject {
 				return err
 			}
 
-			// Unprotect snapshot.
-			err = d.rbdUnprotectVolumeSnapshot(vol, "readonly")
+			hasDependendantSnapshots = len(dependantSnapshots) > 0
+		}
+
+		if hasDependendantSnapshots {
+			// If the image has dependant snapshots, then we just mark it as deleted, but don't
+			// actually remove it yet.
+			err := d.rbdUnmapVolume(vol, true)
 			if err != nil {
 				return err
 			}
 
+			err = d.rbdMarkVolumeDeleted(vol, vol.name)
+			if err != nil {
+				return err
+			}
+		} else {
+			if hasReadonlySnapshot {
+				// Unprotect snapshot.
+				err := d.rbdUnprotectVolumeSnapshot(vol, "readonly")
+				if err != nil {
+					return err
+				}
+			}
+
 			// Delete snapshots.
-			_, err = shared.RunCommand(
+			_, err := shared.RunCommand(
 				"rbd",
 				"--id", d.config["ceph.user.name"],
 				"--cluster", d.config["ceph.cluster_name"],
@@ -645,16 +664,9 @@ func (d *ceph) DeleteVolume(vol Volume, op *operations.Operation) error {
 
 			// Delete image.
 			err = d.rbdDeleteVolume(vol)
-		} else {
-			err = d.rbdUnmapVolume(vol, true)
 			if err != nil {
 				return err
 			}
-
-			err = d.rbdMarkVolumeDeleted(vol, vol.name)
-		}
-		if err != nil {
-			return err
 		}
 	} else {
 		_, err := d.UnmountVolume(vol, false, op)
@@ -694,18 +706,23 @@ func (d *ceph) DeleteVolume(vol Volume, op *operations.Operation) error {
 	return nil
 }
 
-// HasVolume indicates whether a specific volume exists on the storage pool.
-func (d *ceph) HasVolume(vol Volume) bool {
+// hasVolume indicates whether a specific RBD volume exists on the storage pool.
+func (d *ceph) hasVolume(rbdVolumeName string) bool {
 	_, err := shared.RunCommand(
 		"rbd",
 		"--id", d.config["ceph.user.name"],
 		"--cluster", d.config["ceph.cluster_name"],
 		"--pool", d.config["ceph.osd.pool_name"],
 		"info",
-		d.getRBDVolumeName(vol, "", false, false),
+		rbdVolumeName,
 	)
 
 	return err == nil
+}
+
+// HasVolume indicates whether a specific volume exists on the storage pool.
+func (d *ceph) HasVolume(vol Volume) bool {
+	return d.hasVolume(d.getRBDVolumeName(vol, "", false, false))
 }
 
 // FillVolumeConfig populate volume with default config.
