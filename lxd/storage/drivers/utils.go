@@ -310,16 +310,24 @@ func ensureSparseFile(filePath string, sizeBytes int64) error {
 	return nil
 }
 
-// roundVolumeBlockFileSizeBytes parses the supplied size string and then rounds it to the nearest 8k bytes.
-func roundVolumeBlockFileSizeBytes(sizeBytes int64) (int64, error) {
+// roundVolumeBlockFileSizeBytes parses the supplied size string and then rounds it to the nearest multiple of
+// MinBlockBoundary bytes that is equal to or larger than sizeBytes.
+func roundVolumeBlockFileSizeBytes(sizeBytes int64) int64 {
 	// Qemu requires image files to be in traditional storage block boundaries.
 	// We use 8k here to ensure our images are compatible with all of our backend drivers.
 	if sizeBytes < MinBlockBoundary {
 		sizeBytes = MinBlockBoundary
 	}
 
+	roundedSizeBytes := int64(sizeBytes/MinBlockBoundary) * MinBlockBoundary
+
+	// Ensure the rounded size is at least the size specified in sizeBytes.
+	if roundedSizeBytes < sizeBytes {
+		roundedSizeBytes += MinBlockBoundary
+	}
+
 	// Round the size to closest MinBlockBoundary bytes to avoid qemu boundary issues.
-	return int64(sizeBytes/MinBlockBoundary) * MinBlockBoundary, nil
+	return roundedSizeBytes
 }
 
 // ensureVolumeBlockFile creates new block file or enlarges the raw block file for a volume to the specified size.
