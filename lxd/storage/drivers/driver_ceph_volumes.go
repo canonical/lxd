@@ -204,7 +204,6 @@ func (d *ceph) CreateVolume(vol Volume, filler *VolumeFiller, op *operations.Ope
 	}, op)
 	if err != nil {
 		return err
-
 	}
 
 	// Create a readonly snapshot of the image volume which will be used a the
