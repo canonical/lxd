@@ -1471,7 +1471,7 @@ func (b *lxdBackend) DeleteInstance(inst instance.Instance, op *operations.Opera
 
 	// Remove the volume record from the database.
 	err = b.state.Cluster.RemoveStoragePoolVolume(inst.Project(), inst.Name(), volDBType, b.ID())
-	if err != nil {
+	if err != nil && errors.Cause(err) != db.ErrNoSuchObject {
 		return errors.Wrapf(err, "Error deleting storage volume from database")
 	}
 
