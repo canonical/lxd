@@ -73,7 +73,7 @@ func (d *zfs) CreateVolume(vol Volume, filler *VolumeFiller, op *operations.Oper
 			}
 
 			// Round to block boundary.
-			poolVolSizeBytes = (poolVolSizeBytes / MinBlockBoundary) * MinBlockBoundary
+			poolVolSizeBytes = roundVolumeBlockFileSizeBytes(poolVolSizeBytes)
 
 			// If the cached volume size is different than the pool volume size, then we can't use the
 			// deleted cached image volume and instead we will rename it to a random UUID so it can't
