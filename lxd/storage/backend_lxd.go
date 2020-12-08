@@ -2283,7 +2283,10 @@ func (b *lxdBackend) EnsureImage(fingerprint string, op *operations.Operation) e
 		} else {
 			// We somehow have an unrecorded on-disk volume, assume it's a partial unpack and delete it.
 			logger.Warn("Deleting leftover/partially unpacked image volume")
-			b.driver.DeleteVolume(imgVol, op)
+			err = b.driver.DeleteVolume(imgVol, op)
+			if err != nil {
+				return errors.Wrapf(err, "Failed deleting leftover/partially unpacked image volume")
+			}
 		}
 	}
 
