@@ -744,13 +744,8 @@ func (b *lxdBackend) CreateInstanceFromCopy(inst instance.Instance, src instance
 	// We don't need to use the source instance's root disk config, so set to nil.
 	srcVol := b.newVolume(volType, contentType, srcVolStorageName, nil)
 
-	revert := true
-	defer func() {
-		if !revert {
-			return
-		}
-		b.DeleteInstance(inst, op)
-	}()
+	revert := revert.New()
+	defer revert.Fail()
 
 	srcPool, err := GetPoolByInstance(b.state, src)
 	if err != nil {
@@ -766,6 +761,8 @@ func (b *lxdBackend) CreateInstanceFromCopy(inst instance.Instance, src instance
 
 		defer src.Unfreeze()
 	}
+
+	revert.Add(func() { b.DeleteInstance(inst, op) })
 
 	if b.Name() == srcPool.Name() {
 		logger.Debug("CreateInstanceFromCopy same-pool mode detected")
@@ -876,7 +873,7 @@ func (b *lxdBackend) CreateInstanceFromCopy(inst instance.Instance, src instance
 		return err
 	}
 
-	revert = false
+	revert.Success()
 	return nil
 }
 
