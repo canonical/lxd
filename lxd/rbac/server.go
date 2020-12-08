@@ -332,7 +332,17 @@ func (r *Server) UserAccess(username string) (*UserAccess, error) {
 			continue
 		}
 
-		access.Projects[k] = v
+		// Look for project name.
+		for projectName, resourceID := range r.resources {
+			if k != resourceID {
+				continue
+			}
+
+			access.Projects[projectName] = v
+			break
+		}
+
+		// Ignore unknown projects.
 	}
 
 	return &access, nil
