@@ -339,10 +339,7 @@ func ensureVolumeBlockFile(vol Volume, path string, sizeBytes int64) (bool, erro
 	}
 
 	// Get rounded block size to avoid qemu boundary issues.
-	sizeBytes, err := roundVolumeBlockFileSizeBytes(sizeBytes)
-	if err != nil {
-		return false, err
-	}
+	sizeBytes = roundVolumeBlockFileSizeBytes(sizeBytes)
 
 	if shared.PathExists(path) {
 		fi, err := os.Stat(path)
@@ -384,7 +381,7 @@ func ensureVolumeBlockFile(vol Volume, path string, sizeBytes int64) (bool, erro
 
 	// If path doesn't exist, then there has been no filler function supplied to create it from another source.
 	// So instead create an empty volume (use for PXE booting a VM).
-	err = ensureSparseFile(path, sizeBytes)
+	err := ensureSparseFile(path, sizeBytes)
 	if err != nil {
 		return false, errors.Wrapf(err, "Failed creating disk image %q as size %d", path, sizeBytes)
 	}
