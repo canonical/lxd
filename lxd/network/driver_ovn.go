@@ -1974,9 +1974,26 @@ func (n *ovn) InstanceDevicePortValidateExternalRoutes(deviceInstance instance.I
 	var projectNetworks map[string]map[int64]api.Network
 
 	// Get uplink routes.
-	uplinkRoutes, err := n.uplinkRoutes(n.config["network"])
+	_, uplink, _, err := n.state.Cluster.GetNetworkInAnyState(project.Default, n.config["network"])
+	if err != nil {
+		return errors.Wrapf(err, "Failed to load uplink network %q", n.config["network"])
+	}
+
+	uplinkRoutes, err := n.uplinkRoutes(uplink)
 	if err != nil {
 		return err
+	}
+
+	// Check port's external routes are suffciently small when using l2proxy ingress mode on uplink.
+	if shared.StringInSlice(uplink.Config["ovn.ingress_mode"], []string{"l2proxy", ""}) {
+		for _, portExternalRoute := range portExternalRoutes {
+			rOnes, rBits := portExternalRoute.Mask.Size()
+			if rBits > 32 && rOnes < 122 {
+				return fmt.Errorf("External route %q is too large. Maximum size for IPv6 external route is /122", portExternalRoute.String())
+			} else if rOnes < 26 {
+				return fmt.Errorf("External route %q is too large. Maximum size for IPv4 external route is /26", portExternalRoute.String())
+			}
+		}
 	}
 
 	err = n.state.Cluster.Transaction(func(tx *db.ClusterTx) error {
