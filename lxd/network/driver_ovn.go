@@ -1411,7 +1411,7 @@ func (n *ovn) setup(update bool) error {
 		err := n.state.Cluster.Transaction(func(tx *db.ClusterTx) error {
 			err = tx.UpdateNetwork(n.id, n.description, n.config)
 			if err != nil {
-				return errors.Wrapf(err, "Failed saving optimal bridge MTU")
+				return errors.Wrapf(err, "Failed saving updated network config")
 			}
 
 			return nil
