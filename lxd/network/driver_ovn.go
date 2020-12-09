@@ -180,6 +180,7 @@ func (n *ovn) Validate(config map[string]string) error {
 
 			return validate.Optional(validate.IsNetworkAddressCIDRV4)(value)
 		},
+		"ipv4.dhcp": validate.Optional(validate.IsBool),
 		"ipv6.address": func(value string) error {
 			if validate.IsOneOf(value, []string{"none", "auto"}) == nil {
 				return nil
@@ -187,6 +188,7 @@ func (n *ovn) Validate(config map[string]string) error {
 
 			return validate.Optional(validate.IsNetworkAddressCIDRV6)(value)
 		},
+		"ipv6.dhcp":          validate.Optional(validate.IsBool),
 		"ipv6.dhcp.stateful": validate.Optional(validate.IsBool),
 		"ipv4.nat":           validate.Optional(validate.IsBool),
 		"ipv6.nat":           validate.Optional(validate.IsBool),
