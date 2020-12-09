@@ -2411,7 +2411,7 @@ func (n *ovn) DHCPv4Subnet() *net.IPNet {
 		return nil
 	}
 
-	_, subnet, err := net.ParseCIDR(n.config["ipv4.address"])
+	_, subnet, err := net.ParseCIDR(n.getRouterIntPortIPv4Net())
 	if err != nil {
 		return nil
 	}
@@ -2426,7 +2426,7 @@ func (n *ovn) DHCPv6Subnet() *net.IPNet {
 		return nil
 	}
 
-	_, subnet, err := net.ParseCIDR(n.config["ipv6.address"])
+	_, subnet, err := net.ParseCIDR(n.getRouterIntPortIPv6Net())
 	if err != nil {
 		return nil
 	}
