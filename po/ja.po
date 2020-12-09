@@ -8,7 +8,7 @@ msgstr ""
 "Project-Id-Version: LXD\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
 "POT-Creation-Date: 2020-12-07 15:08-0500\n"
-"PO-Revision-Date: 2020-09-25 15:37+0000\n"
+"PO-Revision-Date: 2020-11-22 10:56+0000\n"
 "Last-Translator: KATOH Yasufumi <karma@jazz.email.ne.jp>\n"
 "Language-Team: Japanese <https://hosted.weblate.org/projects/linux-"
 "containers/lxd/ja/>\n"
@@ -17,7 +17,7 @@ msgstr ""
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=1; plural=0;\n"
-"X-Generator: Weblate 4.3-dev\n"
+"X-Generator: Weblate 4.4-dev\n"
 
 #: lxc/storage.go:225
 msgid ""
@@ -289,9 +289,9 @@ msgid "%d (id: %d, online: %v, NUMA node: %v)"
 msgstr "%d (id: %d, オンライン: %v, NUMA ノード: %v)"
 
 #: lxc/info.go:150
-#, fuzzy, c-format
+#, c-format
 msgid "%s (%d available)"
-msgstr "%s (他%d個)"
+msgstr "%s (%d個使用可能)"
 
 #: lxc/image.go:1042
 #, c-format
@@ -596,9 +596,9 @@ msgid "Backing up instance: %s"
 msgstr "インスタンスのバックアップ中: %s"
 
 #: lxc/storage_volume.go:1723
-#, fuzzy, c-format
+#, c-format
 msgid "Backing up storage volume: %s"
-msgstr "ストレージボリュームの移動中: %s"
+msgstr "ストレージボリュームのバックアップ中: %s"
 
 #: lxc/export.go:158 lxc/storage_volume.go:1789
 msgid "Backup exported successfully!"
@@ -661,9 +661,8 @@ msgid "CPU (%s):"
 msgstr "CPU (%s):"
 
 #: lxc/list.go:445
-#, fuzzy
 msgid "CPU USAGE"
-msgstr "DISK USAGE"
+msgstr "CPU USAGE"
 
 #: lxc/info.go:522
 msgid "CPU usage (in seconds)"
@@ -1396,9 +1395,8 @@ msgstr ""
 "出力先はオプショナルで、デフォルトは現在のディレクトリです。"
 
 #: lxc/storage_volume.go:1668 lxc/storage_volume.go:1669
-#, fuzzy
 msgid "Export custom storage volume"
-msgstr "新たにカスタムストレージボリュームを作成します"
+msgstr "カスタムストレージボリュームをエクスポートします"
 
 #: lxc/export.go:31
 msgid "Export instance backups"
@@ -1409,9 +1407,9 @@ msgid "Export instances as backup tarballs."
 msgstr "インスタンスを tarball 形式のバックアップとしてエクスポートします。"
 
 #: lxc/storage_volume.go:1672
-#, fuzzy
 msgid "Export the volume without its snapshots"
-msgstr "ボリュームをコピーします (スナップショットはコピーしません)"
+msgstr ""
+"ボリュームをエクスポートします (スナップショットはエクスポートしません)"
 
 #: lxc/export.go:142 lxc/storage_volume.go:1773
 #, c-format
@@ -1651,6 +1649,8 @@ msgstr "ISSUE DATE"
 #: lxc/snapshot.go:40 lxc/storage_volume.go:1521
 msgid "If the snapshot name already exists, delete and create a new one"
 msgstr ""
+"存在するスナップショット名の場合は既存のスナップショットを削除したあとに新し"
+"いスナップショットを作成します"
 
 #: lxc/main.go:336
 msgid ""
@@ -1705,10 +1705,10 @@ msgid "Immediately attach to the console"
 msgstr "起動直後にインスタンスのコンソールに接続します"
 
 #: lxc/storage_volume.go:1804
-#, fuzzy
 msgid "Import backups of custom volumes including their snapshots."
 msgstr ""
-"インスタンスのバックアップをスナップショットを含んだ状態でインポートします。"
+"カスタムボリュームのバックアップをスナップショットを含んだ状態でインポートし"
+"ます。"
 
 #: lxc/import.go:29
 msgid "Import backups of instances including their snapshots."
@@ -1716,9 +1716,8 @@ msgstr ""
 "インスタンスのバックアップをスナップショットを含んだ状態でインポートします。"
 
 #: lxc/storage_volume.go:1803
-#, fuzzy
 msgid "Import custom storage volumes"
-msgstr "新たにカスタムストレージボリュームを作成します"
+msgstr "新たにカスタムストレージボリュームをインポートします"
 
 #: lxc/image.go:610
 msgid ""
@@ -1740,9 +1739,9 @@ msgid "Import instance backups"
 msgstr "インスタンスのバックアップをインポートします"
 
 #: lxc/storage_volume.go:1851
-#, fuzzy, c-format
+#, c-format
 msgid "Importing custom volume: %s"
-msgstr "インスタンスのインポート中: %s"
+msgstr "カスタムボリュームのインポート中: %s"
 
 #: lxc/import.go:88
 #, c-format
@@ -2010,7 +2009,7 @@ msgid "List instances"
 msgstr "インスタンスを一覧表示します"
 
 #: lxc/list.go:45
-#, fuzzy, c-format
+#, c-format
 msgid ""
 "List instances\n"
 "\n"
@@ -2123,7 +2122,7 @@ msgstr ""
 "  d - 説明\n"
 "  D - ディスク使用量\n"
 "  l - 最終使用日\n"
-"  m - メモリ使用量\n"
+"  m - メモリ使用量 (%)\n"
 "  n - 名前\n"
 "  N - プロセス数\n"
 "  p - インスタンスの init プロセスの pid\n"
@@ -2200,9 +2199,9 @@ msgid "MEMORY USAGE"
 msgstr "MEMORY USAGE"
 
 #: lxc/list.go:437
-#, fuzzy, c-format
+#, c-format
 msgid "MEMORY USAGE%"
-msgstr "MEMORY USAGE"
+msgstr "MEMORY USAGE%"
 
 #: lxc/cluster.go:136
 msgid "MESSAGE"
@@ -2335,9 +2334,8 @@ msgid "Maximum number of VFs: %d"
 msgstr "VF の最大数: %d"
 
 #: lxc/info.go:147
-#, fuzzy
 msgid "Mdev profiles:"
-msgstr "プロファイルを管理します"
+msgstr "Mdevプロファイル:"
 
 #: lxc/cluster.go:321
 #, c-format
@@ -2627,9 +2625,8 @@ msgid "Only \"custom\" volumes can be attached to instances"
 msgstr "\"カスタム\" のボリュームのみがインスタンスにアタッチできます"
 
 #: lxc/storage_volume.go:1705
-#, fuzzy
 msgid "Only \"custom\" volumes can be exported"
-msgstr "\"カスタム\" のボリュームのみがスナップショットを取得できます"
+msgstr "\"カスタム\" のボリュームのみがエクスポートできます"
 
 #: lxc/storage_volume.go:1549
 msgid "Only \"custom\" volumes can be snapshotted"
@@ -3916,9 +3913,8 @@ msgid "[<remote>:]"
 msgstr "[<remote>:]"
 
 #: lxc/import.go:27
-#, fuzzy
 msgid "[<remote>:] <backup file> [<instance name>]"
-msgstr "[<remote>:] <backup file>"
+msgstr "[<remote>:] <backup file> [<instance name>]"
 
 #: lxc/config_trust.go:55
 msgid "[<remote>:] <cert>"
@@ -4126,9 +4122,8 @@ msgid "[<remote>:]<pool>"
 msgstr "[<remote>:]<pool>"
 
 #: lxc/storage_volume.go:1802
-#, fuzzy
 msgid "[<remote>:]<pool> <backup file> [<volume name>]"
-msgstr "[<remote>:] <backup file>"
+msgstr "[<remote>:]<pool> <backup file> [<volume name>]"
 
 #: lxc/storage.go:87
 msgid "[<remote>:]<pool> <driver> [key=value...]"
@@ -4171,9 +4166,8 @@ msgid "[<remote>:]<pool> <volume> <snapshot>"
 msgstr "[<remote>:]<pool> <volume> <snapshot>"
 
 #: lxc/storage_volume.go:1667
-#, fuzzy
 msgid "[<remote>:]<pool> <volume> [<path>]"
-msgstr "[<remote>:]<pool> <volume> [<snapshot>]"
+msgstr "[<remote>:]<pool> <volume> [<path>]"
 
 #: lxc/storage_volume.go:1514
 msgid "[<remote>:]<pool> <volume> [<snapshot>]"
@@ -4470,7 +4464,6 @@ msgstr ""
 "    config.yaml の設定を使ってインスタンスを作成し、起動します"
 
 #: lxc/list.go:109
-#, fuzzy
 msgid ""
 "lxc list -c nFs46,volatile.eth0.hwaddr:MAC,config:image.os,devices:eth0."
 "parent:ETHP\n"
@@ -4641,13 +4634,12 @@ msgstr ""
 "    pool.yaml の内容でストレージボリュームを更新します。"
 
 #: lxc/storage_volume.go:1806
-#, fuzzy
 msgid ""
 "lxc storage volume import default backup0.tar.gz\n"
 "\t\tCreate a new custom volume using backup0.tar.gz as the source."
 msgstr ""
-"lxc import backup0.tar.gz\n"
-"    backup0.tar.gz を使って新しいインスタンスを作成します。"
+"lxc storage volume import default backup0.tar.gz\n"
+"\t\tbackup0.tar.gz を使って新しいカスタムボリュームを作成します。"
 
 #: lxc/storage_volume.go:1385
 msgid ""
