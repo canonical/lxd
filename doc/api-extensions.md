@@ -1235,3 +1235,10 @@ Adds the usb\_address field to the network card entries in the resources API.
 
 ## resources\_disk\_address
 Adds the usb\_address and pci\_address fields to the disk entries in the resources API.
+
+## network\_physical\_ovn\_ingress_mode
+Adds `ovn.ingress_mode` setting for `physical` networks.
+
+Sets the method that OVN NIC external IPs will be advertised on uplink network.
+
+Either `l2proxy` (proxy ARP/NDP) or `routed`.
