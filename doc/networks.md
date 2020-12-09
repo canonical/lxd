@@ -323,3 +323,4 @@ ipv6.gateway                    | string    | standard mode         | -         
 ipv6.ovn.ranges                 | string    | -                     | -                         | Comma separate list of IPv6 ranges to use for child OVN network routers (FIRST-LAST format)
 ipv6.routes                     | string    | ipv6 address          | -                         | Comma separated list of additional IPv6 CIDR subnets that can be used with child OVN networks ipv6.routes.external setting
 dns.nameservers                 | string    | standard mode         | -                         | List of DNS server IPs on physical network
+ovn.ingress_mode                | string    | standard mode         | l2proxy                   | Sets the method that OVN NIC external IPs will be advertised on uplink network. Either `l2proxy` (proxy ARP/NDP) or `routed`.
