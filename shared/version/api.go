@@ -241,6 +241,7 @@ var APIExtensions = []string{
 	"resources_disk_address",
 	"network_physical_ovn_ingress_mode",
 	"network_ovn_dhcp",
+	"network_physical_routes_anycast",
 }
 
 // APIExtensionsCount returns the number of available API extensions.

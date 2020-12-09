@@ -1247,3 +1247,9 @@ Either `l2proxy` (proxy ARP/NDP) or `routed`.
 Adds `ipv4.dhcp` and `ipv6.dhcp` settings for `ovn` networks.
 
 Allows DHCP (and RA for IPv6) to be disabled. Defaults to on.
+
+## network\_physical\_routes\_anycast
+Adds `ipv4.routes.anycast` and `ipv6.routes.anycast` boolean settings for `physical` networks. Defaults to false.
+
+Allows OVN networks using physical network as uplink to relax external subnet/route overlap detection when used
+with `ovn.ingress_mode=routed`.
