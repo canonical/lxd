@@ -118,7 +118,6 @@ lxc network set <network> <key> <value>
 ```
 
 ### Integration with systemd-resolved
-
 If the system running LXD uses systemd-resolved to perform DNS
 lookups, it's possible to notify resolved of the domain(s) that
 LXD is able to resolve.  This requires telling resolved the
@@ -158,6 +157,10 @@ This resolved configuration will persist as long as the bridge
 exists, so you must repeat this command each reboot and after
 LXD is restarted.  Also note this only works if the bridge
 `dns.mode` is not `none`.
+
+Note that depending on the `dns.domain` used, you may need to disable
+DNSSEC in resolved to allow for DNS resolution. This can be done through
+the `DNSSEC` option in `resolved.conf`.
 
 ### IPv6 prefix size
 For optimal operation, a prefix size of 64 is preferred.
