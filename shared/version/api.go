@@ -242,6 +242,7 @@ var APIExtensions = []string{
 	"network_physical_ovn_ingress_mode",
 	"network_ovn_dhcp",
 	"network_physical_routes_anycast",
+	"projects_limits_instances",
 }
 
 // APIExtensionsCount returns the number of available API extensions.
