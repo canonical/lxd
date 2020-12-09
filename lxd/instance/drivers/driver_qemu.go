@@ -707,6 +707,13 @@ func (d *qemu) Start(stateful bool) error {
 
 	revert.Add(func() { d.unmount() })
 
+	// Update the backup.yaml file.
+	err = d.UpdateBackupFile()
+	if err != nil {
+		return err
+	}
+
+	// Generate the config drive.
 	err = d.generateConfigShare()
 	if err != nil {
 		op.Done(err)
