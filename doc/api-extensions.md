@@ -1242,3 +1242,8 @@ Adds `ovn.ingress_mode` setting for `physical` networks.
 Sets the method that OVN NIC external IPs will be advertised on uplink network.
 
 Either `l2proxy` (proxy ARP/NDP) or `routed`.
+
+## network\_ovn\_dhcp
+Adds `ipv4.dhcp` and `ipv6.dhcp` settings for `ovn` networks.
+
+Allows DHCP (and RA for IPv6) to be disabled. Defaults to on.
