@@ -3374,6 +3374,7 @@ func (d *lxc) Delete(force bool) error {
 		return err
 	}
 
+	isImport := false
 	pool, err := storagePools.GetPoolByInstance(d.state, d)
 	if err != nil && err != db.ErrNoSuchObject {
 		return err
@@ -3383,7 +3384,6 @@ func (d *lxc) Delete(force bool) error {
 		// and snapshots on disk but no DB entry. As such if something has gone wrong during
 		// the creation of the instance and we are now being asked to delete the instance,
 		// we should not remove the storage volumes themselves as this would cause data loss.
-		isImport := false
 		cName, _, _ := shared.InstanceGetParentAndSnapshotName(d.Name())
 		importingFilePath := storagePools.InstanceImportingFilePath(d.Type(), pool.Name(), d.Project(), cName)
 		if shared.PathExists(importingFilePath) {
@@ -3394,11 +3394,6 @@ func (d *lxc) Delete(force bool) error {
 			if !isImport {
 				// Remove snapshot volume and database record.
 				err = pool.DeleteInstanceSnapshot(d, nil)
-				if err != nil {
-					return err
-				}
-
-				err = d.UpdateBackupFile()
 				if err != nil {
 					return err
 				}
@@ -3460,6 +3455,23 @@ func (d *lxc) Delete(force bool) error {
 	if err := d.state.Cluster.DeleteInstance(d.project, d.Name()); err != nil {
 		d.logger.Error("Failed deleting container entry", log.Ctx{"err": err})
 		return err
+	}
+
+	// If dealing with a snapshot, refresh the backup file on the parent.
+	if d.IsSnapshot() && !isImport {
+		parentName, _, _ := shared.InstanceGetParentAndSnapshotName(d.name)
+
+		// Load the parent.
+		parent, err := instance.LoadByProjectAndName(d.state, d.project, parentName)
+		if err != nil {
+			return errors.Wrap(err, "Invalid parent")
+		}
+
+		// Update the backup file.
+		err = parent.UpdateBackupFile()
+		if err != nil {
+			return err
+		}
 	}
 
 	d.logger.Info("Deleted container", ctxMap)
