@@ -216,7 +216,12 @@ func (n *ovn) Validate(config map[string]string) error {
 	}
 
 	// Get uplink routes.
-	uplinkRoutes, err := n.uplinkRoutes(uplinkNetworkName)
+	_, uplink, _, err := n.state.Cluster.GetNetworkInAnyState(project.Default, uplinkNetworkName)
+	if err != nil {
+		return errors.Wrapf(err, "Failed to load uplink network %q", uplinkNetworkName)
+	}
+
+	uplinkRoutes, err := n.uplinkRoutes(uplink)
 	if err != nil {
 		return err
 	}
