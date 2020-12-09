@@ -3591,6 +3591,23 @@ func (d *qemu) Delete(force bool) error {
 		return err
 	}
 
+	// If dealing with a snapshot, refresh the backup file on the parent.
+	if d.IsSnapshot() && !isImport {
+		parentName, _, _ := shared.InstanceGetParentAndSnapshotName(d.name)
+
+		// Load the parent.
+		parent, err := instance.LoadByProjectAndName(d.state, d.project, parentName)
+		if err != nil {
+			return errors.Wrap(err, "Invalid parent")
+		}
+
+		// Update the backup file.
+		err = parent.UpdateBackupFile()
+		if err != nil {
+			return err
+		}
+	}
+
 	d.logger.Info("Deleted instance", ctxMap)
 	d.lifecycle("deleted", nil)
 
