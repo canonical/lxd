@@ -325,7 +325,7 @@ func (o *OVN) LogicalSwitchDelete(switchName OVNSwitch) error {
 		return err
 	}
 
-	err = o.logicalSwitchDHCPOptionsDelete(switchName)
+	err = o.LogicalSwitchDHCPOptionsDelete(switchName)
 	if err != nil {
 		return err
 	}
@@ -549,8 +549,9 @@ func (o *OVN) LogicalSwitchDHCPOptionsGet(switchName OVNSwitch) ([]OVNDHCPOptsSe
 	return dhcpOpts, nil
 }
 
-// logicalSwitchDHCPOptionsDelete deletes any DHCP options defined for a switch.
-func (o *OVN) logicalSwitchDHCPOptionsDelete(switchName OVNSwitch) error {
+// LogicalSwitchDHCPOptionsDelete deletes any DHCP options defined for a switch.
+// Optionally accepts one or more specific UUID records to delete (if they are associated to the specified switch).
+func (o *OVN) LogicalSwitchDHCPOptionsDelete(switchName OVNSwitch, onlyUUID ...string) error {
 	existingOpts, err := o.nbctl("--format=csv", "--no-headings", "--data=bare", "--colum=_uuid", "find", "dhcp_options",
 		fmt.Sprintf("external_ids:lxd_switch=%s", string(switchName)),
 	)
@@ -558,12 +559,28 @@ func (o *OVN) logicalSwitchDHCPOptionsDelete(switchName OVNSwitch) error {
 		return err
 	}
 
+	shouldDelete := func(existingUUID string) bool {
+		if len(onlyUUID) <= 0 {
+			return true // Delete all records if no UUID filter supplied.
+		}
+
+		for _, uuid := range onlyUUID {
+			if existingUUID == uuid {
+				return true
+			}
+		}
+
+		return false
+	}
+
 	existingOpts = strings.TrimSpace(existingOpts)
 	if existingOpts != "" {
 		for _, uuid := range strings.Split(existingOpts, "\n") {
-			_, err = o.nbctl("destroy", "dhcp_options", uuid)
-			if err != nil {
-				return err
+			if shouldDelete(uuid) {
+				_, err = o.nbctl("destroy", "dhcp_options", uuid)
+				if err != nil {
+					return err
+				}
 			}
 		}
 	}
