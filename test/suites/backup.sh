@@ -81,7 +81,9 @@ test_container_import() {
 
     lxc init testimage ctImport
     lxc snapshot ctImport
+    lxc snapshot ctImport
     lxc start ctImport
+    lxc delete ctImport/snap1
     pid=$(lxc info ctImport | grep ^Pid | awk '{print $2}')
     kill_lxc "${pid}"
     lxd sql global "PRAGMA foreign_keys=ON; DELETE FROM instances WHERE name='ctImport'"
