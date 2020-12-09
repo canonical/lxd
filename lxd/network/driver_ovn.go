@@ -2118,26 +2118,19 @@ func (n *ovn) InstanceDevicePortAdd(instanceUUID string, instanceName string, de
 		return "", errors.Wrapf(err, "Failed to load uplink network %q", n.config["network"])
 	}
 
-	// Get DHCP options IDs.
-	if validate.IsOneOf(n.getRouterIntPortIPv4Net(), []string{"none", ""}) != nil {
-		_, routerIntPortIPv4Net, err := net.ParseCIDR(n.getRouterIntPortIPv4Net())
-		if err != nil {
-			return "", err
-		}
+	dhcpv4Subnet := n.DHCPv4Subnet()
+	dhcpv6Subnet := n.DHCPv6Subnet()
 
-		dhcpV4ID, err = client.LogicalSwitchDHCPOptionsGetID(n.getIntSwitchName(), routerIntPortIPv4Net)
+	// Get DHCP options IDs.
+	if dhcpv4Subnet != nil {
+		dhcpV4ID, err = client.LogicalSwitchDHCPOptionsGetID(n.getIntSwitchName(), dhcpv4Subnet)
 		if err != nil {
 			return "", err
 		}
 	}
 
-	if validate.IsOneOf(n.getRouterIntPortIPv6Net(), []string{"none", ""}) != nil {
-		_, routerIntPortIPv6Net, err := net.ParseCIDR(n.getRouterIntPortIPv6Net())
-		if err != nil {
-			return "", err
-		}
-
-		dhcpv6ID, err = client.LogicalSwitchDHCPOptionsGetID(n.getIntSwitchName(), routerIntPortIPv6Net)
+	if dhcpv6Subnet != nil {
+		dhcpv6ID, err = client.LogicalSwitchDHCPOptionsGetID(n.getIntSwitchName(), dhcpv6Subnet)
 		if err != nil {
 			return "", err
 		}
@@ -2156,7 +2149,7 @@ func (n *ovn) InstanceDevicePortAdd(instanceUUID string, instanceName string, de
 			}
 
 			if !hasIPv6 {
-				eui64IP, err := eui64.ParseMAC(routerIntPortIPv6Net.IP, mac)
+				eui64IP, err := eui64.ParseMAC(dhcpv6Subnet.IP, mac)
 				if err != nil {
 					return "", errors.Wrapf(err, "Failed generating EUI64 for instance port %q", mac.String())
 				}
