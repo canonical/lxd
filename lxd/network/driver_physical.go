@@ -34,18 +34,21 @@ func (n *physical) DBType() db.NetworkType {
 // Validate network config.
 func (n *physical) Validate(config map[string]string) error {
 	rules := map[string]func(value string) error{
-		"parent":                      validate.Required(validate.IsNotEmpty, validInterfaceName),
-		"mtu":                         validate.Optional(validate.IsNetworkMTU),
-		"vlan":                        validate.Optional(validate.IsNetworkVLAN),
-		"maas.subnet.ipv4":            validate.IsAny,
-		"maas.subnet.ipv6":            validate.IsAny,
-		"ipv4.gateway":                validate.Optional(validate.IsNetworkAddressCIDRV4),
-		"ipv6.gateway":                validate.Optional(validate.IsNetworkAddressCIDRV6),
-		"ipv4.ovn.ranges":             validate.Optional(validate.IsNetworkRangeV4List),
-		"ipv6.ovn.ranges":             validate.Optional(validate.IsNetworkRangeV6List),
-		"ipv4.routes":                 validate.Optional(validate.IsNetworkV4List),
-		"ipv6.routes":                 validate.Optional(validate.IsNetworkV6List),
-		"dns.nameservers":             validate.Optional(validate.IsNetworkAddressList),
+		"parent":           validate.Required(validate.IsNotEmpty, validInterfaceName),
+		"mtu":              validate.Optional(validate.IsNetworkMTU),
+		"vlan":             validate.Optional(validate.IsNetworkVLAN),
+		"maas.subnet.ipv4": validate.IsAny,
+		"maas.subnet.ipv6": validate.IsAny,
+		"ipv4.gateway":     validate.Optional(validate.IsNetworkAddressCIDRV4),
+		"ipv6.gateway":     validate.Optional(validate.IsNetworkAddressCIDRV6),
+		"ipv4.ovn.ranges":  validate.Optional(validate.IsNetworkRangeV4List),
+		"ipv6.ovn.ranges":  validate.Optional(validate.IsNetworkRangeV6List),
+		"ipv4.routes":      validate.Optional(validate.IsNetworkV4List),
+		"ipv6.routes":      validate.Optional(validate.IsNetworkV6List),
+		"dns.nameservers":  validate.Optional(validate.IsNetworkAddressList),
+		"ovn.ingress_mode": validate.Optional(func(value string) error {
+			return validate.IsOneOf(value, []string{"l2proxy", "routed"})
+		}),
 		"volatile.last_state.created": validate.Optional(validate.IsBool),
 	}
 
