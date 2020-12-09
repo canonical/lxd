@@ -2314,6 +2314,12 @@ func (n *ovn) InstanceDevicePortDelete(instanceUUID string, deviceName string, o
 		return err
 	}
 
+	// Load uplink network config.
+	_, uplink, _, err := n.state.Cluster.GetNetworkInAnyState(project.Default, n.config["network"])
+	if err != nil {
+		return errors.Wrapf(err, "Failed to load uplink network %q", n.config["network"])
+	}
+
 	err = client.LogicalSwitchPortDelete(instancePortName)
 	if err != nil {
 		return err
@@ -2330,15 +2336,18 @@ func (n *ovn) InstanceDevicePortDelete(instanceUUID string, deviceName string, o
 		return err
 	}
 
-	// Delete any associated external IP DNAT rules for the DNS IPs (if NAT disabled).
-	for _, dnsIP := range dnsIPs {
-		isV6 := dnsIP.To4() == nil
+	// Delete any associated external IP DNAT rules for the DNS IPs (if NAT disabled) and using l2proxy ingress
+	// mode on uplink
+	if shared.StringInSlice(uplink.Config["ovn.ingress_mode"], []string{"l2proxy", ""}) {
+		for _, dnsIP := range dnsIPs {
+			isV6 := dnsIP.To4() == nil
 
-		// Atempt to remove any externally published IP rules if the associated IP NAT setting is disabled.
-		if (!isV6 && !shared.IsTrue(n.config["ipv4.nat"])) || (isV6 && !shared.IsTrue(n.config["ipv6.nat"])) {
-			err = client.LogicalRouterDNATSNATDelete(n.getRouterName(), dnsIP)
-			if err != nil {
-				return err
+			// Remove externally published IP rule if the associated IP NAT setting is disabled.
+			if (!isV6 && !shared.IsTrue(n.config["ipv4.nat"])) || (isV6 && !shared.IsTrue(n.config["ipv6.nat"])) {
+				err = client.LogicalRouterDNATSNATDelete(n.getRouterName(), dnsIP)
+				if err != nil {
+					return err
+				}
 			}
 		}
 	}
@@ -2358,17 +2367,19 @@ func (n *ovn) InstanceDevicePortDelete(instanceUUID string, deviceName string, o
 			return err
 		}
 
-		// Remove the DNAT rules.
-		err = SubnetIterate(externalRoute, func(ip net.IP) error {
-			err = client.LogicalRouterDNATSNATDelete(n.getRouterName(), ip)
+		// Remove the DNAT rules when using l2proxy ingress mode on uplink.
+		if shared.StringInSlice(uplink.Config["ovn.ingress_mode"], []string{"l2proxy", ""}) {
+			err = SubnetIterate(externalRoute, func(ip net.IP) error {
+				err = client.LogicalRouterDNATSNATDelete(n.getRouterName(), ip)
+				if err != nil {
+					return err
+				}
+
+				return nil
+			})
 			if err != nil {
 				return err
 			}
-
-			return nil
-		})
-		if err != nil {
-			return err
 		}
 	}
 
