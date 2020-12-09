@@ -278,12 +278,25 @@ func (n *ovn) Validate(config map[string]string) error {
 			return err
 		}
 
+		// Check if uplink has routed ingress anycast mode enabled, as this relaxes the overlap checks.
+		ipv4UplinkAnycast := n.uplinkHasIngressRoutedAnycastIPv4(uplink)
+		ipv6UplinkAnycast := n.uplinkHasIngressRoutedAnycastIPv6(uplink)
+
 		for _, externalSubnet := range externalSubnets {
 			// Check the external subnet is allowed within both the uplink's external routes and any
 			// project restricted subnets.
 			err = n.validateExternalSubnet(uplinkRoutes, projectRestrictedSubnets, externalSubnet)
 			if err != nil {
 				return err
+			}
+
+			// Skip overlap checks if external subnet's protocol has anycast mode enabled on uplink.
+			if externalSubnet.IP.To4() == nil {
+				if ipv6UplinkAnycast == true {
+					continue
+				}
+			} else if ipv4UplinkAnycast == true {
+				continue
 			}
 
 			// Check the external subnet doesn't fall within any existing OVN network external subnets.
@@ -2066,12 +2079,25 @@ func (n *ovn) InstanceDevicePortValidateExternalRoutes(deviceInstance instance.I
 		}
 	}
 
+	// Check if uplink has routed ingress anycast mode enabled, as this relaxes the overlap checks.
+	ipv4UplinkAnycast := n.uplinkHasIngressRoutedAnycastIPv4(uplink)
+	ipv6UplinkAnycast := n.uplinkHasIngressRoutedAnycastIPv6(uplink)
+
 	for _, portExternalRoute := range portExternalRoutes {
 		// Check the external port route is allowed within both the uplink's external routes and any
 		// project restricted subnets.
 		err = n.validateExternalSubnet(uplinkRoutes, projectRestrictedSubnets, portExternalRoute)
 		if err != nil {
 			return err
+		}
+
+		// Skip overlap checks if the external route's protocol has anycast mode enabled on the uplink.
+		if portExternalRoute.IP.To4() == nil {
+			if ipv6UplinkAnycast == true {
+				continue
+			}
+		} else if ipv4UplinkAnycast == true {
+			continue
 		}
 
 		// Check the external port route doesn't fall within any existing OVN network external subnets.
@@ -2556,4 +2582,14 @@ func (n *ovn) ovnProjectNetworksWithUplink(uplink string, projectNetworks map[st
 	}
 
 	return ovnProjectNetworksWithOurUplink
+}
+
+// uplinkHasIngressRoutedAnycastIPv4 returns true if the uplink network has IPv4 routed ingress anycast enabled.
+func (n *ovn) uplinkHasIngressRoutedAnycastIPv4(uplink *api.Network) bool {
+	return shared.IsTrue(uplink.Config["ipv4.routes.anycast"]) && uplink.Config["ovn.ingress_mode"] == "routed"
+}
+
+// uplinkHasIngressRoutedAnycastIPv6 returns true if the uplink network has routed IPv6 ingress anycast enabled.
+func (n *ovn) uplinkHasIngressRoutedAnycastIPv6(uplink *api.Network) bool {
+	return shared.IsTrue(uplink.Config["ipv6.routes.anycast"]) && uplink.Config["ovn.ingress_mode"] == "routed"
 }
