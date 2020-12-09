@@ -180,6 +180,7 @@ func (n *ovn) Validate(config map[string]string) error {
 
 			return validate.Optional(validate.IsNetworkAddressCIDRV4)(value)
 		},
+		"ipv4.dhcp": validate.Optional(validate.IsBool),
 		"ipv6.address": func(value string) error {
 			if validate.IsOneOf(value, []string{"none", "auto"}) == nil {
 				return nil
@@ -187,6 +188,7 @@ func (n *ovn) Validate(config map[string]string) error {
 
 			return validate.Optional(validate.IsNetworkAddressCIDRV6)(value)
 		},
+		"ipv6.dhcp":          validate.Optional(validate.IsBool),
 		"ipv6.dhcp.stateful": validate.Optional(validate.IsBool),
 		"ipv4.nat":           validate.Optional(validate.IsBool),
 		"ipv6.nat":           validate.Optional(validate.IsBool),
@@ -1603,6 +1605,8 @@ func (n *ovn) setup(update bool) error {
 	}
 
 	var dhcpv4UUID, dhcpv6UUID string
+	dhcpV4Subnet := n.DHCPv4Subnet()
+	dhcpV6Subnet := n.DHCPv6Subnet()
 
 	if update {
 		// Find first existing DHCP options set for IPv4 and IPv6 and update them instead of adding sets.
@@ -1611,15 +1615,32 @@ func (n *ovn) setup(update bool) error {
 			return errors.Wrapf(err, "Failed getting existing DHCP settings for internal switch")
 		}
 
+		var deleteDHCPRecords []string // DHCP option records to delete if DHCP is being disabled.
+
 		for _, existingOpt := range existingOpts {
 			if existingOpt.CIDR.IP.To4() == nil {
 				if dhcpv6UUID == "" {
 					dhcpv6UUID = existingOpt.UUID
+
+					if dhcpV6Subnet == nil {
+						deleteDHCPRecords = append(deleteDHCPRecords, dhcpv6UUID)
+					}
 				}
 			} else {
 				if dhcpv4UUID == "" {
 					dhcpv4UUID = existingOpt.UUID
+
+					if dhcpV4Subnet == nil {
+						deleteDHCPRecords = append(deleteDHCPRecords, dhcpv4UUID)
+					}
 				}
+			}
+		}
+
+		if len(deleteDHCPRecords) > 0 {
+			err = client.LogicalSwitchDHCPOptionsDelete(n.getIntSwitchName(), deleteDHCPRecords...)
+			if err != nil {
+				return errors.Wrapf(err, "Failed deleting existing DHCP settings for internal switch")
 			}
 		}
 	}
@@ -1627,9 +1648,27 @@ func (n *ovn) setup(update bool) error {
 	// Internal router port IPs (in CIDR format).
 	intRouterIPs := []*net.IPNet{}
 
-	// Create DHCPv4 options for internal switch.
 	if routerIntPortIPv4Net != nil {
-		err = client.LogicalSwitchDHCPv4OptionsSet(n.getIntSwitchName(), dhcpv4UUID, routerIntPortIPv4Net, &openvswitch.OVNDHCPv4Opts{
+		intRouterIPs = append(intRouterIPs, &net.IPNet{
+			IP:   routerIntPortIPv4,
+			Mask: routerIntPortIPv4Net.Mask,
+		})
+	}
+
+	if routerIntPortIPv6Net != nil {
+		intRouterIPs = append(intRouterIPs, &net.IPNet{
+			IP:   routerIntPortIPv6,
+			Mask: routerIntPortIPv6Net.Mask,
+		})
+	}
+
+	if len(intRouterIPs) <= 0 {
+		return fmt.Errorf("No IPs defined for network router")
+	}
+
+	// Create DHCPv4 options for internal switch.
+	if dhcpV4Subnet != nil {
+		err = client.LogicalSwitchDHCPv4OptionsSet(n.getIntSwitchName(), dhcpv4UUID, dhcpV4Subnet, &openvswitch.OVNDHCPv4Opts{
 			ServerID:           routerIntPortIPv4,
 			ServerMAC:          routerMAC,
 			Router:             routerIntPortIPv4,
@@ -1641,16 +1680,11 @@ func (n *ovn) setup(update bool) error {
 		if err != nil {
 			return errors.Wrapf(err, "Failed adding DHCPv4 settings for internal switch")
 		}
-
-		intRouterIPs = append(intRouterIPs, &net.IPNet{
-			IP:   routerIntPortIPv4,
-			Mask: routerIntPortIPv4Net.Mask,
-		})
 	}
 
 	// Create DHCPv6 options for internal switch.
-	if routerIntPortIPv6Net != nil {
-		err = client.LogicalSwitchDHCPv6OptionsSet(n.getIntSwitchName(), dhcpv6UUID, routerIntPortIPv6Net, &openvswitch.OVNDHCPv6Opts{
+	if dhcpV6Subnet != nil {
+		err = client.LogicalSwitchDHCPv6OptionsSet(n.getIntSwitchName(), dhcpv6UUID, dhcpV6Subnet, &openvswitch.OVNDHCPv6Opts{
 			ServerID:           routerMAC,
 			RecursiveDNSServer: uplinkNet.dnsIPv6,
 			DNSSearchList:      n.getDNSSearchList(),
@@ -1658,18 +1692,9 @@ func (n *ovn) setup(update bool) error {
 		if err != nil {
 			return errors.Wrapf(err, "Failed adding DHCPv6 settings for internal switch")
 		}
-
-		intRouterIPs = append(intRouterIPs, &net.IPNet{
-			IP:   routerIntPortIPv6,
-			Mask: routerIntPortIPv6Net.Mask,
-		})
 	}
 
 	// Create internal router port.
-	if len(intRouterIPs) <= 0 {
-		return fmt.Errorf("No IPs defined for network router")
-	}
-
 	err = client.LogicalRouterPortAdd(n.getRouterName(), n.getRouterIntPortName(), routerMAC, intRouterIPs...)
 	if err != nil {
 		return errors.Wrapf(err, "Failed adding internal router port")
@@ -1677,7 +1702,7 @@ func (n *ovn) setup(update bool) error {
 	revert.Add(func() { client.LogicalRouterPortDelete(n.getRouterIntPortName()) })
 
 	// Set IPv6 router advertisement settings.
-	if routerIntPortIPv6Net != nil {
+	if dhcpV6Subnet != nil {
 		adressMode := openvswitch.OVNIPv6AddressModeSLAAC
 		if shared.IsTrue(n.config["ipv6.dhcp.stateful"]) {
 			adressMode = openvswitch.OVNIPv6AddressModeDHCPStateful
@@ -2093,26 +2118,19 @@ func (n *ovn) InstanceDevicePortAdd(instanceUUID string, instanceName string, de
 		return "", errors.Wrapf(err, "Failed to load uplink network %q", n.config["network"])
 	}
 
-	// Get DHCP options IDs.
-	if validate.IsOneOf(n.getRouterIntPortIPv4Net(), []string{"none", ""}) != nil {
-		_, routerIntPortIPv4Net, err := net.ParseCIDR(n.getRouterIntPortIPv4Net())
-		if err != nil {
-			return "", err
-		}
+	dhcpv4Subnet := n.DHCPv4Subnet()
+	dhcpv6Subnet := n.DHCPv6Subnet()
 
-		dhcpV4ID, err = client.LogicalSwitchDHCPOptionsGetID(n.getIntSwitchName(), routerIntPortIPv4Net)
+	// Get DHCP options IDs.
+	if dhcpv4Subnet != nil {
+		dhcpV4ID, err = client.LogicalSwitchDHCPOptionsGetID(n.getIntSwitchName(), dhcpv4Subnet)
 		if err != nil {
 			return "", err
 		}
 	}
 
-	if validate.IsOneOf(n.getRouterIntPortIPv6Net(), []string{"none", ""}) != nil {
-		_, routerIntPortIPv6Net, err := net.ParseCIDR(n.getRouterIntPortIPv6Net())
-		if err != nil {
-			return "", err
-		}
-
-		dhcpv6ID, err = client.LogicalSwitchDHCPOptionsGetID(n.getIntSwitchName(), routerIntPortIPv6Net)
+	if dhcpv6Subnet != nil {
+		dhcpv6ID, err = client.LogicalSwitchDHCPOptionsGetID(n.getIntSwitchName(), dhcpv6Subnet)
 		if err != nil {
 			return "", err
 		}
@@ -2131,7 +2149,7 @@ func (n *ovn) InstanceDevicePortAdd(instanceUUID string, instanceName string, de
 			}
 
 			if !hasIPv6 {
-				eui64IP, err := eui64.ParseMAC(routerIntPortIPv6Net.IP, mac)
+				eui64IP, err := eui64.ParseMAC(dhcpv6Subnet.IP, mac)
 				if err != nil {
 					return "", errors.Wrapf(err, "Failed generating EUI64 for instance port %q", mac.String())
 				}
@@ -2393,7 +2411,7 @@ func (n *ovn) DHCPv4Subnet() *net.IPNet {
 		return nil
 	}
 
-	_, subnet, err := net.ParseCIDR(n.config["ipv4.address"])
+	_, subnet, err := net.ParseCIDR(n.getRouterIntPortIPv4Net())
 	if err != nil {
 		return nil
 	}
@@ -2408,7 +2426,7 @@ func (n *ovn) DHCPv6Subnet() *net.IPNet {
 		return nil
 	}
 
-	_, subnet, err := net.ParseCIDR(n.config["ipv6.address"])
+	_, subnet, err := net.ParseCIDR(n.getRouterIntPortIPv6Net())
 	if err != nil {
 		return nil
 	}
