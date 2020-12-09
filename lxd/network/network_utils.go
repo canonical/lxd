@@ -166,6 +166,10 @@ func UsedBy(s *state.State, networkProjectName string, networkName string, first
 
 		for projectName, networks := range projectNetworks {
 			for _, network := range networks {
+				if networkName == network.Name && networkProjectName == projectName {
+					continue // Skip ourselves.
+				}
+
 				// The network's config references the network we are searching for. Either by
 				// directly referencing our network or by referencing our interface as its parent.
 				if network.Config["network"] == networkName || network.Config["parent"] == networkName {

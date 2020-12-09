@@ -81,13 +81,9 @@ func (n *ovn) Info() Info {
 	}
 }
 
-// uplinkRoutes parses ipv4.routes and ipv6.routes settings for a named uplink network into a slice of *net.IPNet.
-func (n *ovn) uplinkRoutes(uplinkNetworkName string) ([]*net.IPNet, error) {
-	_, uplink, _, err := n.state.Cluster.GetNetworkInAnyState(project.Default, uplinkNetworkName)
-	if err != nil {
-		return nil, err
-	}
-
+// uplinkRoutes parses ipv4.routes and ipv6.routes settings for an uplink network into a slice of *net.IPNet.
+func (n *ovn) uplinkRoutes(uplink *api.Network) ([]*net.IPNet, error) {
+	var err error
 	var uplinkRoutes []*net.IPNet
 	for _, k := range []string{"ipv4.routes", "ipv6.routes"} {
 		if uplink.Config[k] == "" {
@@ -220,7 +216,12 @@ func (n *ovn) Validate(config map[string]string) error {
 	}
 
 	// Get uplink routes.
-	uplinkRoutes, err := n.uplinkRoutes(uplinkNetworkName)
+	_, uplink, _, err := n.state.Cluster.GetNetworkInAnyState(project.Default, uplinkNetworkName)
+	if err != nil {
+		return errors.Wrapf(err, "Failed to load uplink network %q", uplinkNetworkName)
+	}
+
+	uplinkRoutes, err := n.uplinkRoutes(uplink)
 	if err != nil {
 		return err
 	}
@@ -1411,7 +1412,7 @@ func (n *ovn) setup(update bool) error {
 		err := n.state.Cluster.Transaction(func(tx *db.ClusterTx) error {
 			err = tx.UpdateNetwork(n.id, n.description, n.config)
 			if err != nil {
-				return errors.Wrapf(err, "Failed saving optimal bridge MTU")
+				return errors.Wrapf(err, "Failed saving updated network config")
 			}
 
 			return nil
@@ -1973,9 +1974,26 @@ func (n *ovn) InstanceDevicePortValidateExternalRoutes(deviceInstance instance.I
 	var projectNetworks map[string]map[int64]api.Network
 
 	// Get uplink routes.
-	uplinkRoutes, err := n.uplinkRoutes(n.config["network"])
+	_, uplink, _, err := n.state.Cluster.GetNetworkInAnyState(project.Default, n.config["network"])
+	if err != nil {
+		return errors.Wrapf(err, "Failed to load uplink network %q", n.config["network"])
+	}
+
+	uplinkRoutes, err := n.uplinkRoutes(uplink)
 	if err != nil {
 		return err
+	}
+
+	// Check port's external routes are suffciently small when using l2proxy ingress mode on uplink.
+	if shared.StringInSlice(uplink.Config["ovn.ingress_mode"], []string{"l2proxy", ""}) {
+		for _, portExternalRoute := range portExternalRoutes {
+			rOnes, rBits := portExternalRoute.Mask.Size()
+			if rBits > 32 && rOnes < 122 {
+				return fmt.Errorf("External route %q is too large. Maximum size for IPv6 external route is /122", portExternalRoute.String())
+			} else if rOnes < 26 {
+				return fmt.Errorf("External route %q is too large. Maximum size for IPv4 external route is /26", portExternalRoute.String())
+			}
+		}
 	}
 
 	err = n.state.Cluster.Transaction(func(tx *db.ClusterTx) error {
@@ -2067,6 +2085,12 @@ func (n *ovn) InstanceDevicePortAdd(instanceUUID string, instanceName string, de
 	client, err := n.getClient()
 	if err != nil {
 		return "", err
+	}
+
+	// Load uplink network config.
+	_, uplink, _, err := n.state.Cluster.GetNetworkInAnyState(project.Default, n.config["network"])
+	if err != nil {
+		return "", errors.Wrapf(err, "Failed to load uplink network %q", n.config["network"])
 	}
 
 	// Get DHCP options IDs.
@@ -2162,30 +2186,32 @@ func (n *ovn) InstanceDevicePortAdd(instanceUUID string, instanceName string, de
 
 	revert.Add(func() { client.LogicalSwitchPortDeleteDNS(n.getIntSwitchName(), dnsUUID) })
 
-	// Publish NIC's IPs on uplink network if NAT is disabled.
-	for _, k := range []string{"ipv4.nat", "ipv6.nat"} {
-		if shared.IsTrue(n.config[k]) {
-			continue
-		}
+	// Publish NIC's IPs on uplink network if NAT is disabled and using l2proxy ingress mode on uplink.
+	if shared.StringInSlice(uplink.Config["ovn.ingress_mode"], []string{"l2proxy", ""}) {
+		for _, k := range []string{"ipv4.nat", "ipv6.nat"} {
+			if shared.IsTrue(n.config[k]) {
+				continue
+			}
 
-		// Select the correct destination IP from the DNS records.
-		var ip net.IP
-		if k == "ipv4.nat" {
-			ip = dnsIPv4
-		} else if k == "ipv6.nat" {
-			ip = dnsIPv6
-		}
+			// Select the correct destination IP from the DNS records.
+			var ip net.IP
+			if k == "ipv4.nat" {
+				ip = dnsIPv4
+			} else if k == "ipv6.nat" {
+				ip = dnsIPv6
+			}
 
-		if ip == nil {
-			continue //No qualifying target IP from DNS records.
-		}
+			if ip == nil {
+				continue //No qualifying target IP from DNS records.
+			}
 
-		err = client.LogicalRouterDNATSNATAdd(n.getRouterName(), ip, ip, true, true)
-		if err != nil {
-			return "", err
-		}
+			err = client.LogicalRouterDNATSNATAdd(n.getRouterName(), ip, ip, true, true)
+			if err != nil {
+				return "", err
+			}
 
-		revert.Add(func() { client.LogicalRouterDNATSNATDelete(n.getRouterName(), ip) })
+			revert.Add(func() { client.LogicalRouterDNATSNATDelete(n.getRouterName(), ip) })
+		}
 	}
 
 	// Add each internal route (using the IPs set for DNS as target).
@@ -2225,22 +2251,25 @@ func (n *ovn) InstanceDevicePortAdd(instanceUUID string, instanceName string, de
 
 		revert.Add(func() { client.LogicalRouterRouteDelete(n.getRouterName(), externalRoute, targetIP) })
 
-		// In order to advertise the external route to the uplink network using proxy ARP/NDP we need to
-		// add a stateless dnat_and_snat rule (as to my knowledge this is the only way to get the OVN
-		// router to respond to ARP/NDP requests for IPs that it doesn't actually have). However we have
-		// to add each IP in the external route individually as DNAT doesn't support whole subnets.
-		err = SubnetIterate(externalRoute, func(ip net.IP) error {
-			err = client.LogicalRouterDNATSNATAdd(n.getRouterName(), ip, ip, true, true)
+		// When using l2proxy ingress mode on uplink, in order to advertise the external route to the
+		// uplink network using proxy ARP/NDP we need to add a stateless dnat_and_snat rule (as to my
+		// knowledge this is the only way to get the OVN router to respond to ARP/NDP requests for IPs that
+		// it doesn't actually have). However we have to add each IP in the external route individually as
+		// DNAT doesn't support whole subnets.
+		if shared.StringInSlice(uplink.Config["ovn.ingress_mode"], []string{"l2proxy", ""}) {
+			err = SubnetIterate(externalRoute, func(ip net.IP) error {
+				err = client.LogicalRouterDNATSNATAdd(n.getRouterName(), ip, ip, true, true)
+				if err != nil {
+					return err
+				}
+
+				revert.Add(func() { client.LogicalRouterDNATSNATDelete(n.getRouterName(), ip) })
+
+				return nil
+			})
 			if err != nil {
-				return err
+				return "", err
 			}
-
-			revert.Add(func() { client.LogicalRouterDNATSNATDelete(n.getRouterName(), ip) })
-
-			return nil
-		})
-		if err != nil {
-			return "", err
 		}
 	}
 
@@ -2285,6 +2314,12 @@ func (n *ovn) InstanceDevicePortDelete(instanceUUID string, deviceName string, o
 		return err
 	}
 
+	// Load uplink network config.
+	_, uplink, _, err := n.state.Cluster.GetNetworkInAnyState(project.Default, n.config["network"])
+	if err != nil {
+		return errors.Wrapf(err, "Failed to load uplink network %q", n.config["network"])
+	}
+
 	err = client.LogicalSwitchPortDelete(instancePortName)
 	if err != nil {
 		return err
@@ -2301,15 +2336,18 @@ func (n *ovn) InstanceDevicePortDelete(instanceUUID string, deviceName string, o
 		return err
 	}
 
-	// Delete any associated external IP DNAT rules for the DNS IPs (if NAT disabled).
-	for _, dnsIP := range dnsIPs {
-		isV6 := dnsIP.To4() == nil
+	// Delete any associated external IP DNAT rules for the DNS IPs (if NAT disabled) and using l2proxy ingress
+	// mode on uplink
+	if shared.StringInSlice(uplink.Config["ovn.ingress_mode"], []string{"l2proxy", ""}) {
+		for _, dnsIP := range dnsIPs {
+			isV6 := dnsIP.To4() == nil
 
-		// Atempt to remove any externally published IP rules if the associated IP NAT setting is disabled.
-		if (!isV6 && !shared.IsTrue(n.config["ipv4.nat"])) || (isV6 && !shared.IsTrue(n.config["ipv6.nat"])) {
-			err = client.LogicalRouterDNATSNATDelete(n.getRouterName(), dnsIP)
-			if err != nil {
-				return err
+			// Remove externally published IP rule if the associated IP NAT setting is disabled.
+			if (!isV6 && !shared.IsTrue(n.config["ipv4.nat"])) || (isV6 && !shared.IsTrue(n.config["ipv6.nat"])) {
+				err = client.LogicalRouterDNATSNATDelete(n.getRouterName(), dnsIP)
+				if err != nil {
+					return err
+				}
 			}
 		}
 	}
@@ -2329,17 +2367,19 @@ func (n *ovn) InstanceDevicePortDelete(instanceUUID string, deviceName string, o
 			return err
 		}
 
-		// Remove the DNAT rules.
-		err = SubnetIterate(externalRoute, func(ip net.IP) error {
-			err = client.LogicalRouterDNATSNATDelete(n.getRouterName(), ip)
+		// Remove the DNAT rules when using l2proxy ingress mode on uplink.
+		if shared.StringInSlice(uplink.Config["ovn.ingress_mode"], []string{"l2proxy", ""}) {
+			err = SubnetIterate(externalRoute, func(ip net.IP) error {
+				err = client.LogicalRouterDNATSNATDelete(n.getRouterName(), ip)
+				if err != nil {
+					return err
+				}
+
+				return nil
+			})
 			if err != nil {
 				return err
 			}
-
-			return nil
-		})
-		if err != nil {
-			return err
 		}
 	}
 

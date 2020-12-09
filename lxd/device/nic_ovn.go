@@ -171,15 +171,6 @@ func (d *nicOVN) validateConfig(instConf instance.ConfigReader) error {
 	}
 
 	if len(externalRoutes) > 0 {
-		for _, externalRoute := range externalRoutes {
-			rOnes, rBits := externalRoute.Mask.Size()
-			if rBits > 32 && rOnes < 122 {
-				return fmt.Errorf("External route %q is too large. Maximum size for IPv6 external route is /122", externalRoute.String())
-			} else if rOnes < 26 {
-				return fmt.Errorf("External route %q is too large. Maximum size for IPv4 external route is /26", externalRoute.String())
-			}
-		}
-
 		err = d.network.InstanceDevicePortValidateExternalRoutes(d.inst, d.name, externalRoutes)
 		if err != nil {
 			return err
