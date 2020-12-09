@@ -1253,3 +1253,7 @@ Adds `ipv4.routes.anycast` and `ipv6.routes.anycast` boolean settings for `physi
 
 Allows OVN networks using physical network as uplink to relax external subnet/route overlap detection when used
 with `ovn.ingress_mode=routed`.
+
+## projects\_limits\_instances
+Adds `limits.instances` to the available project configuration keys. If set, it
+limits the total number of instances (VMs and containers) that can be used in the project.
