@@ -2557,3 +2557,13 @@ func (n *ovn) ovnProjectNetworksWithUplink(uplink string, projectNetworks map[st
 
 	return ovnProjectNetworksWithOurUplink
 }
+
+// uplinkHasIngressRoutedAnycastIPv4 returns true if the uplink network has IPv4 routed ingress anycast enabled.
+func (n *ovn) uplinkHasIngressRoutedAnycastIPv4(uplink *api.Network) bool {
+	return shared.IsTrue(uplink.Config["ipv4.routes.anycast"]) && uplink.Config["ovn.ingress_mode"] == "routed"
+}
+
+// uplinkHasIngressRoutedAnycastIPv6 returns true if the uplink network has routed IPv6 ingress anycast enabled.
+func (n *ovn) uplinkHasIngressRoutedAnycastIPv6(uplink *api.Network) bool {
+	return shared.IsTrue(uplink.Config["ipv6.routes.anycast"]) && uplink.Config["ovn.ingress_mode"] == "routed"
+}
