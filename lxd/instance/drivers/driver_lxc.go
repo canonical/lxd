@@ -3397,6 +3397,11 @@ func (d *lxc) Delete(force bool) error {
 				if err != nil {
 					return err
 				}
+
+				err = d.UpdateBackupFile()
+				if err != nil {
+					return err
+				}
 			}
 		} else {
 			// Remove all snapshots by initialising each snapshot as an Instance and
