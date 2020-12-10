@@ -498,6 +498,7 @@ func (c *ClusterTx) storagePoolNodes(poolID int64) (map[int64]StoragePoolNode, e
 
 	poolNodes := map[int64]StoragePoolNode{}
 	for _, node := range nodes {
+		node.State = -1
 		poolNodes[node.ID] = node
 	}
 
