@@ -904,8 +904,7 @@ func (c *Cluster) FillMissingStoragePoolDriver() error {
 	return err
 }
 
-// StoragePoolNodeConfigKeys lists all storage pool config keys which are
-// node-specific.
+// StoragePoolNodeConfigKeys lists all storage pool config keys which are node-specific.
 var StoragePoolNodeConfigKeys = []string{
 	"size",
 	"source",
