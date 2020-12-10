@@ -791,7 +791,7 @@ mdev        | string    | -                 | no        | The mdev profile to us
 
 ### Type: proxy
 
-Supported instance types: container
+Supported instance types: container (`nat` and non-`nat` modes), VM (`nat` mode only)
 
 Proxy devices allow forwarding network connections between host and instance.
 This makes it possible to forward traffic hitting one of the host's
