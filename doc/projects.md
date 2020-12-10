@@ -21,6 +21,7 @@ features.images                      | boolean   | -                     | true 
 features.networks                    | boolean   | -                     | true                      | Separate set of networks for the project
 features.profiles                    | boolean   | -                     | true                      | Separate set of profiles for the project
 features.storage.volumes             | boolean   | -                     | true                      | Separate set of storage volumes for the project
+limits.instances                     | integer   | -                     | -                         | Maximum number of total instances that can be created in the project
 limits.containers                    | integer   | -                     | -                         | Maximum number of containers that can be created in the project
 limits.cpu                           | integer   | -                     | -                         | Maximum value for the sum of individual "limits.cpu" configs set on the instances of the project
 limits.disk                          | string    | -                     | -                         | Maximum value of aggregate disk space used by all instances volumes, custom volumes and images of the project
