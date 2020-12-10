@@ -330,4 +330,4 @@ ipv6.ovn.ranges                 | string    | -                     | -         
 ipv6.routes                     | string    | ipv6 address          | -                         | Comma separated list of additional IPv6 CIDR subnets that can be used with child OVN networks ipv6.routes.external setting
 ipv6.routes.anycast             | boolean   | ipv6 address          | false                     | Allow the overlapping routes to be used on multiple networks/NIC at the same time.
 dns.nameservers                 | string    | standard mode         | -                         | List of DNS server IPs on physical network
-ovn.ingress_mode                | string    | standard mode         | l2proxy                   | Sets the method that OVN NIC external IPs will be advertised on uplink network. Either `l2proxy` (proxy ARP/NDP) or `routed`.
+ovn.ingress\_mode               | string    | standard mode         | l2proxy                   | Sets the method that OVN NIC external IPs will be advertised on uplink network. Either `l2proxy` (proxy ARP/NDP) or `routed`.

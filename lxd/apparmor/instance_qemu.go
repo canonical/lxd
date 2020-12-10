@@ -69,6 +69,10 @@ profile "{{ .name }}" flags=(attach_disconnected,mediate_deleted) {
   /snap/lxd/*/bin/qemu*                     mrix,
   /snap/lxd/*/share/qemu/**                 kr,
 
+  # Snap-specific paths
+  /var/snap/lxd/common/ceph/**              r,
+  {{ .rootPath }}/etc/ceph/**               r,
+
   # Snap-specific libraries
   /snap/lxd/*/lib/**.so*            mr,
 {{- end }}
