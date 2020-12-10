@@ -1499,36 +1499,6 @@ func (n *ovn) setup(update bool) error {
 
 	// Configure logical router.
 
-	// Add default routes.
-	if uplinkNet.routerExtGwIPv4 != nil {
-		err = client.LogicalRouterRouteAdd(n.getRouterName(), &net.IPNet{IP: net.IPv4zero, Mask: net.CIDRMask(0, 32)}, uplinkNet.routerExtGwIPv4, false)
-		if err != nil {
-			return errors.Wrapf(err, "Failed adding IPv4 default route")
-		}
-	}
-
-	if uplinkNet.routerExtGwIPv6 != nil {
-		err = client.LogicalRouterRouteAdd(n.getRouterName(), &net.IPNet{IP: net.IPv6zero, Mask: net.CIDRMask(0, 128)}, uplinkNet.routerExtGwIPv6, false)
-		if err != nil {
-			return errors.Wrapf(err, "Failed adding IPv6 default route")
-		}
-	}
-
-	// Add SNAT rules.
-	if shared.IsTrue(n.config["ipv4.nat"]) && routerIntPortIPv4Net != nil && routerExtPortIPv4 != nil {
-		err = client.LogicalRouterSNATAdd(n.getRouterName(), routerIntPortIPv4Net, routerExtPortIPv4)
-		if err != nil {
-			return err
-		}
-	}
-
-	if shared.IsTrue(n.config["ipv6.nat"]) && routerIntPortIPv6Net != nil && routerExtPortIPv6 != nil {
-		err = client.LogicalRouterSNATAdd(n.getRouterName(), routerIntPortIPv6Net, routerExtPortIPv6)
-		if err != nil {
-			return err
-		}
-	}
-
 	// Generate external router port IPs (in CIDR format).
 	extRouterIPs := []*net.IPNet{}
 	if routerExtPortIPv4Net != nil {
@@ -1592,6 +1562,36 @@ func (n *ovn) setup(update bool) error {
 		err = client.LogicalSwitchPortLinkProviderNetwork(n.getExtSwitchProviderPortName(), uplinkNet.extSwitchProviderName)
 		if err != nil {
 			return errors.Wrapf(err, "Failed linking external switch provider port to external provider network")
+		}
+
+		// Add SNAT rules.
+		if shared.IsTrue(n.config["ipv4.nat"]) && routerIntPortIPv4Net != nil && routerExtPortIPv4 != nil {
+			err = client.LogicalRouterSNATAdd(n.getRouterName(), routerIntPortIPv4Net, routerExtPortIPv4)
+			if err != nil {
+				return err
+			}
+		}
+
+		if shared.IsTrue(n.config["ipv6.nat"]) && routerIntPortIPv6Net != nil && routerExtPortIPv6 != nil {
+			err = client.LogicalRouterSNATAdd(n.getRouterName(), routerIntPortIPv6Net, routerExtPortIPv6)
+			if err != nil {
+				return err
+			}
+		}
+
+		// Add default routes.
+		if uplinkNet.routerExtGwIPv4 != nil {
+			err = client.LogicalRouterRouteAdd(n.getRouterName(), &net.IPNet{IP: net.IPv4zero, Mask: net.CIDRMask(0, 32)}, uplinkNet.routerExtGwIPv4, false)
+			if err != nil {
+				return errors.Wrapf(err, "Failed adding IPv4 default route")
+			}
+		}
+
+		if uplinkNet.routerExtGwIPv6 != nil {
+			err = client.LogicalRouterRouteAdd(n.getRouterName(), &net.IPNet{IP: net.IPv6zero, Mask: net.CIDRMask(0, 128)}, uplinkNet.routerExtGwIPv6, false)
+			if err != nil {
+				return errors.Wrapf(err, "Failed adding IPv6 default route")
+			}
 		}
 	}
 
