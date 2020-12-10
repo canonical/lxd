@@ -524,6 +524,7 @@ func projectValidateConfig(s *state.State, config map[string]string) error {
 		"features.images":                validate.Optional(validate.IsBool),
 		"features.storage.volumes":       validate.Optional(validate.IsBool),
 		"features.networks":              validate.Optional(validate.IsBool),
+		"limits.instances":               validate.Optional(validate.IsUint32),
 		"limits.containers":              validate.Optional(validate.IsUint32),
 		"limits.virtual-machines":        validate.Optional(validate.IsUint32),
 		"limits.memory":                  validate.Optional(validate.IsSize),

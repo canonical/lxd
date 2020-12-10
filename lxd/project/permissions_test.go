@@ -124,3 +124,38 @@ func TestAllowInstanceCreation_DifferentType(t *testing.T) {
 	err = project.AllowInstanceCreation(tx, "p1", req)
 	assert.NoError(t, err)
 }
+
+// If a limit is configured, but the limit on instances is more
+// restrictive, the check fails
+func TestAllowInstanceCreation_AboveInstances(t *testing.T) {
+	tx, cleanup := db.NewTestClusterTx(t)
+	defer cleanup()
+
+	_, err := tx.CreateProject(api.ProjectsPost{
+		Name: "p1",
+		ProjectPut: api.ProjectPut{
+			Config: map[string]string{
+				"limits.containers": "5",
+				"limits.instances":  "1",
+			},
+		},
+	})
+	require.NoError(t, err)
+
+	_, err = tx.CreateInstance(db.Instance{
+		Project:      "p1",
+		Name:         "c1",
+		Type:         instancetype.Container,
+		Architecture: 1,
+		Node:         "none",
+	})
+	require.NoError(t, err)
+
+	req := api.InstancesPost{
+		Name: "c2",
+		Type: api.InstanceTypeContainer,
+	}
+
+	err = project.AllowInstanceCreation(tx, "p1", req)
+	assert.EqualError(t, err, `Reached maximum number of instances in project "p1"`)
+}

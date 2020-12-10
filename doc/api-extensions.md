@@ -1236,7 +1236,7 @@ Adds the usb\_address field to the network card entries in the resources API.
 ## resources\_disk\_address
 Adds the usb\_address and pci\_address fields to the disk entries in the resources API.
 
-## network\_physical\_ovn\_ingress_mode
+## network\_physical\_ovn\_ingress\_mode
 Adds `ovn.ingress_mode` setting for `physical` networks.
 
 Sets the method that OVN NIC external IPs will be advertised on uplink network.
@@ -1253,3 +1253,7 @@ Adds `ipv4.routes.anycast` and `ipv6.routes.anycast` boolean settings for `physi
 
 Allows OVN networks using physical network as uplink to relax external subnet/route overlap detection when used
 with `ovn.ingress_mode=routed`.
+
+## projects\_limits\_instances
+Adds `limits.instances` to the available project configuration keys. If set, it
+limits the total number of instances (VMs and containers) that can be used in the project.
