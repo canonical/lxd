@@ -707,6 +707,13 @@ func (d *qemu) Start(stateful bool) error {
 
 	revert.Add(func() { d.unmount() })
 
+	// Update the backup.yaml file.
+	err = d.UpdateBackupFile()
+	if err != nil {
+		return err
+	}
+
+	// Generate the config drive.
 	err = d.generateConfigShare()
 	if err != nil {
 		op.Done(err)
@@ -3622,6 +3629,23 @@ func (d *qemu) Delete(force bool) error {
 	if err := d.state.Cluster.DeleteInstance(d.Project(), d.Name()); err != nil {
 		d.logger.Error("Failed deleting instance entry", log.Ctx{"project": d.Project()})
 		return err
+	}
+
+	// If dealing with a snapshot, refresh the backup file on the parent.
+	if d.IsSnapshot() && !isImport {
+		parentName, _, _ := shared.InstanceGetParentAndSnapshotName(d.name)
+
+		// Load the parent.
+		parent, err := instance.LoadByProjectAndName(d.state, d.project, parentName)
+		if err != nil {
+			return errors.Wrap(err, "Invalid parent")
+		}
+
+		// Update the backup file.
+		err = parent.UpdateBackupFile()
+		if err != nil {
+			return err
+		}
 	}
 
 	d.logger.Info("Deleted instance", ctxMap)
