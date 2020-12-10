@@ -1264,3 +1264,6 @@ This adds a "vlan" section to the /1.0/networks/NAME/state API.
 Those contain additional state information relevant to VLAN interfaces:
  - lower\_device
  - vid
+
+## instance\_nic\_bridged\_port\_isolation
+This adds the `security.port_isolation` field for bridged NIC instances.
