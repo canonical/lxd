@@ -616,6 +616,49 @@ func GetNetworkState(name string) (*api.NetworkState, error) {
 		network.Bridge = &bridge
 	}
 
+	// Populate VLAN details.
+	type vlan struct {
+		lower string
+		vid   uint64
+	}
+	vlans := map[string]vlan{}
+
+	vlanPath := "/proc/net/vlan/config"
+	if sysfsExists(vlanPath) {
+		entries, err := ioutil.ReadFile(vlanPath)
+		if err != nil {
+			return nil, err
+		}
+
+		for _, line := range strings.Split(string(entries), "\n") {
+			fields := strings.Split(line, "|")
+			if len(fields) != 3 {
+				continue
+			}
+
+			vName := strings.TrimSpace(fields[0])
+			vVID, err := strconv.ParseUint(strings.TrimSpace(fields[1]), 10, 64)
+			if err != nil {
+				continue
+			}
+			vLower := strings.TrimSpace(fields[2])
+
+			vlans[vName] = vlan{
+				lower: vLower,
+				vid:   vVID,
+			}
+		}
+	}
+
+	// Check if the interface is a VLAN.
+	entry, ok := vlans[name]
+	if ok {
+		network.VLAN = &api.NetworkStateVLAN{
+			LowerDevice: entry.lower,
+			VID:         entry.vid,
+		}
+	}
+
 	// Get counters.
 	counters, err := GetNetworkCounters(name)
 	if err != nil {
