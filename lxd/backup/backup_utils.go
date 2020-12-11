@@ -34,8 +34,10 @@ func TarReader(r io.ReadSeeker) (*tar.Reader, context.CancelFunc, error) {
 
 // Lifecycle emits a backup-specific lifecycle event.
 func Lifecycle(s *state.State, inst Instance, name string, action string, ctx map[string]interface{}) error {
+	_, backupName, _ := shared.InstanceGetParentAndSnapshotName(name)
+
 	prefix := "instance-backup"
-	u := fmt.Sprintf("/1.0/instances/%s/backups/%s", url.PathEscape(inst.Name()), url.PathEscape(name))
+	u := fmt.Sprintf("/1.0/instances/%s/backups/%s", url.PathEscape(inst.Name()), url.PathEscape(backupName))
 
 	if inst.Project() != project.Default {
 		u = fmt.Sprintf("%s?project=%s", u, url.QueryEscape(inst.Project()))
