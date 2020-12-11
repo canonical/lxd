@@ -27,6 +27,7 @@ var instancesCmd = APIEndpoint{
 
 	Get:  APIEndpointAction{Handler: containersGet, AccessHandler: allowProjectPermission("containers", "view")},
 	Post: APIEndpointAction{Handler: containersPost, AccessHandler: allowProjectPermission("containers", "manage-containers")},
+	Put:  APIEndpointAction{Handler: containersPut, AccessHandler: allowProjectPermission("containers", "operate-containers")},
 }
 
 var instanceCmd = APIEndpoint{
