@@ -429,6 +429,9 @@ func networksPostCluster(d *Daemon, projectName string, req api.NetworksPost, cl
 // Create the network on the system. The clusterNotification flag is used to indicate whether creation request
 // is coming from a cluster notification (and if so we should not delete the database record on error).
 func doNetworksCreate(d *Daemon, projectName string, req api.NetworksPost, clientType request.ClientType) error {
+	revert := revert.New()
+	defer revert.Fail()
+
 	// Start the network.
 	n, err := network.LoadByName(d.State(), projectName, req.Name)
 	if err != nil {
@@ -452,16 +455,13 @@ func doNetworksCreate(d *Daemon, projectName string, req api.NetworksPost, clien
 		return err
 	}
 
+	revert.Add(func() { n.Delete(clientType) })
+
 	// Only start networks when not doing a cluster pre-join phase (this ensures that networks are only started
 	// once the node has fully joined the clustered database and has consistent config with rest of the nodes).
 	if clientType != request.ClientTypeJoiner {
 		err = n.Start()
 		if err != nil {
-			delErr := n.Delete(clientType)
-			if delErr != nil {
-				logger.Error("Failed clearing up network after failed create", log.Ctx{"project": projectName, "network": n.Name(), "err": delErr})
-			}
-
 			return err
 		}
 	}
@@ -471,14 +471,11 @@ func doNetworksCreate(d *Daemon, projectName string, req api.NetworksPost, clien
 		return tx.NetworkNodeCreated(n.ID())
 	})
 	if err != nil {
-		delErr := n.Delete(clientType)
-		if delErr != nil {
-			logger.Error("Failed clearing up network after failed local status update", log.Ctx{"project": projectName, "network": n.Name(), "err": delErr})
-		}
 		return err
 	}
 	logger.Debug("Marked network local status as created", log.Ctx{"project": projectName, "network": req.Name})
 
+	revert.Success()
 	return nil
 }
 
