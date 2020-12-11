@@ -573,8 +573,39 @@ func networkDelete(d *Daemon, r *http.Request) response.Response {
 		}
 	}
 
-	// Delete the network from each member.
-	err = n.Delete(clientType)
+	if n.LocalStatus() != api.NetworkStatusPending {
+		err = n.Delete(clientType)
+		if err != nil {
+			return response.InternalError(err)
+		}
+	}
+
+	// If this is a cluster notification, we're done, any database work will be done by the node that is
+	// originally serving the request.
+	if clusterNotification {
+		return response.EmptySyncResponse
+	}
+
+	// If we are clustered, also notify all other nodes, if any.
+	clustered, err := cluster.Enabled(d.db)
+	if err != nil {
+		return response.SmartError(err)
+	}
+	if clustered {
+		notifier, err := cluster.NewNotifier(d.State(), d.endpoints.NetworkCert(), cluster.NotifyAll)
+		if err != nil {
+			return response.SmartError(err)
+		}
+		err = notifier(func(client lxd.InstanceServer) error {
+			return client.UseProject(n.Project()).DeleteNetwork(n.Name())
+		})
+		if err != nil {
+			return response.SmartError(err)
+		}
+	}
+
+	// Remove the network from the database.
+	err = d.State().Cluster.DeleteNetwork(n.Name())
 	if err != nil {
 		return response.SmartError(err)
 	}
