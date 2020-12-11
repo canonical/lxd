@@ -1073,3 +1073,10 @@ Adds the usb\_address field to the network card entries in the resources API.
 
 ## resources\_disk\_address
 Adds the usb\_address and pci\_address fields to the disk entries in the resources API.
+
+## network\_state\_vlan
+This adds a "vlan" section to the /1.0/networks/NAME/state API.
+
+Those contain additional state information relevant to VLAN interfaces:
+ - lower\_device
+ - vid

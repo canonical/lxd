@@ -215,6 +215,7 @@ var APIExtensions = []string{
 	"resources_pci_iommu",
 	"resources_network_usb",
 	"resources_disk_address",
+	"network_state_vlan",
 }
 
 // APIExtensionsCount returns the number of available API extensions.
