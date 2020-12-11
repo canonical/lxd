@@ -793,6 +793,11 @@ func (c *Cluster) getStoragePoolConfig(poolID int64) (map[string]string, error) 
 		key = r[0].(string)
 		value = r[1].(string)
 
+		_, found := config[key]
+		if found {
+			return nil, fmt.Errorf("Duplicate config row found for key %q for storage pool ID %d", key, poolID)
+		}
+
 		config[key] = value
 	}
 
