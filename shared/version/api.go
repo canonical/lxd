@@ -245,6 +245,7 @@ var APIExtensions = []string{
 	"projects_limits_instances",
 	"network_state_vlan",
 	"instance_nic_bridged_port_isolation",
+	"instance_bulk_state_change",
 }
 
 // APIExtensionsCount returns the number of available API extensions.
