@@ -130,6 +130,11 @@ func (n *common) Name() string {
 	return n.name
 }
 
+// Project returns the network project.
+func (n *common) Project() string {
+	return n.project
+}
+
 // Description returns the network description.
 func (n *common) Description() string {
 	return n.description
@@ -363,32 +368,14 @@ func (n *common) rename(newName string) error {
 
 // delete the network from the database if clusterNotification is false.
 func (n *common) delete(clientType request.ClientType) error {
-	// Only delete database record if not cluster notification.
-	if clientType != request.ClientTypeNotifier {
-		// Notify all other nodes. If any node is down, an error will be returned.
-		notifier, err := cluster.NewNotifier(n.state, n.state.Endpoints.NetworkCert(), cluster.NotifyAll)
-		if err != nil {
-			return err
-		}
-		err = notifier(func(client lxd.InstanceServer) error {
-			return client.UseProject(n.project).DeleteNetwork(n.name)
-		})
-		if err != nil {
-			return err
-		}
-
-		// Remove the network from the database.
-		err = n.state.Cluster.DeleteNetwork(n.project, n.name)
-		if err != nil {
-			return err
-		}
-
-		n.lifecycle("deleted", nil)
-	}
-
 	// Cleanup storage.
 	if shared.PathExists(shared.VarPath("networks", n.name)) {
 		os.RemoveAll(shared.VarPath("networks", n.name))
+	}
+
+	// Generate lifecycle event if not notification.
+	if clientType != request.ClientTypeNotifier {
+		n.lifecycle("deleted", nil)
 	}
 
 	return nil

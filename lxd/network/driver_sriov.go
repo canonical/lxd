@@ -45,6 +45,7 @@ func (n *sriov) Validate(config map[string]string) error {
 // Delete deletes a network.
 func (n *sriov) Delete(clientType request.ClientType) error {
 	n.logger.Debug("Delete", log.Ctx{"clientType": clientType})
+
 	return n.common.delete(clientType)
 }
 
