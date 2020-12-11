@@ -1257,3 +1257,10 @@ with `ovn.ingress_mode=routed`.
 ## projects\_limits\_instances
 Adds `limits.instances` to the available project configuration keys. If set, it
 limits the total number of instances (VMs and containers) that can be used in the project.
+
+## network\_state\_vlan
+This adds a "vlan" section to the /1.0/networks/NAME/state API.
+
+Those contain additional state information relevant to VLAN interfaces:
+ - lower\_device
+ - vid
