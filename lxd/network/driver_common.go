@@ -130,6 +130,11 @@ func (n *common) Name() string {
 	return n.name
 }
 
+// Project returns the network project.
+func (n *common) Project() string {
+	return n.project
+}
+
 // Description returns the network description.
 func (n *common) Description() string {
 	return n.description
