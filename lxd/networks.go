@@ -210,7 +210,7 @@ func networksPost(d *Daemon, r *http.Request) response.Response {
 
 				for _, node := range nodes {
 					err = tx.CreatePendingNetwork(node.Name, req.Name, netType.DBType(), req.Config)
-					if err != nil {
+					if err != nil && errors.Cause(err) != db.ErrAlreadyDefined {
 						return errors.Wrapf(err, "Failed creating pending network for node %q", node.Name)
 					}
 				}
