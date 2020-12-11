@@ -2151,12 +2151,20 @@ func (n *ovn) InstanceDevicePortAdd(instanceUUID string, instanceName string, de
 		if err != nil {
 			return "", err
 		}
+
+		if dhcpV4ID == "" {
+			return "", fmt.Errorf("Could not find DHCPv4 options for instance port")
+		}
 	}
 
 	if dhcpv6Subnet != nil {
 		dhcpv6ID, err = client.LogicalSwitchDHCPOptionsGetID(n.getIntSwitchName(), dhcpv6Subnet)
 		if err != nil {
 			return "", err
+		}
+
+		if dhcpV4ID == "" {
+			return "", fmt.Errorf("Could not find DHCPv6 options for instance port")
 		}
 
 		// If port isn't going to have fully dynamic IPs allocated by OVN, and instead only static IPv4
