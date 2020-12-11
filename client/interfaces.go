@@ -87,6 +87,7 @@ type InstanceServer interface {
 	// Container functions
 	GetContainerNames() (names []string, err error)
 	GetContainers() (containers []api.Container, err error)
+	UpdateInstances(state api.InstancesPut, ETag string) (op Operation, err error)
 	GetContainersFull() (containers []api.ContainerFull, err error)
 	GetContainer(name string) (container *api.Container, ETag string, err error)
 	CreateContainer(container api.ContainersPost) (op Operation, err error)
