@@ -428,24 +428,18 @@ func networksPostCluster(d *Daemon, projectName string, req api.NetworksPost, cl
 
 // Create the network on the system. The clusterNotification flag is used to indicate whether creation request
 // is coming from a cluster notification (and if so we should not delete the database record on error).
-func doNetworksCreate(d *Daemon, projectName string, req api.NetworksPost, clientType request.ClientType) error {
+func doNetworksCreate(d *Daemon, n network.Network, clientType request.ClientType) error {
 	revert := revert.New()
 	defer revert.Fail()
 
-	// Start the network.
-	n, err := network.LoadByName(d.State(), projectName, req.Name)
-	if err != nil {
-		return err
-	}
-
 	// Validate so that when run on a cluster node the full config (including node specific config) is checked.
-	err = n.Validate(n.Config())
+	err := n.Validate(n.Config())
 	if err != nil {
 		return err
 	}
 
 	if n.LocalStatus() == api.NetworkStatusCreated {
-		logger.Debug("Skipping network create as already created locally", log.Ctx{"project": projectName, "network": n.Name()})
+		logger.Debug("Skipping network create as already created locally", log.Ctx{"project": n.Project(), "network": n.Name()})
 		return nil
 	}
 
@@ -473,7 +467,7 @@ func doNetworksCreate(d *Daemon, projectName string, req api.NetworksPost, clien
 	if err != nil {
 		return err
 	}
-	logger.Debug("Marked network local status as created", log.Ctx{"project": projectName, "network": req.Name})
+	logger.Debug("Marked network local status as created", log.Ctx{"project": n.Project(), "network": n.Name()})
 
 	revert.Success()
 	return nil
