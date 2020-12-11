@@ -130,6 +130,63 @@ func (c *cmdAction) Command(action string) *cobra.Command {
 	return cmd
 }
 
+func (c *cmdAction) doActionAll(action string, resource remoteResource) error {
+	if resource.name != "" {
+		// both --all and instance name given.
+		return fmt.Errorf(i18n.G("Both --all and instance name given"))
+	}
+
+	remote := resource.remote
+	d, err := c.global.conf.GetInstanceServer(remote)
+	if err != nil {
+		return err
+	}
+
+	// Pause is called freeze.
+	if action == "pause" {
+		action = "freeze"
+	}
+
+	// Only store state if asked to.
+	state := false
+	if action == "stop" && c.flagStateful {
+		state = true
+	}
+
+	req := api.InstancesPut{
+		Action:   action,
+		Timeout:  c.flagTimeout,
+		Force:    c.flagForce,
+		Stateful: state,
+	}
+
+	// Update all instances.
+	op, err := d.UpdateInstances(req, "")
+	if err != nil {
+		return err
+	}
+
+	progress := utils.ProgressRenderer{
+		Quiet: c.global.flagQuiet,
+	}
+
+	_, err = op.AddHandler(progress.UpdateOp)
+	if err != nil {
+		progress.Done("")
+		return err
+	}
+
+	err = utils.CancelableWait(op, &progress)
+	if err != nil {
+		progress.Done("")
+		return err
+	}
+
+	progress.Done("")
+
+	return nil
+}
+
 func (c *cmdAction) doAction(action string, conf *config.Config, nameArg string) error {
 	state := false
 
@@ -235,6 +292,16 @@ func (c *cmdAction) Run(cmd *cobra.Command, args []string) error {
 			// We don't allow instance names with --all.
 			if resource.name != "" {
 				return fmt.Errorf(i18n.G("Both --all and instance name given"))
+			}
+
+			// See if we can use the bulk API.
+			if resource.server.HasExtension("instance_bulk_state_change") {
+				err = c.doActionAll(cmd.Name(), resource)
+				if err != nil {
+					return fmt.Errorf("%s: %v", resource.remote, err)
+				}
+
+				continue
 			}
 
 			ctslist, err := resource.server.GetInstances(api.InstanceTypeAny)
