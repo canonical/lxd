@@ -207,9 +207,6 @@ func networksPost(d *Daemon, r *http.Request) response.Response {
 		return resp
 	}
 
-	revert := revert.New()
-	defer revert.Fail()
-
 	targetNode := queryParam(r, "target")
 	if targetNode != "" {
 		if !netTypeInfo.NodeSpecificConfig {
@@ -246,10 +243,6 @@ func networksPost(d *Daemon, r *http.Request) response.Response {
 	if count > 1 {
 		// Simulate adding pending node network config when the driver doesn't support per-node config.
 		if !netTypeInfo.NodeSpecificConfig && clientType != request.ClientTypeJoiner {
-			revert.Add(func() {
-				d.cluster.DeleteNetwork(projectName, req.Name)
-			})
-
 			// Create pending entry for each node.
 			err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
 				nodes, err := tx.GetNodes()
@@ -259,7 +252,7 @@ func networksPost(d *Daemon, r *http.Request) response.Response {
 
 				for _, node := range nodes {
 					err = tx.CreatePendingNetwork(node.Name, projectName, req.Name, netType.DBType(), req.Config)
-					if err != nil {
+					if err != nil && errors.Cause(err) != db.ErrAlreadyDefined {
 						return errors.Wrapf(err, "Failed creating pending network for node %q", node.Name)
 					}
 				}
@@ -276,11 +269,13 @@ func networksPost(d *Daemon, r *http.Request) response.Response {
 			return response.SmartError(err)
 		}
 
-		revert.Success()
 		return resp
 	}
 
 	// Non-clustered network creation.
+	revert := revert.New()
+	defer revert.Fail()
+
 	networks, err := d.cluster.GetNetworks(projectName)
 	if err != nil {
 		return response.InternalError(err)
@@ -301,9 +296,7 @@ func networksPost(d *Daemon, r *http.Request) response.Response {
 	if err != nil {
 		return response.SmartError(errors.Wrapf(err, "Error inserting %q into database", req.Name))
 	}
-	revert.Add(func() {
-		d.cluster.DeleteNetwork(projectName, req.Name)
-	})
+	revert.Add(func() { d.cluster.DeleteNetwork(projectName, req.Name) })
 
 	err = doNetworksCreate(d, projectName, req, clientType)
 	if err != nil {
@@ -436,6 +429,9 @@ func networksPostCluster(d *Daemon, projectName string, req api.NetworksPost, cl
 // Create the network on the system. The clusterNotification flag is used to indicate whether creation request
 // is coming from a cluster notification (and if so we should not delete the database record on error).
 func doNetworksCreate(d *Daemon, projectName string, req api.NetworksPost, clientType request.ClientType) error {
+	revert := revert.New()
+	defer revert.Fail()
+
 	// Start the network.
 	n, err := network.LoadByName(d.State(), projectName, req.Name)
 	if err != nil {
@@ -459,16 +455,13 @@ func doNetworksCreate(d *Daemon, projectName string, req api.NetworksPost, clien
 		return err
 	}
 
+	revert.Add(func() { n.Delete(clientType) })
+
 	// Only start networks when not doing a cluster pre-join phase (this ensures that networks are only started
 	// once the node has fully joined the clustered database and has consistent config with rest of the nodes).
 	if clientType != request.ClientTypeJoiner {
 		err = n.Start()
 		if err != nil {
-			delErr := n.Delete(clientType)
-			if delErr != nil {
-				logger.Error("Failed clearing up network after failed create", log.Ctx{"project": projectName, "network": n.Name(), "err": delErr})
-			}
-
 			return err
 		}
 	}
@@ -478,14 +471,11 @@ func doNetworksCreate(d *Daemon, projectName string, req api.NetworksPost, clien
 		return tx.NetworkNodeCreated(n.ID())
 	})
 	if err != nil {
-		delErr := n.Delete(clientType)
-		if delErr != nil {
-			logger.Error("Failed clearing up network after failed local status update", log.Ctx{"project": projectName, "network": n.Name(), "err": delErr})
-		}
 		return err
 	}
 	logger.Debug("Marked network local status as created", log.Ctx{"project": projectName, "network": req.Name})
 
+	revert.Success()
 	return nil
 }
 
@@ -626,8 +616,39 @@ func networkDelete(d *Daemon, r *http.Request) response.Response {
 		}
 	}
 
-	// Delete the network from each member.
-	err = n.Delete(clientType)
+	if n.LocalStatus() != api.NetworkStatusPending {
+		err = n.Delete(clientType)
+		if err != nil {
+			return response.InternalError(err)
+		}
+	}
+
+	// If this is a cluster notification, we're done, any database work will be done by the node that is
+	// originally serving the request.
+	if clusterNotification {
+		return response.EmptySyncResponse
+	}
+
+	// If we are clustered, also notify all other nodes, if any.
+	clustered, err := cluster.Enabled(d.db)
+	if err != nil {
+		return response.SmartError(err)
+	}
+	if clustered {
+		notifier, err := cluster.NewNotifier(d.State(), d.endpoints.NetworkCert(), cluster.NotifyAll)
+		if err != nil {
+			return response.SmartError(err)
+		}
+		err = notifier(func(client lxd.InstanceServer) error {
+			return client.UseProject(n.Project()).DeleteNetwork(n.Name())
+		})
+		if err != nil {
+			return response.SmartError(err)
+		}
+	}
+
+	// Remove the network from the database.
+	err = d.State().Cluster.DeleteNetwork(n.Project(), n.Name())
 	if err != nil {
 		return response.SmartError(err)
 	}

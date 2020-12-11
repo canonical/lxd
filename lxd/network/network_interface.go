@@ -31,6 +31,7 @@ type Network interface {
 	Validate(config map[string]string) error
 	ID() int64
 	Name() string
+	Project() string
 	Description() string
 	Status() string
 	LocalStatus() string

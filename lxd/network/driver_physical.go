@@ -123,11 +123,9 @@ func (n *physical) Create(clientType request.ClientType) error {
 func (n *physical) Delete(clientType request.ClientType) error {
 	n.logger.Debug("Delete", log.Ctx{"clientType": clientType})
 
-	if n.LocalStatus() == api.NetworkStatusCreated || n.LocalStatus() == api.NetworkStatusUnknown {
-		err := n.Stop()
-		if err != nil {
-			return err
-		}
+	err := n.Stop()
+	if err != nil {
+		return err
 	}
 
 	return n.common.delete(clientType)
