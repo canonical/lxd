@@ -307,48 +307,64 @@ func networksPostCluster(d *Daemon, req api.NetworksPost, clientType request.Cli
 		}
 	}
 
-	// Check that the requested network type matches the type created when adding the local node config.
+	// Perform sanity checks if network already exists.
 	// If network doesn't exist yet, ignore not found error, as this will be checked by NetworkNodeConfigs().
 	_, netInfo, _, err := d.cluster.GetNetworkInAnyState(req.Name)
 	if err != nil && err != db.ErrNoSuchObject {
 		return err
 	}
 
-	if err != db.ErrNoSuchObject && req.Type != netInfo.Type {
-		return fmt.Errorf("Requested network type %q doesn't match type in existing database record %q", req.Type, netInfo.Type)
-	}
+	if netInfo != nil {
+		// Check network isn't already created.
+		if netInfo.Status == api.NetworkStatusCreated {
+			return fmt.Errorf("The network is already created")
+		}
 
-	// Add default values.
-	err = netType.FillConfig(req.Config)
-	if err != nil {
-		return err
+		// Check the requested network type matches the type created when adding the local node config.
+		if req.Type != netInfo.Type {
+			return fmt.Errorf("Requested network type %q doesn't match type in existing database record %q", req.Type, netInfo.Type)
+		}
 	}
 
 	// Check that the network is properly defined, get the node-specific configs and merge with global config.
-	var configs map[string]map[string]string
-	var nodeName string
-	var networkID int64
+	var nodeConfigs map[string]map[string]string
 	err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
+		// Check if any global config exists already, if so we should not create global config again.
+		if netInfo != nil && networkPartiallyCreated(netInfo) {
+			if len(req.Config) > 0 {
+				return fmt.Errorf("Network already partially created. Please do not specify any global config when re-running create")
+			}
+
+			logger.Debug("Skipping global network create as global config already partially created", log.Ctx{"network": req.Name})
+			return nil
+		}
+
 		// Fetch the network ID.
-		networkID, err = tx.GetNetworkID(req.Name)
+		networkID, err := tx.GetNetworkID(req.Name)
 		if err != nil {
 			return err
 		}
 
-		// Fetch the node-specific configs.
-		configs, err = tx.NetworkNodeConfigs(networkID)
+		// Fetch the node-specific configs and check the network is defined for all nodes.
+		nodeConfigs, err = tx.NetworkNodeConfigs(networkID)
 		if err != nil {
 			return err
 		}
 
-		// Take note of the name of this node.
-		nodeName, err = tx.GetLocalNodeName()
+		// Add default values if we are inserting global config for first time.
+		err = netType.FillConfig(req.Config)
 		if err != nil {
 			return err
 		}
 
 		// Insert the global config keys.
-		return tx.CreateNetworkConfig(networkID, 0, req.Config)
+		err = tx.CreateNetworkConfig(networkID, 0, req.Config)
+		if err != nil {
+			return err
+		}
+
+		// Assume failure unless we succeed later on.
+		return tx.NetworkErrored(req.Name)
 	})
 	if err != nil {
 		if err == db.ErrNoSuchObject {
@@ -364,34 +380,13 @@ func networksPostCluster(d *Daemon, req api.NetworksPost, clientType request.Cli
 		return err
 	}
 
-	revert := revert.New()
-	defer revert.Fail()
-
-	revert.Add(func() {
-		d.cluster.Transaction(func(tx *db.ClusterTx) error {
-			return tx.NetworkErrored(req.Name)
-		})
-	})
-
-	// We need to mark the network as created now, because the network.LoadByName call invoked by
-	// doNetworksCreate would fail with not-found otherwise.
-	err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
-		return tx.NetworkCreated(req.Name)
-	})
+	// Load the network from the database for the local node.
+	n, err := network.LoadByName(d.State(), req.Name)
 	if err != nil {
 		return err
 	}
-	logger.Debug("Marked network global status as created", log.Ctx{"network": req.Name})
 
-	// Create the network on this node.
-	nodeReq := req
-
-	// Merge node specific config items into global config.
-	for key, value := range configs[nodeName] {
-		nodeReq.Config[key] = value
-	}
-
-	err = doNetworksCreate(d, nodeReq, clientType)
+	err = doNetworksCreate(d, n, clientType)
 	if err != nil {
 		return err
 	}
@@ -404,18 +399,31 @@ func networksPostCluster(d *Daemon, req api.NetworksPost, clientType request.Cli
 			return err
 		}
 
-		nodeReq := req
+		// Create fresh request based on existing network to send to node.
+		nodeReq := api.NetworksPost{
+			NetworkPut: api.NetworkPut{
+				Config:      n.Config(),
+				Description: n.Description(),
+			},
+			Name: n.Name(),
+			Type: n.Type(),
+		}
+
+		// Remove node-specific config keys.
+		for _, key := range db.NodeSpecificNetworkConfig {
+			delete(nodeReq.Config, key)
+		}
 
 		// Merge node specific config items into global config.
-		for key, value := range configs[server.Environment.ServerName] {
+		for key, value := range nodeConfigs[server.Environment.ServerName] {
 			nodeReq.Config[key] = value
 		}
 
-		err = client.CreateNetwork(nodeReq)
+		err = client.UseProject(n.Project()).CreateNetwork(nodeReq)
 		if err != nil {
 			return err
 		}
-		logger.Debug("Created network on cluster member", log.Ctx{"network": req.Name, "member": server.Environment.ServerName})
+		logger.Debug("Created network on cluster member", log.Ctx{"project": n.Project(), "network": n.Name(), "member": server.Environment.ServerName, "config": nodeReq.Config})
 
 		return nil
 	})
@@ -423,7 +431,15 @@ func networksPostCluster(d *Daemon, req api.NetworksPost, clientType request.Cli
 		return err
 	}
 
-	revert.Success()
+	// Mark network global status as networkCreated now that all nodes have succeeded.
+	err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
+		return tx.NetworkCreated(req.Name)
+	})
+	if err != nil {
+		return err
+	}
+	logger.Debug("Marked network global status as created", log.Ctx{"network": req.Name})
+
 	return nil
 }
 
