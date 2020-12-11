@@ -198,9 +198,14 @@ func networksPost(d *Daemon, r *http.Request) response.Response {
 	clientType := request.UserAgentClientType(r.Header.Get("User-Agent"))
 
 	if isClusterNotification(r) {
+		n, err := network.LoadByName(d.State(), projectName, req.Name)
+		if err != nil {
+			return response.SmartError(err)
+		}
+
 		// This is an internal request which triggers the actual creation of the network across all nodes
 		// after they have been previously defined.
-		err = doNetworksCreate(d, projectName, req, clientType)
+		err = doNetworksCreate(d, n, clientType)
 		if err != nil {
 			return response.SmartError(err)
 		}
@@ -298,7 +303,12 @@ func networksPost(d *Daemon, r *http.Request) response.Response {
 	}
 	revert.Add(func() { d.cluster.DeleteNetwork(projectName, req.Name) })
 
-	err = doNetworksCreate(d, projectName, req, clientType)
+	n, err := network.LoadByName(d.State(), projectName, req.Name)
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	err = doNetworksCreate(d, n, clientType)
 	if err != nil {
 		return response.SmartError(err)
 	}
