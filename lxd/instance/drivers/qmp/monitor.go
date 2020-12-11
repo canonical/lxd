@@ -1,6 +1,7 @@
 package qmp
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -111,7 +112,7 @@ func (m *Monitor) run() error {
 	}
 
 	// Start event monitoring go routine.
-	chEvents, err := m.qmp.Events()
+	chEvents, err := m.qmp.Events(context.Background())
 	if err != nil {
 		return err
 	}
