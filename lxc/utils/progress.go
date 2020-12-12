@@ -83,7 +83,7 @@ func (p *ProgressRenderer) Done(msg string) {
 // Update changes the status message to the provided string
 func (p *ProgressRenderer) Update(status string) {
 	// Wait if needed
-	timeout := p.wait.Sub(time.Now())
+	timeout := time.Until(p.wait)
 	if timeout.Seconds() > 0 {
 		time.Sleep(timeout)
 	}
