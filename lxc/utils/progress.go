@@ -153,7 +153,7 @@ func (p *ProgressRenderer) Warn(status string, timeout time.Duration) {
 
 	// Render the new message
 	p.wait = time.Now().Add(timeout)
-	msg := fmt.Sprintf("%s", status)
+	msg := status
 
 	// Truncate msg to terminal length
 	msg = "\r" + p.truncate(msg)
