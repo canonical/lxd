@@ -176,7 +176,7 @@ func (c *cmdList) shouldShow(filters []string, state *api.Instance) bool {
 							// the property was found but didn't match
 							return false
 						}
-					} else if r.MatchString(configValue) == true {
+					} else if r.MatchString(configValue) {
 						found = true
 						break
 					}
@@ -197,7 +197,7 @@ func (c *cmdList) shouldShow(filters []string, state *api.Instance) bool {
 			}
 
 			r, err := regexp.Compile(regexpValue)
-			if err == nil && r.MatchString(state.Name) == true {
+			if err == nil && r.MatchString(state.Name) {
 				continue
 			}
 
