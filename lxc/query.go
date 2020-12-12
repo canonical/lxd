@@ -55,7 +55,7 @@ func (c *cmdQuery) pretty(input interface{}) string {
 		return fmt.Sprintf("%v", input)
 	}
 
-	return fmt.Sprintf("%s", pretty.String())
+	return pretty.String()
 }
 
 func (c *cmdQuery) Run(cmd *cobra.Command, args []string) error {
