@@ -1144,7 +1144,7 @@ func (c *cmdImageList) imageShouldShow(filters []string, state *api.Image) bool 
 							found = true
 							break
 						}
-					} else if r.MatchString(configValue) == true {
+					} else if r.MatchString(configValue) {
 						found = true
 						break
 					}
