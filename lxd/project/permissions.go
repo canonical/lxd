@@ -152,8 +152,32 @@ func checkRestrictionsOnVolatileConfig(project *api.Project, instanceType instan
 		return nil
 	}
 
+	// Checker for safe volatile keys.
+	isSafeKey := func(key string) bool {
+		if strings.StringInSlice(key, []string{"volatile.apply_template", "volatile.base_image", "volatile.last_state.power"}) {
+			return true
+		}
+
+		if strings.HasPrefix(key, shared.ConfigVolatilePrefix) {
+			if strings.HasSuffix(key, ".apply_quota") {
+				return true
+			}
+
+			if strings.HasSuffix(key, ".hwaddr") {
+				return true
+			}
+		}
+
+		return false
+	}
+
 	for key, value := range config {
 		if !strings.HasPrefix(key, shared.ConfigVolatilePrefix) {
+			continue
+		}
+
+		// Allow given safe volatile keys to be set
+		if isSafeKey(key) {
 			continue
 		}
 
