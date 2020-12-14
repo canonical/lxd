@@ -277,6 +277,26 @@ func networksPost(d *Daemon, r *http.Request) response.Response {
 	return resp
 }
 
+// networkPartiallyCreated returns true of supplied network has properties that indicate it has had previous
+// create attempts run on it but failed on one or more nodes.
+func networkPartiallyCreated(netInfo *api.Network) bool {
+	// If the network status is NetworkStatusErrored, this means create has been run in the past and has
+	// failed on one or more nodes. Hence it is partially created.
+	if netInfo.Status == api.NetworkStatusErrored {
+		return true
+	}
+
+	// If the network has global config keys, then it has previously been created by having its global config
+	// inserted, and this means it is partialled created.
+	for key := range netInfo.Config {
+		if !shared.StringInSlice(key, db.NodeSpecificNetworkConfig) {
+			return true
+		}
+	}
+
+	return false
+}
+
 // networksPostCluster checks that there is a pending network in the database and then attempts to setup the
 // network on each node. If all nodes are successfully setup then the network's state is set to created.
 func networksPostCluster(d *Daemon, req api.NetworksPost, clientType request.ClientType, netType network.Type) error {
