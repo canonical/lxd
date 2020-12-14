@@ -252,7 +252,7 @@ func (n *ovn) Validate(config map[string]string) error {
 		var projectNetworks map[string]map[int64]api.Network
 		err = n.state.Cluster.Transaction(func(tx *db.ClusterTx) error {
 			// Get all managed networks across all projects.
-			projectNetworks, err = tx.GetNonPendingNetworks()
+			projectNetworks, err = tx.GetCreatedNetworks()
 			if err != nil {
 				return errors.Wrapf(err, "Failed to load all networks")
 			}
@@ -753,7 +753,7 @@ func (n *ovn) allocateUplinkPortIPs(uplinkNet Network, routerMAC net.HardwareAdd
 // uplinkAllAllocatedIPs gets a list of all IPv4 and IPv6 addresses allocated to OVN networks connected to uplink.
 func (n *ovn) uplinkAllAllocatedIPs(tx *db.ClusterTx, uplinkNetName string) ([]net.IP, []net.IP, error) {
 	// Get all managed networks across all projects.
-	projectNetworks, err := tx.GetNonPendingNetworks()
+	projectNetworks, err := tx.GetCreatedNetworks()
 	if err != nil {
 		return nil, nil, errors.Wrapf(err, "Failed to load all networks")
 	}
@@ -1051,7 +1051,7 @@ func (n *ovn) checkUplinkUse() (bool, error) {
 	var projectNetworks map[string]map[int64]api.Network
 
 	err = n.state.Cluster.Transaction(func(tx *db.ClusterTx) error {
-		projectNetworks, err = tx.GetNonPendingNetworks()
+		projectNetworks, err = tx.GetCreatedNetworks()
 		return err
 	})
 	if err != nil {
@@ -2040,7 +2040,7 @@ func (n *ovn) InstanceDevicePortValidateExternalRoutes(deviceInstance instance.I
 		}
 
 		// Get all managed networks across all projects.
-		projectNetworks, err = tx.GetNonPendingNetworks()
+		projectNetworks, err = tx.GetCreatedNetworks()
 		if err != nil {
 			return errors.Wrapf(err, "Failed to load all networks")
 		}
