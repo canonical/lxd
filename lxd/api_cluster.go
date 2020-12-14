@@ -734,7 +734,7 @@ func clusterInitMember(d lxd.InstanceServer, client lxd.InstanceServer, memberCo
 	// configs provided by the user.
 	for _, network := range networks {
 		// Skip not-managed or pending networks
-		if !network.Managed || network.Status == api.NetworkStatusPending {
+		if !network.Managed || network.Status != api.NetworkStatusCreated {
 			continue
 		}
 
