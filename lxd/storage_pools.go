@@ -149,11 +149,9 @@ func storagePoolsPost(d *Daemon, r *http.Request) response.Response {
 		}
 
 		if count == 1 {
-			// No targetNode was specified and we're either a
-			// single-node cluster or not clustered at all, so
-			// create the storage pool immediately, unless there's
-			// a pending storage pool (in that case we follow the
-			// regular two-stage process).
+			// No targetNode was specified and we're either a single-node cluster or not clustered at
+			// all, so create the storage pool immediately, unless there's a pending storage pool
+			// (in that case we follow the regular two-stage process).
 			_, pool, _, err := d.cluster.GetStoragePoolInAnyState(req.Name)
 			if err != nil {
 				if err != db.ErrNoSuchObject {
