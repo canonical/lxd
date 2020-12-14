@@ -1568,7 +1568,7 @@ func clusterCheckNetworksMatch(cluster *db.Cluster, reqNetworks []internalCluste
 	}
 
 	for _, networkProjectName := range networkProjectNames {
-		networkNames, err := cluster.GetNonPendingNetworks(networkProjectName)
+		networkNames, err := cluster.GetCreatedNetworks(networkProjectName)
 		if err != nil && err != db.ErrNoSuchObject {
 			return err
 		}
