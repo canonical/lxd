@@ -126,7 +126,7 @@ func storagePoolCreateLocal(state *state.State, id int64, req api.StoragePoolsPo
 	}
 
 	if pool.LocalStatus() == api.NetworkStatusCreated {
-		logger.Debug("Skipping storage pool create as already created locally", log.Ctx{"pool": pool.Name()})
+		logger.Debug("Skipping local storage pool create as already created", log.Ctx{"pool": pool.Name()})
 
 		return pool.Driver().Config(), nil
 	}
