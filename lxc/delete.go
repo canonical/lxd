@@ -121,7 +121,7 @@ func (c *cmdDelete) Run(cmd *cobra.Command, args []string) error {
 				return fmt.Errorf(i18n.G("Stopping the instance failed: %s"), err)
 			}
 
-			if ct.Ephemeral == true {
+			if ct.Ephemeral {
 				return nil
 			}
 		}
