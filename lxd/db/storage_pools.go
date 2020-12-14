@@ -434,10 +434,10 @@ func (c *ClusterTx) CreatePendingStoragePool(node, name, driver string, conf map
 		// Check that the existing pools matches the given driver and
 		// is in the pending state.
 		if pool.driver != driver {
-			return fmt.Errorf("pool already exists with a different driver")
+			return fmt.Errorf("Storage pool already exists with a different driver")
 		}
 		if pool.state != storagePoolPending {
-			return fmt.Errorf("pool is not in pending state")
+			return fmt.Errorf("Storage pool is not in pending state")
 		}
 	}
 
