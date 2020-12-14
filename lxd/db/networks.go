@@ -66,17 +66,16 @@ func (c *ClusterTx) GetNonPendingNetworkIDs() (map[string]int64, error) {
 	return ids, nil
 }
 
-// GetNonPendingNetworks returns a map of api.Network associated to network ID.
-//
-// Pending networks are skipped.
-func (c *ClusterTx) GetNonPendingNetworks() (map[int64]api.Network, error) {
-	stmt, err := c.tx.Prepare("SELECT id, name, coalesce(description, ''), state FROM networks WHERE state != ?")
+// GetCreatedNetworks returns a map of api.Network and network ID.
+// Only networks that have are in state networkCreated are returned.
+func (c *ClusterTx) GetCreatedNetworks() (map[int64]api.Network, error) {
+	stmt, err := c.tx.Prepare("SELECT id, name, coalesce(description, ''), state FROM networks WHERE state = ?")
 	if err != nil {
 		return nil, err
 	}
 	defer stmt.Close()
 
-	rows, err := stmt.Query(networkPending)
+	rows, err := stmt.Query(networkCreated)
 	if err != nil {
 		return nil, err
 	}
