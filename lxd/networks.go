@@ -239,13 +239,21 @@ func networksPost(d *Daemon, r *http.Request) response.Response {
 		return resp
 	}
 
+	// Load existing pool if exists, if not don't fail.
+	_, netInfo, _, err := d.cluster.GetNetworkInAnyState(projectName, req.Name)
+	if err != nil && err != db.ErrNoSuchObject {
+		return response.InternalError(err)
+	}
+
 	// Check if we're clustered.
 	count, err := cluster.Count(d.State())
 	if err != nil {
 		return response.SmartError(err)
 	}
 
-	if count > 1 {
+	// No targetNode was specified and we're clustered or there is an existing partially created single node
+	// network, either way finalize the config in the db and actually create the network on all cluster nodes.
+	if count > 1 || (netInfo != nil && netInfo.Status != api.NetworkStatusCreated) {
 		// Simulate adding pending node network config when the driver doesn't support per-node config.
 		if !netTypeInfo.NodeSpecificConfig && clientType != request.ClientTypeJoiner {
 			// Create pending entry for each node.
@@ -271,7 +279,7 @@ func networksPost(d *Daemon, r *http.Request) response.Response {
 			}
 		}
 
-		err = networksPostCluster(d, projectName, req, clientType, netType)
+		err = networksPostCluster(d, projectName, netInfo, req, clientType, netType)
 		if err != nil {
 			return response.SmartError(err)
 		}
@@ -280,17 +288,12 @@ func networksPost(d *Daemon, r *http.Request) response.Response {
 	}
 
 	// Non-clustered network creation.
-	revert := revert.New()
-	defer revert.Fail()
-
-	networks, err := d.cluster.GetNetworks(projectName)
-	if err != nil {
-		return response.InternalError(err)
-	}
-
-	if shared.StringInSlice(req.Name, networks) {
+	if netInfo != nil {
 		return response.BadRequest(fmt.Errorf("The network already exists"))
 	}
+
+	revert := revert.New()
+	defer revert.Fail()
 
 	// Populate default config.
 	err = netType.FillConfig(req.Config)
@@ -341,7 +344,8 @@ func networkPartiallyCreated(netInfo *api.Network) bool {
 
 // networksPostCluster checks that there is a pending network in the database and then attempts to setup the
 // network on each node. If all nodes are successfully setup then the network's state is set to created.
-func networksPostCluster(d *Daemon, projectName string, req api.NetworksPost, clientType request.ClientType, netType network.Type) error {
+// Accepts an optional existing network record, which will exist when performing subsequent re-create attempts.
+func networksPostCluster(d *Daemon, projectName string, netInfo *api.Network, req api.NetworksPost, clientType request.ClientType, netType network.Type) error {
 	// Check that no node-specific config key has been supplied in request.
 	for key := range req.Config {
 		if shared.StringInSlice(key, db.NodeSpecificNetworkConfig) {
@@ -350,12 +354,6 @@ func networksPostCluster(d *Daemon, projectName string, req api.NetworksPost, cl
 	}
 
 	// Perform sanity checks if network already exists.
-	// If network doesn't exist yet, ignore not found error, as this will be checked by NetworkNodeConfigs().
-	_, netInfo, _, err := d.cluster.GetNetworkInAnyState(projectName, req.Name)
-	if err != nil && err != db.ErrNoSuchObject {
-		return err
-	}
-
 	if netInfo != nil {
 		// Check network isn't already created.
 		if netInfo.Status == api.NetworkStatusCreated {
@@ -370,7 +368,7 @@ func networksPostCluster(d *Daemon, projectName string, req api.NetworksPost, cl
 
 	// Check that the network is properly defined, get the node-specific configs and merge with global config.
 	var nodeConfigs map[string]map[string]string
-	err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
+	err := d.cluster.Transaction(func(tx *db.ClusterTx) error {
 		// Check if any global config exists already, if so we should not create global config again.
 		if netInfo != nil && networkPartiallyCreated(netInfo) {
 			if len(req.Config) > 0 {
