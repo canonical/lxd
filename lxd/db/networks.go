@@ -375,9 +375,9 @@ func (c *Cluster) GetNetworks() ([]string, error) {
 	return c.networks("")
 }
 
-// GetNonPendingNetworks returns the names of all networks that are not in state networkPending.
-func (c *Cluster) GetNonPendingNetworks() ([]string, error) {
-	return c.networks("NOT state=?", networkPending)
+// GetCreatedNetworks returns the names of all networks that are not in state networkCreated.
+func (c *Cluster) GetCreatedNetworks() ([]string, error) {
+	return c.networks("state=?", networkCreated)
 }
 
 // Get all networks matching the given WHERE filter (if given).
