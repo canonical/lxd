@@ -1122,7 +1122,7 @@ func networkStartup(s *state.State) error {
 		deferredNetworks[projectName] = make([]network.Network, 0)
 
 		// Get a list of managed networks.
-		networks, err := s.Cluster.GetNonPendingNetworks(projectName)
+		networks, err := s.Cluster.GetCreatedNetworks(projectName)
 		if err != nil {
 			return errors.Wrapf(err, "Failed to load networks for project %q", projectName)
 		}

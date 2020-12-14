@@ -25,7 +25,7 @@ func networkUpdateForkdnsServersTask(s *state.State, heartbeatData *cluster.APIH
 	projectName := project.Default
 
 	// Get a list of managed networks
-	networks, err := s.Cluster.GetNonPendingNetworks(projectName)
+	networks, err := s.Cluster.GetCreatedNetworks(projectName)
 	if err != nil {
 		return err
 	}
