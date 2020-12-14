@@ -275,9 +275,9 @@ func (c *ClusterTx) CreatePendingNetwork(node string, projectName string, name s
 			return err
 		}
 	} else {
-		// Check that the existing network is in the networkPending or networkErrored state.
-		if network.state != networkPending && network.state != networkErrored {
-			return fmt.Errorf("Network is not in pending or errored state")
+		// Check that the existing network is in the networkPending state.
+		if network.state != networkPending {
+			return fmt.Errorf("Network is not in pending state")
 		}
 
 		// Check that the existing network type matches the requested type.
