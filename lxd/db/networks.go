@@ -68,21 +68,20 @@ func (c *ClusterTx) GetNonPendingNetworkIDs() (map[string]int64, error) {
 	return ids, nil
 }
 
-// GetNonPendingNetworks returns a map of api.Network associated to project and network ID.
-//
-// Pending networks are skipped.
-func (c *ClusterTx) GetNonPendingNetworks() (map[string]map[int64]api.Network, error) {
+// GetCreatedNetworks returns a map of api.Network associated to project and network ID.
+// Only networks that have are in state networkCreated are returned.
+func (c *ClusterTx) GetCreatedNetworks() (map[string]map[int64]api.Network, error) {
 	stmt, err := c.tx.Prepare(`SELECT projects.name, networks.id, networks.name, coalesce(networks.description, ''), networks.type, networks.state
 		FROM networks
 		JOIN projects on projects.id = networks.project_id
-		WHERE networks.state != ?
+		WHERE networks.state = ?
 	`)
 	if err != nil {
 		return nil, err
 	}
 	defer stmt.Close()
 
-	rows, err := stmt.Query(networkPending)
+	rows, err := stmt.Query(networkCreated)
 	if err != nil {
 		return nil, err
 	}
@@ -276,9 +275,9 @@ func (c *ClusterTx) CreatePendingNetwork(node string, projectName string, name s
 			return err
 		}
 	} else {
-		// Check that the existing network is in the networkPending or networkErrored state.
-		if network.state != networkPending && network.state != networkErrored {
-			return fmt.Errorf("Network is not in pending or errored state")
+		// Check that the existing network is in the networkPending state.
+		if network.state != networkPending {
+			return fmt.Errorf("Network is not in pending state")
 		}
 
 		// Check that the existing network type matches the requested type.
@@ -321,6 +320,11 @@ func (c *ClusterTx) CreatePendingNetwork(node string, projectName string, name s
 // NetworkCreated sets the state of the given network to networkCreated.
 func (c *ClusterTx) NetworkCreated(project string, name string) error {
 	return c.networkState(project, name, networkCreated)
+}
+
+// NetworkErrored sets the state of the given network to networkErrored.
+func (c *ClusterTx) NetworkErrored(project string, name string) error {
+	return c.networkState(project, name, networkErrored)
 }
 
 func (c *ClusterTx) networkState(project string, name string, state NetworkState) error {
@@ -418,9 +422,9 @@ func (c *Cluster) GetNetworks(project string) ([]string, error) {
 	return c.networks(project, "")
 }
 
-// GetNonPendingNetworks returns the names of all networks that are not in state networkPending.
-func (c *Cluster) GetNonPendingNetworks(project string) ([]string, error) {
-	return c.networks(project, "NOT state=?", networkPending)
+// GetCreatedNetworks returns the names of all networks that are not in state networkCreated.
+func (c *Cluster) GetCreatedNetworks(project string) ([]string, error) {
+	return c.networks(project, "state=?", networkCreated)
 }
 
 // Get all networks matching the given WHERE filter (if given).
@@ -670,6 +674,11 @@ func (c *Cluster) getNetworkConfig(id int64) (map[string]string, error) {
 		key = r[0].(string)
 		value = r[1].(string)
 
+		_, found := config[key]
+		if found {
+			return nil, fmt.Errorf("Duplicate config row found for key %q for network ID %d", key, id)
+		}
+
 		config[key] = value
 	}
 
@@ -715,7 +724,7 @@ func (c *Cluster) CreateNetwork(projectName string, name string, description str
 
 // UpdateNetwork updates the network with the given name.
 func (c *Cluster) UpdateNetwork(project string, name, description string, config map[string]string) error {
-	id, netInfo, _, err := c.GetNetworkInAnyState(project, name)
+	id, _, _, err := c.GetNetworkInAnyState(project, name)
 	if err != nil {
 		return err
 	}
@@ -724,14 +733,6 @@ func (c *Cluster) UpdateNetwork(project string, name, description string, config
 		err = tx.UpdateNetwork(id, description, config)
 		if err != nil {
 			return err
-		}
-
-		// Update network status if change applied successfully.
-		if netInfo.Status == api.NetworkStatusErrored {
-			err = tx.NetworkCreated(project, name)
-			if err != nil {
-				return err
-			}
 		}
 
 		return nil

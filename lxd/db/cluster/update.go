@@ -4,12 +4,14 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"strconv"
 	"strings"
 	"time"
 
 	"github.com/lxc/lxd/lxd/db/query"
 	"github.com/lxc/lxd/lxd/db/schema"
 	"github.com/lxc/lxd/shared"
+	log "github.com/lxc/lxd/shared/log15"
 	"github.com/lxc/lxd/shared/logger"
 	"github.com/lxc/lxd/shared/osarch"
 	"github.com/pkg/errors"
@@ -78,6 +80,76 @@ var updates = map[int]schema.Update{
 	39: updateFromV38,
 	40: updateFromV39,
 	41: updateFromV40,
+	42: updateFromV41,
+}
+
+// updateFromV41 removes any duplicated network config rows that have the same value.
+// This can occur when multiple create requests have been issued when setting up a clustered network.
+func updateFromV41(tx *sql.Tx) error {
+	// Find all duplicated config rows and return comma delimited list of affected row IDs for each dupe set.
+	stmt, err := tx.Prepare(`SELECT network_id, COALESCE(node_id,0), key, value, COUNT(*) AS rowCount, GROUP_CONCAT(id, ",") AS dupeRowIDs
+			FROM networks_config
+			GROUP BY network_id, node_id, key, value
+			HAVING rowCount > 1
+		`)
+	if err != nil {
+		return errors.Wrapf(err, "Failed preparing query")
+	}
+	defer stmt.Close()
+
+	rows, err := stmt.Query()
+	if err != nil {
+		return errors.Wrapf(err, "Failed running query")
+	}
+	defer rows.Close()
+
+	type dupeRow struct {
+		networkID  int64
+		nodeID     int64
+		key        string
+		value      string
+		rowCount   int64
+		dupeRowIDs string
+	}
+
+	var dupeRows []dupeRow
+
+	for rows.Next() {
+		r := dupeRow{}
+		err = rows.Scan(&r.networkID, &r.nodeID, &r.key, &r.value, &r.rowCount, &r.dupeRowIDs)
+		if err != nil {
+			return errors.Wrapf(err, "Failed scanning rows")
+		}
+
+		dupeRows = append(dupeRows, r)
+	}
+
+	err = rows.Err()
+	if err != nil {
+		return errors.Wrap(err, "Got a row error")
+	}
+
+	for _, r := range dupeRows {
+		logger.Warn("Found duplicated network config rows", log.Ctx{"networkID": r.networkID, "nodeID": r.nodeID, "key": r.key, "value": r.value, "rowCount": r.rowCount, "dupeRowIDs": r.dupeRowIDs})
+
+		rowIDs := strings.Split(r.dupeRowIDs, ",")
+
+		// Iterate and delete all but 1 of the rowIDs so we leave just one left.
+		for i := 0; i < len(rowIDs)-1; i++ {
+			rowID, err := strconv.Atoi(rowIDs[i])
+			if err != nil {
+				return errors.Wrapf(err, "Failed converting row ID")
+			}
+
+			_, err = tx.Exec("DELETE FROM networks_config WHERE id = ?", rowID)
+			if err != nil {
+				return errors.Wrapf(err, "Failed deleting network config row with ID %d", rowID)
+			}
+			logger.Warn("Deleted duplicated network config row", log.Ctx{"networkID": r.networkID, "nodeID": r.nodeID, "key": r.key, "value": r.value, "rowCount": r.rowCount, "rowID": rowID})
+		}
+	}
+
+	return nil
 }
 
 // Add state column to storage_pools_nodes tables. Set existing row's state to 1 ("created").

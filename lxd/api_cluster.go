@@ -793,7 +793,7 @@ func clusterInitMember(d lxd.InstanceServer, client lxd.InstanceServer, memberCo
 		// Merge the returned networks configs with the node-specific configs provided by the user.
 		for _, network := range networks {
 			// Skip unmanaged or pending networks.
-			if !network.Managed || network.Status == api.NetworkStatusPending {
+			if !network.Managed || network.Status != api.NetworkStatusCreated {
 				continue
 			}
 
@@ -1568,7 +1568,7 @@ func clusterCheckNetworksMatch(cluster *db.Cluster, reqNetworks []internalCluste
 	}
 
 	for _, networkProjectName := range networkProjectNames {
-		networkNames, err := cluster.GetNonPendingNetworks(networkProjectName)
+		networkNames, err := cluster.GetCreatedNetworks(networkProjectName)
 		if err != nil && err != db.ErrNoSuchObject {
 			return err
 		}
