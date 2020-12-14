@@ -834,10 +834,11 @@ test_clustering_network() {
   nsenter -n -t "${LXD_PID1}" -- ip link add "${net}" type dummy # Create dummy interface to conflict with network.
   LXD_DIR="${LXD_ONE_DIR}" lxc network create "${net}" --target node1
   LXD_DIR="${LXD_ONE_DIR}" lxc network create "${net}" --target node2
+  LXD_DIR="${LXD_ONE_DIR}" lxc network show "${net}" | grep status: | grep -q Pending # Check has pending status.
 
   # Run network create on other node1 (expect this to fail early due to existing interface).
   ! LXD_DIR="${LXD_ONE_DIR}" lxc network create "${net}" || false
-  LXD_DIR="${LXD_ONE_DIR}" lxc network show "${net}" | grep status: | grep -q Pending # Check is still pending.
+  LXD_DIR="${LXD_ONE_DIR}" lxc network show "${net}" | grep status: | grep -q Errored # Check has errored status.
 
   # Check each node status (expect both node1 and node2 to be pending as local node running created failed first).
   LXD_DIR="${LXD_ONE_DIR}" lxd sql global "SELECT nodes.name,networks_nodes.state FROM nodes JOIN networks_nodes ON networks_nodes.node_id = nodes.id JOIN networks ON networks.id = networks_nodes.network_id WHERE networks.name = '${net}' AND nodes.name = 'node1'" | grep "| node1 | 0     |"
@@ -879,12 +880,14 @@ test_clustering_network() {
   LXD_DIR="${LXD_ONE_DIR}" lxc network create "${net}" --target node1
   LXD_DIR="${LXD_ONE_DIR}" lxc network create "${net}" --target node2
   ! LXD_DIR="${LXD_ONE_DIR}" lxc network create "${net}" || false
-  LXD_DIR="${LXD_ONE_DIR}" lxc network show "${net}" | grep status: | grep -q Pending # Check is still pending.
+  LXD_DIR="${LXD_ONE_DIR}" lxc network show "${net}" | grep status: | grep -q Errored # Check has errored status.
   nsenter -n -t "${LXD_PID1}" -- ip link delete "${net}" # Remove conflicting interface.
-  LXD_DIR="${LXD_ONE_DIR}" lxc network create "${net}"
+  ! LXD_DIR="${LXD_ONE_DIR}" lxc network create "${net}" ipv4.dhcp=false || false # Check supplying global config on re-create is blocked.
+  LXD_DIR="${LXD_ONE_DIR}" lxc network create "${net}" # Check re-create succeeds.
   LXD_DIR="${LXD_ONE_DIR}" lxc network show "${net}" | grep status: | grep -q Created # Check is created after fix.
   nsenter -n -t "${LXD_PID1}" -- ip -details link show "${net}" | grep bridge # Check bridge exists.
   nsenter -n -t "${LXD_PID2}" -- ip -details link show "${net}" | grep bridge # Check bridge exists.
+  ! LXD_DIR="${LXD_ONE_DIR}" lxc network create "${net}" || false # Check re-create is blocked after success.
 
   # Check both nodes marked created.
   LXD_DIR="${LXD_ONE_DIR}" lxd sql global "SELECT nodes.name,networks_nodes.state FROM nodes JOIN networks_nodes ON networks_nodes.node_id = nodes.id JOIN networks ON networks.id = networks_nodes.network_id WHERE networks.name = '${net}' AND nodes.name = 'node1'" | grep "| node1 | 1     |"
