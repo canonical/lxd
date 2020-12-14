@@ -157,7 +157,7 @@ func UsedBy(s *state.State, networkProjectName string, networkName string, first
 		var projectNetworks map[string]map[int64]api.Network
 
 		err = s.Cluster.Transaction(func(tx *db.ClusterTx) error {
-			projectNetworks, err = tx.GetNonPendingNetworks()
+			projectNetworks, err = tx.GetCreatedNetworks()
 			return err
 		})
 		if err != nil {

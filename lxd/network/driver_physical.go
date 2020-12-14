@@ -69,7 +69,7 @@ func (n *physical) checkParentUse(ourConfig map[string]string) (bool, error) {
 	var projectNetworks map[string]map[int64]api.Network
 
 	err = n.state.Cluster.Transaction(func(tx *db.ClusterTx) error {
-		projectNetworks, err = tx.GetNonPendingNetworks()
+		projectNetworks, err = tx.GetCreatedNetworks()
 		return err
 	})
 	if err != nil {
