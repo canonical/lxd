@@ -300,7 +300,7 @@ INSERT INTO storage_pools_config(storage_pool_id, node_id, key, value)
 // having "ipv4.nat" set is to disable NAT (bringing in line with the non-fan bridge behavior and docs).
 func patchNetworkFANEnableNAT(name string, d *Daemon) error {
 	err := d.cluster.Transaction(func(tx *db.ClusterTx) error {
-		networks, err := tx.GetNonPendingNetworks()
+		networks, err := tx.GetCreatedNetworks()
 		if err != nil {
 			return err
 		}
