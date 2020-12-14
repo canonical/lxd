@@ -202,6 +202,26 @@ func storagePoolsPost(d *Daemon, r *http.Request) response.Response {
 	return resp
 }
 
+// storagePoolPartiallyCreated returns true of supplied storage pool has properties that indicate it has had
+// previous create attempts run on it but failed on one or more nodes.
+func storagePoolPartiallyCreated(pool *api.StoragePool) bool {
+	// If the pool status is StoragePoolStatusErrored, this means create has been run in the past and has
+	// failed on one or more nodes. Hence it is partially created.
+	if pool.Status == api.StoragePoolStatusErrored {
+		return true
+	}
+
+	// If the pool has global config keys, then it has previously been created by having its global config
+	// inserted, and this means it is partialled created.
+	for key := range pool.Config {
+		if !shared.StringInSlice(key, db.StoragePoolNodeConfigKeys) {
+			return true
+		}
+	}
+
+	return false
+}
+
 // storagePoolsPostCluster handles creating storage pools after the per-node config records have been created.
 // Accepts an optional existing pool record, which will exist when performing subsequent re-create attempts.
 func storagePoolsPostCluster(d *Daemon, pool *api.StoragePool, req api.StoragePoolsPost, clientType request.ClientType) error {
