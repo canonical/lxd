@@ -439,7 +439,7 @@ func doNetworksCreate(d *Daemon, n network.Network, clientType request.ClientTyp
 	}
 
 	if n.LocalStatus() == api.NetworkStatusCreated {
-		logger.Debug("Skipping network create as already created locally", log.Ctx{"project": n.Project(), "network": n.Name()})
+		logger.Debug("Skipping local network create as already created", log.Ctx{"project": n.Project(), "network": n.Name()})
 		return nil
 	}
 
