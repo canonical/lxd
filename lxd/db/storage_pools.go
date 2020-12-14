@@ -563,10 +563,9 @@ func (c *Cluster) GetStoragePoolNames() ([]string, error) {
 	return c.storagePools("")
 }
 
-// GetNonPendingStoragePoolNames returns the names of all storage pools that are not
-// pending.
-func (c *Cluster) GetNonPendingStoragePoolNames() ([]string, error) {
-	return c.storagePools("NOT state=?", storagePoolPending)
+// GetCreatedStoragePoolNames returns the names of all storage pools that are created.
+func (c *Cluster) GetCreatedStoragePoolNames() ([]string, error) {
+	return c.storagePools("state=?", storagePoolCreated)
 }
 
 // Get all storage pools matching the given WHERE filter (if given).
