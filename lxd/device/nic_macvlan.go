@@ -56,7 +56,7 @@ func (d *nicMACVLAN) validateConfig(instConf instance.ConfigReader) error {
 			return errors.Wrapf(err, "Error loading network config for %q", d.config["network"])
 		}
 
-		if n.Status() == api.NetworkStatusPending {
+		if n.Status() != api.NetworkStatusCreated {
 			return fmt.Errorf("Specified network is not fully created")
 		}
 
