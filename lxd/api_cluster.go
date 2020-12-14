@@ -1520,7 +1520,7 @@ type internalClusterPostHandoverRequest struct {
 }
 
 func clusterCheckStoragePoolsMatch(cluster *db.Cluster, reqPools []api.StoragePool) error {
-	poolNames, err := cluster.GetNonPendingStoragePoolNames()
+	poolNames, err := cluster.GetCreatedStoragePoolNames()
 	if err != nil && err != db.ErrNoSuchObject {
 		return err
 	}
