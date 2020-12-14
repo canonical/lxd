@@ -406,7 +406,7 @@ test_clustering_storage() {
     LXD_DIR="${LXD_ONE_DIR}" lxc storage create pool1 "${driver}" source=/tmp/not/exist --target node1
     LXD_DIR="${LXD_TWO_DIR}" lxc storage create pool1 "${driver}" --target node2
     ! LXD_DIR="${LXD_TWO_DIR}" lxc storage create pool1 "${driver}" || false
-    LXD_DIR="${LXD_ONE_DIR}" lxc storage show pool1 | grep status: | grep -q Pending
+    LXD_DIR="${LXD_ONE_DIR}" lxc storage show pool1 | grep status: | grep -q Errored
     LXD_DIR="${LXD_ONE_DIR}" lxc storage unset pool1 source --target node1
     LXD_DIR="${LXD_TWO_DIR}" lxc storage create pool1 "${driver}"
     LXD_ONE_SOURCE="$(LXD_DIR="${LXD_ONE_DIR}" lxc storage get pool1 source --target=node1)"
