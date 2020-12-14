@@ -142,38 +142,50 @@ func storagePoolsPost(d *Daemon, r *http.Request) response.Response {
 	}
 
 	targetNode := queryParam(r, "target")
-	if targetNode == "" {
-		count, err := cluster.Count(d.State())
+	if targetNode != "" {
+		// A targetNode was specified, let's just define the node's storage without actually creating it.
+		// The only legal key values for the storage config are the ones in StoragePoolNodeConfigKeys.
+		for key := range req.Config {
+			if !shared.StringInSlice(key, db.StoragePoolNodeConfigKeys) {
+				return response.SmartError(fmt.Errorf("Config key %q may not be used as node-specific key", key))
+			}
+		}
+
+		err = storagePoolValidate(req.Name, req.Driver, req.Config)
 		if err != nil {
+			return response.BadRequest(err)
+		}
+
+		err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
+			return tx.CreatePendingStoragePool(targetNode, req.Name, req.Driver, req.Config)
+		})
+		if err != nil {
+			if err == db.ErrAlreadyDefined {
+				return response.BadRequest(fmt.Errorf("The storage pool already defined on node %q", targetNode))
+			}
+
 			return response.SmartError(err)
 		}
 
-		if count == 1 {
-			// No targetNode was specified and we're either a single-node cluster or not clustered at
-			// all, so create the storage pool immediately, unless there's a pending storage pool
-			// (in that case we follow the regular two-stage process).
-			_, pool, _, err := d.cluster.GetStoragePoolInAnyState(req.Name)
-			if err != nil {
-				if err != db.ErrNoSuchObject {
-					return response.InternalError(err)
-				}
-				err = storagePoolCreateGlobal(d.State(), req, clientType)
-				if err != nil {
-					return response.InternalError(err)
-				}
-				return resp
-			}
+		return resp
+	}
 
-			// If the existing storage pool is pending then we continue onto storagePoolsPostCluster.
-			// Otherwise error as there is already a storage pool by that name.
-			if pool.Status != "Pending" {
-				return response.BadRequest(fmt.Errorf("The storage pool already exists"))
-			}
-		}
+	// Load existing pool if exists, if not don't fail.
+	_, pool, _, err := d.cluster.GetStoragePoolInAnyState(req.Name)
+	if err != nil && err != db.ErrNoSuchObject {
+		return response.InternalError(err)
+	}
 
-		// No targetNode was specified and we're clustered, so finalize the
-		// config in the db and actually create the pool on all nodes.
-		err = storagePoolsPostCluster(d, req, clientType)
+	// Check if we're clustered.
+	count, err := cluster.Count(d.State())
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	// No targetNode was specified and we're clustered or there is an existing partially created single node
+	// pool, either way finalize the config in the db and actually create the pool on all node in the cluster.
+	if count > 1 || (pool != nil && pool.Status != api.StoragePoolStatusCreated) {
+		err = storagePoolsPostCluster(d, pool, req, clientType)
 		if err != nil {
 			return response.InternalError(err)
 		}
@@ -181,29 +193,10 @@ func storagePoolsPost(d *Daemon, r *http.Request) response.Response {
 		return resp
 	}
 
-	// A targetNode was specified, let's just define the node's storage
-	// without actually creating it. The only legal key values for the
-	// storage config are the ones in StoragePoolNodeConfigKeys.
-	for key := range req.Config {
-		if !shared.StringInSlice(key, db.StoragePoolNodeConfigKeys) {
-			return response.SmartError(fmt.Errorf("Config key %q may not be used as node-specific key", key))
-		}
-	}
-
-	err = storagePoolValidate(req.Name, req.Driver, req.Config)
+	// Create new single node storage pool.
+	err = storagePoolCreateGlobal(d.State(), req, clientType)
 	if err != nil {
-		return response.BadRequest(err)
-	}
-
-	err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
-		return tx.CreatePendingStoragePool(targetNode, req.Name, req.Driver, req.Config)
-	})
-	if err != nil {
-		if err == db.ErrAlreadyDefined {
-			return response.BadRequest(fmt.Errorf("The storage pool already defined on node %q", targetNode))
-		}
-
-		return response.SmartError(err)
+		return response.InternalError(err)
 	}
 
 	return resp
