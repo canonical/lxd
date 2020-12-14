@@ -323,6 +323,11 @@ func (c *ClusterTx) NetworkCreated(project string, name string) error {
 	return c.networkState(project, name, networkCreated)
 }
 
+// NetworkErrored sets the state of the given network to networkErrored.
+func (c *ClusterTx) NetworkErrored(project string, name string) error {
+	return c.networkState(project, name, networkErrored)
+}
+
 func (c *ClusterTx) networkState(project string, name string, state NetworkState) error {
 	stmt := "UPDATE networks SET state=? WHERE project_id = (SELECT id FROM projects WHERE name = ?) AND name=?"
 	result, err := c.tx.Exec(stmt, state, project, name)
