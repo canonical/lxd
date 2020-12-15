@@ -434,10 +434,10 @@ func (c *ClusterTx) CreatePendingStoragePool(node, name, driver string, conf map
 		// Check that the existing pools matches the given driver and
 		// is in the pending state.
 		if pool.driver != driver {
-			return fmt.Errorf("pool already exists with a different driver")
+			return fmt.Errorf("Storage pool already exists with a different driver")
 		}
 		if pool.state != storagePoolPending {
-			return fmt.Errorf("pool is not in pending state")
+			return fmt.Errorf("Storage pool is not in pending state")
 		}
 	}
 
@@ -475,6 +475,11 @@ func (c *ClusterTx) CreatePendingStoragePool(node, name, driver string, conf map
 // StoragePoolCreated sets the state of the given pool to storagePoolCreated.
 func (c *ClusterTx) StoragePoolCreated(name string) error {
 	return c.storagePoolState(name, storagePoolCreated)
+}
+
+// StoragePoolErrored sets the state of the given pool to storagePoolErrored.
+func (c *ClusterTx) StoragePoolErrored(name string) error {
+	return c.storagePoolState(name, storagePoolErrored)
 }
 
 func (c *ClusterTx) storagePoolState(name string, state StoragePoolState) error {
@@ -600,10 +605,9 @@ func (c *Cluster) GetStoragePoolNames() ([]string, error) {
 	return c.storagePools("")
 }
 
-// GetNonPendingStoragePoolNames returns the names of all storage pools that are not
-// pending.
-func (c *Cluster) GetNonPendingStoragePoolNames() ([]string, error) {
-	return c.storagePools("NOT state=?", storagePoolPending)
+// GetCreatedStoragePoolNames returns the names of all storage pools that are created.
+func (c *Cluster) GetCreatedStoragePoolNames() ([]string, error) {
+	return c.storagePools("state=?", storagePoolCreated)
 }
 
 // Get all storage pools matching the given WHERE filter (if given).
@@ -792,6 +796,11 @@ func (c *Cluster) getStoragePoolConfig(poolID int64) (map[string]string, error) 
 	for _, r := range results {
 		key = r[0].(string)
 		value = r[1].(string)
+
+		_, found := config[key]
+		if found {
+			return nil, fmt.Errorf("Duplicate config row found for key %q for storage pool ID %d", key, poolID)
+		}
 
 		config[key] = value
 	}

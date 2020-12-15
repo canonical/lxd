@@ -95,7 +95,7 @@ func storagePoolCreateGlobal(state *state.State, req api.StoragePoolsPost, clien
 
 // This performs local pool setup and updates DB record if config was changed during pool setup.
 // Returns resulting config.
-func storagePoolCreateLocal(state *state.State, id int64, req api.StoragePoolsPost, clientType request.ClientType) (map[string]string, error) {
+func storagePoolCreateLocal(state *state.State, poolID int64, req api.StoragePoolsPost, clientType request.ClientType) (map[string]string, error) {
 	// Setup revert.
 	revert := revert.New()
 	defer revert.Fail()
@@ -126,7 +126,7 @@ func storagePoolCreateLocal(state *state.State, id int64, req api.StoragePoolsPo
 	}
 
 	if pool.LocalStatus() == api.NetworkStatusCreated {
-		logger.Debug("Skipping storage pool create as already created locally", log.Ctx{"pool": pool.Name()})
+		logger.Debug("Skipping local storage pool create as already created", log.Ctx{"pool": pool.Name()})
 
 		return pool.Driver().Config(), nil
 	}
@@ -160,7 +160,7 @@ func storagePoolCreateLocal(state *state.State, id int64, req api.StoragePoolsPo
 
 	// Set storage pool node to storagePoolCreated.
 	err = state.Cluster.Transaction(func(tx *db.ClusterTx) error {
-		return tx.StoragePoolNodeCreated(id)
+		return tx.StoragePoolNodeCreated(poolID)
 	})
 	if err != nil {
 		return nil, err
