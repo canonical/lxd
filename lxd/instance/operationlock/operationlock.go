@@ -37,7 +37,8 @@ func Create(instanceID int, action string, reusable bool, reuse bool) (*Instance
 	op := instanceOperations[instanceID]
 	if op != nil {
 		if op.reusable && reuse {
-			op.Reset()
+			// Reset operation timeout without releasing lock or deadlocking using Reset() function.
+			op.chanReset <- true
 			return op, nil
 		}
 
