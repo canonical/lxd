@@ -2163,7 +2163,7 @@ func (n *ovn) InstanceDevicePortAdd(instanceUUID string, instanceName string, de
 			return "", err
 		}
 
-		if dhcpV4ID == "" {
+		if dhcpv6ID == "" {
 			return "", fmt.Errorf("Could not find DHCPv6 options for instance port")
 		}
 
