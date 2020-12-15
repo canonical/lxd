@@ -817,6 +817,7 @@ func (d *qemu) Start(stateful bool) error {
 	}
 
 	devConfs := make([]*deviceConfig.RunConfig, 0, len(d.expandedDevices))
+	postStartHooks := []func() error{}
 
 	// Setup devices in sorted order, this ensures that device mounts are added in path order.
 	for _, entry := range d.expandedDevices.Sorted() {
@@ -839,6 +840,11 @@ func (d *qemu) Start(stateful bool) error {
 				d.logger.Error("Failed to cleanup device", log.Ctx{"devName": dev.Name, "err": err})
 			}
 		})
+
+		// Add post-start hooks
+		if len(runConf.PostHooks) > 0 {
+			postStartHooks = append(postStartHooks, runConf.PostHooks...)
+		}
 
 		devConfs = append(devConfs, runConf)
 	}
@@ -1124,6 +1130,15 @@ func (d *qemu) Start(stateful bool) error {
 	}
 
 	revert.Success()
+
+	// Run any post-start hooks.
+	err = d.runHooks(postStartHooks)
+	if err != nil {
+		op.Done(err)
+		// Shut down the VM if hooks fail.
+		d.Stop(false)
+		return err
+	}
 
 	if op.Action() == "start" {
 		d.lifecycle("started", nil)
