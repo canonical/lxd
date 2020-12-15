@@ -244,6 +244,7 @@ var APIExtensions = []string{
 	"network_physical_routes_anycast",
 	"projects_limits_instances",
 	"network_state_vlan",
+	"instance_nic_bridged_port_isolation",
 }
 
 // APIExtensionsCount returns the number of available API extensions.

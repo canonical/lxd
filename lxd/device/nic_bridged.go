@@ -64,6 +64,7 @@ func (d *nicBridged) validateConfig(instConf instance.ConfigReader) error {
 		"security.mac_filtering",
 		"security.ipv4_filtering",
 		"security.ipv6_filtering",
+		"security.port_isolation",
 		"maas.subnet.ipv4",
 		"maas.subnet.ipv6",
 		"boot.priority",
@@ -307,6 +308,14 @@ func (d *nicBridged) Start() (*deviceConfig.RunConfig, error) {
 	err = util.SysctlSet(fmt.Sprintf("net/ipv6/conf/%s/accept_ra", saveData["host_name"]), "0")
 	if err != nil && !os.IsNotExist(err) {
 		return nil, err
+	}
+
+	// Attempt to enable port isolation
+	if shared.IsTrue(d.config["security.port_isolation"]) {
+		_, err = shared.RunCommand("bridge", "link", "set", "dev", saveData["host_name"], "isolated", "on")
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	// Detech bridge type and setup VLAN settings on bridge port.
