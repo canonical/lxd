@@ -52,6 +52,8 @@ func Create(instanceID int, action string, reusable bool, reuse bool) (*Instance
 	op.chanDone = make(chan error, 0)
 	op.chanReset = make(chan bool, 0)
 
+	instanceOperations[instanceID] = op
+
 	go func(op *InstanceOperation) {
 		for {
 			select {
@@ -63,8 +65,6 @@ func Create(instanceID int, action string, reusable bool, reuse bool) (*Instance
 			}
 		}
 	}(op)
-
-	instanceOperations[instanceID] = op
 
 	return op, nil
 }
