@@ -37,7 +37,8 @@ func Create(instanceID int, action string, reusable bool, reuse bool) (*Instance
 	op := instanceOperations[instanceID]
 	if op != nil {
 		if op.reusable && reuse {
-			op.Reset()
+			// Reset operation timeout without releasing lock or deadlocking using Reset() function.
+			op.chanReset <- true
 			return op, nil
 		}
 
@@ -51,9 +52,13 @@ func Create(instanceID int, action string, reusable bool, reuse bool) (*Instance
 	op.chanDone = make(chan error, 0)
 	op.chanReset = make(chan bool, 0)
 
+	instanceOperations[instanceID] = op
+
 	go func(op *InstanceOperation) {
 		for {
 			select {
+			case <-op.chanDone:
+				return
 			case <-op.chanReset:
 				continue
 			case <-time.After(time.Second * 30):
@@ -62,8 +67,6 @@ func Create(instanceID int, action string, reusable bool, reuse bool) (*Instance
 			}
 		}
 	}(op)
-
-	instanceOperations[instanceID] = op
 
 	return op, nil
 }
