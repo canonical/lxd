@@ -142,40 +142,50 @@ func storagePoolsPost(d *Daemon, r *http.Request) response.Response {
 	}
 
 	targetNode := queryParam(r, "target")
-	if targetNode == "" {
-		count, err := cluster.Count(d.State())
+	if targetNode != "" {
+		// A targetNode was specified, let's just define the node's storage without actually creating it.
+		// The only legal key values for the storage config are the ones in StoragePoolNodeConfigKeys.
+		for key := range req.Config {
+			if !shared.StringInSlice(key, db.StoragePoolNodeConfigKeys) {
+				return response.SmartError(fmt.Errorf("Config key %q may not be used as node-specific key", key))
+			}
+		}
+
+		err = storagePoolValidate(req.Name, req.Driver, req.Config)
 		if err != nil {
+			return response.BadRequest(err)
+		}
+
+		err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
+			return tx.CreatePendingStoragePool(targetNode, req.Name, req.Driver, req.Config)
+		})
+		if err != nil {
+			if err == db.ErrAlreadyDefined {
+				return response.BadRequest(fmt.Errorf("The storage pool already defined on node %q", targetNode))
+			}
+
 			return response.SmartError(err)
 		}
 
-		if count == 1 {
-			// No targetNode was specified and we're either a
-			// single-node cluster or not clustered at all, so
-			// create the storage pool immediately, unless there's
-			// a pending storage pool (in that case we follow the
-			// regular two-stage process).
-			_, pool, _, err := d.cluster.GetStoragePoolInAnyState(req.Name)
-			if err != nil {
-				if err != db.ErrNoSuchObject {
-					return response.InternalError(err)
-				}
-				err = storagePoolCreateGlobal(d.State(), req, clientType)
-				if err != nil {
-					return response.InternalError(err)
-				}
-				return resp
-			}
+		return resp
+	}
 
-			// If the existing storage pool is pending then we continue onto storagePoolsPostCluster.
-			// Otherwise error as there is already a storage pool by that name.
-			if pool.Status != "Pending" {
-				return response.BadRequest(fmt.Errorf("The storage pool already exists"))
-			}
-		}
+	// Load existing pool if exists, if not don't fail.
+	_, pool, _, err := d.cluster.GetStoragePoolInAnyState(req.Name)
+	if err != nil && err != db.ErrNoSuchObject {
+		return response.InternalError(err)
+	}
 
-		// No targetNode was specified and we're clustered, so finalize the
-		// config in the db and actually create the pool on all nodes.
-		err = storagePoolsPostCluster(d, req, clientType)
+	// Check if we're clustered.
+	count, err := cluster.Count(d.State())
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	// No targetNode was specified and we're clustered or there is an existing partially created single node
+	// pool, either way finalize the config in the db and actually create the pool on all node in the cluster.
+	if count > 1 || (pool != nil && pool.Status != api.StoragePoolStatusCreated) {
+		err = storagePoolsPostCluster(d, pool, req, clientType)
 		if err != nil {
 			return response.InternalError(err)
 		}
@@ -183,39 +193,55 @@ func storagePoolsPost(d *Daemon, r *http.Request) response.Response {
 		return resp
 	}
 
-	// A targetNode was specified, let's just define the node's storage
-	// without actually creating it. The only legal key values for the
-	// storage config are the ones in StoragePoolNodeConfigKeys.
-	for key := range req.Config {
-		if !shared.StringInSlice(key, db.StoragePoolNodeConfigKeys) {
-			return response.SmartError(fmt.Errorf("Config key %q may not be used as node-specific key", key))
-		}
-	}
-
-	err = storagePoolValidate(req.Name, req.Driver, req.Config)
+	// Create new single node storage pool.
+	err = storagePoolCreateGlobal(d.State(), req, clientType)
 	if err != nil {
-		return response.BadRequest(err)
-	}
-
-	err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
-		return tx.CreatePendingStoragePool(targetNode, req.Name, req.Driver, req.Config)
-	})
-	if err != nil {
-		if err == db.ErrAlreadyDefined {
-			return response.BadRequest(fmt.Errorf("The storage pool already defined on node %q", targetNode))
-		}
-
-		return response.SmartError(err)
+		return response.InternalError(err)
 	}
 
 	return resp
 }
 
-func storagePoolsPostCluster(d *Daemon, req api.StoragePoolsPost, clientType request.ClientType) error {
+// storagePoolPartiallyCreated returns true of supplied storage pool has properties that indicate it has had
+// previous create attempts run on it but failed on one or more nodes.
+func storagePoolPartiallyCreated(pool *api.StoragePool) bool {
+	// If the pool status is StoragePoolStatusErrored, this means create has been run in the past and has
+	// failed on one or more nodes. Hence it is partially created.
+	if pool.Status == api.StoragePoolStatusErrored {
+		return true
+	}
+
+	// If the pool has global config keys, then it has previously been created by having its global config
+	// inserted, and this means it is partialled created.
+	for key := range pool.Config {
+		if !shared.StringInSlice(key, db.StoragePoolNodeConfigKeys) {
+			return true
+		}
+	}
+
+	return false
+}
+
+// storagePoolsPostCluster handles creating storage pools after the per-node config records have been created.
+// Accepts an optional existing pool record, which will exist when performing subsequent re-create attempts.
+func storagePoolsPostCluster(d *Daemon, pool *api.StoragePool, req api.StoragePoolsPost, clientType request.ClientType) error {
 	// Check that no node-specific config key has been defined.
 	for key := range req.Config {
 		if shared.StringInSlice(key, db.StoragePoolNodeConfigKeys) {
 			return fmt.Errorf("Config key %q is node-specific", key)
+		}
+	}
+
+	// Perform sanity checks if pool already exists.
+	if pool != nil {
+		// Check pool isn't already created.
+		if pool.Status == api.StoragePoolStatusCreated {
+			return fmt.Errorf("The storage pool is already created")
+		}
+
+		// Check the requested pool type matches the type created when adding the local node config.
+		if req.Driver != pool.Driver {
+			return fmt.Errorf("Requested storage pool driver %q doesn't match driver in existing database record %q", req.Driver, pool.Driver)
 		}
 	}
 
@@ -226,13 +252,23 @@ func storagePoolsPostCluster(d *Daemon, req api.StoragePoolsPost, clientType req
 	err := d.cluster.Transaction(func(tx *db.ClusterTx) error {
 		var err error
 
-		// Check that the pool was defined at all.
+		// Check that the pool was defined at all. Must come before partially created checks.
 		poolID, err = tx.GetStoragePoolID(req.Name)
 		if err != nil {
 			return err
 		}
 
-		// Fetch the node-specific configs.
+		// Check if any global config exists already, if so we should not create global config again.
+		if pool != nil && storagePoolPartiallyCreated(pool) {
+			if len(req.Config) > 0 {
+				return fmt.Errorf("Storage pool already partially created. Please do not specify any global config when re-running create")
+			}
+
+			logger.Debug("Skipping global storage pool create as global config already partially created", log.Ctx{"pool": req.Name})
+			return nil
+		}
+
+		// Fetch the node-specific configs and check the pool is defined for all nodes.
 		configs, err = tx.GetStoragePoolNodeConfigs(poolID)
 		if err != nil {
 			return err
@@ -245,7 +281,13 @@ func storagePoolsPostCluster(d *Daemon, req api.StoragePoolsPost, clientType req
 		}
 
 		// Insert the global config keys.
-		return tx.CreateStoragePoolConfig(poolID, 0, req.Config)
+		err = tx.CreateStoragePoolConfig(poolID, 0, req.Config)
+		if err != nil {
+			return err
+		}
+
+		// Assume failure unless we succeed later on.
+		return tx.StoragePoolErrored(req.Name)
 	})
 	if err != nil {
 		if err == db.ErrNoSuchObject {
