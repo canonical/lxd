@@ -343,9 +343,12 @@ func (d *qemu) getStoragePool() (storagePools.Pool, error) {
 }
 
 func (d *qemu) getMonitorEventHandler() func(event string, data map[string]interface{}) {
+	// Create local variables from instance properties we need so as not to keep references to instance around
+	// after we have returned the callback function.
 	projectName := d.Project()
 	instanceName := d.Name()
 	state := d.state
+	logger := d.logger
 
 	return func(event string, data map[string]interface{}) {
 		if !shared.StringInSlice(event, []string{"SHUTDOWN"}) {
@@ -354,11 +357,13 @@ func (d *qemu) getMonitorEventHandler() func(event string, data map[string]inter
 
 		inst, err := instance.LoadByProjectAndName(state, projectName, instanceName)
 		if err != nil {
-			d.logger.Error("Failed to load instance", log.Ctx{"err": err})
+			logger.Error("Failed to load instance", log.Ctx{"err": err})
 			return
 		}
 
 		if event == "SHUTDOWN" {
+			logger.Debug("Instance stopped")
+
 			target := "stop"
 			entry, ok := data["reason"]
 			if ok && entry == "guest-reset" {
@@ -367,7 +372,7 @@ func (d *qemu) getMonitorEventHandler() func(event string, data map[string]inter
 
 			err = inst.(*qemu).onStop(target)
 			if err != nil {
-				d.logger.Error("Failed to cleanly stop instance", log.Ctx{"err": err})
+				logger.Error("Failed to cleanly stop instance", log.Ctx{"err": err})
 				return
 			}
 		}
