@@ -57,6 +57,8 @@ func Create(instanceID int, action string, reusable bool, reuse bool) (*Instance
 	go func(op *InstanceOperation) {
 		for {
 			select {
+			case <-op.chanDone:
+				return
 			case <-op.chanReset:
 				continue
 			case <-time.After(time.Second * 30):
