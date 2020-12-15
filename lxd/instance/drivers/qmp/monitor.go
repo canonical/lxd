@@ -12,6 +12,7 @@ import (
 	"github.com/digitalocean/go-qemu/qmp"
 
 	"github.com/lxc/lxd/shared"
+	"github.com/lxc/lxd/shared/logger"
 )
 
 var monitors = map[string]*Monitor{}
@@ -126,13 +127,22 @@ func (m *Monitor) run() error {
 			select {
 			case <-m.chDisconnect:
 				return
-			case e := <-chEvents:
-				if e.Event == "" {
-					continue
+			case e, more := <-chEvents:
+				// Deliver non-empty events to the event handler.
+				if m.eventHandler != nil && e.Event != "" {
+					go m.eventHandler(e.Event, e.Data)
 				}
 
-				if m.eventHandler != nil {
-					go m.eventHandler(e.Event, e.Data)
+				// Event channel is closed, lets disconnect.
+				if !more {
+					m.Disconnect()
+					return
+				}
+
+				if e.Event == "" {
+					logger.Warnf("Unexpected empty event received from qmp event channel")
+					time.Sleep(time.Second) // Don't spin if we receive a lot of these.
+					continue
 				}
 
 				// Check if the ringbuffer was updated (non-blocking).
