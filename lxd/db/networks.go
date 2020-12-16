@@ -375,7 +375,7 @@ func (c *Cluster) GetNetworks() ([]string, error) {
 	return c.networks("")
 }
 
-// GetCreatedNetworks returns the names of all networks that are not in state networkCreated.
+// GetCreatedNetworks returns the names of all networks that are in state networkCreated.
 func (c *Cluster) GetCreatedNetworks() ([]string, error) {
 	return c.networks("state=?", networkCreated)
 }
