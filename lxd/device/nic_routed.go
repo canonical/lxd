@@ -414,7 +414,17 @@ func (d *nicRouted) postStop() error {
 
 	v := d.volatileGet()
 
+	networkVethFillFromVolatile(d.config, v)
+
 	errs := []error{}
+
+	if network.InterfaceExists(d.config["host_name"]) {
+		// Removing host-side end of veth pair will delete the peer end too.
+		err := network.InterfaceRemove(d.config["host_name"])
+		if err != nil {
+			errs = append(errs, errors.Wrapf(err, "Failed to remove interface %q", d.config["host_name"]))
+		}
+	}
 
 	// This will delete the parent interface if we created it for VLAN parent.
 	if shared.IsTrue(v["last_state.created"]) {
