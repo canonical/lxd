@@ -878,88 +878,118 @@ func (n *ovn) uplinkPortBridgeVars(uplinkNet Network) *ovnUplinkPortBridgeVars {
 // startUplinkPortBridge creates veth pair (if doesn't exist), creates OVS bridge (if doesn't exist) and
 // connects veth pair to uplink bridge and OVS bridge.
 func (n *ovn) startUplinkPortBridge(uplinkNet Network) error {
+	if uplinkNet.Config()["bridge.driver"] != "openvswitch" {
+		return n.startUplinkPortBridgeNative(uplinkNet, uplinkNet.Name())
+	}
+
+	return n.startUplinkPortBridgeOVS(uplinkNet, uplinkNet.Name())
+}
+
+// startUplinkPortBridgeNative connects an OVN logical router to an uplink native bridge.
+func (n *ovn) startUplinkPortBridgeNative(uplinkNet Network, bridgeDevice string) error {
 	// Do this after gaining lock so that on failure we revert before release locking.
 	revert := revert.New()
 	defer revert.Fail()
 
-	ovs := openvswitch.NewOVS()
-
 	// If uplink is a native bridge, then use a separate OVS bridge with veth pair connection to native bridge.
-	if uplinkNet.Config()["bridge.driver"] != "openvswitch" {
-		vars := n.uplinkPortBridgeVars(uplinkNet)
+	vars := n.uplinkPortBridgeVars(uplinkNet)
 
-		// Create veth pair if needed.
-		if !InterfaceExists(vars.uplinkEnd) && !InterfaceExists(vars.ovsEnd) {
-			_, err := shared.RunCommand("ip", "link", "add", "dev", vars.uplinkEnd, "type", "veth", "peer", "name", vars.ovsEnd)
-			if err != nil {
-				return errors.Wrapf(err, "Failed to create the uplink veth interfaces %q and %q", vars.uplinkEnd, vars.ovsEnd)
-			}
-
-			revert.Add(func() { shared.RunCommand("ip", "link", "delete", vars.uplinkEnd) })
-		}
-
-		// Ensure that the veth interfaces inherit the uplink bridge's MTU (which the OVS bridge also inherits).
-		uplinkNetConfig := uplinkNet.Config()
-		if uplinkNetConfig["bridge.mtu"] != "" {
-			err := InterfaceSetMTU(vars.uplinkEnd, uplinkNetConfig["bridge.mtu"])
-			if err != nil {
-				return err
-			}
-
-			err = InterfaceSetMTU(vars.ovsEnd, uplinkNetConfig["bridge.mtu"])
-			if err != nil {
-				return err
-			}
-		}
-
-		// Ensure correct sysctls are set on uplink veth interfaces to avoid getting IPv6 link-local addresses.
-		err := util.SysctlSet(
-			fmt.Sprintf("net/ipv6/conf/%s/disable_ipv6", vars.uplinkEnd), "1",
-			fmt.Sprintf("net/ipv6/conf/%s/disable_ipv6", vars.ovsEnd), "1",
-			fmt.Sprintf("net/ipv6/conf/%s/forwarding", vars.uplinkEnd), "0",
-			fmt.Sprintf("net/ipv6/conf/%s/forwarding", vars.ovsEnd), "0",
-		)
+	// Create veth pair if needed.
+	if !InterfaceExists(vars.uplinkEnd) && !InterfaceExists(vars.ovsEnd) {
+		_, err := shared.RunCommand("ip", "link", "add", "dev", vars.uplinkEnd, "type", "veth", "peer", "name", vars.ovsEnd)
 		if err != nil {
-			return errors.Wrapf(err, "Failed to configure uplink veth interfaces %q and %q", vars.uplinkEnd, vars.ovsEnd)
+			return errors.Wrapf(err, "Failed to create the uplink veth interfaces %q and %q", vars.uplinkEnd, vars.ovsEnd)
 		}
 
-		// Connect uplink end of veth pair to uplink bridge and bring up.
-		_, err = shared.RunCommand("ip", "link", "set", "master", uplinkNet.Name(), "dev", vars.uplinkEnd, "up")
+		revert.Add(func() { shared.RunCommand("ip", "link", "delete", vars.uplinkEnd) })
+	}
+
+	// Ensure that the veth interfaces inherit the uplink bridge's MTU (which the OVS bridge also inherits).
+	uplinkNetConfig := uplinkNet.Config()
+	if uplinkNetConfig["bridge.mtu"] != "" {
+		err := InterfaceSetMTU(vars.uplinkEnd, uplinkNetConfig["bridge.mtu"])
 		if err != nil {
-			return errors.Wrapf(err, "Failed to connect uplink veth interface %q to uplink bridge %q", vars.uplinkEnd, uplinkNet.Name())
+			return err
 		}
 
-		// Ensure uplink OVS end veth interface is up.
-		_, err = shared.RunCommand("ip", "link", "set", "dev", vars.ovsEnd, "up")
+		err = InterfaceSetMTU(vars.ovsEnd, uplinkNetConfig["bridge.mtu"])
 		if err != nil {
-			return errors.Wrapf(err, "Failed to bring up uplink veth interface %q", vars.ovsEnd)
-		}
-
-		// Create uplink OVS bridge if needed.
-		err = ovs.BridgeAdd(vars.ovsBridge, true)
-		if err != nil {
-			return errors.Wrapf(err, "Failed to create uplink OVS bridge %q", vars.ovsBridge)
-		}
-
-		// Connect OVS end veth interface to OVS bridge.
-		err = ovs.BridgePortAdd(vars.ovsBridge, vars.ovsEnd, true)
-		if err != nil {
-			return errors.Wrapf(err, "Failed to connect uplink veth interface %q to uplink OVS bridge %q", vars.ovsEnd, vars.ovsBridge)
-		}
-
-		// Associate OVS bridge to logical OVN provider.
-		err = ovs.OVNBridgeMappingAdd(vars.ovsBridge, uplinkNet.Name())
-		if err != nil {
-			return errors.Wrapf(err, "Failed to associate uplink OVS bridge %q to OVN provider %q", vars.ovsBridge, uplinkNet.Name())
-		}
-	} else {
-		// If uplink is an openvswitch bridge, have OVN logical provider connect directly to it.
-		err := ovs.OVNBridgeMappingAdd(uplinkNet.Name(), uplinkNet.Name())
-		if err != nil {
-			return errors.Wrapf(err, "Failed to associate uplink OVS bridge %q to OVN provider %q", uplinkNet.Name(), uplinkNet.Name())
+			return err
 		}
 	}
 
+	// Ensure correct sysctls are set on uplink veth interfaces to avoid getting IPv6 link-local addresses.
+	err := util.SysctlSet(
+		fmt.Sprintf("net/ipv6/conf/%s/disable_ipv6", vars.uplinkEnd), "1",
+		fmt.Sprintf("net/ipv6/conf/%s/disable_ipv6", vars.ovsEnd), "1",
+		fmt.Sprintf("net/ipv6/conf/%s/forwarding", vars.uplinkEnd), "0",
+		fmt.Sprintf("net/ipv6/conf/%s/forwarding", vars.ovsEnd), "0",
+	)
+	if err != nil {
+		return errors.Wrapf(err, "Failed to configure uplink veth interfaces %q and %q", vars.uplinkEnd, vars.ovsEnd)
+	}
+
+	// Connect uplink end of veth pair to uplink bridge and bring up.
+	_, err = shared.RunCommand("ip", "link", "set", "master", bridgeDevice, "dev", vars.uplinkEnd, "up")
+	if err != nil {
+		return errors.Wrapf(err, "Failed to connect uplink veth interface %q to uplink bridge %q", vars.uplinkEnd, bridgeDevice)
+	}
+
+	// Ensure uplink OVS end veth interface is up.
+	_, err = shared.RunCommand("ip", "link", "set", "dev", vars.ovsEnd, "up")
+	if err != nil {
+		return errors.Wrapf(err, "Failed to bring up uplink veth interface %q", vars.ovsEnd)
+	}
+
+	// Create uplink OVS bridge if needed.
+	ovs := openvswitch.NewOVS()
+	err = ovs.BridgeAdd(vars.ovsBridge, true)
+	if err != nil {
+		return errors.Wrapf(err, "Failed to create uplink OVS bridge %q", vars.ovsBridge)
+	}
+
+	// Connect OVS end veth interface to OVS bridge.
+	err = ovs.BridgePortAdd(vars.ovsBridge, vars.ovsEnd, true)
+	if err != nil {
+		return errors.Wrapf(err, "Failed to connect uplink veth interface %q to uplink OVS bridge %q", vars.ovsEnd, vars.ovsBridge)
+	}
+
+	// Associate OVS bridge to logical OVN provider.
+	err = ovs.OVNBridgeMappingAdd(vars.ovsBridge, uplinkNet.Name())
+	if err != nil {
+		return errors.Wrapf(err, "Failed to associate uplink OVS bridge %q to OVN provider %q", vars.ovsBridge, uplinkNet.Name())
+	}
+
+	// Attempt to learn uplink MAC.
+	n.pingOVNRouterIPv6()
+
+	revert.Success()
+	return nil
+}
+
+// startUplinkPortBridgeOVS connects an OVN logical router to an uplink OVS bridge.
+func (n *ovn) startUplinkPortBridgeOVS(uplinkNet Network, bridgeDevice string) error {
+	// Do this after gaining lock so that on failure we revert before release locking.
+	revert := revert.New()
+	defer revert.Fail()
+
+	// If uplink is an openvswitch bridge, have OVN logical provider connect directly to it.
+	ovs := openvswitch.NewOVS()
+	err := ovs.OVNBridgeMappingAdd(bridgeDevice, uplinkNet.Name())
+	if err != nil {
+		return errors.Wrapf(err, "Failed to associate uplink OVS bridge %q to OVN provider %q", bridgeDevice, uplinkNet.Name())
+	}
+
+	// Attempt to learn uplink MAC.
+	n.pingOVNRouterIPv6()
+
+	revert.Success()
+	return nil
+}
+
+// pingOVNRouterIPv6 pings the OVN router's external IPv6 address to attempt to trigger MAC learning on uplink.
+// This is to work around a bug in some versions of OVN.
+func (n *ovn) pingOVNRouterIPv6() {
 	routerExtPortIPv6 := net.ParseIP(n.config[ovnVolatileUplinkIPv6])
 	if routerExtPortIPv6 != nil {
 		// Now that the OVN router is connected to the uplink bridge, attempt to ping the OVN
@@ -986,15 +1016,10 @@ func (n *ovn) startUplinkPortBridge(uplinkNet Network) error {
 			n.logger.Debug("OVN router external IPv6 address unreachable", log.Ctx{"ip": routerExtPortIPv6.String()})
 		}()
 	}
-
-	revert.Success()
-	return nil
 }
 
 // startUplinkPortPhysical creates OVS bridge (if doesn't exist) and connects uplink interface to the OVS bridge.
 func (n *ovn) startUplinkPortPhysical(uplinkNet Network) error {
-	vars := n.uplinkPortBridgeVars(uplinkNet)
-
 	// Do this after gaining lock so that on failure we revert before release locking.
 	revert := revert.New()
 	defer revert.Fail()
@@ -1003,8 +1028,23 @@ func (n *ovn) startUplinkPortPhysical(uplinkNet Network) error {
 	uplinkHostName := GetHostDevice(uplinkConfig["parent"], uplinkConfig["vlan"])
 
 	if !InterfaceExists(uplinkHostName) {
-		return fmt.Errorf("Uplink network %q is not started", uplinkNet.Name())
+		return fmt.Errorf("Uplink network %q is not started (interface %q is missing)", uplinkNet.Name(), uplinkHostName)
 	}
+
+	// Detect if uplink interface is a native bridge.
+	if IsNativeBridge(uplinkHostName) {
+		return n.startUplinkPortBridgeNative(uplinkNet, uplinkHostName)
+	}
+
+	// Detect if uplink interface is a OVS bridge.
+	ovs := openvswitch.NewOVS()
+	isOVSBridge, _ := ovs.BridgeExists(uplinkHostName)
+	if isOVSBridge {
+		return n.startUplinkPortBridgeOVS(uplinkNet, uplinkHostName)
+	}
+
+	// If uplink is a normal physical interface, then use a separate OVS bridge and connect uplink to it.
+	vars := n.uplinkPortBridgeVars(uplinkNet)
 
 	// Ensure correct sysctls are set on uplink interface to avoid getting IPv6 link-local addresses.
 	err := util.SysctlSet(
@@ -1016,7 +1056,6 @@ func (n *ovn) startUplinkPortPhysical(uplinkNet Network) error {
 	}
 
 	// Create uplink OVS bridge if needed.
-	ovs := openvswitch.NewOVS()
 	err = ovs.BridgeAdd(vars.ovsBridge, true)
 	if err != nil {
 		return errors.Wrapf(err, "Failed to create uplink OVS bridge %q", vars.ovsBridge)
@@ -1100,67 +1139,78 @@ func (n *ovn) deleteUplinkPort() error {
 	return nil
 }
 
-// deleteUplinkPortBridge deletes uplink OVS bridge, OVN bridge mappings and veth interfaces if not in use.
+// deleteUplinkPortBridge disconnects the uplink port from the bridge and performs any cleanup.
 func (n *ovn) deleteUplinkPortBridge(uplinkNet Network) error {
-	// If uplink is a native bridge, then clean up separate OVS bridge and veth pair connection if not in use.
 	if uplinkNet.Config()["bridge.driver"] != "openvswitch" {
-		// Check OVS uplink bridge exists, if it does, check whether the uplink network is in use.
-		removeVeths := false
-		vars := n.uplinkPortBridgeVars(uplinkNet)
-		if InterfaceExists(vars.ovsBridge) {
-			uplinkUsed, err := n.checkUplinkUse()
-			if err != nil {
-				return err
-			}
+		return n.deleteUplinkPortBridgeNative(uplinkNet)
+	}
 
-			// Remove OVS bridge if the uplink network isn't used by any other OVN networks.
-			if !uplinkUsed {
-				removeVeths = true
+	return n.deleteUplinkPortBridgeOVS(uplinkNet)
+}
 
-				ovs := openvswitch.NewOVS()
-				err = ovs.OVNBridgeMappingDelete(vars.ovsBridge, uplinkNet.Name())
-				if err != nil {
-					return err
-				}
-
-				err = ovs.BridgeDelete(vars.ovsBridge)
-				if err != nil {
-					return err
-				}
-			}
-		} else {
-			removeVeths = true // Remove the veths if OVS bridge already gone.
-		}
-
-		// Remove the veth interfaces if they exist.
-		if removeVeths {
-			if InterfaceExists(vars.uplinkEnd) {
-				_, err := shared.RunCommand("ip", "link", "delete", "dev", vars.uplinkEnd)
-				if err != nil {
-					return errors.Wrapf(err, "Failed to delete the uplink veth interface %q", vars.uplinkEnd)
-				}
-			}
-
-			if InterfaceExists(vars.ovsEnd) {
-				_, err := shared.RunCommand("ip", "link", "delete", "dev", vars.ovsEnd)
-				if err != nil {
-					return errors.Wrapf(err, "Failed to delete the uplink veth interface %q", vars.ovsEnd)
-				}
-			}
-		}
-	} else {
+// deleteUplinkPortBridge deletes uplink OVS bridge, OVN bridge mappings and veth interfaces if not in use.
+func (n *ovn) deleteUplinkPortBridgeNative(uplinkNet Network) error {
+	// Check OVS uplink bridge exists, if it does, check whether the uplink network is in use.
+	removeVeths := false
+	vars := n.uplinkPortBridgeVars(uplinkNet)
+	if InterfaceExists(vars.ovsBridge) {
 		uplinkUsed, err := n.checkUplinkUse()
 		if err != nil {
 			return err
 		}
 
-		// Remove uplink OVS bridge mapping if not in use by other OVN networks.
+		// Remove OVS bridge if the uplink network isn't used by any other OVN networks.
 		if !uplinkUsed {
+			removeVeths = true
+
 			ovs := openvswitch.NewOVS()
-			err = ovs.OVNBridgeMappingDelete(uplinkNet.Name(), uplinkNet.Name())
+			err = ovs.OVNBridgeMappingDelete(vars.ovsBridge, uplinkNet.Name())
 			if err != nil {
 				return err
 			}
+
+			err = ovs.BridgeDelete(vars.ovsBridge)
+			if err != nil {
+				return err
+			}
+		}
+	} else {
+		removeVeths = true // Remove the veths if OVS bridge already gone.
+	}
+
+	// Remove the veth interfaces if they exist.
+	if removeVeths {
+		if InterfaceExists(vars.uplinkEnd) {
+			_, err := shared.RunCommand("ip", "link", "delete", "dev", vars.uplinkEnd)
+			if err != nil {
+				return errors.Wrapf(err, "Failed to delete the uplink veth interface %q", vars.uplinkEnd)
+			}
+		}
+
+		if InterfaceExists(vars.ovsEnd) {
+			_, err := shared.RunCommand("ip", "link", "delete", "dev", vars.ovsEnd)
+			if err != nil {
+				return errors.Wrapf(err, "Failed to delete the uplink veth interface %q", vars.ovsEnd)
+			}
+		}
+	}
+
+	return nil
+}
+
+// deleteUplinkPortBridge deletes OVN bridge mappings if not in use.
+func (n *ovn) deleteUplinkPortBridgeOVS(uplinkNet Network) error {
+	uplinkUsed, err := n.checkUplinkUse()
+	if err != nil {
+		return err
+	}
+
+	// Remove uplink OVS bridge mapping if not in use by other OVN networks.
+	if !uplinkUsed {
+		ovs := openvswitch.NewOVS()
+		err = ovs.OVNBridgeMappingDelete(uplinkNet.Name(), uplinkNet.Name())
+		if err != nil {
+			return err
 		}
 	}
 
@@ -1169,6 +1219,23 @@ func (n *ovn) deleteUplinkPortBridge(uplinkNet Network) error {
 
 // deleteUplinkPortPhysical deletes uplink OVS bridge and OVN bridge mappings if not in use.
 func (n *ovn) deleteUplinkPortPhysical(uplinkNet Network) error {
+	uplinkConfig := uplinkNet.Config()
+	uplinkHostName := GetHostDevice(uplinkConfig["parent"], uplinkConfig["vlan"])
+
+	// Detect if uplink interface is a native bridge.
+	if IsNativeBridge(uplinkHostName) {
+		return n.deleteUplinkPortBridgeNative(uplinkNet)
+	}
+
+	// Detect if uplink interface is a OVS bridge.
+	ovs := openvswitch.NewOVS()
+	isOVSBridge, _ := ovs.BridgeExists(uplinkHostName)
+	if isOVSBridge {
+		return n.deleteUplinkPortBridgeOVS(uplinkNet)
+	}
+
+	// Otherwise if uplink is normal physical interface, attempt cleanup of OVS bridge.
+
 	// Check OVS uplink bridge exists, if it does, check whether the uplink network is in use.
 	releaseIF := false
 	vars := n.uplinkPortBridgeVars(uplinkNet)
@@ -1194,18 +1261,14 @@ func (n *ovn) deleteUplinkPortPhysical(uplinkNet Network) error {
 			}
 		}
 	} else {
-		releaseIF = true // Remove the veths if OVS bridge already gone.
+		releaseIF = true // Bring uplink interface down if not needed.
 	}
 
-	// Bring down uplink interface if exists.
-	if releaseIF {
-		uplinkConfig := uplinkNet.Config()
-		uplinkDev := GetHostDevice(uplinkConfig["parent"], uplinkConfig["vlan"])
-		if InterfaceExists(uplinkDev) {
-			_, err := shared.RunCommand("ip", "link", "set", uplinkDev, "down")
-			if err != nil {
-				return errors.Wrapf(err, "Failed to bring down uplink interface %q", uplinkDev)
-			}
+	// Bring down uplink interface if not used and exists.
+	if releaseIF && InterfaceExists(uplinkHostName) {
+		_, err := shared.RunCommand("ip", "link", "set", uplinkHostName, "down")
+		if err != nil {
+			return errors.Wrapf(err, "Failed to bring down uplink interface %q", uplinkHostName)
 		}
 	}
 
