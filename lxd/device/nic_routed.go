@@ -76,8 +76,8 @@ func (d *nicRouted) validateEnvironment() error {
 		return fmt.Errorf("Requires liblxc has following API extensions: network_veth_router, network_l2proxy")
 	}
 
-	if d.config["parent"] != "" && !shared.PathExists(fmt.Sprintf("/sys/class/net/%s", d.config["parent"])) {
-		return fmt.Errorf("Parent device '%s' doesn't exist", d.config["parent"])
+	if d.config["parent"] != "" && !network.InterfaceExists(d.config["parent"]) {
+		return fmt.Errorf("Parent device %q doesn't exist", d.config["parent"])
 	}
 
 	if d.config["parent"] == "" && d.config["vlan"] != "" {
@@ -114,7 +114,7 @@ func (d *nicRouted) validateEnvironment() error {
 
 	// If the effective parent doesn't exist and the vlan option is specified, it means we are going to create
 	// the VLAN parent at start, and we will configure the needed sysctls so don't need to check them yet.
-	if d.config["vlan"] != "" && !shared.PathExists(fmt.Sprintf("/sys/class/net/%s", effectiveParentName)) {
+	if d.config["vlan"] != "" && network.InterfaceExists(effectiveParentName) {
 		return nil
 	}
 
