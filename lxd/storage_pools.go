@@ -176,6 +176,12 @@ func storagePoolsPost(d *Daemon, r *http.Request) response.Response {
 		return response.InternalError(err)
 	}
 
+	// If the pool has previously had a create attempt that failed, then because we cannot track per-node
+	// status, we need to prevent any further create attempts and require the user to delete and re-create.
+	if pool != nil && pool.Status == api.StoragePoolStatusErrored {
+		return response.BadRequest(fmt.Errorf("Storage pool is in errored state, please delete and re-create"))
+	}
+
 	// Check if we're clustered.
 	count, err := cluster.Count(d.State())
 	if err != nil {
