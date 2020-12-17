@@ -18,7 +18,7 @@ currently supported:
 Key                                  | Type      | Condition             | Default                   | Description
 :--                                  | :--       | :--                   | :--                       | :--
 features.images                      | boolean   | -                     | true                      | Separate set of images and image aliases for the project
-features.networks                    | boolean   | -                     | true                      | Separate set of networks for the project
+features.networks                    | boolean   | -                     | false                     | Separate set of networks for the project
 features.profiles                    | boolean   | -                     | true                      | Separate set of profiles for the project
 features.storage.volumes             | boolean   | -                     | true                      | Separate set of storage volumes for the project
 limits.instances                     | integer   | -                     | -                         | Maximum number of total instances that can be created in the project
