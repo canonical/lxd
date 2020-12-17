@@ -2002,8 +2002,10 @@ func (n *ovn) Update(newNetwork api.NetworkPut, targetNode string, clientType re
 		return nil // Nothing changed.
 	}
 
-	if n.LocalStatus() == api.NetworkStatusPending {
-		// Apply DB change to local node only.
+	// If the network as a whole has not had any previous creation attempts, or the node itself is still
+	// pending, then don't apply the new settings to the node, just to the database record (ready for the
+	// actual global create request to be initiated).
+	if n.Status() == api.NetworkStatusPending || n.LocalStatus() == api.NetworkStatusPending {
 		return n.common.update(newNetwork, targetNode, clientType)
 	}
 
