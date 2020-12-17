@@ -813,6 +813,35 @@ test_clustering_network() {
   LXD_DIR="${LXD_TWO_DIR}" lxc network delete "${net}"
   LXD_DIR="${LXD_TWO_DIR}" lxc network delete "${bridge}"
 
+  LXD_PID1="$(LXD_DIR="${LXD_ONE_DIR}" lxc query /1.0 | jq .environment.server_pid)"
+  LXD_PID2="$(LXD_DIR="${LXD_TWO_DIR}" lxc query /1.0 | jq .environment.server_pid)"
+
+  # Test network create partial failures.
+  nsenter -n -t "${LXD_PID1}" -- ip link add "${net}" type dummy # Create dummy interface to conflict with network.
+  LXD_DIR="${LXD_ONE_DIR}" lxc network create "${net}" --target node1
+  LXD_DIR="${LXD_ONE_DIR}" lxc network create "${net}" --target node2
+  LXD_DIR="${LXD_ONE_DIR}" lxc network show "${net}" | grep status: | grep -q Pending # Check has pending status.
+
+  # Run network create on other node2 (expect to fail on node1, but expect node2 create to succeed).
+  ! LXD_DIR="${LXD_TWO_DIR}" lxc network create "${net}" || false
+  LXD_DIR="${LXD_ONE_DIR}" lxc network show "${net}" | grep status: | grep -q Errored # Check has errored status.
+
+  # Check interfaces are expected types (dummy on node1 and bridge on node2).
+  nsenter -n -t "${LXD_PID1}" -- ip -details link show "${net}" | grep dummy
+  nsenter -n -t "${LXD_PID2}" -- ip -details link show "${net}" | grep bridge
+
+  # Check we cannot update network global config while in pending state on either node.
+  ! LXD_DIR="${LXD_ONE_DIR}" lxc network set "${net}" ipv4.dhcp false || false
+  ! LXD_DIR="${LXD_TWO_DIR}" lxc network set "${net}" ipv4.dhcp false || false
+
+  # Check we can't update node-specific config on a partially created network.
+  ! LXD_DIR="${LXD_TWO_DIR}" lxc network set "${net}" bridge.external_interfaces somedev --target node2 || false
+
+  # Delete partially created network and check nodes that were created are cleaned up.
+  LXD_DIR="${LXD_ONE_DIR}" lxc network delete "${net}"
+  ! nsenter -n -t "${LXD_PID2}" -- ip link show "${net}" || false # Check bridge is removed.
+  ! nsenter -n -t "${LXD_PID1}" -- ip -details link show "${net}" | grep dummy || false # Check LXD removes non-LXD interface (because we can't track node state).
+
   LXD_DIR="${LXD_TWO_DIR}" lxd shutdown
   LXD_DIR="${LXD_ONE_DIR}" lxd shutdown
   sleep 0.5
