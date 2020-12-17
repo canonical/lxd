@@ -469,6 +469,10 @@ driver = "virtio-net-ccw"
 {{- end}}
 netdev = "lxd_{{.devName}}"
 mac = "{{.devHwaddr}}"
+{{ if ne .vectors 0 -}}
+mq = "on"
+vectors = "{{.vectors}}"
+{{- end}}
 bootindex = "{{.bootIndex}}"
 {{if .multifunction -}}
 multifunction = "on"
@@ -481,6 +485,9 @@ var qemuNetDevTapTun = template.Must(qemuNetDevTapCommon.New("qemuNetDevTapTun")
 [netdev "lxd_{{.devName}}"]
 type = "tap"
 vhost = "on"
+{{ if ne .queues 0 -}}
+queues = "{{.queues}}"
+{{- end}}
 ifname = "{{.ifName}}"
 script = "no"
 downscript = "no"
