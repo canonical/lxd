@@ -749,6 +749,11 @@ func networkPut(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
+	// Prevent config changes on errored networks.
+	if n.Status() == api.NetworkStatusErrored {
+		return response.BadRequest(fmt.Errorf("Network config cannot be changed when pool is in errored state"))
+	}
+
 	targetNode := queryParam(r, "target")
 	clustered, err := cluster.Enabled(d.db)
 	if err != nil {
