@@ -1805,7 +1805,7 @@ func (d *qemu) generateQemuConfigFile(mountInfo *storagePools.MountInfo, busName
 		return "", err
 	}
 
-	err = d.addCPUMemoryConfig(sb)
+	cpuCount, err := d.addCPUMemoryConfig(sb)
 	if err != nil {
 		return "", err
 	}
@@ -2008,7 +2008,7 @@ func (d *qemu) generateQemuConfigFile(mountInfo *storagePools.MountInfo, busName
 
 		// Add network device.
 		if len(runConf.NetworkInterface) > 0 {
-			err = d.addNetDevConfig(sb, bus, bootIndexes, runConf.NetworkInterface, fdFiles)
+			err = d.addNetDevConfig(sb, cpuCount, bus, bootIndexes, runConf.NetworkInterface, fdFiles)
 			if err != nil {
 				return "", err
 			}
@@ -2049,7 +2049,7 @@ func (d *qemu) generateQemuConfigFile(mountInfo *storagePools.MountInfo, busName
 }
 
 // addCPUMemoryConfig adds the qemu config required for setting the number of virtualised CPUs and memory.
-func (d *qemu) addCPUMemoryConfig(sb *strings.Builder) error {
+func (d *qemu) addCPUMemoryConfig(sb *strings.Builder) (int, error) {
 	// Default to a single core.
 	cpus := d.expandedConfig["limits.cpu"]
 	if cpus == "" {
@@ -2073,7 +2073,7 @@ func (d *qemu) addCPUMemoryConfig(sb *strings.Builder) error {
 		// Expand to a set of CPU identifiers and get the pinning map.
 		nrSockets, nrCores, nrThreads, vcpus, numaNodes, err := d.cpuTopology(cpus)
 		if err != nil {
-			return err
+			return -1, err
 		}
 
 		// Figure out socket-id/core-id/thread-id for all vcpus.
@@ -2130,14 +2130,14 @@ func (d *qemu) addCPUMemoryConfig(sb *strings.Builder) error {
 
 	memSizeBytes, err := units.ParseByteSizeString(memSize)
 	if err != nil {
-		return fmt.Errorf("limits.memory invalid: %v", err)
+		return -1, fmt.Errorf("limits.memory invalid: %v", err)
 	}
 
 	ctx["hugepages"] = ""
 	if shared.IsTrue(d.expandedConfig["limits.memory.hugepages"]) {
 		hugetlb, err := util.HugepagesPath()
 		if err != nil {
-			return err
+			return -1, err
 		}
 
 		ctx["hugepages"] = hugetlb
@@ -2154,11 +2154,11 @@ func (d *qemu) addCPUMemoryConfig(sb *strings.Builder) error {
 		"memSizeBytes": memSizeBytes,
 	})
 	if err != nil {
-		return err
+		return -1, err
 	}
 
 	// Configure the CPU limit.
-	return qemuCPU.Execute(sb, ctx)
+	return ctx["cpuCount"].(int), qemuCPU.Execute(sb, ctx)
 }
 
 // addFileDescriptor adds a file path to the list of files to open and pass file descriptor to qemu.
@@ -2327,7 +2327,7 @@ func (d *qemu) addDriveConfig(sb *strings.Builder, bootIndexes map[string]int, d
 }
 
 // addNetDevConfig adds the qemu config required for adding a network device.
-func (d *qemu) addNetDevConfig(sb *strings.Builder, bus *qemuBus, bootIndexes map[string]int, nicConfig []deviceConfig.RunConfigItem, fdFiles *[]string) error {
+func (d *qemu) addNetDevConfig(sb *strings.Builder, cpuCount int, bus *qemuBus, bootIndexes map[string]int, nicConfig []deviceConfig.RunConfigItem, fdFiles *[]string) error {
 	var devName, nicName, devHwaddr, pciSlotName string
 	for _, nicItem := range nicConfig {
 		if nicItem.Key == "devName" {
@@ -2346,6 +2346,8 @@ func (d *qemu) addNetDevConfig(sb *strings.Builder, bus *qemuBus, bootIndexes ma
 		"bus":       bus.name,
 		"devName":   devName,
 		"devHwaddr": devHwaddr,
+		"vectors":   0,
+		"queues":    0,
 		"bootIndex": bootIndexes[devName],
 	}
 
@@ -2368,6 +2370,13 @@ func (d *qemu) addNetDevConfig(sb *strings.Builder, bus *qemuBus, bootIndexes ma
 	} else if shared.PathExists(fmt.Sprintf("/sys/class/net/%s/tun_flags", nicName)) {
 		// Detect TAP (via TUN driver) device.
 		tplFields["ifName"] = nicName
+
+		// Number of queues is the same as number of vCPUs.
+		tplFields["queues"] = cpuCount
+
+		// Number of vectors is number of vCPUs * 2 (RX/TX) + 2 (config/control MSI-X).
+		tplFields["vectors"] = 2*cpuCount + 2
+
 		tpl = qemuNetDevTapTun
 	} else if pciSlotName != "" {
 		// Detect physical passthrough device.
