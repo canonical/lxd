@@ -621,6 +621,16 @@ func StringInSlice(key string, list []string) bool {
 	return false
 }
 
+// StringHasPrefix returns true if value has one of the supplied prefixes.
+func StringHasPrefix(value string, prefixes ...string) bool {
+	for _, prefix := range prefixes {
+		if strings.HasPrefix(value, prefix) {
+			return true
+		}
+	}
+	return false
+}
+
 func IntInSlice(key int, list []int) bool {
 	for _, entry := range list {
 		if entry == key {
