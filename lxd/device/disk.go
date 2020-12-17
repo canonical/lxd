@@ -58,6 +58,24 @@ func (d *disk) isRequired(devConfig deviceConfig.Device) bool {
 	return false
 }
 
+// sourceIsLocalPath returns true if the source supplied should be considered a local path on the host.
+// It returns false if the disk source is empty, a VM cloud-init config drive, or a remote ceph/cephfs path.
+func (d *disk) sourceIsLocalPath(source string) bool {
+	if source == "" {
+		return false
+	}
+
+	if source == diskSourceCloudInit {
+		return false
+	}
+
+	if shared.StringHasPrefix(d.config["source"], "ceph:", "cephfs:") {
+		return false
+	}
+
+	return true
+}
+
 // validateConfig checks the supplied config for correctness.
 func (d *disk) validateConfig(instConf instance.ConfigReader) error {
 	if !instanceSupported(instConf.Type(), instancetype.Container, instancetype.VM) {
