@@ -148,7 +148,7 @@ func (d *disk) validateConfig(instConf instance.ConfigReader) error {
 	}
 
 	// Check ceph options are only used when ceph or cephfs type source is specified.
-	if !(strings.HasPrefix(d.config["source"], "ceph:") || strings.HasPrefix(d.config["source"], "cephfs:")) && (d.config["ceph.cluster_name"] != "" || d.config["ceph.user_name"] != "") {
+	if !shared.StringHasPrefix(d.config["source"], "ceph:", "cephfs:") && (d.config["ceph.cluster_name"] != "" || d.config["ceph.user_name"] != "") {
 		return fmt.Errorf("Invalid options ceph.cluster_name/ceph.user_name for source %q", d.config["source"])
 	}
 
