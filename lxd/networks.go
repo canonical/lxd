@@ -203,6 +203,12 @@ func networksPost(d *Daemon, r *http.Request) response.Response {
 		return response.InternalError(err)
 	}
 
+	// If the network has previously had a create attempt that failed, then because we cannot track per-node
+	// status, we need to prevent any further create attempts and require the user to delete and re-create.
+	if netInfo != nil && netInfo.Status == api.NetworkStatusErrored {
+		return response.BadRequest(fmt.Errorf("Network is in errored state, please delete and re-create"))
+	}
+
 	// Check if we're clustered.
 	count, err := cluster.Count(d.State())
 	if err != nil {
