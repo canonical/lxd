@@ -173,8 +173,8 @@ func (d *disk) validateConfig(instConf instance.ConfigReader) error {
 	// source path exists when the disk device is required, is not an external ceph/cephfs source and is not a
 	// VM cloud-init drive. We only check this when an instance is loaded to avoid validating snapshot configs
 	// that may contain older config that no longer exists which can prevent migrations.
-	if d.inst != nil && d.config["pool"] == "" && d.config["source"] != "" && d.config["source"] != diskSourceCloudInit && d.isRequired(d.config) && !shared.PathExists(shared.HostPath(d.config["source"])) && !strings.HasPrefix(d.config["source"], "ceph:") && !strings.HasPrefix(d.config["source"], "cephfs:") {
-		return fmt.Errorf("Missing source %q for disk %q", d.config["source"], d.name)
+	if d.inst != nil && d.config["pool"] == "" && d.isRequired(d.config) && d.sourceIsLocalPath(d.config["source"]) && !shared.PathExists(shared.HostPath(d.config["source"])) {
+		return fmt.Errorf("Missing source path %q for disk %q", d.config["source"], d.name)
 	}
 
 	if d.config["pool"] != "" {
