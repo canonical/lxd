@@ -223,14 +223,15 @@ func (b *lxdBackend) Update(clientType request.ClientType, newDesc string, newCo
 	// Diff the configurations.
 	changedConfig, userOnly := b.detectChangedConfig(b.db.Config, newConfig)
 
-	// Check if the pool source is being changed that the local state is still pending, otherwise prevent it.
+	// Check if the pool source is being changed that the pool state is still pending, otherwise prevent it.
 	_, sourceChanged := changedConfig["source"]
-	if sourceChanged && b.LocalStatus() != api.StoragePoolStatusPending {
+	if sourceChanged && b.Status() != api.StoragePoolStatusPending {
 		return fmt.Errorf("Pool source cannot be changed when not in pending state")
 	}
 
-	// Apply changes to local node if not pending and non-user config changed.
-	if len(changedConfig) != 0 && b.LocalStatus() != api.StoragePoolStatusPending && !userOnly {
+	// Apply changes to local node if both global pool and node are not pending and non-user config changed.
+	// Otherwise just apply changes to DB (below) ready for the actual global create request to be initiated.
+	if len(changedConfig) > 0 && b.Status() != api.StoragePoolStatusPending && b.LocalStatus() != api.StoragePoolStatusPending && !userOnly {
 		err = b.driver.Update(changedConfig)
 		if err != nil {
 			return err
@@ -238,7 +239,7 @@ func (b *lxdBackend) Update(clientType request.ClientType, newDesc string, newCo
 	}
 
 	// Update the database if something changed and we're in ClientTypeNormal mode.
-	if clientType == request.ClientTypeNormal && (len(changedConfig) != 0 || newDesc != b.db.Description) {
+	if clientType == request.ClientTypeNormal && (len(changedConfig) > 0 || newDesc != b.db.Description) {
 		err = b.state.Cluster.UpdateStoragePool(b.name, newDesc, newConfig)
 		if err != nil {
 			return err
