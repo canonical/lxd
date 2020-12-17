@@ -436,6 +436,11 @@ func storagePoolPut(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
+	// Prevent config changes on errored pools.
+	if pool.Status() == api.StoragePoolStatusErrored {
+		return response.BadRequest(fmt.Errorf("Pool config cannot be changed when pool is in errored state"))
+	}
+
 	targetNode := queryParam(r, "target")
 	clustered, err := cluster.Enabled(d.db)
 	if err != nil {
