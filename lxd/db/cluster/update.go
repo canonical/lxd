@@ -82,13 +82,26 @@ var updates = map[int]schema.Update{
 	41: updateFromV40,
 	42: updateFromV41,
 	43: updateFromV42,
+	44: updateFromV43,
+}
+
+// updateFromV43 adds a unique index to the storage_pools_config and networks_config tables.
+func updateFromV43(tx *sql.Tx) error {
+	_, err := tx.Exec(`CREATE UNIQUE INDEX storage_pools_unique_storage_pool_id_node_id_key ON storage_pools_config (storage_pool_id, IFNULL(node_id, -1), key);
+		CREATE UNIQUE INDEX networks_unique_network_id_node_id_key ON networks_config (network_id, IFNULL(node_id, -1), key);
+	`)
+	if err != nil {
+		return errors.Wrapf(err, "Failed adding unique index to storage_pools_config and networks_config tables")
+	}
+
+	return nil
 }
 
 // updateFromV42 removes any duplicated storage pool config rows that have the same value.
 // This can occur when multiple create requests have been issued when setting up a clustered storage pool.
 func updateFromV42(tx *sql.Tx) error {
 	// Find all duplicated config rows and return comma delimited list of affected row IDs for each dupe set.
-	stmt, err := tx.Prepare(`SELECT storage_pool_id, COALESCE(node_id,0), key, value, COUNT(*) AS rowCount, GROUP_CONCAT(id, ",") AS dupeRowIDs
+	stmt, err := tx.Prepare(`SELECT storage_pool_id, IFNULL(node_id, -1), key, value, COUNT(*) AS rowCount, GROUP_CONCAT(id, ",") AS dupeRowIDs
 			FROM storage_pools_config
 			GROUP BY storage_pool_id, node_id, key, value
 			HAVING rowCount > 1
@@ -157,7 +170,7 @@ func updateFromV42(tx *sql.Tx) error {
 // This can occur when multiple create requests have been issued when setting up a clustered network.
 func updateFromV41(tx *sql.Tx) error {
 	// Find all duplicated config rows and return comma delimited list of affected row IDs for each dupe set.
-	stmt, err := tx.Prepare(`SELECT network_id, COALESCE(node_id,0), key, value, COUNT(*) AS rowCount, GROUP_CONCAT(id, ",") AS dupeRowIDs
+	stmt, err := tx.Prepare(`SELECT network_id, IFNULL(node_id, -1), key, value, COUNT(*) AS rowCount, GROUP_CONCAT(id, ",") AS dupeRowIDs
 			FROM networks_config
 			GROUP BY network_id, node_id, key, value
 			HAVING rowCount > 1
