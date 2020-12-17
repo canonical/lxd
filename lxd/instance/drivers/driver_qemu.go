@@ -2380,11 +2380,17 @@ func (d *qemu) addNetDevConfig(sb *strings.Builder, cpuCount int, bus *qemuBus, 
 		// Detect TAP (via TUN driver) device.
 		tplFields["ifName"] = nicName
 
+		// Run with a minimum of two queues.
+		queueCount := cpuCount
+		if queueCount < 2 {
+			queueCount = 2
+		}
+
 		// Number of queues is the same as number of vCPUs.
-		tplFields["queues"] = cpuCount
+		tplFields["queues"] = queueCount
 
 		// Number of vectors is number of vCPUs * 2 (RX/TX) + 2 (config/control MSI-X).
-		tplFields["vectors"] = 2*cpuCount + 2
+		tplFields["vectors"] = 2*queueCount + 2
 
 		tpl = qemuNetDevTapTun
 	} else if pciSlotName != "" {
