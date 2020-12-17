@@ -223,9 +223,9 @@ func (b *lxdBackend) Update(clientType request.ClientType, newDesc string, newCo
 	// Diff the configurations.
 	changedConfig, userOnly := b.detectChangedConfig(b.db.Config, newConfig)
 
-	// Check if the pool source is being changed that the local state is still pending, otherwise prevent it.
+	// Check if the pool source is being changed that the pool state is still pending, otherwise prevent it.
 	_, sourceChanged := changedConfig["source"]
-	if sourceChanged && b.LocalStatus() != api.StoragePoolStatusPending {
+	if sourceChanged && b.Status() != api.StoragePoolStatusPending {
 		return fmt.Errorf("Pool source cannot be changed when not in pending state")
 	}
 
