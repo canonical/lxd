@@ -368,6 +368,52 @@ test_clustering_storage() {
   # Trying to pass config values other than 'source' results in an error
   ! LXD_DIR="${LXD_ONE_DIR}" lxc storage create pool1 dir source=/foo size=123 --target node1 || false
 
+  # Test storage pool node state tracking using a dir pool.
+  if [ "${driver}" = "dir" ]; then
+    # Create pending nodes.
+    LXD_DIR="${LXD_ONE_DIR}" lxc storage create pool1 "${driver}" --target node1
+    LXD_DIR="${LXD_TWO_DIR}" lxc storage create pool1 "${driver}" --target node2
+
+    # Modify first pending node with invalid config and check it fails and all nodes are pending.
+    LXD_DIR="${LXD_ONE_DIR}" lxc storage set pool1 source=/tmp/not/exist --target node1
+
+    # Run create on second node, so it succeeds and then fails notifying first node.
+    ! LXD_DIR="${LXD_TWO_DIR}" lxc storage create pool1 "${driver}" || false
+
+    # Check we cannot update global config while in pending state.
+    ! LXD_DIR="${LXD_ONE_DIR}" lxc storage set pool1 rsync.bwlimit 10 || false
+    ! LXD_DIR="${LXD_TWO_DIR}" lxc storage set pool1 rsync.bwlimit 10 || false
+
+    # Check can delete pending pool and created nodes are cleaned up.
+    LXD_DIR="${LXD_TWO_DIR}" lxc storage show pool1 --target=node2
+    LXD_TWO_SOURCE="$(LXD_DIR="${LXD_TWO_DIR}" lxc storage get pool1 source --target=node2)"
+    stat "${LXD_TWO_SOURCE}/containers"
+    LXD_DIR="${LXD_ONE_DIR}" lxc storage delete pool1
+    ! stat "${LXD_TWO_SOURCE}/containers" || false
+
+    # Create new partially created pool and check modifications are rejected after failure.
+    LXD_DIR="${LXD_ONE_DIR}" lxc storage create pool1 "${driver}" source=/tmp/not/exist --target node1
+    LXD_DIR="${LXD_TWO_DIR}" lxc storage create pool1 "${driver}" --target node2
+    LXD_DIR="${LXD_ONE_DIR}" lxc storage show pool1 | grep status: | grep -q Pending
+    ! LXD_DIR="${LXD_TWO_DIR}" lxc storage create pool1 "${driver}" || false
+    LXD_DIR="${LXD_ONE_DIR}" lxc storage show pool1 | grep status: | grep -q Errored
+
+    # Check pool node source cannot be modified in non-pending state.
+    ! LXD_DIR="${LXD_ONE_DIR}" lxc storage unset pool1 source --target node1 || false
+    ! LXD_DIR="${LXD_ONE_DIR}" lxc storage set pool1 size=1GB --target node1 || false
+    ! LXD_DIR="${LXD_TWO_DIR}" lxc storage create pool1 "${driver}" rsync.bwlimit=1000 || false # Check global config is rejected on re-create.
+    ! LXD_DIR="${LXD_TWO_DIR}" lxc storage create pool1 "${driver}" || false # Check re-create attempts are rejected.
+    LXD_ONE_SOURCE="$(LXD_DIR="${LXD_ONE_DIR}" lxc storage get pool1 source --target=node1)"
+    LXD_TWO_SOURCE="$(LXD_DIR="${LXD_TWO_DIR}" lxc storage get pool1 source --target=node2)"
+    ! stat "${LXD_ONE_SOURCE}/containers" || false
+    stat "${LXD_TWO_SOURCE}/containers"
+
+    # Delete pool and check cleaned up.
+    LXD_DIR="${LXD_TWO_DIR}" lxc storage delete pool1
+    ! stat "${LXD_ONE_SOURCE}/containers" || false
+    ! stat "${LXD_TWO_SOURCE}/containers" || false
+  fi
+
   # Define storage pools on the two nodes
   driver_config=""
   if [ "${driver}" = "btrfs" ]; then
