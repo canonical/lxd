@@ -58,6 +58,24 @@ func (d *disk) isRequired(devConfig deviceConfig.Device) bool {
 	return false
 }
 
+// sourceIsLocalPath returns true if the source supplied should be considered a local path on the host.
+// It returns false if the disk source is empty, a VM cloud-init config drive, or a remote ceph/cephfs path.
+func (d *disk) sourceIsLocalPath(source string) bool {
+	if source == "" {
+		return false
+	}
+
+	if source == diskSourceCloudInit {
+		return false
+	}
+
+	if shared.StringHasPrefix(d.config["source"], "ceph:", "cephfs:") {
+		return false
+	}
+
+	return true
+}
+
 // validateConfig checks the supplied config for correctness.
 func (d *disk) validateConfig(instConf instance.ConfigReader) error {
 	if !instanceSupported(instConf.Type(), instancetype.Container, instancetype.VM) {
@@ -130,7 +148,7 @@ func (d *disk) validateConfig(instConf instance.ConfigReader) error {
 	}
 
 	// Check ceph options are only used when ceph or cephfs type source is specified.
-	if !(strings.HasPrefix(d.config["source"], "ceph:") || strings.HasPrefix(d.config["source"], "cephfs:")) && (d.config["ceph.cluster_name"] != "" || d.config["ceph.user_name"] != "") {
+	if !shared.StringHasPrefix(d.config["source"], "ceph:", "cephfs:") && (d.config["ceph.cluster_name"] != "" || d.config["ceph.user_name"] != "") {
 		return fmt.Errorf("Invalid options ceph.cluster_name/ceph.user_name for source %q", d.config["source"])
 	}
 
@@ -155,8 +173,8 @@ func (d *disk) validateConfig(instConf instance.ConfigReader) error {
 	// source path exists when the disk device is required, is not an external ceph/cephfs source and is not a
 	// VM cloud-init drive. We only check this when an instance is loaded to avoid validating snapshot configs
 	// that may contain older config that no longer exists which can prevent migrations.
-	if d.inst != nil && d.config["pool"] == "" && d.config["source"] != "" && d.config["source"] != diskSourceCloudInit && d.isRequired(d.config) && !shared.PathExists(shared.HostPath(d.config["source"])) && !strings.HasPrefix(d.config["source"], "ceph:") && !strings.HasPrefix(d.config["source"], "cephfs:") {
-		return fmt.Errorf("Missing source %q for disk %q", d.config["source"], d.name)
+	if d.inst != nil && d.config["pool"] == "" && d.isRequired(d.config) && d.sourceIsLocalPath(d.config["source"]) && !shared.PathExists(shared.HostPath(d.config["source"])) {
+		return fmt.Errorf("Missing source path %q for disk %q", d.config["source"], d.name)
 	}
 
 	if d.config["pool"] != "" {
