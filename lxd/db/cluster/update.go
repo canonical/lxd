@@ -88,7 +88,7 @@ var updates = map[int]schema.Update{
 // This can occur when multiple create requests have been issued when setting up a clustered storage pool.
 func updateFromV42(tx *sql.Tx) error {
 	// Find all duplicated config rows and return comma delimited list of affected row IDs for each dupe set.
-	stmt, err := tx.Prepare(`SELECT storage_pool_id, COALESCE(node_id,0), key, value, COUNT(*) AS rowCount, GROUP_CONCAT(id, ",") AS dupeRowIDs
+	stmt, err := tx.Prepare(`SELECT storage_pool_id, IFNULL(node_id, -1), key, value, COUNT(*) AS rowCount, GROUP_CONCAT(id, ",") AS dupeRowIDs
 			FROM storage_pools_config
 			GROUP BY storage_pool_id, node_id, key, value
 			HAVING rowCount > 1
@@ -157,7 +157,7 @@ func updateFromV42(tx *sql.Tx) error {
 // This can occur when multiple create requests have been issued when setting up a clustered network.
 func updateFromV41(tx *sql.Tx) error {
 	// Find all duplicated config rows and return comma delimited list of affected row IDs for each dupe set.
-	stmt, err := tx.Prepare(`SELECT network_id, COALESCE(node_id,0), key, value, COUNT(*) AS rowCount, GROUP_CONCAT(id, ",") AS dupeRowIDs
+	stmt, err := tx.Prepare(`SELECT network_id, IFNULL(node_id, -1), key, value, COUNT(*) AS rowCount, GROUP_CONCAT(id, ",") AS dupeRowIDs
 			FROM networks_config
 			GROUP BY network_id, node_id, key, value
 			HAVING rowCount > 1
