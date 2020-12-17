@@ -92,6 +92,18 @@ hash or alias name (if one is set).`))
 	imageShowCmd := cmdImageShow{global: c.global, image: c}
 	cmd.AddCommand(imageShowCmd.Command())
 
+	// Get-property
+	imageGetPropCmd := cmdImageGetProp{global: c.global, image: c}
+	cmd.AddCommand(imageGetPropCmd.Command())
+
+	// Set-property
+	imageSetPropCmd := cmdImageSetProp{global: c.global, image: c}
+	cmd.AddCommand(imageSetPropCmd.Command())
+
+	// Unset-property
+	imageUnsetPropCmd := cmdImageUnsetProp{global: c.global, image: c, imageSetProp: &imageSetPropCmd}
+	cmd.AddCommand(imageUnsetPropCmd.Command())
+
 	return cmd
 }
 
@@ -1395,4 +1407,140 @@ func (c *cmdImageShow) Run(cmd *cobra.Command, args []string) error {
 	fmt.Printf("%s", data)
 
 	return nil
+}
+
+type cmdImageGetProp struct {
+	global *cmdGlobal
+	image  *cmdImage
+}
+
+func (c *cmdImageGetProp) Command() *cobra.Command {
+	cmd := &cobra.Command{}
+	cmd.Use = usage("get-property", i18n.G("[<remote>:]<image> <key>"))
+	cmd.Short = i18n.G("Get image properties")
+	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
+		`Get image properties`))
+
+	cmd.RunE = c.Run
+
+	return cmd
+}
+
+func (c *cmdImageGetProp) Run(cmd *cobra.Command, args []string) error {
+	// Sanity checks
+	exit, err := c.global.CheckArgs(cmd, args, 2, 2)
+	if exit {
+		return err
+	}
+
+	// Parse remote
+	remoteName, name, err := c.global.conf.ParseRemote(args[0])
+	if err != nil {
+		return err
+	}
+
+	remoteServer, err := c.global.conf.GetImageServer(remoteName)
+	if err != nil {
+		return err
+	}
+
+	// Get the corresponding property
+	image := c.image.dereferenceAlias(remoteServer, "", name)
+	info, _, err := remoteServer.GetImage(image)
+	if err != nil {
+		return err
+	}
+
+	prop, propFound := info.Properties[args[1]]
+	if !propFound {
+		return fmt.Errorf(i18n.G("Property not found"))
+	}
+
+	fmt.Println(prop)
+
+	return nil
+}
+
+type cmdImageSetProp struct {
+	global *cmdGlobal
+	image  *cmdImage
+}
+
+func (c *cmdImageSetProp) Command() *cobra.Command {
+	cmd := &cobra.Command{}
+	cmd.Use = usage("set-property", i18n.G("[<remote>:]<image> <key> <value>"))
+	cmd.Short = i18n.G("Set image properties")
+	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
+		`Set image properties`))
+
+	cmd.RunE = c.Run
+
+	return cmd
+}
+
+func (c *cmdImageSetProp) Run(cmd *cobra.Command, args []string) error {
+	// Sanity checks
+	exit, err := c.global.CheckArgs(cmd, args, 3, 3)
+	if exit {
+		return err
+	}
+
+	// Parse remote
+	resources, err := c.global.ParseServers(args[0])
+	if err != nil {
+		return err
+	}
+
+	resource := resources[0]
+
+	if resource.name == "" {
+		return fmt.Errorf(i18n.G("Image identifier missing: %s"), args[0])
+	}
+
+	// Show properties
+	image := c.image.dereferenceAlias(resource.server, "", resource.name)
+	info, etag, err := resource.server.GetImage(image)
+	if err != nil {
+		return err
+	}
+
+	properties := info.Writable()
+	properties.Properties[args[1]] = args[2]
+
+	// Update image
+	err = resource.server.UpdateImage(image, properties, etag)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+type cmdImageUnsetProp struct {
+	global       *cmdGlobal
+	image        *cmdImage
+	imageSetProp *cmdImageSetProp
+}
+
+func (c *cmdImageUnsetProp) Command() *cobra.Command {
+	cmd := &cobra.Command{}
+	cmd.Use = usage("unset-property", i18n.G("[<remote>:]<image> <key>"))
+	cmd.Short = i18n.G("Unset image properties")
+	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
+		`Unset image properties`))
+
+	cmd.RunE = c.Run
+
+	return cmd
+}
+
+func (c *cmdImageUnsetProp) Run(cmd *cobra.Command, args []string) error {
+	// Sanity checks
+	exit, err := c.global.CheckArgs(cmd, args, 2, 2)
+	if exit {
+		return err
+	}
+
+	args = append(args, "")
+	return c.imageSetProp.Run(cmd, args)
 }
