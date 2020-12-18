@@ -1824,10 +1824,13 @@ func (n *ovn) setup(update bool) error {
 	}
 
 	// Set IPv6 router advertisement settings.
-	if dhcpV6Subnet != nil {
+	if routerIntPortIPv6Net != nil {
 		adressMode := openvswitch.OVNIPv6AddressModeSLAAC
-		if shared.IsTrue(n.config["ipv6.dhcp.stateful"]) {
-			adressMode = openvswitch.OVNIPv6AddressModeDHCPStateful
+		if dhcpV6Subnet != nil {
+			adressMode = openvswitch.OVNIPv6AddressModeDHCPStateless
+			if shared.IsTrue(n.config["ipv6.dhcp.stateful"]) {
+				adressMode = openvswitch.OVNIPv6AddressModeDHCPStateful
+			}
 		}
 
 		var recursiveDNSServer net.IP
@@ -1849,6 +1852,11 @@ func (n *ovn) setup(update bool) error {
 		})
 		if err != nil {
 			return errors.Wrapf(err, "Failed setting internal router port IPv6 advertisement settings")
+		}
+	} else {
+		err = client.LogicalRouterPortDeleteIPv6Advertisements(n.getRouterIntPortName())
+		if err != nil {
+			return errors.Wrapf(err, "Failed removing internal router port IPv6 advertisement settings")
 		}
 	}
 
