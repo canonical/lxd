@@ -2585,6 +2585,11 @@ func (n *ovn) DHCPv6Subnet() *net.IPNet {
 		return nil
 	}
 
+	ones, _ := subnet.Mask.Size()
+	if ones < 64 {
+		return nil // OVN only supports DHCPv6 allocated using EUI64 (which requires at least a /64).
+	}
+
 	return subnet
 }
 
