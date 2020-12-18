@@ -153,6 +153,10 @@ test_projects_copy() {
   lxc --project foo snapshot c1
   lxc --project foo snapshot c1
 
+  lxc --project foo copy c1/snap0 c1 --target-project bar
+  lxc --project bar start c1
+  lxc --project bar delete c1 -f
+
   lxc --project foo copy c1 c1 --target-project bar
   lxc --project foo start c1
   lxc --project bar start c1
