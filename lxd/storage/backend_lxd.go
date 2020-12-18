@@ -1996,9 +1996,9 @@ func (b *lxdBackend) DeleteInstanceSnapshot(inst instance.Instance, op *operatio
 		return err
 	}
 
-	// Remove the snapshot volume record from the database.
+	// Remove the snapshot volume record from the database if exists.
 	err = b.state.Cluster.RemoveStoragePoolVolume(inst.Project(), drivers.GetSnapshotVolumeName(parentName, snapName), volDBType, b.ID())
-	if err != nil {
+	if err != nil && err != db.ErrNoSuchObject {
 		return err
 	}
 
