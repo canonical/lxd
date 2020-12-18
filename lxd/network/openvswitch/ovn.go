@@ -348,6 +348,17 @@ func (o *OVN) LogicalRouterPortSetIPv6Advertisements(portName OVNRouterPort, opt
 	return nil
 }
 
+// LogicalRouterPortDeleteIPv6Advertisements removes the IPv6 RA announcement settings from a router port.
+func (o *OVN) LogicalRouterPortDeleteIPv6Advertisements(portName OVNRouterPort) error {
+	// Delete IPv6 Router Advertisements.
+	_, err := o.nbctl("clear", "logical_router_port", string(portName), "ipv6_ra_configs")
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
 // LogicalRouterPortLinkChassisGroup links a logical router port to a HA chassis group.
 func (o *OVN) LogicalRouterPortLinkChassisGroup(portName OVNRouterPort, haChassisGroupName OVNChassisGroup) error {
 	chassisGroupID, err := o.nbctl("--format=csv", "--no-headings", "--data=bare", "--colum=_uuid", "find", "ha_chassis_group", fmt.Sprintf("name=%s", haChassisGroupName))
