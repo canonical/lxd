@@ -822,7 +822,7 @@ func containersPost(d *Daemon, r *http.Request) response.Response {
 	}
 
 	if strings.Contains(req.Name, shared.SnapshotDelimiter) {
-		return response.BadRequest(fmt.Errorf("Invalid instance name: '%s' is reserved for snapshots", shared.SnapshotDelimiter))
+		return response.BadRequest(fmt.Errorf("Invalid instance name: %q is reserved for snapshots", shared.SnapshotDelimiter))
 	}
 
 	// Check that the project's limits are not violated. Also, possibly
