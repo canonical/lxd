@@ -383,14 +383,19 @@ func (o *OVN) LogicalSwitchDelete(switchName OVNSwitch) error {
 
 // LogicalSwitchSetIPAllocation sets the IP allocation config on the logical switch.
 func (o *OVN) LogicalSwitchSetIPAllocation(switchName OVNSwitch, opts *OVNIPAllocationOpts) error {
+	var removeOtherConfigKeys []string
 	args := []string{"set", "logical_switch", string(switchName)}
 
 	if opts.PrefixIPv4 != nil {
 		args = append(args, fmt.Sprintf("other_config:subnet=%s", opts.PrefixIPv4.String()))
+	} else {
+		removeOtherConfigKeys = append(removeOtherConfigKeys, "subnet")
 	}
 
 	if opts.PrefixIPv6 != nil {
 		args = append(args, fmt.Sprintf("other_config:ipv6_prefix=%s", opts.PrefixIPv6.String()))
+	} else {
+		removeOtherConfigKeys = append(removeOtherConfigKeys, "ipv6_prefix")
 	}
 
 	if len(opts.ExcludeIPv4) > 0 {
@@ -406,6 +411,17 @@ func (o *OVN) LogicalSwitchSetIPAllocation(switchName OVNSwitch, opts *OVNIPAllo
 		}
 
 		args = append(args, fmt.Sprintf("other_config:exclude_ips=%s", strings.Join(excludeIPs, " ")))
+	} else {
+		removeOtherConfigKeys = append(removeOtherConfigKeys, "exclude_ips")
+	}
+
+	// Clear any unused keys first.
+	if len(removeOtherConfigKeys) > 0 {
+		removeArgs := append([]string{"remove", "logical_switch", string(switchName), "other_config"}, removeOtherConfigKeys...)
+		_, err := o.nbctl(removeArgs...)
+		if err != nil {
+			return err
+		}
 	}
 
 	// Only run command if at least one setting is specified.
