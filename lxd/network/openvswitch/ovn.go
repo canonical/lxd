@@ -290,27 +290,53 @@ func (o *OVN) LogicalRouterPortDelete(portName OVNRouterPort) error {
 func (o *OVN) LogicalRouterPortSetIPv6Advertisements(portName OVNRouterPort, opts *OVNIPv6RAOpts) error {
 	args := []string{"set", "logical_router_port", string(portName),
 		fmt.Sprintf("ipv6_ra_configs:send_periodic=%t", opts.SendPeriodic),
-		fmt.Sprintf("ipv6_ra_configs:address_mode=%s", string(opts.AddressMode)),
+	}
+
+	var removeRAConfigKeys []string
+
+	if opts.AddressMode != "" {
+		args = append(args, fmt.Sprintf("ipv6_ra_configs:address_mode=%s", string(opts.AddressMode)))
+	} else {
+		removeRAConfigKeys = append(removeRAConfigKeys, "address_mode")
 	}
 
 	if opts.MaxInterval > 0 {
 		args = append(args, fmt.Sprintf("ipv6_ra_configs:max_interval=%d", opts.MaxInterval/time.Second))
+	} else {
+		removeRAConfigKeys = append(removeRAConfigKeys, "max_interval")
 	}
 
 	if opts.MinInterval > 0 {
 		args = append(args, fmt.Sprintf("ipv6_ra_configs:min_interval=%d", opts.MinInterval/time.Second))
+	} else {
+		removeRAConfigKeys = append(removeRAConfigKeys, "min_interval")
 	}
 
 	if opts.MTU > 0 {
 		args = append(args, fmt.Sprintf("ipv6_ra_configs:mtu=%d", opts.MTU))
+	} else {
+		removeRAConfigKeys = append(removeRAConfigKeys, "mtu")
 	}
 
 	if len(opts.DNSSearchList) > 0 {
 		args = append(args, fmt.Sprintf("ipv6_ra_configs:dnssl=%s", strings.Join(opts.DNSSearchList, ",")))
+	} else {
+		removeRAConfigKeys = append(removeRAConfigKeys, "dnssl")
 	}
 
 	if opts.RecursiveDNSServer != nil {
 		args = append(args, fmt.Sprintf("ipv6_ra_configs:rdnss=%s", opts.RecursiveDNSServer.String()))
+	} else {
+		removeRAConfigKeys = append(removeRAConfigKeys, "rdnss")
+	}
+
+	// Clear any unused keys first.
+	if len(removeRAConfigKeys) > 0 {
+		removeArgs := append([]string{"remove", "logical_router_port", string(portName), "ipv6_ra_configs"}, removeRAConfigKeys...)
+		_, err := o.nbctl(removeArgs...)
+		if err != nil {
+			return err
+		}
 	}
 
 	// Configure IPv6 Router Advertisements.
