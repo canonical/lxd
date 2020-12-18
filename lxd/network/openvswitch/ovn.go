@@ -125,8 +125,14 @@ func (o *OVN) nbctl(args ...string) (string, error) {
 }
 
 // LogicalRouterAdd adds a named logical router.
-func (o *OVN) LogicalRouterAdd(routerName OVNRouter) error {
-	_, err := o.nbctl("lr-add", string(routerName))
+func (o *OVN) LogicalRouterAdd(routerName OVNRouter, mayExist bool) error {
+	args := []string{}
+
+	if mayExist {
+		args = append(args, "--may-exist")
+	}
+
+	_, err := o.nbctl(append(args, "lr-add", string(routerName))...)
 	if err != nil {
 		return err
 	}
