@@ -205,6 +205,16 @@ func (n *ovn) Validate(config map[string]string) error {
 		return err
 	}
 
+	// Check that if IPv6 enabled then the network size must be at least a /64 as both RA and DHCPv6
+	// in OVN (as it generates addresses using EUI64) require at least a /64 subnet to operate.
+	_, ipv6Net, _ := net.ParseCIDR(config["ipv6.address"])
+	if ipv6Net != nil {
+		ones, _ := ipv6Net.Mask.Size()
+		if ones < 64 {
+			return fmt.Errorf("IPv6 subnet must be at least a /64")
+		}
+	}
+
 	// Load the project to get uplink network restrictions.
 	p, err := n.state.Cluster.GetProject(n.project)
 	if err != nil {
