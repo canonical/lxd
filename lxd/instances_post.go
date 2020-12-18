@@ -838,6 +838,10 @@ func containersPost(d *Daemon, r *http.Request) response.Response {
 					return fmt.Errorf("Must specify a source instance")
 				}
 
+				if req.Source.Project == "" {
+					req.Source.Project = project.Default
+				}
+
 				source, err := instance.LoadInstanceDatabaseObject(tx, req.Source.Project, req.Source.Source)
 				if err != nil {
 					return errors.Wrap(err, "Load source instance from database")
