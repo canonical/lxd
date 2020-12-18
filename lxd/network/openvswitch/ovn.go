@@ -230,7 +230,29 @@ func (o *OVN) LogicalRouterRouteDelete(routerName OVNRouter, destination *net.IP
 }
 
 // LogicalRouterPortAdd adds a named logical router port to a logical router.
-func (o *OVN) LogicalRouterPortAdd(routerName OVNRouter, portName OVNRouterPort, mac net.HardwareAddr, ipAddr ...*net.IPNet) error {
+func (o *OVN) LogicalRouterPortAdd(routerName OVNRouter, portName OVNRouterPort, mac net.HardwareAddr, ipAddr []*net.IPNet, mayExist bool) error {
+	if mayExist {
+		// Check if it exists and update addresses.
+		_, err := o.nbctl("list", "Logical_Router_Port", string(portName))
+		if err == nil {
+			// Router port exists.
+			ips := make([]string, 0, len(ipAddr))
+			for _, ip := range ipAddr {
+				ips = append(ips, ip.String())
+			}
+
+			_, err := o.nbctl("set", "Logical_Router_Port", string(portName),
+				fmt.Sprintf(`networks="%s"`, strings.Join(ips, `","`)),
+				fmt.Sprintf(`mac="%s"`, fmt.Sprintf(mac.String())),
+			)
+			if err != nil {
+				return err
+			}
+
+			return nil
+		}
+	}
+
 	args := []string{"lrp-add", string(routerName), string(portName), mac.String()}
 	for _, ipNet := range ipAddr {
 		args = append(args, ipNet.String())
