@@ -151,8 +151,14 @@ func (o OVN) LogicalRouterDelete(routerName OVNRouter) error {
 }
 
 // LogicalRouterSNATAdd adds an SNAT rule to a logical router to translate packets from intNet to extIP.
-func (o *OVN) LogicalRouterSNATAdd(routerName OVNRouter, intNet *net.IPNet, extIP net.IP) error {
-	_, err := o.nbctl("lr-nat-add", string(routerName), "snat", extIP.String(), intNet.String())
+func (o *OVN) LogicalRouterSNATAdd(routerName OVNRouter, intNet *net.IPNet, extIP net.IP, mayExist bool) error {
+	args := []string{}
+
+	if mayExist {
+		args = append(args, "--may-exist")
+	}
+
+	_, err := o.nbctl(append(args, "lr-nat-add", string(routerName), "snat", extIP.String(), intNet.String())...)
 	if err != nil {
 		return err
 	}
