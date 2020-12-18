@@ -1658,14 +1658,14 @@ func (n *ovn) setup(update bool) error {
 		if shared.IsTrue(n.config["ipv4.nat"]) && routerIntPortIPv4Net != nil && routerExtPortIPv4 != nil {
 			err = client.LogicalRouterSNATAdd(n.getRouterName(), routerIntPortIPv4Net, routerExtPortIPv4, update)
 			if err != nil {
-				return err
+				return errors.Wrapf(err, "Failed adding router IPv4 SNAT rule")
 			}
 		}
 
 		if shared.IsTrue(n.config["ipv6.nat"]) && routerIntPortIPv6Net != nil && routerExtPortIPv6 != nil {
 			err = client.LogicalRouterSNATAdd(n.getRouterName(), routerIntPortIPv6Net, routerExtPortIPv6, update)
 			if err != nil {
-				return err
+				return errors.Wrapf(err, "Failed adding router IPv6 SNAT rule")
 			}
 		}
 
