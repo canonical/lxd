@@ -1788,14 +1788,14 @@ func (d *zfs) RestoreVolume(vol Volume, snapshotName string, op *operations.Oper
 
 		if strings.HasPrefix(entry, "@") {
 			// Located an internal snapshot.
-			return fmt.Errorf("Snapshot '%s' cannot be restored due to subsequent internal snapshot(s) (from a copy)", snapshotName)
+			return fmt.Errorf("Snapshot %q cannot be restored due to subsequent internal snapshot(s) (from a copy)", snapshotName)
 		}
 	}
 
 	// Check if snapshot removal is allowed.
 	if len(snapshots) > 0 {
 		if !shared.IsTrue(vol.ExpandedConfig("zfs.remove_snapshots")) {
-			return fmt.Errorf("Snapshot '%s' cannot be restored due to subsequent snapshot(s). Set zfs.remove_snapshots to override", snapshotName)
+			return fmt.Errorf("Snapshot %q cannot be restored due to subsequent snapshot(s). Set zfs.remove_snapshots to override", snapshotName)
 		}
 
 		// Setup custom error to tell the backend what to delete.
