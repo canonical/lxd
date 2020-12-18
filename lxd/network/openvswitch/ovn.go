@@ -204,8 +204,7 @@ func (o *OVN) LogicalRouterRouteAdd(routerName OVNRouter, destination *net.IPNet
 		args = append(args, "--may-exist")
 	}
 
-	args = append(args, "lr-route-add", string(routerName), destination.String(), nextHop.String())
-	_, err := o.nbctl(args...)
+	_, err := o.nbctl(append(args, "lr-route-add", string(routerName), destination.String(), nextHop.String())...)
 	if err != nil {
 		return err
 	}
