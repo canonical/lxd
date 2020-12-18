@@ -2064,23 +2064,25 @@ func (b *lxdBackend) RestoreInstanceSnapshot(inst instance.Instance, src instanc
 
 			// Go through all the snapshots.
 			for _, snap := range snaps {
-				_, snapName, _ := shared.InstanceGetParentAndSnapshotName(src.Name())
+				_, snapName, _ := shared.InstanceGetParentAndSnapshotName(snap.Name())
 				if !shared.StringInSlice(snapName, snapErr.Snapshots) {
 					continue
 				}
 
-				// Delete if listed.
-				err := b.DeleteInstanceSnapshot(snap, op)
+				// Delete snapshot instance if listed in the error as one that needs removing.
+				err := snap.Delete(true)
 				if err != nil {
 					return err
 				}
 			}
 
-			// Now try again.
+			// Now try restoring again.
 			err = b.driver.RestoreVolume(vol, snapshotName, op)
 			if err != nil {
 				return err
 			}
+
+			return nil
 		}
 
 		return err
