@@ -845,7 +845,7 @@ func containersPost(d *Daemon, r *http.Request) response.Response {
 
 				req.Type = api.InstanceType(source.Type.String())
 			case "migration":
-				req.Type = api.InstanceTypeContainer
+				req.Type = api.InstanceTypeContainer // Default to container if not specified.
 			}
 		}
 
