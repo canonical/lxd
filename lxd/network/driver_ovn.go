@@ -1645,6 +1645,15 @@ func (n *ovn) setup(update bool) error {
 			return errors.Wrapf(err, "Failed linking external switch provider port to external provider network")
 		}
 
+		// Remove any existing SNAT rules on update. As currently these are only defined from the network
+		// config rather than from any instance NIC config, so we can re-create the active config below.
+		if update {
+			err = client.LogicalRouterSNATDeleteAll(n.getRouterName())
+			if err != nil {
+				return errors.Wrapf(err, "Failed removing existing router SNAT rules")
+			}
+		}
+
 		// Add SNAT rules.
 		if shared.IsTrue(n.config["ipv4.nat"]) && routerIntPortIPv4Net != nil && routerExtPortIPv4 != nil {
 			err = client.LogicalRouterSNATAdd(n.getRouterName(), routerIntPortIPv4Net, routerExtPortIPv4, update)
