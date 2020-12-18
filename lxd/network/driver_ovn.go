@@ -1722,6 +1722,38 @@ func (n *ovn) setup(update bool) error {
 		return errors.Wrapf(err, "Failed setting IP allocation settings on internal switch")
 	}
 
+	// Gather internal router port IPs (in CIDR format).
+	intRouterIPs := []*net.IPNet{}
+
+	if routerIntPortIPv4Net != nil {
+		intRouterIPs = append(intRouterIPs, &net.IPNet{
+			IP:   routerIntPortIPv4,
+			Mask: routerIntPortIPv4Net.Mask,
+		})
+	}
+
+	if routerIntPortIPv6Net != nil {
+		intRouterIPs = append(intRouterIPs, &net.IPNet{
+			IP:   routerIntPortIPv6,
+			Mask: routerIntPortIPv6Net.Mask,
+		})
+	}
+
+	if len(intRouterIPs) <= 0 {
+		return fmt.Errorf("No internal IPs defined for network router")
+	}
+
+	// Create internal router port.
+	err = client.LogicalRouterPortAdd(n.getRouterName(), n.getRouterIntPortName(), routerMAC, intRouterIPs, update)
+	if err != nil {
+		return errors.Wrapf(err, "Failed adding internal router port")
+	}
+
+	if !update {
+		revert.Add(func() { client.LogicalRouterPortDelete(n.getRouterIntPortName()) })
+	}
+
+	// Configure DHCP option sets.
 	var dhcpv4UUID, dhcpv6UUID string
 	dhcpV4Subnet := n.DHCPv4Subnet()
 	dhcpV6Subnet := n.DHCPv6Subnet()
@@ -1763,27 +1795,6 @@ func (n *ovn) setup(update bool) error {
 		}
 	}
 
-	// Internal router port IPs (in CIDR format).
-	intRouterIPs := []*net.IPNet{}
-
-	if routerIntPortIPv4Net != nil {
-		intRouterIPs = append(intRouterIPs, &net.IPNet{
-			IP:   routerIntPortIPv4,
-			Mask: routerIntPortIPv4Net.Mask,
-		})
-	}
-
-	if routerIntPortIPv6Net != nil {
-		intRouterIPs = append(intRouterIPs, &net.IPNet{
-			IP:   routerIntPortIPv6,
-			Mask: routerIntPortIPv6Net.Mask,
-		})
-	}
-
-	if len(intRouterIPs) <= 0 {
-		return fmt.Errorf("No IPs defined for network router")
-	}
-
 	// Create DHCPv4 options for internal switch.
 	if dhcpV4Subnet != nil {
 		err = client.LogicalSwitchDHCPv4OptionsSet(n.getIntSwitchName(), dhcpv4UUID, dhcpV4Subnet, &openvswitch.OVNDHCPv4Opts{
@@ -1811,13 +1822,6 @@ func (n *ovn) setup(update bool) error {
 			return errors.Wrapf(err, "Failed adding DHCPv6 settings for internal switch")
 		}
 	}
-
-	// Create internal router port.
-	err = client.LogicalRouterPortAdd(n.getRouterName(), n.getRouterIntPortName(), routerMAC, intRouterIPs...)
-	if err != nil {
-		return errors.Wrapf(err, "Failed adding internal router port")
-	}
-	revert.Add(func() { client.LogicalRouterPortDelete(n.getRouterIntPortName()) })
 
 	// Set IPv6 router advertisement settings.
 	if dhcpV6Subnet != nil {
