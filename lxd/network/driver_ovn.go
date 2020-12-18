@@ -1669,18 +1669,30 @@ func (n *ovn) setup(update bool) error {
 			}
 		}
 
-		// Add default routes.
+		// Add or remove default routes as config dictates.
+		defaultIPv4Route := &net.IPNet{IP: net.IPv4zero, Mask: net.CIDRMask(0, 32)}
 		if uplinkNet.routerExtGwIPv4 != nil {
-			err = client.LogicalRouterRouteAdd(n.getRouterName(), &net.IPNet{IP: net.IPv4zero, Mask: net.CIDRMask(0, 32)}, uplinkNet.routerExtGwIPv4, false)
+			err = client.LogicalRouterRouteAdd(n.getRouterName(), defaultIPv4Route, uplinkNet.routerExtGwIPv4, update)
 			if err != nil {
 				return errors.Wrapf(err, "Failed adding IPv4 default route")
 			}
+		} else if update {
+			err = client.LogicalRouterRouteDelete(n.getRouterName(), defaultIPv4Route, nil)
+			if err != nil {
+				return errors.Wrapf(err, "Failed removing IPv4 default route")
+			}
 		}
 
+		defaultIPv6Route := &net.IPNet{IP: net.IPv6zero, Mask: net.CIDRMask(0, 128)}
 		if uplinkNet.routerExtGwIPv6 != nil {
-			err = client.LogicalRouterRouteAdd(n.getRouterName(), &net.IPNet{IP: net.IPv6zero, Mask: net.CIDRMask(0, 128)}, uplinkNet.routerExtGwIPv6, false)
+			err = client.LogicalRouterRouteAdd(n.getRouterName(), defaultIPv6Route, uplinkNet.routerExtGwIPv6, update)
 			if err != nil {
 				return errors.Wrapf(err, "Failed adding IPv6 default route")
+			}
+		} else if update {
+			err = client.LogicalRouterRouteDelete(n.getRouterName(), defaultIPv6Route, nil)
+			if err != nil {
+				return errors.Wrapf(err, "Failed removing IPv6 default route")
 			}
 		}
 	}
