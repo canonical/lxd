@@ -185,12 +185,12 @@ LXD supports a wide variety of compression algorithms for tarballs
 though for compatibility purposes, gzip or xz should be preferred.
 
 For split images, the rootfs file can also be squashfs formatted in the
-container case. For virtual machines, the `root.img` file is always
+container case. For virtual machines, the `rootfs.img` file is always
 qcow2 and can optionally be compressed using qcow2's native compression.
 
 ### Content
 For containers, the rootfs directory (or tarball) contains a full file system tree of what will become the `/`.
-For VMs, this is instead a `root.img` file which becomes the main disk device.
+For VMs, this is instead a `rootfs.img` file which becomes the main disk device.
 
 The templates directory contains pongo2-formatted templates of files inside the instance.
 
