@@ -123,7 +123,8 @@ func useProxy(addr string, noProxy string) (bool, error) {
 	if host == "localhost" {
 		return false, nil
 	}
-	if ip := net.ParseIP(host); ip != nil {
+	ip := net.ParseIP(host)
+	if ip != nil {
 		if ip.IsLoopback() {
 			return false, nil
 		}
@@ -148,6 +149,12 @@ func useProxy(addr string, noProxy string) (bool, error) {
 		}
 		if addr == p {
 			return false, nil
+		}
+		if _, pnet, err := net.ParseCIDR(p); err == nil && ip != nil {
+			// IPv4/CIDR, IPv6/CIDR
+			if pnet.Contains(ip) {
+				return false, nil
+			}
 		}
 		if p[0] == '.' && (strings.HasSuffix(addr, p) || addr == p[1:]) {
 			// noProxy ".foo.com" matches "bar.foo.com" or "foo.com"
