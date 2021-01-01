@@ -12,7 +12,7 @@ Name                            | Description
 `PATH`                          | List of paths to look into when resolving binaries
 `http_proxy`                    | Proxy server URL for HTTP
 `https_proxy`                   | Proxy server URL for HTTPS
-`no_proxy`                      | List of domains that don't require the use of a proxy
+`no_proxy`                      | List of domains, IP addresses or CIDR ranges that don't require the use of a proxy
 
 ## Client environment variable
 Name                            | Description
