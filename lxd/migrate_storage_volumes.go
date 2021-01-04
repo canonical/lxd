@@ -401,5 +401,6 @@ func volumeSnapshotToProtobuf(vol *api.StorageVolume) *migration.Snapshot {
 		Stateful:     proto.Bool(false),
 		CreationDate: proto.Int64(0),
 		LastUsedDate: proto.Int64(0),
+		ExpiryDate:   proto.Int64(0),
 	}
 }
