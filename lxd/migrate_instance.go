@@ -338,7 +338,6 @@ func (s *migrationSourceWs) preDumpLoop(state *state.State, args *preDumpLoopArg
 func (s *migrationSourceWs) Do(state *state.State, migrateOp *operations.Operation) error {
 	<-s.allConnected
 
-	var offerHeader migration.MigrationHeader
 	var poolMigrationTypes []migration.Type
 
 	pool, err := storagePools.GetPoolByInstance(state, s.instance)
@@ -357,7 +356,7 @@ func (s *migrationSourceWs) Do(state *state.State, migrateOp *operations.Operati
 
 	// Convert the pool's migration type options to an offer header to target.
 	// Populate the Fs, ZfsFeatures and RsyncFeatures fields.
-	offerHeader = migration.TypesToHeader(poolMigrationTypes...)
+	offerHeader := migration.TypesToHeader(poolMigrationTypes...)
 
 	// Add CRIO info to source header.
 	criuType := migration.CRIUType_CRIU_RSYNC.Enum()
@@ -431,15 +430,15 @@ func (s *migrationSourceWs) Do(state *state.State, migrateOp *operations.Operati
 	offerHeader.Predump = proto.Bool(offerUsePreDumps)
 
 	// Send offer to target.
-	err = s.send(&offerHeader)
+	err = s.send(offerHeader)
 	if err != nil {
 		s.sendControl(err)
 		return err
 	}
 
 	// Receive response from target.
-	var respHeader migration.MigrationHeader
-	err = s.recv(&respHeader)
+	respHeader := &migration.MigrationHeader{}
+	err = s.recv(respHeader)
 	if err != nil {
 		s.sendControl(err)
 		return err
@@ -822,8 +821,9 @@ func (c *migrationSink) Do(state *state.State, migrateOp *operations.Operation) 
 		controller = c.dest.sendControl
 	}
 
-	offerHeader := migration.MigrationHeader{}
-	if err := receiver(&offerHeader); err != nil {
+	offerHeader := &migration.MigrationHeader{}
+	err = receiver(offerHeader)
+	if err != nil {
 		controller(err)
 		return err
 	}
@@ -845,9 +845,6 @@ func (c *migrationSink) Do(state *state.State, migrateOp *operations.Operation) 
 	// The function that will be executed to receive the sender's migration data.
 	var myTarget func(conn *websocket.Conn, op *operations.Operation, args MigrationSinkArgs) error
 
-	// The migration header to be sent back to source with our target options.
-	var respHeader migration.MigrationHeader
-
 	pool, err := storagePools.GetPoolByInstance(state, c.src.instance)
 	if err != nil {
 		return err
@@ -862,8 +859,9 @@ func (c *migrationSink) Do(state *state.State, migrateOp *operations.Operation) 
 		return err
 	}
 
+	// The migration header to be sent back to source with our target options.
 	// Convert response type to response header and copy snapshot info into it.
-	respHeader = migration.TypesToHeader(respTypes...)
+	respHeader := migration.TypesToHeader(respTypes...)
 	respHeader.SnapshotNames = offerHeader.SnapshotNames
 	respHeader.Snapshots = offerHeader.Snapshots
 	respHeader.Refresh = &c.refresh
@@ -977,7 +975,7 @@ func (c *migrationSink) Do(state *state.State, migrateOp *operations.Operation) 
 	// MigrationSinkArgs below.
 	rsyncFeatures := respHeader.GetRsyncFeaturesSlice()
 
-	err = sender(&respHeader)
+	err = sender(respHeader)
 	if err != nil {
 		controller(err)
 		return err
@@ -1190,7 +1188,7 @@ func (c *migrationSink) Do(state *state.State, migrateOp *operations.Operation) 
 
 			// The source can only tell us it failed (e.g. if checkpointing failed).
 			// We have to tell the source whether or not the restore was successful.
-			logger.Debugf("Unknown message %v from source", msg)
+			logger.Debugf("Unknown message %q from source", *msg.Message)
 		}
 	}
 }
