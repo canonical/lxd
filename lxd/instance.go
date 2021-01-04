@@ -282,6 +282,7 @@ func instanceCreateAsCopy(s *state.State, args db.InstanceArgs, sourceInst insta
 				Name:         newSnapName,
 				Profiles:     srcSnap.Profiles(),
 				Project:      args.Project,
+				ExpiryDate:   srcSnap.ExpiryDate(),
 			}
 
 			// Create the snapshots.
