@@ -115,6 +115,7 @@ func snapshotToProtobuf(c instance.Instance) *migration.Snapshot {
 
 	creationDate := c.CreationDate().UTC().Unix()
 	lastUsedDate := c.LastUsedDate().UTC().Unix()
+	expiryDate := c.ExpiryDate().UTC().Unix()
 
 	return &migration.Snapshot{
 		Name:         &parts[len(parts)-1],
@@ -126,6 +127,7 @@ func snapshotToProtobuf(c instance.Instance) *migration.Snapshot {
 		Stateful:     &stateful,
 		CreationDate: &creationDate,
 		LastUsedDate: &lastUsedDate,
+		ExpiryDate:   &expiryDate,
 	}
 }
 
