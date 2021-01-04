@@ -41,7 +41,6 @@ func (s *migrationSourceWs) DoStorage(state *state.State, projectName string, po
 	<-s.allConnected
 	defer s.disconnect()
 
-	var offerHeader migration.MigrationHeader
 	var poolMigrationTypes []migration.Type
 
 	pool, err := storagePools.GetPoolByName(state, poolName)
@@ -59,7 +58,7 @@ func (s *migrationSourceWs) DoStorage(state *state.State, projectName string, po
 	}
 
 	// Convert the pool's migration type options to an offer header to target.
-	offerHeader = migration.TypesToHeader(poolMigrationTypes...)
+	offerHeader := migration.TypesToHeader(poolMigrationTypes...)
 
 	snapshots := []*migration.Snapshot{}
 	snapshotNames := []string{}
@@ -90,7 +89,7 @@ func (s *migrationSourceWs) DoStorage(state *state.State, projectName string, po
 	offerHeader.Snapshots = snapshots
 
 	// Send offer to target.
-	err = s.send(&offerHeader)
+	err = s.send(offerHeader)
 	if err != nil {
 		logger.Errorf("Failed to send storage volume migration header")
 		s.sendControl(err)
@@ -98,9 +97,8 @@ func (s *migrationSourceWs) DoStorage(state *state.State, projectName string, po
 	}
 
 	// Receive response from target.
-	var respHeader migration.MigrationHeader
-	err = s.recv(&respHeader)
-
+	respHeader := &migration.MigrationHeader{}
+	err = s.recv(respHeader)
 	if err != nil {
 		logger.Errorf("Failed to receive storage volume migration header")
 		s.sendControl(err)
@@ -233,8 +231,9 @@ func (c *migrationSink) DoStorage(state *state.State, projectName string, poolNa
 		controller = c.dest.sendControl
 	}
 
-	offerHeader := migration.MigrationHeader{}
-	if err := receiver(&offerHeader); err != nil {
+	offerHeader := &migration.MigrationHeader{}
+	err = receiver(offerHeader)
+	if err != nil {
 		logger.Errorf("Failed to receive storage volume migration header")
 		controller(err)
 		return err
@@ -242,9 +241,6 @@ func (c *migrationSink) DoStorage(state *state.State, projectName string, poolNa
 
 	// The function that will be executed to receive the sender's migration data.
 	var myTarget func(conn *websocket.Conn, op *operations.Operation, args MigrationSinkArgs) error
-
-	// The migration header to be sent back to source with our target options.
-	var respHeader migration.MigrationHeader
 
 	pool, err := storagePools.GetPoolByName(state, poolName)
 	if err != nil {
@@ -260,8 +256,9 @@ func (c *migrationSink) DoStorage(state *state.State, projectName string, poolNa
 		return err
 	}
 
+	// The migration header to be sent back to source with our target options.
 	// Convert response type to response header and copy snapshot info into it.
-	respHeader = migration.TypesToHeader(respTypes...)
+	respHeader := migration.TypesToHeader(respTypes...)
 	respHeader.SnapshotNames = offerHeader.SnapshotNames
 	respHeader.Snapshots = offerHeader.Snapshots
 
@@ -288,7 +285,7 @@ func (c *migrationSink) DoStorage(state *state.State, projectName string, poolNa
 		return pool.CreateCustomVolumeFromMigration(projectName, &shared.WebsocketIO{Conn: conn}, volTargetArgs, op)
 	}
 
-	err = sender(&respHeader)
+	err = sender(respHeader)
 	if err != nil {
 		logger.Errorf("Failed to send storage volume migration header")
 		controller(err)
@@ -371,7 +368,7 @@ func (c *migrationSink) DoStorage(state *state.State, projectName string, poolNa
 			// The source can only tell us it failed (e.g. if
 			// checkpointing failed). We have to tell the source
 			// whether or not the restore was successful.
-			logger.Debugf("Unknown message %v from source", msg)
+			logger.Debugf("Unknown message %q from source", *msg.Message)
 		}
 	}
 }
