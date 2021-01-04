@@ -48,5 +48,9 @@ func snapshotProtobufToInstanceArgs(inst instance.Instance, snap *migration.Snap
 		args.LastUsedDate = time.Unix(snap.GetLastUsedDate(), 0)
 	}
 
+	if snap.GetExpiryDate() != 0 {
+		args.ExpiryDate = time.Unix(snap.GetExpiryDate(), 0)
+	}
+
 	return args
 }
