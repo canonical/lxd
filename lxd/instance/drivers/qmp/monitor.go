@@ -171,16 +171,17 @@ func (m *Monitor) Wait() (chan struct{}, error) {
 
 // Disconnect forces a disconnection from QEMU.
 func (m *Monitor) Disconnect() {
+	monitorsLock.Lock()
+	defer monitorsLock.Unlock()
+
 	// Stop all go routines and disconnect from socket.
 	if !m.disconnected {
 		close(m.chDisconnect)
+		m.disconnected = true
+		m.qmp.Disconnect()
 	}
-	m.disconnected = true
-	m.qmp.Disconnect()
 
 	// Remove from the map.
-	monitorsLock.Lock()
-	defer monitorsLock.Unlock()
 	delete(monitors, m.path)
 }
 
