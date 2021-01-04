@@ -49,7 +49,7 @@ type VolumeTargetArgs struct {
 // If the fallback Rsync type is present in any of the types even if it is not preferred, then its
 // optional features are added to the header's RsyncFeatures, allowing for fallback negotiation to
 // take place on the farside.
-func TypesToHeader(types ...Type) MigrationHeader {
+func TypesToHeader(types ...Type) *MigrationHeader {
 	missingFeature := false
 	hasFeature := true
 	var preferredType Type
@@ -120,7 +120,7 @@ func TypesToHeader(types ...Type) MigrationHeader {
 		break // Only use the first rsync transport type found to generate rsync features list.
 	}
 
-	return header
+	return &header
 }
 
 // MatchTypes attempts to find matching migration transport types between an offered type sent from a remote
@@ -129,7 +129,7 @@ func TypesToHeader(types ...Type) MigrationHeader {
 // fallback type which is used as an additional offer type preference in case the preferred remote type is not
 // compatible with the local type available. It is expected that both sides of the migration will support the
 // fallback type for the volume's content type that is being migrated.
-func MatchTypes(offer MigrationHeader, fallbackType MigrationFSType, ourTypes []Type) ([]Type, error) {
+func MatchTypes(offer *MigrationHeader, fallbackType MigrationFSType, ourTypes []Type) ([]Type, error) {
 	// Generate an offer types slice from the preferred type supplied from remote and the
 	// fallback type supplied based on the content type of the transfer.
 	offeredFSTypes := []MigrationFSType{offer.GetFs(), fallbackType}
