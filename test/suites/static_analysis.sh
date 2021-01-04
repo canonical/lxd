@@ -161,7 +161,7 @@ test_static_analysis() {
 
     ## ineffassign
     if which ineffassign >/dev/null 2>&1; then
-      ineffassign ./
+      ineffassign ./...
     fi
 
     # Skip the tests which require git
