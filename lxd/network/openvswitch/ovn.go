@@ -125,8 +125,14 @@ func (o *OVN) nbctl(args ...string) (string, error) {
 }
 
 // LogicalRouterAdd adds a named logical router.
-func (o *OVN) LogicalRouterAdd(routerName OVNRouter) error {
-	_, err := o.nbctl("lr-add", string(routerName))
+func (o *OVN) LogicalRouterAdd(routerName OVNRouter, mayExist bool) error {
+	args := []string{}
+
+	if mayExist {
+		args = append(args, "--may-exist")
+	}
+
+	_, err := o.nbctl(append(args, "lr-add", string(routerName))...)
 	if err != nil {
 		return err
 	}
@@ -145,8 +151,24 @@ func (o OVN) LogicalRouterDelete(routerName OVNRouter) error {
 }
 
 // LogicalRouterSNATAdd adds an SNAT rule to a logical router to translate packets from intNet to extIP.
-func (o *OVN) LogicalRouterSNATAdd(routerName OVNRouter, intNet *net.IPNet, extIP net.IP) error {
-	_, err := o.nbctl("lr-nat-add", string(routerName), "snat", extIP.String(), intNet.String())
+func (o *OVN) LogicalRouterSNATAdd(routerName OVNRouter, intNet *net.IPNet, extIP net.IP, mayExist bool) error {
+	args := []string{}
+
+	if mayExist {
+		args = append(args, "--may-exist")
+	}
+
+	_, err := o.nbctl(append(args, "lr-nat-add", string(routerName), "snat", extIP.String(), intNet.String())...)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// LogicalRouterSNATDeleteAll deletes all SNAT rules from a logical router.
+func (o *OVN) LogicalRouterSNATDeleteAll(routerName OVNRouter) error {
+	_, err := o.nbctl("--if-exists", "lr-nat-del", string(routerName), "snat")
 	if err != nil {
 		return err
 	}
@@ -192,8 +214,7 @@ func (o *OVN) LogicalRouterRouteAdd(routerName OVNRouter, destination *net.IPNet
 		args = append(args, "--may-exist")
 	}
 
-	args = append(args, "lr-route-add", string(routerName), destination.String(), nextHop.String())
-	_, err := o.nbctl(args...)
+	_, err := o.nbctl(append(args, "lr-route-add", string(routerName), destination.String(), nextHop.String())...)
 	if err != nil {
 		return err
 	}
@@ -219,7 +240,29 @@ func (o *OVN) LogicalRouterRouteDelete(routerName OVNRouter, destination *net.IP
 }
 
 // LogicalRouterPortAdd adds a named logical router port to a logical router.
-func (o *OVN) LogicalRouterPortAdd(routerName OVNRouter, portName OVNRouterPort, mac net.HardwareAddr, ipAddr ...*net.IPNet) error {
+func (o *OVN) LogicalRouterPortAdd(routerName OVNRouter, portName OVNRouterPort, mac net.HardwareAddr, ipAddr []*net.IPNet, mayExist bool) error {
+	if mayExist {
+		// Check if it exists and update addresses.
+		_, err := o.nbctl("list", "Logical_Router_Port", string(portName))
+		if err == nil {
+			// Router port exists.
+			ips := make([]string, 0, len(ipAddr))
+			for _, ip := range ipAddr {
+				ips = append(ips, ip.String())
+			}
+
+			_, err := o.nbctl("set", "Logical_Router_Port", string(portName),
+				fmt.Sprintf(`networks="%s"`, strings.Join(ips, `","`)),
+				fmt.Sprintf(`mac="%s"`, fmt.Sprintf(mac.String())),
+			)
+			if err != nil {
+				return err
+			}
+
+			return nil
+		}
+	}
+
 	args := []string{"lrp-add", string(routerName), string(portName), mac.String()}
 	for _, ipNet := range ipAddr {
 		args = append(args, ipNet.String())
@@ -247,31 +290,68 @@ func (o *OVN) LogicalRouterPortDelete(portName OVNRouterPort) error {
 func (o *OVN) LogicalRouterPortSetIPv6Advertisements(portName OVNRouterPort, opts *OVNIPv6RAOpts) error {
 	args := []string{"set", "logical_router_port", string(portName),
 		fmt.Sprintf("ipv6_ra_configs:send_periodic=%t", opts.SendPeriodic),
-		fmt.Sprintf("ipv6_ra_configs:address_mode=%s", string(opts.AddressMode)),
+	}
+
+	var removeRAConfigKeys []string
+
+	if opts.AddressMode != "" {
+		args = append(args, fmt.Sprintf("ipv6_ra_configs:address_mode=%s", string(opts.AddressMode)))
+	} else {
+		removeRAConfigKeys = append(removeRAConfigKeys, "address_mode")
 	}
 
 	if opts.MaxInterval > 0 {
 		args = append(args, fmt.Sprintf("ipv6_ra_configs:max_interval=%d", opts.MaxInterval/time.Second))
+	} else {
+		removeRAConfigKeys = append(removeRAConfigKeys, "max_interval")
 	}
 
 	if opts.MinInterval > 0 {
 		args = append(args, fmt.Sprintf("ipv6_ra_configs:min_interval=%d", opts.MinInterval/time.Second))
+	} else {
+		removeRAConfigKeys = append(removeRAConfigKeys, "min_interval")
 	}
 
 	if opts.MTU > 0 {
 		args = append(args, fmt.Sprintf("ipv6_ra_configs:mtu=%d", opts.MTU))
+	} else {
+		removeRAConfigKeys = append(removeRAConfigKeys, "mtu")
 	}
 
 	if len(opts.DNSSearchList) > 0 {
 		args = append(args, fmt.Sprintf("ipv6_ra_configs:dnssl=%s", strings.Join(opts.DNSSearchList, ",")))
+	} else {
+		removeRAConfigKeys = append(removeRAConfigKeys, "dnssl")
 	}
 
 	if opts.RecursiveDNSServer != nil {
 		args = append(args, fmt.Sprintf("ipv6_ra_configs:rdnss=%s", opts.RecursiveDNSServer.String()))
+	} else {
+		removeRAConfigKeys = append(removeRAConfigKeys, "rdnss")
+	}
+
+	// Clear any unused keys first.
+	if len(removeRAConfigKeys) > 0 {
+		removeArgs := append([]string{"remove", "logical_router_port", string(portName), "ipv6_ra_configs"}, removeRAConfigKeys...)
+		_, err := o.nbctl(removeArgs...)
+		if err != nil {
+			return err
+		}
 	}
 
 	// Configure IPv6 Router Advertisements.
 	_, err := o.nbctl(args...)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// LogicalRouterPortDeleteIPv6Advertisements removes the IPv6 RA announcement settings from a router port.
+func (o *OVN) LogicalRouterPortDeleteIPv6Advertisements(portName OVNRouterPort) error {
+	// Delete IPv6 Router Advertisements.
+	_, err := o.nbctl("clear", "logical_router_port", string(portName), "ipv6_ra_configs")
 	if err != nil {
 		return err
 	}
@@ -340,14 +420,19 @@ func (o *OVN) LogicalSwitchDelete(switchName OVNSwitch) error {
 
 // LogicalSwitchSetIPAllocation sets the IP allocation config on the logical switch.
 func (o *OVN) LogicalSwitchSetIPAllocation(switchName OVNSwitch, opts *OVNIPAllocationOpts) error {
+	var removeOtherConfigKeys []string
 	args := []string{"set", "logical_switch", string(switchName)}
 
 	if opts.PrefixIPv4 != nil {
 		args = append(args, fmt.Sprintf("other_config:subnet=%s", opts.PrefixIPv4.String()))
+	} else {
+		removeOtherConfigKeys = append(removeOtherConfigKeys, "subnet")
 	}
 
 	if opts.PrefixIPv6 != nil {
 		args = append(args, fmt.Sprintf("other_config:ipv6_prefix=%s", opts.PrefixIPv6.String()))
+	} else {
+		removeOtherConfigKeys = append(removeOtherConfigKeys, "ipv6_prefix")
 	}
 
 	if len(opts.ExcludeIPv4) > 0 {
@@ -363,6 +448,17 @@ func (o *OVN) LogicalSwitchSetIPAllocation(switchName OVNSwitch, opts *OVNIPAllo
 		}
 
 		args = append(args, fmt.Sprintf("other_config:exclude_ips=%s", strings.Join(excludeIPs, " ")))
+	} else {
+		removeOtherConfigKeys = append(removeOtherConfigKeys, "exclude_ips")
+	}
+
+	// Clear any unused keys first.
+	if len(removeOtherConfigKeys) > 0 {
+		removeArgs := append([]string{"remove", "logical_switch", string(switchName), "other_config"}, removeOtherConfigKeys...)
+		_, err := o.nbctl(removeArgs...)
+		if err != nil {
+			return err
+		}
 	}
 
 	// Only run command if at least one setting is specified.
