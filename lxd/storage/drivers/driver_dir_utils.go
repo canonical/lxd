@@ -37,17 +37,11 @@ func (d *dir) setupInitialQuota(vol Volume) (func(), error) {
 	revert := revert.New()
 	defer revert.Fail()
 
-	// Initialise the volume's quota using the volume ID.
-	err = d.initQuota(volPath, volID)
-	if err != nil {
-		return nil, err
-	}
-
 	// Define a function to revert the quota being setup.
 	revertFunc := func() { d.deleteQuota(volPath, volID) }
 	revert.Add(revertFunc)
 
-	// Set the quota.
+	// Initialise the volume's project using the volume ID and set the quota.
 	err = d.setQuota(volPath, volID, vol.ConfigSize())
 	if err != nil {
 		return nil, err
@@ -75,31 +69,6 @@ func (d *dir) deleteQuota(path string, volID int64) error {
 	}
 
 	err = quota.DeleteProject(path, d.quotaProjectID(volID))
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
-// initQuota initialises the project quota on the path. The volID generates a quota project ID.
-func (d *dir) initQuota(path string, volID int64) error {
-	if volID == volIDQuotaSkip {
-		// Disabled on purpose, just ignore
-		return nil
-	}
-
-	if volID == 0 {
-		return fmt.Errorf("Missing volume ID")
-	}
-
-	ok, err := quota.Supported(path)
-	if err != nil || !ok {
-		// Skipping quota as underlying filesystem doesn't suppport project quotas.
-		return nil
-	}
-
-	err = quota.SetProject(path, d.quotaProjectID(volID))
 	if err != nil {
 		return err
 	}
