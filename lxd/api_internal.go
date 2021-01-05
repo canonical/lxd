@@ -446,17 +446,27 @@ func internalImportFromRecovery(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
+	pool, err := storagePools.GetPoolByInstance(d.State(), inst)
+	if err != nil {
+		return response.SmartError(err)
+	}
+
 	// If instance isn't running, then unmount instance volume to reset the mount and any left over ref
 	// counters back its non-running state.
 	if !inst.IsRunning() {
-		pool, err := storagePools.GetPoolByInstance(d.State(), inst)
-		if err != nil {
-			return response.SmartError(err)
-		}
-
 		_, err = pool.UnmountInstance(inst, nil)
 		if err != nil {
 			return response.SmartError(err)
+		}
+	}
+
+	// Reinitialise the instance's root disk quota even if no size specified (allows the storage driver the
+	// opportunity to reinitialise the quota based on the new storage volume's DB ID).
+	_, rootConfig, err := shared.GetRootDiskDevice(inst.ExpandedDevices().CloneNative())
+	if err == nil {
+		err = pool.SetInstanceQuota(inst, rootConfig["size"], nil)
+		if err != nil {
+			return response.SmartError(errors.Wrapf(err, "Failed reinitializing root disk quota %q", rootConfig["size"]))
 		}
 	}
 
