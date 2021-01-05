@@ -246,7 +246,8 @@ migration() {
   rm testfile1
   lxc_remote stop -f l2:c2
 
-  # This will create snapshot c1/snap0
+  # This will create snapshot c1/snap0 with expiry
+  lxc_remote config set l1:c1 snapshots.expiry '1d'
   lxc_remote snapshot l1:c1
 
   # Remove the testfile from c1 and refresh again
@@ -261,6 +262,7 @@ migration() {
   lxc_remote copy l1:c1 l2:c2 --refresh
   lxc_remote ls l2:
   lxc_remote config show l2:c2/snap0
+  ! lxc_remote config show l2:c2/snap0 | grep -q 'expires_at: 0001-01-01T00:00:00Z' || false
 
   # This will create snapshot c2/snap1
   lxc_remote snapshot l2:c2
