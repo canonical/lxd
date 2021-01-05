@@ -204,7 +204,7 @@ func devForPath(path string) (string, error) {
 	return "", errNoDevice
 }
 
-// Supported check if the given path supports project quotas
+// Supported check if the given path supports project quotas.
 func Supported(path string) (bool, error) {
 	// Get the backing device
 	devPath, err := devForPath(path)
@@ -219,7 +219,7 @@ func Supported(path string) (bool, error) {
 	return C.quota_supported(cDevPath) == 0, nil
 }
 
-// GetProject returns the project quota ID for the given path
+// GetProject returns the project quota ID for the given path.
 func GetProject(path string) (uint32, error) {
 	// Call ioctl through CGo
 	cPath := C.CString(path)
@@ -227,7 +227,7 @@ func GetProject(path string) (uint32, error) {
 
 	id := C.quota_get_path(cPath)
 	if id < 0 {
-		return 0, fmt.Errorf("Failed to get project from '%s'", path)
+		return 0, fmt.Errorf("Failed to get project from %q", path)
 	}
 
 	return uint32(id), nil
@@ -264,15 +264,15 @@ func SetProject(path string, id uint32) error {
 	return err
 }
 
-// DeleteProject unsets the project id from the path and clears the quota for the project id
+// DeleteProject unsets the project id from the path and clears the quota for the project ID.
 func DeleteProject(path string, id uint32) error {
-	// Unset the project from the path
+	// Unset the project from the path.
 	err := SetProject(path, 0)
 	if err != nil {
 		return err
 	}
 
-	// Unset the quota on the project
+	// Unset the quota on the project.
 	err = SetProjectQuota(path, id, 0)
 	if err != nil {
 		return err
@@ -281,27 +281,27 @@ func DeleteProject(path string, id uint32) error {
 	return nil
 }
 
-// GetProjectUsage returns the current consumption
+// GetProjectUsage returns the current consumption.
 func GetProjectUsage(path string, id uint32) (int64, error) {
-	// Get the backing device
+	// Get the backing device.
 	devPath, err := devForPath(path)
 	if err != nil {
 		return -1, err
 	}
 
-	// Call quotactl through CGo
+	// Call quotactl through CGo.
 	cDevPath := C.CString(devPath)
 	defer C.free(unsafe.Pointer(cDevPath))
 
 	size := C.quota_get_usage(cDevPath, C.uint32_t(id))
 	if size < 0 {
-		return -1, fmt.Errorf("Failed to get project consumption for id '%d' on '%s'", id, devPath)
+		return -1, fmt.Errorf(`Failed to get project consumption for ID "%d" on %q`, id, devPath)
 	}
 
 	return int64(size), nil
 }
 
-// SetProjectQuota sets the quota on the project id
+// SetProjectQuota sets the quota on the project ID.
 func SetProjectQuota(path string, id uint32, bytes int64) error {
 	// Get the backing device
 	devPath, err := devForPath(path)
@@ -314,7 +314,7 @@ func SetProjectQuota(path string, id uint32, bytes int64) error {
 	defer C.free(unsafe.Pointer(cDevPath))
 
 	if C.quota_set(cDevPath, C.uint32_t(id), C.uint64_t(bytes/1024)) != 0 {
-		return fmt.Errorf("Failed to set project quota for id '%d' on '%s'", id, devPath)
+		return fmt.Errorf(`Failed to set project quota for ID "%d" on %q`, id, devPath)
 	}
 
 	return nil
