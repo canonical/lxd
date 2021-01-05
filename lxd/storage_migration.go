@@ -13,14 +13,14 @@ import (
 func snapshotProtobufToInstanceArgs(inst instance.Instance, snap *migration.Snapshot) db.InstanceArgs {
 	config := map[string]string{}
 
-	for _, ent := range snap.LocalConfig {
+	for _, ent := range snap.GetLocalConfig() {
 		config[ent.GetKey()] = ent.GetValue()
 	}
 
 	devices := deviceConfig.Devices{}
-	for _, ent := range snap.LocalDevices {
+	for _, ent := range snap.GetLocalDevices() {
 		props := map[string]string{}
-		for _, prop := range ent.Config {
+		for _, prop := range ent.GetConfig() {
 			props[prop.GetKey()] = prop.GetValue()
 		}
 
