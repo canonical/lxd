@@ -246,8 +246,12 @@ migration() {
   rm testfile1
   lxc_remote stop -f l2:c2
 
-  # This will create snapshot c1/snap0
+  # This will create snapshot c1/snap0 with test device and expiry date.
+  lxc_remote config device add l1:c1 testsnapdev none
+  lxc_remote config set l1:c1 snapshots.expiry '1d'
   lxc_remote snapshot l1:c1
+  lxc_remote config device remove l1:c1 testsnapdev
+  lxc_remote config device add l1:c1 testdev none
 
   # Remove the testfile from c1 and refresh again
   lxc_remote file delete l1:c1/root/testfile1
@@ -256,11 +260,15 @@ migration() {
   ! lxc_remote file pull l2:c2/root/testfile1 . || false
   lxc_remote stop -f l2:c2
 
-  # Check whether snapshot c2/snap0 has been created
+  # Check whether snapshot c2/snap0 has been created with its config intact.
   ! lxc_remote config show l2:c2/snap0 || false
   lxc_remote copy l1:c1 l2:c2 --refresh
   lxc_remote ls l2:
   lxc_remote config show l2:c2/snap0
+  ! lxc_remote config show l2:c2/snap0 | grep -q 'expires_at: 0001-01-01T00:00:00Z' || false
+  lxc_remote config device get l2:c2 testdev type | grep -q 'none'
+  lxc_remote restore l2:c2 snap0
+  lxc_remote config device get l2:c2 testsnapdev type | grep -q 'none'
 
   # This will create snapshot c2/snap1
   lxc_remote snapshot l2:c2
