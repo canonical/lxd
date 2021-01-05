@@ -100,12 +100,14 @@ func snapshotToProtobuf(c instance.Instance) *migration.Snapshot {
 	for name, d := range c.LocalDevices() {
 		props := []*migration.Config{}
 		for k, v := range d {
+			// Local loop vars.
 			kCopy := string(k)
 			vCopy := string(v)
 			props = append(props, &migration.Config{Key: &kCopy, Value: &vCopy})
 		}
 
-		devices = append(devices, &migration.Device{Name: &name, Config: props})
+		nameCopy := name // Local loop var.
+		devices = append(devices, &migration.Device{Name: &nameCopy, Config: props})
 	}
 
 	parts := strings.SplitN(c.Name(), shared.SnapshotDelimiter, 2)
