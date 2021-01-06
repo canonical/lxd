@@ -716,6 +716,23 @@ func (o *OVN) logicalSwitchDNSRecordsDelete(switchName OVNSwitch) error {
 	return nil
 }
 
+// LogicalSwitchPortExists returns whether the logical switch port exists.
+func (o *OVN) LogicalSwitchPortExists(portName OVNSwitchPort) (bool, error) {
+	foundPort, err := o.nbctl("--format=csv", "--no-headings", "--data=bare", "--colum=name", "find", "logical_switch_port",
+		fmt.Sprintf("name=%s", string(portName)),
+	)
+	if err != nil {
+		return false, err
+	}
+
+	foundPort = strings.TrimSpace(foundPort)
+	if foundPort == string(portName) {
+		return true, nil
+	}
+
+	return false, nil
+}
+
 // LogicalSwitchPortAdd adds a named logical switch port to a logical switch.
 // If mayExist is true, then an existing resource of the same name is not treated as an error.
 func (o *OVN) LogicalSwitchPortAdd(switchName OVNSwitch, portName OVNSwitchPort, mayExist bool) error {
