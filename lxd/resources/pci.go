@@ -17,6 +17,7 @@ import (
 // GetPCI returns a filled api.ResourcesPCI struct ready for use by LXD
 func GetPCI() (*api.ResourcesPCI, error) {
 	pci := api.ResourcesPCI{}
+	pci.Devices = []api.ResourcesPCIDevice{}
 
 	if !sysfsExists(sysBusPci) {
 		return &pci, nil
