@@ -166,6 +166,16 @@ func (o *OVN) LogicalRouterSNATAdd(routerName OVNRouter, intNet *net.IPNet, extI
 	return nil
 }
 
+// LogicalRouterDNATSNATDeleteAll deletes all DNAT_AND_SNAT rules from a logical router.
+func (o *OVN) LogicalRouterDNATSNATDeleteAll(routerName OVNRouter) error {
+	_, err := o.nbctl("--if-exists", "lr-nat-del", string(routerName), "dnat_and_snat")
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
 // LogicalRouterSNATDeleteAll deletes all SNAT rules from a logical router.
 func (o *OVN) LogicalRouterSNATDeleteAll(routerName OVNRouter) error {
 	_, err := o.nbctl("--if-exists", "lr-nat-del", string(routerName), "snat")
@@ -176,7 +186,7 @@ func (o *OVN) LogicalRouterSNATDeleteAll(routerName OVNRouter) error {
 	return nil
 }
 
-// LogicalRouterDNATSNATAdd adds a DNAT and SNAT rule to a logical router to translate packets from extIP to intIP.
+// LogicalRouterDNATSNATAdd adds a DNAT_AND_SNAT rule to a logical router to translate packets from extIP to intIP.
 func (o *OVN) LogicalRouterDNATSNATAdd(routerName OVNRouter, extIP net.IP, intIP net.IP, stateless bool, mayExist bool) error {
 	args := []string{}
 
@@ -196,7 +206,7 @@ func (o *OVN) LogicalRouterDNATSNATAdd(routerName OVNRouter, extIP net.IP, intIP
 	return nil
 }
 
-// LogicalRouterDNATSNATDelete deletes a DNAT and SNAT rule from a logical router.
+// LogicalRouterDNATSNATDelete deletes a DNAT_AND_SNAT rule from a logical router.
 func (o *OVN) LogicalRouterDNATSNATDelete(routerName OVNRouter, extIP net.IP) error {
 	_, err := o.nbctl("--if-exists", "lr-nat-del", string(routerName), "dnat_and_snat", extIP.String())
 	if err != nil {
@@ -704,6 +714,23 @@ func (o *OVN) logicalSwitchDNSRecordsDelete(switchName OVNSwitch) error {
 	}
 
 	return nil
+}
+
+// LogicalSwitchPortExists returns whether the logical switch port exists.
+func (o *OVN) LogicalSwitchPortExists(portName OVNSwitchPort) (bool, error) {
+	foundPort, err := o.nbctl("--format=csv", "--no-headings", "--data=bare", "--colum=name", "find", "logical_switch_port",
+		fmt.Sprintf("name=%s", string(portName)),
+	)
+	if err != nil {
+		return false, err
+	}
+
+	foundPort = strings.TrimSpace(foundPort)
+	if foundPort == string(portName) {
+		return true, nil
+	}
+
+	return false, nil
 }
 
 // LogicalSwitchPortAdd adds a named logical switch port to a logical switch.
