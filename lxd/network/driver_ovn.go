@@ -2770,10 +2770,11 @@ func (n *ovn) uplinkHasIngressRoutedAnycastIPv6(uplink *api.Network) bool {
 }
 
 // handleDependencyChange applies changes from uplink network if specific watched keys have changed.
-func (n *ovn) handleDependencyChange(netName string, netConfig map[string]string, changedKeys []string) error {
+func (n *ovn) handleDependencyChange(uplinkName string, uplinkConfig map[string]string, changedKeys []string) error {
+	// Detect changes that need to be applied to the network.
 	for _, k := range []string{"dns.nameservers"} {
 		if shared.StringInSlice(k, changedKeys) {
-			n.logger.Debug("Applying changes from uplink network", log.Ctx{"uplink": netName})
+			n.logger.Debug("Applying changes from uplink network", log.Ctx{"uplink": uplinkName})
 
 			// Re-setup logical network in order to apply uplink changes.
 			err := n.setup(true)
