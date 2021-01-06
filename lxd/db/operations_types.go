@@ -17,17 +17,17 @@ const (
 	OperationBackupRestore
 	OperationBackupRemove
 	OperationConsoleShow
-	OperationContainerCreate
-	OperationContainerUpdate
-	OperationContainerRename
-	OperationContainerMigrate
-	OperationContainerLiveMigrate
-	OperationContainerFreeze
-	OperationContainerUnfreeze
-	OperationContainerDelete
-	OperationContainerStart
-	OperationContainerStop
-	OperationContainerRestart
+	OperationInstanceCreate
+	OperationInstanceUpdate
+	OperationInstanceRename
+	OperationInstanceMigrate
+	OperationInstanceLiveMigrate
+	OperationInstanceFreeze
+	OperationInstanceUnfreeze
+	OperationInstanceDelete
+	OperationInstanceStart
+	OperationInstanceStop
+	OperationInstanceRestart
 	OperationCommandExec
 	OperationSnapshotCreate
 	OperationSnapshotRename
@@ -70,41 +70,41 @@ func (t OperationType) Description() string {
 	case OperationClusterJoin:
 		return "Joining cluster"
 	case OperationBackupCreate:
-		return "Backing up container"
+		return "Backing up instance"
 	case OperationBackupRename:
-		return "Renaming container backup"
+		return "Renaming instance backup"
 	case OperationBackupRestore:
 		return "Restoring backup"
 	case OperationBackupRemove:
-		return "Removing container backup"
+		return "Removing instance backup"
 	case OperationConsoleShow:
 		return "Showing console"
-	case OperationContainerCreate:
-		return "Creating container"
-	case OperationContainerUpdate:
-		return "Updating container"
-	case OperationContainerRename:
-		return "Renaming container"
-	case OperationContainerMigrate:
-		return "Migrating container"
-	case OperationContainerLiveMigrate:
-		return "Live-migrating container"
-	case OperationContainerFreeze:
-		return "Freezing container"
-	case OperationContainerUnfreeze:
-		return "Unfreezing container"
-	case OperationContainerDelete:
-		return "Deleting container"
-	case OperationContainerStart:
-		return "Starting container"
-	case OperationContainerStop:
-		return "Stopping container"
-	case OperationContainerRestart:
-		return "Restarting container"
+	case OperationInstanceCreate:
+		return "Creating instance"
+	case OperationInstanceUpdate:
+		return "Updating instance"
+	case OperationInstanceRename:
+		return "Renaming instance"
+	case OperationInstanceMigrate:
+		return "Migrating instance"
+	case OperationInstanceLiveMigrate:
+		return "Live-migrating instance"
+	case OperationInstanceFreeze:
+		return "Freezing instance"
+	case OperationInstanceUnfreeze:
+		return "Unfreezing instance"
+	case OperationInstanceDelete:
+		return "Deleting instance"
+	case OperationInstanceStart:
+		return "Starting instance"
+	case OperationInstanceStop:
+		return "Stopping instance"
+	case OperationInstanceRestart:
+		return "Restarting instance"
 	case OperationCommandExec:
 		return "Executing command"
 	case OperationSnapshotCreate:
-		return "Snapshotting container"
+		return "Snapshotting instance"
 	case OperationSnapshotRename:
 		return "Renaming snapshot"
 	case OperationSnapshotRestore:
@@ -183,15 +183,15 @@ func (t OperationType) Permission() string {
 		return "operate-containers"
 	case OperationConsoleShow:
 		return "operate-containers"
-	case OperationContainerFreeze:
+	case OperationInstanceFreeze:
 		return "operate-containers"
-	case OperationContainerUnfreeze:
+	case OperationInstanceUnfreeze:
 		return "operate-containers"
-	case OperationContainerStart:
+	case OperationInstanceStart:
 		return "operate-containers"
-	case OperationContainerStop:
+	case OperationInstanceStop:
 		return "operate-containers"
-	case OperationContainerRestart:
+	case OperationInstanceRestart:
 		return "operate-containers"
 	case OperationCommandExec:
 		return "operate-containers"
@@ -206,17 +206,17 @@ func (t OperationType) Permission() string {
 	case OperationSnapshotDelete:
 		return "operate-containers"
 
-	case OperationContainerCreate:
+	case OperationInstanceCreate:
 		return "manage-containers"
-	case OperationContainerUpdate:
+	case OperationInstanceUpdate:
 		return "manage-containers"
-	case OperationContainerRename:
+	case OperationInstanceRename:
 		return "manage-containers"
-	case OperationContainerMigrate:
+	case OperationInstanceMigrate:
 		return "manage-containers"
-	case OperationContainerLiveMigrate:
+	case OperationInstanceLiveMigrate:
 		return "manage-containers"
-	case OperationContainerDelete:
+	case OperationInstanceDelete:
 		return "manage-containers"
 	case OperationSnapshotRestore:
 		return "manage-containers"
