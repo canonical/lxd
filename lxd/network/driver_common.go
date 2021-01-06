@@ -398,3 +398,55 @@ func (n *common) lifecycle(action string, ctx map[string]interface{}) error {
 
 	return n.state.Events.SendLifecycle(project.Default, fmt.Sprintf("%s-%s", prefix, action), u, ctx)
 }
+
+// notifyDependentNetworks allows any dependent networks to apply changes to themselves when this network changes.
+func (n *common) notifyDependentNetworks(changedKeys []string) {
+	if n.Project() != project.Default {
+		return // Only networks in the default project can be used as dependent networks.
+	}
+
+	// Get a list of projects.
+	var err error
+	var projectNames []string
+
+	err = n.state.Cluster.Transaction(func(tx *db.ClusterTx) error {
+		projectNames, err = tx.GetProjectNames()
+		return err
+	})
+	if err != nil {
+		n.logger.Error("Failed to load projects", log.Ctx{"err": err})
+		return
+	}
+
+	for _, projectName := range projectNames {
+		// Get a list of managed networks in project.
+		depNets, err := n.state.Cluster.GetCreatedNetworks()
+		if err != nil {
+			n.logger.Error("Failed to load networks in project", log.Ctx{"project": projectName, "err": err})
+			continue // Continue to next project.
+		}
+
+		for _, depName := range depNets {
+			depNet, err := LoadByName(n.state, depName)
+			if err != nil {
+				n.logger.Error("Failed to load dependent network", log.Ctx{"project": projectName, "dependentNetwork": depName, "err": err})
+				continue // Continue to next network.
+			}
+
+			if depNet.Config()["network"] != n.Name() {
+				continue // Skip network, as does not depend on our network.
+			}
+
+			err = depNet.handleDependencyChange(n.Name(), n.Config(), changedKeys)
+			if err != nil {
+				n.logger.Error("Failed notifying dependent network", log.Ctx{"project": projectName, "dependentNetwork": depName, "err": err})
+				continue // Continue to next network.
+			}
+		}
+	}
+}
+
+// handleDependencyChange is a placeholder for networks that don't need to handle changes from dependent networks.
+func (n *common) handleDependencyChange(netName string, netConfig map[string]string, changedKeys []string) error {
+	return nil
+}
