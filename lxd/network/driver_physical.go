@@ -290,6 +290,14 @@ func (n *physical) Update(newNetwork api.NetworkPut, targetNode string, clientTy
 	}
 
 	revert.Success()
+
+	// Notify dependent networks (those using this network as their uplink) of the changes.
+	// Do this after the network has been successfully updated so that a failure to notify a dependent network
+	// doesn't prevent the network itself from being updated.
+	if clientType == request.ClientTypeNormal && len(changedKeys) > 0 {
+		n.common.notifyDependentNetworks(changedKeys)
+	}
+
 	return nil
 }
 
