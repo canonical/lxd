@@ -2125,6 +2125,54 @@ func (n *ovn) getInstanceDevicePortName(instanceUUID string, deviceName string) 
 	return openvswitch.OVNSwitchPort(fmt.Sprintf("%s-%s-%s", n.getIntSwitchInstancePortPrefix(), instanceUUID, deviceName))
 }
 
+// InstanceDevicePortConfigParse parses the instance NIC device config and returns MAC address, static IPs,
+// internal routes and external routes.
+func (n *ovn) InstanceDevicePortConfigParse(deviceConfig map[string]string) (net.HardwareAddr, []net.IP, []*net.IPNet, []*net.IPNet, error) {
+	mac, err := net.ParseMAC(deviceConfig["hwaddr"])
+	if err != nil {
+		return nil, nil, nil, nil, err
+	}
+
+	ips := []net.IP{}
+	for _, key := range []string{"ipv4.address", "ipv6.address"} {
+		if deviceConfig[key] == "" {
+			continue
+		}
+
+		ip := net.ParseIP(deviceConfig[key])
+		if ip == nil {
+			return nil, nil, nil, nil, fmt.Errorf("Invalid %s value %q", key, deviceConfig[key])
+		}
+		ips = append(ips, ip)
+	}
+
+	internalRoutes := []*net.IPNet{}
+	for _, key := range []string{"ipv4.routes", "ipv6.routes"} {
+		if deviceConfig[key] == "" {
+			continue
+		}
+
+		internalRoutes, err = SubnetParseAppend(internalRoutes, strings.Split(deviceConfig[key], ",")...)
+		if err != nil {
+			return nil, nil, nil, nil, errors.Wrapf(err, "Invalid %q value", key)
+		}
+	}
+
+	externalRoutes := []*net.IPNet{}
+	for _, key := range []string{"ipv4.routes.external", "ipv6.routes.external"} {
+		if deviceConfig[key] == "" {
+			continue
+		}
+
+		externalRoutes, err = SubnetParseAppend(externalRoutes, strings.Split(deviceConfig[key], ",")...)
+		if err != nil {
+			return nil, nil, nil, nil, errors.Wrapf(err, "Invalid %q value", key)
+		}
+	}
+
+	return mac, ips, internalRoutes, externalRoutes, nil
+}
+
 // InstanceDevicePortValidateExternalRoutes validates the external routes for an OVN instance port.
 func (n *ovn) InstanceDevicePortValidateExternalRoutes(deviceInstance instance.Instance, deviceName string, portExternalRoutes []*net.IPNet) error {
 	var err error
@@ -2243,7 +2291,7 @@ func (n *ovn) InstanceDevicePortValidateExternalRoutes(deviceInstance instance.I
 }
 
 // InstanceDevicePortAdd adds an instance device port to the internal logical switch and returns the port name.
-func (n *ovn) InstanceDevicePortAdd(instanceUUID string, instanceName string, deviceName string, mac net.HardwareAddr, ips []net.IP, internalRoutes []*net.IPNet, externalRoutes []*net.IPNet) (openvswitch.OVNSwitchPort, error) {
+func (n *ovn) InstanceDevicePortAdd(uplinkConfig map[string]string, instanceUUID string, instanceName string, deviceName string, mac net.HardwareAddr, ips []net.IP, internalRoutes []*net.IPNet, externalRoutes []*net.IPNet) (openvswitch.OVNSwitchPort, error) {
 	if instanceUUID == "" {
 		return "", fmt.Errorf("Instance UUID is required")
 	}
@@ -2256,12 +2304,6 @@ func (n *ovn) InstanceDevicePortAdd(instanceUUID string, instanceName string, de
 	client, err := n.getClient()
 	if err != nil {
 		return "", err
-	}
-
-	// Load uplink network config.
-	_, uplink, _, err := n.state.Cluster.GetNetworkInAnyState(project.Default, n.config["network"])
-	if err != nil {
-		return "", errors.Wrapf(err, "Failed to load uplink network %q", n.config["network"])
 	}
 
 	dhcpv4Subnet := n.DHCPv4Subnet()
@@ -2359,7 +2401,7 @@ func (n *ovn) InstanceDevicePortAdd(instanceUUID string, instanceName string, de
 	revert.Add(func() { client.LogicalSwitchPortDeleteDNS(n.getIntSwitchName(), dnsUUID) })
 
 	// Publish NIC's IPs on uplink network if NAT is disabled and using l2proxy ingress mode on uplink.
-	if shared.StringInSlice(uplink.Config["ovn.ingress_mode"], []string{"l2proxy", ""}) {
+	if shared.StringInSlice(uplinkConfig["ovn.ingress_mode"], []string{"l2proxy", ""}) {
 		for _, k := range []string{"ipv4.nat", "ipv6.nat"} {
 			if shared.IsTrue(n.config[k]) {
 				continue
@@ -2428,7 +2470,7 @@ func (n *ovn) InstanceDevicePortAdd(instanceUUID string, instanceName string, de
 		// knowledge this is the only way to get the OVN router to respond to ARP/NDP requests for IPs that
 		// it doesn't actually have). However we have to add each IP in the external route individually as
 		// DNAT doesn't support whole subnets.
-		if shared.StringInSlice(uplink.Config["ovn.ingress_mode"], []string{"l2proxy", ""}) {
+		if shared.StringInSlice(uplinkConfig["ovn.ingress_mode"], []string{"l2proxy", ""}) {
 			err = SubnetIterate(externalRoute, func(ip net.IP) error {
 				err = client.LogicalRouterDNATSNATAdd(n.getRouterName(), ip, ip, true, true)
 				if err != nil {
@@ -2728,10 +2770,11 @@ func (n *ovn) uplinkHasIngressRoutedAnycastIPv6(uplink *api.Network) bool {
 }
 
 // handleDependencyChange applies changes from uplink network if specific watched keys have changed.
-func (n *ovn) handleDependencyChange(netName string, netConfig map[string]string, changedKeys []string) error {
+func (n *ovn) handleDependencyChange(uplinkName string, uplinkConfig map[string]string, changedKeys []string) error {
+	// Detect changes that need to be applied to the network.
 	for _, k := range []string{"dns.nameservers"} {
 		if shared.StringInSlice(k, changedKeys) {
-			n.logger.Debug("Applying changes from uplink network", log.Ctx{"uplink": netName})
+			n.logger.Debug("Applying changes from uplink network", log.Ctx{"uplink": uplinkName})
 
 			// Re-setup logical network in order to apply uplink changes.
 			err := n.setup(true)
@@ -2739,7 +2782,87 @@ func (n *ovn) handleDependencyChange(netName string, netConfig map[string]string
 				return err
 			}
 
-			return nil // Only run setup once per notification (all changes will be applied).
+			break // Only run setup once per notification (all changes will be applied).
+		}
+	}
+
+	// Add or remove the instance NIC l2proxy DNAT_AND_SNAT rules if uplink's ovn.ingress_mode has changed.
+	if shared.StringInSlice("ovn.ingress_mode", changedKeys) {
+		n.logger.Debug("Applying ingress mode changes from uplink network to instance NICs", log.Ctx{"uplink": uplinkName})
+
+		client, err := n.getClient()
+		if err != nil {
+			return err
+		}
+
+		if shared.StringInSlice(uplinkConfig["ovn.ingress_mode"], []string{"l2proxy", ""}) {
+			// Find all instance NICs that use this network, and re-add the logical OVN instance port.
+			// This will restore the l2proxy DNAT_AND_SNAT rules.
+			err = n.state.Cluster.InstanceList(func(inst db.Instance, p api.Project, profiles []api.Profile) error {
+				// Get the instance's effective network project name.
+				instNetworkProject := project.NetworkProjectFromRecord(&p)
+
+				// Skip instances who's effective network project doesn't match this network's
+				// project.
+				if n.Project() != instNetworkProject {
+					return nil
+				}
+
+				devices := db.ExpandInstanceDevices(deviceConfig.NewDevices(inst.Devices), profiles).CloneNative()
+
+				// Iterate through each of the instance's devices, looking for NICs that are linked
+				// this network.
+				for devName, devConfig := range devices {
+					if devConfig["type"] != "nic" || n.Name() != devConfig["network"] {
+						continue
+					}
+
+					// Check if instance port exists, if not then we can skip.
+					instanceUUID := inst.Config["volatile.uuid"]
+					instancePortName := n.getInstanceDevicePortName(instanceUUID, devName)
+					portExists, err := client.LogicalSwitchPortExists(instancePortName)
+					if err != nil {
+						n.logger.Error("Failed checking instance OVN NIC port exists", log.Ctx{"project": inst.Project, "instance": inst.Name, "err": err})
+						continue
+					}
+
+					if !portExists {
+						continue // No need to update a port that isn't started yet.
+					}
+
+					if devConfig["hwaddr"] == "" {
+						// Load volatile MAC if no static MAC specified.
+						devConfig["hwaddr"] = inst.Config[fmt.Sprintf("volatile.%s.hwaddr", devName)]
+					}
+
+					// Parse NIC config into structures used by OVN network's instance port functions.
+					mac, ips, internalRoutes, externalRoutes, err := n.InstanceDevicePortConfigParse(devConfig)
+					if err != nil {
+						n.logger.Error("Failed parsing instance OVN NIC config", log.Ctx{"project": inst.Project, "instance": inst.Name, "err": err})
+						continue
+					}
+
+					// Re-add logical switch port to apply the l2proxy DNAT_AND_SNAT rules.
+					n.logger.Debug("Re-adding instance OVN NIC port to apply ingress mode changes", log.Ctx{"project": inst.Project, "instance": inst.Name, "device": devName})
+					_, err = n.InstanceDevicePortAdd(uplinkConfig, instanceUUID, inst.Name, devName, mac, ips, internalRoutes, externalRoutes)
+					if err != nil {
+						n.logger.Error("Failed re-adding instance OVN NIC port", log.Ctx{"project": inst.Project, "instance": inst.Name, "err": err})
+						continue
+					}
+				}
+
+				return nil
+			})
+			if err != nil {
+				return errors.Wrapf(err, "Failed adding instance NIC ingress mode l2proxy rules")
+			}
+		} else {
+			// Remove all DNAT_AND_SNAT rules if not using l2proxy ingress mode, as currently we only
+			// use DNAT_AND_SNAT rules for this feature so it is safe to do.
+			err = client.LogicalRouterDNATSNATDeleteAll(n.getRouterName())
+			if err != nil {
+				return errors.Wrapf(err, "Failed deleting instance NIC ingress mode l2proxy rules")
+			}
 		}
 	}
 
