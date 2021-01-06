@@ -17,17 +17,17 @@ const (
 	OperationBackupRestore
 	OperationBackupRemove
 	OperationConsoleShow
-	OperationContainerCreate
-	OperationContainerUpdate
-	OperationContainerRename
-	OperationContainerMigrate
-	OperationContainerLiveMigrate
-	OperationContainerFreeze
-	OperationContainerUnfreeze
-	OperationContainerDelete
-	OperationContainerStart
-	OperationContainerStop
-	OperationContainerRestart
+	OperationInstanceCreate
+	OperationInstanceUpdate
+	OperationInstanceRename
+	OperationInstanceMigrate
+	OperationInstanceLiveMigrate
+	OperationInstanceFreeze
+	OperationInstanceUnfreeze
+	OperationInstanceDelete
+	OperationInstanceStart
+	OperationInstanceStop
+	OperationInstanceRestart
 	OperationCommandExec
 	OperationSnapshotCreate
 	OperationSnapshotRename
@@ -79,27 +79,27 @@ func (t OperationType) Description() string {
 		return "Removing container backup"
 	case OperationConsoleShow:
 		return "Showing console"
-	case OperationContainerCreate:
+	case OperationInstanceCreate:
 		return "Creating container"
-	case OperationContainerUpdate:
+	case OperationInstanceUpdate:
 		return "Updating container"
-	case OperationContainerRename:
+	case OperationInstanceRename:
 		return "Renaming container"
-	case OperationContainerMigrate:
+	case OperationInstanceMigrate:
 		return "Migrating container"
-	case OperationContainerLiveMigrate:
+	case OperationInstanceLiveMigrate:
 		return "Live-migrating container"
-	case OperationContainerFreeze:
+	case OperationInstanceFreeze:
 		return "Freezing container"
-	case OperationContainerUnfreeze:
+	case OperationInstanceUnfreeze:
 		return "Unfreezing container"
-	case OperationContainerDelete:
+	case OperationInstanceDelete:
 		return "Deleting container"
-	case OperationContainerStart:
+	case OperationInstanceStart:
 		return "Starting container"
-	case OperationContainerStop:
+	case OperationInstanceStop:
 		return "Stopping container"
-	case OperationContainerRestart:
+	case OperationInstanceRestart:
 		return "Restarting container"
 	case OperationCommandExec:
 		return "Executing command"
@@ -183,15 +183,15 @@ func (t OperationType) Permission() string {
 		return "operate-containers"
 	case OperationConsoleShow:
 		return "operate-containers"
-	case OperationContainerFreeze:
+	case OperationInstanceFreeze:
 		return "operate-containers"
-	case OperationContainerUnfreeze:
+	case OperationInstanceUnfreeze:
 		return "operate-containers"
-	case OperationContainerStart:
+	case OperationInstanceStart:
 		return "operate-containers"
-	case OperationContainerStop:
+	case OperationInstanceStop:
 		return "operate-containers"
-	case OperationContainerRestart:
+	case OperationInstanceRestart:
 		return "operate-containers"
 	case OperationCommandExec:
 		return "operate-containers"
@@ -206,17 +206,17 @@ func (t OperationType) Permission() string {
 	case OperationSnapshotDelete:
 		return "operate-containers"
 
-	case OperationContainerCreate:
+	case OperationInstanceCreate:
 		return "manage-containers"
-	case OperationContainerUpdate:
+	case OperationInstanceUpdate:
 		return "manage-containers"
-	case OperationContainerRename:
+	case OperationInstanceRename:
 		return "manage-containers"
-	case OperationContainerMigrate:
+	case OperationInstanceMigrate:
 		return "manage-containers"
-	case OperationContainerLiveMigrate:
+	case OperationInstanceLiveMigrate:
 		return "manage-containers"
-	case OperationContainerDelete:
+	case OperationInstanceDelete:
 		return "manage-containers"
 	case OperationSnapshotRestore:
 		return "manage-containers"
