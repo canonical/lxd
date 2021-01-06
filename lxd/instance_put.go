@@ -97,7 +97,7 @@ func containerPut(d *Daemon, r *http.Request) response.Response {
 			return nil
 		}
 
-		opType = db.OperationContainerUpdate
+		opType = db.OperationInstanceUpdate
 	} else {
 		// Snapshot Restore
 		do = func(op *operations.Operation) error {

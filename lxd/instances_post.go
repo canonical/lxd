@@ -109,7 +109,7 @@ func createFromImage(d *Daemon, projectName string, req *api.InstancesPost) resp
 	resources["instances"] = []string{req.Name}
 	resources["containers"] = resources["instances"] // Populate old field name.
 
-	op, err := operations.OperationCreate(d.State(), projectName, operations.OperationClassTask, db.OperationContainerCreate, resources, nil, run, nil, nil)
+	op, err := operations.OperationCreate(d.State(), projectName, operations.OperationClassTask, db.OperationInstanceCreate, resources, nil, run, nil, nil)
 	if err != nil {
 		return response.InternalError(err)
 	}
@@ -151,7 +151,7 @@ func createFromNone(d *Daemon, projectName string, req *api.InstancesPost) respo
 	resources["instances"] = []string{req.Name}
 	resources["containers"] = resources["instances"] // Populate old field name.
 
-	op, err := operations.OperationCreate(d.State(), projectName, operations.OperationClassTask, db.OperationContainerCreate, resources, nil, run, nil, nil)
+	op, err := operations.OperationCreate(d.State(), projectName, operations.OperationClassTask, db.OperationInstanceCreate, resources, nil, run, nil, nil)
 	if err != nil {
 		return response.InternalError(err)
 	}
@@ -355,12 +355,12 @@ func createFromMigration(d *Daemon, projectName string, req *api.InstancesPost) 
 
 	var op *operations.Operation
 	if push {
-		op, err = operations.OperationCreate(d.State(), projectName, operations.OperationClassWebsocket, db.OperationContainerCreate, resources, sink.Metadata(), run, nil, sink.Connect)
+		op, err = operations.OperationCreate(d.State(), projectName, operations.OperationClassWebsocket, db.OperationInstanceCreate, resources, sink.Metadata(), run, nil, sink.Connect)
 		if err != nil {
 			return response.InternalError(err)
 		}
 	} else {
-		op, err = operations.OperationCreate(d.State(), projectName, operations.OperationClassTask, db.OperationContainerCreate, resources, nil, run, nil, nil)
+		op, err = operations.OperationCreate(d.State(), projectName, operations.OperationClassTask, db.OperationInstanceCreate, resources, nil, run, nil, nil)
 		if err != nil {
 			return response.InternalError(err)
 		}
@@ -534,7 +534,7 @@ func createFromCopy(d *Daemon, projectName string, req *api.InstancesPost) respo
 	resources["instances"] = []string{req.Name, req.Source.Source}
 	resources["containers"] = resources["instances"] // Populate old field name.
 
-	op, err := operations.OperationCreate(d.State(), targetProject, operations.OperationClassTask, db.OperationContainerCreate, resources, nil, run, nil, nil)
+	op, err := operations.OperationCreate(d.State(), targetProject, operations.OperationClassTask, db.OperationInstanceCreate, resources, nil, run, nil, nil)
 	if err != nil {
 		return response.InternalError(err)
 	}

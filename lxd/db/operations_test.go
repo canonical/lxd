@@ -15,7 +15,7 @@ func TestOperation(t *testing.T) {
 	tx, cleanup := db.NewTestClusterTx(t)
 	defer cleanup()
 
-	id, err := tx.CreateOperation("default", "abcd", db.OperationContainerCreate)
+	id, err := tx.CreateOperation("default", "abcd", db.OperationInstanceCreate)
 	require.NoError(t, err)
 	assert.Equal(t, int64(1), id)
 
@@ -27,7 +27,7 @@ func TestOperation(t *testing.T) {
 	operation, err := tx.GetOperationByUUID("abcd")
 	require.NoError(t, err)
 	assert.Equal(t, id, operation.ID)
-	assert.Equal(t, db.OperationContainerCreate, operation.Type)
+	assert.Equal(t, db.OperationInstanceCreate, operation.Type)
 
 	uuids, err := tx.GetLocalOperationsUUIDs()
 	require.NoError(t, err)
@@ -45,7 +45,7 @@ func TestOperationNoProject(t *testing.T) {
 	tx, cleanup := db.NewTestClusterTx(t)
 	defer cleanup()
 
-	id, err := tx.CreateOperation("", "abcd", db.OperationContainerCreate)
+	id, err := tx.CreateOperation("", "abcd", db.OperationInstanceCreate)
 	require.NoError(t, err)
 	assert.Equal(t, int64(1), id)
 
@@ -57,7 +57,7 @@ func TestOperationNoProject(t *testing.T) {
 	operation, err := tx.GetOperationByUUID("abcd")
 	require.NoError(t, err)
 	assert.Equal(t, id, operation.ID)
-	assert.Equal(t, db.OperationContainerCreate, operation.Type)
+	assert.Equal(t, db.OperationInstanceCreate, operation.Type)
 
 	uuids, err := tx.GetLocalOperationsUUIDs()
 	require.NoError(t, err)

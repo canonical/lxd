@@ -537,7 +537,7 @@ func (s *migrationSourceWs) Do(state *state.State, migrateOp *operations.Operati
 				state,
 				s.instance.Project(),
 				operations.OperationClassWebsocket,
-				db.OperationContainerLiveMigrate,
+				db.OperationInstanceLiveMigrate,
 				nil,
 				nil,
 				func(op *operations.Operation) error {

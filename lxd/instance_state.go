@@ -87,7 +87,7 @@ func containerStatePut(d *Daemon, r *http.Request) response.Response {
 	var do func(*operations.Operation) error
 	switch shared.InstanceAction(raw.Action) {
 	case shared.Start:
-		opType = db.OperationContainerStart
+		opType = db.OperationInstanceStart
 		do = func(op *operations.Operation) error {
 			c.SetOperation(op)
 			if err = c.Start(raw.Stateful); err != nil {
@@ -96,7 +96,7 @@ func containerStatePut(d *Daemon, r *http.Request) response.Response {
 			return nil
 		}
 	case shared.Stop:
-		opType = db.OperationContainerStop
+		opType = db.OperationInstanceStop
 		if raw.Stateful {
 			do = func(op *operations.Operation) error {
 				c.SetOperation(op)
@@ -136,7 +136,7 @@ func containerStatePut(d *Daemon, r *http.Request) response.Response {
 			}
 		}
 	case shared.Restart:
-		opType = db.OperationContainerRestart
+		opType = db.OperationInstanceRestart
 		do = func(op *operations.Operation) error {
 			c.SetOperation(op)
 			ephemeral := c.IsEphemeral()
@@ -178,7 +178,7 @@ func containerStatePut(d *Daemon, r *http.Request) response.Response {
 			return response.BadRequest(fmt.Errorf("This system doesn't support freezing instances"))
 		}
 
-		opType = db.OperationContainerFreeze
+		opType = db.OperationInstanceFreeze
 		do = func(op *operations.Operation) error {
 			c.SetOperation(op)
 			return c.Freeze()
@@ -188,7 +188,7 @@ func containerStatePut(d *Daemon, r *http.Request) response.Response {
 			return response.BadRequest(fmt.Errorf("This system doesn't support unfreezing instances"))
 		}
 
-		opType = db.OperationContainerUnfreeze
+		opType = db.OperationInstanceUnfreeze
 		do = func(op *operations.Operation) error {
 			c.SetOperation(op)
 			return c.Unfreeze()
