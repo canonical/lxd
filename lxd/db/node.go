@@ -810,7 +810,7 @@ func (c *ClusterTx) GetNodeWithLeastInstances(archs []int) (string, error) {
 
 		// Fetch the number of containers currently being created on this node.
 		pending, err := query.Count(
-			c.tx, "operations", "node_id=? AND type=?", node.ID, OperationContainerCreate)
+			c.tx, "operations", "node_id=? AND type=?", node.ID, OperationInstanceCreate)
 		if err != nil {
 			return "", errors.Wrap(err, "Failed to get pending instances count")
 		}
