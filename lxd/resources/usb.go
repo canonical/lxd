@@ -64,6 +64,7 @@ func GetUSB() (*api.ResourcesUSB, error) {
 	usbid.Load()
 
 	usb := api.ResourcesUSB{}
+	usb.Devices = []api.ResourcesUSBDevice{}
 
 	if !sysfsExists(sysBusUSB) {
 		return &usb, nil
