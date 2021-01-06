@@ -51,4 +51,5 @@ type Network interface {
 	Update(newNetwork api.NetworkPut, targetNode string, clientType request.ClientType) error
 	HandleHeartbeat(heartbeatData *cluster.APIHeartbeat) error
 	Delete(clientType request.ClientType) error
+	handleDependencyChange(netName string, netConfig map[string]string, changedKeys []string) error
 }
