@@ -166,6 +166,16 @@ func (o *OVN) LogicalRouterSNATAdd(routerName OVNRouter, intNet *net.IPNet, extI
 	return nil
 }
 
+// LogicalRouterDNATSNATDeleteAll deletes all DNAT_AND_SNAT rules from a logical router.
+func (o *OVN) LogicalRouterDNATSNATDeleteAll(routerName OVNRouter) error {
+	_, err := o.nbctl("--if-exists", "lr-nat-del", string(routerName), "dnat_and_snat")
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
 // LogicalRouterSNATDeleteAll deletes all SNAT rules from a logical router.
 func (o *OVN) LogicalRouterSNATDeleteAll(routerName OVNRouter) error {
 	_, err := o.nbctl("--if-exists", "lr-nat-del", string(routerName), "snat")
