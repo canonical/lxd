@@ -30,7 +30,8 @@ type ovnNet interface {
 	network.Network
 
 	InstanceDevicePortValidateExternalRoutes(deviceInstance instance.Instance, deviceName string, externalRoutes []*net.IPNet) error
-	InstanceDevicePortAdd(instanceUUID string, instanceName string, deviceName string, mac net.HardwareAddr, ips []net.IP, internalRoutes []*net.IPNet, externalRoutes []*net.IPNet) (openvswitch.OVNSwitchPort, error)
+	InstanceDevicePortConfigParse(deviceConfig map[string]string) (net.HardwareAddr, []net.IP, []*net.IPNet, []*net.IPNet, error)
+	InstanceDevicePortAdd(uplinkConfig map[string]string, instanceUUID string, instanceName string, deviceName string, mac net.HardwareAddr, ips []net.IP, internalRoutes []*net.IPNet, externalRoutes []*net.IPNet) (openvswitch.OVNSwitchPort, error)
 	InstanceDevicePortDelete(instanceUUID string, deviceName string, ovsExternalOVNPort openvswitch.OVNSwitchPort, internalRoutes []*net.IPNet, externalRoutes []*net.IPNet) error
 	InstanceDevicePortDynamicIPs(instanceUUID string, deviceName string) ([]net.IP, error)
 }
@@ -211,6 +212,13 @@ func (d *nicOVN) Start() (*deviceConfig.RunConfig, error) {
 	saveData := make(map[string]string)
 	saveData["host_name"] = d.config["host_name"]
 
+	// Load uplink network config.
+	uplinkNetworkName := d.network.Config()["network"]
+	_, uplink, _, err := d.state.Cluster.GetNetworkInAnyState(project.Default, uplinkNetworkName)
+	if err != nil {
+		return nil, errors.Wrapf(err, "Failed to load uplink network %q", uplinkNetworkName)
+	}
+
 	var peerName string
 
 	// Create veth pair and configure the peer end with custom hwaddr and mtu if supplied.
@@ -249,51 +257,15 @@ func (d *nicOVN) Start() (*deviceConfig.RunConfig, error) {
 		return nil, err
 	}
 
-	mac, err := net.ParseMAC(d.config["hwaddr"])
+	// Parse NIC config into structures used by OVN network's instance port functions.
+	mac, ips, internalRoutes, externalRoutes, err := d.network.InstanceDevicePortConfigParse(d.config)
 	if err != nil {
 		return nil, err
 	}
 
-	ips := []net.IP{}
-	for _, key := range []string{"ipv4.address", "ipv6.address"} {
-		if d.config[key] == "" {
-			continue
-		}
-
-		ip := net.ParseIP(d.config[key])
-		if ip == nil {
-			return nil, fmt.Errorf("Invalid %s value %q", key, d.config[key])
-		}
-		ips = append(ips, ip)
-	}
-
-	internalRoutes := []*net.IPNet{}
-	for _, key := range []string{"ipv4.routes", "ipv6.routes"} {
-		if d.config[key] == "" {
-			continue
-		}
-
-		internalRoutes, err = network.SubnetParseAppend(internalRoutes, strings.Split(d.config[key], ",")...)
-		if err != nil {
-			return nil, errors.Wrapf(err, "Invalid %q value", key)
-		}
-	}
-
-	externalRoutes := []*net.IPNet{}
-	for _, key := range []string{"ipv4.routes.external", "ipv6.routes.external"} {
-		if d.config[key] == "" {
-			continue
-		}
-
-		externalRoutes, err = network.SubnetParseAppend(externalRoutes, strings.Split(d.config[key], ",")...)
-		if err != nil {
-			return nil, errors.Wrapf(err, "Invalid %q value", key)
-		}
-	}
-
 	// Add new OVN logical switch port for instance.
 	instanceUUID := d.inst.LocalConfig()["volatile.uuid"]
-	logicalPortName, err := d.network.InstanceDevicePortAdd(instanceUUID, d.inst.Name(), d.name, mac, ips, internalRoutes, externalRoutes)
+	logicalPortName, err := d.network.InstanceDevicePortAdd(uplink.Config, instanceUUID, d.inst.Name(), d.name, mac, ips, internalRoutes, externalRoutes)
 	if err != nil {
 		return nil, errors.Wrapf(err, "Failed adding OVN port")
 	}
