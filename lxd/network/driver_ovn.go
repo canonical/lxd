@@ -2291,7 +2291,7 @@ func (n *ovn) InstanceDevicePortValidateExternalRoutes(deviceInstance instance.I
 }
 
 // InstanceDevicePortAdd adds an instance device port to the internal logical switch and returns the port name.
-func (n *ovn) InstanceDevicePortAdd(instanceUUID string, instanceName string, deviceName string, mac net.HardwareAddr, ips []net.IP, internalRoutes []*net.IPNet, externalRoutes []*net.IPNet) (openvswitch.OVNSwitchPort, error) {
+func (n *ovn) InstanceDevicePortAdd(uplinkConfig map[string]string, instanceUUID string, instanceName string, deviceName string, mac net.HardwareAddr, ips []net.IP, internalRoutes []*net.IPNet, externalRoutes []*net.IPNet) (openvswitch.OVNSwitchPort, error) {
 	if instanceUUID == "" {
 		return "", fmt.Errorf("Instance UUID is required")
 	}
@@ -2304,12 +2304,6 @@ func (n *ovn) InstanceDevicePortAdd(instanceUUID string, instanceName string, de
 	client, err := n.getClient()
 	if err != nil {
 		return "", err
-	}
-
-	// Load uplink network config.
-	_, uplink, _, err := n.state.Cluster.GetNetworkInAnyState(project.Default, n.config["network"])
-	if err != nil {
-		return "", errors.Wrapf(err, "Failed to load uplink network %q", n.config["network"])
 	}
 
 	dhcpv4Subnet := n.DHCPv4Subnet()
@@ -2407,7 +2401,7 @@ func (n *ovn) InstanceDevicePortAdd(instanceUUID string, instanceName string, de
 	revert.Add(func() { client.LogicalSwitchPortDeleteDNS(n.getIntSwitchName(), dnsUUID) })
 
 	// Publish NIC's IPs on uplink network if NAT is disabled and using l2proxy ingress mode on uplink.
-	if shared.StringInSlice(uplink.Config["ovn.ingress_mode"], []string{"l2proxy", ""}) {
+	if shared.StringInSlice(uplinkConfig["ovn.ingress_mode"], []string{"l2proxy", ""}) {
 		for _, k := range []string{"ipv4.nat", "ipv6.nat"} {
 			if shared.IsTrue(n.config[k]) {
 				continue
@@ -2476,7 +2470,7 @@ func (n *ovn) InstanceDevicePortAdd(instanceUUID string, instanceName string, de
 		// knowledge this is the only way to get the OVN router to respond to ARP/NDP requests for IPs that
 		// it doesn't actually have). However we have to add each IP in the external route individually as
 		// DNAT doesn't support whole subnets.
-		if shared.StringInSlice(uplink.Config["ovn.ingress_mode"], []string{"l2proxy", ""}) {
+		if shared.StringInSlice(uplinkConfig["ovn.ingress_mode"], []string{"l2proxy", ""}) {
 			err = SubnetIterate(externalRoute, func(ip net.IP) error {
 				err = client.LogicalRouterDNATSNATAdd(n.getRouterName(), ip, ip, true, true)
 				if err != nil {
