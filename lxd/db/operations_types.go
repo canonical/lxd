@@ -66,41 +66,41 @@ func (t OperationType) Description() string {
 	case OperationClusterJoin:
 		return "Joining cluster"
 	case OperationBackupCreate:
-		return "Backing up container"
+		return "Backing up instance"
 	case OperationBackupRename:
-		return "Renaming container backup"
+		return "Renaming instance backup"
 	case OperationBackupRestore:
 		return "Restoring backup"
 	case OperationBackupRemove:
-		return "Removing container backup"
+		return "Removing instance backup"
 	case OperationConsoleShow:
 		return "Showing console"
 	case OperationInstanceCreate:
-		return "Creating container"
+		return "Creating instance"
 	case OperationInstanceUpdate:
-		return "Updating container"
+		return "Updating instance"
 	case OperationInstanceRename:
-		return "Renaming container"
+		return "Renaming instance"
 	case OperationInstanceMigrate:
-		return "Migrating container"
+		return "Migrating instance"
 	case OperationInstanceLiveMigrate:
-		return "Live-migrating container"
+		return "Live-migrating instance"
 	case OperationInstanceFreeze:
-		return "Freezing container"
+		return "Freezing instance"
 	case OperationInstanceUnfreeze:
-		return "Unfreezing container"
+		return "Unfreezing instance"
 	case OperationInstanceDelete:
-		return "Deleting container"
+		return "Deleting instance"
 	case OperationInstanceStart:
-		return "Starting container"
+		return "Starting instance"
 	case OperationInstanceStop:
-		return "Stopping container"
+		return "Stopping instance"
 	case OperationInstanceRestart:
-		return "Restarting container"
+		return "Restarting instance"
 	case OperationCommandExec:
 		return "Executing command"
 	case OperationSnapshotCreate:
-		return "Snapshotting container"
+		return "Snapshotting instance"
 	case OperationSnapshotRename:
 		return "Renaming snapshot"
 	case OperationSnapshotRestore:
