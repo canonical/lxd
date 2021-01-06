@@ -2726,3 +2726,22 @@ func (n *ovn) uplinkHasIngressRoutedAnycastIPv4(uplink *api.Network) bool {
 func (n *ovn) uplinkHasIngressRoutedAnycastIPv6(uplink *api.Network) bool {
 	return shared.IsTrue(uplink.Config["ipv6.routes.anycast"]) && uplink.Config["ovn.ingress_mode"] == "routed"
 }
+
+// handleDependencyChange applies changes from uplink network if specific watched keys have changed.
+func (n *ovn) handleDependencyChange(netName string, netConfig map[string]string, changedKeys []string) error {
+	for _, k := range []string{"dns.nameservers"} {
+		if shared.StringInSlice(k, changedKeys) {
+			n.logger.Debug("Applying changes from uplink network", log.Ctx{"uplink": netName})
+
+			// Re-setup logical network in order to apply uplink changes.
+			err := n.setup(true)
+			if err != nil {
+				return err
+			}
+
+			return nil // Only run setup once per notification (all changes will be applied).
+		}
+	}
+
+	return nil
+}
