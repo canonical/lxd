@@ -2125,6 +2125,54 @@ func (n *ovn) getInstanceDevicePortName(instanceUUID string, deviceName string) 
 	return openvswitch.OVNSwitchPort(fmt.Sprintf("%s-%s-%s", n.getIntSwitchInstancePortPrefix(), instanceUUID, deviceName))
 }
 
+// InstanceDevicePortConfigParse parses the instance NIC device config and returns MAC address, static IPs,
+// internal routes and external routes.
+func (n *ovn) InstanceDevicePortConfigParse(deviceConfig map[string]string) (net.HardwareAddr, []net.IP, []*net.IPNet, []*net.IPNet, error) {
+	mac, err := net.ParseMAC(deviceConfig["hwaddr"])
+	if err != nil {
+		return nil, nil, nil, nil, err
+	}
+
+	ips := []net.IP{}
+	for _, key := range []string{"ipv4.address", "ipv6.address"} {
+		if deviceConfig[key] == "" {
+			continue
+		}
+
+		ip := net.ParseIP(deviceConfig[key])
+		if ip == nil {
+			return nil, nil, nil, nil, fmt.Errorf("Invalid %s value %q", key, deviceConfig[key])
+		}
+		ips = append(ips, ip)
+	}
+
+	internalRoutes := []*net.IPNet{}
+	for _, key := range []string{"ipv4.routes", "ipv6.routes"} {
+		if deviceConfig[key] == "" {
+			continue
+		}
+
+		internalRoutes, err = SubnetParseAppend(internalRoutes, strings.Split(deviceConfig[key], ",")...)
+		if err != nil {
+			return nil, nil, nil, nil, errors.Wrapf(err, "Invalid %q value", key)
+		}
+	}
+
+	externalRoutes := []*net.IPNet{}
+	for _, key := range []string{"ipv4.routes.external", "ipv6.routes.external"} {
+		if deviceConfig[key] == "" {
+			continue
+		}
+
+		externalRoutes, err = SubnetParseAppend(externalRoutes, strings.Split(deviceConfig[key], ",")...)
+		if err != nil {
+			return nil, nil, nil, nil, errors.Wrapf(err, "Invalid %q value", key)
+		}
+	}
+
+	return mac, ips, internalRoutes, externalRoutes, nil
+}
+
 // InstanceDevicePortValidateExternalRoutes validates the external routes for an OVN instance port.
 func (n *ovn) InstanceDevicePortValidateExternalRoutes(deviceInstance instance.Instance, deviceName string, portExternalRoutes []*net.IPNet) error {
 	var err error
