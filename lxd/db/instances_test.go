@@ -198,7 +198,7 @@ func TestInstanceList(t *testing.T) {
 	require.NoError(t, err)
 
 	var instances []db.Instance
-	err = cluster.InstanceList(func(dbInst db.Instance, p api.Project, profiles []api.Profile) error {
+	err = cluster.InstanceList(nil, func(dbInst db.Instance, p api.Project, profiles []api.Profile) error {
 		dbInst.Config = db.ExpandInstanceConfig(dbInst.Config, profiles)
 		dbInst.Devices = db.ExpandInstanceDevices(deviceConfig.NewDevices(dbInst.Devices), profiles).CloneNative()
 		instances = append(instances, dbInst)
