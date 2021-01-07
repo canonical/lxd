@@ -455,17 +455,6 @@ func (d *nicSRIOV) networkGetVirtFuncInfo(devName string, vfID int) (VirtFuncInf
 	return vf, nil
 }
 
-// networkGetVFDevicePCISlot returns the PCI slot name for a network virtual function device.
-func (d *nicSRIOV) networkGetVFDevicePCISlot(vfID string) (pci.Device, error) {
-	ueventFile := fmt.Sprintf("/sys/class/net/%s/device/virtfn%s/uevent", d.config["parent"], vfID)
-	pciDev, err := pci.ParseUeventFile(ueventFile)
-	if err != nil {
-		return pciDev, err
-	}
-
-	return pciDev, nil
-}
-
 // restoreSriovParent restores SR-IOV parent device settings when removed from an instance using the
 // volatile data that was stored when the device was first added with setupSriovParent().
 func (d *nicSRIOV) restoreSriovParent(volatile map[string]string) error {
