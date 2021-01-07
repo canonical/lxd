@@ -322,17 +322,22 @@ SELECT instances.name, nodes.id, nodes.address, nodes.heartbeat
 }
 
 // InstanceList loads all instances across all projects and for each instance runs the instanceFunc passing in the
-// instance and it's project and profiles.
-func (c *Cluster) InstanceList(instanceFunc func(inst Instance, project api.Project, profiles []api.Profile) error) error {
+// instance and it's project and profiles. Accepts optional filter argument to specify a subset of instances.
+func (c *Cluster) InstanceList(filter *InstanceFilter, instanceFunc func(inst Instance, project api.Project, profiles []api.Profile) error) error {
 	var instances []Instance
 	projectMap := map[string]api.Project{}
 	projectHasProfiles := map[string]bool{}
 	profilesByProjectAndName := map[string]map[string]Profile{}
 
+	// Default to listing all instances if no filter provided.
+	if filter == nil {
+		filter = &InstanceFilter{Type: instancetype.Any}
+	}
+
 	// Retrieve required info from the database in single transaction for performance.
 	err := c.Transaction(func(tx *ClusterTx) error {
 		var err error
-		instances, err = tx.GetInstances(InstanceFilter{Type: instancetype.Any})
+		instances, err = tx.GetInstances(*filter)
 		if err != nil {
 			return errors.Wrap(err, "Failed loading instances")
 		}
@@ -520,16 +525,16 @@ func (c *ClusterTx) UpdateInstanceNode(project, oldName, newName, newNode string
 	return nil
 }
 
-// GetLocalInstancesInProject retuurns all instances of the given type on the
-// local node within the given project.
-func (c *ClusterTx) GetLocalInstancesInProject(project string, instanceType instancetype.Type) ([]Instance, error) {
+// GetLocalInstancesInProject retuurns all instances of the given type on the local node within the given project.
+// If projectName is empty then all instances in all projects are returned.
+func (c *ClusterTx) GetLocalInstancesInProject(projectName string, instanceType instancetype.Type) ([]Instance, error) {
 	node, err := c.GetLocalNodeName()
 	if err != nil {
 		return nil, errors.Wrap(err, "Local node name")
 	}
 
 	filter := InstanceFilter{
-		Project: project,
+		Project: projectName,
 		Node:    node,
 		Type:    instanceType,
 	}
