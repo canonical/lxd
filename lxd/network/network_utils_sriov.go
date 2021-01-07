@@ -99,29 +99,27 @@ func SRIOVGetHostDevicesInUse(s *state.State) (map[string]struct{}, error) {
 
 // SRIOVFindFreeVirtualFunction looks on the specified parent device for an unused virtual function.
 // Returns the name of the interface and virtual function index ID if found, error if not.
-func SRIOVFindFreeVirtualFunction(s *state.State, m deviceConfig.Device) (string, int, error) {
+func SRIOVFindFreeVirtualFunction(s *state.State, parentDev string) (string, int, error) {
 	reservedDevices, err := SRIOVGetHostDevicesInUse(s)
 	if err != nil {
 		return "", 0, errors.Wrapf(err, "Failed getting in use device list")
 	}
 
-	parent := m["parent"]
-
-	sriovNumVFs := fmt.Sprintf("/sys/class/net/%s/device/sriov_numvfs", parent)
-	sriovTotalVFs := fmt.Sprintf("/sys/class/net/%s/device/sriov_totalvfs", parent)
+	sriovNumVFs := fmt.Sprintf("/sys/class/net/%s/device/sriov_numvfs", parentDev)
+	sriovTotalVFs := fmt.Sprintf("/sys/class/net/%s/device/sriov_totalvfs", parentDev)
 
 	// Verify that this is indeed a SR-IOV enabled device.
 	if !shared.PathExists(sriovTotalVFs) {
-		return "", 0, fmt.Errorf("Parent device %q doesn't support SR-IOV", parent)
+		return "", 0, fmt.Errorf("Parent device %q doesn't support SR-IOV", parentDev)
 	}
 
 	// Get parent dev_port and dev_id values.
-	pfDevPort, err := ioutil.ReadFile(fmt.Sprintf("/sys/class/net/%s/dev_port", parent))
+	pfDevPort, err := ioutil.ReadFile(fmt.Sprintf("/sys/class/net/%s/dev_port", parentDev))
 	if err != nil {
 		return "", 0, err
 	}
 
-	pfDevID, err := ioutil.ReadFile(fmt.Sprintf("/sys/class/net/%s/dev_id", parent))
+	pfDevID, err := ioutil.ReadFile(fmt.Sprintf("/sys/class/net/%s/dev_id", parentDev))
 	if err != nil {
 		return "", 0, err
 	}
@@ -149,7 +147,7 @@ func SRIOVFindFreeVirtualFunction(s *state.State, m deviceConfig.Device) (string
 	}
 
 	// Ensure parent is up (needed for Intel at least).
-	_, err = shared.RunCommand("ip", "link", "set", "dev", parent, "up")
+	_, err = shared.RunCommand("ip", "link", "set", "dev", parentDev, "up")
 	if err != nil {
 		return "", 0, err
 	}
@@ -158,12 +156,12 @@ func SRIOVFindFreeVirtualFunction(s *state.State, m deviceConfig.Device) (string
 	nicName := ""
 	vfID := 0
 	for i := 0; i < sriovNum; i++ {
-		if !shared.PathExists(fmt.Sprintf("/sys/class/net/%s/device/virtfn%d/net", parent, i)) {
+		if !shared.PathExists(fmt.Sprintf("/sys/class/net/%s/device/virtfn%d/net", parentDev, i)) {
 			continue
 		}
 
 		// Check if VF is already in use.
-		empty, err := shared.PathIsEmpty(fmt.Sprintf("/sys/class/net/%s/device/virtfn%d/net", parent, i))
+		empty, err := shared.PathIsEmpty(fmt.Sprintf("/sys/class/net/%s/device/virtfn%d/net", parentDev, i))
 		if err != nil {
 			return "", 0, err
 		}
@@ -171,7 +169,7 @@ func SRIOVFindFreeVirtualFunction(s *state.State, m deviceConfig.Device) (string
 			continue
 		}
 
-		vfListPath := fmt.Sprintf("/sys/class/net/%s/device/virtfn%d/net", parent, i)
+		vfListPath := fmt.Sprintf("/sys/class/net/%s/device/virtfn%d/net", parentDev, i)
 		nicName, err = sriovGetFreeVFInterface(reservedDevices, vfListPath, pfDevID, pfDevPort)
 		if err != nil {
 			return "", 0, err
@@ -186,7 +184,7 @@ func SRIOVFindFreeVirtualFunction(s *state.State, m deviceConfig.Device) (string
 
 	if nicName == "" {
 		if sriovNum == sriovTotal {
-			return "", 0, fmt.Errorf("All virtual functions of sriov device %q seem to be in use", parent)
+			return "", 0, fmt.Errorf("All virtual functions on parent device %q seem to be in use", parentDev)
 		}
 
 		// Bump the number of VFs to the maximum.
@@ -197,7 +195,7 @@ func SRIOVFindFreeVirtualFunction(s *state.State, m deviceConfig.Device) (string
 
 		// Use next free VF index.
 		for i := sriovNum + 1; i < sriovTotal; i++ {
-			vfListPath := fmt.Sprintf("/sys/class/net/%s/device/virtfn%d/net", parent, i)
+			vfListPath := fmt.Sprintf("/sys/class/net/%s/device/virtfn%d/net", parentDev, i)
 			nicName, err = sriovGetFreeVFInterface(reservedDevices, vfListPath, pfDevID, pfDevPort)
 			if err != nil {
 				return "", 0, err
