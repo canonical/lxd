@@ -329,13 +329,13 @@ func (d *nicSRIOV) setupSriovParent(vfDevice string, vfID int, volatile map[stri
 
 	if d.inst.Type() == instancetype.Container {
 		// Bind VF device onto the host so that the settings will take effect.
+		// This will remove the VF interface temporarily, and it will re-appear shortly after.
 		err = pci.DeviceProbe(vfPCIDev)
 		if err != nil {
 			return vfPCIDev, err
 		}
 
-		// Wait for VF driver to be reloaded, this will remove the VF interface temporarily, and
-		// it will re-appear shortly after. Unfortunately the time between sending the bind event
+		// Wait for VF driver to be reloaded. Unfortunately the time between sending the bind event
 		// to the nic and it actually appearing on the host is non-zero, so we need to watch and wait,
 		// otherwise next steps of applying settings to interface will fail.
 		err = network.InterfaceBindWait(volatile["host_name"])
