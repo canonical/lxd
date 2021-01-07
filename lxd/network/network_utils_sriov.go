@@ -12,6 +12,7 @@ import (
 
 	"github.com/lxc/lxd/lxd/db"
 	deviceConfig "github.com/lxc/lxd/lxd/device/config"
+	"github.com/lxc/lxd/lxd/device/pci"
 	"github.com/lxc/lxd/lxd/instance/instancetype"
 	"github.com/lxc/lxd/lxd/state"
 	"github.com/lxc/lxd/shared"
@@ -251,4 +252,15 @@ func sriovGetFreeVFInterface(reservedDevices map[string]struct{}, vfListPath str
 	}
 
 	return "", nil
+}
+
+// SRIOVGetVFDevicePCISlot returns the PCI slot name for a network virtual function device.
+func SRIOVGetVFDevicePCISlot(parentDev string, vfID string) (pci.Device, error) {
+	ueventFile := fmt.Sprintf("/sys/class/net/%s/device/virtfn%s/uevent", parentDev, vfID)
+	pciDev, err := pci.ParseUeventFile(ueventFile)
+	if err != nil {
+		return pciDev, err
+	}
+
+	return pciDev, nil
 }
