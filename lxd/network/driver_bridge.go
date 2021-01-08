@@ -61,7 +61,7 @@ func (n *bridge) DBType() db.NetworkType {
 }
 
 // checkClusterWideMACSafe returns whether it is safe to use the same MAC address for the bridge interface on all
-// cluster nodes. It is not suitable to use a static MAC address when "bridge.external_interfaces" is non-empty an
+// cluster nodes. It is not suitable to use a static MAC address when "bridge.external_interfaces" is non-empty and
 // the bridge interface has no IPv4 or IPv6 address set. This is because in a clustered environment the same bridge
 // config is applied to all nodes, and if the bridge is being used to connect multiple nodes to the same network
 // segment it would cause MAC conflicts to use the the same MAC on all nodes. If an IP address is specified then
@@ -580,12 +580,12 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 		var seedNodeID int64
 
 		if n.checkClusterWideMACSafe(n.config) != nil {
-			// Use cluster node's ID to g enerate a stable per-node & network derived random MAC in fan
-			// mode or when cluster-wide MAC addresses are unsafe.
+			// If not safe to use a cluster wide MAC or in in fan mode, then use cluster node's ID to
+			// generate a stable per-node & network derived random MAC.
 			seedNodeID = n.state.Cluster.GetNodeID()
 		} else {
-			// Use a static cluster node of 0 to generate a stable per-network derived random MAC if
-			// safe to do so.
+			// If safe to use a cluster wide MAC, then use a static cluster node of 0 to generate a
+			// stable per-network derived random MAC.
 			seedNodeID = 0
 		}
 
@@ -596,9 +596,10 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 		}
 
 		// Generate the random seed, this uses the server certificate fingerprint (to ensure that multiple
-		// standalone nodes on the same external network don't generate the same MAC for their networks).
-		// It relies on the certificate being the same for all nodes in a cluster to allow the same MAC to
-		// be generated on each bridge interface in the network (if safe to do so).
+		// standalone nodes with the same network ID connected to the same external network don't generate
+		// the same MAC for their networks). It relies on the certificate being the same for all nodes in a
+		// cluster to allow the same MAC to be generated on each bridge interface in the network when
+		// seedNodeID is 0 (when safe to do so).
 		seed := fmt.Sprintf("%s.%d.%d", cert.Fingerprint(), seedNodeID, n.ID())
 
 		// Generate a hash from the randSourceNodeID and network ID to use as seed for random MAC.
