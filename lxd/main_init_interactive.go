@@ -666,7 +666,7 @@ they otherwise would.
 	}
 
 	// Network listener
-	if config.Cluster == nil && cli.AskBool("Would you like LXD to be available over the network? (yes/no) [default=no]: ", "no") {
+	if config.Cluster == nil && cli.AskBool("Would you like the LXD server to be available over the network? (yes/no) [default=no]: ", "no") {
 		isIPAddress := func(s string) error {
 			if s != "all" && net.ParseIP(s) == nil {
 				return fmt.Errorf("'%s' is not an IP address", s)
