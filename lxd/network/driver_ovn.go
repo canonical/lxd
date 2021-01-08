@@ -8,6 +8,7 @@ import (
 	"math/big"
 	"math/rand"
 	"net"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -1880,24 +1881,71 @@ func (n *ovn) setup(update bool) error {
 }
 
 // addChassisGroupEntry adds an entry for the local OVS chassis to the OVN logical network's chassis group.
+// The chassis priority value is a stable-random value derived from chassis group name and node ID. This is so we
+// don't end up using the same chassis for the primary uplink chassis for all OVN networks in a cluster.
 func (n *ovn) addChassisGroupEntry() error {
 	client, err := n.getClient()
 	if err != nil {
 		return err
 	}
 
-	// Add local chassis to chassis group.
+	// Get local chassis ID for chassis group.
 	ovs := openvswitch.NewOVS()
 	chassisID, err := ovs.ChassisID()
 	if err != nil {
 		return errors.Wrapf(err, "Failed getting OVS Chassis ID")
 	}
 
-	var priority uint = ovnChassisPriorityMax
-	err = client.ChassisGroupChassisAdd(n.getChassisGroupName(), chassisID, priority)
+	// Use the FNV-1a hash algorithm with the chassis group name for use as random seed.
+	// This way each OVN network will have its own random seed, so that we don't end up using the same chassis
+	// for the primary uplink chassis for all OVN networks in a cluster.
+	chassisGroupName := n.getChassisGroupName()
+	hash := fnv.New64a()
+	_, err = io.WriteString(hash, string(chassisGroupName))
 	if err != nil {
-		return errors.Wrapf(err, "Failed adding OVS chassis %q with priority %d to chassis group %q", chassisID, priority, n.getChassisGroupName())
+		return errors.Wrapf(err, "Failed generating chassis group priority hash seed")
 	}
+
+	// Create random number generator based on stable seed.
+	r := rand.New(rand.NewSource(int64(hash.Sum64())))
+
+	// Get all nodes in cluster.
+	ourNodeID := int(n.state.Cluster.GetNodeID())
+	var nodeIDs []int
+	err = n.state.Cluster.Transaction(func(tx *db.ClusterTx) error {
+		nodes, err := tx.GetNodes()
+		if err != nil {
+			return errors.Wrapf(err, "Failed getting node list for adding chassis group entry")
+		}
+
+		for _, node := range nodes {
+			nodeIDs = append(nodeIDs, int(node.ID))
+		}
+
+		return nil
+	})
+	if err != nil {
+		return err
+	}
+
+	// Sort the nodes based on ID for stable priority generation.
+	sort.Sort(sort.IntSlice(nodeIDs))
+
+	// Generate a random priority from the seed for each node until we find a match for our node ID.
+	// In this way the chassis priority for this node will be set to a per-node stable random value.
+	var priority uint
+	for _, nodeID := range nodeIDs {
+		priority = uint(r.Intn(ovnChassisPriorityMax + 1))
+		if nodeID == ourNodeID {
+			break
+		}
+	}
+
+	err = client.ChassisGroupChassisAdd(chassisGroupName, chassisID, priority)
+	if err != nil {
+		return errors.Wrapf(err, "Failed adding OVS chassis %q with priority %d to chassis group %q", chassisID, priority, chassisGroupName)
+	}
+	n.logger.Debug("Chassis group entry added", log.Ctx{"chassisGroup": chassisGroupName, "memberID": ourNodeID, "priority": priority})
 
 	return nil
 }
