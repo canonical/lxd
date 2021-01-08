@@ -339,8 +339,8 @@ parent                  | string  | -                 | yes      | yes     | The
 network                 | string  | -                 | yes      | no      | The LXD network to link device to (instead of parent)
 name                    | string  | kernel assigned   | no       | no      | The name of the interface inside the instance
 mtu                     | integer | parent MTU        | no       | yes     | The MTU of the new interface
-hwaddr                  | string  | randomly assigned | no       | no      | TThe MAC address of the new interface
-vlan                    | integer | -                 | no       | no      | TThe VLAN ID to attach to
+hwaddr                  | string  | randomly assigned | no       | no      | The MAC address of the new interface
+vlan                    | integer | -                 | no       | no      | The VLAN ID to attach to
 maas.subnet.ipv4        | string  | -                 | no       | yes     | MAAS IPv4 subnet to register the instance in
 maas.subnet.ipv6        | string  | -                 | no       | yes     | MAAS IPv6 subnet to register the instance in
 boot.priority           | integer | -                 | no       | no      | Boot priority for VMs (higher boots first)
