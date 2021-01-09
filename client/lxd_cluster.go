@@ -2,6 +2,7 @@ package lxd
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/lxc/lxd/shared/api"
 )
@@ -75,7 +76,14 @@ func (r *ProtocolLXD) GetClusterMemberNames() ([]string, error) {
 		return nil, err
 	}
 
-	return urls, nil
+	// Parse it
+	names := []string{}
+	for _, url := range urls {
+		fields := strings.Split(url, "/cluster/members/")
+		names = append(names, fields[len(fields)-1])
+	}
+
+	return names, nil
 }
 
 // GetClusterMembers returns the current members of the cluster
