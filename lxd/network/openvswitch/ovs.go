@@ -25,11 +25,7 @@ type OVS struct{}
 // Installed returns true if OVS tools are installed.
 func (o *OVS) Installed() bool {
 	_, err := exec.LookPath("ovs-vsctl")
-	if err != nil {
-		return false
-	}
-
-	return true
+	return err == nil
 }
 
 // BridgeExists returns true if OVS bridge exists.
