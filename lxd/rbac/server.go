@@ -173,7 +173,7 @@ func (r *Server) StartStatusCheck() {
 				// For other errors we assume a server restart and give it a few seconds.
 				resp.Body.Close()
 				logger.Debugf("RBAC server disconnected, re-connecting. (code=%v)", resp.StatusCode)
-				time.Sleep(10)
+				time.Sleep(5 * time.Second)
 				continue
 			}
 
@@ -181,7 +181,7 @@ func (r *Server) StartStatusCheck() {
 			resp.Body.Close()
 			if err != nil {
 				logger.Errorf("Failed to parse RBAC response, re-trying: %v", err)
-				time.Sleep(10)
+				time.Sleep(5 * time.Second)
 				continue
 			}
 
