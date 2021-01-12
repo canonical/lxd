@@ -451,12 +451,20 @@ func internalImportFromRecovery(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	// If instance isn't running, then unmount instance volume to reset the mount and any left over ref
-	// counters back its non-running state.
-	if !inst.IsRunning() {
+	if inst.IsRunning() {
+		// If the instance is running, then give the instance a chance to regenerate its config file, as
+		// the internalImport function will have cleared its log directory (which contains the conf file).
+		// This allows functionality that relies on a config file to continue after the recovery.
+		err = inst.SaveConfigFile()
+		if err != nil {
+			return response.SmartError(errors.Wrapf(err, "Failed regenerating instance config file"))
+		}
+	} else {
+		// If instance isn't running, then unmount instance volume to reset the mount and any left over
+		// reference counters back its non-running state.
 		_, err = pool.UnmountInstance(inst, nil)
 		if err != nil {
-			return response.SmartError(err)
+			return response.SmartError(errors.Wrapf(err, "Failed unmounting instance"))
 		}
 	}
 
