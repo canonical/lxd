@@ -27,6 +27,9 @@ test_container_import() {
     ! lxd import ctImport || false
     # Import without killing the running instance to test restoring control plane after DB corruption.
     lxd import ctImport --force
+
+    # Check exec works after forced import while running (to check config file is regenerated).
+    lxc exec ctImport -- date
     kill_lxc "${pid}"
     lxd sql global "PRAGMA foreign_keys=ON; DELETE FROM instances WHERE name='ctImport'"
     lxd sql global "PRAGMA foreign_keys=ON; DELETE FROM storage_volumes WHERE name='ctImport'"
