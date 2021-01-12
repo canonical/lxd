@@ -1255,9 +1255,10 @@ func (d *qemu) RegisterDevices() {
 	}
 }
 
-// SaveConfigFile is not used by VMs.
+// SaveConfigFile is not used by VMs because the Qemu config file is generated at start up and is not needed
+// after that, so doesn't need to support being regenerated.
 func (d *qemu) SaveConfigFile() error {
-	return instance.ErrNotImplemented
+	return nil
 }
 
 // OnHook is the top-level hook handler.
