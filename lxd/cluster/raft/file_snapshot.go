@@ -409,11 +409,11 @@ func (s *FileSnapshotSink) Close() error {
 
 	if runtime.GOOS != "windows" { //skipping fsync for directory entry edits on Windows, only needed for *nix style file systems
 		parentFH, err := os.Open(s.parentDir)
-		defer parentFH.Close()
 		if err != nil {
 			s.logger.Printf("[ERR] snapshot: Failed to open snapshot parent directory %v, error: %v", s.parentDir, err)
 			return err
 		}
+		defer parentFH.Close()
 
 		if err = parentFH.Sync(); err != nil {
 			s.logger.Printf("[ERR] snapshot: Failed syncing parent directory %v, error: %v", s.parentDir, err)
