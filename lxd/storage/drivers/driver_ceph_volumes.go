@@ -1063,7 +1063,10 @@ func (d *ceph) UnmountVolume(vol Volume, keepBlockDev bool, op *operations.Opera
 		// For VMs, unmount the filesystem volume.
 		if vol.IsVMBlock() {
 			fsVol := vol.NewVMBlockFilesystemVolume()
-			return d.UnmountVolume(fsVol, false, op)
+			_, err := d.UnmountVolume(fsVol, false, op)
+			if err != nil {
+				return false, err
+			}
 		}
 
 		if !keepBlockDev {
@@ -1090,22 +1093,34 @@ func (d *ceph) UnmountVolume(vol Volume, keepBlockDev bool, op *operations.Opera
 }
 
 // RenameVolume renames a volume and its snapshots.
-func (d *ceph) RenameVolume(vol Volume, newName string, op *operations.Operation) error {
+func (d *ceph) RenameVolume(vol Volume, newVolName string, op *operations.Operation) error {
 	return vol.UnmountTask(func(op *operations.Operation) error {
 		revert := revert.New()
 		defer revert.Fail()
 
-		err := d.rbdRenameVolume(vol, newName)
+		err := d.rbdRenameVolume(vol, newVolName)
 		if err != nil {
 			return err
 		}
 
-		newVol := NewVolume(d, d.name, vol.volType, vol.contentType, newName, nil, nil)
+		newVol := NewVolume(d, d.name, vol.volType, vol.contentType, newVolName, nil, nil)
 		revert.Add(func() { d.rbdRenameVolume(newVol, vol.name) })
 
-		err = genericVFSRenameVolume(d, vol, newName, op)
-		if err != nil {
-			return err
+		// Rename volume dir.
+		if vol.contentType == ContentTypeFS {
+			err = genericVFSRenameVolume(d, vol, newVolName, op)
+			if err != nil {
+				return err
+			}
+		}
+
+		// For VMs, also rename the filesystem volume.
+		if vol.IsVMBlock() {
+			fsVol := vol.NewVMBlockFilesystemVolume()
+			err = d.RenameVolume(fsVol, newVolName, op)
+			if err != nil {
+				return err
+			}
 		}
 
 		revert.Success()
