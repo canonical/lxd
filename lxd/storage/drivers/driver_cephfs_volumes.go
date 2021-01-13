@@ -360,9 +360,9 @@ func (d *cephfs) UnmountVolume(vol Volume, keepBlockDev bool, op *operations.Ope
 }
 
 // RenameVolume renames the volume and all related filesystem entries.
-func (d *cephfs) RenameVolume(vol Volume, newName string, op *operations.Operation) error {
+func (d *cephfs) RenameVolume(vol Volume, newVolName string, op *operations.Operation) error {
 	// Create the parent directory.
-	err := createParentSnapshotDirIfMissing(d.name, vol.volType, newName)
+	err := createParentSnapshotDirIfMissing(d.name, vol.volType, newVolName)
 	if err != nil {
 		return err
 	}
@@ -387,7 +387,7 @@ func (d *cephfs) RenameVolume(vol Volume, newName string, op *operations.Operati
 
 		// Remove the new snapshot directory if we are reverting.
 		if len(revertPaths) > 0 {
-			snapshotDir := GetVolumeSnapshotDir(d.name, vol.volType, newName)
+			snapshotDir := GetVolumeSnapshotDir(d.name, vol.volType, newVolName)
 			os.RemoveAll(snapshotDir)
 		}
 	}()
@@ -396,7 +396,7 @@ func (d *cephfs) RenameVolume(vol Volume, newName string, op *operations.Operati
 	srcSnapshotDir := GetVolumeSnapshotDir(d.name, vol.volType, vol.name)
 
 	if shared.PathExists(srcSnapshotDir) {
-		targetSnapshotDir := GetVolumeSnapshotDir(d.name, vol.volType, newName)
+		targetSnapshotDir := GetVolumeSnapshotDir(d.name, vol.volType, newVolName)
 
 		err = os.Rename(srcSnapshotDir, targetSnapshotDir)
 		if err != nil {
@@ -415,8 +415,8 @@ func (d *cephfs) RenameVolume(vol Volume, newName string, op *operations.Operati
 		return err
 	}
 
-	sourcePath := GetVolumeMountPath(d.name, vol.volType, newName)
-	targetPath := GetVolumeMountPath(d.name, vol.volType, newName)
+	sourcePath := GetVolumeMountPath(d.name, vol.volType, newVolName)
+	targetPath := GetVolumeMountPath(d.name, vol.volType, newVolName)
 
 	for _, snapshot := range snapshots {
 		// Figure out the snapshot paths.
@@ -424,7 +424,7 @@ func (d *cephfs) RenameVolume(vol Volume, newName string, op *operations.Operati
 		oldCephSnapPath := filepath.Join(sourcePath, ".snap", snapName)
 		newCephSnapPath := filepath.Join(targetPath, ".snap", snapName)
 		oldPath := GetVolumeMountPath(d.name, vol.volType, GetSnapshotVolumeName(vol.name, snapName))
-		newPath := GetVolumeMountPath(d.name, vol.volType, GetSnapshotVolumeName(newName, snapName))
+		newPath := GetVolumeMountPath(d.name, vol.volType, GetSnapshotVolumeName(newVolName, snapName))
 
 		// Update the symlink.
 		err = os.Symlink(newCephSnapPath, newPath)
@@ -440,7 +440,7 @@ func (d *cephfs) RenameVolume(vol Volume, newName string, op *operations.Operati
 	}
 
 	oldPath := GetVolumeMountPath(d.name, vol.volType, vol.name)
-	newPath := GetVolumeMountPath(d.name, vol.volType, newName)
+	newPath := GetVolumeMountPath(d.name, vol.volType, newVolName)
 	err = os.Rename(oldPath, newPath)
 	if err != nil {
 		return errors.Wrapf(err, "Failed to rename '%s' to '%s'", oldPath, newPath)
