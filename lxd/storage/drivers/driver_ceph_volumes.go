@@ -1063,7 +1063,10 @@ func (d *ceph) UnmountVolume(vol Volume, keepBlockDev bool, op *operations.Opera
 		// For VMs, unmount the filesystem volume.
 		if vol.IsVMBlock() {
 			fsVol := vol.NewVMBlockFilesystemVolume()
-			return d.UnmountVolume(fsVol, false, op)
+			_, err := d.UnmountVolume(fsVol, false, op)
+			if err != nil {
+				return false, err
+			}
 		}
 
 		if !keepBlockDev {
