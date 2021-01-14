@@ -508,6 +508,16 @@ test_container_devices_nic_bridged() {
   lxc network unset "${brName}" ipv6.dhcp
   lxc config device set "${ctName}" eth0 ipv6.address="2001:db8::2"
 
+  # Test port isolation.
+  if bridge link set help 2>&1 | grep isolated ; then
+    lxc config device set "${ctName}" eth0 security.port_isolation true
+    lxc start "${ctName}"
+    bridge -d link show dev "${vethHostName}" | grep "isolated on"
+    lxc stop -f "${ctName}"
+  else
+    echo "bridge command doesn't support port isolation, skipping port isolation checks"
+  fi
+
   # Check we haven't left any NICS lying around.
   endNicCount=$(find /sys/class/net | wc -l)
   if [ "$startNicCount" != "$endNicCount" ]; then
