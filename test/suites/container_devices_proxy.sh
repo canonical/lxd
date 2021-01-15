@@ -151,7 +151,7 @@ container_devices_proxy_tcp() {
   # Try NAT
   lxc init testimage nattest
 
-  lxc network create lxdt$$ dns.domain=test dns.mode=managed
+  lxc network create lxdt$$ dns.domain=test dns.mode=managed ipv6.dhcp.stateful=true
   lxc network attach lxdt$$ nattest eth0
   v4_addr="$(lxc network get lxdt$$ ipv4.address | cut -d/ -f1)0"
   v6_addr="$(lxc network get lxdt$$ ipv6.address | cut -d/ -f1)00"
