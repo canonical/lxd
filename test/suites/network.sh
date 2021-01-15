@@ -53,7 +53,7 @@ test_network() {
   lxc network delete lxdt$$
 
   # Configured bridge with static assignment
-  lxc network create lxdt$$ dns.domain=test dns.mode=managed
+  lxc network create lxdt$$ dns.domain=test dns.mode=managed ipv6.dhcp.stateful=true
   lxc network attach lxdt$$ nettest eth0
   v4_addr="$(lxc network get lxdt$$ ipv4.address | cut -d/ -f1)0"
   v6_addr="$(lxc network get lxdt$$ ipv6.address | cut -d/ -f1)00"
@@ -66,14 +66,15 @@ test_network() {
   lxc network list-leases lxdt$$ | grep STATIC | grep -q "${v4_addr}"
   lxc network list-leases lxdt$$ | grep STATIC | grep -q "${v6_addr}"
 
-  SUCCESS=0
-  # shellcheck disable=SC2034
-  for i in $(seq 10); do
-    lxc info nettest | grep -q fd42 && SUCCESS=1 && break
-    sleep 0.5
-  done
+  # Request DHCPv6 lease (if udhcpc6 is in busybox image).
+  busyboxUdhcpc6=1
+  if ! lxc exec nettest -- busybox --list | grep udhcpc6 ; then
+    busyboxUdhcpc6=0
+  fi
 
-  [ "${SUCCESS}" = "0" ] && (echo "Container static IP wasn't applied" && false)
+  if [ "$busyboxUdhcpc6" = "1" ]; then
+    lxc exec nettest -- udhcpc6 -i eth0 -n -q 2>&1 | grep 'IPv6 obtained'
+  fi
 
   lxc delete nettest -f
   lxc network delete lxdt$$
