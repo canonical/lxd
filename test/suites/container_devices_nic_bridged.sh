@@ -346,7 +346,7 @@ test_container_devices_nic_bridged() {
   fi
 
   if [ "$busyboxUdhcpc6" = "1" ]; then
-        lxc exec "${ctName}" -- udhcpc6 -i eth0 -n -q
+        lxc exec "${ctName}" -- udhcpc6 -i eth0 -n -q 2>&1 | grep 'IPv6 obtained'
   fi
 
   # Delete container, check LXD releases lease.
