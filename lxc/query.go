@@ -67,6 +67,10 @@ func (c *cmdQuery) Run(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
+	if c.global.flagProject != "" {
+		return fmt.Errorf(i18n.G("--project cannot be used with the query command"))
+	}
+
 	// Parse the remote
 	remote, path, err := conf.ParseRemote(args[0])
 	if err != nil {
