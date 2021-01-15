@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: lxd\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2020-12-17 04:27-0600\n"
+"POT-Creation-Date: 2021-01-15 09:53-0500\n"
 "PO-Revision-Date: 2019-09-06 07:09+0000\n"
 "Last-Translator: Luigi Operoso <brokenpip3@gmail.com>\n"
 "Language-Team: Italian <https://hosted.weblate.org/projects/linux-containers/"
@@ -350,6 +350,10 @@ msgstr ""
 
 #: lxc/copy.go:151
 msgid "--instance-only can't be passed when the source is a snapshot"
+msgstr ""
+
+#: lxc/query.go:71
+msgid "--project cannot be used with the query command"
 msgstr ""
 
 #: lxc/copy.go:162
@@ -2718,7 +2722,7 @@ msgstr "Creazione del container in corso"
 msgid "Pushing %s to %s: %%s"
 msgstr ""
 
-#: lxc/query.go:78
+#: lxc/query.go:82
 msgid "Query path must start with /"
 msgstr ""
 
