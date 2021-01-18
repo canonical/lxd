@@ -3342,6 +3342,7 @@ func (d *lxc) Restore(sourceContainer instance.Instance, stateful bool) error {
 
 	// Restart the container.
 	if wasRunning {
+		d.logger.Debug("Starting instance after snapshot restore")
 		err = d.Start(false)
 		if err != nil {
 			op.Done(err)
