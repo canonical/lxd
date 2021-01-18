@@ -10,6 +10,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/digitalocean/go-smbios/smbios"
 	"github.com/pkg/errors"
 	"golang.org/x/sys/unix"
 
@@ -150,6 +151,37 @@ func getCPUCache(path string) ([]api.ResourcesCPUCache, error) {
 	return caches, nil
 }
 
+func getCPUdmi() (string, string, error) {
+	// Open the system DMI tables.
+	stream, _, err := smbios.Stream()
+	if err != nil {
+		return "", "", err
+	}
+	defer stream.Close()
+
+	// Decode SMBIOS structures.
+	d := smbios.NewDecoder(stream)
+	tables, err := d.Decode()
+	if err != nil {
+		return "", "", err
+	}
+
+	for _, e := range tables {
+		// Only care about the CPU table.
+		if e.Header.Type != 4 {
+			continue
+		}
+
+		if len(e.Strings) >= 3 {
+			if e.Strings[1] != "" && e.Strings[2] != "" {
+				return e.Strings[1], e.Strings[2], nil
+			}
+		}
+	}
+
+	return "", "", fmt.Errorf("No DMI table found")
+}
+
 // GetCPU returns a filled api.ResourcesCPU struct ready for use by LXD
 func GetCPU() (*api.ResourcesCPU, error) {
 	cpu := api.ResourcesCPU{}
@@ -160,6 +192,9 @@ func GetCPU() (*api.ResourcesCPU, error) {
 	// Temporary storage
 	cpuSockets := map[uint64]*api.ResourcesCPUSocket{}
 	cpuCores := map[uint64]map[string]*api.ResourcesCPUCore{}
+
+	// Get the DMI data
+	dmiVendor, dmiModel, _ := getCPUdmi()
 
 	// Open cpuinfo
 	f, err := os.Open("/proc/cpuinfo")
@@ -266,6 +301,15 @@ func GetCPU() (*api.ResourcesCPU, error) {
 				}
 
 				break
+			}
+
+			// Fill in model/vendor from DMI if missing.
+			if resSocket.Vendor == "" {
+				resSocket.Vendor = dmiVendor
+			}
+
+			if resSocket.Name == "" {
+				resSocket.Name = dmiModel
 			}
 
 			// Cache information
