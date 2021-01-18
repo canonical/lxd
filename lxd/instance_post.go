@@ -430,7 +430,7 @@ func containerPostClusteringMigrate(d *Daemon, c instance.Instance, oldName, new
 
 // Special case migrating a container backed by ceph across two cluster nodes.
 func containerPostClusteringMigrateWithCeph(d *Daemon, c instance.Instance, projectName, oldName, newName, newNode string, instanceType instancetype.Type) response.Response {
-	run := func(*operations.Operation) error {
+	run := func(op *operations.Operation) error {
 		// If source node is online (i.e. we're serving the request on
 		// it, and c != nil), let's unmap the RBD volume locally
 		logger.Debugf(`Renaming RBD storage volume for source container "%s" from "%s" to "%s"`, c.Name(), c.Name(), newName)
@@ -453,7 +453,7 @@ func containerPostClusteringMigrateWithCeph(d *Daemon, c instance.Instance, proj
 		}
 
 		// Trigger a rename in the Ceph driver.
-		err = pool.MigrateInstance(c, nil, &args, nil)
+		err = pool.MigrateInstance(c, nil, &args, op)
 		if err != nil {
 			return errors.Wrap(err, "Failed to rename ceph RBD volume")
 		}
