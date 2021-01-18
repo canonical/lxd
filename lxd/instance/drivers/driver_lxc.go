@@ -233,21 +233,32 @@ func lxcCreate(s *state.State, args db.InstanceArgs) (instance.Instance, error) 
 		return nil, errors.Wrapf(err, "Failed loading storage pool")
 	}
 
-	// Fill default config.
-	volumeConfig := map[string]string{}
-	err = d.storagePool.FillInstanceConfig(d, volumeConfig)
-	if err != nil {
-		return nil, errors.Wrapf(err, "Failed filling default config")
-	}
-
 	// Create a new storage volume database entry for the container's storage volume.
 	if d.IsSnapshot() {
-		_, err = s.Cluster.CreateStorageVolumeSnapshot(args.Project, args.Name, "", db.StoragePoolVolumeTypeContainer, d.storagePool.ID(), volumeConfig, time.Time{})
+		// Copy volume config from parent.
+		parentName, _, _ := shared.InstanceGetParentAndSnapshotName(args.Name)
+		_, parentVol, err := s.Cluster.GetLocalStoragePoolVolume(args.Project, parentName, db.StoragePoolVolumeTypeContainer, d.storagePool.ID())
+		if err != nil {
+			return nil, errors.Wrapf(err, "Failed loading source volume for snapshot")
+		}
+
+		_, err = s.Cluster.CreateStorageVolumeSnapshot(args.Project, args.Name, "", db.StoragePoolVolumeTypeContainer, d.storagePool.ID(), parentVol.Config, time.Time{})
+		if err != nil {
+			return nil, errors.Wrapf(err, "Failed creating storage record for snapshot")
+		}
+
 	} else {
+		// Fill default config for new instances.
+		volumeConfig := map[string]string{}
+		err = d.storagePool.FillInstanceConfig(d, volumeConfig)
+		if err != nil {
+			return nil, errors.Wrapf(err, "Failed filling default config")
+		}
+
 		_, err = s.Cluster.CreateStoragePoolVolume(args.Project, args.Name, "", db.StoragePoolVolumeTypeContainer, d.storagePool.ID(), volumeConfig, db.StoragePoolVolumeContentTypeFS)
-	}
-	if err != nil {
-		return nil, errors.Wrapf(err, "Failed creating storage record")
+		if err != nil {
+			return nil, errors.Wrapf(err, "Failed creating storage record")
+		}
 	}
 
 	// Setup initial idmap config
@@ -3230,13 +3241,14 @@ func (d *lxc) Restore(sourceContainer instance.Instance, stateful bool) error {
 		return err
 	}
 
+	d.logger.Debug("Mounting instance to check for CRIU state path existence")
+
 	// Ensure that storage is mounted for state path checks and for backup.yaml updates.
 	_, err = pool.MountInstance(d, nil)
 	if err != nil {
 		op.Done(err)
 		return err
 	}
-	defer pool.UnmountInstance(d, nil)
 
 	// Check for CRIU if necessary, before doing a bunch of filesystem manipulations.
 	// Requires container be mounted to check StatePath exists.
@@ -3247,6 +3259,12 @@ func (d *lxc) Restore(sourceContainer instance.Instance, stateful bool) error {
 			op.Done(err)
 			return err
 		}
+	}
+
+	_, err = pool.UnmountInstance(d, nil)
+	if err != nil {
+		op.Done(err)
+		return err
 	}
 
 	// Restore the rootfs.
@@ -3270,15 +3288,8 @@ func (d *lxc) Restore(sourceContainer instance.Instance, stateful bool) error {
 	}
 
 	// Don't pass as user-requested as there's no way to fix a bad config.
+	// This will call d.UpdateBackupFile() to ensure snapshot list is up to date.
 	err = d.Update(args, false)
-	if err != nil {
-		op.Done(err)
-		return err
-	}
-
-	// The old backup file may be out of date (e.g. it doesn't have all the current snapshots of
-	// the container listed); let's write a new one to be safe.
-	err = d.UpdateBackupFile()
 	if err != nil {
 		op.Done(err)
 		return err
@@ -3331,6 +3342,7 @@ func (d *lxc) Restore(sourceContainer instance.Instance, stateful bool) error {
 
 	// Restart the container.
 	if wasRunning {
+		d.logger.Debug("Starting instance after snapshot restore")
 		err = d.Start(false)
 		if err != nil {
 			op.Done(err)
@@ -4274,12 +4286,9 @@ func (d *lxc) Update(args db.InstanceArgs, userRequested bool) error {
 		return errors.Wrap(err, "Failed to update database")
 	}
 
-	// Only update the backup file if it already exists (indicating the instance is mounted).
-	if shared.PathExists(filepath.Join(d.Path(), "backup.yaml")) {
-		err := d.UpdateBackupFile()
-		if err != nil && !os.IsNotExist(err) {
-			return errors.Wrap(err, "Failed to write backup file")
-		}
+	err = d.UpdateBackupFile()
+	if err != nil && !os.IsNotExist(err) {
+		return errors.Wrap(err, "Failed to write backup file")
 	}
 
 	// Send devlxd notifications
