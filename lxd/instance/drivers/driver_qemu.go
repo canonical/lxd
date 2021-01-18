@@ -252,22 +252,31 @@ func qemuCreate(s *state.State, args db.InstanceArgs) (instance.Instance, error)
 		return nil, errors.Wrapf(err, "Failed loading storage pool")
 	}
 
-	// Fill default config.
-	volumeConfig := map[string]string{}
-	err = d.storagePool.FillInstanceConfig(d, volumeConfig)
-	if err != nil {
-		return nil, errors.Wrapf(err, "Failed filling default config")
-	}
-
 	// Create a new database entry for the instance's storage volume.
 	if d.IsSnapshot() {
-		_, err = s.Cluster.CreateStorageVolumeSnapshot(args.Project, args.Name, "", db.StoragePoolVolumeTypeVM, d.storagePool.ID(), volumeConfig, time.Time{})
+		// Copy volume config from parent.
+		parentName, _, _ := shared.InstanceGetParentAndSnapshotName(args.Name)
+		_, parentVol, err := s.Cluster.GetLocalStoragePoolVolume(args.Project, parentName, db.StoragePoolVolumeTypeVM, d.storagePool.ID())
+		if err != nil {
+			return nil, errors.Wrapf(err, "Failed loading source volume for snapshot")
+		}
 
+		_, err = s.Cluster.CreateStorageVolumeSnapshot(args.Project, args.Name, "", db.StoragePoolVolumeTypeVM, d.storagePool.ID(), parentVol.Config, time.Time{})
+		if err != nil {
+			return nil, errors.Wrapf(err, "Failed creating storage record for snapshot")
+		}
 	} else {
+		// Fill default config for new instances.
+		volumeConfig := map[string]string{}
+		err = d.storagePool.FillInstanceConfig(d, volumeConfig)
+		if err != nil {
+			return nil, errors.Wrapf(err, "Failed filling default config")
+		}
+
 		_, err = s.Cluster.CreateStoragePoolVolume(args.Project, args.Name, "", db.StoragePoolVolumeTypeVM, d.storagePool.ID(), volumeConfig, db.StoragePoolVolumeContentTypeBlock)
-	}
-	if err != nil {
-		return nil, errors.Wrapf(err, "Failed creating storage record")
+		if err != nil {
+			return nil, errors.Wrapf(err, "Failed creating storage record")
+		}
 	}
 
 	if !d.IsSnapshot() {
@@ -2749,14 +2758,6 @@ func (d *qemu) Restore(source instance.Instance, stateful bool) error {
 		return err
 	}
 
-	// Ensure that storage is mounted for backup.yaml updates.
-	_, err = pool.MountInstance(d, nil)
-	if err != nil {
-		op.Done(err)
-		return err
-	}
-	defer pool.UnmountInstance(d, nil)
-
 	// Restore the rootfs.
 	err = pool.RestoreInstanceSnapshot(d, source, nil)
 	if err != nil {
@@ -2778,15 +2779,8 @@ func (d *qemu) Restore(source instance.Instance, stateful bool) error {
 	}
 
 	// Don't pass as user-requested as there's no way to fix a bad config.
+	// This will call d.UpdateBackupFile() to ensure snapshot list is up to date.
 	err = d.Update(args, false)
-	if err != nil {
-		op.Done(err)
-		return err
-	}
-
-	// The old backup file may be out of date (e.g. it doesn't have all the current snapshots of
-	// the instance listed); let's write a new one to be safe.
-	err = d.UpdateBackupFile()
 	if err != nil {
 		op.Done(err)
 		return err
@@ -2794,6 +2788,7 @@ func (d *qemu) Restore(source instance.Instance, stateful bool) error {
 
 	// Restart the insance.
 	if wasRunning {
+		d.logger.Debug("Starting instance after snapshot restore")
 		err := d.Start(false)
 		if err != nil {
 			op.Done(err)
