@@ -233,21 +233,32 @@ func lxcCreate(s *state.State, args db.InstanceArgs) (instance.Instance, error) 
 		return nil, errors.Wrapf(err, "Failed loading storage pool")
 	}
 
-	// Fill default config.
-	volumeConfig := map[string]string{}
-	err = d.storagePool.FillInstanceConfig(d, volumeConfig)
-	if err != nil {
-		return nil, errors.Wrapf(err, "Failed filling default config")
-	}
-
 	// Create a new storage volume database entry for the container's storage volume.
 	if d.IsSnapshot() {
-		_, err = s.Cluster.CreateStorageVolumeSnapshot(args.Project, args.Name, "", db.StoragePoolVolumeTypeContainer, d.storagePool.ID(), volumeConfig, time.Time{})
+		// Copy volume config from parent.
+		parentName, _, _ := shared.InstanceGetParentAndSnapshotName(args.Name)
+		_, parentVol, err := s.Cluster.GetLocalStoragePoolVolume(args.Project, parentName, db.StoragePoolVolumeTypeContainer, d.storagePool.ID())
+		if err != nil {
+			return nil, errors.Wrapf(err, "Failed loading source volume for snapshot")
+		}
+
+		_, err = s.Cluster.CreateStorageVolumeSnapshot(args.Project, args.Name, "", db.StoragePoolVolumeTypeContainer, d.storagePool.ID(), parentVol.Config, time.Time{})
+		if err != nil {
+			return nil, errors.Wrapf(err, "Failed creating storage record for snapshot")
+		}
+
 	} else {
+		// Fill default config for new instances.
+		volumeConfig := map[string]string{}
+		err = d.storagePool.FillInstanceConfig(d, volumeConfig)
+		if err != nil {
+			return nil, errors.Wrapf(err, "Failed filling default config")
+		}
+
 		_, err = s.Cluster.CreateStoragePoolVolume(args.Project, args.Name, "", db.StoragePoolVolumeTypeContainer, d.storagePool.ID(), volumeConfig, db.StoragePoolVolumeContentTypeFS)
-	}
-	if err != nil {
-		return nil, errors.Wrapf(err, "Failed creating storage record")
+		if err != nil {
+			return nil, errors.Wrapf(err, "Failed creating storage record")
+		}
 	}
 
 	// Setup initial idmap config
