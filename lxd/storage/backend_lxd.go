@@ -3543,9 +3543,7 @@ func (b *lxdBackend) UpdateInstanceBackupFile(inst instance.Instance, op *operat
 
 	// Get the volume name on storage.
 	volStorageName := project.Instance(inst.Project(), inst.Name())
-
-	// We don't need to use the volume's config for mounting so set to nil.
-	vol := b.newVolume(volType, contentType, volStorageName, nil)
+	vol := b.newVolume(volType, contentType, volStorageName, volume.Config)
 
 	// Update pool information in the backup.yaml file.
 	err = vol.MountTask(func(mountPath string, op *operations.Operation) error {
