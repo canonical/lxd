@@ -165,7 +165,7 @@ func TryMount(src string, dst string, fs string, flags uintptr, options string) 
 	}
 
 	if err != nil {
-		return errors.Wrapf(err, "Failed to mount '%s' on '%s'", src, dst)
+		return errors.Wrapf(err, "Failed to mount %q on %q using %q", src, dst, fs)
 	}
 
 	return nil
