@@ -194,11 +194,11 @@ func containerStatePut(d *Daemon, r *http.Request) response.Response {
 			return c.Unfreeze()
 		}
 	default:
-		return response.BadRequest(fmt.Errorf("unknown action %s", raw.Action))
+		return response.BadRequest(fmt.Errorf("Unknown action %s", raw.Action))
 	}
 
 	resources := map[string][]string{}
-	resources["containers"] = []string{name}
+	resources["instances"] = []string{name}
 
 	op, err := operations.OperationCreate(d.State(), project, operations.OperationClassTask, opType, resources, nil, do, nil, nil)
 	if err != nil {
