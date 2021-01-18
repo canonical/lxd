@@ -756,13 +756,13 @@ func (d *nicBridged) networkClearLease(name string, network string, hwaddr strin
 
 	iface, err := net.InterfaceByName(network)
 	if err != nil {
-		return err
+		return errors.Wrapf(err, "Failed getting bridge interface state for %q", network)
 	}
 
 	// Get IPv4 and IPv6 address of interface running dnsmasq on host.
 	addrs, err := iface.Addrs()
 	if err != nil {
-		return err
+		return errors.Wrapf(err, "Failed getting bridge interface addresses for %q", network)
 	}
 
 	var dstIPv4, dstIPv6 net.IP
