@@ -2788,6 +2788,7 @@ func (d *qemu) Restore(source instance.Instance, stateful bool) error {
 
 	// Restart the insance.
 	if wasRunning {
+		d.logger.Debug("Starting instance after snapshot restore")
 		err := d.Start(false)
 		if err != nil {
 			op.Done(err)
