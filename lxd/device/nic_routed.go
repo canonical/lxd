@@ -67,6 +67,22 @@ func (d *nicRouted) validateConfig(instConf instance.ConfigReader) error {
 		return err
 	}
 
+	// Detect duplicate IPs in config.
+	for _, key := range []string{"ipv4.address", "ipv6.address"} {
+		ips := make(map[string]struct{})
+
+		if d.config[key] != "" {
+			for _, addr := range strings.Split(d.config[key], ",") {
+				addr = strings.TrimSpace(addr)
+				if _, dupe := ips[addr]; dupe {
+					return fmt.Errorf("Duplicate address %q in %q", addr, key)
+				}
+
+				ips[addr] = struct{}{}
+			}
+		}
+	}
+
 	return nil
 }
 
@@ -418,11 +434,21 @@ func (d *nicRouted) postStop() error {
 
 	errs := []error{}
 
+	// Delete host-side end of veth pair if not removed by liblxc.
 	if network.InterfaceExists(d.config["host_name"]) {
 		// Removing host-side end of veth pair will delete the peer end too.
 		err := network.InterfaceRemove(d.config["host_name"])
 		if err != nil {
 			errs = append(errs, errors.Wrapf(err, "Failed to remove interface %q", d.config["host_name"]))
+		}
+	}
+
+	// Delete IP neighbour proxy entries on the parent if they haven't been removed by liblxc.
+	for _, key := range []string{"ipv4.address", "ipv6.address"} {
+		if d.config[key] != "" {
+			for _, addr := range strings.Split(d.config[key], ",") {
+				shared.RunCommand("ip", "neigh", "delete", "proxy", strings.TrimSpace(addr), "dev", d.config["parent"])
+			}
 		}
 	}
 
