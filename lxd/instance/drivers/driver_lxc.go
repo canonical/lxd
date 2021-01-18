@@ -3288,15 +3288,8 @@ func (d *lxc) Restore(sourceContainer instance.Instance, stateful bool) error {
 	}
 
 	// Don't pass as user-requested as there's no way to fix a bad config.
+	// This will call d.UpdateBackupFile() to ensure snapshot list is up to date.
 	err = d.Update(args, false)
-	if err != nil {
-		op.Done(err)
-		return err
-	}
-
-	// The old backup file may be out of date (e.g. it doesn't have all the current snapshots of
-	// the container listed); let's write a new one to be safe.
-	err = d.UpdateBackupFile()
 	if err != nil {
 		op.Done(err)
 		return err
