@@ -56,11 +56,13 @@ func (d *nicRouted) validateConfig(instConf instance.ConfigReader) error {
 		"ipv6.host_address",
 		"ipv4.host_table",
 		"ipv6.host_table",
+		"gvrp",
 	}
 
 	rules := nicValidationRules(requiredFields, optionalFields)
 	rules["ipv4.address"] = validate.Optional(validate.IsNetworkAddressV4List)
 	rules["ipv6.address"] = validate.Optional(validate.IsNetworkAddressV6List)
+	rules["gvrp"] = validate.Optional(validate.IsBool)
 
 	err := d.config.Validate(rules)
 	if err != nil {
@@ -180,7 +182,7 @@ func (d *nicRouted) Start() (*deviceConfig.RunConfig, error) {
 	if d.config["parent"] != "" {
 		parentName = network.GetHostDevice(d.config["parent"], d.config["vlan"])
 
-		statusDev, err := networkCreateVlanDeviceIfNeeded(d.state, d.config["parent"], parentName, d.config["vlan"])
+		statusDev, err := networkCreateVlanDeviceIfNeeded(d.state, d.config["parent"], parentName, d.config["vlan"], shared.IsTrue(d.config["gvrp"]))
 		if err != nil {
 			return nil, err
 		}
