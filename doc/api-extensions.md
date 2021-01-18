@@ -240,6 +240,12 @@ will look for an existing interface for that VLAN on the host. If one
 can't be found it will create one itself and then use that as the
 macvlan parent.
 
+## network\_gvrp
+This adds an optional `gvrp` property to `macvlan` `ipvlan` `routed` and `physical` network devices.
+
+When set, this specifies whether the VLAN should be registered using GARP VLAN
+Registration Protocol. Defaults to false.
+
 ## image\_create\_aliases
 Adds a new `aliases` field to `POST /1.0/images` allowing for aliases to
 be set at image creation/import time.
