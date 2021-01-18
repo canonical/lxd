@@ -71,8 +71,15 @@ func AllowInstanceCreation(tx *db.ClusterTx, projectName string, req api.Instanc
 	})
 
 	// Special case restriction checks on volatile.* keys.
+	strip := false
+
+	if shared.StringInSlice(req.Source.Type, []string{"copy", "migration"}) {
+		// Allow stripping volatile keys if dealing with a copy or migration.
+		strip = true
+	}
+
 	err = checkRestrictionsOnVolatileConfig(
-		info.Project, instanceType, req.Name, req.Config, map[string]string{})
+		info.Project, instanceType, req.Name, req.Config, map[string]string{}, strip)
 	if err != nil {
 		return err
 	}
@@ -135,7 +142,7 @@ func checkInstanceCountLimit(project *api.Project, instanceCount int, instanceTy
 }
 
 // Check restrictions on setting volatile.* keys.
-func checkRestrictionsOnVolatileConfig(project *api.Project, instanceType instancetype.Type, instanceName string, config, currentConfig map[string]string) error {
+func checkRestrictionsOnVolatileConfig(project *api.Project, instanceType instancetype.Type, instanceName string, config, currentConfig map[string]string, strip bool) error {
 	if project.Config["restrict"] == "false" {
 		return nil
 	}
@@ -154,7 +161,7 @@ func checkRestrictionsOnVolatileConfig(project *api.Project, instanceType instan
 
 	// Checker for safe volatile keys.
 	isSafeKey := func(key string) bool {
-		if strings.StringInSlice(key, []string{"volatile.apply_template", "volatile.base_image", "volatile.last_state.power"}) {
+		if shared.StringInSlice(key, []string{"volatile.apply_template", "volatile.base_image", "volatile.last_state.power"}) {
 			return true
 		}
 
@@ -178,6 +185,11 @@ func checkRestrictionsOnVolatileConfig(project *api.Project, instanceType instan
 
 		// Allow given safe volatile keys to be set
 		if isSafeKey(key) {
+			continue
+		}
+
+		if strip {
+			delete(config, key)
 			continue
 		}
 
@@ -660,7 +672,7 @@ func AllowInstanceUpdate(tx *db.ClusterTx, projectName, instanceName string, req
 	// Special case restriction checks on volatile.* keys, since we want to
 	// detect if they were changed or added.
 	err = checkRestrictionsOnVolatileConfig(
-		info.Project, updatedInstance.Type, updatedInstance.Name, req.Config, currentConfig)
+		info.Project, updatedInstance.Type, updatedInstance.Name, req.Config, currentConfig, false)
 	if err != nil {
 		return err
 	}
