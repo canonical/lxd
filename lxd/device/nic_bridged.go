@@ -399,14 +399,16 @@ func (d *nicBridged) postStop() error {
 
 // Remove is run when the device is removed from the instance or the instance is deleted.
 func (d *nicBridged) Remove() error {
-	err := d.networkClearLease(d.inst.Name(), d.config["parent"], d.config["hwaddr"], clearLeaseAll)
-	if err != nil {
-		return err
-	}
-
 	if d.config["parent"] != "" {
 		dnsmasq.ConfigMutex.Lock()
 		defer dnsmasq.ConfigMutex.Unlock()
+
+		if network.InterfaceExists(d.config["parent"]) {
+			err := d.networkClearLease(d.inst.Name(), d.config["parent"], d.config["hwaddr"], clearLeaseAll)
+			if err != nil {
+				return errors.Wrapf(err, "Failed clearing leases")
+			}
+		}
 
 		// Remove dnsmasq config if it exists (doesn't return error if file is missing).
 		err := dnsmasq.RemoveStaticEntry(d.config["parent"], d.inst.Project(), d.inst.Name())
