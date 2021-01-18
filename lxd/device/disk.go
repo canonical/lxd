@@ -104,7 +104,7 @@ func (d *disk) validateConfig(instConf instance.ConfigReader) error {
 		"limits.read":       validate.IsAny,
 		"limits.write":      validate.IsAny,
 		"limits.max":        validate.IsAny,
-		"size":              validate.IsAny,
+		"size":              validate.Optional(validate.IsSize),
 		"pool":              validate.IsAny,
 		"propagation":       validatePropagation,
 		"raw.mount.options": validate.IsAny,
