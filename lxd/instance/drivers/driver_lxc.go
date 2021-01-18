@@ -4275,12 +4275,9 @@ func (d *lxc) Update(args db.InstanceArgs, userRequested bool) error {
 		return errors.Wrap(err, "Failed to update database")
 	}
 
-	// Only update the backup file if it already exists (indicating the instance is mounted).
-	if shared.PathExists(filepath.Join(d.Path(), "backup.yaml")) {
-		err := d.UpdateBackupFile()
-		if err != nil && !os.IsNotExist(err) {
-			return errors.Wrap(err, "Failed to write backup file")
-		}
+	err = d.UpdateBackupFile()
+	if err != nil && !os.IsNotExist(err) {
+		return errors.Wrap(err, "Failed to write backup file")
 	}
 
 	// Send devlxd notifications
