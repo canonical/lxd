@@ -2716,14 +2716,6 @@ func (d *qemu) Restore(source instance.Instance, stateful bool) error {
 		return err
 	}
 
-	// Ensure that storage is mounted for backup.yaml updates.
-	_, err = pool.MountInstance(d, nil)
-	if err != nil {
-		op.Done(err)
-		return err
-	}
-	defer pool.UnmountInstance(d, nil)
-
 	// Restore the rootfs.
 	err = pool.RestoreInstanceSnapshot(d, source, nil)
 	if err != nil {
