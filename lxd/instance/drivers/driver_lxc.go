@@ -3241,13 +3241,14 @@ func (d *lxc) Restore(sourceContainer instance.Instance, stateful bool) error {
 		return err
 	}
 
+	d.logger.Debug("Mounting instance to check for CRIU state path existence")
+
 	// Ensure that storage is mounted for state path checks and for backup.yaml updates.
 	_, err = pool.MountInstance(d, nil)
 	if err != nil {
 		op.Done(err)
 		return err
 	}
-	defer pool.UnmountInstance(d, nil)
 
 	// Check for CRIU if necessary, before doing a bunch of filesystem manipulations.
 	// Requires container be mounted to check StatePath exists.
@@ -3258,6 +3259,12 @@ func (d *lxc) Restore(sourceContainer instance.Instance, stateful bool) error {
 			op.Done(err)
 			return err
 		}
+	}
+
+	_, err = pool.UnmountInstance(d, nil)
+	if err != nil {
+		op.Done(err)
+		return err
 	}
 
 	// Restore the rootfs.
