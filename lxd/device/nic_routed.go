@@ -62,6 +62,22 @@ func (d *nicRouted) validateConfig(instConf instance.ConfigReader) error {
 		return err
 	}
 
+	// Detect duplicate IPs in config.
+	for _, key := range []string{"ipv4.address", "ipv6.address"} {
+		ips := make(map[string]struct{})
+
+		if d.config[key] != "" {
+			for _, addr := range strings.Split(d.config[key], ",") {
+				addr = strings.TrimSpace(addr)
+				if _, dupe := ips[addr]; dupe {
+					return fmt.Errorf("Duplicate address %q in %q", addr, key)
+				}
+
+				ips[addr] = struct{}{}
+			}
+		}
+	}
+
 	return nil
 }
 
