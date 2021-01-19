@@ -439,12 +439,17 @@ if = "none"
 cache = "{{.cacheMode}}"
 aio = "{{.aioMode}}"
 discard = "on"
+media = "{{.media}}"
 {{if .shared -}}
 file.locking = "off"
 {{- end }}
 
 [device "dev-lxd_{{.devName}}"]
+{{- if eq .media "disk" }}
 driver = "scsi-hd"
+{{- else}}
+driver = "scsi-cd"
+{{- end }}
 bus = "qemu_scsi.0"
 channel = "0"
 scsi-id = "{{.bootIndex}}"
