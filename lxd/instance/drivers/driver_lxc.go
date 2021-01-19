@@ -2628,6 +2628,14 @@ func (d *lxc) Shutdown(timeout time.Duration) error {
 		return nil
 	}
 
+	// If frozen, resume so the signal can be handled.
+	if d.IsFrozen() {
+		err := d.Unfreeze()
+		if err != nil {
+			return err
+		}
+	}
+
 	// Check that we're not already stopped
 	if !d.IsRunning() {
 		err = fmt.Errorf("The container is already stopped")
