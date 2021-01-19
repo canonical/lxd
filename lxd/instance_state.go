@@ -8,7 +8,6 @@ import (
 
 	"github.com/gorilla/mux"
 
-	"github.com/lxc/lxd/lxd/cgroup"
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/operations"
@@ -65,124 +64,113 @@ func instanceStatePut(d *Daemon, r *http.Request) response.Response {
 		return resp
 	}
 
-	raw := api.InstanceStatePut{}
+	req := api.InstanceStatePut{}
 
-	// We default to -1 (i.e. no timeout) here instead of 0 (instant
-	// timeout).
-	raw.Timeout = -1
-
-	if err := json.NewDecoder(r.Body).Decode(&raw); err != nil {
+	// We default to -1 (i.e. no timeout) here instead of 0 (instant timeout).
+	req.Timeout = -1
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		return response.BadRequest(err)
 	}
 
-	// Don't mess with containers while in setup mode
+	// Don't mess with containers while in setup mode.
 	<-d.readyChan
 
-	c, err := instance.LoadByProjectAndName(d.State(), project, name)
+	inst, err := instance.LoadByProjectAndName(d.State(), project, name)
 	if err != nil {
 		return response.SmartError(err)
 	}
-	c.SetOperation(op)
 
-	var opType db.OperationType
-	var do func(*operations.Operation) error
-	switch shared.InstanceAction(raw.Action) {
-	case shared.Start:
-		opType = db.OperationInstanceStart
-		do = func(op *operations.Operation) error {
-			if err = c.Start(raw.Stateful); err != nil {
-				return err
-			}
-			return nil
-		}
-	case shared.Stop:
-		opType = db.OperationInstanceStop
-		if raw.Stateful {
-			do = func(op *operations.Operation) error {
-				err := c.Stop(raw.Stateful)
-				if err != nil {
-					return err
-				}
+	// Actually perform the change.
+	opType, err := instanceActionToOptype(req.Action)
+	if err != nil {
+		return response.BadRequest(err)
+	}
 
-				return nil
-			}
-		} else if raw.Timeout == 0 || raw.Force {
-			do = func(op *operations.Operation) error {
-				err = c.Stop(false)
-				if err != nil {
-					return err
-				}
+	do := func(op *operations.Operation) error {
+		inst.SetOperation(op)
 
-				return nil
-			}
-		} else {
-			do = func(op *operations.Operation) error {
-				err = c.Shutdown(time.Duration(raw.Timeout) * time.Second)
-				if err != nil {
-					return err
-				}
-
-				return nil
-			}
-		}
-	case shared.Restart:
-		opType = db.OperationInstanceRestart
-		do = func(op *operations.Operation) error {
-			ephemeral := c.IsEphemeral()
-
-			if ephemeral {
-				// Unset ephemeral flag
-				args := db.InstanceArgs{
-					Architecture: c.Architecture(),
-					Config:       c.LocalConfig(),
-					Description:  c.Description(),
-					Devices:      c.LocalDevices(),
-					Ephemeral:    false,
-					Profiles:     c.Profiles(),
-					Project:      c.Project(),
-					Type:         c.Type(),
-					Snapshot:     c.IsSnapshot(),
-				}
-
-				err := c.Update(args, false)
-				if err != nil {
-					return err
-				}
-
-				// On function return, set the flag back on
-				defer func() {
-					args.Ephemeral = ephemeral
-					c.Update(args, false)
-				}()
-			}
-
-			timeout := raw.Timeout
-			if raw.Force {
-				timeout = 0
-			}
-			return c.Restart(time.Duration(timeout))
-		}
-	case shared.Freeze:
-		opType = db.OperationInstanceFreeze
-		do = func(op *operations.Operation) error {
-			return c.Freeze()
-		}
-	case shared.Unfreeze:
-		opType = db.OperationInstanceUnfreeze
-		do = func(op *operations.Operation) error {
-			return c.Unfreeze()
-		}
-	default:
-		return response.BadRequest(fmt.Errorf("Unknown action %s", raw.Action))
+		return doInstanceStatePut(inst, req)
 	}
 
 	resources := map[string][]string{}
 	resources["instances"] = []string{name}
-
 	op, err := operations.OperationCreate(d.State(), project, operations.OperationClassTask, opType, resources, nil, do, nil, nil)
 	if err != nil {
 		return response.InternalError(err)
 	}
 
 	return operations.OperationResponse(op)
+}
+
+func instanceActionToOptype(action string) (db.OperationType, error) {
+	switch shared.InstanceAction(action) {
+	case shared.Start:
+		return db.OperationInstanceStart, nil
+	case shared.Stop:
+		return db.OperationInstanceStop, nil
+	case shared.Restart:
+		return db.OperationInstanceRestart, nil
+	case shared.Freeze:
+		return db.OperationInstanceFreeze, nil
+	case shared.Unfreeze:
+		return db.OperationInstanceUnfreeze, nil
+	}
+
+	return db.OperationUnknown, fmt.Errorf("Unknown action: '%s'", action)
+}
+
+func doInstanceStatePut(inst instance.Instance, req api.InstanceStatePut) error {
+	switch shared.InstanceAction(req.Action) {
+	case shared.Start:
+		return inst.Start(req.Stateful)
+	case shared.Stop:
+		if req.Stateful {
+			return inst.Stop(req.Stateful)
+		} else if req.Timeout == 0 || req.Force {
+			return inst.Stop(false)
+		} else {
+			return inst.Shutdown(time.Duration(req.Timeout) * time.Second)
+		}
+	case shared.Restart:
+		ephemeral := inst.IsEphemeral()
+
+		if ephemeral {
+			// Unset ephemeral flag
+			args := db.InstanceArgs{
+				Architecture: inst.Architecture(),
+				Config:       inst.LocalConfig(),
+				Description:  inst.Description(),
+				Devices:      inst.LocalDevices(),
+				Ephemeral:    false,
+				Profiles:     inst.Profiles(),
+				Project:      inst.Project(),
+				Type:         inst.Type(),
+				Snapshot:     inst.IsSnapshot(),
+			}
+
+			err := inst.Update(args, false)
+			if err != nil {
+				return err
+			}
+
+			// On function return, set the flag back on
+			defer func() {
+				args.Ephemeral = ephemeral
+				inst.Update(args, false)
+			}()
+		}
+
+		timeout := req.Timeout
+		if req.Force {
+			timeout = 0
+		}
+
+		return inst.Restart(time.Duration(timeout))
+	case shared.Freeze:
+		return inst.Freeze()
+	case shared.Unfreeze:
+		return inst.Unfreeze()
+	}
+
+	return fmt.Errorf("Unknown action: '%s'", req.Action)
 }
