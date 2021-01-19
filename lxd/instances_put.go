@@ -38,13 +38,14 @@ func containersPut(d *Daemon, r *http.Request) response.Response {
 		return response.BadRequest(err)
 	}
 
-	raw := api.InstancesPut{}
-	raw.Timeout = -1
-	if err := json.NewDecoder(r.Body).Decode(&raw); err != nil {
+	req := api.InstancesPut{}
+	req.State = &api.InstanceStatePut{}
+	req.State.Timeout = -1
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		return response.BadRequest(err)
 	}
 
-	action := shared.InstanceAction(raw.Action)
+	action := shared.InstanceAction(req.State.Action)
 
 	var names []string
 	var instances []instance.Instance
@@ -95,7 +96,7 @@ func containersPut(d *Daemon, r *http.Request) response.Response {
 				go func(inst instance.Instance) {
 					defer wgAction.Done()
 
-					err = inst.Start(raw.Stateful)
+					err = inst.Start(req.State.Stateful)
 					if err != nil {
 						failuresLock.Lock()
 						failures[inst.Name()] = err
@@ -109,14 +110,14 @@ func containersPut(d *Daemon, r *http.Request) response.Response {
 		}
 	case shared.Stop:
 		opType = db.OperationInstanceStop
-		if raw.Stateful {
+		if req.State.Stateful {
 			do = func(op *operations.Operation) error {
 				for _, inst := range instances {
 					wgAction.Add(1)
 					go func(inst instance.Instance) {
 						defer wgAction.Done()
 
-						err = inst.Stop(raw.Stateful)
+						err = inst.Stop(req.State.Stateful)
 						if err != nil {
 							failuresLock.Lock()
 							failures[inst.Name()] = err
@@ -128,7 +129,7 @@ func containersPut(d *Daemon, r *http.Request) response.Response {
 				wgAction.Wait()
 				return coalesceErrors(failures)
 			}
-		} else if raw.Timeout == 0 || raw.Force {
+		} else if req.State.Timeout == 0 || req.State.Force {
 			do = func(op *operations.Operation) error {
 				for _, inst := range instances {
 					wgAction.Add(1)
@@ -164,7 +165,7 @@ func containersPut(d *Daemon, r *http.Request) response.Response {
 							}
 						}
 
-						err = inst.Shutdown(time.Duration(raw.Timeout) * time.Second)
+						err = inst.Shutdown(time.Duration(req.State.Timeout) * time.Second)
 						if err != nil {
 							failuresLock.Lock()
 							failures[inst.Name()] = err
@@ -214,8 +215,8 @@ func containersPut(d *Daemon, r *http.Request) response.Response {
 						}()
 					}
 
-					timeout := raw.Timeout
-					if raw.Force {
+					timeout := req.State.Timeout
+					if req.State.Force {
 						timeout = 0
 					}
 
@@ -280,7 +281,7 @@ func containersPut(d *Daemon, r *http.Request) response.Response {
 			return coalesceErrors(failures)
 		}
 	default:
-		return response.BadRequest(fmt.Errorf("Unknown action %s", raw.Action))
+		return response.BadRequest(fmt.Errorf("Unknown action %s", req.State.Action))
 	}
 
 	resources := map[string][]string{}
