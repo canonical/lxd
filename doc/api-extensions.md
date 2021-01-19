@@ -1279,3 +1279,7 @@ and to `ipvlan`, `macvlan`, `routed` and `physical` NIC devices.
 
 When set, this specifies whether the VLAN should be registered using GARP VLAN
 Registration Protocol. Defaults to false.
+
+## instance\_pool\_move
+This adds a `pool` field to the `POST /1.0/instances/NAME` API,
+allowing for easy move of an instance root disk between pools.
