@@ -64,7 +64,7 @@ func (c *cmdMove) Run(cmd *cobra.Command, args []string) error {
 	conf := c.global.conf
 
 	// Sanity checks
-	if c.flagTarget == "" && c.flagTargetProject == "" {
+	if c.flagTarget == "" && c.flagTargetProject == "" && c.flagStorage == "" {
 		exit, err := c.global.CheckArgs(cmd, args, 2, 2)
 		if exit {
 			return err
@@ -160,6 +160,10 @@ func (c *cmdMove) Run(cmd *cobra.Command, args []string) error {
 				return fmt.Errorf(i18n.G("The --instance-only flag can't be used with --target"))
 			}
 
+			if c.flagStorage != "" {
+				return fmt.Errorf(i18n.G("The --storage flag can't be used with --target"))
+			}
+
 			if c.flagMode != moveDefaultMode {
 				return fmt.Errorf(i18n.G("The --mode flag can't be used with --target"))
 			}
@@ -174,6 +178,30 @@ func (c *cmdMove) Run(cmd *cobra.Command, args []string) error {
 
 		if !dest.IsClustered() {
 			return fmt.Errorf(i18n.G("The destination LXD server is not clustered"))
+		}
+	}
+
+	// Support for server-side pool move.
+	if c.flagStorage != "" && sourceRemote == destRemote {
+		source, err := conf.GetInstanceServer(sourceRemote)
+		if err != nil {
+			return err
+		}
+
+		if source.HasExtension("instance_pool_move") {
+			if c.flagStateless {
+				return fmt.Errorf(i18n.G("The --stateless flag can't be used with --storage"))
+			}
+
+			if c.flagInstanceOnly {
+				return fmt.Errorf(i18n.G("The --instance-only flag can't be used with --storage"))
+			}
+
+			if c.flagMode != moveDefaultMode {
+				return fmt.Errorf(i18n.G("The --mode flag can't be used with --storage"))
+			}
+
+			return moveInstancePool(conf, sourceResource, destResource, c.flagStorage)
 		}
 	}
 
@@ -208,7 +236,7 @@ func (c *cmdMove) Run(cmd *cobra.Command, args []string) error {
 }
 
 // Move an instance using special POST /instances/<name>?target=<member> API.
-func moveClusterInstance(conf *config.Config, sourceResource, destResource, target string) error {
+func moveClusterInstance(conf *config.Config, sourceResource string, destResource string, target string) error {
 	// Parse the source.
 	sourceRemote, sourceName, err := conf.ParseRemote(sourceResource)
 	if err != nil {
@@ -244,7 +272,61 @@ func moveClusterInstance(conf *config.Config, sourceResource, destResource, targ
 
 	// The migrate API will do the right thing when passed a target.
 	source = source.UseTarget(target)
-	req := api.InstancePost{Name: destName, Migration: true}
+	req := api.InstancePost{
+		Name:      destName,
+		Migration: true,
+	}
+
+	op, err := source.MigrateInstance(sourceName, req)
+	if err != nil {
+		return errors.Wrap(err, i18n.G("Migration API failure"))
+	}
+
+	err = op.Wait()
+	if err != nil {
+		return errors.Wrap(err, i18n.G("Migration operation failure"))
+	}
+
+	return nil
+}
+
+// Move an instance between pools using special POST /instances/<name> API.
+func moveInstancePool(conf *config.Config, sourceResource string, destResource string, storage string) error {
+	// Parse the source.
+	sourceRemote, sourceName, err := conf.ParseRemote(sourceResource)
+	if err != nil {
+		return err
+	}
+
+	// Parse the destination.
+	_, destName, err := conf.ParseRemote(destResource)
+	if err != nil {
+		return err
+	}
+
+	// Make sure we have an instance or snapshot name.
+	if sourceName == "" {
+		return fmt.Errorf(i18n.G("You must specify a source instance name"))
+	}
+
+	// The destination name is optional.
+	if destName == "" {
+		destName = sourceName
+	}
+
+	// Connect to the source host
+	source, err := conf.GetInstanceServer(sourceRemote)
+	if err != nil {
+		return errors.Wrap(err, i18n.G("Failed to connect to cluster member"))
+	}
+
+	// Pass the new pool to the migration API.
+	req := api.InstancePost{
+		Name:      destName,
+		Migration: true,
+		Pool:      storage,
+	}
+
 	op, err := source.MigrateInstance(sourceName, req)
 	if err != nil {
 		return errors.Wrap(err, i18n.G("Migration API failure"))
