@@ -1272,3 +1272,7 @@ This adds the `security.port_isolation` field for bridged NIC instances.
 Adds the following endpoint for bulk state change (see [RESTful API](rest-api.md) for details):
 
 * `PUT /1.0/instances`
+
+## instance\_pool\_move
+This adds a `pool` field to the `POST /1.0/instances/NAME` API,
+allowing for easy move of an instance root disk between pools.
