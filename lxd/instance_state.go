@@ -82,6 +82,7 @@ func instanceStatePut(d *Daemon, r *http.Request) response.Response {
 	if err != nil {
 		return response.SmartError(err)
 	}
+	c.SetOperation(op)
 
 	var opType db.OperationType
 	var do func(*operations.Operation) error
@@ -89,7 +90,6 @@ func instanceStatePut(d *Daemon, r *http.Request) response.Response {
 	case shared.Start:
 		opType = db.OperationInstanceStart
 		do = func(op *operations.Operation) error {
-			c.SetOperation(op)
 			if err = c.Start(raw.Stateful); err != nil {
 				return err
 			}
@@ -99,7 +99,6 @@ func instanceStatePut(d *Daemon, r *http.Request) response.Response {
 		opType = db.OperationInstanceStop
 		if raw.Stateful {
 			do = func(op *operations.Operation) error {
-				c.SetOperation(op)
 				err := c.Stop(raw.Stateful)
 				if err != nil {
 					return err
@@ -109,7 +108,6 @@ func instanceStatePut(d *Daemon, r *http.Request) response.Response {
 			}
 		} else if raw.Timeout == 0 || raw.Force {
 			do = func(op *operations.Operation) error {
-				c.SetOperation(op)
 				err = c.Stop(false)
 				if err != nil {
 					return err
@@ -119,14 +117,6 @@ func instanceStatePut(d *Daemon, r *http.Request) response.Response {
 			}
 		} else {
 			do = func(op *operations.Operation) error {
-				c.SetOperation(op)
-				if c.IsFrozen() {
-					err := c.Unfreeze()
-					if err != nil {
-						return err
-					}
-				}
-
 				err = c.Shutdown(time.Duration(raw.Timeout) * time.Second)
 				if err != nil {
 					return err
@@ -138,7 +128,6 @@ func instanceStatePut(d *Daemon, r *http.Request) response.Response {
 	case shared.Restart:
 		opType = db.OperationInstanceRestart
 		do = func(op *operations.Operation) error {
-			c.SetOperation(op)
 			ephemeral := c.IsEphemeral()
 
 			if ephemeral {
@@ -174,23 +163,13 @@ func instanceStatePut(d *Daemon, r *http.Request) response.Response {
 			return c.Restart(time.Duration(timeout))
 		}
 	case shared.Freeze:
-		if !d.os.CGInfo.Supports(cgroup.Freezer, nil) {
-			return response.BadRequest(fmt.Errorf("This system doesn't support freezing instances"))
-		}
-
 		opType = db.OperationInstanceFreeze
 		do = func(op *operations.Operation) error {
-			c.SetOperation(op)
 			return c.Freeze()
 		}
 	case shared.Unfreeze:
-		if !d.os.CGInfo.Supports(cgroup.Freezer, nil) {
-			return response.BadRequest(fmt.Errorf("This system doesn't support unfreezing instances"))
-		}
-
 		opType = db.OperationInstanceUnfreeze
 		do = func(op *operations.Operation) error {
-			c.SetOperation(op)
 			return c.Unfreeze()
 		}
 	default:
