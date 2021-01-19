@@ -1267,3 +1267,8 @@ Those contain additional state information relevant to VLAN interfaces:
 
 ## instance\_nic\_bridged\_port\_isolation
 This adds the `security.port_isolation` field for bridged NIC instances.
+
+## instance\_bulk\_state\_change
+Adds the following endpoint for bulk state change (see [RESTful API](rest-api.md) for details):
+
+* `PUT /1.0/instances`

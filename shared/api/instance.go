@@ -28,6 +28,16 @@ type InstancesPost struct {
 	Type         InstanceType   `json:"type" yaml:"type"`
 }
 
+// InstancesPut represents the fields available for a mass state change.
+//
+// API extension: instance_bulk_state_change
+type InstancesPut struct {
+	Action   string `json:"action" yaml:"action"`
+	Timeout  int    `json:"source" yaml:"source"`
+	Force    bool   `json:"force"  yaml:"timeout"`
+	Stateful bool   `json:"stateful" yaml:"stateful"`
+}
+
 // InstancePost represents the fields required to rename/move a LXD instance.
 //
 // API extension: instances
