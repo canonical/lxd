@@ -11,7 +11,7 @@ import (
 	"github.com/lxc/lxd/lxd/response"
 )
 
-func containerDelete(d *Daemon, r *http.Request) response.Response {
+func instanceDelete(d *Daemon, r *http.Request) response.Response {
 	instanceType, err := urlInstanceTypeDetect(r)
 	if err != nil {
 		return response.SmartError(err)

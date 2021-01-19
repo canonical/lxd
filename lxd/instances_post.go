@@ -212,7 +212,7 @@ func createFromMigration(d *Daemon, projectName string, req *api.InstancesPost) 
 		}
 	}
 
-	storagePool, storagePoolProfile, localRootDiskDeviceKey, localRootDiskDevice, resp := containerFindStoragePool(d, projectName, req)
+	storagePool, storagePoolProfile, localRootDiskDeviceKey, localRootDiskDevice, resp := instanceFindStoragePool(d, projectName, req)
 	if resp != nil {
 		return resp
 	}
@@ -408,7 +408,7 @@ func createFromCopy(d *Daemon, projectName string, req *api.InstancesPost) respo
 			_, rootDevice, _ := shared.GetRootDiskDevice(source.ExpandedDevices().CloneNative())
 			sourcePoolName := rootDevice["pool"]
 
-			destPoolName, _, _, _, resp := containerFindStoragePool(d, targetProject, req)
+			destPoolName, _, _, _, resp := instanceFindStoragePool(d, targetProject, req)
 			if resp != nil {
 				return resp
 			}
@@ -721,7 +721,7 @@ func createFromBackup(d *Daemon, projectName string, data io.Reader, pool string
 	return operations.OperationResponse(op)
 }
 
-func containersPost(d *Daemon, r *http.Request) response.Response {
+func instancesPost(d *Daemon, r *http.Request) response.Response {
 	targetProject := projectParam(r)
 	logger.Debugf("Responding to instance create")
 
@@ -899,7 +899,7 @@ func containersPost(d *Daemon, r *http.Request) response.Response {
 	}
 }
 
-func containerFindStoragePool(d *Daemon, projectName string, req *api.InstancesPost) (string, string, string, map[string]string, response.Response) {
+func instanceFindStoragePool(d *Daemon, projectName string, req *api.InstancesPost) (string, string, string, map[string]string, response.Response) {
 	// Grab the container's root device if one is specified
 	storagePool := ""
 	storagePoolProfile := ""

@@ -24,8 +24,8 @@ var instanceLogCmd = APIEndpoint{
 		{Name: "vmLog", Path: "virtual-machines/{name}/logs/{file}"},
 	},
 
-	Delete: APIEndpointAction{Handler: containerLogDelete, AccessHandler: allowProjectPermission("containers", "operate-containers")},
-	Get:    APIEndpointAction{Handler: containerLogGet, AccessHandler: allowProjectPermission("containers", "view")},
+	Delete: APIEndpointAction{Handler: instanceLogDelete, AccessHandler: allowProjectPermission("containers", "operate-containers")},
+	Get:    APIEndpointAction{Handler: instanceLogGet, AccessHandler: allowProjectPermission("containers", "view")},
 }
 
 var instanceLogsCmd = APIEndpoint{
@@ -36,10 +36,10 @@ var instanceLogsCmd = APIEndpoint{
 		{Name: "vmLogs", Path: "virtual-machines/{name}/logs"},
 	},
 
-	Get: APIEndpointAction{Handler: containerLogsGet, AccessHandler: allowProjectPermission("containers", "view")},
+	Get: APIEndpointAction{Handler: instanceLogsGet, AccessHandler: allowProjectPermission("containers", "view")},
 }
 
-func containerLogsGet(d *Daemon, r *http.Request) response.Response {
+func instanceLogsGet(d *Daemon, r *http.Request) response.Response {
 	/* Let's explicitly *not* try to do a containerLoadByName here. In some
 	 * cases (e.g. when container creation failed), the container won't
 	 * exist in the DB but it does have some log files on disk.
@@ -101,7 +101,7 @@ func validLogFileName(fname string) bool {
 		strings.HasPrefix(fname, "exec_")
 }
 
-func containerLogGet(d *Daemon, r *http.Request) response.Response {
+func instanceLogGet(d *Daemon, r *http.Request) response.Response {
 	instanceType, err := urlInstanceTypeDetect(r)
 	if err != nil {
 		return response.SmartError(err)
@@ -138,7 +138,7 @@ func containerLogGet(d *Daemon, r *http.Request) response.Response {
 	return response.FileResponse(r, []response.FileResponseEntry{ent}, nil, false)
 }
 
-func containerLogDelete(d *Daemon, r *http.Request) response.Response {
+func instanceLogDelete(d *Daemon, r *http.Request) response.Response {
 	instanceType, err := urlInstanceTypeDetect(r)
 	if err != nil {
 		return response.SmartError(err)

@@ -26,7 +26,7 @@ import (
 	"github.com/lxc/lxd/shared/version"
 )
 
-func containerSnapshotsGet(d *Daemon, r *http.Request) response.Response {
+func instanceSnapshotsGet(d *Daemon, r *http.Request) response.Response {
 	instanceType, err := urlInstanceTypeDetect(r)
 	if err != nil {
 		return response.SmartError(err)
@@ -92,7 +92,7 @@ func containerSnapshotsGet(d *Daemon, r *http.Request) response.Response {
 	return response.SyncResponse(true, resultMap)
 }
 
-func containerSnapshotsPost(d *Daemon, r *http.Request) response.Response {
+func instanceSnapshotsPost(d *Daemon, r *http.Request) response.Response {
 	instanceType, err := urlInstanceTypeDetect(r)
 	if err != nil {
 		return response.SmartError(err)
@@ -127,7 +127,7 @@ func containerSnapshotsPost(d *Daemon, r *http.Request) response.Response {
 	}
 
 	if req.Name == "" {
-		req.Name, err = containerDetermineNextSnapshotName(d, inst, "snap%d")
+		req.Name, err = instanceDetermineNextSnapshotName(d, inst, "snap%d")
 		if err != nil {
 			return response.SmartError(err)
 		}
@@ -188,7 +188,7 @@ func containerSnapshotsPost(d *Daemon, r *http.Request) response.Response {
 	return operations.OperationResponse(op)
 }
 
-func containerSnapshotHandler(d *Daemon, r *http.Request) response.Response {
+func instanceSnapshotHandler(d *Daemon, r *http.Request) response.Response {
 	instanceType, err := urlInstanceTypeDetect(r)
 	if err != nil {
 		return response.SmartError(err)

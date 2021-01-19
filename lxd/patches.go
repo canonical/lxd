@@ -3686,7 +3686,7 @@ func patchUpdateFromV10(_ *sql.Tx) error {
 }
 
 func patchUpdateFromV11(_ *sql.Tx) error {
-	containers, err := containersOnDisk()
+	containers, err := instancesOnDisk()
 	if err != nil {
 		return err
 	}
@@ -3759,7 +3759,7 @@ func patchUpdateFromV15(tx *sql.Tx) error {
 	// munge all LVM-backed containers' LV names to match what is
 	// required for snapshot support
 
-	containers, err := containersOnDisk()
+	containers, err := instancesOnDisk()
 	if err != nil {
 		return err
 	}
