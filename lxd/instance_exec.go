@@ -409,7 +409,7 @@ func (s *execWs) Do(op *operations.Operation) error {
 	return finisher(exitCode, err)
 }
 
-func containerExecPost(d *Daemon, r *http.Request) response.Response {
+func instanceExecPost(d *Daemon, r *http.Request) response.Response {
 	instanceType, err := urlInstanceTypeDetect(r)
 	if err != nil {
 		return response.SmartError(err)

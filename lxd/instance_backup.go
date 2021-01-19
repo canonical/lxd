@@ -21,7 +21,7 @@ import (
 	"github.com/lxc/lxd/shared/version"
 )
 
-func containerBackupsGet(d *Daemon, r *http.Request) response.Response {
+func instanceBackupsGet(d *Daemon, r *http.Request) response.Response {
 	instanceType, err := urlInstanceTypeDetect(r)
 	if err != nil {
 		return response.SmartError(err)
@@ -72,7 +72,7 @@ func containerBackupsGet(d *Daemon, r *http.Request) response.Response {
 	return response.SyncResponse(true, resultMap)
 }
 
-func containerBackupsPost(d *Daemon, r *http.Request) response.Response {
+func instanceBackupsPost(d *Daemon, r *http.Request) response.Response {
 	instanceType, err := urlInstanceTypeDetect(r)
 	if err != nil {
 		return response.SmartError(err)
@@ -192,7 +192,7 @@ func containerBackupsPost(d *Daemon, r *http.Request) response.Response {
 	return operations.OperationResponse(op)
 }
 
-func containerBackupGet(d *Daemon, r *http.Request) response.Response {
+func instanceBackupGet(d *Daemon, r *http.Request) response.Response {
 	instanceType, err := urlInstanceTypeDetect(r)
 	if err != nil {
 		return response.SmartError(err)
@@ -220,7 +220,7 @@ func containerBackupGet(d *Daemon, r *http.Request) response.Response {
 	return response.SyncResponse(true, backup.Render())
 }
 
-func containerBackupPost(d *Daemon, r *http.Request) response.Response {
+func instanceBackupPost(d *Daemon, r *http.Request) response.Response {
 	instanceType, err := urlInstanceTypeDetect(r)
 	if err != nil {
 		return response.SmartError(err)
@@ -279,7 +279,7 @@ func containerBackupPost(d *Daemon, r *http.Request) response.Response {
 	return operations.OperationResponse(op)
 }
 
-func containerBackupDelete(d *Daemon, r *http.Request) response.Response {
+func instanceBackupDelete(d *Daemon, r *http.Request) response.Response {
 	instanceType, err := urlInstanceTypeDetect(r)
 	if err != nil {
 		return response.SmartError(err)
@@ -325,7 +325,7 @@ func containerBackupDelete(d *Daemon, r *http.Request) response.Response {
 	return operations.OperationResponse(op)
 }
 
-func containerBackupExportGet(d *Daemon, r *http.Request) response.Response {
+func instanceBackupExportGet(d *Daemon, r *http.Request) response.Response {
 	instanceType, err := urlInstanceTypeDetect(r)
 	if err != nil {
 		return response.SmartError(err)

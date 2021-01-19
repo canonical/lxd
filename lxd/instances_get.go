@@ -44,7 +44,7 @@ func urlInstanceTypeDetect(r *http.Request) (instancetype.Type, error) {
 	return instancetype.Any, nil
 }
 
-func containersGet(d *Daemon, r *http.Request) response.Response {
+func instancesGet(d *Daemon, r *http.Request) response.Response {
 	for i := 0; i < 100; i++ {
 		result, err := doContainersGet(d, r)
 		if err == nil {

@@ -17,7 +17,7 @@ import (
 	"github.com/lxc/lxd/shared/api"
 )
 
-func containerState(d *Daemon, r *http.Request) response.Response {
+func instanceState(d *Daemon, r *http.Request) response.Response {
 	instanceType, err := urlInstanceTypeDetect(r)
 	if err != nil {
 		return response.SmartError(err)
@@ -47,7 +47,7 @@ func containerState(d *Daemon, r *http.Request) response.Response {
 	return response.SyncResponse(true, state)
 }
 
-func containerStatePut(d *Daemon, r *http.Request) response.Response {
+func instanceStatePut(d *Daemon, r *http.Request) response.Response {
 	instanceType, err := urlInstanceTypeDetect(r)
 	if err != nil {
 		return response.SmartError(err)

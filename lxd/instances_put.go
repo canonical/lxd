@@ -30,7 +30,7 @@ func coalesceErrors(errors map[string]error) error {
 }
 
 // Update all instance states
-func containersPut(d *Daemon, r *http.Request) response.Response {
+func instancesPut(d *Daemon, r *http.Request) response.Response {
 	project := projectParam(r)
 
 	c, err := instance.LoadByProject(d.State(), project)
