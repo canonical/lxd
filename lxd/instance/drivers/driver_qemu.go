@@ -2304,6 +2304,7 @@ func (d *qemu) addDriveConfig(sb *strings.Builder, bootIndexes map[string]int, d
 	// Use native kernel async IO and O_DIRECT by default.
 	aioMode := "native"
 	cacheMode := "none" // Bypass host cache, use O_DIRECT semantics.
+	media := "disk"
 
 	// If drive config indicates we need to use unsafe I/O then use it.
 	if shared.StringInSlice(qemuUnsafeIO, driveConf.Opts) {
@@ -2328,6 +2329,11 @@ func (d *qemu) addDriveConfig(sb *strings.Builder, bootIndexes map[string]int, d
 			aioMode = "threads"
 			cacheMode = "writeback" // Use host cache, with neither O_DSYNC nor O_DIRECT semantics.
 		}
+
+		// Special case ISO images as cdroms.
+		if strings.HasSuffix(driveConf.DevPath, ".iso") {
+			media = "cdrom"
+		}
 	}
 
 	if !strings.HasPrefix(driveConf.DevPath, "rbd:") {
@@ -2340,6 +2346,7 @@ func (d *qemu) addDriveConfig(sb *strings.Builder, bootIndexes map[string]int, d
 		"bootIndex": bootIndexes[driveConf.DevName],
 		"cacheMode": cacheMode,
 		"aioMode":   aioMode,
+		"media":     media,
 		"shared":    driveConf.TargetPath != "/" && !strings.HasPrefix(driveConf.DevPath, "rbd:"),
 	})
 }
