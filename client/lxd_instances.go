@@ -91,6 +91,22 @@ func (r *ProtocolLXD) GetInstances(instanceType api.InstanceType) ([]api.Instanc
 	return instances, nil
 }
 
+// UpdateInstances updates all instances to match the requested state.
+func (r *ProtocolLXD) UpdateInstances(state api.InstancesPut, ETag string) (Operation, error) {
+	path, v, err := r.instanceTypeToPath(api.InstanceTypeAny)
+	if err != nil {
+		return nil, err
+	}
+
+	// Send the request
+	op, _, err := r.queryOperation("PUT", fmt.Sprintf("%s?%s", path, v.Encode()), state, ETag)
+	if err != nil {
+		return nil, err
+	}
+
+	return op, nil
+}
+
 // GetInstancesFull returns a list of instances including snapshots, backups and state.
 func (r *ProtocolLXD) GetInstancesFull(instanceType api.InstanceType) ([]api.InstanceFull, error) {
 	instances := []api.InstanceFull{}

@@ -166,7 +166,7 @@ Filtering is available for the instance and image endpoints.
 There is no default value for filter which means that all results found will
 be returned. The following is the language used for the filter argument:
 
-?filter=field_name eq desired_field_assignment
+?filter=field\_name eq desired\_field\_assignment
 
 The language follows the OData conventions for structuring REST API filtering
 logic. Logical operators are also supported for filtering: not(not), equals(eq),
@@ -174,11 +174,11 @@ not equals(ne), and(and), or(or). Filters are evaluated with left associativity.
 Values with spaces can be surrounded with quotes. Nesting filtering is also supported. 
 For instance, to filter on a field in a config you would pass:
 
-?filter=config.field_name eq desired_field_assignment
+?filter=config.field\_name eq desired\_field\_assignment
 
 For filtering on device attributes you would pass:
 
-?filter=devices.device_name.field_name eq desired_field_assignment
+?filter=devices.device\_name.field\_name eq desired\_field\_assignment
 
 Here are a few GET query examples of the different filtering methods mentioned above:
 
@@ -726,6 +726,23 @@ Input (using a remote instance, in push mode sent over the migration websocket v
 Input (using a backup):
 
 Raw compressed tarball as provided by a backup download.
+
+#### PUT
+ * Description: change the state of all instances
+ * Authentication: trusted
+ * Operation: async
+ * Return: background operation of standard error
+
+Input:
+
+```js
+{
+    "action": "start",      // State change action (stop, start, restart, freeze or unfreeze)
+    "timeout": 30,          // A timeout after which the state change is considered as failed
+    "force": true,          // Force the state change (currently only valid for stop and restart where it means killing the instance)
+    "stateful": true        // Whether to store or restore runtime state before stopping or starting (only valid for stop and start, defaults to false)
+}
+```
 
 ### `/1.0/instances/<name>`
 #### GET
@@ -1434,7 +1451,7 @@ Input:
     "action": "stop",       // State change action (stop, start, restart, freeze or unfreeze)
     "timeout": 30,          // A timeout after which the state change is considered as failed
     "force": true,          // Force the state change (currently only valid for stop and restart where it means killing the instance)
-    "stateful": true        // Whether to store or restore runtime state before stopping or startiong (only valid for stop and start, defaults to false)
+    "stateful": true        // Whether to store or restore runtime state before stopping or starting (only valid for stop and start, defaults to false)
 }
 ```
 
