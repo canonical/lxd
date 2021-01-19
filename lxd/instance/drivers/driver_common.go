@@ -440,6 +440,34 @@ func (d *common) restart(inst instance.Instance, timeout time.Duration) error {
 		return errors.Wrap(err, "Create restart operation")
 	}
 
+	// Handle ephemeral instances.
+	ephemeral := inst.IsEphemeral()
+	if ephemeral {
+		// Unset ephemeral flag
+		args := db.InstanceArgs{
+			Architecture: inst.Architecture(),
+			Config:       inst.LocalConfig(),
+			Description:  inst.Description(),
+			Devices:      inst.LocalDevices(),
+			Ephemeral:    false,
+			Profiles:     inst.Profiles(),
+			Project:      inst.Project(),
+			Type:         inst.Type(),
+			Snapshot:     inst.IsSnapshot(),
+		}
+
+		err := inst.Update(args, false)
+		if err != nil {
+			return err
+		}
+
+		// On function return, set the flag back on
+		defer func() {
+			args.Ephemeral = ephemeral
+			inst.Update(args, false)
+		}()
+	}
+
 	if timeout == 0 {
 		err := inst.Stop(false)
 		if err != nil {

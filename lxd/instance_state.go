@@ -132,34 +132,6 @@ func doInstanceStatePut(inst instance.Instance, req api.InstanceStatePut) error 
 			return inst.Shutdown(time.Duration(req.Timeout) * time.Second)
 		}
 	case shared.Restart:
-		ephemeral := inst.IsEphemeral()
-
-		if ephemeral {
-			// Unset ephemeral flag
-			args := db.InstanceArgs{
-				Architecture: inst.Architecture(),
-				Config:       inst.LocalConfig(),
-				Description:  inst.Description(),
-				Devices:      inst.LocalDevices(),
-				Ephemeral:    false,
-				Profiles:     inst.Profiles(),
-				Project:      inst.Project(),
-				Type:         inst.Type(),
-				Snapshot:     inst.IsSnapshot(),
-			}
-
-			err := inst.Update(args, false)
-			if err != nil {
-				return err
-			}
-
-			// On function return, set the flag back on
-			defer func() {
-				args.Ephemeral = ephemeral
-				inst.Update(args, false)
-			}()
-		}
-
 		timeout := req.Timeout
 		if req.Force {
 			timeout = 0
