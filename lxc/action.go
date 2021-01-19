@@ -154,10 +154,12 @@ func (c *cmdAction) doActionAll(action string, resource remoteResource) error {
 	}
 
 	req := api.InstancesPut{
-		Action:   action,
-		Timeout:  c.flagTimeout,
-		Force:    c.flagForce,
-		Stateful: state,
+		State: &api.InstanceStatePut{
+			Action:   action,
+			Timeout:  c.flagTimeout,
+			Force:    c.flagForce,
+			Stateful: state,
+		},
 	}
 
 	// Update all instances.
