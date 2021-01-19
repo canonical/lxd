@@ -365,7 +365,7 @@ func (s *consoleWs) doVGA(op *operations.Operation) error {
 	return nil
 }
 
-func containerConsolePost(d *Daemon, r *http.Request) response.Response {
+func instanceConsolePost(d *Daemon, r *http.Request) response.Response {
 	instanceType, err := urlInstanceTypeDetect(r)
 	if err != nil {
 		return response.SmartError(err)
@@ -462,7 +462,7 @@ func containerConsolePost(d *Daemon, r *http.Request) response.Response {
 	return operations.OperationResponse(op)
 }
 
-func containerConsoleLogGet(d *Daemon, r *http.Request) response.Response {
+func instanceConsoleLogGet(d *Daemon, r *http.Request) response.Response {
 	instanceType, err := urlInstanceTypeDetect(r)
 	if err != nil {
 		return response.SmartError(err)
@@ -530,7 +530,7 @@ func containerConsoleLogGet(d *Daemon, r *http.Request) response.Response {
 	return response.FileResponse(r, []response.FileResponseEntry{ent}, nil, false)
 }
 
-func containerConsoleLogDelete(d *Daemon, r *http.Request) response.Response {
+func instanceConsoleLogDelete(d *Daemon, r *http.Request) response.Response {
 	if !util.RuntimeLiblxcVersionAtLeast(3, 0, 0) {
 		return response.BadRequest(fmt.Errorf("Clearing the console buffer requires liblxc >= 3.0"))
 	}

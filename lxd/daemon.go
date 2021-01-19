@@ -983,7 +983,7 @@ func (d *Daemon) init() error {
 		logger.Debugf("Restarting all the containers following directory rename")
 		s := d.State()
 		instancesShutdown(s)
-		containersRestart(s)
+		instancesRestart(s)
 	}
 
 	// Setup the user-agent.
@@ -1229,7 +1229,7 @@ func (d *Daemon) Ready() error {
 	s := d.State()
 
 	// Restore containers
-	containersRestart(s)
+	instancesRestart(s)
 
 	// Start monitoring VMs again
 	vmMonitor(s)

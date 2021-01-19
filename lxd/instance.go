@@ -744,7 +744,7 @@ func autoCreateContainerSnapshots(ctx context.Context, d *Daemon, instances []in
 	for _, c := range instances {
 		ch := make(chan error)
 		go func() {
-			snapshotName, err := containerDetermineNextSnapshotName(d, c, "snap%d")
+			snapshotName, err := instanceDetermineNextSnapshotName(d, c, "snap%d")
 			if err != nil {
 				logger.Error("Error retrieving next snapshot name", log.Ctx{"err": err, "container": c})
 				ch <- nil
@@ -874,7 +874,7 @@ func pruneExpiredContainerSnapshots(ctx context.Context, d *Daemon, snapshots []
 	return nil
 }
 
-func containerDetermineNextSnapshotName(d *Daemon, c instance.Instance, defaultPattern string) (string, error) {
+func instanceDetermineNextSnapshotName(d *Daemon, c instance.Instance, defaultPattern string) (string, error) {
 	var err error
 
 	pattern := c.ExpandedConfig()["snapshots.pattern"]

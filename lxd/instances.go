@@ -25,9 +25,9 @@ var instancesCmd = APIEndpoint{
 		{Name: "vms", Path: "virtual-machines"},
 	},
 
-	Get:  APIEndpointAction{Handler: containersGet, AccessHandler: allowProjectPermission("containers", "view")},
-	Post: APIEndpointAction{Handler: containersPost, AccessHandler: allowProjectPermission("containers", "manage-containers")},
-	Put:  APIEndpointAction{Handler: containersPut, AccessHandler: allowProjectPermission("containers", "operate-containers")},
+	Get:  APIEndpointAction{Handler: instancesGet, AccessHandler: allowProjectPermission("containers", "view")},
+	Post: APIEndpointAction{Handler: instancesPost, AccessHandler: allowProjectPermission("containers", "manage-containers")},
+	Put:  APIEndpointAction{Handler: instancesPut, AccessHandler: allowProjectPermission("containers", "operate-containers")},
 }
 
 var instanceCmd = APIEndpoint{
@@ -38,11 +38,11 @@ var instanceCmd = APIEndpoint{
 		{Name: "vm", Path: "virtual-machines/{name}"},
 	},
 
-	Get:    APIEndpointAction{Handler: containerGet, AccessHandler: allowProjectPermission("containers", "view")},
-	Put:    APIEndpointAction{Handler: containerPut, AccessHandler: allowProjectPermission("containers", "manage-containers")},
-	Delete: APIEndpointAction{Handler: containerDelete, AccessHandler: allowProjectPermission("containers", "manage-containers")},
-	Post:   APIEndpointAction{Handler: containerPost, AccessHandler: allowProjectPermission("containers", "manage-containers")},
-	Patch:  APIEndpointAction{Handler: containerPatch, AccessHandler: allowProjectPermission("containers", "manage-containers")},
+	Get:    APIEndpointAction{Handler: instanceGet, AccessHandler: allowProjectPermission("containers", "view")},
+	Put:    APIEndpointAction{Handler: instancePut, AccessHandler: allowProjectPermission("containers", "manage-containers")},
+	Delete: APIEndpointAction{Handler: instanceDelete, AccessHandler: allowProjectPermission("containers", "manage-containers")},
+	Post:   APIEndpointAction{Handler: instancePost, AccessHandler: allowProjectPermission("containers", "manage-containers")},
+	Patch:  APIEndpointAction{Handler: instancePatch, AccessHandler: allowProjectPermission("containers", "manage-containers")},
 }
 
 var instanceStateCmd = APIEndpoint{
@@ -53,8 +53,8 @@ var instanceStateCmd = APIEndpoint{
 		{Name: "vmState", Path: "virtual-machines/{name}/state"},
 	},
 
-	Get: APIEndpointAction{Handler: containerState, AccessHandler: allowProjectPermission("containers", "view")},
-	Put: APIEndpointAction{Handler: containerStatePut, AccessHandler: allowProjectPermission("containers", "operate-containers")},
+	Get: APIEndpointAction{Handler: instanceState, AccessHandler: allowProjectPermission("containers", "view")},
+	Put: APIEndpointAction{Handler: instanceStatePut, AccessHandler: allowProjectPermission("containers", "operate-containers")},
 }
 
 var instanceFileCmd = APIEndpoint{
@@ -65,9 +65,9 @@ var instanceFileCmd = APIEndpoint{
 		{Name: "vmFile", Path: "virtual-machines/{name}/files"},
 	},
 
-	Get:    APIEndpointAction{Handler: containerFileHandler, AccessHandler: allowProjectPermission("containers", "operate-containers")},
-	Post:   APIEndpointAction{Handler: containerFileHandler, AccessHandler: allowProjectPermission("containers", "operate-containers")},
-	Delete: APIEndpointAction{Handler: containerFileHandler, AccessHandler: allowProjectPermission("containers", "operate-containers")},
+	Get:    APIEndpointAction{Handler: instanceFileHandler, AccessHandler: allowProjectPermission("containers", "operate-containers")},
+	Post:   APIEndpointAction{Handler: instanceFileHandler, AccessHandler: allowProjectPermission("containers", "operate-containers")},
+	Delete: APIEndpointAction{Handler: instanceFileHandler, AccessHandler: allowProjectPermission("containers", "operate-containers")},
 }
 
 var instanceSnapshotsCmd = APIEndpoint{
@@ -78,8 +78,8 @@ var instanceSnapshotsCmd = APIEndpoint{
 		{Name: "vmSnapshots", Path: "virtual-machines/{name}/snapshots"},
 	},
 
-	Get:  APIEndpointAction{Handler: containerSnapshotsGet, AccessHandler: allowProjectPermission("containers", "view")},
-	Post: APIEndpointAction{Handler: containerSnapshotsPost, AccessHandler: allowProjectPermission("containers", "operate-containers")},
+	Get:  APIEndpointAction{Handler: instanceSnapshotsGet, AccessHandler: allowProjectPermission("containers", "view")},
+	Post: APIEndpointAction{Handler: instanceSnapshotsPost, AccessHandler: allowProjectPermission("containers", "operate-containers")},
 }
 
 var instanceSnapshotCmd = APIEndpoint{
@@ -90,10 +90,10 @@ var instanceSnapshotCmd = APIEndpoint{
 		{Name: "vmSnapshot", Path: "virtual-machines/{name}/snapshots/{snapshotName}"},
 	},
 
-	Get:    APIEndpointAction{Handler: containerSnapshotHandler, AccessHandler: allowProjectPermission("containers", "operate-containers")},
-	Post:   APIEndpointAction{Handler: containerSnapshotHandler, AccessHandler: allowProjectPermission("containers", "operate-containers")},
-	Delete: APIEndpointAction{Handler: containerSnapshotHandler, AccessHandler: allowProjectPermission("containers", "operate-containers")},
-	Put:    APIEndpointAction{Handler: containerSnapshotHandler, AccessHandler: allowProjectPermission("containers", "operate-containers")},
+	Get:    APIEndpointAction{Handler: instanceSnapshotHandler, AccessHandler: allowProjectPermission("containers", "operate-containers")},
+	Post:   APIEndpointAction{Handler: instanceSnapshotHandler, AccessHandler: allowProjectPermission("containers", "operate-containers")},
+	Delete: APIEndpointAction{Handler: instanceSnapshotHandler, AccessHandler: allowProjectPermission("containers", "operate-containers")},
+	Put:    APIEndpointAction{Handler: instanceSnapshotHandler, AccessHandler: allowProjectPermission("containers", "operate-containers")},
 }
 
 var instanceConsoleCmd = APIEndpoint{
@@ -104,9 +104,9 @@ var instanceConsoleCmd = APIEndpoint{
 		{Name: "vmConsole", Path: "virtual-machines/{name}/console"},
 	},
 
-	Get:    APIEndpointAction{Handler: containerConsoleLogGet, AccessHandler: allowProjectPermission("containers", "view")},
-	Post:   APIEndpointAction{Handler: containerConsolePost, AccessHandler: allowProjectPermission("containers", "operate-containers")},
-	Delete: APIEndpointAction{Handler: containerConsoleLogDelete, AccessHandler: allowProjectPermission("containers", "operate-containers")},
+	Get:    APIEndpointAction{Handler: instanceConsoleLogGet, AccessHandler: allowProjectPermission("containers", "view")},
+	Post:   APIEndpointAction{Handler: instanceConsolePost, AccessHandler: allowProjectPermission("containers", "operate-containers")},
+	Delete: APIEndpointAction{Handler: instanceConsoleLogDelete, AccessHandler: allowProjectPermission("containers", "operate-containers")},
 }
 
 var instanceExecCmd = APIEndpoint{
@@ -117,7 +117,7 @@ var instanceExecCmd = APIEndpoint{
 		{Name: "vmExec", Path: "virtual-machines/{name}/exec"},
 	},
 
-	Post: APIEndpointAction{Handler: containerExecPost, AccessHandler: allowProjectPermission("containers", "operate-containers")},
+	Post: APIEndpointAction{Handler: instanceExecPost, AccessHandler: allowProjectPermission("containers", "operate-containers")},
 }
 
 var instanceMetadataCmd = APIEndpoint{
@@ -128,8 +128,8 @@ var instanceMetadataCmd = APIEndpoint{
 		{Name: "vmMetadata", Path: "virtual-machines/{name}/metadata"},
 	},
 
-	Get: APIEndpointAction{Handler: containerMetadataGet, AccessHandler: allowProjectPermission("containers", "view")},
-	Put: APIEndpointAction{Handler: containerMetadataPut, AccessHandler: allowProjectPermission("containers", "manage-containers")},
+	Get: APIEndpointAction{Handler: instanceMetadataGet, AccessHandler: allowProjectPermission("containers", "view")},
+	Put: APIEndpointAction{Handler: instanceMetadataPut, AccessHandler: allowProjectPermission("containers", "manage-containers")},
 }
 
 var instanceMetadataTemplatesCmd = APIEndpoint{
@@ -140,10 +140,10 @@ var instanceMetadataTemplatesCmd = APIEndpoint{
 		{Name: "vmMetadataTemplates", Path: "virtual-machines/{name}/metadata/templates"},
 	},
 
-	Get:    APIEndpointAction{Handler: containerMetadataTemplatesGet, AccessHandler: allowProjectPermission("containers", "view")},
-	Post:   APIEndpointAction{Handler: containerMetadataTemplatesPostPut, AccessHandler: allowProjectPermission("containers", "manage-containers")},
-	Put:    APIEndpointAction{Handler: containerMetadataTemplatesPostPut, AccessHandler: allowProjectPermission("containers", "manage-containers")},
-	Delete: APIEndpointAction{Handler: containerMetadataTemplatesDelete, AccessHandler: allowProjectPermission("containers", "manage-containers")},
+	Get:    APIEndpointAction{Handler: instanceMetadataTemplatesGet, AccessHandler: allowProjectPermission("containers", "view")},
+	Post:   APIEndpointAction{Handler: instanceMetadataTemplatesPostPut, AccessHandler: allowProjectPermission("containers", "manage-containers")},
+	Put:    APIEndpointAction{Handler: instanceMetadataTemplatesPostPut, AccessHandler: allowProjectPermission("containers", "manage-containers")},
+	Delete: APIEndpointAction{Handler: instanceMetadataTemplatesDelete, AccessHandler: allowProjectPermission("containers", "manage-containers")},
 }
 
 var instanceBackupsCmd = APIEndpoint{
@@ -154,8 +154,8 @@ var instanceBackupsCmd = APIEndpoint{
 		{Name: "vmBackups", Path: "virtual-machines/{name}/backups"},
 	},
 
-	Get:  APIEndpointAction{Handler: containerBackupsGet, AccessHandler: allowProjectPermission("containers", "view")},
-	Post: APIEndpointAction{Handler: containerBackupsPost, AccessHandler: allowProjectPermission("containers", "operate-containers")},
+	Get:  APIEndpointAction{Handler: instanceBackupsGet, AccessHandler: allowProjectPermission("containers", "view")},
+	Post: APIEndpointAction{Handler: instanceBackupsPost, AccessHandler: allowProjectPermission("containers", "operate-containers")},
 }
 
 var instanceBackupCmd = APIEndpoint{
@@ -166,9 +166,9 @@ var instanceBackupCmd = APIEndpoint{
 		{Name: "vmBackup", Path: "virtual-machines/{name}/backups/{backupName}"},
 	},
 
-	Get:    APIEndpointAction{Handler: containerBackupGet, AccessHandler: allowProjectPermission("containers", "view")},
-	Post:   APIEndpointAction{Handler: containerBackupPost, AccessHandler: allowProjectPermission("containers", "operate-containers")},
-	Delete: APIEndpointAction{Handler: containerBackupDelete, AccessHandler: allowProjectPermission("containers", "operate-containers")},
+	Get:    APIEndpointAction{Handler: instanceBackupGet, AccessHandler: allowProjectPermission("containers", "view")},
+	Post:   APIEndpointAction{Handler: instanceBackupPost, AccessHandler: allowProjectPermission("containers", "operate-containers")},
+	Delete: APIEndpointAction{Handler: instanceBackupDelete, AccessHandler: allowProjectPermission("containers", "operate-containers")},
 }
 
 var instanceBackupExportCmd = APIEndpoint{
@@ -179,7 +179,7 @@ var instanceBackupExportCmd = APIEndpoint{
 		{Name: "vmBackupExport", Path: "virtual-machines/{name}/backups/{backupName}/export"},
 	},
 
-	Get: APIEndpointAction{Handler: containerBackupExportGet, AccessHandler: allowProjectPermission("containers", "view")},
+	Get: APIEndpointAction{Handler: instanceBackupExportGet, AccessHandler: allowProjectPermission("containers", "view")},
 }
 
 type containerAutostartList []instance.Instance
@@ -205,7 +205,7 @@ func (slice containerAutostartList) Swap(i, j int) {
 	slice[i], slice[j] = slice[j], slice[i]
 }
 
-func containersRestart(s *state.State) error {
+func instancesRestart(s *state.State) error {
 	// Get all the instances
 	result, err := instance.LoadNodeAll(s, instancetype.Any)
 	if err != nil {
@@ -288,7 +288,7 @@ func (slice containerStopList) Swap(i, j int) {
 
 // Return the names of all local containers, grouped by project. The
 // information is obtained by reading the data directory.
-func containersOnDisk() (map[string][]string, error) {
+func instancesOnDisk() (map[string][]string, error) {
 	containers := map[string][]string{}
 
 	files, err := ioutil.ReadDir(shared.VarPath("containers"))
@@ -327,7 +327,7 @@ func instancesShutdown(s *state.State) error {
 		instances = []instance.Instance{}
 
 		// List all containers on disk
-		cnames, err := containersOnDisk()
+		cnames, err := instancesOnDisk()
 		if err != nil {
 			return err
 		}

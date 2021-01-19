@@ -24,7 +24,7 @@ import (
  * Update configuration, or, if 'restore:snapshot-name' is present, restore
  * the named snapshot
  */
-func containerPut(d *Daemon, r *http.Request) response.Response {
+func instancePut(d *Daemon, r *http.Request) response.Response {
 	instanceType, err := urlInstanceTypeDetect(r)
 	if err != nil {
 		return response.SmartError(err)
