@@ -45,6 +45,9 @@ type InstancePost struct {
 	InstanceOnly  bool                `json:"instance_only" yaml:"instance_only"`
 	ContainerOnly bool                `json:"container_only" yaml:"container_only"` // Deprecated, use InstanceOnly.
 	Target        *InstancePostTarget `json:"target" yaml:"target"`
+
+	// API extension: instance_pool_move
+	Pool string `json:"pool" yaml:"pool"`
 }
 
 // InstancePostTarget represents the migration target host and operation.
