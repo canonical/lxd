@@ -20,7 +20,7 @@ import (
 	"github.com/lxc/lxd/shared/osarch"
 )
 
-func containerPatch(d *Daemon, r *http.Request) response.Response {
+func instancePatch(d *Daemon, r *http.Request) response.Response {
 	instanceType, err := urlInstanceTypeDetect(r)
 	if err != nil {
 		return response.SmartError(err)

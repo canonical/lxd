@@ -20,7 +20,7 @@ import (
 	"github.com/lxc/lxd/shared/api"
 )
 
-func containerMetadataGet(d *Daemon, r *http.Request) response.Response {
+func instanceMetadataGet(d *Daemon, r *http.Request) response.Response {
 	instanceType, err := urlInstanceTypeDetect(r)
 	if err != nil {
 		return response.SmartError(err)
@@ -84,7 +84,7 @@ func containerMetadataGet(d *Daemon, r *http.Request) response.Response {
 	return response.SyncResponse(true, metadata)
 }
 
-func containerMetadataPut(d *Daemon, r *http.Request) response.Response {
+func instanceMetadataPut(d *Daemon, r *http.Request) response.Response {
 	instanceType, err := urlInstanceTypeDetect(r)
 	if err != nil {
 		return response.SmartError(err)
@@ -141,7 +141,7 @@ func containerMetadataPut(d *Daemon, r *http.Request) response.Response {
 }
 
 // Return a list of templates used in a container or the content of a template
-func containerMetadataTemplatesGet(d *Daemon, r *http.Request) response.Response {
+func instanceMetadataTemplatesGet(d *Daemon, r *http.Request) response.Response {
 	instanceType, err := urlInstanceTypeDetect(r)
 	if err != nil {
 		return response.SmartError(err)
@@ -238,7 +238,7 @@ func containerMetadataTemplatesGet(d *Daemon, r *http.Request) response.Response
 }
 
 // Add a container template file
-func containerMetadataTemplatesPostPut(d *Daemon, r *http.Request) response.Response {
+func instanceMetadataTemplatesPostPut(d *Daemon, r *http.Request) response.Response {
 	instanceType, err := urlInstanceTypeDetect(r)
 	if err != nil {
 		return response.SmartError(err)
@@ -313,7 +313,7 @@ func containerMetadataTemplatesPostPut(d *Daemon, r *http.Request) response.Resp
 }
 
 // Delete a container template
-func containerMetadataTemplatesDelete(d *Daemon, r *http.Request) response.Response {
+func instanceMetadataTemplatesDelete(d *Daemon, r *http.Request) response.Response {
 	instanceType, err := urlInstanceTypeDetect(r)
 	if err != nil {
 		return response.SmartError(err)
