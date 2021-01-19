@@ -15,7 +15,7 @@ import (
 	"github.com/lxc/lxd/shared"
 )
 
-func containerFileHandler(d *Daemon, r *http.Request) response.Response {
+func instanceFileHandler(d *Daemon, r *http.Request) response.Response {
 	instanceType, err := urlInstanceTypeDetect(r)
 	if err != nil {
 		return response.SmartError(err)
@@ -44,17 +44,17 @@ func containerFileHandler(d *Daemon, r *http.Request) response.Response {
 
 	switch r.Method {
 	case "GET":
-		return containerFileGet(c, path, r)
+		return instanceFileGet(c, path, r)
 	case "POST":
-		return containerFilePost(c, path, r)
+		return instanceFilePost(c, path, r)
 	case "DELETE":
-		return containerFileDelete(c, path, r)
+		return instanceFileDelete(c, path, r)
 	default:
 		return response.NotFound(fmt.Errorf("Method '%s' not found", r.Method))
 	}
 }
 
-func containerFileGet(c instance.Instance, path string, r *http.Request) response.Response {
+func instanceFileGet(c instance.Instance, path string, r *http.Request) response.Response {
 	/*
 	 * Copy out of the ns to a temporary file, and then use that to serve
 	 * the request from. This prevents us from having to worry about stuff
@@ -99,7 +99,7 @@ func containerFileGet(c instance.Instance, path string, r *http.Request) respons
 	}
 }
 
-func containerFilePost(c instance.Instance, path string, r *http.Request) response.Response {
+func instanceFilePost(c instance.Instance, path string, r *http.Request) response.Response {
 	// Extract file ownership and mode from headers
 	uid, gid, mode, type_, write := shared.ParseLXDFileHeaders(r.Header)
 
@@ -152,7 +152,7 @@ func containerFilePost(c instance.Instance, path string, r *http.Request) respon
 	}
 }
 
-func containerFileDelete(c instance.Instance, path string, r *http.Request) response.Response {
+func instanceFileDelete(c instance.Instance, path string, r *http.Request) response.Response {
 	err := c.FileRemove(path)
 	if err != nil {
 		return response.SmartError(err)

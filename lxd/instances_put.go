@@ -5,10 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"sync"
-	"time"
 
-	"github.com/lxc/lxd/lxd/cgroup"
-	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/operations"
 	"github.com/lxc/lxd/lxd/response"
@@ -30,7 +27,7 @@ func coalesceErrors(errors map[string]error) error {
 }
 
 // Update all instance states
-func containersPut(d *Daemon, r *http.Request) response.Response {
+func instancesPut(d *Daemon, r *http.Request) response.Response {
 	project := projectParam(r)
 
 	c, err := instance.LoadByProject(d.State(), project)
@@ -38,13 +35,14 @@ func containersPut(d *Daemon, r *http.Request) response.Response {
 		return response.BadRequest(err)
 	}
 
-	raw := api.InstancesPut{}
-	raw.Timeout = -1
-	if err := json.NewDecoder(r.Body).Decode(&raw); err != nil {
+	req := api.InstancesPut{}
+	req.State = &api.InstanceStatePut{}
+	req.State.Timeout = -1
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		return response.BadRequest(err)
 	}
 
-	action := shared.InstanceAction(raw.Action)
+	action := shared.InstanceAction(req.State.Action)
 
 	var names []string
 	var instances []instance.Instance
@@ -79,237 +77,38 @@ func containersPut(d *Daemon, r *http.Request) response.Response {
 	// Don't mess with containers while in setup mode
 	<-d.readyChan
 
-	// Batch the actions.
-	var opType db.OperationType
-	var do func(*operations.Operation) error
-	switch action {
-	case shared.Start:
-		opType = db.OperationInstanceStart
-		do = func(op *operations.Operation) error {
-			failures := map[string]error{}
-			failuresLock := sync.Mutex{}
-			wgAction := sync.WaitGroup{}
+	// Determine operation type.
+	opType, err := instanceActionToOptype(req.State.Action)
+	if err != nil {
+		return response.BadRequest(err)
+	}
 
-			for _, inst := range instances {
-				wgAction.Add(1)
-				go func(inst instance.Instance) {
-					defer wgAction.Done()
+	// Batch the changes.
+	do := func(op *operations.Operation) error {
+		failures := map[string]error{}
+		failuresLock := sync.Mutex{}
+		wgAction := sync.WaitGroup{}
 
-					err = inst.Start(raw.Stateful)
-					if err != nil {
-						failuresLock.Lock()
-						failures[inst.Name()] = err
-						failuresLock.Unlock()
-					}
-				}(inst)
-			}
+		for _, inst := range instances {
+			wgAction.Add(1)
+			go func(inst instance.Instance) {
+				defer wgAction.Done()
 
-			wgAction.Wait()
-			return coalesceErrors(failures)
-		}
-	case shared.Stop:
-		opType = db.OperationInstanceStop
-		if raw.Stateful {
-			do = func(op *operations.Operation) error {
-				failures := map[string]error{}
-				failuresLock := sync.Mutex{}
-				wgAction := sync.WaitGroup{}
-
-				for _, inst := range instances {
-					wgAction.Add(1)
-					go func(inst instance.Instance) {
-						defer wgAction.Done()
-
-						err = inst.Stop(raw.Stateful)
-						if err != nil {
-							failuresLock.Lock()
-							failures[inst.Name()] = err
-							failuresLock.Unlock()
-						}
-					}(inst)
+				err := doInstanceStatePut(inst, *req.State)
+				if err != nil {
+					failuresLock.Lock()
+					failures[inst.Name()] = err
+					failuresLock.Unlock()
 				}
-
-				wgAction.Wait()
-				return coalesceErrors(failures)
-			}
-		} else if raw.Timeout == 0 || raw.Force {
-			do = func(op *operations.Operation) error {
-				failures := map[string]error{}
-				failuresLock := sync.Mutex{}
-				wgAction := sync.WaitGroup{}
-
-				for _, inst := range instances {
-					wgAction.Add(1)
-					go func(inst instance.Instance) {
-						defer wgAction.Done()
-
-						err = inst.Stop(false)
-						if err != nil {
-							failuresLock.Lock()
-							failures[inst.Name()] = err
-							failuresLock.Unlock()
-						}
-					}(inst)
-				}
-
-				wgAction.Wait()
-				return coalesceErrors(failures)
-			}
-		} else {
-			do = func(op *operations.Operation) error {
-				failures := map[string]error{}
-				failuresLock := sync.Mutex{}
-				wgAction := sync.WaitGroup{}
-
-				for _, inst := range instances {
-					wgAction.Add(1)
-					go func(inst instance.Instance) {
-						defer wgAction.Done()
-
-						if inst.IsFrozen() {
-							err := inst.Unfreeze()
-							if err != nil {
-								failuresLock.Lock()
-								failures[inst.Name()] = err
-								failuresLock.Unlock()
-								return
-							}
-						}
-
-						err = inst.Shutdown(time.Duration(raw.Timeout) * time.Second)
-						if err != nil {
-							failuresLock.Lock()
-							failures[inst.Name()] = err
-							failuresLock.Unlock()
-						}
-					}(inst)
-				}
-
-				wgAction.Wait()
-				return coalesceErrors(failures)
-			}
-		}
-	case shared.Restart:
-		opType = db.OperationInstanceRestart
-		do = func(op *operations.Operation) error {
-			failures := map[string]error{}
-			failuresLock := sync.Mutex{}
-			wgAction := sync.WaitGroup{}
-
-			for _, inst := range instances {
-				wgAction.Add(1)
-				go func(inst instance.Instance) {
-					defer wgAction.Done()
-
-					ephemeral := inst.IsEphemeral()
-					if ephemeral {
-						// Unset ephemeral flag
-						args := db.InstanceArgs{
-							Architecture: inst.Architecture(),
-							Config:       inst.LocalConfig(),
-							Description:  inst.Description(),
-							Devices:      inst.LocalDevices(),
-							Ephemeral:    false,
-							Profiles:     inst.Profiles(),
-							Project:      inst.Project(),
-							Type:         inst.Type(),
-							Snapshot:     inst.IsSnapshot(),
-						}
-
-						err := inst.Update(args, false)
-						if err != nil {
-							failuresLock.Lock()
-							failures[inst.Name()] = err
-							failuresLock.Unlock()
-						}
-
-						// On function return, set the flag back on
-						defer func() {
-							args.Ephemeral = ephemeral
-							inst.Update(args, false)
-						}()
-					}
-
-					timeout := raw.Timeout
-					if raw.Force {
-						timeout = 0
-					}
-
-					res := inst.Restart(time.Duration(timeout))
-					if res != nil {
-						failuresLock.Lock()
-						failures[inst.Name()] = err
-						failuresLock.Unlock()
-					}
-				}(inst)
-			}
-
-			wgAction.Wait()
-			return coalesceErrors(failures)
-		}
-	case shared.Freeze:
-		if !d.os.CGInfo.Supports(cgroup.Freezer, nil) {
-			return response.BadRequest(fmt.Errorf("This system doesn't support freezing instances"))
+			}(inst)
 		}
 
-		opType = db.OperationInstanceFreeze
-		do = func(op *operations.Operation) error {
-			failures := map[string]error{}
-			failuresLock := sync.Mutex{}
-			wgAction := sync.WaitGroup{}
-
-			for _, inst := range instances {
-				wgAction.Add(1)
-				go func(inst instance.Instance) {
-					defer wgAction.Done()
-
-					err = inst.Freeze()
-					if err != nil {
-						failuresLock.Lock()
-						failures[inst.Name()] = err
-						failuresLock.Unlock()
-					}
-				}(inst)
-			}
-
-			wgAction.Wait()
-			return coalesceErrors(failures)
-		}
-	case shared.Unfreeze:
-		if !d.os.CGInfo.Supports(cgroup.Freezer, nil) {
-			return response.BadRequest(fmt.Errorf("This system doesn't support unfreezing instances"))
-		}
-
-		opType = db.OperationInstanceUnfreeze
-		do = func(op *operations.Operation) error {
-			failures := map[string]error{}
-			failuresLock := sync.Mutex{}
-			wgAction := sync.WaitGroup{}
-
-			for _, inst := range instances {
-				wgAction.Add(1)
-				go func(inst instance.Instance) {
-					defer wgAction.Done()
-
-					err = inst.Unfreeze()
-					if err != nil {
-						failuresLock.Lock()
-						failures[inst.Name()] = err
-						failuresLock.Unlock()
-					}
-				}(inst)
-			}
-
-			wgAction.Wait()
-			return coalesceErrors(failures)
-		}
-	default:
-		return response.BadRequest(fmt.Errorf("Unknown action %s", raw.Action))
+		wgAction.Wait()
+		return coalesceErrors(failures)
 	}
 
 	resources := map[string][]string{}
 	resources["instances"] = names
-
 	op, err := operations.OperationCreate(d.State(), project, operations.OperationClassTask, opType, resources, nil, do, nil, nil)
 	if err != nil {
 		return response.InternalError(err)

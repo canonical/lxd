@@ -87,7 +87,6 @@ type InstanceServer interface {
 	// Container functions
 	GetContainerNames() (names []string, err error)
 	GetContainers() (containers []api.Container, err error)
-	UpdateInstances(state api.InstancesPut, ETag string) (op Operation, err error)
 	GetContainersFull() (containers []api.ContainerFull, err error)
 	GetContainer(name string) (container *api.Container, ETag string, err error)
 	CreateContainer(container api.ContainersPost) (op Operation, err error)
@@ -154,6 +153,7 @@ type InstanceServer interface {
 	RenameInstance(name string, instance api.InstancePost) (op Operation, err error)
 	MigrateInstance(name string, instance api.InstancePost) (op Operation, err error)
 	DeleteInstance(name string) (op Operation, err error)
+	UpdateInstances(state api.InstancesPut, ETag string) (op Operation, err error)
 
 	ExecInstance(instanceName string, exec api.InstanceExecPost, args *InstanceExecArgs) (op Operation, err error)
 	ConsoleInstance(instanceName string, console api.InstanceConsolePost, args *InstanceConsoleArgs) (op Operation, err error)

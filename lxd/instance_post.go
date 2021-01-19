@@ -32,7 +32,7 @@ var internalClusterContainerMovedCmd = APIEndpoint{
 	Post: APIEndpointAction{Handler: internalClusterContainerMovedPost},
 }
 
-func containerPost(d *Daemon, r *http.Request) response.Response {
+func instancePost(d *Daemon, r *http.Request) response.Response {
 	instanceType, err := urlInstanceTypeDetect(r)
 	if err != nil {
 		return response.SmartError(err)
@@ -200,7 +200,7 @@ func containerPost(d *Daemon, r *http.Request) response.Response {
 				return response.SmartError(err)
 			}
 			if pool.Driver == "ceph" {
-				return containerPostClusteringMigrateWithCeph(d, inst, project, name, req.Name, targetNode, instanceType)
+				return instancePostClusteringMigrateWithCeph(d, inst, project, name, req.Name, targetNode, instanceType)
 			}
 
 			// If this is not a ceph-based container, make sure
@@ -212,7 +212,7 @@ func containerPost(d *Daemon, r *http.Request) response.Response {
 				return response.SmartError(err)
 			}
 
-			return containerPostClusteringMigrate(d, inst, name, req.Name, targetNode)
+			return instancePostClusteringMigrate(d, inst, name, req.Name, targetNode)
 		}
 
 		instanceOnly := req.InstanceOnly || req.ContainerOnly
@@ -281,7 +281,7 @@ func containerPost(d *Daemon, r *http.Request) response.Response {
 }
 
 // Move a non-ceph container to another cluster node.
-func containerPostClusteringMigrate(d *Daemon, c instance.Instance, oldName, newName, newNode string) response.Response {
+func instancePostClusteringMigrate(d *Daemon, c instance.Instance, oldName, newName, newNode string) response.Response {
 	cert := d.endpoints.NetworkCert()
 
 	var sourceAddress string
@@ -429,7 +429,7 @@ func containerPostClusteringMigrate(d *Daemon, c instance.Instance, oldName, new
 }
 
 // Special case migrating a container backed by ceph across two cluster nodes.
-func containerPostClusteringMigrateWithCeph(d *Daemon, c instance.Instance, projectName, oldName, newName, newNode string, instanceType instancetype.Type) response.Response {
+func instancePostClusteringMigrateWithCeph(d *Daemon, c instance.Instance, projectName, oldName, newName, newNode string, instanceType instancetype.Type) response.Response {
 	run := func(op *operations.Operation) error {
 		// If source node is online (i.e. we're serving the request on
 		// it, and c != nil), let's unmap the RBD volume locally
@@ -479,7 +479,7 @@ func containerPostClusteringMigrateWithCeph(d *Daemon, c instance.Instance, proj
 			return errors.Wrap(err, "Failed to connect to target node")
 		}
 		if client == nil {
-			err := containerPostCreateContainerMountPoint(d, projectName, newName)
+			err := instancePostCreateContainerMountPoint(d, projectName, newName)
 			if err != nil {
 				return errors.Wrap(err, "Failed to create mount point on target node")
 			}
@@ -514,7 +514,7 @@ func containerPostClusteringMigrateWithCeph(d *Daemon, c instance.Instance, proj
 func internalClusterContainerMovedPost(d *Daemon, r *http.Request) response.Response {
 	project := projectParam(r)
 	containerName := mux.Vars(r)["name"]
-	err := containerPostCreateContainerMountPoint(d, project, containerName)
+	err := instancePostCreateContainerMountPoint(d, project, containerName)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -523,7 +523,7 @@ func internalClusterContainerMovedPost(d *Daemon, r *http.Request) response.Resp
 
 // Used after to create the appropriate mounts point after a container has been
 // moved.
-func containerPostCreateContainerMountPoint(d *Daemon, project, containerName string) error {
+func instancePostCreateContainerMountPoint(d *Daemon, project, containerName string) error {
 	c, err := instance.LoadByProjectAndName(d.State(), project, containerName)
 	if err != nil {
 		return errors.Wrap(err, "Failed to load moved instance on target node")
