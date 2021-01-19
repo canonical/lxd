@@ -80,16 +80,16 @@ func containersPut(d *Daemon, r *http.Request) response.Response {
 	<-d.readyChan
 
 	// Batch the actions.
+	failures := map[string]error{}
+	failuresLock := sync.Mutex{}
+	wgAction := sync.WaitGroup{}
+
 	var opType db.OperationType
 	var do func(*operations.Operation) error
 	switch action {
 	case shared.Start:
 		opType = db.OperationInstanceStart
 		do = func(op *operations.Operation) error {
-			failures := map[string]error{}
-			failuresLock := sync.Mutex{}
-			wgAction := sync.WaitGroup{}
-
 			for _, inst := range instances {
 				wgAction.Add(1)
 				go func(inst instance.Instance) {
@@ -111,10 +111,6 @@ func containersPut(d *Daemon, r *http.Request) response.Response {
 		opType = db.OperationInstanceStop
 		if raw.Stateful {
 			do = func(op *operations.Operation) error {
-				failures := map[string]error{}
-				failuresLock := sync.Mutex{}
-				wgAction := sync.WaitGroup{}
-
 				for _, inst := range instances {
 					wgAction.Add(1)
 					go func(inst instance.Instance) {
@@ -134,10 +130,6 @@ func containersPut(d *Daemon, r *http.Request) response.Response {
 			}
 		} else if raw.Timeout == 0 || raw.Force {
 			do = func(op *operations.Operation) error {
-				failures := map[string]error{}
-				failuresLock := sync.Mutex{}
-				wgAction := sync.WaitGroup{}
-
 				for _, inst := range instances {
 					wgAction.Add(1)
 					go func(inst instance.Instance) {
@@ -157,10 +149,6 @@ func containersPut(d *Daemon, r *http.Request) response.Response {
 			}
 		} else {
 			do = func(op *operations.Operation) error {
-				failures := map[string]error{}
-				failuresLock := sync.Mutex{}
-				wgAction := sync.WaitGroup{}
-
 				for _, inst := range instances {
 					wgAction.Add(1)
 					go func(inst instance.Instance) {
@@ -192,10 +180,6 @@ func containersPut(d *Daemon, r *http.Request) response.Response {
 	case shared.Restart:
 		opType = db.OperationInstanceRestart
 		do = func(op *operations.Operation) error {
-			failures := map[string]error{}
-			failuresLock := sync.Mutex{}
-			wgAction := sync.WaitGroup{}
-
 			for _, inst := range instances {
 				wgAction.Add(1)
 				go func(inst instance.Instance) {
@@ -254,10 +238,6 @@ func containersPut(d *Daemon, r *http.Request) response.Response {
 
 		opType = db.OperationInstanceFreeze
 		do = func(op *operations.Operation) error {
-			failures := map[string]error{}
-			failuresLock := sync.Mutex{}
-			wgAction := sync.WaitGroup{}
-
 			for _, inst := range instances {
 				wgAction.Add(1)
 				go func(inst instance.Instance) {
@@ -282,10 +262,6 @@ func containersPut(d *Daemon, r *http.Request) response.Response {
 
 		opType = db.OperationInstanceUnfreeze
 		do = func(op *operations.Operation) error {
-			failures := map[string]error{}
-			failuresLock := sync.Mutex{}
-			wgAction := sync.WaitGroup{}
-
 			for _, inst := range instances {
 				wgAction.Add(1)
 				go func(inst instance.Instance) {
