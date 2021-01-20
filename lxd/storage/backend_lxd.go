@@ -287,7 +287,7 @@ func (b *lxdBackend) Delete(clientType request.ClientType, op *operations.Operat
 	// Delete the mountpoint.
 	err := os.Remove(path)
 	if err != nil && !os.IsNotExist(err) {
-		return errors.Wrapf(err, "Failed to remove directory '%s'", path)
+		return errors.Wrapf(err, "Failed to remove directory %q", path)
 	}
 
 	return nil
@@ -353,14 +353,14 @@ func (b *lxdBackend) ensureInstanceSymlink(instanceType instancetype.Type, proje
 	if shared.PathExists(symlinkPath) {
 		err := os.Remove(symlinkPath)
 		if err != nil {
-			return errors.Wrapf(err, "Failed to remove symlink '%s'", symlinkPath)
+			return errors.Wrapf(err, "Failed to remove symlink %q", symlinkPath)
 		}
 	}
 
 	// Create new symlink.
 	err := os.Symlink(mountPath, symlinkPath)
 	if err != nil {
-		return errors.Wrapf(err, "Failed to create symlink from '%s' to '%s'", mountPath, symlinkPath)
+		return errors.Wrapf(err, "Failed to create symlink from %q to %q", mountPath, symlinkPath)
 	}
 
 	return nil
@@ -373,7 +373,7 @@ func (b *lxdBackend) removeInstanceSymlink(instanceType instancetype.Type, proje
 	if shared.PathExists(symlinkPath) {
 		err := os.Remove(symlinkPath)
 		if err != nil {
-			return errors.Wrapf(err, "Failed to remove symlink '%s'", symlinkPath)
+			return errors.Wrapf(err, "Failed to remove symlink %q", symlinkPath)
 		}
 	}
 
@@ -399,14 +399,14 @@ func (b *lxdBackend) ensureInstanceSnapshotSymlink(instanceType instancetype.Typ
 	if shared.PathExists(snapshotSymlink) {
 		err = os.Remove(snapshotSymlink)
 		if err != nil {
-			return errors.Wrapf(err, "Failed to remove symlink '%s'", snapshotSymlink)
+			return errors.Wrapf(err, "Failed to remove symlink %q", snapshotSymlink)
 		}
 	}
 
 	// Create new symlink.
 	err = os.Symlink(snapshotTargetPath, snapshotSymlink)
 	if err != nil {
-		return errors.Wrapf(err, "Failed to create symlink from '%s' to '%s'", snapshotTargetPath, snapshotSymlink)
+		return errors.Wrapf(err, "Failed to create symlink from %q to %q", snapshotTargetPath, snapshotSymlink)
 	}
 
 	return nil
@@ -433,7 +433,7 @@ func (b *lxdBackend) removeInstanceSnapshotSymlinkIfUnused(instanceType instance
 		if shared.PathExists(snapshotSymlink) {
 			err := os.Remove(snapshotSymlink)
 			if err != nil {
-				return errors.Wrapf(err, "Failed to remove symlink '%s'", snapshotSymlink)
+				return errors.Wrapf(err, "Failed to remove symlink %q", snapshotSymlink)
 			}
 		}
 	}
@@ -457,7 +457,7 @@ func (b *lxdBackend) instanceRootVolumeConfig(inst instance.Instance) (map[strin
 	_, vol, err := b.state.Cluster.GetLocalStoragePoolVolume(inst.Project(), inst.Name(), volDBType, b.ID())
 	if err != nil {
 		if err == db.ErrNoSuchObject {
-			return nil, fmt.Errorf("Volume doesn't exist")
+			return nil, errors.Wrapf(err, "Volume doesn't exist for %q on pool %q", project.Instance(inst.Project(), inst.Name()), b.Name())
 		}
 
 		return nil, err
@@ -1525,7 +1525,7 @@ func (b *lxdBackend) UpdateInstance(inst instance.Instance, newDesc string, newC
 	_, curVol, err := b.state.Cluster.GetLocalStoragePoolVolume(inst.Project(), inst.Name(), volDBType, b.ID())
 	if err != nil {
 		if err == db.ErrNoSuchObject {
-			return fmt.Errorf("Volume doesn't exist")
+			return errors.Wrapf(err, "Volume doesn't exist for %q on pool %q", project.Instance(inst.Project(), inst.Name()), b.Name())
 		}
 
 		return err
@@ -2390,7 +2390,7 @@ func (b *lxdBackend) updateVolumeDescriptionOnly(project, volName string, dbVolT
 	_, curVol, err := b.state.Cluster.GetLocalStoragePoolVolume(project, volName, dbVolType, b.ID())
 	if err != nil {
 		if err == db.ErrNoSuchObject {
-			return fmt.Errorf("Volume doesn't exist")
+			return errors.Wrapf(err, "Volume doesn't exist")
 		}
 
 		return err
@@ -2935,7 +2935,7 @@ func (b *lxdBackend) UpdateCustomVolume(projectName string, volName string, newD
 	_, curVol, err := b.state.Cluster.GetLocalStoragePoolVolume(projectName, volName, db.StoragePoolVolumeTypeCustom, b.ID())
 	if err != nil {
 		if err == db.ErrNoSuchObject {
-			return fmt.Errorf("Volume doesn't exist")
+			return errors.Wrapf(err, "Volume doesn't exist")
 		}
 
 		return err
@@ -3033,7 +3033,7 @@ func (b *lxdBackend) UpdateCustomVolumeSnapshot(projectName string, volName stri
 	volID, curVol, err := b.state.Cluster.GetLocalStoragePoolVolume(projectName, volName, db.StoragePoolVolumeTypeCustom, b.ID())
 	if err != nil {
 		if err == db.ErrNoSuchObject {
-			return fmt.Errorf("Volume doesn't exist")
+			return errors.Wrapf(err, "Volume doesn't exist")
 		}
 
 		return err
@@ -3395,7 +3395,7 @@ func (b *lxdBackend) RestoreCustomVolume(projectName, volName string, snapshotNa
 	_, curVol, err := b.state.Cluster.GetLocalStoragePoolVolume(projectName, volName, db.StoragePoolVolumeTypeCustom, b.ID())
 	if err != nil {
 		if err == db.ErrNoSuchObject {
-			return fmt.Errorf("Volume doesn't exist")
+			return errors.Wrapf(err, "Volume doesn't exist")
 		}
 
 		return err
@@ -3422,7 +3422,7 @@ func (b *lxdBackend) RestoreCustomVolume(projectName, volName string, snapshotNa
 	_, dbVol, err := b.state.Cluster.GetLocalStoragePoolVolume(projectName, volName, db.StoragePoolVolumeTypeCustom, b.ID())
 	if err != nil {
 		if err == db.ErrNoSuchObject {
-			return fmt.Errorf("Volume doesn't exist")
+			return errors.Wrapf(err, "Volume doesn't exist")
 		}
 
 		return err
@@ -3473,7 +3473,7 @@ func (b *lxdBackend) createStorageStructure(path string) error {
 			path := filepath.Join(path, name)
 			err := os.MkdirAll(path, 0711)
 			if err != nil && !os.IsExist(err) {
-				return errors.Wrapf(err, "Failed to create directory '%s'", path)
+				return errors.Wrapf(err, "Failed to create directory %q", path)
 			}
 		}
 	}
@@ -3556,7 +3556,7 @@ func (b *lxdBackend) UpdateInstanceBackupFile(inst instance.Instance, op *operat
 		path := filepath.Join(inst.Path(), "backup.yaml")
 		f, err := os.Create(path)
 		if err != nil {
-			return errors.Wrapf(err, "Failed to create file '%s'", path)
+			return errors.Wrapf(err, "Failed to create file %q", path)
 		}
 		defer f.Close()
 
