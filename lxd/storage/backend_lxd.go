@@ -1441,8 +1441,8 @@ func (b *lxdBackend) DeleteInstance(inst instance.Instance, op *operations.Opera
 		return err
 	}
 
-	// Get any snapshots the instance has in the format <instance name>/<snapshot name>.
-	snapshots, err := b.state.Cluster.GetInstanceSnapshotsNames(inst.Project(), inst.Name())
+	// Get any snapshot volumes the instance has in the format <instance name>/<snapshot name>.
+	snapshots, err := b.state.Cluster.GetLocalStoragePoolVolumeSnapshotsWithType(inst.Project(), inst.Name(), volDBType, b.ID())
 	if err != nil {
 		return err
 	}
