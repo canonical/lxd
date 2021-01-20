@@ -2385,7 +2385,7 @@ func (b *lxdBackend) DeleteImage(fingerprint string, op *operations.Operation) e
 // updateVolumeDescriptionOnly is a helper function used when handling update requests for volumes
 // that only allow their descriptions to be updated. If any config supplied differs from the
 // current volume's config then an error is returned.
-func (b *lxdBackend) updateVolumeDescriptionOnly(project, volName string, dbVolType int, newDesc string, newConfig map[string]string) error {
+func (b *lxdBackend) updateVolumeDescriptionOnly(project string, volName string, dbVolType int, newDesc string, newConfig map[string]string) error {
 	// Get current config to compare what has changed.
 	_, curVol, err := b.state.Cluster.GetLocalStoragePoolVolume(project, volName, dbVolType, b.ID())
 	if err != nil {
