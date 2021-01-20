@@ -37,6 +37,7 @@ func (n *physical) Validate(config map[string]string) error {
 		"parent":              validate.Required(validate.IsNotEmpty, validInterfaceName),
 		"mtu":                 validate.Optional(validate.IsNetworkMTU),
 		"vlan":                validate.Optional(validate.IsNetworkVLAN),
+		"gvrp":                validate.Optional(validate.IsBool),
 		"maas.subnet.ipv4":    validate.IsAny,
 		"maas.subnet.ipv6":    validate.IsAny,
 		"ipv4.gateway":        validate.Optional(validate.IsNetworkAddressCIDRV4),
@@ -152,7 +153,7 @@ func (n *physical) Start() error {
 	defer revert.Fail()
 
 	hostName := GetHostDevice(n.config["parent"], n.config["vlan"])
-	created, err := VLANInterfaceCreate(n.config["parent"], hostName, n.config["vlan"])
+	created, err := VLANInterfaceCreate(n.config["parent"], hostName, n.config["vlan"], shared.IsTrue(n.config["gvrp"]))
 	if err != nil {
 		return err
 	}

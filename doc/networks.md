@@ -237,6 +237,7 @@ maas.subnet.ipv6                | string    | ipv6 address          | -         
 mtu                             | integer   | -                     | -                         | The MTU of the new interface
 parent                          | string    | -                     | -                         | Parent interface to create macvlan NICs on
 vlan                            | integer   | -                     | -                         | The VLAN ID to attach to
+gvrp                            | boolean   | -                     | false                     | Register VLAN using GARP VLAN Registration Protocol
 
 ## network: sriov
 
@@ -321,6 +322,7 @@ maas.subnet.ipv6                | string    | ipv6 address          | -         
 mtu                             | integer   | -                     | -                         | The MTU of the new interface
 parent                          | string    | -                     | -                         | Parent interface to create sriov NICs on
 vlan                            | integer   | -                     | -                         | The VLAN ID to attach to
+gvrp                            | boolean   | -                     | false                     | Register VLAN using GARP VLAN Registration Protocol
 ipv4.gateway                    | string    | standard mode         | -                         | IPv4 address for the gateway and network (CIDR notation)
 ipv4.ovn.ranges                 | string    | -                     | -                         | Comma separate list of IPv4 ranges to use for child OVN network routers (FIRST-LAST format)
 ipv4.routes                     | string    | ipv4 address          | -                         | Comma separated list of additional IPv4 CIDR subnets that can be used with child OVN networks ipv4.routes.external setting

@@ -42,9 +42,11 @@ func (d *nicIPVLAN) validateConfig(instConf instance.ConfigReader) error {
 		"ipv6.gateway",
 		"ipv4.host_table",
 		"ipv6.host_table",
+		"gvrp",
 	}
 
 	rules := nicValidationRules(requiredFields, optionalFields)
+	rules["gvrp"] = validate.Optional(validate.IsBool)
 	rules["ipv4.address"] = func(value string) error {
 		if value == "" {
 			return nil
@@ -221,7 +223,7 @@ func (d *nicIPVLAN) Start() (*deviceConfig.RunConfig, error) {
 	// Decide which parent we should use based on VLAN setting.
 	parentName := network.GetHostDevice(d.config["parent"], d.config["vlan"])
 
-	statusDev, err := networkCreateVlanDeviceIfNeeded(d.state, d.config["parent"], parentName, d.config["vlan"])
+	statusDev, err := networkCreateVlanDeviceIfNeeded(d.state, d.config["parent"], parentName, d.config["vlan"], shared.IsTrue(d.config["gvrp"]))
 	if err != nil {
 		return nil, err
 	}

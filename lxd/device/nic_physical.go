@@ -31,6 +31,7 @@ func (d *nicPhysical) validateConfig(instConf instance.ConfigReader) error {
 		"maas.subnet.ipv4",
 		"maas.subnet.ipv6",
 		"boot.priority",
+		"gvrp",
 	}
 
 	if instConf.Type() == instancetype.Container {
@@ -89,7 +90,7 @@ func (d *nicPhysical) Start() (*deviceConfig.RunConfig, error) {
 	saveData["host_name"] = network.GetHostDevice(d.config["parent"], d.config["vlan"])
 
 	if d.inst.Type() == instancetype.Container {
-		statusDev, err := networkCreateVlanDeviceIfNeeded(d.state, d.config["parent"], saveData["host_name"], d.config["vlan"])
+		statusDev, err := networkCreateVlanDeviceIfNeeded(d.state, d.config["parent"], saveData["host_name"], d.config["vlan"], shared.IsTrue(d.config["gvrp"]))
 		if err != nil {
 			return nil, err
 		}
