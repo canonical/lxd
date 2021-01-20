@@ -241,7 +241,7 @@ func VolumeDBCreate(s *state.State, pool Pool, projectName string, volumeName st
 		_, err = s.Cluster.CreateStoragePoolVolume(projectName, volumeName, volumeDescription, volDBType, pool.ID(), vol.Config(), volDBContentType)
 	}
 	if err != nil {
-		return fmt.Errorf("Error inserting %q of type %q into database %q", pool.Name(), volumeType, err)
+		return fmt.Errorf("Error inserting volume %q for project %q in pool %q of type %q into database %q", volumeName, projectName, pool.Name(), volumeType, err)
 	}
 
 	return nil
