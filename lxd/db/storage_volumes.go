@@ -257,6 +257,7 @@ SELECT storage_volumes_snapshots.name, storage_volumes_snapshots.description FRO
 			Name:        volumeName + shared.SnapshotDelimiter + r[0].(string),
 			Description: r[1].(string),
 			Snapshot:    true,
+			ProjectName: projectName,
 		}
 		result = append(result, row)
 	}
