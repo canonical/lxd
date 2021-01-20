@@ -1272,3 +1272,10 @@ This adds the `security.port_isolation` field for bridged NIC instances.
 Adds the following endpoint for bulk state change (see [RESTful API](rest-api.md) for details):
 
 * `PUT /1.0/instances`
+
+## network\_gvrp
+This adds an optional `gvrp` property to `macvlan` and `physical` networks,
+and to `ipvlan`, `macvlan`, `routed` and `physical` NIC devices.
+
+When set, this specifies whether the VLAN should be registered using GARP VLAN
+Registration Protocol. Defaults to false.
