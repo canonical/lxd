@@ -3,6 +3,8 @@ package network
 import (
 	"fmt"
 	"net"
+
+	"github.com/lxc/lxd/shared"
 )
 
 func Example_parseIPRange() {
@@ -85,4 +87,53 @@ func Example_parseIPRange() {
 	// Start: ::1, End: ::ffff
 	// Start: fd22:c952:653e:ffff::1, End: fd22:c952:653e:ffff::ffff
 	// Start: ::aaaa:ffff:ffff:ffff:1, End: ::aaaa:ffff:ffff:ffff:ffff
+}
+
+func Example_ipRangesOverlap() {
+	rangePairs := [][2]string{
+		{"10.1.1.1-10.1.1.2", "10.1.1.3-10.1.1.4"},
+		{"10.1.1.1-10.1.2.1", "10.1.1.254-10.1.1.255"},
+		{"10.1.1.1-10.1.1.6", "10.1.1.5-10.1.1.9"},
+		{"10.1.1.5-10.1.1.9", "10.1.1.1-10.1.1.6"},
+		{"::1-::2", "::3-::4"},
+		{"::1-::6", "::5-::9"},
+		{"::5-::9", "::1-::6"},
+	}
+
+	for _, pair := range rangePairs {
+		r0, _ := parseIPRange(pair[0])
+		r1, _ := parseIPRange(pair[1])
+		result := IPRangesOverlap(r0, r1)
+		fmt.Printf("Range1: %v, Range2: %v, overlapped: %t\n", r0, r1, result)
+	}
+
+	// also do a couple of tests with ranges that have no end
+	singleIPRange := &shared.IPRange{
+		Start: net.ParseIP("10.1.1.4"),
+	}
+	otherRange, _ := parseIPRange("10.1.1.1-10.1.1.6")
+
+	fmt.Printf("Range1: %v, Range2: %v, overlapped: %t\n", singleIPRange, otherRange, IPRangesOverlap(singleIPRange, otherRange))
+	fmt.Printf("Range1: %v, Range2: %v, overlapped: %t\n", otherRange, singleIPRange, IPRangesOverlap(otherRange, singleIPRange))
+	fmt.Printf("Range1: %v, Range2: %v, overlapped: %t\n", singleIPRange, singleIPRange, IPRangesOverlap(singleIPRange, singleIPRange))
+
+	otherRange, _ = parseIPRange("10.1.1.8-10.1.1.9")
+
+	fmt.Printf("Range1: %v, Range2: %v, overlapped: %t\n", singleIPRange, otherRange, IPRangesOverlap(singleIPRange, otherRange))
+	fmt.Printf("Range1: %v, Range2: %v, overlapped: %t\n", otherRange, singleIPRange, IPRangesOverlap(otherRange, singleIPRange))
+
+	// Output:
+	// Range1: 10.1.1.1-10.1.1.2, Range2: 10.1.1.3-10.1.1.4, overlapped: false
+	// Range1: 10.1.1.1-10.1.2.1, Range2: 10.1.1.254-10.1.1.255, overlapped: true
+	// Range1: 10.1.1.1-10.1.1.6, Range2: 10.1.1.5-10.1.1.9, overlapped: true
+	// Range1: 10.1.1.5-10.1.1.9, Range2: 10.1.1.1-10.1.1.6, overlapped: true
+	// Range1: ::1-::2, Range2: ::3-::4, overlapped: false
+	// Range1: ::1-::6, Range2: ::5-::9, overlapped: true
+	// Range1: ::5-::9, Range2: ::1-::6, overlapped: true
+	// Range1: 10.1.1.4, Range2: 10.1.1.1-10.1.1.6, overlapped: true
+	// Range1: 10.1.1.1-10.1.1.6, Range2: 10.1.1.4, overlapped: true
+	// Range1: 10.1.1.4, Range2: 10.1.1.4, overlapped: true
+	// Range1: 10.1.1.4, Range2: 10.1.1.8-10.1.1.9, overlapped: false
+	// Range1: 10.1.1.8-10.1.1.9, Range2: 10.1.1.4, overlapped: false
+
 }

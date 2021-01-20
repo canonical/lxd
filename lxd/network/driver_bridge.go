@@ -388,10 +388,24 @@ func (n *bridge) Validate(config map[string]string) error {
 			allowedNets = append(allowedNets, dhcpSubnet)
 		}
 
-		_, err := parseIPRanges(config["ipv4.ovn.ranges"], allowedNets...)
+		ovnRanges, err := parseIPRanges(config["ipv4.ovn.ranges"], allowedNets...)
 		if err != nil {
 			return errors.Wrapf(err, "Failed parsing ipv4.ovn.ranges")
 		}
+
+		dhcpRanges, err := parseIPRanges(config["ipv4.dhcp.ranges"], allowedNets...)
+		if err != nil {
+			return errors.Wrapf(err, "Failed parsing ipv4.dhcp.ranges")
+		}
+
+		for _, ovnRange := range ovnRanges {
+			for _, dhcpRange := range dhcpRanges {
+				if IPRangesOverlap(ovnRange, dhcpRange) {
+					return fmt.Errorf(`The range specified in "ipv4.ovn.ranges" (%q) cannot overlap with "ipv4.dhcp.ranges"`, ovnRange)
+				}
+			}
+		}
+
 	}
 
 	// Check IPv6 OVN ranges.
@@ -407,10 +421,24 @@ func (n *bridge) Validate(config map[string]string) error {
 			allowedNets = append(allowedNets, dhcpSubnet)
 		}
 
-		_, err := parseIPRanges(config["ipv6.ovn.ranges"], allowedNets...)
+		ovnRanges, err := parseIPRanges(config["ipv6.ovn.ranges"], allowedNets...)
 		if err != nil {
 			return errors.Wrapf(err, "Failed parsing ipv6.ovn.ranges")
 		}
+
+		dhcpRanges, err := parseIPRanges(config["ipv6.dhcp.ranges"], allowedNets...)
+		if err != nil {
+			return errors.Wrapf(err, "Failed parsing ipv6.dhcp.ranges")
+		}
+
+		for _, ovnRange := range ovnRanges {
+			for _, dhcpRange := range dhcpRanges {
+				if IPRangesOverlap(ovnRange, dhcpRange) {
+					return fmt.Errorf(`The range specified in "ipv6.ovn.ranges" (%q) cannot overlap with "ipv6.dhcp.ranges"`, ovnRange)
+				}
+			}
+		}
+
 	}
 
 	return nil
