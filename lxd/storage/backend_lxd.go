@@ -745,15 +745,11 @@ func (b *lxdBackend) CreateInstanceFromCopy(inst instance.Instance, src instance
 		return fmt.Errorf("Cannot create volume, already exists on target")
 	}
 
-	// Get the src volume name on storage.
-	srcVolStorageName := project.Instance(src.Project(), src.Name())
-
-	// We don't need to use the source instance's root disk config, so set to nil.
-	srcVol := b.newVolume(volType, contentType, srcVolStorageName, nil)
-
+	// Setup reverter.
 	revert := revert.New()
 	defer revert.Fail()
 
+	// Get the source storage pool.
 	srcPool, err := GetPoolByInstance(b.state, src)
 	if err != nil {
 		return err
@@ -773,6 +769,13 @@ func (b *lxdBackend) CreateInstanceFromCopy(inst instance.Instance, src instance
 
 	if b.Name() == srcPool.Name() {
 		logger.Debug("CreateInstanceFromCopy same-pool mode detected")
+
+		// Get the src volume name on storage.
+		srcVolStorageName := project.Instance(src.Project(), src.Name())
+
+		// We don't need to use the source instance's root disk config, so set to nil.
+		srcVol := b.newVolume(volType, contentType, srcVolStorageName, nil)
+
 		err = b.driver.CreateVolumeFromCopy(vol, srcVol, snapshots, op)
 		if err != nil {
 			return err
@@ -870,11 +873,13 @@ func (b *lxdBackend) CreateInstanceFromCopy(inst instance.Instance, src instance
 		}
 	}
 
+	// Setup the symlinks.
 	err = b.ensureInstanceSymlink(inst.Type(), inst.Project(), inst.Name(), vol.MountPath())
 	if err != nil {
 		return err
 	}
 
+	// Trigger the templates on next start.
 	err = inst.DeferTemplateApply("copy")
 	if err != nil {
 		return err
