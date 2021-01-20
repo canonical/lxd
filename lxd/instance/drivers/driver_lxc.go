@@ -3546,7 +3546,7 @@ func (d *lxc) Rename(newName string) error {
 		results, err := d.state.Cluster.GetInstanceSnapshotsNames(d.project, oldName)
 		if err != nil {
 			d.logger.Error("Failed to get container snapshots", ctxMap)
-			return err
+			return errors.Wrapf(err, "Failed to get container snapshots")
 		}
 
 		for _, sname := range results {
@@ -3558,7 +3558,7 @@ func (d *lxc) Rename(newName string) error {
 			})
 			if err != nil {
 				d.logger.Error("Failed renaming snapshot", ctxMap)
-				return err
+				return errors.Wrapf(err, "Failed renaming snapshot")
 			}
 		}
 	}
@@ -3575,7 +3575,7 @@ func (d *lxc) Rename(newName string) error {
 	})
 	if err != nil {
 		d.logger.Error("Failed renaming container", ctxMap)
-		return err
+		return errors.Wrapf(err, "Failed renaming container")
 	}
 
 	// Rename the logging path.
@@ -3585,7 +3585,7 @@ func (d *lxc) Rename(newName string) error {
 		err := os.Rename(d.LogPath(), shared.LogPath(newFullName))
 		if err != nil {
 			d.logger.Error("Failed renaming container", ctxMap)
-			return err
+			return errors.Wrapf(err, "Failed renaming container")
 		}
 	}
 
