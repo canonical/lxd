@@ -172,6 +172,23 @@ func instancePost(d *Daemon, r *http.Request) response.Response {
 	}
 
 	if req.Migration {
+		// Server-side pool migration.
+		if req.Pool != "" {
+			// Setup the instance move operation.
+			run := func(op *operations.Operation) error {
+				return instancePostPoolMigration(d, inst, req.Name, req.InstanceOnly, req.Pool, op)
+			}
+
+			resources := map[string][]string{}
+			resources["instances"] = []string{name}
+			op, err := operations.OperationCreate(d.State(), project, operations.OperationClassTask, db.OperationInstanceMigrate, resources, nil, run, nil, nil)
+			if err != nil {
+				return response.InternalError(err)
+			}
+
+			return operations.OperationResponse(op)
+		}
+
 		if targetNode != "" {
 			// Check if instance has backups.
 			backups, err := d.cluster.GetInstanceBackups(project, name)
@@ -278,6 +295,83 @@ func instancePost(d *Daemon, r *http.Request) response.Response {
 	}
 
 	return operations.OperationResponse(op)
+}
+
+// Move an instance to another pool.
+func instancePostPoolMigration(d *Daemon, inst instance.Instance, newName string, instanceOnly bool, newPool string, op *operations.Operation) error {
+	if inst.IsRunning() {
+		return fmt.Errorf("Instance must not be running to move between pools")
+	}
+
+	if inst.IsSnapshot() {
+		return fmt.Errorf("Instance snapshots cannot be moved between pools")
+	}
+
+	// Copy config from instance to avoid modifying it.
+	localConfig := make(map[string]string)
+	for k, v := range inst.LocalConfig() {
+		localConfig[k] = v
+	}
+
+	// Load source root disk from expanded devices (in case instance doesn't have its own root disk).
+	rootDevKey, rootDev, err := shared.GetRootDiskDevice(inst.ExpandedDevices().CloneNative())
+	if err != nil {
+		return err
+	}
+
+	// Copy device config from instance, and update target instance root disk device with the new pool name.
+	localDevices := inst.LocalDevices().Clone()
+	rootDev["pool"] = newPool
+	localDevices[rootDevKey] = rootDev
+
+	// Specify the target instance config with the new name and modified root disk config.
+	args := db.InstanceArgs{
+		Name:         newName,
+		BaseImage:    localConfig["volatile.base_image"],
+		Config:       localConfig,
+		Devices:      localDevices,
+		Project:      inst.Project(),
+		Type:         inst.Type(),
+		Architecture: inst.Architecture(),
+		Description:  inst.Description(),
+		Ephemeral:    inst.IsEphemeral(),
+		Profiles:     inst.Profiles(),
+		Stateful:     inst.IsStateful(),
+	}
+
+	// If we are moving the instance to a new name, then we need to create the copy of the instance on the new
+	// pool with a temporary name that is different from the source to avoid conflicts. Then after the source
+	// instance has been deleted we will rename the new instance back to the original name.
+	if newName == inst.Name() {
+		args.Name = fmt.Sprintf("lxd-copy-of-%d", inst.ID())
+	}
+
+	// Copy instance to new target instance.
+	targetInst, err := instanceCreateAsCopy(d.State(), instanceCreateAsCopyOpts{
+		sourceInstance:       inst,
+		targetInstance:       args,
+		instanceOnly:         instanceOnly,
+		applyTemplateTrigger: false, // Don't apply templates when moving.
+	}, op)
+	if err != nil {
+		return err
+	}
+
+	// Delete original instance.
+	err = inst.Delete(true)
+	if err != nil {
+		return err
+	}
+
+	// Rename copy from temporary name to original name if needed.
+	if newName == inst.Name() {
+		err = targetInst.Rename(newName, false) // Don't apply templates when moving.
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 // Move a non-ceph container to another cluster node.
