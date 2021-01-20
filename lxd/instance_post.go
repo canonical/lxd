@@ -172,6 +172,23 @@ func instancePost(d *Daemon, r *http.Request) response.Response {
 	}
 
 	if req.Migration {
+		// Server-side pool migration.
+		if req.Pool != "" {
+			// Setup the instance move operation.
+			run := func(op *operations.Operation) error {
+				return instancePostPoolMigration(d, inst, project, name, req.Name, req.Pool, op)
+			}
+
+			resources := map[string][]string{}
+			resources["instances"] = []string{name}
+			op, err := operations.OperationCreate(d.State(), project, operations.OperationClassTask, db.OperationInstanceMigrate, resources, nil, run, nil, nil)
+			if err != nil {
+				return response.InternalError(err)
+			}
+
+			return operations.OperationResponse(op)
+		}
+
 		if targetNode != "" {
 			// Check if instance has backups.
 			backups, err := d.cluster.GetInstanceBackups(project, name)
@@ -278,6 +295,32 @@ func instancePost(d *Daemon, r *http.Request) response.Response {
 	}
 
 	return operations.OperationResponse(op)
+}
+
+// Move an instance to another pool.
+func instancePostPoolMigration(d *Daemon, inst instance.Instance, project string, oldName string, newName string, newPool string, op *operations.Operation) error {
+	// Load target pool.
+	pool, err := driver.GetPoolByName(d.State(), newPool)
+	if err != nil {
+		return errors.Wrapf(err, "Failed to load target storage pool %q", newPool)
+	}
+
+	// Perform a rename if needed, do this first before the move so that we minimise operations that can fail
+	// after the move has been performed.
+	if oldName != newName {
+		err = inst.Rename(newName)
+		if err != nil {
+			return err
+		}
+	}
+
+	// Perform the migration.
+	err = pool.MoveInstance(inst, op)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 // Move a non-ceph container to another cluster node.
