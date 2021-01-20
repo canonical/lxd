@@ -192,14 +192,14 @@ func VolumeContentTypeNameToContentType(contentTypeName string) (int, error) {
 }
 
 // VolumeDBCreate creates a volume in the database.
-func VolumeDBCreate(s *state.State, pool Pool, projectName string, volumeName string, volumeDescription string, volumeTypeName string, snapshot bool, volumeConfig map[string]string, expiryDate time.Time, contentTypeName string) error {
-	// Convert the volume type name to our internal integer representation.
-	volDBType, err := VolumeTypeNameToDBType(volumeTypeName)
+func VolumeDBCreate(s *state.State, pool Pool, projectName string, volumeName string, volumeDescription string, volumeType drivers.VolumeType, snapshot bool, volumeConfig map[string]string, expiryDate time.Time, contentType drivers.ContentType) error {
+	// Convert the volume type to our internal integer representation.
+	volDBType, err := VolumeTypeToDBType(volumeType)
 	if err != nil {
 		return err
 	}
 
-	volDBContentType, err := VolumeContentTypeNameToContentType(contentTypeName)
+	volDBContentType, err := VolumeContentTypeToDBContentType(contentType)
 	if err != nil {
 		return err
 	}
@@ -207,7 +207,7 @@ func VolumeDBCreate(s *state.State, pool Pool, projectName string, volumeName st
 	// Check that a storage volume of the same storage volume type does not already exist.
 	volumeID, _ := s.Cluster.GetStoragePoolNodeVolumeID(projectName, volumeName, volDBType, pool.ID())
 	if volumeID > 0 {
-		return fmt.Errorf("A storage volume of type %s already exists", volumeTypeName)
+		return fmt.Errorf("A storage volume of type %q already exists", volumeType)
 	}
 
 	// Make sure that we don't pass a nil to the next function.
@@ -220,7 +220,7 @@ func VolumeDBCreate(s *state.State, pool Pool, projectName string, volumeName st
 		return err
 	}
 
-	vol := drivers.NewVolume(pool.Driver(), pool.Name(), volType, drivers.ContentType(contentTypeName), volumeName, volumeConfig, pool.Driver().Config())
+	vol := drivers.NewVolume(pool.Driver(), pool.Name(), volType, contentType, volumeName, volumeConfig, pool.Driver().Config())
 
 	// Fill default config.
 	err = pool.Driver().FillVolumeConfig(vol)
@@ -241,7 +241,7 @@ func VolumeDBCreate(s *state.State, pool Pool, projectName string, volumeName st
 		_, err = s.Cluster.CreateStoragePoolVolume(projectName, volumeName, volumeDescription, volDBType, pool.ID(), vol.Config(), volDBContentType)
 	}
 	if err != nil {
-		return fmt.Errorf("Error inserting %q of type %q into database %q", pool.Name(), volumeTypeName, err)
+		return fmt.Errorf("Error inserting %q of type %q into database %q", pool.Name(), volumeType, err)
 	}
 
 	return nil
