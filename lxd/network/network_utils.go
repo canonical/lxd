@@ -1023,7 +1023,7 @@ func parseIPRanges(ipRangesList string, allowedNets ...*net.IPNet) ([]*shared.IP
 
 // VLANInterfaceCreate creates a VLAN interface on parent interface (if needed).
 // Returns boolean indicating if VLAN interface was created.
-func VLANInterfaceCreate(parent string, vlanDevice string, vlanID string) (bool, error) {
+func VLANInterfaceCreate(parent string, vlanDevice string, vlanID string, gvrp bool) (bool, error) {
 	if vlanID == "" {
 		return false, nil
 	}
@@ -1038,8 +1038,13 @@ func VLANInterfaceCreate(parent string, vlanDevice string, vlanID string) (bool,
 		return false, errors.Wrapf(err, "Failed to bring up parent %q", parent)
 	}
 
+	// Prepare variadic argument slice.
+	args := []string{"link", "add", "link", parent, "name", vlanDevice, "up", "type", "vlan", "id", vlanID}
+	if gvrp {
+		args = append(args, "gvrp", "on")
+	}
 	// Add VLAN interface on top of parent.
-	_, err = shared.RunCommand("ip", "link", "add", "link", parent, "name", vlanDevice, "up", "type", "vlan", "id", vlanID)
+	_, err = shared.RunCommand("ip", args...)
 	if err != nil {
 		return false, errors.Wrapf(err, "Failed to create VLAN interface %q on %q", vlanDevice, parent)
 	}
