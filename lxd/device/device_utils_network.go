@@ -101,9 +101,9 @@ func networkRemoveInterfaceIfNeeded(state *state.State, nic string, current inst
 }
 
 // networkCreateVlanDeviceIfNeeded creates a VLAN device if doesn't already exist.
-func networkCreateVlanDeviceIfNeeded(state *state.State, parent string, vlanDevice string, vlanID string) (string, error) {
+func networkCreateVlanDeviceIfNeeded(state *state.State, parent string, vlanDevice string, vlanID string, gvrp bool) (string, error) {
 	if vlanID != "" {
-		created, err := network.VLANInterfaceCreate(parent, vlanDevice, vlanID)
+		created, err := network.VLANInterfaceCreate(parent, vlanDevice, vlanID, gvrp)
 		if err != nil {
 			return "", err
 		}
