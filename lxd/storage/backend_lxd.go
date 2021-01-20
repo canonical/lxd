@@ -287,7 +287,7 @@ func (b *lxdBackend) Delete(clientType request.ClientType, op *operations.Operat
 	// Delete the mountpoint.
 	err := os.Remove(path)
 	if err != nil && !os.IsNotExist(err) {
-		return errors.Wrapf(err, "Failed to remove directory '%s'", path)
+		return errors.Wrapf(err, "Failed to remove directory %q", path)
 	}
 
 	return nil
@@ -353,14 +353,14 @@ func (b *lxdBackend) ensureInstanceSymlink(instanceType instancetype.Type, proje
 	if shared.PathExists(symlinkPath) {
 		err := os.Remove(symlinkPath)
 		if err != nil {
-			return errors.Wrapf(err, "Failed to remove symlink '%s'", symlinkPath)
+			return errors.Wrapf(err, "Failed to remove symlink %q", symlinkPath)
 		}
 	}
 
 	// Create new symlink.
 	err := os.Symlink(mountPath, symlinkPath)
 	if err != nil {
-		return errors.Wrapf(err, "Failed to create symlink from '%s' to '%s'", mountPath, symlinkPath)
+		return errors.Wrapf(err, "Failed to create symlink from %q to %q", mountPath, symlinkPath)
 	}
 
 	return nil
@@ -373,7 +373,7 @@ func (b *lxdBackend) removeInstanceSymlink(instanceType instancetype.Type, proje
 	if shared.PathExists(symlinkPath) {
 		err := os.Remove(symlinkPath)
 		if err != nil {
-			return errors.Wrapf(err, "Failed to remove symlink '%s'", symlinkPath)
+			return errors.Wrapf(err, "Failed to remove symlink %q", symlinkPath)
 		}
 	}
 
@@ -399,14 +399,14 @@ func (b *lxdBackend) ensureInstanceSnapshotSymlink(instanceType instancetype.Typ
 	if shared.PathExists(snapshotSymlink) {
 		err = os.Remove(snapshotSymlink)
 		if err != nil {
-			return errors.Wrapf(err, "Failed to remove symlink '%s'", snapshotSymlink)
+			return errors.Wrapf(err, "Failed to remove symlink %q", snapshotSymlink)
 		}
 	}
 
 	// Create new symlink.
 	err = os.Symlink(snapshotTargetPath, snapshotSymlink)
 	if err != nil {
-		return errors.Wrapf(err, "Failed to create symlink from '%s' to '%s'", snapshotTargetPath, snapshotSymlink)
+		return errors.Wrapf(err, "Failed to create symlink from %q to %q", snapshotTargetPath, snapshotSymlink)
 	}
 
 	return nil
@@ -433,7 +433,7 @@ func (b *lxdBackend) removeInstanceSnapshotSymlinkIfUnused(instanceType instance
 		if shared.PathExists(snapshotSymlink) {
 			err := os.Remove(snapshotSymlink)
 			if err != nil {
-				return errors.Wrapf(err, "Failed to remove symlink '%s'", snapshotSymlink)
+				return errors.Wrapf(err, "Failed to remove symlink %q", snapshotSymlink)
 			}
 		}
 	}
@@ -457,7 +457,7 @@ func (b *lxdBackend) instanceRootVolumeConfig(inst instance.Instance) (map[strin
 	_, vol, err := b.state.Cluster.GetLocalStoragePoolVolume(inst.Project(), inst.Name(), volDBType, b.ID())
 	if err != nil {
 		if err == db.ErrNoSuchObject {
-			return nil, fmt.Errorf("Volume doesn't exist")
+			return nil, errors.Wrapf(err, "Volume doesn't exist for %q on pool %q", project.Instance(inst.Project(), inst.Name()), b.Name())
 		}
 
 		return nil, err
@@ -745,15 +745,11 @@ func (b *lxdBackend) CreateInstanceFromCopy(inst instance.Instance, src instance
 		return fmt.Errorf("Cannot create volume, already exists on target")
 	}
 
-	// Get the src volume name on storage.
-	srcVolStorageName := project.Instance(src.Project(), src.Name())
-
-	// We don't need to use the source instance's root disk config, so set to nil.
-	srcVol := b.newVolume(volType, contentType, srcVolStorageName, nil)
-
+	// Setup reverter.
 	revert := revert.New()
 	defer revert.Fail()
 
+	// Get the source storage pool.
 	srcPool, err := GetPoolByInstance(b.state, src)
 	if err != nil {
 		return err
@@ -773,6 +769,13 @@ func (b *lxdBackend) CreateInstanceFromCopy(inst instance.Instance, src instance
 
 	if b.Name() == srcPool.Name() {
 		logger.Debug("CreateInstanceFromCopy same-pool mode detected")
+
+		// Get the src volume name on storage.
+		srcVolStorageName := project.Instance(src.Project(), src.Name())
+
+		// We don't need to use the source instance's root disk config, so set to nil.
+		srcVol := b.newVolume(volType, contentType, srcVolStorageName, nil)
+
 		err = b.driver.CreateVolumeFromCopy(vol, srcVol, snapshots, op)
 		if err != nil {
 			return err
@@ -870,11 +873,13 @@ func (b *lxdBackend) CreateInstanceFromCopy(inst instance.Instance, src instance
 		}
 	}
 
+	// Setup the symlinks.
 	err = b.ensureInstanceSymlink(inst.Type(), inst.Project(), inst.Name(), vol.MountPath())
 	if err != nil {
 		return err
 	}
 
+	// Trigger the templates on next start.
 	err = inst.DeferTemplateApply("copy")
 	if err != nil {
 		return err
@@ -1520,7 +1525,7 @@ func (b *lxdBackend) UpdateInstance(inst instance.Instance, newDesc string, newC
 	_, curVol, err := b.state.Cluster.GetLocalStoragePoolVolume(inst.Project(), inst.Name(), volDBType, b.ID())
 	if err != nil {
 		if err == db.ErrNoSuchObject {
-			return fmt.Errorf("Volume doesn't exist")
+			return errors.Wrapf(err, "Volume doesn't exist for %q on pool %q", project.Instance(inst.Project(), inst.Name()), b.Name())
 		}
 
 		return err
@@ -2213,11 +2218,9 @@ func (b *lxdBackend) EnsureImage(fingerprint string, op *operations.Operation) e
 	// Derive content type from image type. Image types are not the same as instance types, so don't use
 	// instance type constants for comparison.
 	contentType := drivers.ContentTypeFS
-	dbContentType := db.StoragePoolVolumeContentTypeNameFS
 
 	if image.Type == "virtual-machine" {
 		contentType = drivers.ContentTypeBlock
-		dbContentType = db.StoragePoolVolumeContentTypeNameBlock
 	}
 
 	// Try and load any existing volume config on this storage pool so we can compare filesystems if needed.
@@ -2322,7 +2325,7 @@ func (b *lxdBackend) EnsureImage(fingerprint string, op *operations.Operation) e
 		}
 	}
 
-	err = VolumeDBCreate(b.state, b, project.Default, fingerprint, "", db.StoragePoolVolumeTypeNameImage, false, volConfig, time.Time{}, dbContentType)
+	err = VolumeDBCreate(b.state, b, project.Default, fingerprint, "", drivers.VolumeTypeImage, false, volConfig, time.Time{}, contentType)
 	if err != nil {
 		return err
 	}
@@ -2380,12 +2383,12 @@ func (b *lxdBackend) DeleteImage(fingerprint string, op *operations.Operation) e
 // updateVolumeDescriptionOnly is a helper function used when handling update requests for volumes
 // that only allow their descriptions to be updated. If any config supplied differs from the
 // current volume's config then an error is returned.
-func (b *lxdBackend) updateVolumeDescriptionOnly(project, volName string, dbVolType int, newDesc string, newConfig map[string]string) error {
+func (b *lxdBackend) updateVolumeDescriptionOnly(project string, volName string, dbVolType int, newDesc string, newConfig map[string]string) error {
 	// Get current config to compare what has changed.
 	_, curVol, err := b.state.Cluster.GetLocalStoragePoolVolume(project, volName, dbVolType, b.ID())
 	if err != nil {
 		if err == db.ErrNoSuchObject {
-			return fmt.Errorf("Volume doesn't exist")
+			return errors.Wrapf(err, "Volume doesn't exist")
 		}
 
 		return err
@@ -2439,7 +2442,7 @@ func (b *lxdBackend) CreateCustomVolume(projectName string, volName string, desc
 	}
 
 	// Create database entry for new storage volume.
-	err = VolumeDBCreate(b.state, b, projectName, volName, desc, db.StoragePoolVolumeTypeNameCustom, false, vol.Config(), time.Time{}, string(contentType))
+	err = VolumeDBCreate(b.state, b, projectName, volName, desc, vol.Type(), false, vol.Config(), time.Time{}, vol.ContentType())
 	if err != nil {
 		return err
 	}
@@ -2567,7 +2570,7 @@ func (b *lxdBackend) CreateCustomVolumeFromCopy(projectName string, volName stri
 		}
 
 		// Create database entry for new storage volume.
-		err = VolumeDBCreate(b.state, b, projectName, volName, desc, db.StoragePoolVolumeTypeNameCustom, false, vol.Config(), time.Time{}, string(contentType))
+		err = VolumeDBCreate(b.state, b, projectName, volName, desc, vol.Type(), false, vol.Config(), time.Time{}, vol.ContentType())
 		if err != nil {
 			return err
 		}
@@ -2579,7 +2582,7 @@ func (b *lxdBackend) CreateCustomVolumeFromCopy(projectName string, volName stri
 				newSnapshotName := drivers.GetSnapshotVolumeName(volName, snapName)
 
 				// Create database entry for new storage volume snapshot.
-				err = VolumeDBCreate(b.state, b, projectName, newSnapshotName, desc, db.StoragePoolVolumeTypeNameCustom, true, vol.Config(), time.Time{}, string(contentType))
+				err = VolumeDBCreate(b.state, b, projectName, newSnapshotName, desc, vol.Type(), true, vol.Config(), time.Time{}, vol.ContentType())
 				if err != nil {
 					return err
 				}
@@ -2765,7 +2768,7 @@ func (b *lxdBackend) CreateCustomVolumeFromMigration(projectName string, conn io
 	}
 
 	// Create database entry for new storage volume.
-	err = VolumeDBCreate(b.state, b, projectName, args.Name, args.Description, db.StoragePoolVolumeTypeNameCustom, false, vol.Config(), time.Time{}, args.ContentType)
+	err = VolumeDBCreate(b.state, b, projectName, args.Name, args.Description, vol.Type(), false, vol.Config(), time.Time{}, vol.ContentType())
 	if err != nil {
 		return err
 	}
@@ -2777,7 +2780,7 @@ func (b *lxdBackend) CreateCustomVolumeFromMigration(projectName string, conn io
 			newSnapshotName := drivers.GetSnapshotVolumeName(args.Name, snapName)
 
 			// Create database entry for new storage volume snapshot.
-			err = VolumeDBCreate(b.state, b, projectName, newSnapshotName, args.Description, db.StoragePoolVolumeTypeNameCustom, true, vol.Config(), time.Time{}, args.ContentType)
+			err = VolumeDBCreate(b.state, b, projectName, newSnapshotName, args.Description, vol.Type(), true, vol.Config(), time.Time{}, vol.ContentType())
 			if err != nil {
 				return err
 			}
@@ -2930,7 +2933,7 @@ func (b *lxdBackend) UpdateCustomVolume(projectName string, volName string, newD
 	_, curVol, err := b.state.Cluster.GetLocalStoragePoolVolume(projectName, volName, db.StoragePoolVolumeTypeCustom, b.ID())
 	if err != nil {
 		if err == db.ErrNoSuchObject {
-			return fmt.Errorf("Volume doesn't exist")
+			return errors.Wrapf(err, "Volume doesn't exist")
 		}
 
 		return err
@@ -3028,7 +3031,7 @@ func (b *lxdBackend) UpdateCustomVolumeSnapshot(projectName string, volName stri
 	volID, curVol, err := b.state.Cluster.GetLocalStoragePoolVolume(projectName, volName, db.StoragePoolVolumeTypeCustom, b.ID())
 	if err != nil {
 		if err == db.ErrNoSuchObject {
-			return fmt.Errorf("Volume doesn't exist")
+			return errors.Wrapf(err, "Volume doesn't exist")
 		}
 
 		return err
@@ -3236,7 +3239,7 @@ func (b *lxdBackend) CreateCustomVolumeSnapshot(projectName, volName string, new
 	}
 
 	// Create database entry for new storage volume snapshot.
-	err = VolumeDBCreate(b.state, b, projectName, fullSnapshotName, parentVol.Description, db.StoragePoolVolumeTypeNameCustom, true, parentVol.Config, newExpiryDate, parentVol.ContentType)
+	err = VolumeDBCreate(b.state, b, projectName, fullSnapshotName, parentVol.Description, drivers.VolumeTypeCustom, true, parentVol.Config, newExpiryDate, drivers.ContentType(parentVol.ContentType))
 	if err != nil {
 		return err
 	}
@@ -3390,7 +3393,7 @@ func (b *lxdBackend) RestoreCustomVolume(projectName, volName string, snapshotNa
 	_, curVol, err := b.state.Cluster.GetLocalStoragePoolVolume(projectName, volName, db.StoragePoolVolumeTypeCustom, b.ID())
 	if err != nil {
 		if err == db.ErrNoSuchObject {
-			return fmt.Errorf("Volume doesn't exist")
+			return errors.Wrapf(err, "Volume doesn't exist")
 		}
 
 		return err
@@ -3417,7 +3420,7 @@ func (b *lxdBackend) RestoreCustomVolume(projectName, volName string, snapshotNa
 	_, dbVol, err := b.state.Cluster.GetLocalStoragePoolVolume(projectName, volName, db.StoragePoolVolumeTypeCustom, b.ID())
 	if err != nil {
 		if err == db.ErrNoSuchObject {
-			return fmt.Errorf("Volume doesn't exist")
+			return errors.Wrapf(err, "Volume doesn't exist")
 		}
 
 		return err
@@ -3468,7 +3471,7 @@ func (b *lxdBackend) createStorageStructure(path string) error {
 			path := filepath.Join(path, name)
 			err := os.MkdirAll(path, 0711)
 			if err != nil && !os.IsExist(err) {
-				return errors.Wrapf(err, "Failed to create directory '%s'", path)
+				return errors.Wrapf(err, "Failed to create directory %q", path)
 			}
 		}
 	}
@@ -3551,7 +3554,7 @@ func (b *lxdBackend) UpdateInstanceBackupFile(inst instance.Instance, op *operat
 		path := filepath.Join(inst.Path(), "backup.yaml")
 		f, err := os.Create(path)
 		if err != nil {
-			return errors.Wrapf(err, "Failed to create file '%s'", path)
+			return errors.Wrapf(err, "Failed to create file %q", path)
 		}
 		defer f.Close()
 
@@ -3739,7 +3742,7 @@ func (b *lxdBackend) CreateCustomVolumeFromBackup(srcBackup backup.Info, srcData
 	}
 
 	// Create database entry for new storage volume using the validated config.
-	err = VolumeDBCreate(b.state, b, srcBackup.Project, srcBackup.Name, srcBackup.Config.Volume.Description, db.StoragePoolVolumeTypeNameCustom, false, vol.Config(), time.Time{}, string(vol.ContentType()))
+	err = VolumeDBCreate(b.state, b, srcBackup.Project, srcBackup.Name, srcBackup.Config.Volume.Description, vol.Type(), false, vol.Config(), time.Time{}, vol.ContentType())
 	if err != nil {
 		return err
 	}
@@ -3762,7 +3765,7 @@ func (b *lxdBackend) CreateCustomVolumeFromBackup(srcBackup backup.Info, srcData
 			return err
 		}
 
-		err = VolumeDBCreate(b.state, b, srcBackup.Project, fullSnapName, snapshot.Description, db.StoragePoolVolumeTypeNameCustom, true, snapVol.Config(), *snapshot.ExpiresAt, string(snapVol.ContentType()))
+		err = VolumeDBCreate(b.state, b, srcBackup.Project, fullSnapName, snapshot.Description, snapVol.Type(), true, snapVol.Config(), *snapshot.ExpiresAt, snapVol.ContentType())
 		if err != nil {
 			return err
 		}
