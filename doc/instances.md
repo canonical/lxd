@@ -341,6 +341,7 @@ name                    | string  | kernel assigned   | no       | no      | The
 mtu                     | integer | parent MTU        | no       | yes     | The MTU of the new interface
 hwaddr                  | string  | randomly assigned | no       | no      | The MAC address of the new interface
 vlan                    | integer | -                 | no       | no      | The VLAN ID to attach to
+gvrp                    | boolean | false             | no       | no      | Register VLAN using GARP VLAN Registration Protocol
 maas.subnet.ipv4        | string  | -                 | no       | yes     | MAAS IPv4 subnet to register the instance in
 maas.subnet.ipv6        | string  | -                 | no       | yes     | MAAS IPv6 subnet to register the instance in
 boot.priority           | integer | -                 | no       | no      | Boot priority for VMs (higher boots first)
@@ -407,6 +408,7 @@ name                    | string  | kernel assigned   | no       | The name of t
 mtu                     | integer | parent MTU        | no       | The MTU of the new interface
 hwaddr                  | string  | randomly assigned | no       | The MAC address of the new interface
 vlan                    | integer | -                 | no       | The VLAN ID to attach to
+gvrp                    | boolean | false             | no       | Register VLAN using GARP VLAN Registration Protocol
 maas.subnet.ipv4        | string  | -                 | no       | MAAS IPv4 subnet to register the instance in
 maas.subnet.ipv6        | string  | -                 | no       | MAAS IPv6 subnet to register the instance in
 boot.priority           | integer | -                 | no       | Boot priority for VMs (higher boots first)
@@ -456,6 +458,7 @@ ipv6.address            | string  | -                  | no       | Comma delimi
 ipv6.gateway            | string  | auto (l3s), - (l2) | no       | In `l3s` mode, whether to add an automatic default IPv6 gateway, can be `auto` or `none`. In `l2` mode specifies the IPv6 address of the gateway.
 ipv6.host\_table        | integer | -                  | no       | The custom policy routing table ID to add IPv6 static routes to (in addition to main routing table).
 vlan                    | integer | -                  | no       | The VLAN ID to attach to
+gvrp                    | boolean | false              | no       | Register VLAN using GARP VLAN Registration Protocol
 
 #### nic: p2p
 
@@ -549,6 +552,7 @@ ipv6.gateway            | string  | auto              | no       | Whether to ad
 ipv6.host\_address      | string  | fe80::1           | no       | The IPv6 address to add to the host-side veth interface.
 ipv6.host\_table        | integer | -                 | no       | The custom policy routing table ID to add IPv6 static routes to (in addition to main routing table).
 vlan                    | integer | -                 | no       | The VLAN ID to attach to
+gvrp                    | boolean | false             | no       | Register VLAN using GARP VLAN Registration Protocol
 
 #### bridged, macvlan or ipvlan for connection to physical network
 
