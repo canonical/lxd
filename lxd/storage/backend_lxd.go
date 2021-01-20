@@ -1595,6 +1595,224 @@ func (b *lxdBackend) UpdateInstanceSnapshot(inst instance.Instance, newDesc stri
 	return b.updateVolumeDescriptionOnly(inst.Project(), inst.Name(), volDBType, newDesc, newConfig)
 }
 
+// MoveInstance moves an instance from its existing pool to the pool represented by b.
+func (b *lxdBackend) MoveInstance(inst instance.Instance, op *operations.Operation) error {
+	logger := logging.AddContext(b.logger, log.Ctx{"project": inst.Project(), "instance": inst.Name()})
+	logger.Debug("MoveInstance started")
+	defer logger.Debug("MoveInstance finished")
+
+	if b.Status() == api.StoragePoolStatusPending {
+		return fmt.Errorf("Specified pool is not fully created")
+	}
+
+	if inst.IsRunning() {
+		return fmt.Errorf("Instance must not be running to move between pools")
+	}
+
+	volType, err := InstanceTypeToVolumeType(inst.Type())
+	if err != nil {
+		return err
+	}
+
+	volDBType, err := VolumeTypeToDBType(volType)
+	if err != nil {
+		return err
+	}
+
+	contentType := InstanceContentType(inst)
+
+	// Get the source storage pool.
+	srcPool, err := GetPoolByInstance(b.state, inst)
+	if err != nil {
+		return err
+	}
+
+	// Create storage volume DB record on target pool using volume config from source.
+	_, srcVol, err := b.state.Cluster.GetLocalStoragePoolVolume(inst.Project(), inst.Name(), volDBType, srcPool.ID())
+	if err != nil {
+		return errors.Wrapf(err, "Failed loading source volume for copy")
+	}
+
+	// Get the volume name on storage.
+	volStorageName := project.Instance(inst.Project(), inst.Name())
+
+	// Initialise a new target volume representing the root disk config on the target pool.
+	targetVol := b.newVolume(volType, contentType, volStorageName, srcVol.Config)
+
+	if b.driver.HasVolume(targetVol) {
+		return fmt.Errorf("Cannot create volume, already exists on target")
+	}
+
+	// Check config is valid and remove any incompatible keys.
+	err = b.driver.ValidateVolume(targetVol, true)
+	if err != nil {
+		return err
+	}
+
+	// Prepare reverter.
+	revert := revert.New()
+	defer revert.Fail()
+
+	// Add revert to delete instance on target pool on failure.
+	revert.Add(func() { b.DeleteInstance(inst, op) })
+
+	// Create storage volume record on target pool.
+	err = VolumeDBCreate(b.state, b, inst.Project(), inst.Name(), srcVol.Description, targetVol.Type(), false, targetVol.Config(), time.Time{}, targetVol.ContentType())
+	if err != nil {
+		return errors.Wrapf(err, "Failed creating storage record for move")
+	}
+	revert.Add(func() { b.state.Cluster.RemoveStoragePoolVolume(inst.Project(), inst.Name(), volDBType, b.ID()) })
+
+	// Retrieve a list of snapshots from source volume.
+	snapshotNames := []string{}
+	snapshots, err := VolumeSnapshotsGet(b.state, inst.Project(), srcPool.Name(), inst.Name(), volDBType)
+	if err != nil {
+		return err
+	}
+
+	for _, s := range snapshots {
+		snapshot := s // Local var for revert.
+		_, snapShotName, _ := shared.InstanceGetParentAndSnapshotName(snapshot.Name)
+		snapshotNames = append(snapshotNames, snapShotName)
+
+		// tomp TODO should we use the parent config here or the snapshot config passed via validate?
+		err = VolumeDBCreate(b.state, b, snapshot.ProjectName, snapshot.Name, snapshot.Description, targetVol.Type(), true, targetVol.Config(), time.Time{}, targetVol.ContentType())
+		if err != nil {
+			return errors.Wrapf(err, "Failed creating storage record")
+		}
+		revert.Add(func() {
+			b.state.Cluster.RemoveStoragePoolVolume(snapshot.ProjectName, snapshot.Name, volDBType, b.ID())
+		})
+	}
+
+	// Negotiate the migration type to use.
+	offeredTypes := srcPool.MigrationTypes(contentType, false)
+	offerHeader := migration.TypesToHeader(offeredTypes...)
+	migrationTypes, err := migration.MatchTypes(offerHeader, FallbackMigrationType(contentType), b.MigrationTypes(contentType, false))
+	if err != nil {
+		return errors.Wrapf(err, "Failed to negotiate copy migration type")
+	}
+
+	// For VMs, get source volume size so that target can create the volume the same size.
+	var srcVolumeSize int64
+	if inst.Type() == instancetype.VM {
+		srcVolumeSize, err = InstanceDiskBlockSize(srcPool, inst, op)
+		if err != nil {
+			return errors.Wrapf(err, "Failed getting source disk size")
+		}
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+
+	// Use in-memory pipe pair to simulate a connection between the sender and receiver.
+	aEnd, bEnd := memorypipe.NewPipePair(ctx)
+
+	// Run sender and receiver in separate go routines to prevent deadlocks.
+	aEndErrCh := make(chan error, 1)
+	bEndErrCh := make(chan error, 1)
+	go func() {
+		err := srcPool.MigrateInstance(inst, aEnd, &migration.VolumeSourceArgs{
+			Name:          inst.Name(),
+			Snapshots:     snapshotNames,
+			MigrationType: migrationTypes[0],
+			TrackProgress: true, // Do use a progress tracker on sender.
+		}, op)
+
+		if err != nil {
+			cancel()
+		}
+		aEndErrCh <- err
+	}()
+
+	go func() {
+		err := b.CreateInstanceFromMigration(inst, bEnd, migration.VolumeTargetArgs{
+			Name:          inst.Name(),
+			Snapshots:     snapshotNames,
+			MigrationType: migrationTypes[0],
+			VolumeSize:    srcVolumeSize, // Block size setting override.
+			TrackProgress: false,         // Do not use a progress tracker on receiver.
+		}, op)
+
+		if err != nil {
+			cancel()
+		}
+		bEndErrCh <- err
+	}()
+
+	// Capture errors from the sender and receiver from their result channels.
+	errs := []error{}
+	aEndErr := <-aEndErrCh
+	if aEndErr != nil {
+		errs = append(errs, aEndErr)
+	}
+
+	bEndErr := <-bEndErrCh
+	if bEndErr != nil {
+		errs = append(errs, bEndErr)
+	}
+
+	cancel()
+
+	if len(errs) > 0 {
+		return fmt.Errorf("Instance move failed: %v", errs)
+	}
+
+	// Load source root disk from expanded devices (in case instance doesn't have its own root disk).
+	rootDev := inst.ExpandedDevices()["root"]
+	rootDev["pool"] = b.Name()
+
+	// Update/add instance's root disk device with the new pool name.
+	localDevices := inst.LocalDevices()
+	localDevices["root"] = rootDev
+
+	// Update instance config before attempting to delete old volumes.
+	// tomp TODO this is creating a backup.yaml file in container path mounting old pool.
+	err = inst.Update(db.InstanceArgs{
+		Architecture: inst.Architecture(),
+		Config:       inst.LocalConfig(),
+		Description:  inst.Description(),
+		Devices:      localDevices,
+		Ephemeral:    inst.IsEphemeral(),
+		Profiles:     inst.Profiles(),
+		Project:      inst.Project(),
+	}, false)
+	if err != nil {
+		return errors.Wrapf(err, "Failed updating instance root disk device pool")
+	}
+
+	// Mark the process as suceeded here, as if the deletion of the source instance fails to complete we do not
+	// want to delete the successfully copied instance on the target pool as we'd end up partially or fully
+	// losing the instance.
+	revert.Success()
+
+	instSnapshots, err := inst.Snapshots()
+	if err != nil {
+		return errors.Wrapf(err, "Failed loading instance snapshots")
+	}
+
+	// Delete source snapshot volumes.
+	for _, instSnapshot := range instSnapshots {
+		err = srcPool.DeleteInstanceSnapshot(instSnapshot, op)
+		if err != nil {
+			return errors.Wrapf(err, "Failed deleting source instance snapshot")
+		}
+	}
+
+	// Delete the source instance volume.
+	err = srcPool.DeleteInstance(inst, op)
+	if err != nil {
+		return errors.Wrapf(err, "Failed deleting source instance")
+	}
+
+	// Update the symlinks. Needs to come after deletion of old volumes.
+	err = b.ensureInstanceSymlink(inst.Type(), inst.Project(), inst.Name(), targetVol.MountPath())
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
 // MigrateInstance sends an instance volume for migration.
 // The args.Name field is ignored and the name of the instance is used instead.
 func (b *lxdBackend) MigrateInstance(inst instance.Instance, conn io.ReadWriteCloser, args *migration.VolumeSourceArgs, op *operations.Operation) error {
