@@ -4623,8 +4623,8 @@ func (d *qemu) FillNetworkDevice(name string, m deviceConfig.Device) (deviceConf
 		if volatileHwaddr == "" {
 			// Generate a new MAC address.
 			volatileHwaddr, err = instance.DeviceNextInterfaceHWAddr()
-			if err != nil {
-				return nil, err
+			if err != nil || volatileHwaddr == "" {
+				return nil, errors.Wrapf(err, "Failed generating %q", configKey)
 			}
 
 			// Update the database and update volatileHwaddr with stored value.
@@ -4639,7 +4639,7 @@ func (d *qemu) FillNetworkDevice(name string, m deviceConfig.Device) (deviceConf
 		}
 
 		if volatileHwaddr == "" {
-			return nil, fmt.Errorf("Failed generating %q", configKey)
+			return nil, fmt.Errorf("Failed getting %q", configKey)
 		}
 
 		newDevice["hwaddr"] = volatileHwaddr
