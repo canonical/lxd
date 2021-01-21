@@ -31,7 +31,6 @@ import (
 	"github.com/lxc/lxd/lxd/cgroup"
 	"github.com/lxc/lxd/lxd/cluster"
 	"github.com/lxc/lxd/lxd/db"
-	"github.com/lxc/lxd/lxd/db/query"
 	"github.com/lxc/lxd/lxd/device"
 	deviceConfig "github.com/lxc/lxd/lxd/device/config"
 	"github.com/lxc/lxd/lxd/device/nictype"
@@ -4578,65 +4577,34 @@ func (d *qemu) FillNetworkDevice(name string, m deviceConfig.Device) (deviceConf
 	var err error
 
 	newDevice := m.Clone()
-	updateKey := func(key string, value string) error {
-		tx, err := d.state.Cluster.Begin()
-		if err != nil {
-			return err
-		}
-
-		err = db.CreateInstanceConfig(tx, d.id, map[string]string{key: value})
-		if err != nil {
-			tx.Rollback()
-			return err
-		}
-
-		err = db.TxCommit(tx)
-		if err != nil {
-			return err
-		}
-
-		return nil
-	}
 
 	nicType, err := nictype.NICType(d.state, m)
 	if err != nil {
 		return nil, err
 	}
 
-	// Fill in the MAC address
+	// Fill in the MAC address.
 	if !shared.StringInSlice(nicType, []string{"physical", "ipvlan", "sriov"}) && m["hwaddr"] == "" {
 		configKey := fmt.Sprintf("volatile.%s.hwaddr", name)
 		volatileHwaddr := d.localConfig[configKey]
 		if volatileHwaddr == "" {
-			// Generate a new MAC address
+			// Generate a new MAC address.
 			volatileHwaddr, err = instance.DeviceNextInterfaceHWAddr()
 			if err != nil {
 				return nil, err
 			}
 
-			// Update the database
-			err = query.Retry(func() error {
-				err := updateKey(configKey, volatileHwaddr)
-				if err != nil {
-					// Check if something else filled it in behind our back
-					value, err1 := d.state.Cluster.GetInstanceConfig(d.id, configKey)
-					if err1 != nil || value == "" {
-						return err
-					}
-
-					d.localConfig[configKey] = value
-					d.expandedConfig[configKey] = value
-					return nil
-				}
-
-				d.localConfig[configKey] = volatileHwaddr
-				d.expandedConfig[configKey] = volatileHwaddr
-				return nil
-			})
+			// Update the database and update volatileHwaddr with stored value.
+			volatileHwaddr, err = d.insertConfigkey(configKey, volatileHwaddr)
 			if err != nil {
-				return nil, err
+				return nil, errors.Wrapf(err, "Failed storing generated config key %q", configKey)
 			}
+
+			// Set stored value into current instance config.
+			d.localConfig[configKey] = volatileHwaddr
+			d.expandedConfig[configKey] = volatileHwaddr
 		}
+
 		newDevice["hwaddr"] = volatileHwaddr
 	}
 
