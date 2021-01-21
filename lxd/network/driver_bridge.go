@@ -426,19 +426,22 @@ func (n *bridge) Validate(config map[string]string) error {
 			return errors.Wrapf(err, "Failed parsing ipv6.ovn.ranges")
 		}
 
-		dhcpRanges, err := parseIPRanges(config["ipv6.dhcp.ranges"], allowedNets...)
-		if err != nil {
-			return errors.Wrapf(err, "Failed parsing ipv6.dhcp.ranges")
-		}
+		// If stateful DHCPv6 is enabled, check OVN ranges don't overlap with DHCPv6 stateful ranges.
+		// Otherwise SLAAC will be being used to generate client IPs and predefined ranges aren't used.
+		if dhcpSubnet != nil && shared.IsTrue(config["ipv6.dhcp.stateful"]) {
+			dhcpRanges, err := parseIPRanges(config["ipv6.dhcp.ranges"], allowedNets...)
+			if err != nil {
+				return errors.Wrapf(err, "Failed parsing ipv6.dhcp.ranges")
+			}
 
-		for _, ovnRange := range ovnRanges {
-			for _, dhcpRange := range dhcpRanges {
-				if IPRangesOverlap(ovnRange, dhcpRange) {
-					return fmt.Errorf(`The range specified in "ipv6.ovn.ranges" (%q) cannot overlap with "ipv6.dhcp.ranges"`, ovnRange)
+			for _, ovnRange := range ovnRanges {
+				for _, dhcpRange := range dhcpRanges {
+					if IPRangesOverlap(ovnRange, dhcpRange) {
+						return fmt.Errorf(`The range specified in "ipv6.ovn.ranges" (%q) cannot overlap with "ipv6.dhcp.ranges"`, ovnRange)
+					}
 				}
 			}
 		}
-
 	}
 
 	return nil
