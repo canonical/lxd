@@ -6155,8 +6155,8 @@ func (d *lxc) FillNetworkDevice(name string, m deviceConfig.Device) (deviceConfi
 		if volatileHwaddr == "" {
 			// Generate a new MAC address.
 			volatileHwaddr, err = instance.DeviceNextInterfaceHWAddr()
-			if err != nil {
-				return nil, err
+			if err != nil || volatileHwaddr == "" {
+				return nil, errors.Wrapf(err, "Failed generating %q", configKey)
 			}
 
 			// Update the database and update volatileHwaddr with stored value.
@@ -6171,7 +6171,7 @@ func (d *lxc) FillNetworkDevice(name string, m deviceConfig.Device) (deviceConfi
 		}
 
 		if volatileHwaddr == "" {
-			return nil, fmt.Errorf("Failed generating %q", configKey)
+			return nil, fmt.Errorf("Failed getting %q", configKey)
 		}
 
 		newDevice["hwaddr"] = volatileHwaddr
@@ -6184,8 +6184,8 @@ func (d *lxc) FillNetworkDevice(name string, m deviceConfig.Device) (deviceConfi
 		if volatileName == "" {
 			// Generate a new interface name.
 			volatileName, err = nextInterfaceName()
-			if err != nil {
-				return nil, err
+			if err != nil || volatileName == "" {
+				return nil, errors.Wrapf(err, "Failed generating %q", configKey)
 			}
 
 			// Update the database and update volatileName with stored value.
@@ -6200,7 +6200,7 @@ func (d *lxc) FillNetworkDevice(name string, m deviceConfig.Device) (deviceConfi
 		}
 
 		if volatileName == "" {
-			return nil, fmt.Errorf("Failed generating %q", configKey)
+			return nil, fmt.Errorf("Failed getting %q", configKey)
 		}
 
 		newDevice["name"] = volatileName
