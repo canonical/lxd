@@ -6183,7 +6183,7 @@ func (d *lxc) FillNetworkDevice(name string, m deviceConfig.Device) (deviceConfi
 		volatileName := d.localConfig[configKey]
 		if volatileName == "" {
 			// Generate a new interface name.
-			volatileName, err := nextInterfaceName()
+			volatileName, err = nextInterfaceName()
 			if err != nil {
 				return nil, err
 			}
