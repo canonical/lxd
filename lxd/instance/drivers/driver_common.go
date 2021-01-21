@@ -573,10 +573,6 @@ func (d *common) insertConfigkey(key string, value string) (string, error) {
 			if errCheckExists != nil {
 				return err
 			}
-
-			if value == "" {
-				return err
-			}
 		}
 
 		storedValue = value
