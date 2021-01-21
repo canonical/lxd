@@ -6170,6 +6170,10 @@ func (d *lxc) FillNetworkDevice(name string, m deviceConfig.Device) (deviceConfi
 			d.expandedConfig[configKey] = volatileHwaddr
 		}
 
+		if volatileHwaddr == "" {
+			return nil, fmt.Errorf("Failed generating %q", configKey)
+		}
+
 		newDevice["hwaddr"] = volatileHwaddr
 	}
 
@@ -6193,6 +6197,10 @@ func (d *lxc) FillNetworkDevice(name string, m deviceConfig.Device) (deviceConfi
 			// Set stored value into current instance config.
 			d.localConfig[configKey] = volatileName
 			d.expandedConfig[configKey] = volatileName
+		}
+
+		if volatileName == "" {
+			return nil, fmt.Errorf("Failed generating %q", configKey)
 		}
 
 		newDevice["name"] = volatileName

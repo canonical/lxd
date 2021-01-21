@@ -4638,6 +4638,10 @@ func (d *qemu) FillNetworkDevice(name string, m deviceConfig.Device) (deviceConf
 			d.expandedConfig[configKey] = volatileHwaddr
 		}
 
+		if volatileHwaddr == "" {
+			return nil, fmt.Errorf("Failed generating %q", configKey)
+		}
+
 		newDevice["hwaddr"] = volatileHwaddr
 	}
 
