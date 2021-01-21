@@ -560,22 +560,25 @@ func (d *common) lifecycle(action string, ctx map[string]interface{}) error {
 // unpopulated then the insert querty is retried until it succeeds or a retry limit is reached.
 // If the insert succeeds or the key is found to have been populated then the value of the key is returned.
 func (d *common) insertConfigkey(key string, value string) (string, error) {
-	var storedValue string
-
-	return storedValue, query.Retry(func() error {
+	err := query.Retry(func() error {
 		err := query.Transaction(d.state.Cluster.DB(), func(tx *sql.Tx) error {
 			return db.CreateInstanceConfig(tx, d.id, map[string]string{key: value})
 		})
 		if err != nil {
 			// Check if something else filled it in behind our back.
-			var errCheckExists error
-			value, errCheckExists = d.state.Cluster.GetInstanceConfig(d.id, key)
+			existingValue, errCheckExists := d.state.Cluster.GetInstanceConfig(d.id, key)
 			if errCheckExists != nil {
 				return err
 			}
+
+			value = existingValue
 		}
 
-		storedValue = value
 		return nil
 	})
+	if err != nil {
+		return "", err
+	}
+
+	return value, nil
 }
