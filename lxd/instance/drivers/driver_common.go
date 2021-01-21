@@ -1,6 +1,7 @@
 package drivers
 
 import (
+	"database/sql"
 	"fmt"
 	"net/url"
 	"path/filepath"
@@ -11,6 +12,7 @@ import (
 
 	"github.com/lxc/lxd/lxd/backup"
 	"github.com/lxc/lxd/lxd/db"
+	"github.com/lxc/lxd/lxd/db/query"
 	deviceConfig "github.com/lxc/lxd/lxd/device/config"
 	"github.com/lxc/lxd/lxd/device/nictype"
 	"github.com/lxc/lxd/lxd/instance"
@@ -551,4 +553,33 @@ func (d *common) lifecycle(action string, ctx map[string]interface{}) error {
 	}
 
 	return d.state.Events.SendLifecycle(d.project, fmt.Sprintf("%s-%s", prefix, action), u, ctx)
+}
+
+// insertConfigkey function attempts to insert the instance config key into the database. If the insert fails
+// then the database is queried to check whether another query inserted the same key. If the key is still
+// unpopulated then the insert querty is retried until it succeeds or a retry limit is reached.
+// If the insert succeeds or the key is found to have been populated then the value of the key is returned.
+func (d *common) insertConfigkey(key string, value string) (string, error) {
+	var storedValue string
+
+	return storedValue, query.Retry(func() error {
+		err := query.Transaction(d.state.Cluster.DB(), func(tx *sql.Tx) error {
+			return db.CreateInstanceConfig(tx, d.id, map[string]string{key: value})
+		})
+		if err != nil {
+			// Check if something else filled it in behind our back.
+			var errCheckExists error
+			value, errCheckExists = d.state.Cluster.GetInstanceConfig(d.id, key)
+			if errCheckExists != nil {
+				return err
+			}
+
+			if value == "" {
+				return err
+			}
+		}
+
+		storedValue = value
+		return nil
+	})
 }

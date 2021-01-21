@@ -958,9 +958,7 @@ func CreateInstanceConfig(tx *sql.Tx, id int, config map[string]string) error {
 
 		_, err := stmt.Exec(id, k, v)
 		if err != nil {
-			logger.Debugf("Error adding configuration item %s = %s to container %d",
-				k, v, id)
-			return err
+			return errors.Wrapf(err, "Error adding configuration item %q = %q to instance %d", k, v, id)
 		}
 	}
 
