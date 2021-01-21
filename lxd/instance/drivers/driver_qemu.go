@@ -677,6 +677,29 @@ func (d *qemu) ovmfPath() string {
 	return "/usr/share/OVMF"
 }
 
+func (d *qemu) killQemuProcess(pid int) {
+	proc, err := os.FindProcess(pid)
+	if err != nil {
+		d.logger.Warn("Failed to find VM process", log.Ctx{"pid": pid})
+		return
+	}
+
+	err = proc.Kill()
+	if err != nil {
+		if strings.Contains(err.Error(), "process already finished") {
+			d.logger.Warn("Failed to find VM process", log.Ctx{"pid": pid})
+		} else {
+			d.logger.Warn("Failed to kill VM process", log.Ctx{"pid": pid})
+		}
+		return
+	}
+
+	_, err = proc.Wait()
+	if err != nil {
+		d.logger.Warn("Failed to collect VM process exit status", log.Ctx{"pid": pid})
+	}
+}
+
 // Start starts the instance.
 func (d *qemu) Start(stateful bool) error {
 	// Must be run prior to creating the operation lock.
@@ -1051,16 +1074,7 @@ func (d *qemu) Start(stateful bool) error {
 	}
 
 	revert.Add(func() {
-		proc, err := os.FindProcess(pid)
-		if err != nil {
-			d.logger.Error("Failed to find VM process", log.Ctx{"pid": pid})
-			return
-		}
-
-		proc.Kill()
-		if err != nil {
-			d.logger.Error("Failed to kill VM process", log.Ctx{"pid": pid})
-		}
+		d.killQemuProcess(pid)
 	})
 
 	// Start QMP monitoring.
@@ -2599,6 +2613,23 @@ func (d *qemu) pid() (int, error) {
 	return pid, nil
 }
 
+// isMatchingQemuProcess checks whether the supplied pid is the same qemu process that we originally started
+func (d *qemu) isMatchingQemuProcess(pid int) bool {
+	cmdLineProcFilePath := fmt.Sprintf("/proc/%d/cmdline", pid)
+	cmdLine, err := ioutil.ReadFile(cmdLineProcFilePath)
+	if err != nil {
+		return false
+	}
+
+	qemuPath, _, err := d.qemuArchConfig(d.architecture)
+	if err != nil {
+		return false
+	}
+
+	instUUID := d.localConfig["volatile.uuid"]
+	return bytes.HasPrefix(cmdLine, []byte(qemuPath)) && bytes.Contains(cmdLine, []byte(instUUID))
+}
+
 // Stop the VM.
 func (d *qemu) Stop(stateful bool) error {
 	// Must be run prior to creating the operation lock.
@@ -2627,6 +2658,12 @@ func (d *qemu) Stop(stateful bool) error {
 	monitor, err := qmp.Connect(d.monitorPath(), qemuSerialChardevName, d.getMonitorEventHandler())
 	if err != nil {
 		// If we fail to connect, it's most likely because the VM is already off.
+		// but it could also be because the qemu process is hung, check for that
+		pid, _ := d.pid()
+		if pid > 0 && d.isMatchingQemuProcess(pid) {
+			d.killQemuProcess(pid)
+		}
+
 		op.Done(nil)
 		return nil
 	}
