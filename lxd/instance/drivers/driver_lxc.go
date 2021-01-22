@@ -3499,8 +3499,8 @@ func (d *lxc) Delete(force bool) error {
 	return nil
 }
 
-// Rename renames the instance.
-func (d *lxc) Rename(newName string) error {
+// Rename renames the instance. Accepts an argument to enable applying deferred TemplateTriggerRename.
+func (d *lxc) Rename(newName string, applyTemplateTrigger bool) error {
 	oldName := d.Name()
 	ctxMap := log.Ctx{
 		"created":   d.creationDate,
@@ -3538,6 +3538,13 @@ func (d *lxc) Rename(newName string) error {
 		err = pool.RenameInstance(d, newName, nil)
 		if err != nil {
 			return errors.Wrap(err, "Rename instance")
+		}
+
+		if applyTemplateTrigger {
+			err = d.DeferTemplateApply(instance.TemplateTriggerRename)
+			if err != nil {
+				return err
+			}
 		}
 	}
 
