@@ -896,6 +896,10 @@ func (c *Cluster) UpdateImage(id int, fname string, sz int64, public bool, autoU
 		defer stmt2.Close()
 
 		for key, value := range properties {
+			if value == "" {
+				continue
+			}
+
 			_, err = stmt2.Exec(id, 0, key, value)
 			if err != nil {
 				return err
