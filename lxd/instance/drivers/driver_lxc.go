@@ -4867,7 +4867,7 @@ func (d *lxc) Migrate(args *instance.CriuMigrationArgs) error {
 	return nil
 }
 
-func (d *lxc) templateApplyNow(trigger string) error {
+func (d *lxc) templateApplyNow(trigger instance.TemplateTrigger) error {
 	// If there's no metadata, just return
 	fname := filepath.Join(d.Path(), "metadata.yaml")
 	if !shared.PathExists(fname) {
@@ -4936,7 +4936,7 @@ func (d *lxc) templateApplyNow(trigger string) error {
 			// Check if the template should be applied now
 			found := false
 			for _, tplTrigger := range tpl.When {
-				if tplTrigger == trigger {
+				if tplTrigger == string(trigger) {
 					found = true
 					break
 				}
