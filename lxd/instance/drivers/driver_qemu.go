@@ -1660,7 +1660,7 @@ echo "To start it now, unmount this filesystem and run: systemctl start lxd-agen
 	return nil
 }
 
-func (d *qemu) templateApplyNow(trigger string, path string) error {
+func (d *qemu) templateApplyNow(trigger instance.TemplateTrigger, path string) error {
 	// If there's no metadata, just return.
 	fname := filepath.Join(d.Path(), "metadata.yaml")
 	if !shared.PathExists(fname) {
@@ -1708,7 +1708,7 @@ func (d *qemu) templateApplyNow(trigger string, path string) error {
 			// Check if the template should be applied now.
 			found := false
 			for _, tplTrigger := range tpl.When {
-				if tplTrigger == trigger {
+				if tplTrigger == string(trigger) {
 					found = true
 					break
 				}
