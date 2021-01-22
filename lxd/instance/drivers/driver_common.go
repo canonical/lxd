@@ -187,9 +187,9 @@ func (d *common) Backups() ([]backup.InstanceBackup, error) {
 	return backups, nil
 }
 
-// DeferTemplateApply not used currently.
-func (d *common) DeferTemplateApply(trigger string) error {
-	err := d.VolatileSet(map[string]string{"volatile.apply_template": trigger})
+// DeferTemplateApply records a template trigger to apply on next instance start.
+func (d *common) DeferTemplateApply(trigger instance.TemplateTrigger) error {
+	err := d.VolatileSet(map[string]string{"volatile.apply_template": string(trigger)})
 	if err != nil {
 		return errors.Wrap(err, "Failed to set apply_template volatile key")
 	}
