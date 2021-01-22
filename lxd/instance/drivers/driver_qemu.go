@@ -2815,8 +2815,8 @@ func (d *qemu) Restore(source instance.Instance, stateful bool) error {
 	return nil
 }
 
-// Rename the instance.
-func (d *qemu) Rename(newName string) error {
+// Rename the instance. Accepts an argument to enable applying deferred TemplateTriggerRename.
+func (d *qemu) Rename(newName string, applyTemplateTrigger bool) error {
 	oldName := d.Name()
 	ctxMap := log.Ctx{
 		"created":   d.creationDate,
@@ -2854,6 +2854,13 @@ func (d *qemu) Rename(newName string) error {
 		err = pool.RenameInstance(d, newName, nil)
 		if err != nil {
 			return errors.Wrap(err, "Rename instance")
+		}
+
+		if applyTemplateTrigger {
+			err = d.DeferTemplateApply(instance.TemplateTriggerRename)
+			if err != nil {
+				return err
+			}
 		}
 	}
 
