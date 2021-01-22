@@ -2415,7 +2415,7 @@ func (d *lxc) onStart(_ map[string]string) error {
 	key := "volatile.apply_template"
 	if d.localConfig[key] != "" {
 		// Run any template that needs running
-		err = d.templateApplyNow(d.localConfig[key])
+		err = d.templateApplyNow(instance.TemplateTrigger(d.localConfig[key]))
 		if err != nil {
 			apparmor.InstanceUnload(d.state, d)
 			return err
