@@ -79,7 +79,7 @@ type Instance interface {
 	UpdateBackupFile() error
 
 	// Config handling.
-	Rename(newName string) error
+	Rename(newName string, applyTemplateTrigger bool) error
 	Update(newConfig db.InstanceArgs, userRequested bool) error
 
 	Delete(force bool) error
