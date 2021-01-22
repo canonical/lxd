@@ -519,8 +519,13 @@ func createFromCopy(d *Daemon, projectName string, req *api.InstancesPost) respo
 	}
 
 	run := func(op *operations.Operation) error {
-		instanceOnly := req.Source.InstanceOnly || req.Source.ContainerOnly
-		_, err := instanceCreateAsCopy(d.State(), args, source, instanceOnly, req.Source.Refresh, op)
+		_, err := instanceCreateAsCopy(d.State(), instanceCreateAsCopyOpts{
+			sourceInstance:       source,
+			targetInstance:       args,
+			instanceOnly:         req.Source.InstanceOnly || req.Source.ContainerOnly,
+			refresh:              req.Source.Refresh,
+			applyTemplateTrigger: true,
+		}, op)
 		if err != nil {
 			return err
 		}
