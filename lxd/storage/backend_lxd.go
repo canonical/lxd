@@ -554,7 +554,7 @@ func (b *lxdBackend) CreateInstance(inst instance.Instance, op *operations.Opera
 		return err
 	}
 
-	err = inst.DeferTemplateApply("create")
+	err = inst.DeferTemplateApply(instance.TemplateTriggerCreate)
 	if err != nil {
 		return err
 	}
@@ -1026,7 +1026,7 @@ func (b *lxdBackend) RefreshInstance(inst instance.Instance, src instance.Instan
 		return err
 	}
 
-	err = inst.DeferTemplateApply("copy")
+	err = inst.DeferTemplateApply(instance.TemplateTriggerCopy)
 	if err != nil {
 		return err
 	}
@@ -1156,7 +1156,7 @@ func (b *lxdBackend) CreateInstanceFromImage(inst instance.Instance, fingerprint
 		return err
 	}
 
-	err = inst.DeferTemplateApply("create")
+	err = inst.DeferTemplateApply(instance.TemplateTriggerCreate)
 	if err != nil {
 		return err
 	}
