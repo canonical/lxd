@@ -695,6 +695,10 @@ func (r *ProtocolLXD) MigrateInstance(name string, instance api.InstancePost) (O
 		}
 	}
 
+	if instance.Pool != "" && !r.HasExtension("instance_pool_move") {
+		return nil, fmt.Errorf("The server is missing the required \"instance_pool_move\" API extension")
+	}
+
 	// Sanity check
 	if !instance.Migration {
 		return nil, fmt.Errorf("Can't ask for a rename through MigrateInstance")
