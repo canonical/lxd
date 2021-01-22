@@ -340,7 +340,7 @@ func createFromMigration(d *Daemon, projectName string, req *api.InstancesPost) 
 			return fmt.Errorf("Error transferring instance data: %s", err)
 		}
 
-		err = inst.DeferTemplateApply("copy")
+		err = inst.DeferTemplateApply(instance.TemplateTriggerCopy)
 		if err != nil {
 			return err
 		}
