@@ -554,7 +554,7 @@ func (b *lxdBackend) CreateInstance(inst instance.Instance, op *operations.Opera
 		return err
 	}
 
-	err = inst.DeferTemplateApply("create")
+	err = inst.DeferTemplateApply(instance.TemplateTriggerCreate)
 	if err != nil {
 		return err
 	}
@@ -879,12 +879,6 @@ func (b *lxdBackend) CreateInstanceFromCopy(inst instance.Instance, src instance
 		return err
 	}
 
-	// Trigger the templates on next start.
-	err = inst.DeferTemplateApply("copy")
-	if err != nil {
-		return err
-	}
-
 	revert.Success()
 	return nil
 }
@@ -1032,7 +1026,7 @@ func (b *lxdBackend) RefreshInstance(inst instance.Instance, src instance.Instan
 		return err
 	}
 
-	err = inst.DeferTemplateApply("copy")
+	err = inst.DeferTemplateApply(instance.TemplateTriggerCopy)
 	if err != nil {
 		return err
 	}
@@ -1162,7 +1156,7 @@ func (b *lxdBackend) CreateInstanceFromImage(inst instance.Instance, fingerprint
 		return err
 	}
 
-	err = inst.DeferTemplateApply("create")
+	err = inst.DeferTemplateApply(instance.TemplateTriggerCreate)
 	if err != nil {
 		return err
 	}
@@ -1409,11 +1403,6 @@ func (b *lxdBackend) RenameInstance(inst instance.Instance, newName string, op *
 		if err != nil {
 			return err
 		}
-	}
-
-	err = inst.DeferTemplateApply("rename")
-	if err != nil {
-		return err
 	}
 
 	revert.Success()

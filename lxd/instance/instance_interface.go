@@ -32,6 +32,18 @@ const (
 	ConsoleTypeVGA     = "vga"
 )
 
+// TemplateTrigger trigger name.
+type TemplateTrigger string
+
+// TemplateTriggerCreate for when an instance is created.
+const TemplateTriggerCreate TemplateTrigger = "create"
+
+// TemplateTriggerCopy for when an instance is copied.
+const TemplateTriggerCopy TemplateTrigger = "copy"
+
+// TemplateTriggerRename for when an instance is renamed.
+const TemplateTriggerRename TemplateTrigger = "rename"
+
 // ConfigReader is used to read instance config.
 type ConfigReader interface {
 	Project() string
@@ -67,7 +79,7 @@ type Instance interface {
 	UpdateBackupFile() error
 
 	// Config handling.
-	Rename(newName string) error
+	Rename(newName string, applyTemplateTrigger bool) error
 	Update(newConfig db.InstanceArgs, userRequested bool) error
 
 	Delete(force bool) error
@@ -137,9 +149,7 @@ type Instance interface {
 	// Progress reporting.
 	SetOperation(op *operations.Operation)
 
-	// FIXME: Those should be internal functions.
-	// Needed for migration for now.
-	DeferTemplateApply(trigger string) error
+	DeferTemplateApply(trigger TemplateTrigger) error
 }
 
 // Container interface is for container specific functions.

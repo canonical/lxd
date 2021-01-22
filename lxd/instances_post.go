@@ -340,7 +340,7 @@ func createFromMigration(d *Daemon, projectName string, req *api.InstancesPost) 
 			return fmt.Errorf("Error transferring instance data: %s", err)
 		}
 
-		err = inst.DeferTemplateApply("copy")
+		err = inst.DeferTemplateApply(instance.TemplateTriggerCopy)
 		if err != nil {
 			return err
 		}
@@ -475,10 +475,7 @@ func createFromCopy(d *Daemon, projectName string, req *api.InstancesPost) respo
 	if req.Stateful {
 		sourceName, _, _ := shared.InstanceGetParentAndSnapshotName(source.Name())
 		if sourceName != req.Name {
-			return response.BadRequest(fmt.Errorf(`Copying stateful `+
-				`containers requires that source "%s" and `+
-				`target "%s" name be identical`, sourceName,
-				req.Name))
+			return response.BadRequest(fmt.Errorf("Copying stateful instances requires that source %q and target %q name be identical", sourceName, req.Name))
 		}
 	}
 
@@ -522,8 +519,13 @@ func createFromCopy(d *Daemon, projectName string, req *api.InstancesPost) respo
 	}
 
 	run := func(op *operations.Operation) error {
-		instanceOnly := req.Source.InstanceOnly || req.Source.ContainerOnly
-		_, err := instanceCreateAsCopy(d.State(), args, source, instanceOnly, req.Source.Refresh, op)
+		_, err := instanceCreateAsCopy(d.State(), instanceCreateAsCopyOpts{
+			sourceInstance:       source,
+			targetInstance:       args,
+			instanceOnly:         req.Source.InstanceOnly || req.Source.ContainerOnly,
+			refresh:              req.Source.Refresh,
+			applyTemplateTrigger: true,
+		}, op)
 		if err != nil {
 			return err
 		}
