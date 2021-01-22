@@ -879,12 +879,6 @@ func (b *lxdBackend) CreateInstanceFromCopy(inst instance.Instance, src instance
 		return err
 	}
 
-	// Trigger the templates on next start.
-	err = inst.DeferTemplateApply("copy")
-	if err != nil {
-		return err
-	}
-
 	revert.Success()
 	return nil
 }

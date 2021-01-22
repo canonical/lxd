@@ -180,18 +180,28 @@ func instanceCreateFromImage(d *Daemon, args db.InstanceArgs, hash string, op *o
 	return inst, nil
 }
 
-func instanceCreateAsCopy(s *state.State, args db.InstanceArgs, sourceInst instance.Instance, instanceOnly bool, refresh bool, op *operations.Operation) (instance.Instance, error) {
+// instanceCreateAsCopyOpts options for copying an instance.
+type instanceCreateAsCopyOpts struct {
+	sourceInstance       instance.Instance // Source instance.
+	targetInstance       db.InstanceArgs   // Configuration for new instance.
+	instanceOnly         bool              // Only copy the instance and not it's snapshots.
+	refresh              bool              // Refresh an existing target instance.
+	applyTemplateTrigger bool              // Apply deferred TemplateTriggerCopy.
+}
+
+// instanceCreateAsCopy create a new instance by copying from an existing instance.
+func instanceCreateAsCopy(s *state.State, opts instanceCreateAsCopyOpts, op *operations.Operation) (instance.Instance, error) {
 	var inst instance.Instance
 	var err error
 
 	revert := revert.New()
 	defer revert.Fail()
 
-	if refresh {
+	if opts.refresh {
 		// Load the target instance.
-		inst, err = instance.LoadByProjectAndName(s, args.Project, args.Name)
+		inst, err = instance.LoadByProjectAndName(s, opts.targetInstance.Project, opts.targetInstance.Name)
 		if err != nil {
-			refresh = false // Instance doesn't exist, so switch to copy mode.
+			opts.refresh = false // Instance doesn't exist, so switch to copy mode.
 		}
 
 		if inst.IsRunning() {
@@ -200,9 +210,9 @@ func instanceCreateAsCopy(s *state.State, args db.InstanceArgs, sourceInst insta
 	}
 
 	// If we are not in refresh mode, then create a new instance as we are in copy mode.
-	if !refresh {
+	if !opts.refresh {
 		// Create the instance.
-		inst, err = instanceCreateInternal(s, args)
+		inst, err = instanceCreateInternal(s, opts.targetInstance)
 		if err != nil {
 			return nil, errors.Wrap(err, "Failed creating instance record")
 		}
@@ -222,10 +232,10 @@ func instanceCreateAsCopy(s *state.State, args db.InstanceArgs, sourceInst insta
 	snapList := []*instance.Instance{}
 	var snapshots []instance.Instance
 
-	if !instanceOnly {
-		if refresh {
+	if !opts.instanceOnly {
+		if opts.refresh {
 			// Compare snapshots.
-			syncSnapshots, deleteSnapshots, err := instance.CompareSnapshots(sourceInst, inst)
+			syncSnapshots, deleteSnapshots, err := instance.CompareSnapshots(opts.sourceInstance, inst)
 			if err != nil {
 				return nil, err
 			}
@@ -242,7 +252,7 @@ func instanceCreateAsCopy(s *state.State, args db.InstanceArgs, sourceInst insta
 			snapshots = syncSnapshots
 		} else {
 			// Get snapshots of source instance.
-			snapshots, err = sourceInst.Snapshots()
+			snapshots, err = opts.sourceInstance.Snapshots()
 			if err != nil {
 				return nil, err
 			}
@@ -274,14 +284,14 @@ func instanceCreateAsCopy(s *state.State, args db.InstanceArgs, sourceInst insta
 			snapInstArgs := db.InstanceArgs{
 				Architecture: srcSnap.Architecture(),
 				Config:       srcSnap.LocalConfig(),
-				Type:         sourceInst.Type(),
+				Type:         opts.sourceInstance.Type(),
 				Snapshot:     true,
 				Devices:      snapDevices,
 				Description:  srcSnap.Description(),
 				Ephemeral:    srcSnap.IsEphemeral(),
 				Name:         newSnapName,
 				Profiles:     srcSnap.Profiles(),
-				Project:      args.Project,
+				Project:      opts.targetInstance.Project,
 				ExpiryDate:   srcSnap.ExpiryDate(),
 			}
 
@@ -306,15 +316,23 @@ func instanceCreateAsCopy(s *state.State, args db.InstanceArgs, sourceInst insta
 		return nil, errors.Wrap(err, "Load instance storage pool")
 	}
 
-	if refresh {
-		err = pool.RefreshInstance(inst, sourceInst, snapshots, op)
+	if opts.refresh {
+		err = pool.RefreshInstance(inst, opts.sourceInstance, snapshots, op)
 		if err != nil {
 			return nil, errors.Wrap(err, "Refresh instance")
 		}
 	} else {
-		err = pool.CreateInstanceFromCopy(inst, sourceInst, !instanceOnly, op)
+		err = pool.CreateInstanceFromCopy(inst, opts.sourceInstance, !opts.instanceOnly, op)
 		if err != nil {
 			return nil, errors.Wrap(err, "Create instance from copy")
+		}
+
+		if opts.applyTemplateTrigger {
+			// Trigger the templates on next start.
+			err = inst.DeferTemplateApply(instance.TemplateTriggerCopy)
+			if err != nil {
+				return nil, err
+			}
 		}
 	}
 
