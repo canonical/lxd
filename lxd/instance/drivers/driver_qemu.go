@@ -2829,7 +2829,7 @@ func (d *qemu) Rename(newName string) error {
 		results, err := d.state.Cluster.GetInstanceSnapshotsNames(d.project, oldName)
 		if err != nil {
 			d.logger.Error("Failed to get instance snapshots", ctxMap)
-			return err
+			return errors.Wrapf(err, "Failed to get instance snapshots")
 		}
 
 		for _, sname := range results {
