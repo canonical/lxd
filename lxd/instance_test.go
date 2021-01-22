@@ -229,7 +229,7 @@ func (suite *containerTestSuite) TestContainer_Rename() {
 	suite.Req.Nil(err)
 	defer c.Delete(true)
 
-	suite.Req.Nil(c.Rename("testFoo2"), "Failed to rename the container.")
+	suite.Req.Nil(c.Rename("testFoo2", true), "Failed to rename the container.")
 	suite.Req.Equal(shared.VarPath("containers", "testFoo2"), c.Path())
 }
 
