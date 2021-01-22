@@ -32,6 +32,18 @@ const (
 	ConsoleTypeVGA     = "vga"
 )
 
+// TemplateTrigger trigger name.
+type TemplateTrigger string
+
+// TemplateTriggerCreate for when an instance is created.
+const TemplateTriggerCreate TemplateTrigger = "create"
+
+// TemplateTriggerCopy for when an instance is copied.
+const TemplateTriggerCopy TemplateTrigger = "copy"
+
+// TemplateTriggerRename for when an instance is renamed.
+const TemplateTriggerRename TemplateTrigger = "rename"
+
 // ConfigReader is used to read instance config.
 type ConfigReader interface {
 	Project() string
