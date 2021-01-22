@@ -1631,7 +1631,7 @@ echo "To start it now, unmount this filesystem and run: systemctl start lxd-agen
 	key := "volatile.apply_template"
 	if d.localConfig[key] != "" {
 		// Run any template that needs running.
-		err = d.templateApplyNow(d.localConfig[key], filepath.Join(configDrivePath, "files"))
+		err = d.templateApplyNow(instance.TemplateTrigger(d.localConfig[key]), filepath.Join(configDrivePath, "files"))
 		if err != nil {
 			return err
 		}
