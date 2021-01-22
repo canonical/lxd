@@ -265,7 +265,7 @@ func instancePost(d *Daemon, r *http.Request) response.Response {
 	}
 
 	run := func(*operations.Operation) error {
-		return inst.Rename(req.Name)
+		return inst.Rename(req.Name, true)
 	}
 
 	resources := map[string][]string{}
