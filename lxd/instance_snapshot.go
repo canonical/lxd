@@ -417,7 +417,7 @@ func snapshotPost(d *Daemon, r *http.Request, sc instance.Instance, containerNam
 	}
 
 	rename := func(op *operations.Operation) error {
-		return sc.Rename(fullName)
+		return sc.Rename(fullName, false)
 	}
 
 	resources := map[string][]string{}

@@ -1631,7 +1631,7 @@ echo "To start it now, unmount this filesystem and run: systemctl start lxd-agen
 	key := "volatile.apply_template"
 	if d.localConfig[key] != "" {
 		// Run any template that needs running.
-		err = d.templateApplyNow(d.localConfig[key], filepath.Join(configDrivePath, "files"))
+		err = d.templateApplyNow(instance.TemplateTrigger(d.localConfig[key]), filepath.Join(configDrivePath, "files"))
 		if err != nil {
 			return err
 		}
@@ -1660,7 +1660,7 @@ echo "To start it now, unmount this filesystem and run: systemctl start lxd-agen
 	return nil
 }
 
-func (d *qemu) templateApplyNow(trigger string, path string) error {
+func (d *qemu) templateApplyNow(trigger instance.TemplateTrigger, path string) error {
 	// If there's no metadata, just return.
 	fname := filepath.Join(d.Path(), "metadata.yaml")
 	if !shared.PathExists(fname) {
@@ -1708,7 +1708,7 @@ func (d *qemu) templateApplyNow(trigger string, path string) error {
 			// Check if the template should be applied now.
 			found := false
 			for _, tplTrigger := range tpl.When {
-				if tplTrigger == trigger {
+				if tplTrigger == string(trigger) {
 					found = true
 					break
 				}
@@ -2815,8 +2815,8 @@ func (d *qemu) Restore(source instance.Instance, stateful bool) error {
 	return nil
 }
 
-// Rename the instance.
-func (d *qemu) Rename(newName string) error {
+// Rename the instance. Accepts an argument to enable applying deferred TemplateTriggerRename.
+func (d *qemu) Rename(newName string, applyTemplateTrigger bool) error {
 	oldName := d.Name()
 	ctxMap := log.Ctx{
 		"created":   d.creationDate,
@@ -2855,6 +2855,13 @@ func (d *qemu) Rename(newName string) error {
 		if err != nil {
 			return errors.Wrap(err, "Rename instance")
 		}
+
+		if applyTemplateTrigger {
+			err = d.DeferTemplateApply(instance.TemplateTriggerRename)
+			if err != nil {
+				return err
+			}
+		}
 	}
 
 	if !d.IsSnapshot() {
@@ -2862,7 +2869,7 @@ func (d *qemu) Rename(newName string) error {
 		results, err := d.state.Cluster.GetInstanceSnapshotsNames(d.project, oldName)
 		if err != nil {
 			d.logger.Error("Failed to get instance snapshots", ctxMap)
-			return err
+			return errors.Wrapf(err, "Failed to get instance snapshots")
 		}
 
 		for _, sname := range results {

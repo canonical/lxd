@@ -2415,7 +2415,7 @@ func (d *lxc) onStart(_ map[string]string) error {
 	key := "volatile.apply_template"
 	if d.localConfig[key] != "" {
 		// Run any template that needs running
-		err = d.templateApplyNow(d.localConfig[key])
+		err = d.templateApplyNow(instance.TemplateTrigger(d.localConfig[key]))
 		if err != nil {
 			apparmor.InstanceUnload(d.state, d)
 			return err
@@ -3499,8 +3499,8 @@ func (d *lxc) Delete(force bool) error {
 	return nil
 }
 
-// Rename renames the instance.
-func (d *lxc) Rename(newName string) error {
+// Rename renames the instance. Accepts an argument to enable applying deferred TemplateTriggerRename.
+func (d *lxc) Rename(newName string, applyTemplateTrigger bool) error {
 	oldName := d.Name()
 	ctxMap := log.Ctx{
 		"created":   d.creationDate,
@@ -3539,6 +3539,13 @@ func (d *lxc) Rename(newName string) error {
 		if err != nil {
 			return errors.Wrap(err, "Rename instance")
 		}
+
+		if applyTemplateTrigger {
+			err = d.DeferTemplateApply(instance.TemplateTriggerRename)
+			if err != nil {
+				return err
+			}
+		}
 	}
 
 	if !d.IsSnapshot() {
@@ -3546,7 +3553,7 @@ func (d *lxc) Rename(newName string) error {
 		results, err := d.state.Cluster.GetInstanceSnapshotsNames(d.project, oldName)
 		if err != nil {
 			d.logger.Error("Failed to get container snapshots", ctxMap)
-			return err
+			return errors.Wrapf(err, "Failed to get container snapshots")
 		}
 
 		for _, sname := range results {
@@ -3558,7 +3565,7 @@ func (d *lxc) Rename(newName string) error {
 			})
 			if err != nil {
 				d.logger.Error("Failed renaming snapshot", ctxMap)
-				return err
+				return errors.Wrapf(err, "Failed renaming snapshot")
 			}
 		}
 	}
@@ -3575,7 +3582,7 @@ func (d *lxc) Rename(newName string) error {
 	})
 	if err != nil {
 		d.logger.Error("Failed renaming container", ctxMap)
-		return err
+		return errors.Wrapf(err, "Failed renaming container")
 	}
 
 	// Rename the logging path.
@@ -3585,7 +3592,7 @@ func (d *lxc) Rename(newName string) error {
 		err := os.Rename(d.LogPath(), shared.LogPath(newFullName))
 		if err != nil {
 			d.logger.Error("Failed renaming container", ctxMap)
-			return err
+			return errors.Wrapf(err, "Failed renaming container")
 		}
 	}
 
@@ -4867,7 +4874,7 @@ func (d *lxc) Migrate(args *instance.CriuMigrationArgs) error {
 	return nil
 }
 
-func (d *lxc) templateApplyNow(trigger string) error {
+func (d *lxc) templateApplyNow(trigger instance.TemplateTrigger) error {
 	// If there's no metadata, just return
 	fname := filepath.Join(d.Path(), "metadata.yaml")
 	if !shared.PathExists(fname) {
@@ -4936,7 +4943,7 @@ func (d *lxc) templateApplyNow(trigger string) error {
 			// Check if the template should be applied now
 			found := false
 			for _, tplTrigger := range tpl.When {
-				if tplTrigger == trigger {
+				if tplTrigger == string(trigger) {
 					found = true
 					break
 				}
