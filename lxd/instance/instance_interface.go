@@ -149,9 +149,7 @@ type Instance interface {
 	// Progress reporting.
 	SetOperation(op *operations.Operation)
 
-	// FIXME: Those should be internal functions.
-	// Needed for migration for now.
-	DeferTemplateApply(trigger string) error
+	DeferTemplateApply(trigger TemplateTrigger) error
 }
 
 // Container interface is for container specific functions.
