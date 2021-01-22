@@ -475,10 +475,7 @@ func createFromCopy(d *Daemon, projectName string, req *api.InstancesPost) respo
 	if req.Stateful {
 		sourceName, _, _ := shared.InstanceGetParentAndSnapshotName(source.Name())
 		if sourceName != req.Name {
-			return response.BadRequest(fmt.Errorf(`Copying stateful `+
-				`containers requires that source "%s" and `+
-				`target "%s" name be identical`, sourceName,
-				req.Name))
+			return response.BadRequest(fmt.Errorf("Copying stateful instances requires that source %q and target %q name be identical", sourceName, req.Name))
 		}
 	}
 
