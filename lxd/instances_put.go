@@ -7,6 +7,7 @@ import (
 	"sync"
 
 	"github.com/lxc/lxd/lxd/instance"
+	"github.com/lxc/lxd/lxd/instance/instancetype"
 	"github.com/lxc/lxd/lxd/operations"
 	"github.com/lxc/lxd/lxd/response"
 	"github.com/lxc/lxd/shared"
@@ -30,7 +31,7 @@ func coalesceErrors(errors map[string]error) error {
 func instancesPut(d *Daemon, r *http.Request) response.Response {
 	project := projectParam(r)
 
-	c, err := instance.LoadByProject(d.State(), project)
+	c, err := instance.LoadNodeAll(d.State(), instancetype.Any)
 	if err != nil {
 		return response.BadRequest(err)
 	}
@@ -47,6 +48,10 @@ func instancesPut(d *Daemon, r *http.Request) response.Response {
 	var names []string
 	var instances []instance.Instance
 	for _, inst := range c {
+		if inst.Project() != project {
+			continue
+		}
+
 		switch action {
 		case shared.Freeze:
 			if !inst.IsRunning() {
