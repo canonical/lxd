@@ -223,7 +223,7 @@ func (d *disk) validateConfig(instConf instance.ConfigReader) error {
 			}
 
 			if contentType == db.StoragePoolVolumeContentTypeBlock {
-				if instConf.Type() != instancetype.VM {
+				if instConf.Type() == instancetype.Container {
 					return fmt.Errorf("Custom block volumes cannot be used on containers")
 				}
 
