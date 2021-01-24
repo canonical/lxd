@@ -43,7 +43,7 @@ func (d *nicSRIOV) validateConfig(instConf instance.ConfigReader) error {
 	}
 
 	// For VMs only NIC properties that can be specified on the parent's VF settings are controllable.
-	if instConf.Type() == instancetype.Container {
+	if instConf.Type() == instancetype.Container || instConf.Type() == instancetype.Any {
 		optionalFields = append(optionalFields, "mtu")
 	}
 
