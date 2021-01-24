@@ -34,7 +34,7 @@ func (d *nicPhysical) validateConfig(instConf instance.ConfigReader) error {
 		"gvrp",
 	}
 
-	if instConf.Type() == instancetype.Container {
+	if instConf.Type() == instancetype.Container || instConf.Type() == instancetype.Any {
 		optionalFields = append(optionalFields, "mtu", "hwaddr", "vlan")
 	}
 
