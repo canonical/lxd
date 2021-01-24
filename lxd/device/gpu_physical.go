@@ -46,7 +46,7 @@ func (d *gpuPhysical) validateConfig(instConf instance.ConfigReader) error {
 		"pci",
 	}
 
-	if instConf.Type() == instancetype.Container {
+	if instConf.Type() == instancetype.Container || instConf.Type() == instancetype.Any {
 		optionalFields = append(optionalFields, "uid", "gid", "mode")
 	}
 
