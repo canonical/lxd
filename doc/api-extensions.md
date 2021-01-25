@@ -1283,3 +1283,7 @@ Registration Protocol. Defaults to false.
 ## instance\_pool\_move
 This adds a `pool` field to the `POST /1.0/instances/NAME` API,
 allowing for easy move of an instance root disk between pools.
+
+## gpu\_sriov
+This adds support for SR-IOV enabled GPUs.
+It introduces the `sriov` gpu type property.
