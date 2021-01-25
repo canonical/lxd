@@ -257,34 +257,49 @@ func instanceCreateAsCopy(s *state.State, opts instanceCreateAsCopyOpts, op *ope
 		}
 
 		for _, srcSnap := range snapshots {
-			fields := strings.SplitN(srcSnap.Name(), shared.SnapshotDelimiter, 2)
+			snapLocalDevices := srcSnap.LocalDevices().Clone()
 
-			// Ensure that snapshot and parent instance have the
-			// same storage pool in their local root disk device.
-			// If the root disk device for the snapshot comes from a
-			// profile on the new instance as well we don't need to
-			// do anything.
-			snapDevices := srcSnap.LocalDevices()
-			if snapDevices != nil {
-				snapLocalRootDiskDeviceKey, _, _ := shared.GetRootDiskDevice(snapDevices.CloneNative())
-				if snapLocalRootDiskDeviceKey != "" {
-					snapDevices[snapLocalRootDiskDeviceKey]["pool"] = parentStoragePool
-				} else {
-					snapDevices["root"] = map[string]string{
-						"type": "disk",
-						"path": "/",
-						"pool": parentStoragePool,
+			// Load snap root disk from expanded devices (in case it doesn't have its own root disk).
+			snapExpandedRootDiskDevKey, snapExpandedRootDiskDev, err := shared.GetRootDiskDevice(srcSnap.ExpandedDevices().CloneNative())
+			if err == nil {
+				// If the expanded devices has a root disk, but its pool doesn't match our new
+				// parent instance's pool, then either modify the device if it is local or add a
+				// new one to local devices if its coming from the profiles.
+				if snapExpandedRootDiskDev["pool"] != instRootDiskDevice["pool"] {
+					if localRootDiskDev, found := snapLocalDevices[snapExpandedRootDiskDevKey]; found {
+						// Modify exist local device's pool.
+						localRootDiskDev["pool"] = instRootDiskDevice["pool"]
+						snapLocalDevices[snapExpandedRootDiskDevKey] = localRootDiskDev
+					} else {
+						// Add a new local device using parent instance's pool.
+						snapLocalDevices[instRootDiskDeviceKey] = map[string]string{
+							"type": "disk",
+							"path": "/",
+							"pool": instRootDiskDevice["pool"],
+						}
 					}
 				}
+			} else if errors.Cause(err) == shared.ErrNoRootDisk {
+				// If no root disk defined in either local devices or profiles, then add one to the
+				// snapshot local devices using the same device name from the parent instance.
+				snapLocalDevices[instRootDiskDeviceKey] = map[string]string{
+					"type": "disk",
+					"path": "/",
+					"pool": instRootDiskDevice["pool"],
+				}
+			} else {
+				// Snapshot has multiple root disk devices, we can't automatically fix this so
+				// leave alone so we don't prevent copy.
 			}
 
+			fields := strings.SplitN(srcSnap.Name(), shared.SnapshotDelimiter, 2)
 			newSnapName := fmt.Sprintf("%s/%s", inst.Name(), fields[1])
 			snapInstArgs := db.InstanceArgs{
 				Architecture: srcSnap.Architecture(),
 				Config:       srcSnap.LocalConfig(),
 				Type:         opts.sourceInstance.Type(),
 				Snapshot:     true,
-				Devices:      snapDevices,
+				Devices:      snapLocalDevices,
 				Description:  srcSnap.Description(),
 				Ephemeral:    srcSnap.IsEphemeral(),
 				Name:         newSnapName,
