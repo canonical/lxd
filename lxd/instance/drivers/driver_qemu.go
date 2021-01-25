@@ -2610,24 +2610,19 @@ func (d *qemu) pid() (int, error) {
 		return -1, err
 	}
 
-	return pid, nil
-}
-
-// isMatchingQemuProcess checks whether the supplied pid is the same qemu process that we originally started
-func (d *qemu) isMatchingQemuProcess(pid int) bool {
 	cmdLineProcFilePath := fmt.Sprintf("/proc/%d/cmdline", pid)
 	cmdLine, err := ioutil.ReadFile(cmdLineProcFilePath)
 	if err != nil {
-		return false
+		return -1, err
 	}
 
-	qemuPath, _, err := d.qemuArchConfig(d.architecture)
-	if err != nil {
-		return false
+	qemuSearchString := []byte("qemu-system")
+	instUUID := []byte(d.localConfig["volatile.uuid"])
+	if !bytes.Contains(cmdLine, qemuSearchString) || !bytes.Contains(cmdLine, instUUID) {
+		return -1, fmt.Errorf("Pid doesn't match the running process")
 	}
 
-	instUUID := d.localConfig["volatile.uuid"]
-	return bytes.HasPrefix(cmdLine, []byte(qemuPath)) && bytes.Contains(cmdLine, []byte(instUUID))
+	return pid, nil
 }
 
 // Stop the VM.
@@ -2660,7 +2655,7 @@ func (d *qemu) Stop(stateful bool) error {
 		// If we fail to connect, it's most likely because the VM is already off.
 		// but it could also be because the qemu process is hung, check for that
 		pid, _ := d.pid()
-		if pid > 0 && d.isMatchingQemuProcess(pid) {
+		if pid > 0 {
 			d.killQemuProcess(pid)
 		}
 
@@ -4590,7 +4585,7 @@ func (d *qemu) statusCode() api.StatusCode {
 		// If cannot connect to monitor, but qemu process in pid file still exists, then likely qemu
 		// has crashed/hung and this instance is in an error state.
 		pid, _ := d.pid()
-		if pid > 0 && shared.PathExists(fmt.Sprintf("/proc/%d", pid)) {
+		if pid > 0 {
 			return api.Error
 		}
 
