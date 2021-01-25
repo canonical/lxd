@@ -220,13 +220,11 @@ func instanceCreateAsCopy(s *state.State, opts instanceCreateAsCopyOpts, op *ope
 		revert.Add(func() { inst.Delete(true) })
 	}
 
-	// At this point we have already figured out the parent container's root disk device so we
-	// can simply retrieve it from the expanded devices.
-	parentStoragePool := ""
-	parentExpandedDevices := inst.ExpandedDevices()
-	parentLocalRootDiskDeviceKey, parentLocalRootDiskDevice, _ := shared.GetRootDiskDevice(parentExpandedDevices.CloneNative())
-	if parentLocalRootDiskDeviceKey != "" {
-		parentStoragePool = parentLocalRootDiskDevice["pool"]
+	// At this point we have already figured out the instance's root disk device so we can simply retrieve it
+	// from the expanded devices.
+	instRootDiskDeviceKey, instRootDiskDevice, err := shared.GetRootDiskDevice(inst.ExpandedDevices().CloneNative())
+	if err != nil {
+		return nil, err
 	}
 
 	snapList := []*instance.Instance{}
