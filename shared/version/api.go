@@ -216,6 +216,7 @@ var APIExtensions = []string{
 	"resources_network_usb",
 	"resources_disk_address",
 	"network_state_vlan",
+	"gpu_sriov",
 }
 
 // APIExtensionsCount returns the number of available API extensions.

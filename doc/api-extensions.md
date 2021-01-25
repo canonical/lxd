@@ -1080,3 +1080,7 @@ This adds a "vlan" section to the /1.0/networks/NAME/state API.
 Those contain additional state information relevant to VLAN interfaces:
  - lower\_device
  - vid
+
+## gpu\_sriov
+This adds support for SR-IOV enabled GPUs.
+It introduces the `sriov` gpu type property.
