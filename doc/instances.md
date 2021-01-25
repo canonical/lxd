@@ -747,6 +747,19 @@ id          | string    | -                 | no        | The card id of the GPU
 pci         | string    | -                 | no        | The pci address of the GPU device
 mdev        | string    | -                 | no        | The mdev profile to use (e.g. i915-GVTg_V5_4)
 
+#### gpu: sriov
+
+Supported instance types: VM
+
+The following properties exist:
+
+Key         | Type      | Default           | Required  | Description
+:--         | :--       | :--               | :--       | :--
+vendorid    | string    | -                 | no        | The vendor id of the parent GPU device
+productid   | string    | -                 | no        | The product id of the parent GPU device
+id          | string    | -                 | no        | The card id of the parent GPU device
+pci         | string    | -                 | no        | The pci address of the parent GPU device
+
 ### Type: proxy
 
 Supported instance types: container (`nat` and non-`nat` modes), VM (`nat` mode only)
