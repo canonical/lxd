@@ -43,6 +43,9 @@ func IsRootDiskDevice(device map[string]string) bool {
 	return false
 }
 
+// ErrNoRootDisk means there is no root disk device found.
+var ErrNoRootDisk = fmt.Errorf("No root device could be found")
+
 // GetRootDiskDevice returns the instance device that is configured as root disk.
 // Returns the device name and device config map.
 func GetRootDiskDevice(devices map[string]map[string]string) (string, map[string]string, error) {
@@ -64,7 +67,7 @@ func GetRootDiskDevice(devices map[string]map[string]string) (string, map[string
 		return devName, dev, nil
 	}
 
-	return "", nil, fmt.Errorf("No root device could be found")
+	return "", nil, ErrNoRootDisk
 }
 
 // HugePageSizeKeys is a list of known hugepage size configuration keys.
