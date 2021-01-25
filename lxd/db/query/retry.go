@@ -76,5 +76,9 @@ func IsRetriableError(err error) bool {
 		return true
 	}
 
+	if strings.Contains(err.Error(), "checkpoint in progress") {
+		return true
+	}
+
 	return false
 }
