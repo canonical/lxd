@@ -3,6 +3,10 @@ package main
 import (
 	"net/http"
 
+	"github.com/gorilla/mux"
+
+	"github.com/lxc/lxd/lxd/network/acl"
+	"github.com/lxc/lxd/lxd/project"
 	"github.com/lxc/lxd/lxd/response"
 )
 
@@ -41,7 +45,23 @@ func networkACLDelete(d *Daemon, r *http.Request) response.Response {
 
 // Show Network ACL.
 func networkACLGet(d *Daemon, r *http.Request) response.Response {
-	return response.NotImplemented(nil)
+	projectName, _, err := project.NetworkProject(d.State().Cluster, projectParam(r))
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	netACL, err := acl.LoadByName(d.State(), projectName, mux.Vars(r)["name"])
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	info := netACL.Info()
+	info.UsedBy, err = netACL.UsedBy()
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	return response.SyncResponseETag(true, info, netACL.Etag())
 }
 
 // Update Network ACL.
