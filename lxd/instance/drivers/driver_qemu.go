@@ -677,6 +677,29 @@ func (d *qemu) ovmfPath() string {
 	return "/usr/share/OVMF"
 }
 
+func (d *qemu) killQemuProcess(pid int) {
+	proc, err := os.FindProcess(pid)
+	if err != nil {
+		d.logger.Warn("Failed to find VM process", log.Ctx{"pid": pid})
+		return
+	}
+
+	err = proc.Kill()
+	if err != nil {
+		if strings.Contains(err.Error(), "process already finished") {
+			d.logger.Warn("Failed to find VM process", log.Ctx{"pid": pid})
+		} else {
+			d.logger.Warn("Failed to kill VM process", log.Ctx{"pid": pid})
+		}
+		return
+	}
+
+	_, err = proc.Wait()
+	if err != nil {
+		d.logger.Warn("Failed to collect VM process exit status", log.Ctx{"pid": pid})
+	}
+}
+
 // Start starts the instance.
 func (d *qemu) Start(stateful bool) error {
 	// Must be run prior to creating the operation lock.
@@ -1051,16 +1074,7 @@ func (d *qemu) Start(stateful bool) error {
 	}
 
 	revert.Add(func() {
-		proc, err := os.FindProcess(pid)
-		if err != nil {
-			d.logger.Error("Failed to find VM process", log.Ctx{"pid": pid})
-			return
-		}
-
-		proc.Kill()
-		if err != nil {
-			d.logger.Error("Failed to kill VM process", log.Ctx{"pid": pid})
-		}
+		d.killQemuProcess(pid)
 	})
 
 	// Start QMP monitoring.
@@ -2596,6 +2610,18 @@ func (d *qemu) pid() (int, error) {
 		return -1, err
 	}
 
+	cmdLineProcFilePath := fmt.Sprintf("/proc/%d/cmdline", pid)
+	cmdLine, err := ioutil.ReadFile(cmdLineProcFilePath)
+	if err != nil {
+		return -1, err
+	}
+
+	qemuSearchString := []byte("qemu-system")
+	instUUID := []byte(d.localConfig["volatile.uuid"])
+	if !bytes.Contains(cmdLine, qemuSearchString) || !bytes.Contains(cmdLine, instUUID) {
+		return -1, fmt.Errorf("Pid doesn't match the running process")
+	}
+
 	return pid, nil
 }
 
@@ -2627,6 +2653,12 @@ func (d *qemu) Stop(stateful bool) error {
 	monitor, err := qmp.Connect(d.monitorPath(), qemuSerialChardevName, d.getMonitorEventHandler())
 	if err != nil {
 		// If we fail to connect, it's most likely because the VM is already off.
+		// but it could also be because the qemu process is hung, check for that
+		pid, _ := d.pid()
+		if pid > 0 {
+			d.killQemuProcess(pid)
+		}
+
 		op.Done(nil)
 		return nil
 	}
@@ -4560,7 +4592,7 @@ func (d *qemu) statusCode() api.StatusCode {
 		// If cannot connect to monitor, but qemu process in pid file still exists, then likely qemu
 		// has crashed/hung and this instance is in an error state.
 		pid, _ := d.pid()
-		if pid > 0 && shared.PathExists(fmt.Sprintf("/proc/%d", pid)) {
+		if pid > 0 {
 			return api.Error
 		}
 
