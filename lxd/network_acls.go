@@ -1,6 +1,8 @@
 package main
 
 import (
+	"encoding/json"
+	"fmt"
 	"net/http"
 
 	"github.com/gorilla/mux"
@@ -8,6 +10,8 @@ import (
 	"github.com/lxc/lxd/lxd/network/acl"
 	"github.com/lxc/lxd/lxd/project"
 	"github.com/lxc/lxd/lxd/response"
+	"github.com/lxc/lxd/shared/api"
+	"github.com/lxc/lxd/shared/version"
 )
 
 var networkACLsCmd = APIEndpoint{
@@ -35,7 +39,31 @@ func networkACLsGet(d *Daemon, r *http.Request) response.Response {
 
 // Create Network ACL.
 func networkACLsPost(d *Daemon, r *http.Request) response.Response {
-	return response.NotImplemented(nil)
+	projectName, _, err := project.NetworkProject(d.State().Cluster, projectParam(r))
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	req := api.NetworkACLsPost{}
+
+	// Parse the request into a record.
+	err = json.NewDecoder(r.Body).Decode(&req)
+	if err != nil {
+		return response.BadRequest(err)
+	}
+
+	_, err = acl.LoadByName(d.State(), projectName, req.Name)
+	if err == nil {
+		return response.BadRequest(fmt.Errorf("The network ACL already exists"))
+	}
+
+	err = acl.Create(d.State(), projectName, &req)
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	url := fmt.Sprintf("/%s/network-acls/%s", version.APIVersion, req.Name)
+	return response.SyncResponseLocation(true, nil, url)
 }
 
 // Delete Network ACL.
