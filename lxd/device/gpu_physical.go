@@ -61,6 +61,13 @@ func (d *gpuPhysical) validateConfig(instConf instance.ConfigReader) error {
 				return fmt.Errorf(`Cannot use %q when when "pci" is set`, field)
 			}
 		}
+
+		// PCI devices can be specified as "0000:XX:XX.X" or "XX:XX.X".
+		// However, the devices in /sys/bus/pci/devices use the long format which
+		// is why we need to make sure the prefix is present.
+		if len(d.config["pci"]) == 7 {
+			d.config["pci"] = fmt.Sprintf("0000:%s", d.config["pci"])
+		}
 	}
 
 	if d.config["id"] != "" {
@@ -76,11 +83,7 @@ func (d *gpuPhysical) validateConfig(instConf instance.ConfigReader) error {
 
 // validateEnvironment checks the runtime environment for correctness.
 func (d *gpuPhysical) validateEnvironment() error {
-	if d.config["pci"] != "" && !shared.PathExists(fmt.Sprintf("/sys/bus/pci/devices/%s", d.config["pci"])) {
-		return fmt.Errorf("Invalid PCI address (no device found): %s", d.config["pci"])
-	}
-
-	return nil
+	return validatePCIDevice(d.config)
 }
 
 // Start is run when the device is added to the container.
