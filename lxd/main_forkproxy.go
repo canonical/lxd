@@ -31,6 +31,7 @@ import (
 #endif
 #include <errno.h>
 #include <fcntl.h>
+#include <pthread.h>
 #include <sched.h>
 #include <stdbool.h>
 #include <stdint.h>
@@ -79,6 +80,14 @@ again:
 	if (ret < 0 && errno == EINTR)
 		goto again;
 	return ret;
+}
+
+static void *async_wait_kludge(void *args)
+{
+	pid_t pid = PTR_TO_INT(args);
+
+	wait_for_pid(pid);
+	return NULL;
 }
 
 #define LISTEN_NEEDS_MNTNS 1U
@@ -185,6 +194,7 @@ void forkproxy(void)
 			fprintf(stderr, "%s - Failed to close fd %d\n",
 				strerror(errno), sk_fds[1]);
 	} else {
+		pthread_t thread;
 		int connect_nsfd;
 
 		whoami = FORKPROXY_PARENT;
@@ -246,6 +256,15 @@ void forkproxy(void)
 		// can just rely on init doing it's job and reaping the zombie
 		// process. So, technically unsatisfying but pragmatically
 		// correct.
+
+		// Create detached waiting thread after all namespace
+		// interactions have concluded since some of them require
+		// single-threadedness.
+		if (pthread_create(&thread, NULL, async_wait_kludge, INT_TO_PTR(pid)) ||
+		    pthread_detach(thread)) {
+			fprintf(stderr, "%m - Failed to create detached thread\n");
+			_exit(EXIT_FAILURE);
+		}
 	}
 }
 */
