@@ -248,6 +248,7 @@ var APIExtensions = []string{
 	"instance_bulk_state_change",
 	"network_gvrp",
 	"instance_pool_move",
+	"gpu_sriov",
 }
 
 // APIExtensionsCount returns the number of available API extensions.

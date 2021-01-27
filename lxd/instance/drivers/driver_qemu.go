@@ -2461,8 +2461,24 @@ func (d *qemu) addGPUDevConfig(sb *strings.Builder, bus *qemuBus, gpuConfig []de
 		}
 	}
 
-	// Pass-through VGA mode if enabled on the host device and architecture is x86_64.
-	vgaMode := shared.PathExists(filepath.Join("/sys/bus/pci/devices", pciSlotName, "boot_vga")) && d.architecture == osarch.ARCH_64BIT_INTEL_X86
+	vgaMode := func() bool {
+		// No VGA mode on non-x86.
+		if d.architecture != osarch.ARCH_64BIT_INTEL_X86 {
+			return false
+		}
+
+		// Only enable if present on the card.
+		if !shared.PathExists(filepath.Join("/sys/bus/pci/devices", pciSlotName, "boot_vga")) {
+			return false
+		}
+
+		// Skip SRIOV VFs as those are shared with the host card.
+		if shared.PathExists(filepath.Join("/sys/bus/pci/devices", pciSlotName, "physfn")) {
+			return false
+		}
+
+		return true
+	}()
 
 	devBus, devAddr, multi := bus.allocate(fmt.Sprintf("lxd_%s", devName))
 	tplFields := map[string]interface{}{
