@@ -94,37 +94,31 @@ func (d *nicBridged) validateConfig(instConf instance.ConfigReader) error {
 		netConfig := n.Config()
 
 		if d.config["ipv4.address"] != "" {
-			// Check that DHCPv4 is enabled on parent network (needed to use static assigned IPs).
-			if n.DHCPv4Subnet() == nil {
-				return fmt.Errorf("Cannot specify %q when DHCP is disabled on network %q", "ipv4.address", d.config["network"])
-			}
+			dhcpv4Subnet := n.DHCPv4Subnet()
 
-			_, subnet, err := net.ParseCIDR(netConfig["ipv4.address"])
-			if err != nil {
-				return errors.Wrapf(err, "Invalid network ipv4.address")
+			// Check that DHCPv4 is enabled on parent network (needed to use static assigned IPs).
+			if dhcpv4Subnet == nil {
+				return fmt.Errorf(`Cannot specify "ipv4.address" when DHCP is disabled on network %q`, d.config["network"])
 			}
 
 			// Check the static IP supplied is valid for the linked network. It should be part of the
 			// network's subnet, but not necessarily part of the dynamic allocation ranges.
-			if !dhcpalloc.DHCPValidIP(subnet, nil, net.ParseIP(d.config["ipv4.address"])) {
+			if !dhcpalloc.DHCPValidIP(dhcpv4Subnet, nil, net.ParseIP(d.config["ipv4.address"])) {
 				return fmt.Errorf("Device IP address %q not within network %q subnet", d.config["ipv4.address"], d.config["network"])
 			}
 		}
 
 		if d.config["ipv6.address"] != "" {
-			// Check that DHCPv6 is enabled on parent network (needed to use static assigned IPs).
-			if n.DHCPv6Subnet() == nil || !shared.IsTrue(netConfig["ipv6.dhcp.stateful"]) {
-				return fmt.Errorf("Cannot specify %q when DHCP or %q are disabled on network %q", "ipv6.address", "ipv6.dhcp.stateful", d.config["network"])
-			}
+			dhcpv6Subnet := n.DHCPv6Subnet()
 
-			_, subnet, err := net.ParseCIDR(netConfig["ipv6.address"])
-			if err != nil {
-				return errors.Wrapf(err, "Invalid network ipv6.address")
+			// Check that DHCPv6 is enabled on parent network (needed to use static assigned IPs).
+			if dhcpv6Subnet == nil || !shared.IsTrue(netConfig["ipv6.dhcp.stateful"]) {
+				return fmt.Errorf(`Cannot specify "ipv6.address" when DHCP or "ipv6.dhcp.stateful" are disabled on network %q`, d.config["network"])
 			}
 
 			// Check the static IP supplied is valid for the linked network. It should be part of the
 			// network's subnet, but not necessarily part of the dynamic allocation ranges.
-			if !dhcpalloc.DHCPValidIP(subnet, nil, net.ParseIP(d.config["ipv6.address"])) {
+			if !dhcpalloc.DHCPValidIP(dhcpv6Subnet, nil, net.ParseIP(d.config["ipv6.address"])) {
 				return fmt.Errorf("Device IP address %q not within network %q subnet", d.config["ipv6.address"], d.config["network"])
 			}
 		}
