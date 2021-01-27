@@ -226,6 +226,9 @@ type InstanceServer interface {
 	RenameNetwork(name string, network api.NetworkPost) (err error)
 	DeleteNetwork(name string) (err error)
 
+	// Network ACL functions ("network_acl" API extension)
+	CreateNetworkACL(acl api.NetworkACLsPost) (err error)
+
 	// Operation functions
 	GetOperationUUIDs() (uuids []string, err error)
 	GetOperations() (operations []api.Operation, err error)
