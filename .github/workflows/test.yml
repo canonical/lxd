@@ -1,0 +1,73 @@
+name: Client build and unit tests
+on:
+  - push
+  - pull_request
+jobs:
+  test:
+    strategy:
+      fail-fast: false
+      matrix:
+        go:
+          - 1.13.x
+          - 1.14.x
+          - 1.15.x
+        os:
+          - ubuntu-latest
+          - macos-latest
+          - windows-latest
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Install Go
+        uses: actions/setup-go@v2
+        with:
+          go-version: ${{ matrix.go }}
+
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Get Go dependencies
+        run: |
+          go mod init github.com/lxc/lxd
+          go get -t -d ./client ./lxc ./shared
+
+      - name: Test client package
+        env:
+          CGO_ENABLED: 0
+        run: go test -v ./client/...
+
+      - name: Test lxc package
+        env:
+          CGO_ENABLED: 0
+        run: go test -v ./lxc/...
+
+      - name: Test shared package
+        env:
+          CGO_ENABLED: 0
+        run: go test -v ./shared/...
+
+      - name: Create build directory
+        run: |
+          mkdir bin
+
+      - name: Build static lxc
+        env:
+          CGO_ENABLED: 0
+        run: |
+          go get -d ./lxc
+          go build -o bin ./lxc
+
+      - name: Build static lxd-p2c
+        if: runner.os == 'Linux'
+        env:
+          CGO_ENABLED: 0
+        run: |
+          go get -d ./lxc
+          go build -o bin ./lxd-p2c
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v2
+        if: matrix.go == '1.15.x'
+        continue-on-error: true
+        with:
+          name: ${{ runner.os }}
+          path: bin/
