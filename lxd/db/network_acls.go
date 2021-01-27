@@ -97,3 +97,75 @@ func (c *Cluster) networkACLConfig(id int64) (map[string]string, error) {
 
 	return config, nil
 }
+
+// CreateNetworkACL creates a new Network ACL.
+func (c *Cluster) CreateNetworkACL(projectName string, info *api.NetworkACLsPost) (int64, error) {
+	var id int64
+	var err error
+	var ingressJSON, egressJSON []byte
+
+	if info.Ingress != nil {
+		ingressJSON, err = json.Marshal(info.Ingress)
+		if err != nil {
+			return -1, errors.Wrapf(err, "Failed marshalling ingress rules")
+		}
+	}
+
+	if info.Egress != nil {
+		egressJSON, err = json.Marshal(info.Egress)
+		if err != nil {
+			return -1, errors.Wrapf(err, "Failed marshalling egress rules")
+		}
+	}
+
+	err = c.Transaction(func(tx *ClusterTx) error {
+		// Insert a new Network ACL record.
+		result, err := tx.tx.Exec(`
+			INSERT INTO networks_acls (project_id, name, description, ingress, egress)
+			VALUES ((SELECT id FROM projects WHERE name = ? LIMIT 1), ?, ?, ?, ?)
+		`, projectName, info.Name, info.Description, string(ingressJSON), string(egressJSON))
+		if err != nil {
+			return err
+		}
+
+		id, err := result.LastInsertId()
+		if err != nil {
+			return err
+		}
+
+		err = networkACLConfigAdd(tx.tx, id, info.Config)
+		if err != nil {
+			return err
+		}
+
+		return nil
+	})
+	if err != nil {
+		id = -1
+	}
+
+	return id, err
+}
+
+// networkACLConfigAdd inserts Network ACL config keys.
+func networkACLConfigAdd(tx *sql.Tx, id int64, config map[string]string) error {
+	sql := "INSERT INTO networks_acls_config (network_acl_id, key, value) VALUES(?, ?, ?)"
+	stmt, err := tx.Prepare(sql)
+	if err != nil {
+		return err
+	}
+	defer stmt.Close()
+
+	for k, v := range config {
+		if v == "" {
+			continue
+		}
+
+		_, err = stmt.Exec(id, k, v)
+		if err != nil {
+			return errors.Wrapf(err, "Failed inserting config")
+		}
+	}
+
+	return nil
+}
