@@ -183,7 +183,7 @@ func instancePost(d *Daemon, r *http.Request) response.Response {
 				return response.BadRequest(fmt.Errorf("Instance has backups"))
 			}
 
-			// Check whether the container is running.
+			// Check whether the instance is running.
 			if !sourceNodeOffline && inst.IsRunning() {
 				return response.BadRequest(fmt.Errorf("Container is running"))
 			}
@@ -312,7 +312,7 @@ func instancePostClusteringMigrate(d *Daemon, c instance.Instance, oldName, newN
 	}
 
 	run := func(*operations.Operation) error {
-		// Connect to the source host, i.e. ourselves (the node the container is running on).
+		// Connect to the source host, i.e. ourselves (the node the instance is running on).
 		source, err := cluster.Connect(sourceAddress, cert, true)
 		if err != nil {
 			return errors.Wrap(err, "Failed to connect to source server")
