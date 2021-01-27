@@ -56,6 +56,8 @@ func load(inst instance.Instance, state *state.State, projectName string, name s
 		switch conf["gputype"] {
 		case "mdev":
 			dev = &gpuMdev{}
+		case "sriov":
+			dev = &gpuSRIOV{}
 		default:
 			dev = &gpuPhysical{}
 		}

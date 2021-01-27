@@ -64,7 +64,9 @@ func DeviceUnbind(pciDev Device) error {
 	driverUnbindPath := fmt.Sprintf("/sys/bus/pci/devices/%s/driver/unbind", pciDev.SlotName)
 	err := ioutil.WriteFile(driverUnbindPath, []byte(pciDev.SlotName), 0600)
 	if err != nil {
-		return errors.Wrapf(err, "Failed unbinding device %q via %q", pciDev.SlotName, driverUnbindPath)
+		if !os.IsNotExist(err) || !shared.PathExists(fmt.Sprintf("/sys/bus/pci/devices/%s/", pciDev.SlotName)) {
+			return errors.Wrapf(err, "Failed unbinding device %q via %q", pciDev.SlotName, driverUnbindPath)
+		}
 	}
 
 	return nil

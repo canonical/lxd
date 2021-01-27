@@ -8,7 +8,7 @@ func gpuValidationRules(requiredFields []string, optionalFields []string) map[st
 		"vendorid":  validate.Optional(validate.IsDeviceID),
 		"productid": validate.Optional(validate.IsDeviceID),
 		"id":        validate.IsAny,
-		"pci":       validate.IsAny,
+		"pci":       validate.IsPCIAddress,
 		"uid":       unixValidUserID,
 		"gid":       unixValidUserID,
 		"mode":      unixValidOctalFileMode,
