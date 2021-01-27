@@ -93,6 +93,10 @@ func (c *cmdNetwork) Command() *cobra.Command {
 	networkUnsetCmd := cmdNetworkUnset{global: c.global, network: c, networkSet: &networkSetCmd}
 	cmd.AddCommand(networkUnsetCmd.Command())
 
+	// ACL
+	networkACLCmd := cmdNetworkACL{global: c.global}
+	cmd.AddCommand(networkACLCmd.Command())
+
 	return cmd
 }
 
