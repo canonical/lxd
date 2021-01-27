@@ -279,7 +279,7 @@ func (h *dnsHandler) handleA(r *dns.Msg) (dns.Msg, error) {
 		return *resp, nil
 	}
 
-	// Record not found in any of the remove servers.
+	// Record not found in any of the remote servers.
 	msg.SetRcode(r, dns.RcodeNameError)
 	return msg, nil
 }
