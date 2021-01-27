@@ -1602,6 +1602,12 @@ test_clustering_dns() {
     false
   fi
 
+  # Test querying forkdns1 for AAAA record when equivalent A record is on forkdns2 network
+  if ! dig @127.0.1.1"${ipRand}" -p1053 AAAA test1.lxd | grep "status: NOERROR" ; then
+    echo "test1.lxd empty AAAAA DNS resolution failed"
+    false
+  fi
+
   # Test querying forkdns1 for PTR record that is on forkdns2 network
   if ! dig @127.0.1.1"${ipRand}" -p1053 -x 10.140.78.145 | grep "test1.lxd" ; then
     echo "10.140.78.145 PTR DNS resolution failed"
