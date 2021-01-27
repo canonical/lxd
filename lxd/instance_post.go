@@ -185,7 +185,7 @@ func instancePost(d *Daemon, r *http.Request) response.Response {
 
 			// Check whether the instance is running.
 			if !sourceNodeOffline && inst.IsRunning() {
-				return response.BadRequest(fmt.Errorf("Container is running"))
+				return response.BadRequest(fmt.Errorf("Instance is running"))
 			}
 
 			// Check if we are migrating a ceph-based container.
