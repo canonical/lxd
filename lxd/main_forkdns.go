@@ -89,11 +89,18 @@ func (h *dnsHandler) ServeDNS(w dns.ResponseWriter, r *dns.Msg) {
 			logger.Errorf("PTR record lookup failed for %s: %v", r.Question[0].Name, err)
 			msg.SetRcode(r, dns.RcodeNameError)
 		}
-	} else if r.Question[0].Qtype == dns.TypeA {
+	} else if r.Question[0].Qtype == dns.TypeA || r.Question[0].Qtype == dns.TypeAAAA {
 		msg, err = h.handleA(r)
 		if err != nil {
 			logger.Errorf("A record lookup failed for %s: %v", r.Question[0].Name, err)
 			msg.SetRcode(r, dns.RcodeNameError)
+		}
+
+		// Currently forkdns doesn't support IPv6, but to ensure compatbility and expected behavior with
+		// DNS clients, we return an empty AAAA response if the A record was found (meaning the domain
+		// exists, but no AAAA records).
+		if r.Question[0].Qtype == dns.TypeAAAA && msg.Rcode == dns.RcodeSuccess {
+			msg.Answer = []dns.RR{} // Empty response for AAAA if equivalent A record exists.
 		}
 	} else {
 		// Fallback to NXDOMAIN
@@ -264,15 +271,15 @@ func (h *dnsHandler) handleA(r *dns.Msg) (dns.Msg, error) {
 		req.Id = r.Id
 
 		resp, err := dns.Exchange(&req, fmt.Sprintf("%s:1053", server))
-		if err != nil || len(resp.Answer) == 0 {
-			// Error or empty response, try the next one
+		if err != nil || resp.Rcode != dns.RcodeSuccess {
+			// Error sending request or error response, try next server.
 			continue
 		}
 
 		return *resp, nil
 	}
 
-	// Record not found in any of the remove servers.
+	// Record not found in any of the remote servers.
 	msg.SetRcode(r, dns.RcodeNameError)
 	return msg, nil
 }
