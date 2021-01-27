@@ -2007,6 +2007,34 @@ func (n *bridge) DHCPv4Subnet() *net.IPNet {
 		return nil
 	}
 
+	// Fan mode. Extract DHCP subnet from fan bridge address. Only detectable once network has started.
+	// But if there is no address on the fan bridge then DHCP won't work anyway.
+	if n.config["bridge.mode"] == "fan" {
+		iface, err := net.InterfaceByName(n.name)
+		if err != nil {
+			return nil
+		}
+
+		addrs, err := iface.Addrs()
+		if err != nil {
+			return nil
+		}
+
+		for _, addr := range addrs {
+			ip, subnet, err := net.ParseCIDR(addr.String())
+			if err != nil {
+				continue
+			}
+
+			if ip != nil && err == nil && ip.To4() != nil && ip.IsGlobalUnicast() {
+				return subnet // Use first IPv4 unicast address on host for DHCP subnet.
+			}
+		}
+
+		return nil // No addresses found, means DHCP must be disabled.
+	}
+
+	// Non-fan mode. Return configured bridge subnet directly.
 	_, subnet, err := net.ParseCIDR(n.config["ipv4.address"])
 	if err != nil {
 		return nil
