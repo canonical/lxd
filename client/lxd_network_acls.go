@@ -70,3 +70,18 @@ func (r *ProtocolLXD) UpdateNetworkACL(name string, acl api.NetworkACLPut, ETag 
 
 	return nil
 }
+
+// RenameNetworkACL renames an existing network ACL entry.
+func (r *ProtocolLXD) RenameNetworkACL(name string, acl api.NetworkACLPost) error {
+	if !r.HasExtension("network_acl") {
+		return fmt.Errorf(`The server is missing the required "network_acl" API extension`)
+	}
+
+	// Send the request.
+	_, _, err := r.query("POST", fmt.Sprintf("/network-acls/%s", url.PathEscape(name)), acl, "")
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
