@@ -414,6 +414,11 @@ func (d *gpuPhysical) getNvidiaNonCardDevices() ([]nvidiaNonCardDevice, error) {
 			continue
 		}
 
+		// Skip the nvidia directories for now (require extra MIG support).
+		if nvidiaEnt.IsDir() {
+			continue
+		}
+
 		if regexNvidiaCard.MatchString(nvidiaEnt.Name()) {
 			continue
 		}
