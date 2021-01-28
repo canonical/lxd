@@ -4,8 +4,10 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
+	"sort"
 	"strings"
 
+	"github.com/lxc/lxd/lxc/utils"
 	"github.com/lxc/lxd/shared/termios"
 	"github.com/spf13/cobra"
 	"gopkg.in/yaml.v2"
@@ -25,11 +27,88 @@ func (c *cmdNetworkACL) Command() *cobra.Command {
 	cmd.Short = i18n.G("Manage network ACLs")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G("Manage network ACLs"))
 
+	// List.
+	networkACLListCmd := cmdNetworkACLList{global: c.global, networkACL: c}
+	cmd.AddCommand(networkACLListCmd.Command())
+
 	// Create.
 	networkACLCreateCmd := cmdNetworkACLCreate{global: c.global, networkACL: c}
 	cmd.AddCommand(networkACLCreateCmd.Command())
 
 	return cmd
+}
+
+// List.
+type cmdNetworkACLList struct {
+	global     *cmdGlobal
+	networkACL *cmdNetworkACL
+
+	flagFormat string
+}
+
+func (c *cmdNetworkACLList) Command() *cobra.Command {
+	cmd := &cobra.Command{}
+	cmd.Use = usage("list", i18n.G("[<remote>:]"))
+	cmd.Aliases = []string{"ls"}
+	cmd.Short = i18n.G("List available network ACLS")
+	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G("List available network ACL"))
+
+	cmd.RunE = c.Run
+	cmd.Flags().StringVar(&c.flagFormat, "format", "table", i18n.G("Format (csv|json|table|yaml)")+"``")
+
+	return cmd
+}
+
+func (c *cmdNetworkACLList) Run(cmd *cobra.Command, args []string) error {
+	// Sanity checks.
+	exit, err := c.global.CheckArgs(cmd, args, 0, 1)
+	if exit {
+		return err
+	}
+
+	// Parse remote.
+	remote := ""
+	if len(args) > 0 {
+		remote = args[0]
+	}
+
+	resources, err := c.global.ParseServers(remote)
+	if err != nil {
+		return err
+	}
+
+	resource := resources[0]
+
+	// List the networks.
+	if resource.name != "" {
+		return fmt.Errorf(i18n.G("Filtering isn't supported yet"))
+	}
+
+	acls, err := resource.server.GetNetworkACLs()
+	if err != nil {
+		return err
+	}
+
+	data := [][]string{}
+	for _, acl := range acls {
+		strUsedBy := fmt.Sprintf("%d", len(acl.UsedBy))
+		details := []string{
+			acl.Name,
+			acl.Description,
+			strUsedBy,
+		}
+
+		data = append(data, details)
+	}
+	sort.Sort(byName(data))
+
+	header := []string{
+		i18n.G("NAME"),
+		i18n.G("DESCRIPTION"),
+		i18n.G("USED BY"),
+	}
+
+	return utils.RenderTable(c.flagFormat, header, data, acls)
 }
 
 // Create.
