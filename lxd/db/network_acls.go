@@ -12,6 +12,29 @@ import (
 	"github.com/lxc/lxd/shared/api"
 )
 
+// GetNetworkACLs returns the names of existing Network ACLs.
+func (c *Cluster) GetNetworkACLs(project string) ([]string, error) {
+	q := `SELECT name FROM networks_acls
+		WHERE project_id = (SELECT id FROM projects WHERE name = ? LIMIT 1)
+		ORDER BY id
+	`
+	inargs := []interface{}{project}
+
+	var name string
+	outfmt := []interface{}{name}
+	result, err := queryScan(c, q, inargs, outfmt)
+	if err != nil {
+		return nil, err
+	}
+
+	response := []string{}
+	for _, r := range result {
+		response = append(response, r[0].(string))
+	}
+
+	return response, nil
+}
+
 // GetNetworkACL returns the Network ACL with the given name in the given project.
 func (c *Cluster) GetNetworkACL(projectName string, name string) (int64, *api.NetworkACL, error) {
 	var id int64 = int64(-1)
