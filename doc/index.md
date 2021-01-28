@@ -15,7 +15,7 @@ And the release tarballs here: <https://linuxcontainers.org/lxd/downloads/>
 ## Status
 Type                | Service               | Status
 ---                 | ---                   | ---
-CI (client)         | GitHub                | [![Build Status](https://github.com/stgraber/lxd/workflows/Client%20build%20and%20unit%20tests/badge.svg)](https://github.com/lxc/lxd/actions)
+CI (client)         | GitHub                | [![Build Status](https://github.com/stgraber/lxd/workflows/Client%20build%20and%20unit%20tests/badge.svg?branch=stable-4.0)](https://github.com/lxc/lxd/actions)
 CI (server)         | Jenkins               | [![Build Status](https://jenkins.linuxcontainers.org/job/lxd-github-commit/badge/icon)](https://jenkins.linuxcontainers.org/job/lxd-github-commit/)
 LXD documentation   | ReadTheDocs           | [![Read the Docs](https://readthedocs.org/projects/lxd/badge/?version=latest&style=flat)](https://lxd.readthedocs.org)
 Go documentation    | Godoc                 | [![GoDoc](https://godoc.org/github.com/lxc/lxd/client?status.svg)](https://godoc.org/github.com/lxc/lxd/client)
