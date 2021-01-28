@@ -177,5 +177,30 @@ func networkACLPut(d *Daemon, r *http.Request) response.Response {
 
 // Rename Network ACL.
 func networkACLPost(d *Daemon, r *http.Request) response.Response {
-	return response.NotImplemented(nil)
+	projectName, _, err := project.NetworkProject(d.State().Cluster, projectParam(r))
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	req := api.NetworkACLPost{}
+
+	// Parse the request.
+	err = json.NewDecoder(r.Body).Decode(&req)
+	if err != nil {
+		return response.BadRequest(err)
+	}
+
+	// Get the existing Network ACL.
+	netACL, err := acl.LoadByName(d.State(), projectName, mux.Vars(r)["name"])
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	err = netACL.Rename(req.Name)
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	url := fmt.Sprintf("/%s/network-acls/%s", version.APIVersion, req.Name)
+	return response.SyncResponseLocation(true, nil, url)
 }
