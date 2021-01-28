@@ -2,6 +2,7 @@ package lxd
 
 import (
 	"fmt"
+	"net/url"
 
 	"github.com/lxc/lxd/shared/api"
 )
@@ -23,7 +24,24 @@ func (r *ProtocolLXD) GetNetworkACLs() ([]api.NetworkACL, error) {
 	return acls, nil
 }
 
-// CreateNetworkACL defines a new network using the provided Network struct
+// GetNetworkACL returns a Network ACL entry for the provided name.
+func (r *ProtocolLXD) GetNetworkACL(name string) (*api.NetworkACL, string, error) {
+	if !r.HasExtension("network_acl") {
+		return nil, "", fmt.Errorf(`The server is missing the required "network_acl" API extension`)
+	}
+
+	acl := api.NetworkACL{}
+
+	// Fetch the raw value.
+	etag, err := r.queryStruct("GET", fmt.Sprintf("/network-acls/%s", url.PathEscape(name)), nil, "", &acl)
+	if err != nil {
+		return nil, "", err
+	}
+
+	return &acl, etag, nil
+}
+
+// CreateNetworkACL defines a new network ACL using the provided struct.
 func (r *ProtocolLXD) CreateNetworkACL(acl api.NetworkACLsPost) error {
 	if !r.HasExtension("network_acl") {
 		return fmt.Errorf(`The server is missing the required "network_acl" API extension`)
