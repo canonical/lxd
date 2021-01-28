@@ -10,6 +10,7 @@ import (
 	"github.com/lxc/lxd/lxd/network/acl"
 	"github.com/lxc/lxd/lxd/project"
 	"github.com/lxc/lxd/lxd/response"
+	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/version"
 )
@@ -34,7 +35,42 @@ var networkACLCmd = APIEndpoint{
 
 // List Network ACLs.
 func networkACLsGet(d *Daemon, r *http.Request) response.Response {
-	return response.NotImplemented(nil)
+	projectName, _, err := project.NetworkProject(d.State().Cluster, projectParam(r))
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	recursion := util.IsRecursionRequest(r)
+
+	// Get list of Network ACLs.
+	aclNames, err := d.cluster.GetNetworkACLs(projectName)
+	if err != nil {
+		return response.InternalError(err)
+	}
+
+	resultString := []string{}
+	resultMap := []api.NetworkACL{}
+	for _, aclName := range aclNames {
+		if !recursion {
+			resultString = append(resultString, fmt.Sprintf("/%s/network-acls/%s", version.APIVersion, aclName))
+		} else {
+			netACL, err := acl.LoadByName(d.State(), projectName, aclName)
+			if err != nil {
+				continue
+			}
+
+			netACLInfo := netACL.Info()
+			netACLInfo.UsedBy, _ = netACL.UsedBy() // Ignore errors in UsedBy, will return nil.
+
+			resultMap = append(resultMap, *netACLInfo)
+		}
+	}
+
+	if !recursion {
+		return response.SyncResponse(true, resultString)
+	}
+
+	return response.SyncResponse(true, resultMap)
 }
 
 // Create Network ACL.
