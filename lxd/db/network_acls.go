@@ -192,3 +192,69 @@ func networkACLConfigAdd(tx *sql.Tx, id int64, config map[string]string) error {
 
 	return nil
 }
+
+// UpdateNetworkACL updates the Network ACL with the given ID.
+func (c *Cluster) UpdateNetworkACL(id int64, config *api.NetworkACLPut) error {
+	var err error
+	var ingressJSON, egressJSON []byte
+
+	if config.Ingress != nil {
+		ingressJSON, err = json.Marshal(config.Ingress)
+		if err != nil {
+			return errors.Wrapf(err, "Failed marshalling ingress rules")
+		}
+	}
+
+	if config.Egress != nil {
+		egressJSON, err = json.Marshal(config.Egress)
+		if err != nil {
+			return errors.Wrapf(err, "Failed marshalling egress rules")
+		}
+	}
+
+	return c.Transaction(func(tx *ClusterTx) error {
+		_, err := tx.tx.Exec(`
+			UPDATE networks_acls
+			SET description=?, ingress = ?, egress = ?
+			WHERE id=?
+		`, config.Description, ingressJSON, egressJSON, id)
+		if err != nil {
+			return err
+		}
+
+		err = networkACLConfigUpdate(tx.tx, id, config.Config)
+		if err != nil {
+			return err
+		}
+
+		return nil
+	})
+}
+
+// networkACLConfigUpdate updates Network ACL config keys.
+func networkACLConfigUpdate(tx *sql.Tx, id int64, config map[string]string) error {
+	_, err := tx.Exec("DELETE FROM networks_acls_config WHERE network_acl_id=?", id)
+	if err != nil {
+		return err
+	}
+
+	str := fmt.Sprintf("INSERT INTO networks_acls_config (network_acl_id, key, value) VALUES(?, ?, ?)")
+	stmt, err := tx.Prepare(str)
+	if err != nil {
+		return err
+	}
+	defer stmt.Close()
+
+	for k, v := range config {
+		if v == "" {
+			continue
+		}
+
+		_, err = stmt.Exec(id, k, v)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
