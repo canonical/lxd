@@ -258,3 +258,11 @@ func networkACLConfigUpdate(tx *sql.Tx, id int64, config map[string]string) erro
 
 	return nil
 }
+
+// RenameNetworkACL renames a Network ACL.
+func (c *Cluster) RenameNetworkACL(id int64, newName string) error {
+	return c.Transaction(func(tx *ClusterTx) error {
+		_, err := tx.tx.Exec("UPDATE networks_acls SET name=? WHERE id=?", newName, id)
+		return err
+	})
+}
