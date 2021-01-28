@@ -130,7 +130,37 @@ func networkACLGet(d *Daemon, r *http.Request) response.Response {
 
 // Update Network ACL.
 func networkACLPut(d *Daemon, r *http.Request) response.Response {
-	return response.NotImplemented(nil)
+	projectName, _, err := project.NetworkProject(d.State().Cluster, projectParam(r))
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	// Get the existing Network ACL.
+	netACL, err := acl.LoadByName(d.State(), projectName, mux.Vars(r)["name"])
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	// Validate the ETag.
+	err = util.EtagCheck(r, netACL.Etag())
+	if err != nil {
+		return response.PreconditionFailed(err)
+	}
+
+	req := api.NetworkACLPut{}
+
+	// Decode the request.
+	err = json.NewDecoder(r.Body).Decode(&req)
+	if err != nil {
+		return response.BadRequest(err)
+	}
+
+	err = netACL.Update(&req)
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	return response.EmptySyncResponse
 }
 
 // Rename Network ACL.
