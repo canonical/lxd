@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/lxc/lxd/lxc/utils"
+	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/termios"
 	"github.com/spf13/cobra"
 	"gopkg.in/yaml.v2"
@@ -50,6 +51,10 @@ func (c *cmdNetworkACL) Command() *cobra.Command {
 	// Unset.
 	networkACLUnsetCmd := cmdNetworkACLUnset{global: c.global, networkACL: c, networkACLSet: &networkACLSetCmd}
 	cmd.AddCommand(networkACLUnsetCmd.Command())
+
+	// Edit.
+	networkACLEditCmd := cmdNetworkACLEdit{global: c.global, networkACL: c}
+	cmd.AddCommand(networkACLEditCmd.Command())
 
 	return cmd
 }
@@ -397,4 +402,131 @@ func (c *cmdNetworkACLUnset) Run(cmd *cobra.Command, args []string) error {
 
 	args = append(args, "")
 	return c.networkACLSet.Run(cmd, args)
+}
+
+// Edit.
+type cmdNetworkACLEdit struct {
+	global     *cmdGlobal
+	networkACL *cmdNetworkACL
+}
+
+func (c *cmdNetworkACLEdit) Command() *cobra.Command {
+	cmd := &cobra.Command{}
+	cmd.Use = usage("edit", i18n.G("[<remote>:]<ACL>"))
+	cmd.Short = i18n.G("Edit network ACL configurations as YAML")
+	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G("Edit network ACL configurations as YAML"))
+
+	cmd.RunE = c.Run
+
+	return cmd
+}
+
+func (c *cmdNetworkACLEdit) helpTemplate() string {
+	return i18n.G(
+		`### This is a YAML representation of the network ACL.
+### Any line starting with a '# will be ignored.
+###
+### A network ACL consists of a set of rules and configuration items.
+###
+### An example would look like:
+### name: allow-all-inbound
+### description: test desc
+### egress: []
+### ingress:
+### - action: accept
+###   source: ""
+###   destination: ""
+###   protocol: ""
+###   sourceport: ""
+###   destinationport: ""
+###   icmptype: ""
+###   icmpcode: ""
+### config:
+###  user.foo: bah
+###
+### Note that only the ingress and egress rules, description and configuration keys can be changed.`)
+}
+
+func (c *cmdNetworkACLEdit) Run(cmd *cobra.Command, args []string) error {
+	// Sanity checks.
+	exit, err := c.global.CheckArgs(cmd, args, 1, 1)
+	if exit {
+		return err
+	}
+
+	// Parse remote.
+	resources, err := c.global.ParseServers(args[0])
+	if err != nil {
+		return err
+	}
+
+	resource := resources[0]
+
+	if resource.name == "" {
+		return fmt.Errorf(i18n.G("Missing network ACL name"))
+	}
+
+	// If stdin isn't a terminal, read text from it
+	if !termios.IsTerminal(getStdinFd()) {
+		contents, err := ioutil.ReadAll(os.Stdin)
+		if err != nil {
+			return err
+		}
+
+		newdata := api.NetworkACLPut{}
+		err = yaml.UnmarshalStrict(contents, &newdata)
+		if err != nil {
+			return err
+		}
+
+		return resource.server.UpdateNetworkACL(resource.name, newdata, "")
+	}
+
+	// Get the current config.
+	netACL, etag, err := resource.server.GetNetworkACL(resource.name)
+	if err != nil {
+		return err
+	}
+
+	data, err := yaml.Marshal(&netACL)
+	if err != nil {
+		return err
+	}
+
+	// Spawn the editor.
+	content, err := shared.TextEditor("", []byte(c.helpTemplate()+"\n\n"+string(data)))
+	if err != nil {
+		return err
+	}
+
+	for {
+		// Parse the text received from the editor.
+		newdata := api.NetworkACL{} // We show the full ACL info, but only send the writable fields.
+		err = yaml.UnmarshalStrict(content, &newdata)
+		if err == nil {
+			err = resource.server.UpdateNetworkACL(resource.name, newdata.Writable(), etag)
+		}
+
+		// Respawn the editor.
+		if err != nil {
+			fmt.Fprintf(os.Stderr, i18n.G("Config parsing error: %s")+"\n", err)
+			fmt.Println(i18n.G("Press enter to open the editor again"))
+
+			_, err := os.Stdin.Read(make([]byte, 1))
+			if err != nil {
+				return err
+			}
+
+			content, err = shared.TextEditor("", content)
+			if err != nil {
+				return err
+			}
+
+			continue
+		}
+
+		break
+	}
+
+	return nil
 }
