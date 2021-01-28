@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: LXD\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2021-01-22 14:47+0000\n"
+"POT-Creation-Date: 2021-01-28 16:32-0500\n"
 "PO-Revision-Date: 2020-11-22 10:56+0000\n"
 "Last-Translator: KATOH Yasufumi <karma@jazz.email.ne.jp>\n"
 "Language-Team: Japanese <https://hosted.weblate.org/projects/linux-"
@@ -411,7 +411,7 @@ msgid ""
 msgstr ""
 "<tarball>|<directory>|<URL> [<rootfs tarball>] [<remote>:] [key=value...]"
 
-#: lxc/manpage.go:18
+#: lxc/manpage.go:20
 msgid "<target>"
 msgstr "<target>"
 
@@ -1109,7 +1109,7 @@ msgstr "ストレージボリュームを削除します"
 #: lxc/image.go:1473 lxc/image.go:1529 lxc/image_alias.go:25
 #: lxc/image_alias.go:58 lxc/image_alias.go:105 lxc/image_alias.go:150
 #: lxc/image_alias.go:252 lxc/import.go:29 lxc/info.go:33 lxc/init.go:40
-#: lxc/launch.go:25 lxc/list.go:45 lxc/main.go:50 lxc/manpage.go:20
+#: lxc/launch.go:25 lxc/list.go:45 lxc/main.go:50 lxc/manpage.go:22
 #: lxc/monitor.go:30 lxc/move.go:36 lxc/network.go:33 lxc/network.go:109
 #: lxc/network.go:194 lxc/network.go:267 lxc/network.go:341 lxc/network.go:391
 #: lxc/network.go:476 lxc/network.go:561 lxc/network.go:684 lxc/network.go:742
@@ -1543,6 +1543,11 @@ msgstr ""
 msgid "Format (csv|json|table|yaml)"
 msgstr "フォーマット (csv|json|table|yaml)"
 
+#: lxc/manpage.go:25
+#, fuzzy
+msgid "Format (man|md|rest|yaml)"
+msgstr "フォーマット (csv|json|table|yaml)"
+
 #: lxc/info.go:354 lxc/info.go:365 lxc/info.go:369 lxc/info.go:375
 #, c-format
 msgid "Free: %v"
@@ -1566,7 +1571,7 @@ msgstr "GPU:"
 msgid "GPUs:"
 msgstr "GPUs:"
 
-#: lxc/manpage.go:19 lxc/manpage.go:20
+#: lxc/manpage.go:21 lxc/manpage.go:22
 msgid "Generate manpages for all commands"
 msgstr "すべてのコマンドに対する man ページを作成します"
 
@@ -1880,7 +1885,7 @@ msgstr "LAST USED AT"
 msgid "LOCATION"
 msgstr "LOCATION"
 
-#: lxc/manpage.go:38
+#: lxc/manpage.go:43
 msgid "LXD - Command line client"
 msgstr "LXD - コマンドラインクライアント"
 
