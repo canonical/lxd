@@ -11,6 +11,8 @@ import (
 
 type cmdManpage struct {
 	global *cmdGlobal
+
+	flagFormat string
 }
 
 func (c *cmdManpage) Command() *cobra.Command {
@@ -20,6 +22,7 @@ func (c *cmdManpage) Command() *cobra.Command {
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
 		`Generate manpages for all commands`))
 	cmd.Hidden = true
+	cmd.Flags().StringVar(&c.flagFormat, "format", "man", i18n.G("Format (man|md|rest|yaml)")+"``")
 
 	cmd.RunE = c.Run
 
@@ -33,19 +36,31 @@ func (c *cmdManpage) Run(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	// Generate the manpages
-	header := &doc.GenManHeader{
-		Title:   i18n.G("LXD - Command line client"),
-		Section: "1",
-	}
+	// Generate the documentation.
+	switch c.flagFormat {
+	case "man":
+		header := &doc.GenManHeader{
+			Title:   i18n.G("LXD - Command line client"),
+			Section: "1",
+		}
 
-	opts := doc.GenManTreeOptions{
-		Header:           header,
-		Path:             shared.HostPathFollow(args[0]),
-		CommandSeparator: ".",
-	}
+		opts := doc.GenManTreeOptions{
+			Header:           header,
+			Path:             shared.HostPathFollow(args[0]),
+			CommandSeparator: ".",
+		}
 
-	doc.GenManTreeFromOpts(c.global.cmd, opts)
+		doc.GenManTreeFromOpts(c.global.cmd, opts)
+
+	case "md":
+		doc.GenMarkdownTree(c.global.cmd, shared.HostPathFollow(args[0]))
+
+	case "rest":
+		doc.GenReSTTree(c.global.cmd, shared.HostPathFollow(args[0]))
+
+	case "yaml":
+		doc.GenYamlTree(c.global.cmd, shared.HostPathFollow(args[0]))
+	}
 
 	return nil
 }
