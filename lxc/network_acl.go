@@ -31,6 +31,14 @@ func (c *cmdNetworkACL) Command() *cobra.Command {
 	networkACLListCmd := cmdNetworkACLList{global: c.global, networkACL: c}
 	cmd.AddCommand(networkACLListCmd.Command())
 
+	// Show.
+	networkACLShowCmd := cmdNetworkACLShow{global: c.global, networkACL: c}
+	cmd.AddCommand(networkACLShowCmd.Command())
+
+	// Get.
+	networkACLGetCmd := cmdNetworkACLGet{global: c.global, networkACL: c}
+	cmd.AddCommand(networkACLGetCmd.Command())
+
 	// Create.
 	networkACLCreateCmd := cmdNetworkACLCreate{global: c.global, networkACL: c}
 	cmd.AddCommand(networkACLCreateCmd.Command())
@@ -109,6 +117,108 @@ func (c *cmdNetworkACLList) Run(cmd *cobra.Command, args []string) error {
 	}
 
 	return utils.RenderTable(c.flagFormat, header, data, acls)
+}
+
+// Show.
+type cmdNetworkACLShow struct {
+	global     *cmdGlobal
+	networkACL *cmdNetworkACL
+}
+
+func (c *cmdNetworkACLShow) Command() *cobra.Command {
+	cmd := &cobra.Command{}
+	cmd.Use = usage("show", i18n.G("[<remote>:]<ACL>"))
+	cmd.Short = i18n.G("Show network ACL configurations")
+	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G("Show network ACL configurations"))
+	cmd.RunE = c.Run
+
+	return cmd
+}
+
+func (c *cmdNetworkACLShow) Run(cmd *cobra.Command, args []string) error {
+	// Sanity checks.
+	exit, err := c.global.CheckArgs(cmd, args, 1, 1)
+	if exit {
+		return err
+	}
+
+	// Parse remote.
+	resources, err := c.global.ParseServers(args[0])
+	if err != nil {
+		return err
+	}
+
+	resource := resources[0]
+
+	if resource.name == "" {
+		return fmt.Errorf(i18n.G("Missing network ACL name"))
+	}
+
+	// Show the network ACL config.
+	netACL, _, err := resource.server.GetNetworkACL(resource.name)
+	if err != nil {
+		return err
+	}
+
+	sort.Strings(netACL.UsedBy)
+
+	data, err := yaml.Marshal(&netACL)
+	if err != nil {
+		return err
+	}
+
+	fmt.Printf("%s", data)
+
+	return nil
+}
+
+// Get.
+type cmdNetworkACLGet struct {
+	global     *cmdGlobal
+	networkACL *cmdNetworkACL
+}
+
+func (c *cmdNetworkACLGet) Command() *cobra.Command {
+	cmd := &cobra.Command{}
+	cmd.Use = usage("get", i18n.G("[<remote>:]<ACL> <key>"))
+	cmd.Short = i18n.G("Get values for network ACL configuration keys")
+	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G("Get values for network ACL configuration keys"))
+	cmd.RunE = c.Run
+
+	return cmd
+}
+
+func (c *cmdNetworkACLGet) Run(cmd *cobra.Command, args []string) error {
+	// Sanity checks.
+	exit, err := c.global.CheckArgs(cmd, args, 2, 2)
+	if exit {
+		return err
+	}
+
+	// Parse remote.
+	resources, err := c.global.ParseServers(args[0])
+	if err != nil {
+		return err
+	}
+
+	resource := resources[0]
+
+	if resource.name == "" {
+		return fmt.Errorf(i18n.G("Missing network ACL name"))
+	}
+
+	resp, _, err := resource.server.GetNetworkACL(resource.name)
+	if err != nil {
+		return err
+	}
+
+	for k, v := range resp.Config {
+		if k == args[1] {
+			fmt.Printf("%s\n", v)
+		}
+	}
+
+	return nil
 }
 
 // Create.
