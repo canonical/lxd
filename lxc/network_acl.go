@@ -43,6 +43,10 @@ func (c *cmdNetworkACL) Command() *cobra.Command {
 	networkACLCreateCmd := cmdNetworkACLCreate{global: c.global, networkACL: c}
 	cmd.AddCommand(networkACLCreateCmd.Command())
 
+	// Set.
+	networkACLSetCmd := cmdNetworkACLSet{global: c.global, networkACL: c}
+	cmd.AddCommand(networkACLSetCmd.Command())
+
 	return cmd
 }
 
@@ -302,4 +306,63 @@ func (c *cmdNetworkACLCreate) Run(cmd *cobra.Command, args []string) error {
 	}
 
 	return nil
+}
+
+// Set.
+type cmdNetworkACLSet struct {
+	global     *cmdGlobal
+	networkACL *cmdNetworkACL
+}
+
+func (c *cmdNetworkACLSet) Command() *cobra.Command {
+	cmd := &cobra.Command{}
+	cmd.Use = usage("set", i18n.G("[<remote>:]<ACL> <key>=<value>..."))
+	cmd.Short = i18n.G("Set network ACL configuration keys")
+	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
+		`Set network ACL configuration keys
+
+For backward compatibility, a single configuration key may still be set with:
+    lxc network set [<remote>:]<ACL> <key> <value>`))
+
+	cmd.RunE = c.Run
+
+	return cmd
+}
+
+func (c *cmdNetworkACLSet) Run(cmd *cobra.Command, args []string) error {
+	// Sanity checks.
+	exit, err := c.global.CheckArgs(cmd, args, 2, -1)
+	if exit {
+		return err
+	}
+
+	// Parse remote.
+	resources, err := c.global.ParseServers(args[0])
+	if err != nil {
+		return err
+	}
+
+	resource := resources[0]
+
+	if resource.name == "" {
+		return fmt.Errorf(i18n.G("Missing network ACL name"))
+	}
+
+	// Get the network ACL.
+	netACL, etag, err := resource.server.GetNetworkACL(resource.name)
+	if err != nil {
+		return err
+	}
+
+	// Set the keys.
+	keys, err := getConfig(args[1:]...)
+	if err != nil {
+		return err
+	}
+
+	for k, v := range keys {
+		netACL.Config[k] = v
+	}
+
+	return resource.server.UpdateNetworkACL(resource.name, netACL.Writable(), etag)
 }
