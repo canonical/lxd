@@ -47,6 +47,10 @@ func (c *cmdNetworkACL) Command() *cobra.Command {
 	networkACLSetCmd := cmdNetworkACLSet{global: c.global, networkACL: c}
 	cmd.AddCommand(networkACLSetCmd.Command())
 
+	// Unset.
+	networkACLUnsetCmd := cmdNetworkACLUnset{global: c.global, networkACL: c, networkACLSet: &networkACLSetCmd}
+	cmd.AddCommand(networkACLUnsetCmd.Command())
+
 	return cmd
 }
 
@@ -365,4 +369,32 @@ func (c *cmdNetworkACLSet) Run(cmd *cobra.Command, args []string) error {
 	}
 
 	return resource.server.UpdateNetworkACL(resource.name, netACL.Writable(), etag)
+}
+
+// Unset.
+type cmdNetworkACLUnset struct {
+	global        *cmdGlobal
+	networkACL    *cmdNetworkACL
+	networkACLSet *cmdNetworkACLSet
+}
+
+func (c *cmdNetworkACLUnset) Command() *cobra.Command {
+	cmd := &cobra.Command{}
+	cmd.Use = usage("unset", i18n.G("[<remote>:]<ACL> <key>"))
+	cmd.Short = i18n.G("Unset network ACL configuration keys")
+	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G("Unset network ACL configuration keys"))
+	cmd.RunE = c.Run
+
+	return cmd
+}
+
+func (c *cmdNetworkACLUnset) Run(cmd *cobra.Command, args []string) error {
+	// Sanity checks.
+	exit, err := c.global.CheckArgs(cmd, args, 2, 2)
+	if exit {
+		return err
+	}
+
+	args = append(args, "")
+	return c.networkACLSet.Run(cmd, args)
 }
