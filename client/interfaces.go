@@ -230,6 +230,7 @@ type InstanceServer interface {
 	GetNetworkACLs() (acls []api.NetworkACL, err error)
 	GetNetworkACL(name string) (acl *api.NetworkACL, ETag string, err error)
 	CreateNetworkACL(acl api.NetworkACLsPost) (err error)
+	UpdateNetworkACL(name string, acl api.NetworkACLPut, ETag string) (err error)
 
 	// Operation functions
 	GetOperationUUIDs() (uuids []string, err error)
