@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: lxd\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2021-01-15 17:14-0500\n"
+"POT-Creation-Date: 2021-01-29 11:27-0500\n"
 "PO-Revision-Date: 2019-09-06 07:09+0000\n"
 "Last-Translator: Stéphane Graber <stgraber@stgraber.org>\n"
 "Language-Team: Portuguese (Brazil) <https://hosted.weblate.org/projects/"
@@ -424,7 +424,7 @@ msgid ""
 "<tarball>|<directory>|<URL> [<rootfs tarball>] [<remote>:] [key=value...]"
 msgstr ""
 
-#: lxc/manpage.go:18
+#: lxc/manpage.go:20
 msgid "<target>"
 msgstr ""
 
@@ -1106,7 +1106,7 @@ msgstr ""
 #: lxc/image.go:966 lxc/image.go:1264 lxc/image.go:1343 lxc/image_alias.go:25
 #: lxc/image_alias.go:58 lxc/image_alias.go:105 lxc/image_alias.go:150
 #: lxc/image_alias.go:252 lxc/import.go:28 lxc/info.go:33 lxc/init.go:40
-#: lxc/launch.go:25 lxc/list.go:45 lxc/main.go:50 lxc/manpage.go:20
+#: lxc/launch.go:25 lxc/list.go:45 lxc/main.go:50 lxc/manpage.go:22
 #: lxc/monitor.go:30 lxc/move.go:36 lxc/network.go:32 lxc/network.go:108
 #: lxc/network.go:193 lxc/network.go:266 lxc/network.go:338 lxc/network.go:388
 #: lxc/network.go:473 lxc/network.go:558 lxc/network.go:681 lxc/network.go:739
@@ -1491,6 +1491,10 @@ msgstr ""
 msgid "Format (csv|json|table|yaml)"
 msgstr ""
 
+#: lxc/manpage.go:25
+msgid "Format (man|md|rest|yaml)"
+msgstr ""
+
 #: lxc/info.go:354 lxc/info.go:365 lxc/info.go:369 lxc/info.go:375
 #, c-format
 msgid "Free: %v"
@@ -1514,7 +1518,7 @@ msgstr ""
 msgid "GPUs:"
 msgstr ""
 
-#: lxc/manpage.go:19 lxc/manpage.go:20
+#: lxc/manpage.go:21 lxc/manpage.go:22
 msgid "Generate manpages for all commands"
 msgstr ""
 
@@ -1802,7 +1806,7 @@ msgstr ""
 msgid "LOCATION"
 msgstr ""
 
-#: lxc/manpage.go:38
+#: lxc/manpage.go:43
 msgid "LXD - Command line client"
 msgstr ""
 
