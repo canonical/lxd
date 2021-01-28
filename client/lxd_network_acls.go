@@ -55,3 +55,18 @@ func (r *ProtocolLXD) CreateNetworkACL(acl api.NetworkACLsPost) error {
 
 	return nil
 }
+
+// UpdateNetworkACL updates the network ACL to match the provided struct.
+func (r *ProtocolLXD) UpdateNetworkACL(name string, acl api.NetworkACLPut, ETag string) error {
+	if !r.HasExtension("network_acl") {
+		return fmt.Errorf(`The server is missing the required "network_acl" API extension`)
+	}
+
+	// Send the request.
+	_, _, err := r.query("PUT", fmt.Sprintf("/network-acls/%s", url.PathEscape(name)), acl, ETag)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
