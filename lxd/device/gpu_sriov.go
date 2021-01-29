@@ -64,7 +64,7 @@ func (d *gpuSRIOV) validateConfig(instConf instance.ConfigReader) error {
 
 // validateEnvironment checks the runtime environment for correctness.
 func (d *gpuSRIOV) validateEnvironment() error {
-	return validatePCIDevice(d.config)
+	return validatePCIDevice(d.config["pci"])
 }
 
 // Start is run when the device is added to the instance.
