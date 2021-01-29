@@ -2425,7 +2425,7 @@ func (d *qemu) addNetDevConfig(sb *strings.Builder, cpuCount int, bus *qemuBus, 
 	} else if pciSlotName != "" {
 		// Detect physical passthrough device.
 		tplFields["pciSlotName"] = pciSlotName
-		tpl = qemuNetDevPhysical
+		tpl = qemuPCIPhysical
 	}
 
 	devBus, devAddr, multi := bus.allocate(busFunctionGroupNone)
