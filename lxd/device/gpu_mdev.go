@@ -10,7 +10,7 @@ import (
 	"github.com/pkg/errors"
 
 	deviceConfig "github.com/lxc/lxd/lxd/device/config"
-	"github.com/lxc/lxd/lxd/device/pci"
+	pcidev "github.com/lxc/lxd/lxd/device/pci"
 	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/instance/instancetype"
 	"github.com/lxc/lxd/lxd/resources"
@@ -79,7 +79,7 @@ func (d *gpuMdev) startVM() (*deviceConfig.RunConfig, error) {
 
 	// Get PCI information about the GPU device.
 	devicePath := filepath.Join("/sys/bus/pci/devices", pciAddress)
-	pciDev, err := pci.ParseUeventFile(filepath.Join(devicePath, "uevent"))
+	pciDev, err := pcidev.ParseUeventFile(filepath.Join(devicePath, "uevent"))
 	if err != nil {
 		return nil, errors.Wrapf(err, "Failed to get PCI device info for GPU %q", pciAddress)
 	}
@@ -158,12 +158,7 @@ func (d *gpuMdev) validateConfig(instConf instance.ConfigReader) error {
 			}
 		}
 
-		// PCI devices can be specified as "0000:XX:XX.X" or "XX:XX.X".
-		// However, the devices in /sys/bus/pci/devices use the long format which
-		// is why we need to make sure the prefix is present.
-		if len(d.config["pci"]) == 7 {
-			d.config["pci"] = fmt.Sprintf("0000:%s", d.config["pci"])
-		}
+		d.config["pci"] = pcidev.NormaliseAddress(d.config["pci"])
 	}
 
 	if d.config["id"] != "" {
@@ -179,7 +174,7 @@ func (d *gpuMdev) validateConfig(instConf instance.ConfigReader) error {
 
 // validateEnvironment checks the runtime environment for correctness.
 func (d *gpuMdev) validateEnvironment() error {
-	return validatePCIDevice(d.config)
+	return validatePCIDevice(d.config["pci"])
 }
 
 func (d *gpuMdev) createVirtualGPU() error {

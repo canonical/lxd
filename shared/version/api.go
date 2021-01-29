@@ -249,6 +249,7 @@ var APIExtensions = []string{
 	"network_gvrp",
 	"instance_pool_move",
 	"gpu_sriov",
+	"pci_device_type",
 }
 
 // APIExtensionsCount returns the number of available API extensions.

@@ -75,6 +75,8 @@ func load(inst instance.Instance, state *state.State, projectName string, name s
 		dev = &none{}
 	case "tpm":
 		dev = &tpm{}
+	case "pci":
+		dev = &pci{}
 	}
 
 	// Check a valid device type has been found.

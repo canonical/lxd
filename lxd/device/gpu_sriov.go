@@ -10,7 +10,7 @@ import (
 	"github.com/pkg/errors"
 
 	deviceConfig "github.com/lxc/lxd/lxd/device/config"
-	"github.com/lxc/lxd/lxd/device/pci"
+	pcidev "github.com/lxc/lxd/lxd/device/pci"
 	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/instance/instancetype"
 	"github.com/lxc/lxd/lxd/resources"
@@ -48,12 +48,7 @@ func (d *gpuSRIOV) validateConfig(instConf instance.ConfigReader) error {
 			}
 		}
 
-		// PCI devices can be specified as "0000:XX:XX.X" or "XX:XX.X".
-		// However, the devices in /sys/bus/pci/devices use the long format which
-		// is why we need to make sure the prefix is present.
-		if len(d.config["pci"]) == 7 {
-			d.config["pci"] = fmt.Sprintf("0000:%s", d.config["pci"])
-		}
+		d.config["pci"] = pcidev.NormaliseAddress(d.config["pci"])
 	}
 
 	if d.config["id"] != "" {
@@ -69,7 +64,7 @@ func (d *gpuSRIOV) validateConfig(instConf instance.ConfigReader) error {
 
 // validateEnvironment checks the runtime environment for correctness.
 func (d *gpuSRIOV) validateEnvironment() error {
-	return validatePCIDevice(d.config)
+	return validatePCIDevice(d.config["pci"])
 }
 
 // Start is run when the device is added to the instance.
@@ -91,7 +86,7 @@ func (d *gpuSRIOV) Start() (*deviceConfig.RunConfig, error) {
 	// Get PCI information about the GPU device.
 	devicePath := filepath.Join("/sys/bus/pci/devices", parentPCIAddress)
 
-	pciParentDev, err := pci.ParseUeventFile(filepath.Join(devicePath, "uevent"))
+	pciParentDev, err := pcidev.ParseUeventFile(filepath.Join(devicePath, "uevent"))
 	if err != nil {
 		return nil, errors.Wrapf(err, "Failed to get PCI device info for GPU %q", parentPCIAddress)
 	}
@@ -153,7 +148,7 @@ func (d *gpuSRIOV) getParentPCIAddress() (string, error) {
 
 // setupSriovParent configures a SR-IOV virtual function (VF) device on parent and stores original properties of
 // the physical device into voltatile for restoration on detach. Returns VF PCI device info.
-func (d *gpuSRIOV) setupSriovParent(vfID int, volatile map[string]string) (pci.Device, error) {
+func (d *gpuSRIOV) setupSriovParent(vfID int, volatile map[string]string) (pcidev.Device, error) {
 	revert := revert.New()
 	defer revert.Fail()
 
@@ -162,7 +157,7 @@ func (d *gpuSRIOV) setupSriovParent(vfID int, volatile map[string]string) (pci.D
 
 	parentPCIAddress, err := d.getParentPCIAddress()
 	if err != nil {
-		return pci.Device{}, err
+		return pcidev.Device{}, err
 	}
 
 	// Get VF device's PCI Slot Name so we can unbind and rebind it from the host.
@@ -172,15 +167,15 @@ func (d *gpuSRIOV) setupSriovParent(vfID int, volatile map[string]string) (pci.D
 	}
 
 	// Unbind VF device from the host so that the settings will take effect when we rebind it.
-	err = pci.DeviceUnbind(vfPCIDev)
+	err = pcidev.DeviceUnbind(vfPCIDev)
 	if err != nil {
 		return vfPCIDev, err
 	}
 
-	revert.Add(func() { pci.DeviceProbe(vfPCIDev) })
+	revert.Add(func() { pcidev.DeviceProbe(vfPCIDev) })
 
 	// Register VF device with vfio-pci driver so it can be passed to VM.
-	err = pci.DeviceDriverOverride(vfPCIDev, "vfio-pci")
+	err = pcidev.DeviceDriverOverride(vfPCIDev, "vfio-pci")
 	if err != nil {
 		return vfPCIDev, err
 	}
@@ -194,9 +189,9 @@ func (d *gpuSRIOV) setupSriovParent(vfID int, volatile map[string]string) (pci.D
 }
 
 // getVFDevicePCISlot returns the PCI slot name for a PCI virtual function device.
-func (d *gpuSRIOV) getVFDevicePCISlot(parentPCIAddress string, vfID string) (pci.Device, error) {
+func (d *gpuSRIOV) getVFDevicePCISlot(parentPCIAddress string, vfID string) (pcidev.Device, error) {
 	ueventFile := fmt.Sprintf("/sys/bus/pci/devices/%s/virtfn%s/uevent", parentPCIAddress, vfID)
-	pciDev, err := pci.ParseUeventFile(ueventFile)
+	pciDev, err := pcidev.ParseUeventFile(ueventFile)
 	if err != nil {
 		return pciDev, err
 	}
@@ -204,7 +199,7 @@ func (d *gpuSRIOV) getVFDevicePCISlot(parentPCIAddress string, vfID string) (pci
 	return pciDev, nil
 }
 
-func (d *gpuSRIOV) findFreeVirtualFunction(parentDev pci.Device) (int, error) {
+func (d *gpuSRIOV) findFreeVirtualFunction(parentDev pcidev.Device) (int, error) {
 	// Get number of currently enabled VFs.
 	sriovNumVFs := fmt.Sprintf("/sys/bus/pci/devices/%s/sriov_numvfs", parentDev.SlotName)
 
@@ -221,7 +216,7 @@ func (d *gpuSRIOV) findFreeVirtualFunction(parentDev pci.Device) (int, error) {
 	vfID := -1
 
 	for i := 0; i < sriovNum; i++ {
-		pciDev, err := pci.ParseUeventFile(fmt.Sprintf("/sys/bus/pci/devices/%s/virtfn%d/uevent", parentDev.SlotName, i))
+		pciDev, err := pcidev.ParseUeventFile(fmt.Sprintf("/sys/bus/pci/devices/%s/virtfn%d/uevent", parentDev.SlotName, i))
 		if err != nil {
 			return 0, err
 		}
@@ -290,7 +285,7 @@ func (d *gpuSRIOV) restoreSriovParent(volatile map[string]string) error {
 	}
 
 	// Unbind VF device from the host so that the restored settings will take effect when we rebind it.
-	err = pci.DeviceUnbind(vfPCIDev)
+	err = pcidev.DeviceUnbind(vfPCIDev)
 	if err != nil {
 		return err
 	}
@@ -298,7 +293,7 @@ func (d *gpuSRIOV) restoreSriovParent(volatile map[string]string) error {
 	if d.inst.Type() == instancetype.VM {
 		// Before we bind the device back to the host, ensure we restore the original driver info as it
 		// should be currently set to vfio-pci.
-		err = pci.DeviceSetDriverOverride(vfPCIDev, volatile["last_state.pci.driver"])
+		err = pcidev.DeviceSetDriverOverride(vfPCIDev, volatile["last_state.pci.driver"])
 		if err != nil {
 			return err
 		}
@@ -306,10 +301,10 @@ func (d *gpuSRIOV) restoreSriovParent(volatile map[string]string) error {
 
 	// However we return from this function, we must try to rebind the VF so its not orphaned.
 	// The OS won't let an already bound device be bound again so is safe to call twice.
-	revert.Add(func() { pci.DeviceProbe(vfPCIDev) })
+	revert.Add(func() { pcidev.DeviceProbe(vfPCIDev) })
 
 	// Bind VF device onto the host so that the settings will take effect.
-	err = pci.DeviceProbe(vfPCIDev)
+	err = pcidev.DeviceProbe(vfPCIDev)
 	if err != nil {
 		return err
 	}
