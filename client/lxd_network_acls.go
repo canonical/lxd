@@ -85,3 +85,18 @@ func (r *ProtocolLXD) RenameNetworkACL(name string, acl api.NetworkACLPost) erro
 
 	return nil
 }
+
+// DeleteNetworkACL deletes an existing network ACL.
+func (r *ProtocolLXD) DeleteNetworkACL(name string) error {
+	if !r.HasExtension("network_acl") {
+		return fmt.Errorf(`The server is missing the required "network_acl" API extension`)
+	}
+
+	// Send the request.
+	_, _, err := r.query("DELETE", fmt.Sprintf("/network-acls/%s", url.PathEscape(name)), nil, "")
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
