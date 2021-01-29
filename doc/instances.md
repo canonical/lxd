@@ -240,6 +240,7 @@ ID (database)   | Name                               | Condition     | Descripti
 8               | [proxy](#type-proxy)               | container     | Proxy device
 9               | [unix-hotplug](#type-unix-hotplug) | container     | Unix hotplug device
 10              | [tpm](#tpm)                        | -             | TPM device
+11              | [pci](#pci)                        | VM            | PCI device
 
 ### Type: none
 
@@ -906,6 +907,19 @@ The following properties exist:
 Key                 | Type      | Default   | Required  | Description
 :--                 | :--       | :--       | :--       | :--
 path                | string    | -         | yes       | Path inside the instance (only for containers).
+
+### Type: pci
+
+Supported instance types: VM
+
+PCI device entries are used to pass raw PCI devices from the host into a virtual machine.
+
+The following properties exist:
+
+Key                 | Type      | Default   | Required  | Description
+:--                 | :--       | :--       | :--       | :--
+address             | string    | -         | yes       | PCI address of the device.
+
 
 ## Units for storage and network limits
 Any value representing bytes or bits can make use of a number of useful
