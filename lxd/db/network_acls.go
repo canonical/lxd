@@ -266,3 +266,11 @@ func (c *Cluster) RenameNetworkACL(id int64, newName string) error {
 		return err
 	})
 }
+
+// DeleteNetworkACL deletes the Network ACL.
+func (c *Cluster) DeleteNetworkACL(id int64) error {
+	return c.Transaction(func(tx *ClusterTx) error {
+		_, err := tx.tx.Exec("DELETE FROM networks_acls WHERE id=?", id)
+		return err
+	})
+}
