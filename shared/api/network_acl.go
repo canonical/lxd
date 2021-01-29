@@ -1,5 +1,7 @@
 package api
 
+import "strings"
+
 // NetworkACLRule represents a single rule in an ACL ruleset.
 // API extension: network_acl
 type NetworkACLRule struct {
@@ -13,6 +15,44 @@ type NetworkACLRule struct {
 	ICMPCode        string `json:"icmp_code" yaml:"icmp_code"`
 	Description     string `json:"description" yaml:"description"`
 	State           string `json:"state" yaml:"state"`
+}
+
+// Normalise normalises the fields in the rule so that they are comparable with ones stored.
+func (r *NetworkACLRule) Normalise() {
+	r.Action = strings.TrimSpace(r.Action)
+	r.Protocol = strings.TrimSpace(r.Protocol)
+	r.ICMPType = strings.TrimSpace(r.ICMPType)
+	r.ICMPCode = strings.TrimSpace(r.ICMPCode)
+	r.Description = strings.TrimSpace(r.Description)
+	r.State = strings.TrimSpace(r.State)
+
+	// Remove whitespace from Source subject list.
+	subjects := strings.Split(r.Source, ",")
+	for i, s := range subjects {
+		subjects[i] = strings.TrimSpace(s)
+	}
+	r.Source = strings.Join(subjects, ",")
+
+	// Remove whitespace from Destination subject list.
+	subjects = strings.Split(r.Destination, ",")
+	for i, s := range subjects {
+		subjects[i] = strings.TrimSpace(s)
+	}
+	r.Destination = strings.Join(subjects, ",")
+
+	// Remove whitespace from SourcePort port list.
+	ports := strings.Split(r.SourcePort, ",")
+	for i, s := range ports {
+		ports[i] = strings.TrimSpace(s)
+	}
+	r.SourcePort = strings.Join(ports, ",")
+
+	// Remove whitespace from DestinationPort port list.
+	ports = strings.Split(r.DestinationPort, ",")
+	for i, s := range ports {
+		ports[i] = strings.TrimSpace(s)
+	}
+	r.DestinationPort = strings.Join(ports, ",")
 }
 
 // NetworkACLPost used for renaming an ACL.
