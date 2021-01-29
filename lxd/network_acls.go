@@ -105,7 +105,22 @@ func networkACLsPost(d *Daemon, r *http.Request) response.Response {
 
 // Delete Network ACL.
 func networkACLDelete(d *Daemon, r *http.Request) response.Response {
-	return response.NotImplemented(nil)
+	projectName, _, err := project.NetworkProject(d.State().Cluster, projectParam(r))
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	netACL, err := acl.LoadByName(d.State(), projectName, mux.Vars(r)["name"])
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	err = netACL.Delete()
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	return response.EmptySyncResponse
 }
 
 // Show Network ACL.
