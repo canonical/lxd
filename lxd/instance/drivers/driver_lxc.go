@@ -825,7 +825,11 @@ func (d *lxc) initLXC(config bool) error {
 
 	// Configure devices cgroup
 	if d.IsPrivileged() && !d.state.OS.RunningInUserNS && d.state.OS.CGInfo.Supports(cgroup.Devices, cg) {
-		err = lxcSetConfigItem(cc, "lxc.cgroup.devices.deny", "a")
+		if d.state.OS.CGInfo.Layout == cgroup.CgroupsUnified {
+			err = lxcSetConfigItem(cc, "lxc.cgroup2.devices.deny", "a")
+		} else {
+			err = lxcSetConfigItem(cc, "lxc.cgroup.devices.deny", "a")
+		}
 		if err != nil {
 			return err
 		}
@@ -847,7 +851,11 @@ func (d *lxc) initLXC(config bool) error {
 		}
 
 		for _, dev := range devices {
-			err = lxcSetConfigItem(cc, "lxc.cgroup.devices.allow", dev)
+			if d.state.OS.CGInfo.Layout == cgroup.CgroupsUnified {
+				err = lxcSetConfigItem(cc, "lxc.cgroup2.devices.allow", dev)
+			} else {
+				err = lxcSetConfigItem(cc, "lxc.cgroup.devices.allow", dev)
+			}
 			if err != nil {
 				return err
 			}
@@ -2081,7 +2089,11 @@ func (d *lxc) startCommon() (string, []func() error, error) {
 		// Pass any cgroups rules into LXC.
 		if len(runConf.CGroups) > 0 {
 			for _, rule := range runConf.CGroups {
-				err = lxcSetConfigItem(d.c, fmt.Sprintf("lxc.cgroup.%s", rule.Key), rule.Value)
+				if d.state.OS.CGInfo.Layout == cgroup.CgroupsUnified {
+					err = lxcSetConfigItem(d.c, fmt.Sprintf("lxc.cgroup2.%s", rule.Key), rule.Value)
+				} else {
+					err = lxcSetConfigItem(d.c, fmt.Sprintf("lxc.cgroup.%s", rule.Key), rule.Value)
+				}
 				if err != nil {
 					return "", nil, errors.Wrapf(err, "Failed to setup device cgroup '%s'", dev.Name)
 				}
