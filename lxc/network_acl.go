@@ -60,6 +60,10 @@ func (c *cmdNetworkACL) Command() *cobra.Command {
 	networkACLRenameCmd := cmdNetworkACLRename{global: c.global, networkACL: c}
 	cmd.AddCommand(networkACLRenameCmd.Command())
 
+	// Delete.
+	networkACLDeleteCmd := cmdNetworkACLDelete{global: c.global, networkACL: c}
+	cmd.AddCommand(networkACLDeleteCmd.Command())
+
 	return cmd
 }
 
@@ -579,6 +583,55 @@ func (c *cmdNetworkACLRename) Run(cmd *cobra.Command, args []string) error {
 
 	if !c.global.flagQuiet {
 		fmt.Printf(i18n.G("Network ACL %s renamed to %s")+"\n", resource.name, args[1])
+	}
+
+	return nil
+}
+
+// Delete.
+type cmdNetworkACLDelete struct {
+	global     *cmdGlobal
+	networkACL *cmdNetworkACL
+}
+
+func (c *cmdNetworkACLDelete) Command() *cobra.Command {
+	cmd := &cobra.Command{}
+	cmd.Use = usage("delete", i18n.G("[<remote>:]<ACL>"))
+	cmd.Aliases = []string{"rm"}
+	cmd.Short = i18n.G("Delete network ACLs")
+	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G("Delete network ACLs"))
+	cmd.RunE = c.Run
+
+	return cmd
+}
+
+func (c *cmdNetworkACLDelete) Run(cmd *cobra.Command, args []string) error {
+	// Sanity checks.
+	exit, err := c.global.CheckArgs(cmd, args, 1, 1)
+	if exit {
+		return err
+	}
+
+	// Parse remote.
+	resources, err := c.global.ParseServers(args[0])
+	if err != nil {
+		return err
+	}
+
+	resource := resources[0]
+
+	if resource.name == "" {
+		return fmt.Errorf(i18n.G("Missing network ACL name"))
+	}
+
+	// Delete the network ACL.
+	err = resource.server.DeleteNetworkACL(resource.name)
+	if err != nil {
+		return err
+	}
+
+	if !c.global.flagQuiet {
+		fmt.Printf(i18n.G("Network ACL %s deleted")+"\n", resource.name)
 	}
 
 	return nil
