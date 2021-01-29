@@ -30,6 +30,8 @@ func deviceTypeToString(t int) (string, error) {
 		return "unix-hotplug", nil
 	case 10:
 		return "tpm", nil
+	case 11:
+		return "pci", nil
 	default:
 		return "", fmt.Errorf("Invalid device type %d", t)
 	}
@@ -59,6 +61,8 @@ func deviceTypeToInt(t string) (int, error) {
 		return 9, nil
 	case "tpm":
 		return 10, nil
+	case "pci":
+		return 11, nil
 	default:
 		return -1, fmt.Errorf("Invalid device type %s", t)
 	}
