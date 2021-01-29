@@ -44,4 +44,5 @@ type RunConfig struct {
 	GPUDevice        []RunConfigItem  // GPU device configuration settings.
 	USBDevice        []RunConfigItem  // USB device configuration settings.
 	TPMDevice        []RunConfigItem  // TPM device configuration settings.
+	PCIDevice        []RunConfigItem  // PCI device configuration settings.
 }
