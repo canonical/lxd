@@ -1,6 +1,7 @@
 package validate
 
 import (
+	"bytes"
 	"fmt"
 	"net"
 	"regexp"
@@ -207,6 +208,44 @@ func IsNetworkList(value string) error {
 		if err != nil {
 			return err
 		}
+	}
+
+	return nil
+}
+
+// IsNetworkAddressCIDR validates an IP addresss string in CIDR format.
+func IsNetworkAddressCIDR(value string) error {
+	_, _, err := net.ParseCIDR(value)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// IsNetworkRange validates an IP range in the format "start-end".
+func IsNetworkRange(value string) error {
+	ips := strings.SplitN(value, "-", 2)
+	if len(ips) != 2 {
+		return fmt.Errorf("IP range must contain start and end IP addresses")
+	}
+
+	startIP := net.ParseIP(ips[0])
+	if startIP == nil {
+		return fmt.Errorf("Start not an IP address %q", ips[0])
+	}
+
+	endIP := net.ParseIP(ips[1])
+	if endIP == nil {
+		return fmt.Errorf("End not an IP address %q", ips[1])
+	}
+
+	if (startIP.To4() != nil) != (endIP.To4() != nil) {
+		return fmt.Errorf("Start and end IP addresses are not in same family")
+	}
+
+	if bytes.Compare(startIP, endIP) > 0 {
+		return fmt.Errorf("Start IP address must be before or equal to end IP address")
 	}
 
 	return nil
