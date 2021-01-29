@@ -62,12 +62,7 @@ func (d *gpuPhysical) validateConfig(instConf instance.ConfigReader) error {
 			}
 		}
 
-		// PCI devices can be specified as "0000:XX:XX.X" or "XX:XX.X".
-		// However, the devices in /sys/bus/pci/devices use the long format which
-		// is why we need to make sure the prefix is present.
-		if len(d.config["pci"]) == 7 {
-			d.config["pci"] = fmt.Sprintf("0000:%s", d.config["pci"])
-		}
+		d.config["pci"] = pcidev.NormaliseAddress(d.config["pci"])
 	}
 
 	if d.config["id"] != "" {
