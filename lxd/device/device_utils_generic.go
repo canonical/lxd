@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"strings"
 
-	deviceConfig "github.com/lxc/lxd/lxd/device/config"
 	"github.com/lxc/lxd/shared"
 )
 
@@ -15,12 +14,7 @@ func deviceJoinPath(parts ...string) string {
 
 // validatePCIDevice returns whether a configured PCI device exists. It also returns true, if no device
 // has been specified.
-func validatePCIDevice(config deviceConfig.Device) error {
-	address, ok := config["pci"]
-	if !ok {
-		address = config["address"]
-	}
-
+func validatePCIDevice(address string) error {
 	if address != "" && !shared.PathExists(fmt.Sprintf("/sys/bus/pci/devices/%s", address)) {
 		return fmt.Errorf("Invalid PCI address (no device found): %s", address)
 	}
