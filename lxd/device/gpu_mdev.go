@@ -10,7 +10,7 @@ import (
 	"github.com/pkg/errors"
 
 	deviceConfig "github.com/lxc/lxd/lxd/device/config"
-	"github.com/lxc/lxd/lxd/device/pci"
+	pcidev "github.com/lxc/lxd/lxd/device/pci"
 	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/instance/instancetype"
 	"github.com/lxc/lxd/lxd/resources"
@@ -79,7 +79,7 @@ func (d *gpuMdev) startVM() (*deviceConfig.RunConfig, error) {
 
 	// Get PCI information about the GPU device.
 	devicePath := filepath.Join("/sys/bus/pci/devices", pciAddress)
-	pciDev, err := pci.ParseUeventFile(filepath.Join(devicePath, "uevent"))
+	pciDev, err := pcidev.ParseUeventFile(filepath.Join(devicePath, "uevent"))
 	if err != nil {
 		return nil, errors.Wrapf(err, "Failed to get PCI device info for GPU %q", pciAddress)
 	}

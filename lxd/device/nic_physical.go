@@ -6,7 +6,7 @@ import (
 	"github.com/pkg/errors"
 
 	deviceConfig "github.com/lxc/lxd/lxd/device/config"
-	"github.com/lxc/lxd/lxd/device/pci"
+	pcidev "github.com/lxc/lxd/lxd/device/pci"
 	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/instance/instancetype"
 	"github.com/lxc/lxd/lxd/network"
@@ -131,7 +131,7 @@ func (d *nicPhysical) Start() (*deviceConfig.RunConfig, error) {
 	} else if d.inst.Type() == instancetype.VM {
 		// Get PCI information about the network interface.
 		ueventPath := fmt.Sprintf("/sys/class/net/%s/device/uevent", saveData["host_name"])
-		pciDev, err := pci.ParseUeventFile(ueventPath)
+		pciDev, err := pcidev.ParseUeventFile(ueventPath)
 		if err != nil {
 			return nil, errors.Wrapf(err, "Failed to get PCI device info for %q", saveData["host_name"])
 		}
@@ -139,7 +139,7 @@ func (d *nicPhysical) Start() (*deviceConfig.RunConfig, error) {
 		saveData["last_state.pci.slot.name"] = pciDev.SlotName
 		saveData["last_state.pci.driver"] = pciDev.Driver
 
-		err = pci.DeviceDriverOverride(pciDev, "vfio-pci")
+		err = pcidev.DeviceDriverOverride(pciDev, "vfio-pci")
 		if err != nil {
 			return nil, err
 		}
@@ -200,12 +200,12 @@ func (d *nicPhysical) postStop() error {
 
 	// If VM physical pass through, unbind from vfio-pci and bind back to host driver.
 	if d.inst.Type() == instancetype.VM && v["last_state.pci.slot.name"] != "" {
-		vfioDev := pci.Device{
+		vfioDev := pcidev.Device{
 			Driver:   "vfio-pci",
 			SlotName: v["last_state.pci.slot.name"],
 		}
 
-		err := pci.DeviceDriverOverride(vfioDev, v["last_state.pci.driver"])
+		err := pcidev.DeviceDriverOverride(vfioDev, v["last_state.pci.driver"])
 		if err != nil {
 			return err
 		}
