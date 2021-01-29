@@ -12,7 +12,7 @@ import (
 	"github.com/pkg/errors"
 
 	deviceConfig "github.com/lxc/lxd/lxd/device/config"
-	"github.com/lxc/lxd/lxd/device/pci"
+	pcidev "github.com/lxc/lxd/lxd/device/pci"
 	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/instance/instancetype"
 	"github.com/lxc/lxd/lxd/network"
@@ -182,8 +182,8 @@ func (d *nicSRIOV) postStop() error {
 
 // setupSriovParent configures a SR-IOV virtual function (VF) device on parent and stores original properties of
 // the physical device into voltatile for restoration on detach. Returns VF PCI device info.
-func (d *nicSRIOV) setupSriovParent(vfDevice string, vfID int, volatile map[string]string) (pci.Device, error) {
-	var vfPCIDev pci.Device
+func (d *nicSRIOV) setupSriovParent(vfDevice string, vfID int, volatile map[string]string) (pcidev.Device, error) {
+	var vfPCIDev pcidev.Device
 
 	// Retrieve VF settings from parent device.
 	vfInfo, err := d.networkGetVirtFuncInfo(d.config["parent"], vfID)
@@ -217,12 +217,12 @@ func (d *nicSRIOV) setupSriovParent(vfDevice string, vfID int, volatile map[stri
 	}
 
 	// Unbind VF device from the host so that the settings will take effect when we rebind it.
-	err = pci.DeviceUnbind(vfPCIDev)
+	err = pcidev.DeviceUnbind(vfPCIDev)
 	if err != nil {
 		return vfPCIDev, err
 	}
 
-	revert.Add(func() { pci.DeviceProbe(vfPCIDev) })
+	revert.Add(func() { pcidev.DeviceProbe(vfPCIDev) })
 
 	// Setup VF VLAN if specified.
 	if d.config["vlan"] != "" {
@@ -283,7 +283,7 @@ func (d *nicSRIOV) setupSriovParent(vfDevice string, vfID int, volatile map[stri
 	if d.inst.Type() == instancetype.Container {
 		// Bind VF device onto the host so that the settings will take effect.
 		// This will remove the VF interface temporarily, and it will re-appear shortly after.
-		err = pci.DeviceProbe(vfPCIDev)
+		err = pcidev.DeviceProbe(vfPCIDev)
 		if err != nil {
 			return vfPCIDev, err
 		}
@@ -297,7 +297,7 @@ func (d *nicSRIOV) setupSriovParent(vfDevice string, vfID int, volatile map[stri
 		}
 	} else if d.inst.Type() == instancetype.VM {
 		// Register VF device with vfio-pci driver so it can be passed to VM.
-		err = pci.DeviceDriverOverride(vfPCIDev, "vfio-pci")
+		err = pcidev.DeviceDriverOverride(vfPCIDev, "vfio-pci")
 		if err != nil {
 			return vfPCIDev, err
 		}
@@ -473,7 +473,7 @@ func (d *nicSRIOV) restoreSriovParent(volatile map[string]string) error {
 	}
 
 	// Unbind VF device from the host so that the restored settings will take effect when we rebind it.
-	err = pci.DeviceUnbind(vfPCIDev)
+	err = pcidev.DeviceUnbind(vfPCIDev)
 	if err != nil {
 		return err
 	}
@@ -481,7 +481,7 @@ func (d *nicSRIOV) restoreSriovParent(volatile map[string]string) error {
 	if d.inst.Type() == instancetype.VM {
 		// Before we bind the device back to the host, ensure we restore the original driver info as it
 		// should be currently set to vfio-pci.
-		err = pci.DeviceSetDriverOverride(vfPCIDev, volatile["last_state.pci.driver"])
+		err = pcidev.DeviceSetDriverOverride(vfPCIDev, volatile["last_state.pci.driver"])
 		if err != nil {
 			return err
 		}
@@ -489,7 +489,7 @@ func (d *nicSRIOV) restoreSriovParent(volatile map[string]string) error {
 
 	// However we return from this function, we must try to rebind the VF so its not orphaned.
 	// The OS won't let an already bound device be bound again so is safe to call twice.
-	revert.Add(func() { pci.DeviceProbe(vfPCIDev) })
+	revert.Add(func() { pcidev.DeviceProbe(vfPCIDev) })
 
 	// Reset VF VLAN if specified
 	if volatile["last_state.vf.vlan"] != "" {
@@ -522,7 +522,7 @@ func (d *nicSRIOV) restoreSriovParent(volatile map[string]string) error {
 	}
 
 	// Bind VF device onto the host so that the settings will take effect.
-	err = pci.DeviceProbe(vfPCIDev)
+	err = pcidev.DeviceProbe(vfPCIDev)
 	if err != nil {
 		return err
 	}
