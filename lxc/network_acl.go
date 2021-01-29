@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
+	"reflect"
 	"sort"
 	"strings"
 
@@ -63,6 +64,10 @@ func (c *cmdNetworkACL) Command() *cobra.Command {
 	// Delete.
 	networkACLDeleteCmd := cmdNetworkACLDelete{global: c.global, networkACL: c}
 	cmd.AddCommand(networkACLDeleteCmd.Command())
+
+	// Rule.
+	networkACLRuleCmd := cmdNetworkACLRule{global: c.global, networkACL: c}
+	cmd.AddCommand(networkACLRuleCmd.Command())
 
 	return cmd
 }
@@ -635,4 +640,269 @@ func (c *cmdNetworkACLDelete) Run(cmd *cobra.Command, args []string) error {
 	}
 
 	return nil
+}
+
+// Add/Remove Rule.
+type cmdNetworkACLRule struct {
+	global          *cmdGlobal
+	networkACL      *cmdNetworkACL
+	flagRemoveForce bool
+}
+
+func (c *cmdNetworkACLRule) Command() *cobra.Command {
+	cmd := &cobra.Command{}
+	cmd.Use = usage("rule")
+	cmd.Short = i18n.G("Manage network ACL rules")
+	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G("Manage network ACL rules"))
+
+	// Rule Add.
+	cmd.AddCommand(c.CommandAdd())
+
+	// Rule Remove.
+	cmd.AddCommand(c.CommandRemove())
+
+	return cmd
+}
+
+func (c *cmdNetworkACLRule) CommandAdd() *cobra.Command {
+	cmd := &cobra.Command{}
+	cmd.Use = usage("add", i18n.G("[<remote>:]<ACL> <direction> <key>=<value>..."))
+	cmd.Short = i18n.G("Add rules to an ACL")
+	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G("Add rules to an ACL"))
+	cmd.RunE = c.RunAdd
+
+	return cmd
+}
+
+// ruleJSONStructFieldMap returns a map of JSON tag names to struct field indices for api.NetworkACLRule.
+func (c *cmdNetworkACLRule) ruleJSONStructFieldMap() map[string]int {
+	// Use reflect to get field names in rule from json tags.
+	ruleType := reflect.TypeOf(api.NetworkACLRule{})
+	allowedKeys := make(map[string]int, ruleType.NumField())
+
+	for i := 0; i < ruleType.NumField(); i++ {
+		field := ruleType.Field(i)
+		if field.PkgPath != "" {
+			continue // Skip unexported fields. It is empty for upper case (exported) field names.
+		}
+
+		if field.Type.Name() != "string" {
+			continue // Skip non-string fields.
+		}
+
+		// Split the json tag into its name and options (e.g. json:"action,omitempty").
+		tagParts := strings.SplitN(string(field.Tag.Get(("json"))), ",", 2)
+		fieldName := tagParts[0]
+
+		if fieldName == "" {
+			continue // Skip fields with no tagged field name.
+		}
+
+		allowedKeys[fieldName] = i // Add the name to allowed keys and record field index.
+	}
+
+	return allowedKeys
+}
+
+// parseConfigKeysToRule converts a map of key/value pairs into an api.NetworkACLRule using reflection.
+func (c *cmdNetworkACLRule) parseConfigToRule(config map[string]string) (*api.NetworkACLRule, error) {
+	// Use reflect to get struct field indices in NetworkACLRule for json tags.
+	allowedKeys := c.ruleJSONStructFieldMap()
+
+	// Initialise new rule.
+	rule := api.NetworkACLRule{}
+	ruleValue := reflect.ValueOf(&rule).Elem()
+
+	for k, v := range config {
+		fieldIndex, found := allowedKeys[k]
+		if !found {
+			return nil, fmt.Errorf("Unknown key: %s", k)
+		}
+
+		fieldValue := ruleValue.Field(fieldIndex)
+		if !fieldValue.CanSet() {
+			return nil, fmt.Errorf("Cannot set key: %s", k)
+		}
+
+		fieldValue.SetString(v) // Set the value into the struct field.
+	}
+
+	return &rule, nil
+}
+
+func (c *cmdNetworkACLRule) RunAdd(cmd *cobra.Command, args []string) error {
+	// Sanity checks.
+	exit, err := c.global.CheckArgs(cmd, args, 2, -1)
+	if exit {
+		return err
+	}
+
+	// Parse remote.
+	resources, err := c.global.ParseServers(args[0])
+	if err != nil {
+		return err
+	}
+
+	resource := resources[0]
+
+	if resource.name == "" {
+		return fmt.Errorf(i18n.G("Missing network ACL name"))
+	}
+
+	// Get config keys from arguments.
+	keys, err := getConfig(args[2:]...)
+	if err != nil {
+		return err
+	}
+
+	// Get the network ACL.
+	netACL, etag, err := resource.server.GetNetworkACL(resource.name)
+	if err != nil {
+		return err
+	}
+
+	rule, err := c.parseConfigToRule(keys)
+	if err != nil {
+		return err
+	}
+
+	rule.Normalise() // Strip whitespace.
+
+	// Default to enabled if not specified.
+	if rule.State == "" {
+		rule.State = "enabled"
+	}
+
+	// Add rule to the requested direction (if direction valid).
+	if args[1] == "ingress" {
+		netACL.Ingress = append(netACL.Ingress, *rule)
+	} else if args[1] == "egress" {
+		netACL.Egress = append(netACL.Egress, *rule)
+	} else {
+		return fmt.Errorf("The direction argument must be one of: ingress, egress")
+	}
+
+	return resource.server.UpdateNetworkACL(resource.name, netACL.Writable(), etag)
+}
+
+func (c *cmdNetworkACLRule) CommandRemove() *cobra.Command {
+	cmd := &cobra.Command{}
+	cmd.Use = usage("remove", i18n.G("[<remote>:]<ACL> <direction> <key>=<value>..."))
+	cmd.Short = i18n.G("Remove rules from an ACL")
+	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G("Remove rules from an ACL"))
+	cmd.Flags().BoolVar(&c.flagRemoveForce, "force", false, i18n.G("Remove all rules that match"))
+
+	cmd.RunE = c.RunRemove
+
+	return cmd
+}
+
+func (c *cmdNetworkACLRule) RunRemove(cmd *cobra.Command, args []string) error {
+	// Sanity checks.
+	exit, err := c.global.CheckArgs(cmd, args, 2, -1)
+	if exit {
+		return err
+	}
+
+	// Parse remote.
+	resources, err := c.global.ParseServers(args[0])
+	if err != nil {
+		return err
+	}
+
+	resource := resources[0]
+
+	if resource.name == "" {
+		return fmt.Errorf(i18n.G("Missing network ACL name"))
+	}
+
+	// Get config filters from arguments.
+	filters, err := getConfig(args[2:]...)
+	if err != nil {
+		return err
+	}
+
+	// Get the network ACL.
+	netACL, etag, err := resource.server.GetNetworkACL(resource.name)
+	if err != nil {
+		return err
+	}
+
+	// Use reflect to get struct field indices in NetworkACLRule for json tags.
+	allowedKeys := c.ruleJSONStructFieldMap()
+
+	// Check the supplied filters match possible fields.
+	for k := range filters {
+		_, found := allowedKeys[k]
+		if !found {
+			return fmt.Errorf("Unknown key: %s", k)
+		}
+	}
+
+	// isFilterMatch returns whether the supplied rule has matching field values in the filters supplied.
+	// If no filters are supplied, then the rule is considered to have matched.
+	isFilterMatch := func(rule *api.NetworkACLRule, filters map[string]string) bool {
+		ruleValue := reflect.ValueOf(rule).Elem()
+
+		for k, v := range filters {
+			fieldIndex, found := allowedKeys[k]
+			if !found {
+				return false
+			}
+
+			fieldValue := ruleValue.Field(fieldIndex)
+			if fieldValue.String() != v {
+				return false
+			}
+		}
+
+		return true // Match found as all struct fields match the supplied filter values.
+	}
+
+	// removeFromRules removes a single rule that matches the filters supplied. If multiple rules match then
+	// no an error is returned unless c.flagRemoveForce is true, in which case all matching rules are removed.
+	removeFromRules := func(rules []api.NetworkACLRule, filters map[string]string) ([]api.NetworkACLRule, error) {
+		removed := false
+		newRules := make([]api.NetworkACLRule, 0, len(rules))
+
+		for _, r := range rules {
+			if isFilterMatch(&r, filters) {
+				if removed && !c.flagRemoveForce {
+					return newRules, fmt.Errorf("Multiple rules match. Use --force to remove them all")
+				}
+
+				removed = true
+				continue // Don't add removed rule to newRules.
+			}
+
+			newRules = append(newRules, r)
+		}
+
+		if !removed {
+			return newRules, fmt.Errorf("No matching rule(s) found")
+		}
+
+		return newRules, nil
+	}
+
+	// Remove matching rule(s) from the requested direction (if direction valid).
+	if args[1] == "ingress" {
+		rules, err := removeFromRules(netACL.Ingress, filters)
+		if err != nil {
+			return err
+		}
+
+		netACL.Ingress = rules
+	} else if args[1] == "egress" {
+		rules, err := removeFromRules(netACL.Egress, filters)
+		if err != nil {
+			return err
+		}
+
+		netACL.Egress = rules
+	} else {
+		return fmt.Errorf("The direction argument must be one of: ingress, egress")
+	}
+
+	return resource.server.UpdateNetworkACL(resource.name, netACL.Writable(), etag)
 }
