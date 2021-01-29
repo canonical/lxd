@@ -1287,3 +1287,6 @@ allowing for easy move of an instance root disk between pools.
 ## gpu\_sriov
 This adds support for SR-IOV enabled GPUs.
 It introduces the `sriov` gpu type property.
+
+## pci\_device\_type
+This introduces the `pci` device type.
