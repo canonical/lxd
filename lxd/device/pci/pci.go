@@ -158,3 +158,18 @@ func deviceProbeWait(pciDev Device) error {
 
 	return fmt.Errorf("Device took too long to activate at %q", driverPath)
 }
+
+// NormaliseAddress converts common PCI address notation to the kernel's notation.
+func NormaliseAddress(addr string) string {
+	// PCI devices can be specified as "0000:XX:XX.X" or "XX:XX.X".
+	// However, the devices in /sys/bus/pci/devices use the long format which
+	// is why we need to make sure the prefix is present.
+	if len(addr) == 7 {
+		addr = fmt.Sprintf("0000:%s", addr)
+	}
+
+	// Ensure all addresses are lowercase.
+	addr = strings.ToLower(addr)
+
+	return addr
+}

@@ -2053,6 +2053,14 @@ func (d *qemu) generateQemuConfigFile(mountInfo *storagePools.MountInfo, busName
 			}
 		}
 
+		// Add PCI device.
+		if len(runConf.PCIDevice) > 0 {
+			err = d.addPCIDevConfig(sb, bus, runConf.PCIDevice)
+			if err != nil {
+				return "", err
+			}
+		}
+
 		// Add USB device.
 		if len(runConf.USBDevice) > 0 {
 			err = d.addUSBDeviceConfig(sb, bus, runConf.USBDevice)
@@ -2434,7 +2442,7 @@ func (d *qemu) addNetDevConfig(sb *strings.Builder, cpuCount int, bus *qemuBus, 
 	} else if pciSlotName != "" {
 		// Detect physical passthrough device.
 		tplFields["pciSlotName"] = pciSlotName
-		tpl = qemuNetDevPhysical
+		tpl = qemuPCIPhysical
 	}
 
 	devBus, devAddr, multi := bus.allocate(busFunctionGroupNone)
@@ -2446,6 +2454,31 @@ func (d *qemu) addNetDevConfig(sb *strings.Builder, cpuCount int, bus *qemuBus, 
 	}
 
 	return fmt.Errorf("Unrecognised device type")
+}
+
+// addPCIDevConfig adds the qemu config required for adding a raw PCI device.
+func (d *qemu) addPCIDevConfig(sb *strings.Builder, bus *qemuBus, pciConfig []deviceConfig.RunConfigItem) error {
+	var devName, pciSlotName string
+	for _, pciItem := range pciConfig {
+		if pciItem.Key == "devName" {
+			devName = pciItem.Value
+		} else if pciItem.Key == "pciSlotName" {
+			pciSlotName = pciItem.Value
+		}
+	}
+
+	devBus, devAddr, multi := bus.allocate(fmt.Sprintf("lxd_%s", devName))
+	tplFields := map[string]interface{}{
+		"bus":           bus.name,
+		"devBus":        devBus,
+		"devAddr":       devAddr,
+		"multifunction": multi,
+
+		"devName":     devName,
+		"pciSlotName": pciSlotName,
+	}
+
+	return qemuPCIPhysical.Execute(sb, tplFields)
 }
 
 // addGPUDevConfig adds the qemu config required for adding a GPU device.

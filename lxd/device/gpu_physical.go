@@ -13,7 +13,7 @@ import (
 	"golang.org/x/sys/unix"
 
 	deviceConfig "github.com/lxc/lxd/lxd/device/config"
-	"github.com/lxc/lxd/lxd/device/pci"
+	pcidev "github.com/lxc/lxd/lxd/device/pci"
 	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/instance/instancetype"
 	"github.com/lxc/lxd/lxd/resources"
@@ -62,12 +62,7 @@ func (d *gpuPhysical) validateConfig(instConf instance.ConfigReader) error {
 			}
 		}
 
-		// PCI devices can be specified as "0000:XX:XX.X" or "XX:XX.X".
-		// However, the devices in /sys/bus/pci/devices use the long format which
-		// is why we need to make sure the prefix is present.
-		if len(d.config["pci"]) == 7 {
-			d.config["pci"] = fmt.Sprintf("0000:%s", d.config["pci"])
-		}
+		d.config["pci"] = pcidev.NormaliseAddress(d.config["pci"])
 	}
 
 	if d.config["id"] != "" {
@@ -83,7 +78,7 @@ func (d *gpuPhysical) validateConfig(instConf instance.ConfigReader) error {
 
 // validateEnvironment checks the runtime environment for correctness.
 func (d *gpuPhysical) validateEnvironment() error {
-	return validatePCIDevice(d.config)
+	return validatePCIDevice(d.config["pci"])
 }
 
 // Start is run when the device is added to the container.
@@ -244,7 +239,7 @@ func (d *gpuPhysical) startVM() (*deviceConfig.RunConfig, error) {
 
 	// Get PCI information about the GPU device.
 	devicePath := filepath.Join("/sys/bus/pci/devices", pciAddress)
-	pciDev, err := pci.ParseUeventFile(filepath.Join(devicePath, "uevent"))
+	pciDev, err := pcidev.ParseUeventFile(filepath.Join(devicePath, "uevent"))
 	if err != nil {
 		return nil, errors.Wrapf(err, "Failed to get PCI device info for GPU %q", pciAddress)
 	}
@@ -276,7 +271,7 @@ func (d *gpuPhysical) startVM() (*deviceConfig.RunConfig, error) {
 // If restore argument is true, then IOMMU VF devices related to the main device have their driver override cleared
 // rather than being set to the driverOverride specified. This allows for IOMMU VFs that were using a different
 // driver (or no driver) when being overridden are not restored back to the main device's driver.
-func (d *gpuPhysical) pciDeviceDriverOverrideIOMMU(pciDev pci.Device, driverOverride string, restore bool) error {
+func (d *gpuPhysical) pciDeviceDriverOverrideIOMMU(pciDev pcidev.Device, driverOverride string, restore bool) error {
 	iommuGroupPath := filepath.Join("/sys/bus/pci/devices", pciDev.SlotName, "iommu_group", "devices")
 
 	if shared.PathExists(iommuGroupPath) {
@@ -292,16 +287,16 @@ func (d *gpuPhysical) pciDeviceDriverOverrideIOMMU(pciDev pci.Device, driverOver
 
 			iommuSlotName := filepath.Base(path) // Virtual function's address is dir name.
 			if strings.HasPrefix(iommuSlotName, prefix) {
-				iommuPciDev := pci.Device{
+				iommuPciDev := pcidev.Device{
 					Driver:   pciDev.Driver,
 					SlotName: iommuSlotName,
 				}
 
 				if iommuSlotName != pciDev.SlotName && restore {
 					// We don't know the original driver for VFs, so just remove override.
-					err = pci.DeviceDriverOverride(iommuPciDev, "")
+					err = pcidev.DeviceDriverOverride(iommuPciDev, "")
 				} else {
-					err = pci.DeviceDriverOverride(iommuPciDev, driverOverride)
+					err = pcidev.DeviceDriverOverride(iommuPciDev, driverOverride)
 				}
 
 				if err != nil {
@@ -315,7 +310,7 @@ func (d *gpuPhysical) pciDeviceDriverOverrideIOMMU(pciDev pci.Device, driverOver
 			return err
 		}
 	} else {
-		err := pci.DeviceDriverOverride(pciDev, driverOverride)
+		err := pcidev.DeviceDriverOverride(pciDev, driverOverride)
 		if err != nil {
 			return err
 		}
@@ -360,7 +355,7 @@ func (d *gpuPhysical) postStop() error {
 
 	// If VM physical pass through, unbind from vfio-pci and bind back to host driver.
 	if d.inst.Type() == instancetype.VM && v["last_state.pci.slot.name"] != "" {
-		pciDev := pci.Device{
+		pciDev := pcidev.Device{
 			Driver:   "vfio-pci",
 			SlotName: v["last_state.pci.slot.name"],
 		}
