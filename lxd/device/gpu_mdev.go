@@ -174,7 +174,7 @@ func (d *gpuMdev) validateConfig(instConf instance.ConfigReader) error {
 
 // validateEnvironment checks the runtime environment for correctness.
 func (d *gpuMdev) validateEnvironment() error {
-	return validatePCIDevice(d.config)
+	return validatePCIDevice(d.config["pci"])
 }
 
 func (d *gpuMdev) createVirtualGPU() error {
