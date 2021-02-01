@@ -713,11 +713,14 @@ instance.
 The following GPUs can be specified using the `gputype` property:
 
  - [physical](#gpu-physical) Passes through an entire GPU. This is the default if `gputype` is unspecified.
- - [mdev](#gpu-mdev) Creates and passes through a virtual GPU.
+ - [mdev](#gpu-mdev) Creates and passes through a virtual GPU into the instance.
+ - [sriov](#gpu-sriov) Passes a virtual function of an SR-IOV enabled GPU into the instance.
 
 #### gpu: physical
 
 Supported instance types: container, VM
+
+Passes through an entire GPU.
 
 The following properties exist:
 
@@ -735,7 +738,7 @@ mode        | int       | 0660              | no        | Mode of the device in 
 
 Supported instance types: VM
 
-Create a virtual GPU and pass it. A list of available mdev profiles can be found by running `lxc info --resources`.
+Creates and passes through a virtual GPU into the instance. A list of available mdev profiles can be found by running `lxc info --resources`.
 
 The following properties exist:
 
@@ -750,6 +753,8 @@ mdev        | string    | -                 | no        | The mdev profile to us
 #### gpu: sriov
 
 Supported instance types: VM
+
+Passes a virtual function of an SR-IOV enabled GPU into the instance.
 
 The following properties exist:
 
