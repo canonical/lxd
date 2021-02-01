@@ -193,7 +193,7 @@ type InstanceServer interface {
 	DeleteInstanceLogfile(name string, filename string) (err error)
 
 	GetInstanceMetadata(name string) (metadata *api.ImageMetadata, ETag string, err error)
-	SetInstanceMetadata(name string, metadata api.ImageMetadata, ETag string) (err error)
+	UpdateInstanceMetadata(name string, metadata api.ImageMetadata, ETag string) (err error)
 
 	GetInstanceTemplateFiles(instanceName string) (templates []string, err error)
 	GetInstanceTemplateFile(instanceName string, templateName string) (content io.ReadCloser, err error)

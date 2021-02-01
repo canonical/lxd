@@ -1662,8 +1662,8 @@ func (r *ProtocolLXD) GetInstanceMetadata(name string) (*api.ImageMetadata, stri
 	return &metadata, etag, err
 }
 
-// SetInstanceMetadata sets the content of the instance metadata file.
-func (r *ProtocolLXD) SetInstanceMetadata(name string, metadata api.ImageMetadata, ETag string) error {
+// UpdateInstanceMetadata sets the content of the instance metadata file.
+func (r *ProtocolLXD) UpdateInstanceMetadata(name string, metadata api.ImageMetadata, ETag string) error {
 	path, _, err := r.instanceTypeToPath(api.InstanceTypeAny)
 	if err != nil {
 		return err
