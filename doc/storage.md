@@ -397,9 +397,12 @@ lxc storage create pool1 lvm source=/dev/sdX lvm.vg_name=my-pool
    makes it possible to confirm the snapshots is indeed what you want to
    restore before you remove the newer snapshots.
 
-   Also note that instance copies use ZFS snapshots, so you also cannot
-   restore an instance to a snapshot taken before the last copy without
-   having to also delete instance copies.
+   LXD can be configured to automatically discard the newer snapshots during restore.
+   This can be configured through the `volume.zfs.remove_snapshots` pool option.
+
+   However note that instance copies use ZFS snapshots too, so you also cannot
+   restore an instance to a snapshot taken before the last copy without having
+   to also delete all its descendants.
 
    Copying the wanted snapshot into a new instance and then deleting
    the old instance does however work, at the cost of losing any other
