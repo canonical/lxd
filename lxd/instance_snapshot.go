@@ -228,9 +228,16 @@ func instanceSnapshotHandler(d *Daemon, r *http.Request) response.Response {
 		return snapshotDelete(d.State(), inst, snapshotName)
 	case "PUT":
 		return snapshotPut(d, r, inst, snapshotName)
+	case "PATCH":
+		return snapshotPatch(d, r, inst, snapshotName)
 	default:
 		return response.NotFound(fmt.Errorf("Method '%s' not found", r.Method))
 	}
+}
+
+func snapshotPatch(d *Daemon, r *http.Request, sc instance.Instance, name string) response.Response {
+	// Only expires_at is currently editable, so PATCH is equivalent to PUT.
+	return snapshotPut(d, r, sc, name)
 }
 
 func snapshotPut(d *Daemon, r *http.Request, sc instance.Instance, name string) response.Response {
@@ -313,7 +320,7 @@ func snapshotGet(s *state.State, snapInst instance.Instance, name string) respon
 		return response.SmartError(err)
 	}
 
-	return response.SyncResponse(true, render.(*api.InstanceSnapshot))
+	return response.SyncResponseETag(true, render.(*api.InstanceSnapshot), render.(*api.InstanceSnapshot))
 }
 
 func snapshotPost(d *Daemon, r *http.Request, sc instance.Instance, containerName string) response.Response {
