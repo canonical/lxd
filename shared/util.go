@@ -1237,3 +1237,13 @@ func InSnap() bool {
 
 	return false
 }
+
+// JoinUrlPath return the join of the input urls/paths sanitized.
+func JoinUrls(baseUrl, p string) (string, error) {
+	u, err := url.Parse(baseUrl)
+	if err != nil {
+		return "", err
+	}
+	u.Path = path.Join(u.Path, p)
+	return u.String(), nil
+}

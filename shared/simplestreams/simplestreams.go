@@ -98,7 +98,11 @@ func (s *SimpleStreams) cachedDownload(path string) ([]byte, error) {
 	}
 
 	// Download from the source
-	uri := fmt.Sprintf("%s/%s", strings.TrimRight(s.url, "/"), strings.TrimLeft(path, "/"))
+	uri, err := shared.JoinUrls(s.url, path)
+	if err != nil {
+		return nil, err
+	}
+
 	req, err := http.NewRequest("GET", uri, nil)
 	if err != nil {
 		return nil, err
