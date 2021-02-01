@@ -74,6 +74,23 @@ func (r *ProtocolLXD) GetStoragePoolVolume(pool string, volType string, name str
 	return &volume, etag, nil
 }
 
+// GetStoragePoolVolumeState returns a StorageVolumeState entry for the provided pool and volume name
+func (r *ProtocolLXD) GetStoragePoolVolumeState(pool string, volType string, name string) (*api.StorageVolumeState, error) {
+	if !r.HasExtension("storage_volume_state") {
+		return nil, fmt.Errorf("The server is missing the required \"storage_volume_state\" API extension")
+	}
+
+	// Fetch the raw value
+	state := api.StorageVolumeState{}
+	path := fmt.Sprintf("/storage-pools/%s/volumes/%s/%s/state", url.PathEscape(pool), url.PathEscape(volType), url.PathEscape(name))
+	_, err := r.queryStruct("GET", path, nil, "", &state)
+	if err != nil {
+		return nil, err
+	}
+
+	return &state, nil
+}
+
 // CreateStoragePoolVolume defines a new storage volume
 func (r *ProtocolLXD) CreateStoragePoolVolume(pool string, volume api.StorageVolumesPost) error {
 	if !r.HasExtension("storage") {
