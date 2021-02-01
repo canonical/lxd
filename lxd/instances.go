@@ -128,8 +128,9 @@ var instanceMetadataCmd = APIEndpoint{
 		{Name: "vmMetadata", Path: "virtual-machines/{name}/metadata"},
 	},
 
-	Get: APIEndpointAction{Handler: instanceMetadataGet, AccessHandler: allowProjectPermission("containers", "view")},
-	Put: APIEndpointAction{Handler: instanceMetadataPut, AccessHandler: allowProjectPermission("containers", "manage-containers")},
+	Get:   APIEndpointAction{Handler: instanceMetadataGet, AccessHandler: allowProjectPermission("containers", "view")},
+	Patch: APIEndpointAction{Handler: instanceMetadataPatch, AccessHandler: allowProjectPermission("containers", "manage-containers")},
+	Put:   APIEndpointAction{Handler: instanceMetadataPut, AccessHandler: allowProjectPermission("containers", "manage-containers")},
 }
 
 var instanceMetadataTemplatesCmd = APIEndpoint{
@@ -141,8 +142,7 @@ var instanceMetadataTemplatesCmd = APIEndpoint{
 	},
 
 	Get:    APIEndpointAction{Handler: instanceMetadataTemplatesGet, AccessHandler: allowProjectPermission("containers", "view")},
-	Post:   APIEndpointAction{Handler: instanceMetadataTemplatesPostPut, AccessHandler: allowProjectPermission("containers", "manage-containers")},
-	Put:    APIEndpointAction{Handler: instanceMetadataTemplatesPostPut, AccessHandler: allowProjectPermission("containers", "manage-containers")},
+	Post:   APIEndpointAction{Handler: instanceMetadataTemplatesPost, AccessHandler: allowProjectPermission("containers", "manage-containers")},
 	Delete: APIEndpointAction{Handler: instanceMetadataTemplatesDelete, AccessHandler: allowProjectPermission("containers", "manage-containers")},
 }
 
