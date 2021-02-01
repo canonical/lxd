@@ -176,7 +176,7 @@ func (c *cmdConfigTemplateEdit) Run(cmd *cobra.Command, args []string) error {
 
 	// Edit instance file template
 	if !termios.IsTerminal(getStdinFd()) {
-		return resource.server.UpdateInstanceTemplateFile(resource.name, args[1], os.Stdin)
+		return resource.server.CreateInstanceTemplateFile(resource.name, args[1], os.Stdin)
 	}
 
 	reader, err := resource.server.GetInstanceTemplateFile(resource.name, args[1])
@@ -196,7 +196,7 @@ func (c *cmdConfigTemplateEdit) Run(cmd *cobra.Command, args []string) error {
 
 	for {
 		reader := bytes.NewReader(content)
-		err := resource.server.UpdateInstanceTemplateFile(resource.name, args[1], reader)
+		err := resource.server.CreateInstanceTemplateFile(resource.name, args[1], reader)
 		// Respawn the editor
 		if err != nil {
 			fmt.Fprintf(os.Stderr, i18n.G("Error updating template file: %s")+"\n", err)

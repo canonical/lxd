@@ -16,6 +16,7 @@ import (
 	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/response"
 	storagePools "github.com/lxc/lxd/lxd/storage"
+	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 )
@@ -81,7 +82,81 @@ func instanceMetadataGet(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	return response.SyncResponse(true, metadata)
+	return response.SyncResponseETag(true, metadata, metadata)
+}
+
+func instanceMetadataPatch(d *Daemon, r *http.Request) response.Response {
+	instanceType, err := urlInstanceTypeDetect(r)
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	project := projectParam(r)
+	name := mux.Vars(r)["name"]
+
+	// Handle requests targeted to an instance on a different node.
+	resp, err := forwardedResponseIfInstanceIsRemote(d, r, project, name, instanceType)
+	if err != nil {
+		return response.SmartError(err)
+	}
+	if resp != nil {
+		return resp
+	}
+
+	// Load the instance.
+	inst, err := instance.LoadByProjectAndName(d.State(), project, name)
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	// Start the storage if needed.
+	pool, err := storagePools.GetPoolByInstance(d.State(), inst)
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	_, err = storagePools.InstanceMount(pool, inst, nil)
+	if err != nil {
+		return response.SmartError(err)
+	}
+	defer storagePools.InstanceUnmount(pool, inst, nil)
+
+	// Read the existing data.
+	metadataPath := filepath.Join(inst.Path(), "metadata.yaml")
+	metadata := api.ImageMetadata{}
+	if shared.PathExists(metadataPath) {
+		metadataFile, err := os.Open(metadataPath)
+		if err != nil {
+			return response.InternalError(err)
+		}
+		defer metadataFile.Close()
+
+		data, err := ioutil.ReadAll(metadataFile)
+		if err != nil {
+			return response.InternalError(err)
+		}
+
+		// Parse into the API struct
+		err = yaml.Unmarshal(data, &metadata)
+		if err != nil {
+			return response.SmartError(err)
+		}
+	}
+
+	// Validate ETag
+	err = util.EtagCheck(r, metadata)
+	if err != nil {
+		return response.PreconditionFailed(err)
+	}
+
+	// Apply the new metadata on top.
+	err = json.NewDecoder(r.Body).Decode(&metadata)
+	if err != nil {
+		return response.BadRequest(err)
+	}
+
+	// Update the file.
+	return doInstanceMetadataUpdate(d, inst, metadata)
 }
 
 func instanceMetadataPut(d *Daemon, r *http.Request) response.Response {
@@ -93,7 +168,7 @@ func instanceMetadataPut(d *Daemon, r *http.Request) response.Response {
 	project := projectParam(r)
 	name := mux.Vars(r)["name"]
 
-	// Handle requests targeted to a container on a different node
+	// Handle requests targeted to an instance on a different node.
 	resp, err := forwardedResponseIfInstanceIsRemote(d, r, project, name, instanceType)
 	if err != nil {
 		return response.SmartError(err)
@@ -102,38 +177,45 @@ func instanceMetadataPut(d *Daemon, r *http.Request) response.Response {
 		return resp
 	}
 
-	// Load the container
-	c, err := instance.LoadByProjectAndName(d.State(), project, name)
-	if err != nil {
-		return response.SmartError(err)
-	}
-
-	// Start the storage if needed
-	pool, err := storagePools.GetPoolByInstance(d.State(), c)
-	if err != nil {
-		return response.SmartError(err)
-	}
-
-	_, err = storagePools.InstanceMount(pool, c, nil)
-	if err != nil {
-		return response.SmartError(err)
-	}
-	defer storagePools.InstanceUnmount(pool, c, nil)
-
-	// Read the new metadata
+	// Read the new metadata.
 	metadata := api.ImageMetadata{}
-	if err := json.NewDecoder(r.Body).Decode(&metadata); err != nil {
+	err = json.NewDecoder(r.Body).Decode(&metadata)
+	if err != nil {
 		return response.BadRequest(err)
 	}
 
-	// Write as YAML
+	// Load the instance.
+	inst, err := instance.LoadByProjectAndName(d.State(), project, name)
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	// Start the storage if needed.
+	pool, err := storagePools.GetPoolByInstance(d.State(), inst)
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	_, err = storagePools.InstanceMount(pool, inst, nil)
+	if err != nil {
+		return response.SmartError(err)
+	}
+	defer storagePools.InstanceUnmount(pool, inst, nil)
+
+	return doInstanceMetadataUpdate(d, inst, metadata)
+}
+
+func doInstanceMetadataUpdate(d *Daemon, inst instance.Instance, metadata api.ImageMetadata) response.Response {
+	// Convert YAML.
 	data, err := yaml.Marshal(metadata)
 	if err != nil {
 		return response.BadRequest(err)
 	}
 
-	metadataPath := filepath.Join(c.Path(), "metadata.yaml")
-	if err := ioutil.WriteFile(metadataPath, data, 0644); err != nil {
+	// Update the metadata.
+	metadataPath := filepath.Join(inst.Path(), "metadata.yaml")
+	err = ioutil.WriteFile(metadataPath, data, 0644)
+	if err != nil {
 		return response.InternalError(err)
 	}
 
@@ -238,7 +320,7 @@ func instanceMetadataTemplatesGet(d *Daemon, r *http.Request) response.Response 
 }
 
 // Add a container template file
-func instanceMetadataTemplatesPostPut(d *Daemon, r *http.Request) response.Response {
+func instanceMetadataTemplatesPost(d *Daemon, r *http.Request) response.Response {
 	instanceType, err := urlInstanceTypeDetect(r)
 	if err != nil {
 		return response.SmartError(err)
@@ -291,10 +373,6 @@ func instanceMetadataTemplatesPostPut(d *Daemon, r *http.Request) response.Respo
 	templatePath, err := getContainerTemplatePath(c, templateName)
 	if err != nil {
 		return response.SmartError(err)
-	}
-
-	if r.Method == "POST" && shared.PathExists(templatePath) {
-		return response.BadRequest(fmt.Errorf("Template already exists"))
 	}
 
 	// Write the new template
