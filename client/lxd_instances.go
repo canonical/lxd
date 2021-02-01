@@ -1751,15 +1751,6 @@ func (r *ProtocolLXD) GetInstanceTemplateFile(instanceName string, templateName 
 
 // CreateInstanceTemplateFile creates an a template for a instance.
 func (r *ProtocolLXD) CreateInstanceTemplateFile(instanceName string, templateName string, content io.ReadSeeker) error {
-	return r.setInstanceTemplateFile(instanceName, templateName, content, "POST")
-}
-
-// UpdateInstanceTemplateFile updates the content for a instance template file.
-func (r *ProtocolLXD) UpdateInstanceTemplateFile(instanceName string, templateName string, content io.ReadSeeker) error {
-	return r.setInstanceTemplateFile(instanceName, templateName, content, "PUT")
-}
-
-func (r *ProtocolLXD) setInstanceTemplateFile(instanceName string, templateName string, content io.ReadSeeker, httpMethod string) error {
 	path, _, err := r.instanceTypeToPath(api.InstanceTypeAny)
 	if err != nil {
 		return err
@@ -1776,7 +1767,7 @@ func (r *ProtocolLXD) setInstanceTemplateFile(instanceName string, templateName 
 		return err
 	}
 
-	req, err := http.NewRequest(httpMethod, url, content)
+	req, err := http.NewRequest("POST", url, content)
 	if err != nil {
 		return err
 	}
