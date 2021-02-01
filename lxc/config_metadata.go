@@ -112,7 +112,7 @@ func (c *cmdConfigMetadataEdit) Run(cmd *cobra.Command, args []string) error {
 		if err != nil {
 			return err
 		}
-		return resource.server.SetInstanceMetadata(resource.name, metadata, "")
+		return resource.server.UpdateInstanceMetadata(resource.name, metadata, "")
 	}
 
 	metadata, etag, err := resource.server.GetInstanceMetadata(resource.name)
@@ -134,7 +134,7 @@ func (c *cmdConfigMetadataEdit) Run(cmd *cobra.Command, args []string) error {
 		metadata := api.ImageMetadata{}
 		err = yaml.Unmarshal(content, &metadata)
 		if err == nil {
-			err = resource.server.SetInstanceMetadata(resource.name, metadata, etag)
+			err = resource.server.UpdateInstanceMetadata(resource.name, metadata, etag)
 		}
 
 		// Respawn the editor
