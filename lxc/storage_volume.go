@@ -26,8 +26,9 @@ import (
 )
 
 type volumeColumn struct {
-	Name string
-	Data func(api.StorageVolume) string
+	Name       string
+	Data       func(api.StorageVolume, api.StorageVolumeState) string
+	NeedsState bool
 }
 
 type cmdStorageVolume struct {
@@ -1107,7 +1108,8 @@ Column shorthand chars:
     d - Description
     c - Content type (filesystem or block)
     u - Number of references (used by)
-    L - Location of the instance (e.g. its cluster member)`))
+    L - Location of the instance (e.g. its cluster member)
+    U - Current disk usage`))
 	cmd.Flags().StringVar(&c.flagFormat, "format", "table", i18n.G("Format (csv|json|table|yaml)")+"``")
 
 	cmd.RunE = c.Run
@@ -1150,7 +1152,16 @@ func (c *cmdStorageVolumeList) Run(cmd *cobra.Command, args []string) error {
 	for _, vol := range volumes {
 		row := []string{}
 		for _, column := range columns {
-			row = append(row, column.Data(vol))
+			if column.NeedsState && !shared.IsSnapshot(vol.Name) && vol.Type != "image" {
+				state, err := resource.server.GetStoragePoolVolumeState(resource.name, vol.Type, vol.Name)
+				if err != nil {
+					return err
+				}
+
+				row = append(row, column.Data(vol, *state))
+			} else {
+				row = append(row, column.Data(vol, api.StorageVolumeState{}))
+			}
 		}
 		data = append(data, row)
 	}
@@ -1178,6 +1189,7 @@ func (c *cmdStorageVolumeList) parseColumns(clustered bool) ([]volumeColumn, err
 		'd': {Name: i18n.G("DESCRIPTION"), Data: c.descriptionColumnData},
 		'c': {Name: i18n.G("CONTENT-TYPE"), Data: c.contentTypeColumnData},
 		'u': {Name: i18n.G("USED BY"), Data: c.usedByColumnData},
+		'U': {Name: i18n.G("USAGE"), Data: c.usageColumnData, NeedsState: true},
 	}
 
 	if clustered {
@@ -1211,7 +1223,7 @@ func (c *cmdStorageVolumeList) parseColumns(clustered bool) ([]volumeColumn, err
 	return columns, nil
 }
 
-func (c *cmdStorageVolumeList) typeColumnData(vol api.StorageVolume) string {
+func (c *cmdStorageVolumeList) typeColumnData(vol api.StorageVolume, state api.StorageVolumeState) string {
 	if shared.IsSnapshot(vol.Name) {
 		return fmt.Sprintf("%s (snapshot)", vol.Type)
 	}
@@ -1219,15 +1231,15 @@ func (c *cmdStorageVolumeList) typeColumnData(vol api.StorageVolume) string {
 	return vol.Type
 }
 
-func (c *cmdStorageVolumeList) nameColumnData(vol api.StorageVolume) string {
+func (c *cmdStorageVolumeList) nameColumnData(vol api.StorageVolume, state api.StorageVolumeState) string {
 	return vol.Name
 }
 
-func (c *cmdStorageVolumeList) descriptionColumnData(vol api.StorageVolume) string {
+func (c *cmdStorageVolumeList) descriptionColumnData(vol api.StorageVolume, state api.StorageVolumeState) string {
 	return vol.Description
 }
 
-func (c *cmdStorageVolumeList) contentTypeColumnData(vol api.StorageVolume) string {
+func (c *cmdStorageVolumeList) contentTypeColumnData(vol api.StorageVolume, state api.StorageVolumeState) string {
 	if vol.ContentType == "" {
 		return "filesystem"
 	}
@@ -1235,12 +1247,20 @@ func (c *cmdStorageVolumeList) contentTypeColumnData(vol api.StorageVolume) stri
 	return vol.ContentType
 }
 
-func (c *cmdStorageVolumeList) usedByColumnData(vol api.StorageVolume) string {
+func (c *cmdStorageVolumeList) usedByColumnData(vol api.StorageVolume, state api.StorageVolumeState) string {
 	return strconv.Itoa(len(vol.UsedBy))
 }
 
-func (c *cmdStorageVolumeList) locationColumnData(vol api.StorageVolume) string {
+func (c *cmdStorageVolumeList) locationColumnData(vol api.StorageVolume, state api.StorageVolumeState) string {
 	return vol.Location
+}
+
+func (c *cmdStorageVolumeList) usageColumnData(vol api.StorageVolume, state api.StorageVolumeState) string {
+	if state.Usage != nil {
+		return units.GetByteSizeString(int64(state.Usage.Used), 2)
+	}
+
+	return ""
 }
 
 // Move
