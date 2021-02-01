@@ -46,44 +46,14 @@ var storagePoolVolumesTypeCmd = APIEndpoint{
 	Post: APIEndpointAction{Handler: storagePoolVolumesTypePost, AccessHandler: allowProjectPermission("storage-volumes", "manage-storage-volumes")},
 }
 
-var storagePoolVolumeTypeContainerCmd = APIEndpoint{
-	Path: "storage-pools/{pool}/volumes/container/{name:.*}",
+var storagePoolVolumeTypeCmd = APIEndpoint{
+	Path: "storage-pools/{pool}/volumes/{type}/{name}",
 
-	Delete: APIEndpointAction{Handler: storagePoolVolumeTypeContainerDelete, AccessHandler: allowProjectPermission("storage-volumes", "manage-storage-volumes")},
-	Get:    APIEndpointAction{Handler: storagePoolVolumeTypeContainerGet, AccessHandler: allowProjectPermission("storage-volumes", "view")},
-	Patch:  APIEndpointAction{Handler: storagePoolVolumeTypeContainerPatch, AccessHandler: allowProjectPermission("storage-volumes", "manage-storage-volumes")},
-	Post:   APIEndpointAction{Handler: storagePoolVolumeTypeContainerPost, AccessHandler: allowProjectPermission("storage-volumes", "manage-storage-volumes")},
-	Put:    APIEndpointAction{Handler: storagePoolVolumeTypeContainerPut, AccessHandler: allowProjectPermission("storage-volumes", "manage-storage-volumes")},
-}
-
-var storagePoolVolumeTypeVMCmd = APIEndpoint{
-	Path: "storage-pools/{pool}/volumes/virtual-machine/{name:.*}",
-
-	Delete: APIEndpointAction{Handler: storagePoolVolumeTypeVMDelete, AccessHandler: allowProjectPermission("storage-volumes", "manage-storage-volumes")},
-	Get:    APIEndpointAction{Handler: storagePoolVolumeTypeVMGet, AccessHandler: allowProjectPermission("storage-volumes", "view")},
-	Patch:  APIEndpointAction{Handler: storagePoolVolumeTypeVMPatch, AccessHandler: allowProjectPermission("storage-volumes", "manage-storage-volumes")},
-	Post:   APIEndpointAction{Handler: storagePoolVolumeTypeVMPost, AccessHandler: allowProjectPermission("storage-volumes", "manage-storage-volumes")},
-	Put:    APIEndpointAction{Handler: storagePoolVolumeTypeVMPut, AccessHandler: allowProjectPermission("storage-volumes", "manage-storage-volumes")},
-}
-
-var storagePoolVolumeTypeCustomCmd = APIEndpoint{
-	Path: "storage-pools/{pool}/volumes/custom/{name}",
-
-	Delete: APIEndpointAction{Handler: storagePoolVolumeTypeCustomDelete, AccessHandler: allowProjectPermission("storage-volumes", "manage-storage-volumes")},
-	Get:    APIEndpointAction{Handler: storagePoolVolumeTypeCustomGet, AccessHandler: allowProjectPermission("storage-volumes", "view")},
-	Patch:  APIEndpointAction{Handler: storagePoolVolumeTypeCustomPatch, AccessHandler: allowProjectPermission("storage-volumes", "manage-storage-volumes")},
-	Post:   APIEndpointAction{Handler: storagePoolVolumeTypeCustomPost, AccessHandler: allowProjectPermission("storage-volumes", "manage-storage-volumes")},
-	Put:    APIEndpointAction{Handler: storagePoolVolumeTypeCustomPut, AccessHandler: allowProjectPermission("storage-volumes", "manage-storage-volumes")},
-}
-
-var storagePoolVolumeTypeImageCmd = APIEndpoint{
-	Path: "storage-pools/{pool}/volumes/image/{name}",
-
-	Delete: APIEndpointAction{Handler: storagePoolVolumeTypeImageDelete, AccessHandler: allowProjectPermission("storage-volumes", "manage-storage-volumes")},
-	Get:    APIEndpointAction{Handler: storagePoolVolumeTypeImageGet, AccessHandler: allowProjectPermission("storage-volumes", "view")},
-	Patch:  APIEndpointAction{Handler: storagePoolVolumeTypeImagePatch, AccessHandler: allowProjectPermission("storage-volumes", "manage-storage-volumes")},
-	Post:   APIEndpointAction{Handler: storagePoolVolumeTypeImagePost, AccessHandler: allowProjectPermission("storage-volumes", "manage-storage-volumes")},
-	Put:    APIEndpointAction{Handler: storagePoolVolumeTypeImagePut, AccessHandler: allowProjectPermission("storage-volumes", "manage-storage-volumes")},
+	Delete: APIEndpointAction{Handler: storagePoolVolumeDelete, AccessHandler: allowProjectPermission("storage-volumes", "manage-storage-volumes")},
+	Get:    APIEndpointAction{Handler: storagePoolVolumeGet, AccessHandler: allowProjectPermission("storage-volumes", "view")},
+	Patch:  APIEndpointAction{Handler: storagePoolVolumePatch, AccessHandler: allowProjectPermission("storage-volumes", "manage-storage-volumes")},
+	Post:   APIEndpointAction{Handler: storagePoolVolumePost, AccessHandler: allowProjectPermission("storage-volumes", "manage-storage-volumes")},
+	Put:    APIEndpointAction{Handler: storagePoolVolumePut, AccessHandler: allowProjectPermission("storage-volumes", "manage-storage-volumes")},
 }
 
 // /1.0/storage-pools/{name}/volumes
@@ -542,9 +512,10 @@ func doVolumeMigration(d *Daemon, projectName string, poolName string, req *api.
 // /1.0/storage-pools/{name}/volumes/{type}/{name}
 // Rename a storage volume of a given volume type in a given storage pool.
 // Also supports moving a storage volume between pools and migrating to a different host.
-func storagePoolVolumeTypePost(d *Daemon, r *http.Request, volumeTypeName string) response.Response {
+func storagePoolVolumePost(d *Daemon, r *http.Request) response.Response {
 	// Get the name of the storage volume.
 	volumeName := mux.Vars(r)["name"]
+	volumeTypeName := mux.Vars(r)["type"]
 
 	if shared.IsSnapshot(volumeName) {
 		return response.BadRequest(fmt.Errorf("Invalid volume name"))
@@ -796,22 +767,6 @@ func storagePoolVolumeTypePostMove(d *Daemon, poolName string, projectName strin
 	return operations.OperationResponse(op)
 }
 
-func storagePoolVolumeTypeContainerPost(d *Daemon, r *http.Request) response.Response {
-	return storagePoolVolumeTypePost(d, r, db.StoragePoolVolumeTypeNameContainer)
-}
-
-func storagePoolVolumeTypeVMPost(d *Daemon, r *http.Request) response.Response {
-	return storagePoolVolumeTypePost(d, r, db.StoragePoolVolumeTypeNameVM)
-}
-
-func storagePoolVolumeTypeCustomPost(d *Daemon, r *http.Request) response.Response {
-	return storagePoolVolumeTypePost(d, r, db.StoragePoolVolumeTypeNameCustom)
-}
-
-func storagePoolVolumeTypeImagePost(d *Daemon, r *http.Request) response.Response {
-	return storagePoolVolumeTypePost(d, r, db.StoragePoolVolumeTypeNameImage)
-}
-
 // storageGetVolumeNameFromURL retrieves the volume name from the URL name segment.
 func storageGetVolumeNameFromURL(r *http.Request) (string, error) {
 	fields := strings.Split(mux.Vars(r)["name"], "/")
@@ -831,7 +786,9 @@ func storageGetVolumeNameFromURL(r *http.Request) (string, error) {
 
 // /1.0/storage-pools/{pool}/volumes/{type}/{name}
 // Get storage volume of a given volume type on a given storage pool.
-func storagePoolVolumeTypeGet(d *Daemon, r *http.Request, volumeTypeName string) response.Response {
+func storagePoolVolumeGet(d *Daemon, r *http.Request) response.Response {
+	volumeTypeName := mux.Vars(r)["type"]
+
 	// Get the name of the storage volume.
 	volumeName, err := storageGetVolumeNameFromURL(r)
 	if err != nil {
@@ -890,27 +847,12 @@ func storagePoolVolumeTypeGet(d *Daemon, r *http.Request, volumeTypeName string)
 	return response.SyncResponseETag(true, volume, etag)
 }
 
-func storagePoolVolumeTypeContainerGet(d *Daemon, r *http.Request) response.Response {
-	return storagePoolVolumeTypeGet(d, r, "container")
-}
-
-func storagePoolVolumeTypeVMGet(d *Daemon, r *http.Request) response.Response {
-	return storagePoolVolumeTypeGet(d, r, "virtual-machine")
-}
-
-func storagePoolVolumeTypeCustomGet(d *Daemon, r *http.Request) response.Response {
-	return storagePoolVolumeTypeGet(d, r, "custom")
-}
-
-func storagePoolVolumeTypeImageGet(d *Daemon, r *http.Request) response.Response {
-	return storagePoolVolumeTypeGet(d, r, "image")
-}
-
 // /1.0/storage-pools/{pool}/volumes/{type}/{name}
 // This function does allow limited functionality for non-custom volume types, specifically you
 // can modify the volume's description only.
-func storagePoolVolumeTypePut(d *Daemon, r *http.Request, volumeTypeName string) response.Response {
+func storagePoolVolumePut(d *Daemon, r *http.Request) response.Response {
 	projectName := projectParam(r)
+	volumeTypeName := mux.Vars(r)["type"]
 
 	// Get the name of the storage volume.
 	volumeName, err := storageGetVolumeNameFromURL(r)
@@ -1005,22 +947,10 @@ func storagePoolVolumeTypePut(d *Daemon, r *http.Request, volumeTypeName string)
 			return response.NotFound(err)
 		}
 
-		// There is a bug in the lxc client (lxc/storage_volume.go#L829-L865) which
-		// means that modifying an instance snapshot's description gets routed here
-		// rather than the dedicated snapshot editing route. So need to handle
-		// snapshot volumes here too.
-		if inst.IsSnapshot() {
-			// Handle instance snapshot volume update requests.
-			err = pool.UpdateInstanceSnapshot(inst, req.Description, req.Config, nil)
-			if err != nil {
-				return response.SmartError(err)
-			}
-		} else {
-			// Handle instance volume update requests.
-			err = pool.UpdateInstance(inst, req.Description, req.Config, nil)
-			if err != nil {
-				return response.SmartError(err)
-			}
+		// Handle instance volume update requests.
+		err = pool.UpdateInstance(inst, req.Description, req.Config, nil)
+		if err != nil {
+			return response.SmartError(err)
 		}
 	} else if volumeType == db.StoragePoolVolumeTypeImage {
 		// Handle image update requests.
@@ -1035,26 +965,11 @@ func storagePoolVolumeTypePut(d *Daemon, r *http.Request, volumeTypeName string)
 	return response.EmptySyncResponse
 }
 
-func storagePoolVolumeTypeContainerPut(d *Daemon, r *http.Request) response.Response {
-	return storagePoolVolumeTypePut(d, r, "container")
-}
-
-func storagePoolVolumeTypeVMPut(d *Daemon, r *http.Request) response.Response {
-	return storagePoolVolumeTypePut(d, r, "virtual-machine")
-}
-
-func storagePoolVolumeTypeCustomPut(d *Daemon, r *http.Request) response.Response {
-	return storagePoolVolumeTypePut(d, r, "custom")
-}
-
-func storagePoolVolumeTypeImagePut(d *Daemon, r *http.Request) response.Response {
-	return storagePoolVolumeTypePut(d, r, "image")
-}
-
 // /1.0/storage-pools/{pool}/volumes/{type}/{name}
-func storagePoolVolumeTypePatch(d *Daemon, r *http.Request, volumeTypeName string) response.Response {
+func storagePoolVolumePatch(d *Daemon, r *http.Request) response.Response {
 	// Get the name of the storage volume.
 	volumeName := mux.Vars(r)["name"]
+	volumeTypeName := mux.Vars(r)["type"]
 
 	if shared.IsSnapshot(volumeName) {
 		return response.BadRequest(fmt.Errorf("Invalid volume name"))
@@ -1133,26 +1048,11 @@ func storagePoolVolumeTypePatch(d *Daemon, r *http.Request, volumeTypeName strin
 	return response.EmptySyncResponse
 }
 
-func storagePoolVolumeTypeContainerPatch(d *Daemon, r *http.Request) response.Response {
-	return storagePoolVolumeTypePatch(d, r, "container")
-}
-
-func storagePoolVolumeTypeVMPatch(d *Daemon, r *http.Request) response.Response {
-	return storagePoolVolumeTypePatch(d, r, "virtual-machine")
-}
-
-func storagePoolVolumeTypeCustomPatch(d *Daemon, r *http.Request) response.Response {
-	return storagePoolVolumeTypePatch(d, r, "custom")
-}
-
-func storagePoolVolumeTypeImagePatch(d *Daemon, r *http.Request) response.Response {
-	return storagePoolVolumeTypePatch(d, r, "image")
-}
-
 // /1.0/storage-pools/{pool}/volumes/{type}/{name}
-func storagePoolVolumeTypeDelete(d *Daemon, r *http.Request, volumeTypeName string) response.Response {
+func storagePoolVolumeDelete(d *Daemon, r *http.Request) response.Response {
 	// Get the name of the storage volume.
 	volumeName := mux.Vars(r)["name"]
+	volumeTypeName := mux.Vars(r)["type"]
 
 	if shared.IsSnapshot(volumeName) {
 		return response.BadRequest(fmt.Errorf("Invalid storage volume %q", volumeName))
@@ -1227,22 +1127,6 @@ func storagePoolVolumeTypeDelete(d *Daemon, r *http.Request, volumeTypeName stri
 	}
 
 	return response.EmptySyncResponse
-}
-
-func storagePoolVolumeTypeContainerDelete(d *Daemon, r *http.Request) response.Response {
-	return storagePoolVolumeTypeDelete(d, r, "container")
-}
-
-func storagePoolVolumeTypeVMDelete(d *Daemon, r *http.Request) response.Response {
-	return storagePoolVolumeTypeDelete(d, r, "virtual-machine")
-}
-
-func storagePoolVolumeTypeCustomDelete(d *Daemon, r *http.Request) response.Response {
-	return storagePoolVolumeTypeDelete(d, r, "custom")
-}
-
-func storagePoolVolumeTypeImageDelete(d *Daemon, r *http.Request) response.Response {
-	return storagePoolVolumeTypeDelete(d, r, "image")
 }
 
 func createStoragePoolVolumeFromBackup(d *Daemon, project string, data io.Reader, pool string, volName string) response.Response {
