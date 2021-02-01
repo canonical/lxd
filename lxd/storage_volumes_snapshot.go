@@ -19,6 +19,7 @@ import (
 
 	"github.com/lxc/lxd/lxd/cluster"
 	"github.com/lxc/lxd/lxd/db"
+	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/operations"
 	"github.com/lxc/lxd/lxd/project"
 	"github.com/lxc/lxd/lxd/response"
@@ -402,11 +403,6 @@ func storagePoolVolumeSnapshotTypePut(d *Daemon, r *http.Request) response.Respo
 		return response.BadRequest(err)
 	}
 
-	// Check that the storage volume type is valid.
-	if volumeType != db.StoragePoolVolumeTypeCustom {
-		return response.BadRequest(fmt.Errorf("Invalid storage volume type %q", volumeTypeName))
-	}
-
 	projectName, err := project.StorageVolumeProject(d.State().Cluster, projectParam(r), volumeType)
 	if err != nil {
 		return response.SmartError(err)
@@ -458,25 +454,30 @@ func storagePoolVolumeSnapshotTypePut(d *Daemon, r *http.Request) response.Respo
 		expiry = time.Time{}
 	}
 
-	do := func(op *operations.Operation) error {
-		pool, err := storagePools.GetPoolByName(d.State(), poolName)
+	pool, err := storagePools.GetPoolByName(d.State(), poolName)
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	// Update the database.
+	if volumeType == db.StoragePoolVolumeTypeCustom {
+		err = pool.UpdateCustomVolumeSnapshot(projectName, vol.Name, req.Description, nil, expiry, nil)
 		if err != nil {
-			return err
+			return response.SmartError(err)
+		}
+	} else {
+		inst, err := instance.LoadByProjectAndName(d.State(), projectName, vol.Name)
+		if err != nil {
+			return response.NotFound(err)
 		}
 
-		// Handle custom volume update requests.
-		return pool.UpdateCustomVolumeSnapshot(projectName, vol.Name, req.Description, nil, expiry, op)
+		err = pool.UpdateInstanceSnapshot(inst, req.Description, nil, nil)
+		if err != nil {
+			return response.SmartError(err)
+		}
 	}
 
-	resources := map[string][]string{}
-	resources["storage_volume_snapshots"] = []string{volumeName}
-
-	op, err := operations.OperationCreate(d.State(), "", operations.OperationClassTask, db.OperationVolumeSnapshotUpdate, resources, nil, do, nil, nil)
-	if err != nil {
-		return response.InternalError(err)
-	}
-
-	return operations.OperationResponse(op)
+	return response.EmptySyncResponse
 }
 
 func storagePoolVolumeSnapshotTypeDelete(d *Daemon, r *http.Request) response.Response {

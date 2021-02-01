@@ -854,7 +854,7 @@ func (c *cmdStorageVolumeEdit) Run(cmd *cobra.Command, args []string) error {
 			return err
 		}
 
-		if isSnapshot && volType == "custom" {
+		if isSnapshot {
 			newdata := api.StorageVolumeSnapshotPut{}
 			err = yaml.Unmarshal(contents, &newdata)
 			if err != nil {
@@ -887,7 +887,7 @@ func (c *cmdStorageVolumeEdit) Run(cmd *cobra.Command, args []string) error {
 	var snapVol *api.StorageVolumeSnapshot
 	var vol *api.StorageVolume
 	etag := ""
-	if isSnapshot && volType == "custom" {
+	if isSnapshot {
 		// Extract the current value
 		snapVol, etag, err = client.GetStoragePoolVolumeSnapshot(resource.name, volType, fields[0], fields[1])
 		if err != nil {
@@ -917,7 +917,7 @@ func (c *cmdStorageVolumeEdit) Run(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	if isSnapshot && volType == "custom" {
+	if isSnapshot {
 		for {
 			// Parse the text received from the editor
 			newdata := api.StorageVolumeSnapshotPut{}
@@ -1035,7 +1035,7 @@ func (c *cmdStorageVolumeGet) Run(cmd *cobra.Command, args []string) error {
 		client = client.UseTarget(c.storage.flagTarget)
 	}
 
-	if isSnapshot && volType == "custom" {
+	if isSnapshot {
 		// Get the storage volume snapshot entry
 		resp, _, err := client.GetStoragePoolVolumeSnapshot(resource.name, volType, fields[0], fields[1])
 		if err != nil {
@@ -1434,7 +1434,7 @@ func (c *cmdStorageVolumeShow) Run(cmd *cobra.Command, args []string) error {
 	}
 
 	// Get the storage volume entry
-	if isSnapshot && volType == "custom" {
+	if isSnapshot {
 		vol, _, err := client.GetStoragePoolVolumeSnapshot(resource.name, volType, fields[0], fields[1])
 		if err != nil {
 			return err
