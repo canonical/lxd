@@ -198,7 +198,6 @@ type InstanceServer interface {
 	GetInstanceTemplateFiles(instanceName string) (templates []string, err error)
 	GetInstanceTemplateFile(instanceName string, templateName string) (content io.ReadCloser, err error)
 	CreateInstanceTemplateFile(instanceName string, templateName string, content io.ReadSeeker) (err error)
-	UpdateInstanceTemplateFile(instanceName string, templateName string, content io.ReadSeeker) (err error)
 	DeleteInstanceTemplateFile(name string, templateName string) (err error)
 
 	// Event handling functions
