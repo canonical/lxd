@@ -89,6 +89,10 @@ Unless specified through a prefix, all volume operations affect "custom" (user c
 	storageVolumeImportCmd := cmdStorageVolumeImport{global: c.global, storage: c.storage, storageVolume: c}
 	cmd.AddCommand(storageVolumeImportCmd.Command())
 
+	// Info
+	storageVolumeInfoCmd := cmdStorageVolumeInfo{global: c.global, storage: c.storage, storageVolume: c}
+	cmd.AddCommand(storageVolumeInfoCmd.Command())
+
 	// List
 	storageVolumeListCmd := cmdStorageVolumeList{global: c.global, storage: c.storage, storageVolume: c}
 	cmd.AddCommand(storageVolumeListCmd.Command())
@@ -1068,6 +1072,84 @@ func (c *cmdStorageVolumeGet) Run(cmd *cobra.Command, args []string) error {
 			fmt.Printf("%s\n", v)
 		}
 	}
+
+	return nil
+}
+
+// Info
+type cmdStorageVolumeInfo struct {
+	global        *cmdGlobal
+	storage       *cmdStorage
+	storageVolume *cmdStorageVolume
+}
+
+func (c *cmdStorageVolumeInfo) Command() *cobra.Command {
+	cmd := &cobra.Command{}
+	cmd.Use = usage("info", i18n.G("[<remote>:]<pool> <volume>"))
+	cmd.Short = i18n.G("Show storage volume state information")
+	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
+		`Show storage volume state information`))
+
+	cmd.Flags().StringVar(&c.storage.flagTarget, "target", "", i18n.G("Cluster member name")+"``")
+	cmd.RunE = c.Run
+
+	return cmd
+}
+
+func (c *cmdStorageVolumeInfo) Run(cmd *cobra.Command, args []string) error {
+	// Sanity checks
+	exit, err := c.global.CheckArgs(cmd, args, 2, 2)
+	if exit {
+		return err
+	}
+
+	// Parse remote
+	resources, err := c.global.ParseServers(args[0])
+	if err != nil {
+		return err
+	}
+
+	resource := resources[0]
+
+	if resource.name == "" {
+		return fmt.Errorf(i18n.G("Missing pool name"))
+	}
+
+	client := resource.server
+
+	// Parse the input
+	volName, volType := c.storageVolume.parseVolume("custom", args[1])
+
+	isSnapshot := false
+	fields := strings.Split(volName, "/")
+	if len(fields) > 2 {
+		return fmt.Errorf("Invalid snapshot name")
+	} else if len(fields) > 1 {
+		isSnapshot = true
+	}
+
+	// Check if syntax matches a snapshot
+	if isSnapshot || volType == "image" {
+		return fmt.Errorf(i18n.G("Only instance or custom volumes are supported"))
+	}
+
+	// If a target member was specified, get the volume with the matching
+	// name on that member, if any.
+	if c.storage.flagTarget != "" {
+		client = client.UseTarget(c.storage.flagTarget)
+	}
+
+	state, err := client.GetStoragePoolVolumeState(resource.name, volType, volName)
+	if err != nil {
+		return err
+	}
+
+	data, err := yaml.Marshal(&state)
+	if err != nil {
+		return err
+	}
+
+	fmt.Printf("%s", data)
 
 	return nil
 }
