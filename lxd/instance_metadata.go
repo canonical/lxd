@@ -238,7 +238,7 @@ func instanceMetadataTemplatesGet(d *Daemon, r *http.Request) response.Response 
 }
 
 // Add a container template file
-func instanceMetadataTemplatesPostPut(d *Daemon, r *http.Request) response.Response {
+func instanceMetadataTemplatesPost(d *Daemon, r *http.Request) response.Response {
 	instanceType, err := urlInstanceTypeDetect(r)
 	if err != nil {
 		return response.SmartError(err)
@@ -291,10 +291,6 @@ func instanceMetadataTemplatesPostPut(d *Daemon, r *http.Request) response.Respo
 	templatePath, err := getContainerTemplatePath(c, templateName)
 	if err != nil {
 		return response.SmartError(err)
-	}
-
-	if r.Method == "POST" && shared.PathExists(templatePath) {
-		return response.BadRequest(fmt.Errorf("Template already exists"))
 	}
 
 	// Write the new template
