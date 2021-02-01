@@ -19,6 +19,7 @@ import (
 
 	"github.com/lxc/lxd/lxd/cluster"
 	"github.com/lxc/lxd/lxd/db"
+	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/operations"
 	"github.com/lxc/lxd/lxd/project"
 	"github.com/lxc/lxd/lxd/response"
@@ -459,9 +460,21 @@ func storagePoolVolumeSnapshotTypePut(d *Daemon, r *http.Request) response.Respo
 	}
 
 	// Update the database.
-	err = pool.UpdateCustomVolumeSnapshot(projectName, vol.Name, req.Description, nil, expiry, nil)
-	if err != nil {
-		return response.SmartError(err)
+	if volumeType == db.StoragePoolVolumeTypeCustom {
+		err = pool.UpdateCustomVolumeSnapshot(projectName, vol.Name, req.Description, nil, expiry, nil)
+		if err != nil {
+			return response.SmartError(err)
+		}
+	} else {
+		inst, err := instance.LoadByProjectAndName(d.State(), projectName, vol.Name)
+		if err != nil {
+			return response.NotFound(err)
+		}
+
+		err = pool.UpdateInstanceSnapshot(inst, req.Description, nil, nil)
+		if err != nil {
+			return response.SmartError(err)
+		}
 	}
 
 	return response.EmptySyncResponse

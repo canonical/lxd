@@ -1005,22 +1005,10 @@ func storagePoolVolumeTypePut(d *Daemon, r *http.Request, volumeTypeName string)
 			return response.NotFound(err)
 		}
 
-		// There is a bug in the lxc client (lxc/storage_volume.go#L829-L865) which
-		// means that modifying an instance snapshot's description gets routed here
-		// rather than the dedicated snapshot editing route. So need to handle
-		// snapshot volumes here too.
-		if inst.IsSnapshot() {
-			// Handle instance snapshot volume update requests.
-			err = pool.UpdateInstanceSnapshot(inst, req.Description, req.Config, nil)
-			if err != nil {
-				return response.SmartError(err)
-			}
-		} else {
-			// Handle instance volume update requests.
-			err = pool.UpdateInstance(inst, req.Description, req.Config, nil)
-			if err != nil {
-				return response.SmartError(err)
-			}
+		// Handle instance volume update requests.
+		err = pool.UpdateInstance(inst, req.Description, req.Config, nil)
+		if err != nil {
+			return response.SmartError(err)
 		}
 	} else if volumeType == db.StoragePoolVolumeTypeImage {
 		// Handle image update requests.
