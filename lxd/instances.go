@@ -141,8 +141,7 @@ var instanceMetadataTemplatesCmd = APIEndpoint{
 	},
 
 	Get:    APIEndpointAction{Handler: instanceMetadataTemplatesGet, AccessHandler: allowProjectPermission("containers", "view")},
-	Post:   APIEndpointAction{Handler: instanceMetadataTemplatesPostPut, AccessHandler: allowProjectPermission("containers", "manage-containers")},
-	Put:    APIEndpointAction{Handler: instanceMetadataTemplatesPostPut, AccessHandler: allowProjectPermission("containers", "manage-containers")},
+	Post:   APIEndpointAction{Handler: instanceMetadataTemplatesPost, AccessHandler: allowProjectPermission("containers", "manage-containers")},
 	Delete: APIEndpointAction{Handler: instanceMetadataTemplatesDelete, AccessHandler: allowProjectPermission("containers", "manage-containers")},
 }
 
