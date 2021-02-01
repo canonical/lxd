@@ -262,6 +262,8 @@ much like `/1.0/containers` will only show you instances of that type.
  * [`/1.0/networks`](#10networks)
    * [`/1.0/networks/<name>`](#10networksname)
    * [`/1.0/networks/<name>/state`](#10networksnamestate)
+ * [`/1.0/network-acls`](#10network-acls)
+   * [`/1.0/network-acls/<name>`](#10network-aclsname)
  * [`/1.0/operations`](#10operations)
    * [`/1.0/operations/<uuid>`](#10operationsuuid)
      * [`/1.0/operations/<uuid>/wait`](#10operationsuuidwait)
@@ -2315,6 +2317,162 @@ Return:
     "type": "broadcast"
 }
 ```
+
+
+### `/1.0/network-acls`
+#### GET
+ * Description: list of network ACLs
+ * Introduced: with API extension `network_acl`
+ * Authentication: trusted
+ * Operation: sync
+ * Return: list of URLs for network ACLs that are current defined on the host
+
+Return:
+
+```json
+[
+    "/1.0/network-acls/myacl1",
+    "/1.0/network-acls/myacl2"
+]
+```
+
+#### POST
+ * Description: define a new network ACL
+ * Introduced: with API extension `network_acl`
+ * Authentication: trusted
+ * Operation: sync
+ * Return: standard return value or standard error
+
+Input:
+
+```json
+{
+    "name": "my-network-acl",
+    "description": "My network ACL",
+    "config": {
+        "user.somekey": "my own optional reference",
+    },
+    "ingress": [
+        {
+            "action": "allow",
+            "source": "192.168.1.1/32",
+            "destination": "192.168.1.2/32",
+            "protocol": "tcp",
+            "source_port": "",
+            "destination_port": "22",
+            "icmp_type": "",
+            "icmp_code": "",
+            "description": "Allow a known IP to reach another known IP using SSH",
+            "state": "enabled"
+        },
+    ],
+    "egress": [],
+}
+```
+
+### `/1.0/network-acls/<name>`
+#### GET
+ * Description: information about a network ACL
+ * Introduced: with API extension `network_acl`
+ * Authentication: trusted
+ * Operation: sync
+ * Return: dict representing a network
+
+Return:
+
+```json
+{
+    "name": "my-network-acl",
+    "description": "My network ACL",
+    "config": {
+        "user.somekey": "my own optional reference",
+    },
+    "ingress": [
+        {
+            "action": "allow",
+            "source": "192.168.1.1/32",
+            "destination": "192.168.1.2/32",
+            "protocol": "tcp",
+            "source_port": "",
+            "destination_port": "22",
+            "icmp_type": "",
+            "icmp_code": "",
+            "description": "Allow a known IP to reach another known IP using SSH",
+            "state": "enabled"
+        },
+    ],
+    "egress": [],
+    "used_by": []
+}
+```
+
+#### PUT (ETag supported)
+ * Description: replace the network ACL information
+ * Introduced: with API extension `network_acl`
+ * Authentication: trusted
+ * Operation: sync
+ * Return: standard return value or standard error
+
+Input:
+
+```json
+{
+    "description": "My network ACL",
+    "config": {
+        "user.somekey": "my own optional reference",
+    },
+    "ingress": [
+        {
+            "action": "allow",
+            "source": "192.168.1.1/32",
+            "destination": "192.168.1.2/32",
+            "protocol": "tcp",
+            "source_port": "",
+            "destination_port": "22",
+            "icmp_type": "",
+            "icmp_code": "",
+            "description": "Allow a known IP to reach another known IP using SSH",
+            "state": "enabled"
+        },
+    ],
+    "egress": [],
+}
+```
+
+#### POST
+ * Description: rename a network ACL
+ * Introduced: with API extension `network_acl`
+ * Authentication: trusted
+ * Operation: sync
+ * Return: standard return value or standard error
+
+Input (rename a network):
+
+```json
+{
+    "name": "new-name"
+}
+```
+
+HTTP return value must be 204 (No content) and Location must point to the renamed resource.
+
+Renaming to an existing name must return the 409 (Conflict) HTTP code.
+
+#### DELETE
+ * Description: remove a network ACL
+ * Introduced: with API extension `network_acl`
+ * Authentication: trusted
+ * Operation: sync
+ * Return: standard return value or standard error
+
+Input (none at present):
+
+```json
+{
+}
+```
+
+HTTP code for this should be 202 (Accepted).
 
 ### `/1.0/operations`
 #### GET
