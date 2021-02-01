@@ -402,11 +402,6 @@ func storagePoolVolumeSnapshotTypePut(d *Daemon, r *http.Request) response.Respo
 		return response.BadRequest(err)
 	}
 
-	// Check that the storage volume type is valid.
-	if volumeType != db.StoragePoolVolumeTypeCustom {
-		return response.BadRequest(fmt.Errorf("Invalid storage volume type %q", volumeTypeName))
-	}
-
 	projectName, err := project.StorageVolumeProject(d.State().Cluster, projectParam(r), volumeType)
 	if err != nil {
 		return response.SmartError(err)
@@ -458,25 +453,18 @@ func storagePoolVolumeSnapshotTypePut(d *Daemon, r *http.Request) response.Respo
 		expiry = time.Time{}
 	}
 
-	do := func(op *operations.Operation) error {
-		pool, err := storagePools.GetPoolByName(d.State(), poolName)
-		if err != nil {
-			return err
-		}
-
-		// Handle custom volume update requests.
-		return pool.UpdateCustomVolumeSnapshot(projectName, vol.Name, req.Description, nil, expiry, op)
-	}
-
-	resources := map[string][]string{}
-	resources["storage_volume_snapshots"] = []string{volumeName}
-
-	op, err := operations.OperationCreate(d.State(), "", operations.OperationClassTask, db.OperationVolumeSnapshotUpdate, resources, nil, do, nil, nil)
+	pool, err := storagePools.GetPoolByName(d.State(), poolName)
 	if err != nil {
-		return response.InternalError(err)
+		return response.SmartError(err)
 	}
 
-	return operations.OperationResponse(op)
+	// Update the database.
+	err = pool.UpdateCustomVolumeSnapshot(projectName, vol.Name, req.Description, nil, expiry, nil)
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	return response.EmptySyncResponse
 }
 
 func storagePoolVolumeSnapshotTypeDelete(d *Daemon, r *http.Request) response.Response {
