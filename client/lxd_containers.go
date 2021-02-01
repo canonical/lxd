@@ -1480,15 +1480,6 @@ func (r *ProtocolLXD) GetContainerTemplateFile(containerName string, templateNam
 
 // CreateContainerTemplateFile creates an a template for a container.
 func (r *ProtocolLXD) CreateContainerTemplateFile(containerName string, templateName string, content io.ReadSeeker) error {
-	return r.setContainerTemplateFile(containerName, templateName, content, "POST")
-}
-
-// UpdateContainerTemplateFile updates the content for a container template file.
-func (r *ProtocolLXD) UpdateContainerTemplateFile(containerName string, templateName string, content io.ReadSeeker) error {
-	return r.setContainerTemplateFile(containerName, templateName, content, "PUT")
-}
-
-func (r *ProtocolLXD) setContainerTemplateFile(containerName string, templateName string, content io.ReadSeeker, httpMethod string) error {
 	if !r.HasExtension("container_edit_metadata") {
 		return fmt.Errorf("The server is missing the required \"container_edit_metadata\" API extension")
 	}
@@ -1500,7 +1491,7 @@ func (r *ProtocolLXD) setContainerTemplateFile(containerName string, templateNam
 		return err
 	}
 
-	req, err := http.NewRequest(httpMethod, url, content)
+	req, err := http.NewRequest("POST", url, content)
 	if err != nil {
 		return err
 	}
@@ -1521,6 +1512,11 @@ func (r *ProtocolLXD) setContainerTemplateFile(containerName string, templateNam
 		}
 	}
 	return err
+}
+
+// UpdateContainerTemplateFile updates the content for a container template file.
+func (r *ProtocolLXD) UpdateContainerTemplateFile(containerName string, templateName string, content io.ReadSeeker) error {
+	return r.CreateContainerTemplateFile(containerName, templateName, content)
 }
 
 // DeleteContainerTemplateFile deletes a template file for a container.
