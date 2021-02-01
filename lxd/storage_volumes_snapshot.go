@@ -377,8 +377,7 @@ func storagePoolVolumeSnapshotTypeGet(d *Daemon, r *http.Request) response.Respo
 	snapshot.ExpiresAt = &expiry
 	snapshot.ContentType = volume.ContentType
 
-	etag := []interface{}{snapshot.Name, snapshot.Description, snapshot.Config, expiry}
-
+	etag := []interface{}{snapshot.Description, expiry}
 	return response.SyncResponseETag(true, &snapshot, etag)
 }
 
@@ -435,7 +434,7 @@ func storagePoolVolumeSnapshotTypePut(d *Daemon, r *http.Request) response.Respo
 	}
 
 	// Validate the ETag
-	etag := []interface{}{snapshotName, vol.Description, vol.Config, expiry}
+	etag := []interface{}{vol.Description, expiry}
 	err = util.EtagCheck(r, etag)
 	if err != nil {
 		return response.PreconditionFailed(err)
