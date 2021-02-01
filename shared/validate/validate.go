@@ -482,6 +482,37 @@ func IsNetworkMTU(value string) error {
 	return nil
 }
 
+// IsNetworkPort validates an IP port number >= 0 and <= 65535.
+func IsNetworkPort(value string) error {
+	port, err := strconv.ParseUint(value, 10, 32)
+	if err != nil {
+		return fmt.Errorf("Invalid port number %q", value)
+	}
+
+	if port < 0 || port > 65535 {
+		return fmt.Errorf("Out of port number range (0-65535) %q", value)
+	}
+
+	return nil
+}
+
+// IsNetworkPortRange validates an IP port range in the format "start-end".
+func IsNetworkPortRange(value string) error {
+	ports := strings.SplitN(value, "-", 2)
+	if len(ports) != 2 {
+		return fmt.Errorf("Port range must contain start and end port numbers")
+	}
+
+	for _, port := range ports {
+		err := IsNetworkPort(port)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
 // IsURLSegmentSafe validates whether value can be used in a URL segment.
 func IsURLSegmentSafe(value string) error {
 	for _, char := range []string{"/", "?", "&", "+"} {
