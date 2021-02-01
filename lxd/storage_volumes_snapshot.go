@@ -46,6 +46,7 @@ var storagePoolVolumeSnapshotTypeCmd = APIEndpoint{
 	Delete: APIEndpointAction{Handler: storagePoolVolumeSnapshotTypeDelete, AccessHandler: allowProjectPermission("storage-volumes", "manage-storage-volumes")},
 	Get:    APIEndpointAction{Handler: storagePoolVolumeSnapshotTypeGet, AccessHandler: allowProjectPermission("storage-volumes", "view")},
 	Post:   APIEndpointAction{Handler: storagePoolVolumeSnapshotTypePost, AccessHandler: allowProjectPermission("storage-volumes", "manage-storage-volumes")},
+	Patch:  APIEndpointAction{Handler: storagePoolVolumeSnapshotTypePatch, AccessHandler: allowProjectPermission("storage-volumes", "manage-storage-volumes")},
 	Put:    APIEndpointAction{Handler: storagePoolVolumeSnapshotTypePut, AccessHandler: allowProjectPermission("storage-volumes", "manage-storage-volumes")},
 }
 
@@ -377,8 +378,7 @@ func storagePoolVolumeSnapshotTypeGet(d *Daemon, r *http.Request) response.Respo
 	snapshot.ExpiresAt = &expiry
 	snapshot.ContentType = volume.ContentType
 
-	etag := []interface{}{snapshot.Name, snapshot.Description, snapshot.Config, expiry}
-
+	etag := []interface{}{snapshot.Description, expiry}
 	return response.SyncResponseETag(true, &snapshot, etag)
 }
 
@@ -435,7 +435,7 @@ func storagePoolVolumeSnapshotTypePut(d *Daemon, r *http.Request) response.Respo
 	}
 
 	// Validate the ETag
-	etag := []interface{}{snapshotName, vol.Description, vol.Config, expiry}
+	etag := []interface{}{vol.Description, expiry}
 	err = util.EtagCheck(r, etag)
 	if err != nil {
 		return response.PreconditionFailed(err)
@@ -448,10 +448,84 @@ func storagePoolVolumeSnapshotTypePut(d *Daemon, r *http.Request) response.Respo
 		return response.BadRequest(err)
 	}
 
+	return doStoragePoolVolumeSnapshotUpdate(d, poolName, projectName, vol.Name, volumeType, req)
+}
+
+// storagePoolVolumeSnapshotTypePatch allows a snapshot's description to be changed.
+func storagePoolVolumeSnapshotTypePatch(d *Daemon, r *http.Request) response.Response {
+	// Get the name of the storage pool the volume is supposed to be
+	// attached to.
+	poolName := mux.Vars(r)["pool"]
+
+	// Get the name of the volume type.
+	volumeTypeName := mux.Vars(r)["type"]
+
+	// Get the name of the storage volume.
+	volumeName := mux.Vars(r)["name"]
+
+	// Get the name of the storage volume.
+	snapshotName := mux.Vars(r)["snapshotName"]
+
+	// Convert the volume type name to our internal integer representation.
+	volumeType, err := storagePools.VolumeTypeNameToDBType(volumeTypeName)
+	if err != nil {
+		return response.BadRequest(err)
+	}
+
+	projectName, err := project.StorageVolumeProject(d.State().Cluster, projectParam(r), volumeType)
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	resp := forwardedResponseIfTargetIsRemote(d, r)
+	if resp != nil {
+		return resp
+	}
+
+	poolID, _, _, err := d.cluster.GetStoragePool(poolName)
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	fullSnapshotName := fmt.Sprintf("%s/%s", volumeName, snapshotName)
+	resp = forwardedResponseIfVolumeIsRemote(d, r, poolName, projectName, fullSnapshotName, volumeType)
+	if resp != nil {
+		return resp
+	}
+
+	volID, vol, err := d.cluster.GetLocalStoragePoolVolume(projectName, fullSnapshotName, volumeType, poolID)
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	expiry, err := d.cluster.GetStorageVolumeSnapshotExpiry(volID)
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	// Validate the ETag
+	etag := []interface{}{vol.Description, expiry}
+	err = util.EtagCheck(r, etag)
+	if err != nil {
+		return response.PreconditionFailed(err)
+	}
+
+	req := api.StorageVolumeSnapshotPut{
+		Description: vol.Description,
+		ExpiresAt:   &expiry,
+	}
+	err = json.NewDecoder(r.Body).Decode(&req)
+	if err != nil {
+		return response.BadRequest(err)
+	}
+
+	return doStoragePoolVolumeSnapshotUpdate(d, poolName, projectName, vol.Name, volumeType, req)
+}
+
+func doStoragePoolVolumeSnapshotUpdate(d *Daemon, poolName string, projectName string, volName string, volumeType int, req api.StorageVolumeSnapshotPut) response.Response {
+	expiry := time.Time{}
 	if req.ExpiresAt != nil {
 		expiry = *req.ExpiresAt
-	} else {
-		expiry = time.Time{}
 	}
 
 	pool, err := storagePools.GetPoolByName(d.State(), poolName)
@@ -461,12 +535,12 @@ func storagePoolVolumeSnapshotTypePut(d *Daemon, r *http.Request) response.Respo
 
 	// Update the database.
 	if volumeType == db.StoragePoolVolumeTypeCustom {
-		err = pool.UpdateCustomVolumeSnapshot(projectName, vol.Name, req.Description, nil, expiry, nil)
+		err = pool.UpdateCustomVolumeSnapshot(projectName, volName, req.Description, nil, expiry, nil)
 		if err != nil {
 			return response.SmartError(err)
 		}
 	} else {
-		inst, err := instance.LoadByProjectAndName(d.State(), projectName, vol.Name)
+		inst, err := instance.LoadByProjectAndName(d.State(), projectName, volName)
 		if err != nil {
 			return response.NotFound(err)
 		}

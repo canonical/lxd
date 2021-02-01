@@ -1290,3 +1290,6 @@ It introduces the `sriov` gpu type property.
 
 ## pci\_device\_type
 This introduces the `pci` device type.
+
+## storage\_volume\_state
+Add new `/1.0/storage-pools/POOL/volumes/VOLUME/state` API endpoint to get usage data on a volume.

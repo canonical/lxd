@@ -93,6 +93,7 @@ var instanceSnapshotCmd = APIEndpoint{
 	Get:    APIEndpointAction{Handler: instanceSnapshotHandler, AccessHandler: allowProjectPermission("containers", "operate-containers")},
 	Post:   APIEndpointAction{Handler: instanceSnapshotHandler, AccessHandler: allowProjectPermission("containers", "operate-containers")},
 	Delete: APIEndpointAction{Handler: instanceSnapshotHandler, AccessHandler: allowProjectPermission("containers", "operate-containers")},
+	Patch:  APIEndpointAction{Handler: instanceSnapshotHandler, AccessHandler: allowProjectPermission("containers", "operate-containers")},
 	Put:    APIEndpointAction{Handler: instanceSnapshotHandler, AccessHandler: allowProjectPermission("containers", "operate-containers")},
 }
 
