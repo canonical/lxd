@@ -30,8 +30,8 @@ type ovnNet interface {
 
 	InstanceDevicePortValidateExternalRoutes(deviceInstance instance.Instance, deviceName string, externalRoutes []*net.IPNet) error
 	InstanceDevicePortConfigParse(deviceConfig map[string]string) (net.HardwareAddr, []net.IP, []*net.IPNet, []*net.IPNet, error)
-	InstanceDevicePortAdd(uplinkConfig map[string]string, instanceUUID string, instanceName string, deviceName string, mac net.HardwareAddr, ips []net.IP, internalRoutes []*net.IPNet, externalRoutes []*net.IPNet) (openvswitch.OVNSwitchPort, error)
-	InstanceDevicePortDelete(instanceUUID string, deviceName string, ovsExternalOVNPort openvswitch.OVNSwitchPort, internalRoutes []*net.IPNet, externalRoutes []*net.IPNet) error
+	InstanceDevicePortAdd(opts *network.OVNInstanceNICSetupOpts) (openvswitch.OVNSwitchPort, error)
+	InstanceDevicePortDelete(ovsExternalOVNPort openvswitch.OVNSwitchPort, opts *network.OVNInstanceNICOpts) error
 	InstanceDevicePortDynamicIPs(instanceUUID string, deviceName string) ([]net.IP, error)
 }
 
