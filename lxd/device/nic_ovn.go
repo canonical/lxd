@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"net"
 	"os"
-	"strings"
 
 	"github.com/mdlayher/netx/eui64"
 	"github.com/pkg/errors"
@@ -165,7 +164,7 @@ func (d *nicOVN) validateConfig(instConf instance.ConfigReader) error {
 			continue
 		}
 
-		externalRoutes, err = network.SubnetParseAppend(externalRoutes, strings.Split(d.config[k], ",")...)
+		externalRoutes, err = network.SubnetParseAppend(externalRoutes, util.SplitNTrimSpace(d.config[k], ",", -1, false)...)
 		if err != nil {
 			return err
 		}
@@ -381,7 +380,7 @@ func (d *nicOVN) Stop() (*deviceConfig.RunConfig, error) {
 			continue
 		}
 
-		internalRoutes, err = network.SubnetParseAppend(internalRoutes, strings.Split(d.config[key], ",")...)
+		internalRoutes, err = network.SubnetParseAppend(internalRoutes, util.SplitNTrimSpace(d.config[key], ",", -1, false)...)
 		if err != nil {
 			return nil, errors.Wrapf(err, "Invalid %q value", key)
 		}
@@ -393,7 +392,7 @@ func (d *nicOVN) Stop() (*deviceConfig.RunConfig, error) {
 			continue
 		}
 
-		externalRoutes, err = network.SubnetParseAppend(externalRoutes, strings.Split(d.config[key], ",")...)
+		externalRoutes, err = network.SubnetParseAppend(externalRoutes, util.SplitNTrimSpace(d.config[key], ",", -1, false)...)
 		if err != nil {
 			return nil, errors.Wrapf(err, "Invalid %q value", key)
 		}
