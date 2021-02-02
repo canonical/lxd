@@ -59,6 +59,24 @@ type ovnUplinkPortBridgeVars struct {
 	ovsEnd    string
 }
 
+// OVNInstanceNICOpts options for starting and stopping an OVN Instance NIC.
+type OVNInstanceNICOpts struct {
+	InstanceUUID   string
+	DeviceName     string
+	InternalRoutes []*net.IPNet
+	ExternalRoutes []*net.IPNet
+}
+
+// OVNInstanceNICSetupOpts options for starting an OVN Instance NIC.
+type OVNInstanceNICSetupOpts struct {
+	OVNInstanceNICOpts
+
+	UplinkConfig map[string]string
+	InstanceName string
+	MAC          net.HardwareAddr
+	IPs          []net.IP
+}
+
 // ovn represents a LXD OVN network.
 type ovn struct {
 	common
