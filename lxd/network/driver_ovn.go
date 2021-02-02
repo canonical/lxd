@@ -2880,13 +2880,13 @@ func (n *ovn) handleDependencyChange(uplinkName string, uplinkConfig map[string]
 					// Check if instance port exists, if not then we can skip.
 					instanceUUID := inst.Config["volatile.uuid"]
 					instancePortName := n.getInstanceDevicePortName(instanceUUID, devName)
-					portExists, err := client.LogicalSwitchPortExists(instancePortName)
+					portUUID, err := client.LogicalSwitchPortUUID(instancePortName)
 					if err != nil {
 						n.logger.Error("Failed checking instance OVN NIC port exists", log.Ctx{"project": inst.Project, "instance": inst.Name, "err": err})
 						continue
 					}
 
-					if !portExists {
+					if portUUID == "" {
 						continue // No need to update a port that isn't started yet.
 					}
 
