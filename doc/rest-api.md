@@ -281,6 +281,7 @@ much like `/1.0/containers` will only show you instances of that type.
             * [`/1.0/storage-pools/<pool>/volumes/<type>/<name>/backups`](#10storage-poolspoolvolumestypenamebackups)
              * [`/1.0/storage-pools/<pool>/volumes/<type>/<volume>/backups/<name>`](#10storage-poolspoolvolumestypevolumebackupsname)
                * [`/1.0/storage-pools/<pool>/volumes/<type>/<volume>/backups/<name>/export`](#10storage-poolspoolvolumestypevolumebackupsnameexport)
+           * [`/1.0/storage-pools/<pool>/volumes/<type>/<name>/state`](#10storage-poolspoolvolumestypenamestate)
  * [`/1.0/resources`](#10resources)
  * [`/1.0/cluster`](#10cluster)
    * [`/1.0/cluster/members`](#10clustermembers)
@@ -3312,6 +3313,24 @@ Output:
 ```json
 {
     "data": "<byte-stream>"
+}
+```
+
+### `/1.0/storage-pools/<pool>/volumes/<type>/<name>/state`
+#### GET
+ * Description: Storage volume state information
+ * Introduced: with API extension `storage_volume_state`
+ * Authentication: trusted
+ * Operation: sync
+ * Return: dict containing state information
+
+Return value:
+
+```json
+{
+    "usage": {
+        "used": 2578112512
+    }
 }
 ```
 

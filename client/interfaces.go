@@ -266,6 +266,7 @@ type InstanceServer interface {
 	GetStoragePoolVolumeNames(pool string) (names []string, err error)
 	GetStoragePoolVolumes(pool string) (volumes []api.StorageVolume, err error)
 	GetStoragePoolVolume(pool string, volType string, name string) (volume *api.StorageVolume, ETag string, err error)
+	GetStoragePoolVolumeState(pool string, volType string, name string) (state *api.StorageVolumeState, err error)
 	CreateStoragePoolVolume(pool string, volume api.StorageVolumesPost) (err error)
 	UpdateStoragePoolVolume(pool string, volType string, name string, volume api.StorageVolumePut, ETag string) (err error)
 	DeleteStoragePoolVolume(pool string, volType string, name string) (err error)
