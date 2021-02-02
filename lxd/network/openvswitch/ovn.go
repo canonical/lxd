@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
 )
 
@@ -716,21 +717,23 @@ func (o *OVN) logicalSwitchDNSRecordsDelete(switchName OVNSwitch) error {
 	return nil
 }
 
-// LogicalSwitchPortExists returns whether the logical switch port exists.
-func (o *OVN) LogicalSwitchPortExists(portName OVNSwitchPort) (bool, error) {
-	foundPort, err := o.nbctl("--format=csv", "--no-headings", "--data=bare", "--colum=name", "find", "logical_switch_port",
+// LogicalSwitchPortUUID returns the logical switch port UUID or empty string if port doesn't exist.
+func (o *OVN) LogicalSwitchPortUUID(portName OVNSwitchPort) (string, error) {
+	portInfo, err := o.nbctl("--format=csv", "--no-headings", "--data=bare", "--colum=_uuid,name", "find", "logical_switch_port",
 		fmt.Sprintf("name=%s", string(portName)),
 	)
 	if err != nil {
-		return false, err
+		return "", err
 	}
 
-	foundPort = strings.TrimSpace(foundPort)
-	if foundPort == string(portName) {
-		return true, nil
+	portParts := util.SplitNTrimSpace(portInfo, ",", 2, false)
+	if len(portParts) == 2 {
+		if portParts[1] == string(portName) {
+			return portParts[0], nil
+		}
 	}
 
-	return false, nil
+	return "", nil
 }
 
 // LogicalSwitchPortAdd adds a named logical switch port to a logical switch.
