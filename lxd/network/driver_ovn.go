@@ -72,10 +72,12 @@ type OVNInstanceNICOpts struct {
 type OVNInstanceNICSetupOpts struct {
 	OVNInstanceNICOpts
 
-	UplinkConfig map[string]string
-	DNSName      string
-	MAC          net.HardwareAddr
-	IPs          []net.IP
+	UplinkConfig       map[string]string
+	DNSName            string
+	MAC                net.HardwareAddr
+	IPs                []net.IP
+	SecurityACLs       []string
+	SecurityACLsRemove []string
 }
 
 // ovn represents a LXD OVN network.
