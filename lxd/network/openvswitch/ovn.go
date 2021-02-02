@@ -1159,3 +1159,19 @@ func (o *OVN) PortGroupUUID(portGroupName OVNPortGroup) (OVNPortGroupUUID, error
 
 	return "", nil
 }
+
+// PortGroupAdd creates a new port group and optionally adds logical switch ports to the group.
+func (o *OVN) PortGroupAdd(portGroupName OVNPortGroup, initialPortMembers ...OVNSwitchPort) error {
+	args := []string{"pg-add", string(portGroupName)}
+
+	for _, portName := range initialPortMembers {
+		args = append(args, string(portName))
+	}
+
+	_, err := o.nbctl(args...)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
