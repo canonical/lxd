@@ -35,6 +35,12 @@ type OVNDNSUUID string
 // OVNDHCPOptionsUUID DHCP Options set UUID.
 type OVNDHCPOptionsUUID string
 
+// OVNPortGroup OVN port group name.
+type OVNPortGroup string
+
+// OVNPortGroupUUID OVN port group UUID.
+type OVNPortGroupUUID string
+
 // OVNIPAllocationOpts defines IP allocation settings that can be applied to a logical switch.
 type OVNIPAllocationOpts struct {
 	PrefixIPv4  *net.IPNet
@@ -1133,4 +1139,23 @@ func (o *OVN) ChassisGroupChassisDelete(haChassisGroupName OVNChassisGroup, chas
 	}
 
 	return nil
+}
+
+// PortGroupUUID returns the port group UUID or empty string if port doesn't exist.
+func (o *OVN) PortGroupUUID(portGroupName OVNPortGroup) (OVNPortGroupUUID, error) {
+	groupInfo, err := o.nbctl("--format=csv", "--no-headings", "--data=bare", "--colum=_uuid,name", "find", "port_group",
+		fmt.Sprintf("name=%s", string(portGroupName)),
+	)
+	if err != nil {
+		return "", err
+	}
+
+	groupParts := util.SplitNTrimSpace(groupInfo, ",", 2, false)
+	if len(groupParts) == 2 {
+		if groupParts[1] == string(portGroupName) {
+			return OVNPortGroupUUID(groupParts[0]), nil
+		}
+	}
+
+	return "", nil
 }
