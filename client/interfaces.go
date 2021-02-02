@@ -227,6 +227,7 @@ type InstanceServer interface {
 	DeleteNetwork(name string) (err error)
 
 	// Network ACL functions ("network_acl" API extension)
+	GetNetworkACLNames() (names []string, err error)
 	GetNetworkACLs() (acls []api.NetworkACL, err error)
 	GetNetworkACL(name string) (acl *api.NetworkACL, ETag string, err error)
 	CreateNetworkACL(acl api.NetworkACLsPost) (err error)
