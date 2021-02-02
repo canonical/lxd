@@ -2567,16 +2567,16 @@ func (n *ovn) InstanceDevicePortDynamicIPs(instanceUUID string, deviceName strin
 }
 
 // InstanceDevicePortDelete deletes an instance device port from the internal logical switch.
-func (n *ovn) InstanceDevicePortDelete(instanceUUID string, deviceName string, ovsExternalOVNPort openvswitch.OVNSwitchPort, internalRoutes []*net.IPNet, externalRoutes []*net.IPNet) error {
+func (n *ovn) InstanceDevicePortDelete(ovsExternalOVNPort openvswitch.OVNSwitchPort, opts *OVNInstanceNICOpts) error {
 	// Decide whether to use OVS provided OVN port name or internally derived OVN port name.
 	instancePortName := ovsExternalOVNPort
 	source := "OVS"
 	if ovsExternalOVNPort == "" {
-		if instanceUUID == "" {
+		if opts.InstanceUUID == "" {
 			return fmt.Errorf("Instance UUID is required")
 		}
 
-		instancePortName = n.getInstanceDevicePortName(instanceUUID, deviceName)
+		instancePortName = n.getInstanceDevicePortName(opts.InstanceUUID, opts.DeviceName)
 		source = "internal"
 	}
 
@@ -2626,7 +2626,7 @@ func (n *ovn) InstanceDevicePortDelete(instanceUUID string, deviceName string, o
 	}
 
 	// Delete each internal route.
-	for _, internalRoute := range internalRoutes {
+	for _, internalRoute := range opts.InternalRoutes {
 		err = client.LogicalRouterRouteDelete(n.getRouterName(), internalRoute, nil)
 		if err != nil {
 			return err
@@ -2634,7 +2634,7 @@ func (n *ovn) InstanceDevicePortDelete(instanceUUID string, deviceName string, o
 	}
 
 	// Delete each external route.
-	for _, externalRoute := range externalRoutes {
+	for _, externalRoute := range opts.ExternalRoutes {
 		err = client.LogicalRouterRouteDelete(n.getRouterName(), externalRoute, nil)
 		if err != nil {
 			return err
