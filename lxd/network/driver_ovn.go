@@ -2350,8 +2350,8 @@ func (n *ovn) InstanceDevicePortValidateExternalRoutes(deviceInstance instance.I
 }
 
 // InstanceDevicePortAdd adds an instance device port to the internal logical switch and returns the port name.
-func (n *ovn) InstanceDevicePortAdd(uplinkConfig map[string]string, instanceUUID string, instanceName string, deviceName string, mac net.HardwareAddr, ips []net.IP, internalRoutes []*net.IPNet, externalRoutes []*net.IPNet) (openvswitch.OVNSwitchPort, error) {
-	if instanceUUID == "" {
+func (n *ovn) InstanceDevicePortAdd(opts *OVNInstanceNICSetupOpts) (openvswitch.OVNSwitchPort, error) {
+	if opts.InstanceUUID == "" {
 		return "", fmt.Errorf("Instance UUID is required")
 	}
 
@@ -2394,9 +2394,9 @@ func (n *ovn) InstanceDevicePortAdd(uplinkConfig map[string]string, instanceUUID
 		// addresses have been added, then add an EUI64 static IPv6 address so that the switch port has an
 		// IPv6 address that will be used to generate a DNS record. This works around a limitation in OVN
 		// that prevents us requesting dynamic IPv6 address allocation when static IPv4 allocation is used.
-		if len(ips) > 0 {
+		if len(opts.IPs) > 0 {
 			hasIPv6 := false
-			for _, ip := range ips {
+			for _, ip := range opts.IPs {
 				if ip.To4() == nil {
 					hasIPv6 = true
 					break
@@ -2404,18 +2404,18 @@ func (n *ovn) InstanceDevicePortAdd(uplinkConfig map[string]string, instanceUUID
 			}
 
 			if !hasIPv6 {
-				eui64IP, err := eui64.ParseMAC(dhcpv6Subnet.IP, mac)
+				eui64IP, err := eui64.ParseMAC(dhcpv6Subnet.IP, opts.MAC)
 				if err != nil {
-					return "", errors.Wrapf(err, "Failed generating EUI64 for instance port %q", mac.String())
+					return "", errors.Wrapf(err, "Failed generating EUI64 for instance port %q", opts.MAC.String())
 				}
 
 				// Add EUI64 to list of static IPs for instance port.
-				ips = append(ips, eui64IP)
+				opts.IPs = append(opts.IPs, eui64IP)
 			}
 		}
 	}
 
-	instancePortName := n.getInstanceDevicePortName(instanceUUID, deviceName)
+	instancePortName := n.getInstanceDevicePortName(opts.InstanceUUID, opts.DeviceName)
 
 	// Add port with mayExist set to true, so that if instance port exists, we don't fail and continue below
 	// to configure the port as needed. This is required in case the OVN northbound database was unavailable
@@ -2431,15 +2431,15 @@ func (n *ovn) InstanceDevicePortAdd(uplinkConfig map[string]string, instanceUUID
 	err = client.LogicalSwitchPortSet(instancePortName, &openvswitch.OVNSwitchPortOpts{
 		DHCPv4OptsID: dhcpV4ID,
 		DHCPv6OptsID: dhcpv6ID,
-		MAC:          mac,
-		IPs:          ips,
+		MAC:          opts.MAC,
+		IPs:          opts.IPs,
 	})
 	if err != nil {
 		return "", err
 	}
 
 	// Add DNS records for port's IPs, and retrieve the IP addresses used.
-	dnsName := fmt.Sprintf("%s.%s", instanceName, n.getDomainName())
+	dnsName := fmt.Sprintf("%s.%s", opts.InstanceName, n.getDomainName())
 	var dnsUUID string
 	var dnsIPv4, dnsIPv6 net.IP
 
@@ -2460,7 +2460,7 @@ func (n *ovn) InstanceDevicePortAdd(uplinkConfig map[string]string, instanceUUID
 	revert.Add(func() { client.LogicalSwitchPortDeleteDNS(n.getIntSwitchName(), dnsUUID) })
 
 	// Publish NIC's IPs on uplink network if NAT is disabled and using l2proxy ingress mode on uplink.
-	if shared.StringInSlice(uplinkConfig["ovn.ingress_mode"], []string{"l2proxy", ""}) {
+	if shared.StringInSlice(opts.UplinkConfig["ovn.ingress_mode"], []string{"l2proxy", ""}) {
 		for _, k := range []string{"ipv4.nat", "ipv6.nat"} {
 			if shared.IsTrue(n.config[k]) {
 				continue
@@ -2488,7 +2488,7 @@ func (n *ovn) InstanceDevicePortAdd(uplinkConfig map[string]string, instanceUUID
 	}
 
 	// Add each internal route (using the IPs set for DNS as target).
-	for _, internalRoute := range internalRoutes {
+	for _, internalRoute := range opts.InternalRoutes {
 		targetIP := dnsIPv4
 		if internalRoute.IP.To4() == nil {
 			targetIP = dnsIPv6
@@ -2507,7 +2507,7 @@ func (n *ovn) InstanceDevicePortAdd(uplinkConfig map[string]string, instanceUUID
 	}
 
 	// Add each external route (using the IPs set for DNS as target).
-	for _, externalRoute := range externalRoutes {
+	for _, externalRoute := range opts.ExternalRoutes {
 		targetIP := dnsIPv4
 		if externalRoute.IP.To4() == nil {
 			targetIP = dnsIPv6
@@ -2529,7 +2529,7 @@ func (n *ovn) InstanceDevicePortAdd(uplinkConfig map[string]string, instanceUUID
 		// knowledge this is the only way to get the OVN router to respond to ARP/NDP requests for IPs that
 		// it doesn't actually have). However we have to add each IP in the external route individually as
 		// DNAT doesn't support whole subnets.
-		if shared.StringInSlice(uplinkConfig["ovn.ingress_mode"], []string{"l2proxy", ""}) {
+		if shared.StringInSlice(opts.UplinkConfig["ovn.ingress_mode"], []string{"l2proxy", ""}) {
 			err = SubnetIterate(externalRoute, func(ip net.IP) error {
 				err = client.LogicalRouterDNATSNATAdd(n.getRouterName(), ip, ip, true, true)
 				if err != nil {
