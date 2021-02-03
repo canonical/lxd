@@ -106,6 +106,16 @@ type OVNSwitchPortOpts struct {
 	DHCPv6OptsID OVNDHCPOptionsUUID // Optional, if empty, no DHCPv6 enabled on port.
 }
 
+// OVNACLRule represents an ACL rule that can be added to a logical switch or port group.
+type OVNACLRule struct {
+	Direction string // Either "from-lport" or "to-lport".
+	Action    string // Either "allow-related", "allow", "drop", or "reject".
+	Match     string // Match criteria. See OVN Southbound database's Logical_Flow table match column usage.
+	Priority  int    // Priority (between 0 and 32767, inclusive). Higher values take precedence.
+	Log       bool   // Whether or not to log matched packets.
+	LogName   string // Log label name (requires Log be true).
+}
+
 // NewOVN initialises new OVN wrapper.
 func NewOVN() *OVN {
 	return &OVN{}
