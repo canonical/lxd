@@ -1175,3 +1175,13 @@ func (o *OVN) PortGroupAdd(portGroupName OVNPortGroup, initialPortMembers ...OVN
 
 	return nil
 }
+
+// PortGroupMemberAdd adds a logical switch port (by UUID) to an existing port group.
+func (o *OVN) PortGroupMemberAdd(portGroupName OVNPortGroup, portMemberUUID OVNSwitchPortUUID) error {
+	_, err := o.nbctl("add", "port_group", string(portGroupName), "ports", string(portMemberUUID))
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
