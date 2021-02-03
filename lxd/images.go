@@ -1573,9 +1573,18 @@ func imageDelete(d *Daemon, r *http.Request) response.Response {
 		}
 
 		for _, pool := range pools {
-			err := doDeleteImageFromPool(d.State(), imgInfo.Fingerprint, pool)
-			if err != nil {
-				return err
+			isRemote := false
+			poolID, err := d.cluster.GetStoragePoolID(pool)
+			if err == nil {
+				isRemote, _ = d.cluster.IsRemoteStorage(poolID)
+			}
+
+			// Only perform the deletion of remote volumes on the server handling the request.
+			if !isRemote || isRemote && !isClusterNotification(r) {
+				err = doDeleteImageFromPool(d.State(), imgInfo.Fingerprint, pool)
+				if err != nil {
+					return err
+				}
 			}
 		}
 
