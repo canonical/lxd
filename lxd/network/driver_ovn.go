@@ -1766,7 +1766,7 @@ func (n *ovn) setup(update bool) error {
 	}
 
 	// Configure DHCP option sets.
-	var dhcpv4UUID, dhcpv6UUID string
+	var dhcpv4UUID, dhcpv6UUID openvswitch.OVNDHCPOptionsUUID
 	dhcpV4Subnet := n.DHCPv4Subnet()
 	dhcpV6Subnet := n.DHCPv6Subnet()
 
@@ -1777,7 +1777,8 @@ func (n *ovn) setup(update bool) error {
 			return errors.Wrapf(err, "Failed getting existing DHCP settings for internal switch")
 		}
 
-		var deleteDHCPRecords []string // DHCP option records to delete if DHCP is being disabled.
+		// DHCP option records to delete if DHCP is being disabled.
+		var deleteDHCPRecords []openvswitch.OVNDHCPOptionsUUID
 
 		for _, existingOpt := range existingOpts {
 			if existingOpt.CIDR.IP.To4() == nil {
@@ -2355,7 +2356,7 @@ func (n *ovn) InstanceDevicePortAdd(opts *OVNInstanceNICSetupOpts) (openvswitch.
 		return "", fmt.Errorf("Instance UUID is required")
 	}
 
-	var dhcpV4ID, dhcpv6ID string
+	var dhcpV4ID, dhcpv6ID openvswitch.OVNDHCPOptionsUUID
 
 	revert := revert.New()
 	defer revert.Fail()
@@ -2440,7 +2441,7 @@ func (n *ovn) InstanceDevicePortAdd(opts *OVNInstanceNICSetupOpts) (openvswitch.
 
 	// Add DNS records for port's IPs, and retrieve the IP addresses used.
 	dnsName := fmt.Sprintf("%s.%s", opts.InstanceName, n.getDomainName())
-	var dnsUUID string
+	var dnsUUID openvswitch.OVNDNSUUID
 	var dnsIPv4, dnsIPv6 net.IP
 
 	// Retry a few times in case port has not yet allocated dynamic IPs.
