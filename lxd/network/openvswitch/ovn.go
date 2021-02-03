@@ -1195,3 +1195,32 @@ func (o *OVN) PortGroupMemberAdd(portGroupName OVNPortGroup, portMemberUUID OVNS
 
 	return nil
 }
+
+// PortGroupSetACLRules applies a set of rules to the specified port group. Any existing rules are removed.
+func (o *OVN) PortGroupSetACLRules(portGroupName OVNPortGroup, aclRules ...OVNACLRule) error {
+	// Remove any existing rules.
+	_, err := o.nbctl("clear", "port_group", string(portGroupName), "acls")
+	if err != nil {
+		return err
+	}
+
+	// Add new rules.
+	for _, rule := range aclRules {
+		args := []string{"--type=port-group"}
+
+		if rule.Log {
+			args = append(args, "--log")
+
+			if rule.LogName != "" {
+				args = append(args, fmt.Sprintf("--name=%s", rule.LogName))
+			}
+		}
+
+		_, err := o.nbctl(append(args, "acl-add", string(portGroupName), rule.Direction, fmt.Sprintf("%d", rule.Priority), rule.Match, rule.Action)...)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
