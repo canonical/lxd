@@ -9,7 +9,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/digitalocean/go-qemu/qmp"
+	"github.com/stgraber/go-qemu/qmp"
 
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/logger"
@@ -274,6 +274,114 @@ func (m *Monitor) runCmd(cmd string) error {
 	if err != nil {
 		m.Disconnect()
 		return ErrMonitorDisconnect
+	}
+
+	return nil
+}
+
+// SendFile adds a new file to the QMP fd table.
+func (m *Monitor) SendFile(name string, file *os.File) error {
+	// Check if disconnected
+	if m.disconnected {
+		return ErrMonitorDisconnect
+	}
+
+	// Query the status.
+	_, err := m.qmp.RunWithFile([]byte(fmt.Sprintf("{'execute': 'getfd', 'arguments': {'fdname': '%s'}}", name)), file)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// Migrate starts a migration stream.
+func (m *Monitor) Migrate(uri string) error {
+	// Check if disconnected
+	if m.disconnected {
+		return ErrMonitorDisconnect
+	}
+
+	// Query the status.
+	_, err := m.qmp.Run([]byte(fmt.Sprintf("{'execute': 'migrate', 'arguments': {'uri': '%s'}}", uri)))
+	if err != nil {
+		return err
+	}
+
+	// Wait until it completes or fails.
+	for {
+		time.Sleep(1 * time.Second)
+
+		respRaw, err := m.qmp.Run([]byte("{'execute': 'query-migrate'}"))
+		if err != nil {
+			return err
+		}
+
+		// Process the response.
+		var respDecoded struct {
+			Return struct {
+				Status string `json:"status"`
+			} `json:"return"`
+		}
+
+		err = json.Unmarshal(respRaw, &respDecoded)
+		if err != nil {
+			return ErrMonitorBadReturn
+		}
+
+		if respDecoded.Return.Status == "failed" {
+			return fmt.Errorf("Migration call failed")
+		}
+
+		if respDecoded.Return.Status == "completed" {
+			break
+		}
+	}
+
+	return nil
+}
+
+// MigrateIncoming starts the receiver of a migration stream.
+func (m *Monitor) MigrateIncoming(uri string) error {
+	// Check if disconnected
+	if m.disconnected {
+		return ErrMonitorDisconnect
+	}
+
+	// Query the status.
+	_, err := m.qmp.Run([]byte(fmt.Sprintf("{'execute': 'migrate-incoming', 'arguments': {'uri': '%s'}}", uri)))
+	if err != nil {
+		return err
+	}
+
+	// Wait until it completes or fails.
+	for {
+		time.Sleep(1 * time.Second)
+
+		respRaw, err := m.qmp.Run([]byte("{'execute': 'query-migrate'}"))
+		if err != nil {
+			return err
+		}
+
+		// Process the response.
+		var respDecoded struct {
+			Return struct {
+				Status string `json:"status"`
+			} `json:"return"`
+		}
+
+		err = json.Unmarshal(respRaw, &respDecoded)
+		if err != nil {
+			return ErrMonitorBadReturn
+		}
+
+		if respDecoded.Return.Status == "failed" {
+			return fmt.Errorf("Migration call failed")
+		}
+
+		if respDecoded.Return.Status == "completed" {
+			break
+		}
 	}
 
 	return nil
