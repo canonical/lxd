@@ -137,13 +137,13 @@ func pciAddress(devicePath string) (string, error) {
 	// Track down the device.
 	linkTarget, err := filepath.EvalSymlinks(devicePath)
 	if err != nil {
-		return "", errors.Wrapf(err, "Failed to track down \"%s\"", devicePath)
+		return "", errors.Wrapf(err, "Failed to track down %q", devicePath)
 	}
 
 	// Extract the subsystem.
 	subsystemTarget, err := filepath.EvalSymlinks(filepath.Join(linkTarget, "subsystem"))
 	if err != nil {
-		return "", errors.Wrapf(err, "Failed to track down \"%s\"", filepath.Join(devicePath, "subsystem"))
+		return "", errors.Wrapf(err, "Failed to track down %q", filepath.Join(devicePath, "subsystem"))
 	}
 	subsystem := filepath.Base(subsystemTarget)
 
@@ -152,7 +152,7 @@ func pciAddress(devicePath string) (string, error) {
 		linkTarget = filepath.Dir(linkTarget)
 		subsystemTarget, err := filepath.EvalSymlinks(filepath.Join(linkTarget, "subsystem"))
 		if err != nil {
-			return "", errors.Wrapf(err, "Failed to track down \"%s\"", filepath.Join(devicePath, "subsystem"))
+			return "", errors.Wrapf(err, "Failed to track down %q", filepath.Join(devicePath, "subsystem"))
 		}
 
 		subsystem = filepath.Base(subsystemTarget)

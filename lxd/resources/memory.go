@@ -34,7 +34,7 @@ func parseMeminfo(path string) (*meminfo, error) {
 	// Open meminfo
 	f, err := os.Open(path)
 	if err != nil {
-		return nil, errors.Wrapf(err, "Failed to open \"%s\"", path)
+		return nil, errors.Wrapf(err, "Failed to open %q", path)
 	}
 	defer f.Close()
 	memInfo := bufio.NewScanner(f)
@@ -230,7 +230,7 @@ func GetMemory() (*api.ResourcesMemory, error) {
 		// List all the nodes
 		entries, err := ioutil.ReadDir(sysDevicesNode)
 		if err != nil {
-			return nil, errors.Wrapf(err, "Failed to list \"%s\"", sysDevicesNode)
+			return nil, errors.Wrapf(err, "Failed to list %q", sysDevicesNode)
 		}
 
 		// Iterate and add to our list
@@ -252,7 +252,7 @@ func GetMemory() (*api.ResourcesMemory, error) {
 			// Parse NUMA meminfo
 			info, err := parseMeminfo(filepath.Join(entryPath, "meminfo"))
 			if err != nil {
-				return nil, errors.Wrapf(err, "Failed to parse \"%s\"", filepath.Join(entryPath, "meminfo"))
+				return nil, errors.Wrapf(err, "Failed to parse %q", filepath.Join(entryPath, "meminfo"))
 			}
 
 			// Setup the entry
