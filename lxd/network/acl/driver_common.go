@@ -6,7 +6,9 @@ import (
 
 	"github.com/pkg/errors"
 
+	"github.com/lxc/lxd/lxd/cluster"
 	"github.com/lxc/lxd/lxd/db"
+	"github.com/lxc/lxd/lxd/network/openvswitch"
 	"github.com/lxc/lxd/lxd/project"
 	"github.com/lxc/lxd/lxd/state"
 	"github.com/lxc/lxd/lxd/util"
@@ -262,9 +264,25 @@ func (d *common) validateRule(direction ruleDirection, rule api.NetworkACLRule) 
 		return fmt.Errorf("State must be one of: %s", strings.Join(validStates, ", "))
 	}
 
+	// Get map of ACL names to DB IDs (used for generating OVN port group names).
+	acls, err := d.state.Cluster.GetNetworkACLIDsByNames(d.Project())
+	if err != nil {
+		return errors.Wrapf(err, "Failed getting network ACLs for security ACL subject validation")
+	}
+
+	aclNames := make([]string, len(acls))
+	for aclName := range acls {
+		aclNames = append(aclNames, aclName)
+	}
+
 	// Validate Source field.
 	if rule.Source != "" {
-		err := d.validateRuleSubjects(util.SplitNTrimSpace(rule.Source, ",", -1, false), nil)
+		var validACLNames []string
+		if direction == ruleDirectionIngress {
+			validACLNames = aclNames // ACL names are only allowed in ingress rule sources.
+		}
+
+		err := d.validateRuleSubjects(util.SplitNTrimSpace(rule.Source, ",", -1, false), validACLNames)
 		if err != nil {
 			return errors.Wrapf(err, "Invalid Source")
 		}
@@ -272,7 +290,12 @@ func (d *common) validateRule(direction ruleDirection, rule api.NetworkACLRule) 
 
 	// Validate Destination field.
 	if rule.Destination != "" {
-		err := d.validateRuleSubjects(util.SplitNTrimSpace(rule.Destination, ",", -1, false), nil)
+		var validACLNames []string
+		if direction == ruleDirectionEgress {
+			validACLNames = aclNames // ACL names are only allowed in egress rule destinations.
+		}
+
+		err := d.validateRuleSubjects(util.SplitNTrimSpace(rule.Destination, ",", -1, false), validACLNames)
 		if err != nil {
 			return errors.Wrapf(err, "Invalid Destination")
 		}
@@ -439,6 +462,66 @@ func (d *common) Update(config *api.NetworkACLPut) error {
 	// Apply changes internally and reinitialise.
 	d.info.NetworkACLPut = *config
 	d.init(d.state, d.id, d.projectName, d.info)
+
+	// OVN networks share ACL port group definitions so we only need to apply changes once for all OVN nets.
+	applyToOVN := false
+
+	// Find all networks and instance NICs that use this Network ACL and check if any are OVN.
+	err = UsedBy(d.state, d.projectName, func(_ []string, usageType interface{}, _ string, nicConfig map[string]string) error {
+		switch u := usageType.(type) {
+		case db.Instance, db.Profile:
+			_, network, _, err := d.state.Cluster.GetNetworkInAnyState(d.projectName, nicConfig["network"])
+			if err != nil {
+				return errors.Wrapf(err, "Failed to load network %q", nicConfig["network"])
+			}
+
+			if network.Type == "ovn" {
+				applyToOVN = true
+
+				// Only OVN networks support ACLs at this time so no need to search further.
+				return db.ErrInstanceListStop
+			}
+		case *api.Network:
+			if u.Type == "ovn" {
+				applyToOVN = true
+
+				// Only OVN networks support ACLs at this time so no need to search further.
+				return db.ErrInstanceListStop
+			}
+		case *api.NetworkACL:
+			return nil // Nothing to do for ACL rules referencing us.
+		default:
+			return fmt.Errorf("Unrecognised usage type %T", u)
+		}
+
+		return nil
+	}, d.Info().Name)
+	if err != nil && err != db.ErrInstanceListStop {
+		return errors.Wrapf(err, "Failed getting ACL usage")
+	}
+
+	if applyToOVN {
+		portGroupName := OVNACLPortGroupName(d.ID())
+		d.logger.Debug("Applying ACL rules to OVN port group", log.Ctx{"portGroup": portGroupName})
+		nbConnection, err := cluster.ConfigGetString(d.state.Cluster, "network.ovn.northbound_connection")
+		if err != nil {
+			return errors.Wrapf(err, "Failed to get OVN northbound connection string")
+		}
+
+		client := openvswitch.NewOVN()
+		client.SetDatabaseAddress(nbConnection)
+
+		// Get map of ACL names to DB IDs (used for generating OVN port group names).
+		acls, err := d.state.Cluster.GetNetworkACLIDsByNames(d.Project())
+		if err != nil {
+			return errors.Wrapf(err, "Failed getting network ACL IDs for security ACL update")
+		}
+
+		err = OVNApplyToPortGroup(d.state, client, d.info, portGroupName, acls)
+		if err != nil {
+			return errors.Wrapf(err, "Failed applying ACL %q rules to OVN port group %q", d.info.Name, portGroupName)
+		}
+	}
 
 	return nil
 }
