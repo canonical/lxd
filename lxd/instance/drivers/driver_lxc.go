@@ -5518,6 +5518,7 @@ func (d *lxc) Exec(req api.InstanceExecPost, stdin *os.File, stdout *os.File, st
 
 	attachedPid := shared.ReadPid(rStatus)
 	if attachedPid <= 0 {
+		cmd.Wait()
 		d.logger.Error("Failed to retrieve PID of executing child process")
 		return nil, fmt.Errorf("Failed to retrieve PID of executing child process")
 	}
