@@ -179,6 +179,10 @@ func UsedBy(s *state.State, networkProjectName string, networkName string, first
 					}
 
 					usedBy = append(usedBy, uri)
+
+					if firstOnly {
+						return usedBy, nil
+					}
 				}
 			}
 		}
