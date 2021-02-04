@@ -7,7 +7,6 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/lxc/lxd/lxd/db"
-	deviceConfig "github.com/lxc/lxd/lxd/device/config"
 	"github.com/lxc/lxd/lxd/project"
 	"github.com/lxc/lxd/lxd/state"
 	"github.com/lxc/lxd/lxd/util"
@@ -98,44 +97,26 @@ func (d *common) usedBy(firstOnly bool) ([]string, error) {
 	usedBy := []string{}
 
 	// Find all instance NICs that use this Network ACL.
-	err := d.state.Cluster.InstanceList(nil, func(inst db.Instance, p api.Project, profiles []api.Profile) error {
-		// Get the instance's effective network project name.
-		instNetworkProject := project.NetworkProjectFromRecord(&p)
-
-		// Skip instances who's effective network project doesn't match this Network ACL's project.
-		if d.Project() != instNetworkProject {
-			return nil
-		}
-
-		devices := db.ExpandInstanceDevices(deviceConfig.NewDevices(inst.Devices), profiles).CloneNative()
-
-		// Iterate through each of the instance's devices, looking for NICs that are linked this ACL.
-		for _, devConfig := range devices {
-			if devConfig["type"] != "nic" {
-				continue
+	err := UsedBy(d.state, d.projectName, d.Info().Name, func(usageType string, projectName string, name string, config map[string]string) error {
+		if usageType == "instance" {
+			uri := fmt.Sprintf("/%s/instances/%s", version.APIVersion, name)
+			if projectName != project.Default {
+				uri += fmt.Sprintf("?project=%s", projectName)
 			}
 
-			nicACLNames := util.SplitNTrimSpace(devConfig["security.acls"], ",", -1, true)
-			for _, nicACLName := range nicACLNames {
-				if nicACLName == d.Info().Name {
-					uri := fmt.Sprintf("/%s/instances/%s", version.APIVersion, inst.Name)
-					if inst.Project != project.Default {
-						uri += fmt.Sprintf("?project=%s", inst.Project)
-					}
+			usedBy = append(usedBy, uri)
 
-					usedBy = append(usedBy, uri)
-
-					if firstOnly {
-						return db.ErrInstanceListStop
-					}
-				}
+			if firstOnly {
+				return db.ErrInstanceListStop
 			}
+		} else {
+			return fmt.Errorf("Urecognised usage type %q", usageType)
 		}
 
 		return nil
 	})
 	if err != nil && err != db.ErrInstanceListStop {
-		return nil, errors.Wrapf(err, "Failed getting ACL users")
+		return nil, errors.Wrapf(err, "Failed getting ACL usage")
 	}
 
 	return usedBy, nil
