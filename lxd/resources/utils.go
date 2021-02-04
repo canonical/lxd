@@ -2,6 +2,7 @@ package resources
 
 import (
 	"encoding/hex"
+	"fmt"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -163,4 +164,46 @@ func pciAddress(devicePath string) (string, error) {
 
 	// Address is the last entry.
 	return filepath.Base(linkTarget), nil
+}
+
+// usbAddress returns the suspected USB address (bus:dev) for the device.
+func usbAddress(devicePath string) (string, error) {
+	// Resolve symlink.
+	devicePath, err := filepath.EvalSymlinks(devicePath)
+	if err != nil {
+		return "", errors.Wrap(err, "Failed to resolve device symlink")
+	}
+
+	// Check if it looks like a USB device.
+	if !strings.Contains(devicePath, "/usb") {
+		return "", nil
+	}
+
+	path := devicePath
+	for {
+		// Avoid infinite loops.
+		if path == "" || path == "/" {
+			return "", nil
+		}
+
+		// Check if we found a usb device path.
+		if !sysfsExists(filepath.Join(path, "busnum")) || !sysfsExists(filepath.Join(path, "devnum")) {
+			path = filepath.Dir(path)
+			continue
+		}
+
+		// Bus address.
+		bus, err := readUint(filepath.Join(path, "busnum"))
+		if err != nil {
+			return "", errors.Wrap(err, "Unable to parse USB bus addr")
+		}
+
+		// Device address.
+		dev, err := readUint(filepath.Join(path, "devnum"))
+		if err != nil {
+			return "", errors.Wrap(err, "Unable to parse USB device addr")
+		}
+
+		return fmt.Sprintf("%d:%d", bus, dev), nil
+	}
 }

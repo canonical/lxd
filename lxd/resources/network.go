@@ -60,8 +60,11 @@ func networkAddDeviceInfo(devicePath string, pciDB *pcidb.PCIDB, uname unix.Utsn
 	}
 
 	// USB address
-	usbAddr, err := findUSBAddress(devicePath)
-	if err == nil {
+	usbAddr, err := usbAddress(devicePath)
+	if err != nil {
+		return errors.Wrapf(err, "Failed to track down USB address for \"%s\"", devicePath)
+	}
+	if usbAddr != "" {
 		card.USBAddress = usbAddr
 	}
 
