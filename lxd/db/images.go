@@ -1041,7 +1041,7 @@ func (c *Cluster) CreateImage(project, fp string, fname string, sz int64, public
 
 // GetPoolsWithImage get the IDs of all storage pools on which a given image exists.
 func (c *Cluster) GetPoolsWithImage(imageFingerprint string) ([]int64, error) {
-	q := "SELECT storage_pool_id FROM storage_volumes WHERE node_id=? AND name=? AND type=?"
+	q := "SELECT storage_pool_id FROM storage_volumes WHERE (node_id=? OR node_id IS NULL) AND name=? AND type=?"
 	var ids []int
 	err := c.Transaction(func(tx *ClusterTx) error {
 		var err error

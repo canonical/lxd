@@ -129,7 +129,7 @@ SELECT DISTINCT node_id
 		volumes = append(volumes, nodeVolumes...)
 	}
 
-	isRemoteStorage, err := c.isRemoteStorage(poolID)
+	isRemoteStorage, err := c.IsRemoteStorage(poolID)
 	if err != nil {
 		return nil, err
 	}
@@ -281,7 +281,7 @@ func (c *Cluster) storagePoolVolumeGetType(project string, volumeName string, vo
 		return -1, nil, err
 	}
 
-	isRemoteStorage, err := c.isRemoteStorage(poolID)
+	isRemoteStorage, err := c.IsRemoteStorage(poolID)
 	if err != nil {
 		return -1, nil, err
 	}
