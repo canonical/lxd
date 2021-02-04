@@ -87,7 +87,7 @@ func getCPUCache(path string) ([]api.ResourcesCPUCache, error) {
 	// List all the caches
 	entries, err := ioutil.ReadDir(path)
 	if err != nil {
-		return nil, errors.Wrapf(err, "Failed to list \"%s\"", path)
+		return nil, errors.Wrapf(err, "Failed to list %q", path)
 	}
 
 	// Iterate and add to our list
@@ -106,7 +106,7 @@ func getCPUCache(path string) ([]api.ResourcesCPUCache, error) {
 		// Get the cache level
 		cacheLevel, err := readUint(filepath.Join(entryPath, "level"))
 		if err != nil {
-			return nil, errors.Wrapf(err, "Failed to read \"%s\"", filepath.Join(entryPath, "level"))
+			return nil, errors.Wrapf(err, "Failed to read %q", filepath.Join(entryPath, "level"))
 		}
 		cache.Level = cacheLevel
 
@@ -114,7 +114,7 @@ func getCPUCache(path string) ([]api.ResourcesCPUCache, error) {
 		content, err := ioutil.ReadFile(filepath.Join(entryPath, "size"))
 		if err != nil {
 			if !os.IsNotExist(err) {
-				return nil, errors.Wrapf(err, "Failed to read \"%s\"", filepath.Join(entryPath, "size"))
+				return nil, errors.Wrapf(err, "Failed to read %q", filepath.Join(entryPath, "size"))
 			}
 		} else {
 			cacheSizeStr := strings.TrimSpace(string(content))
@@ -138,7 +138,7 @@ func getCPUCache(path string) ([]api.ResourcesCPUCache, error) {
 		cacheType, err := ioutil.ReadFile(filepath.Join(entryPath, "type"))
 		if err != nil {
 			if !os.IsNotExist(err) {
-				return nil, errors.Wrapf(err, "Failed to read \"%s\"", filepath.Join(entryPath, "type"))
+				return nil, errors.Wrapf(err, "Failed to read %q", filepath.Join(entryPath, "type"))
 			}
 		} else {
 			cache.Type = strings.TrimSpace(string(cacheType))
@@ -207,7 +207,7 @@ func GetCPU() (*api.ResourcesCPU, error) {
 	// List all the CPUs
 	entries, err := ioutil.ReadDir(sysDevicesCPU)
 	if err != nil {
-		return nil, errors.Wrapf(err, "Failed to list \"%s\"", sysDevicesCPU)
+		return nil, errors.Wrapf(err, "Failed to list %q", sysDevicesCPU)
 	}
 
 	// Process all entries
@@ -224,17 +224,17 @@ func GetCPU() (*api.ResourcesCPU, error) {
 		// Get topology
 		cpuSocket, err := readUint(filepath.Join(entryPath, "topology", "physical_package_id"))
 		if err != nil && !os.IsNotExist(err) {
-			return nil, errors.Wrapf(err, "Failed to read \"%s\"", filepath.Join(entryPath, "topology", "physical_package_id"))
+			return nil, errors.Wrapf(err, "Failed to read %q", filepath.Join(entryPath, "topology", "physical_package_id"))
 		}
 
 		cpuCore, err := readUint(filepath.Join(entryPath, "topology", "core_id"))
 		if err != nil && !os.IsNotExist(err) {
-			return nil, errors.Wrapf(err, "Failed to read \"%s\"", filepath.Join(entryPath, "topology", "core_id"))
+			return nil, errors.Wrapf(err, "Failed to read %q", filepath.Join(entryPath, "topology", "core_id"))
 		}
 
 		cpuDie, err := readInt(filepath.Join(entryPath, "topology", "die_id"))
 		if err != nil && !os.IsNotExist(err) {
-			return nil, errors.Wrapf(err, "Failed to read \"%s\"", filepath.Join(entryPath, "topology", "die_id"))
+			return nil, errors.Wrapf(err, "Failed to read %q", filepath.Join(entryPath, "topology", "die_id"))
 		}
 
 		if cpuDie == -1 {
@@ -326,14 +326,14 @@ func GetCPU() (*api.ResourcesCPU, error) {
 			if sysfsExists(filepath.Join(entryPath, "cpufreq", "cpuinfo_min_freq")) {
 				freqMinimum, err := readUint(filepath.Join(entryPath, "cpufreq", "cpuinfo_min_freq"))
 				if err != nil {
-					return nil, errors.Wrapf(err, "Failed to read \"%s\"", filepath.Join(entryPath, "cpufreq", "cpuinfo_min_freq"))
+					return nil, errors.Wrapf(err, "Failed to read %q", filepath.Join(entryPath, "cpufreq", "cpuinfo_min_freq"))
 				}
 
 				resSocket.FrequencyMinimum = freqMinimum / 1000
 			} else if sysfsExists(filepath.Join(entryPath, "cpufreq", "scaling_min_freq")) {
 				freqMinimum, err := readUint(filepath.Join(entryPath, "cpufreq", "scaling_min_freq"))
 				if err != nil {
-					return nil, errors.Wrapf(err, "Failed to read \"%s\"", filepath.Join(entryPath, "cpufreq", "scaling_min_freq"))
+					return nil, errors.Wrapf(err, "Failed to read %q", filepath.Join(entryPath, "cpufreq", "scaling_min_freq"))
 				}
 
 				resSocket.FrequencyMinimum = freqMinimum / 1000
@@ -342,14 +342,14 @@ func GetCPU() (*api.ResourcesCPU, error) {
 			if sysfsExists(filepath.Join(entryPath, "cpufreq", "cpuinfo_max_freq")) {
 				freqTurbo, err := readUint(filepath.Join(entryPath, "cpufreq", "cpuinfo_max_freq"))
 				if err != nil {
-					return nil, errors.Wrapf(err, "Failed to read \"%s\"", filepath.Join(entryPath, "cpufreq", "cpuinfo_max_freq"))
+					return nil, errors.Wrapf(err, "Failed to read %q", filepath.Join(entryPath, "cpufreq", "cpuinfo_max_freq"))
 				}
 
 				resSocket.FrequencyTurbo = freqTurbo / 1000
 			} else if sysfsExists(filepath.Join(entryPath, "cpufreq", "scaling_max_freq")) {
 				freqTurbo, err := readUint(filepath.Join(entryPath, "cpufreq", "scaling_max_freq"))
 				if err != nil {
-					return nil, errors.Wrapf(err, "Failed to read \"%s\"", filepath.Join(entryPath, "cpufreq", "scaling_max_freq"))
+					return nil, errors.Wrapf(err, "Failed to read %q", filepath.Join(entryPath, "cpufreq", "scaling_max_freq"))
 				}
 
 				resSocket.FrequencyTurbo = freqTurbo / 1000
@@ -376,7 +376,7 @@ func GetCPU() (*api.ResourcesCPU, error) {
 			if sysfsExists(filepath.Join(entryPath, "cpufreq", "scaling_cur_freq")) {
 				freqCurrent, err := readUint(filepath.Join(entryPath, "cpufreq", "scaling_cur_freq"))
 				if err != nil {
-					return nil, errors.Wrapf(err, "Failed to read \"%s\"", filepath.Join(entryPath, "cpufreq", "scaling_cur_freq"))
+					return nil, errors.Wrapf(err, "Failed to read %q", filepath.Join(entryPath, "cpufreq", "scaling_cur_freq"))
 				}
 
 				resCore.Frequency = freqCurrent / 1000
@@ -400,7 +400,7 @@ func GetCPU() (*api.ResourcesCPU, error) {
 		if sysfsExists(filepath.Join(entryPath, "online")) {
 			online, err := readUint(filepath.Join(entryPath, "online"))
 			if err != nil {
-				return nil, errors.Wrapf(err, "Failed to read \"%s\"", filepath.Join(entryPath, "online"))
+				return nil, errors.Wrapf(err, "Failed to read %q", filepath.Join(entryPath, "online"))
 			}
 
 			if online == 0 {
