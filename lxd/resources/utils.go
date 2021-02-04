@@ -7,6 +7,8 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+
+	"github.com/pkg/errors"
 )
 
 var sysBusPci = "/sys/bus/pci/devices"
@@ -123,4 +125,42 @@ func udevDecode(s string) (string, error) {
 	}
 
 	return ret, nil
+}
+
+func pciAddress(devicePath string) (string, error) {
+	// Check if we have a subsystem listed at all.
+	if !sysfsExists(filepath.Join(devicePath, "subsystem")) {
+		return "", nil
+	}
+
+	// Track down the device.
+	linkTarget, err := filepath.EvalSymlinks(devicePath)
+	if err != nil {
+		return "", errors.Wrapf(err, "Failed to track down \"%s\"", devicePath)
+	}
+
+	// Extract the subsystem.
+	subsystemTarget, err := filepath.EvalSymlinks(filepath.Join(linkTarget, "subsystem"))
+	if err != nil {
+		return "", errors.Wrapf(err, "Failed to track down \"%s\"", filepath.Join(devicePath, "subsystem"))
+	}
+	subsystem := filepath.Base(subsystemTarget)
+
+	if subsystem == "virtio" {
+		// If virtio, consider the parent.
+		linkTarget = filepath.Dir(linkTarget)
+		subsystemTarget, err := filepath.EvalSymlinks(filepath.Join(linkTarget, "subsystem"))
+		if err != nil {
+			return "", errors.Wrapf(err, "Failed to track down \"%s\"", filepath.Join(devicePath, "subsystem"))
+		}
+
+		subsystem = filepath.Base(subsystemTarget)
+	}
+
+	if subsystem != "pci" {
+		return "", nil
+	}
+
+	// Address is the last entry.
+	return filepath.Base(linkTarget), nil
 }
