@@ -161,28 +161,12 @@ func GetStorage() (*api.ResourcesStorage, error) {
 			disk.Device = strings.TrimSpace(string(diskDev))
 
 			// PCI address
-			deviceDevicePath := filepath.Join(devicePath, "device")
-			if sysfsExists(deviceDevicePath) {
-				linkTarget, err := filepath.EvalSymlinks(deviceDevicePath)
-				if err != nil {
-					return nil, errors.Wrapf(err, "Failed to track down \"%s\"", deviceDevicePath)
-				}
-
-				if strings.Contains(linkTarget, "/pci") && sysfsExists(filepath.Join(deviceDevicePath, "subsystem")) {
-					virtio := strings.HasPrefix(filepath.Base(linkTarget), "virtio")
-					if virtio {
-						linkTarget = filepath.Dir(linkTarget)
-					}
-
-					subsystem, err := filepath.EvalSymlinks(filepath.Join(deviceDevicePath, "subsystem"))
-					if err != nil {
-						return nil, errors.Wrapf(err, "Failed to track down \"%s\"", filepath.Join(deviceDevicePath, "subsystem"))
-					}
-
-					if filepath.Base(subsystem) == "pci" || virtio {
-						disk.PCIAddress = filepath.Base(linkTarget)
-					}
-				}
+			pciAddr, err := pciAddress(devicePath)
+			if err != nil {
+				return nil, errors.Wrapf(err, "Failed to track down PCI address for \"%s\"", devicePath)
+			}
+			if pciAddr != "" {
+				disk.PCIAddress = pciAddr
 			}
 
 			// USB address

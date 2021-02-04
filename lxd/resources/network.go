@@ -308,33 +308,20 @@ func GetNetwork() (*api.ResourcesNetwork, error) {
 			// Setup the entry
 			card := api.ResourcesNetworkCard{}
 
-			// PCI address
-			linkTarget, err := filepath.EvalSymlinks(devicePath)
+			// PCI address.
+			pciAddr, err := pciAddress(devicePath)
 			if err != nil {
-				return nil, errors.Wrapf(err, "Failed to track down \"%s\"", devicePath)
+				return nil, errors.Wrapf(err, "Failed to track down PCI address for \"%s\"", devicePath)
 			}
+			if pciAddr != "" {
+				card.PCIAddress = pciAddr
 
-			if strings.Contains(linkTarget, "/pci") && sysfsExists(filepath.Join(devicePath, "subsystem")) {
-				virtio := strings.HasPrefix(filepath.Base(linkTarget), "virtio")
-				if virtio {
-					linkTarget = filepath.Dir(linkTarget)
+				// Skip devices we already know about
+				if stringInSlice(card.PCIAddress, pciKnown) {
+					continue
 				}
 
-				subsystem, err := filepath.EvalSymlinks(filepath.Join(devicePath, "subsystem"))
-				if err != nil {
-					return nil, errors.Wrapf(err, "Failed to track down \"%s\"", filepath.Join(devicePath, "subsystem"))
-				}
-
-				if filepath.Base(subsystem) == "pci" || virtio {
-					card.PCIAddress = filepath.Base(linkTarget)
-
-					// Skip devices we already know about
-					if stringInSlice(card.PCIAddress, pciKnown) {
-						continue
-					}
-
-					pciKnown = append(pciKnown, card.PCIAddress)
-				}
+				pciKnown = append(pciKnown, card.PCIAddress)
 			}
 
 			// Add device information for PFs
