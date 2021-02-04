@@ -22,6 +22,7 @@ import (
 	deviceConfig "github.com/lxc/lxd/lxd/device/config"
 	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/locking"
+	"github.com/lxc/lxd/lxd/network/acl"
 	"github.com/lxc/lxd/lxd/network/openvswitch"
 	"github.com/lxc/lxd/lxd/project"
 	"github.com/lxc/lxd/lxd/revert"
@@ -1886,6 +1887,12 @@ func (n *ovn) setup(update bool) error {
 	err = client.LogicalSwitchPortLinkRouter(n.getIntSwitchRouterPortName(), n.getRouterIntPortName())
 	if err != nil {
 		return errors.Wrapf(err, "Failed linking internal router port to internal switch port")
+	}
+
+	// Apply baseline ACL rules to internal logical switch.
+	err = acl.OVNApplyNetworkBaselineRules(client, n.getIntSwitchName(), n.getIntSwitchRouterPortName(), intRouterIPs, append(uplinkNet.dnsIPv4, uplinkNet.dnsIPv6...))
+	if err != nil {
+		return errors.Wrapf(err, "Failed applying baseline ACL rules to internal switch")
 	}
 
 	revert.Success()
