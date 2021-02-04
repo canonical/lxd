@@ -2,11 +2,14 @@ package resources
 
 import (
 	"encoding/hex"
+	"fmt"
 	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
+
+	"github.com/pkg/errors"
 )
 
 var sysBusPci = "/sys/bus/pci/devices"
@@ -123,4 +126,84 @@ func udevDecode(s string) (string, error) {
 	}
 
 	return ret, nil
+}
+
+func pciAddress(devicePath string) (string, error) {
+	// Check if we have a subsystem listed at all.
+	if !sysfsExists(filepath.Join(devicePath, "subsystem")) {
+		return "", nil
+	}
+
+	// Track down the device.
+	linkTarget, err := filepath.EvalSymlinks(devicePath)
+	if err != nil {
+		return "", errors.Wrapf(err, "Failed to track down %q", devicePath)
+	}
+
+	// Extract the subsystem.
+	subsystemTarget, err := filepath.EvalSymlinks(filepath.Join(linkTarget, "subsystem"))
+	if err != nil {
+		return "", errors.Wrapf(err, "Failed to track down %q", filepath.Join(devicePath, "subsystem"))
+	}
+	subsystem := filepath.Base(subsystemTarget)
+
+	if subsystem == "virtio" {
+		// If virtio, consider the parent.
+		linkTarget = filepath.Dir(linkTarget)
+		subsystemTarget, err := filepath.EvalSymlinks(filepath.Join(linkTarget, "subsystem"))
+		if err != nil {
+			return "", errors.Wrapf(err, "Failed to track down %q", filepath.Join(devicePath, "subsystem"))
+		}
+
+		subsystem = filepath.Base(subsystemTarget)
+	}
+
+	if subsystem != "pci" {
+		return "", nil
+	}
+
+	// Address is the last entry.
+	return filepath.Base(linkTarget), nil
+}
+
+// usbAddress returns the suspected USB address (bus:dev) for the device.
+func usbAddress(devicePath string) (string, error) {
+	// Resolve symlink.
+	devicePath, err := filepath.EvalSymlinks(devicePath)
+	if err != nil {
+		return "", errors.Wrap(err, "Failed to resolve device symlink")
+	}
+
+	// Check if it looks like a USB device.
+	if !strings.Contains(devicePath, "/usb") {
+		return "", nil
+	}
+
+	path := devicePath
+	for {
+		// Avoid infinite loops.
+		if path == "" || path == "/" {
+			return "", nil
+		}
+
+		// Check if we found a usb device path.
+		if !sysfsExists(filepath.Join(path, "busnum")) || !sysfsExists(filepath.Join(path, "devnum")) {
+			path = filepath.Dir(path)
+			continue
+		}
+
+		// Bus address.
+		bus, err := readUint(filepath.Join(path, "busnum"))
+		if err != nil {
+			return "", errors.Wrap(err, "Unable to parse USB bus addr")
+		}
+
+		// Device address.
+		dev, err := readUint(filepath.Join(path, "devnum"))
+		if err != nil {
+			return "", errors.Wrap(err, "Unable to parse USB device addr")
+		}
+
+		return fmt.Sprintf("%d:%d", bus, dev), nil
+	}
 }
