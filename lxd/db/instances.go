@@ -321,6 +321,9 @@ SELECT instances.name, nodes.id, nodes.address, nodes.heartbeat
 	return result, nil
 }
 
+// ErrInstanceListStop used as return value from InstanceList's instanceFunc when prematurely stopping the search.
+var ErrInstanceListStop = fmt.Errorf("search stopped")
+
 // InstanceList loads all instances across all projects and for each instance runs the instanceFunc passing in the
 // instance and it's project and profiles. Accepts optional filter argument to specify a subset of instances.
 func (c *Cluster) InstanceList(filter *InstanceFilter, instanceFunc func(inst Instance, project api.Project, profiles []api.Profile) error) error {
