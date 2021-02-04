@@ -1186,6 +1186,28 @@ func (o *OVN) PortGroupAdd(portGroupName OVNPortGroup, initialPortMembers ...OVN
 	return nil
 }
 
+// PortGroupDelete deletes a port group and all ACLs associated to it.
+func (o *OVN) PortGroupDelete(portGroupName OVNPortGroup) error {
+	// ovn-nbctl doesn't provide an "--if-exists" option for removing port groups.
+	uuid, err := o.PortGroupUUID(portGroupName)
+	if err != nil {
+		return err
+	}
+
+	// Nothing to do if port group doesn't exist.
+	if uuid == "" {
+		return nil
+	}
+
+	// Delete port group.
+	_, err = o.nbctl("pg-del", string(portGroupName))
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
 // PortGroupMemberAdd adds a logical switch port (by UUID) to an existing port group.
 func (o *OVN) PortGroupMemberAdd(portGroupName OVNPortGroup, portMemberUUID OVNSwitchPortUUID) error {
 	_, err := o.nbctl("add", "port_group", string(portGroupName), "ports", string(portMemberUUID))
