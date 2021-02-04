@@ -7,8 +7,8 @@ msgid ""
 msgstr ""
 "Project-Id-Version: LXD\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2021-02-02 09:12-0500\n"
-"PO-Revision-Date: 2020-11-22 10:56+0000\n"
+"POT-Creation-Date: 2021-02-02 09:41-0500\n"
+"PO-Revision-Date: 2021-02-02 15:21+0000\n"
 "Last-Translator: KATOH Yasufumi <karma@jazz.email.ne.jp>\n"
 "Language-Team: Japanese <https://hosted.weblate.org/projects/linux-"
 "containers/lxd/ja/>\n"
@@ -17,7 +17,7 @@ msgstr ""
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=1; plural=0;\n"
-"X-Generator: Weblate 4.4-dev\n"
+"X-Generator: Weblate 4.5-dev\n"
 
 #: lxc/storage.go:225
 msgid ""
@@ -354,9 +354,8 @@ msgid "--instance-only can't be passed when the source is a snapshot"
 msgstr "--instance-only はコピー元がスナップショットの場合は指定できません"
 
 #: lxc/query.go:71
-#, fuzzy
 msgid "--project cannot be used with the query command"
-msgstr "--target はインスタンスでは使えません"
+msgstr "--project は query コマンドでは使えません"
 
 #: lxc/copy.go:162
 msgid "--refresh can only be used with instances"
@@ -815,9 +814,8 @@ msgstr ""
 "コマンドのヘルプは、--help をコマンドに付けて実行するだけです。"
 
 #: lxc/export.go:43 lxc/publish.go:38
-#, fuzzy
 msgid "Compression algorithm to use (`none` for uncompressed)"
-msgstr "圧縮アルゴリズムを指定します: 圧縮アルゴリズム名 or none"
+msgstr "圧縮アルゴリズムを指定します: (圧縮しない場合は `none`)"
 
 #: lxc/copy.go:44 lxc/init.go:48
 msgid "Config key/value to apply to the new instance"
@@ -1244,7 +1242,6 @@ msgid "EXPIRY DATE"
 msgstr "EXPIRY DATE"
 
 #: lxc/file.go:63
-#, fuzzy
 msgid ""
 "Early server side processing of file transfer requests cannot be canceled "
 "(interrupt two more times to force)"
@@ -1545,9 +1542,8 @@ msgid "Format (csv|json|table|yaml)"
 msgstr "フォーマット (csv|json|table|yaml)"
 
 #: lxc/manpage.go:25
-#, fuzzy
 msgid "Format (man|md|rest|yaml)"
-msgstr "フォーマット (csv|json|table|yaml)"
+msgstr "フォーマット (man|md|rest|yaml)"
 
 #: lxc/info.go:354 lxc/info.go:365 lxc/info.go:369 lxc/info.go:375
 #, c-format
@@ -1581,9 +1577,8 @@ msgid "Generating a client certificate. This may take a minute..."
 msgstr "クライアント証明書を生成します。1分ぐらいかかります..."
 
 #: lxc/image.go:1420 lxc/image.go:1421
-#, fuzzy
 msgid "Get image properties"
-msgstr "イメージのプロパティを編集します"
+msgstr "イメージのプロパティを取得します"
 
 #: lxc/network.go:741 lxc/network.go:742
 msgid "Get runtime information on networks"
@@ -2911,7 +2906,7 @@ msgstr "プロパティ:"
 
 #: lxc/image.go:1456
 msgid "Property not found"
-msgstr ""
+msgstr "プロパティが見つかりません"
 
 #: lxc/remote.go:99
 msgid "Public image server"
@@ -3127,7 +3122,6 @@ msgid "Restore instances from snapshots"
 msgstr "スナップショットからインスタンスをリストアします"
 
 #: lxc/restore.go:24
-#, fuzzy
 msgid ""
 "Restore instances from snapshots\n"
 "\n"
@@ -3246,9 +3240,8 @@ msgstr ""
 "    lxc profile device set [<remote>:]<profile> <device> <key> <value>"
 
 #: lxc/image.go:1472 lxc/image.go:1473
-#, fuzzy
 msgid "Set image properties"
-msgstr "イメージのプロパティを編集します"
+msgstr "イメージのプロパティを設定します"
 
 #: lxc/config.go:451
 msgid "Set instance or server configuration keys"
@@ -3622,27 +3615,24 @@ msgid "The --instance-only flag can't be used with --target"
 msgstr "--instance-only と --target は同時に指定できません"
 
 #: lxc/move.go:197
-#, fuzzy
 msgid "The --mode flag can't be used with --storage"
-msgstr "--mode と --target は同時に指定できません"
+msgstr "--mode と --storage は同時に指定できません"
 
 #: lxc/move.go:168
 msgid "The --mode flag can't be used with --target"
 msgstr "--mode と --target は同時に指定できません"
 
 #: lxc/move.go:193
-#, fuzzy
 msgid "The --stateless flag can't be used with --storage"
-msgstr "--stateless と --target は同時に指定できません"
+msgstr "--stateless と --storage は同時に指定できません"
 
 #: lxc/move.go:156
 msgid "The --stateless flag can't be used with --target"
 msgstr "--stateless と --target は同時に指定できません"
 
 #: lxc/move.go:164
-#, fuzzy
 msgid "The --storage flag can't be used with --target"
-msgstr "--mode と --target は同時に指定できません"
+msgstr "--storage と --target は同時に指定できません"
 
 #: lxc/move.go:180
 msgid "The destination LXD server is not clustered"
@@ -3872,9 +3862,8 @@ msgid "Unset device configuration keys"
 msgstr "デバイスの設定を削除します"
 
 #: lxc/image.go:1528 lxc/image.go:1529
-#, fuzzy
 msgid "Unset image properties"
-msgstr "イメージのプロパティを編集します"
+msgstr "イメージのプロパティを削除します"
 
 #: lxc/config.go:733 lxc/config.go:734
 msgid "Unset instance or server configuration keys"
@@ -4068,14 +4057,12 @@ msgid "[<remote>:]<image>"
 msgstr "[<remote>:]<image>"
 
 #: lxc/image.go:1419 lxc/image.go:1527
-#, fuzzy
 msgid "[<remote>:]<image> <key>"
-msgstr "[<remote>:]<image>"
+msgstr "[<remote>:]<image> <key>"
 
 #: lxc/image.go:1471
-#, fuzzy
 msgid "[<remote>:]<image> <key> <value>"
-msgstr "[<remote>:]<pool> <key> <value>"
+msgstr "[<remote>:]<image> <key> <value>"
 
 #: lxc/image.go:138
 msgid "[<remote>:]<image> <remote>:"
@@ -4442,7 +4429,7 @@ msgid ""
 "    Remove the \"my-list\" alias."
 msgstr ""
 "lxc alias remove my-list\n"
-"    \"my-list\" というエイリアスを削除します。"
+"     \"my-list\" というエイリアスを削除します。"
 
 #: lxc/alias.go:146
 msgid ""
