@@ -742,6 +742,35 @@ func (o *OVN) logicalSwitchDNSRecordsDelete(switchName OVNSwitch) error {
 	return nil
 }
 
+// LogicalSwitchSetACLRules applies a set of rules to the specified logical switch. Any existing rules are removed.
+func (o *OVN) LogicalSwitchSetACLRules(switchName OVNSwitch, aclRules ...OVNACLRule) error {
+	// Remove any existing rules.
+	_, err := o.nbctl("clear", "logical_switch", string(switchName), "acls")
+	if err != nil {
+		return err
+	}
+
+	// Add new rules.
+	for _, rule := range aclRules {
+		args := []string{"--type=switch"}
+
+		if rule.Log {
+			args = append(args, "--log")
+
+			if rule.LogName != "" {
+				args = append(args, fmt.Sprintf("--name=%s", rule.LogName))
+			}
+		}
+
+		_, err := o.nbctl(append(args, "acl-add", string(switchName), rule.Direction, fmt.Sprintf("%d", rule.Priority), rule.Match, rule.Action)...)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
 // LogicalSwitchPortUUID returns the logical switch port UUID or empty string if port doesn't exist.
 func (o *OVN) LogicalSwitchPortUUID(portName OVNSwitchPort) (OVNSwitchPortUUID, error) {
 	portInfo, err := o.nbctl("--format=csv", "--no-headings", "--data=bare", "--colum=_uuid,name", "find", "logical_switch_port",
