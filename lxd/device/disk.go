@@ -178,6 +178,17 @@ func (d *disk) validateConfig(instConf instance.ConfigReader) error {
 	}
 
 	if d.config["pool"] != "" {
+		if d.inst != nil && !d.inst.IsSnapshot() {
+			_, pool, _, err := d.state.Cluster.GetStoragePoolInAnyState(d.config["pool"])
+			if err != nil {
+				return fmt.Errorf("Failed to get storage pool %q: %s", d.config["pool"], err)
+			}
+
+			if pool.Status == "Pending" {
+				return fmt.Errorf("Pool %q is pending", d.config["pool"])
+			}
+		}
+
 		if d.config["shift"] != "" {
 			return fmt.Errorf(`The "shift" property cannot be used with custom storage volumes`)
 		}
