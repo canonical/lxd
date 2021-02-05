@@ -76,6 +76,22 @@ func Connect(path string, serialCharDev string, eventHandler func(name string, d
 	return monitor, nil
 }
 
+func (m *Monitor) ping() error {
+	// Check if disconnected
+	if m.disconnected {
+		return ErrMonitorDisconnect
+	}
+
+	// Query the capabilities to validate the monitor.
+	_, err := m.qmp.Run([]byte("{'execute': 'query-version'}"))
+	if err != nil {
+		m.Disconnect()
+		return ErrMonitorDisconnect
+	}
+
+	return nil
+}
+
 func (m *Monitor) run() error {
 	// Ringbuffer monitoring function.
 	checkBuffer := func() {
