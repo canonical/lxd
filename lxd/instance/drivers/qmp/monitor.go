@@ -35,28 +35,19 @@ type Monitor struct {
 func (m *Monitor) start() error {
 	// Ringbuffer monitoring function.
 	checkBuffer := func() {
-		// Read the ringbuffer.
-		resp, err := m.qmp.Run([]byte(fmt.Sprintf(`{"execute": "ringbuf-read", "arguments": {"device": "%s", "size": %d, "format": "utf8"}}`, m.serialCharDev, RingbufSize)))
-		if err != nil {
-			// Failure to send a command, assume disconnected/crashed.
-			m.Disconnect()
-			return
-		}
-
-		// Decode the response.
-		var respDecoded struct {
+		// Prepare the response.
+		var resp struct {
 			Return string `json:"return"`
 		}
 
-		err = json.Unmarshal(resp, &respDecoded)
+		// Read the ringbuffer.
+		err := m.run("ringbuf-read", fmt.Sprintf("{'device': '%s', 'size': %d, 'format': 'utf8'}", m.serialCharDev, RingbufSize), &resp)
 		if err != nil {
-			// Received bad data, assume disconnected/crashed.
-			m.Disconnect()
 			return
 		}
 
 		// Extract the last entry.
-		entries := strings.Split(respDecoded.Return, "\n")
+		entries := strings.Split(resp.Return, "\n")
 		if len(entries) > 1 {
 			status := entries[len(entries)-2]
 
@@ -132,18 +123,43 @@ func (m *Monitor) ping() error {
 	return nil
 }
 
-// runCmd executes a command.
-func (m *Monitor) runCmd(cmd string) error {
+// run executes a command.
+func (m *Monitor) run(cmd string, args string, resp interface{}) error {
 	// Check if disconnected
 	if m.disconnected {
 		return ErrMonitorDisconnect
 	}
 
-	// Query the status.
-	_, err := m.qmp.Run([]byte(fmt.Sprintf("{'execute': '%s'}", cmd)))
+	// Run the command.
+	var out []byte
+	var err error
+	if args == "" {
+		out, err = m.qmp.Run([]byte(fmt.Sprintf("{'execute': '%s'}", cmd)))
+	} else {
+		out, err = m.qmp.Run([]byte(fmt.Sprintf("{'execute': '%s', 'arguments': %s}", cmd, args)))
+	}
 	if err != nil {
-		m.Disconnect()
-		return ErrMonitorDisconnect
+		// Confirm the daemon didn't die.
+		errPing := m.ping()
+		if errPing != nil {
+			return errPing
+		}
+
+		return err
+	}
+
+	// Decode the response if needed.
+	if resp != nil {
+		err = json.Unmarshal(out, &resp)
+		if err != nil {
+			// Confirm the daemon didn't die.
+			errPing := m.ping()
+			if errPing != nil {
+				return errPing
+			}
+
+			return ErrMonitorBadReturn
+		}
 	}
 
 	return nil
