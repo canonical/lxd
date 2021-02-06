@@ -4,14 +4,12 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"os"
 	"strings"
 	"sync"
 	"time"
 
-	"github.com/digitalocean/go-qemu/qmp"
+	"github.com/stgraber/go-qemu/qmp"
 
-	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/logger"
 )
 
@@ -33,74 +31,23 @@ type Monitor struct {
 	serialCharDev string
 }
 
-// Connect creates or retrieves an existing QMP monitor for the path.
-func Connect(path string, serialCharDev string, eventHandler func(name string, data map[string]interface{})) (*Monitor, error) {
-	monitorsLock.Lock()
-	defer monitorsLock.Unlock()
-
-	// Look for an existing monitor.
-	monitor, ok := monitors[path]
-	if ok {
-		monitor.eventHandler = eventHandler
-		return monitor, nil
-	}
-
-	// Setup the connection.
-	qmpConn, err := qmp.NewSocketMonitor("unix", path, time.Second)
-	if err != nil {
-		return nil, err
-	}
-
-	err = qmpConn.Connect()
-	if err != nil {
-		return nil, err
-	}
-
-	// Setup the monitor struct.
-	monitor = &Monitor{}
-	monitor.path = path
-	monitor.qmp = qmpConn
-	monitor.chDisconnect = make(chan struct{}, 1)
-	monitor.eventHandler = eventHandler
-	monitor.serialCharDev = serialCharDev
-
-	// Spawn goroutines.
-	err = monitor.run()
-	if err != nil {
-		return nil, err
-	}
-
-	// Register in global map.
-	monitors[path] = monitor
-
-	return monitor, nil
-}
-
-func (m *Monitor) run() error {
+// start handles the background goroutines for event handling and monitoring the ringbuffer
+func (m *Monitor) start() error {
 	// Ringbuffer monitoring function.
 	checkBuffer := func() {
-		// Read the ringbuffer.
-		resp, err := m.qmp.Run([]byte(fmt.Sprintf(`{"execute": "ringbuf-read", "arguments": {"device": "%s", "size": %d, "format": "utf8"}}`, m.serialCharDev, RingbufSize)))
-		if err != nil {
-			// Failure to send a command, assume disconnected/crashed.
-			m.Disconnect()
-			return
-		}
-
-		// Decode the response.
-		var respDecoded struct {
+		// Prepare the response.
+		var resp struct {
 			Return string `json:"return"`
 		}
 
-		err = json.Unmarshal(resp, &respDecoded)
+		// Read the ringbuffer.
+		err := m.run("ringbuf-read", fmt.Sprintf("{'device': '%s', 'size': %d, 'format': 'utf8'}", m.serialCharDev, RingbufSize), &resp)
 		if err != nil {
-			// Received bad data, assume disconnected/crashed.
-			m.Disconnect()
 			return
 		}
 
 		// Extract the last entry.
-		entries := strings.Split(respDecoded.Return, "\n")
+		entries := strings.Split(resp.Return, "\n")
 		if len(entries) > 1 {
 			status := entries[len(entries)-2]
 
@@ -159,14 +106,111 @@ func (m *Monitor) run() error {
 	return nil
 }
 
-// Wait returns a channel that will be closed on disconnection.
-func (m *Monitor) Wait() (chan struct{}, error) {
+// ping is used to validate if the QMP socket is still active.
+func (m *Monitor) ping() error {
 	// Check if disconnected
 	if m.disconnected {
-		return nil, ErrMonitorDisconnect
+		return ErrMonitorDisconnect
 	}
 
-	return m.chDisconnect, nil
+	// Query the capabilities to validate the monitor.
+	_, err := m.qmp.Run([]byte("{'execute': 'query-version'}"))
+	if err != nil {
+		m.Disconnect()
+		return ErrMonitorDisconnect
+	}
+
+	return nil
+}
+
+// run executes a command.
+func (m *Monitor) run(cmd string, args string, resp interface{}) error {
+	// Check if disconnected
+	if m.disconnected {
+		return ErrMonitorDisconnect
+	}
+
+	// Run the command.
+	var out []byte
+	var err error
+	if args == "" {
+		out, err = m.qmp.Run([]byte(fmt.Sprintf("{'execute': '%s'}", cmd)))
+	} else {
+		out, err = m.qmp.Run([]byte(fmt.Sprintf("{'execute': '%s', 'arguments': %s}", cmd, args)))
+	}
+	if err != nil {
+		// Confirm the daemon didn't die.
+		errPing := m.ping()
+		if errPing != nil {
+			return errPing
+		}
+
+		return err
+	}
+
+	// Decode the response if needed.
+	if resp != nil {
+		err = json.Unmarshal(out, &resp)
+		if err != nil {
+			// Confirm the daemon didn't die.
+			errPing := m.ping()
+			if errPing != nil {
+				return errPing
+			}
+
+			return ErrMonitorBadReturn
+		}
+	}
+
+	return nil
+}
+
+// Connect creates or retrieves an existing QMP monitor for the path.
+func Connect(path string, serialCharDev string, eventHandler func(name string, data map[string]interface{})) (*Monitor, error) {
+	monitorsLock.Lock()
+	defer monitorsLock.Unlock()
+
+	// Look for an existing monitor.
+	monitor, ok := monitors[path]
+	if ok {
+		monitor.eventHandler = eventHandler
+		return monitor, nil
+	}
+
+	// Setup the connection.
+	qmpConn, err := qmp.NewSocketMonitor("unix", path, time.Second)
+	if err != nil {
+		return nil, err
+	}
+
+	err = qmpConn.Connect()
+	if err != nil {
+		return nil, err
+	}
+
+	// Setup the monitor struct.
+	monitor = &Monitor{}
+	monitor.path = path
+	monitor.qmp = qmpConn
+	monitor.chDisconnect = make(chan struct{}, 1)
+	monitor.eventHandler = eventHandler
+	monitor.serialCharDev = serialCharDev
+
+	// Spawn goroutines.
+	err = monitor.start()
+	if err != nil {
+		return nil, err
+	}
+
+	// Register in global map.
+	monitors[path] = monitor
+
+	return monitor, nil
+}
+
+// AgentReady indicates whether an agent has been detected.
+func (m *Monitor) AgentReady() bool {
+	return m.agentReady
 }
 
 // Disconnect forces a disconnection from QEMU.
@@ -185,218 +229,12 @@ func (m *Monitor) Disconnect() {
 	delete(monitors, m.path)
 }
 
-// Status returns the current VM status.
-func (m *Monitor) Status() (string, error) {
-	// Check if disconnected
-	if m.disconnected {
-		return "", ErrMonitorDisconnect
-	}
-
-	// Query the status.
-	respRaw, err := m.qmp.Run([]byte("{'execute': 'query-status'}"))
-	if err != nil {
-		m.Disconnect()
-		return "", ErrMonitorDisconnect
-	}
-
-	// Process the response.
-	var respDecoded struct {
-		Return struct {
-			Status string `json:"status"`
-		} `json:"return"`
-	}
-
-	err = json.Unmarshal(respRaw, &respDecoded)
-	if err != nil {
-		return "", ErrMonitorBadReturn
-	}
-
-	return respDecoded.Return.Status, nil
-}
-
-// Console fetches the File for a particular console.
-func (m *Monitor) Console(target string) (*os.File, error) {
+// Wait returns a channel that will be closed on disconnection.
+func (m *Monitor) Wait() (chan struct{}, error) {
 	// Check if disconnected
 	if m.disconnected {
 		return nil, ErrMonitorDisconnect
 	}
 
-	// Query the consoles.
-	respRaw, err := m.qmp.Run([]byte("{'execute': 'query-chardev'}"))
-	if err != nil {
-		m.Disconnect()
-		return nil, ErrMonitorDisconnect
-	}
-
-	// Process the response.
-	var respDecoded struct {
-		Return []struct {
-			Label    string `json:"label"`
-			Filename string `json:"filename"`
-		} `json:"return"`
-	}
-
-	err = json.Unmarshal(respRaw, &respDecoded)
-	if err != nil {
-		return nil, ErrMonitorBadReturn
-	}
-
-	// Look for the requested console.
-	for _, v := range respDecoded.Return {
-		if v.Label == target {
-			ptyPath := strings.TrimPrefix(v.Filename, "pty:")
-
-			if !shared.PathExists(ptyPath) {
-				continue
-			}
-
-			// Open the PTS device
-			console, err := os.OpenFile(ptyPath, os.O_RDWR, 0600)
-			if err != nil {
-				return nil, err
-			}
-
-			return console, nil
-		}
-	}
-
-	return nil, ErrMonitorBadConsole
-}
-
-func (m *Monitor) runCmd(cmd string) error {
-	// Check if disconnected
-	if m.disconnected {
-		return ErrMonitorDisconnect
-	}
-
-	// Query the status.
-	_, err := m.qmp.Run([]byte(fmt.Sprintf("{'execute': '%s'}", cmd)))
-	if err != nil {
-		m.Disconnect()
-		return ErrMonitorDisconnect
-	}
-
-	return nil
-}
-
-// Powerdown tells the VM to gracefully shutdown.
-func (m *Monitor) Powerdown() error {
-	return m.runCmd("system_powerdown")
-}
-
-// Start tells QEMU to start the emulation.
-func (m *Monitor) Start() error {
-	return m.runCmd("cont")
-}
-
-// Pause tells QEMU to temporarily stop the emulation.
-func (m *Monitor) Pause() error {
-	return m.runCmd("stop")
-}
-
-// Quit tells QEMU to exit immediately.
-func (m *Monitor) Quit() error {
-	return m.runCmd("quit")
-}
-
-// AgentReady indicates whether an agent has been detected.
-func (m *Monitor) AgentReady() bool {
-	return m.agentReady
-}
-
-// GetCPUs fetches the vCPU information for pinning.
-func (m *Monitor) GetCPUs() ([]int, error) {
-	// Check if disconnected
-	if m.disconnected {
-		return nil, ErrMonitorDisconnect
-	}
-
-	// Query the consoles.
-	respRaw, err := m.qmp.Run([]byte("{'execute': 'query-cpus'}"))
-	if err != nil {
-		m.Disconnect()
-		return nil, ErrMonitorDisconnect
-	}
-
-	// Process the response.
-	var respDecoded struct {
-		Return []struct {
-			CPU int `json:"CPU"`
-			PID int `json:"thread_id"`
-		} `json:"return"`
-	}
-
-	err = json.Unmarshal(respRaw, &respDecoded)
-	if err != nil {
-		return nil, ErrMonitorBadReturn
-	}
-
-	// Make a slice of PIDs.
-	pids := []int{}
-	for _, cpu := range respDecoded.Return {
-		pids = append(pids, cpu.PID)
-	}
-
-	return pids, nil
-}
-
-// GetMemorySizeBytes returns the current size of the base memory in bytes.
-func (m *Monitor) GetMemorySizeBytes() (int64, error) {
-	respRaw, err := m.qmp.Run([]byte("{'execute': 'query-memory-size-summary'}"))
-	if err != nil {
-		m.Disconnect()
-		return -1, ErrMonitorDisconnect
-	}
-
-	// Process the response.
-	var respDecoded struct {
-		Return struct {
-			BaseMemory int64 `json:"base-memory"`
-		} `json:"return"`
-	}
-
-	err = json.Unmarshal(respRaw, &respDecoded)
-	if err != nil {
-		return -1, ErrMonitorBadReturn
-	}
-
-	return respDecoded.Return.BaseMemory, nil
-}
-
-// GetMemoryBalloonSizeBytes returns effective size of the memory in bytes (considering the current balloon size).
-func (m *Monitor) GetMemoryBalloonSizeBytes() (int64, error) {
-	respRaw, err := m.qmp.Run([]byte("{'execute': 'query-balloon'}"))
-	if err != nil {
-		m.Disconnect()
-		return -1, ErrMonitorDisconnect
-	}
-
-	// Process the response.
-	var respDecoded struct {
-		Return struct {
-			Actual int64 `json:"actual"`
-		} `json:"return"`
-	}
-
-	err = json.Unmarshal(respRaw, &respDecoded)
-	if err != nil {
-		return -1, ErrMonitorBadReturn
-	}
-
-	return respDecoded.Return.Actual, nil
-}
-
-// SetMemoryBalloonSizeBytes sets the size of the memory in bytes (which will resize the balloon as needed).
-func (m *Monitor) SetMemoryBalloonSizeBytes(sizeBytes int64) error {
-	respRaw, err := m.qmp.Run([]byte(fmt.Sprintf("{'execute': 'balloon', 'arguments': {'value': %d}}", sizeBytes)))
-	if err != nil {
-		m.Disconnect()
-		return ErrMonitorDisconnect
-	}
-
-	if string(respRaw) != `{"return": {}}` {
-		return ErrMonitorBadReturn
-	}
-
-	return nil
+	return m.chDisconnect, nil
 }
