@@ -11,6 +11,7 @@ import (
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/validate"
+	"github.com/pkg/errors"
 )
 
 type nicIPVLAN struct {
@@ -142,6 +143,11 @@ func (d *nicIPVLAN) Start() (*deviceConfig.RunConfig, error) {
 
 	saveData := make(map[string]string)
 
+	// Record a random host name to use to detach the ipvlan interface back onto the host at stop time so we
+	// can remove it and not have to rely on the kernel to do it when the namespace is destroyed, as this is
+	// not always reliable.
+	saveData["host_name"] = network.RandomDevName("lxd")
+
 	// Decide which parent we should use based on VLAN setting.
 	parentName := network.GetHostDevice(d.config["parent"], d.config["vlan"])
 
@@ -240,8 +246,16 @@ func (d *nicIPVLAN) setupParentSysctls(parentName string) error {
 
 // Stop is run when the device is removed from the instance.
 func (d *nicIPVLAN) Stop() (*deviceConfig.RunConfig, error) {
+	v := d.volatileGet()
 	runConf := deviceConfig.RunConfig{
 		PostHooks: []func() error{d.postStop},
+	}
+
+	// Add instruction for removal of ipvlan interface back to host if set.
+	if v["host_name"] != "" {
+		runConf.NetworkInterface = []deviceConfig.RunConfigItem{
+			{Key: "link", Value: v["host_name"]},
+		}
 	}
 
 	return &runConf, nil
@@ -251,17 +265,60 @@ func (d *nicIPVLAN) Stop() (*deviceConfig.RunConfig, error) {
 func (d *nicIPVLAN) postStop() error {
 	defer d.volatileSet(map[string]string{
 		"last_state.created": "",
+		"host_name":          "",
 	})
 
 	v := d.volatileGet()
+
+	networkVethFillFromVolatile(d.config, v)
+
+	errs := []error{}
+
+	// Delete host-side detached interface if not removed by liblxc.
+	if network.InterfaceExists(d.config["host_name"]) {
+		err := network.InterfaceRemove(d.config["host_name"])
+		if err != nil {
+			errs = append(errs, errors.Wrapf(err, "Failed to remove interface %q", d.config["host_name"]))
+		}
+	}
+
+	if d.config["ipv4.address"] != "" {
+		// Remove static routes to instance IPs to custom routing tables if specified.
+		if d.config["ipv4.host_table"] != "" {
+			for _, addr := range strings.Split(d.config["ipv4.address"], ",") {
+				addr = strings.TrimSpace(addr)
+				_, err := shared.RunCommand("ip", "-4", "route", "delete", "table", d.config["ipv4.host_table"], fmt.Sprintf("%s/32", addr), "dev", "lo")
+				if err != nil {
+					errs = append(errs, err)
+				}
+			}
+		}
+	}
+
+	if d.config["ipv6.address"] != "" {
+		// Remove static routes to instance IPs to custom routing tables if specified.
+		if d.config["ipv6.host_table"] != "" {
+			for _, addr := range strings.Split(d.config["ipv6.address"], ",") {
+				addr = strings.TrimSpace(addr)
+				_, err := shared.RunCommand("ip", "-6", "route", "delete", "table", d.config["ipv6.host_table"], fmt.Sprintf("%s/128", addr), "dev", "lo")
+				if err != nil {
+					errs = append(errs, err)
+				}
+			}
+		}
+	}
 
 	// This will delete the parent interface if we created it for VLAN parent.
 	if shared.IsTrue(v["last_state.created"]) {
 		parentName := network.GetHostDevice(d.config["parent"], d.config["vlan"])
 		err := networkRemoveInterfaceIfNeeded(d.state, parentName, d.inst, d.config["parent"], d.config["vlan"])
 		if err != nil {
-			return err
+			errs = append(errs, err)
 		}
+	}
+
+	if len(errs) > 0 {
+		return fmt.Errorf("%v", errs)
 	}
 
 	return nil
