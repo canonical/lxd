@@ -1296,3 +1296,6 @@ Add new `/1.0/storage-pools/POOL/volumes/VOLUME/state` API endpoint to get usage
 
 ## network\_acl
 This adds the concept of network ACLs to API under the API endpoint prefix `/1.0/network-acls`.
+
+## migration\_stateful
+Add a new `migration.stateful` config key.
