@@ -188,6 +188,7 @@ var KnownInstanceConfigKeys = map[string]func(value string) error{
 	"migration.incremental.memory":            validate.Optional(validate.IsBool),
 	"migration.incremental.memory.iterations": validate.Optional(validate.IsUint32),
 	"migration.incremental.memory.goal":       validate.Optional(validate.IsUint32),
+	"migration.stateful":                      validate.Optional(validate.IsBool),
 
 	"nvidia.runtime":             validate.Optional(validate.IsBool),
 	"nvidia.driver.capabilities": validate.IsAny,
