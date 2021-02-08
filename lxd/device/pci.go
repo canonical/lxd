@@ -1,6 +1,7 @@
 package device
 
 import (
+	"fmt"
 	"path/filepath"
 
 	"github.com/pkg/errors"
@@ -9,6 +10,7 @@ import (
 	pcidev "github.com/lxc/lxd/lxd/device/pci"
 	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/instance/instancetype"
+	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/validate"
 )
 
@@ -38,6 +40,10 @@ func (d *pci) validateConfig(instConf instance.ConfigReader) error {
 
 // validateEnvironment checks if the PCI device is available.
 func (d *pci) validateEnvironment() error {
+	if d.inst.Type() == instancetype.VM && shared.IsTrue(d.inst.ExpandedConfig()["migration.stateful"]) {
+		return fmt.Errorf("PCI devices cannot be used when migration.stateful is enabled")
+	}
+
 	return validatePCIDevice(d.config["address"])
 }
 

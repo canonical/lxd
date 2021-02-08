@@ -634,7 +634,7 @@ func (d *disk) startVM() (*deviceConfig.RunConfig, error) {
 					}
 				}
 
-				if cmd != "" {
+				if !shared.IsTrue(d.inst.ExpandedConfig()["migration.stateful"]) && cmd != "" {
 					// Start the virtiofsd process in non-daemon mode.
 					proc, err := subprocess.NewProcess(cmd, []string{fmt.Sprintf("--socket-path=%s", sockPath), "-o", fmt.Sprintf("source=%s", srcPath)}, logPath, logPath)
 					if err != nil {
