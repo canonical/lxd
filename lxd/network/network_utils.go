@@ -888,7 +888,7 @@ func InterfaceRemove(nic string) error {
 
 // InterfaceExists returns true if network interface exists.
 func InterfaceExists(nic string) bool {
-	if shared.PathExists(fmt.Sprintf("/sys/class/net/%s", nic)) {
+	if nic != "" && shared.PathExists(fmt.Sprintf("/sys/class/net/%s", nic)) {
 		return true
 	}
 
