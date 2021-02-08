@@ -251,6 +251,7 @@ var APIExtensions = []string{
 	"gpu_sriov",
 	"pci_device_type",
 	"storage_volume_state",
+	"network_acl",
 }
 
 // APIExtensionsCount returns the number of available API extensions.

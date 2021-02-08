@@ -64,6 +64,8 @@ var api10 = []APIEndpoint{
 	networkLeasesCmd,
 	networksCmd,
 	networkStateCmd,
+	networkACLCmd,
+	networkACLsCmd,
 	operationCmd,
 	operationsCmd,
 	operationWait,

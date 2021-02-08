@@ -1,6 +1,7 @@
 package validate
 
 import (
+	"bytes"
 	"fmt"
 	"net"
 	"regexp"
@@ -207,6 +208,44 @@ func IsNetworkList(value string) error {
 		if err != nil {
 			return err
 		}
+	}
+
+	return nil
+}
+
+// IsNetworkAddressCIDR validates an IP addresss string in CIDR format.
+func IsNetworkAddressCIDR(value string) error {
+	_, _, err := net.ParseCIDR(value)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// IsNetworkRange validates an IP range in the format "start-end".
+func IsNetworkRange(value string) error {
+	ips := strings.SplitN(value, "-", 2)
+	if len(ips) != 2 {
+		return fmt.Errorf("IP range must contain start and end IP addresses")
+	}
+
+	startIP := net.ParseIP(ips[0])
+	if startIP == nil {
+		return fmt.Errorf("Start not an IP address %q", ips[0])
+	}
+
+	endIP := net.ParseIP(ips[1])
+	if endIP == nil {
+		return fmt.Errorf("End not an IP address %q", ips[1])
+	}
+
+	if (startIP.To4() != nil) != (endIP.To4() != nil) {
+		return fmt.Errorf("Start and end IP addresses are not in same family")
+	}
+
+	if bytes.Compare(startIP, endIP) > 0 {
+		return fmt.Errorf("Start IP address must be before or equal to end IP address")
 	}
 
 	return nil
@@ -438,6 +477,37 @@ func IsNetworkMTU(value string) error {
 
 	if mtu < 1280 || mtu > 16384 {
 		return fmt.Errorf("Out of MTU range (1280-16384) %q", value)
+	}
+
+	return nil
+}
+
+// IsNetworkPort validates an IP port number >= 0 and <= 65535.
+func IsNetworkPort(value string) error {
+	port, err := strconv.ParseUint(value, 10, 32)
+	if err != nil {
+		return fmt.Errorf("Invalid port number %q", value)
+	}
+
+	if port < 0 || port > 65535 {
+		return fmt.Errorf("Out of port number range (0-65535) %q", value)
+	}
+
+	return nil
+}
+
+// IsNetworkPortRange validates an IP port range in the format "start-end".
+func IsNetworkPortRange(value string) error {
+	ports := strings.SplitN(value, "-", 2)
+	if len(ports) != 2 {
+		return fmt.Errorf("Port range must contain start and end port numbers")
+	}
+
+	for _, port := range ports {
+		err := IsNetworkPort(port)
+		if err != nil {
+			return err
+		}
 	}
 
 	return nil

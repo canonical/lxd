@@ -1293,3 +1293,6 @@ This introduces the `pci` device type.
 
 ## storage\_volume\_state
 Add new `/1.0/storage-pools/POOL/volumes/VOLUME/state` API endpoint to get usage data on a volume.
+
+## network\_acl
+This adds the concept of network ACLs to API under the API endpoint prefix `/1.0/network-acls`.
