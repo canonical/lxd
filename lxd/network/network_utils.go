@@ -1160,7 +1160,7 @@ func SubnetParseAppend(subnets []*net.IPNet, parseSubnet ...string) ([]*net.IPNe
 // InterfaceBindWait waits for network interface to appear after being bound to a driver.
 func InterfaceBindWait(ifName string) error {
 	for i := 0; i < 10; i++ {
-		if shared.PathExists(fmt.Sprintf("/sys/class/net/%s", ifName)) {
+		if InterfaceExists(ifName) {
 			return nil
 		}
 
