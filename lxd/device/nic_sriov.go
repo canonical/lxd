@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"net"
 	"os/exec"
 	"regexp"
 	"strconv"
@@ -96,12 +97,16 @@ func (d *nicSRIOV) Start() (*deviceConfig.RunConfig, error) {
 	}
 
 	if d.inst.Type() == instancetype.Container {
+		macSet := false
+
 		// Set the MAC address.
 		if d.config["hwaddr"] != "" {
 			_, err := shared.RunCommand("ip", "link", "set", "dev", saveData["host_name"], "address", d.config["hwaddr"])
 			if err != nil {
-				return nil, fmt.Errorf("Failed to set the MAC address: %s", err)
+				return nil, errors.Wrapf(err, "Failed setting MAC address %q on %q", d.config["hwaddr"], saveData["host_name"])
 			}
+
+			macSet = true
 		}
 
 		// Set the MTU.
@@ -115,7 +120,40 @@ func (d *nicSRIOV) Start() (*deviceConfig.RunConfig, error) {
 		// Bring the interface up.
 		_, err = shared.RunCommand("ip", "link", "set", "dev", saveData["host_name"], "up")
 		if err != nil {
-			return nil, fmt.Errorf("Failed to bring up the interface: %v", err)
+			if macSet {
+				return nil, errors.Wrapf(err, "Failed to bring up VF interface %q", saveData["host_name"])
+			}
+
+			upErr := err
+
+			// If interface fails to come up and MAC not previously set, some NICs require us to set
+			// a specific MAC before being allowed to bring up the VF interface. So check if interface
+			// has an empty MAC and set a random one if needed.
+			vfIF, err := net.InterfaceByName(saveData["host_name"])
+			if err != nil {
+				return nil, errors.Wrapf(err, "Failed getting interface info for VF %q", saveData["host_name"])
+			}
+
+			// If the VF interface has a MAC already, something else prevented bringing interface up.
+			if vfIF.HardwareAddr.String() != "00:00:00:00:00:00" {
+				return nil, errors.Wrapf(upErr, "Failed to bring up VF interface %q", saveData["host_name"])
+			}
+
+			// Try using a random MAC address and bringing interface up.
+			randMAC, err := instance.DeviceNextInterfaceHWAddr()
+			if err != nil {
+				return nil, errors.Wrapf(err, "Failed generating random MAC for VF %q", saveData["host_name"])
+			}
+
+			_, err = shared.RunCommand("ip", "link", "set", "dev", saveData["host_name"], "address", randMAC)
+			if err != nil {
+				return nil, errors.Wrapf(err, "Failed to set random MAC address %q on %q", randMAC, saveData["host_name"])
+			}
+
+			_, err = shared.RunCommand("ip", "link", "set", "dev", saveData["host_name"], "up")
+			if err != nil {
+				return nil, errors.Wrapf(err, "Failed to bring up VF interface %q", saveData["host_name"])
+			}
 		}
 	}
 
