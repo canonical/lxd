@@ -73,7 +73,7 @@ func (d *nicIPVLAN) validateEnvironment() error {
 		return fmt.Errorf("Requires liblxc has following API extensions: network_ipvlan, network_l2proxy, network_gateway_device_route")
 	}
 
-	if !shared.PathExists(fmt.Sprintf("/sys/class/net/%s", d.config["parent"])) {
+	if !network.InterfaceExists(d.config["parent"]) {
 		return fmt.Errorf("Parent device '%s' doesn't exist", d.config["parent"])
 	}
 
@@ -86,7 +86,7 @@ func (d *nicIPVLAN) validateEnvironment() error {
 
 	// If the effective parent doesn't exist and the vlan option is specified, it means we are going to create
 	// the VLAN parent at start, and we will configure the needed sysctls so don't need to check them yet.
-	if d.config["vlan"] != "" && !shared.PathExists(fmt.Sprintf("/sys/class/net/%s", effectiveParentName)) {
+	if d.config["vlan"] != "" && !network.InterfaceExists(effectiveParentName) {
 		return nil
 	}
 
