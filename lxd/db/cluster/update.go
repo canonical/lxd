@@ -83,6 +83,126 @@ var updates = map[int]schema.Update{
 	42: updateFromV41,
 	43: updateFromV42,
 	44: updateFromV43,
+	45: updateFromV44,
+}
+
+// updateFromV44 adds networks_acls table, and adds a foreign key relationship between networks and projects.
+// API extension: network_acl
+func updateFromV44(tx *sql.Tx) error {
+	_, err := tx.Exec(`
+DROP VIEW projects_used_by_ref;
+
+CREATE TABLE networks_new (
+    id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+    project_id INTEGER NOT NULL,
+    name TEXT NOT NULL,
+    description TEXT,
+    state INTEGER NOT NULL DEFAULT 0,
+    type INTEGER NOT NULL DEFAULT 0,
+    UNIQUE (project_id, name),
+    FOREIGN KEY (project_id) REFERENCES projects (id) ON DELETE CASCADE
+);
+
+INSERT INTO networks_new (id, project_id, name, description, state, type)
+    SELECT id, project_id, name, description, state, type FROM networks;
+
+CREATE TABLE networks_nodes_new (
+    id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+    network_id INTEGER NOT NULL,
+    node_id INTEGER NOT NULL,
+    state INTEGER NOT NULL DEFAULT 0,
+    UNIQUE (network_id, node_id),
+    FOREIGN KEY (network_id) REFERENCES networks_new (id) ON DELETE CASCADE,
+    FOREIGN KEY (node_id) REFERENCES nodes (id) ON DELETE CASCADE
+);
+
+INSERT INTO networks_nodes_new (id, network_id, node_id, state)
+    SELECT id, network_id, node_id, state FROM networks_nodes;
+
+CREATE TABLE networks_config_new (
+    id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+    network_id INTEGER NOT NULL,
+    node_id INTEGER,
+    key TEXT NOT NULL,
+    value TEXT,
+    UNIQUE (network_id, node_id, key),
+    FOREIGN KEY (network_id) REFERENCES networks_new (id) ON DELETE CASCADE,
+    FOREIGN KEY (node_id) REFERENCES nodes (id) ON DELETE CASCADE
+);
+
+INSERT INTO networks_config_new (id, network_id, node_id, key, value)
+    SELECT id, network_id, node_id, key, value FROM networks_config;
+
+DROP TABLE networks;
+DROP TABLE networks_nodes;
+DROP TABLE networks_config;
+
+CREATE UNIQUE INDEX networks_unique_network_id_node_id_key ON networks_config_new (network_id, IFNULL(node_id, -1), key);
+
+ALTER TABLE networks_new RENAME TO networks;
+ALTER TABLE networks_nodes_new RENAME TO networks_nodes;
+ALTER TABLE networks_config_new RENAME TO networks_config;
+
+CREATE TABLE networks_acls (
+    id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+    project_id INTEGER NOT NULL,
+    name TEXT NOT NULL,
+    description TEXT NOT NULL,
+    ingress TEXT NOT NULL,
+    egress TEXT NOT NULL,
+    UNIQUE (project_id, name),
+    FOREIGN KEY (project_id) REFERENCES projects (id) ON DELETE CASCADE
+);
+
+CREATE TABLE networks_acls_config (
+    id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+    network_acl_id INTEGER NOT NULL,
+    key TEXT NOT NULL,
+    value TEXT,
+    UNIQUE (network_acl_id, key),
+    FOREIGN KEY (network_acl_id) REFERENCES networks_acls (id) ON DELETE CASCADE
+);
+
+CREATE VIEW projects_used_by_ref (name,
+    value) AS
+  SELECT projects.name,
+    printf('/1.0/instances/%s?project=%s',
+    "instances".name,
+    projects.name)
+    FROM "instances" JOIN projects ON project_id=projects.id UNION
+  SELECT projects.name,
+    printf('/1.0/images/%s?project=%s',
+    images.fingerprint,
+    projects.name)
+    FROM images JOIN projects ON project_id=projects.id UNION
+  SELECT projects.name,
+    printf('/1.0/storage-pools/%s/volumes/custom/%s?project=%s&target=%s',
+    storage_pools.name,
+    storage_volumes.name,
+    projects.name,
+    nodes.name)
+    FROM storage_volumes JOIN storage_pools ON storage_pool_id=storage_pools.id JOIN nodes ON node_id=nodes.id JOIN projects ON project_id=projects.id WHERE storage_volumes.type=2 UNION
+  SELECT projects.name,
+    printf('/1.0/profiles/%s?project=%s',
+    profiles.name,
+    projects.name)
+    FROM profiles JOIN projects ON project_id=projects.id UNION
+  SELECT projects.name,
+    printf('/1.0/networks/%s?project=%s',
+    networks.name,
+    projects.name)
+    FROM networks JOIN projects ON project_id=projects.id UNION
+SELECT projects.name,
+    printf('/1.0/network-acls/%s?project=%s',
+    networks_acls.name,
+    projects.name)
+    FROM networks_acls JOIN projects ON project_id=projects.id;
+`)
+	if err != nil {
+		return errors.Wrap(err, "Failed to add networks_acls and networks_acls_config tables, and update projects_used_by_ref view")
+	}
+
+	return nil
 }
 
 // updateFromV43 adds a unique index to the storage_pools_config and networks_config tables.

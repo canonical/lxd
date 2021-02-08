@@ -283,7 +283,26 @@ CREATE TABLE "networks" (
     description TEXT,
     state INTEGER NOT NULL DEFAULT 0,
     type INTEGER NOT NULL DEFAULT 0,
-    UNIQUE (project_id, name)
+    UNIQUE (project_id, name),
+    FOREIGN KEY (project_id) REFERENCES projects (id) ON DELETE CASCADE
+);
+CREATE TABLE networks_acls (
+    id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+    project_id INTEGER NOT NULL,
+    name TEXT NOT NULL,
+    description TEXT NOT NULL,
+    ingress TEXT NOT NULL,
+    egress TEXT NOT NULL,
+    UNIQUE (project_id, name),
+    FOREIGN KEY (project_id) REFERENCES projects (id) ON DELETE CASCADE
+);
+CREATE TABLE networks_acls_config (
+    id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+    network_acl_id INTEGER NOT NULL,
+    key TEXT NOT NULL,
+    value TEXT,
+    UNIQUE (network_acl_id, key),
+    FOREIGN KEY (network_acl_id) REFERENCES networks_acls (id) ON DELETE CASCADE
 );
 CREATE TABLE "networks_config" (
     id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
@@ -304,7 +323,7 @@ CREATE TABLE "networks_nodes" (
     FOREIGN KEY (network_id) REFERENCES "networks" (id) ON DELETE CASCADE,
     FOREIGN KEY (node_id) REFERENCES nodes (id) ON DELETE CASCADE
 );
-CREATE UNIQUE INDEX networks_unique_network_id_node_id_key ON networks_config (network_id, IFNULL(node_id, -1), key);
+CREATE UNIQUE INDEX networks_unique_network_id_node_id_key ON "networks_config" (network_id, IFNULL(node_id, -1), key);
 CREATE TABLE nodes (
     id INTEGER PRIMARY KEY,
     name TEXT NOT NULL,
@@ -468,7 +487,12 @@ CREATE VIEW projects_used_by_ref (name,
     printf('/1.0/networks/%s?project=%s',
     networks.name,
     projects.name)
-    FROM networks JOIN projects ON project_id=projects.id;
+    FROM networks JOIN projects ON project_id=projects.id UNION
+SELECT projects.name,
+    printf('/1.0/network-acls/%s?project=%s',
+    networks_acls.name,
+    projects.name)
+    FROM networks_acls JOIN projects ON project_id=projects.id;
 CREATE TABLE storage_pools (
     id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
     name TEXT NOT NULL,
@@ -593,5 +617,5 @@ CREATE TABLE storage_volumes_snapshots_config (
     UNIQUE (storage_volume_snapshot_id, key)
 );
 
-INSERT INTO schema (version, updated_at) VALUES (44, strftime("%s"))
+INSERT INTO schema (version, updated_at) VALUES (45, strftime("%s"))
 `
