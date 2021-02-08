@@ -138,7 +138,7 @@ func (d *nicRouted) validateEnvironment() error {
 	if effectiveParentName != "" && d.config["ipv4.address"] != "" {
 		ipv4FwdPath := fmt.Sprintf("net/ipv4/conf/%s/forwarding", effectiveParentName)
 		sysctlVal, err := util.SysctlGet(ipv4FwdPath)
-		if err != nil || sysctlVal != "1\n" {
+		if err != nil {
 			return fmt.Errorf("Error reading net sysctl %s: %v", ipv4FwdPath, err)
 		}
 		if sysctlVal != "1\n" {
