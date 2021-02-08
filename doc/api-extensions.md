@@ -1084,3 +1084,6 @@ Those contain additional state information relevant to VLAN interfaces:
 ## gpu\_sriov
 This adds support for SR-IOV enabled GPUs.
 It introduces the `sriov` gpu type property.
+
+## migration\_stateful
+Add a new `migration.stateful` config key.
