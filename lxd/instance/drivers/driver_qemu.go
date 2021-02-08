@@ -707,6 +707,11 @@ func (d *qemu) Start(stateful bool) error {
 		return fmt.Errorf("The instance is already running")
 	}
 
+	// Check for stateful.
+	if stateful && !shared.IsTrue(d.expandedConfig["migration.stateful"]) {
+		return fmt.Errorf("Stateful start requires migration.stateful to be set to true")
+	}
+
 	// Setup a new operation
 	exists, op, err := operationlock.CreateWaitGet(d.id, "start", []string{"restart", "restore"}, false, false)
 	if err != nil {
@@ -2677,6 +2682,11 @@ func (d *qemu) Stop(stateful bool) error {
 	// Must be run prior to creating the operation lock.
 	if !d.IsRunning() {
 		return fmt.Errorf("The instance is already stopped")
+	}
+
+	// Check for stateful.
+	if stateful && !shared.IsTrue(d.expandedConfig["migration.stateful"]) {
+		return fmt.Errorf("Stateful stop requires migration.stateful to be set to true")
 	}
 
 	// Setup a new operation.
