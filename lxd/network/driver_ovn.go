@@ -852,7 +852,7 @@ func (n *ovn) startUplinkPort() error {
 	// Uplink network must be in default project.
 	uplinkNet, err := LoadByName(n.state, project.Default, n.config["network"])
 	if err != nil {
-		return errors.Wrapf(err, "Failed loading uplink network")
+		return errors.Wrapf(err, "Failed loading uplink network %q", n.config["network"])
 	}
 
 	// Lock uplink network so that if multiple OVN networks are trying to connect to the same uplink we don't
@@ -1130,7 +1130,7 @@ func (n *ovn) deleteUplinkPort() error {
 	if n.config["network"] != "" {
 		uplinkNet, err := LoadByName(n.state, project.Default, n.config["network"])
 		if err != nil {
-			return errors.Wrapf(err, "Failed loading uplink network")
+			return errors.Wrapf(err, "Failed loading uplink network %q", n.config["network"])
 		}
 
 		// Lock uplink network so we don't race each other networks using the OVS uplink bridge.
