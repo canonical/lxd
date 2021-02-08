@@ -62,6 +62,7 @@ linux.kernel\_modules                       | string    | -                 | ye
 migration.incremental.memory                | boolean   | false             | yes           | container                 | Incremental memory transfer of the instance's memory to reduce downtime
 migration.incremental.memory.goal           | integer   | 70                | yes           | container                 | Percentage of memory to have in sync before stopping the instance
 migration.incremental.memory.iterations     | integer   | 10                | yes           | container                 | Maximum number of transfer operations to go through before stopping the instance
+migration.stateful                          | boolean   | false             | no            | virtual-machine           | Allow for stateful stop/start and snapshots. This will prevent the use of some features that are incompatible with it
 nvidia.driver.capabilities                  | string    | compute,utility   | no            | container                 | What driver capabilities the instance needs (sets libnvidia-container NVIDIA\_DRIVER\_CAPABILITIES)
 nvidia.runtime                              | boolean   | false             | no            | container                 | Pass the host NVIDIA and CUDA runtime libraries into the instance
 nvidia.require.cuda                         | string    | -                 | no            | container                 | Version expression for the required CUDA version (sets libnvidia-container NVIDIA\_REQUIRE\_CUDA)
