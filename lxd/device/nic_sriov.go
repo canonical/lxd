@@ -108,8 +108,8 @@ func (d *nicSRIOV) validateEnvironment() error {
 		return fmt.Errorf("Requires name property to start")
 	}
 
-	if !shared.PathExists(fmt.Sprintf("/sys/class/net/%s", d.config["parent"])) {
-		return fmt.Errorf("Parent device '%s' doesn't exist", d.config["parent"])
+	if !network.InterfaceExists(d.config["parent"]) {
+		return fmt.Errorf("Parent device %q doesn't exist", d.config["parent"])
 	}
 
 	return nil
