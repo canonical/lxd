@@ -15,6 +15,7 @@ import (
 	"github.com/lxc/lxd/lxd/instance/instancetype"
 	"github.com/lxc/lxd/lxd/resources"
 	"github.com/lxc/lxd/lxd/revert"
+	"github.com/lxc/lxd/shared"
 )
 
 type gpuSRIOV struct {
@@ -64,6 +65,10 @@ func (d *gpuSRIOV) validateConfig(instConf instance.ConfigReader) error {
 
 // validateEnvironment checks the runtime environment for correctness.
 func (d *gpuSRIOV) validateEnvironment() error {
+	if d.inst.Type() == instancetype.VM && shared.IsTrue(d.inst.ExpandedConfig()["migration.stateful"]) {
+		return fmt.Errorf("GPU devices cannot be used when migration.stateful is enabled")
+	}
+
 	return validatePCIDevice(d.config["pci"])
 }
 
