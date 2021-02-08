@@ -94,7 +94,7 @@ func (d *nicIPVLAN) validateEnvironment() error {
 		// Check necessary sysctls are configured for use with l2proxy parent in IPVLAN l3s mode.
 		ipv4FwdPath := fmt.Sprintf("net/ipv4/conf/%s/forwarding", effectiveParentName)
 		sysctlVal, err := util.SysctlGet(ipv4FwdPath)
-		if err != nil || sysctlVal != "1\n" {
+		if err != nil {
 			return fmt.Errorf("Error reading net sysctl %s: %v", ipv4FwdPath, err)
 		}
 		if sysctlVal != "1\n" {
