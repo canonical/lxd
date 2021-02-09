@@ -20,8 +20,8 @@ const tmpVolSuffix = ".lxdtmp"
 // defaultBlockSize Default size of block volumes.
 const defaultBlockSize = "10GB"
 
-// vmBlockFilesystemSize is the size of a VM block volume's associated filesystem volume.
-const vmBlockFilesystemSize = "100MB"
+// DefaultVMBlockFilesystemSize is the size of a VM block volume's associated filesystem volume.
+const DefaultVMBlockFilesystemSize = "100MB"
 
 // DefaultFilesystem filesytem to use for block devices by default.
 const DefaultFilesystem = "ext4"
@@ -305,7 +305,7 @@ func (v Volume) IsVMBlock() bool {
 }
 
 // NewVMBlockFilesystemVolume returns a copy of the volume with the content type set to ContentTypeFS and the
-// config "size" property set to vmBlockFilesystemSize.
+// config "size" property set to "size.state" or DefaultVMBlockFilesystemSize if not set.
 func (v Volume) NewVMBlockFilesystemVolume() Volume {
 	// Copy volume config so modifications don't affect original volume.
 	newConf := make(map[string]string, len(v.config))
@@ -313,8 +313,12 @@ func (v Volume) NewVMBlockFilesystemVolume() Volume {
 		newConf[k] = v
 	}
 
-	// VM Block filesystems are a fixed size.
-	newConf["size"] = vmBlockFilesystemSize
+	if v.config["size.state"] != "" {
+		newConf["size"] = v.config["size.state"]
+	} else {
+		// Fallback to the default VM filesystem size.
+		newConf["size"] = DefaultVMBlockFilesystemSize
+	}
 
 	return NewVolume(v.driver, v.pool, v.volType, ContentTypeFS, v.name, newConf, v.poolConfig)
 }
@@ -327,6 +331,11 @@ func (v Volume) SetQuota(size string, op *operations.Operation) error {
 // SetConfigSize sets the size config property on the Volume (does not resize volume).
 func (v Volume) SetConfigSize(size string) {
 	v.config["size"] = size
+}
+
+// SetConfigStateSize sets the size.state config property on the Volume (does not resize volume).
+func (v Volume) SetConfigStateSize(size string) {
+	v.config["size.state"] = size
 }
 
 // ConfigBlockFilesystem returns the filesystem to use for block volumes. Returns config value "block.filesystem"

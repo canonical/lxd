@@ -14,6 +14,7 @@ import (
 
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/instance"
+	"github.com/lxc/lxd/lxd/instance/instancetype"
 	"github.com/lxc/lxd/lxd/operations"
 	"github.com/lxc/lxd/lxd/project"
 	"github.com/lxc/lxd/lxd/response"
@@ -151,6 +152,10 @@ func instanceSnapshotsPost(d *Daemon, r *http.Request) response.Response {
 		if err != nil {
 			return response.BadRequest(err)
 		}
+	}
+
+	if inst.Type() == instancetype.VM && req.Stateful {
+		return response.BadRequest(fmt.Errorf("Can't perform a stateful snapshot of a virtual machine"))
 	}
 
 	snapshot := func(op *operations.Operation) error {

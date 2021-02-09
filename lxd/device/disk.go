@@ -105,6 +105,7 @@ func (d *disk) validateConfig(instConf instance.ConfigReader) error {
 		"limits.write":      validate.IsAny,
 		"limits.max":        validate.IsAny,
 		"size":              validate.Optional(validate.IsSize),
+		"size.state":        validate.Optional(validate.IsSize),
 		"pool":              validate.IsAny,
 		"propagation":       validatePropagation,
 		"raw.mount.options": validate.IsAny,
@@ -137,6 +138,10 @@ func (d *disk) validateConfig(instConf instance.ConfigReader) error {
 
 	if d.config["size"] != "" && d.config["path"] != "/" {
 		return fmt.Errorf("Only the root disk may have a size quota")
+	}
+
+	if d.config["size.state"] != "" && d.config["path"] != "/" {
+		return fmt.Errorf("Only the root disk may have a migration size quota")
 	}
 
 	if d.config["recursive"] != "" && (d.config["path"] == "/" || !shared.IsDir(shared.HostPath(d.config["source"]))) {
@@ -270,7 +275,7 @@ func (d *disk) validateEnvironment() error {
 
 // UpdatableFields returns a list of fields that can be updated without triggering a device remove & add.
 func (d *disk) UpdatableFields() []string {
-	return []string{"limits.max", "limits.read", "limits.write", "size"}
+	return []string{"limits.max", "limits.read", "limits.write", "size", "size.state"}
 }
 
 // Register calls mount for the disk volume (which should already be mounted) to reinitialise the reference counter
@@ -634,7 +639,7 @@ func (d *disk) startVM() (*deviceConfig.RunConfig, error) {
 					}
 				}
 
-				if cmd != "" {
+				if !shared.IsTrue(d.inst.ExpandedConfig()["migration.stateful"]) && cmd != "" {
 					// Start the virtiofsd process in non-daemon mode.
 					proc, err := subprocess.NewProcess(cmd, []string{fmt.Sprintf("--socket-path=%s", sockPath), "-o", fmt.Sprintf("source=%s", srcPath)}, logPath, logPath)
 					if err != nil {
@@ -727,9 +732,11 @@ func (d *disk) Update(oldDevices deviceConfig.Devices, isRunning bool) error {
 		// Deal with quota changes.
 		oldRootDiskDeviceSize := oldDevices[oldRootDiskDeviceKey]["size"]
 		newRootDiskDeviceSize := expandedDevices[newRootDiskDeviceKey]["size"]
+		oldRootDiskDeviceMigrationSize := oldDevices[oldRootDiskDeviceKey]["size.state"]
+		newRootDiskDeviceMigrationSize := expandedDevices[newRootDiskDeviceKey]["size.state"]
 
 		// Apply disk quota changes.
-		if newRootDiskDeviceSize != oldRootDiskDeviceSize {
+		if newRootDiskDeviceSize != oldRootDiskDeviceSize || oldRootDiskDeviceMigrationSize != newRootDiskDeviceMigrationSize {
 			// Remove any outstanding volatile apply_quota key if applying a new quota.
 			v := d.volatileGet()
 			if v["apply_quota"] != "" {
@@ -739,15 +746,15 @@ func (d *disk) Update(oldDevices deviceConfig.Devices, isRunning bool) error {
 				}
 			}
 
-			err := d.applyQuota(newRootDiskDeviceSize, false)
+			err := d.applyQuota(false)
 			if err == storageDrivers.ErrInUse {
 				// Save volatile apply_quota key for next boot if cannot apply now.
-				err = d.volatileSet(map[string]string{"apply_quota": newRootDiskDeviceSize})
+				err = d.volatileSet(map[string]string{"apply_quota": "true"})
 				if err != nil {
 					return err
 				}
 
-				d.logger.Warn("Could not apply quota because disk is in use, deferring until next start", log.Ctx{"quota": newRootDiskDeviceSize})
+				d.logger.Warn("Could not apply quota because disk is in use, deferring until next start")
 			} else if err != nil {
 				return err
 			}
@@ -776,11 +783,11 @@ func (d *disk) Update(oldDevices deviceConfig.Devices, isRunning bool) error {
 func (d *disk) applyDeferredQuota() error {
 	v := d.volatileGet()
 	if v["apply_quota"] != "" {
-		d.logger.Info("Applying deferred quota change", log.Ctx{"quota": v["apply_quota"]})
+		d.logger.Info("Applying deferred quota change")
 
 		// Indicate that we want applyQuota to unmount the volume first, this is so we can perform resizes
 		// that cannot be done when the volume is in use.
-		err := d.applyQuota(v["apply_quota"], true)
+		err := d.applyQuota(true)
 		if err != nil {
 			return errors.Wrapf(err, "Failed to apply deferred quota from %q", fmt.Sprintf("volatile.%s.apply_quota", d.name))
 		}
@@ -797,7 +804,15 @@ func (d *disk) applyDeferredQuota() error {
 
 // applyQuota attempts to resize the instance root disk to the specified size.
 // If unmount is true, attempts to unmount first before resizing.
-func (d *disk) applyQuota(newSize string, unmount bool) error {
+func (d *disk) applyQuota(unmount bool) error {
+	rootDisk, _, err := shared.GetRootDiskDevice(d.inst.ExpandedDevices().CloneNative())
+	if err != nil {
+		return errors.Wrap(err, "Detect root disk device")
+	}
+
+	newSize := d.inst.ExpandedDevices()[rootDisk]["size"]
+	newMigrationSize := d.inst.ExpandedDevices()[rootDisk]["size.state"]
+
 	pool, err := storagePools.GetPoolByInstance(d.state, d.inst)
 	if err != nil {
 		return err
@@ -814,7 +829,7 @@ func (d *disk) applyQuota(newSize string, unmount bool) error {
 		}
 	}
 
-	err = pool.SetInstanceQuota(d.inst, newSize, nil)
+	err = pool.SetInstanceQuota(d.inst, newSize, newMigrationSize, nil)
 	if err != nil {
 		return err
 	}
