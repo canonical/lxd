@@ -78,6 +78,10 @@ func (d *gpuPhysical) validateConfig(instConf instance.ConfigReader) error {
 
 // validateEnvironment checks the runtime environment for correctness.
 func (d *gpuPhysical) validateEnvironment() error {
+	if d.inst.Type() == instancetype.VM && shared.IsTrue(d.inst.ExpandedConfig()["migration.stateful"]) {
+		return fmt.Errorf("GPU devices cannot be used when migration.stateful is enabled")
+	}
+
 	return validatePCIDevice(d.config["pci"])
 }
 

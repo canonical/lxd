@@ -2,6 +2,7 @@ package drivers
 
 import (
 	"bytes"
+	"compress/gzip"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -707,6 +708,11 @@ func (d *qemu) Start(stateful bool) error {
 		return fmt.Errorf("The instance is already running")
 	}
 
+	// Check for stateful.
+	if stateful && !shared.IsTrue(d.expandedConfig["migration.stateful"]) {
+		return fmt.Errorf("Stateful start requires migration.stateful to be set to true")
+	}
+
 	// Setup a new operation
 	exists, op, err := operationlock.CreateWaitGet(d.id, "start", []string{"restart", "restore"}, false, false)
 	if err != nil {
@@ -796,7 +802,7 @@ func (d *qemu) Start(stateful bool) error {
 		}
 	}
 
-	if cmd != "" {
+	if !shared.IsTrue(d.expandedConfig["migration.stateful"]) && cmd != "" {
 		// Start the virtiofsd process in non-daemon mode.
 		proc, err := subprocess.NewProcess(cmd, []string{fmt.Sprintf("--socket-path=%s", sockPath), "-o", fmt.Sprintf("source=%s", filepath.Join(d.Path(), "config"))}, "", "")
 		if err != nil {
@@ -921,7 +927,36 @@ func (d *qemu) Start(stateful bool) error {
 		"-readconfig", confFile,
 		"-pidfile", d.pidFilePath(),
 		"-D", d.LogFilePath(),
-		"-chroot", d.Path(),
+	}
+
+	// If stateful, restore now.
+	if stateful {
+		if !d.stateful {
+			err = fmt.Errorf("Instance has no existing state to restore")
+			op.Done(err)
+			return err
+		}
+
+		qemuCmd = append(qemuCmd, "-incoming", "defer")
+	} else {
+		// The chroot option can't be used when restoring a migration stream.
+		qemuCmd = append(qemuCmd, "-chroot", d.Path())
+
+		if d.stateful {
+			// Stateless start requested but state is present, delete it.
+			err := os.Remove(d.StatePath())
+			if err != nil && !os.IsNotExist(err) {
+				op.Done(err)
+				return err
+			}
+
+			d.stateful = false
+			err = d.state.Cluster.UpdateInstanceStatefulFlag(d.id, false)
+			if err != nil {
+				op.Done(err)
+				return errors.Wrap(err, "Error updating instance stateful flag")
+			}
+		}
 	}
 
 	// SMBIOS only on x86_64 and aarch64.
@@ -929,8 +964,8 @@ func (d *qemu) Start(stateful bool) error {
 		qemuCmd = append(qemuCmd, "-smbios", "type=2,manufacturer=Canonical Ltd.,product=LXD")
 	}
 
-	// Attempt to drop privileges.
-	if d.state.OS.UnprivUser != "" {
+	// Attempt to drop privileges (doesn't work when restoring state).
+	if !stateful && d.state.OS.UnprivUser != "" {
 		qemuCmd = append(qemuCmd, "-runas", d.state.OS.UnprivUser)
 
 		// Change ownership of config directory files so they are accessible to the
@@ -1127,11 +1162,68 @@ func (d *qemu) Start(stateful bool) error {
 	// Reset timeout to 30s.
 	op.Reset()
 
+	// Restore the state.
+	if stateful {
+		stateFile, err := os.Open(d.StatePath())
+		if err != nil {
+			op.Done(err)
+			return err
+		}
+
+		uncompressedState, err := gzip.NewReader(stateFile)
+		if err != nil {
+			stateFile.Close()
+			op.Done(err)
+			return err
+		}
+
+		pipeRead, pipeWrite, err := os.Pipe()
+		if err != nil {
+			uncompressedState.Close()
+			stateFile.Close()
+			op.Done(err)
+			return err
+		}
+
+		go func() {
+			io.Copy(pipeWrite, uncompressedState)
+			uncompressedState.Close()
+			stateFile.Close()
+			pipeWrite.Close()
+			pipeRead.Close()
+		}()
+
+		err = monitor.SendFile("migration", pipeRead)
+		if err != nil {
+			op.Done(err)
+			return err
+		}
+
+		err = monitor.MigrateIncoming("fd:migration")
+		if err != nil {
+			op.Done(err)
+			return err
+		}
+	}
+
 	// Start the VM.
 	err = monitor.Start()
 	if err != nil {
 		op.Done(err)
 		return err
+	}
+
+	// Finish handling stateful start.
+	if stateful {
+		// Cleanup state.
+		os.Remove(d.StatePath())
+		d.stateful = false
+
+		err = d.state.Cluster.UpdateInstanceStatefulFlag(d.id, false)
+		if err != nil {
+			op.Done(err)
+			return errors.Wrap(err, "Error updating instance stateful flag")
+		}
 	}
 
 	// Database updates
@@ -2679,6 +2771,11 @@ func (d *qemu) Stop(stateful bool) error {
 		return fmt.Errorf("The instance is already stopped")
 	}
 
+	// Check for stateful.
+	if stateful && !shared.IsTrue(d.expandedConfig["migration.stateful"]) {
+		return fmt.Errorf("Stateful stop requires migration.stateful to be set to true")
+	}
+
 	// Setup a new operation.
 	exists, op, err := operationlock.CreateWaitGet(d.id, "stop", []string{"restart", "restore"}, false, true)
 	if err != nil {
@@ -2687,13 +2784,6 @@ func (d *qemu) Stop(stateful bool) error {
 	if exists {
 		// An existing matching operation has now succeeded, return.
 		return nil
-	}
-
-	// Check that no stateful stop was requested.
-	if stateful {
-		err = fmt.Errorf("Stateful stop isn't supported for VMs at this time")
-		op.Done(err)
-		return err
 	}
 
 	// Connect to the monitor.
@@ -2720,6 +2810,70 @@ func (d *qemu) Stop(stateful bool) error {
 
 		op.Done(err)
 		return err
+	}
+
+	// Handle stateful stop.
+	if stateful {
+		os.Remove(d.StatePath())
+
+		// Prepare the state file.
+		stateFile, err := os.Create(d.StatePath())
+		if err != nil {
+			op.Done(err)
+			return err
+		}
+
+		compressedState, err := gzip.NewWriterLevel(stateFile, gzip.BestSpeed)
+		if err != nil {
+			stateFile.Close()
+			op.Done(err)
+			return err
+		}
+
+		pipeRead, pipeWrite, err := os.Pipe()
+		if err != nil {
+			compressedState.Close()
+			stateFile.Close()
+			op.Done(err)
+			return err
+		}
+		defer pipeRead.Close()
+		defer pipeWrite.Close()
+
+		go io.Copy(compressedState, pipeRead)
+
+		// Send the target file to qemu.
+		err = monitor.SendFile("migration", pipeWrite)
+		if err != nil {
+			compressedState.Close()
+			stateFile.Close()
+			op.Done(err)
+			return err
+		}
+
+		// Issue the migration command.
+		err = monitor.Migrate("fd:migration")
+		if err != nil {
+			compressedState.Close()
+			stateFile.Close()
+			op.Done(err)
+			return err
+		}
+
+		// Close the file to avoid unmount delays.
+		compressedState.Close()
+		stateFile.Close()
+
+		// Reset the timer.
+		op.Reset()
+
+		// Mark the instance as having state.
+		d.stateful = true
+		err = d.state.Cluster.UpdateInstanceStatefulFlag(d.id, true)
+		if err != nil {
+			op.Done(err)
+			return err
+		}
 	}
 
 	// Send the quit command.

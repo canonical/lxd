@@ -158,6 +158,10 @@ func (d *usb) startContainer() (*deviceConfig.RunConfig, error) {
 }
 
 func (d *usb) startVM() (*deviceConfig.RunConfig, error) {
+	if d.inst.Type() == instancetype.VM && shared.IsTrue(d.inst.ExpandedConfig()["migration.stateful"]) {
+		return nil, fmt.Errorf("USB devices cannot be used when migration.stateful is enabled")
+	}
+
 	usbs, err := d.loadUsb()
 	if err != nil {
 		return nil, err

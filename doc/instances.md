@@ -62,6 +62,7 @@ linux.kernel\_modules                       | string    | -                 | ye
 migration.incremental.memory                | boolean   | false             | yes           | container                 | Incremental memory transfer of the instance's memory to reduce downtime
 migration.incremental.memory.goal           | integer   | 70                | yes           | container                 | Percentage of memory to have in sync before stopping the instance
 migration.incremental.memory.iterations     | integer   | 10                | yes           | container                 | Maximum number of transfer operations to go through before stopping the instance
+migration.stateful                          | boolean   | false             | no            | virtual-machine           | Allow for stateful stop/start and snapshots. This will prevent the use of some features that are incompatible with it
 nvidia.driver.capabilities                  | string    | compute,utility   | no            | container                 | What driver capabilities the instance needs (sets libnvidia-container NVIDIA\_DRIVER\_CAPABILITIES)
 nvidia.runtime                              | boolean   | false             | no            | container                 | Pass the host NVIDIA and CUDA runtime libraries into the instance
 nvidia.require.cuda                         | string    | -                 | no            | container                 | Version expression for the required CUDA version (sets libnvidia-container NVIDIA\_REQUIRE\_CUDA)
@@ -684,6 +685,7 @@ source              | string    | -         | yes       | Path on the host, eith
 required            | boolean   | true      | no        | Controls whether to fail if the source doesn't exist
 readonly            | boolean   | false     | no        | Controls whether to make the mount read-only
 size                | string    | -         | no        | Disk size in bytes (various suffixes supported, see below). This is only supported for the rootfs (/)
+size.state          | string    | -         | no        | Same as size above but applies to the filesystem volume used for saving runtime state in virtual machines.
 recursive           | boolean   | false     | no        | Whether or not to recursively mount the source path
 pool                | string    | -         | no        | The storage pool the disk device belongs to. This is only applicable for storage volumes managed by LXD
 propagation         | string    | -         | no        | Controls how a bind-mount is shared between the instance and the host. (Can be one of `private`, the default, or `shared`, `slave`, `unbindable`,  `rshared`, `rslave`, `runbindable`,  `rprivate`. Please see the Linux Kernel [shared subtree](https://www.kernel.org/doc/Documentation/filesystems/sharedsubtree.txt) documentation for a full explanation)

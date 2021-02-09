@@ -472,7 +472,7 @@ func internalImportFromRecovery(d *Daemon, r *http.Request) response.Response {
 	// opportunity to reinitialise the quota based on the new storage volume's DB ID).
 	_, rootConfig, err := shared.GetRootDiskDevice(inst.ExpandedDevices().CloneNative())
 	if err == nil {
-		err = pool.SetInstanceQuota(inst, rootConfig["size"], nil)
+		err = pool.SetInstanceQuota(inst, rootConfig["size"], rootConfig["size.state"], nil)
 		if err != nil {
 			return response.SmartError(errors.Wrapf(err, "Failed reinitializing root disk quota %q", rootConfig["size"]))
 		}

@@ -252,6 +252,8 @@ var APIExtensions = []string{
 	"pci_device_type",
 	"storage_volume_state",
 	"network_acl",
+	"migration_stateful",
+	"disk_state_quota",
 }
 
 // APIExtensionsCount returns the number of available API extensions.

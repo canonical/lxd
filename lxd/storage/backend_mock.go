@@ -148,7 +148,7 @@ func (b *mockBackend) GetInstanceUsage(inst instance.Instance) (int64, error) {
 	return 0, nil
 }
 
-func (b *mockBackend) SetInstanceQuota(inst instance.Instance, size string, op *operations.Operation) error {
+func (b *mockBackend) SetInstanceQuota(inst instance.Instance, size string, vmStateSize string, op *operations.Operation) error {
 	return nil
 }
 

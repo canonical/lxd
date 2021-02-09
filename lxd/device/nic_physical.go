@@ -48,6 +48,10 @@ func (d *nicPhysical) validateConfig(instConf instance.ConfigReader) error {
 
 // validateEnvironment checks the runtime environment for correctness.
 func (d *nicPhysical) validateEnvironment() error {
+	if d.inst.Type() == instancetype.VM && shared.IsTrue(d.inst.ExpandedConfig()["migration.stateful"]) {
+		return fmt.Errorf("Network physical devices cannot be used when migration.stateful is enabled")
+	}
+
 	if d.inst.Type() == instancetype.Container && d.config["name"] == "" {
 		return fmt.Errorf("Requires name property to start")
 	}
