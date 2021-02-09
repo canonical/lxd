@@ -1299,3 +1299,6 @@ This adds the concept of network ACLs to API under the API endpoint prefix `/1.0
 
 ## migration\_stateful
 Add a new `migration.stateful` config key.
+
+## disk\_state\_quota
+This introduces the `size.state` device config key on `disk` devices.
