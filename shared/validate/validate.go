@@ -4,10 +4,12 @@ import (
 	"bytes"
 	"fmt"
 	"net"
+	"os/exec"
 	"regexp"
 	"strconv"
 	"strings"
 
+	"github.com/kballard/go-shellquote"
 	"github.com/pborman/uuid"
 
 	"github.com/lxc/lxd/shared/units"
@@ -545,4 +547,25 @@ func IsPCIAddress(value string) error {
 	}
 
 	return nil
+}
+
+// IsCompressionAlgorithm validates whether a value is a valid compression algorithm and is available on the system.
+func IsCompressionAlgorithm(value string) error {
+	if value == "none" {
+		return nil
+	}
+
+	// Going to look up tar2sqfs executable binary
+	if value == "squashfs" {
+		value = "tar2sqfs"
+	}
+
+	// Parse the command.
+	fields, err := shellquote.Split(value)
+	if err != nil {
+		return err
+	}
+
+	_, err = exec.LookPath(fields[0])
+	return err
 }
