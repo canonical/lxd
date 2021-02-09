@@ -1730,54 +1730,6 @@ func (d *lxc) deviceRemove(deviceName string, rawConfig deviceConfig.Device, ins
 	return dev.Remove()
 }
 
-// deviceResetVolatile resets a device's volatile data when its removed or updated in such a way
-// that it is removed then added immediately afterwards.
-func (d *lxc) deviceResetVolatile(devName string, oldConfig, newConfig deviceConfig.Device) error {
-	volatileClear := make(map[string]string)
-	devicePrefix := fmt.Sprintf("volatile.%s.", devName)
-
-	newNICType, err := nictype.NICType(d.state, d.Project(), newConfig)
-	if err != nil {
-		return err
-	}
-
-	oldNICType, err := nictype.NICType(d.state, d.Project(), oldConfig)
-	if err != nil {
-		return err
-	}
-
-	// If the device type has changed, remove all old volatile keys.
-	// This will occur if the newConfig is empty (i.e the device is actually being removed) or
-	// if the device type is being changed but keeping the same name.
-	if newConfig["type"] != oldConfig["type"] || newNICType != oldNICType {
-		for k := range d.localConfig {
-			if !strings.HasPrefix(k, devicePrefix) {
-				continue
-			}
-
-			volatileClear[k] = ""
-		}
-
-		return d.VolatileSet(volatileClear)
-	}
-
-	// If the device type remains the same, then just remove any volatile keys that have
-	// the same key name present in the new config (i.e the new config is replacing the
-	// old volatile key).
-	for k := range d.localConfig {
-		if !strings.HasPrefix(k, devicePrefix) {
-			continue
-		}
-
-		devKey := strings.TrimPrefix(k, devicePrefix)
-		if _, found := newConfig[devKey]; found {
-			volatileClear[k] = ""
-		}
-	}
-
-	return d.VolatileSet(volatileClear)
-}
-
 // DeviceEventHandler actions the results of a RunConfig after an event has occurred on a device.
 func (d *lxc) DeviceEventHandler(runConf *deviceConfig.RunConfig) error {
 	// Device events can only be processed when the container is running.
@@ -3862,31 +3814,22 @@ func (d *lxc) Update(args db.InstanceArgs, userRequested bool) error {
 	}
 
 	// Diff the devices
-	removeDevices, addDevices, updateDevices, updateDiff := oldExpandedDevices.Update(d.expandedDevices, func(oldDevice deviceConfig.Device, newDevice deviceConfig.Device) []string {
+	removeDevices, addDevices, updateDevices, allUpdatedKeys := oldExpandedDevices.Update(d.expandedDevices, func(oldDevice deviceConfig.Device, newDevice deviceConfig.Device) []string {
 		// This function needs to return a list of fields that are excluded from differences
 		// between oldDevice and newDevice. The result of this is that as long as the
 		// devices are otherwise identical except for the fields returned here, then the
 		// device is considered to be being "updated" rather than "added & removed".
-		oldNICType, err := nictype.NICType(d.state, d.Project(), newDevice)
-		if err != nil {
-			return []string{} // Cannot hot-update due to config error.
-		}
-
-		newNICType, err := nictype.NICType(d.state, d.Project(), oldDevice)
-		if err != nil {
-			return []string{} // Cannot hot-update due to config error.
-		}
-
-		if oldDevice["type"] != newDevice["type"] || oldNICType != newNICType {
-			return []string{} // Device types aren't the same, so this cannot be an update.
-		}
-
-		dev, err := device.New(d, d.state, "", newDevice, nil, nil)
+		oldDevType, err := device.LoadByType(d.state, d.Project(), oldDevice)
 		if err != nil {
 			return []string{} // Couldn't create Device, so this cannot be an update.
 		}
 
-		return dev.UpdatableFields()
+		newDevType, err := device.LoadByType(d.state, d.Project(), newDevice)
+		if err != nil {
+			return []string{} // Couldn't create Device, so this cannot be an update.
+		}
+
+		return newDevType.UpdatableFields(oldDevType)
 	})
 
 	if userRequested {
@@ -3976,7 +3919,7 @@ func (d *lxc) Update(args db.InstanceArgs, userRequested bool) error {
 	// Update MAAS (must run after the MAC addresses have been generated).
 	updateMAAS := false
 	for _, key := range []string{"maas.subnet.ipv4", "maas.subnet.ipv6", "ipv4.address", "ipv6.address"} {
-		if shared.StringInSlice(key, updateDiff) {
+		if shared.StringInSlice(key, allUpdatedKeys) {
 			updateMAAS = true
 			break
 		}
@@ -4408,7 +4351,7 @@ func (d *lxc) updateDevices(removeDevices deviceConfig.Devices, addDevices devic
 		// Check whether we are about to add the same device back with updated config and
 		// if not, or if the device type has changed, then remove all volatile keys for
 		// this device (as its an actual removal or a device type change).
-		err = d.deviceResetVolatile(dev.Name, dev.Config, addDevices[dev.Name])
+		err = d.deviceVolatileReset(dev.Name, dev.Config, addDevices[dev.Name])
 		if err != nil {
 			return errors.Wrapf(err, "Failed to reset volatile data for device %q", dev.Name)
 		}

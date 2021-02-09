@@ -274,7 +274,13 @@ func (d *disk) validateEnvironment() error {
 }
 
 // UpdatableFields returns a list of fields that can be updated without triggering a device remove & add.
-func (d *disk) UpdatableFields() []string {
+func (d *disk) UpdatableFields(oldDevice Type) []string {
+	// Check old and new device types match.
+	_, match := oldDevice.(*disk)
+	if !match {
+		return []string{}
+	}
+
 	return []string{"limits.max", "limits.read", "limits.write", "size", "size.state"}
 }
 
