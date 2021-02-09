@@ -1087,3 +1087,6 @@ It introduces the `sriov` gpu type property.
 
 ## migration\_stateful
 Add a new `migration.stateful` config key.
+
+## disk\_state\_quota
+This introduces the `size.state` device config key on `disk` devices.

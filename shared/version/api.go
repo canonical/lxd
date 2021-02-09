@@ -218,6 +218,7 @@ var APIExtensions = []string{
 	"network_state_vlan",
 	"gpu_sriov",
 	"migration_stateful",
+	"disk_state_quota",
 }
 
 // APIExtensionsCount returns the number of available API extensions.
