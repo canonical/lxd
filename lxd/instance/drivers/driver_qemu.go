@@ -3365,26 +3365,17 @@ func (d *qemu) Update(args db.InstanceArgs, userRequested bool) error {
 		// between oldDevice and newDevice. The result of this is that as long as the
 		// devices are otherwise identical except for the fields returned here, then the
 		// device is considered to be being "updated" rather than "added & removed".
-		oldNICType, err := nictype.NICType(d.state, d.Project(), newDevice)
-		if err != nil {
-			return []string{} // Cannot hot-update due to config error.
-		}
-
-		newNICType, err := nictype.NICType(d.state, d.Project(), oldDevice)
-		if err != nil {
-			return []string{} // Cannot hot-update due to config error.
-		}
-
-		if oldDevice["type"] != newDevice["type"] || oldNICType != newNICType {
-			return []string{} // Device types aren't the same, so this cannot be an update.
-		}
-
-		dev, err := device.New(d, d.state, "", newDevice, nil, nil)
+		oldDevType, err := device.LoadByType(d.state, d.Project(), oldDevice)
 		if err != nil {
 			return []string{} // Couldn't create Device, so this cannot be an update.
 		}
 
-		return dev.UpdatableFields()
+		newDevType, err := device.LoadByType(d.state, d.Project(), newDevice)
+		if err != nil {
+			return []string{} // Couldn't create Device, so this cannot be an update.
+		}
+
+		return newDevType.UpdatableFields(oldDevType)
 	})
 
 	if userRequested {
