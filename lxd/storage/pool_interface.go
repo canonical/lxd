@@ -58,7 +58,7 @@ type Pool interface {
 	BackupInstance(inst instance.Instance, tarWriter *instancewriter.InstanceTarWriter, optimized bool, snapshots bool, op *operations.Operation) error
 
 	GetInstanceUsage(inst instance.Instance) (int64, error)
-	SetInstanceQuota(inst instance.Instance, size string, op *operations.Operation) error
+	SetInstanceQuota(inst instance.Instance, size string, vmStateSize string, op *operations.Operation) error
 
 	MountInstance(inst instance.Instance, op *operations.Operation) (*MountInfo, error)
 	UnmountInstance(inst instance.Instance, op *operations.Operation) (bool, error)

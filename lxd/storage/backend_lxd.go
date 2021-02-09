@@ -474,6 +474,10 @@ func (b *lxdBackend) instanceRootVolumeConfig(inst instance.Instance) (map[strin
 		vol.Config["size"] = rootDiskConf["size"]
 	}
 
+	if rootDiskConf["size.state"] != "" {
+		vol.Config["size.state"] = rootDiskConf["size.state"]
+	}
+
 	return vol.Config, nil
 }
 
@@ -1686,8 +1690,8 @@ func (b *lxdBackend) GetInstanceUsage(inst instance.Instance) (int64, error) {
 
 // SetInstanceQuota sets the quota on the instance's root volume.
 // Returns ErrInUse if the instance is running and the storage driver doesn't support online resizing.
-func (b *lxdBackend) SetInstanceQuota(inst instance.Instance, size string, op *operations.Operation) error {
-	logger := logging.AddContext(b.logger, log.Ctx{"project": inst.Project(), "instance": inst.Name(), "size": size})
+func (b *lxdBackend) SetInstanceQuota(inst instance.Instance, size string, vmStateSize string, op *operations.Operation) error {
+	logger := logging.AddContext(b.logger, log.Ctx{"project": inst.Project(), "instance": inst.Name(), "size": size, "vm_state_size": vmStateSize})
 	logger.Debug("SetInstanceQuota started")
 	defer logger.Debug("SetInstanceQuota finished")
 
@@ -1700,11 +1704,28 @@ func (b *lxdBackend) SetInstanceQuota(inst instance.Instance, size string, op *o
 	contentVolume := InstanceContentType(inst)
 	volStorageName := project.Instance(inst.Project(), inst.Name())
 
-	// Get the volume.
+	// Apply the main volume quota.
 	// There's no need to pass config as it's not needed when setting quotas.
 	vol := b.newVolume(volType, contentVolume, volStorageName, nil)
+	err = b.driver.SetVolumeQuota(vol, size, op)
+	if err != nil {
+		return err
+	}
 
-	return b.driver.SetVolumeQuota(vol, size, op)
+	// Apply the filesystem volume quota (only when main volume is block).
+	if vol.IsVMBlock() {
+		if vmStateSize == "" {
+			vmStateSize = drivers.DefaultVMBlockFilesystemSize
+		}
+
+		fsVol := vol.NewVMBlockFilesystemVolume()
+		err := b.driver.SetVolumeQuota(fsVol, vmStateSize, op)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 // MountInstance mounts the instance's root volume.
