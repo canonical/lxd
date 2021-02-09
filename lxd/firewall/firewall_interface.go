@@ -6,7 +6,7 @@ import (
 	deviceConfig "github.com/lxc/lxd/lxd/device/config"
 )
 
-// Firewall represents an LXD firewall.
+// Firewall represents a LXD firewall.
 type Firewall interface {
 	String() string
 	Compat() (bool, error)
