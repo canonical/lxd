@@ -114,7 +114,7 @@ func (d *lvm) Create() error {
 	defer revert.Fail()
 
 	if d.config["source"] == "" || d.config["source"] == defaultSource {
-		// We are using an LXD internal loopback file.
+		// We are using a LXD internal loopback file.
 		d.config["source"] = defaultSource
 		if d.config["lvm.vg_name"] == "" {
 			d.config["lvm.vg_name"] = d.name
