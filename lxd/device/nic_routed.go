@@ -29,7 +29,7 @@ func (d *nicRouted) CanHotPlug() bool {
 }
 
 // UpdatableFields returns a list of fields that can be updated without triggering a device remove & add.
-func (d *nicRouted) UpdatableFields() []string {
+func (d *nicRouted) UpdatableFields(oldDevice Type) []string {
 	return []string{}
 }
 
