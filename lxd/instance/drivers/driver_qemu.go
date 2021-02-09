@@ -3552,7 +3552,7 @@ func (d *qemu) updateDevices(removeDevices deviceConfig.Devices, addDevices devi
 		// Check whether we are about to add the same device back with updated config and
 		// if not, or if the device type has changed, then remove all volatile keys for
 		// this device (as its an actual removal or a device type change).
-		err = d.deviceResetVolatile(dev.Name, dev.Config, addDevices[dev.Name])
+		err = d.deviceVolatileReset(dev.Name, dev.Config, addDevices[dev.Name])
 		if err != nil {
 			return errors.Wrapf(err, "Failed to reset volatile data for device %q", dev.Name)
 		}
