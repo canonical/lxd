@@ -328,7 +328,7 @@ func (d *common) TemplatesPath() string {
 // SECTION: internal functions
 //
 
-// deviceResetVolatile resets a device's volatile data when its removed or updated in such a way
+// deviceVolatileReset resets a device's volatile data when its removed or updated in such a way
 // that it is removed then added immediately afterwards.
 func (d *common) deviceVolatileReset(devName string, oldConfig, newConfig deviceConfig.Device) error {
 	volatileClear := make(map[string]string)
