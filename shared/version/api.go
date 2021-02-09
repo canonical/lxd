@@ -254,6 +254,7 @@ var APIExtensions = []string{
 	"network_acl",
 	"migration_stateful",
 	"disk_state_quota",
+	"storage_ceph_features",
 }
 
 // APIExtensionsCount returns the number of available API extensions.
