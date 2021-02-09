@@ -1512,18 +1512,14 @@ func (d *qemu) generateConfigShare() error {
 Description=LXD - agent
 Documentation=https://linuxcontainers.org/lxd
 ConditionPathExists=/dev/virtio-ports/org.linuxcontainers.lxd
-Wants=lxd-agent-virtiofs.service
-After=lxd-agent-virtiofs.service
-Wants=lxd-agent-9p.service
-After=lxd-agent-9p.service
-
 Before=cloud-init.target cloud-init.service cloud-init-local.service
 DefaultDependencies=no
 
 [Service]
 Type=notify
-WorkingDirectory=/run/lxd_config/drive
-ExecStart=/run/lxd_config/drive/lxd-agent
+WorkingDirectory=-/run/lxd_agent
+ExecStartPre=/lib/systemd/lxd-agent-setup
+ExecStart=/run/lxd_agent/lxd-agent
 Restart=on-failure
 RestartSec=5s
 StartLimitInterval=60
@@ -1538,52 +1534,48 @@ WantedBy=multi-user.target
 		return err
 	}
 
-	lxdConfigShareMountUnit := `[Unit]
-Description=LXD - agent - 9p mount
-Documentation=https://linuxcontainers.org/lxd
-ConditionPathExists=/dev/virtio-ports/org.linuxcontainers.lxd
-After=local-fs.target lxd-agent-virtiofs.service
-DefaultDependencies=no
-ConditionPathIsMountPoint=!/run/lxd_config/drive
+	lxdAgentSetupScript := `#!/bin/sh
+set -eu
+PREFIX="/run/lxd_agent"
 
-[Service]
-Type=oneshot
-RemainAfterExit=yes
-ExecStartPre=-/sbin/modprobe 9pnet_virtio
-ExecStartPre=/bin/mkdir -p /run/lxd_config/drive
-ExecStartPre=/bin/chmod 0700 /run/lxd_config/
-ExecStart=/bin/mount -t 9p config /run/lxd_config/drive -o access=0,trans=virtio
+# Functions.
+mount_virtiofs() {
+    mount -t virtiofs config "${PREFIX}/.mnt" >/dev/null 2>&1
+}
 
-[Install]
-WantedBy=multi-user.target
+mount_9p() {
+    /sbin/modprobe 9pnet_virtio >/dev/null 2>&1 || true
+    /bin/mount -t 9p config "${PREFIX}/.mnt" -o access=0,trans=virtio >/dev/null 2>&1
+}
+
+fail() {
+    umount -l "${PREFIX}" >/dev/null 2>&1 || true
+    rmdir "${PREFIX}" >/dev/null 2>&1 || true
+    echo "${1}"
+    exit 1
+}
+
+# Setup the mount target.
+umount -l "${PREFIX}" >/dev/null 2>&1 || true
+mkdir -p "${PREFIX}"
+mount -t tmpfs tmpfs "${PREFIX}" -o mode=0700,size=50M
+mkdir -p "${PREFIX}/.mnt"
+
+# Try virtiofs first.
+mount_virtiofs || mount_9p || fail "Couldn't mount virtiofs or 9p, failing."
+
+# Copy the data.
+cp -Ra "${PREFIX}/.mnt/"* "${PREFIX}"
+
+# Unmount the temporary mount.
+umount "${PREFIX}/.mnt"
+rmdir "${PREFIX}/.mnt"
+
+# Fix up permissions.
+chown -R root:root "${PREFIX}"
 `
 
-	err = ioutil.WriteFile(filepath.Join(configDrivePath, "systemd", "lxd-agent-9p.service"), []byte(lxdConfigShareMountUnit), 0400)
-	if err != nil {
-		return err
-	}
-
-	lxdConfigShareMountVirtioFSUnit := `[Unit]
-Description=LXD - agent - virtio-fs mount
-Documentation=https://linuxcontainers.org/lxd
-ConditionPathExists=/dev/virtio-ports/org.linuxcontainers.lxd
-After=local-fs.target
-Before=lxd-agent-9p.service
-DefaultDependencies=no
-ConditionPathIsMountPoint=!/run/lxd_config/drive
-
-[Service]
-Type=oneshot
-RemainAfterExit=yes
-ExecStartPre=/bin/mkdir -p /run/lxd_config/drive
-ExecStartPre=/bin/chmod 0700 /run/lxd_config/
-ExecStart=/bin/mount -t virtiofs config /run/lxd_config/drive
-
-[Install]
-WantedBy=multi-user.target
-	`
-
-	err = ioutil.WriteFile(filepath.Join(configDrivePath, "systemd", "lxd-agent-virtiofs.service"), []byte(lxdConfigShareMountVirtioFSUnit), 0400)
+	err = ioutil.WriteFile(filepath.Join(configDrivePath, "systemd", "lxd-agent-setup"), []byte(lxdAgentSetupScript), 0500)
 	if err != nil {
 		return err
 	}
@@ -1612,12 +1604,18 @@ if [ ! -e "/lib/systemd/system" ]; then
     exit 1
 fi
 
+# Cleanup former units.
+rm -f /lib/systemd/system/lxd-agent-9p.service \
+    /lib/systemd/system/lxd-agent-virtiofs.service \
+    /etc/systemd/system/multi-user.target.wants/lxd-agent-9p.service \
+    /etc/systemd/system/multi-user.target.wants/lxd-agent-virtiofs.service
+
+# Install the units.
 cp udev/99-lxd-agent.rules /lib/udev/rules.d/
 cp systemd/lxd-agent.service /lib/systemd/system/
-cp systemd/lxd-agent-9p.service /lib/systemd/system/
-cp systemd/lxd-agent-virtiofs.service /lib/systemd/system/
+cp systemd/lxd-agent-setup /lib/systemd/
 systemctl daemon-reload
-systemctl enable lxd-agent.service lxd-agent-9p.service lxd-agent-virtiofs.service
+systemctl enable lxd-agent.service
 
 echo ""
 echo "LXD agent has been installed, reboot to confirm setup."
