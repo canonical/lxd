@@ -16,14 +16,19 @@ type VolatileSetter func(map[string]string) error
 // and should remove the prefix before being returned.
 type VolatileGetter func() map[string]string
 
-// Device represents a device that can be added to an instance.
-type Device interface {
+// Type represents a LXD device type.
+type Type interface {
 	// CanHotPlug returns true if device can be managed whilst instance is running.
 	CanHotPlug() bool
 
 	// UpdatableFields returns a slice of config fields that can be updated. If only fields in this list have
 	// changed then Update() is called rather triggering a device remove & add.
-	UpdatableFields() []string
+	UpdatableFields(oldDevice Type) []string
+}
+
+// Device represents a device that can be added to an instance.
+type Device interface {
+	Type
 
 	// Add performs any host-side setup when a device is added to an instance.
 	// It is called irrespective of whether the instance is running or not.
