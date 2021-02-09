@@ -63,8 +63,8 @@ func (d *ceph) osdDeletePool() error {
 }
 
 // rbdCreateVolume creates an RBD storage volume.
-// Note that the set of features is intentionally limited is intentionally
-// limited by passing --image-feature explicitly. This is done to ensure that
+// Note that the default set of features is intentionally limited
+// by passing --image-feature explicitly. This is done to ensure that
 // the chances of a conflict between the features supported by the userspace
 // library and the kernel module are minimized. Otherwise random panics might
 // occur.
@@ -76,9 +76,14 @@ func (d *ceph) rbdCreateVolume(vol Volume, size string) error {
 
 	cmd := []string{
 		"--id", d.config["ceph.user.name"],
-		"--image-feature", "layering,",
 		"--cluster", d.config["ceph.cluster_name"],
 		"--pool", d.config["ceph.osd.pool_name"],
+	}
+
+	if d.config["ceph.rbd.features"] != "" {
+		cmd = append(cmd, "--image-feature", d.config["ceph.rbd.features"])
+	} else {
+		cmd = append(cmd, "--image-feature", "layering")
 	}
 
 	if d.config["ceph.osd.data_pool_name"] != "" {
@@ -313,7 +318,12 @@ func (d *ceph) rbdCreateClone(sourceVol Volume, sourceSnapshotName string, targe
 	cmd := []string{
 		"--id", d.config["ceph.user.name"],
 		"--cluster", d.config["ceph.cluster_name"],
-		"--image-feature", "layering",
+	}
+
+	if d.config["ceph.rbd.features"] != "" {
+		cmd = append(cmd, "--image-feature", d.config["ceph.rbd.features"])
+	} else {
+		cmd = append(cmd, "--image-feature", "layering")
 	}
 
 	if d.config["ceph.osd.data_pool_name"] != "" {
