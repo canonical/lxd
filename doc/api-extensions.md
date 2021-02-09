@@ -1302,3 +1302,6 @@ Add a new `migration.stateful` config key.
 
 ## disk\_state\_quota
 This introduces the `size.state` device config key on `disk` devices.
+
+## storage\_ceph\_features
+Adds a new `ceph.rbd.features` config key on storage pools to control the RBD features used for new volumes.
