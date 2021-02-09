@@ -8,7 +8,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/stgraber/go-qemu/qmp"
+	"github.com/digitalocean/go-qemu/qmp"
 
 	"github.com/lxc/lxd/shared/logger"
 )
