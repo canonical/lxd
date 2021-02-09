@@ -222,7 +222,7 @@ func (d *btrfs) CreateVolumeFromBackup(vol Volume, srcBackup backup.Info, srcDat
 		return "", fmt.Errorf("Could not find %q", srcFile)
 	}
 
-	// unpackVolume unpacks all subvolumes in an LXD volume from a backup tarball file.
+	// unpackVolume unpacks all subvolumes in a LXD volume from a backup tarball file.
 	unpackVolume := func(v Volume, srcFilePrefix string) error {
 		_, snapName, _ := shared.InstanceGetParentAndSnapshotName(v.name)
 
@@ -466,7 +466,7 @@ func (d *btrfs) CreateVolumeFromMigration(vol Volume, conn io.ReadWriteCloser, v
 		})
 	}
 
-	// receiveVolume receives all subvolumes in an LXD volume from the source.
+	// receiveVolume receives all subvolumes in a LXD volume from the source.
 	receiveVolume := func(v Volume, receivePath string) error {
 		_, snapName, _ := shared.InstanceGetParentAndSnapshotName(v.name)
 
