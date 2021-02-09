@@ -8,7 +8,7 @@ import (
 	"github.com/lxc/lxd/lxd/instance/instancetype"
 	"github.com/lxc/lxd/lxd/network"
 	"github.com/lxc/lxd/lxd/revert"
-	"github.com/lxc/lxd/shared"
+	"github.com/lxc/lxd/lxd/util"
 )
 
 type nicP2P struct {
@@ -51,7 +51,13 @@ func (d *nicP2P) validateEnvironment() error {
 }
 
 // UpdatableFields returns a list of fields that can be updated without triggering a device remove & add.
-func (d *nicP2P) UpdatableFields() []string {
+func (d *nicP2P) UpdatableFields(oldDevice Type) []string {
+	// Check old and new device types match.
+	_, match := oldDevice.(*nicP2P)
+	if !match {
+		return []string{}
+	}
+
 	return []string{"limits.ingress", "limits.egress", "limits.max", "ipv4.routes", "ipv6.routes"}
 }
 
@@ -93,8 +99,8 @@ func (d *nicP2P) Start() (*deviceConfig.RunConfig, error) {
 	// Populate device config with volatile fields if needed.
 	networkVethFillFromVolatile(d.config, saveData)
 
-	// Apply host-side routes.
-	err = networkSetupHostVethRoutes(d.state, d.config, nil, saveData)
+	// Apply host-side routes to veth interface.
+	err = networkNICRouteAdd(d.config["host_name"], append(util.SplitNTrimSpace(d.config["ipv4.routes"], ",", -1, true), util.SplitNTrimSpace(d.config["ipv6.routes"], ",", -1, true)...)...)
 	if err != nil {
 		return nil, err
 	}
@@ -132,8 +138,6 @@ func (d *nicP2P) Start() (*deviceConfig.RunConfig, error) {
 
 // Update applies configuration changes to a started device.
 func (d *nicP2P) Update(oldDevices deviceConfig.Devices, isRunning bool) error {
-	oldConfig := oldDevices[d.name]
-
 	if !isRunning {
 		return nil
 	}
@@ -143,13 +147,18 @@ func (d *nicP2P) Update(oldDevices deviceConfig.Devices, isRunning bool) error {
 		return err
 	}
 
+	oldConfig := oldDevices[d.name]
 	v := d.volatileGet()
 
 	// Populate device config with volatile fields if needed.
 	networkVethFillFromVolatile(d.config, v)
+	networkVethFillFromVolatile(oldConfig, v)
 
-	// Apply host-side routes.
-	err = networkSetupHostVethRoutes(d.state, d.config, oldConfig, v)
+	// Remove old host-side routes from veth interface.
+	networkNICRouteDelete(oldConfig["host_name"], append(util.SplitNTrimSpace(oldConfig["ipv4.routes"], ",", -1, true), util.SplitNTrimSpace(oldConfig["ipv6.routes"], ",", -1, true)...)...)
+
+	// Apply host-side routes to veth interface.
+	err = networkNICRouteAdd(d.config["host_name"], append(util.SplitNTrimSpace(d.config["ipv4.routes"], ",", -1, true), util.SplitNTrimSpace(d.config["ipv6.routes"], ",", -1, true)...)...)
 	if err != nil {
 		return err
 	}
@@ -182,7 +191,7 @@ func (d *nicP2P) postStop() error {
 
 	networkVethFillFromVolatile(d.config, v)
 
-	if d.config["host_name"] != "" && shared.PathExists(fmt.Sprintf("/sys/class/net/%s", d.config["host_name"])) {
+	if d.config["host_name"] != "" && network.InterfaceExists(d.config["host_name"]) {
 		// Removing host-side end of veth pair will delete the peer end too.
 		err := network.InterfaceRemove(d.config["host_name"])
 		if err != nil {

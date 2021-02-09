@@ -212,7 +212,13 @@ func (d *nicBridged) validateEnvironment() error {
 }
 
 // UpdatableFields returns a list of fields that can be updated without triggering a device remove & add.
-func (d *nicBridged) UpdatableFields() []string {
+func (d *nicBridged) UpdatableFields(oldDevice Type) []string {
+	// Check old and new device types match.
+	_, match := oldDevice.(*nicBridged)
+	if !match {
+		return []string{}
+	}
+
 	return []string{"limits.ingress", "limits.egress", "limits.max", "ipv4.routes", "ipv6.routes", "ipv4.address", "ipv6.address", "security.mac_filtering", "security.ipv4_filtering", "security.ipv6_filtering"}
 }
 
@@ -265,8 +271,8 @@ func (d *nicBridged) Start() (*deviceConfig.RunConfig, error) {
 	// Populate device config with volatile fields if needed.
 	networkVethFillFromVolatile(d.config, saveData)
 
-	// Apply host-side routes.
-	err = networkSetupHostVethRoutes(d.state, d.config, nil, saveData)
+	// Apply host-side routes to bridge interface.
+	err = networkNICRouteAdd(d.config["parent"], append(util.SplitNTrimSpace(d.config["ipv4.routes"], ",", -1, true), util.SplitNTrimSpace(d.config["ipv6.routes"], ",", -1, true)...)...)
 	if err != nil {
 		return nil, err
 	}
@@ -351,6 +357,11 @@ func (d *nicBridged) Start() (*deviceConfig.RunConfig, error) {
 // Update applies configuration changes to a started device.
 func (d *nicBridged) Update(oldDevices deviceConfig.Devices, isRunning bool) error {
 	oldConfig := oldDevices[d.name]
+	v := d.volatileGet()
+
+	// Populate device config with volatile fields if needed.
+	networkVethFillFromVolatile(d.config, v)
+	networkVethFillFromVolatile(oldConfig, v)
 
 	// If an IPv6 address has changed, flush all existing IPv6 leases for instance so instance
 	// isn't allocated old IP. This is important with IPv6 because DHCPv6 supports multiple IP
@@ -362,11 +373,6 @@ func (d *nicBridged) Update(oldDevices deviceConfig.Devices, isRunning bool) err
 		}
 	}
 
-	v := d.volatileGet()
-
-	// Populate device config with volatile fields if needed.
-	networkVethFillFromVolatile(d.config, v)
-
 	// If instance is running, apply host side limits and filters first before rebuilding
 	// dnsmasq config below so that existing config can be used as part of the filter removal.
 	if isRunning {
@@ -375,8 +381,17 @@ func (d *nicBridged) Update(oldDevices deviceConfig.Devices, isRunning bool) err
 			return err
 		}
 
-		// Apply host-side routes.
-		err = networkSetupHostVethRoutes(d.state, d.config, oldConfig, v)
+		// Validate old config so that it is enriched with network parent config needed for route removal.
+		err = Validate(d.inst, d.state, d.name, oldConfig)
+		if err != nil {
+			return err
+		}
+
+		// Remove old host-side routes from bridge interface.
+		networkNICRouteDelete(oldConfig["parent"], append(util.SplitNTrimSpace(oldConfig["ipv4.routes"], ",", -1, true), util.SplitNTrimSpace(oldConfig["ipv6.routes"], ",", -1, true)...)...)
+
+		// Apply host-side routes to bridge interface.
+		err = networkNICRouteAdd(d.config["parent"], append(util.SplitNTrimSpace(d.config["ipv4.routes"], ",", -1, true), util.SplitNTrimSpace(d.config["ipv6.routes"], ",", -1, true)...)...)
 		if err != nil {
 			return err
 		}
@@ -436,7 +451,7 @@ func (d *nicBridged) postStop() error {
 
 	networkVethFillFromVolatile(d.config, v)
 
-	if d.config["host_name"] != "" && shared.PathExists(fmt.Sprintf("/sys/class/net/%s", d.config["host_name"])) {
+	if d.config["host_name"] != "" && network.InterfaceExists(d.config["host_name"]) {
 		// Detach host-side end of veth pair from bridge (required for openvswitch particularly).
 		err := network.DetachInterface(d.config["parent"], d.config["host_name"])
 		if err != nil {
@@ -450,7 +465,8 @@ func (d *nicBridged) postStop() error {
 		}
 	}
 
-	networkRemoveVethRoutes(d.state, d.config)
+	// Remove host-side routes from bridge interface.
+	networkNICRouteDelete(d.config["parent"], append(util.SplitNTrimSpace(d.config["ipv4.routes"], ",", -1, true), util.SplitNTrimSpace(d.config["ipv6.routes"], ",", -1, true)...)...)
 	d.removeFilters(d.config)
 
 	return nil
@@ -487,7 +503,7 @@ func (d *nicBridged) Remove() error {
 	return nil
 }
 
-// rebuildDnsmasqEntry rebuilds the dnsmasq host entry if connected to an LXD managed network and reloads dnsmasq.
+// rebuildDnsmasqEntry rebuilds the dnsmasq host entry if connected to a LXD managed network and reloads dnsmasq.
 func (d *nicBridged) rebuildDnsmasqEntry() error {
 	// Rebuild dnsmasq config if a bridged device has changed and parent is a managed network.
 	if !shared.PathExists(shared.VarPath("networks", d.config["parent"], "dnsmasq.pid")) {

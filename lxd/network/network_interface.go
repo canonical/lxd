@@ -11,7 +11,7 @@ import (
 	"github.com/lxc/lxd/shared/api"
 )
 
-// Type represents an LXD network driver type.
+// Type represents a LXD network driver type.
 type Type interface {
 	FillConfig(config map[string]string) error
 	Info() Info

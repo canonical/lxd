@@ -3,6 +3,7 @@ package device
 import (
 	"fmt"
 	"io/ioutil"
+	"net"
 	"strconv"
 	"strings"
 	"sync"
@@ -10,11 +11,9 @@ import (
 	"github.com/pkg/errors"
 
 	deviceConfig "github.com/lxc/lxd/lxd/device/config"
-	"github.com/lxc/lxd/lxd/device/nictype"
 	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/instance/instancetype"
 	"github.com/lxc/lxd/lxd/network"
-	"github.com/lxc/lxd/lxd/project"
 	"github.com/lxc/lxd/lxd/revert"
 	"github.com/lxc/lxd/lxd/state"
 	"github.com/lxc/lxd/shared"
@@ -300,30 +299,6 @@ func networkCreateTap(hostName string, m deviceConfig.Device) error {
 	return nil
 }
 
-// networkSetupHostVethRoutes configures a nic device's host side veth routes.
-// Accepts an optional oldDevice that will have its old host routes removed before adding the new device routes.
-// This allows live update of a veth device.
-func networkSetupHostVethRoutes(s *state.State, device deviceConfig.Device, oldDevice deviceConfig.Device, v map[string]string) error {
-	// Check whether host device resolution succeeded.
-	if device["host_name"] == "" {
-		return fmt.Errorf("Failed to find host side veth name for device %q", device["name"])
-	}
-
-	// If oldDevice provided, remove old routes if any remain.
-	if oldDevice != nil {
-		networkVethFillFromVolatile(oldDevice, v)
-		networkRemoveVethRoutes(s, oldDevice)
-	}
-
-	// Setup static routes to container.
-	err := networkSetVethRoutes(s, device)
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
 // networkVethFillFromVolatile fills veth host_name and hwaddr fields from volatile if not set in device config.
 func networkVethFillFromVolatile(device deviceConfig.Device, volatile map[string]string) {
 	// If not configured, check if volatile data contains the most recently added host_name.
@@ -337,97 +312,72 @@ func networkVethFillFromVolatile(device deviceConfig.Device, volatile map[string
 	}
 }
 
-// networkSetVethRoutes applies any static routes configured from the host to the container nic.
-func networkSetVethRoutes(s *state.State, m deviceConfig.Device) error {
-	// Decide whether the route should point to the veth parent or the bridge parent.
-	routeDev := m["host_name"]
-
-	// Use project.Default here, as only networks in the default project can add routes on the host.
-	nicType, err := nictype.NICType(s, project.Default, m)
-	if err != nil {
-		return err
+// networkNICRouteAdd applies any static host-side routes configured for an instance NIC.
+func networkNICRouteAdd(routeDev string, routes ...string) error {
+	if !network.InterfaceExists(routeDev) {
+		return fmt.Errorf("Route interface missing %q", routeDev)
 	}
 
-	if nicType == "bridged" {
-		routeDev = m["parent"]
-	}
+	revert := revert.New()
+	defer revert.Fail()
 
-	if !shared.PathExists(fmt.Sprintf("/sys/class/net/%s", routeDev)) {
-		return fmt.Errorf("Unknown or missing host side route interface: %s", routeDev)
-	}
-
-	// Add additional IPv4 routes (using boot proto to avoid conflicts with network static routes)
-	if m["ipv4.routes"] != "" {
-		for _, route := range strings.Split(m["ipv4.routes"], ",") {
-			route = strings.TrimSpace(route)
-			_, err := shared.RunCommand("ip", "-4", "route", "add", route, "dev", routeDev, "proto", "boot")
-			if err != nil {
-				return err
-			}
+	for _, r := range routes {
+		route := r // Local var for revert.
+		ip, _, err := net.ParseCIDR(route)
+		if err != nil {
+			return errors.Wrapf(err, "Invalid route %q", route)
 		}
-	}
 
-	// Add additional IPv6 routes (using boot proto to avoid conflicts with network static routes)
-	if m["ipv6.routes"] != "" {
-		for _, route := range strings.Split(m["ipv6.routes"], ",") {
-			route = strings.TrimSpace(route)
-			_, err := shared.RunCommand("ip", "-6", "route", "add", route, "dev", routeDev, "proto", "boot")
-			if err != nil {
-				return err
-			}
+		ipVersion := 4
+		if ip.To4() == nil {
+			ipVersion = 6
 		}
+
+		// Add IP route (using boot proto to avoid conflicts with network defined static routes).
+		_, err = shared.RunCommand("ip", fmt.Sprintf("-%d", ipVersion), "route", "add", route, "dev", routeDev, "proto", "boot")
+		if err != nil {
+			return err
+		}
+
+		revert.Add(func() {
+			shared.RunCommand("ip", fmt.Sprintf("-%d", ipVersion), "route", "flush", route, "dev", routeDev, "proto", "boot")
+		})
 	}
 
+	revert.Success()
 	return nil
 }
 
-// networkRemoveVethRoutes removes any routes created for this device on the host that were first added
-// with networkSetVethRoutes(). Expects to be passed the device config from the oldExpandedDevices.
-func networkRemoveVethRoutes(s *state.State, m deviceConfig.Device) {
-	// Decide whether the route should point to the veth parent or the bridge parent
-	routeDev := m["host_name"]
-
-	// Use project.Default here, as only networks in the default project can add routes on the host.
-	nicType, err := nictype.NICType(s, project.Default, m)
-	if err != nil {
-		logger.Errorf("Failed to get NIC type for %q", m["name"])
+// networkNICRouteDelete deletes any static host-side routes configured for an instance NIC.
+// Logs any errors and continues to next route to remove.
+func networkNICRouteDelete(routeDev string, routes ...string) {
+	if routeDev == "" {
+		logger.Errorf("Failed removing static route, empty route device specified")
 		return
 	}
 
-	if nicType == "bridged" {
-		routeDev = m["parent"]
+	if !network.InterfaceExists(routeDev) {
+		return //Routes will already be gone if device doesn't exist.
 	}
 
-	if m["ipv4.routes"] != "" || m["ipv6.routes"] != "" {
-		if routeDev == "" {
-			logger.Errorf("Failed to remove static routes as route dev isn't set for %q", m["name"])
-			return
+	for _, r := range routes {
+		route := r // Local var for revert.
+		ip, _, err := net.ParseCIDR(route)
+		if err != nil {
+			logger.Errorf("Failed to remove static route %q to %q: %v", route, routeDev, err)
+			continue
 		}
 
-		if !shared.PathExists(fmt.Sprintf("/sys/class/net/%s", routeDev)) {
-			return //Routes will already be gone if device doesn't exist.
+		ipVersion := 4
+		if ip.To4() == nil {
+			ipVersion = 6
 		}
-	}
 
-	// Remove IPv4 routes
-	if m["ipv4.routes"] != "" {
-		for _, route := range strings.Split(m["ipv4.routes"], ",") {
-			route = strings.TrimSpace(route)
-			_, err := shared.RunCommand("ip", "-4", "route", "flush", route, "dev", routeDev, "proto", "boot")
-			if err != nil {
-				logger.Errorf("Failed to remove static route: %s to %s: %s", route, routeDev, err)
-			}
-		}
-	}
-
-	// Remove IPv6 routes
-	if m["ipv6.routes"] != "" {
-		for _, route := range strings.Split(m["ipv6.routes"], ",") {
-			route = strings.TrimSpace(route)
-			_, err := shared.RunCommand("ip", "-6", "route", "flush", route, "dev", routeDev, "proto", "boot")
-			if err != nil {
-				logger.Errorf("Failed to remove static route: %s to %s: %s", route, routeDev, err)
-			}
+		// Add IP route (using boot proto to avoid conflicts with network defined static routes).
+		_, err = shared.RunCommand("ip", fmt.Sprintf("-%d", ipVersion), "route", "flush", route, "dev", routeDev, "proto", "boot")
+		if err != nil {
+			logger.Errorf("Failed to remove static route %q to %q: %v", route, routeDev, err)
+			continue
 		}
 	}
 }
@@ -438,7 +388,7 @@ func networkSetupHostVethLimits(m deviceConfig.Device) error {
 
 	veth := m["host_name"]
 
-	if veth == "" || !shared.PathExists(fmt.Sprintf("/sys/class/net/%s", veth)) {
+	if veth == "" || !network.InterfaceExists(veth) {
 		return fmt.Errorf("Unknown or missing host side veth device %q", veth)
 	}
 
