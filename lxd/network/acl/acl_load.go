@@ -1,7 +1,10 @@
 package acl
 
 import (
+	"fmt"
+
 	"github.com/lxc/lxd/lxd/state"
+	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 )
 
@@ -36,6 +39,32 @@ func Create(s *state.State, projectName string, aclInfo *api.NetworkACLsPost) er
 	_, err = s.Cluster.CreateNetworkACL(projectName, aclInfo)
 	if err != nil {
 		return err
+	}
+
+	return nil
+}
+
+// Exists checks the ACL name(s) provided exists in the project.
+// If multiple names are provided, also checks that duplicate names aren't specified in the list.
+func Exists(s *state.State, projectName string, name ...string) error {
+	existingACLNames, err := s.Cluster.GetNetworkACLs(projectName)
+	if err != nil {
+		return err
+	}
+
+	checkedACLNames := make(map[string]struct{}, len(name))
+
+	for _, aclName := range name {
+		if !shared.StringInSlice(aclName, existingACLNames) {
+			return fmt.Errorf("Network ACL %q does not exist", aclName)
+		}
+
+		_, found := checkedACLNames[aclName]
+		if found {
+			return fmt.Errorf("Network ACL %q specified multiple times", aclName)
+		}
+
+		checkedACLNames[aclName] = struct{}{}
 	}
 
 	return nil
