@@ -51,7 +51,13 @@ func (d *nicP2P) validateEnvironment() error {
 }
 
 // UpdatableFields returns a list of fields that can be updated without triggering a device remove & add.
-func (d *nicP2P) UpdatableFields() []string {
+func (d *nicP2P) UpdatableFields(oldDevice Type) []string {
+	// Check old and new device types match.
+	_, match := oldDevice.(*nicP2P)
+	if !match {
+		return []string{}
+	}
+
 	return []string{"limits.ingress", "limits.egress", "limits.max", "ipv4.routes", "ipv6.routes"}
 }
 
