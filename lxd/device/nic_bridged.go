@@ -212,7 +212,13 @@ func (d *nicBridged) validateEnvironment() error {
 }
 
 // UpdatableFields returns a list of fields that can be updated without triggering a device remove & add.
-func (d *nicBridged) UpdatableFields() []string {
+func (d *nicBridged) UpdatableFields(oldDevice Type) []string {
+	// Check old and new device types match.
+	_, match := oldDevice.(*nicBridged)
+	if !match {
+		return []string{}
+	}
+
 	return []string{"limits.ingress", "limits.egress", "limits.max", "ipv4.routes", "ipv6.routes", "ipv4.address", "ipv6.address", "security.mac_filtering", "security.ipv4_filtering", "security.ipv6_filtering"}
 }
 
