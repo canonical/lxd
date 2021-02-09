@@ -16,6 +16,7 @@ ceph.osd.pg\_num                | string    | ceph driver                       
 ceph.osd.pool\_name             | string    | ceph driver                       | name of the pool           | Name of the osd storage pool.
 ceph.osd.data\_pool\_name       | string    | ceph driver                       | -                          | Name of the osd data pool.
 ceph.rbd.clone\_copy            | string    | ceph driver                       | true                       | Whether to use RBD lightweight clones rather than full dataset copies.
+ceph.rbd.features               | string    | ceph driver                       | layering                   | Comma separate list of RBD features to enable on the volumes.
 ceph.user.name                  | string    | ceph driver                       | admin                      | The ceph user to use when creating storage pools and volumes.
 cephfs.cluster\_name            | string    | cephfs driver                     | ceph                       | Name of the ceph cluster in which to create new storage pools.
 cephfs.path                     | string    | cephfs driver                     | /                          | The base path for the CEPHFS mount
