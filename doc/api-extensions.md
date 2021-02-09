@@ -350,7 +350,7 @@ This adds support for btrfs as a storage volume filesystem, in addition to ext4
 and xfs.
 
 ## resources
-This adds support for querying an LXD daemon for the system resources it has
+This adds support for querying a LXD daemon for the system resources it has
 available.
 
 ## kernel\_limits
