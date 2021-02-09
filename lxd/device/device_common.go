@@ -73,7 +73,7 @@ func (d *deviceCommon) CanHotPlug() bool {
 }
 
 // UpdatableFields returns an empty list of updatable fields as most devices do not support updates.
-func (d *deviceCommon) UpdatableFields() []string {
+func (d *deviceCommon) UpdatableFields(oldDevice Type) []string {
 	return []string{}
 }
 
