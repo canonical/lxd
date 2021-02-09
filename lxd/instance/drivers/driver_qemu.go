@@ -3598,54 +3598,6 @@ func (d *qemu) deviceUpdate(deviceName string, rawConfig deviceConfig.Device, ol
 	return nil
 }
 
-// deviceResetVolatile resets a device's volatile data when its removed or updated in such a way
-// that it is removed then added immediately afterwards.
-func (d *qemu) deviceResetVolatile(devName string, oldConfig, newConfig deviceConfig.Device) error {
-	volatileClear := make(map[string]string)
-	devicePrefix := fmt.Sprintf("volatile.%s.", devName)
-
-	newNICType, err := nictype.NICType(d.state, newConfig)
-	if err != nil {
-		return err
-	}
-
-	oldNICType, err := nictype.NICType(d.state, oldConfig)
-	if err != nil {
-		return err
-	}
-
-	// If the device type has changed, remove all old volatile keys.
-	// This will occur if the newConfig is empty (i.e the device is actually being removed) or
-	// if the device type is being changed but keeping the same name.
-	if newConfig["type"] != oldConfig["type"] || newNICType != oldNICType {
-		for k := range d.localConfig {
-			if !strings.HasPrefix(k, devicePrefix) {
-				continue
-			}
-
-			volatileClear[k] = ""
-		}
-
-		return d.VolatileSet(volatileClear)
-	}
-
-	// If the device type remains the same, then just remove any volatile keys that have
-	// the same key name present in the new config (i.e the new config is replacing the
-	// old volatile key).
-	for k := range d.localConfig {
-		if !strings.HasPrefix(k, devicePrefix) {
-			continue
-		}
-
-		devKey := strings.TrimPrefix(k, devicePrefix)
-		if _, found := newConfig[devKey]; found {
-			volatileClear[k] = ""
-		}
-	}
-
-	return d.VolatileSet(volatileClear)
-}
-
 func (d *qemu) removeUnixDevices() error {
 	// Check that we indeed have devices to remove.
 	if !shared.PathExists(d.DevicesPath()) {
