@@ -1247,6 +1247,16 @@ func (o *OVN) PortGroupMemberAdd(portGroupName OVNPortGroup, portMemberUUID OVNS
 	return nil
 }
 
+// PortGroupMemberDelete deleted a logical switch port (by UUID) from an existing port group.
+func (o *OVN) PortGroupMemberDelete(portGroupName OVNPortGroup, portMemberUUID OVNSwitchPortUUID) error {
+	_, err := o.nbctl("--if-exists", "remove", "port_group", string(portGroupName), "ports", string(portMemberUUID))
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
 // PortGroupSetACLRules applies a set of rules to the specified port group. Any existing rules are removed.
 func (o *OVN) PortGroupSetACLRules(portGroupName OVNPortGroup, aclRules ...OVNACLRule) error {
 	// Remove any existing rules.
