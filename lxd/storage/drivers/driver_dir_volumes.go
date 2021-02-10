@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path/filepath"
 
 	"github.com/pkg/errors"
 
@@ -300,7 +301,20 @@ func (d *dir) SetVolumeQuota(vol Volume, size string, op *operations.Operation) 
 		return err
 	}
 
-	return d.setQuota(vol.MountPath(), volID, size)
+	// Custom handling for filesystem volume associated with a VM.
+	volPath := vol.MountPath()
+	if sizeBytes > 0 && vol.volType == VolumeTypeVM && shared.PathExists(filepath.Join(volPath, genericVolumeDiskFile)) {
+		// Get the size of the VM image.
+		blockSize, err := BlockDiskSizeBytes(filepath.Join(volPath, genericVolumeDiskFile))
+		if err != nil {
+			return err
+		}
+
+		// Add that to the requested filesystem size (to ignore it from the quota).
+		sizeBytes += blockSize
+	}
+
+	return d.setQuota(vol.MountPath(), volID, sizeBytes)
 }
 
 // GetVolumeDiskPath returns the location of a disk volume.

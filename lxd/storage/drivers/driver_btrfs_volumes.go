@@ -746,6 +746,18 @@ func (d *btrfs) SetVolumeQuota(vol Volume, size string, op *operations.Operation
 
 	// Modify the limit.
 	if sizeBytes > 0 {
+		// Custom handling for filesystem volume associated with a VM.
+		if vol.volType == VolumeTypeVM && shared.PathExists(filepath.Join(volPath, genericVolumeDiskFile)) {
+			// Get the size of the VM image.
+			blockSize, err := BlockDiskSizeBytes(filepath.Join(volPath, genericVolumeDiskFile))
+			if err != nil {
+				return err
+			}
+
+			// Add that to the requested filesystem size (to ignore it from the quota).
+			sizeBytes += blockSize
+		}
+
 		// Apply the limit.
 		_, err := shared.RunCommand("btrfs", "qgroup", "limit", fmt.Sprintf("%d", sizeBytes), volPath)
 		if err != nil {
