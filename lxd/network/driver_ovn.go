@@ -2440,7 +2440,7 @@ func (n *ovn) InstanceDevicePortAdd(opts *OVNInstanceNICSetupOpts) (openvswitch.
 	}
 
 	// Add DNS records for port's IPs, and retrieve the IP addresses used.
-	dnsName := fmt.Sprintf("%s.%s", opts.InstanceName, n.getDomainName())
+	dnsName := fmt.Sprintf("%s.%s", opts.DNSName, n.getDomainName())
 	var dnsUUID openvswitch.OVNDNSUUID
 	var dnsIPv4, dnsIPv6 net.IP
 
