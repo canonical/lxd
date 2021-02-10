@@ -1305,3 +1305,7 @@ This introduces the `size.state` device config key on `disk` devices.
 
 ## storage\_ceph\_features
 Adds a new `ceph.rbd.features` config key on storage pools to control the RBD features used for new volumes.
+
+## projects\_compression
+Adds new `backups.compression_algorithm` and `images.compression_algorithm` config keys which
+allows configuration of backup and image compression per-project.
