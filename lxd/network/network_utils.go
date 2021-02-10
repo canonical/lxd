@@ -179,6 +179,10 @@ func UsedBy(s *state.State, networkProjectName string, networkName string, first
 					}
 
 					usedBy = append(usedBy, uri)
+
+					if firstOnly {
+						return usedBy, nil
+					}
 				}
 			}
 		}
@@ -1141,11 +1145,9 @@ func SubnetIterate(subnet *net.IPNet, ipFunc func(ip net.IP) error) error {
 	return nil
 }
 
-// SubnetParseAppend parses one or more string CIDR subnets. Trims any white space before parsing and appends to
-// the supplied slice. Returns subnets slice.
+// SubnetParseAppend parses one or more string CIDR subnets. Appends to the supplied slice. Returns subnets slice.
 func SubnetParseAppend(subnets []*net.IPNet, parseSubnet ...string) ([]*net.IPNet, error) {
 	for _, subnetStr := range parseSubnet {
-		subnetStr = strings.TrimSpace(subnetStr)
 		_, subnet, err := net.ParseCIDR(subnetStr)
 		if err != nil {
 			return nil, errors.Wrapf(err, "Invalid subnet %q", subnetStr)

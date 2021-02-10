@@ -91,7 +91,7 @@ func (n *ovn) uplinkRoutes(uplink *api.Network) ([]*net.IPNet, error) {
 			continue
 		}
 
-		uplinkRoutes, err = SubnetParseAppend(uplinkRoutes, strings.Split(uplink.Config[k], ",")...)
+		uplinkRoutes, err = SubnetParseAppend(uplinkRoutes, util.SplitNTrimSpace(uplink.Config[k], ",", -1, false)...)
 		if err != nil {
 			return nil, err
 		}
@@ -108,8 +108,8 @@ func (n *ovn) projectRestrictedSubnets(p *api.Project, uplinkNetworkName string)
 	if shared.IsTrue(p.Config["restricted"]) && p.Config["restricted.networks.subnets"] != "" {
 		projectRestrictedSubnets = []*net.IPNet{} // Empty slice indicates no allowed subnets.
 
-		for _, subnetRaw := range strings.Split(p.Config["restricted.networks.subnets"], ",") {
-			subnetParts := strings.SplitN(strings.TrimSpace(subnetRaw), ":", 2)
+		for _, subnetRaw := range util.SplitNTrimSpace(p.Config["restricted.networks.subnets"], ",", -1, false) {
+			subnetParts := strings.SplitN(subnetRaw, ":", 2)
 			if len(subnetParts) != 2 {
 				return nil, fmt.Errorf(`Project subnet %q invalid, must be in the format of "<uplink network>:<subnet>"`, subnetRaw)
 			}
@@ -528,12 +528,7 @@ func (n *ovn) getDomainName() string {
 // getDNSSearchList returns OVN DHCP DNS search list. If no search list set returns getDomainName() as list.
 func (n *ovn) getDNSSearchList() []string {
 	if n.config["dns.search"] != "" {
-		dnsSearchList := []string{}
-		for _, domain := range strings.SplitN(n.config["dns.search"], ",", -1) {
-			dnsSearchList = append(dnsSearchList, strings.TrimSpace(domain))
-		}
-
-		return dnsSearchList
+		return util.SplitNTrimSpace(n.config["dns.search"], ",", -1, false)
 	}
 
 	return []string{n.getDomainName()}
@@ -660,9 +655,9 @@ func (n *ovn) allocateUplinkPortIPs(uplinkNet Network, routerMAC net.HardwareAdd
 		v.dnsIPv4 = nil
 		v.dnsIPv6 = nil
 
-		nsList := strings.Split(uplinkNetConf["dns.nameservers"], ",")
+		nsList := util.SplitNTrimSpace(uplinkNetConf["dns.nameservers"], ",", -1, false)
 		for _, ns := range nsList {
-			nsIP := net.ParseIP(strings.TrimSpace(ns))
+			nsIP := net.ParseIP(ns)
 			if nsIP == nil {
 				return nil, fmt.Errorf("Invalid uplink nameserver")
 			}
@@ -1399,11 +1394,9 @@ func (n *ovn) allowedUplinkNetworks(p *api.Project) ([]string, error) {
 	}
 
 	// Parse the allowed uplinks and return any that are present in the actual defined networks.
-	allowedRestrictedUplinks := strings.Split(p.Config["restricted.networks.uplinks"], ",")
+	allowedRestrictedUplinks := util.SplitNTrimSpace(p.Config["restricted.networks.uplinks"], ",", -1, false)
 
 	for _, allowedRestrictedUplink := range allowedRestrictedUplinks {
-		allowedRestrictedUplink = strings.TrimSpace(allowedRestrictedUplink)
-
 		if shared.StringInSlice(allowedRestrictedUplink, networks) {
 			allowedNetworks = append(allowedNetworks, allowedRestrictedUplink)
 		}
@@ -2200,7 +2193,7 @@ func (n *ovn) InstanceDevicePortConfigParse(deviceConfig map[string]string) (net
 			continue
 		}
 
-		internalRoutes, err = SubnetParseAppend(internalRoutes, strings.Split(deviceConfig[key], ",")...)
+		internalRoutes, err = SubnetParseAppend(internalRoutes, util.SplitNTrimSpace(deviceConfig[key], ",", -1, false)...)
 		if err != nil {
 			return nil, nil, nil, nil, errors.Wrapf(err, "Invalid %q value", key)
 		}
@@ -2212,7 +2205,7 @@ func (n *ovn) InstanceDevicePortConfigParse(deviceConfig map[string]string) (net
 			continue
 		}
 
-		externalRoutes, err = SubnetParseAppend(externalRoutes, strings.Split(deviceConfig[key], ",")...)
+		externalRoutes, err = SubnetParseAppend(externalRoutes, util.SplitNTrimSpace(deviceConfig[key], ",", -1, false)...)
 		if err != nil {
 			return nil, nil, nil, nil, errors.Wrapf(err, "Invalid %q value", key)
 		}
