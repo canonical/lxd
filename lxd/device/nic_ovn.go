@@ -272,7 +272,7 @@ func (d *nicOVN) Start() (*deviceConfig.RunConfig, error) {
 			ExternalRoutes: externalRoutes,
 		},
 		UplinkConfig: uplink.Config,
-		InstanceName: d.inst.Name(),
+		DNSName:      d.inst.Name(),
 		MAC:          mac,
 		IPs:          ips,
 	})
