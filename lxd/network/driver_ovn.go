@@ -2912,7 +2912,7 @@ func (n *ovn) handleDependencyChange(uplinkName string, uplinkConfig map[string]
 							ExternalRoutes: externalRoutes,
 						},
 						UplinkConfig: uplinkConfig,
-						InstanceName: inst.Name,
+						DNSName:      inst.Name,
 						MAC:          mac,
 						IPs:          ips,
 					})
