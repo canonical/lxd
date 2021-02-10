@@ -42,7 +42,12 @@ func (d *dir) setupInitialQuota(vol Volume) (func(), error) {
 	revert.Add(revertFunc)
 
 	// Initialise the volume's project using the volume ID and set the quota.
-	err = d.setQuota(volPath, volID, vol.ConfigSize())
+	sizeBytes, err := units.ParseByteSizeString(vol.ConfigSize())
+	if err != nil {
+		return nil, err
+	}
+
+	err = d.setQuota(volPath, volID, sizeBytes)
 	if err != nil {
 		return nil, err
 	}
@@ -87,7 +92,7 @@ func (d *dir) quotaProjectID(volID int64) uint32 {
 }
 
 // setQuota sets the project quota on the path. The volID generates a quota project ID.
-func (d *dir) setQuota(path string, volID int64, size string) error {
+func (d *dir) setQuota(path string, volID int64, sizeBytes int64) error {
 	if volID == volIDQuotaSkip {
 		// Disabled on purpose, just ignore.
 		return nil
@@ -97,16 +102,11 @@ func (d *dir) setQuota(path string, volID int64, size string) error {
 		return fmt.Errorf("Missing volume ID")
 	}
 
-	sizeBytes, err := units.ParseByteSizeString(size)
-	if err != nil {
-		return err
-	}
-
 	ok, err := quota.Supported(path)
 	if err != nil || !ok {
 		if sizeBytes > 0 {
 			// Skipping quota as underlying filesystem doesn't suppport project quotas.
-			d.logger.Warn("The backing filesystem doesn't support quotas, skipping set quota", log.Ctx{"path": path, "size": size, "volID": volID})
+			d.logger.Warn("The backing filesystem doesn't support quotas, skipping set quota", log.Ctx{"path": path, "size": sizeBytes, "volID": volID})
 		}
 
 		return nil

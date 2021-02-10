@@ -300,7 +300,7 @@ func (d *dir) SetVolumeQuota(vol Volume, size string, op *operations.Operation) 
 		return err
 	}
 
-	return d.setQuota(vol.MountPath(), volID, size)
+	return d.setQuota(vol.MountPath(), volID, sizeBytes)
 }
 
 // GetVolumeDiskPath returns the location of a disk volume.
