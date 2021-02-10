@@ -97,26 +97,52 @@ func (d *common) Info() *api.NetworkACL {
 func (d *common) usedBy(firstOnly bool) ([]string, error) {
 	usedBy := []string{}
 
-	// Find all instance NICs that use this Network ACL.
-	err := UsedBy(d.state, d.projectName, d.Info().Name, func(usageType string, projectName string, name string, config map[string]string) error {
-		if usageType == "instance" {
-			uri := fmt.Sprintf("/%s/instances/%s", version.APIVersion, name)
-			if projectName != project.Default {
-				uri += fmt.Sprintf("?project=%s", projectName)
+	// Find all networks, profiles and instance NICs that use this Network ACL.
+	err := UsedBy(d.state, d.projectName, func(_ []string, usageType interface{}, _ string, _ map[string]string) error {
+		switch u := usageType.(type) {
+		case db.Instance:
+			uri := fmt.Sprintf("/%s/instances/%s", version.APIVersion, u.Name)
+			if u.Project != project.Default {
+				uri += fmt.Sprintf("?project=%s", u.Project)
 			}
 
 			usedBy = append(usedBy, uri)
-
-			if firstOnly {
-				return db.ErrInstanceListStop
+		case *api.Network:
+			uri := fmt.Sprintf("/%s/networks/%s", version.APIVersion, u.Name)
+			if d.projectName != project.Default {
+				uri += fmt.Sprintf("?project=%s", d.projectName)
 			}
-		} else {
-			return fmt.Errorf("Urecognised usage type %q", usageType)
+
+			usedBy = append(usedBy, uri)
+		case db.Profile:
+			uri := fmt.Sprintf("/%s/profiles/%s", version.APIVersion, u.Name)
+			if u.Project != project.Default {
+				uri += fmt.Sprintf("?project=%s", u.Project)
+			}
+
+			usedBy = append(usedBy, uri)
+		case *api.NetworkACL:
+			uri := fmt.Sprintf("/%s/network-acls/%s", version.APIVersion, u.Name)
+			if d.projectName != project.Default {
+				uri += fmt.Sprintf("?project=%s", d.projectName)
+			}
+
+			usedBy = append(usedBy, uri)
+		default:
+			return fmt.Errorf("Unrecognised usage type %T", u)
+		}
+
+		if firstOnly {
+			return db.ErrInstanceListStop
 		}
 
 		return nil
-	})
-	if err != nil && err != db.ErrInstanceListStop {
+	}, d.Info().Name)
+	if err != nil {
+		if err == db.ErrInstanceListStop {
+			return usedBy, nil
+		}
+
 		return nil, errors.Wrapf(err, "Failed getting ACL usage")
 	}
 
