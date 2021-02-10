@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
 )
 
@@ -22,8 +23,17 @@ type OVNSwitch string
 // OVNSwitchPort OVN switch port name.
 type OVNSwitchPort string
 
+// OVNSwitchPortUUID OVN switch port UUID.
+type OVNSwitchPortUUID string
+
 // OVNChassisGroup OVN HA chassis group name.
 type OVNChassisGroup string
+
+// OVNDNSUUID OVN DNS record UUID.
+type OVNDNSUUID string
+
+// OVNDHCPOptionsUUID DHCP Options set UUID.
+type OVNDHCPOptionsUUID string
 
 // OVNIPAllocationOpts defines IP allocation settings that can be applied to a logical switch.
 type OVNIPAllocationOpts struct {
@@ -60,7 +70,7 @@ type OVNIPv6RAOpts struct {
 
 // OVNDHCPOptsSet is an existing DHCP options set in the northbound database.
 type OVNDHCPOptsSet struct {
-	UUID string
+	UUID OVNDHCPOptionsUUID
 	CIDR *net.IPNet
 }
 
@@ -84,10 +94,10 @@ type OVNDHCPv6Opts struct {
 
 // OVNSwitchPortOpts options that can be applied to a swich port.
 type OVNSwitchPortOpts struct {
-	MAC          net.HardwareAddr // Optional, if nil will be set to dynamic.
-	IPs          []net.IP         // Optional, if empty IPs will be set to dynamic.
-	DHCPv4OptsID string           // Optional, if empty, no DHCPv4 enabled on port.
-	DHCPv6OptsID string           // Optional, if empty, no DHCPv6 enabled on port.
+	MAC          net.HardwareAddr   // Optional, if nil will be set to dynamic.
+	IPs          []net.IP           // Optional, if empty IPs will be set to dynamic.
+	DHCPv4OptsID OVNDHCPOptionsUUID // Optional, if empty, no DHCPv4 enabled on port.
+	DHCPv6OptsID OVNDHCPOptionsUUID // Optional, if empty, no DHCPv6 enabled on port.
 }
 
 // NewOVN initialises new OVN wrapper.
@@ -485,11 +495,11 @@ func (o *OVN) LogicalSwitchSetIPAllocation(switchName OVNSwitch, opts *OVNIPAllo
 // LogicalSwitchDHCPv4OptionsSet creates or updates a DHCPv4 option set associated with the specified switchName
 // and subnet. If uuid is non-empty then the record that exists with that ID is updated, otherwise a new record
 // is created.
-func (o *OVN) LogicalSwitchDHCPv4OptionsSet(switchName OVNSwitch, uuid string, subnet *net.IPNet, opts *OVNDHCPv4Opts) error {
+func (o *OVN) LogicalSwitchDHCPv4OptionsSet(switchName OVNSwitch, uuid OVNDHCPOptionsUUID, subnet *net.IPNet, opts *OVNDHCPv4Opts) error {
 	var err error
 
 	if uuid != "" {
-		_, err = o.nbctl("set", "dhcp_option", uuid,
+		_, err = o.nbctl("set", "dhcp_option", string(uuid),
 			fmt.Sprintf("external_ids:lxd_switch=%s", string(switchName)),
 			fmt.Sprintf("cidr=%s", subnet.String()),
 		)
@@ -497,7 +507,7 @@ func (o *OVN) LogicalSwitchDHCPv4OptionsSet(switchName OVNSwitch, uuid string, s
 			return err
 		}
 	} else {
-		uuid, err = o.nbctl("create", "dhcp_option",
+		uuidRaw, err := o.nbctl("create", "dhcp_option",
 			fmt.Sprintf("external_ids:lxd_switch=%s", string(switchName)),
 			fmt.Sprintf("cidr=%s", subnet.String()),
 		)
@@ -505,12 +515,12 @@ func (o *OVN) LogicalSwitchDHCPv4OptionsSet(switchName OVNSwitch, uuid string, s
 			return err
 		}
 
-		uuid = strings.TrimSpace(uuid)
+		uuid = OVNDHCPOptionsUUID(strings.TrimSpace(uuidRaw))
 	}
 
 	// We have to use dhcp-options-set-options rather than the command above as its the only way to allow the
 	// domain_name option to be properly escaped.
-	args := []string{"dhcp-options-set-options", uuid,
+	args := []string{"dhcp-options-set-options", string(uuid),
 		fmt.Sprintf("server_id=%s", opts.ServerID.String()),
 		fmt.Sprintf("server_mac=%s", opts.ServerMAC.String()),
 		fmt.Sprintf("lease_time=%d", opts.LeaseTime/time.Second),
@@ -553,11 +563,11 @@ func (o *OVN) LogicalSwitchDHCPv4OptionsSet(switchName OVNSwitch, uuid string, s
 // LogicalSwitchDHCPv6OptionsSet creates or updates a DHCPv6 option set associated with the specified switchName
 // and subnet. If uuid is non-empty then the record that exists with that ID is updated, otherwise a new record
 // is created.
-func (o *OVN) LogicalSwitchDHCPv6OptionsSet(switchName OVNSwitch, uuid string, subnet *net.IPNet, opts *OVNDHCPv6Opts) error {
+func (o *OVN) LogicalSwitchDHCPv6OptionsSet(switchName OVNSwitch, uuid OVNDHCPOptionsUUID, subnet *net.IPNet, opts *OVNDHCPv6Opts) error {
 	var err error
 
 	if uuid != "" {
-		_, err = o.nbctl("set", "dhcp_option", uuid,
+		_, err = o.nbctl("set", "dhcp_option", string(uuid),
 			fmt.Sprintf("external_ids:lxd_switch=%s", string(switchName)),
 			fmt.Sprintf(`cidr="%s"`, subnet.String()), // Special quoting to allow IPv6 address.
 		)
@@ -565,7 +575,7 @@ func (o *OVN) LogicalSwitchDHCPv6OptionsSet(switchName OVNSwitch, uuid string, s
 			return err
 		}
 	} else {
-		uuid, err = o.nbctl("create", "dhcp_option",
+		uuidRaw, err := o.nbctl("create", "dhcp_option",
 			fmt.Sprintf("external_ids:lxd_switch=%s", string(switchName)),
 			fmt.Sprintf(`cidr="%s"`, subnet.String()), // Special quoting to allow IPv6 address.
 		)
@@ -573,12 +583,12 @@ func (o *OVN) LogicalSwitchDHCPv6OptionsSet(switchName OVNSwitch, uuid string, s
 			return err
 		}
 
-		uuid = strings.TrimSpace(uuid)
+		uuid = OVNDHCPOptionsUUID(strings.TrimSpace(uuidRaw))
 	}
 
 	// We have to use dhcp-options-set-options rather than the command above as its the only way to allow the
 	// domain_name option to be properly escaped.
-	args := []string{"dhcp-options-set-options", uuid,
+	args := []string{"dhcp-options-set-options", string(uuid),
 		fmt.Sprintf("server_id=%s", opts.ServerID.String()),
 	}
 
@@ -609,7 +619,7 @@ func (o *OVN) LogicalSwitchDHCPv6OptionsSet(switchName OVNSwitch, uuid string, s
 }
 
 // LogicalSwitchDHCPOptionsGetID returns the UUID for DHCP options set associated to the logical switch and subnet.
-func (o *OVN) LogicalSwitchDHCPOptionsGetID(switchName OVNSwitch, subnet *net.IPNet) (string, error) {
+func (o *OVN) LogicalSwitchDHCPOptionsGetID(switchName OVNSwitch, subnet *net.IPNet) (OVNDHCPOptionsUUID, error) {
 	uuid, err := o.nbctl("--format=csv", "--no-headings", "--data=bare", "--colum=_uuid", "find", "dhcp_options",
 		fmt.Sprintf("external_ids:lxd_switch=%s", string(switchName)),
 		fmt.Sprintf(`cidr="%s"`, subnet.String()), // Special quoting to support IPv6 subnets.
@@ -618,7 +628,7 @@ func (o *OVN) LogicalSwitchDHCPOptionsGetID(switchName OVNSwitch, subnet *net.IP
 		return "", err
 	}
 
-	return strings.TrimSpace(uuid), nil
+	return OVNDHCPOptionsUUID(strings.TrimSpace(uuid)), nil
 }
 
 // LogicalSwitchDHCPOptionsGet retrieves the existing DHCP options defined for a logical switch.
@@ -646,7 +656,7 @@ func (o *OVN) LogicalSwitchDHCPOptionsGet(switchName OVNSwitch) ([]OVNDHCPOptsSe
 			}
 
 			dhcpOpts = append(dhcpOpts, OVNDHCPOptsSet{
-				UUID: rowParts[0],
+				UUID: OVNDHCPOptionsUUID(rowParts[0]),
 				CIDR: cidr,
 			})
 		}
@@ -657,7 +667,7 @@ func (o *OVN) LogicalSwitchDHCPOptionsGet(switchName OVNSwitch) ([]OVNDHCPOptsSe
 
 // LogicalSwitchDHCPOptionsDelete deletes any DHCP options defined for a switch.
 // Optionally accepts one or more specific UUID records to delete (if they are associated to the specified switch).
-func (o *OVN) LogicalSwitchDHCPOptionsDelete(switchName OVNSwitch, onlyUUID ...string) error {
+func (o *OVN) LogicalSwitchDHCPOptionsDelete(switchName OVNSwitch, onlyUUID ...OVNDHCPOptionsUUID) error {
 	existingOpts, err := o.nbctl("--format=csv", "--no-headings", "--data=bare", "--colum=_uuid", "find", "dhcp_options",
 		fmt.Sprintf("external_ids:lxd_switch=%s", string(switchName)),
 	)
@@ -671,7 +681,7 @@ func (o *OVN) LogicalSwitchDHCPOptionsDelete(switchName OVNSwitch, onlyUUID ...s
 		}
 
 		for _, uuid := range onlyUUID {
-			if existingUUID == uuid {
+			if OVNDHCPOptionsUUID(existingUUID) == uuid {
 				return true
 			}
 		}
@@ -716,21 +726,23 @@ func (o *OVN) logicalSwitchDNSRecordsDelete(switchName OVNSwitch) error {
 	return nil
 }
 
-// LogicalSwitchPortExists returns whether the logical switch port exists.
-func (o *OVN) LogicalSwitchPortExists(portName OVNSwitchPort) (bool, error) {
-	foundPort, err := o.nbctl("--format=csv", "--no-headings", "--data=bare", "--colum=name", "find", "logical_switch_port",
+// LogicalSwitchPortUUID returns the logical switch port UUID or empty string if port doesn't exist.
+func (o *OVN) LogicalSwitchPortUUID(portName OVNSwitchPort) (OVNSwitchPortUUID, error) {
+	portInfo, err := o.nbctl("--format=csv", "--no-headings", "--data=bare", "--colum=_uuid,name", "find", "logical_switch_port",
 		fmt.Sprintf("name=%s", string(portName)),
 	)
 	if err != nil {
-		return false, err
+		return "", err
 	}
 
-	foundPort = strings.TrimSpace(foundPort)
-	if foundPort == string(portName) {
-		return true, nil
+	portParts := util.SplitNTrimSpace(portInfo, ",", 2, false)
+	if len(portParts) == 2 {
+		if portParts[1] == string(portName) {
+			return OVNSwitchPortUUID(portParts[0]), nil
+		}
 	}
 
-	return false, nil
+	return "", nil
 }
 
 // LogicalSwitchPortAdd adds a named logical switch port to a logical switch.
@@ -774,14 +786,14 @@ func (o *OVN) LogicalSwitchPortSet(portName OVNSwitchPort, opts *OVNSwitchPortOp
 	}
 
 	if opts.DHCPv4OptsID != "" {
-		_, err = o.nbctl("lsp-set-dhcpv4-options", string(portName), opts.DHCPv4OptsID)
+		_, err = o.nbctl("lsp-set-dhcpv4-options", string(portName), string(opts.DHCPv4OptsID))
 		if err != nil {
 			return err
 		}
 	}
 
 	if opts.DHCPv6OptsID != "" {
-		_, err = o.nbctl("lsp-set-dhcpv6-options", string(portName), opts.DHCPv6OptsID)
+		_, err = o.nbctl("lsp-set-dhcpv6-options", string(portName), string(opts.DHCPv6OptsID))
 		if err != nil {
 			return err
 		}
@@ -825,7 +837,7 @@ func (o *OVN) LogicalSwitchPortDynamicIPs(portName OVNSwitchPort) ([]net.IP, err
 // LogicalSwitchPortSetDNS sets up the switch DNS records for the DNS name resolving to the IPs of the switch port.
 // Attempts to find at most one IP for each IP protocol, preferring static addresses over dynamic.
 // Returns the DNS record UUID, IPv4 and IPv6 addresses used for DNS records.
-func (o *OVN) LogicalSwitchPortSetDNS(switchName OVNSwitch, portName OVNSwitchPort, dnsName string) (string, net.IP, net.IP, error) {
+func (o *OVN) LogicalSwitchPortSetDNS(switchName OVNSwitch, portName OVNSwitchPort, dnsName string) (OVNDNSUUID, net.IP, net.IP, error) {
 	var dnsIPv4, dnsIPv6 net.IP
 
 	// checkAndStoreIP checks if the supplied IP is valid and can be used for a missing DNS IP variable.
@@ -935,11 +947,11 @@ func (o *OVN) LogicalSwitchPortSetDNS(switchName OVNSwitch, portName OVNSwitchPo
 		return "", nil, nil, err
 	}
 
-	return dnsUUID, dnsIPv4, dnsIPv6, nil
+	return OVNDNSUUID(dnsUUID), dnsIPv4, dnsIPv6, nil
 }
 
 // LogicalSwitchPortGetDNS returns the logical switch port DNS info (UUID, name and IPs).
-func (o *OVN) LogicalSwitchPortGetDNS(portName OVNSwitchPort) (string, string, []net.IP, error) {
+func (o *OVN) LogicalSwitchPortGetDNS(portName OVNSwitchPort) (OVNDNSUUID, string, []net.IP, error) {
 	// Get UUID and DNS IPs for a switch port in the format: "<DNS UUID>,<DNS NAME>=<IP> <IP>"
 	output, err := o.nbctl("--format=csv", "--no-headings", "--data=bare", "--colum=_uuid,records", "find", "dns",
 		fmt.Sprintf("external_ids:lxd_switch_port=%s", string(portName)),
@@ -970,19 +982,19 @@ func (o *OVN) LogicalSwitchPortGetDNS(portName OVNSwitchPort) (string, string, [
 
 	}
 
-	return dnsUUID, dnsName, ips, nil
+	return OVNDNSUUID(dnsUUID), dnsName, ips, nil
 }
 
 // LogicalSwitchPortDeleteDNS removes DNS records for a switch port.
-func (o *OVN) LogicalSwitchPortDeleteDNS(switchName OVNSwitch, dnsUUID string) error {
+func (o *OVN) LogicalSwitchPortDeleteDNS(switchName OVNSwitch, dnsUUID OVNDNSUUID) error {
 	// Remove DNS record association from switch.
-	_, err := o.nbctl("remove", "logical_switch", string(switchName), "dns_records", dnsUUID)
+	_, err := o.nbctl("remove", "logical_switch", string(switchName), "dns_records", string(dnsUUID))
 	if err != nil {
 		return err
 	}
 
 	// Remove DNS record entry itself.
-	_, err = o.nbctl("destroy", "dns", dnsUUID)
+	_, err = o.nbctl("destroy", "dns", string(dnsUUID))
 	if err != nil {
 		return err
 	}

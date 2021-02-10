@@ -30,8 +30,8 @@ type ovnNet interface {
 
 	InstanceDevicePortValidateExternalRoutes(deviceInstance instance.Instance, deviceName string, externalRoutes []*net.IPNet) error
 	InstanceDevicePortConfigParse(deviceConfig map[string]string) (net.HardwareAddr, []net.IP, []*net.IPNet, []*net.IPNet, error)
-	InstanceDevicePortAdd(uplinkConfig map[string]string, instanceUUID string, instanceName string, deviceName string, mac net.HardwareAddr, ips []net.IP, internalRoutes []*net.IPNet, externalRoutes []*net.IPNet) (openvswitch.OVNSwitchPort, error)
-	InstanceDevicePortDelete(instanceUUID string, deviceName string, ovsExternalOVNPort openvswitch.OVNSwitchPort, internalRoutes []*net.IPNet, externalRoutes []*net.IPNet) error
+	InstanceDevicePortAdd(opts *network.OVNInstanceNICSetupOpts) (openvswitch.OVNSwitchPort, error)
+	InstanceDevicePortDelete(ovsExternalOVNPort openvswitch.OVNSwitchPort, opts *network.OVNInstanceNICOpts) error
 	InstanceDevicePortDynamicIPs(instanceUUID string, deviceName string) ([]net.IP, error)
 }
 
@@ -264,12 +264,30 @@ func (d *nicOVN) Start() (*deviceConfig.RunConfig, error) {
 
 	// Add new OVN logical switch port for instance.
 	instanceUUID := d.inst.LocalConfig()["volatile.uuid"]
-	logicalPortName, err := d.network.InstanceDevicePortAdd(uplink.Config, instanceUUID, d.inst.Name(), d.name, mac, ips, internalRoutes, externalRoutes)
+	logicalPortName, err := d.network.InstanceDevicePortAdd(&network.OVNInstanceNICSetupOpts{
+		OVNInstanceNICOpts: network.OVNInstanceNICOpts{
+			InstanceUUID:   instanceUUID,
+			DeviceName:     d.name,
+			InternalRoutes: internalRoutes,
+			ExternalRoutes: externalRoutes,
+		},
+		UplinkConfig: uplink.Config,
+		DNSName:      d.inst.Name(),
+		MAC:          mac,
+		IPs:          ips,
+	})
 	if err != nil {
 		return nil, errors.Wrapf(err, "Failed adding OVN port")
 	}
 
-	revert.Add(func() { d.network.InstanceDevicePortDelete(instanceUUID, d.name, "", internalRoutes, externalRoutes) })
+	revert.Add(func() {
+		d.network.InstanceDevicePortDelete("", &network.OVNInstanceNICOpts{
+			InstanceUUID:   instanceUUID,
+			DeviceName:     d.name,
+			InternalRoutes: internalRoutes,
+			ExternalRoutes: externalRoutes,
+		})
+	})
 
 	// Attach host side veth interface to bridge.
 	integrationBridge, err := d.getIntegrationBridgeName()
@@ -410,7 +428,12 @@ func (d *nicOVN) Stop() (*deviceConfig.RunConfig, error) {
 	}
 
 	instanceUUID := d.inst.LocalConfig()["volatile.uuid"]
-	err = d.network.InstanceDevicePortDelete(instanceUUID, d.name, ovsExternalOVNPort, internalRoutes, externalRoutes)
+	err = d.network.InstanceDevicePortDelete(ovsExternalOVNPort, &network.OVNInstanceNICOpts{
+		InstanceUUID:   instanceUUID,
+		DeviceName:     d.name,
+		InternalRoutes: internalRoutes,
+		ExternalRoutes: externalRoutes,
+	})
 	if err != nil {
 		// Don't fail here as we still want the postStop hook to run to clean up the local veth pair.
 		d.logger.Error("Failed to remove OVN device port", log.Ctx{"err": err})
