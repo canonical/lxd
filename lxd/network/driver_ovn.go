@@ -216,6 +216,7 @@ func (n *ovn) Validate(config map[string]string) error {
 		"ipv6.nat":           validate.Optional(validate.IsBool),
 		"dns.domain":         validate.IsAny,
 		"dns.search":         validate.IsAny,
+		"security.acls":      validate.IsAny,
 
 		// Volatile keys populated automatically as needed.
 		ovnVolatileUplinkIPv4: validate.Optional(validate.IsNetworkAddressV4),
@@ -348,6 +349,14 @@ func (n *ovn) Validate(config map[string]string) error {
 					return fmt.Errorf("External subnet %q overlaps with another OVN NIC's external route", externalSubnet.String())
 				}
 			}
+		}
+	}
+
+	// Check Security ACLs exist.
+	if config["security.acls"] != "" {
+		err = acl.Exists(n.state, n.project, util.SplitNTrimSpace(config["security.acls"], ",", -1, true)...)
+		if err != nil {
+			return err
 		}
 	}
 
@@ -1897,6 +1906,53 @@ func (n *ovn) setup(update bool) error {
 		return errors.Wrapf(err, "Failed applying baseline ACL rules to internal switch")
 	}
 
+	// Ensure any network assigned security ACL port groups are created ready for instance NICs to use.
+	securityACLS := util.SplitNTrimSpace(n.config["security.acls"], ",", -1, true)
+	if len(securityACLS) > 0 {
+		// Get map of ACL names to DB IDs (used for generating OVN port group names).
+		acls, err := n.state.Cluster.GetNetworkACLIDsByNames(n.Project())
+		if err != nil {
+			return errors.Wrapf(err, "Failed getting network ACL IDs for security ACL setup")
+		}
+
+		// Create ACLs port groups if needed.
+		for _, aclName := range securityACLS {
+			aclID, found := acls[aclName]
+			if !found {
+				return fmt.Errorf("Cannot find security ACL ID for %q", aclName)
+			}
+
+			portGroupName := acl.OVNACLPortGroupName(aclID)
+
+			// Get port group UUID.
+			portGroupUUID, err := client.PortGroupUUID(portGroupName)
+			if err != nil {
+				return errors.Wrapf(err, "Failed getting port group UUID for security ACL %q setup", aclName)
+			}
+
+			// Create port group (and add ACL rules) if doesn't exist.
+			if portGroupUUID == "" {
+				err = client.PortGroupAdd(portGroupName)
+				if err != nil {
+					return errors.Wrapf(err, "Failed creating port group %q for security ACL %q setup", portGroupName, aclName)
+				}
+				revert.Add(func() { client.PortGroupDelete(portGroupName) })
+
+				n.logger.Debug("Created ACL port group", log.Ctx{"networkACL": aclName, "portGroup": portGroupName})
+
+				_, aclInfo, err := n.state.Cluster.GetNetworkACL(n.Project(), aclName)
+				if err != nil {
+					return errors.Wrapf(err, "Failed loading Network ACL %q", aclName)
+				}
+
+				err = acl.OVNApplyToPortGroup(n.state, client, aclInfo, portGroupName, acls)
+				if err != nil {
+					return errors.Wrapf(err, "Failed adding ACL rules to port group %q for security ACL %q setup", portGroupName, aclName)
+				}
+			}
+		}
+	}
+
 	revert.Success()
 	return nil
 }
@@ -2053,6 +2109,15 @@ func (n *ovn) Delete(clientType request.ClientType) error {
 		if err != nil {
 			return err
 		}
+
+		// Check for port groups that will become unused (and need deleting) as this network is deleted.
+		securityACLs := util.SplitNTrimSpace(n.config["security.acls"], ",", -1, true)
+		if len(securityACLs) > 0 {
+			err = n.PortGroupDeleteIfUnused(n, "", securityACLs...)
+			if err != nil {
+				return err
+			}
+		}
 	}
 
 	return n.common.delete(clientType)
@@ -2174,6 +2239,109 @@ func (n *ovn) Update(newNetwork api.NetworkPut, targetNode string, clientType re
 		err = n.setup(true)
 		if err != nil {
 			return err
+		}
+
+		// Work out which ACLs have been added and removed.
+		oldACLs := util.SplitNTrimSpace(oldNetwork.Config["security.acls"], ",", -1, true)
+		newACLs := util.SplitNTrimSpace(newNetwork.Config["security.acls"], ",", -1, true)
+		removedACLs := []string{}
+		for _, oldACL := range oldACLs {
+			if !shared.StringInSlice(oldACL, newACLs) {
+				removedACLs = append(removedACLs, oldACL)
+			}
+		}
+
+		addedACLs := []string{}
+		for _, newACL := range newACLs {
+			if !shared.StringInSlice(newACL, oldACLs) {
+				addedACLs = append(addedACLs, newACL)
+			}
+		}
+
+		// Apply security ACL changes.
+		if len(addedACLs) > 0 || len(removedACLs) > 0 {
+			client, err := n.getClient()
+			if err != nil {
+				return err
+			}
+
+			// Get map of ACL names to DB IDs (used for generating OVN port group names).
+			acls, err := n.state.Cluster.GetNetworkACLIDsByNames(n.Project())
+			if err != nil {
+				return errors.Wrapf(err, "Failed getting network ACL IDs for security ACL update")
+			}
+
+			// Apply ACL changes to running instance NICs that use this network.
+			err = usedByInstanceDevices(n.state, n.project, n.name, func(inst db.Instance, nicName string, nicConfig map[string]string) error {
+				nicACLs := util.SplitNTrimSpace(nicConfig["security.acls"], ",", -1, true)
+
+				// Get logical port UUID and name.
+				instancePortName := n.getInstanceDevicePortName(inst.Config["volatile.uuid"], nicName)
+
+				portUUID, err := client.LogicalSwitchPortUUID(instancePortName)
+				if err != nil {
+					return errors.Wrapf(err, "Failed getting logical port UUID for security ACL update")
+				}
+
+				if portUUID == "" {
+					return nil // No need to update a port that isn't started yet.
+				}
+
+				// Check whether we need to add any of the new ACLs to the NIC.
+				for _, addedACL := range addedACLs {
+					if shared.StringInSlice(addedACL, nicACLs) {
+						continue // NIC already has this ACL applied directly, so no need to add.
+					}
+
+					aclID, found := acls[addedACL]
+					if !found {
+						return fmt.Errorf("Cannot find security ACL ID for %q", addedACL)
+					}
+
+					portGroupName := acl.OVNACLPortGroupName(aclID)
+
+					// Add port to port group.
+					err = client.PortGroupMemberAdd(portGroupName, portUUID)
+					if err != nil {
+						return errors.Wrapf(err, "Failed adding logical port %q to port group %q for security ACL %q update", instancePortName, portGroupName, addedACL)
+					}
+					n.logger.Debug("Added logical port to ACL port group", log.Ctx{"networkACL": addedACL, "portGroup": portGroupName, "port": instancePortName})
+				}
+
+				// Check whether we need to remove any of the removed ACLs from the NIC.
+				for _, removedACL := range removedACLs {
+					if shared.StringInSlice(removedACL, nicACLs) {
+						continue // NIC still has this ACL applied directly, so don't remove.
+					}
+
+					aclID, found := acls[removedACL]
+					if !found {
+						return fmt.Errorf("Cannot find security ACL ID for %q", removedACL)
+					}
+
+					portGroupName := acl.OVNACLPortGroupName(aclID)
+
+					// Remove port from port group.
+					err = client.PortGroupMemberDelete(portGroupName, portUUID)
+					if err != nil {
+						return errors.Wrapf(err, "Failed removing logical port %q from port group %q for security ACL %q update", instancePortName, portGroupName, removedACL)
+					}
+					n.logger.Debug("Removed logical port from ACL port group", log.Ctx{"networkACL": removedACL, "portGroup": portGroupName, "port": instancePortName})
+				}
+
+				return nil
+			})
+			if err != nil {
+				return err
+			}
+
+			// Check if any of the removed ACLs should also have their unused port groups deleted.
+			if len(removedACLs) > 0 {
+				err = n.PortGroupDeleteIfUnused(n, "", removedACLs...)
+				if err != nil {
+					return errors.Wrapf(err, "Failed removing unused OVN port groups")
+				}
+			}
 		}
 	}
 
