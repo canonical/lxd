@@ -72,7 +72,7 @@ type OVNInstanceNICSetupOpts struct {
 	OVNInstanceNICOpts
 
 	UplinkConfig map[string]string
-	InstanceName string
+	DNSName      string
 	MAC          net.HardwareAddr
 	IPs          []net.IP
 }
