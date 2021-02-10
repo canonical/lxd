@@ -207,7 +207,13 @@ func tryExists(path string) bool {
 
 // fsUUID returns the filesystem UUID for the given block path.
 func fsUUID(path string) (string, error) {
-	return shared.RunCommand("blkid", "-s", "UUID", "-o", "value", path)
+	val, err := shared.RunCommand("blkid", "-s", "UUID", "-o", "value", path)
+	if err != nil {
+		return "", err
+	}
+
+	val = strings.TrimSpace(val)
+	return val, nil
 }
 
 // hasFilesystem checks if a given path is backed by a specified filesystem.
