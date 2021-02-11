@@ -701,6 +701,98 @@ func (d *qemu) killQemuProcess(pid int) {
 	}
 }
 
+// restoreState restores the saved state of the VM.
+func (d *qemu) restoreState(monitor *qmp.Monitor) error {
+	stateFile, err := os.Open(d.StatePath())
+	if err != nil {
+		return err
+	}
+
+	uncompressedState, err := gzip.NewReader(stateFile)
+	if err != nil {
+		stateFile.Close()
+		return err
+	}
+
+	pipeRead, pipeWrite, err := os.Pipe()
+	if err != nil {
+		uncompressedState.Close()
+		stateFile.Close()
+		return err
+	}
+
+	go func() {
+		io.Copy(pipeWrite, uncompressedState)
+		uncompressedState.Close()
+		stateFile.Close()
+		pipeWrite.Close()
+		pipeRead.Close()
+	}()
+
+	err = monitor.SendFile("migration", pipeRead)
+	if err != nil {
+		return err
+	}
+
+	err = monitor.MigrateIncoming("fd:migration")
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// saveState dumps the current VM state to disk.
+// Once dumped, the VM is in a paused state and it's up to the caller to resume or kill it.
+func (d *qemu) saveState(monitor *qmp.Monitor) error {
+	os.Remove(d.StatePath())
+
+	// Prepare the state file.
+	stateFile, err := os.Create(d.StatePath())
+	if err != nil {
+		return err
+	}
+
+	compressedState, err := gzip.NewWriterLevel(stateFile, gzip.BestSpeed)
+	if err != nil {
+		stateFile.Close()
+		return err
+	}
+
+	pipeRead, pipeWrite, err := os.Pipe()
+	if err != nil {
+		compressedState.Close()
+		stateFile.Close()
+		return err
+	}
+	defer pipeRead.Close()
+	defer pipeWrite.Close()
+
+	go io.Copy(compressedState, pipeRead)
+
+	// Send the target file to qemu.
+	err = monitor.SendFile("migration", pipeWrite)
+	if err != nil {
+		compressedState.Close()
+		stateFile.Close()
+		return err
+	}
+
+	// Issue the migration command.
+	err = monitor.Migrate("fd:migration")
+	if err != nil {
+		compressedState.Close()
+		stateFile.Close()
+		return err
+	}
+
+	// Close the file to avoid unmount delays.
+	compressedState.Close()
+	stateFile.Close()
+
+	return nil
+}
+
 // Start starts the instance.
 func (d *qemu) Start(stateful bool) error {
 	// Must be run prior to creating the operation lock.
@@ -1164,42 +1256,7 @@ func (d *qemu) Start(stateful bool) error {
 
 	// Restore the state.
 	if stateful {
-		stateFile, err := os.Open(d.StatePath())
-		if err != nil {
-			op.Done(err)
-			return err
-		}
-
-		uncompressedState, err := gzip.NewReader(stateFile)
-		if err != nil {
-			stateFile.Close()
-			op.Done(err)
-			return err
-		}
-
-		pipeRead, pipeWrite, err := os.Pipe()
-		if err != nil {
-			uncompressedState.Close()
-			stateFile.Close()
-			op.Done(err)
-			return err
-		}
-
-		go func() {
-			io.Copy(pipeWrite, uncompressedState)
-			uncompressedState.Close()
-			stateFile.Close()
-			pipeWrite.Close()
-			pipeRead.Close()
-		}()
-
-		err = monitor.SendFile("migration", pipeRead)
-		if err != nil {
-			op.Done(err)
-			return err
-		}
-
-		err = monitor.MigrateIncoming("fd:migration")
+		err := d.restoreState(monitor)
 		if err != nil {
 			op.Done(err)
 			return err
@@ -2814,55 +2871,12 @@ func (d *qemu) Stop(stateful bool) error {
 
 	// Handle stateful stop.
 	if stateful {
-		os.Remove(d.StatePath())
-
-		// Prepare the state file.
-		stateFile, err := os.Create(d.StatePath())
+		// Dump the state.
+		err := d.saveState(monitor)
 		if err != nil {
 			op.Done(err)
 			return err
 		}
-
-		compressedState, err := gzip.NewWriterLevel(stateFile, gzip.BestSpeed)
-		if err != nil {
-			stateFile.Close()
-			op.Done(err)
-			return err
-		}
-
-		pipeRead, pipeWrite, err := os.Pipe()
-		if err != nil {
-			compressedState.Close()
-			stateFile.Close()
-			op.Done(err)
-			return err
-		}
-		defer pipeRead.Close()
-		defer pipeWrite.Close()
-
-		go io.Copy(compressedState, pipeRead)
-
-		// Send the target file to qemu.
-		err = monitor.SendFile("migration", pipeWrite)
-		if err != nil {
-			compressedState.Close()
-			stateFile.Close()
-			op.Done(err)
-			return err
-		}
-
-		// Issue the migration command.
-		err = monitor.Migrate("fd:migration")
-		if err != nil {
-			compressedState.Close()
-			stateFile.Close()
-			op.Done(err)
-			return err
-		}
-
-		// Close the file to avoid unmount delays.
-		compressedState.Close()
-		stateFile.Close()
 
 		// Reset the timer.
 		op.Reset()
@@ -2929,8 +2943,35 @@ func (d *qemu) IsPrivileged() bool {
 
 // Snapshot takes a new snapshot.
 func (d *qemu) Snapshot(name string, expiry time.Time, stateful bool) error {
+	// Deal with state.
 	if stateful {
-		return fmt.Errorf("Can't perform a stateful snapshot of a virtual machine")
+		// Confirm the instance has stateful migration enabled.
+		if !shared.IsTrue(d.expandedConfig["migration.stateful"]) {
+			return fmt.Errorf("Stateful stop requires migration.stateful to be set to true")
+		}
+
+		// Sanity checks.
+		if !d.IsRunning() {
+			return fmt.Errorf("Unable to create a stateful snapshot. The instance isn't running")
+		}
+
+		// Connect to the monitor.
+		monitor, err := qmp.Connect(d.monitorPath(), qemuSerialChardevName, d.getMonitorEventHandler())
+		if err != nil {
+			return err
+		}
+
+		// Dump the state.
+		err = d.saveState(monitor)
+		if err != nil {
+			return err
+		}
+
+		// Resume the VM once the disk state has been saved.
+		defer monitor.Start()
+
+		// Remove the state from the main volume.
+		defer os.Remove(d.StatePath())
 	}
 
 	return d.snapshotCommon(d, name, expiry, stateful)
@@ -2938,10 +2979,6 @@ func (d *qemu) Snapshot(name string, expiry time.Time, stateful bool) error {
 
 // Restore restores an instance snapshot.
 func (d *qemu) Restore(source instance.Instance, stateful bool) error {
-	if stateful {
-		return fmt.Errorf("Stateful snapshots of VMs aren't supported yet")
-	}
-
 	op, err := operationlock.Create(d.id, "restore", false, false)
 	if err != nil {
 		return errors.Wrap(err, "Create restore operation")
@@ -3041,11 +3078,12 @@ func (d *qemu) Restore(source instance.Instance, stateful bool) error {
 		op.Done(err)
 		return err
 	}
+	d.stateful = stateful
 
-	// Restart the insance.
-	if wasRunning {
+	// Restart the instance.
+	if wasRunning || stateful {
 		d.logger.Debug("Starting instance after snapshot restore")
-		err := d.Start(false)
+		err := d.Start(stateful)
 		if err != nil {
 			op.Done(err)
 			return err
