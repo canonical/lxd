@@ -14,6 +14,7 @@ import (
 	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/instance/instancetype"
 	"github.com/lxc/lxd/lxd/network"
+	"github.com/lxc/lxd/lxd/network/acl"
 	"github.com/lxc/lxd/lxd/network/openvswitch"
 	"github.com/lxc/lxd/lxd/project"
 	"github.com/lxc/lxd/lxd/resources"
@@ -33,12 +34,24 @@ type ovnNet interface {
 	InstanceDevicePortAdd(opts *network.OVNInstanceNICSetupOpts) (openvswitch.OVNSwitchPort, error)
 	InstanceDevicePortDelete(ovsExternalOVNPort openvswitch.OVNSwitchPort, opts *network.OVNInstanceNICOpts) error
 	InstanceDevicePortDynamicIPs(instanceUUID string, deviceName string) ([]net.IP, error)
+	PortGroupDeleteIfUnused(ignoreUsageType interface{}, ignoreUsageNicName string, aclNames ...string) error
 }
 
 type nicOVN struct {
 	deviceCommon
 
 	network ovnNet // Populated in validateConfig().
+}
+
+// UpdatableFields returns a list of fields that can be updated without triggering a device remove & add.
+func (d *nicOVN) UpdatableFields(oldDevice Type) []string {
+	// Check old and new device types match.
+	_, match := oldDevice.(*nicOVN)
+	if !match {
+		return []string{}
+	}
+
+	return []string{"security.acls"}
 }
 
 // getIntegrationBridgeName returns the OVS integration bridge to use.
@@ -73,6 +86,7 @@ func (d *nicOVN) validateConfig(instConf instance.ConfigReader) error {
 		"ipv4.routes.external",
 		"ipv6.routes.external",
 		"boot.priority",
+		"security.acls",
 	}
 
 	// The NIC's network may be a non-default project, so lookup project and get network's project name.
@@ -177,6 +191,14 @@ func (d *nicOVN) validateConfig(instConf instance.ConfigReader) error {
 		}
 	}
 
+	// Check Security ACLs exist.
+	if d.config["security.acls"] != "" {
+		err = acl.Exists(d.state, networkProjectName, util.SplitNTrimSpace(d.config["security.acls"], ",", -1, true)...)
+		if err != nil {
+			return err
+		}
+	}
+
 	return nil
 }
 
@@ -263,31 +285,25 @@ func (d *nicOVN) Start() (*deviceConfig.RunConfig, error) {
 	}
 
 	// Add new OVN logical switch port for instance.
-	instanceUUID := d.inst.LocalConfig()["volatile.uuid"]
+	instanceNICOpts := network.OVNInstanceNICOpts{
+		InstanceUUID:   d.inst.LocalConfig()["volatile.uuid"],
+		DeviceName:     d.name,
+		InternalRoutes: internalRoutes,
+		ExternalRoutes: externalRoutes,
+	}
 	logicalPortName, err := d.network.InstanceDevicePortAdd(&network.OVNInstanceNICSetupOpts{
-		OVNInstanceNICOpts: network.OVNInstanceNICOpts{
-			InstanceUUID:   instanceUUID,
-			DeviceName:     d.name,
-			InternalRoutes: internalRoutes,
-			ExternalRoutes: externalRoutes,
-		},
-		UplinkConfig: uplink.Config,
-		DNSName:      d.inst.Name(),
-		MAC:          mac,
-		IPs:          ips,
+		OVNInstanceNICOpts: instanceNICOpts,
+		UplinkConfig:       uplink.Config,
+		DNSName:            d.inst.Name(),
+		MAC:                mac,
+		IPs:                ips,
+		SecurityACLs:       util.SplitNTrimSpace(d.config["security.acls"], ",", -1, true),
 	})
 	if err != nil {
 		return nil, errors.Wrapf(err, "Failed adding OVN port")
 	}
 
-	revert.Add(func() {
-		d.network.InstanceDevicePortDelete("", &network.OVNInstanceNICOpts{
-			InstanceUUID:   instanceUUID,
-			DeviceName:     d.name,
-			InternalRoutes: internalRoutes,
-			ExternalRoutes: externalRoutes,
-		})
-	})
+	revert.Add(func() { d.network.InstanceDevicePortDelete("", &instanceNICOpts) })
 
 	// Attach host side veth interface to bridge.
 	integrationBridge, err := d.getIntegrationBridgeName()
@@ -364,6 +380,63 @@ func (d *nicOVN) Update(oldDevices deviceConfig.Devices, isRunning bool) error {
 		_, err = shared.RunCommand("ip", "link", "set", d.config["host_name"], "up")
 		if err != nil {
 			return err
+		}
+	}
+
+	// Apply any changes needed when assigned ACLs change.
+	if d.config["security.acls"] != oldConfig["security.acls"] {
+		// Work out which ACLs have been removed and remove logical port from those groups.
+		oldACLs := util.SplitNTrimSpace(oldConfig["security.acls"], ",", -1, true)
+		newACLs := util.SplitNTrimSpace(d.config["security.acls"], ",", -1, true)
+		removedACLs := []string{}
+		for _, oldACL := range oldACLs {
+			if !shared.StringInSlice(oldACL, newACLs) {
+				removedACLs = append(removedACLs, oldACL)
+			}
+		}
+
+		// Setup the logical port with new ACLs if running.
+		if isRunning {
+			// Load uplink network config.
+			uplinkNetworkName := d.network.Config()["network"]
+			_, uplink, _, err := d.state.Cluster.GetNetworkInAnyState(project.Default, uplinkNetworkName)
+			if err != nil {
+				return errors.Wrapf(err, "Failed to load uplink network %q", uplinkNetworkName)
+			}
+
+			// Parse NIC config into structures used by OVN network's instance port functions.
+			mac, ips, internalRoutes, externalRoutes, err := d.network.InstanceDevicePortConfigParse(d.config)
+			if err != nil {
+				return err
+			}
+
+			// Update OVN logical switch port for instance.
+			instanceNICOpts := network.OVNInstanceNICOpts{
+				InstanceUUID:   d.inst.LocalConfig()["volatile.uuid"],
+				DeviceName:     d.name,
+				InternalRoutes: internalRoutes,
+				ExternalRoutes: externalRoutes,
+			}
+
+			_, err = d.network.InstanceDevicePortAdd(&network.OVNInstanceNICSetupOpts{
+				OVNInstanceNICOpts: instanceNICOpts,
+				UplinkConfig:       uplink.Config,
+				DNSName:            d.inst.Name(),
+				MAC:                mac,
+				IPs:                ips,
+				SecurityACLs:       util.SplitNTrimSpace(d.config["security.acls"], ",", -1, true),
+				SecurityACLsRemove: removedACLs,
+			})
+			if err != nil {
+				return errors.Wrapf(err, "Failed updating OVN port")
+			}
+		}
+
+		if len(removedACLs) > 0 {
+			err := d.network.PortGroupDeleteIfUnused(d.inst, d.name, removedACLs...)
+			if err != nil {
+				return errors.Wrapf(err, "Failed removing unused OVN port groups")
+			}
 		}
 	}
 
@@ -461,6 +534,15 @@ func (d *nicOVN) postStop() error {
 
 // Remove is run when the device is removed from the instance or the instance is deleted.
 func (d *nicOVN) Remove() error {
+	// Check for port groups that will become unused (and need deleting) as this NIC is deleted.
+	securityACLs := util.SplitNTrimSpace(d.config["security.acls"], ",", -1, true)
+	if len(securityACLs) > 0 {
+		err := d.network.PortGroupDeleteIfUnused(d.inst, d.name, securityACLs...)
+		if err != nil {
+			return err
+		}
+	}
+
 	return nil
 }
 
