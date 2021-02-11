@@ -113,7 +113,8 @@ type Gateway struct {
 	// NodeStore wrapper.
 	store *dqliteNodeStore
 
-	lock sync.RWMutex
+	lock          sync.RWMutex
+	heartbeatLock sync.Mutex
 
 	// Abstract unix socket that the local dqlite task is listening to.
 	bindAddress string

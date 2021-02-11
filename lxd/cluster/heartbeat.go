@@ -189,6 +189,12 @@ func HeartbeatTask(gateway *Gateway) (task.Func, task.Schedule) {
 }
 
 func (g *Gateway) heartbeat(ctx context.Context, initialHeartbeat bool) {
+	// Avoid concurent heartbeat loops.
+	// This is possible when both the task and the out of band heartbeat
+	// round from a dqlite connection both kick in at the same time.
+	g.heartbeatLock.Lock()
+	defer g.heartbeatLock.Unlock()
+
 	if g.Cluster == nil || g.server == nil || g.memoryDial != nil {
 		// We're not a raft node or we're not clustered
 		return
