@@ -17,6 +17,7 @@ import (
 	"github.com/lxc/lxd/lxd/db"
 	deviceConfig "github.com/lxc/lxd/lxd/device/config"
 	"github.com/lxc/lxd/lxd/instance/instancetype"
+	"github.com/lxc/lxd/lxd/project"
 	"github.com/lxc/lxd/lxd/seccomp"
 	"github.com/lxc/lxd/lxd/state"
 	"github.com/lxc/lxd/lxd/sys"
@@ -909,4 +910,214 @@ func ValidName(instanceName string, isSnapshot bool) error {
 	}
 
 	return nil
+}
+
+// CreateInternal creates an instance record and storage volume record in the database.
+func CreateInternal(s *state.State, args db.InstanceArgs) (Instance, error) {
+	// Set default values.
+	if args.Project == "" {
+		args.Project = project.Default
+	}
+
+	if args.Profiles == nil {
+		args.Profiles = []string{"default"}
+	}
+
+	if args.Config == nil {
+		args.Config = map[string]string{}
+	}
+
+	if args.BaseImage != "" {
+		args.Config["volatile.base_image"] = args.BaseImage
+	}
+
+	if args.Devices == nil {
+		args.Devices = deviceConfig.Devices{}
+	}
+
+	if args.Architecture == 0 {
+		args.Architecture = s.OS.Architectures[0]
+	}
+
+	err := ValidName(args.Name, args.Snapshot)
+	if err != nil {
+		return nil, err
+	}
+
+	if !args.Snapshot {
+		// Unset expiry date since instances don't expire.
+		args.ExpiryDate = time.Time{}
+	}
+
+	// Validate container config.
+	err = ValidConfig(s.OS, args.Config, false, false)
+	if err != nil {
+		return nil, err
+	}
+
+	// Validate container devices with the supplied container name and devices.
+	err = ValidDevices(s, s.Cluster, args.Project, args.Type, args.Devices, false)
+	if err != nil {
+		return nil, errors.Wrap(err, "Invalid devices")
+	}
+
+	// Validate architecture.
+	_, err = osarch.ArchitectureName(args.Architecture)
+	if err != nil {
+		return nil, err
+	}
+
+	if !shared.IntInSlice(args.Architecture, s.OS.Architectures) {
+		return nil, fmt.Errorf("Requested architecture isn't supported by this host")
+	}
+
+	// Validate profiles.
+	profiles, err := s.Cluster.GetProfileNames(args.Project)
+	if err != nil {
+		return nil, err
+	}
+
+	checkedProfiles := []string{}
+	for _, profile := range args.Profiles {
+		if !shared.StringInSlice(profile, profiles) {
+			return nil, fmt.Errorf("Requested profile %q doesn't exist", profile)
+		}
+
+		if shared.StringInSlice(profile, checkedProfiles) {
+			return nil, fmt.Errorf("Duplicate profile found in request")
+		}
+
+		checkedProfiles = append(checkedProfiles, profile)
+	}
+
+	if args.CreationDate.IsZero() {
+		args.CreationDate = time.Now().UTC()
+	}
+
+	if args.LastUsedDate.IsZero() {
+		args.LastUsedDate = time.Unix(0, 0).UTC()
+	}
+
+	var dbInst db.Instance
+
+	err = s.Cluster.Transaction(func(tx *db.ClusterTx) error {
+		node, err := tx.GetLocalNodeName()
+		if err != nil {
+			return err
+		}
+
+		// TODO: this check should probably be performed by the db package itself.
+		exists, err := tx.ProjectExists(args.Project)
+		if err != nil {
+			return errors.Wrapf(err, "Check if project %q exists", args.Project)
+		}
+		if !exists {
+			return fmt.Errorf("Project %q does not exist", args.Project)
+		}
+
+		if args.Snapshot {
+			parts := strings.SplitN(args.Name, shared.SnapshotDelimiter, 2)
+			instanceName := parts[0]
+			snapshotName := parts[1]
+			instance, err := tx.GetInstance(args.Project, instanceName)
+			if err != nil {
+				return fmt.Errorf("Get instance %q in project %q", instanceName, args.Project)
+			}
+			snapshot := db.InstanceSnapshot{
+				Project:      args.Project,
+				Instance:     instanceName,
+				Name:         snapshotName,
+				CreationDate: args.CreationDate,
+				Stateful:     args.Stateful,
+				Description:  args.Description,
+				Config:       args.Config,
+				Devices:      args.Devices.CloneNative(),
+				ExpiryDate:   args.ExpiryDate,
+			}
+			_, err = tx.CreateInstanceSnapshot(snapshot)
+			if err != nil {
+				return errors.Wrap(err, "Add snapshot info to the database")
+			}
+
+			// Read back the snapshot, to get ID and creation time.
+			s, err := tx.GetInstanceSnapshot(args.Project, instanceName, snapshotName)
+			if err != nil {
+				return errors.Wrap(err, "Fetch created snapshot from the database")
+			}
+
+			dbInst = db.InstanceSnapshotToInstance(instance, s)
+
+			return nil
+		}
+
+		// Create the instance entry.
+		dbInst = db.Instance{
+			Project:      args.Project,
+			Name:         args.Name,
+			Node:         node,
+			Type:         args.Type,
+			Snapshot:     args.Snapshot,
+			Architecture: args.Architecture,
+			Ephemeral:    args.Ephemeral,
+			CreationDate: args.CreationDate,
+			Stateful:     args.Stateful,
+			LastUseDate:  args.LastUsedDate,
+			Description:  args.Description,
+			Config:       args.Config,
+			Devices:      args.Devices.CloneNative(),
+			Profiles:     args.Profiles,
+			ExpiryDate:   args.ExpiryDate,
+		}
+
+		_, err = tx.CreateInstance(dbInst)
+		if err != nil {
+			return errors.Wrap(err, "Add instance info to the database")
+		}
+
+		// Read back the instance, to get ID and creation time.
+		dbRow, err := tx.GetInstance(args.Project, args.Name)
+		if err != nil {
+			return errors.Wrap(err, "Fetch created instance from the database")
+		}
+
+		dbInst = *dbRow
+
+		if dbInst.ID < 1 {
+			return errors.Wrapf(err, "Unexpected instance database ID %d", dbInst.ID)
+		}
+
+		return nil
+	})
+	if err != nil {
+		if err == db.ErrAlreadyDefined {
+			thing := "Instance"
+			if shared.IsSnapshot(args.Name) {
+				thing = "Snapshot"
+			}
+			return nil, fmt.Errorf("%s %q already exists", thing, args.Name)
+		}
+		return nil, err
+	}
+
+	revert := true
+	defer func() {
+		if !revert {
+			return
+		}
+
+		s.Cluster.DeleteInstance(dbInst.Project, dbInst.Name)
+	}()
+
+	args = db.InstanceToArgs(&dbInst)
+	inst, err := Create(s, args)
+	if err != nil {
+		logger.Error("Failed initialising instance", log.Ctx{"project": args.Project, "instance": args.Name, "type": args.Type, "err": err})
+		return nil, errors.Wrap(err, "Failed initialising instance")
+	}
+
+	// Wipe any existing log for this instance name.
+	os.RemoveAll(inst.LogPath())
+
+	revert = false
+	return inst, nil
 }

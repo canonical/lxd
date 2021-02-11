@@ -3,8 +3,6 @@ package main
 import (
 	"context"
 	"fmt"
-	"os"
-	"os/exec"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -13,18 +11,15 @@ import (
 	"time"
 
 	"github.com/pkg/errors"
-	liblxc "gopkg.in/lxc/go-lxc.v2"
 	cron "gopkg.in/robfig/cron.v2"
 
 	"github.com/flosch/pongo2"
 	"github.com/lxc/lxd/lxd/cluster"
 	"github.com/lxc/lxd/lxd/db"
-	deviceConfig "github.com/lxc/lxd/lxd/device/config"
 	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/instance/drivers"
 	"github.com/lxc/lxd/lxd/instance/instancetype"
 	"github.com/lxc/lxd/lxd/operations"
-	"github.com/lxc/lxd/lxd/project"
 	"github.com/lxc/lxd/lxd/revert"
 	"github.com/lxc/lxd/lxd/state"
 	storagePools "github.com/lxc/lxd/lxd/storage"
@@ -32,7 +27,6 @@ import (
 	"github.com/lxc/lxd/shared"
 	log "github.com/lxc/lxd/shared/log15"
 	"github.com/lxc/lxd/shared/logger"
-	"github.com/lxc/lxd/shared/osarch"
 )
 
 // Helper functions
@@ -40,7 +34,7 @@ import (
 // instanceCreateAsEmpty creates an empty instance.
 func instanceCreateAsEmpty(d *Daemon, args db.InstanceArgs) (instance.Instance, error) {
 	// Create the instance record.
-	inst, err := instanceCreateInternal(d.State(), args)
+	inst, err := instance.CreateInternal(d.State(), args)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed creating instance record")
 	}
@@ -147,7 +141,7 @@ func instanceCreateFromImage(d *Daemon, args db.InstanceArgs, hash string, op *o
 	args.BaseImage = hash
 
 	// Create the instance.
-	inst, err := instanceCreateInternal(s, args)
+	inst, err := instance.CreateInternal(s, args)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed creating instance record")
 	}
@@ -212,7 +206,7 @@ func instanceCreateAsCopy(s *state.State, opts instanceCreateAsCopyOpts, op *ope
 	// If we are not in refresh mode, then create a new instance as we are in copy mode.
 	if !opts.refresh {
 		// Create the instance.
-		inst, err = instanceCreateInternal(s, opts.targetInstance)
+		inst, err = instance.CreateInternal(s, opts.targetInstance)
 		if err != nil {
 			return nil, errors.Wrap(err, "Failed creating instance record")
 		}
@@ -309,7 +303,7 @@ func instanceCreateAsCopy(s *state.State, opts instanceCreateAsCopyOpts, op *ope
 			}
 
 			// Create the snapshots.
-			snapInst, err := instanceCreateInternal(s, snapInstArgs)
+			snapInst, err := instance.CreateInternal(s, snapInstArgs)
 			if err != nil {
 				return nil, errors.Wrapf(err, "Failed creating instance snapshot record %q", newSnapName)
 			}
@@ -355,307 +349,6 @@ func instanceCreateAsCopy(s *state.State, opts instanceCreateAsCopyOpts, op *ope
 	}
 
 	revert.Success()
-	return inst, nil
-}
-
-func instanceCreateAsSnapshot(s *state.State, args db.InstanceArgs, sourceInstance instance.Instance, op *operations.Operation) (instance.Instance, error) {
-	if sourceInstance.Type() != args.Type {
-		return nil, fmt.Errorf("Source instance and snapshot instance types do not match")
-	}
-
-	// Deal with state.
-	if args.Stateful {
-		if !sourceInstance.IsRunning() {
-			return nil, fmt.Errorf("Unable to create a stateful snapshot. The instance isn't running")
-		}
-
-		_, err := exec.LookPath("criu")
-		if err != nil {
-			return nil, fmt.Errorf("Unable to create a stateful snapshot. CRIU isn't installed")
-		}
-
-		stateDir := sourceInstance.StatePath()
-		err = os.MkdirAll(stateDir, 0700)
-		if err != nil {
-			return nil, err
-		}
-
-		/* TODO: ideally we would freeze here and unfreeze below after
-		 * we've copied the filesystem, to make sure there are no
-		 * changes by the container while snapshotting. Unfortunately
-		 * there is abug in CRIU where it doesn't leave the container
-		 * in the same state it found it w.r.t. freezing, i.e. CRIU
-		 * freezes too, and then /always/ thaws, even if the container
-		 * was frozen. Until that's fixed, all calls to Unfreeze()
-		 * after snapshotting will fail.
-		 */
-
-		criuMigrationArgs := instance.CriuMigrationArgs{
-			Cmd:          liblxc.MIGRATE_DUMP,
-			StateDir:     stateDir,
-			Function:     "snapshot",
-			Stop:         false,
-			ActionScript: false,
-			DumpDir:      "",
-			PreDumpDir:   "",
-		}
-
-		err = sourceInstance.Migrate(&criuMigrationArgs)
-		if err != nil {
-			os.RemoveAll(sourceInstance.StatePath())
-			return nil, err
-		}
-	}
-
-	revert := revert.New()
-	defer revert.Fail()
-
-	// Create the snapshot.
-	inst, err := instanceCreateInternal(s, args)
-	if err != nil {
-		return nil, errors.Wrapf(err, "Failed creating instance snapshot record %q", args.Name)
-	}
-	revert.Add(func() { inst.Delete(true) })
-
-	pool, err := storagePools.GetPoolByInstance(s, inst)
-	if err != nil {
-		return nil, err
-	}
-
-	err = pool.CreateInstanceSnapshot(inst, sourceInstance, op)
-	if err != nil {
-		return nil, errors.Wrap(err, "Create instance snapshot")
-	}
-
-	// Mount volume for backup.yaml writing.
-	_, err = pool.MountInstance(sourceInstance, op)
-	if err != nil {
-		return nil, errors.Wrap(err, "Create instance snapshot (mount source)")
-	}
-	defer pool.UnmountInstance(sourceInstance, op)
-
-	// Attempt to update backup.yaml for instance.
-	err = sourceInstance.UpdateBackupFile()
-	if err != nil {
-		return nil, err
-	}
-
-	// Once we're done, remove the state directory.
-	if args.Stateful {
-		os.RemoveAll(sourceInstance.StatePath())
-	}
-
-	revert.Success()
-	return inst, nil
-}
-
-// instanceCreateInternal creates an instance record and storage volume record in the database.
-func instanceCreateInternal(s *state.State, args db.InstanceArgs) (instance.Instance, error) {
-	// Set default values.
-	if args.Project == "" {
-		args.Project = project.Default
-	}
-
-	if args.Profiles == nil {
-		args.Profiles = []string{"default"}
-	}
-
-	if args.Config == nil {
-		args.Config = map[string]string{}
-	}
-
-	if args.BaseImage != "" {
-		args.Config["volatile.base_image"] = args.BaseImage
-	}
-
-	if args.Devices == nil {
-		args.Devices = deviceConfig.Devices{}
-	}
-
-	if args.Architecture == 0 {
-		args.Architecture = s.OS.Architectures[0]
-	}
-
-	err := instance.ValidName(args.Name, args.Snapshot)
-	if err != nil {
-		return nil, err
-	}
-
-	if !args.Snapshot {
-		// Unset expiry date since instances don't expire.
-		args.ExpiryDate = time.Time{}
-	}
-
-	// Validate container config.
-	err = instance.ValidConfig(s.OS, args.Config, false, false)
-	if err != nil {
-		return nil, err
-	}
-
-	// Validate container devices with the supplied container name and devices.
-	err = instance.ValidDevices(s, s.Cluster, args.Project, args.Type, args.Devices, false)
-	if err != nil {
-		return nil, errors.Wrap(err, "Invalid devices")
-	}
-
-	// Validate architecture.
-	_, err = osarch.ArchitectureName(args.Architecture)
-	if err != nil {
-		return nil, err
-	}
-
-	if !shared.IntInSlice(args.Architecture, s.OS.Architectures) {
-		return nil, fmt.Errorf("Requested architecture isn't supported by this host")
-	}
-
-	// Validate profiles.
-	profiles, err := s.Cluster.GetProfileNames(args.Project)
-	if err != nil {
-		return nil, err
-	}
-
-	checkedProfiles := []string{}
-	for _, profile := range args.Profiles {
-		if !shared.StringInSlice(profile, profiles) {
-			return nil, fmt.Errorf("Requested profile %q doesn't exist", profile)
-		}
-
-		if shared.StringInSlice(profile, checkedProfiles) {
-			return nil, fmt.Errorf("Duplicate profile found in request")
-		}
-
-		checkedProfiles = append(checkedProfiles, profile)
-	}
-
-	if args.CreationDate.IsZero() {
-		args.CreationDate = time.Now().UTC()
-	}
-
-	if args.LastUsedDate.IsZero() {
-		args.LastUsedDate = time.Unix(0, 0).UTC()
-	}
-
-	var dbInst db.Instance
-
-	err = s.Cluster.Transaction(func(tx *db.ClusterTx) error {
-		node, err := tx.GetLocalNodeName()
-		if err != nil {
-			return err
-		}
-
-		// TODO: this check should probably be performed by the db package itself.
-		exists, err := tx.ProjectExists(args.Project)
-		if err != nil {
-			return errors.Wrapf(err, "Check if project %q exists", args.Project)
-		}
-		if !exists {
-			return fmt.Errorf("Project %q does not exist", args.Project)
-		}
-
-		if args.Snapshot {
-			parts := strings.SplitN(args.Name, shared.SnapshotDelimiter, 2)
-			instanceName := parts[0]
-			snapshotName := parts[1]
-			instance, err := tx.GetInstance(args.Project, instanceName)
-			if err != nil {
-				return fmt.Errorf("Get instance %q in project %q", instanceName, args.Project)
-			}
-			snapshot := db.InstanceSnapshot{
-				Project:      args.Project,
-				Instance:     instanceName,
-				Name:         snapshotName,
-				CreationDate: args.CreationDate,
-				Stateful:     args.Stateful,
-				Description:  args.Description,
-				Config:       args.Config,
-				Devices:      args.Devices.CloneNative(),
-				ExpiryDate:   args.ExpiryDate,
-			}
-			_, err = tx.CreateInstanceSnapshot(snapshot)
-			if err != nil {
-				return errors.Wrap(err, "Add snapshot info to the database")
-			}
-
-			// Read back the snapshot, to get ID and creation time.
-			s, err := tx.GetInstanceSnapshot(args.Project, instanceName, snapshotName)
-			if err != nil {
-				return errors.Wrap(err, "Fetch created snapshot from the database")
-			}
-
-			dbInst = db.InstanceSnapshotToInstance(instance, s)
-
-			return nil
-		}
-
-		// Create the instance entry.
-		dbInst = db.Instance{
-			Project:      args.Project,
-			Name:         args.Name,
-			Node:         node,
-			Type:         args.Type,
-			Snapshot:     args.Snapshot,
-			Architecture: args.Architecture,
-			Ephemeral:    args.Ephemeral,
-			CreationDate: args.CreationDate,
-			Stateful:     args.Stateful,
-			LastUseDate:  args.LastUsedDate,
-			Description:  args.Description,
-			Config:       args.Config,
-			Devices:      args.Devices.CloneNative(),
-			Profiles:     args.Profiles,
-			ExpiryDate:   args.ExpiryDate,
-		}
-
-		_, err = tx.CreateInstance(dbInst)
-		if err != nil {
-			return errors.Wrap(err, "Add instance info to the database")
-		}
-
-		// Read back the instance, to get ID and creation time.
-		dbRow, err := tx.GetInstance(args.Project, args.Name)
-		if err != nil {
-			return errors.Wrap(err, "Fetch created instance from the database")
-		}
-
-		dbInst = *dbRow
-
-		if dbInst.ID < 1 {
-			return errors.Wrapf(err, "Unexpected instance database ID %d", dbInst.ID)
-		}
-
-		return nil
-	})
-	if err != nil {
-		if err == db.ErrAlreadyDefined {
-			thing := "Instance"
-			if shared.IsSnapshot(args.Name) {
-				thing = "Snapshot"
-			}
-			return nil, fmt.Errorf("%s %q already exists", thing, args.Name)
-		}
-		return nil, err
-	}
-
-	revert := true
-	defer func() {
-		if !revert {
-			return
-		}
-
-		s.Cluster.DeleteInstance(dbInst.Project, dbInst.Name)
-	}()
-
-	args = db.InstanceToArgs(&dbInst)
-	inst, err := instance.Create(s, args)
-	if err != nil {
-		logger.Error("Failed initialising instance", log.Ctx{"project": args.Project, "instance": args.Name, "type": args.Type, "err": err})
-		return nil, errors.Wrap(err, "Failed initialising instance")
-	}
-
-	// Wipe any existing log for this instance name.
-	os.RemoveAll(inst.LogPath())
-
-	revert = false
 	return inst, nil
 }
 
@@ -782,8 +475,6 @@ func autoCreateContainerSnapshots(ctx context.Context, d *Daemon, instances []in
 				return
 			}
 
-			snapshotName = fmt.Sprintf("%s%s%s", c.Name(), shared.SnapshotDelimiter, snapshotName)
-
 			expiry, err := shared.GetSnapshotExpiry(time.Now(), c.ExpandedConfig()["snapshots.expiry"])
 			if err != nil {
 				logger.Error("Error getting expiry date", log.Ctx{"err": err, "container": c})
@@ -791,21 +482,7 @@ func autoCreateContainerSnapshots(ctx context.Context, d *Daemon, instances []in
 				return
 			}
 
-			args := db.InstanceArgs{
-				Architecture: c.Architecture(),
-				Config:       c.LocalConfig(),
-				Type:         c.Type(),
-				Snapshot:     true,
-				Devices:      c.LocalDevices(),
-				Ephemeral:    c.IsEphemeral(),
-				Name:         snapshotName,
-				Profiles:     c.Profiles(),
-				Project:      c.Project(),
-				Stateful:     false,
-				ExpiryDate:   expiry,
-			}
-
-			_, err = instanceCreateAsSnapshot(d.State(), args, c, nil)
+			err = c.Snapshot(snapshotName, expiry, false)
 			if err != nil {
 				logger.Error("Error creating snapshots", log.Ctx{"err": err, "container": c})
 			}
