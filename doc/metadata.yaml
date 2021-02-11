@@ -28,6 +28,9 @@ navigation:
         - title: Networks
           location: networks.md
 
+        - title: Network ACLs
+          location: network-acls.md
+
         - title: Preseed files
           location: preseed.md
 
