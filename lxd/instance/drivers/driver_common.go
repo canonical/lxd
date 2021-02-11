@@ -434,8 +434,8 @@ func (d *common) expandDevices(profiles []api.Profile) error {
 	return nil
 }
 
-// restart handles instance restarts.
-func (d *common) restart(inst instance.Instance, timeout time.Duration) error {
+// restartCommon handles the common part of instance restarts.
+func (d *common) restartCommon(inst instance.Instance, timeout time.Duration) error {
 	// Setup a new operation for the stop/shutdown phase.
 	op, err := operationlock.Create(d.id, "restart", true, true)
 	if err != nil {
