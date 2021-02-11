@@ -479,6 +479,12 @@ CREATE VIEW projects_used_by_ref (name,
     nodes.name)
     FROM storage_volumes JOIN storage_pools ON storage_pool_id=storage_pools.id JOIN nodes ON node_id=nodes.id JOIN projects ON project_id=projects.id WHERE storage_volumes.type=2 UNION
   SELECT projects.name,
+    printf('/1.0/storage-pools/%s/volumes/custom/%s?project=%s',
+    storage_pools.name,
+    storage_volumes.name,
+    projects.name)
+    FROM storage_volumes JOIN storage_pools ON storage_pool_id=storage_pools.id JOIN projects ON project_id=projects.id WHERE storage_volumes.type=2 AND storage_volumes.node_id IS NULL UNION
+  SELECT projects.name,
     printf('/1.0/profiles/%s?project=%s',
     profiles.name,
     projects.name)
@@ -488,7 +494,7 @@ CREATE VIEW projects_used_by_ref (name,
     networks.name,
     projects.name)
     FROM networks JOIN projects ON project_id=projects.id UNION
-SELECT projects.name,
+  SELECT projects.name,
     printf('/1.0/network-acls/%s?project=%s',
     networks_acls.name,
     projects.name)
@@ -617,5 +623,5 @@ CREATE TABLE storage_volumes_snapshots_config (
     UNIQUE (storage_volume_snapshot_id, key)
 );
 
-INSERT INTO schema (version, updated_at) VALUES (45, strftime("%s"))
+INSERT INTO schema (version, updated_at) VALUES (46, strftime("%s"))
 `
