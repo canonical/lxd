@@ -2861,6 +2861,15 @@ func (d *qemu) IsPrivileged() bool {
 	return false
 }
 
+// Snapshot takes a new snapshot.
+func (d *qemu) Snapshot(name string, expiry time.Time, stateful bool) error {
+	if stateful {
+		return fmt.Errorf("Can't perform a stateful snapshot of a virtual machine")
+	}
+
+	return d.snapshotCommon(d, name, expiry, stateful)
+}
+
 // Restore restores an instance snapshot.
 func (d *qemu) Restore(source instance.Instance, stateful bool) error {
 	if stateful {
