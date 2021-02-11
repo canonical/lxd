@@ -2662,7 +2662,7 @@ func (d *lxc) Restart(timeout time.Duration) error {
 
 	d.logger.Info("Restarting container", ctxMap)
 
-	err := d.restart(d, timeout)
+	err := d.restartCommon(d, timeout)
 	if err != nil {
 		return err
 	}
