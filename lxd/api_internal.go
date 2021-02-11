@@ -704,7 +704,7 @@ func internalImport(d *Daemon, projectName string, req *internalImportPost) resp
 	if err != nil {
 		return response.SmartError(err)
 	}
-	_, err = instanceCreateInternal(d.State(), db.InstanceArgs{
+	_, err = instance.CreateInternal(d.State(), db.InstanceArgs{
 		Project:      projectName,
 		Architecture: arch,
 		BaseImage:    baseImage,
@@ -802,7 +802,7 @@ func internalImport(d *Daemon, projectName string, req *internalImportPost) resp
 			snap.Devices[rootDevName] = rootDev
 		}
 
-		_, err = instanceCreateInternal(d.State(), db.InstanceArgs{
+		_, err = instance.CreateInternal(d.State(), db.InstanceArgs{
 			Project:      projectName,
 			Architecture: arch,
 			BaseImage:    baseImage,
