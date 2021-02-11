@@ -264,9 +264,18 @@ func imgPostInstanceInfo(d *Daemon, r *http.Request, req api.ImagesPost, op *ope
 	if req.CompressionAlgorithm != "" {
 		compress = req.CompressionAlgorithm
 	} else {
-		compress, err = cluster.ConfigGetString(d.cluster, "images.compression_algorithm")
+		p, err := d.cluster.GetProject(project)
 		if err != nil {
 			return nil, err
+		}
+
+		if p.Config["images.compression_algorithm"] != "" {
+			compress = p.Config["images.compression_algorithm"]
+		} else {
+			compress, err = cluster.ConfigGetString(d.cluster, "images.compression_algorithm")
+			if err != nil {
+				return nil, err
+			}
 		}
 	}
 

@@ -5,16 +5,15 @@ import (
 	"encoding/hex"
 	"fmt"
 	"io"
-	"os/exec"
 	"strconv"
 	"time"
 
-	"github.com/kballard/go-shellquote"
 	"github.com/pkg/errors"
 	"golang.org/x/crypto/scrypt"
 
 	"github.com/lxc/lxd/lxd/config"
 	"github.com/lxc/lxd/lxd/db"
+	"github.com/lxc/lxd/shared/validate"
 )
 
 // Config holds cluster-wide configuration values.
@@ -238,7 +237,7 @@ func configGet(cluster *db.Cluster) (*Config, error) {
 
 // ConfigSchema defines available server configuration keys.
 var ConfigSchema = config.Schema{
-	"backups.compression_algorithm":  {Default: "gzip", Validator: validateCompression},
+	"backups.compression_algorithm":  {Default: "gzip", Validator: validate.IsCompressionAlgorithm},
 	"cluster.offline_threshold":      {Type: config.Int64, Default: offlineThresholdDefault(), Validator: offlineThresholdValidator},
 	"cluster.images_minimal_replica": {Type: config.Int64, Default: "3", Validator: imageMinimalReplicaValidator},
 	"cluster.max_voters":             {Type: config.Int64, Default: "3", Validator: maxVotersValidator},
@@ -258,7 +257,7 @@ var ConfigSchema = config.Schema{
 	"candid.expiry":                  {Type: config.Int64, Default: "3600"},
 	"images.auto_update_cached":      {Type: config.Bool, Default: "true"},
 	"images.auto_update_interval":    {Type: config.Int64, Default: "6"},
-	"images.compression_algorithm":   {Default: "gzip", Validator: validateCompression},
+	"images.compression_algorithm":   {Default: "gzip", Validator: validate.IsCompressionAlgorithm},
 	"images.remote_cache_expiry":     {Type: config.Int64, Default: "10"},
 	"maas.api.key":                   {},
 	"maas.api.url":                   {},
@@ -366,26 +365,6 @@ func passwordSetter(value string) (string, error) {
 	value = hex.EncodeToString(buf)
 
 	return value, nil
-}
-
-func validateCompression(value string) error {
-	if value == "none" {
-		return nil
-	}
-
-	// Going to look up tar2sqfs executable binary
-	if value == "squashfs" {
-		value = "tar2sqfs"
-	}
-
-	// Parse the command.
-	fields, err := shellquote.Split(value)
-	if err != nil {
-		return err
-	}
-
-	_, err = exec.LookPath(fields[0])
-	return err
 }
 
 func deprecatedStorage(value string) (string, error) {
