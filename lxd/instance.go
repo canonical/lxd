@@ -3,8 +3,6 @@ package main
 import (
 	"context"
 	"fmt"
-	"os"
-	"os/exec"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -13,7 +11,6 @@ import (
 	"time"
 
 	"github.com/pkg/errors"
-	liblxc "gopkg.in/lxc/go-lxc.v2"
 	cron "gopkg.in/robfig/cron.v2"
 
 	"github.com/flosch/pongo2"
@@ -355,97 +352,6 @@ func instanceCreateAsCopy(s *state.State, opts instanceCreateAsCopyOpts, op *ope
 	return inst, nil
 }
 
-func instanceCreateAsSnapshot(s *state.State, args db.InstanceArgs, sourceInstance instance.Instance, op *operations.Operation) (instance.Instance, error) {
-	if sourceInstance.Type() != args.Type {
-		return nil, fmt.Errorf("Source instance and snapshot instance types do not match")
-	}
-
-	// Deal with state.
-	if args.Stateful {
-		if !sourceInstance.IsRunning() {
-			return nil, fmt.Errorf("Unable to create a stateful snapshot. The instance isn't running")
-		}
-
-		_, err := exec.LookPath("criu")
-		if err != nil {
-			return nil, fmt.Errorf("Unable to create a stateful snapshot. CRIU isn't installed")
-		}
-
-		stateDir := sourceInstance.StatePath()
-		err = os.MkdirAll(stateDir, 0700)
-		if err != nil {
-			return nil, err
-		}
-
-		/* TODO: ideally we would freeze here and unfreeze below after
-		 * we've copied the filesystem, to make sure there are no
-		 * changes by the container while snapshotting. Unfortunately
-		 * there is abug in CRIU where it doesn't leave the container
-		 * in the same state it found it w.r.t. freezing, i.e. CRIU
-		 * freezes too, and then /always/ thaws, even if the container
-		 * was frozen. Until that's fixed, all calls to Unfreeze()
-		 * after snapshotting will fail.
-		 */
-
-		criuMigrationArgs := instance.CriuMigrationArgs{
-			Cmd:          liblxc.MIGRATE_DUMP,
-			StateDir:     stateDir,
-			Function:     "snapshot",
-			Stop:         false,
-			ActionScript: false,
-			DumpDir:      "",
-			PreDumpDir:   "",
-		}
-
-		err = sourceInstance.Migrate(&criuMigrationArgs)
-		if err != nil {
-			os.RemoveAll(sourceInstance.StatePath())
-			return nil, err
-		}
-	}
-
-	revert := revert.New()
-	defer revert.Fail()
-
-	// Create the snapshot.
-	inst, err := instance.CreateInternal(s, args)
-	if err != nil {
-		return nil, errors.Wrapf(err, "Failed creating instance snapshot record %q", args.Name)
-	}
-	revert.Add(func() { inst.Delete(true) })
-
-	pool, err := storagePools.GetPoolByInstance(s, inst)
-	if err != nil {
-		return nil, err
-	}
-
-	err = pool.CreateInstanceSnapshot(inst, sourceInstance, op)
-	if err != nil {
-		return nil, errors.Wrap(err, "Create instance snapshot")
-	}
-
-	// Mount volume for backup.yaml writing.
-	_, err = pool.MountInstance(sourceInstance, op)
-	if err != nil {
-		return nil, errors.Wrap(err, "Create instance snapshot (mount source)")
-	}
-	defer pool.UnmountInstance(sourceInstance, op)
-
-	// Attempt to update backup.yaml for instance.
-	err = sourceInstance.UpdateBackupFile()
-	if err != nil {
-		return nil, err
-	}
-
-	// Once we're done, remove the state directory.
-	if args.Stateful {
-		os.RemoveAll(sourceInstance.StatePath())
-	}
-
-	revert.Success()
-	return inst, nil
-}
-
 // Load all instances of this nodes under the given project.
 func instanceLoadNodeProjectAll(s *state.State, project string, instanceType instancetype.Type) ([]instance.Instance, error) {
 	// Get all the container arguments
@@ -569,8 +475,6 @@ func autoCreateContainerSnapshots(ctx context.Context, d *Daemon, instances []in
 				return
 			}
 
-			snapshotName = fmt.Sprintf("%s%s%s", c.Name(), shared.SnapshotDelimiter, snapshotName)
-
 			expiry, err := shared.GetSnapshotExpiry(time.Now(), c.ExpandedConfig()["snapshots.expiry"])
 			if err != nil {
 				logger.Error("Error getting expiry date", log.Ctx{"err": err, "container": c})
@@ -578,21 +482,7 @@ func autoCreateContainerSnapshots(ctx context.Context, d *Daemon, instances []in
 				return
 			}
 
-			args := db.InstanceArgs{
-				Architecture: c.Architecture(),
-				Config:       c.LocalConfig(),
-				Type:         c.Type(),
-				Snapshot:     true,
-				Devices:      c.LocalDevices(),
-				Ephemeral:    c.IsEphemeral(),
-				Name:         snapshotName,
-				Profiles:     c.Profiles(),
-				Project:      c.Project(),
-				Stateful:     false,
-				ExpiryDate:   expiry,
-			}
-
-			_, err = instanceCreateAsSnapshot(d.State(), args, c, nil)
+			err = c.Snapshot(snapshotName, expiry, false)
 			if err != nil {
 				logger.Error("Error creating snapshots", log.Ctx{"err": err, "container": c})
 			}
