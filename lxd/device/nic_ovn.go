@@ -353,25 +353,10 @@ func (d *nicOVN) Update(oldDevices deviceConfig.Devices, isRunning bool) error {
 	// Populate device config with volatile fields if needed.
 	networkVethFillFromVolatile(d.config, d.volatileGet())
 
-	// If instance is running, apply host side limits and filters first before rebuilding
-	// dnsmasq config below so that existing config can be used as part of the filter removal.
-	if isRunning {
-		err := d.validateEnvironment()
-		if err != nil {
-			return err
-		}
-
-		// Apply host-side limits.
-		err = networkSetupHostVethLimits(d.config)
-		if err != nil {
-			return err
-		}
-	}
-
 	// If an IPv6 address has changed, if the instance is running we should bounce the host-side
 	// veth interface to give the instance a chance to detect the change and re-apply for an
 	// updated lease with new IP address.
-	if d.config["ipv6.address"] != oldConfig["ipv6.address"] && d.config["host_name"] != "" && shared.PathExists(fmt.Sprintf("/sys/class/net/%s", d.config["host_name"])) {
+	if d.config["ipv6.address"] != oldConfig["ipv6.address"] && d.config["host_name"] != "" && network.InterfaceExists(d.config["host_name"]) {
 		_, err := shared.RunCommand("ip", "link", "set", d.config["host_name"], "down")
 		if err != nil {
 			return err
