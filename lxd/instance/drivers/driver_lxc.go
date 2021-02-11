@@ -2662,7 +2662,7 @@ func (d *lxc) Restart(timeout time.Duration) error {
 
 	d.logger.Info("Restarting container", ctxMap)
 
-	err := d.restart(d, timeout)
+	err := d.restartCommon(d, timeout)
 	if err != nil {
 		return err
 	}
@@ -3137,6 +3137,57 @@ func (d *lxc) RenderState() (*api.InstanceState, error) {
 	status.Disk = d.diskState()
 
 	return &status, nil
+}
+
+// Snapshot takes a new snapshot.
+func (d *lxc) Snapshot(name string, expiry time.Time, stateful bool) error {
+	// Deal with state.
+	if stateful {
+		// Sanity checks.
+		if !d.IsRunning() {
+			return fmt.Errorf("Unable to create a stateful snapshot. The instance isn't running")
+		}
+
+		_, err := exec.LookPath("criu")
+		if err != nil {
+			return fmt.Errorf("Unable to create a stateful snapshot. CRIU isn't installed")
+		}
+
+		/* TODO: ideally we would freeze here and unfreeze below after
+		 * we've copied the filesystem, to make sure there are no
+		 * changes by the container while snapshotting. Unfortunately
+		 * there is abug in CRIU where it doesn't leave the container
+		 * in the same state it found it w.r.t. freezing, i.e. CRIU
+		 * freezes too, and then /always/ thaws, even if the container
+		 * was frozen. Until that's fixed, all calls to Unfreeze()
+		 * after snapshotting will fail.
+		 */
+		criuMigrationArgs := instance.CriuMigrationArgs{
+			Cmd:          liblxc.MIGRATE_DUMP,
+			StateDir:     d.StatePath(),
+			Function:     "snapshot",
+			Stop:         false,
+			ActionScript: false,
+			DumpDir:      "",
+			PreDumpDir:   "",
+		}
+
+		// Create the state path and Make sure we don't keep state around after the snapshot has been made.
+		err = os.MkdirAll(d.StatePath(), 0700)
+		if err != nil {
+			return err
+		}
+
+		defer os.RemoveAll(d.StatePath())
+
+		// Dump the state.
+		err = d.Migrate(&criuMigrationArgs)
+		if err != nil {
+			return err
+		}
+	}
+
+	return d.snapshotCommon(d, name, expiry, stateful)
 }
 
 // Restore restores a snapshot.

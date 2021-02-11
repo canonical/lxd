@@ -14,7 +14,6 @@ import (
 
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/instance"
-	"github.com/lxc/lxd/lxd/instance/instancetype"
 	"github.com/lxc/lxd/lxd/operations"
 	"github.com/lxc/lxd/lxd/project"
 	"github.com/lxc/lxd/lxd/response"
@@ -140,10 +139,6 @@ func instanceSnapshotsPost(d *Daemon, r *http.Request) response.Response {
 		return response.BadRequest(errors.Wrap(err, "Invalid snapshot name"))
 	}
 
-	fullName := name +
-		shared.SnapshotDelimiter +
-		req.Name
-
 	var expiry time.Time
 	if req.ExpiresAt != nil {
 		expiry = *req.ExpiresAt
@@ -154,31 +149,9 @@ func instanceSnapshotsPost(d *Daemon, r *http.Request) response.Response {
 		}
 	}
 
-	if inst.Type() == instancetype.VM && req.Stateful {
-		return response.BadRequest(fmt.Errorf("Can't perform a stateful snapshot of a virtual machine"))
-	}
-
 	snapshot := func(op *operations.Operation) error {
-		args := db.InstanceArgs{
-			Project:      inst.Project(),
-			Architecture: inst.Architecture(),
-			Config:       inst.LocalConfig(),
-			Type:         inst.Type(),
-			Snapshot:     true,
-			Devices:      inst.LocalDevices(),
-			Ephemeral:    inst.IsEphemeral(),
-			Name:         fullName,
-			Profiles:     inst.Profiles(),
-			Stateful:     req.Stateful,
-			ExpiryDate:   expiry,
-		}
-
-		_, err := instanceCreateAsSnapshot(d.State(), args, inst, op)
-		if err != nil {
-			return err
-		}
-
-		return nil
+		inst.SetOperation(op)
+		return inst.Snapshot(req.Name, expiry, req.Stateful)
 	}
 
 	resources := map[string][]string{}

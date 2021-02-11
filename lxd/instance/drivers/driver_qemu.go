@@ -660,7 +660,7 @@ func (d *qemu) Shutdown(timeout time.Duration) error {
 
 // Restart restart the instance.
 func (d *qemu) Restart(timeout time.Duration) error {
-	err := d.restart(d, timeout)
+	err := d.restartCommon(d, timeout)
 	if err != nil {
 		return err
 	}
@@ -2925,6 +2925,15 @@ func (d *qemu) Unfreeze() error {
 // IsPrivileged does not apply to virtual machines. Always returns false.
 func (d *qemu) IsPrivileged() bool {
 	return false
+}
+
+// Snapshot takes a new snapshot.
+func (d *qemu) Snapshot(name string, expiry time.Time, stateful bool) error {
+	if stateful {
+		return fmt.Errorf("Can't perform a stateful snapshot of a virtual machine")
+	}
+
+	return d.snapshotCommon(d, name, expiry, stateful)
 }
 
 // Restore restores an instance snapshot.
