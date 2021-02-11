@@ -742,6 +742,57 @@ func (d *qemu) restoreState(monitor *qmp.Monitor) error {
 	return nil
 }
 
+// saveState dumps the current VM state to disk.
+// Once dumped, the VM is in a paused state and it's up to the caller to resume or kill it.
+func (d *qemu) saveState(monitor *qmp.Monitor) error {
+	os.Remove(d.StatePath())
+
+	// Prepare the state file.
+	stateFile, err := os.Create(d.StatePath())
+	if err != nil {
+		return err
+	}
+
+	compressedState, err := gzip.NewWriterLevel(stateFile, gzip.BestSpeed)
+	if err != nil {
+		stateFile.Close()
+		return err
+	}
+
+	pipeRead, pipeWrite, err := os.Pipe()
+	if err != nil {
+		compressedState.Close()
+		stateFile.Close()
+		return err
+	}
+	defer pipeRead.Close()
+	defer pipeWrite.Close()
+
+	go io.Copy(compressedState, pipeRead)
+
+	// Send the target file to qemu.
+	err = monitor.SendFile("migration", pipeWrite)
+	if err != nil {
+		compressedState.Close()
+		stateFile.Close()
+		return err
+	}
+
+	// Issue the migration command.
+	err = monitor.Migrate("fd:migration")
+	if err != nil {
+		compressedState.Close()
+		stateFile.Close()
+		return err
+	}
+
+	// Close the file to avoid unmount delays.
+	compressedState.Close()
+	stateFile.Close()
+
+	return nil
+}
+
 // Start starts the instance.
 func (d *qemu) Start(stateful bool) error {
 	// Must be run prior to creating the operation lock.
@@ -2754,55 +2805,12 @@ func (d *qemu) Stop(stateful bool) error {
 
 	// Handle stateful stop.
 	if stateful {
-		os.Remove(d.StatePath())
-
-		// Prepare the state file.
-		stateFile, err := os.Create(d.StatePath())
+		// Dump the state.
+		err := d.saveState(monitor)
 		if err != nil {
 			op.Done(err)
 			return err
 		}
-
-		compressedState, err := gzip.NewWriterLevel(stateFile, gzip.BestSpeed)
-		if err != nil {
-			stateFile.Close()
-			op.Done(err)
-			return err
-		}
-
-		pipeRead, pipeWrite, err := os.Pipe()
-		if err != nil {
-			compressedState.Close()
-			stateFile.Close()
-			op.Done(err)
-			return err
-		}
-		defer pipeRead.Close()
-		defer pipeWrite.Close()
-
-		go io.Copy(compressedState, pipeRead)
-
-		// Send the target file to qemu.
-		err = monitor.SendFile("migration", pipeWrite)
-		if err != nil {
-			compressedState.Close()
-			stateFile.Close()
-			op.Done(err)
-			return err
-		}
-
-		// Issue the migration command.
-		err = monitor.Migrate("fd:migration")
-		if err != nil {
-			compressedState.Close()
-			stateFile.Close()
-			op.Done(err)
-			return err
-		}
-
-		// Close the file to avoid unmount delays.
-		compressedState.Close()
-		stateFile.Close()
 
 		// Reset the timer.
 		op.Reset()
