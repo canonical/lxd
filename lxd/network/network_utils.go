@@ -93,22 +93,27 @@ func UsedBy(s *state.State, networkName string, firstOnly bool) ([]string, error
 
 	// Look at instances.
 	err := s.Cluster.InstanceList(nil, func(inst db.Instance, p api.Project, profiles []api.Profile) error {
+		// Look for NIC devices using this network.
 		devices := db.ExpandInstanceDevices(deviceConfig.NewDevices(inst.Devices), profiles)
-		inUse, err := isInUseByDevices(s, devices, networkName)
-		if err != nil {
-			return err
-		}
-
-		if inUse {
-			uri := fmt.Sprintf("/%s/instances/%s", version.APIVersion, inst.Name)
-			if inst.Project != project.Default {
-				uri += fmt.Sprintf("?project=%s", inst.Project)
+		for _, devConfig := range devices {
+			inUse, err := isInUseByDevice(s, networkName, devConfig)
+			if err != nil {
+				return err
 			}
 
-			usedBy = append(usedBy, uri)
+			if inUse {
+				uri := fmt.Sprintf("/%s/instances/%s", version.APIVersion, inst.Name)
+				if inst.Project != project.Default {
+					uri += fmt.Sprintf("?project=%s", inst.Project)
+				}
 
-			if firstOnly {
-				return db.ErrInstanceListStop
+				usedBy = append(usedBy, uri)
+
+				if firstOnly {
+					return db.ErrInstanceListStop
+				}
+
+				return nil // No need to consider other devices on this instance.
 			}
 		}
 
@@ -162,36 +167,45 @@ func UsedBy(s *state.State, networkName string, firstOnly bool) ([]string, error
 // isInUseByProfile indicates if network is referenced by a profile's NIC devices.
 // Checks if the device's parent or network properties match the network name.
 func isInUseByProfile(s *state.State, profile db.Profile, networkName string) (bool, error) {
-	return isInUseByDevices(s, deviceConfig.NewDevices(profile.Devices), networkName)
-}
-
-// isInUseByDevices inspects a device's config to find references for a network being used.
-func isInUseByDevices(s *state.State, devices deviceConfig.Devices, networkName string) (bool, error) {
-	for _, d := range devices {
-		if d["type"] != "nic" {
-			continue
-		}
-
-		nicType, err := nictype.NICType(s, d)
+	for _, d := range deviceConfig.NewDevices(profile.Devices) {
+		inUse, err := isInUseByDevice(s, networkName, d)
 		if err != nil {
 			return false, err
 		}
 
-		if !shared.StringInSlice(nicType, []string{"bridged", "macvlan", "ipvlan", "physical", "sriov"}) {
-			continue
-		}
-
-		if d["network"] != "" && d["network"] == networkName {
+		if inUse {
 			return true, nil
 		}
+	}
 
-		if d["parent"] == "" {
-			continue
-		}
+	return false, nil
+}
 
-		if GetHostDevice(d["parent"], d["vlan"]) == networkName {
-			return true, nil
-		}
+// isInUseByDevices inspects a device's config to find references for a network being used.
+func isInUseByDevice(s *state.State, networkName string, d deviceConfig.Device) (bool, error) {
+	if d["type"] != "nic" {
+		return false, nil
+	}
+
+	nicType, err := nictype.NICType(s, d)
+	if err != nil {
+		return false, err
+	}
+
+	if !shared.StringInSlice(nicType, []string{"bridged", "macvlan", "ipvlan", "physical", "sriov"}) {
+		return false, nil
+	}
+
+	if d["network"] != "" && d["network"] == networkName {
+		return true, nil
+	}
+
+	if d["parent"] == "" {
+		return false, nil
+	}
+
+	if GetHostDevice(d["parent"], d["vlan"]) == networkName {
+		return true, nil
 	}
 
 	return false, nil
