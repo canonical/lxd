@@ -2943,8 +2943,35 @@ func (d *qemu) IsPrivileged() bool {
 
 // Snapshot takes a new snapshot.
 func (d *qemu) Snapshot(name string, expiry time.Time, stateful bool) error {
+	// Deal with state.
 	if stateful {
-		return fmt.Errorf("Can't perform a stateful snapshot of a virtual machine")
+		// Confirm the instance has stateful migration enabled.
+		if !shared.IsTrue(d.expandedConfig["migration.stateful"]) {
+			return fmt.Errorf("Stateful stop requires migration.stateful to be set to true")
+		}
+
+		// Sanity checks.
+		if !d.IsRunning() {
+			return fmt.Errorf("Unable to create a stateful snapshot. The instance isn't running")
+		}
+
+		// Connect to the monitor.
+		monitor, err := qmp.Connect(d.monitorPath(), qemuSerialChardevName, d.getMonitorEventHandler())
+		if err != nil {
+			return err
+		}
+
+		// Dump the state.
+		err = d.saveState(monitor)
+		if err != nil {
+			return err
+		}
+
+		// Resume the VM once the disk state has been saved.
+		defer monitor.Start()
+
+		// Remove the state from the main volume.
+		defer os.Remove(d.StatePath())
 	}
 
 	return d.snapshotCommon(d, name, expiry, stateful)
@@ -2952,10 +2979,6 @@ func (d *qemu) Snapshot(name string, expiry time.Time, stateful bool) error {
 
 // Restore restores an instance snapshot.
 func (d *qemu) Restore(source instance.Instance, stateful bool) error {
-	if stateful {
-		return fmt.Errorf("Stateful snapshots of VMs aren't supported yet")
-	}
-
 	op, err := operationlock.Create(d.id, "restore", false, false)
 	if err != nil {
 		return errors.Wrap(err, "Create restore operation")
@@ -3055,11 +3078,12 @@ func (d *qemu) Restore(source instance.Instance, stateful bool) error {
 		op.Done(err)
 		return err
 	}
+	d.stateful = stateful
 
-	// Restart the insance.
-	if wasRunning {
+	// Restart the instance.
+	if wasRunning || stateful {
 		d.logger.Debug("Starting instance after snapshot restore")
-		err := d.Start(false)
+		err := d.Start(stateful)
 		if err != nil {
 			op.Done(err)
 			return err
