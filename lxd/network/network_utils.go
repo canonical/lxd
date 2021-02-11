@@ -86,35 +86,84 @@ func RandomDevName(prefix string) string {
 	return iface
 }
 
+// usedByInstanceDevices looks for instance NIC devices using the network and runs the supplied usageFunc for each.
+func usedByInstanceDevices(s *state.State, networkProjectName string, networkName string, usageFunc func(inst db.Instance, nicName string, nicConfig map[string]string) error) error {
+	return s.Cluster.InstanceList(nil, func(inst db.Instance, p api.Project, profiles []api.Profile) error {
+		// Get the instance's effective network project name.
+		instNetworkProject := project.NetworkProjectFromRecord(&p)
+
+		// Skip instances who's effective network project doesn't match this Network's project.
+		if instNetworkProject != networkProjectName {
+			return nil
+		}
+
+		// Look for NIC devices using this network.
+		devices := db.ExpandInstanceDevices(deviceConfig.NewDevices(inst.Devices), profiles)
+		for devName, devConfig := range devices {
+			inUse, err := isInUseByDevice(s, networkProjectName, networkName, devConfig)
+			if err != nil {
+				return err
+			}
+
+			if inUse {
+				err = usageFunc(inst, devName, devConfig)
+				if err != nil {
+					return err
+				}
+			}
+		}
+
+		return nil
+	})
+}
+
 // UsedBy returns list of API resources using network. Accepts firstOnly argument to indicate that only the first
 // resource using network should be returned. This can help to quickly check if the network is in use.
 func UsedBy(s *state.State, networkProjectName string, networkName string, firstOnly bool) ([]string, error) {
 	var usedBy []string
 
 	// Look at instances.
-	insts, err := instance.LoadFromAllProjects(s)
+	err := s.Cluster.InstanceList(nil, func(inst db.Instance, p api.Project, profiles []api.Profile) error {
+		// Get the instance's effective network project name.
+		instNetworkProject := project.NetworkProjectFromRecord(&p)
+
+		// Skip instances who's effective network project doesn't match this Network's project.
+		if instNetworkProject != networkProjectName {
+			return nil
+		}
+
+		// Look for NIC devices using this network.
+		devices := db.ExpandInstanceDevices(deviceConfig.NewDevices(inst.Devices), profiles)
+		for _, devConfig := range devices {
+			inUse, err := isInUseByDevice(s, networkProjectName, networkName, devConfig)
+			if err != nil {
+				return err
+			}
+
+			if inUse {
+				uri := fmt.Sprintf("/%s/instances/%s", version.APIVersion, inst.Name)
+				if inst.Project != project.Default {
+					uri += fmt.Sprintf("?project=%s", inst.Project)
+				}
+
+				usedBy = append(usedBy, uri)
+
+				if firstOnly {
+					return db.ErrInstanceListStop
+				}
+
+				return nil // No need to consider other devices on this instance.
+			}
+		}
+
+		return nil
+	})
 	if err != nil {
+		if err == db.ErrInstanceListStop {
+			return usedBy, nil
+		}
+
 		return nil, err
-	}
-
-	for _, inst := range insts {
-		inUse, err := isInUseByInstance(s, inst, networkProjectName, networkName)
-		if err != nil {
-			return nil, err
-		}
-
-		if inUse {
-			uri := fmt.Sprintf("/%s/instances/%s", version.APIVersion, inst.Name())
-			if inst.Project() != project.Default {
-				uri += fmt.Sprintf("?project=%s", inst.Project())
-			}
-
-			usedBy = append(usedBy, uri)
-
-			if firstOnly {
-				return usedBy, nil
-			}
-		}
 	}
 
 	// Look for profiles.
@@ -191,24 +240,6 @@ func UsedBy(s *state.State, networkProjectName string, networkName string, first
 	return usedBy, nil
 }
 
-// isInUseByInstance indicates if network is referenced by an instance's NIC devices.
-// Checks if the device's parent or network properties match the network name.
-func isInUseByInstance(s *state.State, inst instance.Instance, networkProjectName string, networkName string) (bool, error) {
-	// Get the translated network project name from the instance's project.
-	instNetworkProjectName, _, err := project.NetworkProject(s.Cluster, inst.Project())
-	if err != nil {
-		return false, err
-	}
-
-	// Skip instances who's translated network project doesn't match the requested network's project.
-	// Because its devices can't be using this network.
-	if networkProjectName != instNetworkProjectName {
-		return false, nil
-	}
-
-	return isInUseByDevices(s, networkProjectName, networkName, inst.ExpandedDevices())
-}
-
 // isInUseByProfile indicates if network is referenced by a profile's NIC devices.
 // Checks if the device's parent or network properties match the network name.
 func isInUseByProfile(s *state.State, profile db.Profile, networkProjectName string, networkName string) (bool, error) {
@@ -224,36 +255,45 @@ func isInUseByProfile(s *state.State, profile db.Profile, networkProjectName str
 		return false, nil
 	}
 
-	return isInUseByDevices(s, networkProjectName, networkName, deviceConfig.NewDevices(profile.Devices))
-}
-
-// isInUseByDevices inspects a device's config to find references for a network being used.
-func isInUseByDevices(s *state.State, networkProjectName string, networkName string, devices deviceConfig.Devices) (bool, error) {
-	for _, d := range devices {
-		if d["type"] != "nic" {
-			continue
-		}
-
-		nicType, err := nictype.NICType(s, networkProjectName, d)
+	for _, d := range deviceConfig.NewDevices(profile.Devices) {
+		inUse, err := isInUseByDevice(s, networkProjectName, networkName, d)
 		if err != nil {
 			return false, err
 		}
 
-		if !shared.StringInSlice(nicType, []string{"bridged", "macvlan", "ipvlan", "physical", "sriov", "ovn"}) {
-			continue
-		}
-
-		if d["network"] != "" && d["network"] == networkName {
+		if inUse {
 			return true, nil
 		}
+	}
 
-		if d["parent"] == "" {
-			continue
-		}
+	return false, nil
+}
 
-		if GetHostDevice(d["parent"], d["vlan"]) == networkName {
-			return true, nil
-		}
+// isInUseByDevices inspects a device's config to find references for a network being used.
+func isInUseByDevice(s *state.State, networkProjectName string, networkName string, d deviceConfig.Device) (bool, error) {
+	if d["type"] != "nic" {
+		return false, nil
+	}
+
+	nicType, err := nictype.NICType(s, networkProjectName, d)
+	if err != nil {
+		return false, err
+	}
+
+	if !shared.StringInSlice(nicType, []string{"bridged", "macvlan", "ipvlan", "physical", "sriov", "ovn"}) {
+		return false, nil
+	}
+
+	if d["network"] != "" && d["network"] == networkName {
+		return true, nil
+	}
+
+	if d["parent"] == "" {
+		return false, nil
+	}
+
+	if GetHostDevice(d["parent"], d["vlan"]) == networkName {
+		return true, nil
 	}
 
 	return false, nil

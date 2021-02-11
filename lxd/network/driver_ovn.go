@@ -2754,7 +2754,7 @@ func (n *ovn) ovnNICExternalRoutes(ourDeviceInstance instance.Instance, ourDevic
 	err := n.state.Cluster.InstanceList(nil, func(inst db.Instance, p api.Project, profiles []api.Profile) error {
 		// Get the instance's effective network project name.
 		instNetworkProject := project.NetworkProjectFromRecord(&p)
-		devices := db.ExpandInstanceDevices(deviceConfig.NewDevices(inst.Devices), profiles).CloneNative()
+		devices := db.ExpandInstanceDevices(deviceConfig.NewDevices(inst.Devices), profiles)
 
 		// Iterate through each of the instance's devices, looking for OVN NICs that are linked to networks
 		// that use our uplink.
@@ -2868,7 +2868,7 @@ func (n *ovn) handleDependencyChange(uplinkName string, uplinkConfig map[string]
 					return nil
 				}
 
-				devices := db.ExpandInstanceDevices(deviceConfig.NewDevices(inst.Devices), profiles).CloneNative()
+				devices := db.ExpandInstanceDevices(deviceConfig.NewDevices(inst.Devices), profiles)
 
 				// Iterate through each of the instance's devices, looking for NICs that are linked
 				// this network.
