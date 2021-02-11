@@ -86,6 +86,37 @@ func RandomDevName(prefix string) string {
 	return iface
 }
 
+// usedByInstanceDevices looks for instance NIC devices using the network and runs the supplied usageFunc for each.
+func usedByInstanceDevices(s *state.State, networkProjectName string, networkName string, usageFunc func(inst db.Instance, nicName string, nicConfig map[string]string) error) error {
+	return s.Cluster.InstanceList(nil, func(inst db.Instance, p api.Project, profiles []api.Profile) error {
+		// Get the instance's effective network project name.
+		instNetworkProject := project.NetworkProjectFromRecord(&p)
+
+		// Skip instances who's effective network project doesn't match this Network's project.
+		if instNetworkProject != networkProjectName {
+			return nil
+		}
+
+		// Look for NIC devices using this network.
+		devices := db.ExpandInstanceDevices(deviceConfig.NewDevices(inst.Devices), profiles)
+		for devName, devConfig := range devices {
+			inUse, err := isInUseByDevice(s, networkProjectName, networkName, devConfig)
+			if err != nil {
+				return err
+			}
+
+			if inUse {
+				err = usageFunc(inst, devName, devConfig)
+				if err != nil {
+					return err
+				}
+			}
+		}
+
+		return nil
+	})
+}
+
 // UsedBy returns list of API resources using network. Accepts firstOnly argument to indicate that only the first
 // resource using network should be returned. This can help to quickly check if the network is in use.
 func UsedBy(s *state.State, networkName string, firstOnly bool) ([]string, error) {
