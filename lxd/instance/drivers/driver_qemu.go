@@ -701,6 +701,47 @@ func (d *qemu) killQemuProcess(pid int) {
 	}
 }
 
+// restoreState restores the saved state of the VM.
+func (d *qemu) restoreState(monitor *qmp.Monitor) error {
+	stateFile, err := os.Open(d.StatePath())
+	if err != nil {
+		return err
+	}
+
+	uncompressedState, err := gzip.NewReader(stateFile)
+	if err != nil {
+		stateFile.Close()
+		return err
+	}
+
+	pipeRead, pipeWrite, err := os.Pipe()
+	if err != nil {
+		uncompressedState.Close()
+		stateFile.Close()
+		return err
+	}
+
+	go func() {
+		io.Copy(pipeWrite, uncompressedState)
+		uncompressedState.Close()
+		stateFile.Close()
+		pipeWrite.Close()
+		pipeRead.Close()
+	}()
+
+	err = monitor.SendFile("migration", pipeRead)
+	if err != nil {
+		return err
+	}
+
+	err = monitor.MigrateIncoming("fd:migration")
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
 // Start starts the instance.
 func (d *qemu) Start(stateful bool) error {
 	// Must be run prior to creating the operation lock.
@@ -1164,42 +1205,7 @@ func (d *qemu) Start(stateful bool) error {
 
 	// Restore the state.
 	if stateful {
-		stateFile, err := os.Open(d.StatePath())
-		if err != nil {
-			op.Done(err)
-			return err
-		}
-
-		uncompressedState, err := gzip.NewReader(stateFile)
-		if err != nil {
-			stateFile.Close()
-			op.Done(err)
-			return err
-		}
-
-		pipeRead, pipeWrite, err := os.Pipe()
-		if err != nil {
-			uncompressedState.Close()
-			stateFile.Close()
-			op.Done(err)
-			return err
-		}
-
-		go func() {
-			io.Copy(pipeWrite, uncompressedState)
-			uncompressedState.Close()
-			stateFile.Close()
-			pipeWrite.Close()
-			pipeRead.Close()
-		}()
-
-		err = monitor.SendFile("migration", pipeRead)
-		if err != nil {
-			op.Done(err)
-			return err
-		}
-
-		err = monitor.MigrateIncoming("fd:migration")
+		err := d.restoreState(monitor)
 		if err != nil {
 			op.Done(err)
 			return err
