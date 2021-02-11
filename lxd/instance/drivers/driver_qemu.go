@@ -660,7 +660,7 @@ func (d *qemu) Shutdown(timeout time.Duration) error {
 
 // Restart restart the instance.
 func (d *qemu) Restart(timeout time.Duration) error {
-	err := d.restart(d, timeout)
+	err := d.restartCommon(d, timeout)
 	if err != nil {
 		return err
 	}
