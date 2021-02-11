@@ -84,6 +84,59 @@ var updates = map[int]schema.Update{
 	43: updateFromV42,
 	44: updateFromV43,
 	45: updateFromV44,
+	46: updateFromV45,
+}
+
+// updateFromV45 updates projects_used_by_ref to include ceph volumes
+func updateFromV45(tx *sql.Tx) error {
+	_, err := tx.Exec(`
+DROP VIEW projects_used_by_ref;
+CREATE VIEW projects_used_by_ref (name,
+    value) AS
+  SELECT projects.name,
+    printf('/1.0/instances/%s?project=%s',
+    "instances".name,
+    projects.name)
+    FROM "instances" JOIN projects ON project_id=projects.id UNION
+  SELECT projects.name,
+    printf('/1.0/images/%s?project=%s',
+    images.fingerprint,
+    projects.name)
+    FROM images JOIN projects ON project_id=projects.id UNION
+  SELECT projects.name,
+    printf('/1.0/storage-pools/%s/volumes/custom/%s?project=%s&target=%s',
+    storage_pools.name,
+    storage_volumes.name,
+    projects.name,
+    nodes.name)
+    FROM storage_volumes JOIN storage_pools ON storage_pool_id=storage_pools.id JOIN nodes ON node_id=nodes.id JOIN projects ON project_id=projects.id WHERE storage_volumes.type=2 UNION
+  SELECT projects.name,
+    printf('/1.0/storage-pools/%s/volumes/custom/%s?project=%s',
+    storage_pools.name,
+    storage_volumes.name,
+    projects.name)
+    FROM storage_volumes JOIN storage_pools ON storage_pool_id=storage_pools.id JOIN projects ON project_id=projects.id WHERE storage_volumes.type=2 AND storage_volumes.node_id IS NULL UNION
+  SELECT projects.name,
+    printf('/1.0/profiles/%s?project=%s',
+    profiles.name,
+    projects.name)
+    FROM profiles JOIN projects ON project_id=projects.id UNION
+  SELECT projects.name,
+    printf('/1.0/networks/%s?project=%s',
+    networks.name,
+    projects.name)
+    FROM networks JOIN projects ON project_id=projects.id UNION
+  SELECT projects.name,
+    printf('/1.0/network-acls/%s?project=%s',
+    networks_acls.name,
+    projects.name)
+    FROM networks_acls JOIN projects ON project_id=projects.id;
+`)
+	if err != nil {
+		return errors.Wrap(err, "Failed to update projects_used_by_ref")
+	}
+
+	return nil
 }
 
 // updateFromV44 adds networks_acls table, and adds a foreign key relationship between networks and projects.
@@ -192,7 +245,7 @@ CREATE VIEW projects_used_by_ref (name,
     networks.name,
     projects.name)
     FROM networks JOIN projects ON project_id=projects.id UNION
-SELECT projects.name,
+  SELECT projects.name,
     printf('/1.0/network-acls/%s?project=%s',
     networks_acls.name,
     projects.name)
