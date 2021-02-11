@@ -29,6 +29,7 @@ import (
 	"github.com/lxc/lxd/lxd/state"
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
+	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/logger"
 	"github.com/lxc/lxd/shared/version"
 )
@@ -91,29 +92,34 @@ func UsedBy(s *state.State, networkName string, firstOnly bool) ([]string, error
 	var usedBy []string
 
 	// Look at instances.
-	insts, err := instance.LoadFromAllProjects(s)
-	if err != nil {
-		return nil, err
-	}
-
-	for _, inst := range insts {
-		inUse, err := isInUseByInstance(s, inst, networkName)
+	err := s.Cluster.InstanceList(nil, func(inst db.Instance, p api.Project, profiles []api.Profile) error {
+		devices := db.ExpandInstanceDevices(deviceConfig.NewDevices(inst.Devices), profiles)
+		inUse, err := isInUseByDevices(s, devices, networkName)
 		if err != nil {
-			return nil, err
+			return err
 		}
 
 		if inUse {
-			uri := fmt.Sprintf("/%s/instances/%s", version.APIVersion, inst.Name())
-			if inst.Project() != project.Default {
-				uri += fmt.Sprintf("?project=%s", inst.Project())
+			uri := fmt.Sprintf("/%s/instances/%s", version.APIVersion, inst.Name)
+			if inst.Project != project.Default {
+				uri += fmt.Sprintf("?project=%s", inst.Project)
 			}
 
 			usedBy = append(usedBy, uri)
 
 			if firstOnly {
-				return usedBy, nil
+				return db.ErrInstanceListStop
 			}
 		}
+
+		return nil
+	})
+	if err != nil {
+		if err == db.ErrInstanceListStop {
+			return usedBy, nil
+		}
+
+		return nil, err
 	}
 
 	// Look for profiles.
@@ -151,12 +157,6 @@ func UsedBy(s *state.State, networkName string, firstOnly bool) ([]string, error
 	}
 
 	return usedBy, nil
-}
-
-// isInUseByInstance indicates if network is referenced by an instance's NIC devices.
-// Checks if the device's parent or network properties match the network name.
-func isInUseByInstance(s *state.State, c instance.Instance, networkName string) (bool, error) {
-	return isInUseByDevices(s, c.ExpandedDevices(), networkName)
 }
 
 // isInUseByProfile indicates if network is referenced by a profile's NIC devices.
