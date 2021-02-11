@@ -192,7 +192,7 @@ CREATE VIEW projects_used_by_ref (name,
     networks.name,
     projects.name)
     FROM networks JOIN projects ON project_id=projects.id UNION
-SELECT projects.name,
+  SELECT projects.name,
     printf('/1.0/network-acls/%s?project=%s',
     networks_acls.name,
     projects.name)
