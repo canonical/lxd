@@ -92,29 +92,42 @@ func UsedBy(s *state.State, networkProjectName string, networkName string, first
 	var usedBy []string
 
 	// Look at instances.
-	insts, err := instance.LoadFromAllProjects(s)
-	if err != nil {
-		return nil, err
-	}
+	err := s.Cluster.InstanceList(nil, func(inst db.Instance, p api.Project, profiles []api.Profile) error {
+		// Get the instance's effective network project name.
+		instNetworkProject := project.NetworkProjectFromRecord(&p)
 
-	for _, inst := range insts {
-		inUse, err := isInUseByInstance(s, inst, networkProjectName, networkName)
+		// Skip instances who's effective network project doesn't match this Network's project.
+		if instNetworkProject != networkProjectName {
+			return nil
+		}
+
+		devices := db.ExpandInstanceDevices(deviceConfig.NewDevices(inst.Devices), profiles)
+		inUse, err := isInUseByDevices(s, networkProjectName, networkName, devices)
 		if err != nil {
-			return nil, err
+			return err
 		}
 
 		if inUse {
-			uri := fmt.Sprintf("/%s/instances/%s", version.APIVersion, inst.Name())
-			if inst.Project() != project.Default {
-				uri += fmt.Sprintf("?project=%s", inst.Project())
+			uri := fmt.Sprintf("/%s/instances/%s", version.APIVersion, inst.Name)
+			if inst.Project != project.Default {
+				uri += fmt.Sprintf("?project=%s", inst.Project)
 			}
 
 			usedBy = append(usedBy, uri)
 
 			if firstOnly {
-				return usedBy, nil
+				return db.ErrInstanceListStop
 			}
 		}
+
+		return nil
+	})
+	if err != nil {
+		if err == db.ErrInstanceListStop {
+			return usedBy, nil
+		}
+
+		return nil, err
 	}
 
 	// Look for profiles.
@@ -189,24 +202,6 @@ func UsedBy(s *state.State, networkProjectName string, networkName string, first
 	}
 
 	return usedBy, nil
-}
-
-// isInUseByInstance indicates if network is referenced by an instance's NIC devices.
-// Checks if the device's parent or network properties match the network name.
-func isInUseByInstance(s *state.State, inst instance.Instance, networkProjectName string, networkName string) (bool, error) {
-	// Get the translated network project name from the instance's project.
-	instNetworkProjectName, _, err := project.NetworkProject(s.Cluster, inst.Project())
-	if err != nil {
-		return false, err
-	}
-
-	// Skip instances who's translated network project doesn't match the requested network's project.
-	// Because its devices can't be using this network.
-	if networkProjectName != instNetworkProjectName {
-		return false, nil
-	}
-
-	return isInUseByDevices(s, networkProjectName, networkName, inst.ExpandedDevices())
 }
 
 // isInUseByProfile indicates if network is referenced by a profile's NIC devices.
