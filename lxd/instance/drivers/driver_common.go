@@ -20,6 +20,7 @@ import (
 	"github.com/lxc/lxd/lxd/instance/operationlock"
 	"github.com/lxc/lxd/lxd/operations"
 	"github.com/lxc/lxd/lxd/project"
+	"github.com/lxc/lxd/lxd/revert"
 	"github.com/lxc/lxd/lxd/state"
 	storagePools "github.com/lxc/lxd/lxd/storage"
 	"github.com/lxc/lxd/shared"
@@ -517,6 +518,60 @@ func (d *common) runHooks(hooks []func() error) error {
 		}
 	}
 
+	return nil
+}
+
+// snapshot handles the common part of the snapshoting process.
+func (d *common) snapshotCommon(inst instance.Instance, name string, expiry time.Time, stateful bool) error {
+	revert := revert.New()
+	defer revert.Fail()
+
+	// Setup the arguments.
+	args := db.InstanceArgs{
+		Project:      inst.Project(),
+		Architecture: inst.Architecture(),
+		Config:       inst.LocalConfig(),
+		Type:         inst.Type(),
+		Snapshot:     true,
+		Devices:      inst.LocalDevices(),
+		Ephemeral:    inst.IsEphemeral(),
+		Name:         inst.Name() + shared.SnapshotDelimiter + name,
+		Profiles:     inst.Profiles(),
+		Stateful:     stateful,
+		ExpiryDate:   expiry,
+	}
+
+	// Create the snapshot.
+	snap, err := instance.CreateInternal(d.state, args)
+	if err != nil {
+		return errors.Wrapf(err, "Failed creating instance snapshot record %q", name)
+	}
+	revert.Add(func() { snap.Delete(true) })
+
+	pool, err := storagePools.GetPoolByInstance(d.state, snap)
+	if err != nil {
+		return err
+	}
+
+	err = pool.CreateInstanceSnapshot(snap, inst, d.op)
+	if err != nil {
+		return errors.Wrap(err, "Create instance snapshot")
+	}
+
+	// Mount volume for backup.yaml writing.
+	_, err = pool.MountInstance(inst, d.op)
+	if err != nil {
+		return errors.Wrap(err, "Create instance snapshot (mount source)")
+	}
+	defer pool.UnmountInstance(inst, d.op)
+
+	// Attempt to update backup.yaml for instance.
+	err = inst.UpdateBackupFile()
+	if err != nil {
+		return err
+	}
+
+	revert.Success()
 	return nil
 }
 
