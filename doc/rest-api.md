@@ -728,7 +728,9 @@ Input (using a remote instance, in push mode sent over the migration websocket v
 
 Input (using a backup):
 
-Raw compressed tarball as provided by a backup download.
+Raw compressed tarball as provided by a backup export (`/1.0/instances/<name>/backups/<backup>/export`).
+The `X-LXD-namel` header can be set to override the target instance name.
+The `X-LXD-pool` header can be set to override the target storage pool.
 
 #### PUT
  * Description: perform bulk operations on instances
@@ -1643,7 +1645,7 @@ Input:
     "name": "backupName",      // unique identifier for the backup
     "expiry": 3600,            // when to delete the backup automatically
     "instance_only": true,     // if True, snapshots aren't included
-    "optimized_storage": true  // if True, btrfs send or zfs send is used for instance and snapshots
+    "optimized_storage": true  // if True, btrfs send or zfs send is used for instance and snapshots (can only be imported on matching storage pool driver)
 }
 ```
 
@@ -3464,7 +3466,7 @@ Input:
  * Introduced: with API extension `custom_volume_backup`
  * Authentication: trusted
  * Operation: sync
- * Return: dict containing the backup tarball
+ * Return: Raw backup file or standard error
 
 Output:
 
