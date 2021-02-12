@@ -71,7 +71,7 @@ func (c *Cluster) DeleteCertificate(fingerprint string) error {
 // RenameCertificate updates a certificate's name.
 func (c *Cluster) RenameCertificate(fingerprint string, name string) error {
 	err := c.Transaction(func(tx *ClusterTx) error {
-		return c.RenameCertificate(fingerprint, name)
+		return tx.RenameCertificate(fingerprint, name)
 	})
 	return err
 }
