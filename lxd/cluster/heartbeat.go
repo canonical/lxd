@@ -205,7 +205,11 @@ func (g *Gateway) heartbeat(ctx context.Context, initialHeartbeat bool) {
 		return
 	}
 
-	logger.Debugf("Starting heartbeat round")
+	if initialHeartbeat {
+		logger.Debugf("Starting heartbeat round (full update)")
+	} else {
+		logger.Debugf("Starting heartbeat round")
+	}
 	if err != nil {
 		logger.Warnf("Failed to get current raft nodes: %v", err)
 		return
@@ -329,6 +333,7 @@ func (g *Gateway) heartbeat(ctx context.Context, initialHeartbeat bool) {
 	})
 	if err != nil {
 		logger.Warnf("Failed to update heartbeat: %v", err)
+		return
 	}
 
 	// If full node state was sent and node refresh task is specified, run it async.
