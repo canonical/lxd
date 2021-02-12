@@ -692,12 +692,14 @@ func (g *Gateway) LeaderAddress() (string, error) {
 			logger.Debugf("Request for leader address from %s failed", address)
 			continue
 		}
+
 		info := map[string]string{}
-		err = shared.ReadToJSON(response.Body, &info)
+		err = json.NewDecoder(response.Body).Decode(&info)
 		if err != nil {
 			logger.Debugf("Failed to parse leader address from %s", address)
 			continue
 		}
+
 		leader := info["leader"]
 		if leader == "" {
 			logger.Debugf("Raft node %s returned no leader address", address)
