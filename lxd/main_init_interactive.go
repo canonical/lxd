@@ -336,7 +336,11 @@ func (c *cmdInit) askNetworking(config *cmdInitData, d lxd.InstanceServer) error
 
 				size, _ := subnet.Mask.Size()
 				if size != 16 && size != 24 {
-					return fmt.Errorf("The underlay subnet must be a /16 or a /24")
+					if value == "auto" {
+						return fmt.Errorf("The auto-detected underlay (%s) isn't a /16 or /24, please specify manually", subnet.String())
+					} else {
+						return fmt.Errorf("The underlay subnet must be a /16 or a /24")
+					}
 				}
 
 				return nil
