@@ -13,16 +13,21 @@ import (
 //
 //go:generate mapper stmt -p db -e certificate objects
 //go:generate mapper stmt -p db -e certificate objects-by-Fingerprint
+//go:generate mapper stmt -p db -e certificate projects-ref
+//go:generate mapper stmt -p db -e certificate projects-ref-by-Fingerprint
 //go:generate mapper stmt -p db -e certificate id
 //go:generate mapper stmt -p db -e certificate create struct=Certificate
+//go:generate mapper stmt -p db -e certificate create-projects-ref
 //go:generate mapper stmt -p db -e certificate delete
 //go:generate mapper stmt -p db -e certificate update struct=Certificate
+//go:generate mapper stmt -p db -e certificate delete-projects-ref
 //
 //go:generate mapper method -p db -e certificate List
 //go:generate mapper method -p db -e certificate Get
 //go:generate mapper method -p db -e certificate ID struct=Certificate
 //go:generate mapper method -p db -e certificate Exists struct=Certificate
 //go:generate mapper method -p db -e certificate Create struct=Certificate
+//go:generate mapper method -p db -e certificate ProjectsRef
 //go:generate mapper method -p db -e certificate Delete
 //go:generate mapper method -p db -e certificate Update struct=Certificate
 
@@ -34,6 +39,8 @@ type Certificate struct {
 	Type        int
 	Name        string
 	Certificate string
+	Restricted  bool
+	Projects    []string
 }
 
 // ToAPI converts the database Certificate struct to an api.Certificate entry.
