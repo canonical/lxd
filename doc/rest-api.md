@@ -1691,7 +1691,7 @@ Input:
 
 ### `/1.0/instances/<name>/backups/<name>/export`
 #### GET
- * Description: fetch the backup tarball
+ * Description: fetch the backup tarball of the instance which can be used with the LXC import command or by sending post request to instances. Backups created with  `optimized_storage` set to true can only be restored on a host using the same storage pool driver.
  * Introduced: with API extension `container_backup`
  * Authentication: trusted
  * Operation: sync
