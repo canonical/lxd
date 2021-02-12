@@ -29,6 +29,7 @@ import (
 
 type certificateCache struct {
 	Certificates map[string]x509.Certificate
+	Projects     map[string][]string
 	Lock         sync.Mutex
 }
 
@@ -86,6 +87,7 @@ func certificatesGet(d *Daemon, r *http.Request) response.Response {
 
 func updateCertificateCache(d *Daemon) {
 	newCerts := map[string]x509.Certificate{}
+	newProjects := map[string][]string{}
 
 	var dbCerts []db.Certificate
 	var err error
@@ -112,10 +114,14 @@ func updateCertificateCache(d *Daemon) {
 		}
 
 		newCerts[shared.CertFingerprint(cert)] = *cert
+		if dbCert.Restricted {
+			newProjects[shared.CertFingerprint(cert)] = dbCert.Projects
+		}
 	}
 
 	d.clientCerts.Lock.Lock()
 	d.clientCerts.Certificates = newCerts
+	d.clientCerts.Projects = newProjects
 	d.clientCerts.Lock.Unlock()
 }
 
@@ -153,6 +159,7 @@ func certificatesPost(d *Daemon, r *http.Request) response.Response {
 	var cert *x509.Certificate
 	var name string
 	if req.Certificate != "" {
+		// Add supplied certificate.
 		data, err := base64.StdEncoding.DecodeString(req.Certificate)
 		if err != nil {
 			return response.BadRequest(err)
@@ -164,6 +171,7 @@ func certificatesPost(d *Daemon, r *http.Request) response.Response {
 		}
 		name = req.Name
 	} else if r.TLS != nil {
+		// Add client's certificate.
 		if len(r.TLS.PeerCertificates) < 1 {
 			return response.BadRequest(fmt.Errorf("No client certificate provided"))
 		}
@@ -194,9 +202,16 @@ func certificatesPost(d *Daemon, r *http.Request) response.Response {
 			Type:        1,
 			Name:        name,
 			Certificate: string(pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: cert.Raw})),
+			Restricted:  req.Restricted,
+			Projects:    req.Projects,
 		}
 
-		err = d.cluster.CreateCertificate(dbCert)
+		id, err := d.cluster.CreateCertificate(dbCert)
+		if err != nil {
+			return response.SmartError(err)
+		}
+
+		err = d.cluster.UpdateCertificateProjects(int(id), dbCert.Projects)
 		if err != nil {
 			return response.SmartError(err)
 		}
@@ -308,7 +323,9 @@ func doCertificateUpdate(d *Daemon, dbInfo db.Certificate, fingerprint string, r
 		Fingerprint: dbInfo.Fingerprint,
 		Type:        dbInfo.Type,
 
-		Name: req.Name,
+		Restricted: req.Restricted,
+		Projects:   req.Projects,
+		Name:       req.Name,
 	}
 
 	// Update the database record.
@@ -316,6 +333,14 @@ func doCertificateUpdate(d *Daemon, dbInfo db.Certificate, fingerprint string, r
 	if err != nil {
 		return response.SmartError(err)
 	}
+
+	err = d.cluster.UpdateCertificateProjects(dbInfo.ID, cert.Projects)
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	// Reload the cache.
+	updateCertificateCache(d)
 
 	return response.EmptySyncResponse
 }
