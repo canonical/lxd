@@ -6,7 +6,6 @@ import (
 	"crypto/rand"
 	"encoding/gob"
 	"encoding/hex"
-	"encoding/json"
 	"fmt"
 	"hash"
 	"io"
@@ -279,15 +278,6 @@ func ParseLXDFileHeaders(headers http.Header) (uid int64, gid int64, mode int, t
 	}
 
 	return uid, gid, mode, type_, write
-}
-
-func ReadToJSON(r io.Reader, req interface{}) error {
-	buf, err := ioutil.ReadAll(r)
-	if err != nil {
-		return err
-	}
-
-	return json.Unmarshal(buf, req)
 }
 
 func ReaderToChannel(r io.Reader, bufferSize int) <-chan []byte {

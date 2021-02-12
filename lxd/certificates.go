@@ -116,7 +116,8 @@ func readSavedClientCAList(d *Daemon) {
 func certificatesPost(d *Daemon, r *http.Request) response.Response {
 	// Parse the request
 	req := api.CertificatesPost{}
-	if err := shared.ReadToJSON(r.Body, &req); err != nil {
+	err := json.NewDecoder(r.Body).Decode(&req)
+	if err != nil {
 		return response.BadRequest(err)
 	}
 
@@ -276,7 +277,8 @@ func certificatePut(d *Daemon, r *http.Request) response.Response {
 	}
 
 	req := api.CertificatePut{}
-	if err := shared.ReadToJSON(r.Body, &req); err != nil {
+	err = json.NewDecoder(r.Body).Decode(&req)
+	if err != nil {
 		return response.BadRequest(err)
 	}
 
