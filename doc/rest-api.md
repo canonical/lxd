@@ -1671,15 +1671,7 @@ Input:
  * Introduced: with API extension `container_backup`
  * Authentication: trusted
  * Operation: sync
- * Return: dict containing the backup tarball
-
-Output:
-
-```json
-{
-    "data": "<byte-stream>"
-}
-```
+ * Return: Raw backup file or standard error
 
 ### `/1.0/events`
 This URL isn't a real REST API endpoint, instead doing a GET query on it
