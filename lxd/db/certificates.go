@@ -49,6 +49,8 @@ func (cert *Certificate) ToAPI() api.Certificate {
 	resp.Fingerprint = cert.Fingerprint
 	resp.Certificate = cert.Certificate
 	resp.Name = cert.Name
+	resp.Restricted = cert.Restricted
+	resp.Projects = cert.Projects
 	if cert.Type == 1 {
 		resp.Type = "client"
 	} else {
@@ -56,6 +58,32 @@ func (cert *Certificate) ToAPI() api.Certificate {
 	}
 
 	return resp
+}
+
+// UpdateCertificateProjects updates the list of projects on a certificate.
+func (c *ClusterTx) UpdateCertificateProjects(id int, projects []string) error {
+	// Clear all projects from the restrictions.
+	q := "DELETE FROM certificates_projects WHERE certificate_id=?"
+	_, err := c.tx.Exec(q, id)
+	if err != nil {
+		return err
+	}
+
+	// Add the new restrictions.
+	for _, name := range projects {
+		projID, err := c.GetProjectID(name)
+		if err != nil {
+			return err
+		}
+
+		q := "INSERT INTO certificates_projects (certificate_id, project_id) VALUES (?, ?)"
+		_, err = c.tx.Exec(q, id, projID)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 // CertificateFilter can be used to filter results yielded by GetCertInfos
@@ -89,12 +117,14 @@ func (c *Cluster) GetCertificate(fingerprint string) (*Certificate, error) {
 
 // CreateCertificate stores a CertInfo object in the db, it will ignore the ID
 // field from the CertInfo.
-func (c *Cluster) CreateCertificate(cert Certificate) error {
-	err := c.Transaction(func(tx *ClusterTx) error {
-		_, err := tx.CreateCertificate(cert)
+func (c *Cluster) CreateCertificate(cert Certificate) (int64, error) {
+	var id int64
+	var err error
+	err = c.Transaction(func(tx *ClusterTx) error {
+		id, err = tx.CreateCertificate(cert)
 		return err
 	})
-	return err
+	return id, err
 }
 
 // DeleteCertificate deletes a certificate from the db.
@@ -109,6 +139,14 @@ func (c *Cluster) DeleteCertificate(fingerprint string) error {
 func (c *Cluster) UpdateCertificate(fingerprint string, cert Certificate) error {
 	err := c.Transaction(func(tx *ClusterTx) error {
 		return tx.UpdateCertificate(fingerprint, cert)
+	})
+	return err
+}
+
+// UpdateCertificateProjects updates the list of projects on a certificate.
+func (c *Cluster) UpdateCertificateProjects(id int, projects []string) error {
+	err := c.Transaction(func(tx *ClusterTx) error {
+		return tx.UpdateCertificateProjects(id, projects)
 	})
 	return err
 }
