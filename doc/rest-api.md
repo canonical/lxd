@@ -729,7 +729,7 @@ Input (using a remote instance, in push mode sent over the migration websocket v
 Input (using a backup):
 
 Raw compressed tarball as provided by a backup export (`/1.0/instances/<name>/backups/<backup>/export`).
-The `X-LXD-namel` header can be set to override the target instance name.
+The `X-LXD-name` header can be set to override the target instance name.
 The `X-LXD-pool` header can be set to override the target storage pool.
 
 #### PUT
@@ -1697,15 +1697,7 @@ Input:
  * Introduced: with API extension `container_backup`
  * Authentication: trusted
  * Operation: sync
- * Return: dict containing the backup tarball
-
-Output:
-
-```json
-{
-    "data": "<byte-stream>"
-}
-```
+ * Return: Raw backup file or standard error
 
 ### `/1.0/events`
 This URL isn't a real REST API endpoint, instead doing a GET query on it
@@ -3123,6 +3115,10 @@ Input (when migrating a volume):
 }
 ```
 
+Input (using a backup):
+
+Raw compressed tarball as provided by a backup export (`/1.0/storage-pools/<pool>/volumes/<type>/<name>/backups/<backup>/export`).
+
 ### `/1.0/storage-pools/<pool>/volumes/<type>`
 #### POST
  * Description: create a new storage volume of a particular type on a given storage pool
@@ -3168,6 +3164,10 @@ Input (when migrating a volume):
     }
 }
 ```
+
+Input (using a backup):
+
+Raw compressed tarball as provided by a backup export (`/1.0/storage-pools/<pool>/volumes/<type>/<name>/backups/<backup>/export`).
 
 ### `/1.0/storage-pools/<pool>/volumes/<type>/<name>`
 #### POST
@@ -3467,14 +3467,6 @@ Input:
  * Authentication: trusted
  * Operation: sync
  * Return: Raw backup file or standard error
-
-Output:
-
-```json
-{
-    "data": "<byte-stream>"
-}
-```
 
 ### `/1.0/storage-pools/<pool>/volumes/<type>/<name>/state`
 #### GET
