@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"os"
@@ -277,7 +278,8 @@ func api10Put(d *Daemon, r *http.Request) response.Response {
 	}
 
 	req := api.ServerPut{}
-	if err := shared.ReadToJSON(r.Body, &req); err != nil {
+	err := json.NewDecoder(r.Body).Decode(&req)
+	if err != nil {
 		return response.BadRequest(err)
 	}
 
@@ -334,7 +336,8 @@ func api10Patch(d *Daemon, r *http.Request) response.Response {
 	}
 
 	req := api.ServerPut{}
-	if err := shared.ReadToJSON(r.Body, &req); err != nil {
+	err = json.NewDecoder(r.Body).Decode(&req)
+	if err != nil {
 		return response.BadRequest(err)
 	}
 
