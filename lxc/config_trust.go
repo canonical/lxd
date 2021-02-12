@@ -5,15 +5,19 @@ import (
 	"encoding/base64"
 	"encoding/pem"
 	"fmt"
+	"io/ioutil"
+	"os"
 	"sort"
 
 	"github.com/spf13/cobra"
+	"gopkg.in/yaml.v2"
 
 	"github.com/lxc/lxd/lxc/utils"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 	cli "github.com/lxc/lxd/shared/cmd"
 	"github.com/lxc/lxd/shared/i18n"
+	"github.com/lxc/lxd/shared/termios"
 )
 
 type cmdConfigTrust struct {
@@ -31,6 +35,10 @@ func (c *cmdConfigTrust) Command() *cobra.Command {
 	// Add
 	configTrustAddCmd := cmdConfigTrustAdd{global: c.global, config: c.config, configTrust: c}
 	cmd.AddCommand(configTrustAddCmd.Command())
+
+	// Edit
+	configTrustEditCmd := cmdConfigTrustEdit{global: c.global, config: c.config, configTrust: c}
+	cmd.AddCommand(configTrustEditCmd.Command())
 
 	// List
 	configTrustListCmd := cmdConfigTrustList{global: c.global, config: c.config, configTrust: c}
@@ -96,6 +104,115 @@ func (c *cmdConfigTrustAdd) Run(cmd *cobra.Command, args []string) error {
 	cert.Type = "client"
 
 	return resource.server.CreateCertificate(cert)
+}
+
+// Edit
+type cmdConfigTrustEdit struct {
+	global      *cmdGlobal
+	config      *cmdConfig
+	configTrust *cmdConfigTrust
+}
+
+func (c *cmdConfigTrustEdit) Command() *cobra.Command {
+	cmd := &cobra.Command{}
+	cmd.Use = usage("edit", i18n.G("[<remote>:]<fingerprint>"))
+	cmd.Short = i18n.G("Edit trust configurations as YAML")
+	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
+		`Edit trust configurations as YAML`))
+
+	cmd.RunE = c.Run
+
+	return cmd
+}
+
+func (c *cmdConfigTrustEdit) helpTemplate() string {
+	return i18n.G(
+		`### This is a YAML representation of the certificate.
+### Any line starting with a '# will be ignored.
+###
+### Note that the fingerprint is shown but cannot be changed`)
+}
+
+func (c *cmdConfigTrustEdit) Run(cmd *cobra.Command, args []string) error {
+	// Sanity checks
+	exit, err := c.global.CheckArgs(cmd, args, 1, 1)
+	if exit {
+		return err
+	}
+
+	// Parse remote
+	resources, err := c.global.ParseServers(args[0])
+	if err != nil {
+		return err
+	}
+
+	resource := resources[0]
+
+	if resource.name == "" {
+		return fmt.Errorf(i18n.G("Missing certificate fingerprint"))
+	}
+
+	// If stdin isn't a terminal, read text from it
+	if !termios.IsTerminal(getStdinFd()) {
+		contents, err := ioutil.ReadAll(os.Stdin)
+		if err != nil {
+			return err
+		}
+
+		newdata := api.CertificatePut{}
+		err = yaml.Unmarshal(contents, &newdata)
+		if err != nil {
+			return err
+		}
+
+		return resource.server.UpdateCertificate(resource.name, newdata, "")
+	}
+
+	// Extract the current value
+	cert, etag, err := resource.server.GetCertificate(resource.name)
+	if err != nil {
+		return err
+	}
+
+	data, err := yaml.Marshal(&cert)
+	if err != nil {
+		return err
+	}
+
+	// Spawn the editor
+	content, err := shared.TextEditor("", []byte(c.helpTemplate()+"\n\n"+string(data)))
+	if err != nil {
+		return err
+	}
+
+	for {
+		// Parse the text received from the editor
+		newdata := api.CertificatePut{}
+		err = yaml.Unmarshal(content, &newdata)
+		if err == nil {
+			err = resource.server.UpdateCertificate(resource.name, newdata, etag)
+		}
+
+		// Respawn the editor
+		if err != nil {
+			fmt.Fprintf(os.Stderr, i18n.G("Config parsing error: %s")+"\n", err)
+			fmt.Println(i18n.G("Press enter to open the editor again"))
+
+			_, err := os.Stdin.Read(make([]byte, 1))
+			if err != nil {
+				return err
+			}
+
+			content, err = shared.TextEditor("", content)
+			if err != nil {
+				return err
+			}
+			continue
+		}
+		break
+	}
+
+	return nil
 }
 
 // List
