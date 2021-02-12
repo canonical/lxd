@@ -59,16 +59,7 @@ func certificatesGet(d *Daemon, r *http.Request) response.Response {
 		}
 
 		for _, baseCert := range baseCerts {
-			resp := api.Certificate{}
-			resp.Fingerprint = baseCert.Fingerprint
-			resp.Certificate = baseCert.Certificate
-			resp.Name = baseCert.Name
-			if baseCert.Type == 1 {
-				resp.Type = "client"
-			} else {
-				resp.Type = "unknown"
-			}
-			certResponses = append(certResponses, resp)
+			certResponses = append(certResponses, baseCert.ToAPI())
 		}
 		return response.SyncResponse(true, certResponses)
 	}
@@ -234,98 +225,89 @@ func certificatesPost(d *Daemon, r *http.Request) response.Response {
 func certificateGet(d *Daemon, r *http.Request) response.Response {
 	fingerprint := mux.Vars(r)["fingerprint"]
 
-	cert, err := doCertificateGet(d.cluster, fingerprint)
+	dbCertInfo, err := d.cluster.GetCertificate(fingerprint)
 	if err != nil {
 		return response.SmartError(err)
 	}
 
+	cert := dbCertInfo.ToAPI()
 	return response.SyncResponseETag(true, cert, cert)
-}
-
-func doCertificateGet(db *db.Cluster, fingerprint string) (api.Certificate, error) {
-	resp := api.Certificate{}
-
-	dbCertInfo, err := db.GetCertificate(fingerprint)
-	if err != nil {
-		return resp, err
-	}
-
-	resp.Fingerprint = dbCertInfo.Fingerprint
-	resp.Certificate = dbCertInfo.Certificate
-	resp.Name = dbCertInfo.Name
-	if dbCertInfo.Type == 1 {
-		resp.Type = "client"
-	} else {
-		resp.Type = "unknown"
-	}
-
-	return resp, nil
 }
 
 func certificatePut(d *Daemon, r *http.Request) response.Response {
 	fingerprint := mux.Vars(r)["fingerprint"]
 
-	oldEntry, err := doCertificateGet(d.cluster, fingerprint)
+	// Get current database record.
+	oldEntry, err := d.cluster.GetCertificate(fingerprint)
 	if err != nil {
 		return response.SmartError(err)
 	}
+
+	// Expand the fingerprint.
 	fingerprint = oldEntry.Fingerprint
 
-	err = util.EtagCheck(r, oldEntry)
+	// Validate the ETag.
+	err = util.EtagCheck(r, oldEntry.ToAPI())
 	if err != nil {
 		return response.PreconditionFailed(err)
 	}
 
+	// Parse the request.
 	req := api.CertificatePut{}
 	err = json.NewDecoder(r.Body).Decode(&req)
 	if err != nil {
 		return response.BadRequest(err)
 	}
 
-	return doCertificateUpdate(d, fingerprint, req)
+	// Apply the update.
+	return doCertificateUpdate(d, *oldEntry, fingerprint, req)
 }
 
 func certificatePatch(d *Daemon, r *http.Request) response.Response {
 	fingerprint := mux.Vars(r)["fingerprint"]
 
-	oldEntry, err := doCertificateGet(d.cluster, fingerprint)
+	// Get current database record.
+	oldEntry, err := d.cluster.GetCertificate(fingerprint)
 	if err != nil {
 		return response.SmartError(err)
 	}
+
+	// Expand the fingerprint.
 	fingerprint = oldEntry.Fingerprint
 
-	err = util.EtagCheck(r, oldEntry)
+	// Validate the ETag.
+	err = util.EtagCheck(r, oldEntry.ToAPI())
 	if err != nil {
 		return response.PreconditionFailed(err)
 	}
 
-	req := oldEntry
-	reqRaw := shared.Jmap{}
-	if err := json.NewDecoder(r.Body).Decode(&reqRaw); err != nil {
+	// Apply the changes.
+	req := oldEntry.ToAPI()
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		return response.BadRequest(err)
 	}
 
-	// Get name
-	value, err := reqRaw.GetString("name")
-	if err == nil {
-		req.Name = value
-	}
-
-	// Get type
-	value, err = reqRaw.GetString("type")
-	if err == nil {
-		req.Type = value
-	}
-
-	return doCertificateUpdate(d, fingerprint, req.Writable())
+	return doCertificateUpdate(d, *oldEntry, fingerprint, req.Writable())
 }
 
-func doCertificateUpdate(d *Daemon, fingerprint string, req api.CertificatePut) response.Response {
+func doCertificateUpdate(d *Daemon, dbInfo db.Certificate, fingerprint string, req api.CertificatePut) response.Response {
+	// We only support client certificates for now.
 	if req.Type != "client" {
 		return response.BadRequest(fmt.Errorf("Unknown request type %s", req.Type))
 	}
 
-	err := d.cluster.RenameCertificate(fingerprint, req.Name)
+	// Convert to the database type.
+	cert := db.Certificate{
+		// Read-only fields.
+		Certificate: dbInfo.Certificate,
+		Fingerprint: dbInfo.Fingerprint,
+		Type:        dbInfo.Type,
+
+		Name: req.Name,
+	}
+
+	// Update the database record.
+	err := d.cluster.UpdateCertificate(fingerprint, cert)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -336,15 +318,19 @@ func doCertificateUpdate(d *Daemon, fingerprint string, req api.CertificatePut) 
 func certificateDelete(d *Daemon, r *http.Request) response.Response {
 	fingerprint := mux.Vars(r)["fingerprint"]
 
+	// Get current database record.
 	certInfo, err := d.cluster.GetCertificate(fingerprint)
 	if err != nil {
 		return response.NotFound(err)
 	}
 
+	// Perform the delete with the expanded fingerprint.
 	err = d.cluster.DeleteCertificate(certInfo.Fingerprint)
 	if err != nil {
 		return response.SmartError(err)
 	}
+
+	// Reload the cache.
 	readSavedClientCAList(d)
 
 	return response.EmptySyncResponse
