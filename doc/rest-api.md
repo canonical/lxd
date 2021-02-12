@@ -722,7 +722,8 @@ Input (using a remote instance, in push mode sent over the migration websocket v
 
 Input (using a backup):
 
-Raw compressed tarball as provided by a backup download.
+Raw compressed tarball as provided by a backup export (`/1.0/instances/<name>/backups/<backup>/export`).
+The `X-LXD-pool` header can be set to override the target storage pool.
 
 ### `/1.0/instances/<name>`
 #### GET
@@ -1618,7 +1619,7 @@ Input:
     "name": "backupName",      // unique identifier for the backup
     "expiry": 3600,            // when to delete the backup automatically
     "instance_only": true,     // if True, snapshots aren't included
-    "optimized_storage": true  // if True, btrfs send or zfs send is used for instance and snapshots
+    "optimized_storage": true  // if True, btrfs send or zfs send is used for instance and snapshots (can only be imported on matching storage pool driver)
 }
 ```
 
