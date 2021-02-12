@@ -14,6 +14,10 @@ type CertificatesPost struct {
 type CertificatePut struct {
 	Name string `json:"name" yaml:"name"`
 	Type string `json:"type" yaml:"type"`
+
+	// API extension: certificate_project
+	Restricted bool     `json:"restricted" yaml:"restricted"`
+	Projects   []string `json:"projects" yaml:"projects"`
 }
 
 // Certificate represents a LXD certificate
