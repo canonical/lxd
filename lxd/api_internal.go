@@ -185,7 +185,7 @@ func internalContainerOnStart(d *Daemon, r *http.Request) response.Response {
 func internalContainerOnStopNS(d *Daemon, r *http.Request) response.Response {
 	inst, err := internalContainerHookLoadFromReference(d.State(), r)
 	if err != nil {
-		logger.Error("The stopns hook failed to load", log.Ctx{"instance": inst.Name(), "err": err})
+		logger.Error("The stopns hook failed to load", log.Ctx{"err": err})
 		return response.SmartError(err)
 	}
 
