@@ -63,7 +63,7 @@ import (
 
 // A Daemon can respond to requests from a shared client.
 type Daemon struct {
-	clientCerts  map[string]x509.Certificate
+	clientCerts  *certificateCache
 	os           *sys.OS
 	db           *db.Node
 	firewall     firewall.Firewall
@@ -161,6 +161,7 @@ func newDaemon(config *DaemonConfig, os *sys.OS) *Daemon {
 	ctx, cancel := context.WithCancel(context.Background())
 
 	return &Daemon{
+		clientCerts:  &certificateCache{},
 		config:       config,
 		devlxdEvents: devlxdEvents,
 		events:       lxdEvents,
@@ -342,7 +343,7 @@ func (d *Daemon) Authenticate(w http.ResponseWriter, r *http.Request) (bool, str
 	}
 
 	for i := range r.TLS.PeerCertificates {
-		trusted, username := util.CheckTrustState(*r.TLS.PeerCertificates[i], d.clientCerts, d.endpoints.NetworkCert(), trustCACertificates)
+		trusted, username := util.CheckTrustState(*r.TLS.PeerCertificates[i], d.clientCerts.Certificates, d.endpoints.NetworkCert(), trustCACertificates)
 		if trusted {
 			return true, username, "tls", nil
 		}
@@ -1127,7 +1128,7 @@ func (d *Daemon) init() error {
 		}
 
 		// Read the trusted certificates
-		readSavedClientCAList(d)
+		updateCertificateCache(d)
 
 		// Connect to MAAS
 		if maasAPIURL != "" {
