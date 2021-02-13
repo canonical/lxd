@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"net"
 	"net/http"
+	"sync"
 
 	"github.com/gorilla/mux"
 	"github.com/pkg/errors"
@@ -25,6 +26,11 @@ import (
 
 	log "github.com/lxc/lxd/shared/log15"
 )
+
+type certificateCache struct {
+	Certificates map[string]x509.Certificate
+	Lock         sync.Mutex
+}
 
 var certificatesCmd = APIEndpoint{
 	Path: "certificates",
@@ -65,7 +71,12 @@ func certificatesGet(d *Daemon, r *http.Request) response.Response {
 	}
 
 	body := []string{}
-	for _, cert := range d.clientCerts {
+
+	d.clientCerts.Lock.Lock()
+	cache := d.clientCerts
+	d.clientCerts.Lock.Unlock()
+
+	for _, cert := range cache.Certificates {
 		fingerprint := fmt.Sprintf("/%s/certificates/%s", version.APIVersion, shared.CertFingerprint(&cert))
 		body = append(body, fingerprint)
 	}
@@ -73,8 +84,8 @@ func certificatesGet(d *Daemon, r *http.Request) response.Response {
 	return response.SyncResponse(true, body)
 }
 
-func readSavedClientCAList(d *Daemon) {
-	d.clientCerts = map[string]x509.Certificate{}
+func updateCertificateCache(d *Daemon) {
+	newCerts := map[string]x509.Certificate{}
 
 	var dbCerts []db.Certificate
 	var err error
@@ -100,8 +111,12 @@ func readSavedClientCAList(d *Daemon) {
 			continue
 		}
 
-		d.clientCerts[shared.CertFingerprint(cert)] = *cert
+		newCerts[shared.CertFingerprint(cert)] = *cert
 	}
+
+	d.clientCerts.Lock.Lock()
+	d.clientCerts.Certificates = newCerts
+	d.clientCerts.Lock.Unlock()
 }
 
 func certificatesPost(d *Daemon, r *http.Request) response.Response {
@@ -166,21 +181,10 @@ func certificatesPost(d *Daemon, r *http.Request) response.Response {
 
 	fingerprint := shared.CertFingerprint(cert)
 
-	if d.clientCerts == nil {
-		d.clientCerts = map[string]x509.Certificate{}
-	}
-
 	if !isClusterNotification(r) {
 		// Check if we already have the certificate
 		existingCert, _ := d.cluster.GetCertificate(fingerprint)
 		if existingCert != nil {
-			// Deal with the cache being potentially out of sync
-			_, ok := d.clientCerts[fingerprint]
-			if !ok {
-				d.clientCerts[fingerprint] = *cert
-				return response.SyncResponseLocation(true, nil, fmt.Sprintf("/%s/certificates/%s", version.APIVersion, fingerprint))
-			}
-
 			return response.BadRequest(fmt.Errorf("Certificate already in trust store"))
 		}
 
@@ -217,7 +221,8 @@ func certificatesPost(d *Daemon, r *http.Request) response.Response {
 		}
 	}
 
-	d.clientCerts[shared.CertFingerprint(cert)] = *cert
+	// Reload the cache.
+	updateCertificateCache(d)
 
 	return response.SyncResponseLocation(true, nil, fmt.Sprintf("/%s/certificates/%s", version.APIVersion, fingerprint))
 }
@@ -331,7 +336,7 @@ func certificateDelete(d *Daemon, r *http.Request) response.Response {
 	}
 
 	// Reload the cache.
-	readSavedClientCAList(d)
+	updateCertificateCache(d)
 
 	return response.EmptySyncResponse
 }
