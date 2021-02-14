@@ -27,6 +27,11 @@ resource which isn't directly self-contained to LXD.
 Restoring involves stopping LXD on the target server, wiping the lxd
 directory, restoring the backup and any external dependency it requires.
 
+If not using the snap package and your source system has a /etc/subuid
+and /etc/subgid file, restoring those or at least the entries inside
+them for both the `lxd` and `root` user is also a good idea
+(avoids needless shifting of container filesystems).
+
 Then start LXD again and check that everything works fine.
 
 ## Secondary backup LXD server
