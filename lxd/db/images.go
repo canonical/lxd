@@ -263,25 +263,19 @@ SELECT fingerprint
 	return fingerprints, nil
 }
 
-// ExpiredImage used to store expired image info.
-type ExpiredImage struct {
-	Fingerprint string
-	ProjectName string
-}
-
-// GetExpiredImages returns the names and project name of all images that have expired since the given time.
-func (c *Cluster) GetExpiredImages(expiry int64) ([]ExpiredImage, error) {
+// GetExpiredImagesInProject returns the names of all images that have expired since the given time.
+func (c *Cluster) GetExpiredImagesInProject(expiry int64, project string) ([]string, error) {
 	var images []Image
 	err := c.Transaction(func(tx *ClusterTx) error {
 		var err error
-		images, err = tx.GetImages(ImageFilter{Cached: true})
+		images, err = tx.GetImages(ImageFilter{Cached: true, Project: project})
 		return err
 	})
 	if err != nil {
 		return nil, err
 	}
 
-	results := []ExpiredImage{}
+	results := []string{}
 	for _, r := range images {
 		// Figure out the expiry
 		timestamp := r.UploadDate
@@ -297,12 +291,7 @@ func (c *Cluster) GetExpiredImages(expiry int64) ([]ExpiredImage, error) {
 			continue
 		}
 
-		result := ExpiredImage{
-			Fingerprint: r.Fingerprint,
-			ProjectName: r.Project,
-		}
-
-		results = append(results, result)
+		results = append(results, r.Fingerprint)
 	}
 
 	return results, nil
