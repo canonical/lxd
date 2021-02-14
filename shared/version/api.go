@@ -256,6 +256,7 @@ var APIExtensions = []string{
 	"disk_state_quota",
 	"storage_ceph_features",
 	"projects_compression",
+	"projects_images_remote_cache_expiry",
 }
 
 // APIExtensionsCount returns the number of available API extensions.

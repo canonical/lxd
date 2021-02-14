@@ -1309,3 +1309,8 @@ Adds a new `ceph.rbd.features` config key on storage pools to control the RBD fe
 ## projects\_compression
 Adds new `backups.compression_algorithm` and `images.compression_algorithm` config keys which
 allows configuration of backup and image compression per-project.
+
+
+## projects\_images\_remote\_cache\_expiry
+Add new `images.remote_cache_expiry` config key to projects,
+allowing for set number of days after which an unused cached remote image will be flushed.
