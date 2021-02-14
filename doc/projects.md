@@ -23,6 +23,7 @@ features.networks                    | boolean   | -                     | false
 features.profiles                    | boolean   | -                     | true                      | Separate set of profiles for the project
 features.storage.volumes             | boolean   | -                     | true                      | Separate set of storage volumes for the project
 images.compression\_algorithm        | string    | -                     | -                         | Compression algorithm to use for images (bzip2, gzip, lzma, xz or none) in the project
+images.remote\_cache\_expiry         | integer   | -                     | -                         | Number of days after which an unused cached remote image will be flushed in the project
 limits.instances                     | integer   | -                     | -                         | Maximum number of total instances that can be created in the project
 limits.containers                    | integer   | -                     | -                         | Maximum number of containers that can be created in the project
 limits.cpu                           | integer   | -                     | -                         | Maximum value for the sum of individual "limits.cpu" configs set on the instances of the project
