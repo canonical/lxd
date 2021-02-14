@@ -89,18 +89,10 @@ func RandomDevName(prefix string) string {
 // usedByInstanceDevices looks for instance NIC devices using the network and runs the supplied usageFunc for each.
 func usedByInstanceDevices(s *state.State, networkProjectName string, networkName string, usageFunc func(inst db.Instance, nicName string, nicConfig map[string]string) error) error {
 	return s.Cluster.InstanceList(nil, func(inst db.Instance, p api.Project, profiles []api.Profile) error {
-		// Get the instance's effective network project name.
-		instNetworkProject := project.NetworkProjectFromRecord(&p)
-
-		// Skip instances who's effective network project doesn't match this Network's project.
-		if instNetworkProject != networkProjectName {
-			return nil
-		}
-
 		// Look for NIC devices using this network.
 		devices := db.ExpandInstanceDevices(deviceConfig.NewDevices(inst.Devices), profiles)
 		for devName, devConfig := range devices {
-			inUse, err := isInUseByDevice(s, networkProjectName, networkName, devConfig)
+			inUse, err := isInUseByDevice(s, networkName, devConfig)
 			if err != nil {
 				return err
 			}
