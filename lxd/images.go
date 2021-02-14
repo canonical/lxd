@@ -1349,12 +1349,7 @@ func pruneExpiredImagesTask(d *Daemon) (task.Func, task.Schedule) {
 
 	// Skip the first run, and instead run an initial pruning synchronously
 	// before we start updating images later on in the start up process.
-	expiry, err := cluster.ConfigGetInt64(d.cluster, "images.remote_cache_expiry")
-	if err != nil {
-		logger.Error("Unable to fetch cluster configuration", log.Ctx{"err": err})
-	} else if expiry > 0 {
-		f(context.Background())
-	}
+	f(context.Background())
 
 	first := true
 	schedule := func() (time.Duration, error) {
@@ -1362,17 +1357,6 @@ func pruneExpiredImagesTask(d *Daemon) (task.Func, task.Schedule) {
 		if first {
 			first = false
 			return interval, task.ErrSkip
-		}
-
-		expiry, err := cluster.ConfigGetInt64(d.cluster, "images.remote_cache_expiry")
-		if err != nil {
-			logger.Error("Unable to fetch cluster configuration", log.Ctx{"err": err})
-			return interval, nil
-		}
-
-		// Check if we're supposed to prune at all
-		if expiry <= 0 {
-			interval = 0
 		}
 
 		return interval, nil
@@ -1432,13 +1416,47 @@ func pruneLeftoverImages(d *Daemon) {
 }
 
 func pruneExpiredImages(ctx context.Context, d *Daemon) error {
-	expiry, err := cluster.ConfigGetInt64(d.cluster, "images.remote_cache_expiry")
+	var projects []api.Project
+	err := d.cluster.Transaction(func(tx *db.ClusterTx) error {
+		var err error
+		projects, err = tx.GetProjects(db.ProjectFilter{})
+		if err != nil {
+			return err
+		}
+
+		return nil
+	})
 	if err != nil {
-		return errors.Wrap(err, "Unable to fetch cluster configuration")
+		return errors.Wrap(err, "Unable to retrieve project names")
+	}
+
+	for _, project := range projects {
+		err := pruneExpiredImagesInProject(ctx, d, project)
+		if err != nil {
+			return errors.Wrapf(err, "Unable to prune images for project %s", project)
+		}
+	}
+
+	return nil
+}
+
+func pruneExpiredImagesInProject(ctx context.Context, d *Daemon, project api.Project) error {
+	var expiry int64
+	var err error
+	if project.Config["images.remote_cache_expiry"] != "" {
+		expiry, err = strconv.ParseInt(project.Config["images.remote_cache_expiry"], 10, 64)
+		if err != nil {
+			return errors.Wrap(err, "Unable to fetch project configuration")
+		}
+	} else {
+		expiry, err = cluster.ConfigGetInt64(d.cluster, "images.remote_cache_expiry")
+		if err != nil {
+			return errors.Wrap(err, "Unable to fetch cluster configuration")
+		}
 	}
 
 	// Get the list of expired images.
-	images, err := d.cluster.GetExpiredImages(expiry)
+	images, err := d.cluster.GetExpiredImagesInProject(expiry, project.Name)
 	if err != nil {
 		return errors.Wrap(err, "Unable to retrieve the list of expired images")
 	}
@@ -1456,7 +1474,7 @@ func pruneExpiredImages(ctx context.Context, d *Daemon) error {
 
 		// Get the IDs of all storage pools on which a storage volume
 		// for the requested image currently exists.
-		poolIDs, err := d.cluster.GetPoolsWithImage(img.Fingerprint)
+		poolIDs, err := d.cluster.GetPoolsWithImage(img)
 		if err != nil {
 			continue
 		}
@@ -1468,14 +1486,14 @@ func pruneExpiredImages(ctx context.Context, d *Daemon) error {
 		}
 
 		for _, pool := range poolNames {
-			err := doDeleteImageFromPool(d.State(), img.Fingerprint, pool)
+			err := doDeleteImageFromPool(d.State(), img, pool)
 			if err != nil {
-				return errors.Wrapf(err, "Error deleting image %q from storage pool %q", img.Fingerprint, pool)
+				return errors.Wrapf(err, "Error deleting image %q from storage pool %q", img, pool)
 			}
 		}
 
 		// Remove main image file.
-		fname := filepath.Join(d.os.VarDir, "images", img.Fingerprint)
+		fname := filepath.Join(d.os.VarDir, "images", img)
 		if shared.PathExists(fname) {
 			err = os.Remove(fname)
 			if err != nil && !os.IsNotExist(err) {
@@ -1484,7 +1502,7 @@ func pruneExpiredImages(ctx context.Context, d *Daemon) error {
 		}
 
 		// Remove the rootfs file for the image.
-		fname = filepath.Join(d.os.VarDir, "images", img.Fingerprint) + ".rootfs"
+		fname = filepath.Join(d.os.VarDir, "images", img) + ".rootfs"
 		if shared.PathExists(fname) {
 			err = os.Remove(fname)
 			if err != nil && !os.IsNotExist(err) {
@@ -1492,14 +1510,14 @@ func pruneExpiredImages(ctx context.Context, d *Daemon) error {
 			}
 		}
 
-		imgID, _, err := d.cluster.GetImage(img.ProjectName, img.Fingerprint, false)
+		imgID, _, err := d.cluster.GetImage(project.Name, img, false)
 		if err != nil {
-			return errors.Wrapf(err, "Error retrieving image info for fingerprint %q and project %q", img.Fingerprint, img.ProjectName)
+			return errors.Wrapf(err, "Error retrieving image info for fingerprint %q and project %q", img, project.Name)
 		}
 
 		// Remove the database entry for the image.
 		if err = d.cluster.DeleteImage(imgID); err != nil {
-			return errors.Wrapf(err, "Error deleting image %q from database", img.Fingerprint)
+			return errors.Wrapf(err, "Error deleting image %q from database", img)
 		}
 	}
 
