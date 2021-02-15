@@ -18,6 +18,7 @@ import (
 	deviceConfig "github.com/lxc/lxd/lxd/device/config"
 	"github.com/lxc/lxd/lxd/instance/instancetype"
 	"github.com/lxc/lxd/lxd/project"
+	"github.com/lxc/lxd/lxd/revert"
 	"github.com/lxc/lxd/lxd/seccomp"
 	"github.com/lxc/lxd/lxd/state"
 	"github.com/lxc/lxd/lxd/sys"
@@ -1099,14 +1100,10 @@ func CreateInternal(s *state.State, args db.InstanceArgs) (Instance, error) {
 		return nil, err
 	}
 
-	revert := true
-	defer func() {
-		if !revert {
-			return
-		}
+	revert := revert.New()
+	defer revert.Fail()
 
-		s.Cluster.DeleteInstance(dbInst.Project, dbInst.Name)
-	}()
+	revert.Add(func() { s.Cluster.DeleteInstance(dbInst.Project, dbInst.Name) })
 
 	args = db.InstanceToArgs(&dbInst)
 	inst, err := Create(s, args)
@@ -1118,6 +1115,6 @@ func CreateInternal(s *state.State, args db.InstanceArgs) (Instance, error) {
 	// Wipe any existing log for this instance name.
 	os.RemoveAll(inst.LogPath())
 
-	revert = false
+	revert.Success()
 	return inst, nil
 }

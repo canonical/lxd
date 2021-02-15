@@ -3431,6 +3431,8 @@ func (d *lxc) Delete(force bool) error {
 				if err != nil {
 					return err
 				}
+			} else {
+				d.logger.Info("Skipping snapshot volume delete")
 			}
 		} else {
 			// Remove all snapshots by initialising each snapshot as an Instance and
@@ -3447,6 +3449,8 @@ func (d *lxc) Delete(force bool) error {
 				if err != nil {
 					return err
 				}
+			} else {
+				d.logger.Info("Skipping instance volume delete")
 			}
 		}
 	}
