@@ -73,6 +73,9 @@ func (c *Cluster) GetCertificate(fingerprint string) (*Certificate, error) {
 		cert, err = tx.GetCertificate(cert.Fingerprint)
 		return err
 	})
+	if err != nil {
+		return nil, err
+	}
 
 	return cert, nil
 }
