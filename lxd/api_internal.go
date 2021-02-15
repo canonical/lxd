@@ -436,7 +436,7 @@ func internalImportFromRecovery(d *Daemon, r *http.Request) response.Response {
 		return response.BadRequest(err)
 	}
 
-	resp := internalImport(d, projectName, req)
+	resp := internalImport(d, projectName, req, true)
 	if resp.String() != "success" {
 		return resp
 	}
