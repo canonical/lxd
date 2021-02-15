@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: LXD\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2021-02-07 16:46+0000\n"
+"POT-Creation-Date: 2021-02-14 21:38-0500\n"
 "PO-Revision-Date: 2021-02-02 15:21+0000\n"
 "Last-Translator: KATOH Yasufumi <karma@jazz.email.ne.jp>\n"
 "Language-Team: Japanese <https://hosted.weblate.org/projects/linux-"
@@ -72,6 +72,21 @@ msgstr ""
 "### used_by: []\n"
 "### config:\n"
 "###   size: \"61203283968\""
+
+#: lxc/config_trust.go:129
+#, fuzzy
+msgid ""
+"### This is a YAML representation of the certificate.\n"
+"### Any line starting with a '# will be ignored.\n"
+"###\n"
+"### Note that the fingerprint is shown but cannot be changed"
+msgstr ""
+"### This is a YAML representation of the image properties.\n"
+"### Any line starting with a '# will be ignored.\n"
+"###\n"
+"### Each property is represented by a single line:\n"
+"### An example would be:\n"
+"###  description: My custom image"
 
 #: lxc/config.go:102
 msgid ""
@@ -517,7 +532,7 @@ msgstr ""
 "  lxc remote add some-name https://LOGIN:PASSWORD@example.com/some/path --"
 "protocol=simplestreams\n"
 
-#: lxc/config_trust.go:56 lxc/config_trust.go:57
+#: lxc/config_trust.go:64 lxc/config_trust.go:65
 msgid "Add new trusted clients"
 msgstr "新たに信頼済みのクライアントを追加します"
 
@@ -700,7 +715,7 @@ msgstr "送信バイト数"
 msgid "CANCELABLE"
 msgstr "CANCELABLE"
 
-#: lxc/config_trust.go:173
+#: lxc/config_trust.go:290
 msgid "COMMON NAME"
 msgstr "COMMON NAME"
 
@@ -879,9 +894,10 @@ msgid "Config key/value to apply to the target instance"
 msgstr "移動先のインスタンスに適用するキー/値の設定"
 
 #: lxc/cluster.go:503 lxc/config.go:255 lxc/config.go:328
-#: lxc/config_metadata.go:142 lxc/image.go:431 lxc/network.go:659
-#: lxc/network_acl.go:525 lxc/profile.go:498 lxc/project.go:304
-#: lxc/storage.go:303 lxc/storage_volume.go:941 lxc/storage_volume.go:971
+#: lxc/config_metadata.go:142 lxc/config_trust.go:198 lxc/image.go:431
+#: lxc/network.go:659 lxc/network_acl.go:525 lxc/profile.go:498
+#: lxc/project.go:304 lxc/storage.go:303 lxc/storage_volume.go:941
+#: lxc/storage_volume.go:971
 #, c-format
 msgid "Config parsing error: %s"
 msgstr "設定の構文エラー: %s"
@@ -1158,50 +1174,50 @@ msgstr "ストレージボリュームを削除します"
 #: lxc/config_metadata.go:174 lxc/config_template.go:28
 #: lxc/config_template.go:65 lxc/config_template.go:108
 #: lxc/config_template.go:150 lxc/config_template.go:236
-#: lxc/config_template.go:295 lxc/config_trust.go:28 lxc/config_trust.go:57
-#: lxc/config_trust.go:115 lxc/config_trust.go:193 lxc/console.go:36
-#: lxc/copy.go:40 lxc/delete.go:31 lxc/exec.go:40 lxc/export.go:32
-#: lxc/file.go:72 lxc/file.go:105 lxc/file.go:154 lxc/file.go:217
-#: lxc/file.go:407 lxc/image.go:38 lxc/image.go:141 lxc/image.go:287
-#: lxc/image.go:338 lxc/image.go:463 lxc/image.go:622 lxc/image.go:850
-#: lxc/image.go:985 lxc/image.go:1283 lxc/image.go:1362 lxc/image.go:1421
-#: lxc/image.go:1473 lxc/image.go:1529 lxc/image_alias.go:25
-#: lxc/image_alias.go:58 lxc/image_alias.go:105 lxc/image_alias.go:150
-#: lxc/image_alias.go:252 lxc/import.go:29 lxc/info.go:33 lxc/init.go:40
-#: lxc/launch.go:25 lxc/list.go:45 lxc/main.go:50 lxc/manpage.go:22
-#: lxc/monitor.go:30 lxc/move.go:36 lxc/network.go:33 lxc/network.go:113
-#: lxc/network.go:198 lxc/network.go:271 lxc/network.go:345 lxc/network.go:395
-#: lxc/network.go:480 lxc/network.go:565 lxc/network.go:688 lxc/network.go:746
-#: lxc/network.go:826 lxc/network.go:921 lxc/network.go:990 lxc/network.go:1040
-#: lxc/network.go:1110 lxc/network.go:1172 lxc/network_acl.go:30
-#: lxc/network_acl.go:88 lxc/network_acl.go:158 lxc/network_acl.go:211
-#: lxc/network_acl.go:260 lxc/network_acl.go:343 lxc/network_acl.go:403
-#: lxc/network_acl.go:430 lxc/network_acl.go:558 lxc/network_acl.go:607
-#: lxc/network_acl.go:656 lxc/network_acl.go:671 lxc/network_acl.go:792
-#: lxc/operation.go:24 lxc/operation.go:53 lxc/operation.go:102
-#: lxc/operation.go:181 lxc/profile.go:29 lxc/profile.go:101 lxc/profile.go:164
-#: lxc/profile.go:244 lxc/profile.go:300 lxc/profile.go:354 lxc/profile.go:404
-#: lxc/profile.go:528 lxc/profile.go:577 lxc/profile.go:636 lxc/profile.go:712
-#: lxc/profile.go:762 lxc/profile.go:821 lxc/profile.go:875 lxc/project.go:29
-#: lxc/project.go:86 lxc/project.go:151 lxc/project.go:214 lxc/project.go:334
-#: lxc/project.go:384 lxc/project.go:482 lxc/project.go:537 lxc/project.go:597
-#: lxc/project.go:626 lxc/project.go:679 lxc/publish.go:31 lxc/query.go:32
-#: lxc/remote.go:33 lxc/remote.go:85 lxc/remote.go:483 lxc/remote.go:519
-#: lxc/remote.go:599 lxc/remote.go:661 lxc/remote.go:711 lxc/remote.go:749
-#: lxc/rename.go:21 lxc/restore.go:24 lxc/snapshot.go:28 lxc/storage.go:33
-#: lxc/storage.go:89 lxc/storage.go:163 lxc/storage.go:213 lxc/storage.go:333
-#: lxc/storage.go:393 lxc/storage.go:513 lxc/storage.go:587 lxc/storage.go:661
-#: lxc/storage.go:745 lxc/storage_volume.go:43 lxc/storage_volume.go:162
-#: lxc/storage_volume.go:235 lxc/storage_volume.go:322
-#: lxc/storage_volume.go:484 lxc/storage_volume.go:563
-#: lxc/storage_volume.go:639 lxc/storage_volume.go:721
-#: lxc/storage_volume.go:802 lxc/storage_volume.go:1002
-#: lxc/storage_volume.go:1090 lxc/storage_volume.go:1177
-#: lxc/storage_volume.go:1361 lxc/storage_volume.go:1392
-#: lxc/storage_volume.go:1505 lxc/storage_volume.go:1581
-#: lxc/storage_volume.go:1680 lxc/storage_volume.go:1714
-#: lxc/storage_volume.go:1806 lxc/storage_volume.go:1867
-#: lxc/storage_volume.go:2002 lxc/version.go:22
+#: lxc/config_template.go:295 lxc/config_trust.go:32 lxc/config_trust.go:65
+#: lxc/config_trust.go:120 lxc/config_trust.go:232 lxc/config_trust.go:310
+#: lxc/config_trust.go:353 lxc/console.go:36 lxc/copy.go:40 lxc/delete.go:31
+#: lxc/exec.go:40 lxc/export.go:32 lxc/file.go:72 lxc/file.go:105
+#: lxc/file.go:154 lxc/file.go:217 lxc/file.go:407 lxc/image.go:38
+#: lxc/image.go:141 lxc/image.go:287 lxc/image.go:338 lxc/image.go:463
+#: lxc/image.go:622 lxc/image.go:850 lxc/image.go:985 lxc/image.go:1283
+#: lxc/image.go:1362 lxc/image.go:1421 lxc/image.go:1473 lxc/image.go:1529
+#: lxc/image_alias.go:25 lxc/image_alias.go:58 lxc/image_alias.go:105
+#: lxc/image_alias.go:150 lxc/image_alias.go:252 lxc/import.go:29
+#: lxc/info.go:33 lxc/init.go:40 lxc/launch.go:25 lxc/list.go:45 lxc/main.go:50
+#: lxc/manpage.go:22 lxc/monitor.go:30 lxc/move.go:36 lxc/network.go:33
+#: lxc/network.go:113 lxc/network.go:198 lxc/network.go:271 lxc/network.go:345
+#: lxc/network.go:395 lxc/network.go:480 lxc/network.go:565 lxc/network.go:688
+#: lxc/network.go:746 lxc/network.go:826 lxc/network.go:921 lxc/network.go:990
+#: lxc/network.go:1040 lxc/network.go:1110 lxc/network.go:1172
+#: lxc/network_acl.go:30 lxc/network_acl.go:88 lxc/network_acl.go:158
+#: lxc/network_acl.go:211 lxc/network_acl.go:260 lxc/network_acl.go:343
+#: lxc/network_acl.go:403 lxc/network_acl.go:430 lxc/network_acl.go:558
+#: lxc/network_acl.go:607 lxc/network_acl.go:656 lxc/network_acl.go:671
+#: lxc/network_acl.go:792 lxc/operation.go:24 lxc/operation.go:53
+#: lxc/operation.go:102 lxc/operation.go:181 lxc/profile.go:29
+#: lxc/profile.go:101 lxc/profile.go:164 lxc/profile.go:244 lxc/profile.go:300
+#: lxc/profile.go:354 lxc/profile.go:404 lxc/profile.go:528 lxc/profile.go:577
+#: lxc/profile.go:636 lxc/profile.go:712 lxc/profile.go:762 lxc/profile.go:821
+#: lxc/profile.go:875 lxc/project.go:29 lxc/project.go:86 lxc/project.go:151
+#: lxc/project.go:214 lxc/project.go:334 lxc/project.go:384 lxc/project.go:482
+#: lxc/project.go:537 lxc/project.go:597 lxc/project.go:626 lxc/project.go:679
+#: lxc/publish.go:31 lxc/query.go:32 lxc/remote.go:33 lxc/remote.go:85
+#: lxc/remote.go:483 lxc/remote.go:519 lxc/remote.go:599 lxc/remote.go:661
+#: lxc/remote.go:711 lxc/remote.go:749 lxc/rename.go:21 lxc/restore.go:24
+#: lxc/snapshot.go:28 lxc/storage.go:33 lxc/storage.go:89 lxc/storage.go:163
+#: lxc/storage.go:213 lxc/storage.go:333 lxc/storage.go:393 lxc/storage.go:513
+#: lxc/storage.go:587 lxc/storage.go:661 lxc/storage.go:745
+#: lxc/storage_volume.go:43 lxc/storage_volume.go:162 lxc/storage_volume.go:235
+#: lxc/storage_volume.go:322 lxc/storage_volume.go:484
+#: lxc/storage_volume.go:563 lxc/storage_volume.go:639
+#: lxc/storage_volume.go:721 lxc/storage_volume.go:802
+#: lxc/storage_volume.go:1002 lxc/storage_volume.go:1090
+#: lxc/storage_volume.go:1177 lxc/storage_volume.go:1361
+#: lxc/storage_volume.go:1392 lxc/storage_volume.go:1505
+#: lxc/storage_volume.go:1581 lxc/storage_volume.go:1680
+#: lxc/storage_volume.go:1714 lxc/storage_volume.go:1806
+#: lxc/storage_volume.go:1867 lxc/storage_volume.go:2002 lxc/version.go:22
 msgid "Description"
 msgstr "説明"
 
@@ -1302,7 +1318,7 @@ msgstr "ドライバ: %v (%v)"
 msgid "EPHEMERAL"
 msgstr "EPHEMERAL"
 
-#: lxc/config_trust.go:175
+#: lxc/config_trust.go:292
 msgid "EXPIRY DATE"
 msgstr "EXPIRY DATE"
 
@@ -1362,6 +1378,11 @@ msgstr "ストレージプールの設定をYAMLで編集します"
 #: lxc/storage_volume.go:801 lxc/storage_volume.go:802
 msgid "Edit storage volume configurations as YAML"
 msgstr "ストレージボリュームの設定をYAMLで編集します"
+
+#: lxc/config_trust.go:119 lxc/config_trust.go:120
+#, fuzzy
+msgid "Edit trust configurations as YAML"
+msgstr "プロジェクト設定をYAMLで編集します"
 
 #: lxc/image.go:1036 lxc/list.go:475 lxc/storage_volume.go:1293
 #, c-format
@@ -1503,7 +1524,7 @@ msgstr "FAILURE DOMAIN"
 msgid "FILENAME"
 msgstr "FILENAME"
 
-#: lxc/config_trust.go:172 lxc/image.go:1021 lxc/image.go:1022
+#: lxc/config_trust.go:289 lxc/image.go:1021 lxc/image.go:1022
 #: lxc/image_alias.go:232
 msgid "FINGERPRINT"
 msgstr "FINGERPRINT"
@@ -1604,7 +1625,7 @@ msgstr ""
 "本当に強制的に %s を削除してもよろしいですか? (yes/no): "
 
 #: lxc/alias.go:102 lxc/cluster.go:76 lxc/config_template.go:238
-#: lxc/config_trust.go:117 lxc/image.go:1011 lxc/image_alias.go:155
+#: lxc/config_trust.go:234 lxc/image.go:1011 lxc/image_alias.go:155
 #: lxc/list.go:120 lxc/network.go:830 lxc/network.go:923 lxc/network_acl.go:91
 #: lxc/operation.go:104 lxc/profile.go:581 lxc/project.go:386 lxc/remote.go:523
 #: lxc/storage.go:515 lxc/storage_volume.go:1195
@@ -1729,7 +1750,7 @@ msgstr "IPV4"
 msgid "IPV6"
 msgstr "IPV6"
 
-#: lxc/config_trust.go:174
+#: lxc/config_trust.go:291
 msgid "ISSUE DATE"
 msgstr "ISSUE DATE"
 
@@ -1866,7 +1887,7 @@ msgstr "インスタンスタイプ"
 msgid "Invalid URL scheme \"%s\" in \"%s\""
 msgstr "不正な URL スキーム \"%s\" (\"%s\" 内)"
 
-#: lxc/config_trust.go:156
+#: lxc/config_trust.go:273
 msgid "Invalid certificate"
 msgstr "不正な証明書です"
 
@@ -2302,7 +2323,7 @@ msgstr ""
 msgid "List the available remotes"
 msgstr "利用可能なリモートサーバを一覧表示します"
 
-#: lxc/config_trust.go:114 lxc/config_trust.go:115
+#: lxc/config_trust.go:231 lxc/config_trust.go:232
 msgid "List trusted clients"
 msgstr "信頼済みクライアントを一覧表示します"
 
@@ -2477,7 +2498,7 @@ msgstr ""
 msgid "Manage the list of remote servers"
 msgstr "リモートサーバのリストを管理します"
 
-#: lxc/config_trust.go:27 lxc/config_trust.go:28
+#: lxc/config_trust.go:31 lxc/config_trust.go:32
 msgid "Manage trusted clients"
 msgstr "信頼済みのクライアントを管理します"
 
@@ -2527,6 +2548,11 @@ msgstr "マイグレーションが失敗しました"
 #: lxc/monitor.go:48
 msgid "Minimum level for log messages"
 msgstr "表示するログメッセージの最小レベル"
+
+#: lxc/config_trust.go:152 lxc/config_trust.go:378
+#, fuzzy
+msgid "Missing certificate fingerprint"
+msgstr "証明書のフィンガープリント: %s"
 
 #: lxc/cluster.go:455
 msgid "Missing cluster member name"
@@ -2901,9 +2927,9 @@ msgstr "ポートタイプ: %s"
 msgid "Ports:"
 msgstr "ポート:"
 
-#: lxc/cluster.go:504 lxc/network.go:660 lxc/network_acl.go:526
-#: lxc/profile.go:499 lxc/project.go:305 lxc/storage.go:304
-#: lxc/storage_volume.go:942 lxc/storage_volume.go:972
+#: lxc/cluster.go:504 lxc/config_trust.go:199 lxc/network.go:660
+#: lxc/network_acl.go:526 lxc/profile.go:499 lxc/project.go:305
+#: lxc/storage.go:304 lxc/storage_volume.go:942 lxc/storage_volume.go:972
 msgid "Press enter to open the editor again"
 msgstr "再度エディタを開くためには Enter キーを押します"
 
@@ -3170,7 +3196,7 @@ msgstr "リモートサーバを削除します"
 msgid "Remove rules from an ACL"
 msgstr "インスタンスからプロファイルを削除します"
 
-#: lxc/config_trust.go:192 lxc/config_trust.go:193
+#: lxc/config_trust.go:309 lxc/config_trust.go:310
 msgid "Remove trusted clients"
 msgstr "信頼済みクライアントを削除します"
 
@@ -3613,6 +3639,11 @@ msgstr "ストレージプールで利用可能なリソースを表示します
 #: lxc/storage.go:396
 msgid "Show the used and free space in bytes"
 msgstr "使用量と空き容量を byte で表示します"
+
+#: lxc/config_trust.go:352 lxc/config_trust.go:353
+#, fuzzy
+msgid "Show trust configurations"
+msgstr "ネットワークの設定を表示します"
 
 #: lxc/image.go:849 lxc/image.go:850
 msgid "Show useful information about images"
@@ -4163,7 +4194,7 @@ msgstr "[<remote:>]<pool> <volume> <profile> [<device name>]"
 msgid "[<remote:>]<pool> <volume> <profile> [<device name>] <path>"
 msgstr "[<remote:>]<pool> <volume> <profile> [<device name>] <path>"
 
-#: lxc/cluster.go:71 lxc/config_trust.go:112 lxc/monitor.go:28
+#: lxc/cluster.go:71 lxc/config_trust.go:229 lxc/monitor.go:28
 #: lxc/network.go:823 lxc/network_acl.go:85 lxc/operation.go:99
 #: lxc/profile.go:574 lxc/project.go:381 lxc/storage.go:510 lxc/version.go:20
 msgid "[<remote>:]"
@@ -4173,11 +4204,11 @@ msgstr "[<remote>:]"
 msgid "[<remote>:] <backup file> [<instance name>]"
 msgstr "[<remote>:] <backup file> [<instance name>]"
 
-#: lxc/config_trust.go:55
+#: lxc/config_trust.go:63
 msgid "[<remote>:] <cert>"
 msgstr "[<remote>:] <cert>"
 
-#: lxc/config_trust.go:190
+#: lxc/config_trust.go:307
 msgid "[<remote>:] <hostname|fingerprint>"
 msgstr "[<remote>:] <hostname|fingerprint>"
 
@@ -4242,6 +4273,11 @@ msgstr "[<remote>:]<alias> <new-name>"
 #: lxc/cluster.go:420
 msgid "[<remote>:]<cluster member>"
 msgstr "[<remote>:]<cluster member>"
+
+#: lxc/config_trust.go:118 lxc/config_trust.go:351
+#, fuzzy
+msgid "[<remote>:]<fingerprint>"
+msgstr "[<remote>:]<alias> <fingerprint>"
 
 #: lxc/image.go:336 lxc/image.go:848 lxc/image.go:1360
 msgid "[<remote>:]<image>"

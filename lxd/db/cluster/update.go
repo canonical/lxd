@@ -85,6 +85,31 @@ var updates = map[int]schema.Update{
 	44: updateFromV43,
 	45: updateFromV44,
 	46: updateFromV45,
+	47: updateFromV46,
+}
+
+// updateFromV46 adds support for restricting certificates to projects
+func updateFromV46(tx *sql.Tx) error {
+	_, err := tx.Exec(`
+ALTER TABLE certificates ADD COLUMN restricted INTEGER NOT NULL DEFAULT 0;
+CREATE TABLE certificates_projects (
+	certificate_id INTEGER NOT NULL,
+	project_id INTEGER NOT NULL,
+	FOREIGN KEY (certificate_id) REFERENCES certificates (id) ON DELETE CASCADE,
+	FOREIGN KEY (project_id) REFERENCES projects (id) ON DELETE CASCADE,
+	UNIQUE (certificate_id, project_id)
+);
+CREATE VIEW certificates_projects_ref (fingerprint, value) AS
+	SELECT certificates.fingerprint, projects.name FROM certificates_projects
+		JOIN certificates ON certificates.id=certificates_projects.certificate_id
+		JOIN projects ON projects.id=certificates_projects.project_id
+		ORDER BY projects.name;
+`)
+	if err != nil {
+		return errors.Wrap(err, "Failed extending certificates to support project restrictions")
+	}
+
+	return nil
 }
 
 // updateFromV45 updates projects_used_by_ref to include ceph volumes
