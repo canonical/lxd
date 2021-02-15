@@ -451,18 +451,42 @@ func (d *Daemon) createCmd(restAPI *mux.Router, version string, c APIEndpoint) {
 				ua := &rbac.UserAccess{}
 				ua.Admin = true
 
-				if d.externalAuth == nil || d.rbac == nil || r.RemoteAddr == "@" {
-					return ua, nil
-				}
-
+				// Internal cluster communications.
 				if protocol == "cluster" {
 					return ua, nil
 				}
 
+				// Regular TLS clients.
 				if protocol == "tls" {
+					// Check if we have restrictions on the key.
+					if d.clientCerts != nil && d.clientCerts.Projects != nil {
+						projects, ok := d.clientCerts.Projects[username]
+						if ok {
+							ua.Admin = false
+							ua.Projects = map[string][]string{}
+							for _, projectName := range projects {
+								ua.Projects[projectName] = []string{
+									"view",
+									"manage-containers",
+									"manage-images",
+									"manage-networks",
+									"manage-profiles",
+									"manage-storage-volumes",
+									"operate-containers",
+								}
+							}
+						}
+					}
+
 					return ua, nil
 				}
 
+				// If no external authentication configured, we're done now.
+				if d.externalAuth == nil || d.rbac == nil || r.RemoteAddr == "@" {
+					return ua, nil
+				}
+
+				// Validate RBAC permissions.
 				ua, err = d.rbac.UserAccess(username)
 				if err != nil {
 					return nil, err
