@@ -153,6 +153,16 @@ administrator add the new client certificate directly to the trust store.
 To revoke trust to a client its certificate can be removed with `lxc config
 trust remove FINGERPRINT`.
 
+It's possible to restrict a TLS client to one or multiple projects, in
+such a mode, the client will also be prevented from performing global
+configuration changes or altering the configuration (limits,
+restrictions) of the projects it's allowed access to.
+
+This can be controlled through `lxc config trust edit`, setting the
+`restricted` key to `true` and then specifying a list of projects to
+retrict the user to. If the list of projects is empty, the user will not
+be allowed access to any of them.
+
 ## Password prompt with TLS authentication
 To establish a new trust relationship when not already setup by the
 administrator, a password must be set on the server and sent by the
