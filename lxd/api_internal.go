@@ -483,7 +483,7 @@ func internalImportFromRecovery(d *Daemon, r *http.Request) response.Response {
 
 // internalImport creates the instance and storage volume DB records.
 // It expects the instance volume to be mounted so that the backup.yaml file is readable.
-func internalImport(d *Daemon, projectName string, req *internalImportPost) response.Response {
+func internalImport(d *Daemon, projectName string, req *internalImportPost, recovery bool) response.Response {
 	if req.Name == "" {
 		return response.BadRequest(fmt.Errorf("The name of the instance is required"))
 	}
@@ -670,14 +670,17 @@ func internalImport(d *Daemon, projectName string, req *internalImportPost) resp
 	rootDev["path"] = "/"
 	rootDev["pool"] = instancePoolName
 
-	// Mark the filesystem as going through an import.
-	importingFilePath := storagePools.InstanceImportingFilePath(instanceType, instancePoolName, projectName, req.Name)
-	fd, err := os.Create(importingFilePath)
-	if err != nil {
-		return response.InternalError(err)
+	// If recovering an on-disk instance, mark the filesystem as going through a recovery import, so that we
+	// don't delete the on-disk files if an import error occurs.
+	if recovery {
+		importingFilePath := storagePools.InstanceImportingFilePath(instanceType, instancePoolName, projectName, req.Name)
+		fd, err := os.Create(importingFilePath)
+		if err != nil {
+			return response.InternalError(err)
+		}
+		fd.Close()
+		defer os.Remove(fd.Name())
 	}
-	fd.Close()
-	defer os.Remove(fd.Name())
 
 	baseImage := backupConf.Container.Config["volatile.base_image"]
 
