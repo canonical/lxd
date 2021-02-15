@@ -16,15 +16,23 @@ import (
 var _ = api.ServerEnvironment{}
 
 var certificateObjects = cluster.RegisterStmt(`
-SELECT certificates.id, certificates.fingerprint, certificates.type, certificates.name, certificates.certificate
+SELECT certificates.id, certificates.fingerprint, certificates.type, certificates.name, certificates.certificate, certificates.restricted
   FROM certificates
   ORDER BY certificates.fingerprint
 `)
 
 var certificateObjectsByFingerprint = cluster.RegisterStmt(`
-SELECT certificates.id, certificates.fingerprint, certificates.type, certificates.name, certificates.certificate
+SELECT certificates.id, certificates.fingerprint, certificates.type, certificates.name, certificates.certificate, certificates.restricted
   FROM certificates
   WHERE certificates.fingerprint LIKE ? ORDER BY certificates.fingerprint
+`)
+
+var certificateProjectsRef = cluster.RegisterStmt(`
+SELECT fingerprint, value FROM certificates_projects_ref ORDER BY fingerprint
+`)
+
+var certificateProjectsRefByFingerprint = cluster.RegisterStmt(`
+SELECT fingerprint, value FROM certificates_projects_ref WHERE fingerprint = ? ORDER BY fingerprint
 `)
 
 var certificateID = cluster.RegisterStmt(`
@@ -33,8 +41,8 @@ SELECT certificates.id FROM certificates
 `)
 
 var certificateCreate = cluster.RegisterStmt(`
-INSERT INTO certificates (fingerprint, type, name, certificate)
-  VALUES (?, ?, ?, ?)
+INSERT INTO certificates (fingerprint, type, name, certificate, restricted)
+  VALUES (?, ?, ?, ?, ?)
 `)
 
 var certificateDelete = cluster.RegisterStmt(`
@@ -43,8 +51,12 @@ DELETE FROM certificates WHERE fingerprint = ?
 
 var certificateUpdate = cluster.RegisterStmt(`
 UPDATE certificates
-  SET fingerprint = ?, type = ?, name = ?, certificate = ?
+  SET fingerprint = ?, type = ?, name = ?, certificate = ?, restricted = ?
  WHERE id = ?
+`)
+
+var certificateDeleteProjectsRef = cluster.RegisterStmt(`
+DELETE FROM certificates_projects WHERE certificate_id = ?
 `)
 
 // GetCertificates returns all available certificates.
@@ -81,6 +93,7 @@ func (c *ClusterTx) GetCertificates(filter CertificateFilter) ([]Certificate, er
 			&objects[i].Type,
 			&objects[i].Name,
 			&objects[i].Certificate,
+			&objects[i].Restricted,
 		}
 	}
 
@@ -88,6 +101,20 @@ func (c *ClusterTx) GetCertificates(filter CertificateFilter) ([]Certificate, er
 	err := query.SelectObjects(stmt, dest, args...)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to fetch certificates")
+	}
+
+	// Fill field Projects.
+	projectsObjects, err := c.CertificateProjectsRef(filter)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to fetch field Projects")
+	}
+
+	for i := range objects {
+		value := projectsObjects[objects[i].Fingerprint]
+		if value == nil {
+			value = []string{}
+		}
+		objects[i].Projects = value
 	}
 
 	return objects, nil
@@ -166,13 +193,14 @@ func (c *ClusterTx) CreateCertificate(object Certificate) (int64, error) {
 		return -1, fmt.Errorf("This certificate already exists")
 	}
 
-	args := make([]interface{}, 4)
+	args := make([]interface{}, 5)
 
 	// Populate the statement arguments.
 	args[0] = object.Fingerprint
 	args[1] = object.Type
 	args[2] = object.Name
 	args[3] = object.Certificate
+	args[4] = object.Restricted
 
 	// Prepared statement to use.
 	stmt := c.stmt(certificateCreate)
@@ -189,6 +217,67 @@ func (c *ClusterTx) CreateCertificate(object Certificate) (int64, error) {
 	}
 
 	return id, nil
+}
+
+// CertificateProjectsRef returns entities used by certificates.
+func (c *ClusterTx) CertificateProjectsRef(filter CertificateFilter) (map[string][]string, error) {
+	// Result slice.
+	objects := make([]struct {
+		Fingerprint string
+		Value       string
+	}, 0)
+
+	// Check which filter criteria are active.
+	criteria := map[string]interface{}{}
+	if filter.Fingerprint != "" {
+		criteria["Fingerprint"] = filter.Fingerprint
+	}
+
+	// Pick the prepared statement and arguments to use based on active criteria.
+	var stmt *sql.Stmt
+	var args []interface{}
+
+	if criteria["Fingerprint"] != nil {
+		stmt = c.stmt(certificateProjectsRefByFingerprint)
+		args = []interface{}{
+			filter.Fingerprint,
+		}
+	} else {
+		stmt = c.stmt(certificateProjectsRef)
+		args = []interface{}{}
+	}
+
+	// Dest function for scanning a row.
+	dest := func(i int) []interface{} {
+		objects = append(objects, struct {
+			Fingerprint string
+			Value       string
+		}{})
+		return []interface{}{
+			&objects[i].Fingerprint,
+			&objects[i].Value,
+		}
+	}
+
+	// Select.
+	err := query.SelectObjects(stmt, dest, args...)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to fetch string ref for certificates")
+	}
+
+	// Build index by primary name.
+	index := map[string][]string{}
+
+	for _, object := range objects {
+		item, ok := index[object.Fingerprint]
+		if !ok {
+			item = []string{}
+		}
+
+		index[object.Fingerprint] = append(item, object.Value)
+	}
+
+	return index, nil
 }
 
 // DeleteCertificate deletes the certificate matching the given key parameters.
@@ -218,7 +307,7 @@ func (c *ClusterTx) UpdateCertificate(fingerprint string, object Certificate) er
 	}
 
 	stmt := c.stmt(certificateUpdate)
-	result, err := stmt.Exec(object.Fingerprint, object.Type, object.Name, object.Certificate, id)
+	result, err := stmt.Exec(object.Fingerprint, object.Type, object.Name, object.Certificate, object.Restricted, id)
 	if err != nil {
 		return errors.Wrap(err, "Update certificate")
 	}
