@@ -48,6 +48,10 @@ func (c *cmdConfigTrust) Command() *cobra.Command {
 	configTrustRemoveCmd := cmdConfigTrustRemove{global: c.global, config: c.config, configTrust: c}
 	cmd.AddCommand(configTrustRemoveCmd.Command())
 
+	// Show
+	configTrustShowCmd := cmdConfigTrustShow{global: c.global, config: c.config, configTrust: c}
+	cmd.AddCommand(configTrustShowCmd.Command())
+
 	return cmd
 }
 
@@ -337,4 +341,59 @@ func (c *cmdConfigTrustRemove) Run(cmd *cobra.Command, args []string) error {
 
 	// Remove trust relationship
 	return resource.server.DeleteCertificate(args[len(args)-1])
+}
+
+// Show
+type cmdConfigTrustShow struct {
+	global      *cmdGlobal
+	config      *cmdConfig
+	configTrust *cmdConfigTrust
+}
+
+func (c *cmdConfigTrustShow) Command() *cobra.Command {
+	cmd := &cobra.Command{}
+	cmd.Use = usage("show", i18n.G("[<remote>:]<fingerprint>"))
+	cmd.Short = i18n.G("Show trust configurations")
+	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
+		`Show trust configurations`))
+
+	cmd.RunE = c.Run
+
+	return cmd
+}
+
+func (c *cmdConfigTrustShow) Run(cmd *cobra.Command, args []string) error {
+	// Sanity checks
+	exit, err := c.global.CheckArgs(cmd, args, 1, 1)
+	if exit {
+		return err
+	}
+
+	// Parse remote
+	resources, err := c.global.ParseServers(args[0])
+	if err != nil {
+		return err
+	}
+
+	resource := resources[0]
+	client := resource.server
+
+	if resource.name == "" {
+		return fmt.Errorf(i18n.G("Missing certificate fingerprint"))
+	}
+
+	// Show the certificate configuration
+	cert, _, err := client.GetCertificate(resource.name)
+	if err != nil {
+		return err
+	}
+
+	data, err := yaml.Marshal(&cert)
+	if err != nil {
+		return err
+	}
+
+	fmt.Printf("%s", data)
+
+	return nil
 }
