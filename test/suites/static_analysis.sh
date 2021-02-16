@@ -133,7 +133,15 @@ test_static_analysis() {
 
     ## deadcode
     if which deadcode >/dev/null 2>&1; then
-      OUT=$(deadcode ./fuidshift ./lxc ./lxd ./shared ./shared/api ./shared/i18n ./shared/ioprogress ./shared/logging ./shared/osarch ./shared/simplestreams ./shared/termios ./shared/version ./lxd-benchmark 2>&1 | grep -v lxd/migrate.pb.go: | grep -v /C: | grep -vi _cgo | grep -vi _cfunc || true)
+      run_deadcode() {
+        for i in client fuidshift lxc lxc-to-lxd lxd lxd-agent lxd-benchmark lxd-p2c shared; do
+          find "${i}" -type d | while read -r line; do
+            deadcode "./${line}"
+          done
+        done
+      }
+
+      OUT=$(run_deadcode)
       if [ -n "${OUT}" ]; then
         echo "${OUT}" >&2
         false
