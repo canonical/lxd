@@ -28,6 +28,7 @@ func LoadByName(s *state.State, projectName string, name string) (NetworkACL, er
 // Create validates supplied record and creates new Network ACL record in the database.
 func Create(s *state.State, projectName string, aclInfo *api.NetworkACLsPost) error {
 	var acl NetworkACL = &common{} // Only a single driver currently.
+	acl.init(s, -1, projectName, nil)
 
 	err := acl.validateName(aclInfo.Name)
 	if err != nil {
