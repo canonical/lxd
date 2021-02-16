@@ -308,6 +308,7 @@ ipv6.dhcp                       | boolean   | ipv6 address          | true      
 ipv6.dhcp.stateful              | boolean   | ipv6 dhcp             | false                     | Whether to allocate addresses using DHCP
 ipv6.nat                        | boolean   | ipv6 address          | false                     | Whether to NAT (will default to true if unset and a random ipv6.address is generated)
 network                         | string    | -                     | -                         | Uplink network to use for external network access
+security.acls                   | string    | -                     | -                         | Comma separated list of Network ACLs to apply to NICs connected to this network
 
 ## network: physical
 
