@@ -36,15 +36,16 @@ type common struct {
 
 // init initialise internal variables.
 func (d *common) init(state *state.State, id int64, projectName string, info *api.NetworkACL) {
-	d.logger = logging.AddContext(logger.Log, log.Ctx{"project": projectName, "networkACL": info.Name})
+	if info == nil {
+		d.info = &api.NetworkACL{}
+	} else {
+		d.info = info
+	}
+
+	d.logger = logging.AddContext(logger.Log, log.Ctx{"project": projectName, "networkACL": d.info.Name})
 	d.id = id
 	d.projectName = projectName
-	d.info = info
 	d.state = state
-
-	if d.info == nil {
-		d.info = &api.NetworkACL{}
-	}
 
 	if d.info.Ingress == nil {
 		d.info.Ingress = []api.NetworkACLRule{}
