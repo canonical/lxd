@@ -1318,3 +1318,6 @@ allowing for set number of days after which an unused cached remote image will b
 Adds a new `restricted` property to certificates in the API as well as
 `projects` holding a list of project names that the certificate has
 access to.
+
+## network\_ovn\_acl
+Adds a new `security.acls` property to OVN networks and OVN NICs, allowing Network ACLs to be applied.
