@@ -35,6 +35,12 @@ type OVNDNSUUID string
 // OVNDHCPOptionsUUID DHCP Options set UUID.
 type OVNDHCPOptionsUUID string
 
+// OVNPortGroup OVN port group name.
+type OVNPortGroup string
+
+// OVNPortGroupUUID OVN port group UUID.
+type OVNPortGroupUUID string
+
 // OVNIPAllocationOpts defines IP allocation settings that can be applied to a logical switch.
 type OVNIPAllocationOpts struct {
 	PrefixIPv4  *net.IPNet
@@ -98,6 +104,16 @@ type OVNSwitchPortOpts struct {
 	IPs          []net.IP           // Optional, if empty IPs will be set to dynamic.
 	DHCPv4OptsID OVNDHCPOptionsUUID // Optional, if empty, no DHCPv4 enabled on port.
 	DHCPv6OptsID OVNDHCPOptionsUUID // Optional, if empty, no DHCPv6 enabled on port.
+}
+
+// OVNACLRule represents an ACL rule that can be added to a logical switch or port group.
+type OVNACLRule struct {
+	Direction string // Either "from-lport" or "to-lport".
+	Action    string // Either "allow-related", "allow", "drop", or "reject".
+	Match     string // Match criteria. See OVN Southbound database's Logical_Flow table match column usage.
+	Priority  int    // Priority (between 0 and 32767, inclusive). Higher values take precedence.
+	Log       bool   // Whether or not to log matched packets.
+	LogName   string // Log label name (requires Log be true).
 }
 
 // NewOVN initialises new OVN wrapper.
@@ -726,6 +742,35 @@ func (o *OVN) logicalSwitchDNSRecordsDelete(switchName OVNSwitch) error {
 	return nil
 }
 
+// LogicalSwitchSetACLRules applies a set of rules to the specified logical switch. Any existing rules are removed.
+func (o *OVN) LogicalSwitchSetACLRules(switchName OVNSwitch, aclRules ...OVNACLRule) error {
+	// Remove any existing rules.
+	_, err := o.nbctl("clear", "logical_switch", string(switchName), "acls")
+	if err != nil {
+		return err
+	}
+
+	// Add new rules.
+	for _, rule := range aclRules {
+		args := []string{"--type=switch"}
+
+		if rule.Log {
+			args = append(args, "--log")
+
+			if rule.LogName != "" {
+				args = append(args, fmt.Sprintf("--name=%s", rule.LogName))
+			}
+		}
+
+		_, err := o.nbctl(append(args, "acl-add", string(switchName), rule.Direction, fmt.Sprintf("%d", rule.Priority), rule.Match, rule.Action)...)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
 // LogicalSwitchPortUUID returns the logical switch port UUID or empty string if port doesn't exist.
 func (o *OVN) LogicalSwitchPortUUID(portName OVNSwitchPort) (OVNSwitchPortUUID, error) {
 	portInfo, err := o.nbctl("--format=csv", "--no-headings", "--data=bare", "--colum=_uuid,name", "find", "logical_switch_port",
@@ -1127,6 +1172,112 @@ func (o *OVN) ChassisGroupChassisDelete(haChassisGroupName OVNChassisGroup, chas
 	// Remove chassis from group if exists.
 	if strings.TrimSpace(existingChassis) != "" {
 		_, err := o.nbctl("ha-chassis-group-remove-chassis", string(haChassisGroupName), chassisID)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// PortGroupUUID returns the port group UUID or empty string if port doesn't exist.
+func (o *OVN) PortGroupUUID(portGroupName OVNPortGroup) (OVNPortGroupUUID, error) {
+	groupInfo, err := o.nbctl("--format=csv", "--no-headings", "--data=bare", "--colum=_uuid,name", "find", "port_group",
+		fmt.Sprintf("name=%s", string(portGroupName)),
+	)
+	if err != nil {
+		return "", err
+	}
+
+	groupParts := util.SplitNTrimSpace(groupInfo, ",", 2, false)
+	if len(groupParts) == 2 {
+		if groupParts[1] == string(portGroupName) {
+			return OVNPortGroupUUID(groupParts[0]), nil
+		}
+	}
+
+	return "", nil
+}
+
+// PortGroupAdd creates a new port group and optionally adds logical switch ports to the group.
+func (o *OVN) PortGroupAdd(portGroupName OVNPortGroup, initialPortMembers ...OVNSwitchPort) error {
+	args := []string{"pg-add", string(portGroupName)}
+
+	for _, portName := range initialPortMembers {
+		args = append(args, string(portName))
+	}
+
+	_, err := o.nbctl(args...)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// PortGroupDelete deletes a port group and all ACLs associated to it.
+func (o *OVN) PortGroupDelete(portGroupName OVNPortGroup) error {
+	// ovn-nbctl doesn't provide an "--if-exists" option for removing port groups.
+	uuid, err := o.PortGroupUUID(portGroupName)
+	if err != nil {
+		return err
+	}
+
+	// Nothing to do if port group doesn't exist.
+	if uuid == "" {
+		return nil
+	}
+
+	// Delete port group.
+	_, err = o.nbctl("pg-del", string(portGroupName))
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// PortGroupMemberAdd adds a logical switch port (by UUID) to an existing port group.
+func (o *OVN) PortGroupMemberAdd(portGroupName OVNPortGroup, portMemberUUID OVNSwitchPortUUID) error {
+	_, err := o.nbctl("add", "port_group", string(portGroupName), "ports", string(portMemberUUID))
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// PortGroupMemberDelete deleted a logical switch port (by UUID) from an existing port group.
+func (o *OVN) PortGroupMemberDelete(portGroupName OVNPortGroup, portMemberUUID OVNSwitchPortUUID) error {
+	_, err := o.nbctl("--if-exists", "remove", "port_group", string(portGroupName), "ports", string(portMemberUUID))
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// PortGroupSetACLRules applies a set of rules to the specified port group. Any existing rules are removed.
+func (o *OVN) PortGroupSetACLRules(portGroupName OVNPortGroup, aclRules ...OVNACLRule) error {
+	// Remove any existing rules.
+	_, err := o.nbctl("clear", "port_group", string(portGroupName), "acls")
+	if err != nil {
+		return err
+	}
+
+	// Add new rules.
+	for _, rule := range aclRules {
+		args := []string{"--type=port-group"}
+
+		if rule.Log {
+			args = append(args, "--log")
+
+			if rule.LogName != "" {
+				args = append(args, fmt.Sprintf("--name=%s", rule.LogName))
+			}
+		}
+
+		_, err := o.nbctl(append(args, "acl-add", string(portGroupName), rule.Direction, fmt.Sprintf("%d", rule.Priority), rule.Match, rule.Action)...)
 		if err != nil {
 			return err
 		}
