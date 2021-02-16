@@ -20,7 +20,6 @@ import (
 //go:generate mapper stmt -p db -e certificate create-projects-ref
 //go:generate mapper stmt -p db -e certificate delete
 //go:generate mapper stmt -p db -e certificate update struct=Certificate
-//go:generate mapper stmt -p db -e certificate delete-projects-ref
 //
 //go:generate mapper method -p db -e certificate List
 //go:generate mapper method -p db -e certificate Get
