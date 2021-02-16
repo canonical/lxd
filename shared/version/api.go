@@ -258,6 +258,7 @@ var APIExtensions = []string{
 	"projects_compression",
 	"projects_images_remote_cache_expiry",
 	"certificate_project",
+	"network_ovn_acl",
 }
 
 // APIExtensionsCount returns the number of available API extensions.

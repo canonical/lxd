@@ -27,9 +27,33 @@ func (c *Cluster) GetNetworkACLs(project string) ([]string, error) {
 		return nil, err
 	}
 
-	response := []string{}
+	response := make([]string, 0, len(result))
 	for _, r := range result {
 		response = append(response, r[0].(string))
+	}
+
+	return response, nil
+}
+
+// GetNetworkACLIDsByNames returns a map of names to IDs of existing Network ACLs.
+func (c *Cluster) GetNetworkACLIDsByNames(project string) (map[string]int64, error) {
+	q := `SELECT id, name FROM networks_acls
+		WHERE project_id = (SELECT id FROM projects WHERE name = ? LIMIT 1)
+		ORDER BY id
+	`
+	inargs := []interface{}{project}
+
+	var id int64
+	var name string
+	outfmt := []interface{}{id, name}
+	result, err := queryScan(c, q, inargs, outfmt)
+	if err != nil {
+		return nil, err
+	}
+
+	response := make(map[string]int64, len(result))
+	for _, r := range result {
+		response[r[1].(string)] = r[0].(int64)
 	}
 
 	return response, nil

@@ -392,6 +392,7 @@ ipv6.address            | string  | -                 | no       | no      | An 
 ipv4.routes.external    | string  | -                 | no       | no      | Comma delimited list of IPv4 static routes to route to the NIC and publish on uplink network
 ipv6.routes.external    | string  | -                 | no       | no      | Comma delimited list of IPv6 static routes to route to the NIC and publish on uplink network
 boot.priority           | integer | -                 | no       | no      | Boot priority for VMs (higher boots first)
+security.acls           | string  | -                 | no       | no      | Comma separated list of Network ACLs to apply
 
 #### nic: physical
 
