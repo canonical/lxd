@@ -27,7 +27,7 @@ func (c *Cluster) GetNetworkACLs(project string) ([]string, error) {
 		return nil, err
 	}
 
-	response := []string{}
+	response := make([]string, 0, len(result))
 	for _, r := range result {
 		response = append(response, r[0].(string))
 	}
