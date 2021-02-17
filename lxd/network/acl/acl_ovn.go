@@ -17,7 +17,6 @@ import (
 
 // OVN ACL rule priorities.
 const ovnACLPrioritySwitchAllow = 10
-const ovnACLPriorityPortGroupDefaultDrop = 0
 const ovnACLPriorityPortGroupAllow = 20
 const ovnACLPriorityPortGroupReject = 30
 const ovnACLPriorityPortGroupDrop = 40
