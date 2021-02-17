@@ -1665,6 +1665,8 @@ func (d *lxc) deviceHandleMounts(mounts []deviceConfig.MountEntryItem) error {
 					flags |= unix.MS_BIND
 				} else if opt == "rbind" {
 					flags |= unix.MS_BIND | unix.MS_REC
+				} else if opt == "ro" {
+					flags |= unix.MS_RDONLY
 				}
 			}
 
@@ -5876,9 +5878,25 @@ func (d *lxc) insertMountLXD(source, target, fstype string, flags int, mntnsPID 
 	}
 	defer unix.Unmount(tmpMount, unix.MNT_DETACH)
 
+	// Ensure that only flags modifying mount _properties_ make it through.
+	// Strip things such as MS_BIND which would cause the creation of a
+	// shiftfs mount to be skipped.
+	// (Fyi, this is just one of the reasons why multiplexers are bad;
+	// specifically when they do heinous things such as confusing flags
+	// with commands.)
+
+	// This is why multiplexers are bad
+	shiftfsFlags := (flags & (unix.MS_RDONLY |
+		unix.MS_NOSUID |
+		unix.MS_NODEV |
+		unix.MS_NOEXEC |
+		unix.MS_DIRSYNC |
+		unix.MS_NOATIME |
+		unix.MS_NODIRATIME))
+
 	// Setup host side shiftfs as needed
 	if shiftfs {
-		err = unix.Mount(tmpMount, tmpMount, "shiftfs", 0, "mark,passthrough=3")
+		err = unix.Mount(tmpMount, tmpMount, "shiftfs", uintptr(shiftfsFlags), "mark,passthrough=3")
 		if err != nil {
 			return fmt.Errorf("Failed to setup host side shiftfs mount: %s", err)
 		}
@@ -5904,7 +5922,8 @@ func (d *lxc) insertMountLXD(source, target, fstype string, flags int, mntnsPID 
 		fmt.Sprintf("%d", pidFdNr),
 		mntsrc,
 		target,
-		fmt.Sprintf("%v", shiftfs))
+		fmt.Sprintf("%v", shiftfs),
+		fmt.Sprintf("%d", shiftfsFlags))
 	if err != nil {
 		return err
 	}
