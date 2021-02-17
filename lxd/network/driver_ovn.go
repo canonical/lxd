@@ -3308,7 +3308,14 @@ func (n *ovn) PortGroupDeleteIfUnused(ignoreUsageType interface{}, ignoreUsageNi
 				}
 			}
 		case *api.NetworkACL:
-			return nil // Nothing to do for ACL rules referencing us.
+			for _, matchedACLName := range matchedACLNames {
+				usedACLs[matchedACLName] = struct{}{} // Record as in use.
+			}
+
+			if len(usedACLs) >= len(aclNames) {
+				// All of the ACLs are in use, no need to search further.
+				return db.ErrInstanceListStop
+			}
 		default:
 			return fmt.Errorf("Unrecognised usage type %T", u)
 		}
