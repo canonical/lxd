@@ -55,10 +55,6 @@ UPDATE certificates
  WHERE id = ?
 `)
 
-var certificateDeleteProjectsRef = cluster.RegisterStmt(`
-DELETE FROM certificates_projects WHERE certificate_id = ?
-`)
-
 // GetCertificates returns all available certificates.
 func (c *ClusterTx) GetCertificates(filter CertificateFilter) ([]Certificate, error) {
 	// Result slice.
