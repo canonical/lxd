@@ -11,8 +11,6 @@ import (
 	"golang.org/x/sys/windows"
 )
 
-var kernel32 = windows.NewLazyDLL("kernel32.dll")
-
 // IsTty returns true if the given file descriptor is a terminal.
 func IsTty(fd uintptr) bool {
 	var mode uint32
