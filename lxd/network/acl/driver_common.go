@@ -10,6 +10,7 @@ import (
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/network/openvswitch"
 	"github.com/lxc/lxd/lxd/project"
+	"github.com/lxc/lxd/lxd/revert"
 	"github.com/lxc/lxd/lxd/state"
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
@@ -454,6 +455,12 @@ func (d *common) Update(config *api.NetworkACLPut) error {
 		return err
 	}
 
+	revert := revert.New()
+	defer revert.Fail()
+
+	oldConfig := d.info.NetworkACLPut
+
+	// Update database. Its important this occurs before we attempt to apply to networks using the ACL.
 	err = d.state.Cluster.UpdateNetworkACL(d.id, config)
 	if err != nil {
 		return err
@@ -462,6 +469,12 @@ func (d *common) Update(config *api.NetworkACLPut) error {
 	// Apply changes internally and reinitialise.
 	d.info.NetworkACLPut = *config
 	d.init(d.state, d.id, d.projectName, d.info)
+
+	revert.Add(func() {
+		d.state.Cluster.UpdateNetworkACL(d.id, &oldConfig)
+		d.info.NetworkACLPut = oldConfig
+		d.init(d.state, d.id, d.projectName, d.info)
+	})
 
 	// OVN networks share ACL port group definitions so we only need to apply changes once for all OVN nets.
 	applyToOVN := false
@@ -501,8 +514,7 @@ func (d *common) Update(config *api.NetworkACLPut) error {
 	}
 
 	if applyToOVN {
-		portGroupName := OVNACLPortGroupName(d.ID())
-		d.logger.Debug("Applying ACL rules to OVN port group", log.Ctx{"portGroup": portGroupName})
+		d.logger.Debug("Applying ACL rules to OVN")
 		nbConnection, err := cluster.ConfigGetString(d.state.Cluster, "network.ovn.northbound_connection")
 		if err != nil {
 			return errors.Wrapf(err, "Failed to get OVN northbound connection string")
@@ -512,17 +524,19 @@ func (d *common) Update(config *api.NetworkACLPut) error {
 		client.SetDatabaseAddress(nbConnection)
 
 		// Get map of ACL names to DB IDs (used for generating OVN port group names).
-		acls, err := d.state.Cluster.GetNetworkACLIDsByNames(d.Project())
+		aclNameIDs, err := d.state.Cluster.GetNetworkACLIDsByNames(d.Project())
 		if err != nil {
 			return errors.Wrapf(err, "Failed getting network ACL IDs for security ACL update")
 		}
 
-		err = OVNApplyToPortGroup(d.state, client, d.info, portGroupName, acls)
+		r, err := OVNEnsureACLs(d.state, d.logger, client, d.projectName, aclNameIDs, []string{d.info.Name}, true)
 		if err != nil {
-			return errors.Wrapf(err, "Failed applying ACL %q rules to OVN port group %q", d.info.Name, portGroupName)
+			return errors.Wrapf(err, "Failed ensuring ACL is configured in OVN")
 		}
+		revert.Add(r.Fail)
 	}
 
+	revert.Success()
 	return nil
 }
 
