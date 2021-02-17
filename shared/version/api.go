@@ -259,6 +259,7 @@ var APIExtensions = []string{
 	"projects_images_remote_cache_expiry",
 	"certificate_project",
 	"network_ovn_acl",
+	"projects_images_auto_update",
 }
 
 // APIExtensionsCount returns the number of available API extensions.
