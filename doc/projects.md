@@ -22,6 +22,8 @@ features.images                      | boolean   | -                     | true 
 features.networks                    | boolean   | -                     | false                     | Separate set of networks for the project
 features.profiles                    | boolean   | -                     | true                      | Separate set of profiles for the project
 features.storage.volumes             | boolean   | -                     | true                      | Separate set of storage volumes for the project
+images.auto\_update\_cached          | boolean   | -                     | -                         | Whether to automatically update any image that LXD caches
+images.auto\_update\_interval        | integer   | -                     | -                         | Interval in hours at which to look for update to cached images (0 disables it)
 images.compression\_algorithm        | string    | -                     | -                         | Compression algorithm to use for images (bzip2, gzip, lzma, xz or none) in the project
 images.remote\_cache\_expiry         | integer   | -                     | -                         | Number of days after which an unused cached remote image will be flushed in the project
 limits.instances                     | integer   | -                     | -                         | Maximum number of total instances that can be created in the project
