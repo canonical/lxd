@@ -134,9 +134,34 @@ void create(char *src, char *dest)
 	}
 }
 
+static int lxc_safe_ulong(const char *numstr, unsigned long *converted)
+{
+	char *err = NULL;
+	unsigned long int uli;
+
+	while (isspace(*numstr))
+		numstr++;
+
+	if (*numstr == '-')
+		return -EINVAL;
+
+	errno = 0;
+	uli = strtoul(numstr, &err, 0);
+	if (errno == ERANGE && uli == ULONG_MAX)
+		return -ERANGE;
+
+	if (err == numstr || *err != '\0')
+		return -EINVAL;
+
+	*converted = uli;
+	return 0;
+}
+
 static void do_lxd_forkmount(int pidfd, int ns_fd)
 {
-	char *src, *dest, *shiftfs;
+	unsigned long mntflags = 0;
+	int ret;
+	char *src, *dest, *shiftfs, *flags;
 
 	attach_userns_fd(ns_fd);
 
@@ -148,6 +173,11 @@ static void do_lxd_forkmount(int pidfd, int ns_fd)
 	src = advance_arg(true);
 	dest = advance_arg(true);
 	shiftfs = advance_arg(true);
+	flags = advance_arg(true);
+
+	ret = lxc_safe_ulong(flags, &mntflags);
+	if (ret < 0)
+		_exit(1);
 
 	create(src, dest);
 
@@ -163,7 +193,7 @@ static void do_lxd_forkmount(int pidfd, int ns_fd)
 
 	if (strcmp(shiftfs, "true") == 0) {
 		// Setup shiftfs inside the container
-		if (mount(src, src, "shiftfs", 0, "passthrough=3") < 0) {
+		if (mount(src, src, "shiftfs", mntflags, "passthrough=3") < 0) {
 			fprintf(stderr, "Failed shiftfs setup for %s: %s\n", src, strerror(errno));
 			_exit(1);
 		}
@@ -219,31 +249,6 @@ void do_lxd_forkumount(int pidfd, int ns_fd)
 
 	_exit(0);
 }
-
-#if VERSION_AT_LEAST(3, 1, 0)
-static int lxc_safe_ulong(const char *numstr, unsigned long *converted)
-{
-	char *err = NULL;
-	unsigned long int uli;
-
-	while (isspace(*numstr))
-		numstr++;
-
-	if (*numstr == '-')
-		return -EINVAL;
-
-	errno = 0;
-	uli = strtoul(numstr, &err, 0);
-	if (errno == ERANGE && uli == ULONG_MAX)
-		return -ERANGE;
-
-	if (err == numstr || *err != '\0')
-		return -EINVAL;
-
-	*converted = uli;
-	return 0;
-}
-#endif
 
 static void do_lxc_forkmount(void)
 {
@@ -414,8 +419,8 @@ func (c *cmdForkmount) Command() *cobra.Command {
 	cmd.AddCommand(cmdLXCMount)
 
 	cmdLXDMount := &cobra.Command{}
-	cmdLXDMount.Use = "lxd-mount <PID> <PidFd> <source> <destination> <shiftfs>"
-	cmdLXDMount.Args = cobra.ExactArgs(5)
+	cmdLXDMount.Use = "lxd-mount <PID> <PidFd> <source> <destination> <shiftfs> <flags>"
+	cmdLXDMount.Args = cobra.ExactArgs(6)
 	cmdLXDMount.RunE = c.Run
 	cmd.AddCommand(cmdLXDMount)
 
