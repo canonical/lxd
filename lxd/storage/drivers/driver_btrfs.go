@@ -114,6 +114,9 @@ func (d *btrfs) Create() error {
 			return errors.Wrap(err, "Failed to format sparse file")
 		}
 	} else if shared.IsBlockdevPath(d.config["source"]) {
+		// Unset size property since it's irrelevant.
+		d.config["size"] = ""
+
 		// Format the block device.
 		_, err := makeFSType(d.config["source"], "btrfs", &mkfsOptions{Label: d.name})
 		if err != nil {
@@ -132,6 +135,9 @@ func (d *btrfs) Create() error {
 			d.config["source"] = devUUID
 		}
 	} else if d.config["source"] != "" {
+		// Unset size property since it's irrelevant.
+		d.config["size"] = ""
+
 		hostPath := shared.HostPath(d.config["source"])
 		if d.isSubvolume(hostPath) {
 			// Existing btrfs subvolume.
