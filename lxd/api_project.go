@@ -525,6 +525,8 @@ func projectValidateConfig(s *state.State, config map[string]string) error {
 		"features.images":                validate.Optional(validate.IsBool),
 		"features.storage.volumes":       validate.Optional(validate.IsBool),
 		"features.networks":              validate.Optional(validate.IsBool),
+		"images.auto_update_cached":      validate.Optional(validate.IsBool),
+		"images.auto_update_interval":    validate.Optional(validate.IsInt64),
 		"images.compression_algorithm":   validate.IsCompressionAlgorithm,
 		"images.remote_cache_expiry":     validate.Optional(validate.IsInt64),
 		"limits.instances":               validate.Optional(validate.IsUint32),
