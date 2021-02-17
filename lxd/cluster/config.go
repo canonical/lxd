@@ -89,18 +89,6 @@ func (c *Config) RBACServer() (string, string, int64, string, string, string, st
 		c.m.GetString("rbac.agent.public_key")
 }
 
-// AutoUpdateInterval returns the configured images auto update interval.
-func (c *Config) AutoUpdateInterval() time.Duration {
-	n := c.m.GetInt64("images.auto_update_interval")
-	return time.Duration(n) * time.Hour
-}
-
-// RemoteCacheExpiry returns the configured expiration value for remote images
-// expiration.
-func (c *Config) RemoteCacheExpiry() int64 {
-	return c.m.GetInt64("images.remote_cache_expiry")
-}
-
 // ProxyHTTPS returns the configured HTTPS proxy, if any.
 func (c *Config) ProxyHTTPS() string {
 	return c.m.GetString("core.proxy_https")
