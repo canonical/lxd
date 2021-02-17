@@ -777,16 +777,14 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 
 	// Configure IPv4 firewall (includes fan).
 	if n.config["bridge.mode"] == "fan" || !shared.StringInSlice(n.config["ipv4.address"], []string{"", "none"}) {
-		if n.DHCPv4Subnet() != nil && n.hasIPv4Firewall() {
+		if n.hasDHCPv4() && n.hasIPv4Firewall() {
 			// Setup basic iptables overrides for DHCP/DNS.
 			err = n.state.Firewall.NetworkSetupDHCPDNSAccess(n.name, 4)
 			if err != nil {
 				return err
 			}
-		}
 
-		// Attempt a workaround for broken DHCP clients.
-		if n.hasIPv4Firewall() {
+			// Attempt a workaround for broken DHCP clients.
 			err = n.state.Firewall.NetworkSetupDHCPv4Checksum(n.name)
 			if err != nil {
 				return err
@@ -2000,10 +1998,30 @@ func (n *bridge) hasIPv6Firewall() bool {
 	return false
 }
 
+// hasDHCPv4 indicates whether the network has DHCPv4 enabled.
+// An empty ipv4.dhcp setting indicates enabled by default.
+func (n *bridge) hasDHCPv4() bool {
+	if n.config["ipv4.dhcp"] == "" || shared.IsTrue(n.config["ipv4.dhcp"]) {
+		return true
+	}
+
+	return false
+}
+
+// hasDHCPv6 indicates whether the network has DHCPv6 enabled.
+// An empty ipv6.dhcp setting indicates enabled by default.
+func (n *bridge) hasDHCPv6() bool {
+	if n.config["ipv6.dhcp"] == "" || shared.IsTrue(n.config["ipv6.dhcp"]) {
+		return true
+	}
+
+	return false
+}
+
 // DHCPv4Subnet returns the DHCPv4 subnet (if DHCP is enabled on network).
 func (n *bridge) DHCPv4Subnet() *net.IPNet {
-	// DHCP is disabled on this network (an empty ipv4.dhcp setting indicates enabled by default).
-	if n.config["ipv4.dhcp"] != "" && !shared.IsTrue(n.config["ipv4.dhcp"]) {
+	// DHCP is disabled on this network.
+	if !n.hasDHCPv4() {
 		return nil
 	}
 
@@ -2045,8 +2063,8 @@ func (n *bridge) DHCPv4Subnet() *net.IPNet {
 
 // DHCPv6Subnet returns the DHCPv6 subnet (if DHCP or SLAAC is enabled on network).
 func (n *bridge) DHCPv6Subnet() *net.IPNet {
-	// DHCP is disabled on this network (an empty ipv6.dhcp setting indicates enabled by default).
-	if n.config["ipv6.dhcp"] != "" && !shared.IsTrue(n.config["ipv6.dhcp"]) {
+	// DHCP is disabled on this network.
+	if !n.hasDHCPv6() {
 		return nil
 	}
 
