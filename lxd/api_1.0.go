@@ -652,9 +652,7 @@ func doApi10UpdateTriggers(d *Daemon, nodeChanged, clusterChanged map[string]str
 		case "candid.api.url":
 			candidChanged = true
 		case "images.auto_update_interval":
-			if !d.os.MockMode {
-				d.taskAutoUpdate.Reset()
-			}
+			fallthrough
 		case "images.remote_cache_expiry":
 			if !d.os.MockMode {
 				d.taskPruneImages.Reset()
