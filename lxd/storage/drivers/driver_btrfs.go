@@ -159,7 +159,7 @@ func (d *btrfs) Create() error {
 				return fmt.Errorf("Provided path does not reside on a btrfs filesystem")
 			} else if strings.HasPrefix(cleanSource, lxdDir) {
 				if cleanSource != GetPoolMountPath(d.name) {
-					return fmt.Errorf("Only allowed source path under %s is %s", shared.VarPath(), GetPoolMountPath(d.name))
+					return fmt.Errorf("Only allowed source path under %q is %q", shared.VarPath(), GetPoolMountPath(d.name))
 				} else if !hasFilesystem(shared.VarPath("storage-pools"), util.FilesystemSuperMagicBtrfs) {
 					return fmt.Errorf("Provided path does not reside on a btrfs filesystem")
 				}
@@ -167,7 +167,7 @@ func (d *btrfs) Create() error {
 				// Delete the current directory to replace by subvolume.
 				err := os.Remove(cleanSource)
 				if err != nil && !os.IsNotExist(err) {
-					return errors.Wrapf(err, "Failed to remove '%s'", cleanSource)
+					return errors.Wrapf(err, "Failed to remove %q", cleanSource)
 				}
 			}
 
@@ -178,7 +178,7 @@ func (d *btrfs) Create() error {
 			}
 		}
 	} else {
-		return fmt.Errorf("Invalid \"source\" property")
+		return fmt.Errorf(`Invalid "source" property`)
 	}
 
 	return nil
