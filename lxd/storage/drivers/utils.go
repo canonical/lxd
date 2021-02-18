@@ -826,7 +826,7 @@ func BlockDiskSizeBytes(blockDiskPath string) (int64, error) {
 		defer f.Close()
 		fd := int(f.Fd())
 
-		// Retrieve the block size.
+		// Retrieve the block device size.
 		res, err := unix.IoctlGetInt(fd, unix.BLKGETSIZE64)
 		if err != nil {
 			return -1, err
