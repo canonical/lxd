@@ -2737,23 +2737,13 @@ func (n *ovn) InstanceDevicePortAdd(opts *OVNInstanceNICSetupOpts) (openvswitch.
 					return "", fmt.Errorf("Cannot find security ACL ID for %q", aclName)
 				}
 
+				// Remove port from port group.
 				portGroupName := acl.OVNACLPortGroupName(aclID)
-
-				// Check if port group exists.
-				portGroupUUID, _, err := client.PortGroupInfo(portGroupName)
+				err = client.PortGroupMemberDelete(portGroupName, portUUID)
 				if err != nil {
-					return "", errors.Wrapf(err, "Failed getting port group UUID for security ACL %q removal", aclName)
+					return "", errors.Wrapf(err, "Failed removing logical port %q from port group %q for security ACL %q removal", instancePortName, portGroupName, aclName)
 				}
-
-				// If port group exists, remove logical port from it.
-				if portGroupUUID != "" {
-					// Remove port from port group.
-					err = client.PortGroupMemberDelete(portGroupName, portUUID)
-					if err != nil {
-						return "", errors.Wrapf(err, "Failed removing logical port %q from port group %q for security ACL %q removal", instancePortName, portGroupName, aclName)
-					}
-					n.logger.Debug("Removed logical port from ACL port group", log.Ctx{"networkACL": aclName, "portGroup": portGroupName, "port": instancePortName})
-				}
+				n.logger.Debug("Removed logical port from ACL port group", log.Ctx{"networkACL": aclName, "portGroup": portGroupName, "port": instancePortName})
 			}
 		}
 	}
