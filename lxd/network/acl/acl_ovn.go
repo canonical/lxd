@@ -31,14 +31,12 @@ func OVNACLPortGroupName(networkACLID int64) openvswitch.OVNPortGroup {
 }
 
 // OVNEnsureACLs ensures that the requested aclNames exist as OVN port groups (creates & applies ACL rules if not),
-// and adds the requested addMembers to the new or existing OVN port groups. If forceApplyRules is true then the
+// and adds the requested addMembers to the new or existing OVN port groups. If reapplyRules is true then the
 // current ACL rules in the database are applied to the existing port groups rather than just new ones.
+// Any ACLs referenced in the requested ACLs rules are also created as empty OVN port groups if needed.
+// If a requested ACL exists, but has no ACL rules applied, then the current rules are loaded out of the database
+// and applied.
 func OVNEnsureACLs(s *state.State, logger logger.Logger, client *openvswitch.OVN, aclProjectName string, aclNameIDs map[string]int64, aclNames []string, reapplyRules bool, addMembers ...openvswitch.OVNSwitchPort) (*revert.Reverter, error) {
-	return ovnEnsureACLs(s, logger, client, aclProjectName, aclNameIDs, aclNames, reapplyRules, true, addMembers...)
-}
-
-// ovnEnsureACLs unexported version of OVNEnsureACLs with recurse argument.
-func ovnEnsureACLs(s *state.State, logger logger.Logger, client *openvswitch.OVN, aclProjectName string, aclNameIDs map[string]int64, aclNames []string, reapplyRules bool, recurse bool, addMembers ...openvswitch.OVNSwitchPort) (*revert.Reverter, error) {
 	revert := revert.New()
 	defer revert.Fail()
 
@@ -51,28 +49,69 @@ func ovnEnsureACLs(s *state.State, logger logger.Logger, client *openvswitch.OVN
 	}
 
 	// Next check which OVN port groups need creating and which exist already.
-	createACLPortGroups := []string{}
-	existingACLPortGroups := []string{}
+	type aclStatus struct {
+		name    string
+		uuid    openvswitch.OVNPortGroupUUID
+		aclInfo *api.NetworkACL
+	}
+	existingACLPortGroups := []aclStatus{}
+	createACLPortGroups := []aclStatus{}
+
 	for _, aclName := range aclNames {
 		portGroupName := OVNACLPortGroupName(aclNameIDs[aclName])
 
-		// Check if port group exists.
-		portGroupUUID, _, err := client.PortGroupInfo(portGroupName)
+		// Check if port group exists and has ACLs.
+		portGroupUUID, hasACLs, err := client.PortGroupInfo(portGroupName)
 		if err != nil {
 			return nil, errors.Wrapf(err, "Failed getting port group UUID for security ACL %q setup", aclName)
 		}
 
 		if portGroupUUID == "" {
-			createACLPortGroups = append(createACLPortGroups, aclName)
+			// Load the config we'll need to create the port group with ACL rules.
+			_, aclInfo, err := s.Cluster.GetNetworkACL(aclProjectName, aclName)
+			if err != nil {
+				return nil, errors.Wrapf(err, "Failed loading Network ACL %q", aclName)
+			}
+
+			createACLPortGroups = append(createACLPortGroups, aclStatus{name: aclName, aclInfo: aclInfo})
 		} else {
-			existingACLPortGroups = append(existingACLPortGroups, aclName)
+			var aclInfo *api.NetworkACL
+
+			// If we are being asked to forcefully reapply the rules, or if the port group exists but
+			// doesn't have any rules, then we load the current rule set from the database to apply.
+			// Note: An empty ACL list on a port group means it has only been partially setup, as
+			// even LXD Network ACLs with no rules should have at least 1 OVN ACL applied because of
+			// the default drop rule we add.
+			if reapplyRules || !hasACLs {
+				_, aclInfo, err = s.Cluster.GetNetworkACL(aclProjectName, aclName)
+				if err != nil {
+					return nil, errors.Wrapf(err, "Failed loading Network ACL %q", aclName)
+				}
+
+			}
+
+			existingACLPortGroups = append(existingACLPortGroups, aclStatus{name: aclName, uuid: portGroupUUID, aclInfo: aclInfo})
 		}
+	}
+
+	// Build a list of referenced ACLs in the rules of ACLs we need to create.
+	// We will create port groups (without ACL rules) for any missing referenced ACL OVN port groups so that
+	// when we add the rules for the new ACL port groups this doesn't trigger an OVN log error about missing
+	// port groups.
+	referencedACLs := make(map[string]struct{}, 0)
+	for _, aclStatus := range createACLPortGroups {
+		ovnAddReferencedACLs(s, aclProjectName, aclStatus.aclInfo, referencedACLs)
+	}
+
+	// Remove any references for our creation ACLs as we don't want to try and create them twice.
+	for _, aclStatus := range createACLPortGroups {
+		delete(referencedACLs, aclStatus.name)
 	}
 
 	// Retrieve instance port UUIDs to add to existing port groups if needed.
 	var memberUUIDs map[openvswitch.OVNSwitchPort]openvswitch.OVNSwitchPortUUID
-	if len(aclNames) > len(createACLPortGroups) {
-		memberUUIDs = make(map[openvswitch.OVNSwitchPort]openvswitch.OVNSwitchPortUUID, len(aclNames)-len(createACLPortGroups))
+	if len(existingACLPortGroups) > 0 {
+		memberUUIDs = make(map[openvswitch.OVNSwitchPort]openvswitch.OVNSwitchPortUUID, len(addMembers))
 
 		for _, memberName := range addMembers {
 			// Get logical port UUID.
@@ -85,88 +124,79 @@ func ovnEnsureACLs(s *state.State, logger logger.Logger, client *openvswitch.OVN
 		}
 	}
 
-	// Create the needed port groups (and add requested members), then apply ACL rules to new port group.
-	for _, aclName := range createACLPortGroups {
+	// Create any missing port groups for the referenced ACLs before creating the requested ACL port groups.
+	// This way the referenced port groups will exist for any rules that referenced them in the creation ACLs.
+	// Note: We only create the empty port group, we do not add the ACL rules, so it is expected that any
+	// future direct assignment of these referenced ACLs will trigger the ACL rules being added if needed.
+	for aclName := range referencedACLs {
 		portGroupName := OVNACLPortGroupName(aclNameIDs[aclName])
-		logger.Debug("Creating ACL OVN port group", log.Ctx{"networkACL": aclName, "portGroup": portGroupName, "addMembers": addMembers})
+
+		// Check if port group exists.
+		portGroupUUID, _, err := client.PortGroupInfo(portGroupName)
+		if err != nil {
+			return nil, errors.Wrapf(err, "Failed getting port group UUID for security ACL %q setup", aclName)
+		}
+
+		if portGroupUUID == "" {
+			logger.Debug("Creating empty ACL OVN port group", log.Ctx{"networkACL": aclName, "portGroup": portGroupName})
+
+			err := client.PortGroupAdd(portGroupName, addMembers...)
+			if err != nil {
+				return nil, errors.Wrapf(err, "Failed creating port group %q for referenced security ACL %q setup", portGroupName, aclName)
+			}
+			revert.Add(func() { client.PortGroupDelete(portGroupName) })
+		}
+	}
+
+	// Create the needed port groups (and add requested members), and then apply ACL rules to new port group.
+	for _, aclStatus := range createACLPortGroups {
+		portGroupName := OVNACLPortGroupName(aclNameIDs[aclStatus.name])
+		logger.Debug("Creating ACL OVN port group", log.Ctx{"networkACL": aclStatus.name, "portGroup": portGroupName, "addMembers": addMembers})
 
 		err := client.PortGroupAdd(portGroupName, addMembers...)
 		if err != nil {
-			return nil, errors.Wrapf(err, "Failed creating port group %q for security ACL %q setup", portGroupName, aclName)
+			return nil, errors.Wrapf(err, "Failed creating port group %q for security ACL %q setup", portGroupName, aclStatus.name)
 		}
 		revert.Add(func() { client.PortGroupDelete(portGroupName) })
 
-		_, aclInfo, err := s.Cluster.GetNetworkACL(aclProjectName, aclName)
+		_, aclInfo, err := s.Cluster.GetNetworkACL(aclProjectName, aclStatus.name)
 		if err != nil {
-			return nil, errors.Wrapf(err, "Failed loading Network ACL %q", aclName)
-		}
-
-		if recurse {
-			// If recursion is enabled, before applying rules to port group, check if the rules
-			// reference any other ACLs, and ensure they exist as OVN port groups first.
-			// Note: This is to avoid OVN error messages in the logs complaining that a port group
-			// referenced in our ACL rules doesn't exist. However it is not completely full-proof as
-			// if there is a circular dependency between ACLs then one of them may cause error logs
-			// briefly until the other is created.
-
-			// Preload ourself into referenced URLs, as we know we are going to ensure ourselves below.
-			referencedACLs := map[string]*api.NetworkACL{aclInfo.Name: aclInfo}
-
-			// Now recursively find any other ACLs referenced, and build up an authoritative list.
-			err = ovnAddReferencedACLs(s, aclProjectName, aclInfo, referencedACLs)
-			if err != nil {
-				return nil, errors.Wrapf(err, "Failed finding referenced ACLs for Network ACL %q", aclName)
-			}
-
-			// Remove ourselves now recursive check is complete, so we don't ensure ourselves twice.
-			delete(referencedACLs, aclInfo.Name)
-
-			// Ensure any referenced ACLs are setup.
-			if len(referencedACLs) > 0 {
-				ensureReferencedACLs := make([]string, 0, len(referencedACLs))
-				for aclName := range referencedACLs {
-					ensureReferencedACLs = append(ensureReferencedACLs, aclName)
-				}
-
-				r, err := ovnEnsureACLs(s, logger, client, aclProjectName, aclNameIDs, ensureReferencedACLs, false, false)
-				if err != nil {
-					return revert, errors.Wrapf(err, "Failed ensuring referenced security ACLs are configured in OVN for ACL %q", aclName)
-				}
-				revert.Add(r.Fail)
-			}
+			return nil, errors.Wrapf(err, "Failed loading Network ACL %q", aclStatus.name)
 		}
 
 		// Now apply our ACL rules to port group.
 		err = ovnApplyToPortGroup(s, client, aclInfo, portGroupName, aclNameIDs)
 		if err != nil {
-			return nil, errors.Wrapf(err, "Failed adding ACL rules to port group %q for security ACL %q setup", portGroupName, aclName)
+			return nil, errors.Wrapf(err, "Failed applying ACL rules to port group %q for security ACL %q setup", portGroupName, aclStatus.name)
 		}
 	}
 
 	// Add member ports to existing port groups.
-	for _, aclName := range existingACLPortGroups {
-		portGroupName := OVNACLPortGroupName(aclNameIDs[aclName])
+	for _, aclStatus := range existingACLPortGroups {
+		portGroupName := OVNACLPortGroupName(aclNameIDs[aclStatus.name])
 
-		if reapplyRules {
-			logger.Debug("Applying ACL rules to OVN port group", log.Ctx{"networkACL": aclName, "portGroup": portGroupName})
-			_, aclInfo, err := s.Cluster.GetNetworkACL(aclProjectName, aclName)
+		// If aclInfo has been loaded, then we should use it to apply ACL rules to the existing port group.
+		if aclStatus.aclInfo != nil {
+			logger.Debug("Applying ACL rules to OVN port group", log.Ctx{"networkACL": aclStatus.name, "portGroup": portGroupName})
+
+			_, aclInfo, err := s.Cluster.GetNetworkACL(aclProjectName, aclStatus.name)
 			if err != nil {
-				return nil, errors.Wrapf(err, "Failed loading Network ACL %q", aclName)
+				return nil, errors.Wrapf(err, "Failed loading Network ACL %q", aclStatus.name)
 			}
 
 			err = ovnApplyToPortGroup(s, client, aclInfo, portGroupName, aclNameIDs)
 			if err != nil {
-				return nil, errors.Wrapf(err, "Failed applying ACL rules to port group %q for security ACL %q setup", portGroupName, aclName)
+				return nil, errors.Wrapf(err, "Failed applying ACL rules to port group %q for security ACL %q setup", portGroupName, aclStatus.name)
 			}
 		}
 
 		if len(addMembers) > 0 {
-			logger.Debug("Adding ACL OVN port group members", log.Ctx{"networkACL": aclName, "portGroup": portGroupName, "addMembers": addMembers})
+			logger.Debug("Adding ACL OVN port group members", log.Ctx{"networkACL": aclStatus.name, "portGroup": portGroupName, "addMembers": addMembers})
 
 			for _, memberName := range addMembers {
 				err := client.PortGroupMemberAdd(portGroupName, memberUUIDs[memberName])
 				if err != nil {
-					return nil, errors.Wrapf(err, "Failed adding logical port %q to port group %q for security ACL %q setup", memberName, portGroupName, aclName)
+					return nil, errors.Wrapf(err, "Failed adding logical port %q to port group %q for security ACL %q setup", memberName, portGroupName, aclStatus.name)
 
 				}
 			}
@@ -178,58 +208,31 @@ func ovnEnsureACLs(s *state.State, logger logger.Logger, client *openvswitch.OVN
 	return r, nil
 }
 
-// ovnAddReferencedACLs builds a recursive list of ACLs referenced by the rules in the supplied ACL.
-func ovnAddReferencedACLs(s *state.State, aclProjectName string, info *api.NetworkACL, referencedACLNames map[string]*api.NetworkACL) error {
-	recurseACLNames := []string{}
-
-	addACLNamesFrom := func(ruleSubjects []string) error {
+// ovnAddReferencedACLs adds to the referencedACLNames any ACLs referenced by the rules in the supplied ACL.
+func ovnAddReferencedACLs(s *state.State, aclProjectName string, info *api.NetworkACL, referencedACLNames map[string]struct{}) {
+	addACLNamesFrom := func(ruleSubjects []string) {
 		for _, subject := range ruleSubjects {
+			if _, found := referencedACLNames[subject]; found {
+				continue // Skip subjects already seen.
+			}
+
 			if validate.IsNetworkAddressCIDR(subject) == nil || validate.IsNetworkRange(subject) == nil {
 				continue // Skip  if the subject is an IP CIDR or IP range.
 			}
 
 			// Anything else must be a referenced ACL name.
-			if _, found := referencedACLNames[subject]; !found {
-				_, aclInfo, err := s.Cluster.GetNetworkACL(aclProjectName, subject)
-				if err != nil {
-					return errors.Wrapf(err, "Failed loading Network ACL %q", subject)
-				}
-
-				referencedACLNames[subject] = aclInfo
-				recurseACLNames = append(recurseACLNames, subject) // ACL to recurse into.
-			}
+			// Record newly seen referenced ACL into authoriative list.
+			referencedACLNames[subject] = struct{}{}
 		}
-
-		return nil
 	}
 
 	for _, rule := range info.Ingress {
-		err := addACLNamesFrom(util.SplitNTrimSpace(rule.Source, ",", -1, true))
-		if err != nil {
-			return err
-		}
+		addACLNamesFrom(util.SplitNTrimSpace(rule.Source, ",", -1, true))
 	}
 
 	for _, rule := range info.Egress {
-		err := addACLNamesFrom(util.SplitNTrimSpace(rule.Destination, ",", -1, true))
-		if err != nil {
-			return err
-		}
+		addACLNamesFrom(util.SplitNTrimSpace(rule.Destination, ",", -1, true))
 	}
-
-	// Recurse into referenced ACLs to build up full list.
-	for _, recurseACLName := range recurseACLNames {
-		if recurseACLName == info.Name {
-			continue // Skip ourselves.
-		}
-
-		err := ovnAddReferencedACLs(s, aclProjectName, referencedACLNames[recurseACLName], referencedACLNames)
-		if err != nil {
-			return err
-		}
-	}
-
-	return nil
 }
 
 // ovnApplyToPortGroup applies the rules in the specified ACL to the specified port group.
