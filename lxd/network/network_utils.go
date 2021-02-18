@@ -89,10 +89,45 @@ func RandomDevName(prefix string) string {
 // UsedBy returns list of API resources using network. Accepts firstOnly argument to indicate that only the first
 // resource using network should be returned. This can help to quickly check if the network is in use.
 func UsedBy(s *state.State, networkName string, firstOnly bool) ([]string, error) {
+	var err error
 	var usedBy []string
 
-	// Look at instances.
-	err := s.Cluster.InstanceList(nil, func(inst db.Instance, p api.Project, profiles []api.Profile) error {
+	// Look for profiles. Cheapest to do.
+	var profiles []db.Profile
+	err = s.Cluster.Transaction(func(tx *db.ClusterTx) error {
+		profiles, err = tx.GetProfiles(db.ProfileFilter{})
+		if err != nil {
+			return err
+		}
+
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	for _, profile := range profiles {
+		inUse, err := isInUseByProfile(s, profile, networkName)
+		if err != nil {
+			return nil, err
+		}
+
+		if inUse {
+			uri := fmt.Sprintf("/%s/profiles/%s", version.APIVersion, profile.Name)
+			if profile.Project != project.Default {
+				uri += fmt.Sprintf("?project=%s", profile.Project)
+			}
+
+			usedBy = append(usedBy, uri)
+
+			if firstOnly {
+				return usedBy, nil
+			}
+		}
+	}
+
+	// Look at instances. Most expensive to do.
+	err = s.Cluster.InstanceList(nil, func(inst db.Instance, p api.Project, profiles []api.Profile) error {
 		// Look for NIC devices using this network.
 		devices := db.ExpandInstanceDevices(deviceConfig.NewDevices(inst.Devices), profiles)
 		for _, devConfig := range devices {
@@ -125,40 +160,6 @@ func UsedBy(s *state.State, networkName string, firstOnly bool) ([]string, error
 		}
 
 		return nil, err
-	}
-
-	// Look for profiles.
-	var profiles []db.Profile
-	err = s.Cluster.Transaction(func(tx *db.ClusterTx) error {
-		profiles, err = tx.GetProfiles(db.ProfileFilter{})
-		if err != nil {
-			return err
-		}
-
-		return nil
-	})
-	if err != nil {
-		return nil, err
-	}
-
-	for _, profile := range profiles {
-		inUse, err := isInUseByProfile(s, profile, networkName)
-		if err != nil {
-			return nil, err
-		}
-
-		if inUse {
-			uri := fmt.Sprintf("/%s/profiles/%s", version.APIVersion, profile.Name)
-			if profile.Project != project.Default {
-				uri += fmt.Sprintf("?project=%s", profile.Project)
-			}
-
-			usedBy = append(usedBy, uri)
-
-			if firstOnly {
-				return usedBy, nil
-			}
-		}
 	}
 
 	return usedBy, nil
