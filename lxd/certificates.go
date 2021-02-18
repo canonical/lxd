@@ -49,6 +49,86 @@ var certificateCmd = APIEndpoint{
 	Put:    APIEndpointAction{Handler: certificatePut},
 }
 
+// swagger:operation GET /1.0/certificates certificates certificates_get
+//
+// Get the trusted certificates
+//
+// Returns a list of trusted certificates (URLs).
+//
+// ---
+// produces:
+//   - application/json
+// responses:
+//   "200":
+//     description: API endpoints
+//     schema:
+//       type: object
+//       description: Sync response
+//       properties:
+//         type:
+//           type: string
+//           description: Response type
+//           example: sync
+//         status:
+//           type: string
+//           description: Status description
+//           example: Success
+//         status_code:
+//           type: int
+//           description: Status code
+//           example: 200
+//         metadata:
+//           type: array
+//           description: List of endpoints
+//           items:
+//             type: string
+//           example: |-
+//             [
+//               "/1.0/certificates/390fdd27ed5dc2408edc11fe602eafceb6c025ddbad9341dfdcb1056a8dd98b1",
+//               "/1.0/certificates/22aee3f051f96abe6d7756892eecabf4b4b22e2ba877840a4ca981e9ea54030a"
+//             ]
+//   "403":
+//     $ref: "#/responses/Forbidden"
+//   "500":
+//     $ref: "#/responses/InternalServerError"
+
+// swagger:operation GET /1.0/certificates?recursion=1 certificates certificates_get_recursion1
+//
+// Get the trusted certificates
+//
+// Returns a list of trusted certificates (structs).
+//
+// ---
+// produces:
+//   - application/json
+// responses:
+//   "200":
+//     description: API endpoints
+//     schema:
+//       type: object
+//       description: Sync response
+//       properties:
+//         type:
+//           type: string
+//           description: Response type
+//           example: sync
+//         status:
+//           type: string
+//           description: Status description
+//           example: Success
+//         status_code:
+//           type: int
+//           description: Status code
+//           example: 200
+//         metadata:
+//           type: array
+//           description: List of certificates
+//           items:
+//             $ref: "#/definitions/Certificate"
+//   "403":
+//     $ref: "#/responses/Forbidden"
+//   "500":
+//     $ref: "#/responses/InternalServerError"
 func certificatesGet(d *Daemon, r *http.Request) response.Response {
 	recursion := util.IsRecursionRequest(r)
 
@@ -125,6 +205,70 @@ func updateCertificateCache(d *Daemon) {
 	d.clientCerts.Lock.Unlock()
 }
 
+// swagger:operation POST /1.0/certificates?public certificates certificates_post_untrusted
+//
+// Add a trusted certificate
+//
+// Adds a certificate to the trust store as an untrusted user.
+// In this mode, the `password` property must be set to the correct value.
+//
+// The `certificate` field can be omitted in which case the TLS client
+// certificate in use for the connection will be retrieved and added to the
+// trust store.
+//
+// The `?public` part of the URL isn't required, it's simply used to
+// separate the two behaviors of this endpoint.
+//
+// ---
+// consumes:
+//   - application/json
+// produces:
+//   - application/json
+// parameters:
+//   - in: body
+//     name: certificate
+//     description: Certificate
+//     required: true
+//     schema:
+//       $ref: "#/definitions/CertificatesPost"
+// responses:
+//   "200":
+//     $ref: "#/responses/EmptySyncResponse"
+//   "400":
+//     $ref: "#/responses/BadRequest"
+//   "403":
+//     $ref: "#/responses/Forbidden"
+//   "500":
+//     $ref: "#/responses/InternalServerError"
+
+// swagger:operation POST /1.0/certificates certificates certificates_post
+//
+// Add a trusted certificate
+//
+// Adds a certificate to the trust store.
+// In this mode, the `password` property is always ignored.
+//
+// ---
+// consumes:
+//   - application/json
+// produces:
+//   - application/json
+// parameters:
+//   - in: body
+//     name: certificate
+//     description: Certificate
+//     required: true
+//     schema:
+//       $ref: "#/definitions/CertificatesPost"
+// responses:
+//   "200":
+//     $ref: "#/responses/EmptySyncResponse"
+//   "400":
+//     $ref: "#/responses/BadRequest"
+//   "403":
+//     $ref: "#/responses/Forbidden"
+//   "500":
+//     $ref: "#/responses/InternalServerError"
 func certificatesPost(d *Daemon, r *http.Request) response.Response {
 	// Parse the request
 	req := api.CertificatesPost{}
@@ -242,6 +386,40 @@ func certificatesPost(d *Daemon, r *http.Request) response.Response {
 	return response.SyncResponseLocation(true, nil, fmt.Sprintf("/%s/certificates/%s", version.APIVersion, fingerprint))
 }
 
+// swagger:operation GET /1.0/certificates/{fingerprint} certificates certificate_get
+//
+// Get the trusted certificate
+//
+// Gets a specific certificate entry from the trust store.
+//
+// ---
+// produces:
+//   - application/json
+// responses:
+//   "200":
+//     description: Certificate
+//     schema:
+//       type: object
+//       description: Sync response
+//       properties:
+//         type:
+//           type: string
+//           description: Response type
+//           example: sync
+//         status:
+//           type: string
+//           description: Status description
+//           example: Success
+//         status_code:
+//           type: int
+//           description: Status code
+//           example: 200
+//         metadata:
+//           $ref: "#/definitions/Certificate"
+//   "403":
+//     $ref: "#/responses/Forbidden"
+//   "500":
+//     $ref: "#/responses/InternalServerError"
 func certificateGet(d *Daemon, r *http.Request) response.Response {
 	fingerprint := mux.Vars(r)["fingerprint"]
 
@@ -254,6 +432,35 @@ func certificateGet(d *Daemon, r *http.Request) response.Response {
 	return response.SyncResponseETag(true, cert, cert)
 }
 
+// swagger:operation PUT /1.0/certificates/{fingerprint} certificates certificate_put
+//
+// Update the trusted certificate
+//
+// Updates the entire certificate configuration.
+//
+// ---
+// consumes:
+//   - application/json
+// produces:
+//   - application/json
+// parameters:
+//   - in: body
+//     name: certificate
+//     description: Certificate configuration
+//     required: true
+//     schema:
+//       $ref: "#/definitions/CertificatePut"
+// responses:
+//   "200":
+//     $ref: "#/responses/EmptySyncResponse"
+//   "400":
+//     $ref: "#/responses/BadRequest"
+//   "403":
+//     $ref: "#/responses/Forbidden"
+//   "412":
+//     $ref: "#/responses/PreconditionFailed"
+//   "500":
+//     $ref: "#/responses/InternalServerError"
 func certificatePut(d *Daemon, r *http.Request) response.Response {
 	fingerprint := mux.Vars(r)["fingerprint"]
 
@@ -283,6 +490,35 @@ func certificatePut(d *Daemon, r *http.Request) response.Response {
 	return doCertificateUpdate(d, *oldEntry, fingerprint, req)
 }
 
+// swagger:operation PATCH /1.0/certificates/{fingerprint} certificates certificate_patch
+//
+// Partially update the trusted certificate
+//
+// Updates a subset of the certificate configuration.
+//
+// ---
+// consumes:
+//   - application/json
+// produces:
+//   - application/json
+// parameters:
+//   - in: body
+//     name: certificate
+//     description: Certificate configuration
+//     required: true
+//     schema:
+//       $ref: "#/definitions/CertificatePut"
+// responses:
+//   "200":
+//     $ref: "#/responses/EmptySyncResponse"
+//   "400":
+//     $ref: "#/responses/BadRequest"
+//   "403":
+//     $ref: "#/responses/Forbidden"
+//   "412":
+//     $ref: "#/responses/PreconditionFailed"
+//   "500":
+//     $ref: "#/responses/InternalServerError"
 func certificatePatch(d *Daemon, r *http.Request) response.Response {
 	fingerprint := mux.Vars(r)["fingerprint"]
 
@@ -345,6 +581,24 @@ func doCertificateUpdate(d *Daemon, dbInfo db.Certificate, fingerprint string, r
 	return response.EmptySyncResponse
 }
 
+// swagger:operation DELETE /1.0/certificates/{fingerprint} certificates certificate_delete
+//
+// Delete the trusted certificate
+//
+// Removes the certificate from the trust store.
+//
+// ---
+// produces:
+//   - application/json
+// responses:
+//   "200":
+//     $ref: "#/responses/EmptySyncResponse"
+//   "400":
+//     $ref: "#/responses/BadRequest"
+//   "403":
+//     $ref: "#/responses/Forbidden"
+//   "500":
+//     $ref: "#/responses/InternalServerError"
 func certificateDelete(d *Daemon, r *http.Request) response.Response {
 	fingerprint := mux.Vars(r)["fingerprint"]
 
