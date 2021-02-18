@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"unsafe"
 
 	"github.com/pkg/errors"
 	"golang.org/x/sys/unix"
@@ -25,12 +26,15 @@ func storageAddDriveInfo(devicePath string, disk *api.ResourcesStorageDisk) erro
 	f, err := os.Open(devicePath)
 	if err == nil {
 		defer f.Close()
-		fd := int(f.Fd())
 
 		// Retrieve the block size
-		res, err := unix.IoctlGetInt(fd, unix.BLKPBSZGET)
-		if err != nil {
-			return err
+		// This can't just be done with unix.Ioctl as that particular
+		// return value is 32bit and stuffing it into a 64bit variable breaks on
+		// big endian systems.
+		var res int32
+		_, _, errno := unix.Syscall(unix.SYS_IOCTL, uintptr(f.Fd()), unix.BLKPBSZGET, uintptr(unsafe.Pointer(&res)))
+		if errno != 0 {
+			return errors.Wrap(unix.Errno(errno), "Failed to BLKPBSZGET")
 		}
 
 		disk.BlockSize = uint64(res)
