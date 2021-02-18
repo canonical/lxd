@@ -1803,7 +1803,7 @@ local-hostname: %s
 	// templates on first boot. The vendor-data template then modifies the system so that the
 	// config drive is mounted and the agent is started on subsequent boots.
 	isoPath := filepath.Join(d.inst.Path(), "config.iso")
-	_, err = shared.RunCommand(mkisofsPath, "-R", "-V", "cidata", "-o", isoPath, scratchDir)
+	_, err = shared.RunCommand(mkisofsPath, "-J", "-R", "-V", "cidata", "-o", isoPath, scratchDir)
 	if err != nil {
 		return "", err
 	}
