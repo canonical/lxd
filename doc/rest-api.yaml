@@ -1,4 +1,105 @@
 definitions:
+  Certificate:
+    description: Certificate represents a LXD certificate
+    properties:
+      certificate:
+        example: X509 PEM certificate
+        type: string
+        x-go-name: Certificate
+      fingerprint:
+        example: fd200419b271f1dc2a5591b693cc5774b7f234e1ff8c6b78ad703b6888fe2b69
+        type: string
+        x-go-name: Fingerprint
+      name:
+        example: castiana
+        type: string
+        x-go-name: Name
+      projects:
+        description: 'API extension: certificate_project'
+        example:
+        - default
+        - foo
+        - bar
+        items:
+          type: string
+        type: array
+        x-go-name: Projects
+      restricted:
+        description: 'API extension: certificate_project'
+        example: true
+        type: boolean
+        x-go-name: Restricted
+      type:
+        example: client
+        type: string
+        x-go-name: Type
+    type: object
+    x-go-package: github.com/lxc/lxd/shared/api
+  CertificatePut:
+    description: 'API extension: certificate_update'
+    properties:
+      name:
+        example: castiana
+        type: string
+        x-go-name: Name
+      projects:
+        description: 'API extension: certificate_project'
+        example:
+        - default
+        - foo
+        - bar
+        items:
+          type: string
+        type: array
+        x-go-name: Projects
+      restricted:
+        description: 'API extension: certificate_project'
+        example: true
+        type: boolean
+        x-go-name: Restricted
+      type:
+        example: client
+        type: string
+        x-go-name: Type
+    title: CertificatePut represents the modifiable fields of a LXD certificate
+    type: object
+    x-go-package: github.com/lxc/lxd/shared/api
+  CertificatesPost:
+    description: CertificatesPost represents the fields of a new LXD certificate
+    properties:
+      certificate:
+        example: X509 PEM certificate
+        type: string
+        x-go-name: Certificate
+      name:
+        example: castiana
+        type: string
+        x-go-name: Name
+      password:
+        example: blah
+        type: string
+        x-go-name: Password
+      projects:
+        description: 'API extension: certificate_project'
+        example:
+        - default
+        - foo
+        - bar
+        items:
+          type: string
+        type: array
+        x-go-name: Projects
+      restricted:
+        description: 'API extension: certificate_project'
+        example: true
+        type: boolean
+        x-go-name: Restricted
+      type:
+        example: client
+        type: string
+        x-go-name: Type
+    type: object
+    x-go-package: github.com/lxc/lxd/shared/api
   Server:
     description: Server represents a LXD server
     properties:
@@ -361,6 +462,256 @@ paths:
       summary: Update the server configuration
       tags:
       - server
+  /1.0/certificates:
+    get:
+      description: Returns a list of trusted certificates (URLs).
+      operationId: certificates_get
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: API endpoints
+          schema:
+            description: Sync response
+            properties:
+              metadata:
+                description: List of endpoints
+                example: |-
+                  [
+                    "/1.0/certificates/390fdd27ed5dc2408edc11fe602eafceb6c025ddbad9341dfdcb1056a8dd98b1",
+                    "/1.0/certificates/22aee3f051f96abe6d7756892eecabf4b4b22e2ba877840a4ca981e9ea54030a"
+                  ]
+                items:
+                  type: string
+                type: array
+              status:
+                description: Status description
+                example: Success
+                type: string
+              status_code:
+                description: Status code
+                example: 200
+                type: int
+              type:
+                description: Response type
+                example: sync
+                type: string
+            type: object
+        "403":
+          $ref: '#/responses/Forbidden'
+        "500":
+          $ref: '#/responses/InternalServerError'
+      summary: Get the trusted certificates
+      tags:
+      - certificates
+    post:
+      consumes:
+      - application/json
+      description: |-
+        Adds a certificate to the trust store.
+        In this mode, the `password` property is always ignored.
+      operationId: certificates_post
+      parameters:
+      - description: Certificate
+        in: body
+        name: certificate
+        required: true
+        schema:
+          $ref: '#/definitions/CertificatesPost'
+      produces:
+      - application/json
+      responses:
+        "200":
+          $ref: '#/responses/EmptySyncResponse'
+        "400":
+          $ref: '#/responses/BadRequest'
+        "403":
+          $ref: '#/responses/Forbidden'
+        "500":
+          $ref: '#/responses/InternalServerError'
+      summary: Add a trusted certificate
+      tags:
+      - certificates
+  /1.0/certificates/{fingerprint}:
+    delete:
+      description: Removes the certificate from the trust store.
+      operationId: certificate_delete
+      produces:
+      - application/json
+      responses:
+        "200":
+          $ref: '#/responses/EmptySyncResponse'
+        "400":
+          $ref: '#/responses/BadRequest'
+        "403":
+          $ref: '#/responses/Forbidden'
+        "500":
+          $ref: '#/responses/InternalServerError'
+      summary: Delete the trusted certificate
+      tags:
+      - certificates
+    get:
+      description: Gets a specific certificate entry from the trust store.
+      operationId: certificate_get
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Certificate
+          schema:
+            description: Sync response
+            properties:
+              metadata:
+                $ref: '#/definitions/Certificate'
+              status:
+                description: Status description
+                example: Success
+                type: string
+              status_code:
+                description: Status code
+                example: 200
+                type: int
+              type:
+                description: Response type
+                example: sync
+                type: string
+            type: object
+        "403":
+          $ref: '#/responses/Forbidden'
+        "500":
+          $ref: '#/responses/InternalServerError'
+      summary: Get the trusted certificate
+      tags:
+      - certificates
+    patch:
+      consumes:
+      - application/json
+      description: Updates a subset of the certificate configuration.
+      operationId: certificate_patch
+      parameters:
+      - description: Certificate configuration
+        in: body
+        name: certificate
+        required: true
+        schema:
+          $ref: '#/definitions/CertificatePut'
+      produces:
+      - application/json
+      responses:
+        "200":
+          $ref: '#/responses/EmptySyncResponse'
+        "400":
+          $ref: '#/responses/BadRequest'
+        "403":
+          $ref: '#/responses/Forbidden'
+        "412":
+          $ref: '#/responses/PreconditionFailed'
+        "500":
+          $ref: '#/responses/InternalServerError'
+      summary: Partially update the trusted certificate
+      tags:
+      - certificates
+    put:
+      consumes:
+      - application/json
+      description: Updates the entire certificate configuration.
+      operationId: certificate_put
+      parameters:
+      - description: Certificate configuration
+        in: body
+        name: certificate
+        required: true
+        schema:
+          $ref: '#/definitions/CertificatePut'
+      produces:
+      - application/json
+      responses:
+        "200":
+          $ref: '#/responses/EmptySyncResponse'
+        "400":
+          $ref: '#/responses/BadRequest'
+        "403":
+          $ref: '#/responses/Forbidden'
+        "412":
+          $ref: '#/responses/PreconditionFailed'
+        "500":
+          $ref: '#/responses/InternalServerError'
+      summary: Update the trusted certificate
+      tags:
+      - certificates
+  /1.0/certificates?public:
+    post:
+      consumes:
+      - application/json
+      description: |-
+        Adds a certificate to the trust store as an untrusted user.
+        In this mode, the `password` property must be set to the correct value.
+
+        The `certificate` field can be omitted in which case the TLS client
+        certificate in use for the connection will be retrieved and added to the
+        trust store.
+
+        The `?public` part of the URL isn't required, it's simply used to
+        separate the two behaviors of this endpoint.
+      operationId: certificates_post_untrusted
+      parameters:
+      - description: Certificate
+        in: body
+        name: certificate
+        required: true
+        schema:
+          $ref: '#/definitions/CertificatesPost'
+      produces:
+      - application/json
+      responses:
+        "200":
+          $ref: '#/responses/EmptySyncResponse'
+        "400":
+          $ref: '#/responses/BadRequest'
+        "403":
+          $ref: '#/responses/Forbidden'
+        "500":
+          $ref: '#/responses/InternalServerError'
+      summary: Add a trusted certificate
+      tags:
+      - certificates
+  /1.0/certificates?recursion=1:
+    get:
+      description: Returns a list of trusted certificates (structs).
+      operationId: certificates_get_recursion1
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: API endpoints
+          schema:
+            description: Sync response
+            properties:
+              metadata:
+                description: List of certificates
+                items:
+                  $ref: '#/definitions/Certificate'
+                type: array
+              status:
+                description: Status description
+                example: Success
+                type: string
+              status_code:
+                description: Status code
+                example: 200
+                type: int
+              type:
+                description: Response type
+                example: sync
+                type: string
+            type: object
+        "403":
+          $ref: '#/responses/Forbidden'
+        "500":
+          $ref: '#/responses/InternalServerError'
+      summary: Get the trusted certificates
+      tags:
+      - certificates
   /1.0?public:
     get:
       description: |-
