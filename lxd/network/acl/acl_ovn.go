@@ -57,7 +57,7 @@ func ovnEnsureACLs(s *state.State, logger logger.Logger, client *openvswitch.OVN
 		portGroupName := OVNACLPortGroupName(aclNameIDs[aclName])
 
 		// Check if port group exists.
-		portGroupUUID, err := client.PortGroupUUID(portGroupName)
+		portGroupUUID, _, err := client.PortGroupInfo(portGroupName)
 		if err != nil {
 			return nil, errors.Wrapf(err, "Failed getting port group UUID for security ACL %q setup", aclName)
 		}
