@@ -16,7 +16,43 @@ import (
 	"github.com/lxc/lxd/shared/logger"
 )
 
-// RestServer creates an http.Server capable of handling requests against the LXD REST API endpoint.
+// swagger:operation GET / server api_get
+//
+// Get the supported API enpoints
+//
+// Returns a list of supported API versions (URLs).
+//
+// Internal API endpoints are not reported as those aren't versioned and
+// should only be used by LXD itself.
+//
+// ---
+// produces:
+//   - application/json
+// responses:
+//   "200":
+//     description: API endpoints
+//     schema:
+//       type: object
+//       description: Sync response
+//       properties:
+//         type:
+//           type: string
+//           description: Response type
+//           example: sync
+//         status:
+//           type: string
+//           description: Status description
+//           example: Success
+//         status_code:
+//           type: int
+//           description: Status code
+//           example: 200
+//         metadata:
+//           type: array
+//           description: List of endpoints
+//           items:
+//             type: string
+//           example: ["/1.0"]
 func restServer(d *Daemon) *http.Server {
 	/* Setup the web server */
 	mux := mux.NewRouter()

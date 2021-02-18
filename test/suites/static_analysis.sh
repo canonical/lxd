@@ -136,12 +136,12 @@ test_static_analysis() {
       run_deadcode() {
         for i in client fuidshift lxc lxc-to-lxd lxd lxd-agent lxd-benchmark lxd-p2c shared; do
           find "${i}" -type d | while read -r line; do
-            deadcode "./${line}"
+            deadcode "./${line}" 2>&1
           done
         done
       }
 
-      OUT=$(run_deadcode)
+      OUT=$(run_deadcode | grep -v lxd/swagger.go || true)
       if [ -n "${OUT}" ]; then
         echo "${OUT}" >&2
         false
