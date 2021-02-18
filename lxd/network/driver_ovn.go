@@ -2740,7 +2740,7 @@ func (n *ovn) InstanceDevicePortAdd(opts *OVNInstanceNICSetupOpts) (openvswitch.
 				portGroupName := acl.OVNACLPortGroupName(aclID)
 
 				// Check if port group exists.
-				portGroupUUID, err := client.PortGroupUUID(portGroupName)
+				portGroupUUID, _, err := client.PortGroupInfo(portGroupName)
 				if err != nil {
 					return "", errors.Wrapf(err, "Failed getting port group UUID for security ACL %q removal", aclName)
 				}
