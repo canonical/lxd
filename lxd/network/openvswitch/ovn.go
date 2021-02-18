@@ -1180,23 +1180,26 @@ func (o *OVN) ChassisGroupChassisDelete(haChassisGroupName OVNChassisGroup, chas
 	return nil
 }
 
-// PortGroupUUID returns the port group UUID or empty string if port doesn't exist.
-func (o *OVN) PortGroupUUID(portGroupName OVNPortGroup) (OVNPortGroupUUID, error) {
-	groupInfo, err := o.nbctl("--format=csv", "--no-headings", "--data=bare", "--colum=_uuid,name", "find", "port_group",
+// PortGroupInfo returns the port group UUID or empty string if port doesn't exist, and whether the port group has
+// any ACL rules defined on it.
+func (o *OVN) PortGroupInfo(portGroupName OVNPortGroup) (OVNPortGroupUUID, bool, error) {
+	groupInfo, err := o.nbctl("--format=csv", "--no-headings", "--data=bare", "--colum=_uuid,name,acl", "find", "port_group",
 		fmt.Sprintf("name=%s", string(portGroupName)),
 	)
 	if err != nil {
-		return "", err
+		return "", false, err
 	}
 
-	groupParts := util.SplitNTrimSpace(groupInfo, ",", 2, false)
-	if len(groupParts) == 2 {
+	groupParts := util.SplitNTrimSpace(groupInfo, ",", 3, true)
+	if len(groupParts) == 3 {
 		if groupParts[1] == string(portGroupName) {
-			return OVNPortGroupUUID(groupParts[0]), nil
+			aclParts := util.SplitNTrimSpace(groupParts[2], ",", -1, true)
+
+			return OVNPortGroupUUID(groupParts[0]), len(aclParts) > 0, nil
 		}
 	}
 
-	return "", nil
+	return "", false, nil
 }
 
 // PortGroupAdd creates a new port group and optionally adds logical switch ports to the group.
@@ -1218,7 +1221,7 @@ func (o *OVN) PortGroupAdd(portGroupName OVNPortGroup, initialPortMembers ...OVN
 // PortGroupDelete deletes a port group and all ACLs associated to it.
 func (o *OVN) PortGroupDelete(portGroupName OVNPortGroup) error {
 	// ovn-nbctl doesn't provide an "--if-exists" option for removing port groups.
-	uuid, err := o.PortGroupUUID(portGroupName)
+	uuid, _, err := o.PortGroupInfo(portGroupName)
 	if err != nil {
 		return err
 	}
