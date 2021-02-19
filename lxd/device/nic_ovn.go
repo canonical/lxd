@@ -34,7 +34,6 @@ type ovnNet interface {
 	InstanceDevicePortAdd(opts *network.OVNInstanceNICSetupOpts) (openvswitch.OVNSwitchPort, error)
 	InstanceDevicePortDelete(ovsExternalOVNPort openvswitch.OVNSwitchPort, opts *network.OVNInstanceNICOpts) error
 	InstanceDevicePortDynamicIPs(instanceUUID string, deviceName string) ([]net.IP, error)
-	PortGroupDeleteIfUnused(ignoreUsageType interface{}, ignoreUsageNicName string, aclNames ...string) error
 }
 
 type nicOVN struct {
@@ -118,7 +117,7 @@ func (d *nicOVN) validateConfig(instConf instance.ConfigReader) error {
 
 	ovnNet, ok := n.(ovnNet)
 	if !ok {
-		return fmt.Errorf("Network is not OVN type")
+		return fmt.Errorf("Network is not ovnNet interface type")
 	}
 
 	d.network = ovnNet // Stored loaded instance for use by other functions.
@@ -433,7 +432,12 @@ func (d *nicOVN) Update(oldDevices deviceConfig.Devices, isRunning bool) error {
 		}
 
 		if len(removedACLs) > 0 {
-			err := d.network.PortGroupDeleteIfUnused(d.inst, d.name, removedACLs...)
+			client, err := openvswitch.NewOVN(d.state)
+			if err != nil {
+				return errors.Wrapf(err, "Failed to get OVN client")
+			}
+
+			err = acl.OVNPortGroupDeleteIfUnused(d.state, d.logger, client, d.network.Project(), d.inst, d.name, newACLs...)
 			if err != nil {
 				return errors.Wrapf(err, "Failed removing unused OVN port groups")
 			}
@@ -537,9 +541,14 @@ func (d *nicOVN) Remove() error {
 	// Check for port groups that will become unused (and need deleting) as this NIC is deleted.
 	securityACLs := util.SplitNTrimSpace(d.config["security.acls"], ",", -1, true)
 	if len(securityACLs) > 0 {
-		err := d.network.PortGroupDeleteIfUnused(d.inst, d.name, securityACLs...)
+		client, err := openvswitch.NewOVN(d.state)
 		if err != nil {
-			return err
+			return errors.Wrapf(err, "Failed to get OVN client")
+		}
+
+		err = acl.OVNPortGroupDeleteIfUnused(d.state, d.logger, client, d.network.Project(), d.inst, d.name)
+		if err != nil {
+			return errors.Wrapf(err, "Failed removing unused OVN port groups")
 		}
 	}
 

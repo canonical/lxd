@@ -16,7 +16,6 @@ import (
 	"github.com/mdlayher/netx/eui64"
 	"github.com/pkg/errors"
 
-	"github.com/lxc/lxd/lxd/cluster"
 	"github.com/lxc/lxd/lxd/cluster/request"
 	"github.com/lxc/lxd/lxd/db"
 	deviceConfig "github.com/lxc/lxd/lxd/device/config"
@@ -361,19 +360,6 @@ func (n *ovn) Validate(config map[string]string) error {
 	}
 
 	return nil
-}
-
-// getClient initialises OVN client and returns it.
-func (n *ovn) getClient() (*openvswitch.OVN, error) {
-	nbConnection, err := cluster.ConfigGetString(n.state.Cluster, "network.ovn.northbound_connection")
-	if err != nil {
-		return nil, errors.Wrapf(err, "Failed to get OVN northbound connection string")
-	}
-
-	client := openvswitch.NewOVN()
-	client.SetDatabaseAddress(nbConnection)
-
-	return client, nil
 }
 
 // getBridgeMTU returns MTU that should be used for the bridge and instance devices.
@@ -1474,9 +1460,9 @@ func (n *ovn) setup(update bool) error {
 	revert := revert.New()
 	defer revert.Fail()
 
-	client, err := n.getClient()
+	client, err := openvswitch.NewOVN(n.state)
 	if err != nil {
-		return err
+		return errors.Wrapf(err, "Failed to get OVN client")
 	}
 
 	var routerExtPortIPv4, routerIntPortIPv4, routerExtPortIPv6, routerIntPortIPv6 net.IP
@@ -1930,9 +1916,9 @@ func (n *ovn) setup(update bool) error {
 // The chassis priority value is a stable-random value derived from chassis group name and node ID. This is so we
 // don't end up using the same chassis for the primary uplink chassis for all OVN networks in a cluster.
 func (n *ovn) addChassisGroupEntry() error {
-	client, err := n.getClient()
+	client, err := openvswitch.NewOVN(n.state)
 	if err != nil {
-		return err
+		return errors.Wrapf(err, "Failed to get OVN client")
 	}
 
 	// Get local chassis ID for chassis group.
@@ -1998,9 +1984,9 @@ func (n *ovn) addChassisGroupEntry() error {
 
 // deleteChassisGroupEntry deletes an entry for the local OVS chassis from the OVN logical network's chassis group.
 func (n *ovn) deleteChassisGroupEntry() error {
-	client, err := n.getClient()
+	client, err := openvswitch.NewOVN(n.state)
 	if err != nil {
-		return err
+		return errors.Wrapf(err, "Failed to get OVN client")
 	}
 
 	// Add local chassis to chassis group.
@@ -2028,9 +2014,9 @@ func (n *ovn) Delete(clientType request.ClientType) error {
 	}
 
 	if clientType == request.ClientTypeNormal {
-		client, err := n.getClient()
+		client, err := openvswitch.NewOVN(n.state)
 		if err != nil {
-			return err
+			return errors.Wrapf(err, "Failed to get OVN client")
 		}
 
 		err = client.LogicalRouterDelete(n.getRouterName())
@@ -2082,9 +2068,9 @@ func (n *ovn) Delete(clientType request.ClientType) error {
 		// Check for port groups that will become unused (and need deleting) as this network is deleted.
 		securityACLs := util.SplitNTrimSpace(n.config["security.acls"], ",", -1, true)
 		if len(securityACLs) > 0 {
-			err = n.PortGroupDeleteIfUnused(n, "", securityACLs...)
+			err = acl.OVNPortGroupDeleteIfUnused(n.state, n.logger, client, n.project, &api.Network{Name: n.name}, "")
 			if err != nil {
-				return err
+				return errors.Wrapf(err, "Failed removing unused OVN port groups")
 			}
 		}
 	}
@@ -2229,13 +2215,13 @@ func (n *ovn) Update(newNetwork api.NetworkPut, targetNode string, clientType re
 
 		// Apply security ACL changes.
 		if len(addedACLs) > 0 || len(removedACLs) > 0 {
-			client, err := n.getClient()
+			client, err := openvswitch.NewOVN(n.state)
 			if err != nil {
-				return err
+				return errors.Wrapf(err, "Failed to get OVN client")
 			}
 
 			// Get map of ACL names to DB IDs (used for generating OVN port group names).
-			acls, err := n.state.Cluster.GetNetworkACLIDsByNames(n.Project())
+			aclNameIDs, err := n.state.Cluster.GetNetworkACLIDsByNames(n.Project())
 			if err != nil {
 				return errors.Wrapf(err, "Failed getting network ACL IDs for security ACL update")
 			}
@@ -2262,7 +2248,7 @@ func (n *ovn) Update(newNetwork api.NetworkPut, targetNode string, clientType re
 						continue // NIC already has this ACL applied directly, so no need to add.
 					}
 
-					aclID, found := acls[addedACL]
+					aclID, found := aclNameIDs[addedACL]
 					if !found {
 						return fmt.Errorf("Cannot find security ACL ID for %q", addedACL)
 					}
@@ -2283,7 +2269,7 @@ func (n *ovn) Update(newNetwork api.NetworkPut, targetNode string, clientType re
 						continue // NIC still has this ACL applied directly, so don't remove.
 					}
 
-					aclID, found := acls[removedACL]
+					aclID, found := aclNameIDs[removedACL]
 					if !found {
 						return fmt.Errorf("Cannot find security ACL ID for %q", removedACL)
 					}
@@ -2306,7 +2292,7 @@ func (n *ovn) Update(newNetwork api.NetworkPut, targetNode string, clientType re
 
 			// Check if any of the removed ACLs should also have their unused port groups deleted.
 			if len(removedACLs) > 0 {
-				err = n.PortGroupDeleteIfUnused(n, "", removedACLs...)
+				err = acl.OVNPortGroupDeleteIfUnused(n.state, n.logger, client, n.project, &api.Network{Name: n.name}, "", newACLs...)
 				if err != nil {
 					return errors.Wrapf(err, "Failed removing unused OVN port groups")
 				}
@@ -2507,9 +2493,9 @@ func (n *ovn) InstanceDevicePortAdd(opts *OVNInstanceNICSetupOpts) (openvswitch.
 	revert := revert.New()
 	defer revert.Fail()
 
-	client, err := n.getClient()
+	client, err := openvswitch.NewOVN(n.state)
 	if err != nil {
-		return "", err
+		return "", errors.Wrapf(err, "Failed to get OVN client")
 	}
 
 	dhcpv4Subnet := n.DHCPv4Subnet()
@@ -2760,9 +2746,9 @@ func (n *ovn) InstanceDevicePortDynamicIPs(instanceUUID string, deviceName strin
 
 	instancePortName := n.getInstanceDevicePortName(instanceUUID, deviceName)
 
-	client, err := n.getClient()
+	client, err := openvswitch.NewOVN(n.state)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrapf(err, "Failed to get OVN client")
 	}
 
 	return client.LogicalSwitchPortDynamicIPs(instancePortName)
@@ -2784,9 +2770,9 @@ func (n *ovn) InstanceDevicePortDelete(ovsExternalOVNPort openvswitch.OVNSwitchP
 
 	n.logger.Debug("Deleting instance port", log.Ctx{"port": instancePortName, "source": source})
 
-	client, err := n.getClient()
+	client, err := openvswitch.NewOVN(n.state)
 	if err != nil {
-		return err
+		return errors.Wrapf(err, "Failed to get OVN client")
 	}
 
 	// Load uplink network config.
@@ -3051,9 +3037,9 @@ func (n *ovn) handleDependencyChange(uplinkName string, uplinkConfig map[string]
 	if shared.StringInSlice("ovn.ingress_mode", changedKeys) {
 		n.logger.Debug("Applying ingress mode changes from uplink network to instance NICs", log.Ctx{"uplink": uplinkName})
 
-		client, err := n.getClient()
+		client, err := openvswitch.NewOVN(n.state)
 		if err != nil {
-			return err
+			return errors.Wrapf(err, "Failed to get OVN client")
 		}
 
 		if shared.StringInSlice(uplinkConfig["ovn.ingress_mode"], []string{"l2proxy", ""}) {
@@ -3136,146 +3122,6 @@ func (n *ovn) handleDependencyChange(uplinkName string, uplinkConfig map[string]
 			if err != nil {
 				return errors.Wrapf(err, "Failed deleting instance NIC ingress mode l2proxy rules")
 			}
-		}
-	}
-
-	return nil
-}
-
-// PortGroupDeleteIfUnused deletes unused port groups for the specified ACL names. Accepts optional ignoreUsageType
-// and ignoreUsageNicName args, allowing the used by logic to ignore an instance or profile NIC or network.
-func (n *ovn) PortGroupDeleteIfUnused(ignoreUsageType interface{}, ignoreUsageNicName string, aclNames ...string) error {
-	if len(aclNames) <= 0 {
-		return nil
-	}
-
-	client, err := n.getClient()
-	if err != nil {
-		return err
-	}
-
-	usedACLs := make(map[string]struct{}, 0)
-
-	// Find all networks, profiles and instance NICs that use these Network ACLs and check if any are OVN.
-	err = acl.UsedBy(n.state, n.Project(), func(matchedACLNames []string, usageType interface{}, nicName string, nicConfig map[string]string) error {
-		switch u := usageType.(type) {
-		case db.Instance:
-			ignoreInst, isIgnoreInst := ignoreUsageType.(instance.Instance)
-
-			// If an ignore instance was provided, then skip the device that the ACLs were just removed
-			// from. In case DB record is not updated until the update process has completed so we
-			// would still find it using the ACL.
-			if isIgnoreInst && ignoreInst.Name() == u.Name && ignoreInst.Project() == u.Project && ignoreUsageNicName == nicName {
-				return nil
-			}
-
-			_, network, _, err := n.state.Cluster.GetNetworkInAnyState(n.Project(), nicConfig["network"])
-			if err != nil {
-				return errors.Wrapf(err, "Failed to load network %q", nicConfig["network"])
-			}
-
-			if network.Type == "ovn" {
-				for _, matchedACLName := range matchedACLNames {
-					usedACLs[matchedACLName] = struct{}{} // Record as in use.
-				}
-
-				if len(usedACLs) >= len(aclNames) {
-					// All of the ACLs are in use, no need to search further.
-					return db.ErrInstanceListStop
-				}
-			}
-		case *api.Network:
-			ignoreNet, isIgnoreNet := ignoreUsageType.(Network)
-
-			if ignoreNet != nil && ignoreUsageNicName != "" {
-				return fmt.Errorf("ignoreUsageNicName should be empty when providing a network in ignoreUsageType")
-			}
-
-			// If an ignore network was provided, then skip the network that the ACLs were just removed
-			// from. In case DB record is not updated until the update process has completed so we
-			// would still find it using the ACL.
-			if isIgnoreNet && ignoreNet.Name() == u.Name && ignoreNet.Project() == n.Project() {
-				return nil
-			}
-
-			if u.Type == "ovn" {
-				for _, matchedACLName := range matchedACLNames {
-					usedACLs[matchedACLName] = struct{}{} // Record as in use.
-				}
-
-				if len(usedACLs) >= len(aclNames) {
-					// All of the ACLs are in use, no need to search further.
-					return db.ErrInstanceListStop
-				}
-			}
-		case db.Profile:
-			ignoreProfile, isIgnoreProfile := ignoreUsageType.(db.Profile)
-
-			// If an ignore profile was provided, then skip the device that the ACLs were just removed
-			// from. In case DB record is not updated until the update process has completed so we
-			// would still find it using the ACL.
-			if isIgnoreProfile && ignoreProfile.Name == u.Name && ignoreProfile.Project == u.Project && ignoreUsageNicName == nicName {
-				return nil
-			}
-
-			_, network, _, err := n.state.Cluster.GetNetworkInAnyState(n.Project(), nicConfig["network"])
-			if err != nil {
-				return errors.Wrapf(err, "Failed to load network %q", nicConfig["network"])
-			}
-
-			if network.Type == "ovn" {
-				for _, matchedACLName := range matchedACLNames {
-					usedACLs[matchedACLName] = struct{}{} // Record as in use.
-				}
-
-				if len(usedACLs) >= len(aclNames) {
-					// All of the ACLs are in use, no need to search further.
-					return db.ErrInstanceListStop
-				}
-			}
-		case *api.NetworkACL:
-			for _, matchedACLName := range matchedACLNames {
-				usedACLs[matchedACLName] = struct{}{} // Record as in use.
-			}
-
-			if len(usedACLs) >= len(aclNames) {
-				// All of the ACLs are in use, no need to search further.
-				return db.ErrInstanceListStop
-			}
-		default:
-			return fmt.Errorf("Unrecognised usage type %T", u)
-		}
-
-		return nil
-	}, aclNames...)
-	if err != nil && err != db.ErrInstanceListStop {
-		return errors.Wrapf(err, "Failed getting ACL usage")
-	}
-
-	if len(usedACLs) < len(aclNames) {
-		// Get map of ACL names to DB IDs (used for generating OVN port group names).
-		acls, err := n.state.Cluster.GetNetworkACLIDsByNames(n.Project())
-		if err != nil {
-			return errors.Wrapf(err, "Failed getting network ACL IDs for security ACL port group removal")
-		}
-
-		for _, aclName := range aclNames {
-			if _, inUse := usedACLs[aclName]; inUse {
-				continue
-			}
-
-			aclID, found := acls[aclName]
-			if !found {
-				return fmt.Errorf("Cannot find security ACL ID for %q", aclName)
-			}
-
-			portGroupName := acl.OVNACLPortGroupName(aclID)
-			err = client.PortGroupDelete(portGroupName)
-			if err != nil {
-				return errors.Wrapf(err, "Failed deleting OVN port group %q for security ACL %q", portGroupName, aclName)
-			}
-
-			n.logger.Debug("Deleted unused ACL port group", log.Ctx{"portGroup": portGroupName, "networkACL": aclName})
 		}
 	}
 
