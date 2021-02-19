@@ -6,7 +6,6 @@ import (
 
 	"github.com/pkg/errors"
 
-	"github.com/lxc/lxd/lxd/cluster"
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/network/openvswitch"
 	"github.com/lxc/lxd/lxd/project"
@@ -515,13 +514,10 @@ func (d *common) Update(config *api.NetworkACLPut) error {
 
 	if applyToOVN {
 		d.logger.Debug("Applying ACL rules to OVN")
-		nbConnection, err := cluster.ConfigGetString(d.state.Cluster, "network.ovn.northbound_connection")
+		client, err := openvswitch.NewOVN(d.state)
 		if err != nil {
-			return errors.Wrapf(err, "Failed to get OVN northbound connection string")
+			return errors.Wrapf(err, "Failed to get OVN client")
 		}
-
-		client := openvswitch.NewOVN()
-		client.SetDatabaseAddress(nbConnection)
 
 		// Get map of ACL names to DB IDs (used for generating OVN port group names).
 		aclNameIDs, err := d.state.Cluster.GetNetworkACLIDsByNames(d.Project())
