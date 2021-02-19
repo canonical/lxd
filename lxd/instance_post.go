@@ -223,7 +223,10 @@ func instancePost(d *Daemon, r *http.Request) response.Response {
 
 		resources := map[string][]string{}
 		resources["instances"] = []string{name}
-		resources["containers"] = resources["instances"]
+
+		if inst.Type() == instancetype.Container {
+			resources["containers"] = resources["instances"]
+		}
 
 		run := func(op *operations.Operation) error {
 			return ws.Do(d.State(), op)
@@ -270,7 +273,10 @@ func instancePost(d *Daemon, r *http.Request) response.Response {
 
 	resources := map[string][]string{}
 	resources["instances"] = []string{name}
-	resources["containers"] = resources["instances"]
+
+	if inst.Type() == instancetype.Container {
+		resources["containers"] = resources["instances"]
+	}
 
 	op, err := operations.OperationCreate(d.State(), project, operations.OperationClassTask, db.OperationInstanceRename, resources, nil, run, nil, nil)
 	if err != nil {
@@ -435,12 +441,12 @@ func instancePostClusteringMigrate(d *Daemon, inst instance.Instance, oldName, n
 }
 
 // Special case migrating a container backed by ceph across two cluster nodes.
-func instancePostClusteringMigrateWithCeph(d *Daemon, c instance.Instance, projectName, oldName, newName, newNode string, instanceType instancetype.Type) response.Response {
+func instancePostClusteringMigrateWithCeph(d *Daemon, inst instance.Instance, projectName, oldName, newName, newNode string, instanceType instancetype.Type) response.Response {
 	run := func(op *operations.Operation) error {
 		// If source node is online (i.e. we're serving the request on
 		// it, and c != nil), let's unmap the RBD volume locally
-		logger.Debugf(`Renaming RBD storage volume for source container "%s" from "%s" to "%s"`, c.Name(), c.Name(), newName)
-		poolName, err := c.StoragePool()
+		logger.Debugf(`Renaming RBD storage volume for source container "%s" from "%s" to "%s"`, inst.Name(), inst.Name(), newName)
+		poolName, err := inst.StoragePool()
 		if err != nil {
 			return errors.Wrap(err, "Failed to get source instance's storage pool name")
 		}
@@ -459,7 +465,7 @@ func instancePostClusteringMigrateWithCeph(d *Daemon, c instance.Instance, proje
 		}
 
 		// Trigger a rename in the Ceph driver.
-		err = pool.MigrateInstance(c, nil, &args, op)
+		err = pool.MigrateInstance(inst, nil, &args, op)
 		if err != nil {
 			return errors.Wrap(err, "Failed to rename ceph RBD volume")
 		}
@@ -504,7 +510,12 @@ func instancePostClusteringMigrateWithCeph(d *Daemon, c instance.Instance, proje
 	}
 
 	resources := map[string][]string{}
-	resources["containers"] = []string{oldName}
+	resources["instances"] = []string{oldName}
+
+	if inst.Type() == instancetype.Container {
+		resources["containers"] = resources["instances"]
+	}
+
 	op, err := operations.OperationCreate(d.State(), projectName, operations.OperationClassTask, db.OperationInstanceMigrate, resources, nil, run, nil, nil)
 	if err != nil {
 		return response.InternalError(err)
