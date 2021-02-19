@@ -170,8 +170,8 @@ func UsedBy(s *state.State, aclProjectName string, usageFunc func(matchedACLName
 		for _, rule := range aclInfo.Ingress {
 			for _, subject := range util.SplitNTrimSpace(rule.Source, ",", -1, true) {
 
-				// Look for matching ACLs, but ignore our own ACL reference in our own rules.
-				if shared.StringInSlice(subject, matchACLNames) && subject != aclName {
+				// Look for new matching ACLs, but ignore our own ACL reference in our own rules.
+				if shared.StringInSlice(subject, matchACLNames) && !shared.StringInSlice(subject, matchedACLNames) && subject != aclInfo.Name {
 					matchedACLNames = append(matchedACLNames, subject)
 				}
 			}
@@ -181,8 +181,8 @@ func UsedBy(s *state.State, aclProjectName string, usageFunc func(matchedACLName
 		for _, rule := range aclInfo.Egress {
 			for _, subject := range util.SplitNTrimSpace(rule.Destination, ",", -1, true) {
 
-				// Look for matching ACLs, but ignore our own ACL reference in our own rules.
-				if shared.StringInSlice(subject, matchACLNames) && subject != aclName {
+				// Look for new matching ACLs, but ignore our own ACL reference in our own rules.
+				if shared.StringInSlice(subject, matchACLNames) && !shared.StringInSlice(subject, matchedACLNames) && subject != aclInfo.Name {
 					matchedACLNames = append(matchedACLNames, subject)
 				}
 			}
