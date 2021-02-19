@@ -7,6 +7,7 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/instance"
+	"github.com/lxc/lxd/lxd/instance/instancetype"
 	"github.com/lxc/lxd/lxd/operations"
 	"github.com/lxc/lxd/lxd/response"
 )
@@ -28,21 +29,25 @@ func instanceDelete(d *Daemon, r *http.Request) response.Response {
 		return resp
 	}
 
-	c, err := instance.LoadByProjectAndName(d.State(), project, name)
+	inst, err := instance.LoadByProjectAndName(d.State(), project, name)
 	if err != nil {
 		return response.SmartError(err)
 	}
 
-	if c.IsRunning() {
+	if inst.IsRunning() {
 		return response.BadRequest(fmt.Errorf("Instance is running"))
 	}
 
 	rmct := func(op *operations.Operation) error {
-		return c.Delete(false)
+		return inst.Delete(false)
 	}
 
 	resources := map[string][]string{}
-	resources["containers"] = []string{name}
+	resources["instances"] = []string{name}
+
+	if inst.Type() == instancetype.Container {
+		resources["containers"] = resources["instances"]
+	}
 
 	op, err := operations.OperationCreate(d.State(), project, operations.OperationClassTask, db.OperationInstanceDelete, resources, nil, rmct, nil, nil)
 	if err != nil {
