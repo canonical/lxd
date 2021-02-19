@@ -7,6 +7,10 @@ import (
 	"strings"
 	"time"
 
+	"github.com/pkg/errors"
+
+	"github.com/lxc/lxd/lxd/cluster"
+	"github.com/lxc/lxd/lxd/state"
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
 )
@@ -116,9 +120,17 @@ type OVNACLRule struct {
 	LogName   string // Log label name (requires Log be true).
 }
 
-// NewOVN initialises new OVN wrapper.
-func NewOVN() *OVN {
-	return &OVN{}
+// NewOVN initialises new OVN client wrapper with the connection set in network.ovn.northbound_connection config.
+func NewOVN(s *state.State) (*OVN, error) {
+	nbConnection, err := cluster.ConfigGetString(s.Cluster, "network.ovn.northbound_connection")
+	if err != nil {
+		return nil, errors.Wrapf(err, "Failed to get OVN northbound connection string")
+	}
+
+	client := &OVN{}
+	client.SetDatabaseAddress(nbConnection)
+
+	return client, err
 }
 
 // OVN command wrapper.
