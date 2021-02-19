@@ -107,7 +107,10 @@ func createFromImage(d *Daemon, projectName string, req *api.InstancesPost) resp
 
 	resources := map[string][]string{}
 	resources["instances"] = []string{req.Name}
-	resources["containers"] = resources["instances"] // Populate old field name.
+
+	if dbType == instancetype.Container {
+		resources["containers"] = resources["instances"]
+	}
 
 	op, err := operations.OperationCreate(d.State(), projectName, operations.OperationClassTask, db.OperationInstanceCreate, resources, nil, run, nil, nil)
 	if err != nil {
@@ -149,7 +152,10 @@ func createFromNone(d *Daemon, projectName string, req *api.InstancesPost) respo
 
 	resources := map[string][]string{}
 	resources["instances"] = []string{req.Name}
-	resources["containers"] = resources["instances"] // Populate old field name.
+
+	if dbType == instancetype.Container {
+		resources["containers"] = resources["instances"]
+	}
 
 	op, err := operations.OperationCreate(d.State(), projectName, operations.OperationClassTask, db.OperationInstanceCreate, resources, nil, run, nil, nil)
 	if err != nil {
@@ -351,7 +357,10 @@ func createFromMigration(d *Daemon, projectName string, req *api.InstancesPost) 
 
 	resources := map[string][]string{}
 	resources["instances"] = []string{req.Name}
-	resources["containers"] = resources["instances"]
+
+	if dbType == instancetype.Container {
+		resources["containers"] = resources["instances"]
+	}
 
 	var op *operations.Operation
 	if push {
@@ -534,7 +543,10 @@ func createFromCopy(d *Daemon, projectName string, req *api.InstancesPost) respo
 
 	resources := map[string][]string{}
 	resources["instances"] = []string{req.Name, req.Source.Source}
-	resources["containers"] = resources["instances"] // Populate old field name.
+
+	if dbType == instancetype.Container {
+		resources["containers"] = resources["instances"]
+	}
 
 	op, err := operations.OperationCreate(d.State(), targetProject, operations.OperationClassTask, db.OperationInstanceCreate, resources, nil, run, nil, nil)
 	if err != nil {
