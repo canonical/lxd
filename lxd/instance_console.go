@@ -451,7 +451,10 @@ func instanceConsolePost(d *Daemon, r *http.Request) response.Response {
 
 	resources := map[string][]string{}
 	resources["instances"] = []string{ws.instance.Name()}
-	resources["containers"] = resources["instances"] // Old field name.
+
+	if inst.Type() == instancetype.Container {
+		resources["containers"] = resources["instances"]
+	}
 
 	op, err := operations.OperationCreate(d.State(), project, operations.OperationClassWebsocket, db.OperationConsoleShow,
 		resources, ws.Metadata(), ws.Do, nil, ws.Connect)
