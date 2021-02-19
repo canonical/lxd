@@ -525,11 +525,17 @@ func (d *common) Update(config *api.NetworkACLPut) error {
 			return errors.Wrapf(err, "Failed getting network ACL IDs for security ACL update")
 		}
 
+		// Request that the ACL and any referenced ACLs in the ruleset are created in OVN.
 		r, err := OVNEnsureACLs(d.state, d.logger, client, d.projectName, aclNameIDs, []string{d.info.Name}, true)
 		if err != nil {
 			return errors.Wrapf(err, "Failed ensuring ACL is configured in OVN")
 		}
 		revert.Add(r.Fail)
+
+		err = OVNPortGroupDeleteIfUnused(d.state, d.logger, client, d.projectName, nil, "", d.info.Name)
+		if err != nil {
+			return errors.Wrapf(err, "Failed removing unused OVN port groups")
+		}
 	}
 
 	revert.Success()
