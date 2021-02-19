@@ -102,7 +102,14 @@ func OVNEnsureACLs(s *state.State, logger logger.Logger, client *openvswitch.OVN
 	// port groups.
 	referencedACLs := make(map[string]struct{}, 0)
 	for _, aclStatus := range createACLPortGroups {
-		ovnAddReferencedACLs(s, aclProjectName, aclStatus.aclInfo, referencedACLs)
+		ovnAddReferencedACLs(aclStatus.aclInfo, referencedACLs)
+	}
+
+	if reapplyRules {
+		// Also add referenced ACLs in existing ACL rulesets if reapplying rules, as they may have changed.
+		for _, aclStatus := range existingACLPortGroups {
+			ovnAddReferencedACLs(aclStatus.aclInfo, referencedACLs)
+		}
 	}
 
 	// Remove any references for our creation ACLs as we don't want to try and create them twice.
@@ -211,7 +218,7 @@ func OVNEnsureACLs(s *state.State, logger logger.Logger, client *openvswitch.OVN
 }
 
 // ovnAddReferencedACLs adds to the referencedACLNames any ACLs referenced by the rules in the supplied ACL.
-func ovnAddReferencedACLs(s *state.State, aclProjectName string, info *api.NetworkACL, referencedACLNames map[string]struct{}) {
+func ovnAddReferencedACLs(info *api.NetworkACL, referencedACLNames map[string]struct{}) {
 	addACLNamesFrom := func(ruleSubjects []string) {
 		for _, subject := range ruleSubjects {
 			if _, found := referencedACLNames[subject]; found {
