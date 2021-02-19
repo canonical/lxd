@@ -2235,7 +2235,7 @@ func (n *ovn) Update(newNetwork api.NetworkPut, targetNode string, clientType re
 			}
 
 			// Get map of ACL names to DB IDs (used for generating OVN port group names).
-			acls, err := n.state.Cluster.GetNetworkACLIDsByNames(n.Project())
+			aclNameIDs, err := n.state.Cluster.GetNetworkACLIDsByNames(n.Project())
 			if err != nil {
 				return errors.Wrapf(err, "Failed getting network ACL IDs for security ACL update")
 			}
@@ -2262,7 +2262,7 @@ func (n *ovn) Update(newNetwork api.NetworkPut, targetNode string, clientType re
 						continue // NIC already has this ACL applied directly, so no need to add.
 					}
 
-					aclID, found := acls[addedACL]
+					aclID, found := aclNameIDs[addedACL]
 					if !found {
 						return fmt.Errorf("Cannot find security ACL ID for %q", addedACL)
 					}
@@ -2283,7 +2283,7 @@ func (n *ovn) Update(newNetwork api.NetworkPut, targetNode string, clientType re
 						continue // NIC still has this ACL applied directly, so don't remove.
 					}
 
-					aclID, found := acls[removedACL]
+					aclID, found := aclNameIDs[removedACL]
 					if !found {
 						return fmt.Errorf("Cannot find security ACL ID for %q", removedACL)
 					}
