@@ -7,6 +7,8 @@ import (
 
 	"github.com/pkg/errors"
 
+	"github.com/lxc/lxd/lxd/db"
+	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/network/openvswitch"
 	"github.com/lxc/lxd/lxd/revert"
 	"github.com/lxc/lxd/lxd/state"
@@ -100,7 +102,14 @@ func OVNEnsureACLs(s *state.State, logger logger.Logger, client *openvswitch.OVN
 	// port groups.
 	referencedACLs := make(map[string]struct{}, 0)
 	for _, aclStatus := range createACLPortGroups {
-		ovnAddReferencedACLs(s, aclProjectName, aclStatus.aclInfo, referencedACLs)
+		ovnAddReferencedACLs(aclStatus.aclInfo, referencedACLs)
+	}
+
+	if reapplyRules {
+		// Also add referenced ACLs in existing ACL rulesets if reapplying rules, as they may have changed.
+		for _, aclStatus := range existingACLPortGroups {
+			ovnAddReferencedACLs(aclStatus.aclInfo, referencedACLs)
+		}
 	}
 
 	// Remove any references for our creation ACLs as we don't want to try and create them twice.
@@ -209,7 +218,7 @@ func OVNEnsureACLs(s *state.State, logger logger.Logger, client *openvswitch.OVN
 }
 
 // ovnAddReferencedACLs adds to the referencedACLNames any ACLs referenced by the rules in the supplied ACL.
-func ovnAddReferencedACLs(s *state.State, aclProjectName string, info *api.NetworkACL, referencedACLNames map[string]struct{}) {
+func ovnAddReferencedACLs(info *api.NetworkACL, referencedACLNames map[string]struct{}) {
 	addACLNamesFrom := func(ruleSubjects []string) {
 		for _, subject := range ruleSubjects {
 			if _, found := referencedACLNames[subject]; found {
@@ -513,6 +522,168 @@ func OVNApplyNetworkBaselineRules(client *openvswitch.OVN, switchName openvswitc
 	err := client.LogicalSwitchSetACLRules(switchName, rules...)
 	if err != nil {
 		return errors.Wrapf(err, "Failed applying baseline ACL rules to logical switch %q", switchName)
+	}
+
+	return nil
+}
+
+// OVNPortGroupDeleteIfUnused deletes unused port groups. Accepts optional ignoreUsageType and ignoreUsageNicName
+// arguments, allowing the used by logic to ignore an instance or profile NIC or network (useful if config not
+// applied to database yet). Also accepts optional list of ACLs to explicitly consider in use by OVN.
+// The combination of ignoring the specifified usage type and explicit keep ACLs allows the caller to ensure that
+// the desired ACLs are considered unused by the usage type even if the referring config has not yet been removed
+// from the database.
+func OVNPortGroupDeleteIfUnused(s *state.State, logger logger.Logger, client *openvswitch.OVN, aclProjectName string, ignoreUsageType interface{}, ignoreUsageNicName string, keepACLs ...string) error {
+	// Get map of ACL names to DB IDs (used for generating OVN port group names).
+	aclNameIDs, err := s.Cluster.GetNetworkACLIDsByNames(aclProjectName)
+	if err != nil {
+		return errors.Wrapf(err, "Failed getting network ACL IDs for security ACL port group removal")
+	}
+
+	aclNames := make([]string, 0, len(aclNameIDs))
+	for aclName := range aclNameIDs {
+		aclNames = append(aclNames, aclName)
+	}
+
+	ovnUsedACLs := make(map[string]struct{}, len(keepACLs))
+
+	// Add keepACLs to ovnUsedACLs to indicate they are explicitly in use by OVN.
+	// This is important because it also ensures that indirectly referred ACLs in the rulesets of these ACLs
+	// will also be kept.
+	for _, keepACL := range keepACLs {
+		ovnUsedACLs[keepACL] = struct{}{}
+	}
+
+	aclUsedACLS := make(map[string][]string, 0)
+
+	// Find alls ACLs that are either directly referred to by OVN entities (networks, instance/profile NICs) or
+	// by indirectly by being referred to in a ruleset of another ACL that is itself in use by OVN entities.
+	// For the indirectly referred to ACLs, store a list of the ACLs that are referring to it.
+	err = UsedBy(s, aclProjectName, func(matchedACLNames []string, usageType interface{}, nicName string, nicConfig map[string]string) error {
+		switch u := usageType.(type) {
+		case db.Instance:
+			ignoreInst, isIgnoreInst := ignoreUsageType.(instance.Instance)
+
+			if isIgnoreInst && ignoreUsageNicName == "" {
+				return fmt.Errorf("ignoreUsageNicName should be specified when providing an instance in ignoreUsageType")
+			}
+
+			// If an ignore instance was provided, then skip the device that the ACLs were just removed
+			// from. In case DB record is not updated until the update process has completed otherwise
+			// we would still consider it using the ACL.
+			if isIgnoreInst && ignoreInst.Name() == u.Name && ignoreInst.Project() == u.Project && ignoreUsageNicName == nicName {
+				return nil
+			}
+
+			_, network, _, err := s.Cluster.GetNetworkInAnyState(aclProjectName, nicConfig["network"])
+			if err != nil {
+				return errors.Wrapf(err, "Failed to load network %q", nicConfig["network"])
+			}
+
+			if network.Type == "ovn" {
+				for _, matchedACLName := range matchedACLNames {
+					ovnUsedACLs[matchedACLName] = struct{}{} // Record as in use by OVN entity.
+				}
+			}
+		case *api.Network:
+			ignoreNet, isIgnoreNet := ignoreUsageType.(*api.Network)
+
+			if isIgnoreNet && ignoreUsageNicName != "" {
+				return fmt.Errorf("ignoreUsageNicName should be empty when providing a network in ignoreUsageType")
+			}
+
+			// If an ignore network was provided, then skip the network that the ACLs were just removed
+			// from. In case DB record is not updated until the update process has completed otherwise
+			// we would still consider it using the ACL.
+			if isIgnoreNet && ignoreNet.Name == u.Name {
+				return nil
+			}
+
+			if u.Type == "ovn" {
+				for _, matchedACLName := range matchedACLNames {
+					ovnUsedACLs[matchedACLName] = struct{}{} // Record as in use by OVN entity.
+				}
+			}
+		case db.Profile:
+			ignoreProfile, isIgnoreProfile := ignoreUsageType.(db.Profile)
+
+			if isIgnoreProfile && ignoreUsageNicName == "" {
+				return fmt.Errorf("ignoreUsageNicName should be specified when providing a profile in ignoreUsageType")
+			}
+
+			// If an ignore profile was provided, then skip the device that the ACLs were just removed
+			// from. In case DB record is not updated until the update process has completed otherwise
+			// we would still consider it using the ACL.
+			if isIgnoreProfile && ignoreProfile.Name == u.Name && ignoreProfile.Project == u.Project && ignoreUsageNicName == nicName {
+				return nil
+			}
+
+			_, network, _, err := s.Cluster.GetNetworkInAnyState(aclProjectName, nicConfig["network"])
+			if err != nil {
+				return errors.Wrapf(err, "Failed to load network %q", nicConfig["network"])
+			}
+
+			if network.Type == "ovn" {
+				for _, matchedACLName := range matchedACLNames {
+					ovnUsedACLs[matchedACLName] = struct{}{} // Record as in use by OVN entity.
+				}
+			}
+		case *api.NetworkACL:
+			// Record which ACLs this ACL's ruleset refers to.
+			for _, matchedACLName := range matchedACLNames {
+				if aclUsedACLS[matchedACLName] == nil {
+					aclUsedACLS[matchedACLName] = make([]string, 0, 1)
+				}
+
+				if !shared.StringInSlice(u.Name, aclUsedACLS[matchedACLName]) {
+					// Record as in use by another ACL entity.
+					aclUsedACLS[matchedACLName] = append(aclUsedACLS[matchedACLName], u.Name)
+				}
+			}
+		default:
+			return fmt.Errorf("Unrecognised usage type %T", u)
+		}
+
+		return nil
+	}, aclNames...)
+	if err != nil && err != db.ErrInstanceListStop {
+		return errors.Wrapf(err, "Failed getting ACL usage")
+	}
+
+	// usedByOvn checks if any of the aclNames are in use by an OVN entity (network or instance/profile NIC).
+	usedByOvn := func(aclNames ...string) bool {
+		for _, aclName := range aclNames {
+			if _, found := ovnUsedACLs[aclName]; found {
+				return true
+			}
+		}
+
+		return false
+	}
+
+	for aclName := range aclNameIDs {
+		if usedByOvn(aclName) {
+			continue // ACL is directly used an OVN entity (network or instance/profile NIC).
+		}
+
+		// Check to see if any of the ACLs referencing this ACL are directly in use by an OVN entity.
+		refACLs, found := aclUsedACLS[aclName]
+		if found && usedByOvn(refACLs...) {
+			continue // ACL is indirectly used by an OVN entity.
+		}
+
+		aclID, found := aclNameIDs[aclName]
+		if !found {
+			return fmt.Errorf("Cannot find security ACL ID for %q", aclName)
+		}
+
+		portGroupName := OVNACLPortGroupName(aclID)
+		err = client.PortGroupDelete(portGroupName)
+		if err != nil {
+			return errors.Wrapf(err, "Failed deleting OVN port group %q for security ACL %q", portGroupName, aclName)
+		}
+
+		logger.Debug("Deleted unused ACL OVN port group", log.Ctx{"portGroup": portGroupName, "networkACL": aclName})
 	}
 
 	return nil
