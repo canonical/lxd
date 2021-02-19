@@ -546,10 +546,11 @@ func instanceExecPost(d *Daemon, r *http.Request) response.Response {
 		ws.req = post
 
 		resources := map[string][]string{}
-		if ws.instance.Type() == instancetype.Container {
-			resources["containers"] = []string{ws.instance.Name()}
-		}
 		resources["instances"] = []string{ws.instance.Name()}
+
+		if ws.instance.Type() == instancetype.Container {
+			resources["containers"] = resources["instances"]
+		}
 
 		op, err := operations.OperationCreate(d.State(), project, operations.OperationClassWebsocket, db.OperationCommandExec, resources, ws.Metadata(), ws.Do, nil, ws.Connect)
 		if err != nil {
@@ -616,10 +617,11 @@ func instanceExecPost(d *Daemon, r *http.Request) response.Response {
 	}
 
 	resources := map[string][]string{}
-	if inst.Type() == instancetype.Container {
-		resources["containers"] = []string{name}
-	}
 	resources["instances"] = []string{name}
+
+	if inst.Type() == instancetype.Container {
+		resources["containers"] = resources["instances"]
+	}
 
 	op, err := operations.OperationCreate(d.State(), project, operations.OperationClassTask, db.OperationCommandExec, resources, nil, run, nil, nil)
 	if err != nil {

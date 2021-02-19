@@ -10,6 +10,7 @@ import (
 	"github.com/lxc/lxd/lxd/db"
 	deviceConfig "github.com/lxc/lxd/lxd/device/config"
 	"github.com/lxc/lxd/lxd/instance"
+	"github.com/lxc/lxd/lxd/instance/instancetype"
 	"github.com/lxc/lxd/lxd/operations"
 	projecthelpers "github.com/lxc/lxd/lxd/project"
 	"github.com/lxc/lxd/lxd/response"
@@ -44,13 +45,13 @@ func instancePut(d *Daemon, r *http.Request) response.Response {
 		return resp
 	}
 
-	c, err := instance.LoadByProjectAndName(d.State(), project, name)
+	inst, err := instance.LoadByProjectAndName(d.State(), project, name)
 	if err != nil {
 		return response.NotFound(err)
 	}
 
 	// Validate the ETag
-	etag := []interface{}{c.Architecture(), c.LocalConfig(), c.LocalDevices(), c.IsEphemeral(), c.Profiles()}
+	etag := []interface{}{inst.Architecture(), inst.LocalConfig(), inst.LocalDevices(), inst.IsEphemeral(), inst.Profiles()}
 	err = util.EtagCheck(r, etag)
 	if err != nil {
 		return response.PreconditionFailed(err)
@@ -68,7 +69,7 @@ func instancePut(d *Daemon, r *http.Request) response.Response {
 
 	// Check project limits.
 	err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
-		return projecthelpers.AllowInstanceUpdate(tx, project, name, configRaw, c.LocalConfig())
+		return projecthelpers.AllowInstanceUpdate(tx, project, name, configRaw, inst.LocalConfig())
 	})
 	if err != nil {
 		return response.SmartError(err)
@@ -89,7 +90,7 @@ func instancePut(d *Daemon, r *http.Request) response.Response {
 				Project:      project,
 			}
 
-			err = c.Update(args, true)
+			err = inst.Update(args, true)
 			if err != nil {
 				return err
 			}
@@ -108,7 +109,11 @@ func instancePut(d *Daemon, r *http.Request) response.Response {
 	}
 
 	resources := map[string][]string{}
-	resources["containers"] = []string{name}
+	resources["instances"] = []string{name}
+
+	if inst.Type() == instancetype.Container {
+		resources["containers"] = resources["instances"]
+	}
 
 	op, err := operations.OperationCreate(d.State(), project, operations.OperationClassTask, opType, resources, nil, do, nil, nil)
 	if err != nil {

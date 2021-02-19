@@ -14,6 +14,7 @@ import (
 
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/instance"
+	"github.com/lxc/lxd/lxd/instance/instancetype"
 	"github.com/lxc/lxd/lxd/operations"
 	"github.com/lxc/lxd/lxd/project"
 	"github.com/lxc/lxd/lxd/response"
@@ -156,7 +157,10 @@ func instanceSnapshotsPost(d *Daemon, r *http.Request) response.Response {
 
 	resources := map[string][]string{}
 	resources["instances"] = []string{name}
-	resources["containers"] = resources["instances"]
+
+	if inst.Type() == instancetype.Container {
+		resources["containers"] = resources["instances"]
+	}
 
 	op, err := operations.OperationCreate(d.State(), project, operations.OperationClassTask, db.OperationSnapshotCreate, resources, nil, snapshot, nil, nil)
 	if err != nil {
@@ -213,14 +217,14 @@ func instanceSnapshotHandler(d *Daemon, r *http.Request) response.Response {
 	}
 }
 
-func snapshotPatch(d *Daemon, r *http.Request, sc instance.Instance, name string) response.Response {
+func snapshotPatch(d *Daemon, r *http.Request, snapInst instance.Instance, name string) response.Response {
 	// Only expires_at is currently editable, so PATCH is equivalent to PUT.
-	return snapshotPut(d, r, sc, name)
+	return snapshotPut(d, r, snapInst, name)
 }
 
-func snapshotPut(d *Daemon, r *http.Request, sc instance.Instance, name string) response.Response {
+func snapshotPut(d *Daemon, r *http.Request, snapInst instance.Instance, name string) response.Response {
 	// Validate the ETag
-	etag := []interface{}{sc.ExpiryDate()}
+	etag := []interface{}{snapInst.ExpiryDate()}
 	err := util.EtagCheck(r, etag)
 	if err != nil {
 		return response.PreconditionFailed(err)
@@ -254,22 +258,22 @@ func snapshotPut(d *Daemon, r *http.Request, sc instance.Instance, name string) 
 			return response.BadRequest(err)
 		}
 
-		// Update container configuration
+		// Update instance configuration
 		do = func(op *operations.Operation) error {
 			args := db.InstanceArgs{
-				Architecture: sc.Architecture(),
-				Config:       sc.LocalConfig(),
-				Description:  sc.Description(),
-				Devices:      sc.LocalDevices(),
-				Ephemeral:    sc.IsEphemeral(),
-				Profiles:     sc.Profiles(),
-				Project:      sc.Project(),
+				Architecture: snapInst.Architecture(),
+				Config:       snapInst.LocalConfig(),
+				Description:  snapInst.Description(),
+				Devices:      snapInst.LocalDevices(),
+				Ephemeral:    snapInst.IsEphemeral(),
+				Profiles:     snapInst.Profiles(),
+				Project:      snapInst.Project(),
 				ExpiryDate:   configRaw.ExpiresAt,
-				Type:         sc.Type(),
-				Snapshot:     sc.IsSnapshot(),
+				Type:         snapInst.Type(),
+				Snapshot:     snapInst.IsSnapshot(),
 			}
 
-			err = sc.Update(args, false)
+			err = snapInst.Update(args, false)
 			if err != nil {
 				return err
 			}
@@ -281,9 +285,13 @@ func snapshotPut(d *Daemon, r *http.Request, sc instance.Instance, name string) 
 	opType := db.OperationSnapshotUpdate
 
 	resources := map[string][]string{}
-	resources["containers"] = []string{name}
+	resources["instances"] = []string{name}
 
-	op, err := operations.OperationCreate(d.State(), sc.Project(), operations.OperationClassTask, opType, resources, nil,
+	if snapInst.Type() == instancetype.Container {
+		resources["containers"] = resources["instances"]
+	}
+
+	op, err := operations.OperationCreate(d.State(), snapInst.Project(), operations.OperationClassTask, opType, resources, nil,
 		do, nil, nil)
 	if err != nil {
 		return response.InternalError(err)
@@ -301,7 +309,7 @@ func snapshotGet(s *state.State, snapInst instance.Instance, name string) respon
 	return response.SyncResponseETag(true, render.(*api.InstanceSnapshot), render.(*api.InstanceSnapshot))
 }
 
-func snapshotPost(d *Daemon, r *http.Request, sc instance.Instance, containerName string) response.Response {
+func snapshotPost(d *Daemon, r *http.Request, snapInst instance.Instance, containerName string) response.Response {
 	body, err := ioutil.ReadAll(r.Body)
 	if err != nil {
 		return response.InternalError(err)
@@ -346,13 +354,17 @@ func snapshotPost(d *Daemon, r *http.Request, sc instance.Instance, containerNam
 			}
 		}
 
-		ws, err := newMigrationSource(sc, reqNew.Live, true)
+		ws, err := newMigrationSource(snapInst, reqNew.Live, true)
 		if err != nil {
 			return response.SmartError(err)
 		}
 
 		resources := map[string][]string{}
-		resources["containers"] = []string{containerName}
+		resources["instances"] = []string{containerName}
+
+		if snapInst.Type() == instancetype.Container {
+			resources["containers"] = resources["instances"]
+		}
 
 		run := func(op *operations.Operation) error {
 			return ws.Do(d.State(), op)
@@ -365,7 +377,7 @@ func snapshotPost(d *Daemon, r *http.Request, sc instance.Instance, containerNam
 				return response.InternalError(err)
 			}
 
-			op, err := operations.OperationCreate(d.State(), sc.Project(), operations.OperationClassTask, db.OperationSnapshotTransfer, resources, nil, run, nil, nil)
+			op, err := operations.OperationCreate(d.State(), snapInst.Project(), operations.OperationClassTask, db.OperationSnapshotTransfer, resources, nil, run, nil, nil)
 			if err != nil {
 				return response.InternalError(err)
 			}
@@ -374,7 +386,7 @@ func snapshotPost(d *Daemon, r *http.Request, sc instance.Instance, containerNam
 		}
 
 		// Pull mode
-		op, err := operations.OperationCreate(d.State(), sc.Project(), operations.OperationClassWebsocket, db.OperationSnapshotTransfer, resources, ws.Metadata(), run, nil, ws.Connect)
+		op, err := operations.OperationCreate(d.State(), snapInst.Project(), operations.OperationClassWebsocket, db.OperationSnapshotTransfer, resources, ws.Metadata(), run, nil, ws.Connect)
 		if err != nil {
 			return response.InternalError(err)
 		}
@@ -396,19 +408,23 @@ func snapshotPost(d *Daemon, r *http.Request, sc instance.Instance, containerNam
 	fullName := containerName + shared.SnapshotDelimiter + newName
 
 	// Check that the name isn't already in use
-	id, _ := d.cluster.GetInstanceSnapshotID(sc.Project(), containerName, newName)
+	id, _ := d.cluster.GetInstanceSnapshotID(snapInst.Project(), containerName, newName)
 	if id > 0 {
 		return response.Conflict(fmt.Errorf("Name '%s' already in use", fullName))
 	}
 
 	rename := func(op *operations.Operation) error {
-		return sc.Rename(fullName, false)
+		return snapInst.Rename(fullName, false)
 	}
 
 	resources := map[string][]string{}
-	resources["containers"] = []string{containerName}
+	resources["instances"] = []string{containerName}
 
-	op, err := operations.OperationCreate(d.State(), sc.Project(), operations.OperationClassTask, db.OperationSnapshotRename, resources, nil, rename, nil, nil)
+	if snapInst.Type() == instancetype.Container {
+		resources["containers"] = resources["instances"]
+	}
+
+	op, err := operations.OperationCreate(d.State(), snapInst.Project(), operations.OperationClassTask, db.OperationSnapshotRename, resources, nil, rename, nil, nil)
 	if err != nil {
 		return response.InternalError(err)
 	}
@@ -416,15 +432,19 @@ func snapshotPost(d *Daemon, r *http.Request, sc instance.Instance, containerNam
 	return operations.OperationResponse(op)
 }
 
-func snapshotDelete(s *state.State, sc instance.Instance, name string) response.Response {
+func snapshotDelete(s *state.State, snapInst instance.Instance, name string) response.Response {
 	remove := func(op *operations.Operation) error {
-		return sc.Delete(false)
+		return snapInst.Delete(false)
 	}
 
 	resources := map[string][]string{}
-	resources["containers"] = []string{sc.Name()}
+	resources["instances"] = []string{snapInst.Name()}
 
-	op, err := operations.OperationCreate(s, sc.Project(), operations.OperationClassTask, db.OperationSnapshotDelete, resources, nil, remove, nil, nil)
+	if snapInst.Type() == instancetype.Container {
+		resources["containers"] = resources["instances"]
+	}
+
+	op, err := operations.OperationCreate(s, snapInst.Project(), operations.OperationClassTask, db.OperationSnapshotDelete, resources, nil, remove, nil, nil)
 	if err != nil {
 		return response.InternalError(err)
 	}
