@@ -118,7 +118,7 @@ func (d *nicOVN) validateConfig(instConf instance.ConfigReader) error {
 
 	ovnNet, ok := n.(ovnNet)
 	if !ok {
-		return fmt.Errorf("Network is not OVN type")
+		return fmt.Errorf("Network is not ovnNet interface type")
 	}
 
 	d.network = ovnNet // Stored loaded instance for use by other functions.
