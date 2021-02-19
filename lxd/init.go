@@ -17,6 +17,7 @@ type initDataNode struct {
 	Networks      []internalClusterPostNetwork `json:"networks" yaml:"networks"`
 	StoragePools  []api.StoragePoolsPost       `json:"storage_pools" yaml:"storage_pools"`
 	Profiles      []api.ProfilesPost           `json:"profiles" yaml:"profiles"`
+	Projects      []api.ProjectsPost           `json:"projects" yaml:"projects"`
 }
 
 type initDataCluster struct {
@@ -308,6 +309,83 @@ func initDataNodeApply(d lxd.InstanceServer, config initDataNode) (func(), error
 
 			// Existing profile.
 			err := updateProfile(profile)
+			if err != nil {
+				return nil, err
+			}
+		}
+	}
+
+	// Apply project configuration.
+	if config.Projects != nil && len(config.Projects) > 0 {
+		// Get the list of projects.
+		projectNames, err := d.GetProjectNames()
+		if err != nil {
+			return nil, errors.Wrap(err, "Failed to retrieve list of projects")
+		}
+
+		// Project creator.
+		createProject := func(project api.ProjectsPost) error {
+			// Create the project if doesn't exist.
+			err := d.CreateProject(project)
+			if err != nil {
+				return errors.Wrapf(err, "Failed to create project '%s'", project.Name)
+			}
+
+			// Setup reverter.
+			revert.Add(func() { d.DeleteProject(project.Name) })
+			return nil
+		}
+
+		// Project updater.
+		updateProject := func(project api.ProjectsPost) error {
+			// Get the current project.
+			currentProject, etag, err := d.GetProject(project.Name)
+			if err != nil {
+				return errors.Wrapf(err, "Failed to retrieve current project '%s'", project.Name)
+			}
+
+			// Setup reverter.
+			revert.Add(func() { d.UpdateProject(currentProject.Name, currentProject.Writable(), "") })
+
+			// Prepare the update.
+			newProject := api.ProjectPut{}
+			err = shared.DeepCopy(currentProject.Writable(), &newProject)
+			if err != nil {
+				return errors.Wrapf(err, "Failed to copy configuration of project '%s'", project.Name)
+			}
+
+			// Description override.
+			if project.Description != "" {
+				newProject.Description = project.Description
+			}
+
+			// Config overrides.
+			for k, v := range project.Config {
+				newProject.Config[k] = fmt.Sprintf("%v", v)
+			}
+
+			// Apply it.
+			err = d.UpdateProject(currentProject.Name, newProject, etag)
+			if err != nil {
+				return errors.Wrapf(err, "Failed to update project '%s'", project.Name)
+			}
+
+			return nil
+		}
+
+		for _, project := range config.Projects {
+			// New project.
+			if !shared.StringInSlice(project.Name, projectNames) {
+				err := createProject(project)
+				if err != nil {
+					return nil, err
+				}
+
+				continue
+			}
+
+			// Existing project.
+			err := updateProject(project)
 			if err != nil {
 				return nil, err
 			}

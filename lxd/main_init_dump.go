@@ -73,6 +73,20 @@ func (c *cmdInit) RunDump(d lxd.InstanceServer) error {
 		config.Profiles = append(config.Profiles, profilesPost)
 	}
 
+	projects, err := d.GetProjects()
+	if err != nil {
+		return errors.Wrap(err, "Failed to retrieve current server configuration")
+	}
+
+	for _, project := range projects {
+		projectsPost := api.ProjectsPost{}
+		projectsPost.Config = project.Config
+		projectsPost.Description = project.Description
+		projectsPost.Name = project.Name
+
+		config.Projects = append(config.Projects, projectsPost)
+	}
+
 	out, err := yaml.Marshal(config)
 	if err != nil {
 		return errors.Wrap(err, "Failed to retrieve current server configuration")
