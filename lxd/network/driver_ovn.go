@@ -363,19 +363,6 @@ func (n *ovn) Validate(config map[string]string) error {
 	return nil
 }
 
-// getClient initialises OVN client and returns it.
-func (n *ovn) getClient() (*openvswitch.OVN, error) {
-	nbConnection, err := cluster.ConfigGetString(n.state.Cluster, "network.ovn.northbound_connection")
-	if err != nil {
-		return nil, errors.Wrapf(err, "Failed to get OVN northbound connection string")
-	}
-
-	client := openvswitch.NewOVN()
-	client.SetDatabaseAddress(nbConnection)
-
-	return client, nil
-}
-
 // getBridgeMTU returns MTU that should be used for the bridge and instance devices.
 // Will also be used to configure the OVN DHCP and IPv6 RA options. Returns 0 if the bridge.mtu is not set/invalid.
 func (n *ovn) getBridgeMTU() uint32 {
@@ -1474,9 +1461,9 @@ func (n *ovn) setup(update bool) error {
 	revert := revert.New()
 	defer revert.Fail()
 
-	client, err := n.getClient()
+	client, err := openvswitch.NewOVN(n.state)
 	if err != nil {
-		return err
+		return errors.Wrapf(err, "Failed to get OVN client")
 	}
 
 	var routerExtPortIPv4, routerIntPortIPv4, routerExtPortIPv6, routerIntPortIPv6 net.IP
@@ -1930,9 +1917,9 @@ func (n *ovn) setup(update bool) error {
 // The chassis priority value is a stable-random value derived from chassis group name and node ID. This is so we
 // don't end up using the same chassis for the primary uplink chassis for all OVN networks in a cluster.
 func (n *ovn) addChassisGroupEntry() error {
-	client, err := n.getClient()
+	client, err := openvswitch.NewOVN(n.state)
 	if err != nil {
-		return err
+		return errors.Wrapf(err, "Failed to get OVN client")
 	}
 
 	// Get local chassis ID for chassis group.
@@ -1998,9 +1985,9 @@ func (n *ovn) addChassisGroupEntry() error {
 
 // deleteChassisGroupEntry deletes an entry for the local OVS chassis from the OVN logical network's chassis group.
 func (n *ovn) deleteChassisGroupEntry() error {
-	client, err := n.getClient()
+	client, err := openvswitch.NewOVN(n.state)
 	if err != nil {
-		return err
+		return errors.Wrapf(err, "Failed to get OVN client")
 	}
 
 	// Add local chassis to chassis group.
@@ -2028,9 +2015,9 @@ func (n *ovn) Delete(clientType request.ClientType) error {
 	}
 
 	if clientType == request.ClientTypeNormal {
-		client, err := n.getClient()
+		client, err := openvswitch.NewOVN(n.state)
 		if err != nil {
-			return err
+			return errors.Wrapf(err, "Failed to get OVN client")
 		}
 
 		err = client.LogicalRouterDelete(n.getRouterName())
@@ -2229,9 +2216,9 @@ func (n *ovn) Update(newNetwork api.NetworkPut, targetNode string, clientType re
 
 		// Apply security ACL changes.
 		if len(addedACLs) > 0 || len(removedACLs) > 0 {
-			client, err := n.getClient()
+			client, err := openvswitch.NewOVN(n.state)
 			if err != nil {
-				return err
+				return errors.Wrapf(err, "Failed to get OVN client")
 			}
 
 			// Get map of ACL names to DB IDs (used for generating OVN port group names).
@@ -2507,9 +2494,9 @@ func (n *ovn) InstanceDevicePortAdd(opts *OVNInstanceNICSetupOpts) (openvswitch.
 	revert := revert.New()
 	defer revert.Fail()
 
-	client, err := n.getClient()
+	client, err := openvswitch.NewOVN(n.state)
 	if err != nil {
-		return "", err
+		return "", errors.Wrapf(err, "Failed to get OVN client")
 	}
 
 	dhcpv4Subnet := n.DHCPv4Subnet()
@@ -2760,9 +2747,9 @@ func (n *ovn) InstanceDevicePortDynamicIPs(instanceUUID string, deviceName strin
 
 	instancePortName := n.getInstanceDevicePortName(instanceUUID, deviceName)
 
-	client, err := n.getClient()
+	client, err := openvswitch.NewOVN(n.state)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrapf(err, "Failed to get OVN client")
 	}
 
 	return client.LogicalSwitchPortDynamicIPs(instancePortName)
@@ -2784,9 +2771,9 @@ func (n *ovn) InstanceDevicePortDelete(ovsExternalOVNPort openvswitch.OVNSwitchP
 
 	n.logger.Debug("Deleting instance port", log.Ctx{"port": instancePortName, "source": source})
 
-	client, err := n.getClient()
+	client, err := openvswitch.NewOVN(n.state)
 	if err != nil {
-		return err
+		return errors.Wrapf(err, "Failed to get OVN client")
 	}
 
 	// Load uplink network config.
@@ -3051,9 +3038,9 @@ func (n *ovn) handleDependencyChange(uplinkName string, uplinkConfig map[string]
 	if shared.StringInSlice("ovn.ingress_mode", changedKeys) {
 		n.logger.Debug("Applying ingress mode changes from uplink network to instance NICs", log.Ctx{"uplink": uplinkName})
 
-		client, err := n.getClient()
+		client, err := openvswitch.NewOVN(n.state)
 		if err != nil {
-			return err
+			return errors.Wrapf(err, "Failed to get OVN client")
 		}
 
 		if shared.StringInSlice(uplinkConfig["ovn.ingress_mode"], []string{"l2proxy", ""}) {
