@@ -12,6 +12,7 @@ import (
 
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/instance"
+	"github.com/lxc/lxd/lxd/instance/instancetype"
 	"github.com/lxc/lxd/lxd/operations"
 	"github.com/lxc/lxd/lxd/project"
 	"github.com/lxc/lxd/lxd/response"
@@ -180,7 +181,11 @@ func instanceBackupsPost(d *Daemon, r *http.Request) response.Response {
 
 	resources := map[string][]string{}
 	resources["instances"] = []string{name}
-	resources["containers"] = resources["instances"]
+
+	if inst.Type() == instancetype.Container {
+		resources["containers"] = resources["instances"]
+	}
+
 	resources["backups"] = []string{req.Name}
 
 	op, err := operations.OperationCreate(d.State(), project, operations.OperationClassTask,
@@ -268,7 +273,8 @@ func instanceBackupPost(d *Daemon, r *http.Request) response.Response {
 	}
 
 	resources := map[string][]string{}
-	resources["containers"] = []string{name}
+	resources["instances"] = []string{name}
+	resources["containers"] = resources["instances"]
 
 	op, err := operations.OperationCreate(d.State(), project, operations.OperationClassTask,
 		db.OperationBackupRename, resources, nil, rename, nil, nil)
