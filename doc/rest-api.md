@@ -1642,10 +1642,11 @@ Input:
 
 ```js
 {
-    "name": "backupName",      // unique identifier for the backup
-    "expiry": 3600,            // when to delete the backup automatically
-    "instance_only": true,     // if True, snapshots aren't included
-    "optimized_storage": true  // if True, btrfs send or zfs send is used for instance and snapshots (can only be imported on matching storage pool driver)
+    "name": "backupName",                      // unique identifier for the backup
+    "expires_at": "2018-04-23T12:16:09+02:00", // when to delete the backup automatically
+    "instance_only": true,                     // if True, snapshots aren't included
+    "optimized_storage": true,                 // if True, btrfs send or zfs send is used for instance and snapshots (can only be imported on matching storage pool driver)
+    "compression_algorithm": "xz"              // Override the compression algorithm for the backup (optional)
 }
 ```
 
@@ -3411,10 +3412,11 @@ Input:
 
 ```js
 {
-    "name": "backupName",      // unique identifier for the backup
-    "expiry": 3600,            // when to delete the backup automatically
-    "volume_only": true,     // if True, snapshots aren't included
-    "optimized_storage": true  // if True, btrfs send or zfs send is used for volume and snapshots
+    "name": "backupName",                      // unique identifier for the backup
+    "expires_at": "2018-04-23T12:16:09+02:00", // when to delete the backup automatically
+    "volume_only": true,                       // if True, snapshots aren't included
+    "optimized_storage": true,                 // if True, btrfs send or zfs send is used for volume and snapshots
+    "compression_algorithm": "xz"              // Override the compression algorithm for the backup (optional)
 }
 ```
 
