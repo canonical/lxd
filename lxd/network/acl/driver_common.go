@@ -480,45 +480,24 @@ func (d *common) Update(config *api.NetworkACLPut) error {
 		d.init(d.state, d.id, d.projectName, d.info)
 	})
 
-	// OVN networks share ACL port group definitions so we only need to apply changes once for all OVN nets.
-	applyToOVN := false
-
-	// Find all networks and instance NICs that use this Network ACL and check if any are OVN.
-	err = UsedBy(d.state, d.projectName, func(_ []string, usageType interface{}, _ string, nicConfig map[string]string) error {
-		switch u := usageType.(type) {
-		case db.Instance, db.Profile:
-			_, network, _, err := d.state.Cluster.GetNetworkInAnyState(d.projectName, nicConfig["network"])
-			if err != nil {
-				return errors.Wrapf(err, "Failed to load network %q", nicConfig["network"])
-			}
-
-			if network.Type == "ovn" {
-				applyToOVN = true
-
-				// Only OVN networks support ACLs at this time so no need to search further.
-				return db.ErrInstanceListStop
-			}
-		case *api.Network:
-			if u.Type == "ovn" {
-				applyToOVN = true
-
-				// Only OVN networks support ACLs at this time so no need to search further.
-				return db.ErrInstanceListStop
-			}
-		case *api.NetworkACL:
-			return nil // Nothing to do for ACL rules referencing us.
-		default:
-			return fmt.Errorf("Unrecognised usage type %T", u)
-		}
-
-		return nil
-	}, d.Info().Name)
-	if err != nil && err != db.ErrInstanceListStop {
-		return errors.Wrapf(err, "Failed getting ACL usage")
+	// OVN networks share ACL port group definitions, but when the ACL rules use network specific selectors
+	// such as #internal/#external, then we need to apply those rules to each network affected by the ACL, so
+	// build up a full list of OVN networks affected by this ACL (either because the ACL is assigned directly
+	// or because it is assigned to an OVN NIC in an instance or profile).
+	aclNets := map[string]NetworkACLUsage{}
+	err = NetworkUsage(d.state, d.projectName, []string{d.info.Name}, aclNets)
+	if err != nil {
+		return errors.Wrapf(err, "Failed getting ACL network usage")
 	}
 
-	if applyToOVN {
-		d.logger.Debug("Applying ACL rules to OVN")
+	// Remove non-OVN networks from map.
+	for k, v := range aclNets {
+		if v.Type != "ovn" {
+			delete(aclNets, k)
+		}
+	}
+
+	if len(aclNets) > 0 {
 		client, err := openvswitch.NewOVN(d.state)
 		if err != nil {
 			return errors.Wrapf(err, "Failed to get OVN client")
@@ -531,7 +510,7 @@ func (d *common) Update(config *api.NetworkACLPut) error {
 		}
 
 		// Request that the ACL and any referenced ACLs in the ruleset are created in OVN.
-		r, err := OVNEnsureACLs(d.state, d.logger, client, d.projectName, aclNameIDs, []string{d.info.Name}, true)
+		r, err := OVNEnsureACLs(d.state, d.logger, client, d.projectName, aclNameIDs, aclNets, []string{d.info.Name}, true)
 		if err != nil {
 			return errors.Wrapf(err, "Failed ensuring ACL is configured in OVN")
 		}
