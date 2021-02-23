@@ -448,7 +448,18 @@ func (o *OVN) LogicalSwitchAdd(switchName OVNSwitch, mayExist bool) error {
 
 // LogicalSwitchDelete deletes a named logical switch.
 func (o *OVN) LogicalSwitchDelete(switchName OVNSwitch) error {
-	_, err := o.nbctl("--if-exists", "ls-del", string(switchName))
+	args := []string{"--if-exists", "ls-del", string(switchName)}
+
+	assocPortGroups, err := o.logicalSwitchFindAssociatedPortGroups(switchName)
+	if err != nil {
+		return err
+	}
+
+	for _, assocPortGroup := range assocPortGroups {
+		args = append(args, "--", "destroy", "port_group", string(assocPortGroup))
+	}
+
+	_, err = o.nbctl(args...)
 	if err != nil {
 		return err
 	}
@@ -464,6 +475,26 @@ func (o *OVN) LogicalSwitchDelete(switchName OVNSwitch) error {
 	}
 
 	return nil
+}
+
+// logicalSwitchFindAssociatedPortGroups finds the port groups that are associated to the switch specified.
+func (o *OVN) logicalSwitchFindAssociatedPortGroups(switchName OVNSwitch) ([]OVNPortGroup, error) {
+	output, err := o.nbctl("--format=csv", "--no-headings", "--data=bare", "--colum=name", "find", "port_group",
+		fmt.Sprintf("external_ids:lxd_switch=%s", string(switchName)),
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	output = strings.TrimSpace(output)
+	lines := util.SplitNTrimSpace(output, "\n", -1, true)
+	portGroups := make([]OVNPortGroup, 0, len(lines))
+
+	for _, line := range lines {
+		portGroups = append(portGroups, OVNPortGroup(line))
+	}
+
+	return portGroups, nil
 }
 
 // LogicalSwitchSetIPAllocation sets the IP allocation config on the logical switch.
