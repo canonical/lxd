@@ -129,6 +129,17 @@ var api10 = []APIEndpoint{
 // ---
 // produces:
 //   - application/json
+// parameters:
+//   - in: query
+//     name: target
+//     description: Cluster member name
+//     type: string
+//     example: lxd01
+//   - in: query
+//     name: project
+//     description: Project name
+//     type: string
+//     example: default
 // responses:
 //   "200":
 //     description: Server environment and configuration
@@ -351,6 +362,11 @@ func api10Get(d *Daemon, r *http.Request) response.Response {
 // produces:
 //   - application/json
 // parameters:
+//   - in: query
+//     name: target
+//     description: Cluster member name
+//     type: string
+//     example: lxd01
 //   - in: body
 //     name: server
 //     description: Server configuration
@@ -429,6 +445,11 @@ func api10Put(d *Daemon, r *http.Request) response.Response {
 // produces:
 //   - application/json
 // parameters:
+//   - in: query
+//     name: target
+//     description: Cluster member name
+//     type: string
+//     example: lxd01
 //   - in: body
 //     name: server
 //     description: Server configuration
