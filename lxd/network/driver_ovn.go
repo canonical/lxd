@@ -1892,6 +1892,22 @@ func (n *ovn) setup(update bool) error {
 		return errors.Wrapf(err, "Failed applying baseline ACL rules to internal switch")
 	}
 
+	// Create port group (if needed) for NICs to classify as internal.
+	intPortGroupName := acl.OVNIntSwitchPortGroupName(n.ID())
+	intPortGroupUUID, _, err := client.PortGroupInfo(intPortGroupName)
+	if err != nil {
+		return errors.Wrapf(err, "Failed getting port group UUID for network %q setup", n.Name())
+	}
+
+	if intPortGroupUUID == "" {
+		// Create internal port group and associated it with the logical switch, so that it will be
+		// removed when the logical switch is removed.
+		err = client.PortGroupAdd(intPortGroupName, "", n.getIntSwitchName())
+		if err != nil {
+			return errors.Wrapf(err, "Failed creating port group %q for network %q setup", intPortGroupName, n.Name())
+		}
+	}
+
 	// Ensure any network assigned security ACL port groups are created ready for instance NICs to use.
 	securityACLS := util.SplitNTrimSpace(n.config["security.acls"], ",", -1, true)
 	if len(securityACLS) > 0 {
