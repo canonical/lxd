@@ -552,7 +552,7 @@ func OVNApplyNetworkBaselineRules(client *openvswitch.OVN, switchName openvswitc
 			Direction: "to-lport",
 			Action:    "allow",
 			Priority:  ovnACLPrioritySwitchAllow,
-			Match:     fmt.Sprintf(`outport == "%s" && ((ip4 && udp.dst == 67) || (ip6 && udp.dst == 547)) `, routerPortName), // DHCP to router.
+			Match:     fmt.Sprintf(`outport == "%s" && ((ip4 && udp.dst == 67) || (ip6 && udp.dst == 547))`, routerPortName), // DHCP to router.
 		},
 	}
 
