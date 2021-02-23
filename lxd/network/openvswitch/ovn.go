@@ -1331,3 +1331,46 @@ func (o *OVN) PortGroupSetACLRules(portGroupName OVNPortGroup, aclRules ...OVNAC
 
 	return nil
 }
+
+// setACLRules applies a set of ACL rules to the specified entity.
+func (o *OVN) setACLRules(entityTable string, entityName string, externalIDs map[string]string, matchReplace map[string]string, aclRules ...OVNACLRule) error {
+	// Remove any existing rules assigned to the entity.
+	args := []string{"clear", entityTable, entityName, "acls"}
+
+	for i, rule := range aclRules {
+		// Perform any replacements requested on the Match string.
+		for find, replace := range matchReplace {
+			rule.Match = strings.ReplaceAll(rule.Match, find, replace)
+		}
+
+		// Add command to create ACL rule.
+		args = append(args, "--", fmt.Sprintf("--id=@id%d", i), "create", "acl",
+			fmt.Sprintf("action=%s", rule.Action),
+			fmt.Sprintf("direction=%s", rule.Direction),
+			fmt.Sprintf("priority=%d", rule.Priority),
+			fmt.Sprintf("match=%s", strconv.Quote(rule.Match)),
+		)
+
+		if rule.Log {
+			args = append(args, "log=true")
+
+			if rule.LogName != "" {
+				args = append(args, fmt.Sprintf("name=%s", rule.LogName))
+			}
+		}
+
+		for k, v := range externalIDs {
+			args = append(args, fmt.Sprintf("external_ids:%s=%s", k, v))
+		}
+
+		// Add command to assign ACL rule to entity.
+		args = append(args, "--", "add", entityTable, entityName, "acl", fmt.Sprintf("@id%d", i))
+	}
+
+	_, err := o.nbctl(args...)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
