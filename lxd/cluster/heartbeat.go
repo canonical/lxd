@@ -38,6 +38,7 @@ type APIHeartbeatVersion struct {
 // APIHeartbeat contains data sent to nodes in heartbeat.
 type APIHeartbeat struct {
 	sync.Mutex // Used to control access to Members maps.
+	cluster    *db.Cluster
 	Members    map[int64]APIHeartbeatMember
 	Version    APIHeartbeatVersion
 	Time       time.Time
@@ -101,8 +102,17 @@ func (hbState *APIHeartbeat) Update(fullStateList bool, raftNodes []db.RaftNode,
 		APIExtensions: maxAPIExtensionsVersion,
 	}
 
-	if len(raftNodeMap) > 0 {
-		logger.Errorf("Unaccounted raft node(s) not found in 'nodes' table for heartbeat: %+v", raftNodeMap)
+	if len(raftNodeMap) > 0 && hbState.cluster != nil {
+		hbState.cluster.Transaction(func(tx *db.ClusterTx) error {
+			for addr, raftNode := range raftNodeMap {
+				_, err := tx.GetPendingNodeByAddress(addr)
+				if err != nil {
+					logger.Errorf("Unaccounted raft node(s) not found in 'nodes' table for heartbeat: %+v", raftNode)
+				}
+			}
+
+			return nil
+		})
 	}
 
 	return
@@ -256,7 +266,7 @@ func (g *Gateway) heartbeat(ctx context.Context, initialHeartbeat bool) {
 	}
 
 	// Cumulative set of node states (will be written back to database once done).
-	hbState := &APIHeartbeat{}
+	hbState := &APIHeartbeat{cluster: g.Cluster}
 
 	// If this leader node hasn't sent a heartbeat recently, then its node state records
 	// are likely out of date, this can happen when a node becomes a leader.
