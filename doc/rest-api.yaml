@@ -3,19 +3,24 @@ definitions:
     description: Certificate represents a LXD certificate
     properties:
       certificate:
+        description: The certificate itself, as PEM encoded X509
         example: X509 PEM certificate
+        readOnly: true
         type: string
         x-go-name: Certificate
       fingerprint:
+        description: SHA256 fingerprint of the certificate
         example: fd200419b271f1dc2a5591b693cc5774b7f234e1ff8c6b78ad703b6888fe2b69
+        readOnly: true
         type: string
         x-go-name: Fingerprint
       name:
+        description: Name associated with the certificate
         example: castiana
         type: string
         x-go-name: Name
       projects:
-        description: 'API extension: certificate_project'
+        description: List of allowed projects (applies when restricted)
         example:
         - default
         - foo
@@ -25,11 +30,12 @@ definitions:
         type: array
         x-go-name: Projects
       restricted:
-        description: 'API extension: certificate_project'
+        description: Whether to limit the certificate to listed projects
         example: true
         type: boolean
         x-go-name: Restricted
       type:
+        description: Usage type for the certificate (only client currently)
         example: client
         type: string
         x-go-name: Type
@@ -39,11 +45,12 @@ definitions:
     description: 'API extension: certificate_update'
     properties:
       name:
+        description: Name associated with the certificate
         example: castiana
         type: string
         x-go-name: Name
       projects:
-        description: 'API extension: certificate_project'
+        description: List of allowed projects (applies when restricted)
         example:
         - default
         - foo
@@ -53,11 +60,12 @@ definitions:
         type: array
         x-go-name: Projects
       restricted:
-        description: 'API extension: certificate_project'
+        description: Whether to limit the certificate to listed projects
         example: true
         type: boolean
         x-go-name: Restricted
       type:
+        description: Usage type for the certificate (only client currently)
         example: client
         type: string
         x-go-name: Type
@@ -68,19 +76,22 @@ definitions:
     description: CertificatesPost represents the fields of a new LXD certificate
     properties:
       certificate:
+        description: The certificate itself, as PEM encoded X509
         example: X509 PEM certificate
         type: string
         x-go-name: Certificate
       name:
+        description: Name associated with the certificate
         example: castiana
         type: string
         x-go-name: Name
       password:
+        description: Server trust password (used to add an untrusted client)
         example: blah
         type: string
         x-go-name: Password
       projects:
-        description: 'API extension: certificate_project'
+        description: List of allowed projects (applies when restricted)
         example:
         - default
         - foo
@@ -90,20 +101,1208 @@ definitions:
         type: array
         x-go-name: Projects
       restricted:
-        description: 'API extension: certificate_project'
+        description: Whether to limit the certificate to listed projects
         example: true
         type: boolean
         x-go-name: Restricted
       type:
+        description: Usage type for the certificate (only client currently)
         example: client
         type: string
         x-go-name: Type
+    type: object
+    x-go-package: github.com/lxc/lxd/shared/api
+  Resources:
+    description: 'API extension: resources'
+    properties:
+      cpu:
+        $ref: '#/definitions/ResourcesCPU'
+      gpu:
+        $ref: '#/definitions/ResourcesGPU'
+      memory:
+        $ref: '#/definitions/ResourcesMemory'
+      network:
+        $ref: '#/definitions/ResourcesNetwork'
+      pci:
+        $ref: '#/definitions/ResourcesPCI'
+      storage:
+        $ref: '#/definitions/ResourcesStorage'
+      system:
+        $ref: '#/definitions/ResourcesSystem'
+      usb:
+        $ref: '#/definitions/ResourcesUSB'
+    title: Resources represents the system resources available for LXD
+    type: object
+    x-go-package: github.com/lxc/lxd/shared/api
+  ResourcesCPU:
+    description: 'API extension: resources'
+    properties:
+      architecture:
+        description: Architecture name
+        example: x86_64
+        type: string
+        x-go-name: Architecture
+      sockets:
+        description: List of CPU sockets
+        items:
+          $ref: '#/definitions/ResourcesCPUSocket'
+        type: array
+        x-go-name: Sockets
+      total:
+        description: Total number of CPU threads (from all sockets and cores)
+        example: 1
+        format: uint64
+        type: integer
+        x-go-name: Total
+    title: ResourcesCPU represents the cpu resources available on the system
+    type: object
+    x-go-package: github.com/lxc/lxd/shared/api
+  ResourcesCPUCache:
+    description: 'API extension: resources_v2'
+    properties:
+      level:
+        description: Cache level (usually a number from 1 to 3)
+        example: 1
+        format: uint64
+        type: integer
+        x-go-name: Level
+      size:
+        description: Size of the cache (in bytes)
+        example: 32768
+        format: uint64
+        type: integer
+        x-go-name: Size
+      type:
+        description: Type of cache (Data, Instruction, Unified, ...)
+        example: Data
+        type: string
+        x-go-name: Type
+    title: ResourcesCPUCache represents a CPU cache
+    type: object
+    x-go-package: github.com/lxc/lxd/shared/api
+  ResourcesCPUCore:
+    description: |-
+      ResourcesCPUCore represents a CPU core on the system
+      API extension: resources_v2
+    properties:
+      core:
+        description: Core identifier within the socket
+        example: 0
+        format: uint64
+        type: integer
+        x-go-name: Core
+      die:
+        description: What die the CPU is a part of (for chiplet designs)
+        example: 0
+        format: uint64
+        type: integer
+        x-go-name: Die
+      frequency:
+        description: Current frequency
+        example: 3500
+        format: uint64
+        type: integer
+        x-go-name: Frequency
+      threads:
+        description: List of threads
+        items:
+          $ref: '#/definitions/ResourcesCPUThread'
+        type: array
+        x-go-name: Threads
+    type: object
+    x-go-package: github.com/lxc/lxd/shared/api
+  ResourcesCPUSocket:
+    description: 'API extension: resources_v2'
+    properties:
+      cache:
+        description: List of CPU caches
+        items:
+          $ref: '#/definitions/ResourcesCPUCache'
+        type: array
+        x-go-name: Cache
+      cores:
+        description: List of CPU cores
+        items:
+          $ref: '#/definitions/ResourcesCPUCore'
+        type: array
+        x-go-name: Cores
+      frequency:
+        description: Current CPU frequency (Mhz)
+        example: 3499
+        format: uint64
+        type: integer
+        x-go-name: Frequency
+      frequency_minimum:
+        description: Minimum CPU frequency (Mhz)
+        example: 400
+        format: uint64
+        type: integer
+        x-go-name: FrequencyMinimum
+      frequency_turbo:
+        description: Maximum CPU frequency (Mhz)
+        example: 3500
+        format: uint64
+        type: integer
+        x-go-name: FrequencyTurbo
+      name:
+        description: Product name
+        example: Intel(R) Core(TM) i5-7300U CPU @ 2.60GHz
+        type: string
+        x-go-name: Name
+      socket:
+        description: Socket number
+        example: 0
+        format: uint64
+        type: integer
+        x-go-name: Socket
+      vendor:
+        description: Vendor name
+        example: GenuineIntel
+        type: string
+        x-go-name: Vendor
+    title: ResourcesCPUSocket represents a CPU socket on the system
+    type: object
+    x-go-package: github.com/lxc/lxd/shared/api
+  ResourcesCPUThread:
+    description: 'API extension: resources_v2'
+    properties:
+      id:
+        description: Thread ID (used for CPU pinning)
+        example: 0
+        format: int64
+        type: integer
+        x-go-name: ID
+      isolated:
+        description: Whether the thread has been isolated (outside of normal scheduling)
+        example: false
+        type: boolean
+        x-go-name: Isolated
+      numa_node:
+        description: NUMA node the thread is a part of
+        example: 0
+        format: uint64
+        type: integer
+        x-go-name: NUMANode
+      online:
+        description: Whether the thread is online (enabled)
+        example: true
+        type: boolean
+        x-go-name: Online
+      thread:
+        description: Thread identifier within the core
+        example: 0
+        format: uint64
+        type: integer
+        x-go-name: Thread
+    title: ResourcesCPUThread represents a CPU thread on the system
+    type: object
+    x-go-package: github.com/lxc/lxd/shared/api
+  ResourcesGPU:
+    description: 'API extension: resources_gpu'
+    properties:
+      cards:
+        description: List of GPUs
+        items:
+          $ref: '#/definitions/ResourcesGPUCard'
+        type: array
+        x-go-name: Cards
+      total:
+        description: Total number of GPUs
+        example: 1
+        format: uint64
+        type: integer
+        x-go-name: Total
+    title: ResourcesGPU represents the GPU resources available on the system
+    type: object
+    x-go-package: github.com/lxc/lxd/shared/api
+  ResourcesGPUCard:
+    description: |-
+      ResourcesGPUCard represents a GPU card on the system
+      API extension: resources_v2
+    properties:
+      driver:
+        description: Kernel driver currently associated with the GPU
+        example: i915
+        type: string
+        x-go-name: Driver
+      driver_version:
+        description: Version of the kernel driver
+        example: 5.8.0-36-generic
+        type: string
+        x-go-name: DriverVersion
+      drm:
+        $ref: '#/definitions/ResourcesGPUCardDRM'
+      mdev:
+        additionalProperties:
+          $ref: '#/definitions/ResourcesGPUCardMdev'
+        description: Map of available mediated device profiles
+        example: null
+        type: object
+        x-go-name: Mdev
+      numa_node:
+        description: NUMA node the GPU is a part of
+        example: 0
+        format: uint64
+        type: integer
+        x-go-name: NUMANode
+      nvidia:
+        $ref: '#/definitions/ResourcesGPUCardNvidia'
+      pci_address:
+        description: PCI address
+        example: "0000:00:02.0"
+        type: string
+        x-go-name: PCIAddress
+      product:
+        description: Name of the product
+        example: HD Graphics 620
+        type: string
+        x-go-name: Product
+      product_id:
+        description: PCI ID of the product
+        example: "5916"
+        type: string
+        x-go-name: ProductID
+      sriov:
+        $ref: '#/definitions/ResourcesGPUCardSRIOV'
+      vendor:
+        description: Name of the vendor
+        example: Intel Corporation
+        type: string
+        x-go-name: Vendor
+      vendor_id:
+        description: PCI ID of the vendor
+        example: "8086"
+        type: string
+        x-go-name: VendorID
+    type: object
+    x-go-package: github.com/lxc/lxd/shared/api
+  ResourcesGPUCardDRM:
+    description: |-
+      ResourcesGPUCardDRM represents the Linux DRM configuration of the GPU
+      API extension: resources_v2
+    properties:
+      card_device:
+        description: Card device number
+        example: "226:0"
+        type: string
+        x-go-name: CardDevice
+      card_name:
+        description: Card device name
+        example: card0
+        type: string
+        x-go-name: CardName
+      control_device:
+        description: Control device number
+        example: "226:0"
+        type: string
+        x-go-name: ControlDevice
+      control_name:
+        description: Control device name
+        example: controlD64
+        type: string
+        x-go-name: ControlName
+      id:
+        description: DRM card ID
+        example: 0
+        format: uint64
+        type: integer
+        x-go-name: ID
+      render_device:
+        description: Render device number
+        example: 226:128
+        type: string
+        x-go-name: RenderDevice
+      render_name:
+        description: Render device name
+        example: renderD128
+        type: string
+        x-go-name: RenderName
+    type: object
+    x-go-package: github.com/lxc/lxd/shared/api
+  ResourcesGPUCardMdev:
+    description: 'API extension: resources_gpu_mdev'
+    properties:
+      api:
+        description: The mechanism used by this device
+        example: vfio-pci
+        type: string
+        x-go-name: API
+      available:
+        description: Number of available devices of this profile
+        example: 2
+        format: uint64
+        type: integer
+        x-go-name: Available
+      description:
+        description: Profile description
+        example: 'low_gm_size: 128MB\nhigh_gm_size: 512MB\nfence: 4\nresolution: 1920x1200\nweight:
+          4'
+        type: string
+        x-go-name: Description
+      devices:
+        description: List of active devices (UUIDs)
+        example:
+        - 42200aac-0977-495c-8c9e-6c51b9092a01
+        - b4950c00-1437-41d9-88f6-28d61cf9b9ef
+        items:
+          type: string
+        type: array
+        x-go-name: Devices
+      name:
+        description: Profile name
+        example: i915-GVTg_V5_8
+        type: string
+        x-go-name: Name
+    title: ResourcesGPUCardMdev represents the mediated devices configuration of the
+      GPU
+    type: object
+    x-go-package: github.com/lxc/lxd/shared/api
+  ResourcesGPUCardNvidia:
+    description: 'API extension: resources_gpu'
+    properties:
+      architecture:
+        description: Architecture (generation)
+        example: "3.5"
+        type: string
+        x-go-name: Architecture
+      brand:
+        description: Brand name
+        example: GeForce
+        type: string
+        x-go-name: Brand
+      card_device:
+        description: Card device number
+        example: "195:0"
+        type: string
+        x-go-name: CardDevice
+      card_name:
+        description: Card device name
+        example: nvidia0
+        type: string
+        x-go-name: CardName
+      cuda_version:
+        description: Version of the CUDA API
+        example: "11.0"
+        type: string
+        x-go-name: CUDAVersion
+      model:
+        description: Model name
+        example: GeForce GT 730
+        type: string
+        x-go-name: Model
+      nvrm_version:
+        description: Version of the NVRM (usually driver version)
+        example: 450.102.04
+        type: string
+        x-go-name: NVRMVersion
+      uuid:
+        description: GPU UUID
+        example: GPU-6ddadebd-dafe-2db9-f10f-125719770fd3
+        type: string
+        x-go-name: UUID
+    title: ResourcesGPUCardNvidia represents additional information for NVIDIA GPUs
+    type: object
+    x-go-package: github.com/lxc/lxd/shared/api
+  ResourcesGPUCardSRIOV:
+    description: 'API extension: resources_v2'
+    properties:
+      current_vfs:
+        description: Number of VFs currently configured
+        example: 0
+        format: uint64
+        type: integer
+        x-go-name: CurrentVFs
+      maximum_vfs:
+        description: Maximum number of supported VFs
+        example: 0
+        format: uint64
+        type: integer
+        x-go-name: MaximumVFs
+      vfs:
+        description: List of VFs (as additional GPU devices)
+        example: null
+        items:
+          $ref: '#/definitions/ResourcesGPUCard'
+        type: array
+        x-go-name: VFs
+    title: ResourcesGPUCardSRIOV represents the SRIOV configuration of the GPU
+    type: object
+    x-go-package: github.com/lxc/lxd/shared/api
+  ResourcesMemory:
+    description: 'API extension: resources'
+    properties:
+      hugepages_size:
+        description: Size of memory huge pages (bytes)
+        example: 2097152
+        format: uint64
+        type: integer
+        x-go-name: HugepagesSize
+      hugepages_total:
+        description: Total of memory huge pages (bytes)
+        example: 429284917248
+        format: uint64
+        type: integer
+        x-go-name: HugepagesTotal
+      hugepages_used:
+        description: Used memory huge pages (bytes)
+        example: 429284917248
+        format: uint64
+        type: integer
+        x-go-name: HugepagesUsed
+      nodes:
+        description: |-
+          List of NUMA memory nodes
+
+          API extension: resources_v2
+        items:
+          $ref: '#/definitions/ResourcesMemoryNode'
+        type: array
+        x-go-name: Nodes
+      total:
+        description: Total system memory (bytes)
+        example: 687194767360
+        format: uint64
+        type: integer
+        x-go-name: Total
+      used:
+        description: Used system memory (bytes)
+        example: 557450502144
+        format: uint64
+        type: integer
+        x-go-name: Used
+    title: ResourcesMemory represents the memory resources available on the system
+    type: object
+    x-go-package: github.com/lxc/lxd/shared/api
+  ResourcesMemoryNode:
+    description: |-
+      ResourcesMemoryNode represents the node-specific memory resources available on the system
+      API extension: resources_v2
+    properties:
+      hugepages_total:
+        description: Total of memory huge pages (bytes)
+        example: 214536552448
+        format: uint64
+        type: integer
+        x-go-name: HugepagesTotal
+      hugepages_used:
+        description: Used memory huge pages (bytes)
+        example: 214536552448
+        format: uint64
+        type: integer
+        x-go-name: HugepagesUsed
+      numa_node:
+        description: NUMA node identifier
+        example: 0
+        format: uint64
+        type: integer
+        x-go-name: NUMANode
+      total:
+        description: Total system memory (bytes)
+        example: 343597383680
+        format: uint64
+        type: integer
+        x-go-name: Total
+      used:
+        description: Used system memory (bytes)
+        example: 264880439296
+        format: uint64
+        type: integer
+        x-go-name: Used
+    type: object
+    x-go-package: github.com/lxc/lxd/shared/api
+  ResourcesNetwork:
+    description: |-
+      ResourcesNetwork represents the network cards available on the system
+      API extension: resources_v2
+    properties:
+      cards:
+        description: List of network cards
+        items:
+          $ref: '#/definitions/ResourcesNetworkCard'
+        type: array
+        x-go-name: Cards
+      total:
+        description: Total number of network cards
+        example: 1
+        format: uint64
+        type: integer
+        x-go-name: Total
+    type: object
+    x-go-package: github.com/lxc/lxd/shared/api
+  ResourcesNetworkCard:
+    description: 'API extension: resources_v2'
+    properties:
+      driver:
+        description: Kernel driver currently associated with the card
+        example: atlantic
+        type: string
+        x-go-name: Driver
+      driver_version:
+        description: Version of the kernel driver
+        example: 5.8.0-36-generic
+        type: string
+        x-go-name: DriverVersion
+      firmware_version:
+        description: Current firmware version
+        example: 3.1.100
+        type: string
+        x-go-name: FirmwareVersion
+      numa_node:
+        description: NUMA node the card is a part of
+        example: 0
+        format: uint64
+        type: integer
+        x-go-name: NUMANode
+      pci_address:
+        description: PCI address (for PCI cards)
+        example: 0000:0d:00.0
+        type: string
+        x-go-name: PCIAddress
+      ports:
+        description: List of ports on the card
+        items:
+          $ref: '#/definitions/ResourcesNetworkCardPort'
+        type: array
+        x-go-name: Ports
+      product:
+        description: Name of the product
+        example: AQC107 NBase-T/IEEE
+        type: string
+        x-go-name: Product
+      product_id:
+        description: PCI ID of the product
+        example: 87b1
+        type: string
+        x-go-name: ProductID
+      sriov:
+        $ref: '#/definitions/ResourcesNetworkCardSRIOV'
+      usb_address:
+        description: USB address (for USB cards)
+        example: "2:7"
+        type: string
+        x-go-name: USBAddress
+      vendor:
+        description: Name of the vendor
+        example: Aquantia Corp.
+        type: string
+        x-go-name: Vendor
+      vendor_id:
+        description: PCI ID of the vendor
+        example: 1d6a
+        type: string
+        x-go-name: VendorID
+    title: ResourcesNetworkCard represents a network card on the system
+    type: object
+    x-go-package: github.com/lxc/lxd/shared/api
+  ResourcesNetworkCardPort:
+    description: 'API extension: resources_v2'
+    properties:
+      address:
+        description: MAC address
+        example: 00:23:a4:01:01:6f
+        type: string
+        x-go-name: Address
+      auto_negotiation:
+        description: Whether auto negotiation is used
+        example: true
+        type: boolean
+        x-go-name: AutoNegotiation
+      id:
+        description: Port identifier (interface name)
+        example: eth0
+        type: string
+        x-go-name: ID
+      infiniband:
+        $ref: '#/definitions/ResourcesNetworkCardPortInfiniband'
+      link_detected:
+        description: Whether a link was detected
+        example: true
+        type: boolean
+        x-go-name: LinkDetected
+      link_duplex:
+        description: Duplex type
+        example: full
+        type: string
+        x-go-name: LinkDuplex
+      link_speed:
+        description: Current speed (Mbit/s)
+        example: 10000
+        format: uint64
+        type: integer
+        x-go-name: LinkSpeed
+      port:
+        description: Port number
+        example: 0
+        format: uint64
+        type: integer
+        x-go-name: Port
+      port_type:
+        description: Current port type
+        example: twisted pair
+        type: string
+        x-go-name: PortType
+      protocol:
+        description: Transport protocol
+        example: ethernet
+        type: string
+        x-go-name: Protocol
+      supported_modes:
+        description: List of supported modes
+        example:
+        - 100baseT/Full
+        - 1000baseT/Full
+        - 2500baseT/Full
+        - 5000baseT/Full
+        - 10000baseT/Full
+        items:
+          type: string
+        type: array
+        x-go-name: SupportedModes
+      supported_ports:
+        description: List of supported port types
+        example:
+        - twisted pair
+        items:
+          type: string
+        type: array
+        x-go-name: SupportedPorts
+      transceiver_type:
+        description: Type of transceiver used
+        example: internal
+        type: string
+        x-go-name: TransceiverType
+    title: ResourcesNetworkCardPort represents a network port on the system
+    type: object
+    x-go-package: github.com/lxc/lxd/shared/api
+  ResourcesNetworkCardPortInfiniband:
+    description: |-
+      ResourcesNetworkCardPortInfiniband represents the Linux Infiniband configuration for the port
+      API extension: resources_infiniband
+    properties:
+      issm_device:
+        description: ISSM device number
+        example: 231:64
+        type: string
+        x-go-name: IsSMDevice
+      issm_name:
+        description: ISSM device name
+        example: issm0
+        type: string
+        x-go-name: IsSMName
+      mad_device:
+        description: MAD device number
+        example: "231:0"
+        type: string
+        x-go-name: MADDevice
+      mad_name:
+        description: MAD device name
+        example: umad0
+        type: string
+        x-go-name: MADName
+      verb_device:
+        description: Verb device number
+        example: 231:192
+        type: string
+        x-go-name: VerbDevice
+      verb_name:
+        description: Verb device name
+        example: uverbs0
+        type: string
+        x-go-name: VerbName
+    type: object
+    x-go-package: github.com/lxc/lxd/shared/api
+  ResourcesNetworkCardSRIOV:
+    description: 'API extension: resources_v2'
+    properties:
+      current_vfs:
+        description: Number of VFs currently configured
+        example: 0
+        format: uint64
+        type: integer
+        x-go-name: CurrentVFs
+      maximum_vfs:
+        description: Maximum number of supported VFs
+        example: 0
+        format: uint64
+        type: integer
+        x-go-name: MaximumVFs
+      vfs:
+        description: List of VFs (as additional Network devices)
+        example: null
+        items:
+          $ref: '#/definitions/ResourcesNetworkCard'
+        type: array
+        x-go-name: VFs
+    title: ResourcesNetworkCardSRIOV represents the SRIOV configuration of the network
+      card
+    type: object
+    x-go-package: github.com/lxc/lxd/shared/api
+  ResourcesPCI:
+    description: 'API extension: resources_usb_pci'
+    properties:
+      devices:
+        description: List of PCI devices
+        items:
+          $ref: '#/definitions/ResourcesPCIDevice'
+        type: array
+        x-go-name: Devices
+      total:
+        description: Total number of PCI devices
+        example: 1
+        format: uint64
+        type: integer
+        x-go-name: Total
+    title: ResourcesPCI represents the PCI devices available on the system
+    type: object
+    x-go-package: github.com/lxc/lxd/shared/api
+  ResourcesPCIDevice:
+    description: 'API extension: resources_usb_pci'
+    properties:
+      driver:
+        description: Kernel driver currently associated with the GPU
+        example: mgag200
+        type: string
+        x-go-name: Driver
+      driver_version:
+        description: Version of the kernel driver
+        example: 5.8.0-36-generic
+        type: string
+        x-go-name: DriverVersion
+      iommu_group:
+        description: IOMMU group number
+        example: 20
+        format: uint64
+        type: integer
+        x-go-name: IOMMUGroup
+      numa_node:
+        description: NUMA node the card is a part of
+        example: 0
+        format: uint64
+        type: integer
+        x-go-name: NUMANode
+      pci_address:
+        description: PCI address
+        example: "0000:07:03.0"
+        type: string
+        x-go-name: PCIAddress
+      product:
+        description: Name of the product
+        example: MGA G200eW WPCM450
+        type: string
+        x-go-name: Product
+      product_id:
+        description: PCI ID of the product
+        example: "0532"
+        type: string
+        x-go-name: ProductID
+      vendor:
+        description: Name of the vendor
+        example: Matrox Electronics Systems Ltd.
+        type: string
+        x-go-name: Vendor
+      vendor_id:
+        description: PCI ID of the vendor
+        example: 102b
+        type: string
+        x-go-name: VendorID
+    title: ResourcesPCIDevice represents a PCI device
+    type: object
+    x-go-package: github.com/lxc/lxd/shared/api
+  ResourcesStorage:
+    description: 'API extension: resources_v2'
+    properties:
+      disks:
+        description: List of disks
+        items:
+          $ref: '#/definitions/ResourcesStorageDisk'
+        type: array
+        x-go-name: Disks
+      total:
+        description: Total number of partitions
+        example: 1
+        format: uint64
+        type: integer
+        x-go-name: Total
+    title: ResourcesStorage represents the local storage
+    type: object
+    x-go-package: github.com/lxc/lxd/shared/api
+  ResourcesStorageDisk:
+    description: 'API extension: resources_v2'
+    properties:
+      block_size:
+        description: Block size
+        example: 512
+        format: uint64
+        type: integer
+        x-go-name: BlockSize
+      device:
+        description: Device number
+        example: "259:0"
+        type: string
+        x-go-name: Device
+      device_id:
+        description: Device by-id identifier
+        example: nvme-eui.0000000001000000e4d25cafae2e4c00
+        type: string
+        x-go-name: DeviceID
+      device_path:
+        description: Device by-path identifier
+        example: pci-0000:05:00.0-nvme-1
+        type: string
+        x-go-name: DevicePath
+      firmware_version:
+        description: Current firmware version
+        example: PSF121C
+        type: string
+        x-go-name: FirmwareVersion
+      id:
+        description: ID of the disk (device name)
+        example: nvme0n1
+        type: string
+        x-go-name: ID
+      model:
+        description: Disk model name
+        example: INTEL SSDPEKKW256G7
+        type: string
+        x-go-name: Model
+      numa_node:
+        description: NUMA node the disk is a part of
+        example: 0
+        format: uint64
+        type: integer
+        x-go-name: NUMANode
+      partitions:
+        description: List of partitions
+        items:
+          $ref: '#/definitions/ResourcesStorageDiskPartition'
+        type: array
+        x-go-name: Partitions
+      pci_address:
+        description: PCI address
+        example: "0000:05:00.0"
+        type: string
+        x-go-name: PCIAddress
+      read_only:
+        description: Whether the disk is read-only
+        example: false
+        type: boolean
+        x-go-name: ReadOnly
+      removable:
+        description: Whether the disk is removable (hot-plug)
+        example: false
+        type: boolean
+        x-go-name: Removable
+      rpm:
+        description: Rotation speed (RPM)
+        example: 0
+        format: uint64
+        type: integer
+        x-go-name: RPM
+      serial:
+        description: Serial number
+        example: BTPY63440ARH256D
+        type: string
+        x-go-name: Serial
+      size:
+        description: Total size of the disk (bytes)
+        example: 256060514304
+        format: uint64
+        type: integer
+        x-go-name: Size
+      type:
+        description: Storage type
+        example: nvme
+        type: string
+        x-go-name: Type
+      usb_address:
+        description: USB address
+        example: "3:5"
+        type: string
+        x-go-name: USBAddress
+      wwn:
+        description: WWN identifier
+        example: eui.0000000001000000e4d25cafae2e4c00
+        type: string
+        x-go-name: WWN
+    title: ResourcesStorageDisk represents a disk
+    type: object
+    x-go-package: github.com/lxc/lxd/shared/api
+  ResourcesStorageDiskPartition:
+    description: 'API extension: resources_v2'
+    properties:
+      device:
+        description: Device number
+        example: "259:1"
+        type: string
+        x-go-name: Device
+      id:
+        description: ID of the partition (device name)
+        example: nvme0n1p1
+        type: string
+        x-go-name: ID
+      partition:
+        description: Partition number
+        example: 1
+        format: uint64
+        type: integer
+        x-go-name: Partition
+      read_only:
+        description: Whether the partition is read-only
+        example: false
+        type: boolean
+        x-go-name: ReadOnly
+      size:
+        description: Size of the partition (bytes)
+        example: 254933278208
+        format: uint64
+        type: integer
+        x-go-name: Size
+    title: ResourcesStorageDiskPartition represents a partition on a disk
+    type: object
+    x-go-package: github.com/lxc/lxd/shared/api
+  ResourcesSystem:
+    description: 'API extension: resources_system'
+    properties:
+      chassis:
+        $ref: '#/definitions/ResourcesSystemChassis'
+      family:
+        description: System family
+        example: ThinkPad X1 Carbon 5th
+        type: string
+        x-go-name: Family
+      firmware:
+        $ref: '#/definitions/ResourcesSystemFirmware'
+      motherboard:
+        $ref: '#/definitions/ResourcesSystemMotherboard'
+      product:
+        description: System model
+        example: 20HRCTO1WW
+        type: string
+        x-go-name: Product
+      serial:
+        description: System serial number
+        example: PY3DD4X9
+        type: string
+        x-go-name: Serial
+      sku:
+        description: |-
+          System nanufacturer SKU
+          LENOVO_MT_20HR_BU_Think_FM_ThinkPad X1 Carbon 5th
+        type: string
+        x-go-name: Sku
+      type:
+        description: System type (unknown, physical, virtual-machine, container, ...)
+        example: physical
+        type: string
+        x-go-name: Type
+      uuid:
+        description: System UUID
+        example: 7fa1c0cc-2271-11b2-a85c-aab32a05d71a
+        type: string
+        x-go-name: UUID
+      vendor:
+        description: System vendor
+        example: LENOVO
+        type: string
+        x-go-name: Vendor
+      version:
+        description: System version
+        example: ThinkPad X1 Carbon 5th
+        type: string
+        x-go-name: Version
+    title: ResourcesSystem represents the system
+    type: object
+    x-go-package: github.com/lxc/lxd/shared/api
+  ResourcesSystemChassis:
+    description: 'API extension: resources_system'
+    properties:
+      serial:
+        description: Chassis serial number
+        example: PY3DD4X9
+        type: string
+        x-go-name: Serial
+      type:
+        description: Chassis type
+        example: Notebook
+        type: string
+        x-go-name: Type
+      vendor:
+        description: Chassis vendor
+        example: Lenovo
+        type: string
+        x-go-name: Vendor
+      version:
+        description: Chassis version/revision
+        example: None
+        type: string
+        x-go-name: Version
+    title: ResourcesSystemChassis represents the system chassis
+    type: object
+    x-go-package: github.com/lxc/lxd/shared/api
+  ResourcesSystemFirmware:
+    description: 'API extension: resources_system'
+    properties:
+      date:
+        description: Firmware build date
+        example: 10/14/2020
+        type: string
+        x-go-name: Date
+      vendor:
+        description: Firmware vendor
+        example: Lenovo
+        type: string
+        x-go-name: Vendor
+      version:
+        description: Firmware version
+        example: N1MET64W (1.49)
+        type: string
+        x-go-name: Version
+    title: ResourcesSystemFirmware represents the system firmware
+    type: object
+    x-go-package: github.com/lxc/lxd/shared/api
+  ResourcesSystemMotherboard:
+    description: 'API extension: resources_system'
+    properties:
+      product:
+        description: Motherboard model
+        example: 20HRCTO1WW
+        type: string
+        x-go-name: Product
+      serial:
+        description: Motherboard serial number
+        example: L3CF4FX003A
+        type: string
+        x-go-name: Serial
+      vendor:
+        description: Motherboard vendor
+        example: Lenovo
+        type: string
+        x-go-name: Vendor
+      version:
+        description: Motherboard version/revision
+        example: None
+        type: string
+        x-go-name: Version
+    title: ResourcesSystemMotherboard represents the motherboard
+    type: object
+    x-go-package: github.com/lxc/lxd/shared/api
+  ResourcesUSB:
+    description: 'API extension: resources_usb_pci'
+    properties:
+      devices:
+        description: List of USB devices
+        items:
+          $ref: '#/definitions/ResourcesUSBDevice'
+        type: array
+        x-go-name: Devices
+      total:
+        description: Total number of USB devices
+        example: 1
+        format: uint64
+        type: integer
+        x-go-name: Total
+    title: ResourcesUSB represents the USB devices available on the system
+    type: object
+    x-go-package: github.com/lxc/lxd/shared/api
+  ResourcesUSBDevice:
+    description: 'API extension: resources_usb_pci'
+    properties:
+      bus_address:
+        description: USB address (bus)
+        example: 1
+        format: uint64
+        type: integer
+        x-go-name: BusAddress
+      device_address:
+        description: USB address (device)
+        example: 3
+        format: uint64
+        type: integer
+        x-go-name: DeviceAddress
+      interfaces:
+        description: List of USB interfaces
+        items:
+          $ref: '#/definitions/ResourcesUSBDeviceInterface'
+        type: array
+        x-go-name: Interfaces
+      product:
+        description: Name of the product
+        example: Hermon USB hidmouse Device
+        type: string
+        x-go-name: Product
+      product_id:
+        description: USB ID of the product
+        example: "2221"
+        type: string
+        x-go-name: ProductID
+      speed:
+        description: Transfer speed (Mbit/s)
+        example: 12
+        format: double
+        type: number
+        x-go-name: Speed
+      vendor:
+        description: Name of the vendor
+        example: ATEN International Co., Ltd
+        type: string
+        x-go-name: Vendor
+      vendor_id:
+        description: USB ID of the vendor
+        example: "0557"
+        type: string
+        x-go-name: VendorID
+    title: ResourcesUSBDevice represents a USB device
+    type: object
+    x-go-package: github.com/lxc/lxd/shared/api
+  ResourcesUSBDeviceInterface:
+    description: 'API extension: resources_usb_pci'
+    properties:
+      class:
+        description: Class of USB interface
+        example: Human Interface Device
+        type: string
+        x-go-name: Class
+      class_id:
+        description: ID of the USB interface class
+        example: 3
+        format: uint64
+        type: integer
+        x-go-name: ClassID
+      driver:
+        description: Kernel driver currently associated with the device
+        example: usbhid
+        type: string
+        x-go-name: Driver
+      driver_version:
+        description: Version of the kernel driver
+        example: 5.8.0-36-generic
+        type: string
+        x-go-name: DriverVersion
+      number:
+        description: Interface number
+        example: 0
+        format: uint64
+        type: integer
+        x-go-name: Number
+      subclass:
+        description: Sub class of the interface
+        example: Boot Interface Subclass
+        type: string
+        x-go-name: SubClass
+      subclass_id:
+        description: ID of the USB interface sub class
+        example: 1
+        format: uint64
+        type: integer
+        x-go-name: SubClassID
+    title: ResourcesUSBDeviceInterface represents a USB device interface
     type: object
     x-go-package: github.com/lxc/lxd/shared/api
   Server:
     description: Server represents a LXD server
     properties:
       api_extensions:
+        description: List of supported API extensions
         example:
         - etag
         - patch
@@ -111,31 +1310,42 @@ definitions:
         - storage
         items:
           type: string
+        readOnly: true
         type: array
         x-go-name: APIExtensions
       api_status:
+        description: Support status of the current API (one of "devel", "stable" or
+          "deprecated")
         example: stable
+        readOnly: true
         type: string
         x-go-name: APIStatus
       api_version:
+        description: API version number
         example: "1.0"
+        readOnly: true
         type: string
         x-go-name: APIVersion
       auth:
+        description: Whether the client is trusted (one of "trusted" or "untrusted")
         example: untrusted
+        readOnly: true
         type: string
         x-go-name: Auth
       auth_methods:
+        description: List of supported authentication methods
         example:
         - tls
         - candid
         items:
           type: string
+        readOnly: true
         type: array
         x-go-name: AuthMethods
       config:
         additionalProperties:
           type: object
+        description: Server configuration map (refer to doc/server.md)
         example:
           core.https_address: :8443
           core.trust_password: true
@@ -144,7 +1354,10 @@ definitions:
       environment:
         $ref: '#/definitions/ServerEnvironment'
       public:
-        example: true
+        description: Whether the server is public-only (only public endpoints are
+          implemented)
+        example: false
+        readOnly: true
         type: boolean
         x-go-name: Public
     type: object
@@ -154,6 +1367,7 @@ definitions:
       a LXD server
     properties:
       addresses:
+        description: List of addresses the server is listening on
         example:
         - :8443
         items:
@@ -161,6 +1375,7 @@ definitions:
         type: array
         x-go-name: Addresses
       architectures:
+        description: List of architectures supported by the server
         example:
         - x86_64
         - i686
@@ -169,48 +1384,58 @@ definitions:
         type: array
         x-go-name: Architectures
       certificate:
+        description: Server certificate as PEM encoded X509
         example: X509 PEM certificate
         type: string
         x-go-name: Certificate
       certificate_fingerprint:
+        description: Server certificate fingerprint as SHA256
         example: fd200419b271f1dc2a5591b693cc5774b7f234e1ff8c6b78ad703b6888fe2b69
         type: string
         x-go-name: CertificateFingerprint
       driver:
+        description: List of supported instance drivers (separate by " | ")
         example: lxc | qemu
         type: string
         x-go-name: Driver
       driver_version:
+        description: List of supported instance driver versions (separate by " | ")
         example: 4.0.7 | 5.2.0
         type: string
         x-go-name: DriverVersion
       firewall:
+        description: Current firewall driver
         example: nftables
         type: string
         x-go-name: Firewall
       kernel:
+        description: OS kernel name
         example: Linux
         type: string
         x-go-name: Kernel
       kernel_architecture:
+        description: OS kernel architecture
         example: x86_64
         type: string
         x-go-name: KernelArchitecture
       kernel_features:
         additionalProperties:
           type: string
+        description: Map of kernel features that were tested on startup
         example:
           netnsid_getifaddrs: "true"
           seccomp_listener: "true"
         type: object
         x-go-name: KernelFeatures
       kernel_version:
+        description: Kernel version
         example: 5.4.0-36-generic
         type: string
         x-go-name: KernelVersion
       lxc_features:
         additionalProperties:
           type: string
+        description: Map of LXC features that were tested on startup
         example:
           cgroup2: "true"
           devpts_fd: "true"
@@ -218,43 +1443,53 @@ definitions:
         type: object
         x-go-name: LXCFeatures
       os_name:
+        description: Name of the operating system (Linux distribution)
         example: Ubuntu
         type: string
         x-go-name: OSName
       os_version:
+        description: Version of the operating system (Linux distribution)
         example: "20.04"
         type: string
         x-go-name: OSVersion
       project:
+        description: Current project name
         example: default
         type: string
         x-go-name: Project
       server:
+        description: Server implementation name
         example: lxd
         type: string
         x-go-name: Server
       server_clustered:
+        description: Whether the server is part of a cluster
         example: false
         type: boolean
         x-go-name: ServerClustered
       server_name:
+        description: Server hostname
         example: castiana
         type: string
         x-go-name: ServerName
       server_pid:
+        description: PID of the LXD process
         example: 1453969
         format: int64
         type: integer
         x-go-name: ServerPid
       server_version:
+        description: Server version
         example: "4.11"
         type: string
         x-go-name: ServerVersion
       storage:
+        description: List of active storage drivers (separate by " | ")
         example: dir | zfs
         type: string
         x-go-name: Storage
       storage_version:
+        description: List of active storage driver versions (separate by " | ")
         example: 1 | 0.8.4-1ubuntu11
         type: string
         x-go-name: StorageVersion
@@ -266,6 +1501,7 @@ definitions:
       config:
         additionalProperties:
           type: object
+        description: Server configuration map (refer to doc/server.md)
         example:
           core.https_address: :8443
           core.trust_password: true
@@ -277,6 +1513,7 @@ definitions:
     description: ServerUntrusted represents a LXD server for an untrusted client
     properties:
       api_extensions:
+        description: List of supported API extensions
         example:
         - etag
         - patch
@@ -284,30 +1521,43 @@ definitions:
         - storage
         items:
           type: string
+        readOnly: true
         type: array
         x-go-name: APIExtensions
       api_status:
+        description: Support status of the current API (one of "devel", "stable" or
+          "deprecated")
         example: stable
+        readOnly: true
         type: string
         x-go-name: APIStatus
       api_version:
+        description: API version number
         example: "1.0"
+        readOnly: true
         type: string
         x-go-name: APIVersion
       auth:
+        description: Whether the client is trusted (one of "trusted" or "untrusted")
         example: untrusted
+        readOnly: true
         type: string
         x-go-name: Auth
       auth_methods:
+        description: List of supported authentication methods
         example:
         - tls
         - candid
         items:
           type: string
+        readOnly: true
         type: array
         x-go-name: AuthMethods
       public:
-        example: true
+        description: Whether the server is public-only (only public endpoints are
+          implemented)
+        example: false
+        readOnly: true
         type: boolean
         x-go-name: Public
     type: object
@@ -378,6 +1628,17 @@ paths:
     get:
       description: Shows the full server environment and configuration.
       operationId: server_get
+      parameters:
+      - description: Cluster member name
+        example: lxd01
+        in: query
+        name: target
+        type: string
+      - description: Project name
+        example: default
+        in: query
+        name: project
+        type: string
       produces:
       - application/json
       responses:
@@ -412,6 +1673,11 @@ paths:
       description: Updates a subset of the server configuration.
       operationId: server_patch
       parameters:
+      - description: Cluster member name
+        example: lxd01
+        in: query
+        name: target
+        type: string
       - description: Server configuration
         in: body
         name: server
@@ -440,6 +1706,11 @@ paths:
       description: Updates the entire server configuration.
       operationId: server_put
       parameters:
+      - description: Cluster member name
+        example: lxd01
+        in: query
+        name: target
+        type: string
       - description: Server configuration
         in: body
         name: server
@@ -712,6 +1983,46 @@ paths:
       summary: Get the trusted certificates
       tags:
       - certificates
+  /1.0/resources:
+    get:
+      description: Gets the hardware information profile of the LXD server.
+      operationId: resources_get
+      parameters:
+      - description: Cluster member name
+        example: lxd01
+        in: query
+        name: target
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Hardware resources
+          schema:
+            description: Sync response
+            properties:
+              metadata:
+                $ref: '#/definitions/Resources'
+              status:
+                description: Status description
+                example: Success
+                type: string
+              status_code:
+                description: Status code
+                example: 200
+                type: int
+              type:
+                description: Response type
+                example: sync
+                type: string
+            type: object
+        "403":
+          $ref: '#/responses/Forbidden'
+        "500":
+          $ref: '#/responses/InternalServerError'
+      summary: Get system resources information
+      tags:
+      - server
   /1.0?public:
     get:
       description: |-
