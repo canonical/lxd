@@ -27,6 +27,10 @@ type ruleDirection string
 const ruleDirectionIngress ruleDirection = "ingress"
 const ruleDirectionEgress ruleDirection = "egress"
 
+// Define reserved ACL subjects.
+const ruleSubjectInternal = "#internal"
+const ruleSubjectExternal = "#external"
+
 // common represents a Network ACL.
 type common struct {
 	logger      logger.Logger
