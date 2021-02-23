@@ -853,7 +853,7 @@ func instancesPost(d *Daemon, r *http.Request) response.Response {
 				}
 
 				if req.Source.Project == "" {
-					req.Source.Project = project.Default
+					req.Source.Project = targetProject
 				}
 
 				source, err := instance.LoadInstanceDatabaseObject(tx, req.Source.Project, req.Source.Source)
