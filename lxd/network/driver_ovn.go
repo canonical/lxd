@@ -461,7 +461,7 @@ func (n *ovn) getOptimalBridgeMTU() (uint32, error) {
 
 // getNetworkPrefix returns OVN network prefix to use for object names.
 func (n *ovn) getNetworkPrefix() string {
-	return fmt.Sprintf("lxd-net%d", n.id)
+	return acl.OVNNetworkPrefix(n.id)
 }
 
 // getChassisGroup returns OVN chassis group name to use.
@@ -567,12 +567,12 @@ func (n *ovn) getExtSwitchProviderPortName() openvswitch.OVNSwitchPort {
 
 // getIntSwitchName returns OVN logical internal switch name.
 func (n *ovn) getIntSwitchName() openvswitch.OVNSwitch {
-	return openvswitch.OVNSwitch(fmt.Sprintf("%s-ls-int", n.getNetworkPrefix()))
+	return acl.OVNIntSwitchName(n.id)
 }
 
 // getIntSwitchRouterPortName returns OVN logical internal switch router port name.
 func (n *ovn) getIntSwitchRouterPortName() openvswitch.OVNSwitchPort {
-	return openvswitch.OVNSwitchPort(fmt.Sprintf("%s-lsp-router", n.getIntSwitchName()))
+	return acl.OVNIntSwitchRouterPortName(n.id)
 }
 
 // getIntSwitchInstancePortPrefix returns OVN logical internal switch instance port name prefix.
