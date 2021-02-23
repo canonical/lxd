@@ -32,7 +32,35 @@ const ovnACLPortGroupPrefix = "lxd_acl"
 // OVNACLPortGroupName returns the port group name for a Network ACL ID.
 func OVNACLPortGroupName(networkACLID int64) openvswitch.OVNPortGroup {
 	// OVN doesn't match port groups that have a "-" in them. So use an "_" for the separator.
-	return openvswitch.OVNPortGroup(fmt.Sprintf("lxd_acl%d", networkACLID))
+	// This is because OVN port group names must match: [a-zA-Z_.][a-zA-Z_.0-9]*.
+	return openvswitch.OVNPortGroup(fmt.Sprintf("%s%d", ovnACLPortGroupPrefix, networkACLID))
+}
+
+// OVNACLNetworkPortGroupName returns the port group name for a Network ACL ID and Network ID.
+func OVNACLNetworkPortGroupName(networkACLID int64, networkID int64) openvswitch.OVNPortGroup {
+	// OVN doesn't match port groups that have a "-" in them. So use an "_" for the separator.
+	// This is because OVN port group names must match: [a-zA-Z_.][a-zA-Z_.0-9]*.
+	return openvswitch.OVNPortGroup(fmt.Sprintf("%s%d_net%d", ovnACLPortGroupPrefix, networkACLID, networkID))
+}
+
+// OVNIntSwitchPortGroupName returns the port group name for a Network ID.
+func OVNIntSwitchPortGroupName(networkID int64) openvswitch.OVNPortGroup {
+	return openvswitch.OVNPortGroup(fmt.Sprintf("lxd_net%d", networkID))
+}
+
+// OVNNetworkPrefix returns the prefix used for OVN entities related to a Network ID.
+func OVNNetworkPrefix(networkID int64) string {
+	return fmt.Sprintf("lxd-net%d", networkID)
+}
+
+// OVNIntSwitchName returns the internal logical switch name for a Network ID.
+func OVNIntSwitchName(networkID int64) openvswitch.OVNSwitch {
+	return openvswitch.OVNSwitch(fmt.Sprintf("%s-ls-int", OVNNetworkPrefix(networkID)))
+}
+
+// OVNIntSwitchRouterPortName returns OVN logical internal switch router port name.
+func OVNIntSwitchRouterPortName(networkID int64) openvswitch.OVNSwitchPort {
+	return openvswitch.OVNSwitchPort(fmt.Sprintf("%s-lsp-router", OVNIntSwitchName(networkID)))
 }
 
 // OVNEnsureACLs ensures that the requested aclNames exist as OVN port groups (creates & applies ACL rules if not),
