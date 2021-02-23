@@ -60,84 +60,105 @@ int lxc_abstract_unix_send_fds(int fd, int *sendfds, int num_sendfds,
 	return sendmsg(fd, &msg, MSG_NOSIGNAL);
 }
 
-ssize_t lxc_abstract_unix_recv_fds_iov(int fd, int *recvfds, int num_recvfds,
-				       struct iovec *iov, size_t iovlen)
+ssize_t lxc_abstract_unix_recv_fds_iov(int fd, struct unix_fds *ret_fds,
+				       struct iovec *ret_iov, size_t size_ret_iov)
 {
 	__do_free char *cmsgbuf = NULL;
-	int new_fds[253]; /* Maximum number of supported fds to be sent in one message is 253. */
-	size_t num_new_fds = 0;
 	ssize_t ret;
-	struct msghdr msg = { 0 };
+	struct msghdr msg = {};
 	struct cmsghdr *cmsg = NULL;
 	size_t cmsgbufsize = CMSG_SPACE(sizeof(struct ucred)) +
-			     CMSG_SPACE(num_recvfds * sizeof(int));
+			     CMSG_SPACE(ret_fds->fd_count_max * sizeof(int));
 
 	cmsgbuf = malloc(cmsgbufsize);
-	if (!cmsgbuf) {
-		errno = ENOMEM;
-		return -1;
-	}
+	if (!cmsgbuf)
+		return ret_errno(ENOMEM);
+	memset(cmsgbuf, 0, cmsgbufsize);
 
-	msg.msg_control = cmsgbuf;
-	msg.msg_controllen = cmsgbufsize;
+	msg.msg_control		= cmsgbuf;
+	msg.msg_controllen	= cmsgbufsize;
 
-	msg.msg_iov = iov;
-	msg.msg_iovlen = iovlen;
+	msg.msg_iov	= ret_iov;
+	msg.msg_iovlen	= size_ret_iov;
 
 again:
-	ret = recvmsg(fd, &msg, MSG_TRUNC | MSG_CMSG_CLOEXEC | MSG_NOSIGNAL);
+	ret = recvmsg(fd, &msg, MSG_CMSG_CLOEXEC);
 	if (ret < 0) {
 		if (errno == EINTR)
 			goto again;
 
-		goto out;
+		return -errno;
 	}
 	if (ret == 0)
-		goto out;
+		return 0;
 
-	// If SO_PASSCRED is set we will always get a ucred message.
+	/* If SO_PASSCRED is set we will always get a ucred message. */
 	for (cmsg = CMSG_FIRSTHDR(&msg); cmsg; cmsg = CMSG_NXTHDR(&msg, cmsg)) {
                 if (cmsg->cmsg_level == SOL_SOCKET && cmsg->cmsg_type == SCM_RIGHTS) {
-			num_new_fds = (cmsg->cmsg_len - CMSG_LEN(0)) / sizeof(int);
+			__u32 idx;
+			/*
+			 * This causes some compilers to complain about
+			 * increased alignment requirements but I haven't found
+			 * a better way to deal with this yet. Suggestions
+			 * welcome!
+			 */
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wcast-align"
+			int *fds_raw = (int *)CMSG_DATA(cmsg);
+#pragma GCC diagnostic pop
+			__u32 num_raw = (cmsg->cmsg_len - CMSG_LEN(0)) / sizeof(int);
 
 			/*
 			 * We received an insane amount of file descriptors
 			 * which exceeds the kernel limit we know about so
 			 * close them and return an error.
 			 */
-			if (num_new_fds > 253) {
-				int *fd_ptr = (int *)CMSG_DATA(cmsg);
-				for (size_t i = 0; i < num_new_fds; i++)
-					close(fd_ptr[i]);
+			if (num_raw >= KERNEL_SCM_MAX_FD) {
+				for (idx = 0; idx < num_raw; idx++)
+					close(fds_raw[idx]);
+
 				return -EFBIG;
 			}
 
-			if (num_recvfds > num_new_fds) {
-				for (int i = num_new_fds; i < num_recvfds; i++)
-					recvfds[i] = -EBADF;
-				num_recvfds = num_new_fds;
+			if (ret_fds->fd_count_max > num_raw) {
+				/*
+				 * Make sure any excess entries in the fd array
+				 * are set to -EBADF so our cleanup functions
+				 * can safely be called.
+				 */
+				for (idx = num_raw; idx < ret_fds->fd_count_max; idx++)
+					ret_fds->fd[idx] = -EBADF;
+			} else if (ret_fds->fd_count_max < num_raw) {
+				/* Make sure we close any excess fds we received. */
+				for (idx = ret_fds->fd_count_max; idx < num_raw; idx++)
+					close(fds_raw[idx]);
+
+				/* Cap the number of received file descriptors. */
+				num_raw = ret_fds->fd_count_max;
 			}
 
-			memcpy(new_fds, CMSG_DATA(cmsg), num_new_fds * sizeof(int));
-			for (int i = num_recvfds; i < num_new_fds; i++)
-				close(new_fds[i]);
-
-			memcpy(recvfds, new_fds, num_recvfds * sizeof(int));
+			memcpy(ret_fds->fd, CMSG_DATA(cmsg), num_raw * sizeof(int));
+			ret_fds->fd_count_ret = num_raw;
+			break;
 		}
-		break;
 	}
 
-out:
 	return ret;
 }
 
-ssize_t lxc_abstract_unix_recv_fds(int fd, int *recvfds, int num_recvfds,
-				   void *data, size_t size)
+ssize_t lxc_abstract_unix_recv_fds(int fd, struct unix_fds *ret_fds,
+				   void *ret_data, size_t size_ret_data)
 {
-	char buf[1] = {0};
+	char buf[1] = {};
 	struct iovec iov = {
-		.iov_base = data ? data : buf,
-		.iov_len = data ? size : sizeof(buf),
+		.iov_base	= ret_data ? ret_data : buf,
+		.iov_len	= ret_data ? size_ret_data : sizeof(buf),
 	};
-	return lxc_abstract_unix_recv_fds_iov(fd, recvfds, num_recvfds, &iov, iov.iov_len);
+	ssize_t ret;
+
+	ret = lxc_abstract_unix_recv_fds_iov(fd, ret_fds, &iov, 1);
+	if (ret < 0)
+		return ret;
+
+	return ret;
 }
