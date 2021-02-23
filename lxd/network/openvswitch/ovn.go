@@ -1260,21 +1260,19 @@ func (o *OVN) PortGroupAdd(projectID int64, portGroupName OVNPortGroup, associat
 	return nil
 }
 
-// PortGroupDelete deletes a port group and all ACLs associated to it.
-func (o *OVN) PortGroupDelete(portGroupName OVNPortGroup) error {
-	// ovn-nbctl doesn't provide an "--if-exists" option for removing port groups.
-	uuid, _, err := o.PortGroupInfo(portGroupName)
-	if err != nil {
-		return err
+// PortGroupDelete deletes port groups along with their ACL rules.
+func (o *OVN) PortGroupDelete(portGroupNames ...OVNPortGroup) error {
+	args := make([]string, 0)
+
+	for _, portGroupName := range portGroupNames {
+		if len(args) > 0 {
+			args = append(args, "--")
+		}
+
+		args = append(args, "--if-exists", "destroy", "port_group", string(portGroupName))
 	}
 
-	// Nothing to do if port group doesn't exist.
-	if uuid == "" {
-		return nil
-	}
-
-	// Delete port group.
-	_, err = o.nbctl("pg-del", string(portGroupName))
+	_, err := o.nbctl(args...)
 	if err != nil {
 		return err
 	}
