@@ -1280,19 +1280,31 @@ func (o *OVN) PortGroupDelete(portGroupNames ...OVNPortGroup) error {
 	return nil
 }
 
-// PortGroupMemberAdd adds a logical switch port (by UUID) to an existing port group.
-func (o *OVN) PortGroupMemberAdd(portGroupName OVNPortGroup, portMemberUUID OVNSwitchPortUUID) error {
-	_, err := o.nbctl("add", "port_group", string(portGroupName), "ports", string(portMemberUUID))
-	if err != nil {
-		return err
+// PortGroupMemberChange adds/removes logical switch ports (by UUID) to/from existing port groups.
+func (o *OVN) PortGroupMemberChange(addMembers map[OVNPortGroup][]OVNSwitchPortUUID, removeMembers map[OVNPortGroup][]OVNSwitchPortUUID) error {
+	args := []string{}
+
+	for portGroupName, portMemberUUIDs := range addMembers {
+		for _, portMemberUUID := range portMemberUUIDs {
+			if len(args) > 0 {
+				args = append(args, "--")
+			}
+
+			args = append(args, "add", "port_group", string(portGroupName), "ports", string(portMemberUUID))
+		}
 	}
 
-	return nil
-}
+	for portGroupName, portMemberUUIDs := range removeMembers {
+		for _, portMemberUUID := range portMemberUUIDs {
+			if len(args) > 0 {
+				args = append(args, "--")
+			}
 
-// PortGroupMemberDelete deleted a logical switch port (by UUID) from an existing port group.
-func (o *OVN) PortGroupMemberDelete(portGroupName OVNPortGroup, portMemberUUID OVNSwitchPortUUID) error {
-	_, err := o.nbctl("--if-exists", "remove", "port_group", string(portGroupName), "ports", string(portMemberUUID))
+			args = append(args, "--if-exists", "remove", "port_group", string(portGroupName), "ports", string(portMemberUUID))
+		}
+	}
+
+	_, err := o.nbctl(args...)
 	if err != nil {
 		return err
 	}
