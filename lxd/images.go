@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"math"
 	"mime"
 	"mime/multipart"
 	"net/http"
@@ -1110,22 +1111,7 @@ func autoUpdateImagesTask(d *Daemon) (task.Func, task.Schedule) {
 		logger.Infof("Done updating images")
 	}
 
-	schedule := func() (time.Duration, error) {
-		var interval time.Duration
-		err := d.cluster.Transaction(func(tx *db.ClusterTx) error {
-			config, err := cluster.ConfigLoad(tx)
-			if err != nil {
-				return errors.Wrap(err, "failed to load cluster configuration")
-			}
-			interval = config.AutoUpdateInterval()
-			return nil
-		})
-		if err != nil {
-			return 0, err
-		}
-		return interval, nil
-	}
-	return f, schedule
+	return f, task.Every(time.Hour)
 }
 
 func autoUpdateImages(ctx context.Context, d *Daemon) error {
@@ -1156,16 +1142,47 @@ func autoUpdateImages(ctx context.Context, d *Daemon) error {
 	return nil
 }
 
-func autoUpdateImagesInProject(ctx context.Context, d *Daemon, project string) error {
-	images, err := d.cluster.GetImagesFingerprints(project, false)
+func autoUpdateImagesInProject(ctx context.Context, d *Daemon, projectName string) error {
+	var err error
+	var interval int64
+
+	project, err := d.cluster.GetProject(projectName)
+	if err != nil {
+		return err
+	}
+
+	if project.Config["images.auto_update_interval"] != "" {
+		interval, err = strconv.ParseInt(project.Config["images.auto_update_interval"], 10, 64)
+		if err != nil {
+			return errors.Wrap(err, "Unable to fetch project configuration")
+		}
+	} else {
+		interval, err = cluster.ConfigGetInt64(d.cluster, "images.auto_update_interval")
+		if err != nil {
+			return errors.Wrap(err, "Unable to fetch cluster configuration")
+		}
+	}
+
+	// Check if we're supposed to auto update at all (0 disables it)
+	if interval <= 0 {
+		return nil
+	}
+
+	now := time.Now()
+	elapsedHours := int64(math.Round(now.Sub(d.startTime).Hours()))
+	if elapsedHours%interval != 0 {
+		return nil
+	}
+
+	images, err := d.cluster.GetImagesFingerprints(projectName, false)
 	if err != nil {
 		return errors.Wrap(err, "Unable to retrieve the list of images")
 	}
 
 	for _, fingerprint := range images {
-		id, info, err := d.cluster.GetImage(project, fingerprint, false)
+		id, info, err := d.cluster.GetImage(projectName, fingerprint, false)
 		if err != nil {
-			logger.Error("Error loading image", log.Ctx{"err": err, "fingerprint": fingerprint, "project": project})
+			logger.Error("Error loading image", log.Ctx{"err": err, "fingerprint": fingerprint, "project": projectName})
 			continue
 		}
 
@@ -1178,7 +1195,7 @@ func autoUpdateImagesInProject(ctx context.Context, d *Daemon, project string) e
 		//        goroutine and simply abort when the context expires.
 		ch := make(chan struct{})
 		go func() {
-			autoUpdateImage(d, nil, id, info, project)
+			autoUpdateImage(d, nil, id, info, projectName)
 			ch <- struct{}{}
 		}()
 		select {
@@ -1453,6 +1470,11 @@ func pruneExpiredImagesInProject(ctx context.Context, d *Daemon, project api.Pro
 		if err != nil {
 			return errors.Wrap(err, "Unable to fetch cluster configuration")
 		}
+	}
+
+	// Check if we're supposed to prune at all
+	if expiry <= 0 {
+		return nil
 	}
 
 	// Get the list of expired images.

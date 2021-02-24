@@ -63,9 +63,19 @@ func createFromImage(d *Daemon, projectName string, req *api.InstancesPost) resp
 
 		var info *api.Image
 		if req.Source.Server != "" {
-			autoUpdate, err := cluster.ConfigGetBool(d.cluster, "images.auto_update_cached")
+			var autoUpdate bool
+			p, err := d.cluster.GetProject(projectName)
 			if err != nil {
 				return err
+			}
+
+			if p.Config["images.auto_update_cached"] != "" {
+				autoUpdate = shared.IsTrue(p.Config["images.auto_update_cached"])
+			} else {
+				autoUpdate, err = cluster.ConfigGetBool(d.cluster, "images.auto_update_cached")
+				if err != nil {
+					return err
+				}
 			}
 
 			// Detect image type based on instance type requested.

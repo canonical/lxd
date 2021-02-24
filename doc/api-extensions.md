@@ -1321,3 +1321,7 @@ access to.
 
 ## network\_ovn\_acl
 Adds a new `security.acls` property to OVN networks and OVN NICs, allowing Network ACLs to be applied.
+
+## projects\_images\_auto\_update
+Adds new `images.auto_update_cached` and `images.auto_update_interval` config keys which
+allows configuration of images auto update in projects
