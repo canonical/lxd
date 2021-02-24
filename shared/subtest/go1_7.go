@@ -4,6 +4,7 @@
 // Licensed under the same terms as Go itself:
 // https://github.com/golang/go/blob/master/LICENSE
 
+//go:build go1.7
 // +build go1.7
 
 package subtest

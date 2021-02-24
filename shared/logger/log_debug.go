@@ -1,3 +1,4 @@
+//go:build logdebug
 // +build logdebug
 
 package logger
