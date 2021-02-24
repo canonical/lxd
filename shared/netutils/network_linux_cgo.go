@@ -182,28 +182,57 @@ func AbstractUnixSendFd(sockFD int, sendFD int) error {
 
 // AbstractUnixReceiveFd receives a Unix file descriptor from a Unix socket.
 func AbstractUnixReceiveFd(sockFD int) (*os.File, error) {
-	fd := C.int(-1)
 	skFd := C.int(sockFD)
-	ret := C.lxc_abstract_unix_recv_fds(skFd, &fd, C.int(1), nil, C.size_t(0))
+	fds := C.struct_unix_fds{}
+	fds.fd_count_max = 1
+	ret := C.lxc_abstract_unix_recv_fds(skFd, &fds, nil, C.size_t(0))
 	if ret < 0 {
 		return nil, fmt.Errorf("Failed to receive file descriptor via abstract unix socket")
 	}
 
-	file := os.NewFile(uintptr(fd), "")
+	if fds.fd_count_max != fds.fd_count_ret {
+		return nil, fmt.Errorf("Failed to receive file descriptor via abstract unix socket")
+	}
+
+	file := os.NewFile(uintptr(fds.fd[0]), "")
 	return file, nil
 }
 
 // AbstractUnixReceiveFdData is a low level function to receive a file descriptor over a unix socket.
 func AbstractUnixReceiveFdData(sockFD int, numFds int, iov unsafe.Pointer, iovLen int32) (uint64, []C.int, error) {
-	cfd := make([]C.int, numFds)
+	fds := C.struct_unix_fds{}
+
+	if numFds >= C.KERNEL_SCM_MAX_FD {
+		return 0, []C.int{-C.EBADF}, fmt.Errorf("Excessive number of file descriptors requested")
+	}
+
+	fds.fd_count_max = C.__u32(numFds)
+
 	skFd := C.int(sockFD)
-	ret, errno := C.lxc_abstract_unix_recv_fds_iov(skFd, (*C.int)(&cfd[0]), C.int(numFds), (*C.struct_iovec)(iov), C.size_t(iovLen))
+	ret, errno := C.lxc_abstract_unix_recv_fds_iov(skFd, &fds, (*C.struct_iovec)(iov), C.size_t(iovLen))
 	if ret < 0 {
 		return 0, []C.int{-C.EBADF}, fmt.Errorf("Failed to receive file descriptor via abstract unix socket: errno=%d", errno)
 	}
 
 	if ret == 0 {
 		return 0, []C.int{-C.EBADF}, io.EOF
+	}
+
+	if fds.fd_count_ret == 0 {
+		return 0, []C.int{-C.EBADF}, io.EOF
+	}
+
+	cfd := make([]C.int, numFds)
+
+	// Transfer the file descriptors.
+	for i := C.__u32(0); i < fds.fd_count_ret; i++ {
+		cfd[i] = fds.fd[i]
+	}
+
+	// Make sure that when we received less fds than we intended any
+	// additional entries are negative.
+	for i := fds.fd_count_ret; i < C.__u32(numFds); i++ {
+		cfd[i] = -1
 	}
 
 	return uint64(ret), cfd, nil
