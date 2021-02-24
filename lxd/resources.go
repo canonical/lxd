@@ -23,8 +23,46 @@ var storagePoolResourcesCmd = APIEndpoint{
 	Get: APIEndpointAction{Handler: storagePoolResourcesGet, AccessHandler: allowAuthenticated},
 }
 
-// /1.0/resources
-// Get system resources
+// swagger:operation GET /1.0/resources server resources_get
+//
+// Get system resources information
+//
+// Gets the hardware information profile of the LXD server.
+//
+// ---
+// produces:
+//   - application/json
+// parameters:
+//   - in: query
+//     name: target
+//     description: Cluster member name
+//     type: string
+//     example: lxd01
+// responses:
+//   "200":
+//     description: Hardware resources
+//     schema:
+//       type: object
+//       description: Sync response
+//       properties:
+//         type:
+//           type: string
+//           description: Response type
+//           example: sync
+//         status:
+//           type: string
+//           description: Status description
+//           example: Success
+//         status_code:
+//           type: int
+//           description: Status code
+//           example: 200
+//         metadata:
+//           $ref: "#/definitions/Resources"
+//   "403":
+//     $ref: "#/responses/Forbidden"
+//   "500":
+//     $ref: "#/responses/InternalServerError"
 func api10ResourcesGet(d *Daemon, r *http.Request) response.Response {
 	// If a target was specified, forward the request to the relevant node.
 	resp := forwardedResponseIfTargetIsRemote(d, r)
