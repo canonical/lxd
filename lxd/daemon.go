@@ -85,7 +85,9 @@ type Daemon struct {
 
 	// Indexes of tasks that need to be reset when their execution interval changes
 	taskPruneImages *task.Task
-	taskAutoUpdate  *task.Task
+
+	// Stores startup time of daemon
+	startTime time.Time
 
 	config    *DaemonConfig
 	endpoints *endpoints.Endpoints
@@ -1212,6 +1214,8 @@ func (d *Daemon) Ready() error {
 		d.startClusterTasks()
 	}
 
+	d.startTime = time.Now()
+
 	// FIXME: There's no hard reason for which we should not run these
 	//        tasks in mock mode. However it requires that we tweak them so
 	//        they exit gracefully without blocking (something we should do
@@ -1226,7 +1230,7 @@ func (d *Daemon) Ready() error {
 		d.taskPruneImages = d.tasks.Add(pruneExpiredImagesTask(d))
 
 		// Auto-update images (every 6 hours, configurable)
-		d.taskAutoUpdate = d.tasks.Add(autoUpdateImagesTask(d))
+		d.tasks.Add(autoUpdateImagesTask(d))
 
 		// Auto-update instance types (daily)
 		d.tasks.Add(instanceRefreshTypesTask(d))
