@@ -1,5 +1,5 @@
-// +build linux
-// +build cgo
+//go:build linux && cgo
+// +build linux,cgo
 
 package shared
 

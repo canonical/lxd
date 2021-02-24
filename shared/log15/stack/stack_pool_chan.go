@@ -1,3 +1,4 @@
+//go:build !go1.3 || appengine
 // +build !go1.3 appengine
 
 package stack
