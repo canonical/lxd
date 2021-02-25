@@ -68,16 +68,16 @@ func (d *btrfs) CreateVolume(vol Volume, filler *VolumeFiller, op *operations.Op
 			return err
 		}
 
-		// Allow unsafe resize of image volumes as filler won't have been able to resize the volume to the
-		// target size as volume file didn't exist then (and we can't create in advance because qemu-img
-		// truncates the file to image size).
-		if vol.volType == VolumeTypeImage {
-			vol.allowUnsafeResize = true
-		}
-
+		// Normally we pass VolumeTypeImage to unsupportedResizeTypes to ensureVolumeBlockFile as block
+		// image volumes cannot be resized because they have a readonly snapshot which the instances are
+		// created from, and that doesn't get updated when the original volumes size is changed.
+		// However during initial volume fill we allow growing of image volumes because the snapshot hasn't
+		// been taken yet. This is why no unsupported volume types are passed to ensureVolumeBlockFile.
+		// This is important, as combined with not setting allowUnsafeResize on the volume it still
+		// prevents us from accidentally shrinking the filled volume if it is larger than vol.ConfigSize().
+		// In that situation ensureVolumeBlockFile returns ErrCannotBeShrunk, but we ignore it as this just
+		// means the filler has needed to increase the volume size beyond the default block volume size.
 		_, err = ensureVolumeBlockFile(vol, rootBlockPath, sizeBytes)
-
-		// Ignore ErrCannotBeShrunk as this just means the filler has needed to increase the volume size.
 		if err != nil && errors.Cause(err) != ErrCannotBeShrunk {
 			return err
 		}
