@@ -1477,6 +1477,16 @@ func (n *ovn) setup(update bool) error {
 		return errors.Wrapf(err, "Failed to load network restrictions from project %q", n.project)
 	}
 
+	// Get project ID.
+	var projectID int64
+	err = n.state.Cluster.Transaction(func(tx *db.ClusterTx) error {
+		projectID, err = tx.GetProjectID(n.project)
+		return err
+	})
+	if err != nil {
+		return errors.Wrapf(err, "Failed getting project ID for project %q", n.project)
+	}
+
 	// Check project restrictions and get uplink network to use.
 	uplinkNetwork, err := n.validateUplinkNetwork(p, n.config["network"])
 	if err != nil {
@@ -1902,7 +1912,7 @@ func (n *ovn) setup(update bool) error {
 	if intPortGroupUUID == "" {
 		// Create internal port group and associated it with the logical switch, so that it will be
 		// removed when the logical switch is removed.
-		err = client.PortGroupAdd(intPortGroupName, "", n.getIntSwitchName())
+		err = client.PortGroupAdd(projectID, intPortGroupName, "", n.getIntSwitchName())
 		if err != nil {
 			return errors.Wrapf(err, "Failed creating port group %q for network %q setup", intPortGroupName, n.Name())
 		}
