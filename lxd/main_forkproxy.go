@@ -533,7 +533,7 @@ func (c *cmdForkproxy) Run(cmd *cobra.Command, args []string) error {
 	files := []*os.File{}
 	for range lAddr.Addr {
 	rAgain:
-		f, err := netutils.AbstractUnixReceiveFd(forkproxyUDSSockFDNum)
+		f, err := netutils.AbstractUnixReceiveFd(forkproxyUDSSockFDNum, netutils.UnixFdsAcceptExact)
 		if err != nil {
 			errno, ok := shared.GetErrno(err)
 			if ok && (errno == unix.EAGAIN) {
