@@ -338,8 +338,10 @@ func roundVolumeBlockFileSizeBytes(sizeBytes int64) int64 {
 
 // ensureVolumeBlockFile creates new block file or enlarges the raw block file for a volume to the specified size.
 // Returns true if resize took place, false if not. Requested size is rounded to nearest block size using
-// roundVolumeBlockFileSizeBytes() before decision whether to resize is taken.
-func ensureVolumeBlockFile(vol Volume, path string, sizeBytes int64) (bool, error) {
+// roundVolumeBlockFileSizeBytes() before decision whether to resize is taken. Accepts unsupportedResizeTypes
+// list that indicates which volume types it should not attempt to resize (when vol.allowUnsafeResize=false) and
+// instead return ErrNotSupported.
+func ensureVolumeBlockFile(vol Volume, path string, sizeBytes int64, unsupportedResizeTypes ...VolumeType) (bool, error) {
 	if sizeBytes <= 0 {
 		return false, fmt.Errorf("Size cannot be zero")
 	}
@@ -358,16 +360,18 @@ func ensureVolumeBlockFile(vol Volume, path string, sizeBytes int64) (bool, erro
 			return false, nil
 		}
 
-		// Block image volumes cannot be resized because they can have a readonly snapshot that doesn't get
-		// updated when the volume's size is changed, and this is what instances are created from.
-		// During initial volume fill allowUnsafeResize is enabled because snapshot hasn't been taken yet.
-		if !vol.allowUnsafeResize && vol.volType == VolumeTypeImage {
-			return false, ErrNotSupported
-		}
-
 		// Only perform pre-resize sanity checks if we are not in "unsafe" mode.
 		// In unsafe mode we expect the caller to know what they are doing and understand the risks.
 		if !vol.allowUnsafeResize {
+			// Reject if would try and resize a volume type that is not supported.
+			// This needs to come before the ErrCannotBeShrunk check below so that any resize attempt
+			// is blocked with ErrNotSupported error.
+			for _, unsupportedType := range unsupportedResizeTypes {
+				if unsupportedType == vol.volType {
+					return false, ErrNotSupported
+				}
+			}
+
 			if sizeBytes < oldSizeBytes {
 				return false, errors.Wrap(ErrCannotBeShrunk, "Block volumes cannot be shrunk")
 			}
