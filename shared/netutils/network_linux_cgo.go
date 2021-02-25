@@ -20,6 +20,48 @@ import (
 */
 import "C"
 
+// Allow the caller to set expectations.
+
+// UnixFdsAcceptExact will only succeed if the exact amount of fds has been
+// received  (unless combined with UNIX_FDS_ACCEPT_NONE).
+const UnixFdsAcceptExact uint = C.UNIX_FDS_ACCEPT_EXACT
+
+// UnixFdsAcceptLess will also succeed if less than the requested number of fd
+// has been received.
+// If the UNIX_FDS_ACCEPT_NONE flag is not raised than at least one fd must be
+// received.
+const UnixFdsAcceptLess uint = C.UNIX_FDS_ACCEPT_LESS
+
+// UnixFdsAcceptMore will also succeed if more than the requested number of fds
+// have been received. Any additional fds will be silently closed.
+// If the UNIX_FDS_ACCEPT_NONE flag is not raised than at least one fd must be
+// received.
+const UnixFdsAcceptMore uint = C.UNIX_FDS_ACCEPT_MORE
+
+// UnixFdsAcceptNone can be specified with any of the above flags and indicates
+// that the caller will accept no file descriptors to be received.
+const UnixFdsAcceptNone uint = C.UNIX_FDS_ACCEPT_NONE
+
+// UnixFdsAcceptMask is the value of all the above flags or-ed together.
+const UnixFdsAcceptMask uint = C.UNIX_FDS_ACCEPT_MASK
+
+// Allow the callee to report back what happened. Only one of those will ever
+// be set.
+
+// UnixFdsReceivedExact indicates that the exact number of fds was received.
+const UnixFdsReceivedExact uint = C.UNIX_FDS_RECEIVED_EXACT
+
+// UnixFdsReceivedLess indicates that less than the requested number of fd has
+// been received.
+const UnixFdsReceivedLess uint = C.UNIX_FDS_RECEIVED_LESS
+
+// UnixFdsReceivedMore indicates that more than the requested number of fd has
+// been received.
+const UnixFdsReceivedMore uint = C.UNIX_FDS_RECEIVED_MORE
+
+// UnixFdsReceivedNone indicates that no fds have been received.
+const UnixFdsReceivedNone uint = C.UNIX_FDS_RECEIVED_NONE
+
 // NetnsGetifaddrs returns a map of InstanceStateNetwork for a particular process.
 func NetnsGetifaddrs(initPID int32) (map[string]api.InstanceStateNetwork, error) {
 	var netnsidAware C.bool
@@ -181,10 +223,11 @@ func AbstractUnixSendFd(sockFD int, sendFD int) error {
 }
 
 // AbstractUnixReceiveFd receives a Unix file descriptor from a Unix socket.
-func AbstractUnixReceiveFd(sockFD int) (*os.File, error) {
+func AbstractUnixReceiveFd(sockFD int, flags uint) (*os.File, error) {
 	skFd := C.int(sockFD)
 	fds := C.struct_unix_fds{}
 	fds.fd_count_max = 1
+	fds.flags = C.__u32(flags)
 	ret := C.lxc_abstract_unix_recv_fds(skFd, &fds, nil, C.size_t(0))
 	if ret < 0 {
 		return nil, fmt.Errorf("Failed to receive file descriptor via abstract unix socket")
@@ -199,7 +242,7 @@ func AbstractUnixReceiveFd(sockFD int) (*os.File, error) {
 }
 
 // AbstractUnixReceiveFdData is a low level function to receive a file descriptor over a unix socket.
-func AbstractUnixReceiveFdData(sockFD int, numFds int, iov unsafe.Pointer, iovLen int32) (uint64, []C.int, error) {
+func AbstractUnixReceiveFdData(sockFD int, numFds int, flags uint, iov unsafe.Pointer, iovLen int32) (uint64, []C.int, error) {
 	fds := C.struct_unix_fds{}
 
 	if numFds >= C.KERNEL_SCM_MAX_FD {
@@ -207,6 +250,7 @@ func AbstractUnixReceiveFdData(sockFD int, numFds int, iov unsafe.Pointer, iovLe
 	}
 
 	fds.fd_count_max = C.__u32(numFds)
+	fds.flags = C.__u32(flags)
 
 	skFd := C.int(sockFD)
 	ret, errno := C.lxc_abstract_unix_recv_fds_iov(skFd, &fds, (*C.struct_iovec)(iov), C.size_t(iovLen))
