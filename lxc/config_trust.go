@@ -8,6 +8,7 @@ import (
 	"io/ioutil"
 	"os"
 	"sort"
+	"strings"
 
 	"github.com/spf13/cobra"
 	"gopkg.in/yaml.v2"
@@ -60,6 +61,9 @@ type cmdConfigTrustAdd struct {
 	global      *cmdGlobal
 	config      *cmdConfig
 	configTrust *cmdConfigTrust
+
+	flagProjects   string
+	flagRestricted bool
 }
 
 func (c *cmdConfigTrustAdd) Command() *cobra.Command {
@@ -68,6 +72,9 @@ func (c *cmdConfigTrustAdd) Command() *cobra.Command {
 	cmd.Short = i18n.G("Add new trusted clients")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
 		`Add new trusted clients`))
+
+	cmd.Flags().BoolVar(&c.flagRestricted, "restricted", false, i18n.G("Restrict the certificate to one or more projects"))
+	cmd.Flags().StringVar(&c.flagProjects, "projects", "", i18n.G("List of projects to restrict the certificate to"))
 
 	cmd.RunE = c.Run
 
@@ -106,6 +113,10 @@ func (c *cmdConfigTrustAdd) Run(cmd *cobra.Command, args []string) error {
 	cert.Certificate = base64.StdEncoding.EncodeToString(x509Cert.Raw)
 	cert.Name = name
 	cert.Type = "client"
+	cert.Restricted = c.flagRestricted
+	if c.flagProjects != "" {
+		cert.Projects = strings.Split(c.flagProjects, ",")
+	}
 
 	return resource.server.CreateCertificate(cert)
 }
