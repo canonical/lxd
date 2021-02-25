@@ -787,3 +787,14 @@ func OVNPortGroupDeleteIfUnused(s *state.State, logger logger.Logger, client *op
 
 	return nil
 }
+
+// OVNPortGroupInstanceNICSchedule adds the specified NIC port to the specified port groups in the changeSet.
+func OVNPortGroupInstanceNICSchedule(portUUID openvswitch.OVNSwitchPortUUID, changeSet map[openvswitch.OVNPortGroup][]openvswitch.OVNSwitchPortUUID, portGroups ...openvswitch.OVNPortGroup) {
+	for _, portGroupName := range portGroups {
+		if _, found := changeSet[portGroupName]; !found {
+			changeSet[portGroupName] = []openvswitch.OVNSwitchPortUUID{}
+		}
+
+		changeSet[portGroupName] = append(changeSet[portGroupName], portUUID)
+	}
+}
