@@ -665,7 +665,12 @@ func (d *btrfs) SetVolumeQuota(vol Volume, size string, op *operations.Operation
 			return err
 		}
 
-		resized, err := ensureVolumeBlockFile(vol, rootBlockPath, sizeBytes)
+		// Pass VolumeTypeImage as unsupported resize type, as if the image volume doesn't match the
+		// requested size and vol.allowUnsafeResize=false, this needs to be rejected back to caller as
+		// ErrNotSupported so that the caller can take the appropriate action. In the case of optimized
+		// image volumes, this will cause the image volume to be deleted and regenerated with the new size.
+		// In other cases this is probably a bug and the operation should fail anyway.
+		resized, err := ensureVolumeBlockFile(vol, rootBlockPath, sizeBytes, VolumeTypeImage)
 		if err != nil {
 			return err
 		}
