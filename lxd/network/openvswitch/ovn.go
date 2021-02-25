@@ -1280,6 +1280,26 @@ func (o *OVN) PortGroupDelete(portGroupNames ...OVNPortGroup) error {
 	return nil
 }
 
+// PortGroupListByProject finds the port groups that are associated to the project ID.
+func (o *OVN) PortGroupListByProject(projectID int64) ([]OVNPortGroup, error) {
+	output, err := o.nbctl("--format=csv", "--no-headings", "--data=bare", "--colum=name", "find", "port_group",
+		fmt.Sprintf("external_ids:lxd_project_id=%d", projectID),
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	output = strings.TrimSpace(output)
+	lines := util.SplitNTrimSpace(output, "\n", -1, true)
+	portGroups := make([]OVNPortGroup, 0, len(lines))
+
+	for _, line := range lines {
+		portGroups = append(portGroups, OVNPortGroup(line))
+	}
+
+	return portGroups, nil
+}
+
 // PortGroupMemberChange adds/removes logical switch ports (by UUID) to/from existing port groups.
 func (o *OVN) PortGroupMemberChange(addMembers map[OVNPortGroup][]OVNSwitchPortUUID, removeMembers map[OVNPortGroup][]OVNSwitchPortUUID) error {
 	args := []string{}
