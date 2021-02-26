@@ -139,7 +139,7 @@ func OVNEnsureACLs(s *state.State, logger logger.Logger, client *openvswitch.OVN
 			// doesn't have any rules, then we load the current rule set from the database to apply.
 			// Note: An empty ACL list on a port group means it has only been partially setup, as
 			// even LXD Network ACLs with no rules should have at least 1 OVN ACL applied because of
-			// the default drop rule we add. We also need to reapply the rules if we are adding any
+			// the default rule we add. We also need to reapply the rules if we are adding any
 			// new per-ACL-per-network port groups.
 			if reapplyRules || !portGroupHasACLs || len(addACLNets) > 0 {
 				_, aclInfo, err = s.Cluster.GetNetworkACL(aclProjectName, aclName)
@@ -299,7 +299,7 @@ func ovnAddReferencedACLs(info *api.NetworkACL, referencedACLNames map[string]st
 
 // ovnApplyToPortGroup applies the rules in the specified ACL to the specified port group.
 func ovnApplyToPortGroup(s *state.State, logger logger.Logger, client *openvswitch.OVN, aclInfo *api.NetworkACL, portGroupName openvswitch.OVNPortGroup, aclNameIDs map[string]int64, aclNets map[string]NetworkACLUsage) error {
-	// Create slice for port group rules that has the capacity for ingress and egress rules, plus default drop.
+	// Create slice for port group rules that has the capacity for ingress and egress rules, plus default rule.
 	portGroupRules := make([]openvswitch.OVNACLRule, 0, len(aclInfo.Ingress)+len(aclInfo.Egress)+1)
 	networkRules := make([]openvswitch.OVNACLRule, 0)
 
@@ -341,13 +341,23 @@ func ovnApplyToPortGroup(s *state.State, logger logger.Logger, client *openvswit
 		return errors.Wrapf(err, "Failed converting ACL %q egress rules for port group %q", aclInfo.Name, portGroupName)
 	}
 
-	// Add default drop rule to port group ACL.
+	// Add default rule to port group ACL.
+	defaultAction := "reject"
+	if aclInfo.Config["default.action"] != "" {
+		defaultAction = aclInfo.Config["default.action"]
+	}
+
+	defaultLogged := false
+	if shared.IsTrue(aclInfo.Config["default.logged"]) {
+		defaultLogged = true
+	}
+
 	portGroupRules = append(portGroupRules, openvswitch.OVNACLRule{
 		Direction: "to-lport", // Always use this so that outport is available to Match.
-		Action:    "drop",
+		Action:    defaultAction,
 		Priority:  0, // Lowest priority to catch only unmatched traffic.
 		Match:     fmt.Sprintf("inport == @%s || outport == @%s", portGroupName, portGroupName),
-		Log:       true,
+		Log:       defaultLogged,
 		LogName:   string(portGroupName),
 	})
 
