@@ -639,20 +639,61 @@ func OVNPortGroupDeleteIfUnused(s *state.State, logger logger.Logger, client *op
 		return errors.Wrapf(err, "Failed getting network ACL IDs for security ACL port group removal")
 	}
 
+	// Convert aclNameIDs to aclNames slice for use with UsedBy.
 	aclNames := make([]string, 0, len(aclNameIDs))
 	for aclName := range aclNameIDs {
 		aclNames = append(aclNames, aclName)
 	}
 
-	ovnUsedACLs := make(map[string]struct{}, len(keepACLs))
-
-	// Add keepACLs to ovnUsedACLs to indicate they are explicitly in use by OVN.
-	// This is important because it also ensures that indirectly referred ACLs in the rulesets of these ACLs
-	// will also be kept.
-	for _, keepACL := range keepACLs {
-		ovnUsedACLs[keepACL] = struct{}{}
+	// Get project ID.
+	var projectID int64
+	err = s.Cluster.Transaction(func(tx *db.ClusterTx) error {
+		projectID, err = tx.GetProjectID(aclProjectName)
+		return err
+	})
+	if err != nil {
+		return errors.Wrapf(err, "Failed getting project ID for project %q", aclProjectName)
 	}
 
+	// Get list of OVN port groups associated to this project.
+	portGroups, err := client.PortGroupListByProject(projectID)
+	if err != nil {
+		return errors.Wrapf(err, "Failed getting port groups for project %q", aclProjectName)
+	}
+
+	// hasKeeperPrefix indicates if the port group provided matches the prefix of one of the keepACLs.
+	// This will include ACL network port groups too.
+	hasKeeperPrefix := func(portGroup openvswitch.OVNPortGroup) bool {
+		for _, keepACLName := range keepACLs {
+			keepACLPortGroup := OVNACLPortGroupName(aclNameIDs[keepACLName])
+			if strings.HasPrefix(string(portGroup), string(keepACLPortGroup)) {
+				return true
+			}
+		}
+
+		return false
+	}
+
+	// Filter project port group list by ACL related ones, and store them in a map keyed by port group name.
+	// This contains the initial candidates for removal. But any found to be in use will be removed from list.
+	removeACLPortGroups := make(map[openvswitch.OVNPortGroup]struct{}, 0)
+	for _, portGroup := range portGroups {
+		// If port group is related to a LXD ACL and is not related to one of keepACLs, then add it as a
+		// candidate for removal.
+		if strings.HasPrefix(string(portGroup), ovnACLPortGroupPrefix) && !hasKeeperPrefix(portGroup) {
+			removeACLPortGroups[portGroup] = struct{}{}
+		}
+	}
+
+	// Add keepACLs to ovnUsedACLs to indicate they are explicitly in use by OVN. This is important because it
+	// also ensures that indirectly referred ACLs in the rulesets of these ACLs will also be kept even if not
+	// found to be in use in the database yet.
+	ovnUsedACLs := make(map[string]struct{}, len(keepACLs))
+	for _, keepACLName := range keepACLs {
+		ovnUsedACLs[keepACLName] = struct{}{}
+	}
+
+	// Map to record ACLs being referenced by other ACLs. Need to check later if they are in use with OVN ACLs.
 	aclUsedACLS := make(map[string][]string, 0)
 
 	// Find alls ACLs that are either directly referred to by OVN entities (networks, instance/profile NICs)
@@ -674,7 +715,7 @@ func OVNPortGroupDeleteIfUnused(s *state.State, logger logger.Logger, client *op
 				return nil
 			}
 
-			_, network, _, err := s.Cluster.GetNetworkInAnyState(aclProjectName, nicConfig["network"])
+			netID, network, _, err := s.Cluster.GetNetworkInAnyState(aclProjectName, nicConfig["network"])
 			if err != nil {
 				return errors.Wrapf(err, "Failed to load network %q", nicConfig["network"])
 			}
@@ -682,6 +723,10 @@ func OVNPortGroupDeleteIfUnused(s *state.State, logger logger.Logger, client *op
 			if network.Type == "ovn" {
 				for _, matchedACLName := range matchedACLNames {
 					ovnUsedACLs[matchedACLName] = struct{}{} // Record as in use by OVN entity.
+
+					// Delete entries (if exist) for ACL and per-ACL-per-network port groups.
+					delete(removeACLPortGroups, OVNACLPortGroupName(aclNameIDs[matchedACLName]))
+					delete(removeACLPortGroups, OVNACLNetworkPortGroupName(aclNameIDs[matchedACLName], netID))
 				}
 			}
 		case *api.Network:
@@ -699,8 +744,17 @@ func OVNPortGroupDeleteIfUnused(s *state.State, logger logger.Logger, client *op
 			}
 
 			if u.Type == "ovn" {
+				netID, _, _, err := s.Cluster.GetNetworkInAnyState(aclProjectName, u.Name)
+				if err != nil {
+					return errors.Wrapf(err, "Failed to load network %q", nicConfig["network"])
+				}
+
 				for _, matchedACLName := range matchedACLNames {
 					ovnUsedACLs[matchedACLName] = struct{}{} // Record as in use by OVN entity.
+
+					// Delete entries (if exist) for ACL and per-ACL-per-network port groups.
+					delete(removeACLPortGroups, OVNACLPortGroupName(aclNameIDs[matchedACLName]))
+					delete(removeACLPortGroups, OVNACLNetworkPortGroupName(aclNameIDs[matchedACLName], netID))
 				}
 			}
 		case db.Profile:
@@ -717,7 +771,7 @@ func OVNPortGroupDeleteIfUnused(s *state.State, logger logger.Logger, client *op
 				return nil
 			}
 
-			_, network, _, err := s.Cluster.GetNetworkInAnyState(aclProjectName, nicConfig["network"])
+			netID, network, _, err := s.Cluster.GetNetworkInAnyState(aclProjectName, nicConfig["network"])
 			if err != nil {
 				return errors.Wrapf(err, "Failed to load network %q", nicConfig["network"])
 			}
@@ -725,6 +779,10 @@ func OVNPortGroupDeleteIfUnused(s *state.State, logger logger.Logger, client *op
 			if network.Type == "ovn" {
 				for _, matchedACLName := range matchedACLNames {
 					ovnUsedACLs[matchedACLName] = struct{}{} // Record as in use by OVN entity.
+
+					// Delete entries (if exist) for ACL and per-ACL-per-network port groups.
+					delete(removeACLPortGroups, OVNACLPortGroupName(aclNameIDs[matchedACLName]))
+					delete(removeACLPortGroups, OVNACLNetworkPortGroupName(aclNameIDs[matchedACLName], netID))
 				}
 			}
 		case *api.NetworkACL:
@@ -760,29 +818,28 @@ func OVNPortGroupDeleteIfUnused(s *state.State, logger logger.Logger, client *op
 		return false
 	}
 
-	for aclName := range aclNameIDs {
-		if usedByOvn(aclName) {
-			continue // ACL is directly used an OVN entity (network or instance/profile NIC).
+	// Check each ACL referenced in the rulesets of other ACLs whether any of the ACLs they were referenced
+	// from are in use by ACLs that are also being used by OVN. If not then we don't need to keep the
+	// referenced port group in OVN.
+	for aclName, refACLs := range aclUsedACLS {
+		if usedByOvn(refACLs...) {
+			// Delete entry (if exists) for ACL port group.
+			delete(removeACLPortGroups, OVNACLPortGroupName(aclNameIDs[aclName]))
 		}
+	}
 
-		// Check to see if any of the ACLs referencing this ACL are directly in use by an OVN entity.
-		refACLs, found := aclUsedACLS[aclName]
-		if found && usedByOvn(refACLs...) {
-			continue // ACL is indirectly used by an OVN entity.
-		}
+	// Now remove any remaining port groups left in removeACLPortGroups.
+	removePortGroups := make([]openvswitch.OVNPortGroup, 0, len(removeACLPortGroups))
+	for removeACLPortGroup := range removeACLPortGroups {
+		removePortGroups = append(removePortGroups, removeACLPortGroup)
+		logger.Debug("Scheduled deletion of unused ACL OVN port group", log.Ctx{"portGroup": removeACLPortGroup})
+	}
 
-		aclID, found := aclNameIDs[aclName]
-		if !found {
-			return fmt.Errorf("Cannot find security ACL ID for %q", aclName)
-		}
-
-		portGroupName := OVNACLPortGroupName(aclID)
-		err = client.PortGroupDelete(portGroupName)
+	if len(removePortGroups) > 0 {
+		err = client.PortGroupDelete(removePortGroups...)
 		if err != nil {
-			return errors.Wrapf(err, "Failed deleting OVN port group %q for security ACL %q", portGroupName, aclName)
+			return errors.Wrapf(err, "Failed to delete unused OVN port groups")
 		}
-
-		logger.Debug("Deleted unused ACL OVN port group", log.Ctx{"portGroup": portGroupName, "networkACL": aclName})
 	}
 
 	return nil
