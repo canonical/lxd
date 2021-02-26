@@ -76,6 +76,12 @@ ssize_t lxc_abstract_unix_recv_fds_iov(int fd, struct unix_fds *ret_fds,
 	if (hweight32((ret_fds->flags & ~UNIX_FDS_ACCEPT_NONE)) > 1)
 		return ret_errno(EINVAL);
 
+	if (ret_fds->fd_count_max >= KERNEL_SCM_MAX_FD)
+		return ret_errno(EINVAL);
+
+	if (ret_fds->fd_count_ret != 0)
+		return ret_errno(EINVAL);
+
 	cmsgbuf = zalloc(cmsgbufsize);
 	if (!cmsgbuf)
 		return ret_errno(ENOMEM);
