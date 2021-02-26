@@ -26,6 +26,9 @@ const ovnACLPriorityPortGroupAllow = 20
 const ovnACLPriorityPortGroupReject = 30
 const ovnACLPriorityPortGroupDrop = 40
 
+// ovnACLPortGroupPrefix prefix used when naming ACL related port groups in OVN.
+const ovnACLPortGroupPrefix = "lxd_acl"
+
 // OVNACLPortGroupName returns the port group name for a Network ACL ID.
 func OVNACLPortGroupName(networkACLID int64) openvswitch.OVNPortGroup {
 	// OVN doesn't match port groups that have a "-" in them. So use an "_" for the separator.
