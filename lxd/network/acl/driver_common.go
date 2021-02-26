@@ -32,7 +32,7 @@ const ruleSubjectInternal = "#internal"
 const ruleSubjectExternal = "#external"
 
 // Define valid actions for rules.
-var validActions = []string{"allow", "drop"}
+var validActions = []string{"allow", "drop", "reject"}
 
 // common represents a Network ACL.
 type common struct {
