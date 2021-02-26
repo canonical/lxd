@@ -31,6 +31,9 @@ const ruleDirectionEgress ruleDirection = "egress"
 const ruleSubjectInternal = "#internal"
 const ruleSubjectExternal = "#external"
 
+// Define valid actions for rules.
+var validActions = []string{"allow", "drop"}
+
 // common represents a Network ACL.
 type common struct {
 	logger      logger.Logger
@@ -198,10 +201,16 @@ func (d *common) validateName(name string) error {
 
 // validateConfig checks the config and rules are valid.
 func (d *common) validateConfig(info *api.NetworkACLPut) error {
-	for k := range info.Config {
-		if !shared.IsUserConfig(k) {
-			return fmt.Errorf("Only user config keys supported")
-		}
+	rules := map[string]func(value string) error{
+		"default.logged": validate.Optional(validate.IsBool),
+		"default.action": validate.Optional(func(value string) error {
+			return validate.IsOneOf(value, validActions)
+		}),
+	}
+
+	err := d.validateConfigMap(info.Config, rules)
+	if err != nil {
+		return err
 	}
 
 	// Normalise rules before validation for duplicate detection.
@@ -254,10 +263,40 @@ func (d *common) validateConfig(info *api.NetworkACLPut) error {
 	return nil
 }
 
+// validateConfigMap checks ACL config map against rules.
+func (d *common) validateConfigMap(config map[string]string, rules map[string]func(value string) error) error {
+	checkedFields := map[string]struct{}{}
+
+	// Run the validator against each field.
+	for k, validator := range rules {
+		checkedFields[k] = struct{}{} //Mark field as checked.
+		err := validator(config[k])
+		if err != nil {
+			return errors.Wrapf(err, "Invalid value for config option %q", k)
+		}
+	}
+
+	// Look for any unchecked fields, as these are unknown fields and validation should fail.
+	for k := range config {
+		_, checked := checkedFields[k]
+		if checked {
+			continue
+		}
+
+		// User keys are not validated.
+		if shared.IsUserConfig(k) {
+			continue
+		}
+
+		return fmt.Errorf("Invalid config option %q", k)
+	}
+
+	return nil
+}
+
 // validateRule validates the rule supplied.
 func (d *common) validateRule(direction ruleDirection, rule api.NetworkACLRule) error {
 	// Validate Action field (required).
-	validActions := []string{"allow", "drop"}
 	if !shared.StringInSlice(rule.Action, validActions) {
 		return fmt.Errorf("Action must be one of: %s", strings.Join(validActions, ", "))
 	}
