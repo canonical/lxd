@@ -29,6 +29,7 @@ import (
 	storagePools "github.com/lxc/lxd/lxd/storage"
 	storageDrivers "github.com/lxc/lxd/lxd/storage/drivers"
 	"github.com/lxc/lxd/shared"
+	"github.com/lxc/lxd/shared/api"
 	log "github.com/lxc/lxd/shared/log15"
 	"github.com/lxc/lxd/shared/logger"
 	"github.com/lxc/lxd/shared/osarch"
@@ -51,6 +52,8 @@ var apiInternal = []APIEndpoint{
 	internalRAFTSnapshotCmd,
 	internalClusterHandoverCmd,
 	internalClusterRaftNodeCmd,
+	internalImageRefreshCmd,
+	internalImageOptimizeCmd,
 }
 
 var internalShutdownCmd = APIEndpoint{
@@ -106,6 +109,49 @@ var internalRAFTSnapshotCmd = APIEndpoint{
 	Path: "raft-snapshot",
 
 	Get: APIEndpointAction{Handler: internalRAFTSnapshot},
+}
+
+var internalImageRefreshCmd = APIEndpoint{
+	Path: "image-refresh",
+
+	Get: APIEndpointAction{Handler: internalRefreshImage},
+}
+
+var internalImageOptimizeCmd = APIEndpoint{
+	Path: "image-optimize",
+
+	Post: APIEndpointAction{Handler: internalOptimizeImage},
+}
+
+type internalImageOptimizePost struct {
+	Image api.Image `json:"image" yaml:"image"`
+	Pool  string    `json:"pool" yaml:"pool"`
+}
+
+func internalOptimizeImage(d *Daemon, r *http.Request) response.Response {
+	req := &internalImageOptimizePost{}
+
+	// Parse the request.
+	err := json.NewDecoder(r.Body).Decode(&req)
+	if err != nil {
+		return response.BadRequest(err)
+	}
+
+	err = imageCreateInPool(d, &req.Image, req.Pool)
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	return response.EmptySyncResponse
+}
+
+func internalRefreshImage(d *Daemon, r *http.Request) response.Response {
+	err := autoUpdateImages(d.ctx, d)
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	return response.EmptySyncResponse
 }
 
 func internalWaitReady(d *Daemon, r *http.Request) response.Response {
