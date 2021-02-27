@@ -20,12 +20,12 @@ func RegisterStmt(sql string) int {
 
 // PrepareStmts prepares all registered statements and returns an index from
 // statement code to prepared statement object.
-func PrepareStmts(db *sql.DB) (map[int]*sql.Stmt, error) {
+func PrepareStmts(db *sql.DB, skipErrors bool) (map[int]*sql.Stmt, error) {
 	index := map[int]*sql.Stmt{}
 
 	for code, sql := range stmts {
 		stmt, err := db.Prepare(sql)
-		if err != nil {
+		if err != nil && !skipErrors {
 			return nil, errors.Wrapf(err, "%q", sql)
 		}
 		index[code] = stmt
