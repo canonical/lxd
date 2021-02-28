@@ -674,7 +674,7 @@ test_projects_limits() {
   ! lxc storage volume create "${pool}" v2 || false
 
   # Disk limits can be updated if they stay within limits.
-  lxc project set p1 limits.disk 200800kB
+  lxc project set p1 limits.disk 200100kB
   lxc profile device set default root size=90MB
   lxc config device set c2 root size 60MB
 

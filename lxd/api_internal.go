@@ -169,7 +169,7 @@ func internalContainerHookLoadFromReference(s *state.State, r *http.Request) (in
 func internalContainerOnStart(d *Daemon, r *http.Request) response.Response {
 	inst, err := internalContainerHookLoadFromReference(d.State(), r)
 	if err != nil {
-		logger.Error("The start hook failed to load", log.Ctx{"instance": inst.Name(), "err": err})
+		logger.Error("The start hook failed to load", log.Ctx{"err": err})
 		return response.SmartError(err)
 	}
 
@@ -212,7 +212,7 @@ func internalContainerOnStopNS(d *Daemon, r *http.Request) response.Response {
 func internalContainerOnStop(d *Daemon, r *http.Request) response.Response {
 	inst, err := internalContainerHookLoadFromReference(d.State(), r)
 	if err != nil {
-		logger.Error("The stop hook failed to load", log.Ctx{"instance": inst.Name(), "err": err})
+		logger.Error("The stop hook failed to load", log.Ctx{"err": err})
 		return response.SmartError(err)
 	}
 
