@@ -17,9 +17,9 @@ type CertificatesPost struct {
 
 // CertificatePut represents the modifiable fields of a LXD certificate
 //
-// API extension: certificate_update
-//
 // swagger:model
+//
+// API extension: certificate_update
 type CertificatePut struct {
 	// Name associated with the certificate
 	// Example: castiana
