@@ -67,6 +67,87 @@ var networkStateCmd = APIEndpoint{
 }
 
 // API endpoints
+
+// swagger:operation GET /1.0/networks networks networks_get
+//
+// Get the networks
+//
+// Returns a list of networks (URLs).
+//
+// ---
+// produces:
+//   - application/json
+// responses:
+//   "200":
+//     description: API endpoints
+//     schema:
+//       type: object
+//       description: Sync response
+//       properties:
+//         type:
+//           type: string
+//           description: Response type
+//           example: sync
+//         status:
+//           type: string
+//           description: Status description
+//           example: Success
+//         status_code:
+//           type: int
+//           description: Status code
+//           example: 200
+//         metadata:
+//           type: array
+//           description: List of endpoints
+//           items:
+//             type: string
+//           example: |-
+//             [
+//               "/1.0/networks/lxdbr0",
+//               "/1.0/networks/lxdbr1"
+//             ]
+//   "403":
+//     $ref: "#/responses/Forbidden"
+//   "500":
+//     $ref: "#/responses/InternalServerError"
+
+// swagger:operation GET /1.0/networks?recursion=1 networks networks_get_recursion1
+//
+// Get the networks
+//
+// Returns a list of networks (structs).
+//
+// ---
+// produces:
+//   - application/json
+// responses:
+//   "200":
+//     description: API endpoints
+//     schema:
+//       type: object
+//       description: Sync response
+//       properties:
+//         type:
+//           type: string
+//           description: Response type
+//           example: sync
+//         status:
+//           type: string
+//           description: Status description
+//           example: Success
+//         status_code:
+//           type: int
+//           description: Status code
+//           example: 200
+//         metadata:
+//           type: array
+//           description: List of networks
+//           items:
+//             $ref: "#/definitions/Network"
+//   "403":
+//     $ref: "#/responses/Forbidden"
+//   "500":
+//     $ref: "#/responses/InternalServerError"
 func networksGet(d *Daemon, r *http.Request) response.Response {
 	recursion := util.IsRecursionRequest(r)
 
@@ -115,6 +196,39 @@ func networksGet(d *Daemon, r *http.Request) response.Response {
 	return response.SyncResponse(true, resultMap)
 }
 
+// swagger:operation POST /1.0/networks networks networks_post
+//
+// Add a network
+//
+// Creates a new network.
+// When clustered, most network types require individual POST for each cluster member prior to a global POST.
+//
+// ---
+// consumes:
+//   - application/json
+// produces:
+//   - application/json
+// parameters:
+//   - in: query
+//     name: target
+//     description: Cluster member name
+//     type: string
+//     example: lxd01
+//   - in: body
+//     name: network
+//     description: Network
+//     required: true
+//     schema:
+//       $ref: "#/definitions/NetworksPost"
+// responses:
+//   "200":
+//     $ref: "#/responses/EmptySyncResponse"
+//   "400":
+//     $ref: "#/responses/BadRequest"
+//   "403":
+//     $ref: "#/responses/Forbidden"
+//   "500":
+//     $ref: "#/responses/InternalServerError"
 func networksPost(d *Daemon, r *http.Request) response.Response {
 	networkCreateLock.Lock()
 	defer networkCreateLock.Unlock()
@@ -485,6 +599,46 @@ func doNetworksCreate(d *Daemon, n network.Network, clientType request.ClientTyp
 	return nil
 }
 
+// swagger:operation GET /1.0/networks/{name} networks network_get
+//
+// Get the network
+//
+// Gets a specific network.
+//
+// ---
+// produces:
+//   - application/json
+// parameters:
+//   - in: query
+//     name: target
+//     description: Cluster member name
+//     type: string
+//     example: lxd01
+// responses:
+//   "200":
+//     description: Network
+//     schema:
+//       type: object
+//       description: Sync response
+//       properties:
+//         type:
+//           type: string
+//           description: Response type
+//           example: sync
+//         status:
+//           type: string
+//           description: Status description
+//           example: Success
+//         status_code:
+//           type: int
+//           description: Status code
+//           example: 200
+//         metadata:
+//           $ref: "#/definitions/Network"
+//   "403":
+//     $ref: "#/responses/Forbidden"
+//   "500":
+//     $ref: "#/responses/InternalServerError"
 func networkGet(d *Daemon, r *http.Request) response.Response {
 	// If a target was specified, forward the request to the relevant node.
 	resp := forwardedResponseIfTargetIsRemote(d, r)
@@ -581,6 +735,24 @@ func doNetworkGet(d *Daemon, r *http.Request, name string) (api.Network, error) 
 	return n, nil
 }
 
+// swagger:operation DELETE /1.0/networks/{name} networks network_delete
+//
+// Delete the network
+//
+// Removes the network.
+//
+// ---
+// produces:
+//   - application/json
+// responses:
+//   "200":
+//     $ref: "#/responses/EmptySyncResponse"
+//   "400":
+//     $ref: "#/responses/BadRequest"
+//   "403":
+//     $ref: "#/responses/Forbidden"
+//   "500":
+//     $ref: "#/responses/InternalServerError"
 func networkDelete(d *Daemon, r *http.Request) response.Response {
 	name := mux.Vars(r)["name"]
 	state := d.State()
@@ -659,6 +831,33 @@ func networkDelete(d *Daemon, r *http.Request) response.Response {
 	return response.EmptySyncResponse
 }
 
+// swagger:operation POST /1.0/networks/{name} networks network_post
+//
+// Rename the network
+//
+// Renames an existing network.
+//
+// ---
+// consumes:
+//   - application/json
+// produces:
+//   - application/json
+// parameters:
+//   - in: body
+//     name: network
+//     description: Network rename request
+//     required: true
+//     schema:
+//       $ref: "#/definitions/NetworkPost"
+// responses:
+//   "200":
+//     $ref: "#/responses/EmptySyncResponse"
+//   "400":
+//     $ref: "#/responses/BadRequest"
+//   "403":
+//     $ref: "#/responses/Forbidden"
+//   "500":
+//     $ref: "#/responses/InternalServerError"
 func networkPost(d *Daemon, r *http.Request) response.Response {
 	// FIXME: renaming a network is currently not supported in clustering
 	//        mode. The difficulty is that network.Start() depends on the
@@ -734,6 +933,40 @@ func networkPost(d *Daemon, r *http.Request) response.Response {
 	return response.SyncResponseLocation(true, nil, fmt.Sprintf("/%s/networks/%s", version.APIVersion, req.Name))
 }
 
+// swagger:operation PUT /1.0/networks/{name} networks network_put
+//
+// Update the network
+//
+// Updates the entire network configuration.
+//
+// ---
+// consumes:
+//   - application/json
+// produces:
+//   - application/json
+// parameters:
+//   - in: query
+//     name: target
+//     description: Cluster member name
+//     type: string
+//     example: lxd01
+//   - in: body
+//     name: network
+//     description: Network configuration
+//     required: true
+//     schema:
+//       $ref: "#/definitions/NetworkPut"
+// responses:
+//   "200":
+//     $ref: "#/responses/EmptySyncResponse"
+//   "400":
+//     $ref: "#/responses/BadRequest"
+//   "403":
+//     $ref: "#/responses/Forbidden"
+//   "412":
+//     $ref: "#/responses/PreconditionFailed"
+//   "500":
+//     $ref: "#/responses/InternalServerError"
 func networkPut(d *Daemon, r *http.Request) response.Response {
 	// If a target was specified, forward the request to the relevant node.
 	resp := forwardedResponseIfTargetIsRemote(d, r)
@@ -816,6 +1049,40 @@ func networkPut(d *Daemon, r *http.Request) response.Response {
 	return doNetworkUpdate(d, n, req, targetNode, clientType, r.Method, clustered)
 }
 
+// swagger:operation PATCH /1.0/networks/{name} networks network_patch
+//
+// Partially update the network
+//
+// Updates a subset of the network configuration.
+//
+// ---
+// consumes:
+//   - application/json
+// produces:
+//   - application/json
+// parameters:
+//   - in: query
+//     name: target
+//     description: Cluster member name
+//     type: string
+//     example: lxd01
+//   - in: body
+//     name: network
+//     description: Network configuration
+//     required: true
+//     schema:
+//       $ref: "#/definitions/NetworkPut"
+// responses:
+//   "200":
+//     $ref: "#/responses/EmptySyncResponse"
+//   "400":
+//     $ref: "#/responses/BadRequest"
+//   "403":
+//     $ref: "#/responses/Forbidden"
+//   "412":
+//     $ref: "#/responses/PreconditionFailed"
+//   "500":
+//     $ref: "#/responses/InternalServerError"
 func networkPatch(d *Daemon, r *http.Request) response.Response {
 	return networkPut(d, r)
 }
@@ -864,6 +1131,43 @@ func doNetworkUpdate(d *Daemon, n network.Network, req api.NetworkPut, targetNod
 	return response.EmptySyncResponse
 }
 
+// swagger:operation GET /1.0/networks/{name}/leases networks networks_leases_get
+//
+// Get the DHCP leases
+//
+// Returns a list of DHCP leases for the network.
+//
+// ---
+// produces:
+//   - application/json
+// responses:
+//   "200":
+//     description: API endpoints
+//     schema:
+//       type: object
+//       description: Sync response
+//       properties:
+//         type:
+//           type: string
+//           description: Response type
+//           example: sync
+//         status:
+//           type: string
+//           description: Status description
+//           example: Success
+//         status_code:
+//           type: int
+//           description: Status code
+//           example: 200
+//         metadata:
+//           type: array
+//           description: List of DHCP leases
+//           items:
+//             $ref: "#/definitions/NetworkLease"
+//   "403":
+//     $ref: "#/responses/Forbidden"
+//   "500":
+//     $ref: "#/responses/InternalServerError"
 func networkLeasesGet(d *Daemon, r *http.Request) response.Response {
 	name := mux.Vars(r)["name"]
 	project := projectParam(r)
@@ -1092,6 +1396,41 @@ func networkShutdown(s *state.State) error {
 
 	return nil
 }
+
+// swagger:operation GET /1.0/networks/{name}/state networks networks_state_get
+//
+// Get the network state
+//
+// Returns the current network state information.
+//
+// ---
+// produces:
+//   - application/json
+// responses:
+//   "200":
+//     description: API endpoints
+//     schema:
+//       type: object
+//       description: Sync response
+//       properties:
+//         type:
+//           type: string
+//           description: Response type
+//           example: sync
+//         status:
+//           type: string
+//           description: Status description
+//           example: Success
+//         status_code:
+//           type: int
+//           description: Status code
+//           example: 200
+//         metadata:
+//           $ref: "#/definitions/NetworkState"
+//   "403":
+//     $ref: "#/responses/Forbidden"
+//   "500":
+//     $ref: "#/responses/InternalServerError"
 
 func networkStateGet(d *Daemon, r *http.Request) response.Response {
 	// If a target was specified, forward the request to the relevant node.
