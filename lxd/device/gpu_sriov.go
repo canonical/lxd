@@ -101,7 +101,7 @@ func (d *gpuSRIOV) Start() (*deviceConfig.RunConfig, error) {
 		return nil, errors.Wrap(err, "Failed to find free virtual function")
 	}
 
-	vfPCIDev, err := d.setupSriovParent(vfID, saveData)
+	vfPCIDev, err := d.setupSriovParent(parentPCIAddress, vfID, saveData)
 	if err != nil {
 		return nil, err
 	}
@@ -153,17 +153,12 @@ func (d *gpuSRIOV) getParentPCIAddress() (string, error) {
 
 // setupSriovParent configures a SR-IOV virtual function (VF) device on parent and stores original properties of
 // the physical device into voltatile for restoration on detach. Returns VF PCI device info.
-func (d *gpuSRIOV) setupSriovParent(vfID int, volatile map[string]string) (pcidev.Device, error) {
+func (d *gpuSRIOV) setupSriovParent(parentPCIAddress string, vfID int, volatile map[string]string) (pcidev.Device, error) {
 	revert := revert.New()
 	defer revert.Fail()
 
 	volatile["last_state.vf.id"] = fmt.Sprintf("%d", vfID)
 	volatile["last_state.created"] = "false" // Indicates don't delete device at stop time.
-
-	parentPCIAddress, err := d.getParentPCIAddress()
-	if err != nil {
-		return pcidev.Device{}, err
-	}
 
 	// Get VF device's PCI Slot Name so we can unbind and rebind it from the host.
 	vfPCIDev, err := d.getVFDevicePCISlot(parentPCIAddress, volatile["last_state.vf.id"])
