@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: LXD\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2021-02-04 16:03-0500\n"
+"POT-Creation-Date: 2021-03-04 11:09-0500\n"
 "PO-Revision-Date: 2020-03-27 12:50+0000\n"
 "Last-Translator: KATOH Yasufumi <karma@jazz.email.ne.jp>\n"
 "Language-Team: Japanese <https://hosted.weblate.org/projects/linux-"
@@ -4368,13 +4368,9 @@ msgstr "add [<remote>] <IP|FQDN|URL>"
 msgid "[[<remote>:]<image>] [<remote>:][<name>] [< config"
 msgstr "init [[<remote>:]<image>] [<remote>:][<name>] [< config"
 
-#: lxc/project.go:446
+#: lxc/project.go:446 lxc/remote.go:570
 msgid "current"
 msgstr "現在値"
-
-#: lxc/remote.go:570
-msgid "default"
-msgstr "default"
 
 #: lxc/storage.go:451
 msgid "description"
@@ -4805,6 +4801,9 @@ msgstr "y"
 #: lxc/image.go:1060
 msgid "yes"
 msgstr "yes"
+
+#~ msgid "default"
+#~ msgstr "default"
 
 #~ msgid "Define a compression algorithm: for backup or none"
 #~ msgstr "圧縮アルゴリズムを指定します: backup or none"
