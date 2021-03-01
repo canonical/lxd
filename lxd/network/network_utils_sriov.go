@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"io/ioutil"
+	"net"
 	"strconv"
 	"strings"
 	"sync"
@@ -189,9 +190,9 @@ func SRIOVFindFreeVirtualFunction(s *state.State, parentDev string) (string, int
 }
 
 // sriovGetFreeVFInterface checks the system for a free VF interface that belongs to the same device and port as
-// the parent device starting from the startVFID to the vfCount-1. Returns VF ID and VF interface name if found
-// or -1 and empty string if no free interface found. A free interface is one that is bound on the host and is not
-// in the reservedDevices map.
+// the parent device starting from the startVFID to the vfCount-1. Returns VF ID and VF interface name if found or
+// -1 and empty string if no free interface found. A free interface is one that is bound on the host, not in the
+// reservedDevices map, is down and has no global IPs defined on it.
 func sriovGetFreeVFInterface(reservedDevices map[string]struct{}, parentDev string, vfCount int, startVFID int, pfDevID []byte, pfDevPort []byte) (int, string, error) {
 	for vfID := startVFID; vfID < vfCount; vfID++ {
 		vfListPath := fmt.Sprintf("/sys/class/net/%s/device/virtfn%d/net", parentDev, vfID)
@@ -233,6 +234,26 @@ func sriovGetFreeVFInterface(reservedDevices map[string]struct{}, parentDev stri
 			// Skip VFs if they do not relate to the same device and port as the parent PF.
 			// Some card vendors change the device ID for each port.
 			if bytes.Compare(pfDevPort, vfDevPort) != 0 || bytes.Compare(pfDevID, vfDevID) != 0 {
+				continue
+			}
+
+			iface, err := net.InterfaceByName(nicName)
+			if err != nil {
+				return -1, "", errors.Wrapf(err, "Failed loading interface %q", nicName)
+			}
+
+			// Ignore if interface is up (may be in use by another application already).
+			if iface.Flags&net.FlagUp != 0 {
+				continue
+			}
+
+			addresses, err := iface.Addrs()
+			if err != nil {
+				return 0, "", errors.Wrapf(err, "Failed getting interface addresses for %q", nicName)
+			}
+
+			// Ignore if interface has IP addresses (may be in use by another application already).
+			if len(addresses) > 0 {
 				continue
 			}
 
