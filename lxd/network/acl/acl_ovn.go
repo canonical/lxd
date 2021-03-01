@@ -594,6 +594,28 @@ func OVNApplyNetworkBaselineRules(client *openvswitch.OVN, switchName openvswitc
 			Priority:  ovnACLPrioritySwitchAllow,
 			Match:     fmt.Sprintf(`outport == "%s" && ((ip4 && udp.dst == 67) || (ip6 && udp.dst == 547))`, routerPortName), // DHCP to router.
 		},
+		// These 3 rules allow packets sent by the ACL when matching a reject rule. It is very important
+		// that they are allowed when no stateful rules are in use, otherwise a bug in OVN causes it to
+		// enter an infinite loop rejecting its own generated reject packets, causing more to be generated,
+		// and OVN will use 100% CPU.
+		{
+			Direction: "to-lport",
+			Action:    "allow",
+			Priority:  ovnACLPrioritySwitchAllow,
+			Match:     "icmp6 && icmp6.type == {1,2,3,4} && ip.ttl == 255", // IPv6 ICMP error messages for ACL reject.
+		},
+		{
+			Direction: "to-lport",
+			Action:    "allow",
+			Priority:  ovnACLPrioritySwitchAllow,
+			Match:     "icmp4 && icmp4.type == {3,11,12} && ip.ttl == 255", // IPv4 ICMP error messages for ACL reject.
+		},
+		{
+			Direction: "to-lport",
+			Action:    "allow",
+			Priority:  ovnACLPrioritySwitchAllow,
+			Match:     "tcp && tcp.flags == 0x014", // TCP RST|ACK messages for ACL reject.
+		},
 	}
 
 	// Add rules to allow ping to/from internal router IPs.
