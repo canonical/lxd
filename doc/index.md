@@ -11,13 +11,13 @@ Then if you want to run it locally, take a look at our [getting started guide](h
 
 Release announcements can be found here: <https://linuxcontainers.org/lxd/news/>  
 And the release tarballs here: <https://linuxcontainers.org/lxd/downloads/>
+The documentation is here: <https://linuxcontainers.org/lxd/docs/stable-4.0/>
 
 ## Status
 Type                | Service               | Status
 ---                 | ---                   | ---
 CI (client)         | GitHub                | [![Build Status](https://github.com/lxc/lxd/workflows/Client%20build%20and%20unit%20tests/badge.svg?branch=stable-4.0)](https://github.com/lxc/lxd/actions)
 CI (server)         | Jenkins               | [![Build Status](https://jenkins.linuxcontainers.org/job/lxd-github-commit/badge/icon)](https://jenkins.linuxcontainers.org/job/lxd-github-commit/)
-LXD documentation   | ReadTheDocs           | [![Read the Docs](https://readthedocs.org/projects/lxd/badge/?version=latest&style=flat)](https://lxd.readthedocs.org)
 Go documentation    | Godoc                 | [![GoDoc](https://godoc.org/github.com/lxc/lxd/client?status.svg)](https://godoc.org/github.com/lxc/lxd/client)
 Static analysis     | GoReport              | [![Go Report Card](https://goreportcard.com/badge/github.com/lxc/lxd)](https://goreportcard.com/report/github.com/lxc/lxd)
 Translations        | Weblate               | [![Translation status](https://hosted.weblate.org/widgets/linux-containers/-/svg-badge.svg)](https://hosted.weblate.org/projects/linux-containers/lxd/)
@@ -168,7 +168,7 @@ Canonical RBAC.
 More details are [available here](security.md).
 
 ## Getting started with LXD
-Now that you have LXD running on your system you can read the [getting started guide](https://linuxcontainers.org/lxd/getting-started-cli/) or go through more examples and configurations in [our documentation](https://linuxcontainers.org/lxd/docs/master/).
+Now that you have LXD running on your system you can read the [getting started guide](https://linuxcontainers.org/lxd/getting-started-cli/) or go through more examples and configurations in [our documentation](https://linuxcontainers.org/lxd/docs/stable-4.0/).
 
 ## Bug reports
 Bug reports can be filed at: <https://github.com/lxc/lxd/issues/new>
