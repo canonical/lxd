@@ -2,9 +2,9 @@ package api
 
 // ProjectsPost represents the fields of a new LXD project
 //
-// API extension: projects
-//
 // swagger:model
+//
+// API extension: projects
 type ProjectsPost struct {
 	ProjectPut `yaml:",inline"`
 
@@ -15,9 +15,9 @@ type ProjectsPost struct {
 
 // ProjectPost represents the fields required to rename a LXD project
 //
-// API extension: projects
-//
 // swagger:model
+//
+// API extension: projects
 type ProjectPost struct {
 	// The new name for the project
 	// Example: bar
@@ -26,9 +26,9 @@ type ProjectPost struct {
 
 // ProjectPut represents the modifiable fields of a LXD project
 //
-// API extension: projects
-//
 // swagger:model
+//
+// API extension: projects
 type ProjectPut struct {
 	// Project configuration map (refer to doc/projects.md)
 	// Example: {"features.profiles": "true", "features.networks": "false"}
@@ -41,9 +41,9 @@ type ProjectPut struct {
 
 // Project represents a LXD project
 //
-// API extension: projects
-//
 // swagger:model
+//
+// API extension: projects
 type Project struct {
 	ProjectPut `yaml:",inline"`
 
