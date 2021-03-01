@@ -27,6 +27,13 @@ type ruleDirection string
 const ruleDirectionIngress ruleDirection = "ingress"
 const ruleDirectionEgress ruleDirection = "egress"
 
+// Define reserved ACL subjects.
+const ruleSubjectInternal = "#internal"
+const ruleSubjectExternal = "#external"
+
+// Define valid actions for rules.
+var validActions = []string{"allow", "drop", "reject"}
+
 // common represents a Network ACL.
 type common struct {
 	logger      logger.Logger
@@ -194,10 +201,16 @@ func (d *common) validateName(name string) error {
 
 // validateConfig checks the config and rules are valid.
 func (d *common) validateConfig(info *api.NetworkACLPut) error {
-	for k := range info.Config {
-		if !shared.IsUserConfig(k) {
-			return fmt.Errorf("Only user config keys supported")
-		}
+	rules := map[string]func(value string) error{
+		"default.logged": validate.Optional(validate.IsBool),
+		"default.action": validate.Optional(func(value string) error {
+			return validate.IsOneOf(value, validActions)
+		}),
+	}
+
+	err := d.validateConfigMap(info.Config, rules)
+	if err != nil {
+		return err
 	}
 
 	// Normalise rules before validation for duplicate detection.
@@ -250,10 +263,40 @@ func (d *common) validateConfig(info *api.NetworkACLPut) error {
 	return nil
 }
 
+// validateConfigMap checks ACL config map against rules.
+func (d *common) validateConfigMap(config map[string]string, rules map[string]func(value string) error) error {
+	checkedFields := map[string]struct{}{}
+
+	// Run the validator against each field.
+	for k, validator := range rules {
+		checkedFields[k] = struct{}{} //Mark field as checked.
+		err := validator(config[k])
+		if err != nil {
+			return errors.Wrapf(err, "Invalid value for config option %q", k)
+		}
+	}
+
+	// Look for any unchecked fields, as these are unknown fields and validation should fail.
+	for k := range config {
+		_, checked := checkedFields[k]
+		if checked {
+			continue
+		}
+
+		// User keys are not validated.
+		if shared.IsUserConfig(k) {
+			continue
+		}
+
+		return fmt.Errorf("Invalid config option %q", k)
+	}
+
+	return nil
+}
+
 // validateRule validates the rule supplied.
 func (d *common) validateRule(direction ruleDirection, rule api.NetworkACLRule) error {
 	// Validate Action field (required).
-	validActions := []string{"allow", "drop"}
 	if !shared.StringInSlice(rule.Action, validActions) {
 		return fmt.Errorf("Action must be one of: %s", strings.Join(validActions, ", "))
 	}
@@ -270,19 +313,20 @@ func (d *common) validateRule(direction ruleDirection, rule api.NetworkACLRule) 
 		return errors.Wrapf(err, "Failed getting network ACLs for security ACL subject validation")
 	}
 
-	aclNames := make([]string, len(acls))
+	allowedSubjectNames := make([]string, 0, len(acls)+2)
+	allowedSubjectNames = append(allowedSubjectNames, ruleSubjectInternal, ruleSubjectExternal)
 	for aclName := range acls {
-		aclNames = append(aclNames, aclName)
+		allowedSubjectNames = append(allowedSubjectNames, aclName)
 	}
 
 	// Validate Source field.
 	if rule.Source != "" {
-		var validACLNames []string
+		var validSubjects []string
 		if direction == ruleDirectionIngress {
-			validACLNames = aclNames // ACL names are only allowed in ingress rule sources.
+			validSubjects = allowedSubjectNames // Names are only allowed in ingress rule sources.
 		}
 
-		err := d.validateRuleSubjects(util.SplitNTrimSpace(rule.Source, ",", -1, false), validACLNames)
+		err := d.validateRuleSubjects(util.SplitNTrimSpace(rule.Source, ",", -1, false), validSubjects)
 		if err != nil {
 			return errors.Wrapf(err, "Invalid Source")
 		}
@@ -290,12 +334,12 @@ func (d *common) validateRule(direction ruleDirection, rule api.NetworkACLRule) 
 
 	// Validate Destination field.
 	if rule.Destination != "" {
-		var validACLNames []string
+		var validSubjects []string
 		if direction == ruleDirectionEgress {
-			validACLNames = aclNames // ACL names are only allowed in egress rule destinations.
+			validSubjects = allowedSubjectNames // Names are only allowed in egress rule destinations.
 		}
 
-		err := d.validateRuleSubjects(util.SplitNTrimSpace(rule.Destination, ",", -1, false), validACLNames)
+		err := d.validateRuleSubjects(util.SplitNTrimSpace(rule.Destination, ",", -1, false), validSubjects)
 		if err != nil {
 			return errors.Wrapf(err, "Invalid Destination")
 		}
@@ -475,45 +519,24 @@ func (d *common) Update(config *api.NetworkACLPut) error {
 		d.init(d.state, d.id, d.projectName, d.info)
 	})
 
-	// OVN networks share ACL port group definitions so we only need to apply changes once for all OVN nets.
-	applyToOVN := false
-
-	// Find all networks and instance NICs that use this Network ACL and check if any are OVN.
-	err = UsedBy(d.state, d.projectName, func(_ []string, usageType interface{}, _ string, nicConfig map[string]string) error {
-		switch u := usageType.(type) {
-		case db.Instance, db.Profile:
-			_, network, _, err := d.state.Cluster.GetNetworkInAnyState(d.projectName, nicConfig["network"])
-			if err != nil {
-				return errors.Wrapf(err, "Failed to load network %q", nicConfig["network"])
-			}
-
-			if network.Type == "ovn" {
-				applyToOVN = true
-
-				// Only OVN networks support ACLs at this time so no need to search further.
-				return db.ErrInstanceListStop
-			}
-		case *api.Network:
-			if u.Type == "ovn" {
-				applyToOVN = true
-
-				// Only OVN networks support ACLs at this time so no need to search further.
-				return db.ErrInstanceListStop
-			}
-		case *api.NetworkACL:
-			return nil // Nothing to do for ACL rules referencing us.
-		default:
-			return fmt.Errorf("Unrecognised usage type %T", u)
-		}
-
-		return nil
-	}, d.Info().Name)
-	if err != nil && err != db.ErrInstanceListStop {
-		return errors.Wrapf(err, "Failed getting ACL usage")
+	// OVN networks share ACL port group definitions, but when the ACL rules use network specific selectors
+	// such as #internal/#external, then we need to apply those rules to each network affected by the ACL, so
+	// build up a full list of OVN networks affected by this ACL (either because the ACL is assigned directly
+	// or because it is assigned to an OVN NIC in an instance or profile).
+	aclNets := map[string]NetworkACLUsage{}
+	err = NetworkUsage(d.state, d.projectName, []string{d.info.Name}, aclNets)
+	if err != nil {
+		return errors.Wrapf(err, "Failed getting ACL network usage")
 	}
 
-	if applyToOVN {
-		d.logger.Debug("Applying ACL rules to OVN")
+	// Remove non-OVN networks from map.
+	for k, v := range aclNets {
+		if v.Type != "ovn" {
+			delete(aclNets, k)
+		}
+	}
+
+	if len(aclNets) > 0 {
 		client, err := openvswitch.NewOVN(d.state)
 		if err != nil {
 			return errors.Wrapf(err, "Failed to get OVN client")
@@ -526,7 +549,7 @@ func (d *common) Update(config *api.NetworkACLPut) error {
 		}
 
 		// Request that the ACL and any referenced ACLs in the ruleset are created in OVN.
-		r, err := OVNEnsureACLs(d.state, d.logger, client, d.projectName, aclNameIDs, []string{d.info.Name}, true)
+		r, err := OVNEnsureACLs(d.state, d.logger, client, d.projectName, aclNameIDs, aclNets, []string{d.info.Name}, true)
 		if err != nil {
 			return errors.Wrapf(err, "Failed ensuring ACL is configured in OVN")
 		}

@@ -247,3 +247,60 @@ func isInUseByDevice(d deviceConfig.Device, matchACLNames ...string) []string {
 
 	return matchedACLNames
 }
+
+// NetworkACLUsage info about a network and what ACL it uses.
+type NetworkACLUsage struct {
+	ID   int64
+	Name string
+	Type string
+}
+
+// NetworkUsage populates the provided aclNets map with networks that are using any of the specified ACLs.
+func NetworkUsage(s *state.State, aclProjectName string, aclNames []string, aclNets map[string]NetworkACLUsage) error {
+	// Find all networks and instance/profile NICs that use any of the specified Network ACLs.
+	err := UsedBy(s, aclProjectName, func(matchedACLNames []string, usageType interface{}, _ string, nicConfig map[string]string) error {
+		switch u := usageType.(type) {
+		case db.Instance, db.Profile:
+			networkID, network, _, err := s.Cluster.GetNetworkInAnyState(aclProjectName, nicConfig["network"])
+			if err != nil {
+				return errors.Wrapf(err, "Failed to load network %q", nicConfig["network"])
+			}
+
+			if network.Type == "ovn" {
+				if _, found := aclNets[network.Name]; !found {
+					aclNets[network.Name] = NetworkACLUsage{
+						ID:   networkID,
+						Name: network.Name,
+						Type: network.Type,
+					}
+				}
+			}
+		case *api.Network:
+			if u.Type == "ovn" {
+				if _, found := aclNets[u.Name]; !found {
+					networkID, network, _, err := s.Cluster.GetNetworkInAnyState(aclProjectName, u.Name)
+					if err != nil {
+						return errors.Wrapf(err, "Failed to load network %q", u.Name)
+					}
+
+					aclNets[u.Name] = NetworkACLUsage{
+						ID:   networkID,
+						Name: network.Name,
+						Type: network.Type,
+					}
+				}
+			}
+		case *api.NetworkACL:
+			return nil // Nothing to do for ACL rules referencing us.
+		default:
+			return fmt.Errorf("Unrecognised usage type %T", u)
+		}
+
+		return nil
+	}, aclNames...)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
