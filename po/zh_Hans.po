@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: lxd\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2021-02-24 21:35-0500\n"
+"POT-Creation-Date: 2021-03-01 12:23-0500\n"
 "PO-Revision-Date: 2020-11-05 02:45+0000\n"
 "Last-Translator: wdggg <wdggg7@gmail.com>\n"
 "Language-Team: Chinese (Simplified) <https://hosted.weblate.org/projects/"
@@ -4188,12 +4188,8 @@ msgstr ""
 msgid "[[<remote>:]<image>] [<remote>:][<name>] [< config"
 msgstr ""
 
-#: lxc/project.go:451
+#: lxc/project.go:451 lxc/remote.go:570
 msgid "current"
-msgstr ""
-
-#: lxc/remote.go:570
-msgid "default"
 msgstr ""
 
 #: lxc/storage.go:451
