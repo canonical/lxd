@@ -2,9 +2,9 @@ package api
 
 // NetworksPost represents the fields of a new LXD network
 //
-// API extension: network
-//
 // swagger:model
+//
+// API extension: network
 type NetworksPost struct {
 	NetworkPut `yaml:",inline"`
 
@@ -19,9 +19,9 @@ type NetworksPost struct {
 
 // NetworkPost represents the fields required to rename a LXD network
 //
-// API extension: network
-//
 // swagger:model
+//
+// API extension: network
 type NetworkPost struct {
 	// The new name for the network
 	// Example: lxdbr1
@@ -30,9 +30,9 @@ type NetworkPost struct {
 
 // NetworkPut represents the modifiable fields of a LXD network
 //
-// API extension: network
-//
 // swagger:model
+//
+// API extension: network
 type NetworkPut struct {
 	// Network configuration map (refer to doc/networks.md)
 	// Example: {"ipv4.address": "10.0.0.1/24", "ipv4.nat": "true", "ipv6.address": "none"}
@@ -107,9 +107,9 @@ func (network *Network) Writable() NetworkPut {
 
 // NetworkLease represents a DHCP lease
 //
-// API extension: network_leases
-//
 // swagger:model
+//
+// API extension: network_leases
 type NetworkLease struct {
 	// The hostname associated with the record
 	// Example: c1
@@ -220,9 +220,9 @@ type NetworkStateCounters struct {
 
 // NetworkStateBond represents bond specific state
 //
-// API extension: network_state_bond_bridge
-//
 // swagger:model
+//
+// API extension: network_state_bond_bridge
 type NetworkStateBond struct {
 	// Bonding mode
 	// Example: 802.3ad
@@ -255,9 +255,9 @@ type NetworkStateBond struct {
 
 // NetworkStateBridge represents bridge specific state
 //
-// API extension: network_state_bond_bridge
-//
 // swagger:model
+//
+// API extension: network_state_bond_bridge
 type NetworkStateBridge struct {
 	// Bridge ID
 	// Example: 8000.0a0f7c6edbd9
@@ -286,9 +286,9 @@ type NetworkStateBridge struct {
 
 // NetworkStateVLAN represents VLAN specific state
 //
-// API extension: network_state_vlan
-//
 // swagger:model
+//
+// API extension: network_state_vlan
 type NetworkStateVLAN struct {
 	// Parent device
 	// Example: eth0
