@@ -567,7 +567,7 @@ func (c *cmdRemoteList) Run(cmd *cobra.Command, args []string) error {
 
 		strName := name
 		if name == conf.DefaultRemote {
-			strName = fmt.Sprintf("%s (%s)", name, i18n.G("default"))
+			strName = fmt.Sprintf("%s (%s)", name, i18n.G("current"))
 		}
 		data = append(data, []string{strName, rc.Addr, rc.Protocol, rc.AuthType, strPublic, strStatic})
 	}
