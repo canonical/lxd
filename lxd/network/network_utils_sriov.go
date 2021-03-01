@@ -7,6 +7,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/pkg/errors"
 
@@ -17,6 +18,7 @@ import (
 	"github.com/lxc/lxd/lxd/state"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
+	"github.com/lxc/lxd/shared/logger"
 )
 
 // sriovReservedDevicesMutex used to coordinate access for checking reserved devices.
@@ -101,157 +103,145 @@ func SRIOVGetHostDevicesInUse(s *state.State) (map[string]struct{}, error) {
 func SRIOVFindFreeVirtualFunction(s *state.State, parentDev string) (string, int, error) {
 	reservedDevices, err := SRIOVGetHostDevicesInUse(s)
 	if err != nil {
-		return "", 0, errors.Wrapf(err, "Failed getting in use device list")
+		return "", -1, errors.Wrapf(err, "Failed getting in use device list")
 	}
 
-	sriovNumVFs := fmt.Sprintf("/sys/class/net/%s/device/sriov_numvfs", parentDev)
-	sriovTotalVFs := fmt.Sprintf("/sys/class/net/%s/device/sriov_totalvfs", parentDev)
+	sriovNumVFsFile := fmt.Sprintf("/sys/class/net/%s/device/sriov_numvfs", parentDev)
+	sriovTotalVFsFile := fmt.Sprintf("/sys/class/net/%s/device/sriov_totalvfs", parentDev)
 
 	// Verify that this is indeed a SR-IOV enabled device.
-	if !shared.PathExists(sriovTotalVFs) {
-		return "", 0, fmt.Errorf("Parent device %q doesn't support SR-IOV", parentDev)
+	if !shared.PathExists(sriovNumVFsFile) {
+		return "", -1, fmt.Errorf("Parent device %q doesn't support SR-IOV", parentDev)
 	}
 
 	// Get parent dev_port and dev_id values.
 	pfDevPort, err := ioutil.ReadFile(fmt.Sprintf("/sys/class/net/%s/dev_port", parentDev))
 	if err != nil {
-		return "", 0, err
+		return "", -1, err
 	}
 
 	pfDevID, err := ioutil.ReadFile(fmt.Sprintf("/sys/class/net/%s/dev_id", parentDev))
 	if err != nil {
-		return "", 0, err
+		return "", -1, err
 	}
 
 	// Get number of currently enabled VFs.
-	sriovNumVfsBuf, err := ioutil.ReadFile(sriovNumVFs)
+	sriovNumVFsBuf, err := ioutil.ReadFile(sriovNumVFsFile)
 	if err != nil {
-		return "", 0, err
+		return "", -1, err
 	}
-	sriovNumVfsStr := strings.TrimSpace(string(sriovNumVfsBuf))
-	sriovNum, err := strconv.Atoi(sriovNumVfsStr)
+
+	sriovNumVFs, err := strconv.Atoi(strings.TrimSpace(string(sriovNumVFsBuf)))
 	if err != nil {
-		return "", 0, err
+		return "", -1, err
 	}
 
 	// Get number of possible VFs.
-	sriovTotalVfsBuf, err := ioutil.ReadFile(sriovTotalVFs)
+	sriovTotalVFsBuf, err := ioutil.ReadFile(sriovTotalVFsFile)
 	if err != nil {
-		return "", 0, err
+		return "", -1, err
 	}
-	sriovTotalVfsStr := strings.TrimSpace(string(sriovTotalVfsBuf))
-	sriovTotal, err := strconv.Atoi(sriovTotalVfsStr)
+
+	sriovTotalVFs, err := strconv.Atoi(strings.TrimSpace(string(sriovTotalVFsBuf)))
 	if err != nil {
-		return "", 0, err
+		return "", -1, err
 	}
 
 	// Ensure parent is up (needed for Intel at least).
 	_, err = shared.RunCommand("ip", "link", "set", "dev", parentDev, "up")
 	if err != nil {
-		return "", 0, err
+		return "", -1, err
 	}
 
-	// Check if any VFs are already enabled.
-	nicName := ""
-	vfID := 0
-	for i := 0; i < sriovNum; i++ {
-		if !shared.PathExists(fmt.Sprintf("/sys/class/net/%s/device/virtfn%d/net", parentDev, i)) {
-			continue
+	// Check if any free VFs are already enabled.
+	vfID, nicName, err := sriovGetFreeVFInterface(reservedDevices, parentDev, sriovNumVFs, 0, pfDevID, pfDevPort)
+	if err != nil {
+		return "", -1, err
+	}
+
+	// Found a free VF.
+	if nicName != "" {
+		return nicName, vfID, nil
+	} else if sriovNumVFs < sriovTotalVFs {
+		logger.Debugf("Attempting to grow available VFs from %d to %d on device %q", sriovNumVFs, sriovTotalVFs, parentDev)
+
+		// Bump the number of VFs to the maximum if not there yet.
+		err = ioutil.WriteFile(sriovNumVFsFile, []byte(fmt.Sprintf("%d", sriovTotalVFs)), 0644)
+		if err != nil {
+			return "", -1, errors.Wrapf(err, "Failed growing available VFs from %d to %d on device %q", sriovNumVFs, sriovTotalVFs, parentDev)
 		}
 
-		// Check if VF is already in use.
-		empty, err := shared.PathIsEmpty(fmt.Sprintf("/sys/class/net/%s/device/virtfn%d/net", parentDev, i))
-		if err != nil {
-			return "", 0, err
-		}
-		if empty {
-			continue
-		}
+		time.Sleep(time.Second) // Allow time for new VFs to appear.
 
-		vfListPath := fmt.Sprintf("/sys/class/net/%s/device/virtfn%d/net", parentDev, i)
-		nicName, err = sriovGetFreeVFInterface(reservedDevices, vfListPath, pfDevID, pfDevPort)
+		// Use next free VF index starting from the first newly created VF.
+		vfID, nicName, err = sriovGetFreeVFInterface(reservedDevices, parentDev, sriovTotalVFs, sriovNumVFs, pfDevID, pfDevPort)
 		if err != nil {
-			return "", 0, err
+			return "", -1, err
 		}
 
 		// Found a free VF.
 		if nicName != "" {
-			vfID = i
-			break
+			return nicName, vfID, nil
 		}
 	}
 
-	if nicName == "" {
-		if sriovNum == sriovTotal {
-			return "", 0, fmt.Errorf("All virtual functions on parent device %q seem to be in use", parentDev)
+	return "", -1, fmt.Errorf("All virtual functions on parent device %q are already in use", parentDev)
+}
+
+// sriovGetFreeVFInterface checks the system for a free VF interface that belongs to the same device and port as
+// the parent device starting from the startVFID to the vfCount-1. Returns VF ID and VF interface name if found
+// or -1 and empty string if no free interface found. A free interface is one that is bound on the host and is not
+// in the reservedDevices map.
+func sriovGetFreeVFInterface(reservedDevices map[string]struct{}, parentDev string, vfCount int, startVFID int, pfDevID []byte, pfDevPort []byte) (int, string, error) {
+	for vfID := startVFID; vfID < vfCount; vfID++ {
+		vfListPath := fmt.Sprintf("/sys/class/net/%s/device/virtfn%d/net", parentDev, vfID)
+
+		if !shared.PathExists(vfListPath) {
+			return -1, "", nil
 		}
 
-		// Bump the number of VFs to the maximum.
-		err := ioutil.WriteFile(sriovNumVFs, []byte(sriovTotalVfsStr), 0644)
+		ents, err := ioutil.ReadDir(vfListPath)
 		if err != nil {
-			return "", 0, err
+			return -1, "", errors.Wrapf(err, "Failed reading VF interface directory %q", vfListPath)
 		}
 
-		// Use next free VF index.
-		for i := sriovNum + 1; i < sriovTotal; i++ {
-			vfListPath := fmt.Sprintf("/sys/class/net/%s/device/virtfn%d/net", parentDev, i)
-			nicName, err = sriovGetFreeVFInterface(reservedDevices, vfListPath, pfDevID, pfDevPort)
+		for _, ent := range ents {
+			// We expect the entry to be a directory for the VF's interface name.
+			if !ent.IsDir() {
+				continue
+			}
+
+			nicName := ent.Name()
+
+			// We can't use this VF interface as it is reserved by another device.
+			_, exists := reservedDevices[nicName]
+			if exists {
+				continue
+			}
+
+			// Get VF dev_port and dev_id values.
+			vfDevPort, err := ioutil.ReadFile(fmt.Sprintf("%s/%s/dev_port", vfListPath, nicName))
 			if err != nil {
-				return "", 0, err
+				return -1, "", err
+			}
+
+			vfDevID, err := ioutil.ReadFile(fmt.Sprintf("%s/%s/dev_id", vfListPath, nicName))
+			if err != nil {
+				return -1, "", err
+			}
+
+			// Skip VFs if they do not relate to the same device and port as the parent PF.
+			// Some card vendors change the device ID for each port.
+			if bytes.Compare(pfDevPort, vfDevPort) != 0 || bytes.Compare(pfDevID, vfDevID) != 0 {
+				continue
 			}
 
 			// Found a free VF.
-			if nicName != "" {
-				vfID = i
-				break
-			}
+			return vfID, nicName, err
 		}
 	}
 
-	if nicName == "" {
-		return "", 0, fmt.Errorf("All virtual functions on parent device are already in use")
-	}
-
-	return nicName, vfID, nil
-}
-
-// sriovGetFreeVFInterface checks the contents of the VF directory to find a free VF interface name that
-// belongs to the same device and port as the parent. Returns VF interface name or empty string if
-// no free interface found.
-func sriovGetFreeVFInterface(reservedDevices map[string]struct{}, vfListPath string, pfDevID []byte, pfDevPort []byte) (string, error) {
-	ents, err := ioutil.ReadDir(vfListPath)
-	if err != nil {
-		return "", err
-	}
-
-	for _, ent := range ents {
-		// We can't use this VF interface as it is reserved by another device.
-		_, exists := reservedDevices[ent.Name()]
-		if exists {
-			continue
-		}
-
-		// Get VF dev_port and dev_id values.
-		vfDevPort, err := ioutil.ReadFile(fmt.Sprintf("%s/%s/dev_port", vfListPath, ent.Name()))
-		if err != nil {
-			return "", err
-		}
-
-		vfDevID, err := ioutil.ReadFile(fmt.Sprintf("%s/%s/dev_id", vfListPath, ent.Name()))
-		if err != nil {
-			return "", err
-		}
-
-		// Skip VFs if they do not relate to the same device and port as the parent PF.
-		// Some card vendors change the device ID for each port.
-		if bytes.Compare(pfDevPort, vfDevPort) != 0 || bytes.Compare(pfDevID, vfDevID) != 0 {
-			continue
-		}
-
-		return ent.Name(), nil
-	}
-
-	return "", nil
+	return -1, "", nil
 }
 
 // SRIOVGetVFDevicePCISlot returns the PCI slot name for a network virtual function device.
