@@ -6,11 +6,24 @@ import (
 )
 
 // Event represents an event entry (over websocket)
+//
+// swagger:model
 type Event struct {
-	Type      string          `yaml:"type" json:"type"`
-	Timestamp time.Time       `yaml:"timestamp" json:"timestamp"`
-	Metadata  json.RawMessage `yaml:"metadata" json:"metadata"`
+	// Event type (one of operation, logging or lifecycle)
+	// Example: lifecycle
+	Type string `yaml:"type" json:"type"`
 
+	// Time at which the event was sent
+	// Example: 2021-02-24T19:00:45.452649098-05:00
+	Timestamp time.Time `yaml:"timestamp" json:"timestamp"`
+
+	// JSON encoded metadata (see EventLogging, EventLifecycle or Operation)
+	// Example: {"action": "instance-started", "source": "/1.0/instances/c1", "context": {}}
+	Metadata json.RawMessage `yaml:"metadata" json:"metadata"`
+
+	// Originating cluster member
+	// Example: lxd01
+	//
 	// API extension: event_location
 	Location string `yaml:"location,omitempty" json:"location,omitempty"`
 }
