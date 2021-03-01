@@ -580,6 +580,18 @@ func OVNApplyNetworkBaselineRules(client *openvswitch.OVN, switchName openvswitc
 			Direction: "to-lport",
 			Action:    "allow",
 			Priority:  ovnACLPrioritySwitchAllow,
+			Match:     "icmp6 && icmp6.type == 143 && ip.ttl == 1 && ip6.dst == ff02::16", // IPv6 ICMP Multicast Listener Discovery reports.
+		},
+		{
+			Direction: "to-lport",
+			Action:    "allow",
+			Priority:  ovnACLPrioritySwitchAllow,
+			Match:     "igmp && ip.ttl == 1 && ip4.mcast", // IPv4 IGMP.
+		},
+		{
+			Direction: "to-lport",
+			Action:    "allow",
+			Priority:  ovnACLPrioritySwitchAllow,
 			Match:     fmt.Sprintf(`outport == "%s" && ((ip4 && udp.dst == 67) || (ip6 && udp.dst == 547))`, routerPortName), // DHCP to router.
 		},
 	}
