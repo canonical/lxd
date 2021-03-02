@@ -31,7 +31,8 @@ func (d *nicMACVLAN) validateConfig(instConf instance.ConfigReader) error {
 		"maas.subnet.ipv6",
 		"boot.priority",
 	}
-	err := d.config.Validate(nicValidationRules(requiredFields, optionalFields))
+
+	err := d.config.Validate(nicValidationRules(requiredFields, optionalFields, instConf))
 	if err != nil {
 		return err
 	}

@@ -37,7 +37,7 @@ func (d *nicPhysical) validateConfig(instConf instance.ConfigReader) error {
 		optionalFields = append(optionalFields, "mtu", "hwaddr", "vlan")
 	}
 
-	err := d.config.Validate(nicValidationRules(requiredFields, optionalFields))
+	err := d.config.Validate(nicValidationRules(requiredFields, optionalFields, instConf))
 	if err != nil {
 		return err
 	}

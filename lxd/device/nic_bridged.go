@@ -144,7 +144,7 @@ func (d *nicBridged) validateConfig(instConf instance.ConfigReader) error {
 	}
 
 	// Now run normal validation.
-	err := d.config.Validate(nicValidationRules(requiredFields, optionalFields))
+	err := d.config.Validate(nicValidationRules(requiredFields, optionalFields, instConf))
 	if err != nil {
 		return err
 	}

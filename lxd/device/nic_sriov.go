@@ -48,7 +48,7 @@ func (d *nicSRIOV) validateConfig(instConf instance.ConfigReader) error {
 		optionalFields = append(optionalFields, "mtu")
 	}
 
-	err := d.config.Validate(nicValidationRules(requiredFields, optionalFields))
+	err := d.config.Validate(nicValidationRules(requiredFields, optionalFields, instConf))
 	if err != nil {
 		return err
 	}

@@ -39,7 +39,7 @@ func (d *nicIPVLAN) validateConfig(instConf instance.ConfigReader) error {
 		"ipv6.gateway",
 	}
 
-	rules := nicValidationRules(requiredFields, optionalFields)
+	rules := nicValidationRules(requiredFields, optionalFields, instConf)
 	rules["ipv4.address"] = func(value string) error {
 		if value == "" {
 			return nil
