@@ -229,10 +229,6 @@ func (d *gpuSRIOV) findFreeVirtualFunction(parentDev pcidev.Device) (int, error)
 		}
 	}
 
-	if vfID == -1 {
-		return 0, fmt.Errorf("All virtual functions on parent device %q seem to be in use", parentDev.ID)
-	}
-
 	return vfID, nil
 }
 
