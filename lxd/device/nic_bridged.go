@@ -156,7 +156,7 @@ func (d *nicBridged) validateConfig(instConf instance.ConfigReader) error {
 		}
 	}
 
-	rules := nicValidationRules(requiredFields, optionalFields)
+	rules := nicValidationRules(requiredFields, optionalFields, instConf)
 
 	// Add bridge specific vlan validation.
 	rules["vlan"] = func(value string) error {
