@@ -2,9 +2,9 @@ package api
 
 // Resources represents the system resources available for LXD
 //
-// API extension: resources
-//
 // swagger:model
+//
+// API extension: resources
 type Resources struct {
 	// CPU information
 	CPU ResourcesCPU `json:"cpu" yaml:"cpu"`
@@ -45,6 +45,8 @@ type Resources struct {
 
 // ResourcesCPU represents the cpu resources available on the system
 //
+// swagger:model
+//
 // API extension: resources
 type ResourcesCPU struct {
 	// Architecture name
@@ -62,6 +64,8 @@ type ResourcesCPU struct {
 }
 
 // ResourcesCPUSocket represents a CPU socket on the system
+//
+// swagger:model
 //
 // API extension: resources_v2
 type ResourcesCPUSocket struct {
@@ -98,6 +102,8 @@ type ResourcesCPUSocket struct {
 
 // ResourcesCPUCache represents a CPU cache
 //
+// swagger:model
+//
 // API extension: resources_v2
 type ResourcesCPUCache struct {
 	// Cache level (usually a number from 1 to 3)
@@ -114,6 +120,9 @@ type ResourcesCPUCache struct {
 }
 
 // ResourcesCPUCore represents a CPU core on the system
+//
+// swagger:model
+//
 // API extension: resources_v2
 type ResourcesCPUCore struct {
 	// Core identifier within the socket
@@ -135,6 +144,8 @@ type ResourcesCPUCore struct {
 }
 
 // ResourcesCPUThread represents a CPU thread on the system
+//
+// swagger:model
 //
 // API extension: resources_v2
 type ResourcesCPUThread struct {
@@ -163,6 +174,8 @@ type ResourcesCPUThread struct {
 
 // ResourcesGPU represents the GPU resources available on the system
 //
+// swagger:model
+//
 // API extension: resources_gpu
 type ResourcesGPU struct {
 	// List of GPUs
@@ -174,6 +187,9 @@ type ResourcesGPU struct {
 }
 
 // ResourcesGPUCard represents a GPU card on the system
+//
+// swagger:model
+//
 // API extension: resources_v2
 type ResourcesGPUCard struct {
 	// Kernel driver currently associated with the GPU
@@ -225,6 +241,9 @@ type ResourcesGPUCard struct {
 }
 
 // ResourcesGPUCardDRM represents the Linux DRM configuration of the GPU
+//
+// swagger:model
+//
 // API extension: resources_v2
 type ResourcesGPUCardDRM struct {
 	// DRM card ID
@@ -258,6 +277,8 @@ type ResourcesGPUCardDRM struct {
 
 // ResourcesGPUCardSRIOV represents the SRIOV configuration of the GPU
 //
+// swagger:model
+//
 // API extension: resources_v2
 type ResourcesGPUCardSRIOV struct {
 	// Number of VFs currently configured
@@ -274,6 +295,8 @@ type ResourcesGPUCardSRIOV struct {
 }
 
 // ResourcesGPUCardNvidia represents additional information for NVIDIA GPUs
+//
+// swagger:model
 //
 // API extension: resources_gpu
 type ResourcesGPUCardNvidia struct {
@@ -316,6 +339,8 @@ type ResourcesGPUCardNvidia struct {
 
 // ResourcesGPUCardMdev represents the mediated devices configuration of the GPU
 //
+// swagger:model
+//
 // API extension: resources_gpu_mdev
 type ResourcesGPUCardMdev struct {
 	// The mechanism used by this device
@@ -340,6 +365,9 @@ type ResourcesGPUCardMdev struct {
 }
 
 // ResourcesNetwork represents the network cards available on the system
+//
+// swagger:model
+//
 // API extension: resources_v2
 type ResourcesNetwork struct {
 	// List of network cards
@@ -351,6 +379,8 @@ type ResourcesNetwork struct {
 }
 
 // ResourcesNetworkCard represents a network card on the system
+//
+// swagger:model
 //
 // API extension: resources_v2
 type ResourcesNetworkCard struct {
@@ -406,6 +436,8 @@ type ResourcesNetworkCard struct {
 }
 
 // ResourcesNetworkCardPort represents a network port on the system
+//
+// swagger:model
 //
 // API extension: resources_v2
 type ResourcesNetworkCardPort struct {
@@ -464,6 +496,9 @@ type ResourcesNetworkCardPort struct {
 }
 
 // ResourcesNetworkCardPortInfiniband represents the Linux Infiniband configuration for the port
+//
+// swagger:model
+//
 // API extension: resources_infiniband
 type ResourcesNetworkCardPortInfiniband struct {
 	// ISSM device name
@@ -493,6 +528,8 @@ type ResourcesNetworkCardPortInfiniband struct {
 
 // ResourcesNetworkCardSRIOV represents the SRIOV configuration of the network card
 //
+// swagger:model
+//
 // API extension: resources_v2
 type ResourcesNetworkCardSRIOV struct {
 	// Number of VFs currently configured
@@ -510,6 +547,8 @@ type ResourcesNetworkCardSRIOV struct {
 
 // ResourcesStorage represents the local storage
 //
+// swagger:model
+//
 // API extension: resources_v2
 type ResourcesStorage struct {
 	// List of disks
@@ -521,6 +560,8 @@ type ResourcesStorage struct {
 }
 
 // ResourcesStorageDisk represents a disk
+//
+// swagger:model
 //
 // API extension: resources_v2
 type ResourcesStorageDisk struct {
@@ -614,6 +655,8 @@ type ResourcesStorageDisk struct {
 
 // ResourcesStorageDiskPartition represents a partition on a disk
 //
+// swagger:model
+//
 // API extension: resources_v2
 type ResourcesStorageDiskPartition struct {
 	// ID of the partition (device name)
@@ -639,9 +682,12 @@ type ResourcesStorageDiskPartition struct {
 
 // ResourcesMemory represents the memory resources available on the system
 //
+// swagger:model
+//
 // API extension: resources
 type ResourcesMemory struct {
 	// List of NUMA memory nodes
+	// Example: null
 	//
 	// API extension: resources_v2
 	Nodes []ResourcesMemoryNode `json:"nodes,omitempty" yaml:"nodes,omitempty"`
@@ -668,6 +714,9 @@ type ResourcesMemory struct {
 }
 
 // ResourcesMemoryNode represents the node-specific memory resources available on the system
+//
+// swagger:model
+//
 // API extension: resources_v2
 type ResourcesMemoryNode struct {
 	// NUMA node identifier
@@ -693,6 +742,8 @@ type ResourcesMemoryNode struct {
 
 // ResourcesStoragePool represents the resources available to a given storage pool
 //
+// swagger:model
+//
 // API extension: resources
 type ResourcesStoragePool struct {
 	// Disk space usage
@@ -703,6 +754,8 @@ type ResourcesStoragePool struct {
 }
 
 // ResourcesStoragePoolSpace represents the space available to a given storage pool
+//
+// swagger:model
 //
 // API extension: resources
 type ResourcesStoragePoolSpace struct {
@@ -717,6 +770,8 @@ type ResourcesStoragePoolSpace struct {
 
 // ResourcesStoragePoolInodes represents the inodes available to a given storage pool
 //
+// swagger:model
+//
 // API extension: resources
 type ResourcesStoragePoolInodes struct {
 	// Used inodes
@@ -730,6 +785,8 @@ type ResourcesStoragePoolInodes struct {
 
 // ResourcesUSB represents the USB devices available on the system
 //
+// swagger:model
+//
 // API extension: resources_usb_pci
 type ResourcesUSB struct {
 	// List of USB devices
@@ -741,6 +798,8 @@ type ResourcesUSB struct {
 }
 
 // ResourcesUSBDevice represents a USB device
+//
+// swagger:model
 //
 // API extension: resources_usb_pci
 type ResourcesUSBDevice struct {
@@ -778,6 +837,8 @@ type ResourcesUSBDevice struct {
 
 // ResourcesUSBDeviceInterface represents a USB device interface
 //
+// swagger:model
+//
 // API extension: resources_usb_pci
 type ResourcesUSBDeviceInterface struct {
 	// Class of USB interface
@@ -811,6 +872,8 @@ type ResourcesUSBDeviceInterface struct {
 
 // ResourcesPCI represents the PCI devices available on the system
 //
+// swagger:model
+//
 // API extension: resources_usb_pci
 type ResourcesPCI struct {
 	// List of PCI devices
@@ -822,6 +885,8 @@ type ResourcesPCI struct {
 }
 
 // ResourcesPCIDevice represents a PCI device
+//
+// swagger:model
 //
 // API extension: resources_usb_pci
 type ResourcesPCIDevice struct {
@@ -865,6 +930,8 @@ type ResourcesPCIDevice struct {
 }
 
 // ResourcesSystem represents the system
+//
+// swagger:model
 //
 // API extension: resources_system
 type ResourcesSystem struct {
@@ -912,6 +979,8 @@ type ResourcesSystem struct {
 
 // ResourcesSystemFirmware represents the system firmware
 //
+// swagger:model
+//
 // API extension: resources_system
 type ResourcesSystemFirmware struct {
 	// Firmware vendor
@@ -928,6 +997,8 @@ type ResourcesSystemFirmware struct {
 }
 
 // ResourcesSystemChassis represents the system chassis
+//
+// swagger:model
 //
 // API extension: resources_system
 type ResourcesSystemChassis struct {
@@ -949,6 +1020,8 @@ type ResourcesSystemChassis struct {
 }
 
 // ResourcesSystemMotherboard represents the motherboard
+//
+// swagger:model
 //
 // API extension: resources_system
 type ResourcesSystemMotherboard struct {

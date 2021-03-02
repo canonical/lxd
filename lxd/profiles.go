@@ -42,7 +42,86 @@ var profileCmd = APIEndpoint{
 	Put:    APIEndpointAction{Handler: profilePut, AccessHandler: allowProjectPermission("profiles", "manage-profiles")},
 }
 
-/* This is used for both profiles post and profile put */
+// swagger:operation GET /1.0/profiles profiles profiles_get
+//
+// Get the profiles
+//
+// Returns a list of profiles (URLs).
+//
+// ---
+// produces:
+//   - application/json
+// responses:
+//   "200":
+//     description: API endpoints
+//     schema:
+//       type: object
+//       description: Sync response
+//       properties:
+//         type:
+//           type: string
+//           description: Response type
+//           example: sync
+//         status:
+//           type: string
+//           description: Status description
+//           example: Success
+//         status_code:
+//           type: int
+//           description: Status code
+//           example: 200
+//         metadata:
+//           type: array
+//           description: List of endpoints
+//           items:
+//             type: string
+//           example: |-
+//             [
+//               "/1.0/profiles/default",
+//               "/1.0/profiles/foo"
+//             ]
+//   "403":
+//     $ref: "#/responses/Forbidden"
+//   "500":
+//     $ref: "#/responses/InternalServerError"
+
+// swagger:operation GET /1.0/profiles?recursion=1 profiles profiles_get_recursion1
+//
+// Get the profiles
+//
+// Returns a list of profiles (structs).
+//
+// ---
+// produces:
+//   - application/json
+// responses:
+//   "200":
+//     description: API endpoints
+//     schema:
+//       type: object
+//       description: Sync response
+//       properties:
+//         type:
+//           type: string
+//           description: Response type
+//           example: sync
+//         status:
+//           type: string
+//           description: Status description
+//           example: Success
+//         status_code:
+//           type: int
+//           description: Status code
+//           example: 200
+//         metadata:
+//           type: array
+//           description: List of profiles
+//           items:
+//             $ref: "#/definitions/Profile"
+//   "403":
+//     $ref: "#/responses/Forbidden"
+//   "500":
+//     $ref: "#/responses/InternalServerError"
 func profilesGet(d *Daemon, r *http.Request) response.Response {
 	projectName, _, err := project.ProfileProject(d.State().Cluster, projectParam(r))
 	if err != nil {
@@ -80,6 +159,33 @@ func profilesGet(d *Daemon, r *http.Request) response.Response {
 	return response.SyncResponse(true, result)
 }
 
+// swagger:operation POST /1.0/profiles profiles profiles_post
+//
+// Add a profile
+//
+// Creates a new profile.
+//
+// ---
+// consumes:
+//   - application/json
+// produces:
+//   - application/json
+// parameters:
+//   - in: body
+//     name: profile
+//     description: Profile
+//     required: true
+//     schema:
+//       $ref: "#/definitions/ProfilesPost"
+// responses:
+//   "200":
+//     $ref: "#/responses/EmptySyncResponse"
+//   "400":
+//     $ref: "#/responses/BadRequest"
+//   "403":
+//     $ref: "#/responses/Forbidden"
+//   "500":
+//     $ref: "#/responses/InternalServerError"
 func profilesPost(d *Daemon, r *http.Request) response.Response {
 	projectName, _, err := project.ProfileProject(d.State().Cluster, projectParam(r))
 	if err != nil {
@@ -139,6 +245,40 @@ func profilesPost(d *Daemon, r *http.Request) response.Response {
 	return response.SyncResponseLocation(true, nil, fmt.Sprintf("/%s/profiles/%s", version.APIVersion, req.Name))
 }
 
+// swagger:operation GET /1.0/profiles/{name} profiles profile_get
+//
+// Get the profile
+//
+// Gets a specific profile.
+//
+// ---
+// produces:
+//   - application/json
+// responses:
+//   "200":
+//     description: Profile
+//     schema:
+//       type: object
+//       description: Sync response
+//       properties:
+//         type:
+//           type: string
+//           description: Response type
+//           example: sync
+//         status:
+//           type: string
+//           description: Status description
+//           example: Success
+//         status_code:
+//           type: int
+//           description: Status code
+//           example: 200
+//         metadata:
+//           $ref: "#/definitions/Profile"
+//   "403":
+//     $ref: "#/responses/Forbidden"
+//   "500":
+//     $ref: "#/responses/InternalServerError"
 func profileGet(d *Daemon, r *http.Request) response.Response {
 	projectName, _, err := project.ProfileProject(d.State().Cluster, projectParam(r))
 	if err != nil {
@@ -168,6 +308,35 @@ func profileGet(d *Daemon, r *http.Request) response.Response {
 	return response.SyncResponseETag(true, resp, etag)
 }
 
+// swagger:operation PUT /1.0/profiles/{name} profiles profile_put
+//
+// Update the profile
+//
+// Updates the entire profile configuration.
+//
+// ---
+// consumes:
+//   - application/json
+// produces:
+//   - application/json
+// parameters:
+//   - in: body
+//     name: profile
+//     description: Profile configuration
+//     required: true
+//     schema:
+//       $ref: "#/definitions/ProfilePut"
+// responses:
+//   "200":
+//     $ref: "#/responses/EmptySyncResponse"
+//   "400":
+//     $ref: "#/responses/BadRequest"
+//   "403":
+//     $ref: "#/responses/Forbidden"
+//   "412":
+//     $ref: "#/responses/PreconditionFailed"
+//   "500":
+//     $ref: "#/responses/InternalServerError"
 func profilePut(d *Daemon, r *http.Request) response.Response {
 	projectName, _, err := project.ProfileProject(d.State().Cluster, projectParam(r))
 	if err != nil {
@@ -239,6 +408,35 @@ func profilePut(d *Daemon, r *http.Request) response.Response {
 	return response.SmartError(err)
 }
 
+// swagger:operation PATCH /1.0/profiles/{name} profiles profile_patch
+//
+// Partially update the profile
+//
+// Updates a subset of the profile configuration.
+//
+// ---
+// consumes:
+//   - application/json
+// produces:
+//   - application/json
+// parameters:
+//   - in: body
+//     name: profile
+//     description: Profile configuration
+//     required: true
+//     schema:
+//       $ref: "#/definitions/ProfilePut"
+// responses:
+//   "200":
+//     $ref: "#/responses/EmptySyncResponse"
+//   "400":
+//     $ref: "#/responses/BadRequest"
+//   "403":
+//     $ref: "#/responses/Forbidden"
+//   "412":
+//     $ref: "#/responses/PreconditionFailed"
+//   "500":
+//     $ref: "#/responses/InternalServerError"
 func profilePatch(d *Daemon, r *http.Request) response.Response {
 	projectName, _, err := project.ProfileProject(d.State().Cluster, projectParam(r))
 	if err != nil {
@@ -323,7 +521,33 @@ func profilePatch(d *Daemon, r *http.Request) response.Response {
 	return response.SmartError(doProfileUpdate(d, projectName, name, id, profile, req))
 }
 
-// The handler for the post operation.
+// swagger:operation POST /1.0/profiles/{name} profiles profile_post
+//
+// Rename the profile
+//
+// Renames an existing profile.
+//
+// ---
+// consumes:
+//   - application/json
+// produces:
+//   - application/json
+// parameters:
+//   - in: body
+//     name: profile
+//     description: Profile rename request
+//     required: true
+//     schema:
+//       $ref: "#/definitions/ProfilePost"
+// responses:
+//   "200":
+//     $ref: "#/responses/EmptySyncResponse"
+//   "400":
+//     $ref: "#/responses/BadRequest"
+//   "403":
+//     $ref: "#/responses/Forbidden"
+//   "500":
+//     $ref: "#/responses/InternalServerError"
 func profilePost(d *Daemon, r *http.Request) response.Response {
 	projectName, _, err := project.ProfileProject(d.State().Cluster, projectParam(r))
 	if err != nil {
@@ -369,7 +593,24 @@ func profilePost(d *Daemon, r *http.Request) response.Response {
 	return response.SyncResponseLocation(true, nil, fmt.Sprintf("/%s/profiles/%s", version.APIVersion, req.Name))
 }
 
-// The handler for the delete operation.
+// swagger:operation DELETE /1.0/profiles/{name} profiles profile_delete
+//
+// Delete the profile
+//
+// Removes the profile.
+//
+// ---
+// produces:
+//   - application/json
+// responses:
+//   "200":
+//     $ref: "#/responses/EmptySyncResponse"
+//   "400":
+//     $ref: "#/responses/BadRequest"
+//   "403":
+//     $ref: "#/responses/Forbidden"
+//   "500":
+//     $ref: "#/responses/InternalServerError"
 func profileDelete(d *Daemon, r *http.Request) response.Response {
 	projectName, _, err := project.ProfileProject(d.State().Cluster, projectParam(r))
 	if err != nil {
