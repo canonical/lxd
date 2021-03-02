@@ -29,7 +29,7 @@ func (d *infinibandSRIOV) validateConfig(instConf instance.ConfigReader) error {
 		"hwaddr",
 	}
 
-	rules := nicValidationRules(requiredFields, optionalFields)
+	rules := nicValidationRules(requiredFields, optionalFields, instConf)
 	rules["hwaddr"] = func(value string) error {
 		if value == "" {
 			return nil

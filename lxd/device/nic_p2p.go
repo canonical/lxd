@@ -33,7 +33,7 @@ func (d *nicP2P) validateConfig(instConf instance.ConfigReader) error {
 		"ipv6.routes",
 		"boot.priority",
 	}
-	err := d.config.Validate(nicValidationRules([]string{}, optionalFields))
+	err := d.config.Validate(nicValidationRules([]string{}, optionalFields, instConf))
 	if err != nil {
 		return err
 	}
