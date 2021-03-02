@@ -10,7 +10,6 @@ import (
 	"math/rand"
 	"net"
 	"os"
-	"regexp"
 	"strconv"
 	"strings"
 	"sync"
@@ -33,26 +32,6 @@ import (
 	"github.com/lxc/lxd/shared/logger"
 	"github.com/lxc/lxd/shared/version"
 )
-
-// validInterfaceName validates a real network interface name.
-func validInterfaceName(value string) error {
-	// Validate the length.
-	if len(value) < 2 {
-		return fmt.Errorf("Network interface is too short (minimum 2 characters)")
-	}
-
-	if len(value) > 15 {
-		return fmt.Errorf("Network interface is too long (maximum 15 characters)")
-	}
-
-	// Validate the character set.
-	match, _ := regexp.MatchString("^[-_a-zA-Z0-9.]*$", value)
-	if !match {
-		return fmt.Errorf("Network interface contains invalid characters")
-	}
-
-	return nil
-}
 
 func networkValidPort(value string) error {
 	if value == "" {
