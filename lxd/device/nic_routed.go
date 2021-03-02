@@ -65,7 +65,7 @@ func (d *nicRouted) validateConfig(instConf instance.ConfigReader) error {
 		"gvrp",
 	}
 
-	rules := nicValidationRules(requiredFields, optionalFields)
+	rules := nicValidationRules(requiredFields, optionalFields, instConf)
 	rules["ipv4.address"] = validate.Optional(validate.IsNetworkAddressV4List)
 	rules["ipv6.address"] = validate.Optional(validate.IsNetworkAddressV6List)
 	rules["gvrp"] = validate.Optional(validate.IsBool)

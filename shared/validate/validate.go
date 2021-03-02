@@ -154,6 +154,26 @@ func IsDeviceID(value string) error {
 	return nil
 }
 
+// IsInterfaceName validates a real network interface name.
+func IsInterfaceName(value string) error {
+	// Validate the length.
+	if len(value) < 2 {
+		return fmt.Errorf("Network interface is too short (minimum 2 characters)")
+	}
+
+	if len(value) > 15 {
+		return fmt.Errorf("Network interface is too long (maximum 15 characters)")
+	}
+
+	// Validate the character set.
+	match, _ := regexp.MatchString("^[-_a-zA-Z0-9.]+$", value)
+	if !match {
+		return fmt.Errorf("Network interface contains invalid characters")
+	}
+
+	return nil
+}
+
 // IsNetworkMAC validates an Ethernet MAC address. e.g. "00:00:5e:00:53:01".
 func IsNetworkMAC(value string) error {
 	_, err := net.ParseMAC(value)
