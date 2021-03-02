@@ -1,14 +1,18 @@
 package device
 
 import (
+	"fmt"
+
+	"github.com/lxc/lxd/lxd/instance"
+	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/validate"
 )
 
 // nicValidationRules returns config validation rules for nic devices.
-func nicValidationRules(requiredFields []string, optionalFields []string) map[string]func(value string) error {
+func nicValidationRules(requiredFields []string, optionalFields []string, instConf instance.ConfigReader) map[string]func(value string) error {
 	// Define a set of default validators for each field name.
 	defaultValidators := map[string]func(value string) error{
-		"name":                    validate.Optional(validate.IsInterfaceName),
+		"name":                    validate.Optional(validate.IsInterfaceName, func(_ string) error { return nicCheckNamesUnique(instConf) }),
 		"parent":                  validate.IsAny,
 		"network":                 validate.IsAny,
 		"mtu":                     validate.Optional(validate.IsNetworkMTU),
