@@ -34,7 +34,86 @@ var networkACLCmd = APIEndpoint{
 
 // API endpoints.
 
-// List Network ACLs.
+// swagger:operation GET /1.0/network-acls network-acls network_acls_get
+//
+// Get the network ACLs
+//
+// Returns a list of network ACLs (URLs).
+//
+// ---
+// produces:
+//   - application/json
+// responses:
+//   "200":
+//     description: API endpoints
+//     schema:
+//       type: object
+//       description: Sync response
+//       properties:
+//         type:
+//           type: string
+//           description: Response type
+//           example: sync
+//         status:
+//           type: string
+//           description: Status description
+//           example: Success
+//         status_code:
+//           type: int
+//           description: Status code
+//           example: 200
+//         metadata:
+//           type: array
+//           description: List of endpoints
+//           items:
+//             type: string
+//           example: |-
+//             [
+//               "/1.0/network-acls/foo",
+//               "/1.0/network-acls/bar"
+//             ]
+//   "403":
+//     $ref: "#/responses/Forbidden"
+//   "500":
+//     $ref: "#/responses/InternalServerError"
+
+// swagger:operation GET /1.0/network-acls?recursion=1 network-acls network_acls_get_recursion1
+//
+// Get the network ACLs
+//
+// Returns a list of network ACLs (structs).
+//
+// ---
+// produces:
+//   - application/json
+// responses:
+//   "200":
+//     description: API endpoints
+//     schema:
+//       type: object
+//       description: Sync response
+//       properties:
+//         type:
+//           type: string
+//           description: Response type
+//           example: sync
+//         status:
+//           type: string
+//           description: Status description
+//           example: Success
+//         status_code:
+//           type: int
+//           description: Status code
+//           example: 200
+//         metadata:
+//           type: array
+//           description: List of network ACLs
+//           items:
+//             $ref: "#/definitions/NetworkACL"
+//   "403":
+//     $ref: "#/responses/Forbidden"
+//   "500":
+//     $ref: "#/responses/InternalServerError"
 func networkACLsGet(d *Daemon, r *http.Request) response.Response {
 	projectName, _, err := project.NetworkProject(d.State().Cluster, projectParam(r))
 	if err != nil {
@@ -74,7 +153,33 @@ func networkACLsGet(d *Daemon, r *http.Request) response.Response {
 	return response.SyncResponse(true, resultMap)
 }
 
-// Create Network ACL.
+// swagger:operation POST /1.0/network-acls network-acls network_acls_post
+//
+// Add a network ACL
+//
+// Creates a new network ACL.
+//
+// ---
+// consumes:
+//   - application/json
+// produces:
+//   - application/json
+// parameters:
+//   - in: body
+//     name: acl
+//     description: ACL
+//     required: true
+//     schema:
+//       $ref: "#/definitions/NetworkACLsPost"
+// responses:
+//   "200":
+//     $ref: "#/responses/EmptySyncResponse"
+//   "400":
+//     $ref: "#/responses/BadRequest"
+//   "403":
+//     $ref: "#/responses/Forbidden"
+//   "500":
+//     $ref: "#/responses/InternalServerError"
 func networkACLsPost(d *Daemon, r *http.Request) response.Response {
 	projectName, _, err := project.NetworkProject(d.State().Cluster, projectParam(r))
 	if err != nil {
@@ -103,7 +208,24 @@ func networkACLsPost(d *Daemon, r *http.Request) response.Response {
 	return response.SyncResponseLocation(true, nil, url)
 }
 
-// Delete Network ACL.
+// swagger:operation DELETE /1.0/network-acls/{name} network-acls network_acls_delete
+//
+// Delete the network ACL
+//
+// Removes the network ACL.
+//
+// ---
+// produces:
+//   - application/json
+// responses:
+//   "200":
+//     $ref: "#/responses/EmptySyncResponse"
+//   "400":
+//     $ref: "#/responses/BadRequest"
+//   "403":
+//     $ref: "#/responses/Forbidden"
+//   "500":
+//     $ref: "#/responses/InternalServerError"
 func networkACLDelete(d *Daemon, r *http.Request) response.Response {
 	projectName, _, err := project.NetworkProject(d.State().Cluster, projectParam(r))
 	if err != nil {
@@ -123,7 +245,40 @@ func networkACLDelete(d *Daemon, r *http.Request) response.Response {
 	return response.EmptySyncResponse
 }
 
-// Show Network ACL.
+// swagger:operation GET /1.0/network-acls/{name} network-acls network_acls_get
+//
+// Get the network ACL
+//
+// Gets a specific network ACL.
+//
+// ---
+// produces:
+//   - application/json
+// responses:
+//   "200":
+//     description: ACL
+//     schema:
+//       type: object
+//       description: Sync response
+//       properties:
+//         type:
+//           type: string
+//           description: Response type
+//           example: sync
+//         status:
+//           type: string
+//           description: Status description
+//           example: Success
+//         status_code:
+//           type: int
+//           description: Status code
+//           example: 200
+//         metadata:
+//           $ref: "#/definitions/NetworkACL"
+//   "403":
+//     $ref: "#/responses/Forbidden"
+//   "500":
+//     $ref: "#/responses/InternalServerError"
 func networkACLGet(d *Daemon, r *http.Request) response.Response {
 	projectName, _, err := project.NetworkProject(d.State().Cluster, projectParam(r))
 	if err != nil {
@@ -144,7 +299,65 @@ func networkACLGet(d *Daemon, r *http.Request) response.Response {
 	return response.SyncResponseETag(true, info, netACL.Etag())
 }
 
-// Update Network ACL.
+// swagger:operation PATCH /1.0/network-acls/{name} network-acls network_acls_patch
+//
+// Partially update the network ACL
+//
+// Updates a subset of the network ACL configuration.
+//
+// ---
+// consumes:
+//   - application/json
+// produces:
+//   - application/json
+// parameters:
+//   - in: body
+//     name: acl
+//     description: ACL configuration
+//     required: true
+//     schema:
+//       $ref: "#/definitions/NetworkACLPut"
+// responses:
+//   "200":
+//     $ref: "#/responses/EmptySyncResponse"
+//   "400":
+//     $ref: "#/responses/BadRequest"
+//   "403":
+//     $ref: "#/responses/Forbidden"
+//   "412":
+//     $ref: "#/responses/PreconditionFailed"
+//   "500":
+//     $ref: "#/responses/InternalServerError"
+
+// swagger:operation PUT /1.0/network-acls/{name} network-acls network_acls_put
+//
+// Update the network ACL
+//
+// Updates the entire network ACL configuration.
+//
+// ---
+// consumes:
+//   - application/json
+// produces:
+//   - application/json
+// parameters:
+//   - in: body
+//     name: acl
+//     description: ACL configuration
+//     required: true
+//     schema:
+//       $ref: "#/definitions/NetworkACLPut"
+// responses:
+//   "200":
+//     $ref: "#/responses/EmptySyncResponse"
+//   "400":
+//     $ref: "#/responses/BadRequest"
+//   "403":
+//     $ref: "#/responses/Forbidden"
+//   "412":
+//     $ref: "#/responses/PreconditionFailed"
+//   "500":
+//     $ref: "#/responses/InternalServerError"
 func networkACLPut(d *Daemon, r *http.Request) response.Response {
 	projectName, _, err := project.NetworkProject(d.State().Cluster, projectParam(r))
 	if err != nil {
@@ -190,7 +403,33 @@ func networkACLPut(d *Daemon, r *http.Request) response.Response {
 	return response.EmptySyncResponse
 }
 
-// Rename Network ACL.
+// swagger:operation POST /1.0/network-acls/{name} network-acls network_acls_post
+//
+// Rename the network ACL
+//
+// Renames an existing network ACL.
+//
+// ---
+// consumes:
+//   - application/json
+// produces:
+//   - application/json
+// parameters:
+//   - in: body
+//     name: acl
+//     description: ACL rename request
+//     required: true
+//     schema:
+//       $ref: "#/definitions/NetworkACLPost"
+// responses:
+//   "200":
+//     $ref: "#/responses/EmptySyncResponse"
+//   "400":
+//     $ref: "#/responses/BadRequest"
+//   "403":
+//     $ref: "#/responses/Forbidden"
+//   "500":
+//     $ref: "#/responses/InternalServerError"
 func networkACLPost(d *Daemon, r *http.Request) response.Response {
 	projectName, _, err := project.NetworkProject(d.State().Cluster, projectParam(r))
 	if err != nil {
