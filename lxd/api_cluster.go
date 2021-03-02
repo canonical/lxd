@@ -83,7 +83,40 @@ var internalClusterRaftNodeCmd = APIEndpoint{
 	Delete: APIEndpointAction{Handler: internalClusterRaftNodeDelete},
 }
 
-// Return information about the cluster.
+// swagger:operation GET /1.0/cluster/{name} cluster cluster_get
+//
+// Get the cluster configuration
+//
+// Gets the current cluster configuration.
+//
+// ---
+// produces:
+//   - application/json
+// responses:
+//   "200":
+//     description: Cluster configuration
+//     schema:
+//       type: object
+//       description: Sync response
+//       properties:
+//         type:
+//           type: string
+//           description: Response type
+//           example: sync
+//         status:
+//           type: string
+//           description: Status description
+//           example: Success
+//         status_code:
+//           type: int
+//           description: Status code
+//           example: 200
+//         metadata:
+//           $ref: "#/definitions/Cluster"
+//   "403":
+//     $ref: "#/responses/Forbidden"
+//   "500":
+//     $ref: "#/responses/InternalServerError"
 func clusterGet(d *Daemon, r *http.Request) response.Response {
 	name := ""
 	err := d.cluster.Transaction(func(tx *db.ClusterTx) error {
@@ -185,6 +218,36 @@ func clusterGetMemberConfig(cluster *db.Cluster) ([]api.ClusterMemberConfigKey, 
 // - disable clustering on a node
 //
 // The client is required to be trusted.
+
+// swagger:operation PUT /1.0/cluster/{name} cluster cluster_put
+//
+// Update the cluster configuration
+//
+// Updates the entire cluster configuration.
+//
+// ---
+// consumes:
+//   - application/json
+// produces:
+//   - application/json
+// parameters:
+//   - in: body
+//     name: cluster
+//     description: Cluster configuration
+//     required: true
+//     schema:
+//       $ref: "#/definitions/ClusterPut"
+// responses:
+//   "200":
+//     $ref: "#/responses/EmptySyncResponse"
+//   "400":
+//     $ref: "#/responses/BadRequest"
+//   "403":
+//     $ref: "#/responses/Forbidden"
+//   "412":
+//     $ref: "#/responses/PreconditionFailed"
+//   "500":
+//     $ref: "#/responses/InternalServerError"
 func clusterPut(d *Daemon, r *http.Request) response.Response {
 	req := api.ClusterPut{}
 
@@ -809,6 +872,86 @@ func clusterAcceptMember(
 	return info, nil
 }
 
+// swagger:operation GET /1.0/cluster/members cluster cluster_members_get
+//
+// Get the cluster members
+//
+// Returns a list of cluster members (URLs).
+//
+// ---
+// produces:
+//   - application/json
+// responses:
+//   "200":
+//     description: API endpoints
+//     schema:
+//       type: object
+//       description: Sync response
+//       properties:
+//         type:
+//           type: string
+//           description: Response type
+//           example: sync
+//         status:
+//           type: string
+//           description: Status description
+//           example: Success
+//         status_code:
+//           type: int
+//           description: Status code
+//           example: 200
+//         metadata:
+//           type: array
+//           description: List of endpoints
+//           items:
+//             type: string
+//           example: |-
+//             [
+//               "/1.0/cluster/members/lxd01",
+//               "/1.0/cluster/members/lxd02"
+//             ]
+//   "403":
+//     $ref: "#/responses/Forbidden"
+//   "500":
+//     $ref: "#/responses/InternalServerError"
+
+// swagger:operation GET /1.0/cluster/members?recursion=1 cluster cluster_members_get_recursion1
+//
+// Get the cluster members
+//
+// Returns a list of cluster members (structs).
+//
+// ---
+// produces:
+//   - application/json
+// responses:
+//   "200":
+//     description: API endpoints
+//     schema:
+//       type: object
+//       description: Sync response
+//       properties:
+//         type:
+//           type: string
+//           description: Response type
+//           example: sync
+//         status:
+//           type: string
+//           description: Status description
+//           example: Success
+//         status_code:
+//           type: int
+//           description: Status code
+//           example: 200
+//         metadata:
+//           type: array
+//           description: List of cluster members
+//           items:
+//             $ref: "#/definitions/ClusterMember"
+//   "403":
+//     $ref: "#/responses/Forbidden"
+//   "500":
+//     $ref: "#/responses/InternalServerError"
 func clusterNodesGet(d *Daemon, r *http.Request) response.Response {
 	recursion := util.IsRecursionRequest(r)
 
@@ -832,6 +975,40 @@ func clusterNodesGet(d *Daemon, r *http.Request) response.Response {
 	return response.SyncResponse(true, result)
 }
 
+// swagger:operation GET /1.0/cluster/members/{name} cluster cluster_member_get
+//
+// Get the cluster member
+//
+// Gets a specific cluster member.
+//
+// ---
+// produces:
+//   - application/json
+// responses:
+//   "200":
+//     description: Profile
+//     schema:
+//       type: object
+//       description: Sync response
+//       properties:
+//         type:
+//           type: string
+//           description: Response type
+//           example: sync
+//         status:
+//           type: string
+//           description: Status description
+//           example: Success
+//         status_code:
+//           type: int
+//           description: Status code
+//           example: 200
+//         metadata:
+//           $ref: "#/definitions/ClusterMember"
+//   "403":
+//     $ref: "#/responses/Forbidden"
+//   "500":
+//     $ref: "#/responses/InternalServerError"
 func clusterNodeGet(d *Daemon, r *http.Request) response.Response {
 	name := mux.Vars(r)["name"]
 
@@ -849,11 +1026,69 @@ func clusterNodeGet(d *Daemon, r *http.Request) response.Response {
 	return response.NotFound(fmt.Errorf("Member '%s' not found", name))
 }
 
+// swagger:operation PATCH /1.0/cluster/members/{name} cluster cluster_member_patch
+//
+// Partially update the cluster member
+//
+// Updates a subset of the cluster member configuration.
+//
+// ---
+// consumes:
+//   - application/json
+// produces:
+//   - application/json
+// parameters:
+//   - in: body
+//     name: cluster
+//     description: Cluster member configuration
+//     required: true
+//     schema:
+//       $ref: "#/definitions/ClusterMemberPut"
+// responses:
+//   "200":
+//     $ref: "#/responses/EmptySyncResponse"
+//   "400":
+//     $ref: "#/responses/BadRequest"
+//   "403":
+//     $ref: "#/responses/Forbidden"
+//   "412":
+//     $ref: "#/responses/PreconditionFailed"
+//   "500":
+//     $ref: "#/responses/InternalServerError"
 func clusterNodePatch(d *Daemon, r *http.Request) response.Response {
 	// Right now, Patch does the same as Put.
 	return clusterNodePut(d, r)
 }
 
+// swagger:operation PUT /1.0/cluster/members/{name} cluster cluster_member_put
+//
+// Update the cluster member
+//
+// Updates the entire cluster member configuration.
+//
+// ---
+// consumes:
+//   - application/json
+// produces:
+//   - application/json
+// parameters:
+//   - in: body
+//     name: cluster
+//     description: Cluster member configuration
+//     required: true
+//     schema:
+//       $ref: "#/definitions/ClusterMemberPut"
+// responses:
+//   "200":
+//     $ref: "#/responses/EmptySyncResponse"
+//   "400":
+//     $ref: "#/responses/BadRequest"
+//   "403":
+//     $ref: "#/responses/Forbidden"
+//   "412":
+//     $ref: "#/responses/PreconditionFailed"
+//   "500":
+//     $ref: "#/responses/InternalServerError"
 func clusterNodePut(d *Daemon, r *http.Request) response.Response {
 	name := mux.Vars(r)["name"]
 
@@ -916,6 +1151,33 @@ func clusterNodePut(d *Daemon, r *http.Request) response.Response {
 	return response.EmptySyncResponse
 }
 
+// swagger:operation POST /1.0/cluster/members/{name} cluster cluster_member_post
+//
+// Rename the cluster member
+//
+// Renames an existing cluster member.
+//
+// ---
+// consumes:
+//   - application/json
+// produces:
+//   - application/json
+// parameters:
+//   - in: body
+//     name: cluster
+//     description: Cluster member rename request
+//     required: true
+//     schema:
+//       $ref: "#/definitions/ClusterMemberPost"
+// responses:
+//   "200":
+//     $ref: "#/responses/EmptySyncResponse"
+//   "400":
+//     $ref: "#/responses/BadRequest"
+//   "403":
+//     $ref: "#/responses/Forbidden"
+//   "500":
+//     $ref: "#/responses/InternalServerError"
 func clusterNodePost(d *Daemon, r *http.Request) response.Response {
 	name := mux.Vars(r)["name"]
 
@@ -937,6 +1199,24 @@ func clusterNodePost(d *Daemon, r *http.Request) response.Response {
 	return response.EmptySyncResponse
 }
 
+// swagger:operation DELETE /1.0/cluster/members/{name} cluster cluster_member_delete
+//
+// Delete the cluster member
+//
+// Removes the member from the cluster.
+//
+// ---
+// produces:
+//   - application/json
+// responses:
+//   "200":
+//     $ref: "#/responses/EmptySyncResponse"
+//   "400":
+//     $ref: "#/responses/BadRequest"
+//   "403":
+//     $ref: "#/responses/Forbidden"
+//   "500":
+//     $ref: "#/responses/InternalServerError"
 func clusterNodeDelete(d *Daemon, r *http.Request) response.Response {
 	d.clusterMembershipMutex.Lock()
 	defer d.clusterMembershipMutex.Unlock()
