@@ -82,7 +82,7 @@ func (d *nicMACVLAN) validateConfig(instConf instance.ConfigReader) error {
 		requiredFields = append(requiredFields, "parent")
 	}
 
-	err := d.config.Validate(nicValidationRules(requiredFields, optionalFields))
+	err := d.config.Validate(nicValidationRules(requiredFields, optionalFields, instConf))
 	if err != nil {
 		return err
 	}

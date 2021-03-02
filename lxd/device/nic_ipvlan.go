@@ -46,7 +46,7 @@ func (d *nicIPVLAN) validateConfig(instConf instance.ConfigReader) error {
 		"gvrp",
 	}
 
-	rules := nicValidationRules(requiredFields, optionalFields)
+	rules := nicValidationRules(requiredFields, optionalFields, instConf)
 	rules["gvrp"] = validate.Optional(validate.IsBool)
 	rules["ipv4.address"] = func(value string) error {
 		if value == "" {

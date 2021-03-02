@@ -28,7 +28,7 @@ func (d *infinibandPhysical) validateConfig(instConf instance.ConfigReader) erro
 		"hwaddr",
 	}
 
-	rules := nicValidationRules(requiredFields, optionalFields)
+	rules := nicValidationRules(requiredFields, optionalFields, instConf)
 	rules["hwaddr"] = func(value string) error {
 		if value == "" {
 			return nil
