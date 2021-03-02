@@ -27,7 +27,7 @@ func (n *macvlan) DBType() db.NetworkType {
 // Validate network config.
 func (n *macvlan) Validate(config map[string]string) error {
 	rules := map[string]func(value string) error{
-		"parent":           validate.Required(validate.IsNotEmpty, validInterfaceName),
+		"parent":           validate.Required(validate.IsNotEmpty, validate.IsInterfaceName),
 		"mtu":              validate.Optional(validate.IsNetworkMTU),
 		"vlan":             validate.Optional(validate.IsNetworkVLAN),
 		"gvrp":             validate.Optional(validate.IsBool),
