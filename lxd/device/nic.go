@@ -87,3 +87,22 @@ func nicHasAutoGateway(value string) bool {
 
 	return false
 }
+
+// nicCheckNamesUnique checks that all the NICs in the instConf's expanded devices have a unique (or unset) name.
+func nicCheckNamesUnique(instConf instance.ConfigReader) error {
+	seenNICNames := []string{}
+
+	for _, devConfig := range instConf.ExpandedDevices() {
+		if devConfig["type"] != "nic" || devConfig["name"] == "" {
+			continue
+		}
+
+		if shared.StringInSlice(devConfig["name"], seenNICNames) {
+			return fmt.Errorf("Duplicate NIC name detected %q", devConfig["name"])
+		}
+
+		seenNICNames = append(seenNICNames, devConfig["name"])
+	}
+
+	return nil
+}
