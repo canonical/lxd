@@ -157,6 +157,7 @@ func (d *gpuSRIOV) setupSriovParent(parentPCIAddress string, vfID int, volatile 
 	revert := revert.New()
 	defer revert.Fail()
 
+	volatile["last_state.pci.parent"] = parentPCIAddress
 	volatile["last_state.vf.id"] = fmt.Sprintf("%d", vfID)
 	volatile["last_state.created"] = "false" // Indicates don't delete device at stop time.
 
@@ -250,6 +251,7 @@ func (d *gpuSRIOV) postStop() error {
 		"last_state.created":    "",
 		"last_state.vf.id":      "",
 		"last_state.pci.driver": "",
+		"last_state.pci.parent": "",
 	})
 
 	v := d.volatileGet()
@@ -266,20 +268,15 @@ func (d *gpuSRIOV) postStop() error {
 // volatile data that was stored when the device was first added with setupSriovParent().
 func (d *gpuSRIOV) restoreSriovParent(volatile map[string]string) error {
 	// Nothing to do if we don't know the original device name or the VF ID.
-	if volatile["last_state.vf.id"] == "" || (d.config["pci"] == "" && d.config["id"] == "" && d.config["vendorid"] == "" && d.config["productid"] == "") {
+	if volatile["last_state.pci.parent"] == "" || volatile["last_state.vf.id"] == "" || (d.config["pci"] == "" && d.config["id"] == "" && d.config["vendorid"] == "" && d.config["productid"] == "") {
 		return nil
 	}
 
 	revert := revert.New()
 	defer revert.Fail()
 
-	parentPCIAddress, err := d.getParentPCIAddress()
-	if err != nil {
-		return err
-	}
-
 	// Get VF device's PCI info so we can unbind and rebind it from the host.
-	vfPCIDev, err := d.getVFDevicePCISlot(parentPCIAddress, volatile["last_state.vf.id"])
+	vfPCIDev, err := d.getVFDevicePCISlot(volatile["last_state.pci.parent"], volatile["last_state.vf.id"])
 	if err != nil {
 		return err
 	}
