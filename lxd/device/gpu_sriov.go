@@ -83,22 +83,44 @@ func (d *gpuSRIOV) Start() (*deviceConfig.RunConfig, error) {
 	saveData := make(map[string]string)
 
 	// Get SRIOV parent, i.e. the actual GPU.
-	parentPCIAddress, err := d.getParentPCIAddress()
+	parentPCIAddresses, err := d.getParentPCIAddresses()
 	if err != nil {
 		return nil, err
 	}
 
-	// Get PCI information about the GPU device.
-	devicePath := filepath.Join("/sys/bus/pci/devices", parentPCIAddress)
+	var parentPCIAddress string
+	var pciParentDev pcidev.Device
+	vfID := -1
 
-	pciParentDev, err := pcidev.ParseUeventFile(filepath.Join(devicePath, "uevent"))
-	if err != nil {
-		return nil, errors.Wrapf(err, "Failed to get PCI device info for GPU %q", parentPCIAddress)
+	// Since there might be multiple GPUs, we iterate through them and get the first free
+	// virtual function.
+	for _, parentPCIAddress = range parentPCIAddresses {
+		// Get PCI information about the GPU device.
+		devicePath := filepath.Join("/sys/bus/pci/devices", parentPCIAddress)
+
+		pciParentDev, err = pcidev.ParseUeventFile(filepath.Join(devicePath, "uevent"))
+		if err != nil {
+			err = errors.Wrapf(err, "Failed to get PCI device info for GPU %q", parentPCIAddress)
+			continue
+		}
+
+		vfID, err = d.findFreeVirtualFunction(pciParentDev)
+		if err != nil {
+			err = errors.Wrap(err, "Failed to find free virtual function")
+			continue
+		}
+
+		if vfID > -1 {
+			break
+		}
 	}
 
-	vfID, err := d.findFreeVirtualFunction(pciParentDev)
 	if err != nil {
-		return nil, errors.Wrap(err, "Failed to find free virtual function")
+		return nil, err
+	}
+
+	if vfID == -1 {
+		return nil, fmt.Errorf("All virtual functions on parent device seem to be in use")
 	}
 
 	vfPCIDev, err := d.setupSriovParent(parentPCIAddress, vfID, saveData)
@@ -119,14 +141,14 @@ func (d *gpuSRIOV) Start() (*deviceConfig.RunConfig, error) {
 	return &runConf, nil
 }
 
-// getParentPCIAddress returns the PCI address of the parent GPU.
-func (d *gpuSRIOV) getParentPCIAddress() (string, error) {
+// getParentPCIAddresses returns the PCI addresses of parent GPUs.
+func (d *gpuSRIOV) getParentPCIAddresses() ([]string, error) {
 	gpus, err := resources.GetGPU()
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
-	var parentPCIAddress string
+	var parentPCIAddresses []string
 
 	for _, gpu := range gpus.Cards {
 		// Skip any cards that don't match the vendorid, pci, productid or DRM ID settings (if specified).
@@ -137,18 +159,14 @@ func (d *gpuSRIOV) getParentPCIAddress() (string, error) {
 			continue
 		}
 
-		if parentPCIAddress != "" {
-			return "", fmt.Errorf("Cannot match multiple GPUs per device")
-		}
-
-		parentPCIAddress = gpu.PCIAddress
+		parentPCIAddresses = append(parentPCIAddresses, gpu.PCIAddress)
 	}
 
-	if parentPCIAddress == "" {
-		return "", fmt.Errorf("Failed to detect requested GPU device")
+	if len(parentPCIAddresses) == 0 {
+		return nil, fmt.Errorf("Failed to detect requested GPU device")
 	}
 
-	return parentPCIAddress, nil
+	return parentPCIAddresses, nil
 }
 
 // setupSriovParent configures a SR-IOV virtual function (VF) device on parent and stores original properties of
