@@ -8,7 +8,7 @@ import (
 func nicValidationRules(requiredFields []string, optionalFields []string) map[string]func(value string) error {
 	// Define a set of default validators for each field name.
 	defaultValidators := map[string]func(value string) error{
-		"name":                    validate.IsAny,
+		"name":                    validate.Optional(validate.IsInterfaceName),
 		"parent":                  validate.IsAny,
 		"network":                 validate.IsAny,
 		"mtu":                     validate.Optional(validate.IsNetworkMTU),
