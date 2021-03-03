@@ -29,6 +29,7 @@ import (
 //go:generate mapper stmt -p db -e image objects-by-Project-and-Fingerprint-and-Public
 //go:generate mapper stmt -p db -e image objects-by-Fingerprint
 //go:generate mapper stmt -p db -e image objects-by-Cached
+//go:generate mapper stmt -p db -e image objects-by-AutoUpdate
 //
 //go:generate mapper method -p db -e image List
 //go:generate mapper method -p db -e image Get
@@ -57,6 +58,7 @@ type ImageFilter struct {
 	Fingerprint string // Matched with LIKE
 	Public      bool
 	Cached      bool
+	AutoUpdate  bool
 }
 
 // ImageSourceProtocol maps image source protocol codes to human-readable names.

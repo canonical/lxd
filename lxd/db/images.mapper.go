@@ -58,6 +58,12 @@ SELECT images.id, projects.name AS project, images.fingerprint, images.type, ima
   WHERE images.cached = ? ORDER BY projects.id, images.fingerprint
 `)
 
+var imageObjectsByAutoUpdate = cluster.RegisterStmt(`
+SELECT images.id, projects.name AS project, images.fingerprint, images.type, images.filename, images.size, images.public, images.architecture, images.creation_date, images.expiry_date, images.upload_date, images.cached, images.last_use_date, images.auto_update
+  FROM images JOIN projects ON images.project_id = projects.id
+  WHERE images.auto_update = ? ORDER BY projects.id, images.fingerprint
+`)
+
 // GetImages returns all available images.
 func (c *ClusterTx) GetImages(filter ImageFilter) ([]Image, error) {
 	// Result slice.
@@ -76,6 +82,9 @@ func (c *ClusterTx) GetImages(filter ImageFilter) ([]Image, error) {
 	}
 	if filter.Cached != false {
 		criteria["Cached"] = filter.Cached
+	}
+	if filter.AutoUpdate != false {
+		criteria["AutoUpdate"] = filter.AutoUpdate
 	}
 
 	// Pick the prepared statement and arguments to use based on active criteria.
@@ -115,6 +124,11 @@ func (c *ClusterTx) GetImages(filter ImageFilter) ([]Image, error) {
 		stmt = c.stmt(imageObjectsByCached)
 		args = []interface{}{
 			filter.Cached,
+		}
+	} else if criteria["AutoUpdate"] != nil {
+		stmt = c.stmt(imageObjectsByAutoUpdate)
+		args = []interface{}{
+			filter.AutoUpdate,
 		}
 	} else {
 		stmt = c.stmt(imageObjects)
