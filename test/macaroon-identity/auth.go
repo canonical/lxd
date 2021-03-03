@@ -7,10 +7,10 @@ import (
 	"log"
 	"net/http"
 
-	"gopkg.in/macaroon-bakery.v2/bakery"
-	"gopkg.in/macaroon-bakery.v2/bakery/checkers"
-	"gopkg.in/macaroon-bakery.v2/httpbakery"
-	"gopkg.in/macaroon-bakery.v2/httpbakery/form"
+	"gopkg.in/macaroon-bakery.v3/bakery"
+	"gopkg.in/macaroon-bakery.v3/bakery/checkers"
+	"gopkg.in/macaroon-bakery.v3/httpbakery"
+	"gopkg.in/macaroon-bakery.v3/httpbakery/form"
 
 	"github.com/juju/httprequest"
 	"github.com/rogpeppe/fastuuid"

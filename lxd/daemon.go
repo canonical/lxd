@@ -25,10 +25,10 @@ import (
 	"golang.org/x/sys/unix"
 	liblxc "gopkg.in/lxc/go-lxc.v2"
 
-	"gopkg.in/macaroon-bakery.v2/bakery"
-	"gopkg.in/macaroon-bakery.v2/bakery/checkers"
-	"gopkg.in/macaroon-bakery.v2/bakery/identchecker"
-	"gopkg.in/macaroon-bakery.v2/httpbakery"
+	"gopkg.in/macaroon-bakery.v3/bakery"
+	"gopkg.in/macaroon-bakery.v3/bakery/checkers"
+	"gopkg.in/macaroon-bakery.v3/bakery/identchecker"
+	"gopkg.in/macaroon-bakery.v3/httpbakery"
 
 	"github.com/lxc/lxd/lxd/cluster"
 	"github.com/lxc/lxd/lxd/daemon"
