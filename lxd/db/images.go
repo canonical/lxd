@@ -1135,7 +1135,18 @@ SELECT DISTINCT nodes.address FROM nodes
   LEFT JOIN images ON images_nodes.image_id = images.id
 WHERE images.fingerprint = ?
 	`
-	return c.getNodesByImageFingerprint(q, fingerprint)
+	return c.getNodesByImageFingerprint(q, fingerprint, nil)
+}
+
+// GetNodesWithImageAndAutoUpdate returns the addresses of online nodes which already have the image.
+func (c *Cluster) GetNodesWithImageAndAutoUpdate(fingerprint string, autoUpdate bool) ([]string, error) {
+	q := `
+SELECT DISTINCT nodes.address FROM nodes
+  JOIN images_nodes ON images_nodes.node_id = nodes.id
+  JOIN images ON images_nodes.image_id = images.id
+WHERE images.fingerprint = ? AND images.auto_update = ?
+	`
+	return c.getNodesByImageFingerprint(q, fingerprint, &autoUpdate)
 }
 
 // GetNodesWithoutImage returns the addresses of online nodes which don't have the image.
@@ -1147,10 +1158,10 @@ SELECT DISTINCT nodes.address FROM nodes WHERE nodes.address NOT IN (
     LEFT JOIN images ON images_nodes.image_id = images.id
   WHERE images.fingerprint = ?)
 `
-	return c.getNodesByImageFingerprint(q, fingerprint)
+	return c.getNodesByImageFingerprint(q, fingerprint, nil)
 }
 
-func (c *Cluster) getNodesByImageFingerprint(stmt, fingerprint string) ([]string, error) {
+func (c *Cluster) getNodesByImageFingerprint(stmt, fingerprint string, autoUpdate *bool) ([]string, error) {
 	var addresses []string // Addresses of online nodes with the image
 	err := c.Transaction(func(tx *ClusterTx) error {
 		offlineThreshold, err := tx.GetNodeOfflineThreshold()
@@ -1158,7 +1169,14 @@ func (c *Cluster) getNodesByImageFingerprint(stmt, fingerprint string) ([]string
 			return err
 		}
 
-		allAddresses, err := query.SelectStrings(tx.tx, stmt, fingerprint)
+		var allAddresses []string
+
+		if autoUpdate == nil {
+			allAddresses, err = query.SelectStrings(tx.tx, stmt, fingerprint)
+		} else {
+			allAddresses, err = query.SelectStrings(tx.tx, stmt, fingerprint, autoUpdate)
+		}
+
 		if err != nil {
 			return err
 		}
