@@ -4,6 +4,8 @@ import (
 	"crypto/tls"
 	"net"
 	"net/http"
+	"strings"
+	"time"
 
 	"github.com/mdlayher/vsock"
 
@@ -34,7 +36,28 @@ func HTTPClient(vsockID int, tlsClientCert string, tlsClientKey string, tlsServe
 		TLSClientConfig: tlsConfig,
 		// Setup a VM socket dialer.
 		Dial: func(network, addr string) (net.Conn, error) {
-			conn, err := Dial(uint32(vsockID), shared.DefaultPort)
+			var conn net.Conn
+			var err error
+
+			// Retry for up to 1s at 100ms interval to handle various failures.
+			for i := 0; i < 10; i++ {
+				conn, err = Dial(uint32(vsockID), shared.DefaultPort)
+				if err == nil {
+					break
+				} else {
+					// Handle some fatal errors.
+					msg := err.Error()
+					if strings.Contains(msg, "connection timed out") {
+						break
+					} else if strings.Contains(msg, "connection refused") {
+						break
+					}
+
+					// Retry the rest.
+				}
+
+				time.Sleep(100 * time.Millisecond)
+			}
 			if err != nil {
 				return nil, err
 			}
