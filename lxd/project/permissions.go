@@ -581,6 +581,7 @@ var allAggregateLimits = []string{
 
 // AllRestrictions lists all available 'restrict.*' config keys.
 var AllRestrictions = []string{
+	"restricted.cluster.target",
 	"restricted.containers.nesting",
 	"restricted.containers.lowlevel",
 	"restricted.containers.privilege",
@@ -596,6 +597,7 @@ var AllRestrictions = []string{
 }
 
 var defaultRestrictionsValues = map[string]string{
+	"restricted.cluster.target":            "block",
 	"restricted.containers.nesting":        "block",
 	"restricted.containers.lowlevel":       "block",
 	"restricted.containers.privilege":      "unprivileged",
@@ -1173,4 +1175,33 @@ func FilterUsedBy(r *http.Request, entries []string) []string {
 	}
 
 	return usedBy
+}
+
+// CheckClusterTargetRestriction check if user is allowed to use cluster member targeting
+func CheckClusterTargetRestriction(tx *db.ClusterTx, r *http.Request, projectName string, targetFlag string) error {
+	// Allow server administrators to move instances around even when restricted (node evacuation, ...)
+	if rbac.UserIsAdmin(r) {
+		return nil
+	}
+
+	project, err := tx.GetProject(projectName)
+	if err != nil {
+		return fmt.Errorf("Fetch project database object")
+	}
+
+	if !projectHasLimitsOrRestrictions(project) {
+		return nil
+	}
+
+	key := "restricted.cluster.target"
+	restrictionValue, ok := project.Config[key]
+	if !ok {
+		restrictionValue = defaultRestrictionsValues[key]
+	}
+
+	if restrictionValue == "block" && targetFlag != "" {
+		return fmt.Errorf("This project doesn't allow cluster member targeting")
+	}
+
+	return nil
 }
