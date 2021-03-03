@@ -111,6 +111,191 @@ definitions:
         x-go-name: Type
     type: object
     x-go-package: github.com/lxc/lxd/shared/api
+  Cluster:
+    properties:
+      enabled:
+        description: Whether clustering is enabled
+        example: true
+        type: boolean
+        x-go-name: Enabled
+      member_config:
+        description: |-
+          List of member configuration keys (used during join)
+
+          API extension: clustering_join
+        items:
+          $ref: '#/definitions/ClusterMemberConfigKey'
+        type: array
+        x-go-name: MemberConfig
+      server_name:
+        description: Name of the cluster member answering the request
+        example: lxd01
+        type: string
+        x-go-name: ServerName
+    title: Cluster represents high-level information about a LXD cluster.
+    type: object
+    x-go-package: github.com/lxc/lxd/shared/api
+  ClusterMember:
+    properties:
+      architecture:
+        description: |-
+          The primary architecture of the cluster member
+
+          API extension: clustering_architecture
+        type: string
+        x-go-name: Architecture
+      database:
+        description: Whether the cluster member is a database server
+        example: true
+        type: boolean
+        x-go-name: Database
+      failure_domain:
+        description: Name of the failure domain for this cluster member
+        example: rack1
+        type: string
+        x-go-name: FailureDomain
+      message:
+        description: Additional status information
+        example: fully operational
+        type: string
+        x-go-name: Message
+      roles:
+        description: List of roles held by this cluster member
+        example:
+        - database
+        items:
+          type: string
+        type: array
+        x-go-name: Roles
+      server_name:
+        description: Name of the cluster member
+        example: lxd01
+        type: string
+        x-go-name: ServerName
+      status:
+        description: Current status
+        example: Online
+        type: string
+        x-go-name: Status
+      url:
+        description: URL at which the cluster member can be reached
+        example: https://10.0.0.1:8443
+        type: string
+        x-go-name: URL
+    title: ClusterMember represents the a LXD node in the cluster.
+    type: object
+    x-go-package: github.com/lxc/lxd/shared/api
+  ClusterMemberConfigKey:
+    description: |-
+      The Value field is empty when getting clustering information with GET
+      1.0/cluster, and should be filled by the joining node when performing a PUT
+      1.0/cluster join request.
+    properties:
+      description:
+        description: A human friendly description key
+        example: '"source" property for storage pool "local"'
+        type: string
+        x-go-name: Description
+      entity:
+        description: The kind of configuration key (network, storage-pool, ...)
+        example: storage-pool
+        type: string
+        x-go-name: Entity
+      key:
+        description: The name of the key
+        example: source
+        type: string
+        x-go-name: Key
+      name:
+        description: The name of the object requiring this key
+        example: local
+        type: string
+        x-go-name: Name
+      value:
+        description: The value on the answering cluster member
+        example: /dev/sdb
+        type: string
+        x-go-name: Value
+    title: |-
+      ClusterMemberConfigKey represents a single config key that a new member of
+      the cluster is required to provide when joining.
+    type: object
+    x-go-package: github.com/lxc/lxd/shared/api
+  ClusterMemberPost:
+    properties:
+      server_name:
+        description: The new name of the cluster member
+        example: lxd02
+        type: string
+        x-go-name: ServerName
+    title: ClusterMemberPost represents the fields required to rename a LXD node.
+    type: object
+    x-go-package: github.com/lxc/lxd/shared/api
+  ClusterMemberPut:
+    description: ClusterMemberPut represents the the modifiable fields of a LXD cluster
+      member
+    properties:
+      failure_domain:
+        description: Name of the failure domain for this cluster member
+        example: rack1
+        type: string
+        x-go-name: FailureDomain
+      roles:
+        description: List of roles held by this cluster member
+        example:
+        - database
+        items:
+          type: string
+        type: array
+        x-go-name: Roles
+    type: object
+    x-go-package: github.com/lxc/lxd/shared/api
+  ClusterPut:
+    description: |-
+      ClusterPut represents the fields required to bootstrap or join a LXD
+      cluster.
+    properties:
+      cluster_address:
+        description: The address of the cluster you wish to join
+        example: 10.0.0.1:8443
+        type: string
+        x-go-name: ClusterAddress
+      cluster_certificate:
+        description: The expected certificate (X509 PEM encoded) for the cluster
+        example: X509 PEM certificate
+        type: string
+        x-go-name: ClusterCertificate
+      cluster_password:
+        description: The trust password of the cluster you're trying to join
+        example: blah
+        type: string
+        x-go-name: ClusterPassword
+      enabled:
+        description: Whether clustering is enabled
+        example: true
+        type: boolean
+        x-go-name: Enabled
+      member_config:
+        description: |-
+          List of member configuration keys (used during join)
+
+          API extension: clustering_join
+        items:
+          $ref: '#/definitions/ClusterMemberConfigKey'
+        type: array
+        x-go-name: MemberConfig
+      server_address:
+        description: The local address to use for cluster communication
+        example: 10.0.0.2:8443
+        type: string
+        x-go-name: ServerAddress
+      server_name:
+        description: Name of the cluster member answering the request
+        example: lxd01
+        type: string
+        x-go-name: ServerName
+    type: object
+    x-go-package: github.com/lxc/lxd/shared/api
   Event:
     description: Event represents an event entry (over websocket)
     properties:
@@ -203,6 +388,178 @@ definitions:
         readOnly: true
         type: array
         x-go-name: UsedBy
+    type: object
+    x-go-package: github.com/lxc/lxd/shared/api
+  NetworkACL:
+    properties:
+      config:
+        additionalProperties:
+          type: string
+        description: ACL configuration map (refer to doc/network-acls.md)
+        example:
+          default.action: drop
+        type: object
+        x-go-name: Config
+      description:
+        description: Description of the ACL
+        example: Web servers
+        type: string
+        x-go-name: Description
+      egress:
+        description: List of egress rules (order independent)
+        items:
+          $ref: '#/definitions/NetworkACLRule'
+        type: array
+        x-go-name: Egress
+      ingress:
+        description: List of ingress rules (order independent)
+        items:
+          $ref: '#/definitions/NetworkACLRule'
+        type: array
+        x-go-name: Ingress
+      name:
+        description: The new name for the ACL
+        example: bar
+        type: string
+        x-go-name: Name
+      used_by:
+        description: List of URLs of objects using this profile
+        example:
+        - /1.0/instances/c1
+        - /1.0/instances/v1
+        - /1.0/networks/lxdbr0
+        items:
+          type: string
+        readOnly: true
+        type: array
+        x-go-name: UsedBy
+    title: NetworkACL used for displaying an ACL.
+    type: object
+    x-go-package: github.com/lxc/lxd/shared/api
+  NetworkACLPost:
+    properties:
+      name:
+        description: The new name for the ACL
+        example: bar
+        type: string
+        x-go-name: Name
+    title: NetworkACLPost used for renaming an ACL.
+    type: object
+    x-go-package: github.com/lxc/lxd/shared/api
+  NetworkACLPut:
+    properties:
+      config:
+        additionalProperties:
+          type: string
+        description: ACL configuration map (refer to doc/network-acls.md)
+        example:
+          default.action: drop
+        type: object
+        x-go-name: Config
+      description:
+        description: Description of the ACL
+        example: Web servers
+        type: string
+        x-go-name: Description
+      egress:
+        description: List of egress rules (order independent)
+        items:
+          $ref: '#/definitions/NetworkACLRule'
+        type: array
+        x-go-name: Egress
+      ingress:
+        description: List of ingress rules (order independent)
+        items:
+          $ref: '#/definitions/NetworkACLRule'
+        type: array
+        x-go-name: Ingress
+    title: NetworkACLPut used for updating an ACL.
+    type: object
+    x-go-package: github.com/lxc/lxd/shared/api
+  NetworkACLRule:
+    description: Refer to doc/network-acls.md for details.
+    properties:
+      action:
+        description: Action to perform on rule match
+        example: allow
+        type: string
+        x-go-name: Action
+      description:
+        description: Description of the rule
+        example: Allow DNS queries to Google DNS
+        type: string
+        x-go-name: Description
+      destination:
+        description: Destination address
+        example: 8.8.8.8/32,8.8.4.4/32
+        type: string
+        x-go-name: Destination
+      destination_port:
+        description: Destination port
+        example: "53"
+        type: string
+        x-go-name: DestinationPort
+      icmp_code:
+        description: ICMP message code (for ICMP protocol)
+        type: string
+        x-go-name: ICMPCode
+      icmp_type:
+        description: Type of ICMP message (for ICMP protocol)
+        type: string
+        x-go-name: ICMPType
+      protocol:
+        description: Protocol
+        type: string
+        x-go-name: Protocol
+      source:
+        description: Source address
+        type: string
+        x-go-name: Source
+      source_port:
+        description: Source port
+        type: string
+        x-go-name: SourcePort
+      state:
+        description: State of the rule
+        example: enabled
+        type: string
+        x-go-name: State
+    title: NetworkACLRule represents a single rule in an ACL ruleset.
+    type: object
+    x-go-package: github.com/lxc/lxd/shared/api
+  NetworkACLsPost:
+    properties:
+      config:
+        additionalProperties:
+          type: string
+        description: ACL configuration map (refer to doc/network-acls.md)
+        example:
+          default.action: drop
+        type: object
+        x-go-name: Config
+      description:
+        description: Description of the ACL
+        example: Web servers
+        type: string
+        x-go-name: Description
+      egress:
+        description: List of egress rules (order independent)
+        items:
+          $ref: '#/definitions/NetworkACLRule'
+        type: array
+        x-go-name: Egress
+      ingress:
+        description: List of ingress rules (order independent)
+        items:
+          $ref: '#/definitions/NetworkACLRule'
+        type: array
+        x-go-name: Ingress
+      name:
+        description: The new name for the ACL
+        example: bar
+        type: string
+        x-go-name: Name
+    title: NetworkACLsPost used for creating an ACL.
     type: object
     x-go-package: github.com/lxc/lxd/shared/api
   NetworkLease:
@@ -2606,6 +2963,280 @@ paths:
       summary: Get the trusted certificates
       tags:
       - certificates
+  /1.0/cluster/{name}:
+    get:
+      description: Gets the current cluster configuration.
+      operationId: cluster_get
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Cluster configuration
+          schema:
+            description: Sync response
+            properties:
+              metadata:
+                $ref: '#/definitions/Cluster'
+              status:
+                description: Status description
+                example: Success
+                type: string
+              status_code:
+                description: Status code
+                example: 200
+                type: int
+              type:
+                description: Response type
+                example: sync
+                type: string
+            type: object
+        "403":
+          $ref: '#/responses/Forbidden'
+        "500":
+          $ref: '#/responses/InternalServerError'
+      summary: Get the cluster configuration
+      tags:
+      - cluster
+    put:
+      consumes:
+      - application/json
+      description: Updates the entire cluster configuration.
+      operationId: cluster_put
+      parameters:
+      - description: Cluster configuration
+        in: body
+        name: cluster
+        required: true
+        schema:
+          $ref: '#/definitions/ClusterPut'
+      produces:
+      - application/json
+      responses:
+        "200":
+          $ref: '#/responses/EmptySyncResponse'
+        "400":
+          $ref: '#/responses/BadRequest'
+        "403":
+          $ref: '#/responses/Forbidden'
+        "412":
+          $ref: '#/responses/PreconditionFailed'
+        "500":
+          $ref: '#/responses/InternalServerError'
+      summary: Update the cluster configuration
+      tags:
+      - cluster
+  /1.0/cluster/members:
+    get:
+      description: Returns a list of cluster members (URLs).
+      operationId: cluster_members_get
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: API endpoints
+          schema:
+            description: Sync response
+            properties:
+              metadata:
+                description: List of endpoints
+                example: |-
+                  [
+                    "/1.0/cluster/members/lxd01",
+                    "/1.0/cluster/members/lxd02"
+                  ]
+                items:
+                  type: string
+                type: array
+              status:
+                description: Status description
+                example: Success
+                type: string
+              status_code:
+                description: Status code
+                example: 200
+                type: int
+              type:
+                description: Response type
+                example: sync
+                type: string
+            type: object
+        "403":
+          $ref: '#/responses/Forbidden'
+        "500":
+          $ref: '#/responses/InternalServerError'
+      summary: Get the cluster members
+      tags:
+      - cluster
+  /1.0/cluster/members/{name}:
+    delete:
+      description: Removes the member from the cluster.
+      operationId: cluster_member_delete
+      produces:
+      - application/json
+      responses:
+        "200":
+          $ref: '#/responses/EmptySyncResponse'
+        "400":
+          $ref: '#/responses/BadRequest'
+        "403":
+          $ref: '#/responses/Forbidden'
+        "500":
+          $ref: '#/responses/InternalServerError'
+      summary: Delete the cluster member
+      tags:
+      - cluster
+    get:
+      description: Gets a specific cluster member.
+      operationId: cluster_member_get
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Profile
+          schema:
+            description: Sync response
+            properties:
+              metadata:
+                $ref: '#/definitions/ClusterMember'
+              status:
+                description: Status description
+                example: Success
+                type: string
+              status_code:
+                description: Status code
+                example: 200
+                type: int
+              type:
+                description: Response type
+                example: sync
+                type: string
+            type: object
+        "403":
+          $ref: '#/responses/Forbidden'
+        "500":
+          $ref: '#/responses/InternalServerError'
+      summary: Get the cluster member
+      tags:
+      - cluster
+    patch:
+      consumes:
+      - application/json
+      description: Updates a subset of the cluster member configuration.
+      operationId: cluster_member_patch
+      parameters:
+      - description: Cluster member configuration
+        in: body
+        name: cluster
+        required: true
+        schema:
+          $ref: '#/definitions/ClusterMemberPut'
+      produces:
+      - application/json
+      responses:
+        "200":
+          $ref: '#/responses/EmptySyncResponse'
+        "400":
+          $ref: '#/responses/BadRequest'
+        "403":
+          $ref: '#/responses/Forbidden'
+        "412":
+          $ref: '#/responses/PreconditionFailed'
+        "500":
+          $ref: '#/responses/InternalServerError'
+      summary: Partially update the cluster member
+      tags:
+      - cluster
+    post:
+      consumes:
+      - application/json
+      description: Renames an existing cluster member.
+      operationId: cluster_member_post
+      parameters:
+      - description: Cluster member rename request
+        in: body
+        name: cluster
+        required: true
+        schema:
+          $ref: '#/definitions/ClusterMemberPost'
+      produces:
+      - application/json
+      responses:
+        "200":
+          $ref: '#/responses/EmptySyncResponse'
+        "400":
+          $ref: '#/responses/BadRequest'
+        "403":
+          $ref: '#/responses/Forbidden'
+        "500":
+          $ref: '#/responses/InternalServerError'
+      summary: Rename the cluster member
+      tags:
+      - cluster
+    put:
+      consumes:
+      - application/json
+      description: Updates the entire cluster member configuration.
+      operationId: cluster_member_put
+      parameters:
+      - description: Cluster member configuration
+        in: body
+        name: cluster
+        required: true
+        schema:
+          $ref: '#/definitions/ClusterMemberPut'
+      produces:
+      - application/json
+      responses:
+        "200":
+          $ref: '#/responses/EmptySyncResponse'
+        "400":
+          $ref: '#/responses/BadRequest'
+        "403":
+          $ref: '#/responses/Forbidden'
+        "412":
+          $ref: '#/responses/PreconditionFailed'
+        "500":
+          $ref: '#/responses/InternalServerError'
+      summary: Update the cluster member
+      tags:
+      - cluster
+  /1.0/cluster/members?recursion=1:
+    get:
+      description: Returns a list of cluster members (structs).
+      operationId: cluster_members_get_recursion1
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: API endpoints
+          schema:
+            description: Sync response
+            properties:
+              metadata:
+                description: List of cluster members
+                items:
+                  $ref: '#/definitions/ClusterMember'
+                type: array
+              status:
+                description: Status description
+                example: Success
+                type: string
+              status_code:
+                description: Status code
+                example: 200
+                type: int
+              type:
+                description: Response type
+                example: sync
+                type: string
+            type: object
+        "403":
+          $ref: '#/responses/Forbidden'
+        "500":
+          $ref: '#/responses/InternalServerError'
+      summary: Get the cluster members
+      tags:
+      - cluster
   /1.0/events:
     get:
       description: Connects to the event API using websocket.
@@ -2636,6 +3267,244 @@ paths:
       summary: Get the event stream
       tags:
       - server
+  /1.0/network-acls:
+    get:
+      description: Returns a list of network ACLs (URLs).
+      operationId: network_acls_get
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: API endpoints
+          schema:
+            description: Sync response
+            properties:
+              metadata:
+                description: List of endpoints
+                example: |-
+                  [
+                    "/1.0/network-acls/foo",
+                    "/1.0/network-acls/bar"
+                  ]
+                items:
+                  type: string
+                type: array
+              status:
+                description: Status description
+                example: Success
+                type: string
+              status_code:
+                description: Status code
+                example: 200
+                type: int
+              type:
+                description: Response type
+                example: sync
+                type: string
+            type: object
+        "403":
+          $ref: '#/responses/Forbidden'
+        "500":
+          $ref: '#/responses/InternalServerError'
+      summary: Get the network ACLs
+      tags:
+      - network-acls
+    post:
+      consumes:
+      - application/json
+      description: Creates a new network ACL.
+      operationId: network_acls_post
+      parameters:
+      - description: ACL
+        in: body
+        name: acl
+        required: true
+        schema:
+          $ref: '#/definitions/NetworkACLsPost'
+      produces:
+      - application/json
+      responses:
+        "200":
+          $ref: '#/responses/EmptySyncResponse'
+        "400":
+          $ref: '#/responses/BadRequest'
+        "403":
+          $ref: '#/responses/Forbidden'
+        "500":
+          $ref: '#/responses/InternalServerError'
+      summary: Add a network ACL
+      tags:
+      - network-acls
+  /1.0/network-acls/{name}:
+    delete:
+      description: Removes the network ACL.
+      operationId: network_acls_delete
+      produces:
+      - application/json
+      responses:
+        "200":
+          $ref: '#/responses/EmptySyncResponse'
+        "400":
+          $ref: '#/responses/BadRequest'
+        "403":
+          $ref: '#/responses/Forbidden'
+        "500":
+          $ref: '#/responses/InternalServerError'
+      summary: Delete the network ACL
+      tags:
+      - network-acls
+    get:
+      description: Gets a specific network ACL.
+      operationId: network_acls_get
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: ACL
+          schema:
+            description: Sync response
+            properties:
+              metadata:
+                $ref: '#/definitions/NetworkACL'
+              status:
+                description: Status description
+                example: Success
+                type: string
+              status_code:
+                description: Status code
+                example: 200
+                type: int
+              type:
+                description: Response type
+                example: sync
+                type: string
+            type: object
+        "403":
+          $ref: '#/responses/Forbidden'
+        "500":
+          $ref: '#/responses/InternalServerError'
+      summary: Get the network ACL
+      tags:
+      - network-acls
+    patch:
+      consumes:
+      - application/json
+      description: Updates a subset of the network ACL configuration.
+      operationId: network_acls_patch
+      parameters:
+      - description: ACL configuration
+        in: body
+        name: acl
+        required: true
+        schema:
+          $ref: '#/definitions/NetworkACLPut'
+      produces:
+      - application/json
+      responses:
+        "200":
+          $ref: '#/responses/EmptySyncResponse'
+        "400":
+          $ref: '#/responses/BadRequest'
+        "403":
+          $ref: '#/responses/Forbidden'
+        "412":
+          $ref: '#/responses/PreconditionFailed'
+        "500":
+          $ref: '#/responses/InternalServerError'
+      summary: Partially update the network ACL
+      tags:
+      - network-acls
+    post:
+      consumes:
+      - application/json
+      description: Renames an existing network ACL.
+      operationId: network_acls_post
+      parameters:
+      - description: ACL rename request
+        in: body
+        name: acl
+        required: true
+        schema:
+          $ref: '#/definitions/NetworkACLPost'
+      produces:
+      - application/json
+      responses:
+        "200":
+          $ref: '#/responses/EmptySyncResponse'
+        "400":
+          $ref: '#/responses/BadRequest'
+        "403":
+          $ref: '#/responses/Forbidden'
+        "500":
+          $ref: '#/responses/InternalServerError'
+      summary: Rename the network ACL
+      tags:
+      - network-acls
+    put:
+      consumes:
+      - application/json
+      description: Updates the entire network ACL configuration.
+      operationId: network_acls_put
+      parameters:
+      - description: ACL configuration
+        in: body
+        name: acl
+        required: true
+        schema:
+          $ref: '#/definitions/NetworkACLPut'
+      produces:
+      - application/json
+      responses:
+        "200":
+          $ref: '#/responses/EmptySyncResponse'
+        "400":
+          $ref: '#/responses/BadRequest'
+        "403":
+          $ref: '#/responses/Forbidden'
+        "412":
+          $ref: '#/responses/PreconditionFailed'
+        "500":
+          $ref: '#/responses/InternalServerError'
+      summary: Update the network ACL
+      tags:
+      - network-acls
+  /1.0/network-acls?recursion=1:
+    get:
+      description: Returns a list of network ACLs (structs).
+      operationId: network_acls_get_recursion1
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: API endpoints
+          schema:
+            description: Sync response
+            properties:
+              metadata:
+                description: List of network ACLs
+                items:
+                  $ref: '#/definitions/NetworkACL'
+                type: array
+              status:
+                description: Status description
+                example: Success
+                type: string
+              status_code:
+                description: Status code
+                example: 200
+                type: int
+              type:
+                description: Response type
+                example: sync
+                type: string
+            type: object
+        "403":
+          $ref: '#/responses/Forbidden'
+        "500":
+          $ref: '#/responses/InternalServerError'
+      summary: Get the network ACLs
+      tags:
+      - network-acls
   /1.0/networks:
     get:
       description: Returns a list of networks (URLs).
