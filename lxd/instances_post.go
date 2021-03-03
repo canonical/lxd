@@ -772,6 +772,12 @@ func instancesPost(d *Daemon, r *http.Request) response.Response {
 	}
 
 	targetNode := queryParam(r, "target")
+	err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
+		return project.CheckClusterTargetRestriction(tx, r, targetProject, targetNode)
+	})
+	if err != nil {
+		return response.SmartError(err)
+	}
 	if targetNode == "" {
 		// If no target node was specified, pick the node with the
 		// least number of containers. If there's just one node, or if

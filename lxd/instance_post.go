@@ -38,7 +38,7 @@ func instancePost(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	project := projectParam(r)
+	projectName := projectParam(r)
 
 	name := mux.Vars(r)["name"]
 	targetNode := queryParam(r, "target")
@@ -73,6 +73,12 @@ func instancePost(d *Daemon, r *http.Request) response.Response {
 				return errors.Wrap(err, "Failed to load LXD config")
 			}
 
+			// Check if user is allowed to use cluster member targeting
+			err = project.CheckClusterTargetRestriction(tx, r, projectName, targetNode)
+			if err != nil {
+				return err
+			}
+
 			// Load target node.
 			node, err := tx.GetNodeByName(targetNode)
 			if err != nil {
@@ -81,7 +87,7 @@ func instancePost(d *Daemon, r *http.Request) response.Response {
 			targetNodeOffline = node.IsOffline(config.OfflineThreshold())
 
 			// Load source node.
-			address, err := tx.GetNodeAddressOfInstance(project, name, instanceType)
+			address, err := tx.GetNodeAddressOfInstance(projectName, name, instanceType)
 			if err != nil {
 				return errors.Wrap(err, "Failed to get address of instance's node")
 			}
@@ -130,7 +136,7 @@ func instancePost(d *Daemon, r *http.Request) response.Response {
 	// and we'll either forward the request or load the container.
 	if targetNode == "" || !sourceNodeOffline {
 		// Handle requests targeted to a container on a different node.
-		resp, err := forwardedResponseIfInstanceIsRemote(d, r, project, name, instanceType)
+		resp, err := forwardedResponseIfInstanceIsRemote(d, r, projectName, name, instanceType)
 		if err != nil {
 			return response.SmartError(err)
 		}
@@ -166,7 +172,7 @@ func instancePost(d *Daemon, r *http.Request) response.Response {
 		stateful = req.Live
 	}
 
-	inst, err := instance.LoadByProjectAndName(d.State(), project, name)
+	inst, err := instance.LoadByProjectAndName(d.State(), projectName, name)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -181,7 +187,7 @@ func instancePost(d *Daemon, r *http.Request) response.Response {
 
 			resources := map[string][]string{}
 			resources["instances"] = []string{name}
-			op, err := operations.OperationCreate(d.State(), project, operations.OperationClassTask, db.OperationInstanceMigrate, resources, nil, run, nil, nil)
+			op, err := operations.OperationCreate(d.State(), projectName, operations.OperationClassTask, db.OperationInstanceMigrate, resources, nil, run, nil, nil)
 			if err != nil {
 				return response.InternalError(err)
 			}
@@ -191,7 +197,7 @@ func instancePost(d *Daemon, r *http.Request) response.Response {
 
 		if targetNode != "" {
 			// Check if instance has backups.
-			backups, err := d.cluster.GetInstanceBackups(project, name)
+			backups, err := d.cluster.GetInstanceBackups(projectName, name)
 			if err != nil {
 				err = errors.Wrap(err, "Failed to fetch instance's backups")
 				return response.SmartError(err)
@@ -206,7 +212,7 @@ func instancePost(d *Daemon, r *http.Request) response.Response {
 			}
 
 			// Check if we are migrating a ceph-based container.
-			poolName, err := d.cluster.GetInstancePool(project, name)
+			poolName, err := d.cluster.GetInstancePool(projectName, name)
 			if err != nil {
 				err = errors.Wrap(err, "Failed to fetch instance's pool name")
 				return response.SmartError(err)
@@ -217,7 +223,7 @@ func instancePost(d *Daemon, r *http.Request) response.Response {
 				return response.SmartError(err)
 			}
 			if pool.Driver == "ceph" {
-				return instancePostClusteringMigrateWithCeph(d, inst, project, name, req.Name, targetNode, instanceType)
+				return instancePostClusteringMigrateWithCeph(d, inst, projectName, name, req.Name, targetNode, instanceType)
 			}
 
 			// If this is not a ceph-based container, make sure
@@ -261,7 +267,7 @@ func instancePost(d *Daemon, r *http.Request) response.Response {
 				return response.InternalError(err)
 			}
 
-			op, err := operations.OperationCreate(d.State(), project, operations.OperationClassTask, db.OperationInstanceMigrate, resources, nil, run, nil, nil)
+			op, err := operations.OperationCreate(d.State(), projectName, operations.OperationClassTask, db.OperationInstanceMigrate, resources, nil, run, nil, nil)
 			if err != nil {
 				return response.InternalError(err)
 			}
@@ -270,7 +276,7 @@ func instancePost(d *Daemon, r *http.Request) response.Response {
 		}
 
 		// Pull mode.
-		op, err := operations.OperationCreate(d.State(), project, operations.OperationClassWebsocket, db.OperationInstanceMigrate, resources, ws.Metadata(), run, cancel, ws.Connect)
+		op, err := operations.OperationCreate(d.State(), projectName, operations.OperationClassWebsocket, db.OperationInstanceMigrate, resources, ws.Metadata(), run, cancel, ws.Connect)
 		if err != nil {
 			return response.InternalError(err)
 		}
@@ -279,7 +285,7 @@ func instancePost(d *Daemon, r *http.Request) response.Response {
 	}
 
 	// Check that the name isn't already in use.
-	id, _ := d.cluster.GetInstanceID(project, req.Name)
+	id, _ := d.cluster.GetInstanceID(projectName, req.Name)
 	if id > 0 {
 		return response.Conflict(fmt.Errorf("Name '%s' already in use", req.Name))
 	}
@@ -295,7 +301,7 @@ func instancePost(d *Daemon, r *http.Request) response.Response {
 		resources["containers"] = resources["instances"]
 	}
 
-	op, err := operations.OperationCreate(d.State(), project, operations.OperationClassTask, db.OperationInstanceRename, resources, nil, run, nil, nil)
+	op, err := operations.OperationCreate(d.State(), projectName, operations.OperationClassTask, db.OperationInstanceRename, resources, nil, run, nil, nil)
 	if err != nil {
 		return response.InternalError(err)
 	}
