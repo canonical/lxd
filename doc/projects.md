@@ -35,6 +35,7 @@ limits.networks                      | integer   | -                     | -    
 limits.processes                     | integer   | -                     | -                         | Maximum value for the sum of individual "limits.processes" configs set on the instances of the project
 limits.virtual-machines              | integer   | -                     | -                         | Maximum number of VMs that can be created in the project
 restricted                           | boolean   | -                     | false                     | Block access to security-sensitive features
+restricted.cluster.target            | string    | -                     | block                     | Prevents direct targeting of cluster members when creating or moving instances.
 restricted.containers.lowlevel       | string    | -                     | block                     | Prevents use of low-level container options like raw.lxc, raw.idmap, volatile, etc.
 restricted.containers.nesting        | string    | -                     | block                     | Prevents setting security.nesting=true.
 restricted.containers.privilege      | string    | -                     | unpriviliged              | If "unpriviliged", prevents setting security.privileged=true. If "isolated", prevents setting security.privileged=true and also security.idmap.isolated=true. If "allow", no restriction apply.
