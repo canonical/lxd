@@ -782,6 +782,7 @@ func projectValidateConfig(s *state.State, config map[string]string) error {
 		"limits.disk":                    validate.Optional(validate.IsSize),
 		"limits.networks":                validate.Optional(validate.IsUint32),
 		"restricted":                     validate.Optional(validate.IsBool),
+		"restricted.cluster.target":      isEitherAllowOrBlock,
 		"restricted.containers.nesting":  isEitherAllowOrBlock,
 		"restricted.containers.lowlevel": isEitherAllowOrBlock,
 		"restricted.containers.privilege": func(value string) error {
