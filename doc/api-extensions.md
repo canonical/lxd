@@ -1325,3 +1325,7 @@ Adds a new `security.acls` property to OVN networks and OVN NICs, allowing Netwo
 ## projects\_images\_auto\_update
 Adds new `images.auto_update_cached` and `images.auto_update_interval` config keys which
 allows configuration of images auto update in projects
+
+## projects\_restricted\_cluster\_target
+Adds new `restricted.cluster.target` config key to project which prevent the user from using --target
+to specify what cluster member to place a workload on or the ability to move a workload between members.
