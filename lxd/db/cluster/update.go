@@ -2945,7 +2945,7 @@ func updateFromV0(tx *sql.Tx) error {
 	// v0..v1 the dawn of clustering
 	stmt := `
 CREATE TABLE nodes (
-    id INTEGER PRIMARY KEY,
+    id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
     name TEXT NOT NULL,
     description TEXT DEFAULT '',
     address TEXT NOT NULL,
