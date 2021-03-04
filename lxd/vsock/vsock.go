@@ -48,6 +48,8 @@ func HTTPClient(vsockID int, tlsClientCert string, tlsClientKey string, tlsServe
 					// Handle some fatal errors.
 					msg := err.Error()
 					if strings.Contains(msg, "connection timed out") {
+						// Retry once.
+						conn, err = Dial(uint32(vsockID), shared.DefaultPort)
 						break
 					} else if strings.Contains(msg, "connection refused") {
 						break
