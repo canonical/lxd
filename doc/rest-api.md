@@ -341,7 +341,7 @@ Return value (if trusted):
         "kernel_version": "3.16",
         "server": "lxd",
         "server_pid": 10224,
-        "server_version": "0.8.1"}
+        "server_version": "0.8.1",
         "storage": "btrfs",
         "storage_version": "3.19",
     },
