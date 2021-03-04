@@ -10,6 +10,7 @@ import (
 	"io"
 	"io/ioutil"
 	"math"
+	"math/rand"
 	"mime"
 	"mime/multipart"
 	"net/http"
@@ -2645,6 +2646,7 @@ func imageSyncBetweenNodes(d *Daemon, project string, fingerprint string) error 
 		return nil
 	}
 
+	// Get a list of nodes that do not have the address.
 	addresses, err := d.cluster.GetNodesWithoutImage(fingerprint)
 	if err != nil {
 		return errors.Wrap(err, "Failed to get nodes for the image synchronization")
@@ -2653,26 +2655,8 @@ func imageSyncBetweenNodes(d *Daemon, project string, fingerprint string) error 
 		return nil
 	}
 
-	// We spread the image for the nodes inside of cluster and we need to double
-	// check if the image already exists via DB since when one certain node is
-	// going to create an image it will invoke the same routine.
-	// Also as the daily image synchronization task can be only launched by leader node,
-	// hence the leader node will have the image synced first with higher priority.
-	// In case the operation fails, the daily image synchronization task will check
-	// whether an image was synced successfully across the cluster and perform the
-	// same job if not.
-	leader, err := d.gateway.LeaderAddress()
-	if err != nil {
-		return errors.Wrap(err, "Failed to fetch the leader node address")
-	}
-
-	var targetNodeAddress string
-	if shared.StringInSlice(leader, addresses) {
-		targetNodeAddress = leader
-	} else {
-		targetNodeAddress = addresses[0]
-	}
-
+	// Pick a random node from that slice as the target.
+	targetNodeAddress := addresses[rand.Intn(len(addresses))]
 	client, err := cluster.Connect(targetNodeAddress, d.endpoints.NetworkCert(), true)
 	if err != nil {
 		return errors.Wrap(err, "Failed to connect node for image synchronization")
