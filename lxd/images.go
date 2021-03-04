@@ -1115,93 +1115,233 @@ func autoUpdateImagesTask(d *Daemon) (task.Func, task.Schedule) {
 }
 
 func autoUpdateImages(ctx context.Context, d *Daemon) error {
-	projectNames := []string{}
+	imageMap := make(map[string][]db.Image)
+
 	err := d.cluster.Transaction(func(tx *db.ClusterTx) error {
-		projects, err := tx.GetProjects(db.ProjectFilter{})
+		var err error
+
+		images, err := tx.GetImages(db.ImageFilter{AutoUpdate: true})
 		if err != nil {
 			return err
 		}
 
-		for _, project := range projects {
-			projectNames = append(projectNames, project.Name)
+		for _, image := range images {
+			imageMap[image.Fingerprint] = append(imageMap[image.Fingerprint], image)
 		}
 
 		return nil
 	})
 	if err != nil {
-		return errors.Wrap(err, "Unable to retrieve project names")
+		return errors.Wrap(err, "Unable to retrieve image fingerprints")
 	}
 
-	for _, project := range projectNames {
-		err := autoUpdateImagesInProject(ctx, d, project)
+	for fingerprint, images := range imageMap {
+		skipFingerprint := false
+
+		nodes, err := d.cluster.GetNodesWithImageAndAutoUpdate(fingerprint, true)
 		if err != nil {
-			return errors.Wrapf(err, "Unable to update images for project %s", project)
+			logger.Error("Error getting cluster members for image auto-update", log.Ctx{"fingerprint": fingerprint, "err": err})
+			continue
+		}
+
+		if len(nodes) > 1 {
+			var nodeIDs []int64
+
+			for _, node := range nodes {
+				err := d.cluster.Transaction(func(tx *db.ClusterTx) error {
+					var err error
+
+					nodeInfo, err := tx.GetNodeByAddress(node)
+					if err != nil {
+						return err
+					}
+
+					nodeIDs = append(nodeIDs, nodeInfo.ID)
+
+					return nil
+				})
+				if err != nil {
+					logger.Error("Unable to retrieve cluster member information for image update", log.Ctx{"err": err})
+					skipFingerprint = true
+					break
+
+				}
+			}
+
+			if skipFingerprint {
+				continue
+			}
+
+			// If multiple nodes have the image, select one to deal with it.
+			if len(nodeIDs) > 1 {
+				selectedNode, err := shared.GetStableRandomInt64FromList(len(images), nodeIDs)
+				if err != nil {
+					logger.Error("Failed to select cluster member for image update", log.Ctx{"err": err})
+					continue
+				}
+
+				// Skip image update if we're not the chosen cluster member.
+				// That way, an image is only updated by a single cluster member.
+				if d.cluster.GetNodeID() != selectedNode {
+					continue
+				}
+			}
+		}
+
+		var deleteIDs []int
+		var newImage *api.Image
+
+		for _, image := range images {
+			_, imageInfo, err := d.cluster.GetImage(image.Project, image.Fingerprint, image.Public)
+			if err != nil {
+				logger.Error("Failed to get image", log.Ctx{"err": err})
+			}
+
+			newInfo, err := autoUpdateImage(ctx, d, nil, image.ID, imageInfo, image.Project)
+			if err != nil {
+				logger.Error("Failed to update image", log.Ctx{"err": err})
+
+				if err == context.Canceled {
+					return nil
+				}
+			} else {
+				deleteIDs = append(deleteIDs, image.ID)
+			}
+
+			// newInfo will have the same content for each image in the list.
+			// Therefore, we just pick the first.
+			if newImage == nil {
+				newImage = newInfo
+			}
+		}
+
+		if newImage != nil {
+			err := distributeImage(ctx, d, nodes, fingerprint, newImage)
+			if err != nil {
+				logger.Error("Failed to distribute image", log.Ctx{"err": err, "fingerprint": newImage.Fingerprint})
+
+				if err == context.Canceled {
+					return nil
+				}
+			}
+
+			for _, ID := range deleteIDs {
+				// Remove the database entry for the image.
+				err = d.cluster.DeleteImage(ID)
+				if err != nil {
+					logger.Debugf("Error deleting image from database: %s", err)
+				}
+			}
 		}
 	}
 
 	return nil
 }
 
-func autoUpdateImagesInProject(ctx context.Context, d *Daemon, projectName string) error {
-	var err error
-	var interval int64
+func distributeImage(ctx context.Context, d *Daemon, nodes []string, oldFingerprint string, newImage *api.Image) error {
+	// Skip own node
+	address, _ := node.ClusterAddress(d.db)
 
-	project, err := d.cluster.GetProject(projectName)
+	// Get the IDs of all storage pools on which a storage volume
+	// for the requested image currently exists.
+	poolIDs, err := d.cluster.GetPoolsWithImage(newImage.Fingerprint)
 	if err != nil {
+		logger.Error("Error getting image pools", log.Ctx{"err": err, "fingerprint": oldFingerprint})
 		return err
 	}
 
-	if project.Config["images.auto_update_interval"] != "" {
-		interval, err = strconv.ParseInt(project.Config["images.auto_update_interval"], 10, 64)
-		if err != nil {
-			return errors.Wrap(err, "Unable to fetch project configuration")
-		}
-	} else {
-		interval, err = cluster.ConfigGetInt64(d.cluster, "images.auto_update_interval")
-		if err != nil {
-			return errors.Wrap(err, "Unable to fetch cluster configuration")
-		}
-	}
-
-	// Check if we're supposed to auto update at all (0 disables it)
-	if interval <= 0 {
-		return nil
-	}
-
-	now := time.Now()
-	elapsedHours := int64(math.Round(now.Sub(d.startTime).Hours()))
-	if elapsedHours%interval != 0 {
-		return nil
-	}
-
-	images, err := d.cluster.GetImagesFingerprints(projectName, false)
+	// Translate the IDs to poolNames.
+	poolNames, err := d.cluster.GetPoolNamesFromIDs(poolIDs)
 	if err != nil {
-		return errors.Wrap(err, "Unable to retrieve the list of images")
+		logger.Error("Error getting image pools", log.Ctx{"err": err, "fingerprint": oldFingerprint})
+		return err
 	}
 
-	for _, fingerprint := range images {
-		id, info, err := d.cluster.GetImage(projectName, fingerprint, false)
+	for _, nodeAddress := range nodes {
+		if nodeAddress == address {
+			continue
+		}
+
+		var nodeInfo db.NodeInfo
+		err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
+			var err error
+			nodeInfo, err = tx.GetNodeByAddress(nodeAddress)
+			return err
+		})
 		if err != nil {
-			logger.Error("Error loading image", log.Ctx{"err": err, "fingerprint": fingerprint, "project": projectName})
-			continue
+			return errors.Wrapf(err, "Failed to retrieve information about cluster member with address %q", nodeAddress)
 		}
 
-		if !info.AutoUpdate {
-			continue
+		client, err := cluster.Connect(nodeAddress, d.endpoints.NetworkCert(), true)
+		if err != nil {
+			return errors.Wrapf(err, "Failed to connect to %q for image synchronization", nodeAddress)
 		}
 
-		// FIXME: since our APIs around image downloading don't support
-		//        cancelling, we run the function in a different
-		//        goroutine and simply abort when the context expires.
-		ch := make(chan struct{})
-		go func() {
-			autoUpdateImage(d, nil, id, info, projectName)
-			ch <- struct{}{}
-		}()
+		client = client.UseTarget(nodeInfo.Name)
+
+		createArgs := &lxd.ImageCreateArgs{}
+		imageMetaPath := shared.VarPath("images", newImage.Fingerprint)
+		imageRootfsPath := shared.VarPath("images", newImage.Fingerprint+".rootfs")
+
+		metaFile, err := os.Open(imageMetaPath)
+		if err != nil {
+			return err
+		}
+		defer metaFile.Close()
+
+		createArgs.MetaFile = metaFile
+		createArgs.MetaName = filepath.Base(imageMetaPath)
+
+		if shared.PathExists(imageRootfsPath) {
+			rootfsFile, err := os.Open(imageRootfsPath)
+			if err != nil {
+				return err
+			}
+			defer rootfsFile.Close()
+
+			createArgs.RootfsFile = rootfsFile
+			createArgs.RootfsName = filepath.Base(imageRootfsPath)
+		}
+
+		image := api.ImagesPost{}
+		image.Filename = createArgs.MetaName
+
+		op, err := client.CreateImage(image, createArgs)
+		if err != nil {
+			return err
+		}
+
 		select {
 		case <-ctx.Done():
-			return nil
-		case <-ch:
+			op.Cancel()
+			return ctx.Err()
+		default:
+		}
+
+		err = op.Wait()
+		if err != nil {
+			return err
+		}
+
+		for _, poolName := range poolNames {
+			if poolName == "" {
+				continue
+			}
+
+			req := internalImageOptimizePost{
+				Image: *newImage,
+				Pool:  poolName,
+			}
+
+			_, _, err = client.RawQuery("POST", "/internal/image-optimize", req, "")
+			if err != nil {
+				logger.Debug("Failed to create image in pool", log.Ctx{"err": err, "pool": poolName, "fingerprint": newImage.Fingerprint})
+			}
+
+			err = client.DeleteStoragePoolVolume(poolName, "image", oldFingerprint)
+			if err != nil {
+				logger.Debug("Failed to delete image from pool", log.Ctx{"err": err, "pool": poolName, "fingerprint": oldFingerprint})
+			}
 		}
 	}
 
@@ -1210,17 +1350,47 @@ func autoUpdateImagesInProject(ctx context.Context, d *Daemon, projectName strin
 
 // Update a single image.  The operation can be nil, if no progress tracking is needed.
 // Returns whether the image has been updated.
-func autoUpdateImage(d *Daemon, op *operations.Operation, id int, info *api.Image, project string) error {
+func autoUpdateImage(ctx context.Context, d *Daemon, op *operations.Operation, id int, info *api.Image, projectName string) (*api.Image, error) {
 	fingerprint := info.Fingerprint
 	var source api.ImageSource
-	err := d.cluster.Transaction(func(tx *db.ClusterTx) error {
+	var interval int64
+
+	project, err := d.cluster.GetProject(projectName)
+	if err != nil {
+		return nil, err
+	}
+
+	if project.Config["images.auto_update_interval"] != "" {
+		interval, err = strconv.ParseInt(project.Config["images.auto_update_interval"], 10, 64)
+		if err != nil {
+			return nil, errors.Wrap(err, "Unable to fetch project configuration")
+		}
+	} else {
+		interval, err = cluster.ConfigGetInt64(d.cluster, "images.auto_update_interval")
+		if err != nil {
+			return nil, errors.Wrap(err, "Unable to fetch cluster configuration")
+		}
+	}
+
+	// Check if we're supposed to auto update at all (0 disables it)
+	if interval <= 0 {
+		return nil, nil
+	}
+
+	now := time.Now()
+	elapsedHours := int64(math.Round(now.Sub(d.startTime).Hours()))
+	if elapsedHours%interval != 0 {
+		return nil, nil
+	}
+
+	err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
 		var err error
 		_, source, err = tx.GetImageSource(id)
 		return err
 	})
 	if err != nil {
 		logger.Error("Error getting source image", log.Ctx{"err": err, "fingerprint": fingerprint})
-		return err
+		return nil, err
 	}
 
 	// Get the IDs of all storage pools on which a storage volume
@@ -1228,14 +1398,14 @@ func autoUpdateImage(d *Daemon, op *operations.Operation, id int, info *api.Imag
 	poolIDs, err := d.cluster.GetPoolsWithImage(fingerprint)
 	if err != nil {
 		logger.Error("Error getting image pools", log.Ctx{"err": err, "fingerprint": fingerprint})
-		return err
+		return nil, err
 	}
 
 	// Translate the IDs to poolNames.
 	poolNames, err := d.cluster.GetPoolNamesFromIDs(poolIDs)
 	if err != nil {
 		logger.Error("Error getting image pools", log.Ctx{"err": err, "fingerprint": fingerprint})
-		return err
+		return nil, err
 	}
 
 	// If no optimized pools at least update the base store
@@ -1257,9 +1427,16 @@ func autoUpdateImage(d *Daemon, op *operations.Operation, id int, info *api.Imag
 
 	// Update the image on each pool where it currently exists.
 	hash := fingerprint
+	var newInfo *api.Image
 
 	for _, poolName := range poolNames {
-		newInfo, err := d.ImageDownload(op, source.Server, source.Protocol, source.Certificate, "", source.Alias, info.Type, false, true, poolName, false, project, -1)
+		select {
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		default:
+		}
+
+		newInfo, err = d.ImageDownload(op, source.Server, source.Protocol, source.Certificate, "", source.Alias, info.Type, false, true, poolName, false, projectName, -1)
 		if err != nil {
 			logger.Error("Failed to update the image", log.Ctx{"err": err, "fingerprint": fingerprint})
 			continue
@@ -1271,7 +1448,7 @@ func autoUpdateImage(d *Daemon, op *operations.Operation, id int, info *api.Imag
 			continue
 		}
 
-		newID, _, err := d.cluster.GetImage(project, hash, false)
+		newID, _, err := d.cluster.GetImage(projectName, hash, false)
 		if err != nil {
 			logger.Error("Error loading image", log.Ctx{"err": err, "fingerprint": hash})
 			continue
@@ -1314,7 +1491,7 @@ func autoUpdateImage(d *Daemon, op *operations.Operation, id int, info *api.Imag
 	// Image didn't change, nothing to do.
 	if hash == fingerprint {
 		setRefreshResult(false)
-		return nil
+		return nil, nil
 	}
 
 	// Remove main image file.
@@ -1335,13 +1512,8 @@ func autoUpdateImage(d *Daemon, op *operations.Operation, id int, info *api.Imag
 		}
 	}
 
-	// Remove the database entry for the image.
-	if err = d.cluster.DeleteImage(id); err != nil {
-		logger.Debugf("Error deleting image from database %s: %s", fname, err)
-	}
-
 	setRefreshResult(true)
-	return nil
+	return newInfo, nil
 }
 
 func pruneExpiredImagesTask(d *Daemon) (task.Func, task.Schedule) {
@@ -2352,7 +2524,8 @@ func imageRefresh(d *Daemon, r *http.Request) response.Response {
 
 	// Begin background operation
 	run := func(op *operations.Operation) error {
-		return autoUpdateImage(d, op, imageId, imageInfo, project)
+		_, err := autoUpdateImage(d.ctx, d, op, imageId, imageInfo, project)
+		return err
 	}
 
 	op, err := operations.OperationCreate(d.State(), project, operations.OperationClassTask, db.OperationImageRefresh, nil, nil, run, nil, nil)
