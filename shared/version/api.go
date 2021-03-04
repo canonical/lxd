@@ -260,6 +260,7 @@ var APIExtensions = []string{
 	"certificate_project",
 	"network_ovn_acl",
 	"projects_images_auto_update",
+	"projects_restricted_cluster_target",
 }
 
 // APIExtensionsCount returns the number of available API extensions.
