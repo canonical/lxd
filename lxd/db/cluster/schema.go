@@ -340,7 +340,7 @@ CREATE TABLE "networks_nodes" (
 );
 CREATE UNIQUE INDEX networks_unique_network_id_node_id_key ON "networks_config" (network_id, IFNULL(node_id, -1), key);
 CREATE TABLE nodes (
-    id INTEGER PRIMARY KEY,
+    id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
     name TEXT NOT NULL,
     description TEXT DEFAULT '',
     address TEXT NOT NULL,
