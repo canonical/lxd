@@ -302,7 +302,7 @@ CREATE TABLE networks_nodes (
     FOREIGN KEY (node_id) REFERENCES nodes (id) ON DELETE CASCADE
 );
 CREATE TABLE nodes (
-    id INTEGER PRIMARY KEY,
+    id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
     name TEXT NOT NULL,
     description TEXT DEFAULT '',
     address TEXT NOT NULL,
