@@ -54,7 +54,7 @@ func TestGateway_Single(t *testing.T) {
 
 	leader, err := gateway.LeaderAddress()
 	assert.Equal(t, "", leader)
-	assert.EqualError(t, err, "Node is not clustered")
+	assert.EqualError(t, err, cluster.ErrNodeIsNotClustered.Error())
 
 	driver, err := driver.New(
 		gateway.NodeStore(),
