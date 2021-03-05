@@ -15,35 +15,35 @@ type NetworkACLRule struct {
 
 	// Source address
 	// Example: #internal
-	Source string `json:"source" yaml:"source"`
+	Source string `json:"source,omitempty" yaml:"source,omitempty"`
 
 	// Destination address
 	// Example: 8.8.8.8/32,8.8.4.4/32
-	Destination string `json:"destination" yaml:"destination"`
+	Destination string `json:"destination,omitempty" yaml:"destination,omitempty"`
 
 	// Protocol
 	// Example: udp
-	Protocol string `json:"protocol" yaml:"protocol"`
+	Protocol string `json:"protocol,omitempty" yaml:"protocol,omitempty"`
 
 	// Source port
 	// Example: 1234
-	SourcePort string `json:"source_port" yaml:"source_port"`
+	SourcePort string `json:"source_port,omitempty" yaml:"source_port,omitempty"`
 
 	// Destination port
 	// Example: 53
-	DestinationPort string `json:"destination_port" yaml:"destination_port"`
+	DestinationPort string `json:"destination_port,omitempty" yaml:"destination_port,omitempty"`
 
 	// Type of ICMP message (for ICMP protocol)
 	// Example: 8
-	ICMPType string `json:"icmp_type" yaml:"icmp_type"`
+	ICMPType string `json:"icmp_type,omitempty" yaml:"icmp_type,omitempty"`
 
 	// ICMP message code (for ICMP protocol)
 	// Example: 0
-	ICMPCode string `json:"icmp_code" yaml:"icmp_code"`
+	ICMPCode string `json:"icmp_code,omitempty" yaml:"icmp_code,omitempty"`
 
 	// Description of the rule
 	// Example: Allow DNS queries to Google DNS
-	Description string `json:"description" yaml:"description"`
+	Description string `json:"description,omitempty" yaml:"description,omitempty"`
 
 	// State of the rule
 	// Example: enabled
