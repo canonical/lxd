@@ -21,6 +21,7 @@ import (
 	"github.com/lxc/lxd/lxd/db/query"
 	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/instance/instancetype"
+	"github.com/lxc/lxd/lxd/node"
 	"github.com/lxc/lxd/lxd/project"
 	"github.com/lxc/lxd/lxd/revert"
 	"github.com/lxc/lxd/lxd/rsync"
@@ -117,6 +118,7 @@ var patches = []patch{
 	{name: "network_fan_enable_nat", stage: patchPostDaemonStorage, run: patchNetworkFANEnableNAT},
 	{name: "thinpool_typo_fix", stage: patchPostDaemonStorage, run: patchThinpoolTypoFix},
 	{name: "vm_rename_uuid_key", stage: patchPostDaemonStorage, run: patchVMRenameUUIDKey},
+	{name: "db_nodes_autoinc", stage: patchPreDaemonStorage, run: patchDBNodesAutoInc},
 }
 
 type patch struct {
@@ -180,6 +182,79 @@ func patchesApply(d *Daemon, stage patchStage) error {
 }
 
 // Patches begin here
+
+// patchDBNodesAutoInc re-creates the nodes table id column as AUTOINCREMENT.
+// Its done as a patch rather than a schema update so we can use PRAGMA foreign_keys = OFF without a transaction.
+func patchDBNodesAutoInc(name string, d *Daemon) error {
+	for {
+		// Only apply patch if schema needs it.
+		var schemaSQL string
+		row := d.State().Cluster.DB().QueryRow("SELECT sql FROM sqlite_master WHERE name = 'nodes'")
+		err := row.Scan(&schemaSQL)
+		if err != nil {
+			return err
+		}
+
+		if strings.Contains(schemaSQL, "id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL") {
+			logger.Debugf(`Skipping %q patch as "nodes" table id column already AUTOINCREMENT`, name)
+			return nil // Nothing to do.
+		}
+
+		// Only apply patch on leader, otherwise wait for it to be applied.
+		clusterAddress, err := node.ClusterAddress(d.db)
+		if err != nil {
+			return err
+		}
+
+		leaderAddress, err := d.gateway.LeaderAddress()
+		if err != nil {
+			if errors.Cause(err) == cluster.ErrNodeIsNotClustered {
+				break // Apply change on standalone node.
+			}
+
+			return err
+		}
+
+		if clusterAddress == leaderAddress {
+			break // Apply change on leader node.
+		}
+
+		logger.Warnf("Waiting for %q patch to be applied on leader cluster member", name)
+		time.Sleep(time.Second)
+	}
+
+	// Apply patch.
+	_, err := d.State().Cluster.DB().Exec(`
+PRAGMA foreign_keys=OFF; -- So that integrity doesn't get in the way for now.
+PRAGMA legacy_alter_table = ON; -- So that views referencing this table don't block change.
+
+CREATE TABLE nodes_new (
+	id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+	name TEXT NOT NULL,
+	description TEXT DEFAULT '',
+	address TEXT NOT NULL,
+	schema INTEGER NOT NULL,
+	api_extensions INTEGER NOT NULL,
+	heartbeat DATETIME DEFAULT CURRENT_TIMESTAMP,
+	pending INTEGER NOT NULL DEFAULT 0,
+	arch INTEGER NOT NULL DEFAULT 0 CHECK (arch > 0),
+	failure_domain_id INTEGER DEFAULT NULL REFERENCES nodes_failure_domains (id) ON DELETE SET NULL,
+	UNIQUE (name),
+	UNIQUE (address)
+);
+
+INSERT INTO nodes_new (id, name, description, address, schema, api_extensions, heartbeat, pending, arch, failure_domain_id)
+	SELECT id, name, description, address, schema, api_extensions, heartbeat, pending, arch, failure_domain_id FROM nodes;
+
+DROP TABLE nodes;
+ALTER TABLE nodes_new RENAME TO nodes;
+
+PRAGMA foreign_keys=ON; -- Make sure we turn integrity checks back on.
+PRAGMA legacy_alter_table = OFF; -- So views check integrity again.
+`)
+
+	return err
+}
 
 // patchVMRenameUUIDKey renames the volatile.vm.uuid key to volatile.uuid in instance and snapshot configs.
 func patchVMRenameUUIDKey(name string, d *Daemon) error {
