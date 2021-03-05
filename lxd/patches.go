@@ -234,13 +234,12 @@ CREATE TABLE nodes_new (
 	heartbeat DATETIME DEFAULT CURRENT_TIMESTAMP,
 	pending INTEGER NOT NULL DEFAULT 0,
 	arch INTEGER NOT NULL DEFAULT 0 CHECK (arch > 0),
-	failure_domain_id INTEGER DEFAULT NULL REFERENCES nodes_failure_domains (id) ON DELETE SET NULL,
 	UNIQUE (name),
 	UNIQUE (address)
 );
 
-INSERT INTO nodes_new (id, name, description, address, schema, api_extensions, heartbeat, pending, arch, failure_domain_id)
-	SELECT id, name, description, address, schema, api_extensions, heartbeat, pending, arch, failure_domain_id FROM nodes;
+INSERT INTO nodes_new (id, name, description, address, schema, api_extensions, heartbeat, pending, arch)
+	SELECT id, name, description, address, schema, api_extensions, heartbeat, pending, arch FROM nodes;
 
 DROP TABLE nodes;
 ALTER TABLE nodes_new RENAME TO nodes;
