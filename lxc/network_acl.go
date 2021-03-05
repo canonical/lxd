@@ -446,7 +446,8 @@ func (c *cmdNetworkACLEdit) helpTemplate() string {
 ### description: test desc
 ### egress: []
 ### ingress:
-### - action: accept
+### - action: allow
+###   state: enabled
 ###   source: ""
 ###   destination: ""
 ###   protocol: ""
