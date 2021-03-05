@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: lxd\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2021-03-01 12:23-0500\n"
+"POT-Creation-Date: 2021-03-05 18:14+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: Automatically generated\n"
 "Language-Team: none\n"
@@ -122,7 +122,8 @@ msgid ""
 "### description: test desc\n"
 "### egress: []\n"
 "### ingress:\n"
-"### - action: accept\n"
+"### - action: allow\n"
+"###   state: enabled\n"
 "###   source: \"\"\n"
 "###   destination: \"\"\n"
 "###   protocol: \"\"\n"
@@ -389,7 +390,7 @@ msgstr ""
 msgid "Add profiles to instances"
 msgstr ""
 
-#: lxc/network_acl.go:670 lxc/network_acl.go:671
+#: lxc/network_acl.go:671 lxc/network_acl.go:672
 msgid "Add rules to an ACL"
 msgstr ""
 
@@ -732,7 +733,7 @@ msgstr ""
 
 #: lxc/cluster.go:503 lxc/config.go:255 lxc/config.go:328
 #: lxc/config_metadata.go:142 lxc/config_trust.go:213 lxc/image.go:431
-#: lxc/network.go:659 lxc/network_acl.go:525 lxc/profile.go:498
+#: lxc/network.go:659 lxc/network_acl.go:526 lxc/profile.go:498
 #: lxc/project.go:304 lxc/storage.go:303 lxc/storage_volume.go:941
 #: lxc/storage_volume.go:971
 #, c-format
@@ -964,7 +965,7 @@ msgstr ""
 msgid "Delete instances and snapshots"
 msgstr ""
 
-#: lxc/network_acl.go:606 lxc/network_acl.go:607
+#: lxc/network_acl.go:607 lxc/network_acl.go:608
 msgid "Delete network ACLs"
 msgstr ""
 
@@ -1019,9 +1020,9 @@ msgstr ""
 #: lxc/network.go:1040 lxc/network.go:1110 lxc/network.go:1172
 #: lxc/network_acl.go:30 lxc/network_acl.go:88 lxc/network_acl.go:158
 #: lxc/network_acl.go:211 lxc/network_acl.go:260 lxc/network_acl.go:343
-#: lxc/network_acl.go:403 lxc/network_acl.go:430 lxc/network_acl.go:558
-#: lxc/network_acl.go:607 lxc/network_acl.go:656 lxc/network_acl.go:671
-#: lxc/network_acl.go:792 lxc/operation.go:24 lxc/operation.go:53
+#: lxc/network_acl.go:403 lxc/network_acl.go:430 lxc/network_acl.go:559
+#: lxc/network_acl.go:608 lxc/network_acl.go:657 lxc/network_acl.go:672
+#: lxc/network_acl.go:793 lxc/operation.go:24 lxc/operation.go:53
 #: lxc/operation.go:102 lxc/operation.go:181 lxc/profile.go:29
 #: lxc/profile.go:101 lxc/profile.go:164 lxc/profile.go:244 lxc/profile.go:300
 #: lxc/profile.go:354 lxc/profile.go:404 lxc/profile.go:528 lxc/profile.go:577
@@ -2093,7 +2094,7 @@ msgstr ""
 msgid "Manage instance metadata files"
 msgstr ""
 
-#: lxc/network_acl.go:655 lxc/network_acl.go:656
+#: lxc/network_acl.go:656 lxc/network_acl.go:657
 msgid "Manage network ACL rules"
 msgstr ""
 
@@ -2203,8 +2204,8 @@ msgid "Missing name"
 msgstr ""
 
 #: lxc/network_acl.go:180 lxc/network_acl.go:233 lxc/network_acl.go:283
-#: lxc/network_acl.go:370 lxc/network_acl.go:479 lxc/network_acl.go:580
-#: lxc/network_acl.go:629 lxc/network_acl.go:749 lxc/network_acl.go:816
+#: lxc/network_acl.go:370 lxc/network_acl.go:480 lxc/network_acl.go:581
+#: lxc/network_acl.go:630 lxc/network_acl.go:750 lxc/network_acl.go:817
 msgid "Missing network ACL name"
 msgstr ""
 
@@ -2385,12 +2386,12 @@ msgstr ""
 msgid "Network ACL %s created"
 msgstr ""
 
-#: lxc/network_acl.go:639
+#: lxc/network_acl.go:640
 #, c-format
 msgid "Network ACL %s deleted"
 msgstr ""
 
-#: lxc/network_acl.go:590
+#: lxc/network_acl.go:591
 #, c-format
 msgid "Network ACL %s renamed to %s"
 msgstr ""
@@ -2551,7 +2552,7 @@ msgid "Ports:"
 msgstr ""
 
 #: lxc/cluster.go:504 lxc/config_trust.go:214 lxc/network.go:660
-#: lxc/network_acl.go:526 lxc/profile.go:499 lxc/project.go:305
+#: lxc/network_acl.go:527 lxc/profile.go:499 lxc/project.go:305
 #: lxc/storage.go:304 lxc/storage_volume.go:942 lxc/storage_volume.go:972
 msgid "Press enter to open the editor again"
 msgstr ""
@@ -2798,7 +2799,7 @@ msgstr ""
 msgid "Remove aliases"
 msgstr ""
 
-#: lxc/network_acl.go:793
+#: lxc/network_acl.go:794
 msgid "Remove all rules that match"
 msgstr ""
 
@@ -2814,7 +2815,7 @@ msgstr ""
 msgid "Remove remotes"
 msgstr ""
 
-#: lxc/network_acl.go:791 lxc/network_acl.go:792
+#: lxc/network_acl.go:792 lxc/network_acl.go:793
 msgid "Remove rules from an ACL"
 msgstr ""
 
@@ -2835,7 +2836,7 @@ msgstr ""
 msgid "Rename instances and snapshots"
 msgstr ""
 
-#: lxc/network_acl.go:557 lxc/network_acl.go:558
+#: lxc/network_acl.go:558 lxc/network_acl.go:559
 msgid "Rename network ACLs"
 msgstr ""
 
@@ -3767,11 +3768,11 @@ msgstr ""
 msgid "[<remote>:] [<filters>...]"
 msgstr ""
 
-#: lxc/network_acl.go:156 lxc/network_acl.go:428 lxc/network_acl.go:604
+#: lxc/network_acl.go:156 lxc/network_acl.go:428 lxc/network_acl.go:605
 msgid "[<remote>:]<ACL>"
 msgstr ""
 
-#: lxc/network_acl.go:669 lxc/network_acl.go:790
+#: lxc/network_acl.go:670 lxc/network_acl.go:791
 msgid "[<remote>:]<ACL> <direction> <key>=<value>..."
 msgstr ""
 
@@ -3783,7 +3784,7 @@ msgstr ""
 msgid "[<remote>:]<ACL> <key>=<value>..."
 msgstr ""
 
-#: lxc/network_acl.go:555
+#: lxc/network_acl.go:556
 msgid "[<remote>:]<ACL> <new-name>"
 msgstr ""
 
