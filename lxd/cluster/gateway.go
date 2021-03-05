@@ -606,6 +606,9 @@ func (g *Gateway) Reset(cert *shared.CertInfo) error {
 	return g.init()
 }
 
+// ErrNodeIsNotClustered indicates the node is not clustered.
+var ErrNodeIsNotClustered error = fmt.Errorf("Node is not clustered")
+
 // LeaderAddress returns the address of the current raft leader.
 func (g *Gateway) LeaderAddress() (string, error) {
 	g.lock.RLock()
@@ -613,7 +616,7 @@ func (g *Gateway) LeaderAddress() (string, error) {
 
 	// If we aren't clustered, return an error.
 	if g.memoryDial != nil {
-		return "", fmt.Errorf("Node is not clustered")
+		return "", ErrNodeIsNotClustered
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
