@@ -2,11 +2,8 @@ package network
 
 import (
 	"fmt"
-	"hash/fnv"
-	"io"
 	"io/ioutil"
 	"math/big"
-	"math/rand"
 	"net"
 	"sort"
 	"strconv"
@@ -499,17 +496,11 @@ func (n *ovn) getRouterMAC() (net.HardwareAddr, error) {
 		// It relies on the certificate being the same for all nodes in a cluster to allow the same MAC to
 		// be generated on each bridge interface in the network.
 		seed := fmt.Sprintf("%s.%d.%d", cert.Fingerprint(), 0, n.ID())
-
-		// Generate a hash from the randSourceNodeID and network ID to use as seed for random MAC.
-		// Use the FNV-1a hash algorithm to convert our seed string into an int64 for use as seed.
-		hash := fnv.New64a()
-		_, err = io.WriteString(hash, seed)
+		r, err := util.GetStableRandomGenerator(seed)
 		if err != nil {
-			return nil, err
+			return nil, errors.Wrapf(err, "Failed generating stable random router MAC")
 		}
 
-		// Initialise a non-cryptographic random number generator using the stable seed.
-		r := rand.New(rand.NewSource(int64(hash.Sum64())))
 		hwAddr = randomHwaddr(r)
 		n.logger.Debug("Stable MAC generated", log.Ctx{"seed": seed, "hwAddr": hwAddr})
 	}
@@ -1959,18 +1950,14 @@ func (n *ovn) addChassisGroupEntry() error {
 		return errors.Wrapf(err, "Failed getting OVS Chassis ID")
 	}
 
-	// Use the FNV-1a hash algorithm with the chassis group name for use as random seed.
+	// Seed the stable random number generator with the chassis group name.
 	// This way each OVN network will have its own random seed, so that we don't end up using the same chassis
 	// for the primary uplink chassis for all OVN networks in a cluster.
 	chassisGroupName := n.getChassisGroupName()
-	hash := fnv.New64a()
-	_, err = io.WriteString(hash, string(chassisGroupName))
+	r, err := util.GetStableRandomGenerator(string(chassisGroupName))
 	if err != nil {
-		return errors.Wrapf(err, "Failed generating chassis group priority hash seed")
+		return errors.Wrapf(err, "Failed generating stable random chassis group priority")
 	}
-
-	// Create random number generator based on stable seed.
-	r := rand.New(rand.NewSource(int64(hash.Sum64())))
 
 	// Get all nodes in cluster.
 	ourNodeID := int(n.state.Cluster.GetNodeID())
