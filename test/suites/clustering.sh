@@ -2221,7 +2221,7 @@ test_clustering_image_refresh() {
   LXD_DIR="${LXD_REMOTE_DIR}" lxc config set core.https_address "10.1.1.104:8443"
 
   # Add remotes
-  lxc remote add localhost "https://10.1.1.104:8443" --accept-certificate --password foo --public
+  lxc remote add public "https://10.1.1.104:8443" --accept-certificate --password foo --public
   lxc remote add cluster "https://10.1.1.101:8443" --accept-certificate --password sekret
 
   LXD_DIR="${LXD_REMOTE_DIR}" lxc init testimage c1
@@ -2236,7 +2236,7 @@ test_clustering_image_refresh() {
 
   for project in default foo bar; do
     # Copy the public image to each project
-    LXD_DIR="${LXD_ONE_DIR}" lxc image copy localhost:testimage local: --alias testimage --project "${project}"
+    LXD_DIR="${LXD_ONE_DIR}" lxc image copy public:testimage local: --alias testimage --project "${project}"
 
     # Diable autoupdate for testimage in project foo
     if [ "${project}" = "foo" ]; then
