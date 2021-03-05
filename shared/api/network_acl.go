@@ -14,7 +14,7 @@ type NetworkACLRule struct {
 	Action string `json:"action" yaml:"action"`
 
 	// Source address
-	// Example:
+	// Example: #internal
 	Source string `json:"source" yaml:"source"`
 
 	// Destination address
@@ -22,11 +22,11 @@ type NetworkACLRule struct {
 	Destination string `json:"destination" yaml:"destination"`
 
 	// Protocol
-	// Example:
+	// Example: udp
 	Protocol string `json:"protocol" yaml:"protocol"`
 
 	// Source port
-	// Example:
+	// Example: 1234
 	SourcePort string `json:"source_port" yaml:"source_port"`
 
 	// Destination port
@@ -34,11 +34,11 @@ type NetworkACLRule struct {
 	DestinationPort string `json:"destination_port" yaml:"destination_port"`
 
 	// Type of ICMP message (for ICMP protocol)
-	// Example:
+	// Example: 8
 	ICMPType string `json:"icmp_type" yaml:"icmp_type"`
 
 	// ICMP message code (for ICMP protocol)
-	// Example:
+	// Example: 0
 	ICMPCode string `json:"icmp_code" yaml:"icmp_code"`
 
 	// Description of the rule
