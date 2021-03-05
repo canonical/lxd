@@ -136,7 +136,7 @@ func UsedBy(s *state.State, aclProjectName string, usageFunc func(matchedACLName
 
 		// Skip profiles who's effective network project doesn't match this Network ACL's project.
 		if profileNetworkProjectName != aclProjectName {
-			return nil
+			continue
 		}
 
 		// Iterate through each of the instance's devices, looking for NICs that are using any of the ACLs.
