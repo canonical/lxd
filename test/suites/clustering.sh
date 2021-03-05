@@ -2255,17 +2255,26 @@ test_clustering_image_refresh() {
 
   # Clean up everything
   for project in default foo bar; do
-    LXD_DIR="${LXD_ONE_DIR}" lxc image rm testimage --project "${project}"
-    LXD_DIR="${LXD_ONE_DIR}" lxc rm c1 --project "${project}"
+    # shellcheck disable=SC2046
+    LXD_DIR="${LXD_ONE_DIR}" lxc image rm --project "${project}" $(LXD_DIR="${LXD_ONE_DIR}" lxc image ls --format csv --project "${project}" | cut -d, -f2)
+    # shellcheck disable=SC2046
+    LXD_DIR="${LXD_ONE_DIR}" lxc rm --project "${project}" $(LXD_DIR="${LXD_ONE_DIR}" lxc ls --format csv --project "${project}" | cut -d, -f1)
   done
+
+  # shellcheck disable=SC2046
+  LXD_DIR="${LXD_REMOTE_DIR}" lxc image rm $(LXD_DIR="${LXD_REMOTE_DIR}" lxc image ls --format csv | cut -d, -f2)
+  # shellcheck disable=SC2046
+  LXD_DIR="${LXD_REMOTE_DIR}" lxc rm $(LXD_DIR="${LXD_REMOTE_DIR}" lxc ls --format csv | cut -d, -f1)
 
   LXD_DIR="${LXD_ONE_DIR}" lxd shutdown
   LXD_DIR="${LXD_TWO_DIR}" lxd shutdown
   LXD_DIR="${LXD_THREE_DIR}" lxd shutdown
+  LXD_DIR="${LXD_REMOTE_DIR}" lxd shutdown
   sleep 0.5
   rm -f "${LXD_ONE_DIR}/unix.socket"
   rm -f "${LXD_TWO_DIR}/unix.socket"
   rm -f "${LXD_THREE_DIR}/unix.socket"
+  rm -f "${LXD_REMOTE_DIR}/unix.socket"
 
   teardown_clustering_netns
   teardown_clustering_bridge
@@ -2274,4 +2283,5 @@ test_clustering_image_refresh() {
   kill_lxd "${LXD_TWO_DIR}"
   kill_lxd "${LXD_THREE_DIR}"
   kill_lxd "${LXD_REMOTE_DIR}"
+
 }
