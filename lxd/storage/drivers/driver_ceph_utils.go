@@ -81,7 +81,11 @@ func (d *ceph) rbdCreateVolume(vol Volume, size string) error {
 	}
 
 	if d.config["ceph.rbd.features"] != "" {
-		cmd = append(cmd, "--image-feature", d.config["ceph.rbd.features"])
+		for _, feature := range strings.Split(d.config["ceph.rbd.features"], ",") {
+			feature = strings.TrimSpace(feature)
+
+			cmd = append(cmd, "--image-feature", feature)
+		}
 	} else {
 		cmd = append(cmd, "--image-feature", "layering")
 	}
@@ -321,7 +325,11 @@ func (d *ceph) rbdCreateClone(sourceVol Volume, sourceSnapshotName string, targe
 	}
 
 	if d.config["ceph.rbd.features"] != "" {
-		cmd = append(cmd, "--image-feature", d.config["ceph.rbd.features"])
+		for _, feature := range strings.Split(d.config["ceph.rbd.features"], ",") {
+			feature = strings.TrimSpace(feature)
+
+			cmd = append(cmd, "--image-feature", feature)
+		}
 	} else {
 		cmd = append(cmd, "--image-feature", "layering")
 	}
