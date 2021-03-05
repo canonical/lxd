@@ -17,7 +17,7 @@ currently supported:
 
 Key                                  | Type      | Condition             | Default                   | Description
 :--                                  | :--       | :--                   | :--                       | :--
-backups.compression\_algorithm       | string    | -                     | -                         | Compression algorithm to use for images (bzip2, gzip, lzma, xz or none) in the project
+backups.compression\_algorithm       | string    | -                     | -                         | Compression algorithm to use for backups (bzip2, gzip, lzma, xz or none) in the project
 features.images                      | boolean   | -                     | true                      | Separate set of images and image aliases for the project
 features.networks                    | boolean   | -                     | false                     | Separate set of networks for the project
 features.profiles                    | boolean   | -                     | true                      | Separate set of profiles for the project
