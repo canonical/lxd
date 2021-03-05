@@ -614,7 +614,7 @@ func OVNApplyNetworkBaselineRules(client *openvswitch.OVN, switchName openvswitc
 			Direction: "to-lport",
 			Action:    "allow",
 			Priority:  ovnACLPrioritySwitchAllow,
-			Match:     "tcp && tcp.flags == 0x014", // TCP RST|ACK messages for ACL reject.
+			Match:     fmt.Sprintf("tcp && tcp.flags == %#.03x", openvswitch.TCPRST|openvswitch.TCPACK), // TCP RST|ACK messages for ACL reject.
 		},
 	}
 
