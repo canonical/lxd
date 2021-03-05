@@ -2441,7 +2441,7 @@ Input:
  * Operation: sync
  * Return: standard return value or standard error
 
-Input (rename a network):
+Input (rename a network ACL):
 
 ```json
 {
