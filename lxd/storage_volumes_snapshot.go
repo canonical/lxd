@@ -4,9 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"hash/fnv"
-	"io"
-	"math/rand"
 	"net/http"
 	"strconv"
 	"strings"
@@ -731,16 +728,10 @@ func autoCreateCustomVolumeSnapshotsTask(d *Daemon) (task.Func, task.Schedule) {
 
 			// If there is more than one node (clustering), a stable random node is chosen to perform the snapshot.
 			if len(nodes) > 1 {
-				seed := fmt.Sprintf("%d", v.ID)
-
-				hash := fnv.New64a()
-				_, err = io.WriteString(hash, seed)
+				selectedNodeID, err := util.GetStableRandomInt64FromList(int(v.ID), availableNodeIDs)
 				if err != nil {
 					continue
 				}
-
-				r := rand.New(rand.NewSource(int64(hash.Sum64())))
-				selectedNodeID := availableNodeIDs[r.Int63n(int64(len(availableNodeIDs)))]
 
 				// Don't snapshot, if we're not the chosen one.
 				if d.cluster.GetNodeID() != selectedNodeID {
