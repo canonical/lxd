@@ -4,10 +4,7 @@ import (
 	"bufio"
 	"encoding/binary"
 	"fmt"
-	"hash/fnv"
-	"io"
 	"io/ioutil"
-	"math/rand"
 	"net"
 	"os"
 	"os/exec"
@@ -601,17 +598,11 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 		// cluster to allow the same MAC to be generated on each bridge interface in the network when
 		// seedNodeID is 0 (when safe to do so).
 		seed := fmt.Sprintf("%s.%d.%d", cert.Fingerprint(), seedNodeID, n.ID())
-
-		// Generate a hash from the randSourceNodeID and network ID to use as seed for random MAC.
-		// Use the FNV-1a hash algorithm to convert our seed string into an int64 for use as seed.
-		hash := fnv.New64a()
-		_, err = io.WriteString(hash, seed)
+		r, err := util.GetStableRandomGenerator(seed)
 		if err != nil {
-			return err
+			return errors.Wrapf(err, "Failed generating stable random bridge MAC")
 		}
 
-		// Initialise a non-cryptographic random number generator using the stable seed.
-		r := rand.New(rand.NewSource(int64(hash.Sum64())))
 		hwAddr = randomHwaddr(r)
 		n.logger.Debug("Stable MAC generated", log.Ctx{"seed": seed, "hwAddr": hwAddr})
 	}
