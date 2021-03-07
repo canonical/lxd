@@ -763,7 +763,7 @@ func (c *ClusterTx) GetNodeOfflineThreshold() (time.Duration, error) {
 // the least number of containers (either already created or being created with
 // an operation). If archs is not empty, then return only nodes with an
 // architecture in that list.
-func (c *ClusterTx) GetNodeWithLeastInstances(archs []int) (string, error) {
+func (c *ClusterTx) GetNodeWithLeastInstances(archs []int, defaultArch int) (string, error) {
 	threshold, err := c.GetNodeOfflineThreshold()
 	if err != nil {
 		return "", errors.Wrap(err, "failed to get offline threshold")
@@ -776,31 +776,36 @@ func (c *ClusterTx) GetNodeWithLeastInstances(archs []int) (string, error) {
 
 	name := ""
 	containers := -1
+	isDefaultArchChosen := false
 	for _, node := range nodes {
 		if node.IsOffline(threshold) {
 			continue
 		}
 
-		if len(archs) > 0 {
-			// Get personalities too.
-			personalities, err := osarch.ArchitecturePersonalities(node.Architecture)
-			if err != nil {
-				return "", err
-			}
+		// Get personalities too.
+		personalities, err := osarch.ArchitecturePersonalities(node.Architecture)
+		if err != nil {
+			return "", err
+		}
 
-			supported := []int{node.Architecture}
-			supported = append(supported, personalities...)
+		supported := []int{node.Architecture}
+		supported = append(supported, personalities...)
 
-			match := false
-			for _, entry := range supported {
-				if shared.IntInSlice(entry, archs) {
-					match = true
-				}
+		match := false
+		isDefaultArch := false
+		for _, entry := range supported {
+			if shared.IntInSlice(entry, archs) {
+				match = true
 			}
-
-			if !match {
-				continue
+			if entry == defaultArch {
+				isDefaultArch = true
 			}
+		}
+		if len(archs) > 0 && !match {
+			continue
+		}
+		if !isDefaultArch && isDefaultArchChosen {
+			continue
 		}
 
 		// Fetch the number of containers already created on this node.
@@ -817,9 +822,12 @@ func (c *ClusterTx) GetNodeWithLeastInstances(archs []int) (string, error) {
 		}
 
 		count := created + pending
-		if containers == -1 || count < containers {
+		if containers == -1 || count < containers || (isDefaultArch == true && isDefaultArchChosen == false) {
 			containers = count
 			name = node.Name
+			if isDefaultArch {
+				isDefaultArchChosen = true
+			}
 		}
 	}
 	return name, nil

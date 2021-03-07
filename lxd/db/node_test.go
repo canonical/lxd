@@ -315,7 +315,7 @@ INSERT INTO instances (id, node_id, name, architecture, type, project_id) VALUES
 `)
 	require.NoError(t, err)
 
-	name, err := tx.GetNodeWithLeastInstances(nil)
+	name, err := tx.GetNodeWithLeastInstances(nil, -1)
 	require.NoError(t, err)
 	assert.Equal(t, "buzz", name)
 }
@@ -339,7 +339,7 @@ INSERT INTO instances (id, node_id, name, architecture, type, project_id) VALUES
 	err = tx.SetNodeHeartbeat("0.0.0.0", time.Now().Add(-time.Minute))
 	require.NoError(t, err)
 
-	name, err := tx.GetNodeWithLeastInstances(nil)
+	name, err := tx.GetNodeWithLeastInstances(nil, -1)
 	require.NoError(t, err)
 	assert.Equal(t, "buzz", name)
 }
@@ -359,7 +359,7 @@ INSERT INTO operations (id, uuid, node_id, type, project_id) VALUES (1, 'abc', 1
 `, db.OperationInstanceCreate)
 	require.NoError(t, err)
 
-	name, err := tx.GetNodeWithLeastInstances(nil)
+	name, err := tx.GetNodeWithLeastInstances(nil, -1)
 	require.NoError(t, err)
 	assert.Equal(t, "buzz", name)
 }
@@ -388,7 +388,7 @@ INSERT INTO instances (id, node_id, name, architecture, type, project_id) VALUES
 	require.NoError(t, err)
 
 	// The local node is returned despite it has more containers.
-	name, err := tx.GetNodeWithLeastInstances([]int{localArch})
+	name, err := tx.GetNodeWithLeastInstances([]int{localArch}, -1)
 	require.NoError(t, err)
 	assert.Equal(t, "none", name)
 }
@@ -419,4 +419,31 @@ func TestUpdateNodeFailureDomain(t *testing.T) {
 	domains, err = tx.GetNodesFailureDomains()
 	require.NoError(t, err)
 	assert.Equal(t, map[string]uint64{"0.0.0.0": 0, "1.2.3.4:666": 0}, domains)
+}
+
+func TestGetNodeWithLeastInstances_DefaultArch(t *testing.T) {
+	tx, cleanup := db.NewTestClusterTx(t)
+	defer cleanup()
+
+	localArch, err := osarch.ArchitectureGetLocalID()
+	require.NoError(t, err)
+
+	testArch := osarch.ARCH_64BIT_ARMV8_LITTLE_ENDIAN
+	if localArch == testArch {
+		testArch = osarch.ARCH_64BIT_INTEL_X86
+	}
+
+	id, err := tx.CreateNodeWithArch("buzz", "1.2.3.4:666", testArch)
+	require.NoError(t, err)
+
+	// Add a container to the newly created node.
+	_, err = tx.Tx().Exec(`
+INSERT INTO instances (id, node_id, name, architecture, type, project_id) VALUES (1, ?, 'foo', 1, 1, 1)
+`, id)
+	require.NoError(t, err)
+
+	name, err := tx.GetNodeWithLeastInstances(nil, testArch)
+	require.NoError(t, err)
+	assert.Equal(t, "buzz", name)
+
 }
