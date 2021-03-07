@@ -68,7 +68,7 @@ type Network struct {
 	// Example: lxdbr0
 	Name string `json:"name" yaml:"name"`
 
-	// The network name
+	// The network type
 	// Read only: true
 	// Example: bridge
 	Type string `json:"type" yaml:"type"`
