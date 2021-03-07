@@ -25,6 +25,7 @@ features.storage.volumes             | boolean   | -                     | true 
 images.auto\_update\_cached          | boolean   | -                     | -                         | Whether to automatically update any image that LXD caches
 images.auto\_update\_interval        | integer   | -                     | -                         | Interval in hours at which to look for update to cached images (0 disables it)
 images.compression\_algorithm        | string    | -                     | -                         | Compression algorithm to use for images (bzip2, gzip, lzma, xz or none) in the project
+images.default\_architecture         | string    | -                     | -                         | Default architecture which should be used in mixed architecture cluster
 images.remote\_cache\_expiry         | integer   | -                     | -                         | Number of days after which an unused cached remote image will be flushed in the project
 limits.instances                     | integer   | -                     | -                         | Maximum number of total instances that can be created in the project
 limits.containers                    | integer   | -                     | -                         | Maximum number of containers that can be created in the project
