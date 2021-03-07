@@ -788,9 +788,33 @@ func instancesPost(d *Daemon, r *http.Request) response.Response {
 		if err != nil {
 			return response.BadRequest(err)
 		}
+
+		p, err := d.cluster.GetProject(targetProject)
+		if err != nil {
+			return response.SmartError(err)
+		}
+
+		defaultArch := ""
+		if p.Config["images.default_architecture"] != "" {
+			defaultArch = p.Config["images.default_architecture"]
+		} else {
+			defaultArch, err = cluster.ConfigGetString(d.cluster, "images.default_architecture")
+			if err != nil {
+				return response.SmartError(err)
+			}
+		}
+
+		defaultArchId := -1
+		if defaultArch != "" {
+			defaultArchId, err = osarch.ArchitectureId(defaultArch)
+			if err != nil {
+				return response.SmartError(err)
+			}
+		}
+
 		err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
 			var err error
-			targetNode, err = tx.GetNodeWithLeastInstances(architectures)
+			targetNode, err = tx.GetNodeWithLeastInstances(architectures, defaultArchId)
 			return err
 		})
 		if err != nil {
