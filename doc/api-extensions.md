@@ -1329,3 +1329,7 @@ allows configuration of images auto update in projects
 ## projects\_restricted\_cluster\_target
 Adds new `restricted.cluster.target` config key to project which prevent the user from using --target
 to specify what cluster member to place a workload on or the ability to move a workload between members.
+
+## images\_default\_architecture
+Adds new `images.default_architecture` global config key and matching per-project key which lets user tell LXD
+what architecture to go with when no specific one is specified as part of the image request.
