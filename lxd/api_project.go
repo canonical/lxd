@@ -772,6 +772,7 @@ func projectValidateConfig(s *state.State, config map[string]string) error {
 		"images.auto_update_cached":      validate.Optional(validate.IsBool),
 		"images.auto_update_interval":    validate.Optional(validate.IsInt64),
 		"images.compression_algorithm":   validate.IsCompressionAlgorithm,
+		"images.default_architecture":    validate.Optional(validate.IsArchitecture),
 		"images.remote_cache_expiry":     validate.Optional(validate.IsInt64),
 		"limits.instances":               validate.Optional(validate.IsUint32),
 		"limits.containers":              validate.Optional(validate.IsUint32),
