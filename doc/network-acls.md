@@ -52,8 +52,8 @@ Property          | Type       | Required | Description
 action            | string     | yes      | Action to take for matching traffic (`allow`, `reject` or `drop`)
 state             | string     | yes      | State of rule (`enabled`, `disabled` or `logged`)
 description       | string     | no       | Description of rule
-source            | string     | no       | Comma separated list of CIDR or IP ranges, source ACL names or #external/#internal (for ingress rules), or empty for any
-destination       | string     | no       | Comma separated list of CIDR or IP ranges, destination ACL names or #external/#internal (for egress rules), or empty for any
+source            | string     | no       | Comma separated list of CIDR or IP ranges, source ACL names or @external/@internal (for ingress rules), or empty for any
+destination       | string     | no       | Comma separated list of CIDR or IP ranges, destination ACL names or @external/@internal (for egress rules), or empty for any
 protocol          | string     | no       | Protocol to match (`icmp4`, `icmp6`, `tcp`, `udp`) or empty for any
 source\_port      | string     | no       | If Protocol is `udp` or `tcp`, then comma separated list of ports or port ranges (start-end inclusive), or empty for any
 destination\_port | string     | no       | If Protocol is `udp` or `tcp`, then comma separated list of ports or port ranges (start-end inclusive), or empty for any
@@ -77,7 +77,7 @@ Rules cannot be explicitly ordered. However LXD will order the rules based on th
 The Instance NICs that are assigned a particular ACL make up a logical port group that can then be referenced by
 name in other ACL rules.
 
-There are also two special selectors called `#internal` and `#external` which represent network local and external
+There are also two special selectors called `@internal` and `@external` which represent network local and external
 traffic respectively.
 
 Port group selectors can be used in the `source` field for ingress rules and in the `destination` field for egress rules.
