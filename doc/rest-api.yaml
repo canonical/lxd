@@ -373,7 +373,7 @@ definitions:
         type: string
         x-go-name: Status
       type:
-        description: The network name
+        description: The network type
         example: bridge
         readOnly: true
         type: string
