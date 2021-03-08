@@ -14,7 +14,7 @@ type NetworkACLRule struct {
 	Action string `json:"action" yaml:"action"`
 
 	// Source address
-	// Example: #internal
+	// Example: @internal
 	Source string `json:"source,omitempty" yaml:"source,omitempty"`
 
 	// Destination address
