@@ -501,22 +501,27 @@ definitions:
         x-go-name: DestinationPort
       icmp_code:
         description: ICMP message code (for ICMP protocol)
+        example: "0"
         type: string
         x-go-name: ICMPCode
       icmp_type:
         description: Type of ICMP message (for ICMP protocol)
+        example: "8"
         type: string
         x-go-name: ICMPType
       protocol:
         description: Protocol
+        example: udp
         type: string
         x-go-name: Protocol
       source:
         description: Source address
+        example: '@internal'
         type: string
         x-go-name: Source
       source_port:
         description: Source port
+        example: "1234"
         type: string
         x-go-name: SourcePort
       state:

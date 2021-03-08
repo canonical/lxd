@@ -274,7 +274,7 @@ func ovnAddReferencedACLs(info *api.NetworkACL, referencedACLNames map[string]st
 				continue // Skip subjects already seen.
 			}
 
-			if subject == ruleSubjectInternal || subject == ruleSubjectExternal {
+			if shared.StringInSlice(subject, append(ruleSubjectInternalAliases, ruleSubjectExternalAliases...)) {
 				continue // Skip special reserved subjects that are not ACL names.
 			}
 
@@ -372,7 +372,7 @@ func ovnApplyToPortGroup(s *state.State, logger logger.Logger, client *openvswit
 		netPortGroupName := OVNACLNetworkPortGroupName(aclNameIDs[aclInfo.Name], aclNet.ID)
 		logger.Debug("Applying network specific ACL rules to network OVN port group", log.Ctx{"networkACL": aclInfo.Name, "network": aclNet.Name, "portGroup": netPortGroupName})
 
-		// Setup per-network dynamic replacements for #internal/#external subject port selectors.
+		// Setup per-network dynamic replacements for @internal/@external subject port selectors.
 		matchReplace := map[string]string{
 			fmt.Sprintf("@%s", ruleSubjectInternal): fmt.Sprintf("@%s", OVNIntSwitchPortGroupName(aclNet.ID)),
 			fmt.Sprintf("@%s", ruleSubjectExternal): fmt.Sprintf(`"%s"`, OVNIntSwitchRouterPortName(aclNet.ID)),
@@ -533,10 +533,17 @@ func ovnRuleSubjectToOVNACLMatch(direction string, aclNameIDs map[string]int64, 
 				}
 
 				var subjectPortSelector openvswitch.OVNPortGroup
-				if subjectCriterion == ruleSubjectInternal || subjectCriterion == ruleSubjectExternal {
+				if shared.StringInSlice(subjectCriterion, ruleSubjectInternalAliases) {
 					// Use pseudo port group name for special reserved port selector types.
 					// These will be expanded later for each network specific rule.
-					subjectPortSelector = openvswitch.OVNPortGroup(subjectCriterion)
+					// Convert deprecated #internal to non-deprecated @internal if needed.
+					subjectPortSelector = openvswitch.OVNPortGroup(ruleSubjectInternal)
+					networkSpecific = true
+				} else if shared.StringInSlice(subjectCriterion, ruleSubjectExternalAliases) {
+					// Use pseudo port group name for special reserved port selector types.
+					// These will be expanded later for each network specific rule.
+					// Convert deprecated #external to non-deprecated @external if needed.
+					subjectPortSelector = openvswitch.OVNPortGroup(ruleSubjectExternal)
 					networkSpecific = true
 				} else {
 					aclID, found := aclNameIDs[subjectCriterion]

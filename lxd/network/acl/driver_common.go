@@ -28,8 +28,13 @@ const ruleDirectionIngress ruleDirection = "ingress"
 const ruleDirectionEgress ruleDirection = "egress"
 
 // Define reserved ACL subjects.
-const ruleSubjectInternal = "#internal"
-const ruleSubjectExternal = "#external"
+const ruleSubjectInternal = "@internal"
+const ruleSubjectExternal = "@external"
+
+// Define aliases for reserved ACL subjects. This is to allow earlier deprecated names that used the "#" prefix.
+// They were deprecated to avoid confusion with YAML comments. So "#internal" and "#external" should not be used.
+var ruleSubjectInternalAliases = []string{ruleSubjectInternal, "#internal"}
+var ruleSubjectExternalAliases = []string{ruleSubjectExternal, "#external"}
 
 // Define valid actions for rules.
 var validActions = []string{"allow", "drop", "reject"}
@@ -184,10 +189,10 @@ func (d *common) validateName(name string) error {
 		return fmt.Errorf("Name is required")
 	}
 
-	// Don't allow ACL names to start with special port selector character to avoid allow LXD to define
-	// special port selectors without risking conflict with user defined ACL names.
-	if strings.HasPrefix(name, "#") {
-		return fmt.Errorf("Name cannot start with reserved character `#`")
+	// Don't allow ACL names to start with special port selector characters to allow LXD to define special port
+	// selectors without risking conflict with user defined ACL names.
+	if shared.StringHasPrefix(name, "@", "%", "#") {
+		return fmt.Errorf("Name cannot start with reserved character %q", name[0])
 	}
 
 	// Ensures we can differentiate an ACL name from an IP in rules that reference this ACL.
@@ -314,7 +319,9 @@ func (d *common) validateRule(direction ruleDirection, rule api.NetworkACLRule) 
 	}
 
 	allowedSubjectNames := make([]string, 0, len(acls)+2)
-	allowedSubjectNames = append(allowedSubjectNames, ruleSubjectInternal, ruleSubjectExternal)
+	allowedSubjectNames = append(allowedSubjectNames, ruleSubjectInternalAliases...)
+	allowedSubjectNames = append(allowedSubjectNames, ruleSubjectExternalAliases...)
+
 	for aclName := range acls {
 		allowedSubjectNames = append(allowedSubjectNames, aclName)
 	}
@@ -520,7 +527,7 @@ func (d *common) Update(config *api.NetworkACLPut) error {
 	})
 
 	// OVN networks share ACL port group definitions, but when the ACL rules use network specific selectors
-	// such as #internal/#external, then we need to apply those rules to each network affected by the ACL, so
+	// such as @internal/@external, then we need to apply those rules to each network affected by the ACL, so
 	// build up a full list of OVN networks affected by this ACL (either because the ACL is assigned directly
 	// or because it is assigned to an OVN NIC in an instance or profile).
 	aclNets := map[string]NetworkACLUsage{}
