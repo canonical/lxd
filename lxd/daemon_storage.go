@@ -19,6 +19,66 @@ import (
 	"github.com/lxc/lxd/shared"
 )
 
+func daemonStorageUnmount(s *state.State) error {
+	var storageBackups string
+	var storageImages string
+
+	err := s.Node.Transaction(func(tx *db.NodeTx) error {
+		nodeConfig, err := node.ConfigLoad(tx)
+		if err != nil {
+			return err
+		}
+
+		storageBackups = nodeConfig.StorageBackupsVolume()
+		storageImages = nodeConfig.StorageImagesVolume()
+
+		return nil
+	})
+	if err != nil {
+		return err
+	}
+
+	unmount := func(storageType string, source string) error {
+		// Parse the source.
+		fields := strings.Split(source, "/")
+		if len(fields) != 2 {
+			return fmt.Errorf("Invalid syntax for volume, must be <pool>/<volume>")
+		}
+
+		poolName := fields[0]
+		volumeName := fields[1]
+
+		pool, err := storagePools.GetPoolByName(s, poolName)
+		if err != nil {
+			return err
+		}
+
+		// Mount volume.
+		_, err = pool.UnmountCustomVolume(project.Default, volumeName, nil)
+		if err != nil {
+			return errors.Wrapf(err, "Failed to unmount storage volume %q", source)
+		}
+
+		return nil
+	}
+
+	if storageBackups != "" {
+		err := unmount("backups", storageBackups)
+		if err != nil {
+			return errors.Wrap(err, "Failed to unmount backups storage")
+		}
+	}
+
+	if storageImages != "" {
+		err := unmount("images", storageImages)
+		if err != nil {
+			return errors.Wrap(err, "Failed to unmount images storage")
+		}
+	}
+
+	return nil
+}
+
 func daemonStorageMount(s *state.State) error {
 	var storageBackups string
 	var storageImages string
