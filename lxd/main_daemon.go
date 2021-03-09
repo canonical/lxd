@@ -69,13 +69,13 @@ func (c *cmdDaemon) Run(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	ch := make(chan os.Signal)
+	ch := make(chan os.Signal, 1)
 	signal.Notify(ch, unix.SIGPWR)
 	signal.Notify(ch, unix.SIGINT)
 	signal.Notify(ch, unix.SIGQUIT)
 	signal.Notify(ch, unix.SIGTERM)
 
-	chIgnore := make(chan os.Signal)
+	chIgnore := make(chan os.Signal, 1)
 	signal.Notify(chIgnore, unix.SIGHUP)
 
 	s := d.State()

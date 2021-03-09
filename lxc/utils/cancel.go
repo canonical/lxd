@@ -26,7 +26,7 @@ func CancelableWait(rawOp interface{}, progress *ProgressRenderer) error {
 	}
 
 	// Signal handling
-	chSignal := make(chan os.Signal)
+	chSignal := make(chan os.Signal, 1)
 	signal.Notify(chSignal, os.Interrupt)
 
 	// Operation handling
