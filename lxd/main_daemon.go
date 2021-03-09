@@ -5,11 +5,13 @@ import (
 	"os"
 	"os/exec"
 	"os/signal"
+	"time"
 
 	"github.com/spf13/cobra"
 	"golang.org/x/sys/unix"
 
 	"github.com/lxc/lxd/lxd/sys"
+	log "github.com/lxc/lxd/shared/log15"
 	"github.com/lxc/lxd/shared/logger"
 )
 
@@ -67,13 +69,13 @@ func (c *cmdDaemon) Run(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	ch := make(chan os.Signal)
+	ch := make(chan os.Signal, 1)
 	signal.Notify(ch, unix.SIGPWR)
 	signal.Notify(ch, unix.SIGINT)
 	signal.Notify(ch, unix.SIGQUIT)
 	signal.Notify(ch, unix.SIGTERM)
 
-	chIgnore := make(chan os.Signal)
+	chIgnore := make(chan os.Signal, 1)
 	signal.Notify(chIgnore, unix.SIGHUP)
 
 	s := d.State()
@@ -86,6 +88,25 @@ func (c *cmdDaemon) Run(cmd *cobra.Command, args []string) error {
 		// For the latter case, we re-use the shutdown channel which is filled when a shutdown is
 		// initiated using `lxd shutdown`.
 		waitForOperations(s, d.shutdownChan)
+
+		done := make(chan struct{})
+
+		// Unmount image and backup volumes if set.
+		go func() {
+			err := daemonStorageUnmount(s)
+			if err != nil {
+				logger.Warn("Failed to unmount image and backup volumes", log.Ctx{"err": err})
+			}
+
+			done <- struct{}{}
+		}()
+
+		// Only wait 60 seconds in case the storage backend is unreachable.
+		select {
+		case <-time.After(time.Minute):
+			logger.Warn("Timed out waiting for image and backup volume")
+		case <-done:
+		}
 
 		d.Kill()
 	}
