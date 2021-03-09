@@ -38,7 +38,7 @@ type cmdFile struct {
 
 func fileGetWrapper(server lxd.InstanceServer, inst string, path string) (buf io.ReadCloser, resp *lxd.InstanceFileResponse, err error) {
 	// Signal handling
-	chSignal := make(chan os.Signal)
+	chSignal := make(chan os.Signal, 1)
 	signal.Notify(chSignal, os.Interrupt)
 
 	// Operation handling
