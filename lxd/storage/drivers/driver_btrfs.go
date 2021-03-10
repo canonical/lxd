@@ -141,7 +141,7 @@ func (d *btrfs) Create() error {
 		hostPath := shared.HostPath(d.config["source"])
 		if d.isSubvolume(hostPath) {
 			// Existing btrfs subvolume.
-			subvols, err := d.getSubvolumes(hostPath)
+			subvols, err := d.getSubvolumePaths(hostPath, true)
 			if err != nil {
 				return errors.Wrap(err, "Could not determine if existing btrfs subvolume is empty")
 			}
