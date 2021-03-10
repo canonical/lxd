@@ -404,7 +404,7 @@ func (d *btrfs) CreateVolumeFromCopy(vol Volume, srcVol Volume, copySnapshots bo
 			srcSnapshot := GetVolumeMountPath(d.name, srcVol.volType, GetSnapshotVolumeName(srcVol.name, snapName))
 			dstSnapshot := GetVolumeMountPath(d.name, vol.volType, GetSnapshotVolumeName(vol.name, snapName))
 
-			err = d.snapshotSubvolume(srcSnapshot, dstSnapshot, false)
+			err = d.snapshotSubvolume(srcSnapshot, dstSnapshot, true)
 			if err != nil {
 				return err
 			}
