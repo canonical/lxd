@@ -1893,20 +1893,10 @@ func (n *ovn) setup(update bool) error {
 		return errors.Wrapf(err, "Failed applying baseline ACL rules to internal switch")
 	}
 
-	// Create port group (if needed) for NICs to classify as internal.
-	intPortGroupName := acl.OVNIntSwitchPortGroupName(n.ID())
-	intPortGroupUUID, _, err := client.PortGroupInfo(intPortGroupName)
+	// Create network port group if needed.
+	err = n.ensureNetworkPortGroup(projectID)
 	if err != nil {
-		return errors.Wrapf(err, "Failed getting port group UUID for network %q setup", n.Name())
-	}
-
-	if intPortGroupUUID == "" {
-		// Create internal port group and associated it with the logical switch, so that it will be
-		// removed when the logical switch is removed.
-		err = client.PortGroupAdd(projectID, intPortGroupName, "", n.getIntSwitchName())
-		if err != nil {
-			return errors.Wrapf(err, "Failed creating port group %q for network %q setup", intPortGroupName, n.Name())
-		}
+		return errors.Wrapf(err, "Failed to setup network port group")
 	}
 
 	// Ensure any network assigned security ACL port groups are created ready for instance NICs to use.
@@ -1931,6 +1921,33 @@ func (n *ovn) setup(update bool) error {
 	}
 
 	revert.Success()
+	return nil
+}
+
+// ensureNetworkPortGroup ensures that the network level port group (used for classifying NICs connected to this
+// network as internal) exists.
+func (n *ovn) ensureNetworkPortGroup(projectID int64) error {
+	client, err := openvswitch.NewOVN(n.state)
+	if err != nil {
+		return errors.Wrapf(err, "Failed to get OVN client")
+	}
+
+	// Create port group (if needed) for NICs to classify as internal.
+	intPortGroupName := acl.OVNIntSwitchPortGroupName(n.ID())
+	intPortGroupUUID, _, err := client.PortGroupInfo(intPortGroupName)
+	if err != nil {
+		return errors.Wrapf(err, "Failed getting port group UUID for network %q setup", n.Name())
+	}
+
+	if intPortGroupUUID == "" {
+		// Create internal port group and associate it with the logical switch, so that it will be
+		// removed when the logical switch is removed.
+		err = client.PortGroupAdd(projectID, intPortGroupName, "", n.getIntSwitchName())
+		if err != nil {
+			return errors.Wrapf(err, "Failed creating port group %q for network %q setup", intPortGroupName, n.Name())
+		}
+	}
+
 	return nil
 }
 
@@ -2113,8 +2130,24 @@ func (n *ovn) Rename(newName string) error {
 func (n *ovn) Start() error {
 	n.logger.Debug("Start")
 
+	var err error
+	var projectID int64
+	err = n.state.Cluster.Transaction(func(tx *db.ClusterTx) error {
+		projectID, err = tx.GetProjectID(n.project)
+		return err
+	})
+	if err != nil {
+		return errors.Wrapf(err, "Failed getting project ID for project %q", n.project)
+	}
+
+	// Ensure network level port group exists.
+	err = n.ensureNetworkPortGroup(projectID)
+	if err != nil {
+		return err
+	}
+
 	// Add local node's OVS chassis ID to logical chassis group.
-	err := n.addChassisGroupEntry()
+	err = n.addChassisGroupEntry()
 	if err != nil {
 		return err
 	}
