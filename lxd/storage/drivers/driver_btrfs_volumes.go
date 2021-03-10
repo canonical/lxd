@@ -1416,9 +1416,39 @@ func (d *btrfs) UnmountVolumeSnapshot(snapVol Volume, op *operations.Operation) 
 	return forceUnmount(snapPath)
 }
 
-// VolumeSnapshots returns a list of snapshots for the volume.
+// VolumeSnapshots returns a list of snapshots for the volume in age order (oldest first).
 func (d *btrfs) VolumeSnapshots(vol Volume, op *operations.Operation) ([]string, error) {
-	return genericVFSVolumeSnapshots(d, vol, op)
+	// Get a list of snapshot subvolume paths.
+	snapshotDir := GetVolumeSnapshotDir(d.Name(), vol.volType, vol.name)
+	subvolPaths, err := d.getSubvolumePaths(snapshotDir, false)
+	if err != nil {
+		if os.IsNotExist(errors.Cause(err)) {
+			return []string{}, nil // No snapshot directory means no snapshots.
+		}
+
+		return nil, err
+	}
+
+	// Retrieve info about each snapshot subvolume (specifically the original generation).
+	subvols := make(btrfsSubvolumesSortable, 0, len(subvolPaths))
+	for _, subvolPath := range subvolPaths {
+		sv, err := d.getSubvolume(filepath.Join(snapshotDir, subvolPath))
+		if err != nil {
+			return nil, err
+		}
+
+		subvols = append(subvols, sv)
+	}
+
+	sort.Sort(subvols) // Sort by original generation (oldest first).
+
+	// Build a list of snapshot names in original generation order.
+	snapshots := make([]string, 0, len(subvols))
+	for _, sv := range subvols {
+		snapshots = append(snapshots, filepath.Base(sv.absPath))
+	}
+
+	return snapshots, nil
 }
 
 // RestoreVolume restores a volume from a snapshot.
