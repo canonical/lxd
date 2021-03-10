@@ -991,18 +991,6 @@ func TimeIsSet(ts time.Time) bool {
 	return true
 }
 
-// WriteTempFile creates a temp file with the specified content
-func WriteTempFile(dir string, prefix string, content string) (string, error) {
-	f, err := ioutil.TempFile(dir, prefix)
-	if err != nil {
-		return "", err
-	}
-	defer f.Close()
-
-	_, err = f.WriteString(content)
-	return f.Name(), err
-}
-
 // EscapePathFstab escapes a path fstab-style.
 // This ensures that getmntent_r() and friends can correctly parse stuff like
 // /some/wacky path with spaces /some/wacky target with spaces
