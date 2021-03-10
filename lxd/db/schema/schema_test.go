@@ -3,6 +3,7 @@ package schema_test
 import (
 	"database/sql"
 	"fmt"
+	"io/ioutil"
 	"os"
 	"testing"
 
@@ -13,6 +14,18 @@ import (
 	"github.com/lxc/lxd/lxd/db/schema"
 	"github.com/lxc/lxd/shared"
 )
+
+// WriteTempFile creates a temp file with the specified content
+func WriteTempFile(dir string, prefix string, content string) (string, error) {
+	f, err := ioutil.TempFile(dir, prefix)
+	if err != nil {
+		return "", err
+	}
+	defer f.Close()
+
+	_, err = f.WriteString(content)
+	return f.Name(), err
+}
 
 // Create a new Schema by specifying an explicit map from versions to Update
 // functions.
@@ -352,7 +365,7 @@ func TestSchema_File_Garbage(t *testing.T) {
 	schema, db := newSchemaAndDB(t)
 	schema.Add(updateCreateTable)
 
-	path, err := shared.WriteTempFile("", "lxd-db-schema-", "SELECT FROM baz")
+	path, err := WriteTempFile("", "lxd-db-schema-", "SELECT FROM baz")
 	require.NoError(t, err)
 	defer os.Remove(path)
 
@@ -372,7 +385,7 @@ func TestSchema_File(t *testing.T) {
 	// Add an update that would insert a value into a non-existing table.
 	schema.Add(updateInsertValue)
 
-	path, err := shared.WriteTempFile("", "lxd-db-schema-",
+	path, err := WriteTempFile("", "lxd-db-schema-",
 		`CREATE TABLE test (id INTEGER);
 INSERT INTO test VALUES (2);
 `)
@@ -406,7 +419,7 @@ func TestSchema_File_Hook(t *testing.T) {
 
 	// Add a custom schema update query file that inserts a value into a
 	// non-existing table.
-	path, err := shared.WriteTempFile("", "lxd-db-schema-", "INSERT INTO test VALUES (2)")
+	path, err := WriteTempFile("", "lxd-db-schema-", "INSERT INTO test VALUES (2)")
 	require.NoError(t, err)
 	defer os.Remove(path)
 

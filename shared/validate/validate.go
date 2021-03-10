@@ -12,6 +12,7 @@ import (
 	"github.com/kballard/go-shellquote"
 	"github.com/pborman/uuid"
 
+	"github.com/lxc/lxd/shared/osarch"
 	"github.com/lxc/lxd/shared/units"
 )
 
@@ -588,4 +589,9 @@ func IsCompressionAlgorithm(value string) error {
 
 	_, err = exec.LookPath(fields[0])
 	return err
+}
+
+// IsArchitecture validates whether the value is a valid LXD architecture name.
+func IsArchitecture(value string) error {
+	return IsOneOf(value, osarch.SupportedArchitectures())
 }
