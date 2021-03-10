@@ -50,42 +50,62 @@ func (d *btrfs) isSubvolume(path string) bool {
 	return true
 }
 
-func (d *btrfs) getSubvolumes(path string) ([]string, error) {
-	result := []string{}
+// getSubVolumePaths returns the subvolume paths below the specified path.
+func (d *btrfs) getSubvolumePaths(path string, recurse bool) ([]string, error) {
+	paths := []string{}
 
 	// Make sure the path has a trailing slash.
 	if !strings.HasSuffix(path, "/") {
 		path = path + "/"
 	}
 
-	// Walk through the entire tree looking for subvolumes.
-	err := filepath.Walk(path, func(fpath string, fi os.FileInfo, err error) error {
+	if recurse {
+		// Walk through the entire tree looking for subvolumes.
+		err := filepath.Walk(path, func(fpath string, fi os.FileInfo, err error) error {
+			if err != nil {
+				return err
+			}
+
+			// Ignore the base path.
+			if strings.TrimRight(fpath, "/") == strings.TrimRight(path, "/") {
+				return nil
+			}
+
+			// Subvolumes can only be directories.
+			if !fi.IsDir() {
+				return nil
+			}
+
+			// Check if a subvolume.
+			if d.isSubvolume(fpath) {
+				paths = append(paths, strings.TrimPrefix(fpath, path))
+			}
+
+			return nil
+		})
 		if err != nil {
-			return err
+			return nil, errors.Wrapf(err, "Failed walking directory %q", path)
+		}
+	} else {
+		ents, err := ioutil.ReadDir(path)
+		if err != nil {
+			return nil, errors.Wrapf(err, "Failed listing directory %q", path)
 		}
 
-		// Ignore the base path.
-		if strings.TrimRight(fpath, "/") == strings.TrimRight(path, "/") {
-			return nil
-		}
+		for _, ent := range ents {
+			// Subvolumes can only be directories.
+			if !ent.IsDir() {
+				continue
+			}
 
-		// Subvolumes can only be directories.
-		if !fi.IsDir() {
-			return nil
+			// Check if a subvolume.
+			if d.isSubvolume(filepath.Join(path, ent.Name())) {
+				paths = append(paths, ent.Name())
+			}
 		}
-
-		// Check if a subvolume.
-		if d.isSubvolume(fpath) {
-			result = append(result, strings.TrimPrefix(fpath, path))
-		}
-
-		return nil
-	})
-	if err != nil {
-		return nil, err
 	}
 
-	return result, nil
+	return paths, nil
 }
 
 // snapshotSubvolume creates a snapshot of the specified path at the dest supplied. If recursion is true and
@@ -110,7 +130,7 @@ func (d *btrfs) snapshotSubvolume(path string, dest string, recursion bool) erro
 	// Now snapshot all subvolumes of the root.
 	if recursion {
 		// Get the subvolumes list.
-		subSubVols, err := d.getSubvolumes(path)
+		subSubVols, err := d.getSubvolumePaths(path, true)
 		if err != nil {
 			return err
 		}
@@ -159,7 +179,7 @@ func (d *btrfs) deleteSubvolume(rootPath string, recursion bool) error {
 	// Delete subsubvols.
 	if recursion {
 		// Get the subvolumes list.
-		subSubVols, err := d.getSubvolumes(rootPath)
+		subSubVols, err := d.getSubvolumePaths(rootPath, true)
 		if err != nil {
 			return err
 		}
@@ -338,7 +358,7 @@ func (d *btrfs) getSubvolumesMetaData(vol Volume) ([]BTRFSSubVolume, error) {
 	})
 
 	// Find any subvolumes in volume.
-	subVolPaths, err := d.getSubvolumes(vol.MountPath())
+	subVolPaths, err := d.getSubvolumePaths(vol.MountPath(), true)
 	if err != nil {
 		return nil, err
 	}
