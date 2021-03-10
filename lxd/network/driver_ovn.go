@@ -2355,7 +2355,7 @@ func (n *ovn) Update(newNetwork api.NetworkPut, targetNode string, clientType re
 		}
 	}
 
-	// Start network before after config applied if uplink network is changing.
+	// If uplink network is changing, start network after config applied.
 	if shared.StringInSlice("network", changedKeys) {
 		err = n.Start()
 		if err != nil {
