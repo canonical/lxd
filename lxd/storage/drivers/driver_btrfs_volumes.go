@@ -9,6 +9,8 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"sort"
+	"strconv"
 	"strings"
 	"time"
 
@@ -19,6 +21,7 @@ import (
 	"github.com/lxc/lxd/lxd/migration"
 	"github.com/lxc/lxd/lxd/operations"
 	"github.com/lxc/lxd/lxd/revert"
+	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/instancewriter"
 	"github.com/lxc/lxd/shared/ioprogress"
@@ -974,6 +977,81 @@ func (d *btrfs) MigrateVolume(vol Volume, conn io.ReadWriteCloser, volSrcArgs *m
 
 	// Send main volume (and any subvolumes if supported) to target.
 	return sendVolume(vol, migrationSendSnapshotPrefix, lastVolPath)
+}
+
+// subvolume defines a structure to hold information about a BTRFS subvolume.
+type btrfsSubvolume struct {
+	absPath    string // Absolute path.
+	uuid       string // UUID of subvolume.
+	parentUUID string // Parent UUID of subvolume.
+	readonly   bool   // Whether it is a readonly subvolume.
+	ogen       int    // Original generation.
+}
+
+// btrfsSubvolumesSortable is a sortable slice of btrfsSubvolume.
+type btrfsSubvolumesSortable []*btrfsSubvolume
+
+func (subvols btrfsSubvolumesSortable) Len() int {
+	return len(subvols)
+}
+
+func (subvols btrfsSubvolumesSortable) Less(i, j int) bool {
+	a := subvols[i]
+	b := subvols[j]
+
+	// Sort by original generation (oldest first).
+	return a.ogen < b.ogen
+}
+
+func (subvols btrfsSubvolumesSortable) Swap(i, j int) {
+	subvols[i], subvols[j] = subvols[j], subvols[i]
+}
+
+// getSubvolume retrieves subvolume info for a specified path.
+func (d *btrfs) getSubvolume(path string) (*btrfsSubvolume, error) {
+	output, err := shared.RunCommand("btrfs", "subvolume", "show", path)
+	if err != nil {
+		return nil, errors.Wrapf(err, "Failed getting subvolume info for %q", path)
+	}
+
+	sv := btrfsSubvolume{
+		absPath: path,
+	}
+
+	for _, line := range util.SplitNTrimSpace(output, "\n", -1, true) {
+		fields := util.SplitNTrimSpace(line, ":", 2, true)
+		if len(fields) != 2 {
+			continue
+		}
+
+		if fields[1] == "-" {
+			continue // BTRFS' way of saying a field is empty, so skip population.
+		}
+
+		switch fields[0] {
+		case "Parent UUID":
+			sv.parentUUID = fields[1]
+		case "UUID":
+			sv.uuid = fields[1]
+		case "Flags":
+			if strings.Contains(fields[1], "readonly") {
+				sv.readonly = true
+			}
+		case "Gen at creation":
+			ogen, err := strconv.Atoi(fields[1])
+			if err != nil {
+				return nil, errors.Wrapf(err, "Failed parsing subvolume ogen %q", fields[1])
+			}
+
+			sv.ogen = ogen
+		}
+	}
+
+	if sv.uuid == "" {
+		return nil, fmt.Errorf("Failed getting UUID of subvolume %q", path)
+	}
+
+	return &sv, nil
 }
 
 // BackupVolume copies a volume (and optionally its snapshots) to a specified target path.
