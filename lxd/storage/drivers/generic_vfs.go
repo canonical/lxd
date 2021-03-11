@@ -100,7 +100,7 @@ func genericVFSVolumeSnapshots(d Driver, vol Volume, op *operations.Operation) (
 			return snapshots, nil
 		}
 
-		return nil, errors.Wrapf(err, "Failed to list directory '%s'", snapshotDir)
+		return nil, errors.Wrapf(err, "Failed to list directory %q", snapshotDir)
 	}
 
 	for _, ent := range ents {
