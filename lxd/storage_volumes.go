@@ -238,7 +238,7 @@ func storagePoolVolumesTypePost(d *Daemon, r *http.Request) response.Response {
 
 	// If we're getting binary content, process separately.
 	if r.Header.Get("Content-Type") == "application/octet-stream" {
-		return createStoragePoolVolumeFromBackup(d, projectName, r.Body, poolName, r.Header.Get("X-LXD-name"))
+		return createStoragePoolVolumeFromBackup(d, projectParam(r), projectName, r.Body, poolName, r.Header.Get("X-LXD-name"))
 	}
 
 	req := api.StorageVolumesPost{}
@@ -300,17 +300,17 @@ func storagePoolVolumesTypePost(d *Daemon, r *http.Request) response.Response {
 
 	switch req.Source.Type {
 	case "":
-		return doVolumeCreateOrCopy(d, projectName, poolName, &req)
+		return doVolumeCreateOrCopy(d, projectParam(r), projectName, poolName, &req)
 	case "copy":
-		return doVolumeCreateOrCopy(d, projectName, poolName, &req)
+		return doVolumeCreateOrCopy(d, projectParam(r), projectName, poolName, &req)
 	case "migration":
-		return doVolumeMigration(d, projectName, poolName, &req)
+		return doVolumeMigration(d, projectParam(r), projectName, poolName, &req)
 	default:
 		return response.BadRequest(fmt.Errorf("Unknown source type %q", req.Source.Type))
 	}
 }
 
-func doVolumeCreateOrCopy(d *Daemon, projectName, poolName string, req *api.StorageVolumesPost) response.Response {
+func doVolumeCreateOrCopy(d *Daemon, requestProjectName string, projectName string, poolName string, req *api.StorageVolumesPost) response.Response {
 	var run func(op *operations.Operation) error
 
 	pool, err := storagePools.GetPoolByName(d.State(), poolName)
@@ -347,7 +347,7 @@ func doVolumeCreateOrCopy(d *Daemon, projectName, poolName string, req *api.Stor
 	}
 
 	// Volume copy operations potentially take a long time, so run as an async operation.
-	op, err := operations.OperationCreate(d.State(), "", operations.OperationClassTask, db.OperationVolumeCopy, nil, nil, run, nil, nil)
+	op, err := operations.OperationCreate(d.State(), requestProjectName, operations.OperationClassTask, db.OperationVolumeCopy, nil, nil, run, nil, nil)
 	if err != nil {
 		return response.InternalError(err)
 	}
@@ -420,17 +420,17 @@ func storagePoolVolumesPost(d *Daemon, r *http.Request) response.Response {
 
 	switch req.Source.Type {
 	case "":
-		return doVolumeCreateOrCopy(d, projectName, poolName, &req)
+		return doVolumeCreateOrCopy(d, projectParam(r), projectName, poolName, &req)
 	case "copy":
-		return doVolumeCreateOrCopy(d, projectName, poolName, &req)
+		return doVolumeCreateOrCopy(d, projectParam(r), projectName, poolName, &req)
 	case "migration":
-		return doVolumeMigration(d, projectName, poolName, &req)
+		return doVolumeMigration(d, projectParam(r), projectName, poolName, &req)
 	default:
 		return response.BadRequest(fmt.Errorf("Unknown source type %q", req.Source.Type))
 	}
 }
 
-func doVolumeMigration(d *Daemon, projectName string, poolName string, req *api.StorageVolumesPost) response.Response {
+func doVolumeMigration(d *Daemon, requestProjectName string, projectName string, poolName string, req *api.StorageVolumesPost) response.Response {
 	// Validate migration mode
 	if req.Source.Mode != "pull" && req.Source.Mode != "push" {
 		return response.NotImplemented(fmt.Errorf("Mode '%s' not implemented", req.Source.Mode))
@@ -495,12 +495,12 @@ func doVolumeMigration(d *Daemon, projectName string, poolName string, req *api.
 
 	var op *operations.Operation
 	if push {
-		op, err = operations.OperationCreate(d.State(), "", operations.OperationClassWebsocket, db.OperationVolumeCreate, resources, sink.Metadata(), run, nil, sink.Connect)
+		op, err = operations.OperationCreate(d.State(), requestProjectName, operations.OperationClassWebsocket, db.OperationVolumeCreate, resources, sink.Metadata(), run, nil, sink.Connect)
 		if err != nil {
 			return response.InternalError(err)
 		}
 	} else {
-		op, err = operations.OperationCreate(d.State(), "", operations.OperationClassTask, db.OperationVolumeCopy, resources, nil, run, nil, nil)
+		op, err = operations.OperationCreate(d.State(), requestProjectName, operations.OperationClassTask, db.OperationVolumeCopy, resources, nil, run, nil, nil)
 		if err != nil {
 			return response.InternalError(err)
 		}
@@ -580,7 +580,7 @@ func storagePoolVolumePost(d *Daemon, r *http.Request) response.Response {
 
 	// This is a migration request so send back requested secrets.
 	if req.Migration {
-		return storagePoolVolumeTypePostMigration(d.State(), projectName, srcPoolName, volumeName, req)
+		return storagePoolVolumeTypePostMigration(d.State(), projectParam(r), projectName, srcPoolName, volumeName, req)
 	}
 
 	// Retrieve ID of the storage pool (and check if the storage pool exists).
@@ -648,11 +648,11 @@ func storagePoolVolumePost(d *Daemon, r *http.Request) response.Response {
 	}
 
 	// Otherwise this is a move request.
-	return storagePoolVolumeTypePostMove(d, srcPoolName, projectName, vol, req)
+	return storagePoolVolumeTypePostMove(d, srcPoolName, projectParam(r), projectName, vol, req)
 }
 
 // storagePoolVolumeTypePostMigration handles volume migration type POST requests.
-func storagePoolVolumeTypePostMigration(state *state.State, projectName, poolName, volumeName string, req api.StorageVolumePost) response.Response {
+func storagePoolVolumeTypePostMigration(state *state.State, requestProjectName string, projectName string, poolName string, volumeName string, req api.StorageVolumePost) response.Response {
 	ws, err := newStorageMigrationSource(req.VolumeOnly)
 	if err != nil {
 		return response.InternalError(err)
@@ -672,7 +672,7 @@ func storagePoolVolumeTypePostMigration(state *state.State, projectName, poolNam
 			return response.InternalError(err)
 		}
 
-		op, err := operations.OperationCreate(state, "", operations.OperationClassTask, db.OperationVolumeMigrate, resources, nil, run, nil, nil)
+		op, err := operations.OperationCreate(state, requestProjectName, operations.OperationClassTask, db.OperationVolumeMigrate, resources, nil, run, nil, nil)
 		if err != nil {
 			return response.InternalError(err)
 		}
@@ -681,7 +681,7 @@ func storagePoolVolumeTypePostMigration(state *state.State, projectName, poolNam
 	}
 
 	// Pull mode
-	op, err := operations.OperationCreate(state, "", operations.OperationClassWebsocket, db.OperationVolumeMigrate, resources, ws.Metadata(), run, nil, ws.Connect)
+	op, err := operations.OperationCreate(state, requestProjectName, operations.OperationClassWebsocket, db.OperationVolumeMigrate, resources, ws.Metadata(), run, nil, ws.Connect)
 	if err != nil {
 		return response.InternalError(err)
 	}
@@ -718,7 +718,7 @@ func storagePoolVolumeTypePostRename(d *Daemon, poolName string, projectName str
 }
 
 // storagePoolVolumeTypePostMove handles volume move type POST requests.
-func storagePoolVolumeTypePostMove(d *Daemon, poolName string, projectName string, vol *api.StorageVolume, req api.StorageVolumePost) response.Response {
+func storagePoolVolumeTypePostMove(d *Daemon, poolName string, requestProjectName string, projectName string, vol *api.StorageVolume, req api.StorageVolumePost) response.Response {
 	newVol := *vol
 	newVol.Name = req.Name
 
@@ -759,7 +759,7 @@ func storagePoolVolumeTypePostMove(d *Daemon, poolName string, projectName strin
 		return nil
 	}
 
-	op, err := operations.OperationCreate(d.State(), "", operations.OperationClassTask, db.OperationVolumeMove, nil, nil, run, nil, nil)
+	op, err := operations.OperationCreate(d.State(), requestProjectName, operations.OperationClassTask, db.OperationVolumeMove, nil, nil, run, nil, nil)
 	if err != nil {
 		return response.InternalError(err)
 	}
@@ -1129,7 +1129,7 @@ func storagePoolVolumeDelete(d *Daemon, r *http.Request) response.Response {
 	return response.EmptySyncResponse
 }
 
-func createStoragePoolVolumeFromBackup(d *Daemon, project string, data io.Reader, pool string, volName string) response.Response {
+func createStoragePoolVolumeFromBackup(d *Daemon, requestProjectName string, projectName string, data io.Reader, pool string, volName string) response.Response {
 	revert := revert.New()
 	defer revert.Fail()
 
@@ -1186,7 +1186,7 @@ func createStoragePoolVolumeFromBackup(d *Daemon, project string, data io.Reader
 	if err != nil {
 		return response.BadRequest(err)
 	}
-	bInfo.Project = project
+	bInfo.Project = projectName
 
 	// Override pool.
 	if pool != "" {
@@ -1265,7 +1265,7 @@ func createStoragePoolVolumeFromBackup(d *Daemon, project string, data io.Reader
 	resources := map[string][]string{}
 	resources["storage_volumes"] = []string{bInfo.Name}
 
-	op, err := operations.OperationCreate(d.State(), project, operations.OperationClassTask, db.OperationCustomVolumeBackupRestore, resources, nil, run, nil, nil)
+	op, err := operations.OperationCreate(d.State(), requestProjectName, operations.OperationClassTask, db.OperationCustomVolumeBackupRestore, resources, nil, run, nil, nil)
 	if err != nil {
 		return response.InternalError(err)
 	}
