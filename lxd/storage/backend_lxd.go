@@ -1659,8 +1659,23 @@ func (b *lxdBackend) BackupInstance(inst instance.Instance, tarWriter *instancew
 		return err
 	}
 
+	var snapNames []string
+	if snapshots {
+		// Get snapshots in age order, oldest first, and pass names to storage driver.
+		instSnapshots, err := inst.Snapshots()
+		if err != nil {
+			return err
+		}
+
+		snapNames = make([]string, 0, len(instSnapshots))
+		for _, instSnapshot := range instSnapshots {
+			_, snapName, _ := shared.InstanceGetParentAndSnapshotName(instSnapshot.Name())
+			snapNames = append(snapNames, snapName)
+		}
+	}
+
 	vol := b.newVolume(volType, contentType, volStorageName, rootDiskConf)
-	err = b.driver.BackupVolume(vol, tarWriter, optimized, snapshots, op)
+	err = b.driver.BackupVolume(vol, tarWriter, optimized, snapNames, op)
 	if err != nil {
 		return err
 	}
@@ -3699,9 +3714,24 @@ func (b *lxdBackend) BackupCustomVolume(projectName string, volName string, tarW
 		return err
 	}
 
+	var snapNames []string
+	if snapshots {
+		// Get snapshots in age order, oldest first, and pass names to storage driver.
+		volSnaps, err := b.state.Cluster.GetLocalStoragePoolVolumeSnapshotsWithType(projectName, volName, db.StoragePoolVolumeTypeCustom, b.id)
+		if err != nil {
+			return err
+		}
+
+		snapNames = make([]string, 0, len(volSnaps))
+		for _, volSnap := range volSnaps {
+			_, snapName, _ := shared.InstanceGetParentAndSnapshotName(volSnap.Name)
+			snapNames = append(snapNames, snapName)
+		}
+	}
+
 	vol := b.newVolume(drivers.VolumeTypeCustom, drivers.ContentType(volume.ContentType), volStorageName, volume.Config)
 
-	err = b.driver.BackupVolume(vol, tarWriter, optimized, snapshots, op)
+	err = b.driver.BackupVolume(vol, tarWriter, optimized, snapNames, op)
 	if err != nil {
 		return err
 	}

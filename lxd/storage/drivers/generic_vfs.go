@@ -441,7 +441,15 @@ func genericVFSGetVolumeDiskPath(vol Volume) (string, error) {
 }
 
 // genericVFSBackupVolume is a generic BackupVolume implementation for VFS-only drivers.
-func genericVFSBackupVolume(d Driver, vol Volume, tarWriter *instancewriter.InstanceTarWriter, snapshots bool, op *operations.Operation) error {
+func genericVFSBackupVolume(d Driver, vol Volume, tarWriter *instancewriter.InstanceTarWriter, snapshots []string, op *operations.Operation) error {
+	if len(snapshots) > 0 {
+		// Check requested snapshot match those in storage.
+		err := vol.SnapshotsMatch(snapshots, op)
+		if err != nil {
+			return err
+		}
+	}
+
 	// Define a function that can copy a volume into the backup target location.
 	backupVolume := func(v Volume, prefix string) error {
 		return v.MountTask(func(mountPath string, op *operations.Operation) error {
@@ -563,7 +571,7 @@ func genericVFSBackupVolume(d Driver, vol Volume, tarWriter *instancewriter.Inst
 	}
 
 	// Handle snapshots.
-	if snapshots {
+	if len(snapshots) > 0 {
 		snapshotsPrefix := "backup/snapshots"
 		if vol.IsVMBlock() {
 			snapshotsPrefix = "backup/virtual-machine-snapshots"
@@ -571,16 +579,14 @@ func genericVFSBackupVolume(d Driver, vol Volume, tarWriter *instancewriter.Inst
 			snapshotsPrefix = "backup/volume-snapshots"
 		}
 
-		// List the snapshots.
-		snapshots, err := vol.Snapshots(op)
-		if err != nil {
-			return err
-		}
-
-		for _, snapshot := range snapshots {
-			_, snapName, _ := shared.InstanceGetParentAndSnapshotName(snapshot.Name())
+		for _, snapName := range snapshots {
 			prefix := filepath.Join(snapshotsPrefix, snapName)
-			err := backupVolume(snapshot, prefix)
+			snapVol, err := vol.NewSnapshot(snapName)
+			if err != nil {
+				return err
+			}
+
+			err = backupVolume(snapVol, prefix)
 			if err != nil {
 				return err
 			}
