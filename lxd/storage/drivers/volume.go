@@ -285,6 +285,33 @@ func (v Volume) Snapshots(op *operations.Operation) ([]Volume, error) {
 	return snapVols, nil
 }
 
+// SnapshotsMatch checks that the snapshots, according to the storage driver, match those provided (although not
+// necessarily in the same order).
+func (v Volume) SnapshotsMatch(snapNames []string, op *operations.Operation) error {
+	if v.IsSnapshot() {
+		return fmt.Errorf("Volume is a snapshot")
+	}
+
+	snapshots, err := v.driver.VolumeSnapshots(v, op)
+	if err != nil {
+		return err
+	}
+
+	for _, snapName := range snapNames {
+		if !shared.StringInSlice(snapName, snapshots) {
+			return fmt.Errorf("Snapshot %q expected but not in storage", snapName)
+		}
+	}
+
+	for _, snapshot := range snapshots {
+		if !shared.StringInSlice(snapshot, snapNames) {
+			return fmt.Errorf("Snapshot %q in storage but not expected", snapshot)
+		}
+	}
+
+	return nil
+}
+
 // IsBlockBacked indicates whether storage device is block backed.
 func (v Volume) IsBlockBacked() bool {
 	return v.driver.Info().BlockBacking
