@@ -353,9 +353,10 @@ func daemonStorageMove(s *state.State, storageType string, target string) error 
 		}
 
 		// Unmount old volume.
-		_, err = pool.UnmountCustomVolume(project.Default, sourceVolume, nil)
+		projectName, sourceVolumeName := project.StorageVolumeParts(sourceVolume)
+		_, err = pool.UnmountCustomVolume(projectName, sourceVolumeName, nil)
 		if err != nil {
-			return errors.Wrapf(err, `Failed to umount storage volume "%s/%s"`, sourcePool, sourceVolume)
+			return errors.Wrapf(err, `Failed to umount storage volume "%s/%s"`, sourcePool, sourceVolumeName)
 		}
 
 		return nil
