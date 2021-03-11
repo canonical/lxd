@@ -31,13 +31,13 @@ func instancePut(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	project := projectParam(r)
+	projectName := projectParam(r)
 
 	// Get the container
 	name := mux.Vars(r)["name"]
 
 	// Handle requests targeted to a container on a different node
-	resp, err := forwardedResponseIfInstanceIsRemote(d, r, project, name, instanceType)
+	resp, err := forwardedResponseIfInstanceIsRemote(d, r, projectName, name, instanceType)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -45,7 +45,7 @@ func instancePut(d *Daemon, r *http.Request) response.Response {
 		return resp
 	}
 
-	inst, err := instance.LoadByProjectAndName(d.State(), project, name)
+	inst, err := instance.LoadByProjectAndName(d.State(), projectName, name)
 	if err != nil {
 		return response.NotFound(err)
 	}
@@ -69,7 +69,7 @@ func instancePut(d *Daemon, r *http.Request) response.Response {
 
 	// Check project limits.
 	err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
-		return projecthelpers.AllowInstanceUpdate(tx, project, name, configRaw, inst.LocalConfig())
+		return projecthelpers.AllowInstanceUpdate(tx, projectName, name, configRaw, inst.LocalConfig())
 	})
 	if err != nil {
 		return response.SmartError(err)
@@ -87,7 +87,7 @@ func instancePut(d *Daemon, r *http.Request) response.Response {
 				Devices:      deviceConfig.NewDevices(configRaw.Devices),
 				Ephemeral:    configRaw.Ephemeral,
 				Profiles:     configRaw.Profiles,
-				Project:      project,
+				Project:      projectName,
 			}
 
 			err = inst.Update(args, true)
@@ -102,7 +102,7 @@ func instancePut(d *Daemon, r *http.Request) response.Response {
 	} else {
 		// Snapshot Restore
 		do = func(op *operations.Operation) error {
-			return instanceSnapRestore(d.State(), project, name, configRaw.Restore, configRaw.Stateful)
+			return instanceSnapRestore(d.State(), projectName, name, configRaw.Restore, configRaw.Stateful)
 		}
 
 		opType = db.OperationSnapshotRestore
@@ -115,7 +115,7 @@ func instancePut(d *Daemon, r *http.Request) response.Response {
 		resources["containers"] = resources["instances"]
 	}
 
-	op, err := operations.OperationCreate(d.State(), project, operations.OperationClassTask, opType, resources, nil, do, nil, nil)
+	op, err := operations.OperationCreate(d.State(), projectName, operations.OperationClassTask, opType, resources, nil, do, nil, nil)
 	if err != nil {
 		return response.InternalError(err)
 	}
@@ -123,18 +123,18 @@ func instancePut(d *Daemon, r *http.Request) response.Response {
 	return operations.OperationResponse(op)
 }
 
-func instanceSnapRestore(s *state.State, project, name, snap string, stateful bool) error {
+func instanceSnapRestore(s *state.State, projectName string, name string, snap string, stateful bool) error {
 	// normalize snapshot name
 	if !shared.IsSnapshot(snap) {
 		snap = name + shared.SnapshotDelimiter + snap
 	}
 
-	inst, err := instance.LoadByProjectAndName(s, project, name)
+	inst, err := instance.LoadByProjectAndName(s, projectName, name)
 	if err != nil {
 		return err
 	}
 
-	source, err := instance.LoadByProjectAndName(s, project, snap)
+	source, err := instance.LoadByProjectAndName(s, projectName, snap)
 	if err != nil {
 		switch err {
 		case db.ErrNoSuchObject:
