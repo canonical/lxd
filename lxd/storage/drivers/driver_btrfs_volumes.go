@@ -978,7 +978,7 @@ func (d *btrfs) MigrateVolume(vol Volume, conn io.ReadWriteCloser, volSrcArgs *m
 
 // BackupVolume copies a volume (and optionally its snapshots) to a specified target path.
 // This driver does not support optimized backups.
-func (d *btrfs) BackupVolume(vol Volume, tarWriter *instancewriter.InstanceTarWriter, optimized bool, snapshots bool, op *operations.Operation) error {
+func (d *btrfs) BackupVolume(vol Volume, tarWriter *instancewriter.InstanceTarWriter, optimized bool, snapshots []string, op *operations.Operation) error {
 	// Handle the non-optimized tarballs through the generic packer.
 	if !optimized {
 		// Because the generic backup method will not take a consistent backup if files are being modified
@@ -1022,19 +1022,17 @@ func (d *btrfs) BackupVolume(vol Volume, tarWriter *instancewriter.InstanceTarWr
 	}
 
 	// Optimized backup.
-	var err error
-	var volSnapshots []string
 
-	// Retrieve the snapshots if requested.
-	if snapshots {
-		volSnapshots, err = d.VolumeSnapshots(vol, op)
+	if len(snapshots) > 0 {
+		// Check requested snapshot match those in storage.
+		err := vol.SnapshotsMatch(snapshots, op)
 		if err != nil {
 			return err
 		}
 	}
 
 	// Generate driver restoration header.
-	optimizedHeader, err := d.restorationHeader(vol, volSnapshots)
+	optimizedHeader, err := d.restorationHeader(vol, snapshots)
 	if err != nil {
 		return err
 	}
@@ -1170,7 +1168,7 @@ func (d *btrfs) BackupVolume(vol Volume, tarWriter *instancewriter.InstanceTarWr
 
 	// Backup snapshots if populated.
 	lastVolPath := "" // Used as parent for differential exports.
-	for _, snapName := range volSnapshots {
+	for _, snapName := range snapshots {
 		snapVol, _ := vol.NewSnapshot(snapName)
 
 		// Make a binary btrfs backup.
