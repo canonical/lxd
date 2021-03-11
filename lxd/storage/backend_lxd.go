@@ -1659,8 +1659,23 @@ func (b *lxdBackend) BackupInstance(inst instance.Instance, tarWriter *instancew
 		return err
 	}
 
+	var snapNames []string
+	if snapshots {
+		// Get snapshots in age order, oldest first, and pass names to storage driver.
+		instSnapshots, err := inst.Snapshots()
+		if err != nil {
+			return err
+		}
+
+		snapNames = make([]string, 0, len(instSnapshots))
+		for _, instSnapshot := range instSnapshots {
+			_, snapName, _ := shared.InstanceGetParentAndSnapshotName(instSnapshot.Name())
+			snapNames = append(snapNames, snapName)
+		}
+	}
+
 	vol := b.newVolume(volType, contentType, volStorageName, rootDiskConf)
-	err = b.driver.BackupVolume(vol, tarWriter, optimized, snapshots, op)
+	err = b.driver.BackupVolume(vol, tarWriter, optimized, snapNames, op)
 	if err != nil {
 		return err
 	}
