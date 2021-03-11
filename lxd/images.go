@@ -1240,6 +1240,46 @@ func autoUpdateImages(ctx context.Context, d *Daemon) error {
 }
 
 func distributeImage(ctx context.Context, d *Daemon, nodes []string, oldFingerprint string, newImage *api.Image) error {
+	// Get config of all nodes (incl. own) and check for storage.images_volume.
+	// If the setting is missing, distribute the image to the node.
+	// If the option is set, only distribute the image once to nodes with this
+	// specific pool/volume.
+
+	// imageVolumes is a list containing of all image volumes specified by
+	// storage.images_volume. Since this option is node specific, the values
+	// may be different for each cluster member.
+	var imageVolumes []string
+
+	err := d.db.Transaction(func(tx *db.NodeTx) error {
+		config, err := node.ConfigLoad(tx)
+		if err != nil {
+			return err
+		}
+
+		vol := config.StorageImagesVolume()
+		if vol != "" {
+			fields := strings.Split(vol, "/")
+
+			_, pool, _, err := d.cluster.GetStoragePool(fields[0])
+			if err != nil {
+				return errors.Wrap(err, "Failed to get pool info")
+			}
+
+			// Add the volume to the list if the pool is backed by remote
+			// storage as only then the volumes are shared.
+			if shared.StringInSlice(pool.Driver, db.StorageRemoteDriverNames()) {
+				imageVolumes = append(imageVolumes, vol)
+			}
+		}
+
+		return nil
+	})
+	// No need to return with an error as this is only an optimization in the
+	// distribution process. Instead, only log the error.
+	if err != nil {
+		logger.Warn("Failed to load config", log.Ctx{"err": err})
+	}
+
 	// Skip own node
 	address, _ := node.ClusterAddress(d.db)
 
@@ -1279,6 +1319,48 @@ func distributeImage(ctx context.Context, d *Daemon, nodes []string, oldFingerpr
 		}
 
 		client = client.UseTarget(nodeInfo.Name)
+
+		resp, _, err := client.GetServer()
+		if err != nil {
+			logger.Warn("Failed to retrieve information about cluster member", log.Ctx{"err": err, "address": nodeAddress})
+		} else {
+			vol := ""
+
+			val := resp.Config["storage.images_volume"]
+			if val != nil {
+				vol = val.(string)
+			}
+
+			skipDistribution := false
+
+			// If storage.images_volume is set on the cluster member, check if
+			// the image has already been downloaded to this volume. If so,
+			// skip distributing the image to this cluster member.
+			// If the option is unset, distribute the image.
+			if vol != "" {
+				for _, imageVolume := range imageVolumes {
+					if imageVolume == vol {
+						skipDistribution = true
+						break
+					}
+				}
+
+				if skipDistribution {
+					continue
+				}
+
+				fields := strings.Split(vol, "/")
+
+				pool, _, err := client.GetStoragePool(fields[0])
+				if err != nil {
+					logger.Warn("Failed to get pool info", log.Ctx{"err": err, "pool": fields[0]})
+				} else {
+					if shared.StringInSlice(pool.Driver, db.StorageRemoteDriverNames()) {
+						imageVolumes = append(imageVolumes, vol)
+					}
+				}
+			}
+		}
 
 		createArgs := &lxd.ImageCreateArgs{}
 		imageMetaPath := shared.VarPath("images", newImage.Fingerprint)
