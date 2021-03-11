@@ -242,7 +242,7 @@ func storagePoolVolumeTypeCustomBackupsPost(d *Daemon, r *http.Request) response
 	resources["storage_volumes"] = []string{volumeName}
 	resources["backups"] = []string{req.Name}
 
-	op, err := operations.OperationCreate(d.State(), projectName, operations.OperationClassTask,
+	op, err := operations.OperationCreate(d.State(), projectParam(r), operations.OperationClassTask,
 		db.OperationCustomVolumeBackupCreate, resources, nil, backup, nil, nil)
 	if err != nil {
 		return response.InternalError(err)
@@ -365,7 +365,7 @@ func storagePoolVolumeTypeCustomBackupPost(d *Daemon, r *http.Request) response.
 	resources := map[string][]string{}
 	resources["volume"] = []string{volumeName}
 
-	op, err := operations.OperationCreate(d.State(), projectName, operations.OperationClassTask,
+	op, err := operations.OperationCreate(d.State(), projectParam(r), operations.OperationClassTask,
 		db.OperationCustomVolumeBackupRename, resources, nil, rename, nil, nil)
 	if err != nil {
 		return response.InternalError(err)
@@ -429,7 +429,7 @@ func storagePoolVolumeTypeCustomBackupDelete(d *Daemon, r *http.Request) respons
 	resources := map[string][]string{}
 	resources["volume"] = []string{volumeName}
 
-	op, err := operations.OperationCreate(d.State(), projectName, operations.OperationClassTask,
+	op, err := operations.OperationCreate(d.State(), projectParam(r), operations.OperationClassTask,
 		db.OperationCustomVolumeBackupRemove, resources, nil, remove, nil, nil)
 	if err != nil {
 		return response.InternalError(err)
