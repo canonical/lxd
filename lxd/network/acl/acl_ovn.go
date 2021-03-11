@@ -356,7 +356,7 @@ func ovnApplyToPortGroup(s *state.State, logger logger.Logger, client *openvswit
 		Direction: "to-lport", // Always use this so that outport is available to Match.
 		Action:    defaultAction,
 		Priority:  0, // Lowest priority to catch only unmatched traffic.
-		Match:     fmt.Sprintf("inport == @%s || outport == @%s", portGroupName, portGroupName),
+		Match:     fmt.Sprintf("(inport == @%s || outport == @%s)", portGroupName, portGroupName),
 		Log:       defaultLogged,
 		LogName:   string(portGroupName),
 	})
@@ -569,7 +569,7 @@ func OVNApplyNetworkBaselineRules(client *openvswitch.OVN, switchName openvswitc
 			Direction: "to-lport",
 			Action:    "allow",
 			Priority:  ovnACLPrioritySwitchAllow,
-			Match:     "arp || nd", // Neighbour discovery.
+			Match:     "(arp || nd)", // Neighbour discovery.
 		},
 		{
 			Direction: "to-lport",
