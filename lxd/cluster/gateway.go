@@ -60,7 +60,7 @@ func NewGateway(db *db.Node, cert *shared.CertInfo, options ...Option) (*Gateway
 		store:     &dqliteNodeStore{},
 	}
 
-	err := gateway.init()
+	err := gateway.init(false)
 	if err != nil {
 		return nil, err
 	}
@@ -603,7 +603,7 @@ func (g *Gateway) Reset(cert *shared.CertInfo) error {
 		return err
 	}
 	g.cert = cert
-	return g.init()
+	return g.init(false)
 }
 
 // ErrNodeIsNotClustered indicates the node is not clustered.
@@ -716,7 +716,9 @@ func (g *Gateway) LeaderAddress() (string, error) {
 
 // Initialize the gateway, creating a new raft factory and gRPC server (if this
 // node is a database node), and a gRPC dialer.
-func (g *Gateway) init() error {
+// @bootstrap should only be true when turning a non-clustered LXD instance into
+// the first (and leader) node of a new LXD cluster.
+func (g *Gateway) init(bootstrap bool) error {
 	logger.Debugf("Initializing database gateway")
 	g.stopCh = make(chan struct{}, 0)
 
@@ -777,6 +779,21 @@ func (g *Gateway) init() error {
 		)
 		if err != nil {
 			return errors.Wrap(err, "Failed to create dqlite server")
+		}
+
+		// Force the correct configuration into the bootstrap node, this is needed
+		// when the raft node already has log entries, in which case a regular
+		// bootstrap fails, resulting in the node containing outdated configuration.
+		if bootstrap {
+			logger.Debugf("Bootstrap database gateway ID:%v Address:%v",
+				info.ID, info.Address)
+			cluster := []dqlite.NodeInfo{
+				{ID: uint64(info.ID), Address: info.Address},
+			}
+			err = server.Recover(cluster)
+			if err != nil {
+				return errors.Wrap(err, "Failed to recover database state")
+			}
 		}
 
 		err = server.Start()
