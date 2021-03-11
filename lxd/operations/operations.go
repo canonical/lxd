@@ -88,7 +88,7 @@ func OperationGetInternal(id string) (*Operation, error) {
 
 // Operation represents an operation.
 type Operation struct {
-	project     string
+	projectName string
 	id          string
 	class       operationClass
 	createdAt   time.Time
@@ -121,7 +121,7 @@ type Operation struct {
 
 // OperationCreate creates a new operation and returns it. If it cannot be
 // created, it returns an error.
-func OperationCreate(s *state.State, project string, opClass operationClass, opType db.OperationType, opResources map[string][]string, opMetadata interface{}, onRun func(*Operation) error, onCancel func(*Operation) error, onConnect func(*Operation, *http.Request, http.ResponseWriter) error) (*Operation, error) {
+func OperationCreate(s *state.State, projectName string, opClass operationClass, opType db.OperationType, opResources map[string][]string, opMetadata interface{}, onRun func(*Operation) error, onCancel func(*Operation) error, onConnect func(*Operation, *http.Request, http.ResponseWriter) error) (*Operation, error) {
 	// Don't allow new operations when LXD is shutting down.
 	if s != nil && s.Context.Err() == context.Canceled {
 		return nil, fmt.Errorf("LXD is shutting down")
@@ -129,7 +129,7 @@ func OperationCreate(s *state.State, project string, opClass operationClass, opT
 
 	// Main attributes
 	op := Operation{}
-	op.project = project
+	op.projectName = projectName
 	op.id = uuid.NewRandom().String()
 	op.description = opType.Description()
 	op.permission = opType.Permission()
@@ -593,7 +593,7 @@ func (op *Operation) Permission() string {
 
 // Project returns the operation project.
 func (op *Operation) Project() string {
-	return op.project
+	return op.projectName
 }
 
 // Status returns the operation status.
