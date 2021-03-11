@@ -183,9 +183,20 @@ func Connect(path string, serialCharDev string, eventHandler func(name string, d
 		return nil, err
 	}
 
-	err = qmpConn.Connect()
-	if err != nil {
-		return nil, err
+	chError := make(chan error, 1)
+	go func() {
+		err = qmpConn.Connect()
+		chError <- err
+	}()
+
+	select {
+	case err := <-chError:
+		if err != nil {
+			return nil, err
+		}
+	case <-time.After(5 * time.Second):
+		qmpConn.Disconnect()
+		return nil, fmt.Errorf("QMP connection timed out")
 	}
 
 	// Setup the monitor struct.
