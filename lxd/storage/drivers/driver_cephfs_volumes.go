@@ -533,7 +533,7 @@ func (d *cephfs) UnmountVolumeSnapshot(snapVol Volume, op *operations.Operation)
 	return false, nil
 }
 
-// VolumeSnapshots returns a list of snapshot names for the volume.
+// VolumeSnapshots returns a list of snapshots for the volume (in no particular order).
 func (d *cephfs) VolumeSnapshots(vol Volume, op *operations.Operation) ([]string, error) {
 	return genericVFSVolumeSnapshots(d, vol, op)
 }

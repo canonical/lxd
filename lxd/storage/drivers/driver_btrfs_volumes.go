@@ -1336,7 +1336,7 @@ func (d *btrfs) UnmountVolumeSnapshot(snapVol Volume, op *operations.Operation) 
 	return forceUnmount(snapPath)
 }
 
-// VolumeSnapshots returns a list of snapshots for the volume.
+// VolumeSnapshots returns a list of snapshots for the volume (in no particular order).
 func (d *btrfs) VolumeSnapshots(vol Volume, op *operations.Operation) ([]string, error) {
 	return genericVFSVolumeSnapshots(d, vol, op)
 }

@@ -958,7 +958,7 @@ func (d *lvm) UnmountVolumeSnapshot(snapVol Volume, op *operations.Operation) (b
 	return deactivated, nil
 }
 
-// VolumeSnapshots returns a list of snapshots for the volume.
+// VolumeSnapshots returns a list of snapshots for the volume (in no particular order).
 func (d *lvm) VolumeSnapshots(vol Volume, op *operations.Operation) ([]string, error) {
 	// We use the volume list rather than inspecting the logical volumes themselves because the origin
 	// property of an LVM snapshot can be removed/changed when restoring snapshots, such that they are no
