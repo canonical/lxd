@@ -106,7 +106,7 @@ func Bootstrap(state *state.State, gateway *Gateway, name string) error {
 	// Re-initialize the gateway. This will create a new raft factory an
 	// dqlite driver instance, which will be exposed over gRPC by the
 	// gateway handlers.
-	err = gateway.init()
+	err = gateway.init(true)
 	if err != nil {
 		return errors.Wrap(err, "failed to re-initialize gRPC SQL gateway")
 	}
@@ -318,7 +318,7 @@ func Join(state *state.State, gateway *Gateway, cert *shared.CertInfo, name stri
 	// dqlite driver instance, which will be exposed over gRPC by the
 	// gateway handlers.
 	gateway.cert = cert
-	err = gateway.init()
+	err = gateway.init(false)
 	if err != nil {
 		return errors.Wrap(err, "failed to re-initialize gRPC SQL gateway")
 	}
@@ -600,7 +600,7 @@ func Assign(state *state.State, gateway *Gateway, nodes []db.RaftNode) error {
 	// Re-initialize the gateway. This will create a new raft factory an
 	// dqlite driver instance, which will be exposed over gRPC by the
 	// gateway handlers.
-	err = gateway.init()
+	err = gateway.init(false)
 	if err != nil {
 		return errors.Wrap(err, "failed to re-initialize gRPC SQL gateway")
 	}
