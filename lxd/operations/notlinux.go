@@ -38,5 +38,5 @@ func (op *Operation) sendEvent(eventMessage interface{}) {
 		return
 	}
 
-	op.events.Send(op.project, "operation", eventMessage)
+	op.events.Send(op.projectName, "operation", eventMessage)
 }
