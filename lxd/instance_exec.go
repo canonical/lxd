@@ -415,7 +415,7 @@ func instanceExecPost(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	project := projectParam(r)
+	projectName := projectParam(r)
 	name := mux.Vars(r)["name"]
 
 	post := api.InstanceExecPost{}
@@ -430,23 +430,23 @@ func instanceExecPost(d *Daemon, r *http.Request) response.Response {
 
 	// Forward the request if the container is remote.
 	cert := d.endpoints.NetworkCert()
-	client, err := cluster.ConnectIfInstanceIsRemote(d.cluster, project, name, cert, instanceType)
+	client, err := cluster.ConnectIfInstanceIsRemote(d.cluster, projectName, name, cert, instanceType)
 	if err != nil {
 		return response.SmartError(err)
 	}
 
 	if client != nil {
-		url := fmt.Sprintf("/instances/%s/exec?project=%s", name, project)
+		url := fmt.Sprintf("/instances/%s/exec?project=%s", name, projectName)
 		op, _, err := client.RawOperation("POST", url, post, "")
 		if err != nil {
 			return response.SmartError(err)
 		}
 
 		opAPI := op.Get()
-		return operations.ForwardedOperationResponse(project, &opAPI)
+		return operations.ForwardedOperationResponse(projectName, &opAPI)
 	}
 
-	inst, err := instance.LoadByProjectAndName(d.State(), project, name)
+	inst, err := instance.LoadByProjectAndName(d.State(), projectName, name)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -552,7 +552,7 @@ func instanceExecPost(d *Daemon, r *http.Request) response.Response {
 			resources["containers"] = resources["instances"]
 		}
 
-		op, err := operations.OperationCreate(d.State(), project, operations.OperationClassWebsocket, db.OperationCommandExec, resources, ws.Metadata(), ws.Do, nil, ws.Connect)
+		op, err := operations.OperationCreate(d.State(), projectName, operations.OperationClassWebsocket, db.OperationCommandExec, resources, ws.Metadata(), ws.Do, nil, ws.Connect)
 		if err != nil {
 			return response.InternalError(err)
 		}
@@ -623,7 +623,7 @@ func instanceExecPost(d *Daemon, r *http.Request) response.Response {
 		resources["containers"] = resources["instances"]
 	}
 
-	op, err := operations.OperationCreate(d.State(), project, operations.OperationClassTask, db.OperationCommandExec, resources, nil, run, nil, nil)
+	op, err := operations.OperationCreate(d.State(), projectName, operations.OperationClassTask, db.OperationCommandExec, resources, nil, run, nil, nil)
 	if err != nil {
 		return response.InternalError(err)
 	}
