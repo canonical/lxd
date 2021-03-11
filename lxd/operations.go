@@ -202,7 +202,7 @@ func operationDelete(d *Daemon, r *http.Request) response.Response {
 }
 
 func operationsGet(d *Daemon, r *http.Request) response.Response {
-	project := projectParam(r)
+	projectName := projectParam(r)
 	recursion := util.IsRecursionRequest(r)
 
 	localOperationURLs := func() (shared.Jmap, error) {
@@ -213,7 +213,7 @@ func operationsGet(d *Daemon, r *http.Request) response.Response {
 		body := shared.Jmap{}
 
 		for _, v := range localOps {
-			if v.Project() != "" && v.Project() != project {
+			if v.Project() != "" && v.Project() != projectName {
 				continue
 			}
 			status := strings.ToLower(v.Status().String())
@@ -236,7 +236,7 @@ func operationsGet(d *Daemon, r *http.Request) response.Response {
 		body := shared.Jmap{}
 
 		for _, v := range localOps {
-			if v.Project() != "" && v.Project() != project {
+			if v.Project() != "" && v.Project() != projectName {
 				continue
 			}
 			status := strings.ToLower(v.Status().String())
@@ -310,7 +310,7 @@ func operationsGet(d *Daemon, r *http.Request) response.Response {
 	err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
 		var err error
 
-		nodes, err = tx.GetNodesWithRunningOperations(project)
+		nodes, err = tx.GetNodesWithRunningOperations(projectName)
 		if err != nil {
 			return err
 		}

@@ -94,7 +94,7 @@ func doContainersGet(d *Daemon, r *http.Request) (interface{}, error) {
 	}
 
 	// Parse the project field
-	project := projectParam(r)
+	projectName := projectParam(r)
 
 	// Get the list and location of all containers
 	var result map[string][]string // Containers by node address
@@ -102,12 +102,12 @@ func doContainersGet(d *Daemon, r *http.Request) (interface{}, error) {
 	err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
 		var err error
 
-		result, err = tx.GetInstanceNamesByNodeAddress(project, instanceType)
+		result, err = tx.GetInstanceNamesByNodeAddress(projectName, instanceType)
 		if err != nil {
 			return err
 		}
 
-		nodes, err = tx.GetInstanceToNodeMap(project, instanceType)
+		nodes, err = tx.GetInstanceToNodeMap(projectName, instanceType)
 		if err != nil {
 			return err
 		}
@@ -122,7 +122,7 @@ func doContainersGet(d *Daemon, r *http.Request) (interface{}, error) {
 	nodeCts := map[string]instance.Instance{}
 	mustLoadObjects := recursion > 0 || (recursion == 0 && clauses != nil)
 	if mustLoadObjects {
-		cts, err := instanceLoadNodeProjectAll(d.State(), project, instanceType)
+		cts, err := instanceLoadNodeProjectAll(d.State(), projectName, instanceType)
 		if err != nil {
 			return nil, err
 		}
@@ -193,7 +193,7 @@ func doContainersGet(d *Daemon, r *http.Request) (interface{}, error) {
 				cert := d.endpoints.NetworkCert()
 
 				if recursion == 1 {
-					cs, err := doContainersGetFromNode(project, address, cert, instanceType)
+					cs, err := doContainersGetFromNode(projectName, address, cert, instanceType)
 					if err != nil {
 						for _, name := range containers {
 							resultListAppend(name, api.Instance{}, err)
@@ -209,7 +209,7 @@ func doContainersGet(d *Daemon, r *http.Request) (interface{}, error) {
 					return
 				}
 
-				cs, err := doContainersFullGetFromNode(project, address, cert, instanceType)
+				cs, err := doContainersFullGetFromNode(projectName, address, cert, instanceType)
 				if err != nil {
 					for _, name := range containers {
 						resultFullListAppend(name, api.InstanceFull{}, err)

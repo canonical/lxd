@@ -22,11 +22,11 @@ func instanceState(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	project := projectParam(r)
+	projectName := projectParam(r)
 	name := mux.Vars(r)["name"]
 
 	// Handle requests targeted to a container on a different node
-	resp, err := forwardedResponseIfInstanceIsRemote(d, r, project, name, instanceType)
+	resp, err := forwardedResponseIfInstanceIsRemote(d, r, projectName, name, instanceType)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -34,7 +34,7 @@ func instanceState(d *Daemon, r *http.Request) response.Response {
 		return resp
 	}
 
-	c, err := instance.LoadByProjectAndName(d.State(), project, name)
+	c, err := instance.LoadByProjectAndName(d.State(), projectName, name)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -52,11 +52,11 @@ func instanceStatePut(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	project := projectParam(r)
+	projectName := projectParam(r)
 	name := mux.Vars(r)["name"]
 
 	// Handle requests targeted to a container on a different node
-	resp, err := forwardedResponseIfInstanceIsRemote(d, r, project, name, instanceType)
+	resp, err := forwardedResponseIfInstanceIsRemote(d, r, projectName, name, instanceType)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -75,7 +75,7 @@ func instanceStatePut(d *Daemon, r *http.Request) response.Response {
 	// Don't mess with containers while in setup mode.
 	<-d.readyChan
 
-	inst, err := instance.LoadByProjectAndName(d.State(), project, name)
+	inst, err := instance.LoadByProjectAndName(d.State(), projectName, name)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -94,7 +94,7 @@ func instanceStatePut(d *Daemon, r *http.Request) response.Response {
 
 	resources := map[string][]string{}
 	resources["instances"] = []string{name}
-	op, err := operations.OperationCreate(d.State(), project, operations.OperationClassTask, opType, resources, nil, do, nil, nil)
+	op, err := operations.OperationCreate(d.State(), projectName, operations.OperationClassTask, opType, resources, nil, do, nil, nil)
 	if err != nil {
 		return response.InternalError(err)
 	}

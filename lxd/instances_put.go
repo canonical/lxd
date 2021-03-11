@@ -41,7 +41,7 @@ func coalesceErrors(local bool, errors map[string]error) error {
 
 // Update all instance states
 func instancesPut(d *Daemon, r *http.Request) response.Response {
-	project := projectParam(r)
+	projectName := projectParam(r)
 
 	// Don't mess with containers while in setup mode
 	<-d.readyChan
@@ -63,7 +63,7 @@ func instancesPut(d *Daemon, r *http.Request) response.Response {
 	var names []string
 	var instances []instance.Instance
 	for _, inst := range c {
-		if inst.Project() != project {
+		if inst.Project() != projectName {
 			continue
 		}
 
@@ -193,7 +193,7 @@ func instancesPut(d *Daemon, r *http.Request) response.Response {
 					failuresLock.Unlock()
 					return
 				}
-				client = client.UseProject(project)
+				client = client.UseProject(projectName)
 
 				// Perform the action.
 				op, err := client.UpdateInstances(req, "")
@@ -220,7 +220,7 @@ func instancesPut(d *Daemon, r *http.Request) response.Response {
 
 	resources := map[string][]string{}
 	resources["instances"] = names
-	op, err := operations.OperationCreate(d.State(), project, operations.OperationClassTask, opType, resources, nil, do, nil, nil)
+	op, err := operations.OperationCreate(d.State(), projectName, operations.OperationClassTask, opType, resources, nil, do, nil, nil)
 	if err != nil {
 		return response.InternalError(err)
 	}

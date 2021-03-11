@@ -629,9 +629,9 @@ func instancePostClusteringMigrateWithCeph(d *Daemon, inst instance.Instance, pr
 // At the moment it's used for ceph-based containers, where the target node needs
 // to create the appropriate mount points.
 func internalClusterContainerMovedPost(d *Daemon, r *http.Request) response.Response {
-	project := projectParam(r)
+	projectName := projectParam(r)
 	containerName := mux.Vars(r)["name"]
-	err := instancePostCreateContainerMountPoint(d, project, containerName)
+	err := instancePostCreateContainerMountPoint(d, projectName, containerName)
 	if err != nil {
 		return response.SmartError(err)
 	}
