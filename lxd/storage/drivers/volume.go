@@ -261,7 +261,7 @@ func (v Volume) UnmountTask(task func(op *operations.Operation) error, keepBlock
 	return task(op)
 }
 
-// Snapshots returns a list of snapshots for the volume.
+// Snapshots returns a list of snapshots for the volume (in no particular order).
 func (v Volume) Snapshots(op *operations.Operation) ([]Volume, error) {
 	if v.IsSnapshot() {
 		return nil, fmt.Errorf("Volume is a snapshot")
