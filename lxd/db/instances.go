@@ -657,7 +657,7 @@ func (c *ClusterTx) UpdateInstanceLastUsedDate(id int, date time.Time) error {
 	return nil
 }
 
-// GetInstanceSnapshotsWithName returns all snapshots of a given instance.
+// GetInstanceSnapshotsWithName returns all snapshots of a given instance in date created order, oldest first.
 func (c *ClusterTx) GetInstanceSnapshotsWithName(project string, name string) ([]Instance, error) {
 	instance, err := c.GetInstance(project, name)
 	if err != nil {
