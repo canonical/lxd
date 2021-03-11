@@ -1327,7 +1327,7 @@ func (d *zfs) MigrateVolume(vol Volume, conn io.ReadWriteCloser, volSrcArgs *mig
 }
 
 // BackupVolume creates an exported version of a volume.
-func (d *zfs) BackupVolume(vol Volume, tarWriter *instancewriter.InstanceTarWriter, optimized bool, snapshots bool, op *operations.Operation) error {
+func (d *zfs) BackupVolume(vol Volume, tarWriter *instancewriter.InstanceTarWriter, optimized bool, snapshots []string, op *operations.Operation) error {
 	// Handle the non-optimized tarballs through the generic packer.
 	if !optimized {
 		// Because the generic backup method will not take a consistent backup if files are being modified
@@ -1382,6 +1382,16 @@ func (d *zfs) BackupVolume(vol Volume, tarWriter *instancewriter.InstanceTarWrit
 		return genericVFSBackupVolume(d, vol, tarWriter, snapshots, op)
 	}
 
+	// Optimized backup.
+
+	if len(snapshots) > 0 {
+		// Check requested snapshot match those in storage.
+		err := vol.SnapshotsMatch(snapshots, op)
+		if err != nil {
+			return err
+		}
+	}
+
 	// Backup VM config volumes first.
 	if vol.IsVMBlock() {
 		fsVol := vol.NewVMBlockFilesystemVolume()
@@ -1434,20 +1444,14 @@ func (d *zfs) BackupVolume(vol Volume, tarWriter *instancewriter.InstanceTarWrit
 
 	// Handle snapshots.
 	finalParent := ""
-	if snapshots {
-		// Retrieve the snapshots.
-		volSnapshots, err := d.VolumeSnapshots(vol, op)
-		if err != nil {
-			return err
-		}
-
-		for i, snapName := range volSnapshots {
+	if len(snapshots) > 0 {
+		for i, snapName := range snapshots {
 			snapshot, _ := vol.NewSnapshot(snapName)
 
 			// Figure out parent and current subvolumes.
 			parent := ""
 			if i > 0 {
-				oldSnapshot, _ := vol.NewSnapshot(volSnapshots[i-1])
+				oldSnapshot, _ := vol.NewSnapshot(snapshots[i-1])
 				parent = d.dataset(oldSnapshot, false)
 			}
 
