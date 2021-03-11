@@ -1523,7 +1523,7 @@ func (d *ceph) UnmountVolumeSnapshot(snapVol Volume, op *operations.Operation) (
 	return true, nil
 }
 
-// VolumeSnapshots returns a list of snapshots for the volume.
+// VolumeSnapshots returns a list of snapshots for the volume (in no particular order).
 func (d *ceph) VolumeSnapshots(vol Volume, op *operations.Operation) ([]string, error) {
 	snapshots, err := d.rbdListVolumeSnapshots(vol)
 	if err != nil {
