@@ -231,10 +231,10 @@ func allowProjectPermission(feature string, permission string) func(d *Daemon, r
 		}
 
 		// Get the project
-		project := projectParam(r)
+		projectName := projectParam(r)
 
 		// Validate whether the user has the needed permission
-		if !rbac.UserHasPermission(r, project, permission) {
+		if !rbac.UserHasPermission(r, projectName, permission) {
 			return response.Forbidden(nil)
 		}
 
