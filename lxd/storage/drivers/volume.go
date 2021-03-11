@@ -272,12 +272,13 @@ func (v Volume) Snapshots(op *operations.Operation) ([]Volume, error) {
 		return nil, err
 	}
 
-	snapVols := []Volume{}
+	snapVols := make([]Volume, 0, len(snapshots))
 	for _, snapName := range snapshots {
 		snapshot, err := v.NewSnapshot(snapName)
 		if err != nil {
 			return nil, err
 		}
+
 		snapVols = append(snapVols, snapshot)
 	}
 
