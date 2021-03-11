@@ -1258,7 +1258,7 @@ func (d *ceph) MigrateVolume(vol Volume, conn io.ReadWriteCloser, volSrcArgs *mi
 }
 
 // BackupVolume creates an exported version of a volume.
-func (d *ceph) BackupVolume(vol Volume, tarWriter *instancewriter.InstanceTarWriter, optimized bool, snapshots bool, op *operations.Operation) error {
+func (d *ceph) BackupVolume(vol Volume, tarWriter *instancewriter.InstanceTarWriter, optimized bool, snapshots []string, op *operations.Operation) error {
 	return genericVFSBackupVolume(d, vol, tarWriter, snapshots, op)
 }
 
@@ -1523,7 +1523,7 @@ func (d *ceph) UnmountVolumeSnapshot(snapVol Volume, op *operations.Operation) (
 	return true, nil
 }
 
-// VolumeSnapshots returns a list of snapshots for the volume.
+// VolumeSnapshots returns a list of snapshots for the volume (in no particular order).
 func (d *ceph) VolumeSnapshots(vol Volume, op *operations.Operation) ([]string, error) {
 	snapshots, err := d.rbdListVolumeSnapshots(vol)
 	if err != nil {
