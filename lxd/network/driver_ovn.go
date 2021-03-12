@@ -2873,20 +2873,11 @@ func (n *ovn) InstanceDevicePortDelete(ovsExternalOVNPort openvswitch.OVNSwitchP
 		return err
 	}
 
-	// Delete any associated external IP DNAT rules for the DNS IPs (if NAT disabled) and using l2proxy ingress
-	// mode on uplink
-	if shared.StringInSlice(uplink.Config["ovn.ingress_mode"], []string{"l2proxy", ""}) {
-		for _, dnsIP := range dnsIPs {
-			isV6 := dnsIP.To4() == nil
+	removeNATIPs := []net.IP{}
 
-			// Remove externally published IP rule if the associated IP NAT setting is disabled.
-			if (!isV6 && !shared.IsTrue(n.config["ipv4.nat"])) || (isV6 && !shared.IsTrue(n.config["ipv6.nat"])) {
-				err = client.LogicalRouterDNATSNATDelete(n.getRouterName(), dnsIP)
-				if err != nil {
-					return err
-				}
-			}
-		}
+	// Delete any associated external IP DNAT rules for the DNS IPs.
+	if len(dnsIPs) > 0 {
+		removeNATIPs = append(removeNATIPs, dnsIPs...)
 	}
 
 	// Delete each internal route.
@@ -2907,16 +2898,20 @@ func (n *ovn) InstanceDevicePortDelete(ovsExternalOVNPort openvswitch.OVNSwitchP
 		// Remove the DNAT rules when using l2proxy ingress mode on uplink.
 		if shared.StringInSlice(uplink.Config["ovn.ingress_mode"], []string{"l2proxy", ""}) {
 			err = SubnetIterate(externalRoute, func(ip net.IP) error {
-				err = client.LogicalRouterDNATSNATDelete(n.getRouterName(), ip)
-				if err != nil {
-					return err
-				}
+				removeNATIPs = append(removeNATIPs, ip)
 
 				return nil
 			})
 			if err != nil {
 				return err
 			}
+		}
+	}
+
+	if len(removeNATIPs) > 0 {
+		err = client.LogicalRouterDNATSNATDelete(n.getRouterName(), removeNATIPs...)
+		if err != nil {
+			return err
 		}
 	}
 
