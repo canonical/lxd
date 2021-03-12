@@ -199,7 +199,7 @@ func (o *OVN) LogicalRouterSNATAdd(routerName OVNRouter, intNet *net.IPNet, extI
 	args := []string{}
 
 	if mayExist {
-		args = append(args, "--may-exist")
+		args = append(args, "--if-exists", "lr-nat-del", string(routerName), "snat", extIP.String(), "--")
 	}
 
 	_, err := o.nbctl(append(args, "lr-nat-add", string(routerName), "snat", extIP.String(), intNet.String())...)
