@@ -1057,14 +1057,10 @@ func (o *OVN) LogicalSwitchPortGetDNS(portName OVNSwitchPort) (OVNDNSUUID, strin
 
 // LogicalSwitchPortDeleteDNS removes DNS records for a switch port.
 func (o *OVN) LogicalSwitchPortDeleteDNS(switchName OVNSwitch, dnsUUID OVNDNSUUID) error {
-	// Remove DNS record association from switch.
-	_, err := o.nbctl("remove", "logical_switch", string(switchName), "dns_records", string(dnsUUID))
-	if err != nil {
-		return err
-	}
-
-	// Remove DNS record entry itself.
-	_, err = o.nbctl("destroy", "dns", string(dnsUUID))
+	// Remove DNS record association from switch, and remove DNS record entry itself.
+	_, err := o.nbctl(
+		"remove", "logical_switch", string(switchName), "dns_records", string(dnsUUID), "--",
+		"destroy", "dns", string(dnsUUID))
 	if err != nil {
 		return err
 	}
