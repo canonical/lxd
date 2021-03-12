@@ -1627,7 +1627,7 @@ func (n *ovn) setup(update bool) error {
 		}
 
 		// Create external switch port and link to router port.
-		err = client.LogicalSwitchPortAdd(n.getExtSwitchName(), n.getExtSwitchRouterPortName(), update)
+		err = client.LogicalSwitchPortAdd(n.getExtSwitchName(), n.getExtSwitchRouterPortName(), nil, update)
 		if err != nil {
 			return errors.Wrapf(err, "Failed adding external switch router port")
 		}
@@ -1642,7 +1642,7 @@ func (n *ovn) setup(update bool) error {
 		}
 
 		// Create external switch port and link to external provider network.
-		err = client.LogicalSwitchPortAdd(n.getExtSwitchName(), n.getExtSwitchProviderPortName(), update)
+		err = client.LogicalSwitchPortAdd(n.getExtSwitchName(), n.getExtSwitchProviderPortName(), nil, update)
 		if err != nil {
 			return errors.Wrapf(err, "Failed adding external switch provider port")
 		}
@@ -1873,7 +1873,7 @@ func (n *ovn) setup(update bool) error {
 	}
 
 	// Create internal switch port and link to router port.
-	err = client.LogicalSwitchPortAdd(n.getIntSwitchName(), n.getIntSwitchRouterPortName(), update)
+	err = client.LogicalSwitchPortAdd(n.getIntSwitchName(), n.getIntSwitchRouterPortName(), nil, update)
 	if err != nil {
 		return errors.Wrapf(err, "Failed adding internal switch router port")
 	}
@@ -2609,22 +2609,17 @@ func (n *ovn) InstanceDevicePortAdd(opts *OVNInstanceNICSetupOpts) (openvswitch.
 	// to configure the port as needed. This is required in case the OVN northbound database was unavailable
 	// when the instance NIC was stopped and was unable to remove the port on last stop, which would otherwise
 	// prevent future NIC starts.
-	err = client.LogicalSwitchPortAdd(n.getIntSwitchName(), instancePortName, true)
+	err = client.LogicalSwitchPortAdd(n.getIntSwitchName(), instancePortName, &openvswitch.OVNSwitchPortOpts{
+		DHCPv4OptsID: dhcpV4ID,
+		DHCPv6OptsID: dhcpv6ID,
+		MAC:          opts.MAC,
+		IPs:          opts.IPs,
+	}, true)
 	if err != nil {
 		return "", err
 	}
 
 	revert.Add(func() { client.LogicalSwitchPortDelete(instancePortName) })
-
-	err = client.LogicalSwitchPortSet(instancePortName, &openvswitch.OVNSwitchPortOpts{
-		DHCPv4OptsID: dhcpV4ID,
-		DHCPv6OptsID: dhcpv6ID,
-		MAC:          opts.MAC,
-		IPs:          opts.IPs,
-	})
-	if err != nil {
-		return "", err
-	}
 
 	// Add DNS records for port's IPs, and retrieve the IP addresses used.
 	dnsName := fmt.Sprintf("%s.%s", opts.DNSName, n.getDomainName())
