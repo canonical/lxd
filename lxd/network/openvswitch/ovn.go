@@ -1096,17 +1096,11 @@ func (o *OVN) LogicalSwitchPortLinkRouter(switchPortName OVNSwitchPort, routerPo
 // LogicalSwitchPortLinkProviderNetwork links a logical switch port to a provider network.
 func (o *OVN) LogicalSwitchPortLinkProviderNetwork(switchPortName OVNSwitchPort, extNetworkName string) error {
 	// Forward any unknown MAC frames down this port.
-	_, err := o.nbctl("lsp-set-addresses", string(switchPortName), "unknown")
-	if err != nil {
-		return err
-	}
-
-	_, err = o.nbctl("lsp-set-type", string(switchPortName), "localnet")
-	if err != nil {
-		return err
-	}
-
-	_, err = o.nbctl("lsp-set-options", string(switchPortName), fmt.Sprintf("network_name=%s", extNetworkName))
+	_, err := o.nbctl(
+		"lsp-set-addresses", string(switchPortName), "unknown", "--",
+		"lsp-set-type", string(switchPortName), "localnet", "--",
+		"lsp-set-options", string(switchPortName), fmt.Sprintf("network_name=%s", extNetworkName),
+	)
 	if err != nil {
 		return err
 	}
