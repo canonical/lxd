@@ -825,58 +825,48 @@ func (o *OVN) LogicalSwitchPortUUID(portName OVNSwitchPort) (OVNSwitchPortUUID, 
 	return "", nil
 }
 
-// LogicalSwitchPortAdd adds a named logical switch port to a logical switch.
+// LogicalSwitchPortAdd adds a named logical switch port to a logical switch, and sets options if provided.
 // If mayExist is true, then an existing resource of the same name is not treated as an error.
-func (o *OVN) LogicalSwitchPortAdd(switchName OVNSwitch, portName OVNSwitchPort, mayExist bool) error {
+func (o *OVN) LogicalSwitchPortAdd(switchName OVNSwitch, portName OVNSwitchPort, opts *OVNSwitchPortOpts, mayExist bool) error {
 	args := []string{}
 
 	if mayExist {
 		args = append(args, "--may-exist")
 	}
 
+	// Add switch port.
 	args = append(args, "lsp-add", string(switchName), string(portName))
+
+	// Set switch port options if supplied.
+	if opts != nil {
+		ipStr := make([]string, 0, len(opts.IPs))
+		for _, ip := range opts.IPs {
+			ipStr = append(ipStr, ip.String())
+		}
+
+		var addresses string
+		if opts.MAC != nil && len(ipStr) > 0 {
+			addresses = fmt.Sprintf("%s %s", opts.MAC.String(), strings.Join(ipStr, " "))
+		} else if opts.MAC != nil && len(ipStr) <= 0 {
+			addresses = fmt.Sprintf("%s %s", opts.MAC.String(), "dynamic")
+		} else {
+			addresses = "dynamic"
+		}
+
+		args = append(args, "--", "lsp-set-addresses", string(portName), addresses)
+
+		if opts.DHCPv4OptsID != "" {
+			args = append(args, "--", "lsp-set-dhcpv4-options", string(portName), string(opts.DHCPv4OptsID))
+		}
+
+		if opts.DHCPv6OptsID != "" {
+			args = append(args, "--", "lsp-set-dhcpv6-options", string(portName), string(opts.DHCPv6OptsID))
+		}
+	}
 
 	_, err := o.nbctl(args...)
 	if err != nil {
 		return err
-	}
-
-	return nil
-}
-
-// LogicalSwitchPortSet sets options on logical switch port.
-func (o *OVN) LogicalSwitchPortSet(portName OVNSwitchPort, opts *OVNSwitchPortOpts) error {
-	ipStr := make([]string, 0, len(opts.IPs))
-	for _, ip := range opts.IPs {
-		ipStr = append(ipStr, ip.String())
-	}
-
-	var addresses string
-	if opts.MAC != nil && len(ipStr) > 0 {
-		addresses = fmt.Sprintf("%s %s", opts.MAC.String(), strings.Join(ipStr, " "))
-	} else if opts.MAC != nil && len(ipStr) <= 0 {
-		addresses = fmt.Sprintf("%s %s", opts.MAC.String(), "dynamic")
-	} else {
-		addresses = "dynamic"
-	}
-
-	_, err := o.nbctl("lsp-set-addresses", string(portName), addresses)
-	if err != nil {
-		return err
-	}
-
-	if opts.DHCPv4OptsID != "" {
-		_, err = o.nbctl("lsp-set-dhcpv4-options", string(portName), string(opts.DHCPv4OptsID))
-		if err != nil {
-			return err
-		}
-	}
-
-	if opts.DHCPv6OptsID != "" {
-		_, err = o.nbctl("lsp-set-dhcpv6-options", string(portName), string(opts.DHCPv6OptsID))
-		if err != nil {
-			return err
-		}
 	}
 
 	return nil
