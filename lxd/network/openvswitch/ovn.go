@@ -1081,19 +1081,10 @@ func (o *OVN) LogicalSwitchPortDelete(portName OVNSwitchPort) error {
 // LogicalSwitchPortLinkRouter links a logical switch port to a logical router port.
 func (o *OVN) LogicalSwitchPortLinkRouter(switchPortName OVNSwitchPort, routerPortName OVNRouterPort) error {
 	// Connect logical router port to switch.
-	_, err := o.nbctl("lsp-set-type", string(switchPortName), "router")
-	if err != nil {
-		return err
-	}
-
-	_, err = o.nbctl("lsp-set-addresses", string(switchPortName), "router")
-	if err != nil {
-		return err
-	}
-
-	_, err = o.nbctl("lsp-set-options", string(switchPortName),
-		fmt.Sprintf("nat-addresses=%s", "router"),
-		fmt.Sprintf("router-port=%s", string(routerPortName)),
+	_, err := o.nbctl(
+		"lsp-set-type", string(switchPortName), "router", "--",
+		"lsp-set-addresses", string(switchPortName), "router", "--",
+		"lsp-set-options", string(switchPortName), fmt.Sprintf("nat-addresses=%s", "router"), fmt.Sprintf("router-port=%s", string(routerPortName)),
 	)
 	if err != nil {
 		return err
