@@ -251,8 +251,18 @@ func (o *OVN) LogicalRouterDNATSNATAdd(routerName OVNRouter, extIP net.IP, intIP
 }
 
 // LogicalRouterDNATSNATDelete deletes a DNAT_AND_SNAT rule from a logical router.
-func (o *OVN) LogicalRouterDNATSNATDelete(routerName OVNRouter, extIP net.IP) error {
-	_, err := o.nbctl("--if-exists", "lr-nat-del", string(routerName), "dnat_and_snat", extIP.String())
+func (o *OVN) LogicalRouterDNATSNATDelete(routerName OVNRouter, extIPs ...net.IP) error {
+	args := []string{}
+
+	for _, extIP := range extIPs {
+		if len(args) > 0 {
+			args = append(args, "--")
+		}
+
+		args = append(args, "--if-exists", "lr-nat-del", string(routerName), "dnat_and_snat", extIP.String())
+	}
+
+	_, err := o.nbctl(args...)
 	if err != nil {
 		return err
 	}
