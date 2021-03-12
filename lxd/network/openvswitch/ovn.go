@@ -235,7 +235,7 @@ func (o *OVN) LogicalRouterDNATSNATAdd(routerName OVNRouter, extIP net.IP, intIP
 	args := []string{}
 
 	if mayExist {
-		args = append(args, "--may-exist")
+		args = append(args, "--if-exists", "lr-nat-del", string(routerName), "dnat_and_snat", extIP.String(), "--")
 	}
 
 	if stateless {
