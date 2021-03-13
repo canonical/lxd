@@ -94,9 +94,9 @@ func TestShouldShow(t *testing.T) {
 		t.Errorf("value filter didn't work")
 	}
 
-	list.flagStateRunning = true
-	if !list.shouldShow([]string{"u.blah=abc"}, state) {
-		t.Error("u.blah=abc didn't match")
+	list.flagStateStopped = true
+	if list.shouldShow([]string{"u.blah=abc"}, state) {
+		t.Error("u.blah=abc, -s did match")
 	}
 }
 

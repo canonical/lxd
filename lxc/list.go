@@ -40,7 +40,7 @@ type cmdList struct {
 	flagTypeContainer bool
 	flagTypeVm        bool
 	flagFormat        string
-	namedQueriesMap   map[string]func(*api.Instance, string) bool
+	shorthandFilters  map[string]func(*api.Instance, string) bool
 }
 
 func (c *cmdList) Command() *cobra.Command {
@@ -59,12 +59,16 @@ A single keyword like "web" which will list any instance with a name starting by
 A regular expression on the instance name. (e.g. .*web.*01$).
 A key/value pair referring to a configuration item. For those, the
 namespace can be abbreviated to the smallest unambiguous identifier.
+A key/value pair where the key is a shorthand. Available shorthands:
+["type", "status", "architecture", "name", "location", "description", "os"]
 
 Examples:
   - "user.blah=abc" will list all instances with the "blah" user property set to "abc".
   - "u.blah=abc" will do the same
   - "security.privileged=true" will list all privileged instances
   - "s.privileged=true" will do the same
+  - "type=container" will list all container instances
+  - "type=container status=running" will list all running container instances
 
 A regular expression matching a configuration item or its value. (e.g. volatile.eth0.hwaddr=00:16:3e:.*).
 
@@ -98,26 +102,6 @@ Pre-defined column shorthand chars:
   P - Profiles
   s - State
   S - Number of snapshots
-func (c *cmdList) shouldShowByFlag(flagFilters []string, state *api.Instance) bool {
-	if len(flagFilters) == 0 {
-		return true
-	}
-	result := false
-	for _, flagFilter := range flagFilters {
-		if !result {
-			var flagFiltersArray = strings.Split(flagFilter, "@")
-			switch flagFiltersArray[0] {
-			case "state":
-				result = map[bool]bool{true: true, false: false}[strings.ToLower(state.Status) == flagFiltersArray[1]]
-				break
-			case "type":
-				result = map[bool]bool{true: true, false: false}[strings.ToLower(state.Type) == flagFiltersArray[1]]
-				break
-			}
-		}
-	}
-	return result
-}
   t - Type (persistent or ephemeral)
   u - CPU usage (in seconds)
   L - Location of the instance (e.g. its cluster member)
@@ -148,8 +132,8 @@ lxc list -c ns,user.comment:comment
 	cmd.Flags().BoolVarP(&c.flagStateRunning, "running", "r", false, i18n.G("Show only running instances"))
 	cmd.Flags().BoolVarP(&c.flagStateStopped, "stopped", "s", false, i18n.G("Show only stopped instances"))
 	cmd.Flags().BoolVarP(&c.flagStateFrozen, "frozen", "f", false, i18n.G("Show only frozen instances"))
-	cmd.Flags().BoolVar(&c.flagTypeContainer, "con", false, i18n.G("Show containers only"))
-	cmd.Flags().BoolVar(&c.flagTypeVm, "vm", false, i18n.G("Show virtual machines only"))
+	cmd.Flags().BoolVar(&c.flagTypeContainer, "con", false, i18n.G("Show container instances only"))
+	cmd.Flags().BoolVar(&c.flagTypeVm, "vm", false, i18n.G("Show virtual-machine instances only"))
 
 	return cmd
 }
@@ -177,7 +161,7 @@ func (c *cmdList) dotPrefixMatch(short string, full string) bool {
 }
 
 func (c *cmdList) shouldShow(filters []string, state *api.Instance) bool {
-	c.initNamedQueriesMap()
+	c.mapShorthandFilters()
 	filters = append(filters, c.appendFlagFilters()...)
 
 	for _, filter := range filters {
@@ -192,7 +176,7 @@ func (c *cmdList) shouldShow(filters []string, state *api.Instance) bool {
 				value = membs[1]
 			}
 
-			conditionalQueryFunction, isConditionalQuery := c.namedQueriesMap[strings.ToLower(key)]
+			conditionalQueryFunction, isConditionalQuery := c.shorthandFilters[strings.ToLower(key)]
 			if isConditionalQuery {
 				if conditionalQueryFunction(state, value) {
 					continue
@@ -873,8 +857,8 @@ func matchByLocation(cInfo *api.Instance, query string) bool {
 	return strings.ToLower(cInfo.Location) == strings.ToLower(query)
 }
 
-func (c *cmdList) initNamedQueriesMap() {
-	c.namedQueriesMap = map[string]func(*api.Instance, string) bool{
+func (c *cmdList) mapShorthandFilters() {
+	c.shorthandFilters = map[string]func(*api.Instance, string) bool{
 		"type":         matchByType,
 		"status":       matchByStatus,
 		"architecture": matchByArchitecture,
