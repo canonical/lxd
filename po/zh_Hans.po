@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: lxd\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2021-03-12 18:52-0500\n"
+"POT-Creation-Date: 2021-03-13 18:22+0100\n"
 "PO-Revision-Date: 2020-11-05 02:45+0000\n"
 "Last-Translator: wdggg <wdggg7@gmail.com>\n"
 "Language-Team: Chinese (Simplified) <https://hosted.weblate.org/projects/"
@@ -384,7 +384,7 @@ msgstr ""
 msgid "<target>"
 msgstr ""
 
-#: lxc/alias.go:126 lxc/image.go:1019 lxc/image_alias.go:231
+#: lxc/alias.go:126 lxc/image_alias.go:231 lxc/image.go:1019
 msgid "ALIAS"
 msgstr ""
 
@@ -392,7 +392,7 @@ msgstr ""
 msgid "ALIASES"
 msgstr ""
 
-#: lxc/cluster.go:137 lxc/image.go:1025 lxc/list.go:428
+#: lxc/cluster.go:137 lxc/image.go:1025 lxc/list.go:475
 msgid "ARCHITECTURE"
 msgstr ""
 
@@ -553,7 +553,7 @@ msgstr ""
 msgid "Available projects:"
 msgstr ""
 
-#: lxc/list.go:433 lxc/list.go:434
+#: lxc/list.go:480 lxc/list.go:481
 msgid "BASE IMAGE"
 msgstr ""
 
@@ -571,7 +571,7 @@ msgstr ""
 msgid "Backup exported successfully!"
 msgstr ""
 
-#: lxc/network.go:306 lxc/network_acl.go:315
+#: lxc/network_acl.go:315 lxc/network.go:306
 #, c-format
 msgid "Bad key/value pair: %s"
 msgstr ""
@@ -626,7 +626,7 @@ msgstr ""
 msgid "CPU (%s):"
 msgstr ""
 
-#: lxc/list.go:445
+#: lxc/list.go:492
 msgid "CPU USAGE"
 msgstr ""
 
@@ -647,7 +647,7 @@ msgstr ""
 msgid "CREATED"
 msgstr ""
 
-#: lxc/list.go:430
+#: lxc/list.go:477
 msgid "CREATED AT"
 msgstr ""
 
@@ -686,7 +686,7 @@ msgstr ""
 msgid "Can't remove the default remote"
 msgstr ""
 
-#: lxc/list.go:451
+#: lxc/list.go:498
 msgid "Can't specify --fast with --columns"
 msgstr ""
 
@@ -694,7 +694,7 @@ msgstr ""
 msgid "Can't specify a different remote for rename"
 msgstr ""
 
-#: lxc/list.go:463 lxc/storage_volume.go:1282
+#: lxc/list.go:510 lxc/storage_volume.go:1282
 msgid "Can't specify column L when not clustered"
 msgstr ""
 
@@ -753,7 +753,7 @@ msgstr ""
 msgid "Clustering enabled"
 msgstr ""
 
-#: lxc/image.go:1010 lxc/list.go:119 lxc/storage_volume.go:1176
+#: lxc/image.go:1010 lxc/list.go:129 lxc/storage_volume.go:1176
 msgid "Columns"
 msgstr ""
 
@@ -787,7 +787,7 @@ msgstr ""
 
 #: lxc/cluster.go:503 lxc/config.go:255 lxc/config.go:328
 #: lxc/config_metadata.go:142 lxc/config_trust.go:213 lxc/image.go:431
-#: lxc/network.go:659 lxc/network_acl.go:526 lxc/profile.go:498
+#: lxc/network_acl.go:526 lxc/network.go:659 lxc/profile.go:498
 #: lxc/project.go:304 lxc/storage.go:303 lxc/storage_volume.go:941
 #: lxc/storage_volume.go:971
 #, c-format
@@ -973,13 +973,13 @@ msgstr ""
 msgid "DATABASE"
 msgstr ""
 
-#: lxc/image.go:1024 lxc/image_alias.go:234 lxc/list.go:431 lxc/network.go:899
-#: lxc/network_acl.go:141 lxc/operation.go:160 lxc/storage.go:564
-#: lxc/storage_volume.go:1271
+#: lxc/image_alias.go:234 lxc/image.go:1024 lxc/list.go:478
+#: lxc/network_acl.go:141 lxc/network.go:899 lxc/operation.go:160
+#: lxc/storage.go:564 lxc/storage_volume.go:1271
 msgid "DESCRIPTION"
 msgstr ""
 
-#: lxc/list.go:432
+#: lxc/list.go:479
 msgid "DISK USAGE"
 msgstr ""
 
@@ -1047,11 +1047,11 @@ msgstr ""
 #: lxc/alias.go:22 lxc/alias.go:54 lxc/alias.go:100 lxc/alias.go:144
 #: lxc/alias.go:195 lxc/cluster.go:31 lxc/cluster.go:74 lxc/cluster.go:154
 #: lxc/cluster.go:204 lxc/cluster.go:254 lxc/cluster.go:337 lxc/cluster.go:422
-#: lxc/config.go:30 lxc/config.go:89 lxc/config.go:360 lxc/config.go:452
-#: lxc/config.go:610 lxc/config.go:734 lxc/config_device.go:24
-#: lxc/config_device.go:75 lxc/config_device.go:193 lxc/config_device.go:265
-#: lxc/config_device.go:336 lxc/config_device.go:429 lxc/config_device.go:520
-#: lxc/config_device.go:527 lxc/config_device.go:631 lxc/config_device.go:703
+#: lxc/config_device.go:24 lxc/config_device.go:75 lxc/config_device.go:193
+#: lxc/config_device.go:265 lxc/config_device.go:336 lxc/config_device.go:429
+#: lxc/config_device.go:520 lxc/config_device.go:527 lxc/config_device.go:631
+#: lxc/config_device.go:703 lxc/config.go:30 lxc/config.go:89 lxc/config.go:360
+#: lxc/config.go:452 lxc/config.go:610 lxc/config.go:734
 #: lxc/config_metadata.go:27 lxc/config_metadata.go:52
 #: lxc/config_metadata.go:174 lxc/config_template.go:28
 #: lxc/config_template.go:65 lxc/config_template.go:108
@@ -1060,23 +1060,23 @@ msgstr ""
 #: lxc/config_trust.go:135 lxc/config_trust.go:247 lxc/config_trust.go:325
 #: lxc/config_trust.go:368 lxc/console.go:36 lxc/copy.go:40 lxc/delete.go:31
 #: lxc/exec.go:40 lxc/export.go:32 lxc/file.go:72 lxc/file.go:105
-#: lxc/file.go:154 lxc/file.go:217 lxc/file.go:407 lxc/image.go:38
-#: lxc/image.go:141 lxc/image.go:287 lxc/image.go:338 lxc/image.go:463
-#: lxc/image.go:622 lxc/image.go:850 lxc/image.go:985 lxc/image.go:1283
-#: lxc/image.go:1362 lxc/image.go:1421 lxc/image.go:1473 lxc/image.go:1529
-#: lxc/image_alias.go:25 lxc/image_alias.go:58 lxc/image_alias.go:105
-#: lxc/image_alias.go:150 lxc/image_alias.go:252 lxc/import.go:29
-#: lxc/info.go:33 lxc/init.go:40 lxc/launch.go:25 lxc/list.go:45 lxc/main.go:50
-#: lxc/manpage.go:22 lxc/monitor.go:30 lxc/move.go:36 lxc/network.go:33
-#: lxc/network.go:113 lxc/network.go:198 lxc/network.go:271 lxc/network.go:345
-#: lxc/network.go:395 lxc/network.go:480 lxc/network.go:565 lxc/network.go:688
-#: lxc/network.go:746 lxc/network.go:826 lxc/network.go:921 lxc/network.go:990
-#: lxc/network.go:1040 lxc/network.go:1110 lxc/network.go:1172
-#: lxc/network_acl.go:30 lxc/network_acl.go:88 lxc/network_acl.go:158
-#: lxc/network_acl.go:211 lxc/network_acl.go:260 lxc/network_acl.go:343
-#: lxc/network_acl.go:403 lxc/network_acl.go:430 lxc/network_acl.go:559
-#: lxc/network_acl.go:608 lxc/network_acl.go:657 lxc/network_acl.go:672
-#: lxc/network_acl.go:793 lxc/operation.go:24 lxc/operation.go:53
+#: lxc/file.go:154 lxc/file.go:217 lxc/file.go:407 lxc/image_alias.go:25
+#: lxc/image_alias.go:58 lxc/image_alias.go:105 lxc/image_alias.go:150
+#: lxc/image_alias.go:252 lxc/image.go:38 lxc/image.go:141 lxc/image.go:287
+#: lxc/image.go:338 lxc/image.go:463 lxc/image.go:622 lxc/image.go:850
+#: lxc/image.go:985 lxc/image.go:1283 lxc/image.go:1362 lxc/image.go:1421
+#: lxc/image.go:1473 lxc/image.go:1529 lxc/import.go:29 lxc/info.go:33
+#: lxc/init.go:40 lxc/launch.go:25 lxc/list.go:51 lxc/main.go:50
+#: lxc/manpage.go:22 lxc/monitor.go:30 lxc/move.go:36 lxc/network_acl.go:30
+#: lxc/network_acl.go:88 lxc/network_acl.go:158 lxc/network_acl.go:211
+#: lxc/network_acl.go:260 lxc/network_acl.go:343 lxc/network_acl.go:403
+#: lxc/network_acl.go:430 lxc/network_acl.go:559 lxc/network_acl.go:608
+#: lxc/network_acl.go:657 lxc/network_acl.go:672 lxc/network_acl.go:793
+#: lxc/network.go:33 lxc/network.go:113 lxc/network.go:198 lxc/network.go:271
+#: lxc/network.go:345 lxc/network.go:395 lxc/network.go:480 lxc/network.go:565
+#: lxc/network.go:688 lxc/network.go:746 lxc/network.go:826 lxc/network.go:921
+#: lxc/network.go:990 lxc/network.go:1040 lxc/network.go:1110
+#: lxc/network.go:1172 lxc/operation.go:24 lxc/operation.go:53
 #: lxc/operation.go:102 lxc/operation.go:181 lxc/profile.go:29
 #: lxc/profile.go:101 lxc/profile.go:164 lxc/profile.go:244 lxc/profile.go:300
 #: lxc/profile.go:354 lxc/profile.go:404 lxc/profile.go:528 lxc/profile.go:577
@@ -1194,7 +1194,7 @@ msgstr ""
 msgid "Driver: %v (%v)"
 msgstr ""
 
-#: lxc/list.go:713
+#: lxc/list.go:760
 msgid "EPHEMERAL"
 msgstr ""
 
@@ -1260,7 +1260,7 @@ msgstr ""
 msgid "Edit trust configurations as YAML"
 msgstr ""
 
-#: lxc/image.go:1036 lxc/list.go:475 lxc/storage_volume.go:1293
+#: lxc/image.go:1036 lxc/list.go:522 lxc/storage_volume.go:1293
 #, c-format
 msgid "Empty column entry (redundant, leading or trailing command) in '%s'"
 msgstr ""
@@ -1374,8 +1374,8 @@ msgstr ""
 msgid "FILENAME"
 msgstr ""
 
-#: lxc/config_trust.go:304 lxc/image.go:1021 lxc/image.go:1022
-#: lxc/image_alias.go:232
+#: lxc/config_trust.go:304 lxc/image_alias.go:232 lxc/image.go:1021
+#: lxc/image.go:1022
 msgid "FINGERPRINT"
 msgstr ""
 
@@ -1402,11 +1402,11 @@ msgstr ""
 msgid "Failed to walk path for %s: %s"
 msgstr ""
 
-#: lxc/list.go:121
+#: lxc/list.go:131
 msgid "Fast mode (same as --columns=nsacPt)"
 msgstr ""
 
-#: lxc/network.go:857 lxc/network_acl.go:118 lxc/operation.go:131
+#: lxc/network_acl.go:118 lxc/network.go:857 lxc/operation.go:131
 msgid "Filtering isn't supported yet"
 msgstr ""
 
@@ -1460,8 +1460,8 @@ msgid ""
 msgstr ""
 
 #: lxc/alias.go:102 lxc/cluster.go:76 lxc/config_template.go:238
-#: lxc/config_trust.go:249 lxc/image.go:1011 lxc/image_alias.go:155
-#: lxc/list.go:120 lxc/network.go:830 lxc/network.go:923 lxc/network_acl.go:91
+#: lxc/config_trust.go:249 lxc/image_alias.go:155 lxc/image.go:1011
+#: lxc/list.go:130 lxc/network_acl.go:91 lxc/network.go:830 lxc/network.go:923
 #: lxc/operation.go:104 lxc/profile.go:581 lxc/project.go:386 lxc/remote.go:523
 #: lxc/storage.go:515 lxc/storage_volume.go:1195
 msgid "Format (csv|json|table|yaml)"
@@ -1576,11 +1576,11 @@ msgstr ""
 msgid "IP ADDRESS"
 msgstr ""
 
-#: lxc/list.go:426 lxc/network.go:897
+#: lxc/list.go:473 lxc/network.go:897
 msgid "IPV4"
 msgstr ""
 
-#: lxc/list.go:427 lxc/network.go:898
+#: lxc/list.go:474 lxc/network.go:898
 msgid "IPV6"
 msgstr ""
 
@@ -1716,12 +1716,12 @@ msgstr ""
 msgid "Invalid certificate"
 msgstr ""
 
-#: lxc/list.go:507
+#: lxc/list.go:554
 #, c-format
 msgid "Invalid config key '%s' in '%s'"
 msgstr ""
 
-#: lxc/list.go:501
+#: lxc/list.go:548
 #, c-format
 msgid "Invalid config key column format (too many fields): '%s'"
 msgstr ""
@@ -1736,17 +1736,17 @@ msgstr ""
 msgid "Invalid instance name: %s"
 msgstr ""
 
-#: lxc/list.go:526
+#: lxc/list.go:573
 #, c-format
 msgid "Invalid max width (must -1, 0 or a positive integer) '%s' in '%s'"
 msgstr ""
 
-#: lxc/list.go:523
+#: lxc/list.go:570
 #, c-format
 msgid "Invalid max width (must be an integer) '%s' in '%s'"
 msgstr ""
 
-#: lxc/list.go:514
+#: lxc/list.go:561
 #, c-format
 msgid ""
 "Invalid name in '%s', empty string is only allowed when defining maxWidth"
@@ -1789,11 +1789,11 @@ msgstr ""
 msgid "Keep the image up to date after initial copy"
 msgstr ""
 
-#: lxc/list.go:435
+#: lxc/list.go:482
 msgid "LAST USED AT"
 msgstr ""
 
-#: lxc/list.go:459 lxc/network.go:973 lxc/operation.go:165
+#: lxc/list.go:506 lxc/network.go:973 lxc/operation.go:165
 #: lxc/storage_volume.go:1278
 msgid "LOCATION"
 msgstr ""
@@ -1911,11 +1911,11 @@ msgstr ""
 msgid "List instance file templates"
 msgstr ""
 
-#: lxc/list.go:44
+#: lxc/list.go:50
 msgid "List instances"
 msgstr ""
 
-#: lxc/list.go:45
+#: lxc/list.go:51
 #, c-format
 msgid ""
 "List instances\n"
@@ -1929,6 +1929,9 @@ msgid ""
 "A regular expression on the instance name. (e.g. .*web.*01$).\n"
 "A key/value pair referring to a configuration item. For those, the\n"
 "namespace can be abbreviated to the smallest unambiguous identifier.\n"
+"A key/value pair where the key is a shorthand. Available shorthands:\n"
+"[\"type\", \"status\", \"architecture\", \"name\", \"location\", "
+"\"description\", \"os\"]\n"
 "\n"
 "Examples:\n"
 "  - \"user.blah=abc\" will list all instances with the \"blah\" user "
@@ -1936,6 +1939,9 @@ msgid ""
 "  - \"u.blah=abc\" will do the same\n"
 "  - \"security.privileged=true\" will list all privileged instances\n"
 "  - \"s.privileged=true\" will do the same\n"
+"  - \"type=container\" will list all container instances\n"
+"  - \"type=container status=running\" will list all running container "
+"instances\n"
 "\n"
 "A regular expression matching a configuration item or its value. (e.g. "
 "volatile.eth0.hwaddr=00:16:3e:.*).\n"
@@ -2063,11 +2069,11 @@ msgstr ""
 msgid "MANAGED"
 msgstr ""
 
-#: lxc/list.go:436
+#: lxc/list.go:483
 msgid "MEMORY USAGE"
 msgstr ""
 
-#: lxc/list.go:437
+#: lxc/list.go:484
 #, c-format
 msgid "MEMORY USAGE%"
 msgstr ""
@@ -2359,7 +2365,7 @@ msgstr ""
 msgid "Must supply instance name for: "
 msgstr ""
 
-#: lxc/cluster.go:132 lxc/list.go:438 lxc/network.go:894 lxc/network_acl.go:140
+#: lxc/cluster.go:132 lxc/list.go:485 lxc/network_acl.go:140 lxc/network.go:894
 #: lxc/profile.go:620 lxc/project.go:460 lxc/remote.go:577 lxc/storage.go:563
 #: lxc/storage_volume.go:1270
 msgid "NAME"
@@ -2546,15 +2552,15 @@ msgstr ""
 msgid "PCI address: %v"
 msgstr ""
 
-#: lxc/list.go:440
+#: lxc/list.go:487
 msgid "PID"
 msgstr ""
 
-#: lxc/list.go:439
+#: lxc/list.go:486
 msgid "PROCESSES"
 msgstr ""
 
-#: lxc/list.go:441 lxc/project.go:462
+#: lxc/list.go:488 lxc/project.go:462
 msgid "PROFILES"
 msgstr ""
 
@@ -2605,9 +2611,9 @@ msgstr ""
 msgid "Ports:"
 msgstr ""
 
-#: lxc/cluster.go:504 lxc/config_trust.go:214 lxc/network.go:660
-#: lxc/network_acl.go:527 lxc/profile.go:499 lxc/project.go:305
-#: lxc/storage.go:304 lxc/storage_volume.go:942 lxc/storage_volume.go:972
+#: lxc/cluster.go:504 lxc/config_trust.go:214 lxc/network_acl.go:527
+#: lxc/network.go:660 lxc/profile.go:499 lxc/project.go:305 lxc/storage.go:304
+#: lxc/storage_volume.go:942 lxc/storage_volume.go:972
 msgid "Press enter to open the editor again"
 msgstr ""
 
@@ -2983,7 +2989,7 @@ msgstr ""
 msgid "SIZE"
 msgstr ""
 
-#: lxc/list.go:442
+#: lxc/list.go:489
 msgid "SNAPSHOTS"
 msgstr ""
 
@@ -2995,7 +3001,7 @@ msgstr ""
 msgid "SR-IOV information:"
 msgstr ""
 
-#: lxc/cluster.go:135 lxc/list.go:443 lxc/network.go:903 lxc/storage.go:568
+#: lxc/cluster.go:135 lxc/list.go:490 lxc/network.go:903 lxc/storage.go:568
 msgid "STATE"
 msgstr ""
 
@@ -3007,7 +3013,7 @@ msgstr ""
 msgid "STATUS"
 msgstr ""
 
-#: lxc/list.go:429
+#: lxc/list.go:476
 msgid "STORAGE POOL"
 msgstr ""
 
@@ -3181,6 +3187,10 @@ msgstr ""
 msgid "Show all information messages"
 msgstr ""
 
+#: lxc/list.go:135
+msgid "Show container instances only"
+msgstr ""
+
 #: lxc/config_template.go:294 lxc/config_template.go:295
 msgid "Show content of instance file templates"
 msgstr ""
@@ -3227,6 +3237,18 @@ msgstr ""
 
 #: lxc/network.go:1109 lxc/network.go:1110
 msgid "Show network configurations"
+msgstr ""
+
+#: lxc/list.go:134
+msgid "Show only frozen instances"
+msgstr ""
+
+#: lxc/list.go:132
+msgid "Show only running instances"
+msgstr ""
+
+#: lxc/list.go:133
+msgid "Show only stopped instances"
 msgstr ""
 
 #: lxc/profile.go:820 lxc/profile.go:821
@@ -3283,6 +3305,10 @@ msgstr ""
 
 #: lxc/storage.go:392 lxc/storage.go:393
 msgid "Show useful information about storage pools"
+msgstr ""
+
+#: lxc/list.go:136
+msgid "Show virtual-machine instances only"
 msgstr ""
 
 #: lxc/image.go:910
@@ -3424,7 +3450,7 @@ msgstr ""
 msgid "TARGET"
 msgstr ""
 
-#: lxc/image.go:1028 lxc/image_alias.go:233 lxc/list.go:444 lxc/network.go:895
+#: lxc/image_alias.go:233 lxc/image.go:1028 lxc/list.go:491 lxc/network.go:895
 #: lxc/network.go:970 lxc/operation.go:159 lxc/storage_volume.go:1269
 msgid "TYPE"
 msgstr ""
@@ -3621,7 +3647,7 @@ msgstr ""
 msgid "USAGE"
 msgstr ""
 
-#: lxc/network.go:900 lxc/network_acl.go:142 lxc/profile.go:621
+#: lxc/network_acl.go:142 lxc/network.go:900 lxc/profile.go:621
 #: lxc/project.go:465 lxc/storage.go:572 lxc/storage_volume.go:1273
 msgid "USED BY"
 msgstr ""
@@ -3636,7 +3662,7 @@ msgstr ""
 msgid "Unable to create a temporary file: %v"
 msgstr ""
 
-#: lxc/image.go:1043 lxc/list.go:489 lxc/storage_volume.go:1300
+#: lxc/image.go:1043 lxc/list.go:536 lxc/storage_volume.go:1300
 #, c-format
 msgid "Unknown column shorthand char '%c' in '%s'"
 msgstr ""
@@ -3793,7 +3819,7 @@ msgid "[<remote:>]<pool> <volume> <profile> [<device name>] <path>"
 msgstr ""
 
 #: lxc/cluster.go:71 lxc/config_trust.go:244 lxc/monitor.go:28
-#: lxc/network.go:823 lxc/network_acl.go:85 lxc/operation.go:99
+#: lxc/network_acl.go:85 lxc/network.go:823 lxc/operation.go:99
 #: lxc/profile.go:574 lxc/project.go:381 lxc/storage.go:510 lxc/version.go:20
 msgid "[<remote>:]"
 msgstr ""
@@ -3814,7 +3840,7 @@ msgstr ""
 msgid "[<remote>:] <name>"
 msgstr ""
 
-#: lxc/image.go:982 lxc/list.go:42
+#: lxc/image.go:982 lxc/list.go:48
 msgid "[<remote>:] [<filter>...]"
 msgstr ""
 
@@ -4331,7 +4357,7 @@ msgid ""
 "    Create and start the instance with configuration from config.yaml"
 msgstr ""
 
-#: lxc/list.go:109
+#: lxc/list.go:119
 msgid ""
 "lxc list -c nFs46,volatile.eth0.hwaddr:MAC,config:image.os,devices:eth0."
 "parent:ETHP\n"
