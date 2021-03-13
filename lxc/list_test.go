@@ -25,9 +25,6 @@ func TestDotPrefixMatch(t *testing.T) {
 
 func TestShouldShow(t *testing.T) {
 	list := cmdList{}
-	list.flagStateRunning = true
-	list.flagConfigImageDescription = "buster"
-	list.flagConfigImageOs = "debian"
 	state := &api.Instance{
 		Name: "foo",
 		ExpandedConfig: map[string]string{
@@ -37,7 +34,9 @@ func TestShouldShow(t *testing.T) {
 			"image.description":   "Debian buster amd64 (20200429_05:24)",
 		},
 		Status: "Running",
+		Type:   "Container",
 	}
+
 	flagFilters := list.assignFlagFilters()
 	if !list.shouldShow([]string{"u.blah=abc"}, flagFilters, state) {
 		t.Error("u.blah=abc didn't match")
@@ -47,12 +46,30 @@ func TestShouldShow(t *testing.T) {
 		t.Error("user.blah=abc didn't match")
 	}
 
+	if !list.shouldShow([]string{"status=RUNNING", "user.blah=abc"}, flagFilters, state) {
+		t.Error("user.blah=abc, status=RUNNING didn't match")
+	}
+
+	if list.shouldShow([]string{"status=RUNNING", "type=virtual-machine", "user.blah=abc"}, flagFilters, state) {
+		t.Error("user.blah=abc. status=RUNNING, type=virtual-machine did match ")
+	}
+
+	if !list.shouldShow([]string{"type=container", "user.blah=abc"}, flagFilters, state) {
+		t.Error("user.blah=abc, type=container didn't match")
+	}
+
 	if list.shouldShow([]string{"bar", "u.blah=abc"}, flagFilters, state) {
 		t.Errorf("name filter didn't work")
 	}
 
 	if list.shouldShow([]string{"bar", "u.blah=other"}, flagFilters, state) {
 		t.Errorf("value filter didn't work")
+	}
+
+	list.flagStateRunning = true
+	flagFilters = list.assignFlagFilters()
+	if !list.shouldShow([]string{"u.blah=abc"}, flagFilters, state) {
+		t.Error("u.blah=abc didn't match")
 	}
 }
 
