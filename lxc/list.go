@@ -854,7 +854,7 @@ func matchByStatus(cInfo *api.Instance, query string) bool {
 }
 
 func matchByArchitecture(cInfo *api.Instance, query string) bool {
-	return strings.ToLower(cInfo.Architecture) == strings.ToLower(query)
+	return strings.ToLower(cInfo.InstancePut.Architecture) == strings.ToLower(query)
 }
 
 func matchByName(cInfo *api.Instance, query string) bool {

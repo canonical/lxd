@@ -36,6 +36,9 @@ func TestShouldShow(t *testing.T) {
 		Status:   "Running",
 		Location: "mem-brain",
 		Type:     "Container",
+		InstancePut: api.InstancePut{
+			Architecture: "potato",
+		},
 	}
 
 	if !list.shouldShow([]string{"u.blah=abc"}, state) {
@@ -56,6 +59,10 @@ func TestShouldShow(t *testing.T) {
 
 	if !list.shouldShow([]string{"location=mem-brain", "user.blah=abc"}, state) {
 		t.Error("user.blah=abc, location=mem-brain didn't match")
+	}
+
+	if !list.shouldShow([]string{"architecture=potato", "user.blah=abc"}, state) {
+		t.Error("user.blah=abc, architecture=potato didn't match")
 	}
 
 	if !list.shouldShow([]string{"name=foo", "user.blah=abc"}, state) {
