@@ -189,7 +189,7 @@ More details are [available here](security.md).
 Now that you have LXD running on your system you can read the [getting started guide](https://linuxcontainers.org/lxd/getting-started-cli/) or go through more examples and configurations in [our documentation](https://linuxcontainers.org/lxd/docs/master/).
 
 ## Bug reports
-Bug reports can be filed at: <https://github.com/lxc/lxd/issues/new>
+Bug reports and Feature requests can be filed at: <https://github.com/lxc/lxd/issues/new>
 
 ## Contributing
 Fixes and new features are greatly appreciated but please read our [contributing guidelines](contributing.md) first.
