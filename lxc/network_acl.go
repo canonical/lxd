@@ -448,13 +448,13 @@ func (c *cmdNetworkACLEdit) helpTemplate() string {
 ### ingress:
 ### - action: allow
 ###   state: enabled
-###   source: ""
-###   destination: ""
 ###   protocol: ""
-###   sourceport: ""
-###   destinationport: ""
-###   icmptype: ""
-###   icmpcode: ""
+###   source: ""
+###   source_port: ""
+###   destination: ""
+###   destination_port: ""
+###   icmp_type: ""
+###   icmp_code: ""
 ### config:
 ###  user.foo: bah
 ###
