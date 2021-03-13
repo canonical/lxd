@@ -32,9 +32,17 @@ type columnData func(api.InstanceFull) string
 type cmdList struct {
 	global *cmdGlobal
 
-	flagColumns string
-	flagFast    bool
-	flagFormat  string
+	flagColumns                string
+	flagFast                   bool
+	flagStateRunning           bool
+	flagStateStopped           bool
+	flagStateFrozen            bool
+	flagTypeContainer          bool
+	flagTypeVm                 bool
+	flagConfigImageOs          string
+	flagConfigImageDescription string
+	flagConfigDescription      string
+	flagFormat                 string
 }
 
 func (c *cmdList) Command() *cobra.Command {
@@ -119,6 +127,14 @@ lxc list -c ns,user.comment:comment
 	cmd.Flags().StringVarP(&c.flagColumns, "columns", "c", defaultColumns, i18n.G("Columns")+"``")
 	cmd.Flags().StringVar(&c.flagFormat, "format", "table", i18n.G("Format (csv|json|table|yaml)")+"``")
 	cmd.Flags().BoolVar(&c.flagFast, "fast", false, i18n.G("Fast mode (same as --columns=nsacPt)"))
+	cmd.Flags().BoolVarP(&c.flagStateRunning, "running", "r", false, i18n.G("Show only running instances"))
+	cmd.Flags().BoolVarP(&c.flagStateStopped, "stopped", "s", false, i18n.G("Show only stopped instances"))
+	cmd.Flags().BoolVarP(&c.flagStateFrozen, "frozen", "f", false, i18n.G("Show only frozen instances"))
+	cmd.Flags().BoolVar(&c.flagTypeContainer, "con", false, i18n.G("Show containers only"))
+	cmd.Flags().BoolVar(&c.flagTypeVm, "vm", false, i18n.G("Show virtual machines only"))
+	cmd.Flags().StringVar(&c.flagConfigImageOs, "os", "", i18n.G("Show only instances with os"))
+	cmd.Flags().StringVar(&c.flagConfigImageDescription, "image-description", "", i18n.G("Show only instances where image description matches"))
+	cmd.Flags().StringVar(&c.flagConfigDescription, "description", "", i18n.G("Show only instances where description matches"))
 
 	return cmd
 }
@@ -145,7 +161,10 @@ func (c *cmdList) dotPrefixMatch(short string, full string) bool {
 	return true
 }
 
-func (c *cmdList) shouldShow(filters []string, state *api.Instance) bool {
+func (c *cmdList) shouldShow(filters []string, flagFilters []string, state *api.Instance) bool {
+	if !c.shouldShowByFlag(flagFilters, state) {
+		return false
+	}
 	for _, filter := range filters {
 		if strings.Contains(filter, "=") {
 			membs := strings.SplitN(filter, "=", 2)
@@ -208,6 +227,30 @@ func (c *cmdList) shouldShow(filters []string, state *api.Instance) bool {
 	}
 
 	return true
+}
+
+func (c *cmdList) shouldShowByFlag(flagFilters []string, state *api.Instance) bool {
+	if len(flagFilters) == 0 {
+		return true
+	}
+	result := false
+	for _, flagFilter := range flagFilters {
+		if !result {
+			var flagFiltersArray = strings.Split(flagFilter, "@")
+			switch flagFiltersArray[0] {
+			case "state":
+				result = map[bool]bool{true: true, false: false}[strings.ToLower(state.Status) == flagFiltersArray[1]]
+				break
+			case "type":
+				result = map[bool]bool{true: true, false: false}[strings.ToLower(state.Type) == flagFiltersArray[1]]
+				break
+			case "config":
+				result = map[bool]bool{true: true, false: false}[strings.Contains(strings.ToLower(state.Config[flagFiltersArray[1]]), flagFiltersArray[2])]
+				break
+			}
+		}
+	}
+	return result
 }
 
 func (c *cmdList) listInstances(conf *config.Config, d lxd.InstanceServer, cinfos []api.Instance, filters []string, columns []column) error {
@@ -315,14 +358,14 @@ func (c *cmdList) listInstances(conf *config.Config, d lxd.InstanceServer, cinfo
 		data[i].Snapshots = cSnapshots[cinfos[i].Name]
 	}
 
-	return c.showInstances(data, filters, columns)
+	return c.showInstances(data, filters, nil, columns)
 }
 
-func (c *cmdList) showInstances(cts []api.InstanceFull, filters []string, columns []column) error {
+func (c *cmdList) showInstances(cts []api.InstanceFull, filters []string, flagFilters []string, columns []column) error {
 	// Generate the table data
 	data := [][]string{}
 	for _, ct := range cts {
-		if !c.shouldShow(filters, &ct.Instance) {
+		if !c.shouldShow(filters, flagFilters, &ct.Instance) {
 			continue
 		}
 
@@ -378,6 +421,7 @@ func (c *cmdList) Run(cmd *cobra.Command, args []string) error {
 	if remote == "" {
 		remote = conf.DefaultRemote
 	}
+	flagFilters := c.assignFlagFilters()
 
 	// Connect to LXD
 	d, err := conf.GetInstanceServer(remote)
@@ -398,7 +442,7 @@ func (c *cmdList) Run(cmd *cobra.Command, args []string) error {
 			return err
 		}
 
-		return c.showInstances(cts, filters, columns)
+		return c.showInstances(cts, filters, flagFilters, columns)
 	}
 
 	// Get the list of instances
@@ -410,7 +454,7 @@ func (c *cmdList) Run(cmd *cobra.Command, args []string) error {
 
 	// Apply filters
 	for _, cinfo := range ctslist {
-		if !c.shouldShow(filters, &cinfo) {
+		if !c.shouldShow(filters, flagFilters, &cinfo) {
 			continue
 		}
 
@@ -419,6 +463,35 @@ func (c *cmdList) Run(cmd *cobra.Command, args []string) error {
 
 	// Fetch any remaining data and render the table
 	return c.listInstances(conf, d, cts, filters, columns)
+}
+
+func (c *cmdList) assignFlagFilters() []string {
+	result := []string{}
+	if c.flagStateRunning {
+		result = append(result, "state@running")
+	}
+	if c.flagStateStopped {
+		result = append(result, "state@stopped")
+	}
+	if c.flagStateFrozen {
+		result = append(result, "state@frozen")
+	}
+	if c.flagTypeContainer {
+		result = append(result, "type@container")
+	}
+	if c.flagTypeVm {
+		result = append(result, "type@virtual-machine")
+	}
+	if len(c.flagConfigImageOs) > 0 {
+		result = append(result, "config@image.os@"+c.flagConfigImageOs)
+	}
+	if len(c.flagConfigImageDescription) > 0 {
+		result = append(result, "config@image.description@"+c.flagConfigImageDescription)
+	}
+	if len(c.flagConfigDescription) > 0 {
+		result = append(result, "config@description@"+c.flagConfigDescription)
+	}
+	return result
 }
 
 func (c *cmdList) parseColumns(clustered bool) ([]column, bool, error) {

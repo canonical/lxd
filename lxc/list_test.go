@@ -25,28 +25,33 @@ func TestDotPrefixMatch(t *testing.T) {
 
 func TestShouldShow(t *testing.T) {
 	list := cmdList{}
-
+	list.flagStateRunning = true
+	list.flagConfigImageDescription = "buster"
+	list.flagConfigImageOs = "debian"
 	state := &api.Instance{
 		Name: "foo",
 		ExpandedConfig: map[string]string{
 			"security.privileged": "1",
 			"user.blah":           "abc",
+			"image.os":            "Debian",
+			"image.description":   "Debian buster amd64 (20200429_05:24)",
 		},
+		Status: "Running",
 	}
-
-	if !list.shouldShow([]string{"u.blah=abc"}, state) {
+	flagFilters := list.assignFlagFilters()
+	if !list.shouldShow([]string{"u.blah=abc"}, flagFilters, state) {
 		t.Error("u.blah=abc didn't match")
 	}
 
-	if !list.shouldShow([]string{"user.blah=abc"}, state) {
+	if !list.shouldShow([]string{"user.blah=abc"}, flagFilters, state) {
 		t.Error("user.blah=abc didn't match")
 	}
 
-	if list.shouldShow([]string{"bar", "u.blah=abc"}, state) {
+	if list.shouldShow([]string{"bar", "u.blah=abc"}, flagFilters, state) {
 		t.Errorf("name filter didn't work")
 	}
 
-	if list.shouldShow([]string{"bar", "u.blah=other"}, state) {
+	if list.shouldShow([]string{"bar", "u.blah=other"}, flagFilters, state) {
 		t.Errorf("value filter didn't work")
 	}
 }
