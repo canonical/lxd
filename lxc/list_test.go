@@ -33,42 +33,57 @@ func TestShouldShow(t *testing.T) {
 			"image.os":            "Debian",
 			"image.description":   "Debian buster amd64 (20200429_05:24)",
 		},
-		Status: "Running",
-		Type:   "Container",
+		Status:   "Running",
+		Location: "mem-brain",
+		Type:     "Container",
 	}
 
-	flagFilters := list.assignFlagFilters()
-	if !list.shouldShow([]string{"u.blah=abc"}, flagFilters, state) {
+	if !list.shouldShow([]string{"u.blah=abc"}, state) {
 		t.Error("u.blah=abc didn't match")
 	}
 
-	if !list.shouldShow([]string{"user.blah=abc"}, flagFilters, state) {
+	if !list.shouldShow([]string{"user.blah=abc"}, state) {
 		t.Error("user.blah=abc didn't match")
 	}
 
-	if !list.shouldShow([]string{"status=RUNNING", "user.blah=abc"}, flagFilters, state) {
+	if !list.shouldShow([]string{"status=RUNNING", "user.blah=abc"}, state) {
 		t.Error("user.blah=abc, status=RUNNING didn't match")
 	}
 
-	if list.shouldShow([]string{"status=RUNNING", "type=virtual-machine", "user.blah=abc"}, flagFilters, state) {
+	if !list.shouldShow([]string{"os=debian", "user.blah=abc"}, state) {
+		t.Error("user.blah=abc, os=debian didn't match")
+	}
+
+	if !list.shouldShow([]string{"location=mem-brain", "user.blah=abc"}, state) {
+		t.Error("user.blah=abc, location=mem-brain didn't match")
+	}
+
+	if !list.shouldShow([]string{"name=foo", "user.blah=abc"}, state) {
+		t.Error("user.blah=abc, name=foo didn't match")
+	}
+
+	if list.shouldShow([]string{"os=temple-os", "user.blah=abc"}, state) {
+		t.Error("user.blah=abc, os=temple-os did match")
+	}
+
+	if list.shouldShow([]string{"status=RUNNING", "type=virtual-machine", "user.blah=abc"}, state) {
 		t.Error("user.blah=abc. status=RUNNING, type=virtual-machine did match ")
 	}
 
-	if !list.shouldShow([]string{"type=container", "user.blah=abc"}, flagFilters, state) {
+	if !list.shouldShow([]string{"type=container", "user.blah=abc"}, state) {
 		t.Error("user.blah=abc, type=container didn't match")
 	}
 
-	if list.shouldShow([]string{"bar", "u.blah=abc"}, flagFilters, state) {
+	if list.shouldShow([]string{"bar", "u.blah=abc"}, state) {
 		t.Errorf("name filter didn't work")
 	}
 
-	if list.shouldShow([]string{"bar", "u.blah=other"}, flagFilters, state) {
+	if list.shouldShow([]string{"bar", "u.blah=other"}, state) {
 		t.Errorf("value filter didn't work")
 	}
 
 	list.flagStateRunning = true
-	flagFilters = list.assignFlagFilters()
-	if !list.shouldShow([]string{"u.blah=abc"}, flagFilters, state) {
+	if !list.shouldShow([]string{"u.blah=abc"}, state) {
 		t.Error("u.blah=abc didn't match")
 	}
 }

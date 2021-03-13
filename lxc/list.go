@@ -40,6 +40,7 @@ type cmdList struct {
 	flagTypeContainer bool
 	flagTypeVm        bool
 	flagFormat        string
+	namedQueriesMap   map[string]func(*api.Instance, string) bool
 }
 
 func (c *cmdList) Command() *cobra.Command {
@@ -97,6 +98,26 @@ Pre-defined column shorthand chars:
   P - Profiles
   s - State
   S - Number of snapshots
+func (c *cmdList) shouldShowByFlag(flagFilters []string, state *api.Instance) bool {
+	if len(flagFilters) == 0 {
+		return true
+	}
+	result := false
+	for _, flagFilter := range flagFilters {
+		if !result {
+			var flagFiltersArray = strings.Split(flagFilter, "@")
+			switch flagFiltersArray[0] {
+			case "state":
+				result = map[bool]bool{true: true, false: false}[strings.ToLower(state.Status) == flagFiltersArray[1]]
+				break
+			case "type":
+				result = map[bool]bool{true: true, false: false}[strings.ToLower(state.Type) == flagFiltersArray[1]]
+				break
+			}
+		}
+	}
+	return result
+}
   t - Type (persistent or ephemeral)
   u - CPU usage (in seconds)
   L - Location of the instance (e.g. its cluster member)
@@ -155,13 +176,10 @@ func (c *cmdList) dotPrefixMatch(short string, full string) bool {
 	return true
 }
 
-func (c *cmdList) shouldShow(filters []string, flagFilters []string, state *api.Instance) bool {
+func (c *cmdList) shouldShow(filters []string, state *api.Instance) bool {
+	c.initNamedQueriesMap()
+	filters = append(filters, c.appendFlagFilters()...)
 
-	if !c.shouldShowByFlag(flagFilters, state) {
-		return false
-	}
-
-	conditionalQueryMap := createConditionalQueryMap()
 	for _, filter := range filters {
 		if strings.Contains(filter, "=") {
 			membs := strings.SplitN(filter, "=", 2)
@@ -174,7 +192,7 @@ func (c *cmdList) shouldShow(filters []string, flagFilters []string, state *api.
 				value = membs[1]
 			}
 
-			conditionalQueryFunction, isConditionalQuery := conditionalQueryMap[strings.ToLower(key)]
+			conditionalQueryFunction, isConditionalQuery := c.namedQueriesMap[strings.ToLower(key)]
 			if isConditionalQuery {
 				if conditionalQueryFunction(state, value) {
 					continue
@@ -233,27 +251,6 @@ func (c *cmdList) shouldShow(filters []string, flagFilters []string, state *api.
 	}
 
 	return true
-}
-
-func (c *cmdList) shouldShowByFlag(flagFilters []string, state *api.Instance) bool {
-	if len(flagFilters) == 0 {
-		return true
-	}
-	result := false
-	for _, flagFilter := range flagFilters {
-		if !result {
-			var flagFiltersArray = strings.Split(flagFilter, "@")
-			switch flagFiltersArray[0] {
-			case "state":
-				result = map[bool]bool{true: true, false: false}[strings.ToLower(state.Status) == flagFiltersArray[1]]
-				break
-			case "type":
-				result = map[bool]bool{true: true, false: false}[strings.ToLower(state.Type) == flagFiltersArray[1]]
-				break
-			}
-		}
-	}
-	return result
 }
 
 func (c *cmdList) listInstances(conf *config.Config, d lxd.InstanceServer, cinfos []api.Instance, filters []string, columns []column) error {
@@ -361,14 +358,14 @@ func (c *cmdList) listInstances(conf *config.Config, d lxd.InstanceServer, cinfo
 		data[i].Snapshots = cSnapshots[cinfos[i].Name]
 	}
 
-	return c.showInstances(data, filters, nil, columns)
+	return c.showInstances(data, filters, columns)
 }
 
-func (c *cmdList) showInstances(cts []api.InstanceFull, filters []string, flagFilters []string, columns []column) error {
+func (c *cmdList) showInstances(cts []api.InstanceFull, filters []string, columns []column) error {
 	// Generate the table data
 	data := [][]string{}
 	for _, ct := range cts {
-		if !c.shouldShow(filters, flagFilters, &ct.Instance) {
+		if !c.shouldShow(filters, &ct.Instance) {
 			continue
 		}
 
@@ -390,7 +387,6 @@ func (c *cmdList) showInstances(cts []api.InstanceFull, filters []string, flagFi
 
 func (c *cmdList) Run(cmd *cobra.Command, args []string) error {
 	conf := c.global.conf
-
 	// Sanity checks
 	exit, err := c.global.CheckArgs(cmd, args, 0, -1)
 	if exit {
@@ -417,6 +413,7 @@ func (c *cmdList) Run(cmd *cobra.Command, args []string) error {
 			name = args[0]
 		}
 	}
+
 	if name != "" {
 		filters = append(filters, name)
 	}
@@ -424,7 +421,6 @@ func (c *cmdList) Run(cmd *cobra.Command, args []string) error {
 	if remote == "" {
 		remote = conf.DefaultRemote
 	}
-	flagFilters := c.assignFlagFilters()
 
 	// Connect to LXD
 	d, err := conf.GetInstanceServer(remote)
@@ -445,7 +441,7 @@ func (c *cmdList) Run(cmd *cobra.Command, args []string) error {
 			return err
 		}
 
-		return c.showInstances(cts, filters, flagFilters, columns)
+		return c.showInstances(cts, filters, columns)
 	}
 
 	// Get the list of instances
@@ -457,7 +453,7 @@ func (c *cmdList) Run(cmd *cobra.Command, args []string) error {
 
 	// Apply filters
 	for _, cinfo := range ctslist {
-		if !c.shouldShow(filters, flagFilters, &cinfo) {
+		if !c.shouldShow(filters, &cinfo) {
 			continue
 		}
 
@@ -468,22 +464,22 @@ func (c *cmdList) Run(cmd *cobra.Command, args []string) error {
 	return c.listInstances(conf, d, cts, filters, columns)
 }
 
-func (c *cmdList) assignFlagFilters() []string {
-	result := []string{}
+func (c *cmdList) appendFlagFilters() []string {
+	var result []string
 	if c.flagStateRunning {
-		result = append(result, "state@running")
+		result = append(result, "status=running")
 	}
 	if c.flagStateStopped {
-		result = append(result, "state@stopped")
+		result = append(result, "status=stopped")
 	}
 	if c.flagStateFrozen {
-		result = append(result, "state@frozen")
+		result = append(result, "status=frozen")
 	}
 	if c.flagTypeContainer {
-		result = append(result, "type@container")
+		result = append(result, "type=container")
 	}
 	if c.flagTypeVm {
-		result = append(result, "type@virtual-machine")
+		result = append(result, "type=virtual-machine")
 	}
 	return result
 }
@@ -865,12 +861,21 @@ func matchByName(cInfo *api.Instance, query string) bool {
 	return strings.ToLower(cInfo.Name) == strings.ToLower(query)
 }
 
-func createConditionalQueryMap() map[string]func(*api.Instance, string) bool {
-	var result = map[string]func(*api.Instance, string) bool{
-		"type":          matchByType,
-		"status":        matchByStatus,
-		"architecture:": matchByArchitecture,
-		"name:":         matchByName,
+func matchByOs(cInfo *api.Instance, query string) bool {
+	return strings.ToLower(cInfo.ExpandedConfig["image.os"]) == strings.ToLower(query)
+}
+
+func matchByLocation(cInfo *api.Instance, query string) bool {
+	return strings.ToLower(cInfo.Location) == strings.ToLower(query)
+}
+
+func (c *cmdList) initNamedQueriesMap() {
+	c.namedQueriesMap = map[string]func(*api.Instance, string) bool{
+		"type":         matchByType,
+		"status":       matchByStatus,
+		"architecture": matchByArchitecture,
+		"name":         matchByName,
+		"location":     matchByLocation,
+		"os":           matchByOs,
 	}
-	return result
 }
