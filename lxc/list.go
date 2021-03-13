@@ -176,9 +176,9 @@ func (c *cmdList) shouldShow(filters []string, state *api.Instance) bool {
 				value = membs[1]
 			}
 
-			conditionalQueryFunction, isConditionalQuery := c.shorthandFilters[strings.ToLower(key)]
-			if isConditionalQuery {
-				if conditionalQueryFunction(state, value) {
+			shorthandFilterFunction, isShorthandFilter := c.shorthandFilters[strings.ToLower(key)]
+			if isShorthandFilter {
+				if shorthandFilterFunction(state, value) {
 					continue
 				} else {
 					return false
