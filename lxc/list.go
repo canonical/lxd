@@ -857,6 +857,10 @@ func matchByArchitecture(cInfo *api.Instance, query string) bool {
 	return strings.ToLower(cInfo.InstancePut.Architecture) == strings.ToLower(query)
 }
 
+func matchByDescription(cInfo *api.Instance, query string) bool {
+	return strings.Contains(strings.ToLower(cInfo.InstancePut.Description), strings.ToLower(query))
+}
+
 func matchByName(cInfo *api.Instance, query string) bool {
 	return strings.ToLower(cInfo.Name) == strings.ToLower(query)
 }
@@ -876,6 +880,7 @@ func (c *cmdList) initNamedQueriesMap() {
 		"architecture": matchByArchitecture,
 		"name":         matchByName,
 		"location":     matchByLocation,
+		"description":  matchByDescription,
 		"os":           matchByOs,
 	}
 }

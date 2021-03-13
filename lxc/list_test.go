@@ -38,6 +38,7 @@ func TestShouldShow(t *testing.T) {
 		Type:     "Container",
 		InstancePut: api.InstancePut{
 			Architecture: "potato",
+			Description:  "Something wich does some thing",
 		},
 	}
 
@@ -51,6 +52,10 @@ func TestShouldShow(t *testing.T) {
 
 	if !list.shouldShow([]string{"status=RUNNING", "user.blah=abc"}, state) {
 		t.Error("user.blah=abc, status=RUNNING didn't match")
+	}
+
+	if !list.shouldShow([]string{"description=something", "user.blah=abc"}, state) {
+		t.Error("user.blah=abc, description=something didn't match")
 	}
 
 	if !list.shouldShow([]string{"os=debian", "user.blah=abc"}, state) {
