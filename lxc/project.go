@@ -452,7 +452,7 @@ func (c *cmdProjectList) Run(cmd *cobra.Command, args []string) error {
 		}
 
 		strUsedBy := fmt.Sprintf("%d", len(project.UsedBy))
-		data = append(data, []string{name, images, profiles, storageVolumes, networks, strUsedBy})
+		data = append(data, []string{name, images, profiles, storageVolumes, networks, project.Description, strUsedBy})
 	}
 	sort.Sort(byName(data))
 
@@ -462,6 +462,7 @@ func (c *cmdProjectList) Run(cmd *cobra.Command, args []string) error {
 		i18n.G("PROFILES"),
 		i18n.G("STORAGE VOLUMES"),
 		i18n.G("NETWORKS"),
+		i18n.G("DESCRIPTION"),
 		i18n.G("USED BY"),
 	}
 
