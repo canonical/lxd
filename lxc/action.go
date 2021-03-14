@@ -117,7 +117,7 @@ func (c *cmdAction) Command(action string) *cobra.Command {
 		cmd.Flags().BoolVar(&c.flagStateless, "stateless", false, i18n.G("Ignore the instance state"))
 	}
 
-	if shared.StringInSlice(action, []string{"start", "restart"}) {
+	if shared.StringInSlice(action, []string{"start", "restart", "stop"}) {
 		cmd.Flags().StringVar(&c.flagConsole, "console", "", i18n.G("Immediately attach to the console"))
 		cmd.Flags().Lookup("console").NoOptDefVal = "console"
 	}
@@ -141,6 +141,10 @@ func (c *cmdAction) doAction(action string, conf *config.Config, nameArg string)
 	// Only store state if asked to
 	if action == "stop" && c.flagStateful {
 		state = true
+	}
+
+	if action == "stop" && c.flagForce && c.flagConsole != "" {
+		return fmt.Errorf(i18n.G("--console can't be used while forcing instance shutdown"))
 	}
 
 	remote, name, err := conf.ParseRemote(nameArg)
@@ -184,6 +188,14 @@ func (c *cmdAction) doAction(action string, conf *config.Config, nameArg string)
 	op, err := d.UpdateInstanceState(name, req, "")
 	if err != nil {
 		return err
+	}
+
+	if action == "stop" && c.flagConsole != "" {
+		// Handle console attach
+		console := cmdConsole{}
+		console.global = c.global
+		console.flagType = c.flagConsole
+		return console.Console(d, name)
 	}
 
 	progress := utils.ProgressRenderer{
