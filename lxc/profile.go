@@ -612,12 +612,13 @@ func (c *cmdProfileList) Run(cmd *cobra.Command, args []string) error {
 	data := [][]string{}
 	for _, profile := range profiles {
 		strUsedBy := fmt.Sprintf("%d", len(profile.UsedBy))
-		data = append(data, []string{profile.Name, strUsedBy})
+		data = append(data, []string{profile.Name, profile.Description, strUsedBy})
 	}
 	sort.Sort(byName(data))
 
 	header := []string{
 		i18n.G("NAME"),
+		i18n.G("DESCRIPTION"),
 		i18n.G("USED BY")}
 
 	return utils.RenderTable(c.flagFormat, header, data, profiles)
