@@ -2,20 +2,20 @@
 
 Network Access Control Lists (ACLs) define traffic rules that can then be applied to certain types of Instance NIC devices.
 This provides the ability to control network access between different instances connected to the same network and
-control access to and from the external network.
+control access to and from other networks.
 
 Network ACLs can either be applied directly to the desired NICs or can be applied to all NICs connected to a
-network by assigning applying the ACL to the desired network.
+network by assigning the ACL to the desired network.
 
 The Instance NICs that have a particular ACL applied (either explicitly or implicitly from the network) make up a
 logical group that can be referenced from other rules as a source or destination. This makes it possible to define
 rules for groups of instances without needing to maintain IP lists or create additional subnets.
 
 Network ACLs come with an implicit default rule (that defaults to `reject` unless `default.action` is set), so if
-traffic doesn't match one of the defined rules in an ACL then all other traffic is dropped.
+traffic doesn't match one of the defined rules in an ACL then all other traffic is rejected.
 
-Rules are defined on for a particular direction (ingress or egress) in relation to the Instance NIC.
-Ingress rules apply to traffic going towards the NIC, and egress rules apply to traffic leave the NIC.
+Rules are defined for a particular direction (ingress or egress) in relation to the Instance NIC.
+Ingress rules apply to traffic going towards the NIC, and egress rules apply to traffic leaving the NIC.
 
 Rules are provided as lists, however the order of the rules in the list is not important and does not affect filtering.
 
@@ -69,8 +69,8 @@ Rules cannot be explicitly ordered. However LXD will order the rules based on th
  - `allow`
  - Automatic default rule action for any unmatched traffic (defaults to `reject` if `default.action` not specified).
 
- This means that multiple ACLs can be applied to a NIC without having to specify the combined rule ordering.
- As soon as one of the rules in the ACLs matches then that action is taken and no other rules are considered.
+This means that multiple ACLs can be applied to a NIC without having to specify the combined rule ordering.
+As soon as one of the rules in the ACLs matches then that action is taken and no other rules are considered.
 
 ## Port group selectors
 
