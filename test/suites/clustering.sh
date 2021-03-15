@@ -2301,4 +2301,6 @@ test_clustering_image_refresh() {
   kill_lxd "${LXD_THREE_DIR}"
   kill_lxd "${LXD_REMOTE_DIR}"
 
+  # shellcheck disable=SC2034
+  LXD_NETNS=
 }
