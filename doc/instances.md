@@ -389,6 +389,8 @@ host\_name              | string  | randomly assigned | no       | no      | The
 hwaddr                  | string  | randomly assigned | no       | no      | The MAC address of the new interface
 ipv4.address            | string  | -                 | no       | no      | An IPv4 address to assign to the instance through DHCP
 ipv6.address            | string  | -                 | no       | no      | An IPv6 address to assign to the instance through DHCP
+ipv4.routes             | string  | -                 | no       | no      | Comma delimited list of IPv4 static routes to route to the NIC
+ipv6.routes             | string  | -                 | no       | no      | Comma delimited list of IPv6 static routes to route to the NIC
 ipv4.routes.external    | string  | -                 | no       | no      | Comma delimited list of IPv4 static routes to route to the NIC and publish on uplink network
 ipv6.routes.external    | string  | -                 | no       | no      | Comma delimited list of IPv6 static routes to route to the NIC and publish on uplink network
 boot.priority           | integer | -                 | no       | no      | Boot priority for VMs (higher boots first)
