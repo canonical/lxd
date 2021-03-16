@@ -820,6 +820,33 @@ func (o *OVN) LogicalSwitchSetACLRules(switchName OVNSwitch, aclRules ...OVNACLR
 	return nil
 }
 
+// LogicalSwitchPorts returns a map of logical switch ports (name and UUID) for a switch.
+// Includes non-instance ports, such as the router port.
+func (o *OVN) LogicalSwitchPorts(switchName OVNSwitch) (map[OVNSwitchPort]OVNSwitchPortUUID, error) {
+	output, err := o.nbctl("lsp-list", string(switchName))
+	if err != nil {
+		return nil, err
+	}
+
+	lines := util.SplitNTrimSpace(strings.TrimSpace(output), "\n", -1, true)
+	ports := make(map[OVNSwitchPort]OVNSwitchPortUUID, len(lines))
+
+	for _, line := range lines {
+		// E.g. "c709c4a8-ef3f-4ffe-a45a-c75295eb2698 (lxd-net3-instance-fc933d65-0900-46b0-b5f2-4d323342e755-eth0)"
+		fields := strings.Fields(line)
+
+		if len(fields) != 2 {
+			return nil, fmt.Errorf("Unrecognised switch port item output %q", line)
+		}
+
+		portUUID := OVNSwitchPortUUID(fields[0])
+		portName := OVNSwitchPort(strings.TrimPrefix(strings.TrimSuffix(fields[1], ")"), "("))
+		ports[portName] = portUUID
+	}
+
+	return ports, nil
+}
+
 // LogicalSwitchPortUUID returns the logical switch port UUID or empty string if port doesn't exist.
 func (o *OVN) LogicalSwitchPortUUID(portName OVNSwitchPort) (OVNSwitchPortUUID, error) {
 	portInfo, err := o.nbctl("--format=csv", "--no-headings", "--data=bare", "--colum=_uuid,name", "find", "logical_switch_port",
