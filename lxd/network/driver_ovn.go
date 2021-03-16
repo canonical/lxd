@@ -1900,12 +1900,23 @@ func (n *ovn) setup(update bool) error {
 	}
 
 	// Ensure any network assigned security ACL port groups are created ready for instance NICs to use.
-	securityACLS := util.SplitNTrimSpace(n.config["security.acls"], ",", -1, true)
-	if len(securityACLS) > 0 {
+	securityACLNames := util.SplitNTrimSpace(n.config["security.acls"], ",", -1, true)
+	if len(securityACLNames) > 0 {
 		// Get map of ACL names to DB IDs (used for generating OVN port group names).
 		aclNameIDs, err := n.state.Cluster.GetNetworkACLIDsByNames(n.Project())
 		if err != nil {
 			return errors.Wrapf(err, "Failed getting network ACL IDs for security ACL setup")
+		}
+
+		// Load each of the requested ACL configs.
+		securityACLs := make([]*api.NetworkACL, 0, len(securityACLNames))
+		for _, securityACLName := range securityACLNames {
+			_, aclInfo, err := n.state.Cluster.GetNetworkACL(n.Project(), securityACLName)
+			if err != nil {
+				return errors.Wrapf(err, "Failed loading Network ACL %q", securityACLName)
+			}
+
+			securityACLs = append(securityACLs, aclInfo)
 		}
 
 		// Request our network is setup with the specified ACLs.
@@ -1913,7 +1924,7 @@ func (n *ovn) setup(update bool) error {
 			n.Name(): {Name: n.Name(), Type: n.Type(), ID: n.ID()},
 		}
 
-		r, err := acl.OVNEnsureACLs(n.state, n.logger, client, n.Project(), aclNameIDs, aclNets, securityACLS, false)
+		r, err := acl.OVNEnsureACLs(n.state, n.logger, client, n.Project(), aclNameIDs, aclNets, securityACLs, false)
 		if err != nil {
 			return errors.Wrapf(err, "Failed ensuring security ACLs are configured in OVN for network")
 		}
