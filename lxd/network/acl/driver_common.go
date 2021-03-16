@@ -555,8 +555,17 @@ func (d *common) Update(config *api.NetworkACLPut) error {
 			return errors.Wrapf(err, "Failed getting network ACL IDs for security ACL update")
 		}
 
+		var projectID int64
+		err = d.state.Cluster.Transaction(func(tx *db.ClusterTx) error {
+			projectID, err = tx.GetProjectID(d.projectName)
+			return err
+		})
+		if err != nil {
+			return errors.Wrapf(err, "Failed getting project ID for project %q", d.projectName)
+		}
+
 		// Request that the ACL and any referenced ACLs in the ruleset are created in OVN.
-		r, err := OVNEnsureACLs(d.state, d.logger, client, d.projectName, aclNameIDs, aclNets, []*api.NetworkACL{d.info}, true)
+		r, err := OVNEnsureACLs(d.logger, client, projectID, aclNameIDs, aclNets, []*api.NetworkACL{d.info}, true)
 		if err != nil {
 			return errors.Wrapf(err, "Failed ensuring ACL is configured in OVN")
 		}
