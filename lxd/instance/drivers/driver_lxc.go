@@ -2262,10 +2262,11 @@ func (d *lxc) Start(stateful bool) error {
 		// Run any post start hooks.
 		err = d.runHooks(postStartHooks)
 		if err != nil {
+			op.Done(err) // Must come before Stop() otherwise stop will not proceed.
+
 			// Attempt to stop container.
 			d.Stop(false)
 
-			op.Done(err)
 			return err
 		}
 
@@ -2337,10 +2338,11 @@ func (d *lxc) Start(stateful bool) error {
 	// Run any post start hooks.
 	err = d.runHooks(postStartHooks)
 	if err != nil {
+		op.Done(err) // Must come before Stop() otherwise stop will not proceed.
+
 		// Attempt to stop container.
 		d.Stop(false)
 
-		op.Done(err)
 		return err
 	}
 
