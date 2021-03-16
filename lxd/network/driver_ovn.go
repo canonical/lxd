@@ -2773,14 +2773,25 @@ func (n *ovn) InstanceDevicePortAdd(opts *OVNInstanceNICSetupOpts) (openvswitch.
 
 		// Add port to ACLs requested.
 		if len(opts.SecurityACLs) > 0 {
-			// Request our network is setup with the specified ACLs.
+			// Make sure the requested ACL port groups exist and are populated with rules.
 			aclNets := map[string]acl.NetworkACLUsage{
 				n.Name(): {Name: n.Name(), Type: n.Type(), ID: n.ID()},
 			}
 
-			r, err := acl.OVNEnsureACLs(n.state, n.logger, client, n.Project(), aclNameIDs, aclNets, opts.SecurityACLs, false)
+			// Load each of the requested ACL configs.
+			securityACLs := make([]*api.NetworkACL, 0, len(opts.SecurityACLs))
+			for _, securityACLName := range opts.SecurityACLs {
+				_, aclInfo, err := n.state.Cluster.GetNetworkACL(n.Project(), securityACLName)
+				if err != nil {
+					return "", errors.Wrapf(err, "Failed loading Network ACL %q", securityACLName)
+				}
+
+				securityACLs = append(securityACLs, aclInfo)
+			}
+
+			r, err := acl.OVNEnsureACLs(n.state, n.logger, client, n.Project(), aclNameIDs, aclNets, securityACLs, false)
 			if err != nil {
-				return "", errors.Wrapf(err, "Failed ensuring security ACLs are configured in OVN for instance")
+				return "", errors.Wrapf(err, "Failed ensuring security ACLs are configured in OVN for instance NIC")
 			}
 			revert.Add(r.Fail)
 
