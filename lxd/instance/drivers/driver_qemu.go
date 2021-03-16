@@ -1313,7 +1313,8 @@ func (d *qemu) Start(stateful bool) error {
 	// Run any post-start hooks.
 	err = d.runHooks(postStartHooks)
 	if err != nil {
-		op.Done(err)
+		op.Done(err) // Must come before Stop() otherwise stop will not proceed.
+
 		// Shut down the VM if hooks fail.
 		d.Stop(false)
 		return err
