@@ -69,7 +69,7 @@ func OVNIntSwitchRouterPortName(networkID int64) openvswitch.OVNSwitchPort {
 // groups if needed. If a requested ACL exists, but has no ACL rules applied, then the current rules are loaded out
 // of the database and applied. For each network provided in aclNets, the network specific port group for each ACL
 // is checked for existence (it is created & applies network specific ACL rules if not).
-func OVNEnsureACLs(s *state.State, logger logger.Logger, client *openvswitch.OVN, aclProjectName string, aclNameIDs map[string]int64, aclNets map[string]NetworkACLUsage, aclNames []string, reapplyRules bool) (*revert.Reverter, error) {
+func OVNEnsureACLs(s *state.State, logger logger.Logger, client *openvswitch.OVN, aclProjectName string, aclNameIDs map[string]int64, aclNets map[string]NetworkACLUsage, checkACLs []*api.NetworkACL, reapplyRules bool) (*revert.Reverter, error) {
 	revert := revert.New()
 	defer revert.Fail()
 
@@ -84,10 +84,10 @@ func OVNEnsureACLs(s *state.State, logger logger.Logger, client *openvswitch.OVN
 	}
 
 	// First check all ACL Names map to IDs in supplied aclNameIDs.
-	for _, aclName := range aclNames {
-		_, found := aclNameIDs[aclName]
+	for _, checkACL := range checkACLs {
+		_, found := aclNameIDs[checkACL.Name]
 		if !found {
-			return nil, fmt.Errorf("Cannot find security ACL ID for %q", aclName)
+			return nil, fmt.Errorf("Cannot find security ACL ID for %q", checkACL.Name)
 		}
 	}
 
@@ -101,33 +101,28 @@ func OVNEnsureACLs(s *state.State, logger logger.Logger, client *openvswitch.OVN
 	existingACLPortGroups := []aclStatus{}
 	createACLPortGroups := []aclStatus{}
 
-	for _, aclName := range aclNames {
-		portGroupName := OVNACLPortGroupName(aclNameIDs[aclName])
+	for _, checkACL := range checkACLs {
+		portGroupName := OVNACLPortGroupName(aclNameIDs[checkACL.Name])
 
 		// Check if port group exists and has ACLs.
 		portGroupUUID, portGroupHasACLs, err := client.PortGroupInfo(portGroupName)
 		if err != nil {
-			return nil, errors.Wrapf(err, "Failed getting port group UUID for security ACL %q setup", aclName)
+			return nil, errors.Wrapf(err, "Failed getting port group UUID for security ACL %q setup", checkACL.Name)
 		}
 
 		if portGroupUUID == "" {
-			// Load the config we'll need to create the port group with ACL rules.
-			_, aclInfo, err := s.Cluster.GetNetworkACL(aclProjectName, aclName)
-			if err != nil {
-				return nil, errors.Wrapf(err, "Failed loading Network ACL %q", aclName)
-			}
-
-			createACLPortGroups = append(createACLPortGroups, aclStatus{name: aclName, aclInfo: aclInfo})
+			// Record that we need to create this ACL port group.
+			createACLPortGroups = append(createACLPortGroups, aclStatus{name: checkACL.Name, aclInfo: checkACL})
 		} else {
 			var aclInfo *api.NetworkACL
 			addACLNets := make(map[string]NetworkACLUsage)
 
 			// Check each per-ACL-per-network port group exists.
 			for _, aclNet := range aclNets {
-				netPortGroupName := OVNACLNetworkPortGroupName(aclNameIDs[aclName], aclNet.ID)
+				netPortGroupName := OVNACLNetworkPortGroupName(aclNameIDs[checkACL.Name], aclNet.ID)
 				netPortGroupUUID, _, err := client.PortGroupInfo(netPortGroupName)
 				if err != nil {
-					return nil, errors.Wrapf(err, "Failed getting port group UUID for security ACL %q setup", aclName)
+					return nil, errors.Wrapf(err, "Failed getting port group UUID for security ACL %q setup", checkACL.Name)
 				}
 
 				if netPortGroupUUID == "" {
@@ -142,14 +137,12 @@ func OVNEnsureACLs(s *state.State, logger logger.Logger, client *openvswitch.OVN
 			// the default rule we add. We also need to reapply the rules if we are adding any
 			// new per-ACL-per-network port groups.
 			if reapplyRules || !portGroupHasACLs || len(addACLNets) > 0 {
-				_, aclInfo, err = s.Cluster.GetNetworkACL(aclProjectName, aclName)
-				if err != nil {
-					return nil, errors.Wrapf(err, "Failed loading Network ACL %q", aclName)
-				}
+				// Record we need to reapply rules to existing ACL port group.
+				aclInfo = checkACL
 			}
 
 			// Storing non-nil aclInfo in the aclStatus struct will trigger rule applying.
-			existingACLPortGroups = append(existingACLPortGroups, aclStatus{name: aclName, uuid: portGroupUUID, aclInfo: aclInfo, addACLNets: addACLNets})
+			existingACLPortGroups = append(existingACLPortGroups, aclStatus{name: checkACL.Name, uuid: portGroupUUID, aclInfo: aclInfo, addACLNets: addACLNets})
 		}
 	}
 
