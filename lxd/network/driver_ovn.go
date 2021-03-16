@@ -1924,7 +1924,16 @@ func (n *ovn) setup(update bool) error {
 			n.Name(): {Name: n.Name(), Type: n.Type(), ID: n.ID()},
 		}
 
-		r, err := acl.OVNEnsureACLs(n.state, n.logger, client, n.Project(), aclNameIDs, aclNets, securityACLs, false)
+		var projectID int64
+		err = n.state.Cluster.Transaction(func(tx *db.ClusterTx) error {
+			projectID, err = tx.GetProjectID(n.Project())
+			return err
+		})
+		if err != nil {
+			return errors.Wrapf(err, "Failed getting project ID for project %q", n.Project())
+		}
+
+		r, err := acl.OVNEnsureACLs(n.logger, client, projectID, aclNameIDs, aclNets, securityACLs, false)
 		if err != nil {
 			return errors.Wrapf(err, "Failed ensuring security ACLs are configured in OVN for network")
 		}
@@ -2789,7 +2798,16 @@ func (n *ovn) InstanceDevicePortAdd(opts *OVNInstanceNICSetupOpts) (openvswitch.
 				securityACLs = append(securityACLs, aclInfo)
 			}
 
-			r, err := acl.OVNEnsureACLs(n.state, n.logger, client, n.Project(), aclNameIDs, aclNets, securityACLs, false)
+			var projectID int64
+			err = n.state.Cluster.Transaction(func(tx *db.ClusterTx) error {
+				projectID, err = tx.GetProjectID(n.Project())
+				return err
+			})
+			if err != nil {
+				return "", errors.Wrapf(err, "Failed getting project ID for project %q", n.Project())
+			}
+
+			r, err := acl.OVNEnsureACLs(n.logger, client, projectID, aclNameIDs, aclNets, securityACLs, false)
 			if err != nil {
 				return "", errors.Wrapf(err, "Failed ensuring security ACLs are configured in OVN for instance NIC")
 			}
