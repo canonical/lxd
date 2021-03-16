@@ -1706,7 +1706,13 @@ func (d *disk) getParentBlocks(path string) ([]string, error) {
 		// Accessible btrfs filesystems
 		output, err := shared.RunCommand("btrfs", "filesystem", "show", dev[1])
 		if err != nil {
-			return nil, fmt.Errorf("Failed to query btrfs filesystem information for %q: %v", dev[1], err)
+			// Fallback to using device path to support BTRFS on block volumes (like LVM).
+			_, major, minor, errFallback := unixDeviceAttributes(dev[1])
+			if errFallback != nil {
+				return nil, errors.Wrapf(err, "Failed to query btrfs filesystem information for %q", dev[1])
+			}
+
+			devices = append(devices, fmt.Sprintf("%d:%d", major, minor))
 		}
 
 		for _, line := range strings.Split(output, "\n") {
