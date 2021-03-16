@@ -556,7 +556,7 @@ func (d *common) Update(config *api.NetworkACLPut) error {
 		}
 
 		// Request that the ACL and any referenced ACLs in the ruleset are created in OVN.
-		r, err := OVNEnsureACLs(d.state, d.logger, client, d.projectName, aclNameIDs, aclNets, []string{d.info.Name}, true)
+		r, err := OVNEnsureACLs(d.state, d.logger, client, d.projectName, aclNameIDs, aclNets, []*api.NetworkACL{d.info}, true)
 		if err != nil {
 			return errors.Wrapf(err, "Failed ensuring ACL is configured in OVN")
 		}
