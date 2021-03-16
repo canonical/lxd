@@ -2221,7 +2221,7 @@ test_clustering_image_refresh() {
   LXD_DIR="${LXD_REMOTE_DIR}" lxc config set core.https_address "10.1.1.104:8443"
 
   # Add remotes
-  lxc remote add localhost "https://10.1.1.104:8443" --accept-certificate --password foo --public
+  lxc remote add public "https://10.1.1.104:8443" --accept-certificate --password foo --public
   lxc remote add cluster "https://10.1.1.101:8443" --accept-certificate --password sekret
 
   LXD_DIR="${LXD_REMOTE_DIR}" lxc init testimage c1
@@ -2236,7 +2236,7 @@ test_clustering_image_refresh() {
 
   for project in default foo bar; do
     # Copy the public image to each project
-    LXD_DIR="${LXD_ONE_DIR}" lxc image copy localhost:testimage local: --alias testimage --project "${project}"
+    LXD_DIR="${LXD_ONE_DIR}" lxc image copy public:testimage local: --alias testimage --project "${project}"
 
     # Diable autoupdate for testimage in project foo
     if [ "${project}" = "foo" ]; then
@@ -2257,74 +2257,100 @@ test_clustering_image_refresh() {
   LXD_DIR="${LXD_REMOTE_DIR}" lxc publish c1 --alias testimage --public
   new_fingerprint="$(LXD_DIR="${LXD_REMOTE_DIR}" lxc image ls testimage -c f --format csv)"
 
+  pids=""
+
   # Trigger image refresh on all nodes
   for lxd_dir in "${LXD_ONE_DIR}" "${LXD_TWO_DIR}" "${LXD_THREE_DIR}"; do
     LXD_DIR="${lxd_dir}" lxc query /internal/image-refresh &
+    pids="$! ${pids}"
   done
 
-  # Wait for the image to be refresh
-  sleep 5
+  # Wait for the image to be refreshed
+  for pid in ${pids}; do
+    wait "${pid}"
+  done
 
   # The projects default and bar should have received the new image
   # while project foo should still have the old image.
   # Also, it should only show 1 entry for the old image and 2 entries
   # for the new one.
-  lxd sql global 'select images.fingerprint from images join projects on images.project_id=projects.id where projects.name="foo"' | grep "${old_fingerprint}"
-  [ "$(lxd sql global 'select images.fingerprint from images' | grep -c "${old_fingerprint}")" -eq 1 ] || false
+  LXD_DIR="${LXD_ONE_DIR}" lxd sql global 'select images.fingerprint from images join projects on images.project_id=projects.id where projects.name="foo"' | grep "${old_fingerprint}"
+  [ "$(LXD_DIR="${LXD_ONE_DIR}" lxd sql global 'select images.fingerprint from images' | grep -c "${old_fingerprint}")" -eq 1 ] || false
 
-  lxd sql global 'select images.fingerprint from images join projects on images.project_id=projects.id where projects.name="default"' | grep "${new_fingerprint}"
-  lxd sql global 'select images.fingerprint from images join projects on images.project_id=projects.id where projects.name="bar"' | grep "${new_fingerprint}"
-  [ "$(lxd sql global 'select images.fingerprint from images' | grep -c "${new_fingerprint}")" -eq 2 ] || false
+  LXD_DIR="${LXD_ONE_DIR}" lxd sql global 'select images.fingerprint from images join projects on images.project_id=projects.id where projects.name="default"' | grep "${new_fingerprint}"
+  LXD_DIR="${LXD_ONE_DIR}" lxd sql global 'select images.fingerprint from images join projects on images.project_id=projects.id where projects.name="bar"' | grep "${new_fingerprint}"
+  [ "$(LXD_DIR="${LXD_ONE_DIR}" lxd sql global 'select images.fingerprint from images' | grep -c "${new_fingerprint}")" -eq 2 ] || false
+
+  pids=""
 
   # Trigger image refresh on all nodes. This shouldn't do anything as the image
   # is already up-to-date.
   for lxd_dir in "${LXD_ONE_DIR}" "${LXD_TWO_DIR}" "${LXD_THREE_DIR}"; do
     LXD_DIR="${lxd_dir}" lxc query /internal/image-refresh &
+    pids="$! ${pids}"
   done
 
-  # Wait for the image to be refresh
-  sleep 5
+  # Wait for the image to be refreshed
+  for pid in ${pids}; do
+    wait "${pid}"
+  done
 
-  lxd sql global 'select images.fingerprint from images join projects on images.project_id=projects.id where projects.name="foo"' | grep "${old_fingerprint}"
-  [ "$(lxd sql global 'select images.fingerprint from images' | grep -c "${old_fingerprint}")" -eq 1 ] || false
+  LXD_DIR="${LXD_ONE_DIR}" lxd sql global 'select images.fingerprint from images join projects on images.project_id=projects.id where projects.name="foo"' | grep "${old_fingerprint}"
+  [ "$(LXD_DIR="${LXD_ONE_DIR}" lxd sql global 'select images.fingerprint from images' | grep -c "${old_fingerprint}")" -eq 1 ] || false
 
-  lxd sql global 'select images.fingerprint from images join projects on images.project_id=projects.id where projects.name="default"' | grep "${new_fingerprint}"
-  lxd sql global 'select images.fingerprint from images join projects on images.project_id=projects.id where projects.name="bar"' | grep "${new_fingerprint}"
-  [ "$(lxd sql global 'select images.fingerprint from images' | grep -c "${new_fingerprint}")" -eq 2 ] || false
+  LXD_DIR="${LXD_ONE_DIR}" lxd sql global 'select images.fingerprint from images join projects on images.project_id=projects.id where projects.name="default"' | grep "${new_fingerprint}"
+  LXD_DIR="${LXD_ONE_DIR}" lxd sql global 'select images.fingerprint from images join projects on images.project_id=projects.id where projects.name="bar"' | grep "${new_fingerprint}"
+  [ "$(LXD_DIR="${LXD_ONE_DIR}" lxd sql global 'select images.fingerprint from images' | grep -c "${new_fingerprint}")" -eq 2 ] || false
 
   # Modify public testimage
   dd if=/dev/random count=32 | LXD_DIR="${LXD_REMOTE_DIR}" lxc file push - c1/foo
   LXD_DIR="${LXD_REMOTE_DIR}" lxc publish c1 --alias testimage --public
   new_fingerprint="$(LXD_DIR="${LXD_REMOTE_DIR}" lxc image ls testimage -c f --format csv)"
 
+  pids=""
+
   # Trigger image refresh on all nodes
   for lxd_dir in "${LXD_ONE_DIR}" "${LXD_TWO_DIR}" "${LXD_THREE_DIR}"; do
     LXD_DIR="${lxd_dir}" lxc query /internal/image-refresh &
+    pids="$! ${pids}"
   done
 
-  # Wait for the image to be refresh
-  sleep 5
+  # Wait for the image to be refreshed
+  for pid in ${pids}; do
+    wait "${pid}"
+  done
 
-  lxd sql global 'select images.fingerprint from images join projects on images.project_id=projects.id where projects.name="foo"' | grep "${old_fingerprint}"
-  [ "$(lxd sql global 'select images.fingerprint from images' | grep -c "${old_fingerprint}")" -eq 1 ] || false
+  pids=""
 
-  lxd sql global 'select images.fingerprint from images join projects on images.project_id=projects.id where projects.name="default"' | grep "${new_fingerprint}"
-  lxd sql global 'select images.fingerprint from images join projects on images.project_id=projects.id where projects.name="bar"' | grep "${new_fingerprint}"
-  [ "$(lxd sql global 'select images.fingerprint from images' | grep -c "${new_fingerprint}")" -eq 2 ] || false
+  LXD_DIR="${LXD_ONE_DIR}" lxd sql global 'select images.fingerprint from images join projects on images.project_id=projects.id where projects.name="foo"' | grep "${old_fingerprint}"
+  [ "$(LXD_DIR="${LXD_ONE_DIR}" lxd sql global 'select images.fingerprint from images' | grep -c "${old_fingerprint}")" -eq 1 ] || false
+
+  LXD_DIR="${LXD_ONE_DIR}" lxd sql global 'select images.fingerprint from images join projects on images.project_id=projects.id where projects.name="default"' | grep "${new_fingerprint}"
+  LXD_DIR="${LXD_ONE_DIR}" lxd sql global 'select images.fingerprint from images join projects on images.project_id=projects.id where projects.name="bar"' | grep "${new_fingerprint}"
+  [ "$(LXD_DIR="${LXD_ONE_DIR}" lxd sql global 'select images.fingerprint from images' | grep -c "${new_fingerprint}")" -eq 2 ] || false
 
   # Clean up everything
   for project in default foo bar; do
-    LXD_DIR="${LXD_ONE_DIR}" lxc image rm testimage --project "${project}"
-    LXD_DIR="${LXD_ONE_DIR}" lxc rm c1 --project "${project}"
+    # shellcheck disable=SC2046
+    LXD_DIR="${LXD_ONE_DIR}" lxc image rm --project "${project}" $(LXD_DIR="${LXD_ONE_DIR}" lxc image ls --format csv --project "${project}" | cut -d, -f2)
+    # shellcheck disable=SC2046
+    LXD_DIR="${LXD_ONE_DIR}" lxc rm --project "${project}" $(LXD_DIR="${LXD_ONE_DIR}" lxc ls --format csv --project "${project}" | cut -d, -f1)
   done
+
+  # shellcheck disable=SC2046
+  LXD_DIR="${LXD_REMOTE_DIR}" lxc image rm $(LXD_DIR="${LXD_REMOTE_DIR}" lxc image ls --format csv | cut -d, -f2)
+  # shellcheck disable=SC2046
+  LXD_DIR="${LXD_REMOTE_DIR}" lxc rm $(LXD_DIR="${LXD_REMOTE_DIR}" lxc ls --format csv | cut -d, -f1)
 
   LXD_DIR="${LXD_ONE_DIR}" lxd shutdown
   LXD_DIR="${LXD_TWO_DIR}" lxd shutdown
   LXD_DIR="${LXD_THREE_DIR}" lxd shutdown
+  LXD_DIR="${LXD_REMOTE_DIR}" lxd shutdown
   sleep 0.5
   rm -f "${LXD_ONE_DIR}/unix.socket"
   rm -f "${LXD_TWO_DIR}/unix.socket"
   rm -f "${LXD_THREE_DIR}/unix.socket"
+  rm -f "${LXD_REMOTE_DIR}/unix.socket"
 
   teardown_clustering_netns
   teardown_clustering_bridge
@@ -2333,4 +2359,7 @@ test_clustering_image_refresh() {
   kill_lxd "${LXD_TWO_DIR}"
   kill_lxd "${LXD_THREE_DIR}"
   kill_lxd "${LXD_REMOTE_DIR}"
+
+  # shellcheck disable=SC2034
+  LXD_NETNS=
 }
