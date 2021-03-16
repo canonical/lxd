@@ -2280,6 +2280,12 @@ func (n *ovn) Update(newNetwork api.NetworkPut, targetNode string, clientType re
 			addChangeSet := map[openvswitch.OVNPortGroup][]openvswitch.OVNSwitchPortUUID{}
 			removeChangeSet := map[openvswitch.OVNPortGroup][]openvswitch.OVNSwitchPortUUID{}
 
+			// Get list of active switch ports (avoids repeated querying of OVN NB).
+			activePorts, err := client.LogicalSwitchPorts(n.getIntSwitchName())
+			if err != nil {
+				return errors.Wrapf(err, "Failed getting active ports")
+			}
+
 			// Apply ACL changes to running instance NICs that use this network.
 			err = usedByInstanceDevices(n.state, n.project, n.name, func(inst db.Instance, nicName string, nicConfig map[string]string) error {
 				nicACLs := util.SplitNTrimSpace(nicConfig["security.acls"], ",", -1, true)
@@ -2287,12 +2293,8 @@ func (n *ovn) Update(newNetwork api.NetworkPut, targetNode string, clientType re
 				// Get logical port UUID and name.
 				instancePortName := n.getInstanceDevicePortName(inst.Config["volatile.uuid"], nicName)
 
-				portUUID, err := client.LogicalSwitchPortUUID(instancePortName)
-				if err != nil {
-					return errors.Wrapf(err, "Failed getting logical port UUID for security ACL update")
-				}
-
-				if portUUID == "" {
+				portUUID, found := activePorts[instancePortName]
+				if !found {
 					return nil // No need to update a port that isn't started yet.
 				}
 
@@ -3116,6 +3118,12 @@ func (n *ovn) handleDependencyChange(uplinkName string, uplinkConfig map[string]
 		}
 
 		if shared.StringInSlice(uplinkConfig["ovn.ingress_mode"], []string{"l2proxy", ""}) {
+			// Get list of active switch ports (avoids repeated querying of OVN NB).
+			activePorts, err := client.LogicalSwitchPorts(n.getIntSwitchName())
+			if err != nil {
+				return errors.Wrapf(err, "Failed getting active ports")
+			}
+
 			// Find all instance NICs that use this network, and re-add the logical OVN instance port.
 			// This will restore the l2proxy DNAT_AND_SNAT rules.
 			err = n.state.Cluster.InstanceList(nil, func(inst db.Instance, p api.Project, profiles []api.Profile) error {
@@ -3140,13 +3148,8 @@ func (n *ovn) handleDependencyChange(uplinkName string, uplinkConfig map[string]
 					// Check if instance port exists, if not then we can skip.
 					instanceUUID := inst.Config["volatile.uuid"]
 					instancePortName := n.getInstanceDevicePortName(instanceUUID, devName)
-					portUUID, err := client.LogicalSwitchPortUUID(instancePortName)
-					if err != nil {
-						n.logger.Error("Failed checking instance OVN NIC port exists", log.Ctx{"project": inst.Project, "instance": inst.Name, "err": err})
-						continue
-					}
-
-					if portUUID == "" {
+					_, found := activePorts[instancePortName]
+					if !found {
 						continue // No need to update a port that isn't started yet.
 					}
 
