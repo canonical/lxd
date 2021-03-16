@@ -2806,6 +2806,9 @@ func (n *ovn) InstanceDevicePortAdd(opts *OVNInstanceNICSetupOpts) (openvswitch.
 		}
 	}
 
+	// Add instance NIC switch port to port groups required. Always run this as the addChangeSet should always
+	// be populated even if no ACLs being applied, because the NIC port needs to be added to the network level
+	// port group.
 	n.logger.Debug("Applying instance NIC port group member change sets")
 	err = client.PortGroupMemberChange(addChangeSet, removeChangeSet)
 	if err != nil {
