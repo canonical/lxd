@@ -242,7 +242,7 @@ func OVNEnsureACLs(s *state.State, logger logger.Logger, client *openvswitch.OVN
 			revert.Add(func() { client.PortGroupDelete(netPortGroupName) })
 		}
 
-		// If aclInfo has been loaded, then we should use it to apply ACL rules to the existing port group
+		// If aclInfo has been set, then we should use it to apply ACL rules to the existing port group
 		// (and any per-ACL-per-network port groups needed).
 		if aclStatus.aclInfo != nil {
 			logger.Debug("Applying ACL rules to OVN port group", log.Ctx{"networkACL": aclStatus.name, "portGroup": portGroupName})
