@@ -1363,19 +1363,21 @@ func (o *OVN) PortGroupSetACLRules(portGroupName OVNPortGroup, matchReplace map[
 	return nil
 }
 
-// setACLRules applies a set of ACL rules to the specified entity.
-func (o *OVN) setACLRules(entityTable string, entityName string, externalIDs map[string]string, matchReplace map[string]string, aclRules ...OVNACLRule) error {
-	// Remove any existing rules assigned to the entity.
-	args := []string{"clear", entityTable, entityName, "acls"}
-
+// aclRuleAddAppendArgs adds the commands to args that add the provided ACL rules to the specified OVN entity.
+// Returns args with the ACL rule add commands added to it.
+func (o *OVN) aclRuleAddAppendArgs(args []string, entityTable string, entityName string, externalIDs map[string]string, matchReplace map[string]string, aclRules ...OVNACLRule) []string {
 	for i, rule := range aclRules {
+		if len(args) > 0 {
+			args = append(args, "--")
+		}
+
 		// Perform any replacements requested on the Match string.
 		for find, replace := range matchReplace {
 			rule.Match = strings.ReplaceAll(rule.Match, find, replace)
 		}
 
 		// Add command to create ACL rule.
-		args = append(args, "--", fmt.Sprintf("--id=@id%d", i), "create", "acl",
+		args = append(args, fmt.Sprintf("--id=@id%d", i), "create", "acl",
 			fmt.Sprintf("action=%s", rule.Action),
 			fmt.Sprintf("direction=%s", rule.Direction),
 			fmt.Sprintf("priority=%d", rule.Priority),
@@ -1398,10 +1400,5 @@ func (o *OVN) setACLRules(entityTable string, entityName string, externalIDs map
 		args = append(args, "--", "add", entityTable, entityName, "acl", fmt.Sprintf("@id%d", i))
 	}
 
-	_, err := o.nbctl(args...)
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return args
 }
