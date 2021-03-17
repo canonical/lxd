@@ -2914,18 +2914,14 @@ func (n *ovn) InstanceDevicePortDelete(ovsExternalOVNPort openvswitch.OVNSwitchP
 		return errors.Wrapf(err, "Failed to load uplink network %q", n.config["network"])
 	}
 
-	err = client.LogicalSwitchPortDelete(instancePortName)
-	if err != nil {
-		return err
-	}
-
-	// Delete DNS records.
+	// Get DNS records.
 	dnsUUID, _, dnsIPs, err := client.LogicalSwitchPortGetDNS(instancePortName)
 	if err != nil {
 		return err
 	}
 
-	err = client.LogicalSwitchPortDeleteDNS(n.getIntSwitchName(), dnsUUID)
+	// Cleanup logical switch port and associated config.
+	err = client.LogicalSwitchPortCleanup(instancePortName, n.getIntSwitchName(), acl.OVNIntSwitchPortGroupName(n.ID()), dnsUUID)
 	if err != nil {
 		return err
 	}
