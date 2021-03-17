@@ -1476,3 +1476,64 @@ func (o *OVN) aclRuleAddAppendArgs(args []string, entityTable string, entityName
 
 	return args
 }
+
+// aclRuleDeleteAppendArgs adds the commands to args that delete the provided ACL rules from the specified OVN entity.
+// Returns args with the ACL rule delete commands added to it.
+func (o *OVN) aclRuleDeleteAppendArgs(args []string, entityTable string, entityName string, aclRuleUUIDs []string) []string {
+	for _, aclRuleUUID := range aclRuleUUIDs {
+		if len(args) > 0 {
+			args = append(args, "--")
+		}
+
+		args = append(args, "remove", entityTable, string(entityName), "acl", aclRuleUUID)
+	}
+
+	return args
+}
+
+// PortGroupPortSetACLRules applies a set of rules for the logical switch port in the specified port group.
+// Any existing rules for that logical switch port in the port group are removed.
+func (o *OVN) PortGroupPortSetACLRules(portGroupName OVNPortGroup, portName OVNSwitchPort, aclRules ...OVNACLRule) error {
+	// Remove any existing rules assigned to the entity.
+	removeACLRuleUUIDs, err := o.logicalSwitchPortACLRules(portName)
+	if err != nil {
+		return err
+	}
+
+	args := o.aclRuleDeleteAppendArgs(nil, "port_group", string(portGroupName), removeACLRuleUUIDs)
+
+	// Add new rules.
+	externalIDs := map[string]string{
+		ovnExtIDLXDPortGroup:  string(portGroupName),
+		ovnExtIDLXDSwitchPort: string(portName),
+	}
+
+	args = o.aclRuleAddAppendArgs(args, "port_group", string(portGroupName), externalIDs, nil, aclRules...)
+
+	_, err = o.nbctl(args...)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// PortGroupPortClearACLRules clears any rules assigned to the logical switch port in the specified port group.
+func (o *OVN) PortGroupPortClearACLRules(portGroupName OVNPortGroup, portName OVNSwitchPort) error {
+	// Remove any existing rules assigned to the entity.
+	removeACLRuleUUIDs, err := o.logicalSwitchPortACLRules(portName)
+	if err != nil {
+		return err
+	}
+
+	args := o.aclRuleDeleteAppendArgs(nil, "port_group", string(portGroupName), removeACLRuleUUIDs)
+
+	if len(args) > 0 {
+		_, err = o.nbctl(args...)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
