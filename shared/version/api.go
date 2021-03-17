@@ -262,6 +262,7 @@ var APIExtensions = []string{
 	"projects_images_auto_update",
 	"projects_restricted_cluster_target",
 	"images_default_architecture",
+	"network_ovn_acl_defaults",
 }
 
 // APIExtensionsCount returns the number of available API extensions.
