@@ -110,7 +110,7 @@ var patches = []patch{
 	{name: "storage_rename_custom_volume_add_project", stage: patchPreDaemonStorage, run: patchGenericStorage},
 	{name: "storage_lvm_skipactivation", stage: patchPostDaemonStorage, run: patchGenericStorage},
 	{name: "clustering_drop_database_role", stage: patchPostDaemonStorage, run: patchClusteringDropDatabaseRole},
-	{name: "network_clear_bridge_volatile_hwaddr", stage: patchPostDaemonStorage, run: patchNetworkCearBridgeVolatileHwaddr},
+	{name: "network_clear_bridge_volatile_hwaddr", stage: patchPostDaemonStorage, run: patchNetworkClearBridgeVolatileHwaddr},
 	{name: "network_fan_enable_nat", stage: patchPostDaemonStorage, run: patchNetworkFANEnableNAT},
 	{name: "thinpool_typo_fix", stage: patchPostDaemonStorage, run: patchThinpoolTypoFix},
 	{name: "vm_rename_uuid_key", stage: patchPostDaemonStorage, run: patchVMRenameUUIDKey},
@@ -3708,8 +3708,8 @@ func patchClusteringDropDatabaseRole(name string, d *Daemon) error {
 	})
 }
 
-// patchNetworkCearBridgeVolatileHwaddr removes the unsupported `volatile.bridge.hwaddr` config key from networks.
-func patchNetworkCearBridgeVolatileHwaddr(name string, d *Daemon) error {
+// patchNetworkClearBridgeVolatileHwaddr removes the unsupported `volatile.bridge.hwaddr` config key from networks.
+func patchNetworkClearBridgeVolatileHwaddr(name string, d *Daemon) error {
 	// Get the list of networks.
 	networks, err := d.cluster.GetNetworks()
 	if err != nil {
