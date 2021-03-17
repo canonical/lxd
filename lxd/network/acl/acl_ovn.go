@@ -22,6 +22,7 @@ import (
 
 // OVN ACL rule priorities.
 const ovnACLPrioritySwitchAllow = 10
+const ovnACLPriorityPortGroupDefaultReject = 0
 const ovnACLPriorityPortGroupAllow = 20
 const ovnACLPriorityPortGroupReject = 30
 const ovnACLPriorityPortGroupDrop = 40
@@ -343,19 +344,12 @@ func ovnApplyToPortGroup(logger logger.Logger, client *openvswitch.OVN, aclInfo 
 
 	// Add default rule to port group ACL.
 	defaultAction := "reject"
-	if aclInfo.Config["default.action"] != "" {
-		defaultAction = aclInfo.Config["default.action"]
-	}
-
 	defaultLogged := false
-	if shared.IsTrue(aclInfo.Config["default.logged"]) {
-		defaultLogged = true
-	}
 
 	portGroupRules = append(portGroupRules, openvswitch.OVNACLRule{
 		Direction: "to-lport", // Always use this so that outport is available to Match.
 		Action:    defaultAction,
-		Priority:  0, // Lowest priority to catch only unmatched traffic.
+		Priority:  ovnACLPriorityPortGroupDefaultReject, // Lowest priority to catch only unmatched traffic.
 		Match:     fmt.Sprintf("(inport == @%s || outport == @%s)", portGroupName, portGroupName),
 		Log:       defaultLogged,
 		LogName:   string(portGroupName),
