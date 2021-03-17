@@ -1141,6 +1141,18 @@ func (o *OVN) LogicalSwitchPortDeleteDNS(switchName OVNSwitch, dnsUUID OVNDNSUUI
 	return nil
 }
 
+// logicalSwitchPortDeleteAppendArgs adds the commands to delete the specified logical switch port.
+// Returns args with the commands added to it.
+func (o *OVN) logicalSwitchPortDeleteAppendArgs(args []string, portName OVNSwitchPort) []string {
+	if len(args) > 0 {
+		args = append(args, "--")
+	}
+
+	args = append(args, "--if-exists", "lsp-del", string(portName))
+
+	return args
+}
+
 // LogicalSwitchPortDelete deletes a named logical switch port.
 func (o *OVN) LogicalSwitchPortDelete(portName OVNSwitchPort) error {
 	_, err := o.nbctl("--if-exists", "lsp-del", string(portName))
