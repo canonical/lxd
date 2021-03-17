@@ -111,7 +111,7 @@ var patches = []patch{
 	{name: "storage_rename_custom_volume_add_project", stage: patchPreDaemonStorage, run: patchGenericStorage},
 	{name: "storage_lvm_skipactivation", stage: patchPostDaemonStorage, run: patchGenericStorage},
 	{name: "clustering_drop_database_role", stage: patchPostDaemonStorage, run: patchClusteringDropDatabaseRole},
-	{name: "network_clear_bridge_volatile_hwaddr", stage: patchPostDaemonStorage, run: patchNetworkCearBridgeVolatileHwaddr},
+	{name: "network_clear_bridge_volatile_hwaddr", stage: patchPostDaemonStorage, run: patchNetworkClearBridgeVolatileHwaddr},
 	{name: "move_backups_instances", stage: patchPostDaemonStorage, run: patchMoveBackupsInstances},
 	{name: "network_ovn_enable_nat", stage: patchPostDaemonStorage, run: patchNetworkOVNEnableNAT},
 	{name: "network_ovn_remove_routes", stage: patchPostDaemonStorage, run: patchNetworkOVNRemoveRoutes},
@@ -3850,8 +3850,8 @@ func patchClusteringDropDatabaseRole(name string, d *Daemon) error {
 	})
 }
 
-// patchNetworkCearBridgeVolatileHwaddr removes the unsupported `volatile.bridge.hwaddr` config key from networks.
-func patchNetworkCearBridgeVolatileHwaddr(name string, d *Daemon) error {
+// patchNetworkClearBridgeVolatileHwaddr removes the unsupported `volatile.bridge.hwaddr` config key from networks.
+func patchNetworkClearBridgeVolatileHwaddr(name string, d *Daemon) error {
 	// Use project.Default, as bridge networks don't support projects.
 	projectName := project.Default
 
