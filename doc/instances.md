@@ -381,20 +381,24 @@ Uses an existing OVN network and creates a virtual device pair to connect the in
 
 Device configuration properties:
 
-Key                     | Type    | Default           | Required | Managed | Description
-:--                     | :--     | :--               | :--      | :--     | :--
-network                 | string  | -                 | yes      | yes     | The LXD network to link device to
-name                    | string  | kernel assigned   | no       | no      | The name of the interface inside the instance
-host\_name              | string  | randomly assigned | no       | no      | The name of the interface inside the host
-hwaddr                  | string  | randomly assigned | no       | no      | The MAC address of the new interface
-ipv4.address            | string  | -                 | no       | no      | An IPv4 address to assign to the instance through DHCP
-ipv6.address            | string  | -                 | no       | no      | An IPv6 address to assign to the instance through DHCP
-ipv4.routes             | string  | -                 | no       | no      | Comma delimited list of IPv4 static routes to route to the NIC
-ipv6.routes             | string  | -                 | no       | no      | Comma delimited list of IPv6 static routes to route to the NIC
-ipv4.routes.external    | string  | -                 | no       | no      | Comma delimited list of IPv4 static routes to route to the NIC and publish on uplink network
-ipv6.routes.external    | string  | -                 | no       | no      | Comma delimited list of IPv6 static routes to route to the NIC and publish on uplink network
-boot.priority           | integer | -                 | no       | no      | Boot priority for VMs (higher boots first)
-security.acls           | string  | -                 | no       | no      | Comma separated list of Network ACLs to apply
+Key                                  | Type    | Default           | Required | Managed | Description
+:--                                  | :--     | :--               | :--      | :--     | :--
+network                              | string  | -                 | yes      | yes     | The LXD network to link device to
+name                                 | string  | kernel assigned   | no       | no      | The name of the interface inside the instance
+host\_name                           | string  | randomly assigned | no       | no      | The name of the interface inside the host
+hwaddr                               | string  | randomly assigned | no       | no      | The MAC address of the new interface
+ipv4.address                         | string  | -                 | no       | no      | An IPv4 address to assign to the instance through DHCP
+ipv6.address                         | string  | -                 | no       | no      | An IPv6 address to assign to the instance through DHCP
+ipv4.routes                          | string  | -                 | no       | no      | Comma delimited list of IPv4 static routes to route to the NIC
+ipv6.routes                          | string  | -                 | no       | no      | Comma delimited list of IPv6 static routes to route to the NIC
+ipv4.routes.external                 | string  | -                 | no       | no      | Comma delimited list of IPv4 static routes to route to the NIC and publish on uplink network
+ipv6.routes.external                 | string  | -                 | no       | no      | Comma delimited list of IPv6 static routes to route to the NIC and publish on uplink network
+boot.priority                        | integer | -                 | no       | no      | Boot priority for VMs (higher boots first)
+security.acls                        | string  | -                 | no       | no      | Comma separated list of Network ACLs to apply
+security.acls.default.ingress.action | string  | reject            | no       | no      | Action to use for ingress traffic that doesn't match any ACL rule
+security.acls.default.egress.action  | string  | reject            | no       | no      | Action to use for egress traffic that doesn't match any ACL rule
+security.acls.default.ingress.logged | boolean | false             | no       | no      | Whether to log ingress traffic that doesn't match any ACL rule
+security.acls.default.egress.logged  | boolean | false             | no       | no      | Whether to log egress traffic that doesn't match any ACL rule
 
 #### nic: physical
 
