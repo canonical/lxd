@@ -2339,7 +2339,7 @@ func (n *ovn) Update(newNetwork api.NetworkPut, targetNode string, clientType re
 				n.logger.Debug("Applying ACL port group member change sets")
 				err = client.PortGroupMemberChange(addChangeSet, removeChangeSet)
 				if err != nil {
-					return errors.Wrapf(err, "Failed applying OVN port group member change sets for instance NICs")
+					return errors.Wrapf(err, "Failed applying OVN port group member change sets for instance NIC")
 				}
 			}
 
