@@ -21,11 +21,16 @@ import (
 )
 
 // OVN ACL rule priorities.
-const ovnACLPrioritySwitchAllow = 10
-const ovnACLPriorityPortGroupDefaultReject = 0
-const ovnACLPriorityPortGroupAllow = 20
-const ovnACLPriorityPortGroupReject = 30
-const ovnACLPriorityPortGroupDrop = 40
+const ovnACLPriorityPortGroupDefaultAction = 0
+const ovnACLPriorityNICDefaultActionIngress = 100
+
+// ovnACLPriorityNICDefaultActionEgress needs to be >10 higher than ovnACLPriorityNICDefaultActionIngress so that
+// ingress reject rules (that OVN adds 10 to their priorities) don't prevent egress rules being tested first.
+const ovnACLPriorityNICDefaultActionEgress = 111
+const ovnACLPrioritySwitchAllow = 200
+const ovnACLPriorityPortGroupAllow = 300
+const ovnACLPriorityPortGroupReject = 400
+const ovnACLPriorityPortGroupDrop = 500
 
 // ovnACLPortGroupPrefix prefix used when naming ACL related port groups in OVN.
 const ovnACLPortGroupPrefix = "lxd_acl"
@@ -349,7 +354,7 @@ func ovnApplyToPortGroup(logger logger.Logger, client *openvswitch.OVN, aclInfo 
 	portGroupRules = append(portGroupRules, openvswitch.OVNACLRule{
 		Direction: "to-lport", // Always use this so that outport is available to Match.
 		Action:    defaultAction,
-		Priority:  ovnACLPriorityPortGroupDefaultReject, // Lowest priority to catch only unmatched traffic.
+		Priority:  ovnACLPriorityPortGroupDefaultAction, // Lowest priority to catch only unmatched traffic.
 		Match:     fmt.Sprintf("(inport == @%s || outport == @%s)", portGroupName, portGroupName),
 		Log:       defaultLogged,
 		LogName:   string(portGroupName),
