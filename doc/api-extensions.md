@@ -1333,3 +1333,7 @@ to specify what cluster member to place a workload on or the ability to move a w
 ## images\_default\_architecture
 Adds new `images.default_architecture` global config key and matching per-project key which lets user tell LXD
 what architecture to go with when no specific one is specified as part of the image request.
+
+## network\_ovn\_acl\_defaults
+Adds new `security.acls.default.{in,e}gress.action` and `security.acls.default.{in,e}gress.logged` config keys for
+OVN networks and NICs. This replaces the removed ACL `default.action` and `default.logged` keys.
