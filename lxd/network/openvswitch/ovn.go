@@ -824,6 +824,21 @@ func (o *OVN) LogicalSwitchSetACLRules(switchName OVNSwitch, aclRules ...OVNACLR
 	return nil
 }
 
+// logicalSwitchPortACLRules returns the ACL rule UUIDs belonging to a logical switch port.
+func (o *OVN) logicalSwitchPortACLRules(portName OVNSwitchPort) ([]string, error) {
+	// Remove any existing rules assigned to the entity.
+	output, err := o.nbctl("--format=csv", "--no-headings", "--data=bare", "--colum=_uuid", "find", "acl",
+		fmt.Sprintf("external_ids:%s=%s", ovnExtIDLXDSwitchPort, string(portName)),
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	ruleUUIDs := util.SplitNTrimSpace(strings.TrimSpace(output), "\n", -1, true)
+
+	return ruleUUIDs, nil
+}
+
 // LogicalSwitchPorts returns a map of logical switch ports (name and UUID) for a switch.
 // Includes non-instance ports, such as the router port.
 func (o *OVN) LogicalSwitchPorts(switchName OVNSwitch) (map[OVNSwitchPort]OVNSwitchPortUUID, error) {
