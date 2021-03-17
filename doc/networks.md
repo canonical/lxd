@@ -294,21 +294,25 @@ lxc ls
 +------+---------+---------------------+----------------------------------------------+-----------+-----------+
 ```
 
-Key                             | Type      | Condition             | Default                   | Description
-:--                             | :--       | :--                   | :--                       | :--
-bridge.hwaddr                   | string    | -                     | -                         | MAC address for the bridge
-bridge.mtu                      | integer   | -                     | 1442                      | Bridge MTU (default allows host to host geneve tunnels)
-dns.domain                      | string    | -                     | lxd                       | Domain to advertise to DHCP clients and use for DNS resolution
-dns.search                      | string    | -                     | -                         | Full comma separated domain search list, defaulting to `dns.domain` value
-ipv4.address                    | string    | standard mode         | auto (on create only)     | IPv4 address for the bridge (CIDR notation). Use "none" to turn off IPv4 or "auto" to generate a new random unused subnet
-ipv4.dhcp                       | boolean   | ipv4 address          | true                      | Whether to allocate addresses using DHCP
-ipv4.nat                        | boolean   | ipv4 address          | false                     | Whether to NAT (will default to true if unset and a random ipv4.address is generated)
-ipv6.address                    | string    | standard mode         | auto (on create only)     | IPv6 address for the bridge (CIDR notation). Use "none" to turn off IPv6 or "auto" to generate a new random unused subnet
-ipv6.dhcp                       | boolean   | ipv6 address          | true                      | Whether to provide additional network configuration over DHCP
-ipv6.dhcp.stateful              | boolean   | ipv6 dhcp             | false                     | Whether to allocate addresses using DHCP
-ipv6.nat                        | boolean   | ipv6 address          | false                     | Whether to NAT (will default to true if unset and a random ipv6.address is generated)
-network                         | string    | -                     | -                         | Uplink network to use for external network access
-security.acls                   | string    | -                     | -                         | Comma separated list of Network ACLs to apply to NICs connected to this network
+Key                                  | Type      | Condition             | Default                   | Description
+:--                                  | :--       | :--                   | :--                       | :--
+bridge.hwaddr                        | string    | -                     | -                         | MAC address for the bridge
+bridge.mtu                           | integer   | -                     | 1442                      | Bridge MTU (default allows host to host geneve tunnels)
+dns.domain                           | string    | -                     | lxd                       | Domain to advertise to DHCP clients and use for DNS resolution
+dns.search                           | string    | -                     | -                         | Full comma separated domain search list, defaulting to `dns.domain` value
+ipv4.address                         | string    | standard mode         | auto (on create only)     | IPv4 address for the bridge (CIDR notation). Use "none" to turn off IPv4 or "auto" to generate a new random unused subnet
+ipv4.dhcp                            | boolean   | ipv4 address          | true                      | Whether to allocate addresses using DHCP
+ipv4.nat                             | boolean   | ipv4 address          | false                     | Whether to NAT (will default to true if unset and a random ipv4.address is generated)
+ipv6.address                         | string    | standard mode         | auto (on create only)     | IPv6 address for the bridge (CIDR notation). Use "none" to turn off IPv6 or "auto" to generate a new random unused subnet
+ipv6.dhcp                            | boolean   | ipv6 address          | true                      | Whether to provide additional network configuration over DHCP
+ipv6.dhcp.stateful                   | boolean   | ipv6 dhcp             | false                     | Whether to allocate addresses using DHCP
+ipv6.nat                             | boolean   | ipv6 address          | false                     | Whether to NAT (will default to true if unset and a random ipv6.address is generated)
+network                              | string    | -                     | -                         | Uplink network to use for external network access
+security.acls                        | string    | -                     | -                         | Comma separated list of Network ACLs to apply to NICs connected to this network
+security.acls.default.ingress.action | string    | security.acls         | reject                    | Action to use for ingress traffic that doesn't match any ACL rule
+security.acls.default.egress.action  | string    | security.acls         | reject                    | Action to use for egress traffic that doesn't match any ACL rule
+security.acls.default.ingress.logged | boolean   | security.acls         | false                     | Whether to log ingress traffic that doesn't match any ACL rule
+security.acls.default.egress.logged  | boolean   | security.acls         | false                     | Whether to log egress traffic that doesn't match any ACL rule
 
 ## network: physical
 
