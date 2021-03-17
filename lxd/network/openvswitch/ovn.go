@@ -1155,7 +1155,7 @@ func (o *OVN) logicalSwitchPortDeleteAppendArgs(args []string, portName OVNSwitc
 
 // LogicalSwitchPortDelete deletes a named logical switch port.
 func (o *OVN) LogicalSwitchPortDelete(portName OVNSwitchPort) error {
-	_, err := o.nbctl("--if-exists", "lsp-del", string(portName))
+	_, err := o.nbctl(o.logicalSwitchPortDeleteAppendArgs(nil, portName)...)
 	if err != nil {
 		return err
 	}
