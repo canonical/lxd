@@ -1355,12 +1355,17 @@ func (o *OVN) PortGroupMemberChange(addMembers map[OVNPortGroup][]OVNSwitchPortU
 
 // PortGroupSetACLRules applies a set of rules to the specified port group. Any existing rules are removed.
 func (o *OVN) PortGroupSetACLRules(portGroupName OVNPortGroup, matchReplace map[string]string, aclRules ...OVNACLRule) error {
+	// Remove any existing rules assigned to the entity.
+	args := []string{"clear", "port_group", string(portGroupName), "acls"}
+
 	// Add new rules.
 	externalIDs := map[string]string{
 		ovnExtIDLXDPortGroup: string(portGroupName),
 	}
 
-	err := o.setACLRules("port_group", string(portGroupName), externalIDs, matchReplace, aclRules...)
+	args = o.aclRuleAddAppendArgs(args, "port_group", string(portGroupName), externalIDs, matchReplace, aclRules...)
+
+	_, err := o.nbctl(args...)
 	if err != nil {
 		return err
 	}
