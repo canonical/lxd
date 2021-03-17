@@ -23,6 +23,24 @@ Static analysis     | GoReport              | [![Go Report Card](https://gorepor
 Translations        | Weblate               | [![Translation status](https://hosted.weblate.org/widgets/linux-containers/-/svg-badge.svg)](https://hosted.weblate.org/projects/linux-containers/lxd/)
 Project status      | CII Best Practices    | [![CII Best Practices](https://bestpractices.coreinfrastructure.org/projects/1086/badge)](https://bestpractices.coreinfrastructure.org/projects/1086)
 
+
+## Contents
+
+* [Introduction](#lxd)
+* [Status](#status)
+* Installation:
+    * [Install LXD from packages](#installing-lxd-from-packages)
+    * [Install LXD from source](#installing-lxd-from-source)
+* [Security](#security)
+* [Getting started with LXD](#getting-started-with-lxd)
+* [Bug reports & Feature requests](#bug-reports)
+* [Contributing](#contributing)
+* [Support & discussions](#support-and-discussions)
+* [FAQ](#faq)
+* [Hacking on LXD](#hacking-on-lxd)
+
+---
+
 ## Installing LXD from packages
 The LXD daemon only works on Linux but the client tool (`lxc`) is available on most platforms.
 
@@ -171,7 +189,7 @@ More details are [available here](security.md).
 Now that you have LXD running on your system you can read the [getting started guide](https://linuxcontainers.org/lxd/getting-started-cli/) or go through more examples and configurations in [our documentation](https://linuxcontainers.org/lxd/docs/master/).
 
 ## Bug reports
-Bug reports can be filed at: <https://github.com/lxc/lxd/issues/new>
+Bug reports and Feature requests can be filed at: <https://github.com/lxc/lxd/issues/new>
 
 ## Contributing
 Fixes and new features are greatly appreciated but please read our [contributing guidelines](contributing.md) first.
