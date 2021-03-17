@@ -430,31 +430,6 @@ func (d *nicOVN) Stop() (*deviceConfig.RunConfig, error) {
 		PostHooks: []func() error{d.postStop},
 	}
 
-	var err error
-	internalRoutes := []*net.IPNet{}
-	for _, key := range []string{"ipv4.routes", "ipv6.routes"} {
-		if d.config[key] == "" {
-			continue
-		}
-
-		internalRoutes, err = network.SubnetParseAppend(internalRoutes, util.SplitNTrimSpace(d.config[key], ",", -1, false)...)
-		if err != nil {
-			return nil, errors.Wrapf(err, "Invalid %q value", key)
-		}
-	}
-
-	externalRoutes := []*net.IPNet{}
-	for _, key := range []string{"ipv4.routes.external", "ipv6.routes.external"} {
-		if d.config[key] == "" {
-			continue
-		}
-
-		externalRoutes, err = network.SubnetParseAppend(externalRoutes, util.SplitNTrimSpace(d.config[key], ",", -1, false)...)
-		if err != nil {
-			return nil, errors.Wrapf(err, "Invalid %q value", key)
-		}
-	}
-
 	// Try and retrieve the last associated OVN switch port for the instance interface in the local OVS DB.
 	// If we cannot get this, don't fail, as InstanceDevicePortDelete will then try and generate the likely
 	// port name using the same regime it does for new ports. This part is only here in order to allow
@@ -467,11 +442,10 @@ func (d *nicOVN) Stop() (*deviceConfig.RunConfig, error) {
 	}
 
 	instanceUUID := d.inst.LocalConfig()["volatile.uuid"]
-	err = d.network.InstanceDevicePortDelete(ovsExternalOVNPort, &network.OVNInstanceNICOpts{
-		InstanceUUID:   instanceUUID,
-		DeviceName:     d.name,
-		InternalRoutes: internalRoutes,
-		ExternalRoutes: externalRoutes,
+	err = d.network.InstanceDevicePortDelete(ovsExternalOVNPort, &network.OVNInstanceNICStopOpts{
+		InstanceUUID: instanceUUID,
+		DeviceName:   d.name,
+		DeviceConfig: d.config,
 	})
 	if err != nil {
 		// Don't fail here as we still want the postStop hook to run to clean up the local veth pair.
