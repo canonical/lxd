@@ -116,7 +116,7 @@ type NetworkACLPut struct {
 	Ingress []NetworkACLRule `json:"ingress" yaml:"ingress"`
 
 	// ACL configuration map (refer to doc/network-acls.md)
-	// Example: {"default.action": "drop"}
+	// Example: {"user.mykey": "foo"}
 	Config map[string]string `json:"config" yaml:"config"`
 }
 
