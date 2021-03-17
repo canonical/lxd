@@ -3171,28 +3171,15 @@ func (n *ovn) handleDependencyChange(uplinkName string, uplinkConfig map[string]
 						devConfig["hwaddr"] = inst.Config[fmt.Sprintf("volatile.%s.hwaddr", devName)]
 					}
 
-					// Parse NIC config into structures used by OVN network's instance port functions.
-					mac, ips, internalRoutes, externalRoutes, err := n.InstanceDevicePortConfigParse(devConfig)
-					if err != nil {
-						n.logger.Error("Failed parsing instance OVN NIC config", log.Ctx{"project": inst.Project, "instance": inst.Name, "err": err})
-						continue
-					}
-
 					// Re-add logical switch port to apply the l2proxy DNAT_AND_SNAT rules.
 					n.logger.Debug("Re-adding instance OVN NIC port to apply ingress mode changes", log.Ctx{"project": inst.Project, "instance": inst.Name, "device": devName})
-					_, err = n.InstanceDevicePortAdd(&OVNInstanceNICSetupOpts{
-						OVNInstanceNICOpts: OVNInstanceNICOpts{
-							InstanceUUID:   instanceUUID,
-							DeviceName:     devName,
-							InternalRoutes: internalRoutes,
-							ExternalRoutes: externalRoutes,
-						},
-						UplinkConfig: uplinkConfig,
+					_, err = n.InstanceDevicePortSetup(&OVNInstanceNICSetupOpts{
+						InstanceUUID: instanceUUID,
 						DNSName:      inst.Name,
-						MAC:          mac,
-						IPs:          ips,
-						SecurityACLs: util.SplitNTrimSpace(devConfig["security.acls"], ",", -1, true),
-					})
+						DeviceName:   devName,
+						DeviceConfig: devConfig,
+						UplinkConfig: uplinkConfig,
+					}, nil)
 					if err != nil {
 						n.logger.Error("Failed re-adding instance OVN NIC port", log.Ctx{"project": inst.Project, "instance": inst.Name, "err": err})
 						continue
