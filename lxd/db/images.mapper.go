@@ -28,6 +28,12 @@ SELECT images.id, projects.name AS project, images.fingerprint, images.type, ima
   WHERE project = ? ORDER BY projects.id, images.fingerprint
 `)
 
+var imageObjectsByProjectAndCached = cluster.RegisterStmt(`
+SELECT images.id, projects.name AS project, images.fingerprint, images.type, images.filename, images.size, images.public, images.architecture, images.creation_date, images.expiry_date, images.upload_date, images.cached, images.last_use_date, images.auto_update
+  FROM images JOIN projects ON images.project_id = projects.id
+  WHERE project = ? AND images.cached = ? ORDER BY projects.id, images.fingerprint
+`)
+
 var imageObjectsByProjectAndPublic = cluster.RegisterStmt(`
 SELECT images.id, projects.name AS project, images.fingerprint, images.type, images.filename, images.size, images.public, images.architecture, images.creation_date, images.expiry_date, images.upload_date, images.cached, images.last_use_date, images.auto_update
   FROM images JOIN projects ON images.project_id = projects.id
@@ -109,6 +115,12 @@ func (c *ClusterTx) GetImages(filter ImageFilter) ([]Image, error) {
 		args = []interface{}{
 			filter.Project,
 			filter.Fingerprint,
+		}
+	} else if criteria["Project"] != nil && criteria["Cached"] != nil {
+		stmt = c.stmt(imageObjectsByProjectAndCached)
+		args = []interface{}{
+			filter.Project,
+			filter.Cached,
 		}
 	} else if criteria["Project"] != nil {
 		stmt = c.stmt(imageObjectsByProject)

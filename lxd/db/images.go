@@ -24,6 +24,7 @@ import (
 //
 //go:generate mapper stmt -p db -e image objects
 //go:generate mapper stmt -p db -e image objects-by-Project
+//go:generate mapper stmt -p db -e image objects-by-Project-and-Cached
 //go:generate mapper stmt -p db -e image objects-by-Project-and-Public
 //go:generate mapper stmt -p db -e image objects-by-Project-and-Fingerprint
 //go:generate mapper stmt -p db -e image objects-by-Project-and-Fingerprint-and-Public
