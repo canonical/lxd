@@ -206,14 +206,7 @@ func (d *common) validateName(name string) error {
 
 // validateConfig checks the config and rules are valid.
 func (d *common) validateConfig(info *api.NetworkACLPut) error {
-	rules := map[string]func(value string) error{
-		"default.logged": validate.Optional(validate.IsBool),
-		"default.action": validate.Optional(func(value string) error {
-			return validate.IsOneOf(value, validActions)
-		}),
-	}
-
-	err := d.validateConfigMap(info.Config, rules)
+	err := d.validateConfigMap(info.Config, nil)
 	if err != nil {
 		return err
 	}
