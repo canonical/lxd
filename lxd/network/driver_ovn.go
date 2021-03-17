@@ -2370,26 +2370,9 @@ func (n *ovn) getInstanceDevicePortName(instanceUUID string, deviceName string) 
 	return openvswitch.OVNSwitchPort(fmt.Sprintf("%s-%s-%s", n.getIntSwitchInstancePortPrefix(), instanceUUID, deviceName))
 }
 
-// InstanceDevicePortConfigParse parses the instance NIC device config and returns MAC address, static IPs,
-// internal routes and external routes.
-func (n *ovn) InstanceDevicePortConfigParse(deviceConfig map[string]string) (net.HardwareAddr, []net.IP, []*net.IPNet, []*net.IPNet, error) {
-	mac, err := net.ParseMAC(deviceConfig["hwaddr"])
-	if err != nil {
-		return nil, nil, nil, nil, err
-	}
-
-	ips := []net.IP{}
-	for _, key := range []string{"ipv4.address", "ipv6.address"} {
-		if deviceConfig[key] == "" {
-			continue
-		}
-
-		ip := net.ParseIP(deviceConfig[key])
-		if ip == nil {
-			return nil, nil, nil, nil, fmt.Errorf("Invalid %s value %q", key, deviceConfig[key])
-		}
-		ips = append(ips, ip)
-	}
+// instanceDevicePortRoutesParse parses the instance NIC device config for internal routes and external routes.
+func (n *ovn) instanceDevicePortRoutesParse(deviceConfig map[string]string) ([]*net.IPNet, []*net.IPNet, error) {
+	var err error
 
 	internalRoutes := []*net.IPNet{}
 	for _, key := range []string{"ipv4.routes", "ipv6.routes"} {
@@ -2399,7 +2382,7 @@ func (n *ovn) InstanceDevicePortConfigParse(deviceConfig map[string]string) (net
 
 		internalRoutes, err = SubnetParseAppend(internalRoutes, util.SplitNTrimSpace(deviceConfig[key], ",", -1, false)...)
 		if err != nil {
-			return nil, nil, nil, nil, errors.Wrapf(err, "Invalid %q value", key)
+			return nil, nil, errors.Wrapf(err, "Invalid %q value", key)
 		}
 	}
 
@@ -2411,11 +2394,11 @@ func (n *ovn) InstanceDevicePortConfigParse(deviceConfig map[string]string) (net
 
 		externalRoutes, err = SubnetParseAppend(externalRoutes, util.SplitNTrimSpace(deviceConfig[key], ",", -1, false)...)
 		if err != nil {
-			return nil, nil, nil, nil, errors.Wrapf(err, "Invalid %q value", key)
+			return nil, nil, errors.Wrapf(err, "Invalid %q value", key)
 		}
 	}
 
-	return mac, ips, internalRoutes, externalRoutes, nil
+	return internalRoutes, externalRoutes, nil
 }
 
 // InstanceDevicePortValidateExternalRoutes validates the external routes for an OVN instance port.
