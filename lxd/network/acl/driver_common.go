@@ -36,8 +36,8 @@ const ruleSubjectExternal = "@external"
 var ruleSubjectInternalAliases = []string{ruleSubjectInternal, "#internal"}
 var ruleSubjectExternalAliases = []string{ruleSubjectExternal, "#external"}
 
-// Define valid actions for rules.
-var validActions = []string{"allow", "drop", "reject"}
+// ValidActions defines valid actions for rules.
+var ValidActions = []string{"allow", "drop", "reject"}
 
 // common represents a Network ACL.
 type common struct {
@@ -295,8 +295,8 @@ func (d *common) validateConfigMap(config map[string]string, rules map[string]fu
 // validateRule validates the rule supplied.
 func (d *common) validateRule(direction ruleDirection, rule api.NetworkACLRule) error {
 	// Validate Action field (required).
-	if !shared.StringInSlice(rule.Action, validActions) {
-		return fmt.Errorf("Action must be one of: %s", strings.Join(validActions, ", "))
+	if !shared.StringInSlice(rule.Action, ValidActions) {
+		return fmt.Errorf("Action must be one of: %s", strings.Join(ValidActions, ", "))
 	}
 
 	// Validate State field (required).
