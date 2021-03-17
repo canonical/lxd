@@ -806,12 +806,17 @@ func (o *OVN) logicalSwitchDNSRecordsDelete(switchName OVNSwitch) error {
 
 // LogicalSwitchSetACLRules applies a set of rules to the specified logical switch. Any existing rules are removed.
 func (o *OVN) LogicalSwitchSetACLRules(switchName OVNSwitch, aclRules ...OVNACLRule) error {
+	// Remove any existing rules assigned to the entity.
+	args := []string{"clear", "logical_switch", string(switchName), "acls"}
+
 	// Add new rules.
 	externalIDs := map[string]string{
 		ovnExtIDLXDSwitch: string(switchName),
 	}
 
-	err := o.setACLRules("logical_switch", string(switchName), externalIDs, nil, aclRules...)
+	args = o.aclRuleAddAppendArgs(args, "logical_switch", string(switchName), externalIDs, nil, aclRules...)
+
+	_, err := o.nbctl(args...)
 	if err != nil {
 		return err
 	}
