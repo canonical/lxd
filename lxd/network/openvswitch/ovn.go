@@ -506,8 +506,7 @@ func (o *OVN) logicalSwitchFindAssociatedPortGroups(switchName OVNSwitch) ([]OVN
 		return nil, err
 	}
 
-	output = strings.TrimSpace(output)
-	lines := util.SplitNTrimSpace(output, "\n", -1, true)
+	lines := util.SplitNTrimSpace(strings.TrimSpace(output), "\n", -1, true)
 	portGroups := make([]OVNPortGroup, 0, len(lines))
 
 	for _, line := range lines {
@@ -1307,8 +1306,7 @@ func (o *OVN) PortGroupListByProject(projectID int64) ([]OVNPortGroup, error) {
 		return nil, err
 	}
 
-	output = strings.TrimSpace(output)
-	lines := util.SplitNTrimSpace(output, "\n", -1, true)
+	lines := util.SplitNTrimSpace(strings.TrimSpace(output), "\n", -1, true)
 	portGroups := make([]OVNPortGroup, 0, len(lines))
 
 	for _, line := range lines {
