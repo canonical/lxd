@@ -1163,6 +1163,30 @@ func (o *OVN) LogicalSwitchPortDelete(portName OVNSwitchPort) error {
 	return nil
 }
 
+// LogicalSwitchPortCleanup deletes the named logical switch port and its associated config.
+func (o *OVN) LogicalSwitchPortCleanup(portName OVNSwitchPort, switchName OVNSwitch, switchPortGroupName OVNPortGroup, dnsUUID OVNDNSUUID) error {
+	// Remove any existing rules assigned to the entity.
+	removeACLRuleUUIDs, err := o.logicalSwitchPortACLRules(portName)
+	if err != nil {
+		return err
+	}
+
+	args := o.aclRuleDeleteAppendArgs(nil, "port_group", string(switchPortGroupName), removeACLRuleUUIDs)
+
+	// Remove logical switch port.
+	args = o.logicalSwitchPortDeleteAppendArgs(args, portName)
+
+	// Remove DNS records.
+	args = o.logicalSwitchPortDeleteDNSAppendArgs(args, switchName, dnsUUID)
+
+	_, err = o.nbctl(args...)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
 // LogicalSwitchPortLinkRouter links a logical switch port to a logical router port.
 func (o *OVN) LogicalSwitchPortLinkRouter(switchPortName OVNSwitchPort, routerPortName OVNRouterPort) error {
 	// Connect logical router port to switch.
