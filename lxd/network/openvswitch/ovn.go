@@ -1115,12 +1115,25 @@ func (o *OVN) LogicalSwitchPortGetDNS(portName OVNSwitchPort) (OVNDNSUUID, strin
 	return OVNDNSUUID(dnsUUID), dnsName, ips, nil
 }
 
+// logicalSwitchPortDeleteDNSAppendArgs adds the command arguments to remove DNS records for a switch port.
+// Returns args with the commands added to it.
+func (o *OVN) logicalSwitchPortDeleteDNSAppendArgs(args []string, switchName OVNSwitch, dnsUUID OVNDNSUUID) []string {
+	if len(args) > 0 {
+		args = append(args, "--")
+	}
+
+	args = append(args,
+		"remove", "logical_switch", string(switchName), "dns_records", string(dnsUUID), "--",
+		"destroy", "dns", string(dnsUUID),
+	)
+
+	return args
+}
+
 // LogicalSwitchPortDeleteDNS removes DNS records for a switch port.
 func (o *OVN) LogicalSwitchPortDeleteDNS(switchName OVNSwitch, dnsUUID OVNDNSUUID) error {
 	// Remove DNS record association from switch, and remove DNS record entry itself.
-	_, err := o.nbctl(
-		"remove", "logical_switch", string(switchName), "dns_records", string(dnsUUID), "--",
-		"destroy", "dns", string(dnsUUID))
+	_, err := o.nbctl(o.logicalSwitchPortDeleteDNSAppendArgs(nil, switchName, dnsUUID)...)
 	if err != nil {
 		return err
 	}
