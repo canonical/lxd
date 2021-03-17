@@ -2841,7 +2841,7 @@ func (n *ovn) InstanceDevicePortDynamicIPs(instanceUUID string, deviceName strin
 }
 
 // InstanceDevicePortDelete deletes an instance device port from the internal logical switch.
-func (n *ovn) InstanceDevicePortDelete(ovsExternalOVNPort openvswitch.OVNSwitchPort, opts *OVNInstanceNICOpts) error {
+func (n *ovn) InstanceDevicePortDelete(ovsExternalOVNPort openvswitch.OVNSwitchPort, opts *OVNInstanceNICStopOpts) error {
 	// Decide whether to use OVS provided OVN port name or internally derived OVN port name.
 	instancePortName := ovsExternalOVNPort
 	source := "OVS"
@@ -2855,6 +2855,11 @@ func (n *ovn) InstanceDevicePortDelete(ovsExternalOVNPort openvswitch.OVNSwitchP
 	}
 
 	n.logger.Debug("Deleting instance port", log.Ctx{"port": instancePortName, "source": source})
+
+	internalRoutes, externalRoutes, err := n.instanceDevicePortRoutesParse(opts.DeviceConfig)
+	if err != nil {
+		return errors.Wrapf(err, "Failed parsing NIC device routes")
+	}
 
 	client, err := openvswitch.NewOVN(n.state)
 	if err != nil {
@@ -2892,12 +2897,12 @@ func (n *ovn) InstanceDevicePortDelete(ovsExternalOVNPort openvswitch.OVNSwitchP
 	}
 
 	// Delete internal routes.
-	if len(opts.InternalRoutes) > 0 {
-		removeRoutes = append(removeRoutes, opts.InternalRoutes...)
+	if len(internalRoutes) > 0 {
+		removeRoutes = append(removeRoutes, internalRoutes...)
 	}
 
 	// Delete external routes.
-	for _, externalRoute := range opts.ExternalRoutes {
+	for _, externalRoute := range externalRoutes {
 		removeRoutes = append(removeRoutes, externalRoute)
 
 		// Remove the DNAT rules when using l2proxy ingress mode on uplink.
