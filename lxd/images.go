@@ -1128,12 +1128,12 @@ func autoUpdateImages(ctx context.Context, d *Daemon) error {
 		for _, image := range images {
 			_, imageInfo, err := d.cluster.GetImage(image.Project, image.Fingerprint, image.Public)
 			if err != nil {
-				logger.Error("Failed to get image", log.Ctx{"err": err})
+				logger.Error("Failed to get image", log.Ctx{"err": err, "project": image.Project, "fingerprint": image.Fingerprint})
 			}
 
 			newInfo, err := autoUpdateImage(ctx, d, nil, image.ID, imageInfo, image.Project)
 			if err != nil {
-				logger.Error("Failed to update image", log.Ctx{"err": err})
+				logger.Error("Failed to update image", log.Ctx{"err": err, "project": image.Project, "fingerprint": image.Fingerprint})
 
 				if err == context.Canceled {
 					return nil
@@ -1163,7 +1163,7 @@ func autoUpdateImages(ctx context.Context, d *Daemon) error {
 				// Remove the database entry for the image.
 				err = d.cluster.DeleteImage(ID)
 				if err != nil {
-					logger.Debugf("Error deleting image from database: %s", err)
+					logger.Error("Error deleting image from database", log.Ctx{"err": err, "ID": ID})
 				}
 			}
 		}
