@@ -119,6 +119,7 @@ var patches = []patch{
 	{name: "thinpool_typo_fix", stage: patchPostDaemonStorage, run: patchThinpoolTypoFix},
 	{name: "vm_rename_uuid_key", stage: patchPostDaemonStorage, run: patchVMRenameUUIDKey},
 	{name: "db_nodes_autoinc", stage: patchPreDaemonStorage, run: patchDBNodesAutoInc},
+	{name: "network_acl_remove_defaults", stage: patchPostDaemonStorage, run: patchNetworkACLRemoveDefaults},
 }
 
 type patch struct {
@@ -182,6 +183,62 @@ func patchesApply(d *Daemon, stage patchStage) error {
 }
 
 // Patches begin here
+
+// patchNetworkACLRemoveDefaults removes the "default.action" and "default.logged" settings from network ACLs.
+// It was decided that the user experience of having the default actions at the ACL level was confusing when using
+// multiple ACLs, and that the interplay between conflicting default actions on multiple ACLs was difficult to
+// understand. Instead it will be replace with a network and NIC level defaults settings.
+func patchNetworkACLRemoveDefaults(name string, d *Daemon) error {
+	var err error
+	var projectNames []string
+
+	// Get projects.
+	err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
+		projectNames, err = tx.GetProjectNames()
+		return err
+	})
+	if err != nil {
+		return err
+	}
+
+	// Get ACLs in projects.
+	for _, projectName := range projectNames {
+		aclNames, err := d.cluster.GetNetworkACLs(projectName)
+		if err != nil {
+			return err
+		}
+
+		for _, aclName := range aclNames {
+			aclID, acl, err := d.cluster.GetNetworkACL(projectName, aclName)
+			if err != nil {
+				return err
+			}
+
+			modified := false
+
+			// Remove the offending keys if found.
+			if _, found := acl.Config["default.action"]; found {
+				delete(acl.Config, "default.action")
+				modified = true
+			}
+
+			if _, found := acl.Config["default.logged"]; found {
+				delete(acl.Config, "default.logged")
+				modified = true
+			}
+
+			// Write back modified config if needed.
+			if modified {
+				err = d.cluster.UpdateNetworkACL(aclID, &acl.NetworkACLPut)
+				if err != nil {
+					return errors.Wrapf(err, "Failed updating network ACL %d", aclID)
+				}
+			}
+		}
+	}
+
+	return nil
+}
 
 // patchDBNodesAutoInc re-creates the nodes table id column as AUTOINCREMENT.
 // Its done as a patch rather than a schema update so we can use PRAGMA foreign_keys = OFF without a transaction.
