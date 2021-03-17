@@ -85,6 +85,10 @@ func (d *nicOVN) validateConfig(instConf instance.ConfigReader) error {
 		"ipv6.routes.external",
 		"boot.priority",
 		"security.acls",
+		"security.acls.default.ingress.action",
+		"security.acls.default.egress.action",
+		"security.acls.default.ingress.logged",
+		"security.acls.default.egress.logged",
 	}
 
 	// The NIC's network may be a non-default project, so lookup project and get network's project name.
