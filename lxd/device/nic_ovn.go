@@ -395,29 +395,14 @@ func (d *nicOVN) Update(oldDevices deviceConfig.Devices, isRunning bool) error {
 				return errors.Wrapf(err, "Failed to load uplink network %q", uplinkNetworkName)
 			}
 
-			// Parse NIC config into structures used by OVN network's instance port functions.
-			mac, ips, internalRoutes, externalRoutes, err := d.network.InstanceDevicePortConfigParse(d.config)
-			if err != nil {
-				return err
-			}
-
 			// Update OVN logical switch port for instance.
-			instanceNICOpts := network.OVNInstanceNICOpts{
-				InstanceUUID:   d.inst.LocalConfig()["volatile.uuid"],
-				DeviceName:     d.name,
-				InternalRoutes: internalRoutes,
-				ExternalRoutes: externalRoutes,
-			}
-
-			_, err = d.network.InstanceDevicePortAdd(&network.OVNInstanceNICSetupOpts{
-				OVNInstanceNICOpts: instanceNICOpts,
-				UplinkConfig:       uplink.Config,
-				DNSName:            d.inst.Name(),
-				MAC:                mac,
-				IPs:                ips,
-				SecurityACLs:       util.SplitNTrimSpace(d.config["security.acls"], ",", -1, true),
-				SecurityACLsRemove: removedACLs,
-			})
+			_, err = d.network.InstanceDevicePortSetup(&network.OVNInstanceNICSetupOpts{
+				InstanceUUID: d.inst.LocalConfig()["volatile.uuid"],
+				DNSName:      d.inst.Name(),
+				DeviceName:   d.name,
+				DeviceConfig: d.config,
+				UplinkConfig: uplink.Config,
+			}, removedACLs)
 			if err != nil {
 				return errors.Wrapf(err, "Failed updating OVN port")
 			}
