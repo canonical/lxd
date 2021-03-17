@@ -2817,11 +2817,53 @@ func (n *ovn) InstanceDevicePortSetup(opts *OVNInstanceNICSetupOpts, securityACL
 	n.logger.Debug("Applying instance NIC port group member change sets")
 	err = client.PortGroupMemberChange(addChangeSet, removeChangeSet)
 	if err != nil {
-		return "", errors.Wrapf(err, "Failed applying OVN port group member change sets for instance NICs")
+		return "", errors.Wrapf(err, "Failed applying OVN port group member change sets for instance NIC")
+	}
+
+	// Set the automatic default ACL rule for the port.
+	if len(nicACLNames) > 0 {
+		ingressAction, ingressLogged := n.instanceDeviceACLDefaults(opts.DeviceConfig, "ingress")
+		egressAction, egressLogged := n.instanceDeviceACLDefaults(opts.DeviceConfig, "egress")
+
+		logName := fmt.Sprintf("%s-%s", opts.InstanceUUID, opts.DeviceName)
+		err = acl.OVNApplyInstanceNICDefaultRules(client, acl.OVNIntSwitchPortGroupName(n.ID()), logName, instancePortName, ingressAction, ingressLogged, egressAction, egressLogged)
+		if err != nil {
+			return "", errors.Wrapf(err, "Failed applying OVN default ACL rules for instance NIC")
+		}
+
+		n.logger.Debug("Set NIC default rule", log.Ctx{"port": instancePortName, "ingressAction": ingressAction, "ingressLogged": ingressLogged, "egressAction": egressAction, "egressLogged": egressLogged})
+	} else {
+		err = client.PortGroupPortClearACLRules(acl.OVNIntSwitchPortGroupName(n.ID()), instancePortName)
+		if err != nil {
+			return "", errors.Wrapf(err, "Failed clearing OVN default ACL rules for instance NIC")
+		}
+
+		n.logger.Debug("Cleared NIC default rule", log.Ctx{"port": instancePortName})
 	}
 
 	revert.Success()
 	return instancePortName, nil
+}
+
+// instanceDeviceACLDefaults returns the action and logging mode to use for the specified direction's default rule.
+// If the security.acls.default.{in,e}gress.action or security.acls.default.{in,e}gress.logged settings are not
+// specified in the NIC device config, then the settings on the network are used, and if not specified there then
+// it returns "reject" and false respectively.
+func (n *ovn) instanceDeviceACLDefaults(deviceConfig deviceConfig.Device, direction string) (string, bool) {
+	defaults := map[string]string{
+		fmt.Sprintf("security.acls.default.%s.action", direction): "reject",
+		fmt.Sprintf("security.acls.default.%s.logged", direction): "false",
+	}
+
+	for k := range defaults {
+		if deviceConfig[k] != "" {
+			defaults[k] = deviceConfig[k]
+		} else if n.config[k] != "" {
+			defaults[k] = n.config[k]
+		}
+	}
+
+	return defaults[fmt.Sprintf("security.acls.default.%s.action", direction)], shared.IsTrue(defaults[fmt.Sprintf("security.acls.default.%s.logged", direction)])
 }
 
 // InstanceDevicePortDynamicIPs returns the dynamically allocated IPs for a device port.
