@@ -348,7 +348,8 @@ func ovnApplyToPortGroup(logger logger.Logger, client *openvswitch.OVN, aclInfo 
 	}
 
 	// Add default rule to port group ACL.
-	defaultAction := "reject"
+	// This is a failsafe to drop unmatched traffic if the per-NIC default rule has unexpectedly not kicked in.
+	defaultAction := "drop"
 	defaultLogged := false
 
 	portGroupRules = append(portGroupRules, openvswitch.OVNACLRule{
