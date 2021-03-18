@@ -875,7 +875,7 @@ func (c *migrationSink) Do(state *state.State, migrateOp *operations.Operation) 
 			Name:          args.Instance.Name(),
 			MigrationType: respTypes[0],
 			Refresh:       args.Refresh,    // Indicate to receiver volume should exist.
-			TrackProgress: false,           // Do not use a progress tracker on receiver.
+			TrackProgress: true,            // Use a progress tracker on receiver to get in-cluster progress information.
 			Live:          args.Live,       // Indicates we will get a final rootfs sync.
 			VolumeSize:    args.VolumeSize, // Block size setting override.
 		}
