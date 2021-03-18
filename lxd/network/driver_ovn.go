@@ -209,6 +209,14 @@ func (n *ovn) Validate(config map[string]string) error {
 		"dns.domain":         validate.IsAny,
 		"dns.search":         validate.IsAny,
 		"security.acls":      validate.IsAny,
+		"security.acls.default.ingress.action": validate.Optional(func(value string) error {
+			return validate.IsOneOf(value, acl.ValidActions)
+		}),
+		"security.acls.default.egress.action": validate.Optional(func(value string) error {
+			return validate.IsOneOf(value, acl.ValidActions)
+		}),
+		"security.acls.default.ingress.logged": validate.Optional(validate.IsBool),
+		"security.acls.default.egress.logged":  validate.Optional(validate.IsBool),
 
 		// Volatile keys populated automatically as needed.
 		ovnVolatileUplinkIPv4: validate.Optional(validate.IsNetworkAddressV4),
