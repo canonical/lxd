@@ -2268,8 +2268,17 @@ func (n *ovn) Update(newNetwork api.NetworkPut, targetNode string, clientType re
 			}
 		}
 
-		// Apply security ACL changes.
-		if len(addedACLs) > 0 || len(removedACLs) > 0 {
+		// Detect if network default rule config has changed.
+		defaultRuleKeys := []string{"security.acls.default.ingress.action", "security.acls.default.egress.action", "security.acls.default.ingress.logged", "security.acls.default.egress.logged"}
+		changedDefaultRuleKeys := []string{}
+		for _, k := range defaultRuleKeys {
+			if shared.StringInSlice(k, changedKeys) {
+				changedDefaultRuleKeys = append(changedDefaultRuleKeys, k)
+			}
+		}
+
+		// Apply security ACL and default rule changes.
+		if len(addedACLs) > 0 || len(removedACLs) > 0 || len(changedDefaultRuleKeys) > 0 {
 			client, err := openvswitch.NewOVN(n.state)
 			if err != nil {
 				return errors.Wrapf(err, "Failed to get OVN client")
@@ -2334,6 +2343,47 @@ func (n *ovn) Update(newNetwork api.NetworkPut, targetNode string, clientType re
 					portGroupName := acl.OVNACLPortGroupName(aclID)
 					acl.OVNPortGroupInstanceNICSchedule(portUUID, removeChangeSet, portGroupName)
 					n.logger.Debug("Scheduled logical port for ACL port group removal", log.Ctx{"networkACL": removedACL, "portGroup": portGroupName, "port": instancePortName})
+				}
+
+				// If there are no ACLs being applied to the NIC (either from network or NIC) then
+				// we should remove the default rule from the NIC.
+				if len(newACLs) <= 0 && len(nicACLs) <= 0 {
+					err = client.PortGroupPortClearACLRules(acl.OVNIntSwitchPortGroupName(n.ID()), instancePortName)
+					if err != nil {
+						return errors.Wrapf(err, "Failed clearing OVN default ACL rules for instance NIC")
+					}
+
+					n.logger.Debug("Cleared NIC default rules", log.Ctx{"port": instancePortName})
+				} else {
+					defaultRuleChange := false
+
+					// If there are ACLs being applied, then decide if the default rule config
+					// has changed materially for the NIC and update it if needed.
+					for _, k := range changedDefaultRuleKeys {
+						if _, found := nicConfig[k]; found {
+							continue // Skip if changed key is overridden in NIC.
+						}
+
+						defaultRuleChange = true
+						break
+					}
+
+					// If the default rule config has changed materially for this NIC or the
+					// network previously didn't have any ACLs applied and now does, then add
+					// the default rule to the NIC.
+					if defaultRuleChange || len(oldACLs) <= 0 {
+						// Set the automatic default ACL rule for the port.
+						ingressAction, ingressLogged := n.instanceDeviceACLDefaults(nicConfig, "ingress")
+						egressAction, egressLogged := n.instanceDeviceACLDefaults(nicConfig, "egress")
+
+						logName := fmt.Sprintf("%s-%s", inst.Config["volatile.uuid"], nicName)
+						err = acl.OVNApplyInstanceNICDefaultRules(client, acl.OVNIntSwitchPortGroupName(n.ID()), logName, instancePortName, ingressAction, ingressLogged, egressAction, egressLogged)
+						if err != nil {
+							return errors.Wrapf(err, "Failed applying OVN default ACL rules for instance NIC")
+						}
+
+						n.logger.Debug("Set NIC default rule", log.Ctx{"port": instancePortName, "ingressAction": ingressAction, "ingressLogged": ingressLogged, "egressAction": egressAction, "egressLogged": egressLogged})
+					}
 				}
 
 				return nil
