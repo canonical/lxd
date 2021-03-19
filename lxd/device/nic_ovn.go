@@ -30,9 +30,8 @@ type ovnNet interface {
 	network.Network
 
 	InstanceDevicePortValidateExternalRoutes(deviceInstance instance.Instance, deviceName string, externalRoutes []*net.IPNet) error
-	InstanceDevicePortConfigParse(deviceConfig map[string]string) (net.HardwareAddr, []net.IP, []*net.IPNet, []*net.IPNet, error)
-	InstanceDevicePortAdd(opts *network.OVNInstanceNICSetupOpts) (openvswitch.OVNSwitchPort, error)
-	InstanceDevicePortDelete(ovsExternalOVNPort openvswitch.OVNSwitchPort, opts *network.OVNInstanceNICOpts) error
+	InstanceDevicePortSetup(opts *network.OVNInstanceNICSetupOpts, securityACLsRemove []string) (openvswitch.OVNSwitchPort, error)
+	InstanceDevicePortDelete(ovsExternalOVNPort openvswitch.OVNSwitchPort, opts *network.OVNInstanceNICStopOpts) error
 	InstanceDevicePortDynamicIPs(instanceUUID string, deviceName string) ([]net.IP, error)
 }
 
@@ -86,6 +85,10 @@ func (d *nicOVN) validateConfig(instConf instance.ConfigReader) error {
 		"ipv6.routes.external",
 		"boot.priority",
 		"security.acls",
+		"security.acls.default.ingress.action",
+		"security.acls.default.egress.action",
+		"security.acls.default.ingress.logged",
+		"security.acls.default.egress.logged",
 	}
 
 	// The NIC's network may be a non-default project, so lookup project and get network's project name.
@@ -277,32 +280,25 @@ func (d *nicOVN) Start() (*deviceConfig.RunConfig, error) {
 		return nil, err
 	}
 
-	// Parse NIC config into structures used by OVN network's instance port functions.
-	mac, ips, internalRoutes, externalRoutes, err := d.network.InstanceDevicePortConfigParse(d.config)
-	if err != nil {
-		return nil, err
-	}
-
 	// Add new OVN logical switch port for instance.
-	instanceNICOpts := network.OVNInstanceNICOpts{
-		InstanceUUID:   d.inst.LocalConfig()["volatile.uuid"],
-		DeviceName:     d.name,
-		InternalRoutes: internalRoutes,
-		ExternalRoutes: externalRoutes,
-	}
-	logicalPortName, err := d.network.InstanceDevicePortAdd(&network.OVNInstanceNICSetupOpts{
-		OVNInstanceNICOpts: instanceNICOpts,
-		UplinkConfig:       uplink.Config,
-		DNSName:            d.inst.Name(),
-		MAC:                mac,
-		IPs:                ips,
-		SecurityACLs:       util.SplitNTrimSpace(d.config["security.acls"], ",", -1, true),
-	})
+	logicalPortName, err := d.network.InstanceDevicePortSetup(&network.OVNInstanceNICSetupOpts{
+		InstanceUUID: d.inst.LocalConfig()["volatile.uuid"],
+		DNSName:      d.inst.Name(),
+		DeviceName:   d.name,
+		DeviceConfig: d.config,
+		UplinkConfig: uplink.Config,
+	}, nil)
 	if err != nil {
 		return nil, errors.Wrapf(err, "Failed adding OVN port")
 	}
 
-	revert.Add(func() { d.network.InstanceDevicePortDelete("", &instanceNICOpts) })
+	revert.Add(func() {
+		d.network.InstanceDevicePortDelete("", &network.OVNInstanceNICStopOpts{
+			InstanceUUID: d.inst.LocalConfig()["volatile.uuid"],
+			DeviceName:   d.name,
+			DeviceConfig: d.config,
+		})
+	})
 
 	// Attach host side veth interface to bridge.
 	integrationBridge, err := d.getIntegrationBridgeName()
@@ -403,29 +399,14 @@ func (d *nicOVN) Update(oldDevices deviceConfig.Devices, isRunning bool) error {
 				return errors.Wrapf(err, "Failed to load uplink network %q", uplinkNetworkName)
 			}
 
-			// Parse NIC config into structures used by OVN network's instance port functions.
-			mac, ips, internalRoutes, externalRoutes, err := d.network.InstanceDevicePortConfigParse(d.config)
-			if err != nil {
-				return err
-			}
-
 			// Update OVN logical switch port for instance.
-			instanceNICOpts := network.OVNInstanceNICOpts{
-				InstanceUUID:   d.inst.LocalConfig()["volatile.uuid"],
-				DeviceName:     d.name,
-				InternalRoutes: internalRoutes,
-				ExternalRoutes: externalRoutes,
-			}
-
-			_, err = d.network.InstanceDevicePortAdd(&network.OVNInstanceNICSetupOpts{
-				OVNInstanceNICOpts: instanceNICOpts,
-				UplinkConfig:       uplink.Config,
-				DNSName:            d.inst.Name(),
-				MAC:                mac,
-				IPs:                ips,
-				SecurityACLs:       util.SplitNTrimSpace(d.config["security.acls"], ",", -1, true),
-				SecurityACLsRemove: removedACLs,
-			})
+			_, err = d.network.InstanceDevicePortSetup(&network.OVNInstanceNICSetupOpts{
+				InstanceUUID: d.inst.LocalConfig()["volatile.uuid"],
+				DNSName:      d.inst.Name(),
+				DeviceName:   d.name,
+				DeviceConfig: d.config,
+				UplinkConfig: uplink.Config,
+			}, removedACLs)
 			if err != nil {
 				return errors.Wrapf(err, "Failed updating OVN port")
 			}
@@ -453,31 +434,6 @@ func (d *nicOVN) Stop() (*deviceConfig.RunConfig, error) {
 		PostHooks: []func() error{d.postStop},
 	}
 
-	var err error
-	internalRoutes := []*net.IPNet{}
-	for _, key := range []string{"ipv4.routes", "ipv6.routes"} {
-		if d.config[key] == "" {
-			continue
-		}
-
-		internalRoutes, err = network.SubnetParseAppend(internalRoutes, util.SplitNTrimSpace(d.config[key], ",", -1, false)...)
-		if err != nil {
-			return nil, errors.Wrapf(err, "Invalid %q value", key)
-		}
-	}
-
-	externalRoutes := []*net.IPNet{}
-	for _, key := range []string{"ipv4.routes.external", "ipv6.routes.external"} {
-		if d.config[key] == "" {
-			continue
-		}
-
-		externalRoutes, err = network.SubnetParseAppend(externalRoutes, util.SplitNTrimSpace(d.config[key], ",", -1, false)...)
-		if err != nil {
-			return nil, errors.Wrapf(err, "Invalid %q value", key)
-		}
-	}
-
 	// Try and retrieve the last associated OVN switch port for the instance interface in the local OVS DB.
 	// If we cannot get this, don't fail, as InstanceDevicePortDelete will then try and generate the likely
 	// port name using the same regime it does for new ports. This part is only here in order to allow
@@ -490,11 +446,10 @@ func (d *nicOVN) Stop() (*deviceConfig.RunConfig, error) {
 	}
 
 	instanceUUID := d.inst.LocalConfig()["volatile.uuid"]
-	err = d.network.InstanceDevicePortDelete(ovsExternalOVNPort, &network.OVNInstanceNICOpts{
-		InstanceUUID:   instanceUUID,
-		DeviceName:     d.name,
-		InternalRoutes: internalRoutes,
-		ExternalRoutes: externalRoutes,
+	err = d.network.InstanceDevicePortDelete(ovsExternalOVNPort, &network.OVNInstanceNICStopOpts{
+		InstanceUUID: instanceUUID,
+		DeviceName:   d.name,
+		DeviceConfig: d.config,
 	})
 	if err != nil {
 		// Don't fail here as we still want the postStop hook to run to clean up the local veth pair.
