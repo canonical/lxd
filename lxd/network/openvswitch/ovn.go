@@ -696,19 +696,6 @@ func (o *OVN) LogicalSwitchDHCPv6OptionsSet(switchName OVNSwitch, uuid OVNDHCPOp
 	return nil
 }
 
-// LogicalSwitchDHCPOptionsGetID returns the UUID for DHCP options set associated to the logical switch and subnet.
-func (o *OVN) LogicalSwitchDHCPOptionsGetID(switchName OVNSwitch, subnet *net.IPNet) (OVNDHCPOptionsUUID, error) {
-	uuid, err := o.nbctl("--format=csv", "--no-headings", "--data=bare", "--colum=_uuid", "find", "dhcp_options",
-		fmt.Sprintf("external_ids:%s=%s", ovnExtIDLXDSwitch, switchName),
-		fmt.Sprintf(`cidr="%s"`, subnet.String()), // Special quoting to support IPv6 subnets.
-	)
-	if err != nil {
-		return "", err
-	}
-
-	return OVNDHCPOptionsUUID(strings.TrimSpace(uuid)), nil
-}
-
 // LogicalSwitchDHCPOptionsGet retrieves the existing DHCP options defined for a logical switch.
 func (o *OVN) LogicalSwitchDHCPOptionsGet(switchName OVNSwitch) ([]OVNDHCPOptsSet, error) {
 	output, err := o.nbctl("--format=csv", "--no-headings", "--data=bare", "--colum=_uuid,cidr", "find", "dhcp_options",
