@@ -417,7 +417,7 @@ func instancePostClusteringMigrate(d *Daemon, inst instance.Instance, oldName, n
 		return response.SmartError(err)
 	}
 
-	run := func(*operations.Operation) error {
+	run := func(op *operations.Operation) error {
 		// Connect to the source host, i.e. ourselves (the node the instance is running on).
 		source, err := cluster.Connect(sourceAddress, cert, true)
 		if err != nil {
@@ -457,6 +457,15 @@ func instancePostClusteringMigrate(d *Daemon, inst instance.Instance, oldName, n
 		copyOp, err := dest.CopyInstance(source, *entry, &args)
 		if err != nil {
 			return errors.Wrap(err, "Failed to issue copy instance API request")
+		}
+
+		handler := func(newOp api.Operation) {
+			op.UpdateMetadata(newOp.Metadata)
+		}
+
+		_, err = copyOp.AddHandler(handler)
+		if err != nil {
+			return err
 		}
 
 		err = copyOp.Wait()
