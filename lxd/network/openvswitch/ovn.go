@@ -484,9 +484,22 @@ func (o *OVN) LogicalSwitchDelete(switchName OVNSwitch) error {
 		return err
 	}
 
-	err = o.LogicalSwitchDHCPOptionsDelete(switchName)
+	// Remove any existing DHCP options associated to switch.
+	deleteDHCPRecords, err := o.LogicalSwitchDHCPOptionsGet(switchName)
 	if err != nil {
 		return err
+	}
+
+	if len(deleteDHCPRecords) > 0 {
+		deleteDHCPUUIDs := make([]OVNDHCPOptionsUUID, 0, len(deleteDHCPRecords))
+		for _, deleteDHCPRecord := range deleteDHCPRecords {
+			deleteDHCPUUIDs = append(deleteDHCPUUIDs, deleteDHCPRecord.UUID)
+		}
+
+		err = o.LogicalSwitchDHCPOptionsDelete(switchName, deleteDHCPUUIDs...)
+		if err != nil {
+			return err
+		}
 	}
 
 	err = o.logicalSwitchDNSRecordsDelete(switchName)
