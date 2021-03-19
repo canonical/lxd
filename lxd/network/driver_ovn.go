@@ -2606,8 +2606,6 @@ func (n *ovn) InstanceDevicePortSetup(opts *OVNInstanceNICSetupOpts, securityACL
 		return "", errors.Wrapf(err, "Failed parsing NIC device routes")
 	}
 
-	var dhcpV4ID, dhcpv6ID openvswitch.OVNDHCPOptionsUUID
-
 	revert := revert.New()
 	defer revert.Fail()
 
@@ -2618,50 +2616,69 @@ func (n *ovn) InstanceDevicePortSetup(opts *OVNInstanceNICSetupOpts, securityACL
 
 	dhcpv4Subnet := n.DHCPv4Subnet()
 	dhcpv6Subnet := n.DHCPv6Subnet()
+	var dhcpV4ID, dhcpv6ID openvswitch.OVNDHCPOptionsUUID
 
 	// Get DHCP options IDs.
-	if dhcpv4Subnet != nil {
-		dhcpV4ID, err = client.LogicalSwitchDHCPOptionsGetID(n.getIntSwitchName(), dhcpv4Subnet)
+	if dhcpv4Subnet != nil || dhcpv6Subnet != nil {
+		// Find existing DHCP options set for IPv4 and IPv6 and update them instead of adding sets.
+		existingOpts, err := client.LogicalSwitchDHCPOptionsGet(n.getIntSwitchName())
 		if err != nil {
-			return "", err
+			return "", errors.Wrapf(err, "Failed getting existing DHCP settings for internal switch")
 		}
 
-		if dhcpV4ID == "" {
-			return "", fmt.Errorf("Could not find DHCPv4 options for instance port")
-		}
-	}
+		if dhcpv4Subnet != nil {
+			for _, existingOpt := range existingOpts {
+				if existingOpt.CIDR.String() == dhcpv4Subnet.String() {
+					if dhcpV4ID != "" {
+						return "", fmt.Errorf("Multiple matching DHCP option sets found for switch %q and subnet %q", n.getIntSwitchName(), dhcpv4Subnet.String())
+					}
 
-	if dhcpv6Subnet != nil {
-		dhcpv6ID, err = client.LogicalSwitchDHCPOptionsGetID(n.getIntSwitchName(), dhcpv6Subnet)
-		if err != nil {
-			return "", err
-		}
-
-		if dhcpv6ID == "" {
-			return "", fmt.Errorf("Could not find DHCPv6 options for instance port")
-		}
-
-		// If port isn't going to have fully dynamic IPs allocated by OVN, and instead only static IPv4
-		// addresses have been added, then add an EUI64 static IPv6 address so that the switch port has an
-		// IPv6 address that will be used to generate a DNS record. This works around a limitation in OVN
-		// that prevents us requesting dynamic IPv6 address allocation when static IPv4 allocation is used.
-		if len(ips) > 0 {
-			hasIPv6 := false
-			for _, ip := range ips {
-				if ip.To4() == nil {
-					hasIPv6 = true
-					break
+					dhcpV4ID = existingOpt.UUID
 				}
 			}
 
-			if !hasIPv6 {
-				eui64IP, err := eui64.ParseMAC(dhcpv6Subnet.IP, mac)
-				if err != nil {
-					return "", errors.Wrapf(err, "Failed generating EUI64 for instance port %q", mac.String())
+			if dhcpV4ID == "" {
+				return "", fmt.Errorf("Could not find DHCPv4 options for instance port for subnet %q", dhcpv4Subnet.String())
+			}
+		}
+
+		if dhcpv6Subnet != nil {
+			for _, existingOpt := range existingOpts {
+				if existingOpt.CIDR.String() == dhcpv6Subnet.String() {
+					if dhcpv6ID != "" {
+						return "", fmt.Errorf("Multiple matching DHCP option sets found for switch %q and subnet %q", n.getIntSwitchName(), dhcpv6Subnet.String())
+					}
+
+					dhcpv6ID = existingOpt.UUID
+				}
+			}
+
+			if dhcpv6ID == "" {
+				return "", fmt.Errorf("Could not find DHCPv6 options for instance port for subnet %q", dhcpv6Subnet.String())
+			}
+
+			// If port isn't going to have fully dynamic IPs allocated by OVN, and instead only static IPv4
+			// addresses have been added, then add an EUI64 static IPv6 address so that the switch port has an
+			// IPv6 address that will be used to generate a DNS record. This works around a limitation in OVN
+			// that prevents us requesting dynamic IPv6 address allocation when static IPv4 allocation is used.
+			if len(ips) > 0 {
+				hasIPv6 := false
+				for _, ip := range ips {
+					if ip.To4() == nil {
+						hasIPv6 = true
+						break
+					}
 				}
 
-				// Add EUI64 to list of static IPs for instance port.
-				ips = append(ips, eui64IP)
+				if !hasIPv6 {
+					eui64IP, err := eui64.ParseMAC(dhcpv6Subnet.IP, mac)
+					if err != nil {
+						return "", errors.Wrapf(err, "Failed generating EUI64 for instance port %q", mac.String())
+					}
+
+					// Add EUI64 to list of static IPs for instance port.
+					ips = append(ips, eui64IP)
+				}
 			}
 		}
 	}
