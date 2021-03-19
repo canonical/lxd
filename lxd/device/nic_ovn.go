@@ -123,7 +123,7 @@ func (d *nicOVN) validateConfig(instConf instance.ConfigReader) error {
 		return fmt.Errorf("Network is not ovnNet interface type")
 	}
 
-	d.network = ovnNet // Stored loaded instance for use by other functions.
+	d.network = ovnNet // Stored loaded network for use by other functions.
 	netConfig := d.network.Config()
 
 	if d.config["ipv4.address"] != "" {
