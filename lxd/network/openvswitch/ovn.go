@@ -506,8 +506,7 @@ func (o *OVN) logicalSwitchFindAssociatedPortGroups(switchName OVNSwitch) ([]OVN
 		return nil, err
 	}
 
-	output = strings.TrimSpace(output)
-	lines := util.SplitNTrimSpace(output, "\n", -1, true)
+	lines := util.SplitNTrimSpace(strings.TrimSpace(output), "\n", -1, true)
 	portGroups := make([]OVNPortGroup, 0, len(lines))
 
 	for _, line := range lines {
@@ -807,17 +806,37 @@ func (o *OVN) logicalSwitchDNSRecordsDelete(switchName OVNSwitch) error {
 
 // LogicalSwitchSetACLRules applies a set of rules to the specified logical switch. Any existing rules are removed.
 func (o *OVN) LogicalSwitchSetACLRules(switchName OVNSwitch, aclRules ...OVNACLRule) error {
+	// Remove any existing rules assigned to the entity.
+	args := []string{"clear", "logical_switch", string(switchName), "acls"}
+
 	// Add new rules.
 	externalIDs := map[string]string{
 		ovnExtIDLXDSwitch: string(switchName),
 	}
 
-	err := o.setACLRules("logical_switch", string(switchName), externalIDs, nil, aclRules...)
+	args = o.aclRuleAddAppendArgs(args, "logical_switch", string(switchName), externalIDs, nil, aclRules...)
+
+	_, err := o.nbctl(args...)
 	if err != nil {
 		return err
 	}
 
 	return nil
+}
+
+// logicalSwitchPortACLRules returns the ACL rule UUIDs belonging to a logical switch port.
+func (o *OVN) logicalSwitchPortACLRules(portName OVNSwitchPort) ([]string, error) {
+	// Remove any existing rules assigned to the entity.
+	output, err := o.nbctl("--format=csv", "--no-headings", "--data=bare", "--colum=_uuid", "find", "acl",
+		fmt.Sprintf("external_ids:%s=%s", ovnExtIDLXDSwitchPort, string(portName)),
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	ruleUUIDs := util.SplitNTrimSpace(strings.TrimSpace(output), "\n", -1, true)
+
+	return ruleUUIDs, nil
 }
 
 // LogicalSwitchPorts returns a map of logical switch ports (name and UUID) for a switch.
@@ -1096,12 +1115,25 @@ func (o *OVN) LogicalSwitchPortGetDNS(portName OVNSwitchPort) (OVNDNSUUID, strin
 	return OVNDNSUUID(dnsUUID), dnsName, ips, nil
 }
 
+// logicalSwitchPortDeleteDNSAppendArgs adds the command arguments to remove DNS records for a switch port.
+// Returns args with the commands added to it.
+func (o *OVN) logicalSwitchPortDeleteDNSAppendArgs(args []string, switchName OVNSwitch, dnsUUID OVNDNSUUID) []string {
+	if len(args) > 0 {
+		args = append(args, "--")
+	}
+
+	args = append(args,
+		"remove", "logical_switch", string(switchName), "dns_records", string(dnsUUID), "--",
+		"destroy", "dns", string(dnsUUID),
+	)
+
+	return args
+}
+
 // LogicalSwitchPortDeleteDNS removes DNS records for a switch port.
 func (o *OVN) LogicalSwitchPortDeleteDNS(switchName OVNSwitch, dnsUUID OVNDNSUUID) error {
 	// Remove DNS record association from switch, and remove DNS record entry itself.
-	_, err := o.nbctl(
-		"remove", "logical_switch", string(switchName), "dns_records", string(dnsUUID), "--",
-		"destroy", "dns", string(dnsUUID))
+	_, err := o.nbctl(o.logicalSwitchPortDeleteDNSAppendArgs(nil, switchName, dnsUUID)...)
 	if err != nil {
 		return err
 	}
@@ -1109,9 +1141,45 @@ func (o *OVN) LogicalSwitchPortDeleteDNS(switchName OVNSwitch, dnsUUID OVNDNSUUI
 	return nil
 }
 
+// logicalSwitchPortDeleteAppendArgs adds the commands to delete the specified logical switch port.
+// Returns args with the commands added to it.
+func (o *OVN) logicalSwitchPortDeleteAppendArgs(args []string, portName OVNSwitchPort) []string {
+	if len(args) > 0 {
+		args = append(args, "--")
+	}
+
+	args = append(args, "--if-exists", "lsp-del", string(portName))
+
+	return args
+}
+
 // LogicalSwitchPortDelete deletes a named logical switch port.
 func (o *OVN) LogicalSwitchPortDelete(portName OVNSwitchPort) error {
-	_, err := o.nbctl("--if-exists", "lsp-del", string(portName))
+	_, err := o.nbctl(o.logicalSwitchPortDeleteAppendArgs(nil, portName)...)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// LogicalSwitchPortCleanup deletes the named logical switch port and its associated config.
+func (o *OVN) LogicalSwitchPortCleanup(portName OVNSwitchPort, switchName OVNSwitch, switchPortGroupName OVNPortGroup, dnsUUID OVNDNSUUID) error {
+	// Remove any existing rules assigned to the entity.
+	removeACLRuleUUIDs, err := o.logicalSwitchPortACLRules(portName)
+	if err != nil {
+		return err
+	}
+
+	args := o.aclRuleDeleteAppendArgs(nil, "port_group", string(switchPortGroupName), removeACLRuleUUIDs)
+
+	// Remove logical switch port.
+	args = o.logicalSwitchPortDeleteAppendArgs(args, portName)
+
+	// Remove DNS records.
+	args = o.logicalSwitchPortDeleteDNSAppendArgs(args, switchName, dnsUUID)
+
+	_, err = o.nbctl(args...)
 	if err != nil {
 		return err
 	}
@@ -1307,8 +1375,7 @@ func (o *OVN) PortGroupListByProject(projectID int64) ([]OVNPortGroup, error) {
 		return nil, err
 	}
 
-	output = strings.TrimSpace(output)
-	lines := util.SplitNTrimSpace(output, "\n", -1, true)
+	lines := util.SplitNTrimSpace(strings.TrimSpace(output), "\n", -1, true)
 	portGroups := make([]OVNPortGroup, 0, len(lines))
 
 	for _, line := range lines {
@@ -1352,12 +1419,17 @@ func (o *OVN) PortGroupMemberChange(addMembers map[OVNPortGroup][]OVNSwitchPortU
 
 // PortGroupSetACLRules applies a set of rules to the specified port group. Any existing rules are removed.
 func (o *OVN) PortGroupSetACLRules(portGroupName OVNPortGroup, matchReplace map[string]string, aclRules ...OVNACLRule) error {
+	// Remove any existing rules assigned to the entity.
+	args := []string{"clear", "port_group", string(portGroupName), "acls"}
+
 	// Add new rules.
 	externalIDs := map[string]string{
 		ovnExtIDLXDPortGroup: string(portGroupName),
 	}
 
-	err := o.setACLRules("port_group", string(portGroupName), externalIDs, matchReplace, aclRules...)
+	args = o.aclRuleAddAppendArgs(args, "port_group", string(portGroupName), externalIDs, matchReplace, aclRules...)
+
+	_, err := o.nbctl(args...)
 	if err != nil {
 		return err
 	}
@@ -1365,19 +1437,21 @@ func (o *OVN) PortGroupSetACLRules(portGroupName OVNPortGroup, matchReplace map[
 	return nil
 }
 
-// setACLRules applies a set of ACL rules to the specified entity.
-func (o *OVN) setACLRules(entityTable string, entityName string, externalIDs map[string]string, matchReplace map[string]string, aclRules ...OVNACLRule) error {
-	// Remove any existing rules assigned to the entity.
-	args := []string{"clear", entityTable, entityName, "acls"}
-
+// aclRuleAddAppendArgs adds the commands to args that add the provided ACL rules to the specified OVN entity.
+// Returns args with the ACL rule add commands added to it.
+func (o *OVN) aclRuleAddAppendArgs(args []string, entityTable string, entityName string, externalIDs map[string]string, matchReplace map[string]string, aclRules ...OVNACLRule) []string {
 	for i, rule := range aclRules {
+		if len(args) > 0 {
+			args = append(args, "--")
+		}
+
 		// Perform any replacements requested on the Match string.
 		for find, replace := range matchReplace {
 			rule.Match = strings.ReplaceAll(rule.Match, find, replace)
 		}
 
 		// Add command to create ACL rule.
-		args = append(args, "--", fmt.Sprintf("--id=@id%d", i), "create", "acl",
+		args = append(args, fmt.Sprintf("--id=@id%d", i), "create", "acl",
 			fmt.Sprintf("action=%s", rule.Action),
 			fmt.Sprintf("direction=%s", rule.Direction),
 			fmt.Sprintf("priority=%d", rule.Priority),
@@ -1400,9 +1474,65 @@ func (o *OVN) setACLRules(entityTable string, entityName string, externalIDs map
 		args = append(args, "--", "add", entityTable, entityName, "acl", fmt.Sprintf("@id%d", i))
 	}
 
-	_, err := o.nbctl(args...)
+	return args
+}
+
+// aclRuleDeleteAppendArgs adds the commands to args that delete the provided ACL rules from the specified OVN entity.
+// Returns args with the ACL rule delete commands added to it.
+func (o *OVN) aclRuleDeleteAppendArgs(args []string, entityTable string, entityName string, aclRuleUUIDs []string) []string {
+	for _, aclRuleUUID := range aclRuleUUIDs {
+		if len(args) > 0 {
+			args = append(args, "--")
+		}
+
+		args = append(args, "remove", entityTable, string(entityName), "acl", aclRuleUUID)
+	}
+
+	return args
+}
+
+// PortGroupPortSetACLRules applies a set of rules for the logical switch port in the specified port group.
+// Any existing rules for that logical switch port in the port group are removed.
+func (o *OVN) PortGroupPortSetACLRules(portGroupName OVNPortGroup, portName OVNSwitchPort, aclRules ...OVNACLRule) error {
+	// Remove any existing rules assigned to the entity.
+	removeACLRuleUUIDs, err := o.logicalSwitchPortACLRules(portName)
 	if err != nil {
 		return err
+	}
+
+	args := o.aclRuleDeleteAppendArgs(nil, "port_group", string(portGroupName), removeACLRuleUUIDs)
+
+	// Add new rules.
+	externalIDs := map[string]string{
+		ovnExtIDLXDPortGroup:  string(portGroupName),
+		ovnExtIDLXDSwitchPort: string(portName),
+	}
+
+	args = o.aclRuleAddAppendArgs(args, "port_group", string(portGroupName), externalIDs, nil, aclRules...)
+
+	_, err = o.nbctl(args...)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// PortGroupPortClearACLRules clears any rules assigned to the logical switch port in the specified port group.
+func (o *OVN) PortGroupPortClearACLRules(portGroupName OVNPortGroup, portName OVNSwitchPort) error {
+	// Remove any existing rules assigned to the entity.
+	removeACLRuleUUIDs, err := o.logicalSwitchPortACLRules(portName)
+	if err != nil {
+		return err
+	}
+
+	args := o.aclRuleDeleteAppendArgs(nil, "port_group", string(portGroupName), removeACLRuleUUIDs)
+
+	if len(args) > 0 {
+		_, err = o.nbctl(args...)
+		if err != nil {
+			return err
+		}
 	}
 
 	return nil

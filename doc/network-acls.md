@@ -11,13 +11,17 @@ The Instance NICs that have a particular ACL applied (either explicitly or impli
 logical group that can be referenced from other rules as a source or destination. This makes it possible to define
 rules for groups of instances without needing to maintain IP lists or create additional subnets.
 
-Network ACLs come with an implicit default rule (that defaults to `reject` unless `default.action` is set), so if
-traffic doesn't match one of the defined rules in an ACL then all other traffic is rejected.
+Once one or more ACLs are applied to a NIC (either explicitly or implicitly from the network) then a default reject
+rule is added to the NIC, so if traffic doesn't match one of the rules in the applied ACLs then it is rejected.
+
+This behaviour can be modified by using the network and NIC level `security.acls.default.ingress.action` and
+`security.acls.default.egress.action` settings. The NIC level settings will override the network level settings.
 
 Rules are defined for a particular direction (ingress or egress) in relation to the Instance NIC.
 Ingress rules apply to traffic going towards the NIC, and egress rules apply to traffic leaving the NIC.
 
-Rules are provided as lists, however the order of the rules in the list is not important and does not affect filtering.
+Rules are provided as lists, however the order of the rules in the list is not important and does not affect
+filtering. See [Rule ordering and priorities](#rule-ordering-and-priorities).
 
 Valid Network ACL names must:
 
@@ -36,14 +40,7 @@ name             | string     | yes      | Unique name of Network ACL in Project
 description      | string     | no       | Description of Network ACL
 ingress          | rule list  | no       | Ingress traffic rules
 egress           | rule list  | no       | Egress traffic rules
-config           | string set | no       | Config key/value pairs (in addition to `user.*` custom keys, see below)
-
-Config properties:
-
-Property         | Type       | Required | Description
-:--              | :--        | :--      | :--
-default.action   | string     | no       | What action to take for traffic hitting the default rule (default `reject`)
-default.logged   | boolean    | no       | Whether or not to log traffic hitting the default rule (default `false`)
+config           | string set | no       | Config key/value pairs (Only `user.*` custom keys supported)
 
 ACL rules have the following properties:
 
@@ -67,10 +64,13 @@ Rules cannot be explicitly ordered. However LXD will order the rules based on th
  - `drop`
  - `reject`
  - `allow`
- - Automatic default rule action for any unmatched traffic (defaults to `reject` if `default.action` not specified).
+ - Automatic default action for any unmatched traffic (defaults to `reject`).
 
 This means that multiple ACLs can be applied to a NIC without having to specify the combined rule ordering.
 As soon as one of the rules in the ACLs matches then that action is taken and no other rules are considered.
+
+The default reject action can be modified by using the network and NIC level `security.acls.default.ingress.action`
+and `security.acls.default.egress.action` settings. The NIC level settings will override the network level settings.
 
 ## Port group selectors
 

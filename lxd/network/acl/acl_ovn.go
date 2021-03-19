@@ -21,10 +21,16 @@ import (
 )
 
 // OVN ACL rule priorities.
-const ovnACLPrioritySwitchAllow = 10
-const ovnACLPriorityPortGroupAllow = 20
-const ovnACLPriorityPortGroupReject = 30
-const ovnACLPriorityPortGroupDrop = 40
+const ovnACLPriorityPortGroupDefaultAction = 0
+const ovnACLPriorityNICDefaultActionIngress = 100
+
+// ovnACLPriorityNICDefaultActionEgress needs to be >10 higher than ovnACLPriorityNICDefaultActionIngress so that
+// ingress reject rules (that OVN adds 10 to their priorities) don't prevent egress rules being tested first.
+const ovnACLPriorityNICDefaultActionEgress = 111
+const ovnACLPrioritySwitchAllow = 200
+const ovnACLPriorityPortGroupAllow = 300
+const ovnACLPriorityPortGroupReject = 400
+const ovnACLPriorityPortGroupDrop = 500
 
 // ovnACLPortGroupPrefix prefix used when naming ACL related port groups in OVN.
 const ovnACLPortGroupPrefix = "lxd_acl"
@@ -342,20 +348,14 @@ func ovnApplyToPortGroup(logger logger.Logger, client *openvswitch.OVN, aclInfo 
 	}
 
 	// Add default rule to port group ACL.
-	defaultAction := "reject"
-	if aclInfo.Config["default.action"] != "" {
-		defaultAction = aclInfo.Config["default.action"]
-	}
-
+	// This is a failsafe to drop unmatched traffic if the per-NIC default rule has unexpectedly not kicked in.
+	defaultAction := "drop"
 	defaultLogged := false
-	if shared.IsTrue(aclInfo.Config["default.logged"]) {
-		defaultLogged = true
-	}
 
 	portGroupRules = append(portGroupRules, openvswitch.OVNACLRule{
 		Direction: "to-lport", // Always use this so that outport is available to Match.
 		Action:    defaultAction,
-		Priority:  0, // Lowest priority to catch only unmatched traffic.
+		Priority:  ovnACLPriorityPortGroupDefaultAction, // Lowest priority to catch only unmatched traffic.
 		Match:     fmt.Sprintf("(inport == @%s || outport == @%s)", portGroupName, portGroupName),
 		Log:       defaultLogged,
 		LogName:   string(portGroupName),
@@ -905,4 +905,41 @@ func OVNPortGroupInstanceNICSchedule(portUUID openvswitch.OVNSwitchPortUUID, cha
 
 		changeSet[portGroupName] = append(changeSet[portGroupName], portUUID)
 	}
+}
+
+// OVNApplyInstanceNICDefaultRules applies instance NIC default rules to per-network port group.
+func OVNApplyInstanceNICDefaultRules(client *openvswitch.OVN, switchPortGroup openvswitch.OVNPortGroup, logName string, nicPortName openvswitch.OVNSwitchPort, ingressAction string, ingressLogged bool, egressAction string, egressLogged bool) error {
+	if !shared.StringInSlice(ingressAction, ValidActions) {
+		return fmt.Errorf("Invalid ingress action %q", ingressAction)
+	}
+
+	if !shared.StringInSlice(egressAction, ValidActions) {
+		return fmt.Errorf("Invalid egress action %q", egressAction)
+	}
+
+	rules := []openvswitch.OVNACLRule{
+		{
+			Direction: "to-lport",
+			Action:    egressAction,
+			Log:       egressLogged,
+			LogName:   fmt.Sprintf("%s-egress", logName), // Max 63 chars.
+			Priority:  ovnACLPriorityNICDefaultActionEgress,
+			Match:     fmt.Sprintf(`inport == "%s"`, nicPortName), // From NIC.
+		},
+		{
+			Direction: "to-lport",
+			Action:    ingressAction,
+			Log:       ingressLogged,
+			LogName:   fmt.Sprintf("%s-ingress", logName), // Max 63 chars.
+			Priority:  ovnACLPriorityNICDefaultActionIngress,
+			Match:     fmt.Sprintf(`outport == "%s"`, nicPortName), // To NIC.
+		},
+	}
+
+	err := client.PortGroupPortSetACLRules(switchPortGroup, nicPortName, rules...)
+	if err != nil {
+		return errors.Wrapf(err, "Failed applying instance NIC default ACL rules for port %q", nicPortName)
+	}
+
+	return nil
 }

@@ -56,24 +56,20 @@ type ovnUplinkPortBridgeVars struct {
 	ovsEnd    string
 }
 
-// OVNInstanceNICOpts options for starting and stopping an OVN Instance NIC.
-type OVNInstanceNICOpts struct {
-	InstanceUUID   string
-	DeviceName     string
-	InternalRoutes []*net.IPNet
-	ExternalRoutes []*net.IPNet
-}
-
 // OVNInstanceNICSetupOpts options for starting an OVN Instance NIC.
 type OVNInstanceNICSetupOpts struct {
-	OVNInstanceNICOpts
+	InstanceUUID string
+	DeviceName   string
+	DeviceConfig deviceConfig.Device
+	UplinkConfig map[string]string
+	DNSName      string
+}
 
-	UplinkConfig       map[string]string
-	DNSName            string
-	MAC                net.HardwareAddr
-	IPs                []net.IP
-	SecurityACLs       []string
-	SecurityACLsRemove []string
+// OVNInstanceNICStopOpts options for stopping an OVN Instance NIC.
+type OVNInstanceNICStopOpts struct {
+	InstanceUUID string
+	DeviceName   string
+	DeviceConfig deviceConfig.Device
 }
 
 // ovn represents a LXD OVN network.
@@ -213,6 +209,14 @@ func (n *ovn) Validate(config map[string]string) error {
 		"dns.domain":         validate.IsAny,
 		"dns.search":         validate.IsAny,
 		"security.acls":      validate.IsAny,
+		"security.acls.default.ingress.action": validate.Optional(func(value string) error {
+			return validate.IsOneOf(value, acl.ValidActions)
+		}),
+		"security.acls.default.egress.action": validate.Optional(func(value string) error {
+			return validate.IsOneOf(value, acl.ValidActions)
+		}),
+		"security.acls.default.ingress.logged": validate.Optional(validate.IsBool),
+		"security.acls.default.egress.logged":  validate.Optional(validate.IsBool),
 
 		// Volatile keys populated automatically as needed.
 		ovnVolatileUplinkIPv4: validate.Optional(validate.IsNetworkAddressV4),
@@ -2264,8 +2268,17 @@ func (n *ovn) Update(newNetwork api.NetworkPut, targetNode string, clientType re
 			}
 		}
 
-		// Apply security ACL changes.
-		if len(addedACLs) > 0 || len(removedACLs) > 0 {
+		// Detect if network default rule config has changed.
+		defaultRuleKeys := []string{"security.acls.default.ingress.action", "security.acls.default.egress.action", "security.acls.default.ingress.logged", "security.acls.default.egress.logged"}
+		changedDefaultRuleKeys := []string{}
+		for _, k := range defaultRuleKeys {
+			if shared.StringInSlice(k, changedKeys) {
+				changedDefaultRuleKeys = append(changedDefaultRuleKeys, k)
+			}
+		}
+
+		// Apply security ACL and default rule changes.
+		if len(addedACLs) > 0 || len(removedACLs) > 0 || len(changedDefaultRuleKeys) > 0 {
 			client, err := openvswitch.NewOVN(n.state)
 			if err != nil {
 				return errors.Wrapf(err, "Failed to get OVN client")
@@ -2332,6 +2345,47 @@ func (n *ovn) Update(newNetwork api.NetworkPut, targetNode string, clientType re
 					n.logger.Debug("Scheduled logical port for ACL port group removal", log.Ctx{"networkACL": removedACL, "portGroup": portGroupName, "port": instancePortName})
 				}
 
+				// If there are no ACLs being applied to the NIC (either from network or NIC) then
+				// we should remove the default rule from the NIC.
+				if len(newACLs) <= 0 && len(nicACLs) <= 0 {
+					err = client.PortGroupPortClearACLRules(acl.OVNIntSwitchPortGroupName(n.ID()), instancePortName)
+					if err != nil {
+						return errors.Wrapf(err, "Failed clearing OVN default ACL rules for instance NIC")
+					}
+
+					n.logger.Debug("Cleared NIC default rules", log.Ctx{"port": instancePortName})
+				} else {
+					defaultRuleChange := false
+
+					// If there are ACLs being applied, then decide if the default rule config
+					// has changed materially for the NIC and update it if needed.
+					for _, k := range changedDefaultRuleKeys {
+						if _, found := nicConfig[k]; found {
+							continue // Skip if changed key is overridden in NIC.
+						}
+
+						defaultRuleChange = true
+						break
+					}
+
+					// If the default rule config has changed materially for this NIC or the
+					// network previously didn't have any ACLs applied and now does, then add
+					// the default rule to the NIC.
+					if defaultRuleChange || len(oldACLs) <= 0 {
+						// Set the automatic default ACL rule for the port.
+						ingressAction, ingressLogged := n.instanceDeviceACLDefaults(nicConfig, "ingress")
+						egressAction, egressLogged := n.instanceDeviceACLDefaults(nicConfig, "egress")
+
+						logName := fmt.Sprintf("%s-%s", inst.Config["volatile.uuid"], nicName)
+						err = acl.OVNApplyInstanceNICDefaultRules(client, acl.OVNIntSwitchPortGroupName(n.ID()), logName, instancePortName, ingressAction, ingressLogged, egressAction, egressLogged)
+						if err != nil {
+							return errors.Wrapf(err, "Failed applying OVN default ACL rules for instance NIC")
+						}
+
+						n.logger.Debug("Set NIC default rule", log.Ctx{"port": instancePortName, "ingressAction": ingressAction, "ingressLogged": ingressLogged, "egressAction": egressAction, "egressLogged": egressLogged})
+					}
+				}
+
 				return nil
 			})
 			if err != nil {
@@ -2343,7 +2397,7 @@ func (n *ovn) Update(newNetwork api.NetworkPut, targetNode string, clientType re
 				n.logger.Debug("Applying ACL port group member change sets")
 				err = client.PortGroupMemberChange(addChangeSet, removeChangeSet)
 				if err != nil {
-					return errors.Wrapf(err, "Failed applying OVN port group member change sets for instance NICs")
+					return errors.Wrapf(err, "Failed applying OVN port group member change sets for instance NIC")
 				}
 			}
 
@@ -2374,26 +2428,9 @@ func (n *ovn) getInstanceDevicePortName(instanceUUID string, deviceName string) 
 	return openvswitch.OVNSwitchPort(fmt.Sprintf("%s-%s-%s", n.getIntSwitchInstancePortPrefix(), instanceUUID, deviceName))
 }
 
-// InstanceDevicePortConfigParse parses the instance NIC device config and returns MAC address, static IPs,
-// internal routes and external routes.
-func (n *ovn) InstanceDevicePortConfigParse(deviceConfig map[string]string) (net.HardwareAddr, []net.IP, []*net.IPNet, []*net.IPNet, error) {
-	mac, err := net.ParseMAC(deviceConfig["hwaddr"])
-	if err != nil {
-		return nil, nil, nil, nil, err
-	}
-
-	ips := []net.IP{}
-	for _, key := range []string{"ipv4.address", "ipv6.address"} {
-		if deviceConfig[key] == "" {
-			continue
-		}
-
-		ip := net.ParseIP(deviceConfig[key])
-		if ip == nil {
-			return nil, nil, nil, nil, fmt.Errorf("Invalid %s value %q", key, deviceConfig[key])
-		}
-		ips = append(ips, ip)
-	}
+// instanceDevicePortRoutesParse parses the instance NIC device config for internal routes and external routes.
+func (n *ovn) instanceDevicePortRoutesParse(deviceConfig map[string]string) ([]*net.IPNet, []*net.IPNet, error) {
+	var err error
 
 	internalRoutes := []*net.IPNet{}
 	for _, key := range []string{"ipv4.routes", "ipv6.routes"} {
@@ -2403,7 +2440,7 @@ func (n *ovn) InstanceDevicePortConfigParse(deviceConfig map[string]string) (net
 
 		internalRoutes, err = SubnetParseAppend(internalRoutes, util.SplitNTrimSpace(deviceConfig[key], ",", -1, false)...)
 		if err != nil {
-			return nil, nil, nil, nil, errors.Wrapf(err, "Invalid %q value", key)
+			return nil, nil, errors.Wrapf(err, "Invalid %q value", key)
 		}
 	}
 
@@ -2415,11 +2452,11 @@ func (n *ovn) InstanceDevicePortConfigParse(deviceConfig map[string]string) (net
 
 		externalRoutes, err = SubnetParseAppend(externalRoutes, util.SplitNTrimSpace(deviceConfig[key], ",", -1, false)...)
 		if err != nil {
-			return nil, nil, nil, nil, errors.Wrapf(err, "Invalid %q value", key)
+			return nil, nil, errors.Wrapf(err, "Invalid %q value", key)
 		}
 	}
 
-	return mac, ips, internalRoutes, externalRoutes, nil
+	return internalRoutes, externalRoutes, nil
 }
 
 // InstanceDevicePortValidateExternalRoutes validates the external routes for an OVN instance port.
@@ -2539,10 +2576,34 @@ func (n *ovn) InstanceDevicePortValidateExternalRoutes(deviceInstance instance.I
 	return nil
 }
 
-// InstanceDevicePortAdd adds an instance device port to the internal logical switch and returns the port name.
-func (n *ovn) InstanceDevicePortAdd(opts *OVNInstanceNICSetupOpts) (openvswitch.OVNSwitchPort, error) {
+// InstanceDevicePortAdd sets up an instance device port to the internal logical switch and returns the port name.
+// Accepts a list of ACLs being removed from the NIC device (if called as part of a NIC update).
+func (n *ovn) InstanceDevicePortSetup(opts *OVNInstanceNICSetupOpts, securityACLsRemove []string) (openvswitch.OVNSwitchPort, error) {
 	if opts.InstanceUUID == "" {
 		return "", fmt.Errorf("Instance UUID is required")
+	}
+
+	mac, err := net.ParseMAC(opts.DeviceConfig["hwaddr"])
+	if err != nil {
+		return "", err
+	}
+
+	ips := []net.IP{}
+	for _, key := range []string{"ipv4.address", "ipv6.address"} {
+		if opts.DeviceConfig[key] == "" {
+			continue
+		}
+
+		ip := net.ParseIP(opts.DeviceConfig[key])
+		if ip == nil {
+			return "", fmt.Errorf("Invalid %s value %q", key, opts.DeviceConfig[key])
+		}
+		ips = append(ips, ip)
+	}
+
+	internalRoutes, externalRoutes, err := n.instanceDevicePortRoutesParse(opts.DeviceConfig)
+	if err != nil {
+		return "", errors.Wrapf(err, "Failed parsing NIC device routes")
 	}
 
 	var dhcpV4ID, dhcpv6ID openvswitch.OVNDHCPOptionsUUID
@@ -2584,9 +2645,9 @@ func (n *ovn) InstanceDevicePortAdd(opts *OVNInstanceNICSetupOpts) (openvswitch.
 		// addresses have been added, then add an EUI64 static IPv6 address so that the switch port has an
 		// IPv6 address that will be used to generate a DNS record. This works around a limitation in OVN
 		// that prevents us requesting dynamic IPv6 address allocation when static IPv4 allocation is used.
-		if len(opts.IPs) > 0 {
+		if len(ips) > 0 {
 			hasIPv6 := false
-			for _, ip := range opts.IPs {
+			for _, ip := range ips {
 				if ip.To4() == nil {
 					hasIPv6 = true
 					break
@@ -2594,13 +2655,13 @@ func (n *ovn) InstanceDevicePortAdd(opts *OVNInstanceNICSetupOpts) (openvswitch.
 			}
 
 			if !hasIPv6 {
-				eui64IP, err := eui64.ParseMAC(dhcpv6Subnet.IP, opts.MAC)
+				eui64IP, err := eui64.ParseMAC(dhcpv6Subnet.IP, mac)
 				if err != nil {
-					return "", errors.Wrapf(err, "Failed generating EUI64 for instance port %q", opts.MAC.String())
+					return "", errors.Wrapf(err, "Failed generating EUI64 for instance port %q", mac.String())
 				}
 
 				// Add EUI64 to list of static IPs for instance port.
-				opts.IPs = append(opts.IPs, eui64IP)
+				ips = append(ips, eui64IP)
 			}
 		}
 	}
@@ -2614,8 +2675,8 @@ func (n *ovn) InstanceDevicePortAdd(opts *OVNInstanceNICSetupOpts) (openvswitch.
 	err = client.LogicalSwitchPortAdd(n.getIntSwitchName(), instancePortName, &openvswitch.OVNSwitchPortOpts{
 		DHCPv4OptsID: dhcpV4ID,
 		DHCPv6OptsID: dhcpv6ID,
-		MAC:          opts.MAC,
-		IPs:          opts.IPs,
+		MAC:          mac,
+		IPs:          ips,
 	}, true)
 	if err != nil {
 		return "", err
@@ -2673,7 +2734,7 @@ func (n *ovn) InstanceDevicePortAdd(opts *OVNInstanceNICSetupOpts) (openvswitch.
 	}
 
 	// Add each internal route (using the IPs set for DNS as target).
-	for _, internalRoute := range opts.InternalRoutes {
+	for _, internalRoute := range internalRoutes {
 		targetIP := dnsIPv4
 		if internalRoute.IP.To4() == nil {
 			targetIP = dnsIPv6
@@ -2692,7 +2753,7 @@ func (n *ovn) InstanceDevicePortAdd(opts *OVNInstanceNICSetupOpts) (openvswitch.
 	}
 
 	// Add each external route (using the IPs set for DNS as target).
-	for _, externalRoute := range opts.ExternalRoutes {
+	for _, externalRoute := range externalRoutes {
 		targetIP := dnsIPv4
 		if externalRoute.IP.To4() == nil {
 			targetIP = dnsIPv6
@@ -2732,10 +2793,12 @@ func (n *ovn) InstanceDevicePortAdd(opts *OVNInstanceNICSetupOpts) (openvswitch.
 	}
 
 	// Merge network and NIC assigned security ACL lists.
-	netSecurityACLs := util.SplitNTrimSpace(n.config["security.acls"], ",", -1, true)
-	for _, aclName := range netSecurityACLs {
-		if !shared.StringInSlice(aclName, opts.SecurityACLs) {
-			opts.SecurityACLs = append(opts.SecurityACLs, aclName)
+	netACLNames := util.SplitNTrimSpace(n.config["security.acls"], ",", -1, true)
+	nicACLNames := util.SplitNTrimSpace(opts.DeviceConfig["security.acls"], ",", -1, true)
+
+	for _, aclName := range netACLNames {
+		if !shared.StringInSlice(aclName, nicACLNames) {
+			nicACLNames = append(nicACLNames, aclName)
 		}
 	}
 
@@ -2749,11 +2812,11 @@ func (n *ovn) InstanceDevicePortAdd(opts *OVNInstanceNICSetupOpts) (openvswitch.
 		return "", errors.Wrapf(err, "Failed getting logical port UUID for security ACL removal")
 	}
 
-	// Add NIC port to network port group.
+	// Add NIC port to network port group (this includes the port in the @internal subject for ACL rules).
 	acl.OVNPortGroupInstanceNICSchedule(portUUID, addChangeSet, acl.OVNIntSwitchPortGroupName(n.ID()))
 	n.logger.Debug("Scheduled logical port for network port group addition", log.Ctx{"portGroup": acl.OVNIntSwitchPortGroupName(n.ID()), "port": instancePortName})
 
-	if len(opts.SecurityACLs) > 0 || len(opts.SecurityACLsRemove) > 0 {
+	if len(nicACLNames) > 0 || len(securityACLsRemove) > 0 {
 		// Get map of ACL names to DB IDs (used for generating OVN port group names).
 		aclNameIDs, err := n.state.Cluster.GetNetworkACLIDsByNames(n.Project())
 		if err != nil {
@@ -2761,19 +2824,19 @@ func (n *ovn) InstanceDevicePortAdd(opts *OVNInstanceNICSetupOpts) (openvswitch.
 		}
 
 		// Add port to ACLs requested.
-		if len(opts.SecurityACLs) > 0 {
+		if len(nicACLNames) > 0 {
 			// Request our network is setup with the specified ACLs.
 			aclNets := map[string]acl.NetworkACLUsage{
 				n.Name(): {Name: n.Name(), Type: n.Type(), ID: n.ID()},
 			}
 
-			r, err := acl.OVNEnsureACLs(n.state, n.logger, client, n.Project(), aclNameIDs, aclNets, opts.SecurityACLs, false)
+			r, err := acl.OVNEnsureACLs(n.state, n.logger, client, n.Project(), aclNameIDs, aclNets, nicACLNames, false)
 			if err != nil {
 				return "", errors.Wrapf(err, "Failed ensuring security ACLs are configured in OVN for instance")
 			}
 			revert.Add(r.Fail)
 
-			for _, aclName := range opts.SecurityACLs {
+			for _, aclName := range nicACLNames {
 				aclID, found := aclNameIDs[aclName]
 				if !found {
 					return "", fmt.Errorf("Cannot find security ACL ID for %q", aclName)
@@ -2787,10 +2850,10 @@ func (n *ovn) InstanceDevicePortAdd(opts *OVNInstanceNICSetupOpts) (openvswitch.
 		}
 
 		// Remove port fom ACLs requested.
-		for _, aclName := range opts.SecurityACLsRemove {
+		for _, aclName := range securityACLsRemove {
 			// Don't remove ACLs that are in the add ACLs list (there are possibly added from
 			// the network assigned ACLs).
-			if shared.StringInSlice(aclName, opts.SecurityACLs) {
+			if shared.StringInSlice(aclName, nicACLNames) {
 				continue
 			}
 
@@ -2812,11 +2875,53 @@ func (n *ovn) InstanceDevicePortAdd(opts *OVNInstanceNICSetupOpts) (openvswitch.
 	n.logger.Debug("Applying instance NIC port group member change sets")
 	err = client.PortGroupMemberChange(addChangeSet, removeChangeSet)
 	if err != nil {
-		return "", errors.Wrapf(err, "Failed applying OVN port group member change sets for instance NICs")
+		return "", errors.Wrapf(err, "Failed applying OVN port group member change sets for instance NIC")
+	}
+
+	// Set the automatic default ACL rule for the port.
+	if len(nicACLNames) > 0 {
+		ingressAction, ingressLogged := n.instanceDeviceACLDefaults(opts.DeviceConfig, "ingress")
+		egressAction, egressLogged := n.instanceDeviceACLDefaults(opts.DeviceConfig, "egress")
+
+		logName := fmt.Sprintf("%s-%s", opts.InstanceUUID, opts.DeviceName)
+		err = acl.OVNApplyInstanceNICDefaultRules(client, acl.OVNIntSwitchPortGroupName(n.ID()), logName, instancePortName, ingressAction, ingressLogged, egressAction, egressLogged)
+		if err != nil {
+			return "", errors.Wrapf(err, "Failed applying OVN default ACL rules for instance NIC")
+		}
+
+		n.logger.Debug("Set NIC default rule", log.Ctx{"port": instancePortName, "ingressAction": ingressAction, "ingressLogged": ingressLogged, "egressAction": egressAction, "egressLogged": egressLogged})
+	} else {
+		err = client.PortGroupPortClearACLRules(acl.OVNIntSwitchPortGroupName(n.ID()), instancePortName)
+		if err != nil {
+			return "", errors.Wrapf(err, "Failed clearing OVN default ACL rules for instance NIC")
+		}
+
+		n.logger.Debug("Cleared NIC default rule", log.Ctx{"port": instancePortName})
 	}
 
 	revert.Success()
 	return instancePortName, nil
+}
+
+// instanceDeviceACLDefaults returns the action and logging mode to use for the specified direction's default rule.
+// If the security.acls.default.{in,e}gress.action or security.acls.default.{in,e}gress.logged settings are not
+// specified in the NIC device config, then the settings on the network are used, and if not specified there then
+// it returns "reject" and false respectively.
+func (n *ovn) instanceDeviceACLDefaults(deviceConfig deviceConfig.Device, direction string) (string, bool) {
+	defaults := map[string]string{
+		fmt.Sprintf("security.acls.default.%s.action", direction): "reject",
+		fmt.Sprintf("security.acls.default.%s.logged", direction): "false",
+	}
+
+	for k := range defaults {
+		if deviceConfig[k] != "" {
+			defaults[k] = deviceConfig[k]
+		} else if n.config[k] != "" {
+			defaults[k] = n.config[k]
+		}
+	}
+
+	return defaults[fmt.Sprintf("security.acls.default.%s.action", direction)], shared.IsTrue(defaults[fmt.Sprintf("security.acls.default.%s.logged", direction)])
 }
 
 // InstanceDevicePortDynamicIPs returns the dynamically allocated IPs for a device port.
@@ -2836,7 +2941,7 @@ func (n *ovn) InstanceDevicePortDynamicIPs(instanceUUID string, deviceName strin
 }
 
 // InstanceDevicePortDelete deletes an instance device port from the internal logical switch.
-func (n *ovn) InstanceDevicePortDelete(ovsExternalOVNPort openvswitch.OVNSwitchPort, opts *OVNInstanceNICOpts) error {
+func (n *ovn) InstanceDevicePortDelete(ovsExternalOVNPort openvswitch.OVNSwitchPort, opts *OVNInstanceNICStopOpts) error {
 	// Decide whether to use OVS provided OVN port name or internally derived OVN port name.
 	instancePortName := ovsExternalOVNPort
 	source := "OVS"
@@ -2851,6 +2956,11 @@ func (n *ovn) InstanceDevicePortDelete(ovsExternalOVNPort openvswitch.OVNSwitchP
 
 	n.logger.Debug("Deleting instance port", log.Ctx{"port": instancePortName, "source": source})
 
+	internalRoutes, externalRoutes, err := n.instanceDevicePortRoutesParse(opts.DeviceConfig)
+	if err != nil {
+		return errors.Wrapf(err, "Failed parsing NIC device routes")
+	}
+
 	client, err := openvswitch.NewOVN(n.state)
 	if err != nil {
 		return errors.Wrapf(err, "Failed to get OVN client")
@@ -2862,18 +2972,14 @@ func (n *ovn) InstanceDevicePortDelete(ovsExternalOVNPort openvswitch.OVNSwitchP
 		return errors.Wrapf(err, "Failed to load uplink network %q", n.config["network"])
 	}
 
-	err = client.LogicalSwitchPortDelete(instancePortName)
-	if err != nil {
-		return err
-	}
-
-	// Delete DNS records.
+	// Get DNS records.
 	dnsUUID, _, dnsIPs, err := client.LogicalSwitchPortGetDNS(instancePortName)
 	if err != nil {
 		return err
 	}
 
-	err = client.LogicalSwitchPortDeleteDNS(n.getIntSwitchName(), dnsUUID)
+	// Cleanup logical switch port and associated config.
+	err = client.LogicalSwitchPortCleanup(instancePortName, n.getIntSwitchName(), acl.OVNIntSwitchPortGroupName(n.ID()), dnsUUID)
 	if err != nil {
 		return err
 	}
@@ -2887,12 +2993,12 @@ func (n *ovn) InstanceDevicePortDelete(ovsExternalOVNPort openvswitch.OVNSwitchP
 	}
 
 	// Delete internal routes.
-	if len(opts.InternalRoutes) > 0 {
-		removeRoutes = append(removeRoutes, opts.InternalRoutes...)
+	if len(internalRoutes) > 0 {
+		removeRoutes = append(removeRoutes, internalRoutes...)
 	}
 
 	// Delete external routes.
-	for _, externalRoute := range opts.ExternalRoutes {
+	for _, externalRoute := range externalRoutes {
 		removeRoutes = append(removeRoutes, externalRoute)
 
 		// Remove the DNAT rules when using l2proxy ingress mode on uplink.
@@ -3161,28 +3267,15 @@ func (n *ovn) handleDependencyChange(uplinkName string, uplinkConfig map[string]
 						devConfig["hwaddr"] = inst.Config[fmt.Sprintf("volatile.%s.hwaddr", devName)]
 					}
 
-					// Parse NIC config into structures used by OVN network's instance port functions.
-					mac, ips, internalRoutes, externalRoutes, err := n.InstanceDevicePortConfigParse(devConfig)
-					if err != nil {
-						n.logger.Error("Failed parsing instance OVN NIC config", log.Ctx{"project": inst.Project, "instance": inst.Name, "err": err})
-						continue
-					}
-
 					// Re-add logical switch port to apply the l2proxy DNAT_AND_SNAT rules.
 					n.logger.Debug("Re-adding instance OVN NIC port to apply ingress mode changes", log.Ctx{"project": inst.Project, "instance": inst.Name, "device": devName})
-					_, err = n.InstanceDevicePortAdd(&OVNInstanceNICSetupOpts{
-						OVNInstanceNICOpts: OVNInstanceNICOpts{
-							InstanceUUID:   instanceUUID,
-							DeviceName:     devName,
-							InternalRoutes: internalRoutes,
-							ExternalRoutes: externalRoutes,
-						},
-						UplinkConfig: uplinkConfig,
+					_, err = n.InstanceDevicePortSetup(&OVNInstanceNICSetupOpts{
+						InstanceUUID: instanceUUID,
 						DNSName:      inst.Name,
-						MAC:          mac,
-						IPs:          ips,
-						SecurityACLs: util.SplitNTrimSpace(devConfig["security.acls"], ",", -1, true),
-					})
+						DeviceName:   devName,
+						DeviceConfig: devConfig,
+						UplinkConfig: uplinkConfig,
+					}, nil)
 					if err != nil {
 						n.logger.Error("Failed re-adding instance OVN NIC port", log.Ctx{"project": inst.Project, "instance": inst.Name, "err": err})
 						continue

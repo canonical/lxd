@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/lxc/lxd/lxd/instance"
+	"github.com/lxc/lxd/lxd/network/acl"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/validate"
 )
@@ -43,6 +44,14 @@ func nicValidationRules(requiredFields []string, optionalFields []string, instCo
 		"ipv4.routes.external":    validate.Optional(validate.IsNetworkV4List),
 		"ipv6.routes.external":    validate.Optional(validate.IsNetworkV6List),
 		"security.acls":           validate.IsAny,
+		"security.acls.default.ingress.action": validate.Optional(func(value string) error {
+			return validate.IsOneOf(value, acl.ValidActions)
+		}),
+		"security.acls.default.egress.action": validate.Optional(func(value string) error {
+			return validate.IsOneOf(value, acl.ValidActions)
+		}),
+		"security.acls.default.ingress.logged": validate.Optional(validate.IsBool),
+		"security.acls.default.egress.logged":  validate.Optional(validate.IsBool),
 	}
 
 	validators := map[string]func(value string) error{}
