@@ -13,7 +13,7 @@ import (
 )
 
 // GetLogger returns a logger suitable for using as logger.Log.
-func GetLogger(syslog string, logfile string, verbose bool, debug bool, customHandler log.Handler) (logger.Logger, error) {
+func GetLogger(syslog string, logfile string, verbose bool, debug bool, customHandlers ...log.Handler) (logger.Logger, error) {
 	Log := log.New()
 
 	var handlers []log.Handler
@@ -72,8 +72,12 @@ func GetLogger(syslog string, logfile string, verbose bool, debug bool, customHa
 		)
 	}
 
-	if customHandler != nil {
-		handlers = append(handlers, customHandler)
+	for _, handler := range customHandlers {
+		if handler == nil {
+			continue
+		}
+
+		handlers = append(handlers, handler)
 	}
 
 	Log.SetHandler(log.MultiHandler(handlers...))
