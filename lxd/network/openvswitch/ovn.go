@@ -484,9 +484,22 @@ func (o *OVN) LogicalSwitchDelete(switchName OVNSwitch) error {
 		return err
 	}
 
-	err = o.LogicalSwitchDHCPOptionsDelete(switchName)
+	// Remove any existing DHCP options associated to switch.
+	deleteDHCPRecords, err := o.LogicalSwitchDHCPOptionsGet(switchName)
 	if err != nil {
 		return err
+	}
+
+	if len(deleteDHCPRecords) > 0 {
+		deleteDHCPUUIDs := make([]OVNDHCPOptionsUUID, 0, len(deleteDHCPRecords))
+		for _, deleteDHCPRecord := range deleteDHCPRecords {
+			deleteDHCPUUIDs = append(deleteDHCPUUIDs, deleteDHCPRecord.UUID)
+		}
+
+		err = o.LogicalSwitchDHCPOptionsDelete(switchName, deleteDHCPUUIDs...)
+		if err != nil {
+			return err
+		}
 	}
 
 	err = o.logicalSwitchDNSRecordsDelete(switchName)
@@ -696,19 +709,6 @@ func (o *OVN) LogicalSwitchDHCPv6OptionsSet(switchName OVNSwitch, uuid OVNDHCPOp
 	return nil
 }
 
-// LogicalSwitchDHCPOptionsGetID returns the UUID for DHCP options set associated to the logical switch and subnet.
-func (o *OVN) LogicalSwitchDHCPOptionsGetID(switchName OVNSwitch, subnet *net.IPNet) (OVNDHCPOptionsUUID, error) {
-	uuid, err := o.nbctl("--format=csv", "--no-headings", "--data=bare", "--colum=_uuid", "find", "dhcp_options",
-		fmt.Sprintf("external_ids:%s=%s", ovnExtIDLXDSwitch, switchName),
-		fmt.Sprintf(`cidr="%s"`, subnet.String()), // Special quoting to support IPv6 subnets.
-	)
-	if err != nil {
-		return "", err
-	}
-
-	return OVNDHCPOptionsUUID(strings.TrimSpace(uuid)), nil
-}
-
 // LogicalSwitchDHCPOptionsGet retrieves the existing DHCP options defined for a logical switch.
 func (o *OVN) LogicalSwitchDHCPOptionsGet(switchName OVNSwitch) ([]OVNDHCPOptsSet, error) {
 	output, err := o.nbctl("--format=csv", "--no-headings", "--data=bare", "--colum=_uuid,cidr", "find", "dhcp_options",
@@ -743,40 +743,21 @@ func (o *OVN) LogicalSwitchDHCPOptionsGet(switchName OVNSwitch) ([]OVNDHCPOptsSe
 	return dhcpOpts, nil
 }
 
-// LogicalSwitchDHCPOptionsDelete deletes any DHCP options defined for a switch.
-// Optionally accepts one or more specific UUID records to delete (if they are associated to the specified switch).
-func (o *OVN) LogicalSwitchDHCPOptionsDelete(switchName OVNSwitch, onlyUUID ...OVNDHCPOptionsUUID) error {
-	existingOpts, err := o.nbctl("--format=csv", "--no-headings", "--data=bare", "--colum=_uuid", "find", "dhcp_options",
-		fmt.Sprintf("external_ids:%s=%s", ovnExtIDLXDSwitch, switchName),
-	)
+// LogicalSwitchDHCPOptionsDelete deletes the specified DHCP options defined for a switch.
+func (o *OVN) LogicalSwitchDHCPOptionsDelete(switchName OVNSwitch, uuids ...OVNDHCPOptionsUUID) error {
+	args := []string{}
+
+	for _, uuid := range uuids {
+		if len(args) > 0 {
+			args = append(args, "--")
+		}
+
+		args = append(args, "destroy", "dhcp_options", string(uuid))
+	}
+
+	_, err := o.nbctl(args...)
 	if err != nil {
 		return err
-	}
-
-	shouldDelete := func(existingUUID string) bool {
-		if len(onlyUUID) <= 0 {
-			return true // Delete all records if no UUID filter supplied.
-		}
-
-		for _, uuid := range onlyUUID {
-			if OVNDHCPOptionsUUID(existingUUID) == uuid {
-				return true
-			}
-		}
-
-		return false
-	}
-
-	existingOpts = strings.TrimSpace(existingOpts)
-	if existingOpts != "" {
-		for _, uuid := range strings.Split(existingOpts, "\n") {
-			if shouldDelete(uuid) {
-				_, err = o.nbctl("destroy", "dhcp_options", uuid)
-				if err != nil {
-					return err
-				}
-			}
-		}
 	}
 
 	return nil
@@ -784,20 +765,27 @@ func (o *OVN) LogicalSwitchDHCPOptionsDelete(switchName OVNSwitch, onlyUUID ...O
 
 // logicalSwitchDNSRecordsDelete deletes any DNS records defined for a switch.
 func (o *OVN) logicalSwitchDNSRecordsDelete(switchName OVNSwitch) error {
-	existingOpts, err := o.nbctl("--format=csv", "--no-headings", "--data=bare", "--colum=_uuid", "find", "dns",
+	uuids, err := o.nbctl("--format=csv", "--no-headings", "--data=bare", "--colum=_uuid", "find", "dns",
 		fmt.Sprintf("external_ids:%s=%s", ovnExtIDLXDSwitch, switchName),
 	)
 	if err != nil {
 		return err
 	}
 
-	existingOpts = strings.TrimSpace(existingOpts)
-	if existingOpts != "" {
-		for _, uuid := range strings.Split(existingOpts, "\n") {
-			_, err = o.nbctl("destroy", "dns", uuid)
-			if err != nil {
-				return err
-			}
+	args := []string{}
+
+	for _, uuid := range util.SplitNTrimSpace(strings.TrimSpace(uuids), "\n", -1, true) {
+		if len(args) > 0 {
+			args = append(args, "--")
+		}
+
+		args = append(args, "destroy", "dns", uuid)
+	}
+
+	if len(args) > 0 {
+		_, err = o.nbctl(args...)
+		if err != nil {
+			return err
 		}
 	}
 
