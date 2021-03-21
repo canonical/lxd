@@ -169,7 +169,7 @@ func (c *cmdMove) Run(cmd *cobra.Command, args []string) error {
 				return fmt.Errorf(i18n.G("The --mode flag can't be used with --target"))
 			}
 
-			return moveClusterInstance(conf, sourceResource, destResource, c.flagTarget)
+			return moveClusterInstance(conf, sourceResource, destResource, c.flagTarget, c.global.flagQuiet)
 		}
 
 		dest, err := conf.GetInstanceServer(destRemote)
@@ -233,7 +233,7 @@ func (c *cmdMove) Run(cmd *cobra.Command, args []string) error {
 }
 
 // Move an instance using special POST /instances/<name>?target=<member> API.
-func moveClusterInstance(conf *config.Config, sourceResource string, destResource string, target string) error {
+func moveClusterInstance(conf *config.Config, sourceResource string, destResource string, target string, quiet bool) error {
 	// Parse the source.
 	sourceRemote, sourceName, err := conf.ParseRemote(sourceResource)
 	if err != nil {
@@ -282,7 +282,7 @@ func moveClusterInstance(conf *config.Config, sourceResource string, destResourc
 	// Watch the background operation
 	progress := utils.ProgressRenderer{
 		Format: i18n.G("Transferring instance: %s"),
-		Quiet:  false,
+		Quiet:  quiet,
 	}
 	_, err = op.AddHandler(progress.UpdateOp)
 	if err != nil {
