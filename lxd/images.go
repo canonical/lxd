@@ -1129,6 +1129,7 @@ func autoUpdateImages(ctx context.Context, d *Daemon) error {
 			_, imageInfo, err := d.cluster.GetImage(image.Project, image.Fingerprint, image.Public)
 			if err != nil {
 				logger.Error("Failed to get image", log.Ctx{"err": err, "project": image.Project, "fingerprint": image.Fingerprint})
+				continue
 			}
 
 			newInfo, err := autoUpdateImage(ctx, d, nil, image.ID, imageInfo, image.Project)
