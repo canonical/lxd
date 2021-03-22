@@ -86,6 +86,38 @@ var updates = map[int]schema.Update{
 	45: updateFromV44,
 	46: updateFromV45,
 	47: updateFromV46,
+	48: updateFromV47,
+}
+
+// updateFromV47 adds warnings
+func updateFromV47(tx *sql.Tx) error {
+	_, err := tx.Exec(`
+CREATE TABLE warnings (
+	id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+	node_id INTEGER,
+	project_id INTEGER,
+	entity_type_code INTEGER,
+	entity_id INTEGER,
+	uuid TEXT NOT NULL,
+	type_code INTEGER NOT NULL,
+	status INTEGER NOT NULL,
+	first_seen_date DATETIME NOT NULL,
+	last_seen_date DATETIME NOT NULL,
+	updated_date DATETIME,
+	last_message TEXT NOT NULL,
+	count INTEGER NOT NULL,
+	UNIQUE (uuid),
+	FOREIGN KEY (node_id) REFERENCES nodes(id) ON DELETE CASCADE,
+	FOREIGN KEY (project_id) REFERENCES projects (id) ON DELETE CASCADE
+);
+
+CREATE UNIQUE INDEX warnings_unique_node_id_project_id_entity_type_code_entity_id_type_code ON warnings(IFNULL(node_id, -1), IFNULL(project_id, -1), entity_type_code, entity_id, type_code);
+`)
+	if err != nil {
+		return errors.Wrap(err, "Failed to create warnings table and warnings_unique_node_id_project_id_entity_type_code_entity_id_type_code index")
+	}
+
+	return err
 }
 
 // updateFromV46 adds support for restricting certificates to projects
