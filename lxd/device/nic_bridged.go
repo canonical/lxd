@@ -1173,8 +1173,24 @@ func (d *nicBridged) State() (*api.InstanceStateNetwork, error) {
 	// Get IP addresses from IP neighbour cache if present.
 	neighIPs, err := network.GetNeighbourIPs(d.config["parent"], d.config["hwaddr"])
 	if err == nil {
+		validStates := []string{
+			string(network.NeighbourIPStatePermanent),
+			string(network.NeighbourIPStateNoARP),
+			string(network.NeighbourIPStateReachable),
+		}
+
+		// Add any valid-state neighbour IP entries first.
 		for _, neighIP := range neighIPs {
-			ipStore(neighIP)
+			if shared.StringInSlice(string(neighIP.State), validStates) {
+				ipStore(neighIP.IP)
+			}
+		}
+
+		// Add any non-failed-state entries.
+		for _, neighIP := range neighIPs {
+			if neighIP.State != network.NeighbourIPStateFailed && !shared.StringInSlice(string(neighIP.State), validStates) {
+				ipStore(neighIP.IP)
+			}
 		}
 	}
 
