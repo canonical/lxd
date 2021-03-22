@@ -55,7 +55,7 @@ var EntityTypes = map[string]int{}
 // EntityURIs associates an entity code to its URI pattern.
 var EntityURIs = map[int]string{
 	TypeContainer:             "/" + version.APIVersion + "/containers/%s?project=%s",
-	TypeImage:                 "/" + version.APIVersion + "/images/%s",
+	TypeImage:                 "/" + version.APIVersion + "/images/%s?project=%s",
 	TypeProfile:               "/" + version.APIVersion + "/profiles/%s?project=%s",
 	TypeProject:               "/" + version.APIVersion + "/projects/%s",
 	TypeCertificate:           "/" + version.APIVersion + "/certificates/%s",
