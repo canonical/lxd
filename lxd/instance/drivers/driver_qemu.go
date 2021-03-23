@@ -4604,7 +4604,7 @@ func (d *qemu) RenderState() (*api.InstanceState, error) {
 	statusCode := d.statusCode()
 	pid, _ := d.pid()
 
-	if statusCode == api.Running {
+	if d.isRunningStatusCode(statusCode) {
 		// Try and get state info from agent.
 		status, err = d.agentGetState()
 		if err != nil {
