@@ -637,3 +637,8 @@ func (d *common) insertConfigkey(key string, value string) (string, error) {
 
 	return value, nil
 }
+
+// isRunningStatusCode returns if instance is running from status code.
+func (d *common) isRunningStatusCode(statusCode api.StatusCode) bool {
+	return statusCode != api.Error && statusCode != api.Stopped
+}
