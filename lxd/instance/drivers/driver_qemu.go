@@ -4679,7 +4679,7 @@ func (d *qemu) IsRunning() bool {
 
 // IsFrozen returns whether the instance frozen or not.
 func (d *qemu) IsFrozen() bool {
-	return d.State() == "FROZEN"
+	return d.statusCode() == api.Frozen
 }
 
 // DeviceEventHandler handles events occurring on the instance's devices.
