@@ -4488,7 +4488,7 @@ func (d *qemu) RenderFull() (*api.InstanceFull, interface{}, error) {
 	vmState := api.InstanceFull{Instance: *base.(*api.Instance)}
 
 	// Add the InstanceState.
-	vmState.State, err = d.RenderState()
+	vmState.State, err = d.renderState(vmState.StatusCode)
 	if err != nil {
 		return nil, nil, err
 	}
