@@ -4506,13 +4506,14 @@ func (d *qemu) Render(options ...func(response interface{}) error) (interface{},
 
 	// Prepare the ETag
 	etag := []interface{}{d.architecture, d.localConfig, d.localDevices, d.ephemeral, d.profiles}
+	statusCode := d.statusCode()
 
 	instState := api.Instance{
 		ExpandedConfig:  d.expandedConfig,
 		ExpandedDevices: d.expandedDevices.CloneNative(),
 		Name:            d.name,
-		Status:          d.statusCode().String(),
-		StatusCode:      d.statusCode(),
+		Status:          statusCode.String(),
+		StatusCode:      statusCode,
 		Location:        d.node,
 		Type:            d.Type().String(),
 	}
@@ -4553,7 +4554,7 @@ func (d *qemu) RenderFull() (*api.InstanceFull, interface{}, error) {
 	vmState := api.InstanceFull{Instance: *base.(*api.Instance)}
 
 	// Add the InstanceState.
-	vmState.State, err = d.RenderState()
+	vmState.State, err = d.renderState(vmState.StatusCode)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -4596,15 +4597,14 @@ func (d *qemu) RenderFull() (*api.InstanceFull, interface{}, error) {
 	return &vmState, etag, nil
 }
 
-// RenderState returns just state info about the instance.
-func (d *qemu) RenderState() (*api.InstanceState, error) {
+// renderState returns just state info about the instance.
+func (d *qemu) renderState(statusCode api.StatusCode) (*api.InstanceState, error) {
 	var err error
 
 	status := &api.InstanceState{}
-	statusCode := d.statusCode()
 	pid, _ := d.pid()
 
-	if statusCode == api.Running {
+	if d.isRunningStatusCode(statusCode) {
 		// Try and get state info from agent.
 		status, err = d.agentGetState()
 		if err != nil {
@@ -4683,6 +4683,11 @@ func (d *qemu) RenderState() (*api.InstanceState, error) {
 	return status, nil
 }
 
+// RenderState returns just state info about the instance.
+func (d *qemu) RenderState() (*api.InstanceState, error) {
+	return d.renderState(d.statusCode())
+}
+
 // diskState gets disk usage info.
 func (d *qemu) diskState() (map[string]api.InstanceStateDisk, error) {
 	pool, err := d.getStoragePool()
@@ -4740,13 +4745,12 @@ func (d *qemu) agentGetState() (*api.InstanceState, error) {
 
 // IsRunning returns whether or not the instance is running.
 func (d *qemu) IsRunning() bool {
-	state := d.State()
-	return state != "STOPPED"
+	return d.isRunningStatusCode(d.statusCode())
 }
 
 // IsFrozen returns whether the instance frozen or not.
 func (d *qemu) IsFrozen() bool {
-	return d.State() == "FROZEN"
+	return d.statusCode() == api.Frozen
 }
 
 // DeviceEventHandler handles events occurring on the instance's devices.
