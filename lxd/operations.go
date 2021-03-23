@@ -112,6 +112,41 @@ func waitForOperations(s *state.State, chCancel chan struct{}) {
 }
 
 // API functions
+
+// swagger:operation GET /1.0/operations/{id} operations operation_get
+//
+// Get the operation state
+//
+// Gets the operation state.
+//
+// ---
+// produces:
+//   - application/json
+// responses:
+//   "200":
+//     description: Operation
+//     schema:
+//       type: object
+//       description: Sync response
+//       properties:
+//         type:
+//           type: string
+//           description: Response type
+//           example: sync
+//         status:
+//           type: string
+//           description: Status description
+//           example: Success
+//         status_code:
+//           type: int
+//           description: Status code
+//           example: 200
+//         metadata:
+//           $ref: "#/definitions/Operation"
+//   "403":
+//     $ref: "#/responses/Forbidden"
+//   "500":
+//     $ref: "#/responses/InternalServerError"
 func operationGet(d *Daemon, r *http.Request) response.Response {
 	id := mux.Vars(r)["id"]
 
@@ -152,6 +187,24 @@ func operationGet(d *Daemon, r *http.Request) response.Response {
 	return response.ForwardedResponse(client, r)
 }
 
+// swagger:operation DELETE /1.0/operations/{id} operations operation_delete
+//
+// Cancel the operation
+//
+// Cancels the operation if supported.
+//
+// ---
+// produces:
+//   - application/json
+// responses:
+//   "200":
+//     $ref: "#/responses/EmptySyncResponse"
+//   "400":
+//     $ref: "#/responses/BadRequest"
+//   "403":
+//     $ref: "#/responses/Forbidden"
+//   "500":
+//     $ref: "#/responses/InternalServerError"
 func operationDelete(d *Daemon, r *http.Request) response.Response {
 	id := mux.Vars(r)["id"]
 
@@ -201,6 +254,89 @@ func operationDelete(d *Daemon, r *http.Request) response.Response {
 	return response.ForwardedResponse(client, r)
 }
 
+// swagger:operation GET /1.0/operations operations operations_get
+//
+// Get the operations
+//
+// Returns a dict of operation type to operation list (URLs).
+//
+// ---
+// produces:
+//   - application/json
+// responses:
+//   "200":
+//     description: API endpoints
+//     schema:
+//       type: object
+//       description: Sync response
+//       properties:
+//         type:
+//           type: string
+//           description: Response type
+//           example: sync
+//         status:
+//           type: string
+//           description: Status description
+//           example: Success
+//         status_code:
+//           type: int
+//           description: Status code
+//           example: 200
+//         metadata:
+//           type: object
+//           additionalProperties:
+//             type: array
+//             items:
+//               type: string
+//           description: Dict of operation types to operation URLs
+//           example: |-
+//             {
+//               "running": [
+//                 "/1.0/operations/6916c8a6-9b7d-4abd-90b3-aedfec7ec7da"
+//               ]
+//             }
+//   "403":
+//     $ref: "#/responses/Forbidden"
+//   "500":
+//     $ref: "#/responses/InternalServerError"
+
+// swagger:operation GET /1.0/operations?recursion=1 operations operations_get_recursion1
+//
+// Get the operations
+//
+// Returns a list of operations (structs).
+//
+// ---
+// produces:
+//   - application/json
+// responses:
+//   "200":
+//     description: API endpoints
+//     schema:
+//       type: object
+//       description: Sync response
+//       properties:
+//         type:
+//           type: string
+//           description: Response type
+//           example: sync
+//         status:
+//           type: string
+//           description: Status description
+//           example: Success
+//         status_code:
+//           type: int
+//           description: Status code
+//           example: 200
+//         metadata:
+//           type: array
+//           description: List of operations
+//           items:
+//             $ref: "#/definitions/Operation"
+//   "403":
+//     $ref: "#/responses/Forbidden"
+//   "500":
+//     $ref: "#/responses/InternalServerError"
 func operationsGet(d *Daemon, r *http.Request) response.Response {
 	projectName := projectParam(r)
 	recursion := util.IsRecursionRequest(r)
@@ -369,6 +505,51 @@ func operationsGet(d *Daemon, r *http.Request) response.Response {
 	return response.SyncResponse(true, md)
 }
 
+// swagger:operation GET /1.0/operations/{id}/wait operations operation_wait_get
+//
+// Wait for the operation
+//
+// Waits for the operation to reach a final state (or timeout) and retrieve its final state.
+//
+// ---
+// produces:
+//   - application/json
+// parameters:
+//   - in: query
+//     name: secret
+//     description: Authentication token (for untrusted users)
+//     type: string
+//     example: random-string
+//   - in: query
+//     name: timeout
+//     description: Timeout in seconds (-1 means never)
+//     type: int
+//     example: -1
+// responses:
+//   "200":
+//     description: Operation
+//     schema:
+//       type: object
+//       description: Sync response
+//       properties:
+//         type:
+//           type: string
+//           description: Response type
+//           example: sync
+//         status:
+//           type: string
+//           description: Status description
+//           example: Success
+//         status_code:
+//           type: int
+//           description: Status code
+//           example: 200
+//         metadata:
+//           $ref: "#/definitions/Operation"
+//   "403":
+//     $ref: "#/responses/Forbidden"
+//   "500":
+//     $ref: "#/responses/InternalServerError"
 func operationWaitGet(d *Daemon, r *http.Request) response.Response {
 	id := mux.Vars(r)["id"]
 
@@ -460,6 +641,31 @@ func (r *forwardedOperationWebSocket) String() string {
 	return r.id
 }
 
+// swagger:operation GET /1.0/operations/{id}/websocket operations operation_websocket_get
+//
+// Get the websocket stream
+//
+// Connects to an associated websocket stream for the operation.
+// This should almost never be done directly by a client, instead it's
+// meant for LXD to LXD communication with the client only relaying the
+// connection information to the servers.
+//
+// ---
+// produces:
+//   - application/json
+// parameters:
+//   - in: query
+//     name: secret
+//     description: Authentication token
+//     type: string
+//     example: random-string
+// responses:
+//   "200":
+//     description: Websocket operation messages (dependent on operation)
+//   "403":
+//     $ref: "#/responses/Forbidden"
+//   "500":
+//     $ref: "#/responses/InternalServerError"
 func operationWebsocketGet(d *Daemon, r *http.Request) response.Response {
 	id := mux.Vars(r)["id"]
 
