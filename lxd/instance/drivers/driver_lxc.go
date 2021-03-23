@@ -6350,7 +6350,7 @@ func (d *lxc) setNetworkPriority() error {
 
 // IsFrozen returns if instance is frozen.
 func (d *lxc) IsFrozen() bool {
-	return d.State() == "FROZEN"
+	return d.statusCode() == api.Frozen
 }
 
 // IsNesting returns if instance is nested.
