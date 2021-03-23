@@ -6370,8 +6370,7 @@ func (d *lxc) IsPrivileged() bool {
 
 // IsRunning returns if instance is running.
 func (d *lxc) IsRunning() bool {
-	state := d.State()
-	return state != "BROKEN" && state != "STOPPED"
+	return d.isRunningStatusCode(d.statusCode())
 }
 
 // InitPID returns PID of init process.
