@@ -3022,13 +3022,7 @@ func (d *lxc) Render(options ...func(response interface{}) error) (interface{}, 
 	// Prepare the ETag
 	etag := []interface{}{d.architecture, d.localConfig, d.localDevices, d.ephemeral, d.profiles}
 
-	// FIXME: Render shouldn't directly access the go-lxc struct
-	cState, err := d.getLxcState()
-	if err != nil {
-		return nil, nil, errors.Wrap(err, "Get container stated")
-	}
-	statusCode := lxcStatusCode(cState)
-
+	statusCode := d.statusCode()
 	instState := api.Instance{
 		ExpandedConfig:  d.expandedConfig,
 		ExpandedDevices: d.expandedDevices.CloneNative(),
@@ -3075,7 +3069,7 @@ func (d *lxc) RenderFull() (*api.InstanceFull, interface{}, error) {
 	ct := api.InstanceFull{Instance: *base.(*api.Instance)}
 
 	// Add the ContainerState
-	ct.State, err = d.RenderState()
+	ct.State, err = d.renderState(ct.StatusCode)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -3118,19 +3112,14 @@ func (d *lxc) RenderFull() (*api.InstanceFull, interface{}, error) {
 	return &ct, etag, nil
 }
 
-// RenderState renders just the running state of the instance.
-func (d *lxc) RenderState() (*api.InstanceState, error) {
-	cState, err := d.getLxcState()
-	if err != nil {
-		return nil, err
-	}
-	statusCode := lxcStatusCode(cState)
+// renderState renders just the running state of the instance.
+func (d *lxc) renderState(statusCode api.StatusCode) (*api.InstanceState, error) {
 	status := api.InstanceState{
 		Status:     statusCode.String(),
 		StatusCode: statusCode,
 	}
 
-	if d.IsRunning() {
+	if d.isRunningStatusCode(statusCode) {
 		pid := d.InitPID()
 		status.CPU = d.cpuState()
 		status.Memory = d.memoryState()
@@ -3138,9 +3127,15 @@ func (d *lxc) RenderState() (*api.InstanceState, error) {
 		status.Pid = int64(pid)
 		status.Processes = d.processesState()
 	}
+
 	status.Disk = d.diskState()
 
 	return &status, nil
+}
+
+// RenderState renders just the running state of the instance.
+func (d *lxc) RenderState() (*api.InstanceState, error) {
+	return d.renderState(d.statusCode())
 }
 
 // Snapshot takes a new snapshot.
@@ -6342,7 +6337,7 @@ func (d *lxc) setNetworkPriority() error {
 
 // IsFrozen returns if instance is frozen.
 func (d *lxc) IsFrozen() bool {
-	return d.State() == "FROZEN"
+	return d.statusCode() == api.Frozen
 }
 
 // IsNesting returns if instance is nested.
@@ -6370,8 +6365,7 @@ func (d *lxc) IsPrivileged() bool {
 
 // IsRunning returns if instance is running.
 func (d *lxc) IsRunning() bool {
-	state := d.State()
-	return state != "BROKEN" && state != "STOPPED"
+	return d.isRunningStatusCode(d.statusCode())
 }
 
 // InitPID returns PID of init process.
@@ -6441,13 +6435,19 @@ func (d *lxc) NextIdmap() (*idmap.IdmapSet, error) {
 	return idmap.JSONUnmarshal(jsonIdmap)
 }
 
-// State returns instance state.
-func (d *lxc) State() string {
+// statusCode returns instance status code.
+func (d *lxc) statusCode() api.StatusCode {
 	state, err := d.getLxcState()
 	if err != nil {
-		return api.Error.String()
+		return api.Error
 	}
-	return state.String()
+
+	return lxcStatusCode(state)
+}
+
+// State returns instance state.
+func (d *lxc) State() string {
+	return strings.ToUpper(d.statusCode().String())
 }
 
 // LogFilePath log file path.
