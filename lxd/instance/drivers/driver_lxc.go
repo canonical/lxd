@@ -3135,14 +3135,7 @@ func (d *lxc) renderState(statusCode api.StatusCode) (*api.InstanceState, error)
 
 // RenderState renders just the running state of the instance.
 func (d *lxc) RenderState() (*api.InstanceState, error) {
-	cState, err := d.getLxcState()
-	if err != nil {
-		return nil, err
-	}
-
-	statusCode := lxcStatusCode(cState)
-
-	return d.renderState(statusCode)
+	return d.renderState(d.statusCode())
 }
 
 // Snapshot takes a new snapshot.
