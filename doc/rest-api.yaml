@@ -855,6 +855,92 @@ definitions:
         x-go-name: Type
     type: object
     x-go-package: github.com/lxc/lxd/shared/api
+  Operation:
+    description: Operation represents a LXD background operation
+    properties:
+      class:
+        description: Type of operation (task, token or websocket)
+        example: websocket
+        type: string
+        x-go-name: Class
+      created_at:
+        description: Operation creation time
+        example: "2021-03-23T17:38:37.753398689-04:00"
+        format: date-time
+        type: string
+        x-go-name: CreatedAt
+      description:
+        description: Description of the operation
+        example: Executing command
+        type: string
+        x-go-name: Description
+      err:
+        description: Operation error mesage
+        example: Some error message
+        type: string
+        x-go-name: Err
+      id:
+        description: UUID of the operation
+        example: 6916c8a6-9b7d-4abd-90b3-aedfec7ec7da
+        type: string
+        x-go-name: ID
+      location:
+        description: What cluster member this record was found on
+        example: lxd01
+        type: string
+        x-go-name: Location
+      may_cancel:
+        description: Whether the operation can be canceled
+        example: false
+        type: boolean
+        x-go-name: MayCancel
+      metadata:
+        additionalProperties:
+          type: object
+        description: Operation specific metadata
+        example:
+          command:
+          - bash
+          environment:
+            HOME: /root
+            LANG: C.UTF-8
+            PATH: /usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+            TERM: xterm
+            USER: root
+          fds:
+            "0": da3046cf02c0116febf4ef3fe4eaecdf308e720c05e5a9c730ce1a6f15417f66
+            "1": 05896879d8692607bd6e4a09475667da3b5f6714418ab0ee0e5720b4c57f754b
+          interactive: true
+        type: object
+        x-go-name: Metadata
+      resources:
+        additionalProperties:
+          items:
+            type: string
+          type: array
+        description: Affected resourcs
+        example:
+          containers:
+          - /1.0/containers/foo
+          instances:
+          - /1.0/instances/foo
+        type: object
+        x-go-name: Resources
+      status:
+        description: Status name
+        example: Running
+        type: string
+        x-go-name: Status
+      status_code:
+        $ref: '#/definitions/StatusCode'
+      updated_at:
+        description: Operation last change
+        example: "2021-03-23T17:38:37.753398689-04:00"
+        format: date-time
+        type: string
+        x-go-name: UpdatedAt
+    type: object
+    x-go-package: github.com/lxc/lxd/shared/api
   Profile:
     description: Profile represents a LXD profile
     properties:
@@ -2547,6 +2633,11 @@ definitions:
         x-go-name: Public
     type: object
     x-go-package: github.com/lxc/lxd/shared/api
+  StatusCode:
+    description: StatusCode represents a valid LXD operation and container status
+    format: int64
+    type: integer
+    x-go-package: github.com/lxc/lxd/shared/api
 info:
   contact:
     email: lxc-devel@lists.linuxcontainers.org
@@ -3604,6 +3695,211 @@ paths:
       summary: Get the networks
       tags:
       - networks
+  /1.0/operations:
+    get:
+      description: Returns a dict of operation type to operation list (URLs).
+      operationId: operations_get
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: API endpoints
+          schema:
+            description: Sync response
+            properties:
+              metadata:
+                additionalProperties:
+                  items:
+                    type: string
+                  type: array
+                description: Dict of operation types to operation URLs
+                example: |-
+                  {
+                    "running": [
+                      "/1.0/operations/6916c8a6-9b7d-4abd-90b3-aedfec7ec7da"
+                    ]
+                  }
+                type: object
+              status:
+                description: Status description
+                example: Success
+                type: string
+              status_code:
+                description: Status code
+                example: 200
+                type: int
+              type:
+                description: Response type
+                example: sync
+                type: string
+            type: object
+        "403":
+          $ref: '#/responses/Forbidden'
+        "500":
+          $ref: '#/responses/InternalServerError'
+      summary: Get the operations
+      tags:
+      - operations
+  /1.0/operations/{id}:
+    delete:
+      description: Cancels the operation if supported.
+      operationId: operation_delete
+      produces:
+      - application/json
+      responses:
+        "200":
+          $ref: '#/responses/EmptySyncResponse'
+        "400":
+          $ref: '#/responses/BadRequest'
+        "403":
+          $ref: '#/responses/Forbidden'
+        "500":
+          $ref: '#/responses/InternalServerError'
+      summary: Cancel the operation
+      tags:
+      - operations
+    get:
+      description: Gets the operation state.
+      operationId: operation_get
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Operation
+          schema:
+            description: Sync response
+            properties:
+              metadata:
+                $ref: '#/definitions/Operation'
+              status:
+                description: Status description
+                example: Success
+                type: string
+              status_code:
+                description: Status code
+                example: 200
+                type: int
+              type:
+                description: Response type
+                example: sync
+                type: string
+            type: object
+        "403":
+          $ref: '#/responses/Forbidden'
+        "500":
+          $ref: '#/responses/InternalServerError'
+      summary: Get the operation state
+      tags:
+      - operations
+  /1.0/operations/{id}/wait:
+    get:
+      description: Waits for the operation to reach a final state (or timeout) and
+        retrieve its final state.
+      operationId: operation_wait_get
+      parameters:
+      - description: Authentication token (for untrusted users)
+        example: random-string
+        in: query
+        name: secret
+        type: string
+      - description: Timeout in seconds (-1 means never)
+        example: -1
+        in: query
+        name: timeout
+        type: int
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Operation
+          schema:
+            description: Sync response
+            properties:
+              metadata:
+                $ref: '#/definitions/Operation'
+              status:
+                description: Status description
+                example: Success
+                type: string
+              status_code:
+                description: Status code
+                example: 200
+                type: int
+              type:
+                description: Response type
+                example: sync
+                type: string
+            type: object
+        "403":
+          $ref: '#/responses/Forbidden'
+        "500":
+          $ref: '#/responses/InternalServerError'
+      summary: Wait for the operation
+      tags:
+      - operations
+  /1.0/operations/{id}/websocket:
+    get:
+      description: |-
+        Connects to an associated websocket stream for the operation.
+        This should almost never be done directly by a client, instead it's
+        meant for LXD to LXD communication with the client only relaying the
+        connection information to the servers.
+      operationId: operation_websocket_get
+      parameters:
+      - description: Authentication token
+        example: random-string
+        in: query
+        name: secret
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Websocket operation messages (dependent on operation)
+        "403":
+          $ref: '#/responses/Forbidden'
+        "500":
+          $ref: '#/responses/InternalServerError'
+      summary: Get the websocket stream
+      tags:
+      - operations
+  /1.0/operations?recursion=1:
+    get:
+      description: Returns a list of operations (structs).
+      operationId: operations_get_recursion1
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: API endpoints
+          schema:
+            description: Sync response
+            properties:
+              metadata:
+                description: List of operations
+                items:
+                  $ref: '#/definitions/Operation'
+                type: array
+              status:
+                description: Status description
+                example: Success
+                type: string
+              status_code:
+                description: Status code
+                example: 200
+                type: int
+              type:
+                description: Response type
+                example: sync
+                type: string
+            type: object
+        "403":
+          $ref: '#/responses/Forbidden'
+        "500":
+          $ref: '#/responses/InternalServerError'
+      summary: Get the operations
+      tags:
+      - operations
   /1.0/profiles:
     get:
       description: Returns a list of profiles (URLs).
