@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: lxd\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2021-03-04 11:09-0500\n"
+"POT-Creation-Date: 2021-03-26 00:29-0400\n"
 "PO-Revision-Date: 2018-06-22 15:57+0000\n"
 "Last-Translator: Александр Киль <shorrey@gmail.com>\n"
 "Language-Team: Russian <https://hosted.weblate.org/projects/linux-containers/"
@@ -343,11 +343,15 @@ msgstr ""
 msgid "- Port %d (%s)"
 msgstr ""
 
-#: lxc/action.go:270
+#: lxc/action.go:147
+msgid "--console can't be used while forcing instance shutdown"
+msgstr ""
+
+#: lxc/action.go:282
 msgid "--console can't be used with --all"
 msgstr ""
 
-#: lxc/action.go:274
+#: lxc/action.go:286
 msgid "--console only works with a single instance"
 msgstr ""
 
@@ -635,7 +639,7 @@ msgstr ""
 msgid "Bad syntax, expecting <device>,<key>=<value>: %s"
 msgstr ""
 
-#: lxc/action.go:237
+#: lxc/action.go:249
 msgid "Both --all and instance name given"
 msgstr ""
 
@@ -2344,7 +2348,7 @@ msgstr "Копирование образа: %s"
 msgid "Must run as root to import from directory"
 msgstr ""
 
-#: lxc/action.go:157
+#: lxc/action.go:161
 msgid "Must supply instance name for: "
 msgstr ""
 
@@ -3228,7 +3232,7 @@ msgstr ""
 msgid "Socket %d:"
 msgstr ""
 
-#: lxc/action.go:303
+#: lxc/action.go:315
 #, fuzzy, c-format
 msgid "Some instances failed to %s"
 msgstr "Невозможно добавить имя контейнера в список"
@@ -3499,7 +3503,7 @@ msgstr ""
 msgid "Transferring instance: %s"
 msgstr "Невозможно добавить имя контейнера в список"
 
-#: lxc/action.go:202 lxc/launch.go:104
+#: lxc/action.go:214 lxc/launch.go:104
 #, c-format
 msgid "Try `lxc info --show-log %s` for more info"
 msgstr ""
@@ -4399,7 +4403,7 @@ msgstr ""
 msgid "enabled"
 msgstr ""
 
-#: lxc/action.go:295
+#: lxc/action.go:307
 #, c-format
 msgid "error: %v"
 msgstr ""

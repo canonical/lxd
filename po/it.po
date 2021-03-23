@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: lxd\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2021-03-04 11:09-0500\n"
+"POT-Creation-Date: 2021-03-26 00:29-0400\n"
 "PO-Revision-Date: 2019-09-06 07:09+0000\n"
 "Last-Translator: Luigi Operoso <brokenpip3@gmail.com>\n"
 "Language-Team: Italian <https://hosted.weblate.org/projects/linux-containers/"
@@ -331,11 +331,15 @@ msgstr ""
 msgid "- Port %d (%s)"
 msgstr ""
 
-#: lxc/action.go:270
+#: lxc/action.go:147
+msgid "--console can't be used while forcing instance shutdown"
+msgstr ""
+
+#: lxc/action.go:282
 msgid "--console can't be used with --all"
 msgstr ""
 
-#: lxc/action.go:274
+#: lxc/action.go:286
 #, fuzzy
 msgid "--console only works with a single instance"
 msgstr "non tutti i profili dell'origine esistono nella destinazione"
@@ -609,7 +613,7 @@ msgstr "Proprietà errata: %s"
 msgid "Bad syntax, expecting <device>,<key>=<value>: %s"
 msgstr ""
 
-#: lxc/action.go:237
+#: lxc/action.go:249
 msgid "Both --all and instance name given"
 msgstr ""
 
@@ -2299,7 +2303,7 @@ msgstr ""
 msgid "Must run as root to import from directory"
 msgstr ""
 
-#: lxc/action.go:157
+#: lxc/action.go:161
 msgid "Must supply instance name for: "
 msgstr ""
 
@@ -3177,7 +3181,7 @@ msgstr ""
 msgid "Socket %d:"
 msgstr ""
 
-#: lxc/action.go:303
+#: lxc/action.go:315
 #, fuzzy, c-format
 msgid "Some instances failed to %s"
 msgstr "errore di processamento degli alias %s\n"
@@ -3448,7 +3452,7 @@ msgstr ""
 msgid "Transferring instance: %s"
 msgstr "Creazione del container in corso"
 
-#: lxc/action.go:202 lxc/launch.go:104
+#: lxc/action.go:214 lxc/launch.go:104
 #, c-format
 msgid "Try `lxc info --show-log %s` for more info"
 msgstr ""
@@ -4095,7 +4099,7 @@ msgstr ""
 msgid "enabled"
 msgstr ""
 
-#: lxc/action.go:295
+#: lxc/action.go:307
 #, c-format
 msgid "error: %v"
 msgstr ""

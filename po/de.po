@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: LXD\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2021-03-04 11:09-0500\n"
+"POT-Creation-Date: 2021-03-26 00:29-0400\n"
 "PO-Revision-Date: 2019-12-12 14:53+0000\n"
 "Last-Translator: Stéphane Graber <stgraber@stgraber.org>\n"
 "Language-Team: German <https://hosted.weblate.org/projects/linux-containers/"
@@ -345,12 +345,17 @@ msgstr ""
 msgid "- Port %d (%s)"
 msgstr ""
 
-#: lxc/action.go:270
+#: lxc/action.go:147
+#, fuzzy
+msgid "--console can't be used while forcing instance shutdown"
+msgstr "--refresh kann nur mit Containern verwendet werden"
+
+#: lxc/action.go:282
 #, fuzzy
 msgid "--console can't be used with --all"
 msgstr "--refresh kann nur mit Containern verwendet werden"
 
-#: lxc/action.go:274
+#: lxc/action.go:286
 #, fuzzy
 msgid "--console only works with a single instance"
 msgstr "kann nicht zum selben Container Namen kopieren"
@@ -651,7 +656,7 @@ msgstr "Ungültige Abbild Eigenschaft: %s\n"
 msgid "Bad syntax, expecting <device>,<key>=<value>: %s"
 msgstr ""
 
-#: lxc/action.go:237
+#: lxc/action.go:249
 msgid "Both --all and instance name given"
 msgstr ""
 
@@ -2442,7 +2447,7 @@ msgstr "Kein Zertifikat für diese Verbindung"
 msgid "Must run as root to import from directory"
 msgstr ""
 
-#: lxc/action.go:157
+#: lxc/action.go:161
 #, fuzzy
 msgid "Must supply instance name for: "
 msgstr "der Name des Ursprung Containers muss angegeben werden"
@@ -3355,7 +3360,7 @@ msgstr ""
 msgid "Socket %d:"
 msgstr ""
 
-#: lxc/action.go:303
+#: lxc/action.go:315
 #, fuzzy, c-format
 msgid "Some instances failed to %s"
 msgstr "Anhalten des Containers fehlgeschlagen!"
@@ -3637,7 +3642,7 @@ msgstr ""
 msgid "Transferring instance: %s"
 msgstr "kann nicht zum selben Container Namen kopieren"
 
-#: lxc/action.go:202 lxc/launch.go:104
+#: lxc/action.go:214 lxc/launch.go:104
 #, c-format
 msgid "Try `lxc info --show-log %s` for more info"
 msgstr ""
@@ -4585,7 +4590,7 @@ msgstr ""
 msgid "enabled"
 msgstr ""
 
-#: lxc/action.go:295
+#: lxc/action.go:307
 #, fuzzy, c-format
 msgid "error: %v"
 msgstr "Fehler: %v\n"

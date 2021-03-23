@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: LXD\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2021-03-04 11:09-0500\n"
+"POT-Creation-Date: 2021-03-26 00:29-0400\n"
 "PO-Revision-Date: 2020-03-27 12:50+0000\n"
 "Last-Translator: KATOH Yasufumi <karma@jazz.email.ne.jp>\n"
 "Language-Team: Japanese <https://hosted.weblate.org/projects/linux-"
@@ -333,12 +333,17 @@ msgstr "- パーティション %d"
 msgid "- Port %d (%s)"
 msgstr "- ポート %d (%s)"
 
-#: lxc/action.go:270
+#: lxc/action.go:147
+#, fuzzy
+msgid "--console can't be used while forcing instance shutdown"
+msgstr "--mode と --target は同時に指定できません"
+
+#: lxc/action.go:282
 #, fuzzy
 msgid "--console can't be used with --all"
 msgstr "--mode と --target は同時に指定できません"
 
-#: lxc/action.go:274
+#: lxc/action.go:286
 #, fuzzy
 msgid "--console only works with a single instance"
 msgstr "移動先のインスタンスに適用するプロファイル"
@@ -641,7 +646,7 @@ msgid "Bad syntax, expecting <device>,<key>=<value>: %s"
 msgstr ""
 "書式が不適切です。次のような形式で指定してください <device>,<key>=<value>: %s"
 
-#: lxc/action.go:237
+#: lxc/action.go:249
 msgid "Both --all and instance name given"
 msgstr "--all とインスタンス名を両方同時に指定することはできません"
 
@@ -2512,7 +2517,7 @@ msgstr "ストレージボリュームの移動中: %s"
 msgid "Must run as root to import from directory"
 msgstr "ディレクトリからのインポートは root で実行する必要があります"
 
-#: lxc/action.go:157
+#: lxc/action.go:161
 msgid "Must supply instance name for: "
 msgstr "インスタンス名を指定する必要があります: "
 
@@ -3429,7 +3434,7 @@ msgstr "スナップショット:"
 msgid "Socket %d:"
 msgstr "ソケット %d:"
 
-#: lxc/action.go:303
+#: lxc/action.go:315
 #, c-format
 msgid "Some instances failed to %s"
 msgstr "一部のインスタンスで %s が失敗しました"
@@ -3721,7 +3726,7 @@ msgstr "イメージを転送中: %s"
 msgid "Transferring instance: %s"
 msgstr "インスタンスを転送中: %s"
 
-#: lxc/action.go:202 lxc/launch.go:104
+#: lxc/action.go:214 lxc/launch.go:104
 #, c-format
 msgid "Try `lxc info --show-log %s` for more info"
 msgstr "更に情報を得るために `lxc info --show-log %s` を実行してみてください"
@@ -4388,7 +4393,7 @@ msgstr "ドライバ"
 msgid "enabled"
 msgstr "有効"
 
-#: lxc/action.go:295
+#: lxc/action.go:307
 #, c-format
 msgid "error: %v"
 msgstr "エラー: %v"
