@@ -3075,7 +3075,7 @@ func (d *lxc) RenderFull() (*api.InstanceFull, interface{}, error) {
 	ct := api.InstanceFull{Instance: *base.(*api.Instance)}
 
 	// Add the ContainerState
-	ct.State, err = d.RenderState()
+	ct.State, err = d.renderState(ct.StatusCode)
 	if err != nil {
 		return nil, nil, err
 	}
