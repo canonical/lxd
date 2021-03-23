@@ -4674,8 +4674,7 @@ func (d *qemu) agentGetState() (*api.InstanceState, error) {
 
 // IsRunning returns whether or not the instance is running.
 func (d *qemu) IsRunning() bool {
-	state := d.State()
-	return state != "STOPPED"
+	return d.isRunningStatusCode(d.statusCode())
 }
 
 // IsFrozen returns whether the instance frozen or not.
