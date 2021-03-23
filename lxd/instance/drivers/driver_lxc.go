@@ -3022,13 +3022,7 @@ func (d *lxc) Render(options ...func(response interface{}) error) (interface{}, 
 	// Prepare the ETag
 	etag := []interface{}{d.architecture, d.localConfig, d.localDevices, d.ephemeral, d.profiles}
 
-	// FIXME: Render shouldn't directly access the go-lxc struct
-	cState, err := d.getLxcState()
-	if err != nil {
-		return nil, nil, errors.Wrap(err, "Get container stated")
-	}
-	statusCode := lxcStatusCode(cState)
-
+	statusCode := d.statusCode()
 	instState := api.Instance{
 		ExpandedConfig:  d.expandedConfig,
 		ExpandedDevices: d.expandedDevices.CloneNative(),
