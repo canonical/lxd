@@ -380,7 +380,7 @@ func instancesShutdown(s *state.State) error {
 		lastState := c.State()
 
 		// Stop the container
-		if lastState != "BROKEN" && lastState != "STOPPED" {
+		if lastState != "ERROR" && lastState != "STOPPED" {
 			// Determinate how long to wait for the instance to shutdown cleanly
 			var timeoutSeconds int
 			value, ok := c.ExpandedConfig()["boot.host_shutdown_timeout"]
