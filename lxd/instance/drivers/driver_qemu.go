@@ -4440,13 +4440,14 @@ func (d *qemu) Render(options ...func(response interface{}) error) (interface{},
 
 	// Prepare the ETag
 	etag := []interface{}{d.architecture, d.localConfig, d.localDevices, d.ephemeral, d.profiles}
+	statusCode := d.statusCode()
 
 	instState := api.Instance{
 		ExpandedConfig:  d.expandedConfig,
 		ExpandedDevices: d.expandedDevices.CloneNative(),
 		Name:            d.name,
-		Status:          d.statusCode().String(),
-		StatusCode:      d.statusCode(),
+		Status:          statusCode.String(),
+		StatusCode:      statusCode,
 		Location:        d.node,
 		Type:            d.Type().String(),
 	}
