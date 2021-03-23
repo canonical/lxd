@@ -4597,12 +4597,11 @@ func (d *qemu) RenderFull() (*api.InstanceFull, interface{}, error) {
 	return &vmState, etag, nil
 }
 
-// RenderState returns just state info about the instance.
-func (d *qemu) RenderState() (*api.InstanceState, error) {
+// renderState returns just state info about the instance.
+func (d *qemu) renderState(statusCode api.StatusCode) (*api.InstanceState, error) {
 	var err error
 
 	status := &api.InstanceState{}
-	statusCode := d.statusCode()
 	pid, _ := d.pid()
 
 	if d.isRunningStatusCode(statusCode) {
@@ -4682,6 +4681,11 @@ func (d *qemu) RenderState() (*api.InstanceState, error) {
 	}
 
 	return status, nil
+}
+
+// RenderState returns just state info about the instance.
+func (d *qemu) RenderState() (*api.InstanceState, error) {
+	return d.renderState(d.statusCode())
 }
 
 // diskState gets disk usage info.
