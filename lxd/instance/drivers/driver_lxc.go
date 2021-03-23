@@ -6441,13 +6441,19 @@ func (d *lxc) NextIdmap() (*idmap.IdmapSet, error) {
 	return idmap.JSONUnmarshal(jsonIdmap)
 }
 
-// State returns instance state.
-func (d *lxc) State() string {
+// statusCode returns instance status code.
+func (d *lxc) statusCode() api.StatusCode {
 	state, err := d.getLxcState()
 	if err != nil {
-		return api.Error.String()
+		return api.Error
 	}
-	return state.String()
+
+	return lxcStatusCode(state)
+}
+
+// State returns instance state.
+func (d *lxc) State() string {
+	return strings.ToUpper(d.statusCode().String())
 }
 
 // LogFilePath log file path.
