@@ -3118,19 +3118,14 @@ func (d *lxc) RenderFull() (*api.InstanceFull, interface{}, error) {
 	return &ct, etag, nil
 }
 
-// RenderState renders just the running state of the instance.
-func (d *lxc) RenderState() (*api.InstanceState, error) {
-	cState, err := d.getLxcState()
-	if err != nil {
-		return nil, err
-	}
-	statusCode := lxcStatusCode(cState)
+// renderState renders just the running state of the instance.
+func (d *lxc) renderState(statusCode api.StatusCode) (*api.InstanceState, error) {
 	status := api.InstanceState{
 		Status:     statusCode.String(),
 		StatusCode: statusCode,
 	}
 
-	if d.IsRunning() {
+	if d.isRunningStatusCode(statusCode) {
 		pid := d.InitPID()
 		status.CPU = d.cpuState()
 		status.Memory = d.memoryState()
@@ -3138,9 +3133,22 @@ func (d *lxc) RenderState() (*api.InstanceState, error) {
 		status.Pid = int64(pid)
 		status.Processes = d.processesState()
 	}
+
 	status.Disk = d.diskState()
 
 	return &status, nil
+}
+
+// RenderState renders just the running state of the instance.
+func (d *lxc) RenderState() (*api.InstanceState, error) {
+	cState, err := d.getLxcState()
+	if err != nil {
+		return nil, err
+	}
+
+	statusCode := lxcStatusCode(cState)
+
+	return d.renderState(statusCode)
 }
 
 // Snapshot takes a new snapshot.
