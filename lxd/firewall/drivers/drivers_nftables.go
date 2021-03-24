@@ -106,6 +106,13 @@ func (d Nftables) Compat() (bool, error) {
 	return false, nil
 }
 
+// Info indicates which features are supported by the driver.
+func (d Nftables) Info() Info {
+	return Info{
+		ACLs: true,
+	}
+}
+
 // nftGenericItem represents some common fields amongst the different nftables types.
 type nftGenericItem struct {
 	ItemType string `json:"-"`       // Type of item (table, chain or rule). Populated by LXD.
