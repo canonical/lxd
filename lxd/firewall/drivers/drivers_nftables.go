@@ -508,17 +508,19 @@ func (d Nftables) removeChains(families []string, chainSuffix string, chains ...
 		return err
 	}
 
-	fullChains := chains
-	if chainSuffix != "" {
-		fullChains = make([]string, 0, len(chains))
+	var deleteChains []string
+	if chainSuffix == "" {
+		deleteChains = chains
+	} else {
+		deleteChains = make([]string, 0, len(chains))
 		for _, chain := range chains {
-			fullChains = append(fullChains, fmt.Sprintf("%s%s%s", chain, nftablesChainSeparator, chainSuffix))
+			deleteChains = append(deleteChains, fmt.Sprintf("%s%s%s", chain, nftablesChainSeparator, chainSuffix))
 		}
 	}
 
 	for _, family := range families {
 		for _, item := range ruleset {
-			if item.ItemType == "chain" && item.Family == family && item.Table == nftablesNamespace && shared.StringInSlice(item.Name, fullChains) {
+			if item.ItemType == "chain" && item.Family == family && item.Table == nftablesNamespace && shared.StringInSlice(item.Name, deleteChains) {
 				_, err = shared.RunCommand("nft", "flush", "chain", family, nftablesNamespace, item.Name, ";", "delete", "chain", family, nftablesNamespace, item.Name)
 				if err != nil {
 					return errors.Wrapf(err, "Failed deleting nftables chain %q (%s)", item.Name, family)
