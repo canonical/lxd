@@ -4,6 +4,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net"
 	"os/exec"
 	"strconv"
@@ -16,6 +17,7 @@ import (
 	deviceConfig "github.com/lxc/lxd/lxd/device/config"
 	"github.com/lxc/lxd/lxd/project"
 	"github.com/lxc/lxd/shared"
+	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/version"
 )
 
@@ -106,33 +108,23 @@ func (d Nftables) Compat() (bool, error) {
 
 // nftGenericItem represents some common fields amongst the different nftables types.
 type nftGenericItem struct {
-	ItemType string `json:"-"`      // Type of item (table, chain or rule). Populated by LXD.
-	Family   string `json:"family"` // Family of item (ip, ip6, bridge etc).
-	Table    string `json:"table"`  // Table the item belongs to (for chains and rules).
-	Chain    string `json:"chain"`  // Chain the item belongs to (for rules).
-	Name     string `json:"name"`   // Name of item (for tables and chains).
+	ItemType string `json:"-"`       // Type of item (table, chain or rule). Populated by LXD.
+	Family   string `json:"family"`  // Family of item (ip, ip6, bridge etc).
+	Table    string `json:"table"`   // Table the item belongs to (for chains and rules).
+	Chain    string `json:"chain"`   // Chain the item belongs to (for rules).
+	Name     string `json:"name"`    // Name of item (for tables and chains).
+	Comment  string `json:"comment"` // Comment of item (for rules).
+	Handle   int    `json:"handle"`  // Handle of item.
 }
 
-// nftParseRuleset parses the ruleset and returns the generic parts as a slice of items.
-func (d Nftables) nftParseRuleset() ([]nftGenericItem, error) {
-	// Dump ruleset as JSON. Use -nn flags to avoid doing DNS lookups of IPs mentioned in any rules.
-	cmd := exec.Command("nft", "--json", "-nn", "list", "ruleset")
-	stdout, err := cmd.StdoutPipe()
-	if err != nil {
-		return nil, err
-	}
-	err = cmd.Start()
-	if err != nil {
-		return nil, err
-	}
-	defer cmd.Wait()
-
+// nftParseItems parses the generic items from an nft list command output.
+func (d Nftables) nftParseItems(stdout io.Reader) ([]nftGenericItem, error) {
 	// This only extracts certain generic parts of the ruleset, see man libnftables-json for more info.
 	v := &struct {
 		Nftables []map[string]nftGenericItem `json:"nftables"`
 	}{}
 
-	err = json.NewDecoder(stdout).Decode(v)
+	err := json.NewDecoder(stdout).Decode(v)
 	if err != nil {
 		return nil, err
 	}
@@ -149,6 +141,55 @@ func (d Nftables) nftParseRuleset() ([]nftGenericItem, error) {
 			table.ItemType = "table"
 			items = append(items, table)
 		}
+	}
+
+	return items, nil
+}
+
+// nftParseRuleset parses the entire ruleset and returns the generic parts as a slice of items.
+func (d Nftables) nftParseRuleset() ([]nftGenericItem, error) {
+	// Dump ruleset as JSON. Use -nn flags to avoid doing DNS lookups of IPs mentioned in any rules.
+	cmd := exec.Command("nft", "--json", "-nn", "list", "ruleset")
+	stdout, err := cmd.StdoutPipe()
+	if err != nil {
+		return nil, err
+	}
+	err = cmd.Start()
+	if err != nil {
+		return nil, err
+	}
+	defer cmd.Wait()
+
+	items, err := d.nftParseItems(stdout)
+	if err != nil {
+		return nil, err
+	}
+
+	err = cmd.Wait()
+	if err != nil {
+		return nil, err
+	}
+
+	return items, nil
+}
+
+// nftParseChain parses a chain and returns the generic parts as a slice of items.
+func (d Nftables) nftParseChain(familyName string, tableName string, chainName string) ([]nftGenericItem, error) {
+	// Dump chain as JSON. Use -nn flags to avoid doing DNS lookups of IPs mentioned in any rules.
+	cmd := exec.Command("nft", "--json", "-nn", "list", "chain", familyName, tableName, chainName)
+	stdout, err := cmd.StdoutPipe()
+	if err != nil {
+		return nil, err
+	}
+	err = cmd.Start()
+	if err != nil {
+		return nil, err
+	}
+	defer cmd.Wait()
+
+	items, err := d.nftParseItems(stdout)
+	if err != nil {
+		return nil, err
 	}
 
 	err = cmd.Wait()
