@@ -2373,8 +2373,8 @@ func (n *ovn) Update(newNetwork api.NetworkPut, targetNode string, clientType re
 					// the default rule to the NIC.
 					if defaultRuleChange || len(oldACLs) <= 0 {
 						// Set the automatic default ACL rule for the port.
-						ingressAction, ingressLogged := n.instanceDeviceACLDefaults(nicConfig, "ingress")
-						egressAction, egressLogged := n.instanceDeviceACLDefaults(nicConfig, "egress")
+						ingressAction, ingressLogged := ACLInstanceDeviceDefaults(n.config, nicConfig, "ingress")
+						egressAction, egressLogged := ACLInstanceDeviceDefaults(n.config, nicConfig, "egress")
 
 						logName := fmt.Sprintf("%s-%s", inst.Config["volatile.uuid"], nicName)
 						err = acl.OVNApplyInstanceNICDefaultRules(client, acl.OVNIntSwitchPortGroupName(n.ID()), logName, instancePortName, ingressAction, ingressLogged, egressAction, egressLogged)
@@ -2897,8 +2897,9 @@ func (n *ovn) InstanceDevicePortSetup(opts *OVNInstanceNICSetupOpts, securityACL
 
 	// Set the automatic default ACL rule for the port.
 	if len(nicACLNames) > 0 {
-		ingressAction, ingressLogged := n.instanceDeviceACLDefaults(opts.DeviceConfig, "ingress")
-		egressAction, egressLogged := n.instanceDeviceACLDefaults(opts.DeviceConfig, "egress")
+		// Set the automatic default ACL rule for the port.
+		ingressAction, ingressLogged := ACLInstanceDeviceDefaults(n.config, opts.DeviceConfig, "ingress")
+		egressAction, egressLogged := ACLInstanceDeviceDefaults(n.config, opts.DeviceConfig, "egress")
 
 		logName := fmt.Sprintf("%s-%s", opts.InstanceUUID, opts.DeviceName)
 		err = acl.OVNApplyInstanceNICDefaultRules(client, acl.OVNIntSwitchPortGroupName(n.ID()), logName, instancePortName, ingressAction, ingressLogged, egressAction, egressLogged)
@@ -2918,27 +2919,6 @@ func (n *ovn) InstanceDevicePortSetup(opts *OVNInstanceNICSetupOpts, securityACL
 
 	revert.Success()
 	return instancePortName, nil
-}
-
-// instanceDeviceACLDefaults returns the action and logging mode to use for the specified direction's default rule.
-// If the security.acls.default.{in,e}gress.action or security.acls.default.{in,e}gress.logged settings are not
-// specified in the NIC device config, then the settings on the network are used, and if not specified there then
-// it returns "reject" and false respectively.
-func (n *ovn) instanceDeviceACLDefaults(deviceConfig deviceConfig.Device, direction string) (string, bool) {
-	defaults := map[string]string{
-		fmt.Sprintf("security.acls.default.%s.action", direction): "reject",
-		fmt.Sprintf("security.acls.default.%s.logged", direction): "false",
-	}
-
-	for k := range defaults {
-		if deviceConfig[k] != "" {
-			defaults[k] = deviceConfig[k]
-		} else if n.config[k] != "" {
-			defaults[k] = n.config[k]
-		}
-	}
-
-	return defaults[fmt.Sprintf("security.acls.default.%s.action", direction)], shared.IsTrue(defaults[fmt.Sprintf("security.acls.default.%s.logged", direction)])
 }
 
 // InstanceDevicePortDynamicIPs returns the dynamically allocated IPs for a device port.
