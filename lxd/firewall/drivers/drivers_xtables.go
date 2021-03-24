@@ -14,6 +14,7 @@ import (
 	"github.com/lxc/lxd/lxd/project"
 	"github.com/lxc/lxd/lxd/revert"
 	"github.com/lxc/lxd/shared"
+	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/logger"
 )
 
@@ -739,4 +740,19 @@ func (d Xtables) InstanceClearRPFilter(projectName string, instanceName string, 
 	}
 
 	return nil
+}
+
+// ACLNetworkSetup applies ACL rules to firewall.
+func (d Xtables) ACLNetworkSetup(networkName string, intRouterIPs []*net.IPNet, dnsIPs []net.IP, acls map[int64]*api.NetworkACL) error {
+	return ErrNotSupported
+}
+
+// ACLInstanceDevicePortSetup removes the NIC port from the network internal port group and deletes default rules.
+func (d Xtables) ACLInstanceDevicePortSetup(networkName string, instanceUUID string, deviceName string, portName string, logName string, ingressAction string, ingressLogged bool, egressAction string, egressLogged bool) error {
+	return ErrNotSupported
+}
+
+// ACLInstanceDevicePortDelete removes the NIC port from the network internal port group and deletes default rules.
+func (d Xtables) ACLInstanceDevicePortDelete(networkName string, instanceUUID string, deviceName string, portName string) error {
+	return ErrNotSupported
 }
