@@ -148,3 +148,154 @@ chain prert{{.chainSeparator}}{{.deviceLabel}} {
 	iif "{{.hostName}}" fib saddr . iif oif missing drop
 }
 `))
+
+// nftablesACLBridgeRulesSetup defines the chains, port groups and rules needed to appply ACLs to a network.
+var nftablesACLBridgeRulesSetup = template.Must(template.New("nftablesACLBridgeRules").Parse(`
+# Create table and network chains (noop if exists), so that flush doesn't fail if don't exist.
+add table {{.family}} {{.namespace}}
+add chain {{.family}} {{.namespace}} acl{{.chainSeparator}}extout{{.chainSeparator}}{{.networkName}} {type filter hook input priority 0; policy accept;}
+add chain {{.family}} {{.namespace}} acl{{.chainSeparator}}extin{{.chainSeparator}}{{.networkName}} {type filter hook output priority 0; policy accept;}
+add chain {{.family}} {{.namespace}} acl{{.chainSeparator}}int{{.chainSeparator}}{{.networkName}} {type filter hook forward priority 0; policy accept;}
+
+# Flush any existing rules in our network chains.
+flush chain {{.family}} {{.namespace}} acl{{.chainSeparator}}extout{{.chainSeparator}}{{.networkName}}
+flush chain {{.family}} {{.namespace}} acl{{.chainSeparator}}extin{{.chainSeparator}}{{.networkName}}
+flush chain {{.family}} {{.namespace}} acl{{.chainSeparator}}int{{.chainSeparator}}{{.networkName}}
+
+# Add the rules to the network chains.
+table {{.family}} {{.namespace}} {
+	set {{.portGroupInternal}} {
+		type ifname
+	}
+
+	# Chain for traffic leaving our network via the external gateway.
+	chain acl{{.chainSeparator}}extout{{.chainSeparator}}{{.networkName}} {
+		type filter hook input priority 0; policy accept;
+
+		# Ignore traffic not from a NIC port in our network.
+		iifname != @{{.portGroupInternal}} accept
+
+		# Baseline network rules.
+		ct state established,related accept
+		ether type arp accept
+		icmpv6 type {1, 2, 3, 4, 133, 135, 136, 143} accept
+		icmp type {3, 11, 12} accept
+		ether type ip udp dport 67 accept
+		ether type ip6 udp dport 547 accept
+
+		{{if .intRouterIPv4 -}}
+		icmp type 8 ip daddr {{.intRouterIPv4}} accept
+		{{- end}}
+
+		{{if .intRouterIPv6 -}}
+		icmpv6 type 128 ip6 daddr {{.intRouterIPv6}} accept
+		{{- end}}
+
+		{{- range .dnsIPv4s}}
+		ip daddr {{.}} udp dport 53 accept
+		ip daddr {{.}} tcp dport 53 accept
+		{{- end}}
+
+		{{- range .dnsIPv6s}}
+		ip6 daddr {{.}} udp dport 53 accept
+		ip6 daddr {{.}} tcp dport 53 accept
+		{{- end}}
+
+		# Jump to NIC default external out rules.
+		jump {{.chainNICDefaultExtOut}}
+	}
+
+	# Chain for traffic entering our network from the external gateway.
+	chain acl{{.chainSeparator}}extin{{.chainSeparator}}{{.networkName}} {
+		type filter hook output priority 0; policy accept;
+
+		# Ignore traffic not going to a NIC port in our network.
+		oifname != @{{.portGroupInternal}} accept
+
+		# Baseline rules.
+		ct state established,related accept
+		ether type arp accept
+		icmpv6 type {1, 2, 3, 4, 134, 135, 136, 143} accept
+		icmp type {3, 11, 12} accept
+		ether type ip udp dport 68 accept
+		ether type ip6 udp dport 546 accept
+
+		# Jump to NIC default rules.
+		jump {{.chainNICDefault}}
+	}
+
+	# Chain for traffic going between internal NIC ports on our network.
+	chain acl{{.chainSeparator}}int{{.chainSeparator}}{{.networkName}} {
+		type filter hook forward priority 0; policy accept;
+
+		# Ignore traffic not from a NIC port in our network.
+		iifname != @{{.portGroupInternal}} accept
+
+		# Baseline rules.
+		ct state established,related accept
+		ether type arp accept
+		icmpv6 type {1, 2, 3, 4, 135, 136, 143} accept
+		icmp type {3, 11, 12} accept
+
+		# Jump to NIC default rules.
+		jump {{.chainNICDefault}}
+	}
+
+	chain {{.chainNICDefault}} {
+	}
+
+	chain {{.chainNICDefaultExtOut}} {
+	}
+}
+`))
+
+// nftablesACLBridgeRulesDelete removes the chains, port groups and rules needed to appply ACLs to a network.
+var nftablesACLBridgeRulesDelete = template.Must(template.New("nftablesACLBridgeRules").Parse(`
+# Create table and network chains (noop if exists), so that deletion doesn't fail if don't exist.
+add table {{.family}} {{.namespace}}
+add chain {{.family}} {{.namespace}} acl{{.chainSeparator}}extout{{.chainSeparator}}{{.networkName}} {type filter hook input priority 0; policy accept;}
+add chain {{.family}} {{.namespace}} acl{{.chainSeparator}}extin{{.chainSeparator}}{{.networkName}} {type filter hook output priority 0; policy accept;}
+add chain {{.family}} {{.namespace}} acl{{.chainSeparator}}int{{.chainSeparator}}{{.networkName}} {type filter hook forward priority 0; policy accept;}
+add chain {{.family}} {{.namespace}} {{.chainNICDefault}}
+add chain {{.family}} {{.namespace}} {{.chainNICDefaultExtOut}}
+
+# Delete chains.
+delete chain {{.family}} {{.namespace}} acl{{.chainSeparator}}extout{{.chainSeparator}}{{.networkName}}
+delete chain {{.family}} {{.namespace}} acl{{.chainSeparator}}extin{{.chainSeparator}}{{.networkName}}
+delete chain {{.family}} {{.namespace}} acl{{.chainSeparator}}int{{.chainSeparator}}{{.networkName}}
+delete chain {{.family}} {{.namespace}} {{.chainNICDefault}}
+delete chain {{.family}} {{.namespace}} {{.chainNICDefaultExtOut}}
+
+# Delete internal port group.
+add set {{.family}} {{.namespace}} {{.portGroupInternal}} {type ifname;}
+delete set {{.family}} {{.namespace}} {{.portGroupInternal}}
+`))
+
+// nftablesACLInstanceNICSetup adds instance NIC port to internal port group and adds default rules.
+var nftablesACLInstanceNICSetup = template.Must(template.New("nftablesACLInstanceNICRulesSetup").Parse(`
+{{- range .removeRules}}
+delete rule {{$.family}} {{$.namespace}} {{.Chain}} handle {{.Handle}}
+{{- end}}
+
+add element {{$.family}} {{$.namespace}} {{.portGroupInternal}} {{"{"}}{{.portName}}{{"}"}}
+
+table {{.family}} {{.namespace}} {
+	chain {{.chainNICDefault}} {
+		iifname {{.portName}} {{if .egressLog}}{{.egressLog}}{{end}} {{.egressAction}} comment {{.ruleComment}}
+		oifname {{.portName}} {{if .ingressLog}}{{.ingressLog}}{{end}} {{.ingressAction}} comment {{.ruleComment}}
+	}
+
+	chain {{.chainNICDefaultExtOut}} {
+		iifname {{.portName}} {{if .egressLog}}{{.egressLog}}{{end}} {{.externalEgressAction}} comment {{.ruleComment}}
+	}
+}
+`))
+
+// nftablesACLInstanceNICDelete removes instance NIC port from internal port group and deletes default rules.
+var nftablesACLInstanceNICDelete = template.Must(template.New("nftablesACLInstanceNICRulesSetup").Parse(`
+{{- range .removeRules}}
+delete rule {{$.family}} {{$.namespace}} {{.Chain}} handle {{.Handle}}
+{{- end}}
+
+delete element {{$.family}} {{$.namespace}} {{.portGroupInternal}} {{"{"}}{{.portName}}{{"}"}}
+`))
