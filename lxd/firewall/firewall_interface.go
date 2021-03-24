@@ -4,6 +4,7 @@ import (
 	"net"
 
 	deviceConfig "github.com/lxc/lxd/lxd/device/config"
+	"github.com/lxc/lxd/shared/api"
 )
 
 // Firewall represents a LXD firewall.
@@ -25,4 +26,8 @@ type Firewall interface {
 
 	InstanceSetupRPFilter(projectName string, instanceName string, deviceName string, hostName string) error
 	InstanceClearRPFilter(projectName string, instanceName string, deviceName string) error
+
+	ACLNetworkSetup(networkName string, intRouterIPs []*net.IPNet, dnsIPs []net.IP, acls map[int64]*api.NetworkACL) error
+	ACLInstanceDevicePortSetup(networkName string, instanceUUID string, deviceName string, portName string, logName string, ingressAction string, ingressLogged bool, egressAction string, egressLogged bool) error
+	ACLInstanceDevicePortDelete(networkName string, instanceUUID string, deviceName string, portName string) error
 }
