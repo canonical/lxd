@@ -10,3 +10,8 @@ const FilterIPv4All = "0.0.0.0"
 
 // ErrNotSupported is returned when the firewall driver doesn't support a feature.
 var ErrNotSupported error = fmt.Errorf("Not supported")
+
+// Info indicates which features are supported by the driver.
+type Info struct {
+	ACLs bool // Supports ACLs.
+}
