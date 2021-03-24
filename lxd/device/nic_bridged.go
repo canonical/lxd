@@ -318,7 +318,7 @@ func (d *nicBridged) Start() (*deviceConfig.RunConfig, error) {
 		}
 	}
 
-	// Detech bridge type and setup VLAN settings on bridge port.
+	// Detect bridge type and setup VLAN settings on bridge port.
 	if network.IsNativeBridge(d.config["parent"]) {
 		err = d.setupNativeBridgePortVLANs(saveData["host_name"])
 	} else {
