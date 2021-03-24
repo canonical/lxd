@@ -4,6 +4,7 @@ import (
 	"net"
 
 	deviceConfig "github.com/lxc/lxd/lxd/device/config"
+	"github.com/lxc/lxd/lxd/firewall/drivers"
 	"github.com/lxc/lxd/shared/api"
 )
 
@@ -11,6 +12,7 @@ import (
 type Firewall interface {
 	String() string
 	Compat() (bool, error)
+	Info() drivers.Info
 
 	NetworkSetupForwardingPolicy(networkName string, ipVersion uint, allow bool) error
 	NetworkSetupOutboundNAT(networkName string, subnet *net.IPNet, srcIP net.IP, append bool) error
