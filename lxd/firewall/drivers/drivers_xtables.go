@@ -63,6 +63,13 @@ func (d Xtables) Compat() (bool, error) {
 	return false, nil
 }
 
+// Info indicates which features are supported by the driver.
+func (d Xtables) Info() Info {
+	return Info{
+		ACLs: false,
+	}
+}
+
 // xtablesIsNftables checks whether the specified xtables backend command is actually an nftables shim.
 func (d Xtables) xtablesIsNftables(cmd string) bool {
 	output, err := shared.RunCommandCLocale(cmd, "--version")
