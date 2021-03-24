@@ -24,6 +24,7 @@ import (
 	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/instance/instancetype"
 	"github.com/lxc/lxd/lxd/network"
+	"github.com/lxc/lxd/lxd/network/acl"
 	"github.com/lxc/lxd/lxd/network/openvswitch"
 	"github.com/lxc/lxd/lxd/project"
 	"github.com/lxc/lxd/lxd/resources"
@@ -38,6 +39,8 @@ import (
 
 type nicBridged struct {
 	deviceCommon
+
+	network network.Network // Populated in validateConfig() for NICs specifying a network.
 }
 
 // validateConfig checks the supplied config for correctness.
@@ -69,6 +72,11 @@ func (d *nicBridged) validateConfig(instConf instance.ConfigReader) error {
 		"maas.subnet.ipv6",
 		"boot.priority",
 		"vlan",
+		"security.acls",
+		"security.acls.default.ingress.action",
+		"security.acls.default.egress.action",
+		"security.acls.default.ingress.logged",
+		"security.acls.default.egress.logged",
 	}
 
 	// Check that if network proeperty is set that conflicting keys are not present.
@@ -97,6 +105,7 @@ func (d *nicBridged) validateConfig(instConf instance.ConfigReader) error {
 			return fmt.Errorf("Specified network must be of type bridge")
 		}
 
+		d.network = n // Stored loaded network for use by other functions.
 		netConfig := n.Config()
 
 		if d.config["ipv4.address"] != "" {
@@ -193,6 +202,26 @@ func (d *nicBridged) validateConfig(instConf instance.ConfigReader) error {
 	err := d.config.Validate(rules)
 	if err != nil {
 		return err
+	}
+
+	// Check Security ACLs are supported and exist.
+	if d.config["security.acls"] != "" {
+		if !d.state.Firewall.Info().ACLs {
+			return fmt.Errorf("Firewall driver does not support ACLs")
+		}
+
+		if d.network == nil {
+			return fmt.Errorf("Security ACLs cannot be used when not connected to a managed network")
+		}
+
+		if d.network.Config()["bridge.driver"] == "openvswitch" {
+			return fmt.Errorf("ACLs cannot be used with openvswitch driver")
+		}
+
+		err = acl.Exists(d.state, d.network.Project(), util.SplitNTrimSpace(d.config["security.acls"], ",", -1, true)...)
+		if err != nil {
+			return err
+		}
 	}
 
 	return nil
