@@ -37,10 +37,17 @@ import (
 	"github.com/lxc/lxd/shared/validate"
 )
 
+// bridgeNet defines an interface for accessing instance specific functions on a bridge network.
+type bridgeNet interface {
+	network.Network
+
+	ApplyACLS(ignoreUsageType interface{}, ignoreUsageNicName string, keepACLs ...string) error
+}
+
 type nicBridged struct {
 	deviceCommon
 
-	network network.Network // Populated in validateConfig() for NICs specifying a network.
+	network bridgeNet // Populated in validateConfig() for NICs specifying a network.
 }
 
 // validateConfig checks the supplied config for correctness.
@@ -105,7 +112,12 @@ func (d *nicBridged) validateConfig(instConf instance.ConfigReader) error {
 			return fmt.Errorf("Specified network must be of type bridge")
 		}
 
-		d.network = n // Stored loaded network for use by other functions.
+		bridgeNet, ok := n.(bridgeNet)
+		if !ok {
+			return fmt.Errorf("Network is not bridgeNet interface type")
+		}
+
+		d.network = bridgeNet // Stored loaded network for use by other functions.
 		netConfig := n.Config()
 
 		if d.config["ipv4.address"] != "" {
@@ -248,7 +260,23 @@ func (d *nicBridged) UpdatableFields(oldDevice Type) []string {
 		return []string{}
 	}
 
-	return []string{"limits.ingress", "limits.egress", "limits.max", "ipv4.routes", "ipv6.routes", "ipv4.address", "ipv6.address", "security.mac_filtering", "security.ipv4_filtering", "security.ipv6_filtering"}
+	return []string{
+		"limits.ingress",
+		"limits.egress",
+		"limits.max",
+		"ipv4.routes",
+		"ipv6.routes",
+		"ipv4.address",
+		"ipv6.address",
+		"security.mac_filtering",
+		"security.ipv4_filtering",
+		"security.ipv6_filtering",
+		"security.acls",
+		"security.acls.default.ingress.action",
+		"security.acls.default.egress.action",
+		"security.acls.default.ingress.logged",
+		"security.acls.default.egress.logged",
+	}
 }
 
 // Add is run when a device is added to a non-snapshot instance whether or not the instance is running.
@@ -257,6 +285,19 @@ func (d *nicBridged) Add() error {
 	err := d.rebuildDnsmasqEntry()
 	if err != nil {
 		return err
+	}
+
+	// Apply ACLs to network if needed.
+	nicACLNames := util.SplitNTrimSpace(d.config["security.acls"], ",", -1, true)
+	if len(nicACLNames) > 0 {
+		if d.network == nil {
+			return fmt.Errorf("Network needed for applying ACLs not loaded")
+		}
+
+		err = d.network.ApplyACLS(nil, "", nicACLNames...)
+		if err != nil {
+			return errors.Wrapf(err, "Failed applying ACLs")
+		}
 	}
 
 	return nil
@@ -358,6 +399,26 @@ func (d *nicBridged) Start() (*deviceConfig.RunConfig, error) {
 		return nil, err
 	}
 
+	// Setup ACLs on port if needed.
+	if d.network != nil {
+		netConfig := d.network.Config()
+		netACLNames := util.SplitNTrimSpace(netConfig["security.acls"], ",", -1, true)
+		nicACLNames := util.SplitNTrimSpace(d.config["security.acls"], ",", -1, true)
+		if len(netACLNames) > 0 || len(nicACLNames) > 0 {
+			instUUID := d.inst.LocalConfig()["volatile.uuid"]
+			logName := fmt.Sprintf("lxd-%s-%s", instUUID, d.name)
+
+			// Set the automatic default ACL rule for the port.
+			ingressAction, ingressLogged := network.ACLInstanceDeviceDefaults(netConfig, d.config, "ingress")
+			egressAction, egressLogged := network.ACLInstanceDeviceDefaults(netConfig, d.config, "egress")
+
+			err = d.state.Firewall.ACLInstanceDevicePortSetup(d.network.Name(), instUUID, d.name, saveData["host_name"], logName, ingressAction, ingressLogged, egressAction, egressLogged)
+			if err != nil {
+				return nil, errors.Wrapf(err, "Failed applying firewall default ACL rules for instance NIC")
+			}
+		}
+	}
+
 	err = d.volatileSet(saveData)
 	if err != nil {
 		return nil, err
@@ -444,6 +505,22 @@ func (d *nicBridged) Update(oldDevices deviceConfig.Devices, isRunning bool) err
 		return err
 	}
 
+	// Apply ACLs to network if needed.
+	oldNICACLNames := util.SplitNTrimSpace(oldConfig["security.acls"], ",", -1, true)
+	newNICACLNames := util.SplitNTrimSpace(d.config["security.acls"], ",", -1, true)
+	if len(newNICACLNames) > 0 || len(oldNICACLNames) > 0 {
+		if d.network == nil {
+			return fmt.Errorf("Network needed for applying ACLs not loaded")
+		}
+
+		// Pass our instance and device name to ApplyACLs so that our ACL DB config is ignored, and pass
+		// the set of new ACLs instead.
+		err := d.network.ApplyACLS(d.inst, d.name, newNICACLNames...)
+		if err != nil {
+			return errors.Wrapf(err, "Failed applying ACLs")
+		}
+	}
+
 	// If an IPv6 address has changed, if the instance is running we should bounce the host-side
 	// veth interface to give the instance a chance to detect the change and re-apply for an
 	// updated lease with new IP address.
@@ -498,6 +575,20 @@ func (d *nicBridged) postStop() error {
 	networkNICRouteDelete(d.config["parent"], append(util.SplitNTrimSpace(d.config["ipv4.routes"], ",", -1, true), util.SplitNTrimSpace(d.config["ipv6.routes"], ",", -1, true)...)...)
 	d.removeFilters(d.config)
 
+	// Clear up ACLs on port if needed.
+	if d.network != nil {
+		netACLNames := util.SplitNTrimSpace(d.network.Config()["security.acls"], ",", -1, true)
+		nicACLNames := util.SplitNTrimSpace(d.config["security.acls"], ",", -1, true)
+		if len(netACLNames) > 0 || len(nicACLNames) > 0 && d.config["host_name"] != "" {
+			instUUID := d.inst.LocalConfig()["volatile.uuid"]
+
+			err := d.state.Firewall.ACLInstanceDevicePortDelete(d.network.Name(), instUUID, d.name, d.config["host_name"])
+			if err != nil {
+				return errors.Wrapf(err, "Failed clearing firewall default ACL rules for instance NIC")
+			}
+		}
+	}
+
 	return nil
 }
 
@@ -526,6 +617,20 @@ func (d *nicBridged) Remove() error {
 			if err != nil {
 				return err
 			}
+		}
+	}
+
+	// Apply ACLs to network if needed.
+	nicACLNames := util.SplitNTrimSpace(d.config["security.acls"], ",", -1, true)
+	if len(nicACLNames) > 0 {
+		if d.network == nil {
+			return fmt.Errorf("Network needed for applying ACLs not loaded")
+		}
+
+		// Pass our instance and device name to ApplyACLs so that our ACL DB config is ignored.
+		err := d.network.ApplyACLS(d.inst, d.name)
+		if err != nil {
+			return errors.Wrapf(err, "Failed applying ACLs")
 		}
 	}
 
