@@ -8,6 +8,7 @@ ARCHIVE=lxd-$(VERSION).tar
 HASH := \#
 TAG_SQLITE3=$(shell printf "$(HASH)include <dqlite.h>\nvoid main(){dqlite_node_id n = 1;}" | $(CC) ${CGO_CFLAGS} -o /dev/null -xc - >/dev/null 2>&1 && echo "libsqlite3")
 GOPATH ?= $(HOME)/go
+export GO111MODULE=off
 
 .PHONY: default
 default:
