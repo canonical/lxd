@@ -980,8 +980,8 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 		if err != nil {
 			return errors.Wrapf(err, "Failed parsing ipv6.address")
 		}
-		subnetSize, _ := subnet.Mask.Size()
 
+		subnetSize, _ := subnet.Mask.Size()
 		if subnetSize > 64 {
 			n.logger.Warn("IPv6 networks with a prefix larger than 64 aren't properly supported by dnsmasq")
 		}
@@ -1505,7 +1505,52 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 		}
 	}
 
+	if n.state.Firewall.Info().ACLs {
+		// Must be called after bridge interface has been configured (to allow getting fan bridge IP).
+		err = n.ApplyACLS(nil, "")
+		if err != nil {
+			return errors.Wrapf(err, "Failed applying ACLs")
+		}
+	}
+
 	revert.Success()
+	return nil
+}
+
+// ApplyACLS applies the specified set of ACLs, as well as any used by instance NICs connected to this network,
+// along with baseline network rules. If an ignoreUsageType and ignoreUsageNicName are provided, then ACL config
+// on this entity will be ingored when generating the new config. If the generated ACL list is empty then any
+// active ACL config is removed from the firewall. Uses n.bridgeCIDRs() to ascertain IPs for bridge (in order to
+// add baseline rules for network serivces such as DNS) so must be called after the bridge interface is configured
+// for fan networks.
+func (n *bridge) ApplyACLS(ignoreUsageType interface{}, ignoreUsageNicName string, keepACLs ...string) error {
+	intRouterIPs, err := n.bridgeCIDRs()
+	if err != nil {
+		return err
+	}
+
+	// Gather IP info for ACL setup.
+	var dnsIPs []net.IP
+	if n.config["dns.mode"] != "none" {
+		dnsIPs = make([]net.IP, 0, len(intRouterIPs))
+		for _, intRouterIP := range intRouterIPs {
+			dnsIPs = append(dnsIPs, intRouterIP.IP)
+		}
+	}
+
+	netACLs := util.SplitNTrimSpace(n.config["security.acls"], ",", -1, true)
+	for _, netACL := range netACLs {
+		if !shared.StringInSlice(netACL, keepACLs) {
+			keepACLs = append(keepACLs, netACL)
+		}
+	}
+
+	// Apply firewall config (even if ACL list is empty, as this will trigger firewall rule cleanup if needed).
+	err = acl.FirewallEnsureACLs(n.state, n.logger, n.Project(), n.Name(), intRouterIPs, dnsIPs, ignoreUsageType, ignoreUsageNicName, keepACLs...)
+	if err != nil {
+		return err
+	}
+
 	return nil
 }
 
@@ -2030,6 +2075,57 @@ func (n *bridge) hasDHCPv6() bool {
 	}
 
 	return false
+}
+
+// bridgeCIDRs returns the active IP CIDRs for the bridge. Needs to be called after bridge interface has been
+// activated for fan networks.
+func (n *bridge) bridgeCIDRs() ([]*net.IPNet, error) {
+	// Fan mode. Extract DHCP subnet from fan bridge address. Only detectable once network has started.
+	// But if there is no address on the fan bridge then DHCP won't work anyway.
+	if n.config["bridge.mode"] == "fan" {
+		iface, err := net.InterfaceByName(n.name)
+		if err != nil {
+			return nil, err
+		}
+
+		addrs, err := iface.Addrs()
+		if err != nil {
+			return nil, err
+		}
+
+		for _, addr := range addrs {
+			ip, subnet, err := net.ParseCIDR(addr.String())
+			if err != nil {
+				continue // Skip invalid addresses.
+			}
+
+			if ip != nil && err == nil && ip.To4() != nil && ip.IsGlobalUnicast() {
+				cidr := &net.IPNet{
+					IP:   ip,
+					Mask: subnet.Mask,
+				}
+				return []*net.IPNet{cidr}, nil
+			}
+		}
+
+		return []*net.IPNet{}, nil // No addresses found.
+	}
+
+	cidrs := make([]*net.IPNet, 0)
+	for _, k := range []string{"ipv4.address", "ipv6.address"} {
+		ip, subnet, err := net.ParseCIDR(n.config[k])
+		if err != nil {
+			continue // Skip invalid addresses.
+		}
+
+		cidrs = append(cidrs, &net.IPNet{
+			IP:   ip,
+			Mask: subnet.Mask,
+		})
+	}
+
+	return cidrs, nil
+
 }
 
 // DHCPv4Subnet returns the DHCPv4 subnet (if DHCP is enabled on network).
