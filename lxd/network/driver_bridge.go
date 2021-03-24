@@ -1491,7 +1491,7 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 		if shared.PathExists(leasesPath) {
 			err := os.Remove(leasesPath)
 			if err != nil {
-				return errors.Wrapf(err, "Failed to remove old dnsmasq leases file '%s'", leasesPath)
+				return errors.Wrapf(err, "Failed to remove old dnsmasq leases file %q", leasesPath)
 			}
 		}
 
@@ -1500,7 +1500,7 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 		if shared.PathExists(pidPath) {
 			err := os.Remove(pidPath)
 			if err != nil {
-				return errors.Wrapf(err, "Failed to remove old dnsmasq pid file '%s'", pidPath)
+				return errors.Wrapf(err, "Failed to remove old dnsmasq pid file %q", pidPath)
 			}
 		}
 	}
