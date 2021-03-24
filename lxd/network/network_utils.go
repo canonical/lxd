@@ -1249,3 +1249,24 @@ func IPRangesOverlap(r1, r2 *shared.IPRange) bool {
 
 	return r1.ContainsIP(r2.Start) || r1.ContainsIP(r2.End)
 }
+
+// ACLInstanceDeviceDefaults returns the action and logging mode to use for the specified direction's default rule.
+// If the security.acls.default.{in,e}gress.action or security.acls.default.{in,e}gress.logged settings are not
+// specified in the NIC device config, then the settings on the network are used, and if not specified there then
+// it returns "reject" and false respectively.
+func ACLInstanceDeviceDefaults(netConfig map[string]string, deviceConfig deviceConfig.Device, direction string) (string, bool) {
+	defaults := map[string]string{
+		fmt.Sprintf("security.acls.default.%s.action", direction): "reject",
+		fmt.Sprintf("security.acls.default.%s.logged", direction): "false",
+	}
+
+	for k := range defaults {
+		if deviceConfig[k] != "" {
+			defaults[k] = deviceConfig[k]
+		} else if netConfig[k] != "" {
+			defaults[k] = netConfig[k]
+		}
+	}
+
+	return defaults[fmt.Sprintf("security.acls.default.%s.action", direction)], shared.IsTrue(defaults[fmt.Sprintf("security.acls.default.%s.logged", direction)])
+}
