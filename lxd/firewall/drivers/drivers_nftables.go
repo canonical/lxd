@@ -569,3 +569,245 @@ func (d Nftables) InstanceClearRPFilter(projectName string, instanceName string,
 
 	return nil
 }
+
+// aclInstanceDefaultChainName returns the chain name to use for adding instance NIC default rules.
+func (d Nftables) aclInstanceDefaultChainName(networkName string) string {
+	return fmt.Sprintf("acl%sdefault%s%s", nftablesChainSeparator, nftablesChainSeparator, networkName)
+}
+
+// aclInstanceDefaultExternalOutChainName returns the chain name to use for adding instance NIC default external
+// out rules.
+func (d Nftables) aclInstanceDefaultExternalOutChainName(networkName string) string {
+	return fmt.Sprintf("acl%sdefaultextout%s%s", nftablesChainSeparator, nftablesChainSeparator, networkName)
+}
+
+// aclInstanceInternalNICPortSetName returns the port group set to use for adding instance NIC ports to to
+// represent all internal ports in a network.
+func (d Nftables) aclInstanceInternalNICPortGroupSetName(networkName string) string {
+	return fmt.Sprintf("pg%snet%s%s", nftablesChainSeparator, nftablesChainSeparator, networkName)
+}
+
+//aclInstanceRuleComment returns the rule comment to use for an instance NIC device specific rule.
+func (d Nftables) aclInstanceRuleComment(instanceUUID string, deviceName string) string {
+	return fmt.Sprintf("lxd-instance-%s-%s", instanceUUID, deviceName)
+}
+
+// ACLNetworkSetup applies ACL rules to firewall.
+func (d Nftables) ACLNetworkSetup(networkName string, intRouterIPs []*net.IPNet, dnsIPs []net.IP, acls map[int64]*api.NetworkACL) error {
+	// If no ACLs supplied, then remove all ACL config for network.
+	if len(acls) <= 0 {
+		tplFields := map[string]interface{}{
+			"namespace":             nftablesNamespace,
+			"chainSeparator":        nftablesChainSeparator,
+			"family":                "bridge",
+			"networkName":           networkName,
+			"chainNICDefault":       d.aclInstanceDefaultChainName(networkName),
+			"chainNICDefaultExtOut": d.aclInstanceDefaultExternalOutChainName(networkName),
+			"portGroupInternal":     d.aclInstanceInternalNICPortGroupSetName(networkName),
+		}
+
+		config := &strings.Builder{}
+		err := nftablesACLBridgeRulesDelete.Execute(config, tplFields)
+		if err != nil {
+			return errors.Wrapf(err, "Failed running %q template", nftablesACLBridgeRulesDelete.Name())
+		}
+
+		_, err = shared.RunCommand("nft", config.String())
+		if err != nil {
+			return errors.Wrapf(err, "Failed clearing ACL rules for network %q (%s)", networkName, tplFields["family"])
+		}
+
+		return nil
+	}
+
+	// If non-empty ACL list provided then apply ACL config to firewall.
+	tplFields := map[string]interface{}{
+		"namespace":             nftablesNamespace,
+		"chainSeparator":        nftablesChainSeparator,
+		"family":                "bridge",
+		"networkName":           networkName,
+		"chainNICDefault":       d.aclInstanceDefaultChainName(networkName),
+		"chainNICDefaultExtOut": d.aclInstanceDefaultExternalOutChainName(networkName),
+		"portGroupInternal":     d.aclInstanceInternalNICPortGroupSetName(networkName),
+	}
+
+	for _, intRouterIP := range intRouterIPs {
+		isV4 := intRouterIP.IP.To4() != nil
+
+		if isV4 && tplFields["intRouterIPv4"] == nil {
+			tplFields["intRouterIPv4"] = intRouterIP.IP
+		} else if !isV4 && tplFields["intRouterIPv6"] == nil {
+			tplFields["intRouterIPv6"] = intRouterIP.IP
+		}
+	}
+
+	var dnsIPv4s, dnsIPv6s []net.IP
+
+	for _, dnsIP := range dnsIPs {
+		isV4 := dnsIP.To4() != nil
+
+		if isV4 {
+			dnsIPv4s = append(dnsIPv4s, dnsIP)
+		} else {
+			dnsIPv6s = append(dnsIPv6s, dnsIP)
+		}
+	}
+
+	tplFields["dnsIPv4s"] = dnsIPv4s
+	tplFields["dnsIPv6s"] = dnsIPv6s
+
+	config := &strings.Builder{}
+	err := nftablesACLBridgeRulesSetup.Execute(config, tplFields)
+	if err != nil {
+		return errors.Wrapf(err, "Failed running %q template", nftablesACLBridgeRulesSetup.Name())
+	}
+
+	_, err = shared.RunCommand("nft", config.String())
+	if err != nil {
+		return errors.Wrapf(err, "Failed applying ACL rules for network %q (%s)", networkName, tplFields["family"])
+	}
+
+	return nil
+}
+
+// aclInstanceDevicePortRules returns a list of existing rules associated to an instance NIC device in chains.
+func (d Nftables) aclInstanceDevicePortRules(networkName string, instanceUUID string, deviceName string, chains ...string) ([]nftGenericItem, error) {
+	ruleComment := d.aclInstanceRuleComment(instanceUUID, deviceName)
+	rules := make([]nftGenericItem, 0)
+
+	for _, chain := range chains {
+		// Get any existing rules for the instance device port.
+		items, err := d.nftParseChain("bridge", nftablesNamespace, chain)
+		if err != nil {
+			return nil, err
+		}
+
+		for _, item := range items {
+			if item.ItemType == "rule" && item.Comment == ruleComment {
+				rules = append(rules, item)
+			}
+		}
+	}
+
+	return rules, nil
+}
+
+// ACLInstanceDevicePortSetup adds the NIC port into the network internal port group and adds default rules.
+// To workaround limitations in nftables bridge filtering, if ingressAction is set to "reject", then this is
+// applied as "drop". Similarly, if "egressAction" is set to "reject", then this is only applied to egress external
+// traffic, and other types of egress traffic will use the action "drop".
+func (d Nftables) ACLInstanceDevicePortSetup(networkName string, instanceUUID string, deviceName string, portName string, logName string, ingressAction string, ingressLogged bool, egressAction string, egressLogged bool) error {
+	ruleComment := d.aclInstanceRuleComment(instanceUUID, deviceName)
+	searchChains := []string{
+		d.aclInstanceDefaultChainName(networkName),
+		d.aclInstanceDefaultExternalOutChainName(networkName),
+	}
+
+	// Get list of existing rules associated to the instance NIC, to be removed.
+	removeRules, err := d.aclInstanceDevicePortRules(networkName, instanceUUID, deviceName, searchChains...)
+	if err != nil {
+		return err
+	}
+
+	// Nftables only supports rejecting packets on the bridge input chain (used for egress external traffic),
+	// so if reject has been requested for egress or ingress, then convert to drop action for traffic that is
+	// not egress external.
+	var externalEgressAction, defaultEgressAction, defaultIngressAction string
+
+	switch ingressAction {
+	case "allow": // Convert "allow" to nftables "accept" parlance.
+		defaultIngressAction = "accept"
+	case "reject", "drop": // Use "drop" rather than "reject" for ingress traffic.
+		defaultIngressAction = "drop"
+	default:
+		return fmt.Errorf("Unsupported ingress action %q", ingressAction)
+	}
+
+	switch egressAction {
+	case "allow": // Convert "allow" to nftables "accept" parlance.
+		defaultEgressAction = "accept"
+		externalEgressAction = "accept"
+	case "reject":
+		defaultEgressAction = "drop"    // Use "drop" rather than "reject" for non-external-egress traffic.
+		externalEgressAction = "reject" // Use "reject" for external-egress traffic.
+	case "drop":
+		defaultEgressAction = "drop"
+		externalEgressAction = "drop"
+	default:
+		return fmt.Errorf("Unsupported egress action %q", egressAction)
+	}
+
+	tplFields := map[string]interface{}{
+		"namespace":             nftablesNamespace,
+		"chainSeparator":        nftablesChainSeparator,
+		"family":                "bridge",
+		"removeRules":           removeRules,
+		"portName":              portName,
+		"ingressAction":         defaultIngressAction,
+		"externalEgressAction":  externalEgressAction, // Supports full range of actions.
+		"egressAction":          defaultEgressAction,  // Only supports "accept" or "drop".
+		"ingressLogged":         ingressLogged,        // Only supports "accept" or "drop".
+		"egressLogged":          egressLogged,
+		"logName":               logName,
+		"chainNICDefault":       d.aclInstanceDefaultChainName(networkName),
+		"chainNICDefaultExtOut": d.aclInstanceDefaultExternalOutChainName(networkName),
+		"portGroupInternal":     d.aclInstanceInternalNICPortGroupSetName(networkName),
+		"ruleComment":           ruleComment,
+	}
+
+	if ingressLogged {
+		tplFields["ingressLog"] = fmt.Sprintf(`log prefix "%s-ingress: "`, logName)
+	}
+	if egressLogged {
+		tplFields["egressLog"] = fmt.Sprintf(`log prefix "%s-egress: "`, logName)
+	}
+
+	config := &strings.Builder{}
+	err = nftablesACLInstanceNICSetup.Execute(config, tplFields)
+	if err != nil {
+		return errors.Wrapf(err, "Failed running %q template", nftablesACLInstanceNICSetup.Name())
+	}
+
+	_, err = shared.RunCommand("nft", config.String())
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// ACLInstanceDevicePortDelete removes the NIC port from the network internal port group and deletes default rules.
+func (d Nftables) ACLInstanceDevicePortDelete(networkName string, instanceUUID string, deviceName string, portName string) error {
+	searchChains := []string{
+		d.aclInstanceDefaultChainName(networkName),
+		d.aclInstanceDefaultExternalOutChainName(networkName),
+	}
+
+	// Get list of existing rules associated to the instance NIC, to be removed.
+	removeRules, err := d.aclInstanceDevicePortRules(networkName, instanceUUID, deviceName, searchChains...)
+	if err != nil {
+		return err
+	}
+
+	tplFields := map[string]interface{}{
+		"namespace":         nftablesNamespace,
+		"chainSeparator":    nftablesChainSeparator,
+		"family":            "bridge",
+		"removeRules":       removeRules,
+		"portName":          portName,
+		"portGroupInternal": d.aclInstanceInternalNICPortGroupSetName(networkName),
+	}
+
+	config := &strings.Builder{}
+	err = nftablesACLInstanceNICDelete.Execute(config, tplFields)
+	if err != nil {
+		return errors.Wrapf(err, "Failed running %q template", nftablesACLInstanceNICDelete.Name())
+	}
+
+	_, err = shared.RunCommand("nft", config.String())
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
