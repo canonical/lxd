@@ -34,6 +34,22 @@ func LoadConfig(path string) (*Config, error) {
 		}
 	}
 
+	// Apply the global (system-wide) remotes
+	globalConf := NewConfig("", false)
+	content, err = ioutil.ReadFile(globalConf.GlobalConfigPath("config.yml"))
+	if err == nil {
+		err = yaml.Unmarshal(content, &globalConf)
+		if err != nil {
+			return nil, fmt.Errorf("Unable to decode the configuration: %v", err)
+		}
+		for k, r := range globalConf.Remotes {
+			if _, ok := c.Remotes[k]; !ok {
+				r.Global = true
+				c.Remotes[k] = r
+			}
+		}
+	}
+
 	// Set default values
 	if c.Remotes == nil {
 		c.Remotes = make(map[string]Remote)
@@ -66,6 +82,13 @@ func (c *Config) SaveConfig(path string) error {
 	err := shared.DeepCopy(c, &conf)
 	if err != nil {
 		return fmt.Errorf("Unable to copy the configuration: %v", err)
+	}
+
+	// Remove the global remotes
+	for k, v := range c.Remotes {
+		if v.Global == true {
+			delete(conf.Remotes, k)
+		}
 	}
 
 	// Remove the static remotes
