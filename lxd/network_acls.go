@@ -43,6 +43,12 @@ var networkACLCmd = APIEndpoint{
 // ---
 // produces:
 //   - application/json
+// parameters:
+//   - in: query
+//     name: project
+//     description: Project name
+//     type: string
+//     example: default
 // responses:
 //   "200":
 //     description: API endpoints
@@ -86,6 +92,12 @@ var networkACLCmd = APIEndpoint{
 // ---
 // produces:
 //   - application/json
+// parameters:
+//   - in: query
+//     name: project
+//     description: Project name
+//     type: string
+//     example: default
 // responses:
 //   "200":
 //     description: API endpoints
@@ -165,6 +177,11 @@ func networkACLsGet(d *Daemon, r *http.Request) response.Response {
 // produces:
 //   - application/json
 // parameters:
+//   - in: query
+//     name: project
+//     description: Project name
+//     type: string
+//     example: default
 //   - in: body
 //     name: acl
 //     description: ACL
@@ -217,6 +234,12 @@ func networkACLsPost(d *Daemon, r *http.Request) response.Response {
 // ---
 // produces:
 //   - application/json
+// parameters:
+//   - in: query
+//     name: project
+//     description: Project name
+//     type: string
+//     example: default
 // responses:
 //   "200":
 //     $ref: "#/responses/EmptySyncResponse"
@@ -254,6 +277,12 @@ func networkACLDelete(d *Daemon, r *http.Request) response.Response {
 // ---
 // produces:
 //   - application/json
+// parameters:
+//   - in: query
+//     name: project
+//     description: Project name
+//     type: string
+//     example: default
 // responses:
 //   "200":
 //     description: ACL
@@ -311,6 +340,11 @@ func networkACLGet(d *Daemon, r *http.Request) response.Response {
 // produces:
 //   - application/json
 // parameters:
+//   - in: query
+//     name: project
+//     description: Project name
+//     type: string
+//     example: default
 //   - in: body
 //     name: acl
 //     description: ACL configuration
@@ -341,6 +375,11 @@ func networkACLGet(d *Daemon, r *http.Request) response.Response {
 // produces:
 //   - application/json
 // parameters:
+//   - in: query
+//     name: project
+//     description: Project name
+//     type: string
+//     example: default
 //   - in: body
 //     name: acl
 //     description: ACL configuration
@@ -415,6 +454,11 @@ func networkACLPut(d *Daemon, r *http.Request) response.Response {
 // produces:
 //   - application/json
 // parameters:
+//   - in: query
+//     name: project
+//     description: Project name
+//     type: string
+//     example: default
 //   - in: body
 //     name: acl
 //     description: ACL rename request
