@@ -1591,6 +1591,14 @@ func (n *bridge) Stop() error {
 		}
 	}
 
+	if n.state.Firewall.Info().ACLs {
+		// Remove ACL config.
+		err := acl.FirewallEnsureACLs(n.state, n.logger, n.Project(), n.Name(), nil, nil, nil, "")
+		if err != nil {
+			return errors.Wrapf(err, "Failed clearing ACLs")
+		}
+	}
+
 	// Kill any existing dnsmasq and forkdns daemon for this network
 	err := dnsmasq.Kill(n.name, false)
 	if err != nil {
