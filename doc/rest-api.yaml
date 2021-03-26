@@ -397,7 +397,7 @@ definitions:
           type: string
         description: ACL configuration map (refer to doc/network-acls.md)
         example:
-          default.action: drop
+          user.mykey: foo
         type: object
         x-go-name: Config
       description:
@@ -453,7 +453,7 @@ definitions:
           type: string
         description: ACL configuration map (refer to doc/network-acls.md)
         example:
-          default.action: drop
+          user.mykey: foo
         type: object
         x-go-name: Config
       description:
@@ -539,7 +539,7 @@ definitions:
           type: string
         description: ACL configuration map (refer to doc/network-acls.md)
         example:
-          default.action: drop
+          user.mykey: foo
         type: object
         x-go-name: Config
       description:
