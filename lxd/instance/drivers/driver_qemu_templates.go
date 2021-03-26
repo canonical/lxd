@@ -476,7 +476,9 @@ netdev = "lxd_{{.devName}}"
 mac = "{{.devHwaddr}}"
 {{ if ne .vectors 0 -}}
 mq = "on"
+{{- if eq .bus "pci" "pcie"}}
 vectors = "{{.vectors}}"
+{{- end}}
 {{- end}}
 bootindex = "{{.bootIndex}}"
 {{if .multifunction -}}
