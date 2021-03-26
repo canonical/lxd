@@ -51,6 +51,12 @@ var profileCmd = APIEndpoint{
 // ---
 // produces:
 //   - application/json
+// parameters:
+//   - in: query
+//     name: project
+//     description: Project name
+//     type: string
+//     example: default
 // responses:
 //   "200":
 //     description: API endpoints
@@ -94,6 +100,12 @@ var profileCmd = APIEndpoint{
 // ---
 // produces:
 //   - application/json
+// parameters:
+//   - in: query
+//     name: project
+//     description: Project name
+//     type: string
+//     example: default
 // responses:
 //   "200":
 //     description: API endpoints
@@ -171,6 +183,11 @@ func profilesGet(d *Daemon, r *http.Request) response.Response {
 // produces:
 //   - application/json
 // parameters:
+//   - in: query
+//     name: project
+//     description: Project name
+//     type: string
+//     example: default
 //   - in: body
 //     name: profile
 //     description: Profile
@@ -254,6 +271,12 @@ func profilesPost(d *Daemon, r *http.Request) response.Response {
 // ---
 // produces:
 //   - application/json
+// parameters:
+//   - in: query
+//     name: project
+//     description: Project name
+//     type: string
+//     example: default
 // responses:
 //   "200":
 //     description: Profile
@@ -320,6 +343,11 @@ func profileGet(d *Daemon, r *http.Request) response.Response {
 // produces:
 //   - application/json
 // parameters:
+//   - in: query
+//     name: project
+//     description: Project name
+//     type: string
+//     example: default
 //   - in: body
 //     name: profile
 //     description: Profile configuration
@@ -420,6 +448,11 @@ func profilePut(d *Daemon, r *http.Request) response.Response {
 // produces:
 //   - application/json
 // parameters:
+//   - in: query
+//     name: project
+//     description: Project name
+//     type: string
+//     example: default
 //   - in: body
 //     name: profile
 //     description: Profile configuration
@@ -533,6 +566,11 @@ func profilePatch(d *Daemon, r *http.Request) response.Response {
 // produces:
 //   - application/json
 // parameters:
+//   - in: query
+//     name: project
+//     description: Project name
+//     type: string
+//     example: default
 //   - in: body
 //     name: profile
 //     description: Profile rename request
@@ -602,6 +640,12 @@ func profilePost(d *Daemon, r *http.Request) response.Response {
 // ---
 // produces:
 //   - application/json
+// parameters:
+//   - in: query
+//     name: project
+//     description: Project name
+//     type: string
+//     example: default
 // responses:
 //   "200":
 //     $ref: "#/responses/EmptySyncResponse"

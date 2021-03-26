@@ -119,10 +119,8 @@ definitions:
         type: boolean
         x-go-name: Enabled
       member_config:
-        description: |-
-          List of member configuration keys (used during join)
-
-          API extension: clustering_join
+        description: List of member configuration keys (used during join)
+        example: []
         items:
           $ref: '#/definitions/ClusterMemberConfigKey'
         type: array
@@ -138,10 +136,8 @@ definitions:
   ClusterMember:
     properties:
       architecture:
-        description: |-
-          The primary architecture of the cluster member
-
-          API extension: clustering_architecture
+        description: The primary architecture of the cluster member
+        example: x86_64
         type: string
         x-go-name: Architecture
       database:
@@ -276,10 +272,8 @@ definitions:
         type: boolean
         x-go-name: Enabled
       member_config:
-        description: |-
-          List of member configuration keys (used during join)
-
-          API extension: clustering_join
+        description: List of member configuration keys (used during join)
+        example: []
         items:
           $ref: '#/definitions/ClusterMemberConfigKey'
         type: array
@@ -323,6 +317,412 @@ definitions:
         example: lifecycle
         type: string
         x-go-name: Type
+    type: object
+    x-go-package: github.com/lxc/lxd/shared/api
+  Image:
+    description: Image represents a LXD image
+    properties:
+      aliases:
+        description: List of aliases
+        items:
+          $ref: '#/definitions/ImageAlias'
+        type: array
+        x-go-name: Aliases
+      architecture:
+        description: Architecture
+        example: x86_64
+        type: string
+        x-go-name: Architecture
+      auto_update:
+        description: Whether the image should auto-update when a new build is available
+        example: true
+        type: boolean
+        x-go-name: AutoUpdate
+      cached:
+        description: Whether the image is an automatically cached remote image
+        example: true
+        type: boolean
+        x-go-name: Cached
+      created_at:
+        description: When the image was originally created
+        example: "2021-03-23T20:00:00-04:00"
+        format: date-time
+        type: string
+        x-go-name: CreatedAt
+      expires_at:
+        description: When the image becomes obsolete
+        example: "2025-03-23T20:00:00-04:00"
+        format: date-time
+        type: string
+        x-go-name: ExpiresAt
+      filename:
+        description: Original filename
+        example: 06b86454720d36b20f94e31c6812e05ec51c1b568cf3a8abd273769d213394bb.rootfs
+        type: string
+        x-go-name: Filename
+      fingerprint:
+        description: Full SHA-256 fingerprint
+        example: 06b86454720d36b20f94e31c6812e05ec51c1b568cf3a8abd273769d213394bb
+        type: string
+        x-go-name: Fingerprint
+      last_used_at:
+        description: Last time the image was used
+        example: "2021-03-22T20:39:00.575185384-04:00"
+        format: date-time
+        type: string
+        x-go-name: LastUsedAt
+      profiles:
+        description: List of profiles to use when creating from this image (if none
+          provided by user)
+        example:
+        - default
+        items:
+          type: string
+        type: array
+        x-go-name: Profiles
+      properties:
+        additionalProperties:
+          type: string
+        description: Descriptive properties
+        example:
+          os: Ubuntu
+          release: focal
+          variant: cloud
+        type: object
+        x-go-name: Properties
+      public:
+        description: Whether the image is available to unauthenticated users
+        example: false
+        type: boolean
+        x-go-name: Public
+      size:
+        description: Size of the image in bytes
+        example: 272237676
+        format: int64
+        type: integer
+        x-go-name: Size
+      type:
+        description: Type of image (container or virtual-machine)
+        example: container
+        type: string
+        x-go-name: Type
+      update_source:
+        $ref: '#/definitions/ImageSource'
+      uploaded_at:
+        description: When the image was added to this LXD server
+        example: "2021-03-24T14:18:15.115036787-04:00"
+        format: date-time
+        type: string
+        x-go-name: UploadedAt
+    type: object
+    x-go-package: github.com/lxc/lxd/shared/api
+  ImageAlias:
+    description: ImageAlias represents an alias from the alias list of a LXD image
+    properties:
+      description:
+        description: Description of the alias
+        example: Our preferred Ubuntu image
+        type: string
+        x-go-name: Description
+      name:
+        description: Name of the alias
+        example: ubuntu-20.04
+        type: string
+        x-go-name: Name
+    type: object
+    x-go-package: github.com/lxc/lxd/shared/api
+  ImageAliasesEntry:
+    description: ImageAliasesEntry represents a LXD image alias
+    properties:
+      description:
+        description: Alias description
+        example: Our preferred Ubuntu image
+        type: string
+        x-go-name: Description
+      name:
+        description: Alias name
+        example: ubuntu-20.04
+        type: string
+        x-go-name: Name
+      target:
+        description: Target fingerprint for the alias
+        example: 06b86454720d36b20f94e31c6812e05ec51c1b568cf3a8abd273769d213394bb
+        type: string
+        x-go-name: Target
+      type:
+        description: Alias type (container or virtual-machine)
+        example: container
+        type: string
+        x-go-name: Type
+    type: object
+    x-go-package: github.com/lxc/lxd/shared/api
+  ImageAliasesEntryPost:
+    description: ImageAliasesEntryPost represents the required fields to rename a
+      LXD image alias
+    properties:
+      name:
+        description: Alias name
+        example: ubuntu-20.04
+        type: string
+        x-go-name: Name
+    type: object
+    x-go-package: github.com/lxc/lxd/shared/api
+  ImageAliasesEntryPut:
+    description: ImageAliasesEntryPut represents the modifiable fields of a LXD image
+      alias
+    properties:
+      description:
+        description: Alias description
+        example: Our preferred Ubuntu image
+        type: string
+        x-go-name: Description
+      target:
+        description: Target fingerprint for the alias
+        example: 06b86454720d36b20f94e31c6812e05ec51c1b568cf3a8abd273769d213394bb
+        type: string
+        x-go-name: Target
+    type: object
+    x-go-package: github.com/lxc/lxd/shared/api
+  ImageAliasesPost:
+    description: ImageAliasesPost represents a new LXD image alias
+    properties:
+      description:
+        description: Alias description
+        example: Our preferred Ubuntu image
+        type: string
+        x-go-name: Description
+      name:
+        description: Alias name
+        example: ubuntu-20.04
+        type: string
+        x-go-name: Name
+      target:
+        description: Target fingerprint for the alias
+        example: 06b86454720d36b20f94e31c6812e05ec51c1b568cf3a8abd273769d213394bb
+        type: string
+        x-go-name: Target
+      type:
+        description: Alias type (container or virtual-machine)
+        example: container
+        type: string
+        x-go-name: Type
+    type: object
+    x-go-package: github.com/lxc/lxd/shared/api
+  ImageExportPost:
+    description: ImageExportPost represents the fields required to export a LXD image
+    properties:
+      aliases:
+        description: List of aliases to set on the image
+        items:
+          $ref: '#/definitions/ImageAlias'
+        type: array
+        x-go-name: Aliases
+      certificate:
+        description: Remote server certificate
+        example: X509 PEM certificate
+        type: string
+        x-go-name: Certificate
+      secret:
+        description: Image receive secret
+        example: RANDOM-STRING
+        type: string
+        x-go-name: Secret
+      target:
+        description: Target server URL
+        example: https://1.2.3.4:8443
+        type: string
+        x-go-name: Target
+    type: object
+    x-go-package: github.com/lxc/lxd/shared/api
+  ImagePut:
+    description: ImagePut represents the modifiable fields of a LXD image
+    properties:
+      auto_update:
+        description: Whether the image should auto-update when a new build is available
+        example: true
+        type: boolean
+        x-go-name: AutoUpdate
+      expires_at:
+        description: When the image becomes obsolete
+        example: "2025-03-23T20:00:00-04:00"
+        format: date-time
+        type: string
+        x-go-name: ExpiresAt
+      profiles:
+        description: List of profiles to use when creating from this image (if none
+          provided by user)
+        example:
+        - default
+        items:
+          type: string
+        type: array
+        x-go-name: Profiles
+      properties:
+        additionalProperties:
+          type: string
+        description: Descriptive properties
+        example:
+          os: Ubuntu
+          release: focal
+          variant: cloud
+        type: object
+        x-go-name: Properties
+      public:
+        description: Whether the image is available to unauthenticated users
+        example: false
+        type: boolean
+        x-go-name: Public
+    type: object
+    x-go-package: github.com/lxc/lxd/shared/api
+  ImageSource:
+    description: ImageSource represents the source of a LXD image
+    properties:
+      alias:
+        description: Source alias to download from
+        example: bionic
+        type: string
+        x-go-name: Alias
+      certificate:
+        description: Source server certificate (if not trusted by system CA)
+        example: X509 PEM certificate
+        type: string
+        x-go-name: Certificate
+      image_type:
+        description: Type of image (container or virtual-machine)
+        example: container
+        type: string
+        x-go-name: ImageType
+      protocol:
+        description: Source server protocol
+        example: simplestreams
+        type: string
+        x-go-name: Protocol
+      server:
+        description: URL of the source server
+        example: https://images.linuxcontainers.org
+        type: string
+        x-go-name: Server
+    type: object
+    x-go-package: github.com/lxc/lxd/shared/api
+  ImagesPost:
+    description: ImagesPost represents the fields available for a new LXD image
+    properties:
+      aliases:
+        description: Aliases to add to the image
+        example:
+        - my-image
+        items:
+          $ref: '#/definitions/ImageAlias'
+        type: array
+        x-go-name: Aliases
+      auto_update:
+        description: Whether the image should auto-update when a new build is available
+        example: true
+        type: boolean
+        x-go-name: AutoUpdate
+      compression_algorithm:
+        description: Compression algorithm to use when turning an instance into an
+          image
+        example: gzip
+        type: string
+        x-go-name: CompressionAlgorithm
+      expires_at:
+        description: When the image becomes obsolete
+        example: "2025-03-23T20:00:00-04:00"
+        format: date-time
+        type: string
+        x-go-name: ExpiresAt
+      filename:
+        description: Original filename of the image
+        example: lxd.tar.xz
+        type: string
+        x-go-name: Filename
+      profiles:
+        description: List of profiles to use when creating from this image (if none
+          provided by user)
+        example:
+        - default
+        items:
+          type: string
+        type: array
+        x-go-name: Profiles
+      properties:
+        additionalProperties:
+          type: string
+        description: Descriptive properties
+        example:
+          os: Ubuntu
+          release: focal
+          variant: cloud
+        type: object
+        x-go-name: Properties
+      public:
+        description: Whether the image is available to unauthenticated users
+        example: false
+        type: boolean
+        x-go-name: Public
+      source:
+        $ref: '#/definitions/ImagesPostSource'
+    type: object
+    x-go-package: github.com/lxc/lxd/shared/api
+  ImagesPostSource:
+    description: ImagesPostSource represents the source of a new LXD image
+    properties:
+      alias:
+        description: Source alias to download from
+        example: bionic
+        type: string
+        x-go-name: Alias
+      certificate:
+        description: Source server certificate (if not trusted by system CA)
+        example: X509 PEM certificate
+        type: string
+        x-go-name: Certificate
+      fingerprint:
+        description: Source image fingerprint (for type "image")
+        example: 8ae945c52bb2f2df51c923b04022312f99bbb72c356251f54fa89ea7cf1df1d0
+        type: string
+        x-go-name: Fingerprint
+      image_type:
+        description: Type of image (container or virtual-machine)
+        example: container
+        type: string
+        x-go-name: ImageType
+      mode:
+        description: Transfer mode (push or pull)
+        example: pull
+        type: string
+        x-go-name: Mode
+      name:
+        description: Instance name (for type "instance" or "snapshot")
+        example: c1/snap0
+        type: string
+        x-go-name: Name
+      protocol:
+        description: Source server protocol
+        example: simplestreams
+        type: string
+        x-go-name: Protocol
+      secret:
+        description: Source image server secret token (when downloading private images)
+        example: RANDOM-STRING
+        type: string
+        x-go-name: Secret
+      server:
+        description: URL of the source server
+        example: https://images.linuxcontainers.org
+        type: string
+        x-go-name: Server
+      type:
+        description: Type of image source (instance, snapshot, image or url)
+        example: instance
+        type: string
+        x-go-name: Type
+      url:
+        description: Source URL (for type "url")
+        example: https://some-server.com/some-directory/
+        type: string
+        x-go-name: URL
     type: object
     x-go-package: github.com/lxc/lxd/shared/api
   Network:
@@ -3363,10 +3763,904 @@ paths:
       summary: Get the event stream
       tags:
       - server
+  /1.0/images:
+    get:
+      description: Returns a list of images (URLs).
+      operationId: images_get
+      parameters:
+      - description: Project name
+        example: default
+        in: query
+        name: project
+        type: string
+      - description: Collection filter
+        example: default
+        in: query
+        name: filter
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: API endpoints
+          schema:
+            description: Sync response
+            properties:
+              metadata:
+                description: List of endpoints
+                example: |-
+                  [
+                    "/1.0/images/06b86454720d36b20f94e31c6812e05ec51c1b568cf3a8abd273769d213394bb",
+                    "/1.0/images/084dd79dd1360fd25a2479eb46674c2a5ef3022a40fe03c91ab3603e3402b8e1"
+                  ]
+                items:
+                  type: string
+                type: array
+              status:
+                description: Status description
+                example: Success
+                type: string
+              status_code:
+                description: Status code
+                example: 200
+                type: int
+              type:
+                description: Response type
+                example: sync
+                type: string
+            type: object
+        "403":
+          $ref: '#/responses/Forbidden'
+        "500":
+          $ref: '#/responses/InternalServerError'
+      summary: Get the images
+      tags:
+      - images
+    post:
+      consumes:
+      - application/json
+      description: Adds a new image to the image store.
+      operationId: images_post
+      parameters:
+      - description: Project name
+        example: default
+        in: query
+        name: project
+        type: string
+      - description: Image
+        in: body
+        name: image
+        schema:
+          $ref: '#/definitions/ImagesPost'
+      - description: Raw image file
+        in: body
+        name: raw_image
+      - description: Push secret for server to server communication
+        example: RANDOM-STRING
+        in: header
+        name: X-LXD-secret
+        schema:
+          type: string
+      - description: Expected fingerprint when pushing a raw image
+        in: header
+        name: X-LXD-fingerprint
+        schema:
+          type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          $ref: '#/responses/Operation'
+        "400":
+          $ref: '#/responses/BadRequest'
+        "403":
+          $ref: '#/responses/Forbidden'
+        "500":
+          $ref: '#/responses/InternalServerError'
+      summary: Add an image
+      tags:
+      - images
+  /1.0/images/{fingerprint}:
+    delete:
+      description: Removes the image from the image store.
+      operationId: image_delete
+      parameters:
+      - description: Project name
+        example: default
+        in: query
+        name: project
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          $ref: '#/responses/Operation'
+        "400":
+          $ref: '#/responses/BadRequest'
+        "403":
+          $ref: '#/responses/Forbidden'
+        "500":
+          $ref: '#/responses/InternalServerError'
+      summary: Delete the image
+      tags:
+      - images
+    get:
+      description: Gets a specific image.
+      operationId: image_get
+      parameters:
+      - description: Project name
+        example: default
+        in: query
+        name: project
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Image
+          schema:
+            description: Sync response
+            properties:
+              metadata:
+                $ref: '#/definitions/Image'
+              status:
+                description: Status description
+                example: Success
+                type: string
+              status_code:
+                description: Status code
+                example: 200
+                type: int
+              type:
+                description: Response type
+                example: sync
+                type: string
+            type: object
+        "403":
+          $ref: '#/responses/Forbidden'
+        "500":
+          $ref: '#/responses/InternalServerError'
+      summary: Get the image
+      tags:
+      - images
+    patch:
+      consumes:
+      - application/json
+      description: Updates a subset of the image definition.
+      operationId: image_patch
+      parameters:
+      - description: Project name
+        example: default
+        in: query
+        name: project
+        type: string
+      - description: Image configuration
+        in: body
+        name: image
+        required: true
+        schema:
+          $ref: '#/definitions/ImagePut'
+      produces:
+      - application/json
+      responses:
+        "200":
+          $ref: '#/responses/EmptySyncResponse'
+        "400":
+          $ref: '#/responses/BadRequest'
+        "403":
+          $ref: '#/responses/Forbidden'
+        "412":
+          $ref: '#/responses/PreconditionFailed'
+        "500":
+          $ref: '#/responses/InternalServerError'
+      summary: Partially update the image
+      tags:
+      - images
+    put:
+      consumes:
+      - application/json
+      description: Updates the entire image definition.
+      operationId: image_put
+      parameters:
+      - description: Project name
+        example: default
+        in: query
+        name: project
+        type: string
+      - description: Image configuration
+        in: body
+        name: image
+        required: true
+        schema:
+          $ref: '#/definitions/ImagePut'
+      produces:
+      - application/json
+      responses:
+        "200":
+          $ref: '#/responses/EmptySyncResponse'
+        "400":
+          $ref: '#/responses/BadRequest'
+        "403":
+          $ref: '#/responses/Forbidden'
+        "412":
+          $ref: '#/responses/PreconditionFailed'
+        "500":
+          $ref: '#/responses/InternalServerError'
+      summary: Update the image
+      tags:
+      - images
+  /1.0/images/{fingerprint}/export:
+    get:
+      description: |-
+        Download the raw image file(s) from the server.
+        If the image is in split format, a multipart http transfer occurs.
+      operationId: image_export_get
+      parameters:
+      - description: Project name
+        example: default
+        in: query
+        name: project
+        type: string
+      produces:
+      - application/octet-stream
+      - multipart/form-data
+      responses:
+        "200":
+          description: Raw image data
+        "403":
+          $ref: '#/responses/Forbidden'
+        "500":
+          $ref: '#/responses/InternalServerError'
+      summary: Get the raw image file(s)
+      tags:
+      - images
+    post:
+      description: Gets LXD to connect to a remote server and push the image to it.
+      operationId: images_export_post
+      parameters:
+      - description: Project name
+        example: default
+        in: query
+        name: project
+        type: string
+      - description: Image push request
+        in: body
+        name: image
+        required: true
+        schema:
+          $ref: '#/definitions/ImageExportPost'
+      produces:
+      - application/json
+      responses:
+        "200":
+          $ref: '#/responses/Operation'
+        "403":
+          $ref: '#/responses/Forbidden'
+        "500":
+          $ref: '#/responses/InternalServerError'
+      summary: Make LXD push the image to a remote server
+      tags:
+      - images
+  /1.0/images/{fingerprint}/export?public:
+    get:
+      description: |-
+        Download the raw image file(s) of a public image from the server.
+        If the image is in split format, a multipart http transfer occurs.
+      operationId: image_export_get_untrusted
+      parameters:
+      - description: Project name
+        example: default
+        in: query
+        name: project
+        type: string
+      - description: Secret token to retrieve a private image
+        example: RANDOM-STRING
+        in: query
+        name: secret
+        type: string
+      produces:
+      - application/octet-stream
+      - multipart/form-data
+      responses:
+        "200":
+          description: Raw image data
+        "403":
+          $ref: '#/responses/Forbidden'
+        "500":
+          $ref: '#/responses/InternalServerError'
+      summary: Get the raw image file(s)
+      tags:
+      - images
+  /1.0/images/{fingerprint}/refresh:
+    post:
+      description: |-
+        This causes LXD to check the image source server for an updated
+        version of the image and if available to refresh the local copy with the
+        new version.
+      operationId: images_refresh_post
+      parameters:
+      - description: Project name
+        example: default
+        in: query
+        name: project
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          $ref: '#/responses/Operation'
+        "403":
+          $ref: '#/responses/Forbidden'
+        "500":
+          $ref: '#/responses/InternalServerError'
+      summary: Refresh an image
+      tags:
+      - images
+  /1.0/images/{fingerprint}/secret:
+    post:
+      description: |-
+        This generates a background operation including a secret one time key
+        in its metadata which can be used to fetch this image from an untrusted
+        client.
+      operationId: images_secret_post
+      parameters:
+      - description: Project name
+        example: default
+        in: query
+        name: project
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          $ref: '#/responses/Operation'
+        "403":
+          $ref: '#/responses/Forbidden'
+        "500":
+          $ref: '#/responses/InternalServerError'
+      summary: Generate secret for retrieval of the image by an untrusted client
+      tags:
+      - images
+  /1.0/images/{fingerprint}?public:
+    get:
+      description: Gets a specific public image.
+      operationId: image_get_untrusted
+      parameters:
+      - description: Project name
+        example: default
+        in: query
+        name: project
+        type: string
+      - description: Secret token to retrieve a private image
+        example: RANDOM-STRING
+        in: query
+        name: secret
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Image
+          schema:
+            description: Sync response
+            properties:
+              metadata:
+                $ref: '#/definitions/Image'
+              status:
+                description: Status description
+                example: Success
+                type: string
+              status_code:
+                description: Status code
+                example: 200
+                type: int
+              type:
+                description: Response type
+                example: sync
+                type: string
+            type: object
+        "403":
+          $ref: '#/responses/Forbidden'
+        "500":
+          $ref: '#/responses/InternalServerError'
+      summary: Get the public image
+      tags:
+      - images
+  /1.0/images/aliases:
+    get:
+      description: Returns a list of image aliases (URLs).
+      operationId: images_aliases_get
+      parameters:
+      - description: Project name
+        example: default
+        in: query
+        name: project
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: API endpoints
+          schema:
+            description: Sync response
+            properties:
+              metadata:
+                description: List of endpoints
+                example: |-
+                  [
+                    "/1.0/images/aliases/foo",
+                    "/1.0/images/aliases/bar1"
+                  ]
+                items:
+                  type: string
+                type: array
+              status:
+                description: Status description
+                example: Success
+                type: string
+              status_code:
+                description: Status code
+                example: 200
+                type: int
+              type:
+                description: Response type
+                example: sync
+                type: string
+            type: object
+        "403":
+          $ref: '#/responses/Forbidden'
+        "500":
+          $ref: '#/responses/InternalServerError'
+      summary: Get the image aliases
+      tags:
+      - images
+    post:
+      consumes:
+      - application/json
+      description: Creates a new image alias.
+      operationId: images_aliases_post
+      parameters:
+      - description: Project name
+        example: default
+        in: query
+        name: project
+        type: string
+      - description: Image alias
+        in: body
+        name: image alias
+        required: true
+        schema:
+          $ref: '#/definitions/ImageAliasesPost'
+      produces:
+      - application/json
+      responses:
+        "200":
+          $ref: '#/responses/EmptySyncResponse'
+        "400":
+          $ref: '#/responses/BadRequest'
+        "403":
+          $ref: '#/responses/Forbidden'
+        "500":
+          $ref: '#/responses/InternalServerError'
+      summary: Add an image alias
+      tags:
+      - images
+  /1.0/images/aliases/{name}:
+    get:
+      description: Gets a specific image alias.
+      operationId: image_alias_get
+      parameters:
+      - description: Project name
+        example: default
+        in: query
+        name: project
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Image alias
+          schema:
+            description: Sync response
+            properties:
+              metadata:
+                $ref: '#/definitions/ImageAliasesEntry'
+              status:
+                description: Status description
+                example: Success
+                type: string
+              status_code:
+                description: Status code
+                example: 200
+                type: int
+              type:
+                description: Response type
+                example: sync
+                type: string
+            type: object
+        "403":
+          $ref: '#/responses/Forbidden'
+        "500":
+          $ref: '#/responses/InternalServerError'
+      summary: Get the image alias
+      tags:
+      - images
+    patch:
+      consumes:
+      - application/json
+      description: Updates a subset of the image alias configuration.
+      operationId: images_alias_patch
+      parameters:
+      - description: Project name
+        example: default
+        in: query
+        name: project
+        type: string
+      - description: Image alias configuration
+        in: body
+        name: image alias
+        required: true
+        schema:
+          $ref: '#/definitions/ImageAliasesEntryPut'
+      produces:
+      - application/json
+      responses:
+        "200":
+          $ref: '#/responses/EmptySyncResponse'
+        "400":
+          $ref: '#/responses/BadRequest'
+        "403":
+          $ref: '#/responses/Forbidden'
+        "412":
+          $ref: '#/responses/PreconditionFailed'
+        "500":
+          $ref: '#/responses/InternalServerError'
+      summary: Partially update the image alias
+      tags:
+      - images
+    post:
+      consumes:
+      - application/json
+      description: Renames an existing image alias.
+      operationId: images_alias_post
+      parameters:
+      - description: Project name
+        example: default
+        in: query
+        name: project
+        type: string
+      - description: Image alias rename request
+        in: body
+        name: image alias
+        required: true
+        schema:
+          $ref: '#/definitions/ImageAliasesEntryPost'
+      produces:
+      - application/json
+      responses:
+        "200":
+          $ref: '#/responses/EmptySyncResponse'
+        "400":
+          $ref: '#/responses/BadRequest'
+        "403":
+          $ref: '#/responses/Forbidden'
+        "500":
+          $ref: '#/responses/InternalServerError'
+      summary: Rename the image alias
+      tags:
+      - images
+    put:
+      consumes:
+      - application/json
+      description: Updates the entire image alias configuration.
+      operationId: images_aliases_put
+      parameters:
+      - description: Project name
+        example: default
+        in: query
+        name: project
+        type: string
+      - description: Image alias configuration
+        in: body
+        name: image alias
+        required: true
+        schema:
+          $ref: '#/definitions/ImageAliasesEntryPut'
+      produces:
+      - application/json
+      responses:
+        "200":
+          $ref: '#/responses/EmptySyncResponse'
+        "400":
+          $ref: '#/responses/BadRequest'
+        "403":
+          $ref: '#/responses/Forbidden'
+        "412":
+          $ref: '#/responses/PreconditionFailed'
+        "500":
+          $ref: '#/responses/InternalServerError'
+      summary: Update the image alias
+      tags:
+      - images
+  /1.0/images/aliases/{name}?public:
+    get:
+      description: |-
+        Gets a specific public image alias.
+        This untrusted endpoint only works for aliases pointing to public images.
+      operationId: image_alias_get_untrusted
+      parameters:
+      - description: Project name
+        example: default
+        in: query
+        name: project
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Image alias
+          schema:
+            description: Sync response
+            properties:
+              metadata:
+                $ref: '#/definitions/ImageAliasesEntry'
+              status:
+                description: Status description
+                example: Success
+                type: string
+              status_code:
+                description: Status code
+                example: 200
+                type: int
+              type:
+                description: Response type
+                example: sync
+                type: string
+            type: object
+        "403":
+          $ref: '#/responses/Forbidden'
+        "500":
+          $ref: '#/responses/InternalServerError'
+      summary: Get the public image alias
+      tags:
+      - images
+  /1.0/images/aliases?recursion=1:
+    get:
+      description: Returns a list of image aliases (structs).
+      operationId: images_aliases_get_recursion1
+      parameters:
+      - description: Project name
+        example: default
+        in: query
+        name: project
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: API endpoints
+          schema:
+            description: Sync response
+            properties:
+              metadata:
+                description: List of image aliases
+                items:
+                  $ref: '#/definitions/ImageAliasesEntry'
+                type: array
+              status:
+                description: Status description
+                example: Success
+                type: string
+              status_code:
+                description: Status code
+                example: 200
+                type: int
+              type:
+                description: Response type
+                example: sync
+                type: string
+            type: object
+        "403":
+          $ref: '#/responses/Forbidden'
+        "500":
+          $ref: '#/responses/InternalServerError'
+      summary: Get the image aliases
+      tags:
+      - images
+  /1.0/images?public:
+    get:
+      description: Returns a list of publicly available images (URLs).
+      operationId: images_get_untrusted
+      parameters:
+      - description: Project name
+        example: default
+        in: query
+        name: project
+        type: string
+      - description: Collection filter
+        example: default
+        in: query
+        name: filter
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: API endpoints
+          schema:
+            description: Sync response
+            properties:
+              metadata:
+                description: List of endpoints
+                example: |-
+                  [
+                    "/1.0/images/06b86454720d36b20f94e31c6812e05ec51c1b568cf3a8abd273769d213394bb",
+                    "/1.0/images/084dd79dd1360fd25a2479eb46674c2a5ef3022a40fe03c91ab3603e3402b8e1"
+                  ]
+                items:
+                  type: string
+                type: array
+              status:
+                description: Status description
+                example: Success
+                type: string
+              status_code:
+                description: Status code
+                example: 200
+                type: int
+              type:
+                description: Response type
+                example: sync
+                type: string
+            type: object
+        "403":
+          $ref: '#/responses/Forbidden'
+        "500":
+          $ref: '#/responses/InternalServerError'
+      summary: Get the public images
+      tags:
+      - images
+    post:
+      consumes:
+      - application/json
+      description: |-
+        Pushes the data to the target image server.
+        This is meant for LXD to LXD communication where a new image entry is
+        prepared on the target server and the source server is provided that URL
+        and a secret token to push the image content over.
+      operationId: images_post_untrusted
+      parameters:
+      - description: Project name
+        example: default
+        in: query
+        name: project
+        type: string
+      - description: Image
+        in: body
+        name: image
+        required: true
+        schema:
+          $ref: '#/definitions/ImagesPost'
+      produces:
+      - application/json
+      responses:
+        "200":
+          $ref: '#/responses/EmptySyncResponse'
+        "400":
+          $ref: '#/responses/BadRequest'
+        "403":
+          $ref: '#/responses/Forbidden'
+        "500":
+          $ref: '#/responses/InternalServerError'
+      summary: Add an image
+      tags:
+      - images
+  /1.0/images?public&recursion=1:
+    get:
+      description: Returns a list of publicly available images (structs).
+      operationId: images_get_recursion1
+      parameters:
+      - description: Project name
+        example: default
+        in: query
+        name: project
+        type: string
+      - description: Collection filter
+        example: default
+        in: query
+        name: filter
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: API endpoints
+          schema:
+            description: Sync response
+            properties:
+              metadata:
+                description: List of images
+                items:
+                  $ref: '#/definitions/Image'
+                type: array
+              status:
+                description: Status description
+                example: Success
+                type: string
+              status_code:
+                description: Status code
+                example: 200
+                type: int
+              type:
+                description: Response type
+                example: sync
+                type: string
+            type: object
+        "403":
+          $ref: '#/responses/Forbidden'
+        "500":
+          $ref: '#/responses/InternalServerError'
+      summary: Get the public images
+      tags:
+      - images
+  /1.0/images?recursion=1:
+    get:
+      description: Returns a list of images (structs).
+      operationId: images_get_recursion1
+      parameters:
+      - description: Project name
+        example: default
+        in: query
+        name: project
+        type: string
+      - description: Collection filter
+        example: default
+        in: query
+        name: filter
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: API endpoints
+          schema:
+            description: Sync response
+            properties:
+              metadata:
+                description: List of images
+                items:
+                  $ref: '#/definitions/Image'
+                type: array
+              status:
+                description: Status description
+                example: Success
+                type: string
+              status_code:
+                description: Status code
+                example: 200
+                type: int
+              type:
+                description: Response type
+                example: sync
+                type: string
+            type: object
+        "403":
+          $ref: '#/responses/Forbidden'
+        "500":
+          $ref: '#/responses/InternalServerError'
+      summary: Get the images
+      tags:
+      - images
   /1.0/network-acls:
     get:
       description: Returns a list of network ACLs (URLs).
       operationId: network_acls_get
+      parameters:
+      - description: Project name
+        example: default
+        in: query
+        name: project
+        type: string
       produces:
       - application/json
       responses:
@@ -3411,6 +4705,11 @@ paths:
       description: Creates a new network ACL.
       operationId: network_acls_post
       parameters:
+      - description: Project name
+        example: default
+        in: query
+        name: project
+        type: string
       - description: ACL
         in: body
         name: acl
@@ -3435,6 +4734,12 @@ paths:
     delete:
       description: Removes the network ACL.
       operationId: network_acls_delete
+      parameters:
+      - description: Project name
+        example: default
+        in: query
+        name: project
+        type: string
       produces:
       - application/json
       responses:
@@ -3452,6 +4757,12 @@ paths:
     get:
       description: Gets a specific network ACL.
       operationId: network_acls_get
+      parameters:
+      - description: Project name
+        example: default
+        in: query
+        name: project
+        type: string
       produces:
       - application/json
       responses:
@@ -3488,6 +4799,11 @@ paths:
       description: Updates a subset of the network ACL configuration.
       operationId: network_acls_patch
       parameters:
+      - description: Project name
+        example: default
+        in: query
+        name: project
+        type: string
       - description: ACL configuration
         in: body
         name: acl
@@ -3516,6 +4832,11 @@ paths:
       description: Renames an existing network ACL.
       operationId: network_acls_post
       parameters:
+      - description: Project name
+        example: default
+        in: query
+        name: project
+        type: string
       - description: ACL rename request
         in: body
         name: acl
@@ -3542,6 +4863,11 @@ paths:
       description: Updates the entire network ACL configuration.
       operationId: network_acls_put
       parameters:
+      - description: Project name
+        example: default
+        in: query
+        name: project
+        type: string
       - description: ACL configuration
         in: body
         name: acl
@@ -3568,6 +4894,12 @@ paths:
     get:
       description: Returns a list of network ACLs (structs).
       operationId: network_acls_get_recursion1
+      parameters:
+      - description: Project name
+        example: default
+        in: query
+        name: project
+        type: string
       produces:
       - application/json
       responses:
@@ -3605,6 +4937,12 @@ paths:
     get:
       description: Returns a list of networks (URLs).
       operationId: networks_get
+      parameters:
+      - description: Project name
+        example: default
+        in: query
+        name: project
+        type: string
       produces:
       - application/json
       responses:
@@ -3651,6 +4989,11 @@ paths:
         When clustered, most network types require individual POST for each cluster member prior to a global POST.
       operationId: networks_post
       parameters:
+      - description: Project name
+        example: default
+        in: query
+        name: project
+        type: string
       - description: Cluster member name
         example: lxd01
         in: query
@@ -3680,6 +5023,12 @@ paths:
     delete:
       description: Removes the network.
       operationId: network_delete
+      parameters:
+      - description: Project name
+        example: default
+        in: query
+        name: project
+        type: string
       produces:
       - application/json
       responses:
@@ -3698,6 +5047,11 @@ paths:
       description: Gets a specific network.
       operationId: network_get
       parameters:
+      - description: Project name
+        example: default
+        in: query
+        name: project
+        type: string
       - description: Cluster member name
         example: lxd01
         in: query
@@ -3739,6 +5093,11 @@ paths:
       description: Updates a subset of the network configuration.
       operationId: network_patch
       parameters:
+      - description: Project name
+        example: default
+        in: query
+        name: project
+        type: string
       - description: Cluster member name
         example: lxd01
         in: query
@@ -3772,6 +5131,11 @@ paths:
       description: Renames an existing network.
       operationId: network_post
       parameters:
+      - description: Project name
+        example: default
+        in: query
+        name: project
+        type: string
       - description: Network rename request
         in: body
         name: network
@@ -3798,6 +5162,11 @@ paths:
       description: Updates the entire network configuration.
       operationId: network_put
       parameters:
+      - description: Project name
+        example: default
+        in: query
+        name: project
+        type: string
       - description: Cluster member name
         example: lxd01
         in: query
@@ -3829,6 +5198,17 @@ paths:
     get:
       description: Returns a list of DHCP leases for the network.
       operationId: networks_leases_get
+      parameters:
+      - description: Project name
+        example: default
+        in: query
+        name: project
+        type: string
+      - description: Cluster member name
+        example: lxd01
+        in: query
+        name: target
+        type: string
       produces:
       - application/json
       responses:
@@ -3866,6 +5246,17 @@ paths:
     get:
       description: Returns the current network state information.
       operationId: networks_state_get
+      parameters:
+      - description: Project name
+        example: default
+        in: query
+        name: project
+        type: string
+      - description: Cluster member name
+        example: lxd01
+        in: query
+        name: target
+        type: string
       produces:
       - application/json
       responses:
@@ -3900,6 +5291,12 @@ paths:
     get:
       description: Returns a list of networks (structs).
       operationId: networks_get_recursion1
+      parameters:
+      - description: Project name
+        example: default
+        in: query
+        name: project
+        type: string
       produces:
       - application/json
       responses:
@@ -4035,7 +5432,50 @@ paths:
         retrieve its final state.
       operationId: operation_wait_get
       parameters:
-      - description: Authentication token (for untrusted users)
+      - description: Timeout in seconds (-1 means never)
+        example: -1
+        in: query
+        name: timeout
+        type: int
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Operation
+          schema:
+            description: Sync response
+            properties:
+              metadata:
+                $ref: '#/definitions/Operation'
+              status:
+                description: Status description
+                example: Success
+                type: string
+              status_code:
+                description: Status code
+                example: 200
+                type: int
+              type:
+                description: Response type
+                example: sync
+                type: string
+            type: object
+        "403":
+          $ref: '#/responses/Forbidden'
+        "500":
+          $ref: '#/responses/InternalServerError'
+      summary: Wait for the operation
+      tags:
+      - operations
+  /1.0/operations/{id}/wait?public:
+    get:
+      description: |-
+        Waits for the operation to reach a final state (or timeout) and retrieve its final state.
+
+        When accessed by an untrusted user, the secret token must be provided.
+      operationId: operation_wait_get_untrusted
+      parameters:
+      - description: Authentication token
         example: random-string
         in: query
         name: secret
@@ -4101,6 +5541,35 @@ paths:
       summary: Get the websocket stream
       tags:
       - operations
+  /1.0/operations/{id}/websocket?public:
+    get:
+      description: |-
+        Connects to an associated websocket stream for the operation.
+        This should almost never be done directly by a client, instead it's
+        meant for LXD to LXD communication with the client only relaying the
+        connection information to the servers.
+
+        The untrusted endpoint is used by the target server to connect to the source server.
+        Authentication is performed through the secret token.
+      operationId: operation_websocket_get_untrusted
+      parameters:
+      - description: Authentication token
+        example: random-string
+        in: query
+        name: secret
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Websocket operation messages (dependent on operation)
+        "403":
+          $ref: '#/responses/Forbidden'
+        "500":
+          $ref: '#/responses/InternalServerError'
+      summary: Get the websocket stream
+      tags:
+      - operations
   /1.0/operations?recursion=1:
     get:
       description: Returns a list of operations (structs).
@@ -4142,6 +5611,12 @@ paths:
     get:
       description: Returns a list of profiles (URLs).
       operationId: profiles_get
+      parameters:
+      - description: Project name
+        example: default
+        in: query
+        name: project
+        type: string
       produces:
       - application/json
       responses:
@@ -4186,6 +5661,11 @@ paths:
       description: Creates a new profile.
       operationId: profiles_post
       parameters:
+      - description: Project name
+        example: default
+        in: query
+        name: project
+        type: string
       - description: Profile
         in: body
         name: profile
@@ -4210,6 +5690,12 @@ paths:
     delete:
       description: Removes the profile.
       operationId: profile_delete
+      parameters:
+      - description: Project name
+        example: default
+        in: query
+        name: project
+        type: string
       produces:
       - application/json
       responses:
@@ -4227,6 +5713,12 @@ paths:
     get:
       description: Gets a specific profile.
       operationId: profile_get
+      parameters:
+      - description: Project name
+        example: default
+        in: query
+        name: project
+        type: string
       produces:
       - application/json
       responses:
@@ -4263,6 +5755,11 @@ paths:
       description: Updates a subset of the profile configuration.
       operationId: profile_patch
       parameters:
+      - description: Project name
+        example: default
+        in: query
+        name: project
+        type: string
       - description: Profile configuration
         in: body
         name: profile
@@ -4291,6 +5788,11 @@ paths:
       description: Renames an existing profile.
       operationId: profile_post
       parameters:
+      - description: Project name
+        example: default
+        in: query
+        name: project
+        type: string
       - description: Profile rename request
         in: body
         name: profile
@@ -4317,6 +5819,11 @@ paths:
       description: Updates the entire profile configuration.
       operationId: profile_put
       parameters:
+      - description: Project name
+        example: default
+        in: query
+        name: project
+        type: string
       - description: Profile configuration
         in: body
         name: profile
@@ -4343,6 +5850,12 @@ paths:
     get:
       description: Returns a list of profiles (structs).
       operationId: profiles_get_recursion1
+      parameters:
+      - description: Project name
+        example: default
+        in: query
+        name: project
+        type: string
       produces:
       - application/json
       responses:
@@ -4761,6 +6274,30 @@ responses:
           x-go-name: Error
         type:
           example: error
+          type: string
+          x-go-name: Type
+      type: object
+  Operation:
+    description: Operation
+    schema:
+      properties:
+        Metadata:
+          $ref: '#/definitions/Operation'
+        operation:
+          example: /1.0/operations/66e83638-9dd7-4a26-aef2-5462814869a1
+          type: string
+          x-go-name: Operation
+        status:
+          example: Operation created
+          type: string
+          x-go-name: Status
+        status_code:
+          example: 100
+          format: int64
+          type: integer
+          x-go-name: StatusCode
+        type:
+          example: async
           type: string
           x-go-name: Type
       type: object

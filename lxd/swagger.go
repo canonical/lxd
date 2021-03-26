@@ -19,7 +19,34 @@
 // swagger:meta
 package main
 
+import (
+	"github.com/lxc/lxd/shared/api"
+)
+
 // Common error definitions.
+
+// Operation
+//
+// swagger:response Operation
+type swaggerOperation struct {
+	// Empty sync response
+	// in: body
+	Body struct {
+		// Example: async
+		Type string `json:"type"`
+
+		// Example: Operation created
+		Status string `json:"status"`
+
+		// Example: 100
+		StatusCode int `json:"status_code"`
+
+		// Example: /1.0/operations/66e83638-9dd7-4a26-aef2-5462814869a1
+		Operation string `json:"operation"`
+
+		Metadata api.Operation
+	}
+}
 
 // Empty sync response
 //

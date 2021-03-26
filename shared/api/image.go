@@ -5,76 +5,161 @@ import (
 )
 
 // ImageExportPost represents the fields required to export a LXD image
+//
+// swagger:model
+//
 // API extension: images_push_relay
 type ImageExportPost struct {
-	Target      string       `json:"target" yaml:"target"`
-	Secret      string       `json:"secret" yaml:"secret"`
-	Certificate string       `json:"certificate" yaml:"certificate"`
-	Aliases     []ImageAlias `json:"aliases" yaml:"aliases"`
+	// Target server URL
+	// Example: https://1.2.3.4:8443
+	Target string `json:"target" yaml:"target"`
+
+	// Image receive secret
+	// Example: RANDOM-STRING
+	Secret string `json:"secret" yaml:"secret"`
+
+	// Remote server certificate
+	// Example: X509 PEM certificate
+	Certificate string `json:"certificate" yaml:"certificate"`
+
+	// List of aliases to set on the image
+	Aliases []ImageAlias `json:"aliases" yaml:"aliases"`
 }
 
 // ImagesPost represents the fields available for a new LXD image
+//
+// swagger:model
 type ImagesPost struct {
 	ImagePut `yaml:",inline"`
 
-	Filename string            `json:"filename" yaml:"filename"`
-	Source   *ImagesPostSource `json:"source" yaml:"source"`
+	// Original filename of the image
+	// Example: lxd.tar.xz
+	Filename string `json:"filename" yaml:"filename"`
 
+	// Source of the image
+	Source *ImagesPostSource `json:"source" yaml:"source"`
+
+	// Compression algorithm to use when turning an instance into an image
+	// Example: gzip
+	//
 	// API extension: image_compression_algorithm
 	CompressionAlgorithm string `json:"compression_algorithm" yaml:"compression_algorithm"`
 
+	// Aliases to add to the image
+	// Example: ["my-image"]
+	//
 	// API extension: image_create_aliases
 	Aliases []ImageAlias `json:"aliases" yaml:"aliases"`
 }
 
 // ImagesPostSource represents the source of a new LXD image
+//
+// swagger:model
 type ImagesPostSource struct {
 	ImageSource `yaml:",inline"`
 
+	// Transfer mode (push or pull)
+	// Example: pull
 	Mode string `json:"mode" yaml:"mode"`
+
+	// Type of image source (instance, snapshot, image or url)
+	// Example: instance
 	Type string `json:"type" yaml:"type"`
 
-	// For protocol "direct"
+	// Source URL (for type "url")
+	// Example: https://some-server.com/some-directory/
 	URL string `json:"url" yaml:"url"`
 
-	// For type "container"
+	// Instance name (for type "instance" or "snapshot")
+	// Example: c1/snap0
 	Name string `json:"name" yaml:"name"`
 
-	// For type "image"
+	// Source image fingerprint (for type "image")
+	// Example: 8ae945c52bb2f2df51c923b04022312f99bbb72c356251f54fa89ea7cf1df1d0
 	Fingerprint string `json:"fingerprint" yaml:"fingerprint"`
-	Secret      string `json:"secret" yaml:"secret"`
+
+	// Source image server secret token (when downloading private images)
+	// Example: RANDOM-STRING
+	Secret string `json:"secret" yaml:"secret"`
 }
 
 // ImagePut represents the modifiable fields of a LXD image
+//
+// swagger:model
 type ImagePut struct {
-	AutoUpdate bool              `json:"auto_update" yaml:"auto_update"`
-	Properties map[string]string `json:"properties" yaml:"properties"`
-	Public     bool              `json:"public" yaml:"public"`
+	// Whether the image should auto-update when a new build is available
+	// Example: true
+	AutoUpdate bool `json:"auto_update" yaml:"auto_update"`
 
+	// Descriptive properties
+	// Example: {"os": "Ubuntu", "release": "focal", "variant": "cloud"}
+	Properties map[string]string `json:"properties" yaml:"properties"`
+
+	// Whether the image is available to unauthenticated users
+	// Example: false
+	Public bool `json:"public" yaml:"public"`
+
+	// When the image becomes obsolete
+	// Example: 2025-03-23T20:00:00-04:00
+	//
 	// API extension: images_expiry
 	ExpiresAt time.Time `json:"expires_at" yaml:"expires_at"`
 
+	// List of profiles to use when creating from this image (if none provided by user)
+	// Example: ["default"]
+	//
 	// API extension: image_profiles
 	Profiles []string `json:"profiles" yaml:"profiles"`
 }
 
 // Image represents a LXD image
+//
+// swagger:model
 type Image struct {
 	ImagePut `yaml:",inline"`
 
-	Aliases      []ImageAlias `json:"aliases" yaml:"aliases"`
-	Architecture string       `json:"architecture" yaml:"architecture"`
-	Cached       bool         `json:"cached" yaml:"cached"`
-	Filename     string       `json:"filename" yaml:"filename"`
-	Fingerprint  string       `json:"fingerprint" yaml:"fingerprint"`
-	Size         int64        `json:"size" yaml:"size"`
+	// List of aliases
+	Aliases []ImageAlias `json:"aliases" yaml:"aliases"`
+
+	// Architecture
+	// Example: x86_64
+	Architecture string `json:"architecture" yaml:"architecture"`
+
+	// Whether the image is an automatically cached remote image
+	// Example: true
+	Cached bool `json:"cached" yaml:"cached"`
+
+	// Original filename
+	// Example: 06b86454720d36b20f94e31c6812e05ec51c1b568cf3a8abd273769d213394bb.rootfs
+	Filename string `json:"filename" yaml:"filename"`
+
+	// Full SHA-256 fingerprint
+	// Example: 06b86454720d36b20f94e31c6812e05ec51c1b568cf3a8abd273769d213394bb
+	Fingerprint string `json:"fingerprint" yaml:"fingerprint"`
+
+	// Size of the image in bytes
+	// Example: 272237676
+	Size int64 `json:"size" yaml:"size"`
+
+	// Where the image came from
 	UpdateSource *ImageSource `json:"update_source,omitempty" yaml:"update_source,omitempty"`
 
+	// Type of image (container or virtual-machine)
+	// Example: container
+	//
 	// API extension: image_types
 	Type string `json:"type" yaml:"type"`
 
-	CreatedAt  time.Time `json:"created_at" yaml:"created_at"`
+	// When the image was originally created
+	// Example: 2021-03-23T20:00:00-04:00
+	CreatedAt time.Time `json:"created_at" yaml:"created_at"`
+
+	// Last time the image was used
+	// Example: 2021-03-22T20:39:00.575185384-04:00
 	LastUsedAt time.Time `json:"last_used_at" yaml:"last_used_at"`
+
+	// When the image was added to this LXD server
+	// Example: 2021-03-24T14:18:15.115036787-04:00
 	UploadedAt time.Time `json:"uploaded_at" yaml:"uploaded_at"`
 }
 
@@ -84,49 +169,92 @@ func (img *Image) Writable() ImagePut {
 }
 
 // ImageAlias represents an alias from the alias list of a LXD image
+//
+// swagger:model
 type ImageAlias struct {
-	Name        string `json:"name" yaml:"name"`
+	// Name of the alias
+	// Example: ubuntu-20.04
+	Name string `json:"name" yaml:"name"`
+
+	// Description of the alias
+	// Example: Our preferred Ubuntu image
 	Description string `json:"description" yaml:"description"`
 }
 
 // ImageSource represents the source of a LXD image
+//
+// swagger:model
 type ImageSource struct {
-	Alias       string `json:"alias" yaml:"alias"`
-	Certificate string `json:"certificate" yaml:"certificate"`
-	Protocol    string `json:"protocol" yaml:"protocol"`
-	Server      string `json:"server" yaml:"server"`
+	// Source alias to download from
+	// Example: bionic
+	Alias string `json:"alias" yaml:"alias"`
 
+	// Source server certificate (if not trusted by system CA)
+	// Example: X509 PEM certificate
+	Certificate string `json:"certificate" yaml:"certificate"`
+
+	// Source server protocol
+	// Example: simplestreams
+	Protocol string `json:"protocol" yaml:"protocol"`
+
+	// URL of the source server
+	// Example: https://images.linuxcontainers.org
+	Server string `json:"server" yaml:"server"`
+
+	// Type of image (container or virtual-machine)
+	// Example: container
+	//
 	// API extension: image_types
 	ImageType string `json:"image_type" yaml:"image_type"`
 }
 
 // ImageAliasesPost represents a new LXD image alias
+//
+// swagger:model
 type ImageAliasesPost struct {
 	ImageAliasesEntry `yaml:",inline"`
 }
 
 // ImageAliasesEntryPost represents the required fields to rename a LXD image alias
+//
+// swagger:model
 type ImageAliasesEntryPost struct {
+	// Alias name
+	// Example: ubuntu-20.04
 	Name string `json:"name" yaml:"name"`
 }
 
 // ImageAliasesEntryPut represents the modifiable fields of a LXD image alias
+//
+// swagger:model
 type ImageAliasesEntryPut struct {
+	// Alias description
+	// Example: Our preferred Ubuntu image
 	Description string `json:"description" yaml:"description"`
-	Target      string `json:"target" yaml:"target"`
+
+	// Target fingerprint for the alias
+	// Example: 06b86454720d36b20f94e31c6812e05ec51c1b568cf3a8abd273769d213394bb
+	Target string `json:"target" yaml:"target"`
 }
 
 // ImageAliasesEntry represents a LXD image alias
+//
+// swagger:model
 type ImageAliasesEntry struct {
 	ImageAliasesEntryPut `yaml:",inline"`
 
+	// Alias name
+	// Example: ubuntu-20.04
 	Name string `json:"name" yaml:"name"`
 
+	// Alias type (container or virtual-machine)
+	// Example: container
+	//
 	// API extension: image_types
 	Type string `json:"type" yaml:"type"`
 }
 
-// ImageMetadata represents LXD image metadata
+// ImageMetadata represents LXD image metadata (used in image tarball)
 type ImageMetadata struct {
 	Architecture string                            `json:"architecture" yaml:"architecture"`
 	CreationDate int64                             `json:"creation_date" yaml:"creation_date"`
@@ -135,7 +263,7 @@ type ImageMetadata struct {
 	Templates    map[string]*ImageMetadataTemplate `json:"templates" yaml:"templates"`
 }
 
-// ImageMetadataTemplate represents a template entry in image metadata
+// ImageMetadataTemplate represents a template entry in image metadata (used in image tarball)
 type ImageMetadataTemplate struct {
 	When       []string          `json:"when" yaml:"when"`
 	CreateOnly bool              `json:"create_only" yaml:"create_only"`

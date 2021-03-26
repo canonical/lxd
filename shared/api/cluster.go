@@ -15,6 +15,7 @@ type Cluster struct {
 	Enabled bool `json:"enabled" yaml:"enabled"`
 
 	// List of member configuration keys (used during join)
+	// Example: []
 	//
 	// API extension: clustering_join
 	MemberConfig []ClusterMemberConfigKey `json:"member_config" yaml:"member_config"`
@@ -122,6 +123,7 @@ type ClusterMember struct {
 	Message string `json:"message" yaml:"message"`
 
 	// The primary architecture of the cluster member
+	// Example: x86_64
 	//
 	// API extension: clustering_architecture
 	Architecture string `json:"architecture" yaml:"architecture"`
