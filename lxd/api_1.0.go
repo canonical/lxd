@@ -88,6 +88,8 @@ var api10 = []APIEndpoint{
 	storagePoolVolumeTypeCustomBackupCmd,
 	storagePoolVolumeTypeCustomBackupExportCmd,
 	storagePoolVolumeTypeStateCmd,
+	warningsCmd,
+	warningCmd,
 }
 
 // swagger:operation GET /1.0?public server server_get_untrusted
