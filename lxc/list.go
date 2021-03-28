@@ -548,7 +548,7 @@ func (c *cmdList) parseColumns(clustered bool) ([]column, bool, error) {
 			}
 			if colType == deviceColumnType {
 				column.Data = func(cInfo api.InstanceFull) string {
-					d := strings.Split(k, ".")
+					d := strings.SplitN(k, ".", 2)
 					if len(d) == 1 || len(d) > 2 {
 						return ""
 					}
