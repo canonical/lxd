@@ -234,8 +234,8 @@ func (d *nicRouted) Start() (*deviceConfig.RunConfig, error) {
 
 	runConf := deviceConfig.RunConfig{}
 	nic := []deviceConfig.RunConfigItem{
-		{Key: "name", Value: d.config["name"]},
 		{Key: "type", Value: "veth"},
+		{Key: "name", Value: d.config["name"]},
 		{Key: "flags", Value: "up"},
 		{Key: "veth.mode", Value: "router"},
 		{Key: "veth.pair", Value: saveData["host_name"]},
