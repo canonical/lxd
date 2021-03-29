@@ -23,24 +23,6 @@ Static analysis     | GoReport              | [![Go Report Card](https://gorepor
 Translations        | Weblate               | [![Translation status](https://hosted.weblate.org/widgets/linux-containers/-/svg-badge.svg)](https://hosted.weblate.org/projects/linux-containers/lxd/)
 Project status      | CII Best Practices    | [![CII Best Practices](https://bestpractices.coreinfrastructure.org/projects/1086/badge)](https://bestpractices.coreinfrastructure.org/projects/1086)
 
-
-## Contents
-
-* [Introduction](#lxd)
-* [Status](#status)
-* Installation:
-    * [Install LXD from packages](#installing-lxd-from-packages)
-    * [Install LXD from source](#installing-lxd-from-source)
-* [Security](#security)
-* [Getting started with LXD](#getting-started-with-lxd)
-* [Bug reports & Feature requests](#bug-reports)
-* [Contributing](#contributing)
-* [Support & discussions](#support-and-discussions)
-* [FAQ](#faq)
-* [Hacking on LXD](#hacking-on-lxd)
-
----
-
 ## Installing LXD from packages
 The LXD daemon only works on Linux but the client tool (`lxc`) is available on most platforms.
 
