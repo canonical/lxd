@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"net"
 	"regexp"
 	"sort"
 	"strconv"
@@ -35,6 +36,8 @@ type cmdList struct {
 	flagColumns string
 	flagFast    bool
 	flagFormat  string
+
+	shorthandFilters map[string]func(*api.Instance, string) bool
 }
 
 func (c *cmdList) Command() *cobra.Command {
@@ -48,17 +51,26 @@ func (c *cmdList) Command() *cobra.Command {
 Default column layout: ns46tS
 Fast column layout: nsacPt
 
-== Filters ==
 A single keyword like "web" which will list any instance with a name starting by "web".
 A regular expression on the instance name. (e.g. .*web.*01$).
 A key/value pair referring to a configuration item. For those, the
 namespace can be abbreviated to the smallest unambiguous identifier.
+A key/value pair where the key is a shorthand. Multiple values must be delimited by ','. Available shorthands:
+  - type={instance type}
+  - status={instance current lifecycle status}
+  - architecture={instance architecture}
+  - name={instance name}
+  - location={location name}
+  - ipv4={ip or CIDR}
+  - ipv6={ip or CIDR}
 
 Examples:
   - "user.blah=abc" will list all instances with the "blah" user property set to "abc".
   - "u.blah=abc" will do the same
   - "security.privileged=true" will list all privileged instances
   - "s.privileged=true" will do the same
+  - "type=container" will list all container instances
+  - "type=container status=running" will list all running container instances
 
 A regular expression matching a configuration item or its value. (e.g. volatile.eth0.hwaddr=00:16:3e:.*).
 
@@ -146,6 +158,8 @@ func (c *cmdList) dotPrefixMatch(short string, full string) bool {
 }
 
 func (c *cmdList) shouldShow(filters []string, state *api.Instance) bool {
+	c.mapShorthandFilters()
+
 	for _, filter := range filters {
 		if strings.Contains(filter, "=") {
 			membs := strings.SplitN(filter, "=", 2)
@@ -156,6 +170,10 @@ func (c *cmdList) shouldShow(filters []string, state *api.Instance) bool {
 				value = ""
 			} else {
 				value = membs[1]
+			}
+
+			if c.evaluateShorthandFilter(key, value, state) {
+				continue
 			}
 
 			found := false
@@ -208,6 +226,28 @@ func (c *cmdList) shouldShow(filters []string, state *api.Instance) bool {
 	}
 
 	return true
+}
+
+func (c *cmdList) evaluateShorthandFilter(key string, value string, state *api.Instance) bool {
+	const shorthandValueDelimiter = ","
+	shorthandFilterFunction, isShorthandFilter := c.shorthandFilters[strings.ToLower(key)]
+
+	if isShorthandFilter {
+		if strings.Contains(value, shorthandValueDelimiter) {
+			matched := false
+			for _, curValue := range strings.Split(value, shorthandValueDelimiter) {
+				if shorthandFilterFunction(state, curValue) {
+					matched = true
+				}
+			}
+
+			return matched
+		}
+
+		return shorthandFilterFunction(state, value)
+	}
+
+	return false
 }
 
 func (c *cmdList) listInstances(conf *config.Config, d lxd.InstanceServer, cinfos []api.Instance, filters []string, columns []column) error {
@@ -354,7 +394,7 @@ func (c *cmdList) Run(cmd *cobra.Command, args []string) error {
 	// Parse the remote
 	var remote string
 	var name string
-	filters := []string{}
+	var filters []string
 
 	if len(args) != 0 {
 		filters = args
@@ -371,6 +411,7 @@ func (c *cmdList) Run(cmd *cobra.Command, args []string) error {
 			name = args[0]
 		}
 	}
+
 	if name != "" {
 		filters = append(filters, name)
 	}
@@ -780,4 +821,113 @@ func (c *cmdList) NumberOfProcessesColumnData(cInfo api.InstanceFull) string {
 
 func (c *cmdList) locationColumnData(cInfo api.InstanceFull) string {
 	return cInfo.Location
+}
+
+func (c *cmdList) matchByType(cInfo *api.Instance, query string) bool {
+	return strings.ToLower(cInfo.Type) == strings.ToLower(query)
+}
+
+func (c *cmdList) matchByStatus(cInfo *api.Instance, query string) bool {
+	return strings.ToLower(cInfo.Status) == strings.ToLower(query)
+}
+
+func (c *cmdList) matchByArchitecture(cInfo *api.Instance, query string) bool {
+	return strings.ToLower(cInfo.InstancePut.Architecture) == strings.ToLower(query)
+}
+
+func (c *cmdList) matchByName(cInfo *api.Instance, query string) bool {
+	return strings.ToLower(cInfo.Name) == strings.ToLower(query)
+}
+
+func (c *cmdList) matchByLocation(cInfo *api.Instance, query string) bool {
+	return strings.ToLower(cInfo.Location) == strings.ToLower(query)
+}
+
+func (c *cmdList) matchByNet(cInfo *api.Instance, query string, addressKey string) bool {
+	nicDevices := c.filterDevicesByProperties(cInfo.ExpandedDevices, map[string]string{"type": "nic"}, false)
+	if len(cInfo.ExpandedDevices) == 0 ||
+		len(nicDevices) == 0 {
+		return false
+	}
+
+	ip, subNet, err := net.ParseCIDR(query)
+	if err == nil {
+		hasIP := c.hasIP(nicDevices, ip, addressKey)
+		if hasIP {
+			return true
+		}
+		for _, curDevice := range c.filterDevicesByProperties(nicDevices, map[string]string{addressKey: "*"}, true) {
+			curIP := net.ParseIP(curDevice[addressKey])
+			if curIP != nil && subNet.Contains(curIP) {
+				return true
+			}
+		}
+	} else {
+		ip = net.ParseIP(query)
+		if ip != nil {
+			hasIP := c.hasIP(nicDevices, ip, addressKey)
+			if hasIP {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+func (c *cmdList) matchByIPV6(cInfo *api.Instance, query string) bool {
+	return c.matchByNet(cInfo, query, "ipv6.address")
+}
+func (c *cmdList) matchByIPV4(cInfo *api.Instance, query string) bool {
+	return c.matchByNet(cInfo, query, "ipv4.address")
+}
+
+func (c *cmdList) hasIP(nicDevices map[string]map[string]string, ip net.IP, addressKey string) bool {
+	return len(c.filterDevicesByProperties(nicDevices, map[string]string{addressKey: ip.String()}, false)) > 0
+}
+
+func (c *cmdList) filterDevicesByProperties(devices map[string]map[string]string,
+	propertyKeyValueQuery map[string]string, fuzzy bool) map[string]map[string]string {
+
+	if len(propertyKeyValueQuery) == 0 {
+		return devices
+	}
+
+	matcher := c.getKeyValueMatcher(fuzzy)
+	var result = map[string]map[string]string{}
+	for curDeviceKey, curDevice := range devices {
+		for curQueryKey, curQueryValue := range propertyKeyValueQuery {
+			curValue, curKeyExists := curDevice[strings.ToLower(curQueryKey)]
+			if curKeyExists && matcher(curValue, curQueryValue) {
+				result[curDeviceKey] = curDevice
+				break
+			}
+		}
+	}
+	return result
+}
+
+func (c *cmdList) getKeyValueMatcher(fuzzy bool) func(stack string, query string) bool {
+	if fuzzy {
+		return func(stack string, query string) bool {
+			return strings.Contains(strings.ToLower(stack), strings.ToLower(query)) ||
+				strings.HasPrefix(stack, "*") ||
+				strings.HasSuffix(stack, "*") ||
+				query == "*"
+		}
+	}
+	return func(stack string, query string) bool {
+		return stack == query
+	}
+}
+
+func (c *cmdList) mapShorthandFilters() {
+	c.shorthandFilters = map[string]func(*api.Instance, string) bool{
+		"type":         c.matchByType,
+		"status":       c.matchByStatus,
+		"architecture": c.matchByArchitecture,
+		"name":         c.matchByName,
+		"location":     c.matchByLocation,
+		"ipv4":         c.matchByIPV4,
+		"ipv6":         c.matchByIPV6,
+	}
 }
