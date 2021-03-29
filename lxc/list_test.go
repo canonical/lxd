@@ -25,12 +25,30 @@ func TestDotPrefixMatch(t *testing.T) {
 
 func TestShouldShow(t *testing.T) {
 	list := cmdList{}
-
 	state := &api.Instance{
 		Name: "foo",
 		ExpandedConfig: map[string]string{
 			"security.privileged": "1",
 			"user.blah":           "abc",
+			"image.os":            "Debian",
+			"image.description":   "Debian buster amd64 (20200429_05:24)",
+		},
+		Status:   "Running",
+		Location: "mem-brain",
+		Type:     "Container",
+		ExpandedDevices: map[string]map[string]string{
+			"eth0": {
+				"name":         "eth0",
+				"ipv4.address": "10.29.85.156",
+				"ipv6.address": "fd42:72a:89ac:e457:216:3eff:fe83:8301",
+				"type":         "nic",
+				"parent":       "lxdbr0",
+				"nictype":      "bridged",
+			},
+		},
+		InstancePut: api.InstancePut{
+			Architecture: "potato",
+			Description:  "Something which does something",
 		},
 	}
 
@@ -42,6 +60,46 @@ func TestShouldShow(t *testing.T) {
 		t.Error("user.blah=abc didn't match")
 	}
 
+	if !list.shouldShow([]string{"status=RUNNING", "user.blah=abc"}, state) {
+		t.Error("user.blah=abc status=RUNNING didn't match")
+	}
+
+	if !list.shouldShow([]string{"image.os=Debian", "user.blah=abc"}, state) {
+		t.Error("user.blah=abc os=debian didn't match")
+	}
+
+	if !list.shouldShow([]string{"location=mem-brain", "user.blah=abc"}, state) {
+		t.Error("user.blah=abc location=mem-brain didn't match")
+	}
+
+	if !list.shouldShow([]string{"architecture=potato", "user.blah=abc"}, state) {
+		t.Error("user.blah=abc architecture=potato didn't match")
+	}
+
+	if !list.shouldShow([]string{"name=foo", "user.blah=abc"}, state) {
+		t.Error("user.blah=abc name=foo didn't match")
+	}
+
+	if list.shouldShow([]string{"image.os=temple-os", "user.blah=abc"}, state) {
+		t.Error("user.blah=abc image.os=temple-os did match")
+	}
+
+	if list.shouldShow([]string{"status=RUNNING", "type=virtual-machine", "user.blah=abc"}, state) {
+		t.Error("user.blah=abc status=RUNNING, type=virtual-machine did match ")
+	}
+
+	if list.shouldShow([]string{"status=FROZEN,STOPPED"}, state) {
+		t.Error("status=FROZEN,STOPPED did not match ")
+	}
+
+	if !list.shouldShow([]string{"status=RUNNING,STOPPED"}, state) {
+		t.Error("status=RUNNING,STOPPED  did not match ")
+	}
+
+	if !list.shouldShow([]string{"type=container", "user.blah=abc"}, state) {
+		t.Error("user.blah=abc type=container didn't match")
+	}
+
 	if list.shouldShow([]string{"bar", "u.blah=abc"}, state) {
 		t.Errorf("name filter didn't work")
 	}
@@ -49,6 +107,35 @@ func TestShouldShow(t *testing.T) {
 	if list.shouldShow([]string{"bar", "u.blah=other"}, state) {
 		t.Errorf("value filter didn't work")
 	}
+
+	if !list.shouldShow([]string{"ipv4=10.29.85.0/24"}, state) {
+		t.Errorf("net=10.29.85.0/24 filter didn't work")
+	}
+
+	if list.shouldShow([]string{"ipv4=10.29.85.0/32"}, state) {
+		t.Errorf("net=10.29.85.0/32 filter did work but should not")
+	}
+
+	if !list.shouldShow([]string{"ipv4=10.29.85.156"}, state) {
+		t.Errorf("net=10.29.85.156 filter did not work")
+	}
+
+	if !list.shouldShow([]string{"ipv6=fd42:72a:89ac:e457:216:3eff:fe83:8301"}, state) {
+		t.Errorf("net=fd42:72a:89ac:e457:216:3eff:fe83:8301 filter didn't work")
+	}
+
+	if list.shouldShow([]string{"ipv6=fd42:072a:89ac:e457:0216:3eff:fe83:ffff/128"}, state) {
+		t.Errorf("net=1net=fd42:072a:89ac:e457:0216:3eff:fe83:ffff/128 filter did work but should not")
+	}
+
+	if !list.shouldShow([]string{"ipv6=fd42:72a:89ac:e457:216:3eff:fe83:ffff/1"}, state) {
+		t.Errorf("net=fd42:72a:89ac:e457:216:3eff:fe83:ffff/1 filter filter didn't work")
+	}
+
+	if list.shouldShow([]string{"user.blah=abc", "status=stopped"}, state) {
+		t.Error("user.blah=abc status=stopped did match even though container status is 'running'")
+	}
+
 }
 
 // Used by TestColumns and TestInvalidColumns
