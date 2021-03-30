@@ -145,7 +145,7 @@ func (c *cmdList) dotPrefixMatch(short string, full string) bool {
 	return true
 }
 
-func (c *cmdList) shouldShow(filters []string, state *api.Instance) bool {
+func (c *cmdList) shouldShow(filters []string, inst *api.Instance) bool {
 	for _, filter := range filters {
 		if strings.Contains(filter, "=") {
 			membs := strings.SplitN(filter, "=", 2)
@@ -159,7 +159,7 @@ func (c *cmdList) shouldShow(filters []string, state *api.Instance) bool {
 			}
 
 			found := false
-			for configKey, configValue := range state.ExpandedConfig {
+			for configKey, configValue := range inst.ExpandedConfig {
 				if c.dotPrefixMatch(key, configKey) {
 					//try to test filter value as a regexp
 					regexpValue := value
@@ -183,7 +183,7 @@ func (c *cmdList) shouldShow(filters []string, state *api.Instance) bool {
 				}
 			}
 
-			if state.ExpandedConfig[key] == value {
+			if inst.ExpandedConfig[key] == value {
 				continue
 			}
 
@@ -197,11 +197,11 @@ func (c *cmdList) shouldShow(filters []string, state *api.Instance) bool {
 			}
 
 			r, err := regexp.Compile(regexpValue)
-			if err == nil && r.MatchString(state.Name) {
+			if err == nil && r.MatchString(inst.Name) {
 				continue
 			}
 
-			if !strings.HasPrefix(state.Name, filter) {
+			if !strings.HasPrefix(inst.Name, filter) {
 				return false
 			}
 		}
