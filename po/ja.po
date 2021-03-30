@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: LXD\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2021-03-29 23:43-0400\n"
+"POT-Creation-Date: 2021-03-30 22:23+0200\n"
 "PO-Revision-Date: 2021-02-02 15:21+0000\n"
 "Last-Translator: KATOH Yasufumi <karma@jazz.email.ne.jp>\n"
 "Language-Team: Japanese <https://hosted.weblate.org/projects/linux-"
@@ -451,15 +451,15 @@ msgstr "<pool>/<volume> <pool>/<volume>"
 msgid "<pool>/<volume>[/<snapshot>] <pool>/<volume>"
 msgstr "<pool>/<volume>[/<snapshot>] <pool>/<volume>"
 
-#: lxc/remote.go:658 lxc/remote.go:709
+#: lxc/remote.go:672 lxc/remote.go:727
 msgid "<remote>"
 msgstr "<remote>"
 
-#: lxc/remote.go:747
+#: lxc/remote.go:765
 msgid "<remote> <URL>"
 msgstr "<remote> <URL>"
 
-#: lxc/remote.go:596
+#: lxc/remote.go:602
 msgid "<remote> <new-name>"
 msgstr "<remote> <new-name>"
 
@@ -491,7 +491,7 @@ msgstr "ALIASES"
 msgid "ARCHITECTURE"
 msgstr "ARCHITECTURE"
 
-#: lxc/remote.go:580
+#: lxc/remote.go:585
 msgid "AUTH TYPE"
 msgstr "AUTH TYPE"
 
@@ -792,7 +792,7 @@ msgstr ""
 msgid "Can't read from stdin: %s"
 msgstr "標準入力から読み込めません: %s"
 
-#: lxc/remote.go:689
+#: lxc/remote.go:707
 msgid "Can't remove the default remote"
 msgstr "デフォルトのリモートは削除できません"
 
@@ -1209,8 +1209,8 @@ msgstr "ストレージボリュームを削除します"
 #: lxc/project.go:214 lxc/project.go:334 lxc/project.go:384 lxc/project.go:483
 #: lxc/project.go:538 lxc/project.go:598 lxc/project.go:627 lxc/project.go:680
 #: lxc/publish.go:31 lxc/query.go:32 lxc/remote.go:33 lxc/remote.go:85
-#: lxc/remote.go:483 lxc/remote.go:519 lxc/remote.go:599 lxc/remote.go:661
-#: lxc/remote.go:711 lxc/remote.go:749 lxc/rename.go:21 lxc/restore.go:24
+#: lxc/remote.go:483 lxc/remote.go:519 lxc/remote.go:605 lxc/remote.go:675
+#: lxc/remote.go:729 lxc/remote.go:767 lxc/rename.go:21 lxc/restore.go:24
 #: lxc/snapshot.go:28 lxc/storage.go:33 lxc/storage.go:89 lxc/storage.go:163
 #: lxc/storage.go:213 lxc/storage.go:333 lxc/storage.go:393 lxc/storage.go:513
 #: lxc/storage.go:593 lxc/storage.go:667 lxc/storage.go:751
@@ -1656,6 +1656,10 @@ msgstr "クロック数: %vMhz"
 #, c-format
 msgid "Frequency: %vMhz (min: %vMhz, max: %vMhz)"
 msgstr "クロック数: %vMhz (最小: %vMhz, 最大: %vMhz)"
+
+#: lxc/remote.go:588
+msgid "GLOBAL"
+msgstr ""
 
 #: lxc/info.go:381
 msgid "GPU:"
@@ -2701,7 +2705,7 @@ msgid "Must supply instance name for: "
 msgstr "インスタンス名を指定する必要があります: "
 
 #: lxc/cluster.go:132 lxc/list.go:496 lxc/network.go:894 lxc/network_acl.go:140
-#: lxc/profile.go:620 lxc/project.go:460 lxc/remote.go:577 lxc/storage.go:567
+#: lxc/profile.go:620 lxc/project.go:460 lxc/remote.go:582 lxc/storage.go:567
 #: lxc/storage_volume.go:1270
 msgid "NAME"
 msgstr "NAME"
@@ -2720,7 +2724,7 @@ msgstr "NICs:"
 
 #: lxc/network.go:871 lxc/operation.go:143 lxc/project.go:429
 #: lxc/project.go:434 lxc/project.go:439 lxc/project.go:444 lxc/remote.go:540
-#: lxc/remote.go:545
+#: lxc/remote.go:545 lxc/remote.go:550
 msgid "NO"
 msgstr "NO"
 
@@ -2900,11 +2904,11 @@ msgstr "PROCESSES"
 msgid "PROFILES"
 msgstr "PROFILES"
 
-#: lxc/remote.go:579
+#: lxc/remote.go:584
 msgid "PROTOCOL"
 msgstr "PROTOCOL"
 
-#: lxc/image.go:1023 lxc/remote.go:581
+#: lxc/image.go:1023 lxc/remote.go:586
 msgid "PUBLIC"
 msgstr "PUBLIC"
 
@@ -3139,13 +3143,13 @@ msgstr "インスタンスの更新中: %s"
 msgid "Refreshing the image: %s"
 msgstr "イメージの更新中: %s"
 
-#: lxc/remote.go:627
+#: lxc/remote.go:633
 #, c-format
 msgid "Remote %s already exists"
 msgstr "リモート %s は既に存在します"
 
-#: lxc/project.go:706 lxc/remote.go:619 lxc/remote.go:681 lxc/remote.go:731
-#: lxc/remote.go:769
+#: lxc/project.go:706 lxc/remote.go:625 lxc/remote.go:695 lxc/remote.go:749
+#: lxc/remote.go:787
 #, c-format
 msgid "Remote %s doesn't exist"
 msgstr "リモート %s は存在しません"
@@ -3155,7 +3159,12 @@ msgstr "リモート %s は存在しません"
 msgid "Remote %s exists as <%s>"
 msgstr "リモート %s は <%s> として存在します"
 
-#: lxc/remote.go:623 lxc/remote.go:685 lxc/remote.go:773
+#: lxc/remote.go:703
+#, fuzzy, c-format
+msgid "Remote %s is global and cannot be removed"
+msgstr "リモート %s は static ですので変更できません"
+
+#: lxc/remote.go:629 lxc/remote.go:699 lxc/remote.go:791
 #, c-format
 msgid "Remote %s is static and cannot be modified"
 msgstr "リモート %s は static ですので変更できません"
@@ -3207,7 +3216,7 @@ msgstr "インスタンスのデバイスを削除します"
 msgid "Remove profiles from instances"
 msgstr "インスタンスからプロファイルを削除します"
 
-#: lxc/remote.go:660 lxc/remote.go:661
+#: lxc/remote.go:674 lxc/remote.go:675
 msgid "Remove remotes"
 msgstr "リモートサーバを削除します"
 
@@ -3250,7 +3259,7 @@ msgstr "プロファイル名を変更します"
 msgid "Rename projects"
 msgstr "プロジェクト名を変更します"
 
-#: lxc/remote.go:598 lxc/remote.go:599
+#: lxc/remote.go:604 lxc/remote.go:605
 msgid "Rename remotes"
 msgstr "リモートサーバ名を変更します"
 
@@ -3350,7 +3359,7 @@ msgstr "SR-IOV 情報:"
 msgid "STATE"
 msgstr "STATE"
 
-#: lxc/remote.go:582
+#: lxc/remote.go:587
 msgid "STATIC"
 msgstr "STATIC"
 
@@ -3546,7 +3555,7 @@ msgstr ""
 "後方互換性のため、単一の設定を行う場合は次の形式でも設定できます:\n"
 "    lxc storage volume set [<remote>:]<pool> <volume> <key> <value>"
 
-#: lxc/remote.go:748 lxc/remote.go:749
+#: lxc/remote.go:766 lxc/remote.go:767
 msgid "Set the URL for the remote"
 msgstr "リモートの URL を設定します"
 
@@ -3808,7 +3817,7 @@ msgstr "Swap (ピーク)"
 msgid "Switch the current project"
 msgstr "現在のプロジェクトを切り替えます"
 
-#: lxc/remote.go:710 lxc/remote.go:711
+#: lxc/remote.go:728 lxc/remote.go:729
 msgid "Switch the default remote"
 msgstr "デフォルトのリモートを切り替えます"
 
@@ -4030,7 +4039,7 @@ msgstr "タイプ: %s (ephemeral)"
 msgid "UPLOAD DATE"
 msgstr "UPLOAD DATE"
 
-#: lxc/cluster.go:133 lxc/remote.go:578
+#: lxc/cluster.go:133 lxc/remote.go:583
 msgid "URL"
 msgstr "URL"
 
@@ -4189,7 +4198,7 @@ msgstr "インスタンスの稼動状態のスナップショットを取得す
 
 #: lxc/network.go:873 lxc/operation.go:145 lxc/project.go:431
 #: lxc/project.go:436 lxc/project.go:441 lxc/project.go:446 lxc/remote.go:542
-#: lxc/remote.go:547
+#: lxc/remote.go:547 lxc/remote.go:552
 msgid "YES"
 msgstr "YES"
 
@@ -4628,7 +4637,7 @@ msgstr "[<remote>] <IP|FQDN|URL>"
 msgid "[[<remote>:]<image>] [<remote>:][<name>] [< config"
 msgstr "[[<remote>:]<image>] [<remote>:][<name>] [< config"
 
-#: lxc/project.go:451 lxc/remote.go:570
+#: lxc/project.go:451 lxc/remote.go:575
 msgid "current"
 msgstr "現在値"
 

@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: lxd\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2021-03-29 23:43-0400\n"
+"POT-Creation-Date: 2021-03-30 22:23+0200\n"
 "PO-Revision-Date: 2019-09-06 07:09+0000\n"
 "Last-Translator: Stéphane Graber <stgraber@stgraber.org>\n"
 "Language-Team: Spanish <https://hosted.weblate.org/projects/linux-containers/"
@@ -458,15 +458,15 @@ msgstr ""
 msgid "<pool>/<volume>[/<snapshot>] <pool>/<volume>"
 msgstr ""
 
-#: lxc/remote.go:658 lxc/remote.go:709
+#: lxc/remote.go:672 lxc/remote.go:727
 msgid "<remote>"
 msgstr ""
 
-#: lxc/remote.go:747
+#: lxc/remote.go:765
 msgid "<remote> <URL>"
 msgstr ""
 
-#: lxc/remote.go:596
+#: lxc/remote.go:602
 msgid "<remote> <new-name>"
 msgstr ""
 
@@ -497,7 +497,7 @@ msgstr "ALIASES"
 msgid "ARCHITECTURE"
 msgstr "ARQUITECTURA"
 
-#: lxc/remote.go:580
+#: lxc/remote.go:585
 msgid "AUTH TYPE"
 msgstr ""
 
@@ -786,7 +786,7 @@ msgstr "No se puede jalar un directorio sin - recursivo"
 msgid "Can't read from stdin: %s"
 msgstr "No se peude leer desde stdin: %s"
 
-#: lxc/remote.go:689
+#: lxc/remote.go:707
 msgid "Can't remove the default remote"
 msgstr ""
 
@@ -1200,8 +1200,8 @@ msgstr ""
 #: lxc/project.go:214 lxc/project.go:334 lxc/project.go:384 lxc/project.go:483
 #: lxc/project.go:538 lxc/project.go:598 lxc/project.go:627 lxc/project.go:680
 #: lxc/publish.go:31 lxc/query.go:32 lxc/remote.go:33 lxc/remote.go:85
-#: lxc/remote.go:483 lxc/remote.go:519 lxc/remote.go:599 lxc/remote.go:661
-#: lxc/remote.go:711 lxc/remote.go:749 lxc/rename.go:21 lxc/restore.go:24
+#: lxc/remote.go:483 lxc/remote.go:519 lxc/remote.go:605 lxc/remote.go:675
+#: lxc/remote.go:729 lxc/remote.go:767 lxc/rename.go:21 lxc/restore.go:24
 #: lxc/snapshot.go:28 lxc/storage.go:33 lxc/storage.go:89 lxc/storage.go:163
 #: lxc/storage.go:213 lxc/storage.go:333 lxc/storage.go:393 lxc/storage.go:513
 #: lxc/storage.go:593 lxc/storage.go:667 lxc/storage.go:751
@@ -1604,6 +1604,10 @@ msgstr ""
 #: lxc/info.go:311
 #, c-format
 msgid "Frequency: %vMhz (min: %vMhz, max: %vMhz)"
+msgstr ""
+
+#: lxc/remote.go:588
+msgid "GLOBAL"
 msgstr ""
 
 #: lxc/info.go:381
@@ -2501,7 +2505,7 @@ msgid "Must supply instance name for: "
 msgstr ""
 
 #: lxc/cluster.go:132 lxc/list.go:496 lxc/network.go:894 lxc/network_acl.go:140
-#: lxc/profile.go:620 lxc/project.go:460 lxc/remote.go:577 lxc/storage.go:567
+#: lxc/profile.go:620 lxc/project.go:460 lxc/remote.go:582 lxc/storage.go:567
 #: lxc/storage_volume.go:1270
 msgid "NAME"
 msgstr ""
@@ -2520,7 +2524,7 @@ msgstr ""
 
 #: lxc/network.go:871 lxc/operation.go:143 lxc/project.go:429
 #: lxc/project.go:434 lxc/project.go:439 lxc/project.go:444 lxc/remote.go:540
-#: lxc/remote.go:545
+#: lxc/remote.go:545 lxc/remote.go:550
 msgid "NO"
 msgstr ""
 
@@ -2699,11 +2703,11 @@ msgstr ""
 msgid "PROFILES"
 msgstr ""
 
-#: lxc/remote.go:579
+#: lxc/remote.go:584
 msgid "PROTOCOL"
 msgstr ""
 
-#: lxc/image.go:1023 lxc/remote.go:581
+#: lxc/image.go:1023 lxc/remote.go:586
 msgid "PUBLIC"
 msgstr ""
 
@@ -2941,13 +2945,13 @@ msgstr "No se puede proveer el nombre del container a la lista"
 msgid "Refreshing the image: %s"
 msgstr "Refrescando la imagen: %s"
 
-#: lxc/remote.go:627
+#: lxc/remote.go:633
 #, c-format
 msgid "Remote %s already exists"
 msgstr ""
 
-#: lxc/project.go:706 lxc/remote.go:619 lxc/remote.go:681 lxc/remote.go:731
-#: lxc/remote.go:769
+#: lxc/project.go:706 lxc/remote.go:625 lxc/remote.go:695 lxc/remote.go:749
+#: lxc/remote.go:787
 #, c-format
 msgid "Remote %s doesn't exist"
 msgstr ""
@@ -2957,7 +2961,12 @@ msgstr ""
 msgid "Remote %s exists as <%s>"
 msgstr ""
 
-#: lxc/remote.go:623 lxc/remote.go:685 lxc/remote.go:773
+#: lxc/remote.go:703
+#, c-format
+msgid "Remote %s is global and cannot be removed"
+msgstr ""
+
+#: lxc/remote.go:629 lxc/remote.go:699 lxc/remote.go:791
 #, c-format
 msgid "Remote %s is static and cannot be modified"
 msgstr ""
@@ -3009,7 +3018,7 @@ msgstr ""
 msgid "Remove profiles from instances"
 msgstr ""
 
-#: lxc/remote.go:660 lxc/remote.go:661
+#: lxc/remote.go:674 lxc/remote.go:675
 msgid "Remove remotes"
 msgstr ""
 
@@ -3051,7 +3060,7 @@ msgstr ""
 msgid "Rename projects"
 msgstr ""
 
-#: lxc/remote.go:598 lxc/remote.go:599
+#: lxc/remote.go:604 lxc/remote.go:605
 msgid "Rename remotes"
 msgstr ""
 
@@ -3146,7 +3155,7 @@ msgstr ""
 msgid "STATE"
 msgstr ""
 
-#: lxc/remote.go:582
+#: lxc/remote.go:587
 msgid "STATIC"
 msgstr ""
 
@@ -3304,7 +3313,7 @@ msgid ""
 "    lxc storage volume set [<remote>:]<pool> <volume> <key> <value>"
 msgstr ""
 
-#: lxc/remote.go:748 lxc/remote.go:749
+#: lxc/remote.go:766 lxc/remote.go:767
 msgid "Set the URL for the remote"
 msgstr ""
 
@@ -3563,7 +3572,7 @@ msgstr ""
 msgid "Switch the current project"
 msgstr ""
 
-#: lxc/remote.go:710 lxc/remote.go:711
+#: lxc/remote.go:728 lxc/remote.go:729
 msgid "Switch the default remote"
 msgstr ""
 
@@ -3760,7 +3769,7 @@ msgstr ""
 msgid "UPLOAD DATE"
 msgstr ""
 
-#: lxc/cluster.go:133 lxc/remote.go:578
+#: lxc/cluster.go:133 lxc/remote.go:583
 msgid "URL"
 msgstr ""
 
@@ -3911,7 +3920,7 @@ msgstr ""
 
 #: lxc/network.go:873 lxc/operation.go:145 lxc/project.go:431
 #: lxc/project.go:436 lxc/project.go:441 lxc/project.go:446 lxc/remote.go:542
-#: lxc/remote.go:547
+#: lxc/remote.go:547 lxc/remote.go:552
 msgid "YES"
 msgstr ""
 
@@ -4432,7 +4441,7 @@ msgstr ""
 msgid "[[<remote>:]<image>] [<remote>:][<name>] [< config"
 msgstr "No se puede proveer el nombre del container a la lista"
 
-#: lxc/project.go:451 lxc/remote.go:570
+#: lxc/project.go:451 lxc/remote.go:575
 msgid "current"
 msgstr ""
 
