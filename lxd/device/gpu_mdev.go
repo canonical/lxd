@@ -71,28 +71,59 @@ func (d *gpuMdev) startVM() (*deviceConfig.RunConfig, error) {
 
 		pciAddress = gpu.PCIAddress
 
-		// Look for the requested mdev profile.
-		foundMdev := false
-		for mdev := range gpu.Mdev {
-			if d.config["mdev"] == mdev {
-				foundMdev = true
+		// Look for the requested mdev profile on the GPU itself.
+		mdevFound := false
+		mdevAvailable := false
+		for k, v := range gpu.Mdev {
+			if d.config["mdev"] == k {
+				mdevFound = true
+				if v.Available > 0 {
+					mdevAvailable = true
+				}
 				break
 			}
 		}
 
-		if !foundMdev {
-			return nil, fmt.Errorf("Invalid mdev %q", d.config["mdev"])
+		// If no mdev found on the GPU and SR-IOV is present, look on the VFs.
+		if !mdevFound && gpu.SRIOV != nil {
+			for _, vf := range gpu.SRIOV.VFs {
+				for k, v := range vf.Mdev {
+					if d.config["mdev"] == k {
+						mdevFound = true
+						if v.Available > 0 {
+							mdevAvailable = true
+
+							// Replace the PCI address with that of the VF.
+							pciAddress = vf.PCIAddress
+						}
+
+						break
+					}
+				}
+
+				if mdevAvailable {
+					break
+				}
+			}
+		}
+
+		if !mdevFound {
+			return nil, fmt.Errorf("Invalid mdev profile %q", d.config["mdev"])
+		}
+
+		if !mdevAvailable {
+			return nil, fmt.Errorf("No available mdev for profile %q", d.config["mdev"])
 		}
 
 		// Create the vGPU.
-		if mdevUUID == "" || !shared.PathExists(fmt.Sprintf("/sys/bus/pci/devices/%s/%s", gpu.PCIAddress, mdevUUID)) {
+		if mdevUUID == "" || !shared.PathExists(fmt.Sprintf("/sys/bus/pci/devices/%s/%s", pciAddress, mdevUUID)) {
 			devUUID, err := uuid.NewUUID()
 			if err != nil {
 				return nil, errors.Wrap(err, "Failed to generate UUID")
 			}
 			mdevUUID = devUUID.String()
 
-			err = ioutil.WriteFile(filepath.Join(fmt.Sprintf("/sys/bus/pci/devices/%s/mdev_supported_types/%s/create", gpu.PCIAddress, d.config["mdev"])), []byte(mdevUUID), 200)
+			err = ioutil.WriteFile(filepath.Join(fmt.Sprintf("/sys/bus/pci/devices/%s/mdev_supported_types/%s/create", pciAddress, d.config["mdev"])), []byte(mdevUUID), 200)
 			if err != nil {
 				if os.IsNotExist(err) {
 					return nil, fmt.Errorf("The requested profile %q does not exist", d.config["mdev"])
