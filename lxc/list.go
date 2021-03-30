@@ -156,7 +156,7 @@ func (c *cmdList) dotPrefixMatch(short string, full string) bool {
 	return true
 }
 
-func (c *cmdList) shouldShow(filters []string, state *api.Instance) bool {
+func (c *cmdList) shouldShow(filters []string, inst *api.Instance) bool {
 	c.mapShorthandFilters()
 
 	for _, filter := range filters {
@@ -171,12 +171,12 @@ func (c *cmdList) shouldShow(filters []string, state *api.Instance) bool {
 				value = membs[1]
 			}
 
-			if c.evaluateShorthandFilter(key, value, state) {
+			if c.evaluateShorthandFilter(key, value, inst) {
 				continue
 			}
 
 			found := false
-			for configKey, configValue := range state.ExpandedConfig {
+			for configKey, configValue := range inst.ExpandedConfig {
 				if c.dotPrefixMatch(key, configKey) {
 					//try to test filter value as a regexp
 					regexpValue := value
@@ -200,7 +200,7 @@ func (c *cmdList) shouldShow(filters []string, state *api.Instance) bool {
 				}
 			}
 
-			if state.ExpandedConfig[key] == value {
+			if inst.ExpandedConfig[key] == value {
 				continue
 			}
 
@@ -214,11 +214,11 @@ func (c *cmdList) shouldShow(filters []string, state *api.Instance) bool {
 			}
 
 			r, err := regexp.Compile(regexpValue)
-			if err == nil && r.MatchString(state.Name) {
+			if err == nil && r.MatchString(inst.Name) {
 				continue
 			}
 
-			if !strings.HasPrefix(state.Name, filter) {
+			if !strings.HasPrefix(inst.Name, filter) {
 				return false
 			}
 		}
@@ -227,7 +227,7 @@ func (c *cmdList) shouldShow(filters []string, state *api.Instance) bool {
 	return true
 }
 
-func (c *cmdList) evaluateShorthandFilter(key string, value string, state *api.Instance) bool {
+func (c *cmdList) evaluateShorthandFilter(key string, value string, inst *api.Instance) bool {
 	const shorthandValueDelimiter = ","
 	shorthandFilterFunction, isShorthandFilter := c.shorthandFilters[strings.ToLower(key)]
 
@@ -235,7 +235,7 @@ func (c *cmdList) evaluateShorthandFilter(key string, value string, state *api.I
 		if strings.Contains(value, shorthandValueDelimiter) {
 			matched := false
 			for _, curValue := range strings.Split(value, shorthandValueDelimiter) {
-				if shorthandFilterFunction(state, curValue) {
+				if shorthandFilterFunction(inst, curValue) {
 					matched = true
 				}
 			}
@@ -243,7 +243,7 @@ func (c *cmdList) evaluateShorthandFilter(key string, value string, state *api.I
 			return matched
 		}
 
-		return shorthandFilterFunction(state, value)
+		return shorthandFilterFunction(inst, value)
 	}
 
 	return false
