@@ -59,7 +59,6 @@ A key/value pair where the key is a shorthand. Multiple values must be delimited
   - type={instance type}
   - status={instance current lifecycle status}
   - architecture={instance architecture}
-  - name={instance name}
   - location={location name}
   - ipv4={ip or CIDR}
   - ipv6={ip or CIDR}
@@ -835,10 +834,6 @@ func (c *cmdList) matchByArchitecture(cInfo *api.Instance, query string) bool {
 	return strings.ToLower(cInfo.InstancePut.Architecture) == strings.ToLower(query)
 }
 
-func (c *cmdList) matchByName(cInfo *api.Instance, query string) bool {
-	return strings.ToLower(cInfo.Name) == strings.ToLower(query)
-}
-
 func (c *cmdList) matchByLocation(cInfo *api.Instance, query string) bool {
 	return strings.ToLower(cInfo.Location) == strings.ToLower(query)
 }
@@ -925,7 +920,6 @@ func (c *cmdList) mapShorthandFilters() {
 		"type":         c.matchByType,
 		"status":       c.matchByStatus,
 		"architecture": c.matchByArchitecture,
-		"name":         c.matchByName,
 		"location":     c.matchByLocation,
 		"ipv4":         c.matchByIPV4,
 		"ipv6":         c.matchByIPV6,
