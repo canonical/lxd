@@ -29,11 +29,6 @@ func (d *gpuMdev) Start() (*deviceConfig.RunConfig, error) {
 		return nil, err
 	}
 
-	err = d.createVirtualGPU()
-	if err != nil {
-		return nil, err
-	}
-
 	return d.startVM()
 }
 
@@ -49,14 +44,18 @@ func (d *gpuMdev) Stop() (*deviceConfig.RunConfig, error) {
 // startVM detects the requested GPU devices and related virtual functions and rebinds them to the vfio-pci driver.
 func (d *gpuMdev) startVM() (*deviceConfig.RunConfig, error) {
 	runConf := deviceConfig.RunConfig{}
+
+	// Get any existing UUID.
+	v := d.volatileGet()
+	mdevUUID := v["vgpu.uuid"]
+
+	// Get the local GPUs.
 	gpus, err := resources.GetGPU()
 	if err != nil {
 		return nil, err
 	}
 
-	saveData := make(map[string]string)
 	var pciAddress string
-
 	for _, gpu := range gpus.Cards {
 		// Skip any cards that don't match the vendorid, pci, productid or DRM ID settings (if specified).
 		if (d.config["vendorid"] != "" && gpu.VendorID != d.config["vendorid"]) ||
@@ -71,6 +70,37 @@ func (d *gpuMdev) startVM() (*deviceConfig.RunConfig, error) {
 		}
 
 		pciAddress = gpu.PCIAddress
+
+		// Look for the requested mdev profile.
+		foundMdev := false
+		for mdev := range gpu.Mdev {
+			if d.config["mdev"] == mdev {
+				foundMdev = true
+				break
+			}
+		}
+
+		if !foundMdev {
+			return nil, fmt.Errorf("Invalid mdev %q", d.config["mdev"])
+		}
+
+		// Create the vGPU.
+		if mdevUUID == "" || !shared.PathExists(fmt.Sprintf("/sys/bus/pci/devices/%s/%s", gpu.PCIAddress, mdevUUID)) {
+			devUUID, err := uuid.NewUUID()
+			if err != nil {
+				return nil, errors.Wrap(err, "Failed to generate UUID")
+			}
+			mdevUUID = devUUID.String()
+
+			err = ioutil.WriteFile(filepath.Join(fmt.Sprintf("/sys/bus/pci/devices/%s/mdev_supported_types/%s/create", gpu.PCIAddress, d.config["mdev"])), []byte(mdevUUID), 200)
+			if err != nil {
+				if os.IsNotExist(err) {
+					return nil, fmt.Errorf("The requested profile %q does not exist", d.config["mdev"])
+				}
+
+				return nil, errors.Wrapf(err, "Failed to create virtual gpu %q", mdevUUID)
+			}
+		}
 	}
 
 	if pciAddress == "" {
@@ -84,17 +114,17 @@ func (d *gpuMdev) startVM() (*deviceConfig.RunConfig, error) {
 		return nil, errors.Wrapf(err, "Failed to get PCI device info for GPU %q", pciAddress)
 	}
 
-	v := d.volatileGet()
-
+	// Prepare the new volatile keys.
+	saveData := make(map[string]string)
 	saveData["last_state.pci.slot.name"] = pciDev.SlotName
 	saveData["last_state.pci.driver"] = pciDev.Driver
-	saveData["vgpu.uuid"] = v["vgpu.uuid"]
+	saveData["vgpu.uuid"] = mdevUUID
 
 	runConf.GPUDevice = append(runConf.GPUDevice,
 		[]deviceConfig.RunConfigItem{
 			{Key: "devName", Value: d.name},
 			{Key: "pciSlotName", Value: saveData["last_state.pci.slot.name"]},
-			{Key: "vgpu", Value: v["vgpu.uuid"]},
+			{Key: "vgpu", Value: mdevUUID},
 		}...)
 
 	err = d.volatileSet(saveData)
@@ -179,64 +209,4 @@ func (d *gpuMdev) validateEnvironment() error {
 	}
 
 	return validatePCIDevice(d.config["pci"])
-}
-
-func (d *gpuMdev) createVirtualGPU() error {
-	gpus, err := resources.GetGPU()
-	if err != nil {
-		return err
-	}
-
-	for _, gpu := range gpus.Cards {
-		// Skip any cards that don't match the vendorid, pci or productid settings (if specified).
-		if (d.config["vendorid"] != "" && gpu.VendorID != d.config["vendorid"]) ||
-			(d.config["pci"] != "" && gpu.PCIAddress != d.config["pci"]) ||
-			(d.config["productid"] != "" && gpu.ProductID != d.config["productid"]) {
-			continue
-		}
-
-		foundMdev := false
-
-		for mdev := range gpu.Mdev {
-			if d.config["mdev"] == mdev {
-				foundMdev = true
-				break
-			}
-		}
-
-		if !foundMdev {
-			return fmt.Errorf("Invalid mdev %q", d.config["mdev"])
-		}
-
-		// Check if the vgpu exists before creating it.
-		v := d.volatileGet()
-
-		if v["vgpu.uuid"] != "" && shared.PathExists(fmt.Sprintf("/sys/bus/pci/devices/%s/%s", gpu.PCIAddress, v["vgpu.uuid"])) {
-			return nil
-		}
-
-		// Create the virtual gpu
-		devUUID, err := uuid.NewUUID()
-		if err != nil {
-			return errors.Wrap(err, "Failed to generate UUID")
-		}
-
-		err = ioutil.WriteFile(filepath.Join(fmt.Sprintf("/sys/bus/pci/devices/%s/mdev_supported_types/%s/create", gpu.PCIAddress, d.config["mdev"])), []byte(devUUID.String()), 200)
-		if err != nil {
-			if os.IsNotExist(err) {
-				return fmt.Errorf("The requested profile %q does not exist", d.config["mdev"])
-			}
-
-			return errors.Wrapf(err, "Failed to create virtual gpu %q", devUUID.String())
-		}
-
-		err = d.volatileSet(map[string]string{"vgpu.uuid": devUUID.String()})
-		if err != nil {
-			return err
-		}
-
-		break
-	}
-
-	return nil
 }
