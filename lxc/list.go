@@ -161,19 +161,20 @@ func (c *cmdList) shouldShow(filters []string, inst *api.Instance) bool {
 			found := false
 			for configKey, configValue := range inst.ExpandedConfig {
 				if c.dotPrefixMatch(key, configKey) {
-					//try to test filter value as a regexp
+					// Try to test filter value as a regexp.
 					regexpValue := value
 					if !(strings.Contains(value, "^") || strings.Contains(value, "$")) {
 						regexpValue = "^" + regexpValue + "$"
 					}
+
 					r, err := regexp.Compile(regexpValue)
-					//if not regexp compatible use original value
+					// If not regexp compatible use original value.
 					if err != nil {
 						if value == configValue {
 							found = true
 							break
 						} else {
-							// the property was found but didn't match
+							// The property was found but didn't match.
 							return false
 						}
 					} else if r.MatchString(configValue) {
