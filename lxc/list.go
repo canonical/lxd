@@ -37,7 +37,7 @@ type cmdList struct {
 	flagFast    bool
 	flagFormat  string
 
-	shorthandFilters map[string]func(*api.Instance, string) bool
+	shorthandFilters map[string]func(*api.Instance, *api.InstanceState, string) bool
 }
 
 func (c *cmdList) Command() *cobra.Command {
@@ -156,7 +156,7 @@ func (c *cmdList) dotPrefixMatch(short string, full string) bool {
 	return true
 }
 
-func (c *cmdList) shouldShow(filters []string, inst *api.Instance) bool {
+func (c *cmdList) shouldShow(filters []string, inst *api.Instance, state *api.InstanceState, initial bool) bool {
 	c.mapShorthandFilters()
 
 	for _, filter := range filters {
@@ -171,7 +171,7 @@ func (c *cmdList) shouldShow(filters []string, inst *api.Instance) bool {
 				value = membs[1]
 			}
 
-			if c.evaluateShorthandFilter(key, value, inst) {
+			if initial || c.evaluateShorthandFilter(key, value, inst, state) {
 				continue
 			}
 
@@ -228,7 +228,7 @@ func (c *cmdList) shouldShow(filters []string, inst *api.Instance) bool {
 	return true
 }
 
-func (c *cmdList) evaluateShorthandFilter(key string, value string, inst *api.Instance) bool {
+func (c *cmdList) evaluateShorthandFilter(key string, value string, inst *api.Instance, state *api.InstanceState) bool {
 	const shorthandValueDelimiter = ","
 	shorthandFilterFunction, isShorthandFilter := c.shorthandFilters[strings.ToLower(key)]
 
@@ -236,7 +236,7 @@ func (c *cmdList) evaluateShorthandFilter(key string, value string, inst *api.In
 		if strings.Contains(value, shorthandValueDelimiter) {
 			matched := false
 			for _, curValue := range strings.Split(value, shorthandValueDelimiter) {
-				if shorthandFilterFunction(inst, curValue) {
+				if shorthandFilterFunction(inst, state, curValue) {
 					matched = true
 				}
 			}
@@ -244,7 +244,7 @@ func (c *cmdList) evaluateShorthandFilter(key string, value string, inst *api.In
 			return matched
 		}
 
-		return shorthandFilterFunction(inst, value)
+		return shorthandFilterFunction(inst, state, value)
 	}
 
 	return false
@@ -362,7 +362,7 @@ func (c *cmdList) showInstances(cts []api.InstanceFull, filters []string, column
 	// Generate the table data
 	data := [][]string{}
 	for _, ct := range cts {
-		if !c.shouldShow(filters, &ct.Instance) {
+		if !c.shouldShow(filters, &ct.Instance, ct.State, false) {
 			continue
 		}
 
@@ -451,7 +451,7 @@ func (c *cmdList) Run(cmd *cobra.Command, args []string) error {
 
 	// Apply filters
 	for _, cinfo := range ctslist {
-		if !c.shouldShow(filters, &cinfo) {
+		if !c.shouldShow(filters, &cinfo, nil, true) {
 			continue
 		}
 
@@ -823,23 +823,23 @@ func (c *cmdList) locationColumnData(cInfo api.InstanceFull) string {
 	return cInfo.Location
 }
 
-func (c *cmdList) matchByType(cInfo *api.Instance, query string) bool {
+func (c *cmdList) matchByType(cInfo *api.Instance, cState *api.InstanceState, query string) bool {
 	return strings.ToLower(cInfo.Type) == strings.ToLower(query)
 }
 
-func (c *cmdList) matchByStatus(cInfo *api.Instance, query string) bool {
+func (c *cmdList) matchByStatus(cInfo *api.Instance, cState *api.InstanceState, query string) bool {
 	return strings.ToLower(cInfo.Status) == strings.ToLower(query)
 }
 
-func (c *cmdList) matchByArchitecture(cInfo *api.Instance, query string) bool {
+func (c *cmdList) matchByArchitecture(cInfo *api.Instance, cState *api.InstanceState, query string) bool {
 	return strings.ToLower(cInfo.InstancePut.Architecture) == strings.ToLower(query)
 }
 
-func (c *cmdList) matchByLocation(cInfo *api.Instance, query string) bool {
+func (c *cmdList) matchByLocation(cInfo *api.Instance, cState *api.InstanceState, query string) bool {
 	return strings.ToLower(cInfo.Location) == strings.ToLower(query)
 }
 
-func (c *cmdList) matchByNet(cInfo *api.Instance, query string, addressKey string) bool {
+func (c *cmdList) matchByNet(cInfo *api.Instance, cState *api.InstanceState, query string, addressKey string) bool {
 	nicDevices := c.filterDevicesByProperties(cInfo.ExpandedDevices, map[string]string{"type": "nic"}, false)
 	if len(cInfo.ExpandedDevices) == 0 ||
 		len(nicDevices) == 0 {
@@ -870,11 +870,11 @@ func (c *cmdList) matchByNet(cInfo *api.Instance, query string, addressKey strin
 	return false
 }
 
-func (c *cmdList) matchByIPV6(cInfo *api.Instance, query string) bool {
-	return c.matchByNet(cInfo, query, "ipv6.address")
+func (c *cmdList) matchByIPV6(cInfo *api.Instance, cState *api.InstanceState, query string) bool {
+	return c.matchByNet(cInfo, cState, query, "ipv6.address")
 }
-func (c *cmdList) matchByIPV4(cInfo *api.Instance, query string) bool {
-	return c.matchByNet(cInfo, query, "ipv4.address")
+func (c *cmdList) matchByIPV4(cInfo *api.Instance, cState *api.InstanceState, query string) bool {
+	return c.matchByNet(cInfo, cState, query, "ipv4.address")
 }
 
 func (c *cmdList) hasIP(nicDevices map[string]map[string]string, ip net.IP, addressKey string) bool {
@@ -917,7 +917,7 @@ func (c *cmdList) getKeyValueMatcher(fuzzy bool) func(stack string, query string
 }
 
 func (c *cmdList) mapShorthandFilters() {
-	c.shorthandFilters = map[string]func(*api.Instance, string) bool{
+	c.shorthandFilters = map[string]func(*api.Instance, *api.InstanceState, string) bool{
 		"type":         c.matchByType,
 		"status":       c.matchByStatus,
 		"architecture": c.matchByArchitecture,
