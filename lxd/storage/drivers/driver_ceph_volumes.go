@@ -607,8 +607,11 @@ func (d *ceph) DeleteVolume(vol Volume, op *operations.Operation) error {
 	}
 
 	if vol.volType == VolumeTypeImage {
-		// Try to umount but don't fail.
-		d.UnmountVolume(vol, false, op)
+		// Unmount and unmap.
+		_, err := d.UnmountVolume(vol, false, op)
+		if err != nil {
+			return err
+		}
 
 		hasReadonlySnapshot := d.hasVolume(d.getRBDVolumeName(vol, "readonly", false, false))
 		hasDependendantSnapshots := false
@@ -625,11 +628,6 @@ func (d *ceph) DeleteVolume(vol Volume, op *operations.Operation) error {
 		if hasDependendantSnapshots {
 			// If the image has dependant snapshots, then we just mark it as deleted, but don't
 			// actually remove it yet.
-			err := d.rbdUnmapVolume(vol, true)
-			if err != nil {
-				return err
-			}
-
 			err = d.rbdMarkVolumeDeleted(vol, vol.name)
 			if err != nil {
 				return err
@@ -656,12 +654,6 @@ func (d *ceph) DeleteVolume(vol Volume, op *operations.Operation) error {
 				return err
 			}
 
-			// Unmap image.
-			err = d.rbdUnmapVolume(vol, true)
-			if err != nil {
-				return err
-			}
-
 			// Delete image.
 			err = d.rbdDeleteVolume(vol)
 			if err != nil {
@@ -669,6 +661,7 @@ func (d *ceph) DeleteVolume(vol Volume, op *operations.Operation) error {
 			}
 		}
 	} else {
+		// Unmount and unmap.
 		_, err := d.UnmountVolume(vol, false, op)
 		if err != nil {
 			return err
