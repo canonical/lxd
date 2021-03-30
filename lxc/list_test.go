@@ -38,17 +38,32 @@ func TestShouldShow(t *testing.T) {
 		Type:     "Container",
 		ExpandedDevices: map[string]map[string]string{
 			"eth0": {
-				"name":         "eth0",
-				"ipv4.address": "10.29.85.156",
-				"ipv6.address": "fd42:72a:89ac:e457:216:3eff:fe83:8301",
-				"type":         "nic",
-				"parent":       "lxdbr0",
-				"nictype":      "bridged",
+				"name":    "eth0",
+				"type":    "nic",
+				"parent":  "lxdbr0",
+				"nictype": "bridged",
 			},
 		},
 		InstancePut: api.InstancePut{
 			Architecture: "potato",
 			Description:  "Something which does something",
+		},
+	}
+
+	state := &api.InstanceState{
+		Network: map[string]api.InstanceStateNetwork{
+			"eth0": {
+				Addresses: []api.InstanceStateNetworkAddress{
+					{
+						Family:  "inet",
+						Address: "10.29.85.156",
+					},
+					{
+						Family:  "inet6",
+						Address: "fd42:72a:89ac:e457:216:3eff:fe83:8301",
+					},
+				},
+			},
 		},
 	}
 
@@ -108,27 +123,27 @@ func TestShouldShow(t *testing.T) {
 		t.Errorf("value filter didn't work")
 	}
 
-	if !list.shouldShow([]string{"ipv4=10.29.85.0/24"}, inst, nil, false) {
+	if !list.shouldShow([]string{"ipv4=10.29.85.0/24"}, inst, state, false) {
 		t.Errorf("net=10.29.85.0/24 filter didn't work")
 	}
 
-	if list.shouldShow([]string{"ipv4=10.29.85.0/32"}, inst, nil, false) {
+	if list.shouldShow([]string{"ipv4=10.29.85.0/32"}, inst, state, false) {
 		t.Errorf("net=10.29.85.0/32 filter did work but should not")
 	}
 
-	if !list.shouldShow([]string{"ipv4=10.29.85.156"}, inst, nil, false) {
+	if !list.shouldShow([]string{"ipv4=10.29.85.156"}, inst, state, false) {
 		t.Errorf("net=10.29.85.156 filter did not work")
 	}
 
-	if !list.shouldShow([]string{"ipv6=fd42:72a:89ac:e457:216:3eff:fe83:8301"}, inst, nil, false) {
+	if !list.shouldShow([]string{"ipv6=fd42:72a:89ac:e457:216:3eff:fe83:8301"}, inst, state, false) {
 		t.Errorf("net=fd42:72a:89ac:e457:216:3eff:fe83:8301 filter didn't work")
 	}
 
-	if list.shouldShow([]string{"ipv6=fd42:072a:89ac:e457:0216:3eff:fe83:ffff/128"}, inst, nil, false) {
+	if list.shouldShow([]string{"ipv6=fd42:072a:89ac:e457:0216:3eff:fe83:ffff/128"}, inst, state, false) {
 		t.Errorf("net=1net=fd42:072a:89ac:e457:0216:3eff:fe83:ffff/128 filter did work but should not")
 	}
 
-	if !list.shouldShow([]string{"ipv6=fd42:72a:89ac:e457:216:3eff:fe83:ffff/1"}, inst, nil, false) {
+	if !list.shouldShow([]string{"ipv6=fd42:72a:89ac:e457:216:3eff:fe83:ffff/1"}, inst, state, false) {
 		t.Errorf("net=fd42:72a:89ac:e457:216:3eff:fe83:ffff/1 filter filter didn't work")
 	}
 
