@@ -839,81 +839,51 @@ func (c *cmdList) matchByLocation(cInfo *api.Instance, cState *api.InstanceState
 	return strings.ToLower(cInfo.Location) == strings.ToLower(query)
 }
 
-func (c *cmdList) matchByNet(cInfo *api.Instance, cState *api.InstanceState, query string, addressKey string) bool {
-	nicDevices := c.filterDevicesByProperties(cInfo.ExpandedDevices, map[string]string{"type": "nic"}, false)
-	if len(cInfo.ExpandedDevices) == 0 ||
-		len(nicDevices) == 0 {
+func (c *cmdList) matchByNet(cInfo *api.Instance, cState *api.InstanceState, query string, family string) bool {
+	// Skip if no state.
+	if cState == nil {
 		return false
 	}
 
-	ip, subNet, err := net.ParseCIDR(query)
-	if err == nil {
-		hasIP := c.hasIP(nicDevices, ip, addressKey)
-		if hasIP {
-			return true
-		}
-		for _, curDevice := range c.filterDevicesByProperties(nicDevices, map[string]string{addressKey: "*"}, true) {
-			curIP := net.ParseIP(curDevice[addressKey])
-			if curIP != nil && subNet.Contains(curIP) {
+	// Skip if no network data.
+	if cState.Network == nil {
+		return false
+	}
+
+	// Consider the filter as a CIDR.
+	_, subnet, _ := net.ParseCIDR(query)
+
+	// Go through interfaces.
+	for _, network := range cState.Network {
+		for _, addr := range network.Addresses {
+			if family == "ipv6" && addr.Family != "inet6" {
+				continue
+			}
+			if family == "ipv4" && addr.Family != "inet" {
+				continue
+			}
+
+			if addr.Address == query {
 				return true
 			}
-		}
-	} else {
-		ip = net.ParseIP(query)
-		if ip != nil {
-			hasIP := c.hasIP(nicDevices, ip, addressKey)
-			if hasIP {
-				return true
+
+			if subnet != nil {
+				ipAddr := net.ParseIP(addr.Address)
+				if ipAddr != nil && subnet.Contains(ipAddr) {
+					return true
+				}
 			}
 		}
 	}
+
 	return false
 }
 
 func (c *cmdList) matchByIPV6(cInfo *api.Instance, cState *api.InstanceState, query string) bool {
-	return c.matchByNet(cInfo, cState, query, "ipv6.address")
+	return c.matchByNet(cInfo, cState, query, "ipv6")
 }
 func (c *cmdList) matchByIPV4(cInfo *api.Instance, cState *api.InstanceState, query string) bool {
-	return c.matchByNet(cInfo, cState, query, "ipv4.address")
-}
-
-func (c *cmdList) hasIP(nicDevices map[string]map[string]string, ip net.IP, addressKey string) bool {
-	return len(c.filterDevicesByProperties(nicDevices, map[string]string{addressKey: ip.String()}, false)) > 0
-}
-
-func (c *cmdList) filterDevicesByProperties(devices map[string]map[string]string,
-	propertyKeyValueQuery map[string]string, fuzzy bool) map[string]map[string]string {
-
-	if len(propertyKeyValueQuery) == 0 {
-		return devices
-	}
-
-	matcher := c.getKeyValueMatcher(fuzzy)
-	var result = map[string]map[string]string{}
-	for curDeviceKey, curDevice := range devices {
-		for curQueryKey, curQueryValue := range propertyKeyValueQuery {
-			curValue, curKeyExists := curDevice[strings.ToLower(curQueryKey)]
-			if curKeyExists && matcher(curValue, curQueryValue) {
-				result[curDeviceKey] = curDevice
-				break
-			}
-		}
-	}
-	return result
-}
-
-func (c *cmdList) getKeyValueMatcher(fuzzy bool) func(stack string, query string) bool {
-	if fuzzy {
-		return func(stack string, query string) bool {
-			return strings.Contains(strings.ToLower(stack), strings.ToLower(query)) ||
-				strings.HasPrefix(stack, "*") ||
-				strings.HasSuffix(stack, "*") ||
-				query == "*"
-		}
-	}
-	return func(stack string, query string) bool {
-		return stack == query
-	}
+	return c.matchByNet(cInfo, cState, query, "ipv4")
 }
 
 func (c *cmdList) mapShorthandFilters() {
