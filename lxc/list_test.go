@@ -76,8 +76,8 @@ func TestShouldShow(t *testing.T) {
 		t.Error("user.blah=abc architecture=potato didn't match")
 	}
 
-	if !list.shouldShow([]string{"name=foo", "user.blah=abc"}, inst, nil, false) {
-		t.Error("user.blah=abc name=foo didn't match")
+	if !list.shouldShow([]string{"foo", "user.blah=abc"}, inst, nil, false) {
+		t.Error("user.blah=abc foo didn't match")
 	}
 
 	if list.shouldShow([]string{"image.os=temple-os", "user.blah=abc"}, inst, nil, false) {
