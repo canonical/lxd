@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"sort"
 	"strings"
 
 	"github.com/spf13/cobra"
@@ -146,7 +147,15 @@ func (c *cmdInfo) renderGPU(gpu api.ResourcesGPUCard, prefix string, initial boo
 	if gpu.Mdev != nil {
 		fmt.Printf(prefix + i18n.G("Mdev profiles:") + "\n")
 
-		for k, v := range gpu.Mdev {
+		keys := make([]string, 0, len(gpu.Mdev))
+		for k := range gpu.Mdev {
+			keys = append(keys, k)
+		}
+		sort.Strings(keys)
+
+		for _, k := range keys {
+			v := gpu.Mdev[k]
+
 			fmt.Println(prefix + "  - " + fmt.Sprintf(i18n.G("%s (%d available)"), k, v.Available))
 			if v.Description != "" {
 				for _, line := range strings.Split(v.Description, "\n") {
