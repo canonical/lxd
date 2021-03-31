@@ -710,12 +710,6 @@ func internalImport(d *Daemon, projectName string, req *internalImportPost, reco
 		}
 	}
 
-	// Prepare root disk entry if needed.
-	rootDev := map[string]string{}
-	rootDev["type"] = "disk"
-	rootDev["path"] = "/"
-	rootDev["pool"] = instancePoolName
-
 	// If recovering an on-disk instance, mark the filesystem as going through a recovery import, so that we
 	// don't delete the on-disk files if an import error occurs.
 	if recovery {
@@ -730,24 +724,21 @@ func internalImport(d *Daemon, projectName string, req *internalImportPost, reco
 
 	baseImage := backupConf.Container.Config["volatile.base_image"]
 
-	// Add root device if missing.
-	root, _, _ := shared.GetRootDiskDevice(backupConf.Container.Devices)
-	if root == "" {
-		if backupConf.Container.Devices == nil {
-			backupConf.Container.Devices = map[string]map[string]string{}
-		}
-
-		rootDevName := "root"
-		for i := 0; i < 100; i++ {
-			if backupConf.Container.Devices[rootDevName] == nil {
-				break
-			}
-			rootDevName = fmt.Sprintf("root%d", i)
-			continue
-		}
-
-		backupConf.Container.Devices[rootDevName] = rootDev
+	profiles, err := d.State().Cluster.GetProfiles(projectName, backupConf.Container.Profiles)
+	if err != nil {
+		return response.SmartError(errors.Wrapf(err, "Failed loading profiles for instance"))
 	}
+
+	// Add root device if needed.
+	if backupConf.Container.Devices == nil {
+		backupConf.Container.Devices = make(map[string]map[string]string, 0)
+	}
+
+	if backupConf.Container.ExpandedDevices == nil {
+		backupConf.Container.ExpandedDevices = make(map[string]map[string]string, 0)
+	}
+
+	internalImportRootDevicePopulate(instancePoolName, backupConf.Container.Devices, backupConf.Container.ExpandedDevices, profiles)
 
 	arch, err := osarch.ArchitectureId(backupConf.Container.Architecture)
 	if err != nil {
@@ -832,24 +823,21 @@ func internalImport(d *Daemon, projectName string, req *internalImportPost, reco
 			return response.SmartError(err)
 		}
 
-		// Add root device if missing.
-		root, _, _ := shared.GetRootDiskDevice(snap.Devices)
-		if root == "" {
-			if snap.Devices == nil {
-				snap.Devices = map[string]map[string]string{}
-			}
-
-			rootDevName := "root"
-			for i := 0; i < 100; i++ {
-				if snap.Devices[rootDevName] == nil {
-					break
-				}
-				rootDevName = fmt.Sprintf("root%d", i)
-				continue
-			}
-
-			snap.Devices[rootDevName] = rootDev
+		profiles, err := d.State().Cluster.GetProfiles(projectName, snap.Profiles)
+		if err != nil {
+			return response.SmartError(errors.Wrapf(err, "Failed loading profiles for instance snapshot %q", snap.Name))
 		}
+
+		// Add root device if needed.
+		if snap.Devices == nil {
+			snap.Devices = make(map[string]map[string]string, 0)
+		}
+
+		if snap.ExpandedDevices == nil {
+			snap.ExpandedDevices = make(map[string]map[string]string, 0)
+		}
+
+		internalImportRootDevicePopulate(instancePoolName, snap.Devices, snap.ExpandedDevices, profiles)
 
 		_, err = instance.CreateInternal(d.State(), db.InstanceArgs{
 			Project:      projectName,
