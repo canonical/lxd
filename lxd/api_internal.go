@@ -885,6 +885,99 @@ func internalImport(d *Daemon, projectName string, req *internalImportPost, reco
 	return response.EmptySyncResponse
 }
 
+// internalImportRootDevicePopulate considers the local and expanded devices from backup.yaml as well as the
+// expanded devices in the current profiles and if needed will populate localDevices with a new root disk config
+// to attempt to maintain the same effective config as specified in backup.yaml. Where possible no new root disk
+// device will be added, if the root disk config in the current profiles matches the effective backup.yaml config.
+func internalImportRootDevicePopulate(instancePoolName string, localDevices map[string]map[string]string, expandedDevices map[string]map[string]string, profiles []api.Profile) {
+	// First, check if localDevices from backup.yaml has a root disk.
+	rootName, _, _ := shared.GetRootDiskDevice(localDevices)
+	if rootName != "" {
+		localDevices[rootName]["pool"] = instancePoolName
+
+		return // Local root disk device has been set to target pool.
+	}
+
+	// Next check if expandedDevices from backup.yaml has a root disk.
+	expandedRootName, expandedRootConfig, _ := shared.GetRootDiskDevice(expandedDevices)
+
+	// Extract root disk from expanded profile devices.
+	profileExpandedDevices := db.ExpandInstanceDevices(deviceConfig.NewDevices(localDevices), profiles)
+	profileExpandedRootName, profileExpandedRootConfig, _ := shared.GetRootDiskDevice(profileExpandedDevices.CloneNative())
+
+	// Record whether we need to add a new local disk device.
+	addLocalDisk := false
+
+	// We need to add a local root disk if the profiles don't have a root disk.
+	if profileExpandedRootName == "" {
+		addLocalDisk = true
+	} else {
+		// Check profile expanded root disk is in the correct pool
+		if profileExpandedRootConfig["pool"] != instancePoolName {
+			addLocalDisk = true
+		} else {
+			// Check profile expanded root disk config matches the old expanded disk in backup.yaml.
+			// Excluding the "pool" property, which we ignore, as we have already checked the new
+			// profile root disk matches the target pool name.
+			if expandedRootName != "" {
+				for k := range expandedRootConfig {
+					if k == "pool" {
+						continue // Ignore old pool name.
+					}
+
+					if expandedRootConfig[k] != profileExpandedRootConfig[k] {
+						addLocalDisk = true
+						break
+					}
+				}
+
+				for k := range profileExpandedRootConfig {
+					if k == "pool" {
+						continue // Ignore old pool name.
+					}
+
+					if expandedRootConfig[k] != profileExpandedRootConfig[k] {
+						addLocalDisk = true
+						break
+					}
+				}
+			}
+		}
+	}
+
+	// Add local root disk entry if needed.
+	if addLocalDisk {
+		rootDev := map[string]string{
+			"type": "disk",
+			"path": "/",
+			"pool": instancePoolName,
+		}
+
+		// Inherit any extra root disk config from the expanded root disk from backup.yaml.
+		if expandedRootName != "" {
+			for k, v := range expandedRootConfig {
+				if _, found := rootDev[k]; !found {
+					rootDev[k] = v
+				}
+			}
+		}
+
+		// If there is already a device called "root" in the instance's config, but it does not qualify as
+		// a root disk, then try to find a free name for the new root disk device.
+		rootDevName := "root"
+		for i := 0; i < 100; i++ {
+			if localDevices[rootDevName] == nil {
+				break
+			}
+
+			rootDevName = fmt.Sprintf("root%d", i)
+			continue
+		}
+
+		localDevices[rootDevName] = rootDev
+	}
+}
+
 func internalGC(d *Daemon, r *http.Request) response.Response {
 	logger.Infof("Started forced garbage collection run")
 	runtime.GC()
