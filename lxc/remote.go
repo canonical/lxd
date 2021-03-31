@@ -547,6 +547,11 @@ func (c *cmdRemoteList) Run(cmd *cobra.Command, args []string) error {
 			strStatic = i18n.G("YES")
 		}
 
+		strGlobal := i18n.G("NO")
+		if rc.Global {
+			strGlobal = i18n.G("YES")
+		}
+
 		if rc.Protocol == "" {
 			rc.Protocol = "lxd"
 		}
@@ -569,7 +574,7 @@ func (c *cmdRemoteList) Run(cmd *cobra.Command, args []string) error {
 		if name == conf.DefaultRemote {
 			strName = fmt.Sprintf("%s (%s)", name, i18n.G("current"))
 		}
-		data = append(data, []string{strName, rc.Addr, rc.Protocol, rc.AuthType, strPublic, strStatic})
+		data = append(data, []string{strName, rc.Addr, rc.Protocol, rc.AuthType, strPublic, strStatic, strGlobal})
 	}
 	sort.Sort(byName(data))
 
@@ -580,6 +585,7 @@ func (c *cmdRemoteList) Run(cmd *cobra.Command, args []string) error {
 		i18n.G("AUTH TYPE"),
 		i18n.G("PUBLIC"),
 		i18n.G("STATIC"),
+		i18n.G("GLOBAL"),
 	}
 
 	return utils.RenderTable(c.flagFormat, header, data, conf.Remotes)
@@ -631,9 +637,17 @@ func (c *cmdRemoteRename) Run(cmd *cobra.Command, args []string) error {
 	oldPath := conf.ServerCertPath(args[0])
 	newPath := conf.ServerCertPath(args[1])
 	if shared.PathExists(oldPath) {
-		err := os.Rename(oldPath, newPath)
-		if err != nil {
-			return err
+		if conf.Remotes[args[0]].Global == true {
+			err := conf.CopyGlobalCert(args[0], args[1])
+			if err != nil {
+				return err
+			}
+			rc.Global = false
+		} else {
+			err := os.Rename(oldPath, newPath)
+			if err != nil {
+				return err
+			}
 		}
 	}
 
@@ -683,6 +697,10 @@ func (c *cmdRemoteRemove) Run(cmd *cobra.Command, args []string) error {
 
 	if rc.Static {
 		return fmt.Errorf(i18n.G("Remote %s is static and cannot be modified"), args[0])
+	}
+
+	if rc.Global {
+		return fmt.Errorf(i18n.G("Remote %s is global and cannot be removed"), args[0])
 	}
 
 	if conf.DefaultRemote == args[0] {
@@ -771,6 +789,16 @@ func (c *cmdRemoteSetURL) Run(cmd *cobra.Command, args []string) error {
 
 	if rc.Static {
 		return fmt.Errorf(i18n.G("Remote %s is static and cannot be modified"), args[0])
+	}
+
+	remote := conf.Remotes[args[0]]
+	if remote.Global == true {
+		err := conf.CopyGlobalCert(args[0], args[0])
+		if err != nil {
+			return err
+		}
+		remote.Global = false
+		conf.Remotes[args[0]] = remote
 	}
 
 	conf.Remotes[args[0]] = config.Remote{Addr: args[1]}
