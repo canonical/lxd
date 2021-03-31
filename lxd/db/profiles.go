@@ -165,23 +165,25 @@ func (c *ClusterTx) getProfile(project, name string) (int64, *api.Profile, error
 }
 
 // GetProfiles returns the profiles with the given names in the given project.
-func (c *Cluster) GetProfiles(project string, names []string) ([]api.Profile, error) {
-	profiles := make([]api.Profile, len(names))
+func (c *Cluster) GetProfiles(projectName string, profileNames []string) ([]api.Profile, error) {
+	profiles := make([]api.Profile, len(profileNames))
 
 	err := c.Transaction(func(tx *ClusterTx) error {
-		enabled, err := tx.ProjectHasProfiles(project)
+		enabled, err := tx.ProjectHasProfiles(projectName)
 		if err != nil {
-			return errors.Wrap(err, "Check if project has profiles")
-		}
-		if !enabled {
-			project = "default"
+			return errors.Wrapf(err, "Failed checking if project %q has profiles", projectName)
 		}
 
-		for i, name := range names {
-			profile, err := tx.GetProfile(project, name)
+		if !enabled {
+			projectName = "default"
+		}
+
+		for i, profileName := range profileNames {
+			profile, err := tx.GetProfile(projectName, profileName)
 			if err != nil {
-				return errors.Wrapf(err, "Load profile %q", name)
+				return errors.Wrapf(err, "Failed loading profile %q", profileName)
 			}
+
 			profiles[i] = *ProfileToAPI(profile)
 		}
 
