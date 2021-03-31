@@ -27,6 +27,7 @@ type Remote struct {
 	Project  string `yaml:"project,omitempty"`
 	Protocol string `yaml:"protocol,omitempty"`
 	Public   bool   `yaml:"public"`
+	Global   bool   `yaml:"-"`
 	Static   bool   `yaml:"-"`
 }
 

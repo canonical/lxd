@@ -1,6 +1,10 @@
 package config
 
 import (
+	"fmt"
+	"io"
+	"os"
+
 	"github.com/lxc/lxd/shared"
 )
 
@@ -25,4 +29,29 @@ func (c *Config) GenerateClientCertificate() error {
 	keyf := c.ConfigPath("client.key")
 
 	return shared.FindOrGenCert(certf, keyf, true, false)
+}
+
+// CopyGlobalCert will copy global (system-wide) certificate to the user config path
+func (c *Config) CopyGlobalCert(src string, dst string) error {
+	oldPath := c.GlobalConfigPath("servercerts", fmt.Sprintf("%s.crt", src))
+	newPath := c.ConfigPath("servercerts", fmt.Sprintf("%s.crt", dst))
+	sourceFile, err := os.Open(oldPath)
+	if err != nil {
+		return err
+	}
+	defer sourceFile.Close()
+
+	// Create new file
+	newFile, err := os.Create(newPath)
+	if err != nil {
+		return err
+	}
+	defer newFile.Close()
+
+	_, err = io.Copy(newFile, sourceFile)
+	if err != nil {
+		return err
+	}
+	return nil
+
 }
