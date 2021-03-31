@@ -1956,7 +1956,17 @@ test_clustering_remove_raft_node() {
   kill -9 "$(cat "${LXD_TWO_DIR}/lxd.pid")"
 
   # Remove the second node from the database but not from the raft configuration.
-  LXD_DIR="${LXD_ONE_DIR}" lxd sql global "DELETE FROM nodes WHERE address = '10.1.1.102:8443'"
+  retries=10
+  while [ "${retries}" != "0" ]; do
+    LXD_DIR="${LXD_ONE_DIR}" lxd sql global "DELETE FROM nodes WHERE address = '10.1.1.102:8443'" && break
+    sleep 0.5
+    retries=$((retries-1))
+  done
+
+  if [ "${retries}" -eq 0 ]; then
+      echo "Failed to remove node from database"
+      return 1
+  fi
 
   # The node does not appear anymore in the cluster list.
   ! LXD_DIR="${LXD_ONE_DIR}" lxc cluster list | grep -q "node2" || false
