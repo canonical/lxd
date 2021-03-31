@@ -924,7 +924,8 @@ var StoragePoolNodeConfigKeys = []string{
 	"lvm.vg_name",
 }
 
-func (c *Cluster) isRemoteStorage(poolID int64) (bool, error) {
+// IsRemoteStorage return whether a given pool is backed by remote storage.
+func (c *Cluster) IsRemoteStorage(poolID int64) (bool, error) {
 	isRemoteStorage := false
 
 	err := c.Transaction(func(tx *ClusterTx) error {
