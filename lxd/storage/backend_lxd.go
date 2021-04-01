@@ -718,7 +718,7 @@ func (b *lxdBackend) CreateInstanceFromCopy(inst instance.Instance, src instance
 	}
 
 	if src.Type() == instancetype.VM && src.IsRunning() {
-		return errors.Wrap(ErrNotImplemented, "Unable to perform VM live migration")
+		return errors.Wrap(drivers.ErrNotImplemented, "Unable to perform VM live migration")
 	}
 
 	volType, err := InstanceTypeToVolumeType(inst.Type())
@@ -2466,6 +2466,18 @@ func (b *lxdBackend) CreateCustomVolume(projectName string, volName string, desc
 		return err
 	}
 
+	storagePoolSupported := false
+	for _, supportedType := range b.Driver().Info().VolumeTypes {
+		if supportedType == drivers.VolumeTypeCustom {
+			storagePoolSupported = true
+			break
+		}
+	}
+
+	if !storagePoolSupported {
+		return fmt.Errorf("Storage pool does not support custom volume type")
+	}
+
 	// Create database entry for new storage volume.
 	err = VolumeDBCreate(b.state, b, projectName, volName, desc, vol.Type(), false, vol.Config(), time.Time{}, vol.ContentType())
 	if err != nil {
@@ -2550,6 +2562,18 @@ func (b *lxdBackend) CreateCustomVolumeFromCopy(projectName string, volName stri
 
 	if contentDBType == db.StoragePoolVolumeContentTypeBlock {
 		contentType = drivers.ContentTypeBlock
+	}
+
+	storagePoolSupported := false
+	for _, supportedType := range b.Driver().Info().VolumeTypes {
+		if supportedType == drivers.VolumeTypeCustom {
+			storagePoolSupported = true
+			break
+		}
+	}
+
+	if !storagePoolSupported {
+		return fmt.Errorf("Storage pool does not support custom volume type")
 	}
 
 	// If we are copying snapshots, retrieve a list of snapshots from source volume.
@@ -2763,6 +2787,18 @@ func (b *lxdBackend) CreateCustomVolumeFromMigration(projectName string, conn io
 
 	if b.Status() == api.StoragePoolStatusPending {
 		return fmt.Errorf("Specified pool is not fully created")
+	}
+
+	storagePoolSupported := false
+	for _, supportedType := range b.Driver().Info().VolumeTypes {
+		if supportedType == drivers.VolumeTypeCustom {
+			storagePoolSupported = true
+			break
+		}
+	}
+
+	if !storagePoolSupported {
+		return fmt.Errorf("Storage pool does not support custom volume type")
 	}
 
 	// Create slice to record DB volumes created if revert needed later.

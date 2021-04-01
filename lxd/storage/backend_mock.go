@@ -213,7 +213,7 @@ func (b *mockBackend) RenameCustomVolume(projectName string, volName string, new
 }
 
 func (b *mockBackend) UpdateCustomVolume(projectName string, volName string, newDesc string, newConfig map[string]string, op *operations.Operation) error {
-	return ErrNotImplemented
+	return drivers.ErrNotImplemented
 }
 
 func (b *mockBackend) DeleteCustomVolume(projectName string, volName string, op *operations.Operation) error {

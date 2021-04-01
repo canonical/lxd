@@ -232,6 +232,23 @@ func lxcCreate(s *state.State, args db.InstanceArgs) (instance.Instance, error) 
 		return nil, errors.Wrapf(err, "Failed loading storage pool")
 	}
 
+	volType, err := storagePools.InstanceTypeToVolumeType(d.Type())
+	if err != nil {
+		return nil, err
+	}
+
+	storagePoolSupported := false
+	for _, supportedType := range d.storagePool.Driver().Info().VolumeTypes {
+		if supportedType == volType {
+			storagePoolSupported = true
+			break
+		}
+	}
+
+	if !storagePoolSupported {
+		return nil, fmt.Errorf("Storage pool does not support instance type")
+	}
+
 	// Create a new storage volume database entry for the container's storage volume.
 	if d.IsSnapshot() {
 		// Copy volume config from parent.
@@ -3427,7 +3444,7 @@ func (d *lxc) Delete(force bool) error {
 
 	isImport := false
 	pool, err := storagePools.GetPoolByInstance(d.state, d)
-	if err != nil && err != db.ErrNoSuchObject {
+	if err != nil && errors.Cause(err) != db.ErrNoSuchObject {
 		return err
 	} else if pool != nil {
 		// Check if we're dealing with "lxd import".
@@ -3561,7 +3578,7 @@ func (d *lxc) Rename(newName string, applyTemplateTrigger bool) error {
 
 	pool, err := storagePools.GetPoolByInstance(d.state, d)
 	if err != nil {
-		return errors.Wrap(err, "Load instance storage pool")
+		return errors.Wrap(err, "Failed loading instance storage pool")
 	}
 
 	if d.IsSnapshot() {
@@ -5590,7 +5607,7 @@ func (d *lxc) diskState() map[string]api.InstanceStateDisk {
 
 			usage, err = pool.GetInstanceUsage(d)
 			if err != nil {
-				if err != storageDrivers.ErrNotSupported {
+				if errors.Cause(err) != storageDrivers.ErrNotSupported {
 					d.logger.Error("Error getting disk usage", log.Ctx{"err": err})
 				}
 				continue
@@ -5604,7 +5621,7 @@ func (d *lxc) diskState() map[string]api.InstanceStateDisk {
 
 			usage, err = pool.GetCustomVolumeUsage(d.Project(), dev.Config["source"])
 			if err != nil {
-				if err != storageDrivers.ErrNotSupported {
+				if errors.Cause(err) != storageDrivers.ErrNotSupported {
 					d.logger.Error("Error getting volume usage", log.Ctx{"volume": dev.Config["source"], "err": err})
 				}
 				continue

@@ -252,6 +252,23 @@ func qemuCreate(s *state.State, args db.InstanceArgs) (instance.Instance, error)
 		return nil, errors.Wrapf(err, "Failed loading storage pool")
 	}
 
+	volType, err := storagePools.InstanceTypeToVolumeType(d.Type())
+	if err != nil {
+		return nil, err
+	}
+
+	storagePoolSupported := false
+	for _, supportedType := range d.storagePool.Driver().Info().VolumeTypes {
+		if supportedType == volType {
+			storagePoolSupported = true
+			break
+		}
+	}
+
+	if !storagePoolSupported {
+		return nil, fmt.Errorf("Storage pool does not support instance type")
+	}
+
 	// Create a new database entry for the instance's storage volume.
 	if d.IsSnapshot() {
 		// Copy volume config from parent.
@@ -3122,7 +3139,7 @@ func (d *qemu) Rename(newName string, applyTemplateTrigger bool) error {
 
 	pool, err := storagePools.GetPoolByInstance(d.state, d)
 	if err != nil {
-		return errors.Wrap(err, "Load instance storage pool")
+		return errors.Wrap(err, "Failed loading instance storage pool")
 	}
 
 	if d.IsSnapshot() {
@@ -3838,7 +3855,7 @@ func (d *qemu) Delete(force bool) error {
 
 	// Attempt to initialize storage interface for the instance.
 	pool, err := d.getStoragePool()
-	if err != nil && err != db.ErrNoSuchObject {
+	if err != nil && errors.Cause(err) != db.ErrNoSuchObject {
 		return err
 	} else if pool != nil {
 		if d.IsSnapshot() {
@@ -4676,7 +4693,7 @@ func (d *qemu) renderState(statusCode api.StatusCode) (*api.InstanceState, error
 	status.Status = statusCode.String()
 	status.StatusCode = statusCode
 	status.Disk, err = d.diskState()
-	if err != nil && err != storageDrivers.ErrNotSupported {
+	if err != nil && errors.Cause(err) != storageDrivers.ErrNotSupported {
 		d.logger.Warn("Error getting disk usage", log.Ctx{"err": err})
 	}
 
