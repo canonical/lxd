@@ -22,6 +22,7 @@ import (
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/dnsmasq"
 	"github.com/lxc/lxd/lxd/dnsmasq/dhcpalloc"
+	firewallDrivers "github.com/lxc/lxd/lxd/firewall/drivers"
 	"github.com/lxc/lxd/lxd/network/openvswitch"
 	"github.com/lxc/lxd/lxd/node"
 	"github.com/lxc/lxd/lxd/revert"
@@ -662,6 +663,17 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 		}
 	}
 
+	// Initialise a new firewall option set.
+	fwOpts := firewallDrivers.Opts{}
+
+	if n.hasIPv4Firewall() {
+		fwOpts.FeaturesV4 = &firewallDrivers.FeatureOpts{}
+	}
+
+	if n.hasIPv6Firewall() {
+		fwOpts.FeaturesV6 = &firewallDrivers.FeatureOpts{}
+	}
+
 	// Snapshot container specific IPv4 routes (added with boot proto) before removing IPv4 addresses.
 	// This is because the kernel removes any static routes on an interface when all addresses removed.
 	ctRoutes, err := n.bootRoutesV4()
@@ -683,17 +695,7 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 	// Configure IPv4 firewall (includes fan).
 	if n.config["bridge.mode"] == "fan" || !shared.StringInSlice(n.config["ipv4.address"], []string{"", "none"}) {
 		if n.hasDHCPv4() && n.hasIPv4Firewall() {
-			// Setup basic iptables overrides for DHCP/DNS.
-			err = n.state.Firewall.NetworkSetupDHCPDNSAccess(n.name, 4)
-			if err != nil {
-				return err
-			}
-
-			// Attempt a workaround for broken DHCP clients.
-			err = n.state.Firewall.NetworkSetupDHCPv4Checksum(n.name)
-			if err != nil {
-				return err
-			}
+			fwOpts.FeaturesV4.DHCPDNSAccess = true
 		}
 
 		// Allow forwarding.
@@ -704,17 +706,7 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 			}
 
 			if n.hasIPv4Firewall() {
-				err = n.state.Firewall.NetworkSetupForwardingPolicy(n.name, 4, true)
-				if err != nil {
-					return err
-				}
-			}
-		} else {
-			if n.hasIPv4Firewall() {
-				err = n.state.Firewall.NetworkSetupForwardingPolicy(n.name, 4, false)
-				if err != nil {
-					return err
-				}
+				fwOpts.FeaturesV4.ForwardingAllow = true
 			}
 		}
 	}
@@ -791,7 +783,7 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 			return err
 		}
 
-		// Configure NAT
+		// Configure NAT.
 		if shared.IsTrue(n.config["ipv4.nat"]) {
 			//If a SNAT source address is specified, use that, otherwise default to MASQUERADE mode.
 			var srcIP net.IP
@@ -799,16 +791,13 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 				srcIP = net.ParseIP(n.config["ipv4.nat.address"])
 			}
 
+			fwOpts.SNATV4 = &firewallDrivers.SNATOpts{
+				SNATAddress: srcIP,
+				Subnet:      subnet,
+			}
+
 			if n.config["ipv4.nat.order"] == "after" {
-				err = n.state.Firewall.NetworkSetupOutboundNAT(n.name, subnet, srcIP, true)
-				if err != nil {
-					return err
-				}
-			} else {
-				err = n.state.Firewall.NetworkSetupOutboundNAT(n.name, subnet, srcIP, false)
-				if err != nil {
-					return err
-				}
+				fwOpts.SNATV4.Append = true
 			}
 		}
 
@@ -875,12 +864,8 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 		// Update the dnsmasq config.
 		dnsmasqCmd = append(dnsmasqCmd, []string{fmt.Sprintf("--listen-address=%s", ip.String()), "--enable-ra"}...)
 		if n.DHCPv6Subnet() != nil {
-			if n.config["ipv6.firewall"] == "" || shared.IsTrue(n.config["ipv6.firewall"]) {
-				// Setup basic iptables overrides for DHCP/DNS.
-				err = n.state.Firewall.NetworkSetupDHCPDNSAccess(n.name, 6)
-				if err != nil {
-					return err
-				}
+			if n.hasIPv6Firewall() {
+				fwOpts.FeaturesV6.DHCPDNSAccess = true
 			}
 
 			// Build DHCP configuration.
@@ -938,18 +923,8 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 				}
 			}
 
-			if n.config["ipv6.firewall"] == "" || shared.IsTrue(n.config["ipv6.firewall"]) {
-				err = n.state.Firewall.NetworkSetupForwardingPolicy(n.name, 6, true)
-				if err != nil {
-					return err
-				}
-			}
-		} else {
-			if n.config["ipv6.firewall"] == "" || shared.IsTrue(n.config["ipv6.firewall"]) {
-				err = n.state.Firewall.NetworkSetupForwardingPolicy(n.name, 6, false)
-				if err != nil {
-					return err
-				}
+			if n.hasIPv6Firewall() {
+				fwOpts.FeaturesV6.ForwardingAllow = true
 			}
 		}
 
@@ -961,21 +936,19 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 
 		// Configure NAT.
 		if shared.IsTrue(n.config["ipv6.nat"]) {
+			//If a SNAT source address is specified, use that, otherwise default to MASQUERADE mode.
 			var srcIP net.IP
 			if n.config["ipv6.nat.address"] != "" {
 				srcIP = net.ParseIP(n.config["ipv6.nat.address"])
 			}
 
+			fwOpts.SNATV6 = &firewallDrivers.SNATOpts{
+				SNATAddress: srcIP,
+				Subnet:      subnet,
+			}
+
 			if n.config["ipv6.nat.order"] == "after" {
-				err = n.state.Firewall.NetworkSetupOutboundNAT(n.name, subnet, srcIP, true)
-				if err != nil {
-					return err
-				}
-			} else {
-				err = n.state.Firewall.NetworkSetupOutboundNAT(n.name, subnet, srcIP, false)
-				if err != nil {
-					return err
-				}
+				fwOpts.SNATV6.Append = true
 			}
 		}
 
@@ -1128,16 +1101,14 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 
 		// Configure NAT.
 		if shared.IsTrue(n.config["ipv4.nat"]) {
+			fwOpts.SNATV4 = &firewallDrivers.SNATOpts{
+				SNATAddress: nil, // Use MASQUERADE mode.
+				Subnet:      overlaySubnet,
+			}
+
 			if n.config["ipv4.nat.order"] == "after" {
-				err = n.state.Firewall.NetworkSetupOutboundNAT(n.name, overlaySubnet, nil, true)
-				if err != nil {
-					return err
-				}
-			} else {
-				err = n.state.Firewall.NetworkSetupOutboundNAT(n.name, overlaySubnet, nil, false)
-				if err != nil {
-					return err
-				}
+				fwOpts.SNATV4.Append = true
+
 			}
 		}
 
@@ -1389,6 +1360,12 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 				return errors.Wrapf(err, "Failed to remove old dnsmasq pid file %q", pidPath)
 			}
 		}
+	}
+
+	// Setup firewall.
+	err = n.state.Firewall.NetworkSetup(n.name, fwOpts)
+	if err != nil {
+		return errors.Wrapf(err, "Failed to setup firewall")
 	}
 
 	revert.Success()
