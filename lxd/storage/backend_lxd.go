@@ -2465,6 +2465,18 @@ func (b *lxdBackend) CreateCustomVolume(projectName string, volName string, desc
 		return err
 	}
 
+	storagePoolSupported := false
+	for _, supportedType := range b.Driver().Info().VolumeTypes {
+		if supportedType == drivers.VolumeTypeCustom {
+			storagePoolSupported = true
+			break
+		}
+	}
+
+	if !storagePoolSupported {
+		return fmt.Errorf("Storage pool does not support custom volume type")
+	}
+
 	// Create database entry for new storage volume.
 	err = VolumeDBCreate(b.state, b, projectName, volName, desc, vol.Type(), false, vol.Config(), time.Time{})
 	if err != nil {
@@ -2711,6 +2723,18 @@ func (b *lxdBackend) CreateCustomVolumeFromMigration(projectName string, conn io
 
 	if b.Status() == api.StoragePoolStatusPending {
 		return fmt.Errorf("Specified pool is not fully created")
+	}
+
+	storagePoolSupported := false
+	for _, supportedType := range b.Driver().Info().VolumeTypes {
+		if supportedType == drivers.VolumeTypeCustom {
+			storagePoolSupported = true
+			break
+		}
+	}
+
+	if !storagePoolSupported {
+		return fmt.Errorf("Storage pool does not support custom volume type")
 	}
 
 	// Create slice to record DB volumes created if revert needed later.
