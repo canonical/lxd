@@ -610,7 +610,7 @@ assign:
 		"Changing dqlite raft role",
 		log15.Ctx{"id": info.ID, "address": info.Address, "role": info.Role})
 
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
 	defer cancel()
 
 	client, err := client.FindLeader(ctx, gateway.NodeStore(), client.WithDialFunc(gateway.raftDial()))
@@ -909,7 +909,7 @@ func List(state *state.State, gateway *Gateway) ([]api.ClusterMember, error) {
 	store := gateway.NodeStore()
 	dial := gateway.DialFunc()
 
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
 	defer cancel()
 
 	cli, err := client.FindLeader(ctx, store, client.WithDialFunc(dial))
