@@ -3139,7 +3139,7 @@ func (d *qemu) Rename(newName string, applyTemplateTrigger bool) error {
 
 	pool, err := storagePools.GetPoolByInstance(d.state, d)
 	if err != nil {
-		return errors.Wrap(err, "Load instance storage pool")
+		return errors.Wrap(err, "Failed loading instance storage pool")
 	}
 
 	if d.IsSnapshot() {
