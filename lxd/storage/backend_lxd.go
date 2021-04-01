@@ -718,7 +718,7 @@ func (b *lxdBackend) CreateInstanceFromCopy(inst instance.Instance, src instance
 	}
 
 	if src.Type() == instancetype.VM && src.IsRunning() {
-		return errors.Wrap(ErrNotImplemented, "Unable to perform VM live migration")
+		return errors.Wrap(drivers.ErrNotImplemented, "Unable to perform VM live migration")
 	}
 
 	volType, err := InstanceTypeToVolumeType(inst.Type())
