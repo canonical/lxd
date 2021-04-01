@@ -45,12 +45,12 @@ func instanceCreateAsEmpty(d *Daemon, args db.InstanceArgs) (instance.Instance, 
 
 	pool, err := storagePools.GetPoolByInstance(d.State(), inst)
 	if err != nil {
-		return nil, errors.Wrap(err, "Load instance storage pool")
+		return nil, errors.Wrap(err, "Failed loading instance storage pool")
 	}
 
 	err = pool.CreateInstance(inst, nil)
 	if err != nil {
-		return nil, errors.Wrap(err, "Create instance")
+		return nil, errors.Wrap(err, "Failed creating instance")
 	}
 
 	err = inst.UpdateBackupFile()
@@ -152,12 +152,12 @@ func instanceCreateFromImage(d *Daemon, args db.InstanceArgs, hash string, op *o
 
 	pool, err := storagePools.GetPoolByInstance(d.State(), inst)
 	if err != nil {
-		return nil, errors.Wrap(err, "Load instance storage pool")
+		return nil, errors.Wrap(err, "Failed loading instance storage pool")
 	}
 
 	err = pool.CreateInstanceFromImage(inst, hash, op)
 	if err != nil {
-		return nil, errors.Wrap(err, "Create instance from image")
+		return nil, errors.Wrap(err, "Failed creating instance from image")
 	}
 
 	err = inst.UpdateBackupFile()
@@ -315,7 +315,7 @@ func instanceCreateAsCopy(s *state.State, opts instanceCreateAsCopyOpts, op *ope
 
 	pool, err := storagePools.GetPoolByInstance(s, inst)
 	if err != nil {
-		return nil, errors.Wrap(err, "Load instance storage pool")
+		return nil, errors.Wrap(err, "Failed loading instance storage pool")
 	}
 
 	if opts.refresh {
