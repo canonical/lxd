@@ -54,6 +54,8 @@ func newByType(state *state.State, projectName string, conf deviceConfig.Device)
 		}
 	case "gpu":
 		switch conf["gputype"] {
+		case "mig":
+			dev = &gpuMIG{}
 		case "mdev":
 			dev = &gpuMdev{}
 		case "sriov":

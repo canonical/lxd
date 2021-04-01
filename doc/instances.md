@@ -771,6 +771,7 @@ The following GPUs can be specified using the `gputype` property:
 
  - [physical](#gpu-physical) Passes through an entire GPU. This is the default if `gputype` is unspecified.
  - [mdev](#gpu-mdev) Creates and passes through a virtual GPU into the instance.
+ - [mig](#gpu-mig) Creates and passes through a MIG (Multi-Instance GPU) device into the instance.
  - [sriov](#gpu-sriov) Passes a virtual function of an SR-IOV enabled GPU into the instance.
 
 #### gpu: physical
@@ -805,7 +806,24 @@ vendorid    | string    | -                 | no        | The vendor id of the G
 productid   | string    | -                 | no        | The product id of the GPU device
 id          | string    | -                 | no        | The card id of the GPU device
 pci         | string    | -                 | no        | The pci address of the GPU device
-mdev        | string    | -                 | no        | The mdev profile to use (e.g. i915-GVTg_V5_4)
+mdev        | string    | -                 | yes       | The mdev profile to use (e.g. i915-GVTg\_V5\_4)
+
+#### gpu: mig
+
+Supported instance types: container
+
+Creates and passes through a MIG compute instance. This currently requires NVIDIA MIG instances to be pre-created.
+
+The following properties exist:
+
+Key         | Type      | Default           | Required  | Description
+:--         | :--       | :--               | :--       | :--
+vendorid    | string    | -                 | no        | The vendor id of the GPU device
+productid   | string    | -                 | no        | The product id of the GPU device
+id          | string    | -                 | no        | The card id of the GPU device
+pci         | string    | -                 | no        | The pci address of the GPU device
+mig.ci      | int       | -                 | yes       | Existing MIG compute instance ID
+mig.gi      | int       | -                 | yes       | Existing MIG GPU instance ID
 
 #### gpu: sriov
 

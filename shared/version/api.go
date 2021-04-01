@@ -263,6 +263,7 @@ var APIExtensions = []string{
 	"projects_restricted_cluster_target",
 	"images_default_architecture",
 	"network_ovn_acl_defaults",
+	"gpu_mig",
 }
 
 // APIExtensionsCount returns the number of available API extensions.
