@@ -39,14 +39,9 @@ func instanceCreateAsEmpty(d *Daemon, args db.InstanceArgs) (instance.Instance, 
 		return nil, errors.Wrap(err, "Failed creating instance record")
 	}
 
-	revert := true
-	defer func() {
-		if !revert {
-			return
-		}
-
-		inst.Delete(true)
-	}()
+	revert := revert.New()
+	defer revert.Fail()
+	revert.Add(func() { inst.Delete(true) })
 
 	pool, err := storagePools.GetPoolByInstance(d.State(), inst)
 	if err != nil {
@@ -63,7 +58,7 @@ func instanceCreateAsEmpty(d *Daemon, args db.InstanceArgs) (instance.Instance, 
 		return nil, err
 	}
 
-	revert = false
+	revert.Success()
 	return inst, nil
 }
 
