@@ -1337,3 +1337,6 @@ what architecture to go with when no specific one is specified as part of the im
 ## network\_ovn\_acl\_defaults
 Adds new `security.acls.default.{in,e}gress.action` and `security.acls.default.{in,e}gress.logged` config keys for
 OVN networks and NICs. This replaces the removed ACL `default.action` and `default.logged` keys.
+
+## gpu\_mig
+This adds support for NVIDIA MIG. It introduces the `mig` gputype and associaetd config keys.
