@@ -108,7 +108,7 @@ func RemoveRaftNode(gateway *Gateway, address string) error {
 		return fmt.Errorf("No raft node with address %q", address)
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
 	defer cancel()
 	client, err := client.FindLeader(
 		ctx, gateway.NodeStore(),
