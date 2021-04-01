@@ -252,6 +252,23 @@ func qemuCreate(s *state.State, args db.InstanceArgs) (instance.Instance, error)
 		return nil, errors.Wrapf(err, "Failed loading storage pool")
 	}
 
+	volType, err := storagePools.InstanceTypeToVolumeType(d.Type())
+	if err != nil {
+		return nil, err
+	}
+
+	storagePoolSupported := false
+	for _, supportedType := range d.storagePool.Driver().Info().VolumeTypes {
+		if supportedType == volType {
+			storagePoolSupported = true
+			break
+		}
+	}
+
+	if !storagePoolSupported {
+		return nil, fmt.Errorf("Storage pool does not support instance type")
+	}
+
 	// Create a new database entry for the instance's storage volume.
 	if d.IsSnapshot() {
 		// Copy volume config from parent.
