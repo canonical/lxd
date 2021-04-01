@@ -3426,7 +3426,7 @@ func (d *lxc) Delete(force bool) error {
 
 	isImport := false
 	pool, err := storagePools.GetPoolByInstance(d.state, d)
-	if err != nil && err != db.ErrNoSuchObject {
+	if err != nil && errors.Cause(err) != db.ErrNoSuchObject {
 		return err
 	} else if pool != nil {
 		// Check if we're dealing with "lxd import".
@@ -5589,7 +5589,7 @@ func (d *lxc) diskState() map[string]api.InstanceStateDisk {
 
 			usage, err = pool.GetInstanceUsage(d)
 			if err != nil {
-				if err != storageDrivers.ErrNotSupported {
+				if errors.Cause(err) != storageDrivers.ErrNotSupported {
 					d.logger.Error("Error getting disk usage", log.Ctx{"err": err})
 				}
 				continue
@@ -5603,7 +5603,7 @@ func (d *lxc) diskState() map[string]api.InstanceStateDisk {
 
 			usage, err = pool.GetCustomVolumeUsage(d.Project(), dev.Config["source"])
 			if err != nil {
-				if err != storageDrivers.ErrNotSupported {
+				if errors.Cause(err) != storageDrivers.ErrNotSupported {
 					d.logger.Error("Error getting volume usage", log.Ctx{"volume": dev.Config["source"], "err": err})
 				}
 				continue
