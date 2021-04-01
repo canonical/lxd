@@ -805,7 +805,7 @@ vendorid    | string    | -                 | no        | The vendor id of the G
 productid   | string    | -                 | no        | The product id of the GPU device
 id          | string    | -                 | no        | The card id of the GPU device
 pci         | string    | -                 | no        | The pci address of the GPU device
-mdev        | string    | -                 | no        | The mdev profile to use (e.g. i915-GVTg_V5_4)
+mdev        | string    | -                 | yes       | The mdev profile to use (e.g. i915-GVTg_V5_4)
 
 #### gpu: sriov
 
