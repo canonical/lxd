@@ -220,6 +220,7 @@ var APIExtensions = []string{
 	"migration_stateful",
 	"disk_state_quota",
 	"storage_ceph_features",
+	"gpu_mig",
 }
 
 // APIExtensionsCount returns the number of available API extensions.

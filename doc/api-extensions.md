@@ -1093,3 +1093,6 @@ This introduces the `size.state` device config key on `disk` devices.
 
 ## storage\_ceph\_features
 Adds a new `ceph.rbd.features` config key on storage pools to control the RBD features used for new volumes.
+
+## gpu\_mig
+This adds support for NVIDIA MIG. It introduces the `mig` gputype and associaetd config keys.
