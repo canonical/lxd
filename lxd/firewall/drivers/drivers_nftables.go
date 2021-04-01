@@ -170,8 +170,8 @@ func (d Nftables) hostVersion() (*version.DottedVersion, error) {
 	return version.Parse(strings.TrimPrefix(lines[1], "v"))
 }
 
-// NetworkSetupForwardingPolicy allows forwarding dependent on boolean argument
-func (d Nftables) NetworkSetupForwardingPolicy(networkName string, ipVersion uint, allow bool) error {
+// networkSetupForwardingPolicy allows forwarding dependent on boolean argument
+func (d Nftables) networkSetupForwardingPolicy(networkName string, ipVersion uint, allow bool) error {
 	action := "reject"
 	if allow {
 		action = "accept"
@@ -198,10 +198,10 @@ func (d Nftables) NetworkSetupForwardingPolicy(networkName string, ipVersion uin
 	return nil
 }
 
-// NetworkSetupOutboundNAT configures outbound NAT.
+// networkSetupOutboundNAT configures outbound NAT.
 // If srcIP is non-nil then SNAT is used with the specified address, otherwise MASQUERADE mode is used.
 // Append mode is always on and so the append argument is ignored.
-func (d Nftables) NetworkSetupOutboundNAT(networkName string, subnet *net.IPNet, srcIP net.IP, _ bool) error {
+func (d Nftables) networkSetupOutboundNAT(networkName string, subnet *net.IPNet, srcIP net.IP, _ bool) error {
 	family := "ip"
 	if subnet.IP.To4() == nil {
 		family = "ip6"
@@ -230,8 +230,8 @@ func (d Nftables) NetworkSetupOutboundNAT(networkName string, subnet *net.IPNet,
 	return nil
 }
 
-// NetworkSetupDHCPDNSAccess sets up basic nftables overrides for DHCP/DNS.
-func (d Nftables) NetworkSetupDHCPDNSAccess(networkName string, ipVersion uint) error {
+// networkSetupDHCPDNSAccess sets up basic nftables overrides for DHCP/DNS.
+func (d Nftables) networkSetupDHCPDNSAccess(networkName string, ipVersion uint) error {
 	family, err := d.getIPFamily(ipVersion)
 	if err != nil {
 		return err
@@ -252,9 +252,53 @@ func (d Nftables) NetworkSetupDHCPDNSAccess(networkName string, ipVersion uint) 
 	return nil
 }
 
-// NetworkSetupDHCPv4Checksum attempts a workaround for broken DHCP clients. No-op as not supported by nftables.
-// See https://wiki.nftables.org/wiki-nftables/index.php/Supported_features_compared_to_xtables#CHECKSUM.
-func (d Nftables) NetworkSetupDHCPv4Checksum(networkName string) error {
+// NetworkSetup configure network firewall.
+func (d Nftables) NetworkSetup(networkName string, opts Opts) error {
+	if opts.SNATV4 != nil {
+		err := d.networkSetupOutboundNAT(networkName, opts.SNATV4.Subnet, opts.SNATV4.SNATAddress, opts.SNATV4.Append)
+		if err != nil {
+			return err
+		}
+	}
+
+	if opts.SNATV6 != nil {
+		err := d.networkSetupOutboundNAT(networkName, opts.SNATV6.Subnet, opts.SNATV6.SNATAddress, opts.SNATV6.Append)
+		if err != nil {
+			return err
+		}
+	}
+
+	if opts.FeaturesV4 != nil {
+		if opts.FeaturesV4.DHCPDNSAccess {
+			err := d.networkSetupDHCPDNSAccess(networkName, 4)
+			if err != nil {
+				return err
+			}
+
+			// No DHCP checksum step here as not supported by nftables.
+			// See https://wiki.nftables.org/wiki-nftables/index.php/Supported_features_compared_to_xtables#CHECKSUM.
+		}
+
+		err := d.networkSetupForwardingPolicy(networkName, 4, opts.FeaturesV4.ForwardingAllow)
+		if err != nil {
+			return err
+		}
+	}
+
+	if opts.FeaturesV6 != nil {
+		if opts.FeaturesV6.DHCPDNSAccess {
+			err := d.networkSetupDHCPDNSAccess(networkName, 6)
+			if err != nil {
+				return err
+			}
+		}
+
+		err := d.networkSetupForwardingPolicy(networkName, 6, opts.FeaturesV6.ForwardingAllow)
+		if err != nil {
+			return err
+		}
+	}
+
 	return nil
 }
 
