@@ -175,7 +175,7 @@ func GetPoolByName(state *state.State, name string) (Pool, error) {
 
 // GetPoolByInstance retrieves the pool from the database using the instance's pool.
 // If the pool's driver is not recognised then drivers.ErrUnknownDriver is returned. If the pool's
-// driver does not support the instance's type then drivers.ErrNotImplemented is returned.
+// driver does not support the instance's type then drivers.ErrNotSupported is returned.
 func GetPoolByInstance(s *state.State, inst instance.Instance) (Pool, error) {
 	poolName, err := s.Cluster.GetInstancePool(inst.Project(), inst.Name())
 	if err != nil {
@@ -198,7 +198,7 @@ func GetPoolByInstance(s *state.State, inst instance.Instance) (Pool, error) {
 		}
 	}
 
-	// Return drivers not implemented error for consistency with predefined errors returned by
+	// Return drivers not supported error for consistency with predefined errors returned by
 	// GetPoolByName (which can return drivers.ErrUnknownDriver).
-	return nil, drivers.ErrNotImplemented
+	return nil, drivers.ErrNotSupported
 }
