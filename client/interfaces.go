@@ -257,6 +257,7 @@ type InstanceServer interface {
 	GetProjectNames() (names []string, err error)
 	GetProjects() (projects []api.Project, err error)
 	GetProject(name string) (project *api.Project, ETag string, err error)
+	GetProjectState(name string) (project *api.ProjectState, err error)
 	CreateProject(project api.ProjectsPost) (err error)
 	UpdateProject(name string, project api.ProjectPut, ETag string) (err error)
 	RenameProject(name string, project api.ProjectPost) (op Operation, err error)
