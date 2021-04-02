@@ -341,6 +341,39 @@ func checkRestrictionsAndAggregateLimits(tx *db.ClusterTx, info *projectInfo) er
 	return nil
 }
 
+func getAggregateLimits(info *projectInfo, aggregateKeys []string) (map[string]api.ProjectStateResource, error) {
+	result := map[string]api.ProjectStateResource{}
+
+	if len(aggregateKeys) == 0 {
+		return result, nil
+	}
+
+	totals, err := getTotalsAcrossProjectEntities(info, aggregateKeys, true)
+	if err != nil {
+		return nil, err
+	}
+
+	for _, key := range aggregateKeys {
+		max := int64(-1)
+		limit := info.Project.Config[key]
+		if limit != "" {
+			parser := aggregateLimitConfigValueParsers[key]
+			max, err = parser(info.Project.Config[key])
+			if err != nil {
+				return nil, err
+			}
+		}
+
+		resource := api.ProjectStateResource{
+			Usage: totals[key],
+			Limit: max,
+		}
+		result[key] = resource
+	}
+
+	return result, nil
+}
+
 func checkAggregateLimits(info *projectInfo, aggregateKeys []string) error {
 	if len(aggregateKeys) == 0 {
 		return nil
