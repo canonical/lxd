@@ -1340,3 +1340,7 @@ OVN networks and NICs. This replaces the removed ACL `default.action` and `defau
 
 ## gpu\_mig
 This adds support for NVIDIA MIG. It introduces the `mig` gputype and associaetd config keys.
+
+## project\_usage
+Adds an API endpoint to get current resource allocations in a project.
+Accessible at API `GET /1.0/projects/<name>/state`.
