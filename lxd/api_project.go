@@ -52,6 +52,12 @@ var projectCmd = APIEndpoint{
 	Put:    APIEndpointAction{Handler: projectPut, AccessHandler: allowAuthenticated},
 }
 
+var projectStateCmd = APIEndpoint{
+	Path: "projects/{name}/state",
+
+	Get: APIEndpointAction{Handler: projectStateGet, AccessHandler: allowAuthenticated},
+}
+
 // swagger:operation GET /1.0/projects projects projects_get
 //
 // Get the projects
@@ -739,6 +745,68 @@ func projectDelete(d *Daemon, r *http.Request) response.Response {
 	}
 
 	return response.EmptySyncResponse
+}
+
+// swagger:operation GET /1.0/projects/{name}/state projects project_state_get
+//
+// Get the project state
+//
+// Gets a specific project resource consumption information.
+//
+// ---
+// produces:
+//   - application/json
+// responses:
+//   "200":
+//     description: Project state
+//     schema:
+//       type: object
+//       description: Sync response
+//       properties:
+//         type:
+//           type: string
+//           description: Response type
+//           example: sync
+//         status:
+//           type: string
+//           description: Status description
+//           example: Success
+//         status_code:
+//           type: int
+//           description: Status code
+//           example: 200
+//         metadata:
+//           $ref: "#/definitions/ProjectState"
+//   "403":
+//     $ref: "#/responses/Forbidden"
+//   "500":
+//     $ref: "#/responses/InternalServerError"
+func projectStateGet(d *Daemon, r *http.Request) response.Response {
+	name := mux.Vars(r)["name"]
+
+	// Check user permissions.
+	if !rbac.UserHasPermission(r, name, "view") {
+		return response.Forbidden(nil)
+	}
+
+	// Setup the state struct.
+	state := api.ProjectState{}
+
+	// Get current limits and usage.
+	err := d.cluster.Transaction(func(tx *db.ClusterTx) error {
+		result, err := projecthelpers.GetCurrentAllocations(tx, name)
+		if err != nil {
+			return err
+		}
+		state.Resources = result
+
+		return nil
+	})
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	return response.SyncResponse(true, &state)
 }
 
 // Check if a project is empty.
