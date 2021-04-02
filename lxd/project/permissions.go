@@ -248,7 +248,7 @@ func GetImageSpaceBudget(tx *db.ClusterTx, projectName string) (int64, error) {
 
 	info.Instances = expandInstancesConfigAndDevices(info.Instances, info.Profiles)
 
-	totals, err := getTotalsAcrossProjectEntities(info, []string{"limits.disk"})
+	totals, err := getTotalsAcrossProjectEntities(info, []string{"limits.disk"}, false)
 	if err != nil {
 		return -1, err
 	}
@@ -305,7 +305,7 @@ func checkAggregateLimits(info *projectInfo, aggregateKeys []string) error {
 		return nil
 	}
 
-	totals, err := getTotalsAcrossProjectEntities(info, aggregateKeys)
+	totals, err := getTotalsAcrossProjectEntities(info, aggregateKeys, false)
 	if err != nil {
 		return err
 	}
@@ -772,7 +772,7 @@ func AllowProjectUpdate(tx *db.ClusterTx, projectName string, config map[string]
 	}
 
 	if len(aggregateKeys) > 0 {
-		totals, err := getTotalsAcrossProjectEntities(info, aggregateKeys)
+		totals, err := getTotalsAcrossProjectEntities(info, aggregateKeys, false)
 		if err != nil {
 			return err
 		}
@@ -958,7 +958,7 @@ func expandInstancesConfigAndDevices(instances []db.Instance, profiles []db.Prof
 
 // Sum of the effective values for the given limits across all project
 // enties (instances and custom volumes).
-func getTotalsAcrossProjectEntities(info *projectInfo, keys []string) (map[string]int64, error) {
+func getTotalsAcrossProjectEntities(info *projectInfo, keys []string, skipUnset bool) (map[string]int64, error) {
 	totals := map[string]int64{}
 
 	for _, key := range keys {
@@ -967,6 +967,10 @@ func getTotalsAcrossProjectEntities(info *projectInfo, keys []string) (map[strin
 			for _, volume := range info.Volumes {
 				value, ok := volume.Config["size"]
 				if !ok {
+					if skipUnset {
+						continue
+					}
+
 					return nil, fmt.Errorf(
 						"Custom volume %s in project %s has no 'size' config set",
 						volume.Name, info.Project.Name)
@@ -984,7 +988,7 @@ func getTotalsAcrossProjectEntities(info *projectInfo, keys []string) (map[strin
 	}
 
 	for _, instance := range info.Instances {
-		limits, err := getInstanceLimits(instance, keys)
+		limits, err := getInstanceLimits(instance, keys, skipUnset)
 		if err != nil {
 			return nil, err
 		}
@@ -997,9 +1001,8 @@ func getTotalsAcrossProjectEntities(info *projectInfo, keys []string) (map[strin
 	return totals, nil
 }
 
-// Return the effective instance-level values for the limits with the given
-// keys.
-func getInstanceLimits(instance db.Instance, keys []string) (map[string]int64, error) {
+// Return the effective instance-level values for the limits with the given keys.
+func getInstanceLimits(instance db.Instance, keys []string, skipUnset bool) (map[string]int64, error) {
 	limits := map[string]int64{}
 
 	for _, key := range keys {
@@ -1015,6 +1018,10 @@ func getInstanceLimits(instance db.Instance, keys []string) (map[string]int64, e
 
 			value, ok = device["size"]
 			if !ok || value == "" {
+				if skipUnset {
+					continue
+				}
+
 				return nil, fmt.Errorf(
 					"Instance %s in project %s has no 'size' config set on the root device, "+
 						"either directly or via a profile",
@@ -1023,6 +1030,10 @@ func getInstanceLimits(instance db.Instance, keys []string) (map[string]int64, e
 		} else {
 			value, ok = instance.Config[key]
 			if !ok || value == "" {
+				if skipUnset {
+					continue
+				}
+
 				return nil, fmt.Errorf(
 					"Instance %s in project %s has no '%s' config, "+
 						"either directly or via a profile",
@@ -1033,6 +1044,10 @@ func getInstanceLimits(instance db.Instance, keys []string) (map[string]int64, e
 		parser := aggregateLimitConfigValueParsers[key]
 		limit, err := parser(value)
 		if err != nil {
+			if skipUnset {
+				continue
+			}
+
 			return nil, errors.Wrapf(
 				err, "Parse '%s' for instance %s in project %s",
 				key, instance.Name, instance.Project)
