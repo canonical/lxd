@@ -44,20 +44,12 @@ func AllowInstanceCreation(tx *db.ClusterTx, projectName string, req api.Instanc
 		req.Profiles = []string{"default"}
 	}
 
-	instanceTypeCount := 0
-	for _, inst := range info.Instances {
-		if inst.Type == instanceType {
-			instanceTypeCount++
-		}
-	}
-
-	err = checkInstanceCountLimit(info.Project, instanceTypeCount, instanceType)
+	err = checkInstanceCountLimit(info, instanceType)
 	if err != nil {
 		return err
 	}
 
-	totalInstanceCount := len(info.Instances)
-	err = checkTotalInstanceCountLimit(info.Project, totalInstanceCount)
+	err = checkTotalInstanceCountLimit(info)
 	if err != nil {
 		return err
 	}
@@ -92,28 +84,49 @@ func AllowInstanceCreation(tx *db.ClusterTx, projectName string, req api.Instanc
 	return nil
 }
 
-// Check that we have not exceeded the maximum total allotted number of instances
-// for both containers and vms
-func checkTotalInstanceCountLimit(project *api.Project, totalInstanceCount int) error {
-	overallValue, ok := project.Config["limits.instances"]
-	if ok {
-		limit, err := strconv.Atoi(overallValue)
-		if err != nil {
-			return err
-		}
+// Check that we have not exceeded the maximum total allotted number of instances for both containers and vms.
+func checkTotalInstanceCountLimit(info *projectInfo) error {
+	count, limit, err := getTotalInstanceCountLimit(info)
+	if err != nil {
+		return err
+	}
 
-		if totalInstanceCount >= limit {
-			return fmt.Errorf(
-				"Reached maximum number of instances in project %q", project.Name)
-		}
+	if limit >= 0 && count >= limit {
+		return fmt.Errorf("Reached maximum number of instances in project %q", info.Project.Name)
 	}
 
 	return nil
 }
 
-// Check that we have not reached the maximum number of instances for
-// this type.
-func checkInstanceCountLimit(project *api.Project, instanceCount int, instanceType instancetype.Type) error {
+func getTotalInstanceCountLimit(info *projectInfo) (int, int, error) {
+	overallValue, ok := info.Project.Config["limits.instances"]
+	if ok {
+		limit, err := strconv.Atoi(overallValue)
+		if err != nil {
+			return -1, -1, err
+		}
+
+		return len(info.Instances), limit, nil
+	}
+
+	return len(info.Instances), -1, nil
+}
+
+// Check that we have not reached the maximum number of instances for this type.
+func checkInstanceCountLimit(info *projectInfo, instanceType instancetype.Type) error {
+	count, limit, err := getInstanceCountLimit(info, instanceType)
+	if err != nil {
+		return err
+	}
+
+	if limit >= 0 && count >= limit {
+		return fmt.Errorf("Reached maximum number of instances of type %q in project %q", instanceType, info.Project.Name)
+	}
+
+	return nil
+}
+
+func getInstanceCountLimit(info *projectInfo, instanceType instancetype.Type) (int, int, error) {
 	var key string
 	switch instanceType {
 	case instancetype.Container:
@@ -121,24 +134,27 @@ func checkInstanceCountLimit(project *api.Project, instanceCount int, instanceTy
 	case instancetype.VM:
 		key = "limits.virtual-machines"
 	default:
-		return fmt.Errorf("Unexpected instance type %q", instanceType)
+		return -1, -1, fmt.Errorf("Unexpected instance type %q", instanceType)
 	}
 
-	value, ok := project.Config[key]
+	instanceCount := 0
+	for _, inst := range info.Instances {
+		if inst.Type == instanceType {
+			instanceCount++
+		}
+	}
+
+	value, ok := info.Project.Config[key]
 	if ok {
 		limit, err := strconv.Atoi(value)
 		if err != nil || limit < 0 {
-			return fmt.Errorf("Unexpected %q value: %q", key, value)
+			return -1, -1, fmt.Errorf("Unexpected %q value: %q", key, value)
 		}
 
-		if instanceCount >= limit {
-			return fmt.Errorf(
-				"Reached maximum number of instances of type %q in project %q",
-				instanceType, project.Name)
-		}
+		return instanceCount, limit, nil
 	}
 
-	return nil
+	return instanceCount, -1, nil
 }
 
 // Check restrictions on setting volatile.* keys.
