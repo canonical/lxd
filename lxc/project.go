@@ -16,6 +16,7 @@ import (
 	cli "github.com/lxc/lxd/shared/cmd"
 	"github.com/lxc/lxd/shared/i18n"
 	"github.com/lxc/lxd/shared/termios"
+	"github.com/lxc/lxd/shared/units"
 )
 
 type cmdProject struct {
@@ -64,6 +65,10 @@ func (c *cmdProject) Command() *cobra.Command {
 	// Show
 	projectShowCmd := cmdProjectShow{global: c.global, project: c}
 	cmd.AddCommand(projectShowCmd.Command())
+
+	// Info
+	projectGetInfo := cmdProjectInfo{global: c.global, project: c}
+	cmd.AddCommand(projectGetInfo.Command())
 
 	// Set default
 	projectSwitchCmd := cmdProjectSwitch{global: c.global, project: c}
@@ -722,4 +727,83 @@ func (c *cmdProjectSwitch) Run(cmd *cobra.Command, args []string) error {
 	conf.Remotes[remote] = rc
 
 	return conf.SaveConfig(c.global.confPath)
+}
+
+// Info
+type cmdProjectInfo struct {
+	global  *cmdGlobal
+	project *cmdProject
+
+	flagFormat string
+}
+
+func (c *cmdProjectInfo) Command() *cobra.Command {
+	cmd := &cobra.Command{}
+	cmd.Use = usage("info", i18n.G("[<remote>:]<project> <key>"))
+	cmd.Short = i18n.G("Get a summary of resource allocations")
+	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
+		`Get a summary of resource allocations`))
+	cmd.Flags().StringVar(&c.flagFormat, "format", "table", i18n.G("Format (csv|json|table|yaml)")+"``")
+
+	cmd.RunE = c.Run
+
+	return cmd
+}
+
+func (c *cmdProjectInfo) Run(cmd *cobra.Command, args []string) error {
+	// Sanity checks
+	exit, err := c.global.CheckArgs(cmd, args, 1, 1)
+	if exit {
+		return err
+	}
+
+	// Parse remote
+	resources, err := c.global.ParseServers(args[0])
+	if err != nil {
+		return err
+	}
+
+	resource := resources[0]
+
+	if resource.name == "" {
+		return fmt.Errorf(i18n.G("Missing project name"))
+	}
+
+	// Get the current allocations
+	projectState, err := resource.server.GetProjectState(resource.name)
+	if err != nil {
+		return err
+	}
+
+	// Render the output
+	byteLimits := []string{"disk", "memory"}
+	data := [][]string{}
+	for k, v := range projectState.Resources {
+		limit := i18n.G("UNLIMITED")
+		if v.Limit >= 0 {
+			if shared.StringInSlice(k, byteLimits) {
+				limit = units.GetByteSizeString(v.Limit, 2)
+			} else {
+				limit = fmt.Sprintf("%d", v.Limit)
+			}
+		}
+
+		usage := ""
+		if shared.StringInSlice(k, byteLimits) {
+			usage = units.GetByteSizeString(v.Usage, 2)
+		} else {
+			usage = fmt.Sprintf("%d", v.Usage)
+		}
+
+		data = append(data, []string{strings.ToUpper(k), limit, usage})
+	}
+	sort.Sort(byName(data))
+
+	header := []string{
+		i18n.G("RESOURCE"),
+		i18n.G("LIMIT"),
+		i18n.G("USAGE"),
+	}
+
+	return utils.RenderTable(c.flagFormat, header, data, projectState)
 }

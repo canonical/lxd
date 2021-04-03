@@ -64,3 +64,30 @@ type Project struct {
 func (project *Project) Writable() ProjectPut {
 	return project.ProjectPut
 }
+
+// ProjectState represents the current running state of a LXD project
+//
+// swagger:model
+//
+// API extension: project_usage
+type ProjectState struct {
+	// Allocated and used resources
+	// Read only: true
+	// Example: {"containers": {"limit": 10, "usage": 4}, "cpu": {"limit": 20, "usage": 16}}
+	Resources map[string]ProjectStateResource `json:"resources" yaml:"resources"`
+}
+
+// ProjectStateResource represents the state of a particular resource in a LXD project
+//
+// swagger:model
+//
+// API extension: project_usage
+type ProjectStateResource struct {
+	// Limit for the resource (-1 if none)
+	// Example: 10
+	Limit int64
+
+	// Current usage for the resource
+	// Example: 4
+	Usage int64
+}

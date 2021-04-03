@@ -264,6 +264,7 @@ var APIExtensions = []string{
 	"images_default_architecture",
 	"network_ovn_acl_defaults",
 	"gpu_mig",
+	"project_usage",
 }
 
 // APIExtensionsCount returns the number of available API extensions.

@@ -1547,6 +1547,41 @@ definitions:
         x-go-name: Description
     type: object
     x-go-package: github.com/lxc/lxd/shared/api
+  ProjectState:
+    description: ProjectState represents the current running state of a LXD project
+    properties:
+      resources:
+        additionalProperties:
+          $ref: '#/definitions/ProjectStateResource'
+        description: Allocated and used resources
+        example:
+          containers:
+            limit: 10
+            usage: 4
+          cpu:
+            limit: 20
+            usage: 16
+        readOnly: true
+        type: object
+        x-go-name: Resources
+    type: object
+    x-go-package: github.com/lxc/lxd/shared/api
+  ProjectStateResource:
+    description: ProjectStateResource represents the state of a particular resource
+      in a LXD project
+    properties:
+      Limit:
+        description: Limit for the resource (-1 if none)
+        example: 10
+        format: int64
+        type: integer
+      Usage:
+        description: Current usage for the resource
+        example: 4
+        format: int64
+        type: integer
+    type: object
+    x-go-package: github.com/lxc/lxd/shared/api
   ProjectsPost:
     description: ProjectsPost represents the fields of a new LXD project
     properties:
@@ -6088,6 +6123,40 @@ paths:
         "500":
           $ref: '#/responses/InternalServerError'
       summary: Update the project
+      tags:
+      - projects
+  /1.0/projects/{name}/state:
+    get:
+      description: Gets a specific project resource consumption information.
+      operationId: project_state_get
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Project state
+          schema:
+            description: Sync response
+            properties:
+              metadata:
+                $ref: '#/definitions/ProjectState'
+              status:
+                description: Status description
+                example: Success
+                type: string
+              status_code:
+                description: Status code
+                example: 200
+                type: int
+              type:
+                description: Response type
+                example: sync
+                type: string
+            type: object
+        "403":
+          $ref: '#/responses/Forbidden'
+        "500":
+          $ref: '#/responses/InternalServerError'
+      summary: Get the project state
       tags:
       - projects
   /1.0/projects?recursion=1:
