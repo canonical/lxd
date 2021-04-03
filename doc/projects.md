@@ -27,10 +27,10 @@ images.auto\_update\_interval        | integer   | -                     | -    
 images.compression\_algorithm        | string    | -                     | -                         | Compression algorithm to use for images (bzip2, gzip, lzma, xz or none) in the project
 images.default\_architecture         | string    | -                     | -                         | Default architecture which should be used in mixed architecture cluster
 images.remote\_cache\_expiry         | integer   | -                     | -                         | Number of days after which an unused cached remote image will be flushed in the project
-limits.instances                     | integer   | -                     | -                         | Maximum number of total instances that can be created in the project
 limits.containers                    | integer   | -                     | -                         | Maximum number of containers that can be created in the project
 limits.cpu                           | integer   | -                     | -                         | Maximum value for the sum of individual "limits.cpu" configs set on the instances of the project
 limits.disk                          | string    | -                     | -                         | Maximum value of aggregate disk space used by all instances volumes, custom volumes and images of the project
+limits.instances                     | integer   | -                     | -                         | Maximum number of total instances that can be created in the project
 limits.memory                        | string    | -                     | -                         | Maximum value for the sum of individual "limits.memory" configs set on the instances of the project
 limits.networks                      | integer   | -                     | -                         | Maximum value for the number of networks this project can have
 limits.processes                     | integer   | -                     | -                         | Maximum value for the sum of individual "limits.processes" configs set on the instances of the project
@@ -48,8 +48,8 @@ restricted.devices.unix-block        | string    | -                     | block
 restricted.devices.unix-char         | string    | -                     | block                     | Prevents use of devices of type "unix-char"
 restricted.devices.unix-hotplug      | string    | -                     | block                     | Prevents use of devices of type "unix-hotplug"
 restricted.devices.usb               | string    | -                     | block                     | Prevents use of devices of type "usb"
-restricted.networks.uplinks          | string    | -                     | block                     | Comma delimited list of network names that can be used as uplinks for networks in this project
 restricted.networks.subnets          | string    | -                     | block                     | Comma delimited list of network subnets from the uplink networks (in the form `<uplink>:<subnet>`) that are allocated for use in this project
+restricted.networks.uplinks          | string    | -                     | block                     | Comma delimited list of network names that can be used as uplinks for networks in this project
 restricted.virtual-machines.lowlevel | string    | -                     | block                     | Prevents use of low-level virtual-machine options like raw.qemu, volatile, etc.
 
 Those keys can be set using the lxc tool with:

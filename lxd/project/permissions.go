@@ -44,20 +44,12 @@ func AllowInstanceCreation(tx *db.ClusterTx, projectName string, req api.Instanc
 		req.Profiles = []string{"default"}
 	}
 
-	instanceTypeCount := 0
-	for _, inst := range info.Instances {
-		if inst.Type == instanceType {
-			instanceTypeCount++
-		}
-	}
-
-	err = checkInstanceCountLimit(info.Project, instanceTypeCount, instanceType)
+	err = checkInstanceCountLimit(info, instanceType)
 	if err != nil {
 		return err
 	}
 
-	totalInstanceCount := len(info.Instances)
-	err = checkTotalInstanceCountLimit(info.Project, totalInstanceCount)
+	err = checkTotalInstanceCountLimit(info)
 	if err != nil {
 		return err
 	}
@@ -92,28 +84,49 @@ func AllowInstanceCreation(tx *db.ClusterTx, projectName string, req api.Instanc
 	return nil
 }
 
-// Check that we have not exceeded the maximum total allotted number of instances
-// for both containers and vms
-func checkTotalInstanceCountLimit(project *api.Project, totalInstanceCount int) error {
-	overallValue, ok := project.Config["limits.instances"]
-	if ok {
-		limit, err := strconv.Atoi(overallValue)
-		if err != nil {
-			return err
-		}
+// Check that we have not exceeded the maximum total allotted number of instances for both containers and vms.
+func checkTotalInstanceCountLimit(info *projectInfo) error {
+	count, limit, err := getTotalInstanceCountLimit(info)
+	if err != nil {
+		return err
+	}
 
-		if totalInstanceCount >= limit {
-			return fmt.Errorf(
-				"Reached maximum number of instances in project %q", project.Name)
-		}
+	if limit >= 0 && count >= limit {
+		return fmt.Errorf("Reached maximum number of instances in project %q", info.Project.Name)
 	}
 
 	return nil
 }
 
-// Check that we have not reached the maximum number of instances for
-// this type.
-func checkInstanceCountLimit(project *api.Project, instanceCount int, instanceType instancetype.Type) error {
+func getTotalInstanceCountLimit(info *projectInfo) (int, int, error) {
+	overallValue, ok := info.Project.Config["limits.instances"]
+	if ok {
+		limit, err := strconv.Atoi(overallValue)
+		if err != nil {
+			return -1, -1, err
+		}
+
+		return len(info.Instances), limit, nil
+	}
+
+	return len(info.Instances), -1, nil
+}
+
+// Check that we have not reached the maximum number of instances for this type.
+func checkInstanceCountLimit(info *projectInfo, instanceType instancetype.Type) error {
+	count, limit, err := getInstanceCountLimit(info, instanceType)
+	if err != nil {
+		return err
+	}
+
+	if limit >= 0 && count >= limit {
+		return fmt.Errorf("Reached maximum number of instances of type %q in project %q", instanceType, info.Project.Name)
+	}
+
+	return nil
+}
+
+func getInstanceCountLimit(info *projectInfo, instanceType instancetype.Type) (int, int, error) {
 	var key string
 	switch instanceType {
 	case instancetype.Container:
@@ -121,24 +134,27 @@ func checkInstanceCountLimit(project *api.Project, instanceCount int, instanceTy
 	case instancetype.VM:
 		key = "limits.virtual-machines"
 	default:
-		return fmt.Errorf("Unexpected instance type %q", instanceType)
+		return -1, -1, fmt.Errorf("Unexpected instance type %q", instanceType)
 	}
 
-	value, ok := project.Config[key]
+	instanceCount := 0
+	for _, inst := range info.Instances {
+		if inst.Type == instanceType {
+			instanceCount++
+		}
+	}
+
+	value, ok := info.Project.Config[key]
 	if ok {
 		limit, err := strconv.Atoi(value)
 		if err != nil || limit < 0 {
-			return fmt.Errorf("Unexpected %q value: %q", key, value)
+			return -1, -1, fmt.Errorf("Unexpected %q value: %q", key, value)
 		}
 
-		if instanceCount >= limit {
-			return fmt.Errorf(
-				"Reached maximum number of instances of type %q in project %q",
-				instanceType, project.Name)
-		}
+		return instanceCount, limit, nil
 	}
 
-	return nil
+	return instanceCount, -1, nil
 }
 
 // Check restrictions on setting volatile.* keys.
@@ -273,7 +289,7 @@ func GetImageSpaceBudget(tx *db.ClusterTx, projectName string) (int64, error) {
 
 	info.Instances = expandInstancesConfigAndDevices(info.Instances, info.Profiles)
 
-	totals, err := getTotalsAcrossProjectEntities(info, []string{"limits.disk"})
+	totals, err := getTotalsAcrossProjectEntities(info, []string{"limits.disk"}, false)
 	if err != nil {
 		return -1, err
 	}
@@ -330,7 +346,7 @@ func checkAggregateLimits(info *projectInfo, aggregateKeys []string) error {
 		return nil
 	}
 
-	totals, err := getTotalsAcrossProjectEntities(info, aggregateKeys)
+	totals, err := getTotalsAcrossProjectEntities(info, aggregateKeys, false)
 	if err != nil {
 		return err
 	}
@@ -804,7 +820,7 @@ func AllowProjectUpdate(tx *db.ClusterTx, projectName string, config map[string]
 	}
 
 	if len(aggregateKeys) > 0 {
-		totals, err := getTotalsAcrossProjectEntities(info, aggregateKeys)
+		totals, err := getTotalsAcrossProjectEntities(info, aggregateKeys, false)
 		if err != nil {
 			return err
 		}
@@ -1010,7 +1026,7 @@ func expandInstancesConfigAndDevices(instances []db.Instance, profiles []db.Prof
 
 // Sum of the effective values for the given limits across all project
 // enties (instances and custom volumes).
-func getTotalsAcrossProjectEntities(info *projectInfo, keys []string) (map[string]int64, error) {
+func getTotalsAcrossProjectEntities(info *projectInfo, keys []string, skipUnset bool) (map[string]int64, error) {
 	totals := map[string]int64{}
 
 	for _, key := range keys {
@@ -1019,6 +1035,10 @@ func getTotalsAcrossProjectEntities(info *projectInfo, keys []string) (map[strin
 			for _, volume := range info.Volumes {
 				value, ok := volume.Config["size"]
 				if !ok {
+					if skipUnset {
+						continue
+					}
+
 					return nil, fmt.Errorf(
 						"Custom volume %s in project %s has no 'size' config set",
 						volume.Name, info.Project.Name)
@@ -1036,7 +1056,7 @@ func getTotalsAcrossProjectEntities(info *projectInfo, keys []string) (map[strin
 	}
 
 	for _, instance := range info.Instances {
-		limits, err := getInstanceLimits(instance, keys)
+		limits, err := getInstanceLimits(instance, keys, skipUnset)
 		if err != nil {
 			return nil, err
 		}
@@ -1049,9 +1069,8 @@ func getTotalsAcrossProjectEntities(info *projectInfo, keys []string) (map[strin
 	return totals, nil
 }
 
-// Return the effective instance-level values for the limits with the given
-// keys.
-func getInstanceLimits(instance db.Instance, keys []string) (map[string]int64, error) {
+// Return the effective instance-level values for the limits with the given keys.
+func getInstanceLimits(instance db.Instance, keys []string, skipUnset bool) (map[string]int64, error) {
 	limits := map[string]int64{}
 
 	for _, key := range keys {
@@ -1067,6 +1086,10 @@ func getInstanceLimits(instance db.Instance, keys []string) (map[string]int64, e
 
 			value, ok = device["size"]
 			if !ok || value == "" {
+				if skipUnset {
+					continue
+				}
+
 				return nil, fmt.Errorf(
 					"Instance %s in project %s has no 'size' config set on the root device, "+
 						"either directly or via a profile",
@@ -1075,6 +1098,10 @@ func getInstanceLimits(instance db.Instance, keys []string) (map[string]int64, e
 		} else {
 			value, ok = instance.Config[key]
 			if !ok || value == "" {
+				if skipUnset {
+					continue
+				}
+
 				return nil, fmt.Errorf(
 					"Instance %s in project %s has no '%s' config, "+
 						"either directly or via a profile",
@@ -1085,6 +1112,10 @@ func getInstanceLimits(instance db.Instance, keys []string) (map[string]int64, e
 		parser := aggregateLimitConfigValueParsers[key]
 		limit, err := parser(value)
 		if err != nil {
+			if skipUnset {
+				continue
+			}
+
 			return nil, errors.Wrapf(
 				err, "Parse '%s' for instance %s in project %s",
 				key, instance.Name, instance.Project)
