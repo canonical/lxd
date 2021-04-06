@@ -794,3 +794,53 @@ func (d Xtables) InstanceClearRPFilter(projectName string, instanceName string, 
 
 	return nil
 }
+
+// iptablesChainExists checks whether a chain exists in a table.
+func (d Xtables) iptablesChainExists(ipVersion uint, table string, chain string) (bool, error) {
+	var cmd string
+	if ipVersion == 4 {
+		cmd = "iptables"
+	} else if ipVersion == 6 {
+		cmd = "ip6tables"
+	} else {
+		return false, fmt.Errorf("Invalid IP version")
+	}
+
+	_, err := exec.LookPath(cmd)
+	if err != nil {
+		return false, errors.Wrapf(err, "Failed checking %q chain %q exists in table %q", cmd, chain, table)
+	}
+
+	// Attempt to dump the rules of the chain, if this fails then chain doesn't exist.
+	_, err = shared.RunCommand(cmd, "-t", table, "-S", chain)
+	if err == nil {
+		return true, nil
+	}
+
+	return false, nil
+}
+
+// iptablesChainCreate creates a chain in a table.
+func (d Xtables) iptablesChainCreate(ipVersion uint, table string, chain string) error {
+	var cmd string
+	if ipVersion == 4 {
+		cmd = "iptables"
+	} else if ipVersion == 6 {
+		cmd = "ip6tables"
+	} else {
+		return fmt.Errorf("Invalid IP version")
+	}
+
+	_, err := exec.LookPath(cmd)
+	if err != nil {
+		return errors.Wrapf(err, "Failed creating %q chain %q in table %q", cmd, chain, table)
+	}
+
+	// Attempt to create chain in table.
+	_, err = shared.RunCommand(cmd, "-t", table, "-N", chain)
+	if err != nil {
+		return errors.Wrapf(err, "Failed creating %q chain %q in table %q", cmd, chain, table)
+	}
+
+	return nil
+}
