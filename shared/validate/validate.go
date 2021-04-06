@@ -558,7 +558,7 @@ func IsUUID(value string) error {
 
 // IsPCIAddress validates whether a value is a PCI address.
 func IsPCIAddress(value string) error {
-	regexHex, err := regexp.Compile(`^([0-9a-f]{4}?:)?[0-9a-f]{2}:[0-9a-f]{2}\.[0-9a-f]$`)
+	regexHex, err := regexp.Compile(`^([0-9a-fA-F]{4}?:)?[0-9a-fA-F]{2}:[0-9a-fA-F]{2}\.[0-9a-fA-F]$`)
 	if err != nil {
 		return err
 	}
