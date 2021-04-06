@@ -1330,8 +1330,8 @@ func (r *ProtocolLXD) GetContainerLogfiles(name string) ([]string, error) {
 	}
 
 	// Parse it
-	logfiles := []string{}
-	for _, uri := range logfiles {
+	logfiles := make([]string, 0, len(urls))
+	for _, uri := range urls {
 		fields := strings.Split(uri, fmt.Sprintf("/containers/%s/logs/", url.PathEscape(name)))
 		logfiles = append(logfiles, fields[len(fields)-1])
 	}
