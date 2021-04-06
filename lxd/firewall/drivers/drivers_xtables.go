@@ -19,6 +19,9 @@ import (
 	"github.com/lxc/lxd/shared/logger"
 )
 
+// iptablesChainNICFilter chain used for NIC specific filtering rules.
+const iptablesChainNICFilter = "lxd_nic"
+
 // Xtables is an implmentation of LXD firewall using {ip, ip6, eb}tables
 type Xtables struct{}
 
@@ -144,7 +147,39 @@ func (d Xtables) networkIPTablesComment(networkName string) string {
 	return fmt.Sprintf("LXD network %s", networkName)
 }
 
-// networkSetupForwardingPolicy allows forwarding dependent on boolean argument
+// networkSetupNICFilteringChain creates the NIC filtering chain if it doesn't exist, and adds the jump rules to
+// the INPUT and FORWARD filter chains. Must be called after networkSetupForwardingPolicy so that the rules are
+// prepended before the default fowarding policy rules.
+func (d Xtables) networkSetupNICFilteringChain(networkName string, ipVersion uint) error {
+	// Create the NIC filter chain if it doesn't exist.
+	exists, err := d.iptablesChainExists(6, "filter", iptablesChainNICFilter)
+	if err != nil {
+		return err
+	}
+
+	if !exists {
+		err = d.iptablesChainCreate(6, "filter", iptablesChainNICFilter)
+		if err != nil {
+			return err
+		}
+	}
+
+	comment := d.networkIPTablesComment(networkName)
+	err = d.iptablesPrepend(ipVersion, comment, "filter", "INPUT", "-i", networkName, "-j", iptablesChainNICFilter)
+	if err != nil {
+		return err
+	}
+
+	err = d.iptablesPrepend(ipVersion, comment, "filter", "FORWARD", "-i", networkName, "-j", iptablesChainNICFilter)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// networkSetupForwardingPolicy allows forwarding dependent on boolean argument. Must be called before
+// networkSetupNICFilteringChains so the default forwarding policy rules are processed after NIC filtering rules.
 func (d Xtables) networkSetupForwardingPolicy(networkName string, ipVersion uint, allow bool) error {
 	forwardType := "REJECT"
 	if allow {
@@ -294,6 +329,14 @@ func (d Xtables) NetworkSetup(networkName string, opts Opts) error {
 		}
 
 		err := d.networkSetupForwardingPolicy(networkName, 6, opts.FeaturesV6.ForwardingAllow)
+		if err != nil {
+			return err
+		}
+
+		// Setup NIC filtering chain. This must come after networkSetupForwardingPolicy so that the jump
+		// rules prepended to the INPUT and FORWARD chains are processed before the default forwarding
+		// policy rules.
+		err = d.networkSetupNICFilteringChain(networkName, 6)
 		if err != nil {
 			return err
 		}
@@ -586,11 +629,9 @@ func (d Xtables) generateFilterIptablesRules(parentName string, hostName string,
 		ipv6Hex := hex.EncodeToString(IPv6)
 		rules = append(rules,
 			// Prevent Neighbor Advertisement IP spoofing (prevents the instance redirecting traffic for IPs that are not its own).
-			[]string{"6", "INPUT", "-i", parentName, "-p", "ipv6-icmp", "-m", "physdev", "--physdev-in", hostName, "-m", "icmp6", "--icmpv6-type", "136", "-m", "string", "!", "--hex-string", fmt.Sprintf("|%s|", ipv6Hex), "--algo", "bm", "--from", "48", "--to", "64", "-j", "DROP"},
-			[]string{"6", "FORWARD", "-i", parentName, "-p", "ipv6-icmp", "-m", "physdev", "--physdev-in", hostName, "-m", "icmp6", "--icmpv6-type", "136", "-m", "string", "!", "--hex-string", fmt.Sprintf("|%s|", ipv6Hex), "--algo", "bm", "--from", "48", "--to", "64", "-j", "DROP"},
+			[]string{"6", iptablesChainNICFilter, "-i", parentName, "-p", "ipv6-icmp", "-m", "physdev", "--physdev-in", hostName, "-m", "icmp6", "--icmpv6-type", "136", "-m", "string", "!", "--hex-string", fmt.Sprintf("|%s|", ipv6Hex), "--algo", "bm", "--from", "48", "--to", "64", "-j", "DROP"},
 			// Prevent Neighbor Advertisement MAC spoofing (prevents the instance poisoning the NDP cache of its neighbours with a MAC address that isn't its own).
-			[]string{"6", "INPUT", "-i", parentName, "-p", "ipv6-icmp", "-m", "physdev", "--physdev-in", hostName, "-m", "icmp6", "--icmpv6-type", "136", "-m", "string", "!", "--hex-string", fmt.Sprintf("|%s|", macHex), "--algo", "bm", "--from", "66", "--to", "72", "-j", "DROP"},
-			[]string{"6", "FORWARD", "-i", parentName, "-p", "ipv6-icmp", "-m", "physdev", "--physdev-in", hostName, "-m", "icmp6", "--icmpv6-type", "136", "-m", "string", "!", "--hex-string", fmt.Sprintf("|%s|", macHex), "--algo", "bm", "--from", "66", "--to", "72", "-j", "DROP"},
+			[]string{"6", iptablesChainNICFilter, "-i", parentName, "-p", "ipv6-icmp", "-m", "physdev", "--physdev-in", hostName, "-m", "icmp6", "--icmpv6-type", "136", "-m", "string", "!", "--hex-string", fmt.Sprintf("|%s|", macHex), "--algo", "bm", "--from", "66", "--to", "72", "-j", "DROP"},
 		)
 	}
 
