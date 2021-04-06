@@ -71,6 +71,9 @@ navigation:
         - title: Production setup
           location: production-setup.md
 
+        - title: Remotes
+          location: remotes.md
+
     - title: REST API
       children:
         - title: Main API documentation
