@@ -10,6 +10,8 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/pkg/errors"
+
 	deviceConfig "github.com/lxc/lxd/lxd/device/config"
 	"github.com/lxc/lxd/lxd/project"
 	"github.com/lxc/lxd/lxd/revert"
@@ -354,7 +356,7 @@ func (d Xtables) InstanceClearBridgeFilter(projectName string, instanceName stri
 	// Get a current list of rules active on the host.
 	out, err := shared.RunCommand("ebtables", "--concurrent", "-L", "--Lmac2", "--Lx")
 	if err != nil {
-		return fmt.Errorf("Failed to get a list of network filters to for %q: %v", deviceName, err)
+		return errors.Wrapf(err, "Failed to get a list of network filters to for %q", deviceName)
 	}
 
 	// Get a list of rules that we would have applied on instance start.
