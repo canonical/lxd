@@ -132,6 +132,7 @@ var APIExtensions = []string{
 	"container_incremental_copy",
 	"usb_optional_vendorid",
 	"snapshot_scheduling",
+	"snapshot_schedule_aliases",
 	"container_copy_project",
 	"clustering_server_address",
 	"clustering_image_replication",
