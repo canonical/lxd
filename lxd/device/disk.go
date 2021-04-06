@@ -29,6 +29,7 @@ import (
 	"github.com/lxc/lxd/shared/idmap"
 	log "github.com/lxc/lxd/shared/log15"
 	"github.com/lxc/lxd/shared/logger"
+	"github.com/lxc/lxd/shared/osarch"
 	"github.com/lxc/lxd/shared/subprocess"
 	"github.com/lxc/lxd/shared/units"
 	"github.com/lxc/lxd/shared/validate"
@@ -629,7 +630,7 @@ func (d *disk) startVM() (*deviceConfig.RunConfig, error) {
 					}
 				}
 
-				if !shared.IsTrue(d.inst.ExpandedConfig()["migration.stateful"]) && cmd != "" {
+				if d.inst.Architecture() == osarch.ARCH_64BIT_INTEL_X86 && !shared.IsTrue(d.inst.ExpandedConfig()["migration.stateful"]) && cmd != "" {
 					// Start the virtiofsd process in non-daemon mode.
 					proc, err := subprocess.NewProcess(cmd, []string{fmt.Sprintf("--socket-path=%s", sockPath), "-o", fmt.Sprintf("source=%s", srcPath)}, logPath, logPath)
 					if err != nil {
