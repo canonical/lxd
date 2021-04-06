@@ -329,7 +329,7 @@ func (d Xtables) InstanceSetupBridgeFilter(projectName string, instanceName stri
 		}
 	}
 
-	rules, err := d.generateFilterIptablesRules(projectName, instanceName, parentName, hostName, hwAddr, IPv4, IPv6)
+	rules, err := d.generateFilterIptablesRules(parentName, hostName, hwAddr, IPv6)
 	if err != nil {
 		return err
 	}
@@ -566,7 +566,7 @@ func (d Xtables) generateFilterEbtablesRules(hostName string, hwAddr string, IPv
 }
 
 // generateFilterIptablesRules returns a customised set of iptables filter rules based on the device.
-func (d Xtables) generateFilterIptablesRules(projectName string, instanceName string, parentName string, hostName string, hwAddr string, _ net.IP, IPv6 net.IP) (rules [][]string, err error) {
+func (d Xtables) generateFilterIptablesRules(parentName string, hostName string, hwAddr string, IPv6 net.IP) (rules [][]string, err error) {
 	mac, err := net.ParseMAC(hwAddr)
 	if err != nil {
 		return
