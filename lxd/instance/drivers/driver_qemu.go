@@ -911,7 +911,9 @@ func (d *qemu) Start(stateful bool) error {
 		}
 	}
 
-	if !shared.IsTrue(d.expandedConfig["migration.stateful"]) && cmd != "" {
+	// Currently, virtiofs is broken on at least the ARM architecture.
+	// We therefore restrict virtiofs to 64BIT_INTEL_X86.
+	if d.Architecture() == osarch.ARCH_64BIT_INTEL_X86 && !shared.IsTrue(d.expandedConfig["migration.stateful"]) && cmd != "" {
 		// Start the virtiofsd process in non-daemon mode.
 		proc, err := subprocess.NewProcess(cmd, []string{fmt.Sprintf("--socket-path=%s", sockPath), "-o", fmt.Sprintf("source=%s", filepath.Join(d.Path(), "config"))}, "", "")
 		if err != nil {
