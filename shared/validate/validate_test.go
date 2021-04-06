@@ -33,9 +33,9 @@ func ExampleIsPCIAddress() {
 	tests := []string{
 		"0000:12:ab.0", // valid
 		"0010:12:ab.0", // valid
-		"0000:12:CD.0", // upper-case not supported
+		"0000:12:CD.0", // valid
 		"12:ab.0",      // valid
-		"12:CD.0",      // upper-case not supported
+		"12:CD.0",      // valid
 		"0000:12:gh.0", // invalid hex
 		"0000:12:GH.0", // invalid hex
 		"12:gh.0",      // invalid hex
@@ -52,9 +52,9 @@ func ExampleIsPCIAddress() {
 
 	// Output: 0000:12:ab.0, true
 	// 0010:12:ab.0, true
-	// 0000:12:CD.0, false
+	// 0000:12:CD.0, true
 	// 12:ab.0, true
-	// 12:CD.0, false
+	// 12:CD.0, true
 	// 0000:12:gh.0, false
 	// 0000:12:GH.0, false
 	// 12:gh.0, false
