@@ -642,3 +642,22 @@ func (d *common) insertConfigkey(key string, value string) (string, error) {
 func (d *common) isRunningStatusCode(statusCode api.StatusCode) bool {
 	return statusCode != api.Error && statusCode != api.Stopped
 }
+
+// startupSnapshot triggers a snapshot if configured.
+func (d *common) startupSnapshot(inst instance.Instance) error {
+	if strings.ToLower(d.expandedConfig["snapshots.schedule"]) != "@startup" {
+		return nil
+	}
+
+	expiry, err := shared.GetSnapshotExpiry(time.Now(), d.expandedConfig["snapshots.expiry"])
+	if err != nil {
+		return err
+	}
+
+	name, err := instance.NextSnapshotName(d.state, inst, "snap%d")
+	if err != nil {
+		return err
+	}
+
+	return inst.Snapshot(name, expiry, false)
+}
