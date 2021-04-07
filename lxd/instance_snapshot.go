@@ -128,7 +128,7 @@ func instanceSnapshotsPost(d *Daemon, r *http.Request) response.Response {
 	}
 
 	if req.Name == "" {
-		req.Name, err = instanceDetermineNextSnapshotName(d, inst, "snap%d")
+		req.Name, err = instance.NextSnapshotName(d.State(), inst, "snap%d")
 		if err != nil {
 			return response.SmartError(err)
 		}
