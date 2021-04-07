@@ -1021,6 +1021,13 @@ func (d *qemu) Start(stateful bool) error {
 		return err
 	}
 
+	// Snapshot if needed.
+	err = d.startupSnapshot(d)
+	if err != nil {
+		return err
+	}
+
+	// Start QEMU.
 	qemuCmd := []string{
 		"--",
 		qemuPath,
