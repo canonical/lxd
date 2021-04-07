@@ -10,7 +10,6 @@ import (
 	"time"
 
 	"github.com/pkg/errors"
-	cron "gopkg.in/robfig/cron.v2"
 
 	"github.com/lxc/lxd/lxd/cluster"
 	"github.com/lxc/lxd/lxd/db"
@@ -384,35 +383,13 @@ func autoCreateContainerSnapshotsTask(d *Daemon) (task.Func, task.Schedule) {
 		// Figure out which need snapshotting (if any)
 		instances := []instance.Instance{}
 		for _, c := range allContainers {
-			schedule := c.ExpandedConfig()["snapshots.schedule"]
-
-			if schedule == "" {
+			schedule, ok := c.ExpandedConfig()["snapshots.schedule"]
+			if !ok || schedule == "" {
 				continue
 			}
 
-			// Extend our schedule to one that is accepted by the used cron parser
-			sched, err := cron.Parse(fmt.Sprintf("* %s", schedule))
-			if err != nil {
-				continue
-			}
-
-			// Check if it's time to snapshot
-			now := time.Now()
-
-			// Truncate the time now back to the start of the minute, before passing to
-			// the cron scheduler, as it will add 1s to the scheduled time and we don't
-			// want the next scheduled time to roll over to the next minute and break
-			// the time comparison below.
-			now = now.Truncate(time.Minute)
-
-			// Calculate the next scheduled time based on the snapshots.schedule
-			// pattern and the time now.
-			next := sched.Next(now)
-
-			// Ignore everything that is more precise than minutes.
-			next = next.Truncate(time.Minute)
-
-			if !now.Equal(next) {
+			// Check if snapshot is scheduled
+			if !snapshotIsScheduledNow(schedule, int64(c.ID())) {
 				continue
 			}
 

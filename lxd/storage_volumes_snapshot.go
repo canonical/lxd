@@ -12,7 +12,6 @@ import (
 	"github.com/flosch/pongo2"
 	"github.com/gorilla/mux"
 	"github.com/pkg/errors"
-	cron "gopkg.in/robfig/cron.v2"
 
 	"github.com/lxc/lxd/lxd/cluster"
 	"github.com/lxc/lxd/lxd/db"
@@ -715,33 +714,12 @@ func autoCreateCustomVolumeSnapshotsTask(d *Daemon) (task.Func, task.Schedule) {
 		var volumes []db.StorageVolumeArgs
 		for _, v := range allVolumes {
 			schedule, ok := v.Config["snapshots.schedule"]
-			if !ok {
+			if !ok || schedule == "" {
 				continue
 			}
 
-			// Extend our schedule to one that is accepted by the used cron parser
-			sched, err := cron.Parse(fmt.Sprintf("* %s", schedule))
-			if err != nil {
-				continue
-			}
-
-			// Check if it's time to snapshot
-			now := time.Now()
-
-			// Truncate the time now back to the start of the minute, before passing to
-			// the cron scheduler, as it will add 1s to the scheduled time and we don't
-			// want the next scheduled time to roll over to the next minute and break
-			// the time comparison below.
-			now = now.Truncate(time.Minute)
-
-			// Calculate the next scheduled time based on the snapshots.schedule
-			// pattern and the time now.
-			next := sched.Next(now)
-
-			// Ignore everything that is more precise than minutes.
-			next = next.Truncate(time.Minute)
-
-			if !now.Equal(next) {
+			// Check if snapshot is scheduled
+			if !snapshotIsScheduledNow(schedule, v.ID) {
 				continue
 			}
 
