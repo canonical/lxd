@@ -29,3 +29,18 @@ type Opts struct {
 	SNATV6     *SNATOpts    // Enable IPv6 SNAT with specified options. Off if not provided.
 	ACL        bool         // Enable ACL during setup.
 }
+
+// ACLRule represents an ACL rule that can be added to a firewall.
+type ACLRule struct {
+	Direction       string // Either "ingress" or "egress.
+	Action          string
+	Log             bool   // Whether or not to log matched packets.
+	LogName         string // Log label name (requires Log be true).
+	Source          string
+	Destination     string
+	Protocol        string
+	SourcePort      string
+	DestinationPort string
+	ICMPType        string
+	ICMPCode        string
+}
