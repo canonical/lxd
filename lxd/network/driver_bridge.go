@@ -1482,6 +1482,21 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 		return errors.Wrapf(err, "Failed to setup firewall")
 	}
 
+	if fwOpts.ACL {
+		aclNet := acl.NetworkACLUsage{
+			Name:   n.Name(),
+			Type:   n.Type(),
+			ID:     n.ID(),
+			Config: n.Config(),
+		}
+
+		n.logger.Debug("Applying up firewall ACLs")
+		err = acl.FirewallApplyACLRules(n.state, n.logger, n.Project(), aclNet)
+		if err != nil {
+			return err
+		}
+	}
+
 	revert.Success()
 	return nil
 }
