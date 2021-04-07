@@ -303,16 +303,19 @@ func (d Nftables) NetworkSetup(networkName string, opts Opts) error {
 }
 
 // NetworkClear removes the LXD network related chains.
-func (d Nftables) NetworkClear(networkName string, ipVersion uint) error {
-	family, err := d.getIPFamily(ipVersion)
-	if err != nil {
-		return err
-	}
+// The delete argument has no effect for nftables driver.
+func (d Nftables) NetworkClear(networkName string, delete bool, ipVersions []uint) error {
+	for _, ipVersion := range ipVersions {
+		family, err := d.getIPFamily(ipVersion)
+		if err != nil {
+			return err
+		}
 
-	// Remove chains created by network rules.
-	err = d.removeChains([]string{family}, networkName, "fwd", "pstrt", "in", "out")
-	if err != nil {
-		return errors.Wrapf(err, "Failed clearing nftables rules for network %q", networkName)
+		// Remove chains created by network rules.
+		err = d.removeChains([]string{family}, networkName, "fwd", "pstrt", "in", "out")
+		if err != nil {
+			return errors.Wrapf(err, "Failed clearing nftables rules for network %q", networkName)
+		}
 	}
 
 	return nil
