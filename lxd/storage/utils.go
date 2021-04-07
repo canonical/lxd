@@ -10,7 +10,6 @@ import (
 	"time"
 
 	"github.com/pkg/errors"
-	"gopkg.in/robfig/cron.v2"
 
 	"github.com/lxc/lxd/lxd/db"
 	deviceConfig "github.com/lxc/lxd/lxd/device/config"
@@ -377,23 +376,8 @@ func validateVolumeCommonRules(vol drivers.Volume) map[string]func(string) error
 			_, err := shared.GetSnapshotExpiry(time.Time{}, value)
 			return err
 		},
-		"snapshots.schedule": func(value string) error {
-			if value == "" {
-				return nil
-			}
-
-			if len(strings.Split(value, " ")) != 5 {
-				return fmt.Errorf("Schedule must be of the form: <minute> <hour> <day-of-month> <month> <day-of-week>")
-			}
-
-			_, err := cron.Parse(fmt.Sprintf("* %s", value))
-			if err != nil {
-				return errors.Wrap(err, "Error parsing schedule")
-			}
-
-			return nil
-		},
-		"snapshots.pattern": validate.IsAny,
+		"snapshots.schedule": validate.Optional(validate.IsCron([]string{"@hourly", "@daily", "@midnight", "@weekly", "@monthly", "@annually", "@yearly"})),
+		"snapshots.pattern":  validate.IsAny,
 	}
 
 	// volatile.idmap settings only make sense for filesystem volumes.
