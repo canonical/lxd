@@ -747,7 +747,7 @@ func autoCreateCustomVolumeSnapshotsTask(d *Daemon) (task.Func, task.Schedule) {
 
 			// If there is more than one node (clustering), a stable random node is chosen to perform the snapshot.
 			if len(availableNodeIDs) > 1 {
-				selectedNodeID, err := util.GetStableRandomInt64FromList(int(v.ID), availableNodeIDs)
+				selectedNodeID, err := util.GetStableRandomInt64FromList(int64(v.ID), availableNodeIDs)
 				if err != nil {
 					continue
 				}

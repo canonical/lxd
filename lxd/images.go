@@ -1404,7 +1404,7 @@ func autoUpdateImages(ctx context.Context, d *Daemon) error {
 
 			// If multiple nodes have the image, select one to deal with it.
 			if len(nodeIDs) > 1 {
-				selectedNode, err := util.GetStableRandomInt64FromList(len(images), nodeIDs)
+				selectedNode, err := util.GetStableRandomInt64FromList(int64(len(images)), nodeIDs)
 				if err != nil {
 					logger.Error("Failed to select cluster member for image update", log.Ctx{"err": err})
 					continue
