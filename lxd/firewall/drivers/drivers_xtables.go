@@ -19,8 +19,8 @@ import (
 	"github.com/lxc/lxd/shared/logger"
 )
 
-// iptablesChainNICFilter chain used for NIC specific filtering rules.
-const iptablesChainNICFilter = "lxd_nic"
+// iptablesChainNICFilterPrefix chain prefix used for NIC specific filtering rules.
+const iptablesChainNICFilterPrefix = "lxd_nic"
 
 // Xtables is an implmentation of LXD firewall using {ip, ip6, eb}tables
 type Xtables struct{}
@@ -151,26 +151,28 @@ func (d Xtables) networkIPTablesComment(networkName string) string {
 // the INPUT and FORWARD filter chains. Must be called after networkSetupForwardingPolicy so that the rules are
 // prepended before the default fowarding policy rules.
 func (d Xtables) networkSetupNICFilteringChain(networkName string, ipVersion uint) error {
+	chain := fmt.Sprintf("%s_%s", iptablesChainNICFilterPrefix, networkName)
+
 	// Create the NIC filter chain if it doesn't exist.
-	exists, err := d.iptablesChainExists(6, "filter", iptablesChainNICFilter)
+	exists, err := d.iptablesChainExists(ipVersion, "filter", chain)
 	if err != nil {
 		return err
 	}
 
 	if !exists {
-		err = d.iptablesChainCreate(6, "filter", iptablesChainNICFilter)
+		err = d.iptablesChainCreate(ipVersion, "filter", chain)
 		if err != nil {
 			return err
 		}
 	}
 
 	comment := d.networkIPTablesComment(networkName)
-	err = d.iptablesPrepend(ipVersion, comment, "filter", "INPUT", "-i", networkName, "-j", iptablesChainNICFilter)
+	err = d.iptablesPrepend(ipVersion, comment, "filter", "INPUT", "-i", networkName, "-j", chain)
 	if err != nil {
 		return err
 	}
 
-	err = d.iptablesPrepend(ipVersion, comment, "filter", "FORWARD", "-i", networkName, "-j", iptablesChainNICFilter)
+	err = d.iptablesPrepend(ipVersion, comment, "filter", "FORWARD", "-i", networkName, "-j", chain)
 	if err != nil {
 		return err
 	}
@@ -346,10 +348,31 @@ func (d Xtables) NetworkSetup(networkName string, opts Opts) error {
 }
 
 // NetworkClear removes network rules from filter, mangle and nat tables.
-func (d Xtables) NetworkClear(networkName string, ipVersion uint) error {
-	err := d.iptablesClear(ipVersion, d.networkIPTablesComment(networkName), "filter", "mangle", "nat")
-	if err != nil {
-		return err
+// If delete is true then network-specific chains are also removed.
+func (d Xtables) NetworkClear(networkName string, delete bool, ipVersions []uint) error {
+	for _, ipVersion := range ipVersions {
+		// Clear any rules associated to the network.
+		err := d.iptablesClear(ipVersion, d.networkIPTablesComment(networkName), "filter", "mangle", "nat")
+		if err != nil {
+			return err
+		}
+
+		// Remove network specific chains (and any rules in them) if deleting.
+		if delete {
+			// Remove the NIC filter chain if it exists.
+			nicFilterChain := fmt.Sprintf("%s_%s", iptablesChainNICFilterPrefix, networkName)
+			exists, err := d.iptablesChainExists(ipVersion, "filter", nicFilterChain)
+			if err != nil {
+				return err
+			}
+
+			if exists {
+				err = d.iptablesChainDelete(ipVersion, "filter", nicFilterChain)
+				if err != nil {
+					return err
+				}
+			}
+		}
 	}
 
 	return nil
@@ -626,12 +649,14 @@ func (d Xtables) generateFilterIptablesRules(parentName string, hostName string,
 	// correct source address and MAC at the IP & ethernet layers, but a fraudulent IP or MAC
 	// inside the ICMPv6 NDP packet.
 	if IPv6 != nil {
+		chain := fmt.Sprintf("%s_%s", iptablesChainNICFilterPrefix, parentName)
+
 		ipv6Hex := hex.EncodeToString(IPv6)
 		rules = append(rules,
 			// Prevent Neighbor Advertisement IP spoofing (prevents the instance redirecting traffic for IPs that are not its own).
-			[]string{"6", iptablesChainNICFilter, "-i", parentName, "-p", "ipv6-icmp", "-m", "physdev", "--physdev-in", hostName, "-m", "icmp6", "--icmpv6-type", "136", "-m", "string", "!", "--hex-string", fmt.Sprintf("|%s|", ipv6Hex), "--algo", "bm", "--from", "48", "--to", "64", "-j", "DROP"},
+			[]string{"6", chain, "-i", parentName, "-p", "ipv6-icmp", "-m", "physdev", "--physdev-in", hostName, "-m", "icmp6", "--icmpv6-type", "136", "-m", "string", "!", "--hex-string", fmt.Sprintf("|%s|", ipv6Hex), "--algo", "bm", "--from", "48", "--to", "64", "-j", "DROP"},
 			// Prevent Neighbor Advertisement MAC spoofing (prevents the instance poisoning the NDP cache of its neighbours with a MAC address that isn't its own).
-			[]string{"6", iptablesChainNICFilter, "-i", parentName, "-p", "ipv6-icmp", "-m", "physdev", "--physdev-in", hostName, "-m", "icmp6", "--icmpv6-type", "136", "-m", "string", "!", "--hex-string", fmt.Sprintf("|%s|", macHex), "--algo", "bm", "--from", "66", "--to", "72", "-j", "DROP"},
+			[]string{"6", chain, "-i", parentName, "-p", "ipv6-icmp", "-m", "physdev", "--physdev-in", hostName, "-m", "icmp6", "--icmpv6-type", "136", "-m", "string", "!", "--hex-string", fmt.Sprintf("|%s|", macHex), "--algo", "bm", "--from", "66", "--to", "72", "-j", "DROP"},
 		)
 	}
 
@@ -872,15 +897,36 @@ func (d Xtables) iptablesChainCreate(ipVersion uint, table string, chain string)
 		return fmt.Errorf("Invalid IP version")
 	}
 
-	_, err := exec.LookPath(cmd)
+	// Attempt to create chain in table.
+	_, err := shared.RunCommand(cmd, "-t", table, "-N", chain)
 	if err != nil {
 		return errors.Wrapf(err, "Failed creating %q chain %q in table %q", cmd, chain, table)
 	}
 
-	// Attempt to create chain in table.
-	_, err = shared.RunCommand(cmd, "-t", table, "-N", chain)
+	return nil
+}
+
+// iptablesChainDelete deletes a chain in a table.
+func (d Xtables) iptablesChainDelete(ipVersion uint, table string, chain string) error {
+	var cmd string
+	if ipVersion == 4 {
+		cmd = "iptables"
+	} else if ipVersion == 6 {
+		cmd = "ip6tables"
+	} else {
+		return fmt.Errorf("Invalid IP version")
+	}
+
+	// Attempt to flush rules from chain in table.
+	_, err := shared.RunCommand(cmd, "-t", table, "-F", chain)
 	if err != nil {
-		return errors.Wrapf(err, "Failed creating %q chain %q in table %q", cmd, chain, table)
+		return errors.Wrapf(err, "Failed flushing %q chain %q in table %q", cmd, chain, table)
+	}
+
+	// Attempt to delete chain in table.
+	_, err = shared.RunCommand(cmd, "-t", table, "-X", chain)
+	if err != nil {
+		return errors.Wrapf(err, "Failed deleting %q chain %q in table %q", cmd, chain, table)
 	}
 
 	return nil
