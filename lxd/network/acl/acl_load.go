@@ -250,9 +250,10 @@ func isInUseByDevice(d deviceConfig.Device, matchACLNames ...string) []string {
 
 // NetworkACLUsage info about a network and what ACL it uses.
 type NetworkACLUsage struct {
-	ID   int64
-	Name string
-	Type string
+	ID     int64
+	Name   string
+	Type   string
+	Config map[string]string
 }
 
 // NetworkUsage populates the provided aclNets map with networks that are using any of the specified ACLs.
