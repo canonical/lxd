@@ -3566,7 +3566,7 @@ func autoSyncImagesTask(d *Daemon) (task.Func, task.Schedule) {
 		logger.Infof("Done synchronizing images across the cluster")
 	}
 
-	return f, task.Daily()
+	return f, task.Hourly()
 }
 
 func autoSyncImages(ctx context.Context, d *Daemon) error {
