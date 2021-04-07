@@ -6,6 +6,9 @@ import (
 
 	"github.com/pkg/errors"
 
+	lxd "github.com/lxc/lxd/client"
+	"github.com/lxc/lxd/lxd/cluster"
+	"github.com/lxc/lxd/lxd/cluster/request"
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/network/openvswitch"
 	"github.com/lxc/lxd/lxd/project"
@@ -492,7 +495,7 @@ func (d *common) validatePorts(ports []string) error {
 }
 
 // Update applies the supplied config to the ACL.
-func (d *common) Update(config *api.NetworkACLPut) error {
+func (d *common) Update(config *api.NetworkACLPut, clientType request.ClientType) error {
 	err := d.validateConfig(config)
 	if err != nil {
 		return err
@@ -501,42 +504,57 @@ func (d *common) Update(config *api.NetworkACLPut) error {
 	revert := revert.New()
 	defer revert.Fail()
 
-	oldConfig := d.info.NetworkACLPut
+	if clientType == request.ClientTypeNormal {
+		oldConfig := d.info.NetworkACLPut
 
-	// Update database. Its important this occurs before we attempt to apply to networks using the ACL.
-	err = d.state.Cluster.UpdateNetworkACL(d.id, config)
-	if err != nil {
-		return err
+		// Update database. Its important this occurs before we attempt to apply to networks using the ACL
+		// as usage functions will inspect the database.
+		err = d.state.Cluster.UpdateNetworkACL(d.id, config)
+		if err != nil {
+			return err
+		}
+
+		// Apply changes internally and reinitialise.
+		d.info.NetworkACLPut = *config
+		d.init(d.state, d.id, d.projectName, d.info)
+
+		revert.Add(func() {
+			d.state.Cluster.UpdateNetworkACL(d.id, &oldConfig)
+			d.info.NetworkACLPut = oldConfig
+			d.init(d.state, d.id, d.projectName, d.info)
+		})
 	}
 
-	// Apply changes internally and reinitialise.
-	d.info.NetworkACLPut = *config
-	d.init(d.state, d.id, d.projectName, d.info)
-
-	revert.Add(func() {
-		d.state.Cluster.UpdateNetworkACL(d.id, &oldConfig)
-		d.info.NetworkACLPut = oldConfig
-		d.init(d.state, d.id, d.projectName, d.info)
-	})
-
-	// OVN networks share ACL port group definitions, but when the ACL rules use network specific selectors
-	// such as @internal/@external, then we need to apply those rules to each network affected by the ACL, so
-	// build up a full list of OVN networks affected by this ACL (either because the ACL is assigned directly
-	// or because it is assigned to an OVN NIC in an instance or profile).
+	// Get a list of networks that are using this ACL (either directly or indirectly via a NIC).
 	aclNets := map[string]NetworkACLUsage{}
 	err = NetworkUsage(d.state, d.projectName, []string{d.info.Name}, aclNets)
 	if err != nil {
 		return errors.Wrapf(err, "Failed getting ACL network usage")
 	}
 
-	// Remove non-OVN networks from map.
+	// Separate out OVN networks from non-OVN networks. This is because OVN networks share ACL config, and
+	// so changes are not applied entirely on a per-network basis and need to be treated differently.
+	aclOVNNets := map[string]NetworkACLUsage{}
 	for k, v := range aclNets {
-		if v.Type != "ovn" {
+		if v.Type == "ovn" {
 			delete(aclNets, k)
+			aclOVNNets[k] = v
+		} else if v.Type != "bridge" {
+			return fmt.Errorf("Unsupported network ACL type %q", v.Type)
 		}
 	}
 
-	if len(aclNets) > 0 {
+	// Apply ACL changes to non-OVN networks on this member.
+	for _, aclNet := range aclNets {
+		err = FirewallApplyACLRules(d.state, d.logger, d.projectName, aclNet)
+		if err != nil {
+			return err
+		}
+	}
+
+	// If there are affected OVN networks, then apply the changes, but only if the request type is normal.
+	// This way we won't apply the same changes multiple times for each LXD cluster member.
+	if len(aclOVNNets) > 0 && clientType == request.ClientTypeNormal {
 		client, err := openvswitch.NewOVN(d.state)
 		if err != nil {
 			return errors.Wrapf(err, "Failed to get OVN client")
@@ -549,15 +567,38 @@ func (d *common) Update(config *api.NetworkACLPut) error {
 		}
 
 		// Request that the ACL and any referenced ACLs in the ruleset are created in OVN.
-		r, err := OVNEnsureACLs(d.state, d.logger, client, d.projectName, aclNameIDs, aclNets, []string{d.info.Name}, true)
+		// Pass aclOVNNets info, because although OVN networks share ACL port group definitions, when the
+		// ACL rules themselves use network specific selectors such as @internal/@external, we then need to
+		// apply those rules to each network affected by the ACL, so pass the full list of OVN networks
+		// affected by this ACL (either because the ACL is assigned directly or because it is assigned to
+		// an OVN NIC in an instance or profile).
+		r, err := OVNEnsureACLs(d.state, d.logger, client, d.projectName, aclNameIDs, aclOVNNets, []string{d.info.Name}, true)
 		if err != nil {
 			return errors.Wrapf(err, "Failed ensuring ACL is configured in OVN")
 		}
 		revert.Add(r.Fail)
 
+		// Run unused port group cleanup in case any formerly referenced ACL in this ACL's rules means that
+		// an ACL port group is now considered unused.
 		err = OVNPortGroupDeleteIfUnused(d.state, d.logger, client, d.projectName, nil, "", d.info.Name)
 		if err != nil {
 			return errors.Wrapf(err, "Failed removing unused OVN port groups")
+		}
+	}
+
+	// Apply ACL changes to non-OVN networks on cluster members.
+	if clientType == request.ClientTypeNormal && len(aclNets) > 0 {
+		// Notify all other nodes to update the network if no target specified.
+		notifier, err := cluster.NewNotifier(d.state, d.state.Endpoints.NetworkCert(), cluster.NotifyAll)
+		if err != nil {
+			return err
+		}
+
+		err = notifier(func(client lxd.InstanceServer) error {
+			return client.UseProject(d.projectName).UpdateNetworkACL(d.info.Name, d.info.NetworkACLPut, "")
+		})
+		if err != nil {
+			return err
 		}
 	}
 
