@@ -20,6 +20,7 @@ import (
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
+	log "github.com/lxc/lxd/shared/log15"
 	"github.com/lxc/lxd/shared/logger"
 )
 
@@ -84,8 +85,10 @@ func waitForOperations(s *state.State, chCancel chan struct{}) {
 				execConsoleOps++
 			}
 
-			_, opAPI, _ := op.Render()
-			if opAPI.MayCancel {
+			_, opAPI, err := op.Render()
+			if err != nil {
+				logger.Warn("Failed to render operation", log.Ctx{"operation": op, "err": err})
+			} else if opAPI.MayCancel {
 				op.Cancel()
 			}
 		}
