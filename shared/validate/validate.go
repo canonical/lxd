@@ -11,6 +11,8 @@ import (
 
 	"github.com/kballard/go-shellquote"
 	"github.com/pborman/uuid"
+	"github.com/pkg/errors"
+	"gopkg.in/robfig/cron.v2"
 
 	"github.com/lxc/lxd/shared/osarch"
 	"github.com/lxc/lxd/shared/units"
@@ -594,4 +596,29 @@ func IsCompressionAlgorithm(value string) error {
 // IsArchitecture validates whether the value is a valid LXD architecture name.
 func IsArchitecture(value string) error {
 	return IsOneOf(value, osarch.SupportedArchitectures())
+}
+
+// IsCron checks that it's a valid cron pattern or alias.
+func IsCron(aliases []string) func(value string) error {
+	return func(value string) error {
+		value = strings.ToLower(value)
+
+		// Accept valid aliases.
+		for _, alias := range aliases {
+			if alias == value {
+				return nil
+			}
+		}
+
+		if len(strings.Split(value, " ")) != 5 {
+			return fmt.Errorf("Schedule must be of the form: <minute> <hour> <day-of-month> <month> <day-of-week>")
+		}
+
+		_, err := cron.Parse(fmt.Sprintf("* %s", value))
+		if err != nil {
+			return errors.Wrap(err, "Error parsing schedule")
+		}
+
+		return nil
+	}
 }

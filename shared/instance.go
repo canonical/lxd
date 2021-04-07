@@ -7,9 +7,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/pkg/errors"
-	"gopkg.in/robfig/cron.v2"
-
 	"github.com/lxc/lxd/shared/units"
 	"github.com/lxc/lxd/shared/validate"
 )
@@ -226,22 +223,7 @@ var KnownInstanceConfigKeys = map[string]func(value string) error{
 	"security.syscalls.intercept.setxattr":      validate.Optional(validate.IsBool),
 	"security.syscalls.whitelist":               validate.IsAny,
 
-	"snapshots.schedule": func(value string) error {
-		if value == "" {
-			return nil
-		}
-
-		if len(strings.Split(value, " ")) != 5 {
-			return fmt.Errorf("Schedule must be of the form: <minute> <hour> <day-of-month> <month> <day-of-week>")
-		}
-
-		_, err := cron.Parse(fmt.Sprintf("* %s", value))
-		if err != nil {
-			return errors.Wrap(err, "Error parsing schedule")
-		}
-
-		return nil
-	},
+	"snapshots.schedule":         validate.Optional(validate.IsCron([]string{"@hourly", "@daily", "@midnight", "@weekly", "@monthly", "@annually", "@yearly", "@startup"})),
 	"snapshots.schedule.stopped": validate.Optional(validate.IsBool),
 	"snapshots.pattern":          validate.IsAny,
 	"snapshots.expiry": func(value string) error {

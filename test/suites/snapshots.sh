@@ -266,3 +266,22 @@ test_snap_expiry() {
   lxc rm -f c1
   lxc rm -f c2
 }
+
+test_snap_schedule() {
+  # shellcheck disable=2039
+  local lxd_backend
+  lxd_backend=$(storage_backend "$LXD_DIR")
+
+  ensure_import_testimage
+  ensure_has_localhost_remote "${LXD_ADDR}"
+
+  # Check we get a snapshot on first start
+  lxc launch testimage c1 -c snapshots.schedule=@startup
+  lxc info c1 | grep -q snap0
+
+  # Check we get a new snapshot on restart
+  lxc restart c1 -f
+  lxc info c1 | grep -q snap1
+
+  lxc rm -f c1
+}

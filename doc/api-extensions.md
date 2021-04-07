@@ -648,6 +648,11 @@ This adds support for snapshot scheduling. It introduces three new
 configuration keys: `snapshots.schedule`, `snapshots.schedule.stopped`, and
 `snapshots.pattern`. Snapshots can be created automatically up to every minute.
 
+## snapshots\_schedule\_aliases
+Snapshot schedule can be configured by a comma separated list of schedule aliases.
+Available aliases are `<@hourly> <@daily> <@midnight> <@weekly> <@monthly> <@annually> <@yearly> <@startup>` for instances,
+and `<@hourly> <@daily> <@midnight> <@weekly> <@monthly> <@annually> <@yearly>` for storage volumes.
+
 ## container\_copy\_project
 Introduces a `project` field to the container source dict, allowing for
 copy/move of containers between projects.
