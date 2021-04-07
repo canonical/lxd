@@ -19,8 +19,8 @@ import (
 	"github.com/lxc/lxd/shared/logger"
 )
 
-// iptablesChainNICFilter chain used for NIC specific filtering rules.
-const iptablesChainNICFilter = "lxd_nic"
+// iptablesChainNICFilterPrefix chain prefix used for NIC specific filtering rules.
+const iptablesChainNICFilterPrefix = "lxd_nic"
 
 // Xtables is an implmentation of LXD firewall using {ip, ip6, eb}tables
 type Xtables struct{}
@@ -151,26 +151,28 @@ func (d Xtables) networkIPTablesComment(networkName string) string {
 // the INPUT and FORWARD filter chains. Must be called after networkSetupForwardingPolicy so that the rules are
 // prepended before the default fowarding policy rules.
 func (d Xtables) networkSetupNICFilteringChain(networkName string, ipVersion uint) error {
+	chain := fmt.Sprintf("%s_%s", iptablesChainNICFilterPrefix, networkName)
+
 	// Create the NIC filter chain if it doesn't exist.
-	exists, err := d.iptablesChainExists(6, "filter", iptablesChainNICFilter)
+	exists, err := d.iptablesChainExists(ipVersion, "filter", chain)
 	if err != nil {
 		return err
 	}
 
 	if !exists {
-		err = d.iptablesChainCreate(6, "filter", iptablesChainNICFilter)
+		err = d.iptablesChainCreate(ipVersion, "filter", chain)
 		if err != nil {
 			return err
 		}
 	}
 
 	comment := d.networkIPTablesComment(networkName)
-	err = d.iptablesPrepend(ipVersion, comment, "filter", "INPUT", "-i", networkName, "-j", iptablesChainNICFilter)
+	err = d.iptablesPrepend(ipVersion, comment, "filter", "INPUT", "-i", networkName, "-j", chain)
 	if err != nil {
 		return err
 	}
 
-	err = d.iptablesPrepend(ipVersion, comment, "filter", "FORWARD", "-i", networkName, "-j", iptablesChainNICFilter)
+	err = d.iptablesPrepend(ipVersion, comment, "filter", "FORWARD", "-i", networkName, "-j", chain)
 	if err != nil {
 		return err
 	}
