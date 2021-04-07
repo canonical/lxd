@@ -258,6 +258,8 @@ type NetworkACLUsage struct {
 
 // NetworkUsage populates the provided aclNets map with networks that are using any of the specified ACLs.
 func NetworkUsage(s *state.State, aclProjectName string, aclNames []string, aclNets map[string]NetworkACLUsage) error {
+	supportedNetTypes := []string{"bridge", "ovn"}
+
 	// Find all networks and instance/profile NICs that use any of the specified Network ACLs.
 	err := UsedBy(s, aclProjectName, func(matchedACLNames []string, usageType interface{}, _ string, nicConfig map[string]string) error {
 		switch u := usageType.(type) {
@@ -267,17 +269,18 @@ func NetworkUsage(s *state.State, aclProjectName string, aclNames []string, aclN
 				return errors.Wrapf(err, "Failed to load network %q", nicConfig["network"])
 			}
 
-			if network.Type == "ovn" {
+			if shared.StringInSlice(network.Type, supportedNetTypes) {
 				if _, found := aclNets[network.Name]; !found {
 					aclNets[network.Name] = NetworkACLUsage{
-						ID:   networkID,
-						Name: network.Name,
-						Type: network.Type,
+						ID:     networkID,
+						Name:   network.Name,
+						Type:   network.Type,
+						Config: network.Config,
 					}
 				}
 			}
 		case *api.Network:
-			if u.Type == "ovn" {
+			if shared.StringInSlice(u.Type, supportedNetTypes) {
 				if _, found := aclNets[u.Name]; !found {
 					networkID, network, _, err := s.Cluster.GetNetworkInAnyState(aclProjectName, u.Name)
 					if err != nil {
@@ -285,9 +288,10 @@ func NetworkUsage(s *state.State, aclProjectName string, aclNames []string, aclN
 					}
 
 					aclNets[u.Name] = NetworkACLUsage{
-						ID:   networkID,
-						Name: network.Name,
-						Type: network.Type,
+						ID:     networkID,
+						Name:   network.Name,
+						Type:   network.Type,
+						Config: network.Config,
 					}
 				}
 			}
