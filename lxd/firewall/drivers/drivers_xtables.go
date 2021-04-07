@@ -348,10 +348,31 @@ func (d Xtables) NetworkSetup(networkName string, opts Opts) error {
 }
 
 // NetworkClear removes network rules from filter, mangle and nat tables.
-func (d Xtables) NetworkClear(networkName string, ipVersion uint) error {
-	err := d.iptablesClear(ipVersion, d.networkIPTablesComment(networkName), "filter", "mangle", "nat")
-	if err != nil {
-		return err
+// If delete is true then network-specific chains are also removed.
+func (d Xtables) NetworkClear(networkName string, delete bool, ipVersions []uint) error {
+	for _, ipVersion := range ipVersions {
+		// Clear any rules associated to the network.
+		err := d.iptablesClear(ipVersion, d.networkIPTablesComment(networkName), "filter", "mangle", "nat")
+		if err != nil {
+			return err
+		}
+
+		// Remove network specific chains (and any rules in them) if deleting.
+		if delete {
+			// Remove the NIC filter chain if it exists.
+			nicFilterChain := fmt.Sprintf("%s_%s", iptablesChainNICFilterPrefix, networkName)
+			exists, err := d.iptablesChainExists(ipVersion, "filter", nicFilterChain)
+			if err != nil {
+				return err
+			}
+
+			if exists {
+				err = d.iptablesChainDelete(ipVersion, "filter", nicFilterChain)
+				if err != nil {
+					return err
+				}
+			}
+		}
 	}
 
 	return nil
