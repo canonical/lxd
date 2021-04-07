@@ -1091,6 +1091,35 @@ func (c *Cluster) UpdateImageUploadDate(id int, uploadedAt time.Time) error {
 	return err
 }
 
+// GetImages returns all images.
+func (c *Cluster) GetImages() (map[string][]string, error) {
+	images := make(map[string][]string) // key is fingerprint, value is list of projects
+	err := c.Transaction(func(tx *ClusterTx) error {
+		stmt := `
+    SELECT images.fingerprint, projects.name FROM images
+      LEFT JOIN projects ON images.project_id = projects.id
+		`
+		rows, err := tx.tx.Query(stmt)
+		if err != nil {
+			return err
+		}
+
+		var fingerprint string
+		var projectName string
+		for rows.Next() {
+			err := rows.Scan(&fingerprint, &projectName)
+			if err != nil {
+				return err
+			}
+
+			images[fingerprint] = append(images[fingerprint], projectName)
+		}
+
+		return rows.Err()
+	})
+	return images, err
+}
+
 // GetImagesOnLocalNode returns all images that the local LXD node has.
 func (c *Cluster) GetImagesOnLocalNode() (map[string][]string, error) {
 	return c.GetImagesOnNode(c.nodeID)
