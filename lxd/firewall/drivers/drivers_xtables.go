@@ -884,3 +884,29 @@ func (d Xtables) iptablesChainCreate(ipVersion uint, table string, chain string)
 
 	return nil
 }
+
+// iptablesChainDelete deletes a chain in a table.
+func (d Xtables) iptablesChainDelete(ipVersion uint, table string, chain string) error {
+	var cmd string
+	if ipVersion == 4 {
+		cmd = "iptables"
+	} else if ipVersion == 6 {
+		cmd = "ip6tables"
+	} else {
+		return fmt.Errorf("Invalid IP version")
+	}
+
+	// Attempt to flush rules from chain in table.
+	_, err := shared.RunCommand(cmd, "-t", table, "-F", chain)
+	if err != nil {
+		return errors.Wrapf(err, "Failed flushing %q chain %q in table %q", cmd, chain, table)
+	}
+
+	// Attempt to delete chain in table.
+	_, err = shared.RunCommand(cmd, "-t", table, "-X", chain)
+	if err != nil {
+		return errors.Wrapf(err, "Failed deleting %q chain %q in table %q", cmd, chain, table)
+	}
+
+	return nil
+}
