@@ -1,6 +1,7 @@
 package acl
 
 import (
+	"github.com/lxc/lxd/lxd/cluster/request"
 	"github.com/lxc/lxd/lxd/state"
 	"github.com/lxc/lxd/shared/api"
 )
@@ -22,7 +23,7 @@ type NetworkACL interface {
 	validateConfig(config *api.NetworkACLPut) error
 
 	// Modifications.
-	Update(config *api.NetworkACLPut) error
+	Update(config *api.NetworkACLPut, clientType request.ClientType) error
 	Rename(newName string) error
 	Delete() error
 }
