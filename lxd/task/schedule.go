@@ -51,6 +51,11 @@ func Daily(options ...EveryOption) Schedule {
 	return Every(24*time.Hour, options...)
 }
 
+// Hourly is a convenience for creating a schedule that runs once an hour.
+func Hourly(options ...EveryOption) Schedule {
+	return Every(time.Hour, options...)
+}
+
 // SkipFirst is an option for the Every schedule that will make the schedule
 // skip the very first invokation of the task function.
 var SkipFirst = func(every *every) { every.skipFirst = true }
