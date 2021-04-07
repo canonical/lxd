@@ -1366,6 +1366,7 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 	}
 
 	// Setup firewall.
+	n.logger.Debug("Setting up firewall")
 	err = n.state.Firewall.NetworkSetup(n.name, fwOpts)
 	if err != nil {
 		return errors.Wrapf(err, "Failed to setup firewall")
