@@ -10,10 +10,10 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/flosch/pongo2"
 	"github.com/pkg/errors"
 	cron "gopkg.in/robfig/cron.v2"
 
-	"github.com/flosch/pongo2"
 	"github.com/lxc/lxd/lxd/cluster"
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/instance"
@@ -463,7 +463,7 @@ func autoCreateContainerSnapshots(ctx context.Context, d *Daemon, instances []in
 	for _, c := range instances {
 		ch := make(chan error)
 		go func() {
-			snapshotName, err := instanceDetermineNextSnapshotName(d, c, "snap%d")
+			snapshotName, err := instance.NextSnapshotName(d.State(), c, "snap%d")
 			if err != nil {
 				logger.Error("Error retrieving next snapshot name", log.Ctx{"err": err, "container": c})
 				ch <- nil

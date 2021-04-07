@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/flosch/pongo2"
 	"github.com/pkg/errors"
 
 	"github.com/lxc/lxd/client"
@@ -1117,4 +1118,53 @@ func CreateInternal(s *state.State, args db.InstanceArgs) (Instance, error) {
 
 	revert.Success()
 	return inst, nil
+}
+
+// NextSnapshotName finds the next snapshot for an instance.
+func NextSnapshotName(s *state.State, inst Instance, defaultPattern string) (string, error) {
+	var err error
+
+	pattern := inst.ExpandedConfig()["snapshots.pattern"]
+	if pattern == "" {
+		pattern = defaultPattern
+	}
+
+	pattern, err = shared.RenderTemplate(pattern, pongo2.Context{
+		"creation_date": time.Now(),
+	})
+	if err != nil {
+		return "", err
+	}
+
+	count := strings.Count(pattern, "%d")
+	if count > 1 {
+		return "", fmt.Errorf("Snapshot pattern may contain '%%d' only once")
+	} else if count == 1 {
+		i := s.Cluster.GetNextInstanceSnapshotIndex(inst.Project(), inst.Name(), pattern)
+		return strings.Replace(pattern, "%d", strconv.Itoa(i), 1), nil
+	}
+
+	snapshotExists := false
+
+	snapshots, err := inst.Snapshots()
+	if err != nil {
+		return "", err
+	}
+
+	for _, snap := range snapshots {
+		_, snapOnlyName, _ := shared.InstanceGetParentAndSnapshotName(snap.Name())
+		if snapOnlyName == pattern {
+			snapshotExists = true
+			break
+		}
+	}
+
+	// Append '-0', '-1', etc. if the actual pattern/snapshot name already exists
+	if snapshotExists {
+		pattern = fmt.Sprintf("%s-%%d", pattern)
+		i := s.Cluster.GetNextInstanceSnapshotIndex(inst.Project(), inst.Name(), pattern)
+		return strings.Replace(pattern, "%d", strconv.Itoa(i), 1), nil
+	}
+
+	return pattern, nil
 }
