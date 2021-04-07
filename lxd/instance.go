@@ -4,15 +4,12 @@ import (
 	"context"
 	"fmt"
 	"path/filepath"
-	"strconv"
 	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
 
-	"github.com/flosch/pongo2"
 	"github.com/pkg/errors"
-	cron "gopkg.in/robfig/cron.v2"
 
 	"github.com/lxc/lxd/lxd/cluster"
 	"github.com/lxc/lxd/lxd/db"
@@ -379,35 +376,13 @@ func autoCreateContainerSnapshotsTask(d *Daemon) (task.Func, task.Schedule) {
 		// Figure out which need snapshotting (if any)
 		instances := []instance.Instance{}
 		for _, c := range allContainers {
-			schedule := c.ExpandedConfig()["snapshots.schedule"]
-
-			if schedule == "" {
+			schedule, ok := c.ExpandedConfig()["snapshots.schedule"]
+			if !ok || schedule == "" {
 				continue
 			}
 
-			// Extend our schedule to one that is accepted by the used cron parser
-			sched, err := cron.Parse(fmt.Sprintf("* %s", schedule))
-			if err != nil {
-				continue
-			}
-
-			// Check if it's time to snapshot
-			now := time.Now()
-
-			// Truncate the time now back to the start of the minute, before passing to
-			// the cron scheduler, as it will add 1s to the scheduled time and we don't
-			// want the next scheduled time to roll over to the next minute and break
-			// the time comparison below.
-			now = now.Truncate(time.Minute)
-
-			// Calculate the next scheduled time based on the snapshots.schedule
-			// pattern and the time now.
-			next := sched.Next(now)
-
-			// Ignore everything that is more precise than minutes.
-			next = next.Truncate(time.Minute)
-
-			if !now.Equal(next) {
+			// Check if snapshot is scheduled
+			if !snapshotIsScheduledNow(schedule, int64(c.ID())) {
 				continue
 			}
 
@@ -575,54 +550,6 @@ func pruneExpiredContainerSnapshots(ctx context.Context, d *Daemon, snapshots []
 	}
 
 	return nil
-}
-
-func instanceDetermineNextSnapshotName(d *Daemon, c instance.Instance, defaultPattern string) (string, error) {
-	var err error
-
-	pattern := c.ExpandedConfig()["snapshots.pattern"]
-	if pattern == "" {
-		pattern = defaultPattern
-	}
-
-	pattern, err = shared.RenderTemplate(pattern, pongo2.Context{
-		"creation_date": time.Now(),
-	})
-	if err != nil {
-		return "", err
-	}
-
-	count := strings.Count(pattern, "%d")
-	if count > 1 {
-		return "", fmt.Errorf("Snapshot pattern may contain '%%d' only once")
-	} else if count == 1 {
-		i := d.cluster.GetNextInstanceSnapshotIndex(c.Project(), c.Name(), pattern)
-		return strings.Replace(pattern, "%d", strconv.Itoa(i), 1), nil
-	}
-
-	snapshotExists := false
-
-	snapshots, err := c.Snapshots()
-	if err != nil {
-		return "", err
-	}
-
-	for _, snap := range snapshots {
-		_, snapOnlyName, _ := shared.InstanceGetParentAndSnapshotName(snap.Name())
-		if snapOnlyName == pattern {
-			snapshotExists = true
-			break
-		}
-	}
-
-	// Append '-0', '-1', etc. if the actual pattern/snapshot name already exists
-	if snapshotExists {
-		pattern = fmt.Sprintf("%s-%%d", pattern)
-		i := d.cluster.GetNextInstanceSnapshotIndex(c.Project(), c.Name(), pattern)
-		return strings.Replace(pattern, "%d", strconv.Itoa(i), 1), nil
-	}
-
-	return pattern, nil
 }
 
 var instanceDriversCacheVal atomic.Value
