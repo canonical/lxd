@@ -1489,18 +1489,22 @@ func (n *bridge) Stop() error {
 		}
 	}
 
-	// Cleanup firewall rules.
+	// Fully clear firewall setup.
+	fwClearIPVersions := []uint{}
+
 	if usesIPv4Firewall(n.config) {
-		err := n.state.Firewall.NetworkClear(n.name, 4)
-		if err != nil {
-			return err
-		}
+		fwClearIPVersions = append(fwClearIPVersions, 4)
 	}
 
 	if usesIPv6Firewall(n.config) {
-		err := n.state.Firewall.NetworkClear(n.name, 6)
+		fwClearIPVersions = append(fwClearIPVersions, 6)
+	}
+
+	if len(fwClearIPVersions) > 0 {
+		n.logger.Debug("Deleting firewall")
+		err := n.state.Firewall.NetworkClear(n.name, true, fwClearIPVersions)
 		if err != nil {
-			return err
+			return errors.Wrapf(err, "Failed deleting firewall")
 		}
 	}
 
