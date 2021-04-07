@@ -655,11 +655,22 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 		}
 	}
 
-	// Remove any existing IPv4 firewall rules.
+	// Remove any existing firewall rules.
+	fwClearIPVersions := []uint{}
+
 	if usesIPv4Firewall(n.config) || usesIPv4Firewall(oldConfig) {
-		err = n.state.Firewall.NetworkClear(n.name, 4)
+		fwClearIPVersions = append(fwClearIPVersions, 4)
+	}
+
+	if usesIPv6Firewall(n.config) || usesIPv6Firewall(oldConfig) {
+		fwClearIPVersions = append(fwClearIPVersions, 6)
+	}
+
+	if len(fwClearIPVersions) > 0 {
+		n.logger.Debug("Clearing firewall")
+		err = n.state.Firewall.NetworkClear(n.name, false, fwClearIPVersions)
 		if err != nil {
-			return err
+			return errors.Wrapf(err, "Failed clearing firewall")
 		}
 	}
 
@@ -814,14 +825,6 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 
 		// Restore container specific IPv4 routes to interface.
 		n.applyBootRoutesV4(ctRoutes)
-	}
-
-	// Remove any existing IPv6 firewall rules.
-	if usesIPv6Firewall(n.config) || usesIPv6Firewall(oldConfig) {
-		err = n.state.Firewall.NetworkClear(n.name, 6)
-		if err != nil {
-			return err
-		}
 	}
 
 	// Snapshot container specific IPv6 routes (added with boot proto) before removing IPv6 addresses.
