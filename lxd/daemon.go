@@ -1191,7 +1191,7 @@ func (d *Daemon) startClusterTasks() {
 	// Events
 	d.clusterTasks.Add(cluster.Events(d.endpoints, d.cluster, d.events.Forward))
 
-	// Auto-sync images across the cluster (daily)
+	// Auto-sync images across the cluster (hourly)
 	d.clusterTasks.Add(autoSyncImagesTask(d))
 
 	// Start all background tasks
