@@ -221,7 +221,7 @@ var KnownInstanceConfigKeys = map[string]func(value string) error{
 	"security.syscalls.intercept.setxattr":      validate.Optional(validate.IsBool),
 	"security.syscalls.whitelist":               validate.IsAny,
 
-	"snapshots.schedule":         validate.Optional(validate.IsCron(nil)),
+	"snapshots.schedule":         validate.Optional(validate.IsCron([]string{"@hourly", "@daily", "@midnight", "@weekly", "@monthly", "@annually", "@yearly", "@startup"})),
 	"snapshots.schedule.stopped": validate.Optional(validate.IsBool),
 	"snapshots.pattern":          validate.IsAny,
 	"snapshots.expiry": func(value string) error {

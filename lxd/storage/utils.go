@@ -335,7 +335,7 @@ func validateVolumeCommonRules(vol drivers.Volume) map[string]func(string) error
 			_, err := shared.GetSnapshotExpiry(time.Time{}, value)
 			return err
 		},
-		"snapshots.schedule": validate.Optional(validate.IsCron(nil)),
+		"snapshots.schedule": validate.Optional(validate.IsCron([]string{"@hourly", "@daily", "@midnight", "@weekly", "@monthly", "@annually", "@yearly"})),
 		"snapshots.pattern":  validate.IsAny,
 	}
 
