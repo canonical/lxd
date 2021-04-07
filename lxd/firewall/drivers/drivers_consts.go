@@ -27,4 +27,5 @@ type Opts struct {
 	FeaturesV6 *FeatureOpts // Enable IPv6 firewall with specified options. Off if not provided.
 	SNATV4     *SNATOpts    // Enable IPv4 SNAT with specified options. Off if not provided.
 	SNATV6     *SNATOpts    // Enable IPv6 SNAT with specified options. Off if not provided.
+	ACL        bool         // Enable ACL during setup.
 }
