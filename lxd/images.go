@@ -1403,7 +1403,7 @@ func autoUpdateImagesTask(d *Daemon) (task.Func, task.Schedule) {
 		logger.Infof("Done updating images")
 	}
 
-	return f, task.Every(time.Hour)
+	return f, task.Hourly()
 }
 
 func autoUpdateImages(ctx context.Context, d *Daemon) error {
