@@ -2193,6 +2193,12 @@ func (d *lxc) startCommon() (string, []func() error, error) {
 	// Unmount any previously mounted shiftfs
 	unix.Unmount(d.RootfsPath(), unix.MNT_DETACH)
 
+	// Snapshot if needed.
+	err = d.startupSnapshot(d)
+	if err != nil {
+		return "", nil, err
+	}
+
 	revert.Success()
 	return configPath, postStartHooks, nil
 }
