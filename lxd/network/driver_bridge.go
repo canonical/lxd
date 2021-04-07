@@ -786,6 +786,10 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 		fwOpts.FeaturesV6 = &firewallDrivers.FeatureOpts{}
 	}
 
+	if n.config["security.acls"] != "" {
+		fwOpts.ACL = true
+	}
+
 	// Snapshot container specific IPv4 routes (added with boot proto) before removing IPv4 addresses.
 	// This is because the kernel removes any static routes on an interface when all addresses removed.
 	ctRoutes, err := n.bootRoutesV4()
