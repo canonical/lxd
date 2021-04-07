@@ -876,13 +876,8 @@ func (d Xtables) iptablesChainCreate(ipVersion uint, table string, chain string)
 		return fmt.Errorf("Invalid IP version")
 	}
 
-	_, err := exec.LookPath(cmd)
-	if err != nil {
-		return errors.Wrapf(err, "Failed creating %q chain %q in table %q", cmd, chain, table)
-	}
-
 	// Attempt to create chain in table.
-	_, err = shared.RunCommand(cmd, "-t", table, "-N", chain)
+	_, err := shared.RunCommand(cmd, "-t", table, "-N", chain)
 	if err != nil {
 		return errors.Wrapf(err, "Failed creating %q chain %q in table %q", cmd, chain, table)
 	}
