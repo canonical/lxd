@@ -15,6 +15,7 @@ import (
 	deviceConfig "github.com/lxc/lxd/lxd/device/config"
 	"github.com/lxc/lxd/lxd/project"
 	"github.com/lxc/lxd/lxd/revert"
+	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/logger"
 )
@@ -154,7 +155,7 @@ func (d Xtables) networkSetupNICFilteringChain(networkName string, ipVersion uin
 	chain := fmt.Sprintf("%s_%s", iptablesChainNICFilterPrefix, networkName)
 
 	// Create the NIC filter chain if it doesn't exist.
-	exists, err := d.iptablesChainExists(ipVersion, "filter", chain)
+	exists, _, err := d.iptablesChainExists(ipVersion, "filter", chain)
 	if err != nil {
 		return err
 	}
@@ -361,13 +362,13 @@ func (d Xtables) NetworkClear(networkName string, delete bool, ipVersions []uint
 		if delete {
 			// Remove the NIC filter chain if it exists.
 			nicFilterChain := fmt.Sprintf("%s_%s", iptablesChainNICFilterPrefix, networkName)
-			exists, err := d.iptablesChainExists(ipVersion, "filter", nicFilterChain)
+			exists, hasRules, err := d.iptablesChainExists(ipVersion, "filter", nicFilterChain)
 			if err != nil {
 				return err
 			}
 
 			if exists {
-				err = d.iptablesChainDelete(ipVersion, "filter", nicFilterChain)
+				err = d.iptablesChainDelete(ipVersion, "filter", nicFilterChain, hasRules)
 				if err != nil {
 					return err
 				}
@@ -852,29 +853,35 @@ func (d Xtables) InstanceClearRPFilter(projectName string, instanceName string, 
 	return nil
 }
 
-// iptablesChainExists checks whether a chain exists in a table.
-func (d Xtables) iptablesChainExists(ipVersion uint, table string, chain string) (bool, error) {
+// iptablesChainExists checks whether a chain exists in a table, and whether it has any rules.
+func (d Xtables) iptablesChainExists(ipVersion uint, table string, chain string) (bool, bool, error) {
 	var cmd string
 	if ipVersion == 4 {
 		cmd = "iptables"
 	} else if ipVersion == 6 {
 		cmd = "ip6tables"
 	} else {
-		return false, fmt.Errorf("Invalid IP version")
+		return false, false, fmt.Errorf("Invalid IP version")
 	}
 
 	_, err := exec.LookPath(cmd)
 	if err != nil {
-		return false, errors.Wrapf(err, "Failed checking %q chain %q exists in table %q", cmd, chain, table)
+		return false, false, errors.Wrapf(err, "Failed checking %q chain %q exists in table %q", cmd, chain, table)
 	}
 
 	// Attempt to dump the rules of the chain, if this fails then chain doesn't exist.
-	_, err = shared.RunCommand(cmd, "-t", table, "-S", chain)
-	if err == nil {
-		return true, nil
+	rules, err := shared.RunCommand(cmd, "-t", table, "-S", chain)
+	if err != nil {
+		return false, false, nil
 	}
 
-	return false, nil
+	for _, rule := range util.SplitNTrimSpace(strings.TrimSpace(rules), "\n", -1, true) {
+		if strings.HasPrefix(rule, "-A") {
+			return true, true, nil
+		}
+	}
+
+	return true, false, nil
 }
 
 // iptablesChainCreate creates a chain in a table.
@@ -898,7 +905,7 @@ func (d Xtables) iptablesChainCreate(ipVersion uint, table string, chain string)
 }
 
 // iptablesChainDelete deletes a chain in a table.
-func (d Xtables) iptablesChainDelete(ipVersion uint, table string, chain string) error {
+func (d Xtables) iptablesChainDelete(ipVersion uint, table string, chain string, flushFirst bool) error {
 	var cmd string
 	if ipVersion == 4 {
 		cmd = "iptables"
@@ -909,13 +916,15 @@ func (d Xtables) iptablesChainDelete(ipVersion uint, table string, chain string)
 	}
 
 	// Attempt to flush rules from chain in table.
-	_, err := shared.RunCommand(cmd, "-t", table, "-F", chain)
-	if err != nil {
-		return errors.Wrapf(err, "Failed flushing %q chain %q in table %q", cmd, chain, table)
+	if flushFirst {
+		_, err := shared.RunCommand(cmd, "-t", table, "-F", chain)
+		if err != nil {
+			return errors.Wrapf(err, "Failed flushing %q chain %q in table %q", cmd, chain, table)
+		}
 	}
 
 	// Attempt to delete chain in table.
-	_, err = shared.RunCommand(cmd, "-t", table, "-X", chain)
+	_, err := shared.RunCommand(cmd, "-t", table, "-X", chain)
 	if err != nil {
 		return errors.Wrapf(err, "Failed deleting %q chain %q in table %q", cmd, chain, table)
 	}
