@@ -409,7 +409,8 @@ func (d *zfs) CreateVolumeFromBackup(vol Volume, srcBackup backup.Info, srcData 
 
 	var postHook func(vol Volume) error
 
-	if vol.volType != VolumeTypeCustom {
+	// Only mount instance filesystem volumes for backup.yaml access.
+	if vol.volType != VolumeTypeCustom && vol.contentType != ContentTypeBlock {
 		// The import requires a mounted volume, so mount it and have it unmounted as a post hook.
 		err = d.MountVolume(vol, op)
 		if err != nil {
