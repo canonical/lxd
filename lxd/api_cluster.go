@@ -612,6 +612,12 @@ func clusterPutJoin(d *Daemon, req api.ClusterPut) response.Response {
 			logger.Warnf("Failed to trigger cluster rebalance: %v", err)
 		}
 
+		// Ensure all images are available after this node has joined.
+		err = autoSyncImages(d.ctx, d)
+		if err != nil {
+			logger.Warn("Failed to sync images")
+		}
+
 		revert.Success()
 		return nil
 	}
