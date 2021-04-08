@@ -95,6 +95,45 @@ chain pstrt{{.chainSeparator}}{{.deviceLabel}} {
 }
 `))
 
+var nftablesNetACLSetup = template.Must(template.New("nftablesNetACLSetup").Parse(`
+add table {{.family}} {{.namespace}}
+add chain {{.family}} {{.namespace}} acl{{.chainSeparator}}{{.networkName}}
+add chain {{.family}} {{.namespace}} aclin{{.chainSeparator}}{{.networkName}} {type filter hook input priority filter; policy accept;}
+add chain {{.family}} {{.namespace}} aclout{{.chainSeparator}}{{.networkName}} {type filter hook output priority filter; policy accept;}
+add chain {{.family}} {{.namespace}} aclfwd{{.chainSeparator}}{{.networkName}} {type filter hook forward priority filter; policy accept;}
+flush chain {{.family}} {{.namespace}} acl{{.chainSeparator}}{{.networkName}}
+flush chain {{.family}} {{.namespace}} aclin{{.chainSeparator}}{{.networkName}}
+flush chain {{.family}} {{.namespace}} aclout{{.chainSeparator}}{{.networkName}}
+flush chain {{.family}} {{.namespace}} aclfwd{{.chainSeparator}}{{.networkName}}
+
+table {{.family}} {{.namespace}} {
+	chain aclin{{.chainSeparator}}{{.networkName}} {
+		iifname {{.networkName}} jump acl{{.chainSeparator}}{{.networkName}}
+	}
+
+	chain aclout{{.chainSeparator}}{{.networkName}} {
+		oifname {{.networkName}} jump acl{{.chainSeparator}}{{.networkName}}
+	}
+
+	chain aclfwd{{.chainSeparator}}{{.networkName}} {
+		iifname {{.networkName}} jump acl{{.chainSeparator}}{{.networkName}}
+		oifname {{.networkName}} jump acl{{.chainSeparator}}{{.networkName}}
+	}
+}
+`))
+
+var nftablesNetACLRules = template.Must(template.New("nftablesNetACLRules").Parse(`
+flush chain {{.family}} {{.namespace}} acl{{.chainSeparator}}{{.networkName}}
+
+table {{.family}} {{.namespace}} {
+	chain acl{{.chainSeparator}}{{.networkName}} {
+		{{- range .rules}}
+		{{.}}
+		{{- end}}
+	}
+}
+`))
+
 // nftablesInstanceBridgeFilter defines the rules needed for MAC, IPv4 and IPv6 bridge security filtering.
 // To prevent instances from using IPs that are different from their assigned IPs we use ARP and NDP filtering
 // to prevent neighbour advertisements that are not allowed. However in order for DHCPv4 & DHCPv6 to work back to
