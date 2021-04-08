@@ -97,6 +97,69 @@ chain pstrt{{.chainSeparator}}{{.deviceLabel}} {
 }
 `))
 
+var nftablesNetACLSetup = template.Must(template.New("nftablesNetACLSetup").Parse(`
+add table {{.family}} {{.namespace}}
+add chain {{.family}} {{.namespace}} acl{{.chainSeparator}}{{.networkName}}
+add chain {{.family}} {{.namespace}} aclin{{.chainSeparator}}{{.networkName}} {type filter hook input priority filter; policy accept;}
+add chain {{.family}} {{.namespace}} aclout{{.chainSeparator}}{{.networkName}} {type filter hook output priority filter; policy accept;}
+add chain {{.family}} {{.namespace}} aclfwd{{.chainSeparator}}{{.networkName}} {type filter hook forward priority filter; policy accept;}
+flush chain {{.family}} {{.namespace}} acl{{.chainSeparator}}{{.networkName}}
+flush chain {{.family}} {{.namespace}} aclin{{.chainSeparator}}{{.networkName}}
+flush chain {{.family}} {{.namespace}} aclout{{.chainSeparator}}{{.networkName}}
+flush chain {{.family}} {{.namespace}} aclfwd{{.chainSeparator}}{{.networkName}}
+
+table {{.family}} {{.namespace}} {
+	chain aclin{{.chainSeparator}}{{.networkName}} {
+		# Allow DNS to LXD host.
+		iifname "{{.networkName}}" tcp dport 53 accept
+		iifname "{{.networkName}}" udp dport 53 accept
+
+		# Allow DHCPv6 to LXD host.
+		iifname "{{$.networkName}}" udp dport 67 accept
+		iifname "{{$.networkName}}" udp dport 547 accept
+
+		# Allow core ICMPv4 to LXD host.
+		iifname "{{$.networkName}}" icmp type {3, 11, 12} accept
+		iifname "{{$.networkName}}" icmpv6 type {1, 2, 3, 4, 133, 135, 136, 143} accept
+
+		iifname {{.networkName}} jump acl{{.chainSeparator}}{{.networkName}}
+	}
+
+	chain aclout{{.chainSeparator}}{{.networkName}} {
+		# Allow DHCPv6 from LXD host.
+		oifname "{{$.networkName}}" udp sport 67 accept
+		oifname "{{$.networkName}}" udp sport 547 accept
+
+		# Allow core ICMPv4 from LXD host.
+		oifname "{{$.networkName}}" icmp type {3, 11, 12} accept
+
+		# Allow ICMPv6 ping from host into network as dnsmasq uses this to probe IP allocations.
+		oifname "{{$.networkName}}" icmpv6 type {1, 2, 3, 4, 128, 134, 135, 136, 143}  accept
+
+		oifname {{.networkName}} jump acl{{.chainSeparator}}{{.networkName}}
+	}
+
+	chain aclfwd{{.chainSeparator}}{{.networkName}} {
+		iifname {{.networkName}} jump acl{{.chainSeparator}}{{.networkName}}
+		oifname {{.networkName}} jump acl{{.chainSeparator}}{{.networkName}}
+	}
+}
+`))
+
+var nftablesNetACLRules = template.Must(template.New("nftablesNetACLRules").Parse(`
+flush chain {{.family}} {{.namespace}} acl{{.chainSeparator}}{{.networkName}}
+
+table {{.family}} {{.namespace}} {
+	chain acl{{.chainSeparator}}{{.networkName}} {
+                ct state established,related accept
+
+		{{- range .rules}}
+		{{.}}
+		{{- end}}
+	}
+}
+`))
+
 // nftablesInstanceBridgeFilter defines the rules needed for MAC, IPv4 and IPv6 bridge security filtering.
 // To prevent instances from using IPs that are different from their assigned IPs we use ARP and NDP filtering
 // to prevent neighbour advertisements that are not allowed. However in order for DHCPv4 & DHCPv6 to work back to
