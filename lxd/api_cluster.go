@@ -634,6 +634,12 @@ func clusterPutJoin(d *Daemon, req api.ClusterPut) response.Response {
 			logger.Warnf("Failed to trigger cluster rebalance: %v", err)
 		}
 
+		// Ensure all images are available after this node has joined.
+		err = autoSyncImages(d.ctx, d)
+		if err != nil {
+			logger.Warn("Failed to sync images")
+		}
+
 		revert.Success()
 		return nil
 	}
@@ -1283,6 +1289,16 @@ func clusterNodeDelete(d *Daemon, r *http.Request) response.Response {
 
 	logger.Debugf("Deleting member %s from cluster (force=%d)", name, force)
 
+	err = autoSyncImages(d.ctx, d)
+	if err != nil {
+		if force == 0 {
+			return response.SmartError(errors.Wrap(err, "Failed to sync images"))
+		}
+
+		// If force is set, only show a warning instead of returning an error.
+		logger.Warn("Failed to sync images")
+	}
+
 	// First check that the node is clear from containers and images and
 	// make it leave the database cluster, if it's part of it.
 	address, err := cluster.Leave(d.State(), d.gateway, name, force == 1)
@@ -1363,6 +1379,12 @@ func clusterNodeDelete(d *Daemon, r *http.Request) response.Response {
 		if err != nil {
 			return response.SmartError(errors.Wrap(err, "Failed to cleanup the member"))
 		}
+	}
+
+	// Ensure all images are available after this node has been deleted.
+	err = autoSyncImages(d.ctx, d)
+	if err != nil {
+		logger.Warn("Failed to sync images")
 	}
 
 	return response.EmptySyncResponse

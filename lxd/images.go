@@ -953,6 +953,11 @@ func imagesPost(d *Daemon, r *http.Request) response.Response {
 			return err
 		}
 
+		if isClusterNotification(r) {
+			// If dealing with in-cluster image copy, don't touch the database.
+			return nil
+		}
+
 		// Apply any provided alias
 		aliases, ok := imageMetadata["aliases"]
 		if ok {
@@ -3566,15 +3571,14 @@ func autoSyncImagesTask(d *Daemon) (task.Func, task.Schedule) {
 		logger.Infof("Done synchronizing images across the cluster")
 	}
 
-	return f, task.Daily()
+	return f, task.Hourly()
 }
 
 func autoSyncImages(ctx context.Context, d *Daemon) error {
-	// Check how many images the current node owns and automatically sync all
-	// available images to other nodes which don't have yet.
-	imageProjectInfo, err := d.cluster.GetImagesOnLocalNode()
+	// Get all images.
+	imageProjectInfo, err := d.cluster.GetImages()
 	if err != nil {
-		return errors.Wrap(err, "Failed to query image fingerprints of the node")
+		return errors.Wrap(err, "Failed to query image fingerprints")
 	}
 
 	for fingerprint, projects := range imageProjectInfo {
@@ -3629,63 +3633,71 @@ func imageSyncBetweenNodes(d *Daemon, project string, fingerprint string) error 
 		return errors.Wrap(err, "Failed to get nodes for the image synchronization")
 	}
 
+	// If none of the nodes have the image, there's nothing to sync.
+	if len(syncNodeAddresses) == 0 {
+		return nil
+	}
+
 	nodeCount := desiredSyncNodeCount - int64(len(syncNodeAddresses))
 	if nodeCount <= 0 {
 		return nil
 	}
 
-	// Get a list of nodes that do not have the address.
-	addresses, err := d.cluster.GetNodesWithoutImage(fingerprint)
+	// Pick a random node from that slice as the source.
+	syncNodeAddress := syncNodeAddresses[rand.Intn(len(syncNodeAddresses))]
+
+	source, err := cluster.Connect(syncNodeAddress, d.endpoints.NetworkCert(), true)
 	if err != nil {
-		return errors.Wrap(err, "Failed to get nodes for the image synchronization")
-	}
-	if len(addresses) <= 0 {
-		return nil
+		return errors.Wrap(err, "Failed to connect to source node for image synchronization")
 	}
 
-	// Pick a random node from that slice as the target.
-	targetNodeAddress := addresses[rand.Intn(len(addresses))]
-	client, err := cluster.Connect(targetNodeAddress, d.endpoints.NetworkCert(), true)
+	source = source.UseProject(project)
+
+	// Get the image.
+	_, image, err := d.cluster.GetImage(project, fingerprint, false)
 	if err != nil {
-		return errors.Wrap(err, "Failed to connect node for image synchronization")
+		return errors.Wrap(err, "Failed to get image")
 	}
 
-	// Select the right project
-	client = client.UseProject(project)
+	// Replicate on as many nodes as needed.
+	for i := 0; i < int(nodeCount); i++ {
+		// Get a list of nodes that do not have the image.
+		addresses, err := d.cluster.GetNodesWithoutImage(fingerprint)
+		if err != nil {
+			return errors.Wrap(err, "Failed to get nodes for the image synchronization")
+		}
+		if len(addresses) <= 0 {
+			return nil
+		}
 
-	createArgs := &lxd.ImageCreateArgs{}
-	imageMetaPath := shared.VarPath("images", fingerprint)
-	imageRootfsPath := shared.VarPath("images", fingerprint+".rootfs")
+		// Pick a random node from that slice as the target.
+		targetNodeAddress := addresses[rand.Intn(len(addresses))]
 
-	metaFile, err := os.Open(imageMetaPath)
-	if err != nil {
-		return err
-	}
-	defer metaFile.Close()
+		client, err := cluster.Connect(targetNodeAddress, d.endpoints.NetworkCert(), true)
+		if err != nil {
+			return errors.Wrap(err, "Failed to connect node for image synchronization")
+		}
 
-	createArgs.MetaFile = metaFile
-	createArgs.MetaName = filepath.Base(imageMetaPath)
+		// Select the right project.
+		client = client.UseProject(project)
 
-	if shared.PathExists(imageRootfsPath) {
-		rootfsFile, err := os.Open(imageRootfsPath)
+		// Copy the image to the target server.
+		args := lxd.ImageCopyArgs{
+			Type: image.Type,
+		}
+
+		op, err := client.CopyImage(source, *image, &args)
+		if err != nil {
+			return errors.Wrap(err, "Failed to copy image")
+		}
+
+		err = op.Wait()
 		if err != nil {
 			return err
 		}
-		defer rootfsFile.Close()
-
-		createArgs.RootfsFile = rootfsFile
-		createArgs.RootfsName = filepath.Base(imageRootfsPath)
 	}
 
-	image := api.ImagesPost{}
-	image.Filename = createArgs.MetaName
-
-	op, err := client.CreateImage(image, createArgs)
-	if err != nil {
-		return err
-	}
-
-	return op.Wait()
+	return nil
 }
 
 func createTokenResponse(d *Daemon, project, fingerprint string, metadata shared.Jmap) response.Response {

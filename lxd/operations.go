@@ -66,9 +66,15 @@ func waitForOperations(s *state.State, chCancel chan struct{}) {
 		runningOps := 0
 
 		for _, op := range ops {
-			if op.Status() == api.Running {
-				runningOps++
+			if op.Status() != api.Running {
+				continue
 			}
+
+			if op.Class() == operations.OperationClassToken {
+				continue
+			}
+
+			runningOps++
 		}
 
 		// No more running operations left. Exit function.
