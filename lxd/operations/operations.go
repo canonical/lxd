@@ -25,19 +25,20 @@ var debug bool
 var operationsLock sync.Mutex
 var operations = make(map[string]*Operation)
 
-type operationClass int
+// OperationClass represents the OperationClass type
+type OperationClass int
 
 const (
 	// OperationClassTask represents the Task OperationClass
-	OperationClassTask operationClass = 1
+	OperationClassTask OperationClass = 1
 	// OperationClassWebsocket represents the Websocket OperationClass
-	OperationClassWebsocket operationClass = 2
+	OperationClassWebsocket OperationClass = 2
 	// OperationClassToken represents the Token OperationClass
-	OperationClassToken operationClass = 3
+	OperationClassToken OperationClass = 3
 )
 
-func (t operationClass) String() string {
-	return map[operationClass]string{
+func (t OperationClass) String() string {
+	return map[OperationClass]string{
 		OperationClassTask:      "task",
 		OperationClassWebsocket: "websocket",
 		OperationClassToken:     "token",
@@ -90,7 +91,7 @@ func OperationGetInternal(id string) (*Operation, error) {
 type Operation struct {
 	projectName string
 	id          string
-	class       operationClass
+	class       OperationClass
 	createdAt   time.Time
 	updatedAt   time.Time
 	status      api.StatusCode
@@ -121,7 +122,7 @@ type Operation struct {
 
 // OperationCreate creates a new operation and returns it. If it cannot be
 // created, it returns an error.
-func OperationCreate(s *state.State, projectName string, opClass operationClass, opType db.OperationType, opResources map[string][]string, opMetadata interface{}, onRun func(*Operation) error, onCancel func(*Operation) error, onConnect func(*Operation, *http.Request, http.ResponseWriter) error) (*Operation, error) {
+func OperationCreate(s *state.State, projectName string, opClass OperationClass, opType db.OperationType, opResources map[string][]string, opMetadata interface{}, onRun func(*Operation) error, onCancel func(*Operation) error, onConnect func(*Operation, *http.Request, http.ResponseWriter) error) (*Operation, error) {
 	// Don't allow new operations when LXD is shutting down.
 	if s != nil && s.Context.Err() == context.Canceled {
 		return nil, fmt.Errorf("LXD is shutting down")
@@ -602,7 +603,7 @@ func (op *Operation) Status() api.StatusCode {
 }
 
 // Class returns the operation class.
-func (op *Operation) Class() operationClass {
+func (op *Operation) Class() OperationClass {
 	return op.class
 }
 
