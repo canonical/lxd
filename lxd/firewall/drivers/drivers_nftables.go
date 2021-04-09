@@ -171,26 +171,35 @@ func (d Nftables) hostVersion() (*version.DottedVersion, error) {
 }
 
 // networkSetupForwardingPolicy allows forwarding dependent on boolean argument
-func (d Nftables) networkSetupForwardingPolicy(networkName string, ipVersion uint, allow bool) error {
-	action := "reject"
-	if allow {
-		action = "accept"
-	}
-
-	family, err := d.getIPFamily(ipVersion)
-	if err != nil {
-		return err
-	}
-
+func (d Nftables) networkSetupForwardingPolicy(networkName string, ip4Allow *bool, ip6Allow *bool) error {
 	tplFields := map[string]interface{}{
 		"namespace":      nftablesNamespace,
 		"chainSeparator": nftablesChainSeparator,
 		"networkName":    networkName,
-		"family":         family,
-		"action":         action,
+		"family":         "inet",
 	}
 
-	err = d.applyNftConfig(nftablesNetForwardingPolicy, tplFields)
+	if ip4Allow != nil {
+		ip4Action := "reject"
+
+		if *ip4Allow {
+			ip4Action = "accept"
+		}
+
+		tplFields["ip4Action"] = ip4Action
+	}
+
+	if ip6Allow != nil {
+		ip6Action := "reject"
+
+		if *ip6Allow {
+			ip6Action = "accept"
+		}
+
+		tplFields["ip6Action"] = ip6Action
+	}
+
+	err := d.applyNftConfig(nftablesNetForwardingPolicy, tplFields)
 	if err != nil {
 		return errors.Wrapf(err, "Failed adding forwarding policy rules for network %q (%s)", networkName, tplFields["family"])
 	}
@@ -201,26 +210,26 @@ func (d Nftables) networkSetupForwardingPolicy(networkName string, ipVersion uin
 // networkSetupOutboundNAT configures outbound NAT.
 // If srcIP is non-nil then SNAT is used with the specified address, otherwise MASQUERADE mode is used.
 // Append mode is always on and so the append argument is ignored.
-func (d Nftables) networkSetupOutboundNAT(networkName string, subnet *net.IPNet, srcIP net.IP, _ bool) error {
-	family := "ip"
-	if subnet.IP.To4() == nil {
-		family = "ip6"
-	}
-
-	// If SNAT IP not supplied then use the IP of the outbound interface (MASQUERADE).
-	srcIPStr := ""
-	if srcIP != nil {
-		srcIPStr = srcIP.String()
-	}
+func (d Nftables) networkSetupOutboundNAT(networkName string, SNATV4 *SNATOpts, SNATV6 *SNATOpts) error {
+	rules := make(map[string]*SNATOpts, 0)
 
 	tplFields := map[string]interface{}{
 		"namespace":      nftablesNamespace,
 		"chainSeparator": nftablesChainSeparator,
 		"networkName":    networkName,
-		"family":         family,
-		"subnet":         subnet.String(),
-		"srcIP":          srcIPStr,
+		"family":         "inet",
 	}
+
+	// If SNAT IP not supplied then use the IP of the outbound interface (MASQUERADE).
+	if SNATV4 != nil {
+		rules["ip"] = SNATV4
+	}
+
+	if SNATV6 != nil {
+		rules["ip6"] = SNATV6
+	}
+
+	tplFields["rules"] = rules
 
 	err := d.applyNftConfig(nftablesNetOutboundNAT, tplFields)
 	if err != nil {
@@ -231,20 +240,26 @@ func (d Nftables) networkSetupOutboundNAT(networkName string, subnet *net.IPNet,
 }
 
 // networkSetupDHCPDNSAccess sets up basic nftables overrides for DHCP/DNS.
-func (d Nftables) networkSetupDHCPDNSAccess(networkName string, ipVersion uint) error {
-	family, err := d.getIPFamily(ipVersion)
-	if err != nil {
-		return err
+func (d Nftables) networkSetupDHCPDNSAccess(networkName string, ipVersions []uint) error {
+	ipFamilies := []string{}
+	for _, ipVersion := range ipVersions {
+		switch ipVersion {
+		case 4:
+			ipFamilies = append(ipFamilies, "ip")
+		case 6:
+			ipFamilies = append(ipFamilies, "ip6")
+		}
 	}
 
 	tplFields := map[string]interface{}{
 		"namespace":      nftablesNamespace,
 		"chainSeparator": nftablesChainSeparator,
 		"networkName":    networkName,
-		"family":         family,
+		"family":         "inet",
+		"ipFamilies":     ipFamilies,
 	}
 
-	err = d.applyNftConfig(nftablesNetDHCPDNS, tplFields)
+	err := d.applyNftConfig(nftablesNetDHCPDNS, tplFields)
 	if err != nil {
 		return errors.Wrapf(err, "Failed adding DHCP/DNS access rules for network %q (%s)", networkName, tplFields["family"])
 	}
@@ -254,46 +269,39 @@ func (d Nftables) networkSetupDHCPDNSAccess(networkName string, ipVersion uint) 
 
 // NetworkSetup configure network firewall.
 func (d Nftables) NetworkSetup(networkName string, opts Opts) error {
-	if opts.SNATV4 != nil {
-		err := d.networkSetupOutboundNAT(networkName, opts.SNATV4.Subnet, opts.SNATV4.SNATAddress, opts.SNATV4.Append)
+	if opts.SNATV4 != nil || opts.SNATV6 != nil {
+		err := d.networkSetupOutboundNAT(networkName, opts.SNATV4, opts.SNATV6)
 		if err != nil {
 			return err
 		}
 	}
 
-	if opts.SNATV6 != nil {
-		err := d.networkSetupOutboundNAT(networkName, opts.SNATV6.Subnet, opts.SNATV6.SNATAddress, opts.SNATV6.Append)
-		if err != nil {
-			return err
-		}
-	}
+	dhcpDNSAccess := []uint{}
+	var ip4ForwardingAllow, ip6ForwardingAllow *bool
 
-	if opts.FeaturesV4 != nil {
-		if opts.FeaturesV4.DHCPDNSAccess {
-			err := d.networkSetupDHCPDNSAccess(networkName, 4)
-			if err != nil {
-				return err
+	if opts.FeaturesV4 != nil || opts.FeaturesV6 != nil {
+		if opts.FeaturesV4 != nil {
+			if opts.FeaturesV4.DHCPDNSAccess {
+				dhcpDNSAccess = append(dhcpDNSAccess, 4)
 			}
 
-			// No DHCP checksum step here as not supported by nftables.
-			// See https://wiki.nftables.org/wiki-nftables/index.php/Supported_features_compared_to_xtables#CHECKSUM.
+			ip4ForwardingAllow = &opts.FeaturesV4.ForwardingAllow
 		}
 
-		err := d.networkSetupForwardingPolicy(networkName, 4, opts.FeaturesV4.ForwardingAllow)
+		if opts.FeaturesV6 != nil {
+			if opts.FeaturesV6.DHCPDNSAccess {
+				dhcpDNSAccess = append(dhcpDNSAccess, 6)
+			}
+
+			ip6ForwardingAllow = &opts.FeaturesV6.ForwardingAllow
+		}
+
+		err := d.networkSetupForwardingPolicy(networkName, ip4ForwardingAllow, ip6ForwardingAllow)
 		if err != nil {
 			return err
 		}
-	}
 
-	if opts.FeaturesV6 != nil {
-		if opts.FeaturesV6.DHCPDNSAccess {
-			err := d.networkSetupDHCPDNSAccess(networkName, 6)
-			if err != nil {
-				return err
-			}
-		}
-
-		err := d.networkSetupForwardingPolicy(networkName, 6, opts.FeaturesV6.ForwardingAllow)
+		err = d.networkSetupDHCPDNSAccess(networkName, dhcpDNSAccess)
 		if err != nil {
 			return err
 		}
@@ -303,19 +311,13 @@ func (d Nftables) NetworkSetup(networkName string, opts Opts) error {
 }
 
 // NetworkClear removes the LXD network related chains.
-// The delete argument has no effect for nftables driver.
-func (d Nftables) NetworkClear(networkName string, delete bool, ipVersions []uint) error {
-	for _, ipVersion := range ipVersions {
-		family, err := d.getIPFamily(ipVersion)
-		if err != nil {
-			return err
-		}
-
-		// Remove chains created by network rules.
-		err = d.removeChains([]string{family}, networkName, "fwd", "pstrt", "in", "out")
-		if err != nil {
-			return errors.Wrapf(err, "Failed clearing nftables rules for network %q", networkName)
-		}
+// The delete and ipeVersions arguments have no effect for nftables driver.
+func (d Nftables) NetworkClear(networkName string, _ bool, _ []uint) error {
+	// Remove chains created by network rules.
+	// Remove from ip and ip6 tables to ensure cleanup for instances started before we moved to inet table.
+	err := d.removeChains([]string{"inet", "ip", "ip6"}, networkName, "fwd", "pstrt", "in", "out")
+	if err != nil {
+		return errors.Wrapf(err, "Failed clearing nftables rules for network %q", networkName)
 	}
 
 	return nil
@@ -424,16 +426,17 @@ func (d Nftables) InstanceSetupProxyNAT(projectName string, instanceName string,
 		}
 
 		// Figure out which IP family we are using and format the destination host/port as appropriate.
-		family := "ip"
+		ipFamily := "ip"
 		connectDest := fmt.Sprintf("%s:%s", connectHost, connectPort)
 		connectIP := net.ParseIP(connectHost)
 		if connectIP.To4() == nil {
-			family = "ip6"
+			ipFamily = "ip6"
 			connectDest = fmt.Sprintf("[%s]:%s", connectHost, connectPort)
 		}
 
 		rules = append(rules, map[string]interface{}{
-			"family":      family,
+			"family":      "inet",
+			"ipFamily":    ipFamily,
 			"connType":    listen.ConnType,
 			"listenHost":  listenHost,
 			"listenPort":  listenPort,
@@ -463,23 +466,14 @@ func (d Nftables) InstanceSetupProxyNAT(projectName string, instanceName string,
 // InstanceClearProxyNAT remove DNAT rules for proxy devices.
 func (d Nftables) InstanceClearProxyNAT(projectName string, instanceName string, deviceName string) error {
 	deviceLabel := d.instanceDeviceLabel(projectName, instanceName, deviceName)
-	err := d.removeChains([]string{"ip", "ip6"}, deviceLabel, "out", "prert", "pstrt")
+
+	// Remove from ip and ip6 tables to ensure cleanup for instances started before we moved to inet table.
+	err := d.removeChains([]string{"inet", "ip", "ip6"}, deviceLabel, "out", "prert", "pstrt")
 	if err != nil {
 		return errors.Wrapf(err, "Failed clearing proxy rules for instance device %q", deviceLabel)
 	}
 
 	return nil
-}
-
-// getIPFamily converts IP version number into family name used by nftables.
-func (d Nftables) getIPFamily(ipVersion uint) (string, error) {
-	if ipVersion == 4 {
-		return "ip", nil
-	} else if ipVersion == 6 {
-		return "ip6", nil
-	}
-
-	return "", fmt.Errorf("Invalid IP version")
 }
 
 // applyNftConfig loads the specified config template and then applies it to the common template before sending to
@@ -544,18 +538,10 @@ func (d Nftables) InstanceSetupRPFilter(projectName string, instanceName string,
 		"chainSeparator": nftablesChainSeparator,
 		"deviceLabel":    deviceLabel,
 		"hostName":       hostName,
+		"family":         "inet",
 	}
 
-	// IPv4 filter.
-	tplFields["family"] = "ip"
 	err := d.applyNftConfig(nftablesInstanceRPFilter, tplFields)
-	if err != nil {
-		return errors.Wrapf(err, "Failed adding reverse path filter rules for instance device %q (%s)", deviceLabel, tplFields["family"])
-	}
-
-	// IPv46filter.
-	tplFields["family"] = "ip6"
-	err = d.applyNftConfig(nftablesInstanceRPFilter, tplFields)
 	if err != nil {
 		return errors.Wrapf(err, "Failed adding reverse path filter rules for instance device %q (%s)", deviceLabel, tplFields["family"])
 	}
@@ -566,7 +552,9 @@ func (d Nftables) InstanceSetupRPFilter(projectName string, instanceName string,
 // InstanceClearRPFilter removes reverse path filtering for the specified instance device on the host interface.
 func (d Nftables) InstanceClearRPFilter(projectName string, instanceName string, deviceName string) error {
 	deviceLabel := d.instanceDeviceLabel(projectName, instanceName, deviceName)
-	err := d.removeChains([]string{"ip", "ip6"}, deviceLabel, "prert")
+
+	// Remove from ip and ip6 tables to ensure cleanup for instances started before we moved to inet table.
+	err := d.removeChains([]string{"inet", "ip", "ip6"}, deviceLabel, "prert")
 	if err != nil {
 		return errors.Wrapf(err, "Failed clearing reverse path filter rules for instance device %q", deviceLabel)
 	}
