@@ -601,6 +601,11 @@ func (op *Operation) Status() api.StatusCode {
 	return op.status
 }
 
+// Class returns the operation class.
+func (op *Operation) Class() operationClass {
+	return op.class
+}
+
 // Type returns the db operation type.
 func (op *Operation) Type() db.OperationType {
 	return op.dbOpType
