@@ -3643,7 +3643,10 @@ func imageSyncBetweenNodes(d *Daemon, project string, fingerprint string) error 
 		return nil
 	}
 
-	source, err := cluster.Connect(syncNodeAddresses[0], d.endpoints.NetworkCert(), true)
+	// Pick a random node from that slice as the source.
+	syncNodeAddress := syncNodeAddresses[rand.Intn(len(syncNodeAddresses))]
+
+	source, err := cluster.Connect(syncNodeAddress, d.endpoints.NetworkCert(), true)
 	if err != nil {
 		return errors.Wrap(err, "Failed to connect to source node for image synchronization")
 	}
