@@ -1276,6 +1276,16 @@ func (r *ProtocolLXD) CopyInstanceSnapshot(source InstanceServer, instanceName s
 		return &rop, nil
 	}
 
+	// If deadling with migration, we need to set the type.
+	if source.HasExtension("virtual-machines") {
+		inst, _, err := source.GetInstance(instanceName)
+		if err != nil {
+			return nil, err
+		}
+
+		req.Type = api.InstanceType(inst.Type)
+	}
+
 	// Source request
 	sourceReq := api.InstanceSnapshotPost{
 		Migration: true,
