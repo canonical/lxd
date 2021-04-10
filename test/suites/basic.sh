@@ -449,12 +449,12 @@ test_basic_usage() {
 
   lxc launch testimage lxd-seccomp-test
   init=$(lxc info lxd-seccomp-test | grep Pid | cut -f2 -d" ")
-  [ "$(grep Seccomp "/proc/${init}/status" | cut -f2)" -eq "2" ]
+  [ "$(grep Seccomp: "/proc/${init}/status" | cut -f2)" -eq "2" ]
   lxc stop --force lxd-seccomp-test
   lxc config set lxd-seccomp-test security.syscalls.deny_default false
   lxc start lxd-seccomp-test
   init=$(lxc info lxd-seccomp-test | grep Pid | cut -f2 -d" ")
-  [ "$(grep Seccomp "/proc/${init}/status" | cut -f2)" -eq "0" ]
+  [ "$(grep Seccomp: "/proc/${init}/status" | cut -f2)" -eq "0" ]
   lxc delete --force lxd-seccomp-test
 
   # make sure that privileged containers are not world-readable
