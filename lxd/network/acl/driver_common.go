@@ -360,11 +360,11 @@ func (d *common) validateRule(direction ruleDirection, rule api.NetworkACLRule) 
 	// Validate protocol dependent fields.
 	if shared.StringInSlice(rule.Protocol, []string{"tcp", "udp"}) {
 		if rule.ICMPType != "" {
-			return fmt.Errorf("ICMP type cannot be used with protocol")
+			return fmt.Errorf("ICMP type cannot be used with non-ICMP protocol")
 		}
 
 		if rule.ICMPCode != "" {
-			return fmt.Errorf("ICMP code cannot be used with protocol")
+			return fmt.Errorf("ICMP code cannot be used with non-ICMP protocol")
 		}
 
 		// Validate SourcePort field.
@@ -384,11 +384,29 @@ func (d *common) validateRule(direction ruleDirection, rule api.NetworkACLRule) 
 		}
 	} else if shared.StringInSlice(rule.Protocol, []string{"icmp4", "icmp6"}) {
 		if rule.SourcePort != "" {
-			return fmt.Errorf("Source port cannot be used with protocol")
+			return fmt.Errorf("Source port cannot be used with %q protocol", rule.Protocol)
 		}
 
 		if rule.DestinationPort != "" {
-			return fmt.Errorf("Destination port cannot be used with protocol")
+			return fmt.Errorf("Destination port cannot be used with %q protocol", rule.Protocol)
+		}
+
+		if rule.Protocol == "icmp4" {
+			if srcHasIPv6 {
+				return fmt.Errorf("Cannot use IPv6 source addresses with %q protocol", rule.Protocol)
+			}
+
+			if dstHasIPv6 {
+				return fmt.Errorf("Cannot use IPv6 destination addresses with %q protocol", rule.Protocol)
+			}
+		} else if rule.Protocol == "icmp6" {
+			if srcHasIPv4 {
+				return fmt.Errorf("Cannot use IPv6 source addresses with %q protocol", rule.Protocol)
+			}
+
+			if dstHasIPv4 {
+				return fmt.Errorf("Cannot use IPv6 destination addresses with %q protocol", rule.Protocol)
+			}
 		}
 
 		// Validate ICMPType field.
