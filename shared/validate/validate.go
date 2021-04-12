@@ -535,6 +535,20 @@ func IsNetworkPortRange(value string) error {
 		}
 	}
 
+	startPort, err := strconv.ParseUint(ports[0], 10, 32)
+	if err != nil {
+		return fmt.Errorf("Invalid start port number %q", value)
+	}
+
+	endPort, err := strconv.ParseUint(ports[1], 10, 32)
+	if err != nil {
+		return fmt.Errorf("Invalid port number %q", value)
+	}
+
+	if startPort >= endPort {
+		return fmt.Errorf("Start port %d must be lower than end port %d", startPort, endPort)
+	}
+
 	return nil
 }
 

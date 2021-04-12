@@ -311,22 +311,17 @@ func (d *common) validateRule(direction ruleDirection, rule api.NetworkACLRule) 
 		return errors.Wrapf(err, "Failed getting network ACLs for security ACL subject validation")
 	}
 
-	allowedSubjectNames := make([]string, 0, len(acls)+2)
-	allowedSubjectNames = append(allowedSubjectNames, ruleSubjectInternalAliases...)
-	allowedSubjectNames = append(allowedSubjectNames, ruleSubjectExternalAliases...)
+	validSubjectNames := make([]string, 0, len(acls)+2)
+	validSubjectNames = append(validSubjectNames, ruleSubjectInternalAliases...)
+	validSubjectNames = append(validSubjectNames, ruleSubjectExternalAliases...)
 
 	for aclName := range acls {
-		allowedSubjectNames = append(allowedSubjectNames, aclName)
+		validSubjectNames = append(validSubjectNames, aclName)
 	}
 
 	// Validate Source field.
 	if rule.Source != "" {
-		var validSubjects []string
-		if direction == ruleDirectionIngress {
-			validSubjects = allowedSubjectNames // Names are only allowed in ingress rule sources.
-		}
-
-		err := d.validateRuleSubjects(util.SplitNTrimSpace(rule.Source, ",", -1, false), validSubjects)
+		err := d.validateRuleSubjects("Source", direction, util.SplitNTrimSpace(rule.Source, ",", -1, false), validSubjectNames)
 		if err != nil {
 			return errors.Wrapf(err, "Invalid Source")
 		}
@@ -334,12 +329,7 @@ func (d *common) validateRule(direction ruleDirection, rule api.NetworkACLRule) 
 
 	// Validate Destination field.
 	if rule.Destination != "" {
-		var validSubjects []string
-		if direction == ruleDirectionEgress {
-			validSubjects = allowedSubjectNames // Names are only allowed in egress rule destinations.
-		}
-
-		err := d.validateRuleSubjects(util.SplitNTrimSpace(rule.Destination, ",", -1, false), validSubjects)
+		err := d.validateRuleSubjects("Destination", direction, util.SplitNTrimSpace(rule.Destination, ",", -1, false), validSubjectNames)
 		if err != nil {
 			return errors.Wrapf(err, "Invalid Destination")
 		}
@@ -424,14 +414,21 @@ func (d *common) validateRule(direction ruleDirection, rule api.NetworkACLRule) 
 }
 
 // validateRuleSubjects checks that the source or destination subjects for a rule are valid.
-// Accepts an allowedNames list of allowed ACL or special classifier names.
-func (d *common) validateRuleSubjects(subjects []string, allowedNames []string) error {
+// Accepts a validSubjectNames list of valid ACL or special classifier names.
+func (d *common) validateRuleSubjects(fieldName string, direction ruleDirection, subjects []string, validSubjectNames []string) error {
+	// Check if named subjects are allowed in field/direction combination.
+	allowSubjectNames := false
+	if (fieldName == "Source" && direction == ruleDirectionIngress) || (fieldName == "Destination" && direction == ruleDirectionEgress) {
+		allowSubjectNames = true
+	}
+
 	checks := []func(s string) error{
+		validate.IsNetworkAddress,
 		validate.IsNetworkAddressCIDR,
 		validate.IsNetworkRange,
 	}
 
-	validSubject := func(subject string, allowedNames []string) error {
+	validSubject := func(subject string) error {
 		// Check if it is one of the network IP types.
 		for _, c := range checks {
 			err := c(subject)
@@ -441,10 +438,14 @@ func (d *common) validateRuleSubjects(subjects []string, allowedNames []string) 
 			}
 		}
 
-		// Check if it is one of the allowed names.
-		for _, n := range allowedNames {
+		// Check if it is one of the valid subject names.
+		for _, n := range validSubjectNames {
 			if subject == n {
-				return nil // Found valid subject.
+				if allowSubjectNames {
+					return nil // Found valid subject.
+				}
+
+				return fmt.Errorf("Named subjects not allowed in %q for %q rules", fieldName, direction)
 			}
 		}
 
@@ -452,7 +453,7 @@ func (d *common) validateRuleSubjects(subjects []string, allowedNames []string) 
 	}
 
 	for _, s := range subjects {
-		err := validSubject(s, allowedNames)
+		err := validSubject(s)
 		if err != nil {
 			return err
 		}
