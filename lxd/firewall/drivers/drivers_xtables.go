@@ -711,7 +711,16 @@ func (d Xtables) iptablesAdd(ipVersion uint, comment string, table string, metho
 
 	baseArgs := []string{"-w", "-t", table}
 
-	args := append(baseArgs, []string{method, chain}...)
+	// Check for an existing entry
+	args := append(baseArgs, []string{"-C", chain}...)
+	args = append(args, rule...)
+	args = append(args, "-m", "comment", "--comment", fmt.Sprintf("generated for %s", comment))
+	_, err = shared.RunCommand(cmd, args...)
+	if err == nil {
+		return nil
+	}
+
+	args = append(baseArgs, []string{method, chain}...)
 	args = append(args, rule...)
 	args = append(args, "-m", "comment", "--comment", fmt.Sprintf("generated for %s", comment))
 
