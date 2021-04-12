@@ -2,6 +2,7 @@ package acl
 
 import (
 	"fmt"
+	"net"
 	"strings"
 
 	"github.com/pkg/errors"
@@ -319,9 +320,12 @@ func (d *common) validateRule(direction ruleDirection, rule api.NetworkACLRule) 
 		validSubjectNames = append(validSubjectNames, aclName)
 	}
 
+	var srcHasName, srcHasIPv4, srcHasIPv6 bool
+	var dstHasName, dstHasIPv4, dstHasIPv6 bool
+
 	// Validate Source field.
 	if rule.Source != "" {
-		err := d.validateRuleSubjects("Source", direction, util.SplitNTrimSpace(rule.Source, ",", -1, false), validSubjectNames)
+		srcHasName, srcHasIPv4, srcHasIPv6, err = d.validateRuleSubjects("Source", direction, util.SplitNTrimSpace(rule.Source, ",", -1, false), validSubjectNames)
 		if err != nil {
 			return errors.Wrapf(err, "Invalid Source")
 		}
@@ -329,9 +333,19 @@ func (d *common) validateRule(direction ruleDirection, rule api.NetworkACLRule) 
 
 	// Validate Destination field.
 	if rule.Destination != "" {
-		err := d.validateRuleSubjects("Destination", direction, util.SplitNTrimSpace(rule.Destination, ",", -1, false), validSubjectNames)
+		dstHasName, dstHasIPv4, dstHasIPv6, err = d.validateRuleSubjects("Destination", direction, util.SplitNTrimSpace(rule.Destination, ",", -1, false), validSubjectNames)
 		if err != nil {
 			return errors.Wrapf(err, "Invalid Destination")
+		}
+	}
+
+	// Check combination of subject types is valid for source/destination.
+	if rule.Source != "" && rule.Destination != "" {
+		if (srcHasIPv4 && !dstHasIPv4 && !dstHasName) ||
+			(dstHasIPv4 && !srcHasIPv4 && !srcHasName) ||
+			(srcHasIPv6 && !dstHasIPv6 && !dstHasName) ||
+			(dstHasIPv6 && !srcHasIPv6 && !srcHasName) {
+			return fmt.Errorf("Conflicting IP family types used for Source and Destination")
 		}
 	}
 
@@ -415,25 +429,75 @@ func (d *common) validateRule(direction ruleDirection, rule api.NetworkACLRule) 
 
 // validateRuleSubjects checks that the source or destination subjects for a rule are valid.
 // Accepts a validSubjectNames list of valid ACL or special classifier names.
-func (d *common) validateRuleSubjects(fieldName string, direction ruleDirection, subjects []string, validSubjectNames []string) error {
+// Returns whether the subjects include names, IPv4 and IPv6 addresses respectively.
+func (d *common) validateRuleSubjects(fieldName string, direction ruleDirection, subjects []string, validSubjectNames []string) (bool, bool, bool, error) {
 	// Check if named subjects are allowed in field/direction combination.
 	allowSubjectNames := false
 	if (fieldName == "Source" && direction == ruleDirectionIngress) || (fieldName == "Destination" && direction == ruleDirectionEgress) {
 		allowSubjectNames = true
 	}
 
-	checks := []func(s string) error{
-		validate.IsNetworkAddress,
-		validate.IsNetworkAddressCIDR,
-		validate.IsNetworkRange,
+	isNetworkAddress := func(value string) (uint, error) {
+		ip := net.ParseIP(value)
+		if ip == nil {
+			return 0, fmt.Errorf("Not an IP address %q", value)
+		}
+
+		var ipVersion uint = 4
+		if ip.To4() == nil {
+			ipVersion = 6
+		}
+
+		return ipVersion, nil
 	}
 
-	validSubject := func(subject string) error {
+	isNetworkAddressCIDR := func(value string) (uint, error) {
+		ip, _, err := net.ParseCIDR(value)
+		if err != nil {
+			return 0, err
+		}
+
+		var ipVersion uint = 4
+		if ip.To4() == nil {
+			ipVersion = 6
+		}
+
+		return ipVersion, nil
+	}
+
+	isNetworkRange := func(value string) (uint, error) {
+		err := validate.IsNetworkRange(value)
+		if err != nil {
+			return 0, err
+		}
+
+		ips := strings.SplitN(value, "-", 2)
+		if len(ips) != 2 {
+			return 0, fmt.Errorf("IP range must contain start and end IP addresses")
+		}
+
+		ip := net.ParseIP(ips[0])
+
+		var ipVersion uint = 4
+		if ip.To4() == nil {
+			ipVersion = 6
+		}
+
+		return ipVersion, nil
+	}
+
+	checks := []func(s string) (uint, error){
+		isNetworkAddress,
+		isNetworkAddressCIDR,
+		isNetworkRange,
+	}
+
+	validSubject := func(subject string) (uint, error) {
 		// Check if it is one of the network IP types.
 		for _, c := range checks {
-			err := c(subject)
+			ipVersion, err := c(subject)
 			if err == nil {
-				return nil // Found valid subject.
+				return ipVersion, nil // Found valid subject.
 
 			}
 		}
@@ -442,24 +506,37 @@ func (d *common) validateRuleSubjects(fieldName string, direction ruleDirection,
 		for _, n := range validSubjectNames {
 			if subject == n {
 				if allowSubjectNames {
-					return nil // Found valid subject.
+					return 0, nil // Found valid subject.
 				}
 
-				return fmt.Errorf("Named subjects not allowed in %q for %q rules", fieldName, direction)
+				return 0, fmt.Errorf("Named subjects not allowed in %q for %q rules", fieldName, direction)
 			}
 		}
 
-		return fmt.Errorf("Invalid subject %q", subject)
+		return 0, fmt.Errorf("Invalid subject %q", subject)
 	}
 
+	hasIPv4 := false
+	hasIPv6 := false
+	hasName := false
+
 	for _, s := range subjects {
-		err := validSubject(s)
+		ipVersion, err := validSubject(s)
 		if err != nil {
-			return err
+			return false, false, false, err
+		}
+
+		switch ipVersion {
+		case 0:
+			hasName = true
+		case 4:
+			hasIPv4 = true
+		case 6:
+			hasIPv6 = true
 		}
 	}
 
-	return nil
+	return hasName, hasIPv4, hasIPv6, nil
 }
 
 // validatePorts checks that the source or destination ports for a rule are valid.
