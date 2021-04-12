@@ -517,8 +517,13 @@ func ovnRuleSubjectToOVNACLMatch(direction string, aclNameIDs map[string]int64, 
 				return "", false, fmt.Errorf("Invalid IP range %q", subjectCriterion)
 			}
 		} else {
-			ip, _, err := net.ParseCIDR(subjectCriterion)
-			if err == nil {
+			// Try parsing subject as single IP or CIDR.
+			ip := net.ParseIP(subjectCriterion)
+			if ip == nil {
+				ip, _, _ = net.ParseCIDR(subjectCriterion)
+			}
+
+			if ip != nil {
 				protocol := "ip4"
 				if ip.To4() == nil {
 					protocol = "ip6"
@@ -908,7 +913,7 @@ func OVNPortGroupInstanceNICSchedule(portUUID openvswitch.OVNSwitchPortUUID, cha
 }
 
 // OVNApplyInstanceNICDefaultRules applies instance NIC default rules to per-network port group.
-func OVNApplyInstanceNICDefaultRules(client *openvswitch.OVN, switchPortGroup openvswitch.OVNPortGroup, logName string, nicPortName openvswitch.OVNSwitchPort, ingressAction string, ingressLogged bool, egressAction string, egressLogged bool) error {
+func OVNApplyInstanceNICDefaultRules(client *openvswitch.OVN, switchPortGroup openvswitch.OVNPortGroup, logPrefix string, nicPortName openvswitch.OVNSwitchPort, ingressAction string, ingressLogged bool, egressAction string, egressLogged bool) error {
 	if !shared.StringInSlice(ingressAction, ValidActions) {
 		return fmt.Errorf("Invalid ingress action %q", ingressAction)
 	}
@@ -922,7 +927,7 @@ func OVNApplyInstanceNICDefaultRules(client *openvswitch.OVN, switchPortGroup op
 			Direction: "to-lport",
 			Action:    egressAction,
 			Log:       egressLogged,
-			LogName:   fmt.Sprintf("%s-egress", logName), // Max 63 chars.
+			LogName:   fmt.Sprintf("%s-egress", logPrefix), // Max 63 chars.
 			Priority:  ovnACLPriorityNICDefaultActionEgress,
 			Match:     fmt.Sprintf(`inport == "%s"`, nicPortName), // From NIC.
 		},
@@ -930,7 +935,7 @@ func OVNApplyInstanceNICDefaultRules(client *openvswitch.OVN, switchPortGroup op
 			Direction: "to-lport",
 			Action:    ingressAction,
 			Log:       ingressLogged,
-			LogName:   fmt.Sprintf("%s-ingress", logName), // Max 63 chars.
+			LogName:   fmt.Sprintf("%s-ingress", logPrefix), // Max 63 chars.
 			Priority:  ovnACLPriorityNICDefaultActionIngress,
 			Match:     fmt.Sprintf(`outport == "%s"`, nicPortName), // To NIC.
 		},

@@ -2376,8 +2376,8 @@ func (n *ovn) Update(newNetwork api.NetworkPut, targetNode string, clientType re
 						ingressAction, ingressLogged := n.instanceDeviceACLDefaults(nicConfig, "ingress")
 						egressAction, egressLogged := n.instanceDeviceACLDefaults(nicConfig, "egress")
 
-						logName := fmt.Sprintf("%s-%s", inst.Config["volatile.uuid"], nicName)
-						err = acl.OVNApplyInstanceNICDefaultRules(client, acl.OVNIntSwitchPortGroupName(n.ID()), logName, instancePortName, ingressAction, ingressLogged, egressAction, egressLogged)
+						logPrefix := fmt.Sprintf("%s-%s", inst.Config["volatile.uuid"], nicName)
+						err = acl.OVNApplyInstanceNICDefaultRules(client, acl.OVNIntSwitchPortGroupName(n.ID()), logPrefix, instancePortName, ingressAction, ingressLogged, egressAction, egressLogged)
 						if err != nil {
 							return errors.Wrapf(err, "Failed applying OVN default ACL rules for instance NIC")
 						}
@@ -2900,8 +2900,8 @@ func (n *ovn) InstanceDevicePortSetup(opts *OVNInstanceNICSetupOpts, securityACL
 		ingressAction, ingressLogged := n.instanceDeviceACLDefaults(opts.DeviceConfig, "ingress")
 		egressAction, egressLogged := n.instanceDeviceACLDefaults(opts.DeviceConfig, "egress")
 
-		logName := fmt.Sprintf("%s-%s", opts.InstanceUUID, opts.DeviceName)
-		err = acl.OVNApplyInstanceNICDefaultRules(client, acl.OVNIntSwitchPortGroupName(n.ID()), logName, instancePortName, ingressAction, ingressLogged, egressAction, egressLogged)
+		logPrefix := fmt.Sprintf("%s-%s", opts.InstanceUUID, opts.DeviceName)
+		err = acl.OVNApplyInstanceNICDefaultRules(client, acl.OVNIntSwitchPortGroupName(n.ID()), logPrefix, instancePortName, ingressAction, ingressLogged, egressAction, egressLogged)
 		if err != nil {
 			return "", errors.Wrapf(err, "Failed applying OVN default ACL rules for instance NIC")
 		}
