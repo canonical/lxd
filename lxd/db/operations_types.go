@@ -60,6 +60,7 @@ const (
 	OperationCustomVolumeBackupRemove
 	OperationCustomVolumeBackupRename
 	OperationCustomVolumeBackupRestore
+	OperationWarningsPruneResolved
 )
 
 // Description return a human-readable description of the operation type.
@@ -165,6 +166,8 @@ func (t OperationType) Description() string {
 		return "Renaming custom volume backup"
 	case OperationCustomVolumeBackupRestore:
 		return "Restoring custom volume backup"
+	case OperationWarningsPruneResolved:
+		return "Pruning resolved warnings"
 	default:
 		return "Executing operation"
 	}
