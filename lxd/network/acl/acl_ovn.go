@@ -517,8 +517,13 @@ func ovnRuleSubjectToOVNACLMatch(direction string, aclNameIDs map[string]int64, 
 				return "", false, fmt.Errorf("Invalid IP range %q", subjectCriterion)
 			}
 		} else {
-			ip, _, err := net.ParseCIDR(subjectCriterion)
-			if err == nil {
+			// Try parsing subject as single IP or CIDR.
+			ip := net.ParseIP(subjectCriterion)
+			if ip == nil {
+				ip, _, _ = net.ParseCIDR(subjectCriterion)
+			}
+
+			if ip != nil {
 				protocol := "ip4"
 				if ip.To4() == nil {
 					protocol = "ip6"
