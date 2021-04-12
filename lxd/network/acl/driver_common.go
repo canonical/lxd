@@ -423,6 +423,7 @@ func (d *common) validateRuleSubjects(fieldName string, direction ruleDirection,
 	}
 
 	checks := []func(s string) error{
+		validate.IsNetworkAddress,
 		validate.IsNetworkAddressCIDR,
 		validate.IsNetworkRange,
 	}
