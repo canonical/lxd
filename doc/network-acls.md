@@ -81,3 +81,19 @@ There are also two special selectors called `@internal` and `@external` which re
 traffic respectively.
 
 Port group selectors can be used in the `source` field for ingress rules and in the `destination` field for egress rules.
+
+## Bridge limitations
+
+Unlike OVN ACLs, `bridge` ACLs are applied *only* on the boundary between the bridge and the LXD host.
+This means they can only be used to apply network policy for traffic going to/from external networks, and cannot be
+used for intra-bridge firewalling (i.e for firewalling traffic between instances connected to the same bridge).
+
+Additionally `bridge` ACLs do not support using the reserved subject names (starting with a `@`) nor do they
+support using other ACL names in the rule subjects.
+
+When using the `iptables` firewall driver, you cannot use IP range subjects (e.g. `192.168.1.1-192.168.1.10`).
+
+Baseline network service rules are added before ACL rules (in their respective INPUT/OUTPUT chains), because we
+cannot differentiate between INPUT/OUTPUT and FORWARD traffic once we have jumped into the ACL chain. Because of
+this ACL rules cannot be used to block baseline service rules.NPUT/OUTPUT and FORWARD traffic once we have jumped
+into the ACL chain. Because of this ACL rules cannot be used to block baseline service rules.
