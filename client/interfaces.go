@@ -314,6 +314,13 @@ type InstanceServer interface {
 	UpdateClusterMember(name string, member api.ClusterMemberPut, ETag string) (err error)
 	RenameClusterMember(name string, member api.ClusterMemberPost) (err error)
 
+	// Warning functions
+	GetWarningUUIDs() (uuids []string, err error)
+	GetWarnings() (warnings []api.Warning, err error)
+	GetWarning(UUID string) (warning *api.Warning, ETag string, err error)
+	UpdateWarning(UUID string, warning api.WarningPut, ETag string) (err error)
+	DeleteWarning(UUID string) (err error)
+
 	// Internal functions (for internal use)
 	RawQuery(method string, path string, data interface{}, queryETag string) (resp *api.Response, ETag string, err error)
 	RawWebsocket(path string) (conn *websocket.Conn, err error)
