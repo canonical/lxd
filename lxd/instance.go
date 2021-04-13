@@ -584,54 +584,6 @@ func pruneExpiredContainerSnapshots(ctx context.Context, d *Daemon, snapshots []
 	return nil
 }
 
-func instanceDetermineNextSnapshotName(d *Daemon, c instance.Instance, defaultPattern string) (string, error) {
-	var err error
-
-	pattern := c.ExpandedConfig()["snapshots.pattern"]
-	if pattern == "" {
-		pattern = defaultPattern
-	}
-
-	pattern, err = shared.RenderTemplate(pattern, pongo2.Context{
-		"creation_date": time.Now(),
-	})
-	if err != nil {
-		return "", err
-	}
-
-	count := strings.Count(pattern, "%d")
-	if count > 1 {
-		return "", fmt.Errorf("Snapshot pattern may contain '%%d' only once")
-	} else if count == 1 {
-		i := d.cluster.GetNextInstanceSnapshotIndex(c.Project(), c.Name(), pattern)
-		return strings.Replace(pattern, "%d", strconv.Itoa(i), 1), nil
-	}
-
-	snapshotExists := false
-
-	snapshots, err := c.Snapshots()
-	if err != nil {
-		return "", err
-	}
-
-	for _, snap := range snapshots {
-		_, snapOnlyName, _ := shared.InstanceGetParentAndSnapshotName(snap.Name())
-		if snapOnlyName == pattern {
-			snapshotExists = true
-			break
-		}
-	}
-
-	// Append '-0', '-1', etc. if the actual pattern/snapshot name already exists
-	if snapshotExists {
-		pattern = fmt.Sprintf("%s-%%d", pattern)
-		i := d.cluster.GetNextInstanceSnapshotIndex(c.Project(), c.Name(), pattern)
-		return strings.Replace(pattern, "%d", strconv.Itoa(i), 1), nil
-	}
-
-	return pattern, nil
-}
-
 var instanceDriversCacheVal atomic.Value
 var instanceDriversCacheLock sync.Mutex
 
