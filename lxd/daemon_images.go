@@ -98,6 +98,10 @@ func (d *Daemon) ImageDownload(op *operations.Operation, server string, protocol
 		}
 	}
 
+	// Ensure we are the only ones operating on this image.
+	unlock := d.imageDownloadLock(fp)
+	defer unlock()
+
 	// If auto-update is on and we're being given the image by
 	// alias, try to use a locally cached image matching the given
 	// server/protocol/alias, regardless of whether it's stale or
