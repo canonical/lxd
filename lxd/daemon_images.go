@@ -15,6 +15,7 @@ import (
 	"github.com/lxc/lxd/client"
 	"github.com/lxc/lxd/lxd/cluster"
 	"github.com/lxc/lxd/lxd/db"
+	"github.com/lxc/lxd/lxd/locking"
 	"github.com/lxc/lxd/lxd/operations"
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
@@ -30,6 +31,14 @@ import (
 
 var imagesDownloading = map[string]chan bool{}
 var imagesDownloadingLock sync.Mutex
+
+// imageDownloadLock aquires a lock for downloading/transferring an image and returns the unlock function.
+func (d *Daemon) imageDownloadLock(fingerprint string) locking.UnlockFunc {
+	logger.Debugf("Acquiring lock for image download of %q", fingerprint)
+	defer logger.Debugf("Lock acquired for image download of %q", fingerprint)
+
+	return locking.Lock(fmt.Sprintf("ImageDownload_%s", fingerprint))
+}
 
 // ImageDownload resolves the image fingerprint and if not in the database, downloads it
 func (d *Daemon) ImageDownload(op *operations.Operation, server string, protocol string, certificate string, secret string, alias string, imageType string, forContainer bool, autoUpdate bool, storagePool string, preferCached bool, project string, budget int64) (*api.Image, error) {
