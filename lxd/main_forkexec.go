@@ -300,16 +300,16 @@ __attribute__ ((noinline)) static int __forkexec(void)
 
 	ret = fd_cloexec(status_pipe, true);
 	if (ret)
-		return EXIT_FAILURE;
+		return log_errno(EXIT_FAILURE, "Failed to make pipe close-on-exec");
 
 	c = lxc_container_new(name, lxcpath);
 	if (!c)
-		return EXIT_FAILURE;
+		return log_error(EXIT_FAILURE, "Failed to load new container %s/%s", lxcpath, name);
 
 	c->clear_config(c);
 
 	if (!c->load_config(c, config_path))
-		return EXIT_FAILURE;
+		return log_error(EXIT_FAILURE, "Failed to load config file %s for %s/%s", config_path, lxcpath, name);
 
 	if (strcmp(cwd, ""))
 		attach_options.initial_cwd = cwd;
