@@ -528,11 +528,13 @@ func (d Xtables) InstanceSetupProxyNAT(projectName string, instanceName string, 
 			return err
 		}
 
-		// instance <-> instance.
-		// Requires instance's bridge port has hairpin mode enabled when br_netfilter is loaded.
-		err = d.iptablesPrepend(ipVersion, comment, "nat", "POSTROUTING", "-p", listen.ConnType, "--source", connectHost, "--destination", connectHost, "--dport", connectPort, "-j", "MASQUERADE")
-		if err != nil {
-			return err
+		if connectIndex == i {
+			// instance <-> instance.
+			// Requires instance's bridge port has hairpin mode enabled when br_netfilter is loaded.
+			err = d.iptablesPrepend(ipVersion, comment, "nat", "POSTROUTING", "-p", listen.ConnType, "--source", connectHost, "--destination", connectHost, "--dport", connectPort, "-j", "MASQUERADE")
+			if err != nil {
+				return err
+			}
 		}
 	}
 
