@@ -435,14 +435,15 @@ func (d Nftables) InstanceSetupProxyNAT(projectName string, instanceName string,
 		}
 
 		rules = append(rules, map[string]interface{}{
-			"family":      "inet",
-			"ipFamily":    ipFamily,
-			"connType":    listen.ConnType,
-			"listenHost":  listenHost,
-			"listenPort":  listenPort,
-			"connectDest": connectDest,
-			"connectHost": connectHost,
-			"connectPort": connectPort,
+			"family":        "inet",
+			"ipFamily":      ipFamily,
+			"connType":      listen.ConnType,
+			"listenHost":    listenHost,
+			"listenPort":    listenPort,
+			"connectDest":   connectDest,
+			"connectHost":   connectHost,
+			"connectPort":   connectPort,
+			"addHairpinNat": connectIndex == i, // Only add >1 hairpin NAT rules if connect range used.
 		})
 	}
 
