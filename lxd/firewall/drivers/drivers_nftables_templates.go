@@ -90,7 +90,9 @@ chain out{{.chainSeparator}}{{.deviceLabel}} {
 chain pstrt{{.chainSeparator}}{{.deviceLabel}} {
 	type nat hook postrouting priority 100; policy accept;
 	{{- range .rules}}
+	{{if .addHairpinNat}}
 	{{.ipFamily}} saddr {{.connectHost}} {{.ipFamily}} daddr {{.connectHost}} {{.connType}} dport {{.connectPort}} masquerade
+	{{- end}}
 	{{- end}}
 }
 `))
