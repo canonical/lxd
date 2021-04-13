@@ -620,10 +620,16 @@ func doNetworksCreate(d *Daemon, n network.Network, clientType request.ClientTyp
 	revert := revert.New()
 	defer revert.Fail()
 
-	// Validate so that when run on a cluster node the full config (including node specific config) is checked.
-	err := n.Validate(n.Config())
-	if err != nil {
-		return err
+	// Don't validate network config during pre-cluster-join phase, as if network has ACLs they won't exist
+	// in the local database yet. Once cluster join is completed, network will be restarted to give chance for
+	// ACL firewall config to be applied.
+	if clientType != request.ClientTypeJoiner {
+		// Validate so that when run on a cluster node the full config (including node specific config)
+		// is checked.
+		err := n.Validate(n.Config())
+		if err != nil {
+			return err
+		}
 	}
 
 	if n.LocalStatus() == api.NetworkStatusCreated {
@@ -632,7 +638,7 @@ func doNetworksCreate(d *Daemon, n network.Network, clientType request.ClientTyp
 	}
 
 	// Run initial creation setup for the network driver.
-	err = n.Create(clientType)
+	err := n.Create(clientType)
 	if err != nil {
 		return err
 	}
