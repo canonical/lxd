@@ -401,11 +401,11 @@ func (d *common) validateRule(direction ruleDirection, rule api.NetworkACLRule) 
 			}
 		} else if rule.Protocol == "icmp6" {
 			if srcHasIPv4 {
-				return fmt.Errorf("Cannot use IPv6 source addresses with %q protocol", rule.Protocol)
+				return fmt.Errorf("Cannot use IPv4 source addresses with %q protocol", rule.Protocol)
 			}
 
 			if dstHasIPv4 {
-				return fmt.Errorf("Cannot use IPv6 destination addresses with %q protocol", rule.Protocol)
+				return fmt.Errorf("Cannot use IPv4 destination addresses with %q protocol", rule.Protocol)
 			}
 		}
 
