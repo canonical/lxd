@@ -528,11 +528,13 @@ func (d Xtables) InstanceSetupProxyNAT(projectName string, instanceName string, 
 			return err
 		}
 
-		// instance <-> instance.
-		// Requires instance's bridge port has hairpin mode enabled when br_netfilter is loaded.
-		err = d.iptablesPrepend(ipVersion, comment, "nat", "POSTROUTING", "-p", listen.ConnType, "--source", connectHost, "--destination", connectHost, "--dport", connectPort, "-j", "MASQUERADE")
-		if err != nil {
-			return err
+		if connectIndex == i {
+			// instance <-> instance.
+			// Requires instance's bridge port has hairpin mode enabled when br_netfilter is loaded.
+			err = d.iptablesPrepend(ipVersion, comment, "nat", "POSTROUTING", "-p", listen.ConnType, "--source", connectHost, "--destination", connectHost, "--dport", connectPort, "-j", "MASQUERADE")
+			if err != nil {
+				return err
+			}
 		}
 	}
 
@@ -711,16 +713,7 @@ func (d Xtables) iptablesAdd(ipVersion uint, comment string, table string, metho
 
 	baseArgs := []string{"-w", "-t", table}
 
-	// Check for an existing entry
-	args := append(baseArgs, []string{"-C", chain}...)
-	args = append(args, rule...)
-	args = append(args, "-m", "comment", "--comment", fmt.Sprintf("generated for %s", comment))
-	_, err = shared.RunCommand(cmd, args...)
-	if err == nil {
-		return nil
-	}
-
-	args = append(baseArgs, []string{method, chain}...)
+	args := append(baseArgs, []string{method, chain}...)
 	args = append(args, rule...)
 	args = append(args, "-m", "comment", "--comment", fmt.Sprintf("generated for %s", comment))
 
