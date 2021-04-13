@@ -209,6 +209,10 @@ For help with any of those, simply call them with --help.`))
 	versionCmd := cmdVersion{global: &globalCmd}
 	app.AddCommand(versionCmd.Command())
 
+	// warning sub-command
+	warningCmd := cmdWarning{global: &globalCmd}
+	app.AddCommand(warningCmd.Command())
+
 	// Get help command
 	app.InitDefaultHelpCmd()
 	var help *cobra.Command
