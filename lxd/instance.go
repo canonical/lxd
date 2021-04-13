@@ -115,13 +115,13 @@ func instanceCreateFromImage(d *Daemon, args db.InstanceArgs, hash string, op *o
 		// The image is available from another node, let's try to import it.
 		err = instanceImageTransfer(d, args.Project, img.Fingerprint, nodeAddress)
 		if err != nil {
-			return nil, errors.Wrapf(err, "Failed transferring image")
+			return nil, errors.Wrapf(err, "Failed transferring image %q from %q", img.Fingerprint, nodeAddress)
 		}
 
 		// As the image record already exists in the project, just add the node ID to the image.
 		err = d.cluster.AddImageToLocalNode(args.Project, img.Fingerprint)
 		if err != nil {
-			return nil, errors.Wrapf(err, "Failed adding image to local node")
+			return nil, errors.Wrapf(err, "Failed adding transferred image %q to local cluster member", img.Fingerprint)
 		}
 	}
 
