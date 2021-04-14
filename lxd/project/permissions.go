@@ -595,7 +595,7 @@ var defaultRestrictionsValues = map[string]string{
 
 // Return true if a low-level container option is forbidden.
 func isContainerLowLevelOptionForbidden(key string) bool {
-	if strings.HasPrefix(key, "security.syscalls") {
+	if strings.HasPrefix(key, "security.syscalls.intercept") {
 		return true
 	}
 
