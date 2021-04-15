@@ -266,6 +266,7 @@ var APIExtensions = []string{
 	"network_ovn_acl_defaults",
 	"gpu_mig",
 	"project_usage",
+	"network_bridge_acl",
 }
 
 // APIExtensionsCount returns the number of available API extensions.

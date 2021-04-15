@@ -14,6 +14,7 @@ type Firewall interface {
 
 	NetworkSetup(networkName string, opts drivers.Opts) error
 	NetworkClear(networkName string, delete bool, ipVersions []uint) error
+	NetworkApplyACLRules(networkName string, rules []drivers.ACLRule) error
 
 	InstanceSetupBridgeFilter(projectName string, instanceName string, deviceName string, parentName string, hostName string, hwAddr string, IPv4 net.IP, IPv6 net.IP) error
 	InstanceClearBridgeFilter(projectName string, instanceName string, deviceName string, parentName string, hostName string, hwAddr string, IPv4 net.IP, IPv6 net.IP) error
