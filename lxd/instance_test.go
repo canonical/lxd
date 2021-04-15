@@ -204,6 +204,63 @@ func (suite *containerTestSuite) TestContainer_IsPrivileged_Privileged() {
 	suite.Req.Nil(c.Delete(true), "Failed to delete the container.")
 }
 
+func (suite *containerTestSuite) TestContainer_AddRoutedNicValidation() {
+	eth0 := deviceConfig.Device{"name": "eth0", "type": "nic", "ipv4.gateway": "none",
+		"ipv6.gateway": "none", "nictype": "routed", "parent": "unknownbr0"}
+	eth1 := deviceConfig.Device{"name": "eth1", "type": "nic", "ipv4.gateway": "none",
+		"ipv6.gateway": "none", "nictype": "routed", "parent": "unknownbr0"}
+	eth2 := deviceConfig.Device{"name": "eth2", "type": "nic", "nictype": "bridged", "parent": "unknownbr0"}
+
+	args := db.InstanceArgs{
+		Type:     instancetype.Container,
+		Profiles: []string{"default"},
+		Devices: deviceConfig.Devices{
+			"eth0": eth0,
+		},
+		Name: "testFoo",
+	}
+
+	c, err := instance.CreateInternal(suite.d.State(), args)
+	suite.Req.NoError(err)
+
+	err = c.Update(db.InstanceArgs{
+		Type:     instancetype.Container,
+		Profiles: []string{"default"},
+		Devices: deviceConfig.Devices{
+			"eth0": eth0,
+			"eth1": eth1,
+		},
+		Name: "testFoo",
+	}, true)
+	suite.Req.NoError(err, fmt.Errorf("Adding multiple routed with gateway mode ['none'] should succeed. "))
+
+	eth0["ipv6.gateway"] = "auto"
+	eth1["ipv6.gateway"] = ""
+	err = c.Update(db.InstanceArgs{
+		Type:     instancetype.Container,
+		Profiles: []string{"default"},
+		Devices: deviceConfig.Devices{
+			"eth0": eth0,
+			"eth1": eth1,
+		},
+		Name: "testFoo",
+	}, true)
+	suite.Req.Error(err,
+		fmt.Errorf("Adding multiple routed nic devices with any gateway mmode ['auto',''] should throw error. "))
+
+	err = c.Update(db.InstanceArgs{
+		Type:     instancetype.Container,
+		Profiles: []string{"default"},
+		Devices: deviceConfig.Devices{
+			"eth0": eth0,
+			"eth2": eth2,
+		},
+		Name: "testFoo",
+	}, true)
+	suite.Req.NoError(err,
+		fmt.Errorf("Adding multiple nic devices with unicque nictype ['routed'] should throw error. "))
+}
+
 func (suite *containerTestSuite) TestContainer_IsPrivileged_Unprivileged() {
 	args := db.InstanceArgs{
 		Type:      instancetype.Container,
