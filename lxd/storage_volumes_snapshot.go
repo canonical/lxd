@@ -675,42 +675,18 @@ func pruneExpiredCustomVolumeSnapshots(ctx context.Context, d *Daemon, expiredSn
 }
 
 func autoCreateCustomVolumeSnapshotsTask(d *Daemon) (task.Func, task.Schedule) {
+	// Get local node ID
+	nodeID := d.cluster.GetNodeID()
+
 	f := func(ctx context.Context) {
 		allVolumes, err := d.cluster.GetStoragePoolVolumesWithType(db.StoragePoolVolumeTypeCustom)
 		if err != nil {
 			return
 		}
 
-		// Get list of cluster nodes
-		nodes, err := cluster.List(d.State(), d.gateway)
-		if err != nil {
-			return
-		}
-
-		var availableNodeIDs []int64
-
-		for _, node := range nodes {
-			var nodeID int64
-
-			if node.Status == "Online" {
-				err := d.cluster.Transaction(func(tx *db.ClusterTx) error {
-					info, err := tx.GetNodeByName(node.ServerName)
-					if err != nil {
-						return err
-					}
-
-					nodeID = info.ID
-					return nil
-				})
-				if err != nil {
-					return
-				}
-
-				availableNodeIDs = append(availableNodeIDs, nodeID)
-			}
-		}
-
+		// volumes is the list of volumes which will be snapshotted by this node
 		var volumes []db.StorageVolumeArgs
+		var remoteVolumes []db.StorageVolumeArgs
 
 		// Figure out which need snapshotting (if any)
 		for _, v := range allVolumes {
@@ -724,24 +700,83 @@ func autoCreateCustomVolumeSnapshotsTask(d *Daemon) (task.Func, task.Schedule) {
 				continue
 			}
 
-			// If there is more than one node (clustering), a stable random node is chosen to perform the snapshot.
-			if len(nodes) > 1 {
-				selectedNodeID, err := util.GetStableRandomInt64FromList(int64(v.ID), availableNodeIDs)
+			// Always include local volumes
+			if v.NodeID == nodeID {
+				volumes = append(volumes, v)
+			} else if v.NodeID < 0 {
+				// Keep a separate list of remote volumes
+				remoteVolumes = append(remoteVolumes, v)
+			}
+		}
+
+		// Exit early if there are no volumes to be snapshotted.
+		if len(volumes) == 0 && len(remoteVolumes) == 0 {
+			return
+		}
+
+		var nodes []api.ClusterMember
+		var availableNodeIDs []int64
+
+		if len(remoteVolumes) > 0 {
+			isClustered, err := cluster.Enabled(d.State().Node)
+			if err != nil {
+				return
+			}
+
+			if isClustered {
+				// Get list of cluster nodes
+				nodes, err = cluster.List(d.State(), d.gateway)
 				if err != nil {
-					continue
+					return
 				}
 
-				// Don't snapshot, if we're not the chosen one.
-				if d.cluster.GetNodeID() != selectedNodeID {
-					continue
+				for _, node := range nodes {
+					var nodeID int64
+
+					if node.Status == "Online" {
+						err := d.cluster.Transaction(func(tx *db.ClusterTx) error {
+							info, err := tx.GetNodeByName(node.ServerName)
+							if err != nil {
+								return err
+							}
+
+							nodeID = info.ID
+							return nil
+						})
+						if err != nil {
+							logger.Warnf("%s", errors.Wrap(err, "Skipping auto custom volume snapshots"))
+							return
+						}
+
+						availableNodeIDs = append(availableNodeIDs, nodeID)
+					}
 				}
 			}
 
-			volumes = append(volumes, v)
-		}
+			if isClustered && len(availableNodeIDs) <= 0 {
+				logger.Warn("Skipping auto custom volume snapshots due to no online cluster members")
+				return
+			}
 
-		if len(volumes) == 0 {
-			return
+			// Let the local node perform the snapshot if we're not part of a cluster.
+			if !isClustered {
+				volumes = append(volumes, remoteVolumes...)
+			} else {
+				// Select a stable random node to perform the snapshot.
+				for _, v := range remoteVolumes {
+					selectedNodeID, err := util.GetStableRandomInt64FromList(int64(v.ID), availableNodeIDs)
+					if err != nil {
+						continue
+					}
+
+					// Don't snapshot, if we're not the chosen one.
+					if nodeID != selectedNodeID {
+						continue
+					}
+
+					volumes = append(volumes, v)
+				}
+			}
 		}
 
 		opRun := func(op *operations.Operation) error {
