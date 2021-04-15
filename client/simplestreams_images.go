@@ -10,6 +10,8 @@ import (
 	"os/exec"
 	"strings"
 
+	"github.com/pkg/errors"
+
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 )
@@ -42,7 +44,7 @@ func (r *ProtocolSimpleStreams) GetImageFingerprints() ([]string, error) {
 func (r *ProtocolSimpleStreams) GetImage(fingerprint string) (*api.Image, string, error) {
 	image, err := r.ssClient.GetImage(fingerprint)
 	if err != nil {
-		return nil, "", err
+		return nil, "", errors.Wrapf(err, "Failed getting image")
 	}
 
 	return image, "", err
