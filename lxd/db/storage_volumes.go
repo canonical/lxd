@@ -40,13 +40,14 @@ func (c *Cluster) GetStoragePoolVolumesNames(poolID int64) ([]string, error) {
 // GetStoragePoolVolumesWithType return a list of all volumes of the given type.
 func (c *Cluster) GetStoragePoolVolumesWithType(volumeType int) ([]StorageVolumeArgs, error) {
 	var id int64
+	var nodeID int64
 	var name string
 	var description string
 	var poolName string
 	var projectName string
 
 	stmt := `
-SELECT storage_volumes.id, storage_volumes.name, storage_volumes.description, storage_pools.name, projects.name
+SELECT storage_volumes.id, storage_volumes.name, storage_volumes.description, storage_pools.name, projects.name, IFNULL(storage_volumes.node_id, -1)
 FROM storage_volumes
 JOIN storage_pools ON storage_pools.id = storage_volumes.storage_pool_id
 JOIN projects ON projects.id = storage_volumes.project_id
@@ -54,7 +55,7 @@ WHERE storage_volumes.type = ?
 `
 
 	inargs := []interface{}{volumeType}
-	outargs := []interface{}{id, name, description, poolName, projectName}
+	outargs := []interface{}{id, name, description, poolName, projectName, nodeID}
 
 	result, err := queryScan(c, stmt, inargs, outargs)
 	if err != nil {
@@ -70,6 +71,7 @@ WHERE storage_volumes.type = ?
 			Description: r[2].(string),
 			PoolName:    r[3].(string),
 			ProjectName: r[4].(string),
+			NodeID:      r[5].(int64),
 		}
 
 		args.Config, err = c.storageVolumeConfigGet(args.ID, false)
@@ -621,6 +623,8 @@ type StorageVolumeArgs struct {
 	ProjectName string
 
 	ContentType string
+
+	NodeID int64
 }
 
 // GetStorageVolumeNodes returns the node info of all nodes on which the volume with the given name is defined.
