@@ -23,6 +23,7 @@ import (
 	"github.com/lxc/lxd/lxd/dnsmasq"
 	"github.com/lxc/lxd/lxd/dnsmasq/dhcpalloc"
 	firewallDrivers "github.com/lxc/lxd/lxd/firewall/drivers"
+	"github.com/lxc/lxd/lxd/network/acl"
 	"github.com/lxc/lxd/lxd/network/openvswitch"
 	"github.com/lxc/lxd/lxd/node"
 	"github.com/lxc/lxd/lxd/revert"
@@ -253,17 +254,23 @@ func (n *bridge) Validate(config map[string]string) error {
 		"ipv6.routes":        validate.Optional(validate.IsNetworkV6List),
 		"ipv6.routing":       validate.Optional(validate.IsBool),
 		"ipv6.ovn.ranges":    validate.Optional(validate.IsNetworkRangeV6List),
-
-		"dns.domain": validate.IsAny,
-		"dns.search": validate.IsAny,
+		"dns.domain":         validate.IsAny,
+		"dns.search":         validate.IsAny,
 		"dns.mode": func(value string) error {
 			return validate.IsOneOf(value, []string{"dynamic", "managed", "none"})
 		},
-
-		"raw.dnsmasq": validate.IsAny,
-
+		"raw.dnsmasq":      validate.IsAny,
 		"maas.subnet.ipv4": validate.IsAny,
 		"maas.subnet.ipv6": validate.IsAny,
+		"security.acls":    validate.IsAny,
+		"security.acls.default.ingress.action": validate.Optional(func(value string) error {
+			return validate.IsOneOf(value, acl.ValidActions)
+		}),
+		"security.acls.default.egress.action": validate.Optional(func(value string) error {
+			return validate.IsOneOf(value, acl.ValidActions)
+		}),
+		"security.acls.default.ingress.logged": validate.Optional(validate.IsBool),
+		"security.acls.default.egress.logged":  validate.Optional(validate.IsBool),
 	}
 
 	// Add dynamic validation rules.
@@ -439,6 +446,14 @@ func (n *bridge) Validate(config map[string]string) error {
 					}
 				}
 			}
+		}
+	}
+
+	// Check Security ACLs are supported and exist.
+	if config["security.acls"] != "" {
+		err = acl.Exists(n.state, n.Project(), util.SplitNTrimSpace(config["security.acls"], ",", -1, true)...)
+		if err != nil {
+			return err
 		}
 	}
 
@@ -769,6 +784,10 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 
 	if n.hasIPv6Firewall() {
 		fwOpts.FeaturesV6 = &firewallDrivers.FeatureOpts{}
+	}
+
+	if n.config["security.acls"] != "" {
+		fwOpts.ACL = true
 	}
 
 	// Snapshot container specific IPv4 routes (added with boot proto) before removing IPv4 addresses.
@@ -1461,6 +1480,21 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 	err = n.state.Firewall.NetworkSetup(n.name, fwOpts)
 	if err != nil {
 		return errors.Wrapf(err, "Failed to setup firewall")
+	}
+
+	if fwOpts.ACL {
+		aclNet := acl.NetworkACLUsage{
+			Name:   n.Name(),
+			Type:   n.Type(),
+			ID:     n.ID(),
+			Config: n.Config(),
+		}
+
+		n.logger.Debug("Applying up firewall ACLs")
+		err = acl.FirewallApplyACLRules(n.state, n.logger, n.Project(), aclNet)
+		if err != nil {
+			return err
+		}
 	}
 
 	revert.Success()

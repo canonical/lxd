@@ -1914,7 +1914,7 @@ func (n *ovn) setup(update bool) error {
 
 		// Request our network is setup with the specified ACLs.
 		aclNets := map[string]acl.NetworkACLUsage{
-			n.Name(): {Name: n.Name(), Type: n.Type(), ID: n.ID()},
+			n.Name(): {Name: n.Name(), Type: n.Type(), ID: n.ID(), Config: n.Config()},
 		}
 
 		r, err := acl.OVNEnsureACLs(n.state, n.logger, client, n.Project(), aclNameIDs, aclNets, securityACLS, false)
@@ -2844,7 +2844,7 @@ func (n *ovn) InstanceDevicePortSetup(opts *OVNInstanceNICSetupOpts, securityACL
 		if len(nicACLNames) > 0 {
 			// Request our network is setup with the specified ACLs.
 			aclNets := map[string]acl.NetworkACLUsage{
-				n.Name(): {Name: n.Name(), Type: n.Type(), ID: n.ID()},
+				n.Name(): {Name: n.Name(), Type: n.Type(), ID: n.ID(), Config: n.Config()},
 			}
 
 			r, err := acl.OVNEnsureACLs(n.state, n.logger, client, n.Project(), aclNameIDs, aclNets, nicACLNames, false)

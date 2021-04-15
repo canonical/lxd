@@ -1349,3 +1349,9 @@ This adds support for NVIDIA MIG. It introduces the `mig` gputype and associaetd
 ## project\_usage
 Adds an API endpoint to get current resource allocations in a project.
 Accessible at API `GET /1.0/projects/<name>/state`.
+
+## network\_bridge\_acl
+Adds a new `security.acls` config key to `bridge` networks, allowing Network ACLs to be applied.
+
+Also adds `security.acls.default.{in,e}gress.action` and `security.acls.default.{in,e}gress.logged` config keys for
+specifying the default behaviour for unmatched traffic.
