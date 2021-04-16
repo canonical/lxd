@@ -277,12 +277,12 @@ func (d *Daemon) getTrustedCertificates() map[int]map[string]x509.Certificate {
 //
 // This does not perform authorization, only validates authentication.
 func (d *Daemon) Authenticate(w http.ResponseWriter, r *http.Request) (bool, string, string, error) {
-	// Allow internal cluster traffic.
+	trustedCerts := d.getTrustedCertificates()
+
+	// Allow internal cluster traffic by checking against the trusted certfificates.
 	if r.TLS != nil {
-		cert, _ := x509.ParseCertificate(d.endpoints.NetworkCert().KeyPair().Certificate[0])
-		clusterCerts := map[string]x509.Certificate{"0": *cert}
-		for i := range r.TLS.PeerCertificates {
-			trusted, _ := util.CheckTrustState(*r.TLS.PeerCertificates[i], clusterCerts, nil, false)
+		for _, i := range r.TLS.PeerCertificates {
+			trusted, _ := util.CheckTrustState(*i, trustedCerts[db.CertificateTypeServer], d.endpoints.NetworkCert(), false)
 			if trusted {
 				return true, "", "cluster", nil
 			}
@@ -316,7 +316,7 @@ func (d *Daemon) Authenticate(w http.ResponseWriter, r *http.Request) (bool, str
 
 	// Cluster notification with wrong certificate.
 	if isClusterNotification(r) {
-		return false, "", "", fmt.Errorf("Cluster notification isn't using cluster certificate")
+		return false, "", "", fmt.Errorf("Cluster notification isn't using trusted server certificate")
 	}
 
 	// Bad query, no TLS found.
@@ -350,17 +350,13 @@ func (d *Daemon) Authenticate(w http.ResponseWriter, r *http.Request) (bool, str
 	}
 
 	// Validate normal TLS access.
-	var err error
-
 	trustCACertificates, err := cluster.ConfigGetBool(d.cluster, "core.trust_ca_certificates")
 	if err != nil {
 		return false, "", "", err
 	}
 
-	trustedCerts := d.getTrustedCertificates()
-
-	for i := range r.TLS.PeerCertificates {
-		trusted, username := util.CheckTrustState(*r.TLS.PeerCertificates[i], trustedCerts[db.CertificateTypeClient], d.endpoints.NetworkCert(), trustCACertificates)
+	for _, i := range r.TLS.PeerCertificates {
+		trusted, username := util.CheckTrustState(*i, trustedCerts[db.CertificateTypeClient], d.endpoints.NetworkCert(), trustCACertificates)
 		if trusted {
 			return true, username, "tls", nil
 		}
