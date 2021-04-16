@@ -163,6 +163,28 @@ func (c *ClusterTx) GetNetworkID(projectName string, name string) (int64, error)
 	}
 }
 
+// GetNetworkNameAndProjectWithID returns the network name and project name for the given ID.
+func (c *Cluster) GetNetworkNameAndProjectWithID(networkID int) (string, string, error) {
+	var networkName string
+	var projectName string
+
+	q := `SELECT networks.name, projects.name FROM networks JOIN projects ON projects.id=networks.project_id WHERE networks.id=?`
+
+	inargs := []interface{}{networkID}
+	outargs := []interface{}{&networkName, &projectName}
+
+	err := dbQueryRowScan(c, q, inargs, outargs)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return "", "", ErrNoSuchObject
+		}
+
+		return "", "", err
+	}
+
+	return networkName, projectName, nil
+}
+
 // CreateNetworkConfig adds a new entry in the networks_config table
 func (c *ClusterTx) CreateNetworkConfig(networkID, nodeID int64, config map[string]string) error {
 	return networkConfigAdd(c.tx, networkID, nodeID, config)

@@ -125,6 +125,41 @@ func (c *Cluster) GetStorageVolumeSnapshotsNames(volumeID int64) ([]string, erro
 	return out, nil
 }
 
+// GetStorageVolumeSnapshotWithID returns the volume snapshot with the given ID.
+func (c *Cluster) GetStorageVolumeSnapshotWithID(snapshotID int) (StorageVolumeArgs, error) {
+	args := StorageVolumeArgs{}
+	q := `
+SELECT
+	volumes.id,
+	volumes.name,
+	storage_pools.name,
+	volumes.type,
+	projects.name
+FROM storage_volumes_all AS volumes
+JOIN projects ON projects.id=volumes.project_id
+JOIN storage_pools ON storage_pools.id=volumes.storage_pool_id
+WHERE volumes.id=?
+`
+	arg1 := []interface{}{snapshotID}
+	outfmt := []interface{}{&args.ID, &args.Name, &args.PoolName, &args.Type, &args.ProjectName}
+	err := dbQueryRowScan(c, q, arg1, outfmt)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return args, ErrNoSuchObject
+		}
+
+		return args, err
+	}
+
+	if !strings.Contains(args.Name, shared.SnapshotDelimiter) {
+		return args, fmt.Errorf("Volume is not a snapshot")
+	}
+
+	args.TypeName = StoragePoolVolumeTypeNames[args.Type]
+
+	return args, nil
+}
+
 // GetStorageVolumeSnapshotExpiry gets the expiry date of a storage volume snapshot.
 func (c *Cluster) GetStorageVolumeSnapshotExpiry(volumeID int64) (time.Time, error) {
 	var expiry time.Time
