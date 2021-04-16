@@ -103,29 +103,37 @@ func Bootstrap(state *state.State, gateway *Gateway, name string) error {
 		return errors.Wrap(err, "failed to shutdown gRPC SQL gateway")
 	}
 
+	// The cluster CA certificate is a symlink against the regular server CA certificate.
+	if shared.PathExists(filepath.Join(state.OS.VarDir, "server.ca")) {
+		err := os.Symlink("server.ca", filepath.Join(state.OS.VarDir, "cluster.ca"))
+		if err != nil {
+			return errors.Wrap(err, "Failed to symlink server CA cert to cluster CA cert")
+		}
+	}
+
+	// Generate a new cluster certificate.
+	clusterCert, err := util.LoadClusterCert(state.OS.VarDir)
+	if err != nil {
+		return errors.Wrap(err, "Failed to create cluster cert")
+	}
+
+	// If endpoint listeners are active, apply new cluster certificate.
+	if state.Endpoints != nil {
+		gateway.cert = clusterCert
+		state.Endpoints.NetworkUpdateCert(clusterCert)
+	}
+
 	// Re-initialize the gateway. This will create a new raft factory an
 	// dqlite driver instance, which will be exposed over gRPC by the
 	// gateway handlers.
 	err = gateway.init(true)
 	if err != nil {
-		return errors.Wrap(err, "failed to re-initialize gRPC SQL gateway")
+		return errors.Wrap(err, "Failed to re-initialize gRPC SQL gateway")
 	}
 
 	err = gateway.waitLeadership()
 	if err != nil {
 		return err
-	}
-
-	// The cluster certificates are symlinks against the regular node
-	// certificate.
-	for _, ext := range []string{".crt", ".key", ".ca"} {
-		if ext == ".ca" && !shared.PathExists(filepath.Join(state.OS.VarDir, "server.ca")) {
-			continue
-		}
-		err := os.Symlink("server"+ext, filepath.Join(state.OS.VarDir, "cluster"+ext))
-		if err != nil {
-			return errors.Wrap(err, "failed to create cluster cert symlink")
-		}
 	}
 
 	// Make sure we can actually connect to the cluster database through
