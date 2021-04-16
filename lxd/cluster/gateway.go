@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"context"
 	"crypto/tls"
+	"crypto/x509"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -40,7 +41,7 @@ import (
 // After creation, the Daemon is expected to expose whatever http handlers the
 // HandlerFuncs method returns and to access the dqlite cluster using the
 // dialer returned by the DialFunc method.
-func NewGateway(db *db.Node, cert *shared.CertInfo, options ...Option) (*Gateway, error) {
+func NewGateway(db *db.Node, networkCert *shared.CertInfo, serverCert func() *shared.CertInfo, options ...Option) (*Gateway, error) {
 	ctx, cancel := context.WithCancel(context.Background())
 
 	o := newOptions()
@@ -50,14 +51,15 @@ func NewGateway(db *db.Node, cert *shared.CertInfo, options ...Option) (*Gateway
 	}
 
 	gateway := &Gateway{
-		db:        db,
-		cert:      cert,
-		options:   o,
-		ctx:       ctx,
-		cancel:    cancel,
-		upgradeCh: make(chan struct{}, 0),
-		acceptCh:  make(chan net.Conn),
-		store:     &dqliteNodeStore{},
+		db:          db,
+		networkCert: networkCert,
+		serverCert:  serverCert,
+		options:     o,
+		ctx:         ctx,
+		cancel:      cancel,
+		upgradeCh:   make(chan struct{}, 0),
+		acceptCh:    make(chan net.Conn),
+		store:       &dqliteNodeStore{},
 	}
 
 	err := gateway.init(false)
@@ -72,9 +74,10 @@ func NewGateway(db *db.Node, cert *shared.CertInfo, options ...Option) (*Gateway
 // possibly runs a dqlite replica on this LXD node (if we're configured to do
 // so).
 type Gateway struct {
-	db      *db.Node
-	cert    *shared.CertInfo
-	options *options
+	db          *db.Node
+	networkCert *shared.CertInfo
+	serverCert  func() *shared.CertInfo
+	options     *options
 
 	// The raft instance to use for creating the dqlite driver. It's nil if
 	// this LXD node is not supposed to be part of the raft cluster.
