@@ -1728,6 +1728,9 @@ func (d *Daemon) NodeRefreshTask(heartbeatData *cluster.APIHeartbeat) {
 
 		nodeListChanged := d.hasNodeListChanged(heartbeatData)
 		if nodeListChanged {
+			logger.Debug("Member list has changed")
+			updateCertificateCache(d)
+
 			err := networkUpdateForkdnsServersTask(d.State(), heartbeatData)
 			if err != nil {
 				logger.Errorf("Error refreshing forkdns: %v", err)
