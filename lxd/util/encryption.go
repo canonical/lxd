@@ -71,6 +71,17 @@ func LoadClusterCert(dir string) (*shared.CertInfo, error) {
 	return cert, nil
 }
 
+// LoadServerCert reads the LXD server certificate from the given var dir.
+func LoadServerCert(dir string) (*shared.CertInfo, error) {
+	prefix := "server"
+	cert, err := shared.KeyPairAndCA(dir, prefix, shared.CertServer, true)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to load TLS certificate")
+	}
+
+	return cert, nil
+}
+
 // WriteCert writes the given material to the appropriate certificate files in
 // the given LXD var directory.
 func WriteCert(dir, prefix string, cert, key, ca []byte) error {
