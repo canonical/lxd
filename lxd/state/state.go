@@ -14,6 +14,7 @@ import (
 	"github.com/lxc/lxd/lxd/firewall"
 	"github.com/lxc/lxd/lxd/maas"
 	"github.com/lxc/lxd/lxd/sys"
+	"github.com/lxc/lxd/shared"
 )
 
 // State is a gateway to the two main stateful components of LXD, the database
@@ -41,22 +42,28 @@ type State struct {
 	// Firewall instance
 	Firewall firewall.Firewall
 
+	// Server certificate
+	ServerCert             func() *shared.CertInfo
+	UpdateCertificateCache func()
+
 	Context context.Context
 }
 
 // NewState returns a new State object with the given database and operating
 // system components.
-func NewState(ctx context.Context, node *db.Node, cluster *db.Cluster, maas *maas.Controller, os *sys.OS, endpoints *endpoints.Endpoints, events *events.Server, devlxdEvents *events.Server, firewall firewall.Firewall, proxy func(req *http.Request) (*url.URL, error)) *State {
+func NewState(ctx context.Context, node *db.Node, cluster *db.Cluster, maas *maas.Controller, os *sys.OS, endpoints *endpoints.Endpoints, events *events.Server, devlxdEvents *events.Server, firewall firewall.Firewall, proxy func(req *http.Request) (*url.URL, error), serverCert func() *shared.CertInfo, updateCertificateCache func()) *State {
 	return &State{
-		Node:         node,
-		Cluster:      cluster,
-		MAAS:         maas,
-		OS:           os,
-		Endpoints:    endpoints,
-		DevlxdEvents: devlxdEvents,
-		Events:       events,
-		Firewall:     firewall,
-		Proxy:        proxy,
-		Context:      ctx,
+		Node:                   node,
+		Cluster:                cluster,
+		MAAS:                   maas,
+		OS:                     os,
+		Endpoints:              endpoints,
+		DevlxdEvents:           devlxdEvents,
+		Events:                 events,
+		Firewall:               firewall,
+		Proxy:                  proxy,
+		Context:                ctx,
+		ServerCert:             serverCert,
+		UpdateCertificateCache: updateCertificateCache,
 	}
 }
