@@ -273,8 +273,8 @@ func generateTrustCertificate(serverCert *shared.CertInfo, serverName string) (*
 }
 
 // HasConnectivity probes the member with the given address for connectivity.
-func HasConnectivity(cert *shared.CertInfo, address string) bool {
-	config, err := tlsClientConfig(cert)
+func HasConnectivity(networkCert *shared.CertInfo, serverCert *shared.CertInfo, address string) bool {
+	config, err := tlsClientConfig(networkCert, serverCert)
 	if err != nil {
 		return false
 	}
