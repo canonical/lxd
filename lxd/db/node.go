@@ -204,6 +204,23 @@ func (c *ClusterTx) GetNodeMaxVersion() ([2]int, error) {
 	return version, nil
 }
 
+// GetNodeWithID returns the node with the given ID.
+func (c *ClusterTx) GetNodeWithID(nodeID int) (NodeInfo, error) {
+	null := NodeInfo{}
+	nodes, err := c.nodes(false /* not pending */, "id=?", nodeID)
+	if err != nil {
+		return null, err
+	}
+	switch len(nodes) {
+	case 0:
+		return null, ErrNoSuchObject
+	case 1:
+		return nodes[0], nil
+	default:
+		return null, fmt.Errorf("more than one node matches")
+	}
+}
+
 // GetPendingNodeByAddress returns the pending node with the given network address.
 func (c *ClusterTx) GetPendingNodeByAddress(address string) (NodeInfo, error) {
 	null := NodeInfo{}

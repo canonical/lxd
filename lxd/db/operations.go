@@ -43,6 +43,23 @@ SELECT DISTINCT nodes.address
 	return query.SelectStrings(c.tx, stmt, project)
 }
 
+// GetOperationWithID returns the operation with the given ID.
+func (c *ClusterTx) GetOperationWithID(opID int) (Operation, error) {
+	null := Operation{}
+	operations, err := c.operations("id=?", opID)
+	if err != nil {
+		return null, err
+	}
+	switch len(operations) {
+	case 0:
+		return null, ErrNoSuchObject
+	case 1:
+		return operations[0], nil
+	default:
+		return null, fmt.Errorf("more than one operation matches")
+	}
+}
+
 // GetOperationByUUID returns the operation with the given UUID.
 func (c *ClusterTx) GetOperationByUUID(uuid string) (Operation, error) {
 	null := Operation{}
