@@ -292,8 +292,9 @@ func certificatesPost(d *Daemon, r *http.Request) response.Response {
 		return response.Forbidden(nil)
 	}
 
-	if req.Type != "client" {
-		return response.BadRequest(fmt.Errorf("Unknown request type %s", req.Type))
+	dbReqType, err := db.CertificateAPITypeToDBType(req.Type)
+	if err != nil {
+		return response.BadRequest(err)
 	}
 
 	// Extract the certificate
@@ -338,7 +339,7 @@ func certificatesPost(d *Daemon, r *http.Request) response.Response {
 		// Store the certificate in the cluster database
 		dbCert := db.Certificate{
 			Fingerprint: shared.CertFingerprint(cert),
-			Type:        1,
+			Type:        dbReqType,
 			Name:        name,
 			Certificate: string(pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: cert.Raw})),
 		}
@@ -535,9 +536,13 @@ func certificatePatch(d *Daemon, r *http.Request) response.Response {
 }
 
 func doCertificateUpdate(d *Daemon, dbInfo db.Certificate, fingerprint string, req api.CertificatePut) response.Response {
-	// We only support client certificates for now.
-	if req.Type != "client" {
-		return response.BadRequest(fmt.Errorf("Unknown request type %s", req.Type))
+	reqDBType, err := db.CertificateAPITypeToDBType(req.Type)
+	if err != nil {
+		return response.BadRequest(err)
+	}
+
+	if reqDBType != dbInfo.Type {
+		return response.BadRequest(fmt.Errorf("Certificate type cannot be changed"))
 	}
 
 	// Convert to the database type.
@@ -551,7 +556,7 @@ func doCertificateUpdate(d *Daemon, dbInfo db.Certificate, fingerprint string, r
 	}
 
 	// Update the database record.
-	err := d.cluster.UpdateCertificate(fingerprint, cert)
+	err = d.cluster.UpdateCertificate(fingerprint, cert)
 	if err != nil {
 		return response.SmartError(err)
 	}
