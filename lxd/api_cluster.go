@@ -420,14 +420,13 @@ func clusterPutJoin(d *Daemon, req api.ClusterPut) response.Response {
 	}
 
 	// Client parameters to connect to the target cluster node.
-	cert := d.endpoints.NetworkCert()
+	serverCert := d.serverCert()
 	args := &lxd.ConnectionArgs{
-		TLSClientCert: string(cert.PublicKey()),
-		TLSClientKey:  string(cert.PrivateKey()),
+		TLSClientCert: string(serverCert.PublicKey()),
+		TLSClientKey:  string(serverCert.PrivateKey()),
 		TLSServerCert: string(req.ClusterCertificate),
 		UserAgent:     version.UserAgent,
 	}
-	fingerprint := cert.Fingerprint()
 
 	// Asynchronously join the cluster.
 	run := func(op *operations.Operation) error {
@@ -436,11 +435,17 @@ func clusterPutJoin(d *Daemon, req api.ClusterPut) response.Response {
 		// If the user has provided a cluster password, setup the trust
 		// relationship by adding our own certificate to the cluster.
 		if req.ClusterPassword != "" {
-			err = cluster.SetupTrust(string(cert.PublicKey()), req.ClusterAddress,
-				string(req.ClusterCertificate), req.ClusterPassword)
+			err = cluster.SetupTrust(serverCert, req.ServerName, req.ClusterAddress, req.ClusterCertificate, req.ClusterPassword)
 			if err != nil {
 				return errors.Wrap(err, "Failed to setup cluster trust")
 			}
+		}
+
+		// Now we are in the remote trust store, ensure our name and type are correct to allow the cluster
+		// to associate our member name to the server certificate.
+		err = cluster.UpdateTrust(serverCert, req.ServerName, req.ClusterAddress, req.ClusterCertificate)
+		if err != nil {
+			return errors.Wrap(err, "Failed to update cluster trust")
 		}
 
 		// Connect to the target cluster node.
@@ -529,14 +534,49 @@ func clusterPutJoin(d *Daemon, req api.ClusterPut) response.Response {
 		if err != nil {
 			return errors.Wrap(err, "Failed to save cluster certificate")
 		}
-		cert, err := util.LoadCert(d.os.VarDir)
+
+		networkCert, err := util.LoadClusterCert(d.os.VarDir)
 		if err != nil {
 			return errors.Wrap(err, "Failed to parse cluster certificate")
 		}
-		d.endpoints.NetworkUpdateCert(cert)
 
-		// Update local setup and possibly join the raft dqlite
-		// cluster.
+		d.endpoints.NetworkUpdateCert(networkCert)
+
+		// Add trusted certificates of other members to local trust store.
+		trustedCerts, err := client.GetCertificates()
+		if err != nil {
+			return errors.Wrap(err, "Failed to get trusted certificates")
+		}
+
+		for _, trustedCert := range trustedCerts {
+			if trustedCert.Type == api.CertificateTypeServer {
+				dbType, err := db.CertificateAPITypeToDBType(trustedCert.Type)
+				if err != nil {
+					return err
+				}
+
+				// Store the certificate in the local database.
+				dbCert := db.Certificate{
+					Fingerprint: trustedCert.Fingerprint,
+					Type:        dbType,
+					Name:        trustedCert.Name,
+					Certificate: trustedCert.Certificate,
+					Restricted:  trustedCert.Restricted,
+					Projects:    trustedCert.Projects,
+				}
+
+				logger.Debugf("Adding certificate %q (%s) to local trust store", trustedCert.Name, trustedCert.Fingerprint)
+				_, err = d.cluster.CreateCertificate(dbCert)
+				if err != nil && err.Error() != "This certificate already exists" {
+					return errors.Wrapf(err, "Failed adding local trusted certificate %q (%s)", trustedCert.Name, trustedCert.Fingerprint)
+				}
+			}
+		}
+
+		// Update cached trusted certificates.
+		updateCertificateCache(d)
+
+		// Update local setup and possibly join the raft dqlite cluster.
 		nodes := make([]db.RaftNode, len(info.RaftNodes))
 		for i, node := range info.RaftNodes {
 			nodes[i].ID = node.ID
@@ -548,22 +588,9 @@ func clusterPutJoin(d *Daemon, req api.ClusterPut) response.Response {
 		d.startClusterTasks()
 		revert.Add(func() { d.stopClusterTasks() })
 
-		err = cluster.Join(d.State(), d.gateway, cert, req.ServerName, nodes)
+		err = cluster.Join(d.State(), d.gateway, networkCert, serverCert, req.ServerName, nodes)
 		if err != nil {
 			return err
-		}
-
-		// Remove our old server certificate from the trust store, since it's not needed anymore.
-		_, err = d.cluster.GetCertificate(fingerprint)
-		if err != db.ErrNoSuchObject {
-			if err != nil {
-				return err
-			}
-
-			err := d.cluster.DeleteCertificate(fingerprint)
-			if err != nil {
-				return errors.Wrap(err, "Failed to delete joining member's certificate")
-			}
 		}
 
 		// Handle optional service integration on cluster join
@@ -619,7 +646,7 @@ func clusterPutJoin(d *Daemon, req api.ClusterPut) response.Response {
 			logger.Errorf("Failed starting networks: %v", err)
 		}
 
-		client, err = cluster.Connect(req.ClusterAddress, d.endpoints.NetworkCert(), true)
+		client, err = cluster.Connect(req.ClusterAddress, d.endpoints.NetworkCert(), serverCert, true)
 		if err != nil {
 			return err
 		}
