@@ -174,20 +174,20 @@ func updateCertificateCache(d *Daemon) {
 		return err
 	})
 	if err != nil {
-		logger.Infof("Error reading certificates from database: %s", err)
+		logger.Infof("Error reading certificates from database: %v", err)
 		return
 	}
 
 	for _, dbCert := range dbCerts {
 		certBlock, _ := pem.Decode([]byte(dbCert.Certificate))
 		if certBlock == nil {
-			logger.Infof("Error decoding certificate for %s: %s", dbCert.Name, err)
+			logger.Infof("Error decoding certificate for %q: %v", dbCert.Name, err)
 			continue
 		}
 
 		cert, err := x509.ParseCertificate(certBlock.Bytes)
 		if err != nil {
-			logger.Infof("Error reading certificate for %s: %s", dbCert.Name, err)
+			logger.Infof("Error reading certificate for %q: %v", dbCert.Name, err)
 			continue
 		}
 
