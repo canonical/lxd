@@ -1,11 +1,13 @@
 package cluster_test
 
 import (
+	"crypto/x509"
 	"fmt"
 	"io/ioutil"
 	"net/http"
 	"os"
 	"path/filepath"
+	"sync"
 	"testing"
 	"time"
 
@@ -27,13 +29,20 @@ func TestNotifyUpgradeCompleted(t *testing.T) {
 	gateway0 := f.Bootstrap()
 	gateway1 := f.Grow()
 
-	state0 := f.State(gateway0)
+	wg := sync.WaitGroup{}
+	wg.Add(1)
 
-	cert0 := gateway0.Cert()
-	err := cluster.NotifyUpgradeCompleted(state0, cert0)
+	go func() {
+		gateway1.WaitUpgradeNotification()
+		wg.Done()
+	}()
+
+	state0 := f.State(gateway0)
+	serverCert0 := gateway0.ServerCert()
+	err := cluster.NotifyUpgradeCompleted(state0, serverCert0, serverCert0)
 	require.NoError(t, err)
 
-	gateway1.WaitUpgradeNotification()
+	wg.Wait()
 }
 
 // The task function checks if the node is out of date and runs whatever is in
@@ -119,18 +128,22 @@ func TestUpgradeMembersWithoutRole(t *testing.T) {
 	state, cleanup := state.NewTestState(t)
 	defer cleanup()
 
-	cert := shared.TestingKeyPair()
+	serverCert := shared.TestingKeyPair()
 	mux := http.NewServeMux()
-	server := newServer(cert, mux)
+	server := newServer(serverCert, mux)
 	defer server.Close()
 
 	address := server.Listener.Addr().String()
 	setRaftRole(t, state.Node, address)
 
-	gateway := newGateway(t, state.Node, cert)
+	gateway := newGateway(t, state.Node, serverCert, serverCert)
 	defer gateway.Shutdown()
 
-	for path, handler := range gateway.HandlerFuncs(nil) {
+	trustedCerts := func() map[int]map[string]x509.Certificate {
+		return nil
+	}
+
+	for path, handler := range gateway.HandlerFuncs(nil, trustedCerts) {
 		mux.HandleFunc(path, handler)
 	}
 
