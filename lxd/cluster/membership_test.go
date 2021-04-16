@@ -1,6 +1,7 @@
 package cluster_test
 
 import (
+	"crypto/x509"
 	"fmt"
 	"io/ioutil"
 	"net/http"
@@ -67,8 +68,9 @@ func TestBootstrap_UnmetPreconditions(t *testing.T) {
 
 			c.setup(&membershipFixtures{t: t, state: state})
 
-			cert := shared.TestingKeyPair()
-			gateway := newGateway(t, state.Node, cert)
+			serverCert := shared.TestingKeyPair()
+			state.ServerCert = func() *shared.CertInfo { return serverCert }
+			gateway := newGateway(t, state.Node, serverCert, serverCert)
 			defer gateway.Shutdown()
 
 			err := cluster.Bootstrap(state, gateway, "buzz")
@@ -81,12 +83,13 @@ func TestBootstrap(t *testing.T) {
 	state, cleanup := state.NewTestState(t)
 	defer cleanup()
 
-	cert := shared.TestingKeyPair()
-	gateway := newGateway(t, state.Node, cert)
+	serverCert := shared.TestingKeyPair()
+	gateway := newGateway(t, state.Node, serverCert, serverCert)
+	state.ServerCert = func() *shared.CertInfo { return serverCert }
 	defer gateway.Shutdown()
 
 	mux := http.NewServeMux()
-	server := newServer(cert, mux)
+	server := newServer(serverCert, mux)
 	defer server.Close()
 
 	address := server.Listener.Addr().String()
@@ -121,8 +124,12 @@ func TestBootstrap(t *testing.T) {
 	// The cluster certificate is in place.
 	assert.True(t, shared.PathExists(filepath.Join(state.OS.VarDir, "cluster.crt")))
 
+	trustedCerts := func() map[int]map[string]x509.Certificate {
+		return nil
+	}
+
 	// The dqlite driver is now exposed over the network.
-	for path, handler := range gateway.HandlerFuncs(nil) {
+	for path, handler := range gateway.HandlerFuncs(nil, trustedCerts) {
 		mux.HandleFunc(path, handler)
 	}
 
@@ -199,8 +206,8 @@ func TestAccept_UnmetPreconditions(t *testing.T) {
 			state, cleanup := state.NewTestState(t)
 			defer cleanup()
 
-			cert := shared.TestingKeyPair()
-			gateway := newGateway(t, state.Node, cert)
+			serverCert := shared.TestingKeyPair()
+			gateway := newGateway(t, state.Node, serverCert, serverCert)
 			defer gateway.Shutdown()
 
 			c.setup(&membershipFixtures{t: t, state: state})
@@ -216,8 +223,8 @@ func TestAccept(t *testing.T) {
 	state, cleanup := state.NewTestState(t)
 	defer cleanup()
 
-	cert := shared.TestingKeyPair()
-	gateway := newGateway(t, state.Node, cert)
+	serverCert := shared.TestingKeyPair()
+	gateway := newGateway(t, state.Node, serverCert, serverCert)
 	defer gateway.Shutdown()
 
 	f := &membershipFixtures{t: t, state: state}
@@ -244,10 +251,21 @@ func TestJoin(t *testing.T) {
 	targetState, cleanup := state.NewTestState(t)
 	defer cleanup()
 
-	targetGateway := newGateway(t, targetState.Node, targetCert)
+	targetGateway := newGateway(t, targetState.Node, targetCert, targetCert)
 	defer targetGateway.Shutdown()
 
-	for path, handler := range targetGateway.HandlerFuncs(nil) {
+	altServerCert := shared.TestingAltKeyPair()
+	trustedAltServerCert, _ := x509.ParseCertificate(altServerCert.KeyPair().Certificate[0])
+
+	trustedCerts := func() map[int]map[string]x509.Certificate {
+		return map[int]map[string]x509.Certificate{
+			db.CertificateTypeServer: {
+				altServerCert.Fingerprint(): *trustedAltServerCert,
+			},
+		}
+	}
+
+	for path, handler := range targetGateway.HandlerFuncs(nil, trustedCerts) {
 		targetMux.HandleFunc(path, handler)
 	}
 
@@ -259,10 +277,8 @@ func TestJoin(t *testing.T) {
 	targetDialFunc := targetGateway.DialFunc()
 
 	var err error
-	targetState.Cluster, err = db.OpenCluster(
-		"db.bin", targetStore, targetAddress, "/unused/db/dir",
-		10*time.Second, nil,
-		driver.WithDialFunc(targetDialFunc))
+	targetState.Cluster, err = db.OpenCluster("db.bin", targetStore, targetAddress, "/unused/db/dir", 10*time.Second, nil, driver.WithDialFunc(targetDialFunc))
+	targetState.ServerCert = func() *shared.CertInfo { return targetCert }
 	require.NoError(t, err)
 
 	targetF := &membershipFixtures{t: t, state: targetState}
@@ -281,12 +297,11 @@ func TestJoin(t *testing.T) {
 	state, cleanup := state.NewTestState(t)
 	defer cleanup()
 
-	cert := shared.TestingAltKeyPair()
-	gateway := newGateway(t, state.Node, cert)
+	gateway := newGateway(t, state.Node, targetCert, altServerCert)
 
 	defer gateway.Shutdown()
 
-	for path, handler := range gateway.HandlerFuncs(nil) {
+	for path, handler := range gateway.HandlerFuncs(nil, trustedCerts) {
 		mux.HandleFunc(path, handler)
 	}
 
@@ -297,9 +312,7 @@ func TestJoin(t *testing.T) {
 	store := gateway.NodeStore()
 	dialFunc := gateway.DialFunc()
 
-	state.Cluster, err = db.OpenCluster(
-		"db.bin", store, address, "/unused/db/dir", 5*time.Second, nil,
-		driver.WithDialFunc(dialFunc))
+	state.Cluster, err = db.OpenCluster("db.bin", store, address, "/unused/db/dir", 5*time.Second, nil, driver.WithDialFunc(dialFunc))
 	require.NoError(t, err)
 
 	f := &membershipFixtures{t: t, state: state}
@@ -311,7 +324,7 @@ func TestJoin(t *testing.T) {
 	require.NoError(t, err)
 
 	// Actually join the cluster.
-	err = cluster.Join(state, gateway, targetCert, "rusp", raftNodes)
+	err = cluster.Join(state, gateway, targetCert, altServerCert, "rusp", raftNodes)
 	require.NoError(t, err)
 
 	// The leader now returns an updated list of raft nodes.
