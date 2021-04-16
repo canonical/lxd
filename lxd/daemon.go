@@ -400,7 +400,7 @@ func (d *Daemon) State() *state.State {
 	// If the daemon is shutting down, the context will be cancelled.
 	// This information will be available throughout the code, and can be used to prevent new
 	// operations from starting during shutdown.
-	return state.NewState(d.ctx, d.db, d.cluster, d.maas, d.os, d.endpoints, d.events, d.devlxdEvents, d.firewall, d.proxy)
+	return state.NewState(d.ctx, d.db, d.cluster, d.maas, d.os, d.endpoints, d.events, d.devlxdEvents, d.firewall, d.proxy, d.serverCert)
 }
 
 // UnixSocket returns the full path to the unix.socket file that this daemon is
