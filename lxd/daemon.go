@@ -256,6 +256,14 @@ func (d *Daemon) checkTrustedClient(r *http.Request) error {
 	return nil
 }
 
+// getTrustedCertificates returns trusted certificates key on DB type and fingerprint.
+func (d *Daemon) getTrustedCertificates() map[int]map[string]x509.Certificate {
+	d.clientCerts.Lock.Lock()
+	defer d.clientCerts.Lock.Unlock()
+
+	return d.clientCerts.Certificates
+}
+
 // Authenticate validates an incoming http Request
 // It will check over what protocol it came, what type of request it is and
 // will validate the TLS certificate or Macaroon.
