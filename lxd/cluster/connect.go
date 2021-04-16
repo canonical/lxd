@@ -30,7 +30,7 @@ var ErrCertificateExists error = fmt.Errorf("Certificate already in trust store"
 // If 'notify' switch is true, then the user agent will be set to the special
 // to the UserAgentNotifier value, which can be used in some cases to distinguish
 // between a regular client request and an internal cluster request.
-func Connect(address string, cert *shared.CertInfo, notify bool) (lxd.InstanceServer, error) {
+func Connect(address string, networkCert *shared.CertInfo, serverCert *shared.CertInfo, notify bool) (lxd.InstanceServer, error) {
 	// Wait for a connection to the events API first for non-notify connections.
 	if !notify {
 		connected := false
@@ -53,12 +53,13 @@ func Connect(address string, cert *shared.CertInfo, notify bool) (lxd.InstanceSe
 	}
 
 	args := &lxd.ConnectionArgs{
-		TLSServerCert: string(cert.PublicKey()),
-		TLSClientCert: string(cert.PublicKey()),
-		TLSClientKey:  string(cert.PrivateKey()),
+		TLSServerCert: string(networkCert.PublicKey()),
+		TLSClientCert: string(serverCert.PublicKey()),
+		TLSClientKey:  string(serverCert.PrivateKey()),
 		SkipGetServer: true,
 		UserAgent:     version.UserAgent,
 	}
+
 	if notify {
 		args.UserAgent = request.UserAgentNotifier
 	}
@@ -71,7 +72,7 @@ func Connect(address string, cert *shared.CertInfo, notify bool) (lxd.InstanceSe
 // running the container with the given name. If it's not the local node will
 // connect to it and return the connected client, otherwise it will just return
 // nil.
-func ConnectIfInstanceIsRemote(cluster *db.Cluster, projectName string, name string, cert *shared.CertInfo, instanceType instancetype.Type) (lxd.InstanceServer, error) {
+func ConnectIfInstanceIsRemote(cluster *db.Cluster, projectName string, name string, networkCert *shared.CertInfo, serverCert *shared.CertInfo, instanceType instancetype.Type) (lxd.InstanceServer, error) {
 	var address string // Node address
 	err := cluster.Transaction(func(tx *db.ClusterTx) error {
 		var err error
@@ -85,13 +86,13 @@ func ConnectIfInstanceIsRemote(cluster *db.Cluster, projectName string, name str
 		// The instance is running right on this node, no need to connect.
 		return nil, nil
 	}
-	return Connect(address, cert, false)
+	return Connect(address, networkCert, serverCert, false)
 }
 
 // ConnectIfVolumeIsRemote figures out the address of the cluster member on which the volume with the given name is
 // defined. If it's not the local cluster member it will connect to it and return the connected client, otherwise
 // it just returns nil. If there is more than one cluster member with a matching volume name, an error is returned.
-func ConnectIfVolumeIsRemote(s *state.State, poolName string, projectName string, volumeName string, volumeType int, cert *shared.CertInfo) (lxd.InstanceServer, error) {
+func ConnectIfVolumeIsRemote(s *state.State, poolName string, projectName string, volumeName string, volumeType int, networkCert *shared.CertInfo, serverCert *shared.CertInfo) (lxd.InstanceServer, error) {
 	localNodeID := s.Cluster.GetNodeID()
 	var err error
 	var nodes []db.NodeInfo
@@ -161,7 +162,7 @@ func ConnectIfVolumeIsRemote(s *state.State, poolName string, projectName string
 	}
 
 	// Connect to remote cluster member.
-	return Connect(node.Address, cert, false)
+	return Connect(node.Address, networkCert, serverCert, false)
 }
 
 // SetupTrust is a convenience around InstanceServer.CreateCertificate that
