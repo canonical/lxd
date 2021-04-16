@@ -10,9 +10,14 @@ func (g *Gateway) IsLeader() (bool, error) {
 	return g.isLeader()
 }
 
-// Cert returns the gateway's internal TLS certificate information.
-func (g *Gateway) Cert() *shared.CertInfo {
-	return g.cert
+// ServerCert returns the gateway's internal TLS server certificate information.
+func (g *Gateway) ServerCert() *shared.CertInfo {
+	return g.networkCert
+}
+
+// NetworkCert returns the gateway's internal TLS NetworkCert certificate information.
+func (g *Gateway) NetworkCert() *shared.CertInfo {
+	return g.networkCert
 }
 
 // RaftNodes returns the nodes currently part of the raft cluster.
