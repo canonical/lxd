@@ -57,6 +57,20 @@ func LoadCert(dir string) (*shared.CertInfo, error) {
 	return cert, nil
 }
 
+// LoadClusterCert reads the LXD cluster certificate from the given var dir.
+//
+// If a cluster certificate doesn't exist, a new one is generated.
+func LoadClusterCert(dir string) (*shared.CertInfo, error) {
+	prefix := "cluster"
+
+	cert, err := shared.KeyPairAndCA(dir, prefix, shared.CertServer, true)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to load cluster TLS certificate")
+	}
+
+	return cert, nil
+}
+
 // WriteCert writes the given material to the appropriate certificate files in
 // the given LXD var directory.
 func WriteCert(dir, prefix string, cert, key, ca []byte) error {
