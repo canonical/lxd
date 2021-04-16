@@ -70,13 +70,13 @@ func (d *Daemon) ImageDownload(op *operations.Operation, server string, protocol
 			// Setup LXD client
 			remote, err = lxd.ConnectPublicLXD(server, args)
 			if err != nil {
-				return nil, err
+				return nil, errors.Wrapf(err, "Failed to connect to LXD server %q", server)
 			}
 		} else {
 			// Setup simplestreams client
 			remote, err = lxd.ConnectSimpleStreams(server, args)
 			if err != nil {
-				return nil, err
+				return nil, errors.Wrapf(err, "Failed to connect to simple streams server %q", server)
 			}
 		}
 
@@ -91,7 +91,7 @@ func (d *Daemon) ImageDownload(op *operations.Operation, server string, protocol
 			// Expand partial fingerprints
 			info, _, err = remote.GetImage(fp)
 			if err != nil {
-				return nil, err
+				return nil, errors.Wrapf(err, "Failed getting remote image info")
 			}
 
 			fp = info.Fingerprint
