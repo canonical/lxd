@@ -136,18 +136,18 @@ type ContextAwareRequest interface {
 // CheckTrustState checks whether the given client certificate is trusted
 // (i.e. it has a valid time span and it belongs to the given list of trusted
 // certificates).
-func CheckTrustState(cert x509.Certificate, trustedCerts map[string]x509.Certificate, certInfo *shared.CertInfo, trustCACertificates bool) (bool, string) {
+func CheckTrustState(cert x509.Certificate, trustedCerts map[string]x509.Certificate, networkCert *shared.CertInfo, trustCACertificates bool) (bool, string) {
 	// Extra validity check (should have been caught by TLS stack)
 	if time.Now().Before(cert.NotBefore) || time.Now().After(cert.NotAfter) {
 		return false, ""
 	}
 
-	if certInfo != nil && trustCACertificates {
-		ca := certInfo.CA()
+	if networkCert != nil && trustCACertificates {
+		ca := networkCert.CA()
 
 		if ca != nil && cert.CheckSignatureFrom(ca) == nil {
 			// Check whether the certificate has been revoked.
-			crl := certInfo.CRL()
+			crl := networkCert.CRL()
 
 			if crl != nil {
 				for _, revoked := range crl.TBSCertList.RevokedCertificates {
@@ -165,7 +165,7 @@ func CheckTrustState(cert x509.Certificate, trustedCerts map[string]x509.Certifi
 	// Check whether client certificate is in trust store.
 	for k, v := range trustedCerts {
 		if bytes.Compare(cert.Raw, v.Raw) == 0 {
-			logger.Debug("Found cert", log.Ctx{"name": k})
+			logger.Debug("Matched trusted cert", log.Ctx{"fingerprint": k, "subject": v.Subject})
 			return true, k
 		}
 	}
