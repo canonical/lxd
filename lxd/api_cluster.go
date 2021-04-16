@@ -701,14 +701,15 @@ func clusterPutDisable(d *Daemon) response.Response {
 			return response.InternalError(err)
 		}
 	}
-	cert, err := util.LoadCert(d.os.VarDir)
+
+	networkCert, err := util.LoadCert(d.os.VarDir)
 	if err != nil {
 		return response.InternalError(errors.Wrap(err, "Failed to parse member certificate"))
 	}
 
 	// Reset the cluster database and make it local to this node.
-	d.endpoints.NetworkUpdateCert(cert)
-	err = d.gateway.Reset(cert)
+	d.endpoints.NetworkUpdateCert(networkCert)
+	err = d.gateway.Reset(networkCert)
 	if err != nil {
 		return response.SmartError(err)
 	}
