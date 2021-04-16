@@ -104,6 +104,9 @@ type Daemon struct {
 	clusterMembershipMutex   sync.RWMutex
 	clusterMembershipClosing bool // Prevent further rebalances
 
+	serverCert    func() *shared.CertInfo
+	serverCertInt *shared.CertInfo // Do not use this directly, use servertCert func.
+
 	ctx    context.Context
 	cancel context.CancelFunc
 }
@@ -160,7 +163,7 @@ func newDaemon(config *DaemonConfig, os *sys.OS) *Daemon {
 	devlxdEvents := events.NewServer(daemon.Debug, daemon.Verbose)
 	ctx, cancel := context.WithCancel(context.Background())
 
-	return &Daemon{
+	d := &Daemon{
 		clientCerts:  &certificateCache{},
 		config:       config,
 		devlxdEvents: devlxdEvents,
@@ -172,6 +175,10 @@ func newDaemon(config *DaemonConfig, os *sys.OS) *Daemon {
 		ctx:          ctx,
 		cancel:       cancel,
 	}
+
+	d.serverCert = func() *shared.CertInfo { return d.serverCertInt }
+
+	return d
 }
 
 // defaultDaemonConfig returns a DaemonConfig object with default values.
