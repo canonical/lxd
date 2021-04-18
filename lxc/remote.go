@@ -801,7 +801,8 @@ func (c *cmdRemoteSetURL) Run(cmd *cobra.Command, args []string) error {
 		conf.Remotes[args[0]] = remote
 	}
 
-	conf.Remotes[args[0]] = config.Remote{Addr: args[1]}
+	remote.Addr = args[1]
+	conf.Remotes[args[0]] = remote
 
 	return conf.SaveConfig(c.global.confPath)
 }
