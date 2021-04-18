@@ -773,7 +773,9 @@ func (c *cmdRemoteSetURL) Run(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf(i18n.G("Remote %s is static and cannot be modified"), args[0])
 	}
 
-	conf.Remotes[args[0]] = config.Remote{Addr: args[1]}
+	remote := conf.Remotes[args[0]]
+	remote.Addr = args[1]
+	conf.Remotes[args[0]] = remote
 
 	return conf.SaveConfig(c.global.confPath)
 }
