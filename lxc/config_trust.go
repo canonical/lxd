@@ -74,7 +74,7 @@ func (c *cmdConfigTrustAdd) Command() *cobra.Command {
 		`Add new trusted clients`))
 
 	cmd.Flags().BoolVar(&c.flagRestricted, "restricted", false, i18n.G("Restrict the certificate to one or more projects"))
-	cmd.Flags().StringVar(&c.flagProjects, "projects", "", i18n.G("List of projects to restrict the certificate to"))
+	cmd.Flags().StringVar(&c.flagProjects, "projects", "", i18n.G("List of projects to restrict the certificate to")+"``")
 
 	cmd.RunE = c.Run
 

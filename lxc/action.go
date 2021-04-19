@@ -118,7 +118,7 @@ func (c *cmdAction) Command(action string) *cobra.Command {
 	}
 
 	if shared.StringInSlice(action, []string{"start", "restart", "stop"}) {
-		cmd.Flags().StringVar(&c.flagConsole, "console", "", i18n.G("Immediately attach to the console"))
+		cmd.Flags().StringVar(&c.flagConsole, "console", "", i18n.G("Immediately attach to the console")+"``")
 		cmd.Flags().Lookup("console").NoOptDefVal = "console"
 	}
 

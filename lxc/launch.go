@@ -33,7 +33,7 @@ lxc launch ubuntu:18.04 u1 < config.yaml
 
 	cmd.RunE = c.Run
 
-	cmd.Flags().StringVar(&c.flagConsole, "console", "", i18n.G("Immediately attach to the console"))
+	cmd.Flags().StringVar(&c.flagConsole, "console", "", i18n.G("Immediately attach to the console")+"``")
 	cmd.Flags().Lookup("console").NoOptDefVal = "console"
 
 	return cmd
