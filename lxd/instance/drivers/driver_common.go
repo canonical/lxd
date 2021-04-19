@@ -190,6 +190,11 @@ func (d *common) Backups() ([]backup.InstanceBackup, error) {
 
 // DeferTemplateApply records a template trigger to apply on next instance start.
 func (d *common) DeferTemplateApply(trigger instance.TemplateTrigger) error {
+	// Avoid over-writing triggers that have already been set.
+	if d.localConfig["volatile.apply_template"] != "" {
+		return nil
+	}
+
 	err := d.VolatileSet(map[string]string{"volatile.apply_template": string(trigger)})
 	if err != nil {
 		return errors.Wrap(err, "Failed to set apply_template volatile key")
