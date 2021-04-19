@@ -103,6 +103,13 @@ test_basic_usage() {
   # Test list with --columns and --fast
   ! lxc list --columns=nsp --fast || false
 
+  # Check volatile.apply_template is correct.
+  lxc config get foo volatile.apply_template | grep create
+
+  # Start the instance to clear apply_template.
+  lxc start foo
+  lxc stop foo -f
+
   # Test container rename
   lxc move foo bar
 
