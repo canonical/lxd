@@ -7,7 +7,6 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
-	"sync"
 	"time"
 
 	"github.com/pkg/errors"
@@ -28,9 +27,6 @@ import (
 
 	log "github.com/lxc/lxd/shared/log15"
 )
-
-var imagesDownloading = map[string]chan bool{}
-var imagesDownloadingLock sync.Mutex
 
 // imageDownloadLock aquires a lock for downloading/transferring an image and returns the unlock function.
 func (d *Daemon) imageDownloadLock(fingerprint string) locking.UnlockFunc {
@@ -227,45 +223,6 @@ func (d *Daemon) ImageDownload(op *operations.Operation, server string, protocol
 		logger.Debug("Created image on storage pool", ctxMap)
 		return info, nil
 	}
-
-	// Deal with parallel downloads
-	imagesDownloadingLock.Lock()
-	if waitChannel, ok := imagesDownloading[fp]; ok {
-		// We are already downloading the image
-		imagesDownloadingLock.Unlock()
-
-		logger.Debug("Already downloading the image, waiting for it to succeed", log.Ctx{"fingerprint": fp})
-
-		// Wait until the download finishes (channel closes)
-		<-waitChannel
-
-		// Grab the database entry
-		_, imgInfo, err := d.cluster.GetImage(project, fp, false)
-		if err != nil {
-			// Other download failed, lets try again
-			logger.Error("Other image download didn't succeed", log.Ctx{"fingerprint": fp})
-		} else {
-			// Other download succeeded, we're done
-			return imgInfo, nil
-		}
-	} else {
-		imagesDownloadingLock.Unlock()
-	}
-
-	// Add the download to the queue
-	imagesDownloadingLock.Lock()
-	imagesDownloading[fp] = make(chan bool)
-	imagesDownloadingLock.Unlock()
-
-	// Unlock once this func ends.
-	defer func() {
-		imagesDownloadingLock.Lock()
-		if waitChannel, ok := imagesDownloading[fp]; ok {
-			close(waitChannel)
-			delete(imagesDownloading, fp)
-		}
-		imagesDownloadingLock.Unlock()
-	}()
 
 	// Begin downloading
 	if op == nil {
