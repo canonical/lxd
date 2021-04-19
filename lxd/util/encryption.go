@@ -42,6 +42,7 @@ func PasswordCheck(secret string, password string) error {
 // LoadCert reads the LXD server certificate from the given var dir.
 //
 // If a cluster certificate is found it will be loaded instead.
+// If neither a server or cluster certfificate exists, a new server certificate will be generated.
 func LoadCert(dir string) (*shared.CertInfo, error) {
 	prefix := "server"
 	if shared.PathExists(filepath.Join(dir, "cluster.crt")) {
@@ -51,6 +52,20 @@ func LoadCert(dir string) (*shared.CertInfo, error) {
 	cert, err := shared.KeyPairAndCA(dir, prefix, shared.CertServer, true)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to load TLS certificate")
+	}
+
+	return cert, nil
+}
+
+// LoadClusterCert reads the LXD cluster certificate from the given var dir.
+//
+// If a cluster certificate doesn't exist, a new one is generated.
+func LoadClusterCert(dir string) (*shared.CertInfo, error) {
+	prefix := "cluster"
+
+	cert, err := shared.KeyPairAndCA(dir, prefix, shared.CertServer, true)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to load cluster TLS certificate")
 	}
 
 	return cert, nil

@@ -235,6 +235,10 @@ func TestConvertNetworkConfig(t *testing.T) {
 		}
 
 		err = c.Destroy()
+		if err != nil && strings.Contains(err.Error(), string(liblxc.ErrNotDefined)) {
+			continue
+		}
+
 		require.NoError(t, err)
 	}
 }
