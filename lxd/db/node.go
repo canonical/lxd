@@ -16,6 +16,7 @@ import (
 	"github.com/lxc/lxd/lxd/db/query"
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
+	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/osarch"
 	"github.com/lxc/lxd/shared/version"
 )
@@ -52,6 +53,108 @@ func (n NodeInfo) IsOffline(threshold time.Duration) bool {
 	return nodeIsOffline(threshold, n.Heartbeat)
 }
 
+// ToAPI returns a LXD API entry.
+func (n NodeInfo) ToAPI(cluster *Cluster, node *Node) (*api.ClusterMember, error) {
+	// Load some needed data.
+	var err error
+	var offlineThreshold time.Duration
+	var maxVersion [2]int
+	var failureDomain string
+
+	// From cluster database.
+	err = cluster.Transaction(func(tx *ClusterTx) error {
+		// Get offline threshold.
+		offlineThreshold, err = tx.GetNodeOfflineThreshold()
+		if err != nil {
+			return errors.Wrap(err, "Load offline threshold config")
+		}
+
+		// Get failure domains.
+		nodesDomains, err := tx.GetNodesFailureDomains()
+		if err != nil {
+			return errors.Wrap(err, "Load nodes failure domains")
+		}
+
+		domainsNames, err := tx.GetFailureDomainsNames()
+		if err != nil {
+			return errors.Wrap(err, "Load failure domains names")
+		}
+
+		domainID := nodesDomains[n.Address]
+		failureDomain = domainsNames[domainID]
+
+		// Get the highest schema and API versions.
+		maxVersion, err = tx.GetNodeMaxVersion()
+		if err != nil {
+			return errors.Wrap(err, "Get max version")
+		}
+
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	// From local database.
+	var raftNode *RaftNode
+	err = node.Transaction(func(tx *NodeTx) error {
+		nodes, err := tx.GetRaftNodes()
+		if err != nil {
+			return errors.Wrap(err, "Load offline threshold config")
+		}
+
+		for _, node := range nodes {
+			if node.Address != n.Address {
+				continue
+			}
+
+			raftNode = &node
+			break
+		}
+
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	// Fill in the struct.
+	result := api.ClusterMember{}
+	result.ServerName = n.Name
+	result.URL = fmt.Sprintf("https://%s", n.Address)
+	result.Database = raftNode != nil && raftNode.Role == RaftVoter
+	result.Roles = n.Roles
+	if result.Database {
+		result.Roles = append(result.Roles, string(ClusterRoleDatabase))
+	}
+	result.Architecture, err = osarch.ArchitectureName(n.Architecture)
+	if err != nil {
+		return nil, err
+	}
+	result.FailureDomain = failureDomain
+
+	if n.IsOffline(offlineThreshold) {
+		result.Status = "Offline"
+		result.Message = fmt.Sprintf("No heartbeat for %s", time.Now().Sub(n.Heartbeat))
+	} else {
+		// Check if up to date.
+		n, err := util.CompareVersions(maxVersion, n.Version())
+		if err != nil {
+			return nil, err
+		}
+
+		if n == 1 {
+			result.Status = "Blocked"
+			result.Message = "Needs updating to newer version"
+		} else {
+			result.Status = "Online"
+			result.Message = "Fully operational"
+		}
+	}
+
+	return &result, nil
+}
+
 // Version returns the node's version, composed by its schema level and
 // number of extensions.
 func (n NodeInfo) Version() [2]int {
@@ -73,6 +176,32 @@ func (c *ClusterTx) GetNodeByAddress(address string) (NodeInfo, error) {
 	default:
 		return null, fmt.Errorf("more than one node matches")
 	}
+}
+
+// GetNodeMaxVersion returns the highest version possible on the cluster.
+func (c *ClusterTx) GetNodeMaxVersion() ([2]int, error) {
+	version := [2]int{}
+
+	// Get the maximum DB schema.
+	var maxSchema int
+	row := c.tx.QueryRow("SELECT MAX(schema) FROM nodes")
+	err := row.Scan(&maxSchema)
+	if err != nil {
+		return version, err
+	}
+
+	// Get the maximum API extension.
+	var maxAPI int
+	row = c.tx.QueryRow("SELECT MAX(api_extensions) FROM nodes")
+	err = row.Scan(&maxAPI)
+	if err != nil {
+		return version, err
+	}
+
+	// Compute the combined version.
+	version = [2]int{maxSchema, maxAPI}
+
+	return version, nil
 }
 
 // GetPendingNodeByAddress returns the pending node with the given network address.
