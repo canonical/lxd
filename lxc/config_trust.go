@@ -93,7 +93,7 @@ func (c *cmdConfigTrustAdd) Run(cmd *cobra.Command, args []string) error {
 	cert := api.CertificatesPost{}
 	cert.Certificate = base64.StdEncoding.EncodeToString(x509Cert.Raw)
 	cert.Name = name
-	cert.Type = "client"
+	cert.Type = api.CertificateTypeClient
 
 	return resource.server.CreateCertificate(cert)
 }
