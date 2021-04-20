@@ -193,7 +193,7 @@ func SetupTrust(cert, targetAddress, targetCert, targetPassword string) error {
 	}
 
 	post.Name = fmt.Sprintf("lxd.cluster.%s", fingerprint)
-	post.Type = "client"
+	post.Type = api.CertificateTypeClient
 
 	err = target.CreateCertificate(post)
 	if err != nil && err.Error() != "Certificate already in trust store" {
