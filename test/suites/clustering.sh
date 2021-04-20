@@ -2212,7 +2212,7 @@ test_clustering_image_refresh() {
 
   # Trigger image refresh on all nodes
   for lxd_dir in "${LXD_ONE_DIR}" "${LXD_TWO_DIR}" "${LXD_THREE_DIR}"; do
-    LXD_DIR="${lxd_dir}" lxc query /internal/image-refresh &
+    LXD_DIR="${lxd_dir}" lxc query /internal/testing/image-refresh &
     pids="$! ${pids}"
   done
 
@@ -2237,7 +2237,7 @@ test_clustering_image_refresh() {
   # Trigger image refresh on all nodes. This shouldn't do anything as the image
   # is already up-to-date.
   for lxd_dir in "${LXD_ONE_DIR}" "${LXD_TWO_DIR}" "${LXD_THREE_DIR}"; do
-    LXD_DIR="${lxd_dir}" lxc query /internal/image-refresh &
+    LXD_DIR="${lxd_dir}" lxc query /internal/testing/image-refresh &
     pids="$! ${pids}"
   done
 
@@ -2262,7 +2262,7 @@ test_clustering_image_refresh() {
 
   # Trigger image refresh on all nodes
   for lxd_dir in "${LXD_ONE_DIR}" "${LXD_TWO_DIR}" "${LXD_THREE_DIR}"; do
-    LXD_DIR="${lxd_dir}" lxc query /internal/image-refresh &
+    LXD_DIR="${lxd_dir}" lxc query /internal/testing/image-refresh &
     pids="$! ${pids}"
   done
 
