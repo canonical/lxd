@@ -267,14 +267,14 @@ func updateCertificateCache(d *Daemon) {
 //   "500":
 //     $ref: "#/responses/InternalServerError"
 func certificatesPost(d *Daemon, r *http.Request) response.Response {
-	// Parse the request
+	// Parse the request.
 	req := api.CertificatesPost{}
 	err := json.NewDecoder(r.Body).Decode(&req)
 	if err != nil {
 		return response.BadRequest(err)
 	}
 
-	// Access check
+	// Access check.
 	secret, err := cluster.ConfigGetString(d.cluster, "core.trust_password")
 	if err != nil {
 		return response.SmartError(err)
@@ -297,7 +297,7 @@ func certificatesPost(d *Daemon, r *http.Request) response.Response {
 		return response.BadRequest(err)
 	}
 
-	// Extract the certificate
+	// Extract the certificate.
 	var cert *x509.Certificate
 	var name string
 	if req.Certificate != "" {
@@ -330,13 +330,13 @@ func certificatesPost(d *Daemon, r *http.Request) response.Response {
 	fingerprint := shared.CertFingerprint(cert)
 
 	if !isClusterNotification(r) {
-		// Check if we already have the certificate
+		// Check if we already have the certificate.
 		existingCert, _ := d.cluster.GetCertificate(fingerprint)
 		if existingCert != nil {
 			return response.BadRequest(fmt.Errorf("Certificate already in trust store"))
 		}
 
-		// Store the certificate in the cluster database
+		// Store the certificate in the cluster database.
 		dbCert := db.Certificate{
 			Fingerprint: shared.CertFingerprint(cert),
 			Type:        dbReqType,
