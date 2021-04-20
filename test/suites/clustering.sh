@@ -891,7 +891,7 @@ test_clustering_upgrade() {
   # The second daemon is blocked waiting for the other to be upgraded
   ! LXD_DIR="${LXD_TWO_DIR}" lxd waitready --timeout=5 || false
 
-  LXD_DIR="${LXD_ONE_DIR}" lxc cluster show node1 | grep -q "message: fully operational"
+  LXD_DIR="${LXD_ONE_DIR}" lxc cluster show node1 | grep -q "message: Fully operational"
   LXD_DIR="${LXD_ONE_DIR}" lxc cluster show node2 | grep -q "message: waiting for other nodes to be upgraded"
 
   # Respawn the first node, so it matches the version the second node
@@ -922,9 +922,9 @@ test_clustering_upgrade() {
   # upgraded
   ! LXD_DIR="${LXD_TWO_DIR}" lxd waitready --timeout=5 || false
 
-  LXD_DIR="${LXD_ONE_DIR}" lxc cluster show node1 | grep -q "message: fully operational"
+  LXD_DIR="${LXD_ONE_DIR}" lxc cluster show node1 | grep -q "message: Fully operational"
   LXD_DIR="${LXD_ONE_DIR}" lxc cluster show node2 | grep -q "message: waiting for other nodes to be upgraded"
-  LXD_DIR="${LXD_THREE_DIR}" lxc cluster show node3 | grep -q "message: fully operational"
+  LXD_DIR="${LXD_THREE_DIR}" lxc cluster show node3 | grep -q "message: Fully operational"
 
   # Respawn the first node and third node, so they match the version
   # the second node believes to have.
@@ -1160,7 +1160,7 @@ test_clustering_join_api() {
   op=$(curl --unix-socket "${LXD_TWO_DIR}/unix.socket" -X PUT "lxd/1.0/cluster" -d "{\"server_name\":\"node2\",\"enabled\":true,\"member_config\":[{\"entity\": \"storage-pool\",\"name\":\"data\",\"key\":\"source\",\"value\":\"\"}],\"server_address\":\"10.1.1.102:8443\",\"cluster_address\":\"10.1.1.101:8443\",\"cluster_certificate\":\"${cert}\",\"cluster_password\":\"sekret\"}" | jq -r .operation)
   curl --unix-socket "${LXD_TWO_DIR}/unix.socket" "lxd${op}/wait"
 
-  LXD_DIR="${LXD_ONE_DIR}" lxc cluster show node2 | grep -q "message: fully operational"
+  LXD_DIR="${LXD_ONE_DIR}" lxc cluster show node2 | grep -q "message: Fully operational"
 
   LXD_DIR="${LXD_TWO_DIR}" lxd shutdown
   LXD_DIR="${LXD_ONE_DIR}" lxd shutdown
