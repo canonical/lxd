@@ -1412,7 +1412,7 @@ func (c *cmdStorageVolumeSet) Run(cmd *cobra.Command, args []string) error {
 	}
 
 	// Get the storage volume entry
-	vol, etag, err := resource.server.GetStoragePoolVolume(resource.name, volType, volName)
+	vol, etag, err := client.GetStoragePoolVolume(resource.name, volType, volName)
 	if err != nil {
 		return err
 	}
@@ -1617,7 +1617,7 @@ func (c *cmdStorageVolumeSnapshot) Run(cmd *cobra.Command, args []string) error 
 	}
 
 	// Check if the requested storage volume actually exists
-	_, _, err = resource.server.GetStoragePoolVolume(resource.name, volType, volName)
+	_, _, err = client.GetStoragePoolVolume(resource.name, volType, volName)
 	if err != nil {
 		return err
 	}
@@ -1701,7 +1701,7 @@ func (c *cmdStorageVolumeRestore) Run(cmd *cobra.Command, args []string) error {
 	client := resource.server
 
 	// Check if the requested storage volume actually exists
-	_, _, err = resource.server.GetStoragePoolVolume(resource.name, "custom", args[1])
+	_, _, err = client.GetStoragePoolVolume(resource.name, "custom", args[1])
 	if err != nil {
 		return err
 	}
