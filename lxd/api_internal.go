@@ -112,7 +112,7 @@ var internalRAFTSnapshotCmd = APIEndpoint{
 }
 
 var internalImageRefreshCmd = APIEndpoint{
-	Path: "image-refresh",
+	Path: "testing/image-refresh",
 
 	Get: APIEndpointAction{Handler: internalRefreshImage},
 }
