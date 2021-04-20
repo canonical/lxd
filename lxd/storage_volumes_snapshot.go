@@ -812,8 +812,9 @@ func autoCreateCustomVolumeSnapshotsTask(d *Daemon) (task.Func, task.Schedule) {
 }
 
 func autoCreateCustomVolumeSnapshots(ctx context.Context, d *Daemon, volumes []db.StorageVolumeArgs) {
-	// Make the snapshots.
+	// Make the snapshots sequentially.
 	for _, v := range volumes {
+		// Run snapshot process in a go routine then collect the result, to allow context cancellation.
 		ch := make(chan struct{})
 		go func() {
 			snapshotName, err := volumeDetermineNextSnapshotName(d, v, "snap%d")
