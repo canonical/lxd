@@ -678,66 +678,98 @@ func autoCreateCustomVolumeSnapshotsTask(d *Daemon) (task.Func, task.Schedule) {
 	f := func(ctx context.Context) {
 		allVolumes, err := d.cluster.GetStoragePoolVolumesWithType(db.StoragePoolVolumeTypeCustom)
 		if err != nil {
+			logger.Error("Failed getting volumes for auto custom volume snapshot task", log.Ctx{"err": err})
 			return
 		}
 
-		// Get list of cluster nodes
-		var availableNodeIDs []int64
-		err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
-			// Get the offline threshold.
-			config, err := cluster.ConfigLoad(tx)
-			if err != nil {
-				return errors.Wrap(err, "Failed to load LXD config")
-			}
+		localNodeID := d.cluster.GetNodeID()
 
-			// Get all the nodes.
-			nodes, err := tx.GetNodes()
-			if err != nil {
-				return err
-			}
-
-			// Filter to online nodes.
-			for _, node := range nodes {
-				if node.IsOffline(config.OfflineThreshold()) {
-					continue
-				}
-
-				availableNodeIDs = append(availableNodeIDs, node.ID)
-			}
-
-			return nil
-		})
-		if err != nil {
-			return
-		}
-
-		// Figure out which need snapshotting (if any)
-		var volumes []db.StorageVolumeArgs
+		var volumes, remoteVolumes []db.StorageVolumeArgs
 		for _, v := range allVolumes {
 			schedule, ok := v.Config["snapshots.schedule"]
 			if !ok || schedule == "" {
 				continue
 			}
 
-			// Check if snapshot is scheduled
+			// Check if snapshot is scheduled.
 			if !snapshotIsScheduledNow(schedule, v.ID) {
 				continue
 			}
 
-			// If there is more than one node (clustering), a stable random node is chosen to perform the snapshot.
-			if len(availableNodeIDs) > 1 {
-				selectedNodeID, err := util.GetStableRandomInt64FromList(int64(v.ID), availableNodeIDs)
+			if v.NodeID == localNodeID {
+				// Always include local volumes.
+				volumes = append(volumes, v)
+				logger.Debug("Scheduling local auto custom volume snapshot", log.Ctx{"vol": v.Name, "project": v.ProjectName, "pool": v.PoolName})
+			} else if v.NodeID < 0 {
+				// Keep a separate list of remote volumes in order to select a member to perform
+				// the snapshot later.
+				remoteVolumes = append(remoteVolumes, v)
+			}
+		}
+
+		if len(remoteVolumes) > 0 {
+			// Get list of cluster members.
+			var nodeCount int
+			var onlineNodeIDs []int64
+			err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
+				// Get the offline threshold.
+				config, err := cluster.ConfigLoad(tx)
 				if err != nil {
-					continue
+					return errors.Wrap(err, "Failed to load LXD config")
 				}
 
-				// Don't snapshot, if we're not the chosen one.
-				if d.cluster.GetNodeID() != selectedNodeID {
-					continue
+				// Get all the members.
+				nodes, err := tx.GetNodes()
+				if err != nil {
+					return err
 				}
+
+				nodeCount = len(nodes)
+
+				// Filter to online members.
+				for _, node := range nodes {
+					if node.IsOffline(config.OfflineThreshold()) {
+						continue
+					}
+
+					onlineNodeIDs = append(onlineNodeIDs, node.ID)
+				}
+
+				return nil
+			})
+			if err != nil {
+				logger.Error("Failed getting online cluster members for auto custom volume snapshot task", log.Ctx{"err": err})
+				return
 			}
 
-			volumes = append(volumes, v)
+			// Skip snapshotting remote custom volumes if there are no online members, as we can't be
+			// sure that the cluster isn't partitioned and we may end up attempting the snapshot on
+			// multiple members.
+			if nodeCount > 1 && len(onlineNodeIDs) <= 0 {
+				logger.Error("Skipping remote volumes for auto custom volume snapshot task due to no online members")
+			} else {
+				for _, v := range remoteVolumes {
+					// If there are multiple cluster members, a stable random member is chosen
+					// to perform the snapshot from. This avoids taking the snapshot on every
+					// member and spreads the load taking the snapshots across the online
+					// cluster members.
+					if nodeCount > 1 {
+						selectedNodeID, err := util.GetStableRandomInt64FromList(int64(v.ID), onlineNodeIDs)
+						if err != nil {
+							logger.Error("Failed scheduling remote auto custom volume snapshot task", log.Ctx{"vol": v.Name, "project": v.ProjectName, "pool": v.PoolName, "err": err})
+							continue
+						}
+
+						// Don't snapshot, if we're not the chosen one.
+						if d.cluster.GetNodeID() != selectedNodeID {
+							continue
+						}
+					}
+
+					logger.Debug("Scheduling remote auto custom volume snapshot", log.Ctx{"vol": v.Name, "project": v.ProjectName, "pool": v.PoolName})
+					volumes = append(volumes, v)
+				}
+			}
 		}
 
 		if len(volumes) == 0 {
@@ -745,7 +777,8 @@ func autoCreateCustomVolumeSnapshotsTask(d *Daemon) (task.Func, task.Schedule) {
 		}
 
 		opRun := func(op *operations.Operation) error {
-			return autoCreateCustomVolumeSnapshots(ctx, d, volumes)
+			autoCreateCustomVolumeSnapshots(ctx, d, volumes)
+			return nil
 		}
 
 		op, err := operations.OperationCreate(d.State(), "", operations.OperationClassTask, db.OperationVolumeSnapshotCreate, nil, nil, opRun, nil, nil)
@@ -779,29 +812,30 @@ func autoCreateCustomVolumeSnapshotsTask(d *Daemon) (task.Func, task.Schedule) {
 	return f, schedule
 }
 
-func autoCreateCustomVolumeSnapshots(ctx context.Context, d *Daemon, volumes []db.StorageVolumeArgs) error {
-	// Make the snapshots
+func autoCreateCustomVolumeSnapshots(ctx context.Context, d *Daemon, volumes []db.StorageVolumeArgs) {
+	// Make the snapshots sequentially.
 	for _, v := range volumes {
-		ch := make(chan error)
+		// Run snapshot process in a go routine then collect the result, to allow context cancellation.
+		ch := make(chan struct{})
 		go func() {
 			snapshotName, err := volumeDetermineNextSnapshotName(d, v, "snap%d")
 			if err != nil {
 				logger.Error("Error retrieving next snapshot name", log.Ctx{"err": err, "volume": v})
-				ch <- nil
+				ch <- struct{}{}
 				return
 			}
 
 			expiry, err := shared.GetSnapshotExpiry(time.Now(), v.Config["snapshots.expiry"])
 			if err != nil {
 				logger.Error("Error getting expiry date", log.Ctx{"err": err, "volume": v})
-				ch <- nil
+				ch <- struct{}{}
 				return
 			}
 
 			pool, err := storagePools.GetPoolByName(d.State(), v.PoolName)
 			if err != nil {
 				logger.Error("Error retrieving pool", log.Ctx{"err": err, "pool": v.PoolName})
-				ch <- nil
+				ch <- struct{}{}
 				return
 			}
 
@@ -810,16 +844,14 @@ func autoCreateCustomVolumeSnapshots(ctx context.Context, d *Daemon, volumes []d
 				logger.Error("Error creating volume snapshot", log.Ctx{"err": err, "volume": v})
 			}
 
-			ch <- nil
+			ch <- struct{}{}
 		}()
 		select {
 		case <-ctx.Done():
-			return nil
+			return
 		case <-ch:
 		}
 	}
-
-	return nil
 }
 
 func volumeDetermineNextSnapshotName(d *Daemon, volume db.StorageVolumeArgs, defaultPattern string) (string, error) {
