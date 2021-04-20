@@ -45,6 +45,11 @@ func (d *nicRouted) validateConfig(instConf instance.ConfigReader) error {
 		return ErrUnsupportedDevType
 	}
 
+	err := d.isUniqueWithGatewayAutoMode(instConf)
+	if err != nil {
+		return err
+	}
+
 	requiredFields := []string{}
 	optionalFields := []string{
 		"name",
@@ -70,7 +75,7 @@ func (d *nicRouted) validateConfig(instConf instance.ConfigReader) error {
 	rules["ipv6.address"] = validate.Optional(validate.IsNetworkAddressV6List)
 	rules["gvrp"] = validate.Optional(validate.IsBool)
 
-	err := d.config.Validate(rules)
+	err = d.config.Validate(rules)
 	if err != nil {
 		return err
 	}
@@ -496,4 +501,26 @@ func (d *nicRouted) ipv6HostAddress() string {
 	}
 
 	return nicRoutedIPv6GW
+}
+
+func (d *nicRouted) isUniqueWithGatewayAutoMode(instConf instance.ConfigReader) error {
+	instDevs := instConf.ExpandedDevices()
+	for _, k := range []string{"ipv4.gateway", "ipv6.gateway"} {
+		if d.config[k] != "auto" && d.config[k] != "" {
+			continue // nothing to do as auto not being used.
+		}
+
+		// Check other routed NIC devices don't have auto set.
+		for nicName, nicConfig := range instDevs {
+			if nicName == d.name || nicConfig["nictype"] != "routed" {
+				continue // Skip ourselves.
+			}
+
+			if nicConfig[k] == "auto" || nicConfig[k] == "" {
+				return fmt.Errorf("Existing NIC %q already uses %q in auto mode", nicName, k)
+			}
+		}
+	}
+
+	return nil
 }
