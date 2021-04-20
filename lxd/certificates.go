@@ -355,7 +355,7 @@ func certificatesPost(d *Daemon, r *http.Request) response.Response {
 			Certificate: base64.StdEncoding.EncodeToString(cert.Raw),
 		}
 		req.Name = name
-		req.Type = "client"
+		req.Type = api.CertificateTypeClient
 
 		err = notifier(func(client lxd.InstanceServer) error {
 			return client.CreateCertificate(req)
