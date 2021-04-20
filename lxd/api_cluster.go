@@ -976,25 +976,44 @@ func clusterAcceptMember(
 //     $ref: "#/responses/InternalServerError"
 func clusterNodesGet(d *Daemon, r *http.Request) response.Response {
 	recursion := util.IsRecursionRequest(r)
+	state := d.State()
 
-	nodes, err := cluster.List(d.State(), d.gateway)
+	var err error
+	var nodes []db.NodeInfo
+	err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
+		// Get the nodes.
+		nodes, err = tx.GetNodes()
+		if err != nil {
+			return err
+		}
+
+		return nil
+	})
 	if err != nil {
 		return response.SmartError(err)
 	}
 
-	var result interface{}
 	if recursion {
-		result = nodes
-	} else {
-		urls := []string{}
+		result := []api.ClusterMember{}
 		for _, node := range nodes {
-			url := fmt.Sprintf("/%s/cluster/members/%s", version.APIVersion, node.ServerName)
-			urls = append(urls, url)
+			member, err := node.ToAPI(state.Cluster, state.Node)
+			if err != nil {
+				return response.InternalError(err)
+			}
+
+			result = append(result, *member)
 		}
-		result = urls
+
+		return response.SyncResponse(true, result)
 	}
 
-	return response.SyncResponse(true, result)
+	urls := []string{}
+	for _, node := range nodes {
+		url := fmt.Sprintf("/%s/cluster/members/%s", version.APIVersion, node.Name)
+		urls = append(urls, url)
+	}
+
+	return response.SyncResponse(true, urls)
 }
 
 // swagger:operation GET /1.0/cluster/members/{name} cluster cluster_member_get
@@ -1033,16 +1052,34 @@ func clusterNodesGet(d *Daemon, r *http.Request) response.Response {
 //     $ref: "#/responses/InternalServerError"
 func clusterNodeGet(d *Daemon, r *http.Request) response.Response {
 	name := mux.Vars(r)["name"]
+	state := d.State()
 
-	nodes, err := cluster.List(d.State(), d.gateway)
+	var err error
+	var nodes []db.NodeInfo
+	err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
+		// Get the node.
+		nodes, err = tx.GetNodes()
+		if err != nil {
+			return err
+		}
+
+		return nil
+	})
 	if err != nil {
 		return response.SmartError(err)
 	}
 
 	for _, node := range nodes {
-		if node.ServerName == name {
-			return response.SyncResponseETag(true, node, node.ClusterMemberPut)
+		if node.Name != name {
+			continue
 		}
+
+		member, err := node.ToAPI(state.Cluster, state.Node)
+		if err != nil {
+			return response.InternalError(err)
+		}
+
+		return response.SyncResponseETag(true, member, member.ClusterMemberPut)
 	}
 
 	return response.NotFound(fmt.Errorf("Member '%s' not found", name))
@@ -1113,27 +1150,30 @@ func clusterNodePatch(d *Daemon, r *http.Request) response.Response {
 //     $ref: "#/responses/InternalServerError"
 func clusterNodePut(d *Daemon, r *http.Request) response.Response {
 	name := mux.Vars(r)["name"]
+	state := d.State()
 
-	// Find the requested one.
-	nodes, err := cluster.List(d.State(), d.gateway)
+	var err error
+	var node db.NodeInfo
+	err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
+		// Get the node.
+		node, err = tx.GetNodeByName(name)
+		if err != nil {
+			return err
+		}
+
+		return nil
+	})
 	if err != nil {
 		return response.SmartError(err)
 	}
 
-	var current *api.ClusterMember
-	for _, node := range nodes {
-		if node.ServerName == name {
-			current = &node
-			break
-		}
-	}
-
-	if current == nil {
-		return response.NotFound(fmt.Errorf("Member '%s' not found", name))
+	member, err := node.ToAPI(state.Cluster, state.Node)
+	if err != nil {
+		return response.InternalError(err)
 	}
 
 	// Validate the request is fine
-	err = util.EtagCheck(r, current.ClusterMemberPut)
+	err = util.EtagCheck(r, member.ClusterMemberPut)
 	if err != nil {
 		return response.PreconditionFailed(err)
 	}
@@ -1147,11 +1187,11 @@ func clusterNodePut(d *Daemon, r *http.Request) response.Response {
 	}
 
 	// Validate the request
-	if shared.StringInSlice(string(db.ClusterRoleDatabase), current.Roles) && !shared.StringInSlice(string(db.ClusterRoleDatabase), req.Roles) {
+	if shared.StringInSlice(string(db.ClusterRoleDatabase), member.Roles) && !shared.StringInSlice(string(db.ClusterRoleDatabase), req.Roles) {
 		return response.BadRequest(fmt.Errorf("The '%s' role cannot be dropped at this time", db.ClusterRoleDatabase))
 	}
 
-	if !shared.StringInSlice(string(db.ClusterRoleDatabase), current.Roles) && shared.StringInSlice(string(db.ClusterRoleDatabase), req.Roles) {
+	if !shared.StringInSlice(string(db.ClusterRoleDatabase), member.Roles) && shared.StringInSlice(string(db.ClusterRoleDatabase), req.Roles) {
 		return response.BadRequest(fmt.Errorf("The '%s' role cannot be added at this time", db.ClusterRoleDatabase))
 	}
 
