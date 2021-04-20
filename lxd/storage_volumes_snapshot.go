@@ -14,6 +14,7 @@ import (
 	"github.com/pkg/errors"
 	cron "gopkg.in/robfig/cron.v2"
 
+	"github.com/lxc/lxd/lxd/cluster"
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/operations"
@@ -680,9 +681,38 @@ func autoCreateCustomVolumeSnapshotsTask(d *Daemon) (task.Func, task.Schedule) {
 			return
 		}
 
-		var volumes []db.StorageVolumeArgs
+		// Get list of cluster nodes
+		var availableNodeIDs []int64
+		err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
+			// Get the offline threshold.
+			config, err := cluster.ConfigLoad(tx)
+			if err != nil {
+				return errors.Wrap(err, "Failed to load LXD config")
+			}
+
+			// Get all the nodes.
+			nodes, err := tx.GetNodes()
+			if err != nil {
+				return err
+			}
+
+			// Filter to online nodes.
+			for _, node := range nodes {
+				if node.IsOffline(config.OfflineThreshold()) {
+					continue
+				}
+
+				availableNodeIDs = append(availableNodeIDs, node.ID)
+			}
+
+			return nil
+		})
+		if err != nil {
+			return
+		}
 
 		// Figure out which need snapshotting (if any)
+		var volumes []db.StorageVolumeArgs
 		for _, v := range allVolumes {
 			schedule, ok := v.Config["snapshots.schedule"]
 			if !ok {
@@ -716,8 +746,8 @@ func autoCreateCustomVolumeSnapshotsTask(d *Daemon) (task.Func, task.Schedule) {
 			}
 
 			// If there is more than one node (clustering), a stable random node is chosen to perform the snapshot.
-			if len(nodes) > 1 {
-				selectedNodeID, err := util.GetStableRandomInt64FromList(int64(v.ID), availableNodeIDs)
+			if len(availableNodeIDs) > 1 {
+				selectedNodeID, err := util.GetStableRandomInt64FromList(int(v.ID), availableNodeIDs)
 				if err != nil {
 					continue
 				}
