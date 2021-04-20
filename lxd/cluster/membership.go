@@ -15,10 +15,8 @@ import (
 	"github.com/lxc/lxd/lxd/state"
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
-	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/log15"
 	"github.com/lxc/lxd/shared/logger"
-	"github.com/lxc/lxd/shared/osarch"
 	"github.com/lxc/lxd/shared/version"
 	"github.com/pkg/errors"
 )
@@ -889,113 +887,6 @@ func Purge(cluster *db.Cluster, name string) error {
 		}
 		return nil
 	})
-}
-
-// List the nodes of the cluster.
-func List(state *state.State, gateway *Gateway) ([]api.ClusterMember, error) {
-	var err error
-	var nodes []db.NodeInfo
-	var offlineThreshold time.Duration
-
-	err = state.Cluster.Transaction(func(tx *db.ClusterTx) error {
-		nodes, err = tx.GetNodes()
-		if err != nil {
-			return err
-		}
-
-		offlineThreshold, err = tx.GetNodeOfflineThreshold()
-		if err != nil {
-			return err
-		}
-
-		return nil
-	})
-	if err != nil {
-		return nil, err
-	}
-
-	store := gateway.NodeStore()
-	dial := gateway.DialFunc()
-
-	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
-	defer cancel()
-
-	cli, err := client.FindLeader(ctx, store, client.WithDialFunc(dial))
-	if err != nil {
-		return nil, err
-	}
-	defer cli.Close()
-
-	raftNodes, err := cli.Cluster(ctx)
-	if err != nil {
-		return nil, err
-	}
-	raftRoles := map[string]client.NodeRole{} // Address to role
-	for _, node := range raftNodes {
-		address, err := gateway.nodeAddress(node.Address)
-		if err != nil {
-			return nil, err
-		}
-		raftRoles[address] = node.Role
-	}
-
-	result := make([]api.ClusterMember, len(nodes))
-	now := time.Now()
-	version := nodes[0].Version()
-	for i, node := range nodes {
-		result[i].ServerName = node.Name
-		result[i].URL = fmt.Sprintf("https://%s", node.Address)
-		result[i].Database = raftRoles[node.Address] == db.RaftVoter
-		result[i].Roles = node.Roles
-		if result[i].Database {
-			result[i].Roles = append(result[i].Roles, string(db.ClusterRoleDatabase))
-		}
-		result[i].Architecture, err = osarch.ArchitectureName(node.Architecture)
-		if err != nil {
-			return nil, err
-		}
-
-		if node.IsOffline(offlineThreshold) {
-			result[i].Status = "Offline"
-			result[i].Message = fmt.Sprintf(
-				"no heartbeat for %s", now.Sub(node.Heartbeat))
-		} else {
-			result[i].Status = "Online"
-			result[i].Message = "fully operational"
-		}
-
-		n, err := util.CompareVersions(version, node.Version())
-		if err != nil {
-			result[i].Status = "Broken"
-			result[i].Message = "inconsistent version"
-			continue
-		}
-
-		if n == 1 {
-			// This node's version is lower, which means the
-			// version that the previous node in the loop has been
-			// upgraded.
-			version = node.Version()
-		}
-	}
-
-	// Update the state of online nodes that have been upgraded and whose
-	// schema is more recent than the rest of the nodes.
-	for i, node := range nodes {
-		if result[i].Status != "Online" {
-			continue
-		}
-		n, err := util.CompareVersions(version, node.Version())
-		if err != nil {
-			continue
-		}
-		if n == 2 {
-			result[i].Status = "Blocked"
-			result[i].Message = "waiting for other nodes to be upgraded"
-		}
-	}
-
-	return result, nil
 }
 
 // Count is a convenience for checking the current number of nodes in the
