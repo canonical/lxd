@@ -4,6 +4,8 @@
 package db
 
 import (
+	"fmt"
+
 	"github.com/lxc/lxd/shared/api"
 )
 
@@ -27,6 +29,24 @@ import (
 //go:generate mapper method -p db -e certificate Delete
 //go:generate mapper method -p db -e certificate Update struct=Certificate
 
+// CertificateTypeClient indicates a client certificate type.
+const CertificateTypeClient = 1
+
+// CertificateTypeServer indicates a server certificate type.
+const CertificateTypeServer = 2
+
+// CertificateAPITypeToDBType converts an API type to the equivalent DB type.
+func CertificateAPITypeToDBType(apiType string) (int, error) {
+	switch apiType {
+	case api.CertificateTypeClient:
+		return CertificateTypeClient, nil
+	case api.CertificateTypeServer:
+		return CertificateTypeServer, nil
+	}
+
+	return -1, fmt.Errorf("Invalid certificate type")
+}
+
 // Certificate is here to pass the certificates content
 // from the database around
 type Certificate struct {
@@ -37,17 +57,25 @@ type Certificate struct {
 	Certificate string
 }
 
+// ToAPIType returns the API equivalent type.
+func (cert *Certificate) ToAPIType() string {
+	switch cert.Type {
+	case CertificateTypeClient:
+		return api.CertificateTypeClient
+	case CertificateTypeServer:
+		return api.CertificateTypeServer
+	}
+
+	return api.CertificateTypeUnknown
+}
+
 // ToAPI converts the database Certificate struct to an api.Certificate entry.
 func (cert *Certificate) ToAPI() api.Certificate {
 	resp := api.Certificate{}
 	resp.Fingerprint = cert.Fingerprint
 	resp.Certificate = cert.Certificate
 	resp.Name = cert.Name
-	if cert.Type == 1 {
-		resp.Type = "client"
-	} else {
-		resp.Type = "unknown"
-	}
+	resp.Type = cert.ToAPIType()
 
 	return resp
 }
