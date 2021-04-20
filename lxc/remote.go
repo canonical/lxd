@@ -433,7 +433,7 @@ func (c *cmdRemoteAdd) Run(cmd *cobra.Command, args []string) error {
 			req := api.CertificatesPost{
 				Password: c.flagPassword,
 			}
-			req.Type = "client"
+			req.Type = api.CertificateTypeClient
 
 			err = d.(lxd.InstanceServer).CreateCertificate(req)
 			if err != nil {
