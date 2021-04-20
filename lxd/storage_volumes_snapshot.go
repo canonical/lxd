@@ -682,37 +682,37 @@ func autoCreateCustomVolumeSnapshotsTask(d *Daemon) (task.Func, task.Schedule) {
 		}
 
 		// Get list of cluster nodes
-		nodes, err := cluster.List(d.State(), d.gateway)
+		var availableNodeIDs []int64
+		err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
+			// Get the offline threshold.
+			config, err := cluster.ConfigLoad(tx)
+			if err != nil {
+				return errors.Wrap(err, "Failed to load LXD config")
+			}
+
+			// Get all the nodes.
+			nodes, err := tx.GetNodes()
+			if err != nil {
+				return err
+			}
+
+			// Filter to online nodes.
+			for _, node := range nodes {
+				if node.IsOffline(config.OfflineThreshold()) {
+					continue
+				}
+
+				availableNodeIDs = append(availableNodeIDs, node.ID)
+			}
+
+			return nil
+		})
 		if err != nil {
 			return
 		}
 
-		var availableNodeIDs []int64
-
-		for _, node := range nodes {
-			var nodeID int64
-
-			if node.Status == "Online" {
-				err := d.cluster.Transaction(func(tx *db.ClusterTx) error {
-					info, err := tx.GetNodeByName(node.ServerName)
-					if err != nil {
-						return err
-					}
-
-					nodeID = info.ID
-					return nil
-				})
-				if err != nil {
-					return
-				}
-
-				availableNodeIDs = append(availableNodeIDs, nodeID)
-			}
-		}
-
-		var volumes []db.StorageVolumeArgs
-
 		// Figure out which need snapshotting (if any)
+		var volumes []db.StorageVolumeArgs
 		for _, v := range allVolumes {
 			schedule, ok := v.Config["snapshots.schedule"]
 			if !ok || schedule == "" {
@@ -725,7 +725,7 @@ func autoCreateCustomVolumeSnapshotsTask(d *Daemon) (task.Func, task.Schedule) {
 			}
 
 			// If there is more than one node (clustering), a stable random node is chosen to perform the snapshot.
-			if len(nodes) > 1 {
+			if len(availableNodeIDs) > 1 {
 				selectedNodeID, err := util.GetStableRandomInt64FromList(int64(v.ID), availableNodeIDs)
 				if err != nil {
 					continue
