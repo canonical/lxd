@@ -51,8 +51,7 @@ func CertificateAPITypeToDBType(apiType string) (int, error) {
 	return -1, fmt.Errorf("Invalid certificate type")
 }
 
-// Certificate is here to pass the certificates content
-// from the database around
+// Certificate is here to pass the certificates content from the database around.
 type Certificate struct {
 	ID          int
 	Fingerprint string `db:"primary=yes&comparison=like"`
