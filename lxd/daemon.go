@@ -1263,6 +1263,9 @@ func (d *Daemon) Ready() error {
 
 		// Take snapshot of custom volumes (minutely check of configurable cron expression)
 		d.tasks.Add(autoCreateCustomVolumeSnapshotsTask(d))
+
+		// Remove resolved warnings (daily)
+		d.tasks.Add(pruneResolvedWarningsTask(d))
 	}
 
 	// Start all background tasks

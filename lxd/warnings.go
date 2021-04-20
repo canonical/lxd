@@ -1,18 +1,24 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
 	"strconv"
+	"time"
 
 	"github.com/gorilla/mux"
 	"github.com/pkg/errors"
 
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/filter"
+	"github.com/lxc/lxd/lxd/operations"
 	"github.com/lxc/lxd/lxd/response"
+	"github.com/lxc/lxd/lxd/task"
 	"github.com/lxc/lxd/shared/api"
+	log "github.com/lxc/lxd/shared/log15"
+	"github.com/lxc/lxd/shared/logger"
 	"github.com/lxc/lxd/shared/version"
 )
 
@@ -384,4 +390,54 @@ func warningDelete(d *Daemon, r *http.Request) response.Response {
 	}
 
 	return response.EmptySyncResponse
+}
+
+func pruneResolvedWarningsTask(d *Daemon) (task.Func, task.Schedule) {
+	f := func(ctx context.Context) {
+		opRun := func(op *operations.Operation) error {
+			return pruneResolvedWarnings(ctx, d)
+		}
+
+		op, err := operations.OperationCreate(d.State(), "", operations.OperationClassTask, db.OperationWarningsPruneResolved, nil, nil, opRun, nil, nil)
+		if err != nil {
+			logger.Error("Failed to start prune resolved warnings operation", log.Ctx{"err": err})
+			return
+		}
+
+		logger.Info("Pruning resolved warnings")
+		_, err = op.Run()
+		if err != nil {
+			logger.Error("Failed to prune resolved warnings", log.Ctx{"err": err})
+		}
+		logger.Info("Done pruning resolved warnings")
+	}
+
+	return f, task.Daily()
+}
+
+func pruneResolvedWarnings(ctx context.Context, d *Daemon) error {
+	err := d.cluster.Transaction(func(tx *db.ClusterTx) error {
+		// Retrieve warnings by status
+		warnings, err := tx.GetWarningsByStatus(db.WarningStatusResolved)
+		if err != nil {
+			return errors.Wrap(err, "Failed to get resolved warnings")
+		}
+
+		for _, w := range warnings {
+			// Delete the warning if it has been resolved for at least 24 hours
+			if time.Since(w.UpdatedDate) >= 24*time.Hour {
+				err = tx.DeleteWarning(w.UUID)
+				if err != nil {
+					return err
+				}
+			}
+		}
+
+		return nil
+	})
+	if err != nil {
+		return errors.Wrap(err, "Failed to delete warnings")
+	}
+
+	return nil
 }
