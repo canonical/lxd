@@ -812,29 +812,29 @@ func autoCreateCustomVolumeSnapshotsTask(d *Daemon) (task.Func, task.Schedule) {
 	return f, schedule
 }
 
-func autoCreateCustomVolumeSnapshots(ctx context.Context, d *Daemon, volumes []db.StorageVolumeArgs) error {
-	// Make the snapshots
+func autoCreateCustomVolumeSnapshots(ctx context.Context, d *Daemon, volumes []db.StorageVolumeArgs) {
+	// Make the snapshots.
 	for _, v := range volumes {
-		ch := make(chan error)
+		ch := make(chan struct{})
 		go func() {
 			snapshotName, err := volumeDetermineNextSnapshotName(d, v, "snap%d")
 			if err != nil {
 				logger.Error("Error retrieving next snapshot name", log.Ctx{"err": err, "volume": v})
-				ch <- nil
+				ch <- struct{}{}
 				return
 			}
 
 			expiry, err := shared.GetSnapshotExpiry(time.Now(), v.Config["snapshots.expiry"])
 			if err != nil {
 				logger.Error("Error getting expiry date", log.Ctx{"err": err, "volume": v})
-				ch <- nil
+				ch <- struct{}{}
 				return
 			}
 
 			pool, err := storagePools.GetPoolByName(d.State(), v.PoolName)
 			if err != nil {
 				logger.Error("Error retrieving pool", log.Ctx{"err": err, "pool": v.PoolName})
-				ch <- nil
+				ch <- struct{}{}
 				return
 			}
 
@@ -843,16 +843,14 @@ func autoCreateCustomVolumeSnapshots(ctx context.Context, d *Daemon, volumes []d
 				logger.Error("Error creating volume snapshot", log.Ctx{"err": err, "volume": v})
 			}
 
-			ch <- nil
+			ch <- struct{}{}
 		}()
 		select {
 		case <-ctx.Done():
-			return nil
+			return
 		case <-ch:
 		}
 	}
-
-	return nil
 }
 
 func volumeDetermineNextSnapshotName(d *Daemon, volume db.StorageVolumeArgs, defaultPattern string) (string, error) {
