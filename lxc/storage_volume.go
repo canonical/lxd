@@ -1586,6 +1586,7 @@ func (c *cmdStorageVolumeSnapshot) Command() *cobra.Command {
 	cmd.RunE = c.Run
 	cmd.Flags().BoolVar(&c.flagNoExpiry, "no-expiry", false, i18n.G("Ignore any configured auto-expiry for the storage volume"))
 	cmd.Flags().BoolVar(&c.flagReuse, "reuse", false, i18n.G("If the snapshot name already exists, delete and create a new one"))
+	cmd.Flags().StringVar(&c.storage.flagTarget, "target", "", i18n.G("Cluster member name")+"``")
 
 	return cmd
 }
@@ -1609,6 +1610,11 @@ func (c *cmdStorageVolumeSnapshot) Run(cmd *cobra.Command, args []string) error 
 	}
 
 	client := resource.server
+
+	// Use the provided target.
+	if c.storage.flagTarget != "" {
+		client = client.UseTarget(c.storage.flagTarget)
+	}
 
 	// Parse the input
 	volName, volType := c.storageVolume.parseVolume("custom", args[1])
@@ -1674,6 +1680,7 @@ func (c *cmdStorageVolumeRestore) Command() *cobra.Command {
 	cmd.Short = i18n.G("Restore storage volume snapshots")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
 		`Restore storage volume snapshots`))
+	cmd.Flags().StringVar(&c.storage.flagTarget, "target", "", i18n.G("Cluster member name")+"``")
 
 	cmd.RunE = c.Run
 
@@ -1699,6 +1706,11 @@ func (c *cmdStorageVolumeRestore) Run(cmd *cobra.Command, args []string) error {
 	}
 
 	client := resource.server
+
+	// Use the provided target.
+	if c.storage.flagTarget != "" {
+		client = client.UseTarget(c.storage.flagTarget)
+	}
 
 	// Check if the requested storage volume actually exists
 	_, _, err = client.GetStoragePoolVolume(resource.name, "custom", args[1])
