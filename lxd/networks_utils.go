@@ -21,6 +21,8 @@ func networkAutoAttach(cluster *db.Cluster, devName string) error {
 
 // networkUpdateForkdnsServersTask runs every 30s and refreshes the forkdns servers list.
 func networkUpdateForkdnsServersTask(s *state.State, heartbeatData *cluster.APIHeartbeat) error {
+	logger.Debug("Refreshing forkdns servers")
+
 	// Use project.Default here as forkdns (fan bridge) networks don't support projects.
 	projectName := project.Default
 
