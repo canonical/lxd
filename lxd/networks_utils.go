@@ -20,6 +20,8 @@ func networkAutoAttach(cluster *db.Cluster, devName string) error {
 
 // networkUpdateForkdnsServersTask runs every 30s and refreshes the forkdns servers list.
 func networkUpdateForkdnsServersTask(s *state.State, heartbeatData *cluster.APIHeartbeat) error {
+	logger.Debug("Refreshing forkdns servers")
+
 	// Get a list of managed networks
 	networks, err := s.Cluster.GetCreatedNetworks()
 	if err != nil {
