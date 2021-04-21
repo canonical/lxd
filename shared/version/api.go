@@ -267,6 +267,7 @@ var APIExtensions = []string{
 	"gpu_mig",
 	"project_usage",
 	"network_bridge_acl",
+	"warnings",
 }
 
 // APIExtensionsCount returns the number of available API extensions.
