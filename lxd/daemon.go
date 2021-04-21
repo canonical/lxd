@@ -470,9 +470,13 @@ func (d *Daemon) createCmd(restAPI *mux.Router, version string, c APIEndpoint) {
 
 				// Regular TLS clients.
 				if protocol == "tls" {
+					d.clientCerts.Lock.Lock()
+					certProjects := d.clientCerts.Projects
+					d.clientCerts.Lock.Unlock()
+
 					// Check if we have restrictions on the key.
-					if d.clientCerts != nil && d.clientCerts.Projects != nil {
-						projects, ok := d.clientCerts.Projects[username]
+					if certProjects != nil {
+						projects, ok := certProjects[username]
 						if ok {
 							ua.Admin = false
 							ua.Projects = map[string][]string{}
