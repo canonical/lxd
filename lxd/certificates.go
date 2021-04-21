@@ -15,6 +15,7 @@ import (
 
 	lxd "github.com/lxc/lxd/client"
 	"github.com/lxc/lxd/lxd/cluster"
+	"github.com/lxc/lxd/lxd/cluster/request"
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/rbac"
 	"github.com/lxc/lxd/lxd/response"
@@ -551,8 +552,10 @@ func certificatePut(d *Daemon, r *http.Request) response.Response {
 		return response.BadRequest(err)
 	}
 
+	clientType := request.UserAgentClientType(r.Header.Get("User-Agent"))
+
 	// Apply the update.
-	return doCertificateUpdate(d, *oldEntry, fingerprint, req)
+	return doCertificateUpdate(d, *oldEntry, fingerprint, req, clientType)
 }
 
 // swagger:operation PATCH /1.0/certificates/{fingerprint} certificates certificate_patch
@@ -608,34 +611,53 @@ func certificatePatch(d *Daemon, r *http.Request) response.Response {
 		return response.BadRequest(err)
 	}
 
-	return doCertificateUpdate(d, *oldEntry, fingerprint, req.Writable())
+	clientType := request.UserAgentClientType(r.Header.Get("User-Agent"))
+
+	return doCertificateUpdate(d, *oldEntry, fingerprint, req.Writable(), clientType)
 }
 
-func doCertificateUpdate(d *Daemon, dbInfo db.Certificate, fingerprint string, req api.CertificatePut) response.Response {
-	reqDBType, err := db.CertificateAPITypeToDBType(req.Type)
-	if err != nil {
-		return response.BadRequest(err)
+func doCertificateUpdate(d *Daemon, dbInfo db.Certificate, fingerprint string, req api.CertificatePut, clientType request.ClientType) response.Response {
+	if clientType == request.ClientTypeNormal {
+		reqDBType, err := db.CertificateAPITypeToDBType(req.Type)
+		if err != nil {
+			return response.BadRequest(err)
+		}
+
+		if reqDBType != dbInfo.Type {
+			return response.BadRequest(fmt.Errorf("Certificate type cannot be changed"))
+		}
+
+		// Convert to the database type.
+		cert := db.Certificate{
+			// Read-only fields.
+			Certificate: dbInfo.Certificate,
+			Fingerprint: dbInfo.Fingerprint,
+			Type:        dbInfo.Type,
+			Name:        req.Name,
+		}
+
+		// Update the database record.
+		err = d.cluster.UpdateCertificate(fingerprint, cert)
+		if err != nil {
+			return response.SmartError(err)
+		}
+
+		// Notify other nodes about the new certificate.
+		notifier, err := cluster.NewNotifier(d.State(), d.endpoints.NetworkCert(), cluster.NotifyAlive)
+		if err != nil {
+			return response.SmartError(err)
+		}
+
+		err = notifier(func(client lxd.InstanceServer) error {
+			return client.UpdateCertificate(dbInfo.Fingerprint, req, "")
+		})
+		if err != nil {
+			return response.SmartError(err)
+		}
 	}
 
-	if reqDBType != dbInfo.Type {
-		return response.BadRequest(fmt.Errorf("Certificate type cannot be changed"))
-	}
-
-	// Convert to the database type.
-	cert := db.Certificate{
-		// Read-only fields.
-		Certificate: dbInfo.Certificate,
-		Fingerprint: dbInfo.Fingerprint,
-		Type:        dbInfo.Type,
-
-		Name: req.Name,
-	}
-
-	// Update the database record.
-	err = d.cluster.UpdateCertificate(fingerprint, cert)
-	if err != nil {
-		return response.SmartError(err)
-	}
+	// Reload the cache.
+	updateCertificateCache(d)
 
 	return response.EmptySyncResponse
 }
