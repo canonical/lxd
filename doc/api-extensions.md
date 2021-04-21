@@ -1355,3 +1355,14 @@ Adds a new `security.acls` config key to `bridge` networks, allowing Network ACL
 
 Also adds `security.acls.default.{in,e}gress.action` and `security.acls.default.{in,e}gress.logged` config keys for
 specifying the default behaviour for unmatched traffic.
+
+## warnings
+Warning API for LXD.
+
+This includes the following endpoints (see  [Restful API](rest-api.md) for details):
+
+* `GET /1.0/warnings`
+
+* `GET /1.0/warnings/<uuid>`
+* `PUT /1.0/warnings/<uuid>`
+* `DELETE /1.0/warnings/<uuid>`
