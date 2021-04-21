@@ -268,9 +268,9 @@ func (d *Daemon) getTrustedCertificates() map[int]map[string]x509.Certificate {
 // It will check over what protocol it came, what type of request it is and
 // will validate the TLS certificate or Macaroon.
 //
-// This does not perform authorization, only validates authentication
+// This does not perform authorization, only validates authentication.
 func (d *Daemon) Authenticate(w http.ResponseWriter, r *http.Request) (bool, string, string, error) {
-	// Allow internal cluster traffic
+	// Allow internal cluster traffic.
 	if r.TLS != nil {
 		cert, _ := x509.ParseCertificate(d.endpoints.NetworkCert().KeyPair().Certificate[0])
 		clusterCerts := map[string]x509.Certificate{"0": *cert}
@@ -282,7 +282,7 @@ func (d *Daemon) Authenticate(w http.ResponseWriter, r *http.Request) (bool, str
 		}
 	}
 
-	// Local unix socket queries
+	// Local unix socket queries.
 	if r.RemoteAddr == "@" {
 		if w != nil {
 			conn := extractUnderlyingConn(w)
@@ -302,23 +302,23 @@ func (d *Daemon) Authenticate(w http.ResponseWriter, r *http.Request) (bool, str
 		return true, "", "unix", nil
 	}
 
-	// Devlxd unix socket credentials on main API
+	// Devlxd unix socket credentials on main API.
 	if r.RemoteAddr == "@devlxd" {
 		return false, "", "", fmt.Errorf("Main API query can't come from /dev/lxd socket")
 	}
 
-	// Cluster notification with wrong certificate
+	// Cluster notification with wrong certificate.
 	if isClusterNotification(r) {
 		return false, "", "", fmt.Errorf("Cluster notification isn't using cluster certificate")
 	}
 
-	// Bad query, no TLS found
+	// Bad query, no TLS found.
 	if r.TLS == nil {
 		return false, "", "", fmt.Errorf("Bad/missing TLS on network query")
 	}
 
 	if d.externalAuth != nil && r.Header.Get(httpbakery.BakeryProtocolHeader) != "" {
-		// Validate external authentication
+		// Validate external authentication.
 		ctx := httpbakery.ContextWithRequest(context.TODO(), r)
 		authChecker := d.externalAuth.bakery.Checker.Auth(httpbakery.RequestMacaroons(r)...)
 
@@ -329,20 +329,20 @@ func (d *Daemon) Authenticate(w http.ResponseWriter, r *http.Request) (bool, str
 
 		info, err := authChecker.Allow(ctx, ops...)
 		if err != nil {
-			// Bad macaroon
+			// Bad macaroon.
 			return false, "", "", err
 		}
 
 		if info != nil && info.Identity != nil {
-			// Valid identity macaroon found
+			// Valid identity macaroon found.
 			return true, info.Identity.Id(), "candid", nil
 		}
 
-		// Valid macaroon with no identity information
+		// Valid macaroon with no identity information.
 		return true, "", "candid", nil
 	}
 
-	// Validate normal TLS access
+	// Validate normal TLS access.
 	var err error
 
 	trustCACertificates, err := cluster.ConfigGetBool(d.cluster, "core.trust_ca_certificates")
@@ -359,7 +359,7 @@ func (d *Daemon) Authenticate(w http.ResponseWriter, r *http.Request) (bool, str
 		}
 	}
 
-	// Reject unauthorized
+	// Reject unauthorized.
 	return false, "", "", nil
 }
 
