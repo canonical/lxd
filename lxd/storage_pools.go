@@ -581,6 +581,7 @@ func storagePoolDelete(d *Daemon, r *http.Request) response.Response {
 
 	clientType := request.UserAgentClientType(r.Header.Get("User-Agent"))
 	clusterNotification := isClusterNotification(r)
+	var notifier cluster.Notifier
 	if !clusterNotification {
 		// Sanity checks.
 		inUse, err := pool.IsUsed()
@@ -590,6 +591,12 @@ func storagePoolDelete(d *Daemon, r *http.Request) response.Response {
 
 		if inUse {
 			return response.BadRequest(fmt.Errorf("The storage pool is currently in use"))
+		}
+
+		// Get the cluster notifier
+		notifier, err = cluster.NewNotifier(d.State(), d.endpoints.NetworkCert(), cluster.NotifyAll)
+		if err != nil {
+			return response.SmartError(err)
 		}
 	}
 
@@ -627,26 +634,16 @@ func storagePoolDelete(d *Daemon, r *http.Request) response.Response {
 		return response.EmptySyncResponse
 	}
 
-	// If we are clustered, also notify all other nodes, if any.
-	clustered, err := cluster.Enabled(d.db)
+	// If we are clustered, also notify all other nodes.
+	err = notifier(func(client lxd.InstanceServer) error {
+		_, _, err := client.GetServer()
+		if err != nil {
+			return err
+		}
+		return client.DeleteStoragePool(pool.Name())
+	})
 	if err != nil {
 		return response.SmartError(err)
-	}
-	if clustered {
-		notifier, err := cluster.NewNotifier(d.State(), d.endpoints.NetworkCert(), cluster.NotifyAll)
-		if err != nil {
-			return response.SmartError(err)
-		}
-		err = notifier(func(client lxd.InstanceServer) error {
-			_, _, err := client.GetServer()
-			if err != nil {
-				return err
-			}
-			return client.DeleteStoragePool(pool.Name())
-		})
-		if err != nil {
-			return response.SmartError(err)
-		}
 	}
 
 	err = dbStoragePoolDeleteAndUpdateCache(d.State(), pool.Name())
