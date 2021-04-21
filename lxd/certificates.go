@@ -28,7 +28,7 @@ import (
 )
 
 type certificateCache struct {
-	Certificates map[string]x509.Certificate
+	Certificates map[int]map[string]x509.Certificate
 	Projects     map[string][]string
 	Lock         sync.Mutex
 }
@@ -153,20 +153,19 @@ func certificatesGet(d *Daemon, r *http.Request) response.Response {
 
 	body := []string{}
 
-	d.clientCerts.Lock.Lock()
-	cache := d.clientCerts
-	d.clientCerts.Lock.Unlock()
-
-	for _, cert := range cache.Certificates {
-		fingerprint := fmt.Sprintf("/%s/certificates/%s", version.APIVersion, shared.CertFingerprint(&cert))
-		body = append(body, fingerprint)
+	trustedCertificates := d.getTrustedCertificates()
+	for _, certs := range trustedCertificates {
+		for _, cert := range certs {
+			fingerprint := fmt.Sprintf("/%s/certificates/%s", version.APIVersion, shared.CertFingerprint(&cert))
+			body = append(body, fingerprint)
+		}
 	}
 
 	return response.SyncResponse(true, body)
 }
 
 func updateCertificateCache(d *Daemon) {
-	newCerts := map[string]x509.Certificate{}
+	newCerts := map[int]map[string]x509.Certificate{}
 	newProjects := map[string][]string{}
 
 	var dbCerts []db.Certificate
@@ -176,24 +175,28 @@ func updateCertificateCache(d *Daemon) {
 		return err
 	})
 	if err != nil {
-		logger.Infof("Error reading certificates from database: %s", err)
+		logger.Infof("Error reading certificates from database: %v", err)
 		return
 	}
 
 	for _, dbCert := range dbCerts {
+		if _, found := newCerts[dbCert.Type]; !found {
+			newCerts[dbCert.Type] = make(map[string]x509.Certificate)
+		}
+
 		certBlock, _ := pem.Decode([]byte(dbCert.Certificate))
 		if certBlock == nil {
-			logger.Infof("Error decoding certificate for %s: %s", dbCert.Name, err)
+			logger.Infof("Error decoding certificate for %q: %v", dbCert.Name, err)
 			continue
 		}
 
 		cert, err := x509.ParseCertificate(certBlock.Bytes)
 		if err != nil {
-			logger.Infof("Error reading certificate for %s: %s", dbCert.Name, err)
+			logger.Infof("Error reading certificate for %q: %v", dbCert.Name, err)
 			continue
 		}
 
-		newCerts[shared.CertFingerprint(cert)] = *cert
+		newCerts[dbCert.Type][shared.CertFingerprint(cert)] = *cert
 		if dbCert.Restricted {
 			newProjects[shared.CertFingerprint(cert)] = dbCert.Projects
 		}
@@ -270,14 +273,14 @@ func updateCertificateCache(d *Daemon) {
 //   "500":
 //     $ref: "#/responses/InternalServerError"
 func certificatesPost(d *Daemon, r *http.Request) response.Response {
-	// Parse the request
+	// Parse the request.
 	req := api.CertificatesPost{}
 	err := json.NewDecoder(r.Body).Decode(&req)
 	if err != nil {
 		return response.BadRequest(err)
 	}
 
-	// Access check
+	// Access check.
 	secret, err := cluster.ConfigGetString(d.cluster, "core.trust_password")
 	if err != nil {
 		return response.SmartError(err)
@@ -295,11 +298,12 @@ func certificatesPost(d *Daemon, r *http.Request) response.Response {
 		return response.Forbidden(nil)
 	}
 
-	if req.Type != "client" {
-		return response.BadRequest(fmt.Errorf("Unknown request type %s", req.Type))
+	dbReqType, err := db.CertificateAPITypeToDBType(req.Type)
+	if err != nil {
+		return response.BadRequest(err)
 	}
 
-	// Extract the certificate
+	// Extract the certificate.
 	var cert *x509.Certificate
 	var name string
 	if req.Certificate != "" {
@@ -334,16 +338,16 @@ func certificatesPost(d *Daemon, r *http.Request) response.Response {
 	fingerprint := shared.CertFingerprint(cert)
 
 	if !isClusterNotification(r) {
-		// Check if we already have the certificate
+		// Check if we already have the certificate.
 		existingCert, _ := d.cluster.GetCertificate(fingerprint)
 		if existingCert != nil {
 			return response.BadRequest(fmt.Errorf("Certificate already in trust store"))
 		}
 
-		// Store the certificate in the cluster database
+		// Store the certificate in the cluster database.
 		dbCert := db.Certificate{
 			Fingerprint: shared.CertFingerprint(cert),
-			Type:        1,
+			Type:        dbReqType,
 			Name:        name,
 			Certificate: string(pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: cert.Raw})),
 			Restricted:  req.Restricted,
@@ -370,7 +374,7 @@ func certificatesPost(d *Daemon, r *http.Request) response.Response {
 			Certificate: base64.StdEncoding.EncodeToString(cert.Raw),
 		}
 		req.Name = name
-		req.Type = "client"
+		req.Type = api.CertificateTypeClient
 
 		err = notifier(func(client lxd.InstanceServer) error {
 			return client.CreateCertificate(req)
@@ -547,9 +551,13 @@ func certificatePatch(d *Daemon, r *http.Request) response.Response {
 }
 
 func doCertificateUpdate(d *Daemon, dbInfo db.Certificate, fingerprint string, req api.CertificatePut) response.Response {
-	// We only support client certificates for now.
-	if req.Type != "client" {
-		return response.BadRequest(fmt.Errorf("Unknown request type %s", req.Type))
+	reqDBType, err := db.CertificateAPITypeToDBType(req.Type)
+	if err != nil {
+		return response.BadRequest(err)
+	}
+
+	if reqDBType != dbInfo.Type {
+		return response.BadRequest(fmt.Errorf("Certificate type cannot be changed"))
 	}
 
 	// Convert to the database type.
@@ -565,7 +573,7 @@ func doCertificateUpdate(d *Daemon, dbInfo db.Certificate, fingerprint string, r
 	}
 
 	// Update the database record.
-	err := d.cluster.UpdateCertificate(fingerprint, cert)
+	err = d.cluster.UpdateCertificate(fingerprint, cert)
 	if err != nil {
 		return response.SmartError(err)
 	}

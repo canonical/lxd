@@ -153,7 +153,7 @@ func connectTarget(url string) (lxd.ContainerServer, error) {
 	req := api.CertificatesPost{
 		Password: string(pwd),
 	}
-	req.Type = "client"
+	req.Type = api.CertificateTypeClient
 
 	err = c.CreateCertificate(req)
 	if err != nil {

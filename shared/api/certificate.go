@@ -1,5 +1,14 @@
 package api
 
+// CertificateTypeClient indicates a client certificate type.
+const CertificateTypeClient = "client"
+
+// CertificateTypeServer indicates a server certificate type.
+const CertificateTypeServer = "server"
+
+// CertificateTypeUnknown indicates an unknown certificate type.
+const CertificateTypeUnknown = "unknown"
+
 // CertificatesPost represents the fields of a new LXD certificate
 //
 // swagger:model
