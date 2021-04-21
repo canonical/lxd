@@ -350,8 +350,10 @@ func (d *Daemon) Authenticate(w http.ResponseWriter, r *http.Request) (bool, str
 		return false, "", "", err
 	}
 
+	trustedCerts := d.getTrustedCertificates()
+
 	for i := range r.TLS.PeerCertificates {
-		trusted, username := util.CheckTrustState(*r.TLS.PeerCertificates[i], d.clientCerts.Certificates, d.endpoints.NetworkCert(), trustCACertificates)
+		trusted, username := util.CheckTrustState(*r.TLS.PeerCertificates[i], trustedCerts[db.CertificateTypeClient], d.endpoints.NetworkCert(), trustCACertificates)
 		if trusted {
 			return true, username, "tls", nil
 		}
