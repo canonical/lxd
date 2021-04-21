@@ -6,6 +6,14 @@ package node
 // modify the database schema, please add a new schema update to update.go
 // and the run 'make update-schema'.
 const freshSchema = `
+CREATE TABLE certificates (
+	id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+	fingerprint TEXT NOT NULL,
+	type INTEGER NOT NULL,
+	name TEXT NOT NULL,
+	certificate TEXT NOT NULL,
+	UNIQUE (fingerprint)
+);
 CREATE TABLE config (
     id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
     key VARCHAR(255) NOT NULL,
@@ -25,5 +33,5 @@ CREATE TABLE raft_nodes (
     UNIQUE (address)
 );
 
-INSERT INTO schema (version, updated_at) VALUES (40, strftime("%s"))
+INSERT INTO schema (version, updated_at) VALUES (41, strftime("%s"))
 `
