@@ -239,9 +239,16 @@ func (e *Endpoints) up(config *Config) error {
 			logger.Infof("Starting cluster handler:")
 			e.serveHTTP(cluster)
 		} else if networkAddressErr != nil {
-			logger.Error("Cannot listen on https socket, skipping...", log.Ctx{"err": networkAddressErr})
-		}
+			logger.Error("Cannot currently listen on https socket, re-trying once in 30s...", log.Ctx{"err": networkAddressErr})
 
+			go func() {
+				time.Sleep(30 * time.Second)
+				err := e.NetworkUpdateAddress(config.NetworkAddress)
+				if err != nil {
+					logger.Error("Still unable to listen on https socket", log.Ctx{"err": err})
+				}
+			}()
+		}
 	}
 
 	if config.DebugAddress != "" {
