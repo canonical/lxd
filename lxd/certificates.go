@@ -214,6 +214,16 @@ func updateCertificateCache(d *Daemon) {
 		// continue functioning, and hopefully the write will succeed on next update.
 	}
 
+	// Write out the server certs to the local database to allow the cluster to restart.
+	err = d.db.Transaction(func(tx *db.NodeTx) error {
+		return tx.ReplaceCertificates(localCerts)
+	})
+	if err != nil {
+		logger.Warn("Failed writing certificates to local database", log.Ctx{"err": err})
+		// Don't return here, as we still should update the in-memory cache to allow the cluster to
+		// continue functioning, and hopefully the write will succeed on next update.
+	}
+
 	d.clientCerts.Lock.Lock()
 	d.clientCerts.Certificates = newCerts
 	d.clientCerts.Lock.Unlock()
