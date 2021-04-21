@@ -1043,6 +1043,7 @@ func (d *qemu) Start(stateful bool) error {
 		"-no-user-config",
 		"-sandbox", "on,obsolete=deny,elevateprivileges=allow,spawn=deny,resourcecontrol=deny",
 		"-readconfig", confFile,
+		"-spice", d.spiceCmdlineConfig(),
 		"-pidfile", d.pidFilePath(),
 		"-D", d.LogFilePath(),
 	}
@@ -1572,6 +1573,10 @@ func (d *qemu) spicePath() string {
 	return filepath.Join(d.LogPath(), "qemu.spice")
 }
 
+func (d *qemu) spiceCmdlineConfig() string {
+	return fmt.Sprintf("unix=on,disable-ticketing=on,addr=%s", d.spicePath())
+}
+
 // generateConfigShare generates the config share directory that will be exported to the VM via
 // a 9P share. Due to the unknown size of templates inside the images this directory is created
 // inside the VM's config volume so that it can be restricted by quota.
@@ -2004,7 +2009,6 @@ func (d *qemu) generateQemuConfigFile(mountInfo *storagePools.MountInfo, busName
 
 	err := qemuBase.Execute(sb, map[string]interface{}{
 		"architecture": d.architectureName,
-		"spicePath":    d.spicePath(),
 	})
 	if err != nil {
 		return "", err
