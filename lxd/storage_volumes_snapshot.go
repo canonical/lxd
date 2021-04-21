@@ -56,13 +56,6 @@ func storagePoolVolumeSnapshotsTypePost(d *Daemon, r *http.Request) response.Res
 	// Get the name of the volume.
 	volumeName := mux.Vars(r)["name"]
 
-	// Parse the request.
-	req := api.StorageVolumeSnapshotsPost{}
-	err := json.NewDecoder(r.Body).Decode(&req)
-	if err != nil {
-		return response.BadRequest(err)
-	}
-
 	// Convert the volume type name to our internal integer representation.
 	volumeType, err := storagePools.VolumeTypeNameToDBType(volumeTypeName)
 	if err != nil {
@@ -74,9 +67,28 @@ func storagePoolVolumeSnapshotsTypePost(d *Daemon, r *http.Request) response.Res
 		return response.BadRequest(fmt.Errorf("Invalid storage volume type %q", volumeTypeName))
 	}
 
+	// Get the project name.
 	projectName, err := project.StorageVolumeProject(d.State().Cluster, projectParam(r), volumeType)
 	if err != nil {
 		return response.SmartError(err)
+	}
+
+	// Forward if needed.
+	resp := forwardedResponseIfTargetIsRemote(d, r)
+	if resp != nil {
+		return resp
+	}
+
+	resp = forwardedResponseIfVolumeIsRemote(d, r, poolName, projectName, volumeName, volumeType)
+	if resp != nil {
+		return resp
+	}
+
+	// Parse the request.
+	req := api.StorageVolumeSnapshotsPost{}
+	err = json.NewDecoder(r.Body).Decode(&req)
+	if err != nil {
+		return response.BadRequest(err)
 	}
 
 	// Get a snapshot name.
@@ -107,16 +119,6 @@ func storagePoolVolumeSnapshotsTypePost(d *Daemon, r *http.Request) response.Res
 		return response.SmartError(err)
 	}
 
-	resp := forwardedResponseIfTargetIsRemote(d, r)
-	if resp != nil {
-		return resp
-	}
-
-	resp = forwardedResponseIfVolumeIsRemote(d, r, poolName, projectName, volumeName, volumeType)
-	if resp != nil {
-		return resp
-	}
-
 	// Ensure that the snapshot doesn't already exist.
 	_, _, err = d.cluster.GetLocalStoragePoolVolume(projectName, fmt.Sprintf("%s/%s", volumeName, req.Name), volumeType, poolID)
 	if err != db.ErrNoSuchObject {
@@ -133,8 +135,8 @@ func storagePoolVolumeSnapshotsTypePost(d *Daemon, r *http.Request) response.Res
 		return response.SmartError(err)
 	}
 
+	// Fill in the expiry.
 	var expiry time.Time
-
 	if req.ExpiresAt != nil {
 		expiry = *req.ExpiresAt
 	} else {
@@ -144,6 +146,7 @@ func storagePoolVolumeSnapshotsTypePost(d *Daemon, r *http.Request) response.Res
 		}
 	}
 
+	// Create the snapshot.
 	snapshot := func(op *operations.Operation) error {
 		pool, err := storagePools.GetPoolByName(d.State(), poolName)
 		if err != nil {
@@ -204,6 +207,7 @@ func storagePoolVolumeSnapshotsTypeGet(d *Daemon, r *http.Request) response.Resp
 		return response.SmartError(err)
 	}
 
+	// Prepare the response.
 	resultString := []string{}
 	resultMap := []*api.StorageVolumeSnapshot{}
 	for _, volume := range volumes {
@@ -252,10 +256,38 @@ func storagePoolVolumeSnapshotTypePost(d *Daemon, r *http.Request) response.Resp
 	// Get the name of the storage volume.
 	snapshotName := mux.Vars(r)["snapshotName"]
 
-	req := api.StorageVolumeSnapshotPost{}
+	// Convert the volume type name to our internal integer representation.
+	volumeType, err := storagePools.VolumeTypeNameToDBType(volumeTypeName)
+	if err != nil {
+		return response.BadRequest(err)
+	}
+
+	// Check that the storage volume type is valid.
+	if volumeType != db.StoragePoolVolumeTypeCustom {
+		return response.BadRequest(fmt.Errorf("Invalid storage volume type %q", volumeTypeName))
+	}
+
+	// Get the project name.
+	projectName, err := project.StorageVolumeProject(d.State().Cluster, projectParam(r), volumeType)
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	// Forward if needed.
+	resp := forwardedResponseIfTargetIsRemote(d, r)
+	if resp != nil {
+		return resp
+	}
+
+	fullSnapshotName := fmt.Sprintf("%s/%s", volumeName, snapshotName)
+	resp = forwardedResponseIfVolumeIsRemote(d, r, poolName, projectName, volumeName, volumeType)
+	if resp != nil {
+		return resp
+	}
 
 	// Parse the request.
-	err := json.NewDecoder(r.Body).Decode(&req)
+	req := api.StorageVolumeSnapshotPost{}
+	err = json.NewDecoder(r.Body).Decode(&req)
 	if err != nil {
 		return response.BadRequest(err)
 	}
@@ -269,33 +301,7 @@ func storagePoolVolumeSnapshotTypePost(d *Daemon, r *http.Request) response.Resp
 		return response.BadRequest(fmt.Errorf("Storage volume names may not contain slashes"))
 	}
 
-	// Convert the volume type name to our internal integer representation.
-	volumeType, err := storagePools.VolumeTypeNameToDBType(volumeTypeName)
-	if err != nil {
-		return response.BadRequest(err)
-	}
-
-	// Check that the storage volume type is valid.
-	if volumeType != db.StoragePoolVolumeTypeCustom {
-		return response.BadRequest(fmt.Errorf("Invalid storage volume type %q", volumeTypeName))
-	}
-
-	projectName, err := project.StorageVolumeProject(d.State().Cluster, projectParam(r), volumeType)
-	if err != nil {
-		return response.SmartError(err)
-	}
-
-	resp := forwardedResponseIfTargetIsRemote(d, r)
-	if resp != nil {
-		return resp
-	}
-
-	fullSnapshotName := fmt.Sprintf("%s/%s", volumeName, snapshotName)
-	resp = forwardedResponseIfVolumeIsRemote(d, r, poolName, projectName, fullSnapshotName, volumeType)
-	if resp != nil {
-		return resp
-	}
-
+	// Rename the snapshot.
 	snapshotRename := func(op *operations.Operation) error {
 		pool, err := storagePools.GetPoolByName(d.State(), poolName)
 		if err != nil {
@@ -336,25 +342,28 @@ func storagePoolVolumeSnapshotTypeGet(d *Daemon, r *http.Request) response.Respo
 		return response.BadRequest(err)
 	}
 
+	// Get the project name.
 	projectName, err := project.StorageVolumeProject(d.State().Cluster, projectParam(r), volumeType)
 	if err != nil {
 		return response.SmartError(err)
 	}
 
+	// Forward if needed.
 	resp := forwardedResponseIfTargetIsRemote(d, r)
 	if resp != nil {
 		return resp
-	}
-
-	poolID, _, _, err := d.cluster.GetStoragePool(poolName)
-	if err != nil {
-		return response.SmartError(err)
 	}
 
 	fullSnapshotName := fmt.Sprintf("%s/%s", volumeName, snapshotName)
 	resp = forwardedResponseIfVolumeIsRemote(d, r, poolName, projectName, fullSnapshotName, volumeType)
 	if resp != nil {
 		return resp
+	}
+
+	// Get the snapshot.
+	poolID, _, _, err := d.cluster.GetStoragePool(poolName)
+	if err != nil {
+		return response.SmartError(err)
 	}
 
 	volID, volume, err := d.cluster.GetLocalStoragePoolVolume(projectName, fullSnapshotName, volumeType, poolID)
@@ -398,25 +407,28 @@ func storagePoolVolumeSnapshotTypePut(d *Daemon, r *http.Request) response.Respo
 		return response.BadRequest(err)
 	}
 
+	// Get the project name.
 	projectName, err := project.StorageVolumeProject(d.State().Cluster, projectParam(r), volumeType)
 	if err != nil {
 		return response.SmartError(err)
 	}
 
+	// Forward if needed.
 	resp := forwardedResponseIfTargetIsRemote(d, r)
 	if resp != nil {
 		return resp
-	}
-
-	poolID, _, _, err := d.cluster.GetStoragePool(poolName)
-	if err != nil {
-		return response.SmartError(err)
 	}
 
 	fullSnapshotName := fmt.Sprintf("%s/%s", volumeName, snapshotName)
 	resp = forwardedResponseIfVolumeIsRemote(d, r, poolName, projectName, fullSnapshotName, volumeType)
 	if resp != nil {
 		return resp
+	}
+
+	// Get the snapshot.
+	poolID, _, _, err := d.cluster.GetStoragePool(poolName)
+	if err != nil {
+		return response.SmartError(err)
 	}
 
 	volID, vol, err := d.cluster.GetLocalStoragePoolVolume(projectName, fullSnapshotName, volumeType, poolID)
@@ -467,25 +479,28 @@ func storagePoolVolumeSnapshotTypePatch(d *Daemon, r *http.Request) response.Res
 		return response.BadRequest(err)
 	}
 
+	// Get the project name.
 	projectName, err := project.StorageVolumeProject(d.State().Cluster, projectParam(r), volumeType)
 	if err != nil {
 		return response.SmartError(err)
 	}
 
+	// Forward if needed.
 	resp := forwardedResponseIfTargetIsRemote(d, r)
 	if resp != nil {
 		return resp
-	}
-
-	poolID, _, _, err := d.cluster.GetStoragePool(poolName)
-	if err != nil {
-		return response.SmartError(err)
 	}
 
 	fullSnapshotName := fmt.Sprintf("%s/%s", volumeName, snapshotName)
 	resp = forwardedResponseIfVolumeIsRemote(d, r, poolName, projectName, fullSnapshotName, volumeType)
 	if resp != nil {
 		return resp
+	}
+
+	// Get the snapshot.
+	poolID, _, _, err := d.cluster.GetStoragePool(poolName)
+	if err != nil {
+		return response.SmartError(err)
 	}
 
 	volID, vol, err := d.cluster.GetLocalStoragePoolVolume(projectName, fullSnapshotName, volumeType, poolID)
@@ -573,11 +588,13 @@ func storagePoolVolumeSnapshotTypeDelete(d *Daemon, r *http.Request) response.Re
 		return response.BadRequest(fmt.Errorf("Invalid storage volume type %q", volumeTypeName))
 	}
 
+	// Get the project name.
 	projectName, err := project.StorageVolumeProject(d.State().Cluster, projectParam(r), volumeType)
 	if err != nil {
 		return response.SmartError(err)
 	}
 
+	// Forward if needed.
 	resp := forwardedResponseIfTargetIsRemote(d, r)
 	if resp != nil {
 		return resp
