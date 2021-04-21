@@ -28,7 +28,7 @@ import (
 )
 
 type certificateCache struct {
-	Certificates map[string]x509.Certificate
+	Certificates map[int]map[string]x509.Certificate
 	Projects     map[string][]string
 	Lock         sync.Mutex
 }
@@ -153,20 +153,19 @@ func certificatesGet(d *Daemon, r *http.Request) response.Response {
 
 	body := []string{}
 
-	d.clientCerts.Lock.Lock()
-	cache := d.clientCerts
-	d.clientCerts.Lock.Unlock()
-
-	for _, cert := range cache.Certificates {
-		fingerprint := fmt.Sprintf("/%s/certificates/%s", version.APIVersion, shared.CertFingerprint(&cert))
-		body = append(body, fingerprint)
+	trustedCertificates := d.getTrustedCertificates()
+	for _, certs := range trustedCertificates {
+		for _, cert := range certs {
+			fingerprint := fmt.Sprintf("/%s/certificates/%s", version.APIVersion, shared.CertFingerprint(&cert))
+			body = append(body, fingerprint)
+		}
 	}
 
 	return response.SyncResponse(true, body)
 }
 
 func updateCertificateCache(d *Daemon) {
-	newCerts := map[string]x509.Certificate{}
+	newCerts := map[int]map[string]x509.Certificate{}
 	newProjects := map[string][]string{}
 
 	var dbCerts []db.Certificate
@@ -181,6 +180,10 @@ func updateCertificateCache(d *Daemon) {
 	}
 
 	for _, dbCert := range dbCerts {
+		if _, found := newCerts[dbCert.Type]; !found {
+			newCerts[dbCert.Type] = make(map[string]x509.Certificate)
+		}
+
 		certBlock, _ := pem.Decode([]byte(dbCert.Certificate))
 		if certBlock == nil {
 			logger.Infof("Error decoding certificate for %q: %v", dbCert.Name, err)
@@ -193,7 +196,7 @@ func updateCertificateCache(d *Daemon) {
 			continue
 		}
 
-		newCerts[shared.CertFingerprint(cert)] = *cert
+		newCerts[dbCert.Type][shared.CertFingerprint(cert)] = *cert
 		if dbCert.Restricted {
 			newProjects[shared.CertFingerprint(cert)] = dbCert.Projects
 		}
