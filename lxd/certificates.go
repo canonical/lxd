@@ -697,16 +697,31 @@ func doCertificateUpdate(d *Daemon, dbInfo db.Certificate, fingerprint string, r
 func certificateDelete(d *Daemon, r *http.Request) response.Response {
 	fingerprint := mux.Vars(r)["fingerprint"]
 
-	// Get current database record.
-	certInfo, err := d.cluster.GetCertificate(fingerprint)
-	if err != nil {
-		return response.NotFound(err)
-	}
+	if !isClusterNotification(r) {
+		// Get current database record.
+		certInfo, err := d.cluster.GetCertificate(fingerprint)
+		if err != nil {
+			return response.NotFound(err)
+		}
 
-	// Perform the delete with the expanded fingerprint.
-	err = d.cluster.DeleteCertificate(certInfo.Fingerprint)
-	if err != nil {
-		return response.SmartError(err)
+		// Perform the delete with the expanded fingerprint.
+		err = d.cluster.DeleteCertificate(certInfo.Fingerprint)
+		if err != nil {
+			return response.SmartError(err)
+		}
+
+		// Notify other nodes about the new certificate.
+		notifier, err := cluster.NewNotifier(d.State(), d.endpoints.NetworkCert(), d.serverCert(), cluster.NotifyAlive)
+		if err != nil {
+			return response.SmartError(err)
+		}
+
+		err = notifier(func(client lxd.InstanceServer) error {
+			return client.DeleteCertificate(certInfo.Fingerprint)
+		})
+		if err != nil {
+			return response.SmartError(err)
+		}
 	}
 
 	// Reload the cache.
