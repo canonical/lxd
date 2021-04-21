@@ -787,6 +787,8 @@ func (c *Cluster) getStorageVolumeContentType(volumeID int64) (int, error) {
 // Note, the code below doesn't deal with snapshots of snapshots.
 // To do that, we'll need to weed out based on # slashes in names
 func (c *Cluster) GetNextStorageVolumeSnapshotIndex(pool, name string, typ int, pattern string) int {
+	remoteDrivers := StorageRemoteDriverNames()
+
 	q := fmt.Sprintf(`
 SELECT storage_volumes_snapshots.name FROM storage_volumes_snapshots
   JOIN storage_volumes ON storage_volumes_snapshots.storage_volume_id=storage_volumes.id
@@ -794,10 +796,16 @@ SELECT storage_volumes_snapshots.name FROM storage_volumes_snapshots
  WHERE storage_volumes.type=?
    AND storage_volumes.name=?
    AND storage_pools.name=?
-`)
+   AND (storage_volumes.node_id=? OR storage_volumes.node_id IS NULL AND storage_pools.driver IN %s)
+`, query.Params(len(remoteDrivers)))
 	var numstr string
-	inargs := []interface{}{typ, name, pool}
+	inargs := []interface{}{typ, name, pool, c.nodeID}
 	outfmt := []interface{}{numstr}
+
+	for _, driver := range remoteDrivers {
+		inargs = append(inargs, driver)
+	}
+
 	results, err := queryScan(c, q, inargs, outfmt)
 	if err != nil {
 		return 0
