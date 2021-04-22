@@ -643,7 +643,7 @@ func (f *clusterFixture) RegisterCertificate(daemon1, daemon2 *Daemon, name, pas
 		Password:    password,
 		Certificate: certificate,
 	}
-	post.Name = fmt.Sprintf("lxd.cluster.%s", name)
+	post.Name = name
 	post.Type = api.CertificateTypeClient
 
 	client2 := f.ClientUnix(daemon2)
