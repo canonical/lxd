@@ -845,10 +845,43 @@ func (d *Daemon) init() error {
 		return err
 	}
 
-	/* Setup server certificate */
-	certInfo, err := util.LoadCert(d.os.VarDir)
+	/* Setup network endpoint certificate */
+	networkCert, err := util.LoadCert(d.os.VarDir)
 	if err != nil {
 		return err
+	}
+
+	/* Setup server certificate */
+	serverCert, err := util.LoadServerCert(d.os.VarDir)
+	if err != nil {
+		return err
+	}
+
+	// Load cached local trusted certificates before starting listener and cluster database.
+	err = updateCertificateCacheFromLocal(d, networkCert)
+	if err != nil {
+		return err
+	}
+
+	clustered, err := cluster.Enabled(d.db)
+	if err != nil {
+		return errors.Wrapf(err, "Failed checking if clustered")
+	}
+
+	// Detect if clustered, but not yet upgraded to per-server client certificates.
+	if clustered && len(d.clientCerts.Certificates[db.CertificateTypeServer]) < 1 {
+		// If the cluster has not yet upgraded to per-server client certificates (by running patch
+		// patchClusteringServerCertTrust) then temporarily use the network (cluster) certificate as client
+		// certificate, and cause us to trust it for use as client certificate from the other members.
+		logger.Warnf("No local trusted server certificates found, falling back to trusting network certificate")
+		logger.Infof("Set client certificate to network certificate %v", networkCert.Fingerprint())
+		d.serverCertInt = networkCert
+
+	} else {
+		// If standalone or the local trusted certificates table is populated with server certificates then
+		// use our local server certificate as client certificate for intra-cluster communication.
+		logger.Infof("Set client certificate to server certificate %v", serverCert.Fingerprint())
+		d.serverCertInt = serverCert
 	}
 
 	/* Setup dqlite */
@@ -858,7 +891,8 @@ func (d *Daemon) init() error {
 	}
 	d.gateway, err = cluster.NewGateway(
 		d.db,
-		certInfo,
+		networkCert,
+		d.serverCert,
 		cluster.Latency(d.config.RaftLatency),
 		cluster.LogLevel(clusterLogLevel))
 	if err != nil {
@@ -900,7 +934,7 @@ func (d *Daemon) init() error {
 	config := &endpoints.Config{
 		Dir:                  d.os.VarDir,
 		UnixSocket:           d.UnixSocket(),
-		Cert:                 certInfo,
+		Cert:                 networkCert,
 		RestServer:           restServer(d),
 		DevLxdServer:         devLxdServer(d),
 		LocalUnixSocketGroup: d.config.Group,
@@ -909,11 +943,6 @@ func (d *Daemon) init() error {
 		DebugAddress:         debugAddress,
 	}
 	d.endpoints, err = endpoints.Up(config)
-	if err != nil {
-		return err
-	}
-
-	clustered, err := cluster.Enabled(d.db)
 	if err != nil {
 		return err
 	}
@@ -981,7 +1010,7 @@ func (d *Daemon) init() error {
 	d.firewall = firewall.New()
 	logger.Infof("Firewall loaded driver %q", d.firewall)
 
-	err = cluster.NotifyUpgradeCompleted(d.State(), certInfo)
+	err = cluster.NotifyUpgradeCompleted(d.State(), networkCert, d.serverCert)
 	if err != nil {
 		// Ignore the error, since it's not fatal for this particular
 		// node. In most cases it just means that some nodes are
