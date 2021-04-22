@@ -6,8 +6,10 @@ import (
 	"fmt"
 	"net/http"
 
+	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
+	"github.com/lxc/lxd/shared/logger"
 )
 
 // Return a TLS configuration suitable for establishing intra-member network connections using the server cert.
@@ -49,20 +51,40 @@ func tlsClientConfig(networkCert *shared.CertInfo, serverCert *shared.CertInfo) 
 	return config, nil
 }
 
-// Return true if the given request is presenting the given cluster certificate.
-func tlsCheckCert(r *http.Request, info *shared.CertInfo) bool {
-	cert, err := x509.ParseCertificate(info.KeyPair().Certificate[0])
+// tlsCheckCert checks certificate access, returns true if certificate is trusted.
+func tlsCheckCert(r *http.Request, networkCert *shared.CertInfo, serverCert *shared.CertInfo, trustedCerts map[int]map[string]x509.Certificate) bool {
+	_, err := x509.ParseCertificate(networkCert.KeyPair().Certificate[0])
 	if err != nil {
 		// Since we have already loaded this certificate, typically
 		// using LoadX509KeyPair, an error should never happen, but
 		// check for good measure.
-		panic(fmt.Sprintf("invalid keypair material: %v", err))
+		panic(fmt.Sprintf("Invalid keypair material: %v", err))
 	}
-	trustedCerts := map[string]x509.Certificate{"0": *cert}
 
-	trusted, _ := util.CheckTrustState(*r.TLS.PeerCertificates[0], trustedCerts, nil, false)
+	if r.TLS == nil {
+		return false
+	}
 
-	return r.TLS != nil && trusted
+	for _, i := range r.TLS.PeerCertificates {
+		// Trust our own server certificate. This allows Dqlite to start with a connection back to this
+		// member before the database is available. It also allows us to switch the server certificate to
+		// the network certificate during cluster upgrade to per-server certificates, and it be trusted.
+		trustedServerCert, _ := x509.ParseCertificate(serverCert.KeyPair().Certificate[0])
+		trusted, _ := util.CheckTrustState(*i, map[string]x509.Certificate{serverCert.Fingerprint(): *trustedServerCert}, networkCert, false)
+		if trusted {
+			return true
+		}
+
+		// Check the trusted server certficates list provided.
+		trusted, _ = util.CheckTrustState(*i, trustedCerts[db.CertificateTypeServer], networkCert, false)
+		if trusted {
+			return true
+		}
+
+		logger.Errorf("Invalid client certificate %v (%v) from %v", i.Subject, shared.CertFingerprint(i), r.RemoteAddr)
+	}
+
+	return false
 }
 
 // Return an http.Transport configured using the given configuration and a
