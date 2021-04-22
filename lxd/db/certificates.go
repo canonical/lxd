@@ -220,3 +220,27 @@ func (n *NodeTx) GetCertificates() ([]Certificate, error) {
 
 	return certs, nil
 }
+
+// ReplaceCertificates removes all existing certificates from the local certificates table and replaces them with
+// the ones provided.
+func (n *NodeTx) ReplaceCertificates(certs []Certificate) error {
+	_, err := n.tx.Exec("DELETE FROM certificates")
+	if err != nil {
+		return err
+	}
+
+	stmt, err := n.tx.Prepare("INSERT INTO certificates (fingerprint, type, name, certificate) VALUES(?,?,?,?)")
+	if err != nil {
+		return err
+	}
+	defer stmt.Close()
+
+	for _, cert := range certs {
+		_, err = stmt.Exec(cert.Fingerprint, cert.Type, cert.Name, cert.Certificate)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
