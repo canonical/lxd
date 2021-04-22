@@ -137,3 +137,21 @@ type swaggerInternalServerError struct {
 		Error string `json:"error"`
 	}
 }
+
+// Not found
+//
+// swagger:response NotFound
+type swaggerNotFound struct {
+	// Not found
+	// in: body
+	Body struct {
+		// Example: error
+		Type string `json:"type"`
+
+		// Example: 404
+		Code int `json:"code"`
+
+		// Example: not found
+		Error string `json:"error"`
+	}
+}
