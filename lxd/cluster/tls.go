@@ -10,30 +10,42 @@ import (
 	"github.com/lxc/lxd/shared"
 )
 
-// Return a TLS configuration suitable for establishing inter-node network
-// connections using the cluster certificate.
-func tlsClientConfig(info *shared.CertInfo) (*tls.Config, error) {
-	keypair := info.KeyPair()
-	ca := info.CA()
+// Return a TLS configuration suitable for establishing intra-member network connections using the server cert.
+func tlsClientConfig(networkCert *shared.CertInfo, serverCert *shared.CertInfo) (*tls.Config, error) {
+	if networkCert == nil {
+		return nil, fmt.Errorf("Invalid networkCert")
+	}
+
+	if serverCert == nil {
+		return nil, fmt.Errorf("Invalid serverCert")
+	}
+
+	keypair := serverCert.KeyPair()
 	config := shared.InitTLSConfig()
 	config.Certificates = []tls.Certificate{keypair}
 	config.RootCAs = x509.NewCertPool()
+	ca := serverCert.CA()
 	if ca != nil {
 		config.RootCAs.AddCert(ca)
 	}
+
 	// Since the same cluster keypair is used both as server and as client
 	// cert, let's add it to the CA pool to make it trusted.
-	cert, err := x509.ParseCertificate(keypair.Certificate[0])
+	networkKeypair := networkCert.KeyPair()
+	netCert, err := x509.ParseCertificate(networkKeypair.Certificate[0])
 	if err != nil {
 		return nil, err
 	}
-	cert.IsCA = true
-	cert.KeyUsage = x509.KeyUsageCertSign
-	config.RootCAs.AddCert(cert)
 
-	if cert.DNSNames != nil {
-		config.ServerName = cert.DNSNames[0]
+	netCert.IsCA = true
+	netCert.KeyUsage = x509.KeyUsageCertSign
+	config.RootCAs.AddCert(netCert)
+
+	// Always use network certificate's DNS name rather than server cert, so that it matches.
+	if len(netCert.DNSNames) > 0 {
+		config.ServerName = netCert.DNSNames[0]
 	}
+
 	return config, nil
 }
 
