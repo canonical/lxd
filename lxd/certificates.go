@@ -229,6 +229,52 @@ func updateCertificateCache(d *Daemon) {
 	d.clientCerts.Lock.Unlock()
 }
 
+// updateCertificateCacheFromLocal loads trusted server certificates from local database into memory.
+// If no local trusted server certificates available and is clustered, then loads network certificate into trusted
+// certificates cache.
+func updateCertificateCacheFromLocal(d *Daemon, networkCert *shared.CertInfo) error {
+	logger.Debug("Refreshing local trusted certificate cache")
+
+	newCerts := map[int]map[string]x509.Certificate{}
+
+	var dbCerts []db.Certificate
+	var err error
+
+	err = d.db.Transaction(func(tx *db.NodeTx) error {
+		dbCerts, err = tx.GetCertificates()
+		return err
+	})
+	if err != nil {
+		return errors.Wrapf(err, "Failed reading certificates from local database")
+	}
+
+	for _, dbCert := range dbCerts {
+		if _, found := newCerts[dbCert.Type]; !found {
+			newCerts[dbCert.Type] = make(map[string]x509.Certificate)
+		}
+
+		certBlock, _ := pem.Decode([]byte(dbCert.Certificate))
+		if certBlock == nil {
+			logger.Warn("Failed decoding certificate", log.Ctx{"name": dbCert.Name, "err": err})
+			continue
+		}
+
+		cert, err := x509.ParseCertificate(certBlock.Bytes)
+		if err != nil {
+			logger.Warn("Failed parsing certificate", log.Ctx{"name": dbCert.Name, "err": err})
+			continue
+		}
+
+		newCerts[dbCert.Type][shared.CertFingerprint(cert)] = *cert
+	}
+
+	d.clientCerts.Lock.Lock()
+	d.clientCerts.Certificates = newCerts
+	d.clientCerts.Lock.Unlock()
+
+	return nil
+}
+
 // swagger:operation POST /1.0/certificates?public certificates certificates_post_untrusted
 //
 // Add a trusted certificate
