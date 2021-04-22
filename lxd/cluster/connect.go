@@ -200,6 +200,52 @@ func SetupTrust(serverCert *shared.CertInfo, serverName string, targetAddress st
 	return nil
 }
 
+// UpdateTrust ensures that the supplied certificate is stored in the target trust store with the correct name
+// and type to ensure correct cluster operation. Should be called after SetupTrust. If a certificate with the same
+// fingerprint is already in the trust store, but is of the wrong type or name then the existing certificate is
+// updated to the correct type and name. If the existing certificate is the correct type but the wrong name then an
+// error is returned. And if the existing certificate is the correct type and name then nothing more is done.
+func UpdateTrust(serverCert *shared.CertInfo, serverName string, targetAddress string, targetCert string) error {
+	// Connect to the target cluster node.
+	args := &lxd.ConnectionArgs{
+		TLSClientCert: string(serverCert.PublicKey()),
+		TLSClientKey:  string(serverCert.PrivateKey()),
+		TLSServerCert: targetCert,
+		UserAgent:     version.UserAgent,
+	}
+
+	target, err := lxd.ConnectLXD(fmt.Sprintf("https://%s", targetAddress), args)
+	if err != nil {
+		return errors.Wrapf(err, "Failed to connect to target cluster node %q", targetAddress)
+	}
+
+	cert, err := generateTrustCertificate(serverCert, serverName)
+	if err != nil {
+		return errors.Wrapf(err, "Failed generating trust certificate")
+	}
+
+	existingCert, _, err := target.GetCertificate(cert.Fingerprint)
+	if err != nil {
+		return errors.Wrapf(err, "Failed getting existing certificate")
+	}
+
+	if existingCert.Name != serverName && existingCert.Type == api.CertificateTypeServer {
+		// Don't alter an existing server certificate that has our fingerprint but not our name.
+		// Something is wrong as this shouldn't happen.
+		return fmt.Errorf("Existing server certificate with different name %q already in trust store", existingCert.Name)
+	} else if existingCert.Name != serverName && existingCert.Type != api.CertificateTypeServer {
+		// Ensure that if a client certificate already exists that matches our fingerprint, that it
+		// has the correct name and type for cluster operation, to allow us to associate member
+		// server names to certificate names.
+		err = target.UpdateCertificate(cert.Fingerprint, cert.CertificatePut, "")
+		if err != nil {
+			return errors.Wrap(err, "Failed updating certificate name and type in trust store")
+		}
+	}
+
+	return nil
+}
+
 // generateTrustCertificate converts the specified serverCert and serverName into an api.Certificate suitable for
 // use as a trusted cluster server certificate.
 func generateTrustCertificate(serverCert *shared.CertInfo, serverName string) (*api.Certificate, error) {
