@@ -409,7 +409,7 @@ func certificatesPost(d *Daemon, r *http.Request) response.Response {
 		// Check if we already have the certificate.
 		existingCert, _ := d.cluster.GetCertificate(fingerprint)
 		if existingCert != nil {
-			return response.BadRequest(fmt.Errorf("Certificate already in trust store"))
+			return response.BadRequest(cluster.ErrCertificateExists)
 		}
 
 		// Store the certificate in the cluster database.
@@ -433,8 +433,7 @@ func certificatesPost(d *Daemon, r *http.Request) response.Response {
 		}
 
 		// Notify other nodes about the new certificate.
-		notifier, err := cluster.NewNotifier(
-			d.State(), d.endpoints.NetworkCert(), cluster.NotifyAlive)
+		notifier, err := cluster.NewNotifier(d.State(), d.endpoints.NetworkCert(), d.serverCert(), cluster.NotifyAlive)
 		if err != nil {
 			return response.SmartError(err)
 		}
