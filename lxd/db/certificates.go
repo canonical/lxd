@@ -6,6 +6,7 @@ package db
 import (
 	"fmt"
 
+	"github.com/lxc/lxd/lxd/db/query"
 	"github.com/lxc/lxd/shared/api"
 )
 
@@ -176,4 +177,46 @@ func (c *Cluster) UpdateCertificateProjects(id int, projects []string) error {
 		return tx.UpdateCertificateProjects(id, projects)
 	})
 	return err
+}
+
+// GetCertificates returns all available local certificates.
+func (n *NodeTx) GetCertificates() ([]Certificate, error) {
+	dbCerts := []struct {
+		fingerprint string
+		certType    int
+		name        string
+		certificate string
+	}{}
+	dest := func(i int) []interface{} {
+		dbCerts = append(dbCerts, struct {
+			fingerprint string
+			certType    int
+			name        string
+			certificate string
+		}{})
+		return []interface{}{&dbCerts[i].fingerprint, &dbCerts[i].certType, &dbCerts[i].name, &dbCerts[i].certificate}
+	}
+
+	stmt, err := n.tx.Prepare("SELECT fingerprint, type, name, certificate FROM certificates")
+	if err != nil {
+		return nil, err
+	}
+	defer stmt.Close()
+
+	err = query.SelectObjects(stmt, dest)
+	if err != nil {
+		return nil, err
+	}
+
+	certs := make([]Certificate, 0, len(dbCerts))
+	for _, dbCert := range dbCerts {
+		certs = append(certs, Certificate{
+			Fingerprint: dbCert.fingerprint,
+			Type:        dbCert.certType,
+			Name:        dbCert.name,
+			Certificate: dbCert.certificate,
+		})
+	}
+
+	return certs, nil
 }
