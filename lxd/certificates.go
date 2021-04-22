@@ -623,17 +623,13 @@ func doCertificateUpdate(d *Daemon, dbInfo db.Certificate, fingerprint string, r
 			return response.BadRequest(err)
 		}
 
-		if reqDBType != dbInfo.Type {
-			return response.BadRequest(fmt.Errorf("Certificate type cannot be changed"))
-		}
-
 		// Convert to the database type.
 		cert := db.Certificate{
 			// Read-only fields.
 			Certificate: dbInfo.Certificate,
 			Fingerprint: dbInfo.Fingerprint,
-			Type:        dbInfo.Type,
 			Name:        req.Name,
+			Type:        reqDBType,
 		}
 
 		// Update the database record.
