@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: LXD\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2021-04-07 20:29-0400\n"
+"POT-Creation-Date: 2021-04-22 20:21+0200\n"
 "PO-Revision-Date: 2019-01-04 18:07+0000\n"
 "Last-Translator: Deleted User <noreply+12102@weblate.org>\n"
 "Language-Team: French <https://hosted.weblate.org/projects/linux-containers/"
@@ -527,6 +527,10 @@ msgstr "Accepter le certificat"
 msgid "Access the expanded configuration"
 msgstr "Afficher la configuration étendue"
 
+#: lxc/warning.go:246 lxc/warning.go:247
+msgid "Acknowledge warning"
+msgstr ""
+
 #: lxc/query.go:42
 msgid "Action (defaults to GET)"
 msgstr "Action (GET par défaut)"
@@ -690,12 +694,12 @@ msgstr ""
 msgid "Backing up instance: %s"
 msgstr "Ignorer l'état du conteneur (seulement pour start)"
 
-#: lxc/storage_volume.go:1921
+#: lxc/storage_volume.go:1939
 #, fuzzy, c-format
 msgid "Backing up storage volume: %s"
 msgstr "Copie de l'image : %s"
 
-#: lxc/export.go:158 lxc/storage_volume.go:1987
+#: lxc/export.go:158 lxc/storage_volume.go:2005
 #, fuzzy
 msgid "Backup exported successfully!"
 msgstr "Image copiée avec succès !"
@@ -748,6 +752,10 @@ msgstr "COMMON NAME"
 
 #: lxc/storage_volume.go:1272
 msgid "CONTENT-TYPE"
+msgstr ""
+
+#: lxc/warning.go:203
+msgid "COUNT"
 msgstr ""
 
 #: lxc/info.go:349
@@ -882,6 +890,8 @@ msgstr "Afficher la version du client"
 #: lxc/storage_volume.go:1093 lxc/storage_volume.go:1365
 #: lxc/storage_volume.go:1395 lxc/storage_volume.go:1511
 #: lxc/storage_volume.go:1590 lxc/storage_volume.go:1683
+#: lxc/storage_volume.go:1720 lxc/storage_volume.go:1814
+#: lxc/storage_volume.go:1886 lxc/storage_volume.go:2025
 msgid "Cluster member name"
 msgstr ""
 
@@ -890,6 +900,7 @@ msgid "Clustering enabled"
 msgstr ""
 
 #: lxc/image.go:1010 lxc/list.go:130 lxc/storage_volume.go:1176
+#: lxc/warning.go:88
 msgid "Columns"
 msgstr "Colonnes"
 
@@ -1171,7 +1182,7 @@ msgstr "PILOTE"
 msgid "DRM:"
 msgstr ""
 
-#: lxc/storage_volume.go:1873
+#: lxc/storage_volume.go:1885
 #, fuzzy
 msgid "Define a compression algorithm: for backup or none"
 msgstr "Définir un algorithme de compression : pour image ou aucun"
@@ -1179,6 +1190,11 @@ msgstr "Définir un algorithme de compression : pour image ou aucun"
 #: lxc/operation.go:52 lxc/operation.go:53
 msgid "Delete a background operation (will attempt to cancel)"
 msgstr ""
+
+#: lxc/warning.go:338
+#, fuzzy
+msgid "Delete all warnings"
+msgstr "Récupération de l'image : %s"
 
 #: lxc/file.go:104 lxc/file.go:105
 #, fuzzy
@@ -1229,6 +1245,11 @@ msgstr ""
 #, fuzzy
 msgid "Delete storage volumes"
 msgstr "Copie de l'image : %s"
+
+#: lxc/warning.go:334 lxc/warning.go:335
+#, fuzzy
+msgid "Delete warning"
+msgstr "Récupération de l'image : %s"
 
 #: lxc/action.go:31 lxc/action.go:50 lxc/action.go:70 lxc/action.go:91
 #: lxc/alias.go:22 lxc/alias.go:54 lxc/alias.go:100 lxc/alias.go:144
@@ -1285,8 +1306,10 @@ msgstr "Copie de l'image : %s"
 #: lxc/storage_volume.go:1177 lxc/storage_volume.go:1361
 #: lxc/storage_volume.go:1392 lxc/storage_volume.go:1505
 #: lxc/storage_volume.go:1581 lxc/storage_volume.go:1680
-#: lxc/storage_volume.go:1714 lxc/storage_volume.go:1806
-#: lxc/storage_volume.go:1867 lxc/storage_volume.go:2002 lxc/version.go:22
+#: lxc/storage_volume.go:1714 lxc/storage_volume.go:1812
+#: lxc/storage_volume.go:1879 lxc/storage_volume.go:2020 lxc/version.go:22
+#: lxc/warning.go:30 lxc/warning.go:67 lxc/warning.go:247 lxc/warning.go:287
+#: lxc/warning.go:335
 msgid "Description"
 msgstr ""
 
@@ -1462,6 +1485,7 @@ msgid "Edit trust configurations as YAML"
 msgstr "Clé de configuration invalide"
 
 #: lxc/image.go:1036 lxc/list.go:533 lxc/storage_volume.go:1293
+#: lxc/warning.go:219
 #, c-format
 msgid "Empty column entry (redundant, leading or trailing command) in '%s'"
 msgstr ""
@@ -1552,7 +1576,7 @@ msgid ""
 "The output target is optional and defaults to the working directory."
 msgstr ""
 
-#: lxc/storage_volume.go:1866 lxc/storage_volume.go:1867
+#: lxc/storage_volume.go:1878 lxc/storage_volume.go:1879
 #, fuzzy
 msgid "Export custom storage volume"
 msgstr "Copie de l'image : %s"
@@ -1567,12 +1591,12 @@ msgstr "Forcer l'arrêt du conteneur (seulement pour stop)"
 msgid "Export instances as backup tarballs."
 msgstr "Forcer l'arrêt du conteneur (seulement pour stop)"
 
-#: lxc/storage_volume.go:1870
+#: lxc/storage_volume.go:1882
 #, fuzzy
 msgid "Export the volume without its snapshots"
 msgstr "Copiez le conteneur sans ses instantanés"
 
-#: lxc/export.go:142 lxc/storage_volume.go:1971
+#: lxc/export.go:142 lxc/storage_volume.go:1989
 #, fuzzy, c-format
 msgid "Exporting the backup: %s"
 msgstr "Import de l'image : %s"
@@ -1595,6 +1619,10 @@ msgstr "NOM"
 #: lxc/image_alias.go:232
 msgid "FINGERPRINT"
 msgstr "EMPREINTE"
+
+#: lxc/warning.go:204
+msgid "FIRST SEEN"
+msgstr ""
 
 #: lxc/move.go:262 lxc/move.go:335
 #, fuzzy
@@ -1686,7 +1714,7 @@ msgstr ""
 #: lxc/list.go:131 lxc/network.go:830 lxc/network.go:923 lxc/network_acl.go:91
 #: lxc/operation.go:104 lxc/profile.go:581 lxc/project.go:391
 #: lxc/project.go:746 lxc/remote.go:523 lxc/storage.go:515
-#: lxc/storage_volume.go:1195
+#: lxc/storage_volume.go:1195 lxc/warning.go:89
 msgid "Format (csv|json|table|yaml)"
 msgstr ""
 
@@ -1831,7 +1859,7 @@ msgstr "DATE D'ÉMISSION"
 msgid "If the snapshot name already exists, delete and create a new one"
 msgstr ""
 
-#: lxc/main.go:336
+#: lxc/main.go:340
 #, fuzzy
 msgid ""
 "If this is your first time running LXD on this machine, you should also run: "
@@ -1890,7 +1918,7 @@ msgstr "Image copiée avec succès !"
 msgid "Immediately attach to the console"
 msgstr "Forcer l'arrêt du conteneur (seulement pour stop)"
 
-#: lxc/storage_volume.go:2002
+#: lxc/storage_volume.go:2020
 msgid "Import backups of custom volumes including their snapshots."
 msgstr ""
 
@@ -1898,7 +1926,7 @@ msgstr ""
 msgid "Import backups of instances including their snapshots."
 msgstr ""
 
-#: lxc/storage_volume.go:2001
+#: lxc/storage_volume.go:2019
 #, fuzzy
 msgid "Import custom storage volumes"
 msgstr "Copie de l'image : %s"
@@ -1920,7 +1948,7 @@ msgstr "Import de l'image : %s"
 msgid "Import instance backups"
 msgstr "Ignorer l'état du conteneur (seulement pour start)"
 
-#: lxc/storage_volume.go:2049
+#: lxc/storage_volume.go:2073
 #, fuzzy, c-format
 msgid "Importing custom volume: %s"
 msgstr "Ignorer l'état du conteneur (seulement pour start)"
@@ -2002,7 +2030,7 @@ msgid ""
 "Invalid name in '%s', empty string is only allowed when defining maxWidth"
 msgstr ""
 
-#: lxc/main.go:425
+#: lxc/main.go:429
 #, fuzzy
 msgid "Invalid number of arguments"
 msgstr "nombre d'arguments incorrect pour la sous-comande"
@@ -2040,6 +2068,11 @@ msgstr "Créé : %s"
 msgid "Keep the image up to date after initial copy"
 msgstr "Garder l'image à jour après la copie initiale"
 
+#: lxc/warning.go:205
+#, fuzzy
+msgid "LAST SEEN"
+msgstr "DERNIÈRE UTILISATION À"
+
 #: lxc/list.go:493
 msgid "LAST USED AT"
 msgstr "DERNIÈRE UTILISATION À"
@@ -2049,7 +2082,7 @@ msgid "LIMIT"
 msgstr ""
 
 #: lxc/list.go:517 lxc/network.go:973 lxc/operation.go:165
-#: lxc/storage_volume.go:1278
+#: lxc/storage_volume.go:1278 lxc/warning.go:206
 msgid "LOCATION"
 msgstr ""
 
@@ -2096,6 +2129,11 @@ msgstr "Alias :"
 #: lxc/cluster.go:73 lxc/cluster.go:74
 msgid "List all the cluster members"
 msgstr ""
+
+#: lxc/warning.go:90
+#, fuzzy
+msgid "List all warnings"
+msgstr "Alias :"
 
 #: lxc/network_acl.go:88
 msgid "List available network ACL"
@@ -2361,6 +2399,34 @@ msgstr ""
 msgid "List trusted clients"
 msgstr ""
 
+#: lxc/warning.go:66
+#, fuzzy
+msgid "List warnings"
+msgstr "Alias :"
+
+#: lxc/warning.go:67
+msgid ""
+"List warnings\n"
+"\n"
+"The -c option takes a (optionally comma-separated) list of arguments\n"
+"that control which image attributes to output when displaying in table\n"
+"or csv format.\n"
+"\n"
+"Default column layout is: utSscpLl\n"
+"\n"
+"Column shorthand chars:\n"
+"\n"
+"    c - Count\n"
+"    l - Last seen\n"
+"    L - Location\n"
+"    f - First seen\n"
+"    p - Project\n"
+"    s - Severity\n"
+"    S - Status\n"
+"    u - UUID\n"
+"    t - Type"
+msgstr ""
+
 #: lxc/operation.go:23 lxc/operation.go:24
 msgid "List, show and delete background operations"
 msgstr ""
@@ -2529,6 +2595,11 @@ msgstr ""
 msgid "Manage trusted clients"
 msgstr ""
 
+#: lxc/warning.go:29 lxc/warning.go:30
+#, fuzzy
+msgid "Manage warnings"
+msgstr "Rendre l'image publique"
+
 #: lxc/info.go:137 lxc/info.go:243
 #, c-format
 msgid "Maximum number of VFs: %d"
@@ -2629,7 +2700,7 @@ msgstr "Nom du réseau"
 #: lxc/storage_volume.go:1027 lxc/storage_volume.go:1115
 #: lxc/storage_volume.go:1218 lxc/storage_volume.go:1417
 #: lxc/storage_volume.go:1532 lxc/storage_volume.go:1612
-#: lxc/storage_volume.go:1739 lxc/storage_volume.go:1829
+#: lxc/storage_volume.go:1740 lxc/storage_volume.go:1836
 #, fuzzy
 msgid "Missing pool name"
 msgstr "Nom de l'ensemble de stockage"
@@ -2872,13 +2943,13 @@ msgid "Only \"custom\" volumes can be attached to instances"
 msgstr ""
 "Seuls les volumes \"personnalisés\" peuvent être attachés aux conteneurs."
 
-#: lxc/storage_volume.go:1903
+#: lxc/storage_volume.go:1921
 #, fuzzy
 msgid "Only \"custom\" volumes can be exported"
 msgstr ""
 "Seuls les volumes \"personnalisés\" peuvent être attachés aux conteneurs."
 
-#: lxc/storage_volume.go:1747
+#: lxc/storage_volume.go:1753
 #, fuzzy
 msgid "Only \"custom\" volumes can be snapshotted"
 msgstr ""
@@ -2935,6 +3006,10 @@ msgstr ""
 msgid "PROFILES"
 msgstr "PROFILS"
 
+#: lxc/warning.go:207
+msgid "PROJECT"
+msgstr ""
+
 #: lxc/remote.go:584
 msgid "PROTOCOL"
 msgstr "PROTOCOLE"
@@ -2956,7 +3031,7 @@ msgstr "Paquets émis"
 msgid "Partitions:"
 msgstr "Options :"
 
-#: lxc/main.go:304
+#: lxc/main.go:308
 #, fuzzy, c-format
 msgid "Password for %s: "
 msgstr "Mot de passe administrateur pour %s : "
@@ -3384,7 +3459,7 @@ msgstr ""
 "Exemple :\n"
 "    lxc snapshot u1 snap0"
 
-#: lxc/storage_volume.go:1805 lxc/storage_volume.go:1806
+#: lxc/storage_volume.go:1811 lxc/storage_volume.go:1812
 #, fuzzy
 msgid "Restore storage volume snapshots"
 msgstr "Forcer le conteneur à s'arrêter"
@@ -3405,6 +3480,10 @@ msgstr "Récupération de l'image : %s"
 
 #: lxc/action.go:112
 msgid "Run against all instances"
+msgstr ""
+
+#: lxc/warning.go:208
+msgid "SEVERITY"
 msgstr ""
 
 #: lxc/image.go:1026
@@ -3431,7 +3510,7 @@ msgstr "ÉTAT"
 msgid "STATIC"
 msgstr "STATIQUE"
 
-#: lxc/operation.go:161
+#: lxc/operation.go:161 lxc/warning.go:209
 #, fuzzy
 msgid "STATUS"
 msgstr "ÉTAT"
@@ -3658,7 +3737,7 @@ msgstr "Afficher la configuration étendue"
 msgid "Show instance or server information"
 msgstr "Afficher des informations supplémentaires"
 
-#: lxc/main.go:223 lxc/main.go:224
+#: lxc/main.go:227 lxc/main.go:228
 #, fuzzy
 msgid "Show less common commands"
 msgstr "Afficher les commandes moins communes"
@@ -3739,6 +3818,10 @@ msgstr ""
 
 #: lxc/storage.go:392 lxc/storage.go:393
 msgid "Show useful information about storage pools"
+msgstr ""
+
+#: lxc/warning.go:286 lxc/warning.go:287
+msgid "Show warning"
 msgstr ""
 
 #: lxc/image.go:910
@@ -3892,6 +3975,7 @@ msgstr ""
 
 #: lxc/image.go:1028 lxc/image_alias.go:233 lxc/list.go:502 lxc/network.go:895
 #: lxc/network.go:970 lxc/operation.go:159 lxc/storage_volume.go:1269
+#: lxc/warning.go:210
 msgid "TYPE"
 msgstr "TYPE"
 
@@ -3986,7 +4070,7 @@ msgstr "le périphérique indiqué ne correspond pas au réseau"
 msgid "There is no \"image name\".  Did you want an alias?"
 msgstr "Il n'existe pas d'\"image\".  Vouliez-vous un alias ?"
 
-#: lxc/main.go:242
+#: lxc/main.go:246
 msgid ""
 "This client hasn't been configured to use a remote LXD server yet.\n"
 "As your platform can't run native Linux instances, you must connect to a "
@@ -4024,7 +4108,7 @@ msgstr "Pour créer un réseau, utiliser : lxc network create"
 msgid "To detach from the console, press: <ctrl>+a q"
 msgstr ""
 
-#: lxc/main.go:341
+#: lxc/main.go:345
 #, fuzzy
 msgid "To start your first instance, try: lxc launch ubuntu:18.04"
 msgstr ""
@@ -4109,6 +4193,10 @@ msgstr ""
 msgid "USED BY"
 msgstr "UTILISÉ PAR"
 
+#: lxc/warning.go:211
+msgid "UUID"
+msgstr ""
+
 #: lxc/info.go:131
 #, c-format
 msgid "UUID: %v"
@@ -4120,6 +4208,7 @@ msgid "Unable to create a temporary file: %v"
 msgstr ""
 
 #: lxc/image.go:1043 lxc/list.go:547 lxc/storage_volume.go:1300
+#: lxc/warning.go:226
 #, c-format
 msgid "Unknown column shorthand char '%c' in '%s'"
 msgstr ""
@@ -4188,7 +4277,7 @@ msgstr ""
 msgid "Uploaded: %s"
 msgstr "Publié : %s"
 
-#: lxc/export.go:42 lxc/storage_volume.go:1872
+#: lxc/export.go:42 lxc/storage_volume.go:1884
 msgid ""
 "Use storage driver optimized format (can only be restored on a similar pool)"
 msgstr ""
@@ -4304,6 +4393,7 @@ msgstr ""
 #: lxc/cluster.go:71 lxc/config_trust.go:244 lxc/monitor.go:28
 #: lxc/network.go:823 lxc/network_acl.go:85 lxc/operation.go:99
 #: lxc/profile.go:574 lxc/project.go:386 lxc/storage.go:510 lxc/version.go:20
+#: lxc/warning.go:64
 #, fuzzy
 msgid "[<remote>:]"
 msgstr "Serveur distant : %s"
@@ -4880,7 +4970,7 @@ msgstr ""
 "\n"
 "lxc %s [<remote>:]<container> [[<remote>:]<container>...]%s"
 
-#: lxc/storage_volume.go:2000
+#: lxc/storage_volume.go:2018
 #, fuzzy
 msgid "[<remote>:]<pool> <backup file> [<volume name>]"
 msgstr ""
@@ -4966,7 +5056,7 @@ msgstr ""
 "\n"
 "lxc %s [<remote>:]<container> [[<remote>:]<container>...]%s"
 
-#: lxc/storage_volume.go:1804
+#: lxc/storage_volume.go:1810
 #, fuzzy
 msgid "[<remote>:]<pool> <volume> <snapshot>"
 msgstr ""
@@ -4978,7 +5068,7 @@ msgstr ""
 "Détruit les conteneurs ou les instantanés ainsi que toute donnée associée "
 "(configuration, instantanés, …)."
 
-#: lxc/storage_volume.go:1865
+#: lxc/storage_volume.go:1877
 #, fuzzy
 msgid "[<remote>:]<pool> <volume> [<path>]"
 msgstr ""
@@ -5144,6 +5234,18 @@ msgstr ""
 #: lxc/copy.go:37
 #, fuzzy
 msgid "[<remote>:]<source>[/<snapshot>] [[<remote>:]<destination>]"
+msgstr ""
+"Supprimer des conteneurs ou des instantanés.\n"
+"\n"
+"lxc delete [<remote>:]<container>[/<snapshot>] [<remote>:][<container>[/"
+"<snapshot>]...]\n"
+"\n"
+"Détruit les conteneurs ou les instantanés ainsi que toute donnée associée "
+"(configuration, instantanés, …)."
+
+#: lxc/warning.go:244 lxc/warning.go:285 lxc/warning.go:332
+#, fuzzy
+msgid "[<remote>:]<warning-uuid>"
 msgstr ""
 "Supprimer des conteneurs ou des instantanés.\n"
 "\n"
@@ -5480,7 +5582,7 @@ msgid ""
 "    Update a storage volume using the content of pool.yaml."
 msgstr ""
 
-#: lxc/storage_volume.go:2004
+#: lxc/storage_volume.go:2022
 msgid ""
 "lxc storage volume import default backup0.tar.gz\n"
 "\t\tCreate a new custom volume using backup0.tar.gz as the source."
