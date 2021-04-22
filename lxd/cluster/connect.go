@@ -21,6 +21,9 @@ import (
 	"github.com/lxc/lxd/shared/version"
 )
 
+// ErrCertificateExists indicates that a certificate already exists.
+var ErrCertificateExists error = fmt.Errorf("Certificate already in trust store")
+
 // Connect is a convenience around lxd.ConnectLXD that configures the client
 // with the correct parameters for node-to-node communication.
 //
