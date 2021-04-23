@@ -40,8 +40,8 @@ func snapshotIsScheduledNow(spec string, subjectID int64) bool {
 func buildCronSpecs(spec string, subjectID int64) []string {
 	var result []string
 
-	if strings.Contains(spec, ",") {
-		for _, curSpec := range strings.Split(strings.ReplaceAll(spec, ", ", ","), ",") {
+	if strings.Contains(spec, ", ") {
+		for _, curSpec := range strings.Split(spec, ", ") {
 			result = append(result, getCronSyntax(curSpec, subjectID))
 		}
 	} else {
