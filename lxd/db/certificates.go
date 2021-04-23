@@ -114,6 +114,12 @@ func (c *ClusterTx) UpdateCertificateProjects(id int, projects []string) error {
 	return nil
 }
 
+// DeleteCertificateByNameAndType deletes the certificate(s) matching the given name and certificate type.
+func (c *ClusterTx) DeleteCertificateByNameAndType(name string, certType int) error {
+	_, err := c.tx.Exec("DELETE FROM certificates WHERE name = ? and type = ?", name, certType)
+	return err
+}
+
 // CertificateFilter can be used to filter results yielded by GetCertInfos
 type CertificateFilter struct {
 	Fingerprint string // Matched with LIKE
