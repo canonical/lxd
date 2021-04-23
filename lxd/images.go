@@ -1428,7 +1428,7 @@ func autoUpdateImages(ctx context.Context, d *Daemon) error {
 				continue
 			}
 
-			newInfo, err := autoUpdateImage(ctx, d, nil, image.ID, imageInfo, image.Project)
+			newInfo, err := autoUpdateImage(ctx, d, nil, image.ID, imageInfo, image.Project, false)
 			if err != nil {
 				logger.Error("Failed to update image", log.Ctx{"err": err, "project": image.Project, "fingerprint": image.Fingerprint})
 
@@ -1663,7 +1663,7 @@ func distributeImage(ctx context.Context, d *Daemon, nodes []string, oldFingerpr
 
 // Update a single image.  The operation can be nil, if no progress tracking is needed.
 // Returns whether the image has been updated.
-func autoUpdateImage(ctx context.Context, d *Daemon, op *operations.Operation, id int, info *api.Image, projectName string) (*api.Image, error) {
+func autoUpdateImage(ctx context.Context, d *Daemon, op *operations.Operation, id int, info *api.Image, projectName string, manual bool) (*api.Image, error) {
 	fingerprint := info.Fingerprint
 	var source api.ImageSource
 
@@ -3283,7 +3283,7 @@ func imageRefresh(d *Daemon, r *http.Request) response.Response {
 
 	// Begin background operation
 	run := func(op *operations.Operation) error {
-		_, err := autoUpdateImage(d.ctx, d, op, imageId, imageInfo, projectName)
+		_, err := autoUpdateImage(d.ctx, d, op, imageId, imageInfo, projectName, true)
 		return err
 	}
 
