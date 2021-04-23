@@ -276,12 +276,20 @@ test_snap_schedule() {
   ensure_has_localhost_remote "${LXD_ADDR}"
 
   # Check we get a snapshot on first start
-  lxc launch testimage c1 -c snapshots.schedule=@startup
+  lxc launch testimage c1 -c snapshots.schedule='@startup'
+  lxc launch testimage c2 -c snapshots.schedule='@startup, @daily'
+  lxc launch testimage c3 -c snapshots.schedule='@startup, 10 5,6 * * *'
+  lxc launch testimage c4 -c snapshots.schedule='@startup, 10 5-8 * * *'
+  lxc launch testimage c5 -c snapshots.schedule='@startup, 10 2,5-8/2 * * *'
   lxc info c1 | grep -q snap0
+  lxc info c2 | grep -q snap0
+  lxc info c3 | grep -q snap0
+  lxc info c4 | grep -q snap0
+  lxc info c5 | grep -q snap0
 
   # Check we get a new snapshot on restart
   lxc restart c1 -f
   lxc info c1 | grep -q snap1
 
-  lxc rm -f c1
+  lxc rm -f c1 c2 c3 c4 c5
 }
