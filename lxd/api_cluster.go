@@ -1428,6 +1428,11 @@ func clusterNodeDelete(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(errors.Wrap(err, "Failed to remove member from database"))
 	}
 
+	// Refresh the trusted certificate cache now that the member certificate has been removed.
+	// We do not need to notify the other members here because the next heartbeat will trigger member change
+	// detection and updateCertificateCache is called as part of that.
+	updateCertificateCache(d)
+
 	err = rebalanceMemberRoles(d)
 	if err != nil {
 		logger.Warnf("Failed to rebalance dqlite nodes: %v", err)
