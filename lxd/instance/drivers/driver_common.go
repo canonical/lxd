@@ -650,7 +650,13 @@ func (d *common) isRunningStatusCode(statusCode api.StatusCode) bool {
 
 // startupSnapshot triggers a snapshot if configured.
 func (d *common) startupSnapshot(inst instance.Instance) error {
-	if strings.ToLower(d.expandedConfig["snapshots.schedule"]) != "@startup" {
+	schedule := strings.ToLower(d.expandedConfig["snapshots.schedule"])
+	if schedule == "" {
+		return nil
+	}
+
+	triggers := strings.Split(schedule, ", ")
+	if !shared.StringInSlice("@startup", triggers) {
 		return nil
 	}
 
