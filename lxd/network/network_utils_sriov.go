@@ -16,6 +16,7 @@ import (
 	deviceConfig "github.com/lxc/lxd/lxd/device/config"
 	"github.com/lxc/lxd/lxd/device/pci"
 	"github.com/lxc/lxd/lxd/instance/instancetype"
+	"github.com/lxc/lxd/lxd/ip"
 	"github.com/lxc/lxd/lxd/state"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
@@ -151,7 +152,8 @@ func SRIOVFindFreeVirtualFunction(s *state.State, parentDev string) (string, int
 	}
 
 	// Ensure parent is up (needed for Intel at least).
-	_, err = shared.RunCommand("ip", "link", "set", "dev", parentDev, "up")
+	link := &ip.Link{Name: parentDev}
+	err = link.SetUp()
 	if err != nil {
 		return "", -1, err
 	}
