@@ -24,6 +24,7 @@ import (
 	"github.com/lxc/lxd/lxd/dnsmasq/dhcpalloc"
 	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/instance/instancetype"
+	"github.com/lxc/lxd/lxd/ip"
 	"github.com/lxc/lxd/lxd/project"
 	"github.com/lxc/lxd/lxd/state"
 	"github.com/lxc/lxd/lxd/util"
@@ -742,7 +743,8 @@ type NeighbourIP struct {
 
 // GetNeighbourIPs returns the IP addresses in the neighbour cache for a particular interface and MAC.
 func GetNeighbourIPs(interfaceName string, hwaddr string) ([]NeighbourIP, error) {
-	out, err := shared.RunCommand("ip", "neigh", "show", "dev", interfaceName)
+	neigh := &ip.Neigh{DevName: interfaceName}
+	out, err := neigh.Show()
 	if err != nil {
 		return nil, errors.Wrapf(err, "Failed to get IP neighbours for interface %q", interfaceName)
 	}
@@ -901,15 +903,29 @@ func VLANInterfaceCreate(parent string, vlanDevice string, vlanID string) (bool,
 	}
 
 	// Bring the parent interface up so we can add a vlan to it.
-	_, err := shared.RunCommand("ip", "link", "set", "dev", parent, "up")
+	link := &ip.Link{Name: parent}
+	err := link.SetUp()
 	if err != nil {
 		return false, errors.Wrapf(err, "Failed to bring up parent %q", parent)
 	}
 
 	// Add VLAN interface on top of parent.
-	_, err = shared.RunCommand("ip", "link", "add", "link", parent, "name", vlanDevice, "up", "type", "vlan", "id", vlanID)
+	vlan := &ip.Vlan{
+		Link: ip.Link{
+			Name:   vlanDevice,
+			Parent: parent,
+		},
+		VlanID: vlanID,
+	}
+
+	err = vlan.Add()
 	if err != nil {
 		return false, errors.Wrapf(err, "Failed to create VLAN interface %q on %q", vlanDevice, parent)
+	}
+
+	err = vlan.SetUp()
+	if err != nil {
+		return false, errors.Wrapf(err, "Failed to bring up interface %q", vlanDevice)
 	}
 
 	// Attempt to disable IPv6 router advertisement acceptance.
@@ -921,7 +937,8 @@ func VLANInterfaceCreate(parent string, vlanDevice string, vlanID string) (bool,
 
 // InterfaceRemove removes a network interface by name.
 func InterfaceRemove(nic string) error {
-	_, err := shared.RunCommand("ip", "link", "del", "dev", nic)
+	link := &ip.Link{Name: nic}
+	err := link.Delete()
 	return err
 }
 
@@ -937,7 +954,8 @@ func InterfaceExists(nic string) bool {
 // InterfaceSetMTU sets the MTU of a network interface.
 func InterfaceSetMTU(nic string, mtu string) error {
 	if mtu != "" {
-		_, err := shared.RunCommand("ip", "link", "set", "dev", nic, "mtu", mtu)
+		link := &ip.Link{Name: nic}
+		err := link.SetMtu(mtu)
 		if err != nil {
 			return errors.Wrapf(err, "Failed setting MTU %q on %q", mtu, nic)
 		}
