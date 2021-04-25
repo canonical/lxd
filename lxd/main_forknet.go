@@ -9,6 +9,7 @@ import (
 	// Used by cgo
 	_ "github.com/lxc/lxd/lxd/include"
 
+	"github.com/lxc/lxd/lxd/ip"
 	"github.com/lxc/lxd/shared/netutils"
 )
 
@@ -117,7 +118,6 @@ void forknet(void)
 }
 */
 import "C"
-import "github.com/lxc/lxd/shared"
 
 type cmdForknet struct {
 	global *cmdGlobal
@@ -188,13 +188,28 @@ func (c *cmdForknet) RunDetach(cmd *cobra.Command, args []string) error {
 
 	// Remove all IP addresses from interface before moving to parent netns.
 	// This is to avoid any container address config leaking into host.
-	_, err := shared.RunCommand("ip", "address", "flush", "dev", ifName)
+	addr := &ip.Addr{
+		DevName: ifName,
+	}
+	err := addr.Flush()
 	if err != nil {
 		return err
 	}
 
 	// Rename the interface, set it down, and move into parent netns.
-	_, err = shared.RunCommand("ip", "link", "set", ifName, "down", "name", hostName, "netns", lxdPID)
+	link := &ip.Link{Name: ifName}
+	err = link.SetDown()
+	if err != nil {
+		return err
+	}
+
+	err = link.SetName(hostName)
+	if err != nil {
+		return err
+	}
+
+	link = &ip.Link{Name: hostName}
+	err = link.SetNetns(lxdPID)
 	if err != nil {
 		return err
 	}
