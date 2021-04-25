@@ -10,6 +10,7 @@ import (
 	deviceConfig "github.com/lxc/lxd/lxd/device/config"
 	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/instance/instancetype"
+	"github.com/lxc/lxd/lxd/ip"
 	"github.com/lxc/lxd/lxd/network"
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
@@ -341,7 +342,12 @@ func (d *nicRouted) postStart() error {
 		// Add dummy link-local gateway IPs to the host end of the veth pair. This ensures that
 		// liveness detection of the gateways inside the instance work and ensure that traffic
 		// doesn't periodically halt whilst ARP is re-detected.
-		_, err := shared.RunCommand("ip", "-4", "addr", "add", fmt.Sprintf("%s/32", d.ipv4HostAddress()), "dev", d.config["host_name"])
+		addr := &ip.Addr{
+			DevName: d.config["host_name"],
+			Address: fmt.Sprintf("%s/32", d.ipv4HostAddress()),
+			Family:  ip.FamilyV4,
+		}
+		err := addr.Add()
 		if err != nil {
 			return err
 		}
@@ -351,7 +357,12 @@ func (d *nicRouted) postStart() error {
 		// Add dummy link-local gateway IPs to the host end of the veth pair. This ensures that
 		// liveness detection of the gateways inside the instance work and ensure that traffic
 		// doesn't periodically halt whilst NDP is re-detected.
-		_, err := shared.RunCommand("ip", "-6", "addr", "add", fmt.Sprintf("%s/128", d.ipv6HostAddress()), "dev", d.config["host_name"])
+		addr := &ip.Addr{
+			DevName: d.config["host_name"],
+			Address: fmt.Sprintf("%s/128", d.ipv6HostAddress()),
+			Family:  ip.FamilyV6,
+		}
+		err := addr.Add()
 		if err != nil {
 			return err
 		}
@@ -395,7 +406,11 @@ func (d *nicRouted) postStop() error {
 	for _, key := range []string{"ipv4.address", "ipv6.address"} {
 		if d.config[key] != "" {
 			for _, addr := range strings.Split(d.config[key], ",") {
-				shared.RunCommand("ip", "neigh", "delete", "proxy", strings.TrimSpace(addr), "dev", d.config["parent"])
+				neigh := &ip.Neigh{
+					DevName: d.config["parent"],
+					Proxy:   strings.TrimSpace(addr),
+				}
+				neigh.Delete()
 			}
 		}
 	}

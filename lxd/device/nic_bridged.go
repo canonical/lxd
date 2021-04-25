@@ -23,6 +23,7 @@ import (
 	firewallDrivers "github.com/lxc/lxd/lxd/firewall/drivers"
 	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/instance/instancetype"
+	"github.com/lxc/lxd/lxd/ip"
 	"github.com/lxc/lxd/lxd/network"
 	"github.com/lxc/lxd/lxd/resources"
 	"github.com/lxc/lxd/lxd/revert"
@@ -354,11 +355,12 @@ func (d *nicBridged) Update(oldDevices deviceConfig.Devices, isRunning bool) err
 	// veth interface to give the instance a chance to detect the change and re-apply for an
 	// updated lease with new IP address.
 	if d.config["ipv6.address"] != oldConfig["ipv6.address"] && d.config["host_name"] != "" && shared.PathExists(fmt.Sprintf("/sys/class/net/%s", d.config["host_name"])) {
-		_, err := shared.RunCommand("ip", "link", "set", d.config["host_name"], "down")
+		link := &ip.Link{Name: d.config["host_name"]}
+		err := link.SetDown()
 		if err != nil {
 			return err
 		}
-		_, err = shared.RunCommand("ip", "link", "set", d.config["host_name"], "up")
+		err = link.SetUp()
 		if err != nil {
 			return err
 		}

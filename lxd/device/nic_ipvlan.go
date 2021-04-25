@@ -7,6 +7,7 @@ import (
 	deviceConfig "github.com/lxc/lxd/lxd/device/config"
 	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/instance/instancetype"
+	"github.com/lxc/lxd/lxd/ip"
 	"github.com/lxc/lxd/lxd/network"
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
@@ -287,7 +288,13 @@ func (d *nicIPVLAN) postStop() error {
 		if d.config["ipv4.host_table"] != "" {
 			for _, addr := range strings.Split(d.config["ipv4.address"], ",") {
 				addr = strings.TrimSpace(addr)
-				_, err := shared.RunCommand("ip", "-4", "route", "delete", "table", d.config["ipv4.host_table"], fmt.Sprintf("%s/32", addr), "dev", "lo")
+				r := &ip.Route{
+					DevName: "lo",
+					Route:   fmt.Sprintf("%s/32", addr),
+					Table:   d.config["ipv4.host_table"],
+					Family:  ip.FamilyV4,
+				}
+				err := r.Delete()
 				if err != nil {
 					errs = append(errs, err)
 				}
@@ -300,7 +307,13 @@ func (d *nicIPVLAN) postStop() error {
 		if d.config["ipv6.host_table"] != "" {
 			for _, addr := range strings.Split(d.config["ipv6.address"], ",") {
 				addr = strings.TrimSpace(addr)
-				_, err := shared.RunCommand("ip", "-6", "route", "delete", "table", d.config["ipv6.host_table"], fmt.Sprintf("%s/128", addr), "dev", "lo")
+				r := &ip.Route{
+					DevName: "lo",
+					Route:   fmt.Sprintf("%s/128", addr),
+					Table:   d.config["ipv6.host_table"],
+					Family:  ip.FamilyV6,
+				}
+				err := r.Delete()
 				if err != nil {
 					errs = append(errs, err)
 				}

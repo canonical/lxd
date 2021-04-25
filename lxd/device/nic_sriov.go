@@ -16,6 +16,7 @@ import (
 	pcidev "github.com/lxc/lxd/lxd/device/pci"
 	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/instance/instancetype"
+	"github.com/lxc/lxd/lxd/ip"
 	"github.com/lxc/lxd/lxd/network"
 	"github.com/lxc/lxd/lxd/revert"
 	"github.com/lxc/lxd/lxd/util"
@@ -105,7 +106,8 @@ func (d *nicSRIOV) Start() (*deviceConfig.RunConfig, error) {
 
 		// Set the MAC address.
 		if d.config["hwaddr"] != "" {
-			_, err := shared.RunCommand("ip", "link", "set", "dev", saveData["host_name"], "address", d.config["hwaddr"])
+			link := &ip.Link{Name: saveData["host_name"]}
+			err := link.SetAddress(d.config["hwaddr"])
 			if err != nil {
 				return nil, errors.Wrapf(err, "Failed setting MAC address %q on %q", d.config["hwaddr"], saveData["host_name"])
 			}
@@ -122,7 +124,8 @@ func (d *nicSRIOV) Start() (*deviceConfig.RunConfig, error) {
 		}
 
 		// Bring the interface up.
-		_, err = shared.RunCommand("ip", "link", "set", "dev", saveData["host_name"], "up")
+		link := &ip.Link{Name: saveData["host_name"]}
+		err = link.SetUp()
 		if err != nil {
 			if macSet {
 				return nil, errors.Wrapf(err, "Failed to bring up VF interface %q", saveData["host_name"])
@@ -149,12 +152,13 @@ func (d *nicSRIOV) Start() (*deviceConfig.RunConfig, error) {
 				return nil, errors.Wrapf(err, "Failed generating random MAC for VF %q", saveData["host_name"])
 			}
 
-			_, err = shared.RunCommand("ip", "link", "set", "dev", saveData["host_name"], "address", randMAC)
+			link := &ip.Link{Name: saveData["host_name"]}
+			err = link.SetAddress(randMAC)
 			if err != nil {
 				return nil, errors.Wrapf(err, "Failed to set random MAC address %q on %q", randMAC, saveData["host_name"])
 			}
 
-			_, err = shared.RunCommand("ip", "link", "set", "dev", saveData["host_name"], "up")
+			err = link.SetUp()
 			if err != nil {
 				return nil, errors.Wrapf(err, "Failed to bring up VF interface %q", saveData["host_name"])
 			}
@@ -268,7 +272,8 @@ func (d *nicSRIOV) setupSriovParent(vfDevice string, vfID int, volatile map[stri
 
 	// Setup VF VLAN if specified.
 	if d.config["vlan"] != "" {
-		_, err := shared.TryRunCommand("ip", "link", "set", "dev", d.config["parent"], "vf", volatile["last_state.vf.id"], "vlan", d.config["vlan"])
+		link := &ip.Link{Name: d.config["parent"]}
+		err := link.SetVfVlan(volatile["last_state.vf.id"], d.config["vlan"])
 		if err != nil {
 			return vfPCIDev, err
 		}
@@ -285,13 +290,14 @@ func (d *nicSRIOV) setupSriovParent(vfDevice string, vfID int, volatile map[stri
 		}
 
 		// Set MAC on VF (this combined with spoof checking prevents any other MAC being used).
-		_, err = shared.TryRunCommand("ip", "link", "set", "dev", d.config["parent"], "vf", volatile["last_state.vf.id"], "mac", mac)
+		link := &ip.Link{Name: d.config["parent"]}
+		err = link.SetVfAddress(volatile["last_state.vf.id"], mac)
 		if err != nil {
 			return vfPCIDev, err
 		}
 
 		// Now that MAC is set on VF, we can enable spoof checking.
-		_, err = shared.TryRunCommand("ip", "link", "set", "dev", d.config["parent"], "vf", volatile["last_state.vf.id"], "spoofchk", "on")
+		err = link.SetVfSpoofchk(volatile["last_state.vf.id"], "on")
 		if err != nil {
 			return vfPCIDev, err
 		}
@@ -299,10 +305,14 @@ func (d *nicSRIOV) setupSriovParent(vfDevice string, vfID int, volatile map[stri
 		// Try to reset VF to ensure no previous MAC restriction exists, as some devices require this
 		// before being able to set a new VF MAC or disable spoofchecking. However some devices don't
 		// allow it so ignore failures.
-		shared.TryRunCommand("ip", "link", "set", "dev", d.config["parent"], "vf", volatile["last_state.vf.id"], "mac", "00:00:00:00:00:00")
+		link := &ip.Link{Name: d.config["parent"]}
+		err = link.SetVfAddress(volatile["last_state.vf.id"], "00:00:00:00:00:00")
+		if err != nil {
+			return vfPCIDev, err
+		}
 
 		// Ensure spoof checking is disabled if not enabled in instance.
-		_, err = shared.TryRunCommand("ip", "link", "set", "dev", d.config["parent"], "vf", volatile["last_state.vf.id"], "spoofchk", "off")
+		err = link.SetVfSpoofchk(volatile["last_state.vf.id"], "off")
 		if err != nil {
 			return vfPCIDev, err
 		}
@@ -315,7 +325,7 @@ func (d *nicSRIOV) setupSriovParent(vfDevice string, vfID int, volatile map[stri
 				mac = volatile["last_state.hwaddr"]
 			}
 
-			_, err = shared.TryRunCommand("ip", "link", "set", "dev", d.config["parent"], "vf", volatile["last_state.vf.id"], "mac", mac)
+			err = link.SetVfAddress(volatile["last_state.vf.id"], mac)
 			if err != nil {
 				return vfPCIDev, err
 			}
@@ -535,7 +545,8 @@ func (d *nicSRIOV) restoreSriovParent(volatile map[string]string) error {
 
 	// Reset VF VLAN if specified
 	if volatile["last_state.vf.vlan"] != "" {
-		_, err := shared.TryRunCommand("ip", "link", "set", "dev", d.config["parent"], "vf", volatile["last_state.vf.id"], "vlan", volatile["last_state.vf.vlan"])
+		link := &ip.Link{Name: d.config["parent"]}
+		err := link.SetVfVlan(volatile["last_state.vf.id"], volatile["last_state.vf.vlan"])
 		if err != nil {
 			return err
 		}
@@ -549,7 +560,8 @@ func (d *nicSRIOV) restoreSriovParent(volatile map[string]string) error {
 			mode = "on"
 		}
 
-		_, err := shared.TryRunCommand("ip", "link", "set", "dev", d.config["parent"], "vf", volatile["last_state.vf.id"], "spoofchk", mode)
+		link := &ip.Link{Name: d.config["parent"]}
+		err := link.SetVfSpoofchk(volatile["last_state.vf.id"], mode)
 		if err != nil {
 			return err
 		}
@@ -557,7 +569,8 @@ func (d *nicSRIOV) restoreSriovParent(volatile map[string]string) error {
 
 	// Reset VF MAC specified if specified.
 	if volatile["last_state.vf.hwaddr"] != "" {
-		_, err := shared.TryRunCommand("ip", "link", "set", "dev", d.config["parent"], "vf", volatile["last_state.vf.id"], "mac", volatile["last_state.vf.hwaddr"])
+		link := &ip.Link{Name: d.config["parent"]}
+		err := link.SetVfAddress(volatile["last_state.vf.id"], volatile["last_state.vf.hwaddr"])
 		if err != nil {
 			return err
 		}

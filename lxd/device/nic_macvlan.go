@@ -6,6 +6,7 @@ import (
 	deviceConfig "github.com/lxc/lxd/lxd/device/config"
 	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/instance/instancetype"
+	"github.com/lxc/lxd/lxd/ip"
 	"github.com/lxc/lxd/lxd/network"
 	"github.com/lxc/lxd/lxd/revert"
 	"github.com/lxc/lxd/shared"
@@ -92,13 +93,29 @@ func (d *nicMACVLAN) Start() (*deviceConfig.RunConfig, error) {
 
 	if d.inst.Type() == instancetype.Container {
 		// Create MACVLAN interface.
-		_, err = shared.RunCommand("ip", "link", "add", "dev", saveData["host_name"], "link", actualParentName, "type", "macvlan", "mode", "bridge")
+		macvlan := &ip.Macvlan{
+			Link: ip.Link{
+				Name:   saveData["host_name"],
+				Parent: actualParentName,
+			},
+			Mode: "bridge",
+		}
+		err = macvlan.Add()
 		if err != nil {
 			return nil, err
 		}
 	} else if d.inst.Type() == instancetype.VM {
 		// Create MACVTAP interface.
-		_, err = shared.RunCommand("ip", "link", "add", "dev", saveData["host_name"], "link", actualParentName, "type", "macvtap", "mode", "bridge")
+		macvtap := &ip.Macvtap{
+			Macvlan: ip.Macvlan{
+				Link: ip.Link{
+					Name:   saveData["host_name"],
+					Parent: actualParentName,
+				},
+				Mode: "bridge",
+			},
+		}
+		err = macvtap.Add()
 		if err != nil {
 			return nil, err
 		}
@@ -108,7 +125,8 @@ func (d *nicMACVLAN) Start() (*deviceConfig.RunConfig, error) {
 
 	// Set the MAC address.
 	if d.config["hwaddr"] != "" {
-		_, err := shared.RunCommand("ip", "link", "set", "dev", saveData["host_name"], "address", d.config["hwaddr"])
+		link := &ip.Link{Name: saveData["host_name"]}
+		err := link.SetAddress(d.config["hwaddr"])
 		if err != nil {
 			return nil, fmt.Errorf("Failed to set the MAC address: %s", err)
 		}
@@ -124,7 +142,8 @@ func (d *nicMACVLAN) Start() (*deviceConfig.RunConfig, error) {
 
 	if d.inst.Type() == instancetype.VM {
 		// Bring the interface up on host side.
-		_, err := shared.RunCommand("ip", "link", "set", "dev", saveData["host_name"], "up")
+		link := &ip.Link{Name: saveData["host_name"]}
+		err := link.SetUp()
 		if err != nil {
 			return nil, fmt.Errorf("Failed to bring up interface %s: %v", saveData["host_name"], err)
 		}
