@@ -27,6 +27,7 @@ import (
 	driver "github.com/lxc/lxd/lxd/storage"
 	storagePools "github.com/lxc/lxd/lxd/storage"
 	storageDrivers "github.com/lxc/lxd/lxd/storage/drivers"
+	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 	log "github.com/lxc/lxd/shared/log15"
@@ -115,6 +116,7 @@ var patches = []patch{
 	{name: "thinpool_typo_fix", stage: patchPostDaemonStorage, run: patchThinpoolTypoFix},
 	{name: "vm_rename_uuid_key", stage: patchPostDaemonStorage, run: patchVMRenameUUIDKey},
 	{name: "db_nodes_autoinc", stage: patchPreDaemonStorage, run: patchDBNodesAutoInc},
+	{name: "clustering_server_cert_trust", stage: patchPreDaemonStorage, run: patchClusteringServerCertTrust},
 }
 
 type patch struct {
@@ -178,6 +180,101 @@ func patchesApply(d *Daemon, stage patchStage) error {
 }
 
 // Patches begin here
+
+func patchClusteringServerCertTrust(name string, d *Daemon) error {
+	clustered, err := cluster.Enabled(d.db)
+	if err != nil {
+		return err
+	}
+
+	if !clustered {
+		return nil
+	}
+
+	var serverName string
+	err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
+		serverName, err = tx.GetLocalNodeName()
+		return err
+	})
+	if err != nil {
+		return err
+	}
+
+	// Add our server cert to DB trust store.
+	serverCert, err := util.LoadServerCert(d.os.VarDir)
+	if err != nil {
+		return err
+	}
+	// Update our own entry in the nodes table.
+	logger.Infof("Adding local server certificate to global trust store for %q patch", name)
+	err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
+		return cluster.EnsureServerCertificateTrusted(serverName, serverCert, tx)
+	})
+	if err != nil {
+		return err
+	}
+	logger.Infof("Added local server certificate to global trust store for %q patch", name)
+
+	// Check all other members have done the same.
+	for {
+		var err error
+		var dbCerts []db.Certificate
+		err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
+			dbCerts, err = tx.GetCertificates(db.CertificateFilter{})
+			return err
+		})
+		if err != nil {
+			return err
+		}
+
+		trustedServerCerts := make(map[string]*db.Certificate)
+
+		for _, c := range dbCerts {
+			if c.Type == db.CertificateTypeServer {
+				trustedServerCerts[c.Name] = &c
+			}
+		}
+
+		var nodes []db.NodeInfo
+		err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
+			nodes, err = tx.GetNodes()
+			if err != nil {
+				return err
+			}
+
+			return nil
+		})
+		if err != nil {
+			return err
+		}
+
+		missingCerts := false
+		for _, n := range nodes {
+			if _, found := trustedServerCerts[n.Name]; !found {
+				logger.Warnf("Missing trusted server certificate for cluster member %q", n.Name)
+				missingCerts = true
+				break
+			}
+		}
+
+		if missingCerts {
+			logger.Warnf("Waiting for %q patch to be applied on all cluster members", name)
+			time.Sleep(time.Second)
+			continue
+		}
+
+		logger.Infof("Trusted server certificates found in trust store for all cluster members")
+		break
+	}
+
+	// Now switch to using our server certificate for intra-cluster communication and load the trusted server
+	// certificates for the other members into the in-memory trusted cache.
+	logger.Infof("Set client certificate to server certificate %v", serverCert.Fingerprint())
+	d.serverCertInt = serverCert
+	updateCertificateCache(d)
+
+	return nil
+}
 
 // patchDBNodesAutoInc re-creates the nodes table id column as AUTOINCREMENT.
 // Its done as a patch rather than a schema update so we can use PRAGMA foreign_keys = OFF without a transaction.
