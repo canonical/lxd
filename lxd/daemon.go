@@ -1006,7 +1006,7 @@ func (d *Daemon) init() error {
 	d.firewall = firewall.New()
 	logger.Infof("Firewall loaded driver %q", d.firewall)
 
-	err = cluster.NotifyUpgradeCompleted(d.State(), networkCert, d.serverCert)
+	err = cluster.NotifyUpgradeCompleted(d.State(), networkCert, d.serverCert())
 	if err != nil {
 		// Ignore the error, since it's not fatal for this particular
 		// node. In most cases it just means that some nodes are

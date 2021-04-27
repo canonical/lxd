@@ -510,7 +510,7 @@ func networksPostCluster(d *Daemon, netInfo *api.Network, req api.NetworksPost, 
 	}
 
 	// Create notifier for other nodes to create the network.
-	notifier, err := cluster.NewNotifier(d.State(), d.endpoints.NetworkCert(), cluster.NotifyAll)
+	notifier, err := cluster.NewNotifier(d.State(), d.endpoints.NetworkCert(), d.serverCert(), cluster.NotifyAll)
 	if err != nil {
 		return err
 	}
@@ -844,7 +844,7 @@ func networkDelete(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 	if clustered {
-		notifier, err := cluster.NewNotifier(d.State(), d.endpoints.NetworkCert(), cluster.NotifyAll)
+		notifier, err := cluster.NewNotifier(d.State(), d.endpoints.NetworkCert(), d.serverCert(), cluster.NotifyAll)
 		if err != nil {
 			return response.SmartError(err)
 		}
@@ -1368,7 +1368,7 @@ func networkLeasesGet(d *Daemon, r *http.Request) response.Response {
 
 	// Collect leases from other servers.
 	if !isClusterNotification(r) {
-		notifier, err := cluster.NewNotifier(d.State(), d.endpoints.NetworkCert(), cluster.NotifyAlive)
+		notifier, err := cluster.NewNotifier(d.State(), d.endpoints.NetworkCert(), d.serverCert(), cluster.NotifyAlive)
 		if err != nil {
 			return response.SmartError(err)
 		}
