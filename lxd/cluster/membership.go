@@ -2,6 +2,8 @@ package cluster
 
 import (
 	"context"
+	"crypto/x509"
+	"encoding/pem"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -26,10 +28,10 @@ import (
 //
 // This instance must already have its cluster.https_address set and be listening
 // on the associated network address.
-func Bootstrap(state *state.State, gateway *Gateway, name string) error {
+func Bootstrap(state *state.State, gateway *Gateway, serverName string) error {
 	// Check parameters
-	if name == "" {
-		return fmt.Errorf("node name must not be empty")
+	if serverName == "" {
+		return fmt.Errorf("Server name must not be empty")
 	}
 
 	err := membershipCheckNoLeftoverClusterCert(state.OS.VarDir)
@@ -75,9 +77,14 @@ func Bootstrap(state *state.State, gateway *Gateway, name string) error {
 		}
 
 		// Add ourselves to the nodes table.
-		err = tx.UpdateNode(1, name, address)
+		err = tx.UpdateNode(1, serverName, address)
 		if err != nil {
-			return errors.Wrap(err, "failed to update cluster node")
+			return errors.Wrap(err, "Failed updating cluster member")
+		}
+
+		err = EnsureServerCertificateTrusted(serverName, state.ServerCert(), tx)
+		if err != nil {
+			return errors.Wrap(err, "Failed ensuring server certificate is trusted")
 		}
 
 		return nil
@@ -85,6 +92,10 @@ func Bootstrap(state *state.State, gateway *Gateway, name string) error {
 	if err != nil {
 		return err
 	}
+
+	// Reload the trusted certificate cache to enable the certificate we just added to the local trust store
+	// to be used when validating endpoint connections. This will allow Dqlite to connect to ourselves.
+	state.UpdateCertificateCache()
 
 	// Shutdown the gateway. This will trash any dqlite connection against
 	// our in-memory dqlite driver and shutdown the associated raft
@@ -117,7 +128,7 @@ func Bootstrap(state *state.State, gateway *Gateway, name string) error {
 
 	// If endpoint listeners are active, apply new cluster certificate.
 	if state.Endpoints != nil {
-		gateway.cert = clusterCert
+		gateway.networkCert = clusterCert
 		state.Endpoints.NetworkUpdateCert(clusterCert)
 	}
 
