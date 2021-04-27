@@ -187,8 +187,7 @@ func operationGet(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	cert := d.endpoints.NetworkCert()
-	client, err := cluster.Connect(address, cert, false)
+	client, err := cluster.Connect(address, d.endpoints.NetworkCert(), d.serverCert(), false)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -254,8 +253,7 @@ func operationDelete(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	cert := d.endpoints.NetworkCert()
-	client, err := cluster.Connect(address, cert, false)
+	client, err := cluster.Connect(address, d.endpoints.NetworkCert(), d.serverCert(), false)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -472,14 +470,14 @@ func operationsGet(d *Daemon, r *http.Request) response.Response {
 		return response.InternalError(err)
 	}
 
-	cert := d.endpoints.NetworkCert()
+	networkCert := d.endpoints.NetworkCert()
 	for _, node := range nodes {
 		if node == localAddress {
 			continue
 		}
 
 		// Connect to the remote server
-		client, err := cluster.Connect(node, cert, true)
+		client, err := cluster.Connect(node, networkCert, d.serverCert(), true)
 		if err != nil {
 			return response.SmartError(err)
 		}
@@ -641,8 +639,7 @@ func operationWaitGet(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	cert := d.endpoints.NetworkCert()
-	client, err := cluster.Connect(address, cert, false)
+	client, err := cluster.Connect(address, d.endpoints.NetworkCert(), d.serverCert(), false)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -776,8 +773,7 @@ func operationWebsocketGet(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	cert := d.endpoints.NetworkCert()
-	client, err := cluster.Connect(address, cert, false)
+	client, err := cluster.Connect(address, d.endpoints.NetworkCert(), d.serverCert(), false)
 	if err != nil {
 		return response.SmartError(err)
 	}

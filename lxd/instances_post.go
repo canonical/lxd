@@ -788,8 +788,7 @@ func instancesPost(d *Daemon, r *http.Request) response.Response {
 			return response.SmartError(err)
 		}
 		if address != "" {
-			cert := d.endpoints.NetworkCert()
-			client, err := cluster.Connect(address, cert, false)
+			client, err := cluster.Connect(address, d.endpoints.NetworkCert(), d.serverCert(), false)
 			if err != nil {
 				return response.SmartError(err)
 			}
@@ -995,7 +994,7 @@ func clusterCopyContainerInternal(d *Daemon, source instance.Instance, projectNa
 	}
 
 	// Connect to the container source
-	client, err := cluster.Connect(nodeAddress, d.endpoints.NetworkCert(), false)
+	client, err := cluster.Connect(nodeAddress, d.endpoints.NetworkCert(), d.serverCert(), false)
 	if err != nil {
 		return response.SmartError(err)
 	}
