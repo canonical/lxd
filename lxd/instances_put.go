@@ -168,7 +168,7 @@ func instancesPut(d *Daemon, r *http.Request) response.Response {
 		failuresLock := sync.Mutex{}
 		wgAction := sync.WaitGroup{}
 
-		cert := d.endpoints.NetworkCert()
+		networkCert := d.endpoints.NetworkCert()
 		for _, node := range nodes {
 			wgAction.Add(1)
 			go func(node db.NodeInfo) {
@@ -186,7 +186,7 @@ func instancesPut(d *Daemon, r *http.Request) response.Response {
 				}
 
 				// Connect to the remote server.
-				client, err := cluster.Connect(node.Address, cert, true)
+				client, err := cluster.Connect(node.Address, networkCert, d.serverCert(), true)
 				if err != nil {
 					failuresLock.Lock()
 					failures[node.Name] = err
