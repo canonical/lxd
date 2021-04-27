@@ -649,7 +649,7 @@ func (g *Gateway) LeaderAddress() (string, error) {
 
 	// If this isn't a raft node, contact a raft node and ask for the
 	// address of the current leader.
-	config, err := tlsClientConfig(g.cert)
+	config, err := tlsClientConfig(g.networkCert, g.serverCert())
 	if err != nil {
 		return "", err
 	}
@@ -933,7 +933,7 @@ func (g *Gateway) nodeAddress(raftAddress string) (string, error) {
 }
 
 func dqliteNetworkDial(ctx context.Context, addr string, g *Gateway) (net.Conn, error) {
-	config, err := tlsClientConfig(g.cert)
+	config, err := tlsClientConfig(g.networkCert, g.serverCert())
 	if err != nil {
 		return nil, err
 	}
