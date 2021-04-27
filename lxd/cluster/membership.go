@@ -940,18 +940,24 @@ func Purge(cluster *db.Cluster, name string) error {
 		// Get the node (if it doesn't exists an error is returned).
 		node, err := tx.GetNodeByName(name)
 		if err != nil {
-			return errors.Wrapf(err, "failed to get node %s", name)
+			return errors.Wrapf(err, "Failed to get member %q", name)
 		}
 
 		err = tx.ClearNode(node.ID)
 		if err != nil {
-			return errors.Wrapf(err, "failed to clear node %s", name)
+			return errors.Wrapf(err, "Failed to clear member %q", name)
 		}
 
 		err = tx.RemoveNode(node.ID)
 		if err != nil {
-			return errors.Wrapf(err, "failed to remove node %s", name)
+			return errors.Wrapf(err, "Failed to remove member %q", name)
 		}
+
+		err = tx.DeleteCertificateByNameAndType(name, db.CertificateTypeServer)
+		if err != nil {
+			return errors.Wrapf(err, "Failed to remove member %q certificate from trust store", name)
+		}
+
 		return nil
 	})
 }
