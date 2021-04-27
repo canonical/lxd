@@ -590,7 +590,7 @@ func (g *Gateway) getClient() (*client.Client, error) {
 // the given certificate.
 //
 // This is used when disabling clustering on a node.
-func (g *Gateway) Reset(cert *shared.CertInfo) error {
+func (g *Gateway) Reset(networkCert *shared.CertInfo) error {
 	err := g.Shutdown()
 	if err != nil {
 		return err
@@ -605,7 +605,8 @@ func (g *Gateway) Reset(cert *shared.CertInfo) error {
 	if err != nil {
 		return err
 	}
-	g.cert = cert
+	g.networkCert = networkCert
+
 	return g.init(false)
 }
 
