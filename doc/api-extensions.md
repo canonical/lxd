@@ -1101,3 +1101,7 @@ Adds a new `ceph.rbd.features` config key on storage pools to control the RBD fe
 
 ## gpu\_mig
 This adds support for NVIDIA MIG. It introduces the `mig` gputype and associaetd config keys.
+
+## clustering\_join\_token
+Adds `POST /1.0/cluster/members` API endpoint for requesting a join token used when adding new cluster members
+without using the trust password.

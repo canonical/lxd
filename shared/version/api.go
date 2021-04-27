@@ -222,6 +222,7 @@ var APIExtensions = []string{
 	"disk_state_quota",
 	"storage_ceph_features",
 	"gpu_mig",
+	"clustering_join_token",
 }
 
 // APIExtensionsCount returns the number of available API extensions.
