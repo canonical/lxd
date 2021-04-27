@@ -55,6 +55,10 @@ func (c *cmdCluster) Command() *cobra.Command {
 	clusterEditCmd := cmdClusterEdit{global: c.global, cluster: c}
 	cmd.AddCommand(clusterEditCmd.Command())
 
+	// Add
+	cmdClusterAdd := cmdClusterAdd{global: c.global, cluster: c}
+	cmd.AddCommand(cmdClusterAdd.Command())
+
 	return cmd
 }
 
@@ -514,6 +518,66 @@ func (c *cmdClusterEdit) Run(cmd *cobra.Command, args []string) error {
 			continue
 		}
 		break
+	}
+
+	return nil
+}
+
+// Add
+type cmdClusterAdd struct {
+	global  *cmdGlobal
+	cluster *cmdCluster
+}
+
+func (c *cmdClusterAdd) Command() *cobra.Command {
+	cmd := &cobra.Command{}
+	cmd.Use = usage("add", i18n.G("[<remote>:]<member>"))
+	cmd.Aliases = []string{"rm"}
+	cmd.Short = i18n.G("Request a join token for adding a cluster member")
+	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(`Request a join token for adding a cluster member`))
+
+	cmd.RunE = c.Run
+
+	return cmd
+}
+
+func (c *cmdClusterAdd) Run(cmd *cobra.Command, args []string) error {
+	// Sanity checks.
+	exit, err := c.global.CheckArgs(cmd, args, 1, 1)
+	if exit {
+		return err
+	}
+
+	// Parse remote.
+	resources, err := c.global.ParseServers(args[0])
+	if err != nil {
+		return err
+	}
+
+	resource := resources[0]
+
+	if resource.name == "" {
+		return fmt.Errorf(i18n.G("Missing cluster member name"))
+	}
+
+	// Request the join token.
+	member := api.ClusterMembersPost{
+		ServerName: resource.name,
+	}
+
+	op, err := resource.server.CreateClusterMember(member)
+	if err != nil {
+		return err
+	}
+
+	if !c.global.flagQuiet {
+		opAPI := op.Get()
+		joinToken, err := clusterJoinTokenOperationToAPI(&opAPI)
+		if err != nil {
+			return errors.Wrapf(err, "Failed converting token operation to join token")
+		}
+
+		fmt.Printf(i18n.G("Member %s join token: %s")+"\n", resource.name, joinToken.String())
 	}
 
 	return nil
