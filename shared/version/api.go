@@ -269,6 +269,7 @@ var APIExtensions = []string{
 	"network_bridge_acl",
 	"warnings",
 	"projects_restricted_backups_and_snapshots",
+	"clustering_join_token",
 }
 
 // APIExtensionsCount returns the number of available API extensions.
