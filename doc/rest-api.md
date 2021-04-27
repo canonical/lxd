@@ -288,6 +288,8 @@ much like `/1.0/containers` will only show you instances of that type.
  * [`/1.0/cluster`](#10cluster)
    * [`/1.0/cluster/members`](#10clustermembers)
      * [`/1.0/cluster/members/<name>`](#10clustermembersname)
+ * [`/1.0/warnings`](#10warnings)
+   * [`/1.0/warnings/<uuid>`](#10warningsuuid)
 
 ## API details
 ### `/`
@@ -3726,3 +3728,91 @@ Input (none at present):
 {
 }
 ```
+
+### `/1.0/warnings`
+#### GET
+ * Description: list of warnings
+ * Introduced: with API extension `warnings`
+ * Authentication: trusted
+ * Operation: sync
+ * Return: list of warnings
+
+Return:
+```json
+[
+    "/1.0/warnings/0e3bff13-f7a1-45b9-9df9-30e4856b7603",
+    "/1.0/warnings/01a7faeb-cb5b-4d8d-b670-0650c9ad5e90"
+]
+```
+
+### `/1.0/warnings/<uuid>`
+#### GET
+ * Description: server warning
+ * Introduced: with API extension `warnings`
+ * Authentication: trusted
+ * Operation: sync
+ * Return: server warning
+
+Return:
+
+```js
+{
+    "count": 1,
+    "entity_url": "/1.0/instances/c1?project=default",
+    "first_seen_at": "2021-03-23T17:38:37.753398689-04:00",
+    "last_message": "Couldn't find the CGroup blkio.weight, disk priority will be ignored",
+    "last_seen_at": "2021-03-23T17:38:37.753398689-04:00",
+    "location": "node1",
+    "project": "default",
+    "severity": "low",
+    "status": "new",
+    "type": "Couldn't find CGroup",
+    "uuid": "e9e9da0d-2538-4351-8047-46d4a8ae4dbb"
+}
+```
+
+#### PUT (ETag supported)
+ * Description: Update warning status
+ * Introduced: with API extension `warnings`
+ * Authentication: trusted
+ * Operation: sync
+ * Return: standard return value or standard error
+
+Input:
+
+```json
+{
+  "status": "new"
+}
+```
+
+#### PATCH (ETag supported)
+ * Description: Updates the certificate properties
+ * Introduced: with API extension `warnings`
+ * Authentication: trusted
+ * Operation: sync
+ * Return: standard return value or standard error
+
+Input:
+
+```json
+{
+  "status": "new"
+}
+```
+
+#### DELETE
+ * Description: delete a warning that has been resolved
+ * Introduced: with API extension `warnings`
+ * Authentication: trusted
+ * Operation: sync
+ * Return: standard return value or standard error
+
+Input (none at present):
+
+```json
+{
+}
+```
+
+HTTP code for this should be 202 (Accepted).
