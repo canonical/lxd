@@ -149,3 +149,17 @@ func (r *ProtocolLXD) RenameClusterMember(name string, member api.ClusterMemberP
 
 	return nil
 }
+
+// CreateClusterMember generates a join token to add a cluster member.
+func (r *ProtocolLXD) CreateClusterMember(member api.ClusterMembersPost) (Operation, error) {
+	if !r.HasExtension("clustering_join_token") {
+		return nil, fmt.Errorf("The server is missing the required \"clustering_join_token\" API extension")
+	}
+
+	op, _, err := r.queryOperation("POST", "/cluster/members", member, "")
+	if err != nil {
+		return nil, err
+	}
+
+	return op, nil
+}
