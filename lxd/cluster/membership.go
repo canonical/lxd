@@ -150,6 +150,54 @@ func Bootstrap(state *state.State, gateway *Gateway, name string) error {
 	return nil
 }
 
+// EnsureServerCertificateTrusted adds the serverCert to the DB trusted certificates store using the serverName.
+// If a certificate with the same fingerprint is already in the trust store, but is of the wrong type or name then
+// the existing certificate is updated to the correct type and name. If the existing certificate is the correct
+// type but the wrong name then an error is returned. And if the existing certificate is the correct type and name
+// then nothing more is done.
+func EnsureServerCertificateTrusted(serverName string, serverCert *shared.CertInfo, tx *db.ClusterTx) error {
+	// Parse our server certificate and prepare to add it to DB trust store.
+	serverCertx509, err := x509.ParseCertificate(serverCert.KeyPair().Certificate[0])
+	if err != nil {
+		return err
+	}
+
+	fingerprint := shared.CertFingerprint(serverCertx509)
+
+	dbCert := db.Certificate{
+		Fingerprint: fingerprint,
+		Type:        db.CertificateTypeServer, // Server type for intra-member communication.
+		Name:        serverName,
+		Certificate: string(pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: serverCertx509.Raw})),
+	}
+
+	// Add our server cert to the DB trust store (so when other members join this cluster they will be
+	// able to trust intra-cluster requests from this member).
+	existingCert, _ := tx.GetCertificate(dbCert.Fingerprint)
+	if existingCert != nil {
+		if existingCert.Name != dbCert.Name && existingCert.Type == db.CertificateTypeServer {
+			// Don't alter an existing server certificate that has our fingerprint but not our name.
+			// Something is wrong as this shouldn't happen.
+			return fmt.Errorf("Existing server certificate with different name %q already in trust store", existingCert.Name)
+		} else if existingCert.Name != dbCert.Name && existingCert.Type != db.CertificateTypeServer {
+			// Ensure that if a client certificate already exists that matches our fingerprint, that it
+			// has the correct name and type for cluster operation, to allow us to associate member
+			// server names to certificate names.
+			err = tx.UpdateCertificate(dbCert.Fingerprint, dbCert)
+			if err != nil {
+				return errors.Wrap(err, "Failed updating certificate name and type in trust store")
+			}
+		}
+	} else {
+		_, err = tx.CreateCertificate(dbCert)
+		if err != nil {
+			return errors.Wrapf(err, "Failed adding server certifcate to trust store")
+		}
+	}
+
+	return nil
+}
+
 // Accept a new node and add it to the cluster.
 //
 // This instance must already be clustered.
