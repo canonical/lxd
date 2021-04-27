@@ -85,6 +85,40 @@ WHERE storage_volumes.type = ?
 	return response, nil
 }
 
+// GetStoragePoolVolumeWithID returns the volume with the given ID.
+func (c *Cluster) GetStoragePoolVolumeWithID(volumeID int) (StorageVolumeArgs, error) {
+	var response StorageVolumeArgs
+
+	stmt := `
+SELECT storage_volumes.id, storage_volumes.name, storage_volumes.description, storage_pools.name, storage_pools.type, projects.name
+FROM storage_volumes
+JOIN storage_pools ON storage_pools.id = storage_volumes.storage_pool_id
+JOIN projects ON projects.id = storage_volumes.project_id
+WHERE storage_volumes.id = ?
+`
+
+	inargs := []interface{}{volumeID}
+	outargs := []interface{}{&response.ID, &response.Name, &response.Description, &response.PoolName, &response.Type, &response.ProjectName}
+
+	err := dbQueryRowScan(c, stmt, inargs, outargs)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return StorageVolumeArgs{}, ErrNoSuchObject
+		}
+
+		return StorageVolumeArgs{}, err
+	}
+
+	response.Config, err = c.storageVolumeConfigGet(response.ID, false)
+	if err != nil {
+		return StorageVolumeArgs{}, err
+	}
+
+	response.TypeName = StoragePoolVolumeTypeNames[response.Type]
+
+	return response, nil
+}
+
 // GetStoragePoolVolumes returns all storage volumes attached to a given
 // storage pool on any node. If there are no volumes, it returns an
 // empty list and no error.
@@ -584,6 +618,14 @@ const (
 	StoragePoolVolumeTypeNameImage     string = "image"
 	StoragePoolVolumeTypeNameCustom    string = "custom"
 )
+
+// StoragePoolVolumeTypeNames represents a map of storage volume types and their names.
+var StoragePoolVolumeTypeNames = map[int]string{
+	StoragePoolVolumeTypeContainer: "container",
+	StoragePoolVolumeTypeImage:     "image",
+	StoragePoolVolumeTypeCustom:    "custom",
+	StoragePoolVolumeTypeVM:        "virtual-machine",
+}
 
 // Content types.
 const (

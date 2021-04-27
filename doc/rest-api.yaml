@@ -3073,6 +3073,79 @@ definitions:
     format: int64
     type: integer
     x-go-package: github.com/lxc/lxd/shared/api
+  Warning:
+    properties:
+      count:
+        description: The number of times this warning occurred
+        example: 1
+        format: int64
+        type: integer
+        x-go-name: Count
+      entity_url:
+        description: The entity affected by this warning
+        example: /1.0/instances/c1?project=default
+        type: string
+        x-go-name: EntityURL
+      first_seen_at:
+        description: The first time this warning occurred
+        example: "2021-03-23T17:38:37.753398689-04:00"
+        format: date-time
+        type: string
+        x-go-name: FirstSeenAt
+      last_message:
+        description: The warning message
+        example: Couldn't find the CGroup blkio.weight, disk priority will be ignored
+        type: string
+        x-go-name: LastMessage
+      last_seen_at:
+        description: The last time this warning occurred
+        example: "2021-03-23T17:38:37.753398689-04:00"
+        format: date-time
+        type: string
+        x-go-name: LastSeenAt
+      location:
+        description: What cluster member this warning occurred on
+        example: node1
+        type: string
+        x-go-name: Location
+      project:
+        description: The project the warning occurred in
+        example: default
+        type: string
+        x-go-name: Project
+      severity:
+        description: The severity of this warning
+        example: low
+        type: string
+        x-go-name: Severity
+      status:
+        description: Status of the warning (new, acknowledged, or resolved)
+        example: new
+        type: string
+        x-go-name: Status
+      type:
+        description: Type type of warning
+        example: Couldn't find CGroup
+        type: string
+        x-go-name: Type
+      uuid:
+        description: UUID of the warning
+        example: e9e9da0d-2538-4351-8047-46d4a8ae4dbb
+        type: string
+        x-go-name: UUID
+    title: Warning represents a warning entry.
+    type: object
+    x-go-package: github.com/lxc/lxd/shared/api
+  WarningPut:
+    properties:
+      status:
+        description: Status of the warning (new, acknowledged, or resolved)
+        example: new
+        type: string
+        x-go-name: Status
+    title: WarningPut represents the modifiable fields of a warning.
+    type: object
+    x-go-package: github.com/lxc/lxd/shared/api
 info:
   contact:
     email: lxc-devel@lists.linuxcontainers.org
@@ -6236,6 +6309,192 @@ paths:
       summary: Get system resources information
       tags:
       - server
+  /1.0/warnings:
+    get:
+      description: Returns a list of warnings.
+      operationId: warnings_get
+      parameters:
+      - description: Project name
+        example: default
+        in: query
+        name: project
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Sync response
+          schema:
+            description: Sync response
+            properties:
+              metadata:
+                description: List of endpoints
+                example: |-
+                  [
+                    "/1.0/warnings/39c61a48-cc17-40ae-8248-4f7b4cadedf4",
+                    "/1.0/warnings/951779a5-2820-4d96-b01e-88fe820e5310"
+                  ]
+                items:
+                  type: string
+                type: array
+              status:
+                description: Status description
+                example: Success
+                type: string
+              status_code:
+                description: Status code
+                example: 200
+                type: int
+              type:
+                description: Response type
+                example: sync
+                type: string
+            type: object
+        "500":
+          $ref: '#/responses/InternalServerError'
+      summary: List the warnings
+      tags:
+      - warnings
+  /1.0/warnings/{uuid}:
+    delete:
+      description: Removes the warning.
+      operationId: warning_delete
+      produces:
+      - application/json
+      responses:
+        "200":
+          $ref: '#/responses/EmptySyncResponse'
+        "500":
+          $ref: '#/responses/InternalServerError'
+      summary: Delete the warning
+      tags:
+      - warnings
+    get:
+      description: Gets a specific warning.
+      operationId: warning_get
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Warning
+          schema:
+            description: Sync response
+            properties:
+              metadata:
+                $ref: '#/definitions/Warning'
+              status:
+                description: Status description
+                example: Success
+                type: string
+              status_code:
+                description: Status code
+                example: 200
+                type: int
+              type:
+                description: Response type
+                example: sync
+                type: string
+            type: object
+        "404":
+          $ref: '#/responses/NotFound'
+        "500":
+          $ref: '#/responses/InternalServerError'
+      summary: Get the warning
+      tags:
+      - warnings
+    patch:
+      consumes:
+      - application/json
+      description: Updates a subset of the warning status.
+      operationId: warning_patch
+      parameters:
+      - description: Warning status
+        in: body
+        name: warning
+        required: true
+        schema:
+          $ref: '#/definitions/WarningPut'
+      produces:
+      - application/json
+      responses:
+        "200":
+          $ref: '#/responses/EmptySyncResponse'
+        "400":
+          $ref: '#/responses/BadRequest'
+        "403":
+          $ref: '#/responses/Forbidden'
+        "500":
+          $ref: '#/responses/InternalServerError'
+      summary: Partially update the warning
+      tags:
+      - warnings
+    put:
+      consumes:
+      - application/json
+      description: Updates the warning status.
+      operationId: warning_put
+      parameters:
+      - description: Warning status
+        in: body
+        name: warning
+        required: true
+        schema:
+          $ref: '#/definitions/WarningPut'
+      produces:
+      - application/json
+      responses:
+        "200":
+          $ref: '#/responses/EmptySyncResponse'
+        "400":
+          $ref: '#/responses/BadRequest'
+        "403":
+          $ref: '#/responses/Forbidden'
+        "500":
+          $ref: '#/responses/InternalServerError'
+      summary: Update the warning
+      tags:
+      - warnings
+  /1.0/warnings?recursion=1:
+    get:
+      description: Returns a list of warnings (structs).
+      operationId: warnings_get_recursion1
+      parameters:
+      - description: Project name
+        example: default
+        in: query
+        name: project
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: API endpoints
+          schema:
+            description: Sync response
+            properties:
+              metadata:
+                description: List of warnings
+                items:
+                  $ref: '#/definitions/Warning'
+                type: array
+              status:
+                description: Status description
+                example: Success
+                type: string
+              status_code:
+                description: Status code
+                example: 200
+                type: int
+              type:
+                description: Response type
+                example: sync
+                type: string
+            type: object
+        "500":
+          $ref: '#/responses/InternalServerError'
+      summary: Get the warnings
+      tags:
+      - warnings
   /1.0?public:
     get:
       description: |-
@@ -6339,6 +6598,24 @@ responses:
           x-go-name: Code
         error:
           example: internal server error
+          type: string
+          x-go-name: Error
+        type:
+          example: error
+          type: string
+          x-go-name: Type
+      type: object
+  NotFound:
+    description: Not found
+    schema:
+      properties:
+        code:
+          example: 404
+          format: int64
+          type: integer
+          x-go-name: Code
+        error:
+          example: not found
           type: string
           x-go-name: Error
         type:
