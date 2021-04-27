@@ -726,7 +726,7 @@ func (g *Gateway) init(bootstrap bool) error {
 	logger.Debugf("Initializing database gateway")
 	g.stopCh = make(chan struct{}, 0)
 
-	info, err := loadInfo(g.db, g.cert)
+	info, err := loadInfo(g.db, g.networkCert)
 	if err != nil {
 		return errors.Wrap(err, "Failed to create raft factory")
 	}
