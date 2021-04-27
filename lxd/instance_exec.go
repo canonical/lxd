@@ -429,8 +429,7 @@ func instanceExecPost(d *Daemon, r *http.Request) response.Response {
 	}
 
 	// Forward the request if the container is remote.
-	cert := d.endpoints.NetworkCert()
-	client, err := cluster.ConnectIfInstanceIsRemote(d.cluster, projectName, name, cert, instanceType)
+	client, err := cluster.ConnectIfInstanceIsRemote(d.cluster, projectName, name, d.endpoints.NetworkCert(), d.serverCert(), instanceType)
 	if err != nil {
 		return response.SmartError(err)
 	}

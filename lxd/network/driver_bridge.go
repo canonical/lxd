@@ -1725,14 +1725,14 @@ func (n *bridge) HandleHeartbeat(heartbeatData *cluster.APIHeartbeat) error {
 
 	n.logger.Info("Refreshing forkdns peers")
 
-	cert := n.state.Endpoints.NetworkCert()
+	networkCert := n.state.Endpoints.NetworkCert()
 	for _, node := range heartbeatData.Members {
 		if node.Address == localAddress {
 			// No need to query ourselves.
 			continue
 		}
 
-		client, err := cluster.Connect(node.Address, cert, true)
+		client, err := cluster.Connect(node.Address, networkCert, n.state.ServerCert(), true)
 		if err != nil {
 			return err
 		}

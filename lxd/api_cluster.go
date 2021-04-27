@@ -1343,7 +1343,7 @@ func clusterNodeDelete(d *Daemon, r *http.Request) response.Response {
 	}
 	if localAddress != leader {
 		logger.Debugf("Redirect member delete request to %s", leader)
-		client, err := cluster.Connect(leader, d.endpoints.NetworkCert(), false)
+		client, err := cluster.Connect(leader, d.endpoints.NetworkCert(), d.serverCert(), false)
 		if err != nil {
 			return response.SmartError(err)
 		}
@@ -1377,8 +1377,7 @@ func clusterNodeDelete(d *Daemon, r *http.Request) response.Response {
 	if force != 1 {
 		// Try to gracefully delete all networks and storage pools on it.
 		// Delete all networks on this node
-		cert := d.endpoints.NetworkCert()
-		client, err := cluster.Connect(address, cert, true)
+		client, err := cluster.Connect(address, d.endpoints.NetworkCert(), d.serverCert(), true)
 		if err != nil {
 			return response.SmartError(err)
 		}
@@ -1440,8 +1439,7 @@ func clusterNodeDelete(d *Daemon, r *http.Request) response.Response {
 
 	if force != 1 {
 		// Try to gracefully reset the database on the node.
-		cert := d.endpoints.NetworkCert()
-		client, err := cluster.Connect(address, cert, true)
+		client, err := cluster.Connect(address, d.endpoints.NetworkCert(), d.serverCert(), true)
 		if err != nil {
 			return response.SmartError(err)
 		}
@@ -1611,7 +1609,7 @@ again:
 			continue
 		}
 
-		if cluster.HasConnectivity(d.endpoints.NetworkCert(), address) {
+		if cluster.HasConnectivity(d.endpoints.NetworkCert(), d.serverCert(), address) {
 			break
 		}
 
@@ -1664,8 +1662,7 @@ func changeMemberRole(d *Daemon, address string, nodes []db.RaftNode) error {
 		})
 	}
 
-	cert := d.endpoints.NetworkCert()
-	client, err := cluster.Connect(address, cert, true)
+	client, err := cluster.Connect(address, d.endpoints.NetworkCert(), d.serverCert(), true)
 	if err != nil {
 		return err
 	}
@@ -1721,8 +1718,7 @@ findLeader:
 		goto findLeader
 	}
 
-	cert := d.endpoints.NetworkCert()
-	client, err := cluster.Connect(leader, cert, true)
+	client, err := cluster.Connect(leader, d.endpoints.NetworkCert(), d.serverCert(), true)
 	if err != nil {
 		return err
 	}

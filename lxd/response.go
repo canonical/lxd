@@ -25,8 +25,7 @@ func forwardedResponseIfTargetIsRemote(d *Daemon, request *http.Request) respons
 
 	if address != "" {
 		// Forward the response.
-		cert := d.endpoints.NetworkCert()
-		client, err := cluster.Connect(address, cert, false)
+		client, err := cluster.Connect(address, d.endpoints.NetworkCert(), d.serverCert(), false)
 		if err != nil {
 			return response.SmartError(err)
 		}
@@ -40,8 +39,7 @@ func forwardedResponseIfTargetIsRemote(d *Daemon, request *http.Request) respons
 // the container with the given name. If the container is local, nothing gets
 // done and nil is returned.
 func forwardedResponseIfInstanceIsRemote(d *Daemon, r *http.Request, project, name string, instanceType instancetype.Type) (response.Response, error) {
-	cert := d.endpoints.NetworkCert()
-	client, err := cluster.ConnectIfInstanceIsRemote(d.cluster, project, name, cert, instanceType)
+	client, err := cluster.ConnectIfInstanceIsRemote(d.cluster, project, name, d.endpoints.NetworkCert(), d.serverCert(), instanceType)
 	if err != nil {
 		return nil, err
 	}
@@ -63,8 +61,7 @@ func forwardedResponseIfVolumeIsRemote(d *Daemon, r *http.Request, poolName stri
 		return nil
 	}
 
-	cert := d.endpoints.NetworkCert()
-	client, err := cluster.ConnectIfVolumeIsRemote(d.State(), poolName, projectName, volumeName, volumeType, cert)
+	client, err := cluster.ConnectIfVolumeIsRemote(d.State(), poolName, projectName, volumeName, volumeType, d.endpoints.NetworkCert(), d.serverCert())
 	if err != nil {
 		return response.SmartError(err)
 	}
