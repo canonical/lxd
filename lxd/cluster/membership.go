@@ -298,7 +298,7 @@ func Accept(state *state.State, gateway *Gateway, name, address string, schema, 
 //
 // The cert parameter must contain the keypair/CA material of the cluster being
 // joined.
-func Join(state *state.State, gateway *Gateway, cert *shared.CertInfo, name string, raftNodes []db.RaftNode) error {
+func Join(state *state.State, gateway *Gateway, networkCert *shared.CertInfo, serverCert *shared.CertInfo, name string, raftNodes []db.RaftNode) error {
 	// Check parameters
 	if name == "" {
 		return fmt.Errorf("node name must not be empty")
@@ -382,7 +382,7 @@ func Join(state *state.State, gateway *Gateway, cert *shared.CertInfo, name stri
 	// Re-initialize the gateway. This will create a new raft factory an
 	// dqlite driver instance, which will be exposed over gRPC by the
 	// gateway handlers.
-	gateway.cert = cert
+	gateway.networkCert = networkCert
 	err = gateway.init(false)
 	if err != nil {
 		return errors.Wrap(err, "failed to re-initialize gRPC SQL gateway")
@@ -398,9 +398,7 @@ func Join(state *state.State, gateway *Gateway, cert *shared.CertInfo, name stri
 	if info == nil {
 		panic("joining node not found")
 	}
-	logger.Info(
-		"Joining dqlite raft cluster",
-		log15.Ctx{"id": info.ID, "address": info.Address, "role": info.Role})
+	logger.Info("Joining dqlite raft cluster", log15.Ctx{"id": info.ID, "address": info.Address, "role": info.Role})
 	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
 	defer cancel()
 	client, err := client.FindLeader(
@@ -413,6 +411,7 @@ func Join(state *state.State, gateway *Gateway, cert *shared.CertInfo, name stri
 	}
 	defer client.Close()
 
+	logger.Info("Adding node to cluster", log15.Ctx{"id": info.ID, "address": info.Address, "role": info.Role})
 	ctx, cancel = context.WithTimeout(context.Background(), time.Minute)
 	defer cancel()
 	err = client.Add(ctx, *info)
@@ -507,7 +506,7 @@ func Join(state *state.State, gateway *Gateway, cert *shared.CertInfo, name stri
 		}
 
 		// Generate partial heartbeat request containing just a raft node list.
-		notifyNodesUpdate(raftNodes, info.ID, cert)
+		notifyNodesUpdate(raftNodes, info.ID, networkCert, serverCert)
 
 		return nil
 	})
