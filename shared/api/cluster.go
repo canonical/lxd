@@ -83,6 +83,17 @@ type ClusterPut struct {
 	ClusterPassword string `json:"cluster_password" yaml:"cluster_password"`
 }
 
+// ClusterMembersPost represents the fields required to request a join token to add a member to the cluster.
+//
+// swagger:model
+//
+// API extension: clustering_join_token
+type ClusterMembersPost struct {
+	// The name of the new cluster member
+	// Example: lxd02
+	ServerName string `json:"server_name" yaml:"server_name"`
+}
+
 // ClusterMemberPost represents the fields required to rename a LXD node.
 //
 // swagger:model
