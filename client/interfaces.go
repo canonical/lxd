@@ -313,6 +313,7 @@ type InstanceServer interface {
 	GetClusterMember(name string) (member *api.ClusterMember, ETag string, err error)
 	UpdateClusterMember(name string, member api.ClusterMemberPut, ETag string) (err error)
 	RenameClusterMember(name string, member api.ClusterMemberPost) (err error)
+	CreateClusterMember(member api.ClusterMembersPost) (op Operation, err error)
 
 	// Warning functions
 	GetWarningUUIDs() (uuids []string, err error)
