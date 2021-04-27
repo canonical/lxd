@@ -114,6 +114,28 @@ func (c *Cluster) GetNetworkACL(projectName string, name string) (int64, *api.Ne
 	return id, &acl, nil
 }
 
+// GetNetworkACLNameAndProjectWithID returns the network ACL name and project name for the given ID.
+func (c *Cluster) GetNetworkACLNameAndProjectWithID(networkACLID int) (string, string, error) {
+	var networkACLName string
+	var projectName string
+
+	q := `SELECT networks_acls.name, projects.name FROM networks_acls JOIN projects ON projects.id=networks.project_id WHERE networks_acls.id=?`
+
+	inargs := []interface{}{networkACLID}
+	outargs := []interface{}{&networkACLName, &projectName}
+
+	err := dbQueryRowScan(c, q, inargs, outargs)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return "", "", ErrNoSuchObject
+		}
+
+		return "", "", err
+	}
+
+	return networkACLName, projectName, nil
+}
+
 // networkACLConfig returns the config map of the Network ACL with the given ID.
 func (c *Cluster) networkACLConfig(id int64) (map[string]string, error) {
 	var key, value string

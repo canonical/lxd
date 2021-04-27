@@ -688,26 +688,32 @@ func (c *Cluster) GetStoragePoolID(poolName string) (int64, error) {
 //
 // The pool must be in the created stated, not pending.
 func (c *Cluster) GetStoragePool(poolName string) (int64, *api.StoragePool, map[int64]StoragePoolNode, error) {
-	return c.getStoragePool(poolName, true)
+	return c.getStoragePool(true, "name=?", poolName)
 }
 
 // GetStoragePoolInAnyState returns the storage pool with the given name.
 //
 // The pool can be in any state.
 func (c *Cluster) GetStoragePoolInAnyState(name string) (int64, *api.StoragePool, map[int64]StoragePoolNode, error) {
-	return c.getStoragePool(name, false)
+	return c.getStoragePool(false, "name=?", name)
+}
+
+// GetStoragePoolWithID returns the storage pool with the given ID.
+func (c *Cluster) GetStoragePoolWithID(poolID int) (int64, *api.StoragePool, map[int64]StoragePoolNode, error) {
+	return c.getStoragePool(true, "id=?", poolID)
 }
 
 // GetStoragePool returns a single storage pool.
-func (c *Cluster) getStoragePool(poolName string, onlyCreated bool) (int64, *api.StoragePool, map[int64]StoragePoolNode, error) {
+func (c *Cluster) getStoragePool(onlyCreated bool, where string, args ...interface{}) (int64, *api.StoragePool, map[int64]StoragePoolNode, error) {
 	var poolDriver string
+	var poolName string
 	poolID := int64(-1)
 	description := sql.NullString{}
 	var state StoragePoolState
 
-	query := "SELECT id, driver, description, state FROM storage_pools WHERE name=?"
-	inargs := []interface{}{poolName}
-	outargs := []interface{}{&poolID, &poolDriver, &description, &state}
+	query := fmt.Sprintf("SELECT id, name, driver, description, state FROM storage_pools WHERE %s", where)
+	inargs := args
+	outargs := []interface{}{&poolID, &poolName, &poolDriver, &description, &state}
 	if onlyCreated {
 		query += " AND state=?"
 		inargs = append(inargs, storagePoolCreated)

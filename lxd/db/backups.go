@@ -91,6 +91,45 @@ SELECT instances_backups.id, instances_backups.instance_id,
 	return args, nil
 }
 
+// GetInstanceBackupWithID returns the backup with the given ID.
+func (c *Cluster) GetInstanceBackupWithID(backupID int) (InstanceBackup, error) {
+	args := InstanceBackup{}
+	args.ID = backupID
+
+	instanceOnlyInt := -1
+	optimizedStorageInt := -1
+	q := `
+SELECT instances_backups.name, instances_backups.instance_id,
+       instances_backups.creation_date, instances_backups.expiry_date,
+       instances_backups.container_only, instances_backups.optimized_storage
+    FROM instances_backups
+    JOIN instances ON instances.id=instances_backups.instance_id
+    JOIN projects ON projects.id=instances.project_id
+    WHERE instances_backups.id=?
+`
+	arg1 := []interface{}{backupID}
+	arg2 := []interface{}{&args.Name, &args.InstanceID, &args.CreationDate,
+		&args.ExpiryDate, &instanceOnlyInt, &optimizedStorageInt}
+	err := dbQueryRowScan(c, q, arg1, arg2)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return args, ErrNoSuchObject
+		}
+
+		return args, err
+	}
+
+	if instanceOnlyInt == 1 {
+		args.InstanceOnly = true
+	}
+
+	if optimizedStorageInt == 1 {
+		args.OptimizedStorage = true
+	}
+
+	return args, nil
+}
+
 // GetInstanceBackups returns the names of all backups of the instance with the
 // given name.
 func (c *Cluster) GetInstanceBackups(projectName string, name string) ([]string, error) {
@@ -412,6 +451,37 @@ JOIN projects ON projects.id=storage_volumes.project_id
 WHERE projects.name=? AND backups.name=?
 `
 	arg1 := []interface{}{projectName, backupName}
+	outfmt := []interface{}{&args.ID, &args.VolumeID, &args.Name, &args.CreationDate, &args.ExpiryDate, &args.VolumeOnly, &args.OptimizedStorage}
+	err := dbQueryRowScan(c, q, arg1, outfmt)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return args, ErrNoSuchObject
+		}
+
+		return args, err
+	}
+
+	return args, nil
+}
+
+// GetStoragePoolVolumeBackupWithID returns the volume backup with the given ID.
+func (c *Cluster) GetStoragePoolVolumeBackupWithID(backupID int) (StoragePoolVolumeBackup, error) {
+	args := StoragePoolVolumeBackup{}
+	q := `
+SELECT
+	backups.id,
+	backups.storage_volume_id,
+	backups.name,
+	backups.creation_date,
+	backups.expiry_date,
+	backups.volume_only,
+	backups.optimized_storage
+FROM storage_volumes_backups AS backups
+JOIN storage_volumes ON storage_volumes.id=backups.storage_volume_id
+JOIN projects ON projects.id=storage_volumes.project_id
+WHERE backups.id=?
+`
+	arg1 := []interface{}{backupID}
 	outfmt := []interface{}{&args.ID, &args.VolumeID, &args.Name, &args.CreationDate, &args.ExpiryDate, &args.VolumeOnly, &args.OptimizedStorage}
 	err := dbQueryRowScan(c, q, arg1, outfmt)
 	if err != nil {

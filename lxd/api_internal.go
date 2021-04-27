@@ -1,9 +1,11 @@
 package main
 
 import (
+	"bytes"
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -54,6 +56,7 @@ var apiInternal = []APIEndpoint{
 	internalClusterRaftNodeCmd,
 	internalImageRefreshCmd,
 	internalImageOptimizeCmd,
+	internalWarningCreateCmd,
 }
 
 var internalShutdownCmd = APIEndpoint{
@@ -123,9 +126,63 @@ var internalImageOptimizeCmd = APIEndpoint{
 	Post: APIEndpointAction{Handler: internalOptimizeImage},
 }
 
+var internalWarningCreateCmd = APIEndpoint{
+	Path: "testing/warnings",
+
+	Post: APIEndpointAction{Handler: internalCreateWarning},
+}
+
 type internalImageOptimizePost struct {
 	Image api.Image `json:"image" yaml:"image"`
 	Pool  string    `json:"pool" yaml:"pool"`
+}
+
+type internalWarningCreatePost struct {
+	Location       string `json:"location" yaml:"location"`
+	Project        string `json:"project" yaml:"project"`
+	EntityTypeCode int    `json:"entity_type_code" yaml:"entity_type_code"`
+	EntityID       int    `json:"entity_id" yaml:"entity_id"`
+	TypeCode       int    `json:"type_code" yaml:"type_code"`
+	Message        string `json:"message" yaml:"message"`
+}
+
+// internalCreateWarning creates a warning, and is used for testing only.
+func internalCreateWarning(d *Daemon, r *http.Request) response.Response {
+	body, err := ioutil.ReadAll(r.Body)
+	if err != nil {
+		return response.InternalError(err)
+	}
+
+	rdr1 := ioutil.NopCloser(bytes.NewBuffer(body))
+	rdr2 := ioutil.NopCloser(bytes.NewBuffer(body))
+
+	reqRaw := shared.Jmap{}
+	err = json.NewDecoder(rdr1).Decode(&reqRaw)
+	if err != nil {
+		return response.BadRequest(err)
+	}
+
+	req := internalWarningCreatePost{}
+	err = json.NewDecoder(rdr2).Decode(&req)
+	if err != nil {
+		return response.BadRequest(err)
+	}
+
+	req.EntityTypeCode, _ = reqRaw.GetInt("entity_type_code")
+	req.EntityID, _ = reqRaw.GetInt("entity_id")
+
+	// Check if the entity exists, and fail if it doesn't.
+	_, ok := cluster.EntityNames[req.EntityTypeCode]
+	if req.EntityTypeCode != -1 && !ok {
+		return response.SmartError(fmt.Errorf("Invalid entity type"))
+	}
+
+	err = d.cluster.UpsertWarning(req.Location, req.Project, req.EntityTypeCode, req.EntityID, db.WarningType(req.TypeCode), req.Message)
+	if err != nil {
+		return response.SmartError(errors.Wrap(err, "Failed to create warning"))
+	}
+
+	return response.EmptySyncResponse
 }
 
 func internalOptimizeImage(d *Daemon, r *http.Request) response.Response {
