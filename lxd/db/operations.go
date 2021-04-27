@@ -56,7 +56,7 @@ func (c *ClusterTx) GetOperationByUUID(uuid string) (Operation, error) {
 	case 1:
 		return operations[0], nil
 	default:
-		return null, fmt.Errorf("more than one node matches")
+		return null, fmt.Errorf("More than one operation matches")
 	}
 }
 
