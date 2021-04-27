@@ -244,7 +244,7 @@ func (n *common) update(applyNetwork api.NetworkPut, targetNode string, clientTy
 	if clientType != request.ClientTypeNotifier {
 		if targetNode == "" {
 			// Notify all other nodes to update the network if no target specified.
-			notifier, err := cluster.NewNotifier(n.state, n.state.Endpoints.NetworkCert(), cluster.NotifyAll)
+			notifier, err := cluster.NewNotifier(n.state, n.state.Endpoints.NetworkCert(), n.state.ServerCert(), cluster.NotifyAll)
 			if err != nil {
 				return err
 			}

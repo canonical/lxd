@@ -420,7 +420,7 @@ func profilePut(d *Daemon, r *http.Request) response.Response {
 
 	if err == nil && !isClusterNotification(r) {
 		// Notify all other nodes. If a node is down, it will be ignored.
-		notifier, err := cluster.NewNotifier(d.State(), d.endpoints.NetworkCert(), cluster.NotifyAlive)
+		notifier, err := cluster.NewNotifier(d.State(), d.endpoints.NetworkCert(), d.serverCert(), cluster.NotifyAlive)
 		if err != nil {
 			return response.SmartError(err)
 		}
