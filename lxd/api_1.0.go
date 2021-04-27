@@ -618,7 +618,7 @@ func doApi10Update(d *Daemon, req api.ServerPut, patch bool) response.Response {
 	}
 
 	// Notify the other nodes about changes
-	notifier, err := cluster.NewNotifier(s, d.endpoints.NetworkCert(), cluster.NotifyAlive)
+	notifier, err := cluster.NewNotifier(s, d.endpoints.NetworkCert(), d.serverCert(), cluster.NotifyAlive)
 	if err != nil {
 		return response.SmartError(err)
 	}
