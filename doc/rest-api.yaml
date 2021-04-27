@@ -217,6 +217,35 @@ definitions:
       the cluster is required to provide when joining.
     type: object
     x-go-package: github.com/lxc/lxd/shared/api
+  ClusterMemberJoinToken:
+    properties:
+      addresses:
+        description: The addresses of existing online cluster members
+        example:
+        - 10.98.30.229:8443
+        items:
+          type: string
+        type: array
+        x-go-name: Addresses
+      fingerprint:
+        description: The fingerprint of the network certificate
+        example: 57bb0ff4340b5bb28517e062023101adf788c37846dc8b619eb2c3cb4ef29436
+        type: string
+        x-go-name: Fingerprint
+      secret:
+        description: The random join secret.
+        example: 2b2284d44db32675923fe0d2020477e0e9be11801ff70c435e032b97028c35cd
+        type: string
+        x-go-name: Secret
+      server_name:
+        description: The name of the new cluster member
+        example: lxd02
+        type: string
+        x-go-name: ServerName
+    title: ClusterMemberJoinToken represents the fields contained within an encoded
+      cluster member join token.
+    type: object
+    x-go-package: github.com/lxc/lxd/shared/api
   ClusterMemberPost:
     properties:
       server_name:
@@ -244,6 +273,17 @@ definitions:
           type: string
         type: array
         x-go-name: Roles
+    type: object
+    x-go-package: github.com/lxc/lxd/shared/api
+  ClusterMembersPost:
+    properties:
+      server_name:
+        description: The name of the new cluster member
+        example: lxd02
+        type: string
+        x-go-name: ServerName
+    title: ClusterMembersPost represents the fields required to request a join token
+      to add a member to the cluster.
     type: object
     x-go-package: github.com/lxc/lxd/shared/api
   ClusterPut:
@@ -4210,6 +4250,32 @@ paths:
         "500":
           $ref: '#/responses/InternalServerError'
       summary: Get the cluster members
+      tags:
+      - cluster
+    post:
+      consumes:
+      - application/json
+      description: Requests a join token to add a cluster member.
+      operationId: cluster_members_post
+      parameters:
+      - description: Cluster member add request
+        in: body
+        name: cluster
+        required: true
+        schema:
+          $ref: '#/definitions/ClusterMembersPost'
+      produces:
+      - application/json
+      responses:
+        "200":
+          $ref: '#/responses/Operation'
+        "400":
+          $ref: '#/responses/BadRequest'
+        "403":
+          $ref: '#/responses/Forbidden'
+        "500":
+          $ref: '#/responses/InternalServerError'
+      summary: Request a join token
       tags:
       - cluster
   /1.0/cluster/members/{name}:
