@@ -488,7 +488,7 @@ func (g *Gateway) TransferLeadership() error {
 		if err != nil {
 			return err
 		}
-		if !HasConnectivity(g.cert, address) {
+		if !HasConnectivity(g.networkCert, g.serverCert(), address) {
 			continue
 		}
 		id = server.ID
