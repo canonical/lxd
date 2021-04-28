@@ -754,6 +754,7 @@ func (d *Daemon) init() error {
 		"seccomp_allow_deny_syntax",
 		"devpts_fd",
 		"seccomp_proxy_send_notify_fd",
+		"idmapped_mounts",
 	}
 	for _, extension := range lxcExtensions {
 		d.os.LXCFeatures[extension] = liblxc.HasApiExtension(extension)
