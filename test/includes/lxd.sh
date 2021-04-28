@@ -26,15 +26,6 @@ spawn_lxd() {
         exit 1
     fi
 
-    # Copy pre generated Certs (either the default one or an alternate one)
-    if [ "${LXD_ALT_CERT}" = "" ]; then
-        cp deps/server.crt "${lxddir}"
-        cp deps/server.key "${lxddir}"
-    else
-        cp deps/server-alt.crt "${lxddir}"/server.crt
-        cp deps/server-alt.key "${lxddir}"/server.key
-    fi
-
     # setup storage
     "$lxd_backend"_setup "${lxddir}"
     echo "$lxd_backend" > "${lxddir}/lxd.backend"
