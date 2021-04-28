@@ -833,7 +833,13 @@ func (d *Daemon) init() error {
 		logger.Infof(" - unprivileged file capabilities: no")
 	}
 
-	d.os.CGInfo.Log()
+	warnings := d.os.CGInfo.Warnings()
+
+	logger.Infof(" - cgroup layout: %s", d.os.CGInfo.Mode())
+
+	for _, w := range warnings {
+		logger.Warnf(" - %s, %s", db.WarningTypeNames[db.WarningType(w.TypeCode)], w.LastMessage)
+	}
 
 	// Detect shiftfs support.
 	if shared.IsTrue(os.Getenv("LXD_SHIFTFS_DISABLE")) {
@@ -999,6 +1005,53 @@ func (d *Daemon) init() error {
 			continue
 		}
 		return errors.Wrap(err, "failed to open cluster database")
+	}
+
+	nodeName := ""
+
+	if clustered {
+		err := d.cluster.Transaction(func(tx *db.ClusterTx) error {
+			nodeName, err = tx.GetLocalNodeName()
+			if err != nil {
+				return err
+			}
+
+			return nil
+		})
+		if err != nil {
+			return errors.Wrap(err, "Failed to get node name")
+		}
+	}
+
+	// Create warnings that have been collected
+	for _, w := range warnings {
+		err := d.cluster.UpsertWarning(nodeName, "", -1, -1, db.WarningType(w.TypeCode), w.LastMessage)
+		if err != nil {
+			return errors.Wrap(err, "Failed to create warning")
+		}
+	}
+
+	// Resolve warnings
+	for i := range db.WarningTypeNames {
+		resolveWarning := true
+
+		for _, w := range warnings {
+			if int(i) == w.TypeCode {
+				// Do not resolve the warning as it's still valid
+				resolveWarning = false
+				break
+			}
+		}
+
+		if !resolveWarning {
+			continue
+		}
+
+		// Resolve warnings with the given type
+		err := resolveWarningsByNodeAndType(d, nodeName, i)
+		if err != nil {
+			return errors.Wrap(err, "Failed to resolve warnings")
+		}
 	}
 
 	d.firewall = firewall.New()
