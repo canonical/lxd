@@ -27,9 +27,6 @@ fi
 # shellcheck disable=SC2034
 LXD_NETNS=""
 
-# shellcheck disable=SC2034
-LXD_ALT_CERT=""
-
 # Always ignore SC2230 ('which' is non-standard. Use builtin 'command -v' instead.)
 export SHELLCHECK_OPTS="-e SC2230"
 

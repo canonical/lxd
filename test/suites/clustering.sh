@@ -1155,7 +1155,7 @@ test_clustering_join_api() {
   LXD_TWO_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
   chmod +x "${LXD_TWO_DIR}"
   ns2="${prefix}2"
-  LXD_ALT_CERT=1 LXD_NETNS="${ns2}" spawn_lxd "${LXD_TWO_DIR}" false
+  LXD_NETNS="${ns2}" spawn_lxd "${LXD_TWO_DIR}" false
 
   op=$(curl --unix-socket "${LXD_TWO_DIR}/unix.socket" -X PUT "lxd/1.0/cluster" -d "{\"server_name\":\"node2\",\"enabled\":true,\"member_config\":[{\"entity\": \"storage-pool\",\"name\":\"data\",\"key\":\"source\",\"value\":\"\"}],\"server_address\":\"10.1.1.102:8443\",\"cluster_address\":\"10.1.1.101:8443\",\"cluster_certificate\":\"${cert}\",\"cluster_password\":\"sekret\"}" | jq -r .operation)
   curl --unix-socket "${LXD_TWO_DIR}/unix.socket" "lxd${op}/wait"
