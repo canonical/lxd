@@ -39,6 +39,9 @@ import (
 
 #include "../../lxd/include/lxd_posix_acl_xattr.h"
 #include "../../lxd/include/memory_utils.h"
+#include "../../lxd/include/process_utils.h"
+#include "../../lxd/include/syscall_numbers.h"
+#include "../../lxd/include/syscall_wrappers.h"
 
 // Needs to be included at the end
 #include <sys/acl.h>
@@ -267,6 +270,85 @@ static void *posix_entry_next(void *value)
 {
 	struct posix_acl_xattr_entry *entry = value;
 	return (void *)(entry + 1);
+}
+
+// open_tree() flags
+#ifndef OPEN_TREE_CLONE
+#define OPEN_TREE_CLONE 1
+#endif
+
+#ifndef OPEN_TREE_CLOEXEC
+#define OPEN_TREE_CLOEXEC O_CLOEXEC
+#endif
+
+// mount attributes
+#ifndef MOUNT_ATTR_IDMAP
+#define MOUNT_ATTR_IDMAP 0x00100000
+#endif
+
+#define __STACK_SIZE (8 * 1024 * 1024)
+static pid_t do_clone(int (*fn)(void *), void *arg, int flags)
+{
+	void *stack;
+
+	stack = malloc(__STACK_SIZE);
+	if (!stack)
+		return -ENOMEM;
+
+#ifdef __ia64__
+	return __clone2(fn, stack, __STACK_SIZE, flags | SIGCHLD, arg, NULL);
+#else
+	return clone(fn, stack + __STACK_SIZE, flags | SIGCHLD, arg, NULL);
+#endif
+}
+
+static int get_userns_fd_cb(void *data)
+{
+	return kill(getpid(), SIGSTOP);
+}
+
+static int get_userns_fd(void)
+{
+	int ret;
+	pid_t pid;
+	char path[256];
+
+	pid = do_clone(get_userns_fd_cb, NULL, CLONE_NEWUSER);
+	if (pid < 0)
+		return -errno;
+
+	snprintf(path, sizeof(path), "/proc/%d/ns/user", pid);
+	ret = open(path, O_RDONLY | O_CLOEXEC);
+	kill(pid, SIGKILL);
+	wait_for_pid(pid);
+	return ret;
+}
+
+static int create_detached_idmapped_mount(const char *path)
+{
+	__do_close int fd_tree = -EBADF, fd_userns = -EBADF;
+	struct lxc_mount_attr attr = {
+	    .attr_set		= MOUNT_ATTR_IDMAP,
+	    .propagation	= MS_SLAVE,
+
+	};
+	int ret;
+
+	fd_tree = open_tree(-EBADF, path, OPEN_TREE_CLONE | OPEN_TREE_CLOEXEC);
+	if (fd_tree < 0)
+		return -errno;
+
+	fd_userns = get_userns_fd();
+	if (fd_userns < 0)
+		return -EBADF;
+
+	attr.userns_fd = fd_userns;
+
+	ret = mount_setattr(fd_tree, "", AT_EMPTY_PATH, &attr, sizeof(attr));
+	if (ret < 0)
+		return -errno;
+
+	return 0;
 }
 */
 import "C"
@@ -529,4 +611,19 @@ func UnshiftCaps(value string, set *IdmapSet) (string, error) {
 
 	buf = C.GoBytes(cBuf, C.int(size))
 	return string(buf), nil
+}
+
+type IdmapStorageType string
+
+const (
+	IdmapStorageNone     = "none"
+	IdmapStorageIdmapped = "idmapped"
+	IdmapStorageShiftfs  = "shiftfs"
+)
+
+func CanIdmapMount(path string) bool {
+	cpath := C.CString(path)
+	defer C.free(unsafe.Pointer(cpath))
+
+	return bool(C.create_detached_idmapped_mount(cpath) == 0)
 }
