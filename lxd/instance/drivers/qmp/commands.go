@@ -190,7 +190,7 @@ func (m *Monitor) GetCPUs() ([]int, error) {
 	}
 
 	// Query the consoles.
-	err := m.run("query-cpus-fast", "", &resp)
+	err := m.run("query-cpus", "", &resp)
 	if err != nil {
 		return nil, err
 	}
