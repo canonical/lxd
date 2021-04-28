@@ -82,6 +82,7 @@ test_pki() {
 
     # Try adding a remote using a revoked client certificate, and the correct password
     lxc_remote remote add pki-lxd "${LXD5_ADDR}" --accept-certificate --password=foo
+    lxc_remote remote remove pki-lxd
 
     # Try adding a remote using a revoked client certificate, and an incorrect password
     ! lxc_remote remote add pki-lxd "${LXD5_ADDR}" --accept-certificate --password=bar || false
