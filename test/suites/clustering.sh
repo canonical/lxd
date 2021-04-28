@@ -127,8 +127,12 @@ test_clustering_membership() {
   LXD_DIR="${LXD_TWO_DIR}" lxc cluster list
   LXD_DIR="${LXD_TWO_DIR}" lxc cluster show node3 | grep -q "status: Offline"
 
-  # Gracefully remove a node.
+  # Gracefully remove a node and check trust certificate is removed.
+  LXD_DIR="${LXD_ONE_DIR}" lxc cluster list | grep node4
+  LXD_DIR="${LXD_ONE_DIR}" lxd sql global 'SELECT name FROM certificates WHERE type = 2' | grep node4
   LXD_DIR="${LXD_TWO_DIR}" lxc cluster remove node4
+  ! LXD_DIR="${LXD_ONE_DIR}" lxc cluster list | grep node4 || false
+  ! LXD_DIR="${LXD_ONE_DIR}" lxd sql global 'SELECT name FROM certificates WHERE type = 2' | grep node4 || false
 
   # The node isn't clustered anymore.
   ! LXD_DIR="${LXD_FOUR_DIR}" lxc cluster list || false
