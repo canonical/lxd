@@ -197,6 +197,14 @@ func (c *ClusterTx) doGetWarnings(q string, args ...interface{}) ([]Warning, err
 	return objects, nil
 }
 
+// GetWarningsByType returns all available warnings with the given type.
+func (c *ClusterTx) GetWarningsByType(typeCode WarningType) ([]Warning, error) {
+	q := `SELECT warnings.id, IFNULL(nodes.name, "") AS node, IFNULL(projects.name, "") AS project, IFNULL(warnings.entity_type_code, -1), IFNULL(warnings.entity_id, -1), warnings.uuid, warnings.type_code, warnings.status, warnings.first_seen_date, warnings.last_seen_date, warnings.updated_date, warnings.last_message, warnings.count
+	FROM warnings LEFT JOIN nodes ON warnings.node_id = nodes.id LEFT JOIN projects ON warnings.project_id = projects.id WHERE type_code=? ORDER BY warnings.last_seen_date`
+
+	return c.doGetWarnings(q, typeCode)
+}
+
 // GetWarningsByStatus returns all available warnings with the given status.
 func (c *ClusterTx) GetWarningsByStatus(status WarningStatus) ([]Warning, error) {
 	q := `SELECT warnings.id, IFNULL(nodes.name, "") AS node, IFNULL(projects.name, "") AS project, IFNULL(warnings.entity_type_code, -1), IFNULL(warnings.entity_id, -1), warnings.uuid, warnings.type_code, warnings.status, warnings.first_seen_date, warnings.last_seen_date, warnings.updated_date, warnings.last_message, warnings.count
