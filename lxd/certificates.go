@@ -313,6 +313,9 @@ func certificatesPost(d *Daemon, r *http.Request) response.Response {
 		name = req.Name
 	} else if r.TLS != nil {
 		if len(r.TLS.PeerCertificates) < 1 {
+			// This can happen if the client doesn't send a client certificate or if the server is in
+			// CA mode. We rely on this check to prevent non-CA trusted client certificates from being
+			// added when in CA mode.
 			return response.BadRequest(fmt.Errorf("No client certificate provided"))
 		}
 		cert = r.TLS.PeerCertificates[len(r.TLS.PeerCertificates)-1]
