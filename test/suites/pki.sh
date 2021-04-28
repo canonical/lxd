@@ -14,7 +14,6 @@ test_pki() {
         . ./vars
         ./clean-all
         ./pkitool --initca
-        ./pkitool --server 127.0.0.1
         ./pkitool lxd-client
         ./pkitool lxd-client-revoked
         # This will revoke the certificate but fail in the end as it tries to then verify the
@@ -24,7 +23,6 @@ test_pki() {
         ./easyrsa init-pki
         echo "lxd" | ./easyrsa build-ca nopass
         ./easyrsa gen-crl
-        ./easyrsa build-server-full 127.0.0.1 nopass
         ./easyrsa build-client-full lxd-client nopass
         ./easyrsa build-client-full lxd-client-revoked nopass
         mkdir keys
@@ -40,8 +38,6 @@ test_pki() {
   # Setup the daemon
   LXD5_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
   chmod +x "${LXD5_DIR}"
-  cat "${TEST_DIR}/pki/keys/127.0.0.1.crt" "${TEST_DIR}/pki/keys/ca.crt" > "${LXD5_DIR}/server.crt"
-  cp "${TEST_DIR}/pki/keys/127.0.0.1.key" "${LXD5_DIR}/server.key"
   cp "${TEST_DIR}/pki/keys/ca.crt" "${LXD5_DIR}/server.ca"
   cp "${TEST_DIR}/pki/keys/crl.pem" "${LXD5_DIR}/ca.crl"
   spawn_lxd "${LXD5_DIR}" true
