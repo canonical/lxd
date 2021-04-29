@@ -62,7 +62,7 @@ func instanceCreateAsEmpty(d *Daemon, args db.InstanceArgs) (instance.Instance, 
 // instanceImageTransfer transfers an image from another cluster node.
 func instanceImageTransfer(d *Daemon, projectName string, hash string, nodeAddress string) error {
 	logger.Debugf("Transferring image %q from node %q", hash, nodeAddress)
-	client, err := cluster.Connect(nodeAddress, d.endpoints.NetworkCert(), false)
+	client, err := cluster.Connect(nodeAddress, d.endpoints.NetworkCert(), d.serverCert(), false)
 	if err != nil {
 		return err
 	}

@@ -32,7 +32,7 @@ const (
 
 // NewNotifier builds a Notifier that can be used to notify other peers using
 // the given policy.
-func NewNotifier(state *state.State, cert *shared.CertInfo, policy NotifierPolicy) (Notifier, error) {
+func NewNotifier(state *state.State, networkCert *shared.CertInfo, serverCert *shared.CertInfo, policy NotifierPolicy) (Notifier, error) {
 	address, err := node.ClusterAddress(state.Node)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to fetch node address")
@@ -73,7 +73,7 @@ func NewNotifier(state *state.State, cert *shared.CertInfo, policy NotifierPolic
 			// enough, let's try to connect to the node, just in
 			// case the heartbeat is lagging behind for some reason
 			// and the node is actually up.
-			if !HasConnectivity(cert, node.Address) {
+			if !HasConnectivity(networkCert, serverCert, node.Address) {
 				switch policy {
 				case NotifyAll:
 					return nil, fmt.Errorf("peer node %s is down", node.Address)
@@ -94,7 +94,7 @@ func NewNotifier(state *state.State, cert *shared.CertInfo, policy NotifierPolic
 			logger.Debugf("Notify node %s of state changes", address)
 			go func(i int, address string) {
 				defer wg.Done()
-				client, err := Connect(address, cert, true)
+				client, err := Connect(address, networkCert, serverCert, true)
 				if err != nil {
 					errs[i] = errors.Wrapf(err, "failed to connect to peer %s", address)
 					return

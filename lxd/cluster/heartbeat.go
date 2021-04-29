@@ -119,7 +119,7 @@ func (hbState *APIHeartbeat) Update(fullStateList bool, raftNodes []db.RaftNode,
 }
 
 // Send sends heartbeat requests to the nodes supplied and updates heartbeat state.
-func (hbState *APIHeartbeat) Send(ctx context.Context, cert *shared.CertInfo, localAddress string, nodes []db.NodeInfo, delay bool) {
+func (hbState *APIHeartbeat) Send(ctx context.Context, networkCert *shared.CertInfo, serverCert *shared.CertInfo, localAddress string, nodes []db.NodeInfo, delay bool) {
 	heartbeatsWg := sync.WaitGroup{}
 	sendHeartbeat := func(nodeID int64, address string, delay bool, heartbeatData *APIHeartbeat) {
 		defer heartbeatsWg.Done()
@@ -133,7 +133,7 @@ func (hbState *APIHeartbeat) Send(ctx context.Context, cert *shared.CertInfo, lo
 		// Update timestamp to current, used for time skew detection
 		heartbeatData.Time = time.Now().UTC()
 
-		err := HeartbeatNode(ctx, address, cert, heartbeatData)
+		err := HeartbeatNode(ctx, address, networkCert, serverCert, heartbeatData)
 		if err == nil {
 			heartbeatData.Lock()
 			// Ensure only update nodes that exist in Members already.
@@ -273,14 +273,14 @@ func (g *Gateway) heartbeat(ctx context.Context, initialHeartbeat bool) {
 	// Send stale set to all nodes in database to get a fresh set of active nodes.
 	if initialHeartbeat {
 		hbState.Update(false, raftNodes, allNodes, offlineThreshold)
-		hbState.Send(ctx, g.cert, localAddress, allNodes, false)
+		hbState.Send(ctx, g.networkCert, g.serverCert(), localAddress, allNodes, false)
 
 		// We have the latest set of node states now, lets send that state set to all nodes.
 		hbState.Update(true, raftNodes, allNodes, offlineThreshold)
-		hbState.Send(ctx, g.cert, localAddress, allNodes, false)
+		hbState.Send(ctx, g.networkCert, g.serverCert(), localAddress, allNodes, false)
 	} else {
 		hbState.Update(true, raftNodes, allNodes, offlineThreshold)
-		hbState.Send(ctx, g.cert, localAddress, allNodes, true)
+		hbState.Send(ctx, g.networkCert, g.serverCert(), localAddress, allNodes, true)
 	}
 
 	// Look for any new node which appeared since sending last heartbeat.
@@ -319,7 +319,7 @@ func (g *Gateway) heartbeat(ctx context.Context, initialHeartbeat bool) {
 	// If any new nodes found, send heartbeat to just them (with full node state).
 	if len(newNodes) > 0 {
 		hbState.Update(true, raftNodes, allNodes, offlineThreshold)
-		hbState.Send(ctx, g.cert, localAddress, newNodes, false)
+		hbState.Send(ctx, g.networkCert, g.serverCert(), localAddress, newNodes, false)
 	}
 
 	// If the context has been cancelled, return immediately.
@@ -359,10 +359,10 @@ func (g *Gateway) heartbeat(ctx context.Context, initialHeartbeat bool) {
 const heartbeatInterval = 10
 
 // HeartbeatNode performs a single heartbeat request against the node with the given address.
-func HeartbeatNode(taskCtx context.Context, address string, cert *shared.CertInfo, heartbeatData *APIHeartbeat) error {
+func HeartbeatNode(taskCtx context.Context, address string, networkCert *shared.CertInfo, serverCert *shared.CertInfo, heartbeatData *APIHeartbeat) error {
 	logger.Debugf("Sending heartbeat request to %s", address)
 
-	config, err := tlsClientConfig(cert)
+	config, err := tlsClientConfig(networkCert, serverCert)
 	if err != nil {
 		return err
 	}

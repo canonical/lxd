@@ -97,6 +97,7 @@ var updates = map[int]schema.Update{
 	38: updateFromV37,
 	39: updateFromV38,
 	40: updateFromV39,
+	41: updateFromV40,
 }
 
 // UpdateFromPreClustering is the last schema version where clustering support
@@ -104,6 +105,21 @@ var updates = map[int]schema.Update{
 const UpdateFromPreClustering = 36
 
 // Schema updates begin here
+
+func updateFromV40(tx *sql.Tx) error {
+	stmt := `
+CREATE TABLE certificates (
+	id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+	fingerprint TEXT NOT NULL,
+	type INTEGER NOT NULL,
+	name TEXT NOT NULL,
+	certificate TEXT NOT NULL,
+	UNIQUE (fingerprint)
+);
+`
+	_, err := tx.Exec(stmt)
+	return err
+}
 
 // Fix the address of the bootstrap node being set to "0" in the raft_nodes
 // table.

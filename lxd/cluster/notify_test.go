@@ -29,7 +29,7 @@ func TestNewNotifier(t *testing.T) {
 	f := notifyFixtures{t: t, state: state}
 	defer f.Nodes(cert, 3)()
 
-	notifier, err := cluster.NewNotifier(state, cert, cluster.NotifyAll)
+	notifier, err := cluster.NewNotifier(state, cert, cert, cluster.NotifyAll)
 	require.NoError(t, err)
 
 	peers := make(chan string, 2)
@@ -66,7 +66,7 @@ func TestNewNotify_NotifyAllError(t *testing.T) {
 	defer f.Nodes(cert, 3)()
 
 	f.Down(1)
-	notifier, err := cluster.NewNotifier(state, cert, cluster.NotifyAll)
+	notifier, err := cluster.NewNotifier(state, cert, cert, cluster.NotifyAll)
 	assert.Nil(t, notifier)
 	require.Error(t, err)
 	assert.Regexp(t, "peer node .+ is down", err.Error())
@@ -84,7 +84,7 @@ func TestNewNotify_NotifyAlive(t *testing.T) {
 	defer f.Nodes(cert, 3)()
 
 	f.Down(1)
-	notifier, err := cluster.NewNotifier(state, cert, cluster.NotifyAlive)
+	notifier, err := cluster.NewNotifier(state, cert, cert, cluster.NotifyAlive)
 	assert.NoError(t, err)
 
 	i := 0

@@ -189,22 +189,20 @@ func (c *cmdInit) askClustering(config *cmdInitData, d lxd.InstanceServer) error
 			}
 
 			// Connect to existing cluster
-			cert, err := util.LoadCert(shared.VarPath(""))
+			serverCert, err := util.LoadServerCert(shared.VarPath(""))
 			if err != nil {
 				return err
 			}
 
-			err = cluster.SetupTrust(string(cert.PublicKey()),
-				config.Cluster.ClusterAddress,
-				string(config.Cluster.ClusterCertificate), config.Cluster.ClusterPassword)
+			err = cluster.SetupTrust(serverCert, serverName, config.Cluster.ClusterAddress, config.Cluster.ClusterCertificate, config.Cluster.ClusterPassword)
 			if err != nil {
 				return errors.Wrap(err, "Failed to setup trust relationship with cluster")
 			}
 
 			// Client parameters to connect to the target cluster node.
 			args := &lxd.ConnectionArgs{
-				TLSClientCert: string(cert.PublicKey()),
-				TLSClientKey:  string(cert.PrivateKey()),
+				TLSClientCert: string(serverCert.PublicKey()),
+				TLSClientKey:  string(serverCert.PrivateKey()),
 				TLSServerCert: string(config.Cluster.ClusterCertificate),
 				UserAgent:     version.UserAgent,
 			}
