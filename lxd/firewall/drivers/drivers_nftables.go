@@ -48,15 +48,35 @@ func (d Nftables) Compat() (bool, error) {
 		return false, err
 	}
 
-	// We require a 5.x kernel to avoid weird conflicts with xtables.
-	if len(uname.Release) > 1 {
-		verInt, err := strconv.Atoi(uname.Release[0:1])
-		if err != nil {
-			return false, errors.Wrapf(err, "Failed parsing kernel version")
+	// We require a >= 5.2 kernel to avoid weird conflicts with xtables and support for inet table NAT rules.
+	releaseLen := len(uname.Release)
+	if releaseLen > 1 {
+		verErr := fmt.Errorf("Kernel version does not meet minimum requirement of 5.2")
+		releaseParts := strings.SplitN(uname.Release, ".", 3)
+		if len(releaseParts) < 2 {
+			return false, errors.Wrapf(err, "Failed parsing kernel version number into parts")
 		}
 
-		if verInt < 5 {
-			return false, fmt.Errorf("Kernel version does not meet minimum requirement of 5")
+		majorVer := releaseParts[0]
+		majorVerInt, err := strconv.Atoi(majorVer)
+		if err != nil {
+			return false, errors.Wrapf(err, "Failed parsing kernel major version number %q", majorVer)
+		}
+
+		if majorVerInt < 5 {
+			return false, verErr
+		}
+
+		if majorVerInt == 5 {
+			minorVer := releaseParts[1]
+			minorVerInt, err := strconv.Atoi(minorVer)
+			if err != nil {
+				return false, errors.Wrapf(err, "Failed parsing kernel minor version number %q", minorVer)
+			}
+
+			if minorVerInt < 2 {
+				return false, verErr
+			}
 		}
 	}
 
