@@ -17,6 +17,7 @@ import (
 	"github.com/lxc/lxd/lxd/db"
 	deviceConfig "github.com/lxc/lxd/lxd/device/config"
 	"github.com/lxc/lxd/lxd/instance"
+	"github.com/lxc/lxd/lxd/ip"
 	"github.com/lxc/lxd/lxd/locking"
 	"github.com/lxc/lxd/lxd/network/acl"
 	"github.com/lxc/lxd/lxd/network/openvswitch"
@@ -913,12 +914,18 @@ func (n *ovn) startUplinkPortBridgeNative(uplinkNet Network, bridgeDevice string
 
 	// Create veth pair if needed.
 	if !InterfaceExists(vars.uplinkEnd) && !InterfaceExists(vars.ovsEnd) {
-		_, err := shared.RunCommand("ip", "link", "add", "dev", vars.uplinkEnd, "type", "veth", "peer", "name", vars.ovsEnd)
+		veth := &ip.Veth{
+			Link: ip.Link{
+				Name: vars.uplinkEnd,
+			},
+			PeerName: vars.ovsEnd,
+		}
+		err := veth.Add()
 		if err != nil {
 			return errors.Wrapf(err, "Failed to create the uplink veth interfaces %q and %q", vars.uplinkEnd, vars.ovsEnd)
 		}
 
-		revert.Add(func() { shared.RunCommand("ip", "link", "delete", vars.uplinkEnd) })
+		revert.Add(func() { veth.Delete() })
 	}
 
 	// Ensure that the veth interfaces inherit the uplink bridge's MTU (which the OVS bridge also inherits).
@@ -947,13 +954,21 @@ func (n *ovn) startUplinkPortBridgeNative(uplinkNet Network, bridgeDevice string
 	}
 
 	// Connect uplink end of veth pair to uplink bridge and bring up.
-	_, err = shared.RunCommand("ip", "link", "set", "master", bridgeDevice, "dev", vars.uplinkEnd, "up")
+	link := &ip.Link{Name: vars.uplinkEnd}
+	err = link.SetMaster(bridgeDevice)
 	if err != nil {
 		return errors.Wrapf(err, "Failed to connect uplink veth interface %q to uplink bridge %q", vars.uplinkEnd, bridgeDevice)
 	}
 
+	link = &ip.Link{Name: vars.uplinkEnd}
+	err = link.SetUp()
+	if err != nil {
+		return errors.Wrapf(err, "Failed to bring up uplink veth interface %q", vars.uplinkEnd)
+	}
+
 	// Ensure uplink OVS end veth interface is up.
-	_, err = shared.RunCommand("ip", "link", "set", "dev", vars.ovsEnd, "up")
+	link = &ip.Link{Name: vars.ovsEnd}
+	err = link.SetUp()
 	if err != nil {
 		return errors.Wrapf(err, "Failed to bring up uplink veth interface %q", vars.ovsEnd)
 	}
@@ -1091,7 +1106,8 @@ func (n *ovn) startUplinkPortPhysical(uplinkNet Network) error {
 	}
 
 	// Bring uplink interface up.
-	_, err = shared.RunCommand("ip", "link", "set", uplinkHostName, "up")
+	link := &ip.Link{Name: uplinkHostName}
+	err = link.SetUp()
 	if err != nil {
 		return errors.Wrapf(err, "Failed to bring up uplink interface %q", uplinkHostName)
 	}
@@ -1198,14 +1214,16 @@ func (n *ovn) deleteUplinkPortBridgeNative(uplinkNet Network) error {
 	// Remove the veth interfaces if they exist.
 	if removeVeths {
 		if InterfaceExists(vars.uplinkEnd) {
-			_, err := shared.RunCommand("ip", "link", "delete", "dev", vars.uplinkEnd)
+			link := &ip.Link{Name: vars.uplinkEnd}
+			err := link.Delete()
 			if err != nil {
 				return errors.Wrapf(err, "Failed to delete the uplink veth interface %q", vars.uplinkEnd)
 			}
 		}
 
 		if InterfaceExists(vars.ovsEnd) {
-			_, err := shared.RunCommand("ip", "link", "delete", "dev", vars.ovsEnd)
+			link := &ip.Link{Name: vars.ovsEnd}
+			err := link.Delete()
 			if err != nil {
 				return errors.Wrapf(err, "Failed to delete the uplink veth interface %q", vars.ovsEnd)
 			}
@@ -1283,7 +1301,8 @@ func (n *ovn) deleteUplinkPortPhysical(uplinkNet Network) error {
 
 	// Bring down uplink interface if not used and exists.
 	if releaseIF && InterfaceExists(uplinkHostName) {
-		_, err := shared.RunCommand("ip", "link", "set", uplinkHostName, "down")
+		link := &ip.Link{Name: uplinkHostName}
+		err := link.SetDown()
 		if err != nil {
 			return errors.Wrapf(err, "Failed to bring down uplink interface %q", uplinkHostName)
 		}

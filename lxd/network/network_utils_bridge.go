@@ -7,6 +7,7 @@ import (
 
 	"github.com/pkg/errors"
 
+	"github.com/lxc/lxd/lxd/ip"
 	"github.com/lxc/lxd/lxd/network/openvswitch"
 	"github.com/lxc/lxd/shared"
 )
@@ -59,7 +60,8 @@ func IsNativeBridge(bridgeName string) bool {
 // AttachInterface attaches an interface to a bridge.
 func AttachInterface(bridgeName string, devName string) error {
 	if IsNativeBridge(bridgeName) {
-		_, err := shared.RunCommand("ip", "link", "set", "dev", devName, "master", bridgeName)
+		link := &ip.Link{Name: devName}
+		err := link.SetMaster(bridgeName)
 		if err != nil {
 			return err
 		}
@@ -77,7 +79,8 @@ func AttachInterface(bridgeName string, devName string) error {
 // DetachInterface detaches an interface from a bridge.
 func DetachInterface(bridgeName string, devName string) error {
 	if IsNativeBridge(bridgeName) {
-		_, err := shared.RunCommand("ip", "link", "set", "dev", devName, "nomaster")
+		link := &ip.Link{Name: devName}
+		err := link.SetNoMaster()
 		if err != nil {
 			return err
 		}

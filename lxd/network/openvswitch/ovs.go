@@ -8,6 +8,7 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/lxc/lxd/lxd/ip"
 	"github.com/lxc/lxd/shared"
 )
 
@@ -147,7 +148,8 @@ func (o *OVS) InterfaceAssociateOVNSwitchPort(interfaceName string, ovnSwitchPor
 			// Atempt to remove port, but don't fail if doesn't exist or can't be removed, at least
 			// the OVS association has been successfully removed, so the new port being added next
 			// won't fail to work properly.
-			shared.RunCommand("ip", "link", "del", port)
+			link := &ip.Link{Name: port}
+			link.Delete()
 		}
 	}
 

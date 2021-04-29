@@ -13,6 +13,7 @@ import (
 	"github.com/lxc/lxd/lxd/dnsmasq/dhcpalloc"
 	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/instance/instancetype"
+	"github.com/lxc/lxd/lxd/ip"
 	"github.com/lxc/lxd/lxd/network"
 	"github.com/lxc/lxd/lxd/network/acl"
 	"github.com/lxc/lxd/lxd/network/openvswitch"
@@ -368,11 +369,12 @@ func (d *nicOVN) Update(oldDevices deviceConfig.Devices, isRunning bool) error {
 	// veth interface to give the instance a chance to detect the change and re-apply for an
 	// updated lease with new IP address.
 	if d.config["ipv6.address"] != oldConfig["ipv6.address"] && d.config["host_name"] != "" && network.InterfaceExists(d.config["host_name"]) {
-		_, err := shared.RunCommand("ip", "link", "set", d.config["host_name"], "down")
+		link := &ip.Link{Name: d.config["host_name"]}
+		err := link.SetDown()
 		if err != nil {
 			return err
 		}
-		_, err = shared.RunCommand("ip", "link", "set", d.config["host_name"], "up")
+		err = link.SetUp()
 		if err != nil {
 			return err
 		}

@@ -1,7 +1,6 @@
 package network
 
 import (
-	"bufio"
 	"encoding/binary"
 	"fmt"
 	"io/ioutil"
@@ -23,6 +22,7 @@ import (
 	"github.com/lxc/lxd/lxd/dnsmasq"
 	"github.com/lxc/lxd/lxd/dnsmasq/dhcpalloc"
 	firewallDrivers "github.com/lxc/lxd/lxd/firewall/drivers"
+	"github.com/lxc/lxd/lxd/ip"
 	"github.com/lxc/lxd/lxd/network/acl"
 	"github.com/lxc/lxd/lxd/network/openvswitch"
 	"github.com/lxc/lxd/lxd/node"
@@ -577,11 +577,15 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 			}
 			revert.Add(func() { ovs.BridgeDelete(n.name) })
 		} else {
-			_, err := shared.RunCommand("ip", "link", "add", "dev", n.name, "type", "bridge")
+
+			bridge := &ip.Bridge{
+				Link: ip.Link{Name: n.name},
+			}
+			err := bridge.Add()
 			if err != nil {
 				return err
 			}
-			revert.Add(func() { shared.RunCommand("ip", "link", "delete", "dev", n.name) })
+			revert.Add(func() { bridge.Delete() })
 		}
 	}
 
@@ -614,7 +618,8 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 	// Cleanup any existing tunnel device.
 	for _, iface := range ifaces {
 		if strings.HasPrefix(iface.Name, fmt.Sprintf("%s-", n.name)) {
-			_, err = shared.RunCommand("ip", "link", "del", "dev", iface.Name)
+			link := &ip.Link{Name: iface.Name}
+			err = link.Delete()
 			if err != nil {
 				return err
 			}
@@ -637,10 +642,13 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 
 	// Attempt to add a dummy device to the bridge to force the MTU.
 	if mtu != "" && n.config["bridge.driver"] != "openvswitch" {
-		_, err = shared.RunCommand("ip", "link", "add", "dev", fmt.Sprintf("%s-mtu", n.name), "mtu", mtu, "type", "dummy")
+		dummy := &ip.Dummy{
+			Link: ip.Link{Name: fmt.Sprintf("%s-mtu", n.name), Mtu: mtu},
+		}
+		err = dummy.Add()
 		if err == nil {
-			revert.Add(func() { shared.RunCommand("ip", "link", "delete", "dev", fmt.Sprintf("%s-mtu", n.name)) })
-			_, err = shared.RunCommand("ip", "link", "set", "dev", fmt.Sprintf("%s-mtu", n.name), "up")
+			revert.Add(func() { dummy.Delete() })
+			err = dummy.SetUp()
 			if err == nil {
 				AttachInterface(n.name, fmt.Sprintf("%s-mtu", n.name))
 			}
@@ -652,7 +660,8 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 		mtu = "1500"
 	}
 
-	_, err = shared.RunCommand("ip", "link", "set", "dev", n.name, "mtu", mtu)
+	link := &ip.Link{Name: n.name}
+	err = link.SetMtu(mtu)
 	if err != nil {
 		return err
 	}
@@ -697,7 +706,7 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 
 	// Set the MAC address on the bridge interface if specified.
 	if hwAddr != "" {
-		_, err = shared.RunCommand("ip", "link", "set", "dev", n.name, "address", hwAddr)
+		err = link.SetAddress(hwAddr)
 		if err != nil {
 			return err
 		}
@@ -718,7 +727,7 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 	}
 
 	// Bring it up.
-	_, err = shared.RunCommand("ip", "link", "set", "dev", n.name, "up")
+	err = link.SetUp()
 	if err != nil {
 		return err
 	}
@@ -798,12 +807,22 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 	}
 
 	// Flush all IPv4 addresses and routes.
-	_, err = shared.RunCommand("ip", "-4", "addr", "flush", "dev", n.name, "scope", "global")
+	addr := &ip.Addr{
+		DevName: n.name,
+		Scope:   "global",
+		Family:  ip.FamilyV4,
+	}
+	err = addr.Flush()
 	if err != nil {
 		return err
 	}
 
-	_, err = shared.RunCommand("ip", "-4", "route", "flush", "dev", n.name, "proto", "static")
+	r := &ip.Route{
+		DevName: n.name,
+		Proto:   "static",
+		Family:  ip.FamilyV4,
+	}
+	err = r.Flush()
 	if err != nil {
 		return err
 	}
@@ -858,13 +877,13 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 	// Configure IPv4.
 	if !shared.StringInSlice(n.config["ipv4.address"], []string{"", "none"}) {
 		// Parse the subnet.
-		ip, subnet, err := net.ParseCIDR(n.config["ipv4.address"])
+		ipAddress, subnet, err := net.ParseCIDR(n.config["ipv4.address"])
 		if err != nil {
 			return errors.Wrapf(err, "Failed parsing ipv4.address")
 		}
 
 		// Update the dnsmasq config.
-		dnsmasqCmd = append(dnsmasqCmd, fmt.Sprintf("--listen-address=%s", ip.String()))
+		dnsmasqCmd = append(dnsmasqCmd, fmt.Sprintf("--listen-address=%s", ipAddress.String()))
 		if n.DHCPv4Subnet() != nil {
 			if !shared.StringInSlice("--dhcp-no-override", dnsmasqCmd) {
 				dnsmasqCmd = append(dnsmasqCmd, []string{"--dhcp-no-override", "--dhcp-authoritative", fmt.Sprintf("--dhcp-leasefile=%s", shared.VarPath("networks", n.name, "dnsmasq.leases")), fmt.Sprintf("--dhcp-hostsfile=%s", shared.VarPath("networks", n.name, "dnsmasq.hosts"))}...)
@@ -899,7 +918,12 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 		}
 
 		// Add the address.
-		_, err = shared.RunCommand("ip", "-4", "addr", "add", "dev", n.name, n.config["ipv4.address"])
+		addr := &ip.Addr{
+			DevName: n.name,
+			Address: n.config["ipv4.address"],
+			Family:  ip.FamilyV4,
+		}
+		err = addr.Add()
 		if err != nil {
 			return err
 		}
@@ -926,7 +950,13 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 		if n.config["ipv4.routes"] != "" {
 			for _, route := range strings.Split(n.config["ipv4.routes"], ",") {
 				route = strings.TrimSpace(route)
-				_, err = shared.RunCommand("ip", "-4", "route", "add", "dev", n.name, route, "proto", "static")
+				r := &ip.Route{
+					DevName: n.name,
+					Route:   route,
+					Proto:   "static",
+					Family:  ip.FamilyV4,
+				}
+				err = r.Add()
 				if err != nil {
 					return err
 				}
@@ -945,12 +975,22 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 	}
 
 	// Flush all IPv6 addresses and routes.
-	_, err = shared.RunCommand("ip", "-6", "addr", "flush", "dev", n.name, "scope", "global")
+	addr = &ip.Addr{
+		DevName: n.name,
+		Scope:   "global",
+		Family:  ip.FamilyV6,
+	}
+	err = addr.Flush()
 	if err != nil {
 		return err
 	}
 
-	_, err = shared.RunCommand("ip", "-6", "route", "flush", "dev", n.name, "proto", "static")
+	r = &ip.Route{
+		DevName: n.name,
+		Proto:   "static",
+		Family:  ip.FamilyV6,
+	}
+	err = r.Flush()
 	if err != nil {
 		return err
 	}
@@ -964,7 +1004,7 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 		}
 
 		// Parse the subnet.
-		ip, subnet, err := net.ParseCIDR(n.config["ipv6.address"])
+		ipAddress, subnet, err := net.ParseCIDR(n.config["ipv6.address"])
 		if err != nil {
 			return errors.Wrapf(err, "Failed parsing ipv6.address")
 		}
@@ -975,7 +1015,7 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 		}
 
 		// Update the dnsmasq config.
-		dnsmasqCmd = append(dnsmasqCmd, []string{fmt.Sprintf("--listen-address=%s", ip.String()), "--enable-ra"}...)
+		dnsmasqCmd = append(dnsmasqCmd, []string{fmt.Sprintf("--listen-address=%s", ipAddress.String()), "--enable-ra"}...)
 		if n.DHCPv6Subnet() != nil {
 			if n.hasIPv6Firewall() {
 				fwOpts.FeaturesV6.DHCPDNSAccess = true
@@ -1042,7 +1082,12 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 		}
 
 		// Add the address.
-		_, err = shared.RunCommand("ip", "-6", "addr", "add", "dev", n.name, n.config["ipv6.address"])
+		addr := &ip.Addr{
+			DevName: n.name,
+			Address: n.config["ipv6.address"],
+			Family:  ip.FamilyV6,
+		}
+		err = addr.Add()
 		if err != nil {
 			return err
 		}
@@ -1069,7 +1114,13 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 		if n.config["ipv6.routes"] != "" {
 			for _, route := range strings.Split(n.config["ipv6.routes"], ",") {
 				route = strings.TrimSpace(route)
-				_, err = shared.RunCommand("ip", "-6", "route", "add", "dev", n.name, route, "proto", "static")
+				r := &ip.Route{
+					DevName: n.name,
+					Route:   route,
+					Proto:   "static",
+					Family:  ip.FamilyV6,
+				}
+				err = r.Add()
 				if err != nil {
 					return err
 				}
@@ -1131,13 +1182,14 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 			if fanMtu != mtu {
 				mtu = fanMtu
 				if n.config["bridge.driver"] != "openvswitch" {
-					_, err = shared.RunCommand("ip", "link", "set", "dev", fmt.Sprintf("%s-mtu", n.name), "mtu", mtu)
+					link := &ip.Link{Name: fmt.Sprintf("%s-mtu", n.name)}
+					err = link.SetMtu(mtu)
 					if err != nil {
 						return err
 					}
 				}
-
-				_, err = shared.RunCommand("ip", "link", "set", "dev", n.name, "mtu", mtu)
+				link := &ip.Link{Name: n.name}
+				err = link.SetMtu(mtu)
 				if err != nil {
 					return err
 				}
@@ -1151,7 +1203,12 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 		}
 
 		// Add the address.
-		_, err = shared.RunCommand("ip", "-4", "addr", "add", "dev", n.name, fanAddress)
+		ipAddr := &ip.Addr{
+			DevName: n.name,
+			Address: fanAddress,
+			Family:  ip.FamilyV4,
+		}
+		err = ipAddr.Add()
 		if err != nil {
 			return err
 		}
@@ -1171,27 +1228,45 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 
 		// Setup the tunnel.
 		if n.config["fan.type"] == "ipip" {
-			_, err = shared.RunCommand("ip", "-4", "route", "flush", "dev", "tunl0")
+			r := &ip.Route{
+				DevName: "tunl0",
+				Family:  ip.FamilyV4,
+			}
+			err = r.Flush()
 			if err != nil {
 				return err
 			}
 
-			_, err = shared.RunCommand("ip", "link", "set", "dev", "tunl0", "up")
+			link := &ip.Link{Name: "tunl0"}
+			err = link.SetUp()
 			if err != nil {
 				return err
 			}
 
 			// Fails if the map is already set.
-			shared.RunCommand("ip", "link", "change", "dev", "tunl0", "type", "ipip", "fan-map", fmt.Sprintf("%s:%s", overlay, underlay))
+			link.Change("ipip", fmt.Sprintf("%s:%s", overlay, underlay))
 
-			_, err = shared.RunCommand("ip", "route", "add", overlay, "dev", "tunl0", "src", addr[0])
+			r = &ip.Route{
+				DevName: "tunl0",
+				Route:   overlay,
+				Src:     addr[0],
+				Proto:   "static",
+			}
+			err = r.Add()
 			if err != nil {
 				return err
 			}
 		} else {
 			vxlanID := fmt.Sprintf("%d", binary.BigEndian.Uint32(overlaySubnet.IP.To4())>>8)
-
-			_, err = shared.RunCommand("ip", "link", "add", tunName, "type", "vxlan", "id", vxlanID, "dev", devName, "dstport", "0", "local", devAddr, "fan-map", fmt.Sprintf("%s:%s", overlay, underlay))
+			vxlan := &ip.Vxlan{
+				Link:    ip.Link{Name: tunName},
+				VxlanID: vxlanID,
+				DevName: devName,
+				DstPort: "0",
+				Local:   devAddr,
+				FanMap:  fmt.Sprintf("%s:%s", overlay, underlay),
+			}
+			err = vxlan.Add()
 			if err != nil {
 				return err
 			}
@@ -1201,12 +1276,18 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 				return err
 			}
 
-			_, err = shared.RunCommand("ip", "link", "set", "dev", tunName, "mtu", mtu, "up")
+			err = vxlan.SetMtu(mtu)
 			if err != nil {
 				return err
 			}
 
-			_, err = shared.RunCommand("ip", "link", "set", "dev", n.name, "up")
+			err = vxlan.SetUp()
+			if err != nil {
+				return err
+			}
+
+			link := &ip.Link{Name: n.name}
+			err = link.SetUp()
 			if err != nil {
 				return err
 			}
@@ -1254,14 +1335,21 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 		tunName := fmt.Sprintf("%s-%s", n.name, tunnel)
 
 		// Configure the tunnel.
-		cmd := []string{"ip", "link", "add", "dev", tunName}
 		if tunProtocol == "gre" {
 			// Skip partial configs.
 			if tunProtocol == "" || tunLocal == "" || tunRemote == "" {
 				continue
 			}
 
-			cmd = append(cmd, []string{"type", "gretap", "local", tunLocal, "remote", tunRemote}...)
+			gretapLink := &ip.Gretap{
+				Link:   ip.Link{Name: tunName},
+				Local:  tunLocal,
+				Remote: tunRemote,
+			}
+			err := gretapLink.Add()
+			if err != nil {
+				return err
+			}
 		} else if tunProtocol == "vxlan" {
 			tunGroup := getConfig("group")
 			tunInterface := getConfig("interface")
@@ -1271,10 +1359,12 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 				continue
 			}
 
-			cmd = append(cmd, []string{"type", "vxlan"}...)
-
+			vxlanLink := &ip.Vxlan{
+				Link: ip.Link{Name: tunName},
+			}
 			if tunLocal != "" && tunRemote != "" {
-				cmd = append(cmd, []string{"local", tunLocal, "remote", tunRemote}...)
+				vxlanLink.Local = tunLocal
+				vxlanLink.Remote = tunRemote
 			} else {
 				if tunGroup == "" {
 					tunGroup = "239.0.0.1"
@@ -1288,32 +1378,32 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 					}
 				}
 
-				cmd = append(cmd, []string{"group", tunGroup, "dev", devName}...)
+				vxlanLink.Group = tunGroup
+				vxlanLink.DevName = devName
 			}
 
 			tunPort := getConfig("port")
 			if tunPort == "" {
 				tunPort = "0"
 			}
-			cmd = append(cmd, []string{"dstport", tunPort}...)
+			vxlanLink.DstPort = tunPort
 
 			tunID := getConfig("id")
 			if tunID == "" {
 				tunID = "1"
 			}
-			cmd = append(cmd, []string{"id", tunID}...)
+			vxlanLink.VxlanID = tunID
 
 			tunTTL := getConfig("ttl")
 			if tunTTL == "" {
 				tunTTL = "1"
 			}
-			cmd = append(cmd, []string{"ttl", tunTTL}...)
-		}
+			vxlanLink.TTL = tunTTL
 
-		// Create the interface.
-		_, err = shared.RunCommand(cmd[0], cmd[1:]...)
-		if err != nil {
-			return err
+			err := vxlanLink.Add()
+			if err != nil {
+				return err
+			}
 		}
 
 		// Bridge it and bring up.
@@ -1322,12 +1412,14 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 			return err
 		}
 
-		_, err = shared.RunCommand("ip", "link", "set", "dev", tunName, "mtu", mtu, "up")
+		link := &ip.Link{Name: tunName}
+		err = link.SetMtu(mtu)
 		if err != nil {
 			return err
 		}
 
-		_, err = shared.RunCommand("ip", "link", "set", "dev", n.name, "up")
+		link = &ip.Link{Name: n.name}
+		err = link.SetUp()
 		if err != nil {
 			return err
 		}
@@ -1517,7 +1609,8 @@ func (n *bridge) Stop() error {
 			return err
 		}
 	} else {
-		_, err := shared.RunCommand("ip", "link", "del", "dev", n.name)
+		link := &ip.Link{Name: n.name}
+		err := link.Delete()
 		if err != nil {
 			return err
 		}
@@ -1562,7 +1655,8 @@ func (n *bridge) Stop() error {
 	// Cleanup any existing tunnel device
 	for _, iface := range ifaces {
 		if strings.HasPrefix(iface.Name, fmt.Sprintf("%s-", n.name)) {
-			_, err = shared.RunCommand("ip", "link", "del", "dev", iface.Name)
+			link := &ip.Link{Name: iface.Name}
+			err = link.Delete()
 			if err != nil {
 				return err
 			}
@@ -1793,46 +1887,41 @@ func (n *bridge) getTunnels() []string {
 
 // bootRoutesV4 returns a list of IPv4 boot routes on the network's device.
 func (n *bridge) bootRoutesV4() ([]string, error) {
-	routes := []string{}
-	cmd := exec.Command("ip", "-4", "route", "show", "dev", n.name, "proto", "boot")
-	ipOut, err := cmd.StdoutPipe()
+	r := &ip.Route{
+		DevName: n.name,
+		Proto:   "boot",
+		Family:  ip.FamilyV4,
+	}
+	routes, err := r.Show()
 	if err != nil {
-		return routes, err
+		return nil, err
 	}
-	cmd.Start()
-	scanner := bufio.NewScanner(ipOut)
-	for scanner.Scan() {
-		route := strings.Replace(scanner.Text(), "linkdown", "", -1)
-		routes = append(routes, route)
-	}
-	cmd.Wait()
 	return routes, nil
 }
 
 // bootRoutesV6 returns a list of IPv6 boot routes on the network's device.
 func (n *bridge) bootRoutesV6() ([]string, error) {
-	routes := []string{}
-	cmd := exec.Command("ip", "-6", "route", "show", "dev", n.name, "proto", "boot")
-	ipOut, err := cmd.StdoutPipe()
+	r := &ip.Route{
+		DevName: n.name,
+		Proto:   "boot",
+		Family:  ip.FamilyV6,
+	}
+	routes, err := r.Show()
 	if err != nil {
-		return routes, err
+		return nil, err
 	}
-	cmd.Start()
-	scanner := bufio.NewScanner(ipOut)
-	for scanner.Scan() {
-		route := strings.Replace(scanner.Text(), "linkdown", "", -1)
-		routes = append(routes, route)
-	}
-	cmd.Wait()
 	return routes, nil
 }
 
 // applyBootRoutesV4 applies a list of IPv4 boot routes to the network's device.
 func (n *bridge) applyBootRoutesV4(routes []string) {
 	for _, route := range routes {
-		cmd := []string{"-4", "route", "replace", "dev", n.name, "proto", "boot"}
-		cmd = append(cmd, strings.Fields(route)...)
-		_, err := shared.RunCommand("ip", cmd...)
+		r := &ip.Route{
+			DevName: n.name,
+			Proto:   "boot",
+			Family:  ip.FamilyV4,
+		}
+		err := r.Replace(strings.Fields(route))
 		if err != nil {
 			// If it fails, then we can't stop as the route has already gone, so just log and continue.
 			n.logger.Error("Failed to restore route", log.Ctx{"err": err})
@@ -1843,9 +1932,12 @@ func (n *bridge) applyBootRoutesV4(routes []string) {
 // applyBootRoutesV6 applies a list of IPv6 boot routes to the network's device.
 func (n *bridge) applyBootRoutesV6(routes []string) {
 	for _, route := range routes {
-		cmd := []string{"-6", "route", "replace", "dev", n.name, "proto", "boot"}
-		cmd = append(cmd, strings.Fields(route)...)
-		_, err := shared.RunCommand("ip", cmd...)
+		r := &ip.Route{
+			DevName: n.name,
+			Proto:   "boot",
+			Family:  ip.FamilyV6,
+		}
+		err := r.Replace(strings.Fields(route))
 		if err != nil {
 			// If it fails, then we can't stop as the route has already gone, so just log and continue.
 			n.logger.Error("Failed to restore route", log.Ctx{"err": err})
