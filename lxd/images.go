@@ -1610,7 +1610,7 @@ func distributeImage(ctx context.Context, d *Daemon, nodes []string, oldFingerpr
 			return errors.Wrapf(err, "Failed to retrieve information about cluster member with address %q", nodeAddress)
 		}
 
-		client, err := cluster.Connect(nodeAddress, d.endpoints.NetworkCert(), true)
+		client, err := cluster.Connect(nodeAddress, d.endpoints.NetworkCert(), d.serverCert(), true)
 		if err != nil {
 			return errors.Wrapf(err, "Failed to connect to %q for image synchronization", nodeAddress)
 		}
@@ -2166,7 +2166,7 @@ func imageDelete(d *Daemon, r *http.Request) response.Response {
 			}
 
 			// Notify the other nodes about the removed image so they can remove it from disk too.
-			notifier, err := cluster.NewNotifier(d.State(), d.endpoints.NetworkCert(), cluster.NotifyAll)
+			notifier, err := cluster.NewNotifier(d.State(), d.endpoints.NetworkCert(), d.serverCert(), cluster.NotifyAll)
 			if err != nil {
 				return err
 			}
@@ -3201,8 +3201,7 @@ func imageExport(d *Daemon, r *http.Request) response.Response {
 	}
 	if address != "" {
 		// Forward the request to the other node
-		cert := d.endpoints.NetworkCert()
-		client, err := cluster.Connect(address, cert, false)
+		client, err := cluster.Connect(address, d.endpoints.NetworkCert(), d.serverCert(), false)
 		if err != nil {
 			return response.SmartError(err)
 		}
@@ -3649,7 +3648,7 @@ func imageSyncBetweenNodes(d *Daemon, project string, fingerprint string) error 
 	// Pick a random node from that slice as the source.
 	syncNodeAddress := syncNodeAddresses[rand.Intn(len(syncNodeAddresses))]
 
-	source, err := cluster.Connect(syncNodeAddress, d.endpoints.NetworkCert(), true)
+	source, err := cluster.Connect(syncNodeAddress, d.endpoints.NetworkCert(), d.serverCert(), true)
 	if err != nil {
 		return errors.Wrap(err, "Failed to connect to source node for image synchronization")
 	}
@@ -3676,7 +3675,7 @@ func imageSyncBetweenNodes(d *Daemon, project string, fingerprint string) error 
 		// Pick a random node from that slice as the target.
 		targetNodeAddress := addresses[rand.Intn(len(addresses))]
 
-		client, err := cluster.Connect(targetNodeAddress, d.endpoints.NetworkCert(), true)
+		client, err := cluster.Connect(targetNodeAddress, d.endpoints.NetworkCert(), d.serverCert(), true)
 		if err != nil {
 			return errors.Wrap(err, "Failed to connect node for image synchronization")
 		}

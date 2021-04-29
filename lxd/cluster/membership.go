@@ -2,6 +2,8 @@ package cluster
 
 import (
 	"context"
+	"crypto/x509"
+	"encoding/pem"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -26,10 +28,10 @@ import (
 //
 // This instance must already have its cluster.https_address set and be listening
 // on the associated network address.
-func Bootstrap(state *state.State, gateway *Gateway, name string) error {
+func Bootstrap(state *state.State, gateway *Gateway, serverName string) error {
 	// Check parameters
-	if name == "" {
-		return fmt.Errorf("node name must not be empty")
+	if serverName == "" {
+		return fmt.Errorf("Server name must not be empty")
 	}
 
 	err := membershipCheckNoLeftoverClusterCert(state.OS.VarDir)
@@ -75,9 +77,14 @@ func Bootstrap(state *state.State, gateway *Gateway, name string) error {
 		}
 
 		// Add ourselves to the nodes table.
-		err = tx.UpdateNode(1, name, address)
+		err = tx.UpdateNode(1, serverName, address)
 		if err != nil {
-			return errors.Wrap(err, "failed to update cluster node")
+			return errors.Wrap(err, "Failed updating cluster member")
+		}
+
+		err = EnsureServerCertificateTrusted(serverName, state.ServerCert(), tx)
+		if err != nil {
+			return errors.Wrap(err, "Failed ensuring server certificate is trusted")
 		}
 
 		return nil
@@ -85,6 +92,10 @@ func Bootstrap(state *state.State, gateway *Gateway, name string) error {
 	if err != nil {
 		return err
 	}
+
+	// Reload the trusted certificate cache to enable the certificate we just added to the local trust store
+	// to be used when validating endpoint connections. This will allow Dqlite to connect to ourselves.
+	state.UpdateCertificateCache()
 
 	// Shutdown the gateway. This will trash any dqlite connection against
 	// our in-memory dqlite driver and shutdown the associated raft
@@ -117,7 +128,7 @@ func Bootstrap(state *state.State, gateway *Gateway, name string) error {
 
 	// If endpoint listeners are active, apply new cluster certificate.
 	if state.Endpoints != nil {
-		gateway.cert = clusterCert
+		gateway.networkCert = clusterCert
 		state.Endpoints.NetworkUpdateCert(clusterCert)
 	}
 
@@ -145,6 +156,54 @@ func Bootstrap(state *state.State, gateway *Gateway, name string) error {
 	})
 	if err != nil {
 		return errors.Wrap(err, "cluster database initialization failed")
+	}
+
+	return nil
+}
+
+// EnsureServerCertificateTrusted adds the serverCert to the DB trusted certificates store using the serverName.
+// If a certificate with the same fingerprint is already in the trust store, but is of the wrong type or name then
+// the existing certificate is updated to the correct type and name. If the existing certificate is the correct
+// type but the wrong name then an error is returned. And if the existing certificate is the correct type and name
+// then nothing more is done.
+func EnsureServerCertificateTrusted(serverName string, serverCert *shared.CertInfo, tx *db.ClusterTx) error {
+	// Parse our server certificate and prepare to add it to DB trust store.
+	serverCertx509, err := x509.ParseCertificate(serverCert.KeyPair().Certificate[0])
+	if err != nil {
+		return err
+	}
+
+	fingerprint := shared.CertFingerprint(serverCertx509)
+
+	dbCert := db.Certificate{
+		Fingerprint: fingerprint,
+		Type:        db.CertificateTypeServer, // Server type for intra-member communication.
+		Name:        serverName,
+		Certificate: string(pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: serverCertx509.Raw})),
+	}
+
+	// Add our server cert to the DB trust store (so when other members join this cluster they will be
+	// able to trust intra-cluster requests from this member).
+	existingCert, _ := tx.GetCertificate(dbCert.Fingerprint)
+	if existingCert != nil {
+		if existingCert.Name != dbCert.Name && existingCert.Type == db.CertificateTypeServer {
+			// Don't alter an existing server certificate that has our fingerprint but not our name.
+			// Something is wrong as this shouldn't happen.
+			return fmt.Errorf("Existing server certificate with different name %q already in trust store", existingCert.Name)
+		} else if existingCert.Name != dbCert.Name && existingCert.Type != db.CertificateTypeServer {
+			// Ensure that if a client certificate already exists that matches our fingerprint, that it
+			// has the correct name and type for cluster operation, to allow us to associate member
+			// server names to certificate names.
+			err = tx.UpdateCertificate(dbCert.Fingerprint, dbCert)
+			if err != nil {
+				return errors.Wrap(err, "Failed updating certificate name and type in trust store")
+			}
+		}
+	} else {
+		_, err = tx.CreateCertificate(dbCert)
+		if err != nil {
+			return errors.Wrapf(err, "Failed adding server certifcate to trust store")
+		}
 	}
 
 	return nil
@@ -239,7 +298,7 @@ func Accept(state *state.State, gateway *Gateway, name, address string, schema, 
 //
 // The cert parameter must contain the keypair/CA material of the cluster being
 // joined.
-func Join(state *state.State, gateway *Gateway, cert *shared.CertInfo, name string, raftNodes []db.RaftNode) error {
+func Join(state *state.State, gateway *Gateway, networkCert *shared.CertInfo, serverCert *shared.CertInfo, name string, raftNodes []db.RaftNode) error {
 	// Check parameters
 	if name == "" {
 		return fmt.Errorf("node name must not be empty")
@@ -323,7 +382,7 @@ func Join(state *state.State, gateway *Gateway, cert *shared.CertInfo, name stri
 	// Re-initialize the gateway. This will create a new raft factory an
 	// dqlite driver instance, which will be exposed over gRPC by the
 	// gateway handlers.
-	gateway.cert = cert
+	gateway.networkCert = networkCert
 	err = gateway.init(false)
 	if err != nil {
 		return errors.Wrap(err, "failed to re-initialize gRPC SQL gateway")
@@ -339,9 +398,7 @@ func Join(state *state.State, gateway *Gateway, cert *shared.CertInfo, name stri
 	if info == nil {
 		panic("joining node not found")
 	}
-	logger.Info(
-		"Joining dqlite raft cluster",
-		log15.Ctx{"id": info.ID, "address": info.Address, "role": info.Role})
+	logger.Info("Joining dqlite raft cluster", log15.Ctx{"id": info.ID, "address": info.Address, "role": info.Role})
 	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
 	defer cancel()
 	client, err := client.FindLeader(
@@ -354,6 +411,7 @@ func Join(state *state.State, gateway *Gateway, cert *shared.CertInfo, name stri
 	}
 	defer client.Close()
 
+	logger.Info("Adding node to cluster", log15.Ctx{"id": info.ID, "address": info.Address, "role": info.Role})
 	ctx, cancel = context.WithTimeout(context.Background(), time.Minute)
 	defer cancel()
 	err = client.Add(ctx, *info)
@@ -448,7 +506,7 @@ func Join(state *state.State, gateway *Gateway, cert *shared.CertInfo, name stri
 		}
 
 		// Generate partial heartbeat request containing just a raft node list.
-		notifyNodesUpdate(raftNodes, info.ID, cert)
+		notifyNodesUpdate(raftNodes, info.ID, networkCert, serverCert)
 
 		return nil
 	})
@@ -459,9 +517,8 @@ func Join(state *state.State, gateway *Gateway, cert *shared.CertInfo, name stri
 	return nil
 }
 
-// Attempt to send a heartbeat to all other nodes to notify them of a new or
-// changed member.
-func notifyNodesUpdate(raftNodes []db.RaftNode, id uint64, cert *shared.CertInfo) {
+// Attempt to send a heartbeat to all other nodes to notify them of a new or changed member.
+func notifyNodesUpdate(raftNodes []db.RaftNode, id uint64, networkCert *shared.CertInfo, serverCert *shared.CertInfo) {
 	// Generate partial heartbeat request containing just a raft node list.
 	hbState := &APIHeartbeat{}
 	hbState.Time = time.Now().UTC()
@@ -476,7 +533,7 @@ func notifyNodesUpdate(raftNodes []db.RaftNode, id uint64, cert *shared.CertInfo
 		if node.ID == id {
 			continue
 		}
-		go HeartbeatNode(context.Background(), node.Address, cert, hbState)
+		go HeartbeatNode(context.Background(), node.Address, networkCert, serverCert, hbState)
 	}
 }
 
@@ -702,7 +759,7 @@ assign:
 	}
 
 	// Generate partial heartbeat request containing just a raft node list.
-	notifyNodesUpdate(nodes, info.ID, gateway.cert)
+	notifyNodesUpdate(nodes, info.ID, gateway.networkCert, gateway.serverCert())
 
 	return nil
 }
@@ -854,7 +911,7 @@ func newRolesChanges(state *state.State, gateway *Gateway, nodes []db.RaftNode) 
 	cluster := map[client.NodeInfo]*client.NodeMetadata{}
 
 	for _, node := range nodes {
-		if HasConnectivity(gateway.cert, node.Address) {
+		if HasConnectivity(gateway.networkCert, gateway.serverCert(), node.Address) {
 			cluster[node] = &client.NodeMetadata{
 				FailureDomain: domains[node.Address],
 			}
@@ -883,18 +940,24 @@ func Purge(cluster *db.Cluster, name string) error {
 		// Get the node (if it doesn't exists an error is returned).
 		node, err := tx.GetNodeByName(name)
 		if err != nil {
-			return errors.Wrapf(err, "failed to get node %s", name)
+			return errors.Wrapf(err, "Failed to get member %q", name)
 		}
 
 		err = tx.ClearNode(node.ID)
 		if err != nil {
-			return errors.Wrapf(err, "failed to clear node %s", name)
+			return errors.Wrapf(err, "Failed to clear member %q", name)
 		}
 
 		err = tx.RemoveNode(node.ID)
 		if err != nil {
-			return errors.Wrapf(err, "failed to remove node %s", name)
+			return errors.Wrapf(err, "Failed to remove member %q", name)
 		}
+
+		err = tx.DeleteCertificateByNameAndType(name, db.CertificateTypeServer)
+		if err != nil {
+			return errors.Wrapf(err, "Failed to remove member %q certificate from trust store", name)
+		}
+
 		return nil
 	})
 }

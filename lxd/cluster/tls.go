@@ -6,51 +6,85 @@ import (
 	"fmt"
 	"net/http"
 
+	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
+	"github.com/lxc/lxd/shared/logger"
 )
 
-// Return a TLS configuration suitable for establishing inter-node network
-// connections using the cluster certificate.
-func tlsClientConfig(info *shared.CertInfo) (*tls.Config, error) {
-	keypair := info.KeyPair()
-	ca := info.CA()
+// Return a TLS configuration suitable for establishing intra-member network connections using the server cert.
+func tlsClientConfig(networkCert *shared.CertInfo, serverCert *shared.CertInfo) (*tls.Config, error) {
+	if networkCert == nil {
+		return nil, fmt.Errorf("Invalid networkCert")
+	}
+
+	if serverCert == nil {
+		return nil, fmt.Errorf("Invalid serverCert")
+	}
+
+	keypair := serverCert.KeyPair()
 	config := shared.InitTLSConfig()
 	config.Certificates = []tls.Certificate{keypair}
 	config.RootCAs = x509.NewCertPool()
+	ca := serverCert.CA()
 	if ca != nil {
 		config.RootCAs.AddCert(ca)
 	}
+
 	// Since the same cluster keypair is used both as server and as client
 	// cert, let's add it to the CA pool to make it trusted.
-	cert, err := x509.ParseCertificate(keypair.Certificate[0])
+	networkKeypair := networkCert.KeyPair()
+	netCert, err := x509.ParseCertificate(networkKeypair.Certificate[0])
 	if err != nil {
 		return nil, err
 	}
-	cert.IsCA = true
-	cert.KeyUsage = x509.KeyUsageCertSign
-	config.RootCAs.AddCert(cert)
 
-	if cert.DNSNames != nil {
-		config.ServerName = cert.DNSNames[0]
+	netCert.IsCA = true
+	netCert.KeyUsage = x509.KeyUsageCertSign
+	config.RootCAs.AddCert(netCert)
+
+	// Always use network certificate's DNS name rather than server cert, so that it matches.
+	if len(netCert.DNSNames) > 0 {
+		config.ServerName = netCert.DNSNames[0]
 	}
+
 	return config, nil
 }
 
-// Return true if the given request is presenting the given cluster certificate.
-func tlsCheckCert(r *http.Request, info *shared.CertInfo) bool {
-	cert, err := x509.ParseCertificate(info.KeyPair().Certificate[0])
+// tlsCheckCert checks certificate access, returns true if certificate is trusted.
+func tlsCheckCert(r *http.Request, networkCert *shared.CertInfo, serverCert *shared.CertInfo, trustedCerts map[int]map[string]x509.Certificate) bool {
+	_, err := x509.ParseCertificate(networkCert.KeyPair().Certificate[0])
 	if err != nil {
 		// Since we have already loaded this certificate, typically
 		// using LoadX509KeyPair, an error should never happen, but
 		// check for good measure.
-		panic(fmt.Sprintf("invalid keypair material: %v", err))
+		panic(fmt.Sprintf("Invalid keypair material: %v", err))
 	}
-	trustedCerts := map[string]x509.Certificate{"0": *cert}
 
-	trusted, _ := util.CheckTrustState(*r.TLS.PeerCertificates[0], trustedCerts, nil, false)
+	if r.TLS == nil {
+		return false
+	}
 
-	return r.TLS != nil && trusted
+	for _, i := range r.TLS.PeerCertificates {
+		// Trust our own server certificate. This allows Dqlite to start with a connection back to this
+		// member before the database is available. It also allows us to switch the server certificate to
+		// the network certificate during cluster upgrade to per-server certificates, and it be trusted.
+		trustedServerCert, _ := x509.ParseCertificate(serverCert.KeyPair().Certificate[0])
+		trusted, _ := util.CheckTrustState(*i, map[string]x509.Certificate{serverCert.Fingerprint(): *trustedServerCert}, networkCert, false)
+		if trusted {
+			return true
+		}
+
+		// Check the trusted server certficates list provided.
+		trusted, _ = util.CheckTrustState(*i, trustedCerts[db.CertificateTypeServer], networkCert, false)
+		if trusted {
+			return true
+		}
+
+		logger.Errorf("Invalid client certificate %v (%v) from %v", i.Subject, shared.CertFingerprint(i), r.RemoteAddr)
+	}
+
+	return false
 }
 
 // Return an http.Transport configured using the given configuration and a

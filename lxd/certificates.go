@@ -15,16 +15,16 @@ import (
 
 	lxd "github.com/lxc/lxd/client"
 	"github.com/lxc/lxd/lxd/cluster"
+	"github.com/lxc/lxd/lxd/cluster/request"
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/rbac"
 	"github.com/lxc/lxd/lxd/response"
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
+	log "github.com/lxc/lxd/shared/log15"
 	"github.com/lxc/lxd/shared/logger"
 	"github.com/lxc/lxd/shared/version"
-
-	log "github.com/lxc/lxd/shared/log15"
 )
 
 type certificateCache struct {
@@ -165,17 +165,20 @@ func certificatesGet(d *Daemon, r *http.Request) response.Response {
 }
 
 func updateCertificateCache(d *Daemon) {
+	logger.Debug("Refreshing trusted certificate cache")
+
 	newCerts := map[int]map[string]x509.Certificate{}
 	newProjects := map[string][]string{}
 
 	var dbCerts []db.Certificate
+	var localCerts []db.Certificate
 	var err error
 	err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
 		dbCerts, err = tx.GetCertificates(db.CertificateFilter{})
 		return err
 	})
 	if err != nil {
-		logger.Infof("Error reading certificates from database: %v", err)
+		logger.Warn("Failed reading certificates from global database", log.Ctx{"err": err})
 		return
 	}
 
@@ -186,26 +189,88 @@ func updateCertificateCache(d *Daemon) {
 
 		certBlock, _ := pem.Decode([]byte(dbCert.Certificate))
 		if certBlock == nil {
-			logger.Infof("Error decoding certificate for %q: %v", dbCert.Name, err)
+			logger.Warn("Failed decoding certificate", log.Ctx{"name": dbCert.Name, "err": err})
 			continue
 		}
 
 		cert, err := x509.ParseCertificate(certBlock.Bytes)
 		if err != nil {
-			logger.Infof("Error reading certificate for %q: %v", dbCert.Name, err)
+			logger.Warn("Failed parsing certificate", log.Ctx{"name": dbCert.Name, "err": err})
 			continue
 		}
 
 		newCerts[dbCert.Type][shared.CertFingerprint(cert)] = *cert
+
 		if dbCert.Restricted {
 			newProjects[shared.CertFingerprint(cert)] = dbCert.Projects
 		}
+
+		// Add server certs to list of certificates to store in local database to allow cluster restart.
+		if dbCert.Type == db.CertificateTypeServer {
+			localCerts = append(localCerts, dbCert)
+		}
+	}
+
+	// Write out the server certs to the local database to allow the cluster to restart.
+	err = d.db.Transaction(func(tx *db.NodeTx) error {
+		return tx.ReplaceCertificates(localCerts)
+	})
+	if err != nil {
+		logger.Warn("Failed writing certificates to local database", log.Ctx{"err": err})
+		// Don't return here, as we still should update the in-memory cache to allow the cluster to
+		// continue functioning, and hopefully the write will succeed on next update.
 	}
 
 	d.clientCerts.Lock.Lock()
 	d.clientCerts.Certificates = newCerts
 	d.clientCerts.Projects = newProjects
 	d.clientCerts.Lock.Unlock()
+}
+
+// updateCertificateCacheFromLocal loads trusted server certificates from local database into memory.
+// If no local trusted server certificates available and is clustered, then loads network certificate into trusted
+// certificates cache.
+func updateCertificateCacheFromLocal(d *Daemon, networkCert *shared.CertInfo) error {
+	logger.Debug("Refreshing local trusted certificate cache")
+
+	newCerts := map[int]map[string]x509.Certificate{}
+
+	var dbCerts []db.Certificate
+	var err error
+
+	err = d.db.Transaction(func(tx *db.NodeTx) error {
+		dbCerts, err = tx.GetCertificates()
+		return err
+	})
+	if err != nil {
+		return errors.Wrapf(err, "Failed reading certificates from local database")
+	}
+
+	for _, dbCert := range dbCerts {
+		if _, found := newCerts[dbCert.Type]; !found {
+			newCerts[dbCert.Type] = make(map[string]x509.Certificate)
+		}
+
+		certBlock, _ := pem.Decode([]byte(dbCert.Certificate))
+		if certBlock == nil {
+			logger.Warn("Failed decoding certificate", log.Ctx{"name": dbCert.Name, "err": err})
+			continue
+		}
+
+		cert, err := x509.ParseCertificate(certBlock.Bytes)
+		if err != nil {
+			logger.Warn("Failed parsing certificate", log.Ctx{"name": dbCert.Name, "err": err})
+			continue
+		}
+
+		newCerts[dbCert.Type][shared.CertFingerprint(cert)] = *cert
+	}
+
+	d.clientCerts.Lock.Lock()
+	d.clientCerts.Certificates = newCerts
+	d.clientCerts.Lock.Unlock()
+
+	return nil
 }
 
 // swagger:operation POST /1.0/certificates?public certificates certificates_post_untrusted
@@ -344,7 +409,7 @@ func certificatesPost(d *Daemon, r *http.Request) response.Response {
 		// Check if we already have the certificate.
 		existingCert, _ := d.cluster.GetCertificate(fingerprint)
 		if existingCert != nil {
-			return response.BadRequest(fmt.Errorf("Certificate already in trust store"))
+			return response.BadRequest(cluster.ErrCertificateExists)
 		}
 
 		// Store the certificate in the cluster database.
@@ -368,8 +433,7 @@ func certificatesPost(d *Daemon, r *http.Request) response.Response {
 		}
 
 		// Notify other nodes about the new certificate.
-		notifier, err := cluster.NewNotifier(
-			d.State(), d.endpoints.NetworkCert(), cluster.NotifyAlive)
+		notifier, err := cluster.NewNotifier(d.State(), d.endpoints.NetworkCert(), d.serverCert(), cluster.NotifyAlive)
 		if err != nil {
 			return response.SmartError(err)
 		}
@@ -493,8 +557,10 @@ func certificatePut(d *Daemon, r *http.Request) response.Response {
 		return response.BadRequest(err)
 	}
 
+	clientType := request.UserAgentClientType(r.Header.Get("User-Agent"))
+
 	// Apply the update.
-	return doCertificateUpdate(d, *oldEntry, fingerprint, req)
+	return doCertificateUpdate(d, *oldEntry, fingerprint, req, clientType)
 }
 
 // swagger:operation PATCH /1.0/certificates/{fingerprint} certificates certificate_patch
@@ -550,40 +616,53 @@ func certificatePatch(d *Daemon, r *http.Request) response.Response {
 		return response.BadRequest(err)
 	}
 
-	return doCertificateUpdate(d, *oldEntry, fingerprint, req.Writable())
+	clientType := request.UserAgentClientType(r.Header.Get("User-Agent"))
+
+	return doCertificateUpdate(d, *oldEntry, fingerprint, req.Writable(), clientType)
 }
 
-func doCertificateUpdate(d *Daemon, dbInfo db.Certificate, fingerprint string, req api.CertificatePut) response.Response {
-	reqDBType, err := db.CertificateAPITypeToDBType(req.Type)
-	if err != nil {
-		return response.BadRequest(err)
-	}
+func doCertificateUpdate(d *Daemon, dbInfo db.Certificate, fingerprint string, req api.CertificatePut, clientType request.ClientType) response.Response {
+	if clientType == request.ClientTypeNormal {
+		reqDBType, err := db.CertificateAPITypeToDBType(req.Type)
+		if err != nil {
+			return response.BadRequest(err)
+		}
 
-	if reqDBType != dbInfo.Type {
-		return response.BadRequest(fmt.Errorf("Certificate type cannot be changed"))
-	}
+		// Convert to the database type.
+		cert := db.Certificate{
+			// Read-only fields.
+			Certificate: dbInfo.Certificate,
+			Fingerprint: dbInfo.Fingerprint,
 
-	// Convert to the database type.
-	cert := db.Certificate{
-		// Read-only fields.
-		Certificate: dbInfo.Certificate,
-		Fingerprint: dbInfo.Fingerprint,
-		Type:        dbInfo.Type,
+			Restricted: req.Restricted,
+			Projects:   req.Projects,
+			Name:       req.Name,
+			Type:       reqDBType,
+		}
 
-		Restricted: req.Restricted,
-		Projects:   req.Projects,
-		Name:       req.Name,
-	}
+		// Update the database record.
+		err = d.cluster.UpdateCertificate(fingerprint, cert)
+		if err != nil {
+			return response.SmartError(err)
+		}
 
-	// Update the database record.
-	err = d.cluster.UpdateCertificate(fingerprint, cert)
-	if err != nil {
-		return response.SmartError(err)
-	}
+		err = d.cluster.UpdateCertificateProjects(dbInfo.ID, cert.Projects)
+		if err != nil {
+			return response.SmartError(err)
+		}
 
-	err = d.cluster.UpdateCertificateProjects(dbInfo.ID, cert.Projects)
-	if err != nil {
-		return response.SmartError(err)
+		// Notify other nodes about the new certificate.
+		notifier, err := cluster.NewNotifier(d.State(), d.endpoints.NetworkCert(), d.serverCert(), cluster.NotifyAlive)
+		if err != nil {
+			return response.SmartError(err)
+		}
+
+		err = notifier(func(client lxd.InstanceServer) error {
+			return client.UpdateCertificate(dbInfo.Fingerprint, req, "")
+		})
+		if err != nil {
+			return response.SmartError(err)
+		}
 	}
 
 	// Reload the cache.
@@ -613,16 +692,31 @@ func doCertificateUpdate(d *Daemon, dbInfo db.Certificate, fingerprint string, r
 func certificateDelete(d *Daemon, r *http.Request) response.Response {
 	fingerprint := mux.Vars(r)["fingerprint"]
 
-	// Get current database record.
-	certInfo, err := d.cluster.GetCertificate(fingerprint)
-	if err != nil {
-		return response.NotFound(err)
-	}
+	if !isClusterNotification(r) {
+		// Get current database record.
+		certInfo, err := d.cluster.GetCertificate(fingerprint)
+		if err != nil {
+			return response.NotFound(err)
+		}
 
-	// Perform the delete with the expanded fingerprint.
-	err = d.cluster.DeleteCertificate(certInfo.Fingerprint)
-	if err != nil {
-		return response.SmartError(err)
+		// Perform the delete with the expanded fingerprint.
+		err = d.cluster.DeleteCertificate(certInfo.Fingerprint)
+		if err != nil {
+			return response.SmartError(err)
+		}
+
+		// Notify other nodes about the new certificate.
+		notifier, err := cluster.NewNotifier(d.State(), d.endpoints.NetworkCert(), d.serverCert(), cluster.NotifyAlive)
+		if err != nil {
+			return response.SmartError(err)
+		}
+
+		err = notifier(func(client lxd.InstanceServer) error {
+			return client.DeleteCertificate(certInfo.Fingerprint)
+		})
+		if err != nil {
+			return response.SmartError(err)
+		}
 	}
 
 	// Reload the cache.

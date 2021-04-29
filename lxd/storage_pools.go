@@ -297,7 +297,7 @@ func storagePoolsPostCluster(d *Daemon, pool *api.StoragePool, req api.StoragePo
 	}
 
 	// Create notifier for other nodes to create the storage pool.
-	notifier, err := cluster.NewNotifier(d.State(), d.endpoints.NetworkCert(), cluster.NotifyAll)
+	notifier, err := cluster.NewNotifier(d.State(), d.endpoints.NetworkCert(), d.serverCert(), cluster.NotifyAll)
 	if err != nil {
 		return err
 	}
@@ -536,8 +536,7 @@ func doStoragePoolUpdate(d *Daemon, pool storagePools.Pool, req api.StoragePoolP
 
 	// Notify the other nodes, unless this is itself a notification.
 	if clustered && clientType != request.ClientTypeNotifier && targetNode == "" {
-		cert := d.endpoints.NetworkCert()
-		notifier, err := cluster.NewNotifier(d.State(), cert, cluster.NotifyAll)
+		notifier, err := cluster.NewNotifier(d.State(), d.endpoints.NetworkCert(), d.serverCert(), cluster.NotifyAll)
 		if err != nil {
 			return response.SmartError(err)
 		}
@@ -594,7 +593,7 @@ func storagePoolDelete(d *Daemon, r *http.Request) response.Response {
 		}
 
 		// Get the cluster notifier
-		notifier, err = cluster.NewNotifier(d.State(), d.endpoints.NetworkCert(), cluster.NotifyAll)
+		notifier, err = cluster.NewNotifier(d.State(), d.endpoints.NetworkCert(), d.serverCert(), cluster.NotifyAll)
 		if err != nil {
 			return response.SmartError(err)
 		}

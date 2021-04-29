@@ -27,10 +27,14 @@ func TestGateway_Single(t *testing.T) {
 	defer cleanup()
 
 	cert := shared.TestingKeyPair()
-	gateway := newGateway(t, db, cert)
+	gateway := newGateway(t, db, cert, cert)
 	defer gateway.Shutdown()
 
-	handlerFuncs := gateway.HandlerFuncs(nil)
+	trustedCerts := func() map[int]map[string]x509.Certificate {
+		return nil
+	}
+
+	handlerFuncs := gateway.HandlerFuncs(nil, trustedCerts)
 	assert.Len(t, handlerFuncs, 1)
 	for endpoint, f := range handlerFuncs {
 		c, err := x509.ParseCertificate(cert.KeyPair().Certificate[0])
@@ -82,10 +86,14 @@ func TestGateway_SingleWithNetworkAddress(t *testing.T) {
 	address := server.Listener.Addr().String()
 	setRaftRole(t, db, address)
 
-	gateway := newGateway(t, db, cert)
+	gateway := newGateway(t, db, cert, cert)
 	defer gateway.Shutdown()
 
-	for path, handler := range gateway.HandlerFuncs(nil) {
+	trustedCerts := func() map[int]map[string]x509.Certificate {
+		return nil
+	}
+
+	for path, handler := range gateway.HandlerFuncs(nil, trustedCerts) {
 		mux.HandleFunc(path, handler)
 	}
 
@@ -119,20 +127,25 @@ func TestGateway_NetworkAuth(t *testing.T) {
 	address := server.Listener.Addr().String()
 	setRaftRole(t, db, address)
 
-	gateway := newGateway(t, db, cert)
+	gateway := newGateway(t, db, cert, cert)
 	defer gateway.Shutdown()
 
-	for path, handler := range gateway.HandlerFuncs(nil) {
+	trustedCerts := func() map[int]map[string]x509.Certificate {
+		return nil
+	}
+
+	for path, handler := range gateway.HandlerFuncs(nil, trustedCerts) {
 		mux.HandleFunc(path, handler)
 	}
 
 	// Make a request using a certificate different than the cluster one.
-	config, err := cluster.TLSClientConfig(shared.TestingAltKeyPair())
+	certAlt := shared.TestingAltKeyPair()
+	config, err := cluster.TLSClientConfig(certAlt, certAlt)
 	config.InsecureSkipVerify = true // Skip client-side verification
 	require.NoError(t, err)
 	client := &http.Client{Transport: &http.Transport{TLSClientConfig: config}}
 
-	for path := range gateway.HandlerFuncs(nil) {
+	for path := range gateway.HandlerFuncs(nil, trustedCerts) {
 		url := fmt.Sprintf("https://%s%s", address, path)
 		response, err := client.Head(url)
 		require.NoError(t, err)
@@ -154,7 +167,7 @@ func TestGateway_RaftNodesNotLeader(t *testing.T) {
 	address := server.Listener.Addr().String()
 	setRaftRole(t, db, address)
 
-	gateway := newGateway(t, db, cert)
+	gateway := newGateway(t, db, cert, cert)
 	defer gateway.Shutdown()
 
 	nodes, err := gateway.RaftNodes()
@@ -165,13 +178,12 @@ func TestGateway_RaftNodesNotLeader(t *testing.T) {
 	assert.Equal(t, nodes[0].Address, address)
 }
 
-// Create a new test Gateway with the given parameters, and ensure no error
-// happens.
-func newGateway(t *testing.T, db *db.Node, certInfo *shared.CertInfo) *cluster.Gateway {
+// Create a new test Gateway with the given parameters, and ensure no error happens.
+func newGateway(t *testing.T, db *db.Node, networkCert *shared.CertInfo, serverCert *shared.CertInfo) *cluster.Gateway {
 	logging.Testing(t)
 	require.NoError(t, os.Mkdir(filepath.Join(db.Dir(), "global"), 0755))
-	gateway, err := cluster.NewGateway(
-		db, certInfo, cluster.Latency(0.2), cluster.LogLevel("TRACE"))
+	serverCertFunc := func() *shared.CertInfo { return serverCert }
+	gateway, err := cluster.NewGateway(db, networkCert, serverCertFunc, cluster.Latency(0.2), cluster.LogLevel("TRACE"))
 	require.NoError(t, err)
 	return gateway
 }

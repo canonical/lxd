@@ -685,7 +685,7 @@ func (d *common) Update(config *api.NetworkACLPut, clientType request.ClientType
 	// Apply ACL changes to non-OVN networks on cluster members.
 	if clientType == request.ClientTypeNormal && len(aclNets) > 0 {
 		// Notify all other nodes to update the network if no target specified.
-		notifier, err := cluster.NewNotifier(d.state, d.state.Endpoints.NetworkCert(), cluster.NotifyAll)
+		notifier, err := cluster.NewNotifier(d.state, d.state.Endpoints.NetworkCert(), d.state.ServerCert(), cluster.NotifyAll)
 		if err != nil {
 			return err
 		}

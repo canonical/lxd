@@ -2,6 +2,7 @@ package cluster_test
 
 import (
 	"context"
+	"crypto/x509"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -99,7 +100,7 @@ func (f *heartbeatFixture) Grow() *cluster.Gateway {
 		targetState, target, name, address, cluster.SchemaVersion, len(version.APIExtensions), osarch.ARCH_64BIT_INTEL_X86)
 	require.NoError(f.t, err)
 
-	err = cluster.Join(state, gateway, target.Cert(), name, nodes)
+	err = cluster.Join(state, gateway, target.NetworkCert(), target.ServerCert(), name, nodes)
 	require.NoError(f.t, err)
 
 	return gateway
@@ -194,14 +195,19 @@ func (f *heartbeatFixture) node() (*state.State, *cluster.Gateway, string) {
 	state, cleanup := state.NewTestState(f.t)
 	f.cleanups = append(f.cleanups, cleanup)
 
-	cert := shared.TestingKeyPair()
-	gateway := newGateway(f.t, state.Node, cert)
+	serverCert := shared.TestingKeyPair()
+	state.ServerCert = func() *shared.CertInfo { return serverCert }
+	gateway := newGateway(f.t, state.Node, serverCert, serverCert)
 	f.cleanups = append(f.cleanups, func() { gateway.Shutdown() })
 
 	mux := http.NewServeMux()
-	server := newServer(cert, mux)
+	server := newServer(serverCert, mux)
 
-	for path, handler := range gateway.HandlerFuncs(nil) {
+	trustedCerts := func() map[int]map[string]x509.Certificate {
+		return nil
+	}
+
+	for path, handler := range gateway.HandlerFuncs(nil, trustedCerts) {
 		mux.HandleFunc(path, handler)
 	}
 

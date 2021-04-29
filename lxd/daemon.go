@@ -106,6 +106,9 @@ type Daemon struct {
 	clusterMembershipMutex   sync.RWMutex
 	clusterMembershipClosing bool // Prevent further rebalances
 
+	serverCert    func() *shared.CertInfo
+	serverCertInt *shared.CertInfo // Do not use this directly, use servertCert func.
+
 	ctx    context.Context
 	cancel context.CancelFunc
 }
@@ -162,7 +165,7 @@ func newDaemon(config *DaemonConfig, os *sys.OS) *Daemon {
 	devlxdEvents := events.NewServer(daemon.Debug, daemon.Verbose)
 	ctx, cancel := context.WithCancel(context.Background())
 
-	return &Daemon{
+	d := &Daemon{
 		clientCerts:  &certificateCache{},
 		config:       config,
 		devlxdEvents: devlxdEvents,
@@ -174,6 +177,10 @@ func newDaemon(config *DaemonConfig, os *sys.OS) *Daemon {
 		ctx:          ctx,
 		cancel:       cancel,
 	}
+
+	d.serverCert = func() *shared.CertInfo { return d.serverCertInt }
+
+	return d
 }
 
 // defaultDaemonConfig returns a DaemonConfig object with default values.
@@ -272,12 +279,12 @@ func (d *Daemon) getTrustedCertificates() map[int]map[string]x509.Certificate {
 //
 // This does not perform authorization, only validates authentication.
 func (d *Daemon) Authenticate(w http.ResponseWriter, r *http.Request) (bool, string, string, error) {
-	// Allow internal cluster traffic.
+	trustedCerts := d.getTrustedCertificates()
+
+	// Allow internal cluster traffic by checking against the trusted certfificates.
 	if r.TLS != nil {
-		cert, _ := x509.ParseCertificate(d.endpoints.NetworkCert().KeyPair().Certificate[0])
-		clusterCerts := map[string]x509.Certificate{"0": *cert}
-		for i := range r.TLS.PeerCertificates {
-			trusted, _ := util.CheckTrustState(*r.TLS.PeerCertificates[i], clusterCerts, nil, false)
+		for _, i := range r.TLS.PeerCertificates {
+			trusted, _ := util.CheckTrustState(*i, trustedCerts[db.CertificateTypeServer], d.endpoints.NetworkCert(), false)
 			if trusted {
 				return true, "", "cluster", nil
 			}
@@ -311,7 +318,7 @@ func (d *Daemon) Authenticate(w http.ResponseWriter, r *http.Request) (bool, str
 
 	// Cluster notification with wrong certificate.
 	if isClusterNotification(r) {
-		return false, "", "", fmt.Errorf("Cluster notification isn't using cluster certificate")
+		return false, "", "", fmt.Errorf("Cluster notification isn't using trusted server certificate")
 	}
 
 	// Bad query, no TLS found.
@@ -345,17 +352,13 @@ func (d *Daemon) Authenticate(w http.ResponseWriter, r *http.Request) (bool, str
 	}
 
 	// Validate normal TLS access.
-	var err error
-
 	trustCACertificates, err := cluster.ConfigGetBool(d.cluster, "core.trust_ca_certificates")
 	if err != nil {
 		return false, "", "", err
 	}
 
-	trustedCerts := d.getTrustedCertificates()
-
-	for i := range r.TLS.PeerCertificates {
-		trusted, username := util.CheckTrustState(*r.TLS.PeerCertificates[i], trustedCerts[db.CertificateTypeClient], d.endpoints.NetworkCert(), trustCACertificates)
+	for _, i := range r.TLS.PeerCertificates {
+		trusted, username := util.CheckTrustState(*i, trustedCerts[db.CertificateTypeClient], d.endpoints.NetworkCert(), trustCACertificates)
 		if trusted {
 			return true, username, "tls", nil
 		}
@@ -395,7 +398,7 @@ func (d *Daemon) State() *state.State {
 	// If the daemon is shutting down, the context will be cancelled.
 	// This information will be available throughout the code, and can be used to prevent new
 	// operations from starting during shutdown.
-	return state.NewState(d.ctx, d.db, d.cluster, d.maas, d.os, d.endpoints, d.events, d.devlxdEvents, d.firewall, d.proxy)
+	return state.NewState(d.ctx, d.db, d.cluster, d.maas, d.os, d.endpoints, d.events, d.devlxdEvents, d.firewall, d.proxy, d.serverCert, func() { updateCertificateCache(d) })
 }
 
 // UnixSocket returns the full path to the unix.socket file that this daemon is
@@ -868,10 +871,43 @@ func (d *Daemon) init() error {
 		return err
 	}
 
-	/* Setup server certificate */
-	certInfo, err := util.LoadCert(d.os.VarDir)
+	/* Setup network endpoint certificate */
+	networkCert, err := util.LoadCert(d.os.VarDir)
 	if err != nil {
 		return err
+	}
+
+	/* Setup server certificate */
+	serverCert, err := util.LoadServerCert(d.os.VarDir)
+	if err != nil {
+		return err
+	}
+
+	// Load cached local trusted certificates before starting listener and cluster database.
+	err = updateCertificateCacheFromLocal(d, networkCert)
+	if err != nil {
+		return err
+	}
+
+	clustered, err := cluster.Enabled(d.db)
+	if err != nil {
+		return errors.Wrapf(err, "Failed checking if clustered")
+	}
+
+	// Detect if clustered, but not yet upgraded to per-server client certificates.
+	if clustered && len(d.clientCerts.Certificates[db.CertificateTypeServer]) < 1 {
+		// If the cluster has not yet upgraded to per-server client certificates (by running patch
+		// patchClusteringServerCertTrust) then temporarily use the network (cluster) certificate as client
+		// certificate, and cause us to trust it for use as client certificate from the other members.
+		logger.Warnf("No local trusted server certificates found, falling back to trusting network certificate")
+		logger.Infof("Set client certificate to network certificate %v", networkCert.Fingerprint())
+		d.serverCertInt = networkCert
+
+	} else {
+		// If standalone or the local trusted certificates table is populated with server certificates then
+		// use our local server certificate as client certificate for intra-cluster communication.
+		logger.Infof("Set client certificate to server certificate %v", serverCert.Fingerprint())
+		d.serverCertInt = serverCert
 	}
 
 	/* Setup dqlite */
@@ -881,7 +917,8 @@ func (d *Daemon) init() error {
 	}
 	d.gateway, err = cluster.NewGateway(
 		d.db,
-		certInfo,
+		networkCert,
+		d.serverCert,
 		cluster.Latency(d.config.RaftLatency),
 		cluster.LogLevel(clusterLogLevel))
 	if err != nil {
@@ -923,7 +960,7 @@ func (d *Daemon) init() error {
 	config := &endpoints.Config{
 		Dir:                  d.os.VarDir,
 		UnixSocket:           d.UnixSocket(),
-		Cert:                 certInfo,
+		Cert:                 networkCert,
 		RestServer:           restServer(d),
 		DevLxdServer:         devLxdServer(d),
 		LocalUnixSocketGroup: d.config.Group,
@@ -932,11 +969,6 @@ func (d *Daemon) init() error {
 		DebugAddress:         debugAddress,
 	}
 	d.endpoints, err = endpoints.Up(config)
-	if err != nil {
-		return err
-	}
-
-	clustered, err := cluster.Enabled(d.db)
 	if err != nil {
 		return err
 	}
@@ -1004,7 +1036,7 @@ func (d *Daemon) init() error {
 	d.firewall = firewall.New()
 	logger.Infof("Firewall loaded driver %q", d.firewall)
 
-	err = cluster.NotifyUpgradeCompleted(d.State(), certInfo)
+	err = cluster.NotifyUpgradeCompleted(d.State(), networkCert, d.serverCert())
 	if err != nil {
 		// Ignore the error, since it's not fatal for this particular
 		// node. In most cases it just means that some nodes are
@@ -1203,7 +1235,7 @@ func (d *Daemon) startClusterTasks() {
 	d.clusterTasks.Add(cluster.HeartbeatTask(d.gateway))
 
 	// Events
-	d.clusterTasks.Add(cluster.Events(d.endpoints, d.cluster, d.events.Forward))
+	d.clusterTasks.Add(cluster.Events(d.endpoints, d.cluster, d.serverCert, d.events.Forward))
 
 	// Auto-sync images across the cluster (hourly)
 	d.clusterTasks.Add(autoSyncImagesTask(d))
@@ -1692,6 +1724,9 @@ func (d *Daemon) NodeRefreshTask(heartbeatData *cluster.APIHeartbeat) {
 
 		nodeListChanged := d.hasNodeListChanged(heartbeatData)
 		if nodeListChanged {
+			logger.Debug("Member list has changed")
+			updateCertificateCache(d)
+
 			err := networkUpdateForkdnsServersTask(d.State(), heartbeatData)
 			if err != nil {
 				logger.Errorf("Error refreshing forkdns: %v", err)
