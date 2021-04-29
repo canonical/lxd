@@ -1,4 +1,7 @@
 test_warnings() {
+    # Delete previous warnings
+    lxc query --wait /1.0/warnings\?recursion=1 | jq -r '.[].uuid' | xargs -n1 lxc warning delete
+
     # Create a global warning (no node and no project)
     lxc query --wait -X POST -d '{\"type_code\": 0, \"message\": \"global warning\"}' /internal/testing/warnings
 
@@ -19,7 +22,7 @@ test_warnings() {
     ! lxc query --wait -X POST -d '{\"type_code\": 0, \"message\": \"global warning\", \"project\": \"foo\"}' /internal/testing/warnings || false
 
     # Invalid query (unknown type code)
-    ! lxc query --wait -X POST -d '{\"type_code\": 1, \"message\": \"global warning\"}' /internal/testing/warnings || false
+    ! lxc query --wait -X POST -d '{\"type_code\": 999, \"message\": \"global warning\"}' /internal/testing/warnings || false
 
     # Both entity type code as entity ID need to be valid otherwise no warning will be created. Note that empty/null values are valid as well.
     ! lxc query --wait -X POST -d '{\"type_code\": 0, \"message\": \"global warning\", \"entity_type_code\": 0, \"entity_id\": 0}' /internal/testing/warnings || false

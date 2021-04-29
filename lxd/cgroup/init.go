@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/logger"
 )
@@ -241,57 +242,95 @@ func (info *Info) Supports(resource Resource, cgroup *CGroup) bool {
 	return ok
 }
 
-// Log logs cgroup info
-func (info *Info) Log() {
-	logger.Infof(" - cgroup layout: %s", info.Mode())
+// Warnings returns a list of CGroup warnings.
+func (info *Info) Warnings() []db.Warning {
+	warnings := []db.Warning{}
 
 	if !info.Supports(Blkio, nil) {
-		logger.Warnf(" - Couldn't find the CGroup blkio, disk I/O limits will be ignored")
+		warnings = append(warnings, db.Warning{
+			TypeCode:    int(db.WarningMissingCGroupBlkio),
+			LastMessage: "disk I/O limits will be ignored",
+		})
 	}
 
 	if !info.Supports(BlkioWeight, nil) {
-		logger.Warnf(" - Couldn't find the CGroup blkio.weight, disk priority will be ignored")
+		warnings = append(warnings, db.Warning{
+			TypeCode:    int(db.WarningMissingCGroupBlkioWeight),
+			LastMessage: "disk priority will be ignored",
+		})
 	}
 
 	if !info.Supports(CPU, nil) {
-		logger.Warnf(" - Couldn't find the CGroup CPU controller, CPU time limits will be ignored")
+		warnings = append(warnings, db.Warning{
+			TypeCode:    int(db.WarningMissingCGroupCPUController),
+			LastMessage: "CPU time limits will be ignored",
+		})
 	}
 
 	if !info.Supports(CPUAcct, nil) {
-		logger.Warnf(" - Couldn't find the CGroup CPUacct controller, CPU accounting will not be available")
+		warnings = append(warnings, db.Warning{
+			TypeCode:    int(db.WarningMissingCGroupCPUacctController),
+			LastMessage: "CPU accounting will not be available",
+		})
 	}
 
 	if !info.Supports(CPUSet, nil) {
-		logger.Warnf(" - Couldn't find the CGroup CPUset controller, CPU pinning will be ignored")
+		warnings = append(warnings, db.Warning{
+			TypeCode:    int(db.WarningMissingCGroupCPUController),
+			LastMessage: "CPU pinning will be ignored",
+		})
 	}
 
 	if !info.Supports(Devices, nil) {
-		logger.Warnf(" - Couldn't find the CGroup devices controller, device access control won't work")
+		warnings = append(warnings, db.Warning{
+			TypeCode:    int(db.WarningMissingCGroupDevicesController),
+			LastMessage: "device access control won't work",
+		})
 	}
 
 	if !info.Supports(Freezer, nil) {
-		logger.Warnf(" - Couldn't find the CGroup freezer controller, pausing/resuming containers won't work")
+		warnings = append(warnings, db.Warning{
+			TypeCode:    int(db.WarningMissingCGroupFreezerController),
+			LastMessage: "pausing/resuming containers won't work",
+		})
 	}
 
 	if !info.Supports(Hugetlb, nil) {
-		logger.Warnf(" - Couldn't find the CGroup hugetlb controller, hugepage limits will be ignored")
+		warnings = append(warnings, db.Warning{
+			TypeCode:    int(db.WarningMissingCGroupHugetlbController),
+			LastMessage: "hugepage limits will be ignored",
+		})
 	}
 
 	if !info.Supports(Memory, nil) {
-		logger.Warnf(" - Couldn't find the CGroup memory controller, memory limits will be ignored")
+		warnings = append(warnings, db.Warning{
+			TypeCode:    int(db.WarningMissingCGroupMemoryController),
+			LastMessage: "memory limits will be ignored",
+		})
 	}
 
 	if !info.Supports(NetPrio, nil) {
-		logger.Warnf(" - Couldn't find the CGroup network priority controller, network priority will be ignored")
+		warnings = append(warnings, db.Warning{
+			TypeCode:    int(db.WarningMissingCGroupNetworkPriorityController),
+			LastMessage: "network priority will be ignored",
+		})
 	}
 
 	if !info.Supports(Pids, nil) {
-		logger.Warnf(" - Couldn't find the CGroup pids controller, process limits will be ignored")
+		warnings = append(warnings, db.Warning{
+			TypeCode:    int(db.WarningMissingCGroupPidsController),
+			LastMessage: "process limits will be ignored",
+		})
 	}
 
 	if !info.Supports(MemorySwap, nil) {
-		logger.Warnf(" - Couldn't find the CGroup memory swap accounting, swap limits will be ignored")
+		warnings = append(warnings, db.Warning{
+			TypeCode:    int(db.WarningMissingCGroupMemorySwapAccounting),
+			LastMessage: "swap limits will be ignored",
+		})
 	}
+
+	return warnings
 }
 
 func init() {
