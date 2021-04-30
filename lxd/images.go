@@ -3715,7 +3715,7 @@ func imageSyncBetweenNodes(d *Daemon, project string, fingerprint string) error 
 	return nil
 }
 
-func createTokenResponse(d *Daemon, project, fingerprint string, metadata shared.Jmap) response.Response {
+func createTokenResponse(d *Daemon, projectName string, fingerprint string, metadata shared.Jmap) response.Response {
 	secret, err := shared.RandomCryptoString()
 	if err != nil {
 		return response.InternalError(err)
@@ -3732,7 +3732,7 @@ func createTokenResponse(d *Daemon, project, fingerprint string, metadata shared
 	resources := map[string][]string{}
 	resources["images"] = []string{fingerprint}
 
-	op, err := operations.OperationCreate(d.State(), project, operations.OperationClassToken, db.OperationImageToken, resources, meta, nil, nil, nil)
+	op, err := operations.OperationCreate(d.State(), projectName, operations.OperationClassToken, db.OperationImageToken, resources, meta, nil, nil, nil)
 	if err != nil {
 		return response.InternalError(err)
 	}
