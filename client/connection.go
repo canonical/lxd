@@ -172,7 +172,7 @@ func ConnectLXDUnix(path string, args *ConnectionArgs) (InstanceServer, error) {
 //
 // Unless the remote server is trusted by the system CA, the remote certificate must be provided (TLSServerCert).
 func ConnectPublicLXD(url string, args *ConnectionArgs) (ImageServer, error) {
-	logger.Debugf("Connecting to a remote public LXD over HTTPs")
+	logger.Debugf("Connecting to a remote public LXD over HTTPS")
 
 	// Cleanup URL
 	url = strings.TrimSuffix(url, "/")

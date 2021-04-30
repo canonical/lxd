@@ -794,15 +794,21 @@ func imagesPost(d *Daemon, r *http.Request) response.Response {
 
 	secret := r.Header.Get("X-LXD-secret")
 	fingerprint := r.Header.Get("X-LXD-fingerprint")
+	projectName := projectParam(r)
+
 	var imageMetadata map[string]interface{}
 
 	if !trusted && (secret == "" || fingerprint == "") {
 		return response.Forbidden(nil)
 	} else {
 		// We need to invalidate the secret whether the source is trusted or not.
-		op, valid := imageValidSecret(fingerprint, secret)
-		if valid {
-			imageMetadata = op.Metadata()
+		op, err := imageValidSecret(d, projectName, fingerprint, secret)
+		if err != nil {
+			return response.SmartError(err)
+		}
+
+		if op != nil {
+			imageMetadata = op.Metadata
 		} else if !trusted {
 			return response.Forbidden(nil)
 		}
@@ -812,8 +818,6 @@ func imagesPost(d *Daemon, r *http.Request) response.Response {
 	if err != nil {
 		return response.SmartError(err)
 	}
-
-	projectName := projectParam(r)
 
 	// create a directory under which we keep everything while building
 	builddir, err := ioutil.TempDir(shared.VarPath("images"), "lxd_build_")
@@ -2272,34 +2276,46 @@ func doImageGet(db *db.Cluster, project, fingerprint string, public bool) (*api.
 	return imgInfo, nil
 }
 
-func imageValidSecret(fingerprint string, secret string) (*operations.Operation, bool) {
-	for _, op := range operations.Clone() {
-		if op.Resources() == nil {
+// imageValidSecret searches for an ImageToken operation running on any member in the default project that has an
+// images resource matching the specified fingerprint and the metadata secret field matches the specified secret.
+// If an operation is found it is returned and the operation is cancelled. Otherwise nil is returned if not found.
+func imageValidSecret(d *Daemon, projectName string, fingerprint string, secret string) (*api.Operation, error) {
+	ops, err := operationsGetByType(d, projectName, db.OperationImageToken)
+	if err != nil {
+		return nil, errors.Wrapf(err, "Failed getting image token operations")
+	}
+
+	for _, op := range ops {
+		if op.Resources == nil {
 			continue
 		}
 
-		opImages, ok := op.Resources()["images"]
+		opImages, ok := op.Resources["images"]
 		if !ok {
 			continue
 		}
 
-		if !shared.StringInSlice(fingerprint, opImages) {
+		if !shared.StringInSlice(fmt.Sprintf("/1.0/images/%s", fingerprint), opImages) {
 			continue
 		}
 
-		opSecret, ok := op.Metadata()["secret"]
+		opSecret, ok := op.Metadata["secret"]
 		if !ok {
 			continue
 		}
 
 		if opSecret == secret {
-			// Token is single-use, so cancel it now
-			op.Cancel()
-			return op, true
+			// Token is single-use, so cancel it now.
+			err = operationCancel(d, projectName, op)
+			if err != nil {
+				return nil, errors.Wrapf(err, "Failed to cancel operation")
+			}
+
+			return op, nil
 		}
 	}
 
-	return nil, false
+	return nil, nil
 }
 
 // swagger:operation GET /1.0/images/{fingerprint}?public images image_get_untrusted
@@ -2399,8 +2415,12 @@ func imageGet(d *Daemon, r *http.Request) response.Response {
 		return resp
 	}
 
-	_, valid := imageValidSecret(info.Fingerprint, secret)
-	if !info.Public && public && !valid {
+	op, err := imageValidSecret(d, projectName, info.Fingerprint, secret)
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	if !info.Public && public && op == nil {
 		return response.NotFound(fmt.Errorf("Image '%s' not found", info.Fingerprint))
 	}
 
@@ -3189,8 +3209,12 @@ func imageExport(d *Daemon, r *http.Request) response.Response {
 			return response.SmartError(err)
 		}
 
-		_, valid := imageValidSecret(imgInfo.Fingerprint, secret)
-		if !imgInfo.Public && public && !valid {
+		op, err := imageValidSecret(d, projectName, imgInfo.Fingerprint, secret)
+		if err != nil {
+			return response.SmartError(err)
+		}
+
+		if !imgInfo.Public && public && op == nil {
 			return response.NotFound(fmt.Errorf("Image '%s' not found", imgInfo.Fingerprint))
 		}
 	}
@@ -3703,7 +3727,7 @@ func imageSyncBetweenNodes(d *Daemon, project string, fingerprint string) error 
 	return nil
 }
 
-func createTokenResponse(d *Daemon, project, fingerprint string, metadata shared.Jmap) response.Response {
+func createTokenResponse(d *Daemon, projectName string, fingerprint string, metadata shared.Jmap) response.Response {
 	secret, err := shared.RandomCryptoString()
 	if err != nil {
 		return response.InternalError(err)
@@ -3720,7 +3744,7 @@ func createTokenResponse(d *Daemon, project, fingerprint string, metadata shared
 	resources := map[string][]string{}
 	resources["images"] = []string{fingerprint}
 
-	op, err := operations.OperationCreate(d.State(), project, operations.OperationClassToken, db.OperationImageToken, resources, meta, nil, nil, nil)
+	op, err := operations.OperationCreate(d.State(), projectName, operations.OperationClassToken, db.OperationImageToken, resources, meta, nil, nil, nil)
 	if err != nil {
 		return response.InternalError(err)
 	}
