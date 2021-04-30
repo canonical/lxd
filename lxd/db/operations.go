@@ -5,6 +5,7 @@ package db
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/lxc/lxd/lxd/db/query"
 	"github.com/pkg/errors"
@@ -41,6 +42,50 @@ SELECT DISTINCT nodes.address
  WHERE projects.name = ? OR operations.project_id IS NULL
 `
 	return query.SelectStrings(c.tx, stmt, project)
+}
+
+// GetOnlineNodesWithRunningOperationsOfType returns a list of online nodes that have running operations of type.
+func (c *ClusterTx) GetOnlineNodesWithRunningOperationsOfType(projectName string, opType OperationType) ([]string, error) {
+	var addresses []string
+
+	offlineThreshold, err := c.GetNodeOfflineThreshold()
+	if err != nil {
+		return nil, err
+	}
+
+	stmt := `
+SELECT DISTINCT nodes.address, nodes.heartbeat
+  FROM operations
+  LEFT OUTER JOIN projects ON projects.id = operations.project_id
+  JOIN nodes ON nodes.id = operations.node_id
+ WHERE (projects.name = ? OR operations.project_id IS NULL) AND type = ?
+`
+	rows, err := c.tx.Query(stmt, projectName, opType)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var address string
+		var heartbeat time.Time
+
+		err := rows.Scan(&address, &heartbeat)
+		if err != nil {
+			return nil, err
+		}
+
+		if nodeIsOffline(offlineThreshold, heartbeat) {
+			continue
+		}
+
+		addresses = append(addresses, address)
+	}
+	if rows.Err() != nil {
+		return nil, err
+	}
+
+	return query.SelectStrings(c.tx, stmt, projectName)
 }
 
 // GetOperationByUUID returns the operation with the given UUID.
