@@ -762,12 +762,12 @@ func imageCreateInPool(d *Daemon, info *api.Image, storagePool string) error {
 //   "500":
 //     $ref: "#/responses/InternalServerError"
 func imagesPost(d *Daemon, r *http.Request) response.Response {
+	projectName := projectParam(r)
+
 	instanceType, err := urlInstanceTypeDetect(r)
 	if err != nil {
 		return response.SmartError(err)
 	}
-
-	projectName := projectParam(r)
 
 	// create a directory under which we keep everything while building
 	builddir, err := ioutil.TempDir(shared.VarPath("images"), "lxd_build_")
@@ -2289,7 +2289,12 @@ func imageGet(d *Daemon, r *http.Request) response.Response {
 		return resp
 	}
 
-	if !info.Public && public && !imageValidSecret(info.Fingerprint, secret) {
+	op, err := imageValidSecret(d, projectName, info.Fingerprint, secret)
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	if !info.Public && public && op == nil {
 		return response.NotFound(fmt.Errorf("Image '%s' not found", info.Fingerprint))
 	}
 
@@ -3078,7 +3083,12 @@ func imageExport(d *Daemon, r *http.Request) response.Response {
 			return response.SmartError(err)
 		}
 
-		if !imgInfo.Public && public && !imageValidSecret(imgInfo.Fingerprint, secret) {
+		op, err := imageValidSecret(d, projectName, imgInfo.Fingerprint, secret)
+		if err != nil {
+			return response.SmartError(err)
+		}
+
+		if !imgInfo.Public && public && op == nil {
 			return response.NotFound(fmt.Errorf("Image '%s' not found", imgInfo.Fingerprint))
 		}
 	}
