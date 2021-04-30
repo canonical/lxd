@@ -1671,6 +1671,7 @@ func distributeImage(ctx context.Context, d *Daemon, nodes []string, oldFingerpr
 
 		createArgs.MetaFile = metaFile
 		createArgs.MetaName = filepath.Base(imageMetaPath)
+		createArgs.Type = newImage.Type
 
 		if shared.PathExists(imageRootfsPath) {
 			rootfsFile, err := os.Open(imageRootfsPath)
