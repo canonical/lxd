@@ -8,6 +8,7 @@ import (
 
 	"github.com/gorilla/mux"
 	"github.com/gorilla/websocket"
+	"github.com/pkg/errors"
 
 	"github.com/lxc/lxd/lxd/cluster"
 	"github.com/lxc/lxd/lxd/db"
@@ -261,6 +262,35 @@ func operationDelete(d *Daemon, r *http.Request) response.Response {
 	return response.ForwardedResponse(client, r)
 }
 
+// operationCancel cancels an operation that exists on any member.
+func operationCancel(d *Daemon, projectName string, op *api.Operation) error {
+	// Check if operation is local and if so, cancel it.
+	localOp, _ := operations.OperationGetInternal(op.ID)
+	if localOp != nil {
+		if localOp.Status() == api.Running {
+			_, err := localOp.Cancel()
+			if err != nil {
+				return errors.Wrapf(err, "Failed to cancel local operation %q", op.ID)
+			}
+		}
+
+		return nil
+	}
+
+	// If not found locally, try connecting to remote member to delete it.
+	client, err := cluster.Connect(op.Location, d.endpoints.NetworkCert(), d.serverCert(), false)
+	if err != nil {
+		return errors.Wrapf(err, "Failed to connect to %q", op.Location)
+	}
+
+	err = client.UseProject(projectName).DeleteOperation(op.ID)
+	if err != nil {
+		return errors.Wrapf(err, "Failed to delete remote operation %q on %q", op.ID, op.Location)
+	}
+
+	return nil
+}
+
 // swagger:operation GET /1.0/operations operations operations_get
 //
 // Get the operations
@@ -510,6 +540,83 @@ func operationsGet(d *Daemon, r *http.Request) response.Response {
 	}
 
 	return response.SyncResponse(true, md)
+}
+
+// operationsGetByType gets all operations for a project and type.
+func operationsGetByType(d *Daemon, projectName string, opType db.OperationType) ([]*api.Operation, error) {
+	ops := make([]*api.Operation, 0)
+
+	// Get local operations for project.
+	for _, op := range operations.Clone() {
+		if op.Project() != projectName {
+			continue
+		}
+
+		_, apiOp, err := op.Render()
+		if err != nil {
+			return nil, errors.Wrapf(err, "Failed converting local operation %q to API representation", op.ID())
+		}
+
+		ops = append(ops, apiOp)
+	}
+
+	// Check if clustered.
+	clustered, err := cluster.Enabled(d.db)
+	if err != nil {
+		return nil, err
+	}
+
+	// Return just local operations if not clustered.
+	if !clustered {
+		return ops, nil
+	}
+
+	// Get all members with running operations in this project.
+	var memberAddresses []string
+	err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
+		memberAddresses, err = tx.GetOnlineNodesWithRunningOperationsOfType(projectName, opType)
+		if err != nil {
+			return errors.Wrapf(err, "Failed getting members with running operations")
+		}
+
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	// Get local address.
+	localAddress, err := node.HTTPSAddress(d.db)
+	if err != nil {
+		return nil, errors.Wrapf(err, "Failed getting local address")
+	}
+
+	networkCert := d.endpoints.NetworkCert()
+	for _, memberAddress := range memberAddresses {
+		if memberAddress == localAddress {
+			continue
+		}
+
+		// Connect to the remote server.
+		client, err := cluster.Connect(memberAddress, networkCert, d.serverCert(), true)
+		if err != nil {
+			return nil, errors.Wrapf(err, "Failed connecting to %q", memberAddress)
+		}
+
+		// Get operation data.
+		remoteOps, err := client.GetOperations()
+		if err != nil {
+			log.Warn("Failed getting operations from member", log.Ctx{"address": memberAddress, "err": err})
+			continue
+		}
+
+		// Merge with existing data.
+		for _, op := range remoteOps {
+			ops = append(ops, &op)
+		}
+	}
+
+	return ops, nil
 }
 
 // swagger:operation GET /1.0/operations/{id}/wait?public operations operation_wait_get_untrusted
