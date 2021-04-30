@@ -2150,34 +2150,46 @@ func doImageGet(db *db.Cluster, project, fingerprint string, public bool) (*api.
 	return imgInfo, nil
 }
 
-func imageValidSecret(fingerprint string, secret string) bool {
-	for _, op := range operations.Clone() {
-		if op.Resources() == nil {
+// imageValidSecret searches for an ImageToken operation running on any member in the default project that has an
+// images resource matching the specified fingerprint and the metadata secret field matches the specified secret.
+// If an operation is found it is returned and the operation is cancelled. Otherwise nil is returned if not found.
+func imageValidSecret(d *Daemon, projectName string, fingerprint string, secret string) (*api.Operation, error) {
+	ops, err := operationsGetByType(d, projectName, db.OperationImageToken)
+	if err != nil {
+		return nil, errors.Wrapf(err, "Failed getting image token operations")
+	}
+
+	for _, op := range ops {
+		if op.Resources == nil {
 			continue
 		}
 
-		opImages, ok := op.Resources()["images"]
+		opImages, ok := op.Resources["images"]
 		if !ok {
 			continue
 		}
 
-		if !shared.StringInSlice(fingerprint, opImages) {
+		if !shared.StringInSlice(fmt.Sprintf("/1.0/images/%s", fingerprint), opImages) {
 			continue
 		}
 
-		opSecret, ok := op.Metadata()["secret"]
+		opSecret, ok := op.Metadata["secret"]
 		if !ok {
 			continue
 		}
 
 		if opSecret == secret {
-			// Token is single-use, so cancel it now
-			op.Cancel()
-			return true
+			// Token is single-use, so cancel it now.
+			err = operationCancel(d, projectName, op)
+			if err != nil {
+				return nil, errors.Wrapf(err, "Failed to cancel operation")
+			}
+
+			return op, nil
 		}
 	}
 
-	return false
+	return nil, nil
 }
 
 // swagger:operation GET /1.0/images/{fingerprint}?public images image_get_untrusted
