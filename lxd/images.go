@@ -794,15 +794,21 @@ func imagesPost(d *Daemon, r *http.Request) response.Response {
 
 	secret := r.Header.Get("X-LXD-secret")
 	fingerprint := r.Header.Get("X-LXD-fingerprint")
+	projectName := projectParam(r)
+
 	var imageMetadata map[string]interface{}
 
 	if !trusted && (secret == "" || fingerprint == "") {
 		return response.Forbidden(nil)
 	} else {
 		// We need to invalidate the secret whether the source is trusted or not.
-		op, valid := imageValidSecret(fingerprint, secret)
-		if valid {
-			imageMetadata = op.Metadata()
+		op, err := imageValidSecret(d, projectName, fingerprint, secret)
+		if err != nil {
+			return response.SmartError(err)
+		}
+
+		if op != nil {
+			imageMetadata = op.Metadata
 		} else if !trusted {
 			return response.Forbidden(nil)
 		}
@@ -812,8 +818,6 @@ func imagesPost(d *Daemon, r *http.Request) response.Response {
 	if err != nil {
 		return response.SmartError(err)
 	}
-
-	projectName := projectParam(r)
 
 	// create a directory under which we keep everything while building
 	builddir, err := ioutil.TempDir(shared.VarPath("images"), "lxd_build_")
@@ -2411,8 +2415,12 @@ func imageGet(d *Daemon, r *http.Request) response.Response {
 		return resp
 	}
 
-	_, valid := imageValidSecret(info.Fingerprint, secret)
-	if !info.Public && public && !valid {
+	op, err := imageValidSecret(d, projectName, info.Fingerprint, secret)
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	if !info.Public && public && op == nil {
 		return response.NotFound(fmt.Errorf("Image '%s' not found", info.Fingerprint))
 	}
 
@@ -3201,8 +3209,12 @@ func imageExport(d *Daemon, r *http.Request) response.Response {
 			return response.SmartError(err)
 		}
 
-		_, valid := imageValidSecret(imgInfo.Fingerprint, secret)
-		if !imgInfo.Public && public && !valid {
+		op, err := imageValidSecret(d, projectName, imgInfo.Fingerprint, secret)
+		if err != nil {
+			return response.SmartError(err)
+		}
+
+		if !imgInfo.Public && public && op == nil {
 			return response.NotFound(fmt.Errorf("Image '%s' not found", imgInfo.Fingerprint))
 		}
 	}
