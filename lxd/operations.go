@@ -8,6 +8,7 @@ import (
 
 	"github.com/gorilla/mux"
 	"github.com/gorilla/websocket"
+	"github.com/pkg/errors"
 
 	"github.com/lxc/lxd/lxd/cluster"
 	"github.com/lxc/lxd/lxd/db"
@@ -259,6 +260,35 @@ func operationDelete(d *Daemon, r *http.Request) response.Response {
 	}
 
 	return response.ForwardedResponse(client, r)
+}
+
+// operationCancel cancels an operation that exists on any member.
+func operationCancel(d *Daemon, projectName string, op *api.Operation) error {
+	// Check if operation is local and if so, cancel it.
+	localOp, _ := operations.OperationGetInternal(op.ID)
+	if localOp != nil {
+		if localOp.Status() == api.Running {
+			_, err := localOp.Cancel()
+			if err != nil {
+				return errors.Wrapf(err, "Failed to cancel local operation %q", op.ID)
+			}
+		}
+
+		return nil
+	}
+
+	// If not found locally, try connecting to remote member to delete it.
+	client, err := cluster.Connect(op.Location, d.endpoints.NetworkCert(), d.serverCert(), false)
+	if err != nil {
+		return errors.Wrapf(err, "Failed to connect to %q", op.Location)
+	}
+
+	err = client.UseProject(projectName).DeleteOperation(op.ID)
+	if err != nil {
+		return errors.Wrapf(err, "Failed to delete remote operation %q on %q", op.ID, op.Location)
+	}
+
+	return nil
 }
 
 // swagger:operation GET /1.0/operations operations operations_get
