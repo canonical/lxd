@@ -431,6 +431,7 @@ func (op *Operation) mayCancel() bool {
 }
 
 // Render renders the operation structure.
+// Returns URL of operation and operation info.
 func (op *Operation) Render() (string, *api.Operation, error) {
 	// Setup the resource URLs
 	resources := op.resources
