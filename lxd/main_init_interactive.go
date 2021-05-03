@@ -148,38 +148,88 @@ func (c *cmdInit) askClustering(config *cmdInitData, d lxd.InstanceServer) error
 		if cli.AskBool("Are you joining an existing cluster? (yes/no) [default=no]: ", "no") {
 			// Existing cluster
 			config.Cluster.ServerAddress = serverAddress
-			for {
-				// Cluster URL
-				clusterAddress := cli.AskString("IP address or FQDN of an existing cluster node: ", "", nil)
-				_, _, err := net.SplitHostPort(clusterAddress)
-				if err != nil {
-					clusterAddress = fmt.Sprintf("%s:%d", clusterAddress, shared.DefaultPort)
-				}
-				config.Cluster.ClusterAddress = clusterAddress
-
-				// Cluster certificate
-				cert, err := shared.GetRemoteCertificate(fmt.Sprintf("https://%s", config.Cluster.ClusterAddress), version.UserAgent)
-				if err != nil {
-					fmt.Printf("Error connecting to existing cluster node: %v\n", err)
-					continue
-				}
-
-				certDigest := shared.CertFingerprint(cert)
-				fmt.Printf("Cluster fingerprint: %s\n", certDigest)
-				fmt.Printf("You can validate this fingerprint by running \"lxc info\" locally on an existing node.\n")
-				if !cli.AskBool("Is this the correct fingerprint? (yes/no) [default=no]: ", "no") {
-					return fmt.Errorf("User aborted configuration")
-				}
-				config.Cluster.ClusterCertificate = string(pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: cert.Raw}))
-
-				// Cluster password
-				config.Cluster.ClusterPassword = cli.AskPasswordOnce("Cluster trust password: ")
-				break
-			}
 
 			// Root is required to access the certificate files
 			if os.Geteuid() != 0 {
 				return fmt.Errorf("Joining an existing cluster requires root privileges")
+			}
+
+			if cli.AskBool("Do you have a join token? (yes/no) [default=no]: ", "no") {
+				var joinToken *api.ClusterMemberJoinToken
+				validJoinToken := func(input string) error {
+					j, err := clusterMemberJoinTokenDecode(input)
+					if err != nil {
+						return errors.Wrapf(err, "Invalid join token")
+					}
+
+					joinToken = j // Store valid decoded join token
+					return nil
+				}
+
+				rawJoinToken := cli.AskString("Please provide join token: ", "", validJoinToken)
+
+				if joinToken.ServerName != config.Cluster.ServerName {
+					return fmt.Errorf("Server name does not match the one specified in join token")
+				}
+
+				for _, clusterAddress := range joinToken.Addresses {
+					// Cluster URL
+					_, _, err := net.SplitHostPort(clusterAddress)
+					if err != nil {
+						clusterAddress = fmt.Sprintf("%s:%d", clusterAddress, shared.DefaultPort)
+					}
+					config.Cluster.ClusterAddress = clusterAddress
+
+					// Cluster certificate
+					cert, err := shared.GetRemoteCertificate(fmt.Sprintf("https://%s", config.Cluster.ClusterAddress), version.UserAgent)
+					if err != nil {
+						fmt.Printf("Error connecting to existing cluster node %q: %v\n", clusterAddress, err)
+						continue
+					}
+
+					certDigest := shared.CertFingerprint(cert)
+					if joinToken.Fingerprint != certDigest {
+						return fmt.Errorf("Certificate fingerprint mismatch between join token and cluster member %q", clusterAddress)
+					}
+
+					config.Cluster.ClusterCertificate = string(pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: cert.Raw}))
+				}
+
+				if config.Cluster.ClusterCertificate == "" {
+					return fmt.Errorf("Unable to connect to any of the cluster members specified in join token")
+				}
+
+				// Raw join token used as cluster password so it can be validated.
+				config.Cluster.ClusterPassword = rawJoinToken
+			} else {
+				for {
+					// Cluster URL
+					clusterAddress := cli.AskString("IP address or FQDN of an existing cluster node: ", "", nil)
+					_, _, err := net.SplitHostPort(clusterAddress)
+					if err != nil {
+						clusterAddress = fmt.Sprintf("%s:%d", clusterAddress, shared.DefaultPort)
+					}
+					config.Cluster.ClusterAddress = clusterAddress
+
+					// Cluster certificate
+					cert, err := shared.GetRemoteCertificate(fmt.Sprintf("https://%s", config.Cluster.ClusterAddress), version.UserAgent)
+					if err != nil {
+						fmt.Printf("Error connecting to existing cluster node: %v\n", err)
+						continue
+					}
+
+					certDigest := shared.CertFingerprint(cert)
+					fmt.Printf("Cluster fingerprint: %s\n", certDigest)
+					fmt.Printf("You can validate this fingerprint by running \"lxc info\" locally on an existing node.\n")
+					if !cli.AskBool("Is this the correct fingerprint? (yes/no) [default=no]: ", "no") {
+						return fmt.Errorf("User aborted configuration")
+					}
+					config.Cluster.ClusterCertificate = string(pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: cert.Raw}))
+
+					// Cluster password
+					config.Cluster.ClusterPassword = cli.AskPasswordOnce("Cluster trust password: ")
+					break
+				}
 			}
 
 			// Confirm wiping
