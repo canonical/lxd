@@ -604,7 +604,7 @@ func operationsGetByType(d *Daemon, projectName string, opType db.OperationType)
 		}
 
 		// Get operation data.
-		remoteOps, err := client.GetOperations()
+		remoteOps, err := client.UseProject(projectName).GetOperations()
 		if err != nil {
 			log.Warn("Failed getting operations from member", log.Ctx{"address": memberAddress, "err": err})
 			continue
