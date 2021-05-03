@@ -513,7 +513,7 @@ func operationsGet(d *Daemon, r *http.Request) response.Response {
 		}
 
 		// Get operation data
-		ops, err := client.GetOperations()
+		ops, err := client.UseProject(projectName).GetOperations()
 		if err != nil {
 			return response.SmartError(err)
 		}
