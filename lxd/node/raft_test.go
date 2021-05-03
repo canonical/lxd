@@ -26,7 +26,7 @@ func TestDetermineRaftNode(t *testing.T) {
 			&db.RaftNode{ID: 1},
 		},
 		{
-			`cluster.https_address set and and no raft_nodes rows`,
+			`cluster.https_address set and no raft_nodes rows`,
 			"1.2.3.4:8443",
 			[]string{},
 			&db.RaftNode{ID: 1},
