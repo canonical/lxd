@@ -433,11 +433,30 @@ func certificatesPost(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	if (!trusted || (protocol == "candid" && !rbac.UserIsAdmin(r))) && util.PasswordCheck(secret, req.Password) != nil {
+	if !trusted || (protocol == "candid" && !rbac.UserIsAdmin(r)) {
 		if req.Password != "" {
-			logger.Warn("Bad trust password", log.Ctx{"url": r.URL.RequestURI(), "ip": r.RemoteAddr})
+			// Check if cluster member join token supplied as password.
+			joinToken, err := clusterMemberJoinTokenDecode(req.Password)
+			if err == nil {
+				// If so then check there is a matching join operation.
+				joinOp, err := clusterMemberJoinTokenValid(d, project.Default, joinToken)
+				if err != nil {
+					return response.InternalError(errors.Wrapf(err, "Failed during search for join token operation"))
+				}
+
+				if joinOp == nil {
+					return response.Forbidden(fmt.Errorf("No matching cluster join operation found"))
+				}
+			} else {
+				// Otherwise check if password matches trust password.
+				if util.PasswordCheck(secret, req.Password) != nil {
+					logger.Warn("Bad trust password", log.Ctx{"url": r.URL.RequestURI(), "ip": r.RemoteAddr})
+					return response.Forbidden(nil)
+				}
+			}
+		} else {
+			return response.Forbidden(nil)
 		}
-		return response.Forbidden(nil)
 	}
 
 	dbReqType, err := db.CertificateAPITypeToDBType(req.Type)
