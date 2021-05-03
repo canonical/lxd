@@ -17,6 +17,7 @@ import (
 	"github.com/lxc/lxd/lxd/cluster"
 	"github.com/lxc/lxd/lxd/cluster/request"
 	"github.com/lxc/lxd/lxd/db"
+	"github.com/lxc/lxd/lxd/project"
 	"github.com/lxc/lxd/lxd/rbac"
 	"github.com/lxc/lxd/lxd/response"
 	"github.com/lxc/lxd/lxd/util"
@@ -274,6 +275,82 @@ func updateCertificateCacheFromLocal(d *Daemon, networkCert *shared.CertInfo) er
 	d.clientCerts.Lock.Unlock()
 
 	return nil
+}
+
+// clusterMemberJoinTokenDecode decodes a base64 and JSON encode join token.
+func clusterMemberJoinTokenDecode(input string) (*api.ClusterMemberJoinToken, error) {
+	joinTokenJSON, err := base64.StdEncoding.DecodeString(input)
+	if err != nil {
+		return nil, err
+	}
+
+	var j api.ClusterMemberJoinToken
+	err = json.Unmarshal(joinTokenJSON, &j)
+	if err != nil {
+		return nil, err
+	}
+
+	if len(j.Addresses) < 1 {
+		return nil, fmt.Errorf("No cluster member addresses in join token")
+	}
+
+	if j.Secret == "" {
+		return nil, fmt.Errorf("No secret in join token")
+	}
+
+	if j.Fingerprint == "" {
+		return nil, fmt.Errorf("No certificate fingerprint in join token")
+	}
+
+	return &j, nil
+}
+
+// clusterMemberJoinTokenValid searches for cluster join token that matches the joint token provided.
+// Returns matching operation if found and cancels the operation, otherwise returns nil.
+func clusterMemberJoinTokenValid(d *Daemon, projectName string, joinToken *api.ClusterMemberJoinToken) (*api.Operation, error) {
+	ops, err := operationsGetByType(d, projectName, db.OperationClusterJoinToken)
+	if err != nil {
+		return nil, errors.Wrapf(err, "Failed getting cluster join token operations")
+	}
+
+	var foundOp *api.Operation
+	for _, op := range ops {
+		if op.StatusCode != api.Running {
+			continue // Tokens are single use, so if cancelled but not deleted yet its not available.
+		}
+
+		if op.Resources == nil {
+			continue
+		}
+
+		opSecret, ok := op.Metadata["secret"]
+		if !ok {
+			continue
+		}
+
+		opServerName, ok := op.Metadata["serverName"]
+		if !ok {
+			continue
+		}
+
+		if opServerName == joinToken.ServerName && opSecret == joinToken.Secret {
+			foundOp = op
+			break
+		}
+	}
+
+	if foundOp != nil {
+		// Token is single-use, so cancel it now.
+		err = operationCancel(d, projectName, foundOp)
+		if err != nil {
+			return nil, errors.Wrapf(err, "Failed to cancel operation")
+		}
+
+		return foundOp, nil
+	}
+
+	// No operation found.
+	return nil, nil
 }
 
 // swagger:operation POST /1.0/certificates?public certificates certificates_post_untrusted
