@@ -1,5 +1,10 @@
 package api
 
+import (
+	"encoding/base64"
+	"encoding/json"
+)
+
 // Cluster represents high-level information about a LXD cluster.
 //
 // swagger:model
@@ -92,6 +97,39 @@ type ClusterMembersPost struct {
 	// The name of the new cluster member
 	// Example: lxd02
 	ServerName string `json:"server_name" yaml:"server_name"`
+}
+
+// ClusterMemberJoinToken represents the fields contained within an encoded cluster member join token.
+//
+// swagger:model
+//
+// API extension: clustering_join_token
+type ClusterMemberJoinToken struct {
+	// The name of the new cluster member
+	// Example: lxd02
+	ServerName string `json:"server_name" yaml:"server_name"`
+
+	// The fingerprint of the network certificate
+	// Example: 57bb0ff4340b5bb28517e062023101adf788c37846dc8b619eb2c3cb4ef29436
+	Fingerprint string `json:"fingerprint" yaml:"fingerprint"`
+
+	// The addresses of existing online cluster members
+	// Example: ["10.98.30.229:8443"]
+	Addresses []string `json:"addresses" yaml:"addresses"`
+
+	// The random join secret.
+	// Example: 2b2284d44db32675923fe0d2020477e0e9be11801ff70c435e032b97028c35cd
+	Secret string `json:"secret" yaml:"secret"`
+}
+
+// String encodes the cluster member join token as JSON and then Base64.
+func (t *ClusterMemberJoinToken) String() string {
+	joinTokenJSON, err := json.Marshal(t)
+	if err != nil {
+		return ""
+	}
+
+	return base64.StdEncoding.EncodeToString(joinTokenJSON)
 }
 
 // ClusterMemberPost represents the fields required to rename a LXD node.
