@@ -630,6 +630,7 @@ var allAggregateLimits = []string{
 
 // AllRestrictions lists all available 'restrict.*' config keys.
 var AllRestrictions = []string{
+	"restricted.backups",
 	"restricted.cluster.target",
 	"restricted.containers.nesting",
 	"restricted.containers.lowlevel",
@@ -643,9 +644,11 @@ var AllRestrictions = []string{
 	"restricted.devices.usb",
 	"restricted.devices.nic",
 	"restricted.devices.disk",
+	"restricted.snapshots",
 }
 
 var defaultRestrictionsValues = map[string]string{
+	"restricted.backups":                   "block",
 	"restricted.cluster.target":            "block",
 	"restricted.containers.nesting":        "block",
 	"restricted.containers.lowlevel":       "block",
@@ -659,6 +662,7 @@ var defaultRestrictionsValues = map[string]string{
 	"restricted.devices.usb":               "block",
 	"restricted.devices.nic":               "managed",
 	"restricted.devices.disk":              "managed",
+	"restricted.snapshots":                 "block",
 }
 
 // Return true if a low-level container option is forbidden.
@@ -1267,5 +1271,52 @@ func CheckClusterTargetRestriction(tx *db.ClusterTx, r *http.Request, projectNam
 		return fmt.Errorf("This project doesn't allow cluster member targeting")
 	}
 
+	return nil
+}
+
+// Return true if particular restriction in project is violated
+func projectHasRestriction(project *api.Project, restrictionKey string, blockValue string) bool {
+	restricted := project.Config["restricted"]
+	if !shared.IsTrue(restricted) {
+		return false
+	}
+
+	restrictionValue, ok := project.Config[restrictionKey]
+	if !ok {
+		restrictionValue = defaultRestrictionsValues[restrictionKey]
+	}
+
+	if restrictionValue == blockValue {
+		return true
+	}
+
+	return false
+}
+
+// AllowBackupCreation returns an error if any project-specific restriction is violated
+// when creating a new backup in a project.
+func AllowBackupCreation(tx *db.ClusterTx, projectName string) error {
+	project, err := tx.GetProject(projectName)
+	if err != nil {
+		return err
+	}
+
+	if projectHasRestriction(project, "restricted.backups", "block") {
+		return fmt.Errorf("Project %s doesn't allow for backup creation", projectName)
+	}
+	return nil
+}
+
+// AllowSnapshotCreation returns an error if any project-specific restriction is violated
+// when creating a new snapshot in a project.
+func AllowSnapshotCreation(tx *db.ClusterTx, projectName string) error {
+	project, err := tx.GetProject(projectName)
+	if err != nil {
+		return err
+	}
+
+	if projectHasRestriction(project, "restricted.snapshots", "block") {
+		return fmt.Errorf("Project %s doesn't allow for snapshot creation", projectName)
+	}
 	return nil
 }
