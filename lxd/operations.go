@@ -513,7 +513,7 @@ func operationsGet(d *Daemon, r *http.Request) response.Response {
 		}
 
 		// Get operation data
-		ops, err := client.GetOperations()
+		ops, err := client.UseProject(projectName).GetOperations()
 		if err != nil {
 			return response.SmartError(err)
 		}
@@ -604,7 +604,7 @@ func operationsGetByType(d *Daemon, projectName string, opType db.OperationType)
 		}
 
 		// Get operation data.
-		remoteOps, err := client.GetOperations()
+		remoteOps, err := client.UseProject(projectName).GetOperations()
 		if err != nil {
 			log.Warn("Failed getting operations from member", log.Ctx{"address": memberAddress, "err": err})
 			continue
