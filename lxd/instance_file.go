@@ -39,7 +39,7 @@ func instanceFileHandler(d *Daemon, r *http.Request) response.Response {
 
 	path := r.FormValue("path")
 	if path == "" {
-		return response.BadRequest(fmt.Errorf("missing path argument"))
+		return response.BadRequest(fmt.Errorf("Missing path argument"))
 	}
 
 	switch r.Method {
@@ -54,6 +54,70 @@ func instanceFileHandler(d *Daemon, r *http.Request) response.Response {
 	}
 }
 
+// swagger:operation GET /1.0/instances/{name}/files instances instance_files_get
+//
+// Get a file
+//
+// Gets the file content. If it's a directory, a json list of files will be returned instead.
+//
+// ---
+// produces:
+//   - application/json
+//   - application/octet-stream
+// parameters:
+//   - in: query
+//     name: path
+//     description: Path to the file
+//     type: string
+//     example: default
+//   - in: query
+//     name: project
+//     description: Project name
+//     type: string
+//     example: default
+// responses:
+//   "200":
+//      description: Raw file or directory listing
+//      headers:
+//        X-LXD-uid:
+//          description: File owner UID
+//          schema:
+//            type: integer
+//        X-LXD-gid:
+//          description: File owner GID
+//          schema:
+//            type: integer
+//        X-LXD-mode:
+//          description: Mode mask
+//          schema:
+//            type: integer
+//        X-LXD-type:
+//          description: Type of file (file, symlink or directory)
+//          schema:
+//            type: string
+//      content:
+//        application/octet-stream:
+//          schema:
+//            type: string
+//            example: some-text
+//        application/json:
+//          schema:
+//            type: array
+//            items:
+//              type: string
+//            example: |-
+//              [
+//                "/etc",
+//                "/home"
+//              ]
+//   "400":
+//     $ref: "#/responses/BadRequest"
+//   "403":
+//     $ref: "#/responses/Forbidden"
+//   "404":
+//     $ref: "#/responses/NotFound"
+//   "500":
+//     $ref: "#/responses/InternalServerError"
 func instanceFileGet(c instance.Instance, path string, r *http.Request) response.Response {
 	/*
 	 * Copy out of the ns to a temporary file, and then use that to serve
@@ -99,6 +163,72 @@ func instanceFileGet(c instance.Instance, path string, r *http.Request) response
 	}
 }
 
+// swagger:operation POST /1.0/instances/{name}/files instances instance_files_post
+//
+// Create or replace a file
+//
+// Creates a new file in the instance.
+//
+// ---
+// consumes:
+//   - application/octet-stream
+// produces:
+//   - application/json
+// parameters:
+//   - in: query
+//     name: path
+//     description: Path to the file
+//     type: string
+//     example: default
+//   - in: query
+//     name: project
+//     description: Project name
+//     type: string
+//     example: default
+//   - in: body
+//     name: raw_file
+//     description: Raw file content
+//   - in: header
+//     name: X-LXD-uid
+//     description: File owner UID
+//     schema:
+//       type: integer
+//     example: 1000
+//   - in: header
+//     name: X-LXD-gid
+//     description: File owner GID
+//     schema:
+//       type: integer
+//     example: 1000
+//   - in: header
+//     name: X-LXD-mode
+//     description: File mode
+//     schema:
+//       type: integer
+//     example: 0644
+//   - in: header
+//     name: X-LXD-type
+//     description: Type of file (file, symlink or directory)
+//     schema:
+//       type: string
+//     example: file
+//   - in: header
+//     name: X-LXD-write
+//     description: Write mode (overwrite or append)
+//     schema:
+//       type: string
+//     example: overwrite
+// responses:
+//   "200":
+//     $ref: "#/responses/EmptySyncResponse"
+//   "400":
+//     $ref: "#/responses/BadRequest"
+//   "403":
+//     $ref: "#/responses/Forbidden"
+//   "404":
+//     $ref: "#/responses/NotFound"
+//   "500":
+//     $ref: "#/responses/InternalServerError"
 func instanceFilePost(c instance.Instance, path string, r *http.Request) response.Response {
 	// Extract file ownership and mode from headers
 	uid, gid, mode, type_, write := shared.ParseLXDFileHeaders(r.Header)
@@ -152,6 +282,37 @@ func instanceFilePost(c instance.Instance, path string, r *http.Request) respons
 	}
 }
 
+// swagger:operation DELETE /1.0/instances/{name}/files instances instance_files_delete
+//
+// Delete a file
+//
+// Removes the file.
+//
+// ---
+// produces:
+//   - application/json
+// parameters:
+//   - in: query
+//     name: path
+//     description: Path to the file
+//     type: string
+//     example: default
+//   - in: query
+//     name: project
+//     description: Project name
+//     type: string
+//     example: default
+// responses:
+//   "200":
+//     $ref: "#/responses/EmptySyncResponse"
+//   "400":
+//     $ref: "#/responses/BadRequest"
+//   "403":
+//     $ref: "#/responses/Forbidden"
+//   "404":
+//     $ref: "#/responses/NotFound"
+//   "500":
+//     $ref: "#/responses/InternalServerError"
 func instanceFileDelete(c instance.Instance, path string, r *http.Request) response.Response {
 	err := c.FileRemove(path)
 	if err != nil {
