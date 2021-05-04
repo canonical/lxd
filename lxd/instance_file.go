@@ -39,7 +39,7 @@ func instanceFileHandler(d *Daemon, r *http.Request) response.Response {
 
 	path := r.FormValue("path")
 	if path == "" {
-		return response.BadRequest(fmt.Errorf("missing path argument"))
+		return response.BadRequest(fmt.Errorf("Missing path argument"))
 	}
 
 	switch r.Method {
