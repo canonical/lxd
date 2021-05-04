@@ -253,13 +253,14 @@ func (c *cmdWarningAcknowledge) Command() *cobra.Command {
 }
 
 func (c *cmdWarningAcknowledge) Run(cmd *cobra.Command, args []string) error {
-	// Parse remote
-	remote := ""
-	if len(args) > 0 {
-		remote = args[0]
+	// Sanity checks
+	exit, err := c.global.CheckArgs(cmd, args, 1, 1)
+	if exit {
+		return err
 	}
 
-	remoteName, UUID, err := c.global.conf.ParseRemote(remote)
+	// Parse remote
+	remoteName, UUID, err := c.global.conf.ParseRemote(args[0])
 	if err != nil {
 		return err
 	}
@@ -293,6 +294,12 @@ func (c *cmdWarningShow) Command() *cobra.Command {
 }
 
 func (c *cmdWarningShow) Run(cmd *cobra.Command, args []string) error {
+	// Sanity checks
+	exit, err := c.global.CheckArgs(cmd, args, 1, 1)
+	if exit {
+		return err
+	}
+
 	// Parse remote
 	remoteName, UUID, err := c.global.conf.ParseRemote(args[0])
 	if err != nil {
@@ -343,13 +350,14 @@ func (c *cmdWarningDelete) Command() *cobra.Command {
 }
 
 func (c *cmdWarningDelete) Run(cmd *cobra.Command, args []string) error {
-	// Parse remote
-	remote := ""
-	if len(args) > 0 {
-		remote = args[0]
+	// Sanity checks
+	exit, err := c.global.CheckArgs(cmd, args, 1, 1)
+	if exit {
+		return err
 	}
 
-	remoteName, UUID, err := c.global.conf.ParseRemote(remote)
+	// Parse remote
+	remoteName, UUID, err := c.global.conf.ParseRemote(args[0])
 	if err != nil {
 		return err
 	}
