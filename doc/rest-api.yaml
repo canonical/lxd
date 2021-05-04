@@ -4759,6 +4759,245 @@ paths:
       summary: Get the images
       tags:
       - images
+  /1.0/instances/{name}/files:
+    delete:
+      description: Removes the file.
+      operationId: instance_files_delete
+      parameters:
+      - description: Path to the file
+        example: default
+        in: query
+        name: path
+        type: string
+      - description: Project name
+        example: default
+        in: query
+        name: project
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          $ref: '#/responses/EmptySyncResponse'
+        "400":
+          $ref: '#/responses/BadRequest'
+        "403":
+          $ref: '#/responses/Forbidden'
+        "404":
+          $ref: '#/responses/NotFound'
+        "500":
+          $ref: '#/responses/InternalServerError'
+      summary: Delete a file
+      tags:
+      - instances
+    get:
+      description: Gets the file content. If it's a directory, a json list of files
+        will be returned instead.
+      operationId: instance_files_get
+      parameters:
+      - description: Path to the file
+        example: default
+        in: query
+        name: path
+        type: string
+      - description: Project name
+        example: default
+        in: query
+        name: project
+        type: string
+      produces:
+      - application/json
+      - application/octet-stream
+      responses:
+        "200":
+          description: Raw file or directory listing
+          headers:
+            X-LXD-gid:
+              description: File owner GID
+            X-LXD-mode:
+              description: Mode mask
+            X-LXD-type:
+              description: Type of file (file, symlink or directory)
+            X-LXD-uid:
+              description: File owner UID
+        "400":
+          $ref: '#/responses/BadRequest'
+        "403":
+          $ref: '#/responses/Forbidden'
+        "404":
+          $ref: '#/responses/NotFound'
+        "500":
+          $ref: '#/responses/InternalServerError'
+      summary: Get a file
+      tags:
+      - instances
+    post:
+      consumes:
+      - application/octet-stream
+      description: Creates a new file in the instance.
+      operationId: instance_files_post
+      parameters:
+      - description: Path to the file
+        example: default
+        in: query
+        name: path
+        type: string
+      - description: Project name
+        example: default
+        in: query
+        name: project
+        type: string
+      - description: Raw file content
+        in: body
+        name: raw_file
+      - description: File owner UID
+        example: 1000
+        in: header
+        name: X-LXD-uid
+        schema:
+          type: integer
+      - description: File owner GID
+        example: 1000
+        in: header
+        name: X-LXD-gid
+        schema:
+          type: integer
+      - description: File mode
+        example: 420
+        in: header
+        name: X-LXD-mode
+        schema:
+          type: integer
+      - description: Type of file (file, symlink or directory)
+        example: file
+        in: header
+        name: X-LXD-type
+        schema:
+          type: string
+      - description: Write mode (overwrite or append)
+        example: overwrite
+        in: header
+        name: X-LXD-write
+        schema:
+          type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          $ref: '#/responses/EmptySyncResponse'
+        "400":
+          $ref: '#/responses/BadRequest'
+        "403":
+          $ref: '#/responses/Forbidden'
+        "404":
+          $ref: '#/responses/NotFound'
+        "500":
+          $ref: '#/responses/InternalServerError'
+      summary: Create or replace a file
+      tags:
+      - instances
+  /1.0/instances/{name}/logs:
+    get:
+      description: Returns a list of log files (URLs).
+      operationId: instance_logs_get
+      parameters:
+      - description: Project name
+        example: default
+        in: query
+        name: project
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: API endpoints
+          schema:
+            description: Sync response
+            properties:
+              metadata:
+                description: List of endpoints
+                example: |-
+                  [
+                    "/1.0/instances/foo/logs/lxc.conf",
+                    "/1.0/instances/foo/logs/lxc.log"
+                  ]
+                items:
+                  type: string
+                type: array
+              status:
+                description: Status description
+                example: Success
+                type: string
+              status_code:
+                description: Status code
+                example: 200
+                type: int
+              type:
+                description: Response type
+                example: sync
+                type: string
+            type: object
+        "403":
+          $ref: '#/responses/Forbidden'
+        "404":
+          $ref: '#/responses/NotFound'
+        "500":
+          $ref: '#/responses/InternalServerError'
+      summary: Get the log files
+      tags:
+      - instances
+  /1.0/instances/{name}/logs/{filename}:
+    delete:
+      description: Removes the log file.
+      operationId: instance_log_delete
+      parameters:
+      - description: Project name
+        example: default
+        in: query
+        name: project
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          $ref: '#/responses/EmptySyncResponse'
+        "400":
+          $ref: '#/responses/BadRequest'
+        "403":
+          $ref: '#/responses/Forbidden'
+        "404":
+          $ref: '#/responses/NotFound'
+        "500":
+          $ref: '#/responses/InternalServerError'
+      summary: Delete the log file
+      tags:
+      - instances
+    get:
+      description: Gets the log file.
+      operationId: instance_log_get
+      parameters:
+      - description: Project name
+        example: default
+        in: query
+        name: project
+        type: string
+      produces:
+      - application/json
+      - application/octet-stream
+      responses:
+        "200":
+          description: Raw file
+        "400":
+          $ref: '#/responses/BadRequest'
+        "403":
+          $ref: '#/responses/Forbidden'
+        "404":
+          $ref: '#/responses/NotFound'
+        "500":
+          $ref: '#/responses/InternalServerError'
+      summary: Get the log file
+      tags:
+      - instances
   /1.0/network-acls:
     get:
       description: Returns a list of network ACLs (URLs).

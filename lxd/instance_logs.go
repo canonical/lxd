@@ -174,6 +174,7 @@ func validLogFileName(fname string) bool {
 //        application/octet-stream:
 //          schema:
 //            type: string
+//            example: some-text
 //   "400":
 //     $ref: "#/responses/BadRequest"
 //   "403":
