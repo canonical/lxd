@@ -56,6 +56,7 @@ const (
 	OperationBackupsExpire
 	OperationSnapshotsExpire
 	OperationCustomVolumeSnapshotsExpire
+	OperationClusterJoinToken
 )
 
 // Description return a human-readable description of the operation type.
