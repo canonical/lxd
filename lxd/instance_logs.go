@@ -39,6 +39,56 @@ var instanceLogsCmd = APIEndpoint{
 	Get: APIEndpointAction{Handler: instanceLogsGet, AccessHandler: allowProjectPermission("containers", "view")},
 }
 
+// swagger:operation GET /1.0/instances/{name}/logs instances instance_logs_get
+//
+// Get the log files
+//
+// Returns a list of log files (URLs).
+//
+// ---
+// produces:
+//   - application/json
+// parameters:
+//   - in: query
+//     name: project
+//     description: Project name
+//     type: string
+//     example: default
+// responses:
+//   "200":
+//     description: API endpoints
+//     schema:
+//       type: object
+//       description: Sync response
+//       properties:
+//         type:
+//           type: string
+//           description: Response type
+//           example: sync
+//         status:
+//           type: string
+//           description: Status description
+//           example: Success
+//         status_code:
+//           type: int
+//           description: Status code
+//           example: 200
+//         metadata:
+//           type: array
+//           description: List of endpoints
+//           items:
+//             type: string
+//           example: |-
+//             [
+//               "/1.0/instances/foo/logs/lxc.conf",
+//               "/1.0/instances/foo/logs/lxc.log"
+//             ]
+//   "403":
+//     $ref: "#/responses/Forbidden"
+//   "404":
+//     $ref: "#/responses/NotFound"
+//   "500":
+//     $ref: "#/responses/InternalServerError"
 func instanceLogsGet(d *Daemon, r *http.Request) response.Response {
 	/* Let's explicitly *not* try to do a containerLoadByName here. In some
 	 * cases (e.g. when container creation failed), the container won't
@@ -101,6 +151,38 @@ func validLogFileName(fname string) bool {
 		strings.HasPrefix(fname, "exec_")
 }
 
+// swagger:operation GET /1.0/instances/{name}/logs/{filename} instances instance_log_get
+//
+// Get the log file
+//
+// Gets the log file.
+//
+// ---
+// produces:
+//   - application/json
+//   - application/octet-stream
+// parameters:
+//   - in: query
+//     name: project
+//     description: Project name
+//     type: string
+//     example: default
+// responses:
+//   "200":
+//      description: Raw file
+//      content:
+//        application/octet-stream:
+//          schema:
+//            type: string
+//            example: some-text
+//   "400":
+//     $ref: "#/responses/BadRequest"
+//   "403":
+//     $ref: "#/responses/Forbidden"
+//   "404":
+//     $ref: "#/responses/NotFound"
+//   "500":
+//     $ref: "#/responses/InternalServerError"
 func instanceLogGet(d *Daemon, r *http.Request) response.Response {
 	instanceType, err := urlInstanceTypeDetect(r)
 	if err != nil {
@@ -138,6 +220,32 @@ func instanceLogGet(d *Daemon, r *http.Request) response.Response {
 	return response.FileResponse(r, []response.FileResponseEntry{ent}, nil, false)
 }
 
+// swagger:operation DELETE /1.0/instances/{name}/logs/{filename} instances instance_log_delete
+//
+// Delete the log file
+//
+// Removes the log file.
+//
+// ---
+// produces:
+//   - application/json
+// parameters:
+//   - in: query
+//     name: project
+//     description: Project name
+//     type: string
+//     example: default
+// responses:
+//   "200":
+//     $ref: "#/responses/EmptySyncResponse"
+//   "400":
+//     $ref: "#/responses/BadRequest"
+//   "403":
+//     $ref: "#/responses/Forbidden"
+//   "404":
+//     $ref: "#/responses/NotFound"
+//   "500":
+//     $ref: "#/responses/InternalServerError"
 func instanceLogDelete(d *Daemon, r *http.Request) response.Response {
 	instanceType, err := urlInstanceTypeDetect(r)
 	if err != nil {
