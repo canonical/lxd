@@ -39,9 +39,9 @@ const (
 
 func (t OperationClass) String() string {
 	return map[OperationClass]string{
-		OperationClassTask:      "task",
-		OperationClassWebsocket: "websocket",
-		OperationClassToken:     "token",
+		OperationClassTask:      api.OperationClassTask,
+		OperationClassWebsocket: api.OperationClassWebsocket,
+		OperationClassToken:     api.OperationClassToken,
 	}[t]
 }
 
