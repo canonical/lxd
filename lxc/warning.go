@@ -68,7 +68,7 @@ func (c *cmdWarningList) Command() *cobra.Command {
 		`List warnings
 
 The -c option takes a (optionally comma-separated) list of arguments
-that control which image attributes to output when displaying in table
+that control which warning attributes to output when displaying in table
 or csv format.
 
 Default column layout is: utSscpLl
@@ -116,7 +116,7 @@ func (c *cmdWarningList) Run(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	// Per default, acknowledged and resolved images are not shown. Using the --all flag will show
+	// Per default, acknowledged and resolved warnings are not shown. Using the --all flag will show
 	// those as well.
 	var warnings []api.Warning
 
