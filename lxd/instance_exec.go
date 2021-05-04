@@ -409,6 +409,44 @@ func (s *execWs) Do(op *operations.Operation) error {
 	return finisher(exitCode, err)
 }
 
+// swagger:operation POST /1.0/instances/{name}/exec instances instance_exec_post
+//
+// Run a command
+//
+// Executes a command inside an instance.
+//
+// The returned operation metadata will contain either 2 or 4 websockets.
+// In non-interactive mode, you'll get one websocket for each of stdin, stdout and stderr.
+// In interactive mode, a single bi-directional websocket is used for stdin and stdout/stderr.
+//
+// An additional "control" socket is always added on top which can be used for out of band communication with LXD.
+// This allows sending signals and window sizing information through.
+//
+// ---
+// consumes:
+//   - application/json
+// produces:
+//   - application/json
+// parameters:
+//   - in: query
+//     name: project
+//     description: Project name
+//     type: string
+//     example: default
+//   - in: body
+//     name: exec
+//     description: Exec request
+//     schema:
+//       $ref: "#/definitions/InstanceExecPost"
+// responses:
+//   "200":
+//     $ref: "#/responses/Operation"
+//   "400":
+//     $ref: "#/responses/BadRequest"
+//   "403":
+//     $ref: "#/responses/Forbidden"
+//   "500":
+//     $ref: "#/responses/InternalServerError"
 func instanceExecPost(d *Daemon, r *http.Request) response.Response {
 	instanceType, err := urlInstanceTypeDetect(r)
 	if err != nil {
