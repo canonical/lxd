@@ -7,8 +7,9 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/lxc/lxd/lxd/db/query"
 	"github.com/pkg/errors"
+
+	"github.com/lxc/lxd/lxd/db/query"
 )
 
 // Operation holds information about a single LXD operation running on a node
