@@ -61,6 +61,7 @@ const (
 	OperationCustomVolumeBackupRename
 	OperationCustomVolumeBackupRestore
 	OperationWarningsPruneResolved
+	OperationClusterJoinToken
 )
 
 // Description return a human-readable description of the operation type.
