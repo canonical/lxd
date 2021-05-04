@@ -5,7 +5,6 @@ package db
 
 import (
 	"fmt"
-	"time"
 
 	"github.com/pkg/errors"
 
@@ -45,21 +44,16 @@ SELECT DISTINCT nodes.address
 	return query.SelectStrings(c.tx, stmt, project)
 }
 
-// GetOnlineNodesWithRunningOperationsOfType returns a list of online nodes that have running operations of type.
-func (c *ClusterTx) GetOnlineNodesWithRunningOperationsOfType(projectName string, opType OperationType) ([]string, error) {
-	var addresses []string
-
-	offlineThreshold, err := c.GetNodeOfflineThreshold()
-	if err != nil {
-		return nil, err
-	}
+// GetOperationsOfType returns a list operations that belong to the specified project and have the desired type.
+func (c *ClusterTx) GetOperationsOfType(projectName string, opType OperationType) ([]Operation, error) {
+	var ops []Operation
 
 	stmt := `
-SELECT DISTINCT nodes.address, nodes.heartbeat
+SELECT operations.id, operations.uuid, operations.type, nodes.address
   FROM operations
-  LEFT OUTER JOIN projects ON projects.id = operations.project_id
-  JOIN nodes ON nodes.id = operations.node_id
- WHERE (projects.name = ? OR operations.project_id IS NULL) AND type = ?
+  LEFT JOIN projects on projects.id = operations.project_id
+  JOIN nodes on nodes.id = operations.node_id
+WHERE (projects.name = ? OR operations.project_id IS NULL) and operations.type = ?
 `
 	rows, err := c.tx.Query(stmt, projectName, opType)
 	if err != nil {
@@ -68,25 +62,19 @@ SELECT DISTINCT nodes.address, nodes.heartbeat
 	defer rows.Close()
 
 	for rows.Next() {
-		var address string
-		var heartbeat time.Time
-
-		err := rows.Scan(&address, &heartbeat)
+		var op Operation
+		err := rows.Scan(&op.ID, &op.UUID, &op.Type, &op.NodeAddress)
 		if err != nil {
 			return nil, err
 		}
 
-		if nodeIsOffline(offlineThreshold, heartbeat) {
-			continue
-		}
-
-		addresses = append(addresses, address)
+		ops = append(ops, op)
 	}
 	if rows.Err() != nil {
 		return nil, err
 	}
 
-	return query.SelectStrings(c.tx, stmt, projectName)
+	return ops, nil
 }
 
 // GetOperationWithID returns the operation with the given ID.
