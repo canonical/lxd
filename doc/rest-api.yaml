@@ -1547,6 +1547,41 @@ definitions:
         x-go-name: Description
     type: object
     x-go-package: github.com/lxc/lxd/shared/api
+  ProjectState:
+    description: ProjectState represents the current running state of a LXD project
+    properties:
+      resources:
+        additionalProperties:
+          $ref: '#/definitions/ProjectStateResource'
+        description: Allocated and used resources
+        example:
+          containers:
+            limit: 10
+            usage: 4
+          cpu:
+            limit: 20
+            usage: 16
+        readOnly: true
+        type: object
+        x-go-name: Resources
+    type: object
+    x-go-package: github.com/lxc/lxd/shared/api
+  ProjectStateResource:
+    description: ProjectStateResource represents the state of a particular resource
+      in a LXD project
+    properties:
+      Limit:
+        description: Limit for the resource (-1 if none)
+        example: 10
+        format: int64
+        type: integer
+      Usage:
+        description: Current usage for the resource
+        example: 4
+        format: int64
+        type: integer
+    type: object
+    x-go-package: github.com/lxc/lxd/shared/api
   ProjectsPost:
     description: ProjectsPost represents the fields of a new LXD project
     properties:
@@ -3037,6 +3072,79 @@ definitions:
     description: StatusCode represents a valid LXD operation and container status
     format: int64
     type: integer
+    x-go-package: github.com/lxc/lxd/shared/api
+  Warning:
+    properties:
+      count:
+        description: The number of times this warning occurred
+        example: 1
+        format: int64
+        type: integer
+        x-go-name: Count
+      entity_url:
+        description: The entity affected by this warning
+        example: /1.0/instances/c1?project=default
+        type: string
+        x-go-name: EntityURL
+      first_seen_at:
+        description: The first time this warning occurred
+        example: "2021-03-23T17:38:37.753398689-04:00"
+        format: date-time
+        type: string
+        x-go-name: FirstSeenAt
+      last_message:
+        description: The warning message
+        example: Couldn't find the CGroup blkio.weight, disk priority will be ignored
+        type: string
+        x-go-name: LastMessage
+      last_seen_at:
+        description: The last time this warning occurred
+        example: "2021-03-23T17:38:37.753398689-04:00"
+        format: date-time
+        type: string
+        x-go-name: LastSeenAt
+      location:
+        description: What cluster member this warning occurred on
+        example: node1
+        type: string
+        x-go-name: Location
+      project:
+        description: The project the warning occurred in
+        example: default
+        type: string
+        x-go-name: Project
+      severity:
+        description: The severity of this warning
+        example: low
+        type: string
+        x-go-name: Severity
+      status:
+        description: Status of the warning (new, acknowledged, or resolved)
+        example: new
+        type: string
+        x-go-name: Status
+      type:
+        description: Type type of warning
+        example: Couldn't find CGroup
+        type: string
+        x-go-name: Type
+      uuid:
+        description: UUID of the warning
+        example: e9e9da0d-2538-4351-8047-46d4a8ae4dbb
+        type: string
+        x-go-name: UUID
+    title: Warning represents a warning entry.
+    type: object
+    x-go-package: github.com/lxc/lxd/shared/api
+  WarningPut:
+    properties:
+      status:
+        description: Status of the warning (new, acknowledged, or resolved)
+        example: new
+        type: string
+        x-go-name: Status
+    title: WarningPut represents the modifiable fields of a warning.
+    type: object
     x-go-package: github.com/lxc/lxd/shared/api
 info:
   contact:
@@ -4624,6 +4732,245 @@ paths:
       summary: Get the images
       tags:
       - images
+  /1.0/instances/{name}/files:
+    delete:
+      description: Removes the file.
+      operationId: instance_files_delete
+      parameters:
+      - description: Path to the file
+        example: default
+        in: query
+        name: path
+        type: string
+      - description: Project name
+        example: default
+        in: query
+        name: project
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          $ref: '#/responses/EmptySyncResponse'
+        "400":
+          $ref: '#/responses/BadRequest'
+        "403":
+          $ref: '#/responses/Forbidden'
+        "404":
+          $ref: '#/responses/NotFound'
+        "500":
+          $ref: '#/responses/InternalServerError'
+      summary: Delete a file
+      tags:
+      - instances
+    get:
+      description: Gets the file content. If it's a directory, a json list of files
+        will be returned instead.
+      operationId: instance_files_get
+      parameters:
+      - description: Path to the file
+        example: default
+        in: query
+        name: path
+        type: string
+      - description: Project name
+        example: default
+        in: query
+        name: project
+        type: string
+      produces:
+      - application/json
+      - application/octet-stream
+      responses:
+        "200":
+          description: Raw file or directory listing
+          headers:
+            X-LXD-gid:
+              description: File owner GID
+            X-LXD-mode:
+              description: Mode mask
+            X-LXD-type:
+              description: Type of file (file, symlink or directory)
+            X-LXD-uid:
+              description: File owner UID
+        "400":
+          $ref: '#/responses/BadRequest'
+        "403":
+          $ref: '#/responses/Forbidden'
+        "404":
+          $ref: '#/responses/NotFound'
+        "500":
+          $ref: '#/responses/InternalServerError'
+      summary: Get a file
+      tags:
+      - instances
+    post:
+      consumes:
+      - application/octet-stream
+      description: Creates a new file in the instance.
+      operationId: instance_files_post
+      parameters:
+      - description: Path to the file
+        example: default
+        in: query
+        name: path
+        type: string
+      - description: Project name
+        example: default
+        in: query
+        name: project
+        type: string
+      - description: Raw file content
+        in: body
+        name: raw_file
+      - description: File owner UID
+        example: 1000
+        in: header
+        name: X-LXD-uid
+        schema:
+          type: integer
+      - description: File owner GID
+        example: 1000
+        in: header
+        name: X-LXD-gid
+        schema:
+          type: integer
+      - description: File mode
+        example: 420
+        in: header
+        name: X-LXD-mode
+        schema:
+          type: integer
+      - description: Type of file (file, symlink or directory)
+        example: file
+        in: header
+        name: X-LXD-type
+        schema:
+          type: string
+      - description: Write mode (overwrite or append)
+        example: overwrite
+        in: header
+        name: X-LXD-write
+        schema:
+          type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          $ref: '#/responses/EmptySyncResponse'
+        "400":
+          $ref: '#/responses/BadRequest'
+        "403":
+          $ref: '#/responses/Forbidden'
+        "404":
+          $ref: '#/responses/NotFound'
+        "500":
+          $ref: '#/responses/InternalServerError'
+      summary: Create or replace a file
+      tags:
+      - instances
+  /1.0/instances/{name}/logs:
+    get:
+      description: Returns a list of log files (URLs).
+      operationId: instance_logs_get
+      parameters:
+      - description: Project name
+        example: default
+        in: query
+        name: project
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: API endpoints
+          schema:
+            description: Sync response
+            properties:
+              metadata:
+                description: List of endpoints
+                example: |-
+                  [
+                    "/1.0/instances/foo/logs/lxc.conf",
+                    "/1.0/instances/foo/logs/lxc.log"
+                  ]
+                items:
+                  type: string
+                type: array
+              status:
+                description: Status description
+                example: Success
+                type: string
+              status_code:
+                description: Status code
+                example: 200
+                type: int
+              type:
+                description: Response type
+                example: sync
+                type: string
+            type: object
+        "403":
+          $ref: '#/responses/Forbidden'
+        "404":
+          $ref: '#/responses/NotFound'
+        "500":
+          $ref: '#/responses/InternalServerError'
+      summary: Get the log files
+      tags:
+      - instances
+  /1.0/instances/{name}/logs/{filename}:
+    delete:
+      description: Removes the log file.
+      operationId: instance_log_delete
+      parameters:
+      - description: Project name
+        example: default
+        in: query
+        name: project
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          $ref: '#/responses/EmptySyncResponse'
+        "400":
+          $ref: '#/responses/BadRequest'
+        "403":
+          $ref: '#/responses/Forbidden'
+        "404":
+          $ref: '#/responses/NotFound'
+        "500":
+          $ref: '#/responses/InternalServerError'
+      summary: Delete the log file
+      tags:
+      - instances
+    get:
+      description: Gets the log file.
+      operationId: instance_log_get
+      parameters:
+      - description: Project name
+        example: default
+        in: query
+        name: project
+        type: string
+      produces:
+      - application/json
+      - application/octet-stream
+      responses:
+        "200":
+          description: Raw file
+        "400":
+          $ref: '#/responses/BadRequest'
+        "403":
+          $ref: '#/responses/Forbidden'
+        "404":
+          $ref: '#/responses/NotFound'
+        "500":
+          $ref: '#/responses/InternalServerError'
+      summary: Get the log file
+      tags:
+      - instances
   /1.0/networks:
     get:
       description: Returns a list of networks (URLs).
@@ -5961,6 +6308,24 @@ responses:
           x-go-name: Code
         error:
           example: internal server error
+          type: string
+          x-go-name: Error
+        type:
+          example: error
+          type: string
+          x-go-name: Type
+      type: object
+  NotFound:
+    description: Not found
+    schema:
+      properties:
+        code:
+          example: 404
+          format: int64
+          type: integer
+          x-go-name: Code
+        error:
+          example: not found
           type: string
           x-go-name: Error
         type:
