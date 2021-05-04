@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: LXD\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2021-04-22 20:21+0200\n"
+"POT-Creation-Date: 2021-05-04 16:56-0400\n"
 "PO-Revision-Date: 2019-01-04 18:07+0000\n"
 "Last-Translator: Deleted User <noreply+12102@weblate.org>\n"
 "Language-Team: French <https://hosted.weblate.org/projects/linux-containers/"
@@ -1191,7 +1191,7 @@ msgstr "Définir un algorithme de compression : pour image ou aucun"
 msgid "Delete a background operation (will attempt to cancel)"
 msgstr ""
 
-#: lxc/warning.go:338
+#: lxc/warning.go:345
 #, fuzzy
 msgid "Delete all warnings"
 msgstr "Récupération de l'image : %s"
@@ -1246,7 +1246,7 @@ msgstr ""
 msgid "Delete storage volumes"
 msgstr "Copie de l'image : %s"
 
-#: lxc/warning.go:334 lxc/warning.go:335
+#: lxc/warning.go:341 lxc/warning.go:342
 #, fuzzy
 msgid "Delete warning"
 msgstr "Récupération de l'image : %s"
@@ -1308,8 +1308,8 @@ msgstr "Récupération de l'image : %s"
 #: lxc/storage_volume.go:1581 lxc/storage_volume.go:1680
 #: lxc/storage_volume.go:1714 lxc/storage_volume.go:1812
 #: lxc/storage_volume.go:1879 lxc/storage_volume.go:2020 lxc/version.go:22
-#: lxc/warning.go:30 lxc/warning.go:67 lxc/warning.go:247 lxc/warning.go:287
-#: lxc/warning.go:335
+#: lxc/warning.go:30 lxc/warning.go:67 lxc/warning.go:247 lxc/warning.go:288
+#: lxc/warning.go:342
 msgid "Description"
 msgstr ""
 
@@ -2409,7 +2409,7 @@ msgid ""
 "List warnings\n"
 "\n"
 "The -c option takes a (optionally comma-separated) list of arguments\n"
-"that control which image attributes to output when displaying in table\n"
+"that control which warning attributes to output when displaying in table\n"
 "or csv format.\n"
 "\n"
 "Default column layout is: utSscpLl\n"
@@ -3820,7 +3820,7 @@ msgstr ""
 msgid "Show useful information about storage pools"
 msgstr ""
 
-#: lxc/warning.go:286 lxc/warning.go:287
+#: lxc/warning.go:287 lxc/warning.go:288
 msgid "Show warning"
 msgstr ""
 
@@ -5243,7 +5243,7 @@ msgstr ""
 "Détruit les conteneurs ou les instantanés ainsi que toute donnée associée "
 "(configuration, instantanés, …)."
 
-#: lxc/warning.go:244 lxc/warning.go:285 lxc/warning.go:332
+#: lxc/warning.go:244 lxc/warning.go:286 lxc/warning.go:339
 #, fuzzy
 msgid "[<remote>:]<warning-uuid>"
 msgstr ""
