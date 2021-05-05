@@ -17,6 +17,7 @@ import (
 	"github.com/lxc/lxd/lxd/instance/drivers"
 	"github.com/lxc/lxd/lxd/instance/instancetype"
 	"github.com/lxc/lxd/lxd/operations"
+	"github.com/lxc/lxd/lxd/project"
 	"github.com/lxc/lxd/lxd/revert"
 	"github.com/lxc/lxd/lxd/state"
 	storagePools "github.com/lxc/lxd/lxd/storage"
@@ -373,16 +374,36 @@ func instanceLoadNodeProjectAll(s *state.State, project string, instanceType ins
 
 func autoCreateContainerSnapshotsTask(d *Daemon) (task.Func, task.Schedule) {
 	f := func(ctx context.Context) {
-		// Load all local instances
-		allContainers, err := instance.LoadNodeAll(d.State(), instancetype.Any)
+		// Get project names
+		var projectNames []string
+		err := d.State().Cluster.Transaction(func(tx *db.ClusterTx) error {
+			var err error
+			projectNames, err = tx.GetProjectNames()
+			return err
+		})
 		if err != nil {
-			logger.Error("Failed to load containers for scheduled snapshots", log.Ctx{"err": err})
 			return
+		}
+
+		// Load local instances by project
+		allInstances := []instance.Instance{}
+		for _, projectName := range projectNames {
+			err := d.State().Cluster.Transaction(func(tx *db.ClusterTx) error {
+				return project.AllowSnapshotCreation(tx, projectName)
+			})
+			if err != nil {
+				continue
+			}
+			projectInstances, err := instanceLoadNodeProjectAll(d.State(), projectName, instancetype.Any)
+			if err != nil {
+				continue
+			}
+			allInstances = append(allInstances, projectInstances...)
 		}
 
 		// Figure out which need snapshotting (if any)
 		instances := []instance.Instance{}
-		for _, c := range allContainers {
+		for _, c := range allInstances {
 			schedule, ok := c.ExpandedConfig()["snapshots.schedule"]
 			if !ok || schedule == "" {
 				continue

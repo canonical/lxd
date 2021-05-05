@@ -1366,3 +1366,7 @@ This includes the following endpoints (see  [Restful API](rest-api.md) for detai
 * `GET /1.0/warnings/<uuid>`
 * `PUT /1.0/warnings/<uuid>`
 * `DELETE /1.0/warnings/<uuid>`
+
+## projects\_restricted\_backups\_and\_snapshots
+Adds new `restricted.backups` and `restricted.snapshots` config keys to project which
+prevents the user from creation of backups and snapshots.
