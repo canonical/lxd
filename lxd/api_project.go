@@ -851,6 +851,7 @@ func projectValidateConfig(s *state.State, config map[string]string) error {
 		"limits.disk":                    validate.Optional(validate.IsSize),
 		"limits.networks":                validate.Optional(validate.IsUint32),
 		"restricted":                     validate.Optional(validate.IsBool),
+		"restricted.backups":             isEitherAllowOrBlock,
 		"restricted.cluster.target":      isEitherAllowOrBlock,
 		"restricted.containers.nesting":  isEitherAllowOrBlock,
 		"restricted.containers.lowlevel": isEitherAllowOrBlock,
@@ -870,6 +871,7 @@ func projectValidateConfig(s *state.State, config map[string]string) error {
 		"restricted.networks.subnets": validate.Optional(func(value string) error {
 			return projectValidateRestrictedSubnets(s, value)
 		}),
+		"restricted.snapshots": isEitherAllowOrBlock,
 	}
 
 	for k, v := range config {

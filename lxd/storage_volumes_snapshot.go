@@ -73,6 +73,14 @@ func storagePoolVolumeSnapshotsTypePost(d *Daemon, r *http.Request) response.Res
 		return response.SmartError(err)
 	}
 
+	err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
+		err := project.AllowSnapshotCreation(tx, projectName)
+		return err
+	})
+	if err != nil {
+		return response.SmartError(err)
+	}
+
 	// Forward if needed.
 	resp := forwardedResponseIfTargetIsRemote(d, r)
 	if resp != nil {
@@ -710,6 +718,14 @@ func autoCreateCustomVolumeSnapshotsTask(d *Daemon) (task.Func, task.Schedule) {
 
 			// Check if snapshot is scheduled.
 			if !snapshotIsScheduledNow(schedule, v.ID) {
+				continue
+			}
+
+			err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
+				err := project.AllowSnapshotCreation(tx, v.ProjectName)
+				return err
+			})
+			if err != nil {
 				continue
 			}
 

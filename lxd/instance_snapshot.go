@@ -102,6 +102,14 @@ func instanceSnapshotsPost(d *Daemon, r *http.Request) response.Response {
 	projectName := projectParam(r)
 	name := mux.Vars(r)["name"]
 
+	err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
+		err := project.AllowSnapshotCreation(tx, projectName)
+		return err
+	})
+	if err != nil {
+		return response.SmartError(err)
+	}
+
 	// Handle requests targeted to a container on a different node
 	resp, err := forwardedResponseIfInstanceIsRemote(d, r, projectName, name, instanceType)
 	if err != nil {

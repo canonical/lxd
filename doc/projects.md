@@ -36,6 +36,7 @@ limits.networks                      | integer   | -                     | -    
 limits.processes                     | integer   | -                     | -                         | Maximum value for the sum of individual "limits.processes" configs set on the instances of the project
 limits.virtual-machines              | integer   | -                     | -                         | Maximum number of VMs that can be created in the project
 restricted                           | boolean   | -                     | false                     | Block access to security-sensitive features
+restricted.backups                   | string    | -                     | block                     | Prevents the creation of any instance or volume backups.
 restricted.cluster.target            | string    | -                     | block                     | Prevents direct targeting of cluster members when creating or moving instances.
 restricted.containers.lowlevel       | string    | -                     | block                     | Prevents use of low-level container options like raw.lxc, raw.idmap, volatile, etc.
 restricted.containers.nesting        | string    | -                     | block                     | Prevents setting security.nesting=true.
@@ -50,6 +51,7 @@ restricted.devices.unix-hotplug      | string    | -                     | block
 restricted.devices.usb               | string    | -                     | block                     | Prevents use of devices of type "usb"
 restricted.networks.subnets          | string    | -                     | block                     | Comma delimited list of network subnets from the uplink networks (in the form `<uplink>:<subnet>`) that are allocated for use in this project
 restricted.networks.uplinks          | string    | -                     | block                     | Comma delimited list of network names that can be used as uplinks for networks in this project
+restricted.snapshots                 | string    | -                     | block                     | Prevents the creation of any instance or volume snapshots.
 restricted.virtual-machines.lowlevel | string    | -                     | block                     | Prevents use of low-level virtual-machine options like raw.qemu, volatile, etc.
 
 Those keys can be set using the lxc tool with:
