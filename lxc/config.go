@@ -684,14 +684,10 @@ func (c *cmdConfigShow) Run(cmd *cobra.Command, args []string) error {
 				return err
 			}
 
-			writable := snap.Writable()
-			brief = &writable
-
-			brief.(*api.InstanceSnapshotPut).ExpiresAt = snap.ExpiresAt
-
+			brief = &snap
 			if c.flagExpanded {
-				brief.(*api.InstanceSnapshotPut).Config = snap.ExpandedConfig
-				brief.(*api.InstanceSnapshotPut).Devices = snap.ExpandedDevices
+				brief.(*api.InstanceSnapshot).Config = snap.ExpandedConfig
+				brief.(*api.InstanceSnapshot).Devices = snap.ExpandedDevices
 			}
 		} else {
 			// Instance
