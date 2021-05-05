@@ -43,13 +43,31 @@ nodes should be brand new LXD servers, or alternatively you should
 clear their contents before joining, since any existing data on them
 will be lost.
 
-To add an additional node, run `lxd init` and answer `yes` to the question
-about whether to use clustering. Choose a node name that is different from
-the one chosen for the bootstrap node or any other nodes you have joined so
-far. Then pick an IP or DNS address for the node and answer `yes` to the
-question about whether you're joining an existing cluster. Pick an address
-of an existing node in the cluster and check the fingerprint that gets
-printed.
+There are two ways to add a member to an existing cluster; using the trust password or using a join token.
+A join token for a new member is generated in advance on the existing cluster using the command:
+
+```
+lxc cluster add <new member name>
+```
+
+This will return a single-use join token which can then be used in the join token question stage of `lxd init`.
+The join token contains the addresses of the existing online members, as well as a single-use secret and the
+fingerprint of the cluster certificate. This reduces the amount of questions you have to answer during `lxd init`
+as the join token can be used to answer these questions automatically.
+
+Alternatively you can use the trust password instead of using a join token.
+
+To add an additional node, run `lxd init` and answer `yes` to the question about whether to use clustering.
+Choose a node name that is different from the one chosen for the bootstrap node or any other nodes you have joined
+so far. Then pick an IP or DNS address for the node and answer `yes` to the question about whether you're joining
+an existing cluster.
+
+If you have a join token then answer `yes` to the question that asks if you have a join token and then copy it in
+when it asks for it.
+
+If you do not have a join token, but have a trust password instead then, then answer `no` to the question that asks
+if you have a join token. Then pick an address of an existing node in the cluster and check the fingerprint that
+gets printed matches the cluster certificate of the existing members.
 
 ### Preseed
 
