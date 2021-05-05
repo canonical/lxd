@@ -21,10 +21,37 @@ import (
 	"github.com/lxc/lxd/shared/osarch"
 )
 
-/*
- * Update configuration, or, if 'restore:snapshot-name' is present, restore
- * the named snapshot
- */
+// swagger:operation PUT /1.0/instances/{name} instances instance_put
+//
+// Update the instance
+//
+// Updates the instance configuration or trigger a snapshot restore.
+//
+// ---
+// consumes:
+//   - application/json
+// produces:
+//   - application/json
+// parameters:
+//   - in: query
+//     name: project
+//     description: Project name
+//     type: string
+//     example: default
+//   - in: body
+//     name: instance
+//     description: Update request
+//     schema:
+//       $ref: "#/definitions/InstancePut"
+// responses:
+//   "200":
+//     $ref: "#/responses/Operation"
+//   "400":
+//     $ref: "#/responses/BadRequest"
+//   "403":
+//     $ref: "#/responses/Forbidden"
+//   "500":
+//     $ref: "#/responses/InternalServerError"
 func instancePut(d *Daemon, r *http.Request) response.Response {
 	instanceType, err := urlInstanceTypeDetect(r)
 	if err != nil {
