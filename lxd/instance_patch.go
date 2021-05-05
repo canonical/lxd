@@ -20,6 +20,37 @@ import (
 	"github.com/lxc/lxd/shared/osarch"
 )
 
+// swagger:operation PATCH /1.0/instances/{name} instances instance_patch
+//
+// Partially update the instance
+//
+// Updates a subset of the instance configuration
+//
+// ---
+// consumes:
+//   - application/json
+// produces:
+//   - application/json
+// parameters:
+//   - in: query
+//     name: project
+//     description: Project name
+//     type: string
+//     example: default
+//   - in: body
+//     name: instance
+//     description: Update request
+//     schema:
+//       $ref: "#/definitions/InstancePut"
+// responses:
+//   "200":
+//     $ref: "#/responses/Operation"
+//   "400":
+//     $ref: "#/responses/BadRequest"
+//   "403":
+//     $ref: "#/responses/Forbidden"
+//   "500":
+//     $ref: "#/responses/InternalServerError"
 func instancePatch(d *Daemon, r *http.Request) response.Response {
 	instanceType, err := urlInstanceTypeDetect(r)
 	if err != nil {

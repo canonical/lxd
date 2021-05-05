@@ -11,16 +11,46 @@ type InstanceExecControl struct {
 
 // InstanceExecPost represents a LXD instance exec request.
 //
+// swagger:model
+//
 // API extension: instances
 type InstanceExecPost struct {
-	Command      []string          `json:"command" yaml:"command"`
-	WaitForWS    bool              `json:"wait-for-websocket" yaml:"wait-for-websocket"`
-	Interactive  bool              `json:"interactive" yaml:"interactive"`
-	Environment  map[string]string `json:"environment" yaml:"environment"`
-	Width        int               `json:"width" yaml:"width"`
-	Height       int               `json:"height" yaml:"height"`
-	RecordOutput bool              `json:"record-output" yaml:"record-output"`
-	User         uint32            `json:"user" yaml:"user"`
-	Group        uint32            `json:"group" yaml:"group"`
-	Cwd          string            `json:"cwd" yaml:"cwd"`
+	// Command and its arguments
+	// Example: ["bash"]
+	Command []string `json:"command" yaml:"command"`
+
+	// Whether to wait for all websockets to be connected before spawning the command
+	// Example: true
+	WaitForWS bool `json:"wait-for-websocket" yaml:"wait-for-websocket"`
+
+	// Whether the command is to be spawned in interactive mode (singled PTY instead of 3 PIPEs)
+	// Example: true
+	Interactive bool `json:"interactive" yaml:"interactive"`
+
+	// Additional environment to pass to the command
+	// Example: {"FOO": "BAR"}
+	Environment map[string]string `json:"environment" yaml:"environment"`
+
+	// Terminal width in characters (for interactive)
+	// Example: 80
+	Width int `json:"width" yaml:"width"`
+
+	// Terminal height in rows (for interactive)
+	// Example: 24
+	Height int `json:"height" yaml:"height"`
+
+	// Whether to capture the output for later download (requires non-interactive)
+	RecordOutput bool `json:"record-output" yaml:"record-output"`
+
+	// UID of the user to spawn the command as
+	// Example: 1000
+	User uint32 `json:"user" yaml:"user"`
+
+	// GID of the user to spawn the command as
+	// Example: 1000
+	Group uint32 `json:"group" yaml:"group"`
+
+	// Current working directory for the command
+	// Example: /home/foo/
+	Cwd string `json:"cwd" yaml:"cwd"`
 }
