@@ -278,14 +278,29 @@ func operationCancel(d *Daemon, projectName string, op *api.Operation) error {
 	}
 
 	// If not found locally, try connecting to remote member to delete it.
-	client, err := cluster.Connect(op.Location, d.endpoints.NetworkCert(), d.serverCert(), false)
+	var memberAddress string
+	var err error
+	err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
+		operation, err := tx.GetOperationByUUID(op.ID)
+		if err != nil {
+			return errors.Wrapf(err, "Failed loading operation %q", op.ID)
+		}
+
+		memberAddress = operation.NodeAddress
+		return nil
+	})
 	if err != nil {
-		return errors.Wrapf(err, "Failed to connect to %q", op.Location)
+		return err
+	}
+
+	client, err := cluster.Connect(memberAddress, d.endpoints.NetworkCert(), d.serverCert(), true)
+	if err != nil {
+		return errors.Wrapf(err, "Failed to connect to %q", memberAddress)
 	}
 
 	err = client.UseProject(projectName).DeleteOperation(op.ID)
 	if err != nil {
-		return errors.Wrapf(err, "Failed to delete remote operation %q on %q", op.ID, op.Location)
+		return errors.Wrapf(err, "Failed to delete remote operation %q on %q", op.ID, memberAddress)
 	}
 
 	return nil
