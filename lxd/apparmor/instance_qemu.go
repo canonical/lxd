@@ -36,7 +36,7 @@ profile "{{ .name }}" flags=(attach_disconnected,mediate_deleted) {
   /sys/devices/**                           r,
   /sys/module/vhost/**                      r,
   /{,usr/}bin/qemu*                         mrix,
-  /usr/share/OVMF/OVMF_CODE.fd              kr,
+  {{ .ovmfPath }}/OVMF_CODE.fd              kr,
   /usr/share/qemu/**                        kr,
   /usr/share/seabios/**                     kr,
   owner @{PROC}/@{pid}/task/@{tid}/comm     rw,
