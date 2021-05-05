@@ -184,13 +184,13 @@ func (m *Monitor) GetCPUs() ([]int, error) {
 	// Prepare the response.
 	var resp struct {
 		Return []struct {
-			CPU int `json:"CPU"`
-			PID int `json:"thread_id"`
+			CPU int `json:"cpu-index"`
+			PID int `json:"thread-id"`
 		} `json:"return"`
 	}
 
 	// Query the consoles.
-	err := m.run("query-cpus", "", &resp)
+	err := m.run("query-cpus-fast", "", &resp)
 	if err != nil {
 		return nil, err
 	}
