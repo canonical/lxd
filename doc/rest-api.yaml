@@ -725,6 +725,547 @@ definitions:
         x-go-name: URL
     type: object
     x-go-package: github.com/lxc/lxd/shared/api
+  Instance:
+    properties:
+      architecture:
+        description: Architecture name
+        example: x86_64
+        type: string
+        x-go-name: Architecture
+      config:
+        additionalProperties:
+          type: string
+        description: Instance configuration (see doc/instances.md)
+        example:
+          security.nesting: "true"
+        type: object
+        x-go-name: Config
+      created_at:
+        description: Instance creation timestamp
+        example: "2021-03-23T20:00:00-04:00"
+        format: date-time
+        type: string
+        x-go-name: CreatedAt
+      description:
+        description: Instance description
+        example: My test instance
+        type: string
+        x-go-name: Description
+      devices:
+        additionalProperties:
+          additionalProperties:
+            type: string
+          type: object
+        description: Instance devices (see doc/instances.md)
+        example:
+          root:
+            path: /
+            pool: default
+            type: disk
+        type: object
+        x-go-name: Devices
+      ephemeral:
+        description: Whether the instance is ephemeral (deleted on shutdown)
+        example: false
+        type: boolean
+        x-go-name: Ephemeral
+      expanded_config:
+        additionalProperties:
+          type: string
+        description: Expanded configuration (all profiles and local config merged)
+        example:
+          security.nesting: "true"
+        type: object
+        x-go-name: ExpandedConfig
+      expanded_devices:
+        additionalProperties:
+          additionalProperties:
+            type: string
+          type: object
+        description: Expanded devices (all profiles and local devices merged)
+        example:
+          root:
+            path: /
+            pool: default
+            type: disk
+        type: object
+        x-go-name: ExpandedDevices
+      last_used_at:
+        description: Last start timestamp
+        example: "2021-03-23T20:00:00-04:00"
+        format: date-time
+        type: string
+        x-go-name: LastUsedAt
+      location:
+        description: What cluster member this instance is located on
+        example: lxd01
+        type: string
+        x-go-name: Location
+      name:
+        description: Instance name
+        example: foo
+        type: string
+        x-go-name: Name
+      profiles:
+        description: List of profiles applied to the instance
+        example:
+        - default
+        items:
+          type: string
+        type: array
+        x-go-name: Profiles
+      restore:
+        description: If set, instance will be restored to the provided snapshot name
+        example: snap0
+        type: string
+        x-go-name: Restore
+      stateful:
+        description: Whether the instance currently has saved state on disk
+        example: false
+        type: boolean
+        x-go-name: Stateful
+      status:
+        description: Instance status (see instance_state)
+        example: Running
+        type: string
+        x-go-name: Status
+      status_code:
+        $ref: '#/definitions/StatusCode'
+      type:
+        description: The type of instance (container or virtual-machine)
+        example: container
+        type: string
+        x-go-name: Type
+    title: Instance represents a LXD instance.
+    type: object
+    x-go-package: github.com/lxc/lxd/shared/api
+  InstanceConsolePost:
+    properties:
+      height:
+        description: Console height in rows (console type only)
+        example: 24
+        format: int64
+        type: integer
+        x-go-name: Height
+      type:
+        description: Type of console to attach to (console or vga)
+        example: console
+        type: string
+        x-go-name: Type
+      width:
+        description: Console width in columns (console type only)
+        example: 80
+        format: int64
+        type: integer
+        x-go-name: Width
+    title: InstanceConsolePost represents a LXD instance console request.
+    type: object
+    x-go-package: github.com/lxc/lxd/shared/api
+  InstanceExecPost:
+    properties:
+      command:
+        description: Command and its arguments
+        example:
+        - bash
+        items:
+          type: string
+        type: array
+        x-go-name: Command
+      cwd:
+        description: Current working directory for the command
+        example: /home/foo/
+        type: string
+        x-go-name: Cwd
+      environment:
+        additionalProperties:
+          type: string
+        description: Additional environment to pass to the command
+        example:
+          FOO: BAR
+        type: object
+        x-go-name: Environment
+      group:
+        description: GID of the user to spawn the command as
+        example: 1000
+        format: uint32
+        type: integer
+        x-go-name: Group
+      height:
+        description: Terminal height in rows (for interactive)
+        example: 24
+        format: int64
+        type: integer
+        x-go-name: Height
+      interactive:
+        description: Whether the command is to be spawned in interactive mode (singled
+          PTY instead of 3 PIPEs)
+        example: true
+        type: boolean
+        x-go-name: Interactive
+      record-output:
+        description: Whether to capture the output for later download (requires non-interactive)
+        type: boolean
+        x-go-name: RecordOutput
+      user:
+        description: UID of the user to spawn the command as
+        example: 1000
+        format: uint32
+        type: integer
+        x-go-name: User
+      wait-for-websocket:
+        description: Whether to wait for all websockets to be connected before spawning
+          the command
+        example: true
+        type: boolean
+        x-go-name: WaitForWS
+      width:
+        description: Terminal width in characters (for interactive)
+        example: 80
+        format: int64
+        type: integer
+        x-go-name: Width
+    title: InstanceExecPost represents a LXD instance exec request.
+    type: object
+    x-go-package: github.com/lxc/lxd/shared/api
+  InstancePost:
+    properties:
+      container_only:
+        description: Whether snapshots should be discarded (migration only, deprecated,
+          use instance_only)
+        example: false
+        type: boolean
+        x-go-name: ContainerOnly
+      instance_only:
+        description: Whether snapshots should be discarded (migration only)
+        example: false
+        type: boolean
+        x-go-name: InstanceOnly
+      live:
+        description: Whether to perform a live migration (migration only)
+        example: false
+        type: boolean
+        x-go-name: Live
+      migration:
+        description: Whether the instance is being migrated to another server
+        example: false
+        type: boolean
+        x-go-name: Migration
+      name:
+        description: New name for the instance
+        example: bar
+        type: string
+        x-go-name: Name
+      pool:
+        description: Target pool for local cross-pool move
+        example: baz
+        type: string
+        x-go-name: Pool
+      target:
+        $ref: '#/definitions/InstancePostTarget'
+    title: InstancePost represents the fields required to rename/move a LXD instance.
+    type: object
+    x-go-package: github.com/lxc/lxd/shared/api
+  InstancePostTarget:
+    properties:
+      certificate:
+        description: The certificate of the migration target
+        example: X509 PEM certificate
+        type: string
+        x-go-name: Certificate
+      operation:
+        description: The operation URL on the remote target
+        example: https://1.2.3.4:8443/1.0/operations/5e8e1638-5345-4c2d-bac9-2c79c8577292
+        type: string
+        x-go-name: Operation
+      secrets:
+        additionalProperties:
+          type: string
+        description: Migration websockets credentials
+        example:
+          criu: random-string
+          migration: random-string
+        type: object
+        x-go-name: Websockets
+    title: InstancePostTarget represents the migration target host and operation.
+    type: object
+    x-go-package: github.com/lxc/lxd/shared/api
+  InstancePut:
+    properties:
+      architecture:
+        description: Architecture name
+        example: x86_64
+        type: string
+        x-go-name: Architecture
+      config:
+        additionalProperties:
+          type: string
+        description: Instance configuration (see doc/instances.md)
+        example:
+          security.nesting: "true"
+        type: object
+        x-go-name: Config
+      description:
+        description: Instance description
+        example: My test instance
+        type: string
+        x-go-name: Description
+      devices:
+        additionalProperties:
+          additionalProperties:
+            type: string
+          type: object
+        description: Instance devices (see doc/instances.md)
+        example:
+          root:
+            path: /
+            pool: default
+            type: disk
+        type: object
+        x-go-name: Devices
+      ephemeral:
+        description: Whether the instance is ephemeral (deleted on shutdown)
+        example: false
+        type: boolean
+        x-go-name: Ephemeral
+      profiles:
+        description: List of profiles applied to the instance
+        example:
+        - default
+        items:
+          type: string
+        type: array
+        x-go-name: Profiles
+      restore:
+        description: If set, instance will be restored to the provided snapshot name
+        example: snap0
+        type: string
+        x-go-name: Restore
+      stateful:
+        description: Whether the instance currently has saved state on disk
+        example: false
+        type: boolean
+        x-go-name: Stateful
+    title: InstancePut represents the modifiable fields of a LXD instance.
+    type: object
+    x-go-package: github.com/lxc/lxd/shared/api
+  InstanceState:
+    properties:
+      cpu:
+        $ref: '#/definitions/InstanceStateCPU'
+      disk:
+        additionalProperties:
+          $ref: '#/definitions/InstanceStateDisk'
+        description: Dict of disk usage
+        type: object
+        x-go-name: Disk
+      memory:
+        $ref: '#/definitions/InstanceStateMemory'
+      network:
+        additionalProperties:
+          $ref: '#/definitions/InstanceStateNetwork'
+        description: Dict of network usage
+        type: object
+        x-go-name: Network
+      pid:
+        description: PID of the runtime
+        example: 7281
+        format: int64
+        type: integer
+        x-go-name: Pid
+      processes:
+        description: Number of processes in the instance
+        example: 50
+        format: int64
+        type: integer
+        x-go-name: Processes
+      status:
+        description: Current status (Running, Stopped, Frozen or Error)
+        example: Running
+        type: string
+        x-go-name: Status
+      status_code:
+        $ref: '#/definitions/StatusCode'
+    title: InstanceState represents a LXD instance's state.
+    type: object
+    x-go-package: github.com/lxc/lxd/shared/api
+  InstanceStateCPU:
+    properties:
+      usage:
+        description: CPU usage in nanoseconds
+        example: 3637691016
+        format: int64
+        type: integer
+        x-go-name: Usage
+    title: InstanceStateCPU represents the cpu information section of a LXD instance's
+      state.
+    type: object
+    x-go-package: github.com/lxc/lxd/shared/api
+  InstanceStateDisk:
+    properties:
+      usage:
+        description: Disk usage in bytes
+        example: 502239232
+        format: int64
+        type: integer
+        x-go-name: Usage
+    title: InstanceStateDisk represents the disk information section of a LXD instance's
+      state.
+    type: object
+    x-go-package: github.com/lxc/lxd/shared/api
+  InstanceStateMemory:
+    properties:
+      swap_usage:
+        description: SWAP usage in bytes
+        example: 12297557
+        format: int64
+        type: integer
+        x-go-name: SwapUsage
+      swap_usage_peak:
+        description: Peak SWAP usage in bytes
+        example: 12297557
+        format: int64
+        type: integer
+        x-go-name: SwapUsagePeak
+      usage:
+        description: Memory usage in bytes
+        example: 73248768
+        format: int64
+        type: integer
+        x-go-name: Usage
+      usage_peak:
+        description: Peak memory usage in bytes
+        example: 73785344
+        format: int64
+        type: integer
+        x-go-name: UsagePeak
+    title: InstanceStateMemory represents the memory information section of a LXD
+      instance's state.
+    type: object
+    x-go-package: github.com/lxc/lxd/shared/api
+  InstanceStateNetwork:
+    properties:
+      addresses:
+        description: List of IP addresses
+        items:
+          $ref: '#/definitions/InstanceStateNetworkAddress'
+        type: array
+        x-go-name: Addresses
+      counters:
+        $ref: '#/definitions/InstanceStateNetworkCounters'
+      host_name:
+        description: Name of the interface on the host
+        example: vethbbcd39c7
+        type: string
+        x-go-name: HostName
+      hwaddr:
+        description: MAC address
+        example: 00:16:3e:0c:ee:dd
+        type: string
+        x-go-name: Hwaddr
+      mtu:
+        description: MTU (maximum transmit unit) for the interface
+        example: 1500
+        format: int64
+        type: integer
+        x-go-name: Mtu
+      state:
+        description: Administrative state of the interface (up/down)
+        example: up
+        type: string
+        x-go-name: State
+      type:
+        description: Type of interface (broadcast, loopback, point-to-point, ...)
+        example: broadcast
+        type: string
+        x-go-name: Type
+    title: InstanceStateNetwork represents the network information section of a LXD
+      instance's state.
+    type: object
+    x-go-package: github.com/lxc/lxd/shared/api
+  InstanceStateNetworkAddress:
+    description: |-
+      InstanceStateNetworkAddress represents a network address as part of the network section of a LXD
+      instance's state.
+    properties:
+      address:
+        description: IP address
+        example: fd42:4c81:5770:1eaf:216:3eff:fe0c:eedd
+        type: string
+        x-go-name: Address
+      family:
+        description: Network family (inet or inet6)
+        example: inet6
+        type: string
+        x-go-name: Family
+      netmask:
+        description: Network mask
+        example: "64"
+        type: string
+        x-go-name: Netmask
+      scope:
+        description: Address scope (local, link or global)
+        example: global
+        type: string
+        x-go-name: Scope
+    type: object
+    x-go-package: github.com/lxc/lxd/shared/api
+  InstanceStateNetworkCounters:
+    description: |-
+      InstanceStateNetworkCounters represents packet counters as part of the network section of a LXD
+      instance's state.
+    properties:
+      bytes_received:
+        description: Number of bytes received
+        example: 192021
+        format: int64
+        type: integer
+        x-go-name: BytesReceived
+      bytes_sent:
+        description: Number of bytes sent
+        example: 10888579
+        format: int64
+        type: integer
+        x-go-name: BytesSent
+      packets_received:
+        description: Number of packets received
+        example: 1748
+        format: int64
+        type: integer
+        x-go-name: PacketsReceived
+      packets_sent:
+        description: Number of packets sent
+        example: 964
+        format: int64
+        type: integer
+        x-go-name: PacketsSent
+    type: object
+    x-go-package: github.com/lxc/lxd/shared/api
+  InstanceStatePut:
+    properties:
+      action:
+        description: State change action (start, stop, restart, freeze, unfreeze)
+        example: start
+        type: string
+        x-go-name: Action
+      force:
+        description: Whether to force the action (for stop and restart)
+        example: false
+        type: boolean
+        x-go-name: Force
+      stateful:
+        description: Whether to store the runtime state (for stop)
+        example: false
+        type: boolean
+        x-go-name: Stateful
+      timeout:
+        description: How long to wait (in s) before giving up (when force isn't set)
+        example: 30
+        format: int64
+        type: integer
+        x-go-name: Timeout
+    title: InstanceStatePut represents the modifiable fields of a LXD instance's state.
+    type: object
+    x-go-package: github.com/lxc/lxd/shared/api
   Network:
     description: Network represents a LXD network
     properties:
@@ -4759,6 +5300,292 @@ paths:
       summary: Get the images
       tags:
       - images
+  /1.0/instances/{name}:
+    delete:
+      description: |-
+        Deletes a specific instance.
+
+        This also deletes anything owned by the instance such as snapshots and backups.
+      operationId: instance_delete
+      parameters:
+      - description: Project name
+        example: default
+        in: query
+        name: project
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          $ref: '#/responses/Operation'
+        "400":
+          $ref: '#/responses/BadRequest'
+        "403":
+          $ref: '#/responses/Forbidden'
+        "500":
+          $ref: '#/responses/InternalServerError'
+      summary: Delete an instance
+      tags:
+      - instances
+    get:
+      description: Gets a specific instance.
+      operationId: instance_get
+      parameters:
+      - description: Project name
+        example: default
+        in: query
+        name: project
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Instance
+          schema:
+            description: Sync response
+            properties:
+              metadata:
+                $ref: '#/definitions/Instance'
+              status:
+                description: Status description
+                example: Success
+                type: string
+              status_code:
+                description: Status code
+                example: 200
+                type: int
+              type:
+                description: Response type
+                example: sync
+                type: string
+            type: object
+        "403":
+          $ref: '#/responses/Forbidden'
+        "500":
+          $ref: '#/responses/InternalServerError'
+      summary: Get the instance
+      tags:
+      - instances
+    patch:
+      consumes:
+      - application/json
+      description: Updates a subset of the instance configuration
+      operationId: instance_patch
+      parameters:
+      - description: Project name
+        example: default
+        in: query
+        name: project
+        type: string
+      - description: Update request
+        in: body
+        name: instance
+        schema:
+          $ref: '#/definitions/InstancePut'
+      produces:
+      - application/json
+      responses:
+        "200":
+          $ref: '#/responses/Operation'
+        "400":
+          $ref: '#/responses/BadRequest'
+        "403":
+          $ref: '#/responses/Forbidden'
+        "500":
+          $ref: '#/responses/InternalServerError'
+      summary: Partially update the instance
+      tags:
+      - instances
+    post:
+      consumes:
+      - application/json
+      description: |-
+        Renames, moves an instance between pools or migrates an instance to another server.
+
+        The returned operation metadata will vary based on what's requested.
+        For rename or move within the same server, this is a simple background operation with progress data.
+        For migration, in the push case, this will similarly be a background
+        operation with progress data, for the pull case, it will be a websocket
+        operation with a number of secrets to be passed to the target server.
+      operationId: instance_post
+      parameters:
+      - description: Project name
+        example: default
+        in: query
+        name: project
+        type: string
+      - description: Migration request
+        in: body
+        name: migration
+        schema:
+          $ref: '#/definitions/InstancePost'
+      produces:
+      - application/json
+      responses:
+        "200":
+          $ref: '#/responses/Operation'
+        "400":
+          $ref: '#/responses/BadRequest'
+        "403":
+          $ref: '#/responses/Forbidden'
+        "500":
+          $ref: '#/responses/InternalServerError'
+      summary: Rename or move/migrate an instance
+      tags:
+      - instances
+    put:
+      consumes:
+      - application/json
+      description: Updates the instance configuration or trigger a snapshot restore.
+      operationId: instance_put
+      parameters:
+      - description: Project name
+        example: default
+        in: query
+        name: project
+        type: string
+      - description: Update request
+        in: body
+        name: instance
+        schema:
+          $ref: '#/definitions/InstancePut'
+      produces:
+      - application/json
+      responses:
+        "200":
+          $ref: '#/responses/Operation'
+        "400":
+          $ref: '#/responses/BadRequest'
+        "403":
+          $ref: '#/responses/Forbidden'
+        "500":
+          $ref: '#/responses/InternalServerError'
+      summary: Update the instance
+      tags:
+      - instances
+  /1.0/instances/{name}/console:
+    delete:
+      description: Clears the console log buffer.
+      operationId: instance_console_delete
+      parameters:
+      - description: Project name
+        example: default
+        in: query
+        name: project
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          $ref: '#/responses/EmptySyncResponse'
+        "400":
+          $ref: '#/responses/BadRequest'
+        "403":
+          $ref: '#/responses/Forbidden'
+        "404":
+          $ref: '#/responses/NotFound'
+        "500":
+          $ref: '#/responses/InternalServerError'
+      summary: Clear the console log
+      tags:
+      - instances
+    get:
+      description: Gets the console log for the instance.
+      operationId: instance_console_get
+      parameters:
+      - description: Project name
+        example: default
+        in: query
+        name: project
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Raw console log
+        "400":
+          $ref: '#/responses/BadRequest'
+        "403":
+          $ref: '#/responses/Forbidden'
+        "404":
+          $ref: '#/responses/NotFound'
+        "500":
+          $ref: '#/responses/InternalServerError'
+      summary: Get console log
+      tags:
+      - instances
+    post:
+      consumes:
+      - application/json
+      description: |-
+        Connects to the console of an instance.
+
+        The returned operation metadata will contain two websockets, one for data and one for control.
+      operationId: instance_console_post
+      parameters:
+      - description: Project name
+        example: default
+        in: query
+        name: project
+        type: string
+      - description: Console request
+        in: body
+        name: console
+        schema:
+          $ref: '#/definitions/InstanceConsolePost'
+      produces:
+      - application/json
+      responses:
+        "200":
+          $ref: '#/responses/Operation'
+        "400":
+          $ref: '#/responses/BadRequest'
+        "403":
+          $ref: '#/responses/Forbidden'
+        "500":
+          $ref: '#/responses/InternalServerError'
+      summary: Connect to console
+      tags:
+      - instances
+  /1.0/instances/{name}/exec:
+    post:
+      consumes:
+      - application/json
+      description: |-
+        Executes a command inside an instance.
+
+        The returned operation metadata will contain either 2 or 4 websockets.
+        In non-interactive mode, you'll get one websocket for each of stdin, stdout and stderr.
+        In interactive mode, a single bi-directional websocket is used for stdin and stdout/stderr.
+
+        An additional "control" socket is always added on top which can be used for out of band communication with LXD.
+        This allows sending signals and window sizing information through.
+      operationId: instance_exec_post
+      parameters:
+      - description: Project name
+        example: default
+        in: query
+        name: project
+        type: string
+      - description: Exec request
+        in: body
+        name: exec
+        schema:
+          $ref: '#/definitions/InstanceExecPost'
+      produces:
+      - application/json
+      responses:
+        "200":
+          $ref: '#/responses/Operation'
+        "400":
+          $ref: '#/responses/BadRequest'
+        "403":
+          $ref: '#/responses/Forbidden'
+        "500":
+          $ref: '#/responses/InternalServerError'
+      summary: Run a command
+      tags:
+      - instances
   /1.0/instances/{name}/files:
     delete:
       description: Removes the file.
@@ -4996,6 +5823,82 @@ paths:
         "500":
           $ref: '#/responses/InternalServerError'
       summary: Get the log file
+      tags:
+      - instances
+  /1.0/instances/{name}/state:
+    get:
+      description: |-
+        Gets the runtime state of the instance.
+
+        This is a reasonably expensive call as it causes code to be run
+        inside of the instance to retrieve the resource usage and network
+        information.
+      operationId: instance_state_get
+      parameters:
+      - description: Project name
+        in: query
+        name: project
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: State
+          schema:
+            description: Sync response
+            properties:
+              metadata:
+                $ref: '#/definitions/InstanceState'
+              status:
+                description: Status description
+                example: Success
+                type: string
+              status_code:
+                description: Status code
+                example: 200
+                type: int
+              type:
+                description: Response type
+                example: sync
+                type: string
+            type: object
+        "400":
+          $ref: '#/responses/BadRequest'
+        "403":
+          $ref: '#/responses/Forbidden'
+        "500":
+          $ref: '#/responses/InternalServerError'
+      summary: Get the runtime state
+      tags:
+      - instances
+    put:
+      consumes:
+      - application/json
+      description: Changes the running state of the instance.
+      operationId: instance_state_put
+      parameters:
+      - description: Project name
+        example: default
+        in: query
+        name: project
+        type: string
+      - description: State
+        in: body
+        name: state
+        schema:
+          $ref: '#/definitions/InstanceStatePut'
+      produces:
+      - application/json
+      responses:
+        "200":
+          $ref: '#/responses/Operation'
+        "400":
+          $ref: '#/responses/BadRequest'
+        "403":
+          $ref: '#/responses/Forbidden'
+        "500":
+          $ref: '#/responses/InternalServerError'
+      summary: Change the state
       tags:
       - instances
   /1.0/network-acls:
@@ -6866,7 +7769,7 @@ responses:
     description: Operation
     schema:
       properties:
-        Metadata:
+        metadata:
           $ref: '#/definitions/Operation'
         operation:
           example: /1.0/operations/66e83638-9dd7-4a26-aef2-5462814869a1

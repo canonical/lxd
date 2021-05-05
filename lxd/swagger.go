@@ -44,7 +44,7 @@ type swaggerOperation struct {
 		// Example: /1.0/operations/66e83638-9dd7-4a26-aef2-5462814869a1
 		Operation string `json:"operation"`
 
-		Metadata api.Operation
+		Metadata api.Operation `json:"metadata"`
 	}
 }
 
