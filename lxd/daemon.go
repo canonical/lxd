@@ -1760,7 +1760,7 @@ func (d *Daemon) NodeRefreshTask(heartbeatData *cluster.APIHeartbeat) {
 				if role != db.RaftSpare {
 					isDegraded = true
 				}
-				logger.Warnf("Excluding offline node from refresh: %+v", node)
+				logger.Warn("Excluding offline member from refresh", log.Ctx{"address": node.Address, "ID": node.ID, "raftID": node.RaftID, "lastHeartbeat": node.LastHeartbeat})
 				delete(heartbeatData.Members, i)
 			}
 			switch role {
