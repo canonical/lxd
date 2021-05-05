@@ -175,6 +175,11 @@ func instanceProfile(state *state.State, inst instance) (string, error) {
 			}
 		}
 
+		ovmfPath := "/usr/share/OVMF"
+		if os.Getenv("LXD_OVMF_PATH") != "" {
+			ovmfPath = os.Getenv("LXD_OVMF_PATH")
+		}
+
 		err = qemuProfileTpl.Execute(sb, map[string]interface{}{
 			"devPaths":    devPaths,
 			"exePath":     util.GetExecPath(),
@@ -185,6 +190,7 @@ func instanceProfile(state *state.State, inst instance) (string, error) {
 			"raw":         rawContent,
 			"rootPath":    rootPath,
 			"snap":        shared.InSnap(),
+			"ovmfPath":    ovmfPath,
 		})
 		if err != nil {
 			return "", err
