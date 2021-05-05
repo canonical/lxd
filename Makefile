@@ -98,7 +98,7 @@ update-schema:
 
 .PHONY: update-api
 update-api:
-	go get -v -x github.com/go-swagger/go-swagger/cmd/swagger
+	GO111MODULE=on go get -v -x github.com/go-swagger/go-swagger/cmd/swagger
 	swagger generate spec -o doc/rest-api.yaml -w ./lxd -m
 
 .PHONY: debug
