@@ -137,11 +137,35 @@ test_clustering_membership() {
   # The node isn't clustered anymore.
   ! LXD_DIR="${LXD_FOUR_DIR}" lxc cluster list || false
 
+  # Generate a join token for the sixth node.
+  LXD_DIR="${LXD_ONE_DIR}" lxc cluster list
+  token=$(LXD_DIR="${LXD_ONE_DIR}" lxc cluster add node6 | awk '{print $5}')
+
+  # Check token is associated to correct name.
+  LXD_DIR="${LXD_TWO_DIR}" lxc cluster list-tokens | grep node6 | grep "${token}"
+
+  # Spawn a sixth node, using join token.
+  setup_clustering_netns 6
+  LXD_SIX_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
+  chmod +x "${LXD_SIX_DIR}"
+  ns6="${prefix}6"
+
+  # shellcheck disable=SC2034
+  LXD_SECRET="${token}"
+  spawn_lxd_and_join_cluster "${ns6}" "${bridge}" "${cert}" 6 2 "${LXD_SIX_DIR}"
+  unset LXD_SECRET
+
+  # Check token has been deleted after join.
+  LXD_DIR="${LXD_TWO_DIR}" lxc cluster list-tokens
+  ! LXD_DIR="${LXD_TWO_DIR}" lxc cluster list-tokens | grep node6 || false
+
+  LXD_DIR="${LXD_SIX_DIR}" lxd shutdown
   LXD_DIR="${LXD_FIVE_DIR}" lxd shutdown
   LXD_DIR="${LXD_FOUR_DIR}" lxd shutdown
   LXD_DIR="${LXD_TWO_DIR}" lxd shutdown
   LXD_DIR="${LXD_ONE_DIR}" lxd shutdown
   sleep 0.5
+  rm -f "${LXD_SIX_DIR}/unix.socket"
   rm -f "${LXD_FIVE_DIR}/unix.socket"
   rm -f "${LXD_FOUR_DIR}/unix.socket"
   rm -f "${LXD_THREE_DIR}/unix.socket"
@@ -156,6 +180,7 @@ test_clustering_membership() {
   kill_lxd "${LXD_THREE_DIR}"
   kill_lxd "${LXD_FOUR_DIR}"
   kill_lxd "${LXD_FIVE_DIR}"
+  kill_lxd "${LXD_SIX_DIR}"
 }
 
 test_clustering_containers() {
