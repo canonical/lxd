@@ -827,7 +827,7 @@ func (c *cmdNetworkList) Command() *cobra.Command {
 		`List available networks`))
 
 	cmd.RunE = c.Run
-	cmd.Flags().StringVar(&c.flagFormat, "format", "table", i18n.G("Format (csv|json|table|yaml)")+"``")
+	cmd.Flags().StringVarP(&c.flagFormat, "format", "f", "table", i18n.G("Format (csv|json|table|yaml)")+"``")
 
 	return cmd
 }
@@ -920,7 +920,7 @@ func (c *cmdNetworkListLeases) Command() *cobra.Command {
 	cmd.Short = i18n.G("List DHCP leases")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
 		`List DHCP leases`))
-	cmd.Flags().StringVar(&c.flagFormat, "format", "table", i18n.G("Format (csv|json|table|yaml)")+"``")
+	cmd.Flags().StringVarP(&c.flagFormat, "format", "f", "table", i18n.G("Format (csv|json|table|yaml)")+"``")
 
 	cmd.RunE = c.Run
 
