@@ -3563,13 +3563,17 @@ func autoSyncImagesTask(d *Daemon) (task.Func, task.Schedule) {
 		// across the cluster, only leader node can launch the task, no others.
 		localAddress, err := node.ClusterAddress(d.db)
 		if err != nil {
-			logger.Errorf("Failed to get current node address: %v", err)
+			logger.Error("Failed to get current node address", log.Ctx{"err": err})
 			return
 		}
 
 		leader, err := d.gateway.LeaderAddress()
 		if err != nil {
-			logger.Errorf("Failed to get leader node address: %v", err)
+			if errors.Cause(err) == cluster.ErrNodeIsNotClustered {
+				return // No error if not clustered.
+			}
+
+			logger.Error("Failed to get leader node address", log.Ctx{"err": err})
 			return
 		}
 
@@ -3629,6 +3633,8 @@ func autoSyncImages(ctx context.Context, d *Daemon) error {
 }
 
 func imageSyncBetweenNodes(d *Daemon, project string, fingerprint string) error {
+	logger.Info("Syncing image to members", log.Ctx{"fingerprint": fingerprint, "project": project})
+
 	var desiredSyncNodeCount int64
 
 	err := d.cluster.Transaction(func(tx *db.ClusterTx) error {
@@ -3713,6 +3719,7 @@ func imageSyncBetweenNodes(d *Daemon, project string, fingerprint string) error 
 			Type: image.Type,
 		}
 
+		logger.Info("Copying image to member", log.Ctx{"fingerprint": fingerprint, "address": targetNodeAddress, "project": project})
 		op, err := client.CopyImage(source, *image, &args)
 		if err != nil {
 			return errors.Wrap(err, "Failed to copy image")

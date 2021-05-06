@@ -121,7 +121,7 @@ test_clustering_membership() {
 
   # Shutdown a database node, and wait a few seconds so it will be
   # detected as down.
-  LXD_DIR="${LXD_ONE_DIR}" lxc config set cluster.offline_threshold 15
+  LXD_DIR="${LXD_ONE_DIR}" lxc config set cluster.offline_threshold 11
   LXD_DIR="${LXD_THREE_DIR}" lxd shutdown
   sleep 18
   LXD_DIR="${LXD_TWO_DIR}" lxc cluster list
@@ -322,9 +322,9 @@ test_clustering_containers() {
 
   # Shutdown node 2, wait for it to be considered offline, and list
   # containers.
-  LXD_DIR="${LXD_THREE_DIR}" lxc config set cluster.offline_threshold 15
+  LXD_DIR="${LXD_THREE_DIR}" lxc config set cluster.offline_threshold 12
   LXD_DIR="${LXD_TWO_DIR}" lxd shutdown
-  sleep 20
+  sleep 15
   LXD_DIR="${LXD_ONE_DIR}" lxc list | grep foo | grep -q ERROR
   LXD_DIR="${LXD_ONE_DIR}" lxc config set cluster.offline_threshold 20
 
@@ -572,9 +572,9 @@ test_clustering_storage() {
     LXD_DIR="${LXD_ONE_DIR}" lxc info bar | grep -q "backup (taken at"
 
     # Shutdown node 3, and wait for it to be considered offline.
-    LXD_DIR="${LXD_THREE_DIR}" lxc config set cluster.offline_threshold 15
+    LXD_DIR="${LXD_THREE_DIR}" lxc config set cluster.offline_threshold 12
     LXD_DIR="${LXD_THREE_DIR}" lxd shutdown
-    sleep 20
+    sleep 15
 
     # Move the container back to node2, even if node3 is offline
     LXD_DIR="${LXD_ONE_DIR}" lxc move bar --target node2
@@ -1572,7 +1572,8 @@ test_clustering_image_replication() {
 
   # Modify the container's rootfs and create a new image from the container
   lxc exec c1 -- touch /a
-  lxc stop c1 --force && lxc publish c1 --alias new-image
+  lxc stop c1 --force
+  lxc publish c1 --alias new-image
 
   fingerprint=$(LXD_DIR="${LXD_ONE_DIR}" lxc image info new-image | grep "Fingerprint:" | cut -f2 -d" ")
   [ -f "${LXD_ONE_DIR}/images/${fingerprint}" ] || false
@@ -1843,12 +1844,15 @@ test_clustering_handover() {
   ns4="${prefix}4"
   spawn_lxd_and_join_cluster "${ns4}" "${bridge}" "${cert}" 4 1 "${LXD_FOUR_DIR}"
 
+  LXD_DIR="${LXD_TWO_DIR}" lxc cluster list
   LXD_DIR="${LXD_TWO_DIR}" lxc cluster list | grep "node4" | grep -q "NO"
 
   # Shutdown the first node.
   LXD_DIR="${LXD_ONE_DIR}" lxd shutdown
 
   # The fourth node has been promoted, while the first one demoted.
+  LXD_DIR="${LXD_TWO_DIR}" lxc cluster list
+  LXD_DIR="${LXD_THREE_DIR}" lxc cluster list
   LXD_DIR="${LXD_TWO_DIR}" lxc cluster list | grep "node4" | grep -q "YES"
   LXD_DIR="${LXD_THREE_DIR}" lxc cluster list | grep "node1" | grep -q "NO"
 
@@ -1937,10 +1941,11 @@ test_clustering_rebalance() {
   ns4="${prefix}4"
   spawn_lxd_and_join_cluster "${ns4}" "${bridge}" "${cert}" 4 1 "${LXD_FOUR_DIR}"
 
+  LXD_DIR="${LXD_TWO_DIR}" lxc cluster list
   LXD_DIR="${LXD_TWO_DIR}" lxc cluster list | grep "node4" | grep -q "NO"
 
   # Kill the second node.
-  LXD_DIR="${LXD_ONE_DIR}" lxc config set cluster.offline_threshold 15
+  LXD_DIR="${LXD_ONE_DIR}" lxc config set cluster.offline_threshold 12
   kill -9 "$(cat "${LXD_TWO_DIR}/lxd.pid")"
 
   # Wait for the second node to be considered offline and be replaced by the
@@ -2060,6 +2065,7 @@ test_clustering_remove_raft_node() {
   ! LXD_DIR="${LXD_ONE_DIR}" lxc cluster list | grep -q "node2" || false
 
   # There are only 2 database nodes.
+  LXD_DIR="${LXD_ONE_DIR}" lxc cluster list
   LXD_DIR="${LXD_ONE_DIR}" lxc cluster list | grep "node1" | grep -q "YES"
   LXD_DIR="${LXD_ONE_DIR}" lxc cluster list | grep "node3" | grep -q "YES"
   LXD_DIR="${LXD_ONE_DIR}" lxc cluster list | grep "node4" | grep -q "NO"
@@ -2074,6 +2080,7 @@ test_clustering_remove_raft_node() {
   sleep 20
 
   # We're back to 3 database nodes.
+  LXD_DIR="${LXD_ONE_DIR}" lxc cluster list
   LXD_DIR="${LXD_ONE_DIR}" lxc cluster list | grep "node1" | grep -q "YES"
   LXD_DIR="${LXD_ONE_DIR}" lxc cluster list | grep "node3" | grep -q "YES"
   LXD_DIR="${LXD_ONE_DIR}" lxc cluster list | grep "node4" | grep -q "YES"

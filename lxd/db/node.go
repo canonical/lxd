@@ -136,7 +136,7 @@ func (n NodeInfo) ToAPI(cluster *Cluster, node *Node) (*api.ClusterMember, error
 
 	if n.IsOffline(offlineThreshold) {
 		result.Status = "Offline"
-		result.Message = fmt.Sprintf("No heartbeat for %s", time.Now().Sub(n.Heartbeat))
+		result.Message = fmt.Sprintf("No heartbeat for %s (%s)", time.Now().Sub(n.Heartbeat), n.Heartbeat)
 	} else {
 		// Check if up to date.
 		n, err := util.CompareVersions(maxVersion, n.Version())
@@ -788,9 +788,13 @@ func (c *ClusterTx) SetNodeHeartbeat(address string, heartbeat time.Time) error 
 	if err != nil {
 		return err
 	}
-	if n != 1 {
-		return fmt.Errorf("expected to update one row and not %d", n)
+
+	if n < 1 {
+		return ErrNoSuchObject
+	} else if n > 1 {
+		return fmt.Errorf("Expected to update one row and not %d", n)
 	}
+
 	return nil
 }
 
