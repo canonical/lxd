@@ -1370,3 +1370,7 @@ This includes the following endpoints (see  [Restful API](rest-api.md) for detai
 ## projects\_restricted\_backups\_and\_snapshots
 Adds new `restricted.backups` and `restricted.snapshots` config keys to project which
 prevents the user from creation of backups and snapshots.
+
+## clustering\_join\_token
+Adds `POST /1.0/cluster/members` API endpoint for requesting a join token used when adding new cluster members
+without using the trust password.
