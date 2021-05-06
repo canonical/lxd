@@ -213,7 +213,12 @@ func (g *Gateway) heartbeat(ctx context.Context, initialHeartbeat bool) {
 	}
 
 	raftNodes, err := g.currentRaftNodes()
-	if err == ErrNotLeader {
+	if err != nil {
+		if errors.Cause(err) == ErrNotLeader {
+			return
+		}
+
+		logger.Error("Failed to get current raft members", log.Ctx{"err": err})
 		return
 	}
 
