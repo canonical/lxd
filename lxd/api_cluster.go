@@ -41,7 +41,8 @@ var clusterCmd = APIEndpoint{
 var clusterNodesCmd = APIEndpoint{
 	Path: "cluster/members",
 
-	Get: APIEndpointAction{Handler: clusterNodesGet, AccessHandler: allowAuthenticated},
+	Get:  APIEndpointAction{Handler: clusterNodesGet, AccessHandler: allowAuthenticated},
+	Post: APIEndpointAction{Handler: clusterNodesPost, AccessHandler: allowAuthenticated},
 }
 
 var clusterNodeCmd = APIEndpoint{
@@ -1042,6 +1043,122 @@ func clusterNodesGet(d *Daemon, r *http.Request) response.Response {
 	}
 
 	return response.SyncResponse(true, urls)
+}
+
+// swagger:operation POST /1.0/cluster/members cluster cluster_members_post
+//
+// Request a join token
+//
+// Requests a join token to add a cluster member.
+//
+// ---
+// consumes:
+//   - application/json
+// produces:
+//   - application/json
+// parameters:
+//   - in: body
+//     name: cluster
+//     description: Cluster member add request
+//     required: true
+//     schema:
+//       $ref: "#/definitions/ClusterMembersPost"
+// responses:
+//   "200":
+//     $ref: "#/responses/Operation"
+//   "400":
+//     $ref: "#/responses/BadRequest"
+//   "403":
+//     $ref: "#/responses/Forbidden"
+//   "500":
+//     $ref: "#/responses/InternalServerError"
+func clusterNodesPost(d *Daemon, r *http.Request) response.Response {
+	req := api.ClusterMembersPost{}
+
+	// Parse the request.
+	err := json.NewDecoder(r.Body).Decode(&req)
+	if err != nil {
+		return response.BadRequest(err)
+	}
+
+	clustered, err := cluster.Enabled(d.db)
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	if !clustered {
+		return response.BadRequest(fmt.Errorf("This server is not clustered"))
+	}
+
+	// Get target addresses for existing online members, so that it can be encoded into the join token so that
+	// the joining member will not have to specify a joining address during the join process.
+	// Use anonymous interface type to align with how the API response will be returned for consistency when
+	// retrieving remote operations.
+	onlineNodeAddresses := make([]interface{}, 0)
+
+	err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
+		// Get the offline threshold.
+		config, err := cluster.ConfigLoad(tx)
+		if err != nil {
+			return errors.Wrap(err, "Failed to load LXD config")
+		}
+
+		// Get the nodes.
+		nodes, err := tx.GetNodes()
+		if err != nil {
+			return err
+		}
+
+		// Filter to online members.
+		for _, node := range nodes {
+			if node.IsOffline(config.OfflineThreshold()) {
+				continue
+			}
+
+			onlineNodeAddresses = append(onlineNodeAddresses, node.Address)
+		}
+
+		return nil
+	})
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	if len(onlineNodeAddresses) < 1 {
+		return response.InternalError(fmt.Errorf("There are no online cluster members"))
+	}
+
+	// Generate join secret for new member. This will be stored inside the join token operation and will be
+	// supplied by the joining member (encoded inside the join token) which will allow us to lookup the correct
+	// operation in order to validate the requested joining server name is correct and authorised.
+	joinSecret, err := shared.RandomCryptoString()
+	if err != nil {
+		return response.InternalError(err)
+	}
+
+	// Generate fingerprint of network certificate so joining member can automatically trust the correct
+	// certificate when it is presented during the join process.
+	fingerprint, err := shared.CertFingerprintStr(string(d.endpoints.NetworkPublicKey()))
+	if err != nil {
+		return response.InternalError(err)
+	}
+
+	meta := map[string]interface{}{
+		"serverName":  req.ServerName, // Add server name to allow validation of name during join process.
+		"secret":      joinSecret,
+		"fingerprint": fingerprint,
+		"addresses":   onlineNodeAddresses,
+	}
+
+	resources := map[string][]string{}
+	resources["cluster"] = []string{}
+
+	op, err := operations.OperationCreate(d.State(), project.Default, operations.OperationClassToken, db.OperationClusterJoinToken, resources, meta, nil, nil, nil)
+	if err != nil {
+		return response.InternalError(err)
+	}
+
+	return operations.OperationResponse(op)
 }
 
 // swagger:operation GET /1.0/cluster/members/{name} cluster cluster_member_get
