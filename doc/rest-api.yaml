@@ -1088,6 +1088,162 @@ definitions:
     title: InstancePut represents the modifiable fields of a LXD instance.
     type: object
     x-go-package: github.com/lxc/lxd/shared/api
+  InstanceSnapshot:
+    properties:
+      architecture:
+        description: Architecture name
+        example: x86_64
+        type: string
+        x-go-name: Architecture
+      config:
+        additionalProperties:
+          type: string
+        description: Instance configuration (see doc/instances.md)
+        example:
+          security.nesting: "true"
+        type: object
+        x-go-name: Config
+      created_at:
+        description: Instance creation timestamp
+        example: "2021-03-23T20:00:00-04:00"
+        format: date-time
+        type: string
+        x-go-name: CreatedAt
+      devices:
+        additionalProperties:
+          additionalProperties:
+            type: string
+          type: object
+        description: Instance devices (see doc/instances.md)
+        example:
+          root:
+            path: /
+            pool: default
+            type: disk
+        type: object
+        x-go-name: Devices
+      ephemeral:
+        description: Whether the instance is ephemeral (deleted on shutdown)
+        example: false
+        type: boolean
+        x-go-name: Ephemeral
+      expanded_config:
+        additionalProperties:
+          type: string
+        description: Expanded configuration (all profiles and local config merged)
+        example:
+          security.nesting: "true"
+        type: object
+        x-go-name: ExpandedConfig
+      expanded_devices:
+        additionalProperties:
+          additionalProperties:
+            type: string
+          type: object
+        description: Expanded devices (all profiles and local devices merged)
+        example:
+          root:
+            path: /
+            pool: default
+            type: disk
+        type: object
+        x-go-name: ExpandedDevices
+      expires_at:
+        description: When the snapshot expires (gets auto-deleted)
+        example: "2021-03-23T17:38:37.753398689-04:00"
+        format: date-time
+        type: string
+        x-go-name: ExpiresAt
+      last_used_at:
+        description: Last start timestamp
+        example: "2021-03-23T20:00:00-04:00"
+        format: date-time
+        type: string
+        x-go-name: LastUsedAt
+      name:
+        description: Snapshot name
+        example: foo
+        type: string
+        x-go-name: Name
+      profiles:
+        description: List of profiles applied to the instance
+        example:
+        - default
+        items:
+          type: string
+        type: array
+        x-go-name: Profiles
+      size:
+        description: Size of the snapshot in bytes
+        example: 143360
+        format: int64
+        type: integer
+        x-go-name: Size
+      stateful:
+        description: Whether the instance currently has saved state on disk
+        example: false
+        type: boolean
+        x-go-name: Stateful
+    title: InstanceSnapshot represents a LXD instance snapshot.
+    type: object
+    x-go-package: github.com/lxc/lxd/shared/api
+  InstanceSnapshotPost:
+    properties:
+      live:
+        description: Whether to perform a live migration (requires migration)
+        example: false
+        type: boolean
+        x-go-name: Live
+      migration:
+        description: Whether this is a migration request
+        example: false
+        type: boolean
+        x-go-name: Migration
+      name:
+        description: New name for the snapshot
+        example: foo
+        type: string
+        x-go-name: Name
+      target:
+        $ref: '#/definitions/InstancePostTarget'
+    title: InstanceSnapshotPost represents the fields required to rename/move a LXD
+      instance snapshot.
+    type: object
+    x-go-package: github.com/lxc/lxd/shared/api
+  InstanceSnapshotPut:
+    properties:
+      expires_at:
+        description: When the snapshot expires (gets auto-deleted)
+        example: "2021-03-23T17:38:37.753398689-04:00"
+        format: date-time
+        type: string
+        x-go-name: ExpiresAt
+    title: InstanceSnapshotPut represents the modifiable fields of a LXD instance
+      snapshot.
+    type: object
+    x-go-package: github.com/lxc/lxd/shared/api
+  InstanceSnapshotsPost:
+    properties:
+      expires_at:
+        description: When the snapshot expires (gets auto-deleted)
+        example: "2021-03-23T17:38:37.753398689-04:00"
+        format: date-time
+        type: string
+        x-go-name: ExpiresAt
+      name:
+        description: Snapshot name
+        example: snap0
+        type: string
+        x-go-name: Name
+      stateful:
+        description: Whether the snapshot should include runtime state
+        example: false
+        type: boolean
+        x-go-name: Stateful
+    title: InstanceSnapshotsPost represents the fields available for a new LXD instance
+      snapshot.
+    type: object
+    x-go-package: github.com/lxc/lxd/shared/api
   InstanceState:
     properties:
       cpu:
@@ -5889,6 +6045,289 @@ paths:
         "500":
           $ref: '#/responses/InternalServerError'
       summary: Get the log file
+      tags:
+      - instances
+  /1.0/instances/{name}/snapshots:
+    get:
+      description: Returns a list of instance snapshots (URLs).
+      operationId: instance_snapshots_get
+      parameters:
+      - description: Project name
+        example: default
+        in: query
+        name: project
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: API endpoints
+          schema:
+            description: Sync response
+            properties:
+              metadata:
+                description: List of endpoints
+                example: |-
+                  [
+                    "/1.0/instances/foo/snapshots/snap0",
+                    "/1.0/instances/foo/snapshots/snap1"
+                  ]
+                items:
+                  type: string
+                type: array
+              status:
+                description: Status description
+                example: Success
+                type: string
+              status_code:
+                description: Status code
+                example: 200
+                type: int
+              type:
+                description: Response type
+                example: sync
+                type: string
+            type: object
+        "403":
+          $ref: '#/responses/Forbidden'
+        "500":
+          $ref: '#/responses/InternalServerError'
+      summary: Get the snapshots
+      tags:
+      - instances
+    post:
+      consumes:
+      - application/json
+      description: Creates a new snapshot.
+      operationId: instance_snapshots_post
+      parameters:
+      - description: Project name
+        example: default
+        in: query
+        name: project
+        type: string
+      - description: Snapshot request
+        in: body
+        name: snapshot
+        schema:
+          $ref: '#/definitions/InstanceSnapshotsPost'
+      produces:
+      - application/json
+      responses:
+        "200":
+          $ref: '#/responses/Operation'
+        "400":
+          $ref: '#/responses/BadRequest'
+        "403":
+          $ref: '#/responses/Forbidden'
+        "500":
+          $ref: '#/responses/InternalServerError'
+      summary: Create a snapshot
+      tags:
+      - instances
+  /1.0/instances/{name}/snapshots/{snapshot}:
+    delete:
+      consumes:
+      - application/json
+      description: Deletes the instance snapshot.
+      operationId: instance_snapshot_delete
+      parameters:
+      - description: Project name
+        example: default
+        in: query
+        name: project
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          $ref: '#/responses/Operation'
+        "400":
+          $ref: '#/responses/BadRequest'
+        "403":
+          $ref: '#/responses/Forbidden'
+        "500":
+          $ref: '#/responses/InternalServerError'
+      summary: Delete a snapshot
+      tags:
+      - instances
+    get:
+      description: Gets a specific instance snapshot.
+      operationId: instance_snapshot_get
+      parameters:
+      - description: Project name
+        example: default
+        in: query
+        name: project
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Instance snapshot
+          schema:
+            description: Sync response
+            properties:
+              metadata:
+                $ref: '#/definitions/InstanceSnapshot'
+              status:
+                description: Status description
+                example: Success
+                type: string
+              status_code:
+                description: Status code
+                example: 200
+                type: int
+              type:
+                description: Response type
+                example: sync
+                type: string
+            type: object
+        "403":
+          $ref: '#/responses/Forbidden'
+        "500":
+          $ref: '#/responses/InternalServerError'
+      summary: Get the snapshot
+      tags:
+      - instances
+    patch:
+      consumes:
+      - application/json
+      description: Updates a subset of the snapshot config.
+      operationId: instance_snapshot_patch
+      parameters:
+      - description: Project name
+        example: default
+        in: query
+        name: project
+        type: string
+      - description: Snapshot update
+        in: body
+        name: snapshot
+        schema:
+          $ref: '#/definitions/InstanceSnapshotPut'
+      produces:
+      - application/json
+      responses:
+        "200":
+          $ref: '#/responses/Operation'
+        "400":
+          $ref: '#/responses/BadRequest'
+        "403":
+          $ref: '#/responses/Forbidden'
+        "500":
+          $ref: '#/responses/InternalServerError'
+      summary: Partially update snapshot
+      tags:
+      - instances
+    post:
+      consumes:
+      - application/json
+      description: |-
+        Renames or migrates an instance snapshot to another server.
+
+        The returned operation metadata will vary based on what's requested.
+        For rename or move within the same server, this is a simple background operation with progress data.
+        For migration, in the push case, this will similarly be a background
+        operation with progress data, for the pull case, it will be a websocket
+        operation with a number of secrets to be passed to the target server.
+      operationId: instance_snapshot_post
+      parameters:
+      - description: Project name
+        example: default
+        in: query
+        name: project
+        type: string
+      - description: Snapshot migration
+        in: body
+        name: snapshot
+        schema:
+          $ref: '#/definitions/InstanceSnapshotPost'
+      produces:
+      - application/json
+      responses:
+        "200":
+          $ref: '#/responses/Operation'
+        "400":
+          $ref: '#/responses/BadRequest'
+        "403":
+          $ref: '#/responses/Forbidden'
+        "500":
+          $ref: '#/responses/InternalServerError'
+      summary: Rename or move/migrate a snapshot
+      tags:
+      - instances
+    put:
+      consumes:
+      - application/json
+      description: Updates the snapshot config.
+      operationId: instance_snapshot_put
+      parameters:
+      - description: Project name
+        example: default
+        in: query
+        name: project
+        type: string
+      - description: Snapshot update
+        in: body
+        name: snapshot
+        schema:
+          $ref: '#/definitions/InstanceSnapshotPut'
+      produces:
+      - application/json
+      responses:
+        "200":
+          $ref: '#/responses/Operation'
+        "400":
+          $ref: '#/responses/BadRequest'
+        "403":
+          $ref: '#/responses/Forbidden'
+        "500":
+          $ref: '#/responses/InternalServerError'
+      summary: Update snapshot
+      tags:
+      - instances
+  /1.0/instances/{name}/snapshots?recursion=1:
+    get:
+      description: Returns a list of instance snapshots (structs).
+      operationId: instance_snapshots_get_recursion1
+      parameters:
+      - description: Project name
+        example: default
+        in: query
+        name: project
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: API endpoints
+          schema:
+            description: Sync response
+            properties:
+              metadata:
+                description: List of instance snapshots
+                items:
+                  $ref: '#/definitions/InstanceSnapshot'
+                type: array
+              status:
+                description: Status description
+                example: Success
+                type: string
+              status_code:
+                description: Status code
+                example: 200
+                type: int
+              type:
+                description: Response type
+                example: sync
+                type: string
+            type: object
+        "403":
+          $ref: '#/responses/Forbidden'
+        "500":
+          $ref: '#/responses/InternalServerError'
+      summary: Get the snapshots
       tags:
       - instances
   /1.0/instances/{name}/state:
