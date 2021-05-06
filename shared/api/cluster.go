@@ -200,4 +200,10 @@ type ClusterMemberPut struct {
 	//
 	// API extension: clustering_failure_domains
 	FailureDomain string `json:"failure_domain" yaml:"failure_domain"`
+
+	// Cluster member description
+	// Example: AMD Epyc 32c/64t
+	//
+	// API extension: clustering_description
+	Description string `json:"description" yaml:"description"`
 }
