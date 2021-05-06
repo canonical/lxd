@@ -26,7 +26,7 @@ func Retry(f func() error) error {
 		err = f()
 		if err != nil {
 			// No point in re-trying or logging a no-row error.
-			if err == sql.ErrNoRows {
+			if errors.Cause(err) == sql.ErrNoRows {
 				break
 			}
 
