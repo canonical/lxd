@@ -618,9 +618,13 @@ func (c *ClusterTx) SetNodeHeartbeat(address string, heartbeat time.Time) error 
 	if err != nil {
 		return err
 	}
-	if n != 1 {
-		return fmt.Errorf("expected to update one row and not %d", n)
+
+	if n < 1 {
+		return ErrNoSuchObject
+	} else if n > 1 {
+		return fmt.Errorf("Expected to update one row and not %d", n)
 	}
+
 	return nil
 }
 
