@@ -14,7 +14,7 @@ func TestGroup_Add(t *testing.T) {
 	ok := make(chan struct{})
 	f := func(context.Context) { close(ok) }
 	group.Add(f, task.Every(time.Second))
-	group.Start()
+	group.Start(context.Background())
 
 	assertRecv(t, ok)
 
@@ -33,7 +33,7 @@ func TestGroup_StopUngracefully(t *testing.T) {
 	}
 
 	group.Add(f, task.Every(time.Second))
-	group.Start()
+	group.Start(context.Background())
 
 	assertRecv(t, ok)
 

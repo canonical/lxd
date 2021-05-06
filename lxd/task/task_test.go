@@ -30,7 +30,7 @@ func TestTask_ExecutePeriodically(t *testing.T) {
 // again after the interval.
 func TestTask_Reset(t *testing.T) {
 	f, wait := newFunc(t, 3)
-	stop, reset := task.Start(f, task.Every(250*time.Millisecond))
+	stop, reset := task.Start(context.Background(), f, task.Every(250*time.Millisecond))
 	defer stop(time.Second)
 
 	wait(50 * time.Millisecond)  // First execution, immediately
@@ -124,7 +124,7 @@ func newFunc(t *testing.T, n int) (task.Func, func(time.Duration)) {
 // Convenience around task.Start which also makes sure that the stop function
 // of the task actually terminates.
 func startTask(t *testing.T, f task.Func, schedule task.Schedule) func() {
-	stop, _ := task.Start(f, schedule)
+	stop, _ := task.Start(context.Background(), f, schedule)
 	return func() {
 		assert.NoError(t, stop(time.Second))
 	}
