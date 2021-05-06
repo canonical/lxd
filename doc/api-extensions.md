@@ -1105,3 +1105,6 @@ This adds support for NVIDIA MIG. It introduces the `mig` gputype and associaetd
 ## clustering\_join\_token
 Adds `POST /1.0/cluster/members` API endpoint for requesting a join token used when adding new cluster members
 without using the trust password.
+
+## clustering\_description
+Adds an editable description to the cluster members.
