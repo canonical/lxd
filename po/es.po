@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: lxd\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2021-05-05 09:29+0100\n"
+"POT-Creation-Date: 2021-05-05 20:46-0400\n"
 "PO-Revision-Date: 2019-09-06 07:09+0000\n"
 "Last-Translator: Stéphane Graber <stgraber@stgraber.org>\n"
 "Language-Team: Spanish <https://hosted.weblate.org/projects/linux-containers/"
@@ -2590,7 +2590,7 @@ msgstr ""
 msgid "Must supply instance name for: "
 msgstr ""
 
-#: lxc/cluster.go:140 lxc/cluster.go:720 lxc/list.go:496 lxc/network.go:894
+#: lxc/cluster.go:140 lxc/cluster.go:724 lxc/list.go:496 lxc/network.go:894
 #: lxc/network_acl.go:140 lxc/profile.go:620 lxc/project.go:465
 #: lxc/remote.go:582 lxc/storage.go:567 lxc/storage_volume.go:1270
 msgid "NAME"
@@ -3686,7 +3686,7 @@ msgstr ""
 msgid "TARGET"
 msgstr ""
 
-#: lxc/cluster.go:721
+#: lxc/cluster.go:725
 msgid "TOKEN"
 msgstr ""
 
