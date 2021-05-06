@@ -241,7 +241,7 @@ func (g *Gateway) heartbeat(ctx context.Context, initialHeartbeat bool) {
 		return tx.ReplaceRaftNodes(raftNodes)
 	})
 	if err != nil {
-		logger.Warnf("Failed to replace local raft nodes: %v", err)
+		logger.Warn("Failed to replace local raft nodes", log.Ctx{"err": err})
 		return
 	}
 
@@ -268,7 +268,7 @@ func (g *Gateway) heartbeat(ctx context.Context, initialHeartbeat bool) {
 		return nil
 	})
 	if err != nil {
-		logger.Warnf("Failed to get current cluster nodes: %v", err)
+		logger.Warn("Failed to get current cluster members", log.Ctx{"err": err})
 		return
 	}
 
