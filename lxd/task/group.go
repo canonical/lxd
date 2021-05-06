@@ -34,14 +34,13 @@ func (g *Group) Add(f Func, schedule Schedule) *Task {
 }
 
 // Start all the tasks in the group.
-func (g *Group) Start() {
+func (g *Group) Start(ctx context.Context) {
 	// Lock access to the g.running and g.tasks map for the entirety of this function so that
 	// concurrent calls to Start() or Add(0) don't race. This ensures all tasks in this group
 	// are started based on a consistent snapshot of g.running and g.tasks.
 	g.mu.Lock()
 	defer g.mu.Unlock()
 
-	ctx := context.Background()
 	ctx, g.cancel = context.WithCancel(ctx)
 	g.wg.Add(len(g.tasks))
 
