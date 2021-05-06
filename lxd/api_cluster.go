@@ -20,6 +20,7 @@ import (
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/node"
 	"github.com/lxc/lxd/lxd/operations"
+	"github.com/lxc/lxd/lxd/project"
 	"github.com/lxc/lxd/lxd/response"
 	"github.com/lxc/lxd/lxd/revert"
 	"github.com/lxc/lxd/lxd/util"
@@ -1257,7 +1258,6 @@ func clusterNodePut(d *Daemon, r *http.Request) response.Response {
 
 	// Parse the request
 	req := api.ClusterMemberPut{}
-
 	err = json.NewDecoder(r.Body).Decode(&req)
 	if err != nil {
 		return response.BadRequest(err)
@@ -1274,12 +1274,26 @@ func clusterNodePut(d *Daemon, r *http.Request) response.Response {
 
 	// Update the database
 	err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
+		nodeInfo, err := tx.GetNodeByName(name)
+		if err != nil {
+			return errors.Wrap(err, "Loading node information")
+		}
+
+		// Update the description.
+		if req.Description != member.Description {
+			err = tx.SetDescription(nodeInfo.ID, req.Description)
+			if err != nil {
+				return errors.Wrap(err, "Update description")
+			}
+		}
+
+		// Update the roles.
 		dbRoles := []db.ClusterRole{}
 		for _, role := range req.Roles {
 			dbRoles = append(dbRoles, db.ClusterRole(role))
 		}
 
-		err := tx.UpdateNodeRoles(node.ID, dbRoles)
+		err = tx.UpdateNodeRoles(node.ID, dbRoles)
 		if err != nil {
 			return err
 		}

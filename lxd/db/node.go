@@ -104,6 +104,7 @@ func (n NodeInfo) ToAPI(cluster *Cluster, node *Node) (*api.ClusterMember, error
 
 	// Fill in the struct.
 	result := api.ClusterMember{}
+	result.Description = n.Description
 	result.ServerName = n.Name
 	result.URL = fmt.Sprintf("https://%s", n.Address)
 	result.Database = raftNode != nil && raftNode.Role == RaftVoter
@@ -336,6 +337,26 @@ func (c *ClusterTx) RenameNode(old, new string) error {
 	if n != 1 {
 		return fmt.Errorf("expected to update one row, not %d", n)
 	}
+	return nil
+}
+
+// SetDescription changes the description of the given node.
+func (c *ClusterTx) SetDescription(id int64, description string) error {
+	stmt := `UPDATE nodes SET description=? WHERE id=?`
+	result, err := c.tx.Exec(stmt, description, id)
+	if err != nil {
+		return errors.Wrap(err, "Failed to update node name")
+	}
+
+	n, err := result.RowsAffected()
+	if err != nil {
+		return errors.Wrap(err, "Failed to get rows count")
+	}
+
+	if n != 1 {
+		return fmt.Errorf("Expected to update one row, not %d", n)
+	}
+
 	return nil
 }
 
