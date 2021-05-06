@@ -136,7 +136,7 @@ func (n NodeInfo) ToAPI(cluster *Cluster, node *Node) (*api.ClusterMember, error
 
 	if n.IsOffline(offlineThreshold) {
 		result.Status = "Offline"
-		result.Message = fmt.Sprintf("No heartbeat for %s", time.Now().Sub(n.Heartbeat))
+		result.Message = fmt.Sprintf("No heartbeat for %s (%s)", time.Now().Sub(n.Heartbeat), n.Heartbeat)
 	} else {
 		// Check if up to date.
 		n, err := util.CompareVersions(maxVersion, n.Version())
