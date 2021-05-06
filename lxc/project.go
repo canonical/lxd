@@ -782,7 +782,7 @@ func (c *cmdProjectInfo) Run(cmd *cobra.Command, args []string) error {
 		limit := i18n.G("UNLIMITED")
 		if v.Limit >= 0 {
 			if shared.StringInSlice(k, byteLimits) {
-				limit = units.GetByteSizeString(v.Limit, 2)
+				limit = units.GetByteSizeStringIEC(v.Limit, 2)
 			} else {
 				limit = fmt.Sprintf("%d", v.Limit)
 			}
@@ -790,7 +790,7 @@ func (c *cmdProjectInfo) Run(cmd *cobra.Command, args []string) error {
 
 		usage := ""
 		if shared.StringInSlice(k, byteLimits) {
-			usage = units.GetByteSizeString(v.Usage, 2)
+			usage = units.GetByteSizeStringIEC(v.Usage, 2)
 		} else {
 			usage = fmt.Sprintf("%d", v.Usage)
 		}
