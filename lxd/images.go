@@ -3393,6 +3393,8 @@ func autoSyncImages(ctx context.Context, d *Daemon) error {
 }
 
 func imageSyncBetweenNodes(d *Daemon, project string, fingerprint string) error {
+	logger.Info("Syncing image to members", log.Ctx{"fingerprint": fingerprint, "project": project})
+
 	var desiredSyncNodeCount int64
 
 	err := d.cluster.Transaction(func(tx *db.ClusterTx) error {
@@ -3477,6 +3479,7 @@ func imageSyncBetweenNodes(d *Daemon, project string, fingerprint string) error 
 			Type: image.Type,
 		}
 
+		logger.Info("Copying image to member", log.Ctx{"fingerprint": fingerprint, "address": targetNodeAddress, "project": project})
 		op, err := client.CopyImage(source, *image, &args)
 		if err != nil {
 			return errors.Wrap(err, "Failed to copy image")
