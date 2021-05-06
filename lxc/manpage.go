@@ -22,7 +22,7 @@ func (c *cmdManpage) Command() *cobra.Command {
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
 		`Generate manpages for all commands`))
 	cmd.Hidden = true
-	cmd.Flags().StringVar(&c.flagFormat, "format", "man", i18n.G("Format (man|md|rest|yaml)")+"``")
+	cmd.Flags().StringVarP(&c.flagFormat, "format", "f", "man", i18n.G("Format (man|md|rest|yaml)")+"``")
 
 	cmd.RunE = c.Run
 

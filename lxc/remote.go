@@ -520,7 +520,7 @@ func (c *cmdRemoteList) Command() *cobra.Command {
 		`List the available remotes`))
 
 	cmd.RunE = c.Run
-	cmd.Flags().StringVar(&c.flagFormat, "format", "table", i18n.G("Format (csv|json|table|yaml)")+"``")
+	cmd.Flags().StringVarP(&c.flagFormat, "format", "f", "table", i18n.G("Format (csv|json|table|yaml)")+"``")
 
 	return cmd
 }

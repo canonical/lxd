@@ -81,7 +81,7 @@ func (c *cmdClusterList) Command() *cobra.Command {
 	cmd.Short = i18n.G("List all the cluster members")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
 		`List all the cluster members`))
-	cmd.Flags().StringVar(&c.flagFormat, "format", "table", i18n.G("Format (csv|json|table|yaml)")+"``")
+	cmd.Flags().StringVarP(&c.flagFormat, "format", "f", "table", i18n.G("Format (csv|json|table|yaml)")+"``")
 
 	cmd.RunE = c.Run
 
@@ -640,7 +640,7 @@ func (c *cmdClusterListTokens) Command() *cobra.Command {
 	cmd.Use = usage("list-tokens", i18n.G("[<remote>:]"))
 	cmd.Short = i18n.G("List all active cluster member join tokens")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(`List all active cluster member join tokens`))
-	cmd.Flags().StringVar(&c.flagFormat, "format", "table", i18n.G("Format (csv|json|table|yaml)")+"``")
+	cmd.Flags().StringVarP(&c.flagFormat, "format", "f", "table", i18n.G("Format (csv|json|table|yaml)")+"``")
 
 	cmd.RunE = c.Run
 
