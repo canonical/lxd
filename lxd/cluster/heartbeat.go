@@ -130,7 +130,8 @@ func (hbState *APIHeartbeat) Send(ctx context.Context, networkCert *shared.CertI
 			// Spread in time by waiting up to 3s less than the interval.
 			time.Sleep(time.Duration(rand.Intn((heartbeatInterval*1000)-3000)) * time.Millisecond)
 		}
-		logger.Debugf("Sending heartbeat to %s", address)
+
+		logger.Debug("Sending heartbeat", log.Ctx{"address": address})
 
 		// Update timestamp to current, used for time skew detection
 		heartbeatData.Time = time.Now().UTC()
@@ -149,9 +150,9 @@ func (hbState *APIHeartbeat) Send(ctx context.Context, networkCert *shared.CertI
 			hbNode.updated = true
 			heartbeatData.Members[nodeID] = hbNode
 			heartbeatData.Unlock()
-			logger.Debugf("Successful heartbeat for %s", address)
+			logger.Debug("Successful heartbeat", log.Ctx{"address": address})
 		} else {
-			logger.Debugf("Failed heartbeat for %s: %v", address, err)
+			logger.Debug("Failed heartbeat", log.Ctx{"address": address, "err": err})
 		}
 	}
 
@@ -223,25 +224,21 @@ func (g *Gateway) heartbeat(ctx context.Context, initialHeartbeat bool) {
 	}
 
 	if initialHeartbeat {
-		logger.Debugf("Starting heartbeat round (full update)")
+		logger.Debug("Starting heartbeat round (initial)")
 	} else {
-		logger.Debugf("Starting heartbeat round")
-	}
-	if err != nil {
-		logger.Warnf("Failed to get current raft nodes: %v", err)
-		return
+		logger.Debug("Starting heartbeat round")
 	}
 
 	// Replace the local raft_nodes table immediately because it
 	// might miss a row containing ourselves, since we might have
 	// been elected leader before the former leader had chance to
 	// send us a fresh update through the heartbeat pool.
-	logger.Debugf("Heartbeat updating local raft nodes to %+v", raftNodes)
+	logger.Debug("Heartbeat updating local raft members", log.Ctx{"members": raftNodes})
 	err = g.db.Transaction(func(tx *db.NodeTx) error {
 		return tx.ReplaceRaftNodes(raftNodes)
 	})
 	if err != nil {
-		logger.Warn("Failed to replace local raft nodes", log.Ctx{"err": err})
+		logger.Warn("Failed to replace local raft members", log.Ctx{"err": err})
 		return
 	}
 
@@ -363,7 +360,7 @@ func (g *Gateway) heartbeat(ctx context.Context, initialHeartbeat bool) {
 	}
 
 	// Update last leader heartbeat time so next time a full node state list can be sent (if not this time).
-	logger.Debugf("Completed heartbeat round")
+	logger.Debug("Completed heartbeat round")
 }
 
 // heartbeatInterval Number of seconds to wait between to heartbeat rounds.
