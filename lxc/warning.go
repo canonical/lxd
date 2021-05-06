@@ -86,7 +86,7 @@ Column shorthand chars:
     t - Type`))
 
 	cmd.Flags().StringVarP(&c.flagColumns, "columns", "c", "utSscpLl", i18n.G("Columns")+"``")
-	cmd.Flags().StringVar(&c.flagFormat, "format", "table", i18n.G("Format (csv|json|table|yaml)")+"``")
+	cmd.Flags().StringVarP(&c.flagFormat, "format", "f", "table", i18n.G("Format (csv|json|table|yaml)")+"``")
 	cmd.Flags().BoolVarP(&c.flagAll, "all", "a", false, i18n.G("List all warnings")+"``")
 
 	cmd.RunE = c.Run
