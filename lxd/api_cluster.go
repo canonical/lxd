@@ -1325,7 +1325,6 @@ func clusterNodePut(d *Daemon, r *http.Request) response.Response {
 
 	// Parse the request
 	req := api.ClusterMemberPut{}
-
 	err = json.NewDecoder(r.Body).Decode(&req)
 	if err != nil {
 		return response.BadRequest(err)
@@ -1347,6 +1346,15 @@ func clusterNodePut(d *Daemon, r *http.Request) response.Response {
 			return errors.Wrap(err, "Loading node information")
 		}
 
+		// Update the description.
+		if req.Description != member.Description {
+			err = tx.SetDescription(nodeInfo.ID, req.Description)
+			if err != nil {
+				return errors.Wrap(err, "Update description")
+			}
+		}
+
+		// Update the roles.
 		dbRoles := []db.ClusterRole{}
 		for _, role := range req.Roles {
 			dbRoles = append(dbRoles, db.ClusterRole(role))
