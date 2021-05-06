@@ -1513,7 +1513,8 @@ test_clustering_image_replication() {
 
   # Modify the container's rootfs and create a new image from the container
   lxc exec c1 -- touch /a
-  lxc stop c1 --force && lxc publish c1 --alias new-image
+  lxc stop c1 --force
+  lxc publish c1 --alias new-image
 
   fingerprint=$(LXD_DIR="${LXD_ONE_DIR}" lxc image info new-image | grep "Fingerprint:" | cut -f2 -d" ")
   [ -f "${LXD_ONE_DIR}/images/${fingerprint}" ] || false
