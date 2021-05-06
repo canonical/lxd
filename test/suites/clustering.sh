@@ -1784,12 +1784,15 @@ test_clustering_handover() {
   ns4="${prefix}4"
   spawn_lxd_and_join_cluster "${ns4}" "${bridge}" "${cert}" 4 1 "${LXD_FOUR_DIR}"
 
+  LXD_DIR="${LXD_TWO_DIR}" lxc cluster list
   LXD_DIR="${LXD_TWO_DIR}" lxc cluster list | grep "node4" | grep -q "NO"
 
   # Shutdown the first node.
   LXD_DIR="${LXD_ONE_DIR}" lxd shutdown
 
   # The fourth node has been promoted, while the first one demoted.
+  LXD_DIR="${LXD_TWO_DIR}" lxc cluster list
+  LXD_DIR="${LXD_THREE_DIR}" lxc cluster list
   LXD_DIR="${LXD_TWO_DIR}" lxc cluster list | grep "node4" | grep -q "YES"
   LXD_DIR="${LXD_THREE_DIR}" lxc cluster list | grep "node1" | grep -q "NO"
 
@@ -1878,6 +1881,7 @@ test_clustering_rebalance() {
   ns4="${prefix}4"
   spawn_lxd_and_join_cluster "${ns4}" "${bridge}" "${cert}" 4 1 "${LXD_FOUR_DIR}"
 
+  LXD_DIR="${LXD_TWO_DIR}" lxc cluster list
   LXD_DIR="${LXD_TWO_DIR}" lxc cluster list | grep "node4" | grep -q "NO"
 
   # Kill the second node.
@@ -2001,6 +2005,7 @@ test_clustering_remove_raft_node() {
   ! LXD_DIR="${LXD_ONE_DIR}" lxc cluster list | grep -q "node2" || false
 
   # There are only 2 database nodes.
+  LXD_DIR="${LXD_ONE_DIR}" lxc cluster list
   LXD_DIR="${LXD_ONE_DIR}" lxc cluster list | grep "node1" | grep -q "YES"
   LXD_DIR="${LXD_ONE_DIR}" lxc cluster list | grep "node3" | grep -q "YES"
   LXD_DIR="${LXD_ONE_DIR}" lxc cluster list | grep "node4" | grep -q "NO"
@@ -2015,6 +2020,7 @@ test_clustering_remove_raft_node() {
   sleep 20
 
   # We're back to 3 database nodes.
+  LXD_DIR="${LXD_ONE_DIR}" lxc cluster list
   LXD_DIR="${LXD_ONE_DIR}" lxc cluster list | grep "node1" | grep -q "YES"
   LXD_DIR="${LXD_ONE_DIR}" lxc cluster list | grep "node3" | grep -q "YES"
   LXD_DIR="${LXD_ONE_DIR}" lxc cluster list | grep "node4" | grep -q "YES"
