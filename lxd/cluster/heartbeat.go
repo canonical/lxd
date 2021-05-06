@@ -11,8 +11,10 @@ import (
 	"time"
 
 	"github.com/lxc/lxd/lxd/db"
+	"github.com/lxc/lxd/lxd/db/query"
 	"github.com/lxc/lxd/lxd/task"
 	"github.com/lxc/lxd/shared"
+	log "github.com/lxc/lxd/shared/log15"
 	"github.com/lxc/lxd/shared/logger"
 	"github.com/pkg/errors"
 )
@@ -328,22 +330,25 @@ func (g *Gateway) heartbeat(ctx context.Context, initialHeartbeat bool) {
 		return
 	}
 
-	err = g.Cluster.Transaction(func(tx *db.ClusterTx) error {
-		hbTime := time.Now()
-		for _, node := range hbState.Members {
-			if !node.updated {
-				continue
+	err = query.Retry(func() error {
+		return g.Cluster.Transaction(func(tx *db.ClusterTx) error {
+			hbTime := time.Now()
+			for _, node := range hbState.Members {
+				if !node.updated {
+					continue
+				}
+
+				err := tx.SetNodeHeartbeat(node.Address, hbTime)
+				if err != nil && errors.Cause(err) != db.ErrNoSuchObject {
+					return errors.Wrapf(err, "Failed updating heartbeat time for member %q", node.Address)
+				}
 			}
 
-			err := tx.SetNodeHeartbeat(node.Address, hbTime)
-			if err != nil {
-				return err
-			}
-		}
-		return nil
+			return nil
+		})
 	})
 	if err != nil {
-		logger.Warnf("Failed to update heartbeat: %v", err)
+		logger.Error("Failed updating cluster heartbeats", log.Ctx{"err": err})
 		return
 	}
 
