@@ -388,7 +388,7 @@ func (c *cmdProjectList) Command() *cobra.Command {
 	cmd.Short = i18n.G("List projects")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
 		`List projects`))
-	cmd.Flags().StringVar(&c.flagFormat, "format", "table", i18n.G("Format (csv|json|table|yaml)")+"``")
+	cmd.Flags().StringVarP(&c.flagFormat, "format", "f", "table", i18n.G("Format (csv|json|table|yaml)")+"``")
 
 	cmd.RunE = c.Run
 
@@ -743,7 +743,7 @@ func (c *cmdProjectInfo) Command() *cobra.Command {
 	cmd.Short = i18n.G("Get a summary of resource allocations")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
 		`Get a summary of resource allocations`))
-	cmd.Flags().StringVar(&c.flagFormat, "format", "table", i18n.G("Format (csv|json|table|yaml)")+"``")
+	cmd.Flags().StringVarP(&c.flagFormat, "format", "f", "table", i18n.G("Format (csv|json|table|yaml)")+"``")
 
 	cmd.RunE = c.Run
 
@@ -782,7 +782,7 @@ func (c *cmdProjectInfo) Run(cmd *cobra.Command, args []string) error {
 		limit := i18n.G("UNLIMITED")
 		if v.Limit >= 0 {
 			if shared.StringInSlice(k, byteLimits) {
-				limit = units.GetByteSizeString(v.Limit, 2)
+				limit = units.GetByteSizeStringIEC(v.Limit, 2)
 			} else {
 				limit = fmt.Sprintf("%d", v.Limit)
 			}
@@ -790,7 +790,7 @@ func (c *cmdProjectInfo) Run(cmd *cobra.Command, args []string) error {
 
 		usage := ""
 		if shared.StringInSlice(k, byteLimits) {
-			usage = units.GetByteSizeString(v.Usage, 2)
+			usage = units.GetByteSizeStringIEC(v.Usage, 2)
 		} else {
 			usage = fmt.Sprintf("%d", v.Usage)
 		}

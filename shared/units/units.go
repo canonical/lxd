@@ -173,3 +173,22 @@ func GetByteSizeString(input int64, precision uint) string {
 
 	return fmt.Sprintf("%.*fEB", precision, value)
 }
+
+// GetByteSizeStringIEC takes a number of bytes and precision and returns a
+// human representation of the amount of data using IEC units.
+func GetByteSizeStringIEC(input int64, precision uint) string {
+	if input < 1024 {
+		return fmt.Sprintf("%dB", input)
+	}
+
+	value := float64(input)
+
+	for _, unit := range []string{"KiB", "MiB", "GiB", "TiB", "PiB", "EiB"} {
+		value = value / 1024
+		if value < 1024 {
+			return fmt.Sprintf("%.*f%s", precision, value, unit)
+		}
+	}
+
+	return fmt.Sprintf("%.*fEB", precision, value)
+}

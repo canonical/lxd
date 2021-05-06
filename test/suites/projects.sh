@@ -865,8 +865,8 @@ test_projects_usage() {
   # Set configuration on the default project
   lxc project create test-usage \
     -c limits.cpu=5 \
-    -c limits.memory=1GB \
-    -c limits.disk=10GB \
+    -c limits.memory=1GiB \
+    -c limits.disk=10GiB \
     -c limits.networks=3 \
     -c limits.processes=40
 
@@ -874,9 +874,9 @@ test_projects_usage() {
   lxc profile show default --project default | lxc profile edit default --project test-usage
   lxc profile set default --project test-usage \
     limits.cpu=1 \
-    limits.memory=512MB \
+    limits.memory=512MiB \
     limits.processes=20
-  lxc profile device set default root size=3GB --project test-usage
+  lxc profile device set default root size=3GiB --project test-usage
 
   # Spin up a container
   deps/import-busybox --project test-usage --alias testimage
@@ -885,9 +885,9 @@ test_projects_usage() {
 
   lxc project info test-usage --format csv | grep -q "CONTAINERS,UNLIMITED,1"
   lxc project info test-usage --format csv | grep -q "CPU,5,1"
-  lxc project info test-usage --format csv | grep -q "DISK,10.00GB,3.00GB"
+  lxc project info test-usage --format csv | grep -q "DISK,10.00GiB,3.00GiB"
   lxc project info test-usage --format csv | grep -q "INSTANCES,UNLIMITED,1"
-  lxc project info test-usage --format csv | grep -q "MEMORY,1.00GB,512.00MB"
+  lxc project info test-usage --format csv | grep -q "MEMORY,1.00GiB,512.00MiB"
   lxc project info test-usage --format csv | grep -q "NETWORKS,3,0"
   lxc project info test-usage --format csv | grep -q "PROCESSES,40,20"
   lxc project info test-usage --format csv | grep -q "VIRTUAL-MACHINES,UNLIMITED,0"
