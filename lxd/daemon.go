@@ -991,7 +991,8 @@ func (d *Daemon) init() error {
 			// to run the heartbeat task, in case we are the raft
 			// leader.
 			d.gateway.Cluster = d.cluster
-			stop, _ := task.Start(cluster.HeartbeatTask(d.gateway))
+			taskFunc, taskSchedule := cluster.HeartbeatTask(d.gateway)
+			stop, _ := task.Start(d.ctx, taskFunc, taskSchedule)
 			d.gateway.WaitUpgradeNotification()
 			stop(time.Second)
 			d.gateway.Cluster = nil
@@ -1211,7 +1212,7 @@ func (d *Daemon) startClusterTasks() {
 	d.clusterTasks.Add(autoSyncImagesTask(d))
 
 	// Start all background tasks
-	d.clusterTasks.Start()
+	d.clusterTasks.Start(d.ctx)
 }
 
 func (d *Daemon) stopClusterTasks() {
@@ -1266,7 +1267,7 @@ func (d *Daemon) Ready() error {
 	}
 
 	// Start all background tasks
-	d.tasks.Start()
+	d.tasks.Start(d.ctx)
 
 	// Get daemon state struct
 	s := d.State()
