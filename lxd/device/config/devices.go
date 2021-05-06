@@ -3,6 +3,7 @@ package config
 import (
 	"fmt"
 	"sort"
+	"strings"
 )
 
 // Device represents a LXD container device.
@@ -40,6 +41,11 @@ func (device Device) Validate(rules map[string]func(value string) error) error {
 
 		// Skip type fields are these are validated by the presence of an implementation.
 		if k == "type" {
+			continue
+		}
+
+		// Allow user.XYZ.
+		if strings.HasPrefix(k, "user.") {
 			continue
 		}
 
@@ -97,6 +103,11 @@ func (list Devices) Update(newlist Devices, updateFields func(Device, Device) []
 
 	// Detect which devices have changed or been removed in in new list.
 	for key, d := range list {
+		// Always skip user keys.
+		if strings.HasPrefix(key, "user.") {
+			continue
+		}
+
 		if !newlist.Contains(key, d) {
 			rmlist[key] = d
 		}
@@ -104,6 +115,11 @@ func (list Devices) Update(newlist Devices, updateFields func(Device, Device) []
 
 	// Detect which devices have changed or been added in in new list.
 	for key, d := range newlist {
+		// Always skip user keys.
+		if strings.HasPrefix(key, "user.") {
+			continue
+		}
+
 		if !list.Contains(key, d) {
 			addlist[key] = d
 		}
