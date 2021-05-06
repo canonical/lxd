@@ -329,12 +329,13 @@ func (g *Gateway) heartbeat(ctx context.Context, initialHeartbeat bool) {
 	}
 
 	err = g.Cluster.Transaction(func(tx *db.ClusterTx) error {
+		hbTime := time.Now()
 		for _, node := range hbState.Members {
 			if !node.updated {
 				continue
 			}
 
-			err := tx.SetNodeHeartbeat(node.Address, time.Now())
+			err := tx.SetNodeHeartbeat(node.Address, hbTime)
 			if err != nil {
 				return err
 			}
