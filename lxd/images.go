@@ -3569,6 +3569,10 @@ func autoSyncImagesTask(d *Daemon) (task.Func, task.Schedule) {
 
 		leader, err := d.gateway.LeaderAddress()
 		if err != nil {
+			if errors.Cause(err) == cluster.ErrNodeIsNotClustered {
+				return // No error if not clustered.
+			}
+
 			logger.Errorf("Failed to get leader node address: %v", err)
 			return
 		}
