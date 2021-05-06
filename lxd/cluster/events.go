@@ -11,6 +11,7 @@ import (
 	"github.com/lxc/lxd/lxd/task"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
+	log "github.com/lxc/lxd/shared/log15"
 	"github.com/lxc/lxd/shared/logger"
 )
 
@@ -64,7 +65,7 @@ func eventsUpdateListeners(endpoints *endpoints.Endpoints, cluster *db.Cluster, 
 		return nil
 	})
 	if err != nil {
-		logger.Warnf("Failed to get current cluster nodes: %v", err)
+		logger.Warn("Failed to get current cluster members", log.Ctx{"err": err})
 		return
 	}
 	if len(nodes) == 1 {
@@ -101,10 +102,10 @@ func eventsUpdateListeners(endpoints *endpoints.Endpoints, cluster *db.Cluster, 
 
 		listener, err := eventsConnect(node.Address, endpoints.NetworkCert(), serverCert())
 		if err != nil {
-			logger.Warnf("Failed to get events from node %s: %v", node.Address, err)
+			logger.Warn("Failed to get events from member", log.Ctx{"address": node.Address, "err": err})
 			continue
 		}
-		logger.Debugf("Listening for events on node %s", node.Address)
+		logger.Debug("Listening for events on member", log.Ctx{"address": node.Address})
 		listener.AddHandler(nil, func(event api.Event) { f(node.ID, event) })
 
 		listenersLock.Lock()
