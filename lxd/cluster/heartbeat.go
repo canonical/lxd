@@ -242,6 +242,8 @@ func (g *Gateway) heartbeat(ctx context.Context, initialHeartbeat bool) {
 		return
 	}
 
+	startTime := time.Now()
+
 	var allNodes []db.NodeInfo
 	var localAddress string // Address of this node
 	var offlineThreshold time.Duration
@@ -299,7 +301,7 @@ func (g *Gateway) heartbeat(ctx context.Context, initialHeartbeat bool) {
 		return nil
 	})
 	if err != nil {
-		logger.Warnf("Failed to get current cluster nodes: %v", err)
+		logger.Warn("Failed to get current cluster members", log.Ctx{"err": err})
 		return
 	}
 
@@ -327,8 +329,9 @@ func (g *Gateway) heartbeat(ctx context.Context, initialHeartbeat bool) {
 	}
 
 	// If the context has been cancelled, return immediately.
-	if ctx.Err() != nil {
-		logger.Debugf("Aborting heartbeat round")
+	err = ctx.Err()
+	if err != nil {
+		logger.Warn("Aborting heartbeat round", log.Ctx{"err": err})
 		return
 	}
 
@@ -359,8 +362,13 @@ func (g *Gateway) heartbeat(ctx context.Context, initialHeartbeat bool) {
 		go g.HeartbeatNodeHook(hbState)
 	}
 
+	duration := time.Now().Sub(startTime)
+	if duration > (time.Duration(heartbeatInterval) * time.Second) {
+		logger.Warn("Heartbeat round duration greater than heartbeat interval", log.Ctx{"duration": duration, "interval": heartbeatInterval})
+	}
+
 	// Update last leader heartbeat time so next time a full node state list can be sent (if not this time).
-	logger.Debug("Completed heartbeat round")
+	logger.Debug("Completed heartbeat round", log.Ctx{"duration": duration})
 }
 
 // heartbeatInterval Number of seconds to wait between to heartbeat rounds.
@@ -368,7 +376,7 @@ const heartbeatInterval = 10
 
 // HeartbeatNode performs a single heartbeat request against the node with the given address.
 func HeartbeatNode(taskCtx context.Context, address string, networkCert *shared.CertInfo, serverCert *shared.CertInfo, heartbeatData *APIHeartbeat) error {
-	logger.Debugf("Sending heartbeat request to %s", address)
+	logger.Debug("Sending heartbeat request", log.Ctx{"address": address})
 
 	config, err := tlsClientConfig(networkCert, serverCert)
 	if err != nil {
@@ -406,12 +414,12 @@ func HeartbeatNode(taskCtx context.Context, address string, networkCert *shared.
 
 	response, err := client.Do(request)
 	if err != nil {
-		return errors.Wrap(err, "failed to send HTTP request")
+		return errors.Wrap(err, "Failed to send heartbeat request")
 	}
 	defer response.Body.Close()
 
 	if response.StatusCode != http.StatusOK {
-		return fmt.Errorf("HTTP request failed: %s", response.Status)
+		return fmt.Errorf("Heartbeat request failed with status code: %s", response.Status)
 	}
 
 	return nil
