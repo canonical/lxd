@@ -407,7 +407,7 @@ func HeartbeatNode(taskCtx context.Context, address string, networkCert *shared.
 	setDqliteVersionHeader(request)
 
 	// Use 1s later timeout to give HTTP client chance timeout with more useful info.
-	ctx, cancel := context.WithTimeout(context.Background(), timeout+time.Second)
+	ctx, cancel := context.WithTimeout(taskCtx, timeout+time.Second)
 	defer cancel()
 	request = request.WithContext(ctx)
 	request.Close = true // Immediately close the connection after the request is done
