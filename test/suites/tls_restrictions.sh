@@ -2,7 +2,7 @@ test_tls_restrictions() {
   ensure_import_testimage
   ensure_has_localhost_remote "${LXD_ADDR}"
 
-  FINGERPRINT=$(lxc config trust list --format csv | cut -d, -f1)
+  FINGERPRINT=$(lxc config trust list --format csv | cut -d, -f4)
 
   # Validate admin rights with no restrictions
   lxc_remote project create localhost:blah
