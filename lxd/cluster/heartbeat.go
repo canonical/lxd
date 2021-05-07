@@ -282,7 +282,7 @@ func (g *Gateway) heartbeat(ctx context.Context, initialHeartbeat bool) {
 		hbState.Send(ctx, g.networkCert, g.serverCert(), localAddress, allNodes, false)
 
 		// We have the latest set of node states now, lets send that state set to all nodes.
-		hbState.Update(true, raftNodes, allNodes, offlineThreshold)
+		hbState.FullStateList = true
 		hbState.Send(ctx, g.networkCert, g.serverCert(), localAddress, allNodes, false)
 	} else {
 		hbState.Update(true, raftNodes, allNodes, offlineThreshold)
