@@ -288,21 +288,23 @@ func (c *cmdConfigTrustList) Run(cmd *cobra.Command, args []string) error {
 			return fmt.Errorf(i18n.G("Invalid certificate"))
 		}
 
-		cert, err := x509.ParseCertificate(certBlock.Bytes)
+		tlsCert, err := x509.ParseCertificate(certBlock.Bytes)
 		if err != nil {
 			return err
 		}
 
 		const layout = "Jan 2, 2006 at 3:04pm (MST)"
-		issue := cert.NotBefore.Format(layout)
-		expiry := cert.NotAfter.Format(layout)
-		data = append(data, []string{fp, cert.Subject.CommonName, issue, expiry})
+		issue := tlsCert.NotBefore.Format(layout)
+		expiry := tlsCert.NotAfter.Format(layout)
+		data = append(data, []string{cert.Type, cert.Name, tlsCert.Subject.CommonName, fp, issue, expiry})
 	}
 	sort.Sort(stringList(data))
 
 	header := []string{
-		i18n.G("FINGERPRINT"),
+		i18n.G("TYPE"),
+		i18n.G("NAME"),
 		i18n.G("COMMON NAME"),
+		i18n.G("FINGERPRINT"),
 		i18n.G("ISSUE DATE"),
 		i18n.G("EXPIRY DATE"),
 	}
