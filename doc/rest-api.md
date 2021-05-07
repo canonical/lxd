@@ -3787,7 +3787,7 @@ Input:
 ```
 
 #### PATCH (ETag supported)
- * Description: Updates the certificate properties
+ * Description: Update warning status
  * Introduced: with API extension `warnings`
  * Authentication: trusted
  * Operation: sync
