@@ -249,6 +249,10 @@ func (c *cmdInit) askClustering(config *cmdInitData, d lxd.InstanceServer) error
 				return errors.Wrap(err, "Failed to setup trust relationship with cluster")
 			}
 
+			// Now we have setup trust, don't send to server, othwerwise it will try and setup trust
+			// again and if using a one-time join token, will fail.
+			config.Cluster.ClusterPassword = ""
+
 			// Client parameters to connect to the target cluster node.
 			args := &lxd.ConnectionArgs{
 				TLSClientCert: string(serverCert.PublicKey()),
