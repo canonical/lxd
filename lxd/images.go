@@ -3393,7 +3393,8 @@ func autoSyncImages(ctx context.Context, d *Daemon) error {
 }
 
 func imageSyncBetweenNodes(d *Daemon, project string, fingerprint string) error {
-	logger.Info("Syncing image to members", log.Ctx{"fingerprint": fingerprint, "project": project})
+	logger.Info("Syncing image to members started", log.Ctx{"fingerprint": fingerprint, "project": project})
+	defer logger.Info("Syncing image to members finished", log.Ctx{"fingerprint": fingerprint, "project": project})
 
 	var desiredSyncNodeCount int64
 
@@ -3428,11 +3429,13 @@ func imageSyncBetweenNodes(d *Daemon, project string, fingerprint string) error 
 
 	// If none of the nodes have the image, there's nothing to sync.
 	if len(syncNodeAddresses) == 0 {
+		logger.Debug("No members have image, nothing to do", log.Ctx{"fingerprint": fingerprint, "project": project})
 		return nil
 	}
 
 	nodeCount := desiredSyncNodeCount - int64(len(syncNodeAddresses))
 	if nodeCount <= 0 {
+		logger.Debug("Sufficient members have image", log.Ctx{"fingerprint": fingerprint, "project": project, "desiredSyncCount": desiredSyncNodeCount, "syncedCount": len(syncNodeAddresses)})
 		return nil
 	}
 
@@ -3459,7 +3462,9 @@ func imageSyncBetweenNodes(d *Daemon, project string, fingerprint string) error 
 		if err != nil {
 			return errors.Wrap(err, "Failed to get nodes for the image synchronization")
 		}
+
 		if len(addresses) <= 0 {
+			logger.Debug("All members have image", log.Ctx{"fingerprint": fingerprint, "project": project})
 			return nil
 		}
 
