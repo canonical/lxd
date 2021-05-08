@@ -202,7 +202,9 @@ func HeartbeatTask(gateway *Gateway) (task.Func, task.Schedule) {
 		}
 	}
 
-	schedule := task.Every(time.Duration(heartbeatInterval) * time.Second)
+	schedule := func() (time.Duration, error) {
+		return task.Every(gateway.heartbeatInterval())()
+	}
 
 	return heartbeatWrapper, schedule
 }
