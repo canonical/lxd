@@ -388,9 +388,6 @@ func (g *Gateway) heartbeat(ctx context.Context, initialHeartbeat bool) {
 	logger.Debug("Completed heartbeat round", log.Ctx{"duration": duration})
 }
 
-// heartbeatInterval Number of seconds to wait between to heartbeat rounds.
-const heartbeatInterval = 10
-
 // HeartbeatNode performs a single heartbeat request against the node with the given address.
 func HeartbeatNode(taskCtx context.Context, address string, networkCert *shared.CertInfo, serverCert *shared.CertInfo, heartbeatData *APIHeartbeat) error {
 	logger.Debug("Sending heartbeat request", log.Ctx{"address": address})
