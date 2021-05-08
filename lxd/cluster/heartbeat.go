@@ -207,6 +207,16 @@ func HeartbeatTask(gateway *Gateway) (task.Func, task.Schedule) {
 	return heartbeatWrapper, schedule
 }
 
+// heartbeatInterval returns heartbeat interval to use.
+func (g *Gateway) heartbeatInterval() time.Duration {
+	threshold := g.HeartbeatOfflineThreshold
+	if threshold <= 0 {
+		threshold = db.DefaultOfflineThreshold
+	}
+
+	return threshold / 2
+}
+
 func (g *Gateway) heartbeat(ctx context.Context, initialHeartbeat bool) {
 	// Avoid concurent heartbeat loops.
 	// This is possible when both the task and the out of band heartbeat
