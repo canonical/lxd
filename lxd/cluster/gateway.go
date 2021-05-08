@@ -112,8 +112,9 @@ type Gateway struct {
 	upgradeTriggered bool
 
 	// Used for the heartbeat handler
-	Cluster           *db.Cluster
-	HeartbeatNodeHook func(*APIHeartbeat)
+	Cluster                   *db.Cluster
+	HeartbeatNodeHook         func(*APIHeartbeat)
+	HeartbeatOfflineThreshold time.Duration
 
 	// NodeStore wrapper.
 	store *dqliteNodeStore
