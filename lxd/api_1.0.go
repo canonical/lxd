@@ -781,5 +781,11 @@ func doApi10UpdateTriggers(d *Daemon, nodeChanged, clusterChanged map[string]str
 		}
 	}
 
+	_, ok = clusterChanged["cluster.offline_threshold"]
+	if ok {
+		d.gateway.HeartbeatOfflineThreshold = clusterConfig.OfflineThreshold()
+		d.taskClusterHeartbeat.Reset()
+	}
+
 	return nil
 }
