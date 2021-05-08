@@ -95,5 +95,4 @@ When using the `iptables` firewall driver, you cannot use IP range subjects (e.g
 
 Baseline network service rules are added before ACL rules (in their respective INPUT/OUTPUT chains), because we
 cannot differentiate between INPUT/OUTPUT and FORWARD traffic once we have jumped into the ACL chain. Because of
-this ACL rules cannot be used to block baseline service rules.NPUT/OUTPUT and FORWARD traffic once we have jumped
-into the ACL chain. Because of this ACL rules cannot be used to block baseline service rules.
+this ACL rules cannot be used to block baseline service rules.
