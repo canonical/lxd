@@ -279,6 +279,8 @@ func offlineThresholdDefault() string {
 }
 
 func offlineThresholdValidator(value string) error {
+	minThreshold := 10
+
 	// Ensure that the given value is greater than the heartbeat interval,
 	// which is the lower bound granularity of the offline check.
 	threshold, err := strconv.Atoi(value)
@@ -286,8 +288,8 @@ func offlineThresholdValidator(value string) error {
 		return fmt.Errorf("Offline threshold is not a number")
 	}
 
-	if threshold <= heartbeatInterval {
-		return fmt.Errorf("Value must be greater than '%d'", heartbeatInterval)
+	if threshold <= minThreshold {
+		return fmt.Errorf("Value must be greater than '%d'", minThreshold)
 	}
 
 	return nil
