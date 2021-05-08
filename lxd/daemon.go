@@ -1122,6 +1122,8 @@ func (d *Daemon) init() error {
 		candidAPIURL, candidAPIKey, candidExpiry, candidDomains = config.CandidServer()
 		maasAPIURL, maasAPIKey = config.MAASController()
 		rbacAPIURL, rbacAPIKey, rbacExpiry, rbacAgentURL, rbacAgentUsername, rbacAgentPrivateKey, rbacAgentPublicKey = config.RBACServer()
+		d.gateway.HeartbeatOfflineThreshold = config.OfflineThreshold()
+
 		return nil
 	})
 	if err != nil {
