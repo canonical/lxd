@@ -84,8 +84,9 @@ type Daemon struct {
 	clusterTasks task.Group
 
 	// Indexes of tasks that need to be reset when their execution interval changes
-	taskPruneImages *task.Task
-	taskAutoUpdate  *task.Task
+	taskAutoUpdate       *task.Task
+	taskPruneImages      *task.Task
+	taskClusterHeartbeat *task.Task
 
 	config    *DaemonConfig
 	endpoints *endpoints.Endpoints
@@ -992,9 +993,11 @@ func (d *Daemon) init() error {
 			// leader.
 			d.gateway.Cluster = d.cluster
 			taskFunc, taskSchedule := cluster.HeartbeatTask(d.gateway)
-			stop, _ := task.Start(d.ctx, taskFunc, taskSchedule)
+			hbGroup := task.Group{}
+			d.taskClusterHeartbeat = hbGroup.Add(taskFunc, taskSchedule)
+			hbGroup.Start(d.ctx)
 			d.gateway.WaitUpgradeNotification()
-			stop(time.Second)
+			hbGroup.Stop(time.Second)
 			d.gateway.Cluster = nil
 
 			d.cluster.Close()
@@ -1205,7 +1208,7 @@ func (d *Daemon) init() error {
 
 func (d *Daemon) startClusterTasks() {
 	// Heartbeats
-	d.clusterTasks.Add(cluster.HeartbeatTask(d.gateway))
+	d.taskClusterHeartbeat = d.clusterTasks.Add(cluster.HeartbeatTask(d.gateway))
 
 	// Events
 	d.clusterTasks.Add(cluster.Events(d.endpoints, d.cluster, d.serverCert, d.events.Forward))
