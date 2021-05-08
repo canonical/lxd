@@ -601,6 +601,7 @@ func doApi10Update(d *Daemon, req api.ServerPut, patch bool) response.Response {
 		if err != nil {
 			return errors.Wrap(err, "Failed to load cluster config")
 		}
+
 		if patch {
 			clusterChanged, err = newClusterConfig.Patch(req.Config)
 		} else {
