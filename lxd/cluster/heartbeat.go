@@ -121,14 +121,19 @@ func (hbState *APIHeartbeat) Update(fullStateList bool, raftNodes []db.RaftNode,
 }
 
 // Send sends heartbeat requests to the nodes supplied and updates heartbeat state.
-func (hbState *APIHeartbeat) Send(ctx context.Context, networkCert *shared.CertInfo, serverCert *shared.CertInfo, localAddress string, nodes []db.NodeInfo, delay bool) {
+func (hbState *APIHeartbeat) Send(ctx context.Context, networkCert *shared.CertInfo, serverCert *shared.CertInfo, localAddress string, nodes []db.NodeInfo, spreadDuration time.Duration) {
 	heartbeatsWg := sync.WaitGroup{}
-	sendHeartbeat := func(nodeID int64, address string, delay bool, heartbeatData *APIHeartbeat) {
+	sendHeartbeat := func(nodeID int64, address string, spreadDuration time.Duration, heartbeatData *APIHeartbeat) {
 		defer heartbeatsWg.Done()
 
-		if delay {
+		if spreadDuration > 0 {
 			// Spread in time by waiting up to 3s less than the interval.
-			time.Sleep(time.Duration(rand.Intn((heartbeatInterval*1000)-3000)) * time.Millisecond)
+			spreadDurationMs := int(spreadDuration.Milliseconds())
+			spreadRange := spreadDurationMs - 3000
+
+			if spreadRange > 0 {
+				time.Sleep(time.Duration(rand.Intn(spreadRange)) * time.Millisecond)
+			}
 		}
 
 		logger.Debug("Sending heartbeat", log.Ctx{"address": address})
@@ -171,8 +176,9 @@ func (hbState *APIHeartbeat) Send(ctx context.Context, networkCert *shared.CertI
 
 		// Parallelize the rest.
 		heartbeatsWg.Add(1)
-		go sendHeartbeat(node.ID, node.Address, delay, hbState)
+		go sendHeartbeat(node.ID, node.Address, spreadDuration, hbState)
 	}
+
 	heartbeatsWg.Wait()
 }
 
