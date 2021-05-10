@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: LXD\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2021-05-07 17:35-0400\n"
+"POT-Creation-Date: 2021-05-10 13:40+0100\n"
 "PO-Revision-Date: 2021-02-02 15:21+0000\n"
 "Last-Translator: KATOH Yasufumi <karma@jazz.email.ne.jp>\n"
 "Language-Team: Japanese <https://hosted.weblate.org/projects/linux-"
@@ -3075,7 +3075,8 @@ msgstr "ポート:"
 #: lxc/cluster.go:513 lxc/config_trust.go:214 lxc/network.go:660
 #: lxc/network_acl.go:529 lxc/profile.go:499 lxc/project.go:310
 #: lxc/storage.go:304 lxc/storage_volume.go:942 lxc/storage_volume.go:972
-msgid "Press enter to open the editor again"
+#, fuzzy
+msgid "Press enter to open the editor again or ctrl+c to abort change"
 msgstr "再度エディタを開くためには Enter キーを押します"
 
 #: lxc/config.go:256 lxc/config.go:329 lxc/config_metadata.go:143
