@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"io/ioutil"
 
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
@@ -126,6 +127,19 @@ func (c *cmdInit) Run(cmd *cobra.Command, args []string) error {
 		if err != nil {
 			return err
 		}
+	}
+
+	// Check if the path to the cluster certificate is set
+	// If yes then read cluster certificate from file
+	if config.Cluster != nil && config.Cluster.ClusterCertificatePath != "" {
+		if !shared.PathExists(config.Cluster.ClusterCertificatePath) {
+			return fmt.Errorf("Path %s doesn't exist", config.Cluster.ClusterCertificatePath)
+		}
+		content, err := ioutil.ReadFile(config.Cluster.ClusterCertificatePath)
+		if err != nil {
+			return err
+		}
+		config.Cluster.ClusterCertificate = string(content)
 	}
 
 	// If clustering is enabled, and no cluster.https_address network address
