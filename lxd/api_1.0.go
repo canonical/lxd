@@ -601,6 +601,7 @@ func doApi10Update(d *Daemon, req api.ServerPut, patch bool) response.Response {
 		if err != nil {
 			return errors.Wrap(err, "Failed to load cluster config")
 		}
+
 		if patch {
 			clusterChanged, err = newClusterConfig.Patch(req.Config)
 		} else {
@@ -785,6 +786,12 @@ func doApi10UpdateTriggers(d *Daemon, nodeChanged, clusterChanged map[string]str
 		if err != nil {
 			return err
 		}
+	}
+
+	_, ok = clusterChanged["cluster.offline_threshold"]
+	if ok {
+		d.gateway.HeartbeatOfflineThreshold = clusterConfig.OfflineThreshold()
+		d.taskClusterHeartbeat.Reset()
 	}
 
 	return nil

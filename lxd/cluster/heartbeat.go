@@ -121,14 +121,19 @@ func (hbState *APIHeartbeat) Update(fullStateList bool, raftNodes []db.RaftNode,
 }
 
 // Send sends heartbeat requests to the nodes supplied and updates heartbeat state.
-func (hbState *APIHeartbeat) Send(ctx context.Context, networkCert *shared.CertInfo, serverCert *shared.CertInfo, localAddress string, nodes []db.NodeInfo, delay bool) {
+func (hbState *APIHeartbeat) Send(ctx context.Context, networkCert *shared.CertInfo, serverCert *shared.CertInfo, localAddress string, nodes []db.NodeInfo, spreadDuration time.Duration) {
 	heartbeatsWg := sync.WaitGroup{}
-	sendHeartbeat := func(nodeID int64, address string, delay bool, heartbeatData *APIHeartbeat) {
+	sendHeartbeat := func(nodeID int64, address string, spreadDuration time.Duration, heartbeatData *APIHeartbeat) {
 		defer heartbeatsWg.Done()
 
-		if delay {
+		if spreadDuration > 0 {
 			// Spread in time by waiting up to 3s less than the interval.
-			time.Sleep(time.Duration(rand.Intn((heartbeatInterval*1000)-3000)) * time.Millisecond)
+			spreadDurationMs := int(spreadDuration.Milliseconds())
+			spreadRange := spreadDurationMs - 3000
+
+			if spreadRange > 0 {
+				time.Sleep(time.Duration(rand.Intn(spreadRange)) * time.Millisecond)
+			}
 		}
 
 		logger.Debug("Sending heartbeat", log.Ctx{"address": address})
@@ -171,8 +176,9 @@ func (hbState *APIHeartbeat) Send(ctx context.Context, networkCert *shared.CertI
 
 		// Parallelize the rest.
 		heartbeatsWg.Add(1)
-		go sendHeartbeat(node.ID, node.Address, delay, hbState)
+		go sendHeartbeat(node.ID, node.Address, spreadDuration, hbState)
 	}
+
 	heartbeatsWg.Wait()
 }
 
@@ -196,9 +202,21 @@ func HeartbeatTask(gateway *Gateway) (task.Func, task.Schedule) {
 		}
 	}
 
-	schedule := task.Every(time.Duration(heartbeatInterval) * time.Second)
+	schedule := func() (time.Duration, error) {
+		return task.Every(gateway.heartbeatInterval())()
+	}
 
 	return heartbeatWrapper, schedule
+}
+
+// heartbeatInterval returns heartbeat interval to use.
+func (g *Gateway) heartbeatInterval() time.Duration {
+	threshold := g.HeartbeatOfflineThreshold
+	if threshold <= 0 {
+		threshold = db.DefaultOfflineThreshold
+	}
+
+	return threshold / 2
 }
 
 func (g *Gateway) heartbeat(ctx context.Context, initialHeartbeat bool) {
@@ -242,9 +260,10 @@ func (g *Gateway) heartbeat(ctx context.Context, initialHeartbeat bool) {
 		return
 	}
 
+	startTime := time.Now()
+
 	var allNodes []db.NodeInfo
 	var localAddress string // Address of this node
-	var offlineThreshold time.Duration
 	err = g.Cluster.Transaction(func(tx *db.ClusterTx) error {
 		var err error
 		allNodes, err = tx.GetNodes()
@@ -257,17 +276,14 @@ func (g *Gateway) heartbeat(ctx context.Context, initialHeartbeat bool) {
 			return err
 		}
 
-		offlineThreshold, err = tx.GetNodeOfflineThreshold()
-		if err != nil {
-			return err
-		}
-
 		return nil
 	})
 	if err != nil {
 		logger.Warn("Failed to get current cluster members", log.Ctx{"err": err})
 		return
 	}
+
+	heartbeatInterval := g.heartbeatInterval()
 
 	// Cumulative set of node states (will be written back to database once done).
 	hbState := &APIHeartbeat{cluster: g.Cluster}
@@ -276,15 +292,15 @@ func (g *Gateway) heartbeat(ctx context.Context, initialHeartbeat bool) {
 	// are likely out of date, this can happen when a node becomes a leader.
 	// Send stale set to all nodes in database to get a fresh set of active nodes.
 	if initialHeartbeat {
-		hbState.Update(false, raftNodes, allNodes, offlineThreshold)
-		hbState.Send(ctx, g.networkCert, g.serverCert(), localAddress, allNodes, false)
+		hbState.Update(false, raftNodes, allNodes, g.HeartbeatOfflineThreshold)
+		hbState.Send(ctx, g.networkCert, g.serverCert(), localAddress, allNodes, 0)
 
 		// We have the latest set of node states now, lets send that state set to all nodes.
-		hbState.Update(true, raftNodes, allNodes, offlineThreshold)
-		hbState.Send(ctx, g.networkCert, g.serverCert(), localAddress, allNodes, false)
+		hbState.FullStateList = true
+		hbState.Send(ctx, g.networkCert, g.serverCert(), localAddress, allNodes, 0)
 	} else {
-		hbState.Update(true, raftNodes, allNodes, offlineThreshold)
-		hbState.Send(ctx, g.networkCert, g.serverCert(), localAddress, allNodes, true)
+		hbState.Update(true, raftNodes, allNodes, g.HeartbeatOfflineThreshold)
+		hbState.Send(ctx, g.networkCert, g.serverCert(), localAddress, allNodes, heartbeatInterval)
 	}
 
 	// Look for any new node which appeared since sending last heartbeat.
@@ -299,7 +315,7 @@ func (g *Gateway) heartbeat(ctx context.Context, initialHeartbeat bool) {
 		return nil
 	})
 	if err != nil {
-		logger.Warnf("Failed to get current cluster nodes: %v", err)
+		logger.Warn("Failed to get current cluster members", log.Ctx{"err": err})
 		return
 	}
 
@@ -322,25 +338,25 @@ func (g *Gateway) heartbeat(ctx context.Context, initialHeartbeat bool) {
 
 	// If any new nodes found, send heartbeat to just them (with full node state).
 	if len(newNodes) > 0 {
-		hbState.Update(true, raftNodes, allNodes, offlineThreshold)
-		hbState.Send(ctx, g.networkCert, g.serverCert(), localAddress, newNodes, false)
+		hbState.Update(true, raftNodes, allNodes, g.HeartbeatOfflineThreshold)
+		hbState.Send(ctx, g.networkCert, g.serverCert(), localAddress, newNodes, 0)
 	}
 
 	// If the context has been cancelled, return immediately.
-	if ctx.Err() != nil {
-		logger.Debugf("Aborting heartbeat round")
+	err = ctx.Err()
+	if err != nil {
+		logger.Warn("Aborting heartbeat round", log.Ctx{"err": err})
 		return
 	}
 
 	err = query.Retry(func() error {
 		return g.Cluster.Transaction(func(tx *db.ClusterTx) error {
-			hbTime := time.Now()
 			for _, node := range hbState.Members {
 				if !node.updated {
 					continue
 				}
 
-				err := tx.SetNodeHeartbeat(node.Address, hbTime)
+				err := tx.SetNodeHeartbeat(node.Address, node.LastHeartbeat)
 				if err != nil && errors.Cause(err) != db.ErrNoSuchObject {
 					return errors.Wrapf(err, "Failed updating heartbeat time for member %q", node.Address)
 				}
@@ -359,16 +375,18 @@ func (g *Gateway) heartbeat(ctx context.Context, initialHeartbeat bool) {
 		go g.HeartbeatNodeHook(hbState)
 	}
 
-	// Update last leader heartbeat time so next time a full node state list can be sent (if not this time).
-	logger.Debug("Completed heartbeat round")
-}
+	duration := time.Now().Sub(startTime)
+	if duration > heartbeatInterval {
+		logger.Warn("Heartbeat round duration greater than heartbeat interval", log.Ctx{"duration": duration, "interval": heartbeatInterval})
+	}
 
-// heartbeatInterval Number of seconds to wait between to heartbeat rounds.
-const heartbeatInterval = 10
+	// Update last leader heartbeat time so next time a full node state list can be sent (if not this time).
+	logger.Debug("Completed heartbeat round", log.Ctx{"duration": duration})
+}
 
 // HeartbeatNode performs a single heartbeat request against the node with the given address.
 func HeartbeatNode(taskCtx context.Context, address string, networkCert *shared.CertInfo, serverCert *shared.CertInfo, heartbeatData *APIHeartbeat) error {
-	logger.Debugf("Sending heartbeat request to %s", address)
+	logger.Debug("Sending heartbeat request", log.Ctx{"address": address})
 
 	config, err := tlsClientConfig(networkCert, serverCert)
 	if err != nil {
@@ -399,19 +417,19 @@ func HeartbeatNode(taskCtx context.Context, address string, networkCert *shared.
 	setDqliteVersionHeader(request)
 
 	// Use 1s later timeout to give HTTP client chance timeout with more useful info.
-	ctx, cancel := context.WithTimeout(context.Background(), timeout+time.Second)
+	ctx, cancel := context.WithTimeout(taskCtx, timeout+time.Second)
 	defer cancel()
 	request = request.WithContext(ctx)
 	request.Close = true // Immediately close the connection after the request is done
 
 	response, err := client.Do(request)
 	if err != nil {
-		return errors.Wrap(err, "failed to send HTTP request")
+		return errors.Wrap(err, "Failed to send heartbeat request")
 	}
 	defer response.Body.Close()
 
 	if response.StatusCode != http.StatusOK {
-		return fmt.Errorf("HTTP request failed: %s", response.Status)
+		return fmt.Errorf("Heartbeat request failed with status code: %s", response.Status)
 	}
 
 	return nil
