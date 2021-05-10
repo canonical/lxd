@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: lxd\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2021-05-07 17:35-0400\n"
+"POT-Creation-Date: 2021-05-10 13:40+0100\n"
 "PO-Revision-Date: 2019-09-06 07:09+0000\n"
 "Last-Translator: Luigi Operoso <brokenpip3@gmail.com>\n"
 "Language-Team: Italian <https://hosted.weblate.org/projects/linux-containers/"
@@ -2839,7 +2839,7 @@ msgstr ""
 #: lxc/cluster.go:513 lxc/config_trust.go:214 lxc/network.go:660
 #: lxc/network_acl.go:529 lxc/profile.go:499 lxc/project.go:310
 #: lxc/storage.go:304 lxc/storage_volume.go:942 lxc/storage_volume.go:972
-msgid "Press enter to open the editor again"
+msgid "Press enter to open the editor again or ctrl+c to abort change"
 msgstr ""
 
 #: lxc/config.go:256 lxc/config.go:329 lxc/config_metadata.go:143
