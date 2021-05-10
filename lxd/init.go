@@ -20,6 +20,10 @@ type initDataNode struct {
 
 type initDataCluster struct {
 	api.ClusterPut `yaml:",inline"`
+
+	// The path to the cluster certificate
+	// Example: /tmp/cluster.crt
+	ClusterCertificatePath string `json:"cluster_certificate_path" yaml:"cluster_certificate_path"`
 }
 
 // Helper to initialize node-specific entities on a LXD instance using the
