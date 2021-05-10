@@ -84,7 +84,8 @@ type Daemon struct {
 	clusterTasks task.Group
 
 	// Indexes of tasks that need to be reset when their execution interval changes
-	taskPruneImages *task.Task
+	taskPruneImages      *task.Task
+	taskClusterHeartbeat *task.Task
 
 	// Stores startup time of daemon
 	startTime time.Time
@@ -1028,9 +1029,11 @@ func (d *Daemon) init() error {
 			// leader.
 			d.gateway.Cluster = d.cluster
 			taskFunc, taskSchedule := cluster.HeartbeatTask(d.gateway)
-			stop, _ := task.Start(d.ctx, taskFunc, taskSchedule)
+			hbGroup := task.Group{}
+			d.taskClusterHeartbeat = hbGroup.Add(taskFunc, taskSchedule)
+			hbGroup.Start(d.ctx)
 			d.gateway.WaitUpgradeNotification()
-			stop(time.Second)
+			hbGroup.Stop(time.Second)
 			d.gateway.Cluster = nil
 
 			d.cluster.Close()
@@ -1205,6 +1208,8 @@ func (d *Daemon) init() error {
 		candidAPIURL, candidAPIKey, candidExpiry, candidDomains = config.CandidServer()
 		maasAPIURL, maasAPIKey = config.MAASController()
 		rbacAPIURL, rbacAPIKey, rbacExpiry, rbacAgentURL, rbacAgentUsername, rbacAgentPrivateKey, rbacAgentPublicKey = config.RBACServer()
+		d.gateway.HeartbeatOfflineThreshold = config.OfflineThreshold()
+
 		return nil
 	})
 	if err != nil {
@@ -1286,7 +1291,7 @@ func (d *Daemon) init() error {
 
 func (d *Daemon) startClusterTasks() {
 	// Heartbeats
-	d.clusterTasks.Add(cluster.HeartbeatTask(d.gateway))
+	d.taskClusterHeartbeat = d.clusterTasks.Add(cluster.HeartbeatTask(d.gateway))
 
 	// Events
 	d.clusterTasks.Add(cluster.Events(d.endpoints, d.cluster, d.serverCert, d.events.Forward))
