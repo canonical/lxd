@@ -145,6 +145,11 @@ definitions:
         example: true
         type: boolean
         x-go-name: Database
+      description:
+        description: Cluster member description
+        example: AMD Epyc 32c/64t
+        type: string
+        x-go-name: Description
       failure_domain:
         description: Name of the failure domain for this cluster member
         example: rack1
@@ -260,6 +265,11 @@ definitions:
     description: ClusterMemberPut represents the the modifiable fields of a LXD cluster
       member
     properties:
+      description:
+        description: Cluster member description
+        example: AMD Epyc 32c/64t
+        type: string
+        x-go-name: Description
       failure_domain:
         description: Name of the failure domain for this cluster member
         example: rack1
@@ -574,6 +584,75 @@ definitions:
         x-go-name: Target
     type: object
     x-go-package: github.com/lxc/lxd/shared/api
+  ImageMetadata:
+    description: ImageMetadata represents LXD image metadata (used in image tarball)
+    properties:
+      architecture:
+        description: Architecture name
+        example: x86_64
+        type: string
+        x-go-name: Architecture
+      creation_date:
+        description: Image creation data (as UNIX epoch)
+        example: 1620655439
+        format: int64
+        type: integer
+        x-go-name: CreationDate
+      expiry_date:
+        description: Image expiry data (as UNIX epoch)
+        example: 1620685757
+        format: int64
+        type: integer
+        x-go-name: ExpiryDate
+      properties:
+        additionalProperties:
+          type: string
+        description: Descriptive properties
+        example:
+          os: Ubuntu
+          release: focal
+          variant: cloud
+        type: object
+        x-go-name: Properties
+      templates:
+        additionalProperties:
+          $ref: '#/definitions/ImageMetadataTemplate'
+        description: Template for files in the image
+        type: object
+        x-go-name: Templates
+    type: object
+    x-go-package: github.com/lxc/lxd/shared/api
+  ImageMetadataTemplate:
+    description: ImageMetadataTemplate represents a template entry in image metadata
+      (used in image tarball)
+    properties:
+      create_only:
+        description: Whether to trigger only if the file is missing
+        example: false
+        type: boolean
+        x-go-name: CreateOnly
+      properties:
+        additionalProperties:
+          type: string
+        description: Key/value properties to pass to the template
+        example:
+          foo: bar
+        type: object
+        x-go-name: Properties
+      template:
+        description: The template itself as a valid pongo2 template
+        example: pongo2-template
+        type: string
+        x-go-name: Template
+      when:
+        description: When to trigger the template (create, copy or start)
+        example: create
+        items:
+          type: string
+        type: array
+        x-go-name: When
+    type: object
+    x-go-package: github.com/lxc/lxd/shared/api
   ImagePut:
     description: ImagePut represents the modifiable fields of a LXD image
     properties:
@@ -877,6 +956,93 @@ definitions:
         type: string
         x-go-name: Type
     title: Instance represents a LXD instance.
+    type: object
+    x-go-package: github.com/lxc/lxd/shared/api
+  InstanceBackup:
+    properties:
+      container_only:
+        description: Whether to ignore snapshots (deprecated, use instance_only)
+        example: false
+        type: boolean
+        x-go-name: ContainerOnly
+      created_at:
+        description: When the backup was cerated
+        example: "2021-03-23T16:38:37.753398689-04:00"
+        format: date-time
+        type: string
+        x-go-name: CreatedAt
+      expires_at:
+        description: When the backup expires (gets auto-deleted)
+        example: "2021-03-23T17:38:37.753398689-04:00"
+        format: date-time
+        type: string
+        x-go-name: ExpiresAt
+      instance_only:
+        description: Whether to ignore snapshots
+        example: false
+        type: boolean
+        x-go-name: InstanceOnly
+      name:
+        description: Backup name
+        example: backup0
+        type: string
+        x-go-name: Name
+      optimized_storage:
+        description: Whether to use a pool-optimized binary format (instead of plain
+          tarball)
+        example: true
+        type: boolean
+        x-go-name: OptimizedStorage
+    title: InstanceBackup represents a LXD instance backup.
+    type: object
+    x-go-package: github.com/lxc/lxd/shared/api
+  InstanceBackupPost:
+    properties:
+      name:
+        description: New backup name
+        example: backup1
+        type: string
+        x-go-name: Name
+    title: InstanceBackupPost represents the fields available for the renaming of
+      a instance backup.
+    type: object
+    x-go-package: github.com/lxc/lxd/shared/api
+  InstanceBackupsPost:
+    properties:
+      compression_algorithm:
+        description: What compression algorithm to use
+        example: gzip
+        type: string
+        x-go-name: CompressionAlgorithm
+      container_only:
+        description: Whether to ignore snapshots (deprecated, use instance_only)
+        example: false
+        type: boolean
+        x-go-name: ContainerOnly
+      expires_at:
+        description: When the backup expires (gets auto-deleted)
+        example: "2021-03-23T17:38:37.753398689-04:00"
+        format: date-time
+        type: string
+        x-go-name: ExpiresAt
+      instance_only:
+        description: Whether to ignore snapshots
+        example: false
+        type: boolean
+        x-go-name: InstanceOnly
+      name:
+        description: Backup name
+        example: backup0
+        type: string
+        x-go-name: Name
+      optimized_storage:
+        description: Whether to use a pool-optimized binary format (instead of plain
+          tarball)
+        example: true
+        type: boolean
+        x-go-name: OptimizedStorage
+    title: InstanceBackupsPost represents the fields available for a new LXD instance
+      backup.
     type: object
     x-go-package: github.com/lxc/lxd/shared/api
   InstanceConsolePost:
@@ -5658,6 +5824,244 @@ paths:
       summary: Update the instance
       tags:
       - instances
+  /1.0/instances/{name}/backups:
+    get:
+      description: Returns a list of instance backups (URLs).
+      operationId: instance_backups_get
+      parameters:
+      - description: Project name
+        example: default
+        in: query
+        name: project
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: API endpoints
+          schema:
+            description: Sync response
+            properties:
+              metadata:
+                description: List of endpoints
+                example: |-
+                  [
+                    "/1.0/instances/foo/backups/backup0",
+                    "/1.0/instances/foo/backups/backup1"
+                  ]
+                items:
+                  type: string
+                type: array
+              status:
+                description: Status description
+                example: Success
+                type: string
+              status_code:
+                description: Status code
+                example: 200
+                type: int
+              type:
+                description: Response type
+                example: sync
+                type: string
+            type: object
+        "403":
+          $ref: '#/responses/Forbidden'
+        "500":
+          $ref: '#/responses/InternalServerError'
+      summary: Get the backups
+      tags:
+      - instances
+    post:
+      consumes:
+      - application/json
+      description: Creates a new backup.
+      operationId: instance_backups_post
+      parameters:
+      - description: Project name
+        example: default
+        in: query
+        name: project
+        type: string
+      - description: Backup request
+        in: body
+        name: backup
+        schema:
+          $ref: '#/definitions/InstanceBackupsPost'
+      produces:
+      - application/json
+      responses:
+        "200":
+          $ref: '#/responses/Operation'
+        "400":
+          $ref: '#/responses/BadRequest'
+        "403":
+          $ref: '#/responses/Forbidden'
+        "500":
+          $ref: '#/responses/InternalServerError'
+      summary: Create a backup
+      tags:
+      - instances
+  /1.0/instances/{name}/backups/{backup}:
+    delete:
+      consumes:
+      - application/json
+      description: Deletes the instance backup.
+      operationId: instance_backup_delete
+      parameters:
+      - description: Project name
+        example: default
+        in: query
+        name: project
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          $ref: '#/responses/Operation'
+        "400":
+          $ref: '#/responses/BadRequest'
+        "403":
+          $ref: '#/responses/Forbidden'
+        "500":
+          $ref: '#/responses/InternalServerError'
+      summary: Delete a backup
+      tags:
+      - instances
+    get:
+      description: Gets a specific instance backup.
+      operationId: instance_backup_get
+      parameters:
+      - description: Project name
+        example: default
+        in: query
+        name: project
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Instance backup
+          schema:
+            description: Sync response
+            properties:
+              metadata:
+                $ref: '#/definitions/InstanceBackup'
+              status:
+                description: Status description
+                example: Success
+                type: string
+              status_code:
+                description: Status code
+                example: 200
+                type: int
+              type:
+                description: Response type
+                example: sync
+                type: string
+            type: object
+        "403":
+          $ref: '#/responses/Forbidden'
+        "500":
+          $ref: '#/responses/InternalServerError'
+      summary: Get the backup
+      tags:
+      - instances
+    post:
+      consumes:
+      - application/json
+      description: Renames an instance backup.
+      operationId: instance_backup_post
+      parameters:
+      - description: Project name
+        example: default
+        in: query
+        name: project
+        type: string
+      - description: Backup rename
+        in: body
+        name: backup
+        schema:
+          $ref: '#/definitions/InstanceBackupPost'
+      produces:
+      - application/json
+      responses:
+        "200":
+          $ref: '#/responses/Operation'
+        "400":
+          $ref: '#/responses/BadRequest'
+        "403":
+          $ref: '#/responses/Forbidden'
+        "500":
+          $ref: '#/responses/InternalServerError'
+      summary: Rename a backup
+      tags:
+      - instances
+  /1.0/instances/{name}/backups/{backup}/export:
+    get:
+      description: Download the raw backup file(s) from the server.
+      operationId: instance_backup_export
+      parameters:
+      - description: Project name
+        example: default
+        in: query
+        name: project
+        type: string
+      produces:
+      - application/octet-stream
+      responses:
+        "200":
+          description: Raw image data
+        "403":
+          $ref: '#/responses/Forbidden'
+        "500":
+          $ref: '#/responses/InternalServerError'
+      summary: Get the raw backup file(s)
+      tags:
+      - instances
+  /1.0/instances/{name}/backups?recursion=1:
+    get:
+      description: Returns a list of instance backups (structs).
+      operationId: instance_backups_get_recursion1
+      parameters:
+      - description: Project name
+        example: default
+        in: query
+        name: project
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: API endpoints
+          schema:
+            description: Sync response
+            properties:
+              metadata:
+                description: List of instance backups
+                items:
+                  $ref: '#/definitions/InstanceBackup'
+                type: array
+              status:
+                description: Status description
+                example: Success
+                type: string
+              status_code:
+                description: Status code
+                example: 200
+                type: int
+              type:
+                description: Response type
+                example: sync
+                type: string
+            type: object
+        "403":
+          $ref: '#/responses/Forbidden'
+        "500":
+          $ref: '#/responses/InternalServerError'
+      summary: Get the backups
+      tags:
+      - instances
   /1.0/instances/{name}/console:
     delete:
       description: Clears the console log buffer.
@@ -6018,6 +6422,211 @@ paths:
         "500":
           $ref: '#/responses/InternalServerError'
       summary: Get the log file
+      tags:
+      - instances
+  /1.0/instances/{name}/metadata:
+    get:
+      description: Gets the image metadata for the instance.
+      operationId: instance_metadata_get
+      parameters:
+      - description: Project name
+        example: default
+        in: query
+        name: project
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Image metadata
+          schema:
+            description: Sync response
+            properties:
+              metadata:
+                $ref: '#/definitions/ImageMetadata'
+              status:
+                description: Status description
+                example: Success
+                type: string
+              status_code:
+                description: Status code
+                example: 200
+                type: int
+              type:
+                description: Response type
+                example: sync
+                type: string
+            type: object
+        "403":
+          $ref: '#/responses/Forbidden'
+        "500":
+          $ref: '#/responses/InternalServerError'
+      summary: Get the instance image metadata
+      tags:
+      - instances
+    patch:
+      consumes:
+      - application/json
+      description: Updates a subset of the instance image metadata.
+      operationId: instance_metadata_patch
+      parameters:
+      - description: Project name
+        example: default
+        in: query
+        name: project
+        type: string
+      - description: Image metadata
+        in: body
+        name: metadata
+        required: true
+        schema:
+          $ref: '#/definitions/ImageMetadata'
+      produces:
+      - application/json
+      responses:
+        "200":
+          $ref: '#/responses/EmptySyncResponse'
+        "400":
+          $ref: '#/responses/BadRequest'
+        "403":
+          $ref: '#/responses/Forbidden'
+        "412":
+          $ref: '#/responses/PreconditionFailed'
+        "500":
+          $ref: '#/responses/InternalServerError'
+      summary: Partially update the image metadata
+      tags:
+      - instances
+    put:
+      consumes:
+      - application/json
+      description: Updates the instance image metadata.
+      operationId: instance_metadata_put
+      parameters:
+      - description: Project name
+        example: default
+        in: query
+        name: project
+        type: string
+      - description: Image metadata
+        in: body
+        name: metadata
+        required: true
+        schema:
+          $ref: '#/definitions/ImageMetadata'
+      produces:
+      - application/json
+      responses:
+        "200":
+          $ref: '#/responses/EmptySyncResponse'
+        "400":
+          $ref: '#/responses/BadRequest'
+        "403":
+          $ref: '#/responses/Forbidden'
+        "412":
+          $ref: '#/responses/PreconditionFailed'
+        "500":
+          $ref: '#/responses/InternalServerError'
+      summary: Update the image metadata
+      tags:
+      - instances
+  /1.0/instances/{name}/metadata/templates:
+    delete:
+      description: Removes the template file.
+      operationId: instance_metadata_templates_delete
+      parameters:
+      - description: Template name
+        example: default
+        in: query
+        name: path
+        type: string
+      - description: Project name
+        example: default
+        in: query
+        name: project
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          $ref: '#/responses/EmptySyncResponse'
+        "400":
+          $ref: '#/responses/BadRequest'
+        "403":
+          $ref: '#/responses/Forbidden'
+        "404":
+          $ref: '#/responses/NotFound'
+        "500":
+          $ref: '#/responses/InternalServerError'
+      summary: Delete a template file
+      tags:
+      - instances
+    get:
+      description: |-
+        If no path specified, returns a list of template file names.
+        If a path is specified, returns the file content.
+      operationId: instance_metadata_templates_get
+      parameters:
+      - description: Project name
+        example: default
+        in: query
+        name: project
+        type: string
+      - description: Template name
+        example: hostname.tpl
+        in: query
+        name: path
+        type: string
+      produces:
+      - application/json
+      - application/octet-stream
+      responses:
+        "200":
+          description: Raw template file or file listing
+        "400":
+          $ref: '#/responses/BadRequest'
+        "403":
+          $ref: '#/responses/Forbidden'
+        "404":
+          $ref: '#/responses/NotFound'
+        "500":
+          $ref: '#/responses/InternalServerError'
+      summary: Get the template file names or a specific
+      tags:
+      - instances
+    post:
+      consumes:
+      - application/octet-stream
+      description: Creates a new image template file for the instance.
+      operationId: instance_metadata_templates_post
+      parameters:
+      - description: Template name
+        example: default
+        in: query
+        name: path
+        type: string
+      - description: Project name
+        example: default
+        in: query
+        name: project
+        type: string
+      - description: Raw file content
+        in: body
+        name: raw_file
+      produces:
+      - application/json
+      responses:
+        "200":
+          $ref: '#/responses/EmptySyncResponse'
+        "400":
+          $ref: '#/responses/BadRequest'
+        "403":
+          $ref: '#/responses/Forbidden'
+        "404":
+          $ref: '#/responses/NotFound'
+        "500":
+          $ref: '#/responses/InternalServerError'
+      summary: Create or replace a template file
       tags:
       - instances
   /1.0/instances/{name}/snapshots:
