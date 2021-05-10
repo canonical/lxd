@@ -136,8 +136,6 @@ func (hbState *APIHeartbeat) Send(ctx context.Context, networkCert *shared.CertI
 			}
 		}
 
-		logger.Debug("Sending heartbeat", log.Ctx{"address": address})
-
 		// Update timestamp to current, used for time skew detection
 		heartbeatData.Time = time.Now().UTC()
 
@@ -157,7 +155,7 @@ func (hbState *APIHeartbeat) Send(ctx context.Context, networkCert *shared.CertI
 			heartbeatData.Unlock()
 			logger.Debug("Successful heartbeat", log.Ctx{"address": address})
 		} else {
-			logger.Debug("Failed heartbeat", log.Ctx{"address": address, "err": err})
+			logger.Warn("Failed heartbeat", log.Ctx{"address": address, "err": err})
 		}
 	}
 
