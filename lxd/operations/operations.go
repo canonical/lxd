@@ -105,6 +105,7 @@ type Operation struct {
 	description string
 	permission  string
 	dbOpType    db.OperationType
+	requestor   *api.EventLifecycleRequestor
 
 	// Those functions are called at various points in the Operation lifecycle
 	onRun     func(*Operation) error
@@ -123,7 +124,7 @@ type Operation struct {
 
 // OperationCreate creates a new operation and returns it. If it cannot be
 // created, it returns an error.
-func OperationCreate(s *state.State, projectName string, opClass OperationClass, opType db.OperationType, opResources map[string][]string, opMetadata interface{}, onRun func(*Operation) error, onCancel func(*Operation) error, onConnect func(*Operation, *http.Request, http.ResponseWriter) error) (*Operation, error) {
+func OperationCreate(s *state.State, projectName string, opClass OperationClass, opType db.OperationType, opResources map[string][]string, opMetadata interface{}, onRun func(*Operation) error, onCancel func(*Operation) error, onConnect func(*Operation, *http.Request, http.ResponseWriter) error, r *http.Request) (*Operation, error) {
 	// Don't allow new operations when LXD is shutting down.
 	if s != nil && s.Context.Err() == context.Canceled {
 		return nil, fmt.Errorf("LXD is shutting down")
@@ -177,6 +178,24 @@ func OperationCreate(s *state.State, projectName string, opClass OperationClass,
 		return nil, fmt.Errorf("Token operations can't have a Cancel hook")
 	}
 
+	// Set requestor if request was provided.
+	if r != nil {
+		ctx := r.Context()
+		requestor := api.EventLifecycleRequestor{}
+
+		username, ok := ctx.Value("username").(string)
+		if ok {
+			requestor.Username = username
+		}
+
+		protocol, ok := ctx.Value("protocol").(string)
+		if ok {
+			requestor.Protocol = protocol
+		}
+
+		op.requestor = &requestor
+	}
+
 	operationsLock.Lock()
 	operations[op.id] = &op
 	operationsLock.Unlock()
@@ -199,6 +218,11 @@ func OperationCreate(s *state.State, projectName string, opClass OperationClass,
 // SetEventServer allows injection of event server.
 func (op *Operation) SetEventServer(events *events.Server) {
 	op.events = events
+}
+
+// Requestor returns the initial requestor for this operation.
+func (op *Operation) Requestor() *api.EventLifecycleRequestor {
+	return op.requestor
 }
 
 func (op *Operation) done() {
