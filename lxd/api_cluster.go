@@ -1717,6 +1717,10 @@ func internalClusterPostRebalance(d *Daemon, r *http.Request) response.Response 
 // Check if there's a dqlite node whose role should be changed, and post a
 // change role request if so.
 func rebalanceMemberRoles(d *Daemon) error {
+	if d.clusterMembershipClosing {
+		return nil
+	}
+
 again:
 	address, nodes, err := cluster.Rebalance(d.State(), d.gateway)
 	if err != nil {
