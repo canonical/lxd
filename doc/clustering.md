@@ -115,7 +115,8 @@ node.
 Be sure to include the address and certificate of the target bootstrap node. To
 create a YAML-compatible entry for the ``cluster_certificate`` key you can use a
 command like `sed ':a;N;$!ba;s/\n/\n\n/g' /var/lib/lxd/cluster.crt`, which you
-have to run on the bootstrap node.
+have to run on the bootstrap node. `cluster_certificate_path` key (which should
+contain valid path to cluster certificate) can be used instead of `cluster_certificate` key.
 
 For example:
 
