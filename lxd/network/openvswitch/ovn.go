@@ -934,9 +934,9 @@ func (o *OVN) LogicalSwitchPortDynamicIPs(portName OVNSwitchPort) ([]net.IP, err
 		return []net.IP{}, nil
 	}
 
-	dynamicAddressesRaw, err = strconv.Unquote(dynamicAddressesRaw)
+	dynamicAddressesRaw, err = unquote(dynamicAddressesRaw)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrapf(err, "Failed unquoting")
 	}
 
 	dynamicAddresses := strings.Split(strings.TrimSpace(dynamicAddressesRaw), " ")
