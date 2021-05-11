@@ -1098,7 +1098,6 @@ func doImagesGet(d *Daemon, recursion bool, project string, public bool, clauses
 //     type: string
 //     example: default
 // responses:
-// responses:
 //   "200":
 //     description: API endpoints
 //     schema:
@@ -1153,7 +1152,6 @@ func doImagesGet(d *Daemon, recursion bool, project string, public bool, clauses
 //     type: string
 //     example: default
 // responses:
-// responses:
 //   "200":
 //     description: API endpoints
 //     schema:
@@ -1202,7 +1200,6 @@ func doImagesGet(d *Daemon, recursion bool, project string, public bool, clauses
 //     description: Collection filter
 //     type: string
 //     example: default
-// responses:
 // responses:
 //   "200":
 //     description: API endpoints
