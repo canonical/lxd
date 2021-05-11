@@ -620,8 +620,8 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 	// Cleanup any existing tunnel device.
 	for _, iface := range ifaces {
 		if strings.HasPrefix(iface.Name, fmt.Sprintf("%s-", n.name)) {
-			link := &ip.Link{Name: iface.Name}
-			err = link.Delete()
+			tunLink := &ip.Link{Name: iface.Name}
+			err = tunLink.Delete()
 			if err != nil {
 				return err
 			}
@@ -1183,8 +1183,8 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 			if fanMtu != mtu {
 				mtu = fanMtu
 				if n.config["bridge.driver"] != "openvswitch" {
-					link := &ip.Link{Name: fmt.Sprintf("%s-mtu", n.name)}
-					err = link.SetMtu(mtu)
+					mtuLink := &ip.Link{Name: fmt.Sprintf("%s-mtu", n.name)}
+					err = mtuLink.SetMtu(mtu)
 					if err != nil {
 						return err
 					}
@@ -1238,14 +1238,14 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 				return err
 			}
 
-			link := &ip.Link{Name: "tunl0"}
-			err = link.SetUp()
+			tunLink := &ip.Link{Name: "tunl0"}
+			err = tunLink.SetUp()
 			if err != nil {
 				return err
 			}
 
 			// Fails if the map is already set.
-			link.Change("ipip", fmt.Sprintf("%s:%s", overlay, underlay))
+			tunLink.Change("ipip", fmt.Sprintf("%s:%s", overlay, underlay))
 
 			r = &ip.Route{
 				DevName: "tunl0",
@@ -1661,8 +1661,8 @@ func (n *bridge) Stop() error {
 	// Cleanup any existing tunnel device
 	for _, iface := range ifaces {
 		if strings.HasPrefix(iface.Name, fmt.Sprintf("%s-", n.name)) {
-			link := &ip.Link{Name: iface.Name}
-			err = link.Delete()
+			tunLink := &ip.Link{Name: iface.Name}
+			err = tunLink.Delete()
 			if err != nil {
 				return err
 			}
