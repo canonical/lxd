@@ -396,7 +396,7 @@ func (n *common) lifecycle(action string, ctx map[string]interface{}) error {
 	prefix := "network"
 	u := fmt.Sprintf("/1.0/networks/%s", url.PathEscape(n.name))
 
-	return n.state.Events.SendLifecycle(project.Default, fmt.Sprintf("%s-%s", prefix, action), u, ctx)
+	return n.state.Events.SendLifecycle(project.Default, fmt.Sprintf("%s-%s", prefix, action), u, ctx, nil)
 }
 
 // notifyDependentNetworks allows any dependent networks to apply changes to themselves when this network changes.
