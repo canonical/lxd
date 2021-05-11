@@ -255,18 +255,46 @@ type ImageAliasesEntry struct {
 }
 
 // ImageMetadata represents LXD image metadata (used in image tarball)
+//
+// swagger:model
 type ImageMetadata struct {
-	Architecture string                            `json:"architecture" yaml:"architecture"`
-	CreationDate int64                             `json:"creation_date" yaml:"creation_date"`
-	ExpiryDate   int64                             `json:"expiry_date" yaml:"expiry_date"`
-	Properties   map[string]string                 `json:"properties" yaml:"properties"`
-	Templates    map[string]*ImageMetadataTemplate `json:"templates" yaml:"templates"`
+	// Architecture name
+	// Example: x86_64
+	Architecture string `json:"architecture" yaml:"architecture"`
+
+	// Image creation data (as UNIX epoch)
+	// Example: 1620655439
+	CreationDate int64 `json:"creation_date" yaml:"creation_date"`
+
+	// Image expiry data (as UNIX epoch)
+	// Example: 1620685757
+	ExpiryDate int64 `json:"expiry_date" yaml:"expiry_date"`
+
+	// Descriptive properties
+	// Example: {"os": "Ubuntu", "release": "focal", "variant": "cloud"}
+	Properties map[string]string `json:"properties" yaml:"properties"`
+
+	// Template for files in the image
+	Templates map[string]*ImageMetadataTemplate `json:"templates" yaml:"templates"`
 }
 
 // ImageMetadataTemplate represents a template entry in image metadata (used in image tarball)
+//
+// swagger:model
 type ImageMetadataTemplate struct {
-	When       []string          `json:"when" yaml:"when"`
-	CreateOnly bool              `json:"create_only" yaml:"create_only"`
-	Template   string            `json:"template" yaml:"template"`
+	// When to trigger the template (create, copy or start)
+	// Example: create
+	When []string `json:"when" yaml:"when"`
+
+	// Whether to trigger only if the file is missing
+	// Example: false
+	CreateOnly bool `json:"create_only" yaml:"create_only"`
+
+	// The template itself as a valid pongo2 template
+	// Example: pongo2-template
+	Template string `json:"template" yaml:"template"`
+
+	// Key/value properties to pass to the template
+	// Example: {"foo": "bar"}
 	Properties map[string]string `json:"properties" yaml:"properties"`
 }
