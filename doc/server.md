@@ -33,6 +33,7 @@ core.https\_allowed\_origin         | string    | global    | -                 
 core.proxy\_https                   | string    | global    | -                                 | https proxy to use, if any (falls back to HTTPS\_PROXY environment variable)
 core.proxy\_http                    | string    | global    | -                                 | http proxy to use, if any (falls back to HTTP\_PROXY environment variable)
 core.proxy\_ignore\_hosts           | string    | global    | -                                 | hosts which don't need the proxy for use (similar format to NO\_PROXY, e.g. 1.2.3.4,1.2.3.5, falls back to NO\_PROXY environment variable)
+core.shutdown\_timeout              | integer   | global    | 5                                 | Number of minutes to wait for running operations to complete before LXD server shut down
 core.trust\_ca\_certificates        | boolean   | global    | -                                 | Whether to automatically trust clients signed by the CA
 core.trust\_password                | string    | global    | -                                 | Password to be provided by clients to setup a trust
 images.auto\_update\_cached         | boolean   | global    | true                              | Whether to automatically update any image that LXD caches
