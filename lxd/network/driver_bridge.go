@@ -563,6 +563,8 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 		}
 	}
 
+	bridgeLink := &ip.Link{Name: n.name}
+
 	// Create the bridge interface if doesn't exist.
 	if !n.isRunning() {
 		if n.config["bridge.driver"] == "openvswitch" {
@@ -579,7 +581,7 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 		} else {
 
 			bridge := &ip.Bridge{
-				Link: ip.Link{Name: n.name},
+				Link: *bridgeLink,
 			}
 			err := bridge.Add()
 			if err != nil {
@@ -660,8 +662,7 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 		mtu = "1500"
 	}
 
-	link := &ip.Link{Name: n.name}
-	err = link.SetMtu(mtu)
+	err = bridgeLink.SetMtu(mtu)
 	if err != nil {
 		return err
 	}
@@ -706,7 +707,7 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 
 	// Set the MAC address on the bridge interface if specified.
 	if hwAddr != "" {
-		err = link.SetAddress(hwAddr)
+		err = bridgeLink.SetAddress(hwAddr)
 		if err != nil {
 			return err
 		}
@@ -727,7 +728,7 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 	}
 
 	// Bring it up.
-	err = link.SetUp()
+	err = bridgeLink.SetUp()
 	if err != nil {
 		return err
 	}
@@ -1188,8 +1189,8 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 						return err
 					}
 				}
-				link := &ip.Link{Name: n.name}
-				err = link.SetMtu(mtu)
+
+				err = bridgeLink.SetMtu(mtu)
 				if err != nil {
 					return err
 				}
@@ -1286,8 +1287,7 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 				return err
 			}
 
-			link := &ip.Link{Name: n.name}
-			err = link.SetUp()
+			err = bridgeLink.SetUp()
 			if err != nil {
 				return err
 			}
@@ -1418,8 +1418,8 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 			return err
 		}
 
-		link = &ip.Link{Name: n.name}
-		err = link.SetUp()
+		// Bring up network interface.
+		err = bridgeLink.SetUp()
 		if err != nil {
 			return err
 		}
@@ -1609,8 +1609,8 @@ func (n *bridge) Stop() error {
 			return err
 		}
 	} else {
-		link := &ip.Link{Name: n.name}
-		err := link.Delete()
+		bridgeLink := &ip.Link{Name: n.name}
+		err := bridgeLink.Delete()
 		if err != nil {
 			return err
 		}
