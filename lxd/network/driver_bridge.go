@@ -1231,12 +1231,12 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 				continue
 			}
 
-			gretapLink := &ip.Gretap{
+			gretap := &ip.Gretap{
 				Link:   ip.Link{Name: tunName},
 				Local:  tunLocal,
 				Remote: tunRemote,
 			}
-			err := gretapLink.Add()
+			err := gretap.Add()
 			if err != nil {
 				return err
 			}
@@ -1249,12 +1249,12 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 				continue
 			}
 
-			vxlanLink := &ip.Vxlan{
+			vxlan := &ip.Vxlan{
 				Link: ip.Link{Name: tunName},
 			}
 			if tunLocal != "" && tunRemote != "" {
-				vxlanLink.Local = tunLocal
-				vxlanLink.Remote = tunRemote
+				vxlan.Local = tunLocal
+				vxlan.Remote = tunRemote
 			} else {
 				if tunGroup == "" {
 					tunGroup = "239.0.0.1"
@@ -1268,29 +1268,29 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 					}
 				}
 
-				vxlanLink.Group = tunGroup
-				vxlanLink.DevName = devName
+				vxlan.Group = tunGroup
+				vxlan.DevName = devName
 			}
 
 			tunPort := getConfig("port")
 			if tunPort == "" {
 				tunPort = "0"
 			}
-			vxlanLink.DstPort = tunPort
+			vxlan.DstPort = tunPort
 
 			tunID := getConfig("id")
 			if tunID == "" {
 				tunID = "1"
 			}
-			vxlanLink.VxlanID = tunID
+			vxlan.VxlanID = tunID
 
 			tunTTL := getConfig("ttl")
 			if tunTTL == "" {
 				tunTTL = "1"
 			}
-			vxlanLink.TTL = tunTTL
+			vxlan.TTL = tunTTL
 
-			err := vxlanLink.Add()
+			err := vxlan.Add()
 			if err != nil {
 				return err
 			}
