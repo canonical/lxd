@@ -5868,6 +5868,16 @@ func (d *lxc) unmount() (bool, error) {
 		return unmounted, nil
 	}
 
+	// Workaround for liblxc failures on startup when shiftfs is used.
+	diskIdmap, err := d.DiskIdmap()
+	if err != nil {
+		return false, err
+	}
+
+	if d.state.OS.Shiftfs && !d.IsPrivileged() && diskIdmap == nil {
+		unix.Unmount(d.RootfsPath(), unix.MNT_DETACH)
+	}
+
 	unmounted, err := pool.UnmountInstance(d, nil)
 	if err != nil {
 		return false, err
