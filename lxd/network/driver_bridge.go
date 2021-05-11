@@ -563,6 +563,8 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 		}
 	}
 
+	bridgeLink := &ip.Link{Name: n.name}
+
 	// Create the bridge interface if doesn't exist.
 	if !n.isRunning() {
 		if n.config["bridge.driver"] == "openvswitch" {
@@ -579,7 +581,7 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 		} else {
 
 			bridge := &ip.Bridge{
-				Link: ip.Link{Name: n.name},
+				Link: *bridgeLink,
 			}
 			err := bridge.Add()
 			if err != nil {
@@ -618,8 +620,8 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 	// Cleanup any existing tunnel device.
 	for _, iface := range ifaces {
 		if strings.HasPrefix(iface.Name, fmt.Sprintf("%s-", n.name)) {
-			link := &ip.Link{Name: iface.Name}
-			err = link.Delete()
+			tunLink := &ip.Link{Name: iface.Name}
+			err = tunLink.Delete()
 			if err != nil {
 				return err
 			}
@@ -660,8 +662,7 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 		mtu = "1500"
 	}
 
-	link := &ip.Link{Name: n.name}
-	err = link.SetMtu(mtu)
+	err = bridgeLink.SetMtu(mtu)
 	if err != nil {
 		return err
 	}
@@ -706,7 +707,7 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 
 	// Set the MAC address on the bridge interface if specified.
 	if hwAddr != "" {
-		err = link.SetAddress(hwAddr)
+		err = bridgeLink.SetAddress(hwAddr)
 		if err != nil {
 			return err
 		}
@@ -727,7 +728,7 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 	}
 
 	// Bring it up.
-	err = link.SetUp()
+	err = bridgeLink.SetUp()
 	if err != nil {
 		return err
 	}
@@ -1182,14 +1183,14 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 			if fanMtu != mtu {
 				mtu = fanMtu
 				if n.config["bridge.driver"] != "openvswitch" {
-					link := &ip.Link{Name: fmt.Sprintf("%s-mtu", n.name)}
-					err = link.SetMtu(mtu)
+					mtuLink := &ip.Link{Name: fmt.Sprintf("%s-mtu", n.name)}
+					err = mtuLink.SetMtu(mtu)
 					if err != nil {
 						return err
 					}
 				}
-				link := &ip.Link{Name: n.name}
-				err = link.SetMtu(mtu)
+
+				err = bridgeLink.SetMtu(mtu)
 				if err != nil {
 					return err
 				}
@@ -1237,14 +1238,14 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 				return err
 			}
 
-			link := &ip.Link{Name: "tunl0"}
-			err = link.SetUp()
+			tunLink := &ip.Link{Name: "tunl0"}
+			err = tunLink.SetUp()
 			if err != nil {
 				return err
 			}
 
 			// Fails if the map is already set.
-			link.Change("ipip", fmt.Sprintf("%s:%s", overlay, underlay))
+			tunLink.Change("ipip", fmt.Sprintf("%s:%s", overlay, underlay))
 
 			r = &ip.Route{
 				DevName: "tunl0",
@@ -1286,8 +1287,7 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 				return err
 			}
 
-			link := &ip.Link{Name: n.name}
-			err = link.SetUp()
+			err = bridgeLink.SetUp()
 			if err != nil {
 				return err
 			}
@@ -1341,12 +1341,12 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 				continue
 			}
 
-			gretapLink := &ip.Gretap{
+			gretap := &ip.Gretap{
 				Link:   ip.Link{Name: tunName},
 				Local:  tunLocal,
 				Remote: tunRemote,
 			}
-			err := gretapLink.Add()
+			err := gretap.Add()
 			if err != nil {
 				return err
 			}
@@ -1359,12 +1359,12 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 				continue
 			}
 
-			vxlanLink := &ip.Vxlan{
+			vxlan := &ip.Vxlan{
 				Link: ip.Link{Name: tunName},
 			}
 			if tunLocal != "" && tunRemote != "" {
-				vxlanLink.Local = tunLocal
-				vxlanLink.Remote = tunRemote
+				vxlan.Local = tunLocal
+				vxlan.Remote = tunRemote
 			} else {
 				if tunGroup == "" {
 					tunGroup = "239.0.0.1"
@@ -1378,29 +1378,29 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 					}
 				}
 
-				vxlanLink.Group = tunGroup
-				vxlanLink.DevName = devName
+				vxlan.Group = tunGroup
+				vxlan.DevName = devName
 			}
 
 			tunPort := getConfig("port")
 			if tunPort == "" {
 				tunPort = "0"
 			}
-			vxlanLink.DstPort = tunPort
+			vxlan.DstPort = tunPort
 
 			tunID := getConfig("id")
 			if tunID == "" {
 				tunID = "1"
 			}
-			vxlanLink.VxlanID = tunID
+			vxlan.VxlanID = tunID
 
 			tunTTL := getConfig("ttl")
 			if tunTTL == "" {
 				tunTTL = "1"
 			}
-			vxlanLink.TTL = tunTTL
+			vxlan.TTL = tunTTL
 
-			err := vxlanLink.Add()
+			err := vxlan.Add()
 			if err != nil {
 				return err
 			}
@@ -1412,14 +1412,20 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 			return err
 		}
 
-		link := &ip.Link{Name: tunName}
-		err = link.SetMtu(mtu)
+		tunLink := &ip.Link{Name: tunName}
+		err = tunLink.SetMtu(mtu)
 		if err != nil {
 			return err
 		}
 
-		link = &ip.Link{Name: n.name}
-		err = link.SetUp()
+		// Bring up tunnel interface.
+		err = tunLink.SetUp()
+		if err != nil {
+			return err
+		}
+
+		// Bring up network interface.
+		err = bridgeLink.SetUp()
 		if err != nil {
 			return err
 		}
@@ -1609,8 +1615,8 @@ func (n *bridge) Stop() error {
 			return err
 		}
 	} else {
-		link := &ip.Link{Name: n.name}
-		err := link.Delete()
+		bridgeLink := &ip.Link{Name: n.name}
+		err := bridgeLink.Delete()
 		if err != nil {
 			return err
 		}
@@ -1655,8 +1661,8 @@ func (n *bridge) Stop() error {
 	// Cleanup any existing tunnel device
 	for _, iface := range ifaces {
 		if strings.HasPrefix(iface.Name, fmt.Sprintf("%s-", n.name)) {
-			link := &ip.Link{Name: iface.Name}
-			err = link.Delete()
+			tunLink := &ip.Link{Name: iface.Name}
+			err = tunLink.Delete()
 			if err != nil {
 				return err
 			}
