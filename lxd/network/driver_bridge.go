@@ -1302,8 +1302,14 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 			return err
 		}
 
-		link := &ip.Link{Name: tunName}
-		err = link.SetMtu(mtu)
+		tunLink := &ip.Link{Name: tunName}
+		err = tunLink.SetMtu(mtu)
+		if err != nil {
+			return err
+		}
+
+		// Bring up tunnel interface.
+		err = tunLink.SetUp()
 		if err != nil {
 			return err
 		}
