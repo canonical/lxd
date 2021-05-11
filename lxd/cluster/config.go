@@ -136,6 +136,13 @@ func (c *Config) MaxStandBy() int64 {
 	return c.m.GetInt64("cluster.max_standby")
 }
 
+// ShutdownTimeout returns the number of minutes to wait for running operation to complete
+// before LXD server shut down
+func (c *Config) ShutdownTimeout() time.Duration {
+	n := c.m.GetInt64("core.shutdown_timeout")
+	return time.Duration(n) * time.Minute
+}
+
 // Dump current configuration keys and their values. Keys with values matching
 // their defaults are omitted.
 func (c *Config) Dump() map[string]interface{} {
@@ -237,6 +244,7 @@ var ConfigSchema = config.Schema{
 	"core.proxy_http":                {},
 	"core.proxy_https":               {},
 	"core.proxy_ignore_hosts":        {},
+	"core.shutdown_timeout":          {Type: config.Int64, Default: "5"},
 	"core.trust_password":            {Hidden: true, Setter: passwordSetter},
 	"core.trust_ca_certificates":     {Type: config.Bool},
 	"candid.api.key":                 {},
