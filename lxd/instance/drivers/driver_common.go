@@ -612,7 +612,12 @@ func (d *common) lifecycle(action string, ctx map[string]interface{}) error {
 		u = fmt.Sprintf("%s?project=%s", u, url.QueryEscape(d.project))
 	}
 
-	return d.state.Events.SendLifecycle(d.project, fmt.Sprintf("%s-%s", prefix, action), u, ctx)
+	var requestor *api.EventLifecycleRequestor
+	if d.op != nil {
+		requestor = d.op.Requestor()
+	}
+
+	return d.state.Events.SendLifecycle(d.project, fmt.Sprintf("%s-%s", prefix, action), u, ctx, requestor)
 }
 
 // insertConfigkey function attempts to insert the instance config key into the database. If the insert fails

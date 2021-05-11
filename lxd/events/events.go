@@ -60,12 +60,12 @@ func (s *Server) AddListener(group string, connection *websocket.Conn, messageTy
 }
 
 // SendLifecycle broadcasts a lifecycle event.
-func (s *Server) SendLifecycle(group, action, source string,
-	context map[string]interface{}) error {
+func (s *Server) SendLifecycle(group, action, source string, context map[string]interface{}, requestor *api.EventLifecycleRequestor) error {
 	s.Send(group, "lifecycle", api.EventLifecycle{
-		Action:  action,
-		Source:  source,
-		Context: context})
+		Action:    action,
+		Source:    source,
+		Context:   context,
+		Requestor: requestor})
 	return nil
 }
 
