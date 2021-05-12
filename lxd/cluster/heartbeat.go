@@ -19,6 +19,14 @@ import (
 	"github.com/pkg/errors"
 )
 
+type heartbeatMode int
+
+const (
+	hearbeatNormal heartbeatMode = iota
+	hearbeatImmediate
+	hearbeatInitial
+)
+
 // APIHeartbeatMember contains specific cluster node info.
 type APIHeartbeatMember struct {
 	ID            int64     // ID field value in nodes table.
