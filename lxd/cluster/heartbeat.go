@@ -19,6 +19,14 @@ import (
 	"github.com/pkg/errors"
 )
 
+type heartbeatMode int
+
+const (
+	hearbeatNormal heartbeatMode = iota
+	hearbeatImmediate
+	hearbeatInitial
+)
+
 // APIHeartbeatMember contains specific cluster node info.
 type APIHeartbeatMember struct {
 	ID            int64     // ID field value in nodes table.
@@ -191,7 +199,7 @@ func HeartbeatTask(gateway *Gateway) (task.Func, task.Schedule) {
 	heartbeatWrapper := func(ctx context.Context) {
 		ch := make(chan struct{})
 		go func() {
-			gateway.heartbeat(ctx, false)
+			gateway.heartbeat(ctx, hearbeatNormal)
 			ch <- struct{}{}
 		}()
 		select {
@@ -217,12 +225,47 @@ func (g *Gateway) heartbeatInterval() time.Duration {
 	return threshold / 2
 }
 
-func (g *Gateway) heartbeat(ctx context.Context, initialHeartbeat bool) {
+// heartbeatRestart restarts cancels any ongoing heartbeat and restarts it.
+// If there is no ongoing heartbeat then this is a no-op.
+func (g *Gateway) heartbeatRestart() {
+	g.heartbeatCancelLock.Lock() // Make sure we're the only ones inspecting the g.heartbeatCancel var.
+
+	// There is a cancellable heartbeat round ongoing.
+	if g.heartbeatCancel != nil {
+		logger.Info("Restarting heartbeat", log.Ctx{"member": g.Cluster.GetNodeID()})
+		g.heartbeatCancel()            // Request ongoing hearbeat round cancel itself.
+		g.heartbeatCancel = nil        // Indicate there is no further cancellable heartbeat round.
+		g.heartbeatCancelLock.Unlock() // Release lock ready for g.heartbeat to acquire it.
+
+		// Start a new heartbeat round async that will run as soon as ongoing heartbeat round exits.
+		go g.heartbeat(g.ctx, hearbeatImmediate)
+	} else {
+		// No cancellable heartbeat round, release lock.
+		g.heartbeatCancelLock.Unlock()
+	}
+}
+
+func (g *Gateway) heartbeat(ctx context.Context, mode heartbeatMode) {
 	// Avoid concurent heartbeat loops.
-	// This is possible when both the task and the out of band heartbeat
-	// round from a dqlite connection both kick in at the same time.
+	// This is possible when both the regular task and the out of band heartbeat round from a dqlite
+	// connection or notification restart both kick in at the same time.
 	g.heartbeatLock.Lock()
 	defer g.heartbeatLock.Unlock()
+
+	// Acquire the cancellation lock and populate it so that this heartbeat round can be cancelled if a
+	// notification cancellation request arrives during the round. Also setup a defer so that the cancellation
+	// function is set to nil when this function ends to indicate there is no ongoing heartbeat round.
+	g.heartbeatCancelLock.Lock()
+	ctx, g.heartbeatCancel = context.WithCancel(ctx)
+	defer func() {
+		g.heartbeatCancelLock.Lock()
+		if g.heartbeatCancel != nil {
+			g.heartbeatCancel()
+			g.heartbeatCancel = nil
+		}
+		g.heartbeatCancelLock.Unlock()
+	}()
+	g.heartbeatCancelLock.Unlock()
 
 	if g.Cluster == nil || g.server == nil || g.memoryDial != nil {
 		// We're not a raft node or we're not clustered
@@ -238,27 +281,6 @@ func (g *Gateway) heartbeat(ctx context.Context, initialHeartbeat bool) {
 		logger.Error("Failed to get current raft members", log.Ctx{"err": err})
 		return
 	}
-
-	if initialHeartbeat {
-		logger.Debug("Starting heartbeat round (initial)")
-	} else {
-		logger.Debug("Starting heartbeat round")
-	}
-
-	// Replace the local raft_nodes table immediately because it
-	// might miss a row containing ourselves, since we might have
-	// been elected leader before the former leader had chance to
-	// send us a fresh update through the heartbeat pool.
-	logger.Debug("Heartbeat updating local raft members", log.Ctx{"members": raftNodes})
-	err = g.db.Transaction(func(tx *db.NodeTx) error {
-		return tx.ReplaceRaftNodes(raftNodes)
-	})
-	if err != nil {
-		logger.Warn("Failed to replace local raft members", log.Ctx{"err": err})
-		return
-	}
-
-	startTime := time.Now()
 
 	var allNodes []db.NodeInfo
 	var localAddress string // Address of this node
@@ -281,24 +303,62 @@ func (g *Gateway) heartbeat(ctx context.Context, initialHeartbeat bool) {
 		return
 	}
 
+	modeStr := "normal"
+	switch mode {
+	case hearbeatImmediate:
+		modeStr = "immediate"
+	case hearbeatInitial:
+		modeStr = "initial"
+	}
+
+	if mode != hearbeatNormal {
+		// Log unscheduled heartbeats with a higher level than normal heartbeats.
+		logger.Info("Starting heartbeat round", log.Ctx{"mode": modeStr, "address": localAddress})
+	} else {
+		// Don't spam the normal log with regular heartbeat messages.
+		logger.Debug("Starting heartbeat round", log.Ctx{"mode": modeStr, "address": localAddress})
+	}
+
+	// Replace the local raft_nodes table immediately because it
+	// might miss a row containing ourselves, since we might have
+	// been elected leader before the former leader had chance to
+	// send us a fresh update through the heartbeat pool.
+	logger.Debug("Heartbeat updating local raft members", log.Ctx{"members": raftNodes})
+	err = g.db.Transaction(func(tx *db.NodeTx) error {
+		return tx.ReplaceRaftNodes(raftNodes)
+	})
+	if err != nil {
+		logger.Warn("Failed to replace local raft members", log.Ctx{"err": err})
+		return
+	}
+
+	startTime := time.Now()
+
 	heartbeatInterval := g.heartbeatInterval()
 
 	// Cumulative set of node states (will be written back to database once done).
 	hbState := &APIHeartbeat{cluster: g.Cluster}
 
+	// If we are doing a normal heartbeat round then spread the requests over the heartbeatInterval in order
+	// to reduce load on the cluster.
+	spreadDuration := time.Duration(0)
+	if mode == hearbeatNormal {
+		spreadDuration = heartbeatInterval
+	}
+
 	// If this leader node hasn't sent a heartbeat recently, then its node state records
 	// are likely out of date, this can happen when a node becomes a leader.
 	// Send stale set to all nodes in database to get a fresh set of active nodes.
-	if initialHeartbeat {
+	if mode == hearbeatInitial {
 		hbState.Update(false, raftNodes, allNodes, g.HeartbeatOfflineThreshold)
-		hbState.Send(ctx, g.networkCert, g.serverCert(), localAddress, allNodes, 0)
+		hbState.Send(ctx, g.networkCert, g.serverCert(), localAddress, allNodes, spreadDuration)
 
 		// We have the latest set of node states now, lets send that state set to all nodes.
 		hbState.FullStateList = true
-		hbState.Send(ctx, g.networkCert, g.serverCert(), localAddress, allNodes, 0)
+		hbState.Send(ctx, g.networkCert, g.serverCert(), localAddress, allNodes, spreadDuration)
 	} else {
 		hbState.Update(true, raftNodes, allNodes, g.HeartbeatOfflineThreshold)
-		hbState.Send(ctx, g.networkCert, g.serverCert(), localAddress, allNodes, heartbeatInterval)
+		hbState.Send(ctx, g.networkCert, g.serverCert(), localAddress, allNodes, spreadDuration)
 	}
 
 	// Look for any new node which appeared since sending last heartbeat.
@@ -379,7 +439,7 @@ func (g *Gateway) heartbeat(ctx context.Context, initialHeartbeat bool) {
 	}
 
 	// Update last leader heartbeat time so next time a full node state list can be sent (if not this time).
-	logger.Debug("Completed heartbeat round", log.Ctx{"duration": duration})
+	logger.Debug("Completed heartbeat round", log.Ctx{"duration": duration, "address": localAddress})
 }
 
 // HeartbeatNode performs a single heartbeat request against the node with the given address.

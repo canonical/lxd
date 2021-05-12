@@ -28,7 +28,7 @@ import (
 	log "github.com/lxc/lxd/shared/log15"
 )
 
-// imageDownloadLock aquires a lock for downloading/transferring an image and returns the unlock function.
+// imageDownloadLock acquires a lock for downloading/transferring an image and returns the unlock function.
 func (d *Daemon) imageDownloadLock(fingerprint string) locking.UnlockFunc {
 	logger.Debugf("Acquiring lock for image download of %q", fingerprint)
 	defer logger.Debugf("Lock acquired for image download of %q", fingerprint)
