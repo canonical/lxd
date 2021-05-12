@@ -419,7 +419,7 @@ func (g *Gateway) heartbeat(ctx context.Context, mode heartbeatMode) {
 	}
 
 	// Update last leader heartbeat time so next time a full node state list can be sent (if not this time).
-	logger.Debug("Completed heartbeat round", log.Ctx{"duration": duration})
+	logger.Debug("Completed heartbeat round", log.Ctx{"duration": duration, "address": localAddress})
 }
 
 // HeartbeatNode performs a single heartbeat request against the node with the given address.
