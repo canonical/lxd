@@ -18,20 +18,35 @@ const InstanceTypeVM = InstanceType("virtual-machine")
 
 // InstancesPost represents the fields available for a new LXD instance.
 //
+// swagger:model
+//
 // API extension: instances
 type InstancesPost struct {
 	InstancePut `yaml:",inline"`
 
-	Name         string         `json:"name" yaml:"name"`
-	Source       InstanceSource `json:"source" yaml:"source"`
-	InstanceType string         `json:"instance_type" yaml:"instance_type"`
-	Type         InstanceType   `json:"type" yaml:"type"`
+	// Instance name
+	// Example: foo
+	Name string `json:"name" yaml:"name"`
+
+	// Creation source
+	Source InstanceSource `json:"source" yaml:"source"`
+
+	// Cloud instance type (AWS, GCP, Azure, ...) to emulate with limits
+	// Example: t1.micro
+	InstanceType string `json:"instance_type" yaml:"instance_type"`
+
+	// Type (container or virtual-machine)
+	// Example: container
+	Type InstanceType `json:"type" yaml:"type"`
 }
 
 // InstancesPut represents the fields available for a mass update.
 //
+// swagger:model
+//
 // API extension: instance_bulk_state_change
 type InstancesPut struct {
+	// Desired runtime state
 	State *InstanceStatePut `json:"state" yaml:"state"`
 }
 
@@ -176,12 +191,19 @@ type Instance struct {
 
 // InstanceFull is a combination of Instance, InstanceBackup, InstanceState and InstanceSnapshot.
 //
+// swagger:model
+//
 // API extension: instances
 type InstanceFull struct {
 	Instance `yaml:",inline"`
 
-	Backups   []InstanceBackup   `json:"backups" yaml:"backups"`
-	State     *InstanceState     `json:"state" yaml:"state"`
+	// List of backups.
+	Backups []InstanceBackup `json:"backups" yaml:"backups"`
+
+	// Current state.
+	State *InstanceState `json:"state" yaml:"state"`
+
+	// List of snapshots.
 	Snapshots []InstanceSnapshot `json:"snapshots" yaml:"snapshots"`
 }
 
@@ -208,24 +230,79 @@ func (c Instance) IsActive() bool {
 
 // InstanceSource represents the creation source for a new instance.
 //
+// swagger:model
+//
 // API extension: instances
 type InstanceSource struct {
-	Type          string            `json:"type" yaml:"type"`
-	Certificate   string            `json:"certificate" yaml:"certificate"`
-	Alias         string            `json:"alias,omitempty" yaml:"alias,omitempty"`
-	Fingerprint   string            `json:"fingerprint,omitempty" yaml:"fingerprint,omitempty"`
-	Properties    map[string]string `json:"properties,omitempty" yaml:"properties,omitempty"`
-	Server        string            `json:"server,omitempty" yaml:"server,omitempty"`
-	Secret        string            `json:"secret,omitempty" yaml:"secret,omitempty"`
-	Protocol      string            `json:"protocol,omitempty" yaml:"protocol,omitempty"`
-	BaseImage     string            `json:"base-image,omitempty" yaml:"base-image,omitempty"`
-	Mode          string            `json:"mode,omitempty" yaml:"mode,omitempty"`
-	Operation     string            `json:"operation,omitempty" yaml:"operation,omitempty"`
-	Websockets    map[string]string `json:"secrets,omitempty" yaml:"secrets,omitempty"`
-	Source        string            `json:"source,omitempty" yaml:"source,omitempty"`
-	Live          bool              `json:"live,omitempty" yaml:"live,omitempty"`
-	InstanceOnly  bool              `json:"instance_only,omitempty" yaml:"instance_only,omitempty"`
-	ContainerOnly bool              `json:"container_only,omitempty" yaml:"container_only,omitempty"` // Deprecated, use InstanceOnly.
-	Refresh       bool              `json:"refresh,omitempty" yaml:"refresh,omitempty"`
-	Project       string            `json:"project,omitempty" yaml:"project,omitempty"`
+	// Source type
+	// Example: image
+	Type string `json:"type" yaml:"type"`
+
+	// Certificate (for remote images or migration)
+	// Example: X509 PEM certificate
+	Certificate string `json:"certificate" yaml:"certificate"`
+
+	// Image alias name (for image source)
+	// Example: ubuntu/20.04
+	Alias string `json:"alias,omitempty" yaml:"alias,omitempty"`
+
+	// Image fingerprint (for image source)
+	// Example: ed56997f7c5b48e8d78986d2467a26109be6fb9f2d92e8c7b08eb8b6cec7629a
+	Fingerprint string `json:"fingerprint,omitempty" yaml:"fingerprint,omitempty"`
+
+	// Image filters (for image source)
+	// Example: {"os": "Ubuntu", "release": "focal", "variant": "cloud"}
+	Properties map[string]string `json:"properties,omitempty" yaml:"properties,omitempty"`
+
+	// Remote server URL (for remote images)
+	// Example: https://images.linuxcontainers.org
+	Server string `json:"server,omitempty" yaml:"server,omitempty"`
+
+	// Remote server secret (for remote private images)
+	// Example: RANDOM-STRING
+	Secret string `json:"secret,omitempty" yaml:"secret,omitempty"`
+
+	// Protocol name (for remote image)
+	// Example: simplestreams
+	Protocol string `json:"protocol,omitempty" yaml:"protocol,omitempty"`
+
+	// Base image fingerprint (for faster migration)
+	// Example: ed56997f7c5b48e8d78986d2467a26109be6fb9f2d92e8c7b08eb8b6cec7629a
+	BaseImage string `json:"base-image,omitempty" yaml:"base-image,omitempty"`
+
+	// Whether to use pull or push mode (for migration)
+	// Example: pull
+	Mode string `json:"mode,omitempty" yaml:"mode,omitempty"`
+
+	// Remote operation URL (for migration)
+	// Example: https://1.2.3.4:8443/1.0/operations/1721ae08-b6a8-416a-9614-3f89302466e1
+	Operation string `json:"operation,omitempty" yaml:"operation,omitempty"`
+
+	// Map of migration websockets (for migration)
+	// Example: {"criu": "RANDOM-STRING", "rsync": "RANDOM-STRING"}
+	Websockets map[string]string `json:"secrets,omitempty" yaml:"secrets,omitempty"`
+
+	// Existing instance name or snapshot (for copy)
+	// Example: foo/snap0
+	Source string `json:"source,omitempty" yaml:"source,omitempty"`
+
+	// Whether this is a live migration (for migration)
+	// Example: false
+	Live bool `json:"live,omitempty" yaml:"live,omitempty"`
+
+	// Whether the copy should skip the snapshots (for copy)
+	// Example: false
+	InstanceOnly bool `json:"instance_only,omitempty" yaml:"instance_only,omitempty"`
+
+	// Whether the copy should skip the snapshots (for copy, deprecated, use instance_only)
+	// Example: false
+	ContainerOnly bool `json:"container_only,omitempty" yaml:"container_only,omitempty"` // Deprecated, use InstanceOnly.
+
+	// Whether this is refreshing an existing instance (for migration and copy)
+	// Example: false
+	Refresh bool `json:"refresh,omitempty" yaml:"refresh,omitempty"`
+
+	// Source project name (for copy and local image)
+	// Example: blah
+	Project string `json:"project,omitempty" yaml:"project,omitempty"`
 }
