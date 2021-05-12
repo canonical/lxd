@@ -225,6 +225,26 @@ func (g *Gateway) heartbeatInterval() time.Duration {
 	return threshold / 2
 }
 
+// heartbeatRestart restarts cancels any ongoing heartbeat and restarts it.
+// If there is no ongoing heartbeat then this is a no-op.
+func (g *Gateway) heartbeatRestart() {
+	g.heartbeatCancelLock.Lock() // Make sure we're the only ones inspecting the g.heartbeatCancel var.
+
+	// There is a cancellable heartbeat round ongoing.
+	if g.heartbeatCancel != nil {
+		logger.Info("Restarting heartbeat", log.Ctx{"member": g.Cluster.GetNodeID()})
+		g.heartbeatCancel()            // Request ongoing hearbeat round cancel itself.
+		g.heartbeatCancel = nil        // Indicate there is no further cancellable heartbeat round.
+		g.heartbeatCancelLock.Unlock() // Release lock ready for g.heartbeat to acquire it.
+
+		// Start a new heartbeat round async that will run as soon as ongoing heartbeat round exits.
+		go g.heartbeat(g.ctx, hearbeatImmediate)
+	} else {
+		// No cancellable heartbeat round, release lock.
+		g.heartbeatCancelLock.Unlock()
+	}
+}
+
 func (g *Gateway) heartbeat(ctx context.Context, mode heartbeatMode) {
 	// Avoid concurent heartbeat loops.
 	// This is possible when both the regular task and the out of band heartbeat round from a dqlite
