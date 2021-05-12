@@ -39,7 +39,38 @@ func coalesceErrors(local bool, errors map[string]error) error {
 	return fmt.Errorf("%s", errorMsg)
 }
 
-// Update all instance states
+// swagger:operation PUT /1.0/instances instances instances_put
+//
+// Bulk instance state update
+//
+// Changes the running state of all instances.
+//
+// ---
+// consumes:
+//   - application/json
+// produces:
+//   - application/json
+// parameters:
+//   - in: query
+//     name: project
+//     description: Project name
+//     type: string
+//     example: default
+//   - in: body
+//     name: state
+//     description: State
+//     required: false
+//     schema:
+//       $ref: "#/definitions/InstancesPut"
+// responses:
+//   "200":
+//     $ref: "#/responses/Operation"
+//   "400":
+//     $ref: "#/responses/BadRequest"
+//   "403":
+//     $ref: "#/responses/Forbidden"
+//   "500":
+//     $ref: "#/responses/InternalServerError"
 func instancesPut(d *Daemon, r *http.Request) response.Response {
 	projectName := projectParam(r)
 
