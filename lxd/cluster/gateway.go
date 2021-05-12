@@ -115,6 +115,8 @@ type Gateway struct {
 	Cluster                   *db.Cluster
 	HeartbeatNodeHook         func(*APIHeartbeat)
 	HeartbeatOfflineThreshold time.Duration
+	heartbeatCancel           context.CancelFunc
+	heartbeatCancelLock       sync.Mutex
 
 	// NodeStore wrapper.
 	store *dqliteNodeStore
@@ -234,6 +236,14 @@ func (g *Gateway) HandlerFuncs(nodeRefreshTask func(*APIHeartbeat), trustedCerts
 					http.Error(w, "500 failed to update raft nodes", http.StatusInternalServerError)
 					return
 				}
+
+				// If there is an ongoing heartbeat round (and by implication this is the leader),
+				// then this could be a problem because it could be broadcasting the stale member
+				// state information which in turn could lead to incorrect decisions being made.
+				// So calling heartbeatRestart will request any ongoing heartbeat round to cancel
+				// itself prematurely and restart another one. If there is no ongoing heartbeat
+				// round then this function call is a no-op.
+				g.heartbeatRestart()
 			} else {
 				logger.Error("Empty raft member set received")
 			}
@@ -402,7 +412,7 @@ func (g *Gateway) DialFunc() client.DialFunc {
 		// trigger a full heartbeat now: it will be a no-op if we aren't
 		// actually leaders.
 		logger.Debug("Triggering an out of schedule hearbeat", log.Ctx{"address": address})
-		go g.heartbeat(g.ctx, true)
+		go g.heartbeat(g.ctx, hearbeatInitial)
 
 		return conn, nil
 	}
