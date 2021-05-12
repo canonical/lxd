@@ -26,6 +26,7 @@ import (
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
+	log "github.com/lxc/lxd/shared/log15"
 	"github.com/lxc/lxd/shared/logger"
 	"github.com/lxc/lxd/shared/osarch"
 	"github.com/lxc/lxd/shared/version"
@@ -1717,6 +1718,10 @@ func internalClusterPostRebalance(d *Daemon, r *http.Request) response.Response 
 // Check if there's a dqlite node whose role should be changed, and post a
 // change role request if so.
 func rebalanceMemberRoles(d *Daemon) error {
+	if d.clusterMembershipClosing {
+		return nil
+	}
+
 again:
 	address, nodes, err := cluster.Rebalance(d.State(), d.gateway)
 	if err != nil {
@@ -2063,6 +2068,11 @@ func internalClusterRaftNodeDelete(d *Daemon, r *http.Request) response.Response
 	err := cluster.RemoveRaftNode(d.gateway, address)
 	if err != nil {
 		return response.SmartError(err)
+	}
+
+	err = rebalanceMemberRoles(d)
+	if err != nil && errors.Cause(err) != cluster.ErrNotLeader {
+		logger.Warn("Could not rebalance cluster member roles after raft member removal", log.Ctx{"err": err})
 	}
 
 	return response.SyncResponse(true, nil)
