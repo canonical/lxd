@@ -404,7 +404,7 @@ func (g *Gateway) DialFunc() client.DialFunc {
 		// trigger a full heartbeat now: it will be a no-op if we aren't
 		// actually leaders.
 		logger.Debug("Triggering an out of schedule hearbeat", log.Ctx{"address": address})
-		go g.heartbeat(g.ctx, true)
+		go g.heartbeat(g.ctx, hearbeatInitial)
 
 		return conn, nil
 	}

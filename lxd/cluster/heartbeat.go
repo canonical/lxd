@@ -199,7 +199,7 @@ func HeartbeatTask(gateway *Gateway) (task.Func, task.Schedule) {
 	heartbeatWrapper := func(ctx context.Context) {
 		ch := make(chan struct{})
 		go func() {
-			gateway.heartbeat(ctx, false)
+			gateway.heartbeat(ctx, hearbeatNormal)
 			ch <- struct{}{}
 		}()
 		select {
