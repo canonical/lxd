@@ -236,6 +236,14 @@ func (g *Gateway) HandlerFuncs(nodeRefreshTask func(*APIHeartbeat), trustedCerts
 					http.Error(w, "500 failed to update raft nodes", http.StatusInternalServerError)
 					return
 				}
+
+				// If there is an ongoing heartbeat round (and by implication this is the leader),
+				// then this could be a problem because it could be broadcasting the stale member
+				// state information which in turn could lead to incorrect decisions being made.
+				// So calling heartbeatRestart will request any ongoing heartbeat round to cancel
+				// itself prematurely and restart another one. If there is no ongoing heartbeat
+				// round then this function call is a no-op.
+				g.heartbeatRestart()
 			} else {
 				logger.Error("Empty raft member set received")
 			}
