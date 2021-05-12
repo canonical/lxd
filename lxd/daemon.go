@@ -1746,7 +1746,7 @@ func (d *Daemon) NodeRefreshTask(heartbeatData *cluster.APIHeartbeat) {
 	if d.lastNodeList == nil || d.lastNodeList.Version.APIExtensions != heartbeatData.Version.APIExtensions || d.lastNodeList.Version.Schema != heartbeatData.Version.Schema {
 		err := cluster.MaybeUpdate(d.State())
 		if err != nil {
-			logger.Errorf("Error updating: %v", err)
+			logger.Error("Error updating", log.Ctx{"err": err})
 			return
 		}
 	}
@@ -1788,7 +1788,7 @@ func (d *Daemon) NodeRefreshTask(heartbeatData *cluster.APIHeartbeat) {
 
 			err := networkUpdateForkdnsServersTask(d.State(), heartbeatData)
 			if err != nil {
-				logger.Errorf("Error refreshing forkdns: %v", err)
+				logger.Error("Error refreshing forkdns", log.Ctx{"err": err})
 				return
 			}
 		}
