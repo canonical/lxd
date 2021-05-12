@@ -115,6 +115,8 @@ type Gateway struct {
 	Cluster                   *db.Cluster
 	HeartbeatNodeHook         func(*APIHeartbeat)
 	HeartbeatOfflineThreshold time.Duration
+	heartbeatCancel           context.CancelFunc
+	heartbeatCancelLock       sync.Mutex
 
 	// NodeStore wrapper.
 	store *dqliteNodeStore
