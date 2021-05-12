@@ -1133,6 +1133,135 @@ definitions:
     title: InstanceExecPost represents a LXD instance exec request.
     type: object
     x-go-package: github.com/lxc/lxd/shared/api
+  InstanceFull:
+    properties:
+      architecture:
+        description: Architecture name
+        example: x86_64
+        type: string
+        x-go-name: Architecture
+      backups:
+        description: List of backups.
+        items:
+          $ref: '#/definitions/InstanceBackup'
+        type: array
+        x-go-name: Backups
+      config:
+        additionalProperties:
+          type: string
+        description: Instance configuration (see doc/instances.md)
+        example:
+          security.nesting: "true"
+        type: object
+        x-go-name: Config
+      created_at:
+        description: Instance creation timestamp
+        example: "2021-03-23T20:00:00-04:00"
+        format: date-time
+        type: string
+        x-go-name: CreatedAt
+      description:
+        description: Instance description
+        example: My test instance
+        type: string
+        x-go-name: Description
+      devices:
+        additionalProperties:
+          additionalProperties:
+            type: string
+          type: object
+        description: Instance devices (see doc/instances.md)
+        example:
+          root:
+            path: /
+            pool: default
+            type: disk
+        type: object
+        x-go-name: Devices
+      ephemeral:
+        description: Whether the instance is ephemeral (deleted on shutdown)
+        example: false
+        type: boolean
+        x-go-name: Ephemeral
+      expanded_config:
+        additionalProperties:
+          type: string
+        description: Expanded configuration (all profiles and local config merged)
+        example:
+          security.nesting: "true"
+        type: object
+        x-go-name: ExpandedConfig
+      expanded_devices:
+        additionalProperties:
+          additionalProperties:
+            type: string
+          type: object
+        description: Expanded devices (all profiles and local devices merged)
+        example:
+          root:
+            path: /
+            pool: default
+            type: disk
+        type: object
+        x-go-name: ExpandedDevices
+      last_used_at:
+        description: Last start timestamp
+        example: "2021-03-23T20:00:00-04:00"
+        format: date-time
+        type: string
+        x-go-name: LastUsedAt
+      location:
+        description: What cluster member this instance is located on
+        example: lxd01
+        type: string
+        x-go-name: Location
+      name:
+        description: Instance name
+        example: foo
+        type: string
+        x-go-name: Name
+      profiles:
+        description: List of profiles applied to the instance
+        example:
+        - default
+        items:
+          type: string
+        type: array
+        x-go-name: Profiles
+      restore:
+        description: If set, instance will be restored to the provided snapshot name
+        example: snap0
+        type: string
+        x-go-name: Restore
+      snapshots:
+        description: List of snapshots.
+        items:
+          $ref: '#/definitions/InstanceSnapshot'
+        type: array
+        x-go-name: Snapshots
+      state:
+        $ref: '#/definitions/InstanceState'
+      stateful:
+        description: Whether the instance currently has saved state on disk
+        example: false
+        type: boolean
+        x-go-name: Stateful
+      status:
+        description: Instance status (see instance_state)
+        example: Running
+        type: string
+        x-go-name: Status
+      status_code:
+        $ref: '#/definitions/StatusCode'
+      type:
+        description: The type of instance (container or virtual-machine)
+        example: container
+        type: string
+        x-go-name: Type
+    title: InstanceFull is a combination of Instance, InstanceBackup, InstanceState
+      and InstanceSnapshot.
+    type: object
+    x-go-package: github.com/lxc/lxd/shared/api
   InstancePost:
     properties:
       container_only:
@@ -1410,6 +1539,112 @@ definitions:
       snapshot.
     type: object
     x-go-package: github.com/lxc/lxd/shared/api
+  InstanceSource:
+    properties:
+      alias:
+        description: Image alias name (for image source)
+        example: ubuntu/20.04
+        type: string
+        x-go-name: Alias
+      base-image:
+        description: Base image fingerprint (for faster migration)
+        example: ed56997f7c5b48e8d78986d2467a26109be6fb9f2d92e8c7b08eb8b6cec7629a
+        type: string
+        x-go-name: BaseImage
+      certificate:
+        description: Certificate (for remote images or migration)
+        example: X509 PEM certificate
+        type: string
+        x-go-name: Certificate
+      container_only:
+        description: Whether the copy should skip the snapshots (for copy, deprecated,
+          use instance_only)
+        example: false
+        type: boolean
+        x-go-name: ContainerOnly
+      fingerprint:
+        description: Image fingerprint (for image source)
+        example: ed56997f7c5b48e8d78986d2467a26109be6fb9f2d92e8c7b08eb8b6cec7629a
+        type: string
+        x-go-name: Fingerprint
+      instance_only:
+        description: Whether the copy should skip the snapshots (for copy)
+        example: false
+        type: boolean
+        x-go-name: InstanceOnly
+      live:
+        description: Whether this is a live migration (for migration)
+        example: false
+        type: boolean
+        x-go-name: Live
+      mode:
+        description: Whether to use pull or push mode (for migration)
+        example: pull
+        type: string
+        x-go-name: Mode
+      operation:
+        description: Remote operation URL (for migration)
+        example: https://1.2.3.4:8443/1.0/operations/1721ae08-b6a8-416a-9614-3f89302466e1
+        type: string
+        x-go-name: Operation
+      project:
+        description: Source project name (for copy and local image)
+        example: blah
+        type: string
+        x-go-name: Project
+      properties:
+        additionalProperties:
+          type: string
+        description: Image filters (for image source)
+        example:
+          os: Ubuntu
+          release: focal
+          variant: cloud
+        type: object
+        x-go-name: Properties
+      protocol:
+        description: Protocol name (for remote image)
+        example: simplestreams
+        type: string
+        x-go-name: Protocol
+      refresh:
+        description: Whether this is refreshing an existing instance (for migration
+          and copy)
+        example: false
+        type: boolean
+        x-go-name: Refresh
+      secret:
+        description: Remote server secret (for remote private images)
+        example: RANDOM-STRING
+        type: string
+        x-go-name: Secret
+      secrets:
+        additionalProperties:
+          type: string
+        description: Map of migration websockets (for migration)
+        example:
+          criu: RANDOM-STRING
+          rsync: RANDOM-STRING
+        type: object
+        x-go-name: Websockets
+      server:
+        description: Remote server URL (for remote images)
+        example: https://images.linuxcontainers.org
+        type: string
+        x-go-name: Server
+      source:
+        description: Existing instance name or snapshot (for copy)
+        example: foo/snap0
+        type: string
+        x-go-name: Source
+      type:
+        description: Source type
+        example: image
+        type: string
+        x-go-name: Type
+    title: InstanceSource represents the creation source for a new instance.
+    type: object
+    x-go-package: github.com/lxc/lxd/shared/api
   InstanceState:
     properties:
       cpu:
@@ -1626,6 +1861,91 @@ definitions:
         type: integer
         x-go-name: Timeout
     title: InstanceStatePut represents the modifiable fields of a LXD instance's state.
+    type: object
+    x-go-package: github.com/lxc/lxd/shared/api
+  InstanceType:
+    title: InstanceType represents the type if instance being returned or requested
+      via the API.
+    type: string
+    x-go-package: github.com/lxc/lxd/shared/api
+  InstancesPost:
+    properties:
+      architecture:
+        description: Architecture name
+        example: x86_64
+        type: string
+        x-go-name: Architecture
+      config:
+        additionalProperties:
+          type: string
+        description: Instance configuration (see doc/instances.md)
+        example:
+          security.nesting: "true"
+        type: object
+        x-go-name: Config
+      description:
+        description: Instance description
+        example: My test instance
+        type: string
+        x-go-name: Description
+      devices:
+        additionalProperties:
+          additionalProperties:
+            type: string
+          type: object
+        description: Instance devices (see doc/instances.md)
+        example:
+          root:
+            path: /
+            pool: default
+            type: disk
+        type: object
+        x-go-name: Devices
+      ephemeral:
+        description: Whether the instance is ephemeral (deleted on shutdown)
+        example: false
+        type: boolean
+        x-go-name: Ephemeral
+      instance_type:
+        description: Cloud instance type (AWS, GCP, Azure, ...) to emulate with limits
+        example: t1.micro
+        type: string
+        x-go-name: InstanceType
+      name:
+        description: Instance name
+        example: foo
+        type: string
+        x-go-name: Name
+      profiles:
+        description: List of profiles applied to the instance
+        example:
+        - default
+        items:
+          type: string
+        type: array
+        x-go-name: Profiles
+      restore:
+        description: If set, instance will be restored to the provided snapshot name
+        example: snap0
+        type: string
+        x-go-name: Restore
+      source:
+        $ref: '#/definitions/InstanceSource'
+      stateful:
+        description: Whether the instance currently has saved state on disk
+        example: false
+        type: boolean
+        x-go-name: Stateful
+      type:
+        $ref: '#/definitions/InstanceType'
+    title: InstancesPost represents the fields available for a new LXD instance.
+    type: object
+    x-go-package: github.com/lxc/lxd/shared/api
+  InstancesPut:
+    properties:
+      state:
+        $ref: '#/definitions/InstanceStatePut'
+    title: InstancesPut represents the fields available for a mass update.
     type: object
     x-go-package: github.com/lxc/lxd/shared/api
   Network:
@@ -5688,6 +6008,131 @@ paths:
       summary: Get the images
       tags:
       - images
+  /1.0/instances:
+    get:
+      description: Returns a list of instances (URLs).
+      operationId: instances_get
+      parameters:
+      - description: Project name
+        example: default
+        in: query
+        name: project
+        type: string
+      - description: Collection filter
+        example: default
+        in: query
+        name: filter
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: API endpoints
+          schema:
+            description: Sync response
+            properties:
+              metadata:
+                description: List of endpoints
+                example: |-
+                  [
+                    "/1.0/instances/foo",
+                    "/1.0/instances/bar"
+                  ]
+                items:
+                  type: string
+                type: array
+              status:
+                description: Status description
+                example: Success
+                type: string
+              status_code:
+                description: Status code
+                example: 200
+                type: int
+              type:
+                description: Response type
+                example: sync
+                type: string
+            type: object
+        "403":
+          $ref: '#/responses/Forbidden'
+        "500":
+          $ref: '#/responses/InternalServerError'
+      summary: Get the instances
+      tags:
+      - instances
+    post:
+      consumes:
+      - application/json
+      description: |-
+        Creates a new instance on LXD.
+        Depending on the source, this can create an instance from an existing
+        local image, remote image, existing local instance or snapshot, remote
+        migration stream or backup file.
+      operationId: instances_post
+      parameters:
+      - description: Project name
+        example: default
+        in: query
+        name: project
+        type: string
+      - description: Cluster member
+        example: default
+        in: query
+        name: target
+        type: string
+      - description: Instance request
+        in: body
+        name: instance
+        schema:
+          $ref: '#/definitions/InstancesPost'
+      - description: Raw backup file
+        in: body
+        name: raw_backup
+      produces:
+      - application/json
+      responses:
+        "200":
+          $ref: '#/responses/Operation'
+        "400":
+          $ref: '#/responses/BadRequest'
+        "403":
+          $ref: '#/responses/Forbidden'
+        "500":
+          $ref: '#/responses/InternalServerError'
+      summary: Create a new instance
+      tags:
+      - instances
+    put:
+      consumes:
+      - application/json
+      description: Changes the running state of all instances.
+      operationId: instances_put
+      parameters:
+      - description: Project name
+        example: default
+        in: query
+        name: project
+        type: string
+      - description: State
+        in: body
+        name: state
+        schema:
+          $ref: '#/definitions/InstancesPut'
+      produces:
+      - application/json
+      responses:
+        "200":
+          $ref: '#/responses/Operation'
+        "400":
+          $ref: '#/responses/BadRequest'
+        "403":
+          $ref: '#/responses/Forbidden'
+        "500":
+          $ref: '#/responses/InternalServerError'
+      summary: Bulk instance state update
+      tags:
+      - instances
   /1.0/instances/{name}:
     delete:
       description: |-
@@ -7013,6 +7458,107 @@ paths:
         "500":
           $ref: '#/responses/InternalServerError'
       summary: Change the state
+      tags:
+      - instances
+  /1.0/instances?recursion=1:
+    get:
+      description: Returns a list of instances (basic structs).
+      operationId: instances_get_recursion1
+      parameters:
+      - description: Project name
+        example: default
+        in: query
+        name: project
+        type: string
+      - description: Collection filter
+        example: default
+        in: query
+        name: filter
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: API endpoints
+          schema:
+            description: Sync response
+            properties:
+              metadata:
+                description: List of instances
+                items:
+                  $ref: '#/definitions/Instance'
+                type: array
+              status:
+                description: Status description
+                example: Success
+                type: string
+              status_code:
+                description: Status code
+                example: 200
+                type: int
+              type:
+                description: Response type
+                example: sync
+                type: string
+            type: object
+        "403":
+          $ref: '#/responses/Forbidden'
+        "500":
+          $ref: '#/responses/InternalServerError'
+      summary: Get the instances
+      tags:
+      - instances
+  /1.0/instances?recursion=2:
+    get:
+      description: |-
+        Returns a list of instances (full structs).
+
+        The main difference between recursion=1 and recursion=2 is that the
+        latter also includes state and snapshot information allowing for a
+        single API call to return everything needed by most clients.
+      operationId: instances_get_recursion2
+      parameters:
+      - description: Project name
+        example: default
+        in: query
+        name: project
+        type: string
+      - description: Collection filter
+        example: default
+        in: query
+        name: filter
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: API endpoints
+          schema:
+            description: Sync response
+            properties:
+              metadata:
+                description: List of instances
+                items:
+                  $ref: '#/definitions/InstanceFull'
+                type: array
+              status:
+                description: Status description
+                example: Success
+                type: string
+              status_code:
+                description: Status code
+                example: 200
+                type: int
+              type:
+                description: Response type
+                example: sync
+                type: string
+            type: object
+        "403":
+          $ref: '#/responses/Forbidden'
+        "500":
+          $ref: '#/responses/InternalServerError'
+      summary: Get the instances
       tags:
       - instances
   /1.0/network-acls:
