@@ -54,7 +54,21 @@ var operationWebsocket = APIEndpoint{
 // that when reached will shut down the instances forcefully.
 // It also watches the cancel channel, and will return if it receives data.
 func waitForOperations(s *state.State, chCancel chan struct{}) {
-	timeout := time.After(5 * time.Minute)
+	var timeout <-chan time.Time
+	err := s.Cluster.Transaction(func(tx *db.ClusterTx) error {
+		config, err := cluster.ConfigLoad(tx)
+		if err != nil {
+			return err
+		}
+		timeout = time.After(config.ShutdownTimeout())
+		return nil
+	})
+	if err != nil {
+		// If something goes really bad just set timeout to 5 minutes
+		timeout = time.After(5 * time.Minute)
+		logger.Error("Failed getting shutdown timeout", log.Ctx{"err": err})
+	}
+
 	tick := time.Tick(time.Second)
 	logTick := time.Tick(time.Minute)
 
