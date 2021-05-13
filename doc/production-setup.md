@@ -57,6 +57,16 @@ Then, reboot the server.
 [1]: http://man7.org/linux/man-pages/man7/inotify.7.html
 [2]: https://www.kernel.org/doc/Documentation/networking/ip-sysctl.txt
 
+### Prevent container name leakage
+Both /sys/kernel/slab and /proc/sched\_debug make it easy to list all
+cgroups on the system and by extension, all containers.
+
+If this is something you'd like to see blocked, make sure you have the
+following done before any container is started:
+
+ - chmod 600 /proc/sched\_debug
+ - chmod 700 /sys/kernel/slab/
+
 ### Network Bandwidth Tweaking 
 If you have at least 1GbE NIC on your lxd host with a lot of local
 activity (container - container connections, or host - container
