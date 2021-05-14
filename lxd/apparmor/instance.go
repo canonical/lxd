@@ -180,6 +180,11 @@ func instanceProfile(state *state.State, inst instance) (string, error) {
 			ovmfPath = os.Getenv("LXD_OVMF_PATH")
 		}
 
+		ovmfPath, err = filepath.EvalSymlinks(ovmfPath)
+		if err != nil {
+			return "", err
+		}
+
 		err = qemuProfileTpl.Execute(sb, map[string]interface{}{
 			"devPaths":    devPaths,
 			"exePath":     util.GetExecPath(),
