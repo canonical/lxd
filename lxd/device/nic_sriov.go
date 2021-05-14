@@ -143,7 +143,7 @@ func (d *nicSRIOV) Start() (*deviceConfig.RunConfig, error) {
 		return nil, err
 	}
 
-	vfPCIDev, err := d.setupSriovParent(vfDev, vfID, saveData)
+	vfPCIDev, pciIOMMUGroup, err := d.setupSriovParent(vfDev, vfID, saveData)
 	if err != nil {
 		return nil, err
 	}
@@ -230,6 +230,7 @@ func (d *nicSRIOV) Start() (*deviceConfig.RunConfig, error) {
 			[]deviceConfig.RunConfigItem{
 				{Key: "devName", Value: d.name},
 				{Key: "pciSlotName", Value: vfPCIDev.SlotName},
+				{Key: "pciIOMMUGroup", Value: fmt.Sprintf("%d", pciIOMMUGroup)},
 			}...)
 	}
 
@@ -274,14 +275,15 @@ func (d *nicSRIOV) postStop() error {
 }
 
 // setupSriovParent configures a SR-IOV virtual function (VF) device on parent and stores original properties of
-// the physical device into voltatile for restoration on detach. Returns VF PCI device info.
-func (d *nicSRIOV) setupSriovParent(vfDevice string, vfID int, volatile map[string]string) (pcidev.Device, error) {
+// the physical device into voltatile for restoration on detach. Returns VF PCI device info and IOMMU group number
+// for VMs.
+func (d *nicSRIOV) setupSriovParent(vfDevice string, vfID int, volatile map[string]string) (pcidev.Device, uint64, error) {
 	var vfPCIDev pcidev.Device
 
 	// Retrieve VF settings from parent device.
 	vfInfo, err := d.networkGetVirtFuncInfo(d.config["parent"], vfID)
 	if err != nil {
-		return vfPCIDev, err
+		return vfPCIDev, 0, err
 	}
 
 	revert := revert.New()
@@ -300,19 +302,19 @@ func (d *nicSRIOV) setupSriovParent(vfDevice string, vfID int, volatile map[stri
 	// Record properties of VF device.
 	err = networkSnapshotPhysicalNic(volatile["host_name"], volatile)
 	if err != nil {
-		return vfPCIDev, err
+		return vfPCIDev, 0, err
 	}
 
 	// Get VF device's PCI Slot Name so we can unbind and rebind it from the host.
 	vfPCIDev, err = network.SRIOVGetVFDevicePCISlot(d.config["parent"], volatile["last_state.vf.id"])
 	if err != nil {
-		return vfPCIDev, err
+		return vfPCIDev, 0, err
 	}
 
 	// Unbind VF device from the host so that the settings will take effect when we rebind it.
 	err = pcidev.DeviceUnbind(vfPCIDev)
 	if err != nil {
-		return vfPCIDev, err
+		return vfPCIDev, 0, err
 	}
 
 	revert.Add(func() { pcidev.DeviceProbe(vfPCIDev) })
@@ -322,7 +324,7 @@ func (d *nicSRIOV) setupSriovParent(vfDevice string, vfID int, volatile map[stri
 		link := &ip.Link{Name: d.config["parent"]}
 		err := link.SetVfVlan(volatile["last_state.vf.id"], d.config["vlan"])
 		if err != nil {
-			return vfPCIDev, err
+			return vfPCIDev, 0, err
 		}
 	}
 
@@ -340,13 +342,13 @@ func (d *nicSRIOV) setupSriovParent(vfDevice string, vfID int, volatile map[stri
 		link := &ip.Link{Name: d.config["parent"]}
 		err = link.SetVfAddress(volatile["last_state.vf.id"], mac)
 		if err != nil {
-			return vfPCIDev, err
+			return vfPCIDev, 0, err
 		}
 
 		// Now that MAC is set on VF, we can enable spoof checking.
 		err = link.SetVfSpoofchk(volatile["last_state.vf.id"], "on")
 		if err != nil {
-			return vfPCIDev, err
+			return vfPCIDev, 0, err
 		}
 	} else {
 		// Try to reset VF to ensure no previous MAC restriction exists, as some devices require this
@@ -355,13 +357,13 @@ func (d *nicSRIOV) setupSriovParent(vfDevice string, vfID int, volatile map[stri
 		link := &ip.Link{Name: d.config["parent"]}
 		err = link.SetVfAddress(volatile["last_state.vf.id"], "00:00:00:00:00:00")
 		if err != nil {
-			return vfPCIDev, err
+			return vfPCIDev, 0, err
 		}
 
 		// Ensure spoof checking is disabled if not enabled in instance.
 		err = link.SetVfSpoofchk(volatile["last_state.vf.id"], "off")
 		if err != nil {
-			return vfPCIDev, err
+			return vfPCIDev, 0, err
 		}
 
 		// Set MAC on VF if specified (this should be passed through into VM when it is bound to vfio-pci).
@@ -374,17 +376,20 @@ func (d *nicSRIOV) setupSriovParent(vfDevice string, vfID int, volatile map[stri
 
 			err = link.SetVfAddress(volatile["last_state.vf.id"], mac)
 			if err != nil {
-				return vfPCIDev, err
+				return vfPCIDev, 0, err
 			}
 		}
 	}
+
+	// pciIOMMUGroup, used for VM physical passthrough.
+	var pciIOMMUGroup uint64
 
 	if d.inst.Type() == instancetype.Container {
 		// Bind VF device onto the host so that the settings will take effect.
 		// This will remove the VF interface temporarily, and it will re-appear shortly after.
 		err = pcidev.DeviceProbe(vfPCIDev)
 		if err != nil {
-			return vfPCIDev, err
+			return vfPCIDev, 0, err
 		}
 
 		// Wait for VF driver to be reloaded. Unfortunately the time between sending the bind event
@@ -392,13 +397,18 @@ func (d *nicSRIOV) setupSriovParent(vfDevice string, vfID int, volatile map[stri
 		// otherwise next steps of applying settings to interface will fail.
 		err = network.InterfaceBindWait(volatile["host_name"])
 		if err != nil {
-			return vfPCIDev, err
+			return vfPCIDev, 0, err
 		}
 	} else if d.inst.Type() == instancetype.VM {
+		pciIOMMUGroup, err = pcidev.DeviceIOMMUGroup(vfPCIDev.SlotName)
+		if err != nil {
+			return vfPCIDev, 0, err
+		}
+
 		// Register VF device with vfio-pci driver so it can be passed to VM.
 		err = pcidev.DeviceDriverOverride(vfPCIDev, "vfio-pci")
 		if err != nil {
-			return vfPCIDev, err
+			return vfPCIDev, 0, err
 		}
 
 		// Record original driver used by VF device for restore.
@@ -406,7 +416,7 @@ func (d *nicSRIOV) setupSriovParent(vfDevice string, vfID int, volatile map[stri
 	}
 
 	revert.Success()
-	return vfPCIDev, nil
+	return vfPCIDev, pciIOMMUGroup, nil
 }
 
 // VirtFuncInfo holds information about SR-IOV virtual functions.
