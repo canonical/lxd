@@ -219,7 +219,7 @@ func HeartbeatTask(gateway *Gateway) (task.Func, task.Schedule) {
 func (g *Gateway) heartbeatInterval() time.Duration {
 	threshold := g.HeartbeatOfflineThreshold
 	if threshold <= 0 {
-		threshold = db.DefaultOfflineThreshold
+		threshold = time.Duration(db.DefaultOfflineThreshold) * time.Second
 	}
 
 	return threshold / 2
