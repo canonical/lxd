@@ -16,7 +16,6 @@ import (
 	"strconv"
 	"strings"
 	"sync"
-	"text/template"
 	"time"
 
 	"github.com/flosch/pongo2"
@@ -75,6 +74,8 @@ var errQemuAgentOffline = fmt.Errorf("LXD VM agent isn't currently running")
 
 var vmConsole = map[int]bool{}
 var vmConsoleLock sync.Mutex
+
+type monitorHook func(m *qmp.Monitor) error
 
 // qemuLoad creates a Qemu instance from the supplied InstanceArgs.
 func qemuLoad(s *state.State, args db.InstanceArgs, profiles []api.Profile) (instance.Instance, error) {
@@ -1015,7 +1016,7 @@ func (d *qemu) Start(stateful bool) error {
 	// Define a set of files to open and pass their file descriptors to qemu command.
 	fdFiles := make([]string, 0)
 
-	confFile, err := d.generateQemuConfigFile(mountInfo, qemuBus, devConfs, &fdFiles)
+	confFile, monHooks, err := d.generateQemuConfigFile(mountInfo, qemuBus, devConfs, &fdFiles)
 	if err != nil {
 		op.Done(err)
 		return err
@@ -1024,6 +1025,7 @@ func (d *qemu) Start(stateful bool) error {
 	// Snapshot if needed.
 	err = d.startupSnapshot(d)
 	if err != nil {
+		op.Done(err)
 		return err
 	}
 
@@ -1057,24 +1059,19 @@ func (d *qemu) Start(stateful bool) error {
 		}
 
 		qemuCmd = append(qemuCmd, "-incoming", "defer")
-	} else {
-		// The chroot option can't be used when restoring a migration stream.
-		qemuCmd = append(qemuCmd, "-chroot", d.Path())
+	} else if d.stateful {
+		// Stateless start requested but state is present, delete it.
+		err := os.Remove(d.StatePath())
+		if err != nil && !os.IsNotExist(err) {
+			op.Done(err)
+			return err
+		}
 
-		if d.stateful {
-			// Stateless start requested but state is present, delete it.
-			err := os.Remove(d.StatePath())
-			if err != nil && !os.IsNotExist(err) {
-				op.Done(err)
-				return err
-			}
-
-			d.stateful = false
-			err = d.state.Cluster.UpdateInstanceStatefulFlag(d.id, false)
-			if err != nil {
-				op.Done(err)
-				return errors.Wrap(err, "Error updating instance stateful flag")
-			}
+		d.stateful = false
+		err = d.state.Cluster.UpdateInstanceStatefulFlag(d.id, false)
+		if err != nil {
+			op.Done(err)
+			return errors.Wrap(err, "Error updating instance stateful flag")
 		}
 	}
 
@@ -1097,13 +1094,11 @@ func (d *qemu) Start(stateful bool) error {
 		err := filepath.Walk(filepath.Join(d.Path(), "config"),
 			func(path string, info os.FileInfo, err error) error {
 				if err != nil {
-					op.Done(err)
 					return err
 				}
 
 				err = os.Chown(path, int(d.state.OS.UnprivUID), -1)
 				if err != nil {
-					op.Done(err)
 					return err
 				}
 
@@ -1275,6 +1270,15 @@ func (d *qemu) Start(stateful bool) error {
 					return err
 				}
 			}
+		}
+	}
+
+	// Run monitor hooks from devices.
+	for _, monHook := range monHooks {
+		err = monHook(monitor)
+		if err != nil {
+			op.Done(err)
+			return errors.Wrapf(err, "Failed setting up device via monitor")
 		}
 	}
 
@@ -2004,19 +2008,20 @@ func (d *qemu) deviceBootPriorities() (map[string]int, error) {
 
 // generateQemuConfigFile writes the qemu config file and returns its location.
 // It writes the config file inside the VM's log path.
-func (d *qemu) generateQemuConfigFile(mountInfo *storagePools.MountInfo, busName string, devConfs []*deviceConfig.RunConfig, fdFiles *[]string) (string, error) {
+func (d *qemu) generateQemuConfigFile(mountInfo *storagePools.MountInfo, busName string, devConfs []*deviceConfig.RunConfig, fdFiles *[]string) (string, []monitorHook, error) {
 	var sb *strings.Builder = &strings.Builder{}
+	var monHooks []monitorHook
 
 	err := qemuBase.Execute(sb, map[string]interface{}{
 		"architecture": d.architectureName,
 	})
 	if err != nil {
-		return "", err
+		return "", nil, err
 	}
 
 	cpuCount, err := d.addCPUMemoryConfig(sb)
 	if err != nil {
-		return "", err
+		return "", nil, err
 	}
 
 	err = qemuDriveFirmware.Execute(sb, map[string]interface{}{
@@ -2025,14 +2030,14 @@ func (d *qemu) generateQemuConfigFile(mountInfo *storagePools.MountInfo, busName
 		"nvramPath":    d.nvramPath(),
 	})
 	if err != nil {
-		return "", err
+		return "", nil, err
 	}
 
 	err = qemuControlSocket.Execute(sb, map[string]interface{}{
 		"path": d.monitorPath(),
 	})
 	if err != nil {
-		return "", err
+		return "", nil, err
 	}
 
 	// Setup the bus allocator.
@@ -2053,7 +2058,7 @@ func (d *qemu) generateQemuConfigFile(mountInfo *storagePools.MountInfo, busName
 		"multifunction": multi,
 	})
 	if err != nil {
-		return "", err
+		return "", nil, err
 	}
 
 	devBus, devAddr, multi = bus.allocate(busFunctionGroupGeneric)
@@ -2064,7 +2069,7 @@ func (d *qemu) generateQemuConfigFile(mountInfo *storagePools.MountInfo, busName
 		"multifunction": multi,
 	})
 	if err != nil {
-		return "", err
+		return "", nil, err
 	}
 
 	devBus, devAddr, multi = bus.allocate(busFunctionGroupGeneric)
@@ -2075,7 +2080,7 @@ func (d *qemu) generateQemuConfigFile(mountInfo *storagePools.MountInfo, busName
 		"multifunction": multi,
 	})
 	if err != nil {
-		return "", err
+		return "", nil, err
 	}
 
 	devBus, devAddr, multi = bus.allocate(busFunctionGroupGeneric)
@@ -2086,7 +2091,7 @@ func (d *qemu) generateQemuConfigFile(mountInfo *storagePools.MountInfo, busName
 		"multifunction": multi,
 	})
 	if err != nil {
-		return "", err
+		return "", nil, err
 	}
 
 	devBus, devAddr, multi = bus.allocate(busFunctionGroupGeneric)
@@ -2099,7 +2104,7 @@ func (d *qemu) generateQemuConfigFile(mountInfo *storagePools.MountInfo, busName
 		"vsockID": d.vsockID(),
 	})
 	if err != nil {
-		return "", err
+		return "", nil, err
 	}
 
 	devBus, devAddr, multi = bus.allocate(busFunctionGroupGeneric)
@@ -2113,7 +2118,7 @@ func (d *qemu) generateQemuConfigFile(mountInfo *storagePools.MountInfo, busName
 		"ringbufSizeBytes": qmp.RingbufSize,
 	})
 	if err != nil {
-		return "", err
+		return "", nil, err
 	}
 
 	// s390x doesn't really have USB.
@@ -2126,7 +2131,7 @@ func (d *qemu) generateQemuConfigFile(mountInfo *storagePools.MountInfo, busName
 			"multifunction": multi,
 		})
 		if err != nil {
-			return "", err
+			return "", nil, err
 		}
 	}
 
@@ -2138,7 +2143,7 @@ func (d *qemu) generateQemuConfigFile(mountInfo *storagePools.MountInfo, busName
 		"multifunction": multi,
 	})
 	if err != nil {
-		return "", err
+		return "", nil, err
 	}
 
 	devBus, devAddr, multi = bus.allocate(busFunctionGroup9p)
@@ -2152,7 +2157,7 @@ func (d *qemu) generateQemuConfigFile(mountInfo *storagePools.MountInfo, busName
 		"path": filepath.Join(d.Path(), "config"),
 	})
 	if err != nil {
-		return "", err
+		return "", nil, err
 	}
 
 	sockPath := filepath.Join(d.LogPath(), "virtio-fs.config.sock")
@@ -2168,7 +2173,7 @@ func (d *qemu) generateQemuConfigFile(mountInfo *storagePools.MountInfo, busName
 			"path": sockPath,
 		})
 		if err != nil {
-			return "", err
+			return "", nil, err
 		}
 	}
 
@@ -2182,13 +2187,13 @@ func (d *qemu) generateQemuConfigFile(mountInfo *storagePools.MountInfo, busName
 		"architecture": d.architectureName,
 	})
 	if err != nil {
-		return "", err
+		return "", nil, err
 	}
 
 	// Dynamic devices.
 	bootIndexes, err := d.deviceBootPriorities()
 	if err != nil {
-		return "", errors.Wrap(err, "Error calculating boot indexes")
+		return "", nil, errors.Wrap(err, "Error calculating boot indexes")
 	}
 
 	// Record the mounts we are going to do inside the VM using the agent.
@@ -2210,24 +2215,26 @@ func (d *qemu) generateQemuConfigFile(mountInfo *storagePools.MountInfo, busName
 					err = d.addDriveConfig(sb, bootIndexes, drive)
 				}
 				if err != nil {
-					return "", err
+					return "", nil, err
 				}
 			}
 		}
 
 		// Add network device.
 		if len(runConf.NetworkInterface) > 0 {
-			err = d.addNetDevConfig(sb, cpuCount, bus, bootIndexes, runConf.NetworkInterface, fdFiles)
+			monHook, err := d.addNetDevConfig(sb, cpuCount, bus, bootIndexes, runConf.NetworkInterface, fdFiles)
 			if err != nil {
-				return "", err
+				return "", nil, err
 			}
+
+			monHooks = append(monHooks, monHook)
 		}
 
 		// Add GPU device.
 		if len(runConf.GPUDevice) > 0 {
 			err = d.addGPUDevConfig(sb, bus, runConf.GPUDevice)
 			if err != nil {
-				return "", err
+				return "", nil, err
 			}
 		}
 
@@ -2235,7 +2242,7 @@ func (d *qemu) generateQemuConfigFile(mountInfo *storagePools.MountInfo, busName
 		if len(runConf.PCIDevice) > 0 {
 			err = d.addPCIDevConfig(sb, bus, runConf.PCIDevice)
 			if err != nil {
-				return "", err
+				return "", nil, err
 			}
 		}
 
@@ -2243,7 +2250,7 @@ func (d *qemu) generateQemuConfigFile(mountInfo *storagePools.MountInfo, busName
 		if len(runConf.USBDevice) > 0 {
 			err = d.addUSBDeviceConfig(sb, bus, runConf.USBDevice)
 			if err != nil {
-				return "", err
+				return "", nil, err
 			}
 		}
 
@@ -2251,7 +2258,7 @@ func (d *qemu) generateQemuConfigFile(mountInfo *storagePools.MountInfo, busName
 		if len(runConf.TPMDevice) > 0 {
 			err = d.addTPMDeviceConfig(sb, runConf.TPMDevice)
 			if err != nil {
-				return "", err
+				return "", nil, err
 			}
 		}
 
@@ -2260,18 +2267,18 @@ func (d *qemu) generateQemuConfigFile(mountInfo *storagePools.MountInfo, busName
 	// Write the agent mount config.
 	agentMountJSON, err := json.Marshal(agentMounts)
 	if err != nil {
-		return "", errors.Wrapf(err, "Failed marshalling agent mounts to JSON")
+		return "", nil, errors.Wrapf(err, "Failed marshalling agent mounts to JSON")
 	}
 
 	agentMountFile := filepath.Join(d.Path(), "config", "agent-mounts.json")
 	err = ioutil.WriteFile(agentMountFile, agentMountJSON, 0400)
 	if err != nil {
-		return "", errors.Wrapf(err, "Failed writing agent mounts file")
+		return "", nil, errors.Wrapf(err, "Failed writing agent mounts file")
 	}
 
 	// Write the config file to disk.
 	configPath := filepath.Join(d.LogPath(), "qemu.conf")
-	return configPath, ioutil.WriteFile(configPath, []byte(sb.String()), 0640)
+	return configPath, monHooks, ioutil.WriteFile(configPath, []byte(sb.String()), 0640)
 }
 
 // addCPUMemoryConfig adds the qemu config required for setting the number of virtualised CPUs and memory.
@@ -2560,8 +2567,11 @@ func (d *qemu) addDriveConfig(sb *strings.Builder, bootIndexes map[string]int, d
 }
 
 // addNetDevConfig adds the qemu config required for adding a network device.
-func (d *qemu) addNetDevConfig(sb *strings.Builder, cpuCount int, bus *qemuBus, bootIndexes map[string]int, nicConfig []deviceConfig.RunConfigItem, fdFiles *[]string) error {
-	var devName, nicName, devHwaddr, pciSlotName string
+func (d *qemu) addNetDevConfig(sb *strings.Builder, cpuCount int, bus *qemuBus, bootIndexes map[string]int, nicConfig []deviceConfig.RunConfigItem, fdFiles *[]string) (monitorHook, error) {
+	revert := revert.New()
+	defer revert.Fail()
+
+	var devName, nicName, devHwaddr, pciSlotName, pciIOMMUGroup string
 	for _, nicItem := range nicConfig {
 		if nicItem.Key == "devName" {
 			devName = nicItem.Value
@@ -2571,17 +2581,15 @@ func (d *qemu) addNetDevConfig(sb *strings.Builder, cpuCount int, bus *qemuBus, 
 			devHwaddr = nicItem.Value
 		} else if nicItem.Key == "pciSlotName" {
 			pciSlotName = nicItem.Value
+		} else if nicItem.Key == "pciIOMMUGroup" {
+			pciIOMMUGroup = nicItem.Value
 		}
 	}
 
-	var tpl *template.Template
-	tplFields := map[string]interface{}{
-		"bus":       bus.name,
-		"devName":   devName,
-		"devHwaddr": devHwaddr,
-		"vectors":   0,
-		"queues":    0,
-		"bootIndex": bootIndexes[devName],
+	var qemuNetDev map[string]interface{}
+	qemuDev := map[string]string{
+		"id":        fmt.Sprintf("dev-lxd_%s", devName),
+		"bootindex": strconv.Itoa(bootIndexes[devName]),
 	}
 
 	// Detect MACVTAP interface types and figure out which tap device is being used.
@@ -2589,49 +2597,126 @@ func (d *qemu) addNetDevConfig(sb *strings.Builder, cpuCount int, bus *qemuBus, 
 	if shared.PathExists(fmt.Sprintf("/sys/class/net/%s/macvtap", nicName)) {
 		content, err := ioutil.ReadFile(fmt.Sprintf("/sys/class/net/%s/ifindex", nicName))
 		if err != nil {
-			return errors.Wrapf(err, "Error getting tap device ifindex")
+			return nil, errors.Wrapf(err, "Error getting tap device ifindex")
 		}
 
 		ifindex, err := strconv.Atoi(strings.TrimSpace(string(content)))
 		if err != nil {
-			return errors.Wrapf(err, "Error parsing tap device ifindex")
+			return nil, errors.Wrapf(err, "Error parsing tap device ifindex")
 		}
 
 		// Append the tap device file path to the list of files to be opened and passed to qemu.
-		tplFields["tapFD"] = d.addFileDescriptor(fdFiles, fmt.Sprintf("/dev/tap%d", ifindex))
-		tpl = qemuNetDevTapFD
+		fd := d.addFileDescriptor(fdFiles, fmt.Sprintf("/dev/tap%d", ifindex))
+
+		qemuNetDev = map[string]interface{}{
+			"id":    fmt.Sprintf("lxd_%s", devName),
+			"type":  "tap",
+			"vhost": true,
+			"fd":    strconv.Itoa(fd),
+		}
+
+		if shared.StringInSlice(bus.name, []string{"pcie", "pci"}) {
+			qemuDev["driver"] = "virtio-net-pci"
+			qemuDev["bus"] = bus.name
+		} else if bus.name == "ccw" {
+			qemuDev["driver"] = "virtio-net-ccw"
+		}
+
+		qemuDev["netdev"] = fmt.Sprintf("lxd_%s", devName)
+		qemuDev["mac"] = devHwaddr
 	} else if shared.PathExists(fmt.Sprintf("/sys/class/net/%s/tun_flags", nicName)) {
 		// Detect TAP (via TUN driver) device.
-		tplFields["ifName"] = nicName
+		qemuNetDev = map[string]interface{}{
+			"id":         fmt.Sprintf("lxd_%s", devName),
+			"type":       "tap",
+			"vhost":      true,
+			"script":     "no",
+			"downscript": "no",
+			"ifname":     nicName,
+		}
 
-		// Run with a minimum of two queues.
+		// Number of queues is the same as number of vCPUs. Run with a minimum of two queues.
 		queueCount := cpuCount
 		if queueCount < 2 {
 			queueCount = 2
 		}
 
-		// Number of queues is the same as number of vCPUs.
-		tplFields["queues"] = queueCount
+		if queueCount > 0 {
+			qemuNetDev["queues"] = strconv.Itoa(queueCount)
+		}
+
+		if shared.StringInSlice(bus.name, []string{"pcie", "pci"}) {
+			qemuDev["driver"] = "virtio-net-pci"
+			qemuDev["bus"] = bus.name
+		} else if bus.name == "ccw" {
+			qemuDev["driver"] = "virtio-net-ccw"
+		}
 
 		// Number of vectors is number of vCPUs * 2 (RX/TX) + 2 (config/control MSI-X).
-		tplFields["vectors"] = 2*queueCount + 2
+		vectors := 2*queueCount + 2
+		if vectors > 0 {
+			qemuDev["mq"] = "on"
+			if shared.StringInSlice(bus.name, []string{"pcie", "pci"}) {
+				qemuDev["vectors"] = strconv.Itoa(vectors)
+			}
+		}
 
-		tpl = qemuNetDevTapTun
+		qemuDev["netdev"] = fmt.Sprintf("lxd_%s", devName)
+		qemuDev["mac"] = devHwaddr
 	} else if pciSlotName != "" {
 		// Detect physical passthrough device.
-		tplFields["pciSlotName"] = pciSlotName
-		tpl = qemuPCIPhysical
+		if shared.StringInSlice(bus.name, []string{"pcie", "pci"}) {
+			qemuDev["driver"] = "vfio-pci"
+		} else if bus.name == "ccw" {
+			qemuDev["driver"] = "vfio-ccw"
+		}
+
+		qemuDev["host"] = pciSlotName
+
+		if d.state.OS.UnprivUser != "" {
+			if pciIOMMUGroup == "" {
+				return nil, fmt.Errorf("No PCI IOMMU group supplied")
+			}
+
+			vfioGroupFile := fmt.Sprintf("/dev/vfio/%s", pciIOMMUGroup)
+			err := os.Chown(vfioGroupFile, int(d.state.OS.UnprivUID), -1)
+			if err != nil {
+				return nil, errors.Wrapf(err, "Failed to chown vfio group device %q", vfioGroupFile)
+			}
+			revert.Add(func() { os.Chown(vfioGroupFile, 0, -1) })
+		}
 	}
 
+	// Allocate a pcie port and write it to the config file so QMP can "hotplug" the NIC later.
 	devBus, devAddr, multi := bus.allocate(busFunctionGroupNone)
-	tplFields["devBus"] = devBus
-	tplFields["devAddr"] = devAddr
-	tplFields["multifunction"] = multi
-	if tpl != nil {
-		return tpl.Execute(sb, tplFields)
+
+	if shared.StringInSlice(bus.name, []string{"pcie", "pci"}) {
+		qemuDev["bus"] = devBus
+		qemuDev["addr"] = devAddr
 	}
 
-	return fmt.Errorf("Unrecognised device type")
+	if multi {
+		qemuDev["multifunction"] = "on"
+	} else {
+		qemuDev["multifunction"] = "off"
+	}
+
+	if qemuDev["driver"] != "" {
+		// Return a monitor hook to add the NIC via QMP before the VM is started.
+		monHook := func(m *qmp.Monitor) error {
+			err := m.AddNIC(qemuNetDev, qemuDev)
+			if err != nil {
+				return errors.Wrapf(err, "Failed setting up device %v", devName)
+			}
+
+			return nil
+		}
+
+		revert.Success()
+		return monHook, nil
+	}
+
+	return nil, fmt.Errorf("Unrecognised device type")
 }
 
 // addPCIDevConfig adds the qemu config required for adding a raw PCI device.
