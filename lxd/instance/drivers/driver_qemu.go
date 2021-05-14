@@ -858,6 +858,15 @@ func (d *qemu) Start(stateful bool) error {
 		}
 	}
 
+	// Remove old pid file if needed.
+	if shared.PathExists(d.pidFilePath()) {
+		err = os.Remove(d.pidFilePath())
+		if err != nil {
+			op.Done(err)
+			return errors.Wrapf(err, "Failed removing old PID file %q", d.pidFilePath())
+		}
+	}
+
 	// Mount the instance's config volume.
 	mountInfo, err := d.mount()
 	if err != nil {
