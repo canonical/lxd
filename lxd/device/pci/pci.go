@@ -6,6 +6,7 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 
@@ -172,4 +173,26 @@ func NormaliseAddress(addr string) string {
 	addr = strings.ToLower(addr)
 
 	return addr
+}
+
+// DeviceIOMMUGroup returns the IOMMU group for a PCI device.
+func DeviceIOMMUGroup(slotName string) (uint64, error) {
+	iommuGroupSymPath := fmt.Sprintf("/sys/bus/pci/devices/%s/iommu_group", slotName)
+	_, err := os.Lstat(iommuGroupSymPath)
+	if err != nil {
+		return 0, err
+	}
+
+	iommuGroupPath, err := os.Readlink(iommuGroupSymPath)
+	if err != nil {
+		return 0, err
+	}
+
+	iommuGroupStr := filepath.Base(iommuGroupPath)
+	iommuGroup, err := strconv.ParseUint(iommuGroupStr, 10, 64)
+	if err != nil {
+		return 0, errors.Wrapf(err, "Failed to parse %q", iommuGroupStr)
+	}
+
+	return iommuGroup, nil
 }
