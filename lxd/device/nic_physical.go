@@ -80,8 +80,8 @@ func (d *nicPhysical) Start() (*deviceConfig.RunConfig, error) {
 	revert := revert.New()
 	defer revert.Fail()
 
-	// pciSlotName, used for VM physical passthrough.
-	var pciSlotName string
+	// pciIOMMUGroup, used for VM physical passthrough.
+	var pciIOMMUGroup uint64
 
 	// If VM, then try and load the vfio-pci module first.
 	if d.inst.Type() == instancetype.VM {
@@ -145,12 +145,15 @@ func (d *nicPhysical) Start() (*deviceConfig.RunConfig, error) {
 		saveData["last_state.pci.slot.name"] = pciDev.SlotName
 		saveData["last_state.pci.driver"] = pciDev.Driver
 
-		err = pcidev.DeviceDriverOverride(pciDev, "vfio-pci")
+		pciIOMMUGroup, err = pcidev.DeviceIOMMUGroup(saveData["last_state.pci.slot.name"])
 		if err != nil {
 			return nil, err
 		}
 
-		pciSlotName = saveData["last_state.pci.slot.name"]
+		err = pcidev.DeviceDriverOverride(pciDev, "vfio-pci")
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	err = d.volatileSet(saveData)
@@ -170,7 +173,8 @@ func (d *nicPhysical) Start() (*deviceConfig.RunConfig, error) {
 		runConf.NetworkInterface = append(runConf.NetworkInterface,
 			[]deviceConfig.RunConfigItem{
 				{Key: "devName", Value: d.name},
-				{Key: "pciSlotName", Value: pciSlotName},
+				{Key: "pciSlotName", Value: saveData["last_state.pci.slot.name"]},
+				{Key: "pciIOMMUGroup", Value: fmt.Sprintf("%d", pciIOMMUGroup)},
 			}...)
 	}
 

@@ -1,10 +1,13 @@
 package qmp
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 	"strings"
 	"time"
+
+	"github.com/pkg/errors"
 
 	"github.com/lxc/lxd/shared"
 )
@@ -241,4 +244,33 @@ func (m *Monitor) GetMemoryBalloonSizeBytes() (int64, error) {
 // SetMemoryBalloonSizeBytes sets the size of the memory in bytes (which will resize the balloon as needed).
 func (m *Monitor) SetMemoryBalloonSizeBytes(sizeBytes int64) error {
 	return m.run("balloon", fmt.Sprintf("{'value': %d}", sizeBytes), nil)
+}
+
+// AddNIC adds a NIC device.
+func (m *Monitor) AddNIC(netDev map[string]interface{}, device map[string]string) error {
+	if netDev != nil {
+		args, err := json.Marshal(netDev)
+		if err != nil {
+			return err
+		}
+
+		err = m.run("netdev_add", string(args), nil)
+		if err != nil {
+			return errors.Wrapf(err, "Failed adding NIC netdev")
+		}
+	}
+
+	if device != nil {
+		args, err := json.Marshal(device)
+		if err != nil {
+			return err
+		}
+
+		err = m.run("device_add", string(args), nil)
+		if err != nil {
+			return errors.Wrapf(err, "Failed adding NIC device")
+		}
+	}
+
+	return nil
 }
