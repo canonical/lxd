@@ -1067,24 +1067,19 @@ func (d *qemu) Start(stateful bool) error {
 		}
 
 		qemuCmd = append(qemuCmd, "-incoming", "defer")
-	} else {
-		// The chroot option can't be used when restoring a migration stream.
-		qemuCmd = append(qemuCmd, "-chroot", d.Path())
+	} else if d.stateful {
+		// Stateless start requested but state is present, delete it.
+		err := os.Remove(d.StatePath())
+		if err != nil && !os.IsNotExist(err) {
+			op.Done(err)
+			return err
+		}
 
-		if d.stateful {
-			// Stateless start requested but state is present, delete it.
-			err := os.Remove(d.StatePath())
-			if err != nil && !os.IsNotExist(err) {
-				op.Done(err)
-				return err
-			}
-
-			d.stateful = false
-			err = d.state.Cluster.UpdateInstanceStatefulFlag(d.id, false)
-			if err != nil {
-				op.Done(err)
-				return errors.Wrap(err, "Error updating instance stateful flag")
-			}
+		d.stateful = false
+		err = d.state.Cluster.UpdateInstanceStatefulFlag(d.id, false)
+		if err != nil {
+			op.Done(err)
+			return errors.Wrap(err, "Error updating instance stateful flag")
 		}
 	}
 
