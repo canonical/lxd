@@ -1024,6 +1024,7 @@ func (d *qemu) Start(stateful bool) error {
 	// Snapshot if needed.
 	err = d.startupSnapshot(d)
 	if err != nil {
+		op.Done(err)
 		return err
 	}
 
@@ -1097,13 +1098,11 @@ func (d *qemu) Start(stateful bool) error {
 		err := filepath.Walk(filepath.Join(d.Path(), "config"),
 			func(path string, info os.FileInfo, err error) error {
 				if err != nil {
-					op.Done(err)
 					return err
 				}
 
 				err = os.Chown(path, int(d.state.OS.UnprivUID), -1)
 				if err != nil {
-					op.Done(err)
 					return err
 				}
 
