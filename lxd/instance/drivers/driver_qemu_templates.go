@@ -507,7 +507,7 @@ fd = "{{.tapFD}}"
 
 // Devices use "lxd_" prefix indicating that this is a user named device.
 var qemuPCIPhysical = template.Must(template.New("qemuPCIPhysical").Parse(`
-# Network card ("{{.devName}}" device)
+# PCI card ("{{.devName}}" device)
 [device "dev-lxd_{{.devName}}"]
 {{- if eq .bus "pci" "pcie"}}
 driver = "vfio-pci"
