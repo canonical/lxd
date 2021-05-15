@@ -5350,10 +5350,20 @@ func (d *qemu) writeInstanceData() error {
 		userConfig[k] = v
 	}
 
+	location := "none"
+	clustered, err := cluster.Enabled(d.state.Node)
+	if err != nil {
+		return err
+	}
+	if clustered {
+		location = d.Location()
+	}
+
 	out, err := json.Marshal(struct {
-		Name   string            `json:"name"`
-		Config map[string]string `json:"config,omitempty"`
-	}{d.Name(), userConfig})
+		Name     string            `json:"name"`
+		Location string            `json:"location"`
+		Config   map[string]string `json:"config,omitempty"`
+	}{d.Name(), location, userConfig})
 	if err != nil {
 		return err
 	}
