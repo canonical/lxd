@@ -2634,7 +2634,7 @@ func (d *qemu) addNetDevConfig(sb *strings.Builder, cpuCount int, bus *qemuBus, 
 		}
 
 		if queueCount > 0 {
-			qemuNetDev["queues"] = strconv.Itoa(queueCount)
+			qemuNetDev["queues"] = queueCount
 		}
 
 		if shared.StringInSlice(bus.name, []string{"pcie", "pci"}) {
