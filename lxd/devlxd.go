@@ -17,6 +17,7 @@ import (
 	"github.com/gorilla/mux"
 	"golang.org/x/sys/unix"
 
+	"github.com/lxc/lxd/lxd/cluster"
 	"github.com/lxc/lxd/lxd/daemon"
 	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/instance/instancetype"
@@ -151,13 +152,24 @@ var devlxdEventsGet = devLxdHandler{"/1.0/events", func(d *Daemon, c instance.In
 	return &devLxdResponse{"websocket", http.StatusOK, "websocket"}
 }}
 
+var devlxdAPIGet = devLxdHandler{"/1.0", func(d *Daemon, c instance.Instance, w http.ResponseWriter, r *http.Request) *devLxdResponse {
+	location := "none"
+	clustered, err := cluster.Enabled(d.db)
+	if err != nil {
+		return &devLxdResponse{"internal server error", http.StatusInternalServerError, "raw"}
+	}
+
+	if clustered {
+		location = c.Location()
+	}
+	return okResponse(shared.Jmap{"api_version": version.APIVersion, "location": location}, "json")
+}}
+
 var handlers = []devLxdHandler{
 	{"/", func(d *Daemon, c instance.Instance, w http.ResponseWriter, r *http.Request) *devLxdResponse {
 		return okResponse([]string{"/1.0"}, "json")
 	}},
-	{"/1.0", func(d *Daemon, c instance.Instance, w http.ResponseWriter, r *http.Request) *devLxdResponse {
-		return okResponse(shared.Jmap{"api_version": version.APIVersion}, "json")
-	}},
+	devlxdAPIGet,
 	devlxdConfigGet,
 	devlxdConfigKeyGet,
 	devlxdMetadataGet,
