@@ -1740,13 +1740,16 @@ func (d *lxc) deviceHandleMounts(mounts []deviceConfig.MountEntryItem) error {
 				}
 			}
 
-			shiftfs := false
+			var idmapType idmap.IdmapStorageType = idmap.IdmapStorageNone
 			if mount.OwnerShift == deviceConfig.MountOwnerShiftDynamic {
-				shiftfs = true
+				idmapType = d.IdmappedStorage(mount.DevPath)
+				if idmapType == idmap.IdmapStorageNone {
+					return fmt.Errorf("Required idmapping abilities not available")
+				}
 			}
 
 			// Mount it into the container.
-			err := d.insertMount(mount.DevPath, mount.TargetPath, mount.FSType, flags, shiftfs)
+			err := d.insertMount(mount.DevPath, mount.TargetPath, mount.FSType, flags, idmapType)
 			if err != nil {
 				return fmt.Errorf("Failed to add mount for device inside container: %s", err)
 			}
@@ -2144,28 +2147,33 @@ func (d *lxc) startCommon() (string, []func() error, error) {
 					return "", nil, errors.Wrapf(fmt.Errorf("liblxc 3.0 is required for mount propagation configuration"), "Failed to setup device mount '%s'", dev.Name)
 				}
 
+				mntOptions := strings.Join(mount.Opts, ",")
+
 				if mount.OwnerShift == deviceConfig.MountOwnerShiftDynamic && !d.IsPrivileged() {
-					if !d.state.OS.Shiftfs {
-						return "", nil, errors.Wrapf(fmt.Errorf("shiftfs is required but isn't supported on system"), "Failed to setup device mount '%s'", dev.Name)
-					}
+					switch d.IdmappedStorage(mount.DevPath) {
+					case idmap.IdmapStorageIdmapped:
+						mntOptions = strings.Join([]string{mntOptions, "idmap=container"}, ",")
+					case idmap.IdmapStorageShiftfs:
+						err = lxcSetConfigItem(d.c, "lxc.hook.pre-start", fmt.Sprintf("/bin/mount -t shiftfs -o mark,passthrough=3 %s %s", strconv.Quote(mount.DevPath), strconv.Quote(mount.DevPath)))
+						if err != nil {
+							return "", nil, errors.Wrapf(err, "Failed to setup device mount shiftfs '%s'", dev.Name)
+						}
 
-					err = lxcSetConfigItem(d.c, "lxc.hook.pre-start", fmt.Sprintf("/bin/mount -t shiftfs -o mark,passthrough=3 %s %s", strconv.Quote(mount.DevPath), strconv.Quote(mount.DevPath)))
-					if err != nil {
-						return "", nil, errors.Wrapf(err, "Failed to setup device mount shiftfs '%s'", dev.Name)
-					}
+						err = lxcSetConfigItem(d.c, "lxc.hook.pre-mount", fmt.Sprintf("/bin/mount -t shiftfs -o passthrough=3 %s %s", strconv.Quote(mount.DevPath), strconv.Quote(mount.DevPath)))
+						if err != nil {
+							return "", nil, errors.Wrapf(err, "Failed to setup device mount shiftfs '%s'", dev.Name)
+						}
 
-					err = lxcSetConfigItem(d.c, "lxc.hook.pre-mount", fmt.Sprintf("/bin/mount -t shiftfs -o passthrough=3 %s %s", strconv.Quote(mount.DevPath), strconv.Quote(mount.DevPath)))
-					if err != nil {
-						return "", nil, errors.Wrapf(err, "Failed to setup device mount shiftfs '%s'", dev.Name)
-					}
-
-					err = lxcSetConfigItem(d.c, "lxc.hook.start-host", fmt.Sprintf("/bin/umount -l %s", strconv.Quote(mount.DevPath)))
-					if err != nil {
-						return "", nil, errors.Wrapf(err, "Failed to setup device mount shiftfs '%s'", dev.Name)
+						err = lxcSetConfigItem(d.c, "lxc.hook.start-host", fmt.Sprintf("/bin/umount -l %s", strconv.Quote(mount.DevPath)))
+						if err != nil {
+							return "", nil, errors.Wrapf(err, "Failed to setup device mount shiftfs '%s'", dev.Name)
+						}
+					case idmap.IdmapStorageNone:
+						return "", nil, errors.Wrapf(fmt.Errorf("idmapping abilities are required but aren't supported on system"), "Failed to setup device mount '%s'", dev.Name)
 					}
 				}
 
-				mntVal := fmt.Sprintf("%s %s %s %s %d %d", shared.EscapePathFstab(mount.DevPath), shared.EscapePathFstab(mount.TargetPath), mount.FSType, strings.Join(mount.Opts, ","), mount.Freq, mount.PassNo)
+				mntVal := fmt.Sprintf("%s %s %s %s %d %d", shared.EscapePathFstab(mount.DevPath), shared.EscapePathFstab(mount.TargetPath), mount.FSType, mntOptions, mount.Freq, mount.PassNo)
 				err = lxcSetConfigItem(d.c, "lxc.mount.entry", mntVal)
 				if err != nil {
 					return "", nil, errors.Wrapf(err, "Failed to setup device mount '%s'", dev.Name)
@@ -4106,7 +4114,7 @@ func (d *lxc) Update(args db.InstanceArgs, userRequested bool) error {
 				}
 			} else if key == "security.devlxd" {
 				if value == "" || shared.IsTrue(value) {
-					err = d.insertMount(shared.VarPath("devlxd"), "/dev/lxd", "none", unix.MS_BIND, false)
+					err = d.insertMount(shared.VarPath("devlxd"), "/dev/lxd", "none", unix.MS_BIND, idmap.IdmapStorageNone)
 					if err != nil {
 						return err
 					}
@@ -5972,7 +5980,7 @@ func (d *lxc) unmount() (bool, error) {
 // we'll have a deadlock (with a timeout but still). The InitPID() call here is
 // the exception since the seccomp notifier will make sure to always pass a
 // valid PID.
-func (d *lxc) insertMountLXD(source, target, fstype string, flags int, mntnsPID int, shiftfs bool) error {
+func (d *lxc) insertMountLXD(source, target, fstype string, flags int, mntnsPID int, idmapType idmap.IdmapStorageType) error {
 	pid := mntnsPID
 	if pid <= 0 {
 		// Get the init PID
@@ -6026,7 +6034,7 @@ func (d *lxc) insertMountLXD(source, target, fstype string, flags int, mntnsPID 
 		unix.MS_NODIRATIME))
 
 	// Setup host side shiftfs as needed
-	if shiftfs {
+	if idmapType == idmap.IdmapStorageShiftfs {
 		err = unix.Mount(tmpMount, tmpMount, "shiftfs", uintptr(shiftfsFlags), "mark,passthrough=3")
 		if err != nil {
 			return fmt.Errorf("Failed to setup host side shiftfs mount: %s", err)
@@ -6057,7 +6065,7 @@ func (d *lxc) insertMountLXD(source, target, fstype string, flags int, mntnsPID 
 		fmt.Sprintf("%d", pidFdNr),
 		mntsrc,
 		target,
-		fmt.Sprintf("%v", shiftfs),
+		string(idmapType),
 		fmt.Sprintf("%d", shiftfsFlags))
 	if err != nil {
 		return err
@@ -6096,12 +6104,12 @@ func (d *lxc) insertMountLXC(source, target, fstype string, flags int) error {
 	return nil
 }
 
-func (d *lxc) insertMount(source, target, fstype string, flags int, shiftfs bool) error {
-	if d.state.OS.LXCFeatures["mount_injection_file"] && !shiftfs {
+func (d *lxc) insertMount(source, target, fstype string, flags int, idmapType idmap.IdmapStorageType) error {
+	if d.state.OS.LXCFeatures["mount_injection_file"] && idmapType == idmap.IdmapStorageNone {
 		return d.insertMountLXC(source, target, fstype, flags)
 	}
 
-	return d.insertMountLXD(source, target, fstype, flags, -1, shiftfs)
+	return d.insertMountLXD(source, target, fstype, flags, -1, idmapType)
 }
 
 func (d *lxc) removeMount(mount string) error {
@@ -6210,7 +6218,7 @@ func (d *lxc) InsertSeccompUnixDevice(prefix string, m deviceConfig.Device, pid 
 
 	// Bind-mount it into the container
 	defer os.Remove(devPath)
-	return d.insertMountLXD(devPath, tgtPath, "none", unix.MS_BIND, pid, false)
+	return d.insertMountLXD(devPath, tgtPath, "none", unix.MS_BIND, pid, idmap.IdmapStorageNone)
 }
 
 func (d *lxc) removeUnixDevices() error {
