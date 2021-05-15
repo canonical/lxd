@@ -39,6 +39,7 @@ import (
 
 #include "../../lxd/include/lxd_posix_acl_xattr.h"
 #include "../../lxd/include/memory_utils.h"
+#include "../../lxd/include/mount_utils.h"
 #include "../../lxd/include/process_utils.h"
 #include "../../lxd/include/syscall_numbers.h"
 #include "../../lxd/include/syscall_wrappers.h"
@@ -271,20 +272,6 @@ static void *posix_entry_next(void *value)
 	struct posix_acl_xattr_entry *entry = value;
 	return (void *)(entry + 1);
 }
-
-// open_tree() flags
-#ifndef OPEN_TREE_CLONE
-#define OPEN_TREE_CLONE 1
-#endif
-
-#ifndef OPEN_TREE_CLOEXEC
-#define OPEN_TREE_CLOEXEC O_CLOEXEC
-#endif
-
-// mount attributes
-#ifndef MOUNT_ATTR_IDMAP
-#define MOUNT_ATTR_IDMAP 0x00100000
-#endif
 
 #define __STACK_SIZE (8 * 1024 * 1024)
 static pid_t do_clone(int (*fn)(void *), void *arg, int flags)
