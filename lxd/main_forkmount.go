@@ -31,6 +31,9 @@ import (
 #include <unistd.h>
 
 #include "include/memory_utils.h"
+#include "include/mount_utils.h"
+#include "include/syscall_numbers.h"
+#include "include/syscall_wrappers.h"
 
 #define VERSION_AT_LEAST(major, minor, micro)							\
 	((LXC_DEVEL == 1) || (!(major > LXC_VERSION_MAJOR ||					\
@@ -41,6 +44,7 @@ extern char* advance_arg(bool required);
 extern void error(char *msg);
 extern void attach_userns_fd(int ns_fd);
 extern int pidfd_nsfd(int pidfd, pid_t pid);
+extern int preserve_ns(pid_t pid, int ns_fd, const char *ns);
 extern bool change_namespaces(int pidfd, int nsfd, unsigned int flags);
 
 int mkdir_p(const char *dir, mode_t mode)
@@ -157,11 +161,74 @@ static int lxc_safe_ulong(const char *numstr, unsigned long *converted)
 	return 0;
 }
 
+static int mount_detach_idmap(const char *path, int fd_userns)
+{
+	__do_close int fd_tree = -EBADF;
+	struct lxc_mount_attr attr = {
+	    .attr_set		= MOUNT_ATTR_IDMAP,
+
+	};
+	int ret;
+
+	fd_tree = open_tree(-EBADF, path, OPEN_TREE_CLONE | OPEN_TREE_CLOEXEC);
+	if (fd_tree < 0)
+		return -errno;
+
+	attr.userns_fd = fd_userns;
+	ret = mount_setattr(fd_tree, "", AT_EMPTY_PATH, &attr, sizeof(attr));
+	if (ret < 0)
+		return -errno;
+
+	return move_fd(fd_tree);
+}
+
 static void do_lxd_forkmount(int pidfd, int ns_fd)
 {
 	unsigned long mntflags = 0;
+	int fd_tree = -EBADF;
 	int ret;
 	char *src, *dest, *idmapType, *flags;
+
+	src = advance_arg(true);
+	dest = advance_arg(true);
+	idmapType = advance_arg(true);
+	flags = advance_arg(true);
+
+	if (strcmp(idmapType, "idmapped") == 0) {
+		int fd_mntns, fd_userns;
+
+		fd_userns = preserve_ns(-ESRCH, ns_fd, "user");
+		if (fd_userns < 0) {
+			fprintf(stderr, "Failed to open user namespace of container: %s\n", strerror(errno));
+			_exit(1);
+		}
+
+		fd_mntns = preserve_ns(getpid(), -EBADF, "mnt");
+		if (fd_mntns < 0) {
+			fprintf(stderr, "Failed to open mount namespace of container: %s\n", strerror(errno));
+			_exit(1);
+		}
+
+		if (!change_namespaces(pidfd, ns_fd, CLONE_NEWNS)) {
+			fprintf(stderr, "Failed setns to container mount namespace: %s\n", strerror(errno));
+			_exit(1);
+		}
+
+		fd_tree = mount_detach_idmap(src, fd_userns);
+		if (fd_tree < 0) {
+			fprintf(stderr, "Failed to create detached idmapped mount \"%s\": %s\n", src, strerror(errno));
+			_exit(1);
+		}
+
+		ret = setns(fd_mntns, CLONE_NEWNS);
+		if (ret) {
+			fprintf(stderr, "Failed to switch to original mount namespace: %s\n", strerror(errno));
+			_exit(1);
+		}
+
+		close_prot_errno_disarm(fd_userns);
+		close_prot_errno_disarm(fd_mntns);
+	}
 
 	attach_userns_fd(ns_fd);
 
@@ -169,15 +236,6 @@ static void do_lxd_forkmount(int pidfd, int ns_fd)
 		fprintf(stderr, "Failed setns to container mount namespace: %s\n", strerror(errno));
 		_exit(1);
 	}
-
-	src = advance_arg(true);
-	dest = advance_arg(true);
-	idmapType = advance_arg(true);
-	flags = advance_arg(true);
-
-	ret = lxc_safe_ulong(flags, &mntflags);
-	if (ret < 0)
-		_exit(1);
 
 	create(src, dest);
 
@@ -190,6 +248,21 @@ static void do_lxd_forkmount(int pidfd, int ns_fd)
 		fprintf(stderr, "Mount destination doesn't exist: %s\n", strerror(errno));
 		_exit(1);
 	}
+
+	if (fd_tree >= 0) {
+		ret = move_mount(fd_tree, "", -EBADF, dest, MOVE_MOUNT_F_EMPTY_PATH);
+		if (ret) {
+			fprintf(stderr, "Failed to move detached mount to target from %d to %s: %s\n", fd_tree, dest, strerror(errno));
+			_exit(1);
+		}
+
+		close_prot_errno_disarm(fd_tree);
+		_exit(0);
+	}
+
+	ret = lxc_safe_ulong(flags, &mntflags);
+	if (ret < 0)
+		_exit(1);
 
 	if (strcmp(idmapType, "shiftfs") == 0) {
 		// Setup shiftfs inside the container

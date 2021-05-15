@@ -42,4 +42,11 @@ static inline int mount_setattr(int dfd, const char *path, unsigned int flags,
 	return syscall(__NR_mount_setattr, dfd, path, flags, attr, size);
 }
 
+static inline int move_mount(int from_dfd, const char *from_pathname, int to_dfd,
+			     const char *to_pathname, unsigned int flags)
+{
+	return syscall(__NR_move_mount, from_dfd, from_pathname, to_dfd,
+		       to_pathname, flags);
+}
+
 #endif /* __LXD_SYSCALL_WRAPPER_H */
