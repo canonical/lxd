@@ -161,7 +161,7 @@ static void do_lxd_forkmount(int pidfd, int ns_fd)
 {
 	unsigned long mntflags = 0;
 	int ret;
-	char *src, *dest, *shiftfs, *flags;
+	char *src, *dest, *idmapType, *flags;
 
 	attach_userns_fd(ns_fd);
 
@@ -172,7 +172,7 @@ static void do_lxd_forkmount(int pidfd, int ns_fd)
 
 	src = advance_arg(true);
 	dest = advance_arg(true);
-	shiftfs = advance_arg(true);
+	idmapType = advance_arg(true);
 	flags = advance_arg(true);
 
 	ret = lxc_safe_ulong(flags, &mntflags);
@@ -191,7 +191,7 @@ static void do_lxd_forkmount(int pidfd, int ns_fd)
 		_exit(1);
 	}
 
-	if (strcmp(shiftfs, "true") == 0) {
+	if (strcmp(idmapType, "shiftfs") == 0) {
 		// Setup shiftfs inside the container
 		if (mount(src, src, "shiftfs", mntflags, "passthrough=3") < 0) {
 			fprintf(stderr, "Failed shiftfs setup for %s: %s\n", src, strerror(errno));
@@ -204,7 +204,7 @@ static void do_lxd_forkmount(int pidfd, int ns_fd)
 	// but if it does, we want to move those too.
 	if (mount(src, dest, "none", MS_MOVE | MS_REC, NULL) < 0) {
 		// If using shiftfs, undo the shiftfs mount
-		if (strcmp(shiftfs, "true") == 0) {
+		if (strcmp(idmapType, "shiftfs") == 0) {
 			umount2(src, MNT_DETACH);
 		}
 
@@ -212,7 +212,7 @@ static void do_lxd_forkmount(int pidfd, int ns_fd)
 		_exit(1);
 	}
 
-	if (strcmp(shiftfs, "true") == 0) {
+	if (strcmp(idmapType, "shiftfs") == 0) {
 		// Clear source mount as target is now in place
 		if (umount2(src, MNT_DETACH) < 0) {
 			fprintf(stderr, "Failed shiftfs source unmount for %s: %s\n", src, strerror(errno));
@@ -419,7 +419,7 @@ func (c *cmdForkmount) Command() *cobra.Command {
 	cmd.AddCommand(cmdLXCMount)
 
 	cmdLXDMount := &cobra.Command{}
-	cmdLXDMount.Use = "lxd-mount <PID> <PidFd> <source> <destination> <shiftfs> <flags>"
+	cmdLXDMount.Use = "lxd-mount <PID> <PidFd> <source> <destination> <idmapType> <flags>"
 	cmdLXDMount.Args = cobra.ExactArgs(6)
 	cmdLXDMount.RunE = c.Run
 	cmd.AddCommand(cmdLXDMount)
