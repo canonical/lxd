@@ -60,6 +60,7 @@ func (n NodeInfo) ToAPI(cluster *Cluster, node *Node) (*api.ClusterMember, error
 	var offlineThreshold time.Duration
 	var maxVersion [2]int
 	var failureDomain string
+	var autoTarget bool
 
 	// From cluster database.
 	err = cluster.Transaction(func(tx *ClusterTx) error {
@@ -67,6 +68,12 @@ func (n NodeInfo) ToAPI(cluster *Cluster, node *Node) (*api.ClusterMember, error
 		offlineThreshold, err = tx.GetNodeOfflineThreshold()
 		if err != nil {
 			return errors.Wrap(err, "Load offline threshold config")
+		}
+
+		// Get auto-target.
+		autoTarget, err = tx.GetAutoTarget(n.ID)
+		if err != nil {
+			return errors.Wrap(err, "Load nodes auto-target")
 		}
 
 		// Get failure domains.
@@ -121,6 +128,7 @@ func (n NodeInfo) ToAPI(cluster *Cluster, node *Node) (*api.ClusterMember, error
 	// Fill in the struct.
 	result := api.ClusterMember{}
 	result.Description = n.Description
+	result.AutoTarget = autoTarget
 	result.ServerName = n.Name
 	result.URL = fmt.Sprintf("https://%s", n.Address)
 	result.Database = raftNode != nil && raftNode.Role == RaftVoter
@@ -630,6 +638,43 @@ func (c *ClusterTx) UpdateNodeRoles(id int64, roles []ClusterRole) error {
 	return nil
 }
 
+// SetAutoTarget sets the auto-target of the given node.
+func (c *ClusterTx) SetAutoTarget(node_id int64, autoTarget bool) error {
+	var autoTargetInt int64
+
+	if autoTarget {
+		autoTargetInt = 1
+	}
+
+	stmt := `UPDATE auto_target SET auto_target=? WHERE node_id=?`
+	result, err := c.tx.Exec(stmt, autoTargetInt, node_id)
+	if err != nil {
+		return errors.Wrap(err, "Failed to update node auto-target")
+	}
+
+	n, err := result.RowsAffected()
+	if err != nil {
+		return errors.Wrap(err, "Failed to get rows count")
+	}
+
+	if n != 1 {
+		return fmt.Errorf("Expected to update one row, not %d", n)
+	}
+
+	return nil
+}
+
+// GetAutoTarget returns the auto-target of the given node.
+func (c *ClusterTx) GetAutoTarget(node_id int64) (bool, error) {
+	var autoTarget int64
+
+	err := c.tx.QueryRow("SELECT auto_target FROM auto_target WHERE node_id=?", node_id).Scan(&autoTarget)
+	if err != nil {
+		return false, err
+	}
+	return autoTarget != 0, nil
+}
+
 // UpdateNodeFailureDomain changes the failure domain of a node.
 func (c *ClusterTx) UpdateNodeFailureDomain(id int64, domain string) error {
 	var domainID interface{}
@@ -930,10 +975,10 @@ func (c *ClusterTx) GetNodeOfflineThreshold() (time.Duration, error) {
 	return threshold, nil
 }
 
-// GetNodeWithLeastInstances returns the name of the non-offline node with with
-// the least number of containers (either already created or being created with
-// an operation). If archs is not empty, then return only nodes with an
-// architecture in that list.
+// GetNodeWithLeastInstances returns the name of the non-offline node with
+// auto-target set to true with the least number of containers (either already
+// created or being created with an operation). If archs is not empty, then
+// return only nodes with an architecture in that list.
 func (c *ClusterTx) GetNodeWithLeastInstances(archs []int, defaultArch int) (string, error) {
 	threshold, err := c.GetNodeOfflineThreshold()
 	if err != nil {
@@ -950,6 +995,16 @@ func (c *ClusterTx) GetNodeWithLeastInstances(archs []int, defaultArch int) (str
 	isDefaultArchChosen := false
 	for _, node := range nodes {
 		if node.IsOffline(threshold) {
+			continue
+		}
+
+		// Get auto-target.
+		autoTarget, err := c.GetAutoTarget(node.ID)
+		if err != nil {
+			return "", errors.Wrap(err, "failed to get node auto-target")
+		}
+
+		if !autoTarget {
 			continue
 		}
 

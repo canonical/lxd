@@ -176,6 +176,12 @@ type ClusterMember struct {
 	//
 	// API extension: clustering_architecture
 	Architecture string `json:"architecture" yaml:"architecture"`
+
+	// Whether the cluster member is auto targetable
+	// Example: true
+	//
+	// API extension: clustering_auto_target
+	AutoTarget bool `json:"auto_target" yaml:"auto_target"`
 }
 
 // Writable converts a full Profile struct into a ProfilePut struct (filters read-only fields)
@@ -206,4 +212,10 @@ type ClusterMemberPut struct {
 	//
 	// API extension: clustering_description
 	Description string `json:"description" yaml:"description"`
+
+	// Cluster member auto-target
+	// Example: true
+	//
+	// API extension: clustering_auto_target
+	AutoTarget bool `json:"auto_target" yaml:"auto_target"`
 }

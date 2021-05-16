@@ -271,6 +271,7 @@ var APIExtensions = []string{
 	"projects_restricted_backups_and_snapshots",
 	"clustering_join_token",
 	"clustering_description",
+	"clustering_auto_target",
 }
 
 // APIExtensionsCount returns the number of available API extensions.

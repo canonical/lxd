@@ -87,6 +87,22 @@ var updates = map[int]schema.Update{
 	46: updateFromV45,
 	47: updateFromV46,
 	48: updateFromV47,
+	49: updateFromV48,
+}
+
+// updateFromV48 Add auto_target table
+func updateFromV48(tx *sql.Tx) error {
+	stmts := `
+CREATE TABLE auto_target (
+    id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+    node_id INTEGER NOT NULL,
+    auto_target INTEGER NOT NULL,
+    FOREIGN KEY (node_id) REFERENCES nodes (id) ON DELETE CASCADE,
+    UNIQUE (node_id)
+);
+`
+	_, err := tx.Exec(stmts)
+	return err
 }
 
 // updateFromV47 adds warnings

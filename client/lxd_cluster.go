@@ -126,6 +126,11 @@ func (r *ProtocolLXD) UpdateClusterMember(name string, member api.ClusterMemberP
 			return fmt.Errorf("The server is missing the required \"clustering_failure_domains\" API extension")
 		}
 	}
+	if member.AutoTarget != false {
+		if !r.HasExtension("clustering_auto_target") {
+			return fmt.Errorf("The server is missing the required \"clustering_auto_target\" API extension")
+		}
+	}
 
 	// Send the request
 	_, _, err := r.query("PUT", fmt.Sprintf("/cluster/members/%s", name), member, ETag)

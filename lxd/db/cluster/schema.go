@@ -6,6 +6,13 @@ package cluster
 // modify the database schema, please add a new schema update to update.go
 // and the run 'make update-schema'.
 const freshSchema = `
+CREATE TABLE auto_target (
+    id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+    node_id INTEGER NOT NULL,
+    auto_target INTEGER NOT NULL,
+    FOREIGN KEY (node_id) REFERENCES nodes (id) ON DELETE CASCADE,
+    UNIQUE (node_id)
+);
 CREATE TABLE certificates (
     id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
     fingerprint TEXT NOT NULL,
@@ -657,5 +664,5 @@ CREATE TABLE warnings (
 );
 CREATE UNIQUE INDEX warnings_unique_node_id_project_id_entity_type_code_entity_id_type_code ON warnings(IFNULL(node_id, -1), IFNULL(project_id, -1), entity_type_code, entity_id, type_code);
 
-INSERT INTO schema (version, updated_at) VALUES (48, strftime("%s"))
+INSERT INTO schema (version, updated_at) VALUES (49, strftime("%s"))
 `

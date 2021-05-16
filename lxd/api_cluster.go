@@ -1354,6 +1354,14 @@ func clusterNodePut(d *Daemon, r *http.Request) response.Response {
 			}
 		}
 
+		// Update auto-target.
+		if req.AutoTarget != member.AutoTarget {
+			err = tx.SetAutoTarget(nodeInfo.ID, req.AutoTarget)
+			if err != nil {
+				return errors.Wrap(err, "Update auto-target")
+			}
+		}
+
 		// Update the roles.
 		dbRoles := []db.ClusterRole{}
 		for _, role := range req.Roles {
