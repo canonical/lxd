@@ -5182,7 +5182,7 @@ func (d *qemu) devlxdEventSend(eventType string, eventMessage interface{}) error
 
 func (d *qemu) writeInstanceData() error {
 	// Only write instance-data file if security.devlxd is true.
-	if !shared.IsTrue(d.expandedConfig["security.devlxd"]) {
+	if !(d.expandedConfig["security.devlxd"] == "" || shared.IsTrue(d.expandedConfig["security.devlxd"])) {
 		return nil
 	}
 
