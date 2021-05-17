@@ -2689,8 +2689,6 @@ func (d *qemu) addNetDevConfig(sb *strings.Builder, cpuCount int, bus *qemuBus, 
 
 	if multi {
 		qemuDev["multifunction"] = "on"
-	} else {
-		qemuDev["multifunction"] = "off"
 	}
 
 	if qemuDev["driver"] != "" {
