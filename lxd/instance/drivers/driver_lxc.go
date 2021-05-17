@@ -6034,12 +6034,17 @@ func (d *lxc) insertMountLXD(source, target, fstype string, flags int, mntnsPID 
 		unix.MS_NODIRATIME))
 
 	// Setup host side shiftfs as needed
-	if idmapType == idmap.IdmapStorageShiftfs {
+	switch idmapType {
+	case idmap.IdmapStorageShiftfs:
 		err = unix.Mount(tmpMount, tmpMount, "shiftfs", uintptr(shiftfsFlags), "mark,passthrough=3")
 		if err != nil {
 			return fmt.Errorf("Failed to setup host side shiftfs mount: %s", err)
 		}
 		defer unix.Unmount(tmpMount, unix.MNT_DETACH)
+	case idmap.IdmapStorageIdmapped:
+	case idmap.IdmapStorageNone:
+	default:
+		return fmt.Errorf("Invalid idmap value specified")
 	}
 
 	// Move the mount inside the container

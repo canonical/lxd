@@ -42,8 +42,10 @@ import (
 #include <unistd.h>
 
 #include "include/memory_utils.h"
+#include "include/mount_utils.h"
 #include "include/process_utils.h"
 #include "include/syscall_numbers.h"
+#include "include/syscall_wrappers.h"
 
 // External functions
 extern void checkfeature();
@@ -312,6 +314,27 @@ static char *file_to_buf(char *path, ssize_t *length)
 	}
 
 	return move_ptr(copy);
+}
+
+int mount_detach_idmap(const char *path, int fd_userns)
+{
+	__do_close int fd_tree = -EBADF;
+	struct lxc_mount_attr attr = {
+	    .attr_set		= MOUNT_ATTR_IDMAP,
+
+	};
+	int ret;
+
+	fd_tree = open_tree(-EBADF, path, OPEN_TREE_CLONE | OPEN_TREE_CLOEXEC);
+	if (fd_tree < 0)
+		return -errno;
+
+	attr.userns_fd = fd_userns;
+	ret = mount_setattr(fd_tree, "", AT_EMPTY_PATH, &attr, sizeof(attr));
+	if (ret < 0)
+		return -errno;
+
+	return move_fd(fd_tree);
 }
 
 __attribute__((constructor)) void init(void) {

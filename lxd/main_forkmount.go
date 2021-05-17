@@ -46,6 +46,7 @@ extern void attach_userns_fd(int ns_fd);
 extern int pidfd_nsfd(int pidfd, pid_t pid);
 extern int preserve_ns(pid_t pid, int ns_fd, const char *ns);
 extern bool change_namespaces(int pidfd, int nsfd, unsigned int flags);
+extern int mount_detach_idmap(const char *path, int fd_userns);
 
 int mkdir_p(const char *dir, mode_t mode)
 {
@@ -159,27 +160,6 @@ static int lxc_safe_ulong(const char *numstr, unsigned long *converted)
 
 	*converted = uli;
 	return 0;
-}
-
-static int mount_detach_idmap(const char *path, int fd_userns)
-{
-	__do_close int fd_tree = -EBADF;
-	struct lxc_mount_attr attr = {
-	    .attr_set		= MOUNT_ATTR_IDMAP,
-
-	};
-	int ret;
-
-	fd_tree = open_tree(-EBADF, path, OPEN_TREE_CLONE | OPEN_TREE_CLOEXEC);
-	if (fd_tree < 0)
-		return -errno;
-
-	attr.userns_fd = fd_userns;
-	ret = mount_setattr(fd_tree, "", AT_EMPTY_PATH, &attr, sizeof(attr));
-	if (ret < 0)
-		return -errno;
-
-	return move_fd(fd_tree);
 }
 
 static void do_lxd_forkmount(int pidfd, int ns_fd)
