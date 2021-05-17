@@ -201,7 +201,7 @@ func urlInstanceTypeDetect(r *http.Request) (instancetype.Type, error) {
 //     $ref: "#/responses/InternalServerError"
 func instancesGet(d *Daemon, r *http.Request) response.Response {
 	for i := 0; i < 100; i++ {
-		result, err := doContainersGet(d, r)
+		result, err := doInstancesGet(d, r)
 		if err == nil {
 			return response.SyncResponse(true, result)
 		}
@@ -219,7 +219,7 @@ func instancesGet(d *Daemon, r *http.Request) response.Response {
 	return response.InternalError(fmt.Errorf("DB is locked"))
 }
 
-func doContainersGet(d *Daemon, r *http.Request) (interface{}, error) {
+func doInstancesGet(d *Daemon, r *http.Request) (interface{}, error) {
 	resultString := []string{}
 	resultList := []*api.Instance{}
 	resultFullList := []*api.InstanceFull{}
