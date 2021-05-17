@@ -1065,6 +1065,16 @@ func (n *ovn) startUplinkPortPhysical(uplinkNet Network) error {
 		return fmt.Errorf("Uplink network %q is not started (interface %q is missing)", uplinkNet.Name(), uplinkHostName)
 	}
 
+	// Check no global unicast IPs defined on uplink, as that may indicate it is in use by another application.
+	addresses, _, err := InterfaceStatus(uplinkHostName)
+	if err != nil {
+		return errors.Wrapf(err, "Failed getting interface status for %q", uplinkHostName)
+	}
+
+	if len(addresses) > 0 {
+		return fmt.Errorf("Cannot start network as uplink network interface %q has one or more IP addresses configured on it", uplinkHostName)
+	}
+
 	// Detect if uplink interface is a native bridge.
 	if IsNativeBridge(uplinkHostName) {
 		return n.startUplinkPortBridgeNative(uplinkNet, uplinkHostName)
@@ -1081,7 +1091,7 @@ func (n *ovn) startUplinkPortPhysical(uplinkNet Network) error {
 	vars := n.uplinkPortBridgeVars(uplinkNet)
 
 	// Ensure correct sysctls are set on uplink interface to avoid getting IPv6 link-local addresses.
-	err := util.SysctlSet(
+	err = util.SysctlSet(
 		fmt.Sprintf("net/ipv6/conf/%s/disable_ipv6", uplinkHostName), "1",
 		fmt.Sprintf("net/ipv6/conf/%s/forwarding", uplinkHostName), "0",
 	)
