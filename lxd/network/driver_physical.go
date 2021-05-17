@@ -162,6 +162,16 @@ func (n *physical) Start() error {
 		revert.Add(func() { InterfaceRemove(hostName) })
 	}
 
+	// Check no global unicast IPs defined on parent, as that may indicate it is in use by another application.
+	addresses, _, err := InterfaceStatus(hostName)
+	if err != nil {
+		return errors.Wrapf(err, "Failed getting interface status for %q", hostName)
+	}
+
+	if len(addresses) > 0 {
+		return fmt.Errorf("Cannot start network as parent interface %q has one or more IP addresses configured on it", hostName)
+	}
+
 	// Set the MTU.
 	if n.config["mtu"] != "" {
 		phyLink := &ip.Link{Name: hostName}
