@@ -645,7 +645,7 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 	// Attempt to add a dummy device to the bridge to force the MTU.
 	if mtu != "" && n.config["bridge.driver"] != "openvswitch" {
 		dummy := &ip.Dummy{
-			Link: ip.Link{Name: fmt.Sprintf("%s-mtu", n.name), Mtu: mtu},
+			Link: ip.Link{Name: fmt.Sprintf("%s-mtu", n.name), MTU: mtu},
 		}
 		err = dummy.Add()
 		if err == nil {
@@ -662,7 +662,7 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 		mtu = "1500"
 	}
 
-	err = bridgeLink.SetMtu(mtu)
+	err = bridgeLink.SetMTU(mtu)
 	if err != nil {
 		return err
 	}
@@ -1184,13 +1184,13 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 				mtu = fanMtu
 				if n.config["bridge.driver"] != "openvswitch" {
 					mtuLink := &ip.Link{Name: fmt.Sprintf("%s-mtu", n.name)}
-					err = mtuLink.SetMtu(mtu)
+					err = mtuLink.SetMTU(mtu)
 					if err != nil {
 						return err
 					}
 				}
 
-				err = bridgeLink.SetMtu(mtu)
+				err = bridgeLink.SetMTU(mtu)
 				if err != nil {
 					return err
 				}
@@ -1277,7 +1277,7 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 				return err
 			}
 
-			err = vxlan.SetMtu(mtu)
+			err = vxlan.SetMTU(mtu)
 			if err != nil {
 				return err
 			}
@@ -1413,7 +1413,7 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 		}
 
 		tunLink := &ip.Link{Name: tunName}
-		err = tunLink.SetMtu(mtu)
+		err = tunLink.SetMTU(mtu)
 		if err != nil {
 			return err
 		}
