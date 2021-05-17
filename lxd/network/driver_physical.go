@@ -8,6 +8,7 @@ import (
 
 	"github.com/lxc/lxd/lxd/cluster/request"
 	"github.com/lxc/lxd/lxd/db"
+	"github.com/lxc/lxd/lxd/ip"
 	"github.com/lxc/lxd/lxd/project"
 	"github.com/lxc/lxd/lxd/revert"
 	"github.com/lxc/lxd/shared"
@@ -163,9 +164,10 @@ func (n *physical) Start() error {
 
 	// Set the MTU.
 	if n.config["mtu"] != "" {
-		err = InterfaceSetMTU(hostName, n.config["mtu"])
+		phyLink := &ip.Link{Name: hostName}
+		err = phyLink.SetMTU(n.config["mtu"])
 		if err != nil {
-			return err
+			return errors.Wrapf(err, "Failed setting MTU %q on %q", n.config["mtu"], phyLink.Name)
 		}
 	}
 
@@ -201,9 +203,11 @@ func (n *physical) Stop() error {
 
 	// Reset MTU back to 1500 if overridden in config.
 	if n.config["mtu"] != "" && InterfaceExists(hostName) {
-		err := InterfaceSetMTU(hostName, "1500")
+		resetMTU := "1500"
+		link := &ip.Link{Name: hostName}
+		err := link.SetMTU(resetMTU)
 		if err != nil {
-			return err
+			return errors.Wrapf(err, "Failed setting MTU %q on %q", link, link.Name)
 		}
 	}
 
