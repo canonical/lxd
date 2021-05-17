@@ -951,19 +951,6 @@ func InterfaceExists(nic string) bool {
 	return false
 }
 
-// InterfaceSetMTU sets the MTU of a network interface.
-func InterfaceSetMTU(nic string, mtu string) error {
-	if mtu != "" {
-		link := &ip.Link{Name: nic}
-		err := link.SetMtu(mtu)
-		if err != nil {
-			return errors.Wrapf(err, "Failed setting MTU %q on %q", mtu, nic)
-		}
-	}
-
-	return nil
-}
-
 // SubnetContains returns true if outerSubnet contains innerSubnet.
 func SubnetContains(outerSubnet *net.IPNet, innerSubnet *net.IPNet) bool {
 	if outerSubnet == nil || innerSubnet == nil {
