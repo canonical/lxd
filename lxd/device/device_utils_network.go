@@ -36,7 +36,7 @@ func NetworkSetDevMTU(devName string, mtu uint32) error {
 	// Only try and change the MTU if the requested mac is different to current one.
 	if curMTU != mtu {
 		link := &ip.Link{Name: devName}
-		err := link.SetMtu(fmt.Sprintf("%d", mtu))
+		err := link.SetMTU(fmt.Sprintf("%d", mtu))
 		if err != nil {
 			return err
 		}
