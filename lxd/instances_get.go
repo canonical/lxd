@@ -201,7 +201,7 @@ func urlInstanceTypeDetect(r *http.Request) (instancetype.Type, error) {
 //     $ref: "#/responses/InternalServerError"
 func instancesGet(d *Daemon, r *http.Request) response.Response {
 	for i := 0; i < 100; i++ {
-		result, err := doContainersGet(d, r)
+		result, err := doInstancesGet(d, r)
 		if err == nil {
 			return response.SyncResponse(true, result)
 		}
@@ -219,7 +219,7 @@ func instancesGet(d *Daemon, r *http.Request) response.Response {
 	return response.InternalError(fmt.Errorf("DB is locked"))
 }
 
-func doContainersGet(d *Daemon, r *http.Request) (interface{}, error) {
+func doInstancesGet(d *Daemon, r *http.Request) (interface{}, error) {
 	resultString := []string{}
 	resultList := []*api.Instance{}
 	resultFullList := []*api.InstanceFull{}
@@ -274,16 +274,16 @@ func doContainersGet(d *Daemon, r *http.Request) (interface{}, error) {
 	}
 
 	// Get the local instances
-	nodeCts := map[string]instance.Instance{}
+	nodeInstances := map[string]instance.Instance{}
 	mustLoadObjects := recursion > 0 || (recursion == 0 && clauses != nil)
 	if mustLoadObjects {
-		cts, err := instanceLoadNodeProjectAll(d.State(), projectName, instanceType)
+		insts, err := instanceLoadNodeProjectAll(d.State(), projectName, instanceType)
 		if err != nil {
 			return nil, err
 		}
 
-		for _, ct := range cts {
-			nodeCts[ct.Name()] = ct
+		for _, inst := range insts {
+			nodeInstances[inst.Name()] = inst
 		}
 	}
 
@@ -319,7 +319,7 @@ func doContainersGet(d *Daemon, r *http.Request) (interface{}, error) {
 	// Get the data
 	wg := sync.WaitGroup{}
 	networkCert := d.endpoints.NetworkCert()
-	for address, containers := range result {
+	for address, instanceNames := range result {
 		// If this is an internal request from another cluster node,
 		// ignore containers from other nodes, and return only the ones
 		// on this node
@@ -329,11 +329,11 @@ func doContainersGet(d *Daemon, r *http.Request) (interface{}, error) {
 
 		// Mark containers on unavailable nodes as down
 		if mustLoadObjects && address == "0.0.0.0" {
-			for _, container := range containers {
+			for _, instanceName := range instanceNames {
 				if recursion < 2 {
-					resultListAppend(container, api.Instance{}, fmt.Errorf("unavailable"))
+					resultListAppend(instanceName, api.Instance{}, fmt.Errorf("unavailable"))
 				} else {
-					resultFullListAppend(container, api.InstanceFull{}, fmt.Errorf("unavailable"))
+					resultFullListAppend(instanceName, api.InstanceFull{}, fmt.Errorf("unavailable"))
 				}
 			}
 
@@ -376,25 +376,25 @@ func doContainersGet(d *Daemon, r *http.Request) (interface{}, error) {
 				for _, c := range cs {
 					resultFullListAppend(c.Name, c, nil)
 				}
-			}(address, containers)
+			}(address, instanceNames)
 
 			continue
 		}
 		if !mustLoadObjects {
-			for _, container := range containers {
+			for _, instanceName := range instanceNames {
 				instancePath := "instances"
 				if strings.HasPrefix(mux.CurrentRoute(r).GetName(), "container") {
 					instancePath = "containers"
 				} else if strings.HasPrefix(mux.CurrentRoute(r).GetName(), "vm") {
 					instancePath = "virtual-machines"
 				}
-				url := fmt.Sprintf("/%s/%s/%s", version.APIVersion, instancePath, container)
+				url := fmt.Sprintf("/%s/%s/%s", version.APIVersion, instancePath, instanceName)
 				resultString = append(resultString, url)
 			}
 		} else {
 			threads := 4
-			if len(containers) < threads {
-				threads = len(containers)
+			if len(instanceNames) < threads {
+				threads = len(instanceNames)
 			}
 
 			queue := make(chan string, threads)
@@ -404,27 +404,32 @@ func doContainersGet(d *Daemon, r *http.Request) (interface{}, error) {
 
 				go func() {
 					for {
-						container, more := <-queue
+						instanceName, more := <-queue
 						if !more {
 							break
 						}
 
+						inst, found := nodeInstances[instanceName]
+						if !found {
+							continue
+						}
+
 						if recursion < 2 {
-							c, _, err := nodeCts[container].Render()
+							c, _, err := inst.Render()
 							if err != nil {
-								resultListAppend(container, api.Instance{}, err)
+								resultListAppend(instanceName, api.Instance{}, err)
 							} else {
-								resultListAppend(container, *c.(*api.Instance), err)
+								resultListAppend(instanceName, *c.(*api.Instance), err)
 							}
 
 							continue
 						}
 
-						c, _, err := nodeCts[container].RenderFull()
+						c, _, err := inst.RenderFull()
 						if err != nil {
-							resultFullListAppend(container, api.InstanceFull{}, err)
+							resultFullListAppend(instanceName, api.InstanceFull{}, err)
 						} else {
-							resultFullListAppend(container, *c, err)
+							resultFullListAppend(instanceName, *c, err)
 						}
 					}
 
@@ -432,8 +437,8 @@ func doContainersGet(d *Daemon, r *http.Request) (interface{}, error) {
 				}()
 			}
 
-			for _, container := range containers {
-				queue <- container
+			for _, instanceName := range instanceNames {
+				queue <- instanceName
 			}
 
 			close(queue)
