@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"fmt"
 	"io/ioutil"
-	"net"
 	"strconv"
 	"strings"
 	"sync"
@@ -241,23 +240,14 @@ func sriovGetFreeVFInterface(reservedDevices map[string]struct{}, parentDev stri
 				continue
 			}
 
-			iface, err := net.InterfaceByName(nicName)
+			addresses, isUp, err := InterfaceStatus(nicName)
 			if err != nil {
-				return -1, "", errors.Wrapf(err, "Failed loading interface %q", nicName)
+				return -1, "", err
 			}
 
-			// Ignore if interface is up (may be in use by another application already).
-			if iface.Flags&net.FlagUp != 0 {
-				continue
-			}
-
-			addresses, err := iface.Addrs()
-			if err != nil {
-				return 0, "", errors.Wrapf(err, "Failed getting interface addresses for %q", nicName)
-			}
-
-			// Ignore if interface has IP addresses (may be in use by another application already).
-			if len(addresses) > 0 {
+			// Ignore if interface is up or if interface has unicast IP addresses (may be in use by
+			// another application already).
+			if isUp || len(addresses) > 0 {
 				continue
 			}
 

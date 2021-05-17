@@ -7,7 +7,7 @@ import (
 // Link represents base arguments for link device
 type Link struct {
 	Name   string
-	Mtu    string
+	MTU    string
 	Parent string
 }
 
@@ -17,8 +17,8 @@ func (l *Link) args(linkType string) []string {
 	if l.Parent != "" {
 		result = append(result, "link", l.Parent)
 	}
-	if l.Mtu != "" {
-		result = append(result, "mtu", l.Mtu)
+	if l.MTU != "" {
+		result = append(result, "mtu", l.MTU)
 	}
 	result = append(result, "type", linkType)
 	return result
@@ -54,8 +54,8 @@ func (l *Link) SetDown() error {
 	return nil
 }
 
-// SetMtu sets the mtu of the link device
-func (l *Link) SetMtu(mtu string) error {
+// SetMTU sets the MTU of the link device
+func (l *Link) SetMTU(mtu string) error {
 	_, err := shared.RunCommand("ip", "link", "set", "dev", l.Name, "mtu", mtu)
 	if err != nil {
 		return err
