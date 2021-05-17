@@ -1249,3 +1249,32 @@ func IPRangesOverlap(r1, r2 *shared.IPRange) bool {
 
 	return r1.ContainsIP(r2.Start) || r1.ContainsIP(r2.End)
 }
+
+// InterfaceStatus returns the global unicast IP addresses configured on an interface and whether it is up or not.
+func InterfaceStatus(nicName string) ([]net.IP, bool, error) {
+	iface, err := net.InterfaceByName(nicName)
+	if err != nil {
+		return nil, false, errors.Wrapf(err, "Failed loading interface %q", nicName)
+	}
+
+	isUp := iface.Flags&net.FlagUp != 0
+
+	addresses, err := iface.Addrs()
+	if err != nil {
+		return nil, isUp, errors.Wrapf(err, "Failed getting interface addresses for %q", nicName)
+	}
+
+	var globalUnicastIPs []net.IP
+	for _, address := range addresses {
+		ip, _, _ := net.ParseCIDR(address.String())
+		if ip == nil {
+			continue
+		}
+
+		if ip.IsGlobalUnicast() {
+			globalUnicastIPs = append(globalUnicastIPs, ip)
+		}
+	}
+
+	return globalUnicastIPs, isUp, nil
+}
