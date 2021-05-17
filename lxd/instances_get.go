@@ -409,8 +409,13 @@ func doInstancesGet(d *Daemon, r *http.Request) (interface{}, error) {
 							break
 						}
 
+						inst, found := nodeInstances[instanceName]
+						if !found {
+							continue
+						}
+
 						if recursion < 2 {
-							c, _, err := nodeInstances[instanceName].Render()
+							c, _, err := inst.Render()
 							if err != nil {
 								resultListAppend(instanceName, api.Instance{}, err)
 							} else {
@@ -420,7 +425,7 @@ func doInstancesGet(d *Daemon, r *http.Request) (interface{}, error) {
 							continue
 						}
 
-						c, _, err := nodeInstances[instanceName].RenderFull()
+						c, _, err := inst.RenderFull()
 						if err != nil {
 							resultFullListAppend(instanceName, api.InstanceFull{}, err)
 						} else {
