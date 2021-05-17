@@ -184,9 +184,10 @@ func (d *nicMACVLAN) Start() (*deviceConfig.RunConfig, error) {
 
 	// Set the MTU.
 	if d.config["mtu"] != "" {
-		err = network.InterfaceSetMTU(saveData["host_name"], d.config["mtu"])
+		link := &ip.Link{Name: saveData["host_name"]}
+		err := link.SetMTU(d.config["mtu"])
 		if err != nil {
-			return nil, err
+			return nil, errors.Wrapf(err, "Failed setting MTU %q on %q", d.config["mtu"], saveData["host_name"])
 		}
 	}
 
