@@ -473,14 +473,18 @@ func instanceExecPost(d *Daemon, r *http.Request) response.Response {
 	}
 
 	if client != nil {
-		url := fmt.Sprintf("/instances/%s/exec?project=%s", name, projectName)
-		op, _, err := client.RawOperation("POST", url, post, "")
+		url := fmt.Sprintf("/1.0/instances/%s/exec?project=%s", name, projectName)
+		resp, _, err := client.RawQuery("POST", url, post, "")
 		if err != nil {
 			return response.SmartError(err)
 		}
 
-		opAPI := op.Get()
-		return operations.ForwardedOperationResponse(projectName, &opAPI)
+		opAPI, err := resp.MetadataAsOperation()
+		if err != nil {
+			return response.SmartError(err)
+		}
+
+		return operations.ForwardedOperationResponse(projectName, opAPI)
 	}
 
 	inst, err := instance.LoadByProjectAndName(d.State(), projectName, name)
