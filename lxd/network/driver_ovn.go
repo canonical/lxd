@@ -931,14 +931,16 @@ func (n *ovn) startUplinkPortBridgeNative(uplinkNet Network, bridgeDevice string
 	// Ensure that the veth interfaces inherit the uplink bridge's MTU (which the OVS bridge also inherits).
 	uplinkNetConfig := uplinkNet.Config()
 	if uplinkNetConfig["bridge.mtu"] != "" {
-		err := InterfaceSetMTU(vars.uplinkEnd, uplinkNetConfig["bridge.mtu"])
+		uplinkEndLink := &ip.Link{Name: vars.uplinkEnd}
+		err := uplinkEndLink.SetMTU(uplinkNetConfig["bridge.mtu"])
 		if err != nil {
-			return err
+			return errors.Wrapf(err, "Failed setting MTU %q on %q", uplinkNetConfig["bridge.mtu"], uplinkEndLink.Name)
 		}
 
-		err = InterfaceSetMTU(vars.ovsEnd, uplinkNetConfig["bridge.mtu"])
+		ovsEndLink := &ip.Link{Name: vars.ovsEnd}
+		err = ovsEndLink.SetMTU(uplinkNetConfig["bridge.mtu"])
 		if err != nil {
-			return err
+			return errors.Wrapf(err, "Failed setting MTU %q on %q", uplinkNetConfig["bridge.mtu"], ovsEndLink.Name)
 		}
 	}
 
