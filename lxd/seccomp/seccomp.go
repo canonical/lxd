@@ -1454,21 +1454,21 @@ func (s *Server) HandleSetxattrSyscall(c Instance, siov *Iovec) int {
 
 // MountArgs arguments for mount.
 type MountArgs struct {
-	source  string
-	target  string
-	fstype  string
-	flags   int
-	data    string
-	pid     int
-	shift   bool
-	uid     int64
-	gid     int64
-	fsuid   int64
-	fsgid   int64
-	nsuid   int64
-	nsgid   int64
-	nsfsuid int64
-	nsfsgid int64
+	source    string
+	target    string
+	fstype    string
+	flags     int
+	data      string
+	pid       int
+	idmapType idmap.IdmapStorageType
+	uid       int64
+	gid       int64
+	fsuid     int64
+	fsgid     int64
+	nsuid     int64
+	nsgid     int64
+	nsfsuid   int64
+	nsfsgid   int64
 }
 
 const knownFlags C.ulong = C.MS_BIND | C.MS_LAZYTIME | C.MS_MANDLOCK |
@@ -1593,7 +1593,7 @@ func (s *Server) mountHandleHugetlbfsArgs(c Instance, args *MountArgs, nsuid int
 	}
 
 	args.data = strings.Join(optStrings, ",")
-	args.shift = false
+	args.idmapType = idmap.IdmapStorageNone
 	return nil
 }
 
@@ -1613,8 +1613,7 @@ func (s *Server) HandleMountSyscall(c Instance, siov *Iovec) int {
 	defer logger.Debug("Handling mount syscall", ctx)
 
 	args := MountArgs{
-		pid:   int(siov.req.pid),
-		shift: s.MountSyscallShift(c),
+		pid: int(siov.req.pid),
 	}
 
 	pidFdNr, pidFd := MakePidFd(args.pid, s.s)
@@ -1639,6 +1638,7 @@ func (s *Server) HandleMountSyscall(c Instance, siov *Iovec) int {
 	}
 	args.source = C.GoString(&mntSource[0])
 	ctx["source"] = args.source
+	args.idmapType = s.MountSyscallShift(c, args.source)
 
 	// const char *target
 	if siov.req.data.args[1] != 0 {
@@ -1779,7 +1779,7 @@ func (s *Server) HandleMountSyscall(c Instance, siov *Iovec) int {
 			fmt.Sprintf("%s", args.target),
 			fmt.Sprintf("%s", args.fstype),
 			fmt.Sprintf("%d", args.flags),
-			fmt.Sprintf("%t", args.shift),
+			string(args.idmapType),
 			fmt.Sprintf("%d", args.uid),
 			fmt.Sprintf("%d", args.gid),
 			fmt.Sprintf("%d", args.fsuid),
@@ -2013,19 +2013,19 @@ func (s *Server) MountSyscallValid(c Instance, args *MountArgs) (bool, string) {
 }
 
 // MountSyscallShift checks whether this mount syscall needs shiftfs.
-func (s *Server) MountSyscallShift(c Instance) bool {
+func (s *Server) MountSyscallShift(c Instance, path string) idmap.IdmapStorageType {
 	if shared.IsTrue(c.ExpandedConfig()["security.syscalls.intercept.mount.shift"]) {
 		diskIdmap, err := c.DiskIdmap()
 		if err != nil {
-			return false
+			return idmap.IdmapStorageNone
 		}
 
-		if diskIdmap == nil && c.IdmappedStorage(c.RootfsPath()) != idmap.IdmapStorageNone {
-			return true
+		if diskIdmap == nil {
+			return c.IdmappedStorage(path)
 		}
 	}
 
-	return false
+	return idmap.IdmapStorageNone
 }
 
 var pageSize = 4096
