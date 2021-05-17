@@ -638,7 +638,7 @@ func doCertificateUpdate(d *Daemon, dbInfo db.Certificate, fingerprint string, r
 		}
 
 		// Notify other nodes about the new certificate.
-		notifier, err := cluster.NewNotifier(d.State(), d.endpoints.NetworkCert(), cluster.NotifyAlive)
+		notifier, err := cluster.NewNotifier(d.State(), d.endpoints.NetworkCert(), d.serverCert(), cluster.NotifyAlive)
 		if err != nil {
 			return response.SmartError(err)
 		}
@@ -692,7 +692,7 @@ func certificateDelete(d *Daemon, r *http.Request) response.Response {
 		}
 
 		// Notify other nodes about the new certificate.
-		notifier, err := cluster.NewNotifier(d.State(), d.endpoints.NetworkCert(), cluster.NotifyAlive)
+		notifier, err := cluster.NewNotifier(d.State(), d.endpoints.NetworkCert(), d.serverCert(), cluster.NotifyAlive)
 		if err != nil {
 			return response.SmartError(err)
 		}
