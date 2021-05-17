@@ -54,8 +54,8 @@ func (l *Link) SetDown() error {
 	return nil
 }
 
-// SetMtu sets the mtu of the link device
-func (l *Link) SetMtu(mtu string) error {
+// SetMTU sets the MTU of the link device
+func (l *Link) SetMTU(mtu string) error {
 	_, err := shared.RunCommand("ip", "link", "set", "dev", l.Name, "mtu", mtu)
 	if err != nil {
 		return err
