@@ -5,6 +5,7 @@ import (
 	"net/http"
 
 	"github.com/gorilla/websocket"
+
 	"github.com/lxc/lxd/lxd/response"
 	"github.com/lxc/lxd/shared"
 )
@@ -50,11 +51,19 @@ func ForwardedOperationWebSocket(req *http.Request, id string, source *websocket
 }
 
 func (r *forwardedOperationWebSocket) Render(w http.ResponseWriter) error {
+	// Upgrade target connection to websocket.
 	target, err := shared.WebsocketUpgrader.Upgrade(w, r.req, nil)
 	if err != nil {
 		return err
 	}
+
+	// Start proxying between sockets.
 	<-shared.WebsocketProxy(r.source, target)
+
+	// Make sure both sides are closed.
+	r.source.Close()
+	target.Close()
+
 	return nil
 }
 
