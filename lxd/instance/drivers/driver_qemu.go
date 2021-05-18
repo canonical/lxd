@@ -378,8 +378,8 @@ func (d *qemu) getMonitorEventHandler() func(event string, data map[string]inter
 	logger := d.logger
 
 	return func(event string, data map[string]interface{}) {
-		if !shared.StringInSlice(event, []string{"SHUTDOWN"}) {
-			return
+		if !shared.StringInSlice(event, []string{"SHUTDOWN", "RESET"}) {
+			return // Don't bother loading the instance from DB if we aren't going to handle the event.
 		}
 
 		inst, err := instance.LoadByProjectAndName(state, projectName, instanceName)
@@ -388,7 +388,21 @@ func (d *qemu) getMonitorEventHandler() func(event string, data map[string]inter
 			return
 		}
 
-		if event == "SHUTDOWN" {
+		if event == "RESET" {
+			// As we cannot start QEMU with the -no-reboot flag, because we have to issue a
+			// system_reset QMP command to have the devices bootindex applied, then we need to handle
+			// the RESET events triggered from a guest-reset operation and prevent QEMU internally
+			// restarting the guest, and instead forcefully shutdown and restart the guest from LXD.
+			entry, ok := data["reason"]
+			if ok && entry == "guest-reset" {
+				logger.Debug("Instance guest restart")
+				err = inst.Restart(0) // Using 0 timeout will call inst.Stop() then inst.Start().
+				if err != nil {
+					logger.Error("Failed to restart instance", log.Ctx{"err": err})
+					return
+				}
+			}
+		} else if event == "SHUTDOWN" {
 			logger.Debug("Instance stopped")
 
 			target := "stop"
