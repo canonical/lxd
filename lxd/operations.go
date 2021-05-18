@@ -417,6 +417,7 @@ func operationsGet(d *Daemon, r *http.Request) response.Response {
 			if v.Project() != "" && v.Project() != projectName {
 				continue
 			}
+
 			status := strings.ToLower(v.Status().String())
 			_, ok := body[status]
 			if !ok {
@@ -440,6 +441,7 @@ func operationsGet(d *Daemon, r *http.Request) response.Response {
 			if v.Project() != "" && v.Project() != projectName {
 				continue
 			}
+
 			status := strings.ToLower(v.Status().String())
 			_, ok := body[status]
 			if !ok {
