@@ -253,7 +253,7 @@ func (c *cmdConfigEdit) Run(cmd *cobra.Command, args []string) error {
 			// Respawn the editor
 			if err != nil {
 				fmt.Fprintf(os.Stderr, i18n.G("Config parsing error: %s")+"\n", err)
-				fmt.Println(i18n.G("Press enter to start the editor again"))
+				fmt.Println(i18n.G("Press enter to open the editor again or ctrl+c to abort change"))
 
 				_, err := os.Stdin.Read(make([]byte, 1))
 				if err != nil {
@@ -326,7 +326,7 @@ func (c *cmdConfigEdit) Run(cmd *cobra.Command, args []string) error {
 		// Respawn the editor
 		if err != nil {
 			fmt.Fprintf(os.Stderr, i18n.G("Config parsing error: %s")+"\n", err)
-			fmt.Println(i18n.G("Press enter to start the editor again"))
+			fmt.Println(i18n.G("Press enter to open the editor again or ctrl+c to abort change"))
 
 			_, err := os.Stdin.Read(make([]byte, 1))
 			if err != nil {
