@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/gorilla/mux"
-	"github.com/gorilla/websocket"
 	"github.com/pkg/errors"
 
 	"github.com/lxc/lxd/lxd/cluster"
@@ -852,25 +851,6 @@ func (r *operationWebSocket) String() string {
 	return md.ID
 }
 
-type forwardedOperationWebSocket struct {
-	req    *http.Request
-	id     string
-	source *websocket.Conn // Connection to the node were the operation is running
-}
-
-func (r *forwardedOperationWebSocket) Render(w http.ResponseWriter) error {
-	target, err := shared.WebsocketUpgrader.Upgrade(w, r.req, nil)
-	if err != nil {
-		return err
-	}
-	<-shared.WebsocketProxy(r.source, target)
-	return nil
-}
-
-func (r *forwardedOperationWebSocket) String() string {
-	return r.id
-}
-
 // swagger:operation GET /1.0/operations/{id}/websocket?public operations operation_websocket_get_untrusted
 //
 // Get the websocket stream
@@ -964,5 +944,5 @@ func operationWebsocketGet(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	return &forwardedOperationWebSocket{r, id, source}
+	return operations.ForwardedOperationWebSocket(r, id, source)
 }
