@@ -274,3 +274,13 @@ func (m *Monitor) AddNIC(netDev map[string]interface{}, device map[string]string
 
 	return nil
 }
+
+// Reset VM.
+func (m *Monitor) Reset() error {
+	err := m.run("system_reset", "", nil)
+	if err != nil {
+		return errors.Wrapf(err, "Failed resetting")
+	}
+
+	return nil
+}
