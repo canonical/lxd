@@ -1088,7 +1088,6 @@ Column shorthand chars:
     d - Description
     u - Number of references (used by)
     L - Location of the instance (e.g. its cluster member)`))
-	cmd.Flags().StringVar(&c.flagFormat, "format", "table", i18n.G("Format (csv|json|table|yaml)")+"``")
 	cmd.Flags().StringVarP(&c.flagFormat, "format", "f", "table", i18n.G("Format (csv|json|table|yaml)")+"``")
 
 	cmd.RunE = c.Run
