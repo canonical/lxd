@@ -238,8 +238,9 @@ func WebsocketRecvStream(w io.Writer, conn *websocket.Conn) chan bool {
 	return ch
 }
 
-func WebsocketProxy(source *websocket.Conn, target *websocket.Conn) chan bool {
-	forward := func(in *websocket.Conn, out *websocket.Conn, ch chan bool) {
+func WebsocketProxy(source *websocket.Conn, target *websocket.Conn) chan struct{} {
+	// Forwarder between two websockets, closes channel upon disconnection.
+	forward := func(in *websocket.Conn, out *websocket.Conn, ch chan struct{}) {
 		for {
 			mt, r, err := in.NextReader()
 			if err != nil {
@@ -258,16 +259,18 @@ func WebsocketProxy(source *websocket.Conn, target *websocket.Conn) chan bool {
 			}
 		}
 
-		ch <- true
+		close(ch)
 	}
 
-	chSend := make(chan bool)
+	// Spawn forwarders in both directions.
+	chSend := make(chan struct{})
 	go forward(source, target, chSend)
 
-	chRecv := make(chan bool)
+	chRecv := make(chan struct{})
 	go forward(target, source, chRecv)
 
-	ch := make(chan bool)
+	// Close main channel and disconnect upon completion of either forwarder.
+	ch := make(chan struct{})
 	go func() {
 		select {
 		case <-chSend:
@@ -277,7 +280,7 @@ func WebsocketProxy(source *websocket.Conn, target *websocket.Conn) chan bool {
 		source.Close()
 		target.Close()
 
-		ch <- true
+		close(ch)
 	}()
 
 	return ch
