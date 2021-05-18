@@ -679,8 +679,8 @@ func (c *cmdClusterListTokens) Run(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf(i18n.G("LXD server isn't part of a cluster"))
 	}
 
-	// Get the cluster member join tokens.
-	ops, err := resource.server.GetOperations()
+	// Get the cluster member join tokens. Use default project as join tokens are created in default project.
+	ops, err := resource.server.UseProject("default").GetOperations()
 	if err != nil {
 		return err
 	}

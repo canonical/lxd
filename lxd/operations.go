@@ -417,6 +417,7 @@ func operationsGet(d *Daemon, r *http.Request) response.Response {
 			if v.Project() != "" && v.Project() != projectName {
 				continue
 			}
+
 			status := strings.ToLower(v.Status().String())
 			_, ok := body[status]
 			if !ok {
@@ -440,6 +441,7 @@ func operationsGet(d *Daemon, r *http.Request) response.Response {
 			if v.Project() != "" && v.Project() != projectName {
 				continue
 			}
+
 			status := strings.ToLower(v.Status().String())
 			_, ok := body[status]
 			if !ok {
@@ -547,7 +549,8 @@ func operationsGet(d *Daemon, r *http.Request) response.Response {
 		}
 
 		// Merge with existing data
-		for _, op := range ops {
+		for _, o := range ops {
+			op := o // Local var for pointer.
 			status := strings.ToLower(op.Status)
 
 			_, ok := md[status]
@@ -679,7 +682,9 @@ func operationsGetByType(d *Daemon, projectName string, opType db.OperationType)
 			continue
 		}
 
-		for _, op := range remoteOps {
+		for _, o := range remoteOps {
+			op := o // Local var for pointer.
+
 			// Exclude remote operations that don't have the desired type.
 			if memberOps[memberAddress][op.ID].Type != opType {
 				continue
