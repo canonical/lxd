@@ -2266,7 +2266,7 @@ func (r *ProtocolLXD) proxyMigration(targetOp *operation, targetSecrets map[stri
 
 	// Struct used to hold everything together
 	type proxy struct {
-		done       chan bool
+		done       chan struct{}
 		sourceConn *websocket.Conn
 		targetConn *websocket.Conn
 	}
