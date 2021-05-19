@@ -4,6 +4,7 @@
 package subprocess
 
 import (
+	"context"
 	"io"
 	"os"
 	"strings"
@@ -38,7 +39,7 @@ func TestSignalHandling(t *testing.T) {
 		t.Error("Unable to Signal process: ", err)
 	}
 
-	ecode, err := p.Wait()
+	ecode, err := p.Wait(context.Background())
 	if err == nil {
 		t.Error("Did not exit with an error")
 	} else if ecode != 1 {
@@ -119,7 +120,7 @@ func TestStopRestart(t *testing.T) {
 		t.Error("Failed to restart process: ", err)
 	}
 
-	exitcode, err := p.Wait()
+	exitcode, err := p.Wait(context.Background())
 	if err != nil {
 		t.Error("Could not wait for process: ", err)
 	} else if exitcode != 0 {
@@ -148,7 +149,7 @@ func TestProcessStartWaitExit(t *testing.T) {
 		t.Error("Failed to start process: ", err)
 	}
 
-	ecode, err := p.Wait()
+	ecode, err := p.Wait(context.Background())
 	if err == nil {
 		t.Error("Did not exit with an error")
 	} else if ecode != 1 {
