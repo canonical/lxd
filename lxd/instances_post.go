@@ -93,9 +93,19 @@ func createFromImage(d *Daemon, projectName string, req *api.InstancesPost) resp
 				return err
 			}
 
-			info, err = d.ImageDownload(
-				op, req.Source.Server, req.Source.Protocol, req.Source.Certificate,
-				req.Source.Secret, hash, imgType, true, autoUpdate, "", true, projectName, budget)
+			info, err = d.ImageDownload(op, &ImageDownloadArgs{
+				Server:       req.Source.Server,
+				Protocol:     req.Source.Protocol,
+				Certificate:  req.Source.Certificate,
+				Secret:       req.Source.Secret,
+				Alias:        hash,
+				SetCached:    true,
+				Type:         imgType,
+				AutoUpdate:   autoUpdate,
+				PreferCached: true,
+				ProjectName:  projectName,
+				Budget:       budget,
+			})
 			if err != nil {
 				return err
 			}
