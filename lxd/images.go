@@ -1735,7 +1735,17 @@ func autoUpdateImage(ctx context.Context, d *Daemon, op *operations.Operation, i
 		default:
 		}
 
-		newInfo, err = d.ImageDownload(op, source.Server, source.Protocol, source.Certificate, "", source.Alias, info.Type, false, true, poolName, false, projectName, -1)
+		newInfo, err = d.ImageDownload(op, &ImageDownloadArgs{
+			Server:      source.Server,
+			Protocol:    source.Protocol,
+			Certificate: source.Certificate,
+			Alias:       source.Alias,
+			Type:        info.Type,
+			AutoUpdate:  true,
+			StoragePool: poolName,
+			ProjectName: projectName,
+			Budget:      -1,
+		})
 		if err != nil {
 			logger.Error("Failed to update the image", log.Ctx{"err": err, "fingerprint": fingerprint})
 			continue
