@@ -3718,7 +3718,8 @@ func imageSyncBetweenNodes(d *Daemon, project string, fingerprint string) error 
 
 		// Copy the image to the target server.
 		args := lxd.ImageCopyArgs{
-			Type: image.Type,
+			Type:   image.Type,
+			Public: image.Public,
 		}
 
 		logger.Info("Copying image to member", log.Ctx{"fingerprint": fingerprint, "address": targetNodeAddress, "project": project})
