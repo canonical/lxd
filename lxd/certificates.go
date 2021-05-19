@@ -340,7 +340,7 @@ func clusterMemberJoinTokenValid(d *Daemon, projectName string, joinToken *api.C
 		// Token is single-use, so cancel it now.
 		err = operationCancel(d, projectName, foundOp)
 		if err != nil {
-			return nil, errors.Wrapf(err, "Failed to cancel operation")
+			return nil, errors.Wrapf(err, "Failed to cancel operation %q", foundOp.ID)
 		}
 
 		return foundOp, nil
