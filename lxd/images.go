@@ -3485,7 +3485,7 @@ func imageSyncBetweenNodes(d *Daemon, project string, fingerprint string) error 
 		logger.Info("Copying image to member", log.Ctx{"fingerprint": fingerprint, "address": targetNodeAddress, "project": project, "public": args.Public, "type": args.Type})
 		op, err := client.CopyImage(source, *image, &args)
 		if err != nil {
-			return errors.Wrap(err, "Failed to copy image")
+			return errors.Wrapf(err, "Failed to copy image to %q", targetNodeAddress)
 		}
 
 		err = op.Wait()
