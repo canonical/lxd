@@ -458,7 +458,14 @@ func imgPostURLInfo(d *Daemon, req api.ImagesPost, op *operations.Operation, pro
 	}
 
 	// Import the image
-	info, err := d.ImageDownload(op, url, "direct", "", "", hash, "", false, req.AutoUpdate, "", false, project, budget)
+	info, err := d.ImageDownload(op, &ImageDownloadArgs{
+		Server:      url,
+		Protocol:    "direct",
+		Alias:       hash,
+		AutoUpdate:  req.AutoUpdate,
+		ProjectName: project,
+		Budget:      budget,
+	})
 	if err != nil {
 		return nil, err
 	}
