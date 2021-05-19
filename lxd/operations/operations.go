@@ -16,6 +16,7 @@ import (
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/cancel"
+	log "github.com/lxc/lxd/shared/log15"
 	"github.com/lxc/lxd/shared/logger"
 	"github.com/lxc/lxd/shared/version"
 )
@@ -324,7 +325,7 @@ func (op *Operation) Cancel() (chan error, error) {
 				op.lock.Unlock()
 				chanCancel <- err
 
-				logger.Debugf("Failed to cancel %s Operation: %s: %s", op.class.String(), op.id, err)
+				logger.Debug("Failed to cancel operation", log.Ctx{"operation": op.id, "class": op.class.String(), "err": err})
 				_, md, _ := op.Render()
 
 				op.lock.Lock()
@@ -340,7 +341,7 @@ func (op *Operation) Cancel() (chan error, error) {
 			op.done()
 			chanCancel <- nil
 
-			logger.Debugf("Cancelled %s Operation: %s", op.class.String(), op.id)
+			logger.Debug("Cancelled operation", log.Ctx{"operation": op.ID(), "class": op.class.String()})
 			_, md, _ := op.Render()
 
 			op.lock.Lock()
@@ -350,7 +351,7 @@ func (op *Operation) Cancel() (chan error, error) {
 		}(op, oldStatus, chanCancel)
 	}
 
-	logger.Debugf("Cancelling %s Operation: %s", op.class.String(), op.id)
+	logger.Debug("Cancelling operation", log.Ctx{"operation": op.ID(), "class": op.class.String()})
 	_, md, _ := op.Render()
 	op.sendEvent(md)
 
@@ -369,7 +370,7 @@ func (op *Operation) Cancel() (chan error, error) {
 		chanCancel <- nil
 	}
 
-	logger.Debugf("Cancelled %s Operation: %s", op.class.String(), op.id)
+	logger.Debug("Cancelled operation", log.Ctx{"operation": op.ID(), "class": op.class.String()})
 	_, md, _ = op.Render()
 
 	op.lock.Lock()
