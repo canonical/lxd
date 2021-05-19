@@ -364,7 +364,17 @@ func imgPostRemoteInfo(d *Daemon, req api.ImagesPost, op *operations.Operation, 
 		return nil, fmt.Errorf("must specify one of alias or fingerprint for init from image")
 	}
 
-	info, err := d.ImageDownload(op, req.Source.Server, req.Source.Protocol, req.Source.Certificate, req.Source.Secret, hash, req.Source.ImageType, false, req.AutoUpdate, "", false, project, budget)
+	info, err := d.ImageDownload(op, &ImageDownloadArgs{
+		Server:      req.Source.Server,
+		Protocol:    req.Source.Protocol,
+		Certificate: req.Source.Certificate,
+		Secret:      req.Source.Secret,
+		Alias:       hash,
+		Type:        req.Source.ImageType,
+		AutoUpdate:  req.AutoUpdate,
+		ProjectName: project,
+		Budget:      budget,
+	})
 	if err != nil {
 		return nil, err
 	}
