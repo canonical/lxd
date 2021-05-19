@@ -3719,6 +3719,12 @@ func imageSyncBetweenNodes(d *Daemon, project string, fingerprint string) error 
 		return errors.Wrap(err, "Failed to get image")
 	}
 
+	// Populate the copy arguments with properties from the source image.
+	args := lxd.ImageCopyArgs{
+		Type:   image.Type,
+		Public: image.Public,
+	}
+
 	// Replicate on as many nodes as needed.
 	for i := 0; i < int(nodeCount); i++ {
 		// Get a list of nodes that do not have the image.
@@ -3744,11 +3750,6 @@ func imageSyncBetweenNodes(d *Daemon, project string, fingerprint string) error 
 		client = client.UseProject(project)
 
 		// Copy the image to the target server.
-		args := lxd.ImageCopyArgs{
-			Type:   image.Type,
-			Public: image.Public,
-		}
-
 		logger.Info("Copying image to member", log.Ctx{"fingerprint": fingerprint, "address": targetNodeAddress, "project": project, "public": args.Public, "type": args.Type})
 		op, err := client.CopyImage(source, *image, &args)
 		if err != nil {
