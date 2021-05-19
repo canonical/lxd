@@ -28,6 +28,22 @@ import (
 	log "github.com/lxc/lxd/shared/log15"
 )
 
+// ImageDownloadArgs used with ImageDownload.
+type ImageDownloadArgs struct {
+	ProjectName  string
+	Server       string
+	Protocol     string
+	Certificate  string
+	Secret       string
+	Alias        string
+	Type         string
+	SetCached    bool
+	PreferCached bool
+	AutoUpdate   bool
+	StoragePool  string
+	Budget       int64
+}
+
 // imageDownloadLock acquires a lock for downloading/transferring an image and returns the unlock function.
 func (d *Daemon) imageDownloadLock(fingerprint string) locking.UnlockFunc {
 	logger.Debugf("Acquiring lock for image download of %q", fingerprint)
