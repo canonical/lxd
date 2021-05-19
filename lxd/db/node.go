@@ -27,6 +27,9 @@ type ClusterRole string
 // ClusterRoleDatabase represents the database role in a cluster.
 const ClusterRoleDatabase = ClusterRole("database")
 
+// ClusterRoleDatabaseStandBy represents the database stand-by role in a cluster.
+const ClusterRoleDatabaseStandBy = ClusterRole("database-standby")
+
 // ClusterRoles maps role ids into human-readable names.
 //
 // Note: the database role is currently stored directly in the raft
@@ -123,10 +126,15 @@ func (n NodeInfo) ToAPI(cluster *Cluster, node *Node) (*api.ClusterMember, error
 	result.Description = n.Description
 	result.ServerName = n.Name
 	result.URL = fmt.Sprintf("https://%s", n.Address)
-	result.Database = raftNode != nil && raftNode.Role == RaftVoter
+	result.Database = false
 	result.Roles = n.Roles
-	if result.Database {
+	if raftNode != nil && raftNode.Role == RaftVoter {
 		result.Roles = append(result.Roles, string(ClusterRoleDatabase))
+		result.Database = true
+	}
+	if raftNode != nil && raftNode.Role == RaftStandBy {
+		result.Roles = append(result.Roles, string(ClusterRoleDatabaseStandBy))
+		result.Database = true
 	}
 	result.Architecture, err = osarch.ArchitectureName(n.Architecture)
 	if err != nil {
