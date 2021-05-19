@@ -4,6 +4,7 @@
 package subprocess
 
 import (
+	"context"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -181,7 +182,7 @@ func (p *Process) start(fds []*os.File) error {
 		exitcode := int64(procstate.ExitCode())
 		p.exitCode = exitcode
 		if p.exitCode != 0 {
-			p.exitErr = fmt.Errorf("Process exited with a non-zero value")
+			p.exitErr = fmt.Errorf("Process exited with non-zero value %d", p.exitCode)
 		}
 		close(p.chExit)
 	}()
@@ -254,11 +255,15 @@ func (p *Process) Signal(signal int64) error {
 }
 
 // Wait will wait for the given process object exit code
-func (p *Process) Wait() (int64, error) {
+func (p *Process) Wait(ctx context.Context) (int64, error) {
 	if !p.hasMonitor {
 		return -1, fmt.Errorf("Unable to wait on process we didn't spawn")
 	}
 
-	<-p.chExit
-	return p.exitCode, p.exitErr
+	select {
+	case <-p.chExit:
+		return p.exitCode, p.exitErr
+	case <-ctx.Done():
+		return -1, ctx.Err()
+	}
 }

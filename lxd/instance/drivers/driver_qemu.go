@@ -3,6 +3,7 @@ package drivers
 import (
 	"bytes"
 	"compress/gzip"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -1229,7 +1230,7 @@ func (d *qemu) Start(stateful bool) error {
 		return err
 	}
 
-	_, err = p.Wait()
+	_, err = p.Wait(context.Background())
 	if err != nil {
 		stderr, _ := ioutil.ReadFile(d.EarlyLogFilePath())
 		err = errors.Wrapf(err, "Failed to run: %s: %s", strings.Join(p.Args, " "), string(stderr))
