@@ -375,7 +375,17 @@ func imgPostRemoteInfo(d *Daemon, req api.ImagesPost, op *operations.Operation, 
 		return nil, fmt.Errorf("must specify one of alias or fingerprint for init from image")
 	}
 
-	info, err := d.ImageDownload(op, req.Source.Server, req.Source.Protocol, req.Source.Certificate, req.Source.Secret, hash, req.Source.ImageType, false, req.AutoUpdate, "", false, project, budget)
+	info, err := d.ImageDownload(op, &ImageDownloadArgs{
+		Server:      req.Source.Server,
+		Protocol:    req.Source.Protocol,
+		Certificate: req.Source.Certificate,
+		Secret:      req.Source.Secret,
+		Alias:       hash,
+		Type:        req.Source.ImageType,
+		AutoUpdate:  req.AutoUpdate,
+		ProjectName: project,
+		Budget:      budget,
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -448,7 +458,14 @@ func imgPostURLInfo(d *Daemon, req api.ImagesPost, op *operations.Operation, pro
 	}
 
 	// Import the image
-	info, err := d.ImageDownload(op, url, "direct", "", "", hash, "", false, req.AutoUpdate, "", false, project, budget)
+	info, err := d.ImageDownload(op, &ImageDownloadArgs{
+		Server:      url,
+		Protocol:    "direct",
+		Alias:       hash,
+		AutoUpdate:  req.AutoUpdate,
+		ProjectName: project,
+		Budget:      budget,
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -992,7 +1009,7 @@ func imagesPost(d *Daemon, r *http.Request) response.Response {
 		// Sync the images between each node in the cluster on demand
 		err = imageSyncBetweenNodes(d, projectName, info.Fingerprint)
 		if err != nil {
-			return errors.Wrapf(err, "Image sync between nodes")
+			return errors.Wrapf(err, "Failed syncing image between nodes")
 		}
 
 		return nil
@@ -1821,7 +1838,17 @@ func autoUpdateImage(ctx context.Context, d *Daemon, op *operations.Operation, i
 		default:
 		}
 
-		newInfo, err = d.ImageDownload(op, source.Server, source.Protocol, source.Certificate, "", source.Alias, info.Type, false, true, poolName, false, projectName, -1)
+		newInfo, err = d.ImageDownload(op, &ImageDownloadArgs{
+			Server:      source.Server,
+			Protocol:    source.Protocol,
+			Certificate: source.Certificate,
+			Alias:       source.Alias,
+			Type:        info.Type,
+			AutoUpdate:  true,
+			StoragePool: poolName,
+			ProjectName: projectName,
+			Budget:      -1,
+		})
 		if err != nil {
 			logger.Error("Failed to update the image", log.Ctx{"err": err, "fingerprint": fingerprint})
 			continue
@@ -3692,6 +3719,12 @@ func imageSyncBetweenNodes(d *Daemon, project string, fingerprint string) error 
 		return errors.Wrap(err, "Failed to get image")
 	}
 
+	// Populate the copy arguments with properties from the source image.
+	args := lxd.ImageCopyArgs{
+		Type:   image.Type,
+		Public: image.Public,
+	}
+
 	// Replicate on as many nodes as needed.
 	for i := 0; i < int(nodeCount); i++ {
 		// Get a list of nodes that do not have the image.
@@ -3717,14 +3750,10 @@ func imageSyncBetweenNodes(d *Daemon, project string, fingerprint string) error 
 		client = client.UseProject(project)
 
 		// Copy the image to the target server.
-		args := lxd.ImageCopyArgs{
-			Type: image.Type,
-		}
-
-		logger.Info("Copying image to member", log.Ctx{"fingerprint": fingerprint, "address": targetNodeAddress, "project": project})
+		logger.Info("Copying image to member", log.Ctx{"fingerprint": fingerprint, "address": targetNodeAddress, "project": project, "public": args.Public, "type": args.Type})
 		op, err := client.CopyImage(source, *image, &args)
 		if err != nil {
-			return errors.Wrap(err, "Failed to copy image")
+			return errors.Wrapf(err, "Failed to copy image to %q", targetNodeAddress)
 		}
 
 		err = op.Wait()
