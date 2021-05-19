@@ -1,6 +1,7 @@
 package network
 
 import (
+	"context"
 	"encoding/binary"
 	"fmt"
 	"io/ioutil"
@@ -11,6 +12,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/pkg/errors"
 
@@ -1409,6 +1411,16 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 		if err != nil {
 			return fmt.Errorf("Failed to run: %s %s: %v", command, strings.Join(dnsmasqCmd, " "), err)
 		}
+
+		// Check dnsmasq started OK.
+		ctx, cancel := context.WithDeadline(context.Background(), time.Now().Add(time.Millisecond*time.Duration(500)))
+		_, err = p.Wait(ctx)
+		if errors.Cause(err) != context.DeadlineExceeded {
+			// Just log an error if dnsmasq has exited, and still proceed with normal setup so we
+			// don't leave the firewall in an inconsistent state.
+			n.logger.Error("The dnsmasq process exited prematurely", log.Ctx{"err": err})
+		}
+		cancel()
 
 		err = p.Save(shared.VarPath("networks", n.name, "dnsmasq.pid"))
 		if err != nil {
