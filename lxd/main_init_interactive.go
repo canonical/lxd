@@ -173,6 +173,8 @@ func (c *cmdInit) askClustering(config *cmdInitData, d lxd.InstanceServer) error
 					return fmt.Errorf("Server name does not match the one specified in join token")
 				}
 
+				// Attempt to find a working cluster member to use for joining by retrieving the
+				// cluster certificate from each address in the join token until we succeed.
 				for _, clusterAddress := range joinToken.Addresses {
 					// Cluster URL
 					_, _, err := net.SplitHostPort(clusterAddress)
@@ -194,6 +196,8 @@ func (c *cmdInit) askClustering(config *cmdInitData, d lxd.InstanceServer) error
 					}
 
 					config.Cluster.ClusterCertificate = string(pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: cert.Raw}))
+
+					break // We've found a working cluster member.
 				}
 
 				if config.Cluster.ClusterCertificate == "" {
