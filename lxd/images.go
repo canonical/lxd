@@ -934,7 +934,7 @@ func imagesPost(d *Daemon, r *http.Request) response.Response {
 		// Sync the images between each node in the cluster on demand
 		err = imageSyncBetweenNodes(d, projectName, info.Fingerprint)
 		if err != nil {
-			return errors.Wrapf(err, "Image sync between nodes")
+			return errors.Wrapf(err, "Failed syncing image between nodes")
 		}
 
 		return nil
