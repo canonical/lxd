@@ -99,13 +99,13 @@ test_clustering_membership() {
   spawn_lxd_and_join_cluster "${ns5}" "${bridge}" "${cert}" 5 4 "${LXD_FIVE_DIR}"
 
   # List all nodes, using clients points to different nodes and
-  # checking which are database nodes and which are not.
+  # checking which are database nodes and which are database-standby nodes.
   LXD_DIR="${LXD_THREE_DIR}" lxc cluster list
-  LXD_DIR="${LXD_THREE_DIR}" lxc cluster list | grep "node1" | grep -q "YES"
-  LXD_DIR="${LXD_FOUR_DIR}" lxc cluster list | grep "node2" | grep -q "YES"
-  LXD_DIR="${LXD_ONE_DIR}" lxc cluster list | grep "node3" | grep -q "YES"
-  LXD_DIR="${LXD_TWO_DIR}" lxc cluster list | grep "node4" | grep -q "NO"
-  LXD_DIR="${LXD_FIVE_DIR}" lxc cluster list | grep "node5" | grep -q "NO"
+  LXD_DIR="${LXD_THREE_DIR}" lxc cluster show node1 | grep -q "\- database$"
+  LXD_DIR="${LXD_FOUR_DIR}" lxc cluster show node2 | grep -q "\- database$"
+  LXD_DIR="${LXD_ONE_DIR}" lxc cluster show node3 | grep -q "\- database$"
+  LXD_DIR="${LXD_TWO_DIR}" lxc cluster show node4 | grep -q "\- database-standby$"
+  LXD_DIR="${LXD_FIVE_DIR}" lxc cluster show node5 | grep -q "\- database-standby$"
 
   # Show a single node
   LXD_DIR="${LXD_TWO_DIR}" lxc cluster show node5 | grep -q "node5"
@@ -1434,7 +1434,7 @@ test_clustering_address() {
   spawn_lxd_and_join_cluster "${ns2}" "${bridge}" "${cert}" 2 1 "${LXD_TWO_DIR}" "dir" "8444"
 
   LXD_DIR="${LXD_ONE_DIR}" lxc cluster list | grep -q node2
-  LXD_DIR="${LXD_TWO_DIR}" lxc cluster show node2 | grep -q "database: false"
+  LXD_DIR="${LXD_TWO_DIR}" lxc cluster show node2 | grep -q "database: true"
 
   # The new node appears with its custom cluster port
   LXD_DIR="${LXD_ONE_DIR}" lxc cluster show node2 | grep ^url | grep -q 8444
@@ -1837,7 +1837,7 @@ test_clustering_handover() {
   ns3="${prefix}3"
   spawn_lxd_and_join_cluster "${ns3}" "${bridge}" "${cert}" 3 1 "${LXD_THREE_DIR}"
 
-  # Spawn a fourth node, this will be a non-voter node.
+  # Spawn a fourth node, this will be a non-voter, stand-by node.
   setup_clustering_netns 4
   LXD_FOUR_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
   chmod +x "${LXD_FOUR_DIR}"
@@ -1845,7 +1845,7 @@ test_clustering_handover() {
   spawn_lxd_and_join_cluster "${ns4}" "${bridge}" "${cert}" 4 1 "${LXD_FOUR_DIR}"
 
   LXD_DIR="${LXD_TWO_DIR}" lxc cluster list
-  LXD_DIR="${LXD_TWO_DIR}" lxc cluster list | grep "node4" | grep -q "NO"
+  LXD_DIR="${LXD_TWO_DIR}" lxc cluster show node4 | grep -q "\- database-standby"
 
   # Shutdown the first node.
   LXD_DIR="${LXD_ONE_DIR}" lxd shutdown
@@ -1853,7 +1853,7 @@ test_clustering_handover() {
   # The fourth node has been promoted, while the first one demoted.
   LXD_DIR="${LXD_TWO_DIR}" lxc cluster list
   LXD_DIR="${LXD_THREE_DIR}" lxc cluster list
-  LXD_DIR="${LXD_TWO_DIR}" lxc cluster list | grep "node4" | grep -q "YES"
+  LXD_DIR="${LXD_TWO_DIR}" lxc cluster show node4 | grep -q "\- database$"
   LXD_DIR="${LXD_THREE_DIR}" lxc cluster list | grep "node1" | grep -q "NO"
 
   # Even if we shutdown one more node, the cluster is still available.
@@ -1934,7 +1934,7 @@ test_clustering_rebalance() {
   ns3="${prefix}3"
   spawn_lxd_and_join_cluster "${ns3}" "${bridge}" "${cert}" 3 1 "${LXD_THREE_DIR}"
 
-  # Spawn a fourth node, this will be a non-voter node.
+  # Spawn a fourth node, this will be a non-voter, stand-by node.
   setup_clustering_netns 4
   LXD_FOUR_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
   chmod +x "${LXD_FOUR_DIR}"
@@ -1942,7 +1942,7 @@ test_clustering_rebalance() {
   spawn_lxd_and_join_cluster "${ns4}" "${bridge}" "${cert}" 4 1 "${LXD_FOUR_DIR}"
 
   LXD_DIR="${LXD_TWO_DIR}" lxc cluster list
-  LXD_DIR="${LXD_TWO_DIR}" lxc cluster list | grep "node4" | grep -q "NO"
+  LXD_DIR="${LXD_TWO_DIR}" lxc cluster show node4 | grep -q "\- database-standby"
 
   # Kill the second node.
   LXD_DIR="${LXD_ONE_DIR}" lxc config set cluster.offline_threshold 12
@@ -1956,7 +1956,7 @@ test_clustering_rebalance() {
   LXD_DIR="${LXD_ONE_DIR}" lxc cluster show node2 | grep -q "status: Offline"
   LXD_DIR="${LXD_ONE_DIR}" lxc cluster show node2 | grep -q "database: false"
   LXD_DIR="${LXD_ONE_DIR}" lxc cluster show node4 | grep -q "status: Online"
-  LXD_DIR="${LXD_ONE_DIR}" lxc cluster show node4 | grep -q "database: true"
+  LXD_DIR="${LXD_ONE_DIR}" lxc cluster show node4 | grep -q "\- database$"
 
   LXD_DIR="${LXD_ONE_DIR}" lxc config unset cluster.offline_threshold
 
@@ -1967,7 +1967,7 @@ test_clustering_rebalance() {
 
   LXD_DIR="${LXD_ONE_DIR}" lxc cluster list
   LXD_DIR="${LXD_ONE_DIR}" lxc cluster show node2 | grep -q "status: Online"
-  LXD_DIR="${LXD_ONE_DIR}" lxc cluster show node2 | grep -q "database: false"
+  LXD_DIR="${LXD_ONE_DIR}" lxc cluster show node2 | grep -q "database: true"
 
   LXD_DIR="${LXD_ONE_DIR}" lxd shutdown
   LXD_DIR="${LXD_TWO_DIR}" lxd shutdown
@@ -2038,7 +2038,7 @@ test_clustering_remove_raft_node() {
   ns3="${prefix}3"
   spawn_lxd_and_join_cluster "${ns3}" "${bridge}" "${cert}" 3 2 "${LXD_THREE_DIR}"
 
-  # Spawn a fourth node, this will be a non-database node.
+  # Spawn a fourth node, this will be a database-standby node.
   setup_clustering_netns 4
   LXD_FOUR_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
   chmod +x "${LXD_FOUR_DIR}"
@@ -2066,9 +2066,9 @@ test_clustering_remove_raft_node() {
 
   # There are only 2 database nodes.
   LXD_DIR="${LXD_ONE_DIR}" lxc cluster list
-  LXD_DIR="${LXD_ONE_DIR}" lxc cluster list | grep "node1" | grep -q "YES"
-  LXD_DIR="${LXD_ONE_DIR}" lxc cluster list | grep "node3" | grep -q "YES"
-  LXD_DIR="${LXD_ONE_DIR}" lxc cluster list | grep "node4" | grep -q "NO"
+  LXD_DIR="${LXD_ONE_DIR}" lxc cluster show node1 | grep -q "\- database$"
+  LXD_DIR="${LXD_ONE_DIR}" lxc cluster show node3 | grep -q "\- database$"
+  LXD_DIR="${LXD_ONE_DIR}" lxc cluster show node4 | grep -q "\- database-standby"
 
   # The second node is still in the raft_nodes table.
   LXD_DIR="${LXD_ONE_DIR}" lxd sql local "SELECT * FROM raft_nodes" | grep -q "10.1.1.102"
@@ -2081,9 +2081,9 @@ test_clustering_remove_raft_node() {
 
   # We're back to 3 database nodes.
   LXD_DIR="${LXD_ONE_DIR}" lxc cluster list
-  LXD_DIR="${LXD_ONE_DIR}" lxc cluster list | grep "node1" | grep -q "YES"
-  LXD_DIR="${LXD_ONE_DIR}" lxc cluster list | grep "node3" | grep -q "YES"
-  LXD_DIR="${LXD_ONE_DIR}" lxc cluster list | grep "node4" | grep -q "YES"
+  LXD_DIR="${LXD_ONE_DIR}" lxc cluster show node1 | grep -q "\- database$"
+  LXD_DIR="${LXD_ONE_DIR}" lxc cluster show node3 | grep -q "\- database$"
+  LXD_DIR="${LXD_ONE_DIR}" lxc cluster show node4 | grep -q "\- database$"
 
   # The second node is gone from the raft_nodes_table.
   ! LXD_DIR="${LXD_ONE_DIR}" lxd sql local "SELECT * FROM raft_nodes" | grep -q "10.1.1.102" || false
