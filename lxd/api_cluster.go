@@ -1129,6 +1129,34 @@ func clusterNodesPost(d *Daemon, r *http.Request) response.Response {
 		return response.InternalError(fmt.Errorf("There are no online cluster members"))
 	}
 
+	// Remove any existing join tokens for the requested cluster member, this way we only ever have one active
+	// join token for each potential new member, and it has the most recent active members list for joining.
+	// This also ensures any historically unused (but potentially published) join tokens are removed.
+	ops, err := operationsGetByType(d, project.Default, db.OperationClusterJoinToken)
+	if err != nil {
+		return response.InternalError(errors.Wrapf(err, "Failed getting cluster join token operations"))
+	}
+
+	for _, op := range ops {
+		if op.StatusCode != api.Running {
+			continue // Tokens are single use, so if cancelled but not deleted yet its not available.
+		}
+
+		opServerName, ok := op.Metadata["serverName"]
+		if !ok {
+			continue
+		}
+
+		if opServerName == req.ServerName {
+			// Join token operation matches requested server name, so lets cancel it.
+			logger.Warn("Cancelling duplicate join token operation", log.Ctx{"operation": op.ID, "serverName": opServerName})
+			err = operationCancel(d, project.Default, op)
+			if err != nil {
+				return response.InternalError(errors.Wrapf(err, "Failed to cancel operation %q", op.ID))
+			}
+		}
+	}
+
 	// Generate join secret for new member. This will be stored inside the join token operation and will be
 	// supplied by the joining member (encoded inside the join token) which will allow us to lookup the correct
 	// operation in order to validate the requested joining server name is correct and authorised.

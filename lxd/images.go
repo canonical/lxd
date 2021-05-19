@@ -2305,7 +2305,7 @@ func imageValidSecret(d *Daemon, projectName string, fingerprint string, secret 
 			// Token is single-use, so cancel it now.
 			err = operationCancel(d, projectName, op)
 			if err != nil {
-				return nil, errors.Wrapf(err, "Failed to cancel operation")
+				return nil, errors.Wrapf(err, "Failed to cancel operation %q", op.ID)
 			}
 
 			return op, nil
