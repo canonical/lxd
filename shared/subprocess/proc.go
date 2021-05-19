@@ -181,7 +181,7 @@ func (p *Process) start(fds []*os.File) error {
 		exitcode := int64(procstate.ExitCode())
 		p.exitCode = exitcode
 		if p.exitCode != 0 {
-			p.exitErr = fmt.Errorf("Process exited with a non-zero value")
+			p.exitErr = fmt.Errorf("Process exited with non-zero value %d", p.exitCode)
 		}
 		close(p.chExit)
 	}()
