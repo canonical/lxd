@@ -514,12 +514,10 @@ func (d *common) restartCommon(inst instance.Instance, timeout time.Duration) er
 // runHooks executes the callback functions returned from a function.
 func (d *common) runHooks(hooks []func() error) error {
 	// Run any post start hooks.
-	if len(hooks) > 0 {
-		for _, hook := range hooks {
-			err := hook()
-			if err != nil {
-				return err
-			}
+	for _, hook := range hooks {
+		err := hook()
+		if err != nil {
+			return err
 		}
 	}
 
