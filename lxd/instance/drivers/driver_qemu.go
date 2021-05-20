@@ -2636,7 +2636,6 @@ func (d *qemu) addNetDevConfig(sb *strings.Builder, cpuCount int, bus *qemuBus, 
 
 		if shared.StringInSlice(bus.name, []string{"pcie", "pci"}) {
 			qemuDev["driver"] = "virtio-net-pci"
-			qemuDev["bus"] = bus.name
 		} else if bus.name == "ccw" {
 			qemuDev["driver"] = "virtio-net-ccw"
 		}
@@ -2666,7 +2665,6 @@ func (d *qemu) addNetDevConfig(sb *strings.Builder, cpuCount int, bus *qemuBus, 
 
 		if shared.StringInSlice(bus.name, []string{"pcie", "pci"}) {
 			qemuDev["driver"] = "virtio-net-pci"
-			qemuDev["bus"] = bus.name
 		} else if bus.name == "ccw" {
 			qemuDev["driver"] = "virtio-net-ccw"
 		}
