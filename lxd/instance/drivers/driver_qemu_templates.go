@@ -101,7 +101,7 @@ bus = "dev-qemu_serial.0"
 `))
 
 var qemuPCIe = template.Must(template.New("qemuPCIe").Parse(`
-[device "qemu_pcie{{.index}}"]
+[device "{{.portName}}"]
 driver = "pcie-root-port"
 bus = "pcie.0"
 addr = "{{.addr}}"
