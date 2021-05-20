@@ -39,6 +39,7 @@ import (
 	"github.com/lxc/lxd/lxd/firewall"
 	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/ucred"
+	"github.com/lxc/lxd/lxd/warnings"
 
 	// Import instance/drivers without name so init() runs.
 	_ "github.com/lxc/lxd/lxd/instance/drivers"
@@ -837,11 +838,11 @@ func (d *Daemon) init() error {
 		logger.Infof(" - unprivileged file capabilities: no")
 	}
 
-	warnings := d.os.CGInfo.Warnings()
+	dbWarnings := d.os.CGInfo.Warnings()
 
 	logger.Infof(" - cgroup layout: %s", d.os.CGInfo.Mode())
 
-	for _, w := range warnings {
+	for _, w := range dbWarnings {
 		logger.Warnf(" - %s, %s", db.WarningTypeNames[db.WarningType(w.TypeCode)], w.LastMessage)
 	}
 
@@ -1060,7 +1061,7 @@ func (d *Daemon) init() error {
 	}
 
 	// Create warnings that have been collected
-	for _, w := range warnings {
+	for _, w := range dbWarnings {
 		err := d.cluster.UpsertWarning(nodeName, "", -1, -1, db.WarningType(w.TypeCode), w.LastMessage)
 		if err != nil {
 			return errors.Wrap(err, "Failed to create warning")
@@ -1071,7 +1072,7 @@ func (d *Daemon) init() error {
 	for i := range db.WarningTypeNames {
 		resolveWarning := true
 
-		for _, w := range warnings {
+		for _, w := range dbWarnings {
 			if int(i) == w.TypeCode {
 				// Do not resolve the warning as it's still valid
 				resolveWarning = false
@@ -1084,7 +1085,7 @@ func (d *Daemon) init() error {
 		}
 
 		// Resolve warnings with the given type
-		err := resolveWarningsByNodeAndType(d, nodeName, i)
+		err := warnings.ResolveWarningsByNodeAndType(d.cluster, nodeName, i)
 		if err != nil {
 			return errors.Wrap(err, "Failed to resolve warnings")
 		}
