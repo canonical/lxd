@@ -1591,6 +1591,72 @@ func (d *qemu) deviceStart(deviceName string, rawConfig deviceConfig.Device, ins
 	return runConf, nil
 }
 
+// deviceAttachNIC live attaches a NIC device to the instance.
+func (d *qemu) deviceAttachNIC(deviceName string, configCopy map[string]string, netIF []deviceConfig.RunConfigItem) error {
+	devName := ""
+	for _, dev := range netIF {
+		if dev.Key == "link" {
+			devName = dev.Value
+			break
+		}
+	}
+
+	if devName == "" {
+		return fmt.Errorf("Device didn't provide a link property to use")
+	}
+
+	_, qemuBus, err := d.qemuArchConfig(d.architecture)
+	if err != nil {
+		return err
+	}
+
+	// Check if the agent is running.
+	monitor, err := qmp.Connect(d.monitorPath(), qemuSerialChardevName, d.getMonitorEventHandler())
+	if err != nil {
+		return err
+	}
+
+	qemuDev := make(map[string]string)
+
+	// PCIe and PCI require a port device name to hotplug the NIC into.
+	if shared.StringInSlice(qemuBus, []string{"pcie", "pci"}) {
+		pciDevID := qemuPCIDeviceIDStart
+
+		// Iterate through all the instance devices in the same sorted order as is used when allocating the
+		// boot time devices in order to find the PCI bus slot device we would have used at boot time.
+		// Then attempt to use that same device, assuming it is available.
+		for _, dev := range d.expandedDevices.Sorted() {
+			if dev.Name == deviceName {
+				break // Found our device.
+			}
+
+			pciDevID++
+		}
+
+		pciDeviceName := fmt.Sprintf("%s%d", busDevicePortPrefix, pciDevID)
+		d.logger.Debug("Using PCI bus device to hotplug NIC into", log.Ctx{"device": deviceName, "port": pciDeviceName})
+		qemuDev["bus"] = pciDeviceName
+		qemuDev["addr"] = "00.0"
+	}
+
+	cpuCount, err := d.addCPUMemoryConfig(nil)
+	if err != nil {
+		return err
+	}
+
+	monHook, err := d.addNetDevConfig(cpuCount, qemuBus, qemuDev, nil, netIF)
+	if err != nil {
+		return err
+	}
+
+	err = monHook(monitor)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
 // deviceStop loads a new device and calls its Stop() function.
 func (d *qemu) deviceStop(deviceName string, rawConfig deviceConfig.Device, instanceRunning bool) error {
 	logger := logging.AddContext(d.logger, log.Ctx{"device": deviceName, "type": rawConfig["type"]})
