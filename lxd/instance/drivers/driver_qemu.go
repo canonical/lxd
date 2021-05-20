@@ -2364,6 +2364,11 @@ func (d *qemu) generateQemuConfigFile(mountInfo *storagePools.MountInfo, busName
 
 	}
 
+	// Allocate 4 PCI slots for hotplug devices.
+	for i := 0; i < 4; i++ {
+		bus.allocate(busFunctionGroupNone)
+	}
+
 	// Write the agent mount config.
 	agentMountJSON, err := json.Marshal(agentMounts)
 	if err != nil {
