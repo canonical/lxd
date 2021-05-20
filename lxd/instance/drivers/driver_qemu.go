@@ -2624,14 +2624,11 @@ func (d *qemu) addNetDevConfig(sb *strings.Builder, cpuCount int, bus *qemuBus, 
 			return nil, errors.Wrapf(err, "Error parsing tap device ifindex")
 		}
 
-		// Append the tap device file path to the list of files to be opened and passed to qemu.
-		fd := d.addFileDescriptor(fdFiles, fmt.Sprintf("/dev/tap%d", ifindex))
-
 		qemuNetDev = map[string]interface{}{
 			"id":    fmt.Sprintf("lxd_%s", devName),
 			"type":  "tap",
 			"vhost": true,
-			"fd":    strconv.Itoa(fd),
+			"fd":    fmt.Sprintf("/dev/tap%d", ifindex), // Indicates the file to open and the FD name.
 		}
 
 		if shared.StringInSlice(bus.name, []string{"pcie", "pci"}) {
@@ -2719,6 +2716,21 @@ func (d *qemu) addNetDevConfig(sb *strings.Builder, cpuCount int, bus *qemuBus, 
 	if qemuDev["driver"] != "" {
 		// Return a monitor hook to add the NIC via QMP before the VM is started.
 		monHook := func(m *qmp.Monitor) error {
+			if fd, found := qemuNetDev["fd"]; found {
+				fileName := fd.(string)
+
+				f, err := os.OpenFile(fileName, os.O_RDWR, 0)
+				if err != nil {
+					return errors.Wrapf(err, "Error opening exta file %q", fileName)
+				}
+				defer f.Close() // Close file after device has been added.
+
+				err = m.SendFile(fileName, f)
+				if err != nil {
+					return errors.Wrapf(err, "Error sending exta file %q", fileName)
+				}
+			}
+
 			err := m.AddNIC(qemuNetDev, qemuDev)
 			if err != nil {
 				return errors.Wrapf(err, "Failed setting up device %v", devName)
