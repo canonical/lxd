@@ -347,3 +347,42 @@ func (m *Monitor) Reset() error {
 
 	return nil
 }
+
+// PCIClassInfo info about a device's class.
+type PCIClassInfo struct {
+	Class       int    `json:"class"`
+	Description string `json:"desc"`
+}
+
+// PCIDevice represents a PCI device.
+type PCIDevice struct {
+	DevID    string       `json:"qdev_id"`
+	Bus      int          `json:"bus"`
+	Slot     int          `json:"slot"`
+	Function int          `json:"function"`
+	Devices  []PCIDevice  `json:"devices"`
+	Class    PCIClassInfo `json:"class_info"`
+	Bridge   PCIBridge    `json:"pci_bridge"`
+}
+
+// PCIBridge represents a PCI bridge.
+type PCIBridge struct {
+	Devices []PCIDevice `json:"devices"`
+}
+
+// QueryPCI returns info about PCI devices.
+func (m *Monitor) QueryPCI() ([]PCIDevice, error) {
+	// Prepare the response.
+	var resp struct {
+		Return []struct {
+			Devices []PCIDevice `json:"devices"`
+		} `json:"return"`
+	}
+
+	err := m.run("query-pci", "", &resp)
+	if err != nil {
+		return nil, errors.Wrapf(err, "Failed querying PCI devices")
+	}
+
+	return resp.Return[0].Devices, nil
+}
