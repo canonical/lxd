@@ -1574,7 +1574,7 @@ func (d *qemu) deviceStart(deviceName string, rawConfig deviceConfig.Device, ins
 	logger := logging.AddContext(d.logger, log.Ctx{"device": deviceName, "type": rawConfig["type"]})
 	logger.Debug("Starting device")
 
-	dev, _, err := d.deviceLoad(deviceName, rawConfig)
+	dev, configCopy, err := d.deviceLoad(deviceName, rawConfig)
 	if err != nil {
 		return nil, err
 	}
@@ -1586,6 +1586,27 @@ func (d *qemu) deviceStart(deviceName string, rawConfig deviceConfig.Device, ins
 	runConf, err := dev.Start()
 	if err != nil {
 		return nil, err
+	}
+
+	// If runConf supplied, perform any instance specific setup of device.
+	if runConf != nil {
+		// If instance is running and then live attach device.
+		if instanceRunning {
+			// Attach network interface if requested.
+			if len(runConf.NetworkInterface) > 0 {
+				err = d.deviceAttachNIC(deviceName, configCopy, runConf.NetworkInterface)
+				if err != nil {
+					return nil, err
+				}
+			}
+
+			// If running, run post start hooks now (if not running LXD will run them
+			// once the instance is started).
+			err = d.runHooks(runConf.PostHooks)
+			if err != nil {
+				return nil, err
+			}
+		}
 	}
 
 	return runConf, nil
