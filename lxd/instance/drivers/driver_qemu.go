@@ -2601,8 +2601,14 @@ func (d *qemu) addNetDevConfig(sb *strings.Builder, cpuCount int, bus *qemuBus, 
 
 	var qemuNetDev map[string]interface{}
 	qemuDev := map[string]string{
-		"id":        fmt.Sprintf("dev-lxd_%s", devName),
-		"bootindex": strconv.Itoa(bootIndexes[devName]),
+		"id": fmt.Sprintf("dev-lxd_%s", devName),
+	}
+
+	if len(bootIndexes) > 0 {
+		bootIndex, found := bootIndexes[devName]
+		if found {
+			qemuDev["bootindex"] = strconv.Itoa(bootIndex)
+		}
 	}
 
 	// Detect MACVTAP interface types and figure out which tap device is being used.
