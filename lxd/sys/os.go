@@ -157,7 +157,7 @@ func (s *OS) Init() ([]db.Warning, error) {
 	s.ExecPath = util.GetExecPath()
 	s.RunningInUserNS = shared.RunningInUserNS()
 
-	s.initAppArmor()
+	dbWarnings = s.initAppArmor()
 	s.CGInfo = cgroup.GetInfo()
 
 	return dbWarnings, nil
