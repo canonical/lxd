@@ -33,7 +33,8 @@ func NewTestOS(t *testing.T) (*OS, func()) {
 		LogDir:   filepath.Join(dir, "log"),
 	}
 
-	require.NoError(t, os.Init())
+	_, err = os.Init()
+	require.NoError(t, err)
 
 	return os, cleanup
 }
