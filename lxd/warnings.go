@@ -441,30 +441,3 @@ func pruneResolvedWarnings(ctx context.Context, d *Daemon) error {
 
 	return nil
 }
-
-func resolveWarningsByNodeAndType(d *Daemon, nodeName string, typeCode db.WarningType) error {
-	err := d.cluster.Transaction(func(tx *db.ClusterTx) error {
-		warnings, err := tx.GetWarningsByType(typeCode)
-		if err != nil {
-			return err
-		}
-
-		for _, w := range warnings {
-			if w.Node != nodeName {
-				continue
-			}
-
-			err = tx.UpdateWarningStatus(w.UUID, db.WarningStatusResolved)
-			if err != nil {
-				return err
-			}
-		}
-
-		return nil
-	})
-	if err != nil {
-		return errors.Wrap(err, "Failed to resolve warnings")
-	}
-
-	return nil
-}
