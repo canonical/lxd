@@ -718,7 +718,7 @@ func (d *Daemon) init() error {
 	trace := d.config.Trace
 
 	/* Initialize the operating system facade */
-	err = d.os.Init()
+	dbWarnings, err = d.os.Init()
 	if err != nil {
 		return err
 	}
@@ -840,7 +840,7 @@ func (d *Daemon) init() error {
 		logger.Infof(" - unprivileged file capabilities: no")
 	}
 
-	dbWarnings = d.os.CGInfo.Warnings()
+	dbWarnings = append(dbWarnings, d.os.CGInfo.Warnings()...)
 
 	logger.Infof(" - cgroup layout: %s", d.os.CGInfo.Mode())
 
