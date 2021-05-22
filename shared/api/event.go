@@ -2,6 +2,7 @@ package api
 
 import (
 	"encoding/json"
+	"fmt"
 	"time"
 )
 
@@ -26,6 +27,61 @@ type Event struct {
 	//
 	// API extension: event_location
 	Location string `yaml:"location,omitempty" json:"location,omitempty"`
+}
+
+// ToLogging creates log record for the event
+func (event *Event) ToLogging() (EventLogRecord, error) {
+	if event.Type == "logging" {
+		e := &EventLogging{}
+		err := json.Unmarshal(event.Metadata, &e)
+		if err != nil {
+			return EventLogRecord{}, err
+		}
+
+		ctx := []interface{}{}
+		for k, v := range e.Context {
+			ctx = append(ctx, k)
+			ctx = append(ctx, v)
+		}
+
+		record := EventLogRecord{
+			Time: event.Timestamp,
+			Lvl:  e.Level,
+			Msg:  e.Message,
+			Ctx:  ctx,
+		}
+		return record, nil
+	} else if event.Type == "lifecycle" {
+		e := &EventLifecycle{}
+		err := json.Unmarshal(event.Metadata, &e)
+		if err != nil {
+			return EventLogRecord{}, err
+		}
+
+		ctx := []interface{}{}
+		for k, v := range e.Context {
+			ctx = append(ctx, k)
+			ctx = append(ctx, v)
+		}
+
+		record := EventLogRecord{
+			Time: event.Timestamp,
+			Lvl:  "info",
+			Msg:  fmt.Sprintf("Action: %s, Source: %s", e.Action, e.Source),
+			Ctx:  ctx,
+		}
+		return record, nil
+	}
+
+	return EventLogRecord{}, fmt.Errorf("Not supported event type: %s", event.Type)
+}
+
+// EventLogRecord represents single log record
+type EventLogRecord struct {
+	Time time.Time
+	Lvl  string
+	Msg  string
+	Ctx  []interface{}
 }
 
 // EventLogging represents a logging type event entry (admin only)
