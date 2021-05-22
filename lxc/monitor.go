@@ -95,40 +95,33 @@ func (c *cmdMonitor) Run(cmd *cobra.Command, args []string) error {
 	chError := make(chan error, 1)
 
 	handler := func(event api.Event) {
-		// Special handling for logging only output
-		if c.flagPretty && len(c.flagType) == 1 && shared.StringInSlice("logging", c.flagType) {
-			logEntry := api.EventLogging{}
-			err = json.Unmarshal(event.Metadata, &logEntry)
-			if err != nil {
-				chError <- err
-				return
-			}
-
-			lvl, err := log15.LvlFromString(logEntry.Level)
-			if err != nil {
-				chError <- err
-				return
-			}
-
-			if lvl > logLvl {
-				return
-			}
-
-			ctx := []interface{}{}
-			for k, v := range logEntry.Context {
-				ctx = append(ctx, k)
-				ctx = append(ctx, v)
-			}
-
-			record := log15.Record{
-				Time: event.Timestamp,
-				Lvl:  lvl,
-				Msg:  logEntry.Message,
-				Ctx:  ctx,
-			}
-
+		// Special handling for logging and lifecycle output
+		if c.flagPretty && !shared.StringInSlice("operation", c.flagType) {
 			format := logging.TerminalFormat()
-			fmt.Printf("%s", format.Format(&record))
+			record, err := event.ToLogging()
+			if err != nil {
+				chError <- err
+				return
+			}
+
+			lvl, err := log15.LvlFromString(record.Lvl)
+			if err != nil {
+				chError <- err
+				return
+			}
+
+			log15Record := log15.Record{
+				Time: record.Time,
+				Lvl:  lvl,
+				Msg:  record.Msg,
+				Ctx:  record.Ctx,
+			}
+			// Check log level for logging type
+			// `lifecycle` type have fixed `info` log level
+			if event.Type == "logging" && (log15Record.Lvl > logLvl) {
+				return
+			}
+			fmt.Printf("%s", format.Format(&log15Record))
 			return
 		}
 
