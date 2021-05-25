@@ -434,6 +434,11 @@ media = "{{.media}}"
 {{if .shared -}}
 file.locking = "off"
 {{- end }}
+{{- if .readonly}}
+readonly = "on"
+{{- else}}
+readonly = "off"
+{{- end}}
 
 [device "dev-lxd_{{.devName}}"]
 {{- if eq .media "disk" }}
