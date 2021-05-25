@@ -98,6 +98,7 @@ func (c *cmdAgent) Run(cmd *cobra.Command, args []string) error {
 			}
 		}
 
+		logger.Info("Rebooting")
 		shared.RunCommand("reboot")
 
 		// Wait up to 5min for the reboot to actually happen, if it doesn't, then move on to allowing connections.
