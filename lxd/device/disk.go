@@ -568,18 +568,17 @@ func (d *disk) startVM() (*deviceConfig.RunConfig, error) {
 				DevName: d.name,
 			}
 
+			readonly := shared.IsTrue(d.config["readonly"])
+			if readonly {
+				mount.Opts = append(mount.Opts, "ro")
+			}
+
 			// If the source being added is a directory, then we will be using lxd-agent directory
 			// sharing to mount the directory inside the VM, as such we need to indicate to the VM the
 			// target path to mount to.
 			if shared.IsDir(srcPath) {
 				mount.TargetPath = d.config["path"]
 				mount.FSType = "9p"
-
-				readonly := shared.IsTrue(d.config["readonly"])
-
-				if readonly {
-					mount.Opts = append(mount.Opts, "ro")
-				}
 
 				// Start virtfs-proxy-helper for 9p share.
 				err = func() error {
