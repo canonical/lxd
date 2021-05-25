@@ -2502,9 +2502,11 @@ func (d *qemu) addDriveDirConfig(sb *strings.Builder, bus *qemuBus, fdFiles *[]s
 		agentMount.Options = append(agentMount.Options, "trans=virtio")
 	}
 
+	readonly := shared.StringInSlice("ro", driveConf.Opts)
+
 	// Indicate to agent to mount this readonly. Note: This is purely to indicate to VM guest that this is
 	// readonly, it should *not* be used as a security measure, as the VM guest could remount it R/W.
-	if shared.StringInSlice("ro", driveConf.Opts) {
+	if readonly {
 		agentMount.Options = append(agentMount.Options, "ro")
 	}
 
@@ -2535,22 +2537,6 @@ func (d *qemu) addDriveDirConfig(sb *strings.Builder, bus *qemuBus, fdFiles *[]s
 
 	devBus, devAddr, multi := bus.allocate(busFunctionGroup9p)
 
-	// For read only shares, do not use proxy.
-	if shared.StringInSlice("ro", driveConf.Opts) {
-		return qemuDriveDir.Execute(sb, map[string]interface{}{
-			"bus":           bus.name,
-			"devBus":        devBus,
-			"devAddr":       devAddr,
-			"multifunction": multi,
-
-			"devName":  driveConf.DevName,
-			"mountTag": mountTag,
-			"path":     driveConf.DevPath,
-			"readonly": true,
-			"protocol": "9p",
-		})
-	}
-
 	// Only use proxy for writable shares.
 	proxyFD := d.addFileDescriptor(fdFiles, driveConf.DevPath)
 	return qemuDriveDir.Execute(sb, map[string]interface{}{
@@ -2562,7 +2548,7 @@ func (d *qemu) addDriveDirConfig(sb *strings.Builder, bus *qemuBus, fdFiles *[]s
 		"devName":  driveConf.DevName,
 		"mountTag": mountTag,
 		"proxyFD":  proxyFD,
-		"readonly": false,
+		"readonly": readonly,
 		"protocol": "9p",
 	})
 }
