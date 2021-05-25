@@ -98,11 +98,33 @@ func (c *cmdAgent) Run(cmd *cobra.Command, args []string) error {
 			}
 		}
 
+		logger.Info("Rebooting")
 		shared.RunCommand("reboot")
 
 		// Wait up to 5min for the reboot to actually happen, if it doesn't, then move on to allowing connections.
 		time.Sleep(300 * time.Second)
 	}
+
+	// Load the kernel driver.
+	logger.Info("Loading vsock module")
+	err = util.LoadModule("vsock")
+	if err != nil {
+		return errors.Wrap(err, "Unable to load the vsock kernel module")
+	}
+
+	// Wait for vsock device to appear.
+	for i := 0; i < 5; i++ {
+		if !shared.PathExists("/dev/vsock") {
+			time.Sleep(1 * time.Second)
+		}
+	}
+
+	// Setup the listener.
+	l, err := vsock.Listen(shared.DefaultPort)
+	if err != nil {
+		return errors.Wrap(err, "Failed to listen on vsock")
+	}
+	logger.Info("Started vsock listener")
 
 	// Mount shares from host.
 	c.mountHostShares()
@@ -112,18 +134,6 @@ func (c *cmdAgent) Run(cmd *cobra.Command, args []string) error {
 	// and know the file will have been created by the time the service is started.
 	if os.Getenv("NOTIFY_SOCKET") != "" {
 		shared.RunCommand("systemd-notify", "READY=1")
-	}
-
-	// Load the kernel driver.
-	err = util.LoadModule("vsock")
-	if err != nil {
-		return errors.Wrap(err, "Unable to load the vsock kernel module")
-	}
-
-	// Setup the listener.
-	l, err := vsock.Listen(shared.DefaultPort)
-	if err != nil {
-		return errors.Wrap(err, "Failed to listen on vsock")
 	}
 
 	// Load the expected server certificate.

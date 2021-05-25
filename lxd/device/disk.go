@@ -568,16 +568,20 @@ func (d *disk) startVM() (*deviceConfig.RunConfig, error) {
 				DevName: d.name,
 			}
 
-			// If the source being added is a directory, then we will be using 9p directory sharing to mount
-			// the directory inside the VM, as such we need to indicate to the VM the target path to mount to.
+			readonly := shared.IsTrue(d.config["readonly"])
+			if readonly {
+				mount.Opts = append(mount.Opts, "ro")
+			}
+
+			// If the source being added is a directory, then we will be using lxd-agent directory
+			// sharing to mount the directory inside the VM, as such we need to indicate to the VM the
+			// target path to mount to.
 			if shared.IsDir(srcPath) {
 				mount.TargetPath = d.config["path"]
 				mount.FSType = "9p"
 
-				if shared.IsTrue(d.config["readonly"]) {
-					// Don't use proxy in readonly mode.
-					mount.Opts = append(mount.Opts, "ro")
-				} else {
+				// Start virtfs-proxy-helper for 9p share.
+				err = func() error {
 					sockPath := filepath.Join(d.inst.DevicesPath(), fmt.Sprintf("%s.sock", d.name))
 					mount.DevPath = sockPath // Use socket path as dev path so qemu connects to proxy.
 
@@ -593,7 +597,7 @@ func (d *disk) startVM() (*deviceConfig.RunConfig, error) {
 					}
 
 					if cmd == "" {
-						return nil, fmt.Errorf("Required binary 'virtfs-proxy-helper' couldn't be found")
+						return fmt.Errorf(`Required binary "virtfs-proxy-helper" couldn't be found`)
 					}
 
 					// Start the virtfs-proxy-helper process in non-daemon mode and as root so that
@@ -601,12 +605,12 @@ func (d *disk) startVM() (*deviceConfig.RunConfig, error) {
 					// directories that process cannot access.
 					proc, err := subprocess.NewProcess(cmd, []string{"-n", "-u", "0", "-g", "0", "-s", sockPath, "-p", srcPath}, "", "")
 					if err != nil {
-						return nil, err
+						return err
 					}
 
 					err = proc.Start()
 					if err != nil {
-						return nil, errors.Wrapf(err, "Failed to start virtfs-proxy-helper for device %q", d.name)
+						return errors.Wrapf(err, "Failed to start virtfs-proxy-helper")
 					}
 
 					revert.Add(func() { proc.Stop() })
@@ -614,7 +618,7 @@ func (d *disk) startVM() (*deviceConfig.RunConfig, error) {
 					pidPath := filepath.Join(d.inst.DevicesPath(), fmt.Sprintf("%s.pid", d.name))
 					err = proc.Save(pidPath)
 					if err != nil {
-						return nil, errors.Wrapf(err, "Failed to save virtfs-proxy-helper state for device %q", d.name)
+						return errors.Wrapf(err, "Failed to save virtfs-proxy-helper state")
 					}
 
 					// Wait for socket file to exist (as otherwise qemu can race the creation of this file).
@@ -625,37 +629,63 @@ func (d *disk) startVM() (*deviceConfig.RunConfig, error) {
 
 						time.Sleep(50 * time.Millisecond)
 					}
-				}
 
-				// Start virtiofsd as LXD prefers virtio-fs over 9p. The latter will only be used
-				// as a fallback.
-
-				// Create the socket in this directory instead of the devices directory. QEMU will otherwise
-				// fail with "Permission Denied" which is probably caused by qemu being called with --chroot.
-				sockPath := filepath.Join(d.inst.Path(), fmt.Sprintf("%s.sock", d.name))
-				logPath := filepath.Join(d.inst.LogPath(), fmt.Sprintf("disk.%s.log", d.name))
-
-				// Remove old socket if needed.
-				os.Remove(sockPath)
-
-				// Locate virtiofsd.
-				cmd, err := exec.LookPath("virtiofsd")
+					return nil
+				}()
 				if err != nil {
-					if shared.PathExists("/usr/lib/qemu/virtiofsd") {
-						cmd = "/usr/lib/qemu/virtiofsd"
-					}
+					return nil, errors.Wrapf(err, "Failed to setup virtfs-proxy-helper for device %q", d.name)
 				}
 
-				if d.inst.Architecture() == osarch.ARCH_64BIT_INTEL_X86 && !shared.IsTrue(d.inst.ExpandedConfig()["migration.stateful"]) && cmd != "" {
+				// Start virtiofsd for virtio-fs share. The lxd-agent prefers to use this over the
+				// virtfs-proxy-helper 9p share. The latter will only be used as a fallback.
+				err = func() error {
+					// virtiofsd doesn't support readonly mode.
+					if readonly {
+						d.logger.Warn("Unable to use virtio-fs for device, using 9p as a fallback: readonly devices unsupported", log.Ctx{"device": d.name})
+						return nil
+					}
+
+					// Create the socket in this directory instead of the devices directory.
+					// QEMU will otherwise fail with "Permission Denied" which is probably
+					// caused by qemu being called with --chroot.
+					sockPath := filepath.Join(d.inst.Path(), fmt.Sprintf("%s.sock", d.name))
+					logPath := filepath.Join(d.inst.LogPath(), fmt.Sprintf("disk.%s.log", d.name))
+
+					// Remove old socket if needed.
+					os.Remove(sockPath)
+
+					// Locate virtiofsd.
+					cmd, err := exec.LookPath("virtiofsd")
+					if err != nil {
+						if shared.PathExists("/usr/lib/qemu/virtiofsd") {
+							cmd = "/usr/lib/qemu/virtiofsd"
+						}
+					}
+
+					if cmd == "" {
+						d.logger.Warn("Unable to use virtio-fs for device, using 9p as a fallback: virtiofsd missing", log.Ctx{"device": d.name})
+						return nil
+					}
+
+					if d.inst.Architecture() != osarch.ARCH_64BIT_INTEL_X86 {
+						d.logger.Warn("Unable to use virtio-fs for device, using 9p as a fallback: architecture unsupported", log.Ctx{"device": d.name})
+						return nil
+					}
+
+					if shared.IsTrue(d.inst.ExpandedConfig()["migration.stateful"]) {
+						d.logger.Warn("Unable to use virtio-fs for device, using 9p as a fallback: stateful migration unsupported", log.Ctx{"device": d.name})
+						return nil
+					}
+
 					// Start the virtiofsd process in non-daemon mode.
 					proc, err := subprocess.NewProcess(cmd, []string{fmt.Sprintf("--socket-path=%s", sockPath), "-o", fmt.Sprintf("source=%s", srcPath)}, logPath, logPath)
 					if err != nil {
-						return nil, err
+						return err
 					}
 
 					err = proc.Start()
 					if err != nil {
-						return nil, errors.Wrapf(err, "Failed to start virtiofsd for device %q", d.name)
+						return errors.Wrapf(err, "Failed to start virtiofsd")
 					}
 
 					revert.Add(func() { proc.Stop() })
@@ -663,7 +693,7 @@ func (d *disk) startVM() (*deviceConfig.RunConfig, error) {
 					pidPath := filepath.Join(d.inst.DevicesPath(), fmt.Sprintf("virtio-fs.%s.pid", d.name))
 					err = proc.Save(pidPath)
 					if err != nil {
-						return nil, errors.Wrapf(err, "Failed to save virtiofsd state for device %q", d.name)
+						return errors.Wrapf(err, "Failed to save virtiofsd state")
 					}
 
 					// Wait for socket file to exist
@@ -676,10 +706,13 @@ func (d *disk) startVM() (*deviceConfig.RunConfig, error) {
 					}
 
 					if !shared.PathExists(sockPath) {
-						return nil, fmt.Errorf("virtiofsd failed to bind socket within 10s")
+						return fmt.Errorf("virtiofsd failed to bind socket within 10s")
 					}
-				} else {
-					d.logger.Warn("Unable to use virtio-fs for device, using 9p as a fallback: virtiofsd missing", log.Ctx{"device": d.name})
+
+					return nil
+				}()
+				if err != nil {
+					return nil, errors.Wrapf(err, "Failed to setup virtiofsd for device %q", d.name)
 				}
 			}
 

@@ -1421,13 +1421,19 @@ func (d *qemu) setupNvram() error {
 		srcOvmfFile = filepath.Join(d.ovmfPath(), "OVMF_VARS.ms.fd")
 	}
 
+	missingEFIFirmwareErr := fmt.Errorf("Required EFI firmware settings file missing %q", srcOvmfFile)
+
+	if !shared.PathExists(srcOvmfFile) {
+		return missingEFIFirmwareErr
+	}
+
 	srcOvmfFile, err = filepath.EvalSymlinks(srcOvmfFile)
 	if err != nil {
-		return err
+		return errors.Wrapf(err, "Failed resolving EFI firmware symlink %q", srcOvmfFile)
 	}
 
 	if !shared.PathExists(srcOvmfFile) {
-		return fmt.Errorf("Required EFI firmware settings file missing: %s", srcOvmfFile)
+		return missingEFIFirmwareErr
 	}
 
 	os.Remove(d.nvramPath())
@@ -1671,27 +1677,29 @@ func (d *qemu) generateConfigShare() error {
 	}
 
 	// Add the VM agent.
-	path, err := exec.LookPath("lxd-agent")
+	lxdAgentSrcPath, err := exec.LookPath("lxd-agent")
 	if err != nil {
 		d.logger.Warn("lxd-agent not found, skipping its inclusion in the VM config drive", log.Ctx{"err": err})
 	} else {
 		// Install agent into config drive dir if found.
-		path, err = filepath.EvalSymlinks(path)
+		lxdAgentSrcPath, err = filepath.EvalSymlinks(lxdAgentSrcPath)
 		if err != nil {
 			return err
 		}
 
-		err = shared.FileCopy(path, filepath.Join(configDrivePath, "lxd-agent"))
+		lxdAgentInstallPath := filepath.Join(configDrivePath, "lxd-agent")
+		d.logger.Debug("Installing lxd-agent", log.Ctx{"srcPath": lxdAgentSrcPath, "installPath": lxdAgentInstallPath})
+		err = shared.FileCopy(lxdAgentSrcPath, lxdAgentInstallPath)
 		if err != nil {
 			return err
 		}
 
-		err = os.Chmod(filepath.Join(configDrivePath, "lxd-agent"), 0500)
+		err = os.Chmod(lxdAgentInstallPath, 0500)
 		if err != nil {
 			return err
 		}
 
-		err = os.Chown(filepath.Join(configDrivePath, "lxd-agent"), 0, 0)
+		err = os.Chown(lxdAgentInstallPath, 0, 0)
 		if err != nil {
 			return err
 		}
@@ -2494,9 +2502,11 @@ func (d *qemu) addDriveDirConfig(sb *strings.Builder, bus *qemuBus, fdFiles *[]s
 		agentMount.Options = append(agentMount.Options, "trans=virtio")
 	}
 
+	readonly := shared.StringInSlice("ro", driveConf.Opts)
+
 	// Indicate to agent to mount this readonly. Note: This is purely to indicate to VM guest that this is
 	// readonly, it should *not* be used as a security measure, as the VM guest could remount it R/W.
-	if shared.StringInSlice("ro", driveConf.Opts) {
+	if readonly {
 		agentMount.Options = append(agentMount.Options, "ro")
 	}
 
@@ -2527,22 +2537,6 @@ func (d *qemu) addDriveDirConfig(sb *strings.Builder, bus *qemuBus, fdFiles *[]s
 
 	devBus, devAddr, multi := bus.allocate(busFunctionGroup9p)
 
-	// For read only shares, do not use proxy.
-	if shared.StringInSlice("ro", driveConf.Opts) {
-		return qemuDriveDir.Execute(sb, map[string]interface{}{
-			"bus":           bus.name,
-			"devBus":        devBus,
-			"devAddr":       devAddr,
-			"multifunction": multi,
-
-			"devName":  driveConf.DevName,
-			"mountTag": mountTag,
-			"path":     driveConf.DevPath,
-			"readonly": true,
-			"protocol": "9p",
-		})
-	}
-
 	// Only use proxy for writable shares.
 	proxyFD := d.addFileDescriptor(fdFiles, driveConf.DevPath)
 	return qemuDriveDir.Execute(sb, map[string]interface{}{
@@ -2554,7 +2548,7 @@ func (d *qemu) addDriveDirConfig(sb *strings.Builder, bus *qemuBus, fdFiles *[]s
 		"devName":  driveConf.DevName,
 		"mountTag": mountTag,
 		"proxyFD":  proxyFD,
-		"readonly": false,
+		"readonly": readonly,
 		"protocol": "9p",
 	})
 }
@@ -2565,6 +2559,8 @@ func (d *qemu) addDriveConfig(sb *strings.Builder, bootIndexes map[string]int, d
 	aioMode := "native"
 	cacheMode := "none" // Bypass host cache, use O_DIRECT semantics.
 	media := "disk"
+
+	readonly := shared.StringInSlice("ro", driveConf.Opts)
 
 	// If drive config indicates we need to use unsafe I/O then use it.
 	if shared.StringInSlice(qemuUnsafeIO, driveConf.Opts) {
@@ -2608,6 +2604,7 @@ func (d *qemu) addDriveConfig(sb *strings.Builder, bootIndexes map[string]int, d
 		"aioMode":   aioMode,
 		"media":     media,
 		"shared":    driveConf.TargetPath != "/" && !strings.HasPrefix(driveConf.DevPath, "rbd:"),
+		"readonly":  readonly,
 	})
 }
 
