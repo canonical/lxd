@@ -2560,6 +2560,8 @@ func (d *qemu) addDriveConfig(sb *strings.Builder, bootIndexes map[string]int, d
 	cacheMode := "none" // Bypass host cache, use O_DIRECT semantics.
 	media := "disk"
 
+	readonly := shared.StringInSlice("ro", driveConf.Opts)
+
 	// If drive config indicates we need to use unsafe I/O then use it.
 	if shared.StringInSlice(qemuUnsafeIO, driveConf.Opts) {
 		d.logger.Warn("Using unsafe cache I/O", log.Ctx{"DevPath": driveConf.DevPath})
@@ -2602,6 +2604,7 @@ func (d *qemu) addDriveConfig(sb *strings.Builder, bootIndexes map[string]int, d
 		"aioMode":   aioMode,
 		"media":     media,
 		"shared":    driveConf.TargetPath != "/" && !strings.HasPrefix(driveConf.DevPath, "rbd:"),
+		"readonly":  readonly,
 	})
 }
 
