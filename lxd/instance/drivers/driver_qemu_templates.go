@@ -376,15 +376,12 @@ var qemuDriveDir = template.Must(template.New("qemuDriveDir").Parse(`
 # {{.devName}} drive ({{.protocol}})
 {{- if eq .protocol "9p" }}
 [fsdev "lxd_{{.devName}}"]
-{{- if .readonly}}
-readonly = "on"
-fsdriver = "local"
-security_model = "none"
-path = "{{.path}}"
-{{- else}}
-readonly = "off"
 fsdriver = "proxy"
 sock_fd = "{{.proxyFD}}"
+{{- if .readonly}}
+readonly = "on"
+{{- else}}
+readonly = "off"
 {{- end}}
 {{- else if eq .protocol "virtio-fs" }}
 [chardev "lxd_{{.devName}}"]
