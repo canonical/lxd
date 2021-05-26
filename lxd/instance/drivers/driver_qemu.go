@@ -2496,9 +2496,28 @@ func (d *qemu) addDriveDirConfig(sb *strings.Builder, bus *qemuBus, fdFiles *[]s
 	// Record the 9p mount for the agent.
 	*agentMounts = append(*agentMounts, agentMount)
 
-	sockPath := filepath.Join(d.Path(), fmt.Sprintf("%s.sock", driveConf.DevName))
+	// Check if the disk device has provided a virtiofsd socket path.
+	var virtiofsdSockPath string
+	for _, opt := range driveConf.Opts {
+		if strings.HasPrefix(opt, fmt.Sprintf("%s=", device.DiskVirtiofsdSockMountOpt)) {
+			parts := strings.SplitN(opt, "=", 2)
+			virtiofsdSockPath = parts[1]
+		}
+	}
 
-	if shared.PathExists(sockPath) {
+	// If there is a virtiofsd socket path setup the virtio-fs share.
+	if virtiofsdSockPath != "" {
+		if readonly {
+			return fmt.Errorf("virtiofsd doesn't support readonly shares")
+		}
+
+		if !shared.PathExists(virtiofsdSockPath) {
+			return fmt.Errorf("virtiofsd socket path %q doesn't exist", virtiofsdSockPath)
+		}
+
+		// Add to devPaths to allow apparmor access.
+		d.devPaths = append(d.devPaths, virtiofsdSockPath)
+
 		devBus, devAddr, multi := bus.allocate(busFunctionGroup9p)
 
 		// Add virtio-fs device as this will be preferred over 9p.
@@ -2510,7 +2529,7 @@ func (d *qemu) addDriveDirConfig(sb *strings.Builder, bus *qemuBus, fdFiles *[]s
 
 			"devName":  driveConf.DevName,
 			"mountTag": mountTag,
-			"path":     sockPath,
+			"path":     virtiofsdSockPath,
 			"protocol": "virtio-fs",
 		})
 		if err != nil {
