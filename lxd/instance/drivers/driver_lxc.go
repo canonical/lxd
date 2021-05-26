@@ -1374,6 +1374,9 @@ func (d *lxc) deviceStart(deviceName string, rawConfig deviceConfig.Device, inst
 	logger := logging.AddContext(d.logger, log.Ctx{"device": deviceName, "type": rawConfig["type"]})
 	logger.Debug("Starting device")
 
+	revert := revert.New()
+	defer revert.Fail()
+
 	dev, configCopy, err := d.deviceLoad(deviceName, rawConfig)
 	if err != nil {
 		return nil, err
@@ -1387,6 +1390,13 @@ func (d *lxc) deviceStart(deviceName string, rawConfig deviceConfig.Device, inst
 	if err != nil {
 		return nil, err
 	}
+
+	revert.Add(func() {
+		runConf, _ := dev.Stop()
+		if runConf != nil {
+			d.runHooks(runConf.PostHooks)
+		}
+	})
 
 	// If runConf supplied, perform any container specific setup of device.
 	if runConf != nil {
@@ -1434,6 +1444,7 @@ func (d *lxc) deviceStart(deviceName string, rawConfig deviceConfig.Device, inst
 		}
 	}
 
+	revert.Success()
 	return runConf, nil
 }
 
