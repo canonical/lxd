@@ -473,6 +473,22 @@ func (d *disk) startContainer() (*deviceConfig.RunConfig, error) {
 	return &runConf, nil
 }
 
+// vmVirtfsProxyHelperPaths returns the path for the socket and PID file to use with virtfs-proxy-helper process.
+func (d *disk) vmVirtfsProxyHelperPaths() (string, string) {
+	sockPath := filepath.Join(d.inst.DevicesPath(), fmt.Sprintf("%s.sock", d.name))
+	pidPath := filepath.Join(d.inst.DevicesPath(), fmt.Sprintf("%s.pid", d.name))
+
+	return sockPath, pidPath
+}
+
+// vmVirtiofsdPaths returns the path for the socket and PID file to use with virtiofsd process.
+func (d *disk) vmVirtiofsdPaths() (string, string) {
+	sockPath := filepath.Join(d.inst.DevicesPath(), fmt.Sprintf("virtio-fs.%s.sock", d.name))
+	pidPath := filepath.Join(d.inst.DevicesPath(), fmt.Sprintf("virtio-fs.%s.pid", d.name))
+
+	return sockPath, pidPath
+}
+
 // startVM starts the disk device for a virtual machine instance.
 func (d *disk) startVM() (*deviceConfig.RunConfig, error) {
 	runConf := deviceConfig.RunConfig{}
