@@ -1374,6 +1374,9 @@ func (d *lxc) deviceStart(deviceName string, rawConfig deviceConfig.Device, inst
 	logger := logging.AddContext(d.logger, log.Ctx{"device": deviceName, "type": rawConfig["type"]})
 	logger.Debug("Starting device")
 
+	revert := revert.New()
+	defer revert.Fail()
+
 	dev, configCopy, err := d.deviceLoad(deviceName, rawConfig)
 	if err != nil {
 		return nil, err
@@ -1387,6 +1390,13 @@ func (d *lxc) deviceStart(deviceName string, rawConfig deviceConfig.Device, inst
 	if err != nil {
 		return nil, err
 	}
+
+	revert.Add(func() {
+		runConf, _ := dev.Stop()
+		if runConf != nil {
+			d.runHooks(runConf.PostHooks)
+		}
+	})
 
 	// If runConf supplied, perform any container specific setup of device.
 	if runConf != nil {
@@ -1434,6 +1444,7 @@ func (d *lxc) deviceStart(deviceName string, rawConfig deviceConfig.Device, inst
 		}
 	}
 
+	revert.Success()
 	return runConf, nil
 }
 
@@ -4430,6 +4441,9 @@ func (d *lxc) Update(args db.InstanceArgs, userRequested bool) error {
 }
 
 func (d *lxc) updateDevices(removeDevices deviceConfig.Devices, addDevices deviceConfig.Devices, updateDevices deviceConfig.Devices, oldExpandedDevices deviceConfig.Devices, instanceRunning bool, userRequested bool) error {
+	revert := revert.New()
+	defer revert.Fail()
+
 	// Remove devices in reverse order to how they were added.
 	for _, dev := range removeDevices.Reversed() {
 		if instanceRunning {
@@ -4456,7 +4470,8 @@ func (d *lxc) updateDevices(removeDevices deviceConfig.Devices, addDevices devic
 	}
 
 	// Add devices in sorted order, this ensures that device mounts are added in path order.
-	for _, dev := range addDevices.Sorted() {
+	for _, dd := range addDevices.Sorted() {
+		dev := dd // Local var for loop revert.
 		err := d.deviceAdd(dev.Name, dev.Config, instanceRunning)
 		if err == device.ErrUnsupportedDevType {
 			continue // No point in trying to start device below.
@@ -4471,11 +4486,15 @@ func (d *lxc) updateDevices(removeDevices deviceConfig.Devices, addDevices devic
 			continue
 		}
 
+		revert.Add(func() { d.deviceRemove(dev.Name, dev.Config, instanceRunning) })
+
 		if instanceRunning {
 			_, err := d.deviceStart(dev.Name, dev.Config, instanceRunning)
 			if err != nil && err != device.ErrUnsupportedDevType {
 				return errors.Wrapf(err, "Failed to start device %q", dev.Name)
 			}
+
+			revert.Add(func() { d.deviceStop(dev.Name, dev.Config, instanceRunning, "") })
 		}
 	}
 
@@ -4486,6 +4505,7 @@ func (d *lxc) updateDevices(removeDevices deviceConfig.Devices, addDevices devic
 		}
 	}
 
+	revert.Success()
 	return nil
 }
 
