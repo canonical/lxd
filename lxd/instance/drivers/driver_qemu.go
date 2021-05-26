@@ -2554,10 +2554,10 @@ func (d *qemu) addDriveDirConfig(sb *strings.Builder, bus *qemuBus, fdFiles *[]s
 		}
 	}
 
+	// Add 9p share config.
 	devBus, devAddr, multi := bus.allocate(busFunctionGroup9p)
-
-	// Only use proxy for writable shares.
 	proxyFD := d.addFileDescriptor(fdFiles, driveConf.DevPath)
+
 	return qemuDriveDir.Execute(sb, map[string]interface{}{
 		"bus":           bus.name,
 		"devBus":        devBus,
@@ -2566,7 +2566,7 @@ func (d *qemu) addDriveDirConfig(sb *strings.Builder, bus *qemuBus, fdFiles *[]s
 
 		"devName":  driveConf.DevName,
 		"mountTag": mountTag,
-		"proxyFD":  proxyFD,
+		"proxyFD":  proxyFD, // Pass by file descriptor, so no need to add to d.devPaths.
 		"readonly": readonly,
 		"protocol": "9p",
 	})
