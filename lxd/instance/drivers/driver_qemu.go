@@ -3796,6 +3796,9 @@ func (d *qemu) updateMemoryLimit(newLimit string) error {
 }
 
 func (d *qemu) updateDevices(removeDevices deviceConfig.Devices, addDevices deviceConfig.Devices, updateDevices deviceConfig.Devices, oldExpandedDevices deviceConfig.Devices, instanceRunning bool, userRequested bool) error {
+	revert := revert.New()
+	defer revert.Fail()
+
 	// Remove devices in reverse order to how they were added.
 	for _, dev := range removeDevices.Reversed() {
 		if instanceRunning {
@@ -3822,7 +3825,8 @@ func (d *qemu) updateDevices(removeDevices deviceConfig.Devices, addDevices devi
 	}
 
 	// Add devices in sorted order, this ensures that device mounts are added in path order.
-	for _, dev := range addDevices.Sorted() {
+	for _, dd := range addDevices.Sorted() {
+		dev := dd // Local var for loop revert.
 		err := d.deviceAdd(dev.Name, dev.Config, instanceRunning)
 		if err == device.ErrUnsupportedDevType {
 			continue // No point in trying to start device below.
@@ -3837,11 +3841,15 @@ func (d *qemu) updateDevices(removeDevices deviceConfig.Devices, addDevices devi
 			continue
 		}
 
+		revert.Add(func() { d.deviceRemove(dev.Name, dev.Config, instanceRunning) })
+
 		if instanceRunning {
 			_, err := d.deviceStart(dev.Name, dev.Config, instanceRunning)
 			if err != nil && err != device.ErrUnsupportedDevType {
 				return errors.Wrapf(err, "Failed to start device %q", dev.Name)
 			}
+
+			revert.Add(func() { d.deviceStop(dev.Name, dev.Config, instanceRunning) })
 		}
 	}
 
@@ -3852,6 +3860,7 @@ func (d *qemu) updateDevices(removeDevices deviceConfig.Devices, addDevices devi
 		}
 	}
 
+	revert.Success()
 	return nil
 }
 
