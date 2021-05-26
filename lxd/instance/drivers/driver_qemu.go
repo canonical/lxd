@@ -2015,25 +2015,30 @@ func (d *qemu) deviceBootPriorities() (map[string]int, error) {
 
 	devices := []devicePrios{}
 
-	for devName, devConf := range d.expandedDevices {
-		if devConf["type"] != "disk" && devConf["type"] != "nic" {
+	for _, dev := range d.expandedDevices.Sorted() {
+		if dev.Config["type"] != "disk" && dev.Config["type"] != "nic" {
 			continue
 		}
 
 		bootPrio := uint32(0) // Default to lowest priority.
-		if devConf["boot.priority"] != "" {
-			prio, err := strconv.ParseInt(devConf["boot.priority"], 10, 32)
+		if dev.Config["boot.priority"] != "" {
+			prio, err := strconv.ParseInt(dev.Config["boot.priority"], 10, 32)
 			if err != nil {
-				return nil, errors.Wrapf(err, "Invalid boot.priority for device %q", devName)
+				return nil, errors.Wrapf(err, "Invalid boot.priority for device %q", dev.Name)
 			}
 			bootPrio = uint32(prio)
-		} else if devConf["path"] == "/" {
+		} else if dev.Config["path"] == "/" {
 			bootPrio = 1 // Set boot priority of root disk higher than any device without a boot prio.
 		}
 
-		devices = append(devices, devicePrios{Name: devName, BootPrio: bootPrio})
+		devices = append(devices, devicePrios{Name: dev.Name, BootPrio: bootPrio})
 	}
 
+	// Sort devices by priority (use SliceStable so that devices with the same boot priority stay in the same
+	// order each boot based on the device order provided by the d.expandedDevices.Sorted() function).
+	// This is important because as well as providing a predicable boot index order, the boot index number can
+	// also be used for other properties (such as disk SCSI ID) which can result in it being given different
+	// device names inside the guest based on the device order.
 	sort.SliceStable(devices, func(i, j int) bool { return devices[i].BootPrio > devices[j].BootPrio })
 
 	sortedDevs := make(map[string]int, len(devices))
