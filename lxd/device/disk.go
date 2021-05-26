@@ -586,8 +586,10 @@ func (d *disk) startVM() (*deviceConfig.RunConfig, error) {
 
 				// Start virtfs-proxy-helper for 9p share.
 				err = func() error {
-					sockPath := filepath.Join(d.inst.DevicesPath(), fmt.Sprintf("%s.sock", d.name))
-					mount.DevPath = sockPath // Use socket path as dev path so qemu connects to proxy.
+					sockPath, pidPath := d.vmVirtfsProxyHelperPaths()
+
+					// Use 9p socket path as dev path so qemu can connect to the proxy.
+					mount.DevPath = sockPath
 
 					// Remove old socket if needed.
 					os.Remove(sockPath)
@@ -619,7 +621,6 @@ func (d *disk) startVM() (*deviceConfig.RunConfig, error) {
 
 					revert.Add(func() { proc.Stop() })
 
-					pidPath := filepath.Join(d.inst.DevicesPath(), fmt.Sprintf("%s.pid", d.name))
 					err = proc.Save(pidPath)
 					if err != nil {
 						return errors.Wrapf(err, "Failed to save virtfs-proxy-helper state")
@@ -649,10 +650,7 @@ func (d *disk) startVM() (*deviceConfig.RunConfig, error) {
 						return nil
 					}
 
-					// Create the socket in this directory instead of the devices directory.
-					// QEMU will otherwise fail with "Permission Denied" which is probably
-					// caused by qemu being called with --chroot.
-					sockPath := filepath.Join(d.inst.Path(), fmt.Sprintf("%s.sock", d.name))
+					sockPath, pidPath := d.vmVirtiofsdPaths()
 					logPath := filepath.Join(d.inst.LogPath(), fmt.Sprintf("disk.%s.log", d.name))
 
 					// Remove old socket if needed.
@@ -694,7 +692,6 @@ func (d *disk) startVM() (*deviceConfig.RunConfig, error) {
 
 					revert.Add(func() { proc.Stop() })
 
-					pidPath := filepath.Join(d.inst.DevicesPath(), fmt.Sprintf("virtio-fs.%s.pid", d.name))
 					err = proc.Save(pidPath)
 					if err != nil {
 						return errors.Wrapf(err, "Failed to save virtiofsd state")
@@ -712,6 +709,15 @@ func (d *disk) startVM() (*deviceConfig.RunConfig, error) {
 					if !shared.PathExists(sockPath) {
 						return fmt.Errorf("virtiofsd failed to bind socket within 10s")
 					}
+
+					// Add the socket path to the mount options to indicate to the qemu driver
+					// that this share is available.
+					// Note: the sockPath is not passed to the QEMU via mount.DevPath like the
+					// 9p share above. This is because we run the 9p share concurrently
+					// and can only pass one DevPath at a time. Instead pass the sock path to
+					// the QEMU driver via the mount opts field as virtiofsdSock to allow the
+					// QEMU driver also setup the virtio-fs share.
+					mount.Opts = append(mount.Opts, fmt.Sprintf("%s=%s", DiskVirtiofsdSockMountOpt, sockPath))
 
 					return nil
 				}()
