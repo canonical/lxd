@@ -606,9 +606,9 @@ func (d *disk) startVM() (*deviceConfig.RunConfig, error) {
 						return fmt.Errorf(`Required binary "virtfs-proxy-helper" couldn't be found`)
 					}
 
-					// Start the virtfs-proxy-helper process in non-daemon mode and as root so that
-					// when the VM process is started as an unprivileged user, we can still share
-					// directories that process cannot access.
+					// Start the virtfs-proxy-helper process in non-daemon mode and as root so
+					// that when the VM process is started as an unprivileged user, we can
+					// still share directories that process cannot access.
 					proc, err := subprocess.NewProcess(cmd, []string{"-n", "-u", "0", "-g", "0", "-s", sockPath, "-p", srcPath}, "", "")
 					if err != nil {
 						return err
@@ -626,7 +626,8 @@ func (d *disk) startVM() (*deviceConfig.RunConfig, error) {
 						return errors.Wrapf(err, "Failed to save virtfs-proxy-helper state")
 					}
 
-					// Wait for socket file to exist (as otherwise qemu can race the creation of this file).
+					// Wait for socket file to exist (as otherwise qemu can race the creation
+					// of this file).
 					for i := 0; i < 10; i++ {
 						if shared.PathExists(sockPath) {
 							break
@@ -642,9 +643,10 @@ func (d *disk) startVM() (*deviceConfig.RunConfig, error) {
 				}
 
 				// Start virtiofsd for virtio-fs share. The lxd-agent prefers to use this over the
-				// virtfs-proxy-helper 9p share. The latter will only be used as a fallback.
+				// virtfs-proxy-helper 9p share. The 9p share will only be used as a fallback.
 				err = func() error {
-					// virtiofsd doesn't support readonly mode.
+					// virtiofsd doesn't support readonly mode, so its important we don't
+					// expose the share as writable when the LXD device is set as readonly.
 					if readonly {
 						d.logger.Warn("Unable to use virtio-fs for device, using 9p as a fallback: readonly devices unsupported", log.Ctx{"device": d.name})
 						return nil
