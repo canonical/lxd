@@ -9,6 +9,7 @@ import (
 
 	"github.com/pkg/errors"
 
+	"github.com/lxc/lxd/lxd/revert"
 	"github.com/lxc/lxd/shared"
 )
 
@@ -248,6 +249,9 @@ func (m *Monitor) SetMemoryBalloonSizeBytes(sizeBytes int64) error {
 
 // AddNIC adds a NIC device.
 func (m *Monitor) AddNIC(netDev map[string]interface{}, device map[string]string) error {
+	revert := revert.New()
+	defer revert.Fail()
+
 	if netDev != nil {
 		args, err := json.Marshal(netDev)
 		if err != nil {
@@ -258,6 +262,19 @@ func (m *Monitor) AddNIC(netDev map[string]interface{}, device map[string]string
 		if err != nil {
 			return errors.Wrapf(err, "Failed adding NIC netdev")
 		}
+
+		revert.Add(func() {
+			netDevDel := map[string]interface{}{
+				"id": netDev["id"],
+			}
+
+			args, err := json.Marshal(netDevDel)
+			if err != nil {
+				return
+			}
+
+			m.run("netdev_del", string(args), nil)
+		})
 	}
 
 	if device != nil {
@@ -272,6 +289,7 @@ func (m *Monitor) AddNIC(netDev map[string]interface{}, device map[string]string
 		}
 	}
 
+	revert.Success()
 	return nil
 }
 
