@@ -652,6 +652,10 @@ func (d *disk) startVM() (*deviceConfig.RunConfig, error) {
 						time.Sleep(50 * time.Millisecond)
 					}
 
+					if !shared.PathExists(sockPath) {
+						return fmt.Errorf("virtfs-proxy-helper failed to bind socket within 10s")
+					}
+
 					return nil
 				}()
 				if err != nil {
