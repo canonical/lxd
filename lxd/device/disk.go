@@ -38,6 +38,10 @@ import (
 // Special disk "source" value used for generating a VM cloud-init config ISO.
 const diskSourceCloudInit = "cloud-init:config"
 
+// DiskVirtiofsdSockMountOpt indicates the mount option prefix used to provide the virtiofsd socket path to
+// the QEMU driver.
+const DiskVirtiofsdSockMountOpt = "virtiofsdSock"
+
 type diskBlockLimit struct {
 	readBps   int64
 	readIops  int64
