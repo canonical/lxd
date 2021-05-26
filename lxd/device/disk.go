@@ -1399,42 +1399,60 @@ func (d *disk) Stop() (*deviceConfig.RunConfig, error) {
 }
 
 func (d *disk) stopVM() (*deviceConfig.RunConfig, error) {
-	// VM disk dir shares uses virtfs-proxy-helper, so we should stop that if it is running.
-	pidPath := filepath.Join(d.inst.DevicesPath(), fmt.Sprintf("%s.pid", d.name))
-	if shared.PathExists(pidPath) {
-		proc, err := subprocess.ImportProcess(pidPath)
-		if err != nil {
-			return &deviceConfig.RunConfig{}, err
+	// Stop the virtfs-proxy-helper process and clean up.
+	err := func() error {
+		sockPath, pidPath := d.vmVirtfsProxyHelperPaths()
+		if shared.PathExists(pidPath) {
+			proc, err := subprocess.ImportProcess(pidPath)
+			if err != nil {
+				return err
+			}
+
+			err = proc.Stop()
+			if err != nil && err != subprocess.ErrNotRunning {
+				return err
+			}
+
+			// Remove PID file.
+			os.Remove(pidPath)
 		}
 
-		err = proc.Stop()
-		if err != nil && err != subprocess.ErrNotRunning {
-			return &deviceConfig.RunConfig{}, err
-		}
+		// Remove socket file.
+		os.Remove(sockPath)
 
-		// Remove PID file and socket file.
-		os.Remove(pidPath)
-		os.Remove(filepath.Join(d.inst.DevicesPath(), fmt.Sprintf("%s.sock", d.name)))
+		return nil
+	}()
+	if err != nil {
+		return &deviceConfig.RunConfig{}, errors.Wrapf(err, "Failed cleaning up virtfs-proxy-helper")
 	}
 
-	// And do the same for the virtiofsd export.
-	pidPath = filepath.Join(d.inst.DevicesPath(), fmt.Sprintf("virtio-fs.%s.pid", d.name))
-	if shared.PathExists(pidPath) {
-		proc, err := subprocess.ImportProcess(pidPath)
-		if err != nil {
-			return &deviceConfig.RunConfig{}, err
+	// Stop the virtiofsd process and clean up.
+	err = func() error {
+		sockPath, pidPath := d.vmVirtiofsdPaths()
+		if shared.PathExists(pidPath) {
+			proc, err := subprocess.ImportProcess(pidPath)
+			if err != nil {
+				return err
+			}
+
+			err = proc.Stop()
+			// The virtiofsd process will terminate automatically once the VM has stopped.
+			// We therefore should only return an error if it's still running and fails to stop.
+			if err != nil && err != subprocess.ErrNotRunning {
+				return err
+			}
+
+			// Remove PID file and socket file.
+			os.Remove(pidPath)
 		}
 
-		err = proc.Stop()
-		// virtiofsd will terminate automatically once the VM has stopped. We therefore should only
-		// return an error if it's a running process.
-		if err != nil && err != subprocess.ErrNotRunning {
-			return &deviceConfig.RunConfig{}, err
-		}
+		// Remove socket file.
+		os.Remove(sockPath)
 
-		// Remove PID file and socket file.
-		os.Remove(pidPath)
-		os.Remove(filepath.Join(d.inst.Path(), fmt.Sprintf("%s.sock", d.name)))
+		return nil
+	}()
+	if err != nil {
+		return &deviceConfig.RunConfig{}, errors.Wrapf(err, "Failed cleaning up virtiofsd")
 	}
 
 	runConf := deviceConfig.RunConfig{
