@@ -25,6 +25,7 @@ import (
 
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/util"
+	"github.com/lxc/lxd/lxd/warnings"
 	"github.com/lxc/lxd/shared"
 	log "github.com/lxc/lxd/shared/log15"
 	"github.com/lxc/lxd/shared/logger"
@@ -195,20 +196,46 @@ func (g *Gateway) HandlerFuncs(nodeRefreshTask func(*APIHeartbeat), trustedCerts
 				return
 			}
 
-			// Look for time skews
-			if heartbeatData.Time.Add(5 * time.Second).Before(time.Now().UTC()) {
-				if !g.timeSkew {
-					logger.Warn("Time skew detected between leader and local", log.Ctx{"leaderTime": heartbeatData.Time, "localTime": time.Now().UTC()})
+			var nodeName string
+
+			if g.Cluster != nil {
+				err = g.Cluster.Transaction(func(tx *db.ClusterTx) error {
+					nodeName, err = tx.GetLocalNodeName()
+					if err != nil {
+						return err
+					}
+
+					return nil
+				})
+				if err != nil {
+					logger.Error("Failed to get node name")
+					http.Error(w, "500 failed to get node name", http.StatusInternalServerError)
+					return
 				}
-				g.timeSkew = true
-			} else if heartbeatData.Time.Add(-5 * time.Second).After(time.Now().UTC()) {
+			}
+
+			// Look for time skews
+			now := time.Now().UTC()
+
+			if heartbeatData.Time.Add(5*time.Second).Before(now) || heartbeatData.Time.Add(-5*time.Second).After(now) {
 				if !g.timeSkew {
-					logger.Warn("Time skew detected between leader and local", log.Ctx{"leaderTime": heartbeatData.Time, "localTime": time.Now().UTC()})
+					logger.Warn("Time skew detected between leader and local", log.Ctx{"leaderTime": heartbeatData.Time, "localTime": now})
+
+					err := g.Cluster.UpsertWarning(nodeName, "", -1, -1, db.WarningClusterTimeSkew, fmt.Sprintf("leaderTime: %s, localTime: %s", heartbeatData.Time, now))
+					if err != nil {
+						logger.Warn("Failed to create cluster time skew warning")
+					}
 				}
 				g.timeSkew = true
 			} else {
 				if g.timeSkew {
 					logger.Warn("Time skew resolved")
+
+					err := warnings.ResolveWarningsByNodeAndType(g.Cluster, nodeName, db.WarningClusterTimeSkew)
+					if err != nil {
+						logger.Warn("Failed to resolve cluster time skew warning")
+					}
+
 					g.timeSkew = false
 				}
 			}
