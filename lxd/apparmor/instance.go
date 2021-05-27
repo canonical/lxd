@@ -24,6 +24,7 @@ type instance interface {
 	LogPath() string
 	Path() string
 	DevPaths() []string
+	DevicesPath() string
 }
 
 // InstanceProfileName returns the instance's AppArmor profile name.
@@ -187,6 +188,7 @@ func instanceProfile(state *state.State, inst instance) (string, error) {
 
 		err = qemuProfileTpl.Execute(sb, map[string]interface{}{
 			"externalDevPaths": externalDevPaths,
+			"devicesPath":      inst.DevicesPath(),
 			"exePath":          util.GetExecPath(),
 			"libraryPath":      strings.Split(os.Getenv("LD_LIBRARY_PATH"), ":"),
 			"logPath":          inst.LogPath(),
