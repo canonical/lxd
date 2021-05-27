@@ -652,7 +652,7 @@ func (d *disk) startVM() (*deviceConfig.RunConfig, error) {
 					// virtiofsd doesn't support readonly mode, so its important we don't
 					// expose the share as writable when the LXD device is set as readonly.
 					if readonly {
-						d.logger.Warn("Unable to use virtio-fs for device, using 9p as a fallback: readonly devices unsupported", log.Ctx{"device": d.name})
+						d.logger.Warn("Unable to use virtio-fs for device, using 9p as a fallback", log.Ctx{"err": "readonly devices unsupported"})
 						return nil
 					}
 
