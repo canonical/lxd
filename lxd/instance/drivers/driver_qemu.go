@@ -578,7 +578,7 @@ func (d *qemu) onStop(target string) error {
 	// Clear up the config drive virtiofsd process.
 	err = device.DiskVMVirtiofsdStop(d.configVirtiofsdPaths())
 	if err != nil {
-		d.logger.Warn("Failed cleaning up virtiofsd", log.Ctx{"err": err})
+		d.logger.Warn("Failed cleaning up config drive virtiofsd", log.Ctx{"err": err})
 	}
 
 	// Record power state.
