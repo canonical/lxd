@@ -575,6 +575,7 @@ func (d *qemu) onStop(target string) error {
 	os.Remove(d.monitorPath())
 	d.unmount()
 
+	// Clear up the config drive virtiofsd process.
 	err = device.DiskVMVirtiofsdStop(d.configVirtiofsdPaths())
 	if err != nil {
 		d.logger.Warn("Failed cleaning up virtiofsd", log.Ctx{"err": err})
