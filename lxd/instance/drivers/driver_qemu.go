@@ -864,7 +864,7 @@ func (d *qemu) Start(stateful bool) error {
 	revert := revert.New()
 	defer revert.Fail()
 
-	// Start accumulating device paths.
+	// Start accumulating external device paths.
 	d.devPaths = []string{}
 
 	// Rotate the log file.
@@ -2490,9 +2490,6 @@ func (d *qemu) addDriveDirConfig(sb *strings.Builder, bus *qemuBus, fdFiles *[]s
 			return fmt.Errorf("virtiofsd socket path %q doesn't exist", virtiofsdSockPath)
 		}
 
-		// Add to devPaths to allow apparmor access.
-		d.devPaths = append(d.devPaths, virtiofsdSockPath)
-
 		devBus, devAddr, multi := bus.allocate(busFunctionGroup9p)
 
 		// Add virtio-fs device as this will be preferred over 9p.
@@ -2524,7 +2521,7 @@ func (d *qemu) addDriveDirConfig(sb *strings.Builder, bus *qemuBus, fdFiles *[]s
 
 		"devName":  driveConf.DevName,
 		"mountTag": mountTag,
-		"proxyFD":  proxyFD, // Pass by file descriptor, so no need to add to d.devPaths.
+		"proxyFD":  proxyFD, // Pass by file descriptor, so no need add to d.devPaths for apparmor access.
 		"readonly": readonly,
 		"protocol": "9p",
 	})
@@ -2570,6 +2567,7 @@ func (d *qemu) addDriveConfig(sb *strings.Builder, bootIndexes map[string]int, d
 	}
 
 	if !strings.HasPrefix(driveConf.DevPath, "rbd:") {
+		// Add path to external devPaths. This way, the path will be included in the apparmor profile.
 		d.devPaths = append(d.devPaths, driveConf.DevPath)
 	}
 
@@ -2866,7 +2864,7 @@ func (d *qemu) addUSBDeviceConfig(sb *strings.Builder, bus *qemuBus, usbConfig [
 		return err
 	}
 
-	// Add path to devPaths. This way, the path will be included in the apparmor profile.
+	// Add path to external devPaths. This way, the path will be included in the apparmor profile.
 	d.devPaths = append(d.devPaths, hostDevice)
 
 	return nil
