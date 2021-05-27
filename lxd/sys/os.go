@@ -12,6 +12,7 @@ import (
 	log "github.com/lxc/lxd/shared/log15"
 
 	"github.com/lxc/lxd/lxd/cgroup"
+	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/idmap"
@@ -99,15 +100,17 @@ func DefaultOS() *OS {
 }
 
 // Init our internal data structures.
-func (s *OS) Init() error {
+func (s *OS) Init() ([]db.Warning, error) {
+	var dbWarnings []db.Warning
+
 	err := s.initDirs()
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	s.Architectures, err = util.GetArchitectures()
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	s.LxcPath = filepath.Join(s.VarDir, "containers")
@@ -126,7 +129,7 @@ func (s *OS) Init() error {
 
 		uid, err := strconv.ParseUint(u.Uid, 10, 32)
 		if err != nil {
-			return err
+			return nil, err
 		}
 
 		s.UnprivUser = userName
@@ -142,7 +145,7 @@ func (s *OS) Init() error {
 
 		gid, err := strconv.ParseUint(g.Gid, 10, 32)
 		if err != nil {
-			return err
+			return nil, err
 		}
 
 		s.UnprivGroup = groupName
@@ -154,10 +157,10 @@ func (s *OS) Init() error {
 	s.ExecPath = util.GetExecPath()
 	s.RunningInUserNS = shared.RunningInUserNS()
 
-	s.initAppArmor()
+	dbWarnings = s.initAppArmor()
 	s.CGInfo = cgroup.GetInfo()
 
-	return nil
+	return dbWarnings, nil
 }
 
 // InitStorage initialises the storage layer after it has been mounted.
