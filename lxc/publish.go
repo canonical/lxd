@@ -107,6 +107,7 @@ func (c *cmdPublish) Run(cmd *cobra.Command, args []string) error {
 			}
 
 			if ct.Ephemeral {
+				// Clear the ephemeral flag so the instance can be stopped without being destroyed.
 				ct.Ephemeral = false
 				op, err := s.UpdateInstance(cName, ct.Writable(), etag)
 				if err != nil {
@@ -117,14 +118,9 @@ func (c *cmdPublish) Run(cmd *cobra.Command, args []string) error {
 				if err != nil {
 					return err
 				}
-
-				// Refresh the ETag
-				_, etag, err = s.GetInstance(cName)
-				if err != nil {
-					return err
-				}
 			}
 
+			// Stop the instance.
 			req := api.InstanceStatePut{
 				Action:  string(shared.Stop),
 				Timeout: -1,
@@ -141,6 +137,7 @@ func (c *cmdPublish) Run(cmd *cobra.Command, args []string) error {
 				return fmt.Errorf(i18n.G("Stopping instance failed!"))
 			}
 
+			// Start the instance back up on exit.
 			defer func() {
 				req.Action = string(shared.Start)
 				op, err = s.UpdateInstanceState(cName, req, "")
@@ -151,7 +148,13 @@ func (c *cmdPublish) Run(cmd *cobra.Command, args []string) error {
 				op.Wait()
 			}()
 
+			// If we had to clear the ephemeral flag, restore it now.
 			if wasEphemeral {
+				ct, etag, err := s.GetInstance(cName)
+				if err != nil {
+					return err
+				}
+
 				ct.Ephemeral = true
 				op, err := s.UpdateInstance(cName, ct.Writable(), etag)
 				if err != nil {
