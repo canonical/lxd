@@ -529,6 +529,18 @@ func (d *qemu) Freeze() error {
 	return nil
 }
 
+// configDriveMountPath returns the path for the config drive bind mount.
+func (d *qemu) configDriveMountPath() string {
+	// Use instance path and config.mount directory rather than devices path to avoid conflicts with an
+	// instance disk device mount of the same name.
+	return filepath.Join(d.Path(), "config.mount")
+}
+
+// configDriveMountPathClear attempts to unmount the config drive bind mount and remove the directory.
+func (d *qemu) configDriveMountPathClear() error {
+	return device.DiskMountClear(d.configDriveMountPath())
+}
+
 // configVirtiofsdPaths returns the path for the socket and PID file to use with config drive virtiofsd process.
 func (d *qemu) configVirtiofsdPaths() (string, string) {
 	sockPath := filepath.Join(d.LogPath(), "virtio-fs.config.sock")
