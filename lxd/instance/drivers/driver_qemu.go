@@ -2192,7 +2192,7 @@ func (d *qemu) generateQemuConfigFile(mountInfo *storagePools.MountInfo, busName
 		"multifunction": multi,
 		"protocol":      "9p",
 
-		"path": filepath.Join(d.Path(), "config"),
+		"path": d.configDriveMountPath(),
 	})
 	if err != nil {
 		return "", nil, err
