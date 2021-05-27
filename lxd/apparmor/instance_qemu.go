@@ -48,6 +48,7 @@ profile "{{ .name }}" flags=(attach_disconnected,mediate_deleted) {
   # Instance specific paths
   {{ .logPath }}/** rwk,
   {{ .path }}/** rwk,
+  {{ .devicesPath }}/** rwk,
 {{range $index, $element := .devPaths}}
   {{$element}} rwk,
 {{- end }}
