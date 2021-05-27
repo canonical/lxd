@@ -2015,25 +2015,30 @@ func (d *qemu) deviceBootPriorities() (map[string]int, error) {
 
 	devices := []devicePrios{}
 
-	for devName, devConf := range d.expandedDevices {
-		if devConf["type"] != "disk" && devConf["type"] != "nic" {
+	for _, dev := range d.expandedDevices.Sorted() {
+		if dev.Config["type"] != "disk" && dev.Config["type"] != "nic" {
 			continue
 		}
 
 		bootPrio := uint32(0) // Default to lowest priority.
-		if devConf["boot.priority"] != "" {
-			prio, err := strconv.ParseInt(devConf["boot.priority"], 10, 32)
+		if dev.Config["boot.priority"] != "" {
+			prio, err := strconv.ParseInt(dev.Config["boot.priority"], 10, 32)
 			if err != nil {
-				return nil, errors.Wrapf(err, "Invalid boot.priority for device %q", devName)
+				return nil, errors.Wrapf(err, "Invalid boot.priority for device %q", dev.Name)
 			}
 			bootPrio = uint32(prio)
-		} else if devConf["path"] == "/" {
+		} else if dev.Config["path"] == "/" {
 			bootPrio = 1 // Set boot priority of root disk higher than any device without a boot prio.
 		}
 
-		devices = append(devices, devicePrios{Name: devName, BootPrio: bootPrio})
+		devices = append(devices, devicePrios{Name: dev.Name, BootPrio: bootPrio})
 	}
 
+	// Sort devices by priority (use SliceStable so that devices with the same boot priority stay in the same
+	// order each boot based on the device order provided by the d.expandedDevices.Sorted() function).
+	// This is important because as well as providing a predicable boot index order, the boot index number can
+	// also be used for other properties (such as disk SCSI ID) which can result in it being given different
+	// device names inside the guest based on the device order.
 	sort.SliceStable(devices, func(i, j int) bool { return devices[i].BootPrio > devices[j].BootPrio })
 
 	sortedDevs := make(map[string]int, len(devices))
@@ -2513,9 +2518,28 @@ func (d *qemu) addDriveDirConfig(sb *strings.Builder, bus *qemuBus, fdFiles *[]s
 	// Record the 9p mount for the agent.
 	*agentMounts = append(*agentMounts, agentMount)
 
-	sockPath := filepath.Join(d.Path(), fmt.Sprintf("%s.sock", driveConf.DevName))
+	// Check if the disk device has provided a virtiofsd socket path.
+	var virtiofsdSockPath string
+	for _, opt := range driveConf.Opts {
+		if strings.HasPrefix(opt, fmt.Sprintf("%s=", device.DiskVirtiofsdSockMountOpt)) {
+			parts := strings.SplitN(opt, "=", 2)
+			virtiofsdSockPath = parts[1]
+		}
+	}
 
-	if shared.PathExists(sockPath) {
+	// If there is a virtiofsd socket path setup the virtio-fs share.
+	if virtiofsdSockPath != "" {
+		if readonly {
+			return fmt.Errorf("virtiofsd doesn't support readonly shares")
+		}
+
+		if !shared.PathExists(virtiofsdSockPath) {
+			return fmt.Errorf("virtiofsd socket path %q doesn't exist", virtiofsdSockPath)
+		}
+
+		// Add to devPaths to allow apparmor access.
+		d.devPaths = append(d.devPaths, virtiofsdSockPath)
+
 		devBus, devAddr, multi := bus.allocate(busFunctionGroup9p)
 
 		// Add virtio-fs device as this will be preferred over 9p.
@@ -2527,7 +2551,7 @@ func (d *qemu) addDriveDirConfig(sb *strings.Builder, bus *qemuBus, fdFiles *[]s
 
 			"devName":  driveConf.DevName,
 			"mountTag": mountTag,
-			"path":     sockPath,
+			"path":     virtiofsdSockPath,
 			"protocol": "virtio-fs",
 		})
 		if err != nil {
@@ -2535,10 +2559,10 @@ func (d *qemu) addDriveDirConfig(sb *strings.Builder, bus *qemuBus, fdFiles *[]s
 		}
 	}
 
+	// Add 9p share config.
 	devBus, devAddr, multi := bus.allocate(busFunctionGroup9p)
-
-	// Only use proxy for writable shares.
 	proxyFD := d.addFileDescriptor(fdFiles, driveConf.DevPath)
+
 	return qemuDriveDir.Execute(sb, map[string]interface{}{
 		"bus":           bus.name,
 		"devBus":        devBus,
@@ -2547,7 +2571,7 @@ func (d *qemu) addDriveDirConfig(sb *strings.Builder, bus *qemuBus, fdFiles *[]s
 
 		"devName":  driveConf.DevName,
 		"mountTag": mountTag,
-		"proxyFD":  proxyFD,
+		"proxyFD":  proxyFD, // Pass by file descriptor, so no need to add to d.devPaths.
 		"readonly": readonly,
 		"protocol": "9p",
 	})
