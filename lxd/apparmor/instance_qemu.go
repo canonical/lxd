@@ -49,7 +49,9 @@ profile "{{ .name }}" flags=(attach_disconnected,mediate_deleted) {
   {{ .logPath }}/** rwk,
   {{ .path }}/** rwk,
   {{ .devicesPath }}/** rwk,
-{{range $index, $element := .devPaths}}
+
+  # Instance specific external device paths
+{{range $index, $element := .externalDevPaths}}
   {{$element}} rwk,
 {{- end }}
 
