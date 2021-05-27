@@ -89,7 +89,7 @@ func (d *zfs) deleteDatasetRecursive(dataset string) error {
 	}
 
 	// Delete the dataset (and any snapshots left).
-	_, err = shared.RunCommand("zfs", "destroy", "-r", dataset)
+	_, err = shared.TryRunCommand("zfs", "destroy", "-r", dataset)
 	if err != nil {
 		return err
 	}

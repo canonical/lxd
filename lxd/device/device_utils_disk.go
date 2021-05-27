@@ -8,9 +8,14 @@ import (
 	"strings"
 	"time"
 
+	"github.com/pkg/errors"
 	"golang.org/x/sys/unix"
 
+	"github.com/lxc/lxd/lxd/instance"
+	"github.com/lxc/lxd/lxd/revert"
 	"github.com/lxc/lxd/shared"
+	"github.com/lxc/lxd/shared/osarch"
+	"github.com/lxc/lxd/shared/subprocess"
 )
 
 // BlockFsDetect detects the type of block device.
@@ -265,4 +270,98 @@ func diskCephfsOptions(clusterName string, userName string, fsName string, fsPat
 	srcpath += fmt.Sprintf(":/%s", fsPath)
 
 	return srcpath, fsOptions, nil
+}
+
+// DiskVMVirtiofsdStart starts a new virtiofsd process.
+// Returns UnsupportedError error if the host system or instance does not support virtiosfd, returns normal error
+// type if process cannot be started for other reasons.
+func DiskVMVirtiofsdStart(inst instance.Instance, socketPath string, pidPath string, logPath string, sharePath string) error {
+	revert := revert.New()
+	defer revert.Fail()
+
+	// Remove old socket if needed.
+	os.Remove(socketPath)
+
+	// Locate virtiofsd.
+	cmd, err := exec.LookPath("virtiofsd")
+	if err != nil {
+		if shared.PathExists("/usr/lib/qemu/virtiofsd") {
+			cmd = "/usr/lib/qemu/virtiofsd"
+		}
+	}
+
+	if cmd == "" {
+		return UnsupportedError{msg: "virtiofsd missing"}
+	}
+
+	// Currently, virtiofs is broken on at least the ARM architecture.
+	// We therefore restrict virtiofs to 64BIT_INTEL_X86.
+	if inst.Architecture() != osarch.ARCH_64BIT_INTEL_X86 {
+		return UnsupportedError{msg: "Architecture unsupported"}
+	}
+
+	if shared.IsTrue(inst.ExpandedConfig()["migration.stateful"]) {
+		return UnsupportedError{"Stateful migration unsupported"}
+	}
+
+	// Start the virtiofsd process in non-daemon mode.
+	proc, err := subprocess.NewProcess(cmd, []string{fmt.Sprintf("--socket-path=%s", socketPath), "-o", fmt.Sprintf("source=%s", sharePath)}, logPath, logPath)
+	if err != nil {
+		return err
+	}
+
+	err = proc.Start()
+	if err != nil {
+		return errors.Wrapf(err, "Failed to start virtiofsd")
+	}
+
+	revert.Add(func() { proc.Stop() })
+
+	err = proc.Save(pidPath)
+	if err != nil {
+		return errors.Wrapf(err, "Failed to save virtiofsd state")
+	}
+
+	// Wait for socket file to exist.
+	waitDuration := time.Second * time.Duration(10)
+	waitUntil := time.Now().Add(waitDuration)
+	for {
+		if shared.PathExists(socketPath) {
+			break
+		}
+
+		if time.Now().After(waitUntil) {
+			return fmt.Errorf("virtiofsd failed to bind socket after %v", waitDuration)
+		}
+
+		time.Sleep(50 * time.Millisecond)
+	}
+
+	revert.Success()
+	return nil
+}
+
+// DiskVMVirtiofsdStop stops an existing virtiofsd process and cleans up.
+func DiskVMVirtiofsdStop(socketPath string, pidPath string) error {
+	if shared.PathExists(pidPath) {
+		proc, err := subprocess.ImportProcess(pidPath)
+		if err != nil {
+			return err
+		}
+
+		err = proc.Stop()
+		// The virtiofsd process will terminate automatically once the VM has stopped.
+		// We therefore should only return an error if it's still running and fails to stop.
+		if err != nil && err != subprocess.ErrNotRunning {
+			return err
+		}
+
+		// Remove PID file if needed.
+		os.Remove(pidPath)
+	}
+
+	// Remove socket file if needed.
+	os.Remove(socketPath)
+
+	return nil
 }
