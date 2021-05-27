@@ -167,9 +167,9 @@ func instanceProfile(state *state.State, inst instance) (string, error) {
 			return "", err
 		}
 
-		devPaths := inst.DevPaths()
-		for i := range devPaths {
-			devPaths[i], err = filepath.EvalSymlinks(devPaths[i])
+		externalDevPaths := inst.DevPaths()
+		for i := range externalDevPaths {
+			externalDevPaths[i], err = filepath.EvalSymlinks(externalDevPaths[i])
 			if err != nil {
 				return "", err
 			}
@@ -186,16 +186,16 @@ func instanceProfile(state *state.State, inst instance) (string, error) {
 		}
 
 		err = qemuProfileTpl.Execute(sb, map[string]interface{}{
-			"devPaths":    devPaths,
-			"exePath":     util.GetExecPath(),
-			"libraryPath": strings.Split(os.Getenv("LD_LIBRARY_PATH"), ":"),
-			"logPath":     inst.LogPath(),
-			"name":        InstanceProfileName(inst),
-			"path":        path,
-			"raw":         rawContent,
-			"rootPath":    rootPath,
-			"snap":        shared.InSnap(),
-			"ovmfPath":    ovmfPath,
+			"externalDevPaths": externalDevPaths,
+			"exePath":          util.GetExecPath(),
+			"libraryPath":      strings.Split(os.Getenv("LD_LIBRARY_PATH"), ":"),
+			"logPath":          inst.LogPath(),
+			"name":             InstanceProfileName(inst),
+			"path":             path,
+			"raw":              rawContent,
+			"rootPath":         rootPath,
+			"snap":             shared.InSnap(),
+			"ovmfPath":         ovmfPath,
 		})
 		if err != nil {
 			return "", err
