@@ -51,7 +51,7 @@ profile "{{ .name }}" flags=(attach_disconnected,mediate_deleted) {
   {{ .devicesPath }}/** rwk,
 
   # Instance specific external device paths
-{{range $index, $element := .externalDevPaths}}
+{{- range $index, $element := .externalDevPaths}}
   {{$element}} rwk,
 {{- end }}
 
