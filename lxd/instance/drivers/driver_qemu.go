@@ -529,6 +529,14 @@ func (d *qemu) Freeze() error {
 	return nil
 }
 
+// configVirtiofsdPaths returns the path for the socket and PID file to use with config drive virtiofsd process.
+func (d *qemu) configVirtiofsdPaths() (string, string) {
+	sockPath := filepath.Join(d.LogPath(), "virtio-fs.config.sock")
+	pidPath := filepath.Join(d.LogPath(), "virtiofsd.pid")
+
+	return sockPath, pidPath
+}
+
 // onStop is run when the instance stops.
 func (d *qemu) onStop(target string) error {
 	var err error
@@ -555,12 +563,9 @@ func (d *qemu) onStop(target string) error {
 	os.Remove(d.monitorPath())
 	d.unmount()
 
-	pidPath := filepath.Join(d.LogPath(), "virtiofsd.pid")
-
-	proc, err := subprocess.ImportProcess(pidPath)
-	if err == nil {
-		proc.Stop()
-		os.Remove(pidPath)
+	err = device.DiskVMVirtiofsdStop(d.configVirtiofsdPaths())
+	if err != nil {
+		d.logger.Warn("Failed cleaning up virtiofsd", log.Ctx{"err": err})
 	}
 
 	// Record power state.
@@ -859,7 +864,7 @@ func (d *qemu) Start(stateful bool) error {
 	revert := revert.New()
 	defer revert.Fail()
 
-	// Start accumulating device paths.
+	// Start accumulating external device paths.
 	d.devPaths = []string{}
 
 	// Rotate the log file.
@@ -923,62 +928,22 @@ func (d *qemu) Start(stateful bool) error {
 		return err
 	}
 
-	// Setup virtiofsd for config path.
-	sockPath := filepath.Join(d.LogPath(), "virtio-fs.config.sock")
-
-	// Remove old socket if needed.
-	os.Remove(sockPath)
-
-	cmd, err := exec.LookPath("virtiofsd")
+	// Setup virtiofsd for config drive path.
+	// This is used by the lxd-agent in preference to 9p (due to its improved performance) and in scenarios
+	// where 9p isn't available in the VM guest OS.
+	sockPath, pidPath := d.configVirtiofsdPaths()
+	configSrcPath := filepath.Join(d.Path(), "config")
+	err = device.DiskVMVirtiofsdStart(d, sockPath, pidPath, "", configSrcPath)
 	if err != nil {
-		if shared.PathExists("/usr/lib/qemu/virtiofsd") {
-			cmd = "/usr/lib/qemu/virtiofsd"
+		var errUnsupported device.UnsupportedError
+		if errors.As(err, &errUnsupported) {
+			d.logger.Warn("Unable to use virtio-fs for config drive, using 9p as a fallback", log.Ctx{"err": errUnsupported})
+		} else {
+			op.Done(err)
+			return errors.Wrapf(err, "Failed to setup virtiofsd for config drive")
 		}
 	}
-
-	// Currently, virtiofs is broken on at least the ARM architecture.
-	// We therefore restrict virtiofs to 64BIT_INTEL_X86.
-	if d.Architecture() == osarch.ARCH_64BIT_INTEL_X86 && !shared.IsTrue(d.expandedConfig["migration.stateful"]) && cmd != "" {
-		// Start the virtiofsd process in non-daemon mode.
-		proc, err := subprocess.NewProcess(cmd, []string{fmt.Sprintf("--socket-path=%s", sockPath), "-o", fmt.Sprintf("source=%s", filepath.Join(d.Path(), "config"))}, "", "")
-		if err != nil {
-			op.Done(err)
-			return err
-		}
-
-		err = proc.Start()
-		if err != nil {
-			op.Done(err)
-			return err
-		}
-
-		revert.Add(func() { proc.Stop() })
-
-		pidPath := filepath.Join(d.LogPath(), "virtiofsd.pid")
-
-		err = proc.Save(pidPath)
-		if err != nil {
-			op.Done(err)
-			return err
-		}
-
-		// Wait for socket file to exist
-		for i := 0; i < 200; i++ {
-			if shared.PathExists(sockPath) {
-				break
-			}
-
-			time.Sleep(50 * time.Millisecond)
-		}
-
-		if !shared.PathExists(sockPath) {
-			err = fmt.Errorf("virtiofsd failed to bind socket within 10s")
-			op.Done(err)
-			return err
-		}
-	} else {
-		d.logger.Warn("Unable to use virtio-fs for config drive, using 9p as a fallback: virtiofsd missing")
-	}
+	revert.Add(func() { device.DiskVMVirtiofsdStop(sockPath, pidPath) })
 
 	// Generate UUID if not present.
 	instUUID := d.localConfig["volatile.uuid"]
@@ -2189,6 +2154,8 @@ func (d *qemu) generateQemuConfigFile(mountInfo *storagePools.MountInfo, busName
 		return "", nil, err
 	}
 
+	// Always export the config directory as a 9p config drive, in case the host or VM guest doesn't support
+	// virtio-fs.
 	devBus, devAddr, multi = bus.allocate(busFunctionGroup9p)
 	err = qemuDriveConfig.Execute(sb, map[string]interface{}{
 		"bus":           bus.name,
@@ -2203,7 +2170,10 @@ func (d *qemu) generateQemuConfigFile(mountInfo *storagePools.MountInfo, busName
 		return "", nil, err
 	}
 
-	sockPath := filepath.Join(d.LogPath(), "virtio-fs.config.sock")
+	// If virtiofsd is running for the config directory then export the config drive via virtio-fs.
+	// This is used by the lxd-agent in preference to 9p (due to its improved performance) and in scenarios
+	// where 9p isn't available in the VM guest OS.
+	sockPath, _ := d.configVirtiofsdPaths()
 	if shared.PathExists(sockPath) {
 		devBus, devAddr, multi = bus.allocate(busFunctionGroup9p)
 		err = qemuDriveConfig.Execute(sb, map[string]interface{}{
@@ -2537,9 +2507,6 @@ func (d *qemu) addDriveDirConfig(sb *strings.Builder, bus *qemuBus, fdFiles *[]s
 			return fmt.Errorf("virtiofsd socket path %q doesn't exist", virtiofsdSockPath)
 		}
 
-		// Add to devPaths to allow apparmor access.
-		d.devPaths = append(d.devPaths, virtiofsdSockPath)
-
 		devBus, devAddr, multi := bus.allocate(busFunctionGroup9p)
 
 		// Add virtio-fs device as this will be preferred over 9p.
@@ -2571,7 +2538,7 @@ func (d *qemu) addDriveDirConfig(sb *strings.Builder, bus *qemuBus, fdFiles *[]s
 
 		"devName":  driveConf.DevName,
 		"mountTag": mountTag,
-		"proxyFD":  proxyFD, // Pass by file descriptor, so no need to add to d.devPaths.
+		"proxyFD":  proxyFD, // Pass by file descriptor, so no need add to d.devPaths for apparmor access.
 		"readonly": readonly,
 		"protocol": "9p",
 	})
@@ -2617,6 +2584,7 @@ func (d *qemu) addDriveConfig(sb *strings.Builder, bootIndexes map[string]int, d
 	}
 
 	if !strings.HasPrefix(driveConf.DevPath, "rbd:") {
+		// Add path to external devPaths. This way, the path will be included in the apparmor profile.
 		d.devPaths = append(d.devPaths, driveConf.DevPath)
 	}
 
@@ -2938,7 +2906,7 @@ func (d *qemu) addUSBDeviceConfig(sb *strings.Builder, bus *qemuBus, usbConfig [
 		return err
 	}
 
-	// Add path to devPaths. This way, the path will be included in the apparmor profile.
+	// Add path to external devPaths. This way, the path will be included in the apparmor profile.
 	d.devPaths = append(d.devPaths, hostDevice)
 
 	return nil
@@ -3915,7 +3883,6 @@ func (d *qemu) removeUnixDevices() error {
 		return err
 	}
 
-	// Go through all the unix devices.
 	for _, f := range dents {
 		// Skip non-Unix devices.
 		if !strings.HasPrefix(f.Name(), "forkmknod.unix.") && !strings.HasPrefix(f.Name(), "unix.") && !strings.HasPrefix(f.Name(), "infiniband.unix.") {
@@ -3934,7 +3901,7 @@ func (d *qemu) removeUnixDevices() error {
 }
 
 func (d *qemu) removeDiskDevices() error {
-	// Check that we indeed have devices to remove.vm
+	// Check that we indeed have devices to remove.
 	if !shared.PathExists(d.DevicesPath()) {
 		return nil
 	}
@@ -3945,17 +3912,16 @@ func (d *qemu) removeDiskDevices() error {
 		return err
 	}
 
-	// Go through all the unix devices
 	for _, f := range dents {
 		// Skip non-disk devices
 		if !strings.HasPrefix(f.Name(), "disk.") {
 			continue
 		}
 
-		// Always try to unmount the host side
+		// Always try to unmount the host side.
 		_ = unix.Unmount(filepath.Join(d.DevicesPath(), f.Name()), unix.MNT_DETACH)
 
-		// Remove the entry
+		// Remove the entry.
 		diskPath := filepath.Join(d.DevicesPath(), f.Name())
 		err := os.Remove(diskPath)
 		if err != nil {
