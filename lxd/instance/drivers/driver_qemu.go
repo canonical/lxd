@@ -2154,6 +2154,8 @@ func (d *qemu) generateQemuConfigFile(mountInfo *storagePools.MountInfo, busName
 		return "", nil, err
 	}
 
+	// Always export the config directory as a 9p config drive, in case the host or VM guest doesn't support
+	// virtio-fs.
 	devBus, devAddr, multi = bus.allocate(busFunctionGroup9p)
 	err = qemuDriveConfig.Execute(sb, map[string]interface{}{
 		"bus":           bus.name,
@@ -2168,6 +2170,9 @@ func (d *qemu) generateQemuConfigFile(mountInfo *storagePools.MountInfo, busName
 		return "", nil, err
 	}
 
+	// If virtiofsd is running for the config directory then export the config drive via virtio-fs.
+	// This is used by the lxd-agent in preference to 9p (due to its improved performance) and in scenarios
+	// where 9p isn't available in the VM guest OS.
 	sockPath, _ := d.configVirtiofsdPaths()
 	if shared.PathExists(sockPath) {
 		devBus, devAddr, multi = bus.allocate(busFunctionGroup9p)
