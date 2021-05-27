@@ -3819,7 +3819,6 @@ func (d *qemu) removeUnixDevices() error {
 		return err
 	}
 
-	// Go through all the unix devices.
 	for _, f := range dents {
 		// Skip non-Unix devices.
 		if !strings.HasPrefix(f.Name(), "forkmknod.unix.") && !strings.HasPrefix(f.Name(), "unix.") && !strings.HasPrefix(f.Name(), "infiniband.unix.") {
@@ -3838,7 +3837,7 @@ func (d *qemu) removeUnixDevices() error {
 }
 
 func (d *qemu) removeDiskDevices() error {
-	// Check that we indeed have devices to remove.vm
+	// Check that we indeed have devices to remove.
 	if !shared.PathExists(d.DevicesPath()) {
 		return nil
 	}
@@ -3849,17 +3848,16 @@ func (d *qemu) removeDiskDevices() error {
 		return err
 	}
 
-	// Go through all the unix devices
 	for _, f := range dents {
 		// Skip non-disk devices
 		if !strings.HasPrefix(f.Name(), "disk.") {
 			continue
 		}
 
-		// Always try to unmount the host side
+		// Always try to unmount the host side.
 		_ = unix.Unmount(filepath.Join(d.DevicesPath(), f.Name()), unix.MNT_DETACH)
 
-		// Remove the entry
+		// Remove the entry.
 		diskPath := filepath.Join(d.DevicesPath(), f.Name())
 		err := os.Remove(diskPath)
 		if err != nil {
