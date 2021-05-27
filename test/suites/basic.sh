@@ -533,7 +533,10 @@ test_basic_usage() {
 
   [ "${REBOOTED}" = "true" ]
 
-  lxc stop foo --force || true
+  lxc publish foo --alias foo --force
+  lxc image delete foo
+
+  lxc stop foo --force
   ! lxc list | grep -q foo || false
 
   # Test renaming/deletion of the default profile
