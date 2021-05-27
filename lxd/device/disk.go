@@ -29,7 +29,6 @@ import (
 	"github.com/lxc/lxd/shared/idmap"
 	log "github.com/lxc/lxd/shared/log15"
 	"github.com/lxc/lxd/shared/logger"
-	"github.com/lxc/lxd/shared/osarch"
 	"github.com/lxc/lxd/shared/subprocess"
 	"github.com/lxc/lxd/shared/units"
 	"github.com/lxc/lxd/shared/validate"
@@ -659,62 +658,17 @@ func (d *disk) startVM() (*deviceConfig.RunConfig, error) {
 					sockPath, pidPath := d.vmVirtiofsdPaths()
 					logPath := filepath.Join(d.inst.LogPath(), fmt.Sprintf("disk.%s.log", d.name))
 
-					// Remove old socket if needed.
-					os.Remove(sockPath)
-
-					// Locate virtiofsd.
-					cmd, err := exec.LookPath("virtiofsd")
+					err = DiskVMVirtiofsdStart(d.inst, sockPath, pidPath, logPath, srcPath)
 					if err != nil {
-						if shared.PathExists("/usr/lib/qemu/virtiofsd") {
-							cmd = "/usr/lib/qemu/virtiofsd"
+						var errUnsupported UnsupportedError
+						if errors.As(err, &errUnsupported) {
+							d.logger.Warn("Unable to use virtio-fs for device, using 9p as a fallback", log.Ctx{"err": errUnsupported})
+							return nil
 						}
-					}
 
-					if cmd == "" {
-						d.logger.Warn("Unable to use virtio-fs for device, using 9p as a fallback: virtiofsd missing", log.Ctx{"device": d.name})
-						return nil
-					}
-
-					if d.inst.Architecture() != osarch.ARCH_64BIT_INTEL_X86 {
-						d.logger.Warn("Unable to use virtio-fs for device, using 9p as a fallback: architecture unsupported", log.Ctx{"device": d.name})
-						return nil
-					}
-
-					if shared.IsTrue(d.inst.ExpandedConfig()["migration.stateful"]) {
-						d.logger.Warn("Unable to use virtio-fs for device, using 9p as a fallback: stateful migration unsupported", log.Ctx{"device": d.name})
-						return nil
-					}
-
-					// Start the virtiofsd process in non-daemon mode.
-					proc, err := subprocess.NewProcess(cmd, []string{fmt.Sprintf("--socket-path=%s", sockPath), "-o", fmt.Sprintf("source=%s", srcPath)}, logPath, logPath)
-					if err != nil {
 						return err
 					}
-
-					err = proc.Start()
-					if err != nil {
-						return errors.Wrapf(err, "Failed to start virtiofsd")
-					}
-
-					revert.Add(func() { proc.Stop() })
-
-					err = proc.Save(pidPath)
-					if err != nil {
-						return errors.Wrapf(err, "Failed to save virtiofsd state")
-					}
-
-					// Wait for socket file to exist
-					for i := 0; i < 200; i++ {
-						if shared.PathExists(sockPath) {
-							break
-						}
-
-						time.Sleep(50 * time.Millisecond)
-					}
-
-					if !shared.PathExists(sockPath) {
-						return fmt.Errorf("virtiofsd failed to bind socket within 10s")
-					}
+					revert.Add(func() { DiskVMVirtiofsdStop(sockPath, pidPath) })
 
 					// Add the socket path to the mount options to indicate to the qemu driver
 					// that this share is available.
@@ -1399,30 +1353,7 @@ func (d *disk) stopVM() (*deviceConfig.RunConfig, error) {
 	}
 
 	// Stop the virtiofsd process and clean up.
-	err = func() error {
-		sockPath, pidPath := d.vmVirtiofsdPaths()
-		if shared.PathExists(pidPath) {
-			proc, err := subprocess.ImportProcess(pidPath)
-			if err != nil {
-				return err
-			}
-
-			err = proc.Stop()
-			// The virtiofsd process will terminate automatically once the VM has stopped.
-			// We therefore should only return an error if it's still running and fails to stop.
-			if err != nil && err != subprocess.ErrNotRunning {
-				return err
-			}
-
-			// Remove PID file and socket file.
-			os.Remove(pidPath)
-		}
-
-		// Remove socket file.
-		os.Remove(sockPath)
-
-		return nil
-	}()
+	err = DiskVMVirtiofsdStop(d.vmVirtiofsdPaths())
 	if err != nil {
 		return &deviceConfig.RunConfig{}, errors.Wrapf(err, "Failed cleaning up virtiofsd")
 	}
