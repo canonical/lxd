@@ -570,16 +570,10 @@ func (d *qemu) onStop(target string) error {
 	op.Reset()
 
 	// Cleanup.
-	d.cleanupDevices()
+	d.cleanupDevices() // Must be called before unmount.
 	os.Remove(d.pidFilePath())
 	os.Remove(d.monitorPath())
 	d.unmount()
-
-	// Clear up the config drive virtiofsd process.
-	err = device.DiskVMVirtiofsdStop(d.configVirtiofsdPaths())
-	if err != nil {
-		d.logger.Warn("Failed cleaning up config drive virtiofsd", log.Ctx{"err": err})
-	}
 
 	// Record power state.
 	err = d.state.Cluster.UpdateInstancePowerState(d.id, "STOPPED")
@@ -3895,7 +3889,20 @@ func (d *qemu) cleanup() {
 }
 
 // cleanupDevices performs any needed device cleanup steps when instance is stopped.
+// Must be called before root volume is unmounted.
 func (d *qemu) cleanupDevices() {
+	// Clear up the config drive virtiofsd process.
+	err := device.DiskVMVirtiofsdStop(d.configVirtiofsdPaths())
+	if err != nil {
+		d.logger.Warn("Failed cleaning up config drive virtiofsd", log.Ctx{"err": err})
+	}
+
+	// Clear up the config drive mount.
+	err = d.configDriveMountPathClear()
+	if err != nil {
+		d.logger.Warn("Failed cleaning up config drive mount", log.Ctx{"err": err})
+	}
+
 	for _, dev := range d.expandedDevices.Reversed() {
 		// Use the device interface if device supports it.
 		err := d.deviceStop(dev.Name, dev.Config, false)
