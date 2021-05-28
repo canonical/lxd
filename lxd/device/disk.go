@@ -543,6 +543,7 @@ func (d *disk) startVM() (*deviceConfig.RunConfig, error) {
 				FSType:  "iso9660",
 			},
 		}
+
 		return &runConf, nil
 	} else if d.config["source"] != "" {
 		revert := revert.New()
@@ -574,32 +575,19 @@ func (d *disk) startVM() (*deviceConfig.RunConfig, error) {
 			srcPath := shared.HostPath(d.config["source"])
 			var err error
 
-			// Mount the pool volume and update srcPath to mount path.
+			// Mount the pool volume and update srcPath to mount path so it can be recognised as dir
+			// if the volume is a filesystem volume type (if it is a block volume the srcPath will
+			// be returned as the path to the block device).
 			if d.config["pool"] != "" {
 				srcPath, err = d.mountPoolVolume(revert)
 				if err != nil {
 					if !isRequired {
-						// Leave to the pathExists check below.
 						logger.Warn(err.Error())
-					} else {
-						return nil, err
+						return nil, nil
 					}
-				}
-			} else if strings.HasPrefix(d.config["source"], "cephfs:") {
-				// Mount the cephfs directory on the host and then treat as a normal directory to
-				// share with the VM using 9p below.
-				srcPath, err = d.createDevice()
-				if err != nil {
+
 					return nil, err
 				}
-			}
-
-			if !shared.PathExists(srcPath) {
-				if isRequired {
-					return nil, fmt.Errorf("Source path %q doesn't exist for device %q", srcPath, d.name)
-				}
-
-				return &runConf, nil
 			}
 
 			// Default to block device or image file passthrough first.
@@ -613,10 +601,25 @@ func (d *disk) startVM() (*deviceConfig.RunConfig, error) {
 				mount.Opts = append(mount.Opts, "ro")
 			}
 
-			// If the source being added is a directory, then we will be using lxd-agent directory
-			// sharing to mount the directory inside the VM, as such we need to indicate to the VM the
-			// target path to mount to.
-			if shared.IsDir(srcPath) {
+			// If the source being added is a directory or cephfs share, then we will use the lxd-agent
+			// directory sharing feature to mount the directory inside the VM, and as such we need to
+			// indicate to the VM the target path to mount to.
+			if shared.IsDir(srcPath) || strings.HasPrefix(d.config["source"], "cephfs:") {
+				// Mount the source in the instance devices directory.
+				// This will ensure that if the exported directory configured as readonly that this
+				// takes effect event if using virtio-fs (which doesn't support read only mode) by
+				// having the underlying mount setup as readonly.
+				srcPath, err = d.createDevice(revert, srcPath)
+				if err != nil {
+					return nil, err
+				}
+
+				// Something went wrong, but no error returned, meaning required != true so nothing
+				// to do.
+				if srcPath == "" {
+					return nil, err
+				}
+
 				mount.TargetPath = d.config["path"]
 				mount.FSType = "9p"
 
@@ -721,8 +724,13 @@ func (d *disk) startVM() (*deviceConfig.RunConfig, error) {
 				if err != nil {
 					return nil, errors.Wrapf(err, "Failed to setup virtiofsd for device %q", d.name)
 				}
+			} else if !shared.PathExists(srcPath) {
+				if isRequired {
+					return nil, fmt.Errorf("Source path %q doesn't exist for device %q", srcPath, d.name)
+				}
 			}
 
+			// Add successfully setup mount config to runConf.
 			runConf.Mounts = []deviceConfig.MountEntryItem{mount}
 		}
 
