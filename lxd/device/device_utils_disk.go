@@ -119,6 +119,25 @@ func DiskMount(srcPath string, dstPath string, readonly bool, recursive bool, pr
 	return nil
 }
 
+// DiskMountClear unmounts and removes the mount path used for disk shares.
+func DiskMountClear(mntPath string) error {
+	if shared.PathExists(mntPath) {
+		if shared.IsMountPoint(mntPath) {
+			err := unix.Unmount(mntPath, unix.MNT_DETACH)
+			if err != nil {
+				return errors.Wrapf(err, "Failed unmounting %q", mntPath)
+			}
+		}
+
+		err := os.Remove(mntPath)
+		if err != nil {
+			return errors.Wrapf(err, "Failed removing %q", mntPath)
+		}
+	}
+
+	return nil
+}
+
 func diskCephRbdMap(clusterName string, userName string, poolName string, volumeName string) (string, error) {
 	devPath, err := shared.RunCommand(
 		"rbd",
