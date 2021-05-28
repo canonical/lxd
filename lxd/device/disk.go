@@ -343,6 +343,7 @@ func (d *disk) Start() (*deviceConfig.RunConfig, error) {
 func (d *disk) startContainer() (*deviceConfig.RunConfig, error) {
 	runConf := deviceConfig.RunConfig{}
 	isReadOnly := shared.IsTrue(d.config["readonly"])
+	isRequired := d.isRequired(d.config)
 
 	// Apply cgroups only after all the mounts have been processed.
 	runConf.PostHooks = append(runConf.PostHooks, func() error {
@@ -360,6 +361,9 @@ func (d *disk) startContainer() (*deviceConfig.RunConfig, error) {
 
 		return nil
 	})
+
+	revert := revert.New()
+	defer revert.Fail()
 
 	// Deal with a rootfs.
 	if shared.IsRootDiskDevice(d.config) {
@@ -448,7 +452,23 @@ func (d *disk) startContainer() (*deviceConfig.RunConfig, error) {
 			options = append(options, "create=dir")
 		}
 
-		sourceDevPath, err := d.createDevice()
+		// Mount the pool volume and set poolVolSrcPath for createDevice below.
+		var poolVolSrcPath string
+		if d.config["pool"] != "" {
+			var err error
+			poolVolSrcPath, err = d.mountPoolVolume(revert)
+			if err != nil {
+				if !isRequired {
+					d.logger.Warn(err.Error())
+					return nil, nil
+				}
+
+				return nil, err
+			}
+		}
+
+		// Mount the source in the instance devices directory.
+		sourceDevPath, err := d.createDevice(revert, poolVolSrcPath)
 		if err != nil {
 			return nil, err
 		}
@@ -469,6 +489,7 @@ func (d *disk) startContainer() (*deviceConfig.RunConfig, error) {
 		}
 	}
 
+	revert.Success()
 	return &runConf, nil
 }
 
@@ -522,6 +543,7 @@ func (d *disk) startVM() (*deviceConfig.RunConfig, error) {
 				FSType:  "iso9660",
 			},
 		}
+
 		return &runConf, nil
 	} else if d.config["source"] != "" {
 		revert := revert.New()
@@ -553,32 +575,19 @@ func (d *disk) startVM() (*deviceConfig.RunConfig, error) {
 			srcPath := shared.HostPath(d.config["source"])
 			var err error
 
-			// Mount the pool volume and update srcPath to mount path.
+			// Mount the pool volume and update srcPath to mount path so it can be recognised as dir
+			// if the volume is a filesystem volume type (if it is a block volume the srcPath will
+			// be returned as the path to the block device).
 			if d.config["pool"] != "" {
 				srcPath, err = d.mountPoolVolume(revert)
 				if err != nil {
 					if !isRequired {
-						// Leave to the pathExists check below.
 						logger.Warn(err.Error())
-					} else {
-						return nil, err
+						return nil, nil
 					}
-				}
-			} else if strings.HasPrefix(d.config["source"], "cephfs:") {
-				// Mount the cephfs directory on the host and then treat as a normal directory to
-				// share with the VM using 9p below.
-				srcPath, err = d.createDevice()
-				if err != nil {
+
 					return nil, err
 				}
-			}
-
-			if !shared.PathExists(srcPath) {
-				if isRequired {
-					return nil, fmt.Errorf("Source path %q doesn't exist for device %q", srcPath, d.name)
-				}
-
-				return &runConf, nil
 			}
 
 			// Default to block device or image file passthrough first.
@@ -592,10 +601,25 @@ func (d *disk) startVM() (*deviceConfig.RunConfig, error) {
 				mount.Opts = append(mount.Opts, "ro")
 			}
 
-			// If the source being added is a directory, then we will be using lxd-agent directory
-			// sharing to mount the directory inside the VM, as such we need to indicate to the VM the
-			// target path to mount to.
-			if shared.IsDir(srcPath) {
+			// If the source being added is a directory or cephfs share, then we will use the lxd-agent
+			// directory sharing feature to mount the directory inside the VM, and as such we need to
+			// indicate to the VM the target path to mount to.
+			if shared.IsDir(srcPath) || strings.HasPrefix(d.config["source"], "cephfs:") {
+				// Mount the source in the instance devices directory.
+				// This will ensure that if the exported directory configured as readonly that this
+				// takes effect event if using virtio-fs (which doesn't support read only mode) by
+				// having the underlying mount setup as readonly.
+				srcPath, err = d.createDevice(revert, srcPath)
+				if err != nil {
+					return nil, err
+				}
+
+				// Something went wrong, but no error returned, meaning required != true so nothing
+				// to do.
+				if srcPath == "" {
+					return nil, err
+				}
+
 				mount.TargetPath = d.config["path"]
 				mount.FSType = "9p"
 
@@ -643,16 +667,18 @@ func (d *disk) startVM() (*deviceConfig.RunConfig, error) {
 
 					// Wait for socket file to exist (as otherwise qemu can race the creation
 					// of this file).
-					for i := 0; i < 10; i++ {
+					waitDuration := time.Second * time.Duration(10)
+					waitUntil := time.Now().Add(waitDuration)
+					for {
 						if shared.PathExists(sockPath) {
 							break
 						}
 
-						time.Sleep(50 * time.Millisecond)
-					}
+						if time.Now().After(waitUntil) {
+							return fmt.Errorf("virtfs-proxy-helper failed to bind socket after %v", waitDuration)
+						}
 
-					if !shared.PathExists(sockPath) {
-						return fmt.Errorf("virtfs-proxy-helper failed to bind socket within 10s")
+						time.Sleep(50 * time.Millisecond)
 					}
 
 					return nil
@@ -664,13 +690,6 @@ func (d *disk) startVM() (*deviceConfig.RunConfig, error) {
 				// Start virtiofsd for virtio-fs share. The lxd-agent prefers to use this over the
 				// virtfs-proxy-helper 9p share. The 9p share will only be used as a fallback.
 				err = func() error {
-					// virtiofsd doesn't support readonly mode, so its important we don't
-					// expose the share as writable when the LXD device is set as readonly.
-					if readonly {
-						d.logger.Warn("Unable to use virtio-fs for device, using 9p as a fallback", log.Ctx{"err": "readonly devices unsupported"})
-						return nil
-					}
-
 					sockPath, pidPath := d.vmVirtiofsdPaths()
 					logPath := filepath.Join(d.inst.LogPath(), fmt.Sprintf("disk.%s.log", d.name))
 
@@ -700,8 +719,13 @@ func (d *disk) startVM() (*deviceConfig.RunConfig, error) {
 				if err != nil {
 					return nil, errors.Wrapf(err, "Failed to setup virtiofsd for device %q", d.name)
 				}
+			} else if !shared.PathExists(srcPath) {
+				if isRequired {
+					return nil, fmt.Errorf("Source path %q doesn't exist for device %q", srcPath, d.name)
+				}
 			}
 
+			// Add successfully setup mount config to runConf.
 			runConf.Mounts = []deviceConfig.MountEntryItem{mount}
 		}
 
@@ -945,7 +969,7 @@ func (w *cgroupWriter) Set(version cgroup.Backend, controller string, key string
 
 // mountPoolVolume mounts the pool volume specified in d.config["source"] from pool specified in d.config["pool"]
 // and return the mount path. If the instance type is container volume will be shifted if needed.
-func (d *disk) mountPoolVolume(reverter *revert.Reverter) (string, error) {
+func (d *disk) mountPoolVolume(revert *revert.Reverter) (string, error) {
 	// Deal with mounting storage volumes created via the storage api. Extract the name of the storage volume
 	// that we are supposed to attach. We assume that the only syntactically valid ways of specifying a
 	// storage volume are:
@@ -1003,17 +1027,21 @@ func (d *disk) mountPoolVolume(reverter *revert.Reverter) (string, error) {
 	if err != nil {
 		return "", errors.Wrapf(err, "Failed mounting storage volume %q of type %q on storage pool %q", volumeName, volumeTypeName, pool.Name())
 	}
-	reverter.Add(func() { pool.UnmountCustomVolume(storageProjectName, volumeName, nil) })
+	revert.Add(func() { pool.UnmountCustomVolume(storageProjectName, volumeName, nil) })
 
 	_, vol, err := d.state.Cluster.GetLocalStoragePoolVolume(storageProjectName, volumeName, db.StoragePoolVolumeTypeCustom, pool.ID())
 	if err != nil {
 		return "", errors.Wrapf(err, "Failed to fetch local storage volume record")
 	}
 
-	if d.inst.Type() == instancetype.Container && vol.ContentType == db.StoragePoolVolumeContentTypeNameFS {
-		err = d.storagePoolVolumeAttachShift(storageProjectName, pool.Name(), volumeName, db.StoragePoolVolumeTypeCustom, srcPath)
-		if err != nil {
-			return "", errors.Wrapf(err, "Failed shifting storage volume %q of type %q on storage pool %q", volumeName, volumeTypeName, pool.Name())
+	if d.inst.Type() == instancetype.Container {
+		if vol.ContentType == db.StoragePoolVolumeContentTypeNameFS {
+			err = d.storagePoolVolumeAttachShift(storageProjectName, pool.Name(), volumeName, db.StoragePoolVolumeTypeCustom, srcPath)
+			if err != nil {
+				return "", errors.Wrapf(err, "Failed shifting storage volume %q of type %q on storage pool %q", volumeName, volumeTypeName, pool.Name())
+			}
+		} else {
+			return "", fmt.Errorf("Only filesystem volumes are supported for containers")
 		}
 	}
 
@@ -1028,10 +1056,8 @@ func (d *disk) mountPoolVolume(reverter *revert.Reverter) (string, error) {
 }
 
 // createDevice creates a disk device mount on host.
-func (d *disk) createDevice() (string, error) {
-	revert := revert.New()
-	defer revert.Fail()
-
+// The poolVolSrcPath takes the path to the mounted custom pool volume when d.config["pool"] is non-empty.
+func (d *disk) createDevice(revert *revert.Reverter, poolVolSrcPath string) (string, error) {
 	// Paths.
 	devPath := d.getDevicePath(d.name, d.config)
 	srcPath := shared.HostPath(d.config["source"])
@@ -1083,11 +1109,11 @@ func (d *disk) createDevice() (string, error) {
 			if err != nil {
 				msg := fmt.Sprintf("Could not mount map Ceph RBD: %v", err)
 				if !isRequired {
-					// Will fail the PathExists test below.
 					d.logger.Warn(msg)
-				} else {
-					return "", fmt.Errorf(msg)
+					return "", nil
 				}
+
+				return "", fmt.Errorf(msg)
 			}
 
 			// Record the device path.
@@ -1100,17 +1126,7 @@ func (d *disk) createDevice() (string, error) {
 			isFile = false
 		}
 	} else {
-		// Mount the pool volume.
-		var err error
-		srcPath, err = d.mountPoolVolume(revert)
-		if err != nil {
-			if !isRequired {
-				// Leave to the pathExists check below.
-				d.logger.Warn(err.Error())
-			} else {
-				return "", err
-			}
-		}
+		srcPath = poolVolSrcPath // Use pool source path override.
 	}
 
 	// Check if the source exists unless it is a cephfs.
@@ -1118,6 +1134,7 @@ func (d *disk) createDevice() (string, error) {
 		if !isRequired {
 			return "", nil
 		}
+
 		return "", fmt.Errorf("Source path %q doesn't exist for device %q", srcPath, d.name)
 	}
 
@@ -1395,6 +1412,12 @@ func (d *disk) stopVM() (*deviceConfig.RunConfig, error) {
 
 // postStop is run after the device is removed from the instance.
 func (d *disk) postStop() error {
+	// Clean any existing device mount entry. Should occur first before custom volume unmounts.
+	err := DiskMountClear(d.getDevicePath(d.name, d.config))
+	if err != nil {
+		return err
+	}
+
 	// Check if pool-specific action should be taken to unmount custom volume disks.
 	if d.config["pool"] != "" && d.config["path"] != "/" {
 		pool, err := storagePools.GetPoolByName(d.state, d.config["pool"])
@@ -1409,24 +1432,6 @@ func (d *disk) postStop() error {
 		}
 
 		_, err = pool.UnmountCustomVolume(storageProjectName, d.config["source"], nil)
-		if err != nil {
-			return err
-		}
-
-		return nil
-	}
-
-	devPath := d.getDevicePath(d.name, d.config)
-
-	// Clean any existing entry.
-	if shared.PathExists(devPath) {
-		// Unmount the host side if not already.
-		// Don't check for errors here as this is just to catch any existing mounts that we have not
-		// unmounted on the host after device was started (such as when using cephfs with VM 9p share).
-		unix.Unmount(devPath, unix.MNT_DETACH)
-
-		// Remove the host side.
-		err := os.Remove(devPath)
 		if err != nil {
 			return err
 		}
