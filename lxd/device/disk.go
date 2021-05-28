@@ -974,7 +974,7 @@ func (w *cgroupWriter) Set(version cgroup.Backend, controller string, key string
 
 // mountPoolVolume mounts the pool volume specified in d.config["source"] from pool specified in d.config["pool"]
 // and return the mount path. If the instance type is container volume will be shifted if needed.
-func (d *disk) mountPoolVolume(reverter *revert.Reverter) (string, error) {
+func (d *disk) mountPoolVolume(revert *revert.Reverter) (string, error) {
 	// Deal with mounting storage volumes created via the storage api. Extract the name of the storage volume
 	// that we are supposed to attach. We assume that the only syntactically valid ways of specifying a
 	// storage volume are:
@@ -1032,7 +1032,7 @@ func (d *disk) mountPoolVolume(reverter *revert.Reverter) (string, error) {
 	if err != nil {
 		return "", errors.Wrapf(err, "Failed mounting storage volume %q of type %q on storage pool %q", volumeName, volumeTypeName, pool.Name())
 	}
-	reverter.Add(func() { pool.UnmountCustomVolume(storageProjectName, volumeName, nil) })
+	revert.Add(func() { pool.UnmountCustomVolume(storageProjectName, volumeName, nil) })
 
 	_, vol, err := d.state.Cluster.GetLocalStoragePoolVolume(storageProjectName, volumeName, db.StoragePoolVolumeTypeCustom, pool.ID())
 	if err != nil {
