@@ -2510,10 +2510,6 @@ func (d *qemu) addDriveDirConfig(sb *strings.Builder, bus *qemuBus, fdFiles *[]s
 
 	// If there is a virtiofsd socket path setup the virtio-fs share.
 	if virtiofsdSockPath != "" {
-		if readonly {
-			return fmt.Errorf("virtiofsd doesn't support readonly shares")
-		}
-
 		if !shared.PathExists(virtiofsdSockPath) {
 			return fmt.Errorf("virtiofsd socket path %q doesn't exist", virtiofsdSockPath)
 		}
