@@ -690,13 +690,6 @@ func (d *disk) startVM() (*deviceConfig.RunConfig, error) {
 				// Start virtiofsd for virtio-fs share. The lxd-agent prefers to use this over the
 				// virtfs-proxy-helper 9p share. The 9p share will only be used as a fallback.
 				err = func() error {
-					// virtiofsd doesn't support readonly mode, so its important we don't
-					// expose the share as writable when the LXD device is set as readonly.
-					if readonly {
-						d.logger.Warn("Unable to use virtio-fs for device, using 9p as a fallback", log.Ctx{"err": "readonly devices unsupported"})
-						return nil
-					}
-
 					sockPath, pidPath := d.vmVirtiofsdPaths()
 					logPath := filepath.Join(d.inst.LogPath(), fmt.Sprintf("disk.%s.log", d.name))
 
