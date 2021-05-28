@@ -1241,8 +1241,8 @@ func (d *qemu) Start(stateful bool) error {
 	}
 
 	pid, err := d.pid()
-	if err != nil {
-		d.logger.Error("Failed to get VM process ID", log.Ctx{"pid": pid})
+	if err != nil || pid <= 0 {
+		d.logger.Error("Failed to get VM process ID", log.Ctx{"err": err, "pid": pid})
 		op.Done(err)
 		return err
 	}
