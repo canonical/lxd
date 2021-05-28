@@ -329,6 +329,16 @@ curl --unix-socket /var/lib/lxd/unix.socket \
     -d @hello-ubuntu.json \
     lxd/1.0/containers
 ```
+or for snap users:
+
+```bash
+curl --unix-socket /var/snap/lxd/common/lxd/unix.socket \
+    -H "Content-Type: application/json" \
+    -X POST \
+    -d @hello-ubuntu.json \
+    lxd/1.0/containers
+```
+
 
 #### Via TCP
 TCP requires some additional configuration and is not enabled by default.
