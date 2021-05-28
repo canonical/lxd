@@ -120,9 +120,9 @@ any additional credentials.
 
 Enabling PKI mode is done by adding a client.ca file in the
 client's configuration directory (`~/.config/lxc`) and a server.ca file in
-the server's configuration directory (`/var/lib/lxd`). Then a client
-certificate must be issued by the CA for the client and a server
-certificate for the server. Those must then replace the existing
+the server's configuration directory (`/var/lib/lxd` or `/var/snap/lxd/common/lxd`
+for snap users). Then a client certificate must be issued by the CA for the client
+and a server certificate for the server. Those must then replace the existing
 pre-generated files.
 
 After this is done, restarting the server will have it run in PKI mode.
