@@ -1039,10 +1039,14 @@ func (d *disk) mountPoolVolume(revert *revert.Reverter) (string, error) {
 		return "", errors.Wrapf(err, "Failed to fetch local storage volume record")
 	}
 
-	if d.inst.Type() == instancetype.Container && vol.ContentType == db.StoragePoolVolumeContentTypeNameFS {
-		err = d.storagePoolVolumeAttachShift(storageProjectName, pool.Name(), volumeName, db.StoragePoolVolumeTypeCustom, srcPath)
-		if err != nil {
-			return "", errors.Wrapf(err, "Failed shifting storage volume %q of type %q on storage pool %q", volumeName, volumeTypeName, pool.Name())
+	if d.inst.Type() == instancetype.Container {
+		if vol.ContentType == db.StoragePoolVolumeContentTypeNameFS {
+			err = d.storagePoolVolumeAttachShift(storageProjectName, pool.Name(), volumeName, db.StoragePoolVolumeTypeCustom, srcPath)
+			if err != nil {
+				return "", errors.Wrapf(err, "Failed shifting storage volume %q of type %q on storage pool %q", volumeName, volumeTypeName, pool.Name())
+			}
+		} else {
+			return "", fmt.Errorf("Only filesystem volumes are supported for containers")
 		}
 	}
 
