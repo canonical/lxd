@@ -32,7 +32,8 @@ be used, although in that case it effectively behaves like a regular SQLite
 database.
 
 The files of the global database are stored under the ``./database/global``
-sub-directory of your LXD data dir (e.g. ``/var/lib/lxd/database/global``).
+sub-directory of your LXD data dir (e.g. ``/var/lib/lxd/database/global`` or
+``/var/snap/lxd/common/lxd/database/global`` for snap users).
 
 Since each member of the cluster also needs to keep some data which is specific
 to that member, LXD also uses a plain SQLite database (the "local" database),

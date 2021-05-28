@@ -329,7 +329,7 @@ sudo losetup -c <LOOPDEV>
 sudo btrfs filesystem resize max /var/lib/lxd/storage-pools/<POOL>/
 ```
 
-(NOTE: For users of the snap, use `/var/snap/lxd/common/lxd/ instead of /var/lib/lxd/`)
+(NOTE: For users of the snap, use `/var/snap/lxd/common/lxd/` instead of `/var/lib/lxd/`)
 
 ### LVM
 
@@ -470,7 +470,7 @@ sudo zpool online -e lxd /var/lib/lxd/disks/<POOL>.img
 sudo zpool set autoexpand=off lxd
 ```
 
-(NOTE: For users of the snap, use `/var/snap/lxd/common/lxd/ instead of /var/lib/lxd/`)
+(NOTE: For users of the snap, use `/var/snap/lxd/common/lxd/` instead of `/var/lib/lxd/`)
 
 #### Enabling TRIM on existing pools
 LXD will automatically enable trimming support on all newly created pools on ZFS 0.8 or later.
