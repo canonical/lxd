@@ -576,7 +576,6 @@ type cmdClusterAdd struct {
 func (c *cmdClusterAdd) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("add", i18n.G("[<remote>:]<member>"))
-	cmd.Aliases = []string{"rm"}
 	cmd.Short = i18n.G("Request a join token for adding a cluster member")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(`Request a join token for adding a cluster member`))
 
