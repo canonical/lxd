@@ -622,7 +622,8 @@ func (c *cmdClusterAdd) Run(cmd *cobra.Command, args []string) error {
 			return errors.Wrapf(err, "Failed converting token operation to join token")
 		}
 
-		fmt.Printf(i18n.G("Member %s join token: %s")+"\n", resource.name, joinToken.String())
+		fmt.Printf(i18n.G("Member %s join token:")+"\n", resource.name)
+		fmt.Println(joinToken.String())
 	}
 
 	return nil
