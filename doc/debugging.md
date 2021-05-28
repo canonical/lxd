@@ -41,6 +41,11 @@ utility:
 ```bash
 curl --unix-socket /var/lib/lxd/unix.socket lxd/1.0 | jq .
 ```
+or for snap users:
+
+```bash
+curl --unix-socket /var/snap/lxd/common/lxd/unix.socket lxd/1.0 | jq .
+```
 
 See the [RESTful API](rest-api.md) for available API.
 
