@@ -1417,6 +1417,12 @@ func (d *disk) stopVM() (*deviceConfig.RunConfig, error) {
 
 // postStop is run after the device is removed from the instance.
 func (d *disk) postStop() error {
+	// Clean any existing device mount entry. Should occur first before custom volume unmounts.
+	err := DiskMountClear(d.getDevicePath(d.name, d.config))
+	if err != nil {
+		return err
+	}
+
 	// Check if pool-specific action should be taken to unmount custom volume disks.
 	if d.config["pool"] != "" && d.config["path"] != "/" {
 		pool, err := storagePools.GetPoolByName(d.state, d.config["pool"])
@@ -1431,24 +1437,6 @@ func (d *disk) postStop() error {
 		}
 
 		_, err = pool.UnmountCustomVolume(storageProjectName, d.config["source"], nil)
-		if err != nil {
-			return err
-		}
-
-		return nil
-	}
-
-	devPath := d.getDevicePath(d.name, d.config)
-
-	// Clean any existing entry.
-	if shared.PathExists(devPath) {
-		// Unmount the host side if not already.
-		// Don't check for errors here as this is just to catch any existing mounts that we have not
-		// unmounted on the host after device was started (such as when using cephfs with VM 9p share).
-		unix.Unmount(devPath, unix.MNT_DETACH)
-
-		// Remove the host side.
-		err := os.Remove(devPath)
 		if err != nil {
 			return err
 		}
