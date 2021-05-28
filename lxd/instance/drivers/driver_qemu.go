@@ -2549,7 +2549,7 @@ func (d *qemu) addDriveDirConfig(sb *strings.Builder, bus *qemuBus, fdFiles *[]s
 
 		"devName":  driveConf.DevName,
 		"mountTag": mountTag,
-		"proxyFD":  proxyFD, // Pass by file descriptor, so no need add to d.devPaths for apparmor access.
+		"proxyFD":  proxyFD, // Pass by file descriptor, so don't add to d.devPaths for apparmor access.
 		"readonly": readonly,
 		"protocol": "9p",
 	})
