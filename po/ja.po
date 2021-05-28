@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: LXD\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2021-05-18 10:50+0100\n"
+"POT-Creation-Date: 2021-05-28 17:11-0400\n"
 "PO-Revision-Date: 2021-02-02 15:21+0000\n"
 "Last-Translator: KATOH Yasufumi <karma@jazz.email.ne.jp>\n"
 "Language-Team: Japanese <https://hosted.weblate.org/projects/linux-"
@@ -687,7 +687,7 @@ msgstr "バックアップのエクスポートが成功しました!"
 msgid "Bad key/value pair: %s"
 msgstr "不適切なキー/値のペア: %s"
 
-#: lxc/copy.go:121 lxc/init.go:185 lxc/project.go:126 lxc/publish.go:172
+#: lxc/copy.go:121 lxc/init.go:185 lxc/project.go:126 lxc/publish.go:175
 #: lxc/storage.go:123 lxc/storage_volume.go:528
 #, c-format
 msgid "Bad key=value pair: %s"
@@ -1193,7 +1193,7 @@ msgstr "イメージを削除します"
 #: lxc/alias.go:22 lxc/alias.go:54 lxc/alias.go:100 lxc/alias.go:144
 #: lxc/alias.go:195 lxc/cluster.go:31 lxc/cluster.go:82 lxc/cluster.go:163
 #: lxc/cluster.go:213 lxc/cluster.go:263 lxc/cluster.go:346 lxc/cluster.go:431
-#: lxc/cluster.go:583 lxc/cluster.go:644 lxc/config.go:30 lxc/config.go:89
+#: lxc/cluster.go:582 lxc/cluster.go:644 lxc/config.go:30 lxc/config.go:89
 #: lxc/config.go:360 lxc/config.go:452 lxc/config.go:610 lxc/config.go:730
 #: lxc/config_device.go:24 lxc/config_device.go:75 lxc/config_device.go:193
 #: lxc/config_device.go:265 lxc/config_device.go:336 lxc/config_device.go:429
@@ -1917,7 +1917,7 @@ msgstr "インスタンス名を指定する必要があります"
 msgid "Instance name is: %s"
 msgstr "インスタンス名: %s"
 
-#: lxc/publish.go:274
+#: lxc/publish.go:277
 #, c-format
 msgid "Instance published with fingerprint: %s"
 msgstr "インスタンスは以下のフィンガープリントで publish されます: %s"
@@ -2646,9 +2646,9 @@ msgstr "VF の最大数: %d"
 msgid "Mdev profiles:"
 msgstr "Mdevプロファイル:"
 
-#: lxc/cluster.go:626
+#: lxc/cluster.go:625
 #, fuzzy, c-format
-msgid "Member %s join token: %s"
+msgid "Member %s join token:"
 msgstr "メンバ名 %s を %s に変更しました"
 
 #: lxc/cluster.go:330
@@ -2694,7 +2694,7 @@ msgstr "表示するログメッセージの最小レベル"
 msgid "Missing certificate fingerprint"
 msgstr "証明書のフィンガープリント: %s"
 
-#: lxc/cluster.go:464 lxc/cluster.go:606
+#: lxc/cluster.go:464 lxc/cluster.go:605
 msgid "Missing cluster member name"
 msgstr "クラスターメンバー名がありません"
 
@@ -3208,7 +3208,7 @@ msgstr "パブリック: %s"
 msgid "Publish instances as images"
 msgstr "インスタンスをイメージとして出力します"
 
-#: lxc/publish.go:220
+#: lxc/publish.go:223
 #, c-format
 msgid "Publishing instance: %s"
 msgstr "インスタンスの出力中: %s"
@@ -3406,7 +3406,7 @@ msgstr "ストレージボリューム名 \"%s\" を \"%s\" に変更しまし�
 msgid "Render: %s (%s)"
 msgstr "レンダー: %s (%s)"
 
-#: lxc/cluster.go:582 lxc/cluster.go:583
+#: lxc/cluster.go:581 lxc/cluster.go:582
 #, fuzzy
 msgid "Request a join token for adding a cluster member"
 msgstr "クラスタメンバの詳細を表示します"
@@ -3882,7 +3882,7 @@ msgstr "インスタンスを停止します"
 msgid "Stop the instance if currently running"
 msgstr "実行中の場合、インスタンスを停止します"
 
-#: lxc/publish.go:141
+#: lxc/publish.go:137
 msgid "Stopping instance failed!"
 msgstr "インスタンスの停止に失敗しました！"
 

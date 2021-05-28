@@ -139,7 +139,7 @@ test_clustering_membership() {
 
   # Generate a join token for the sixth node.
   LXD_DIR="${LXD_ONE_DIR}" lxc cluster list
-  token=$(LXD_DIR="${LXD_ONE_DIR}" lxc cluster add node6 | awk '{print $5}')
+  token=$(LXD_DIR="${LXD_ONE_DIR}" lxc cluster add node6 | tail -n 1)
 
   # Check token is associated to correct name.
   LXD_DIR="${LXD_TWO_DIR}" lxc cluster list-tokens | grep node6 | grep "${token}"
