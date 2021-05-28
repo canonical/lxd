@@ -529,6 +529,18 @@ func (d *qemu) Freeze() error {
 	return nil
 }
 
+// configDriveMountPath returns the path for the config drive bind mount.
+func (d *qemu) configDriveMountPath() string {
+	// Use instance path and config.mount directory rather than devices path to avoid conflicts with an
+	// instance disk device mount of the same name.
+	return filepath.Join(d.Path(), "config.mount")
+}
+
+// configDriveMountPathClear attempts to unmount the config drive bind mount and remove the directory.
+func (d *qemu) configDriveMountPathClear() error {
+	return device.DiskMountClear(d.configDriveMountPath())
+}
+
 // configVirtiofsdPaths returns the path for the socket and PID file to use with config drive virtiofsd process.
 func (d *qemu) configVirtiofsdPaths() (string, string) {
 	sockPath := filepath.Join(d.LogPath(), "virtio-fs.config.sock")
@@ -558,15 +570,10 @@ func (d *qemu) onStop(target string) error {
 	op.Reset()
 
 	// Cleanup.
-	d.cleanupDevices()
+	d.cleanupDevices() // Must be called before unmount.
 	os.Remove(d.pidFilePath())
 	os.Remove(d.monitorPath())
 	d.unmount()
-
-	err = device.DiskVMVirtiofsdStop(d.configVirtiofsdPaths())
-	if err != nil {
-		d.logger.Warn("Failed cleaning up virtiofsd", log.Ctx{"err": err})
-	}
 
 	// Record power state.
 	err = d.state.Cluster.UpdateInstancePowerState(d.id, "STOPPED")
@@ -928,23 +935,6 @@ func (d *qemu) Start(stateful bool) error {
 		return err
 	}
 
-	// Setup virtiofsd for config drive path.
-	// This is used by the lxd-agent in preference to 9p (due to its improved performance) and in scenarios
-	// where 9p isn't available in the VM guest OS.
-	sockPath, pidPath := d.configVirtiofsdPaths()
-	configSrcPath := filepath.Join(d.Path(), "config")
-	err = device.DiskVMVirtiofsdStart(d, sockPath, pidPath, "", configSrcPath)
-	if err != nil {
-		var errUnsupported device.UnsupportedError
-		if errors.As(err, &errUnsupported) {
-			d.logger.Warn("Unable to use virtio-fs for config drive, using 9p as a fallback", log.Ctx{"err": errUnsupported})
-		} else {
-			op.Done(err)
-			return errors.Wrapf(err, "Failed to setup virtiofsd for config drive")
-		}
-	}
-	revert.Add(func() { device.DiskVMVirtiofsdStop(sockPath, pidPath) })
-
 	// Generate UUID if not present.
 	instUUID := d.localConfig["volatile.uuid"]
 	if instUUID == "" {
@@ -994,6 +984,44 @@ func (d *qemu) Start(stateful bool) error {
 
 		devConfs = append(devConfs, runConf)
 	}
+
+	// Setup the config drive readonly bind mount. Important that this come after the root disk device start.
+	// in order to allow unmounts triggered by deferred resizes of the root volume.
+	configMntPath := d.configDriveMountPath()
+	err = d.configDriveMountPathClear()
+	if err != nil {
+		return errors.Wrapf(err, "Failed cleaning config drive mount path %q", configMntPath)
+	}
+
+	err = os.Mkdir(configMntPath, 0700)
+	if err != nil {
+		return errors.Wrapf(err, "Failed creating device mount path %q for config drive", configMntPath)
+	}
+	revert.Add(func() { d.configDriveMountPathClear() })
+
+	// Mount the config drive device as readonly. This way it will be readonly irrespective of whether its
+	// exported via 9p for virtio-fs.
+	configSrcPath := filepath.Join(d.Path(), "config")
+	err = device.DiskMount(configSrcPath, configMntPath, true, false, "", "", "none")
+	if err != nil {
+		return errors.Wrapf(err, "Failed mounting device mount path %q for config drive", configMntPath)
+	}
+
+	// Setup virtiofsd for the config drive mount path.
+	// This is used by the lxd-agent in preference to 9p (due to its improved performance) and in scenarios
+	// where 9p isn't available in the VM guest OS.
+	configSockPath, configPIDPath := d.configVirtiofsdPaths()
+	err = device.DiskVMVirtiofsdStart(d, configSockPath, configPIDPath, "", configMntPath)
+	if err != nil {
+		var errUnsupported device.UnsupportedError
+		if errors.As(err, &errUnsupported) {
+			d.logger.Warn("Unable to use virtio-fs for config drive, using 9p as a fallback", log.Ctx{"err": errUnsupported})
+		} else {
+			op.Done(err)
+			return errors.Wrapf(err, "Failed to setup virtiofsd for config drive")
+		}
+	}
+	revert.Add(func() { device.DiskVMVirtiofsdStop(configSockPath, configPIDPath) })
 
 	// Get qemu configuration and check qemu is installed.
 	qemuPath, qemuBus, err := d.qemuArchConfig(d.architecture)
@@ -2164,7 +2192,7 @@ func (d *qemu) generateQemuConfigFile(mountInfo *storagePools.MountInfo, busName
 		"multifunction": multi,
 		"protocol":      "9p",
 
-		"path": filepath.Join(d.Path(), "config"),
+		"path": d.configDriveMountPath(),
 	})
 	if err != nil {
 		return "", nil, err
@@ -2173,8 +2201,8 @@ func (d *qemu) generateQemuConfigFile(mountInfo *storagePools.MountInfo, busName
 	// If virtiofsd is running for the config directory then export the config drive via virtio-fs.
 	// This is used by the lxd-agent in preference to 9p (due to its improved performance) and in scenarios
 	// where 9p isn't available in the VM guest OS.
-	sockPath, _ := d.configVirtiofsdPaths()
-	if shared.PathExists(sockPath) {
+	configSockPath, _ := d.configVirtiofsdPaths()
+	if shared.PathExists(configSockPath) {
 		devBus, devAddr, multi = bus.allocate(busFunctionGroup9p)
 		err = qemuDriveConfig.Execute(sb, map[string]interface{}{
 			"bus":           bus.name,
@@ -2183,7 +2211,7 @@ func (d *qemu) generateQemuConfigFile(mountInfo *storagePools.MountInfo, busName
 			"multifunction": multi,
 			"protocol":      "virtio-fs",
 
-			"path": sockPath,
+			"path": configSockPath,
 		})
 		if err != nil {
 			return "", nil, err
@@ -2499,10 +2527,6 @@ func (d *qemu) addDriveDirConfig(sb *strings.Builder, bus *qemuBus, fdFiles *[]s
 
 	// If there is a virtiofsd socket path setup the virtio-fs share.
 	if virtiofsdSockPath != "" {
-		if readonly {
-			return fmt.Errorf("virtiofsd doesn't support readonly shares")
-		}
-
 		if !shared.PathExists(virtiofsdSockPath) {
 			return fmt.Errorf("virtiofsd socket path %q doesn't exist", virtiofsdSockPath)
 		}
@@ -2538,7 +2562,7 @@ func (d *qemu) addDriveDirConfig(sb *strings.Builder, bus *qemuBus, fdFiles *[]s
 
 		"devName":  driveConf.DevName,
 		"mountTag": mountTag,
-		"proxyFD":  proxyFD, // Pass by file descriptor, so no need add to d.devPaths for apparmor access.
+		"proxyFD":  proxyFD, // Pass by file descriptor, so don't add to d.devPaths for apparmor access.
 		"readonly": readonly,
 		"protocol": "9p",
 	})
@@ -3948,7 +3972,20 @@ func (d *qemu) cleanup() {
 }
 
 // cleanupDevices performs any needed device cleanup steps when instance is stopped.
+// Must be called before root volume is unmounted.
 func (d *qemu) cleanupDevices() {
+	// Clear up the config drive virtiofsd process.
+	err := device.DiskVMVirtiofsdStop(d.configVirtiofsdPaths())
+	if err != nil {
+		d.logger.Warn("Failed cleaning up config drive virtiofsd", log.Ctx{"err": err})
+	}
+
+	// Clear up the config drive mount.
+	err = d.configDriveMountPathClear()
+	if err != nil {
+		d.logger.Warn("Failed cleaning up config drive mount", log.Ctx{"err": err})
+	}
+
 	for _, dev := range d.expandedDevices.Reversed() {
 		// Use the device interface if device supports it.
 		err := d.deviceStop(dev.Name, dev.Config, false)
