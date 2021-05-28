@@ -667,16 +667,18 @@ func (d *disk) startVM() (*deviceConfig.RunConfig, error) {
 
 					// Wait for socket file to exist (as otherwise qemu can race the creation
 					// of this file).
-					for i := 0; i < 10; i++ {
+					waitDuration := time.Second * time.Duration(10)
+					waitUntil := time.Now().Add(waitDuration)
+					for {
 						if shared.PathExists(sockPath) {
 							break
 						}
 
-						time.Sleep(50 * time.Millisecond)
-					}
+						if time.Now().After(waitUntil) {
+							return fmt.Errorf("virtfs-proxy-helper failed to bind socket after %v", waitDuration)
+						}
 
-					if !shared.PathExists(sockPath) {
-						return fmt.Errorf("virtfs-proxy-helper failed to bind socket within 10s")
+						time.Sleep(50 * time.Millisecond)
 					}
 
 					return nil
