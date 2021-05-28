@@ -343,6 +343,7 @@ func (d *disk) Start() (*deviceConfig.RunConfig, error) {
 func (d *disk) startContainer() (*deviceConfig.RunConfig, error) {
 	runConf := deviceConfig.RunConfig{}
 	isReadOnly := shared.IsTrue(d.config["readonly"])
+	isRequired := d.isRequired(d.config)
 
 	// Apply cgroups only after all the mounts have been processed.
 	runConf.PostHooks = append(runConf.PostHooks, func() error {
@@ -360,6 +361,9 @@ func (d *disk) startContainer() (*deviceConfig.RunConfig, error) {
 
 		return nil
 	})
+
+	revert := revert.New()
+	defer revert.Fail()
 
 	// Deal with a rootfs.
 	if shared.IsRootDiskDevice(d.config) {
@@ -448,7 +452,23 @@ func (d *disk) startContainer() (*deviceConfig.RunConfig, error) {
 			options = append(options, "create=dir")
 		}
 
-		sourceDevPath, err := d.createDevice()
+		// Mount the pool volume and set poolVolSrcPath for createDevice below.
+		var poolVolSrcPath string
+		if d.config["pool"] != "" {
+			var err error
+			poolVolSrcPath, err = d.mountPoolVolume(revert)
+			if err != nil {
+				if !isRequired {
+					d.logger.Warn(err.Error())
+					return nil, nil
+				}
+
+				return nil, err
+			}
+		}
+
+		// Mount the source in the instance devices directory.
+		sourceDevPath, err := d.createDevice(revert, poolVolSrcPath)
 		if err != nil {
 			return nil, err
 		}
@@ -469,6 +489,7 @@ func (d *disk) startContainer() (*deviceConfig.RunConfig, error) {
 		}
 	}
 
+	revert.Success()
 	return &runConf, nil
 }
 
