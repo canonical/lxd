@@ -1167,12 +1167,33 @@ func (d *zfs) UnmountVolume(vol Volume, keepBlockDev bool, op *operations.Operat
 					return false, ErrInUse
 				}
 
-				err := d.setDatasetProperties(dataset, "volmode=none")
+				devPath, _ := d.GetVolumeDiskPath(vol)
 				if err != nil {
-					return false, err
+					return false, errors.Wrapf(err, "Failed locating zvol for deactivation")
 				}
 
-				d.logger.Debug("Deactivated ZFS volume", log.Ctx{"dev": dataset})
+				waitDuration := time.Duration(time.Second * time.Duration(5))
+				waitUntil := time.Now().Add(waitDuration)
+				for {
+					// Sometimes it takes multiple attempts for ZFS to actually apply this.
+					err = d.setDatasetProperties(dataset, "volmode=none")
+					if err != nil {
+						return false, err
+					}
+
+					if !shared.PathExists(devPath) {
+						d.logger.Debug("Deactivated ZFS volume", log.Ctx{"dev": dataset})
+						break
+					}
+
+					if time.Now().After(waitUntil) {
+						return false, fmt.Errorf("Failed to deactivate zvol after %v", waitDuration)
+					}
+
+					d.logger.Debug("Waiting for ZFS volume to deactivate", log.Ctx{"dev": dataset})
+					time.Sleep(time.Millisecond * time.Duration(500))
+				}
+
 				ourUnmount = true
 			}
 		}
