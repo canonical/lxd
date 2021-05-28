@@ -3033,8 +3033,8 @@ func (d *qemu) Stop(stateful bool) error {
 	// Connect to the monitor.
 	monitor, err := qmp.Connect(d.monitorPath(), qemuSerialChardevName, d.getMonitorEventHandler())
 	if err != nil {
-		// If we fail to connect, it's most likely because the VM is already off.
-		// but it could also be because the qemu process is hung, check for that
+		// If we fail to connect, it's most likely because the VM is already off, but it could also be
+		// because the qemu process is hung, check if process still exists and kill it if needed.
 		pid, _ := d.pid()
 		if pid > 0 {
 			d.killQemuProcess(pid)
