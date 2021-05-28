@@ -60,3 +60,54 @@ func ResolveWarningsByNodeAndType(cluster *db.Cluster, nodeName string, typeCode
 
 	return nil
 }
+
+// ResolveWarningsByNodeAndProjectAndType resolves warnings with the given node, project and type code.
+func ResolveWarningsByNodeAndProjectAndType(cluster *db.Cluster, nodeName string, projectName string, typeCode db.WarningType) error {
+	err := cluster.Transaction(func(tx *db.ClusterTx) error {
+		warnings, err := tx.GetWarningsByType(typeCode)
+		if err != nil {
+			return err
+		}
+
+		for _, w := range warnings {
+			if w.Node != nodeName || w.Project != projectName {
+				continue
+			}
+
+			err = tx.UpdateWarningStatus(w.UUID, db.WarningStatusResolved)
+			if err != nil {
+				return err
+			}
+		}
+		return nil
+	})
+	if err != nil {
+		return errors.Wrap(err, "Failed to resolve warnings")
+	}
+
+	return nil
+}
+
+// ResolveWarningsByLocalNodeAndProjectAndType resolves warnings with the given project and type code.
+func ResolveWarningsByLocalNodeAndProjectAndType(cluster *db.Cluster, projectName string, typeCode db.WarningType) error {
+	var err error
+	var localName string
+
+	err = cluster.Transaction(func(tx *db.ClusterTx) error {
+		localName, err = tx.GetLocalNodeName()
+		if err != nil {
+			return err
+		}
+
+		return nil
+	})
+	if err != nil {
+		return errors.Wrap(err, "Failed getting local member name")
+	}
+
+	if localName == "" {
+		return fmt.Errorf("Local member name not available")
+	}
+
+	return ResolveWarningsByNodeAndProjectAndType(cluster, localName, projectName, typeCode)
+}
