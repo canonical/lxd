@@ -551,6 +551,9 @@ func (d *qemu) configVirtiofsdPaths() (string, string) {
 
 // onStop is run when the instance stops.
 func (d *qemu) onStop(target string) error {
+	d.logger.Debug("onStop hook started", log.Ctx{"target": target})
+	defer d.logger.Debug("onStop hook finished", log.Ctx{"target": target})
+
 	var err error
 
 	// Pick up the existing stop operation lock created in Stop() function.
@@ -622,6 +625,9 @@ func (d *qemu) onStop(target string) error {
 
 // Shutdown shuts the instance down.
 func (d *qemu) Shutdown(timeout time.Duration) error {
+	d.logger.Debug("Shutdown started", log.Ctx{"timeout": timeout})
+	defer d.logger.Debug("Shutdown finished", log.Ctx{"timeout": timeout})
+
 	// Must be run prior to creating the operation lock.
 	if !d.IsRunning() {
 		return fmt.Errorf("The instance is already stopped")
@@ -840,6 +846,9 @@ func (d *qemu) saveState(monitor *qmp.Monitor) error {
 
 // Start starts the instance.
 func (d *qemu) Start(stateful bool) error {
+	d.logger.Debug("Start started", log.Ctx{"stateful": stateful})
+	defer d.logger.Debug("Start finished", log.Ctx{"stateful": stateful})
+
 	// Must be run prior to creating the operation lock.
 	if d.IsRunning() {
 		return fmt.Errorf("The instance is already running")
@@ -2932,6 +2941,9 @@ func (d *qemu) pid() (int, error) {
 
 // Stop the VM.
 func (d *qemu) Stop(stateful bool) error {
+	d.logger.Debug("Stop started", log.Ctx{"stateful": stateful})
+	defer d.logger.Debug("Stop finished", log.Ctx{"stateful": stateful})
+
 	// Must be run prior to creating the operation lock.
 	if !d.IsRunning() {
 		return fmt.Errorf("The instance is already stopped")
