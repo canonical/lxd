@@ -2974,11 +2974,11 @@ func (d *qemu) pidFilePath() string {
 	return filepath.Join(d.LogPath(), "qemu.pid")
 }
 
-// pid gets the PID of the running qemu process.
+// pid gets the PID of the running qemu process. Returns 0 if PID file or process not found, and -1 if err non-nil.
 func (d *qemu) pid() (int, error) {
 	pidStr, err := ioutil.ReadFile(d.pidFilePath())
 	if os.IsNotExist(err) {
-		return 0, nil
+		return 0, nil // PID file has gone.
 	}
 
 	if err != nil {
@@ -2993,13 +2993,13 @@ func (d *qemu) pid() (int, error) {
 	cmdLineProcFilePath := fmt.Sprintf("/proc/%d/cmdline", pid)
 	cmdLine, err := ioutil.ReadFile(cmdLineProcFilePath)
 	if err != nil {
-		return -1, err
+		return 0, nil // Process has gone.
 	}
 
 	qemuSearchString := []byte("qemu-system")
 	instUUID := []byte(d.localConfig["volatile.uuid"])
 	if !bytes.Contains(cmdLine, qemuSearchString) || !bytes.Contains(cmdLine, instUUID) {
-		return -1, fmt.Errorf("Pid doesn't match the running process")
+		return -1, fmt.Errorf("PID doesn't match the running process")
 	}
 
 	return pid, nil
