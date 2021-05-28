@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: lxd\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2021-05-18 10:50+0100\n"
+"POT-Creation-Date: 2021-05-28 17:11-0400\n"
 "PO-Revision-Date: 2019-09-06 07:09+0000\n"
 "Last-Translator: Stéphane Graber <stgraber@stgraber.org>\n"
 "Language-Team: Spanish <https://hosted.weblate.org/projects/linux-containers/"
@@ -682,7 +682,7 @@ msgstr ""
 msgid "Bad key/value pair: %s"
 msgstr ""
 
-#: lxc/copy.go:121 lxc/init.go:185 lxc/project.go:126 lxc/publish.go:172
+#: lxc/copy.go:121 lxc/init.go:185 lxc/project.go:126 lxc/publish.go:175
 #: lxc/storage.go:123 lxc/storage_volume.go:528
 #, c-format
 msgid "Bad key=value pair: %s"
@@ -1182,7 +1182,7 @@ msgstr ""
 #: lxc/alias.go:22 lxc/alias.go:54 lxc/alias.go:100 lxc/alias.go:144
 #: lxc/alias.go:195 lxc/cluster.go:31 lxc/cluster.go:82 lxc/cluster.go:163
 #: lxc/cluster.go:213 lxc/cluster.go:263 lxc/cluster.go:346 lxc/cluster.go:431
-#: lxc/cluster.go:583 lxc/cluster.go:644 lxc/config.go:30 lxc/config.go:89
+#: lxc/cluster.go:582 lxc/cluster.go:644 lxc/config.go:30 lxc/config.go:89
 #: lxc/config.go:360 lxc/config.go:452 lxc/config.go:610 lxc/config.go:730
 #: lxc/config_device.go:24 lxc/config_device.go:75 lxc/config_device.go:193
 #: lxc/config_device.go:265 lxc/config_device.go:336 lxc/config_device.go:429
@@ -1856,7 +1856,7 @@ msgstr "Nombre del contenedor es obligatorio"
 msgid "Instance name is: %s"
 msgstr "Nombre del contenedor es: %s"
 
-#: lxc/publish.go:274
+#: lxc/publish.go:277
 #, fuzzy, c-format
 msgid "Instance published with fingerprint: %s"
 msgstr "Contenedor publicado con huella digital: %s"
@@ -2418,9 +2418,9 @@ msgstr ""
 msgid "Mdev profiles:"
 msgstr "Perfil %s creado"
 
-#: lxc/cluster.go:626
+#: lxc/cluster.go:625
 #, c-format
-msgid "Member %s join token: %s"
+msgid "Member %s join token:"
 msgstr ""
 
 #: lxc/cluster.go:330
@@ -2466,7 +2466,7 @@ msgstr ""
 msgid "Missing certificate fingerprint"
 msgstr "Certificado de la huella digital: %s"
 
-#: lxc/cluster.go:464 lxc/cluster.go:606
+#: lxc/cluster.go:464 lxc/cluster.go:605
 #, fuzzy
 msgid "Missing cluster member name"
 msgstr "Nombre del Miembro del Cluster"
@@ -2980,7 +2980,7 @@ msgstr "Público: %s"
 msgid "Publish instances as images"
 msgstr ""
 
-#: lxc/publish.go:220
+#: lxc/publish.go:223
 #, fuzzy, c-format
 msgid "Publishing instance: %s"
 msgstr "No se puede proveer el nombre del container a la lista"
@@ -3175,7 +3175,7 @@ msgstr ""
 msgid "Render: %s (%s)"
 msgstr ""
 
-#: lxc/cluster.go:582 lxc/cluster.go:583
+#: lxc/cluster.go:581 lxc/cluster.go:582
 msgid "Request a join token for adding a cluster member"
 msgstr ""
 
@@ -3605,7 +3605,7 @@ msgstr ""
 msgid "Stop the instance if currently running"
 msgstr ""
 
-#: lxc/publish.go:141
+#: lxc/publish.go:137
 msgid "Stopping instance failed!"
 msgstr ""
 
