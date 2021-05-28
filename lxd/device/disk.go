@@ -1029,10 +1029,8 @@ func (d *disk) mountPoolVolume(revert *revert.Reverter) (string, error) {
 }
 
 // createDevice creates a disk device mount on host.
-func (d *disk) createDevice() (string, error) {
-	revert := revert.New()
-	defer revert.Fail()
-
+// The poolVolSrcPath takes the path to the mounted custom pool volume when d.config["pool"] is non-empty.
+func (d *disk) createDevice(revert *revert.Reverter, poolVolSrcPath string) (string, error) {
 	// Paths.
 	devPath := d.getDevicePath(d.name, d.config)
 	srcPath := shared.HostPath(d.config["source"])
@@ -1084,11 +1082,11 @@ func (d *disk) createDevice() (string, error) {
 			if err != nil {
 				msg := fmt.Sprintf("Could not mount map Ceph RBD: %v", err)
 				if !isRequired {
-					// Will fail the PathExists test below.
 					d.logger.Warn(msg)
-				} else {
-					return "", fmt.Errorf(msg)
+					return "", nil
 				}
+
+				return "", fmt.Errorf(msg)
 			}
 
 			// Record the device path.
@@ -1101,17 +1099,7 @@ func (d *disk) createDevice() (string, error) {
 			isFile = false
 		}
 	} else {
-		// Mount the pool volume.
-		var err error
-		srcPath, err = d.mountPoolVolume(revert)
-		if err != nil {
-			if !isRequired {
-				// Leave to the pathExists check below.
-				d.logger.Warn(err.Error())
-			} else {
-				return "", err
-			}
-		}
+		srcPath = poolVolSrcPath // Use pool source path override.
 	}
 
 	// Check if the source exists unless it is a cephfs.
@@ -1119,6 +1107,7 @@ func (d *disk) createDevice() (string, error) {
 		if !isRequired {
 			return "", nil
 		}
+
 		return "", fmt.Errorf("Source path %q doesn't exist for device %q", srcPath, d.name)
 	}
 
