@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: lxd\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2021-05-27 14:18-0400\n"
+"POT-Creation-Date: 2021-05-28 23:20-0400\n"
 "PO-Revision-Date: 2018-06-22 15:57+0000\n"
 "Last-Translator: Александр Киль <shorrey@gmail.com>\n"
 "Language-Team: Russian <https://hosted.weblate.org/projects/linux-containers/"
@@ -623,7 +623,7 @@ msgstr ""
 msgid "Bad key/value pair: %s"
 msgstr ""
 
-#: lxc/copy.go:121 lxc/init.go:185 lxc/project.go:121 lxc/publish.go:172
+#: lxc/copy.go:121 lxc/init.go:185 lxc/project.go:121 lxc/publish.go:175
 #: lxc/storage.go:123 lxc/storage_volume.go:504
 #, c-format
 msgid "Bad key=value pair: %s"
@@ -1091,7 +1091,7 @@ msgstr "Копирование образа: %s"
 #: lxc/alias.go:22 lxc/alias.go:54 lxc/alias.go:100 lxc/alias.go:144
 #: lxc/alias.go:195 lxc/cluster.go:31 lxc/cluster.go:82 lxc/cluster.go:161
 #: lxc/cluster.go:211 lxc/cluster.go:261 lxc/cluster.go:344 lxc/cluster.go:429
-#: lxc/cluster.go:581 lxc/cluster.go:642 lxc/config.go:30 lxc/config.go:89
+#: lxc/cluster.go:580 lxc/cluster.go:642 lxc/config.go:30 lxc/config.go:89
 #: lxc/config.go:360 lxc/config.go:452 lxc/config.go:610 lxc/config.go:730
 #: lxc/config_device.go:24 lxc/config_device.go:75 lxc/config_device.go:193
 #: lxc/config_device.go:265 lxc/config_device.go:336 lxc/config_device.go:429
@@ -1707,7 +1707,7 @@ msgstr "Имя контейнера является обязательным"
 msgid "Instance name is: %s"
 msgstr "Имя контейнера: %s"
 
-#: lxc/publish.go:274
+#: lxc/publish.go:277
 #, c-format
 msgid "Instance published with fingerprint: %s"
 msgstr ""
@@ -2199,9 +2199,9 @@ msgstr ""
 msgid "Mdev profiles:"
 msgstr ""
 
-#: lxc/cluster.go:624
+#: lxc/cluster.go:623
 #, c-format
-msgid "Member %s join token: %s"
+msgid "Member %s join token:"
 msgstr ""
 
 #: lxc/cluster.go:328
@@ -2244,7 +2244,7 @@ msgstr ""
 msgid "Minimum level for log messages"
 msgstr ""
 
-#: lxc/cluster.go:462 lxc/cluster.go:604
+#: lxc/cluster.go:462 lxc/cluster.go:603
 #, fuzzy
 msgid "Missing cluster member name"
 msgstr "Копирование образа: %s"
@@ -2579,14 +2579,11 @@ msgstr "Авто-обновление: %s"
 msgid "Ports:"
 msgstr ""
 
-#: lxc/cluster.go:511 lxc/network.go:653 lxc/profile.go:499 lxc/project.go:305
-#: lxc/storage.go:304 lxc/storage_volume.go:918 lxc/storage_volume.go:948
+#: lxc/cluster.go:511 lxc/config.go:256 lxc/config.go:329
+#: lxc/config_metadata.go:143 lxc/config_template.go:203 lxc/image.go:413
+#: lxc/network.go:653 lxc/profile.go:499 lxc/project.go:305 lxc/storage.go:304
+#: lxc/storage_volume.go:918 lxc/storage_volume.go:948
 msgid "Press enter to open the editor again or ctrl+c to abort change"
-msgstr ""
-
-#: lxc/config.go:256 lxc/config.go:329 lxc/config_metadata.go:143
-#: lxc/config_template.go:203 lxc/image.go:413
-msgid "Press enter to start the editor again"
 msgstr ""
 
 #: lxc/monitor.go:46
@@ -2712,7 +2709,7 @@ msgstr ""
 msgid "Publish instances as images"
 msgstr ""
 
-#: lxc/publish.go:220
+#: lxc/publish.go:223
 #, fuzzy, c-format
 msgid "Publishing instance: %s"
 msgstr "Невозможно добавить имя контейнера в список"
@@ -2890,7 +2887,7 @@ msgstr ""
 msgid "Render: %s (%s)"
 msgstr ""
 
-#: lxc/cluster.go:580 lxc/cluster.go:581
+#: lxc/cluster.go:579 lxc/cluster.go:580
 msgid "Request a join token for adding a cluster member"
 msgstr ""
 
@@ -3284,7 +3281,7 @@ msgstr "Невозможно добавить имя контейнера в с�
 msgid "Stop the instance if currently running"
 msgstr ""
 
-#: lxc/publish.go:141
+#: lxc/publish.go:137
 #, fuzzy
 msgid "Stopping instance failed!"
 msgstr "Невозможно добавить имя контейнера в список"

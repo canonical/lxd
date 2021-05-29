@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: LXD\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2021-05-27 14:18-0400\n"
+"POT-Creation-Date: 2021-05-28 23:20-0400\n"
 "PO-Revision-Date: 2019-01-04 18:07+0000\n"
 "Last-Translator: Deleted User <noreply+12102@weblate.org>\n"
 "Language-Team: French <https://hosted.weblate.org/projects/linux-containers/"
@@ -630,7 +630,7 @@ msgstr "Image copiée avec succès !"
 msgid "Bad key/value pair: %s"
 msgstr ""
 
-#: lxc/copy.go:121 lxc/init.go:185 lxc/project.go:121 lxc/publish.go:172
+#: lxc/copy.go:121 lxc/init.go:185 lxc/project.go:121 lxc/publish.go:175
 #: lxc/storage.go:123 lxc/storage_volume.go:504
 #, c-format
 msgid "Bad key=value pair: %s"
@@ -1137,7 +1137,7 @@ msgstr "Copie de l'image : %s"
 #: lxc/alias.go:22 lxc/alias.go:54 lxc/alias.go:100 lxc/alias.go:144
 #: lxc/alias.go:195 lxc/cluster.go:31 lxc/cluster.go:82 lxc/cluster.go:161
 #: lxc/cluster.go:211 lxc/cluster.go:261 lxc/cluster.go:344 lxc/cluster.go:429
-#: lxc/cluster.go:581 lxc/cluster.go:642 lxc/config.go:30 lxc/config.go:89
+#: lxc/cluster.go:580 lxc/cluster.go:642 lxc/config.go:30 lxc/config.go:89
 #: lxc/config.go:360 lxc/config.go:452 lxc/config.go:610 lxc/config.go:730
 #: lxc/config_device.go:24 lxc/config_device.go:75 lxc/config_device.go:193
 #: lxc/config_device.go:265 lxc/config_device.go:336 lxc/config_device.go:429
@@ -1788,7 +1788,7 @@ msgstr "Le nom du conteneur est obligatoire"
 msgid "Instance name is: %s"
 msgstr "Le nom du conteneur est : %s"
 
-#: lxc/publish.go:274
+#: lxc/publish.go:277
 #, fuzzy, c-format
 msgid "Instance published with fingerprint: %s"
 msgstr "Conteneur publié avec l'empreinte : %s"
@@ -2346,9 +2346,9 @@ msgstr ""
 msgid "Mdev profiles:"
 msgstr "Profils : %s"
 
-#: lxc/cluster.go:624
+#: lxc/cluster.go:623
 #, fuzzy, c-format
-msgid "Member %s join token: %s"
+msgid "Member %s join token:"
 msgstr "Profil %s ajouté à %s"
 
 #: lxc/cluster.go:328
@@ -2392,7 +2392,7 @@ msgstr ""
 msgid "Minimum level for log messages"
 msgstr ""
 
-#: lxc/cluster.go:462 lxc/cluster.go:604
+#: lxc/cluster.go:462 lxc/cluster.go:603
 #, fuzzy
 msgid "Missing cluster member name"
 msgstr "Vous devez fournir le nom d'un conteneur pour : "
@@ -2747,16 +2747,13 @@ msgstr "État : %s"
 msgid "Ports:"
 msgstr ""
 
-#: lxc/cluster.go:511 lxc/network.go:653 lxc/profile.go:499 lxc/project.go:305
-#: lxc/storage.go:304 lxc/storage_volume.go:918 lxc/storage_volume.go:948
+#: lxc/cluster.go:511 lxc/config.go:256 lxc/config.go:329
+#: lxc/config_metadata.go:143 lxc/config_template.go:203 lxc/image.go:413
+#: lxc/network.go:653 lxc/profile.go:499 lxc/project.go:305 lxc/storage.go:304
+#: lxc/storage_volume.go:918 lxc/storage_volume.go:948
 #, fuzzy
 msgid "Press enter to open the editor again or ctrl+c to abort change"
 msgstr "Appuyer sur Entrée pour ouvrir à nouveau l'éditeur"
-
-#: lxc/config.go:256 lxc/config.go:329 lxc/config_metadata.go:143
-#: lxc/config_template.go:203 lxc/image.go:413
-msgid "Press enter to start the editor again"
-msgstr "Appuyer sur Entrée pour lancer à nouveau l'éditeur"
 
 #: lxc/monitor.go:46
 msgid "Pretty rendering"
@@ -2886,7 +2883,7 @@ msgstr "Public : %s"
 msgid "Publish instances as images"
 msgstr "Création du conteneur"
 
-#: lxc/publish.go:220
+#: lxc/publish.go:223
 #, fuzzy, c-format
 msgid "Publishing instance: %s"
 msgstr "Ignorer l'état du conteneur (seulement pour start)"
@@ -3071,7 +3068,7 @@ msgstr ""
 msgid "Render: %s (%s)"
 msgstr ""
 
-#: lxc/cluster.go:580 lxc/cluster.go:581
+#: lxc/cluster.go:579 lxc/cluster.go:580
 msgid "Request a join token for adding a cluster member"
 msgstr ""
 
@@ -3507,7 +3504,7 @@ msgstr "L'arrêt du conteneur a échoué !"
 msgid "Stop the instance if currently running"
 msgstr "Arrêter le conteneur s'il est en cours d'exécution"
 
-#: lxc/publish.go:141
+#: lxc/publish.go:137
 #, fuzzy
 msgid "Stopping instance failed!"
 msgstr "L'arrêt du conteneur a échoué !"
@@ -5116,6 +5113,9 @@ msgstr ""
 #: lxc/image.go:1060
 msgid "yes"
 msgstr "oui"
+
+#~ msgid "Press enter to start the editor again"
+#~ msgstr "Appuyer sur Entrée pour lancer à nouveau l'éditeur"
 
 #~ msgid "default"
 #~ msgstr "par défaut"
