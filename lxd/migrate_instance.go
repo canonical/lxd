@@ -569,6 +569,7 @@ func (s *migrationSourceWs) Do(state *state.State, migrateOp *operations.Operati
 					closeMsg := websocket.FormatCloseMessage(websocket.CloseNormalClosure, "")
 					return c.WriteMessage(websocket.CloseMessage, closeMsg)
 				},
+				nil,
 			)
 			if err != nil {
 				os.RemoveAll(checkpointDir)

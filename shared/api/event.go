@@ -98,4 +98,15 @@ type EventLifecycle struct {
 	Action  string                 `yaml:"action" json:"action"`
 	Source  string                 `yaml:"source" json:"source"`
 	Context map[string]interface{} `yaml:"context,omitempty" json:"context,omitempty"`
+
+	// API extension: event_lifecycle_requestor
+	Requestor *EventLifecycleRequestor `yaml:"requestor,omitempty" json:"requestor,omitempty"`
+}
+
+// EventLifecycleRequestor represents the initial requestor for an event
+//
+// API extension: event_lifecycle_requestor
+type EventLifecycleRequestor struct {
+	Username string `yaml:"username" json:"username"`
+	Protocol string `yaml:"protocol" json:"protocol"`
 }

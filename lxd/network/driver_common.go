@@ -402,7 +402,7 @@ func (n *common) lifecycle(action string, ctx map[string]interface{}) error {
 		u = fmt.Sprintf("%s?project=%s", u, url.QueryEscape(n.project))
 	}
 
-	return n.state.Events.SendLifecycle(n.project, fmt.Sprintf("%s-%s", prefix, action), u, ctx)
+	return n.state.Events.SendLifecycle(n.project, fmt.Sprintf("%s-%s", prefix, action), u, ctx, nil)
 }
 
 // notifyDependentNetworks allows any dependent networks to apply changes to themselves when this network changes.
