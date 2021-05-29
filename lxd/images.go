@@ -940,7 +940,7 @@ func imagesPost(d *Daemon, r *http.Request) response.Response {
 		return nil
 	}
 
-	op, err := operations.OperationCreate(d.State(), projectName, operations.OperationClassTask, db.OperationImageDownload, nil, nil, run, nil, nil)
+	op, err := operations.OperationCreate(d.State(), projectName, operations.OperationClassTask, db.OperationImageDownload, nil, nil, run, nil, nil, r)
 	if err != nil {
 		cleanup(builddir, post)
 		return response.InternalError(err)
@@ -1326,7 +1326,7 @@ func autoUpdateImagesTask(d *Daemon) (task.Func, task.Schedule) {
 			return autoUpdateImages(ctx, d)
 		}
 
-		op, err := operations.OperationCreate(d.State(), "", operations.OperationClassTask, db.OperationImagesUpdate, nil, nil, opRun, nil, nil)
+		op, err := operations.OperationCreate(d.State(), "", operations.OperationClassTask, db.OperationImagesUpdate, nil, nil, opRun, nil, nil, nil)
 		if err != nil {
 			logger.Error("Failed to start image update operation", log.Ctx{"err": err})
 			return
@@ -1831,7 +1831,7 @@ func pruneExpiredImagesTask(d *Daemon) (task.Func, task.Schedule) {
 			return pruneExpiredImages(ctx, d)
 		}
 
-		op, err := operations.OperationCreate(d.State(), "", operations.OperationClassTask, db.OperationImagesExpire, nil, nil, opRun, nil, nil)
+		op, err := operations.OperationCreate(d.State(), "", operations.OperationClassTask, db.OperationImagesExpire, nil, nil, opRun, nil, nil, nil)
 		if err != nil {
 			logger.Error("Failed to start expired image operation", log.Ctx{"err": err})
 			return
@@ -1914,7 +1914,7 @@ func pruneLeftoverImages(d *Daemon) {
 		return nil
 	}
 
-	op, err := operations.OperationCreate(d.State(), "", operations.OperationClassTask, db.OperationImagesPruneLeftover, nil, nil, opRun, nil, nil)
+	op, err := operations.OperationCreate(d.State(), "", operations.OperationClassTask, db.OperationImagesPruneLeftover, nil, nil, opRun, nil, nil, nil)
 	if err != nil {
 		logger.Error("Failed to start image leftover cleanup operation", log.Ctx{"err": err})
 		return
@@ -2136,7 +2136,7 @@ func imageDelete(d *Daemon, r *http.Request) response.Response {
 	resources := map[string][]string{}
 	resources["images"] = []string{fingerprint}
 
-	op, err := operations.OperationCreate(d.State(), projectName, operations.OperationClassTask, db.OperationImageDelete, resources, nil, do, nil, nil)
+	op, err := operations.OperationCreate(d.State(), projectName, operations.OperationClassTask, db.OperationImageDelete, resources, nil, do, nil, nil, r)
 	if err != nil {
 		return response.InternalError(err)
 	}
@@ -3219,7 +3219,7 @@ func imageSecret(d *Daemon, r *http.Request) response.Response {
 	resources := map[string][]string{}
 	resources["images"] = []string{imgInfo.Fingerprint}
 
-	op, err := operations.OperationCreate(d.State(), projectName, operations.OperationClassToken, db.OperationImageToken, resources, meta, nil, nil, nil)
+	op, err := operations.OperationCreate(d.State(), projectName, operations.OperationClassToken, db.OperationImageToken, resources, meta, nil, nil, nil, r)
 	if err != nil {
 		return response.InternalError(err)
 	}
@@ -3333,7 +3333,7 @@ func imageRefresh(d *Daemon, r *http.Request) response.Response {
 		return err
 	}
 
-	op, err := operations.OperationCreate(d.State(), projectName, operations.OperationClassTask, db.OperationImageRefresh, nil, nil, run, nil, nil)
+	op, err := operations.OperationCreate(d.State(), projectName, operations.OperationClassTask, db.OperationImageRefresh, nil, nil, run, nil, nil, r)
 	if err != nil {
 		return response.InternalError(err)
 	}
@@ -3370,7 +3370,7 @@ func autoSyncImagesTask(d *Daemon) (task.Func, task.Schedule) {
 			return autoSyncImages(ctx, d)
 		}
 
-		op, err := operations.OperationCreate(d.State(), "", operations.OperationClassTask, db.OperationImagesSynchronize, nil, nil, opRun, nil, nil)
+		op, err := operations.OperationCreate(d.State(), "", operations.OperationClassTask, db.OperationImagesSynchronize, nil, nil, opRun, nil, nil, nil)
 		if err != nil {
 			logger.Error("Failed to start image synchronization operation", log.Ctx{"err": err})
 			return

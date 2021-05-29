@@ -287,7 +287,7 @@ func instanceSnapshotsPost(d *Daemon, r *http.Request) response.Response {
 		resources["containers"] = resources["instances"]
 	}
 
-	op, err := operations.OperationCreate(d.State(), projectName, operations.OperationClassTask, db.OperationSnapshotCreate, resources, nil, snapshot, nil, nil)
+	op, err := operations.OperationCreate(d.State(), projectName, operations.OperationClassTask, db.OperationSnapshotCreate, resources, nil, snapshot, nil, nil, r)
 	if err != nil {
 		return response.InternalError(err)
 	}
@@ -328,7 +328,7 @@ func instanceSnapshotHandler(d *Daemon, r *http.Request) response.Response {
 	case "POST":
 		return snapshotPost(d, r, inst, containerName)
 	case "DELETE":
-		return snapshotDelete(d.State(), inst, snapshotName)
+		return snapshotDelete(d.State(), r, inst, snapshotName)
 	case "PUT":
 		return snapshotPut(d, r, inst, snapshotName)
 	case "PATCH":
@@ -476,8 +476,7 @@ func snapshotPut(d *Daemon, r *http.Request, snapInst instance.Instance, name st
 		resources["containers"] = resources["instances"]
 	}
 
-	op, err := operations.OperationCreate(d.State(), snapInst.Project(), operations.OperationClassTask, opType, resources, nil,
-		do, nil, nil)
+	op, err := operations.OperationCreate(d.State(), snapInst.Project(), operations.OperationClassTask, opType, resources, nil, do, nil, nil, r)
 	if err != nil {
 		return response.InternalError(err)
 	}
@@ -640,7 +639,7 @@ func snapshotPost(d *Daemon, r *http.Request, snapInst instance.Instance, contai
 				return response.InternalError(err)
 			}
 
-			op, err := operations.OperationCreate(d.State(), snapInst.Project(), operations.OperationClassTask, db.OperationSnapshotTransfer, resources, nil, run, nil, nil)
+			op, err := operations.OperationCreate(d.State(), snapInst.Project(), operations.OperationClassTask, db.OperationSnapshotTransfer, resources, nil, run, nil, nil, r)
 			if err != nil {
 				return response.InternalError(err)
 			}
@@ -649,7 +648,7 @@ func snapshotPost(d *Daemon, r *http.Request, snapInst instance.Instance, contai
 		}
 
 		// Pull mode
-		op, err := operations.OperationCreate(d.State(), snapInst.Project(), operations.OperationClassWebsocket, db.OperationSnapshotTransfer, resources, ws.Metadata(), run, nil, ws.Connect)
+		op, err := operations.OperationCreate(d.State(), snapInst.Project(), operations.OperationClassWebsocket, db.OperationSnapshotTransfer, resources, ws.Metadata(), run, nil, ws.Connect, r)
 		if err != nil {
 			return response.InternalError(err)
 		}
@@ -687,7 +686,7 @@ func snapshotPost(d *Daemon, r *http.Request, snapInst instance.Instance, contai
 		resources["containers"] = resources["instances"]
 	}
 
-	op, err := operations.OperationCreate(d.State(), snapInst.Project(), operations.OperationClassTask, db.OperationSnapshotRename, resources, nil, rename, nil, nil)
+	op, err := operations.OperationCreate(d.State(), snapInst.Project(), operations.OperationClassTask, db.OperationSnapshotRename, resources, nil, rename, nil, nil, r)
 	if err != nil {
 		return response.InternalError(err)
 	}
@@ -721,7 +720,7 @@ func snapshotPost(d *Daemon, r *http.Request, snapInst instance.Instance, contai
 //     $ref: "#/responses/Forbidden"
 //   "500":
 //     $ref: "#/responses/InternalServerError"
-func snapshotDelete(s *state.State, snapInst instance.Instance, name string) response.Response {
+func snapshotDelete(s *state.State, r *http.Request, snapInst instance.Instance, name string) response.Response {
 	remove := func(op *operations.Operation) error {
 		return snapInst.Delete(false)
 	}
@@ -733,7 +732,7 @@ func snapshotDelete(s *state.State, snapInst instance.Instance, name string) res
 		resources["containers"] = resources["instances"]
 	}
 
-	op, err := operations.OperationCreate(s, snapInst.Project(), operations.OperationClassTask, db.OperationSnapshotDelete, resources, nil, remove, nil, nil)
+	op, err := operations.OperationCreate(s, snapInst.Project(), operations.OperationClassTask, db.OperationSnapshotDelete, resources, nil, remove, nil, nil, r)
 	if err != nil {
 		return response.InternalError(err)
 	}

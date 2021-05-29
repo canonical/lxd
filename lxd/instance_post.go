@@ -237,7 +237,7 @@ func instancePost(d *Daemon, r *http.Request) response.Response {
 				return response.SmartError(err)
 			}
 			if pool.Driver == "ceph" {
-				return instancePostClusteringMigrateWithCeph(d, inst, project, name, req.Name, targetNode, instanceType)
+				return instancePostClusteringMigrateWithCeph(d, r, inst, project, name, req.Name, targetNode, instanceType)
 			}
 
 			// If this is not a ceph-based container, make sure
@@ -249,7 +249,7 @@ func instancePost(d *Daemon, r *http.Request) response.Response {
 				return response.SmartError(err)
 			}
 
-			return instancePostClusteringMigrate(d, inst, name, req.Name, targetNode)
+			return instancePostClusteringMigrate(d, r, inst, name, req.Name, targetNode)
 		}
 
 		instanceOnly := req.InstanceOnly || req.ContainerOnly
@@ -281,7 +281,7 @@ func instancePost(d *Daemon, r *http.Request) response.Response {
 				return response.InternalError(err)
 			}
 
-			op, err := operations.OperationCreate(d.State(), project, operations.OperationClassTask, db.OperationInstanceMigrate, resources, nil, run, nil, nil)
+			op, err := operations.OperationCreate(d.State(), project, operations.OperationClassTask, db.OperationInstanceMigrate, resources, nil, run, nil, nil, r)
 			if err != nil {
 				return response.InternalError(err)
 			}
@@ -290,7 +290,7 @@ func instancePost(d *Daemon, r *http.Request) response.Response {
 		}
 
 		// Pull mode.
-		op, err := operations.OperationCreate(d.State(), project, operations.OperationClassWebsocket, db.OperationInstanceMigrate, resources, ws.Metadata(), run, cancel, ws.Connect)
+		op, err := operations.OperationCreate(d.State(), project, operations.OperationClassWebsocket, db.OperationInstanceMigrate, resources, ws.Metadata(), run, cancel, ws.Connect, r)
 		if err != nil {
 			return response.InternalError(err)
 		}
@@ -315,7 +315,7 @@ func instancePost(d *Daemon, r *http.Request) response.Response {
 		resources["containers"] = resources["instances"]
 	}
 
-	op, err := operations.OperationCreate(d.State(), project, operations.OperationClassTask, db.OperationInstanceRename, resources, nil, run, nil, nil)
+	op, err := operations.OperationCreate(d.State(), project, operations.OperationClassTask, db.OperationInstanceRename, resources, nil, run, nil, nil, r)
 	if err != nil {
 		return response.InternalError(err)
 	}
@@ -324,7 +324,7 @@ func instancePost(d *Daemon, r *http.Request) response.Response {
 }
 
 // Move a non-ceph container to another cluster node.
-func instancePostClusteringMigrate(d *Daemon, inst instance.Instance, oldName, newName, newNode string) response.Response {
+func instancePostClusteringMigrate(d *Daemon, r *http.Request, inst instance.Instance, oldName, newName, newNode string) response.Response {
 	var sourceAddress string
 	var targetAddress string
 
@@ -476,7 +476,7 @@ func instancePostClusteringMigrate(d *Daemon, inst instance.Instance, oldName, n
 		resources["containers"] = resources["instances"]
 	}
 
-	op, err := operations.OperationCreate(d.State(), inst.Project(), operations.OperationClassTask, db.OperationInstanceMigrate, resources, nil, run, nil, nil)
+	op, err := operations.OperationCreate(d.State(), inst.Project(), operations.OperationClassTask, db.OperationInstanceMigrate, resources, nil, run, nil, nil, r)
 	if err != nil {
 		return response.InternalError(err)
 	}
@@ -485,7 +485,7 @@ func instancePostClusteringMigrate(d *Daemon, inst instance.Instance, oldName, n
 }
 
 // Special case migrating a container backed by ceph across two cluster nodes.
-func instancePostClusteringMigrateWithCeph(d *Daemon, inst instance.Instance, projectName, oldName, newName, newNode string, instanceType instancetype.Type) response.Response {
+func instancePostClusteringMigrateWithCeph(d *Daemon, r *http.Request, inst instance.Instance, projectName, oldName, newName, newNode string, instanceType instancetype.Type) response.Response {
 	run := func(op *operations.Operation) error {
 		// If source node is online (i.e. we're serving the request on
 		// it, and c != nil), let's unmap the RBD volume locally
@@ -559,7 +559,7 @@ func instancePostClusteringMigrateWithCeph(d *Daemon, inst instance.Instance, pr
 		resources["containers"] = resources["instances"]
 	}
 
-	op, err := operations.OperationCreate(d.State(), projectName, operations.OperationClassTask, db.OperationInstanceMigrate, resources, nil, run, nil, nil)
+	op, err := operations.OperationCreate(d.State(), projectName, operations.OperationClassTask, db.OperationInstanceMigrate, resources, nil, run, nil, nil, r)
 	if err != nil {
 		return response.InternalError(err)
 	}
