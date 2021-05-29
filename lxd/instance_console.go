@@ -492,8 +492,7 @@ func instanceConsolePost(d *Daemon, r *http.Request) response.Response {
 		resources["containers"] = resources["instances"]
 	}
 
-	op, err := operations.OperationCreate(d.State(), projectName, operations.OperationClassWebsocket, db.OperationConsoleShow,
-		resources, ws.Metadata(), ws.Do, nil, ws.Connect)
+	op, err := operations.OperationCreate(d.State(), projectName, operations.OperationClassWebsocket, db.OperationConsoleShow, resources, ws.Metadata(), ws.Do, nil, ws.Connect, r)
 	if err != nil {
 		return response.InternalError(err)
 	}
