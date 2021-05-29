@@ -43,5 +43,5 @@ func Lifecycle(s *state.State, inst Instance, name string, action string, ctx ma
 		u = fmt.Sprintf("%s?project=%s", u, url.QueryEscape(inst.Project()))
 	}
 
-	return s.Events.SendLifecycle(inst.Project(), fmt.Sprintf("%s-%s", prefix, action), u, ctx)
+	return s.Events.SendLifecycle(inst.Project(), fmt.Sprintf("%s-%s", prefix, action), u, ctx, nil)
 }

@@ -398,7 +398,7 @@ func pruneResolvedWarningsTask(d *Daemon) (task.Func, task.Schedule) {
 			return pruneResolvedWarnings(ctx, d)
 		}
 
-		op, err := operations.OperationCreate(d.State(), "", operations.OperationClassTask, db.OperationWarningsPruneResolved, nil, nil, opRun, nil, nil)
+		op, err := operations.OperationCreate(d.State(), "", operations.OperationClassTask, db.OperationWarningsPruneResolved, nil, nil, opRun, nil, nil, nil)
 		if err != nil {
 			logger.Error("Failed to start prune resolved warnings operation", log.Ctx{"err": err})
 			return

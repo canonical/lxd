@@ -277,13 +277,13 @@ func clusterPut(d *Daemon, r *http.Request) response.Response {
 	// cluster with this node as first node, or perform a request to join a
 	// given cluster.
 	if req.ClusterAddress == "" {
-		return clusterPutBootstrap(d, req)
+		return clusterPutBootstrap(d, r, req)
 	}
 
-	return clusterPutJoin(d, req)
+	return clusterPutJoin(d, r, req)
 }
 
-func clusterPutBootstrap(d *Daemon, req api.ClusterPut) response.Response {
+func clusterPutBootstrap(d *Daemon, r *http.Request, req api.ClusterPut) response.Response {
 	run := func(op *operations.Operation) error {
 		// Start clustering tasks
 		d.startClusterTasks()
@@ -327,7 +327,7 @@ func clusterPutBootstrap(d *Daemon, req api.ClusterPut) response.Response {
 		return response.SmartError(err)
 	}
 
-	op, err := operations.OperationCreate(d.State(), "", operations.OperationClassTask, db.OperationClusterBootstrap, resources, nil, run, nil, nil)
+	op, err := operations.OperationCreate(d.State(), "", operations.OperationClassTask, db.OperationClusterBootstrap, resources, nil, run, nil, nil, r)
 	if err != nil {
 		return response.InternalError(err)
 	}
@@ -338,7 +338,7 @@ func clusterPutBootstrap(d *Daemon, req api.ClusterPut) response.Response {
 	return operations.OperationResponse(op)
 }
 
-func clusterPutJoin(d *Daemon, req api.ClusterPut) response.Response {
+func clusterPutJoin(d *Daemon, r *http.Request, req api.ClusterPut) response.Response {
 	// Make sure basic pre-conditions are met.
 	if len(req.ClusterCertificate) == 0 {
 		return response.BadRequest(fmt.Errorf("No target cluster member certificate provided"))
@@ -676,7 +676,7 @@ func clusterPutJoin(d *Daemon, req api.ClusterPut) response.Response {
 	resources := map[string][]string{}
 	resources["cluster"] = []string{}
 
-	op, err := operations.OperationCreate(d.State(), "", operations.OperationClassTask, db.OperationClusterJoin, resources, nil, run, nil, nil)
+	op, err := operations.OperationCreate(d.State(), "", operations.OperationClassTask, db.OperationClusterJoin, resources, nil, run, nil, nil, r)
 	if err != nil {
 		return response.InternalError(err)
 	}
@@ -1182,7 +1182,7 @@ func clusterNodesPost(d *Daemon, r *http.Request) response.Response {
 	resources := map[string][]string{}
 	resources["cluster"] = []string{}
 
-	op, err := operations.OperationCreate(d.State(), project.Default, operations.OperationClassToken, db.OperationClusterJoinToken, resources, meta, nil, nil, nil)
+	op, err := operations.OperationCreate(d.State(), project.Default, operations.OperationClassToken, db.OperationClusterJoinToken, resources, meta, nil, nil, nil, r)
 	if err != nil {
 		return response.InternalError(err)
 	}
