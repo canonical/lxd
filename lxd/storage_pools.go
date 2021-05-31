@@ -44,8 +44,98 @@ var storagePoolCmd = APIEndpoint{
 	Put:    APIEndpointAction{Handler: storagePoolPut},
 }
 
-// /1.0/storage-pools
-// List all storage pools.
+// swagger:operation GET /1.0/storage-pools storage storage_pools_get
+//
+// Get the storage pools
+//
+// Returns a list of storage pools (URLs).
+//
+// ---
+// produces:
+//   - application/json
+// parameters:
+//   - in: query
+//     name: project
+//     description: Project name
+//     type: string
+//     example: default
+// responses:
+//   "200":
+//     description: API endpoints
+//     schema:
+//       type: object
+//       description: Sync response
+//       properties:
+//         type:
+//           type: string
+//           description: Response type
+//           example: sync
+//         status:
+//           type: string
+//           description: Status description
+//           example: Success
+//         status_code:
+//           type: int
+//           description: Status code
+//           example: 200
+//         metadata:
+//           type: array
+//           description: List of endpoints
+//           items:
+//             type: string
+//           example: |-
+//             [
+//               "/1.0/storage-pools/local",
+//               "/1.0/storage-pools/remote"
+//             ]
+//   "403":
+//     $ref: "#/responses/Forbidden"
+//   "500":
+//     $ref: "#/responses/InternalServerError"
+
+// swagger:operation GET /1.0/storage-pools?recursion=1 storage storage_pools_get_recursion1
+//
+// Get the storage pools
+//
+// Returns a list of storage pools (structs).
+//
+// ---
+// produces:
+//   - application/json
+// parameters:
+//   - in: query
+//     name: project
+//     description: Project name
+//     type: string
+//     example: default
+// responses:
+//   "200":
+//     description: API endpoints
+//     schema:
+//       type: object
+//       description: Sync response
+//       properties:
+//         type:
+//           type: string
+//           description: Response type
+//           example: sync
+//         status:
+//           type: string
+//           description: Status description
+//           example: Success
+//         status_code:
+//           type: int
+//           description: Status code
+//           example: 200
+//         metadata:
+//           type: array
+//           description: List of storage pools
+//           items:
+//             $ref: "#/definitions/StoragePool"
+//   "403":
+//     $ref: "#/responses/Forbidden"
+//   "500":
+//     $ref: "#/responses/InternalServerError"
 func storagePoolsGet(d *Daemon, r *http.Request) response.Response {
 	recursion := util.IsRecursionRequest(r)
 
@@ -87,8 +177,44 @@ func storagePoolsGet(d *Daemon, r *http.Request) response.Response {
 	return response.SyncResponse(true, resultMap)
 }
 
-// /1.0/storage-pools
-// Create a storage pool.
+// swagger:operation POST /1.0/storage-pools storage storage_pools_post
+//
+// Add a storage pool
+//
+// Creates a new storage pool.
+// When clustered, storage pools require individual POST for each cluster member prior to a global POST.
+//
+// ---
+// consumes:
+//   - application/json
+// produces:
+//   - application/json
+// parameters:
+//   - in: query
+//     name: project
+//     description: Project name
+//     type: string
+//     example: default
+//   - in: query
+//     name: target
+//     description: Cluster member name
+//     type: string
+//     example: lxd01
+//   - in: body
+//     name: storage
+//     description: Storage pool
+//     required: true
+//     schema:
+//       $ref: "#/definitions/StoragePoolsPost"
+// responses:
+//   "200":
+//     $ref: "#/responses/EmptySyncResponse"
+//   "400":
+//     $ref: "#/responses/BadRequest"
+//   "403":
+//     $ref: "#/responses/Forbidden"
+//   "500":
+//     $ref: "#/responses/InternalServerError"
 func storagePoolsPost(d *Daemon, r *http.Request) response.Response {
 	storagePoolCreateLock.Lock()
 	defer storagePoolCreateLock.Unlock()
@@ -365,8 +491,51 @@ func storagePoolsPostCluster(d *Daemon, pool *api.StoragePool, req api.StoragePo
 	return nil
 }
 
-// /1.0/storage-pools/{name}
-// Get a single storage pool.
+// swagger:operation GET /1.0/storage-pools/{name} storage storage_pool_get
+//
+// Get the storage pool
+//
+// Gets a specific storage pool.
+//
+// ---
+// produces:
+//   - application/json
+// parameters:
+//   - in: query
+//     name: project
+//     description: Project name
+//     type: string
+//     example: default
+//   - in: query
+//     name: target
+//     description: Cluster member name
+//     type: string
+//     example: lxd01
+// responses:
+//   "200":
+//     description: Storage pool
+//     schema:
+//       type: object
+//       description: Sync response
+//       properties:
+//         type:
+//           type: string
+//           description: Response type
+//           example: sync
+//         status:
+//           type: string
+//           description: Status description
+//           example: Success
+//         status_code:
+//           type: int
+//           description: Status code
+//           example: 200
+//         metadata:
+//           $ref: "#/definitions/StoragePool"
+//   "403":
+//     $ref: "#/responses/Forbidden"
+//   "500":
+//     $ref: "#/responses/InternalServerError"
 func storagePoolGet(d *Daemon, r *http.Request) response.Response {
 	// If a target was specified, forward the request to the relevant node.
 	resp := forwardedResponseIfTargetIsRemote(d, r)
@@ -413,8 +582,45 @@ func storagePoolGet(d *Daemon, r *http.Request) response.Response {
 	return response.SyncResponseETag(true, &pool, etag)
 }
 
-// /1.0/storage-pools/{name}
-// Replace pool properties.
+// swagger:operation PUT /1.0/storage-pools/{name} storage storage_pool_put
+//
+// Update the storage pool
+//
+// Updates the entire storage pool configuration.
+//
+// ---
+// consumes:
+//   - application/json
+// produces:
+//   - application/json
+// parameters:
+//   - in: query
+//     name: project
+//     description: Project name
+//     type: string
+//     example: default
+//   - in: query
+//     name: target
+//     description: Cluster member name
+//     type: string
+//     example: lxd01
+//   - in: body
+//     name: storage pool
+//     description: Storage pool configuration
+//     required: true
+//     schema:
+//       $ref: "#/definitions/StoragePoolPut"
+// responses:
+//   "200":
+//     $ref: "#/responses/EmptySyncResponse"
+//   "400":
+//     $ref: "#/responses/BadRequest"
+//   "403":
+//     $ref: "#/responses/Forbidden"
+//   "412":
+//     $ref: "#/responses/PreconditionFailed"
+//   "500":
+//     $ref: "#/responses/InternalServerError"
 func storagePoolPut(d *Daemon, r *http.Request) response.Response {
 	// If a target was specified, forward the request to the relevant node.
 	resp := forwardedResponseIfTargetIsRemote(d, r)
@@ -493,8 +699,45 @@ func storagePoolPut(d *Daemon, r *http.Request) response.Response {
 	return doStoragePoolUpdate(d, pool, req, targetNode, clientType, r.Method, clustered)
 }
 
-// /1.0/storage-pools/{name}
-// Change pool properties.
+// swagger:operation PATCH /1.0/storage-pools/{name} storage storage_pool_patch
+//
+// Partially update the storage pool
+//
+// Updates a subset of the storage pool configuration.
+//
+// ---
+// consumes:
+//   - application/json
+// produces:
+//   - application/json
+// parameters:
+//   - in: query
+//     name: project
+//     description: Project name
+//     type: string
+//     example: default
+//   - in: query
+//     name: target
+//     description: Cluster member name
+//     type: string
+//     example: lxd01
+//   - in: body
+//     name: storage pool
+//     description: Storage pool configuration
+//     required: true
+//     schema:
+//       $ref: "#/definitions/StoragePoolPut"
+// responses:
+//   "200":
+//     $ref: "#/responses/EmptySyncResponse"
+//   "400":
+//     $ref: "#/responses/BadRequest"
+//   "403":
+//     $ref: "#/responses/Forbidden"
+//   "412":
+//     $ref: "#/responses/PreconditionFailed"
+//   "500":
+//     $ref: "#/responses/InternalServerError"
 func storagePoolPatch(d *Daemon, r *http.Request) response.Response {
 	return storagePoolPut(d, r)
 }
@@ -568,8 +811,30 @@ func doStoragePoolUpdate(d *Daemon, pool storagePools.Pool, req api.StoragePoolP
 	return response.EmptySyncResponse
 }
 
-// /1.0/storage-pools/{name}
-// Delete storage pool.
+// swagger:operation DELETE /1.0/storage-pools/{name} storage storage_pools_delete
+//
+// Delete the storage pool
+//
+// Removes the storage pool.
+//
+// ---
+// produces:
+//   - application/json
+// parameters:
+//   - in: query
+//     name: project
+//     description: Project name
+//     type: string
+//     example: default
+// responses:
+//   "200":
+//     $ref: "#/responses/EmptySyncResponse"
+//   "400":
+//     $ref: "#/responses/BadRequest"
+//   "403":
+//     $ref: "#/responses/Forbidden"
+//   "500":
+//     $ref: "#/responses/InternalServerError"
 func storagePoolDelete(d *Daemon, r *http.Request) response.Response {
 	poolName := mux.Vars(r)["name"]
 
