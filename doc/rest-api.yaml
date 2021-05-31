@@ -4296,6 +4296,329 @@ definitions:
     format: int64
     type: integer
     x-go-package: github.com/lxc/lxd/shared/api
+  StoragePool:
+    properties:
+      config:
+        additionalProperties:
+          type: string
+        description: Storage pool configuration map (refer to doc/storage.md)
+        example:
+          volume.block.filesystem: ext4
+          volume.size: 50GiB
+        type: object
+        x-go-name: Config
+      description:
+        description: Description of the storage pool
+        example: Local SSD pool
+        type: string
+        x-go-name: Description
+      driver:
+        description: Storage pool driver (btrfs, ceph, cephfs, dir, lvm or zfs)
+        example: zfs
+        type: string
+        x-go-name: Driver
+      locations:
+        description: Cluster members on which the storage pool has been defined
+        example:
+        - lxd01
+        - lxd02
+        - lxd03
+        items:
+          type: string
+        readOnly: true
+        type: array
+        x-go-name: Locations
+      name:
+        description: Storage pool name
+        example: local
+        type: string
+        x-go-name: Name
+      status:
+        description: Pool status (Pending, Created, Errored or Unknown)
+        example: Created
+        readOnly: true
+        type: string
+        x-go-name: Status
+      used_by:
+        description: List of URLs of objects using this storage pool
+        example:
+        - /1.0/profiles/default
+        - /1.0/instances/c1
+        items:
+          type: string
+        type: array
+        x-go-name: UsedBy
+    title: StoragePool represents the fields of a LXD storage pool.
+    type: object
+    x-go-package: github.com/lxc/lxd/shared/api
+  StoragePoolPut:
+    properties:
+      config:
+        additionalProperties:
+          type: string
+        description: Storage pool configuration map (refer to doc/storage.md)
+        example:
+          volume.block.filesystem: ext4
+          volume.size: 50GiB
+        type: object
+        x-go-name: Config
+      description:
+        description: Description of the storage pool
+        example: Local SSD pool
+        type: string
+        x-go-name: Description
+    title: StoragePoolPut represents the modifiable fields of a LXD storage pool.
+    type: object
+    x-go-package: github.com/lxc/lxd/shared/api
+  StoragePoolsPost:
+    description: StoragePoolsPost represents the fields of a new LXD storage pool
+    properties:
+      config:
+        additionalProperties:
+          type: string
+        description: Storage pool configuration map (refer to doc/storage.md)
+        example:
+          volume.block.filesystem: ext4
+          volume.size: 50GiB
+        type: object
+        x-go-name: Config
+      description:
+        description: Description of the storage pool
+        example: Local SSD pool
+        type: string
+        x-go-name: Description
+      driver:
+        description: Storage pool driver (btrfs, ceph, cephfs, dir, lvm or zfs)
+        example: zfs
+        type: string
+        x-go-name: Driver
+      name:
+        description: Storage pool name
+        example: local
+        type: string
+        x-go-name: Name
+    type: object
+    x-go-package: github.com/lxc/lxd/shared/api
+  StorageVolume:
+    properties:
+      config:
+        additionalProperties:
+          type: string
+        description: Storage volume configuration map (refer to doc/storage.md)
+        example:
+          size: 50GiB
+          zfs.remove_snapshots: "true"
+        type: object
+        x-go-name: Config
+      content_type:
+        description: Volume content type (filesystem or block)
+        example: filesystem
+        type: string
+        x-go-name: ContentType
+      description:
+        description: Description of the storage volume
+        example: My custom volume
+        type: string
+        x-go-name: Description
+      location:
+        description: What cluster member this record was found on
+        example: lxd01
+        type: string
+        x-go-name: Location
+      name:
+        description: Volume name
+        example: foo
+        type: string
+        x-go-name: Name
+      restore:
+        description: Name of a snapshot to restore
+        example: snap0
+        type: string
+        x-go-name: Restore
+      type:
+        description: Volume type
+        example: custom
+        type: string
+        x-go-name: Type
+      used_by:
+        description: List of URLs of objects using this storage volume
+        example:
+        - /1.0/instances/blah
+        items:
+          type: string
+        type: array
+        x-go-name: UsedBy
+    title: StorageVolume represents the fields of a LXD storage volume.
+    type: object
+    x-go-package: github.com/lxc/lxd/shared/api
+  StorageVolumePost:
+    description: StorageVolumePost represents the fields required to rename a LXD
+      storage pool volume
+    properties:
+      migration:
+        description: Initiate volume migration
+        example: false
+        type: boolean
+        x-go-name: Migration
+      name:
+        description: New volume name
+        example: foo
+        type: string
+        x-go-name: Name
+      pool:
+        description: New storage pool
+        example: remote
+        type: string
+        x-go-name: Pool
+      target:
+        $ref: '#/definitions/StorageVolumePostTarget'
+      volume_only:
+        description: Whether snapshots should be discarded (migration only)
+        example: false
+        type: boolean
+        x-go-name: VolumeOnly
+    type: object
+    x-go-package: github.com/lxc/lxd/shared/api
+  StorageVolumePostTarget:
+    description: StorageVolumePostTarget represents the migration target host and
+      operation
+    properties:
+      certificate:
+        description: The certificate of the migration target
+        example: X509 PEM certificate
+        type: string
+        x-go-name: Certificate
+      operation:
+        description: Remote operation URL (for migration)
+        example: https://1.2.3.4:8443/1.0/operations/1721ae08-b6a8-416a-9614-3f89302466e1
+        type: string
+        x-go-name: Operation
+      secrets:
+        additionalProperties:
+          type: string
+        description: Migration websockets credentials
+        example:
+          migration: random-string
+        type: object
+        x-go-name: Websockets
+    type: object
+    x-go-package: github.com/lxc/lxd/shared/api
+  StorageVolumePut:
+    description: StorageVolumePut represents the modifiable fields of a LXD storage
+      volume
+    properties:
+      config:
+        additionalProperties:
+          type: string
+        description: Storage volume configuration map (refer to doc/storage.md)
+        example:
+          size: 50GiB
+          zfs.remove_snapshots: "true"
+        type: object
+        x-go-name: Config
+      description:
+        description: Description of the storage volume
+        example: My custom volume
+        type: string
+        x-go-name: Description
+      restore:
+        description: Name of a snapshot to restore
+        example: snap0
+        type: string
+        x-go-name: Restore
+    type: object
+    x-go-package: github.com/lxc/lxd/shared/api
+  StorageVolumeSource:
+    description: StorageVolumeSource represents the creation source for a new storage
+      volume
+    properties:
+      certificate:
+        description: Certificate (for migration)
+        example: X509 PEM certificate
+        type: string
+        x-go-name: Certificate
+      mode:
+        description: Whether to use pull or push mode (for migration)
+        example: pull
+        type: string
+        x-go-name: Mode
+      name:
+        description: Source volume name (for copy)
+        example: foo
+        type: string
+        x-go-name: Name
+      operation:
+        description: Remote operation URL (for migration)
+        example: https://1.2.3.4:8443/1.0/operations/1721ae08-b6a8-416a-9614-3f89302466e1
+        type: string
+        x-go-name: Operation
+      pool:
+        description: Source storage pool (for copy)
+        example: local
+        type: string
+        x-go-name: Pool
+      secrets:
+        additionalProperties:
+          type: string
+        description: Map of migration websockets (for migration)
+        example:
+          rsync: RANDOM-STRING
+        type: object
+        x-go-name: Websockets
+      type:
+        description: Source type (copy or migration)
+        example: copy
+        type: string
+        x-go-name: Type
+      volume_only:
+        description: Whether snapshots should be discarded (for migration)
+        example: false
+        type: boolean
+        x-go-name: VolumeOnly
+    type: object
+    x-go-package: github.com/lxc/lxd/shared/api
+  StorageVolumesPost:
+    description: StorageVolumesPost represents the fields of a new LXD storage pool
+      volume
+    properties:
+      config:
+        additionalProperties:
+          type: string
+        description: Storage volume configuration map (refer to doc/storage.md)
+        example:
+          size: 50GiB
+          zfs.remove_snapshots: "true"
+        type: object
+        x-go-name: Config
+      content_type:
+        description: Volume content type (filesystem or block)
+        example: filesystem
+        type: string
+        x-go-name: ContentType
+      description:
+        description: Description of the storage volume
+        example: My custom volume
+        type: string
+        x-go-name: Description
+      name:
+        description: Volume name
+        example: foo
+        type: string
+        x-go-name: Name
+      restore:
+        description: Name of a snapshot to restore
+        example: snap0
+        type: string
+        x-go-name: Restore
+      source:
+        $ref: '#/definitions/StorageVolumeSource'
+      type:
+        description: Volume type (container, custom, image or virtual-machine)
+        example: custom
+        type: string
+        x-go-name: Type
+    type: object
+    x-go-package: github.com/lxc/lxd/shared/api
   Warning:
     properties:
       count:
@@ -9111,6 +9434,319 @@ paths:
       summary: Get system resources information
       tags:
       - server
+  /1.0/storage-pools:
+    get:
+      description: Returns a list of storage pools (URLs).
+      operationId: storage_pools_get
+      parameters:
+      - description: Project name
+        example: default
+        in: query
+        name: project
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: API endpoints
+          schema:
+            description: Sync response
+            properties:
+              metadata:
+                description: List of endpoints
+                example: |-
+                  [
+                    "/1.0/storage-pools/local",
+                    "/1.0/storage-pools/remote"
+                  ]
+                items:
+                  type: string
+                type: array
+              status:
+                description: Status description
+                example: Success
+                type: string
+              status_code:
+                description: Status code
+                example: 200
+                type: int
+              type:
+                description: Response type
+                example: sync
+                type: string
+            type: object
+        "403":
+          $ref: '#/responses/Forbidden'
+        "500":
+          $ref: '#/responses/InternalServerError'
+      summary: Get the storage pools
+      tags:
+      - storage
+    post:
+      consumes:
+      - application/json
+      description: |-
+        Creates a new storage pool.
+        When clustered, storage pools require individual POST for each cluster member prior to a global POST.
+      operationId: storage_pools_post
+      parameters:
+      - description: Project name
+        example: default
+        in: query
+        name: project
+        type: string
+      - description: Cluster member name
+        example: lxd01
+        in: query
+        name: target
+        type: string
+      - description: Storage pool
+        in: body
+        name: storage
+        required: true
+        schema:
+          $ref: '#/definitions/StoragePoolsPost'
+      produces:
+      - application/json
+      responses:
+        "200":
+          $ref: '#/responses/EmptySyncResponse'
+        "400":
+          $ref: '#/responses/BadRequest'
+        "403":
+          $ref: '#/responses/Forbidden'
+        "500":
+          $ref: '#/responses/InternalServerError'
+      summary: Add a storage pool
+      tags:
+      - storage
+  /1.0/storage-pools/{name}:
+    delete:
+      description: Removes the storage pool.
+      operationId: storage_pools_delete
+      parameters:
+      - description: Project name
+        example: default
+        in: query
+        name: project
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          $ref: '#/responses/EmptySyncResponse'
+        "400":
+          $ref: '#/responses/BadRequest'
+        "403":
+          $ref: '#/responses/Forbidden'
+        "500":
+          $ref: '#/responses/InternalServerError'
+      summary: Delete the storage pool
+      tags:
+      - storage
+    get:
+      description: Gets a specific storage pool.
+      operationId: storage_pool_get
+      parameters:
+      - description: Project name
+        example: default
+        in: query
+        name: project
+        type: string
+      - description: Cluster member name
+        example: lxd01
+        in: query
+        name: target
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Storage pool
+          schema:
+            description: Sync response
+            properties:
+              metadata:
+                $ref: '#/definitions/StoragePool'
+              status:
+                description: Status description
+                example: Success
+                type: string
+              status_code:
+                description: Status code
+                example: 200
+                type: int
+              type:
+                description: Response type
+                example: sync
+                type: string
+            type: object
+        "403":
+          $ref: '#/responses/Forbidden'
+        "500":
+          $ref: '#/responses/InternalServerError'
+      summary: Get the storage pool
+      tags:
+      - storage
+    patch:
+      consumes:
+      - application/json
+      description: Updates a subset of the storage pool configuration.
+      operationId: storage_pool_patch
+      parameters:
+      - description: Project name
+        example: default
+        in: query
+        name: project
+        type: string
+      - description: Cluster member name
+        example: lxd01
+        in: query
+        name: target
+        type: string
+      - description: Storage pool configuration
+        in: body
+        name: storage pool
+        required: true
+        schema:
+          $ref: '#/definitions/StoragePoolPut'
+      produces:
+      - application/json
+      responses:
+        "200":
+          $ref: '#/responses/EmptySyncResponse'
+        "400":
+          $ref: '#/responses/BadRequest'
+        "403":
+          $ref: '#/responses/Forbidden'
+        "412":
+          $ref: '#/responses/PreconditionFailed'
+        "500":
+          $ref: '#/responses/InternalServerError'
+      summary: Partially update the storage pool
+      tags:
+      - storage
+    put:
+      consumes:
+      - application/json
+      description: Updates the entire storage pool configuration.
+      operationId: storage_pool_put
+      parameters:
+      - description: Project name
+        example: default
+        in: query
+        name: project
+        type: string
+      - description: Cluster member name
+        example: lxd01
+        in: query
+        name: target
+        type: string
+      - description: Storage pool configuration
+        in: body
+        name: storage pool
+        required: true
+        schema:
+          $ref: '#/definitions/StoragePoolPut'
+      produces:
+      - application/json
+      responses:
+        "200":
+          $ref: '#/responses/EmptySyncResponse'
+        "400":
+          $ref: '#/responses/BadRequest'
+        "403":
+          $ref: '#/responses/Forbidden'
+        "412":
+          $ref: '#/responses/PreconditionFailed'
+        "500":
+          $ref: '#/responses/InternalServerError'
+      summary: Update the storage pool
+      tags:
+      - storage
+  /1.0/storage-pools/{name}/resources:
+    get:
+      description: Gets the usage information for the storage pool.
+      operationId: storage_pool_resources
+      parameters:
+      - description: Cluster member name
+        example: lxd01
+        in: query
+        name: target
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Hardware resources
+          schema:
+            description: Sync response
+            properties:
+              metadata:
+                $ref: '#/definitions/ResourcesStoragePool'
+              status:
+                description: Status description
+                example: Success
+                type: string
+              status_code:
+                description: Status code
+                example: 200
+                type: int
+              type:
+                description: Response type
+                example: sync
+                type: string
+            type: object
+        "403":
+          $ref: '#/responses/Forbidden'
+        "500":
+          $ref: '#/responses/InternalServerError'
+      summary: Get storage pool resources information
+      tags:
+      - storage
+  /1.0/storage-pools?recursion=1:
+    get:
+      description: Returns a list of storage pools (structs).
+      operationId: storage_pools_get_recursion1
+      parameters:
+      - description: Project name
+        example: default
+        in: query
+        name: project
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: API endpoints
+          schema:
+            description: Sync response
+            properties:
+              metadata:
+                description: List of storage pools
+                items:
+                  $ref: '#/definitions/StoragePool'
+                type: array
+              status:
+                description: Status description
+                example: Success
+                type: string
+              status_code:
+                description: Status code
+                example: 200
+                type: int
+              type:
+                description: Response type
+                example: sync
+                type: string
+            type: object
+        "403":
+          $ref: '#/responses/Forbidden'
+        "500":
+          $ref: '#/responses/InternalServerError'
+      summary: Get the storage pools
+      tags:
+      - storage
   /1.0/warnings:
     get:
       description: Returns a list of warnings.
