@@ -1166,6 +1166,8 @@ func (d *Daemon) init() error {
 		rbacAPIURL, rbacAPIKey, rbacExpiry, rbacAgentURL, rbacAgentUsername, rbacAgentPrivateKey, rbacAgentPublicKey = config.RBACServer()
 		d.gateway.HeartbeatOfflineThreshold = config.OfflineThreshold()
 
+		d.endpoints.NetworkUpdateTrustedProxy(config.HTTPSTrustedProxy())
+
 		return nil
 	})
 	if err != nil {
