@@ -104,6 +104,11 @@ func (c *Config) ProxyIgnoreHosts() string {
 	return c.m.GetString("core.proxy_ignore_hosts")
 }
 
+// HTTPSTrustedProxy returns the configured HTTPS trusted proxy setting, if any.
+func (c *Config) HTTPSTrustedProxy() string {
+	return c.m.GetString("core.https_trusted_proxy")
+}
+
 // MAASController the configured MAAS url and key, if any.
 func (c *Config) MAASController() (string, string) {
 	url := c.m.GetString("maas.api.url")
@@ -241,6 +246,7 @@ var ConfigSchema = config.Schema{
 	"core.https_allowed_methods":     {},
 	"core.https_allowed_origin":      {},
 	"core.https_allowed_credentials": {Type: config.Bool},
+	"core.https_trusted_proxy":       {},
 	"core.proxy_http":                {},
 	"core.proxy_https":               {},
 	"core.proxy_ignore_hosts":        {},
