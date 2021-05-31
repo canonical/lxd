@@ -79,8 +79,46 @@ func api10ResourcesGet(d *Daemon, r *http.Request) response.Response {
 	return response.SyncResponse(true, res)
 }
 
-// /1.0/storage-pools/{name}/resources
-// Get resources for a specific storage pool
+// swagger:operation GET /1.0/storage-pools/{name}/resources storage storage_pool_resources
+//
+// Get storage pool resources information
+//
+// Gets the usage information for the storage pool.
+//
+// ---
+// produces:
+//   - application/json
+// parameters:
+//   - in: query
+//     name: target
+//     description: Cluster member name
+//     type: string
+//     example: lxd01
+// responses:
+//   "200":
+//     description: Hardware resources
+//     schema:
+//       type: object
+//       description: Sync response
+//       properties:
+//         type:
+//           type: string
+//           description: Response type
+//           example: sync
+//         status:
+//           type: string
+//           description: Status description
+//           example: Success
+//         status_code:
+//           type: int
+//           description: Status code
+//           example: 200
+//         metadata:
+//           $ref: "#/definitions/ResourcesStoragePool"
+//   "403":
+//     $ref: "#/responses/Forbidden"
+//   "500":
+//     $ref: "#/responses/InternalServerError"
 func storagePoolResourcesGet(d *Daemon, r *http.Request) response.Response {
 	// If a target was specified, forward the request to the relevant node.
 	resp := forwardedResponseIfTargetIsRemote(d, r)
