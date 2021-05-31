@@ -18,3 +18,6 @@ var ErrUnsupportedDevType = UnsupportedError{msg: "Unsupported device type"}
 
 // ErrCannotUpdate is the error that occurs when a device cannot be updated.
 var ErrCannotUpdate = fmt.Errorf("Device does not support updates")
+
+// ErrMissingVirtiofsd is the error that occurs if virtiofsd is missing.
+var ErrMissingVirtiofsd = UnsupportedError{msg: "Virtiofsd missing"}

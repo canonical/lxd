@@ -310,7 +310,7 @@ func DiskVMVirtiofsdStart(inst instance.Instance, socketPath string, pidPath str
 	}
 
 	if cmd == "" {
-		return UnsupportedError{msg: "virtiofsd missing"}
+		return ErrMissingVirtiofsd
 	}
 
 	// Currently, virtiofs is broken on at least the ARM architecture.
