@@ -3,10 +3,12 @@ package main
 import (
 	"fmt"
 	"strings"
+	"time"
 
+	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 
-	"github.com/lxc/lxd/client"
+	lxd "github.com/lxc/lxd/client"
 	"github.com/lxc/lxd/lxc/utils"
 	"github.com/lxc/lxd/shared/api"
 	cli "github.com/lxc/lxd/shared/cmd"
@@ -20,6 +22,7 @@ type cmdPublish struct {
 
 	flagAliases              []string
 	flagCompressionAlgorithm string
+	flagExpiresAt            string
 	flagMakePublic           bool
 	flagForce                bool
 }
@@ -36,6 +39,7 @@ func (c *cmdPublish) Command() *cobra.Command {
 	cmd.Flags().StringArrayVar(&c.flagAliases, "alias", nil, i18n.G("New alias to define at target")+"``")
 	cmd.Flags().BoolVarP(&c.flagForce, "force", "f", false, i18n.G("Stop the instance if currently running"))
 	cmd.Flags().StringVar(&c.flagCompressionAlgorithm, "compression", "", i18n.G("Compression algorithm to use (`none` for uncompressed)"))
+	cmd.Flags().StringVar(&c.flagExpiresAt, "expire", "", i18n.G("Image expiration date (format: rfc3339)")+"``")
 
 	return cmd
 }
@@ -211,6 +215,14 @@ func (c *cmdPublish) Run(cmd *cobra.Command, args []string) error {
 
 	if cRemote == iRemote {
 		req.Public = c.flagMakePublic
+	}
+
+	if c.flagExpiresAt != "" {
+		expiresAt, err := time.Parse(time.RFC3339, c.flagExpiresAt)
+		if err != nil {
+			return errors.Wrapf(err, "Invalid expiration date")
+		}
+		req.ExpiresAt = expiresAt
 	}
 
 	op, err := s.CreateImage(req, nil)
