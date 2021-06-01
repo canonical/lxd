@@ -4136,7 +4136,7 @@ func (d *qemu) deviceRemove(deviceName string, rawConfig deviceConfig.Device, in
 }
 
 // Export publishes the instance.
-func (d *qemu) Export(w io.Writer, properties map[string]string) (api.ImageMetadata, error) {
+func (d *qemu) Export(w io.Writer, properties map[string]string, expiration time.Time) (api.ImageMetadata, error) {
 	ctxMap := log.Ctx{
 		"created":   d.creationDate,
 		"ephemeral": d.ephemeral,
@@ -4219,6 +4219,9 @@ func (d *qemu) Export(w io.Writer, properties map[string]string) (api.ImageMetad
 		meta.Architecture = arch
 		meta.CreationDate = time.Now().UTC().Unix()
 		meta.Properties = properties
+		if !expiration.IsZero() {
+			meta.ExpiryDate = expiration.UTC().Unix()
+		}
 
 		data, err := yaml.Marshal(&meta)
 		if err != nil {
@@ -4265,9 +4268,15 @@ func (d *qemu) Export(w io.Writer, properties map[string]string) (api.ImageMetad
 			return meta, err
 		}
 
+		if !expiration.IsZero() {
+			meta.ExpiryDate = expiration.UTC().Unix()
+		}
+
 		if properties != nil {
 			meta.Properties = properties
+		}
 
+		if properties != nil || !expiration.IsZero() {
 			// Generate a new metadata.yaml.
 			tempDir, err := ioutil.TempDir("", "lxd_lxd_metadata_")
 			if err != nil {
@@ -4303,7 +4312,7 @@ func (d *qemu) Export(w io.Writer, properties map[string]string) (api.ImageMetad
 			return meta, err
 		}
 
-		if properties != nil {
+		if properties != nil || !expiration.IsZero() {
 			tmpOffset := len(filepath.Dir(fnam)) + 1
 			err = tarWriter.WriteFile(fnam[tmpOffset:], fnam, fi, false)
 		} else {
