@@ -724,7 +724,7 @@ func createFromBackup(d *Daemon, r *http.Request, projectName string, data io.Re
 		if postHook != nil {
 			err = postHook(inst)
 			if err != nil {
-				return errors.Wrap(err, "Post hook")
+				return errors.Wrap(err, "Post hook failed")
 			}
 		}
 
