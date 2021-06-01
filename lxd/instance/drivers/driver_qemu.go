@@ -551,6 +551,9 @@ func (d *qemu) configVirtiofsdPaths() (string, string) {
 
 // onStop is run when the instance stops.
 func (d *qemu) onStop(target string) error {
+	d.logger.Debug("onStop hook started", log.Ctx{"target": target})
+	defer d.logger.Debug("onStop hook finished", log.Ctx{"target": target})
+
 	var err error
 
 	// Pick up the existing stop operation lock created in Stop() function.
@@ -568,6 +571,25 @@ func (d *qemu) onStop(target string) error {
 
 	// Reset timeout to 30s.
 	op.Reset()
+
+	// Wait for QEMU process to end (to avoiding racing start when restarting).
+	d.logger.Debug("Waiting for VM process to finish")
+	waitDuration := time.Duration(time.Second * time.Duration(5))
+	waitUntil := time.Now().Add(waitDuration)
+	for {
+		pid, _ := d.pid()
+		if pid <= 0 {
+			d.logger.Debug("VM process finished")
+			break
+		}
+
+		if time.Now().After(waitUntil) {
+			d.logger.Error("VM process failed to stop after %v", waitDuration)
+			break // Continue clean up as best we can.
+		}
+
+		time.Sleep(time.Millisecond * time.Duration(100))
+	}
 
 	// Cleanup.
 	d.cleanupDevices() // Must be called before unmount.
@@ -622,6 +644,9 @@ func (d *qemu) onStop(target string) error {
 
 // Shutdown shuts the instance down.
 func (d *qemu) Shutdown(timeout time.Duration) error {
+	d.logger.Debug("Shutdown started", log.Ctx{"timeout": timeout})
+	defer d.logger.Debug("Shutdown finished", log.Ctx{"timeout": timeout})
+
 	// Must be run prior to creating the operation lock.
 	if !d.IsRunning() {
 		return fmt.Errorf("The instance is already stopped")
@@ -840,6 +865,9 @@ func (d *qemu) saveState(monitor *qmp.Monitor) error {
 
 // Start starts the instance.
 func (d *qemu) Start(stateful bool) error {
+	d.logger.Debug("Start started", log.Ctx{"stateful": stateful})
+	defer d.logger.Debug("Start finished", log.Ctx{"stateful": stateful})
+
 	// Must be run prior to creating the operation lock.
 	if d.IsRunning() {
 		return fmt.Errorf("The instance is already running")
@@ -1232,8 +1260,8 @@ func (d *qemu) Start(stateful bool) error {
 	}
 
 	pid, err := d.pid()
-	if err != nil {
-		d.logger.Error("Failed to get VM process ID", log.Ctx{"pid": pid})
+	if err != nil || pid <= 0 {
+		d.logger.Error("Failed to get VM process ID", log.Ctx{"err": err, "pid": pid})
 		op.Done(err)
 		return err
 	}
@@ -2965,11 +2993,11 @@ func (d *qemu) pidFilePath() string {
 	return filepath.Join(d.LogPath(), "qemu.pid")
 }
 
-// pid gets the PID of the running qemu process.
+// pid gets the PID of the running qemu process. Returns 0 if PID file or process not found, and -1 if err non-nil.
 func (d *qemu) pid() (int, error) {
 	pidStr, err := ioutil.ReadFile(d.pidFilePath())
 	if os.IsNotExist(err) {
-		return 0, nil
+		return 0, nil // PID file has gone.
 	}
 
 	if err != nil {
@@ -2984,13 +3012,13 @@ func (d *qemu) pid() (int, error) {
 	cmdLineProcFilePath := fmt.Sprintf("/proc/%d/cmdline", pid)
 	cmdLine, err := ioutil.ReadFile(cmdLineProcFilePath)
 	if err != nil {
-		return -1, err
+		return 0, nil // Process has gone.
 	}
 
 	qemuSearchString := []byte("qemu-system")
 	instUUID := []byte(d.localConfig["volatile.uuid"])
 	if !bytes.Contains(cmdLine, qemuSearchString) || !bytes.Contains(cmdLine, instUUID) {
-		return -1, fmt.Errorf("Pid doesn't match the running process")
+		return -1, fmt.Errorf("PID doesn't match the running process")
 	}
 
 	return pid, nil
@@ -2998,6 +3026,9 @@ func (d *qemu) pid() (int, error) {
 
 // Stop the VM.
 func (d *qemu) Stop(stateful bool) error {
+	d.logger.Debug("Stop started", log.Ctx{"stateful": stateful})
+	defer d.logger.Debug("Stop finished", log.Ctx{"stateful": stateful})
+
 	// Must be run prior to creating the operation lock.
 	if !d.IsRunning() {
 		return fmt.Errorf("The instance is already stopped")
@@ -3021,8 +3052,8 @@ func (d *qemu) Stop(stateful bool) error {
 	// Connect to the monitor.
 	monitor, err := qmp.Connect(d.monitorPath(), qemuSerialChardevName, d.getMonitorEventHandler())
 	if err != nil {
-		// If we fail to connect, it's most likely because the VM is already off.
-		// but it could also be because the qemu process is hung, check for that
+		// If we fail to connect, it's most likely because the VM is already off, but it could also be
+		// because the qemu process is hung, check if process still exists and kill it if needed.
 		pid, _ := d.pid()
 		if pid > 0 {
 			d.killQemuProcess(pid)
