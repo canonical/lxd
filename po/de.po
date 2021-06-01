@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: LXD\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2021-05-28 17:11-0400\n"
+"POT-Creation-Date: 2021-06-01 22:11+0000\n"
 "PO-Revision-Date: 2020-04-27 19:48+0000\n"
 "Last-Translator: Predatorix Phoenix <predatorix@web.de>\n"
 "Language-Team: German <https://hosted.weblate.org/projects/linux-containers/"
@@ -714,7 +714,7 @@ msgstr "Profil %s erstellt\n"
 msgid "Bad key/value pair: %s"
 msgstr ""
 
-#: lxc/copy.go:121 lxc/init.go:185 lxc/project.go:126 lxc/publish.go:175
+#: lxc/copy.go:121 lxc/init.go:185 lxc/project.go:126 lxc/publish.go:179
 #: lxc/storage.go:123 lxc/storage_volume.go:528
 #, c-format
 msgid "Bad key=value pair: %s"
@@ -930,7 +930,7 @@ msgid ""
 "For help with any of those, simply call them with --help."
 msgstr ""
 
-#: lxc/export.go:43 lxc/publish.go:38
+#: lxc/export.go:43 lxc/publish.go:41
 msgid "Compression algorithm to use (`none` for uncompressed)"
 msgstr ""
 
@@ -1279,7 +1279,7 @@ msgstr ""
 #: lxc/profile.go:876 lxc/project.go:30 lxc/project.go:91 lxc/project.go:156
 #: lxc/project.go:219 lxc/project.go:339 lxc/project.go:389 lxc/project.go:488
 #: lxc/project.go:543 lxc/project.go:603 lxc/project.go:632 lxc/project.go:685
-#: lxc/project.go:744 lxc/publish.go:31 lxc/query.go:32 lxc/remote.go:33
+#: lxc/project.go:744 lxc/publish.go:34 lxc/query.go:32 lxc/remote.go:33
 #: lxc/remote.go:85 lxc/remote.go:483 lxc/remote.go:519 lxc/remote.go:605
 #: lxc/remote.go:675 lxc/remote.go:729 lxc/remote.go:767 lxc/rename.go:21
 #: lxc/restore.go:24 lxc/snapshot.go:28 lxc/storage.go:33 lxc/storage.go:89
@@ -1868,6 +1868,10 @@ msgstr ""
 msgid "Image copied successfully!"
 msgstr ""
 
+#: lxc/publish.go:42
+msgid "Image expiration date (format: rfc3339)"
+msgstr ""
+
 #: lxc/image.go:605
 msgid "Image exported successfully!"
 msgstr ""
@@ -1942,7 +1946,7 @@ msgstr ""
 msgid "Input data"
 msgstr ""
 
-#: lxc/publish.go:76
+#: lxc/publish.go:80
 msgid "Instance name is mandatory"
 msgstr ""
 
@@ -1951,7 +1955,7 @@ msgstr ""
 msgid "Instance name is: %s"
 msgstr ""
 
-#: lxc/publish.go:277
+#: lxc/publish.go:289
 #, fuzzy, c-format
 msgid "Instance published with fingerprint: %s"
 msgstr "Abbild mit Fingerabdruck %s importiert\n"
@@ -2423,7 +2427,7 @@ msgstr ""
 msgid "Make image public"
 msgstr "Veröffentliche Abbild"
 
-#: lxc/publish.go:35
+#: lxc/publish.go:38
 #, fuzzy
 msgid "Make the image public"
 msgstr "Veröffentliche Abbild"
@@ -2841,7 +2845,7 @@ msgstr "Profil %s erstellt\n"
 msgid "Network usage:"
 msgstr "Profil %s erstellt\n"
 
-#: lxc/publish.go:36
+#: lxc/publish.go:39
 msgid "New alias to define at target"
 msgstr ""
 
@@ -3128,12 +3132,12 @@ msgstr ""
 msgid "Public: %s"
 msgstr "Öffentlich: %s\n"
 
-#: lxc/publish.go:30 lxc/publish.go:31
+#: lxc/publish.go:33 lxc/publish.go:34
 #, fuzzy
 msgid "Publish instances as images"
 msgstr "kann nicht zum selben Container Namen kopieren"
 
-#: lxc/publish.go:223
+#: lxc/publish.go:235
 #, fuzzy, c-format
 msgid "Publishing instance: %s"
 msgstr "Herunterfahren des Containers erzwingen."
@@ -3788,11 +3792,11 @@ msgstr ""
 msgid "Stop instances"
 msgstr "Anhalten des Containers fehlgeschlagen!"
 
-#: lxc/publish.go:37
+#: lxc/publish.go:40
 msgid "Stop the instance if currently running"
 msgstr ""
 
-#: lxc/publish.go:137
+#: lxc/publish.go:141
 #, fuzzy
 msgid "Stopping instance failed!"
 msgstr "Anhalten des Containers fehlgeschlagen!"
@@ -3933,7 +3937,7 @@ msgstr "entfernte Instanz %s existiert nicht"
 msgid "The instance is currently running, stop it first or pass --force"
 msgstr ""
 
-#: lxc/publish.go:106
+#: lxc/publish.go:110
 msgid ""
 "The instance is currently running. Use --force to have it stopped and "
 "restarted"
@@ -3973,7 +3977,7 @@ msgstr "entfernte Instanz %s existiert nicht"
 msgid "The specified device doesn't match the network"
 msgstr "entfernte Instanz %s existiert nicht"
 
-#: lxc/publish.go:79
+#: lxc/publish.go:83
 msgid "There is no \"image name\".  Did you want an alias?"
 msgstr ""
 
@@ -4674,7 +4678,7 @@ msgstr ""
 "Entfernt einen Container (oder Sicherungspunkt) und alle dazugehörigen\n"
 "Daten (Konfiguration, Sicherungspunkte, ...).\n"
 
-#: lxc/publish.go:29
+#: lxc/publish.go:32
 #, fuzzy
 msgid "[<remote>:]<instance>[/<snapshot>] [<remote>:] [flags] [key=value...]"
 msgstr ""
