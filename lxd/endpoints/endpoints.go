@@ -45,16 +45,18 @@ type Config struct {
 	// set, the network endpoint won't be started (unless it's passed via
 	// socket-based activation).
 	//
-	// It can be updated after the endpoints are up using UpdateNetworkAddress().
+	// It can be updated after the endpoints are up using NetworkUpdateAddress().
 	NetworkAddress string
 
 	// Optional dedicated network address for clustering traffic. If not
 	// set, NetworkAddress will be used.
+	//
+	// It can be updated after the endpoints are up using ClusterUpdateAddress().
 	ClusterAddress string
 
 	// DebugSetAddress sets the address for the pprof endpoint.
 	//
-	// It can be updated after the endpoints are up using UpdateDebugAddress().
+	// It can be updated after the endpoints are up using PprofUpdateAddress().
 	DebugAddress string
 }
 
