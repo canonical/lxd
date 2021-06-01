@@ -332,6 +332,11 @@ func (g *Gateway) heartbeat(ctx context.Context, mode heartbeatMode) {
 		return
 	}
 
+	if localAddress == "" {
+		logger.Warn("No local address set, aborting heartbeat round")
+		return
+	}
+
 	startTime := time.Now()
 
 	heartbeatInterval := g.heartbeatInterval()
