@@ -572,6 +572,25 @@ func (d *qemu) onStop(target string) error {
 	// Reset timeout to 30s.
 	op.Reset()
 
+	// Wait for QEMU process to end (to avoiding racing start when restarting).
+	d.logger.Debug("Waiting for VM process to finish")
+	waitDuration := time.Duration(time.Second * time.Duration(5))
+	waitUntil := time.Now().Add(waitDuration)
+	for {
+		pid, _ := d.pid()
+		if pid <= 0 {
+			d.logger.Debug("VM process finished")
+			break
+		}
+
+		if time.Now().After(waitUntil) {
+			d.logger.Error("VM process failed to stop after %v", waitDuration)
+			break // Continue clean up as best we can.
+		}
+
+		time.Sleep(time.Millisecond * time.Duration(100))
+	}
+
 	// Cleanup.
 	d.cleanupDevices() // Must be called before unmount.
 	os.Remove(d.pidFilePath())
