@@ -297,7 +297,12 @@ func imgPostInstanceInfo(d *Daemon, r *http.Request, req api.ImagesPost, op *ope
 	var meta api.ImageMetadata
 
 	writer = shared.NewQuotaWriter(writer, budget)
-	meta, err = c.Export(writer, req.Properties)
+	meta, err = c.Export(writer, req.Properties, req.ExpiresAt)
+
+	// Get ExpiresAt
+	if meta.ExpiryDate != 0 {
+		info.ExpiresAt = time.Unix(meta.ExpiryDate, 0)
+	}
 
 	// Clean up file handles.
 	// When compression is used, Close on imageProgressWriter/tarWriter is required for compressFile/gzip to
