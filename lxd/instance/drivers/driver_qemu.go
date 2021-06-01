@@ -584,7 +584,7 @@ func (d *qemu) onStop(target string) error {
 		}
 
 		if time.Now().After(waitUntil) {
-			d.logger.Error("VM process failed to stop after %v", waitDuration)
+			d.logger.Error("VM process failed to stop", log.Ctx{"waitDuration": waitDuration})
 			break // Continue clean up as best we can.
 		}
 
