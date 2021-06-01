@@ -691,7 +691,7 @@ func (b *lxdBackend) CreateInstanceFromBackup(srcBackup backup.Info, srcData io.
 				if errors.Cause(err) == drivers.ErrCannotBeShrunk {
 					logger.Warn("Could not apply volume quota from root disk config as restored volume cannot be shrunk", log.Ctx{"size": rootDiskConf["size"]})
 				} else {
-					return err
+					return errors.Wrapf(err, "Failed applying volume quota to root disk")
 				}
 			}
 		}
