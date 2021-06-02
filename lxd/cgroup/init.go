@@ -248,84 +248,84 @@ func (info *Info) Warnings() []db.Warning {
 
 	if !info.Supports(Blkio, nil) {
 		warnings = append(warnings, db.Warning{
-			TypeCode:    int(db.WarningMissingCGroupBlkio),
+			TypeCode:    db.WarningMissingCGroupBlkio,
 			LastMessage: "disk I/O limits will be ignored",
 		})
 	}
 
 	if !info.Supports(BlkioWeight, nil) {
 		warnings = append(warnings, db.Warning{
-			TypeCode:    int(db.WarningMissingCGroupBlkioWeight),
+			TypeCode:    db.WarningMissingCGroupBlkioWeight,
 			LastMessage: "disk priority will be ignored",
 		})
 	}
 
 	if !info.Supports(CPU, nil) {
 		warnings = append(warnings, db.Warning{
-			TypeCode:    int(db.WarningMissingCGroupCPUController),
+			TypeCode:    db.WarningMissingCGroupCPUController,
 			LastMessage: "CPU time limits will be ignored",
 		})
 	}
 
 	if !info.Supports(CPUAcct, nil) {
 		warnings = append(warnings, db.Warning{
-			TypeCode:    int(db.WarningMissingCGroupCPUacctController),
+			TypeCode:    db.WarningMissingCGroupCPUacctController,
 			LastMessage: "CPU accounting will not be available",
 		})
 	}
 
 	if !info.Supports(CPUSet, nil) {
 		warnings = append(warnings, db.Warning{
-			TypeCode:    int(db.WarningMissingCGroupCPUController),
+			TypeCode:    db.WarningMissingCGroupCPUController,
 			LastMessage: "CPU pinning will be ignored",
 		})
 	}
 
 	if !info.Supports(Devices, nil) {
 		warnings = append(warnings, db.Warning{
-			TypeCode:    int(db.WarningMissingCGroupDevicesController),
+			TypeCode:    db.WarningMissingCGroupDevicesController,
 			LastMessage: "device access control won't work",
 		})
 	}
 
 	if !info.Supports(Freezer, nil) {
 		warnings = append(warnings, db.Warning{
-			TypeCode:    int(db.WarningMissingCGroupFreezerController),
+			TypeCode:    db.WarningMissingCGroupFreezerController,
 			LastMessage: "pausing/resuming containers won't work",
 		})
 	}
 
 	if !info.Supports(Hugetlb, nil) {
 		warnings = append(warnings, db.Warning{
-			TypeCode:    int(db.WarningMissingCGroupHugetlbController),
+			TypeCode:    db.WarningMissingCGroupHugetlbController,
 			LastMessage: "hugepage limits will be ignored",
 		})
 	}
 
 	if !info.Supports(Memory, nil) {
 		warnings = append(warnings, db.Warning{
-			TypeCode:    int(db.WarningMissingCGroupMemoryController),
+			TypeCode:    db.WarningMissingCGroupMemoryController,
 			LastMessage: "memory limits will be ignored",
 		})
 	}
 
 	if !info.Supports(NetPrio, nil) {
 		warnings = append(warnings, db.Warning{
-			TypeCode:    int(db.WarningMissingCGroupNetworkPriorityController),
+			TypeCode:    db.WarningMissingCGroupNetworkPriorityController,
 			LastMessage: "network priority will be ignored",
 		})
 	}
 
 	if !info.Supports(Pids, nil) {
 		warnings = append(warnings, db.Warning{
-			TypeCode:    int(db.WarningMissingCGroupPidsController),
+			TypeCode:    db.WarningMissingCGroupPidsController,
 			LastMessage: "process limits will be ignored",
 		})
 	}
 
 	if !info.Supports(MemorySwap, nil) {
 		warnings = append(warnings, db.Warning{
-			TypeCode:    int(db.WarningMissingCGroupMemorySwapAccounting),
+			TypeCode:    db.WarningMissingCGroupMemorySwapAccounting,
 			LastMessage: "swap limits will be ignored",
 		})
 	}
