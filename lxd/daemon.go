@@ -1249,7 +1249,7 @@ func (d *Daemon) init() error {
 		resolveWarning := true
 
 		for _, w := range dbWarnings {
-			if int(i) == w.TypeCode {
+			if i == w.TypeCode {
 				// Do not resolve the warning as it's still valid
 				resolveWarning = false
 				break
