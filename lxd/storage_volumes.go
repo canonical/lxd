@@ -87,7 +87,7 @@ var storagePoolVolumeTypeCmd = APIEndpoint{
 //           description: Status description
 //           example: Success
 //         status_code:
-//           type: int
+//           type: integer
 //           description: Status code
 //           example: 200
 //         metadata:
@@ -143,7 +143,7 @@ var storagePoolVolumeTypeCmd = APIEndpoint{
 //           description: Status description
 //           example: Success
 //         status_code:
-//           type: int
+//           type: integer
 //           description: Status code
 //           example: 200
 //         metadata:
@@ -287,7 +287,7 @@ func storagePoolVolumesGet(d *Daemon, r *http.Request) response.Response {
 //           description: Status description
 //           example: Success
 //         status_code:
-//           type: int
+//           type: integer
 //           description: Status code
 //           example: 200
 //         metadata:
@@ -341,7 +341,7 @@ func storagePoolVolumesGet(d *Daemon, r *http.Request) response.Response {
 //           description: Status description
 //           example: Success
 //         status_code:
-//           type: int
+//           type: integer
 //           description: Status code
 //           example: 200
 //         metadata:
@@ -1095,7 +1095,7 @@ func storageGetVolumeNameFromURL(r *http.Request) (string, error) {
 //           description: Status description
 //           example: Success
 //         status_code:
-//           type: int
+//           type: integer
 //           description: Status code
 //           example: 200
 //         metadata:

@@ -99,7 +99,7 @@ var networkStateCmd = APIEndpoint{
 //           description: Status description
 //           example: Success
 //         status_code:
-//           type: int
+//           type: integer
 //           description: Status code
 //           example: 200
 //         metadata:
@@ -148,7 +148,7 @@ var networkStateCmd = APIEndpoint{
 //           description: Status description
 //           example: Success
 //         status_code:
-//           type: int
+//           type: integer
 //           description: Status code
 //           example: 200
 //         metadata:
@@ -658,7 +658,7 @@ func doNetworksCreate(d *Daemon, n network.Network, clientType request.ClientTyp
 //           description: Status description
 //           example: Success
 //         status_code:
-//           type: int
+//           type: integer
 //           description: Status code
 //           example: 200
 //         metadata:
@@ -1216,7 +1216,7 @@ func doNetworkUpdate(d *Daemon, n network.Network, req api.NetworkPut, targetNod
 //           description: Status description
 //           example: Success
 //         status_code:
-//           type: int
+//           type: integer
 //           description: Status code
 //           example: 200
 //         metadata:
@@ -1493,7 +1493,7 @@ func networkShutdown(s *state.State) error {
 //           description: Status description
 //           example: Success
 //         status_code:
-//           type: int
+//           type: integer
 //           description: Status code
 //           example: 200
 //         metadata:

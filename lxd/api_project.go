@@ -68,7 +68,7 @@ var projectCmd = APIEndpoint{
 //           description: Status description
 //           example: Success
 //         status_code:
-//           type: int
+//           type: integer
 //           description: Status code
 //           example: 200
 //         metadata:
@@ -111,7 +111,7 @@ var projectCmd = APIEndpoint{
 //           description: Status description
 //           example: Success
 //         status_code:
-//           type: int
+//           type: integer
 //           description: Status code
 //           example: 200
 //         metadata:
@@ -310,7 +310,7 @@ func projectCreateDefaultProfile(tx *db.ClusterTx, project string) error {
 //           description: Status description
 //           example: Success
 //         status_code:
-//           type: int
+//           type: integer
 //           description: Status code
 //           example: 200
 //         metadata:
