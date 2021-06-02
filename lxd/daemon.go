@@ -1236,25 +1236,9 @@ func (d *Daemon) init() error {
 
 	close(d.setupChan)
 
-	nodeName := ""
-
-	if clustered {
-		err := d.cluster.Transaction(func(tx *db.ClusterTx) error {
-			nodeName, err = tx.GetLocalNodeName()
-			if err != nil {
-				return err
-			}
-
-			return nil
-		})
-		if err != nil {
-			return errors.Wrap(err, "Failed to get node name")
-		}
-	}
-
 	// Create warnings that have been collected
 	for _, w := range dbWarnings {
-		err := d.cluster.UpsertWarning(nodeName, "", -1, -1, db.WarningType(w.TypeCode), w.LastMessage)
+		err := d.cluster.UpsertWarningLocalNode("", -1, -1, db.WarningType(w.TypeCode), w.LastMessage)
 		if err != nil {
 			return errors.Wrap(err, "Failed to create warning")
 		}
@@ -1277,7 +1261,7 @@ func (d *Daemon) init() error {
 		}
 
 		// Resolve warnings with the given type
-		err := warnings.ResolveWarningsByNodeAndType(d.cluster, nodeName, i)
+		err := warnings.ResolveWarningsByLocalNodeAndType(d.cluster, i)
 		if err != nil {
 			return errors.Wrap(err, "Failed to resolve warnings")
 		}
