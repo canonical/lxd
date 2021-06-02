@@ -9,9 +9,6 @@
 // certificates with a macaroon based (candid) authentication method also
 // supported.
 //
-// WARNING: This API documentation is a work in progress.
-// You may find the full documentation in its old format at "doc/rest-api.md".
-//
 //     Version: 1.0
 //     License: Apache-2.0 https://www.apache.org/licenses/LICENSE-2.0
 //     Contact: LXD upstream <lxc-devel@lists.linuxcontainers.org> https://github.com/lxc/lxd
