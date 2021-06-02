@@ -51,6 +51,31 @@ SELECT warnings.id FROM warnings LEFT JOIN nodes ON warnings.node_id = nodes.id 
   WHERE warnings.uuid = ?
 `)
 
+// UpsertWarningLocalNode creates or updates a warning for the local node. Returns error if no local node name.
+func (c *Cluster) UpsertWarningLocalNode(projectName string, entityTypeCode int, entityID int, typeCode WarningType, message string) error {
+	var err error
+	var localName string
+
+	err = c.Transaction(func(tx *ClusterTx) error {
+		localName, err = tx.GetLocalNodeName()
+		if err != nil {
+			return err
+		}
+
+		return nil
+	})
+	if err != nil {
+		return errors.Wrapf(err, "Failed getting local member name")
+	}
+
+	if localName == "" {
+		return fmt.Errorf("Local member name not available")
+	}
+
+	return c.UpsertWarning(localName, projectName, entityTypeCode, entityID, typeCode, message)
+
+}
+
 // UpsertWarning creates or updates a warning.
 func (c *Cluster) UpsertWarning(nodeName string, projectName string, entityTypeCode int, entityID int, typeCode WarningType, message string) error {
 	// Validate
