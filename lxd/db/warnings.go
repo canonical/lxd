@@ -158,7 +158,7 @@ func (c *ClusterTx) UpdateWarningStatus(UUID string, status WarningStatus) error
 
 	_, err = stmt.Exec(status, time.Now(), UUID)
 	if err != nil {
-		return errors.Wrap(err, "Failed to update warning status")
+		return errors.Wrapf(err, "Failed to update warning status for warning %q", UUID)
 	}
 
 	return nil
