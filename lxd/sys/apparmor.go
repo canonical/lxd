@@ -28,19 +28,19 @@ func (s *OS) initAppArmor() []db.Warning {
 	if os.Getenv("LXD_SECURITY_APPARMOR") == "false" {
 		logger.Warnf("AppArmor support has been manually disabled")
 		dbWarnings = append(dbWarnings, db.Warning{
-			TypeCode:    int(db.WarningAppArmorNotAvailable),
+			TypeCode:    db.WarningAppArmorNotAvailable,
 			LastMessage: "Manually disabled",
 		})
 	} else if !shared.IsDir("/sys/kernel/security/apparmor") {
 		logger.Warnf("AppArmor support has been disabled because of lack of kernel support")
 		dbWarnings = append(dbWarnings, db.Warning{
-			TypeCode:    int(db.WarningAppArmorNotAvailable),
+			TypeCode:    db.WarningAppArmorNotAvailable,
 			LastMessage: "Disabled because of lack of kernel support",
 		})
 	} else if err != nil {
 		logger.Warnf("AppArmor support has been disabled because 'apparmor_parser' couldn't be found")
 		dbWarnings = append(dbWarnings, db.Warning{
-			TypeCode:    int(db.WarningAppArmorNotAvailable),
+			TypeCode:    db.WarningAppArmorNotAvailable,
 			LastMessage: "Disabled because 'apparmor_parser' couldn't be found",
 		})
 	} else {
