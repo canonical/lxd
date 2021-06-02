@@ -24,8 +24,8 @@ type Warning struct {
 	EntityTypeCode int
 	EntityID       int
 	UUID           string
-	TypeCode       int
-	Status         int
+	TypeCode       WarningType
+	Status         WarningStatus
 	FirstSeenDate  time.Time
 	LastSeenDate   time.Time
 	UpdatedDate    time.Time
@@ -50,6 +50,31 @@ var warningID = cluster.RegisterStmt(`
 SELECT warnings.id FROM warnings LEFT JOIN nodes ON warnings.node_id = nodes.id LEFT JOIN projects ON warnings.project_id = projects.id
   WHERE warnings.uuid = ?
 `)
+
+// UpsertWarningLocalNode creates or updates a warning for the local node. Returns error if no local node name.
+func (c *Cluster) UpsertWarningLocalNode(projectName string, entityTypeCode int, entityID int, typeCode WarningType, message string) error {
+	var err error
+	var localName string
+
+	err = c.Transaction(func(tx *ClusterTx) error {
+		localName, err = tx.GetLocalNodeName()
+		if err != nil {
+			return err
+		}
+
+		return nil
+	})
+	if err != nil {
+		return errors.Wrapf(err, "Failed getting local member name")
+	}
+
+	if localName == "" {
+		return fmt.Errorf("Local member name not available")
+	}
+
+	return c.UpsertWarning(localName, projectName, entityTypeCode, entityID, typeCode, message)
+
+}
 
 // UpsertWarning creates or updates a warning.
 func (c *Cluster) UpsertWarning(nodeName string, projectName string, entityTypeCode int, entityID int, typeCode WarningType, message string) error {
@@ -90,7 +115,15 @@ func (c *Cluster) UpsertWarning(nodeName string, projectName string, entityTypeC
 		}
 
 		if len(warnings) == 1 {
-			err = tx.UpdateWarningMessage(warnings[0].UUID, message)
+			// If there is a historical warning that was previously automatically resolved and the same
+			// warning has now reoccurred then set the status back to WarningStatusNew so it shows as
+			// a current active warning.
+			newStatus := warnings[0].Status
+			if newStatus == WarningStatusResolved {
+				newStatus = WarningStatusNew
+			}
+
+			err = tx.UpdateWarningState(warnings[0].UUID, message, newStatus)
 		} else {
 			warning := Warning{
 				Node:           nodeName,
@@ -98,8 +131,8 @@ func (c *Cluster) UpsertWarning(nodeName string, projectName string, entityTypeC
 				EntityTypeCode: entityTypeCode,
 				EntityID:       entityID,
 				UUID:           uuid.NewRandom().String(),
-				TypeCode:       int(typeCode),
-				Status:         int(WarningStatusNew),
+				TypeCode:       typeCode,
+				Status:         WarningStatusNew,
 				FirstSeenDate:  now,
 				LastSeenDate:   now,
 				UpdatedDate:    time.Time{},
@@ -133,15 +166,15 @@ func (c *ClusterTx) UpdateWarningStatus(UUID string, status WarningStatus) error
 
 	_, err = stmt.Exec(status, time.Now(), UUID)
 	if err != nil {
-		return errors.Wrap(err, "Failed to update warning status")
+		return errors.Wrapf(err, "Failed to update warning status for warning %q", UUID)
 	}
 
 	return nil
 }
 
-// UpdateWarningMessage updates the warning with the given ID.
-func (c *ClusterTx) UpdateWarningMessage(UUID string, message string) error {
-	str := fmt.Sprintf("UPDATE warnings SET last_message=?, last_seen_date=?, updated_date=?, count=count+1 WHERE uuid=?")
+// UpdateWarningState updates the warning message and status with the given ID.
+func (c *ClusterTx) UpdateWarningState(UUID string, message string, status WarningStatus) error {
+	str := fmt.Sprintf("UPDATE warnings SET last_message=?, last_seen_date=?, updated_date=?, status = ?, count=count+1 WHERE uuid=?")
 	stmt, err := c.tx.Prepare(str)
 	if err != nil {
 		return err
@@ -150,9 +183,9 @@ func (c *ClusterTx) UpdateWarningMessage(UUID string, message string) error {
 
 	now := time.Now()
 
-	_, err = stmt.Exec(message, now, now, UUID)
+	_, err = stmt.Exec(message, now, now, status, UUID)
 	if err != nil {
-		return errors.Wrap(err, "Failed to update warning")
+		return errors.Wrapf(err, "Failed to update warning %q", UUID)
 	}
 
 	return nil
