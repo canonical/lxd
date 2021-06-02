@@ -296,6 +296,48 @@ func (m *Monitor) AddNIC(netDev map[string]interface{}, device map[string]string
 	return nil
 }
 
+// RemoveNIC removes a NIC device.
+func (m *Monitor) RemoveNIC(netDevID string, deviceID string) error {
+	if deviceID != "" {
+		deviceID := map[string]string{
+			"id": deviceID,
+		}
+
+		args, err := json.Marshal(deviceID)
+		if err != nil {
+			return err
+		}
+
+		err = m.run("device_del", string(args), nil)
+		if err != nil {
+			// If the device has already been removed then all good.
+			if err != nil && !strings.Contains(err.Error(), "not found") {
+				return errors.Wrapf(err, "Failed removing NIC device")
+			}
+		}
+	}
+
+	if netDevID != "" {
+		netDevID := map[string]string{
+			"id": netDevID,
+		}
+
+		args, err := json.Marshal(netDevID)
+		if err != nil {
+			return err
+		}
+
+		err = m.run("netdev_del", string(args), nil)
+
+		// Not all NICs need a netdev, so if its missing, its not a problem.
+		if err != nil && !strings.Contains(err.Error(), "not found") {
+			return errors.Wrapf(err, "Failed removing NIC netdev")
+		}
+	}
+
+	return nil
+}
+
 // Reset VM.
 func (m *Monitor) Reset() error {
 	err := m.run("system_reset", "", nil)
