@@ -273,7 +273,10 @@ func (m *Monitor) AddNIC(netDev map[string]interface{}, device map[string]string
 				return
 			}
 
-			m.run("netdev_del", string(args), nil)
+			err = m.run("netdev_del", string(args), nil)
+			if err != nil {
+				return
+			}
 		})
 	}
 
