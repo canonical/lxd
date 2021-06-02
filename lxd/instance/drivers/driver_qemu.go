@@ -1745,6 +1745,73 @@ func (d *qemu) deviceStop(deviceName string, rawConfig deviceConfig.Device, inst
 	return nil
 }
 
+// deviceDetachNIC detaches a NIC device from a running instance.
+func (d *qemu) deviceDetachNIC(deviceName string) error {
+	// Check if the agent is running.
+	monitor, err := qmp.Connect(d.monitorPath(), qemuSerialChardevName, d.getMonitorEventHandler())
+	if err != nil {
+		return err
+	}
+
+	// pciDeviceExists checks if the deviceID exists as a bridged PCI device.
+	pciDeviceExists := func(deviceID string) (bool, error) {
+		pciDevs, err := monitor.QueryPCI()
+		if err != nil {
+			return false, err
+		}
+
+		for _, pciDev := range pciDevs {
+			for _, bridgeDev := range pciDev.Bridge.Devices {
+				if bridgeDev.DevID == deviceID {
+					return true, nil
+				}
+			}
+		}
+
+		return false, nil
+	}
+
+	deviceID := fmt.Sprintf("%s%s", qemuDeviceIDPrefix, deviceName)
+	netDevID := fmt.Sprintf("%s%s", qemuNetDevIDPrefix, deviceName)
+
+	// Request removal of device.
+	err = monitor.RemoveNIC(netDevID, deviceID)
+	if err != nil {
+		return err
+	}
+
+	_, qemuBus, err := d.qemuArchConfig(d.architecture)
+	if err != nil {
+		return err
+	}
+
+	if shared.StringInSlice(qemuBus, []string{"pcie", "pci"}) {
+		// Wait until the device is actually removed (or we timeout waiting).
+		waitDuration := time.Duration(time.Second * time.Duration(10))
+		waitUntil := time.Now().Add(waitDuration)
+		for {
+			devExists, err := pciDeviceExists(deviceID)
+			if err != nil {
+				return errors.Wrapf(err, "Failed getting PCI devices to check for NIC detach")
+			}
+
+			if !devExists {
+				break
+
+			}
+
+			if time.Now().After(waitUntil) {
+				return errors.Wrapf(err, "Failed to detach NIC after %v", waitDuration)
+			}
+
+			d.logger.Debug("Waiting for NIC device to be detached", log.Ctx{"device": deviceName})
+			time.Sleep(time.Second * time.Duration(2))
+		}
+	}
+
+	return nil
+}
+
 func (d *qemu) monitorPath() string {
 	return filepath.Join(d.LogPath(), "qemu.monitor")
 }
