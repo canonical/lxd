@@ -62,6 +62,7 @@ const (
 	OperationCustomVolumeBackupRestore
 	OperationWarningsPruneResolved
 	OperationClusterJoinToken
+	OperationVolumeSnapshotRename
 )
 
 // Description return a human-readable description of the operation type.
@@ -139,6 +140,8 @@ func (t OperationType) Description() string {
 		return "Deleting storage volume snapshot"
 	case OperationVolumeSnapshotUpdate:
 		return "Updating storage volume snapshot"
+	case OperationVolumeSnapshotRename:
+		return "Renaming storage volume snapshot"
 	case OperationProjectRename:
 		return "Renaming project"
 	case OperationImagesExpire:
