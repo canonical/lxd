@@ -64,7 +64,7 @@ sudo apt install btrfs-progs
 To run the testsuite, you'll also need:
 
 ```bash
-sudo apt install curl gettext jq sqlite3 uuid-runtime bzr socat
+sudo apt install curl gettext jq sqlite3 uuid-runtime socat
 ```
 
 ### From Source: Building the latest version
