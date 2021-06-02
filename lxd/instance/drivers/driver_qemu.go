@@ -1723,6 +1723,16 @@ func (d *qemu) deviceStop(deviceName string, rawConfig deviceConfig.Device, inst
 	}
 
 	if runConf != nil {
+		if runConf != nil {
+			// Detach NIC from running instance.
+			if rawConfig["type"] == "nic" && instanceRunning {
+				err = d.deviceDetachNIC(deviceName)
+				if err != nil {
+					return err
+				}
+			}
+		}
+
 		// Run post stop hooks irrespective of run state of instance.
 		err = d.runHooks(runConf.PostHooks)
 		if err != nil {
