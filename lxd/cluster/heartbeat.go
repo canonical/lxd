@@ -12,6 +12,7 @@ import (
 
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/db/query"
+	"github.com/lxc/lxd/lxd/node"
 	"github.com/lxc/lxd/lxd/task"
 	"github.com/lxc/lxd/shared"
 	log "github.com/lxc/lxd/shared/log15"
@@ -282,16 +283,16 @@ func (g *Gateway) heartbeat(ctx context.Context, mode heartbeatMode) {
 		return
 	}
 
+	// Address of this node.
+	localAddress, err := node.ClusterAddress(g.db)
+	if err != nil {
+		logger.Error("Failed to fetch local cluster address", log.Ctx{"err": err})
+	}
+
 	var allNodes []db.NodeInfo
-	var localAddress string // Address of this node
 	err = g.Cluster.Transaction(func(tx *db.ClusterTx) error {
 		var err error
 		allNodes, err = tx.GetNodes()
-		if err != nil {
-			return err
-		}
-
-		localAddress, err = tx.GetLocalNodeAddress()
 		if err != nil {
 			return err
 		}
@@ -329,6 +330,11 @@ func (g *Gateway) heartbeat(ctx context.Context, mode heartbeatMode) {
 	})
 	if err != nil {
 		logger.Warn("Failed to replace local raft members", log.Ctx{"err": err})
+		return
+	}
+
+	if localAddress == "" {
+		logger.Warn("No local address set, aborting heartbeat round")
 		return
 	}
 
