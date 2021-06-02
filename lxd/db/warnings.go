@@ -115,7 +115,15 @@ func (c *Cluster) UpsertWarning(nodeName string, projectName string, entityTypeC
 		}
 
 		if len(warnings) == 1 {
-			err = tx.UpdateWarningMessage(warnings[0].UUID, message)
+			// If there is a historical warning that was previously automatically resolved and the same
+			// warning has now reoccurred then set the status back to WarningStatusNew so it shows as
+			// a current active warning.
+			newStatus := warnings[0].Status
+			if newStatus == WarningStatusResolved {
+				newStatus = WarningStatusNew
+			}
+
+			err = tx.UpdateWarningState(warnings[0].UUID, message, newStatus)
 		} else {
 			warning := Warning{
 				Node:           nodeName,
