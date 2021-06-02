@@ -82,7 +82,7 @@ func filterWarnings(warnings []api.Warning, clauses []filter.Clause) []api.Warni
 //           description: Status description
 //           example: Success
 //         status_code:
-//           type: int
+//           type: integer
 //           description: Status code
 //           example: 200
 //         metadata:
@@ -129,7 +129,7 @@ func filterWarnings(warnings []api.Warning, clauses []filter.Clause) []api.Warni
 //           description: Status description
 //           example: Success
 //         status_code:
-//           type: int
+//           type: integer
 //           description: Status code
 //           example: 200
 //         metadata:
@@ -231,7 +231,7 @@ func warningsGet(d *Daemon, r *http.Request) response.Response {
 //           description: Status description
 //           example: Success
 //         status_code:
-//           type: int
+//           type: integer
 //           description: Status code
 //           example: 200
 //         metadata:

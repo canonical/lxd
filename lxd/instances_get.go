@@ -80,7 +80,7 @@ func urlInstanceTypeDetect(r *http.Request) (instancetype.Type, error) {
 //           description: Status description
 //           example: Success
 //         status_code:
-//           type: int
+//           type: integer
 //           description: Status code
 //           example: 200
 //         metadata:
@@ -134,7 +134,7 @@ func urlInstanceTypeDetect(r *http.Request) (instancetype.Type, error) {
 //           description: Status description
 //           example: Success
 //         status_code:
-//           type: int
+//           type: integer
 //           description: Status code
 //           example: 200
 //         metadata:
@@ -187,7 +187,7 @@ func urlInstanceTypeDetect(r *http.Request) (instancetype.Type, error) {
 //           description: Status description
 //           example: Success
 //         status_code:
-//           type: int
+//           type: integer
 //           description: Status code
 //           example: 200
 //         metadata:
