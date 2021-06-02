@@ -196,34 +196,18 @@ func (g *Gateway) HandlerFuncs(nodeRefreshTask func(*APIHeartbeat), trustedCerts
 				return
 			}
 
-			var nodeName string
-
-			if g.Cluster != nil {
-				err = g.Cluster.Transaction(func(tx *db.ClusterTx) error {
-					nodeName, err = tx.GetLocalNodeName()
-					if err != nil {
-						return err
-					}
-
-					return nil
-				})
-				if err != nil {
-					logger.Error("Failed to get node name")
-					http.Error(w, "500 failed to get node name", http.StatusInternalServerError)
-					return
-				}
-			}
-
-			// Look for time skews
+			// Look for time skews.
 			now := time.Now().UTC()
 
 			if heartbeatData.Time.Add(5*time.Second).Before(now) || heartbeatData.Time.Add(-5*time.Second).After(now) {
 				if !g.timeSkew {
 					logger.Warn("Time skew detected between leader and local", log.Ctx{"leaderTime": heartbeatData.Time, "localTime": now})
 
-					err := g.Cluster.UpsertWarning(nodeName, "", -1, -1, db.WarningClusterTimeSkew, fmt.Sprintf("leaderTime: %s, localTime: %s", heartbeatData.Time, now))
-					if err != nil {
-						logger.Warn("Failed to create cluster time skew warning")
+					if g.Cluster != nil {
+						err := g.Cluster.UpsertWarningLocalNode("", -1, -1, db.WarningClusterTimeSkew, fmt.Sprintf("leaderTime: %s, localTime: %s", heartbeatData.Time, now))
+						if err != nil {
+							logger.Warn("Failed to create cluster time skew warning", log.Ctx{"err": err})
+						}
 					}
 				}
 				g.timeSkew = true
@@ -231,9 +215,11 @@ func (g *Gateway) HandlerFuncs(nodeRefreshTask func(*APIHeartbeat), trustedCerts
 				if g.timeSkew {
 					logger.Warn("Time skew resolved")
 
-					err := warnings.ResolveWarningsByNodeAndType(g.Cluster, nodeName, db.WarningClusterTimeSkew)
-					if err != nil {
-						logger.Warn("Failed to resolve cluster time skew warning")
+					if g.Cluster != nil {
+						err := warnings.ResolveWarningsByLocalNodeAndType(g.Cluster, db.WarningClusterTimeSkew)
+						if err != nil {
+							logger.Warn("Failed to resolve cluster time skew warning", log.Ctx{"err": err})
+						}
 					}
 
 					g.timeSkew = false
