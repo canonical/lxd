@@ -155,19 +155,38 @@ func (c *cmdInit) askClustering(config *cmdInitData, d lxd.InstanceServer) error
 				return fmt.Errorf("Joining an existing cluster requires root privileges")
 			}
 
-			if cli.AskBool("Do you have a join token? (yes/no) [default=no]: ", "no") {
-				var joinToken *api.ClusterMemberJoinToken
-				validJoinToken := func(input string) error {
-					j, err := clusterMemberJoinTokenDecode(input)
-					if err != nil {
-						return errors.Wrapf(err, "Invalid join token")
-					}
+			var joinToken *api.ClusterMemberJoinToken
 
-					joinToken = j // Store valid decoded join token
-					return nil
+			validJoinToken := func(input string) error {
+				j, err := clusterMemberJoinTokenDecode(input)
+				if err != nil {
+					return errors.Wrapf(err, "Invalid join token")
 				}
 
-				rawJoinToken := cli.AskString("Please provide join token: ", "", validJoinToken)
+				joinToken = j // Store valid decoded join token
+				return nil
+			}
+
+			validInput := func(input string) error {
+				if shared.StringInSlice(strings.ToLower(input), []string{"yes", "y"}) {
+					return nil
+				} else if shared.StringInSlice(strings.ToLower(input), []string{"no", "n"}) {
+					return nil
+				} else if validJoinToken(input) != nil {
+					return fmt.Errorf("Not yes/no, or invalid join token")
+				}
+
+				return nil
+			}
+
+			input := cli.AskString("Do you have a join token? (yes/no/[token]) [default=no]: ", "no", validInput)
+
+			if !shared.StringInSlice(strings.ToLower(input), []string{"no", "n"}) {
+				rawJoinToken := input
+
+				if shared.StringInSlice(strings.ToLower(input), []string{"yes", "y"}) {
+					rawJoinToken = cli.AskString("Please provide join token: ", "", validJoinToken)
+				}
 
 				if joinToken.ServerName != config.Cluster.ServerName {
 					return fmt.Errorf("Server name does not match the one specified in join token")
