@@ -2361,6 +2361,7 @@ func (d *qemu) generateQemuConfigFile(mountInfo *storagePools.MountInfo, busName
 }
 
 // addCPUMemoryConfig adds the qemu config required for setting the number of virtualised CPUs and memory.
+// If sb is nil then no config is written and instead just the CPU count is returned.
 func (d *qemu) addCPUMemoryConfig(sb *strings.Builder) (int, error) {
 	// Default to a single core.
 	cpus := d.expandedConfig["limits.cpu"]
@@ -2461,16 +2462,24 @@ func (d *qemu) addCPUMemoryConfig(sb *strings.Builder) (int, error) {
 	memSizeBytes = nodeMemory * int64(len(hostNodes))
 	ctx["memory"] = nodeMemory
 
-	err = qemuMemory.Execute(sb, map[string]interface{}{
-		"architecture": d.architectureName,
-		"memSizeBytes": memSizeBytes,
-	})
-	if err != nil {
-		return -1, err
+	if sb != nil {
+		err = qemuMemory.Execute(sb, map[string]interface{}{
+			"architecture": d.architectureName,
+			"memSizeBytes": memSizeBytes,
+		})
+
+		if err != nil {
+			return -1, err
+		}
+
+		err = qemuCPU.Execute(sb, ctx)
+		if err != nil {
+			return -1, err
+		}
 	}
 
 	// Configure the CPU limit.
-	return ctx["cpuCount"].(int), qemuCPU.Execute(sb, ctx)
+	return ctx["cpuCount"].(int), nil
 }
 
 // addFileDescriptor adds a file path to the list of files to open and pass file descriptor to qemu.
