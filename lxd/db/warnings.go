@@ -164,9 +164,9 @@ func (c *ClusterTx) UpdateWarningStatus(UUID string, status WarningStatus) error
 	return nil
 }
 
-// UpdateWarningMessage updates the warning with the given ID.
-func (c *ClusterTx) UpdateWarningMessage(UUID string, message string) error {
-	str := fmt.Sprintf("UPDATE warnings SET last_message=?, last_seen_date=?, updated_date=?, count=count+1 WHERE uuid=?")
+// UpdateWarningState updates the warning message and status with the given ID.
+func (c *ClusterTx) UpdateWarningState(UUID string, message string, status WarningStatus) error {
+	str := fmt.Sprintf("UPDATE warnings SET last_message=?, last_seen_date=?, updated_date=?, status = ?, count=count+1 WHERE uuid=?")
 	stmt, err := c.tx.Prepare(str)
 	if err != nil {
 		return err
@@ -175,7 +175,7 @@ func (c *ClusterTx) UpdateWarningMessage(UUID string, message string) error {
 
 	now := time.Now()
 
-	_, err = stmt.Exec(message, now, now, UUID)
+	_, err = stmt.Exec(message, now, now, status, UUID)
 	if err != nil {
 		return errors.Wrap(err, "Failed to update warning")
 	}
