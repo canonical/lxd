@@ -225,4 +225,4 @@ much like `/1.0/containers` will only show you instances of that type.
 ## API structure
 LXD has an auto-generated [Swagger](https://swagger.io/) specification describing its API endpoints.
 The YAML version of this can be found in [rest-api.yaml](rest-api.yaml).
-A convenient web rendering of it can be found here: https://linuxcontainers.org/lxd/api/master/
+A convenient web rendering of it can be found here: [https://linuxcontainers.org/lxd/api/master/](https://linuxcontainers.org/lxd/api/master/)
