@@ -314,14 +314,18 @@ func (c *cmdRemoteAdd) Run(cmd *cobra.Command, args []string) error {
 			digest := shared.CertFingerprint(certificate)
 
 			fmt.Printf(i18n.G("Certificate fingerprint: %s")+"\n", digest)
-			fmt.Printf(i18n.G("ok (y/n)?") + " ")
+			fmt.Printf(i18n.G("ok (y/n/[fingerprint])?") + " ")
 			line, err := shared.ReadStdin()
 			if err != nil {
 				return err
 			}
 
-			if len(line) < 1 || strings.ToLower(string(line[0])) != i18n.G("y") {
-				return fmt.Errorf(i18n.G("Server certificate NACKed by user"))
+			if string(line) != digest {
+				if len(line) < 1 || strings.ToLower(string(line[0])) == i18n.G("n") {
+					return fmt.Errorf(i18n.G("Server certificate NACKed by user"))
+				} else if strings.ToLower(string(line[0])) != i18n.G("y") {
+					return fmt.Errorf(i18n.G("Please type 'y', 'n' or the fingerprint:"))
+				}
 			}
 		}
 
