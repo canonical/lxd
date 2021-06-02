@@ -24,8 +24,8 @@ type Warning struct {
 	EntityTypeCode int
 	EntityID       int
 	UUID           string
-	TypeCode       int
-	Status         int
+	TypeCode       WarningType
+	Status         WarningStatus
 	FirstSeenDate  time.Time
 	LastSeenDate   time.Time
 	UpdatedDate    time.Time
