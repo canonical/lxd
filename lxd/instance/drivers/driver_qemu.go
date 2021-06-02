@@ -2684,7 +2684,7 @@ func (d *qemu) addNetDevConfig(cpuCount int, busName string, qemuDev map[string]
 	}
 
 	var qemuNetDev map[string]interface{}
-	qemuDev["id"] = fmt.Sprintf("dev-lxd_%s", devName)
+	qemuDev["id"] = fmt.Sprintf("%s%s", qemuDeviceIDPrefix, devName)
 
 	if len(bootIndexes) > 0 {
 		bootIndex, found := bootIndexes[devName]
@@ -2707,7 +2707,7 @@ func (d *qemu) addNetDevConfig(cpuCount int, busName string, qemuDev map[string]
 		}
 
 		qemuNetDev = map[string]interface{}{
-			"id":    fmt.Sprintf("lxd_%s", devName),
+			"id":    fmt.Sprintf("%s%s", qemuNetDevIDPrefix, devName),
 			"type":  "tap",
 			"vhost": true,
 			"fd":    fmt.Sprintf("/dev/tap%d", ifindex), // Indicates the file to open and the FD name.
@@ -2719,12 +2719,12 @@ func (d *qemu) addNetDevConfig(cpuCount int, busName string, qemuDev map[string]
 			qemuDev["driver"] = "virtio-net-ccw"
 		}
 
-		qemuDev["netdev"] = fmt.Sprintf("lxd_%s", devName)
+		qemuDev["netdev"] = qemuNetDev["id"].(string)
 		qemuDev["mac"] = devHwaddr
 	} else if shared.PathExists(fmt.Sprintf("/sys/class/net/%s/tun_flags", nicName)) {
 		// Detect TAP (via TUN driver) device.
 		qemuNetDev = map[string]interface{}{
-			"id":         fmt.Sprintf("lxd_%s", devName),
+			"id":         fmt.Sprintf("%s%s", qemuNetDevIDPrefix, devName),
 			"type":       "tap",
 			"vhost":      true,
 			"script":     "no",
@@ -2757,7 +2757,7 @@ func (d *qemu) addNetDevConfig(cpuCount int, busName string, qemuDev map[string]
 			}
 		}
 
-		qemuDev["netdev"] = fmt.Sprintf("lxd_%s", devName)
+		qemuDev["netdev"] = qemuNetDev["id"].(string)
 		qemuDev["mac"] = devHwaddr
 	} else if pciSlotName != "" {
 		// Detect physical passthrough device.
