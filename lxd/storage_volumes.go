@@ -56,8 +56,110 @@ var storagePoolVolumeTypeCmd = APIEndpoint{
 	Put:    APIEndpointAction{Handler: storagePoolVolumePut, AccessHandler: allowProjectPermission("storage-volumes", "manage-storage-volumes")},
 }
 
-// /1.0/storage-pools/{name}/volumes
-// List all storage volumes attached to a given storage pool.
+// swagger:operation GET /1.0/storage-pools/{name}/volumes storage storage_pool_volumes_get
+//
+// Get the storage volumes
+//
+// Returns a list of storage volumes (URLs).
+//
+// ---
+// produces:
+//   - application/json
+// parameters:
+//   - in: query
+//     name: project
+//     description: Project name
+//     type: string
+//     example: default
+//   - in: query
+//     name: target
+//     description: Cluster member name
+//     type: string
+//     example: lxd01
+// responses:
+//   "200":
+//     description: API endpoints
+//     schema:
+//       type: object
+//       description: Sync response
+//       properties:
+//         type:
+//           type: string
+//           description: Response type
+//           example: sync
+//         status:
+//           type: string
+//           description: Status description
+//           example: Success
+//         status_code:
+//           type: integer
+//           description: Status code
+//           example: 200
+//         metadata:
+//           type: array
+//           description: List of endpoints
+//           items:
+//             type: string
+//           example: |-
+//             [
+//               "/1.0/storage-pools/local/volumes/container/a1",
+//               "/1.0/storage-pools/local/volumes/container/a2",
+//               "/1.0/storage-pools/local/volumes/custom/backups",
+//               "/1.0/storage-pools/local/volumes/custom/images"
+//             ]
+//   "403":
+//     $ref: "#/responses/Forbidden"
+//   "500":
+//     $ref: "#/responses/InternalServerError"
+
+// swagger:operation GET /1.0/storage-pools/{name}/volumes?recursion=1 storage storage_pool_volumes_get_recursion1
+//
+// Get the storage volumes
+//
+// Returns a list of storage volumes (structs).
+//
+// ---
+// produces:
+//   - application/json
+// parameters:
+//   - in: query
+//     name: project
+//     description: Project name
+//     type: string
+//     example: default
+//   - in: query
+//     name: target
+//     description: Cluster member name
+//     type: string
+//     example: lxd01
+// responses:
+//   "200":
+//     description: API endpoints
+//     schema:
+//       type: object
+//       description: Sync response
+//       properties:
+//         type:
+//           type: string
+//           description: Response type
+//           example: sync
+//         status:
+//           type: string
+//           description: Status description
+//           example: Success
+//         status_code:
+//           type: integer
+//           description: Status code
+//           example: 200
+//         metadata:
+//           type: array
+//           description: List of storage volumes
+//           items:
+//             $ref: "#/definitions/StorageVolume"
+//   "403":
+//     $ref: "#/responses/Forbidden"
+//   "500":
+//     $ref: "#/responses/InternalServerError"
 func storagePoolVolumesGet(d *Daemon, r *http.Request) response.Response {
 	projectName := projectParam(r)
 
@@ -154,8 +256,108 @@ func storagePoolVolumesGet(d *Daemon, r *http.Request) response.Response {
 	return response.SyncResponse(true, volumes)
 }
 
-// /1.0/storage-pools/{name}/volumes/{type}
-// List all storage volumes of a given volume type for a given storage pool.
+// swagger:operation GET /1.0/storage-pools/{name}/volumes/{type} storage storage_pool_volumes_type_get
+//
+// Get the storage volumes
+//
+// Returns a list of storage volumes (URLs) (type specific endpoint).
+//
+// ---
+// produces:
+//   - application/json
+// parameters:
+//   - in: query
+//     name: project
+//     description: Project name
+//     type: string
+//     example: default
+//   - in: query
+//     name: target
+//     description: Cluster member name
+//     type: string
+//     example: lxd01
+// responses:
+//   "200":
+//     description: API endpoints
+//     schema:
+//       type: object
+//       description: Sync response
+//       properties:
+//         type:
+//           type: string
+//           description: Response type
+//           example: sync
+//         status:
+//           type: string
+//           description: Status description
+//           example: Success
+//         status_code:
+//           type: integer
+//           description: Status code
+//           example: 200
+//         metadata:
+//           type: array
+//           description: List of endpoints
+//           items:
+//             type: string
+//           example: |-
+//             [
+//               "/1.0/storage-pools/local/volumes/custom/backups",
+//               "/1.0/storage-pools/local/volumes/custom/images"
+//             ]
+//   "403":
+//     $ref: "#/responses/Forbidden"
+//   "500":
+//     $ref: "#/responses/InternalServerError"
+
+// swagger:operation GET /1.0/storage-pools/{name}/volumes/{type}?recursion=1 storage storage_pool_volumes_type_get_recursion1
+//
+// Get the storage volumes
+//
+// Returns a list of storage volumes (structs) (type specific endpoint).
+//
+// ---
+// produces:
+//   - application/json
+// parameters:
+//   - in: query
+//     name: project
+//     description: Project name
+//     type: string
+//     example: default
+//   - in: query
+//     name: target
+//     description: Cluster member name
+//     type: string
+//     example: lxd01
+// responses:
+//   "200":
+//     description: API endpoints
+//     schema:
+//       type: object
+//       description: Sync response
+//       properties:
+//         type:
+//           type: string
+//           description: Response type
+//           example: sync
+//         status:
+//           type: string
+//           description: Status description
+//           example: Success
+//         status_code:
+//           type: integer
+//           description: Status code
+//           example: 200
+//         metadata:
+//           type: array
+//           description: List of storage volumes
+//           items:
+//             $ref: "#/definitions/StorageVolume"
+//   "403":
+//     $ref: "#/responses/Forbidden"
+//   "500":
+//     $ref: "#/responses/InternalServerError"
 func storagePoolVolumesTypeGet(d *Daemon, r *http.Request) response.Response {
 	// Get the name of the pool the storage volume is supposed to be attached to.
 	poolName := mux.Vars(r)["name"]
@@ -221,8 +423,43 @@ func storagePoolVolumesTypeGet(d *Daemon, r *http.Request) response.Response {
 	return response.SyncResponse(true, resultMap)
 }
 
-// /1.0/storage-pools/{name}/volumes/{type}
-// Create a storage volume in a given storage pool.
+// swagger:operation POST /1.0/storage-pools/{name}/volumes/{type} storage storage_pool_volumes_type_post
+//
+// Add a storage volume
+//
+// Creates a new storage volume (type specific endpoint).
+//
+// ---
+// consumes:
+//   - application/json
+// produces:
+//   - application/json
+// parameters:
+//   - in: query
+//     name: project
+//     description: Project name
+//     type: string
+//     example: default
+//   - in: query
+//     name: target
+//     description: Cluster member name
+//     type: string
+//     example: lxd01
+//   - in: body
+//     name: volume
+//     description: Storage volume
+//     required: true
+//     schema:
+//       $ref: "#/definitions/StorageVolumesPost"
+// responses:
+//   "200":
+//     $ref: "#/responses/Operation"
+//   "400":
+//     $ref: "#/responses/BadRequest"
+//   "403":
+//     $ref: "#/responses/Forbidden"
+//   "500":
+//     $ref: "#/responses/InternalServerError"
 func storagePoolVolumesTypePost(d *Daemon, r *http.Request) response.Response {
 	poolName := mux.Vars(r)["name"]
 
@@ -355,8 +592,43 @@ func doVolumeCreateOrCopy(d *Daemon, r *http.Request, requestProjectName string,
 	return operations.OperationResponse(op)
 }
 
-// /1.0/storage-pools/{name}/volumes
-// Create a storage volume of a given volume type in a given storage pool.
+// swagger:operation POST /1.0/storage-pools/{name}/volumes storage storage_pool_volumes_post
+//
+// Add a storage volume
+//
+// Creates a new storage volume.
+//
+// ---
+// consumes:
+//   - application/json
+// produces:
+//   - application/json
+// parameters:
+//   - in: query
+//     name: project
+//     description: Project name
+//     type: string
+//     example: default
+//   - in: query
+//     name: target
+//     description: Cluster member name
+//     type: string
+//     example: lxd01
+//   - in: body
+//     name: volume
+//     description: Storage volume
+//     required: true
+//     schema:
+//       $ref: "#/definitions/StorageVolumesPost"
+// responses:
+//   "200":
+//     $ref: "#/responses/Operation"
+//   "400":
+//     $ref: "#/responses/BadRequest"
+//   "403":
+//     $ref: "#/responses/Forbidden"
+//   "500":
+//     $ref: "#/responses/InternalServerError"
 func storagePoolVolumesPost(d *Daemon, r *http.Request) response.Response {
 	resp := forwardedResponseIfTargetIsRemote(d, r)
 	if resp != nil {
@@ -509,9 +781,48 @@ func doVolumeMigration(d *Daemon, r *http.Request, requestProjectName string, pr
 	return operations.OperationResponse(op)
 }
 
-// /1.0/storage-pools/{name}/volumes/{type}/{name}
-// Rename a storage volume of a given volume type in a given storage pool.
-// Also supports moving a storage volume between pools and migrating to a different host.
+// swagger:operation POST /1.0/storage-pools/{name}/volumes/{type}/{volume} storage storage_pool_volume_type_post
+//
+// Rename or move/migrate a storage volume
+//
+// Renames, moves a storage volume between pools or migrates an instance to another server.
+//
+// The returned operation metadata will vary based on what's requested.
+// For rename or move within the same server, this is a simple background operation with progress data.
+// For migration, in the push case, this will similarly be a background
+// operation with progress data, for the pull case, it will be a websocket
+// operation with a number of secrets to be passed to the target server.
+//
+// ---
+// consumes:
+//   - application/json
+// produces:
+//   - application/json
+// parameters:
+//   - in: query
+//     name: project
+//     description: Project name
+//     type: string
+//     example: default
+//   - in: query
+//     name: target
+//     description: Cluster member name
+//     type: string
+//     example: lxd01
+//   - in: body
+//     name: migration
+//     description: Migration request
+//     schema:
+//       $ref: "#/definitions/StorageVolumePost"
+// responses:
+//   "200":
+//     $ref: "#/responses/Operation"
+//   "400":
+//     $ref: "#/responses/BadRequest"
+//   "403":
+//     $ref: "#/responses/Forbidden"
+//   "500":
+//     $ref: "#/responses/InternalServerError"
 func storagePoolVolumePost(d *Daemon, r *http.Request) response.Response {
 	// Get the name of the storage volume.
 	volumeName := mux.Vars(r)["name"]
@@ -784,8 +1095,51 @@ func storageGetVolumeNameFromURL(r *http.Request) (string, error) {
 	return "", fmt.Errorf("Invalid storage volume %s", mux.Vars(r)["name"])
 }
 
-// /1.0/storage-pools/{pool}/volumes/{type}/{name}
-// Get storage volume of a given volume type on a given storage pool.
+// swagger:operation GET /1.0/storage-pools/{name}/volumes/{type}/{volume} storage storage_pool_volume_type_get
+//
+// Get the storage volume
+//
+// Gets a specific storage volume.
+//
+// ---
+// produces:
+//   - application/json
+// parameters:
+//   - in: query
+//     name: project
+//     description: Project name
+//     type: string
+//     example: default
+//   - in: query
+//     name: target
+//     description: Cluster member name
+//     type: string
+//     example: lxd01
+// responses:
+//   "200":
+//     description: Storage volume
+//     schema:
+//       type: object
+//       description: Sync response
+//       properties:
+//         type:
+//           type: string
+//           description: Response type
+//           example: sync
+//         status:
+//           type: string
+//           description: Status description
+//           example: Success
+//         status_code:
+//           type: integer
+//           description: Status code
+//           example: 200
+//         metadata:
+//           $ref: "#/definitions/StorageVolume"
+//   "403":
+//     $ref: "#/responses/Forbidden"
+//   "500":
+//     $ref: "#/responses/InternalServerError"
 func storagePoolVolumeGet(d *Daemon, r *http.Request) response.Response {
 	volumeTypeName := mux.Vars(r)["type"]
 
@@ -847,9 +1201,45 @@ func storagePoolVolumeGet(d *Daemon, r *http.Request) response.Response {
 	return response.SyncResponseETag(true, volume, etag)
 }
 
-// /1.0/storage-pools/{pool}/volumes/{type}/{name}
-// This function does allow limited functionality for non-custom volume types, specifically you
-// can modify the volume's description only.
+// swagger:operation PUT /1.0/storage-pools/{name}/volumes/{type}/{volume} storage storage_pool_volume_type_put
+//
+// Update the storage volume
+//
+// Updates the entire storage volume configuration.
+//
+// ---
+// consumes:
+//   - application/json
+// produces:
+//   - application/json
+// parameters:
+//   - in: query
+//     name: project
+//     description: Project name
+//     type: string
+//     example: default
+//   - in: query
+//     name: target
+//     description: Cluster member name
+//     type: string
+//     example: lxd01
+//   - in: body
+//     name: storage volume
+//     description: Storage volume configuration
+//     required: true
+//     schema:
+//       $ref: "#/definitions/StorageVolumePut"
+// responses:
+//   "200":
+//     $ref: "#/responses/EmptySyncResponse"
+//   "400":
+//     $ref: "#/responses/BadRequest"
+//   "403":
+//     $ref: "#/responses/Forbidden"
+//   "412":
+//     $ref: "#/responses/PreconditionFailed"
+//   "500":
+//     $ref: "#/responses/InternalServerError"
 func storagePoolVolumePut(d *Daemon, r *http.Request) response.Response {
 	projectName := projectParam(r)
 	volumeTypeName := mux.Vars(r)["type"]
@@ -965,7 +1355,45 @@ func storagePoolVolumePut(d *Daemon, r *http.Request) response.Response {
 	return response.EmptySyncResponse
 }
 
-// /1.0/storage-pools/{pool}/volumes/{type}/{name}
+// swagger:operation PATCH /1.0/storage-pools/{name}/volumes/{type}/{volume} storage storage_pool_volume_type_patch
+//
+// Partially update the storage volume
+//
+// Updates a subset of the storage volume configuration.
+//
+// ---
+// consumes:
+//   - application/json
+// produces:
+//   - application/json
+// parameters:
+//   - in: query
+//     name: project
+//     description: Project name
+//     type: string
+//     example: default
+//   - in: query
+//     name: target
+//     description: Cluster member name
+//     type: string
+//     example: lxd01
+//   - in: body
+//     name: storage volume
+//     description: Storage volume configuration
+//     required: true
+//     schema:
+//       $ref: "#/definitions/StorageVolumePut"
+// responses:
+//   "200":
+//     $ref: "#/responses/EmptySyncResponse"
+//   "400":
+//     $ref: "#/responses/BadRequest"
+//   "403":
+//     $ref: "#/responses/Forbidden"
+//   "412":
+//     $ref: "#/responses/PreconditionFailed"
+//   "500":
+//     $ref: "#/responses/InternalServerError"
 func storagePoolVolumePatch(d *Daemon, r *http.Request) response.Response {
 	// Get the name of the storage volume.
 	volumeName := mux.Vars(r)["name"]
@@ -1048,7 +1476,35 @@ func storagePoolVolumePatch(d *Daemon, r *http.Request) response.Response {
 	return response.EmptySyncResponse
 }
 
-// /1.0/storage-pools/{pool}/volumes/{type}/{name}
+// swagger:operation DELETE /1.0/storage-pools/{name}/volumes/{type}/{volume} storage storage_pool_volume_type_delete
+//
+// Delete the storage volume
+//
+// Removes the storage volume.
+//
+// ---
+// produces:
+//   - application/json
+// parameters:
+//   - in: query
+//     name: project
+//     description: Project name
+//     type: string
+//     example: default
+//   - in: query
+//     name: target
+//     description: Cluster member name
+//     type: string
+//     example: lxd01
+// responses:
+//   "200":
+//     $ref: "#/responses/EmptySyncResponse"
+//   "400":
+//     $ref: "#/responses/BadRequest"
+//   "403":
+//     $ref: "#/responses/Forbidden"
+//   "500":
+//     $ref: "#/responses/InternalServerError"
 func storagePoolVolumeDelete(d *Daemon, r *http.Request) response.Response {
 	// Get the name of the storage volume.
 	volumeName := mux.Vars(r)["name"]

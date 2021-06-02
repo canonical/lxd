@@ -4370,6 +4370,83 @@ definitions:
     title: StoragePoolPut represents the modifiable fields of a LXD storage pool.
     type: object
     x-go-package: github.com/lxc/lxd/shared/api
+  StoragePoolVolumeBackup:
+    description: StoragePoolVolumeBackup represents a LXD volume backup
+    properties:
+      created_at:
+        description: When the backup was cerated
+        example: "2021-03-23T16:38:37.753398689-04:00"
+        format: date-time
+        type: string
+        x-go-name: CreatedAt
+      expires_at:
+        description: When the backup expires (gets auto-deleted)
+        example: "2021-03-23T17:38:37.753398689-04:00"
+        format: date-time
+        type: string
+        x-go-name: ExpiresAt
+      name:
+        description: Backup name
+        example: backup0
+        type: string
+        x-go-name: Name
+      optimized_storage:
+        description: Whether to use a pool-optimized binary format (instead of plain
+          tarball)
+        example: true
+        type: boolean
+        x-go-name: OptimizedStorage
+      volume_only:
+        description: Whether to ignore snapshots
+        example: false
+        type: boolean
+        x-go-name: VolumeOnly
+    type: object
+    x-go-package: github.com/lxc/lxd/shared/api
+  StoragePoolVolumeBackupPost:
+    description: StoragePoolVolumeBackupPost represents the fields available for the
+      renaming of a volume backup
+    properties:
+      name:
+        description: New backup name
+        example: backup1
+        type: string
+        x-go-name: Name
+    type: object
+    x-go-package: github.com/lxc/lxd/shared/api
+  StoragePoolVolumeBackupsPost:
+    description: StoragePoolVolumeBackupsPost represents the fields available for
+      a new LXD volume backup
+    properties:
+      compression_algorithm:
+        description: What compression algorithm to use
+        example: gzip
+        type: string
+        x-go-name: CompressionAlgorithm
+      expires_at:
+        description: When the backup expires (gets auto-deleted)
+        example: "2021-03-23T17:38:37.753398689-04:00"
+        format: date-time
+        type: string
+        x-go-name: ExpiresAt
+      name:
+        description: Backup name
+        example: backup0
+        type: string
+        x-go-name: Name
+      optimized_storage:
+        description: Whether to use a pool-optimized binary format (instead of plain
+          tarball)
+        example: true
+        type: boolean
+        x-go-name: OptimizedStorage
+      volume_only:
+        description: Whether to ignore snapshots
+        example: false
+        type: boolean
+        x-go-name: VolumeOnly
+    type: object
+    x-go-package: github.com/lxc/lxd/shared/api
   StoragePoolsPost:
     description: StoragePoolsPost represents the fields of a new LXD storage pool
     properties:
@@ -4528,6 +4605,86 @@ definitions:
         x-go-name: Restore
     type: object
     x-go-package: github.com/lxc/lxd/shared/api
+  StorageVolumeSnapshot:
+    description: StorageVolumeSnapshot represents a LXD storage volume snapshot
+    properties:
+      config:
+        additionalProperties:
+          type: string
+        description: Storage volume configuration map (refer to doc/storage.md)
+        example:
+          size: 50GiB
+          zfs.remove_snapshots: "true"
+        type: object
+        x-go-name: Config
+      content_type:
+        description: The content type (filesystem or block)
+        example: filesystem
+        type: string
+        x-go-name: ContentType
+      description:
+        description: Description of the storage volume
+        example: My custom volume
+        type: string
+        x-go-name: Description
+      expires_at:
+        description: When the snapshot expires (gets auto-deleted)
+        example: "2021-03-23T17:38:37.753398689-04:00"
+        format: date-time
+        type: string
+        x-go-name: ExpiresAt
+      name:
+        description: Snapshot name
+        example: snap0
+        type: string
+        x-go-name: Name
+    type: object
+    x-go-package: github.com/lxc/lxd/shared/api
+  StorageVolumeSnapshotPost:
+    description: StorageVolumeSnapshotPost represents the fields required to rename/move
+      a LXD storage volume snapshot
+    properties:
+      name:
+        description: New snapshot name
+        example: snap1
+        type: string
+        x-go-name: Name
+    type: object
+    x-go-package: github.com/lxc/lxd/shared/api
+  StorageVolumeSnapshotPut:
+    description: StorageVolumeSnapshotPut represents the modifiable fields of a LXD
+      storage volume
+    properties:
+      description:
+        description: Description of the storage volume
+        example: My custom volume
+        type: string
+        x-go-name: Description
+      expires_at:
+        description: When the snapshot expires (gets auto-deleted)
+        example: "2021-03-23T17:38:37.753398689-04:00"
+        format: date-time
+        type: string
+        x-go-name: ExpiresAt
+    type: object
+    x-go-package: github.com/lxc/lxd/shared/api
+  StorageVolumeSnapshotsPost:
+    description: StorageVolumeSnapshotsPost represents the fields available for a
+      new LXD storage volume snapshot
+    properties:
+      expires_at:
+        description: When the snapshot expires (gets auto-deleted)
+        example: "2021-03-23T17:38:37.753398689-04:00"
+        format: date-time
+        type: string
+        x-go-name: ExpiresAt
+      name:
+        description: Snapshot name
+        example: snap0
+        type: string
+        x-go-name: Name
+    type: object
+    x-go-package: github.com/lxc/lxd/shared/api
   StorageVolumeSource:
     description: StorageVolumeSource represents the creation source for a new storage
       volume
@@ -4575,6 +4732,24 @@ definitions:
         example: false
         type: boolean
         x-go-name: VolumeOnly
+    type: object
+    x-go-package: github.com/lxc/lxd/shared/api
+  StorageVolumeState:
+    description: StorageVolumeState represents the live state of the volume
+    properties:
+      usage:
+        $ref: '#/definitions/StorageVolumeStateUsage'
+    type: object
+    x-go-package: github.com/lxc/lxd/shared/api
+  StorageVolumeStateUsage:
+    description: StorageVolumeStateUsage represents the disk usage of a volume
+    properties:
+      used:
+        description: Used space in bytes
+        example: 1693552640
+        format: uint64
+        type: integer
+        x-go-name: Used
     type: object
     x-go-package: github.com/lxc/lxd/shared/api
   StorageVolumesPost:
@@ -4706,9 +4881,6 @@ info:
     For remote users, the default authentication method is TLS client
     certificates with a macaroon based (candid) authentication method also
     supported.
-
-    WARNING: This API documentation is a work in progress.
-    You may find the full documentation in its old format at "doc/rest-api.md".
   license:
     name: Apache-2.0
     url: https://www.apache.org/licenses/LICENSE-2.0
@@ -4745,7 +4917,7 @@ paths:
               status_code:
                 description: Status code
                 example: 200
-                type: int
+                type: integer
               type:
                 description: Response type
                 example: sync
@@ -4786,7 +4958,7 @@ paths:
               status_code:
                 description: Status code
                 example: 200
-                type: int
+                type: integer
               type:
                 description: Response type
                 example: sync
@@ -4892,7 +5064,7 @@ paths:
               status_code:
                 description: Status code
                 example: 200
-                type: int
+                type: integer
               type:
                 description: Response type
                 example: sync
@@ -4971,7 +5143,7 @@ paths:
               status_code:
                 description: Status code
                 example: 200
-                type: int
+                type: integer
               type:
                 description: Response type
                 example: sync
@@ -5100,7 +5272,7 @@ paths:
               status_code:
                 description: Status code
                 example: 200
-                type: int
+                type: integer
               type:
                 description: Response type
                 example: sync
@@ -5134,7 +5306,7 @@ paths:
               status_code:
                 description: Status code
                 example: 200
-                type: int
+                type: integer
               type:
                 description: Response type
                 example: sync
@@ -5204,7 +5376,7 @@ paths:
               status_code:
                 description: Status code
                 example: 200
-                type: int
+                type: integer
               type:
                 description: Response type
                 example: sync
@@ -5281,7 +5453,7 @@ paths:
               status_code:
                 description: Status code
                 example: 200
-                type: int
+                type: integer
               type:
                 description: Response type
                 example: sync
@@ -5400,7 +5572,7 @@ paths:
               status_code:
                 description: Status code
                 example: 200
-                type: int
+                type: integer
               type:
                 description: Response type
                 example: sync
@@ -5483,7 +5655,7 @@ paths:
               status_code:
                 description: Status code
                 example: 200
-                type: int
+                type: integer
               type:
                 description: Response type
                 example: sync
@@ -5590,7 +5762,7 @@ paths:
               status_code:
                 description: Status code
                 example: 200
-                type: int
+                type: integer
               type:
                 description: Response type
                 example: sync
@@ -5833,7 +6005,7 @@ paths:
               status_code:
                 description: Status code
                 example: 200
-                type: int
+                type: integer
               type:
                 description: Response type
                 example: sync
@@ -5881,7 +6053,7 @@ paths:
               status_code:
                 description: Status code
                 example: 200
-                type: int
+                type: integer
               type:
                 description: Response type
                 example: sync
@@ -5952,7 +6124,7 @@ paths:
               status_code:
                 description: Status code
                 example: 200
-                type: int
+                type: integer
               type:
                 description: Response type
                 example: sync
@@ -6091,7 +6263,7 @@ paths:
               status_code:
                 description: Status code
                 example: 200
-                type: int
+                type: integer
               type:
                 description: Response type
                 example: sync
@@ -6134,7 +6306,7 @@ paths:
               status_code:
                 description: Status code
                 example: 200
-                type: int
+                type: integer
               type:
                 description: Response type
                 example: sync
@@ -6187,7 +6359,7 @@ paths:
               status_code:
                 description: Status code
                 example: 200
-                type: int
+                type: integer
               type:
                 description: Response type
                 example: sync
@@ -6270,7 +6442,7 @@ paths:
               status_code:
                 description: Status code
                 example: 200
-                type: int
+                type: integer
               type:
                 description: Response type
                 example: sync
@@ -6318,7 +6490,7 @@ paths:
               status_code:
                 description: Status code
                 example: 200
-                type: int
+                type: integer
               type:
                 description: Response type
                 example: sync
@@ -6371,7 +6543,7 @@ paths:
               status_code:
                 description: Status code
                 example: 200
-                type: int
+                type: integer
               type:
                 description: Response type
                 example: sync
@@ -6509,7 +6681,7 @@ paths:
               status_code:
                 description: Status code
                 example: 200
-                type: int
+                type: integer
               type:
                 description: Response type
                 example: sync
@@ -6654,7 +6826,7 @@ paths:
               status_code:
                 description: Status code
                 example: 200
-                type: int
+                type: integer
               type:
                 description: Response type
                 example: sync
@@ -6749,7 +6921,7 @@ paths:
               status_code:
                 description: Status code
                 example: 200
-                type: int
+                type: integer
               type:
                 description: Response type
                 example: sync
@@ -6844,7 +7016,7 @@ paths:
               status_code:
                 description: Status code
                 example: 200
-                type: int
+                type: integer
               type:
                 description: Response type
                 example: sync
@@ -7152,7 +7324,7 @@ paths:
               status_code:
                 description: Status code
                 example: 200
-                type: int
+                type: integer
               type:
                 description: Response type
                 example: sync
@@ -7246,7 +7418,7 @@ paths:
               status_code:
                 description: Status code
                 example: 200
-                type: int
+                type: integer
               type:
                 description: Response type
                 example: sync
@@ -7459,7 +7631,7 @@ paths:
               status_code:
                 description: Status code
                 example: 200
-                type: int
+                type: integer
               type:
                 description: Response type
                 example: sync
@@ -7554,7 +7726,7 @@ paths:
               status_code:
                 description: Status code
                 example: 200
-                type: int
+                type: integer
               type:
                 description: Response type
                 example: sync
@@ -7694,7 +7866,7 @@ paths:
               status_code:
                 description: Status code
                 example: 200
-                type: int
+                type: integer
               type:
                 description: Response type
                 example: sync
@@ -7738,7 +7910,7 @@ paths:
               status_code:
                 description: Status code
                 example: 200
-                type: int
+                type: integer
               type:
                 description: Response type
                 example: sync
@@ -7818,7 +7990,7 @@ paths:
               status_code:
                 description: Status code
                 example: 200
-                type: int
+                type: integer
               type:
                 description: Response type
                 example: sync
@@ -7871,7 +8043,7 @@ paths:
               status_code:
                 description: Status code
                 example: 200
-                type: int
+                type: integer
               type:
                 description: Response type
                 example: sync
@@ -7919,7 +8091,7 @@ paths:
               status_code:
                 description: Status code
                 example: 200
-                type: int
+                type: integer
               type:
                 description: Response type
                 example: sync
@@ -8013,7 +8185,7 @@ paths:
               status_code:
                 description: Status code
                 example: 200
-                type: int
+                type: integer
               type:
                 description: Response type
                 example: sync
@@ -8153,7 +8325,7 @@ paths:
               status_code:
                 description: Status code
                 example: 200
-                type: int
+                type: integer
               type:
                 description: Response type
                 example: sync
@@ -8201,7 +8373,7 @@ paths:
               status_code:
                 description: Status code
                 example: 200
-                type: int
+                type: integer
               type:
                 description: Response type
                 example: sync
@@ -8307,7 +8479,7 @@ paths:
               status_code:
                 description: Status code
                 example: 200
-                type: int
+                type: integer
               type:
                 description: Response type
                 example: sync
@@ -8462,7 +8634,7 @@ paths:
               status_code:
                 description: Status code
                 example: 200
-                type: int
+                type: integer
               type:
                 description: Response type
                 example: sync
@@ -8507,7 +8679,7 @@ paths:
               status_code:
                 description: Status code
                 example: 200
-                type: int
+                type: integer
               type:
                 description: Response type
                 example: sync
@@ -8550,7 +8722,7 @@ paths:
               status_code:
                 description: Status code
                 example: 200
-                type: int
+                type: integer
               type:
                 description: Response type
                 example: sync
@@ -8595,7 +8767,7 @@ paths:
               status_code:
                 description: Status code
                 example: 200
-                type: int
+                type: integer
               type:
                 description: Response type
                 example: sync
@@ -8646,7 +8818,7 @@ paths:
               status_code:
                 description: Status code
                 example: 200
-                type: int
+                type: integer
               type:
                 description: Response type
                 example: sync
@@ -8669,7 +8841,7 @@ paths:
         example: -1
         in: query
         name: timeout
-        type: int
+        type: integer
       produces:
       - application/json
       responses:
@@ -8687,7 +8859,7 @@ paths:
               status_code:
                 description: Status code
                 example: 200
-                type: int
+                type: integer
               type:
                 description: Response type
                 example: sync
@@ -8717,7 +8889,7 @@ paths:
         example: -1
         in: query
         name: timeout
-        type: int
+        type: integer
       produces:
       - application/json
       responses:
@@ -8735,7 +8907,7 @@ paths:
               status_code:
                 description: Status code
                 example: 200
-                type: int
+                type: integer
               type:
                 description: Response type
                 example: sync
@@ -8827,7 +8999,7 @@ paths:
               status_code:
                 description: Status code
                 example: 200
-                type: int
+                type: integer
               type:
                 description: Response type
                 example: sync
@@ -8875,7 +9047,7 @@ paths:
               status_code:
                 description: Status code
                 example: 200
-                type: int
+                type: integer
               type:
                 description: Response type
                 example: sync
@@ -8969,7 +9141,7 @@ paths:
               status_code:
                 description: Status code
                 example: 200
-                type: int
+                type: integer
               type:
                 description: Response type
                 example: sync
@@ -9109,7 +9281,7 @@ paths:
               status_code:
                 description: Status code
                 example: 200
-                type: int
+                type: integer
               type:
                 description: Response type
                 example: sync
@@ -9151,7 +9323,7 @@ paths:
               status_code:
                 description: Status code
                 example: 200
-                type: int
+                type: integer
               type:
                 description: Response type
                 example: sync
@@ -9228,7 +9400,7 @@ paths:
               status_code:
                 description: Status code
                 example: 200
-                type: int
+                type: integer
               type:
                 description: Response type
                 example: sync
@@ -9344,7 +9516,7 @@ paths:
               status_code:
                 description: Status code
                 example: 200
-                type: int
+                type: integer
               type:
                 description: Response type
                 example: sync
@@ -9381,7 +9553,7 @@ paths:
               status_code:
                 description: Status code
                 example: 200
-                type: int
+                type: integer
               type:
                 description: Response type
                 example: sync
@@ -9421,7 +9593,7 @@ paths:
               status_code:
                 description: Status code
                 example: 200
-                type: int
+                type: integer
               type:
                 description: Response type
                 example: sync
@@ -9469,7 +9641,7 @@ paths:
               status_code:
                 description: Status code
                 example: 200
-                type: int
+                type: integer
               type:
                 description: Response type
                 example: sync
@@ -9575,7 +9747,7 @@ paths:
               status_code:
                 description: Status code
                 example: 200
-                type: int
+                type: integer
               type:
                 description: Response type
                 example: sync
@@ -9691,7 +9863,7 @@ paths:
               status_code:
                 description: Status code
                 example: 200
-                type: int
+                type: integer
               type:
                 description: Response type
                 example: sync
@@ -9702,6 +9874,1117 @@ paths:
         "500":
           $ref: '#/responses/InternalServerError'
       summary: Get storage pool resources information
+      tags:
+      - storage
+  /1.0/storage-pools/{name}/volumes:
+    get:
+      description: Returns a list of storage volumes (URLs).
+      operationId: storage_pool_volumes_get
+      parameters:
+      - description: Project name
+        example: default
+        in: query
+        name: project
+        type: string
+      - description: Cluster member name
+        example: lxd01
+        in: query
+        name: target
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: API endpoints
+          schema:
+            description: Sync response
+            properties:
+              metadata:
+                description: List of endpoints
+                example: |-
+                  [
+                    "/1.0/storage-pools/local/volumes/container/a1",
+                    "/1.0/storage-pools/local/volumes/container/a2",
+                    "/1.0/storage-pools/local/volumes/custom/backups",
+                    "/1.0/storage-pools/local/volumes/custom/images"
+                  ]
+                items:
+                  type: string
+                type: array
+              status:
+                description: Status description
+                example: Success
+                type: string
+              status_code:
+                description: Status code
+                example: 200
+                type: integer
+              type:
+                description: Response type
+                example: sync
+                type: string
+            type: object
+        "403":
+          $ref: '#/responses/Forbidden'
+        "500":
+          $ref: '#/responses/InternalServerError'
+      summary: Get the storage volumes
+      tags:
+      - storage
+    post:
+      consumes:
+      - application/json
+      description: Creates a new storage volume.
+      operationId: storage_pool_volumes_post
+      parameters:
+      - description: Project name
+        example: default
+        in: query
+        name: project
+        type: string
+      - description: Cluster member name
+        example: lxd01
+        in: query
+        name: target
+        type: string
+      - description: Storage volume
+        in: body
+        name: volume
+        required: true
+        schema:
+          $ref: '#/definitions/StorageVolumesPost'
+      produces:
+      - application/json
+      responses:
+        "200":
+          $ref: '#/responses/Operation'
+        "400":
+          $ref: '#/responses/BadRequest'
+        "403":
+          $ref: '#/responses/Forbidden'
+        "500":
+          $ref: '#/responses/InternalServerError'
+      summary: Add a storage volume
+      tags:
+      - storage
+  /1.0/storage-pools/{name}/volumes/{type}:
+    get:
+      description: Returns a list of storage volumes (URLs) (type specific endpoint).
+      operationId: storage_pool_volumes_type_get
+      parameters:
+      - description: Project name
+        example: default
+        in: query
+        name: project
+        type: string
+      - description: Cluster member name
+        example: lxd01
+        in: query
+        name: target
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: API endpoints
+          schema:
+            description: Sync response
+            properties:
+              metadata:
+                description: List of endpoints
+                example: |-
+                  [
+                    "/1.0/storage-pools/local/volumes/custom/backups",
+                    "/1.0/storage-pools/local/volumes/custom/images"
+                  ]
+                items:
+                  type: string
+                type: array
+              status:
+                description: Status description
+                example: Success
+                type: string
+              status_code:
+                description: Status code
+                example: 200
+                type: integer
+              type:
+                description: Response type
+                example: sync
+                type: string
+            type: object
+        "403":
+          $ref: '#/responses/Forbidden'
+        "500":
+          $ref: '#/responses/InternalServerError'
+      summary: Get the storage volumes
+      tags:
+      - storage
+    post:
+      consumes:
+      - application/json
+      description: Creates a new storage volume (type specific endpoint).
+      operationId: storage_pool_volumes_type_post
+      parameters:
+      - description: Project name
+        example: default
+        in: query
+        name: project
+        type: string
+      - description: Cluster member name
+        example: lxd01
+        in: query
+        name: target
+        type: string
+      - description: Storage volume
+        in: body
+        name: volume
+        required: true
+        schema:
+          $ref: '#/definitions/StorageVolumesPost'
+      produces:
+      - application/json
+      responses:
+        "200":
+          $ref: '#/responses/Operation'
+        "400":
+          $ref: '#/responses/BadRequest'
+        "403":
+          $ref: '#/responses/Forbidden'
+        "500":
+          $ref: '#/responses/InternalServerError'
+      summary: Add a storage volume
+      tags:
+      - storage
+  /1.0/storage-pools/{name}/volumes/{type}/{volume}:
+    delete:
+      description: Removes the storage volume.
+      operationId: storage_pool_volume_type_delete
+      parameters:
+      - description: Project name
+        example: default
+        in: query
+        name: project
+        type: string
+      - description: Cluster member name
+        example: lxd01
+        in: query
+        name: target
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          $ref: '#/responses/EmptySyncResponse'
+        "400":
+          $ref: '#/responses/BadRequest'
+        "403":
+          $ref: '#/responses/Forbidden'
+        "500":
+          $ref: '#/responses/InternalServerError'
+      summary: Delete the storage volume
+      tags:
+      - storage
+    get:
+      description: Gets a specific storage volume.
+      operationId: storage_pool_volume_type_get
+      parameters:
+      - description: Project name
+        example: default
+        in: query
+        name: project
+        type: string
+      - description: Cluster member name
+        example: lxd01
+        in: query
+        name: target
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Storage volume
+          schema:
+            description: Sync response
+            properties:
+              metadata:
+                $ref: '#/definitions/StorageVolume'
+              status:
+                description: Status description
+                example: Success
+                type: string
+              status_code:
+                description: Status code
+                example: 200
+                type: integer
+              type:
+                description: Response type
+                example: sync
+                type: string
+            type: object
+        "403":
+          $ref: '#/responses/Forbidden'
+        "500":
+          $ref: '#/responses/InternalServerError'
+      summary: Get the storage volume
+      tags:
+      - storage
+    patch:
+      consumes:
+      - application/json
+      description: Updates a subset of the storage volume configuration.
+      operationId: storage_pool_volume_type_patch
+      parameters:
+      - description: Project name
+        example: default
+        in: query
+        name: project
+        type: string
+      - description: Cluster member name
+        example: lxd01
+        in: query
+        name: target
+        type: string
+      - description: Storage volume configuration
+        in: body
+        name: storage volume
+        required: true
+        schema:
+          $ref: '#/definitions/StorageVolumePut'
+      produces:
+      - application/json
+      responses:
+        "200":
+          $ref: '#/responses/EmptySyncResponse'
+        "400":
+          $ref: '#/responses/BadRequest'
+        "403":
+          $ref: '#/responses/Forbidden'
+        "412":
+          $ref: '#/responses/PreconditionFailed'
+        "500":
+          $ref: '#/responses/InternalServerError'
+      summary: Partially update the storage volume
+      tags:
+      - storage
+    post:
+      consumes:
+      - application/json
+      description: |-
+        Renames, moves a storage volume between pools or migrates an instance to another server.
+
+        The returned operation metadata will vary based on what's requested.
+        For rename or move within the same server, this is a simple background operation with progress data.
+        For migration, in the push case, this will similarly be a background
+        operation with progress data, for the pull case, it will be a websocket
+        operation with a number of secrets to be passed to the target server.
+      operationId: storage_pool_volume_type_post
+      parameters:
+      - description: Project name
+        example: default
+        in: query
+        name: project
+        type: string
+      - description: Cluster member name
+        example: lxd01
+        in: query
+        name: target
+        type: string
+      - description: Migration request
+        in: body
+        name: migration
+        schema:
+          $ref: '#/definitions/StorageVolumePost'
+      produces:
+      - application/json
+      responses:
+        "200":
+          $ref: '#/responses/Operation'
+        "400":
+          $ref: '#/responses/BadRequest'
+        "403":
+          $ref: '#/responses/Forbidden'
+        "500":
+          $ref: '#/responses/InternalServerError'
+      summary: Rename or move/migrate a storage volume
+      tags:
+      - storage
+    put:
+      consumes:
+      - application/json
+      description: Updates the entire storage volume configuration.
+      operationId: storage_pool_volume_type_put
+      parameters:
+      - description: Project name
+        example: default
+        in: query
+        name: project
+        type: string
+      - description: Cluster member name
+        example: lxd01
+        in: query
+        name: target
+        type: string
+      - description: Storage volume configuration
+        in: body
+        name: storage volume
+        required: true
+        schema:
+          $ref: '#/definitions/StorageVolumePut'
+      produces:
+      - application/json
+      responses:
+        "200":
+          $ref: '#/responses/EmptySyncResponse'
+        "400":
+          $ref: '#/responses/BadRequest'
+        "403":
+          $ref: '#/responses/Forbidden'
+        "412":
+          $ref: '#/responses/PreconditionFailed'
+        "500":
+          $ref: '#/responses/InternalServerError'
+      summary: Update the storage volume
+      tags:
+      - storage
+  /1.0/storage-pools/{name}/volumes/{type}/{volume}/backups:
+    get:
+      description: Returns a list of storage volume backups (URLs).
+      operationId: storage_pool_volumes_type_backups_get
+      parameters:
+      - description: Project name
+        example: default
+        in: query
+        name: project
+        type: string
+      - description: Cluster member name
+        example: lxd01
+        in: query
+        name: target
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: API endpoints
+          schema:
+            description: Sync response
+            properties:
+              metadata:
+                description: List of endpoints
+                example: |-
+                  [
+                    "/1.0/storage-pools/local/volumes/custom/foo/backups/backup0",
+                    "/1.0/storage-pools/local/volumes/custom/foo/backups/backup1"
+                  ]
+                items:
+                  type: string
+                type: array
+              status:
+                description: Status description
+                example: Success
+                type: string
+              status_code:
+                description: Status code
+                example: 200
+                type: integer
+              type:
+                description: Response type
+                example: sync
+                type: string
+            type: object
+        "403":
+          $ref: '#/responses/Forbidden'
+        "500":
+          $ref: '#/responses/InternalServerError'
+      summary: Get the storage volume backups
+      tags:
+      - storage
+    post:
+      consumes:
+      - application/json
+      description: Creates a new storage volume backup.
+      operationId: storage_pool_volumes_type_backups_post
+      parameters:
+      - description: Project name
+        example: default
+        in: query
+        name: project
+        type: string
+      - description: Cluster member name
+        example: lxd01
+        in: query
+        name: target
+        type: string
+      - description: Storage volume backup
+        in: body
+        name: volume
+        required: true
+        schema:
+          $ref: '#/definitions/StoragePoolVolumeBackupsPost'
+      produces:
+      - application/json
+      responses:
+        "200":
+          $ref: '#/responses/Operation'
+        "400":
+          $ref: '#/responses/BadRequest'
+        "403":
+          $ref: '#/responses/Forbidden'
+        "500":
+          $ref: '#/responses/InternalServerError'
+      summary: Create a storage volume backup
+      tags:
+      - storage
+  /1.0/storage-pools/{name}/volumes/{type}/{volume}/backups/{backup}:
+    delete:
+      consumes:
+      - application/json
+      description: Deletes a new storage volume backup.
+      operationId: storage_pool_volumes_type_backup_delete
+      parameters:
+      - description: Project name
+        example: default
+        in: query
+        name: project
+        type: string
+      - description: Cluster member name
+        example: lxd01
+        in: query
+        name: target
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          $ref: '#/responses/Operation'
+        "400":
+          $ref: '#/responses/BadRequest'
+        "403":
+          $ref: '#/responses/Forbidden'
+        "500":
+          $ref: '#/responses/InternalServerError'
+      summary: Delete a storage volume backup
+      tags:
+      - storage
+    get:
+      description: Gets a specific storage volume backup.
+      operationId: storage_pool_volumes_type_backup_get
+      parameters:
+      - description: Project name
+        example: default
+        in: query
+        name: project
+        type: string
+      - description: Cluster member name
+        example: lxd01
+        in: query
+        name: target
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Storage volume backup
+          schema:
+            description: Sync response
+            properties:
+              metadata:
+                $ref: '#/definitions/StoragePoolVolumeBackup'
+              status:
+                description: Status description
+                example: Success
+                type: string
+              status_code:
+                description: Status code
+                example: 200
+                type: integer
+              type:
+                description: Response type
+                example: sync
+                type: string
+            type: object
+        "403":
+          $ref: '#/responses/Forbidden'
+        "500":
+          $ref: '#/responses/InternalServerError'
+      summary: Get the storage volume backup
+      tags:
+      - storage
+    post:
+      consumes:
+      - application/json
+      description: Renames a storage volume backup.
+      operationId: storage_pool_volumes_type_backup_post
+      parameters:
+      - description: Project name
+        example: default
+        in: query
+        name: project
+        type: string
+      - description: Cluster member name
+        example: lxd01
+        in: query
+        name: target
+        type: string
+      - description: Storage volume backup
+        in: body
+        name: volume rename
+        required: true
+        schema:
+          $ref: '#/definitions/StorageVolumeSnapshotPost'
+      produces:
+      - application/json
+      responses:
+        "200":
+          $ref: '#/responses/Operation'
+        "400":
+          $ref: '#/responses/BadRequest'
+        "403":
+          $ref: '#/responses/Forbidden'
+        "500":
+          $ref: '#/responses/InternalServerError'
+      summary: Rename a storage volume backup
+      tags:
+      - storage
+  /1.0/storage-pools/{name}/volumes/{type}/{volume}/backups/{backup}/export:
+    get:
+      description: Download the raw backup file from the server.
+      operationId: storage_pool_volumes_type_backup_export_get
+      parameters:
+      - description: Project name
+        example: default
+        in: query
+        name: project
+        type: string
+      - description: Cluster member name
+        example: lxd01
+        in: query
+        name: target
+        type: string
+      produces:
+      - application/octet-stream
+      responses:
+        "200":
+          description: Raw backup data
+        "403":
+          $ref: '#/responses/Forbidden'
+        "500":
+          $ref: '#/responses/InternalServerError'
+      summary: Get the raw backup file
+      tags:
+      - storage
+  /1.0/storage-pools/{name}/volumes/{type}/{volume}/backups?recursion=1:
+    get:
+      description: Returns a list of storage volume backups (structs).
+      operationId: storage_pool_volumes_type_backups_get_recursion1
+      parameters:
+      - description: Project name
+        example: default
+        in: query
+        name: project
+        type: string
+      - description: Cluster member name
+        example: lxd01
+        in: query
+        name: target
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: API endpoints
+          schema:
+            description: Sync response
+            properties:
+              metadata:
+                description: List of storage volume backups
+                items:
+                  $ref: '#/definitions/StoragePoolVolumeBackup'
+                type: array
+              status:
+                description: Status description
+                example: Success
+                type: string
+              status_code:
+                description: Status code
+                example: 200
+                type: integer
+              type:
+                description: Response type
+                example: sync
+                type: string
+            type: object
+        "403":
+          $ref: '#/responses/Forbidden'
+        "500":
+          $ref: '#/responses/InternalServerError'
+      summary: Get the storage volume backups
+      tags:
+      - storage
+  /1.0/storage-pools/{name}/volumes/{type}/{volume}/snapshots:
+    get:
+      description: Returns a list of storage volume snapshots (URLs).
+      operationId: storage_pool_volumes_type_snapshots_get
+      parameters:
+      - description: Project name
+        example: default
+        in: query
+        name: project
+        type: string
+      - description: Cluster member name
+        example: lxd01
+        in: query
+        name: target
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: API endpoints
+          schema:
+            description: Sync response
+            properties:
+              metadata:
+                description: List of endpoints
+                example: |-
+                  [
+                    "/1.0/storage-pools/local/volumes/custom/foo/snapshots/snap0",
+                    "/1.0/storage-pools/local/volumes/custom/foo/snapshots/snap1"
+                  ]
+                items:
+                  type: string
+                type: array
+              status:
+                description: Status description
+                example: Success
+                type: string
+              status_code:
+                description: Status code
+                example: 200
+                type: integer
+              type:
+                description: Response type
+                example: sync
+                type: string
+            type: object
+        "403":
+          $ref: '#/responses/Forbidden'
+        "500":
+          $ref: '#/responses/InternalServerError'
+      summary: Get the storage volume snapshots
+      tags:
+      - storage
+    post:
+      consumes:
+      - application/json
+      description: Creates a new storage volume snapshot.
+      operationId: storage_pool_volumes_type_snapshots_post
+      parameters:
+      - description: Project name
+        example: default
+        in: query
+        name: project
+        type: string
+      - description: Cluster member name
+        example: lxd01
+        in: query
+        name: target
+        type: string
+      - description: Storage volume snapshot
+        in: body
+        name: volume
+        required: true
+        schema:
+          $ref: '#/definitions/StorageVolumeSnapshotsPost'
+      produces:
+      - application/json
+      responses:
+        "200":
+          $ref: '#/responses/Operation'
+        "400":
+          $ref: '#/responses/BadRequest'
+        "403":
+          $ref: '#/responses/Forbidden'
+        "500":
+          $ref: '#/responses/InternalServerError'
+      summary: Create a storage volume snapshot
+      tags:
+      - storage
+  /1.0/storage-pools/{name}/volumes/{type}/{volume}/snapshots/{snapshot}:
+    delete:
+      consumes:
+      - application/json
+      description: Deletes a new storage volume snapshot.
+      operationId: storage_pool_volumes_type_snapshot_delete
+      parameters:
+      - description: Project name
+        example: default
+        in: query
+        name: project
+        type: string
+      - description: Cluster member name
+        example: lxd01
+        in: query
+        name: target
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          $ref: '#/responses/Operation'
+        "400":
+          $ref: '#/responses/BadRequest'
+        "403":
+          $ref: '#/responses/Forbidden'
+        "500":
+          $ref: '#/responses/InternalServerError'
+      summary: Delete a storage volume snapshot
+      tags:
+      - storage
+    get:
+      description: Gets a specific storage volume snapshot.
+      operationId: storage_pool_volumes_type_snapshot_get
+      parameters:
+      - description: Project name
+        example: default
+        in: query
+        name: project
+        type: string
+      - description: Cluster member name
+        example: lxd01
+        in: query
+        name: target
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Storage volume snapshot
+          schema:
+            description: Sync response
+            properties:
+              metadata:
+                $ref: '#/definitions/StorageVolumeSnapshot'
+              status:
+                description: Status description
+                example: Success
+                type: string
+              status_code:
+                description: Status code
+                example: 200
+                type: integer
+              type:
+                description: Response type
+                example: sync
+                type: string
+            type: object
+        "403":
+          $ref: '#/responses/Forbidden'
+        "500":
+          $ref: '#/responses/InternalServerError'
+      summary: Get the storage volume snapshot
+      tags:
+      - storage
+    patch:
+      consumes:
+      - application/json
+      description: Updates a subset of the storage volume snapshot configuration.
+      operationId: storage_pool_volumes_type_snapshot_patch
+      parameters:
+      - description: Project name
+        example: default
+        in: query
+        name: project
+        type: string
+      - description: Cluster member name
+        example: lxd01
+        in: query
+        name: target
+        type: string
+      - description: Storage volume snapshot configuration
+        in: body
+        name: storage volume snapshot
+        required: true
+        schema:
+          $ref: '#/definitions/StorageVolumeSnapshotPut'
+      produces:
+      - application/json
+      responses:
+        "200":
+          $ref: '#/responses/EmptySyncResponse'
+        "400":
+          $ref: '#/responses/BadRequest'
+        "403":
+          $ref: '#/responses/Forbidden'
+        "412":
+          $ref: '#/responses/PreconditionFailed'
+        "500":
+          $ref: '#/responses/InternalServerError'
+      summary: Partially update the storage volume snapshot
+      tags:
+      - storage
+    post:
+      consumes:
+      - application/json
+      description: Renames a storage volume snapshot.
+      operationId: storage_pool_volumes_type_snapshot_post
+      parameters:
+      - description: Project name
+        example: default
+        in: query
+        name: project
+        type: string
+      - description: Cluster member name
+        example: lxd01
+        in: query
+        name: target
+        type: string
+      - description: Storage volume snapshot
+        in: body
+        name: volume rename
+        required: true
+        schema:
+          $ref: '#/definitions/StorageVolumeSnapshotPost'
+      produces:
+      - application/json
+      responses:
+        "200":
+          $ref: '#/responses/Operation'
+        "400":
+          $ref: '#/responses/BadRequest'
+        "403":
+          $ref: '#/responses/Forbidden'
+        "500":
+          $ref: '#/responses/InternalServerError'
+      summary: Rename a storage volume snapshot
+      tags:
+      - storage
+    put:
+      consumes:
+      - application/json
+      description: Updates the entire storage volume snapshot configuration.
+      operationId: storage_pool_volumes_type_snapshot_put
+      parameters:
+      - description: Project name
+        example: default
+        in: query
+        name: project
+        type: string
+      - description: Cluster member name
+        example: lxd01
+        in: query
+        name: target
+        type: string
+      - description: Storage volume snapshot configuration
+        in: body
+        name: storage volume snapshot
+        required: true
+        schema:
+          $ref: '#/definitions/StorageVolumeSnapshotPut'
+      produces:
+      - application/json
+      responses:
+        "200":
+          $ref: '#/responses/EmptySyncResponse'
+        "400":
+          $ref: '#/responses/BadRequest'
+        "403":
+          $ref: '#/responses/Forbidden'
+        "412":
+          $ref: '#/responses/PreconditionFailed'
+        "500":
+          $ref: '#/responses/InternalServerError'
+      summary: Update the storage volume snapshot
+      tags:
+      - storage
+  /1.0/storage-pools/{name}/volumes/{type}/{volume}/snapshots?recursion=1:
+    get:
+      description: Returns a list of storage volume snapshots (structs).
+      operationId: storage_pool_volumes_type_snapshots_get_recursion1
+      parameters:
+      - description: Project name
+        example: default
+        in: query
+        name: project
+        type: string
+      - description: Cluster member name
+        example: lxd01
+        in: query
+        name: target
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: API endpoints
+          schema:
+            description: Sync response
+            properties:
+              metadata:
+                description: List of storage volume snapshots
+                items:
+                  $ref: '#/definitions/StorageVolumeSnapshot'
+                type: array
+              status:
+                description: Status description
+                example: Success
+                type: string
+              status_code:
+                description: Status code
+                example: 200
+                type: integer
+              type:
+                description: Response type
+                example: sync
+                type: string
+            type: object
+        "403":
+          $ref: '#/responses/Forbidden'
+        "500":
+          $ref: '#/responses/InternalServerError'
+      summary: Get the storage volume snapshots
+      tags:
+      - storage
+  /1.0/storage-pools/{name}/volumes/{type}/{volume}/state:
+    get:
+      description: Gets a specific storage volume state (usage data).
+      operationId: storage_pool_volume_type_state_get
+      parameters:
+      - description: Project name
+        example: default
+        in: query
+        name: project
+        type: string
+      - description: Cluster member name
+        example: lxd01
+        in: query
+        name: target
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Storage pool
+          schema:
+            description: Sync response
+            properties:
+              metadata:
+                $ref: '#/definitions/StorageVolumeState'
+              status:
+                description: Status description
+                example: Success
+                type: string
+              status_code:
+                description: Status code
+                example: 200
+                type: integer
+              type:
+                description: Response type
+                example: sync
+                type: string
+            type: object
+        "403":
+          $ref: '#/responses/Forbidden'
+        "500":
+          $ref: '#/responses/InternalServerError'
+      summary: Get the storage volume state
+      tags:
+      - storage
+  /1.0/storage-pools/{name}/volumes/{type}?recursion=1:
+    get:
+      description: Returns a list of storage volumes (structs) (type specific endpoint).
+      operationId: storage_pool_volumes_type_get_recursion1
+      parameters:
+      - description: Project name
+        example: default
+        in: query
+        name: project
+        type: string
+      - description: Cluster member name
+        example: lxd01
+        in: query
+        name: target
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: API endpoints
+          schema:
+            description: Sync response
+            properties:
+              metadata:
+                description: List of storage volumes
+                items:
+                  $ref: '#/definitions/StorageVolume'
+                type: array
+              status:
+                description: Status description
+                example: Success
+                type: string
+              status_code:
+                description: Status code
+                example: 200
+                type: integer
+              type:
+                description: Response type
+                example: sync
+                type: string
+            type: object
+        "403":
+          $ref: '#/responses/Forbidden'
+        "500":
+          $ref: '#/responses/InternalServerError'
+      summary: Get the storage volumes
+      tags:
+      - storage
+  /1.0/storage-pools/{name}/volumes?recursion=1:
+    get:
+      description: Returns a list of storage volumes (structs).
+      operationId: storage_pool_volumes_get_recursion1
+      parameters:
+      - description: Project name
+        example: default
+        in: query
+        name: project
+        type: string
+      - description: Cluster member name
+        example: lxd01
+        in: query
+        name: target
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: API endpoints
+          schema:
+            description: Sync response
+            properties:
+              metadata:
+                description: List of storage volumes
+                items:
+                  $ref: '#/definitions/StorageVolume'
+                type: array
+              status:
+                description: Status description
+                example: Success
+                type: string
+              status_code:
+                description: Status code
+                example: 200
+                type: integer
+              type:
+                description: Response type
+                example: sync
+                type: string
+            type: object
+        "403":
+          $ref: '#/responses/Forbidden'
+        "500":
+          $ref: '#/responses/InternalServerError'
+      summary: Get the storage volumes
       tags:
       - storage
   /1.0/storage-pools?recursion=1:
@@ -9734,7 +11017,7 @@ paths:
               status_code:
                 description: Status code
                 example: 200
-                type: int
+                type: integer
               type:
                 description: Response type
                 example: sync
@@ -9782,7 +11065,7 @@ paths:
               status_code:
                 description: Status code
                 example: 200
-                type: int
+                type: integer
               type:
                 description: Response type
                 example: sync
@@ -9827,7 +11110,7 @@ paths:
               status_code:
                 description: Status code
                 example: 200
-                type: int
+                type: integer
               type:
                 description: Response type
                 example: sync
@@ -9922,7 +11205,7 @@ paths:
               status_code:
                 description: Status code
                 example: 200
-                type: int
+                type: integer
               type:
                 description: Response type
                 example: sync
@@ -9959,7 +11242,7 @@ paths:
               status_code:
                 description: Status code
                 example: 200
-                type: int
+                type: integer
               type:
                 description: Response type
                 example: sync

@@ -1221,7 +1221,7 @@ func doImagesGet(d *Daemon, recursion bool, project string, public bool, clauses
 //           description: Status description
 //           example: Success
 //         status_code:
-//           type: int
+//           type: integer
 //           description: Status code
 //           example: 200
 //         metadata:
@@ -1275,7 +1275,7 @@ func doImagesGet(d *Daemon, recursion bool, project string, public bool, clauses
 //           description: Status description
 //           example: Success
 //         status_code:
-//           type: int
+//           type: integer
 //           description: Status code
 //           example: 200
 //         metadata:
@@ -1324,7 +1324,7 @@ func doImagesGet(d *Daemon, recursion bool, project string, public bool, clauses
 //           description: Status description
 //           example: Success
 //         status_code:
-//           type: int
+//           type: integer
 //           description: Status code
 //           example: 200
 //         metadata:
@@ -1378,7 +1378,7 @@ func doImagesGet(d *Daemon, recursion bool, project string, public bool, clauses
 //           description: Status description
 //           example: Success
 //         status_code:
-//           type: int
+//           type: integer
 //           description: Status code
 //           example: 200
 //         metadata:
@@ -2383,7 +2383,7 @@ func imageValidSecret(d *Daemon, projectName string, fingerprint string, secret 
 //           description: Status description
 //           example: Success
 //         status_code:
-//           type: int
+//           type: integer
 //           description: Status code
 //           example: 200
 //         metadata:
@@ -2424,7 +2424,7 @@ func imageValidSecret(d *Daemon, projectName string, fingerprint string, secret 
 //           description: Status description
 //           example: Success
 //         status_code:
-//           type: int
+//           type: integer
 //           description: Status code
 //           example: 200
 //         metadata:
@@ -2738,7 +2738,7 @@ func imageAliasesPost(d *Daemon, r *http.Request) response.Response {
 //           description: Status description
 //           example: Success
 //         status_code:
-//           type: int
+//           type: integer
 //           description: Status code
 //           example: 200
 //         metadata:
@@ -2787,7 +2787,7 @@ func imageAliasesPost(d *Daemon, r *http.Request) response.Response {
 //           description: Status description
 //           example: Success
 //         status_code:
-//           type: int
+//           type: integer
 //           description: Status code
 //           example: 200
 //         metadata:
@@ -2862,7 +2862,7 @@ func imageAliasesGet(d *Daemon, r *http.Request) response.Response {
 //           description: Status description
 //           example: Success
 //         status_code:
-//           type: int
+//           type: integer
 //           description: Status code
 //           example: 200
 //         metadata:
@@ -2903,7 +2903,7 @@ func imageAliasesGet(d *Daemon, r *http.Request) response.Response {
 //           description: Status description
 //           example: Success
 //         status_code:
-//           type: int
+//           type: integer
 //           description: Status code
 //           example: 200
 //         metadata:
