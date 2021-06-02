@@ -59,7 +59,7 @@ import (
 //           description: Status description
 //           example: Success
 //         status_code:
-//           type: int
+//           type: integer
 //           description: Status code
 //           example: 200
 //         metadata:
@@ -108,7 +108,7 @@ import (
 //           description: Status description
 //           example: Success
 //         status_code:
-//           type: int
+//           type: integer
 //           description: Status code
 //           example: 200
 //         metadata:
@@ -523,7 +523,7 @@ func snapshotPut(d *Daemon, r *http.Request, snapInst instance.Instance, name st
 //           description: Status description
 //           example: Success
 //         status_code:
-//           type: int
+//           type: integer
 //           description: Status code
 //           example: 200
 //         metadata:
