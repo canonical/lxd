@@ -111,7 +111,7 @@ var internalClusterRaftNodeCmd = APIEndpoint{
 //           description: Status description
 //           example: Success
 //         status_code:
-//           type: int
+//           type: integer
 //           description: Status code
 //           example: 200
 //         metadata:
@@ -949,7 +949,7 @@ func clusterAcceptMember(
 //           description: Status description
 //           example: Success
 //         status_code:
-//           type: int
+//           type: integer
 //           description: Status code
 //           example: 200
 //         metadata:
@@ -992,7 +992,7 @@ func clusterAcceptMember(
 //           description: Status description
 //           example: Success
 //         status_code:
-//           type: int
+//           type: integer
 //           description: Status code
 //           example: 200
 //         metadata:
@@ -1215,7 +1215,7 @@ func clusterNodesPost(d *Daemon, r *http.Request) response.Response {
 //           description: Status description
 //           example: Success
 //         status_code:
-//           type: int
+//           type: integer
 //           description: Status code
 //           example: 200
 //         metadata:

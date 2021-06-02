@@ -161,7 +161,7 @@ func waitForOperations(s *state.State, chCancel chan struct{}) {
 //           description: Status description
 //           example: Success
 //         status_code:
-//           type: int
+//           type: integer
 //           description: Status code
 //           example: 200
 //         metadata:
@@ -344,7 +344,7 @@ func operationCancel(d *Daemon, projectName string, op *api.Operation) error {
 //           description: Status description
 //           example: Success
 //         status_code:
-//           type: int
+//           type: integer
 //           description: Status code
 //           example: 200
 //         metadata:
@@ -390,7 +390,7 @@ func operationCancel(d *Daemon, projectName string, op *api.Operation) error {
 //           description: Status description
 //           example: Success
 //         status_code:
-//           type: int
+//           type: integer
 //           description: Status code
 //           example: 200
 //         metadata:
@@ -717,7 +717,7 @@ func operationsGetByType(d *Daemon, projectName string, opType db.OperationType)
 //   - in: query
 //     name: timeout
 //     description: Timeout in seconds (-1 means never)
-//     type: int
+//     type: integer
 //     example: -1
 // responses:
 //   "200":
@@ -735,7 +735,7 @@ func operationsGetByType(d *Daemon, projectName string, opType db.OperationType)
 //           description: Status description
 //           example: Success
 //         status_code:
-//           type: int
+//           type: integer
 //           description: Status code
 //           example: 200
 //         metadata:
@@ -758,7 +758,7 @@ func operationsGetByType(d *Daemon, projectName string, opType db.OperationType)
 //   - in: query
 //     name: timeout
 //     description: Timeout in seconds (-1 means never)
-//     type: int
+//     type: integer
 //     example: -1
 // responses:
 //   "200":
@@ -776,7 +776,7 @@ func operationsGetByType(d *Daemon, projectName string, opType db.OperationType)
 //           description: Status description
 //           example: Success
 //         status_code:
-//           type: int
+//           type: integer
 //           description: Status code
 //           example: 200
 //         metadata:
