@@ -226,7 +226,21 @@ func (c *cmdInit) askClustering(config *cmdInitData, d lxd.InstanceServer) error
 					certDigest := shared.CertFingerprint(cert)
 					fmt.Printf("Cluster fingerprint: %s\n", certDigest)
 					fmt.Printf("You can validate this fingerprint by running \"lxc info\" locally on an existing node.\n")
-					if !cli.AskBool("Is this the correct fingerprint? (yes/no) [default=no]: ", "no") {
+
+					validator := func(input string) error {
+						if input == certDigest {
+							return nil
+						} else if shared.StringInSlice(strings.ToLower(input), []string{"yes", "y"}) {
+							return nil
+						} else if shared.StringInSlice(strings.ToLower(input), []string{"no", "n"}) {
+							return nil
+						}
+
+						return fmt.Errorf("Not yes/no or fingerprint")
+					}
+
+					input := cli.AskString("Is this the correct fingerprint? (yes/no/[fingerprint]) [default=no]: ", "no", validator)
+					if shared.StringInSlice(strings.ToLower(input), []string{"no", "n"}) {
 						return fmt.Errorf("User aborted configuration")
 					}
 					config.Cluster.ClusterCertificate = string(pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: cert.Raw}))
