@@ -73,6 +73,9 @@ const qemuSerialChardevName = "qemu_serial-chardev"
 // qemuDefaultMemSize is the default memory size for VMs if not limit specified.
 const qemuDefaultMemSize = "1GiB"
 
+// qemuPCIDeviceIDStart is the first PCI slot used for user configurable devices.
+const qemuPCIDeviceIDStart = 4
+
 var errQemuAgentOffline = fmt.Errorf("LXD VM agent isn't currently running")
 
 var vmConsole = map[int]bool{}
@@ -2129,7 +2132,7 @@ func (d *qemu) generateQemuConfigFile(mountInfo *storagePools.MountInfo, busName
 	// on PCIe (which we need to maintain compatibility with network configuration in our existing VM images).
 	// It's also meant to group all low-bandwidth internal devices onto a single address. PCIe bus allows a
 	// total of 256 devices, but this assumes 32 chassis * 8 function. By using VFs for the internal fixed
-	// devices we avoid consuming a chassis for each one.
+	// devices we avoid consuming a chassis for each one. See also the qemuPCIDeviceIDStart constant.
 	devBus, devAddr, multi := bus.allocate(busFunctionGroupGeneric)
 	err = qemuBalloon.Execute(sb, map[string]interface{}{
 		"bus":           bus.name,
