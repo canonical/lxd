@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: lxd\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2021-05-28 17:11-0400\n"
+"POT-Creation-Date: 2021-06-01 22:11+0000\n"
 "PO-Revision-Date: 2019-09-06 07:09+0000\n"
 "Last-Translator: Stéphane Graber <stgraber@stgraber.org>\n"
 "Language-Team: Spanish <https://hosted.weblate.org/projects/linux-containers/"
@@ -682,7 +682,7 @@ msgstr ""
 msgid "Bad key/value pair: %s"
 msgstr ""
 
-#: lxc/copy.go:121 lxc/init.go:185 lxc/project.go:126 lxc/publish.go:175
+#: lxc/copy.go:121 lxc/init.go:185 lxc/project.go:126 lxc/publish.go:179
 #: lxc/storage.go:123 lxc/storage_volume.go:528
 #, c-format
 msgid "Bad key=value pair: %s"
@@ -886,7 +886,7 @@ msgid ""
 "For help with any of those, simply call them with --help."
 msgstr ""
 
-#: lxc/export.go:43 lxc/publish.go:38
+#: lxc/export.go:43 lxc/publish.go:41
 msgid "Compression algorithm to use (`none` for uncompressed)"
 msgstr ""
 
@@ -1219,7 +1219,7 @@ msgstr ""
 #: lxc/profile.go:876 lxc/project.go:30 lxc/project.go:91 lxc/project.go:156
 #: lxc/project.go:219 lxc/project.go:339 lxc/project.go:389 lxc/project.go:488
 #: lxc/project.go:543 lxc/project.go:603 lxc/project.go:632 lxc/project.go:685
-#: lxc/project.go:744 lxc/publish.go:31 lxc/query.go:32 lxc/remote.go:33
+#: lxc/project.go:744 lxc/publish.go:34 lxc/query.go:32 lxc/remote.go:33
 #: lxc/remote.go:85 lxc/remote.go:483 lxc/remote.go:519 lxc/remote.go:605
 #: lxc/remote.go:675 lxc/remote.go:729 lxc/remote.go:767 lxc/rename.go:21
 #: lxc/restore.go:24 lxc/snapshot.go:28 lxc/storage.go:33 lxc/storage.go:89
@@ -1774,6 +1774,10 @@ msgstr ""
 msgid "Image copied successfully!"
 msgstr ""
 
+#: lxc/publish.go:42
+msgid "Image expiration date (format: rfc3339)"
+msgstr ""
+
 #: lxc/image.go:605
 msgid "Image exported successfully!"
 msgstr ""
@@ -1846,7 +1850,7 @@ msgstr ""
 msgid "Input data"
 msgstr ""
 
-#: lxc/publish.go:76
+#: lxc/publish.go:80
 #, fuzzy
 msgid "Instance name is mandatory"
 msgstr "Nombre del contenedor es obligatorio"
@@ -1856,7 +1860,7 @@ msgstr "Nombre del contenedor es obligatorio"
 msgid "Instance name is: %s"
 msgstr "Nombre del contenedor es: %s"
 
-#: lxc/publish.go:277
+#: lxc/publish.go:289
 #, fuzzy, c-format
 msgid "Instance published with fingerprint: %s"
 msgstr "Contenedor publicado con huella digital: %s"
@@ -2301,7 +2305,7 @@ msgstr ""
 msgid "Make image public"
 msgstr ""
 
-#: lxc/publish.go:35
+#: lxc/publish.go:38
 msgid "Make the image public"
 msgstr ""
 
@@ -2695,7 +2699,7 @@ msgstr ""
 msgid "Network usage:"
 msgstr ""
 
-#: lxc/publish.go:36
+#: lxc/publish.go:39
 msgid "New alias to define at target"
 msgstr ""
 
@@ -2976,11 +2980,11 @@ msgstr ""
 msgid "Public: %s"
 msgstr "Público: %s"
 
-#: lxc/publish.go:30 lxc/publish.go:31
+#: lxc/publish.go:33 lxc/publish.go:34
 msgid "Publish instances as images"
 msgstr ""
 
-#: lxc/publish.go:223
+#: lxc/publish.go:235
 #, fuzzy, c-format
 msgid "Publishing instance: %s"
 msgstr "No se puede proveer el nombre del container a la lista"
@@ -3601,11 +3605,11 @@ msgstr ""
 msgid "Stop instances"
 msgstr ""
 
-#: lxc/publish.go:37
+#: lxc/publish.go:40
 msgid "Stop the instance if currently running"
 msgstr ""
 
-#: lxc/publish.go:137
+#: lxc/publish.go:141
 msgid "Stopping instance failed!"
 msgstr ""
 
@@ -3736,7 +3740,7 @@ msgstr ""
 msgid "The instance is currently running, stop it first or pass --force"
 msgstr ""
 
-#: lxc/publish.go:106
+#: lxc/publish.go:110
 msgid ""
 "The instance is currently running. Use --force to have it stopped and "
 "restarted"
@@ -3773,7 +3777,7 @@ msgstr ""
 msgid "The specified device doesn't match the network"
 msgstr ""
 
-#: lxc/publish.go:79
+#: lxc/publish.go:83
 msgid "There is no \"image name\".  Did you want an alias?"
 msgstr ""
 
@@ -4294,7 +4298,7 @@ msgstr "No se puede proveer el nombre del container a la lista"
 msgid "[<remote>:]<instance>[/<snapshot>] <instance>[/<snapshot>]"
 msgstr "No se puede proveer el nombre del container a la lista"
 
-#: lxc/publish.go:29
+#: lxc/publish.go:32
 #, fuzzy
 msgid "[<remote>:]<instance>[/<snapshot>] [<remote>:] [flags] [key=value...]"
 msgstr "No se puede proveer el nombre del container a la lista"
