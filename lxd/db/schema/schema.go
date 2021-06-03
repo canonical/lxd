@@ -377,8 +377,7 @@ func ensureUpdatesAreApplied(tx *sql.Tx, current int, updates []Update, hook Hoo
 // Check that the given list of update version numbers doesn't have "holes",
 // that is each version equal the preceding version plus 1.
 func checkSchemaVersionsHaveNoHoles(versions []int) error {
-	// Sanity check that there are no "holes" in the recorded
-	// versions.
+	// Ensure that there are no "holes" in the recorded versions.
 	for i := range versions[:len(versions)-1] {
 		if versions[i+1] != versions[i]+1 {
 			return fmt.Errorf("Missing updates: %d to %d", versions[i], versions[i+1])

@@ -382,7 +382,7 @@ func (c *ClusterTx) CreatePendingStoragePool(node, name, driver string, conf map
 
 	var errConsistency error
 	dest := func(i int) []interface{} {
-		// Sanity check that there is at most one pool with the given name.
+		// Ensure that there is at most one pool with the given name.
 		if i != 0 {
 			errConsistency = fmt.Errorf("more than one pool exists with the given name")
 		}

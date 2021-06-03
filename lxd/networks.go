@@ -448,7 +448,7 @@ func networksPostCluster(d *Daemon, netInfo *api.Network, req api.NetworksPost, 
 		}
 	}
 
-	// Perform sanity checks if network already exists.
+	// If network already exists, perform quick checks.
 	if netInfo != nil {
 		// Check network isn't already created.
 		if netInfo.Status == api.NetworkStatusCreated {
@@ -933,7 +933,7 @@ func networkPost(d *Daemon, r *http.Request) response.Response {
 		return response.BadRequest(fmt.Errorf("Cannot rename network when not in created state"))
 	}
 
-	// Sanity check new name.
+	// Ensure new name is supplied.
 	if req.Name == "" {
 		return response.BadRequest(fmt.Errorf("New network name not provided"))
 	}
