@@ -37,6 +37,8 @@ const (
 	WarningClusterTimeSkew
 	// WarningAppArmorNotAvailable represents the AppArmor not available warning
 	WarningAppArmorNotAvailable
+	//WarningMissingVirtiofsd represents the missing virtiofsd warning
+	WarningMissingVirtiofsd
 )
 
 // WarningTypeNames associates a warning code to its name.
@@ -56,6 +58,7 @@ var WarningTypeNames = map[WarningType]string{
 	WarningMissingCGroupMemorySwapAccounting:      "Couldn't find the CGroup memory swap accounting",
 	WarningClusterTimeSkew:                        "Time skew detected between leader and local",
 	WarningAppArmorNotAvailable:                   "AppArmor support has been disabled",
+	WarningMissingVirtiofsd:                       "Missing virtiofsd",
 }
 
 // WarningTypes associates a warning type to its type code.
@@ -99,6 +102,8 @@ func (t WarningType) Severity() WarningSeverity {
 	case WarningClusterTimeSkew:
 		return WarningSeverityLow
 	case WarningAppArmorNotAvailable:
+		return WarningSeverityLow
+	case WarningMissingVirtiofsd:
 		return WarningSeverityLow
 	}
 
