@@ -2693,7 +2693,7 @@ func (d *qemu) addRootDriveConfig(sb *strings.Builder, mountInfo *storagePools.M
 	}
 
 	// If the storage pool is on ZFS and backed by a loop file and we can't use DirectIO, then resort to
-	// unsafe async I/O to avoid kernel hangs when running ZFS storage pools in an image file on another FS.
+	// unsafe async I/O to avoid kernel lock up when running ZFS storage pools in an image file on another FS.
 	driverInfo := pool.Driver().Info()
 	driverConf := pool.Driver().Config()
 	if driverInfo.Name == "zfs" && !driverInfo.DirectIO && shared.PathExists(driverConf["source"]) && !shared.IsBlockdevPath(driverConf["source"]) {
@@ -2803,7 +2803,7 @@ func (d *qemu) addDriveConfig(sb *strings.Builder, bootIndexes map[string]int, d
 		}
 
 		// If backing FS is ZFS or BTRFS, avoid using direct I/O and use host page cache only.
-		// We've seen ZFS hangs and BTRFS checksum issues when using direct I/O on image files.
+		// We've seen ZFS lock up and BTRFS checksum issues when using direct I/O on image files.
 		if fsType == "zfs" || fsType == "btrfs" {
 			if driveConf.FSType != "iso9660" {
 				// Only warn about using writeback cache if the drive image is writable.

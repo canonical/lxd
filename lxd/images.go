@@ -997,7 +997,7 @@ func getImageMetadata(fname string) (*api.ImageMetadata, string, error) {
 		}
 		defer cmd.Wait()
 
-		// Double close stdout, this is to avoid hangs in Wait()
+		// Double close stdout, this is to avoid blocks in Wait()
 		defer stdout.Close()
 
 		tr = tar.NewReader(stdout)
