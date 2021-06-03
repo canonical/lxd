@@ -576,7 +576,7 @@ func (m *Method) id(buf *file.Buffer) error {
 	buf.L("}")
 	buf.L("defer rows.Close()")
 	buf.N()
-	buf.L("// For sanity, make sure we read one and only one row.")
+	buf.L("// Ensure we read one and only one row.")
 	buf.L("if !rows.Next() {")
 	buf.L("        return -1, ErrNoSuchObject")
 	buf.L("}")

@@ -928,7 +928,7 @@ func (d *ceph) SetVolumeQuota(vol Volume, size string, op *operations.Operation)
 			}
 		}
 	} else {
-		// Only perform pre-resize sanity checks if we are not in "unsafe" mode.
+		// Only perform pre-resize checks if we are not in "unsafe" mode.
 		// In unsafe mode we expect the caller to know what they are doing and understand the risks.
 		if !vol.allowUnsafeResize {
 			if sizeBytes < oldSizeBytes {

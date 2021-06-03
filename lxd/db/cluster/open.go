@@ -78,8 +78,7 @@ func EnsureSchema(db *sql.DB, address string, dir string) (bool, error) {
 			return errors.Wrap(err, "failed to fetch unclustered nodes count")
 		}
 		if n > 1 {
-			// This should never happen, since we only add nodes
-			// with valid addresses, but check it for sanity.
+			// This should never happen, since we only add nodes with valid addresses..
 			return fmt.Errorf("found more than one unclustered nodes")
 		} else if n == 1 {
 			clustered = false
@@ -123,8 +122,7 @@ func EnsureSchema(db *sql.DB, address string, dir string) (bool, error) {
 			return errors.Wrap(err, "failed to fetch unclustered nodes count")
 		}
 		if n > 1 {
-			// This should never happen, since we only add nodes
-			// with valid addresses, but check it for sanity.
+			// This should never happen, since we only add nodes with valid addresses.
 			return fmt.Errorf("found more than one unclustered nodes")
 		} else if n == 1 {
 			address = "0.0.0.0" // We're not clustered
@@ -253,7 +251,6 @@ func checkClusterIsUpgradable(tx *sql.Tx, target [2]int) error {
 			// since we need a greater version.
 			return fmt.Errorf("this node's version is behind, please upgrade")
 		default:
-			// Sanity.
 			panic("unexpected return value from compareVersions")
 		}
 	}
