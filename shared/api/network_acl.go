@@ -59,28 +59,28 @@ func (r *NetworkACLRule) Normalise() {
 	r.Description = strings.TrimSpace(r.Description)
 	r.State = strings.TrimSpace(r.State)
 
-	// Remove whitespace from Source subject list.
+	// Remove space from Source subject list.
 	subjects := strings.Split(r.Source, ",")
 	for i, s := range subjects {
 		subjects[i] = strings.TrimSpace(s)
 	}
 	r.Source = strings.Join(subjects, ",")
 
-	// Remove whitespace from Destination subject list.
+	// Remove space from Destination subject list.
 	subjects = strings.Split(r.Destination, ",")
 	for i, s := range subjects {
 		subjects[i] = strings.TrimSpace(s)
 	}
 	r.Destination = strings.Join(subjects, ",")
 
-	// Remove whitespace from SourcePort port list.
+	// Remove space from SourcePort port list.
 	ports := strings.Split(r.SourcePort, ",")
 	for i, s := range ports {
 		ports[i] = strings.TrimSpace(s)
 	}
 	r.SourcePort = strings.Join(ports, ",")
 
-	// Remove whitespace from DestinationPort port list.
+	// Remove space from DestinationPort port list.
 	ports = strings.Split(r.DestinationPort, ",")
 	for i, s := range ports {
 		ports[i] = strings.TrimSpace(s)

@@ -769,7 +769,7 @@ func (c *cmdNetworkACLRule) RunAdd(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	rule.Normalise() // Strip whitespace.
+	rule.Normalise() // Strip space.
 
 	// Default to enabled if not specified.
 	if rule.State == "" {

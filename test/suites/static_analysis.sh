@@ -40,10 +40,10 @@ test_static_analysis() {
       false
     fi
 
-    ## Trailing whitespace in scripts
+    ## Trailing space in scripts
     OUT=$(grep -r " $" . | grep '\.sh:' || true)
     if [ -n "${OUT}" ]; then
-      echo "ERROR: trailing whitespace in script: ${OUT}"
+      echo "ERROR: trailing space in script: ${OUT}"
       false
     fi
 
