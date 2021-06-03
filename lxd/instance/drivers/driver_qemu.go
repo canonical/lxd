@@ -32,6 +32,7 @@ import (
 	"github.com/lxc/lxd/lxd/cgroup"
 	"github.com/lxc/lxd/lxd/cluster"
 	"github.com/lxc/lxd/lxd/db"
+	dbCluster "github.com/lxc/lxd/lxd/db/cluster"
 	"github.com/lxc/lxd/lxd/device"
 	deviceConfig "github.com/lxc/lxd/lxd/device/config"
 	"github.com/lxc/lxd/lxd/device/nictype"
@@ -50,6 +51,7 @@ import (
 	pongoTemplate "github.com/lxc/lxd/lxd/template"
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/lxd/vsock"
+	"github.com/lxc/lxd/lxd/warnings"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/instancewriter"
@@ -1048,7 +1050,17 @@ func (d *qemu) Start(stateful bool) error {
 		var errUnsupported device.UnsupportedError
 		if errors.As(err, &errUnsupported) {
 			d.logger.Warn("Unable to use virtio-fs for config drive, using 9p as a fallback", log.Ctx{"err": errUnsupported})
+
+			if errUnsupported == device.ErrMissingVirtiofsd {
+				// Create a warning if virtiofsd is missing
+				d.state.Cluster.UpsertWarning(d.node, d.project, dbCluster.TypeInstance, d.ID(), db.WarningMissingVirtiofsd, "Using 9p as a fallback")
+			} else {
+				// Resolve previous warning
+				warnings.ResolveWarningsByNodeAndProjectAndType(d.state.Cluster, d.node, d.project, db.WarningMissingVirtiofsd)
+			}
 		} else {
+			// Resolve previous warning
+			warnings.ResolveWarningsByNodeAndProjectAndType(d.state.Cluster, d.node, d.project, db.WarningMissingVirtiofsd)
 			op.Done(err)
 			return errors.Wrapf(err, "Failed to setup virtiofsd for config drive")
 		}
