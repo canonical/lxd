@@ -1377,3 +1377,9 @@ without using the trust password.
 
 ## clustering\_description
 Adds an editable description to the cluster members.
+
+## server\_trusted\_proxy
+This introduces support for `core.https_trusted_proxy` which has LXD
+parse a HAProxy style connection header on such connections and if
+present, will rewrite the request's source address to that provided by
+the proxy server.
