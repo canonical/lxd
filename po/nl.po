@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: lxd\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2021-06-02 04:58+0000\n"
+"POT-Creation-Date: 2021-06-03 15:59-0400\n"
 "PO-Revision-Date: 2019-09-06 07:09+0000\n"
 "Last-Translator: Stéphane Graber <stgraber@stgraber.org>\n"
 "Language-Team: Dutch <https://hosted.weblate.org/projects/linux-containers/"
@@ -75,7 +75,7 @@ msgstr ""
 "### config:\n"
 "###  size: \"61203283968\""
 
-#: lxc/config_trust.go:144
+#: lxc/config_trust.go:159
 #, fuzzy
 msgid ""
 "### This is a YAML representation of the certificate.\n"
@@ -528,7 +528,7 @@ msgid ""
 "protocol=simplestreams\n"
 msgstr ""
 
-#: lxc/config_trust.go:72 lxc/config_trust.go:73
+#: lxc/config_trust.go:73 lxc/config_trust.go:74
 msgid "Add new trusted clients"
 msgstr ""
 
@@ -566,6 +566,10 @@ msgstr ""
 
 #: lxc/image.go:940
 msgid "Aliases:"
+msgstr ""
+
+#: lxc/config_trust.go:79
+msgid "Alternative certificate name"
 msgstr ""
 
 #: lxc/image.go:911 lxc/info.go:468
@@ -705,7 +709,7 @@ msgstr ""
 msgid "CANCELABLE"
 msgstr ""
 
-#: lxc/config_trust.go:306
+#: lxc/config_trust.go:321
 msgid "COMMON NAME"
 msgstr ""
 
@@ -885,7 +889,7 @@ msgid "Config key/value to apply to the target instance"
 msgstr ""
 
 #: lxc/cluster.go:512 lxc/config.go:255 lxc/config.go:328
-#: lxc/config_metadata.go:142 lxc/config_trust.go:213 lxc/image.go:431
+#: lxc/config_metadata.go:142 lxc/config_trust.go:228 lxc/image.go:431
 #: lxc/network.go:659 lxc/network_acl.go:528 lxc/profile.go:498
 #: lxc/project.go:309 lxc/storage.go:303 lxc/storage_volume.go:941
 #: lxc/storage_volume.go:971
@@ -1164,9 +1168,9 @@ msgstr ""
 #: lxc/config_metadata.go:174 lxc/config_template.go:28
 #: lxc/config_template.go:65 lxc/config_template.go:108
 #: lxc/config_template.go:150 lxc/config_template.go:236
-#: lxc/config_template.go:295 lxc/config_trust.go:33 lxc/config_trust.go:73
-#: lxc/config_trust.go:135 lxc/config_trust.go:247 lxc/config_trust.go:327
-#: lxc/config_trust.go:370 lxc/console.go:36 lxc/copy.go:40 lxc/delete.go:31
+#: lxc/config_template.go:295 lxc/config_trust.go:33 lxc/config_trust.go:74
+#: lxc/config_trust.go:150 lxc/config_trust.go:262 lxc/config_trust.go:342
+#: lxc/config_trust.go:385 lxc/console.go:36 lxc/copy.go:40 lxc/delete.go:31
 #: lxc/exec.go:40 lxc/export.go:32 lxc/file.go:72 lxc/file.go:105
 #: lxc/file.go:154 lxc/file.go:217 lxc/file.go:407 lxc/image.go:38
 #: lxc/image.go:141 lxc/image.go:287 lxc/image.go:338 lxc/image.go:463
@@ -1308,7 +1312,7 @@ msgstr ""
 msgid "EPHEMERAL"
 msgstr ""
 
-#: lxc/config_trust.go:309
+#: lxc/config_trust.go:324
 msgid "EXPIRY DATE"
 msgstr ""
 
@@ -1366,7 +1370,7 @@ msgstr ""
 msgid "Edit storage volume configurations as YAML"
 msgstr ""
 
-#: lxc/config_trust.go:134 lxc/config_trust.go:135
+#: lxc/config_trust.go:149 lxc/config_trust.go:150
 msgid "Edit trust configurations as YAML"
 msgstr ""
 
@@ -1485,7 +1489,7 @@ msgstr ""
 msgid "FILENAME"
 msgstr ""
 
-#: lxc/config_trust.go:307 lxc/image.go:1021 lxc/image.go:1022
+#: lxc/config_trust.go:322 lxc/image.go:1021 lxc/image.go:1022
 #: lxc/image_alias.go:232
 msgid "FINGERPRINT"
 msgstr ""
@@ -1575,7 +1579,7 @@ msgid ""
 msgstr ""
 
 #: lxc/alias.go:102 lxc/cluster.go:84 lxc/cluster.go:645
-#: lxc/config_template.go:238 lxc/config_trust.go:249 lxc/image.go:1011
+#: lxc/config_template.go:238 lxc/config_trust.go:264 lxc/image.go:1011
 #: lxc/image_alias.go:155 lxc/list.go:131 lxc/network.go:830 lxc/network.go:923
 #: lxc/network_acl.go:91 lxc/operation.go:104 lxc/profile.go:581
 #: lxc/project.go:391 lxc/project.go:746 lxc/remote.go:527 lxc/storage.go:515
@@ -1708,7 +1712,7 @@ msgstr ""
 msgid "IPV6"
 msgstr ""
 
-#: lxc/config_trust.go:308
+#: lxc/config_trust.go:323
 msgid "ISSUE DATE"
 msgstr ""
 
@@ -1840,7 +1844,7 @@ msgstr ""
 msgid "Invalid URL scheme \"%s\" in \"%s\""
 msgstr ""
 
-#: lxc/config_trust.go:288
+#: lxc/config_trust.go:303
 msgid "Invalid certificate"
 msgstr ""
 
@@ -2141,7 +2145,7 @@ msgid ""
 "  Defaults to -1 (unlimited). Use 0 to limit to the column header size."
 msgstr ""
 
-#: lxc/config_trust.go:77
+#: lxc/config_trust.go:78
 msgid "List of projects to restrict the certificate to"
 msgstr ""
 
@@ -2182,7 +2186,7 @@ msgstr ""
 msgid "List the available remotes"
 msgstr ""
 
-#: lxc/config_trust.go:246 lxc/config_trust.go:247
+#: lxc/config_trust.go:261 lxc/config_trust.go:262
 msgid "List trusted clients"
 msgstr ""
 
@@ -2425,7 +2429,7 @@ msgstr ""
 msgid "Minimum level for log messages"
 msgstr ""
 
-#: lxc/config_trust.go:167 lxc/config_trust.go:395
+#: lxc/config_trust.go:182 lxc/config_trust.go:410
 msgid "Missing certificate fingerprint"
 msgstr ""
 
@@ -2549,7 +2553,7 @@ msgstr ""
 msgid "Must supply instance name for: "
 msgstr ""
 
-#: lxc/cluster.go:140 lxc/cluster.go:725 lxc/config_trust.go:305
+#: lxc/cluster.go:140 lxc/cluster.go:725 lxc/config_trust.go:320
 #: lxc/list.go:496 lxc/network.go:894 lxc/network_acl.go:140 lxc/profile.go:620
 #: lxc/project.go:465 lxc/remote.go:586 lxc/storage.go:567
 #: lxc/storage_volume.go:1270
@@ -2791,7 +2795,7 @@ msgstr ""
 msgid "Pid: %d"
 msgstr ""
 
-#: lxc/remote.go:328
+#: lxc/remote.go:327
 msgid "Please type 'y', 'n' or the fingerprint:"
 msgstr ""
 
@@ -2806,7 +2810,7 @@ msgstr ""
 
 #: lxc/cluster.go:513 lxc/config.go:256 lxc/config.go:329
 #: lxc/config_metadata.go:143 lxc/config_template.go:203
-#: lxc/config_trust.go:214 lxc/image.go:432 lxc/network.go:660
+#: lxc/config_trust.go:229 lxc/image.go:432 lxc/network.go:660
 #: lxc/network_acl.go:529 lxc/profile.go:499 lxc/project.go:310
 #: lxc/storage.go:304 lxc/storage_volume.go:942 lxc/storage_volume.go:972
 msgid "Press enter to open the editor again or ctrl+c to abort change"
@@ -3078,7 +3082,7 @@ msgstr ""
 msgid "Remove rules from an ACL"
 msgstr ""
 
-#: lxc/config_trust.go:326 lxc/config_trust.go:327
+#: lxc/config_trust.go:341 lxc/config_trust.go:342
 msgid "Remove trusted clients"
 msgstr ""
 
@@ -3171,7 +3175,7 @@ msgstr ""
 msgid "Restore storage volume snapshots"
 msgstr ""
 
-#: lxc/config_trust.go:76
+#: lxc/config_trust.go:77
 msgid "Restrict the certificate to one or more projects"
 msgstr ""
 
@@ -3236,7 +3240,7 @@ msgstr ""
 msgid "Server authentication type (tls or candid)"
 msgstr ""
 
-#: lxc/remote.go:324
+#: lxc/remote.go:325
 msgid "Server certificate NACKed by user"
 msgstr ""
 
@@ -3486,7 +3490,7 @@ msgstr ""
 msgid "Show the used and free space in bytes"
 msgstr ""
 
-#: lxc/config_trust.go:369 lxc/config_trust.go:370
+#: lxc/config_trust.go:384 lxc/config_trust.go:385
 msgid "Show trust configurations"
 msgstr ""
 
@@ -3645,7 +3649,7 @@ msgstr ""
 msgid "TOKEN"
 msgstr ""
 
-#: lxc/config_trust.go:304 lxc/image.go:1028 lxc/image_alias.go:233
+#: lxc/config_trust.go:319 lxc/image.go:1028 lxc/image_alias.go:233
 #: lxc/list.go:502 lxc/network.go:895 lxc/network.go:970 lxc/operation.go:159
 #: lxc/storage_volume.go:1269 lxc/warning.go:210
 msgid "TYPE"
@@ -4023,7 +4027,7 @@ msgstr ""
 msgid "[<remote:>]<pool> <volume> <profile> [<device name>] <path>"
 msgstr ""
 
-#: lxc/cluster.go:79 lxc/cluster.go:642 lxc/config_trust.go:244
+#: lxc/cluster.go:79 lxc/cluster.go:642 lxc/config_trust.go:259
 #: lxc/monitor.go:28 lxc/network.go:823 lxc/network_acl.go:85
 #: lxc/operation.go:99 lxc/profile.go:574 lxc/project.go:386 lxc/storage.go:510
 #: lxc/version.go:20 lxc/warning.go:64
@@ -4034,11 +4038,11 @@ msgstr ""
 msgid "[<remote>:] <backup file> [<instance name>]"
 msgstr ""
 
-#: lxc/config_trust.go:71
+#: lxc/config_trust.go:72
 msgid "[<remote>:] <cert>"
 msgstr ""
 
-#: lxc/config_trust.go:324
+#: lxc/config_trust.go:339
 msgid "[<remote>:] <hostname|fingerprint>"
 msgstr ""
 
@@ -4098,7 +4102,7 @@ msgstr ""
 msgid "[<remote>:]<cluster member>"
 msgstr ""
 
-#: lxc/config_trust.go:133 lxc/config_trust.go:368
+#: lxc/config_trust.go:148 lxc/config_trust.go:383
 msgid "[<remote>:]<fingerprint>"
 msgstr ""
 
@@ -4694,7 +4698,7 @@ msgid ""
 "\" in the \"default\" pool."
 msgstr ""
 
-#: lxc/remote.go:323
+#: lxc/remote.go:324
 msgid "n"
 msgstr ""
 
@@ -4743,7 +4747,7 @@ msgstr ""
 msgid "used by"
 msgstr ""
 
-#: lxc/remote.go:327
+#: lxc/remote.go:326
 msgid "y"
 msgstr ""
 
