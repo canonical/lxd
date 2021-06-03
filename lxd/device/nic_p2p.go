@@ -15,6 +15,11 @@ type nicP2P struct {
 	deviceCommon
 }
 
+// CanHotPlug returns whether the device can be managed whilst the instance is running. Returns true.
+func (d *nicP2P) CanHotPlug() bool {
+	return true
+}
+
 // validateConfig checks the supplied config for correctness.
 func (d *nicP2P) validateConfig(instConf instance.ConfigReader) error {
 	if !instanceSupported(instConf.Type(), instancetype.Container, instancetype.VM) {
