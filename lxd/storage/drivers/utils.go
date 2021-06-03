@@ -360,7 +360,7 @@ func ensureVolumeBlockFile(vol Volume, path string, sizeBytes int64, unsupported
 			return false, nil
 		}
 
-		// Only perform pre-resize sanity checks if we are not in "unsafe" mode.
+		// Only perform pre-resize checks if we are not in "unsafe" mode.
 		// In unsafe mode we expect the caller to know what they are doing and understand the risks.
 		if !vol.allowUnsafeResize {
 			// Reject if would try and resize a volume type that is not supported.

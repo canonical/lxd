@@ -596,7 +596,7 @@ func Assign(state *state.State, gateway *Gateway, nodes []db.RaftNode) error {
 		return err
 	}
 
-	// Sanity check that we actually have an address.
+	// Ensure we actually have an address.
 	if address == "" {
 		return fmt.Errorf("Cluster member is not exposed on the network")
 	}
@@ -609,8 +609,7 @@ func Assign(state *state.State, gateway *Gateway, nodes []db.RaftNode) error {
 		}
 	}
 
-	// Sanity check that our address was actually included in the given
-	// list of raft nodes.
+	// Ensure that our address was actually included in the given list of raft nodes.
 	if info == nil {
 		return fmt.Errorf("This node is not included in the given list of database nodes")
 	}
@@ -1000,9 +999,8 @@ func membershipCheckNodeStateForBootstrapOrJoin(tx *db.NodeTx, address string) e
 	hasClusterAddress := address != ""
 	hasRaftNodes := len(nodes) > 0
 
-	// Sanity check that we're not in an inconsistent situation, where no
-	// cluster address is set, but still there are entries in the
-	// raft_nodes table.
+	// Ensure that we're not in an inconsistent situation, where no cluster address is set, but still there
+	// are entries in the raft_nodes table.
 	if !hasClusterAddress && hasRaftNodes {
 		return fmt.Errorf("inconsistent state: found leftover entries in raft_nodes")
 	}
@@ -1087,7 +1085,7 @@ func membershipCheckClusterStateForLeave(tx *db.ClusterTx, nodeID int64) error {
 // Check that there is no left-over cluster certificate in the LXD var dir of
 // this node.
 func membershipCheckNoLeftoverClusterCert(dir string) error {
-	// Sanity check that there's no leftover cluster certificate
+	// Ensure that there's no leftover cluster certificate.
 	for _, basename := range []string{"cluster.crt", "cluster.key", "cluster.ca"} {
 		if shared.PathExists(filepath.Join(dir, basename)) {
 			return fmt.Errorf("inconsistent state: found leftover cluster certificate")

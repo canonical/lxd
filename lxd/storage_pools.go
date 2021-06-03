@@ -358,7 +358,7 @@ func storagePoolsPostCluster(d *Daemon, pool *api.StoragePool, req api.StoragePo
 		}
 	}
 
-	// Perform sanity checks if pool already exists.
+	// If pool already exists, perform quick checks.
 	if pool != nil {
 		// Check pool isn't already created.
 		if pool.Status == api.StoragePoolStatusCreated {

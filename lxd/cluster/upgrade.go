@@ -169,9 +169,9 @@ func UpgradeMembersWithoutRole(gateway *Gateway, members []db.NodeInfo) error {
 					break
 				}
 			}
-			// Sanity check: can't really happen since there are
-			// always at least as many members as there are nodes,
-			// and all of them have different IDs.
+
+			// This can't really happen since there are always at least as many members as there are
+			// nodes, and all of them have different IDs.
 			if id == uint64(member.ID) {
 				panic("no available ID")
 			}

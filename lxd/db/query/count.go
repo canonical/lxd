@@ -19,7 +19,7 @@ func Count(tx *sql.Tx, table string, where string, args ...interface{}) (int, er
 	}
 	defer rows.Close()
 
-	// For sanity, make sure we read one and only one row.
+	// Ensure we read one and only one row.
 	if !rows.Next() {
 		return -1, fmt.Errorf("no rows returned")
 	}
