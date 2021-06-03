@@ -273,7 +273,10 @@ func (m *Monitor) AddNIC(netDev map[string]interface{}, device map[string]string
 				return
 			}
 
-			m.run("netdev_del", string(args), nil)
+			err = m.run("netdev_del", string(args), nil)
+			if err != nil {
+				return
+			}
 		})
 	}
 
@@ -293,6 +296,48 @@ func (m *Monitor) AddNIC(netDev map[string]interface{}, device map[string]string
 	return nil
 }
 
+// RemoveNIC removes a NIC device.
+func (m *Monitor) RemoveNIC(netDevID string, deviceID string) error {
+	if deviceID != "" {
+		deviceID := map[string]string{
+			"id": deviceID,
+		}
+
+		args, err := json.Marshal(deviceID)
+		if err != nil {
+			return err
+		}
+
+		err = m.run("device_del", string(args), nil)
+		if err != nil {
+			// If the device has already been removed then all good.
+			if err != nil && !strings.Contains(err.Error(), "not found") {
+				return errors.Wrapf(err, "Failed removing NIC device")
+			}
+		}
+	}
+
+	if netDevID != "" {
+		netDevID := map[string]string{
+			"id": netDevID,
+		}
+
+		args, err := json.Marshal(netDevID)
+		if err != nil {
+			return err
+		}
+
+		err = m.run("netdev_del", string(args), nil)
+
+		// Not all NICs need a netdev, so if its missing, its not a problem.
+		if err != nil && !strings.Contains(err.Error(), "not found") {
+			return errors.Wrapf(err, "Failed removing NIC netdev")
+		}
+	}
+
+	return nil
+}
+
 // Reset VM.
 func (m *Monitor) Reset() error {
 	err := m.run("system_reset", "", nil)
@@ -301,4 +346,43 @@ func (m *Monitor) Reset() error {
 	}
 
 	return nil
+}
+
+// PCIClassInfo info about a device's class.
+type PCIClassInfo struct {
+	Class       int    `json:"class"`
+	Description string `json:"desc"`
+}
+
+// PCIDevice represents a PCI device.
+type PCIDevice struct {
+	DevID    string       `json:"qdev_id"`
+	Bus      int          `json:"bus"`
+	Slot     int          `json:"slot"`
+	Function int          `json:"function"`
+	Devices  []PCIDevice  `json:"devices"`
+	Class    PCIClassInfo `json:"class_info"`
+	Bridge   PCIBridge    `json:"pci_bridge"`
+}
+
+// PCIBridge represents a PCI bridge.
+type PCIBridge struct {
+	Devices []PCIDevice `json:"devices"`
+}
+
+// QueryPCI returns info about PCI devices.
+func (m *Monitor) QueryPCI() ([]PCIDevice, error) {
+	// Prepare the response.
+	var resp struct {
+		Return []struct {
+			Devices []PCIDevice `json:"devices"`
+		} `json:"return"`
+	}
+
+	err := m.run("query-pci", "", &resp)
+	if err != nil {
+		return nil, errors.Wrapf(err, "Failed querying PCI devices")
+	}
+
+	return resp.Return[0].Devices, nil
 }

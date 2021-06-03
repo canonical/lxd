@@ -73,6 +73,15 @@ const qemuSerialChardevName = "qemu_serial-chardev"
 // qemuDefaultMemSize is the default memory size for VMs if not limit specified.
 const qemuDefaultMemSize = "1GiB"
 
+// qemuPCIDeviceIDStart is the first PCI slot used for user configurable devices.
+const qemuPCIDeviceIDStart = 4
+
+// qemuDeviceIDPrefix used as part of the name given QEMU devices generated from user added devices.
+const qemuDeviceIDPrefix = "dev-lxd_"
+
+// qemuNetDevIDPrefix used as part of the name given QEMU netdevs generated from user added devices.
+const qemuNetDevIDPrefix = "lxd_"
+
 var errQemuAgentOffline = fmt.Errorf("LXD VM agent isn't currently running")
 
 var vmConsole = map[int]bool{}
@@ -1577,7 +1586,10 @@ func (d *qemu) deviceStart(deviceName string, rawConfig deviceConfig.Device, ins
 	logger := logging.AddContext(d.logger, log.Ctx{"device": deviceName, "type": rawConfig["type"]})
 	logger.Debug("Starting device")
 
-	dev, _, err := d.deviceLoad(deviceName, rawConfig)
+	revert := revert.New()
+	defer revert.Fail()
+
+	dev, configCopy, err := d.deviceLoad(deviceName, rawConfig)
 	if err != nil {
 		return nil, err
 	}
@@ -1591,7 +1603,102 @@ func (d *qemu) deviceStart(deviceName string, rawConfig deviceConfig.Device, ins
 		return nil, err
 	}
 
+	revert.Add(func() {
+		runConf, _ := dev.Stop()
+		if runConf != nil {
+			d.runHooks(runConf.PostHooks)
+		}
+	})
+
+	// If runConf supplied, perform any instance specific setup of device.
+	if runConf != nil {
+		// If instance is running and then live attach device.
+		if instanceRunning {
+			// Attach network interface if requested.
+			if len(runConf.NetworkInterface) > 0 {
+				err = d.deviceAttachNIC(deviceName, configCopy, runConf.NetworkInterface)
+				if err != nil {
+					return nil, err
+				}
+			}
+
+			// If running, run post start hooks now (if not running LXD will run them
+			// once the instance is started).
+			err = d.runHooks(runConf.PostHooks)
+			if err != nil {
+				return nil, err
+			}
+		}
+	}
+
+	revert.Success()
 	return runConf, nil
+}
+
+// deviceAttachNIC live attaches a NIC device to the instance.
+func (d *qemu) deviceAttachNIC(deviceName string, configCopy map[string]string, netIF []deviceConfig.RunConfigItem) error {
+	devName := ""
+	for _, dev := range netIF {
+		if dev.Key == "link" {
+			devName = dev.Value
+			break
+		}
+	}
+
+	if devName == "" {
+		return fmt.Errorf("Device didn't provide a link property to use")
+	}
+
+	_, qemuBus, err := d.qemuArchConfig(d.architecture)
+	if err != nil {
+		return err
+	}
+
+	// Check if the agent is running.
+	monitor, err := qmp.Connect(d.monitorPath(), qemuSerialChardevName, d.getMonitorEventHandler())
+	if err != nil {
+		return err
+	}
+
+	qemuDev := make(map[string]string)
+
+	// PCIe and PCI require a port device name to hotplug the NIC into.
+	if shared.StringInSlice(qemuBus, []string{"pcie", "pci"}) {
+		pciDevID := qemuPCIDeviceIDStart
+
+		// Iterate through all the instance devices in the same sorted order as is used when allocating the
+		// boot time devices in order to find the PCI bus slot device we would have used at boot time.
+		// Then attempt to use that same device, assuming it is available.
+		for _, dev := range d.expandedDevices.Sorted() {
+			if dev.Name == deviceName {
+				break // Found our device.
+			}
+
+			pciDevID++
+		}
+
+		pciDeviceName := fmt.Sprintf("%s%d", busDevicePortPrefix, pciDevID)
+		d.logger.Debug("Using PCI bus device to hotplug NIC into", log.Ctx{"device": deviceName, "port": pciDeviceName})
+		qemuDev["bus"] = pciDeviceName
+		qemuDev["addr"] = "00.0"
+	}
+
+	cpuCount, err := d.addCPUMemoryConfig(nil)
+	if err != nil {
+		return err
+	}
+
+	monHook, err := d.addNetDevConfig(cpuCount, qemuBus, qemuDev, nil, netIF)
+	if err != nil {
+		return err
+	}
+
+	err = monHook(monitor)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 // deviceStop loads a new device and calls its Stop() function.
@@ -1628,10 +1735,87 @@ func (d *qemu) deviceStop(deviceName string, rawConfig deviceConfig.Device, inst
 	}
 
 	if runConf != nil {
+		if runConf != nil {
+			// Detach NIC from running instance.
+			if rawConfig["type"] == "nic" && instanceRunning {
+				err = d.deviceDetachNIC(deviceName)
+				if err != nil {
+					return err
+				}
+			}
+		}
+
 		// Run post stop hooks irrespective of run state of instance.
 		err = d.runHooks(runConf.PostHooks)
 		if err != nil {
 			return err
+		}
+	}
+
+	return nil
+}
+
+// deviceDetachNIC detaches a NIC device from a running instance.
+func (d *qemu) deviceDetachNIC(deviceName string) error {
+	// Check if the agent is running.
+	monitor, err := qmp.Connect(d.monitorPath(), qemuSerialChardevName, d.getMonitorEventHandler())
+	if err != nil {
+		return err
+	}
+
+	// pciDeviceExists checks if the deviceID exists as a bridged PCI device.
+	pciDeviceExists := func(deviceID string) (bool, error) {
+		pciDevs, err := monitor.QueryPCI()
+		if err != nil {
+			return false, err
+		}
+
+		for _, pciDev := range pciDevs {
+			for _, bridgeDev := range pciDev.Bridge.Devices {
+				if bridgeDev.DevID == deviceID {
+					return true, nil
+				}
+			}
+		}
+
+		return false, nil
+	}
+
+	deviceID := fmt.Sprintf("%s%s", qemuDeviceIDPrefix, deviceName)
+	netDevID := fmt.Sprintf("%s%s", qemuNetDevIDPrefix, deviceName)
+
+	// Request removal of device.
+	err = monitor.RemoveNIC(netDevID, deviceID)
+	if err != nil {
+		return err
+	}
+
+	_, qemuBus, err := d.qemuArchConfig(d.architecture)
+	if err != nil {
+		return err
+	}
+
+	if shared.StringInSlice(qemuBus, []string{"pcie", "pci"}) {
+		// Wait until the device is actually removed (or we timeout waiting).
+		waitDuration := time.Duration(time.Second * time.Duration(10))
+		waitUntil := time.Now().Add(waitDuration)
+		for {
+			devExists, err := pciDeviceExists(deviceID)
+			if err != nil {
+				return errors.Wrapf(err, "Failed getting PCI devices to check for NIC detach")
+			}
+
+			if !devExists {
+				break
+
+			}
+
+			if time.Now().After(waitUntil) {
+				return errors.Wrapf(err, "Failed to detach NIC after %v", waitDuration)
+			}
+
+			d.logger.Debug("Waiting for NIC device to be detached", log.Ctx{"device": deviceName})
+			time.Sleep(time.Second * time.Duration(2))
 		}
 	}
 
@@ -2129,7 +2313,7 @@ func (d *qemu) generateQemuConfigFile(mountInfo *storagePools.MountInfo, busName
 	// on PCIe (which we need to maintain compatibility with network configuration in our existing VM images).
 	// It's also meant to group all low-bandwidth internal devices onto a single address. PCIe bus allows a
 	// total of 256 devices, but this assumes 32 chassis * 8 function. By using VFs for the internal fixed
-	// devices we avoid consuming a chassis for each one.
+	// devices we avoid consuming a chassis for each one. See also the qemuPCIDeviceIDStart constant.
 	devBus, devAddr, multi := bus.allocate(busFunctionGroupGeneric)
 	err = qemuBalloon.Execute(sb, map[string]interface{}{
 		"bus":           bus.name,
@@ -2364,6 +2548,11 @@ func (d *qemu) generateQemuConfigFile(mountInfo *storagePools.MountInfo, busName
 
 	}
 
+	// Allocate 4 PCI slots for hotplug devices.
+	for i := 0; i < 4; i++ {
+		bus.allocate(busFunctionGroupNone)
+	}
+
 	// Write the agent mount config.
 	agentMountJSON, err := json.Marshal(agentMounts)
 	if err != nil {
@@ -2382,6 +2571,7 @@ func (d *qemu) generateQemuConfigFile(mountInfo *storagePools.MountInfo, busName
 }
 
 // addCPUMemoryConfig adds the qemu config required for setting the number of virtualised CPUs and memory.
+// If sb is nil then no config is written and instead just the CPU count is returned.
 func (d *qemu) addCPUMemoryConfig(sb *strings.Builder) (int, error) {
 	// Default to a single core.
 	cpus := d.expandedConfig["limits.cpu"]
@@ -2482,16 +2672,24 @@ func (d *qemu) addCPUMemoryConfig(sb *strings.Builder) (int, error) {
 	memSizeBytes = nodeMemory * int64(len(hostNodes))
 	ctx["memory"] = nodeMemory
 
-	err = qemuMemory.Execute(sb, map[string]interface{}{
-		"architecture": d.architectureName,
-		"memSizeBytes": memSizeBytes,
-	})
-	if err != nil {
-		return -1, err
+	if sb != nil {
+		err = qemuMemory.Execute(sb, map[string]interface{}{
+			"architecture": d.architectureName,
+			"memSizeBytes": memSizeBytes,
+		})
+
+		if err != nil {
+			return -1, err
+		}
+
+		err = qemuCPU.Execute(sb, ctx)
+		if err != nil {
+			return -1, err
+		}
 	}
 
 	// Configure the CPU limit.
-	return ctx["cpuCount"].(int), qemuCPU.Execute(sb, ctx)
+	return ctx["cpuCount"].(int), nil
 }
 
 // addFileDescriptor adds a file path to the list of files to open and pass file descriptor to qemu.
@@ -2690,7 +2888,7 @@ func (d *qemu) addNetDevConfig(cpuCount int, busName string, qemuDev map[string]
 	}
 
 	var qemuNetDev map[string]interface{}
-	qemuDev["id"] = fmt.Sprintf("dev-lxd_%s", devName)
+	qemuDev["id"] = fmt.Sprintf("%s%s", qemuDeviceIDPrefix, devName)
 
 	if len(bootIndexes) > 0 {
 		bootIndex, found := bootIndexes[devName]
@@ -2713,7 +2911,7 @@ func (d *qemu) addNetDevConfig(cpuCount int, busName string, qemuDev map[string]
 		}
 
 		qemuNetDev = map[string]interface{}{
-			"id":    fmt.Sprintf("lxd_%s", devName),
+			"id":    fmt.Sprintf("%s%s", qemuNetDevIDPrefix, devName),
 			"type":  "tap",
 			"vhost": true,
 			"fd":    fmt.Sprintf("/dev/tap%d", ifindex), // Indicates the file to open and the FD name.
@@ -2725,12 +2923,12 @@ func (d *qemu) addNetDevConfig(cpuCount int, busName string, qemuDev map[string]
 			qemuDev["driver"] = "virtio-net-ccw"
 		}
 
-		qemuDev["netdev"] = fmt.Sprintf("lxd_%s", devName)
+		qemuDev["netdev"] = qemuNetDev["id"].(string)
 		qemuDev["mac"] = devHwaddr
 	} else if shared.PathExists(fmt.Sprintf("/sys/class/net/%s/tun_flags", nicName)) {
 		// Detect TAP (via TUN driver) device.
 		qemuNetDev = map[string]interface{}{
-			"id":         fmt.Sprintf("lxd_%s", devName),
+			"id":         fmt.Sprintf("%s%s", qemuNetDevIDPrefix, devName),
 			"type":       "tap",
 			"vhost":      true,
 			"script":     "no",
@@ -2763,7 +2961,7 @@ func (d *qemu) addNetDevConfig(cpuCount int, busName string, qemuDev map[string]
 			}
 		}
 
-		qemuDev["netdev"] = fmt.Sprintf("lxd_%s", devName)
+		qemuDev["netdev"] = qemuNetDev["id"].(string)
 		qemuDev["mac"] = devHwaddr
 	} else if pciSlotName != "" {
 		// Detect physical passthrough device.
