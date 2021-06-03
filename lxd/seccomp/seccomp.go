@@ -1146,7 +1146,7 @@ func CallForkmknod(c Instance, dev deviceConfig.Device, requestPID int, s *state
 }
 
 // HandleInvalid sends a dummy message to LXC. LXC will notice the short write
-// and send a default message to the kernel thereby avoiding a 30s hang.
+// and send a default message to the kernel thereby avoiding a 30s block.
 func (s *Server) HandleInvalid(fd int, siov *Iovec) {
 	msghdr := C.struct_msghdr{}
 	C.sendmsg(C.int(fd), &msghdr, C.MSG_NOSIGNAL)

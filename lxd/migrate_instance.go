@@ -524,7 +524,7 @@ func (s *migrationSourceWs) Do(state *state.State, migrateOp *operations.Operati
 			// callback that lets us know when the dump is done. (Unfortunately, we
 			// can't pass arguments, just an executable path, so we write a custom
 			// action script with the real command we want to run.)
-			// This script then hangs until the migration operation either finishes
+			// This script then blocks until the migration operation either finishes
 			// successfully or fails, and exits 1 or 0, which causes criu to either
 			// leave the container running or kill it as we asked.
 			dumpDone := make(chan bool, 1)
