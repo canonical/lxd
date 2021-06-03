@@ -603,8 +603,81 @@ test_container_devices_nic_bridged_filtering() {
     done
   fi
 
+
+  # Test ip filtering on unmanaged bridge.
   lxc delete -f "${ctPrefix}A"
+  lxc init testimage "${ctPrefix}A" -p "${ctPrefix}"
+  lxc config device add "${ctPrefix}A" eth0 nic \
+    name=eth0 \
+    nictype=bridged \
+    parent="${brName}2" \
+    ipv4.address=192.43.23.2 \
+    ipv6.address=2001:db8::2 \
+    security.ipv4_filtering=true \
+    security.ipv6_filtering=true
+  lxc start "${ctPrefix}A"
+
+  if [ "$firewallDriver" = "xtables" ]; then
+    # Check IPv4 filter is present in iptables.
+    if ! iptables-save | grep -e "192.0.2.2"; then
+      echo "IPv4 filter not applied as part of ipv4_filtering in ebtables"
+      false
+    fi
+
+    # Check IPv6 filter is present in ip6tables.
+    if ! ip6tables-save | grep -e "2001:db8::2"; then
+      echo "IPv6 filter not applied as part of ipv6_filtering in ebtables"
+      false
+    fi
+
+    # Check IPv6 filter is present in ip6tables.
+    if ! ip6tables -S -w -t filter | grep -e "20010db8000000000000000000000002"; then
+      echo "IPv6 filter not applied as part of ipv6_filtering in ip6tables"
+      false
+    fi
+  else
+    ipv6Dec="42540766411282592856903984951653826562"
+    for table in "in" "fwd"; do
+      if ! nft -nn list chain bridge lxd "${table}.${ctPrefix}A.eth0" | grep "iifname \"${ctAHost}\" icmpv6 type 136 @nh,384,128 != ${ipv6Dec} drop"; then
+        echo "IPv6 NDP filter not applied as part of ipv6_filtering in nftables (${table}.${ctPrefix}A.eth0)"
+        false
+      fi
+      if ! nft -nn list chain bridge lxd "${table}.${ctPrefix}A.eth0" | grep "iifname \"${ctAHost}\" ip6 saddr != 2001:db8::2 drop"; then
+        echo "IPv6 filter not applied as part of ipv6_filtering in nftables (${table}.${ctPrefix}A.eth0)"
+        false
+      fi
+    done
+  fi
+
+  # Check that you cannot remove static IPs with filtering enabled and DHCP disabled.
+  if lxc config device unset "${ctPrefix}A" eth0 ipv4.address; then
+    echo "Shouldn't be able to unset IPv4 address with ipv4_filtering enabled and DHCPv4 disabled"
+  fi
+
+  if lxc config device unset "${ctPrefix}A" eth0 ipv6.address; then
+    echo "Shouldn't be able to unset IPv6 address with ipv4_filtering enabled and DHCPv6 disabled"
+  fi
+
+  # Delete container and check filters are cleaned up.
+  lxc delete -f "${ctPrefix}A"
+  if [ "$firewallDriver" = "xtables" ]; then
+    if ebtables --concurrent -L --Lmac2 --Lx | grep -e "${ctAHost}"; then
+      echo "ebtables filter still applied after delete"
+      false
+    fi
+  else
+    for table in "in" "fwd"; do
+      if nft -nn list chain bridge lxd "${table}.${ctPrefix}A.eth0" | grep -e "${ctAHost}"; then
+        echo "nftables filter still applied after delete (${table}.${ctPrefix}A.eth0)"
+        false
+      fi
+    done
+  fi
   ip link delete "${brName}2"
+  lxc delete -f "${ctPrefix}A"
+
+
+
 
   # Check filtering works with no IP addresses (total protocol blocking).
   lxc network set "${brName}" ipv4.dhcp false
