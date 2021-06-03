@@ -146,7 +146,7 @@ void is_netnsid_aware(int *hostnetns_fd, int *newnetns_fd)
 
 static void is_uevent_aware(void)
 {
-	if (can_inject_uevent("dummy", 6) < 0)
+	if (can_inject_uevent("placeholder", 6) < 0)
 		return;
 
 	uevent_aware = true;
