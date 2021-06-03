@@ -95,7 +95,7 @@ across LXD releases, as more features are added that are considered
 security-sensitive.
 
 Using the various `restricted.*` sub-keys, it's possible to pick individual
-features which would be normally blocked by `restricted` and white-list them, so
+features which would be normally blocked by `restricted` and allow them, so
 they can be used by instances of the project.
 
 For example:
@@ -109,7 +109,7 @@ will block all security-sensitive features **except** container nesting.
 
 Each security-sensitive feature has an associated `restricted.*` project config
 sub-key whose default value needs to be explicitly changed if you want for that
-feature to be white-listed and allow it in the project.
+feature to be allowed it in the project.
 
 Note that changing the value of a specific `restricted.*` config key has an
 effect only if the top-level `restricted` key itself is currently set to
