@@ -1874,6 +1874,90 @@ func (d *lxc) DeviceEventHandler(runConf *deviceConfig.RunConfig) error {
 	return nil
 }
 
+func (d *lxc) handleIdmappedStorage() (idmap.IdmapStorageType, *idmap.IdmapSet, error) {
+	diskIdmap, err := d.DiskIdmap()
+	if err != nil {
+		return idmap.IdmapStorageNone, nil, errors.Wrap(err, "Set last ID map")
+	}
+
+	nextIdmap, err := d.NextIdmap()
+	if err != nil {
+		return idmap.IdmapStorageNone, nil, errors.Wrap(err, "Set ID map")
+	}
+
+	// Identical on-disk idmaps so no changes required.
+	if nextIdmap.Equals(diskIdmap) {
+		return idmap.IdmapStorageNone, nextIdmap, nil
+	}
+
+	// There's no on-disk idmap applied and the container can use idmapped
+	// storage.
+	idmapType := d.IdmappedStorage(d.RootfsPath())
+	if diskIdmap == nil && idmapType != idmap.IdmapStorageNone {
+		return idmapType, nextIdmap, nil
+	}
+
+	// We need to change the on-disk idmap but the container is protected
+	// against idmap changes.
+	if shared.IsTrue(d.expandedConfig["security.protection.shift"]) {
+		return idmap.IdmapStorageNone, nil, fmt.Errorf("Container is protected against filesystem shifting")
+	}
+
+	d.logger.Debug("Container idmap changed, remapping")
+	d.updateProgress("Remapping container filesystem")
+
+	storageType, err := d.getStorageType()
+	if err != nil {
+		return idmap.IdmapStorageNone, nil, errors.Wrap(err, "Storage type")
+	}
+
+	// Revert the currently applied on-disk idmap.
+	if diskIdmap != nil {
+		if storageType == "zfs" {
+			err = diskIdmap.UnshiftRootfs(d.RootfsPath(), storageDrivers.ShiftZFSSkipper)
+		} else if storageType == "btrfs" {
+			err = storageDrivers.UnshiftBtrfsRootfs(d.RootfsPath(), diskIdmap)
+		} else {
+			err = diskIdmap.UnshiftRootfs(d.RootfsPath(), nil)
+		}
+		if err != nil {
+			return idmap.IdmapStorageNone, nil, err
+		}
+	}
+
+	jsonDiskIdmap := "[]"
+
+	// If the container can't use idmapped storage apply the new on-disk
+	// idmap of the container now. Otherwise we will later instruct LXC to
+	// make use of idmapped storage.
+	if nextIdmap != nil && idmapType == idmap.IdmapStorageNone {
+		if storageType == "zfs" {
+			err = nextIdmap.ShiftRootfs(d.RootfsPath(), storageDrivers.ShiftZFSSkipper)
+		} else if storageType == "btrfs" {
+			err = storageDrivers.ShiftBtrfsRootfs(d.RootfsPath(), nextIdmap)
+		} else {
+			err = nextIdmap.ShiftRootfs(d.RootfsPath(), nil)
+		}
+		if err != nil {
+			return idmap.IdmapStorageNone, nil, err
+		}
+
+		idmapBytes, err := json.Marshal(nextIdmap.Idmap)
+		if err != nil {
+			return idmap.IdmapStorageNone, nil, err
+		}
+		jsonDiskIdmap = string(idmapBytes)
+	}
+
+	err = d.VolatileSet(map[string]string{"volatile.last_state.idmap": jsonDiskIdmap})
+	if err != nil {
+		return idmap.IdmapStorageNone, nextIdmap, errors.Wrapf(err, "Set volatile.last_state.idmap config key on container %q (id %d)", d.name, d.id)
+	}
+
+	d.updateProgress("")
+	return idmapType, nextIdmap, nil
+}
+
 // Start functions
 func (d *lxc) startCommon() (string, []func() error, error) {
 	revert := revert.New()
@@ -1919,74 +2003,14 @@ func (d *lxc) startCommon() (string, []func() error, error) {
 	}
 	revert.Add(func() { d.unmount() })
 
-	/* Deal with idmap changes */
-	nextIdmap, err := d.NextIdmap()
-	if err != nil {
-		return "", nil, errors.Wrap(err, "Set ID map")
-	}
-
 	diskIdmap, err := d.DiskIdmap()
 	if err != nil {
 		return "", nil, errors.Wrap(err, "Set last ID map")
 	}
 
-	idmapType := d.IdmappedStorage(d.RootfsPath())
-
-	// Once mounted, check if filesystem needs shifting.
-	if !nextIdmap.Equals(diskIdmap) && !(diskIdmap == nil && idmapType != idmap.IdmapStorageNone) {
-		if shared.IsTrue(d.expandedConfig["security.protection.shift"]) {
-			return "", nil, fmt.Errorf("Container is protected against filesystem shifting")
-		}
-
-		d.logger.Debug("Container idmap changed, remapping")
-		d.updateProgress("Remapping container filesystem")
-
-		storageType, err := d.getStorageType()
-		if err != nil {
-			return "", nil, errors.Wrap(err, "Storage type")
-		}
-
-		if diskIdmap != nil {
-			if storageType == "zfs" {
-				err = diskIdmap.UnshiftRootfs(d.RootfsPath(), storageDrivers.ShiftZFSSkipper)
-			} else if storageType == "btrfs" {
-				err = storageDrivers.UnshiftBtrfsRootfs(d.RootfsPath(), diskIdmap)
-			} else {
-				err = diskIdmap.UnshiftRootfs(d.RootfsPath(), nil)
-			}
-			if err != nil {
-				return "", nil, err
-			}
-		}
-
-		if nextIdmap != nil && idmapType == idmap.IdmapStorageNone {
-			if storageType == "zfs" {
-				err = nextIdmap.ShiftRootfs(d.RootfsPath(), storageDrivers.ShiftZFSSkipper)
-			} else if storageType == "btrfs" {
-				err = storageDrivers.ShiftBtrfsRootfs(d.RootfsPath(), nextIdmap)
-			} else {
-				err = nextIdmap.ShiftRootfs(d.RootfsPath(), nil)
-			}
-			if err != nil {
-				return "", nil, err
-			}
-		}
-
-		jsonDiskIdmap := "[]"
-		if nextIdmap != nil && idmapType == idmap.IdmapStorageNone {
-			idmapBytes, err := json.Marshal(nextIdmap.Idmap)
-			if err != nil {
-				return "", nil, err
-			}
-			jsonDiskIdmap = string(idmapBytes)
-		}
-
-		err = d.VolatileSet(map[string]string{"volatile.last_state.idmap": jsonDiskIdmap})
-		if err != nil {
-			return "", nil, errors.Wrapf(err, "Set volatile.last_state.idmap config key on container %q (id %d)", d.name, d.id)
-		}
-
-		d.updateProgress("")
+	idmapType, nextIdmap, err := d.handleIdmappedStorage()
+	if err != nil {
+		return "", nil, errors.Wrap(err, "Failed to handle idmappe storage")
 	}
 
 	var idmapBytes []byte
