@@ -51,6 +51,8 @@ type cmdConfigTrustAdd struct {
 	global      *cmdGlobal
 	config      *cmdConfig
 	configTrust *cmdConfigTrust
+
+	flagName string
 }
 
 func (c *cmdConfigTrustAdd) Command() *cobra.Command {
@@ -60,6 +62,7 @@ func (c *cmdConfigTrustAdd) Command() *cobra.Command {
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
 		`Add new trusted clients`))
 
+	cmd.Flags().StringVar(&c.flagName, "name", "", i18n.G("Alternative certificate name")+"``")
 	cmd.RunE = c.Run
 
 	return cmd
@@ -85,13 +88,26 @@ func (c *cmdConfigTrustAdd) Run(cmd *cobra.Command, args []string) error {
 
 	resource := resources[0]
 
-	// Add trust relationship
+	// Load the certificate.
 	fname := args[len(args)-1]
-	x509Cert, err := shared.ReadCert(shared.HostPathFollow(fname))
+	if fname == "-" {
+		fname = "/dev/stdin"
+	} else {
+		fname = shared.HostPathFollow(fname)
+	}
+
+	var name string
+	if c.flagName != "" {
+		name = c.flagName
+	} else {
+		name, _ = shared.SplitExt(fname)
+	}
+
+	// Add trust relationship.
+	x509Cert, err := shared.ReadCert(fname)
 	if err != nil {
 		return err
 	}
-	name, _ := shared.SplitExt(fname)
 
 	cert := api.CertificatesPost{}
 	cert.Certificate = base64.StdEncoding.EncodeToString(x509Cert.Raw)
