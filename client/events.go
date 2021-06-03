@@ -95,7 +95,7 @@ func (e *EventListener) Disconnect() {
 	close(e.chActive)
 }
 
-// Wait hangs until the server disconnects the connection or Disconnect() is called
+// Wait blocks until the server disconnects the connection or Disconnect() is called
 func (e *EventListener) Wait() error {
 	<-e.chActive
 	return e.err

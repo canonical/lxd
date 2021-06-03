@@ -43,7 +43,7 @@ test_remote_admin() {
   lxc_remote remote set-default local
   lxc_remote remote remove bar
 
-  # This is a test for #91, we expect this to hang asking for a password if we
+  # This is a test for #91, we expect this to block asking for a password if we
   # tried to re-add our cert.
   echo y | lxc_remote remote add foo "${LXD_ADDR}"
   lxc_remote remote remove foo

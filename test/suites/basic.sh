@@ -337,12 +337,12 @@ test_basic_usage() {
   # Create and start a container
   lxc launch testimage foo
   lxc list | grep foo | grep RUNNING
-  lxc stop foo --force  # stop is hanging
+  lxc stop foo --force
 
   # cycle it a few times
   lxc start foo
   mac1=$(lxc exec foo cat /sys/class/net/eth0/address)
-  lxc stop foo --force # stop is hanging
+  lxc stop foo --force
   lxc start foo
   mac2=$(lxc exec foo cat /sys/class/net/eth0/address)
 
