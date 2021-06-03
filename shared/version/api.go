@@ -224,6 +224,7 @@ var APIExtensions = []string{
 	"gpu_mig",
 	"clustering_join_token",
 	"clustering_description",
+	"server_trusted_proxy",
 }
 
 // APIExtensionsCount returns the number of available API extensions.
