@@ -40,7 +40,7 @@ func (c *cmdImport) Command() *cobra.Command {
 }
 
 func (c *cmdImport) Run(cmd *cobra.Command, args []string) error {
-	// Sanity checks
+	// Quick checks.
 	if len(args) < 1 {
 		cmd.Help()
 

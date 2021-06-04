@@ -161,7 +161,7 @@ func OperationCreate(s *state.State, projectName string, opClass OperationClass,
 	op.onCancel = onCancel
 	op.onConnect = onConnect
 
-	// Sanity check
+	// Quick check.
 	if op.class != OperationClassWebsocket && op.onConnect != nil {
 		return nil, fmt.Errorf("Only websocket operations can have a Connect hook")
 	}

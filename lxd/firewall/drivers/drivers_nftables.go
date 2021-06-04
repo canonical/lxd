@@ -103,12 +103,12 @@ func (d Nftables) Compat() (bool, error) {
 
 	_, err = shared.RunCommandCLocale("nft", "create", "table", testTable)
 	if err != nil {
-		return false, errors.Wrapf(err, "Failed to create a dummy table")
+		return false, errors.Wrapf(err, "Failed to create a test table")
 	}
 
 	_, err = shared.RunCommandCLocale("nft", "delete", "table", testTable)
 	if err != nil {
-		return false, errors.Wrapf(err, "Failed to delete a dummy table")
+		return false, errors.Wrapf(err, "Failed to delete a test table")
 	}
 
 	// Check whether in use by parsing ruleset and looking for existing rules.

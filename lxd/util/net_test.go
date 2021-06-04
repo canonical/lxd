@@ -98,8 +98,8 @@ func TestIsAddressCovered(t *testing.T) {
 	}
 }
 
-// This is a sanity check against Go's stdlib to make sure that when listening
-// to a port without specifying an address, then an IPv6 wildcard is assumed.
+// This is a check against Go's stdlib to make sure that when listening to a port without specifying an address,
+// then an IPv6 wildcard is assumed.
 func TestListenImplicitIPv6Wildcard(t *testing.T) {
 	listener, err := net.Listen("tcp", ":9999")
 	require.NoError(t, err)

@@ -64,7 +64,7 @@ func (c *Config) GetInstanceServer(name string) (lxd.InstanceServer, error) {
 		return nil, fmt.Errorf("The remote \"%s\" doesn't exist", name)
 	}
 
-	// Sanity checks
+	// Quick checks.
 	if remote.Public || remote.Protocol == "simplestreams" {
 		return nil, fmt.Errorf("The remote isn't a private LXD server")
 	}

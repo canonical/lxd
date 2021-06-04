@@ -35,7 +35,7 @@ func (c *cmdForkZFS) Command() *cobra.Command {
 }
 
 func (c *cmdForkZFS) Run(cmd *cobra.Command, args []string) error {
-	// Sanity checks
+	// Quick checks.
 	if len(args) < 1 {
 		cmd.Help()
 

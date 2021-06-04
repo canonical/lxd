@@ -61,7 +61,7 @@ func (c *cmdQuery) pretty(input interface{}) string {
 func (c *cmdQuery) Run(cmd *cobra.Command, args []string) error {
 	conf := c.global.conf
 
-	// Sanity checks
+	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 1, 1)
 	if exit {
 		return err

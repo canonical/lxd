@@ -107,7 +107,7 @@ func (c *cmdProfileAdd) Command() *cobra.Command {
 }
 
 func (c *cmdProfileAdd) Run(cmd *cobra.Command, args []string) error {
-	// Sanity checks
+	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 2, 2)
 	if exit {
 		return err
@@ -179,7 +179,7 @@ lxc profile assign foo ''
 }
 
 func (c *cmdProfileAssign) Run(cmd *cobra.Command, args []string) error {
-	// Sanity checks
+	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 2, 2)
 	if exit {
 		return err
@@ -250,7 +250,7 @@ func (c *cmdProfileCopy) Command() *cobra.Command {
 }
 
 func (c *cmdProfileCopy) Run(cmd *cobra.Command, args []string) error {
-	// Sanity checks
+	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 2, 2)
 	if exit {
 		return err
@@ -306,7 +306,7 @@ func (c *cmdProfileCreate) Command() *cobra.Command {
 }
 
 func (c *cmdProfileCreate) Run(cmd *cobra.Command, args []string) error {
-	// Sanity checks
+	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 1, 1)
 	if exit {
 		return err
@@ -360,7 +360,7 @@ func (c *cmdProfileDelete) Command() *cobra.Command {
 }
 
 func (c *cmdProfileDelete) Run(cmd *cobra.Command, args []string) error {
-	// Sanity checks
+	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 1, 1)
 	if exit {
 		return err
@@ -434,7 +434,7 @@ func (c *cmdProfileEdit) helpTemplate() string {
 }
 
 func (c *cmdProfileEdit) Run(cmd *cobra.Command, args []string) error {
-	// Sanity checks
+	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 1, 1)
 	if exit {
 		return err
@@ -534,7 +534,7 @@ func (c *cmdProfileGet) Command() *cobra.Command {
 }
 
 func (c *cmdProfileGet) Run(cmd *cobra.Command, args []string) error {
-	// Sanity checks
+	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 2, 2)
 	if exit {
 		return err
@@ -584,7 +584,7 @@ func (c *cmdProfileList) Command() *cobra.Command {
 }
 
 func (c *cmdProfileList) Run(cmd *cobra.Command, args []string) error {
-	// Sanity checks
+	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 0, 1)
 	if exit {
 		return err
@@ -643,7 +643,7 @@ func (c *cmdProfileRemove) Command() *cobra.Command {
 }
 
 func (c *cmdProfileRemove) Run(cmd *cobra.Command, args []string) error {
-	// Sanity checks
+	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 2, 2)
 	if exit {
 		return err
@@ -719,7 +719,7 @@ func (c *cmdProfileRename) Command() *cobra.Command {
 }
 
 func (c *cmdProfileRename) Run(cmd *cobra.Command, args []string) error {
-	// Sanity checks
+	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 2, 2)
 	if exit {
 		return err
@@ -772,7 +772,7 @@ For backward compatibility, a single configuration key may still be set with:
 }
 
 func (c *cmdProfileSet) Run(cmd *cobra.Command, args []string) error {
-	// Sanity checks
+	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 2, -1)
 	if exit {
 		return err
@@ -828,7 +828,7 @@ func (c *cmdProfileShow) Command() *cobra.Command {
 }
 
 func (c *cmdProfileShow) Run(cmd *cobra.Command, args []string) error {
-	// Sanity checks
+	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 1, 1)
 	if exit {
 		return err
@@ -882,7 +882,7 @@ func (c *cmdProfileUnset) Command() *cobra.Command {
 }
 
 func (c *cmdProfileUnset) Run(cmd *cobra.Command, args []string) error {
-	// Sanity checks
+	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 2, 2)
 	if exit {
 		return err

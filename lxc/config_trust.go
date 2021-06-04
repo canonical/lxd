@@ -84,7 +84,7 @@ func (c *cmdConfigTrustAdd) Command() *cobra.Command {
 }
 
 func (c *cmdConfigTrustAdd) Run(cmd *cobra.Command, args []string) error {
-	// Sanity checks
+	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 1, 2)
 	if exit {
 		return err
@@ -164,7 +164,7 @@ func (c *cmdConfigTrustEdit) helpTemplate() string {
 }
 
 func (c *cmdConfigTrustEdit) Run(cmd *cobra.Command, args []string) error {
-	// Sanity checks
+	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 1, 1)
 	if exit {
 		return err
@@ -269,7 +269,7 @@ func (c *cmdConfigTrustList) Command() *cobra.Command {
 }
 
 func (c *cmdConfigTrustList) Run(cmd *cobra.Command, args []string) error {
-	// Sanity checks
+	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 0, 1)
 	if exit {
 		return err
@@ -348,7 +348,7 @@ func (c *cmdConfigTrustRemove) Command() *cobra.Command {
 }
 
 func (c *cmdConfigTrustRemove) Run(cmd *cobra.Command, args []string) error {
-	// Sanity checks
+	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 1, 2)
 	if exit {
 		return err
@@ -391,7 +391,7 @@ func (c *cmdConfigTrustShow) Command() *cobra.Command {
 }
 
 func (c *cmdConfigTrustShow) Run(cmd *cobra.Command, args []string) error {
-	// Sanity checks
+	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 1, 1)
 	if exit {
 		return err

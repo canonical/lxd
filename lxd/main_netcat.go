@@ -37,7 +37,7 @@ func (c *cmdNetcat) Command() *cobra.Command {
 }
 
 func (c *cmdNetcat) Run(cmd *cobra.Command, args []string) error {
-	// Sanity checks
+	// Quick checks.
 	if len(args) < 2 {
 		cmd.Help()
 

@@ -40,7 +40,7 @@ type ContainerInterfaceSubnet struct {
 }
 
 func parseInterfaces(interfaces []ContainerInterface) (map[string]ContainerInterface, error) {
-	// Sanity checks
+	// Quick checks.
 	if len(interfaces) == 0 {
 		return nil, fmt.Errorf("At least one interface must be provided")
 	}
