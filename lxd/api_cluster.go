@@ -260,7 +260,7 @@ func clusterPut(d *Daemon, r *http.Request) response.Response {
 		return response.BadRequest(err)
 	}
 
-	// Sanity checks
+	// Quick checks.
 	if req.ServerName == "" && req.Enabled {
 		return response.BadRequest(fmt.Errorf("ServerName is required when enabling clustering"))
 	}
@@ -1542,7 +1542,7 @@ func internalClusterPostAccept(d *Daemon, r *http.Request) response.Response {
 		return response.BadRequest(err)
 	}
 
-	// Sanity checks
+	// Quick checks.
 	if req.Name == "" {
 		return response.BadRequest(fmt.Errorf("No name provided"))
 	}
@@ -1808,7 +1808,7 @@ func internalClusterPostAssign(d *Daemon, r *http.Request) response.Response {
 		return response.BadRequest(err)
 	}
 
-	// Sanity checks
+	// Quick checks.
 	if len(req.RaftNodes) == 0 {
 		return response.BadRequest(fmt.Errorf("No raft members provided"))
 	}
@@ -1845,7 +1845,7 @@ func internalClusterPostHandover(d *Daemon, r *http.Request) response.Response {
 		return response.BadRequest(err)
 	}
 
-	// Sanity checks
+	// Quick checks.
 	if req.Address == "" {
 		return response.BadRequest(fmt.Errorf("No id provided"))
 	}

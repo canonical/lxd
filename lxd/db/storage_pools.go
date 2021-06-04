@@ -284,7 +284,7 @@ SELECT id FROM storage_volumes WHERE storage_pool_id=? AND node_id=?
 	if err != nil {
 		return errors.Wrap(err, "failed to get other node's ceph volume IDs")
 	}
-	if len(volumeIDs) != len(otherVolumeIDs) { // Sanity check
+	if len(volumeIDs) != len(otherVolumeIDs) { // Quick check.
 		return fmt.Errorf("not all ceph volumes were copied")
 	}
 	for i, otherVolumeID := range otherVolumeIDs {

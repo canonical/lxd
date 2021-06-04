@@ -38,7 +38,7 @@ func (c *cmdImport) Command() *cobra.Command {
 }
 
 func (c *cmdImport) Run(cmd *cobra.Command, args []string) error {
-	// Sanity checks
+	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 1, 2)
 	if exit {
 		return err

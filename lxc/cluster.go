@@ -89,7 +89,7 @@ func (c *cmdClusterList) Command() *cobra.Command {
 }
 
 func (c *cmdClusterList) Run(cmd *cobra.Command, args []string) error {
-	// Sanity checks
+	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 0, 1)
 	if exit {
 		return err
@@ -167,7 +167,7 @@ func (c *cmdClusterShow) Command() *cobra.Command {
 }
 
 func (c *cmdClusterShow) Run(cmd *cobra.Command, args []string) error {
-	// Sanity checks
+	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 1, 1)
 	if exit {
 		return err
@@ -217,7 +217,7 @@ func (c *cmdClusterRename) Command() *cobra.Command {
 }
 
 func (c *cmdClusterRename) Run(cmd *cobra.Command, args []string) error {
-	// Sanity checks
+	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 2, 2)
 	if exit {
 		return err
@@ -296,7 +296,7 @@ Are you really sure you want to force removing %s? (yes/no): `), name)
 }
 
 func (c *cmdClusterRemove) Run(cmd *cobra.Command, args []string) error {
-	// Sanity checks
+	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 1, 1)
 	if exit {
 		return err
@@ -357,7 +357,7 @@ func (c *cmdClusterEnable) Command() *cobra.Command {
 }
 
 func (c *cmdClusterEnable) Run(cmd *cobra.Command, args []string) error {
-	// Sanity checks
+	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 1, 2)
 	if exit {
 		return err
@@ -444,7 +444,7 @@ func (c *cmdClusterEdit) helpTemplate() string {
 }
 
 func (c *cmdClusterEdit) Run(cmd *cobra.Command, args []string) error {
-	// Sanity checks
+	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 1, 1)
 	if exit {
 		return err
@@ -585,7 +585,7 @@ func (c *cmdClusterAdd) Command() *cobra.Command {
 }
 
 func (c *cmdClusterAdd) Run(cmd *cobra.Command, args []string) error {
-	// Sanity checks.
+	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 1, 1)
 	if exit {
 		return err
@@ -648,7 +648,7 @@ func (c *cmdClusterListTokens) Command() *cobra.Command {
 }
 
 func (c *cmdClusterListTokens) Run(cmd *cobra.Command, args []string) error {
-	// Sanity checks.
+	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 0, 1)
 	if exit {
 		return err

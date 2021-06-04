@@ -221,7 +221,7 @@ func projectsPost(d *Daemon, r *http.Request) response.Response {
 		return response.BadRequest(err)
 	}
 
-	// Sanity checks
+	// Quick checks.
 	err = projectValidateName(project.Name)
 	if err != nil {
 		return response.BadRequest(err)
@@ -523,7 +523,7 @@ func projectChange(d *Daemon, project *api.Project, req api.ProjectPut) response
 		}
 	}
 
-	// Sanity checks.
+	// Quick checks.
 	if project.Name == projecthelpers.Default && featuresChanged {
 		return response.BadRequest(fmt.Errorf("You can't change the features of the default project"))
 	}
@@ -613,7 +613,7 @@ func projectPost(d *Daemon, r *http.Request) response.Response {
 		return response.BadRequest(err)
 	}
 
-	// Sanity checks
+	// Quick checks.
 	if name == projecthelpers.Default {
 		return response.Forbidden(fmt.Errorf("The 'default' project cannot be renamed"))
 	}
@@ -695,7 +695,7 @@ func projectPost(d *Daemon, r *http.Request) response.Response {
 func projectDelete(d *Daemon, r *http.Request) response.Response {
 	name := mux.Vars(r)["name"]
 
-	// Sanity checks
+	// Quick checks.
 	if name == projecthelpers.Default {
 		return response.Forbidden(fmt.Errorf("The 'default' project cannot be deleted"))
 	}

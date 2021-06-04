@@ -468,7 +468,7 @@ func storagePoolVolumeSnapshotTypePost(d *Daemon, r *http.Request) response.Resp
 		return response.BadRequest(err)
 	}
 
-	// Sanity checks.
+	// Quick checks.
 	if req.Name == "" {
 		return response.BadRequest(fmt.Errorf("No name provided"))
 	}

@@ -419,7 +419,7 @@ func (c *cmdForkproxy) Run(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("This must be run as root")
 	}
 
-	// Sanity checks
+	// Quick checks.
 	if len(args) != 12 {
 		cmd.Help()
 

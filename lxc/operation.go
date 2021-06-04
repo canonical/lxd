@@ -59,7 +59,7 @@ func (c *cmdOperationDelete) Command() *cobra.Command {
 }
 
 func (c *cmdOperationDelete) Run(cmd *cobra.Command, args []string) error {
-	// Sanity checks
+	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 1, 1)
 	if exit {
 		return err
@@ -109,7 +109,7 @@ func (c *cmdOperationList) Command() *cobra.Command {
 }
 
 func (c *cmdOperationList) Run(cmd *cobra.Command, args []string) error {
-	// Sanity checks
+	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 0, 1)
 	if exit {
 		return err
@@ -190,7 +190,7 @@ func (c *cmdOperationShow) Command() *cobra.Command {
 }
 
 func (c *cmdOperationShow) Run(cmd *cobra.Command, args []string) error {
-	// Sanity checks
+	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 1, 1)
 	if exit {
 		return err

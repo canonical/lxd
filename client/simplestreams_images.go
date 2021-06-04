@@ -52,7 +52,7 @@ func (r *ProtocolSimpleStreams) GetImage(fingerprint string) (*api.Image, string
 
 // GetImageFile downloads an image from the server, returning an ImageFileResponse struct
 func (r *ProtocolSimpleStreams) GetImageFile(fingerprint string, req ImageFileRequest) (*ImageFileResponse, error) {
-	// Sanity checks
+	// Quick checks.
 	if req.MetaFile == nil && req.RootfsFile == nil {
 		return nil, fmt.Errorf("No file requested")
 	}

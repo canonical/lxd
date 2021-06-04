@@ -296,7 +296,7 @@ func (r *ProtocolLXD) CopyContainer(source InstanceServer, container api.Contain
 
 	// Process the copy arguments
 	if args != nil {
-		// Sanity checks
+		// Quick checks.
 		if args.ContainerOnly {
 			if !r.HasExtension("container_only_migration") {
 				return nil, fmt.Errorf("The target server is missing the required \"container_only_migration\" API extension")
@@ -512,7 +512,7 @@ func (r *ProtocolLXD) UpdateContainer(name string, container api.ContainerPut, E
 
 // RenameContainer requests that LXD renames the container
 func (r *ProtocolLXD) RenameContainer(name string, container api.ContainerPost) (Operation, error) {
-	// Sanity check
+	// Quick check.
 	if container.Migration {
 		return nil, fmt.Errorf("Can't ask for a migration through RenameContainer")
 	}
@@ -584,7 +584,7 @@ func (r *ProtocolLXD) MigrateContainer(name string, container api.ContainerPost)
 		}
 	}
 
-	// Sanity check
+	// Quick check.
 	if !container.Migration {
 		return nil, fmt.Errorf("Can't ask for a rename through MigrateContainer")
 	}
@@ -1006,7 +1006,7 @@ func (r *ProtocolLXD) CopyContainerSnapshot(source InstanceServer, containerName
 
 	// Process the copy arguments
 	if args != nil {
-		// Sanity checks
+		// Quick checks.
 		if shared.StringInSlice(args.Mode, []string{"push", "relay"}) {
 			if !r.HasExtension("container_push") {
 				return nil, fmt.Errorf("The target server is missing the required \"container_push\" API extension")
@@ -1188,7 +1188,7 @@ func (r *ProtocolLXD) CopyContainerSnapshot(source InstanceServer, containerName
 
 // RenameContainerSnapshot requests that LXD renames the snapshot
 func (r *ProtocolLXD) RenameContainerSnapshot(containerName string, name string, container api.ContainerSnapshotPost) (Operation, error) {
-	// Sanity check
+	// Quick check.
 	if container.Migration {
 		return nil, fmt.Errorf("Can't ask for a migration through RenameContainerSnapshot")
 	}
@@ -1254,7 +1254,7 @@ func (r *ProtocolLXD) tryMigrateContainerSnapshot(source InstanceServer, contain
 
 // MigrateContainerSnapshot requests that LXD prepares for a snapshot migration
 func (r *ProtocolLXD) MigrateContainerSnapshot(containerName string, name string, container api.ContainerSnapshotPost) (Operation, error) {
-	// Sanity check
+	// Quick check.
 	if !container.Migration {
 		return nil, fmt.Errorf("Can't ask for a rename through MigrateContainerSnapshot")
 	}

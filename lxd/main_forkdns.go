@@ -334,7 +334,7 @@ func (c *cmdForkDNS) Command() *cobra.Command {
 }
 
 func (c *cmdForkDNS) Run(cmd *cobra.Command, args []string) error {
-	// Sanity checks
+	// Quick checks.
 	if len(args) < 3 {
 		cmd.Help()
 

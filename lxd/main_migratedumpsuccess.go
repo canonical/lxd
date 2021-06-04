@@ -32,7 +32,7 @@ func (c *cmdMigratedumpsuccess) Command() *cobra.Command {
 }
 
 func (c *cmdMigratedumpsuccess) Run(cmd *cobra.Command, args []string) error {
-	// Sanity checks
+	// Quick checks.
 	if len(args) < 2 {
 		cmd.Help()
 

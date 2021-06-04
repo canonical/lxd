@@ -93,7 +93,7 @@ func (c *cmdProjectCreate) Command() *cobra.Command {
 }
 
 func (c *cmdProjectCreate) Run(cmd *cobra.Command, args []string) error {
-	// Sanity checks
+	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 1, 1)
 	if exit {
 		return err
@@ -157,7 +157,7 @@ func (c *cmdProjectDelete) Command() *cobra.Command {
 }
 
 func (c *cmdProjectDelete) Run(cmd *cobra.Command, args []string) error {
-	// Sanity checks
+	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 1, 1)
 	if exit {
 		return err
@@ -240,7 +240,7 @@ func (c *cmdProjectEdit) helpTemplate() string {
 }
 
 func (c *cmdProjectEdit) Run(cmd *cobra.Command, args []string) error {
-	// Sanity checks
+	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 1, 1)
 	if exit {
 		return err
@@ -340,7 +340,7 @@ func (c *cmdProjectGet) Command() *cobra.Command {
 }
 
 func (c *cmdProjectGet) Run(cmd *cobra.Command, args []string) error {
-	// Sanity checks
+	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 2, 2)
 	if exit {
 		return err
@@ -393,7 +393,7 @@ func (c *cmdProjectList) Command() *cobra.Command {
 func (c *cmdProjectList) Run(cmd *cobra.Command, args []string) error {
 	conf := c.global.conf
 
-	// Sanity checks
+	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 0, 1)
 	if exit {
 		return err
@@ -482,7 +482,7 @@ func (c *cmdProjectRename) Command() *cobra.Command {
 }
 
 func (c *cmdProjectRename) Run(cmd *cobra.Command, args []string) error {
-	// Sanity checks
+	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 2, 2)
 	if exit {
 		return err
@@ -540,7 +540,7 @@ For backward compatibility, a single configuration key may still be set with:
 }
 
 func (c *cmdProjectSet) Run(cmd *cobra.Command, args []string) error {
-	// Sanity checks
+	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 2, -1)
 	if exit {
 		return err
@@ -597,7 +597,7 @@ func (c *cmdProjectUnset) Command() *cobra.Command {
 }
 
 func (c *cmdProjectUnset) Run(cmd *cobra.Command, args []string) error {
-	// Sanity checks
+	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 2, 2)
 	if exit {
 		return err
@@ -626,7 +626,7 @@ func (c *cmdProjectShow) Command() *cobra.Command {
 }
 
 func (c *cmdProjectShow) Run(cmd *cobra.Command, args []string) error {
-	// Sanity checks
+	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 1, 1)
 	if exit {
 		return err
@@ -681,7 +681,7 @@ func (c *cmdProjectSwitch) Command() *cobra.Command {
 func (c *cmdProjectSwitch) Run(cmd *cobra.Command, args []string) error {
 	conf := c.global.conf
 
-	// Sanity checks
+	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 1, 1)
 	if exit {
 		return err

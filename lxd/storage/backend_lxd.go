@@ -3263,7 +3263,7 @@ func (b *lxdBackend) RestoreCustomVolume(projectName, volName string, snapshotNa
 	logger.Debug("RestoreCustomVolume started")
 	defer logger.Debug("RestoreCustomVolume finished")
 
-	// Sanity checks.
+	// Quick checks.
 	if shared.IsSnapshot(volName) {
 		return fmt.Errorf("Volume cannot be snapshot")
 	}

@@ -149,7 +149,7 @@ func (c *cmdRemoteAdd) findProject(d lxd.InstanceServer, project string) (string
 func (c *cmdRemoteAdd) Run(cmd *cobra.Command, args []string) error {
 	conf := c.global.conf
 
-	// Sanity checks
+	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 1, 2)
 	if exit {
 		return err
@@ -491,7 +491,7 @@ func (c *cmdRemoteGetDefault) Command() *cobra.Command {
 func (c *cmdRemoteGetDefault) Run(cmd *cobra.Command, args []string) error {
 	conf := c.global.conf
 
-	// Sanity checks
+	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 0, 0)
 	if exit {
 		return err
@@ -528,7 +528,7 @@ func (c *cmdRemoteList) Command() *cobra.Command {
 func (c *cmdRemoteList) Run(cmd *cobra.Command, args []string) error {
 	conf := c.global.conf
 
-	// Sanity checks
+	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 0, 0)
 	if exit {
 		return err
@@ -607,7 +607,7 @@ func (c *cmdRemoteRename) Command() *cobra.Command {
 func (c *cmdRemoteRename) Run(cmd *cobra.Command, args []string) error {
 	conf := c.global.conf
 
-	// Sanity checks
+	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 2, 2)
 	if exit {
 		return err
@@ -669,7 +669,7 @@ func (c *cmdRemoteRemove) Command() *cobra.Command {
 func (c *cmdRemoteRemove) Run(cmd *cobra.Command, args []string) error {
 	conf := c.global.conf
 
-	// Sanity checks
+	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 1, 1)
 	if exit {
 		return err
@@ -719,7 +719,7 @@ func (c *cmdRemoteSwitch) Command() *cobra.Command {
 func (c *cmdRemoteSwitch) Run(cmd *cobra.Command, args []string) error {
 	conf := c.global.conf
 
-	// Sanity checks
+	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 1, 1)
 	if exit {
 		return err
@@ -757,7 +757,7 @@ func (c *cmdRemoteSetURL) Command() *cobra.Command {
 func (c *cmdRemoteSetURL) Run(cmd *cobra.Command, args []string) error {
 	conf := c.global.conf
 
-	// Sanity checks
+	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 2, 2)
 	if exit {
 		return err

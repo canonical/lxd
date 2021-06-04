@@ -3197,7 +3197,7 @@ func (d *lxc) RenderState() (*api.InstanceState, error) {
 func (d *lxc) Snapshot(name string, expiry time.Time, stateful bool) error {
 	// Deal with state.
 	if stateful {
-		// Sanity checks.
+		// Quick checks.
 		if !d.IsRunning() {
 			return fmt.Errorf("Unable to create a stateful snapshot. The instance isn't running")
 		}
@@ -3583,7 +3583,7 @@ func (d *lxc) Rename(newName string, applyTemplateTrigger bool) error {
 
 	d.logger.Info("Renaming container", ctxMap)
 
-	// Sanity checks.
+	// Quick checks.
 	err := instance.ValidName(newName, d.IsSnapshot())
 	if err != nil {
 		return err

@@ -144,7 +144,7 @@ It requires the source to be an alias and for it to be public.`))
 func (c *cmdImageCopy) Run(cmd *cobra.Command, args []string) error {
 	conf := c.global.conf
 
-	// Sanity checks
+	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 2, 2)
 	if exit {
 		return err
@@ -274,7 +274,7 @@ func (c *cmdImageDelete) Command() *cobra.Command {
 }
 
 func (c *cmdImageDelete) Run(cmd *cobra.Command, args []string) error {
-	// Sanity checks
+	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 1, -1)
 	if exit {
 		return err
@@ -341,7 +341,7 @@ func (c *cmdImageEdit) helpTemplate() string {
 }
 
 func (c *cmdImageEdit) Run(cmd *cobra.Command, args []string) error {
-	// Sanity checks
+	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 1, 1)
 	if exit {
 		return err
@@ -453,7 +453,7 @@ The output target is optional and defaults to the working directory.`))
 }
 
 func (c *cmdImageExport) Run(cmd *cobra.Command, args []string) error {
-	// Sanity checks
+	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 1, 2)
 	if exit {
 		return err
@@ -613,7 +613,7 @@ Directory import is only available on Linux and must be performed as root.`))
 }
 
 func (c *cmdImageImport) packImageDir(path string) (string, error) {
-	// Sanity checks
+	// Quick checks.
 	if os.Geteuid() == -1 {
 		return "", fmt.Errorf(i18n.G("Directory import is not available on this platform"))
 	} else if os.Geteuid() != 0 {
@@ -635,7 +635,7 @@ func (c *cmdImageImport) packImageDir(path string) (string, error) {
 func (c *cmdImageImport) Run(cmd *cobra.Command, args []string) error {
 	conf := c.global.conf
 
-	// Sanity checks
+	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 1, -1)
 	if exit {
 		return err
@@ -838,7 +838,7 @@ func (c *cmdImageInfo) Command() *cobra.Command {
 }
 
 func (c *cmdImageInfo) Run(cmd *cobra.Command, args []string) error {
-	// Sanity checks
+	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 1, 1)
 	if exit {
 		return err
@@ -1171,7 +1171,7 @@ func (c *cmdImageList) imageShouldShow(filters []string, state *api.Image) bool 
 }
 
 func (c *cmdImageList) Run(cmd *cobra.Command, args []string) error {
-	// Sanity checks
+	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 0, -1)
 	if exit {
 		return err
@@ -1270,7 +1270,7 @@ func (c *cmdImageRefresh) Command() *cobra.Command {
 }
 
 func (c *cmdImageRefresh) Run(cmd *cobra.Command, args []string) error {
-	// Sanity checks
+	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 1, -1)
 	if exit {
 		return err
@@ -1350,7 +1350,7 @@ func (c *cmdImageShow) Command() *cobra.Command {
 }
 
 func (c *cmdImageShow) Run(cmd *cobra.Command, args []string) error {
-	// Sanity checks
+	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 1, 1)
 	if exit {
 		return err

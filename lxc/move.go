@@ -63,7 +63,7 @@ lxc move <instance>/<old snapshot name> <instance>/<new snapshot name>
 func (c *cmdMove) Run(cmd *cobra.Command, args []string) error {
 	conf := c.global.conf
 
-	// Sanity checks
+	// Quick checks.
 	if c.flagTarget == "" && c.flagTargetProject == "" {
 		exit, err := c.global.CheckArgs(cmd, args, 2, 2)
 		if exit {
