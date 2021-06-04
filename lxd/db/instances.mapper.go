@@ -462,7 +462,7 @@ func (c *ClusterTx) GetInstanceID(project string, name string) (int64, error) {
 	}
 	defer rows.Close()
 
-	// For sanity, make sure we read one and only one row.
+	// Ensure we read one and only one row.
 	if !rows.Next() {
 		return -1, ErrNoSuchObject
 	}
