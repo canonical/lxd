@@ -188,28 +188,28 @@ test_storage() {
       # shellcheck disable=SC2154
       # Should fail if vg does not exist, since we have no way of knowing where
       # to create the vg without a block device path set.
-      ! lxc storage create "lxdtest-$(basename "${LXD_DIR}")-pool10" lvm source=dummy_vg_1 volume.size=25MB || false
+      ! lxc storage create "lxdtest-$(basename "${LXD_DIR}")-pool10" lvm source=test_vg_1 volume.size=25MB || false
       # shellcheck disable=SC2154
       deconfigure_loop_device "${loop_file_5}" "${loop_device_5}"
 
       configure_loop_device loop_file_6 loop_device_6
       # shellcheck disable=SC2154
       pvcreate "${loop_device_6}"
-      vgcreate "lxdtest-$(basename "${LXD_DIR}")-pool11-dummy_vg_2" "${loop_device_6}"
-      # Reuse existing volume group "dummy_vg_2" on existing physical volume.
-      lxc storage create "lxdtest-$(basename "${LXD_DIR}")-pool11" lvm source="lxdtest-$(basename "${LXD_DIR}")-pool11-dummy_vg_2" volume.size=25MB
+      vgcreate "lxdtest-$(basename "${LXD_DIR}")-pool11-test_vg_2" "${loop_device_6}"
+      # Reuse existing volume group "test_vg_2" on existing physical volume.
+      lxc storage create "lxdtest-$(basename "${LXD_DIR}")-pool11" lvm source="lxdtest-$(basename "${LXD_DIR}")-pool11-test_vg_2" volume.size=25MB
 
       configure_loop_device loop_file_7 loop_device_7
       # shellcheck disable=SC2154
       pvcreate "${loop_device_7}"
-      vgcreate "lxdtest-$(basename "${LXD_DIR}")-pool12-dummy_vg_3" "${loop_device_7}"
-      # Reuse existing volume group "dummy_vg_3" on existing physical volume.
-      lxc storage create "lxdtest-$(basename "${LXD_DIR}")-pool12" lvm source="lxdtest-$(basename "${LXD_DIR}")-pool12-dummy_vg_3" volume.size=25MB
+      vgcreate "lxdtest-$(basename "${LXD_DIR}")-pool12-test_vg_3" "${loop_device_7}"
+      # Reuse existing volume group "test_vg_3" on existing physical volume.
+      lxc storage create "lxdtest-$(basename "${LXD_DIR}")-pool12" lvm source="lxdtest-$(basename "${LXD_DIR}")-pool12-test_vg_3" volume.size=25MB
 
       configure_loop_device loop_file_8 loop_device_8
       # shellcheck disable=SC2154
-      # Create new volume group "dummy_vg_4".
-      lxc storage create "lxdtest-$(basename "${LXD_DIR}")-pool13" lvm source="${loop_device_8}" lvm.vg_name="lxdtest-$(basename "${LXD_DIR}")-pool13-dummy_vg_4" volume.size=25MB
+      # Create new volume group "test_vg_4".
+      lxc storage create "lxdtest-$(basename "${LXD_DIR}")-pool13" lvm source="${loop_device_8}" lvm.vg_name="lxdtest-$(basename "${LXD_DIR}")-pool13-test_vg_4" volume.size=25MB
 
       lxc storage create "lxdtest-$(basename "${LXD_DIR}")-pool14" lvm volume.size=25MB
 
@@ -699,19 +699,19 @@ test_storage() {
 
       lxc storage delete "lxdtest-$(basename "${LXD_DIR}")-pool11"
       # shellcheck disable=SC2154
-      vgremove -ff "lxdtest-$(basename "${LXD_DIR}")-pool11-dummy_vg_2" || true
+      vgremove -ff "lxdtest-$(basename "${LXD_DIR}")-pool11-test_vg_2" || true
       pvremove -ff "${loop_device_6}" || true
       # shellcheck disable=SC2154
       deconfigure_loop_device "${loop_file_6}" "${loop_device_6}"
 
       lxc storage delete "lxdtest-$(basename "${LXD_DIR}")-pool12"
-      vgremove -ff "lxdtest-$(basename "${LXD_DIR}")-pool12-dummy_vg_3" || true
+      vgremove -ff "lxdtest-$(basename "${LXD_DIR}")-pool12-test_vg_3" || true
       pvremove -ff "${loop_device_7}" || true
       # shellcheck disable=SC2154
       deconfigure_loop_device "${loop_file_7}" "${loop_device_7}"
 
       lxc storage delete "lxdtest-$(basename "${LXD_DIR}")-pool13"
-      vgremove -ff "lxdtest-$(basename "${LXD_DIR}")-pool13-dummy_vg_4" || true
+      vgremove -ff "lxdtest-$(basename "${LXD_DIR}")-pool13-test_vg_4" || true
       pvremove -ff "${loop_device_8}" || true
       # shellcheck disable=SC2154
       deconfigure_loop_device "${loop_file_8}" "${loop_device_8}"

@@ -131,7 +131,7 @@ static void update_vfs_ns_caps_uid(void *caps, ssize_t len, struct vfs_ns_cap_da
 	memcpy(caps, ns_xattr, len);
 }
 
-int set_dummy_fs_ns_caps(const char *path)
+int spoof_fs_ns_caps(const char *path)
 {
 	#define __raise_cap_permitted(x, ns_cap_data)   ns_cap_data.data[(x)>>5].permitted   |= (1<<((x)&31))
 
@@ -420,7 +420,7 @@ func SupportsVFS3Fscaps(prefix string) bool {
 	cpath := C.CString(tmpfile.Name())
 	defer C.free(unsafe.Pointer(cpath))
 
-	r := C.set_dummy_fs_ns_caps(cpath)
+	r := C.spoof_fs_ns_caps(cpath)
 	if r != 0 {
 		return false
 	}

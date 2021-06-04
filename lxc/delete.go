@@ -71,7 +71,7 @@ func (c *cmdDelete) doDelete(d lxd.InstanceServer, name string) error {
 }
 
 func (c *cmdDelete) Run(cmd *cobra.Command, args []string) error {
-	// Sanity checks
+	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 1, -1)
 	if exit {
 		return err

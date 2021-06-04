@@ -60,7 +60,7 @@ lxc init ubuntu:18.04 u1 < config.yaml
 }
 
 func (c *cmdInit) Run(cmd *cobra.Command, args []string) error {
-	// Sanity checks
+	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 0, 2)
 	if exit {
 		return err

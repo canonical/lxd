@@ -112,7 +112,7 @@ func (d *ceph) Create() error {
 		}
 	}
 
-	// Sanity check.
+	// Quick check.
 	if d.config["source"] != "" && d.config["ceph.osd.pool_name"] != "" && d.config["source"] != d.config["ceph.osd.pool_name"] {
 		return fmt.Errorf(`The "source" and "ceph.osd.pool_name" property must not differ for Ceph OSD storage pools`)
 	}
@@ -127,7 +127,7 @@ func (d *ceph) Create() error {
 		d.config["source"] = d.name
 	}
 
-	dummyVol := NewVolume(d, d.name, VolumeType("lxd"), ContentTypeFS, d.config["ceph.osd.pool_name"], nil, nil)
+	placeholderVol := NewVolume(d, d.name, VolumeType("lxd"), ContentTypeFS, d.config["ceph.osd.pool_name"], nil, nil)
 
 	if !d.osdPoolExists() {
 		// Create new osd pool.
@@ -156,14 +156,15 @@ func (d *ceph) Create() error {
 			d.logger.Warn("Failed to initialize pool", log.Ctx{"pool": d.config["ceph.osd.pool_name"], "cluster": d.config["ceph.cluster_name"]})
 		}
 
-		// Create dummy storage volume. Other LXD instances will use this to detect whether this osd pool is already in use by another LXD instance.
-		err = d.rbdCreateVolume(dummyVol, "0")
+		// Create placeholder storage volume. Other LXD instances will use this to detect whether this osd
+		// pool is already in use by another LXD instance.
+		err = d.rbdCreateVolume(placeholderVol, "0")
 		if err != nil {
 			return err
 		}
 		d.config["volatile.pool.pristine"] = "true"
 	} else {
-		ok := d.HasVolume(dummyVol)
+		ok := d.HasVolume(placeholderVol)
 		d.config["volatile.pool.pristine"] = "false"
 		if ok {
 			if d.config["ceph.osd.force_reuse"] == "" || !shared.IsTrue(d.config["ceph.osd.force_reuse"]) {

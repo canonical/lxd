@@ -104,7 +104,7 @@ func (r *ProtocolLXD) GetPrivateImage(fingerprint string, secret string) (*api.I
 
 // GetPrivateImageFile is similar to GetImageFile but allows passing a secret download token
 func (r *ProtocolLXD) GetPrivateImageFile(fingerprint string, secret string, req ImageFileRequest) (*ImageFileResponse, error) {
-	// Sanity checks
+	// Quick checks.
 	if req.MetaFile == nil && req.RootfsFile == nil {
 		return nil, fmt.Errorf("No file requested")
 	}
@@ -623,7 +623,7 @@ func (r *ProtocolLXD) tryCopyImage(req api.ImagesPost, urls []string) (RemoteOpe
 
 // CopyImage copies an image from a remote server. Additional options can be passed using ImageCopyArgs
 func (r *ProtocolLXD) CopyImage(source ImageServer, image api.Image, args *ImageCopyArgs) (RemoteOperation, error) {
-	// Sanity checks
+	// Quick checks.
 	if r == source {
 		return nil, fmt.Errorf("The source and target servers must be different")
 	}

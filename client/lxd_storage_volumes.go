@@ -254,7 +254,7 @@ func (r *ProtocolLXD) MigrateStoragePoolVolume(pool string, volume api.StorageVo
 		return nil, fmt.Errorf("The server is missing the required \"storage_api_remote_volume_handling\" API extension")
 	}
 
-	// Sanity check
+	// Quick check.
 	if !volume.Migration {
 		return nil, fmt.Errorf("Can't ask for a rename through MigrateStoragePoolVolume")
 	}

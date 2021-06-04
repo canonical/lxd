@@ -33,7 +33,7 @@ func (c *cmdCallhook) Command() *cobra.Command {
 }
 
 func (c *cmdCallhook) Run(cmd *cobra.Command, args []string) error {
-	// Sanity checks.
+	// Quick checks.
 	if len(args) < 2 {
 		cmd.Help()
 

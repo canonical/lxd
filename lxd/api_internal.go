@@ -633,7 +633,7 @@ func internalImport(d *Daemon, projectName string, req *internalImportPost, reco
 		}
 	}
 
-	// Sanity checks.
+	// Quick checks.
 	if len(instanceMountPoints) > 1 {
 		return response.BadRequest(fmt.Errorf(`The instance %q seems to exist on multiple storage pools`, req.Name))
 	} else if len(instanceMountPoints) != 1 {

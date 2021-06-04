@@ -56,7 +56,7 @@ func (m *Map) Change(changes map[string]interface{}) (map[string]string, error) 
 			change = ""
 		}
 
-		// Sanity check that we were actually passed a string.
+		// Ensure that we were actually passed a string.
 		s := reflect.ValueOf(change)
 		if s.Kind() != reflect.String {
 			errors.add(name, nil, fmt.Sprintf("invalid type %s", s.Kind()))

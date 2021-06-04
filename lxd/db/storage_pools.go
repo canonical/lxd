@@ -304,7 +304,7 @@ SELECT id FROM storage_volumes WHERE storage_pool_id=? AND node_id=?
 	if err != nil {
 		return errors.Wrap(err, "failed to get other node's ceph volume IDs")
 	}
-	if len(volumeIDs) != len(otherVolumeIDs) { // Sanity check
+	if len(volumeIDs) != len(otherVolumeIDs) { // Quick check.
 		return fmt.Errorf("not all ceph volumes were copied")
 	}
 	for i, otherVolumeID := range otherVolumeIDs {
@@ -402,7 +402,7 @@ func (c *ClusterTx) CreatePendingStoragePool(node, name, driver string, conf map
 
 	var errConsistency error
 	dest := func(i int) []interface{} {
-		// Sanity check that there is at most one pool with the given name.
+		// Ensure that there is at most one pool with the given name.
 		if i != 0 {
 			errConsistency = fmt.Errorf("more than one pool exists with the given name")
 		}

@@ -56,7 +56,7 @@ func (c *cmdMonitor) Run(cmd *cobra.Command, args []string) error {
 	var err error
 	var remote string
 
-	// Sanity checks
+	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 0, 1)
 	if exit {
 		return err

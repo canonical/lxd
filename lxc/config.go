@@ -120,7 +120,7 @@ func (c *cmdConfigEdit) helpTemplate() string {
 }
 
 func (c *cmdConfigEdit) Run(cmd *cobra.Command, args []string) error {
-	// Sanity checks
+	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 0, 1)
 	if exit {
 		return err
@@ -144,7 +144,7 @@ func (c *cmdConfigEdit) Run(cmd *cobra.Command, args []string) error {
 
 	// Edit the config
 	if resource.name != "" {
-		// Sanity checks
+		// Quick checks.
 		if c.config.flagTarget != "" {
 			return fmt.Errorf(i18n.G("--target cannot be used with instances"))
 		}
@@ -368,7 +368,7 @@ func (c *cmdConfigGet) Command() *cobra.Command {
 }
 
 func (c *cmdConfigGet) Run(cmd *cobra.Command, args []string) error {
-	// Sanity checks
+	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 1, 2)
 	if exit {
 		return err
@@ -389,7 +389,7 @@ func (c *cmdConfigGet) Run(cmd *cobra.Command, args []string) error {
 
 	// Get the config key
 	if resource.name != "" {
-		// Sanity checks
+		// Quick checks.
 		if c.config.flagTarget != "" {
 			return fmt.Errorf(i18n.G("--target cannot be used with instances"))
 		}
@@ -405,7 +405,7 @@ func (c *cmdConfigGet) Run(cmd *cobra.Command, args []string) error {
 			fmt.Println(resp.Config[args[len(args)-1]])
 		}
 	} else {
-		// Sanity check
+		// Quick check.
 		if c.flagExpanded {
 			return fmt.Errorf(i18n.G("--expanded cannot be used with a server"))
 		}
@@ -471,7 +471,7 @@ lxc config set core.trust_password=blah
 }
 
 func (c *cmdConfigSet) Run(cmd *cobra.Command, args []string) error {
-	// Sanity checks
+	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 1, -1)
 	if exit {
 		return err
@@ -524,7 +524,7 @@ func (c *cmdConfigSet) Run(cmd *cobra.Command, args []string) error {
 
 	// Set the config keys
 	if resource.name != "" {
-		// Sanity checks
+		// Quick checks.
 		if c.config.flagTarget != "" {
 			return fmt.Errorf(i18n.G("--target cannot be used with instances"))
 		}
@@ -618,7 +618,7 @@ func (c *cmdConfigShow) Command() *cobra.Command {
 }
 
 func (c *cmdConfigShow) Run(cmd *cobra.Command, args []string) error {
-	// Sanity checks
+	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 0, 1)
 	if exit {
 		return err
@@ -641,7 +641,7 @@ func (c *cmdConfigShow) Run(cmd *cobra.Command, args []string) error {
 	var data []byte
 
 	if resource.name == "" {
-		// Sanity check
+		// Quick check.
 		if c.flagExpanded {
 			return fmt.Errorf(i18n.G("--expanded cannot be used with a server"))
 		}
@@ -667,7 +667,7 @@ func (c *cmdConfigShow) Run(cmd *cobra.Command, args []string) error {
 			return err
 		}
 	} else {
-		// Sanity checks
+		// Quick checks.
 		if c.config.flagTarget != "" {
 			return fmt.Errorf(i18n.G("--target cannot be used with instances"))
 		}
@@ -737,7 +737,7 @@ func (c *cmdConfigUnset) Command() *cobra.Command {
 }
 
 func (c *cmdConfigUnset) Run(cmd *cobra.Command, args []string) error {
-	// Sanity checks
+	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 1, 2)
 	if exit {
 		return err

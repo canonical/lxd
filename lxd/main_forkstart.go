@@ -33,7 +33,7 @@ func (c *cmdForkstart) Command() *cobra.Command {
 }
 
 func (c *cmdForkstart) Run(cmd *cobra.Command, args []string) error {
-	// Sanity checks
+	// Quick checks.
 	if len(args) != 3 {
 		cmd.Help()
 

@@ -376,7 +376,7 @@ func (d *nicRouted) postStart() error {
 	}
 
 	if d.config["ipv4.address"] != "" {
-		// Add dummy link-local gateway IPs to the host end of the veth pair. This ensures that
+		// Add link-local gateway IPs to the host end of the veth pair. This ensures that
 		// liveness detection of the gateways inside the instance work and ensure that traffic
 		// doesn't periodically halt whilst ARP is re-detected.
 		addr := &ip.Addr{
@@ -411,7 +411,7 @@ func (d *nicRouted) postStart() error {
 	}
 
 	if d.config["ipv6.address"] != "" {
-		// Add dummy link-local gateway IPs to the host end of the veth pair. This ensures that
+		// Add link-local gateway IPs to the host end of the veth pair. This ensures that
 		// liveness detection of the gateways inside the instance work and ensure that traffic
 		// doesn't periodically halt whilst NDP is re-detected.
 		addr := &ip.Addr{

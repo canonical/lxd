@@ -49,7 +49,7 @@ func (c *cmdShift) Run(cmd *cobra.Command, args []string) error {
 		return cmd.Help()
 	}
 
-	// Sanity checks
+	// Quick checks.
 	if !c.flagTestMode && os.Geteuid() != 0 {
 		return fmt.Errorf("This tool must be run as root")
 	}

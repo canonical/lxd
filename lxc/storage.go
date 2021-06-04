@@ -96,7 +96,7 @@ func (c *cmdStorageCreate) Command() *cobra.Command {
 }
 
 func (c *cmdStorageCreate) Run(cmd *cobra.Command, args []string) error {
-	// Sanity checks
+	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 2, -1)
 	if exit {
 		return err
@@ -169,7 +169,7 @@ func (c *cmdStorageDelete) Command() *cobra.Command {
 }
 
 func (c *cmdStorageDelete) Run(cmd *cobra.Command, args []string) error {
-	// Sanity checks
+	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 1, 1)
 	if exit {
 		return err
@@ -239,7 +239,7 @@ func (c *cmdStorageEdit) helpTemplate() string {
 }
 
 func (c *cmdStorageEdit) Run(cmd *cobra.Command, args []string) error {
-	// Sanity checks
+	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 1, 1)
 	if exit {
 		return err
@@ -340,7 +340,7 @@ func (c *cmdStorageGet) Command() *cobra.Command {
 }
 
 func (c *cmdStorageGet) Run(cmd *cobra.Command, args []string) error {
-	// Sanity checks
+	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 2, 2)
 	if exit {
 		return err
@@ -401,7 +401,7 @@ func (c *cmdStorageInfo) Command() *cobra.Command {
 }
 
 func (c *cmdStorageInfo) Run(cmd *cobra.Command, args []string) error {
-	// Sanity checks
+	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 1, 1)
 	if exit {
 		return err
@@ -520,7 +520,7 @@ func (c *cmdStorageList) Command() *cobra.Command {
 }
 
 func (c *cmdStorageList) Run(cmd *cobra.Command, args []string) error {
-	// Sanity checks
+	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 0, 1)
 	if exit {
 		return err
@@ -603,7 +603,7 @@ For backward compatibility, a single configuration key may still be set with:
 }
 
 func (c *cmdStorageSet) Run(cmd *cobra.Command, args []string) error {
-	// Sanity checks
+	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 2, -1)
 	if exit {
 		return err
@@ -675,7 +675,7 @@ func (c *cmdStorageShow) Command() *cobra.Command {
 }
 
 func (c *cmdStorageShow) Run(cmd *cobra.Command, args []string) error {
-	// Sanity checks
+	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 1, 1)
 	if exit {
 		return err
@@ -758,7 +758,7 @@ func (c *cmdStorageUnset) Command() *cobra.Command {
 }
 
 func (c *cmdStorageUnset) Run(cmd *cobra.Command, args []string) error {
-	// Sanity checks
+	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 2, 2)
 	if exit {
 		return err

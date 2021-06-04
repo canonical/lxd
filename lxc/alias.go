@@ -65,7 +65,7 @@ func (c *cmdAliasAdd) Command() *cobra.Command {
 func (c *cmdAliasAdd) Run(cmd *cobra.Command, args []string) error {
 	conf := c.global.conf
 
-	// Sanity checks
+	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 2, 2)
 	if exit {
 		return err
@@ -109,7 +109,7 @@ func (c *cmdAliasList) Command() *cobra.Command {
 func (c *cmdAliasList) Run(cmd *cobra.Command, args []string) error {
 	conf := c.global.conf
 
-	// Sanity checks
+	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 0, 0)
 	if exit {
 		return err
@@ -155,7 +155,7 @@ func (c *cmdAliasRename) Command() *cobra.Command {
 func (c *cmdAliasRename) Run(cmd *cobra.Command, args []string) error {
 	conf := c.global.conf
 
-	// Sanity checks
+	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 2, 2)
 	if exit {
 		return err
@@ -206,7 +206,7 @@ func (c *cmdAliasRemove) Command() *cobra.Command {
 func (c *cmdAliasRemove) Run(cmd *cobra.Command, args []string) error {
 	conf := c.global.conf
 
-	// Sanity checks
+	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 1, 1)
 	if exit {
 		return err

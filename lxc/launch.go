@@ -42,7 +42,7 @@ lxc launch ubuntu:18.04 u1 < config.yaml
 func (c *cmdLaunch) Run(cmd *cobra.Command, args []string) error {
 	conf := c.global.conf
 
-	// Sanity checks
+	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 1, 2)
 	if exit {
 		return err

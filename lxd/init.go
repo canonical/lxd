@@ -174,7 +174,7 @@ func initDataNodeApply(d lxd.InstanceServer, config initDataNode) (func(), error
 				return errors.Wrapf(err, "Failed to retrieve current storage pool '%s'", storagePool.Name)
 			}
 
-			// Sanity check.
+			// Quick check.
 			if currentStoragePool.Driver != storagePool.Driver {
 				return fmt.Errorf("Storage pool '%s' is of type '%s' instead of '%s'", currentStoragePool.Name, currentStoragePool.Driver, storagePool.Driver)
 			}

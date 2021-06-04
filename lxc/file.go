@@ -111,7 +111,7 @@ func (c *cmdFileDelete) Command() *cobra.Command {
 }
 
 func (c *cmdFileDelete) Run(cmd *cobra.Command, args []string) error {
-	// Sanity checks
+	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 1, -1)
 	if exit {
 		return err
@@ -162,7 +162,7 @@ func (c *cmdFileEdit) Command() *cobra.Command {
 func (c *cmdFileEdit) Run(cmd *cobra.Command, args []string) error {
 	c.filePush.noModeChange = true
 
-	// Sanity checks
+	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 1, 1)
 	if exit {
 		return err
@@ -228,7 +228,7 @@ func (c *cmdFilePull) Command() *cobra.Command {
 }
 
 func (c *cmdFilePull) Run(cmd *cobra.Command, args []string) error {
-	// Sanity checks
+	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 2, -1)
 	if exit {
 		return err
@@ -421,7 +421,7 @@ func (c *cmdFilePush) Command() *cobra.Command {
 }
 
 func (c *cmdFilePush) Run(cmd *cobra.Command, args []string) error {
-	// Sanity checks
+	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 2, -1)
 	if exit {
 		return err
@@ -476,7 +476,7 @@ func (c *cmdFilePush) Run(cmd *cobra.Command, args []string) error {
 
 	// Recursive calls
 	if c.file.flagRecursive {
-		// Sanity checks
+		// Quick checks.
 		if c.file.flagUID != -1 || c.file.flagGID != -1 || c.file.flagMode != "" {
 			return fmt.Errorf(i18n.G("Can't supply uid/gid/mode in recursive mode"))
 		}

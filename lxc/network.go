@@ -119,7 +119,7 @@ func (c *cmdNetworkAttach) Command() *cobra.Command {
 }
 
 func (c *cmdNetworkAttach) Run(cmd *cobra.Command, args []string) error {
-	// Sanity checks
+	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 2, 4)
 	if exit {
 		return err
@@ -204,7 +204,7 @@ func (c *cmdNetworkAttachProfile) Command() *cobra.Command {
 }
 
 func (c *cmdNetworkAttachProfile) Run(cmd *cobra.Command, args []string) error {
-	// Sanity checks
+	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 2, 4)
 	if exit {
 		return err
@@ -279,7 +279,7 @@ func (c *cmdNetworkCreate) Command() *cobra.Command {
 }
 
 func (c *cmdNetworkCreate) Run(cmd *cobra.Command, args []string) error {
-	// Sanity checks
+	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 1, -1)
 	if exit {
 		return err
@@ -351,7 +351,7 @@ func (c *cmdNetworkDelete) Command() *cobra.Command {
 }
 
 func (c *cmdNetworkDelete) Run(cmd *cobra.Command, args []string) error {
-	// Sanity checks
+	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 1, 1)
 	if exit {
 		return err
@@ -401,7 +401,7 @@ func (c *cmdNetworkDetach) Command() *cobra.Command {
 }
 
 func (c *cmdNetworkDetach) Run(cmd *cobra.Command, args []string) error {
-	// Sanity checks
+	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 2, 3)
 	if exit {
 		return err
@@ -486,7 +486,7 @@ func (c *cmdNetworkDetachProfile) Command() *cobra.Command {
 }
 
 func (c *cmdNetworkDetachProfile) Run(cmd *cobra.Command, args []string) error {
-	// Sanity checks
+	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 2, 3)
 	if exit {
 		return err
@@ -591,7 +591,7 @@ func (c *cmdNetworkEdit) helpTemplate() string {
 }
 
 func (c *cmdNetworkEdit) Run(cmd *cobra.Command, args []string) error {
-	// Sanity checks
+	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 1, 1)
 	if exit {
 		return err
@@ -695,7 +695,7 @@ func (c *cmdNetworkGet) Command() *cobra.Command {
 }
 
 func (c *cmdNetworkGet) Run(cmd *cobra.Command, args []string) error {
-	// Sanity checks
+	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 2, 2)
 	if exit {
 		return err
@@ -753,7 +753,7 @@ func (c *cmdNetworkInfo) Command() *cobra.Command {
 }
 
 func (c *cmdNetworkInfo) Run(cmd *cobra.Command, args []string) error {
-	// Sanity checks
+	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 1, 1)
 	if exit {
 		return err
@@ -833,7 +833,7 @@ func (c *cmdNetworkList) Command() *cobra.Command {
 }
 
 func (c *cmdNetworkList) Run(cmd *cobra.Command, args []string) error {
-	// Sanity checks
+	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 0, 1)
 	if exit {
 		return err
@@ -928,7 +928,7 @@ func (c *cmdNetworkListLeases) Command() *cobra.Command {
 }
 
 func (c *cmdNetworkListLeases) Run(cmd *cobra.Command, args []string) error {
-	// Sanity checks
+	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 1, 1)
 	if exit {
 		return err
@@ -996,7 +996,7 @@ func (c *cmdNetworkRename) Command() *cobra.Command {
 }
 
 func (c *cmdNetworkRename) Run(cmd *cobra.Command, args []string) error {
-	// Sanity checks
+	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 2, 2)
 	if exit {
 		return err
@@ -1050,7 +1050,7 @@ For backward compatibility, a single configuration key may still be set with:
 }
 
 func (c *cmdNetworkSet) Run(cmd *cobra.Command, args []string) error {
-	// Sanity checks
+	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 2, -1)
 	if exit {
 		return err
@@ -1117,7 +1117,7 @@ func (c *cmdNetworkShow) Command() *cobra.Command {
 }
 
 func (c *cmdNetworkShow) Run(cmd *cobra.Command, args []string) error {
-	// Sanity checks
+	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 1, 1)
 	if exit {
 		return err
@@ -1179,7 +1179,7 @@ func (c *cmdNetworkUnset) Command() *cobra.Command {
 }
 
 func (c *cmdNetworkUnset) Run(cmd *cobra.Command, args []string) error {
-	// Sanity checks
+	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 2, 2)
 	if exit {
 		return err

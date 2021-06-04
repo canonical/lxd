@@ -227,7 +227,7 @@ func storagePoolsPost(d *Daemon, r *http.Request) response.Response {
 		return response.BadRequest(err)
 	}
 
-	// Sanity checks.
+	// Quick checks.
 	if req.Name == "" {
 		return response.BadRequest(fmt.Errorf("No name provided"))
 	}
@@ -358,7 +358,7 @@ func storagePoolsPostCluster(d *Daemon, pool *api.StoragePool, req api.StoragePo
 		}
 	}
 
-	// Perform sanity checks if pool already exists.
+	// If pool already exists, perform quick checks.
 	if pool != nil {
 		// Check pool isn't already created.
 		if pool.Status == api.StoragePoolStatusCreated {
@@ -847,7 +847,7 @@ func storagePoolDelete(d *Daemon, r *http.Request) response.Response {
 	clusterNotification := isClusterNotification(r)
 	var notifier cluster.Notifier
 	if !clusterNotification {
-		// Sanity checks.
+		// Quick checks.
 		inUse, err := pool.IsUsed()
 		if err != nil {
 			return response.SmartError(err)

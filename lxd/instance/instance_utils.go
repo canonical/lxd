@@ -231,7 +231,7 @@ func lxcParseRawLXC(line string) (string, string, error) {
 		return "", "", nil
 	}
 
-	// Skip whitespace {"\t", " "}
+	// Skip space {"\t", " "}
 	line = strings.TrimLeft(line, "\t ")
 
 	// Ignore comments

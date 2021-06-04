@@ -71,7 +71,7 @@ func (c *cmdConfigTemplateCreate) Command() *cobra.Command {
 }
 
 func (c *cmdConfigTemplateCreate) Run(cmd *cobra.Command, args []string) error {
-	// Sanity checks
+	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 2, 2)
 	if exit {
 		return err
@@ -114,7 +114,7 @@ func (c *cmdConfigTemplateDelete) Command() *cobra.Command {
 }
 
 func (c *cmdConfigTemplateDelete) Run(cmd *cobra.Command, args []string) error {
-	// Sanity checks
+	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 2, 2)
 	if exit {
 		return err
@@ -156,7 +156,7 @@ func (c *cmdConfigTemplateEdit) Command() *cobra.Command {
 }
 
 func (c *cmdConfigTemplateEdit) Run(cmd *cobra.Command, args []string) error {
-	// Sanity checks
+	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 2, 2)
 	if exit {
 		return err
@@ -243,7 +243,7 @@ func (c *cmdConfigTemplateList) Command() *cobra.Command {
 }
 
 func (c *cmdConfigTemplateList) Run(cmd *cobra.Command, args []string) error {
-	// Sanity checks
+	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 1, 1)
 	if exit {
 		return err
@@ -301,7 +301,7 @@ func (c *cmdConfigTemplateShow) Command() *cobra.Command {
 }
 
 func (c *cmdConfigTemplateShow) Run(cmd *cobra.Command, args []string) error {
-	// Sanity checks
+	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 2, 2)
 	if exit {
 		return err

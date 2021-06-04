@@ -253,7 +253,7 @@ func (c *cmdWarningAcknowledge) Command() *cobra.Command {
 }
 
 func (c *cmdWarningAcknowledge) Run(cmd *cobra.Command, args []string) error {
-	// Sanity checks
+	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 1, 1)
 	if exit {
 		return err
@@ -294,7 +294,7 @@ func (c *cmdWarningShow) Command() *cobra.Command {
 }
 
 func (c *cmdWarningShow) Run(cmd *cobra.Command, args []string) error {
-	// Sanity checks
+	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 1, 1)
 	if exit {
 		return err
@@ -350,7 +350,7 @@ func (c *cmdWarningDelete) Command() *cobra.Command {
 }
 
 func (c *cmdWarningDelete) Run(cmd *cobra.Command, args []string) error {
-	// Sanity checks
+	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 1, 1)
 	if exit {
 		return err
