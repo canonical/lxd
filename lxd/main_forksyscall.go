@@ -31,12 +31,29 @@ import (
 #include <unistd.h>
 
 #include "include/memory_utils.h"
+#include "include/mount_utils.h"
+#include "include/syscall_numbers.h"
+#include "include/syscall_wrappers.h"
 
 extern char* advance_arg(bool required);
 extern void attach_userns_fd(int ns_fd);
 extern int pidfd_nsfd(int pidfd, pid_t pid);
 extern int preserve_ns(pid_t pid, int ns_fd, const char *ns);
 extern bool change_namespaces(int pidfd, int nsfd, unsigned int flags);
+extern int mount_detach_idmap(const char *path, int fd_userns);
+
+#define log_stderr(format, ...)                                                         \
+	fprintf(stderr, "%s: %d: %s - %m - " format "\n", __FILE__, __LINE__, __func__, \
+		##__VA_ARGS__)
+
+#define die_errno(__errno__, format, ...)          \
+	({                                         \
+		errno = (__errno__);               \
+		log_stderr(format, ##__VA_ARGS__); \
+		_exit(EXIT_FAILURE);                \
+	})
+
+#define die(format, ...) die_errno(errno, format, ##__VA_ARGS__)
 
 static bool chdirchroot_in_mntns(int cwd_fd, int root_fd)
 {
@@ -357,8 +374,8 @@ static int make_tmpfile(char *template, bool dir)
 
 static void mount_emulate(void)
 {
-	__do_close int mnt_fd = -EBADF, pidfd = -EBADF, ns_fd = -EBADF,
-		   root_fd = -EBADF, cwd_fd = -EBADF;
+	__do_close int fd_mntns = -EBADF, fd_userns = -EBADF, pidfd = -EBADF,
+		       ns_fd = -EBADF, root_fd = -EBADF, cwd_fd = -EBADF;
 	char *source = NULL, *shiftfs = NULL, *target = NULL, *fstype = NULL;
 	bool use_fuse;
 	uid_t nsuid = -1, uid = -1, nsfsuid = -1, fsuid = -1;
@@ -393,8 +410,12 @@ static void mount_emulate(void)
 		data = advance_arg(false);
 	}
 
-	mnt_fd = preserve_ns(getpid(), ns_fd, "mnt");
-	if (mnt_fd < 0)
+	fd_userns = preserve_ns(-ESRCH, ns_fd, "user");
+	if (fd_userns < 0)
+		_exit(EXIT_FAILURE);
+
+	fd_mntns = preserve_ns(getpid(), ns_fd, "mnt");
+	if (fd_mntns < 0)
 		_exit(EXIT_FAILURE);
 
 	if (use_fuse) {
@@ -437,7 +458,32 @@ static void mount_emulate(void)
 		ret = waitpid(pid_fuse, &status, 0);
 		if ((ret != pid_fuse) || !WIFEXITED(status) || WEXITSTATUS(status))
 			_exit(EXIT_FAILURE);
-	} else if (strcmp(shiftfs, "true") == 0) {
+	} else if (strcmp(shiftfs, "idmapped") == 0) {
+		int fd_tree;
+
+		fd_tree = mount_detach_idmap(source, fd_userns);
+		if (fd_tree < 0)
+			die("error: failed to create detached idmapped mount");
+
+		ret = setns(fd_mntns, CLONE_NEWNS);
+		if (ret)
+			die("error: failed to attach to old mount namespace");
+
+		attach_userns_fd(ns_fd);
+
+		if (!change_namespaces(pidfd, ns_fd, CLONE_NEWUSER))
+			die("error: failed to change to target user namespace");
+
+		if (!reacquire_basic_creds(pidfd, ns_fd, root_fd, cwd_fd))
+			die("error: failed to acquire basic creds");
+
+		if (!acquire_final_creds(pid, nsuid, nsgid, nsfsuid, nsfsgid))
+			die("error: failed to acquire final creds");
+
+		ret = move_mount(fd_tree, "", -EBADF, target, MOVE_MOUNT_F_EMPTY_PATH);
+		if (ret)
+			die("error: failed to attach detached mount");
+	} else if (strcmp(shiftfs, "shiftfs") == 0) {
 		char template[] = P_tmpdir "/.lxd_tmp_mount_XXXXXX";
 
 		// Create basic mount in container's mount namespace.
@@ -456,7 +502,7 @@ static void mount_emulate(void)
 		// to the user namespace of the container, and then attach to
 		// the mount namespace again to get the ownership right when
 		// creating our final shiftfs mount.
-		ret = setns(mnt_fd, CLONE_NEWNS);
+		ret = setns(fd_mntns, CLONE_NEWNS);
 		if (ret) {
 			umount2(target, MNT_DETACH);
 			umount2(target, MNT_DETACH);
