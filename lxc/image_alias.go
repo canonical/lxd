@@ -64,7 +64,7 @@ func (c *cmdImageAliasCreate) Command() *cobra.Command {
 }
 
 func (c *cmdImageAliasCreate) Run(cmd *cobra.Command, args []string) error {
-	// Sanity checks
+	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 2, 2)
 	if exit {
 		return err
@@ -111,7 +111,7 @@ func (c *cmdImageAliasDelete) Command() *cobra.Command {
 }
 
 func (c *cmdImageAliasDelete) Run(cmd *cobra.Command, args []string) error {
-	// Sanity checks
+	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 1, 1)
 	if exit {
 		return err
@@ -174,7 +174,7 @@ func (c *cmdImageAliasList) aliasShouldShow(filters []string, state *api.ImageAl
 }
 
 func (c *cmdImageAliasList) Run(cmd *cobra.Command, args []string) error {
-	// Sanity checks
+	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 0, -1)
 	if exit {
 		return err
@@ -258,7 +258,7 @@ func (c *cmdImageAliasRename) Command() *cobra.Command {
 }
 
 func (c *cmdImageAliasRename) Run(cmd *cobra.Command, args []string) error {
-	// Sanity checks
+	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 2, 2)
 	if exit {
 		return err

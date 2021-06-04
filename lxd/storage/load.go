@@ -67,7 +67,7 @@ func commonRules() *drivers.Validators {
 // If the pool's driver is not recognised then drivers.ErrUnknownDriver is returned.
 // Deprecated, used only by patches.
 func CreatePool(state *state.State, poolID int64, dbPool *api.StoragePoolsPost) (Pool, error) {
-	// Sanity checks.
+	// Quick checks.
 	if dbPool == nil {
 		return nil, ErrNilValue
 	}

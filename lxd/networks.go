@@ -271,7 +271,7 @@ func networksPost(d *Daemon, r *http.Request) response.Response {
 		return response.BadRequest(err)
 	}
 
-	// Sanity checks.
+	// Quick checks.
 	if req.Name == "" {
 		return response.BadRequest(fmt.Errorf("No name provided"))
 	}
@@ -765,7 +765,7 @@ func doNetworkGet(d *Daemon, r *http.Request, projectName string, name string) (
 
 	osInfo, _ := net.InterfaceByName(name)
 
-	// Sanity check.
+	// Quick check.
 	if osInfo == nil && dbInfo == nil {
 		return api.Network{}, os.ErrNotExist
 	}
@@ -862,7 +862,7 @@ func networkDelete(d *Daemon, r *http.Request) response.Response {
 
 	clusterNotification := isClusterNotification(r)
 	if !clusterNotification {
-		// Sanity checks.
+		// Quick checks.
 		inUse, err := n.IsUsed()
 		if err != nil {
 			return response.SmartError(err)

@@ -168,7 +168,7 @@ func (c *cmdStorageVolumeAttach) Command() *cobra.Command {
 }
 
 func (c *cmdStorageVolumeAttach) Run(cmd *cobra.Command, args []string) error {
-	// Sanity checks
+	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 4, 5)
 	if exit {
 		return err
@@ -241,7 +241,7 @@ func (c *cmdStorageVolumeAttachProfile) Command() *cobra.Command {
 }
 
 func (c *cmdStorageVolumeAttachProfile) Run(cmd *cobra.Command, args []string) error {
-	// Sanity checks
+	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 4, 5)
 	if exit {
 		return err
@@ -331,7 +331,7 @@ func (c *cmdStorageVolumeCopy) Command() *cobra.Command {
 }
 
 func (c *cmdStorageVolumeCopy) Run(cmd *cobra.Command, args []string) error {
-	// Sanity checks
+	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 2, 2)
 	if exit {
 		return err
@@ -492,7 +492,7 @@ func (c *cmdStorageVolumeCreate) Command() *cobra.Command {
 }
 
 func (c *cmdStorageVolumeCreate) Run(cmd *cobra.Command, args []string) error {
-	// Sanity checks
+	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 2, -1)
 	if exit {
 		return err
@@ -570,7 +570,7 @@ func (c *cmdStorageVolumeDelete) Command() *cobra.Command {
 }
 
 func (c *cmdStorageVolumeDelete) Run(cmd *cobra.Command, args []string) error {
-	// Sanity checks
+	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 2, 2)
 	if exit {
 		return err
@@ -645,7 +645,7 @@ func (c *cmdStorageVolumeDetach) Command() *cobra.Command {
 }
 
 func (c *cmdStorageVolumeDetach) Run(cmd *cobra.Command, args []string) error {
-	// Sanity checks
+	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 3, 4)
 	if exit {
 		return err
@@ -727,7 +727,7 @@ func (c *cmdStorageVolumeDetachProfile) Command() *cobra.Command {
 }
 
 func (c *cmdStorageVolumeDetachProfile) Run(cmd *cobra.Command, args []string) error {
-	// Sanity checks
+	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 3, 4)
 	if exit {
 		return err
@@ -826,7 +826,7 @@ func (c *cmdStorageVolumeEdit) helpTemplate() string {
 }
 
 func (c *cmdStorageVolumeEdit) Run(cmd *cobra.Command, args []string) error {
-	// Sanity checks
+	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 2, 2)
 	if exit {
 		return err
@@ -1009,7 +1009,7 @@ func (c *cmdStorageVolumeGet) Command() *cobra.Command {
 }
 
 func (c *cmdStorageVolumeGet) Run(cmd *cobra.Command, args []string) error {
-	// Sanity checks
+	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 3, 3)
 	if exit {
 		return err
@@ -1097,7 +1097,7 @@ func (c *cmdStorageVolumeInfo) Command() *cobra.Command {
 }
 
 func (c *cmdStorageVolumeInfo) Run(cmd *cobra.Command, args []string) error {
-	// Sanity checks
+	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 2, 2)
 	if exit {
 		return err
@@ -1200,7 +1200,7 @@ Column shorthand chars:
 }
 
 func (c *cmdStorageVolumeList) Run(cmd *cobra.Command, args []string) error {
-	// Sanity checks
+	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 1, 1)
 	if exit {
 		return err
@@ -1369,7 +1369,7 @@ func (c *cmdStorageVolumeMove) Command() *cobra.Command {
 }
 
 func (c *cmdStorageVolumeMove) Run(cmd *cobra.Command, args []string) error {
-	// Sanity checks
+	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 2, 2)
 	if exit {
 		return err
@@ -1399,7 +1399,7 @@ func (c *cmdStorageVolumeRename) Command() *cobra.Command {
 }
 
 func (c *cmdStorageVolumeRename) Run(cmd *cobra.Command, args []string) error {
-	// Sanity checks
+	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 3, 3)
 	if exit {
 		return err
@@ -1515,7 +1515,7 @@ For backward compatibility, a single configuration key may still be set with:
 }
 
 func (c *cmdStorageVolumeSet) Run(cmd *cobra.Command, args []string) error {
-	// Sanity checks
+	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 3, -1)
 	if exit {
 		return err
@@ -1594,7 +1594,7 @@ lxc storage volume show default container/data
 }
 
 func (c *cmdStorageVolumeShow) Run(cmd *cobra.Command, args []string) error {
-	// Sanity checks
+	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 2, 2)
 	if exit {
 		return err
@@ -1687,7 +1687,7 @@ func (c *cmdStorageVolumeUnset) Command() *cobra.Command {
 }
 
 func (c *cmdStorageVolumeUnset) Run(cmd *cobra.Command, args []string) error {
-	// Sanity checks
+	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 3, 3)
 	if exit {
 		return err
@@ -1723,7 +1723,7 @@ func (c *cmdStorageVolumeSnapshot) Command() *cobra.Command {
 }
 
 func (c *cmdStorageVolumeSnapshot) Run(cmd *cobra.Command, args []string) error {
-	// Sanity checks
+	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 2, 3)
 	if exit {
 		return err
@@ -1819,7 +1819,7 @@ func (c *cmdStorageVolumeRestore) Command() *cobra.Command {
 }
 
 func (c *cmdStorageVolumeRestore) Run(cmd *cobra.Command, args []string) error {
-	// Sanity checks
+	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 3, 3)
 	if exit {
 		return err
@@ -1892,7 +1892,7 @@ func (c *cmdStorageVolumeExport) Command() *cobra.Command {
 func (c *cmdStorageVolumeExport) Run(cmd *cobra.Command, args []string) error {
 	conf := c.global.conf
 
-	// Sanity checks
+	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 2, 3)
 	if exit {
 		return err
@@ -2031,7 +2031,7 @@ func (c *cmdStorageVolumeImport) Command() *cobra.Command {
 func (c *cmdStorageVolumeImport) Run(cmd *cobra.Command, args []string) error {
 	conf := c.global.conf
 
-	// Sanity checks.
+	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 2, 3)
 	if exit {
 		return err

@@ -92,7 +92,7 @@ func (c *cmdConfigDeviceAdd) Command() *cobra.Command {
 }
 
 func (c *cmdConfigDeviceAdd) Run(cmd *cobra.Command, args []string) error {
-	// Sanity checks
+	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 3, -1)
 	if exit {
 		return err
@@ -199,7 +199,7 @@ func (c *cmdConfigDeviceGet) Command() *cobra.Command {
 }
 
 func (c *cmdConfigDeviceGet) Run(cmd *cobra.Command, args []string) error {
-	// Sanity checks
+	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 3, 3)
 	if exit {
 		return err
@@ -276,7 +276,7 @@ func (c *cmdConfigDeviceList) Command() *cobra.Command {
 }
 
 func (c *cmdConfigDeviceList) Run(cmd *cobra.Command, args []string) error {
-	// Sanity checks
+	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 1, 1)
 	if exit {
 		return err
@@ -342,7 +342,7 @@ func (c *cmdConfigDeviceOverride) Command() *cobra.Command {
 }
 
 func (c *cmdConfigDeviceOverride) Run(cmd *cobra.Command, args []string) error {
-	// Sanity checks
+	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 2, -1)
 	if exit {
 		return err
@@ -435,7 +435,7 @@ func (c *cmdConfigDeviceRemove) Command() *cobra.Command {
 }
 
 func (c *cmdConfigDeviceRemove) Run(cmd *cobra.Command, args []string) error {
-	// Sanity checks
+	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 2, -1)
 	if exit {
 		return err
@@ -537,7 +537,7 @@ For backward compatibility, a single configuration key may still be set with:
 }
 
 func (c *cmdConfigDeviceSet) Run(cmd *cobra.Command, args []string) error {
-	// Sanity checks
+	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 3, -1)
 	if exit {
 		return err
@@ -637,7 +637,7 @@ func (c *cmdConfigDeviceShow) Command() *cobra.Command {
 }
 
 func (c *cmdConfigDeviceShow) Run(cmd *cobra.Command, args []string) error {
-	// Sanity checks
+	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 1, 1)
 	if exit {
 		return err
@@ -709,7 +709,7 @@ func (c *cmdConfigDeviceUnset) Command() *cobra.Command {
 }
 
 func (c *cmdConfigDeviceUnset) Run(cmd *cobra.Command, args []string) error {
-	// Sanity checks
+	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 3, 3)
 	if exit {
 		return err

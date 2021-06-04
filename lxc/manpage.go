@@ -30,7 +30,7 @@ func (c *cmdManpage) Command() *cobra.Command {
 }
 
 func (c *cmdManpage) Run(cmd *cobra.Command, args []string) error {
-	// Sanity checks
+	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 1, 1)
 	if exit {
 		return err
