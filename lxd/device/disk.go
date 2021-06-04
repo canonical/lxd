@@ -268,10 +268,6 @@ func (d *disk) getDevicePath(devName string, devConfig deviceConfig.Device) stri
 
 // validateEnvironment checks the runtime environment for correctness.
 func (d *disk) validateEnvironment() error {
-	if shared.IsTrue(d.config["shift"]) && !d.state.OS.Shiftfs {
-		return fmt.Errorf("shiftfs is required by disk entry but isn't supported on system")
-	}
-
 	if d.inst.Type() != instancetype.VM && d.config["source"] == diskSourceCloudInit {
 		return fmt.Errorf("disks with source=%s are only supported by virtual machines", diskSourceCloudInit)
 	}
