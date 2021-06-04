@@ -159,6 +159,19 @@ test_clustering_membership() {
   LXD_DIR="${LXD_TWO_DIR}" lxc cluster list-tokens
   ! LXD_DIR="${LXD_TWO_DIR}" lxc cluster list-tokens | grep node6 || false
 
+  # Generate a join token for a seventh node
+  token=$(LXD_DIR="${LXD_ONE_DIR}" lxc cluster add node7 | tail -n 1)
+
+  # Check token is associated to correct name
+  LXD_DIR="${LXD_TWO_DIR}" lxc cluster list-tokens | grep node7 | grep "${token}"
+
+  # Revoke the token
+  LXD_DIR="${LXD_ONE_DIR}" lxc cluster revoke-token node7 | tail -n 1
+
+  # Check token has been deleted
+  LXD_DIR="${LXD_TWO_DIR}" lxc cluster list-tokens
+  ! LXD_DIR="${LXD_TWO_DIR}" lxc cluster list-tokens | grep node7 || false
+
   LXD_DIR="${LXD_SIX_DIR}" lxd shutdown
   LXD_DIR="${LXD_FIVE_DIR}" lxd shutdown
   LXD_DIR="${LXD_FOUR_DIR}" lxd shutdown
