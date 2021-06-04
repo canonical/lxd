@@ -385,7 +385,7 @@ func (c *cmdList) showInstances(cts []api.InstanceFull, filters []string, column
 func (c *cmdList) Run(cmd *cobra.Command, args []string) error {
 	conf := c.global.conf
 
-	// Sanity checks
+	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 0, -1)
 	if exit {
 		return err

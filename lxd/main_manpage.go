@@ -27,7 +27,7 @@ func (c *cmdManpage) Command() *cobra.Command {
 }
 
 func (c *cmdManpage) Run(cmd *cobra.Command, args []string) error {
-	// Sanity checks
+	// Quick checks.
 	if len(args) != 1 {
 		cmd.Help()
 

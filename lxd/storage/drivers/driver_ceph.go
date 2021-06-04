@@ -112,7 +112,7 @@ func (d *ceph) Create() error {
 		}
 	}
 
-	// Sanity check.
+	// Quick check.
 	if d.config["source"] != "" && d.config["ceph.osd.pool_name"] != "" && d.config["source"] != d.config["ceph.osd.pool_name"] {
 		return fmt.Errorf(`The "source" and "ceph.osd.pool_name" property must not differ for Ceph OSD storage pools`)
 	}

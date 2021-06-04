@@ -82,7 +82,7 @@ func (c *cmdConfigMetadataEdit) helpTemplate() string {
 }
 
 func (c *cmdConfigMetadataEdit) Run(cmd *cobra.Command, args []string) error {
-	// Sanity checks
+	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 1, 1)
 	if exit {
 		return err
@@ -180,7 +180,7 @@ func (c *cmdConfigMetadataShow) Command() *cobra.Command {
 }
 
 func (c *cmdConfigMetadataShow) Run(cmd *cobra.Command, args []string) error {
-	// Sanity checks
+	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 1, 1)
 	if exit {
 		return err

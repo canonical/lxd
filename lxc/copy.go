@@ -439,7 +439,7 @@ func (c *cmdCopy) copyInstance(conf *config.Config, sourceResource string, destR
 func (c *cmdCopy) Run(cmd *cobra.Command, args []string) error {
 	conf := c.global.conf
 
-	// Sanity checks
+	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 1, 2)
 	if exit {
 		return err

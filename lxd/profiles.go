@@ -214,7 +214,7 @@ func profilesPost(d *Daemon, r *http.Request) response.Response {
 		return response.BadRequest(err)
 	}
 
-	// Sanity checks.
+	// Quick checks.
 	if req.Name == "" {
 		return response.BadRequest(fmt.Errorf("No name provided"))
 	}
@@ -602,7 +602,7 @@ func profilePost(d *Daemon, r *http.Request) response.Response {
 		return response.BadRequest(err)
 	}
 
-	// Sanity checks.
+	// Quick checks.
 	if req.Name == "" {
 		return response.BadRequest(fmt.Errorf("No name provided"))
 	}

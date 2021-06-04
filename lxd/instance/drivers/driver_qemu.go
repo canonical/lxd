@@ -3370,7 +3370,7 @@ func (d *qemu) Snapshot(name string, expiry time.Time, stateful bool) error {
 			return fmt.Errorf("Stateful stop requires migration.stateful to be set to true")
 		}
 
-		// Sanity checks.
+		// Quick checks.
 		if !d.IsRunning() {
 			return fmt.Errorf("Unable to create a stateful snapshot. The instance isn't running")
 		}
@@ -3526,7 +3526,7 @@ func (d *qemu) Rename(newName string, applyTemplateTrigger bool) error {
 
 	d.logger.Info("Renaming instance", ctxMap)
 
-	// Sanity checks.
+	// Quick checks.
 	err := instance.ValidName(newName, d.IsSnapshot())
 	if err != nil {
 		return err

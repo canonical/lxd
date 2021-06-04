@@ -52,7 +52,7 @@ func (c *cmdPublish) Run(cmd *cobra.Command, args []string) error {
 	properties := map[string]string{}
 	firstprop := 1 // first property is arg[2] if arg[1] is image remote, else arg[1]
 
-	// Sanity checks
+	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 1, -1)
 	if exit {
 		return err

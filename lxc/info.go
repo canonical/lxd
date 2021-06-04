@@ -51,7 +51,7 @@ lxc info [<remote>:] [--resources]
 func (c *cmdInfo) Run(cmd *cobra.Command, args []string) error {
 	conf := c.global.conf
 
-	// Sanity checks
+	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 0, 1)
 	if exit {
 		return err
@@ -440,7 +440,7 @@ func (c *cmdInfo) remoteInfo(d lxd.InstanceServer) error {
 }
 
 func (c *cmdInfo) instanceInfo(d lxd.InstanceServer, remote config.Remote, name string, showLog bool) error {
-	// Sanity checks
+	// Quick checks.
 	if c.flagTarget != "" {
 		return fmt.Errorf(i18n.G("--target cannot be used with instances"))
 	}

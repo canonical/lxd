@@ -67,7 +67,7 @@ func (c *cmdInit) Command() *cobra.Command {
 }
 
 func (c *cmdInit) Run(cmd *cobra.Command, args []string) error {
-	// Sanity checks
+	// Quick checks.
 	if c.flagAuto && c.flagPreseed {
 		return fmt.Errorf("Can't use --auto and --preseed together")
 	}

@@ -1964,7 +1964,7 @@ func (n *bridge) applyBootRoutesV6(routes []string) {
 }
 
 func (n *bridge) fanAddress(underlay *net.IPNet, overlay *net.IPNet) (string, string, string, error) {
-	// Sanity checks
+	// Quick checks.
 	underlaySize, _ := underlay.Mask.Size()
 	if underlaySize != 16 && underlaySize != 24 {
 		return "", "", "", fmt.Errorf("Only /16 or /24 underlays are supported at this time")

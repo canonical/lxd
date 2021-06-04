@@ -15,7 +15,7 @@ import (
 )
 
 func (c *cmdInit) RunAuto(cmd *cobra.Command, args []string, d lxd.InstanceServer) (*cmdInitData, error) {
-	// Sanity checks
+	// Quick checks.
 	if c.flagStorageBackend != "" && !shared.StringInSlice(c.flagStorageBackend, storageDrivers.AllDriverNames()) {
 		return nil, fmt.Errorf("The requested backend '%s' isn't supported by lxd init", c.flagStorageBackend)
 	}
