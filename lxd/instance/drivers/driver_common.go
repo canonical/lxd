@@ -547,11 +547,10 @@ func (d *common) snapshotCommon(inst instance.Instance, name string, expiry time
 	}
 
 	// Create the snapshot.
-	snap, err := instance.CreateInternal(d.state, args)
+	snap, err := instance.CreateInternal(d.state, args, revert)
 	if err != nil {
 		return errors.Wrapf(err, "Failed creating instance snapshot record %q", name)
 	}
-	revert.Add(func() { snap.Delete(true) })
 
 	pool, err := storagePools.GetPoolByInstance(d.state, snap)
 	if err != nil {
@@ -562,6 +561,8 @@ func (d *common) snapshotCommon(inst instance.Instance, name string, expiry time
 	if err != nil {
 		return errors.Wrap(err, "Create instance snapshot")
 	}
+
+	revert.Add(func() { snap.Delete(true) })
 
 	// Mount volume for backup.yaml writing.
 	_, err = pool.MountInstance(inst, d.op)
