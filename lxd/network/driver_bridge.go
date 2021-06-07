@@ -21,6 +21,7 @@ import (
 	"github.com/lxc/lxd/lxd/cluster/request"
 	"github.com/lxc/lxd/lxd/daemon"
 	"github.com/lxc/lxd/lxd/db"
+	dbCluster "github.com/lxc/lxd/lxd/db/cluster"
 	"github.com/lxc/lxd/lxd/dnsmasq"
 	"github.com/lxc/lxd/lxd/dnsmasq/dhcpalloc"
 	firewallDrivers "github.com/lxc/lxd/lxd/firewall/drivers"
@@ -30,6 +31,7 @@ import (
 	"github.com/lxc/lxd/lxd/node"
 	"github.com/lxc/lxd/lxd/revert"
 	"github.com/lxc/lxd/lxd/util"
+	"github.com/lxc/lxd/lxd/warnings"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 	log "github.com/lxc/lxd/shared/log15"
@@ -1512,8 +1514,18 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 		// Apply AppArmor confinement.
 		if n.config["raw.dnsmasq"] == "" {
 			p.SetApparmor(apparmor.DnsmasqProfileName(n))
+
+			err = warnings.ResolveWarningsByLocalNodeAndProjectAndTypeAndEntity(n.state.Cluster, n.project, db.WarningAppArmorDisabledDueToRawDnsmasq, dbCluster.TypeNetwork, int(n.id))
+			if err != nil {
+				n.logger.Warn("Failed to resolve warning", log.Ctx{"err": err})
+			}
 		} else {
 			n.logger.Warn("Skipping AppArmor for dnsmasq due to raw.dnsmasq being set", log.Ctx{"name": n.name})
+
+			err = n.state.Cluster.UpsertWarningLocalNode(n.project, dbCluster.TypeNetwork, int(n.id), db.WarningAppArmorDisabledDueToRawDnsmasq, "")
+			if err != nil {
+				n.logger.Warn("Failed to create warning", log.Ctx{"err": err})
+			}
 		}
 
 		// Start dnsmasq.
