@@ -81,6 +81,9 @@ func instanceImageTransfer(d *Daemon, projectName string, hash string, nodeAddre
 
 // instanceCreateFromImage creates an instance from a rootfs image.
 func instanceCreateFromImage(d *Daemon, args db.InstanceArgs, hash string, op *operations.Operation) (instance.Instance, error) {
+	revert := revert.New()
+	defer revert.Fail()
+
 	s := d.State()
 
 	// Get the image properties.
@@ -142,14 +145,10 @@ func instanceCreateFromImage(d *Daemon, args db.InstanceArgs, hash string, op *o
 	args.BaseImage = hash
 
 	// Create the instance.
-	inst, err := instance.CreateInternal(s, args)
+	inst, err := instance.CreateInternal(s, args, revert)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed creating instance record")
 	}
-
-	revert := revert.New()
-	defer revert.Fail()
-	revert.Add(func() { inst.Delete(true) })
 
 	err = s.Cluster.UpdateImageLastUseDate(hash, time.Now().UTC())
 	if err != nil {
@@ -165,6 +164,8 @@ func instanceCreateFromImage(d *Daemon, args db.InstanceArgs, hash string, op *o
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed creating instance from image")
 	}
+
+	revert.Add(func() { inst.Delete(true) })
 
 	err = inst.UpdateBackupFile()
 	if err != nil {
