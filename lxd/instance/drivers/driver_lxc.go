@@ -135,8 +135,10 @@ func lxcStatusCode(state liblxc.State) api.StatusCode {
 	}[int(state)]
 }
 
-// Loader functions
-func lxcCreate(s *state.State, args db.InstanceArgs) (instance.Instance, error) {
+// lxcCreate creates the DB storage records and sets up instance devices.
+// Accepts a reverter that revert steps this function does will be added to. It is up to the caller to call the
+// revert's Fail() or Success() function as needed.
+func lxcCreate(s *state.State, args db.InstanceArgs, revert *revert.Reverter) (instance.Instance, error) {
 	// Create the container struct
 	d := &lxc{
 		common: common{
@@ -161,13 +163,6 @@ func lxcCreate(s *state.State, args db.InstanceArgs) (instance.Instance, error) 
 			stateful:     args.Stateful,
 		},
 	}
-
-	revert := revert.New()
-	defer revert.Fail()
-
-	// Use d.Delete() in revert on error as this function doesn't just create DB records, it can also cause
-	// other modifications to the host when devices are added.
-	revert.Add(func() { d.Delete(true) })
 
 	// Cleanup the zero values
 	if d.expiryDate.IsZero() {
@@ -260,7 +255,6 @@ func lxcCreate(s *state.State, args db.InstanceArgs) (instance.Instance, error) 
 		if err != nil {
 			return nil, errors.Wrapf(err, "Failed creating storage record for snapshot")
 		}
-
 	} else {
 		// Fill default config for new instances.
 		volumeConfig := map[string]string{}
@@ -274,6 +268,10 @@ func lxcCreate(s *state.State, args db.InstanceArgs) (instance.Instance, error) 
 			return nil, errors.Wrapf(err, "Failed creating storage record")
 		}
 	}
+
+	revert.Add(func() {
+		s.Cluster.RemoveStoragePoolVolume(args.Project, args.Name, db.StoragePoolVolumeTypeContainer, d.storagePool.ID())
+	})
 
 	// Setup initial idmap config
 	var idmap *idmap.IdmapSet
@@ -334,10 +332,14 @@ func lxcCreate(s *state.State, args db.InstanceArgs) (instance.Instance, error) 
 	if !d.IsSnapshot() {
 		// Add devices to container.
 		for k, m := range d.expandedDevices {
-			err = d.deviceAdd(k, m, false)
+			devName := k
+			devConfig := m
+			err = d.deviceAdd(devName, devConfig, false)
 			if err != nil && err != device.ErrUnsupportedDevType {
-				return nil, errors.Wrapf(err, "Failed to add device %q", k)
+				return nil, errors.Wrapf(err, "Failed to add device %q", devName)
 			}
+
+			revert.Add(func() { d.deviceRemove(devName, devConfig, false) })
 		}
 
 		// Update MAAS (must run after the MAC addresses have been generated).
@@ -345,12 +347,13 @@ func lxcCreate(s *state.State, args db.InstanceArgs) (instance.Instance, error) 
 		if err != nil {
 			return nil, err
 		}
+
+		revert.Add(func() { d.maasDelete(d) })
 	}
 
 	d.logger.Info("Created container", log.Ctx{"ephemeral": d.ephemeral})
 	d.lifecycle("created", nil)
 
-	revert.Success()
 	return d, nil
 }
 
