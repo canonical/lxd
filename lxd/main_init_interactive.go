@@ -309,9 +309,11 @@ func (c *cmdInit) askClustering(config *cmdInitData, d lxd.InstanceServer) error
 				return errors.Wrap(err, "Failed to retrieve cluster information")
 			}
 
+			// Nil validator to allow for empty values.
+			validator := func(string) error { return nil }
 			for i, config := range cluster.MemberConfig {
 				question := fmt.Sprintf("Choose %s: ", config.Description)
-				cluster.MemberConfig[i].Value = cli.AskString(question, "", nil)
+				cluster.MemberConfig[i].Value = cli.AskString(question, "", validator)
 			}
 
 			config.Cluster.MemberConfig = cluster.MemberConfig
