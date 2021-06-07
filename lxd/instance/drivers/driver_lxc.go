@@ -27,7 +27,6 @@ import (
 
 	"github.com/lxc/lxd/lxd/apparmor"
 	"github.com/lxc/lxd/lxd/cgroup"
-	"github.com/lxc/lxd/lxd/cluster"
 	"github.com/lxc/lxd/lxd/daemon"
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/device"
@@ -36,7 +35,6 @@ import (
 	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/instance/instancetype"
 	"github.com/lxc/lxd/lxd/instance/operationlock"
-	"github.com/lxc/lxd/lxd/maas"
 	"github.com/lxc/lxd/lxd/network"
 	"github.com/lxc/lxd/lxd/project"
 	"github.com/lxc/lxd/lxd/revert"
@@ -343,7 +341,7 @@ func lxcCreate(s *state.State, args db.InstanceArgs) (instance.Instance, error) 
 		}
 
 		// Update MAAS (must run after the MAC addresses have been generated).
-		err = d.maasUpdate(nil)
+		err = d.maasUpdate(d, nil)
 		if err != nil {
 			return nil, err
 		}
@@ -3603,7 +3601,7 @@ func (d *lxc) Delete(force bool) error {
 		}
 
 		// Delete the MAAS entry.
-		err = d.maasDelete()
+		err = d.maasDelete(d)
 		if err != nil {
 			d.logger.Error("Failed deleting container MAAS record", log.Ctx{"err": err})
 			return err
@@ -3749,7 +3747,7 @@ func (d *lxc) Rename(newName string, applyTemplateTrigger bool) error {
 
 	// Rename the MAAS entry.
 	if !d.IsSnapshot() {
-		err = d.maasRename(newName)
+		err = d.maasRename(d, newName)
 		if err != nil {
 			return err
 		}
@@ -4113,7 +4111,7 @@ func (d *lxc) Update(args db.InstanceArgs, userRequested bool) error {
 	}
 
 	if !d.IsSnapshot() && updateMAAS {
-		err = d.maasUpdate(oldExpandedDevices.CloneNative())
+		err = d.maasUpdate(d, oldExpandedDevices.CloneNative())
 		if err != nil {
 			return err
 		}
@@ -6633,177 +6631,6 @@ func (d *lxc) StoragePool() (string, error) {
 	}
 
 	return poolName, nil
-}
-
-// Internal MAAS handling.
-func (d *lxc) maasInterfaces(devices map[string]map[string]string) ([]maas.ContainerInterface, error) {
-	interfaces := []maas.ContainerInterface{}
-	for k, m := range devices {
-		if m["type"] != "nic" {
-			continue
-		}
-
-		if m["maas.subnet.ipv4"] == "" && m["maas.subnet.ipv6"] == "" {
-			continue
-		}
-
-		m, err := d.FillNetworkDevice(k, m)
-		if err != nil {
-			return nil, err
-		}
-
-		subnets := []maas.ContainerInterfaceSubnet{}
-
-		// IPv4
-		if m["maas.subnet.ipv4"] != "" {
-			subnet := maas.ContainerInterfaceSubnet{
-				Name:    m["maas.subnet.ipv4"],
-				Address: m["ipv4.address"],
-			}
-
-			subnets = append(subnets, subnet)
-		}
-
-		// IPv6
-		if m["maas.subnet.ipv6"] != "" {
-			subnet := maas.ContainerInterfaceSubnet{
-				Name:    m["maas.subnet.ipv6"],
-				Address: m["ipv6.address"],
-			}
-
-			subnets = append(subnets, subnet)
-		}
-
-		iface := maas.ContainerInterface{
-			Name:       m["name"],
-			MACAddress: m["hwaddr"],
-			Subnets:    subnets,
-		}
-
-		interfaces = append(interfaces, iface)
-	}
-
-	return interfaces, nil
-}
-
-func (d *lxc) maasUpdate(oldDevices map[string]map[string]string) error {
-	// Check if MAAS is configured
-	maasURL, err := cluster.ConfigGetString(d.state.Cluster, "maas.api.url")
-	if err != nil {
-		return err
-	}
-
-	if maasURL == "" {
-		return nil
-	}
-
-	// Check if there's something that uses MAAS
-	interfaces, err := d.maasInterfaces(d.expandedDevices.CloneNative())
-	if err != nil {
-		return err
-	}
-
-	var oldInterfaces []maas.ContainerInterface
-	if oldDevices != nil {
-		oldInterfaces, err = d.maasInterfaces(oldDevices)
-		if err != nil {
-			return err
-		}
-	}
-
-	if len(interfaces) == 0 && len(oldInterfaces) == 0 {
-		return nil
-	}
-
-	// See if we're connected to MAAS
-	if d.state.MAAS == nil {
-		return fmt.Errorf("Can't perform the operation because MAAS is currently unavailable")
-	}
-
-	exists, err := d.state.MAAS.DefinedContainer(d)
-	if err != nil {
-		return err
-	}
-
-	if exists {
-		if len(interfaces) == 0 && len(oldInterfaces) > 0 {
-			return d.state.MAAS.DeleteContainer(d)
-		}
-
-		return d.state.MAAS.UpdateContainer(d, interfaces)
-	}
-
-	return d.state.MAAS.CreateContainer(d, interfaces)
-}
-
-func (d *lxc) maasRename(newName string) error {
-	maasURL, err := cluster.ConfigGetString(d.state.Cluster, "maas.api.url")
-	if err != nil {
-		return err
-	}
-
-	if maasURL == "" {
-		return nil
-	}
-
-	interfaces, err := d.maasInterfaces(d.expandedDevices.CloneNative())
-	if err != nil {
-		return err
-	}
-
-	if len(interfaces) == 0 {
-		return nil
-	}
-
-	if d.state.MAAS == nil {
-		return fmt.Errorf("Can't perform the operation because MAAS is currently unavailable")
-	}
-
-	exists, err := d.state.MAAS.DefinedContainer(d)
-	if err != nil {
-		return err
-	}
-
-	if !exists {
-		return d.maasUpdate(nil)
-	}
-
-	return d.state.MAAS.RenameContainer(d, newName)
-}
-
-func (d *lxc) maasDelete() error {
-	maasURL, err := cluster.ConfigGetString(d.state.Cluster, "maas.api.url")
-	if err != nil {
-		return err
-	}
-
-	if maasURL == "" {
-		return nil
-	}
-
-	interfaces, err := d.maasInterfaces(d.expandedDevices.CloneNative())
-	if err != nil {
-		return err
-	}
-
-	if len(interfaces) == 0 {
-		return nil
-	}
-
-	if d.state.MAAS == nil {
-		return fmt.Errorf("Can't perform the operation because MAAS is currently unavailable")
-	}
-
-	exists, err := d.state.MAAS.DefinedContainer(d)
-	if err != nil {
-		return err
-	}
-
-	if !exists {
-		return nil
-	}
-
-	return d.state.MAAS.DeleteContainer(d)
 }
 
 func (d *lxc) CGroup() (*cgroup.CGroup, error) {
