@@ -11,13 +11,19 @@ GOPATH ?= $(HOME)/go
 export GO111MODULE=off
 
 .PHONY: default
-default:
+default: get build
+
+.PHONY: get
+get:
+	go get -t -v -d ./...
+
+.PHONY: build
+build:
 ifeq ($(TAG_SQLITE3),)
 	@echo "Missing dqlite, run \"make deps\" to setup."
 	exit 1
 endif
 
-	go get -t -v -d ./...
 	CC=$(CC) go install -v -tags "$(TAG_SQLITE3)" $(DEBUG) ./...
 	CGO_ENABLED=0 go install -v -tags netgo ./lxd-p2c
 	CGO_ENABLED=0 go install -v -tags agent,netgo ./lxd-agent
