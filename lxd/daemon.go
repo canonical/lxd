@@ -1223,6 +1223,8 @@ func (d *Daemon) init() error {
 		// Connect to MAAS
 		if maasAPIURL != "" {
 			go func() {
+				warningAdded := false
+
 				for {
 					err = d.setupMAASController(maasAPIURL, maasAPIKey, maasMachine)
 					if err == nil {
@@ -1231,7 +1233,19 @@ func (d *Daemon) init() error {
 					}
 
 					logger.Warn("Unable to connect to MAAS, trying again in a minute", log.Ctx{"url": maasAPIURL, "err": err})
+
+					if !warningAdded {
+						d.cluster.UpsertWarningLocalNode("", -1, -1, db.WarningUnableToConnectToMAAS, err.Error())
+
+						warningAdded = true
+					}
+
 					time.Sleep(time.Minute)
+				}
+
+				// Resolve any previously created warning once connected
+				if warningAdded {
+					warnings.ResolveWarningsByLocalNodeAndType(d.cluster, db.WarningUnableToConnectToMAAS)
 				}
 			}()
 		}
