@@ -30,15 +30,14 @@ import (
 
 // instanceCreateAsEmpty creates an empty instance.
 func instanceCreateAsEmpty(d *Daemon, args db.InstanceArgs) (instance.Instance, error) {
+	revert := revert.New()
+	defer revert.Fail()
+
 	// Create the instance record.
-	inst, err := instance.CreateInternal(d.State(), args)
+	inst, err := instance.CreateInternal(d.State(), args, revert)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed creating instance record")
 	}
-
-	revert := revert.New()
-	defer revert.Fail()
-	revert.Add(func() { inst.Delete(true) })
 
 	pool, err := storagePools.GetPoolByInstance(d.State(), inst)
 	if err != nil {
@@ -49,6 +48,8 @@ func instanceCreateAsEmpty(d *Daemon, args db.InstanceArgs) (instance.Instance, 
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed creating instance")
 	}
+
+	revert.Add(func() { inst.Delete(true) })
 
 	err = inst.UpdateBackupFile()
 	if err != nil {
