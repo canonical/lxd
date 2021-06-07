@@ -916,8 +916,10 @@ func ValidName(instanceName string, isSnapshot bool) error {
 	return nil
 }
 
-// CreateInternal creates an instance record and storage volume record in the database.
-func CreateInternal(s *state.State, args db.InstanceArgs) (Instance, error) {
+// CreateInternal creates an instance record and storage volume record in the database and sets up devices.
+// Accepts a reverter that revert steps this function does will be added to. It is up to the caller to call the
+// revert's Fail() or Success() function as needed.
+func CreateInternal(s *state.State, args db.InstanceArgs, revert *revert.Reverter) (Instance, error) {
 	// Set default values.
 	if args.Project == "" {
 		args.Project = project.Default
@@ -1103,13 +1105,10 @@ func CreateInternal(s *state.State, args db.InstanceArgs) (Instance, error) {
 		return nil, err
 	}
 
-	revert := revert.New()
-	defer revert.Fail()
-
 	revert.Add(func() { s.Cluster.DeleteInstance(dbInst.Project, dbInst.Name) })
 
 	args = db.InstanceToArgs(&dbInst)
-	inst, err := Create(s, args)
+	inst, err := Create(s, args, revert)
 	if err != nil {
 		logger.Error("Failed initialising instance", log.Ctx{"project": args.Project, "instance": args.Name, "type": args.Type, "err": err})
 		return nil, errors.Wrap(err, "Failed initialising instance")
@@ -1118,7 +1117,6 @@ func CreateInternal(s *state.State, args db.InstanceArgs) (Instance, error) {
 	// Wipe any existing log for this instance name.
 	os.RemoveAll(inst.LogPath())
 
-	revert.Success()
 	return inst, nil
 }
 
