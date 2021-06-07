@@ -41,6 +41,8 @@ const (
 	WarningMissingVirtiofsd
 	// WarningUnableToConnectToMAAS represents the unable to connect to MAAS warning
 	WarningUnableToConnectToMAAS
+	// WarningAppArmorDisabledDueToRawDnsmasq represents the disabled AppArmor due to raw.dnsmasq warning
+	WarningAppArmorDisabledDueToRawDnsmasq
 )
 
 // WarningTypeNames associates a warning code to its name.
@@ -62,6 +64,7 @@ var WarningTypeNames = map[WarningType]string{
 	WarningAppArmorNotAvailable:                   "AppArmor support has been disabled",
 	WarningMissingVirtiofsd:                       "Missing virtiofsd",
 	WarningUnableToConnectToMAAS:                  "Unable to connect to MAAS",
+	WarningAppArmorDisabledDueToRawDnsmasq:        "Skipping AppArmor for dnsmasq due to raw.dnsmasq being set",
 }
 
 // WarningTypes associates a warning type to its type code.
@@ -109,6 +112,8 @@ func (t WarningType) Severity() WarningSeverity {
 	case WarningMissingVirtiofsd:
 		return WarningSeverityLow
 	case WarningUnableToConnectToMAAS:
+		return WarningSeverityLow
+	case WarningAppArmorDisabledDueToRawDnsmasq:
 		return WarningSeverityLow
 	}
 
