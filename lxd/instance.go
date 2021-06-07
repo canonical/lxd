@@ -207,12 +207,10 @@ func instanceCreateAsCopy(s *state.State, opts instanceCreateAsCopyOpts, op *ope
 	// If we are not in refresh mode, then create a new instance as we are in copy mode.
 	if !opts.refresh {
 		// Create the instance.
-		inst, err = instance.CreateInternal(s, opts.targetInstance)
+		inst, err = instance.CreateInternal(s, opts.targetInstance, revert)
 		if err != nil {
 			return nil, errors.Wrap(err, "Failed creating instance record")
 		}
-
-		revert.Add(func() { inst.Delete(true) })
 	}
 
 	// At this point we have already figured out the instance's root disk device so we can simply retrieve it
@@ -304,7 +302,7 @@ func instanceCreateAsCopy(s *state.State, opts instanceCreateAsCopyOpts, op *ope
 			}
 
 			// Create the snapshots.
-			snapInst, err := instance.CreateInternal(s, snapInstArgs)
+			snapInst, err := instance.CreateInternal(s, snapInstArgs, revert)
 			if err != nil {
 				return nil, errors.Wrapf(err, "Failed creating instance snapshot record %q", newSnapName)
 			}
@@ -334,6 +332,8 @@ func instanceCreateAsCopy(s *state.State, opts instanceCreateAsCopyOpts, op *ope
 		if err != nil {
 			return nil, errors.Wrap(err, "Create instance from copy")
 		}
+
+		revert.Add(func() { inst.Delete(true) })
 
 		if opts.applyTemplateTrigger {
 			// Trigger the templates on next start.
