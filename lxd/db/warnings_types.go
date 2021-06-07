@@ -39,6 +39,8 @@ const (
 	WarningAppArmorNotAvailable
 	//WarningMissingVirtiofsd represents the missing virtiofsd warning
 	WarningMissingVirtiofsd
+	// WarningUnableToConnectToMAAS represents the unable to connect to MAAS warning
+	WarningUnableToConnectToMAAS
 )
 
 // WarningTypeNames associates a warning code to its name.
@@ -59,6 +61,7 @@ var WarningTypeNames = map[WarningType]string{
 	WarningClusterTimeSkew:                        "Time skew detected between leader and local",
 	WarningAppArmorNotAvailable:                   "AppArmor support has been disabled",
 	WarningMissingVirtiofsd:                       "Missing virtiofsd",
+	WarningUnableToConnectToMAAS:                  "Unable to connect to MAAS",
 }
 
 // WarningTypes associates a warning type to its type code.
@@ -104,6 +107,8 @@ func (t WarningType) Severity() WarningSeverity {
 	case WarningAppArmorNotAvailable:
 		return WarningSeverityLow
 	case WarningMissingVirtiofsd:
+		return WarningSeverityLow
+	case WarningUnableToConnectToMAAS:
 		return WarningSeverityLow
 	}
 
