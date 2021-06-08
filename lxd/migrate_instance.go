@@ -929,7 +929,18 @@ func (c *migrationSink) Do(state *state.State, revert *revert.Reverter, migrateO
 			}
 		}
 
-		return pool.CreateInstanceFromMigration(args.Instance, &shared.WebsocketIO{Conn: conn}, volTargetArgs, op)
+		err = pool.CreateInstanceFromMigration(args.Instance, &shared.WebsocketIO{Conn: conn}, volTargetArgs, op)
+		if err != nil {
+			return err
+		}
+
+		// Only delete entire instance on error if the pool volume creation has succeeded to avoid
+		// deleting an existing conflicting volume.
+		if !volTargetArgs.Refresh {
+			revert.Add(func() { args.Instance.Delete(true) })
+		}
+
+		return nil
 	}
 
 	// Add CRIU info to response.
