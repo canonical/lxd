@@ -279,12 +279,6 @@ func createFromMigration(d *Daemon, r *http.Request, projectName string, req *ap
 	revert := revert.New()
 	defer revert.Fail()
 
-	revert.Add(func() {
-		if !req.Source.Refresh && inst != nil {
-			inst.Delete(true)
-		}
-	})
-
 	instanceOnly := req.Source.InstanceOnly || req.Source.ContainerOnly
 
 	if !req.Source.Refresh {
@@ -344,12 +338,14 @@ func createFromMigration(d *Daemon, r *http.Request, projectName string, req *ap
 		return response.InternalError(err)
 	}
 
+	// Copy reverter so far so we can use it inside run after this function has finished.
+	runRevert := revert.Clone()
+
 	run := func(op *operations.Operation) error {
-		opRevert := revert.Clone()
-		defer opRevert.Fail()
+		defer runRevert.Fail()
 
 		// And finally run the migration.
-		err = sink.Do(d.State(), op)
+		err = sink.Do(d.State(), runRevert, op)
 		if err != nil {
 			return fmt.Errorf("Error transferring instance data: %s", err)
 		}
@@ -359,7 +355,7 @@ func createFromMigration(d *Daemon, r *http.Request, projectName string, req *ap
 			return err
 		}
 
-		opRevert.Success()
+		runRevert.Success()
 		return nil
 	}
 
