@@ -1311,7 +1311,7 @@ func (d *lxc) IdmappedStorage(path string) idmap.IdmapStorageType {
 		mode = idmap.IdmapStorageShiftfs
 	}
 
-	if !d.state.OS.LXCFeatures["idmapped_mounts"] {
+	if !d.state.OS.LXCFeatures["idmapped_mounts_v2"] {
 		return mode
 	}
 
