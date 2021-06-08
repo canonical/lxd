@@ -160,7 +160,9 @@ func qemuInstantiate(s *state.State, args db.InstanceArgs, expandedDevices devic
 }
 
 // qemuCreate creates a new storage volume record and returns an initialised Instance.
-func qemuCreate(s *state.State, args db.InstanceArgs) (instance.Instance, error) {
+// Accepts a reverter that revert steps this function does will be added to. It is up to the caller to call the
+// revert's Fail() or Success() function as needed.
+func qemuCreate(s *state.State, args db.InstanceArgs, revert *revert.Reverter) (instance.Instance, error) {
 	// Create the instance struct.
 	d := &qemu{
 		common: common{
@@ -185,13 +187,6 @@ func qemuCreate(s *state.State, args db.InstanceArgs) (instance.Instance, error)
 			stateful:     args.Stateful,
 		},
 	}
-
-	revert := revert.New()
-	defer revert.Fail()
-
-	// Use d.Delete() in revert on error as this function doesn't just create DB records, it can also cause
-	// other modifications to the host when devices are added.
-	revert.Add(func() { d.Delete(true) })
 
 	// Get the architecture name.
 	archName, err := osarch.ArchitectureName(d.architecture)
@@ -305,26 +300,35 @@ func qemuCreate(s *state.State, args db.InstanceArgs) (instance.Instance, error)
 		}
 	}
 
+	revert.Add(func() {
+		s.Cluster.RemoveStoragePoolVolume(args.Project, args.Name, db.StoragePoolVolumeTypeVM, d.storagePool.ID())
+	})
+
 	if !d.IsSnapshot() {
-		// Update MAAS.
+		// Add devices to instance.
+		for k, m := range d.expandedDevices {
+			devName := k
+			devConfig := m
+			err = d.deviceAdd(devName, devConfig, false)
+			if err != nil && err != device.ErrUnsupportedDevType {
+				return nil, errors.Wrapf(err, "Failed to add device %q", devName)
+			}
+
+			revert.Add(func() { d.deviceRemove(devName, devConfig, false) })
+		}
+
+		// Update MAAS (must run after the MAC addresses have been generated).
 		err = d.maasUpdate(d, nil)
 		if err != nil {
 			return nil, err
 		}
 
-		// Add devices to instance.
-		for k, m := range d.expandedDevices {
-			err = d.deviceAdd(k, m, false)
-			if err != nil && err != device.ErrUnsupportedDevType {
-				return nil, errors.Wrapf(err, "Failed to add device %q", k)
-			}
-		}
+		revert.Add(func() { d.maasDelete(d) })
 	}
 
 	d.logger.Info("Created instance", log.Ctx{"ephemeral": d.ephemeral})
 	d.lifecycle("created", nil)
 
-	revert.Success()
 	return d, nil
 }
 
