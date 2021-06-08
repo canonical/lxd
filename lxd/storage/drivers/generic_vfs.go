@@ -28,6 +28,9 @@ import (
 // genericVolumeDiskFile used to indicate the file name used for block volume disk files.
 const genericVolumeDiskFile = "root.img"
 
+// VMConfigDriveMountDir name of the config drive share mount directory.
+const VMConfigDriveMountDir = "config.mount"
+
 // genericVFSGetResources is a generic GetResources implementation for VFS-only drivers.
 func genericVFSGetResources(d Driver) (*api.ResourcesStoragePool, error) {
 	// Get the VFS information
@@ -468,7 +471,10 @@ func genericVFSBackupVolume(d Driver, vol Volume, tarWriter *instancewriter.Inst
 				}
 
 				var blockDiskSize int64
-				var exclude []string
+
+				// Exclude config.mount share directory as this is a temporary mount and shouldn't
+				// be included in the backup.
+				var exclude = []string{filepath.Join(mountPath, VMConfigDriveMountDir)}
 
 				// Get size of disk block device for tarball header.
 				blockDiskSize, err = BlockDiskSizeBytes(blockPath)
@@ -494,7 +500,7 @@ func genericVFSBackupVolume(d Driver, vol Volume, tarWriter *instancewriter.Inst
 					}
 
 					// Skip any exluded files.
-					if shared.StringInSlice(srcPath, exclude) {
+					if shared.StringHasPrefix(srcPath, exclude...) {
 						return nil
 					}
 
