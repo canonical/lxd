@@ -248,6 +248,8 @@ func (d *common) runFiller(vol Volume, devPath string, filler *VolumeFiller) err
 	// when creating the initial image volume and filling it before the snapshot is taken resizing can be
 	// allowed and is required in order to support unpacking images larger than the default volume size.
 	// The filler function is still expected to obey any volume size restrictions configured on the pool.
+	// Also needed allow unsafe resize to disable filesystem resize safety checks. This is safe because if for
+	// some reason an error occurs the volume will be discarded rather than leaving a corrupt filesystem.
 	if vol.Type() == VolumeTypeImage {
 		vol.allowUnsafeResize = true
 	}
