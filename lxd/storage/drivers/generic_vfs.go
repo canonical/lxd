@@ -28,6 +28,9 @@ import (
 // genericVolumeDiskFile used to indicate the file name used for block volume disk files.
 const genericVolumeDiskFile = "root.img"
 
+// VMConfigDriveMountDir name of the config drive share mount directory.
+const VMConfigDriveMountDir = "config.mount"
+
 // genericVFSGetResources is a generic GetResources implementation for VFS-only drivers.
 func genericVFSGetResources(d Driver) (*api.ResourcesStoragePool, error) {
 	// Get the VFS information
