@@ -671,7 +671,7 @@ func (d *btrfs) GetVolumeUsage(vol Volume) (int64, error) {
 	return usage, nil
 }
 
-// SetVolumeQuota sets the quota on the volume.
+// SetVolumeQuota applies a size limit on volume.
 // Does nothing if supplied with an empty/zero size for block volumes, and for filesystem volumes removes quota.
 func (d *btrfs) SetVolumeQuota(vol Volume, size string, op *operations.Operation) error {
 	// Convert to bytes.

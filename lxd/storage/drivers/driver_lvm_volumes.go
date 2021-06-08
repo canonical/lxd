@@ -381,7 +381,7 @@ func (d *lvm) GetVolumeUsage(vol Volume) (int64, error) {
 	return -1, ErrNotSupported
 }
 
-// SetVolumeQuota sets the quota on the volume.
+// SetVolumeQuota applies a size limit on volume.
 // Does nothing if supplied with an empty/zero size.
 func (d *lvm) SetVolumeQuota(vol Volume, size string, op *operations.Operation) error {
 	// Do nothing if size isn't specified.

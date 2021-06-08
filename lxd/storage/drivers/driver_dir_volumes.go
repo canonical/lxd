@@ -259,7 +259,7 @@ func (d *dir) GetVolumeUsage(vol Volume) (int64, error) {
 	return size, nil
 }
 
-// SetVolumeQuota sets the quota on the volume.
+// SetVolumeQuota applies a size limit on volume.
 // Does nothing if supplied with an empty/zero size for block volumes, and for filesystem volumes removes quota.
 func (d *dir) SetVolumeQuota(vol Volume, size string, op *operations.Operation) error {
 	// Convert to bytes.
