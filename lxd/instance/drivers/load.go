@@ -10,6 +10,7 @@ import (
 	deviceConfig "github.com/lxc/lxd/lxd/device/config"
 	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/instance/instancetype"
+	"github.com/lxc/lxd/lxd/revert"
 	"github.com/lxc/lxd/lxd/state"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
@@ -92,11 +93,11 @@ func validDevices(state *state.State, cluster *db.Cluster, projectName string, i
 	return nil
 }
 
-func create(s *state.State, args db.InstanceArgs) (instance.Instance, error) {
+func create(s *state.State, args db.InstanceArgs, revert *revert.Reverter) (instance.Instance, error) {
 	if args.Type == instancetype.Container {
-		return lxcCreate(s, args)
+		return lxcCreate(s, args, revert)
 	} else if args.Type == instancetype.VM {
-		return qemuCreate(s, args)
+		return qemuCreate(s, args, revert)
 	}
 
 	return nil, fmt.Errorf("Instance type invalid")
