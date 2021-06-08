@@ -21,6 +21,7 @@ import (
 	"github.com/lxc/lxd/lxd/instance/instancetype"
 	"github.com/lxc/lxd/lxd/migration"
 	"github.com/lxc/lxd/lxd/operations"
+	"github.com/lxc/lxd/lxd/revert"
 	"github.com/lxc/lxd/lxd/rsync"
 	"github.com/lxc/lxd/lxd/state"
 	storagePools "github.com/lxc/lxd/lxd/storage"
@@ -774,7 +775,7 @@ func newMigrationSink(args *MigrationSinkArgs) (*migrationSink, error) {
 	return &sink, nil
 }
 
-func (c *migrationSink) Do(state *state.State, migrateOp *operations.Operation) error {
+func (c *migrationSink) Do(state *state.State, revert *revert.Reverter, migrateOp *operations.Operation) error {
 	var err error
 
 	if c.push {
@@ -920,7 +921,7 @@ func (c *migrationSink) Do(state *state.State, migrateOp *operations.Operation) 
 				_, err := instance.LoadByProjectAndName(state, args.Instance.Project(), snapArgs.Name)
 				if err != nil {
 					// Create the snapshot as it doesn't seem to exist.
-					_, err := instance.CreateInternal(state, snapArgs)
+					_, err := instance.CreateInternal(state, snapArgs, revert)
 					if err != nil {
 						return errors.Wrapf(err, "Failed creating instance snapshot record %q", snapArgs.Name)
 					}
