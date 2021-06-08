@@ -543,7 +543,7 @@ func (d *qemu) Freeze() error {
 func (d *qemu) configDriveMountPath() string {
 	// Use instance path and config.mount directory rather than devices path to avoid conflicts with an
 	// instance disk device mount of the same name.
-	return filepath.Join(d.Path(), "config.mount")
+	return filepath.Join(d.Path(), storageDrivers.VMConfigDriveMountDir)
 }
 
 // configDriveMountPathClear attempts to unmount the config drive bind mount and remove the directory.
