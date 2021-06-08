@@ -276,12 +276,14 @@ func createFromMigration(d *Daemon, r *http.Request, projectName string, req *ap
 		}
 	}
 
-	revert := true
-	defer func() {
-		if revert && !req.Source.Refresh && inst != nil {
+	revert := revert.New()
+	defer revert.Fail()
+
+	revert.Add(func() {
+		if !req.Source.Refresh && inst != nil {
 			inst.Delete(true)
 		}
-	}()
+	})
 
 	instanceOnly := req.Source.InstanceOnly || req.Source.ContainerOnly
 
@@ -295,7 +297,7 @@ func createFromMigration(d *Daemon, r *http.Request, projectName string, req *ap
 		// Note: At this stage we do not yet know if snapshots are going to be received and so we cannot
 		// create their DB records. This will be done if needed in the migrationSink.Do() function called
 		// as part of the operation below.
-		inst, err = instance.CreateInternal(d.State(), args)
+		inst, err = instance.CreateInternal(d.State(), args, revert)
 		if err != nil {
 			return response.InternalError(errors.Wrap(err, "Failed creating instance record"))
 		}
@@ -343,12 +345,8 @@ func createFromMigration(d *Daemon, r *http.Request, projectName string, req *ap
 	}
 
 	run := func(op *operations.Operation) error {
-		opRevert := true
-		defer func() {
-			if opRevert && !req.Source.Refresh && inst != nil {
-				inst.Delete(true)
-			}
-		}()
+		opRevert := revert.Clone()
+		defer opRevert.Fail()
 
 		// And finally run the migration.
 		err = sink.Do(d.State(), op)
@@ -361,7 +359,7 @@ func createFromMigration(d *Daemon, r *http.Request, projectName string, req *ap
 			return err
 		}
 
-		opRevert = false
+		opRevert.Success()
 		return nil
 	}
 
@@ -385,7 +383,7 @@ func createFromMigration(d *Daemon, r *http.Request, projectName string, req *ap
 		}
 	}
 
-	revert = false
+	revert.Success()
 	return operations.OperationResponse(op)
 }
 
