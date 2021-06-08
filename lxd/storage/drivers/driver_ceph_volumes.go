@@ -930,8 +930,9 @@ func (d *ceph) SetVolumeQuota(vol Volume, size string, op *operations.Operation)
 				return ErrInUse // We don't allow online shrinking of filesytem volumes.
 			}
 
-			// Shrink filesystem first.
-			err = shrinkFileSystem(fsType, devPath, vol, sizeBytes)
+			// Shrink filesystem first. Pass vol.allowUnsafeResize to allow disabling of filesystem
+			// resize safety checks.
+			err = shrinkFileSystem(fsType, devPath, vol, sizeBytes, vol.allowUnsafeResize)
 			if err != nil {
 				return err
 			}
