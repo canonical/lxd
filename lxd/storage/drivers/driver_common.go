@@ -248,6 +248,8 @@ func (d *common) runFiller(vol Volume, devPath string, filler *VolumeFiller) err
 	// when creating the initial image volume and filling it before the snapshot is taken resizing can be
 	// allowed and is required in order to support unpacking images larger than the default volume size.
 	// The filler function is still expected to obey any volume size restrictions configured on the pool.
+	// Also needed allow unsafe resize to disable filesystem resize safety checks. This is safe because if for
+	// some reason an error occurs the volume will be discarded rather than leaving a corrupt filesystem.
 	if vol.Type() == VolumeTypeImage {
 		vol.allowUnsafeResize = true
 	}
@@ -266,9 +268,27 @@ func (d *common) runFiller(vol Volume, devPath string, filler *VolumeFiller) err
 // specified in the volume's config. Can be used as the post hook function returned from createVolumeFromBackup
 // to allow the restored instance volume to be sized correctly after the DB records have been recreated.
 func (d *common) createVolumeFromBackupInstancePostHookResize(driver Driver, vol Volume, op *operations.Operation) error {
+	volType := vol.Type()
+	if volType != VolumeTypeContainer && volType != VolumeTypeVM {
+		return fmt.Errorf("Post import resize hook doesn't support volume type %v", volType)
+	}
+
 	size := vol.ExpandedConfig("size")
 	if size != "" {
 		d.logger.Debug("Applying volume quota from root disk config", log.Ctx{"size": size})
+
+		if volType == VolumeTypeContainer {
+			// Enable allowUnsafeResize for container imports so that filesystem resize safety checks
+			// are avoided in order to allow more imports to succeed when otherwise the pre-resize
+			// estimated checks of resize2fs would prevent import. If there is truly insufficient size
+			// to complete the import the resize will still fail, but its OK as we will then delete
+			// the volume rather than leaving it in a corrupted state.
+			// We don't need to do this for non-container volumes (nor should we) because block volumes
+			// won't error if we shrink them too much, and custom volumes can be created at the correct
+			// size immediately and don't need a post-import resize step.
+			vol.allowUnsafeResize = true
+		}
+
 		err := driver.SetVolumeQuota(vol, size, op)
 		if err != nil {
 			// The restored volume can end up being larger than the root disk config's size

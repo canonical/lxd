@@ -381,7 +381,7 @@ func (d *lvm) GetVolumeUsage(vol Volume) (int64, error) {
 	return -1, ErrNotSupported
 }
 
-// SetVolumeQuota sets the quota on the volume.
+// SetVolumeQuota applies a size limit on volume.
 // Does nothing if supplied with an empty/zero size.
 func (d *lvm) SetVolumeQuota(vol Volume, size string, op *operations.Operation) error {
 	// Do nothing if size isn't specified.
@@ -445,7 +445,12 @@ func (d *lvm) SetVolumeQuota(vol Volume, size string, op *operations.Operation) 
 			}
 
 			// Shrink filesystem first.
-			err = shrinkFileSystem(fsType, volDevPath, vol, sizeBytes)
+			// Pass vol.allowUnsafeResize to allow disabling of filesystem resize safety checks.
+			// We do this as a separate step rather than passing -r to lvresize in resizeLogicalVolume
+			// so that we can have more control over when we trigger unsafe filesystem resize mode,
+			// otherwise by passing -f to lvresize (required for other reasons) this would then pass
+			// -f onto resize2fs as well.
+			err = shrinkFileSystem(fsType, volDevPath, vol, sizeBytes, vol.allowUnsafeResize)
 			if err != nil {
 				return err
 			}

@@ -130,7 +130,7 @@ func (d *mock) GetVolumeUsage(vol Volume) (int64, error) {
 	return 0, nil
 }
 
-// SetVolumeQuota sets the quota on the volume.
+// SetVolumeQuota applies a size limit on volume.
 func (d *mock) SetVolumeQuota(vol Volume, size string, op *operations.Operation) error {
 	return nil
 }
