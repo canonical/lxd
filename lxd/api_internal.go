@@ -25,6 +25,7 @@ import (
 	"github.com/lxc/lxd/lxd/instance/instancetype"
 	"github.com/lxc/lxd/lxd/project"
 	"github.com/lxc/lxd/lxd/response"
+	"github.com/lxc/lxd/lxd/revert"
 	"github.com/lxc/lxd/lxd/state"
 	storagePools "github.com/lxc/lxd/lxd/storage"
 	storageDrivers "github.com/lxc/lxd/lxd/storage/drivers"
@@ -744,6 +745,10 @@ func internalImport(d *Daemon, projectName string, req *internalImportPost, reco
 	if err != nil {
 		return response.SmartError(err)
 	}
+
+	revert := revert.New()
+	defer revert.Fail()
+
 	_, err = instance.CreateInternal(d.State(), db.InstanceArgs{
 		Project:      projectName,
 		Architecture: arch,
@@ -758,7 +763,7 @@ func internalImport(d *Daemon, projectName string, req *internalImportPost, reco
 		Name:         backupConf.Container.Name,
 		Profiles:     backupConf.Container.Profiles,
 		Stateful:     backupConf.Container.Stateful,
-	})
+	}, revert)
 	if err != nil {
 		return response.SmartError(errors.Wrap(err, "Failed creating instance record"))
 	}
@@ -853,7 +858,7 @@ func internalImport(d *Daemon, projectName string, req *internalImportPost, reco
 			Name:         snap.Name,
 			Profiles:     snap.Profiles,
 			Stateful:     snap.Stateful,
-		})
+		}, revert)
 		if err != nil {
 			return response.SmartError(errors.Wrapf(err, "Failed creating instance snapshot record %q", snap.Name))
 		}
@@ -870,6 +875,7 @@ func internalImport(d *Daemon, projectName string, req *internalImportPost, reco
 		}
 	}
 
+	revert.Success()
 	return response.EmptySyncResponse
 }
 
