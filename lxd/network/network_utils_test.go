@@ -25,7 +25,7 @@ func Example_parseIPRange() {
 		// Invalid IP ranges.
 		"0.0.0.0.1-192.168.1.255",
 		"192.0.0.1-192.0.0.255",
-		"0.0.0.1-01.0.0.255",
+		"0.0.0.1-1.0.0.255",
 		"0.0.2.1-0.0.0.255",
 		// Ranges within allowedv6NetworkA.
 		"fd22:c952:653e:3df6::1-fd22:c952:653e:3df6::FFFF",
@@ -66,7 +66,7 @@ func Example_parseIPRange() {
 	// Start: 192.168.2.0, End: 192.168.2.255
 	// Err: Start IP "0.0.0.0.1" is invalid
 	// Err: IP range "192.0.0.1-192.0.0.255" does not fall within any of the allowed networks [192.168.1.0/24 192.168.0.0/16 fd22:c952:653e:3df6::/64 fd22:c952:653e::/48]
-	// Err: IP range "0.0.0.1-01.0.0.255" does not fall within any of the allowed networks [192.168.1.0/24 192.168.0.0/16 fd22:c952:653e:3df6::/64 fd22:c952:653e::/48]
+	// Err: IP range "0.0.0.1-1.0.0.255" does not fall within any of the allowed networks [192.168.1.0/24 192.168.0.0/16 fd22:c952:653e:3df6::/64 fd22:c952:653e::/48]
 	// Err: Start IP "0.0.2.1" must be less than End IP "0.0.0.255"
 	// Start: fd22:c952:653e:3df6::1, End: fd22:c952:653e:3df6::ffff
 	// Start: fd22:c952:653e:3df6::1, End: fd22:c952:653e:3df6::ffff
