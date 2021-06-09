@@ -57,6 +57,9 @@ const ContentTypeFS = ContentType("filesystem")
 // know which filesystem(s) (if any) are in use.
 const ContentTypeBlock = ContentType("block")
 
+// VolumePostHook function returned from a storage action that should be run later to complete the action.
+type VolumePostHook func(vol Volume) error
+
 // BaseDirectories maps volume types to the expected directories.
 var BaseDirectories = map[VolumeType][]string{
 	VolumeTypeContainer: {"containers", "containers-snapshots"},
@@ -67,15 +70,14 @@ var BaseDirectories = map[VolumeType][]string{
 
 // Volume represents a storage volume, and provides functions to mount and unmount it.
 type Volume struct {
-	name              string
-	pool              string
-	poolConfig        map[string]string
-	volType           VolumeType
-	contentType       ContentType
-	config            map[string]string
-	driver            Driver
-	customMountPath   string
-	allowUnsafeResize bool // Whether to allow potentially destructive unchecked resizing of volume.
+	name            string
+	pool            string
+	poolConfig      map[string]string
+	volType         VolumeType
+	contentType     ContentType
+	config          map[string]string
+	driver          Driver
+	customMountPath string
 }
 
 // NewVolume instantiates a new Volume struct.
@@ -352,8 +354,8 @@ func (v Volume) NewVMBlockFilesystemVolume() Volume {
 }
 
 // SetQuota calls SetVolumeQuota on the Volume's driver.
-func (v Volume) SetQuota(size string, op *operations.Operation) error {
-	return v.driver.SetVolumeQuota(v, size, op)
+func (v Volume) SetQuota(size string, allowUnsafeResize bool, op *operations.Operation) error {
+	return v.driver.SetVolumeQuota(v, size, allowUnsafeResize, op)
 }
 
 // SetConfigSize sets the size config property on the Volume (does not resize volume).

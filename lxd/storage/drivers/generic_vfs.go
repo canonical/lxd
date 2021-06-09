@@ -620,7 +620,7 @@ func genericVFSBackupVolume(d Driver, vol Volume, tarWriter *instancewriter.Inst
 // created and a revert function that can be used to undo the actions this function performs should something
 // subsequently fail. For VolumeTypeCustom volumes, a nil post hook is returned as it is expected that the DB
 // record be created before the volume is unpacked due to differences in the archive format that allows this.
-func genericVFSBackupUnpack(d Driver, vol Volume, snapshots []string, srcData io.ReadSeeker, op *operations.Operation) (func(vol Volume) error, func(), error) {
+func genericVFSBackupUnpack(d Driver, vol Volume, snapshots []string, srcData io.ReadSeeker, op *operations.Operation) (VolumePostHook, revert.Hook, error) {
 	// Define function to unpack a volume from a backup tarball file.
 	unpackVolume := func(r io.ReadSeeker, tarArgs []string, unpacker []string, srcPrefix string, mountPath string) error {
 		volTypeName := "container"
@@ -693,6 +693,8 @@ func genericVFSBackupUnpack(d Driver, vol Volume, snapshots []string, srcData io
 				}
 
 				if hdr.Name == srcFile {
+					var allowUnsafeResize bool
+
 					// Open block file (use O_CREATE to support drivers that use image files).
 					to, err := os.OpenFile(targetPath, os.O_WRONLY|os.O_TRUNC|os.O_CREATE, 0644)
 					if err != nil {
@@ -705,8 +707,8 @@ func genericVFSBackupUnpack(d Driver, vol Volume, snapshots []string, srcData io
 
 					// Allow potentially destructive resize of volume as we are going to be
 					// overwriting it entirely anyway. This allows shrinking of block volumes.
-					vol.allowUnsafeResize = true
-					err = d.SetVolumeQuota(vol, fmt.Sprintf("%d", hdr.Size), op)
+					allowUnsafeResize = true
+					err = d.SetVolumeQuota(vol, fmt.Sprintf("%d", hdr.Size), allowUnsafeResize, op)
 					if err != nil {
 						return err
 					}
@@ -814,13 +816,17 @@ func genericVFSBackupUnpack(d Driver, vol Volume, snapshots []string, srcData io
 	revertExternal := revert.Clone() // Clone before calling revert.Success() so we can return the Fail func.
 	revert.Success()
 
-	var postHook func(vol Volume) error
+	var postHook VolumePostHook
 	if vol.volType != VolumeTypeCustom {
 		// Leave volume mounted (as is needed during backup.yaml generation during latter parts of the
 		// backup restoration process). Create a post hook function that will be called at the end of the
 		// backup restore process to unmount the volume if needed.
 		postHook = func(vol Volume) error {
-			d.UnmountVolume(vol, false, op)
+			_, err = d.UnmountVolume(vol, false, op)
+			if err != nil {
+				return err
+			}
+
 			return nil
 		}
 	} else {
