@@ -647,7 +647,7 @@ func (d *btrfs) GetVolumeUsage(vol Volume) (int64, error) {
 
 // SetVolumeQuota applies a size limit on volume.
 // Does nothing if supplied with an empty/zero size for block volumes, and for filesystem volumes removes quota.
-func (d *btrfs) SetVolumeQuota(vol Volume, size string, op *operations.Operation) error {
+func (d *btrfs) SetVolumeQuota(vol Volume, size string, allowUnsafeResize bool, op *operations.Operation) error {
 	// Convert to bytes.
 	sizeBytes, err := units.ParseByteSizeString(size)
 	if err != nil {
@@ -667,11 +667,11 @@ func (d *btrfs) SetVolumeQuota(vol Volume, size string, op *operations.Operation
 		}
 
 		// Pass VolumeTypeImage as unsupported resize type, as if the image volume doesn't match the
-		// requested size and vol.allowUnsafeResize=false, this needs to be rejected back to caller as
+		// requested size and allowUnsafeResize=false, this needs to be rejected back to caller as
 		// ErrNotSupported so that the caller can take the appropriate action. In the case of optimized
 		// image volumes, this will cause the image volume to be deleted and regenerated with the new size.
 		// In other cases this is probably a bug and the operation should fail anyway.
-		resized, err := ensureVolumeBlockFile(vol, rootBlockPath, sizeBytes, VolumeTypeImage)
+		resized, err := ensureVolumeBlockFile(vol, rootBlockPath, sizeBytes, allowUnsafeResize, VolumeTypeImage)
 		if err != nil {
 			return err
 		}
@@ -679,7 +679,7 @@ func (d *btrfs) SetVolumeQuota(vol Volume, size string, op *operations.Operation
 		// Move the GPT alt header to end of disk if needed and resize has taken place (not needed in
 		// unsafe resize mode as it is expected the caller will do all necessary post resize actions
 		// themselves).
-		if vol.IsVMBlock() && resized && !vol.allowUnsafeResize {
+		if vol.IsVMBlock() && resized && !allowUnsafeResize {
 			err = d.moveGPTAltHeader(rootBlockPath)
 			if err != nil {
 				return err
