@@ -163,3 +163,16 @@ func (r *ProtocolLXD) CreateClusterMember(member api.ClusterMembersPost) (Operat
 
 	return op, nil
 }
+
+func (r *ProtocolLXD) UpdateClusterCertificates(certs api.ClusterCertificatesPost) (Operation, error) {
+	if !r.HasExtension("clustering_update_certs") {
+		return nil, fmt.Errorf("The server is missing the required \"clustering_update_certs\" API extension")
+	}
+
+	op, _, err := r.queryOperation("POST", "/cluster/certificates", certs, "")
+	if err != nil {
+		return nil, err
+	}
+
+	return op, nil
+}
