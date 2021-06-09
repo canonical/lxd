@@ -53,7 +53,7 @@ func (d *Daemon) imageDownloadLock(fingerprint string) locking.UnlockFunc {
 }
 
 // ImageDownload resolves the image fingerprint and if not in the database, downloads it
-func (d *Daemon) ImageDownload(op *operations.Operation, args *ImageDownloadArgs) (*api.Image, error) {
+func (d *Daemon) ImageDownload(r *http.Request, op *operations.Operation, args *ImageDownloadArgs) (*api.Image, error) {
 	var err error
 	var ctxMap log.Ctx
 
@@ -148,7 +148,7 @@ func (d *Daemon) ImageDownload(op *operations.Operation, args *ImageDownloadArgs
 
 		if nodeAddress != "" {
 			// The image is available from another node, let's try to import it.
-			err = instanceImageTransfer(d, args.ProjectName, imgInfo.Fingerprint, nodeAddress)
+			err = instanceImageTransfer(d, r, args.ProjectName, imgInfo.Fingerprint, nodeAddress)
 			if err != nil {
 				return nil, errors.Wrapf(err, "Failed transferring image %q from %q", imgInfo.Fingerprint, nodeAddress)
 			}
@@ -190,7 +190,7 @@ func (d *Daemon) ImageDownload(op *operations.Operation, args *ImageDownloadArgs
 			// Transfer image if needed (after database record has been created above).
 			if nodeAddress != "" {
 				// The image is available from another node, let's try to import it.
-				err = instanceImageTransfer(d, args.ProjectName, info.Fingerprint, nodeAddress)
+				err = instanceImageTransfer(d, r, args.ProjectName, info.Fingerprint, nodeAddress)
 				if err != nil {
 					return nil, errors.Wrapf(err, "Failed transferring image")
 				}

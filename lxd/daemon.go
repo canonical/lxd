@@ -1841,7 +1841,7 @@ func (d *Daemon) NodeRefreshTask(heartbeatData *cluster.APIHeartbeat) {
 				if d.clusterMembershipClosing {
 					return
 				}
-				err := rebalanceMemberRoles(d)
+				err := rebalanceMemberRoles(d, nil)
 				if err != nil && errors.Cause(err) != cluster.ErrNotLeader {
 					logger.Warnf("Could not rebalance cluster member roles: %v", err)
 				}

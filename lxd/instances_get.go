@@ -348,7 +348,7 @@ func doInstancesGet(d *Daemon, r *http.Request) (interface{}, error) {
 				defer wg.Done()
 
 				if recursion == 1 {
-					cs, err := doContainersGetFromNode(projectName, address, networkCert, d.serverCert(), instanceType)
+					cs, err := doContainersGetFromNode(projectName, address, networkCert, d.serverCert(), r, instanceType)
 					if err != nil {
 						for _, name := range containers {
 							resultListAppend(name, api.Instance{}, err)
@@ -364,7 +364,7 @@ func doInstancesGet(d *Daemon, r *http.Request) (interface{}, error) {
 					return
 				}
 
-				cs, err := doContainersFullGetFromNode(projectName, address, networkCert, d.serverCert(), instanceType)
+				cs, err := doContainersFullGetFromNode(projectName, address, networkCert, d.serverCert(), r, instanceType)
 				if err != nil {
 					for _, name := range containers {
 						resultFullListAppend(name, api.InstanceFull{}, err)
@@ -486,9 +486,9 @@ func doInstancesGet(d *Daemon, r *http.Request) (interface{}, error) {
 
 // Fetch information about the containers on the given remote node, using the
 // rest API and with a timeout of 30 seconds.
-func doContainersGetFromNode(project, node string, networkCert *shared.CertInfo, serverCert *shared.CertInfo, instanceType instancetype.Type) ([]api.Instance, error) {
+func doContainersGetFromNode(project, node string, networkCert *shared.CertInfo, serverCert *shared.CertInfo, r *http.Request, instanceType instancetype.Type) ([]api.Instance, error) {
 	f := func() ([]api.Instance, error) {
-		client, err := cluster.Connect(node, networkCert, serverCert, true)
+		client, err := cluster.Connect(node, networkCert, serverCert, r, true)
 		if err != nil {
 			return nil, errors.Wrapf(err, "Failed to connect to node %s", node)
 		}
@@ -523,9 +523,9 @@ func doContainersGetFromNode(project, node string, networkCert *shared.CertInfo,
 	return containers, err
 }
 
-func doContainersFullGetFromNode(project, node string, networkCert *shared.CertInfo, serverCert *shared.CertInfo, instanceType instancetype.Type) ([]api.InstanceFull, error) {
+func doContainersFullGetFromNode(project, node string, networkCert *shared.CertInfo, serverCert *shared.CertInfo, r *http.Request, instanceType instancetype.Type) ([]api.InstanceFull, error) {
 	f := func() ([]api.InstanceFull, error) {
-		client, err := cluster.Connect(node, networkCert, serverCert, true)
+		client, err := cluster.Connect(node, networkCert, serverCert, r, true)
 		if err != nil {
 			return nil, errors.Wrapf(err, "Failed to connect to node %s", node)
 		}
