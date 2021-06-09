@@ -117,11 +117,6 @@ func (r *ProtocolLXD) CreateContainerFromBackup(args ContainerBackupArgs) (Opera
 	req.Header.Set("Content-Type", "application/octet-stream")
 	req.Header.Set("X-LXD-pool", args.PoolName)
 
-	// Set the user agent
-	if r.httpUserAgent != "" {
-		req.Header.Set("User-Agent", r.httpUserAgent)
-	}
-
 	// Send the request
 	resp, err := r.do(req)
 	if err != nil {
@@ -772,11 +767,6 @@ func (r *ProtocolLXD) GetContainerFile(containerName string, path string) (io.Re
 		return nil, nil, err
 	}
 
-	// Set the user agent
-	if r.httpUserAgent != "" {
-		req.Header.Set("User-Agent", r.httpUserAgent)
-	}
-
 	// Send the request
 	resp, err := r.do(req)
 	if err != nil {
@@ -856,11 +846,6 @@ func (r *ProtocolLXD) CreateContainerFile(containerName string, path string, arg
 	req, err := http.NewRequest("POST", requestURL, args.Content)
 	if err != nil {
 		return err
-	}
-
-	// Set the user agent
-	if r.httpUserAgent != "" {
-		req.Header.Set("User-Agent", r.httpUserAgent)
 	}
 
 	// Set the various headers
@@ -1356,11 +1341,6 @@ func (r *ProtocolLXD) GetContainerLogfile(name string, filename string) (io.Read
 		return nil, err
 	}
 
-	// Set the user agent
-	if r.httpUserAgent != "" {
-		req.Header.Set("User-Agent", r.httpUserAgent)
-	}
-
 	// Send the request
 	resp, err := r.do(req)
 	if err != nil {
@@ -1456,11 +1436,6 @@ func (r *ProtocolLXD) GetContainerTemplateFile(containerName string, templateNam
 		return nil, err
 	}
 
-	// Set the user agent
-	if r.httpUserAgent != "" {
-		req.Header.Set("User-Agent", r.httpUserAgent)
-	}
-
 	// Send the request
 	resp, err := r.do(req)
 	if err != nil {
@@ -1496,11 +1471,6 @@ func (r *ProtocolLXD) CreateContainerTemplateFile(containerName string, template
 		return err
 	}
 	req.Header.Set("Content-Type", "application/octet-stream")
-
-	// Set the user agent
-	if r.httpUserAgent != "" {
-		req.Header.Set("User-Agent", r.httpUserAgent)
-	}
 
 	// Send the request
 	resp, err := r.do(req)
@@ -1617,11 +1587,6 @@ func (r *ProtocolLXD) GetContainerConsoleLog(containerName string, args *Contain
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
 		return nil, err
-	}
-
-	// Set the user agent
-	if r.httpUserAgent != "" {
-		req.Header.Set("User-Agent", r.httpUserAgent)
 	}
 
 	// Send the request
