@@ -910,7 +910,7 @@ func (d *zfs) GetVolumeUsage(vol Volume) (int64, error) {
 
 // SetVolumeQuota sets the quota on the volume.
 // Does nothing if supplied with an empty/zero size for block volumes, and for filesystem volumes removes quota.
-func (d *zfs) SetVolumeQuota(vol Volume, size string, op *operations.Operation) error {
+func (d *zfs) SetVolumeQuota(vol Volume, size string, allowUnsafeResize bool, op *operations.Operation) error {
 	// Convert to bytes.
 	sizeBytes, err := units.ParseByteSizeString(size)
 	if err != nil {
@@ -944,13 +944,13 @@ func (d *zfs) SetVolumeQuota(vol Volume, size string, op *operations.Operation) 
 		// Block image volumes cannot be resized because they have a readonly snapshot that doesn't get
 		// updated when the volume's size is changed, and this is what instances are created from.
 		// During initial volume fill allowUnsafeResize is enabled because snapshot hasn't been taken yet.
-		if !vol.allowUnsafeResize && vol.volType == VolumeTypeImage {
+		if !allowUnsafeResize && vol.volType == VolumeTypeImage {
 			return ErrNotSupported
 		}
 
 		// Only perform pre-resize checks if we are not in "unsafe" mode.
 		// In unsafe mode we expect the caller to know what they are doing and understand the risks.
-		if !vol.allowUnsafeResize {
+		if !allowUnsafeResize {
 			if sizeBytes < oldVolSizeBytes {
 				return errors.Wrap(ErrCannotBeShrunk, "Block volumes cannot be shrunk")
 			}
@@ -967,7 +967,7 @@ func (d *zfs) SetVolumeQuota(vol Volume, size string, op *operations.Operation) 
 
 		// Move the VM GPT alt header to end of disk if needed (not needed in unsafe resize mode as
 		// it is expected the caller will do all necessary post resize actions themselves).
-		if vol.IsVMBlock() && !vol.allowUnsafeResize {
+		if vol.IsVMBlock() && !allowUnsafeResize {
 			err = vol.MountTask(func(mountPath string, op *operations.Operation) error {
 				devPath, err := d.GetVolumeDiskPath(vol)
 				if err != nil {
