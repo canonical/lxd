@@ -256,7 +256,7 @@ func (d *dir) GetVolumeUsage(vol Volume) (int64, error) {
 
 // SetVolumeQuota applies a size limit on volume.
 // Does nothing if supplied with an empty/zero size for block volumes, and for filesystem volumes removes quota.
-func (d *dir) SetVolumeQuota(vol Volume, size string, op *operations.Operation) error {
+func (d *dir) SetVolumeQuota(vol Volume, size string, allowUnsafeResize bool, op *operations.Operation) error {
 	// Convert to bytes.
 	sizeBytes, err := units.ParseByteSizeString(size)
 	if err != nil {
@@ -275,7 +275,7 @@ func (d *dir) SetVolumeQuota(vol Volume, size string, op *operations.Operation) 
 			return err
 		}
 
-		resized, err := ensureVolumeBlockFile(vol, rootBlockPath, sizeBytes)
+		resized, err := ensureVolumeBlockFile(vol, rootBlockPath, sizeBytes, allowUnsafeResize)
 		if err != nil {
 			return err
 		}
@@ -283,7 +283,7 @@ func (d *dir) SetVolumeQuota(vol Volume, size string, op *operations.Operation) 
 		// Move the GPT alt header to end of disk if needed and resize has taken place (not needed in
 		// unsafe resize mode as it is expected the caller will do all necessary post resize actions
 		// themselves).
-		if vol.IsVMBlock() && resized && !vol.allowUnsafeResize {
+		if vol.IsVMBlock() && resized && !allowUnsafeResize {
 			err = d.moveGPTAltHeader(rootBlockPath)
 			if err != nil {
 				return err
