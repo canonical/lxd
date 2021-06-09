@@ -625,7 +625,7 @@ func clusterPutJoin(d *Daemon, r *http.Request, req api.ClusterPut) response.Res
 			logger.Errorf("Failed starting networks: %v", err)
 		}
 
-		client, err = cluster.Connect(req.ClusterAddress, d.endpoints.NetworkCert(), serverCert, true)
+		client, err = cluster.Connect(req.ClusterAddress, d.endpoints.NetworkCert(), serverCert, r, true)
 		if err != nil {
 			return err
 		}
@@ -1065,7 +1065,7 @@ func clusterNodesPost(d *Daemon, r *http.Request) response.Response {
 	// Remove any existing join tokens for the requested cluster member, this way we only ever have one active
 	// join token for each potential new member, and it has the most recent active members list for joining.
 	// This also ensures any historically unused (but potentially published) join tokens are removed.
-	ops, err := operationsGetByType(d, project.Default, db.OperationClusterJoinToken)
+	ops, err := operationsGetByType(d, r, project.Default, db.OperationClusterJoinToken)
 	if err != nil {
 		return response.InternalError(errors.Wrapf(err, "Failed getting cluster join token operations"))
 	}
@@ -1083,7 +1083,7 @@ func clusterNodesPost(d *Daemon, r *http.Request) response.Response {
 		if opServerName == req.ServerName {
 			// Join token operation matches requested server name, so lets cancel it.
 			logger.Warn("Cancelling duplicate join token operation", log.Ctx{"operation": op.ID, "serverName": opServerName})
-			err = operationCancel(d, project.Default, op)
+			err = operationCancel(d, r, project.Default, op)
 			if err != nil {
 				return response.InternalError(errors.Wrapf(err, "Failed to cancel operation %q", op.ID))
 			}
@@ -1425,7 +1425,7 @@ func clusterNodeDelete(d *Daemon, r *http.Request) response.Response {
 	}
 	if localAddress != leader {
 		logger.Debugf("Redirect member delete request to %s", leader)
-		client, err := cluster.Connect(leader, d.endpoints.NetworkCert(), d.serverCert(), false)
+		client, err := cluster.Connect(leader, d.endpoints.NetworkCert(), d.serverCert(), r, false)
 		if err != nil {
 			return response.SmartError(err)
 		}
@@ -1459,7 +1459,7 @@ func clusterNodeDelete(d *Daemon, r *http.Request) response.Response {
 	if force != 1 {
 		// Try to gracefully delete all networks and storage pools on it.
 		// Delete all networks on this node
-		client, err := cluster.Connect(address, d.endpoints.NetworkCert(), d.serverCert(), true)
+		client, err := cluster.Connect(address, d.endpoints.NetworkCert(), d.serverCert(), r, true)
 		if err != nil {
 			return response.SmartError(err)
 		}
@@ -1501,14 +1501,14 @@ func clusterNodeDelete(d *Daemon, r *http.Request) response.Response {
 	// detection and updateCertificateCache is called as part of that.
 	updateCertificateCache(d)
 
-	err = rebalanceMemberRoles(d)
+	err = rebalanceMemberRoles(d, r)
 	if err != nil {
 		logger.Warnf("Failed to rebalance dqlite nodes: %v", err)
 	}
 
 	if force != 1 {
 		// Try to gracefully reset the database on the node.
-		client, err := cluster.Connect(address, d.endpoints.NetworkCert(), d.serverCert(), true)
+		client, err := cluster.Connect(address, d.endpoints.NetworkCert(), d.serverCert(), r, true)
 		if err != nil {
 			return response.SmartError(err)
 		}
@@ -1644,7 +1644,7 @@ func internalClusterPostRebalance(d *Daemon, r *http.Request) response.Response 
 		return response.SyncResponseRedirect(url.String())
 	}
 
-	err = rebalanceMemberRoles(d)
+	err = rebalanceMemberRoles(d, r)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -1654,7 +1654,7 @@ func internalClusterPostRebalance(d *Daemon, r *http.Request) response.Response 
 
 // Check if there's a dqlite node whose role should be changed, and post a
 // change role request if so.
-func rebalanceMemberRoles(d *Daemon) error {
+func rebalanceMemberRoles(d *Daemon, r *http.Request) error {
 	if d.clusterMembershipClosing {
 		return nil
 	}
@@ -1689,7 +1689,7 @@ again:
 	}
 
 	// Tell the node to promote itself.
-	err = changeMemberRole(d, address, nodes)
+	err = changeMemberRole(d, r, address, nodes)
 	if err != nil {
 		return err
 	}
@@ -1719,7 +1719,7 @@ func upgradeNodesWithoutRaftRole(d *Daemon) error {
 
 // Post a change role request to the member with the given address. The nodes
 // slice contains details about all members, including the one being changed.
-func changeMemberRole(d *Daemon, address string, nodes []db.RaftNode) error {
+func changeMemberRole(d *Daemon, r *http.Request, address string, nodes []db.RaftNode) error {
 	post := &internalClusterPostAssignRequest{}
 	for _, node := range nodes {
 		post.RaftNodes = append(post.RaftNodes, internalRaftNode{
@@ -1729,7 +1729,7 @@ func changeMemberRole(d *Daemon, address string, nodes []db.RaftNode) error {
 		})
 	}
 
-	client, err := cluster.Connect(address, d.endpoints.NetworkCert(), d.serverCert(), true)
+	client, err := cluster.Connect(address, d.endpoints.NetworkCert(), d.serverCert(), r, true)
 	if err != nil {
 		return err
 	}
@@ -1785,7 +1785,7 @@ findLeader:
 		goto findLeader
 	}
 
-	client, err := cluster.Connect(leader, d.endpoints.NetworkCert(), d.serverCert(), true)
+	client, err := cluster.Connect(leader, d.endpoints.NetworkCert(), d.serverCert(), nil, true)
 	if err != nil {
 		return err
 	}
@@ -1881,7 +1881,7 @@ func internalClusterPostHandover(d *Daemon, r *http.Request) response.Response {
 		goto out
 	}
 
-	err = changeMemberRole(d, target, nodes)
+	err = changeMemberRole(d, r, target, nodes)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -1892,7 +1892,7 @@ func internalClusterPostHandover(d *Daemon, r *http.Request) response.Response {
 			nodes[i].Role = db.RaftSpare
 		}
 	}
-	err = changeMemberRole(d, req.Address, nodes)
+	err = changeMemberRole(d, r, req.Address, nodes)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -1980,7 +1980,7 @@ func internalClusterRaftNodeDelete(d *Daemon, r *http.Request) response.Response
 		return response.SmartError(err)
 	}
 
-	err = rebalanceMemberRoles(d)
+	err = rebalanceMemberRoles(d, r)
 	if err != nil && errors.Cause(err) != cluster.ErrNotLeader {
 		logger.Warn("Could not rebalance cluster member roles after raft member removal", log.Ctx{"err": err})
 	}

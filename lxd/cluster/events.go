@@ -125,7 +125,7 @@ func eventsUpdateListeners(endpoints *endpoints.Endpoints, cluster *db.Cluster, 
 
 // Establish a client connection to get events from the given node.
 func eventsConnect(address string, networkCert *shared.CertInfo, serverCert *shared.CertInfo) (*lxd.EventListener, error) {
-	client, err := Connect(address, networkCert, serverCert, true)
+	client, err := Connect(address, networkCert, serverCert, nil, true)
 	if err != nil {
 		return nil, err
 	}
