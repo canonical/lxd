@@ -354,8 +354,8 @@ func (v Volume) NewVMBlockFilesystemVolume() Volume {
 }
 
 // SetQuota calls SetVolumeQuota on the Volume's driver.
-func (v Volume) SetQuota(size string, op *operations.Operation) error {
-	return v.driver.SetVolumeQuota(v, size, op)
+func (v Volume) SetQuota(size string, allowUnsafeResize bool, op *operations.Operation) error {
+	return v.driver.SetVolumeQuota(v, size, allowUnsafeResize, op)
 }
 
 // SetConfigSize sets the size config property on the Volume (does not resize volume).
