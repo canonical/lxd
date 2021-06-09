@@ -132,6 +132,19 @@ type Gateway struct {
 	timeSkew bool
 }
 
+func (g *Gateway) Restart(cert *shared.CertInfo) error {
+	g.networkCert = cert
+	info, err := loadInfo(g.db, g.networkCert)
+	if err != nil {
+		return err
+	}
+
+	if info != nil {
+		g.info = info
+	}
+	return nil
+}
+
 // Current dqlite protocol version.
 const dqliteVersion = 1
 
