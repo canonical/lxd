@@ -70,15 +70,14 @@ var BaseDirectories = map[VolumeType][]string{
 
 // Volume represents a storage volume, and provides functions to mount and unmount it.
 type Volume struct {
-	name              string
-	pool              string
-	poolConfig        map[string]string
-	volType           VolumeType
-	contentType       ContentType
-	config            map[string]string
-	driver            Driver
-	customMountPath   string
-	allowUnsafeResize bool // Whether to allow potentially destructive unchecked resizing of volume.
+	name            string
+	pool            string
+	poolConfig      map[string]string
+	volType         VolumeType
+	contentType     ContentType
+	config          map[string]string
+	driver          Driver
+	customMountPath string
 }
 
 // NewVolume instantiates a new Volume struct.
