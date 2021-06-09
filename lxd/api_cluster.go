@@ -1,6 +1,8 @@
 package main
 
 import (
+	"context"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -54,6 +56,12 @@ var clusterNodeCmd = APIEndpoint{
 	Patch:  APIEndpointAction{Handler: clusterNodePatch},
 	Put:    APIEndpointAction{Handler: clusterNodePut},
 	Post:   APIEndpointAction{Handler: clusterNodePost},
+}
+
+var clusterCertificatesCmd = APIEndpoint{
+	Path: "cluster/certificates",
+
+	Post: APIEndpointAction{Handler: clusterCertificatesPost},
 }
 
 var internalClusterAcceptCmd = APIEndpoint{
@@ -1610,6 +1618,120 @@ func clusterNodeDelete(d *Daemon, r *http.Request) response.Response {
 	err = autoSyncImages(d.ctx, d)
 	if err != nil {
 		logger.Warn("Failed to sync images")
+	}
+
+	return response.EmptySyncResponse
+}
+
+// swagger:operation POST /1.0/cluster/certificates cluster cluster_certificates_post
+//
+// Update certificates for the cluster
+//
+// Replaces existing cluster certificates and reloads LXD on each cluster member
+//
+// --
+// consumes:
+//   - application/json
+// produces:
+//   - application/json
+// parameters:
+//   - in: body
+//     name: cluster
+//     description: Cluster certificate replace request
+//     required: true
+//     schema:
+//       $ref: "#/definitions/ClusterCertificatesPost"
+// responses:
+//   "200":
+//     $ref: "#/responses/EmptySyncResponse"
+//   "400":
+//     $ref: "#/responses/BadRequest"
+//   "403":
+//     $ref: "#/responses/Forbidden"
+//   "500":
+//     $ref: "#/responses/InternalServerError"
+func clusterCertificatesPost(d *Daemon, r *http.Request) response.Response {
+	req := api.ClusterCertificatesPost{}
+
+	// Parse the request
+	err := json.NewDecoder(r.Body).Decode(&req)
+	if err != nil {
+		return response.BadRequest(err)
+	}
+
+	// Sanity checks
+	if req.ClusterCertificateKey == "" {
+		// TODO
+		return response.BadRequest(fmt.Errorf("ServerName is required when enabling clustering"))
+	}
+	if req.ClusterCertificate == "" {
+		// TODO
+		return response.BadRequest(fmt.Errorf("ServerName must be empty when disabling clustering"))
+	}
+
+	clusterCert, err := util.LoadClusterCert(d.os.VarDir)
+	if err != nil {
+		return response.BadRequest(fmt.Errorf("oopsies"))
+	}
+
+	rawCert, err := base64.StdEncoding.DecodeString(req.ClusterCertificate)
+	if err != nil {
+		return response.SmartError(fmt.Errorf("Certificate must be base64 encoded PEM certificate: %v", err))
+	}
+
+	rawKey, err := base64.StdEncoding.DecodeString(req.ClusterCertificateKey)
+	if err != nil {
+		return response.SmartError(fmt.Errorf("Private key must be base64 encoded PEM key: %v", err))
+	}
+
+	// Update cluster certificate and forward request to all cluster nodes if
+	// given new keypair
+
+	if string(clusterCert.PublicKey()) != string(rawCert) && string(clusterCert.PrivateKey()) != string(rawKey) {
+		err := util.WriteCert(d.os.VarDir, "cluster", rawCert, rawKey, nil)
+		if err != nil {
+			return response.SmartError(fmt.Errorf("Error writing cluster certificate locally: %v", err))
+		}
+
+		servers, err := d.gateway.NodeStore().Get(context.Background())
+		if err != nil {
+			//TODO
+			return response.BadRequest(fmt.Errorf("Oops: %v", err))
+		}
+		localAddress, err := node.ClusterAddress(d.db)
+		if err != nil {
+			return response.SmartError(fmt.Errorf("AAA: %v", err))
+		}
+
+		// forward certificate change request to all cluster nodes
+		for _, server := range servers {
+			if server.Address == localAddress {
+				continue
+			}
+			client, err := cluster.Connect(server.Address, d.endpoints.NetworkCert(), d.serverCert(), false)
+			if err != nil {
+				return response.SmartError(fmt.Errorf("BBB: %v", err))
+			}
+			// TODO: Operation?
+			_, err = client.UpdateClusterCertificates(req)
+			if err != nil {
+				return response.SmartError(fmt.Errorf("CCC: %v", err))
+			}
+		}
+
+		// Get the new cluster certificate struct
+		cert, err := util.LoadClusterCert(d.os.VarDir)
+		if err != nil {
+			return response.BadRequest(fmt.Errorf("oopsies"))
+		}
+
+		defer updateCertificateCacheFromLocal(d, cert)
+		defer d.endpoints.NetworkUpdatCert(cert)
+		defer d.gateway.Restart(cert)
+
+		logger.Warnf("Finished...")
+	} else {
+		logger.Warnf("Skipping...")
 	}
 
 	return response.EmptySyncResponse
