@@ -279,6 +279,8 @@ func (d *common) createVolumeFromBackupInstancePostHookResize(driver Driver, vol
 	if size != "" {
 		d.logger.Debug("Applying volume quota from root disk config", log.Ctx{"size": size})
 
+		allowUnsafeResize := false
+
 		if volType == VolumeTypeContainer {
 			// Enable allowUnsafeResize for container imports so that filesystem resize safety checks
 			// are avoided in order to allow more imports to succeed when otherwise the pre-resize
@@ -288,10 +290,10 @@ func (d *common) createVolumeFromBackupInstancePostHookResize(driver Driver, vol
 			// We don't need to do this for non-container volumes (nor should we) because block volumes
 			// won't error if we shrink them too much, and custom volumes can be created at the correct
 			// size immediately and don't need a post-import resize step.
-			vol.allowUnsafeResize = true
+			allowUnsafeResize = true
 		}
 
-		err := driver.SetVolumeQuota(vol, size, op)
+		err := driver.SetVolumeQuota(vol, size, allowUnsafeResize, op)
 		if err != nil {
 			// The restored volume can end up being larger than the root disk config's size
 			// property due to the block boundary rounding some storage drivers use. As such
