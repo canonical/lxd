@@ -326,7 +326,7 @@ func (d *ceph) CreateVolumeFromCopy(vol Volume, srcVol Volume, copySnapshots boo
 
 		// Resize volume to the size specified. Only uses volume "size" property and does not use
 		// pool/defaults to give the caller more control over the size being used.
-		err = d.SetVolumeQuota(vol, vol.config["size"], nil)
+		err = d.SetVolumeQuota(vol, vol.config["size"], false, op)
 		if err != nil {
 			return err
 		}
@@ -763,7 +763,7 @@ func (d *ceph) ValidateVolume(vol Volume, removeUnknownKeys bool) error {
 func (d *ceph) UpdateVolume(vol Volume, changedConfig map[string]string) error {
 	newSize, sizeChanged := changedConfig["size"]
 	if sizeChanged {
-		err := d.SetVolumeQuota(vol, newSize, nil)
+		err := d.SetVolumeQuota(vol, newSize, false, nil)
 		if err != nil {
 			return err
 		}
