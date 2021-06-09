@@ -356,7 +356,7 @@ func (d *lvm) GetVolumeUsage(vol Volume) (int64, error) {
 
 // SetVolumeQuota applies a size limit on volume.
 // Does nothing if supplied with an empty/zero size.
-func (d *lvm) SetVolumeQuota(vol Volume, size string, op *operations.Operation) error {
+func (d *lvm) SetVolumeQuota(vol Volume, size string, allowUnsafeResize bool, op *operations.Operation) error {
 	// Do nothing if size isn't specified.
 	if size == "" || size == "0" {
 		return nil
@@ -418,12 +418,12 @@ func (d *lvm) SetVolumeQuota(vol Volume, size string, op *operations.Operation) 
 			}
 
 			// Shrink filesystem first.
-			// Pass vol.allowUnsafeResize to allow disabling of filesystem resize safety checks.
+			// Pass allowUnsafeResize to allow disabling of filesystem resize safety checks.
 			// We do this as a separate step rather than passing -r to lvresize in resizeLogicalVolume
 			// so that we can have more control over when we trigger unsafe filesystem resize mode,
 			// otherwise by passing -f to lvresize (required for other reasons) this would then pass
 			// -f onto resize2fs as well.
-			err = shrinkFileSystem(fsType, volDevPath, vol, sizeBytes, vol.allowUnsafeResize)
+			err = shrinkFileSystem(fsType, volDevPath, vol, sizeBytes, allowUnsafeResize)
 			if err != nil {
 				return err
 			}
@@ -451,7 +451,7 @@ func (d *lvm) SetVolumeQuota(vol Volume, size string, op *operations.Operation) 
 	} else {
 		// Only perform pre-resize checks if we are not in "unsafe" mode.
 		// In unsafe mode we expect the caller to know what they are doing and understand the risks.
-		if !vol.allowUnsafeResize {
+		if !allowUnsafeResize {
 			if sizeBytes < oldSizeBytes {
 				return errors.Wrap(ErrCannotBeShrunk, "Block volumes cannot be shrunk")
 			}
@@ -468,7 +468,7 @@ func (d *lvm) SetVolumeQuota(vol Volume, size string, op *operations.Operation) 
 
 		// Move the VM GPT alt header to end of disk if needed (not needed in unsafe resize mode as it is
 		// expected the caller will do all necessary post resize actions themselves).
-		if vol.IsVMBlock() && !vol.allowUnsafeResize {
+		if vol.IsVMBlock() && !allowUnsafeResize {
 			err = d.moveGPTAltHeader(volDevPath)
 			if err != nil {
 				return err
