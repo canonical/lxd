@@ -693,6 +693,8 @@ func genericVFSBackupUnpack(d Driver, vol Volume, snapshots []string, srcData io
 				}
 
 				if hdr.Name == srcFile {
+					var allowUnsafeResize bool
+
 					// Open block file (use O_CREATE to support drivers that use image files).
 					to, err := os.OpenFile(targetPath, os.O_WRONLY|os.O_TRUNC|os.O_CREATE, 0644)
 					if err != nil {
@@ -705,8 +707,8 @@ func genericVFSBackupUnpack(d Driver, vol Volume, snapshots []string, srcData io
 
 					// Allow potentially destructive resize of volume as we are going to be
 					// overwriting it entirely anyway. This allows shrinking of block volumes.
-					vol.allowUnsafeResize = true
-					err = d.SetVolumeQuota(vol, fmt.Sprintf("%d", hdr.Size), op)
+					allowUnsafeResize = true
+					err = d.SetVolumeQuota(vol, fmt.Sprintf("%d", hdr.Size), allowUnsafeResize, op)
 					if err != nil {
 						return err
 					}
