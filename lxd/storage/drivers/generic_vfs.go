@@ -822,7 +822,11 @@ func genericVFSBackupUnpack(d Driver, vol Volume, snapshots []string, srcData io
 		// backup restoration process). Create a post hook function that will be called at the end of the
 		// backup restore process to unmount the volume if needed.
 		postHook = func(vol Volume) error {
-			d.UnmountVolume(vol, false, op)
+			_, err = d.UnmountVolume(vol, false, op)
+			if err != nil {
+				return err
+			}
+
 			return nil
 		}
 	} else {
