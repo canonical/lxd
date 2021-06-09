@@ -6,6 +6,7 @@ import (
 	"github.com/lxc/lxd/lxd/backup"
 	"github.com/lxc/lxd/lxd/migration"
 	"github.com/lxc/lxd/lxd/operations"
+	"github.com/lxc/lxd/lxd/revert"
 	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/instancewriter"
 )
@@ -74,7 +75,7 @@ func (d *mock) CreateVolume(vol Volume, filler *VolumeFiller, op *operations.Ope
 }
 
 // CreateVolumeFromBackup restores a backup tarball onto the storage device.
-func (d *mock) CreateVolumeFromBackup(vol Volume, srcBackup backup.Info, srcData io.ReadSeeker, op *operations.Operation) (VolumePostHook, func(), error) {
+func (d *mock) CreateVolumeFromBackup(vol Volume, srcBackup backup.Info, srcData io.ReadSeeker, op *operations.Operation) (VolumePostHook, revert.Hook, error) {
 	return nil, nil, nil
 }
 
