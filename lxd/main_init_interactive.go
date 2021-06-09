@@ -180,7 +180,6 @@ func (c *cmdInit) askClustering(config *cmdInitData, d lxd.InstanceServer) error
 			}
 
 			input := cli.AskString("Do you have a join token? (yes/no/[token]) [default=no]: ", "no", validInput)
-
 			if !shared.StringInSlice(strings.ToLower(input), []string{"no", "n"}) {
 				rawJoinToken := input
 
@@ -319,7 +318,7 @@ func (c *cmdInit) askClustering(config *cmdInitData, d lxd.InstanceServer) error
 			config.Cluster.MemberConfig = cluster.MemberConfig
 		} else {
 			// Password authentication
-			if cli.AskBool("Setup password authentication on the cluster? (yes/no) [default=yes]: ", "yes") {
+			if cli.AskBool("Setup password authentication on the cluster? (yes/no) [default=yes]: ", "no") {
 				config.Node.Config["core.trust_password"] = cli.AskPassword("Trust password for new clients: ")
 			}
 		}
