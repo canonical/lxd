@@ -1023,6 +1023,16 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 
 		if subnetSize > 64 {
 			n.logger.Warn("IPv6 networks with a prefix larger than 64 aren't properly supported by dnsmasq")
+
+			err = n.state.Cluster.UpsertWarningLocalNode(n.project, dbCluster.TypeNetwork, int(n.id), db.WarningLargerIPv6PrefixThanSupported, "")
+			if err != nil {
+				n.logger.Warn("Failed to create warning", log.Ctx{"err": err})
+			}
+		} else {
+			err = warnings.ResolveWarningsByLocalNodeAndProjectAndTypeAndEntity(n.state.Cluster, n.project, db.WarningLargerIPv6PrefixThanSupported, dbCluster.TypeNetwork, int(n.id))
+			if err != nil {
+				n.logger.Warn("Failed to resolve warning", log.Ctx{"err": err})
+			}
 		}
 
 		// Update the dnsmasq config.
