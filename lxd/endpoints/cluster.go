@@ -22,6 +22,34 @@ func (e *Endpoints) ClusterAddress() string {
 	return listener.Addr().String()
 }
 
+func (e *Endpoints) RestartCluster() error {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+
+	// Close the previous socket
+	e.closeListener(cluster)
+
+	var err error
+	var listener net.Listener
+
+	for i := 0; i < 10; i++ { // Ten retries over a second seems reasonable.
+		listener, err = net.Listen("tcp", e.ClusterAddress())
+		if err == nil {
+			break
+		}
+
+		time.Sleep(100 * time.Millisecond)
+	}
+
+	if err != nil {
+		return fmt.Errorf("cannot listen on https socket: %v", err)
+	}
+
+	e.listeners[cluster] = networkTLSListener(listener, e.cert)
+	e.serveHTTP(cluster)
+	return nil
+}
+
 // ClusterUpdateAddress updates the address for the cluster endpoint, shutting
 // it down and restarting it.
 func (e *Endpoints) ClusterUpdateAddress(address string) error {

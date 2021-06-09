@@ -133,6 +133,30 @@ func Up(config *Config) (*Endpoints, error) {
 	return endpoints, nil
 }
 
+func (e *Endpoints) GetStuff() (string, string) {
+	return string(e.cert.PrivateKey()), e.ClusterAddress()
+}
+
+func (e *Endpoints) Restart(cert *shared.CertInfo) {
+	e.closeListener(cluster)
+	e.cert = cert
+	attempts := 0
+againCluster:
+	listener, err := networkCreateListener(e.ClusterAddress(), e.cert)
+	if err != nil {
+		if attempts == 0 {
+			logger.Infof("Unable to bind cluster address %q, re-trying for a minute", e.ClusterAddress())
+		}
+
+		attempts++
+		if attempts < 30 {
+			time.Sleep(1 * time.Second)
+			goto againCluster
+		}
+	}
+	e.listeners[cluster] = listener
+}
+
 // Endpoints are in charge of bringing up and down the HTTP endpoints for
 // serving the LXD RESTful API.
 //
