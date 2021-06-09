@@ -93,7 +93,7 @@ func createFromImage(d *Daemon, r *http.Request, projectName string, req *api.In
 				return err
 			}
 
-			info, err = d.ImageDownload(op, &ImageDownloadArgs{
+			info, err = d.ImageDownload(r, op, &ImageDownloadArgs{
 				Server:       req.Source.Server,
 				Protocol:     req.Source.Protocol,
 				Certificate:  req.Source.Certificate,
@@ -121,7 +121,7 @@ func createFromImage(d *Daemon, r *http.Request, projectName string, req *api.In
 			return err
 		}
 
-		_, err = instanceCreateFromImage(d, args, info.Fingerprint, op)
+		_, err = instanceCreateFromImage(d, r, args, info.Fingerprint, op)
 		return err
 	}
 
@@ -438,7 +438,7 @@ func createFromCopy(d *Daemon, r *http.Request, projectName string, req *api.Ins
 
 			if sourcePoolName != destPoolName {
 				// Redirect to migration
-				return clusterCopyContainerInternal(d, source, projectName, req)
+				return clusterCopyContainerInternal(d, r, source, projectName, req)
 			}
 
 			_, pool, _, err := d.cluster.GetStoragePoolInAnyState(sourcePoolName)
@@ -449,7 +449,7 @@ func createFromCopy(d *Daemon, r *http.Request, projectName string, req *api.Ins
 
 			if pool.Driver != "ceph" {
 				// Redirect to migration
-				return clusterCopyContainerInternal(d, source, projectName, req)
+				return clusterCopyContainerInternal(d, r, source, projectName, req)
 			}
 		}
 	}
@@ -876,7 +876,7 @@ func instancesPost(d *Daemon, r *http.Request) response.Response {
 			return response.SmartError(err)
 		}
 		if address != "" {
-			client, err := cluster.Connect(address, d.endpoints.NetworkCert(), d.serverCert(), false)
+			client, err := cluster.Connect(address, d.endpoints.NetworkCert(), d.serverCert(), r, false)
 			if err != nil {
 				return response.SmartError(err)
 			}
@@ -1057,7 +1057,7 @@ func instanceFindStoragePool(d *Daemon, projectName string, req *api.InstancesPo
 	return storagePool, storagePoolProfile, localRootDiskDeviceKey, localRootDiskDevice, nil
 }
 
-func clusterCopyContainerInternal(d *Daemon, source instance.Instance, projectName string, req *api.InstancesPost) response.Response {
+func clusterCopyContainerInternal(d *Daemon, r *http.Request, source instance.Instance, projectName string, req *api.InstancesPost) response.Response {
 	name := req.Source.Source
 
 	// Locate the source of the container
@@ -1082,7 +1082,7 @@ func clusterCopyContainerInternal(d *Daemon, source instance.Instance, projectNa
 	}
 
 	// Connect to the container source
-	client, err := cluster.Connect(nodeAddress, d.endpoints.NetworkCert(), d.serverCert(), false)
+	client, err := cluster.Connect(nodeAddress, d.endpoints.NetworkCert(), d.serverCert(), r, false)
 	if err != nil {
 		return response.SmartError(err)
 	}

@@ -94,7 +94,7 @@ func NewNotifier(state *state.State, networkCert *shared.CertInfo, serverCert *s
 			logger.Debugf("Notify node %s of state changes", address)
 			go func(i int, address string) {
 				defer wg.Done()
-				client, err := Connect(address, networkCert, serverCert, true)
+				client, err := Connect(address, networkCert, serverCert, nil, true)
 				if err != nil {
 					errs[i] = errors.Wrapf(err, "failed to connect to peer %s", address)
 					return
