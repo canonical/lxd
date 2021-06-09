@@ -1034,7 +1034,7 @@ func parseIPRange(ipRange string, allowedNets ...*net.IPNet) (*shared.IPRange, e
 	}
 
 	if endIP == nil {
-		return nil, fmt.Errorf("End IP %q is invalid", rangeParts[0])
+		return nil, fmt.Errorf("End IP %q is invalid", rangeParts[1])
 	}
 
 	if bytes.Compare(startIP, endIP) > 0 {
