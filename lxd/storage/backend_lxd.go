@@ -681,7 +681,7 @@ func (b *lxdBackend) CreateInstanceFromBackup(srcBackup backup.Info, srcData io.
 		// so that any volume initialisation has been completed first.
 		if rootDiskConf["size"] != "" {
 			logger.Debug("Applying volume quota from root disk config", log.Ctx{"size": rootDiskConf["size"]})
-			err = b.driver.SetVolumeQuota(vol, rootDiskConf["size"], op)
+			err = b.driver.SetVolumeQuota(vol, rootDiskConf["size"], false, op)
 			if err != nil {
 				// The restored volume can end up being larger than the root disk config's size
 				// property due to the block boundary rounding some storage drivers use. As such
@@ -1722,7 +1722,7 @@ func (b *lxdBackend) SetInstanceQuota(inst instance.Instance, size string, vmSta
 	// Apply the main volume quota.
 	// There's no need to pass config as it's not needed when setting quotas.
 	vol := b.newVolume(volType, contentVolume, volStorageName, nil)
-	err = b.driver.SetVolumeQuota(vol, size, op)
+	err = b.driver.SetVolumeQuota(vol, size, false, op)
 	if err != nil {
 		return err
 	}
@@ -1734,7 +1734,7 @@ func (b *lxdBackend) SetInstanceQuota(inst instance.Instance, size string, vmSta
 		}
 
 		fsVol := vol.NewVMBlockFilesystemVolume()
-		err := b.driver.SetVolumeQuota(fsVol, vmStateSize, op)
+		err := b.driver.SetVolumeQuota(fsVol, vmStateSize, false, op)
 		if err != nil {
 			return err
 		}
@@ -2297,7 +2297,7 @@ func (b *lxdBackend) EnsureImage(fingerprint string, op *operations.Operation) e
 			// Try applying the current size policy to the existing volume. If it is the same the
 			// driver should make no changes, and if not then attempt to resize it to the new policy.
 			logger.Debug("Setting image volume size", "size", imgVol.ConfigSize())
-			err = b.driver.SetVolumeQuota(imgVol, imgVol.ConfigSize(), op)
+			err = b.driver.SetVolumeQuota(imgVol, imgVol.ConfigSize(), false, op)
 			if errors.Cause(err) == drivers.ErrCannotBeShrunk || errors.Cause(err) == drivers.ErrNotSupported {
 				// If the driver cannot resize the existing image volume to the new policy size
 				// then delete the image volume and try to recreate using the new policy settings.
