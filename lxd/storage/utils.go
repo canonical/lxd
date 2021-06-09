@@ -421,7 +421,7 @@ func validateVolumeCommonRules(vol drivers.Volume) map[string]func(string) error
 // VM Format A: Separate metadata tarball and root qcow2 file.
 // 	- Unpack metadata tarball into mountPath.
 //	- Check rootBlockPath is a file and convert qcow2 file into raw format in rootBlockPath.
-func ImageUnpack(imageFile string, vol drivers.Volume, destBlockFile string, blockBackend, runningInUserns bool, tracker *ioprogress.ProgressTracker) (int64, error) {
+func ImageUnpack(imageFile string, vol drivers.Volume, destBlockFile string, blockBackend, runningInUserns bool, allowUnsafeResize bool, tracker *ioprogress.ProgressTracker) (int64, error) {
 	logger := logging.AddContext(logger.Log, log.Ctx{"imageFile": imageFile, "vol": vol.Name()})
 
 	// For all formats, first unpack the metadata (or combined) tarball into destPath.
@@ -519,7 +519,7 @@ func ImageUnpack(imageFile string, vol drivers.Volume, destBlockFile string, blo
 			// increase the target volume's size.
 			if volSizeBytes < imgInfo.VirtualSize {
 				logger.Debug("Increasing volume size", log.Ctx{"imgPath": imgPath, "dstPath": dstPath, "oldSize": volSizeBytes, "newSize": newVolSize})
-				err = vol.SetQuota(newVolSize, nil)
+				err = vol.SetQuota(newVolSize, allowUnsafeResize, nil)
 				if err != nil {
 					return -1, errors.Wrapf(err, "Error increasing volume size")
 				}
